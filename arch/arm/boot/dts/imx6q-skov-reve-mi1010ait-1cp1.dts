@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Copyright (C) 2020 Pengutronix, Ulrich Oelmann <kernel@pengutronix.de>
+
+/dts-v1/;
+#include "imx6q.dtsi"
+#include "imx6qdl-skov-cpu.dtsi"
+
+/ {
+	model = "SKOV IMX6 CPU QuadCore";
+	compatible = "skov,imx6q-skov-reve-mi1010ait-1cp1", "fsl,imx6q";
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight>;
+		enable-gpios = <&gpio6 23 GPIO_ACTIVE_LOW>;
+		pwms = <&pwm2 0 20000 0>;
+		brightness-levels = <0 255>;
+		num-interpolated-steps = <17>;
+		default-brightness-level = <8>;
+		power-supply = <&reg_24v0>;
+	};
+
+	panel {
+		compatible = "multi-inno,mi1010ait-1cp";
+		backlight = <&backlight>;
+		power-supply = <&reg_3v3>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
+};
+
+&clks {
+	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+				 <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>;
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c2>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	clock-frequency = <100000>;
+	status = "okay";
+
+	touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touchscreen>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
+		touchscreen-size-x = <1280>;
+		touchscreen-size-y = <800>;
+		wakeup-source;
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	clock-frequency = <100000>;
+	status = "okay";
+};
+
+&ldb {
+	status = "okay";
+
+	lvds-channel@0 {
+		status = "okay";
+
+		port@4 {
+			reg = <4>;
+
+			lvds0_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+&iomuxc {
+	pinctrl_backlight: backlightgrp {
+		fsl,pins = <
+			MX6QDL_PAD_RGMII_TD3__GPIO6_IO23		0x58
+		>;
+	};
+
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			/* external 1 k pull up */
+			MX6QDL_PAD_EIM_D21__I2C1_SCL		0x40010878
+			/* external 1 k pull up */
+			MX6QDL_PAD_EIM_D28__I2C1_SDA		0x40010878
+		>;
+	};
+
+	pinctrl_i2c2: i2c2grp {
+		fsl,pins = <
+			/* internal 22 k pull up required */
+			MX6QDL_PAD_KEY_COL3__I2C2_SCL		0x4001F878
+			/* internal 22 k pull up required */
+			MX6QDL_PAD_KEY_ROW3__I2C2_SDA		0x4001F878
+		>;
+	};
+
+	pinctrl_touchscreen: touchscreengrp {
+		fsl,pins = <
+			/* external 10 k pull up */
+			/* CTP_INT */
+			MX6QDL_PAD_EIM_D19__GPIO3_IO19		0x1b0b0
+			/* CTP_RST */
+			MX6QDL_PAD_EIM_D23__GPIO3_IO23		0x1b0b0
+		>;
+	};
+};

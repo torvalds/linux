@@ -15,6 +15,7 @@
 #include <linux/can/dev.h>
 #include <linux/can/skb.h>
 #include <linux/can/led.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
 
 #define MOD_DESC "CAN device driver interface"
@@ -400,10 +401,69 @@ void close_candev(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(close_candev);
 
+static int can_set_termination(struct net_device *ndev, u16 term)
+{
+	struct can_priv *priv = netdev_priv(ndev);
+	int set;
+
+	if (term == priv->termination_gpio_ohms[CAN_TERMINATION_GPIO_ENABLED])
+		set = 1;
+	else
+		set = 0;
+
+	gpiod_set_value(priv->termination_gpio, set);
+
+	return 0;
+}
+
+static int can_get_termination(struct net_device *ndev)
+{
+	struct can_priv *priv = netdev_priv(ndev);
+	struct device *dev = ndev->dev.parent;
+	struct gpio_desc *gpio;
+	u32 term;
+	int ret;
+
+	/* Disabling termination by default is the safe choice: Else if many
+	 * bus participants enable it, no communication is possible at all.
+	 */
+	gpio = devm_gpiod_get_optional(dev, "termination", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return dev_err_probe(dev, PTR_ERR(gpio),
+				     "Cannot get termination-gpios\n");
+
+	if (!gpio)
+		return 0;
+
+	ret = device_property_read_u32(dev, "termination-ohms", &term);
+	if (ret) {
+		netdev_err(ndev, "Cannot get termination-ohms: %pe\n",
+			   ERR_PTR(ret));
+		return ret;
+	}
+
+	if (term > U16_MAX) {
+		netdev_err(ndev, "Invalid termination-ohms value (%u > %u)\n",
+			   term, U16_MAX);
+		return -EINVAL;
+	}
+
+	priv->termination_const_cnt = ARRAY_SIZE(priv->termination_gpio_ohms);
+	priv->termination_const = priv->termination_gpio_ohms;
+	priv->termination_gpio = gpio;
+	priv->termination_gpio_ohms[CAN_TERMINATION_GPIO_DISABLED] =
+		CAN_TERMINATION_DISABLED;
+	priv->termination_gpio_ohms[CAN_TERMINATION_GPIO_ENABLED] = term;
+	priv->do_set_termination = can_set_termination;
+
+	return 0;
+}
+
 /* Register the CAN network device */
 int register_candev(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
+	int err;
 
 	/* Ensure termination_const, termination_const_cnt and
 	 * do_set_termination consistency. All must be either set or
@@ -418,6 +478,12 @@ int register_candev(struct net_device *dev)
 
 	if (!priv->data_bitrate_const != !priv->data_bitrate_const_cnt)
 		return -EINVAL;
+
+	if (!priv->termination_const) {
+		err = can_get_termination(dev);
+		if (err)
+			return err;
+	}
 
 	dev->rtnl_link_ops = &can_link_ops;
 	netif_carrier_off(dev);

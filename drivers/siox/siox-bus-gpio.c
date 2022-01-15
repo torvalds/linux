@@ -102,29 +102,29 @@ static int siox_gpio_probe(struct platform_device *pdev)
 
 	ddata->din = devm_gpiod_get(dev, "din", GPIOD_IN);
 	if (IS_ERR(ddata->din)) {
-		ret = PTR_ERR(ddata->din);
-		dev_err(dev, "Failed to get %s GPIO: %d\n", "din", ret);
+		ret = dev_err_probe(dev, PTR_ERR(ddata->din),
+				    "Failed to get din GPIO\n");
 		goto err;
 	}
 
 	ddata->dout = devm_gpiod_get(dev, "dout", GPIOD_OUT_LOW);
 	if (IS_ERR(ddata->dout)) {
-		ret = PTR_ERR(ddata->dout);
-		dev_err(dev, "Failed to get %s GPIO: %d\n", "dout", ret);
+		ret = dev_err_probe(dev, PTR_ERR(ddata->dout),
+				    "Failed to get dout GPIO\n");
 		goto err;
 	}
 
 	ddata->dclk = devm_gpiod_get(dev, "dclk", GPIOD_OUT_LOW);
 	if (IS_ERR(ddata->dclk)) {
-		ret = PTR_ERR(ddata->dclk);
-		dev_err(dev, "Failed to get %s GPIO: %d\n", "dclk", ret);
+		ret = dev_err_probe(dev, PTR_ERR(ddata->dclk),
+				    "Failed to get dclk GPIO\n");
 		goto err;
 	}
 
 	ddata->dld = devm_gpiod_get(dev, "dld", GPIOD_OUT_LOW);
 	if (IS_ERR(ddata->dld)) {
-		ret = PTR_ERR(ddata->dld);
-		dev_err(dev, "Failed to get %s GPIO: %d\n", "dld", ret);
+		ret = dev_err_probe(dev, PTR_ERR(ddata->dld),
+				    "Failed to get dld GPIO\n");
 		goto err;
 	}
 
@@ -134,7 +134,8 @@ static int siox_gpio_probe(struct platform_device *pdev)
 
 	ret = siox_master_register(smaster);
 	if (ret) {
-		dev_err(dev, "Failed to register siox master: %d\n", ret);
+		dev_err_probe(dev, ret,
+			      "Failed to register siox master\n");
 err:
 		siox_master_put(smaster);
 	}

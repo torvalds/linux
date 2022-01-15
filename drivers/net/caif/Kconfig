@@ -20,15 +20,6 @@ config CAIF_TTY
 	  identified as N_CAIF. When this ldisc is opened from user space
 	  it will redirect the TTY's traffic into the CAIF stack.
 
-config CAIF_HSI
-	tristate "CAIF HSI transport driver"
-	depends on CAIF
-	default n
-	help
-	  The CAIF low level driver for CAIF over HSI.
-	  Be aware that if you enable this then you also need to
-	  enable a low-level HSI driver.
-
 config CAIF_VIRTIO
 	tristate "CAIF virtio transport driver"
 	depends on CAIF && HAS_DMA

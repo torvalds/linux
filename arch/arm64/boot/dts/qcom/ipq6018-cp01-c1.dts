@@ -78,3 +78,11 @@
 		nand-bus-width = <8>;
 	};
 };
+
+&qusb_phy_1 {
+	status = "ok";
+};
+
+&usb2 {
+	status = "ok";
+};

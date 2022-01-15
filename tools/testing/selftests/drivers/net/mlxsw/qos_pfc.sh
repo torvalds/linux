@@ -171,7 +171,7 @@ switch_create()
 	# assignment.
 	tc qdisc replace dev $swp1 root handle 1: \
 	   ets bands 8 strict 8 priomap 7 6
-	__mlnx_qos -i $swp1 --prio2buffer=0,1,0,0,0,0,0,0 >/dev/null
+	dcb buffer set dev $swp1 prio-buffer all:0 1:1
 
 	# $swp2
 	# -----
@@ -209,8 +209,8 @@ switch_create()
 	# the lossless prio into a buffer of its own. Don't bother with buffer
 	# sizes though, there is not going to be any pressure in the "backward"
 	# direction.
-	__mlnx_qos -i $swp3 --prio2buffer=0,1,0,0,0,0,0,0 >/dev/null
-	__mlnx_qos -i $swp3 --pfc=0,1,0,0,0,0,0,0 >/dev/null
+	dcb buffer set dev $swp3 prio-buffer all:0 1:1
+	dcb pfc set dev $swp3 prio-pfc all:off 1:on
 
 	# $swp4
 	# -----
@@ -226,11 +226,11 @@ switch_create()
 	# Configure qdisc so that we can hand-tune headroom.
 	tc qdisc replace dev $swp4 root handle 1: \
 	   ets bands 8 strict 8 priomap 7 6
-	__mlnx_qos -i $swp4 --prio2buffer=0,1,0,0,0,0,0,0 >/dev/null
-	__mlnx_qos -i $swp4 --pfc=0,1,0,0,0,0,0,0 >/dev/null
+	dcb buffer set dev $swp4 prio-buffer all:0 1:1
+	dcb pfc set dev $swp4 prio-pfc all:off 1:on
 	# PG0 will get autoconfigured to Xoff, give PG1 arbitrarily 100K, which
 	# is (-2*MTU) about 80K of delay provision.
-	__mlnx_qos -i $swp4 --buffer_size=0,$_100KB,0,0,0,0,0,0 >/dev/null
+	dcb buffer set dev $swp4 buffer-size all:0 1:$_100KB
 
 	# bridges
 	# -------
@@ -273,9 +273,9 @@ switch_destroy()
 	# $swp4
 	# -----
 
-	__mlnx_qos -i $swp4 --buffer_size=0,0,0,0,0,0,0,0 >/dev/null
-	__mlnx_qos -i $swp4 --pfc=0,0,0,0,0,0,0,0 >/dev/null
-	__mlnx_qos -i $swp4 --prio2buffer=0,0,0,0,0,0,0,0 >/dev/null
+	dcb buffer set dev $swp4 buffer-size all:0
+	dcb pfc set dev $swp4 prio-pfc all:off
+	dcb buffer set dev $swp4 prio-buffer all:0
 	tc qdisc del dev $swp4 root
 
 	devlink_tc_bind_pool_th_restore $swp4 1 ingress
@@ -288,8 +288,8 @@ switch_destroy()
 	# $swp3
 	# -----
 
-	__mlnx_qos -i $swp3 --pfc=0,0,0,0,0,0,0,0 >/dev/null
-	__mlnx_qos -i $swp3 --prio2buffer=0,0,0,0,0,0,0,0 >/dev/null
+	dcb pfc set dev $swp3 prio-pfc all:off
+	dcb buffer set dev $swp3 prio-buffer all:0
 	tc qdisc del dev $swp3 root
 
 	devlink_tc_bind_pool_th_restore $swp3 1 egress
@@ -315,7 +315,7 @@ switch_destroy()
 	# $swp1
 	# -----
 
-	__mlnx_qos -i $swp1 --prio2buffer=0,0,0,0,0,0,0,0 >/dev/null
+	dcb buffer set dev $swp1 prio-buffer all:0
 	tc qdisc del dev $swp1 root
 
 	devlink_tc_bind_pool_th_restore $swp1 1 ingress

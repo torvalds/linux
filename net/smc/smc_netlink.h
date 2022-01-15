@@ -18,7 +18,7 @@
 extern struct genl_family smc_gen_nl_family;
 
 struct smc_nl_dmp_ctx {
-	int pos[2];
+	int pos[3];
 };
 
 static inline struct smc_nl_dmp_ctx *smc_nl_dmp_ctx(struct netlink_callback *c)

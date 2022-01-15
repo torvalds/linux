@@ -98,7 +98,7 @@ static void run_tests(int family, enum bpf_map_type map_type)
 	int map;
 
 	map = bpf_create_map(map_type, sizeof(int), sizeof(int), 1, 0);
-	if (CHECK_FAIL(map == -1)) {
+	if (CHECK_FAIL(map < 0)) {
 		perror("bpf_map_create");
 		return;
 	}

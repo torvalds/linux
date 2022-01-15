@@ -218,7 +218,7 @@ v9fs_blank_wstat(struct p9_wstat *wstat)
 
 /**
  * v9fs_alloc_inode - helper function to allocate an inode
- *
+ * @sb: The superblock to allocate the inode from
  */
 struct inode *v9fs_alloc_inode(struct super_block *sb)
 {
@@ -238,7 +238,7 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 
 /**
  * v9fs_free_inode - destroy an inode
- *
+ * @inode: The inode to be freed
  */
 
 void v9fs_free_inode(struct inode *inode)
@@ -343,7 +343,7 @@ error:
  * v9fs_get_inode - helper function to setup an inode
  * @sb: superblock
  * @mode: mode to setup inode with
- *
+ * @rdev: The device numbers to set
  */
 
 struct inode *v9fs_get_inode(struct super_block *sb, umode_t mode, dev_t rdev)
@@ -369,7 +369,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 }
 
 /**
- * v9fs_clear_inode - release an inode
+ * v9fs_evict_inode - Remove an inode from the inode cache
  * @inode: inode to release
  *
  */
@@ -665,13 +665,14 @@ error:
 
 /**
  * v9fs_vfs_create - VFS hook to create a regular file
+ * @mnt_userns: The user namespace of the mount
+ * @dir: The parent directory
+ * @dentry: The name of file to be created
+ * @mode: The UNIX file mode to set
+ * @excl: True if the file must not yet exist
  *
  * open(.., O_CREAT) is handled in v9fs_vfs_atomic_open().  This is only called
  * for mknod(2).
- *
- * @dir: directory inode that is being created
- * @dentry:  dentry that is being deleted
- * @mode: create permissions
  *
  */
 
@@ -696,6 +697,7 @@ v9fs_vfs_create(struct user_namespace *mnt_userns, struct inode *dir,
 
 /**
  * v9fs_vfs_mkdir - VFS mkdir hook to create a directory
+ * @mnt_userns: The user namespace of the mount
  * @dir:  inode that is being unlinked
  * @dentry: dentry that is being unlinked
  * @mode: mode for new directory
@@ -900,10 +902,12 @@ int v9fs_vfs_rmdir(struct inode *i, struct dentry *d)
 
 /**
  * v9fs_vfs_rename - VFS hook to rename an inode
+ * @mnt_userns: The user namespace of the mount
  * @old_dir:  old dir inode
  * @old_dentry: old dentry
  * @new_dir: new dir inode
  * @new_dentry: new dentry
+ * @flags: RENAME_* flags
  *
  */
 
@@ -1009,6 +1013,7 @@ done:
 
 /**
  * v9fs_vfs_getattr - retrieve file metadata
+ * @mnt_userns: The user namespace of the mount
  * @path: Object to query
  * @stat: metadata structure to populate
  * @request_mask: Mask of STATX_xxx flags indicating the caller's interests
@@ -1050,6 +1055,7 @@ v9fs_vfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 
 /**
  * v9fs_vfs_setattr - set file metadata
+ * @mnt_userns: The user namespace of the mount
  * @dentry: file whose metadata to set
  * @iattr: metadata assignment structure
  *
@@ -1285,6 +1291,7 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 
 /**
  * v9fs_vfs_symlink - helper function to create symlinks
+ * @mnt_userns: The user namespace of the mount
  * @dir: directory inode containing symlink
  * @dentry: dentry for symlink
  * @symname: symlink data
@@ -1340,6 +1347,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 
 /**
  * v9fs_vfs_mknod - create a special file
+ * @mnt_userns: The user namespace of the mount
  * @dir: inode destination for new link
  * @dentry: dentry for file
  * @mode: mode for creation

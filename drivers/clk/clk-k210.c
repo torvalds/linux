@@ -722,6 +722,7 @@ static int k210_clk_set_parent(struct clk_hw *hw, u8 index)
 		reg |= BIT(cfg->mux_bit);
 	else
 		reg &= ~BIT(cfg->mux_bit);
+	writel(reg, ksc->regs + cfg->mux_reg);
 	spin_unlock_irqrestore(&ksc->clk_lock, flags);
 
 	return 0;

@@ -26,13 +26,15 @@
 #include "hw_sequencer_private.h"
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn10_hw_sequencer.h"
+#include "dcn20/dcn20_hwseq.h"
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = dcn10_program_gamut_remap,
 	.init_hw = dcn10_init_hw,
 	.power_down_on_boot = dcn10_power_down_on_boot,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
-	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
+	.apply_ctx_for_surface = NULL,
+	.program_front_end_for_ctx = dcn20_program_front_end_for_ctx,
 	.post_unlock_program_front_end = dcn10_post_unlock_program_front_end,
 	.wait_for_pending_cleared = dcn10_wait_for_pending_cleared,
 	.update_plane_addr = dcn10_update_plane_addr,
@@ -80,6 +82,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
 	.set_pipe = dce110_set_pipe,
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
+	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
 };
 
 static const struct hwseq_private_funcs dcn10_private_funcs = {
@@ -109,8 +112,6 @@ static const struct hwseq_private_funcs dcn10_private_funcs = {
 	.dpp_pg_control = dcn10_dpp_pg_control,
 	.hubp_pg_control = dcn10_hubp_pg_control,
 	.dsc_pg_control = NULL,
-	.get_surface_visual_confirm_color = dcn10_get_surface_visual_confirm_color,
-	.get_hdr_visual_confirm_color = dcn10_get_hdr_visual_confirm_color,
 	.set_hdr_multiplier = dcn10_set_hdr_multiplier,
 	.verify_allow_pstate_change_high = dcn10_verify_allow_pstate_change_high,
 };

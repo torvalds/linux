@@ -14,11 +14,11 @@
 	};
 
 	leds {
-		act {
+		led-act {
 			gpios = <&gpio 47 GPIO_ACTIVE_HIGH>;
 		};
 
-		pwr {
+		led-pwr {
 			label = "PWR";
 			gpios = <&gpio 35 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";

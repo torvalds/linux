@@ -23,6 +23,8 @@ properties:
               - qcom,msm8998-qusb2-phy
               - qcom,sdm660-qusb2-phy
               - qcom,ipq6018-qusb2-phy
+              - qcom,sm4250-qusb2-phy
+              - qcom,sm6115-qusb2-phy
       - items:
           - enum:
               - qcom,sc7180-qusb2-phy
@@ -36,7 +38,6 @@ properties:
 
   clocks:
     minItems: 2
-    maxItems: 3
     items:
       - description: phy config clock
       - description: 19.2 MHz ref clk
@@ -44,7 +45,6 @@ properties:
 
   clock-names:
     minItems: 2
-    maxItems: 3
     items:
       - const: cfg_ahb
       - const: ref

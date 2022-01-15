@@ -764,8 +764,10 @@ static struct misensor_reg const mt9m114_common[] = {
 	{MISENSOR_8BIT, 0xC85C, 0x03},    /* cam_crop_cropmode = 3 */
 	{MISENSOR_16BIT, 0xC868, 0x0280}, /* cam_output_width = 952 */
 	{MISENSOR_16BIT, 0xC86A, 0x01E0}, /* cam_output_height = 538 */
-	/* LOAD = Step3-Recommended
-	 * Patch,Errata and Sensor optimization Setting */
+	/*
+	 * LOAD = Step3-Recommended
+	 * Patch, Errata and Sensor optimization Setting
+	 */
 	{MISENSOR_16BIT, 0x316A, 0x8270}, /* DAC_TXLO_ROW */
 	{MISENSOR_16BIT, 0x316C, 0x8270}, /* DAC_TXLO */
 	{MISENSOR_16BIT, 0x3ED0, 0x2305}, /* DAC_LD_4_5 */

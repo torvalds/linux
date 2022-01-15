@@ -44,7 +44,7 @@ igt_emit_store_dw(struct i915_vma *vma,
 		  u32 val)
 {
 	struct drm_i915_gem_object *obj;
-	const int gen = INTEL_GEN(vma->vm->i915);
+	const int ver = GRAPHICS_VER(vma->vm->i915);
 	unsigned long n, size;
 	u32 *cmd;
 	int err;
@@ -65,14 +65,14 @@ igt_emit_store_dw(struct i915_vma *vma,
 	offset += vma->node.start;
 
 	for (n = 0; n < count; n++) {
-		if (gen >= 8) {
+		if (ver >= 8) {
 			*cmd++ = MI_STORE_DWORD_IMM_GEN4;
 			*cmd++ = lower_32_bits(offset);
 			*cmd++ = upper_32_bits(offset);
 			*cmd++ = val;
-		} else if (gen >= 4) {
+		} else if (ver >= 4) {
 			*cmd++ = MI_STORE_DWORD_IMM_GEN4 |
-				(gen < 6 ? MI_USE_GGTT : 0);
+				(ver < 6 ? MI_USE_GGTT : 0);
 			*cmd++ = 0;
 			*cmd++ = offset;
 			*cmd++ = val;
@@ -146,7 +146,7 @@ int igt_gpu_fill_dw(struct intel_context *ce,
 		goto skip_request;
 
 	flags = 0;
-	if (INTEL_GEN(ce->vm->i915) <= 5)
+	if (GRAPHICS_VER(ce->vm->i915) <= 5)
 		flags |= I915_DISPATCH_SECURE;
 
 	err = rq->engine->emit_bb_start(rq,

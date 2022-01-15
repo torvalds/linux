@@ -16,6 +16,7 @@ config ARCH_SUNXI
 	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 	select PINCTRL
 	select RESET_CONTROLLER
+	select SUN4I_TIMER
 	help
 	  This enables support for Allwinner sunxi based SoCs like the A64.
 

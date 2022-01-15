@@ -5,11 +5,10 @@
  * Author: Mark A. Greer <mgreer@animalcreek.com>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/of_irq.h>
-#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
 #include <linux/power/bq24190_charger.h>
@@ -1959,7 +1958,6 @@ static const struct i2c_device_id bq24190_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq24190_i2c_ids);
 
-#ifdef CONFIG_OF
 static const struct of_device_id bq24190_of_match[] = {
 	{ .compatible = "ti,bq24190", },
 	{ .compatible = "ti,bq24192", },
@@ -1968,11 +1966,6 @@ static const struct of_device_id bq24190_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq24190_of_match);
-#else
-static const struct of_device_id bq24190_of_match[] = {
-	{ },
-};
-#endif
 
 static struct i2c_driver bq24190_driver = {
 	.probe		= bq24190_probe,
@@ -1981,7 +1974,7 @@ static struct i2c_driver bq24190_driver = {
 	.driver = {
 		.name		= "bq24190-charger",
 		.pm		= &bq24190_pm_ops,
-		.of_match_table	= of_match_ptr(bq24190_of_match),
+		.of_match_table	= bq24190_of_match,
 	},
 };
 module_i2c_driver(bq24190_driver);

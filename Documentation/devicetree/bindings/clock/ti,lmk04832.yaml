@@ -1,0 +1,209 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti,lmk04832.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Clock bindings for the Texas Instruments LMK04832
+
+maintainers:
+  - Liam Beguin <liambeguin@gmail.com>
+
+description: |
+  Devicetree binding for the LMK04832, a clock conditioner with JEDEC JESD204B
+  support. The LMK04832 is pin compatible with the LMK0482x family.
+
+  Link to datasheet, https://www.ti.com/lit/ds/symlink/lmk04832.pdf
+
+properties:
+  compatible:
+    enum:
+      - ti,lmk04832
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  '#clock-cells':
+    const: 1
+
+  spi-max-frequency:
+    maximum: 5000000
+
+  clocks:
+    items:
+      - description: PLL2 reference clock.
+
+  clock-names:
+    items:
+      - const: oscin
+
+  reset-gpios:
+    maxItems: 1
+
+  ti,spi-4wire-rdbk:
+    description: |
+      Select SPI 4wire readback pin configuration.
+      Available readback pins are,
+        CLKin_SEL0 0
+        CLKin_SEL1 1
+        RESET 2
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+    default: 1
+
+  ti,vco-hz:
+    description: Optional to set VCO frequency of the PLL in Hertz.
+
+  ti,sysref-ddly:
+    description: SYSREF digital delay value.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 8
+    maximum: 8191
+    default: 8
+
+  ti,sysref-mux:
+    description: |
+      SYSREF Mux configuration.
+      Available options are,
+        Normal SYNC 0
+        Re-clocked 1
+        SYSREF Pulser 2
+        SYSREF Continuous 3
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 3
+
+  ti,sync-mode:
+    description: SYNC pin configuration.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+    default: 1
+
+  ti,sysref-pulse-count:
+    description:
+      Number of SYSREF pulses to send when SYSREF is not in continuous mode.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8]
+    default: 4
+
+patternProperties:
+  "@[0-9a-d]+$":
+    type: object
+    description:
+      Child nodes used to configure output clocks.
+
+    properties:
+      reg:
+        description:
+          clock output identifier.
+        minimum: 0
+        maximum: 13
+
+      ti,clkout-fmt:
+        description:
+          Clock output format.
+          Available options are,
+            Powerdown 0x00
+            LVDS 0x01
+            HSDS 6 mA 0x02
+            HSDS 8 mA 0x03
+            LVPECL 1600 mV 0x04
+            LVPECL 2000 mV 0x05
+            LCPECL 0x06
+            CML 16 mA 0x07
+            CML 24 mA 0x08
+            CML 32 mA 0x09
+            CMOS (Off/Inverted) 0x0a
+            CMOS (Normal/Off) 0x0b
+            CMOS (Inverted/Inverted) 0x0c
+            CMOS (Inverted/Normal) 0x0d
+            CMOS (Normal/Inverted) 0x0e
+            CMOS (Normal/Normal) 0x0f
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 15
+
+      ti,clkout-sysref:
+        description:
+          Select SYSREF clock path for output clock.
+        type: boolean
+
+    required:
+      - reg
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    clocks {
+        lmk04832_oscin: oscin {
+            compatible = "fixed-clock";
+
+            #clock-cells = <0>;
+            clock-frequency = <122880000>;
+            clock-output-names = "lmk04832-oscin";
+        };
+    };
+
+    spi0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        lmk04832: clock-controller@0 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            reg = <0>;
+
+            compatible = "ti,lmk04832";
+            spi-max-frequency = <781250>;
+
+            reset-gpios = <&gpio_lmk 0 0 0>;
+
+            #clock-cells = <1>;
+            clocks = <&lmk04832_oscin>;
+            clock-names = "oscin";
+
+            ti,spi-4wire-rdbk = <0>;
+            ti,vco-hz = <2457600000>;
+
+            assigned-clocks =
+                <&lmk04832 0>, <&lmk04832 1>,
+                <&lmk04832 2>, <&lmk04832 3>,
+                <&lmk04832 4>,
+                <&lmk04832 6>, <&lmk04832 7>,
+                <&lmk04832 10>, <&lmk04832 11>;
+            assigned-clock-rates =
+                <122880000>, <384000>,
+                <122880000>, <384000>,
+                <122880000>,
+                <153600000>, <384000>,
+                <614400000>, <384000>;
+
+            clkout0@0 {
+                reg = <0>;
+                ti,clkout-fmt = <0x01>; // LVDS
+            };
+
+            clkout1@1 {
+                reg = <1>;
+                ti,clkout-fmt = <0x01>; // LVDS
+                ti,clkout-sysref;
+            };
+        };
+    };

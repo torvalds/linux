@@ -66,7 +66,7 @@ static cvmx_spi_callbacks_t cvmx_spi_callbacks = {
 	.interface_up_cb = cvmx_spi_interface_up_cb
 };
 
-/**
+/*
  * Get current SPI4 initialization callbacks
  *
  * @callbacks:	Pointer to the callbacks structure.to fill
@@ -78,7 +78,7 @@ void cvmx_spi_get_callbacks(cvmx_spi_callbacks_t *callbacks)
 	memcpy(callbacks, &cvmx_spi_callbacks, sizeof(cvmx_spi_callbacks));
 }
 
-/**
+/*
  * Set new SPI4 initialization callbacks
  *
  * @new_callbacks:  Pointer to an updated callbacks structure.
@@ -88,7 +88,7 @@ void cvmx_spi_set_callbacks(cvmx_spi_callbacks_t *new_callbacks)
 	memcpy(&cvmx_spi_callbacks, new_callbacks, sizeof(cvmx_spi_callbacks));
 }
 
-/**
+/*
  * Initialize and start the SPI interface.
  *
  * @interface: The identifier of the packet interface to configure and
@@ -133,7 +133,7 @@ int cvmx_spi_start_interface(int interface, cvmx_spi_mode_t mode, int timeout,
 	return res;
 }
 
-/**
+/*
  * This routine restarts the SPI interface after it has lost synchronization
  * with its correspondent system.
  *
@@ -179,7 +179,7 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
 }
 EXPORT_SYMBOL_GPL(cvmx_spi_restart_interface);
 
-/**
+/*
  * Callback to perform SPI4 reset
  *
  * @interface: The identifier of the packet interface to configure and
@@ -294,7 +294,7 @@ int cvmx_spi_reset_cb(int interface, cvmx_spi_mode_t mode)
 	return 0;
 }
 
-/**
+/*
  * Callback to setup calendar and miscellaneous settings before clock detection
  *
  * @interface: The identifier of the packet interface to configure and
@@ -413,7 +413,7 @@ int cvmx_spi_calendar_setup_cb(int interface, cvmx_spi_mode_t mode,
 	return 0;
 }
 
-/**
+/*
  * Callback to perform clock detection
  *
  * @interface: The identifier of the packet interface to configure and
@@ -491,7 +491,7 @@ int cvmx_spi_clock_detect_cb(int interface, cvmx_spi_mode_t mode, int timeout)
 	return 0;
 }
 
-/**
+/*
  * Callback to perform link training
  *
  * @interface: The identifier of the packet interface to configure and
@@ -560,7 +560,7 @@ int cvmx_spi_training_cb(int interface, cvmx_spi_mode_t mode, int timeout)
 	return 0;
 }
 
-/**
+/*
  * Callback to perform calendar data synchronization
  *
  * @interface: The identifier of the packet interface to configure and
@@ -617,7 +617,7 @@ int cvmx_spi_calendar_sync_cb(int interface, cvmx_spi_mode_t mode, int timeout)
 	return 0;
 }
 
-/**
+/*
  * Callback to handle interface up
  *
  * @interface: The identifier of the packet interface to configure and

@@ -5356,7 +5356,7 @@ struct ipw2100_wep_key {
 #define WEP_STR_128(x) x[0],x[1],x[2],x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10]
 
 /**
- * Set a the wep key
+ * ipw2100_set_key() - Set a the wep key
  *
  * @priv: struct to work on
  * @idx: index of the key we want to set

@@ -26,13 +26,13 @@ static __init bool ocelot_detect(void)
 	tlb_probe_hazard();
 	idx = read_c0_index();
 	if (idx < 0)
-		return 0;
+		return false;
 
 	/* A TLB entry exists, lets assume its usable and check the CHIP ID */
 	rev = __raw_readl((void __iomem *)DEVCPU_GCB_CHIP_REGS_CHIP_ID);
 
 	if ((rev & CHIP_ID_PART_ID) != OCELOT_PART_ID)
-		return 0;
+		return false;
 
 	/* Copy command line from bootloader early for Initrd detection */
 	if (fw_arg0 < 10 && (fw_arg1 & 0xFFF00000) == 0x80000000) {
@@ -44,7 +44,7 @@ static __init bool ocelot_detect(void)
 			strcpy(arcs_cmdline, prom_argv[1]);
 	}
 
-	return 1;
+	return true;
 }
 
 static void __init ocelot_earlyprintk_init(void)

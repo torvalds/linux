@@ -106,7 +106,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	nr_linfo = info->nr_line_info;
 
 	if (!nr_linfo)
-		return NULL;
+		return errno = EINVAL, NULL;
 
 	/*
 	 * The min size that bpf_prog_linfo has to access for
@@ -114,11 +114,11 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	 */
 	if (info->line_info_rec_size <
 	    offsetof(struct bpf_line_info, file_name_off))
-		return NULL;
+		return errno = EINVAL, NULL;
 
 	prog_linfo = calloc(1, sizeof(*prog_linfo));
 	if (!prog_linfo)
-		return NULL;
+		return errno = ENOMEM, NULL;
 
 	/* Copy xlated line_info */
 	prog_linfo->nr_linfo = nr_linfo;
@@ -174,7 +174,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 
 err_free:
 	bpf_prog_linfo__free(prog_linfo);
-	return NULL;
+	return errno = EINVAL, NULL;
 }
 
 const struct bpf_line_info *
@@ -186,11 +186,11 @@ bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
 	const __u64 *jited_linfo;
 
 	if (func_idx >= prog_linfo->nr_jited_func)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	nr_linfo = prog_linfo->nr_jited_linfo_per_func[func_idx];
 	if (nr_skip >= nr_linfo)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	start = prog_linfo->jited_linfo_func_idx[func_idx] + nr_skip;
 	jited_rec_size = prog_linfo->jited_rec_size;
@@ -198,7 +198,7 @@ bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
 		(start * jited_rec_size);
 	jited_linfo = raw_jited_linfo;
 	if (addr < *jited_linfo)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	nr_linfo -= nr_skip;
 	rec_size = prog_linfo->rec_size;
@@ -225,13 +225,13 @@ bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
 
 	nr_linfo = prog_linfo->nr_linfo;
 	if (nr_skip >= nr_linfo)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	rec_size = prog_linfo->rec_size;
 	raw_linfo = prog_linfo->raw_linfo + (nr_skip * rec_size);
 	linfo = raw_linfo;
 	if (insn_off < linfo->insn_off)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	nr_linfo -= nr_skip;
 	for (i = 0; i < nr_linfo; i++) {

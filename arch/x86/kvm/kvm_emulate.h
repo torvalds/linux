@@ -13,6 +13,7 @@
 #define _ASM_X86_KVM_X86_EMULATE_H
 
 #include <asm/desc_defs.h>
+#include "fpu.h"
 
 struct x86_emulate_ctxt;
 enum x86_intercept;
@@ -229,14 +230,11 @@ struct x86_emulate_ops {
 	void (*set_nmi_mask)(struct x86_emulate_ctxt *ctxt, bool masked);
 
 	unsigned (*get_hflags)(struct x86_emulate_ctxt *ctxt);
-	void (*set_hflags)(struct x86_emulate_ctxt *ctxt, unsigned hflags);
-	int (*pre_leave_smm)(struct x86_emulate_ctxt *ctxt,
-			     const char *smstate);
-	void (*post_leave_smm)(struct x86_emulate_ctxt *ctxt);
+	void (*exiting_smm)(struct x86_emulate_ctxt *ctxt);
+	int (*leave_smm)(struct x86_emulate_ctxt *ctxt, const char *smstate);
+	void (*triple_fault)(struct x86_emulate_ctxt *ctxt);
 	int (*set_xcr)(struct x86_emulate_ctxt *ctxt, u32 index, u64 xcr);
 };
-
-typedef u32 __attribute__((vector_size(16))) sse128_t;
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {

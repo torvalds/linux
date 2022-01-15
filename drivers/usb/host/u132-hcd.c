@@ -2392,8 +2392,7 @@ static int dequeue_from_overflow_chain(struct u132 *u132,
 			urb->error_count = 0;
 			usb_hcd_giveback_urb(hcd, urb, 0);
 			return 0;
-		} else
-			continue;
+		}
 	}
 	dev_err(&u132->platform_dev->dev, "urb=%p not found in endp[%d]=%p ring"
 		"[%d] %c%c usb_endp=%d usb_addr=%d size=%d next=%04X last=%04X"
@@ -2448,8 +2447,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
 				urb_slot = &endp->urb_list[ENDP_QUEUE_MASK &
 					queue_scan];
 				break;
-			} else
-				continue;
+			}
 		}
 		while (++queue_list < ENDP_QUEUE_SIZE && --queue_size > 0) {
 			*urb_slot = endp->urb_list[ENDP_QUEUE_MASK &

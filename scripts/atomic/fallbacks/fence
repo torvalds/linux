@@ -1,10 +1,10 @@
 cat <<EOF
 static __always_inline ${ret}
-${arch}${atomic}_${pfx}${name}${sfx}(${params})
+arch_${atomic}_${pfx}${name}${sfx}(${params})
 {
 	${ret} ret;
 	__atomic_pre_full_fence();
-	ret = ${arch}${atomic}_${pfx}${name}${sfx}_relaxed(${args});
+	ret = arch_${atomic}_${pfx}${name}${sfx}_relaxed(${args});
 	__atomic_post_full_fence();
 	return ret;
 }

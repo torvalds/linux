@@ -436,7 +436,7 @@ done:
 static int fimc_is_request_firmware(struct fimc_is *is, const char *fw_name)
 {
 	return request_firmware_nowait(THIS_MODULE,
-				FW_ACTION_HOTPLUG, fw_name, &is->pdev->dev,
+				FW_ACTION_UEVENT, fw_name, &is->pdev->dev,
 				GFP_KERNEL, is, fimc_is_load_firmware);
 }
 
@@ -828,9 +828,9 @@ static int fimc_is_probe(struct platform_device *pdev)
 			goto err_irq;
 	}
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
-		goto err_pm;
+		goto err_irq;
 
 	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
 

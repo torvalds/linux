@@ -328,7 +328,6 @@ static const struct drm_simple_display_pipe_funcs ili9225_pipe_funcs = {
 	.enable		= ili9225_pipe_enable,
 	.disable	= ili9225_pipe_disable,
 	.update		= ili9225_pipe_update,
-	.prepare_fb	= drm_gem_simple_display_pipe_prepare_fb,
 };
 
 static const struct drm_display_mode ili9225_mode = {
@@ -379,16 +378,12 @@ static int ili9225_probe(struct spi_device *spi)
 	drm = &dbidev->drm;
 
 	dbi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(dbi->reset)) {
-		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
-		return PTR_ERR(dbi->reset);
-	}
+	if (IS_ERR(dbi->reset))
+		return dev_err_probe(dev, PTR_ERR(dbi->reset), "Failed to get GPIO 'reset'\n");
 
 	rs = devm_gpiod_get(dev, "rs", GPIOD_OUT_LOW);
-	if (IS_ERR(rs)) {
-		DRM_DEV_ERROR(dev, "Failed to get gpio 'rs'\n");
-		return PTR_ERR(rs);
-	}
+	if (IS_ERR(rs))
+		return dev_err_probe(dev, PTR_ERR(rs), "Failed to get GPIO 'rs'\n");
 
 	device_property_read_u32(dev, "rotation", &rotation);
 

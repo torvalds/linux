@@ -315,7 +315,7 @@ exit:
 	case 0:
 		++cfv->stats.rx_napi_complete;
 
-		/* Really out of patckets? (stolen from virtio_net)*/
+		/* Really out of packets? (stolen from virtio_net)*/
 		napi_complete(napi);
 		if (unlikely(!vringh_notify_enable_kern(cfv->vr_rx)) &&
 		    napi_schedule_prep(napi)) {
@@ -463,7 +463,7 @@ static int cfv_netdev_close(struct net_device *netdev)
 	vringh_notify_disable_kern(cfv->vr_rx);
 	napi_disable(&cfv->napi);
 
-	/* Release any TX buffers on both used and avilable rings */
+	/* Release any TX buffers on both used and available rings */
 	cfv_release_used_buf(cfv->vq_tx);
 	spin_lock_irqsave(&cfv->tx_lock, flags);
 	while ((buf_info = virtqueue_detach_unused_buf(cfv->vq_tx)))
@@ -497,7 +497,7 @@ static struct buf_info *cfv_alloc_and_copy_to_shm(struct cfv_info *cfv,
 	if (unlikely(!buf_info))
 		goto err;
 
-	/* Make the IP header aligned in tbe buffer */
+	/* Make the IP header aligned in the buffer */
 	hdr_ofs = cfv->tx_hr + info->hdr_len;
 	pad_len = hdr_ofs & (IP_HDR_ALIGN - 1);
 	buf_info->size = cfv->tx_hr + skb->len + cfv->tx_tr + pad_len;

@@ -6,7 +6,7 @@
  * device. This device provides direct user-space access to the SSAM EC.
  * Intended for debugging and development.
  *
- * Copyright (C) 2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2020-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #ifndef _UAPI_LINUX_SURFACE_AGGREGATOR_CDEV_H
@@ -73,6 +73,75 @@ struct ssam_cdev_request {
 	} response;
 } __attribute__((__packed__));
 
-#define SSAM_CDEV_REQUEST	_IOWR(0xA5, 1, struct ssam_cdev_request)
+/**
+ * struct ssam_cdev_notifier_desc - Notifier descriptor.
+ * @priority:        Priority value determining the order in which notifier
+ *                   callbacks will be called. A higher value means higher
+ *                   priority, i.e. the associated callback will be executed
+ *                   earlier than other (lower priority) callbacks.
+ * @target_category: The event target category for which this notifier should
+ *                   receive events.
+ *
+ * Specifies the notifier that should be registered or unregistered,
+ * specifically with which priority and for which target category of events.
+ */
+struct ssam_cdev_notifier_desc {
+	__s32 priority;
+	__u8 target_category;
+} __attribute__((__packed__));
+
+/**
+ * struct ssam_cdev_event_desc - Event descriptor.
+ * @reg:                 Registry via which the event will be enabled/disabled.
+ * @reg.target_category: Target category for the event registry requests.
+ * @reg.target_id:       Target ID for the event registry requests.
+ * @reg.cid_enable:      Command ID for the event-enable request.
+ * @reg.cid_disable:     Command ID for the event-disable request.
+ * @id:                  ID specifying the event.
+ * @id.target_category:  Target category of the event source.
+ * @id.instance:         Instance ID of the event source.
+ * @flags:               Flags used for enabling the event.
+ *
+ * Specifies which event should be enabled/disabled and how to do that.
+ */
+struct ssam_cdev_event_desc {
+	struct {
+		__u8 target_category;
+		__u8 target_id;
+		__u8 cid_enable;
+		__u8 cid_disable;
+	} reg;
+
+	struct {
+		__u8 target_category;
+		__u8 instance;
+	} id;
+
+	__u8 flags;
+} __attribute__((__packed__));
+
+/**
+ * struct ssam_cdev_event - SSAM event sent by the EC.
+ * @target_category: Target category of the event source. See &enum ssam_ssh_tc.
+ * @target_id:       Target ID of the event source.
+ * @command_id:      Command ID of the event.
+ * @instance_id:     Instance ID of the event source.
+ * @length:          Length of the event payload in bytes.
+ * @data:            Event payload data.
+ */
+struct ssam_cdev_event {
+	__u8 target_category;
+	__u8 target_id;
+	__u8 command_id;
+	__u8 instance_id;
+	__u16 length;
+	__u8 data[];
+} __attribute__((__packed__));
+
+#define SSAM_CDEV_REQUEST		_IOWR(0xA5, 1, struct ssam_cdev_request)
+#define SSAM_CDEV_NOTIF_REGISTER	_IOW(0xA5, 2, struct ssam_cdev_notifier_desc)
+#define SSAM_CDEV_NOTIF_UNREGISTER	_IOW(0xA5, 3, struct ssam_cdev_notifier_desc)
+#define SSAM_CDEV_EVENT_ENABLE		_IOW(0xA5, 4, struct ssam_cdev_event_desc)
+#define SSAM_CDEV_EVENT_DISABLE		_IOW(0xA5, 5, struct ssam_cdev_event_desc)
 
 #endif /* _UAPI_LINUX_SURFACE_AGGREGATOR_CDEV_H */

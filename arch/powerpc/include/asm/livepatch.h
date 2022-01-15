@@ -16,7 +16,7 @@ static inline void klp_arch_set_pc(struct ftrace_regs *fregs, unsigned long ip)
 {
 	struct pt_regs *regs = ftrace_get_regs(fregs);
 
-	regs->nip = ip;
+	regs_set_return_ip(regs, ip);
 }
 
 #define klp_get_ftrace_location klp_get_ftrace_location

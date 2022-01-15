@@ -129,11 +129,11 @@ void v4l2_async_debug_init(struct dentry *debugfs_dir);
  *
  * This function initializes the notifier @asd_list. It must be called
  * before adding a subdevice to a notifier, using one of:
- * @v4l2_async_notifier_add_fwnode_remote_subdev,
- * @v4l2_async_notifier_add_fwnode_subdev,
- * @v4l2_async_notifier_add_i2c_subdev,
- * @__v4l2_async_notifier_add_subdev or
- * @v4l2_async_notifier_parse_fwnode_endpoints.
+ * v4l2_async_notifier_add_fwnode_remote_subdev(),
+ * v4l2_async_notifier_add_fwnode_subdev(),
+ * v4l2_async_notifier_add_i2c_subdev(),
+ * __v4l2_async_notifier_add_subdev() or
+ * v4l2_async_notifier_parse_fwnode_endpoints().
  */
 void v4l2_async_notifier_init(struct v4l2_async_notifier *notifier);
 
@@ -145,9 +145,9 @@ void v4l2_async_notifier_init(struct v4l2_async_notifier *notifier);
  * @asd: pointer to &struct v4l2_async_subdev
  *
  * \warning: Drivers should avoid using this function and instead use one of:
- * @v4l2_async_notifier_add_fwnode_subdev,
- * @v4l2_async_notifier_add_fwnode_remote_subdev or
- * @v4l2_async_notifier_add_i2c_subdev.
+ * v4l2_async_notifier_add_fwnode_subdev(),
+ * v4l2_async_notifier_add_fwnode_remote_subdev() or
+ * v4l2_async_notifier_add_i2c_subdev().
  *
  * Call this function before registering a notifier to link the provided @asd to
  * the notifiers master @asd_list. The @asd must be allocated with k*alloc() as
@@ -200,7 +200,7 @@ __v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif
  * function also gets a reference of the fwnode which is released later at
  * notifier cleanup time.
  *
- * This is just like @v4l2_async_notifier_add_fwnode_subdev, but with the
+ * This is just like v4l2_async_notifier_add_fwnode_subdev(), but with the
  * exception that the fwnode refers to a local endpoint, not the remote one.
  */
 #define v4l2_async_notifier_add_fwnode_remote_subdev(notifier, ep, type) \
@@ -265,13 +265,13 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier);
  * sub-devices allocated for the purposes of the notifier but not the notifier
  * itself. The user is responsible for calling this function to clean up the
  * notifier after calling
- * @v4l2_async_notifier_add_fwnode_remote_subdev,
- * @v4l2_async_notifier_add_fwnode_subdev,
- * @v4l2_async_notifier_add_i2c_subdev,
- * @__v4l2_async_notifier_add_subdev or
- * @v4l2_async_notifier_parse_fwnode_endpoints.
+ * v4l2_async_notifier_add_fwnode_remote_subdev(),
+ * v4l2_async_notifier_add_fwnode_subdev(),
+ * v4l2_async_notifier_add_i2c_subdev(),
+ * __v4l2_async_notifier_add_subdev() or
+ * v4l2_async_notifier_parse_fwnode_endpoints().
  *
- * There is no harm from calling v4l2_async_notifier_cleanup in other
+ * There is no harm from calling v4l2_async_notifier_cleanup() in other
  * cases as long as its memory has been zeroed after it has been
  * allocated.
  */

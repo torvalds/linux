@@ -225,7 +225,8 @@ static int read_scc_data(struct scc_priv *priv);
 
 static int scc_open(struct net_device *dev);
 static int scc_close(struct net_device *dev);
-static int scc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+static int scc_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+			      void __user *data, int cmd);
 static int scc_send_packet(struct sk_buff *skb, struct net_device *dev);
 static int scc_set_mac_address(struct net_device *dev, void *sa);
 
@@ -432,7 +433,7 @@ static const struct net_device_ops scc_netdev_ops = {
 	.ndo_open = scc_open,
 	.ndo_stop = scc_close,
 	.ndo_start_xmit = scc_send_packet,
-	.ndo_do_ioctl = scc_ioctl,
+	.ndo_siocdevprivate = scc_siocdevprivate,
 	.ndo_set_mac_address = scc_set_mac_address,
 };
 
@@ -881,15 +882,13 @@ static int scc_close(struct net_device *dev)
 }
 
 
-static int scc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int scc_siocdevprivate(struct net_device *dev, struct ifreq *ifr, void __user *data, int cmd)
 {
 	struct scc_priv *priv = dev->ml_priv;
 
 	switch (cmd) {
 	case SIOCGSCCPARAM:
-		if (copy_to_user
-		    (ifr->ifr_data, &priv->param,
-		     sizeof(struct scc_param)))
+		if (copy_to_user(data, &priv->param, sizeof(struct scc_param)))
 			return -EFAULT;
 		return 0;
 	case SIOCSSCCPARAM:
@@ -897,13 +896,12 @@ static int scc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EPERM;
 		if (netif_running(dev))
 			return -EAGAIN;
-		if (copy_from_user
-		    (&priv->param, ifr->ifr_data,
-		     sizeof(struct scc_param)))
+		if (copy_from_user(&priv->param, data,
+				   sizeof(struct scc_param)))
 			return -EFAULT;
 		return 0;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 }
 
@@ -975,7 +973,7 @@ static inline void tx_on(struct scc_priv *priv)
 		flags = claim_dma_lock();
 		set_dma_mode(priv->param.dma, DMA_MODE_WRITE);
 		set_dma_addr(priv->param.dma,
-			     (int) priv->tx_buf[priv->tx_tail] + n);
+			     virt_to_bus(priv->tx_buf[priv->tx_tail]) + n);
 		set_dma_count(priv->param.dma,
 			      priv->tx_len[priv->tx_tail] - n);
 		release_dma_lock(flags);
@@ -1022,7 +1020,7 @@ static inline void rx_on(struct scc_priv *priv)
 		flags = claim_dma_lock();
 		set_dma_mode(priv->param.dma, DMA_MODE_READ);
 		set_dma_addr(priv->param.dma,
-			     (int) priv->rx_buf[priv->rx_head]);
+			     virt_to_bus(priv->rx_buf[priv->rx_head]));
 		set_dma_count(priv->param.dma, BUF_SIZE);
 		release_dma_lock(flags);
 		enable_dma(priv->param.dma);
@@ -1235,7 +1233,7 @@ static void special_condition(struct scc_priv *priv, int rc)
 		if (priv->param.dma >= 0) {
 			flags = claim_dma_lock();
 			set_dma_addr(priv->param.dma,
-				     (int) priv->rx_buf[priv->rx_head]);
+				     virt_to_bus(priv->rx_buf[priv->rx_head]));
 			set_dma_count(priv->param.dma, BUF_SIZE);
 			release_dma_lock(flags);
 		} else {

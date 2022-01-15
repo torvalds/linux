@@ -75,6 +75,18 @@ update it, its value is mostly useless. The DRM core prints it to the
 kernel log at initialization time and passes it to userspace through the
 DRM_IOCTL_VERSION ioctl.
 
+Managing Ownership of the Framebuffer Aperture
+----------------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_aperture.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_aperture.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_aperture.c
+   :export:
+
 Device Instance and Driver Handling
 -----------------------------------
 
@@ -98,15 +110,6 @@ Component Helper Usage
 
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :doc: component helper usage recommendations
-
-IRQ Helper Library
-~~~~~~~~~~~~~~~~~~
-
-.. kernel-doc:: drivers/gpu/drm/drm_irq.c
-   :doc: irq helpers
-
-.. kernel-doc:: drivers/gpu/drm/drm_irq.c
-   :export:
 
 Memory Manager Initialization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

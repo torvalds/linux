@@ -89,6 +89,10 @@ enum itrace_period_type {
  * @tlb: whether to synthesize TLB events
  * @remote_access: whether to synthesize remote access events
  * @mem: whether to synthesize memory events
+ * @timeless_decoding: prefer "timeless" decoding i.e. ignore timestamps
+ * @vm_time_correlation: perform VM Time Correlation
+ * @vm_tm_corr_dry_run: VM Time Correlation dry-run
+ * @vm_tm_corr_args:  VM Time Correlation implementation-specific arguments
  * @callchain_sz: maximum callchain size
  * @last_branch_sz: branch context size
  * @period: 'instructions' events period
@@ -128,6 +132,10 @@ struct itrace_synth_opts {
 	bool			tlb;
 	bool			remote_access;
 	bool			mem;
+	bool			timeless_decoding;
+	bool			vm_time_correlation;
+	bool			vm_tm_corr_dry_run;
+	char			*vm_tm_corr_args;
 	unsigned int		callchain_sz;
 	unsigned int		last_branch_sz;
 	unsigned long long	period;
@@ -432,52 +440,39 @@ struct auxtrace_cache;
 
 #ifdef HAVE_AUXTRACE_SUPPORT
 
-/*
- * In snapshot mode the mmapped page is read-only which makes using
- * __sync_val_compare_and_swap() problematic.  However, snapshot mode expects
- * the buffer is not updated while the snapshot is made (e.g. Intel PT disables
- * the event) so there is not a race anyway.
- */
-static inline u64 auxtrace_mmap__read_snapshot_head(struct auxtrace_mmap *mm)
+u64 compat_auxtrace_mmap__read_head(struct auxtrace_mmap *mm);
+int compat_auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail);
+
+static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm,
+					   int kernel_is_64_bit __maybe_unused)
 {
 	struct perf_event_mmap_page *pc = mm->userpg;
-	u64 head = READ_ONCE(pc->aux_head);
+	u64 head;
+
+#if BITS_PER_LONG == 32
+	if (kernel_is_64_bit)
+		return compat_auxtrace_mmap__read_head(mm);
+#endif
+	head = READ_ONCE(pc->aux_head);
 
 	/* Ensure all reads are done after we read the head */
-	rmb();
+	smp_rmb();
 	return head;
 }
 
-static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
+static inline int auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail,
+					    int kernel_is_64_bit __maybe_unused)
 {
 	struct perf_event_mmap_page *pc = mm->userpg;
-#if BITS_PER_LONG == 64 || !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	u64 head = READ_ONCE(pc->aux_head);
-#else
-	u64 head = __sync_val_compare_and_swap(&pc->aux_head, 0, 0);
+
+#if BITS_PER_LONG == 32
+	if (kernel_is_64_bit)
+		return compat_auxtrace_mmap__write_tail(mm, tail);
 #endif
-
-	/* Ensure all reads are done after we read the head */
-	rmb();
-	return head;
-}
-
-static inline void auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail)
-{
-	struct perf_event_mmap_page *pc = mm->userpg;
-#if BITS_PER_LONG != 64 && defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	u64 old_tail;
-#endif
-
 	/* Ensure all reads are done before we write the tail out */
-	mb();
-#if BITS_PER_LONG == 64 || !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	pc->aux_tail = tail;
-#else
-	do {
-		old_tail = __sync_val_compare_and_swap(&pc->aux_tail, 0, 0);
-	} while (!__sync_bool_compare_and_swap(&pc->aux_tail, old_tail, tail));
-#endif
+	smp_mb();
+	WRITE_ONCE(pc->aux_tail, tail);
+	return 0;
 }
 
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
@@ -525,7 +520,11 @@ int auxtrace_queue_data(struct perf_session *session, bool samples,
 			bool events);
 struct auxtrace_buffer *auxtrace_buffer__next(struct auxtrace_queue *queue,
 					      struct auxtrace_buffer *buffer);
-void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd);
+void *auxtrace_buffer__get_data_rw(struct auxtrace_buffer *buffer, int fd, bool rw);
+static inline void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
+{
+	return auxtrace_buffer__get_data_rw(buffer, fd, false);
+}
 void auxtrace_buffer__put_data(struct auxtrace_buffer *buffer);
 void auxtrace_buffer__drop_data(struct auxtrace_buffer *buffer);
 void auxtrace_buffer__free(struct auxtrace_buffer *buffer);
@@ -595,6 +594,8 @@ s64 perf_event__process_auxtrace(struct perf_session *session,
 				 union perf_event *event);
 int perf_event__process_auxtrace_error(struct perf_session *session,
 				       union perf_event *event);
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
+			       const char *str, int unset);
 int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			    int unset);
 void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
@@ -691,9 +692,26 @@ int auxtrace_record__options(struct auxtrace_record *itr __maybe_unused,
 	return 0;
 }
 
-#define perf_event__process_auxtrace_info		0
-#define perf_event__process_auxtrace			0
-#define perf_event__process_auxtrace_error		0
+static inline
+int perf_event__process_auxtrace_info(struct perf_session *session __maybe_unused,
+				      union perf_event *event __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+s64 perf_event__process_auxtrace(struct perf_session *session __maybe_unused,
+				 union perf_event *event __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+int perf_event__process_auxtrace_error(struct perf_session *session __maybe_unused,
+				       union perf_event *event __maybe_unused)
+{
+	return 0;
+}
 
 static inline
 void perf_session__auxtrace_error_inc(struct perf_session *session
@@ -707,6 +725,14 @@ static inline
 void events_stats__auxtrace_error_warn(const struct events_stats *stats
 				       __maybe_unused)
 {
+}
+
+static inline
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts __maybe_unused,
+			       const char *str __maybe_unused, int unset __maybe_unused)
+{
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
 }
 
 static inline

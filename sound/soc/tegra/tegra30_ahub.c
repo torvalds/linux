@@ -512,16 +512,14 @@ static const struct of_device_id tegra30_ahub_of_match[] = {
 
 static int tegra30_ahub_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	const struct tegra30_ahub_soc_data *soc_data;
 	struct resource *res0;
 	void __iomem *regs_apbif, *regs_ahub;
 	int ret = 0;
 
-	match = of_match_device(tegra30_ahub_of_match, &pdev->dev);
-	if (!match)
+	soc_data = of_device_get_match_data(&pdev->dev);
+	if (!soc_data)
 		return -EINVAL;
-	soc_data = match->data;
 
 	ahub = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_ahub),
 			    GFP_KERNEL);
@@ -550,8 +548,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 		goto err_unset_ahub;
 	}
 
-	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs_apbif = devm_ioremap_resource(&pdev->dev, res0);
+	regs_apbif = devm_platform_get_and_ioremap_resource(pdev, 0, &res0);
 	if (IS_ERR(regs_apbif)) {
 		ret = PTR_ERR(regs_apbif);
 		goto err_unset_ahub;

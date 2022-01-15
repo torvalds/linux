@@ -383,8 +383,8 @@ struct cdnsp_intr_reg {
 #define IMAN_IE			BIT(1)
 #define IMAN_IP			BIT(0)
 /* bits 2:31 need to be preserved */
-#define IMAN_IE_SET(p)		(((p) & IMAN_IE) | 0x2)
-#define IMAN_IE_CLEAR(p)	(((p) & IMAN_IE) & ~(0x2))
+#define IMAN_IE_SET(p)		((p) | IMAN_IE)
+#define IMAN_IE_CLEAR(p)	((p) & ~IMAN_IE)
 
 /* IMOD - Interrupter Moderation Register - irq_control bitmasks. */
 /*

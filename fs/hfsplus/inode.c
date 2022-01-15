@@ -156,6 +156,7 @@ static int hfsplus_writepages(struct address_space *mapping,
 }
 
 const struct address_space_operations hfsplus_btree_aops = {
+	.set_page_dirty	= __set_page_dirty_buffers,
 	.readpage	= hfsplus_readpage,
 	.writepage	= hfsplus_writepage,
 	.write_begin	= hfsplus_write_begin,
@@ -165,6 +166,7 @@ const struct address_space_operations hfsplus_btree_aops = {
 };
 
 const struct address_space_operations hfsplus_aops = {
+	.set_page_dirty	= __set_page_dirty_buffers,
 	.readpage	= hfsplus_readpage,
 	.writepage	= hfsplus_writepage,
 	.write_begin	= hfsplus_write_begin,
@@ -278,6 +280,11 @@ int hfsplus_getattr(struct user_namespace *mnt_userns, const struct path *path,
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
+
+	if (request_mask & STATX_BTIME) {
+		stat->result_mask |= STATX_BTIME;
+		stat->btime = hfsp_mt2ut(hip->create_date);
+	}
 
 	if (inode->i_flags & S_APPEND)
 		stat->attributes |= STATX_ATTR_APPEND;

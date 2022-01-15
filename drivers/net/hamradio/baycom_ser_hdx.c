@@ -521,7 +521,7 @@ static int ser12_close(struct net_device *dev)
 
 /* --------------------------------------------------------------------- */
 
-static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
+static int baycom_ioctl(struct net_device *dev, void __user *data,
 			struct hdlcdrv_ioctl *hi, int cmd);
 
 /* --------------------------------------------------------------------- */
@@ -551,7 +551,7 @@ static int baycom_setmode(struct baycom_state *bc, const char *modestr)
 
 /* --------------------------------------------------------------------- */
 
-static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
+static int baycom_ioctl(struct net_device *dev, void __user *data,
 			struct hdlcdrv_ioctl *hi, int cmd)
 {
 	struct baycom_state *bc;
@@ -573,7 +573,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 		strcpy(hi->data.modename, "ser12");
 		if (bc->opt_dcd <= 0)
 			strcat(hi->data.modename, (!bc->opt_dcd) ? "*" : (bc->opt_dcd == -2) ? "@" : "+");
-		if (copy_to_user(ifr->ifr_data, hi, sizeof(struct hdlcdrv_ioctl)))
+		if (copy_to_user(data, hi, sizeof(struct hdlcdrv_ioctl)))
 			return -EFAULT;
 		return 0;
 
@@ -585,7 +585,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 
 	case HDLCDRVCTL_MODELIST:
 		strcpy(hi->data.modename, "ser12");
-		if (copy_to_user(ifr->ifr_data, hi, sizeof(struct hdlcdrv_ioctl)))
+		if (copy_to_user(data, hi, sizeof(struct hdlcdrv_ioctl)))
 			return -EFAULT;
 		return 0;
 
@@ -594,7 +594,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 
 	}
 
-	if (copy_from_user(&bi, ifr->ifr_data, sizeof(bi)))
+	if (copy_from_user(&bi, data, sizeof(bi)))
 		return -EFAULT;
 	switch (bi.cmd) {
 	default:
@@ -609,7 +609,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 #endif /* BAYCOM_DEBUG */
 
 	}
-	if (copy_to_user(ifr->ifr_data, &bi, sizeof(bi)))
+	if (copy_to_user(data, &bi, sizeof(bi)))
 		return -EFAULT;
 	return 0;
 

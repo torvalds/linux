@@ -518,7 +518,7 @@ static void dmfe_remove_one(struct pci_dev *pdev)
 
 	DMFE_DBUG(0, "dmfe_remove_one()", 0);
 
- 	if (dev) {
+	if (dev) {
 
 		unregister_netdev(dev);
 		pci_iounmap(db->pdev, db->ioaddr);
@@ -567,10 +567,10 @@ static int dmfe_open(struct net_device *dev)
 	/* CR6 operation mode decision */
 	if ( !chkmode || (db->chip_id == PCI_DM9132_ID) ||
 		(db->chip_revision >= 0x30) ) {
-    		db->cr6_data |= DMFE_TXTH_256;
+		db->cr6_data |= DMFE_TXTH_256;
 		db->cr0_data = CR0_DEFAULT;
 		db->dm910x_chk_mode=4;		/* Enter the normal mode */
- 	} else {
+	} else {
 		db->cr6_data |= CR6_SFT;	/* Store & Forward mode */
 		db->cr0_data = 0;
 		db->dm910x_chk_mode = 1;	/* Enter the check mode */
@@ -903,7 +903,7 @@ static void dmfe_free_tx_pkt(struct net_device *dev, struct dmfe_board_info *db)
 			}
 		}
 
-    		txptr = txptr->next_tx_desc;
+		txptr = txptr->next_tx_desc;
 	}/* End of while */
 
 	/* Update TX remove pointer to next */
@@ -1121,7 +1121,7 @@ static void dmfe_timer(struct timer_list *t)
 	void __iomem *ioaddr = db->ioaddr;
 	u32 tmp_cr8;
 	unsigned char tmp_cr12;
- 	unsigned long flags;
+	unsigned long flags;
 
 	int link_ok, link_ok_phy;
 
@@ -1217,7 +1217,7 @@ static void dmfe_timer(struct timer_list *t)
 	if (link_ok_phy != link_ok) {
 		DMFE_DBUG (0, "PHY and chip report different link status", 0);
 		link_ok = link_ok | link_ok_phy;
- 	}
+	}
 
 	if ( !link_ok && netif_carrier_ok(dev)) {
 		/* Link Failed */
@@ -1699,14 +1699,14 @@ static void dmfe_set_phyxcer(struct dmfe_board_info *db)
 		if (db->chip_id == PCI_DM9009_ID) phy_reg &= 0x61;
 	}
 
-  	/* Write new capability to Phyxcer Reg4 */
+	/* Write new capability to Phyxcer Reg4 */
 	if ( !(phy_reg & 0x01e0)) {
 		phy_reg|=db->PHY_reg4;
 		db->media_mode|=DMFE_AUTO;
 	}
 	dmfe_phy_write(db->ioaddr, db->phy_addr, 4, phy_reg, db->chip_id);
 
- 	/* Restart Auto-Negotiation */
+	/* Restart Auto-Negotiation */
 	if ( db->chip_type && (db->chip_id == PCI_DM9102_ID) )
 		dmfe_phy_write(db->ioaddr, db->phy_addr, 0, 0x1800, db->chip_id);
 	if ( !db->chip_type )
@@ -1754,7 +1754,7 @@ static void dmfe_process_mode(struct dmfe_board_info *db)
 			}
 			dmfe_phy_write(db->ioaddr,
 				       db->phy_addr, 0, phy_reg, db->chip_id);
-       			if ( db->chip_type && (db->chip_id == PCI_DM9102_ID) )
+			if ( db->chip_type && (db->chip_id == PCI_DM9102_ID) )
 				mdelay(20);
 			dmfe_phy_write(db->ioaddr,
 				       db->phy_addr, 0, phy_reg, db->chip_id);

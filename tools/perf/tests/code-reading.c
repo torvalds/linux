@@ -229,8 +229,8 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 			    struct thread *thread, struct state *state)
 {
 	struct addr_location al;
-	unsigned char buf1[BUFSZ];
-	unsigned char buf2[BUFSZ];
+	unsigned char buf1[BUFSZ] = {0};
+	unsigned char buf2[BUFSZ] = {0};
 	size_t ret_len;
 	u64 objdump_addr;
 	const char *objdump_name;

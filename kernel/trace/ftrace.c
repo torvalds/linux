@@ -2208,7 +2208,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 }
 
 /**
- * ftrace_update_record, set a record that now is tracing or not
+ * ftrace_update_record - set a record that now is tracing or not
  * @rec: the record to update
  * @enable: set to true if the record is tracing, false to force disable
  *
@@ -2221,7 +2221,7 @@ int ftrace_update_record(struct dyn_ftrace *rec, bool enable)
 }
 
 /**
- * ftrace_test_record, check if the record has been enabled or not
+ * ftrace_test_record - check if the record has been enabled or not
  * @rec: the record to test
  * @enable: set to true to check if enabled, false if it is disabled
  *
@@ -2574,7 +2574,7 @@ struct ftrace_rec_iter {
 };
 
 /**
- * ftrace_rec_iter_start, start up iterating over traced functions
+ * ftrace_rec_iter_start - start up iterating over traced functions
  *
  * Returns an iterator handle that is used to iterate over all
  * the records that represent address locations where functions
@@ -2605,7 +2605,7 @@ struct ftrace_rec_iter *ftrace_rec_iter_start(void)
 }
 
 /**
- * ftrace_rec_iter_next, get the next record to process.
+ * ftrace_rec_iter_next - get the next record to process.
  * @iter: The handle to the iterator.
  *
  * Returns the next iterator after the given iterator @iter.
@@ -2630,7 +2630,7 @@ struct ftrace_rec_iter *ftrace_rec_iter_next(struct ftrace_rec_iter *iter)
 }
 
 /**
- * ftrace_rec_iter_record, get the record at the iterator location
+ * ftrace_rec_iter_record - get the record at the iterator location
  * @iter: The current iterator location
  *
  * Returns the record that the current @iter is at.
@@ -2733,7 +2733,7 @@ static int __ftrace_modify_code(void *data)
 }
 
 /**
- * ftrace_run_stop_machine, go back to the stop machine method
+ * ftrace_run_stop_machine - go back to the stop machine method
  * @command: The command to tell ftrace what to do
  *
  * If an arch needs to fall back to the stop machine method, the
@@ -2745,7 +2745,7 @@ void ftrace_run_stop_machine(int command)
 }
 
 /**
- * arch_ftrace_update_code, modify the code to trace or not trace
+ * arch_ftrace_update_code - modify the code to trace or not trace
  * @command: The command that needs to be done
  *
  * Archs can override this function if it does not need to
@@ -3100,6 +3100,7 @@ ops_references_rec(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 
 static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 {
+	bool init_nop = ftrace_need_init_nop();
 	struct ftrace_page *pg;
 	struct dyn_ftrace *p;
 	u64 start, stop;
@@ -3138,8 +3139,7 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 			 * Do the initial record conversion from mcount jump
 			 * to the NOP instructions.
 			 */
-			if (!__is_defined(CC_USING_NOP_MCOUNT) &&
-			    !ftrace_nop_initialize(mod, p))
+			if (init_nop && !ftrace_nop_initialize(mod, p))
 				break;
 
 			update_cnt++;
@@ -4212,8 +4212,7 @@ static void process_mod_list(struct list_head *head, struct ftrace_ops *ops,
 		if (!func) /* warn? */
 			continue;
 
-		list_del(&ftrace_mod->list);
-		list_add(&ftrace_mod->list, &process_mods);
+		list_move(&ftrace_mod->list, &process_mods);
 
 		/* Use the newly allocated func, as it may be "*" */
 		kfree(ftrace_mod->func);
@@ -5986,7 +5985,8 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 		 * infrastructure to do the synchronization, thus we must do it
 		 * ourselves.
 		 */
-		synchronize_rcu_tasks_rude();
+		if (old_hash != EMPTY_HASH)
+			synchronize_rcu_tasks_rude();
 
 		free_ftrace_hash(old_hash);
 	}
@@ -6977,7 +6977,7 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 	struct ftrace_ops *op;
 	int bit;
 
-	bit = trace_test_and_set_recursion(ip, parent_ip, TRACE_LIST_START, TRACE_LIST_MAX);
+	bit = trace_test_and_set_recursion(ip, parent_ip, TRACE_LIST_START);
 	if (bit < 0)
 		return;
 
@@ -7052,7 +7052,7 @@ static void ftrace_ops_assist_func(unsigned long ip, unsigned long parent_ip,
 {
 	int bit;
 
-	bit = trace_test_and_set_recursion(ip, parent_ip, TRACE_LIST_START, TRACE_LIST_MAX);
+	bit = trace_test_and_set_recursion(ip, parent_ip, TRACE_LIST_START);
 	if (bit < 0)
 		return;
 
@@ -7525,7 +7525,9 @@ void ftrace_kill(void)
 }
 
 /**
- * Test if ftrace is dead or not.
+ * ftrace_is_dead - Test if ftrace is dead or not.
+ *
+ * Returns 1 if ftrace is "dead", zero otherwise.
  */
 int ftrace_is_dead(void)
 {
@@ -7545,7 +7547,7 @@ int ftrace_is_dead(void)
  */
 int register_ftrace_function(struct ftrace_ops *ops)
 {
-	int ret = -1;
+	int ret;
 
 	ftrace_ops_init(ops);
 

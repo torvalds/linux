@@ -66,11 +66,10 @@ extern int line_setup(char **conf, unsigned nlines, char **def,
 		      char *init, char *name);
 extern int line_write(struct tty_struct *tty, const unsigned char *buf,
 		      int len);
-extern void line_set_termios(struct tty_struct *tty, struct ktermios * old);
-extern int line_chars_in_buffer(struct tty_struct *tty);
+extern unsigned int line_chars_in_buffer(struct tty_struct *tty);
 extern void line_flush_buffer(struct tty_struct *tty);
 extern void line_flush_chars(struct tty_struct *tty);
-extern int line_write_room(struct tty_struct *tty);
+extern unsigned int line_write_room(struct tty_struct *tty);
 extern void line_throttle(struct tty_struct *tty);
 extern void line_unthrottle(struct tty_struct *tty);
 

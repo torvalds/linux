@@ -22,9 +22,9 @@ or if the device has INTx interrupts connected by platform interrupt
 controllers and a _PRT is needed to describe those connections.
 
 ACPI resource description is done via _CRS objects of devices in the ACPI
-namespace [2].   The _CRS is like a generalized PCI BAR: the OS can read
+namespace [2].   The _CRS is like a generalized PCI BAR: the OS can read
 _CRS and figure out what resource is being consumed even if it doesn't have
-a driver for the device [3].  That's important because it means an old OS
+a driver for the device [3].  That's important because it means an old OS
 can work correctly even on a system with new devices unknown to the OS.
 The new devices might not do anything, but the OS can at least make sure no
 resources conflict with them.
@@ -41,15 +41,15 @@ ACPI, that device will have a specific _HID/_CID that tells the OS what
 driver to bind to it, and the _CRS tells the OS and the driver where the
 device's registers are.
 
-PCI host bridges are PNP0A03 or PNP0A08 devices.  Their _CRS should
-describe all the address space they consume.  This includes all the windows
+PCI host bridges are PNP0A03 or PNP0A08 devices.  Their _CRS should
+describe all the address space they consume.  This includes all the windows
 they forward down to the PCI bus, as well as registers of the host bridge
-itself that are not forwarded to PCI.  The host bridge registers include
+itself that are not forwarded to PCI.  The host bridge registers include
 things like secondary/subordinate bus registers that determine the bus
 range below the bridge, window registers that describe the apertures, etc.
 These are all device-specific, non-architected things, so the only way a
 PNP0A03/PNP0A08 driver can manage them is via _PRS/_CRS/_SRS, which contain
-the device-specific details.  The host bridge registers also include ECAM
+the device-specific details.  The host bridge registers also include ECAM
 space, since it is consumed by the host bridge.
 
 ACPI defines a Consumer/Producer bit to distinguish the bridge registers
@@ -66,7 +66,7 @@ the PNP0A03/PNP0A08 device itself.  The workaround was to describe the
 bridge registers (including ECAM space) in PNP0C02 catch-all devices [6].
 With the exception of ECAM, the bridge register space is device-specific
 anyway, so the generic PNP0A03/PNP0A08 driver (pci_root.c) has no need to
-know about it.  
+know about it.  
 
 New architectures should be able to use "Consumer" Extended Address Space
 descriptors in the PNP0A03 device for bridge registers, including ECAM,
@@ -75,9 +75,9 @@ ia64 kernels assume all address space descriptors, including "Consumer"
 Extended Address Space ones, are windows, so it would not be safe to
 describe bridge registers this way on those architectures.
 
-PNP0C02 "motherboard" devices are basically a catch-all.  There's no
+PNP0C02 "motherboard" devices are basically a catch-all.  There's no
 programming model for them other than "don't use these resources for
-anything else."  So a PNP0C02 _CRS should claim any address space that is
+anything else."  So a PNP0C02 _CRS should claim any address space that is
 (1) not claimed by _CRS under any other device object in the ACPI namespace
 and (2) should not be assigned by the OS to something else.
 

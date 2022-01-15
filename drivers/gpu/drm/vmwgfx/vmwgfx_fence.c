@@ -139,11 +139,9 @@ static bool vmw_fence_enable_signaling(struct dma_fence *f)
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 	struct vmw_private *dev_priv = fman->dev_priv;
 
-	u32 seqno = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_FENCE);
+	u32 seqno = vmw_fence_read(dev_priv);
 	if (seqno - fence->base.seqno < VMW_FENCE_WRAP)
 		return false;
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 
 	return true;
 }
@@ -177,7 +175,6 @@ static long vmw_fence_wait(struct dma_fence *f, bool intr, signed long timeout)
 	if (likely(vmw_fence_obj_signaled(fence)))
 		return timeout;
 
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 	vmw_seqno_waiter_add(dev_priv);
 
 	spin_lock(f->lock);
@@ -464,7 +461,7 @@ static void __vmw_fences_update(struct vmw_fence_manager *fman)
 	bool needs_rerun;
 	uint32_t seqno, new_seqno;
 
-	seqno = vmw_fifo_mem_read(fman->dev_priv, SVGA_FIFO_FENCE);
+	seqno = vmw_fence_read(fman->dev_priv);
 rerun:
 	list_for_each_entry_safe(fence, next_fence, &fman->fence_list, head) {
 		if (seqno - fence->base.seqno < VMW_FENCE_WRAP) {
@@ -486,7 +483,7 @@ rerun:
 
 	needs_rerun = vmw_fence_goal_new_locked(fman, seqno);
 	if (unlikely(needs_rerun)) {
-		new_seqno = vmw_fifo_mem_read(fman->dev_priv, SVGA_FIFO_FENCE);
+		new_seqno = vmw_fence_read(fman->dev_priv);
 		if (new_seqno != seqno) {
 			seqno = new_seqno;
 			goto rerun;
@@ -527,13 +524,6 @@ int vmw_fence_obj_wait(struct vmw_fence_obj *fence, bool lazy,
 		return -EBUSY;
 	else
 		return ret;
-}
-
-void vmw_fence_obj_flush(struct vmw_fence_obj *fence)
-{
-	struct vmw_private *dev_priv = fman_from_fence(fence)->dev_priv;
-
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 }
 
 static void vmw_fence_destroy(struct vmw_fence_obj *fence)
@@ -992,7 +982,7 @@ static void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
 }
 
 /**
- * vmw_event_fence_action_create - Post an event for sending when a fence
+ * vmw_event_fence_action_queue - Post an event for sending when a fence
  * object seqno has passed.
  *
  * @file_priv: The file connection on which the event should be posted.

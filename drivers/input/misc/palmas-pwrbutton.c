@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/bitfield.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -115,8 +116,8 @@ static void palmas_pwron_params_ofinit(struct device *dev,
 	struct device_node *np;
 	u32 val;
 	int i, error;
-	u8 lpk_times[] = { 6, 8, 10, 12 };
-	int pwr_on_deb_ms[] = { 15, 100, 500, 1000 };
+	static const u8 lpk_times[] = { 6, 8, 10, 12 };
+	static const int pwr_on_deb_ms[] = { 15, 100, 500, 1000 };
 
 	memset(config, 0, sizeof(*config));
 
@@ -192,8 +193,8 @@ static int palmas_pwron_probe(struct platform_device *pdev)
 	 * Setup default hardware shutdown option (long key press)
 	 * and debounce.
 	 */
-	val = config.long_press_time_val << __ffs(PALMAS_LPK_TIME_MASK);
-	val |= config.pwron_debounce_val << __ffs(PALMAS_PWRON_DEBOUNCE_MASK);
+	val = FIELD_PREP(PALMAS_LPK_TIME_MASK, config.long_press_time_val) |
+	      FIELD_PREP(PALMAS_PWRON_DEBOUNCE_MASK, config.pwron_debounce_val);
 	error = palmas_update_bits(palmas, PALMAS_PMU_CONTROL_BASE,
 				   PALMAS_LONG_PRESS_KEY,
 				   PALMAS_LPK_TIME_MASK |

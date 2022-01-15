@@ -26,7 +26,7 @@
 extern char input_data[];
 extern int input_len;
 /* output_len is inserted by the linker possibly at an unaligned address */
-extern __le32 output_len __aligned(1);
+extern char output_len;
 extern char _text, _end;
 extern char _bss, _ebss;
 extern char _startcode_end;

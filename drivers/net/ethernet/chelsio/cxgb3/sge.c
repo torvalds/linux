@@ -244,8 +244,8 @@ static inline void unmap_skb(struct sk_buff *skb, struct sge_txq *q,
 	frag_idx = d->fragidx;
 
 	if (frag_idx == 0 && skb_headlen(skb)) {
-		pci_unmap_single(pdev, be64_to_cpu(sgp->addr[0]),
-				 skb_headlen(skb), PCI_DMA_TODEVICE);
+		dma_unmap_single(&pdev->dev, be64_to_cpu(sgp->addr[0]),
+				 skb_headlen(skb), DMA_TO_DEVICE);
 		j = 1;
 	}
 
@@ -253,9 +253,9 @@ static inline void unmap_skb(struct sk_buff *skb, struct sge_txq *q,
 	nfrags = skb_shinfo(skb)->nr_frags;
 
 	while (frag_idx < nfrags && curflit < WR_FLITS) {
-		pci_unmap_page(pdev, be64_to_cpu(sgp->addr[j]),
+		dma_unmap_page(&pdev->dev, be64_to_cpu(sgp->addr[j]),
 			       skb_frag_size(&skb_shinfo(skb)->frags[frag_idx]),
-			       PCI_DMA_TODEVICE);
+			       DMA_TO_DEVICE);
 		j ^= 1;
 		if (j == 0) {
 			sgp++;
@@ -355,15 +355,14 @@ static void clear_rx_desc(struct pci_dev *pdev, const struct sge_fl *q,
 	if (q->use_pages && d->pg_chunk.page) {
 		(*d->pg_chunk.p_cnt)--;
 		if (!*d->pg_chunk.p_cnt)
-			pci_unmap_page(pdev,
-				       d->pg_chunk.mapping,
-				       q->alloc_size, PCI_DMA_FROMDEVICE);
+			dma_unmap_page(&pdev->dev, d->pg_chunk.mapping,
+				       q->alloc_size, DMA_FROM_DEVICE);
 
 		put_page(d->pg_chunk.page);
 		d->pg_chunk.page = NULL;
 	} else {
-		pci_unmap_single(pdev, dma_unmap_addr(d, dma_addr),
-				 q->buf_size, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&pdev->dev, dma_unmap_addr(d, dma_addr),
+				 q->buf_size, DMA_FROM_DEVICE);
 		kfree_skb(d->skb);
 		d->skb = NULL;
 	}
@@ -414,8 +413,8 @@ static inline int add_one_rx_buf(void *va, unsigned int len,
 {
 	dma_addr_t mapping;
 
-	mapping = pci_map_single(pdev, va, len, PCI_DMA_FROMDEVICE);
-	if (unlikely(pci_dma_mapping_error(pdev, mapping)))
+	mapping = dma_map_single(&pdev->dev, va, len, DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(&pdev->dev, mapping)))
 		return -ENOMEM;
 
 	dma_unmap_addr_set(sd, dma_addr, mapping);
@@ -453,9 +452,9 @@ static int alloc_pg_chunk(struct adapter *adapter, struct sge_fl *q,
 		q->pg_chunk.p_cnt = q->pg_chunk.va + (PAGE_SIZE << order) -
 				    SGE_PG_RSVD;
 		q->pg_chunk.offset = 0;
-		mapping = pci_map_page(adapter->pdev, q->pg_chunk.page,
-				       0, q->alloc_size, PCI_DMA_FROMDEVICE);
-		if (unlikely(pci_dma_mapping_error(adapter->pdev, mapping))) {
+		mapping = dma_map_page(&adapter->pdev->dev, q->pg_chunk.page,
+				       0, q->alloc_size, DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(&adapter->pdev->dev, mapping))) {
 			__free_pages(q->pg_chunk.page, order);
 			q->pg_chunk.page = NULL;
 			return -EIO;
@@ -522,9 +521,9 @@ nomem:				q->alloc_failed++;
 			dma_unmap_addr_set(sd, dma_addr, mapping);
 
 			add_one_rx_chunk(mapping, d, q->gen);
-			pci_dma_sync_single_for_device(adap->pdev, mapping,
-						q->buf_size - SGE_PG_RSVD,
-						PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_device(&adap->pdev->dev, mapping,
+						   q->buf_size - SGE_PG_RSVD,
+						   DMA_FROM_DEVICE);
 		} else {
 			void *buf_start;
 
@@ -665,7 +664,7 @@ static void t3_reset_qset(struct sge_qset *q)
 
 
 /**
- *	free_qset - free the resources of an SGE queue set
+ *	t3_free_qset - free the resources of an SGE queue set
  *	@adapter: the adapter owning the queue set
  *	@q: the queue set
  *
@@ -793,13 +792,13 @@ static struct sk_buff *get_packet(struct adapter *adap, struct sge_fl *fl,
 		skb = alloc_skb(len, GFP_ATOMIC);
 		if (likely(skb != NULL)) {
 			__skb_put(skb, len);
-			pci_dma_sync_single_for_cpu(adap->pdev,
-					    dma_unmap_addr(sd, dma_addr), len,
-					    PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_cpu(&adap->pdev->dev,
+						dma_unmap_addr(sd, dma_addr),
+						len, DMA_FROM_DEVICE);
 			memcpy(skb->data, sd->skb->data, len);
-			pci_dma_sync_single_for_device(adap->pdev,
-					    dma_unmap_addr(sd, dma_addr), len,
-					    PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_device(&adap->pdev->dev,
+						   dma_unmap_addr(sd, dma_addr),
+						   len, DMA_FROM_DEVICE);
 		} else if (!drop_thres)
 			goto use_orig_buf;
 recycle:
@@ -813,8 +812,8 @@ recycle:
 		goto recycle;
 
 use_orig_buf:
-	pci_unmap_single(adap->pdev, dma_unmap_addr(sd, dma_addr),
-			 fl->buf_size, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&adap->pdev->dev, dma_unmap_addr(sd, dma_addr),
+			 fl->buf_size, DMA_FROM_DEVICE);
 	skb = sd->skb;
 	skb_put(skb, len);
 	__refill_fl(adap, fl);
@@ -854,12 +853,11 @@ static struct sk_buff *get_packet_pg(struct adapter *adap, struct sge_fl *fl,
 		newskb = alloc_skb(len, GFP_ATOMIC);
 		if (likely(newskb != NULL)) {
 			__skb_put(newskb, len);
-			pci_dma_sync_single_for_cpu(adap->pdev, dma_addr, len,
-					    PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_cpu(&adap->pdev->dev, dma_addr,
+						len, DMA_FROM_DEVICE);
 			memcpy(newskb->data, sd->pg_chunk.va, len);
-			pci_dma_sync_single_for_device(adap->pdev, dma_addr,
-						       len,
-						       PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_device(&adap->pdev->dev, dma_addr,
+						   len, DMA_FROM_DEVICE);
 		} else if (!drop_thres)
 			return NULL;
 recycle:
@@ -883,14 +881,12 @@ recycle:
 		goto recycle;
 	}
 
-	pci_dma_sync_single_for_cpu(adap->pdev, dma_addr, len,
-				    PCI_DMA_FROMDEVICE);
+	dma_sync_single_for_cpu(&adap->pdev->dev, dma_addr, len,
+				DMA_FROM_DEVICE);
 	(*sd->pg_chunk.p_cnt)--;
 	if (!*sd->pg_chunk.p_cnt && sd->pg_chunk.page != fl->pg_chunk.page)
-		pci_unmap_page(adap->pdev,
-			       sd->pg_chunk.mapping,
-			       fl->alloc_size,
-			       PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&adap->pdev->dev, sd->pg_chunk.mapping,
+			       fl->alloc_size, DMA_FROM_DEVICE);
 	if (!skb) {
 		__skb_put(newskb, SGE_RX_PULL_LEN);
 		memcpy(newskb->data, sd->pg_chunk.va, SGE_RX_PULL_LEN);
@@ -968,9 +964,9 @@ static int map_skb(struct pci_dev *pdev, const struct sk_buff *skb,
 	const struct skb_shared_info *si;
 
 	if (skb_headlen(skb)) {
-		*addr = pci_map_single(pdev, skb->data, skb_headlen(skb),
-				       PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(pdev, *addr))
+		*addr = dma_map_single(&pdev->dev, skb->data,
+				       skb_headlen(skb), DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, *addr))
 			goto out_err;
 		addr++;
 	}
@@ -981,7 +977,7 @@ static int map_skb(struct pci_dev *pdev, const struct sk_buff *skb,
 	for (fp = si->frags; fp < end; fp++) {
 		*addr = skb_frag_dma_map(&pdev->dev, fp, 0, skb_frag_size(fp),
 					 DMA_TO_DEVICE);
-		if (pci_dma_mapping_error(pdev, *addr))
+		if (dma_mapping_error(&pdev->dev, *addr))
 			goto unwind;
 		addr++;
 	}
@@ -992,7 +988,8 @@ unwind:
 		dma_unmap_page(&pdev->dev, *--addr, skb_frag_size(fp),
 			       DMA_TO_DEVICE);
 
-	pci_unmap_single(pdev, addr[-1], skb_headlen(skb), PCI_DMA_TODEVICE);
+	dma_unmap_single(&pdev->dev, addr[-1], skb_headlen(skb),
+			 DMA_TO_DEVICE);
 out_err:
 	return -ENOMEM;
 }
@@ -1256,7 +1253,7 @@ static inline void t3_stop_tx_queue(struct netdev_queue *txq,
 }
 
 /**
- *	eth_xmit - add a packet to the Ethernet Tx queue
+ *	t3_eth_xmit - add a packet to the Ethernet Tx queue
  *	@skb: the packet
  *	@dev: the egress net device
  *
@@ -1518,14 +1515,15 @@ static int ctrl_xmit(struct adapter *adap, struct sge_txq *q,
 
 /**
  *	restart_ctrlq - restart a suspended control queue
- *	@t: pointer to the tasklet associated with this handler
+ *	@w: pointer to the work associated with this handler
  *
  *	Resumes transmission on a suspended Tx control queue.
  */
-static void restart_ctrlq(struct tasklet_struct *t)
+static void restart_ctrlq(struct work_struct *w)
 {
 	struct sk_buff *skb;
-	struct sge_qset *qs = from_tasklet(qs, t, txq[TXQ_CTRL].qresume_tsk);
+	struct sge_qset *qs = container_of(w, struct sge_qset,
+					   txq[TXQ_CTRL].qresume_task);
 	struct sge_txq *q = &qs->txq[TXQ_CTRL];
 
 	spin_lock(&q->lock);
@@ -1591,13 +1589,14 @@ static void deferred_unmap_destructor(struct sk_buff *skb)
 	p = dui->addr;
 
 	if (skb_tail_pointer(skb) - skb_transport_header(skb))
-		pci_unmap_single(dui->pdev, *p++, skb_tail_pointer(skb) -
-				 skb_transport_header(skb), PCI_DMA_TODEVICE);
+		dma_unmap_single(&dui->pdev->dev, *p++,
+				 skb_tail_pointer(skb) - skb_transport_header(skb),
+				 DMA_TO_DEVICE);
 
 	si = skb_shinfo(skb);
 	for (i = 0; i < si->nr_frags; i++)
-		pci_unmap_page(dui->pdev, *p++, skb_frag_size(&si->frags[i]),
-			       PCI_DMA_TODEVICE);
+		dma_unmap_page(&dui->pdev->dev, *p++,
+			       skb_frag_size(&si->frags[i]), DMA_TO_DEVICE);
 }
 
 static void setup_deferred_unmapping(struct sk_buff *skb, struct pci_dev *pdev,
@@ -1736,14 +1735,15 @@ again:	reclaim_completed_tx(adap, q, TX_RECLAIM_CHUNK);
 
 /**
  *	restart_offloadq - restart a suspended offload queue
- *	@t: pointer to the tasklet associated with this handler
+ *	@w: pointer to the work associated with this handler
  *
  *	Resumes transmission on a suspended Tx offload queue.
  */
-static void restart_offloadq(struct tasklet_struct *t)
+static void restart_offloadq(struct work_struct *w)
 {
 	struct sk_buff *skb;
-	struct sge_qset *qs = from_tasklet(qs, t, txq[TXQ_OFLD].qresume_tsk);
+	struct sge_qset *qs = container_of(w, struct sge_qset,
+					   txq[TXQ_OFLD].qresume_task);
 	struct sge_txq *q = &qs->txq[TXQ_OFLD];
 	const struct port_info *pi = netdev_priv(qs->netdev);
 	struct adapter *adap = pi->adapter;
@@ -1998,13 +1998,17 @@ static void restart_tx(struct sge_qset *qs)
 	    should_restart_tx(&qs->txq[TXQ_OFLD]) &&
 	    test_and_clear_bit(TXQ_OFLD, &qs->txq_stopped)) {
 		qs->txq[TXQ_OFLD].restarts++;
-		tasklet_schedule(&qs->txq[TXQ_OFLD].qresume_tsk);
+
+		/* The work can be quite lengthy so we use driver's own queue */
+		queue_work(cxgb3_wq, &qs->txq[TXQ_OFLD].qresume_task);
 	}
 	if (test_bit(TXQ_CTRL, &qs->txq_stopped) &&
 	    should_restart_tx(&qs->txq[TXQ_CTRL]) &&
 	    test_and_clear_bit(TXQ_CTRL, &qs->txq_stopped)) {
 		qs->txq[TXQ_CTRL].restarts++;
-		tasklet_schedule(&qs->txq[TXQ_CTRL].qresume_tsk);
+
+		/* The work can be quite lengthy so we use driver's own queue */
+		queue_work(cxgb3_wq, &qs->txq[TXQ_CTRL].qresume_task);
 	}
 }
 
@@ -2147,17 +2151,14 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	fl->credits--;
 
-	pci_dma_sync_single_for_cpu(adap->pdev,
-				    dma_unmap_addr(sd, dma_addr),
-				    fl->buf_size - SGE_PG_RSVD,
-				    PCI_DMA_FROMDEVICE);
+	dma_sync_single_for_cpu(&adap->pdev->dev,
+				dma_unmap_addr(sd, dma_addr),
+				fl->buf_size - SGE_PG_RSVD, DMA_FROM_DEVICE);
 
 	(*sd->pg_chunk.p_cnt)--;
 	if (!*sd->pg_chunk.p_cnt && sd->pg_chunk.page != fl->pg_chunk.page)
-		pci_unmap_page(adap->pdev,
-			       sd->pg_chunk.mapping,
-			       fl->alloc_size,
-			       PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&adap->pdev->dev, sd->pg_chunk.mapping,
+			       fl->alloc_size, DMA_FROM_DEVICE);
 
 	if (!skb) {
 		put_page(sd->pg_chunk.page);
@@ -3085,8 +3086,8 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 		skb_queue_head_init(&q->txq[i].sendq);
 	}
 
-	tasklet_setup(&q->txq[TXQ_OFLD].qresume_tsk, restart_offloadq);
-	tasklet_setup(&q->txq[TXQ_CTRL].qresume_tsk, restart_ctrlq);
+	INIT_WORK(&q->txq[TXQ_OFLD].qresume_task, restart_offloadq);
+	INIT_WORK(&q->txq[TXQ_CTRL].qresume_task, restart_ctrlq);
 
 	q->fl[0].gen = q->fl[1].gen = 1;
 	q->fl[0].size = p->fl_size;
@@ -3276,11 +3277,11 @@ void t3_sge_start(struct adapter *adap)
  *
  *	Can be invoked from interrupt context e.g.  error handler.
  *
- *	Note that this function cannot disable the restart of tasklets as
+ *	Note that this function cannot disable the restart of works as
  *	it cannot wait if called from interrupt context, however the
- *	tasklets will have no effect since the doorbells are disabled. The
+ *	works will have no effect since the doorbells are disabled. The
  *	driver will call tg3_sge_stop() later from process context, at
- *	which time the tasklets will be stopped if they are still running.
+ *	which time the works will be stopped if they are still running.
  */
 void t3_sge_stop_dma(struct adapter *adap)
 {
@@ -3292,7 +3293,7 @@ void t3_sge_stop_dma(struct adapter *adap)
  *	@adap: the adapter
  *
  *	Called from process context. Disables the DMA engine and any
- *	pending queue restart tasklets.
+ *	pending queue restart works.
  */
 void t3_sge_stop(struct adapter *adap)
 {
@@ -3300,11 +3301,14 @@ void t3_sge_stop(struct adapter *adap)
 
 	t3_sge_stop_dma(adap);
 
+	/* workqueues aren't initialized otherwise */
+	if (!(adap->flags & FULL_INIT_DONE))
+		return;
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct sge_qset *qs = &adap->sge.qs[i];
 
-		tasklet_kill(&qs->txq[TXQ_OFLD].qresume_tsk);
-		tasklet_kill(&qs->txq[TXQ_CTRL].qresume_tsk);
+		cancel_work_sync(&qs->txq[TXQ_OFLD].qresume_task);
+		cancel_work_sync(&qs->txq[TXQ_CTRL].qresume_task);
 	}
 }
 
@@ -3371,7 +3375,7 @@ void t3_sge_prep(struct adapter *adap, struct sge_params *p)
 		q->coalesce_usecs = 5;
 		q->rspq_size = 1024;
 		q->fl_size = 1024;
- 		q->jumbo_size = 512;
+		q->jumbo_size = 512;
 		q->txq_size[TXQ_ETH] = 1024;
 		q->txq_size[TXQ_OFLD] = 1024;
 		q->txq_size[TXQ_CTRL] = 256;

@@ -15,11 +15,12 @@ Authors:
 General information
 -------------------
 
-This class of cards has a bt878a as the PCI interface, and require the bttv driver
-for accessing the i2c bus and the gpio pins of the bt8xx chipset.
+This class of cards has a bt878a as the PCI interface, and require the bttv
+driver for accessing the i2c bus and the gpio pins of the bt8xx chipset.
 
-Please see :doc:`bttv-cardlist` for a complete list of Cards based on the
-Conexant Bt8xx PCI bridge supported by the Linux Kernel.
+Please see Documentation/admin-guide/media/bttv-cardlist.rst for a complete
+list of Cards based on the Conexant Bt8xx PCI bridge supported by the
+Linux Kernel.
 
 In order to be able to compile the kernel, some config options should be
 enabled::
@@ -80,7 +81,7 @@ for dvb-bt8xx drivers by passing modprobe parameters may be necessary.
 Running TwinHan and Clones
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As shown at :doc:`bttv-cardlist`, TwinHan and
+As shown at Documentation/admin-guide/media/bttv-cardlist.rst, TwinHan and
 clones use ``card=113`` modprobe parameter. So, in order to properly
 detect it for devices without EEPROM, you should use::
 
@@ -105,12 +106,12 @@ The autodetected values are determined by the cards' "response string".
 In your logs see f. ex.: dst_get_device_id: Recognize [DSTMCI].
 
 For bug reports please send in a complete log with verbose=4 activated.
-Please also see :doc:`ci`.
+Please also see Documentation/admin-guide/media/ci.rst.
 
 Running multiple cards
 ~~~~~~~~~~~~~~~~~~~~~~
 
-See :doc:`bttv-cardlist` for a complete list of
+See Documentation/admin-guide/media/bttv-cardlist.rst for a complete list of
 Card ID. Some examples:
 
 	===========================	===

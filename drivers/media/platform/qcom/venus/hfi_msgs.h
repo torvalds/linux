@@ -113,7 +113,8 @@ struct hfi_msg_sys_ping_ack_pkt {
 struct hfi_msg_sys_property_info_pkt {
 	struct hfi_pkt_hdr hdr;
 	u32 num_properties;
-	u32 data[1];
+	u32 property;
+	u8 data[];
 };
 
 struct hfi_msg_session_load_resources_done_pkt {
@@ -233,7 +234,8 @@ struct hfi_msg_session_parse_sequence_header_done_pkt {
 struct hfi_msg_session_property_info_pkt {
 	struct hfi_session_hdr_pkt shdr;
 	u32 num_properties;
-	u32 data[1];
+	u32 property;
+	u8 data[];
 };
 
 struct hfi_msg_session_release_resources_done_pkt {

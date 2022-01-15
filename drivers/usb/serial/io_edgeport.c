@@ -389,39 +389,6 @@ static void update_edgeport_E2PROM(struct edgeport_serial *edge_serial)
 	release_firmware(fw);
 }
 
-#if 0
-/************************************************************************
- *
- *  Get string descriptor from device
- *
- ************************************************************************/
-static int get_string_desc(struct usb_device *dev, int Id,
-				struct usb_string_descriptor **pRetDesc)
-{
-	struct usb_string_descriptor StringDesc;
-	struct usb_string_descriptor *pStringDesc;
-
-	dev_dbg(&dev->dev, "%s - USB String ID = %d\n", __func__, Id);
-
-	if (!usb_get_descriptor(dev, USB_DT_STRING, Id, &StringDesc,
-						sizeof(StringDesc)))
-		return 0;
-
-	pStringDesc = kmalloc(StringDesc.bLength, GFP_KERNEL);
-	if (!pStringDesc)
-		return -1;
-
-	if (!usb_get_descriptor(dev, USB_DT_STRING, Id, pStringDesc,
-							StringDesc.bLength)) {
-		kfree(pStringDesc);
-		return -1;
-	}
-
-	*pRetDesc = pStringDesc;
-	return 0;
-}
-#endif
-
 static void dump_product_info(struct edgeport_serial *edge_serial,
 			      struct edgeport_product_info *product_info)
 {
@@ -1351,33 +1318,21 @@ exit_send:
 /*****************************************************************************
  * edge_write_room
  *	this function is called by the tty driver when it wants to know how
- *	many bytes of data we can accept for a specific port. If successful,
- *	we return the amount of room that we have for this port	(the txCredits)
- *	otherwise we return a negative error number.
+ *	many bytes of data we can accept for a specific port.
  *****************************************************************************/
-static int edge_write_room(struct tty_struct *tty)
+static unsigned int edge_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
-	int room;
+	unsigned int room;
 	unsigned long flags;
-
-	if (edge_port == NULL)
-		return 0;
-	if (edge_port->closePending)
-		return 0;
-
-	if (!edge_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
-		return 0;
-	}
 
 	/* total of both buffers is still txCredit */
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
 	room = edge_port->txCredits - edge_port->txfifo.count;
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
-	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
+	dev_dbg(&port->dev, "%s - returns %u\n", __func__, room);
 	return room;
 }
 
@@ -1387,33 +1342,20 @@ static int edge_write_room(struct tty_struct *tty)
  *	this function is called by the tty driver when it wants to know how
  *	many bytes of data we currently have outstanding in the port (data that
  *	has been written, but hasn't made it out the port yet)
- *	If successful, we return the number of bytes left to be written in the
- *	system,
- *	Otherwise we return a negative error number.
  *****************************************************************************/
-static int edge_chars_in_buffer(struct tty_struct *tty)
+static unsigned int edge_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
-	int num_chars;
+	unsigned int num_chars;
 	unsigned long flags;
-
-	if (edge_port == NULL)
-		return 0;
-	if (edge_port->closePending)
-		return 0;
-
-	if (!edge_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
-		return 0;
-	}
 
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
 	num_chars = edge_port->maxTxCredits - edge_port->txCredits +
 						edge_port->txfifo.count;
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 	if (num_chars) {
-		dev_dbg(&port->dev, "%s - returns %d\n", __func__, num_chars);
+		dev_dbg(&port->dev, "%s - returns %u\n", __func__, num_chars);
 	}
 
 	return num_chars;

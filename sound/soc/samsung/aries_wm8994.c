@@ -310,7 +310,7 @@ static int aries_hw_free(struct snd_pcm_substream *substream)
 /*
  * Main DAI operations
  */
-static struct snd_soc_ops aries_ops = {
+static const struct snd_soc_ops aries_ops = {
 	.hw_params = aries_hw_params,
 	.hw_free = aries_hw_free,
 };

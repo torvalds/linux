@@ -68,13 +68,13 @@ static int collect_syscall(struct task_struct *target, struct syscall_info *info
  */
 int task_current_syscall(struct task_struct *target, struct syscall_info *info)
 {
-	long state;
 	unsigned long ncsw;
+	unsigned int state;
 
 	if (target == current)
 		return collect_syscall(target, info);
 
-	state = target->state;
+	state = READ_ONCE(target->__state);
 	if (unlikely(!state))
 		return -EAGAIN;
 

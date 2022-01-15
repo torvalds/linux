@@ -33,6 +33,8 @@
 #include <asm/switch_to.h>
 #include "entry.h"
 
+int __bootdata(is_full_image);
+
 static void __init reset_tod_clock(void)
 {
 	union tod_clock clk;
@@ -180,11 +182,9 @@ static noinline __init void setup_lowcore_early(void)
 
 static noinline __init void setup_facility_list(void)
 {
-	memcpy(S390_lowcore.alt_stfle_fac_list,
-	       S390_lowcore.stfle_fac_list,
-	       sizeof(S390_lowcore.alt_stfle_fac_list));
+	memcpy(alt_stfle_fac_list, stfle_fac_list, sizeof(alt_stfle_fac_list));
 	if (!IS_ENABLED(CONFIG_KERNEL_NOBP))
-		__clear_facility(82, S390_lowcore.alt_stfle_fac_list);
+		__clear_facility(82, alt_stfle_fac_list);
 }
 
 static __init void detect_diag9c(void)
@@ -236,6 +236,10 @@ static __init void detect_machine_facilities(void)
 		clock_comparator_max = -1ULL >> 1;
 		__ctl_set_bit(0, 53);
 	}
+	if (IS_ENABLED(CONFIG_PCI) && test_facility(153)) {
+		S390_lowcore.machine_flags |= MACHINE_FLAG_PCI_MIO;
+		/* the control bit is set during PCI initialization */
+	}
 }
 
 static inline void save_vector_registers(void)
@@ -281,7 +285,7 @@ static void __init setup_boot_command_line(void)
 
 static void __init check_image_bootable(void)
 {
-	if (!memcmp(EP_STRING, (void *)EP_OFFSET, strlen(EP_STRING)))
+	if (is_full_image)
 		return;
 
 	sclp_early_printk("Linux kernel boot failure: An attempt to boot a vmlinux ELF image failed.\n");

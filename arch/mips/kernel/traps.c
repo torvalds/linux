@@ -784,7 +784,6 @@ void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 {
 	int si_code;
-	struct vm_area_struct *vma;
 
 	switch (sig) {
 	case 0:
@@ -800,8 +799,7 @@ int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 
 	case SIGSEGV:
 		mmap_read_lock(current->mm);
-		vma = find_vma(current->mm, (unsigned long)fault_addr);
-		if (vma && (vma->vm_start <= (unsigned long)fault_addr))
+		if (vma_lookup(current->mm, (unsigned long)fault_addr))
 			si_code = SEGV_ACCERR;
 		else
 			si_code = SEGV_MAPERR;

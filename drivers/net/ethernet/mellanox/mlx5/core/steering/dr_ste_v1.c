@@ -116,6 +116,8 @@ enum {
 	DR_STE_V1_ACTION_MDFY_FLD_IPV6_SRC_OUT_3	= 0x4f,
 	DR_STE_V1_ACTION_MDFY_FLD_TCP_MISC_0		= 0x5e,
 	DR_STE_V1_ACTION_MDFY_FLD_TCP_MISC_1		= 0x5f,
+	DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_0		= 0x6f,
+	DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_1		= 0x70,
 	DR_STE_V1_ACTION_MDFY_FLD_METADATA_2_CQE	= 0x7b,
 	DR_STE_V1_ACTION_MDFY_FLD_GNRL_PURPOSE		= 0x7c,
 	DR_STE_V1_ACTION_MDFY_FLD_REGISTER_2		= 0x8c,
@@ -246,6 +248,12 @@ static const struct mlx5dr_ste_action_modify_field dr_ste_v1_action_modify_field
 	[MLX5_ACTION_IN_FIELD_OUT_FIRST_VID] = {
 		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_L2_OUT_2, .start = 0, .end = 15,
 	},
+	[MLX5_ACTION_IN_FIELD_OUT_EMD_31_0] = {
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_1, .start = 0, .end = 31,
+	},
+	[MLX5_ACTION_IN_FIELD_OUT_EMD_47_32] = {
+		.hw_field = DR_STE_V1_ACTION_MDFY_FLD_CFG_HDR_0_0, .start = 0, .end = 15,
+	},
 };
 
 static void dr_ste_v1_set_entry_type(u8 *hw_ste_p, u8 entry_type)
@@ -314,7 +322,7 @@ static void dr_ste_v1_set_hit_addr(u8 *hw_ste_p, u64 icm_addr, u32 ht_size)
 }
 
 static void dr_ste_v1_init(u8 *hw_ste_p, u16 lu_type,
-			   u8 entry_type, u16 gvmi)
+			   bool is_rx, u16 gvmi)
 {
 	dr_ste_v1_set_lu_type(hw_ste_p, lu_type);
 	dr_ste_v1_set_next_lu_type(hw_ste_p, MLX5DR_STE_LU_TYPE_DONT_CARE);
@@ -361,8 +369,8 @@ static void dr_ste_v1_set_reparse(u8 *hw_ste_p)
 	MLX5_SET(ste_match_bwc_v1, hw_ste_p, reparse, 1);
 }
 
-static void dr_ste_v1_set_tx_encap(u8 *hw_ste_p, u8 *d_action,
-				   u32 reformat_id, int size)
+static void dr_ste_v1_set_encap(u8 *hw_ste_p, u8 *d_action,
+				u32 reformat_id, int size)
 {
 	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, action_id,
 		 DR_STE_V1_ACTION_ID_INSERT_POINTER);
@@ -374,8 +382,43 @@ static void dr_ste_v1_set_tx_encap(u8 *hw_ste_p, u8 *d_action,
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
-static void dr_ste_v1_set_tx_push_vlan(u8 *hw_ste_p, u8 *d_action,
-				       u32 vlan_hdr)
+static void dr_ste_v1_set_insert_hdr(u8 *hw_ste_p, u8 *d_action,
+				     u32 reformat_id,
+				     u8 anchor, u8 offset,
+				     int size)
+{
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action,
+		 action_id, DR_STE_V1_ACTION_ID_INSERT_POINTER);
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, start_anchor, anchor);
+
+	/* The hardware expects here size and offset in words (2 byte) */
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, size, size / 2);
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, start_offset, offset / 2);
+
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, pointer, reformat_id);
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, attributes,
+		 DR_STE_V1_ACTION_INSERT_PTR_ATTR_NONE);
+
+	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
+static void dr_ste_v1_set_remove_hdr(u8 *hw_ste_p, u8 *s_action,
+				     u8 anchor, u8 offset,
+				     int size)
+{
+	MLX5_SET(ste_single_action_remove_header_size_v1, s_action,
+		 action_id, DR_STE_V1_ACTION_ID_REMOVE_BY_SIZE);
+	MLX5_SET(ste_single_action_remove_header_size_v1, s_action, start_anchor, anchor);
+
+	/* The hardware expects here size and offset in words (2 byte) */
+	MLX5_SET(ste_single_action_remove_header_size_v1, s_action, remove_size, size / 2);
+	MLX5_SET(ste_single_action_remove_header_size_v1, s_action, start_offset, offset / 2);
+
+	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
+static void dr_ste_v1_set_push_vlan(u8 *hw_ste_p, u8 *d_action,
+				    u32 vlan_hdr)
 {
 	MLX5_SET(ste_double_action_insert_with_inline_v1, d_action,
 		 action_id, DR_STE_V1_ACTION_ID_INSERT_INLINE);
@@ -388,7 +431,7 @@ static void dr_ste_v1_set_tx_push_vlan(u8 *hw_ste_p, u8 *d_action,
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
-static void dr_ste_v1_set_rx_pop_vlan(u8 *hw_ste_p, u8 *s_action, u8 vlans_num)
+static void dr_ste_v1_set_pop_vlan(u8 *hw_ste_p, u8 *s_action, u8 vlans_num)
 {
 	MLX5_SET(ste_single_action_remove_header_size_v1, s_action,
 		 action_id, DR_STE_V1_ACTION_ID_REMOVE_BY_SIZE);
@@ -401,11 +444,11 @@ static void dr_ste_v1_set_rx_pop_vlan(u8 *hw_ste_p, u8 *s_action, u8 vlans_num)
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
-static void dr_ste_v1_set_tx_encap_l3(u8 *hw_ste_p,
-				      u8 *frst_s_action,
-				      u8 *scnd_d_action,
-				      u32 reformat_id,
-				      int size)
+static void dr_ste_v1_set_encap_l3(u8 *hw_ste_p,
+				   u8 *frst_s_action,
+				   u8 *scnd_d_action,
+				   u32 reformat_id,
+				   int size)
 {
 	/* Remove L2 headers */
 	MLX5_SET(ste_single_action_remove_header_v1, frst_s_action, action_id,
@@ -475,13 +518,28 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 {
 	u8 *action = MLX5_ADDR_OF(ste_match_bwc_v1, last_ste, action);
 	u8 action_sz = DR_STE_ACTION_DOUBLE_SZ;
+	bool allow_modify_hdr = true;
 	bool allow_encap = true;
+
+	if (action_type_set[DR_ACTION_TYP_POP_VLAN]) {
+		if (action_sz < DR_STE_ACTION_SINGLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes,
+						      attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1,
+					      last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_pop_vlan(last_ste, action, attr->vlans.count);
+		action_sz -= DR_STE_ACTION_SINGLE_SZ;
+		action += DR_STE_ACTION_SINGLE_SZ;
+		allow_modify_hdr = false;
+	}
 
 	if (action_type_set[DR_ACTION_TYP_CTR])
 		dr_ste_v1_set_counter_id(last_ste, attr->ctr_id);
 
 	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
-		if (action_sz < DR_STE_ACTION_DOUBLE_SZ) {
+		if (!allow_modify_hdr || action_sz < DR_STE_ACTION_DOUBLE_SZ) {
 			dr_ste_v1_arr_init_next_match(&last_ste, added_stes,
 						      attr->gvmi);
 			action = MLX5_ADDR_OF(ste_mask_and_match_v1,
@@ -506,7 +564,8 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 				action_sz = DR_STE_ACTION_TRIPLE_SZ;
 				allow_encap = true;
 			}
-			dr_ste_v1_set_tx_push_vlan(last_ste, action, attr->vlans.headers[i]);
+			dr_ste_v1_set_push_vlan(last_ste, action,
+						attr->vlans.headers[i]);
 			action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 			action += DR_STE_ACTION_DOUBLE_SZ;
 		}
@@ -519,9 +578,9 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 			action_sz = DR_STE_ACTION_TRIPLE_SZ;
 			allow_encap = true;
 		}
-		dr_ste_v1_set_tx_encap(last_ste, action,
-				       attr->reformat_id,
-				       attr->reformat_size);
+		dr_ste_v1_set_encap(last_ste, action,
+				    attr->reformat.id,
+				    attr->reformat.size);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 	} else if (action_type_set[DR_ACTION_TYP_L2_TO_TNL_L3]) {
@@ -532,12 +591,37 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 		action_sz = DR_STE_ACTION_TRIPLE_SZ;
 		d_action = action + DR_STE_ACTION_SINGLE_SZ;
 
-		dr_ste_v1_set_tx_encap_l3(last_ste,
-					  action, d_action,
-					  attr->reformat_id,
-					  attr->reformat_size);
+		dr_ste_v1_set_encap_l3(last_ste,
+				       action, d_action,
+				       attr->reformat.id,
+				       attr->reformat.size);
 		action_sz -= DR_STE_ACTION_TRIPLE_SZ;
 		action += DR_STE_ACTION_TRIPLE_SZ;
+	} else if (action_type_set[DR_ACTION_TYP_INSERT_HDR]) {
+		if (!allow_encap || action_sz < DR_STE_ACTION_DOUBLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_insert_hdr(last_ste, action,
+					 attr->reformat.id,
+					 attr->reformat.param_0,
+					 attr->reformat.param_1,
+					 attr->reformat.size);
+		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
+		action += DR_STE_ACTION_DOUBLE_SZ;
+	} else if (action_type_set[DR_ACTION_TYP_REMOVE_HDR]) {
+		if (action_sz < DR_STE_ACTION_SINGLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_remove_hdr(last_ste, action,
+					 attr->reformat.param_0,
+					 attr->reformat.param_1,
+					 attr->reformat.size);
+		action_sz -= DR_STE_ACTION_SINGLE_SZ;
+		action += DR_STE_ACTION_SINGLE_SZ;
 	}
 
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
@@ -594,7 +678,7 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 			allow_ctr = false;
 		}
 
-		dr_ste_v1_set_rx_pop_vlan(last_ste, action, attr->vlans.count);
+		dr_ste_v1_set_pop_vlan(last_ste, action, attr->vlans.count);
 		action_sz -= DR_STE_ACTION_SINGLE_SZ;
 		action += DR_STE_ACTION_SINGLE_SZ;
 	}
@@ -615,8 +699,30 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 		action += DR_STE_ACTION_DOUBLE_SZ;
 	}
 
+	if (action_type_set[DR_ACTION_TYP_PUSH_VLAN]) {
+		int i;
+
+		for (i = 0; i < attr->vlans.count; i++) {
+			if (action_sz < DR_STE_ACTION_DOUBLE_SZ ||
+			    !allow_modify_hdr) {
+				dr_ste_v1_arr_init_next_match(&last_ste,
+							      added_stes,
+							      attr->gvmi);
+				action = MLX5_ADDR_OF(ste_mask_and_match_v1,
+						      last_ste, action);
+				action_sz = DR_STE_ACTION_TRIPLE_SZ;
+			}
+			dr_ste_v1_set_push_vlan(last_ste, action,
+						attr->vlans.headers[i]);
+			action_sz -= DR_STE_ACTION_DOUBLE_SZ;
+			action += DR_STE_ACTION_DOUBLE_SZ;
+		}
+	}
+
 	if (action_type_set[DR_ACTION_TYP_CTR]) {
-		/* Counter action set after decap to exclude decaped header */
+		/* Counter action set after decap and before insert_hdr
+		 * to exclude decaped / encaped header respectively.
+		 */
 		if (!allow_ctr) {
 			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
 			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
@@ -625,6 +731,66 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 			allow_ctr = false;
 		}
 		dr_ste_v1_set_counter_id(last_ste, attr->ctr_id);
+	}
+
+	if (action_type_set[DR_ACTION_TYP_L2_TO_TNL_L2]) {
+		if (action_sz < DR_STE_ACTION_DOUBLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_encap(last_ste, action,
+				    attr->reformat.id,
+				    attr->reformat.size);
+		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
+		action += DR_STE_ACTION_DOUBLE_SZ;
+		allow_modify_hdr = false;
+	} else if (action_type_set[DR_ACTION_TYP_L2_TO_TNL_L3]) {
+		u8 *d_action;
+
+		if (action_sz < DR_STE_ACTION_TRIPLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+
+		d_action = action + DR_STE_ACTION_SINGLE_SZ;
+
+		dr_ste_v1_set_encap_l3(last_ste,
+				       action, d_action,
+				       attr->reformat.id,
+				       attr->reformat.size);
+		action_sz -= DR_STE_ACTION_TRIPLE_SZ;
+		allow_modify_hdr = false;
+	} else if (action_type_set[DR_ACTION_TYP_INSERT_HDR]) {
+		/* Modify header, decap, and encap must use different STEs */
+		if (!allow_modify_hdr || action_sz < DR_STE_ACTION_DOUBLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_insert_hdr(last_ste, action,
+					 attr->reformat.id,
+					 attr->reformat.param_0,
+					 attr->reformat.param_1,
+					 attr->reformat.size);
+		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
+		action += DR_STE_ACTION_DOUBLE_SZ;
+		allow_modify_hdr = false;
+	} else if (action_type_set[DR_ACTION_TYP_REMOVE_HDR]) {
+		if (action_sz < DR_STE_ACTION_SINGLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+			allow_modify_hdr = true;
+			allow_ctr = true;
+		}
+		dr_ste_v1_set_remove_hdr(last_ste, action,
+					 attr->reformat.param_0,
+					 attr->reformat.param_1,
+					 attr->reformat.size);
+		action_sz -= DR_STE_ACTION_SINGLE_SZ;
+		action += DR_STE_ACTION_SINGLE_SZ;
 	}
 
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
@@ -1755,7 +1921,7 @@ dr_ste_v1_build_flex_parser_tnl_geneve_tlv_opt_init(struct mlx5dr_ste_build *sb,
 
 static int dr_ste_v1_build_flex_parser_tnl_gtpu_tag(struct mlx5dr_match_param *value,
 						    struct mlx5dr_ste_build *sb,
-						    uint8_t *tag)
+						    u8 *tag)
 {
 	struct mlx5dr_match_misc3 *misc3 = &value->misc3;
 
@@ -1779,7 +1945,7 @@ static void dr_ste_v1_build_flex_parser_tnl_gtpu_init(struct mlx5dr_ste_build *s
 static int
 dr_ste_v1_build_tnl_gtpu_flex_parser_0_tag(struct mlx5dr_match_param *value,
 					   struct mlx5dr_ste_build *sb,
-					   uint8_t *tag)
+					   u8 *tag)
 {
 	if (dr_is_flex_parser_0_id(sb->caps->flex_parser_id_gtpu_dw_0))
 		DR_STE_SET_FLEX_PARSER_FIELD(tag, gtpu_dw_0, sb->caps, &value->misc3);
@@ -1806,7 +1972,7 @@ dr_ste_v1_build_tnl_gtpu_flex_parser_0_init(struct mlx5dr_ste_build *sb,
 static int
 dr_ste_v1_build_tnl_gtpu_flex_parser_1_tag(struct mlx5dr_match_param *value,
 					   struct mlx5dr_ste_build *sb,
-					   uint8_t *tag)
+					   u8 *tag)
 {
 	if (dr_is_flex_parser_1_id(sb->caps->flex_parser_id_gtpu_dw_0))
 		DR_STE_SET_FLEX_PARSER_FIELD(tag, gtpu_dw_0, sb->caps, &value->misc3);
@@ -1871,6 +2037,9 @@ struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	.set_byte_mask			= &dr_ste_v1_set_byte_mask,
 	.get_byte_mask			= &dr_ste_v1_get_byte_mask,
 	/* Actions */
+	.actions_caps			= DR_STE_CTX_ACTION_CAP_TX_POP |
+					  DR_STE_CTX_ACTION_CAP_RX_PUSH |
+					  DR_STE_CTX_ACTION_CAP_RX_ENCAP,
 	.set_actions_rx			= &dr_ste_v1_set_actions_rx,
 	.set_actions_tx			= &dr_ste_v1_set_actions_tx,
 	.modify_field_arr_sz		= ARRAY_SIZE(dr_ste_v1_action_modify_field_arr),

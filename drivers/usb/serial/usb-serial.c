@@ -376,7 +376,7 @@ exit:
 	return retval;
 }
 
-static int serial_write_room(struct tty_struct *tty)
+static unsigned int serial_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
@@ -385,7 +385,7 @@ static int serial_write_room(struct tty_struct *tty)
 	return port->serial->type->write_room(tty);
 }
 
-static int serial_chars_in_buffer(struct tty_struct *tty)
+static unsigned int serial_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
@@ -1319,9 +1319,10 @@ static int __init usb_serial_init(void)
 {
 	int result;
 
-	usb_serial_tty_driver = alloc_tty_driver(USB_SERIAL_TTY_MINORS);
-	if (!usb_serial_tty_driver)
-		return -ENOMEM;
+	usb_serial_tty_driver = tty_alloc_driver(USB_SERIAL_TTY_MINORS,
+			TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(usb_serial_tty_driver))
+		return PTR_ERR(usb_serial_tty_driver);
 
 	/* Initialize our global data */
 	result = bus_register(&usb_serial_bus_type);
@@ -1336,8 +1337,6 @@ static int __init usb_serial_init(void)
 	usb_serial_tty_driver->minor_start = 0;
 	usb_serial_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	usb_serial_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	usb_serial_tty_driver->flags = TTY_DRIVER_REAL_RAW |
-						TTY_DRIVER_DYNAMIC_DEV;
 	usb_serial_tty_driver->init_termios = tty_std_termios;
 	usb_serial_tty_driver->init_termios.c_cflag = B9600 | CS8 | CREAD
 							| HUPCL | CLOCAL;
@@ -1367,7 +1366,7 @@ exit_reg_driver:
 
 exit_bus:
 	pr_err("%s - returning with error %d\n", __func__, result);
-	put_tty_driver(usb_serial_tty_driver);
+	tty_driver_kref_put(usb_serial_tty_driver);
 	return result;
 }
 
@@ -1379,7 +1378,7 @@ static void __exit usb_serial_exit(void)
 	usb_serial_generic_deregister();
 
 	tty_unregister_driver(usb_serial_tty_driver);
-	put_tty_driver(usb_serial_tty_driver);
+	tty_driver_kref_put(usb_serial_tty_driver);
 	bus_unregister(&usb_serial_bus_type);
 	idr_destroy(&serial_minors);
 }

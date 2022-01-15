@@ -24,7 +24,7 @@
 		reg = <0xf4000000 0x3ff0000>;
 		ranges;
 
-		lan9220@f4000000 {
+		ethernet@f4000000 {
 			compatible = "smsc,lan9220", "smsc,lan9115";
 			reg = <0xf4000000 0x2000000>;
 			phy-mode = "mii";

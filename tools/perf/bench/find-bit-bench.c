@@ -54,7 +54,7 @@ static bool asm_test_bit(long nr, const unsigned long *addr)
 
 static int do_for_each_set_bit(unsigned int num_bits)
 {
-	unsigned long *to_test = bitmap_alloc(num_bits);
+	unsigned long *to_test = bitmap_zalloc(num_bits);
 	struct timeval start, end, diff;
 	u64 runtime_us;
 	struct stats fb_time_stats, tb_time_stats;

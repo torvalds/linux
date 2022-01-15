@@ -42,6 +42,7 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 	default:
 		pr_err("error: cpuctl register has unexpected value %02x\n",
 		       clockspeed_reg);
+		fallthrough;
 	case 0x01:
 		return 100000;
 	case 0x02:

@@ -3,7 +3,7 @@
  *
  *   Copyright (c) International Business Machines  Corp., 2000,2002
  *   Modified by Steve French (sfrench@us.ibm.com)
-*/
+ */
 
 #ifndef _H_CIFS_DEBUG
 #define _H_CIFS_DEBUG

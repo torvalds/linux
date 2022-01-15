@@ -6,6 +6,7 @@
 #include <linux/fs.h>
 #include <linux/if_vlan.h>
 #include <linux/types.h>
+#include <net/devlink.h>
 #include "hclge_mbx.h"
 #include "hclgevf_cmd.h"
 #include "hnae3.h"
@@ -32,21 +33,23 @@
 #define HCLGEVF_VECTOR_VF_OFFSET		0x100000
 
 /* bar registers for cmdq */
-#define HCLGEVF_CMDQ_TX_ADDR_L_REG		0x27000
-#define HCLGEVF_CMDQ_TX_ADDR_H_REG		0x27004
-#define HCLGEVF_CMDQ_TX_DEPTH_REG		0x27008
-#define HCLGEVF_CMDQ_TX_TAIL_REG		0x27010
-#define HCLGEVF_CMDQ_TX_HEAD_REG		0x27014
-#define HCLGEVF_CMDQ_RX_ADDR_L_REG		0x27018
-#define HCLGEVF_CMDQ_RX_ADDR_H_REG		0x2701C
-#define HCLGEVF_CMDQ_RX_DEPTH_REG		0x27020
-#define HCLGEVF_CMDQ_RX_TAIL_REG		0x27024
-#define HCLGEVF_CMDQ_RX_HEAD_REG		0x27028
+#define HCLGEVF_NIC_CSQ_BASEADDR_L_REG		0x27000
+#define HCLGEVF_NIC_CSQ_BASEADDR_H_REG		0x27004
+#define HCLGEVF_NIC_CSQ_DEPTH_REG		0x27008
+#define HCLGEVF_NIC_CSQ_TAIL_REG		0x27010
+#define HCLGEVF_NIC_CSQ_HEAD_REG		0x27014
+#define HCLGEVF_NIC_CRQ_BASEADDR_L_REG		0x27018
+#define HCLGEVF_NIC_CRQ_BASEADDR_H_REG		0x2701C
+#define HCLGEVF_NIC_CRQ_DEPTH_REG		0x27020
+#define HCLGEVF_NIC_CRQ_TAIL_REG		0x27024
+#define HCLGEVF_NIC_CRQ_HEAD_REG		0x27028
+
 #define HCLGEVF_CMDQ_INTR_EN_REG		0x27108
 #define HCLGEVF_CMDQ_INTR_GEN_REG		0x2710C
 
 /* bar registers for common func */
 #define HCLGEVF_GRO_EN_REG			0x28000
+#define HCLGEVF_RXD_ADV_LAYOUT_EN_REG		0x28008
 
 /* bar registers for rcb */
 #define HCLGEVF_RING_RX_ADDR_L_REG		0x80000
@@ -143,6 +146,7 @@ enum hclgevf_states {
 	HCLGEVF_STATE_REMOVING,
 	HCLGEVF_STATE_NIC_REGISTERED,
 	HCLGEVF_STATE_ROCE_REGISTERED,
+	HCLGEVF_STATE_SERVICE_INITED,
 	/* task states */
 	HCLGEVF_STATE_RST_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_HANDLING,
@@ -284,6 +288,7 @@ struct hclgevf_dev {
 	struct semaphore reset_sem;	/* protect reset process */
 
 	u32 fw_version;
+	u16 mbx_api_version;
 	u16 num_tqps;		/* num task queue pairs of this VF */
 
 	u16 alloc_rss_size;	/* allocated RSS task queue */
@@ -308,11 +313,12 @@ struct hclgevf_dev {
 	u16 *vector_status;
 	int *vector_irq;
 
+	bool gro_en;
+
 	unsigned long vlan_del_fail_bmap[BITS_TO_LONGS(VLAN_N_VID)];
 
 	struct hclgevf_mac_table_cfg mac_table;
 
-	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
 	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */
 
@@ -328,6 +334,8 @@ struct hclgevf_dev {
 	u32 flag;
 	unsigned long serv_processed_cnt;
 	unsigned long last_serv_processed;
+
+	struct devlink *devlink;
 };
 
 static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)

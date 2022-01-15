@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <subcmd/exec-cmd.h>
+#include <linux/zalloc.h>
 
 static bool dont_fork;
 
@@ -360,6 +361,10 @@ static struct test generic_tests[] = {
 		.is_supported = test__tsc_is_supported,
 	},
 	{
+		.desc = "dlfilter C API",
+		.func = test__dlfilter,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -510,8 +515,8 @@ static const char *shell_test__description(char *description, size_t size,
 	return description ? strim(description + 1) : NULL;
 }
 
-#define for_each_shell_test(dir, base, ent)	\
-	while ((ent = readdir(dir)) != NULL)	\
+#define for_each_shell_test(entlist, nr, base, ent)	                \
+	for (int __i = 0; __i < nr && (ent = entlist[__i]); __i++)	\
 		if (!is_directory(base, ent) && ent->d_name[0] != '.')
 
 static const char *shell_tests__dir(char *path, size_t size)
@@ -538,8 +543,9 @@ static const char *shell_tests__dir(char *path, size_t size)
 
 static int shell_tests__max_desc_width(void)
 {
-	DIR *dir;
+	struct dirent **entlist;
 	struct dirent *ent;
+	int n_dirs, e;
 	char path_dir[PATH_MAX];
 	const char *path = shell_tests__dir(path_dir, sizeof(path_dir));
 	int width = 0;
@@ -547,11 +553,11 @@ static int shell_tests__max_desc_width(void)
 	if (path == NULL)
 		return -1;
 
-	dir = opendir(path);
-	if (!dir)
+	n_dirs = scandir(path, &entlist, NULL, alphasort);
+	if (n_dirs == -1)
 		return -1;
 
-	for_each_shell_test(dir, path, ent) {
+	for_each_shell_test(entlist, n_dirs, path, ent) {
 		char bf[256];
 		const char *desc = shell_test__description(bf, sizeof(bf), path, ent->d_name);
 
@@ -563,7 +569,9 @@ static int shell_tests__max_desc_width(void)
 		}
 	}
 
-	closedir(dir);
+	for (e = 0; e < n_dirs; e++)
+		zfree(&entlist[e]);
+	free(entlist);
 	return width;
 }
 
@@ -578,7 +586,10 @@ static int shell_test__run(struct test *test, int subdir __maybe_unused)
 	char script[PATH_MAX];
 	struct shell_test *st = test->priv;
 
-	path__join(script, sizeof(script), st->dir, st->file);
+	path__join(script, sizeof(script) - 3, st->dir, st->file);
+
+	if (verbose)
+		strncat(script, " -v", sizeof(script) - strlen(script) - 1);
 
 	err = system(script);
 	if (!err)
@@ -587,10 +598,12 @@ static int shell_test__run(struct test *test, int subdir __maybe_unused)
 	return WEXITSTATUS(err) == 2 ? TEST_SKIP : TEST_FAIL;
 }
 
-static int run_shell_tests(int argc, const char *argv[], int i, int width)
+static int run_shell_tests(int argc, const char *argv[], int i, int width,
+				struct intlist *skiplist)
 {
-	DIR *dir;
+	struct dirent **entlist;
 	struct dirent *ent;
+	int n_dirs, e;
 	char path_dir[PATH_MAX];
 	struct shell_test st = {
 		.dir = shell_tests__dir(path_dir, sizeof(path_dir)),
@@ -599,14 +612,14 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 	if (st.dir == NULL)
 		return -1;
 
-	dir = opendir(st.dir);
-	if (!dir) {
+	n_dirs = scandir(st.dir, &entlist, NULL, alphasort);
+	if (n_dirs == -1) {
 		pr_err("failed to open shell test directory: %s\n",
 			st.dir);
 		return -1;
 	}
 
-	for_each_shell_test(dir, st.dir, ent) {
+	for_each_shell_test(entlist, n_dirs, st.dir, ent) {
 		int curr = i++;
 		char desc[256];
 		struct test test = {
@@ -620,10 +633,18 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 
 		st.file = ent->d_name;
 		pr_info("%2d: %-*s:", i, width, test.desc);
+
+		if (intlist__find(skiplist, i)) {
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
+			continue;
+		}
+
 		test_and_print(&test, false, -1);
 	}
 
-	closedir(dir);
+	for (e = 0; e < n_dirs; e++)
+		zfree(&entlist[e]);
+	free(entlist);
 	return 0;
 }
 
@@ -717,24 +738,25 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		}
 	}
 
-	return run_shell_tests(argc, argv, i, width);
+	return run_shell_tests(argc, argv, i, width, skiplist);
 }
 
 static int perf_test__list_shell(int argc, const char **argv, int i)
 {
-	DIR *dir;
+	struct dirent **entlist;
 	struct dirent *ent;
+	int n_dirs, e;
 	char path_dir[PATH_MAX];
 	const char *path = shell_tests__dir(path_dir, sizeof(path_dir));
 
 	if (path == NULL)
 		return -1;
 
-	dir = opendir(path);
-	if (!dir)
+	n_dirs = scandir(path, &entlist, NULL, alphasort);
+	if (n_dirs == -1)
 		return -1;
 
-	for_each_shell_test(dir, path, ent) {
+	for_each_shell_test(entlist, n_dirs, path, ent) {
 		int curr = i++;
 		char bf[256];
 		struct test t = {
@@ -745,9 +767,12 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 			continue;
 
 		pr_info("%2d: %s\n", i, t.desc);
+
 	}
 
-	closedir(dir);
+	for (e = 0; e < n_dirs; e++)
+		zfree(&entlist[e]);
+	free(entlist);
 	return 0;
 }
 

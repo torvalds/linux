@@ -235,15 +235,15 @@ static char irq_trigger[2];
  */
 static void restore_ELCR(char *trigger)
 {
-	outb(trigger[0], 0x4d0);
-	outb(trigger[1], 0x4d1);
+	outb(trigger[0], PIC_ELCR1);
+	outb(trigger[1], PIC_ELCR2);
 }
 
 static void save_ELCR(char *trigger)
 {
 	/* IRQ 0,1,2,8,13 are marked as reserved */
-	trigger[0] = inb(0x4d0) & 0xF8;
-	trigger[1] = inb(0x4d1) & 0xDE;
+	trigger[0] = inb(PIC_ELCR1) & 0xF8;
+	trigger[1] = inb(PIC_ELCR2) & 0xDE;
 }
 
 static void i8259A_resume(void)

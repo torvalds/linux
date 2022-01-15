@@ -8,10 +8,10 @@
 #include <linux/coresight-pmu.h>
 #include <linux/zalloc.h>
 
-#include "../../util/auxtrace.h"
-#include "../../util/debug.h"
-#include "../../util/evlist.h"
-#include "../../util/pmu.h"
+#include "../../../util/auxtrace.h"
+#include "../../../util/debug.h"
+#include "../../../util/evlist.h"
+#include "../../../util/pmu.h"
 #include "cs-etm.h"
 #include "arm-spe.h"
 
@@ -107,3 +107,35 @@ struct auxtrace_record
 	*err = 0;
 	return NULL;
 }
+
+#if defined(__arm__)
+u64 compat_auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+	u64 result;
+
+	__asm__ __volatile__(
+"	ldrd    %0, %H0, [%1]"
+	: "=&r" (result)
+	: "r" (&pc->aux_head), "Qo" (pc->aux_head)
+	);
+
+	return result;
+}
+
+int compat_auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+
+	/* Ensure all reads are done before we write the tail out */
+	smp_mb();
+
+	__asm__ __volatile__(
+"	strd    %2, %H2, [%1]"
+	: "=Qo" (pc->aux_tail)
+	: "r" (&pc->aux_tail), "r" (tail)
+	);
+
+	return 0;
+}
+#endif

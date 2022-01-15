@@ -180,7 +180,7 @@ static inline void mmu_mark_rodata_ro(void) { }
 void __init mmu_mapin_immr(void);
 #endif
 
-#ifdef CONFIG_PPC_DEBUG_WX
+#ifdef CONFIG_DEBUG_WX
 void ptdump_check_wx(void);
 #else
 static inline void ptdump_check_wx(void) { }

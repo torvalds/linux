@@ -584,9 +584,9 @@ static int vfe_get(struct vfe_device *vfe)
 		if (ret < 0)
 			goto error_pm_domain;
 
-		ret = pm_runtime_get_sync(vfe->camss->dev);
+		ret = pm_runtime_resume_and_get(vfe->camss->dev);
 		if (ret < 0)
-			goto error_pm_runtime_get;
+			goto error_domain_off;
 
 		ret = vfe_set_clock_rates(vfe);
 		if (ret < 0)
@@ -620,6 +620,7 @@ error_reset:
 
 error_pm_runtime_get:
 	pm_runtime_put_sync(vfe->camss->dev);
+error_domain_off:
 	vfe->ops->pm_domain_off(vfe);
 
 error_pm_domain:
@@ -762,12 +763,13 @@ static int vfe_set_stream(struct v4l2_subdev *sd, int enable)
  */
 static struct v4l2_mbus_framefmt *
 __vfe_get_format(struct vfe_line *line,
-		 struct v4l2_subdev_pad_config *cfg,
+		 struct v4l2_subdev_state *sd_state,
 		 unsigned int pad,
 		 enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&line->subdev, cfg, pad);
+		return v4l2_subdev_get_try_format(&line->subdev, sd_state,
+						  pad);
 
 	return &line->fmt[pad];
 }
@@ -782,11 +784,11 @@ __vfe_get_format(struct vfe_line *line,
  */
 static struct v4l2_rect *
 __vfe_get_compose(struct vfe_line *line,
-		  struct v4l2_subdev_pad_config *cfg,
+		  struct v4l2_subdev_state *sd_state,
 		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_compose(&line->subdev, cfg,
+		return v4l2_subdev_get_try_compose(&line->subdev, sd_state,
 						   MSM_VFE_PAD_SINK);
 
 	return &line->compose;
@@ -802,11 +804,11 @@ __vfe_get_compose(struct vfe_line *line,
  */
 static struct v4l2_rect *
 __vfe_get_crop(struct vfe_line *line,
-	       struct v4l2_subdev_pad_config *cfg,
+	       struct v4l2_subdev_state *sd_state,
 	       enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&line->subdev, cfg,
+		return v4l2_subdev_get_try_crop(&line->subdev, sd_state,
 						MSM_VFE_PAD_SRC);
 
 	return &line->crop;
@@ -821,7 +823,7 @@ __vfe_get_crop(struct vfe_line *line,
  * @which: wanted subdev format
  */
 static void vfe_try_format(struct vfe_line *line,
-			   struct v4l2_subdev_pad_config *cfg,
+			   struct v4l2_subdev_state *sd_state,
 			   unsigned int pad,
 			   struct v4l2_mbus_framefmt *fmt,
 			   enum v4l2_subdev_format_whence which)
@@ -853,14 +855,15 @@ static void vfe_try_format(struct vfe_line *line,
 		/* Set and return a format same as sink pad */
 		code = fmt->code;
 
-		*fmt = *__vfe_get_format(line, cfg, MSM_VFE_PAD_SINK, which);
+		*fmt = *__vfe_get_format(line, sd_state, MSM_VFE_PAD_SINK,
+					 which);
 
 		fmt->code = vfe_src_pad_code(line, fmt->code, 0, code);
 
 		if (line->id == VFE_LINE_PIX) {
 			struct v4l2_rect *rect;
 
-			rect = __vfe_get_crop(line, cfg, which);
+			rect = __vfe_get_crop(line, sd_state, which);
 
 			fmt->width = rect->width;
 			fmt->height = rect->height;
@@ -880,13 +883,13 @@ static void vfe_try_format(struct vfe_line *line,
  * @which: wanted subdev format
  */
 static void vfe_try_compose(struct vfe_line *line,
-			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_rect *rect,
 			    enum v4l2_subdev_format_whence which)
 {
 	struct v4l2_mbus_framefmt *fmt;
 
-	fmt = __vfe_get_format(line, cfg, MSM_VFE_PAD_SINK, which);
+	fmt = __vfe_get_format(line, sd_state, MSM_VFE_PAD_SINK, which);
 
 	if (rect->width > fmt->width)
 		rect->width = fmt->width;
@@ -919,13 +922,13 @@ static void vfe_try_compose(struct vfe_line *line,
  * @which: wanted subdev format
  */
 static void vfe_try_crop(struct vfe_line *line,
-			 struct v4l2_subdev_pad_config *cfg,
+			 struct v4l2_subdev_state *sd_state,
 			 struct v4l2_rect *rect,
 			 enum v4l2_subdev_format_whence which)
 {
 	struct v4l2_rect *compose;
 
-	compose = __vfe_get_compose(line, cfg, which);
+	compose = __vfe_get_compose(line, sd_state, which);
 
 	if (rect->width > compose->width)
 		rect->width = compose->width;
@@ -963,7 +966,7 @@ static void vfe_try_crop(struct vfe_line *line,
  * return -EINVAL or zero on success
  */
 static int vfe_enum_mbus_code(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct vfe_line *line = v4l2_get_subdevdata(sd);
@@ -976,7 +979,7 @@ static int vfe_enum_mbus_code(struct v4l2_subdev *sd,
 	} else {
 		struct v4l2_mbus_framefmt *sink_fmt;
 
-		sink_fmt = __vfe_get_format(line, cfg, MSM_VFE_PAD_SINK,
+		sink_fmt = __vfe_get_format(line, sd_state, MSM_VFE_PAD_SINK,
 					    code->which);
 
 		code->code = vfe_src_pad_code(line, sink_fmt->code,
@@ -997,7 +1000,7 @@ static int vfe_enum_mbus_code(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int vfe_enum_frame_size(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_pad_config *cfg,
+			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vfe_line *line = v4l2_get_subdevdata(sd);
@@ -1009,7 +1012,7 @@ static int vfe_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	vfe_try_format(line, cfg, fse->pad, &format, fse->which);
+	vfe_try_format(line, sd_state, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -1019,7 +1022,7 @@ static int vfe_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	vfe_try_format(line, cfg, fse->pad, &format, fse->which);
+	vfe_try_format(line, sd_state, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 
@@ -1035,13 +1038,13 @@ static int vfe_enum_frame_size(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int vfe_get_format(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vfe_line *line = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __vfe_get_format(line, cfg, fmt->pad, fmt->which);
+	format = __vfe_get_format(line, sd_state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
@@ -1051,7 +1054,7 @@ static int vfe_get_format(struct v4l2_subdev *sd,
 }
 
 static int vfe_set_selection(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel);
 
 /*
@@ -1063,17 +1066,17 @@ static int vfe_set_selection(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int vfe_set_format(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vfe_line *line = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __vfe_get_format(line, cfg, fmt->pad, fmt->which);
+	format = __vfe_get_format(line, sd_state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	vfe_try_format(line, cfg, fmt->pad, &fmt->format, fmt->which);
+	vfe_try_format(line, sd_state, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	if (fmt->pad == MSM_VFE_PAD_SINK) {
@@ -1081,11 +1084,11 @@ static int vfe_set_format(struct v4l2_subdev *sd,
 		int ret;
 
 		/* Propagate the format from sink to source */
-		format = __vfe_get_format(line, cfg, MSM_VFE_PAD_SRC,
+		format = __vfe_get_format(line, sd_state, MSM_VFE_PAD_SRC,
 					  fmt->which);
 
 		*format = fmt->format;
-		vfe_try_format(line, cfg, MSM_VFE_PAD_SRC, format,
+		vfe_try_format(line, sd_state, MSM_VFE_PAD_SRC, format,
 			       fmt->which);
 
 		if (line->id != VFE_LINE_PIX)
@@ -1097,7 +1100,7 @@ static int vfe_set_format(struct v4l2_subdev *sd,
 		sel.target = V4L2_SEL_TGT_COMPOSE;
 		sel.r.width = fmt->format.width;
 		sel.r.height = fmt->format.height;
-		ret = vfe_set_selection(sd, cfg, &sel);
+		ret = vfe_set_selection(sd, sd_state, &sel);
 		if (ret < 0)
 			return ret;
 	}
@@ -1114,7 +1117,7 @@ static int vfe_set_format(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int vfe_get_selection(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vfe_line *line = v4l2_get_subdevdata(sd);
@@ -1130,7 +1133,7 @@ static int vfe_get_selection(struct v4l2_subdev *sd,
 		case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 			fmt.pad = sel->pad;
 			fmt.which = sel->which;
-			ret = vfe_get_format(sd, cfg, &fmt);
+			ret = vfe_get_format(sd, sd_state, &fmt);
 			if (ret < 0)
 				return ret;
 
@@ -1140,7 +1143,7 @@ static int vfe_get_selection(struct v4l2_subdev *sd,
 			sel->r.height = fmt.format.height;
 			break;
 		case V4L2_SEL_TGT_COMPOSE:
-			rect = __vfe_get_compose(line, cfg, sel->which);
+			rect = __vfe_get_compose(line, sd_state, sel->which);
 			if (rect == NULL)
 				return -EINVAL;
 
@@ -1152,7 +1155,7 @@ static int vfe_get_selection(struct v4l2_subdev *sd,
 	else if (sel->pad == MSM_VFE_PAD_SRC)
 		switch (sel->target) {
 		case V4L2_SEL_TGT_CROP_BOUNDS:
-			rect = __vfe_get_compose(line, cfg, sel->which);
+			rect = __vfe_get_compose(line, sd_state, sel->which);
 			if (rect == NULL)
 				return -EINVAL;
 
@@ -1162,7 +1165,7 @@ static int vfe_get_selection(struct v4l2_subdev *sd,
 			sel->r.height = rect->height;
 			break;
 		case V4L2_SEL_TGT_CROP:
-			rect = __vfe_get_crop(line, cfg, sel->which);
+			rect = __vfe_get_crop(line, sd_state, sel->which);
 			if (rect == NULL)
 				return -EINVAL;
 
@@ -1184,7 +1187,7 @@ static int vfe_get_selection(struct v4l2_subdev *sd,
  * Return -EINVAL or zero on success
  */
 static int vfe_set_selection(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
 	struct vfe_line *line = v4l2_get_subdevdata(sd);
@@ -1198,11 +1201,11 @@ static int vfe_set_selection(struct v4l2_subdev *sd,
 		sel->pad == MSM_VFE_PAD_SINK) {
 		struct v4l2_subdev_selection crop = { 0 };
 
-		rect = __vfe_get_compose(line, cfg, sel->which);
+		rect = __vfe_get_compose(line, sd_state, sel->which);
 		if (rect == NULL)
 			return -EINVAL;
 
-		vfe_try_compose(line, cfg, &sel->r, sel->which);
+		vfe_try_compose(line, sd_state, &sel->r, sel->which);
 		*rect = sel->r;
 
 		/* Reset source crop selection */
@@ -1210,28 +1213,28 @@ static int vfe_set_selection(struct v4l2_subdev *sd,
 		crop.pad = MSM_VFE_PAD_SRC;
 		crop.target = V4L2_SEL_TGT_CROP;
 		crop.r = *rect;
-		ret = vfe_set_selection(sd, cfg, &crop);
+		ret = vfe_set_selection(sd, sd_state, &crop);
 	} else if (sel->target == V4L2_SEL_TGT_CROP &&
 		sel->pad == MSM_VFE_PAD_SRC) {
 		struct v4l2_subdev_format fmt = { 0 };
 
-		rect = __vfe_get_crop(line, cfg, sel->which);
+		rect = __vfe_get_crop(line, sd_state, sel->which);
 		if (rect == NULL)
 			return -EINVAL;
 
-		vfe_try_crop(line, cfg, &sel->r, sel->which);
+		vfe_try_crop(line, sd_state, &sel->r, sel->which);
 		*rect = sel->r;
 
 		/* Reset source pad format width and height */
 		fmt.which = sel->which;
 		fmt.pad = MSM_VFE_PAD_SRC;
-		ret = vfe_get_format(sd, cfg, &fmt);
+		ret = vfe_get_format(sd, sd_state, &fmt);
 		if (ret < 0)
 			return ret;
 
 		fmt.format.width = rect->width;
 		fmt.format.height = rect->height;
-		ret = vfe_set_format(sd, cfg, &fmt);
+		ret = vfe_set_format(sd, sd_state, &fmt);
 	} else {
 		ret = -EINVAL;
 	}
@@ -1261,7 +1264,7 @@ static int vfe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		}
 	};
 
-	return vfe_set_format(sd, fh ? fh->pad : NULL, &format);
+	return vfe_set_format(sd, fh ? fh->state : NULL, &format);
 }
 
 /*
@@ -1301,8 +1304,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 
 	/* Memory */
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
-	vfe->base = devm_ioremap_resource(dev, r);
+	vfe->base = devm_platform_ioremap_resource_byname(pdev, res->reg[0]);
 	if (IS_ERR(vfe->base)) {
 		dev_err(dev, "could not map memory\n");
 		return PTR_ERR(vfe->base);

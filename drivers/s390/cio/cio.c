@@ -536,7 +536,7 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 	struct irb *irb;
 
 	set_cpu_flag(CIF_NOHZ_DELAY);
-	tpi_info = (struct tpi_info *) &get_irq_regs()->int_code;
+	tpi_info = &get_irq_regs()->tpi_info;
 	trace_s390_cio_interrupt(tpi_info);
 	irb = this_cpu_ptr(&cio_irb);
 	sch = (struct subchannel *)(unsigned long) tpi_info->intparm;

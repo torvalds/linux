@@ -512,7 +512,7 @@ int simple_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 }
 EXPORT_SYMBOL(simple_setattr);
 
-int simple_readpage(struct file *file, struct page *page)
+static int simple_readpage(struct file *file, struct page *page)
 {
 	clear_highpage(page);
 	flush_dcache_page(page);
@@ -520,7 +520,6 @@ int simple_readpage(struct file *file, struct page *page)
 	unlock_page(page);
 	return 0;
 }
-EXPORT_SYMBOL(simple_readpage);
 
 int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
@@ -568,7 +567,7 @@ EXPORT_SYMBOL(simple_write_begin);
  *
  * Use *ONLY* with simple_readpage()
  */
-int simple_write_end(struct file *file, struct address_space *mapping,
+static int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
@@ -597,7 +596,17 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 
 	return copied;
 }
-EXPORT_SYMBOL(simple_write_end);
+
+/*
+ * Provides ramfs-style behavior: data in the pagecache, but no writeback.
+ */
+const struct address_space_operations ram_aops = {
+	.readpage	= simple_readpage,
+	.write_begin	= simple_write_begin,
+	.write_end	= simple_write_end,
+	.set_page_dirty	= __set_page_dirty_no_writeback,
+};
+EXPORT_SYMBOL(ram_aops);
 
 /*
  * the inodes created here are not hashed. If you use iunique to generate
@@ -1162,22 +1171,6 @@ int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 EXPORT_SYMBOL(noop_fsync);
 
-int noop_set_page_dirty(struct page *page)
-{
-	/*
-	 * Unlike __set_page_dirty_no_writeback that handles dirty page
-	 * tracking in the page object, dax does all dirty tracking in
-	 * the inode address_space in response to mkwrite faults. In the
-	 * dax case we only need to worry about potentially dirty CPU
-	 * caches, not dirty page cache pages to write back.
-	 *
-	 * This callback is defined to prevent fallback to
-	 * __set_page_dirty_buffers() in set_page_dirty().
-	 */
-	return 0;
-}
-EXPORT_SYMBOL_GPL(noop_set_page_dirty);
-
 void noop_invalidatepage(struct page *page, unsigned int offset,
 		unsigned int length)
 {
@@ -1208,19 +1201,10 @@ void kfree_link(void *p)
 }
 EXPORT_SYMBOL(kfree_link);
 
-/*
- * nop .set_page_dirty method so that people can use .page_mkwrite on
- * anon inodes.
- */
-static int anon_set_page_dirty(struct page *page)
-{
-	return 0;
-};
-
 struct inode *alloc_anon_inode(struct super_block *s)
 {
 	static const struct address_space_operations anon_aops = {
-		.set_page_dirty = anon_set_page_dirty,
+		.set_page_dirty = __set_page_dirty_no_writeback,
 	};
 	struct inode *inode = new_inode_pseudo(s);
 

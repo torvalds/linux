@@ -6,6 +6,7 @@
 // Chanwoo Choi <cw00.choi@samsung.com>
 // Krzysztof Kozlowski <krzk@kernel.org>
 
+#include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -673,7 +674,10 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->mutex);
 
-	INIT_WORK(&info->irq_work, max14577_muic_irq_work);
+	ret = devm_work_autocancel(&pdev->dev, &info->irq_work,
+				   max14577_muic_irq_work);
+	if (ret)
+		return ret;
 
 	switch (max14577->dev_type) {
 	case MAXIM_DEVICE_TYPE_MAX77836:
@@ -766,15 +770,6 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int max14577_muic_remove(struct platform_device *pdev)
-{
-	struct max14577_muic_info *info = platform_get_drvdata(pdev);
-
-	cancel_work_sync(&info->irq_work);
-
-	return 0;
-}
-
 static const struct platform_device_id max14577_muic_id[] = {
 	{ "max14577-muic", MAXIM_DEVICE_TYPE_MAX14577, },
 	{ "max77836-muic", MAXIM_DEVICE_TYPE_MAX77836, },
@@ -797,7 +792,6 @@ static struct platform_driver max14577_muic_driver = {
 		.of_match_table = of_max14577_muic_dt_match,
 	},
 	.probe		= max14577_muic_probe,
-	.remove		= max14577_muic_remove,
 	.id_table	= max14577_muic_id,
 };
 

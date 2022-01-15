@@ -72,7 +72,6 @@ properties:
             - from local to remote, where ACK from the remote means that communnication
               as been stopped on the remote side.
     minItems: 1
-    maxItems: 4
 
   mbox-names:
     items:
@@ -81,7 +80,6 @@ properties:
       - const: shutdown
       - const: detach
     minItems: 1
-    maxItems: 4
 
   memory-region:
     description:

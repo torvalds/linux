@@ -170,7 +170,7 @@ Description:	Default color matching descriptors
 		bMatrixCoefficients	  matrix used to compute luma and
 					  chroma values from the color primaries
 		bTransferCharacteristics  optoelectronic transfer
-					  characteristic of the source picutre,
+					  characteristic of the source picture,
 					  also called the gamma function
 		bColorPrimaries		  color primaries and the reference
 					  white
@@ -311,7 +311,7 @@ Description:	Specific streaming header descriptors
 					a hardware trigger interrupt event
 		bTriggerSupport		flag specifying if hardware
 					triggering is supported
-		bStillCaptureMethod	method of still image caputre
+		bStillCaptureMethod	method of still image capture
 					supported
 		bTerminalLink		id of the output terminal to which
 					the video endpoint of this interface

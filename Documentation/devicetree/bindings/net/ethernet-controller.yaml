@@ -68,6 +68,7 @@ properties:
       - tbi
       - rev-mii
       - rmii
+      - rev-rmii
 
       # RX and TX delays are added by the MAC when required
       - rgmii
@@ -97,6 +98,7 @@ properties:
       - 10gbase-kr
       - usxgmii
       - 10gbase-r
+      - 25gbase-r
 
   phy-mode:
     $ref: "#/properties/phy-connection-type"

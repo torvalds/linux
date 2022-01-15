@@ -701,6 +701,7 @@ static const struct hubbub_funcs hubbub21_funcs = {
 	.program_watermarks = hubbub21_program_watermarks,
 	.allow_self_refresh_control = hubbub1_allow_self_refresh_control,
 	.apply_DEDCN21_147_wa = hubbub21_apply_DEDCN21_147_wa,
+	.hubbub_read_state = hubbub2_read_state,
 };
 
 void hubbub21_construct(struct dcn20_hubbub *hubbub,

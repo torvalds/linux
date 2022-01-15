@@ -179,6 +179,7 @@ static inline void lru_del(struct ashmem_range *range)
  * @purged:	   Initial purge status (ASMEM_NOT_PURGED or ASHMEM_WAS_PURGED)
  * @start:	   The starting page (inclusive)
  * @end:	   The ending page (inclusive)
+ * @new_range:	   The placeholder for the new range
  *
  * This function is protected by ashmem_mutex.
  */
@@ -893,6 +894,8 @@ static void ashmem_show_fdinfo(struct seq_file *m, struct file *file)
 	if (asma->name[ASHMEM_NAME_PREFIX_LEN] != '\0')
 		seq_printf(m, "name:\t%s\n",
 			   asma->name + ASHMEM_NAME_PREFIX_LEN);
+
+	seq_printf(m, "size:\t%zu\n", asma->size);
 
 	mutex_unlock(&ashmem_mutex);
 }

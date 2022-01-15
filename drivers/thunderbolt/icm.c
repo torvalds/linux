@@ -1677,14 +1677,18 @@ static void icm_icl_rtd3_veto(struct tb *tb, const struct icm_pkg_header *hdr)
 
 static bool icm_tgl_is_supported(struct tb *tb)
 {
-	u32 val;
+	unsigned long end = jiffies + msecs_to_jiffies(10);
 
-	/*
-	 * If the firmware is not running use software CM. This platform
-	 * should fully support both.
-	 */
-	val = ioread32(tb->nhi->iobase + REG_FW_STS);
-	return !!(val & REG_FW_STS_NVM_AUTH_DONE);
+	do {
+		u32 val;
+
+		val = ioread32(tb->nhi->iobase + REG_FW_STS);
+		if (val & REG_FW_STS_NVM_AUTH_DONE)
+			return true;
+		usleep_range(100, 500);
+	} while (time_before(jiffies, end));
+
+	return false;
 }
 
 static void icm_handle_notification(struct work_struct *work)
@@ -2505,6 +2509,8 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_TGL_NHI1:
 	case PCI_DEVICE_ID_INTEL_TGL_H_NHI0:
 	case PCI_DEVICE_ID_INTEL_TGL_H_NHI1:
+	case PCI_DEVICE_ID_INTEL_ADL_NHI0:
+	case PCI_DEVICE_ID_INTEL_ADL_NHI1:
 		icm->is_supported = icm_tgl_is_supported;
 		icm->driver_ready = icm_icl_driver_ready;
 		icm->set_uuid = icm_icl_set_uuid;

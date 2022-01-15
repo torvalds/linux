@@ -737,7 +737,7 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 	}
 
 	/*
-	 * In Dual DSI case, CTL0 and CTL1 are always assigned to two DSI
+	 * In bonded DSI case, CTL0 and CTL1 are always assigned to two DSI
 	 * interfaces to support single FLUSH feature (Flush CTL0 and CTL1 when
 	 * only write into CTL0's FLUSH register) to keep two DSI pipes in sync.
 	 * Single FLUSH is supported from hw rev v3.0.

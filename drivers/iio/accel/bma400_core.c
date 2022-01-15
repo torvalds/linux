@@ -811,7 +811,7 @@ int bma400_probe(struct device *dev, struct regmap *regmap, const char *name)
 	if (ret)
 		return ret;
 
-	ret = iio_read_mount_matrix(dev, "mount-matrix", &data->orientation);
+	ret = iio_read_mount_matrix(dev, &data->orientation);
 	if (ret)
 		return ret;
 

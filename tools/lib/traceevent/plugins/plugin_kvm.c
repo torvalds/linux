@@ -366,7 +366,7 @@ union kvm_mmu_page_role {
 		unsigned direct:1;
 		unsigned access:3;
 		unsigned invalid:1;
-		unsigned nxe:1;
+		unsigned efer_nx:1;
 		unsigned cr0_wp:1;
 		unsigned smep_and_not_wp:1;
 		unsigned smap_and_not_wp:1;
@@ -403,7 +403,7 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
 				 access_str[role.access],
 				 role.invalid ? " invalid" : "",
 				 role.cr4_pae ? "" : "!",
-				 role.nxe ? "" : "!",
+				 role.efer_nx ? "" : "!",
 				 role.cr0_wp ? "" : "!",
 				 role.smep_and_not_wp ? " smep" : "",
 				 role.smap_and_not_wp ? " smap" : "",

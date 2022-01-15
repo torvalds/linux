@@ -11,4 +11,29 @@ config PINCTRL_RT2880
         select PINMUX
         select GENERIC_PINCONF
 
+config PINCTRL_MT7620
+        bool "mt7620 pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_MT7620
+        select PINCTRL_RT2880
+
+config PINCTRL_MT7621
+        bool "mt7621 pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_MT7621
+        select PINCTRL_RT2880
+
+config PINCTRL_RT288X
+        bool "RT288X pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_RT288X
+        select PINCTRL_RT2880
+
+config PINCTRL_RT305X
+        bool "RT305X pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_RT305X
+        select PINCTRL_RT2880
+
+config PINCTRL_RT3883
+        bool "RT3883 pinctrl driver for RALINK/Mediatek SOCs"
+        depends on RALINK && SOC_RT3883
+        select PINCTRL_RT2880
+
 endmenu

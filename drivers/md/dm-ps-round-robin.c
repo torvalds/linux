@@ -100,6 +100,10 @@ static int rr_status(struct path_selector *ps, struct dm_path *path,
 			pi = path->pscontext;
 			DMEMIT("%u ", pi->repeat_count);
 			break;
+
+		case STATUSTYPE_IMA:
+			*result = '\0';
+			break;
 		}
 	}
 

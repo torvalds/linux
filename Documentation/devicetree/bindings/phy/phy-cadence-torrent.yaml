@@ -52,28 +52,24 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 2
     items:
       - description: Offset of the Torrent PHY configuration registers.
       - description: Offset of the DPTX PHY configuration registers.
 
   reg-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: torrent_phy
       - const: dptx_phy
 
   resets:
     minItems: 1
-    maxItems: 2
     items:
       - description: Torrent PHY reset.
       - description: Torrent APB reset. This is optional.
 
   reset-names:
     minItems: 1
-    maxItems: 2
     items:
       - const: torrent_reset
       - const: torrent_apb

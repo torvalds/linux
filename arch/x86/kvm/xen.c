@@ -25,15 +25,14 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 {
 	gpa_t gpa = gfn_to_gpa(gfn);
 	int wc_ofs, sec_hi_ofs;
-	int ret;
+	int ret = 0;
 	int idx = srcu_read_lock(&kvm->srcu);
 
-	ret = kvm_gfn_to_hva_cache_init(kvm, &kvm->arch.xen.shinfo_cache,
-					gpa, PAGE_SIZE);
-	if (ret)
+	if (kvm_is_error_hva(gfn_to_hva(kvm, gfn))) {
+		ret = -EFAULT;
 		goto out;
-
-	kvm->arch.xen.shinfo_set = true;
+	}
+	kvm->arch.xen.shinfo_gfn = gfn;
 
 	/* Paranoia checks on the 32-bit struct layout */
 	BUILD_BUG_ON(offsetof(struct compat_shared_info, wc) != 0x900);
@@ -191,6 +190,7 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 
 int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 {
+	int err;
 	u8 rc = 0;
 
 	/*
@@ -217,12 +217,28 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 	if (likely(slots->generation == ghc->generation &&
 		   !kvm_is_error_hva(ghc->hva) && ghc->memslot)) {
 		/* Fast path */
-		__get_user(rc, (u8 __user *)ghc->hva + offset);
-	} else {
-		/* Slow path */
-		kvm_read_guest_offset_cached(v->kvm, ghc, &rc, offset,
-					     sizeof(rc));
+		pagefault_disable();
+		err = __get_user(rc, (u8 __user *)ghc->hva + offset);
+		pagefault_enable();
+		if (!err)
+			return rc;
 	}
+
+	/* Slow path */
+
+	/*
+	 * This function gets called from kvm_vcpu_block() after setting the
+	 * task to TASK_INTERRUPTIBLE, to see if it needs to wake immediately
+	 * from a HLT. So we really mustn't sleep. If the page ended up absent
+	 * at that point, just return 1 in order to trigger an immediate wake,
+	 * and we'll end up getting called again from a context where we *can*
+	 * fault in the page and wait for it.
+	 */
+	if (in_atomic() || !task_is_running(current))
+		return 1;
+
+	kvm_read_guest_offset_cached(v->kvm, ghc, &rc, offset,
+				     sizeof(rc));
 
 	return rc;
 }
@@ -245,7 +261,7 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
 		if (data->u.shared_info.gfn == GPA_INVALID) {
-			kvm->arch.xen.shinfo_set = false;
+			kvm->arch.xen.shinfo_gfn = GPA_INVALID;
 			r = 0;
 			break;
 		}
@@ -283,10 +299,7 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
-		if (kvm->arch.xen.shinfo_set)
-			data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_cache.gpa);
-		else
-			data->u.shared_info.gfn = GPA_INVALID;
+		data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_gfn);
 		r = 0;
 		break;
 
@@ -644,6 +657,11 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 
 	mutex_unlock(&kvm->lock);
 	return 0;
+}
+
+void kvm_xen_init_vm(struct kvm *kvm)
+{
+	kvm->arch.xen.shinfo_gfn = GPA_INVALID;
 }
 
 void kvm_xen_destroy_vm(struct kvm *kvm)

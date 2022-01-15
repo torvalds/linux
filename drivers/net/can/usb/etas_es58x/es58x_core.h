@@ -287,7 +287,7 @@ struct es58x_priv {
  * @rx_urb_cmd_max_len: Maximum length of a RX URB command.
  * @fifo_mask: Bit mask to quickly convert the tx_tail and tx_head
  *	field of the struct es58x_priv into echo_skb
- *	indexes. Properties: @fifo_mask = echos_skb_max - 1 where
+ *	indexes. Properties: @fifo_mask = echo_skb_max - 1 where
  *	echo_skb_max must be a power of two. Also, echo_skb_max must
  *	not exceed the maximum size of the device internal TX FIFO
  *	length. This parameter is used to control the network queue

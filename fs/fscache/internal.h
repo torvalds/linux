@@ -45,6 +45,7 @@ extern struct fscache_cache *fscache_select_cache_for_object(
  * cookie.c
  */
 extern struct kmem_cache *fscache_cookie_jar;
+extern const struct seq_operations fscache_cookies_seq_ops;
 
 extern void fscache_free_cookie(struct fscache_cookie *);
 extern struct fscache_cookie *fscache_alloc_cookie(struct fscache_cookie *,
@@ -53,38 +54,23 @@ extern struct fscache_cookie *fscache_alloc_cookie(struct fscache_cookie *,
 						   const void *, size_t,
 						   void *, loff_t);
 extern struct fscache_cookie *fscache_hash_cookie(struct fscache_cookie *);
+extern struct fscache_cookie *fscache_cookie_get(struct fscache_cookie *,
+						 enum fscache_cookie_trace);
 extern void fscache_cookie_put(struct fscache_cookie *,
 			       enum fscache_cookie_trace);
+
+static inline void fscache_cookie_see(struct fscache_cookie *cookie,
+				      enum fscache_cookie_trace where)
+{
+	trace_fscache_cookie(cookie->debug_id, refcount_read(&cookie->ref),
+			     where);
+}
 
 /*
  * fsdef.c
  */
 extern struct fscache_cookie fscache_fsdef_index;
 extern struct fscache_cookie_def fscache_fsdef_netfs_def;
-
-/*
- * histogram.c
- */
-#ifdef CONFIG_FSCACHE_HISTOGRAM
-extern atomic_t fscache_obj_instantiate_histogram[HZ];
-extern atomic_t fscache_objs_histogram[HZ];
-extern atomic_t fscache_ops_histogram[HZ];
-extern atomic_t fscache_retrieval_delay_histogram[HZ];
-extern atomic_t fscache_retrieval_histogram[HZ];
-
-static inline void fscache_hist(atomic_t histogram[], unsigned long start_jif)
-{
-	unsigned long jif = jiffies - start_jif;
-	if (jif >= HZ)
-		jif = HZ - 1;
-	atomic_inc(&histogram[jif]);
-}
-
-extern const struct seq_operations fscache_histogram_ops;
-
-#else
-#define fscache_hist(hist, start_jif) do {} while (0)
-#endif
 
 /*
  * main.c
@@ -97,6 +83,8 @@ extern struct workqueue_struct *fscache_object_wq;
 extern struct workqueue_struct *fscache_op_wq;
 DECLARE_PER_CPU(wait_queue_head_t, fscache_object_cong_wait);
 
+extern unsigned int fscache_hash(unsigned int salt, unsigned int *data, unsigned int n);
+
 static inline bool fscache_object_congested(void)
 {
 	return workqueue_congested(WORK_CPU_UNBOUND, fscache_object_wq);
@@ -106,19 +94,6 @@ static inline bool fscache_object_congested(void)
  * object.c
  */
 extern void fscache_enqueue_object(struct fscache_object *);
-
-/*
- * object-list.c
- */
-#ifdef CONFIG_FSCACHE_OBJECT_LIST
-extern const struct proc_ops fscache_objlist_proc_ops;
-
-extern void fscache_objlist_add(struct fscache_object *);
-extern void fscache_objlist_remove(struct fscache_object *);
-#else
-#define fscache_objlist_add(object) do {} while(0)
-#define fscache_objlist_remove(object) do {} while(0)
-#endif
 
 /*
  * operation.c
@@ -318,14 +293,6 @@ static inline void fscache_raise_event(struct fscache_object *object,
 	if (!test_and_set_bit(event, &object->events) &&
 	    test_bit(event, &object->event_mask))
 		fscache_enqueue_object(object);
-}
-
-static inline void fscache_cookie_get(struct fscache_cookie *cookie,
-				      enum fscache_cookie_trace where)
-{
-	int usage = atomic_inc_return(&cookie->usage);
-
-	trace_fscache_cookie(cookie, where, usage);
 }
 
 /*

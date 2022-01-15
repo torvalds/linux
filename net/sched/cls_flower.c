@@ -1915,23 +1915,22 @@ errout_cleanup:
 static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 			struct cls_fl_filter *f, struct fl_flow_mask *mask,
 			unsigned long base, struct nlattr **tb,
-			struct nlattr *est, bool ovr,
-			struct fl_flow_tmplt *tmplt, bool rtnl_held,
+			struct nlattr *est,
+			struct fl_flow_tmplt *tmplt, u32 flags,
 			struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, rtnl_held,
-				extack);
+	err = tcf_exts_validate(net, tp, tb, est, &f->exts, flags, extack);
 	if (err < 0)
 		return err;
 
 	if (tb[TCA_FLOWER_CLASSID]) {
 		f->res.classid = nla_get_u32(tb[TCA_FLOWER_CLASSID]);
-		if (!rtnl_held)
+		if (flags & TCA_ACT_FLAGS_NO_RTNL)
 			rtnl_lock();
 		tcf_bind_filter(tp, &f->res, base);
-		if (!rtnl_held)
+		if (flags & TCA_ACT_FLAGS_NO_RTNL)
 			rtnl_unlock();
 	}
 
@@ -1975,10 +1974,11 @@ static int fl_ht_insert_unique(struct cls_fl_filter *fnew,
 static int fl_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle, struct nlattr **tca,
-		     void **arg, bool ovr, bool rtnl_held,
+		     void **arg, u32 flags,
 		     struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = fl_head_dereference(tp);
+	bool rtnl_held = !(flags & TCA_ACT_FLAGS_NO_RTNL);
 	struct cls_fl_filter *fold = *arg;
 	struct cls_fl_filter *fnew;
 	struct fl_flow_mask *mask;
@@ -2034,8 +2034,8 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		}
 	}
 
-	err = fl_set_parms(net, tp, fnew, mask, base, tb, tca[TCA_RATE], ovr,
-			   tp->chain->tmplt_priv, rtnl_held, extack);
+	err = fl_set_parms(net, tp, fnew, mask, base, tb, tca[TCA_RATE],
+			   tp->chain->tmplt_priv, flags, extack);
 	if (err)
 		goto errout;
 
@@ -2188,18 +2188,24 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 
 	arg->count = arg->skip;
 
+	rcu_read_lock();
 	idr_for_each_entry_continue_ul(&head->handle_idr, f, tmp, id) {
 		/* don't return filters that are being deleted */
 		if (!refcount_inc_not_zero(&f->refcnt))
 			continue;
+		rcu_read_unlock();
+
 		if (arg->fn(tp, f, arg) < 0) {
 			__fl_put(f);
 			arg->stop = 1;
+			rcu_read_lock();
 			break;
 		}
 		__fl_put(f);
 		arg->count++;
+		rcu_read_lock();
 	}
+	rcu_read_unlock();
 	arg->cookie = id;
 }
 

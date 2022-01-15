@@ -369,7 +369,7 @@ static int mpc512x_psc_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 
 	if (!cs) {
-		cs = kzalloc(sizeof *cs, GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
 
@@ -491,7 +491,7 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	void *tempp;
 	struct clk *clk;
 
-	master = spi_alloc_master(dev, sizeof *mps);
+	master = spi_alloc_master(dev, sizeof(*mps));
 	if (master == NULL)
 		return -ENOMEM;
 

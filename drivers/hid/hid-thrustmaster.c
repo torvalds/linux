@@ -173,6 +173,7 @@ static void thrustmaster_interrupts(struct hid_device *hdev)
 
 		if (ret) {
 			hid_err(hdev, "setup data couldn't be sent\n");
+			kfree(send_buf);
 			return;
 		}
 	}
@@ -253,6 +254,7 @@ static void thrustmaster_remove(struct hid_device *hdev)
 
 	usb_kill_urb(tm_wheel->urb);
 
+	kfree(tm_wheel->change_request);
 	kfree(tm_wheel->response);
 	kfree(tm_wheel->model_request);
 	usb_free_urb(tm_wheel->urb);
@@ -311,12 +313,13 @@ static int thrustmaster_probe(struct hid_device *hdev, const struct hid_device_i
 		goto error4;
 	}
 
-	tm_wheel->change_request = kzalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
+	tm_wheel->change_request = kmemdup(&change_request,
+					   sizeof(struct usb_ctrlrequest),
+					   GFP_KERNEL);
 	if (!tm_wheel->change_request) {
 		ret = -ENOMEM;
 		goto error5;
 	}
-	memcpy(tm_wheel->change_request, &change_request, sizeof(struct usb_ctrlrequest));
 
 	tm_wheel->usb_dev = interface_to_usbdev(to_usb_interface(hdev->dev.parent));
 	hid_set_drvdata(hdev, tm_wheel);
@@ -335,11 +338,14 @@ static int thrustmaster_probe(struct hid_device *hdev, const struct hid_device_i
 	);
 
 	ret = usb_submit_urb(tm_wheel->urb, GFP_ATOMIC);
-	if (ret)
+	if (ret) {
 		hid_err(hdev, "Error %d while submitting the URB. I am unable to initialize this wheel...\n", ret);
+		goto error6;
+	}
 
 	return ret;
 
+error6: kfree(tm_wheel->change_request);
 error5: kfree(tm_wheel->response);
 error4: kfree(tm_wheel->model_request);
 error3: usb_free_urb(tm_wheel->urb);

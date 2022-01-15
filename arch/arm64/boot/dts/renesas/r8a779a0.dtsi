@@ -327,6 +327,19 @@
 			#power-domain-cells = <1>;
 		};
 
+		tsc: thermal@e6190000 {
+			compatible = "renesas,r8a779a0-thermal";
+			reg = <0 0xe6190000 0 0x200>,
+			      <0 0xe6198000 0 0x200>,
+			      <0 0xe61a0000 0 0x200>,
+			      <0 0xe61a8000 0 0x200>,
+			      <0 0xe61b0000 0 0x200>;
+			clocks = <&cpg CPG_MOD 919>;
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 919>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		tmu0: timer@e61e0000 {
 			compatible = "renesas,tmu-r8a779a0", "renesas,tmu";
 			reg = <0 0xe61e0000 0 0x30>;
@@ -390,19 +403,6 @@
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 717>;
 			status = "disabled";
-		};
-
-		tsc: thermal@e6190000 {
-			compatible = "renesas,r8a779a0-thermal";
-			reg = <0 0xe6190000 0 0x200>,
-			      <0 0xe6198000 0 0x200>,
-			      <0 0xe61a0000 0 0x200>,
-			      <0 0xe61a8000 0 0x200>,
-			      <0 0xe61b0000 0 0x200>;
-			clocks = <&cpg CPG_MOD 919>;
-			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
-			resets = <&cpg 919>;
-			#thermal-sensor-cells = <1>;
 		};
 
 		i2c0: i2c@e6500000 {
@@ -618,6 +618,7 @@
 					  "ch20", "ch21", "ch22", "ch23",
 					  "ch24";
 			clocks = <&cpg CPG_MOD 211>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 211>;
 			phy-mode = "rgmii";
@@ -665,6 +666,7 @@
 					  "ch20", "ch21", "ch22", "ch23",
 					  "ch24";
 			clocks = <&cpg CPG_MOD 212>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 212>;
 			phy-mode = "rgmii";
@@ -712,6 +714,7 @@
 					"ch20", "ch21", "ch22", "ch23",
 					"ch24";
 			clocks = <&cpg CPG_MOD 213>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 213>;
 			phy-mode = "rgmii";
@@ -759,6 +762,7 @@
 					"ch20", "ch21", "ch22", "ch23",
 					"ch24";
 			clocks = <&cpg CPG_MOD 214>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 214>;
 			phy-mode = "rgmii";
@@ -806,6 +810,7 @@
 					"ch20", "ch21", "ch22", "ch23",
 					"ch24";
 			clocks = <&cpg CPG_MOD 215>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 215>;
 			phy-mode = "rgmii";
@@ -853,6 +858,7 @@
 					"ch20", "ch21", "ch22", "ch23",
 					"ch24";
 			clocks = <&cpg CPG_MOD 216>;
+			clock-names = "fck";
 			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 			resets = <&cpg 216>;
 			phy-mode = "rgmii";
@@ -1096,7 +1102,6 @@
 			      <0x0 0xf1060000 0 0x110000>;
 			interrupts = <GIC_PPI 9
 				      (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
-			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
 		};
 
 		fcpvd0: fcp@fea10000 {

@@ -29,18 +29,6 @@ config VIDEO_IVTV
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtv.
 
-config VIDEO_IVTV_DEPRECATED_IOCTLS
-	bool "enable the DVB ioctls abuse on ivtv driver"
-	depends on VIDEO_IVTV
-	help
-	  Enable the usage of the a DVB set of ioctls that were abused by
-	  IVTV driver for a while.
-
-	  Those ioctls were not needed for a long time, as IVTV implements
-	  the proper V4L2 ioctls since kernel 3.3.
-
-	  If unsure, say N.
-
 config VIDEO_IVTV_ALSA
 	tristate "Conexant cx23415/cx23416 ALSA interface for PCM audio capture"
 	depends on VIDEO_IVTV && SND

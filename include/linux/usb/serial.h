@@ -276,7 +276,7 @@ struct usb_serial_driver {
 	int  (*write)(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 	/* Called only by the tty layer */
-	int  (*write_room)(struct tty_struct *tty);
+	unsigned int (*write_room)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg);
 	void (*get_serial)(struct tty_struct *tty, struct serial_struct *ss);
@@ -284,7 +284,7 @@ struct usb_serial_driver {
 	void (*set_termios)(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 	void (*break_ctl)(struct tty_struct *tty, int break_state);
-	int  (*chars_in_buffer)(struct tty_struct *tty);
+	unsigned int (*chars_in_buffer)(struct tty_struct *tty);
 	void (*wait_until_sent)(struct tty_struct *tty, long timeout);
 	bool (*tx_empty)(struct usb_serial_port *port);
 	void (*throttle)(struct tty_struct *tty);
@@ -347,8 +347,8 @@ int usb_serial_generic_write(struct tty_struct *tty, struct usb_serial_port *por
 		const unsigned char *buf, int count);
 void usb_serial_generic_close(struct usb_serial_port *port);
 int usb_serial_generic_resume(struct usb_serial *serial);
-int usb_serial_generic_write_room(struct tty_struct *tty);
-int usb_serial_generic_chars_in_buffer(struct tty_struct *tty);
+unsigned int usb_serial_generic_write_room(struct tty_struct *tty);
+unsigned int usb_serial_generic_chars_in_buffer(struct tty_struct *tty);
 void usb_serial_generic_wait_until_sent(struct tty_struct *tty, long timeout);
 void usb_serial_generic_read_bulk_callback(struct urb *urb);
 void usb_serial_generic_write_bulk_callback(struct urb *urb);
@@ -395,7 +395,7 @@ static inline void usb_serial_debug_data(struct device *dev,
 }
 
 /*
- * Macro for reporting errors in write path to avoid inifinite loop
+ * Macro for reporting errors in write path to avoid infinite loop
  * when port is used as a console.
  */
 #define dev_err_console(usport, fmt, ...)				\

@@ -1457,7 +1457,7 @@ static void free_netsgbuf(void *buf)
 	while (frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
-		pci_unmap_page((lio->oct_dev)->pci_dev,
+		dma_unmap_page(&lio->oct_dev->pci_dev->dev,
 			       g->sg[(i >> 2)].ptr[(i & 3)],
 			       skb_frag_size(frag), DMA_TO_DEVICE);
 		i++;
@@ -1500,7 +1500,7 @@ static void free_netsgbuf_with_resp(void *buf)
 	while (frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
-		pci_unmap_page((lio->oct_dev)->pci_dev,
+		dma_unmap_page(&lio->oct_dev->pci_dev->dev,
 			       g->sg[(i >> 2)].ptr[(i & 3)],
 			       skb_frag_size(frag), DMA_TO_DEVICE);
 		i++;
@@ -3223,7 +3223,7 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_vlan_rx_add_vid    = liquidio_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = liquidio_vlan_rx_kill_vid,
 	.ndo_change_mtu		= liquidio_change_mtu,
-	.ndo_do_ioctl		= liquidio_ioctl,
+	.ndo_eth_ioctl		= liquidio_ioctl,
 	.ndo_fix_features	= liquidio_fix_features,
 	.ndo_set_features	= liquidio_set_features,
 	.ndo_set_vf_mac		= liquidio_set_vf_mac,
@@ -3750,7 +3750,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	}
 
 	devlink = devlink_alloc(&liquidio_devlink_ops,
-				sizeof(struct lio_devlink_priv));
+				sizeof(struct lio_devlink_priv),
+				&octeon_dev->pci_dev->dev);
 	if (!devlink) {
 		dev_err(&octeon_dev->pci_dev->dev, "devlink alloc failed\n");
 		goto setup_nic_dev_free;
@@ -3759,7 +3760,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 	lio_devlink = devlink_priv(devlink);
 	lio_devlink->oct = octeon_dev;
 
-	if (devlink_register(devlink, &octeon_dev->pci_dev->dev)) {
+	if (devlink_register(devlink)) {
 		devlink_free(devlink);
 		dev_err(&octeon_dev->pci_dev->dev,
 			"devlink registration failed\n");

@@ -68,7 +68,7 @@ u32 tcp_clamp_probe0_to_user_timeout(const struct sock *sk, u32 when)
 static void tcp_write_err(struct sock *sk)
 {
 	sk->sk_err = sk->sk_err_soft ? : ETIMEDOUT;
-	sk->sk_error_report(sk);
+	sk_error_report(sk);
 
 	tcp_write_queue_purge(sk);
 	tcp_done(sk);
@@ -441,7 +441,7 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
  *  This function gets called when the kernel timer for a TCP packet
  *  of this socket expires.
  *
- *  It handles retransmission, timer adjustment and other necesarry measures.
+ *  It handles retransmission, timer adjustment and other necessary measures.
  *
  *  Returns: Nothing (void)
  */
@@ -766,7 +766,7 @@ static enum hrtimer_restart tcp_compressed_ack_kick(struct hrtimer *timer)
 	if (!sock_owned_by_user(sk)) {
 		if (tp->compressed_ack) {
 			/* Since we have to send one ack finally,
-			 * substract one from tp->compressed_ack to keep
+			 * subtract one from tp->compressed_ack to keep
 			 * LINUX_MIB_TCPACKCOMPRESSED accurate.
 			 */
 			tp->compressed_ack--;

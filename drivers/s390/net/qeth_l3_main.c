@@ -434,6 +434,7 @@ static int qeth_l3_correct_routing_type(struct qeth_card *card,
 			if (qeth_is_ipafunc_supported(card, prot,
 						      IPA_OSA_MC_ROUTER))
 				return 0;
+			goto out_inval;
 		default:
 			goto out_inval;
 		}
@@ -1511,7 +1512,7 @@ static int qeth_l3_arp_flush_cache(struct qeth_card *card)
 	return rc;
 }
 
-static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, void __user *data, int cmd)
 {
 	struct qeth_card *card = dev->ml_priv;
 	struct qeth_arp_cache_entry arp_entry;
@@ -1531,13 +1532,13 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			rc = -EPERM;
 			break;
 		}
-		rc = qeth_l3_arp_query(card, rq->ifr_ifru.ifru_data);
+		rc = qeth_l3_arp_query(card, data);
 		break;
 	case SIOC_QETH_ARP_ADD_ENTRY:
 	case SIOC_QETH_ARP_REMOVE_ENTRY:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&arp_entry, rq->ifr_data, sizeof(arp_entry)))
+		if (copy_from_user(&arp_entry, data, sizeof(arp_entry)))
 			return -EFAULT;
 
 		arp_cmd = (cmd == SIOC_QETH_ARP_ADD_ENTRY) ?
@@ -1840,7 +1841,8 @@ static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_select_queue	= qeth_l3_iqd_select_queue,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
-	.ndo_do_ioctl		= qeth_do_ioctl,
+	.ndo_eth_ioctl		= qeth_do_ioctl,
+	.ndo_siocdevprivate	= qeth_siocdevprivate,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
 	.ndo_tx_timeout		= qeth_tx_timeout,
@@ -1855,7 +1857,8 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_select_queue	= qeth_l3_osa_select_queue,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
-	.ndo_do_ioctl		= qeth_do_ioctl,
+	.ndo_eth_ioctl		= qeth_do_ioctl,
+	.ndo_siocdevprivate	= qeth_siocdevprivate,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
 	.ndo_tx_timeout		= qeth_tx_timeout,
@@ -1939,12 +1942,14 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	if (!card->cmd_wq)
 		return -ENOMEM;
 
-	if (gdev->dev.type == &qeth_generic_devtype) {
+	if (gdev->dev.type) {
 		rc = device_add_groups(&gdev->dev, qeth_l3_attr_groups);
 		if (rc) {
 			destroy_workqueue(card->cmd_wq);
 			return rc;
 		}
+	} else {
+		gdev->dev.type = &qeth_l3_devtype;
 	}
 
 	INIT_WORK(&card->rx_mode_work, qeth_l3_rx_mode_work);
@@ -1955,7 +1960,7 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
 
-	if (cgdev->dev.type == &qeth_generic_devtype)
+	if (cgdev->dev.type != &qeth_l3_devtype)
 		device_remove_groups(&cgdev->dev, qeth_l3_attr_groups);
 
 	qeth_set_allowed_threads(card, 0, 1);
@@ -1964,7 +1969,6 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 	if (cgdev->state == CCWGROUP_ONLINE)
 		qeth_set_offline(card, card->discipline, false);
 
-	cancel_work_sync(&card->close_dev_work);
 	if (card->dev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(card->dev);
 
@@ -2064,7 +2068,6 @@ static int qeth_l3_control_event(struct qeth_card *card,
 }
 
 const struct qeth_discipline qeth_l3_discipline = {
-	.devtype = &qeth_l3_devtype,
 	.setup = qeth_l3_probe_device,
 	.remove = qeth_l3_remove_device,
 	.set_online = qeth_l3_set_online,

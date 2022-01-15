@@ -109,9 +109,9 @@ static void metrousb_read_int_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
+	unsigned long flags;
 	int throttled = 0;
 	int result = 0;
-	unsigned long flags = 0;
 
 	dev_dbg(&port->dev, "%s\n", __func__);
 
@@ -171,7 +171,7 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 	int result = 0;
 
 	/* Set the private data information for the port. */
@@ -268,7 +268,7 @@ static void metrousb_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	/* Set the private information for the port to stop reading data. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
@@ -281,7 +281,7 @@ static int metrousb_tiocmget(struct tty_struct *tty)
 	unsigned long control_state = 0;
 	struct usb_serial_port *port = tty->driver_data;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	control_state = metro_priv->control_state;
@@ -296,7 +296,7 @@ static int metrousb_tiocmset(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 	unsigned long control_state = 0;
 
 	dev_dbg(&port->dev, "%s - set=%d, clear=%d\n", __func__, set, clear);
@@ -323,7 +323,7 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
-	unsigned long flags = 0;
+	unsigned long flags;
 	int result = 0;
 
 	/* Set the private information for the port to resume reading data. */

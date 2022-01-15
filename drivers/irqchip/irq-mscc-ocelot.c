@@ -107,7 +107,7 @@ static void ocelot_irq_handler(struct irq_desc *desc)
 	while (reg) {
 		u32 hwirq = __fls(reg);
 
-		generic_handle_irq(irq_find_mapping(d, hwirq));
+		generic_handle_domain_irq(d, hwirq);
 		reg &= ~(BIT(hwirq));
 	}
 

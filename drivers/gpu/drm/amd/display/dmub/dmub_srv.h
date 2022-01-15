@@ -73,6 +73,7 @@ extern "C" {
 /* Forward declarations */
 struct dmub_srv;
 struct dmub_srv_common_regs;
+struct dmub_srv_dcn31_regs;
 
 struct dmcub_trace_buf_entry;
 
@@ -93,6 +94,8 @@ enum dmub_asic {
 	DMUB_ASIC_DCN30,
 	DMUB_ASIC_DCN301,
 	DMUB_ASIC_DCN302,
+	DMUB_ASIC_DCN303,
+	DMUB_ASIC_DCN31,
 	DMUB_ASIC_MAX,
 };
 
@@ -216,6 +219,49 @@ struct dmub_srv_fb_info {
 	struct dmub_fb fb[DMUB_WINDOW_TOTAL];
 };
 
+/*
+ * struct dmub_srv_hw_params - params for dmub hardware initialization
+ * @fb: framebuffer info for each region
+ * @fb_base: base of the framebuffer aperture
+ * @fb_offset: offset of the framebuffer aperture
+ * @psp_version: psp version to pass for DMCU init
+ * @load_inst_const: true if DMUB should load inst const fw
+ */
+struct dmub_srv_hw_params {
+	struct dmub_fb *fb[DMUB_WINDOW_TOTAL];
+	uint64_t fb_base;
+	uint64_t fb_offset;
+	uint32_t psp_version;
+	bool load_inst_const;
+	bool skip_panel_power_sequence;
+	bool disable_z10;
+};
+
+/**
+ * struct dmub_diagnostic_data - Diagnostic data retrieved from DMCUB for
+ * debugging purposes, including logging, crash analysis, etc.
+ */
+struct dmub_diagnostic_data {
+	uint32_t dmcub_version;
+	uint32_t scratch[16];
+	uint32_t pc;
+	uint32_t undefined_address_fault_addr;
+	uint32_t inst_fetch_fault_addr;
+	uint32_t data_write_fault_addr;
+	uint32_t inbox1_rptr;
+	uint32_t inbox1_wptr;
+	uint32_t inbox1_size;
+	uint32_t inbox0_rptr;
+	uint32_t inbox0_wptr;
+	uint32_t inbox0_size;
+	uint8_t is_dmcub_enabled : 1;
+	uint8_t is_dmcub_soft_reset : 1;
+	uint8_t is_dmcub_secure_reset : 1;
+	uint8_t is_traceport_en : 1;
+	uint8_t is_cw0_enabled : 1;
+	uint8_t is_cw6_enabled : 1;
+};
+
 /**
  * struct dmub_srv_base_funcs - Driver specific base callbacks
  */
@@ -290,7 +336,8 @@ struct dmub_srv_hw_funcs {
 	bool (*is_hw_init)(struct dmub_srv *dmub);
 
 	bool (*is_phy_init)(struct dmub_srv *dmub);
-	void (*enable_dmub_boot_options)(struct dmub_srv *dmub);
+	void (*enable_dmub_boot_options)(struct dmub_srv *dmub,
+				const struct dmub_srv_hw_params *params);
 
 	void (*skip_dmub_panel_power_sequence)(struct dmub_srv *dmub, bool skip);
 
@@ -305,6 +352,12 @@ struct dmub_srv_hw_funcs {
 
 	uint32_t (*get_gpint_response)(struct dmub_srv *dmub);
 
+	uint32_t (*get_gpint_dataout)(struct dmub_srv *dmub);
+
+	void (*send_inbox0_cmd)(struct dmub_srv *dmub, union dmub_inbox0_data_register data);
+	uint32_t (*get_current_time)(struct dmub_srv *dmub);
+
+	void (*get_diagnostic_data)(struct dmub_srv *dmub, struct dmub_diagnostic_data *dmub_oca);
 };
 
 /**
@@ -325,23 +378,6 @@ struct dmub_srv_create_params {
 	bool is_virtual;
 };
 
-/*
- * struct dmub_srv_hw_params - params for dmub hardware initialization
- * @fb: framebuffer info for each region
- * @fb_base: base of the framebuffer aperture
- * @fb_offset: offset of the framebuffer aperture
- * @psp_version: psp version to pass for DMCU init
- * @load_inst_const: true if DMUB should load inst const fw
- */
-struct dmub_srv_hw_params {
-	struct dmub_fb *fb[DMUB_WINDOW_TOTAL];
-	uint64_t fb_base;
-	uint64_t fb_offset;
-	uint32_t psp_version;
-	bool load_inst_const;
-	bool skip_panel_power_sequence;
-};
-
 /**
  * struct dmub_srv - software state for dmcub
  * @asic: dmub asic identifier
@@ -360,6 +396,7 @@ struct dmub_srv {
 
 	/* private: internal use only */
 	const struct dmub_srv_common_regs *regs;
+	const struct dmub_srv_dcn31_regs *regs_dcn31;
 
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
@@ -642,6 +679,22 @@ enum dmub_status dmub_srv_get_gpint_response(struct dmub_srv *dmub,
 					     uint32_t *response);
 
 /**
+ * dmub_srv_get_gpint_dataout() - Queries the GPINT DATAOUT.
+ * @dmub: the dmub service
+ * @dataout: the data for the GPINT DATAOUT
+ *
+ * Returns the response code for the last GPINT DATAOUT interrupt.
+ *
+ * Can be called after software initialization.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_get_gpint_dataout(struct dmub_srv *dmub,
+					     uint32_t *dataout);
+
+/**
  * dmub_flush_buffer_mem() - Read back entire frame buffer region.
  * This ensures that the write from x86 has been flushed and will not
  * hang the DMCUB.
@@ -668,6 +721,8 @@ enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 					      union dmub_rb_cmd *cmd);
 
 bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry);
+
+bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
 
 #if defined(__cplusplus)
 }

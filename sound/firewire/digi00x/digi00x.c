@@ -47,23 +47,32 @@ static void dg00x_card_free(struct snd_card *card)
 
 	snd_dg00x_stream_destroy_duplex(dg00x);
 	snd_dg00x_transaction_unregister(dg00x);
+
+	mutex_destroy(&dg00x->mutex);
+	fw_unit_put(dg00x->unit);
 }
 
-static void do_registration(struct work_struct *work)
+static int snd_dg00x_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
 {
-	struct snd_dg00x *dg00x =
-			container_of(work, struct snd_dg00x, dwork.work);
+	struct snd_card *card;
+	struct snd_dg00x *dg00x;
 	int err;
 
-	if (dg00x->registered)
-		return;
-
-	err = snd_card_new(&dg00x->unit->device, -1, NULL, THIS_MODULE, 0,
-			   &dg00x->card);
+	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE, sizeof(*dg00x), &card);
 	if (err < 0)
-		return;
-	dg00x->card->private_free = dg00x_card_free;
-	dg00x->card->private_data = dg00x;
+		return err;
+	card->private_free = dg00x_card_free;
+
+	dg00x = card->private_data;
+	dg00x->unit = fw_unit_get(unit);
+	dev_set_drvdata(&unit->device, dg00x);
+	dg00x->card = card;
+
+	mutex_init(&dg00x->mutex);
+	spin_lock_init(&dg00x->lock);
+	init_waitqueue_head(&dg00x->hwdep_wait);
+
+	dg00x->is_console = entry->model_id == MODEL_CONSOLE;
 
 	err = name_card(dg00x);
 	if (err < 0)
@@ -91,85 +100,33 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = snd_card_register(dg00x->card);
+	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
 
-	dg00x->registered = true;
-
-	return;
-error:
-	snd_card_free(dg00x->card);
-	dev_info(&dg00x->unit->device,
-		 "Sound card registration failed: %d\n", err);
-}
-
-static int snd_dg00x_probe(struct fw_unit *unit,
-			   const struct ieee1394_device_id *entry)
-{
-	struct snd_dg00x *dg00x;
-
-	/* Allocate this independent of sound card instance. */
-	dg00x = devm_kzalloc(&unit->device, sizeof(struct snd_dg00x),
-			     GFP_KERNEL);
-	if (!dg00x)
-		return -ENOMEM;
-
-	dg00x->unit = fw_unit_get(unit);
-	dev_set_drvdata(&unit->device, dg00x);
-
-	mutex_init(&dg00x->mutex);
-	spin_lock_init(&dg00x->lock);
-	init_waitqueue_head(&dg00x->hwdep_wait);
-
-	dg00x->is_console = entry->model_id == MODEL_CONSOLE;
-
-	/* Allocate and register this sound card later. */
-	INIT_DEFERRABLE_WORK(&dg00x->dwork, do_registration);
-	snd_fw_schedule_registration(unit, &dg00x->dwork);
-
 	return 0;
+error:
+	snd_card_free(card);
+	return err;
 }
 
 static void snd_dg00x_update(struct fw_unit *unit)
 {
 	struct snd_dg00x *dg00x = dev_get_drvdata(&unit->device);
 
-	/* Postpone a workqueue for deferred registration. */
-	if (!dg00x->registered)
-		snd_fw_schedule_registration(unit, &dg00x->dwork);
-
 	snd_dg00x_transaction_reregister(dg00x);
 
-	/*
-	 * After registration, userspace can start packet streaming, then this
-	 * code block works fine.
-	 */
-	if (dg00x->registered) {
-		mutex_lock(&dg00x->mutex);
-		snd_dg00x_stream_update_duplex(dg00x);
-		mutex_unlock(&dg00x->mutex);
-	}
+	mutex_lock(&dg00x->mutex);
+	snd_dg00x_stream_update_duplex(dg00x);
+	mutex_unlock(&dg00x->mutex);
 }
 
 static void snd_dg00x_remove(struct fw_unit *unit)
 {
 	struct snd_dg00x *dg00x = dev_get_drvdata(&unit->device);
 
-	/*
-	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
-	 */
-	cancel_delayed_work_sync(&dg00x->dwork);
-
-	if (dg00x->registered) {
-		// Block till all of ALSA character devices are released.
-		snd_card_free(dg00x->card);
-	}
-
-	mutex_destroy(&dg00x->mutex);
-	fw_unit_put(dg00x->unit);
+	// Block till all of ALSA character devices are released.
+	snd_card_free(dg00x->card);
 }
 
 static const struct ieee1394_device_id snd_dg00x_id_table[] = {

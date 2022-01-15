@@ -2,6 +2,7 @@
 
 #include <net/sock.h>
 #include <linux/ethtool_netlink.h>
+#include <linux/pm_runtime.h>
 #include "netlink.h"
 
 static struct genl_family ethtool_genl_family;
@@ -28,6 +29,44 @@ const struct nla_policy ethnl_header_policy_stats[] = {
 	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
 							  ETHTOOL_FLAGS_STATS),
 };
+
+int ethnl_ops_begin(struct net_device *dev)
+{
+	int ret;
+
+	if (!dev)
+		return -ENODEV;
+
+	if (dev->dev.parent)
+		pm_runtime_get_sync(dev->dev.parent);
+
+	if (!netif_device_present(dev)) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	if (dev->ethtool_ops->begin) {
+		ret = dev->ethtool_ops->begin(dev);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+err:
+	if (dev->dev.parent)
+		pm_runtime_put(dev->dev.parent);
+
+	return ret;
+}
+
+void ethnl_ops_complete(struct net_device *dev)
+{
+	if (dev->ethtool_ops->complete)
+		dev->ethtool_ops->complete(dev);
+
+	if (dev->dev.parent)
+		pm_runtime_put(dev->dev.parent);
+}
 
 /**
  * ethnl_parse_header_dev_get() - parse request header
@@ -99,12 +138,6 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		NL_SET_ERR_MSG_ATTR(extack, header,
 				    "neither ifindex nor name specified");
 		return -EINVAL;
-	}
-
-	if (dev && !netif_device_present(dev)) {
-		dev_put(dev);
-		NL_SET_ERR_MSG(extack, "device not present");
-		return -ENODEV;
 	}
 
 	req_info->dev = dev;
@@ -248,6 +281,7 @@ ethnl_default_requests[__ETHTOOL_MSG_USER_CNT] = {
 	[ETHTOOL_MSG_TSINFO_GET]	= &ethnl_tsinfo_request_ops,
 	[ETHTOOL_MSG_MODULE_EEPROM_GET]	= &ethnl_module_eeprom_request_ops,
 	[ETHTOOL_MSG_STATS_GET]		= &ethnl_stats_request_ops,
+	[ETHTOOL_MSG_PHC_VCLOCKS_GET]	= &ethnl_phc_vclocks_request_ops,
 };
 
 static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
@@ -315,9 +349,9 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 	struct ethnl_req_info *req_info = NULL;
 	const u8 cmd = info->genlhdr->cmd;
 	const struct ethnl_request_ops *ops;
+	int hdr_len, reply_len;
 	struct sk_buff *rskb;
 	void *reply_payload;
-	int reply_len;
 	int ret;
 
 	ops = ethnl_default_requests[cmd];
@@ -346,21 +380,25 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 	ret = ops->reply_size(req_info, reply_data);
 	if (ret < 0)
 		goto err_cleanup;
-	reply_len = ret + ethnl_reply_header_size();
+	reply_len = ret;
 	ret = -ENOMEM;
-	rskb = ethnl_reply_init(reply_len, req_info->dev, ops->reply_cmd,
+	rskb = ethnl_reply_init(reply_len + ethnl_reply_header_size(),
+				req_info->dev, ops->reply_cmd,
 				ops->hdr_attr, info, &reply_payload);
 	if (!rskb)
 		goto err_cleanup;
+	hdr_len = rskb->len;
 	ret = ops->fill_reply(rskb, req_info, reply_data);
 	if (ret < 0)
 		goto err_msg;
+	WARN_ONCE(rskb->len - hdr_len > reply_len,
+		  "ethnl cmd %d: calculated reply length %d, but consumed %d\n",
+		  cmd, reply_len, rskb->len - hdr_len);
 	if (ops->cleanup_data)
 		ops->cleanup_data(reply_data);
 
 	genlmsg_end(rskb, reply_payload);
-	if (req_info->dev)
-		dev_put(req_info->dev);
+	dev_put(req_info->dev);
 	kfree(reply_data);
 	kfree(req_info);
 	return genlmsg_reply(rskb, info);
@@ -372,8 +410,7 @@ err_cleanup:
 	if (ops->cleanup_data)
 		ops->cleanup_data(reply_data);
 err_dev:
-	if (req_info->dev)
-		dev_put(req_info->dev);
+	dev_put(req_info->dev);
 	kfree(reply_data);
 	kfree(req_info);
 	return ret;
@@ -952,6 +989,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.done	= ethnl_default_done,
 		.policy = ethnl_stats_get_policy,
 		.maxattr = ARRAY_SIZE(ethnl_stats_get_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_PHC_VCLOCKS_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+		.policy = ethnl_phc_vclocks_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_phc_vclocks_get_policy) - 1,
 	},
 };
 

@@ -41,6 +41,7 @@
 static const char *const ideapad_wmi_fnesc_events[] = {
 	"26CAB2E5-5CF1-46AE-AAC3-4A12B6BA50E6", /* Yoga 3 */
 	"56322276-8493-4CE8-A783-98C991274F5E", /* Yoga 700 */
+	"8FC0DE0C-B4E4-43FD-B0F3-8871711C1294", /* Legion 5 */
 };
 #endif
 
@@ -1408,6 +1409,18 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 		case 6:
 			ideapad_input_report(priv, bit);
 			break;
+		case 10:
+			/*
+			 * This event gets send on a Yoga 300-11IBR when the EC
+			 * believes that the device has changed between laptop/
+			 * tent/stand/tablet mode. The EC relies on getting
+			 * angle info from 2 accelerometers through a special
+			 * windows service calling a DSM on the DUAL250E ACPI-
+			 * device. Linux does not do this, making the laptop/
+			 * tent/stand/tablet mode info unreliable, so we simply
+			 * ignore these events.
+			 */
+			break;
 		case 9:
 			ideapad_sync_rfk_state(priv);
 			break;
@@ -1447,10 +1460,18 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 static void ideapad_wmi_notify(u32 value, void *context)
 {
 	struct ideapad_private *priv = context;
+	unsigned long result;
 
 	switch (value) {
 	case 128:
 		ideapad_input_report(priv, value);
+		break;
+	case 208:
+		if (!eval_hals(priv->adev->handle, &result)) {
+			bool state = test_bit(HALS_FNLOCK_STATE_BIT, &result);
+
+			exec_sals(priv->adev->handle, state ? SALS_FNLOCK_ON : SALS_FNLOCK_OFF);
+		}
 		break;
 	default:
 		dev_info(&priv->platform_device->dev,

@@ -6,8 +6,8 @@
  */
 
 / {
-	nand@18028000 {
-		nandcs: nandcs@0 {
+	nand-controller@18028000 {
+		nandcs: nand@0 {
 			compatible = "brcm,nandcs";
 			reg = <0>;
 			#address-cells = <1>;

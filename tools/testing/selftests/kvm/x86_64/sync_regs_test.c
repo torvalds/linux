@@ -24,6 +24,10 @@
 
 #define UCALL_PIO_PORT ((uint16_t)0x1000)
 
+struct ucall uc_none = {
+	.cmd = UCALL_NONE,
+};
+
 /*
  * ucall is embedded here to protect against compiler reshuffling registers
  * before calling a function. In this test we only need to get KVM_EXIT_IO
@@ -34,7 +38,8 @@ void guest_code(void)
 	asm volatile("1: in %[port], %%al\n"
 		     "add $0x1, %%rbx\n"
 		     "jmp 1b"
-		     : : [port] "d" (UCALL_PIO_PORT) : "rax", "rbx");
+		     : : [port] "d" (UCALL_PIO_PORT), "D" (&uc_none)
+		     : "rax", "rbx");
 }
 
 static void compare_regs(struct kvm_regs *left, struct kvm_regs *right)

@@ -116,7 +116,12 @@ static int mtk_clk_mux_set_parent_setclr_lock(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
-static const struct clk_ops mtk_mux_ops = {
+const struct clk_ops mtk_mux_clr_set_upd_ops = {
+	.get_parent = mtk_clk_mux_get_parent,
+	.set_parent = mtk_clk_mux_set_parent_setclr_lock,
+};
+
+const struct clk_ops mtk_mux_gate_clr_set_upd_ops  = {
 	.enable = mtk_clk_mux_enable_setclr,
 	.disable = mtk_clk_mux_disable_setclr,
 	.is_enabled = mtk_clk_mux_is_enabled,
@@ -140,7 +145,7 @@ static struct clk *mtk_clk_register_mux(const struct mtk_mux *mux,
 	init.flags = mux->flags | CLK_SET_RATE_PARENT;
 	init.parent_names = mux->parent_names;
 	init.num_parents = mux->num_parents;
-	init.ops = &mtk_mux_ops;
+	init.ops = mux->ops;
 
 	clk_mux->regmap = regmap;
 	clk_mux->data = mux;
@@ -165,7 +170,7 @@ int mtk_clk_register_muxes(const struct mtk_mux *muxes,
 	struct clk *clk;
 	int i;
 
-	regmap = syscon_node_to_regmap(node);
+	regmap = device_node_to_regmap(node);
 	if (IS_ERR(regmap)) {
 		pr_err("Cannot find regmap for %pOF: %ld\n", node,
 		       PTR_ERR(regmap));

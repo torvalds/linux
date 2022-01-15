@@ -10,7 +10,10 @@ Required properties:
 
 - compatible : shall be:
 	"st,clkgen-pll0"
+	"st,clkgen-pll0-a0"
+	"st,clkgen-pll0-c0"
 	"st,clkgen-pll1"
+	"st,clkgen-pll1-c0"
 	"st,stih407-clkgen-plla9"
 	"st,stih418-clkgen-plla9"
 

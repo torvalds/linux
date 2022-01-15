@@ -1883,16 +1883,16 @@ static u32 ace_handle_event(struct net_device *dev, u32 evtcsm, u32 evtprd)
 				}
 			}
 
- 			if (ACE_IS_TIGON_I(ap)) {
- 				struct cmd cmd;
- 				cmd.evt = C_SET_RX_JUMBO_PRD_IDX;
- 				cmd.code = 0;
- 				cmd.idx = 0;
- 				ace_issue_cmd(ap->regs, &cmd);
- 			} else {
- 				writel(0, &((ap->regs)->RxJumboPrd));
- 				wmb();
- 			}
+			if (ACE_IS_TIGON_I(ap)) {
+				struct cmd cmd;
+				cmd.evt = C_SET_RX_JUMBO_PRD_IDX;
+				cmd.code = 0;
+				cmd.idx = 0;
+				ace_issue_cmd(ap->regs, &cmd);
+			} else {
+				writel(0, &((ap->regs)->RxJumboPrd));
+				wmb();
+			}
 
 			ap->jumbo = 0;
 			ap->rx_jumbo_skbprd = 0;
@@ -2489,9 +2489,9 @@ restart:
 		}
 	}
 
- 	wmb();
- 	ap->tx_prd = idx;
- 	ace_set_txprd(regs, ap, idx);
+	wmb();
+	ap->tx_prd = idx;
+	ace_set_txprd(regs, ap, idx);
 
 	if (flagsize & BD_FLG_COAL_NOW) {
 		netif_stop_queue(dev);

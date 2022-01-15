@@ -10,36 +10,15 @@
 /**
  * struct pstore_device_info - back-end pstore/blk driver structure.
  *
- * @total_size: The total size in bytes pstore/blk can use. It must be greater
- *		than 4096 and be multiple of 4096.
  * @flags:	Refer to macro starting with PSTORE_FLAGS defined in
  *		linux/pstore.h. It means what front-ends this device support.
  *		Zero means all backends for compatible.
- * @read:	The general read operation. Both of the function parameters
- *		@size and @offset are relative value to bock device (not the
- *		whole disk).
- *		On success, the number of bytes should be returned, others
- *		means error.
- * @write:	The same as @read, but the following error number:
- *		-EBUSY means try to write again later.
- *		-ENOMSG means to try next zone.
- * @erase:	The general erase operation for device with special removing
- *		job. Both of the function parameters @size and @offset are
- *		relative value to storage.
- *		Return 0 on success and others on failure.
- * @panic_write:The write operation only used for panic case. It's optional
- *		if you do not care panic log. The parameters are relative
- *		value to storage.
- *		On success, the number of bytes should be returned, others
- *		excluding -ENOMSG mean error. -ENOMSG means to try next zone.
+ * @zone:	The struct pstore_zone_info details.
+ *
  */
 struct pstore_device_info {
-	unsigned long total_size;
 	unsigned int flags;
-	pstore_zone_read_op read;
-	pstore_zone_write_op write;
-	pstore_zone_erase_op erase;
-	pstore_zone_write_op panic_write;
+	struct pstore_zone_info zone;
 };
 
 int  register_pstore_device(struct pstore_device_info *dev);

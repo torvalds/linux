@@ -35,6 +35,7 @@ int tm_signal_stack()
 	int pid;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	pid = fork();
 	if (pid < 0)

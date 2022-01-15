@@ -411,7 +411,7 @@ fail_nomem:
  * @return: success/error report
  */
 
-static int __exit gscps2_remove(struct parisc_device *dev)
+static void __exit gscps2_remove(struct parisc_device *dev)
 {
 	struct gscps2port *ps2port = dev_get_drvdata(&dev->dev);
 
@@ -425,7 +425,6 @@ static int __exit gscps2_remove(struct parisc_device *dev)
 #endif
 	dev_set_drvdata(&dev->dev, NULL);
 	kfree(ps2port);
-	return 0;
 }
 
 

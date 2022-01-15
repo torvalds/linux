@@ -55,9 +55,8 @@ int ib_umem_dmabuf_map_pages(struct ib_umem_dmabuf *umem_dmabuf)
 		cur += sg_dma_len(sg);
 	}
 
-	umem_dmabuf->umem.sg_head.sgl = umem_dmabuf->first_sg;
-	umem_dmabuf->umem.sg_head.nents = nmap;
-	umem_dmabuf->umem.nmap = nmap;
+	umem_dmabuf->umem.sgt_append.sgt.sgl = umem_dmabuf->first_sg;
+	umem_dmabuf->umem.sgt_append.sgt.nents = nmap;
 	umem_dmabuf->sgt = sgt;
 
 wait_fence:
@@ -66,7 +65,7 @@ wait_fence:
 	 * may be not up-to-date. Wait for the exporter to finish
 	 * the migration.
 	 */
-	fence = dma_resv_get_excl(umem_dmabuf->attach->dmabuf->resv);
+	fence = dma_resv_excl_fence(umem_dmabuf->attach->dmabuf->resv);
 	if (fence)
 		return dma_fence_wait(fence, false);
 

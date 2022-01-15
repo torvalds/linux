@@ -257,7 +257,7 @@ int hci_disconnect(struct hci_conn *conn, __u8 reason)
 {
 	BT_DBG("hcon %p", conn);
 
-	/* When we are master of an established connection and it enters
+	/* When we are central of an established connection and it enters
 	 * the disconnect timeout, then go ahead and try to read the
 	 * current clock offset.  Processing of the result is done
 	 * within the event handling and hci_clock_offset_evt function.
@@ -758,7 +758,7 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	conn->state = BT_CLOSED;
 
 	/* If the status indicates successful cancellation of
-	 * the attempt (i.e. Unkown Connection Id) there's no point of
+	 * the attempt (i.e. Unknown Connection Id) there's no point of
 	 * notifying failure since we'll go back to keep trying to
 	 * connect. The only exception is explicit connect requests
 	 * where a timeout + cancel does indicate an actual failure.
@@ -1109,9 +1109,9 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 
 	hci_req_init(&req, hdev);
 
-	/* Disable advertising if we're active. For master role
+	/* Disable advertising if we're active. For central role
 	 * connections most controllers will refuse to connect if
-	 * advertising is enabled, and for slave role connections we
+	 * advertising is enabled, and for peripheral role connections we
 	 * anyway have to disable it in order to start directed
 	 * advertising. Any registered advertisements will be
 	 * re-enabled after the connection attempt is finished.
@@ -1119,7 +1119,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 		__hci_req_pause_adv_instances(&req);
 
-	/* If requested to connect as slave use directed advertising */
+	/* If requested to connect as peripheral use directed advertising */
 	if (conn->role == HCI_ROLE_SLAVE) {
 		/* If we're active scanning most controllers are unable
 		 * to initiate advertising. Simply reject the attempt.
@@ -1842,7 +1842,7 @@ u32 hci_conn_get_phy(struct hci_conn *conn)
 
 	/* BLUETOOTH CORE SPECIFICATION Version 5.2 | Vol 2, Part B page 471:
 	 * Table 6.2: Packets defined for synchronous, asynchronous, and
-	 * CSB logical transport types.
+	 * CPB logical transport types.
 	 */
 	switch (conn->type) {
 	case SCO_LINK:

@@ -36,7 +36,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
 			__entry->s_dev = page->mapping->host->i_rdev;
 	),
 
-	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
+	TP_printk("dev %d:%d ino %lx page=%p pfn=0x%lx ofs=%lu",
 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
 		__entry->i_ino,
 		pfn_to_page(__entry->pfn),

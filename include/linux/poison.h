@@ -78,4 +78,7 @@
 /********** security/ **********/
 #define KEY_DESTROY		0xbd
 
+/********** net/core/page_pool.c **********/
+#define PP_SIGNATURE		(0x40 + POISON_POINTER_DELTA)
+
 #endif

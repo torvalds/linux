@@ -19,12 +19,6 @@ extern void *early_memremap_prot(resource_size_t phys_addr,
 extern void early_iounmap(void __iomem *addr, unsigned long size);
 extern void early_memunmap(void *addr, unsigned long size);
 
-/*
- * Weak function called by early_ioremap_reset(). It does nothing, but
- * architectures may provide their own version to do any needed cleanups.
- */
-extern void early_ioremap_shutdown(void);
-
 #if defined(CONFIG_GENERIC_EARLY_IOREMAP) && defined(CONFIG_MMU)
 /* Arch-specific initialization */
 extern void early_ioremap_init(void);

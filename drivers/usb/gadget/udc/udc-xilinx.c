@@ -791,7 +791,7 @@ static int xudc_ep_set_halt(struct usb_ep *_ep, int value)
 }
 
 /**
- * xudc_ep_enable - Enables the given endpoint.
+ * __xudc_ep_enable - Enables the given endpoint.
  * @ep: pointer to the xusb endpoint structure.
  * @desc: pointer to usb endpoint descriptor.
  *
@@ -987,7 +987,7 @@ static void xudc_free_request(struct usb_ep *_ep, struct usb_request *_req)
 }
 
 /**
- * xudc_ep0_queue - Adds the request to endpoint 0 queue.
+ * __xudc_ep0_queue - Adds the request to endpoint 0 queue.
  * @ep0: pointer to the xusb endpoint 0 structure.
  * @req: pointer to the xusb request structure.
  *

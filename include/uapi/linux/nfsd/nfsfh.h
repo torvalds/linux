@@ -33,7 +33,6 @@ struct nfs_fhbase_old {
 
 /*
  * This is the new flexible, extensible style NFSv2/v3/v4 file handle.
- * by Neil Brown <neilb@cse.unsw.edu.au> - March 2000
  *
  * The file handle starts with a sequence of four-byte words.
  * The first word contains a version number (1) and three descriptor bytes

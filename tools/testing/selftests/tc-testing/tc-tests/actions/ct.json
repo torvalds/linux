@@ -406,5 +406,50 @@
         "teardown": [
             "$TC actions flush action ct"
         ]
+    },
+    {
+        "id": "3992",
+        "name": "Add ct action triggering DNAT tuple conflict",
+        "category": [
+            "actions",
+            "ct",
+	    "scapy"
+        ],
+	"plugins": {
+		"requires": [
+			"nsPlugin",
+			"scapyPlugin"
+		]
+	},
+        "setup": [
+            [
+                "$TC qdisc del dev $DEV1 ingress",
+                0,
+                1,
+		2,
+                255
+            ],
+	    "$TC qdisc add dev $DEV1 ingress"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 ingress protocol ip prio 1 flower ct_state -trk action ct commit nat dst addr 20.0.0.1 port 10 pipe action drop",
+	"scapy": [
+	    {
+		"iface": "$DEV0",
+		"count": 1,
+		"packet": "Ether(type=0x800)/IP(src='10.0.0.10',dst='10.0.0.10')/TCP(sport=5000,dport=10)"
+	    },
+	    {
+		"iface": "$DEV0",
+		"count": 1,
+		"packet": "Ether(type=0x800)/IP(src='10.0.0.10',dst='10.0.0.20')/TCP(sport=5000,dport=10)"
+	    }
+	],
+        "expExitCode": "0",
+        "verifyCmd": "cat /proc/net/nf_conntrack",
+        "matchPattern": "dst=10.0.0.20",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
     }
 ]

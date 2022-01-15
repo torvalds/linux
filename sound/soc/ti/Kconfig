@@ -35,6 +35,7 @@ config SND_SOC_DAVINCI_MCASP
 	  various Texas Instruments SoCs like:
 	  - daVinci devices
 	  - Sitara line of SoCs (AM335x, AM438x, etc)
+	  - OMAP4
 	  - DRA7x devices
 	  - Keystone devices
 	  - K3 devices (am654, j721e)

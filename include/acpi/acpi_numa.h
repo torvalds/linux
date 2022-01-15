@@ -43,4 +43,4 @@ static inline void disable_hmat(void)
 {
 }
 #endif				/* CONFIG_ACPI_HMAT */
-#endif				/* __ACP_NUMA_H */
+#endif				/* __ACPI_NUMA_H */

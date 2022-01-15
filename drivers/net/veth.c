@@ -224,11 +224,12 @@ static void veth_get_channels(struct net_device *dev,
 {
 	channels->tx_count = dev->real_num_tx_queues;
 	channels->rx_count = dev->real_num_rx_queues;
-	channels->max_tx = dev->real_num_tx_queues;
-	channels->max_rx = dev->real_num_rx_queues;
-	channels->combined_count = min(dev->real_num_rx_queues, dev->real_num_tx_queues);
-	channels->max_combined = min(dev->real_num_rx_queues, dev->real_num_tx_queues);
+	channels->max_tx = dev->num_tx_queues;
+	channels->max_rx = dev->num_rx_queues;
 }
+
+static int veth_set_channels(struct net_device *dev,
+			     struct ethtool_channels *ch);
 
 static const struct ethtool_ops veth_ethtool_ops = {
 	.get_drvinfo		= veth_get_drvinfo,
@@ -239,6 +240,7 @@ static const struct ethtool_ops veth_ethtool_ops = {
 	.get_link_ksettings	= veth_get_link_ksettings,
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_channels		= veth_get_channels,
+	.set_channels		= veth_set_channels,
 };
 
 /* general routines */
@@ -711,7 +713,7 @@ static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq,
 	int mac_len, delta, off;
 	struct xdp_buff xdp;
 
-	skb_orphan_partial(skb);
+	skb_prepare_for_gro(skb);
 
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(rq->xdp_prog);
@@ -928,12 +930,12 @@ static int veth_poll(struct napi_struct *napi, int budget)
 	return done;
 }
 
-static int __veth_napi_enable(struct net_device *dev)
+static int __veth_napi_enable_range(struct net_device *dev, int start, int end)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	int err, i;
 
-	for (i = 0; i < dev->real_num_rx_queues; i++) {
+	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
 		err = ptr_ring_init(&rq->xdp_ring, VETH_RING_SIZE, GFP_KERNEL);
@@ -941,7 +943,7 @@ static int __veth_napi_enable(struct net_device *dev)
 			goto err_xdp_ring;
 	}
 
-	for (i = 0; i < dev->real_num_rx_queues; i++) {
+	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
 		napi_enable(&rq->xdp_napi);
@@ -949,19 +951,25 @@ static int __veth_napi_enable(struct net_device *dev)
 	}
 
 	return 0;
+
 err_xdp_ring:
-	for (i--; i >= 0; i--)
+	for (i--; i >= start; i--)
 		ptr_ring_cleanup(&priv->rq[i].xdp_ring, veth_ptr_free);
 
 	return err;
 }
 
-static void veth_napi_del(struct net_device *dev)
+static int __veth_napi_enable(struct net_device *dev)
+{
+	return __veth_napi_enable_range(dev, 0, dev->real_num_rx_queues);
+}
+
+static void veth_napi_del_range(struct net_device *dev, int start, int end)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	int i;
 
-	for (i = 0; i < dev->real_num_rx_queues; i++) {
+	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
 		rcu_assign_pointer(priv->rq[i].napi, NULL);
@@ -970,7 +978,7 @@ static void veth_napi_del(struct net_device *dev)
 	}
 	synchronize_net();
 
-	for (i = 0; i < dev->real_num_rx_queues; i++) {
+	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
 		rq->rx_notify_masked = false;
@@ -978,9 +986,71 @@ static void veth_napi_del(struct net_device *dev)
 	}
 }
 
+static void veth_napi_del(struct net_device *dev)
+{
+	veth_napi_del_range(dev, 0, dev->real_num_rx_queues);
+}
+
 static bool veth_gro_requested(const struct net_device *dev)
 {
 	return !!(dev->wanted_features & NETIF_F_GRO);
+}
+
+static int veth_enable_xdp_range(struct net_device *dev, int start, int end,
+				 bool napi_already_on)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	int err, i;
+
+	for (i = start; i < end; i++) {
+		struct veth_rq *rq = &priv->rq[i];
+
+		if (!napi_already_on)
+			netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
+		err = xdp_rxq_info_reg(&rq->xdp_rxq, dev, i, rq->xdp_napi.napi_id);
+		if (err < 0)
+			goto err_rxq_reg;
+
+		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
+						 MEM_TYPE_PAGE_SHARED,
+						 NULL);
+		if (err < 0)
+			goto err_reg_mem;
+
+		/* Save original mem info as it can be overwritten */
+		rq->xdp_mem = rq->xdp_rxq.mem;
+	}
+	return 0;
+
+err_reg_mem:
+	xdp_rxq_info_unreg(&priv->rq[i].xdp_rxq);
+err_rxq_reg:
+	for (i--; i >= start; i--) {
+		struct veth_rq *rq = &priv->rq[i];
+
+		xdp_rxq_info_unreg(&rq->xdp_rxq);
+		if (!napi_already_on)
+			netif_napi_del(&rq->xdp_napi);
+	}
+
+	return err;
+}
+
+static void veth_disable_xdp_range(struct net_device *dev, int start, int end,
+				   bool delete_napi)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	int i;
+
+	for (i = start; i < end; i++) {
+		struct veth_rq *rq = &priv->rq[i];
+
+		rq->xdp_rxq.mem = rq->xdp_mem;
+		xdp_rxq_info_unreg(&rq->xdp_rxq);
+
+		if (delete_napi)
+			netif_napi_del(&rq->xdp_napi);
+	}
 }
 
 static int veth_enable_xdp(struct net_device *dev)
@@ -990,29 +1060,16 @@ static int veth_enable_xdp(struct net_device *dev)
 	int err, i;
 
 	if (!xdp_rxq_info_is_reg(&priv->rq[0].xdp_rxq)) {
-		for (i = 0; i < dev->real_num_rx_queues; i++) {
-			struct veth_rq *rq = &priv->rq[i];
-
-			if (!napi_already_on)
-				netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
-			err = xdp_rxq_info_reg(&rq->xdp_rxq, dev, i, rq->xdp_napi.napi_id);
-			if (err < 0)
-				goto err_rxq_reg;
-
-			err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
-							 MEM_TYPE_PAGE_SHARED,
-							 NULL);
-			if (err < 0)
-				goto err_reg_mem;
-
-			/* Save original mem info as it can be overwritten */
-			rq->xdp_mem = rq->xdp_rxq.mem;
-		}
+		err = veth_enable_xdp_range(dev, 0, dev->real_num_rx_queues, napi_already_on);
+		if (err)
+			return err;
 
 		if (!napi_already_on) {
 			err = __veth_napi_enable(dev);
-			if (err)
-				goto err_rxq_reg;
+			if (err) {
+				veth_disable_xdp_range(dev, 0, dev->real_num_rx_queues, true);
+				return err;
+			}
 
 			if (!veth_gro_requested(dev)) {
 				/* user-space did not require GRO, but adding XDP
@@ -1030,18 +1087,6 @@ static int veth_enable_xdp(struct net_device *dev)
 	}
 
 	return 0;
-err_reg_mem:
-	xdp_rxq_info_unreg(&priv->rq[i].xdp_rxq);
-err_rxq_reg:
-	for (i--; i >= 0; i--) {
-		struct veth_rq *rq = &priv->rq[i];
-
-		xdp_rxq_info_unreg(&rq->xdp_rxq);
-		if (!napi_already_on)
-			netif_napi_del(&rq->xdp_napi);
-	}
-
-	return err;
 }
 
 static void veth_disable_xdp(struct net_device *dev)
@@ -1064,28 +1109,23 @@ static void veth_disable_xdp(struct net_device *dev)
 		}
 	}
 
-	for (i = 0; i < dev->real_num_rx_queues; i++) {
-		struct veth_rq *rq = &priv->rq[i];
-
-		rq->xdp_rxq.mem = rq->xdp_mem;
-		xdp_rxq_info_unreg(&rq->xdp_rxq);
-	}
+	veth_disable_xdp_range(dev, 0, dev->real_num_rx_queues, false);
 }
 
-static int veth_napi_enable(struct net_device *dev)
+static int veth_napi_enable_range(struct net_device *dev, int start, int end)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	int err, i;
 
-	for (i = 0; i < dev->real_num_rx_queues; i++) {
+	for (i = start; i < end; i++) {
 		struct veth_rq *rq = &priv->rq[i];
 
 		netif_napi_add(dev, &rq->xdp_napi, veth_poll, NAPI_POLL_WEIGHT);
 	}
 
-	err = __veth_napi_enable(dev);
+	err = __veth_napi_enable_range(dev, start, end);
 	if (err) {
-		for (i = 0; i < dev->real_num_rx_queues; i++) {
+		for (i = start; i < end; i++) {
 			struct veth_rq *rq = &priv->rq[i];
 
 			netif_napi_del(&rq->xdp_napi);
@@ -1093,6 +1133,128 @@ static int veth_napi_enable(struct net_device *dev)
 		return err;
 	}
 	return err;
+}
+
+static int veth_napi_enable(struct net_device *dev)
+{
+	return veth_napi_enable_range(dev, 0, dev->real_num_rx_queues);
+}
+
+static void veth_disable_range_safe(struct net_device *dev, int start, int end)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+
+	if (start >= end)
+		return;
+
+	if (priv->_xdp_prog) {
+		veth_napi_del_range(dev, start, end);
+		veth_disable_xdp_range(dev, start, end, false);
+	} else if (veth_gro_requested(dev)) {
+		veth_napi_del_range(dev, start, end);
+	}
+}
+
+static int veth_enable_range_safe(struct net_device *dev, int start, int end)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	int err;
+
+	if (start >= end)
+		return 0;
+
+	if (priv->_xdp_prog) {
+		/* these channels are freshly initialized, napi is not on there even
+		 * when GRO is requeste
+		 */
+		err = veth_enable_xdp_range(dev, start, end, false);
+		if (err)
+			return err;
+
+		err = __veth_napi_enable_range(dev, start, end);
+		if (err) {
+			/* on error always delete the newly added napis */
+			veth_disable_xdp_range(dev, start, end, true);
+			return err;
+		}
+	} else if (veth_gro_requested(dev)) {
+		return veth_napi_enable_range(dev, start, end);
+	}
+	return 0;
+}
+
+static int veth_set_channels(struct net_device *dev,
+			     struct ethtool_channels *ch)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	unsigned int old_rx_count, new_rx_count;
+	struct veth_priv *peer_priv;
+	struct net_device *peer;
+	int err;
+
+	/* sanity check. Upper bounds are already enforced by the caller */
+	if (!ch->rx_count || !ch->tx_count)
+		return -EINVAL;
+
+	/* avoid braking XDP, if that is enabled */
+	peer = rtnl_dereference(priv->peer);
+	peer_priv = peer ? netdev_priv(peer) : NULL;
+	if (priv->_xdp_prog && peer && ch->rx_count < peer->real_num_tx_queues)
+		return -EINVAL;
+
+	if (peer && peer_priv && peer_priv->_xdp_prog && ch->tx_count > peer->real_num_rx_queues)
+		return -EINVAL;
+
+	old_rx_count = dev->real_num_rx_queues;
+	new_rx_count = ch->rx_count;
+	if (netif_running(dev)) {
+		/* turn device off */
+		netif_carrier_off(dev);
+		if (peer)
+			netif_carrier_off(peer);
+
+		/* try to allocate new resurces, as needed*/
+		err = veth_enable_range_safe(dev, old_rx_count, new_rx_count);
+		if (err)
+			goto out;
+	}
+
+	err = netif_set_real_num_rx_queues(dev, ch->rx_count);
+	if (err)
+		goto revert;
+
+	err = netif_set_real_num_tx_queues(dev, ch->tx_count);
+	if (err) {
+		int err2 = netif_set_real_num_rx_queues(dev, old_rx_count);
+
+		/* this error condition could happen only if rx and tx change
+		 * in opposite directions (e.g. tx nr raises, rx nr decreases)
+		 * and we can't do anything to fully restore the original
+		 * status
+		 */
+		if (err2)
+			pr_warn("Can't restore rx queues config %d -> %d %d",
+				new_rx_count, old_rx_count, err2);
+		else
+			goto revert;
+	}
+
+out:
+	if (netif_running(dev)) {
+		/* note that we need to swap the arguments WRT the enable part
+		 * to identify the range we have to disable
+		 */
+		veth_disable_range_safe(dev, new_rx_count, old_rx_count);
+		netif_carrier_on(dev);
+		if (peer)
+			netif_carrier_on(peer);
+	}
+	return err;
+
+revert:
+	new_rx_count = old_rx_count;
+	old_rx_count = ch->rx_count;
+	goto out;
 }
 
 static int veth_open(struct net_device *dev)
@@ -1447,6 +1609,23 @@ static void veth_disable_gro(struct net_device *dev)
 	netdev_update_features(dev);
 }
 
+static int veth_init_queues(struct net_device *dev, struct nlattr *tb[])
+{
+	int err;
+
+	if (!tb[IFLA_NUM_TX_QUEUES] && dev->num_tx_queues > 1) {
+		err = netif_set_real_num_tx_queues(dev, 1);
+		if (err)
+			return err;
+	}
+	if (!tb[IFLA_NUM_RX_QUEUES] && dev->num_rx_queues > 1) {
+		err = netif_set_real_num_rx_queues(dev, 1);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int veth_newlink(struct net *src_net, struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[],
 			struct netlink_ext_ack *extack)
@@ -1556,13 +1735,21 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 
 	priv = netdev_priv(dev);
 	rcu_assign_pointer(priv->peer, peer);
+	err = veth_init_queues(dev, tb);
+	if (err)
+		goto err_queues;
 
 	priv = netdev_priv(peer);
 	rcu_assign_pointer(priv->peer, dev);
+	err = veth_init_queues(peer, tb);
+	if (err)
+		goto err_queues;
 
 	veth_disable_gro(dev);
 	return 0;
 
+err_queues:
+	unregister_netdevice(dev);
 err_register_dev:
 	/* nothing to do */
 err_configure_peer:
@@ -1608,6 +1795,16 @@ static struct net *veth_get_link_net(const struct net_device *dev)
 	return peer ? dev_net(peer) : dev_net(dev);
 }
 
+static unsigned int veth_get_num_queues(void)
+{
+	/* enforce the same queue limit as rtnl_create_link */
+	int queues = num_possible_cpus();
+
+	if (queues > 4096)
+		queues = 4096;
+	return queues;
+}
+
 static struct rtnl_link_ops veth_link_ops = {
 	.kind		= DRV_NAME,
 	.priv_size	= sizeof(struct veth_priv),
@@ -1618,6 +1815,8 @@ static struct rtnl_link_ops veth_link_ops = {
 	.policy		= veth_policy,
 	.maxtype	= VETH_INFO_MAX,
 	.get_link_net	= veth_get_link_net,
+	.get_num_tx_queues	= veth_get_num_queues,
+	.get_num_rx_queues	= veth_get_num_queues,
 };
 
 /*

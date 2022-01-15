@@ -553,7 +553,7 @@ static int qlge_run_loopback_test(struct qlge_adapter *qdev)
 		atomic_inc(&qdev->lb_count);
 	}
 	/* Give queue time to settle before testing results. */
-	msleep(2);
+	usleep_range(2000, 2100);
 	qlge_clean_lb_rx_ring(&qdev->rx_ring[0], 128);
 	return atomic_read(&qdev->lb_count) ? -EIO : 0;
 }
@@ -621,7 +621,10 @@ static void qlge_get_regs(struct net_device *ndev,
 		regs->len = sizeof(struct qlge_reg_dump);
 }
 
-static int qlge_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *c)
+static int qlge_get_coalesce(struct net_device *ndev,
+			     struct ethtool_coalesce *c,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
@@ -644,7 +647,10 @@ static int qlge_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *c
 	return 0;
 }
 
-static int qlge_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *c)
+static int qlge_set_coalesce(struct net_device *ndev,
+			     struct ethtool_coalesce *c,
+			     struct kernel_ethtool_coalesce *kernel_coal,
+			     struct netlink_ext_ack *extack)
 {
 	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 

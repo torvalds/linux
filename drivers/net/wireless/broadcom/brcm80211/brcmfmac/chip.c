@@ -139,6 +139,8 @@ struct sbconfig {
 	u32 sbidhigh;	/* identification */
 };
 
+#define INVALID_RAMBASE			((u32)(~0))
+
 /* bankidx and bankinfo reg defines corerev >= 8 */
 #define SOCRAM_BANKINFO_RETNTRAM_MASK	0x00010000
 #define SOCRAM_BANKINFO_SZMASK		0x0000007f
@@ -527,7 +529,7 @@ static int brcmf_chip_cores_check(struct brcmf_chip_priv *ci)
 	int idx = 1;
 
 	list_for_each_entry(core, &ci->cores, list) {
-		brcmf_dbg(INFO, " [%-2d] core 0x%x:%-2d base 0x%08x wrap 0x%08x\n",
+		brcmf_dbg(INFO, " [%-2d] core 0x%x:%-3d base 0x%08x wrap 0x%08x\n",
 			  idx++, core->pub.id, core->pub.rev, core->pub.base,
 			  core->wrapbase);
 
@@ -727,11 +729,13 @@ static u32 brcmf_chip_tcm_rambase(struct brcmf_chip_priv *ci)
 	case BRCM_CC_4364_CHIP_ID:
 	case CY_CC_4373_CHIP_ID:
 		return 0x160000;
+	case CY_CC_43752_CHIP_ID:
+		return 0x170000;
 	default:
 		brcmf_err("unknown chip: %s\n", ci->pub.name);
 		break;
 	}
-	return 0;
+	return INVALID_RAMBASE;
 }
 
 int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
@@ -746,7 +750,7 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 		mem_core = container_of(mem, struct brcmf_core_priv, pub);
 		ci->pub.ramsize = brcmf_chip_tcm_ramsize(mem_core);
 		ci->pub.rambase = brcmf_chip_tcm_rambase(ci);
-		if (!ci->pub.rambase) {
+		if (ci->pub.rambase == INVALID_RAMBASE) {
 			brcmf_err("RAM base not provided with ARM CR4 core\n");
 			return -EINVAL;
 		}
@@ -757,7 +761,7 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 						pub);
 			ci->pub.ramsize = brcmf_chip_sysmem_ramsize(mem_core);
 			ci->pub.rambase = brcmf_chip_tcm_rambase(ci);
-			if (!ci->pub.rambase) {
+			if (ci->pub.rambase == INVALID_RAMBASE) {
 				brcmf_err("RAM base not provided with ARM CA7 core\n");
 				return -EINVAL;
 			}
@@ -894,7 +898,8 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 	u32 base, wrap;
 	int err;
 
-	eromaddr = ci->ops->read32(ci->ctx, CORE_CC_REG(SI_ENUM_BASE, eromptr));
+	eromaddr = ci->ops->read32(ci->ctx,
+				   CORE_CC_REG(ci->pub.enum_base, eromptr));
 
 	while (desc_type != DMP_DESC_EOT) {
 		val = brcmf_chip_dmp_get_desc(ci, &eromaddr, &desc_type);
@@ -942,6 +947,11 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 	return 0;
 }
 
+u32 brcmf_chip_enum_base(u16 devid)
+{
+	return SI_ENUM_BASE_DEFAULT;
+}
+
 static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 {
 	struct brcmf_core *core;
@@ -954,7 +964,8 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 	 * For different chiptypes or old sdio hosts w/o chipcommon,
 	 * other ways of recognition should be added here.
 	 */
-	regdata = ci->ops->read32(ci->ctx, CORE_CC_REG(SI_ENUM_BASE, chipid));
+	regdata = ci->ops->read32(ci->ctx,
+				  CORE_CC_REG(ci->pub.enum_base, chipid));
 	ci->pub.chip = regdata & CID_ID_MASK;
 	ci->pub.chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
 	socitype = (regdata & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
@@ -974,7 +985,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 		ci->resetcore = brcmf_chip_sb_resetcore;
 
 		core = brcmf_chip_add_core(ci, BCMA_CORE_CHIPCOMMON,
-					   SI_ENUM_BASE, 0);
+					   SI_ENUM_BASE_DEFAULT, 0);
 		brcmf_chip_sb_corerev(ci, core);
 		core = brcmf_chip_add_core(ci, BCMA_CORE_SDIO_DEV,
 					   BCM4329_CORE_BUS_BASE, 0);
@@ -1088,7 +1099,7 @@ static int brcmf_chip_setup(struct brcmf_chip_priv *chip)
 	return ret;
 }
 
-struct brcmf_chip *brcmf_chip_attach(void *ctx,
+struct brcmf_chip *brcmf_chip_attach(void *ctx, u16 devid,
 				     const struct brcmf_buscore_ops *ops)
 {
 	struct brcmf_chip_priv *chip;
@@ -1113,6 +1124,7 @@ struct brcmf_chip *brcmf_chip_attach(void *ctx,
 	chip->num_cores = 0;
 	chip->ops = ops;
 	chip->ctx = ctx;
+	chip->pub.enum_base = brcmf_chip_enum_base(devid);
 
 	err = ops->prepare(ctx);
 	if (err < 0)
@@ -1411,6 +1423,7 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 		reg = chip->ops->read32(chip->ctx, addr);
 		return (reg & CC_SR_CTL0_ENABLE_MASK) != 0;
 	case BRCM_CC_4359_CHIP_ID:
+	case CY_CC_43752_CHIP_ID:
 	case CY_CC_43012_CHIP_ID:
 		addr = CORE_CC_REG(pmu->base, retention_ctl);
 		reg = chip->ops->read32(chip->ctx, addr);

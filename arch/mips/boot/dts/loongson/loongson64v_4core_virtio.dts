@@ -88,7 +88,7 @@
 			interrupt-map-mask = <0x1800 0x0 0x0  0x7>;
 		};
 
-		isa {
+		isa@18000000 {
 			compatible = "isa";
 			#address-cells = <2>;
 			#size-cells = <1>;

@@ -527,6 +527,26 @@ auth_chunk_event_table[SCTP_NUM_AUTH_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
 }; /*state_fn_t auth_chunk_event_table[][] */
 
 static const struct sctp_sm_table_entry
+pad_chunk_event_table[SCTP_STATE_NUM_STATES] = {
+	/* SCTP_STATE_CLOSED */
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk),
+	/* SCTP_STATE_COOKIE_WAIT */
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk),
+	/* SCTP_STATE_COOKIE_ECHOED */
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk),
+	/* SCTP_STATE_ESTABLISHED */
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk),
+	/* SCTP_STATE_SHUTDOWN_PENDING */
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk),
+	/* SCTP_STATE_SHUTDOWN_SENT */
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk),
+	/* SCTP_STATE_SHUTDOWN_RECEIVED */
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk),
+	/* SCTP_STATE_SHUTDOWN_ACK_SENT */
+	TYPE_SCTP_FUNC(sctp_sf_discard_chunk),
+};	/* chunk pad */
+
+static const struct sctp_sm_table_entry
 chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
 	/* SCTP_STATE_CLOSED */
 	TYPE_SCTP_FUNC(sctp_sf_ootb),
@@ -947,6 +967,25 @@ other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
 }
 
+#define TYPE_SCTP_EVENT_TIMEOUT_PROBE { \
+	/* SCTP_STATE_CLOSED */ \
+	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	/* SCTP_STATE_COOKIE_WAIT */ \
+	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	/* SCTP_STATE_COOKIE_ECHOED */ \
+	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	/* SCTP_STATE_ESTABLISHED */ \
+	TYPE_SCTP_FUNC(sctp_sf_send_probe), \
+	/* SCTP_STATE_SHUTDOWN_PENDING */ \
+	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	/* SCTP_STATE_SHUTDOWN_SENT */ \
+	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
+	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
+	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
+}
+
 static const struct sctp_sm_table_entry
 timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_EVENT_TIMEOUT_NONE,
@@ -958,6 +997,7 @@ timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD,
 	TYPE_SCTP_EVENT_TIMEOUT_HEARTBEAT,
 	TYPE_SCTP_EVENT_TIMEOUT_RECONF,
+	TYPE_SCTP_EVENT_TIMEOUT_PROBE,
 	TYPE_SCTP_EVENT_TIMEOUT_SACK,
 	TYPE_SCTP_EVENT_TIMEOUT_AUTOCLOSE,
 };
@@ -992,6 +1032,9 @@ static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
 
 	case SCTP_CID_AUTH:
 		return &auth_chunk_event_table[0][state];
+
+	case SCTP_CID_PAD:
+		return &pad_chunk_event_table[state];
 	}
 
 	return &chunk_event_table_unknown[state];

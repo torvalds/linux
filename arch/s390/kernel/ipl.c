@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/panic_notifier.h>
 #include <linux/reboot.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
@@ -162,22 +163,22 @@ static bool reipl_ccw_clear;
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
-	register unsigned long _addr asm("0") = (unsigned long) addr;
-	register unsigned long _rc asm("1") = 0;
+	union register_pair r1;
 
+	r1.even = (unsigned long) addr;
+	r1.odd	= 0;
 	asm volatile(
-		"	diag	%0,%2,0x308\n"
+		"	diag	%[r1],%[subcode],0x308\n"
 		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
-		: "+d" (_addr), "+d" (_rc)
-		: "d" (subcode) : "cc", "memory");
-	return _rc;
+		: [r1] "+&d" (r1.pair)
+		: [subcode] "d" (subcode)
+		: "cc", "memory");
+	return r1.odd;
 }
 
 int diag308(unsigned long subcode, void *addr)
 {
-	if (IS_ENABLED(CONFIG_KASAN))
-		__arch_local_irq_stosm(0x04); /* enable DAT */
 	diag_stat_inc(DIAG_STAT_X308);
 	return __diag308(subcode, addr);
 }
@@ -1840,7 +1841,6 @@ static struct kobj_attribute on_restart_attr = __ATTR_RW(on_restart);
 
 static void __do_restart(void *ignore)
 {
-	__arch_local_irq_stosm(0x04); /* enable DAT */
 	smp_send_stop();
 #ifdef CONFIG_CRASH_DUMP
 	crash_kexec(NULL);
@@ -2079,7 +2079,7 @@ void s390_reset_system(void)
 
 	/* Disable lowcore protection */
 	__ctl_clear_bit(0, 28);
-	diag_dma_ops.diag308_reset();
+	diag_amode31_ops.diag308_reset();
 }
 
 #ifdef CONFIG_KEXEC_FILE

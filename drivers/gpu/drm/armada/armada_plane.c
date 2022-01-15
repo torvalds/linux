@@ -78,33 +78,6 @@ void armada_drm_plane_calc(struct drm_plane_state *state, u32 addrs[2][3],
 	}
 }
 
-int armada_drm_plane_prepare_fb(struct drm_plane *plane,
-	struct drm_plane_state *state)
-{
-	DRM_DEBUG_KMS("[PLANE:%d:%s] [FB:%d]\n",
-		plane->base.id, plane->name,
-		state->fb ? state->fb->base.id : 0);
-
-	/*
-	 * Take a reference on the new framebuffer - we want to
-	 * hold on to it while the hardware is displaying it.
-	 */
-	if (state->fb)
-		drm_framebuffer_get(state->fb);
-	return 0;
-}
-
-void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
-	struct drm_plane_state *old_state)
-{
-	DRM_DEBUG_KMS("[PLANE:%d:%s] [FB:%d]\n",
-		plane->base.id, plane->name,
-		old_state->fb ? old_state->fb->base.id : 0);
-
-	if (old_state->fb)
-		drm_framebuffer_put(old_state->fb);
-}
-
 int armada_drm_plane_atomic_check(struct drm_plane *plane,
 	struct drm_atomic_state *state)
 {
@@ -282,8 +255,6 @@ static void armada_drm_primary_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs armada_primary_plane_helper_funcs = {
-	.prepare_fb	= armada_drm_plane_prepare_fb,
-	.cleanup_fb	= armada_drm_plane_cleanup_fb,
 	.atomic_check	= armada_drm_plane_atomic_check,
 	.atomic_update	= armada_drm_primary_plane_atomic_update,
 	.atomic_disable	= armada_drm_primary_plane_atomic_disable,

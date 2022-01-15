@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/**
- * tpci200.h
- *
+/*
  * driver for the carrier TEWS TPCI-200
  *
  * Copyright (C) 2009-2012 CERN (www.cern.ch)

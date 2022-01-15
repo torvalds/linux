@@ -92,6 +92,21 @@ TRACE_EVENT(kvm_hv_hypercall,
 		  __entry->outgpa)
 );
 
+TRACE_EVENT(kvm_hv_hypercall_done,
+	TP_PROTO(u64 result),
+	TP_ARGS(result),
+
+	TP_STRUCT__entry(
+		__field(__u64, result)
+	),
+
+	TP_fast_assign(
+		__entry->result	= result;
+	),
+
+	TP_printk("result 0x%llx", __entry->result)
+);
+
 /*
  * Tracepoint for Xen hypercall.
  */
@@ -997,7 +1012,7 @@ TRACE_EVENT(kvm_wait_lapic_expire,
 		  __entry->delta < 0 ? "early" : "late")
 );
 
-TRACE_EVENT(kvm_enter_smm,
+TRACE_EVENT(kvm_smm_transition,
 	TP_PROTO(unsigned int vcpu_id, u64 smbase, bool entering),
 	TP_ARGS(vcpu_id, smbase, entering),
 

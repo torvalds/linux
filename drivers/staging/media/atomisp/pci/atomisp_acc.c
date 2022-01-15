@@ -77,8 +77,8 @@ acc_get_fw(struct atomisp_sub_device *asd, unsigned int handle)
 	struct atomisp_acc_fw *acc_fw;
 
 	list_for_each_entry(acc_fw, &asd->acc.fw, list)
-	if (acc_fw->handle == handle)
-		return acc_fw;
+		if (acc_fw->handle == handle)
+			return acc_fw;
 
 	return NULL;
 }
@@ -464,9 +464,11 @@ int atomisp_acc_load_extensions(struct atomisp_sub_device *asd)
 			continue;
 
 		for (i = 0; i < ARRAY_SIZE(acc_flag_to_pipe); i++) {
-			/* QoS (ACC pipe) acceleration stages are currently
-			 * allowed only in continuous mode. Skip them for
-			 * all other modes. */
+			/*
+			 * QoS (ACC pipe) acceleration stages are
+			 * currently allowed only in continuous mode.
+			 * Skip them for all other modes.
+			 */
 			if (!continuous &&
 			    acc_flag_to_pipe[i].flag ==
 			    ATOMISP_ACC_FW_LOAD_FL_ACC)

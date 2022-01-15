@@ -1363,6 +1363,10 @@ static const struct of_device_id rvin_of_id_table[] = {
 		.data = &rcar_info_r8a7796,
 	},
 	{
+		.compatible = "renesas,vin-r8a77961",
+		.data = &rcar_info_r8a7796,
+	},
+	{
 		.compatible = "renesas,vin-r8a77965",
 		.data = &rcar_info_r8a77965,
 	},

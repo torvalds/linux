@@ -9,6 +9,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
@@ -189,7 +190,7 @@ static void ip27_do_irq_mask0(struct irq_desc *desc)
 	unsigned long *mask = per_cpu(irq_enable_mask, cpu);
 	struct irq_domain *domain;
 	u64 pend0;
-	int irq;
+	int ret;
 
 	/* copied from Irix intpend0() */
 	pend0 = LOCAL_HUB_L(PI_INT_PEND0);
@@ -215,10 +216,8 @@ static void ip27_do_irq_mask0(struct irq_desc *desc)
 #endif
 	{
 		domain = irq_desc_get_handler_data(desc);
-		irq = irq_linear_revmap(domain, __ffs(pend0));
-		if (irq)
-			generic_handle_irq(irq);
-		else
+		ret = generic_handle_domain_irq(domain, __ffs(pend0));
+		if (ret)
 			spurious_interrupt();
 	}
 
@@ -231,7 +230,7 @@ static void ip27_do_irq_mask1(struct irq_desc *desc)
 	unsigned long *mask = per_cpu(irq_enable_mask, cpu);
 	struct irq_domain *domain;
 	u64 pend1;
-	int irq;
+	int ret;
 
 	/* copied from Irix intpend0() */
 	pend1 = LOCAL_HUB_L(PI_INT_PEND1);
@@ -241,10 +240,8 @@ static void ip27_do_irq_mask1(struct irq_desc *desc)
 		return;
 
 	domain = irq_desc_get_handler_data(desc);
-	irq = irq_linear_revmap(domain, __ffs(pend1) + 64);
-	if (irq)
-		generic_handle_irq(irq);
-	else
+	ret = generic_handle_domain_irq(domain, __ffs(pend1) + 64);
+	if (ret)
 		spurious_interrupt();
 
 	LOCAL_HUB_L(PI_INT_PEND1);

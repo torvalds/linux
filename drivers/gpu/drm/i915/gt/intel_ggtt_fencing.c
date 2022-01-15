@@ -56,7 +56,7 @@ static void i965_write_fence_reg(struct i915_fence_reg *fence)
 	int fence_pitch_shift;
 	u64 val;
 
-	if (INTEL_GEN(fence_to_i915(fence)) >= 6) {
+	if (GRAPHICS_VER(fence_to_i915(fence)) >= 6) {
 		fence_reg_lo = FENCE_REG_GEN6_LO(fence->id);
 		fence_reg_hi = FENCE_REG_GEN6_HI(fence->id);
 		fence_pitch_shift = GEN6_FENCE_PITCH_SHIFT;
@@ -173,9 +173,9 @@ static void fence_write(struct i915_fence_reg *fence)
 	 * and explicitly managed for internal users.
 	 */
 
-	if (IS_GEN(i915, 2))
+	if (GRAPHICS_VER(i915) == 2)
 		i830_write_fence_reg(fence);
-	else if (IS_GEN(i915, 3))
+	else if (GRAPHICS_VER(i915) == 3)
 		i915_write_fence_reg(fence);
 	else
 		i965_write_fence_reg(fence);
@@ -188,7 +188,7 @@ static void fence_write(struct i915_fence_reg *fence)
 
 static bool gpu_uses_fence_registers(struct i915_fence_reg *fence)
 {
-	return INTEL_GEN(fence_to_i915(fence)) < 4;
+	return GRAPHICS_VER(fence_to_i915(fence)) < 4;
 }
 
 static int fence_update(struct i915_fence_reg *fence,
@@ -348,7 +348,7 @@ static struct i915_fence_reg *fence_find(struct i915_ggtt *ggtt)
 	if (intel_has_pending_fb_unpin(ggtt->vm.i915))
 		return ERR_PTR(-EAGAIN);
 
-	return ERR_PTR(-EDEADLK);
+	return ERR_PTR(-ENOBUFS);
 }
 
 int __i915_vma_pin_fence(struct i915_vma *vma)
@@ -569,7 +569,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 	u32 swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	u32 swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
-	if (INTEL_GEN(i915) >= 8 || IS_VALLEYVIEW(i915)) {
+	if (GRAPHICS_VER(i915) >= 8 || IS_VALLEYVIEW(i915)) {
 		/*
 		 * On BDW+, swizzling is not used. We leave the CPU memory
 		 * controller in charge of optimizing memory accesses without
@@ -579,7 +579,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if (INTEL_GEN(i915) >= 6) {
+	} else if (GRAPHICS_VER(i915) >= 6) {
 		if (i915->preserve_bios_swizzle) {
 			if (intel_uncore_read(uncore, DISP_ARB_CTL) &
 			    DISP_TILE_SURFACE_SWIZZLING) {
@@ -611,14 +611,14 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 			}
 		}
-	} else if (IS_GEN(i915, 5)) {
+	} else if (GRAPHICS_VER(i915) == 5) {
 		/*
 		 * On Ironlake whatever DRAM config, GPU always do
 		 * same swizzling setup.
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 		swizzle_y = I915_BIT_6_SWIZZLE_9;
-	} else if (IS_GEN(i915, 2)) {
+	} else if (GRAPHICS_VER(i915) == 2) {
 		/*
 		 * As far as we know, the 865 doesn't have these bit 6
 		 * swizzling issues.
@@ -653,8 +653,8 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		 * banks of memory are paired and unswizzled on the
 		 * uneven portion, so leave that as unknown.
 		 */
-		if (intel_uncore_read16(uncore, C0DRB3) ==
-		    intel_uncore_read16(uncore, C1DRB3)) {
+		if (intel_uncore_read16(uncore, C0DRB3_BW) ==
+		    intel_uncore_read16(uncore, C1DRB3_BW)) {
 			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 			swizzle_y = I915_BIT_6_SWIZZLE_9;
 		}
@@ -697,7 +697,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		}
 
 		/* check for L-shaped memory aka modified enhanced addressing */
-		if (IS_GEN(i915, 4) &&
+		if (GRAPHICS_VER(i915) == 4 &&
 		    !(intel_uncore_read(uncore, DCC2) & DCC2_MODIFIED_ENHANCED_DISABLE)) {
 			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
@@ -844,10 +844,10 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 
 	if (!i915_ggtt_has_aperture(ggtt))
 		num_fences = 0;
-	else if (INTEL_GEN(i915) >= 7 &&
+	else if (GRAPHICS_VER(i915) >= 7 &&
 		 !(IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)))
 		num_fences = 32;
-	else if (INTEL_GEN(i915) >= 4 ||
+	else if (GRAPHICS_VER(i915) >= 4 ||
 		 IS_I945G(i915) || IS_I945GM(i915) ||
 		 IS_G33(i915) || IS_PINEVIEW(i915))
 		num_fences = 16;
@@ -867,7 +867,7 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 	for (i = 0; i < num_fences; i++) {
 		struct i915_fence_reg *fence = &ggtt->fence_regs[i];
 
-		i915_active_init(&fence->active, NULL, NULL);
+		i915_active_init(&fence->active, NULL, NULL, 0);
 		fence->ggtt = ggtt;
 		fence->id = i;
 		list_add_tail(&fence->link, &ggtt->fence_list);
@@ -895,29 +895,29 @@ void intel_gt_init_swizzling(struct intel_gt *gt)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
 
-	if (INTEL_GEN(i915) < 5 ||
+	if (GRAPHICS_VER(i915) < 5 ||
 	    i915->ggtt.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
 		return;
 
 	intel_uncore_rmw(uncore, DISP_ARB_CTL, 0, DISP_TILE_SURFACE_SWIZZLING);
 
-	if (IS_GEN(i915, 5))
+	if (GRAPHICS_VER(i915) == 5)
 		return;
 
 	intel_uncore_rmw(uncore, TILECTL, 0, TILECTL_SWZCTL);
 
-	if (IS_GEN(i915, 6))
+	if (GRAPHICS_VER(i915) == 6)
 		intel_uncore_write(uncore,
 				   ARB_MODE,
 				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_SNB));
-	else if (IS_GEN(i915, 7))
+	else if (GRAPHICS_VER(i915) == 7)
 		intel_uncore_write(uncore,
 				   ARB_MODE,
 				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_IVB));
-	else if (IS_GEN(i915, 8))
+	else if (GRAPHICS_VER(i915) == 8)
 		intel_uncore_write(uncore,
 				   GAMTARBMODE,
 				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_BDW));
 	else
-		MISSING_CASE(INTEL_GEN(i915));
+		MISSING_CASE(GRAPHICS_VER(i915));
 }

@@ -37,7 +37,6 @@ properties:
     description: |
       apb and smi are mandatory. gals(global async local sync) is optional.
     minItems: 2
-    maxItems: 3
     items:
       - description: apb is Advanced Peripheral Bus clock, It's the clock for
           setting the register.

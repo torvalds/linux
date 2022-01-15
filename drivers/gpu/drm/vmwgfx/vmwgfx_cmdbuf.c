@@ -295,7 +295,7 @@ void vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header)
 
 
 /**
- * vmw_cmbuf_header_submit: Submit a command buffer to hardware.
+ * vmw_cmdbuf_header_submit: Submit a command buffer to hardware.
  *
  * @header: The header of the buffer to submit.
  */
@@ -358,8 +358,7 @@ static void vmw_cmdbuf_ctx_submit(struct vmw_cmdbuf_man *man,
 			break;
 		}
 
-		list_del(&entry->list);
-		list_add_tail(&entry->list, &ctx->hw_submitted);
+		list_move_tail(&entry->list, &ctx->hw_submitted);
 		ctx->num_hw_submitted++;
 	}
 
@@ -516,7 +515,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 	struct vmw_cmdbuf_man *man =
 		container_of(work, struct vmw_cmdbuf_man, work);
 	struct vmw_cmdbuf_header *entry, *next;
-	uint32_t dummy;
+	uint32_t dummy = 0;
 	bool send_fence = false;
 	struct list_head restart_head[SVGA_CB_CONTEXT_MAX];
 	int i;
@@ -620,7 +619,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 }
 
 /**
- * vmw_cmdbuf_man idle - Check whether the command buffer manager is idle.
+ * vmw_cmdbuf_man_idle - Check whether the command buffer manager is idle.
  *
  * @man: The command buffer manager.
  * @check_preempted: Check also the preempted queue for pending command buffers.
@@ -802,7 +801,7 @@ static int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
 {
 	struct vmw_cmdbuf_alloc_info info;
 
-	info.page_size = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	info.page_size = PFN_UP(size);
 	info.node = node;
 	info.done = false;
 
@@ -889,7 +888,7 @@ static int vmw_cmdbuf_space_pool(struct vmw_cmdbuf_man *man,
 	header->cmd = man->map + offset;
 	if (man->using_mob) {
 		cb_hdr->flags = SVGA_CB_FLAG_MOB;
-		cb_hdr->ptr.mob.mobid = man->cmd_space->mem.start;
+		cb_hdr->ptr.mob.mobid = man->cmd_space->resource->start;
 		cb_hdr->ptr.mob.mobOffset = offset;
 	} else {
 		cb_hdr->ptr.pa = (u64)man->handle + (u64)offset;
@@ -1272,7 +1271,8 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 	 * submissions to be able to free up space.
 	 */
 	man->default_size = VMW_CMDBUF_INLINE_SIZE;
-	DRM_INFO("Using command buffers with %s pool.\n",
+	drm_info(&dev_priv->drm,
+		 "Using command buffers with %s pool.\n",
 		 (man->using_mob) ? "MOB" : "DMA");
 
 	return 0;

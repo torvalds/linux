@@ -1025,7 +1025,7 @@ struct tx_queue {
 #define	PLC_QELM_A_BIST	0x5b6b		/* BIST signature of QELM Rev. A */
 
 /*
- 	FDDI board recources	
+	FDDI board recources
  */
 
 /*

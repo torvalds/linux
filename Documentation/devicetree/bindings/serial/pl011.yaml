@@ -10,7 +10,7 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 allOf:
-  - $ref: /schemas/serial.yaml#
+  - $ref: serial.yaml#
 
 # Need a custom select here or 'arm,primecell' will match on lots of nodes
 select:
@@ -24,12 +24,9 @@ select:
 
 properties:
   compatible:
-    oneOf:
-      - items:
-          - const: arm,pl011
-          - const: arm,primecell
-      - items:
-          - const: arm,primecell
+    items:
+      - const: arm,pl011
+      - const: arm,primecell
 
   reg:
     maxItems: 1
@@ -103,7 +100,7 @@ dependencies:
   poll-rate-ms: [ auto-poll ]
   poll-timeout-ms: [ auto-poll ]
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

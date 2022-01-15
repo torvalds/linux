@@ -97,7 +97,7 @@ things to try.
    modules will automatically execute associated tests when loaded. Test results
    can be collected from ``/sys/kernel/debug/kunit/<test suite>/results``, and
    can be parsed with ``kunit.py parse``. For more details, see "KUnit on
-   non-UML architectures" in :doc:`usage`.
+   non-UML architectures" in Documentation/dev-tools/kunit/usage.rst.
 
 If none of the above tricks help, you are always welcome to email any issues to
 kunit-dev@googlegroups.com.

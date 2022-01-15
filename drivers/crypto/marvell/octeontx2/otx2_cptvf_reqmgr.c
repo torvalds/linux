@@ -320,7 +320,7 @@ static int process_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 			     cpt_req->dlen, false);
 
 	/* Send CPT command */
-	otx2_cpt_send_cmd(&cptinst, 1, lf);
+	lf->lfs->ops->send_cmd(&cptinst, 1, lf);
 
 	/*
 	 * We allocate and prepare pending queue entry in critical section
@@ -349,13 +349,14 @@ int otx2_cpt_do_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 			       &lfs->lf[cpu_num]);
 }
 
-static int cpt_process_ccode(struct pci_dev *pdev,
+static int cpt_process_ccode(struct otx2_cptlfs_info *lfs,
 			     union otx2_cpt_res_s *cpt_status,
 			     struct otx2_cpt_inst_info *info,
 			     u32 *res_code)
 {
-	u8 uc_ccode = cpt_status->s.uc_compcode;
-	u8 ccode = cpt_status->s.compcode;
+	u8 uc_ccode = lfs->ops->cpt_get_uc_compcode(cpt_status);
+	u8 ccode = lfs->ops->cpt_get_compcode(cpt_status);
+	struct pci_dev *pdev = lfs->pdev;
 
 	switch (ccode) {
 	case OTX2_CPT_COMP_E_FAULT:
@@ -389,6 +390,7 @@ static int cpt_process_ccode(struct pci_dev *pdev,
 		return 1;
 
 	case OTX2_CPT_COMP_E_GOOD:
+	case OTX2_CPT_COMP_E_WARN:
 		/*
 		 * Check microcode completion code, it is only valid
 		 * when completion code is CPT_COMP_E::GOOD
@@ -426,7 +428,7 @@ static int cpt_process_ccode(struct pci_dev *pdev,
 	return 0;
 }
 
-static inline void process_pending_queue(struct pci_dev *pdev,
+static inline void process_pending_queue(struct otx2_cptlfs_info *lfs,
 					 struct otx2_cpt_pending_queue *pqueue)
 {
 	struct otx2_cpt_pending_entry *resume_pentry = NULL;
@@ -436,6 +438,7 @@ static inline void process_pending_queue(struct pci_dev *pdev,
 	struct otx2_cpt_inst_info *info = NULL;
 	struct otx2_cpt_req_info *req = NULL;
 	struct crypto_async_request *areq;
+	struct pci_dev *pdev = lfs->pdev;
 	u32 res_code, resume_index;
 
 	while (1) {
@@ -476,7 +479,7 @@ static inline void process_pending_queue(struct pci_dev *pdev,
 			goto process_pentry;
 		}
 
-		if (cpt_process_ccode(pdev, cpt_status, info, &res_code)) {
+		if (cpt_process_ccode(lfs, cpt_status, info, &res_code)) {
 			spin_unlock_bh(&pqueue->lock);
 			return;
 		}
@@ -529,7 +532,7 @@ process_pentry:
 
 void otx2_cpt_post_process(struct otx2_cptlf_wqe *wqe)
 {
-	process_pending_queue(wqe->lfs->pdev,
+	process_pending_queue(wqe->lfs,
 			      &wqe->lfs->lf[wqe->lf_num].pqueue);
 }
 

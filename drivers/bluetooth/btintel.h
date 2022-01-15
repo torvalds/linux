@@ -138,6 +138,49 @@ struct intel_debug_features {
 #define INTEL_CNVX_TOP_STEP(cnvx_top)	(((cnvx_top) & 0x0f000000) >> 24)
 #define INTEL_CNVX_TOP_PACK_SWAB(t, s)	__swab16(((__u16)(((t) << 4) | (s))))
 
+enum {
+	INTEL_BOOTLOADER,
+	INTEL_DOWNLOADING,
+	INTEL_FIRMWARE_LOADED,
+	INTEL_FIRMWARE_FAILED,
+	INTEL_BOOTING,
+	INTEL_BROKEN_INITIAL_NCMD,
+	INTEL_BROKEN_LED,
+	INTEL_ROM_LEGACY,
+
+	__INTEL_NUM_FLAGS,
+};
+
+struct btintel_data {
+	DECLARE_BITMAP(flags, __INTEL_NUM_FLAGS);
+};
+
+#define btintel_set_flag(hdev, nr)					\
+	do {								\
+		struct btintel_data *intel = hci_get_priv((hdev));	\
+		set_bit((nr), intel->flags);				\
+	} while (0)
+
+#define btintel_clear_flag(hdev, nr)					\
+	do {								\
+		struct btintel_data *intel = hci_get_priv((hdev));	\
+		clear_bit((nr), intel->flags);				\
+	} while (0)
+
+#define btintel_wake_up_flag(hdev, nr)					\
+	do {								\
+		struct btintel_data *intel = hci_get_priv((hdev));	\
+		wake_up_bit(intel->flags, (nr));			\
+	} while (0)
+
+#define btintel_get_flag(hdev)						\
+	(((struct btintel_data *)hci_get_priv(hdev))->flags)
+
+#define btintel_test_flag(hdev, nr)	test_bit((nr), btintel_get_flag(hdev))
+#define btintel_test_and_clear_flag(hdev, nr) test_and_clear_bit((nr), btintel_get_flag(hdev))
+#define btintel_wait_on_flag_timeout(hdev, nr, m, to)			\
+		wait_on_bit_timeout(btintel_get_flag(hdev), (nr), m, to)
+
 #if IS_ENABLED(CONFIG_BT_INTEL)
 
 int btintel_check_bdaddr(struct hci_dev *hdev);
@@ -145,19 +188,11 @@ int btintel_enter_mfg(struct hci_dev *hdev);
 int btintel_exit_mfg(struct hci_dev *hdev, bool reset, bool patched);
 int btintel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int btintel_set_diag(struct hci_dev *hdev, bool enable);
-int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable);
-void btintel_hw_error(struct hci_dev *hdev, u8 code);
 
 int btintel_version_info(struct hci_dev *hdev, struct intel_version *ver);
-int btintel_version_info_tlv(struct hci_dev *hdev, struct intel_version_tlv *version);
-int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type, u32 plen,
-			const void *param);
 int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name);
-int btintel_set_event_mask(struct hci_dev *hdev, bool debug);
 int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug);
 int btintel_read_version(struct hci_dev *hdev, struct intel_version *ver);
-int btintel_read_version_tlv(struct hci_dev *hdev, struct intel_version_tlv *ver);
-
 struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 				   u16 opcode_write);
 int btintel_send_intel_reset(struct hci_dev *hdev, u32 boot_param);
@@ -165,16 +200,10 @@ int btintel_read_boot_params(struct hci_dev *hdev,
 			     struct intel_boot_params *params);
 int btintel_download_firmware(struct hci_dev *dev, struct intel_version *ver,
 			      const struct firmware *fw, u32 *boot_param);
-int btintel_download_firmware_newgen(struct hci_dev *hdev,
-				     struct intel_version_tlv *ver,
-				     const struct firmware *fw,
-				     u32 *boot_param, u8 hw_variant,
-				     u8 sbe_type);
-void btintel_reset_to_bootloader(struct hci_dev *hdev);
-int btintel_read_debug_features(struct hci_dev *hdev,
-				struct intel_debug_features *features);
-int btintel_set_debug_features(struct hci_dev *hdev,
-			       const struct intel_debug_features *features);
+int btintel_configure_setup(struct hci_dev *hdev);
+void btintel_bootup(struct hci_dev *hdev, const void *ptr, unsigned int len);
+void btintel_secure_send_result(struct hci_dev *hdev,
+				const void *ptr, unsigned int len);
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
@@ -202,40 +231,14 @@ static inline int btintel_set_diag(struct hci_dev *hdev, bool enable)
 	return -EOPNOTSUPP;
 }
 
-static inline int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void btintel_hw_error(struct hci_dev *hdev, u8 code)
-{
-}
-
 static inline int btintel_version_info(struct hci_dev *hdev,
 				       struct intel_version *ver)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int btintel_version_info_tlv(struct hci_dev *hdev,
-					   struct intel_version_tlv *version)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type,
-				      u32 plen, const void *param)
-{
-	return -EOPNOTSUPP;
-}
-
 static inline int btintel_load_ddc_config(struct hci_dev *hdev,
 					  const char *ddc_name)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int btintel_set_event_mask(struct hci_dev *hdev, bool debug)
 {
 	return -EOPNOTSUPP;
 }
@@ -247,12 +250,6 @@ static inline int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug)
 
 static inline int btintel_read_version(struct hci_dev *hdev,
 				       struct intel_version *ver)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int btintel_read_version_tlv(struct hci_dev *hdev,
-					   struct intel_version_tlv *ver)
 {
 	return -EOPNOTSUPP;
 }
@@ -283,28 +280,18 @@ static inline int btintel_download_firmware(struct hci_dev *dev,
 	return -EOPNOTSUPP;
 }
 
-static inline int btintel_download_firmware_newgen(struct hci_dev *hdev,
-						   const struct firmware *fw,
-						   u32 *boot_param,
-						   u8 hw_variant, u8 sbe_type)
+static inline int btintel_configure_setup(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -ENODEV;
 }
 
-static inline void btintel_reset_to_bootloader(struct hci_dev *hdev)
+static inline void btintel_bootup(struct hci_dev *hdev,
+				  const void *ptr, unsigned int len)
 {
 }
 
-static inline int btintel_read_debug_features(struct hci_dev *hdev,
-					      struct intel_debug_features *features)
+static inline void btintel_secure_send_result(struct hci_dev *hdev,
+				const void *ptr, unsigned int len)
 {
-	return -EOPNOTSUPP;
 }
-
-static inline int btintel_set_debug_features(struct hci_dev *hdev,
-					     const struct intel_debug_features *features)
-{
-	return -EOPNOTSUPP;
-}
-
 #endif

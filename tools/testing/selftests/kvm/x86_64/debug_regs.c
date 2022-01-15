@@ -8,11 +8,14 @@
 #include <string.h>
 #include "kvm_util.h"
 #include "processor.h"
+#include "apic.h"
 
 #define VCPU_ID 0
 
 #define DR6_BD		(1 << 13)
 #define DR7_GD		(1 << 13)
+
+#define IRQ_VECTOR 0xAA
 
 /* For testing data access debug BP */
 uint32_t guest_value;
@@ -21,6 +24,11 @@ extern unsigned char sw_bp, hw_bp, write_data, ss_start, bd_start;
 
 static void guest_code(void)
 {
+	/* Create a pending interrupt on current vCPU */
+	x2apic_enable();
+	x2apic_write_reg(APIC_ICR, APIC_DEST_SELF | APIC_INT_ASSERT |
+			 APIC_DM_FIXED | IRQ_VECTOR);
+
 	/*
 	 * Software BP tests.
 	 *
@@ -38,12 +46,19 @@ static void guest_code(void)
 		     "mov %%rax,%0;\n\t write_data:"
 		     : "=m" (guest_value) : : "rax");
 
-	/* Single step test, covers 2 basic instructions and 2 emulated */
+	/*
+	 * Single step test, covers 2 basic instructions and 2 emulated
+	 *
+	 * Enable interrupts during the single stepping to see that
+	 * pending interrupt we raised is not handled due to KVM_GUESTDBG_BLOCKIRQ
+	 */
 	asm volatile("ss_start: "
+		     "sti\n\t"
 		     "xor %%eax,%%eax\n\t"
 		     "cpuid\n\t"
 		     "movl $0x1a0,%%ecx\n\t"
 		     "rdmsr\n\t"
+		     "cli\n\t"
 		     : : : "eax", "ebx", "ecx", "edx");
 
 	/* DR6.BD test */
@@ -72,11 +87,13 @@ int main(void)
 	uint64_t cmd;
 	int i;
 	/* Instruction lengths starting at ss_start */
-	int ss_size[4] = {
+	int ss_size[6] = {
+		1,		/* sti*/
 		2,		/* xor */
 		2,		/* cpuid */
 		5,		/* mov */
 		2,		/* rdmsr */
+		1,		/* cli */
 	};
 
 	if (!kvm_check_cap(KVM_CAP_SET_GUEST_DEBUG)) {
@@ -154,7 +171,8 @@ int main(void)
 	for (i = 0; i < (sizeof(ss_size) / sizeof(ss_size[0])); i++) {
 		target_rip += ss_size[i];
 		CLEAR_DEBUG();
-		debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
+		debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP |
+				KVM_GUESTDBG_BLOCKIRQ;
 		debug.arch.debugreg[7] = 0x00000400;
 		APPLY_DEBUG();
 		vcpu_run(vm, VCPU_ID);

@@ -1003,19 +1003,16 @@ err_cpmem:
 static void ipu_irq_handle(struct ipu_soc *ipu, const int *regs, int num_regs)
 {
 	unsigned long status;
-	int i, bit, irq;
+	int i, bit;
 
 	for (i = 0; i < num_regs; i++) {
 
 		status = ipu_cm_read(ipu, IPU_INT_STAT(regs[i]));
 		status &= ipu_cm_read(ipu, IPU_INT_CTRL(regs[i]));
 
-		for_each_set_bit(bit, &status, 32) {
-			irq = irq_linear_revmap(ipu->domain,
-						regs[i] * 32 + bit);
-			if (irq)
-				generic_handle_irq(irq);
-		}
+		for_each_set_bit(bit, &status, 32)
+			generic_handle_domain_irq(ipu->domain,
+						  regs[i] * 32 + bit);
 	}
 }
 

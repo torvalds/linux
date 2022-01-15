@@ -46,8 +46,13 @@
 		regulator-name = "TF_IO";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_5v>;
 
-		gpios = <&gpio_ao GPIOAO_6 GPIO_ACTIVE_HIGH>;
+		enable-gpio = <&gpio GPIOE_2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+
+		gpios = <&gpio_ao GPIOAO_6 GPIO_OPEN_SOURCE>;
 		gpios-states = <0>;
 
 		states = <3300000 0>,
@@ -78,6 +83,8 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 		vin-supply = <&main_12v>;
+		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
+		enable-active-high;
 	};
 
 	vcc_1v8: regulator-vcc_1v8 {

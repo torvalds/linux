@@ -39,3 +39,4 @@ pmu-events/jevents
 feature/
 fixdep
 libtraceevent-dynamic-list
+Documentation/doc.dep

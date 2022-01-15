@@ -30,7 +30,6 @@
 #define ADF_C62X_ERRSSMSH_EN BIT(3)
 
 #define ADF_C62X_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
-#define ADF_C62X_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
 
 /* AE to function mapping */
 #define ADF_C62X_AE2FUNC_MAP_GRP_A_NUM_REGS 80

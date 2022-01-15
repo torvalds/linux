@@ -595,6 +595,9 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 {
 	int i;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	for_each_hpd_pin(i) {
 		dev_priv->hotplug.stats[i].count = 0;
 		dev_priv->hotplug.stats[i].state = HPD_ENABLED;
@@ -670,6 +673,9 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
  */
 void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	WRITE_ONCE(dev_priv->hotplug.poll_enabled, true);
 
 	/*
@@ -702,6 +708,9 @@ void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
  */
 void intel_hpd_poll_disable(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	WRITE_ONCE(dev_priv->hotplug.poll_enabled, false);
 	schedule_work(&dev_priv->hotplug.poll_init_work);
 }
@@ -718,6 +727,9 @@ void intel_hpd_init_work(struct drm_i915_private *dev_priv)
 
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	spin_lock_irq(&dev_priv->irq_lock);
 
 	dev_priv->hotplug.long_port_mask = 0;

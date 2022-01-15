@@ -10,6 +10,7 @@
 
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_sprite.h"
@@ -144,7 +145,7 @@ static bool i9xx_plane_has_windowing(struct intel_plane *plane)
 		return i9xx_plane == PLANE_B;
 	else if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		return false;
-	else if (IS_DISPLAY_VER(dev_priv, 4))
+	else if (DISPLAY_VER(dev_priv) == 4)
 		return i9xx_plane == PLANE_C;
 	else
 		return i9xx_plane == PLANE_B ||
@@ -911,7 +912,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	zpos = 0;
 	drm_plane_create_zpos_immutable_property(&plane->base, zpos);
 
-	drm_plane_helper_add(&plane->base, &intel_plane_helper_funcs);
+	intel_plane_helper_add(plane);
 
 	return plane;
 
@@ -1039,4 +1040,3 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	plane_config->fb = intel_fb;
 }
-

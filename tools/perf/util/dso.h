@@ -170,6 +170,7 @@ struct dso {
 	u8		 has_srcline:1;
 	u8		 hit:1;
 	u8		 annotate_warned:1;
+	u8		 auxtrace_warned:1;
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
 	u8		 is_64_bit:1;

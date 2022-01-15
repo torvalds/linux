@@ -153,7 +153,7 @@ search_again:
 	else
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 
-	ret = btrfs_search_slot(trans, fs_info->extent_root, &key, path, 0, 0);
+	ret = btrfs_search_slot(NULL, fs_info->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out_free;
 
@@ -1425,7 +1425,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
  *		    bytenr of the parent block. Since new extents are always
  *		    created with indirect references, this will only be the case
  *		    when relocating a shared extent. In that case, root_objectid
- *		    will be BTRFS_TREE_RELOC_OBJECTID. Otheriwse, parent must
+ *		    will be BTRFS_TREE_RELOC_OBJECTID. Otherwise, parent must
  *		    be 0
  *
  * @root_objectid:  The id of the root where this modification has originated,
@@ -1802,19 +1802,6 @@ void btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 		delayed_refs->pending_csums -= head->num_bytes;
 		spin_unlock(&delayed_refs->lock);
 		nr_items += btrfs_csum_bytes_to_leaves(fs_info, head->num_bytes);
-	}
-
-	/*
-	 * We were dropping refs, or had a new ref and dropped it, and thus must
-	 * adjust down our total_bytes_pinned, the space may or may not have
-	 * been pinned and so is accounted for properly in the pinned space by
-	 * now.
-	 */
-	if (head->total_ref_mod < 0 ||
-	    (head->total_ref_mod == 0 && head->must_insert_reserved)) {
-		u64 flags = btrfs_ref_head_to_space_flags(head);
-
-		btrfs_mod_total_bytes_pinned(fs_info, flags, -head->num_bytes);
 	}
 
 	btrfs_delayed_refs_rsv_release(fs_info, nr_items);
@@ -2551,7 +2538,6 @@ static int pin_down_extent(struct btrfs_trans_handle *trans,
 	spin_unlock(&cache->lock);
 	spin_unlock(&cache->space_info->lock);
 
-	__btrfs_mod_total_bytes_pinned(cache->space_info, num_bytes);
 	set_extent_dirty(&trans->transaction->pinned_extents, bytenr,
 			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
 	return 0;
@@ -2762,7 +2748,6 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 		cache->pinned -= len;
 		btrfs_space_info_update_bytes_pinned(fs_info, space_info, -len);
 		space_info->max_extent_size = 0;
-		__btrfs_mod_total_bytes_pinned(space_info, -len);
 		if (cache->ro) {
 			space_info->bytes_readonly += len;
 			readonly = true;
@@ -4784,7 +4769,6 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
 	}
-	trans->dirty = true;
 	/* this returns a buffer locked for blocking */
 	return buf;
 }
@@ -4875,6 +4859,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 out_free_delayed:
 	btrfs_free_delayed_extent_op(extent_op);
 out_free_buf:
+	btrfs_tree_unlock(buf);
 	free_extent_buffer(buf);
 out_free_reserved:
 	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 0);
@@ -5966,9 +5951,9 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
  */
 int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 {
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_block_group *cache = NULL;
 	struct btrfs_device *device;
-	struct list_head *devices;
 	u64 group_trimmed;
 	u64 range_end = U64_MAX;
 	u64 start;
@@ -6032,9 +6017,12 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 		btrfs_warn(fs_info,
 			"failed to trim %llu block group(s), last error %d",
 			bg_failed, bg_ret);
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	devices = &fs_info->fs_devices->devices;
-	list_for_each_entry(device, devices, dev_list) {
+
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
+			continue;
+
 		ret = btrfs_trim_free_extents(device, &group_trimmed);
 		if (ret) {
 			dev_failed++;
@@ -6044,7 +6032,7 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 
 		trimmed += group_trimmed;
 	}
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	if (dev_failed)
 		btrfs_warn(fs_info,

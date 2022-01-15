@@ -3,7 +3,7 @@ KBUILD_DEFCONFIG := mmu_defconfig
 
 UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
 
-# What CPU vesion are we building for, and crack it open
+# What CPU version are we building for, and crack it open
 # as major.minor.rev
 CPU_VER   := $(shell echo $(CONFIG_XILINX_MICROBLAZE0_HW_VER))
 CPU_MAJOR := $(shell echo $(CPU_VER) | cut -d '.' -f 1)
@@ -50,16 +50,11 @@ KBUILD_CFLAGS += -ffixed-r31 $(CPUFLAGS-y) $(CPUFLAGS-1) $(CPUFLAGS-2)
 
 head-y := arch/microblaze/kernel/head.o
 libs-y += arch/microblaze/lib/
-core-y += arch/microblaze/kernel/
-core-y += arch/microblaze/mm/
-core-$(CONFIG_PCI) += arch/microblaze/pci/
 
 boot := arch/microblaze/boot
 
 # Are we making a simpleImage.<boardname> target? If so, crack out the boardname
 DTB:=$(subst simpleImage.,,$(filter simpleImage.%, $(MAKECMDGOALS)))
-
-core-y	+= $(boot)/dts/
 
 export DTB
 

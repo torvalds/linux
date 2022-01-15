@@ -512,17 +512,11 @@ static int acp3x_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"devm_snd_soc_register_card(%s) failed: %d\n",
-				card->name, ret);
-		else
-			dev_dbg(&pdev->dev,
-				"devm_snd_soc_register_card(%s) probe deferred: %d\n",
-				card->name, ret);
+		return dev_err_probe(&pdev->dev, ret,
+				"devm_snd_soc_register_card(%s) failed\n",
+				card->name);
 	}
-
-	return ret;
+	return 0;
 }
 
 static const struct acpi_device_id acp3x_audio_acpi_match[] = {

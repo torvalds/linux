@@ -253,26 +253,17 @@ static int pwm_mediatek_probe(struct platform_device *pdev)
 		}
 	}
 
-	platform_set_drvdata(pdev, pc);
-
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &pwm_mediatek_ops;
 	pc->chip.npwm = pc->soc->num_pwms;
 
-	ret = pwmchip_add(&pc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &pc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
 		return ret;
 	}
 
 	return 0;
-}
-
-static int pwm_mediatek_remove(struct platform_device *pdev)
-{
-	struct pwm_mediatek_chip *pc = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&pc->chip);
 }
 
 static const struct pwm_mediatek_of_data mt2712_pwm_data = {
@@ -335,7 +326,6 @@ static struct platform_driver pwm_mediatek_driver = {
 		.of_match_table = pwm_mediatek_of_match,
 	},
 	.probe = pwm_mediatek_probe,
-	.remove = pwm_mediatek_remove,
 };
 module_platform_driver(pwm_mediatek_driver);
 

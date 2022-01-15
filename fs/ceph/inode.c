@@ -541,8 +541,6 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 
 	ceph_fscache_inode_init(ci);
 
-	ci->i_meta_err = 0;
-
 	return &ci->vfs_inode;
 }
 
@@ -581,16 +579,9 @@ void ceph_evict_inode(struct inode *inode)
 	 */
 	if (ci->i_snap_realm) {
 		if (ceph_snap(inode) == CEPH_NOSNAP) {
-			struct ceph_snap_realm *realm = ci->i_snap_realm;
 			dout(" dropping residual ref to snap realm %p\n",
-			     realm);
-			spin_lock(&realm->inodes_with_caps_lock);
-			list_del_init(&ci->i_snap_realm_item);
-			ci->i_snap_realm = NULL;
-			if (realm->ino == ci->i_vino.ino)
-				realm->inode = NULL;
-			spin_unlock(&realm->inodes_with_caps_lock);
-			ceph_put_snap_realm(mdsc, realm);
+			     ci->i_snap_realm);
+			ceph_change_snap_realm(inode, NULL);
 		} else {
 			ceph_put_snapid_map(mdsc, ci->i_snapid_map);
 			ci->i_snap_realm = NULL;
@@ -1124,7 +1115,7 @@ static void __update_dentry_lease(struct inode *dir, struct dentry *dentry,
 		return;
 	}
 
-	if (di->lease_gen == session->s_cap_gen &&
+	if (di->lease_gen == atomic_read(&session->s_cap_gen) &&
 	    time_before(ttl, di->time))
 		return;  /* we already have a newer lease. */
 
@@ -1135,7 +1126,7 @@ static void __update_dentry_lease(struct inode *dir, struct dentry *dentry,
 
 	if (!di->lease_session)
 		di->lease_session = ceph_get_mds_session(session);
-	di->lease_gen = session->s_cap_gen;
+	di->lease_gen = atomic_read(&session->s_cap_gen);
 	di->lease_seq = le32_to_cpu(lease->seq);
 	di->lease_renew_after = half_ttl;
 	di->lease_renew_from = 0;
@@ -1154,8 +1145,7 @@ static inline void update_dentry_lease(struct inode *dir, struct dentry *dentry,
 	__update_dentry_lease(dir, dentry, lease, session, from_time,
 			      &old_lease_session);
 	spin_unlock(&dentry->d_lock);
-	if (old_lease_session)
-		ceph_put_mds_session(old_lease_session);
+	ceph_put_mds_session(old_lease_session);
 }
 
 /*
@@ -1200,8 +1190,7 @@ static void update_dentry_lease_careful(struct dentry *dentry,
 			      from_time, &old_lease_session);
 out_unlock:
 	spin_unlock(&dentry->d_lock);
-	if (old_lease_session)
-		ceph_put_mds_session(old_lease_session);
+	ceph_put_mds_session(old_lease_session);
 }
 
 /*
@@ -1568,8 +1557,7 @@ static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
 			unlock_new_inode(in);
 		}
 
-		/* avoid calling iput_final() in mds dispatch threads */
-		ceph_async_iput(in);
+		iput(in);
 	}
 
 	return err;
@@ -1766,13 +1754,11 @@ retry_lookup:
 		if (ret < 0) {
 			pr_err("ceph_fill_inode badness on %p\n", in);
 			if (d_really_is_negative(dn)) {
-				/* avoid calling iput_final() in mds
-				 * dispatch threads */
 				if (in->i_state & I_NEW) {
 					ihold(in);
 					discard_new_inode(in);
 				}
-				ceph_async_iput(in);
+				iput(in);
 			}
 			d_drop(dn);
 			err = ret;
@@ -1785,7 +1771,7 @@ retry_lookup:
 			if (ceph_security_xattr_deadlock(in)) {
 				dout(" skip splicing dn %p to inode %p"
 				     " (security xattr deadlock)\n", dn, in);
-				ceph_async_iput(in);
+				iput(in);
 				skipped++;
 				goto next_item;
 			}
@@ -1834,25 +1820,6 @@ bool ceph_inode_set_size(struct inode *inode, loff_t size)
 
 	spin_unlock(&ci->i_ceph_lock);
 	return ret;
-}
-
-/*
- * Put reference to inode, but avoid calling iput_final() in current thread.
- * iput_final() may wait for reahahead pages. The wait can cause deadlock in
- * some contexts.
- */
-void ceph_async_iput(struct inode *inode)
-{
-	if (!inode)
-		return;
-	for (;;) {
-		if (atomic_add_unless(&inode->i_count, -1, 1))
-			break;
-		if (queue_work(ceph_inode_to_client(inode)->inode_wq,
-			       &ceph_inode(inode)->i_work))
-			break;
-		/* queue work failed, i_count must be at least 2 */
-	}
 }
 
 void ceph_queue_inode_work(struct inode *inode, int work_bit)

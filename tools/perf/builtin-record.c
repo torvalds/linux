@@ -891,11 +891,12 @@ static int record__open(struct record *rec)
 	int rc = 0;
 
 	/*
-	 * For initial_delay or system wide, we need to add a dummy event so
-	 * that we can track PERF_RECORD_MMAP to cover the delay of waiting or
-	 * event synthesis.
+	 * For initial_delay, system wide or a hybrid system, we need to add a
+	 * dummy event so that we can track PERF_RECORD_MMAP to cover the delay
+	 * of waiting or event synthesis.
 	 */
-	if (opts->initial_delay || target__has_cpu(&opts->target)) {
+	if (opts->initial_delay || target__has_cpu(&opts->target) ||
+	    perf_pmu__has_hybrid()) {
 		pos = evlist__get_tracking_event(evlist);
 		if (!evsel__is_dummy_event(pos)) {
 			/* Set up dummy event. */
@@ -909,7 +910,8 @@ static int record__open(struct record *rec)
 		 * Enable the dummy event when the process is forked for
 		 * initial_delay, immediately for system wide.
 		 */
-		if (opts->initial_delay && !pos->immediate)
+		if (opts->initial_delay && !pos->immediate &&
+		    !target__has_cpu(&opts->target))
 			pos->core.attr.enable_on_exec = 1;
 		else
 			pos->immediate = 1;
@@ -926,7 +928,7 @@ try_again:
 				goto try_again;
 			}
 			if ((errno == EINVAL || errno == EBADF) &&
-			    pos->leader != pos &&
+			    pos->core.leader != &pos->core &&
 			    pos->weak_group) {
 			        pos = evlist__reset_weak_group(evlist, pos, true);
 				goto try_again;
@@ -969,6 +971,15 @@ out:
 	return rc;
 }
 
+static void set_timestamp_boundary(struct record *rec, u64 sample_time)
+{
+	if (rec->evlist->first_sample_time == 0)
+		rec->evlist->first_sample_time = sample_time;
+
+	if (sample_time)
+		rec->evlist->last_sample_time = sample_time;
+}
+
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
@@ -977,10 +988,7 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct record *rec = container_of(tool, struct record, tool);
 
-	if (rec->evlist->first_sample_time == 0)
-		rec->evlist->first_sample_time = sample->time;
-
-	rec->evlist->last_sample_time = sample->time;
+	set_timestamp_boundary(rec, sample->time);
 
 	if (rec->buildid_all)
 		return 0;
@@ -1380,7 +1388,6 @@ static int record__synthesize(struct record *rec, bool tail)
 	struct perf_data *data = &rec->data;
 	struct record_opts *opts = &rec->opts;
 	struct perf_tool *tool = &rec->tool;
-	int fd = perf_data__fd(data);
 	int err = 0;
 	event_op f = process_synthesized_event;
 
@@ -1388,41 +1395,12 @@ static int record__synthesize(struct record *rec, bool tail)
 		return 0;
 
 	if (data->is_pipe) {
-		/*
-		 * We need to synthesize events first, because some
-		 * features works on top of them (on report side).
-		 */
-		err = perf_event__synthesize_attrs(tool, rec->evlist,
-						   process_synthesized_event);
-		if (err < 0) {
-			pr_err("Couldn't synthesize attrs.\n");
-			goto out;
-		}
-
-		err = perf_event__synthesize_features(tool, session, rec->evlist,
+		err = perf_event__synthesize_for_pipe(tool, session, data,
 						      process_synthesized_event);
-		if (err < 0) {
-			pr_err("Couldn't synthesize features.\n");
-			return err;
-		}
+		if (err < 0)
+			goto out;
 
-		if (have_tracepoints(&rec->evlist->core.entries)) {
-			/*
-			 * FIXME err <= 0 here actually means that
-			 * there were no tracepoints so its not really
-			 * an error, just that we don't need to
-			 * synthesize anything.  We really have to
-			 * return this more properly and also
-			 * propagate errors that now are calling die()
-			 */
-			err = perf_event__synthesize_tracing_data(tool,	fd, rec->evlist,
-								  process_synthesized_event);
-			if (err <= 0) {
-				pr_err("Couldn't record tracing data.\n");
-				goto out;
-			}
-			rec->bytes_written += err;
-		}
+		rec->bytes_written += err;
 	}
 
 	err = perf_event__synth_time_conv(record__pick_pc(rec), tool,
@@ -1674,7 +1652,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		signal(SIGUSR2, SIG_IGN);
 	}
 
-	session = perf_session__new(data, false, tool);
+	session = perf_session__new(data, tool);
 	if (IS_ERR(session)) {
 		pr_err("Perf session creation failed.\n");
 		return PTR_ERR(session);
@@ -1770,7 +1748,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		rec->tool.ordered_events = false;
 	}
 
-	if (!rec->evlist->nr_groups)
+	if (!rec->evlist->core.nr_groups)
 		perf_header__clear_feat(&session->header, HEADER_GROUP_DESC);
 
 	if (data->is_pipe) {
@@ -2402,6 +2380,17 @@ static int build_id__process_mmap2(struct perf_tool *tool, union perf_event *eve
 	return perf_event__process_mmap2(tool, event, sample, machine);
 }
 
+static int process_timestamp_boundary(struct perf_tool *tool,
+				      union perf_event *event __maybe_unused,
+				      struct perf_sample *sample,
+				      struct machine *machine __maybe_unused)
+{
+	struct record *rec = container_of(tool, struct record, tool);
+
+	set_timestamp_boundary(rec, sample->time);
+	return 0;
+}
+
 /*
  * XXX Ideally would be local to cmd_record() and passed to a record__new
  * because we need to have access to it in record__exit, that is called
@@ -2436,6 +2425,8 @@ static struct record record = {
 		.namespaces	= perf_event__process_namespaces,
 		.mmap		= build_id__process_mmap,
 		.mmap2		= build_id__process_mmap2,
+		.itrace_start	= process_timestamp_boundary,
+		.aux		= process_timestamp_boundary,
 		.ordered_events	= true,
 	},
 };
@@ -2766,7 +2757,7 @@ int cmd_record(int argc, const char **argv)
 
 	if (rec->opts.affinity != PERF_AFFINITY_SYS) {
 		rec->affinity_mask.nbits = cpu__max_cpu();
-		rec->affinity_mask.bits = bitmap_alloc(rec->affinity_mask.nbits);
+		rec->affinity_mask.bits = bitmap_zalloc(rec->affinity_mask.nbits);
 		if (!rec->affinity_mask.bits) {
 			pr_err("Failed to allocate thread mask for %zd cpus\n", rec->affinity_mask.nbits);
 			err = -ENOMEM;
@@ -2864,6 +2855,13 @@ int cmd_record(int argc, const char **argv)
 	/* Enable ignoring missing threads when -u/-p option is defined. */
 	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX || rec->opts.target.pid;
 
+	if (evlist__fix_hybrid_cpus(rec->evlist, rec->opts.target.cpu_list)) {
+		pr_err("failed to use cpu list %s\n",
+		       rec->opts.target.cpu_list);
+		goto out;
+	}
+
+	rec->opts.target.hybrid = perf_pmu__has_hybrid();
 	err = -ENOMEM;
 	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);

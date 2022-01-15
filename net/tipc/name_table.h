@@ -51,6 +51,8 @@ struct tipc_uaddr;
 #define TIPC_PUBL_SCOPE_NUM	(TIPC_NODE_SCOPE + 1)
 #define TIPC_NAMETBL_SIZE	1024	/* must be a power of 2 */
 
+#define TIPC_ANY_SCOPE 10      /* Both node and cluster scope will match */
+
 /**
  * struct publication - info about a published service address or range
  * @sr: service range represented by this publication
@@ -113,7 +115,7 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 bool tipc_nametbl_lookup_anycast(struct net *net, struct tipc_uaddr *ua,
 				 struct tipc_socket_addr *sk);
 void tipc_nametbl_lookup_mcast_sockets(struct net *net, struct tipc_uaddr *ua,
-				       bool exact, struct list_head *dports);
+				       struct list_head *dports);
 void tipc_nametbl_lookup_mcast_nodes(struct net *net, struct tipc_uaddr *ua,
 				     struct tipc_nlist *nodes);
 bool tipc_nametbl_lookup_group(struct net *net, struct tipc_uaddr *ua,

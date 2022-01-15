@@ -641,11 +641,11 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 	read_lock(&tasklist_lock);
 	if (child->sighand) {
 		spin_lock_irq(&child->sighand->siglock);
-		if (child->state == TASK_STOPPED &&
+		if (READ_ONCE(child->__state) == TASK_STOPPED &&
 		    !test_and_set_tsk_thread_flag(child, TIF_RESTORE_RSE)) {
 			set_notify_resume(child);
 
-			child->state = TASK_TRACED;
+			WRITE_ONCE(child->__state, TASK_TRACED);
 			stopped = 1;
 		}
 		spin_unlock_irq(&child->sighand->siglock);
@@ -665,9 +665,9 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 	read_lock(&tasklist_lock);
 	if (child->sighand) {
 		spin_lock_irq(&child->sighand->siglock);
-		if (child->state == TASK_TRACED &&
+		if (READ_ONCE(child->__state) == TASK_TRACED &&
 		    (child->signal->flags & SIGNAL_STOP_STOPPED)) {
-			child->state = TASK_STOPPED;
+			WRITE_ONCE(child->__state, TASK_STOPPED);
 		}
 		spin_unlock_irq(&child->sighand->siglock);
 	}

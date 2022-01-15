@@ -128,37 +128,20 @@ BEGIN_FTR_SECTION
 	mr	r12, r13
 	lwz	r13, THREAD_NORMSAVE(2)(r10)
 FTR_SECTION_ELSE
-#endif
 	mfcr	r12
-#ifdef CONFIG_KVM_BOOKE_HV
 ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
+#else
+	mfcr	r12
 #endif
 	mfspr	r9, SPRN_SRR1
 	BOOKE_CLEAR_BTB(r11)
-	lwz	r11, TASK_STACK - THREAD(r10)
+	mr	r11, r1
+	lwz	r1, TASK_STACK - THREAD(r10)
 	rlwinm	r12,r12,0,4,2	/* Clear SO bit in CR */
-	ALLOC_STACK_FRAME(r11, THREAD_SIZE - INT_FRAME_SIZE)
-	stw	r12, _CCR(r11)		/* save various registers */
-	mflr	r12
-	stw	r12,_LINK(r11)
+	ALLOC_STACK_FRAME(r1, THREAD_SIZE - INT_FRAME_SIZE)
+	stw	r12, _CCR(r1)
 	mfspr	r12,SPRN_SRR0
-	stw	r1, GPR1(r11)
-	stw	r1, 0(r11)
-	mr	r1, r11
-	stw	r12,_NIP(r11)
-	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?)	   */
-	lis	r12, STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
-	stw	r2,GPR2(r11)
-	addi	r12, r12, STACK_FRAME_REGS_MARKER@l
-	stw	r9,_MSR(r11)
-	li	r2, \trapno
-	stw	r12, 8(r11)
-	stw	r2,_TRAP(r11)
-	SAVE_GPR(0, r11)
-	SAVE_4GPRS(3, r11)
-	SAVE_2GPRS(7, r11)
-
-	addi	r2,r10,-THREAD
+	stw	r12,_NIP(r1)
 	b	transfer_to_syscall	/* jump to handler */
 .endm
 
@@ -185,20 +168,18 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 /* only on e500mc */
 #define DBG_STACK_BASE		dbgirq_ctx
 
-#define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE - EXC_LVL_SIZE)
-
 #ifdef CONFIG_SMP
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	mfspr	r8,SPRN_PIR;				\
 	slwi	r8,r8,2;				\
 	addis	r8,r8,level##_STACK_BASE@ha;		\
 	lwz	r8,level##_STACK_BASE@l(r8);		\
-	addi	r8,r8,EXC_LVL_FRAME_OVERHEAD;
+	addi	r8,r8,THREAD_SIZE - INT_FRAME_SIZE;
 #else
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	lis	r8,level##_STACK_BASE@ha;		\
 	lwz	r8,level##_STACK_BASE@l(r8);		\
-	addi	r8,r8,EXC_LVL_FRAME_OVERHEAD;
+	addi	r8,r8,THREAD_SIZE - INT_FRAME_SIZE;
 #endif
 
 /*
@@ -225,7 +206,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	mtmsr	r11;							\
 	mfspr	r11,SPRN_SPRG_THREAD;	/* if from user, start at top of   */\
 	lwz	r11, TASK_STACK - THREAD(r11); /* this thread's kernel stack */\
-	addi	r11,r11,EXC_LVL_FRAME_OVERHEAD;	/* allocate stack frame    */\
+	addi	r11,r11,THREAD_SIZE - INT_FRAME_SIZE;	/* allocate stack frame    */\
 	beq	1f;							     \
 	/* COMING FROM USER MODE */					     \
 	stw	r9,_CCR(r11);		/* save CR			   */\
@@ -532,25 +513,6 @@ label:
 1:	prepare_transfer_to_handler;					      \
 	bl	kernel_fp_unavailable_exception;			      \
 	b	interrupt_return
-
-#else /* __ASSEMBLY__ */
-struct exception_regs {
-	unsigned long mas0;
-	unsigned long mas1;
-	unsigned long mas2;
-	unsigned long mas3;
-	unsigned long mas6;
-	unsigned long mas7;
-	unsigned long srr0;
-	unsigned long srr1;
-	unsigned long csrr0;
-	unsigned long csrr1;
-	unsigned long dsrr0;
-	unsigned long dsrr1;
-};
-
-/* ensure this structure is always sized to a multiple of the stack alignment */
-#define STACK_EXC_LVL_FRAME_SIZE	ALIGN(sizeof (struct exception_regs), 16)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __HEAD_BOOKE_H__ */

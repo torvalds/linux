@@ -82,16 +82,16 @@ do {						\
 } while (0)
 
 
-#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr)		\
+#define alloc_zeroed_user_highpage_movable(vma, vaddr)			\
 ({									\
 	struct page *page = alloc_page_vma(				\
-		GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr);	\
+		GFP_HIGHUSER_MOVABLE | __GFP_ZERO, vma, vaddr);		\
 	if (page)							\
  		flush_dcache_page(page);				\
 	page;								\
 })
 
-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE
 
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 

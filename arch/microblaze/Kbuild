@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+obj-y			+= kernel/
+obj-y			+= mm/
+obj-$(CONFIG_PCI)	+= pci/
+obj-y			+= boot/dts/

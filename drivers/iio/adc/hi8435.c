@@ -483,7 +483,6 @@ static int hi8435_probe(struct spi_device *spi)
 		gpiod_set_value_cansleep(reset_gpio, 1);
 	}
 
-	spi_set_drvdata(spi, idev);
 	mutex_init(&priv->lock);
 
 	idev->name		= spi_get_device_id(spi)->name;

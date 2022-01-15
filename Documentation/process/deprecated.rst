@@ -164,7 +164,9 @@ Paraphrasing Linus's current `guidance <https://lore.kernel.org/lkml/CA+55aFwQEd
   up to Linus's scrutiny, maybe you can use "%px", along with making sure
   you have sensible permissions.
 
-And finally, know that a toggle for "%p" hashing will `not be accepted <https://lore.kernel.org/lkml/CA+55aFwieC1-nAs+NFq9RTwaR8ef9hWa4MjNBWL41F-8wM49eA@mail.gmail.com/>`_.
+If you are debugging something where "%p" hashing is causing problems,
+you can temporarily boot with the debug flag "`no_hash_pointers
+<https://git.kernel.org/linus/5ead723a20e0447bc7db33dc3070b420e5f80aa6>`_".
 
 Variable Length Arrays (VLAs)
 -----------------------------

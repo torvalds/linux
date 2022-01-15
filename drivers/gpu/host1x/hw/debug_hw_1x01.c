@@ -16,10 +16,13 @@ static void host1x_debug_show_channel_cdma(struct host1x *host,
 					   struct output *o)
 {
 	struct host1x_cdma *cdma = &ch->cdma;
+	dma_addr_t dmastart, dmaend;
 	u32 dmaput, dmaget, dmactrl;
 	u32 cbstat, cbread;
 	u32 val, base, baseval;
 
+	dmastart = host1x_ch_readl(ch, HOST1X_CHANNEL_DMASTART);
+	dmaend = host1x_ch_readl(ch, HOST1X_CHANNEL_DMAEND);
 	dmaput = host1x_ch_readl(ch, HOST1X_CHANNEL_DMAPUT);
 	dmaget = host1x_ch_readl(ch, HOST1X_CHANNEL_DMAGET);
 	dmactrl = host1x_ch_readl(ch, HOST1X_CHANNEL_DMACTRL);
@@ -56,9 +59,10 @@ static void host1x_debug_show_channel_cdma(struct host1x *host,
 				    HOST1X_SYNC_CBSTAT_CBOFFSET_V(cbstat),
 				    cbread);
 
-	host1x_debug_output(o, "DMAPUT %08x, DMAGET %08x, DMACTL %08x\n",
+	host1x_debug_output(o, "DMASTART %pad, DMAEND %pad\n", &dmastart, &dmaend);
+	host1x_debug_output(o, "DMAPUT %08x DMAGET %08x DMACTL %08x\n",
 			    dmaput, dmaget, dmactrl);
-	host1x_debug_output(o, "CBREAD %08x, CBSTAT %08x\n", cbread, cbstat);
+	host1x_debug_output(o, "CBREAD %08x CBSTAT %08x\n", cbread, cbstat);
 
 	show_channel_gathers(o, cdma);
 	host1x_debug_output(o, "\n");

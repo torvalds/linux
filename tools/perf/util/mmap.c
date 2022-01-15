@@ -106,7 +106,7 @@ static int perf_mmap__aio_bind(struct mmap *map, int idx, int cpu, int affinity)
 		data = map->aio.data[idx];
 		mmap_len = mmap__mmap_len(map);
 		node_index = cpu__get_node(cpu);
-		node_mask = bitmap_alloc(node_index + 1);
+		node_mask = bitmap_zalloc(node_index + 1);
 		if (!node_mask) {
 			pr_err("Failed to allocate node mask for mbind: error %m\n");
 			return -1;
@@ -258,7 +258,7 @@ static void build_node_mask(int node, struct mmap_cpu_mask *mask)
 static int perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params *mp)
 {
 	map->affinity_mask.nbits = cpu__max_cpu();
-	map->affinity_mask.bits = bitmap_alloc(map->affinity_mask.nbits);
+	map->affinity_mask.bits = bitmap_zalloc(map->affinity_mask.nbits);
 	if (!map->affinity_mask.bits)
 		return -1;
 

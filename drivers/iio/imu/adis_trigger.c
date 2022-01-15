@@ -62,7 +62,8 @@ int devm_adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
 	int ret;
 
 	adis->trig = devm_iio_trigger_alloc(&adis->spi->dev, "%s-dev%d",
-					    indio_dev->name, indio_dev->id);
+					    indio_dev->name,
+					    iio_device_id(indio_dev));
 	if (!adis->trig)
 		return -ENOMEM;
 

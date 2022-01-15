@@ -49,7 +49,6 @@ struct evsel {
 	struct perf_evsel	core;
 	struct evlist		*evlist;
 	off_t			id_offset;
-	int			idx;
 	int			id_pos;
 	int			is_pos;
 	unsigned int		sample_size;
@@ -119,7 +118,6 @@ struct evsel {
 	bool			reset_group;
 	bool			errored;
 	struct hashmap		*per_pkg_mask;
-	struct evsel		*leader;
 	int			err;
 	int			cpu_iter;
 	struct {
@@ -152,6 +150,8 @@ struct evsel {
 		struct bperf_leader_bpf *leader_skel;
 		struct bperf_follower_bpf *follower_skel;
 	};
+	unsigned long		open_flags;
+	int			precise_ip_original;
 };
 
 struct perf_missing_features {
@@ -212,6 +212,9 @@ static inline struct evsel *evsel__new(struct perf_event_attr *attr)
 
 struct evsel *evsel__clone(struct evsel *orig);
 struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
+
+int copy_config_terms(struct list_head *dst, struct list_head *src);
+void free_config_terms(struct list_head *config_terms);
 
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
@@ -288,6 +291,18 @@ int evsel__open_per_thread(struct evsel *evsel, struct perf_thread_map *threads)
 int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads);
 void evsel__close(struct evsel *evsel);
+int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
+		struct perf_thread_map *threads);
+bool evsel__detect_missing_features(struct evsel *evsel);
+
+enum rlimit_action { NO_CHANGE, SET_TO_MAX, INCREASED_MAX };
+bool evsel__increase_rlimit(enum rlimit_action *set_rlimit);
+
+bool evsel__ignore_missing_thread(struct evsel *evsel,
+				  int nr_cpus, int cpu,
+				  struct perf_thread_map *threads,
+				  int thread, int err);
+bool evsel__precise_ip_fallback(struct evsel *evsel);
 
 struct perf_sample;
 
@@ -368,7 +383,7 @@ static inline struct evsel *evsel__prev(struct evsel *evsel)
  */
 static inline bool evsel__is_group_leader(const struct evsel *evsel)
 {
-	return evsel->leader == evsel;
+	return evsel->core.leader == &evsel->core;
 }
 
 /**
@@ -406,19 +421,19 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 
 static inline int evsel__group_idx(struct evsel *evsel)
 {
-	return evsel->idx - evsel->leader->idx;
+	return evsel->core.idx - evsel->core.leader->idx;
 }
 
 /* Iterates group WITHOUT the leader. */
 #define for_each_group_member(_evsel, _leader) 					\
 for ((_evsel) = list_entry((_leader)->core.node.next, struct evsel, core.node); \
-     (_evsel) && (_evsel)->leader == (_leader);					\
+     (_evsel) && (_evsel)->core.leader == (&_leader->core);					\
      (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
 
 /* Iterates group WITH the leader. */
 #define for_each_group_evsel(_evsel, _leader) 					\
 for ((_evsel) = _leader; 							\
-     (_evsel) && (_evsel)->leader == (_leader);					\
+     (_evsel) && (_evsel)->core.leader == (&_leader->core);					\
      (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
 
 static inline bool evsel__has_branch_callstack(const struct evsel *evsel)
@@ -463,4 +478,8 @@ int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
 
 void evsel__zero_per_pkg(struct evsel *evsel);
 bool evsel__is_hybrid(struct evsel *evsel);
+struct evsel *evsel__leader(struct evsel *evsel);
+bool evsel__has_leader(struct evsel *evsel, struct evsel *leader);
+bool evsel__is_leader(struct evsel *evsel);
+void evsel__set_leader(struct evsel *evsel, struct evsel *leader);
 #endif /* __PERF_EVSEL_H */

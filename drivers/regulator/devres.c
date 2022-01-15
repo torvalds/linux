@@ -205,35 +205,6 @@ struct regulator_dev *devm_regulator_register(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_regulator_register);
 
-static int devm_rdev_match(struct device *dev, void *res, void *data)
-{
-	struct regulator_dev **r = res;
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-	return *r == data;
-}
-
-/**
- * devm_regulator_unregister - Resource managed regulator_unregister()
- * @dev:  device to supply
- * @rdev: regulator to free
- *
- * Unregister a regulator registered with devm_regulator_register().
- * Normally this function will not need to be called and the resource
- * management code will ensure that the resource is freed.
- */
-void devm_regulator_unregister(struct device *dev, struct regulator_dev *rdev)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_rdev_release, devm_rdev_match, rdev);
-	if (rc != 0)
-		WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_regulator_unregister);
-
 struct regulator_supply_alias_match {
 	struct device *dev;
 	const char *id;
@@ -296,19 +267,8 @@ int devm_regulator_register_supply_alias(struct device *dev, const char *id,
 }
 EXPORT_SYMBOL_GPL(devm_regulator_register_supply_alias);
 
-/**
- * devm_regulator_unregister_supply_alias - Resource managed
- * regulator_unregister_supply_alias()
- *
- * @dev: device to supply
- * @id:  supply name or regulator ID
- *
- * Unregister an alias registered with
- * devm_regulator_register_supply_alias(). Normally this function
- * will not need to be called and the resource management code
- * will ensure that the resource is freed.
- */
-void devm_regulator_unregister_supply_alias(struct device *dev, const char *id)
+static void devm_regulator_unregister_supply_alias(struct device *dev,
+						   const char *id)
 {
 	struct regulator_supply_alias_match match;
 	int rc;
@@ -321,7 +281,6 @@ void devm_regulator_unregister_supply_alias(struct device *dev, const char *id)
 	if (rc != 0)
 		WARN_ON(rc);
 }
-EXPORT_SYMBOL_GPL(devm_regulator_unregister_supply_alias);
 
 /**
  * devm_regulator_bulk_register_supply_alias - Managed register
@@ -372,30 +331,6 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_regulator_bulk_register_supply_alias);
-
-/**
- * devm_regulator_bulk_unregister_supply_alias - Managed unregister
- * multiple aliases
- *
- * @dev:    device to supply
- * @id:     list of supply names or regulator IDs
- * @num_id: number of aliases to unregister
- *
- * Unregister aliases registered with
- * devm_regulator_bulk_register_supply_alias(). Normally this function
- * will not need to be called and the resource management code
- * will ensure that the resource is freed.
- */
-void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
-						 const char *const *id,
-						 int num_id)
-{
-	int i;
-
-	for (i = 0; i < num_id; ++i)
-		devm_regulator_unregister_supply_alias(dev, id[i]);
-}
-EXPORT_SYMBOL_GPL(devm_regulator_bulk_unregister_supply_alias);
 
 struct regulator_notifier_match {
 	struct regulator *regulator;
@@ -481,3 +416,55 @@ void devm_regulator_unregister_notifier(struct regulator *regulator,
 		WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_unregister_notifier);
+
+static void regulator_irq_helper_drop(void *res)
+{
+	regulator_irq_helper_cancel(&res);
+}
+
+/**
+ * devm_regulator_irq_helper - resource managed registration of IRQ based
+ * regulator event/error notifier
+ *
+ * @dev:		device to which lifetime the helper's lifetime is
+ *			bound.
+ * @d:			IRQ helper descriptor.
+ * @irq:		IRQ used to inform events/errors to be notified.
+ * @irq_flags:		Extra IRQ flags to be OR'ed with the default
+ *			IRQF_ONESHOT when requesting the (threaded) irq.
+ * @common_errs:	Errors which can be flagged by this IRQ for all rdevs.
+ *			When IRQ is re-enabled these errors will be cleared
+ *			from all associated regulators
+ * @per_rdev_errs:	Optional error flag array describing errors specific
+ *			for only some of the regulators. These errors will be
+ *			or'ed with common errors. If this is given the array
+ *			should contain rdev_amount flags. Can be set to NULL
+ *			if there is no regulator specific error flags for this
+ *			IRQ.
+ * @rdev:		Array of pointers to regulators associated with this
+ *			IRQ.
+ * @rdev_amount:	Amount of regulators associated with this IRQ.
+ *
+ * Return: handle to irq_helper or an ERR_PTR() encoded error code.
+ */
+void *devm_regulator_irq_helper(struct device *dev,
+				const struct regulator_irq_desc *d, int irq,
+				int irq_flags, int common_errs,
+				int *per_rdev_errs,
+				struct regulator_dev **rdev, int rdev_amount)
+{
+	void *ptr;
+	int ret;
+
+	ptr = regulator_irq_helper(dev, d, irq, irq_flags, common_errs,
+				    per_rdev_errs, rdev, rdev_amount);
+	if (IS_ERR(ptr))
+		return ptr;
+
+	ret = devm_add_action_or_reset(dev, regulator_irq_helper_drop, ptr);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return ptr;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_irq_helper);

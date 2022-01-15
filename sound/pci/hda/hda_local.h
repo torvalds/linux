@@ -615,6 +615,8 @@ unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
 					     hda_nid_t nid,
 					     unsigned int power_state);
 
+void snd_hda_codec_shutdown(struct hda_codec *codec);
+
 /*
  * AMP control callbacks
  */
@@ -708,6 +710,8 @@ void snd_hdmi_write_eld_info(struct hdmi_eld *eld,
 
 #define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
 void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen);
+
+void snd_hda_codec_display_power(struct hda_codec *codec, bool enable);
 
 /*
  */

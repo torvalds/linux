@@ -58,7 +58,6 @@ struct mlxsw_sp_router {
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
 	struct list_head nexthop_neighs_list;
 	struct list_head ipip_list;
-	bool aborted;
 	struct notifier_block nexthop_nb;
 	struct notifier_block fib_nb;
 	struct notifier_block netevent_nb;
@@ -82,6 +81,7 @@ struct mlxsw_sp_router {
 	size_t adj_grp_size_ranges_count;
 	struct delayed_work nh_grp_activity_dw;
 	struct list_head nh_res_grp_list;
+	bool inc_parsing_depth;
 };
 
 struct mlxsw_sp_fib_entry_priv {

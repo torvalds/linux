@@ -56,6 +56,7 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
        5-3-3. IO Latency
          5-3-3-1. How IO Latency Throttling Works
          5-3-3-2. IO Latency Interface Files
+       5-3-4. IO Priority
      5-4. PID
        5-4-1. PID Interface Files
      5-5. Cpuset
@@ -952,6 +953,21 @@ All cgroup core files are prefixed with "cgroup."
 	it's possible to delete a frozen (and empty) cgroup, as well as
 	create new sub-cgroups.
 
+  cgroup.kill
+	A write-only single value file which exists in non-root cgroups.
+	The only allowed value is "1".
+
+	Writing "1" to the file causes the cgroup and all descendant cgroups to
+	be killed. This means that all processes located in the affected cgroup
+	tree will be killed via SIGKILL.
+
+	Killing a cgroup tree will deal with concurrent forks appropriately and
+	is protected against migrations.
+
+	In a threaded cgroup, writing this file fails with EOPNOTSUPP as
+	killing cgroups is a process directed operation, i.e. it affects
+	the whole thread-group.
+
 Controllers
 ===========
 
@@ -1210,7 +1226,7 @@ PAGE_SIZE multiple when read back.
 
 	Note that all fields in this file are hierarchical and the
 	file modified event can be generated due to an event down the
-	hierarchy. For for the local events at the cgroup level see
+	hierarchy. For the local events at the cgroup level see
 	memory.events.local.
 
 	  low
@@ -1866,6 +1882,60 @@ IO Latency Interface Files
 		duration of time between evaluation events.  Windows only elapse
 		with IO activity.  Idle periods extend the most recent window.
 
+IO Priority
+~~~~~~~~~~~
+
+A single attribute controls the behavior of the I/O priority cgroup policy,
+namely the blkio.prio.class attribute. The following values are accepted for
+that attribute:
+
+  no-change
+	Do not modify the I/O priority class.
+
+  none-to-rt
+	For requests that do not have an I/O priority class (NONE),
+	change the I/O priority class into RT. Do not modify
+	the I/O priority class of other requests.
+
+  restrict-to-be
+	For requests that do not have an I/O priority class or that have I/O
+	priority class RT, change it into BE. Do not modify the I/O priority
+	class of requests that have priority class IDLE.
+
+  idle
+	Change the I/O priority class of all requests into IDLE, the lowest
+	I/O priority class.
+
+The following numerical values are associated with the I/O priority policies:
+
++-------------+---+
+| no-change   | 0 |
++-------------+---+
+| none-to-rt  | 1 |
++-------------+---+
+| rt-to-be    | 2 |
++-------------+---+
+| all-to-idle | 3 |
++-------------+---+
+
+The numerical value that corresponds to each I/O priority class is as follows:
+
++-------------------------------+---+
+| IOPRIO_CLASS_NONE             | 0 |
++-------------------------------+---+
+| IOPRIO_CLASS_RT (real-time)   | 1 |
++-------------------------------+---+
+| IOPRIO_CLASS_BE (best effort) | 2 |
++-------------------------------+---+
+| IOPRIO_CLASS_IDLE             | 3 |
++-------------------------------+---+
+
+The algorithm to set the I/O priority class for a request is as follows:
+
+- Translate the I/O priority class policy into a number.
+- Change the request I/O priority class into the maximum of the I/O priority
+  class policy number and the numerical I/O priority class.
+
 PID
 ---
 
@@ -1986,6 +2056,17 @@ Cpuset Interface Files
 	The value of "cpuset.mems" stays constant until the next update
 	and won't be affected by any memory nodes hotplug events.
 
+	Setting a non-empty value to "cpuset.mems" causes memory of
+	tasks within the cgroup to be migrated to the designated nodes if
+	they are currently using memory outside of the designated nodes.
+
+	There is a cost for this memory migration.  The migration
+	may not be complete and some memory pages may be left behind.
+	So it is recommended that "cpuset.mems" should be set properly
+	before spawning new tasks into the cpuset.  Even if there is
+	a need to change "cpuset.mems" with active tasks, it shouldn't
+	be done frequently.
+
   cpuset.mems.effective
 	A read-only multiple values file which exists on all
 	cpuset-enabled cgroups.
@@ -2089,19 +2170,19 @@ existing device files.
 
 Cgroup v2 device controller has no interface files and is implemented
 on top of cgroup BPF. To control access to device files, a user may
-create bpf programs of the BPF_CGROUP_DEVICE type and attach them
-to cgroups. On an attempt to access a device file, corresponding
-BPF programs will be executed, and depending on the return value
-the attempt will succeed or fail with -EPERM.
+create bpf programs of type BPF_PROG_TYPE_CGROUP_DEVICE and attach
+them to cgroups with BPF_CGROUP_DEVICE flag. On an attempt to access a
+device file, corresponding BPF programs will be executed, and depending
+on the return value the attempt will succeed or fail with -EPERM.
 
-A BPF_CGROUP_DEVICE program takes a pointer to the bpf_cgroup_dev_ctx
-structure, which describes the device access attempt: access type
-(mknod/read/write) and device (type, major and minor numbers).
-If the program returns 0, the attempt fails with -EPERM, otherwise
-it succeeds.
+A BPF_PROG_TYPE_CGROUP_DEVICE program takes a pointer to the
+bpf_cgroup_dev_ctx structure, which describes the device access attempt:
+access type (mknod/read/write) and device (type, major and minor numbers).
+If the program returns 0, the attempt fails with -EPERM, otherwise it
+succeeds.
 
-An example of BPF_CGROUP_DEVICE program may be found in the kernel
-source tree in the tools/testing/selftests/bpf/progs/dev_cgroup.c file.
+An example of BPF_PROG_TYPE_CGROUP_DEVICE program may be found in
+tools/testing/selftests/bpf/progs/dev_cgroup.c in the kernel source tree.
 
 
 RDMA

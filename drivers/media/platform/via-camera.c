@@ -844,6 +844,9 @@ static int viacam_do_try_fmt(struct via_camera *cam,
 {
 	int ret;
 	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_state pad_state = {
+		.pads = &pad_cfg
+		};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -852,7 +855,7 @@ static int viacam_do_try_fmt(struct via_camera *cam,
 	upix->pixelformat = f->pixelformat;
 	viacam_fmt_pre(upix, spix);
 	v4l2_fill_mbus_format(&format.format, spix, f->mbus_code);
-	ret = sensor_call(cam, pad, set_fmt, &pad_cfg, &format);
+	ret = sensor_call(cam, pad, set_fmt, &pad_state, &format);
 	v4l2_fill_pix_format(spix, &format.format);
 	viacam_fmt_post(upix, spix);
 	return ret;

@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/cifs/misc.c
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/slab.h>
@@ -277,7 +264,8 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 
 			/* Uid is not converted */
 			buffer->Uid = treeCon->ses->Suid;
-			buffer->Mid = get_next_mid(treeCon->ses->server);
+			if (treeCon->ses->server)
+				buffer->Mid = get_next_mid(treeCon->ses->server);
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
@@ -603,6 +591,7 @@ void cifs_put_writer(struct cifsInodeInfo *cinode)
 
 /**
  * cifs_queue_oplock_break - queue the oplock break handler for cfile
+ * @cfile: The file to break the oplock on
  *
  * This function is called from the demultiplex thread when it
  * receives an oplock break for @cfile.
@@ -735,13 +724,31 @@ void
 cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *cfile = NULL;
-	struct cifs_deferred_close *dclose;
+	struct file_list *tmp_list, *tmp_next_list;
+	struct list_head file_head;
 
+	if (cifs_inode == NULL)
+		return;
+
+	INIT_LIST_HEAD(&file_head);
+	spin_lock(&cifs_inode->open_file_lock);
 	list_for_each_entry(cfile, &cifs_inode->openFileList, flist) {
-		spin_lock(&cifs_inode->deferred_lock);
-		if (cifs_is_deferred_close(cfile, &dclose))
-			mod_delayed_work(deferredclose_wq, &cfile->deferred, 0);
-		spin_unlock(&cifs_inode->deferred_lock);
+		if (delayed_work_pending(&cfile->deferred)) {
+			if (cancel_delayed_work(&cfile->deferred)) {
+				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+				if (tmp_list == NULL)
+					break;
+				tmp_list->cfile = cfile;
+				list_add_tail(&tmp_list->list, &file_head);
+			}
+		}
+	}
+	spin_unlock(&cifs_inode->open_file_lock);
+
+	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
+		_cifsFileInfo_put(tmp_list->cfile, true, false);
+		list_del(&tmp_list->list);
+		kfree(tmp_list);
 	}
 }
 
@@ -750,20 +757,67 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *cfile;
 	struct list_head *tmp;
+	struct file_list *tmp_list, *tmp_next_list;
+	struct list_head file_head;
 
+	INIT_LIST_HEAD(&file_head);
 	spin_lock(&tcon->open_file_lock);
 	list_for_each(tmp, &tcon->openFileList) {
 		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
 		if (delayed_work_pending(&cfile->deferred)) {
-			/*
-			 * If there is no pending work, mod_delayed_work queues new work.
-			 * So, Increase the ref count to avoid use-after-free.
-			 */
-			if (!mod_delayed_work(deferredclose_wq, &cfile->deferred, 0))
-				cifsFileInfo_get(cfile);
+			if (cancel_delayed_work(&cfile->deferred)) {
+				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+				if (tmp_list == NULL)
+					break;
+				tmp_list->cfile = cfile;
+				list_add_tail(&tmp_list->list, &file_head);
+			}
 		}
 	}
 	spin_unlock(&tcon->open_file_lock);
+
+	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
+		_cifsFileInfo_put(tmp_list->cfile, true, false);
+		list_del(&tmp_list->list);
+		kfree(tmp_list);
+	}
+}
+void
+cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
+{
+	struct cifsFileInfo *cfile;
+	struct list_head *tmp;
+	struct file_list *tmp_list, *tmp_next_list;
+	struct list_head file_head;
+	void *page;
+	const char *full_path;
+
+	INIT_LIST_HEAD(&file_head);
+	page = alloc_dentry_path();
+	spin_lock(&tcon->open_file_lock);
+	list_for_each(tmp, &tcon->openFileList) {
+		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
+		full_path = build_path_from_dentry(cfile->dentry, page);
+		if (strstr(full_path, path)) {
+			if (delayed_work_pending(&cfile->deferred)) {
+				if (cancel_delayed_work(&cfile->deferred)) {
+					tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+					if (tmp_list == NULL)
+						break;
+					tmp_list->cfile = cfile;
+					list_add_tail(&tmp_list->list, &file_head);
+				}
+			}
+		}
+	}
+	spin_unlock(&tcon->open_file_lock);
+
+	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
+		_cifsFileInfo_put(tmp_list->cfile, true, false);
+		list_del(&tmp_list->list);
+		kfree(tmp_list);
+	}
+	free_dentry_path(page);
 }
 
 /* parses DFS refferal V3 structure
@@ -1013,6 +1067,9 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 
 /**
  * cifs_alloc_hash - allocate hash and hash context together
+ * @name: The name of the crypto hash algo
+ * @shash: Where to put the pointer to the hash algo
+ * @sdesc: Where to put the pointer to the hash descriptor
  *
  * The caller has to make sure @sdesc is initialized to either NULL or
  * a valid context. Both can be freed via cifs_free_hash().
@@ -1051,6 +1108,8 @@ cifs_alloc_hash(const char *name,
 
 /**
  * cifs_free_hash - free hash and hash context together
+ * @shash: Where to find the pointer to the hash algo
+ * @sdesc: Where to find the pointer to the hash descriptor
  *
  * Freeing a NULL hash or context is safe.
  */
@@ -1066,8 +1125,10 @@ cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc)
 
 /**
  * rqst_page_get_length - obtain the length and offset for a page in smb_rqst
- * Input: rqst - a smb_rqst, page - a page index for rqst
- * Output: *len - the length for this page, *offset - the offset for this page
+ * @rqst: The request descriptor
+ * @page: The index of the page to query
+ * @len: Where to store the length for this page:
+ * @offset: Where to store the offset for this page
  */
 void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
 				unsigned int *len, unsigned int *offset)
@@ -1100,6 +1161,8 @@ void extract_unc_hostname(const char *unc, const char **h, size_t *len)
 
 /**
  * copy_path_name - copy src path to dst, possibly truncating
+ * @dst: The destination buffer
+ * @src: The source name
  *
  * returns number of bytes written (including trailing nul)
  */
@@ -1199,7 +1262,7 @@ int match_target_ip(struct TCP_Server_Info *server,
 
 	cifs_dbg(FYI, "%s: target name: %s\n", __func__, target + 2);
 
-	rc = dns_resolve_server_name_to_ip(target, &tip);
+	rc = dns_resolve_server_name_to_ip(target, &tip, NULL);
 	if (rc < 0)
 		goto out;
 

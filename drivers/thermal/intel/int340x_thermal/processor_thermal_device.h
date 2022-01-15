@@ -44,6 +44,7 @@ struct proc_thermal_device {
 	struct intel_soc_dts_sensors *soc_dts;
 	u32 mmio_feature_mask;
 	void __iomem *mmio_base;
+	void *priv_data;
 };
 
 struct rapl_mmio_regs {
@@ -79,4 +80,12 @@ void proc_thermal_rfim_remove(struct pci_dev *pdev);
 int proc_thermal_mbox_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
 void proc_thermal_mbox_remove(struct pci_dev *pdev);
 
+int processor_thermal_send_mbox_cmd(struct pci_dev *pdev, u16 cmd_id, u32 cmd_data, u32 *cmd_resp);
+int proc_thermal_add(struct device *dev, struct proc_thermal_device *priv);
+void proc_thermal_remove(struct proc_thermal_device *proc_priv);
+int proc_thermal_resume(struct device *dev);
+int proc_thermal_mmio_add(struct pci_dev *pdev,
+			  struct proc_thermal_device *proc_priv,
+			  kernel_ulong_t feature_mask);
+void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
 #endif

@@ -29,6 +29,18 @@ struct crypto_larval {
 	u32 mask;
 };
 
+enum {
+	CRYPTOA_UNSPEC,
+	CRYPTOA_ALG,
+	CRYPTOA_TYPE,
+	__CRYPTOA_MAX,
+};
+
+#define CRYPTOA_MAX (__CRYPTOA_MAX - 1)
+
+/* Maximum number of (rtattr) parameters for each template. */
+#define CRYPTO_MAX_ATTRS 32
+
 extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
 extern struct blocking_notifier_head crypto_chain;

@@ -138,9 +138,6 @@ void smp_callin(void)
 
 	set_cpu_online(cpuid, true);
 
-	/* idle thread is expected to have preempt disabled */
-	preempt_disable();
-
 	local_irq_enable();
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
@@ -1546,7 +1543,7 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
 					size_t align)
 {
 	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
-#ifdef CONFIG_NEED_MULTIPLE_NODES
+#ifdef CONFIG_NUMA
 	int node = cpu_to_node(cpu);
 	void *ptr;
 

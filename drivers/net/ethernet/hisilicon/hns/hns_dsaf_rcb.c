@@ -913,7 +913,7 @@ int hns_rcb_get_common_regs_count(void)
 }
 
 /**
- *rcb_get_sset_count - rcb ring regs count
+ *hns_rcb_get_ring_regs_count - rcb ring regs count
  *return regs count
  */
 int hns_rcb_get_ring_regs_count(void)

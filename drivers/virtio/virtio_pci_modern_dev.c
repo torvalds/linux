@@ -384,6 +384,27 @@ u64 vp_modern_get_features(struct virtio_pci_modern_device *mdev)
 EXPORT_SYMBOL_GPL(vp_modern_get_features);
 
 /*
+ * vp_modern_get_driver_features - get driver features from device
+ * @mdev: the modern virtio-pci device
+ *
+ * Returns the driver features read from the device
+ */
+u64 vp_modern_get_driver_features(struct virtio_pci_modern_device *mdev)
+{
+	struct virtio_pci_common_cfg __iomem *cfg = mdev->common;
+
+	u64 features;
+
+	vp_iowrite32(0, &cfg->guest_feature_select);
+	features = vp_ioread32(&cfg->guest_feature);
+	vp_iowrite32(1, &cfg->guest_feature_select);
+	features |= ((u64)vp_ioread32(&cfg->guest_feature) << 32);
+
+	return features;
+}
+EXPORT_SYMBOL_GPL(vp_modern_get_driver_features);
+
+/*
  * vp_modern_set_features - set features to device
  * @mdev: the modern virtio-pci device
  * @features: the features set to device

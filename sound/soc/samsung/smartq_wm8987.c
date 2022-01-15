@@ -70,7 +70,7 @@ static int smartq_hifi_hw_params(struct snd_pcm_substream *substream,
 /*
  * SmartQ WM8987 HiFi DAI operations.
  */
-static struct snd_soc_ops smartq_hifi_ops = {
+static const struct snd_soc_ops smartq_hifi_ops = {
 	.hw_params = smartq_hifi_hw_params,
 };
 

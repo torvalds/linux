@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-mux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common i2c bus multiplexer/switch properties.
+
+maintainers:
+  - Peter Rosin <peda@axentia.se>
+
+description: |+
+  An i2c bus multiplexer/switch will have several child busses that are numbered
+  uniquely in a device dependent manner.  The nodes for an i2c bus
+  multiplexer/switch will have one child node for each child bus.
+
+  For i2c multiplexers/switches that have child nodes that are a mixture of both
+  i2c child busses and other child nodes, the 'i2c-mux' subnode can be used for
+  populating the i2c child busses.  If an 'i2c-mux' subnode is present, only
+  subnodes of this will be considered as i2c child busses.
+
+properties:
+  $nodename:
+    pattern: '^(i2c-?)?mux'
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+patternProperties:
+  '^i2c@[0-9a-f]+$':
+    $ref: /schemas/i2c/i2c-controller.yaml
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        description: The mux selector sub-bus number for the child I2C bus.
+        maxItems: 1
+
+additionalProperties: true
+
+examples:
+  - |
+    /*
+     * An NXP pca9548 8 channel I2C multiplexer at address 0x70
+     * with two NXP pca8574 GPIO expanders attached, one each to
+     * ports 3 and 4.
+     */
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        i2c-mux@70 {
+            compatible = "nxp,pca9548";
+            reg = <0x70>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            i2c@3 {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <3>;
+
+                gpio@20 {
+                    compatible = "nxp,pca9555";
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    reg = <0x20>;
+                };
+            };
+            i2c@4 {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <4>;
+
+                gpio@20 {
+                    compatible = "nxp,pca9555";
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    reg = <0x20>;
+                };
+            };
+        };
+    };
+...

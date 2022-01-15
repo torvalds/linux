@@ -64,7 +64,7 @@ struct dwc2_pci_glue {
 };
 
 /**
- * dwc2_pci_probe() - Provides the cleanup entry points for the DWC_otg PCI
+ * dwc2_pci_remove() - Provides the cleanup entry points for the DWC_otg PCI
  * driver
  *
  * @pci: The programming view of DWC_otg PCI

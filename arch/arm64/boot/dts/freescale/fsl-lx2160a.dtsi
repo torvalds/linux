@@ -1089,8 +1089,8 @@
 
 		pcie1: pcie@3400000 {
 			compatible = "fsl,lx2160a-pcie";
-			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
-			       0x80 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+			      <0x80 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "csr_axi_slave", "config_axi_slave";
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>, /* AER interrupt */
 				     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
@@ -1117,8 +1117,8 @@
 
 		pcie2: pcie@3500000 {
 			compatible = "fsl,lx2160a-pcie";
-			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
-			       0x88 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
+			      <0x88 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "csr_axi_slave", "config_axi_slave";
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>, /* AER interrupt */
 				     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
@@ -1145,8 +1145,8 @@
 
 		pcie3: pcie@3600000 {
 			compatible = "fsl,lx2160a-pcie";
-			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
-			       0x90 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
+			      <0x90 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "csr_axi_slave", "config_axi_slave";
 			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>, /* AER interrupt */
 				     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
@@ -1173,8 +1173,8 @@
 
 		pcie4: pcie@3700000 {
 			compatible = "fsl,lx2160a-pcie";
-			reg = <0x00 0x03700000 0x0 0x00100000   /* controller registers */
-			       0x98 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03700000 0x0 0x00100000>, /* controller registers */
+			      <0x98 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "csr_axi_slave", "config_axi_slave";
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>, /* AER interrupt */
 				     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
@@ -1201,8 +1201,8 @@
 
 		pcie5: pcie@3800000 {
 			compatible = "fsl,lx2160a-pcie";
-			reg = <0x00 0x03800000 0x0 0x00100000   /* controller registers */
-			       0xa0 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03800000 0x0 0x00100000>, /* controller registers */
+			      <0xa0 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "csr_axi_slave", "config_axi_slave";
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>, /* AER interrupt */
 				     <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
@@ -1229,8 +1229,8 @@
 
 		pcie6: pcie@3900000 {
 			compatible = "fsl,lx2160a-pcie";
-			reg = <0x00 0x03900000 0x0 0x00100000   /* controller registers */
-			       0xa8 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03900000 0x0 0x00100000>, /* controller registers */
+			      <0xa8 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "csr_axi_slave", "config_axi_slave";
 			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>, /* AER interrupt */
 				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */

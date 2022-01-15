@@ -50,9 +50,8 @@ int siw_query_gid(struct ib_device *base_dev, u32 port, int idx,
 		  union ib_gid *gid);
 int siw_alloc_pd(struct ib_pd *base_pd, struct ib_udata *udata);
 int siw_dealloc_pd(struct ib_pd *base_pd, struct ib_udata *udata);
-struct ib_qp *siw_create_qp(struct ib_pd *base_pd,
-			    struct ib_qp_init_attr *attr,
-			    struct ib_udata *udata);
+int siw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attr,
+		  struct ib_udata *udata);
 int siw_query_qp(struct ib_qp *base_qp, struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 int siw_verbs_modify_qp(struct ib_qp *base_qp, struct ib_qp_attr *attr,

@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2005, 2006 Nokia Corporation
  * Author:      Samuel Ortiz <samuel.ortiz@nokia.com> and
- *              Juha Yrj�l� <juha.yrjola@nokia.com>
+ *              Juha Yrjola <juha.yrjola@nokia.com>
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -241,7 +241,7 @@ static int omap1_spi100k_setup_transfer(struct spi_device *spi,
 	else
 		word_len = spi->bits_per_word;
 
-	if (spi->bits_per_word > 32)
+	if (word_len > 32)
 		return -EINVAL;
 	cs->word_len = word_len;
 
@@ -296,7 +296,6 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->tx_buf == NULL && t->rx_buf == NULL && t->len) {
-			status = -EINVAL;
 			break;
 		}
 		status = omap1_spi100k_setup_transfer(spi, t);
@@ -315,7 +314,6 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 			m->actual_length += count;
 
 			if (count != t->len) {
-				status = -EIO;
 				break;
 			}
 		}

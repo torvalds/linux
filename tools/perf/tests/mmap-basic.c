@@ -139,7 +139,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 				 " doesn't map to an evsel\n", sample.id);
 			goto out_delete_evlist;
 		}
-		nr_events[evsel->idx]++;
+		nr_events[evsel->core.idx]++;
 		perf_mmap__consume(&md->core);
 	}
 	perf_mmap__read_done(&md->core);
@@ -147,10 +147,10 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 out_init:
 	err = 0;
 	evlist__for_each_entry(evlist, evsel) {
-		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
+		if (nr_events[evsel->core.idx] != expected_nr_events[evsel->core.idx]) {
 			pr_debug("expected %d %s events, got %d\n",
-				 expected_nr_events[evsel->idx],
-				 evsel__name(evsel), nr_events[evsel->idx]);
+				 expected_nr_events[evsel->core.idx],
+				 evsel__name(evsel), nr_events[evsel->core.idx]);
 			err = -1;
 			goto out_delete_evlist;
 		}

@@ -22,8 +22,6 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 	set_pmd(pmd, __pmd(__pa(page_address(pte))));
 }
 
-#define pmd_pgtable(pmd) pmd_page(pmd)
-
 extern void pgd_init(unsigned long *p);
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)

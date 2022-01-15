@@ -548,6 +548,7 @@ static const struct platform_device_id skl_board_ids[] = {
 	{ .name = "kbl_alc286s_i2s" },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, skl_board_ids);
 
 static struct platform_driver skylake_audio = {
 	.probe = skylake_audio_probe,
@@ -565,5 +566,3 @@ module_platform_driver(skylake_audio)
 MODULE_AUTHOR("Omair Mohammed Abdullah <omair.m.abdullah@intel.com>");
 MODULE_DESCRIPTION("Intel SST Audio for Skylake");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:skl_alc286s_i2s");
-MODULE_ALIAS("platform:kbl_alc286s_i2s");

@@ -65,9 +65,6 @@ struct snd_efw {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
 	/* for transaction */
 	u32 seqnum;
 	bool resp_addr_changable;
@@ -181,7 +178,7 @@ struct snd_efw_phys_meters {
 } __packed;
 enum snd_efw_clock_source {
 	SND_EFW_CLOCK_SOURCE_INTERNAL	= 0,
-	SND_EFW_CLOCK_SOURCE_SYTMATCH	= 1,
+	// Unused.
 	SND_EFW_CLOCK_SOURCE_WORDCLOCK	= 2,
 	SND_EFW_CLOCK_SOURCE_SPDIF	= 3,
 	SND_EFW_CLOCK_SOURCE_ADAT_1	= 4,
@@ -226,13 +223,5 @@ int snd_efw_create_pcm_devices(struct snd_efw *efw);
 int snd_efw_get_multiplier_mode(unsigned int sampling_rate, unsigned int *mode);
 
 int snd_efw_create_hwdep_device(struct snd_efw *efw);
-
-#define SND_EFW_DEV_ENTRY(vendor, model) \
-{ \
-	.match_flags	= IEEE1394_MATCH_VENDOR_ID | \
-			  IEEE1394_MATCH_MODEL_ID, \
-	.vendor_id	= vendor,\
-	.model_id	= model \
-}
 
 #endif

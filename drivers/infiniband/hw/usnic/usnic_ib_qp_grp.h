@@ -89,11 +89,11 @@ extern const struct usnic_vnic_res_spec min_transport_spec[USNIC_TRANSPORT_MAX];
 const char *usnic_ib_qp_grp_state_to_string(enum ib_qp_state state);
 int usnic_ib_qp_grp_dump_hdr(char *buf, int buf_sz);
 int usnic_ib_qp_grp_dump_rows(void *obj, char *buf, int buf_sz);
-struct usnic_ib_qp_grp *
-usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev, struct usnic_ib_vf *vf,
-			struct usnic_ib_pd *pd,
-			struct usnic_vnic_res_spec *res_spec,
-			struct usnic_transport_spec *trans_spec);
+int usnic_ib_qp_grp_create(struct usnic_ib_qp_grp *qp,
+			   struct usnic_fwd_dev *ufdev, struct usnic_ib_vf *vf,
+			   struct usnic_ib_pd *pd,
+			   struct usnic_vnic_res_spec *res_spec,
+			   struct usnic_transport_spec *trans_spec);
 void usnic_ib_qp_grp_destroy(struct usnic_ib_qp_grp *qp_grp);
 int usnic_ib_qp_grp_modify(struct usnic_ib_qp_grp *qp_grp,
 				enum ib_qp_state new_state,

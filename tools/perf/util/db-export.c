@@ -343,7 +343,7 @@ static int db_export__threads(struct db_export *dbe, struct thread *thread,
 
 int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct perf_sample *sample, struct evsel *evsel,
-		      struct addr_location *al)
+		      struct addr_location *al, struct addr_location *addr_al)
 {
 	struct thread *thread = al->thread;
 	struct export_sample es = {
@@ -389,18 +389,14 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		}
 	}
 
-	if ((evsel->core.attr.sample_type & PERF_SAMPLE_ADDR) &&
-	    sample_addr_correlates_sym(&evsel->core.attr)) {
-		struct addr_location addr_al;
-
-		thread__resolve(thread, &addr_al, sample);
-		err = db_ids_from_al(dbe, &addr_al, &es.addr_dso_db_id,
+	if (addr_al) {
+		err = db_ids_from_al(dbe, addr_al, &es.addr_dso_db_id,
 				     &es.addr_sym_db_id, &es.addr_offset);
 		if (err)
 			goto out_put;
 		if (dbe->crp) {
 			err = thread_stack__process(thread, comm, sample, al,
-						    &addr_al, es.db_id,
+						    addr_al, es.db_id,
 						    dbe->crp);
 			if (err)
 				goto out_put;

@@ -25,9 +25,10 @@
 
 /* Handle NCI Response packets */
 
-static void nci_core_reset_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
+static void nci_core_reset_rsp_packet(struct nci_dev *ndev,
+				      const struct sk_buff *skb)
 {
-	struct nci_core_reset_rsp *rsp = (void *) skb->data;
+	const struct nci_core_reset_rsp *rsp = (void *)skb->data;
 
 	pr_debug("status 0x%x\n", rsp->status);
 
@@ -43,10 +44,11 @@ static void nci_core_reset_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	}
 }
 
-static u8 nci_core_init_rsp_packet_v1(struct nci_dev *ndev, struct sk_buff *skb)
+static u8 nci_core_init_rsp_packet_v1(struct nci_dev *ndev,
+				      const struct sk_buff *skb)
 {
-	struct nci_core_init_rsp_1 *rsp_1 = (void *) skb->data;
-	struct nci_core_init_rsp_2 *rsp_2;
+	const struct nci_core_init_rsp_1 *rsp_1 = (void *)skb->data;
+	const struct nci_core_init_rsp_2 *rsp_2;
 
 	pr_debug("status 0x%x\n", rsp_1->status);
 
@@ -81,10 +83,11 @@ static u8 nci_core_init_rsp_packet_v1(struct nci_dev *ndev, struct sk_buff *skb)
 	return NCI_STATUS_OK;
 }
 
-static u8 nci_core_init_rsp_packet_v2(struct nci_dev *ndev, struct sk_buff *skb)
+static u8 nci_core_init_rsp_packet_v2(struct nci_dev *ndev,
+				      const struct sk_buff *skb)
 {
-	struct nci_core_init_rsp_nci_ver2 *rsp = (void *)skb->data;
-	u8 *supported_rf_interface = rsp->supported_rf_interfaces;
+	const struct nci_core_init_rsp_nci_ver2 *rsp = (void *)skb->data;
+	const u8 *supported_rf_interface = rsp->supported_rf_interfaces;
 	u8 rf_interface_idx = 0;
 	u8 rf_extension_cnt = 0;
 
@@ -118,7 +121,7 @@ static u8 nci_core_init_rsp_packet_v2(struct nci_dev *ndev, struct sk_buff *skb)
 	return NCI_STATUS_OK;
 }
 
-static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
+static void nci_core_init_rsp_packet(struct nci_dev *ndev, const struct sk_buff *skb)
 {
 	u8 status = 0;
 
@@ -160,9 +163,9 @@ exit:
 }
 
 static void nci_core_set_config_rsp_packet(struct nci_dev *ndev,
-					   struct sk_buff *skb)
+					   const struct sk_buff *skb)
 {
-	struct nci_core_set_config_rsp *rsp = (void *) skb->data;
+	const struct nci_core_set_config_rsp *rsp = (void *)skb->data;
 
 	pr_debug("status 0x%x\n", rsp->status);
 
@@ -170,7 +173,7 @@ static void nci_core_set_config_rsp_packet(struct nci_dev *ndev,
 }
 
 static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
-				       struct sk_buff *skb)
+				       const struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
@@ -179,9 +182,10 @@ static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
 	nci_req_complete(ndev, status);
 }
 
-static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
+static void nci_rf_disc_rsp_packet(struct nci_dev *ndev,
+				   const struct sk_buff *skb)
 {
-	struct nci_conn_info    *conn_info;
+	struct nci_conn_info *conn_info;
 	__u8 status = skb->data[0];
 
 	pr_debug("status 0x%x\n", status);
@@ -210,7 +214,7 @@ exit:
 }
 
 static void nci_rf_disc_select_rsp_packet(struct nci_dev *ndev,
-					  struct sk_buff *skb)
+					  const struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
@@ -222,7 +226,7 @@ static void nci_rf_disc_select_rsp_packet(struct nci_dev *ndev,
 }
 
 static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
-					 struct sk_buff *skb)
+					 const struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
@@ -238,9 +242,9 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 }
 
 static void nci_nfcee_discover_rsp_packet(struct nci_dev *ndev,
-					  struct sk_buff *skb)
+					  const struct sk_buff *skb)
 {
-	struct nci_nfcee_discover_rsp *discover_rsp;
+	const struct nci_nfcee_discover_rsp *discover_rsp;
 
 	if (skb->len != 2) {
 		nci_req_complete(ndev, NCI_STATUS_NFCEE_PROTOCOL_ERROR);
@@ -255,7 +259,7 @@ static void nci_nfcee_discover_rsp_packet(struct nci_dev *ndev,
 }
 
 static void nci_nfcee_mode_set_rsp_packet(struct nci_dev *ndev,
-					  struct sk_buff *skb)
+					  const struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
@@ -264,11 +268,11 @@ static void nci_nfcee_mode_set_rsp_packet(struct nci_dev *ndev,
 }
 
 static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
-					    struct sk_buff *skb)
+					    const struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 	struct nci_conn_info *conn_info = NULL;
-	struct nci_core_conn_create_rsp *rsp;
+	const struct nci_core_conn_create_rsp *rsp;
 
 	pr_debug("status 0x%x\n", status);
 
@@ -319,7 +323,7 @@ exit:
 }
 
 static void nci_core_conn_close_rsp_packet(struct nci_dev *ndev,
-					   struct sk_buff *skb)
+					   const struct sk_buff *skb)
 {
 	struct nci_conn_info *conn_info;
 	__u8 status = skb->data[0];
@@ -330,6 +334,8 @@ static void nci_core_conn_close_rsp_packet(struct nci_dev *ndev,
 							 ndev->cur_conn_id);
 		if (conn_info) {
 			list_del(&conn_info->list);
+			if (conn_info == ndev->rf_conn_info)
+				ndev->rf_conn_info = NULL;
 			devm_kfree(&ndev->nfc_dev->dev, conn_info);
 		}
 	}

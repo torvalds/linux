@@ -119,8 +119,8 @@ int qla4xxx_init_rings(struct scsi_qla_host *ha)
 		 * the interrupt_handler to think there are responses to be
 		 * processed when there aren't.
 		 */
-		ha->shadow_regs->req_q_out = __constant_cpu_to_le32(0);
-		ha->shadow_regs->rsp_q_in = __constant_cpu_to_le32(0);
+		ha->shadow_regs->req_q_out = cpu_to_le32(0);
+		ha->shadow_regs->rsp_q_in = cpu_to_le32(0);
 		wmb();
 
 		writel(0, &ha->reg->req_q_in);

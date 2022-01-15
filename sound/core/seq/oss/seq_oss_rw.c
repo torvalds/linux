@@ -132,7 +132,8 @@ snd_seq_oss_write(struct seq_oss_devinfo *dp, const char __user *buf, int count,
 		}
 
 		/* insert queue */
-		if ((err = insert_queue(dp, &rec, opt)) < 0)
+		err = insert_queue(dp, &rec, opt);
+		if (err < 0)
 			break;
 
 		result += ev_size;

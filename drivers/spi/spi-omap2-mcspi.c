@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005, 2006 Nokia Corporation
  * Author:	Samuel Ortiz <samuel.ortiz@nokia.com> and
- *		Juha Yrj�l� <juha.yrjola@nokia.com>
+ *		Juha Yrjola <juha.yrjola@nokia.com>
  */
 
 #include <linux/kernel.h>
@@ -1054,7 +1054,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 	struct omap2_mcspi_cs	*cs = spi->controller_state;
 
 	if (!cs) {
-		cs = kzalloc(sizeof *cs, GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
 		cs->base = mcspi->base + spi->chip_select * 0x14;

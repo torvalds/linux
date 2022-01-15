@@ -34,6 +34,6 @@ void ODM_CfoTrackingInit(void *pDM_VOID);
 
 void ODM_CfoTracking(void *pDM_VOID);
 
-void ODM_ParsingCFO(void *pDM_VOID, void *pPktinfo_VOID, s8 *pcfotail);
+void odm_parsing_cfo(void *pDM_VOID, void *pPktinfo_VOID, s8 *pcfotail);
 
 #endif

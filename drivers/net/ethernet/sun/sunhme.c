@@ -251,14 +251,6 @@ static u32 pci_hme_read_desc32(hme32 *p)
 	((__hp)->write_txd((__txd), (__flags), (__addr)))
 #define hme_read_desc32(__hp, __p) \
 	((__hp)->read_desc32(__p))
-#define hme_dma_map(__hp, __ptr, __size, __dir) \
-	((__hp)->dma_map((__hp)->dma_dev, (__ptr), (__size), (__dir)))
-#define hme_dma_unmap(__hp, __addr, __size, __dir) \
-	((__hp)->dma_unmap((__hp)->dma_dev, (__addr), (__size), (__dir)))
-#define hme_dma_sync_for_cpu(__hp, __addr, __size, __dir) \
-	((__hp)->dma_sync_for_cpu((__hp)->dma_dev, (__addr), (__size), (__dir)))
-#define hme_dma_sync_for_device(__hp, __addr, __size, __dir) \
-	((__hp)->dma_sync_for_device((__hp)->dma_dev, (__addr), (__size), (__dir)))
 #else
 #ifdef CONFIG_SBUS
 /* SBUS only compilation */
@@ -277,14 +269,6 @@ do {	(__txd)->tx_addr = (__force hme32)(u32)(__addr); \
 	(__txd)->tx_flags = (__force hme32)(u32)(__flags); \
 } while(0)
 #define hme_read_desc32(__hp, __p)	((__force u32)(hme32)*(__p))
-#define hme_dma_map(__hp, __ptr, __size, __dir) \
-	dma_map_single((__hp)->dma_dev, (__ptr), (__size), (__dir))
-#define hme_dma_unmap(__hp, __addr, __size, __dir) \
-	dma_unmap_single((__hp)->dma_dev, (__addr), (__size), (__dir))
-#define hme_dma_sync_for_cpu(__hp, __addr, __size, __dir) \
-	dma_dma_sync_single_for_cpu((__hp)->dma_dev, (__addr), (__size), (__dir))
-#define hme_dma_sync_for_device(__hp, __addr, __size, __dir) \
-	dma_dma_sync_single_for_device((__hp)->dma_dev, (__addr), (__size), (__dir))
 #else
 /* PCI only compilation */
 #define hme_write32(__hp, __reg, __val) \
@@ -305,14 +289,6 @@ static inline u32 hme_read_desc32(struct happy_meal *hp, hme32 *p)
 {
 	return le32_to_cpup((__le32 *)p);
 }
-#define hme_dma_map(__hp, __ptr, __size, __dir) \
-	pci_map_single((__hp)->dma_dev, (__ptr), (__size), (__dir))
-#define hme_dma_unmap(__hp, __addr, __size, __dir) \
-	pci_unmap_single((__hp)->dma_dev, (__addr), (__size), (__dir))
-#define hme_dma_sync_for_cpu(__hp, __addr, __size, __dir) \
-	pci_dma_sync_single_for_cpu((__hp)->dma_dev, (__addr), (__size), (__dir))
-#define hme_dma_sync_for_device(__hp, __addr, __size, __dir) \
-	pci_dma_sync_single_for_device((__hp)->dma_dev, (__addr), (__size), (__dir))
 #endif
 #endif
 
@@ -2286,8 +2262,8 @@ static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
 					 struct net_device *dev)
 {
 	struct happy_meal *hp = netdev_priv(dev);
- 	int entry;
- 	u32 tx_flags;
+	int entry;
+	u32 tx_flags;
 
 	tx_flags = TXFLAG_OWN;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -2301,7 +2277,7 @@ static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irq(&hp->happy_lock);
 
- 	if (TX_BUFFS_AVAIL(hp) <= (skb_shinfo(skb)->nr_frags + 1)) {
+	if (TX_BUFFS_AVAIL(hp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
 		spin_unlock_irq(&hp->happy_lock);
 		printk(KERN_ERR "%s: BUG! Tx Ring full when queue awake!\n",

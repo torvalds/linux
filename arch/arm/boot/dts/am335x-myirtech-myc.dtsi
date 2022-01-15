@@ -57,16 +57,27 @@
 	};
 };
 
-&cpsw_emac0 {
-	phy-handle = <&phy0>;
-	phy-mode = "rgmii-id";
+&mac_sw {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&eth_slave1_pins_default>;
+	pinctrl-1 = <&eth_slave1_pins_sleep>;
+	status = "okay";
 };
 
-&davinci_mdio {
+&cpsw_port1 {
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+	ti,dual-emac-pvid = <1>;
+};
+
+&cpsw_port2 {
+	status = "disabled";
+};
+
+&davinci_mdio_sw {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mdio_pins_default>;
 	pinctrl-1 = <&mdio_pins_sleep>;
-	status = "okay";
 
 	phy0: ethernet-phy@4 {
 		reg = <4>;
@@ -135,14 +146,6 @@
 		pagesize = <32>;
 		vcc-supply = <&vdd_mod>;
 	};
-};
-
-&mac {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&eth_slave1_pins_default>;
-	pinctrl-1 = <&eth_slave1_pins_sleep>;
-	slaves = <1>;
-	status = "okay";
 };
 
 &rtc {

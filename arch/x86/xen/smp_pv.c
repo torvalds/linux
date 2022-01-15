@@ -64,7 +64,6 @@ static void cpu_bringup(void)
 	cr4_init();
 	cpu_init();
 	touch_softlockup_watchdog();
-	preempt_disable();
 
 	/* PVH runs in ring 0 and allows us to do native syscalls. Yay! */
 	if (!xen_feature(XENFEAT_supervisor_mode_kernel)) {
@@ -291,8 +290,6 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 
 	gdt = get_cpu_gdt_rw(cpu);
 
-	memset(&ctxt->fpu_ctxt, 0, sizeof(ctxt->fpu_ctxt));
-
 	/*
 	 * Bring up the CPU in cpu_bringup_and_idle() with the stack
 	 * pointing just below where pt_regs would be if it were a normal
@@ -308,8 +305,6 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->user_regs.esp = (unsigned long)task_pt_regs(idle);
 
 	xen_copy_trap_info(ctxt->trap_ctxt);
-
-	ctxt->ldt_ents = 0;
 
 	BUG_ON((unsigned long)gdt & ~PAGE_MASK);
 

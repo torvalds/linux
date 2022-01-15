@@ -1377,7 +1377,7 @@ static void dfll_debug_init(struct tegra_dfll *td)
 }
 
 #else
-static void inline dfll_debug_init(struct tegra_dfll *td) { }
+static inline void dfll_debug_init(struct tegra_dfll *td) { }
 #endif /* CONFIG_DEBUG_FS */
 
 /*

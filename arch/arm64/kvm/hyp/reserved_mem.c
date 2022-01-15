@@ -71,8 +71,7 @@ void __init kvm_hyp_reserve(void)
 	}
 
 	hyp_mem_pages += hyp_s1_pgtable_pages();
-	hyp_mem_pages += host_s2_mem_pgtable_pages();
-	hyp_mem_pages += host_s2_dev_pgtable_pages();
+	hyp_mem_pages += host_s2_pgtable_pages();
 
 	/*
 	 * The hyp_vmemmap needs to be backed by pages, but these pages
@@ -93,12 +92,10 @@ void __init kvm_hyp_reserve(void)
 	 * this is unmapped from the host stage-2, and fallback to PAGE_SIZE.
 	 */
 	hyp_mem_size = hyp_mem_pages << PAGE_SHIFT;
-	hyp_mem_base = memblock_find_in_range(0, memblock_end_of_DRAM(),
-					      ALIGN(hyp_mem_size, PMD_SIZE),
-					      PMD_SIZE);
+	hyp_mem_base = memblock_phys_alloc(ALIGN(hyp_mem_size, PMD_SIZE),
+					   PMD_SIZE);
 	if (!hyp_mem_base)
-		hyp_mem_base = memblock_find_in_range(0, memblock_end_of_DRAM(),
-						      hyp_mem_size, PAGE_SIZE);
+		hyp_mem_base = memblock_phys_alloc(hyp_mem_size, PAGE_SIZE);
 	else
 		hyp_mem_size = ALIGN(hyp_mem_size, PMD_SIZE);
 
@@ -106,7 +103,6 @@ void __init kvm_hyp_reserve(void)
 		kvm_err("Failed to reserve hyp memory\n");
 		return;
 	}
-	memblock_reserve(hyp_mem_base, hyp_mem_size);
 
 	kvm_info("Reserved %lld MiB at 0x%llx\n", hyp_mem_size >> 20,
 		 hyp_mem_base);

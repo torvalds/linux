@@ -179,7 +179,7 @@ static void dn_nsp_rtt(struct sock *sk, long rtt)
 		scp->nsp_srtt = 1;
 
 	/*
-	 * Add new rtt varience to smoothed varience
+	 * Add new rtt variance to smoothed varience
 	 */
 	delta >>= 1;
 	rttvar += ((((delta>0)?(delta):(-delta)) - rttvar) >> 2);

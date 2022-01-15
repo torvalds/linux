@@ -4,7 +4,7 @@ Binding for NVIDIA Tegra20 CPUFreq
 Required properties:
 - clocks: Must contain an entry for the CPU clock.
   See ../clocks/clock-bindings.txt for details.
-- operating-points-v2: See ../bindings/opp/opp.txt for details.
+- operating-points-v2: See ../bindings/opp/opp-v2.yaml for details.
 - #cooling-cells: Should be 2. See ../thermal/thermal-cooling-devices.yaml for details.
 
 For each opp entry in 'operating-points-v2' table:

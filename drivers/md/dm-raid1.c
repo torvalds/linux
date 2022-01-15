@@ -364,7 +364,7 @@ static void recover(struct mirror_set *ms, struct dm_region *reg)
 
 	/* hand to kcopyd */
 	if (!errors_handled(ms))
-		set_bit(DM_KCOPYD_IGNORE_ERROR, &flags);
+		flags |= BIT(DM_KCOPYD_IGNORE_ERROR);
 
 	dm_kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to,
 		       flags, recovery_complete, reg);
@@ -1434,6 +1434,23 @@ static void mirror_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(" keep_log");
 		}
 
+		break;
+
+	case STATUSTYPE_IMA:
+		DMEMIT_TARGET_NAME_VERSION(ti->type);
+		DMEMIT(",nr_mirrors=%d", ms->nr_mirrors);
+		for (m = 0; m < ms->nr_mirrors; m++) {
+			DMEMIT(",mirror_device_%d=%s", m, ms->mirror[m].dev->name);
+			DMEMIT(",mirror_device_%d_status=%c",
+			       m, device_status_char(&(ms->mirror[m])));
+		}
+
+		DMEMIT(",handle_errors=%c", errors_handled(ms) ? 'y' : 'n');
+		DMEMIT(",keep_log=%c", keep_log(ms) ? 'y' : 'n');
+
+		DMEMIT(",log_type_status=");
+		sz += log->type->status(log, type, result+sz, maxlen-sz);
+		DMEMIT(";");
 		break;
 	}
 }

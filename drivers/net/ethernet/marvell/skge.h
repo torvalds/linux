@@ -263,7 +263,7 @@ enum {
 	CHIP_ID_YUKON_LP   = 0xb2, /* Chip ID for YUKON-LP */
 	CHIP_ID_YUKON_XL   = 0xb3, /* Chip ID for YUKON-2 XL */
 	CHIP_ID_YUKON_EC   = 0xb6, /* Chip ID for YUKON-2 EC */
- 	CHIP_ID_YUKON_FE   = 0xb7, /* Chip ID for YUKON-2 FE */
+	CHIP_ID_YUKON_FE   = 0xb7, /* Chip ID for YUKON-2 FE */
 
 	CHIP_REV_YU_LITE_A1  = 3,	/* Chip Rev. for YUKON-Lite A1,A2 */
 	CHIP_REV_YU_LITE_A3  = 7,	/* Chip Rev. for YUKON-Lite A3 */

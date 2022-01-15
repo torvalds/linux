@@ -15,20 +15,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-#define IMX_MU_xSR_GIPn(x)	BIT(28 + (3 - (x)))
-#define IMX_MU_xSR_RFn(x)	BIT(24 + (3 - (x)))
-#define IMX_MU_xSR_TEn(x)	BIT(20 + (3 - (x)))
-#define IMX_MU_xSR_BRDIP	BIT(9)
-
-/* General Purpose Interrupt Enable */
-#define IMX_MU_xCR_GIEn(x)	BIT(28 + (3 - (x)))
-/* Receive Interrupt Enable */
-#define IMX_MU_xCR_RIEn(x)	BIT(24 + (3 - (x)))
-/* Transmit Interrupt Enable */
-#define IMX_MU_xCR_TIEn(x)	BIT(20 + (3 - (x)))
-/* General Purpose Interrupt Request */
-#define IMX_MU_xCR_GIRn(x)	BIT(16 + (3 - (x)))
-
 #define IMX_MU_CHANS		16
 /* TX0/RX0/RXDB[0-3] */
 #define IMX_MU_SCU_CHANS	6
@@ -39,6 +25,21 @@ enum imx_mu_chan_type {
 	IMX_MU_TYPE_RX,		/* Rx */
 	IMX_MU_TYPE_TXDB,	/* Tx doorbell */
 	IMX_MU_TYPE_RXDB,	/* Rx doorbell */
+};
+
+enum imx_mu_xcr {
+	IMX_MU_GIER,
+	IMX_MU_GCR,
+	IMX_MU_TCR,
+	IMX_MU_RCR,
+	IMX_MU_xCR_MAX,
+};
+
+enum imx_mu_xsr {
+	IMX_MU_SR,
+	IMX_MU_GSR,
+	IMX_MU_TSR,
+	IMX_MU_RSR,
 };
 
 struct imx_sc_rpc_msg_max {
@@ -67,20 +68,40 @@ struct imx_mu_priv {
 	struct clk		*clk;
 	int			irq;
 
-	u32 xcr;
+	u32 xcr[4];
 
 	bool			side_b;
+};
+
+enum imx_mu_type {
+	IMX_MU_V1,
+	IMX_MU_V2,
 };
 
 struct imx_mu_dcfg {
 	int (*tx)(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp, void *data);
 	int (*rx)(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp);
 	void (*init)(struct imx_mu_priv *priv);
-	u32	xTR[4];		/* Transmit Registers */
-	u32	xRR[4];		/* Receive Registers */
-	u32	xSR;		/* Status Register */
-	u32	xCR;		/* Control Register */
+	enum imx_mu_type type;
+	u32	xTR;		/* Transmit Register0 */
+	u32	xRR;		/* Receive Register0 */
+	u32	xSR[4];		/* Status Registers */
+	u32	xCR[4];		/* Control Registers */
 };
+
+#define IMX_MU_xSR_GIPn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(28 + (3 - (x))))
+#define IMX_MU_xSR_RFn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(24 + (3 - (x))))
+#define IMX_MU_xSR_TEn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(20 + (3 - (x))))
+
+/* General Purpose Interrupt Enable */
+#define IMX_MU_xCR_GIEn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(28 + (3 - (x))))
+/* Receive Interrupt Enable */
+#define IMX_MU_xCR_RIEn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(24 + (3 - (x))))
+/* Transmit Interrupt Enable */
+#define IMX_MU_xCR_TIEn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(20 + (3 - (x))))
+/* General Purpose Interrupt Request */
+#define IMX_MU_xCR_GIRn(type, x) (type == IMX_MU_V2 ? BIT(x) : BIT(16 + (3 - (x))))
+
 
 static struct imx_mu_priv *to_imx_mu_priv(struct mbox_controller *mbox)
 {
@@ -97,16 +118,16 @@ static u32 imx_mu_read(struct imx_mu_priv *priv, u32 offs)
 	return ioread32(priv->base + offs);
 }
 
-static u32 imx_mu_xcr_rmw(struct imx_mu_priv *priv, u32 set, u32 clr)
+static u32 imx_mu_xcr_rmw(struct imx_mu_priv *priv, enum imx_mu_xcr type, u32 set, u32 clr)
 {
 	unsigned long flags;
 	u32 val;
 
 	spin_lock_irqsave(&priv->xcr_lock, flags);
-	val = imx_mu_read(priv, priv->dcfg->xCR);
+	val = imx_mu_read(priv, priv->dcfg->xCR[type]);
 	val &= ~clr;
 	val |= set;
-	imx_mu_write(priv, val, priv->dcfg->xCR);
+	imx_mu_write(priv, val, priv->dcfg->xCR[type]);
 	spin_unlock_irqrestore(&priv->xcr_lock, flags);
 
 	return val;
@@ -120,11 +141,11 @@ static int imx_mu_generic_tx(struct imx_mu_priv *priv,
 
 	switch (cp->type) {
 	case IMX_MU_TYPE_TX:
-		imx_mu_write(priv, *arg, priv->dcfg->xTR[cp->idx]);
-		imx_mu_xcr_rmw(priv, IMX_MU_xCR_TIEn(cp->idx), 0);
+		imx_mu_write(priv, *arg, priv->dcfg->xTR + cp->idx * 4);
+		imx_mu_xcr_rmw(priv, IMX_MU_TCR, IMX_MU_xCR_TIEn(priv->dcfg->type, cp->idx), 0);
 		break;
 	case IMX_MU_TYPE_TXDB:
-		imx_mu_xcr_rmw(priv, IMX_MU_xCR_GIRn(cp->idx), 0);
+		imx_mu_xcr_rmw(priv, IMX_MU_GCR, IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx), 0);
 		tasklet_schedule(&cp->txdb_tasklet);
 		break;
 	default:
@@ -140,7 +161,7 @@ static int imx_mu_generic_rx(struct imx_mu_priv *priv,
 {
 	u32 dat;
 
-	dat = imx_mu_read(priv, priv->dcfg->xRR[cp->idx]);
+	dat = imx_mu_read(priv, priv->dcfg->xRR + (cp->idx) * 4);
 	mbox_chan_received_data(cp->chan, (void *)&dat);
 
 	return 0;
@@ -172,20 +193,20 @@ static int imx_mu_scu_tx(struct imx_mu_priv *priv,
 		}
 
 		for (i = 0; i < 4 && i < msg->hdr.size; i++)
-			imx_mu_write(priv, *arg++, priv->dcfg->xTR[i % 4]);
+			imx_mu_write(priv, *arg++, priv->dcfg->xTR + (i % 4) * 4);
 		for (; i < msg->hdr.size; i++) {
-			ret = readl_poll_timeout(priv->base + priv->dcfg->xSR,
+			ret = readl_poll_timeout(priv->base + priv->dcfg->xSR[IMX_MU_TSR],
 						 xsr,
-						 xsr & IMX_MU_xSR_TEn(i % 4),
+						 xsr & IMX_MU_xSR_TEn(priv->dcfg->type, i % 4),
 						 0, 100);
 			if (ret) {
 				dev_err(priv->dev, "Send data index: %d timeout\n", i);
 				return ret;
 			}
-			imx_mu_write(priv, *arg++, priv->dcfg->xTR[i % 4]);
+			imx_mu_write(priv, *arg++, priv->dcfg->xTR + (i % 4) * 4);
 		}
 
-		imx_mu_xcr_rmw(priv, IMX_MU_xCR_TIEn(cp->idx), 0);
+		imx_mu_xcr_rmw(priv, IMX_MU_TCR, IMX_MU_xCR_TIEn(priv->dcfg->type, cp->idx), 0);
 		break;
 	default:
 		dev_warn_ratelimited(priv->dev, "Send data on wrong channel type: %d\n", cp->type);
@@ -203,8 +224,8 @@ static int imx_mu_scu_rx(struct imx_mu_priv *priv,
 	int i, ret;
 	u32 xsr;
 
-	imx_mu_xcr_rmw(priv, 0, IMX_MU_xCR_RIEn(0));
-	*data++ = imx_mu_read(priv, priv->dcfg->xRR[0]);
+	imx_mu_xcr_rmw(priv, IMX_MU_RCR, 0, IMX_MU_xCR_RIEn(priv->dcfg->type, 0));
+	*data++ = imx_mu_read(priv, priv->dcfg->xRR);
 
 	if (msg.hdr.size > sizeof(msg) / 4) {
 		dev_err(priv->dev, "Maximal message size (%zu bytes) exceeded on RX; got: %i bytes\n", sizeof(msg), msg.hdr.size << 2);
@@ -212,16 +233,16 @@ static int imx_mu_scu_rx(struct imx_mu_priv *priv,
 	}
 
 	for (i = 1; i < msg.hdr.size; i++) {
-		ret = readl_poll_timeout(priv->base + priv->dcfg->xSR, xsr,
-					 xsr & IMX_MU_xSR_RFn(i % 4), 0, 100);
+		ret = readl_poll_timeout(priv->base + priv->dcfg->xSR[IMX_MU_RSR], xsr,
+					 xsr & IMX_MU_xSR_RFn(priv->dcfg->type, i % 4), 0, 100);
 		if (ret) {
 			dev_err(priv->dev, "timeout read idx %d\n", i);
 			return ret;
 		}
-		*data++ = imx_mu_read(priv, priv->dcfg->xRR[i % 4]);
+		*data++ = imx_mu_read(priv, priv->dcfg->xRR + (i % 4) * 4);
 	}
 
-	imx_mu_xcr_rmw(priv, IMX_MU_xCR_RIEn(0), 0);
+	imx_mu_xcr_rmw(priv, IMX_MU_RCR, IMX_MU_xCR_RIEn(priv->dcfg->type, 0), 0);
 	mbox_chan_received_data(cp->chan, (void *)&msg);
 
 	return 0;
@@ -241,36 +262,45 @@ static irqreturn_t imx_mu_isr(int irq, void *p)
 	struct imx_mu_con_priv *cp = chan->con_priv;
 	u32 val, ctrl;
 
-	ctrl = imx_mu_read(priv, priv->dcfg->xCR);
-	val = imx_mu_read(priv, priv->dcfg->xSR);
-
 	switch (cp->type) {
 	case IMX_MU_TYPE_TX:
-		val &= IMX_MU_xSR_TEn(cp->idx) &
-			(ctrl & IMX_MU_xCR_TIEn(cp->idx));
+		ctrl = imx_mu_read(priv, priv->dcfg->xCR[IMX_MU_TCR]);
+		val = imx_mu_read(priv, priv->dcfg->xSR[IMX_MU_TSR]);
+		val &= IMX_MU_xSR_TEn(priv->dcfg->type, cp->idx) &
+			(ctrl & IMX_MU_xCR_TIEn(priv->dcfg->type, cp->idx));
 		break;
 	case IMX_MU_TYPE_RX:
-		val &= IMX_MU_xSR_RFn(cp->idx) &
-			(ctrl & IMX_MU_xCR_RIEn(cp->idx));
+		ctrl = imx_mu_read(priv, priv->dcfg->xCR[IMX_MU_RCR]);
+		val = imx_mu_read(priv, priv->dcfg->xSR[IMX_MU_RSR]);
+		val &= IMX_MU_xSR_RFn(priv->dcfg->type, cp->idx) &
+			(ctrl & IMX_MU_xCR_RIEn(priv->dcfg->type, cp->idx));
 		break;
 	case IMX_MU_TYPE_RXDB:
-		val &= IMX_MU_xSR_GIPn(cp->idx) &
-			(ctrl & IMX_MU_xCR_GIEn(cp->idx));
+		ctrl = imx_mu_read(priv, priv->dcfg->xCR[IMX_MU_GIER]);
+		val = imx_mu_read(priv, priv->dcfg->xSR[IMX_MU_GSR]);
+		val &= IMX_MU_xSR_GIPn(priv->dcfg->type, cp->idx) &
+			(ctrl & IMX_MU_xCR_GIEn(priv->dcfg->type, cp->idx));
 		break;
 	default:
-		break;
+		dev_warn_ratelimited(priv->dev, "Unhandled channel type %d\n",
+				     cp->type);
+		return IRQ_NONE;
 	}
 
 	if (!val)
 		return IRQ_NONE;
 
-	if (val == IMX_MU_xSR_TEn(cp->idx)) {
-		imx_mu_xcr_rmw(priv, 0, IMX_MU_xCR_TIEn(cp->idx));
+	if ((val == IMX_MU_xSR_TEn(priv->dcfg->type, cp->idx)) &&
+	    (cp->type == IMX_MU_TYPE_TX)) {
+		imx_mu_xcr_rmw(priv, IMX_MU_TCR, 0, IMX_MU_xCR_TIEn(priv->dcfg->type, cp->idx));
 		mbox_chan_txdone(chan, 0);
-	} else if (val == IMX_MU_xSR_RFn(cp->idx)) {
+	} else if ((val == IMX_MU_xSR_RFn(priv->dcfg->type, cp->idx)) &&
+		   (cp->type == IMX_MU_TYPE_RX)) {
 		priv->dcfg->rx(priv, cp);
-	} else if (val == IMX_MU_xSR_GIPn(cp->idx)) {
-		imx_mu_write(priv, IMX_MU_xSR_GIPn(cp->idx), priv->dcfg->xSR);
+	} else if ((val == IMX_MU_xSR_GIPn(priv->dcfg->type, cp->idx)) &&
+		   (cp->type == IMX_MU_TYPE_RXDB)) {
+		imx_mu_write(priv, IMX_MU_xSR_GIPn(priv->dcfg->type, cp->idx),
+			     priv->dcfg->xSR[IMX_MU_GSR]);
 		mbox_chan_received_data(chan, NULL);
 	} else {
 		dev_warn_ratelimited(priv->dev, "Not handled interrupt\n");
@@ -317,10 +347,10 @@ static int imx_mu_startup(struct mbox_chan *chan)
 
 	switch (cp->type) {
 	case IMX_MU_TYPE_RX:
-		imx_mu_xcr_rmw(priv, IMX_MU_xCR_RIEn(cp->idx), 0);
+		imx_mu_xcr_rmw(priv, IMX_MU_RCR, IMX_MU_xCR_RIEn(priv->dcfg->type, cp->idx), 0);
 		break;
 	case IMX_MU_TYPE_RXDB:
-		imx_mu_xcr_rmw(priv, IMX_MU_xCR_GIEn(cp->idx), 0);
+		imx_mu_xcr_rmw(priv, IMX_MU_GIER, IMX_MU_xCR_GIEn(priv->dcfg->type, cp->idx), 0);
 		break;
 	default:
 		break;
@@ -342,13 +372,13 @@ static void imx_mu_shutdown(struct mbox_chan *chan)
 
 	switch (cp->type) {
 	case IMX_MU_TYPE_TX:
-		imx_mu_xcr_rmw(priv, 0, IMX_MU_xCR_TIEn(cp->idx));
+		imx_mu_xcr_rmw(priv, IMX_MU_TCR, 0, IMX_MU_xCR_TIEn(priv->dcfg->type, cp->idx));
 		break;
 	case IMX_MU_TYPE_RX:
-		imx_mu_xcr_rmw(priv, 0, IMX_MU_xCR_RIEn(cp->idx));
+		imx_mu_xcr_rmw(priv, IMX_MU_RCR, 0, IMX_MU_xCR_RIEn(priv->dcfg->type, cp->idx));
 		break;
 	case IMX_MU_TYPE_RXDB:
-		imx_mu_xcr_rmw(priv, 0, IMX_MU_xCR_GIEn(cp->idx));
+		imx_mu_xcr_rmw(priv, IMX_MU_GIER, 0, IMX_MU_xCR_GIEn(priv->dcfg->type, cp->idx));
 		break;
 	default:
 		break;
@@ -444,7 +474,8 @@ static void imx_mu_init_generic(struct imx_mu_priv *priv)
 		return;
 
 	/* Set default MU configuration */
-	imx_mu_write(priv, 0, priv->dcfg->xCR);
+	for (i = 0; i < IMX_MU_xCR_MAX; i++)
+		imx_mu_write(priv, 0, priv->dcfg->xCR[i]);
 }
 
 static void imx_mu_init_scu(struct imx_mu_priv *priv)
@@ -466,7 +497,8 @@ static void imx_mu_init_scu(struct imx_mu_priv *priv)
 	priv->mbox.of_xlate = imx_mu_scu_xlate;
 
 	/* Set default MU configuration */
-	imx_mu_write(priv, 0, priv->dcfg->xCR);
+	for (i = 0; i < IMX_MU_xCR_MAX; i++)
+		imx_mu_write(priv, 0, priv->dcfg->xCR[i]);
 }
 
 static int imx_mu_probe(struct platform_device *pdev)
@@ -564,35 +596,47 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx6sx = {
 	.tx	= imx_mu_generic_tx,
 	.rx	= imx_mu_generic_rx,
 	.init	= imx_mu_init_generic,
-	.xTR	= {0x0, 0x4, 0x8, 0xc},
-	.xRR	= {0x10, 0x14, 0x18, 0x1c},
-	.xSR	= 0x20,
-	.xCR	= 0x24,
+	.xTR	= 0x0,
+	.xRR	= 0x10,
+	.xSR	= {0x20, 0x20, 0x20, 0x20},
+	.xCR	= {0x24, 0x24, 0x24, 0x24},
 };
 
 static const struct imx_mu_dcfg imx_mu_cfg_imx7ulp = {
 	.tx	= imx_mu_generic_tx,
 	.rx	= imx_mu_generic_rx,
 	.init	= imx_mu_init_generic,
-	.xTR	= {0x20, 0x24, 0x28, 0x2c},
-	.xRR	= {0x40, 0x44, 0x48, 0x4c},
-	.xSR	= 0x60,
-	.xCR	= 0x64,
+	.xTR	= 0x20,
+	.xRR	= 0x40,
+	.xSR	= {0x60, 0x60, 0x60, 0x60},
+	.xCR	= {0x64, 0x64, 0x64, 0x64},
+};
+
+static const struct imx_mu_dcfg imx_mu_cfg_imx8ulp = {
+	.tx	= imx_mu_generic_tx,
+	.rx	= imx_mu_generic_rx,
+	.init	= imx_mu_init_generic,
+	.type	= IMX_MU_V2,
+	.xTR	= 0x200,
+	.xRR	= 0x280,
+	.xSR	= {0xC, 0x118, 0x124, 0x12C},
+	.xCR	= {0x110, 0x114, 0x120, 0x128},
 };
 
 static const struct imx_mu_dcfg imx_mu_cfg_imx8_scu = {
 	.tx	= imx_mu_scu_tx,
 	.rx	= imx_mu_scu_rx,
 	.init	= imx_mu_init_scu,
-	.xTR	= {0x0, 0x4, 0x8, 0xc},
-	.xRR	= {0x10, 0x14, 0x18, 0x1c},
-	.xSR	= 0x20,
-	.xCR	= 0x24,
+	.xTR	= 0x0,
+	.xRR	= 0x10,
+	.xSR	= {0x20, 0x20, 0x20, 0x20},
+	.xCR	= {0x24, 0x24, 0x24, 0x24},
 };
 
 static const struct of_device_id imx_mu_dt_ids[] = {
 	{ .compatible = "fsl,imx7ulp-mu", .data = &imx_mu_cfg_imx7ulp },
 	{ .compatible = "fsl,imx6sx-mu", .data = &imx_mu_cfg_imx6sx },
+	{ .compatible = "fsl,imx8ulp-mu", .data = &imx_mu_cfg_imx8ulp },
 	{ .compatible = "fsl,imx8-mu-scu", .data = &imx_mu_cfg_imx8_scu },
 	{ },
 };
@@ -601,9 +645,12 @@ MODULE_DEVICE_TABLE(of, imx_mu_dt_ids);
 static int __maybe_unused imx_mu_suspend_noirq(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
+	int i;
 
-	if (!priv->clk)
-		priv->xcr = imx_mu_read(priv, priv->dcfg->xCR);
+	if (!priv->clk) {
+		for (i = 0; i < IMX_MU_xCR_MAX; i++)
+			priv->xcr[i] = imx_mu_read(priv, priv->dcfg->xCR[i]);
+	}
 
 	return 0;
 }
@@ -611,6 +658,7 @@ static int __maybe_unused imx_mu_suspend_noirq(struct device *dev)
 static int __maybe_unused imx_mu_resume_noirq(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
+	int i;
 
 	/*
 	 * ONLY restore MU when context lost, the TIE could
@@ -620,8 +668,10 @@ static int __maybe_unused imx_mu_resume_noirq(struct device *dev)
 	 * send failed, may lead to system freeze. This issue
 	 * is observed by testing freeze mode suspend.
 	 */
-	if (!imx_mu_read(priv, priv->dcfg->xCR) && !priv->clk)
-		imx_mu_write(priv, priv->xcr, priv->dcfg->xCR);
+	if (!imx_mu_read(priv, priv->dcfg->xCR[0]) && !priv->clk) {
+		for (i = 0; i < IMX_MU_xCR_MAX; i++)
+			imx_mu_write(priv, priv->xcr[i], priv->dcfg->xCR[i]);
+	}
 
 	return 0;
 }

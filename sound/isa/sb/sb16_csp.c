@@ -112,10 +112,12 @@ int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
 	if (csp_detect(chip, &version))
 		return -ENODEV;
 
-	if ((err = snd_hwdep_new(chip->card, "SB16-CSP", device, &hw)) < 0)
+	err = snd_hwdep_new(chip->card, "SB16-CSP", device, &hw);
+	if (err < 0)
 		return err;
 
-	if ((p = kzalloc(sizeof(*p), GFP_KERNEL)) == NULL) {
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p) {
 		snd_device_free(chip->card, hw);
 		return -ENOMEM;
 	}
@@ -814,6 +816,7 @@ static int snd_sb_csp_start(struct snd_sb_csp * p, int sample_width, int channel
 	mixR = snd_sbmixer_read(p->chip, SB_DSP4_PCM_DEV + 1);
 	snd_sbmixer_write(p->chip, SB_DSP4_PCM_DEV, mixL & 0x7);
 	snd_sbmixer_write(p->chip, SB_DSP4_PCM_DEV + 1, mixR & 0x7);
+	spin_unlock_irqrestore(&p->chip->mixer_lock, flags);
 
 	spin_lock(&p->chip->reg_lock);
 	set_mode_register(p->chip, 0xc0);	/* c0 = STOP */
@@ -853,6 +856,7 @@ static int snd_sb_csp_start(struct snd_sb_csp * p, int sample_width, int channel
 	spin_unlock(&p->chip->reg_lock);
 
 	/* restore PCM volume */
+	spin_lock_irqsave(&p->chip->mixer_lock, flags);
 	snd_sbmixer_write(p->chip, SB_DSP4_PCM_DEV, mixL);
 	snd_sbmixer_write(p->chip, SB_DSP4_PCM_DEV + 1, mixR);
 	spin_unlock_irqrestore(&p->chip->mixer_lock, flags);
@@ -878,6 +882,7 @@ static int snd_sb_csp_stop(struct snd_sb_csp * p)
 	mixR = snd_sbmixer_read(p->chip, SB_DSP4_PCM_DEV + 1);
 	snd_sbmixer_write(p->chip, SB_DSP4_PCM_DEV, mixL & 0x7);
 	snd_sbmixer_write(p->chip, SB_DSP4_PCM_DEV + 1, mixR & 0x7);
+	spin_unlock_irqrestore(&p->chip->mixer_lock, flags);
 
 	spin_lock(&p->chip->reg_lock);
 	if (p->running & SNDRV_SB_CSP_ST_QSOUND) {
@@ -892,6 +897,7 @@ static int snd_sb_csp_stop(struct snd_sb_csp * p)
 	spin_unlock(&p->chip->reg_lock);
 
 	/* restore PCM volume */
+	spin_lock_irqsave(&p->chip->mixer_lock, flags);
 	snd_sbmixer_write(p->chip, SB_DSP4_PCM_DEV, mixL);
 	snd_sbmixer_write(p->chip, SB_DSP4_PCM_DEV + 1, mixR);
 	spin_unlock_irqrestore(&p->chip->mixer_lock, flags);
@@ -1034,6 +1040,7 @@ static const struct snd_kcontrol_new snd_sb_qsound_space = {
 static int snd_sb_qsound_build(struct snd_sb_csp * p)
 {
 	struct snd_card *card;
+	struct snd_kcontrol *kctl;
 	int err;
 
 	if (snd_BUG_ON(!p))
@@ -1045,14 +1052,16 @@ static int snd_sb_qsound_build(struct snd_sb_csp * p)
 
 	spin_lock_init(&p->q_lock);
 
-	if ((err = snd_ctl_add(card, p->qsound_switch = snd_ctl_new1(&snd_sb_qsound_switch, p))) < 0) {
-		p->qsound_switch = NULL;
+	kctl = snd_ctl_new1(&snd_sb_qsound_switch, p);
+	err = snd_ctl_add(card, kctl);
+	if (err < 0)
 		goto __error;
-	}
-	if ((err = snd_ctl_add(card, p->qsound_space = snd_ctl_new1(&snd_sb_qsound_space, p))) < 0) {
-		p->qsound_space = NULL;
+	p->qsound_switch = kctl;
+	kctl = snd_ctl_new1(&snd_sb_qsound_space, p);
+	err = snd_ctl_add(card, kctl);
+	if (err < 0)
 		goto __error;
-	}
+	p->qsound_space = kctl;
 
 	return 0;
 
@@ -1072,10 +1081,14 @@ static void snd_sb_qsound_destroy(struct snd_sb_csp * p)
 	card = p->chip->card;	
 	
 	down_write(&card->controls_rwsem);
-	if (p->qsound_switch)
+	if (p->qsound_switch) {
 		snd_ctl_remove(card, p->qsound_switch);
-	if (p->qsound_space)
+		p->qsound_switch = NULL;
+	}
+	if (p->qsound_space) {
 		snd_ctl_remove(card, p->qsound_space);
+		p->qsound_space = NULL;
+	}
 	up_write(&card->controls_rwsem);
 
 	/* cancel pending transfer of QSound parameters */

@@ -61,6 +61,19 @@ required:
   - reg
   - '#pwm-cells'
   - clocks
+  - power-domains
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - renesas,pwm-r8a7778
+            - renesas,pwm-r8a7779
+then:
+  required:
+    - resets
 
 additionalProperties: false
 

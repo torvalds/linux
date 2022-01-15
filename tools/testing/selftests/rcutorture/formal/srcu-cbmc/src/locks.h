@@ -174,7 +174,7 @@ static inline bool spin_trylock(spinlock_t *lock)
 }
 
 struct completion {
-	/* Hopefuly this won't overflow. */
+	/* Hopefully this won't overflow. */
 	unsigned int count;
 };
 

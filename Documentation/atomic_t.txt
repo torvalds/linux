@@ -271,3 +271,97 @@ WRITE_ONCE.  Thus:
 			SC *y, t;
 
 is allowed.
+
+
+CMPXCHG vs TRY_CMPXCHG
+----------------------
+
+  int atomic_cmpxchg(atomic_t *ptr, int old, int new);
+  bool atomic_try_cmpxchg(atomic_t *ptr, int *oldp, int new);
+
+Both provide the same functionality, but try_cmpxchg() can lead to more
+compact code. The functions relate like:
+
+  bool atomic_try_cmpxchg(atomic_t *ptr, int *oldp, int new)
+  {
+    int ret, old = *oldp;
+    ret = atomic_cmpxchg(ptr, old, new);
+    if (ret != old)
+      *oldp = ret;
+    return ret == old;
+  }
+
+and:
+
+  int atomic_cmpxchg(atomic_t *ptr, int old, int new)
+  {
+    (void)atomic_try_cmpxchg(ptr, &old, new);
+    return old;
+  }
+
+Usage:
+
+  old = atomic_read(&v);			old = atomic_read(&v);
+  for (;;) {					do {
+    new = func(old);				  new = func(old);
+    tmp = atomic_cmpxchg(&v, old, new);		} while (!atomic_try_cmpxchg(&v, &old, new));
+    if (tmp == old)
+      break;
+    old = tmp;
+  }
+
+NB. try_cmpxchg() also generates better code on some platforms (notably x86)
+where the function more closely matches the hardware instruction.
+
+
+FORWARD PROGRESS
+----------------
+
+In general strong forward progress is expected of all unconditional atomic
+operations -- those in the Arithmetic and Bitwise classes and xchg(). However
+a fair amount of code also requires forward progress from the conditional
+atomic operations.
+
+Specifically 'simple' cmpxchg() loops are expected to not starve one another
+indefinitely. However, this is not evident on LL/SC architectures, because
+while an LL/SC architecure 'can/should/must' provide forward progress
+guarantees between competing LL/SC sections, such a guarantee does not
+transfer to cmpxchg() implemented using LL/SC. Consider:
+
+  old = atomic_read(&v);
+  do {
+    new = func(old);
+  } while (!atomic_try_cmpxchg(&v, &old, new));
+
+which on LL/SC becomes something like:
+
+  old = atomic_read(&v);
+  do {
+    new = func(old);
+  } while (!({
+    volatile asm ("1: LL  %[oldval], %[v]\n"
+                  "   CMP %[oldval], %[old]\n"
+                  "   BNE 2f\n"
+                  "   SC  %[new], %[v]\n"
+                  "   BNE 1b\n"
+                  "2:\n"
+                  : [oldval] "=&r" (oldval), [v] "m" (v)
+		  : [old] "r" (old), [new] "r" (new)
+                  : "memory");
+    success = (oldval == old);
+    if (!success)
+      old = oldval;
+    success; }));
+
+However, even the forward branch from the failed compare can cause the LL/SC
+to fail on some architectures, let alone whatever the compiler makes of the C
+loop body. As a result there is no guarantee what so ever the cacheline
+containing @v will stay on the local CPU and progress is made.
+
+Even native CAS architectures can fail to provide forward progress for their
+primitive (See Sparc64 for an example).
+
+Such implementations are strongly encouraged to add exponential backoff loops
+to a failed CAS in order to ensure some progress. Affected architectures are
+also strongly encouraged to inspect/audit the atomic fallbacks, refcount_t and
+their locking primitives.

@@ -14,7 +14,6 @@
 #include <linux/pgtable.h>
 #include <asm/idle.h>
 #include <asm/gmap.h>
-#include <asm/nmi.h>
 #include <asm/stacktrace.h>
 
 int main(void)
@@ -58,8 +57,6 @@ int main(void)
 	OFFSET(__LC_EXT_PARAMS, lowcore, ext_params);
 	OFFSET(__LC_EXT_CPU_ADDR, lowcore, ext_cpu_addr);
 	OFFSET(__LC_EXT_INT_CODE, lowcore, ext_int_code);
-	OFFSET(__LC_SVC_ILC, lowcore, svc_ilc);
-	OFFSET(__LC_SVC_INT_CODE, lowcore, svc_code);
 	OFFSET(__LC_PGM_ILC, lowcore, pgm_ilc);
 	OFFSET(__LC_PGM_INT_CODE, lowcore, pgm_code);
 	OFFSET(__LC_DATA_EXC_CODE, lowcore, data_exc_code);
@@ -77,8 +74,6 @@ int main(void)
 	OFFSET(__LC_SUBCHANNEL_NR, lowcore, subchannel_nr);
 	OFFSET(__LC_IO_INT_PARM, lowcore, io_int_parm);
 	OFFSET(__LC_IO_INT_WORD, lowcore, io_int_word);
-	OFFSET(__LC_STFL_FAC_LIST, lowcore, stfl_fac_list);
-	OFFSET(__LC_STFLE_FAC_LIST, lowcore, stfle_fac_list);
 	OFFSET(__LC_MCCK_CODE, lowcore, mcck_interruption_code);
 	OFFSET(__LC_EXT_DAMAGE_CODE, lowcore, external_damage_code);
 	OFFSET(__LC_MCCK_FAIL_STOR_ADDR, lowcore, failing_storage_address);
@@ -111,7 +106,6 @@ int main(void)
 	OFFSET(__LC_LAST_UPDATE_CLOCK, lowcore, last_update_clock);
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
 	OFFSET(__LC_MCCK_CLOCK, lowcore, mcck_clock);
-	OFFSET(__LC_CLOCK_COMPARATOR, lowcore, clock_comparator);
 	OFFSET(__LC_BOOT_CLOCK, lowcore, boot_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
@@ -122,6 +116,7 @@ int main(void)
 	OFFSET(__LC_RESTART_FN, lowcore, restart_fn);
 	OFFSET(__LC_RESTART_DATA, lowcore, restart_data);
 	OFFSET(__LC_RESTART_SOURCE, lowcore, restart_source);
+	OFFSET(__LC_RESTART_FLAGS, lowcore, restart_flags);
 	OFFSET(__LC_KERNEL_ASCE, lowcore, kernel_asce);
 	OFFSET(__LC_USER_ASCE, lowcore, user_asce);
 	OFFSET(__LC_LPP, lowcore, lpp);
@@ -148,9 +143,6 @@ int main(void)
 	OFFSET(__LC_CREGS_SAVE_AREA, lowcore, cregs_save_area);
 	OFFSET(__LC_PGM_TDB, lowcore, pgm_tdb);
 	BLANK();
-	/* extended machine check save area */
-	OFFSET(__MCESA_GS_SAVE_AREA, mcesa, guarded_storage_save_area);
-	BLANK();
 	/* gmap/sie offsets */
 	OFFSET(__GMAP_ASCE, gmap, asce);
 	OFFSET(__SIE_PROG0C, kvm_s390_sie_block, prog0c);
@@ -159,5 +151,14 @@ int main(void)
 	OFFSET(__KEXEC_SHA_REGION_START, kexec_sha_region, start);
 	OFFSET(__KEXEC_SHA_REGION_LEN, kexec_sha_region, len);
 	DEFINE(__KEXEC_SHA_REGION_SIZE, sizeof(struct kexec_sha_region));
+	/* sizeof kernel parameter area */
+	DEFINE(__PARMAREA_SIZE, sizeof(struct parmarea));
+	/* kernel parameter area offsets */
+	DEFINE(IPL_DEVICE, PARMAREA + offsetof(struct parmarea, ipl_device));
+	DEFINE(INITRD_START, PARMAREA + offsetof(struct parmarea, initrd_start));
+	DEFINE(INITRD_SIZE, PARMAREA + offsetof(struct parmarea, initrd_size));
+	DEFINE(OLDMEM_BASE, PARMAREA + offsetof(struct parmarea, oldmem_base));
+	DEFINE(OLDMEM_SIZE, PARMAREA + offsetof(struct parmarea, oldmem_size));
+	DEFINE(COMMAND_LINE, PARMAREA + offsetof(struct parmarea, command_line));
 	return 0;
 }

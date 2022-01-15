@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-INCLUDES := -I../include -I../../
+INCLUDES := -I../include -I../../ -I../../../../../usr/include/ \
+	-I$(KBUILD_OUTPUT)/kselftest/usr/include
 CFLAGS := $(CFLAGS) -g -O2 -Wall -D_GNU_SOURCE -pthread $(INCLUDES)
 LDLIBS := -lpthread -lrt
 
@@ -14,7 +15,9 @@ TEST_GEN_FILES := \
 	futex_requeue_pi_signal_restart \
 	futex_requeue_pi_mismatched_ops \
 	futex_wait_uninitialized_heap \
-	futex_wait_private_mapped_file
+	futex_wait_private_mapped_file \
+	futex_wait \
+	futex_requeue
 
 TEST_PROGS := run.sh
 

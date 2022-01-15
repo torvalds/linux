@@ -99,6 +99,9 @@ static int st_status(struct path_selector *ps, struct dm_path *path,
 			DMEMIT("%u %u ", pi->repeat_count,
 			       pi->relative_throughput);
 			break;
+		case STATUSTYPE_IMA:
+			result[0] = '\0';
+			break;
 		}
 	}
 

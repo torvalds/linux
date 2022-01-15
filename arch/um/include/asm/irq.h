@@ -31,7 +31,13 @@
 
 #endif
 
-#define NR_IRQS			64
+#define UM_LAST_SIGNAL_IRQ	64
+/* If we have (simulated) PCI MSI, allow 64 more interrupt numbers for it */
+#ifdef CONFIG_PCI_MSI
+#define NR_IRQS			(UM_LAST_SIGNAL_IRQ + 64)
+#else
+#define NR_IRQS			UM_LAST_SIGNAL_IRQ
+#endif /* CONFIG_PCI_MSI */
 
 #include <asm-generic/irq.h>
 #endif

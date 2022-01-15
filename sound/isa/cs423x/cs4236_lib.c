@@ -298,7 +298,6 @@ int snd_cs4236_create(struct snd_card *card,
 	if (cport < 0x100 || cport == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR "please, specify control port "
 			   "for CS4236+ chips\n");
-		snd_device_free(card, chip);
 		return -ENODEV;
 	}
 	ver1 = snd_cs4236_ctrl_in(chip, 1);
@@ -308,7 +307,6 @@ int snd_cs4236_create(struct snd_card *card,
 	if (ver1 != ver2) {
 		snd_printk(KERN_ERR "CS4236+ chip detected, but "
 			   "control port 0x%lx is not valid\n", cport);
-		snd_device_free(card, chip);
 		return -ENODEV;
 	}
 	snd_cs4236_ctrl_out(chip, 0, 0x00);
@@ -1030,12 +1028,14 @@ int snd_cs4236_mixer(struct snd_wss *chip)
 	if (chip->hardware == WSS_HW_CS4235 ||
 	    chip->hardware == WSS_HW_CS4239) {
 		for (idx = 0; idx < ARRAY_SIZE(snd_cs4235_controls); idx++) {
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_cs4235_controls[idx], chip))) < 0)
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_cs4235_controls[idx], chip));
+			if (err < 0)
 				return err;
 		}
 	} else {
 		for (idx = 0; idx < ARRAY_SIZE(snd_cs4236_controls); idx++) {
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_cs4236_controls[idx], chip))) < 0)
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_cs4236_controls[idx], chip));
+			if (err < 0)
 				return err;
 		}
 	}
@@ -1058,13 +1058,15 @@ int snd_cs4236_mixer(struct snd_wss *chip)
 		kcontrol = NULL;
 	}
 	for (idx = 0; idx < count; idx++, kcontrol++) {
-		if ((err = snd_ctl_add(card, snd_ctl_new1(kcontrol, chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(kcontrol, chip));
+		if (err < 0)
 			return err;
 	}
 	if (chip->hardware == WSS_HW_CS4237B ||
 	    chip->hardware == WSS_HW_CS4238B) {
 		for (idx = 0; idx < ARRAY_SIZE(snd_cs4236_iec958_controls); idx++) {
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_cs4236_iec958_controls[idx], chip))) < 0)
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_cs4236_iec958_controls[idx], chip));
+			if (err < 0)
 				return err;
 		}
 	}

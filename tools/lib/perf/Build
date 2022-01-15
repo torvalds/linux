@@ -11,3 +11,5 @@ libperf-y += lib.o
 $(OUTPUT)zalloc.o: ../../lib/zalloc.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
+
+tests-y += tests/

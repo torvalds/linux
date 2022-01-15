@@ -773,8 +773,8 @@
 
 		pcie1: pcie@3400000 {
 			compatible = "fsl,ls1046a-pcie";
-			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
-			       0x40 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+			      <0x40 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
 				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>; /* PME interrupt */
@@ -799,8 +799,8 @@
 
 		pcie_ep1: pcie_ep@3400000 {
 			compatible = "fsl,ls1046a-pcie-ep","fsl,ls-pcie-ep";
-			reg = <0x00 0x03400000 0x0 0x00100000
-				0x40 0x00000000 0x8 0x00000000>;
+			reg = <0x00 0x03400000 0x0 0x00100000>,
+			      <0x40 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <6>;
 			num-ob-windows = <8>;
@@ -809,8 +809,8 @@
 
 		pcie2: pcie@3500000 {
 			compatible = "fsl,ls1046a-pcie";
-			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
-			       0x48 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
+			      <0x48 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
 				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>; /* PME interrupt */
@@ -835,8 +835,8 @@
 
 		pcie_ep2: pcie_ep@3500000 {
 			compatible = "fsl,ls1046a-pcie-ep","fsl,ls-pcie-ep";
-			reg = <0x00 0x03500000 0x0 0x00100000
-				0x48 0x00000000 0x8 0x00000000>;
+			reg = <0x00 0x03500000 0x0 0x00100000>,
+			      <0x48 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <6>;
 			num-ob-windows = <8>;
@@ -845,8 +845,8 @@
 
 		pcie3: pcie@3600000 {
 			compatible = "fsl,ls1046a-pcie";
-			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
-			       0x50 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
+			      <0x50 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
 				     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>; /* PME interrupt */
@@ -871,8 +871,8 @@
 
 		pcie_ep3: pcie_ep@3600000 {
 			compatible = "fsl,ls1046a-pcie-ep", "fsl,ls-pcie-ep";
-			reg = <0x00 0x03600000 0x0 0x00100000
-				0x50 0x00000000 0x8 0x00000000>;
+			reg = <0x00 0x03600000 0x0 0x00100000>,
+			      <0x50 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
 			num-ib-windows = <6>;
 			num-ob-windows = <8>;

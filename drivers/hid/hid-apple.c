@@ -187,6 +187,15 @@ static const struct apple_key_translation *apple_find_translation(
 	return NULL;
 }
 
+static void input_event_with_scancode(struct input_dev *input,
+		__u8 type, __u16 code, unsigned int hid, __s32 value)
+{
+	if (type == EV_KEY &&
+	    (!test_bit(code, input->key)) == value)
+		input_event(input, EV_MSC, MSC_SCAN, hid);
+	input_event(input, type, code, value);
+}
+
 static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		struct hid_usage *usage, __s32 value)
 {
@@ -199,7 +208,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 
 	if (usage->code == fn_keycode) {
 		asc->fn_on = !!value;
-		input_event(input, usage->type, KEY_FN, value);
+		input_event_with_scancode(input, usage->type, KEY_FN,
+				usage->hid, value);
 		return 1;
 	}
 
@@ -240,7 +250,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 				code = do_translate ? trans->to : trans->from;
 			}
 
-			input_event(input, usage->type, code, value);
+			input_event_with_scancode(input, usage->type, code,
+					usage->hid, value);
 			return 1;
 		}
 
@@ -258,8 +269,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 					clear_bit(usage->code,
 							asc->pressed_numlock);
 
-				input_event(input, usage->type, trans->to,
-						value);
+				input_event_with_scancode(input, usage->type,
+						trans->to, usage->hid, value);
 			}
 
 			return 1;
@@ -270,7 +281,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		if (hid->country == HID_COUNTRY_INTERNATIONAL_ISO) {
 			trans = apple_find_translation(apple_iso_keyboard, usage->code);
 			if (trans) {
-				input_event(input, usage->type, trans->to, value);
+				input_event_with_scancode(input, usage->type,
+						trans->to, usage->hid, value);
 				return 1;
 			}
 		}
@@ -279,7 +291,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	if (swap_opt_cmd) {
 		trans = apple_find_translation(swapped_option_cmd_keys, usage->code);
 		if (trans) {
-			input_event(input, usage->type, trans->to, value);
+			input_event_with_scancode(input, usage->type,
+					trans->to, usage->hid, value);
 			return 1;
 		}
 	}
@@ -287,7 +300,8 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	if (swap_fn_leftctrl) {
 		trans = apple_find_translation(swapped_fn_leftctrl_keys, usage->code);
 		if (trans) {
-			input_event(input, usage->type, trans->to, value);
+			input_event_with_scancode(input, usage->type,
+					trans->to, usage->hid, value);
 			return 1;
 		}
 	}
@@ -306,8 +320,8 @@ static int apple_event(struct hid_device *hdev, struct hid_field *field,
 
 	if ((asc->quirks & APPLE_INVERT_HWHEEL) &&
 			usage->code == REL_HWHEEL) {
-		input_event(field->hidinput->input, usage->type, usage->code,
-				-value);
+		input_event_with_scancode(field->hidinput->input, usage->type,
+				usage->code, usage->hid, -value);
 		return 1;
 	}
 
@@ -322,11 +336,18 @@ static int apple_event(struct hid_device *hdev, struct hid_field *field,
 
 /*
  * MacBook JIS keyboard has wrong logical maximum
+ * Magic Keyboard JIS has wrong logical maximum
  */
 static __u8 *apple_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	struct apple_sc *asc = hid_get_drvdata(hdev);
+
+	if(*rsize >=71 && rdesc[70] == 0x65 && rdesc[64] == 0x65) {
+		hid_info(hdev,
+			 "fixing up Magic Keyboard JIS report descriptor\n");
+		rdesc[64] = rdesc[70] = 0xe7;
+	}
 
 	if ((asc->quirks & APPLE_RDESC_JIS) && *rsize >= 60 &&
 			rdesc[53] == 0x65 && rdesc[59] == 0x65) {
@@ -500,6 +521,8 @@ static const struct hid_device_id apple_devices[] = {
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN |
 			APPLE_RDESC_JIS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_REVB_ANSI),
+		.driver_data = APPLE_HAS_FN },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_REVB_ANSI),
 		.driver_data = APPLE_HAS_FN },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_REVB_ISO),
 		.driver_data = APPLE_HAS_FN },

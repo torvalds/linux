@@ -24,7 +24,7 @@
 #define REG_WRITE(_ah, _reg, _val)	(common->ops->write)(_ah, _val, _reg)
 
 /**
- * ath_hw_set_bssid_mask - filter out bssids we listen
+ * ath_hw_setbssidmask - filter out bssids we listen
  *
  * @common: the ath_common struct for the device.
  *

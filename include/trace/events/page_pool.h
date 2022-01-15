@@ -60,7 +60,7 @@ TRACE_EVENT(page_pool_state_release,
 		__entry->pfn		= page_to_pfn(page);
 	),
 
-	TP_printk("page_pool=%p page=%p pfn=%lu release=%u",
+	TP_printk("page_pool=%p page=%p pfn=0x%lx release=%u",
 		  __entry->pool, __entry->page, __entry->pfn, __entry->release)
 );
 
@@ -85,7 +85,7 @@ TRACE_EVENT(page_pool_state_hold,
 		__entry->pfn	= page_to_pfn(page);
 	),
 
-	TP_printk("page_pool=%p page=%p pfn=%lu hold=%u",
+	TP_printk("page_pool=%p page=%p pfn=0x%lx hold=%u",
 		  __entry->pool, __entry->page, __entry->pfn, __entry->hold)
 );
 

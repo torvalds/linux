@@ -89,7 +89,7 @@ static inline void htt_print_tx_pdev_stats_cmn_tlv(const void *tag_buf,
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "tx_abort = %u",
 			   htt_stats_buf->tx_abort);
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "mpdu_requeued = %u",
-			   htt_stats_buf->mpdu_requed);
+			   htt_stats_buf->mpdu_requeued);
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "tx_xretry = %u",
 			   htt_stats_buf->tx_xretry);
 	len += HTT_DBG_OUT(buf + len, buf_len - len, "data_rc = %u",

@@ -172,7 +172,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_an_config_aneg);
  * @phydev: target phy_device struct
  *
  * Disable auto-negotiation in the Clause 45 PHY. The link parameters
- * parameters are controlled through the PMA/PMD MMD registers.
+ * are controlled through the PMA/PMD MMD registers.
  *
  * Returns zero on success, negative errno code on failure.
  */

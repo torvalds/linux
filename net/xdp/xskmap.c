@@ -12,7 +12,7 @@
 #include "xsk.h"
 
 static struct xsk_map_node *xsk_map_node_alloc(struct xsk_map *map,
-					       struct xdp_sock **map_entry)
+					       struct xdp_sock __rcu **map_entry)
 {
 	struct xsk_map_node *node;
 
@@ -42,7 +42,7 @@ static void xsk_map_sock_add(struct xdp_sock *xs, struct xsk_map_node *node)
 }
 
 static void xsk_map_sock_delete(struct xdp_sock *xs,
-				struct xdp_sock **map_entry)
+				struct xdp_sock __rcu **map_entry)
 {
 	struct xsk_map_node *n, *tmp;
 
@@ -124,6 +124,10 @@ static int xsk_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 	return insn - insn_buf;
 }
 
+/* Elements are kept alive by RCU; either by rcu_read_lock() (from syscall) or
+ * by local_bh_disable() (from XDP calls inside NAPI). The
+ * rcu_read_lock_bh_held() below makes lockdep accept both.
+ */
 static void *__xsk_map_lookup_elem(struct bpf_map *map, u32 key)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
@@ -131,12 +135,11 @@ static void *__xsk_map_lookup_elem(struct bpf_map *map, u32 key)
 	if (key >= map->max_entries)
 		return NULL;
 
-	return READ_ONCE(m->xsk_map[key]);
+	return rcu_dereference_check(m->xsk_map[key], rcu_read_lock_bh_held());
 }
 
 static void *xsk_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	WARN_ON_ONCE(!rcu_read_lock_held());
 	return __xsk_map_lookup_elem(map, *(u32 *)key);
 }
 
@@ -149,7 +152,8 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 			       u64 map_flags)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
-	struct xdp_sock *xs, *old_xs, **map_entry;
+	struct xdp_sock __rcu **map_entry;
+	struct xdp_sock *xs, *old_xs;
 	u32 i = *(u32 *)key, fd = *(u32 *)value;
 	struct xsk_map_node *node;
 	struct socket *sock;
@@ -179,7 +183,7 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 	}
 
 	spin_lock_bh(&m->lock);
-	old_xs = READ_ONCE(*map_entry);
+	old_xs = rcu_dereference_protected(*map_entry, lockdep_is_held(&m->lock));
 	if (old_xs == xs) {
 		err = 0;
 		goto out;
@@ -191,7 +195,7 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 		goto out;
 	}
 	xsk_map_sock_add(xs, node);
-	WRITE_ONCE(*map_entry, xs);
+	rcu_assign_pointer(*map_entry, xs);
 	if (old_xs)
 		xsk_map_sock_delete(old_xs, map_entry);
 	spin_unlock_bh(&m->lock);
@@ -208,7 +212,8 @@ out:
 static int xsk_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct xsk_map *m = container_of(map, struct xsk_map, map);
-	struct xdp_sock *old_xs, **map_entry;
+	struct xdp_sock __rcu **map_entry;
+	struct xdp_sock *old_xs;
 	int k = *(u32 *)key;
 
 	if (k >= map->max_entries)
@@ -216,7 +221,7 @@ static int xsk_map_delete_elem(struct bpf_map *map, void *key)
 
 	spin_lock_bh(&m->lock);
 	map_entry = &m->xsk_map[k];
-	old_xs = xchg(map_entry, NULL);
+	old_xs = unrcu_pointer(xchg(map_entry, NULL));
 	if (old_xs)
 		xsk_map_sock_delete(old_xs, map_entry);
 	spin_unlock_bh(&m->lock);
@@ -226,15 +231,16 @@ static int xsk_map_delete_elem(struct bpf_map *map, void *key)
 
 static int xsk_map_redirect(struct bpf_map *map, u32 ifindex, u64 flags)
 {
-	return __bpf_xdp_redirect_map(map, ifindex, flags, __xsk_map_lookup_elem);
+	return __bpf_xdp_redirect_map(map, ifindex, flags, 0,
+				      __xsk_map_lookup_elem);
 }
 
 void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
-			     struct xdp_sock **map_entry)
+			     struct xdp_sock __rcu **map_entry)
 {
 	spin_lock_bh(&map->lock);
-	if (READ_ONCE(*map_entry) == xs) {
-		WRITE_ONCE(*map_entry, NULL);
+	if (rcu_access_pointer(*map_entry) == xs) {
+		rcu_assign_pointer(*map_entry, NULL);
 		xsk_map_sock_delete(xs, map_entry);
 	}
 	spin_unlock_bh(&map->lock);

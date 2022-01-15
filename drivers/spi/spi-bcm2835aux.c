@@ -143,12 +143,12 @@ static void bcm2835aux_debugfs_remove(struct bcm2835aux_spi *bs)
 }
 #endif /* CONFIG_DEBUG_FS */
 
-static inline u32 bcm2835aux_rd(struct bcm2835aux_spi *bs, unsigned reg)
+static inline u32 bcm2835aux_rd(struct bcm2835aux_spi *bs, unsigned int reg)
 {
 	return readl(bs->regs + reg);
 }
 
-static inline void bcm2835aux_wr(struct bcm2835aux_spi *bs, unsigned reg,
+static inline void bcm2835aux_wr(struct bcm2835aux_spi *bs, unsigned int reg,
 				 u32 val)
 {
 	writel(val, bs->regs + reg);
@@ -384,7 +384,7 @@ static int bcm2835aux_spi_transfer_one(struct spi_master *master,
 	bs->pending = 0;
 
 	/* Calculate the estimated time in us the transfer runs.  Note that
-	 * there are are 2 idle clocks cycles after each chunk getting
+	 * there are 2 idle clocks cycles after each chunk getting
 	 * transferred - in our case the chunk size is 3 bytes, so we
 	 * approximate this by 9 cycles/byte.  This is used to find the number
 	 * of Hz per byte per polling limit.  E.g., we can transfer 1 byte in

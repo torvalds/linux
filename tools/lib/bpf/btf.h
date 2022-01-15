@@ -44,8 +44,17 @@ LIBBPF_API struct btf *btf__parse_elf_split(const char *path, struct btf *base_b
 LIBBPF_API struct btf *btf__parse_raw(const char *path);
 LIBBPF_API struct btf *btf__parse_raw_split(const char *path, struct btf *base_btf);
 
+LIBBPF_API struct btf *btf__load_vmlinux_btf(void);
+LIBBPF_API struct btf *btf__load_module_btf(const char *module_name, struct btf *vmlinux_btf);
+LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
+
+LIBBPF_API struct btf *btf__load_from_kernel_by_id(__u32 id);
+LIBBPF_API struct btf *btf__load_from_kernel_by_id_split(__u32 id, struct btf *base_btf);
+LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
+
 LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_API int btf__load(struct btf *btf);
+LIBBPF_API int btf__load_into_kernel(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
 LIBBPF_API __s32 btf__find_by_name_kind(const struct btf *btf,
@@ -66,7 +75,6 @@ LIBBPF_API void btf__set_fd(struct btf *btf, int fd);
 LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API const char *btf__str_by_offset(const struct btf *btf, __u32 offset);
-LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 				    __u32 expected_key_size,
 				    __u32 expected_value_size,
@@ -88,8 +96,6 @@ int btf_ext__reloc_line_info(const struct btf *btf,
 			     void **line_info, __u32 *cnt);
 LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
 LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
-
-LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
 
 LIBBPF_API int btf__find_str(struct btf *btf, const char *s);
 LIBBPF_API int btf__add_str(struct btf *btf, const char *s);
@@ -183,6 +189,25 @@ struct btf_dump_emit_type_decl_opts {
 LIBBPF_API int
 btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
 			 const struct btf_dump_emit_type_decl_opts *opts);
+
+
+struct btf_dump_type_data_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	const char *indent_str;
+	int indent_level;
+	/* below match "show" flags for bpf_show_snprintf() */
+	bool compact;		/* no newlines/indentation */
+	bool skip_names;	/* skip member/type names */
+	bool emit_zeroes;	/* show 0-valued fields */
+	size_t :0;
+};
+#define btf_dump_type_data_opts__last_field emit_zeroes
+
+LIBBPF_API int
+btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
+			 const void *data, size_t data_sz,
+			 const struct btf_dump_type_data_opts *opts);
 
 /*
  * A set of helpers for easier BTF types handling

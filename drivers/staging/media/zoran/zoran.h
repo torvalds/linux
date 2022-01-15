@@ -158,7 +158,6 @@ struct zoran_jpg_settings {
 	struct v4l2_jpegcompression jpg_comp;	/* JPEG-specific capture settings */
 };
 
-
 struct zoran;
 
 /* zoran_fh contains per-open() settings */

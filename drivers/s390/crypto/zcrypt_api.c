@@ -59,7 +59,6 @@ MODULE_PARM_DESC(hwrng_seed, "Turn on/off hwrng auto seed, default is 1 (on).");
 
 DEFINE_SPINLOCK(zcrypt_list_lock);
 LIST_HEAD(zcrypt_card_list);
-int zcrypt_device_count;
 
 static atomic_t zcrypt_open_count = ATOMIC_INIT(0);
 static atomic_t zcrypt_rescan_count = ATOMIC_INIT(0);
@@ -72,7 +71,7 @@ static LIST_HEAD(zcrypt_ops_list);
 /* Zcrypt related debug feature stuff. */
 debug_info_t *zcrypt_dbf_info;
 
-/**
+/*
  * Process a rescan of the transport layer.
  *
  * Returns 1, if the rescan has been processed, otherwise 0.
@@ -463,7 +462,7 @@ static void zcdn_destroy_all(void)
 
 #endif
 
-/**
+/*
  * zcrypt_read (): Not supported beyond zcrypt 1.3.1.
  *
  * This function is not supported beyond zcrypt 1.3.1.
@@ -474,7 +473,7 @@ static ssize_t zcrypt_read(struct file *filp, char __user *buf,
 	return -EPERM;
 }
 
-/**
+/*
  * zcrypt_write(): Not allowed.
  *
  * Write is is not allowed
@@ -485,7 +484,7 @@ static ssize_t zcrypt_write(struct file *filp, const char __user *buf,
 	return -EPERM;
 }
 
-/**
+/*
  * zcrypt_open(): Count number of users.
  *
  * Device open function to count number of users.
@@ -513,7 +512,7 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 	return stream_open(inode, filp);
 }
 
-/**
+/*
  * zcrypt_release(): Count number of users.
  *
  * Device close function to count number of users.
@@ -573,14 +572,14 @@ static inline struct zcrypt_queue *zcrypt_pick_queue(struct zcrypt_card *zc,
 						     struct module **pmod,
 						     unsigned int weight)
 {
-	if (!zq || !try_module_get(zq->queue->ap_dev.drv->driver.owner))
+	if (!zq || !try_module_get(zq->queue->ap_dev.device.driver->owner))
 		return NULL;
 	zcrypt_queue_get(zq);
 	get_device(&zq->queue->ap_dev.device);
 	atomic_add(weight, &zc->load);
 	atomic_add(weight, &zq->load);
 	zq->request_count++;
-	*pmod = zq->queue->ap_dev.drv->driver.owner;
+	*pmod = zq->queue->ap_dev.device.driver->owner;
 	return zq;
 }
 
@@ -901,6 +900,9 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 		if (xcRB->user_defined != AUTOSELECT &&
 		    xcRB->user_defined != zc->card->id)
 			continue;
+		/* check if request size exceeds card max msg size */
+		if (ap_msg.len > zc->card->maxmsgsize)
+			continue;
 		/* check if device node has admission for this card */
 		if (!zcrypt_check_card(perms, zc->card->id))
 			continue;
@@ -1068,6 +1070,9 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 		/* Check for user selected EP11 card */
 		if (targets &&
 		    !is_desired_ep11_card(zc->card->id, target_num, targets))
+			continue;
+		/* check if request size exceeds card max msg size */
+		if (ap_msg.len > zc->card->maxmsgsize)
 			continue;
 		/* check if device node has admission for this card */
 		if (!zcrypt_check_card(perms, zc->card->id))
@@ -2148,7 +2153,7 @@ static void zcdn_exit(void)
 
 #endif
 
-/**
+/*
  * zcrypt_api_init(): Module initialization.
  *
  * The module initialization code.
@@ -2186,7 +2191,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * zcrypt_api_exit(): Module termination.
  *
  * The module termination code.

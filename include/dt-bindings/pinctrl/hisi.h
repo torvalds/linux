@@ -1,7 +1,7 @@
 /*
  * This header provides constants for hisilicon pinctrl bindings.
  *
- * Copyright (c) 2015 Hisilicon Limited.
+ * Copyright (c) 2015 HiSilicon Limited.
  * Copyright (c) 2015 Linaro Limited.
  *
  * This program is free software; you can redistribute it and/or modify

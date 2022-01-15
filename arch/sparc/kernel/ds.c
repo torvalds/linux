@@ -1236,11 +1236,6 @@ out_err:
 	return err;
 }
 
-static int ds_remove(struct vio_dev *vdev)
-{
-	return 0;
-}
-
 static const struct vio_device_id ds_match[] = {
 	{
 		.type = "domain-services-port",
@@ -1251,7 +1246,6 @@ static const struct vio_device_id ds_match[] = {
 static struct vio_driver ds_driver = {
 	.id_table	= ds_match,
 	.probe		= ds_probe,
-	.remove		= ds_remove,
 	.name		= "ds",
 };
 

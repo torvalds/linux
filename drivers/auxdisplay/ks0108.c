@@ -28,11 +28,11 @@
  */
 
 static unsigned int ks0108_port = CONFIG_KS0108_PORT;
-module_param(ks0108_port, uint, S_IRUGO);
+module_param(ks0108_port, uint, 0444);
 MODULE_PARM_DESC(ks0108_port, "Parallel port where the LCD is connected");
 
 static unsigned int ks0108_delay = CONFIG_KS0108_DELAY;
-module_param(ks0108_delay, uint, S_IRUGO);
+module_param(ks0108_delay, uint, 0444);
 MODULE_PARM_DESC(ks0108_delay, "Delay between each control writing (microseconds)");
 
 /*
@@ -167,19 +167,7 @@ static struct parport_driver ks0108_parport_driver = {
 	.detach = ks0108_parport_detach,
 	.devmodel = true,
 };
-
-static int __init ks0108_init(void)
-{
-	return parport_register_driver(&ks0108_parport_driver);
-}
-
-static void __exit ks0108_exit(void)
-{
-	parport_unregister_driver(&ks0108_parport_driver);
-}
-
-module_init(ks0108_init);
-module_exit(ks0108_exit);
+module_parport_driver(ks0108_parport_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Miguel Ojeda <ojeda@kernel.org>");

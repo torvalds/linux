@@ -112,7 +112,6 @@ config ARCH_OMAP2PLUS
 	select PM_GENERIC_DOMAINS
 	select PM_GENERIC_DOMAINS_OF
 	select RESET_CONTROLLER
-	select SIMPLE_PM_BUS
 	select SOC_BUS
 	select TI_SYSC
 	select OMAP_IRQCHIP
@@ -181,18 +180,6 @@ config SOC_TI81XX
 	depends on ARCH_OMAP3
 	default y
 
-config OMAP_PACKAGE_CBC
-       bool
-
-config OMAP_PACKAGE_CBB
-       bool
-
-config OMAP_PACKAGE_CUS
-       bool
-
-config OMAP_PACKAGE_CBP
-       bool
-
 comment "OMAP Legacy Platform Data Board Type"
 	depends on ARCH_OMAP2PLUS
 
@@ -203,17 +190,6 @@ config MACH_OMAP2_TUSB6010
 	bool
 	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
-
-config MACH_OMAP3517EVM
-	bool "OMAP3517/ AM3517 EVM board"
-	depends on ARCH_OMAP3
-	default y
-
-config MACH_OMAP3_PANDORA
-	bool "OMAP3 Pandora"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
 
 config MACH_NOKIA_N810
        bool

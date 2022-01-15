@@ -78,83 +78,12 @@ enum {
 	BTC_CHIP_MAX
 };
 
-enum {
-	BTC_MSG_INTERFACE	= 0x0,
-	BTC_MSG_ALGORITHM	= 0x1,
-	BTC_MSG_MAX
-};
-extern u32 		GLBtcDbgType[];
-
-/*  following is for BTC_MSG_INTERFACE */
-#define INTF_INIT	BIT0
-#define INTF_NOTIFY	BIT2
-
-/*  following is for BTC_ALGORITHM */
-#define ALGO_BT_RSSI_STATE				BIT0
-#define ALGO_WIFI_RSSI_STATE			BIT1
-#define ALGO_BT_MONITOR					BIT2
-#define ALGO_TRACE						BIT3
-#define ALGO_TRACE_FW					BIT4
-#define ALGO_TRACE_FW_DETAIL			BIT5
-#define ALGO_TRACE_FW_EXEC				BIT6
-#define ALGO_TRACE_SW					BIT7
-#define ALGO_TRACE_SW_DETAIL			BIT8
-#define ALGO_TRACE_SW_EXEC				BIT9
-
 /*  following is for wifi link status */
 #define WIFI_STA_CONNECTED				BIT0
 #define WIFI_AP_CONNECTED				BIT1
 #define WIFI_HS_CONNECTED				BIT2
 #define WIFI_P2P_GO_CONNECTED			BIT3
 #define WIFI_P2P_GC_CONNECTED			BIT4
-
-/*  following is for command line utility */
-#define CL_SPRINTF	snprintf
-#define CL_PRINTF	DCMD_Printf
-
-/*  The following is for dbgview print */
-#if DBG
-#define BTC_PRINT(dbgtype, dbgflag, printstr)\
-{\
-	if (GLBtcDbgType[dbgtype] & dbgflag)\
-		DbgPrint printstr;\
-}
-
-#define BTC_PRINT_ADDR(dbgtype, dbgflag, printstr, _Ptr)\
-{\
-	if (GLBtcDbgType[dbgtype] & dbgflag) {\
-		int __i;\
-		u8 *ptr = (u8 *)_Ptr;\
-		DbgPrint printstr;\
-		DbgPrint(" ");\
-		for (__i = 0; __i < 6; __i++)\
-			DbgPrint("%02X%s", ptr[__i], (__i == 5) ? "" : "-");\
-		DbgPrint("\n");\
-	} \
-}
-
-#define BTC_PRINT_DATA(dbgtype, dbgflag, _TitleString, _HexData, _HexDataLen)\
-{\
-	if (GLBtcDbgType[dbgtype] & dbgflag) {\
-		int __i;\
-		u8 *ptr = (u8 *)_HexData;\
-		DbgPrint(_TitleString);\
-		for (__i = 0; __i < (int)_HexDataLen; __i++) {\
-			DbgPrint("%02X%s", ptr[__i], (((__i + 1) % 4) == 0) ? "  " : " ");\
-			if (((__i + 1) % 16) == 0)\
-				DbgPrint("\n");\
-		} \
-		DbgPrint("\n");\
-	} \
-}
-
-#else
-#define BTC_PRINT(dbgtype, dbgflag, printstr)		 no_printk printstr
-#define BTC_PRINT_F(dbgtype, dbgflag, printstr)		 no_printk printstr
-#define BTC_PRINT_ADDR(dbgtype, dbgflag, printstr, _Ptr) no_printk printstr
-#define BTC_PRINT_DATA(dbgtype, dbgflag, _TitleString, _HexData, _HexDataLen) \
-			no_printk("%s %p %zu", _TitleString, _HexData, _HexDataLen)
-#endif
 
 struct btc_board_info {
 	/*  The following is some board information */
@@ -209,7 +138,6 @@ enum {
 	BTC_GET_BL_WIFI_LINK,
 	BTC_GET_BL_WIFI_ROAM,
 	BTC_GET_BL_WIFI_4_WAY_PROGRESS,
-	BTC_GET_BL_WIFI_UNDER_5G,
 	BTC_GET_BL_WIFI_AP_MODE_ENABLE,
 	BTC_GET_BL_WIFI_ENABLE_ENCRYPTION,
 	BTC_GET_BL_WIFI_UNDER_B_MODE,
@@ -452,7 +380,6 @@ struct btc_coexist {
 	bool bInitilized;
 	bool bStopCoexDm;
 	bool bManualControl;
-	u8 *cliBuf;
 	struct btc_statistics statistics;
 	u8 pwrModeVal[10];
 
@@ -476,8 +403,6 @@ struct btc_coexist {
 
 	/*  fill h2c related */
 	BFP_BTC_FILL_H2C fBtcFillH2c;
-	/*  other */
-	BFP_BTC_DISP_DBG_MSG fBtcDispDbgMsg;
 	/*  normal get/set related */
 	BFP_BTC_GET fBtcGet;
 	BFP_BTC_SET fBtcSet;
@@ -508,6 +433,5 @@ void EXhalbtcoutsrc_Periodical(struct btc_coexist *pBtCoexist);
 void EXhalbtcoutsrc_SetChipType(u8 chipType);
 void EXhalbtcoutsrc_SetAntNum(u8 type, u8 antNum);
 void EXhalbtcoutsrc_SetSingleAntPath(u8 singleAntPath);
-void EXhalbtcoutsrc_DisplayBtCoexInfo(struct btc_coexist *pBtCoexist);
 
 #endif

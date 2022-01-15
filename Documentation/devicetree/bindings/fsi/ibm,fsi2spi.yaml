@@ -19,7 +19,6 @@ properties:
   compatible:
     enum:
       - ibm,fsi2spi
-      - ibm,fsi2spi-restricted
 
   reg:
     items:

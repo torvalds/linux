@@ -18,6 +18,7 @@
 #include <linux/extable.h>
 #include <linux/ftrace.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
 
 #include <asm/interrupt.h>
 #include <asm/machdep.h>
@@ -248,6 +249,7 @@ void machine_check_queue_event(void)
 {
 	int index;
 	struct machine_check_event evt;
+	unsigned long msr;
 
 	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
 		return;
@@ -261,8 +263,20 @@ void machine_check_queue_event(void)
 	memcpy(&local_paca->mce_info->mce_event_queue[index],
 	       &evt, sizeof(evt));
 
-	/* Queue irq work to process this event later. */
-	irq_work_queue(&mce_event_process_work);
+	/*
+	 * Queue irq work to process this event later. Before
+	 * queuing the work enable translation for non radix LPAR,
+	 * as irq_work_queue may try to access memory outside RMO
+	 * region.
+	 */
+	if (!radix_enabled() && firmware_has_feature(FW_FEATURE_LPAR)) {
+		msr = mfmsr();
+		mtmsr(msr | MSR_IR | MSR_DR);
+		irq_work_queue(&mce_event_process_work);
+		mtmsr(msr);
+	} else {
+		irq_work_queue(&mce_event_process_work);
+	}
 }
 
 void mce_common_process_ue(struct pt_regs *regs,
@@ -273,7 +287,7 @@ void mce_common_process_ue(struct pt_regs *regs,
 	entry = search_kernel_exception_table(regs->nip);
 	if (entry) {
 		mce_err->ignore_event = true;
-		regs->nip = extable_fixup(entry);
+		regs_set_return_ip(regs, extable_fixup(entry));
 	}
 }
 

@@ -113,11 +113,11 @@ static void oaktrail_lvds_mode_set(struct drm_encoder *encoder,
 
 	/* Find the connector we're trying to set up */
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		if (!connector->encoder || connector->encoder->crtc != crtc)
-			continue;
+		if (connector->encoder && connector->encoder->crtc == crtc)
+			break;
 	}
 
-	if (!connector) {
+	if (list_entry_is_head(connector, &mode_config->connector_list, head)) {
 		DRM_ERROR("Couldn't find connector when setting mode");
 		gma_power_end(dev);
 		return;

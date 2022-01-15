@@ -325,13 +325,10 @@ static void print_verbose_info(struct task_struct *task)
 	print_irqtrace_events(task);
 }
 
-/*
- * Returns true if a report was generated, false otherwise.
- */
-static bool print_report(enum kcsan_value_change value_change,
-			 enum kcsan_report_type type,
+static void print_report(enum kcsan_value_change value_change,
 			 const struct access_info *ai,
-			 const struct other_info *other_info)
+			 const struct other_info *other_info,
+			 u64 old, u64 new, u64 mask)
 {
 	unsigned long stack_entries[NUM_STACK_ENTRIES] = { 0 };
 	int num_stack_entries = stack_trace_save(stack_entries, NUM_STACK_ENTRIES, 1);
@@ -344,25 +341,24 @@ static bool print_report(enum kcsan_value_change value_change,
 	 * Must check report filter rules before starting to print.
 	 */
 	if (skip_report(KCSAN_VALUE_CHANGE_TRUE, stack_entries[skipnr]))
-		return false;
+		return;
 
-	if (type == KCSAN_REPORT_RACE_SIGNAL) {
+	if (other_info) {
 		other_skipnr = get_stack_skipnr(other_info->stack_entries,
 						other_info->num_stack_entries);
 		other_frame = other_info->stack_entries[other_skipnr];
 
 		/* @value_change is only known for the other thread */
 		if (skip_report(value_change, other_frame))
-			return false;
+			return;
 	}
 
 	if (rate_limit_report(this_frame, other_frame))
-		return false;
+		return;
 
 	/* Print report header. */
 	pr_err("==================================================================\n");
-	switch (type) {
-	case KCSAN_REPORT_RACE_SIGNAL: {
+	if (other_info) {
 		int cmp;
 
 		/*
@@ -374,22 +370,15 @@ static bool print_report(enum kcsan_value_change value_change,
 		       get_bug_type(ai->access_type | other_info->ai.access_type),
 		       (void *)(cmp < 0 ? other_frame : this_frame),
 		       (void *)(cmp < 0 ? this_frame : other_frame));
-	} break;
-
-	case KCSAN_REPORT_RACE_UNKNOWN_ORIGIN:
+	} else {
 		pr_err("BUG: KCSAN: %s in %pS\n", get_bug_type(ai->access_type),
 		       (void *)this_frame);
-		break;
-
-	default:
-		BUG();
 	}
 
 	pr_err("\n");
 
 	/* Print information about the racing accesses. */
-	switch (type) {
-	case KCSAN_REPORT_RACE_SIGNAL:
+	if (other_info) {
 		pr_err("%s to 0x%px of %zu bytes by %s on cpu %i:\n",
 		       get_access_type(other_info->ai.access_type), other_info->ai.ptr,
 		       other_info->ai.size, get_thread_desc(other_info->ai.task_pid),
@@ -407,16 +396,10 @@ static bool print_report(enum kcsan_value_change value_change,
 		pr_err("%s to 0x%px of %zu bytes by %s on cpu %i:\n",
 		       get_access_type(ai->access_type), ai->ptr, ai->size,
 		       get_thread_desc(ai->task_pid), ai->cpu_id);
-		break;
-
-	case KCSAN_REPORT_RACE_UNKNOWN_ORIGIN:
+	} else {
 		pr_err("race at unknown origin, with %s to 0x%px of %zu bytes by %s on cpu %i:\n",
 		       get_access_type(ai->access_type), ai->ptr, ai->size,
 		       get_thread_desc(ai->task_pid), ai->cpu_id);
-		break;
-
-	default:
-		BUG();
 	}
 	/* Print stack trace of this thread. */
 	stack_trace_print(stack_entries + skipnr, num_stack_entries - skipnr,
@@ -425,24 +408,41 @@ static bool print_report(enum kcsan_value_change value_change,
 	if (IS_ENABLED(CONFIG_KCSAN_VERBOSE))
 		print_verbose_info(current);
 
+	/* Print observed value change. */
+	if (ai->size <= 8) {
+		int hex_len = ai->size * 2;
+		u64 diff = old ^ new;
+
+		if (mask)
+			diff &= mask;
+		if (diff) {
+			pr_err("\n");
+			pr_err("value changed: 0x%0*llx -> 0x%0*llx\n",
+			       hex_len, old, hex_len, new);
+			if (mask) {
+				pr_err(" bits changed: 0x%0*llx with mask 0x%0*llx\n",
+				       hex_len, diff, hex_len, mask);
+			}
+		}
+	}
+
 	/* Print report footer. */
 	pr_err("\n");
 	pr_err("Reported by Kernel Concurrency Sanitizer on:\n");
 	dump_stack_print_info(KERN_DEFAULT);
 	pr_err("==================================================================\n");
 
-	return true;
+	if (panic_on_warn)
+		panic("panic_on_warn set ...\n");
 }
 
 static void release_report(unsigned long *flags, struct other_info *other_info)
 {
-	if (other_info)
-		/*
-		 * Use size to denote valid/invalid, since KCSAN entirely
-		 * ignores 0-sized accesses.
-		 */
-		other_info->ai.size = 0;
-
+	/*
+	 * Use size to denote valid/invalid, since KCSAN entirely ignores
+	 * 0-sized accesses.
+	 */
+	other_info->ai.size = 0;
 	raw_spin_unlock_irqrestore(&report_lock, *flags);
 }
 
@@ -460,7 +460,7 @@ static void set_other_info_task_blocking(unsigned long *flags,
 	 * We may be instrumenting a code-path where current->state is already
 	 * something other than TASK_RUNNING.
 	 */
-	const bool is_running = current->state == TASK_RUNNING;
+	const bool is_running = task_is_running(current);
 	/*
 	 * To avoid deadlock in case we are in an interrupt here and this is a
 	 * race with a task on the same CPU (KCSAN_INTERRUPT_WATCHER), provide a
@@ -575,48 +575,42 @@ discard:
 	return false;
 }
 
-/*
- * Depending on the report type either sets @other_info and returns false, or
- * awaits @other_info and returns true. If @other_info is not required for the
- * report type, simply acquires @report_lock and returns true.
- */
-static noinline bool prepare_report(unsigned long *flags,
-				    enum kcsan_report_type type,
-				    const struct access_info *ai,
-				    struct other_info *other_info)
+static struct access_info prepare_access_info(const volatile void *ptr, size_t size,
+					      int access_type)
 {
-	switch (type) {
-	case KCSAN_REPORT_CONSUMED_WATCHPOINT:
-		prepare_report_producer(flags, ai, other_info);
-		return false;
-	case KCSAN_REPORT_RACE_SIGNAL:
-		return prepare_report_consumer(flags, ai, other_info);
-	default:
-		/* @other_info not required; just acquire @report_lock. */
-		raw_spin_lock_irqsave(&report_lock, *flags);
-		return true;
-	}
-}
-
-void kcsan_report(const volatile void *ptr, size_t size, int access_type,
-		  enum kcsan_value_change value_change,
-		  enum kcsan_report_type type, int watchpoint_idx)
-{
-	unsigned long flags = 0;
-	const struct access_info ai = {
+	return (struct access_info) {
 		.ptr		= ptr,
 		.size		= size,
 		.access_type	= access_type,
 		.task_pid	= in_task() ? task_pid_nr(current) : -1,
 		.cpu_id		= raw_smp_processor_id()
 	};
-	struct other_info *other_info = type == KCSAN_REPORT_RACE_UNKNOWN_ORIGIN
-					? NULL : &other_infos[watchpoint_idx];
+}
+
+void kcsan_report_set_info(const volatile void *ptr, size_t size, int access_type,
+			   int watchpoint_idx)
+{
+	const struct access_info ai = prepare_access_info(ptr, size, access_type);
+	unsigned long flags;
 
 	kcsan_disable_current();
-	if (WARN_ON(watchpoint_idx < 0 || watchpoint_idx >= ARRAY_SIZE(other_infos)))
-		goto out;
+	lockdep_off(); /* See kcsan_report_known_origin(). */
 
+	prepare_report_producer(&flags, &ai, &other_infos[watchpoint_idx]);
+
+	lockdep_on();
+	kcsan_enable_current();
+}
+
+void kcsan_report_known_origin(const volatile void *ptr, size_t size, int access_type,
+			       enum kcsan_value_change value_change, int watchpoint_idx,
+			       u64 old, u64 new, u64 mask)
+{
+	const struct access_info ai = prepare_access_info(ptr, size, access_type);
+	struct other_info *other_info = &other_infos[watchpoint_idx];
+	unsigned long flags = 0;
+
+	kcsan_disable_current();
 	/*
 	 * Because we may generate reports when we're in scheduler code, the use
 	 * of printk() could deadlock. Until such time that all printing code
@@ -626,22 +620,35 @@ void kcsan_report(const volatile void *ptr, size_t size, int access_type,
 	 */
 	lockdep_off();
 
-	if (prepare_report(&flags, type, &ai, other_info)) {
-		/*
-		 * Never report if value_change is FALSE, only if we it is
-		 * either TRUE or MAYBE. In case of MAYBE, further filtering may
-		 * be done once we know the full stack trace in print_report().
-		 */
-		bool reported = value_change != KCSAN_VALUE_CHANGE_FALSE &&
-				print_report(value_change, type, &ai, other_info);
+	if (!prepare_report_consumer(&flags, &ai, other_info))
+		goto out;
+	/*
+	 * Never report if value_change is FALSE, only when it is
+	 * either TRUE or MAYBE. In case of MAYBE, further filtering may
+	 * be done once we know the full stack trace in print_report().
+	 */
+	if (value_change != KCSAN_VALUE_CHANGE_FALSE)
+		print_report(value_change, &ai, other_info, old, new, mask);
 
-		if (reported && panic_on_warn)
-			panic("panic_on_warn set ...\n");
+	release_report(&flags, other_info);
+out:
+	lockdep_on();
+	kcsan_enable_current();
+}
 
-		release_report(&flags, other_info);
-	}
+void kcsan_report_unknown_origin(const volatile void *ptr, size_t size, int access_type,
+				 u64 old, u64 new, u64 mask)
+{
+	const struct access_info ai = prepare_access_info(ptr, size, access_type);
+	unsigned long flags;
+
+	kcsan_disable_current();
+	lockdep_off(); /* See kcsan_report_known_origin(). */
+
+	raw_spin_lock_irqsave(&report_lock, flags);
+	print_report(KCSAN_VALUE_CHANGE_TRUE, &ai, NULL, old, new, mask);
+	raw_spin_unlock_irqrestore(&report_lock, flags);
 
 	lockdep_on();
-out:
 	kcsan_enable_current();
 }

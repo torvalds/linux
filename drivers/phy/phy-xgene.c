@@ -961,7 +961,8 @@ static void xgene_phy_sata_cfg_lanes(struct xgene_phy_ctx *ctx)
 		serdes_wr(ctx, lane, RXTX_REG1, val);
 
 		/* Latch VTT value based on the termination to ground and
-		   enable TX FIFO */
+		 * enable TX FIFO
+		 */
 		serdes_rd(ctx, lane, RXTX_REG2, &val);
 		val = RXTX_REG2_VTT_ENA_SET(val, 0x1);
 		val = RXTX_REG2_VTT_SEL_SET(val, 0x1);

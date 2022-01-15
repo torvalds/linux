@@ -50,7 +50,7 @@ xfs_compat_ioc_fsgeometry_v1(
 {
 	struct xfs_fsop_geom	  fsgeo;
 
-	xfs_fs_geometry(&mp->m_sb, &fsgeo, 3);
+	xfs_fs_geometry(mp, &fsgeo, 3);
 	/* The 32-bit variant simply has some padding at the end */
 	if (copy_to_user(arg32, &fsgeo, sizeof(struct compat_xfs_fsop_geom_v1)))
 		return -EFAULT;
@@ -254,7 +254,7 @@ xfs_compat_ioc_fsbulkstat(
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	if (get_user(addr, &p32->lastip))

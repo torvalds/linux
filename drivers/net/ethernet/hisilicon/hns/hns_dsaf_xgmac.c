@@ -104,7 +104,7 @@ static void hns_xgmac_rx_enable(struct mac_driver *drv, u32 value)
 }
 
 /**
- * hns_xgmac_tx_lf_rf_insert - insert lf rf control about xgmac
+ * hns_xgmac_lf_rf_insert - insert lf rf control about xgmac
  * @mac_drv: mac driver
  * @mode: inserf rf or lf
  */
@@ -115,7 +115,7 @@ static void hns_xgmac_lf_rf_insert(struct mac_driver *mac_drv, u32 mode)
 }
 
 /**
- * hns_xgmac__lf_rf_control_init - initial the lf rf control register
+ * hns_xgmac_lf_rf_control_init - initial the lf rf control register
  * @mac_drv: mac driver
  */
 static void hns_xgmac_lf_rf_control_init(struct mac_driver *mac_drv)

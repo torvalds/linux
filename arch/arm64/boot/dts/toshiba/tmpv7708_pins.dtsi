@@ -90,4 +90,9 @@
 		groups = "i2c8_grp";
 		bias-pull-up;
 	};
+
+	pwm_mux: pwm_mux {
+		function = "pwm";
+	};
+
 };

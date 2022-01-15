@@ -554,7 +554,7 @@
 		};
 
 		hda@3510000 {
-			nvidia,model = "jetson-xavier-hda";
+			nvidia,model = "NVIDIA Jetson AGX Xavier HDA";
 			status = "okay";
 		};
 
@@ -831,7 +831,7 @@
 		       <&i2s1_port>, <&i2s2_port>, <&i2s4_port>, <&i2s6_port>,
 		       <&dmic3_port>;
 
-		label = "jetson-xavier-ape";
+		label = "NVIDIA Jetson AGX Xavier APE";
 
 		widgets =
 			"Microphone",	"CVB-RT MIC Jack",

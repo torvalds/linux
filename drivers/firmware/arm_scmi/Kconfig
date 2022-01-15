@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "ARM System Control and Management Interface Protocol"
+
+config ARM_SCMI_PROTOCOL
+	tristate "ARM System Control and Management Interface (SCMI) Message Protocol"
+	depends on ARM || ARM64 || COMPILE_TEST
+	help
+	  ARM System Control and Management Interface (SCMI) protocol is a
+	  set of operating system-independent software interfaces that are
+	  used in system management. SCMI is extensible and currently provides
+	  interfaces for: Discovery and self-description of the interfaces
+	  it supports, Power domain management which is the ability to place
+	  a given device or domain into the various power-saving states that
+	  it supports, Performance management which is the ability to control
+	  the performance of a domain that is composed of compute engines
+	  such as application processors and other accelerators, Clock
+	  management which is the ability to set and inquire rates on platform
+	  managed clocks and Sensor management which is the ability to read
+	  sensor data, and be notified of sensor value.
+
+	  This protocol library provides interface for all the client drivers
+	  making use of the features offered by the SCMI.
+
+if ARM_SCMI_PROTOCOL
+
+config ARM_SCMI_HAVE_TRANSPORT
+	bool
+	help
+	  This declares whether at least one SCMI transport has been configured.
+	  Used to trigger a build bug when trying to build SCMI without any
+	  configured transport.
+
+config ARM_SCMI_HAVE_SHMEM
+	bool
+	help
+	  This declares whether a shared memory based transport for SCMI is
+	  available.
+
+config ARM_SCMI_HAVE_MSG
+	bool
+	help
+	  This declares whether a message passing based transport for SCMI is
+	  available.
+
+config ARM_SCMI_TRANSPORT_MAILBOX
+	bool "SCMI transport based on Mailbox"
+	depends on MAILBOX
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
+	default y
+	help
+	  Enable mailbox based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on mailboxes, answer Y.
+
+config ARM_SCMI_TRANSPORT_SMC
+	bool "SCMI transport based on SMC"
+	depends on HAVE_ARM_SMCCC_DISCOVERY
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
+	default y
+	help
+	  Enable SMC based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on SMC, answer Y.
+
+config ARM_SCMI_TRANSPORT_VIRTIO
+	bool "SCMI transport based on VirtIO"
+	depends on VIRTIO=y || VIRTIO=ARM_SCMI_PROTOCOL
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_MSG
+	help
+	  This enables the virtio based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on VirtIO, answer Y.
+
+endif #ARM_SCMI_PROTOCOL
+
+config ARM_SCMI_POWER_DOMAIN
+	tristate "SCMI power domain driver"
+	depends on ARM_SCMI_PROTOCOL || (COMPILE_TEST && OF)
+	default y
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  This enables support for the SCMI power domains which can be
+	  enabled or disabled via the SCP firmware
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called scmi_pm_domain. Note this may needed early in boot
+	  before rootfs may be available.
+
+endmenu

@@ -96,9 +96,9 @@ static int dbr_get_mask_size(u16 size)
 }
 
 /**
- * Allocates DBR memory.
- * @param size Allocating memory size.
- * @return Offset in DBR memory by success or DBR_SIZE if out of memory.
+ * alloc_dbr() - Allocates DBR memory.
+ * @size: Allocating memory size.
+ * Returns: Offset in DBR memory by success or DBR_SIZE if out of memory.
  */
 static int alloc_dbr(u16 size)
 {
@@ -778,7 +778,7 @@ void dim_service_mlb_int_irq(void)
 	writel(0, &g.dim2->MS1);
 }
 
-/**
+/*
  * Retrieves maximal possible correct buffer size for isochronous data type
  * conform to given packet length and not bigger than given buffer size.
  *
@@ -792,7 +792,7 @@ u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
 	return norm_isoc_buffer_size(buf_size, packet_length);
 }
 
-/**
+/*
  * Retrieves maximal possible correct buffer size for synchronous data type
  * conform to given bytes per frame and not bigger than given buffer size.
  *

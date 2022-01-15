@@ -8,33 +8,9 @@
  */
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
 #include <linux/io.h>
 #include <linux/export.h>
-#include <asm/cacheflush.h>
 
-#include "pgalloc-track.h"
-
-#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-static unsigned int __ro_after_init iomap_max_page_shift = BITS_PER_LONG - 1;
-
-static int __init set_nohugeiomap(char *str)
-{
-	iomap_max_page_shift = PAGE_SHIFT;
-	return 0;
-}
-early_param("nohugeiomap", set_nohugeiomap);
-#else /* CONFIG_HAVE_ARCH_HUGE_VMAP */
-static const unsigned int iomap_max_page_shift = PAGE_SHIFT;
-#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
-
-int ioremap_page_range(unsigned long addr,
-		       unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
-{
-	return vmap_range(addr, end, phys_addr, prot, iomap_max_page_shift);
-}
-
-#ifdef CONFIG_GENERIC_IOREMAP
 void __iomem *ioremap_prot(phys_addr_t addr, size_t size, unsigned long prot)
 {
 	unsigned long offset, vaddr;
@@ -71,4 +47,3 @@ void iounmap(volatile void __iomem *addr)
 	vunmap((void *)((unsigned long)addr & PAGE_MASK));
 }
 EXPORT_SYMBOL(iounmap);
-#endif /* CONFIG_GENERIC_IOREMAP */

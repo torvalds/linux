@@ -27,7 +27,6 @@
 
 #include <linux/pci.h>
 
-#include <drm/drm_agpsupport.h>
 #include <drm/drm_device.h>
 #include <drm/radeon_drm.h>
 
@@ -127,38 +126,127 @@ static struct radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
 		PCI_VENDOR_ID_SONY, 0x8175, 1},
 	{ 0, 0, 0, 0, 0, 0, 0 },
 };
+
+struct radeon_agp_head *radeon_agp_head_init(struct drm_device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct radeon_agp_head *head = NULL;
+
+	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	if (!head)
+		return NULL;
+	head->bridge = agp_find_bridge(pdev);
+	if (!head->bridge) {
+		head->bridge = agp_backend_acquire(pdev);
+		if (!head->bridge) {
+			kfree(head);
+			return NULL;
+		}
+		agp_copy_info(head->bridge, &head->agp_info);
+		agp_backend_release(head->bridge);
+	} else {
+		agp_copy_info(head->bridge, &head->agp_info);
+	}
+	if (head->agp_info.chipset == NOT_SUPPORTED) {
+		kfree(head);
+		return NULL;
+	}
+	INIT_LIST_HEAD(&head->memory);
+	head->cant_use_aperture = head->agp_info.cant_use_aperture;
+	head->page_mask = head->agp_info.page_mask;
+	head->base = head->agp_info.aper_base;
+
+	return head;
+}
+
+static int radeon_agp_head_acquire(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	if (!rdev->agp)
+		return -ENODEV;
+	if (rdev->agp->acquired)
+		return -EBUSY;
+	rdev->agp->bridge = agp_backend_acquire(pdev);
+	if (!rdev->agp->bridge)
+		return -ENODEV;
+	rdev->agp->acquired = 1;
+	return 0;
+}
+
+static int radeon_agp_head_release(struct radeon_device *rdev)
+{
+	if (!rdev->agp || !rdev->agp->acquired)
+		return -EINVAL;
+	agp_backend_release(rdev->agp->bridge);
+	rdev->agp->acquired = 0;
+	return 0;
+}
+
+static int radeon_agp_head_enable(struct radeon_device *rdev, struct radeon_agp_mode mode)
+{
+	if (!rdev->agp || !rdev->agp->acquired)
+		return -EINVAL;
+
+	rdev->agp->mode = mode.mode;
+	agp_enable(rdev->agp->bridge, mode.mode);
+	rdev->agp->enabled = 1;
+	return 0;
+}
+
+static int radeon_agp_head_info(struct radeon_device *rdev, struct radeon_agp_info *info)
+{
+	struct agp_kern_info *kern;
+
+	if (!rdev->agp || !rdev->agp->acquired)
+		return -EINVAL;
+
+	kern = &rdev->agp->agp_info;
+	info->agp_version_major = kern->version.major;
+	info->agp_version_minor = kern->version.minor;
+	info->mode = kern->mode;
+	info->aperture_base = kern->aper_base;
+	info->aperture_size = kern->aper_size * 1024 * 1024;
+	info->memory_allowed = kern->max_memory << PAGE_SHIFT;
+	info->memory_used = kern->current_memory << PAGE_SHIFT;
+	info->id_vendor = kern->device->vendor;
+	info->id_device = kern->device->device;
+
+	return 0;
+}
 #endif
 
 int radeon_agp_init(struct radeon_device *rdev)
 {
 #if IS_ENABLED(CONFIG_AGP)
 	struct radeon_agpmode_quirk *p = radeon_agpmode_quirk_list;
-	struct drm_agp_mode mode;
-	struct drm_agp_info info;
+	struct radeon_agp_mode mode;
+	struct radeon_agp_info info;
 	uint32_t agp_status;
 	int default_mode;
 	bool is_v3;
 	int ret;
 
 	/* Acquire AGP. */
-	ret = drm_agp_acquire(rdev->ddev);
+	ret = radeon_agp_head_acquire(rdev);
 	if (ret) {
 		DRM_ERROR("Unable to acquire AGP: %d\n", ret);
 		return ret;
 	}
 
-	ret = drm_agp_info(rdev->ddev, &info);
+	ret = radeon_agp_head_info(rdev, &info);
 	if (ret) {
-		drm_agp_release(rdev->ddev);
+		radeon_agp_head_release(rdev);
 		DRM_ERROR("Unable to get AGP info: %d\n", ret);
 		return ret;
 	}
 
-	if (rdev->ddev->agp->agp_info.aper_size < 32) {
-		drm_agp_release(rdev->ddev);
+	if (rdev->agp->agp_info.aper_size < 32) {
+		radeon_agp_head_release(rdev);
 		dev_warn(rdev->dev, "AGP aperture too small (%zuM) "
 			"need at least 32M, disabling AGP\n",
-			rdev->ddev->agp->agp_info.aper_size);
+			rdev->agp->agp_info.aper_size);
 		return -EINVAL;
 	}
 
@@ -239,15 +327,15 @@ int radeon_agp_init(struct radeon_device *rdev)
 	}
 
 	mode.mode &= ~RADEON_AGP_FW_MODE; /* disable fw */
-	ret = drm_agp_enable(rdev->ddev, mode);
+	ret = radeon_agp_head_enable(rdev, mode);
 	if (ret) {
 		DRM_ERROR("Unable to enable AGP (mode = 0x%lx)\n", mode.mode);
-		drm_agp_release(rdev->ddev);
+		radeon_agp_head_release(rdev);
 		return ret;
 	}
 
-	rdev->mc.agp_base = rdev->ddev->agp->agp_info.aper_base;
-	rdev->mc.gtt_size = rdev->ddev->agp->agp_info.aper_size << 20;
+	rdev->mc.agp_base = rdev->agp->agp_info.aper_base;
+	rdev->mc.gtt_size = rdev->agp->agp_info.aper_size << 20;
 	rdev->mc.gtt_start = rdev->mc.agp_base;
 	rdev->mc.gtt_end = rdev->mc.gtt_start + rdev->mc.gtt_size - 1;
 	dev_info(rdev->dev, "GTT: %lluM 0x%08llX - 0x%08llX\n",
@@ -278,8 +366,8 @@ void radeon_agp_resume(struct radeon_device *rdev)
 void radeon_agp_fini(struct radeon_device *rdev)
 {
 #if IS_ENABLED(CONFIG_AGP)
-	if (rdev->ddev->agp && rdev->ddev->agp->acquired) {
-		drm_agp_release(rdev->ddev);
+	if (rdev->agp && rdev->agp->acquired) {
+		radeon_agp_head_release(rdev);
 	}
 #endif
 }

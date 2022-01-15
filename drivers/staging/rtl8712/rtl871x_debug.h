@@ -127,27 +127,4 @@
 	#undef	_MODULE_DEFINE_
 #endif
 
-#define _dbgdump	printk
-
-#define MSG_8712(x, ...) {}
-
-#define DBG_8712(x, ...)  {}
-
-#define WRN_8712(x, ...)  {}
-
-#define ERR_8712(x, ...)  {}
-
-#undef MSG_8712
-#define MSG_8712 _dbgdump
-
-#undef DBG_8712
-#define DBG_8712 _dbgdump
-
-#undef WRN_8712
-#define WRN_8712 _dbgdump
-
-#undef ERR_8712
-#define ERR_8712 _dbgdump
-
 #endif	/*__RTL871X_DEBUG_H__*/
-

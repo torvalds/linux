@@ -66,8 +66,8 @@ static bool radeon_mn_invalidate(struct mmu_interval_notifier *mn,
 		return true;
 	}
 
-	r = dma_resv_wait_timeout_rcu(bo->tbo.base.resv, true, false,
-				      MAX_SCHEDULE_TIMEOUT);
+	r = dma_resv_wait_timeout(bo->tbo.base.resv, true, false,
+				  MAX_SCHEDULE_TIMEOUT);
 	if (r <= 0)
 		DRM_ERROR("(%ld) failed to wait for user bo\n", r);
 

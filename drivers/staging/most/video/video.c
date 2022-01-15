@@ -258,7 +258,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (f->index)
 		return -EINVAL;
 
-	strcpy(f->description, "MPEG");
+	strscpy(f->description, "MPEG", sizeof(f->description));
 	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->flags = V4L2_FMT_FLAG_COMPRESSED;
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
@@ -306,7 +306,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	if (input->index >= V4L2_CMP_MAX_INPUT)
 		return -EINVAL;
 
-	strcpy(input->name, "MOST Video");
+	strscpy(input->name, "MOST Video", sizeof(input->name));
 	input->type |= V4L2_INPUT_TYPE_CAMERA;
 	input->audioset = 0;
 

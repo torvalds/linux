@@ -94,6 +94,7 @@ config KMX61
 source "drivers/iio/imu/inv_icm42600/Kconfig"
 source "drivers/iio/imu/inv_mpu6050/Kconfig"
 source "drivers/iio/imu/st_lsm6dsx/Kconfig"
+source "drivers/iio/imu/st_lsm9ds0/Kconfig"
 
 endmenu
 

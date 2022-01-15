@@ -43,6 +43,7 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_atomic_plane.h"
+#include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_frontbuffer.h"
 #include "intel_sprite.h"
@@ -1855,7 +1856,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	zpos = sprite + 1;
 	drm_plane_create_zpos_immutable_property(&plane->base, zpos);
 
-	drm_plane_helper_add(&plane->base, &intel_plane_helper_funcs);
+	intel_plane_helper_add(plane);
 
 	return plane;
 

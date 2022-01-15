@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <asm/vas.h>
 #include "vas.h"
 
 static struct dentry *vas_debugfs;
@@ -28,7 +29,7 @@ static char *cop_to_str(int cop)
 
 static int info_show(struct seq_file *s, void *private)
 {
-	struct vas_window *window = s->private;
+	struct pnv_vas_window *window = s->private;
 
 	mutex_lock(&vas_mutex);
 
@@ -36,9 +37,9 @@ static int info_show(struct seq_file *s, void *private)
 	if (!window->hvwc_map)
 		goto unlock;
 
-	seq_printf(s, "Type: %s, %s\n", cop_to_str(window->cop),
+	seq_printf(s, "Type: %s, %s\n", cop_to_str(window->vas_win.cop),
 					window->tx_win ? "Send" : "Receive");
-	seq_printf(s, "Pid : %d\n", vas_window_pid(window));
+	seq_printf(s, "Pid : %d\n", vas_window_pid(&window->vas_win));
 
 unlock:
 	mutex_unlock(&vas_mutex);
@@ -47,7 +48,7 @@ unlock:
 
 DEFINE_SHOW_ATTRIBUTE(info);
 
-static inline void print_reg(struct seq_file *s, struct vas_window *win,
+static inline void print_reg(struct seq_file *s, struct pnv_vas_window *win,
 			char *name, u32 reg)
 {
 	seq_printf(s, "0x%016llx %s\n", read_hvwc_reg(win, name, reg), name);
@@ -55,7 +56,7 @@ static inline void print_reg(struct seq_file *s, struct vas_window *win,
 
 static int hvwc_show(struct seq_file *s, void *private)
 {
-	struct vas_window *window = s->private;
+	struct pnv_vas_window *window = s->private;
 
 	mutex_lock(&vas_mutex);
 
@@ -103,8 +104,10 @@ unlock:
 
 DEFINE_SHOW_ATTRIBUTE(hvwc);
 
-void vas_window_free_dbgdir(struct vas_window *window)
+void vas_window_free_dbgdir(struct pnv_vas_window *pnv_win)
 {
+	struct vas_window *window =  &pnv_win->vas_win;
+
 	if (window->dbgdir) {
 		debugfs_remove_recursive(window->dbgdir);
 		kfree(window->dbgname);
@@ -113,21 +116,21 @@ void vas_window_free_dbgdir(struct vas_window *window)
 	}
 }
 
-void vas_window_init_dbgdir(struct vas_window *window)
+void vas_window_init_dbgdir(struct pnv_vas_window *window)
 {
 	struct dentry *d;
 
 	if (!window->vinst->dbgdir)
 		return;
 
-	window->dbgname = kzalloc(16, GFP_KERNEL);
-	if (!window->dbgname)
+	window->vas_win.dbgname = kzalloc(16, GFP_KERNEL);
+	if (!window->vas_win.dbgname)
 		return;
 
-	snprintf(window->dbgname, 16, "w%d", window->winid);
+	snprintf(window->vas_win.dbgname, 16, "w%d", window->vas_win.winid);
 
-	d = debugfs_create_dir(window->dbgname, window->vinst->dbgdir);
-	window->dbgdir = d;
+	d = debugfs_create_dir(window->vas_win.dbgname, window->vinst->dbgdir);
+	window->vas_win.dbgdir = d;
 
 	debugfs_create_file("info", 0444, d, window, &info_fops);
 	debugfs_create_file("hvwc", 0444, d, window, &hvwc_fops);

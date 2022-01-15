@@ -21,16 +21,13 @@
 #define RTL8711_RF_MAX_SENS	 6
 #define RTL8711_RF_DEF_SENS	 4
 
-/*  */
-/*  We now define the following channels as the max channels in each channel plan. */
-/*  2G, total 14 chnls */
-/*  {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} */
-/*  5G, total 24 chnls */
-/*  {36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120,
- *   124, 128, 132, 136, 140, 149, 153, 157, 161, 165} */
+/*
+ * We now define the following channels as the max channels in each channel plan.
+ * 2G, total 14 chnls
+ * {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+ */
 #define	MAX_CHANNEL_NUM_2G	14
-#define	MAX_CHANNEL_NUM_5G	24
-#define	MAX_CHANNEL_NUM		38/* 14+24 */
+#define	MAX_CHANNEL_NUM		14
 
 #define NUM_REGULATORYS	1
 
@@ -83,10 +80,6 @@ enum {
 enum channel_width {
 	CHANNEL_WIDTH_20 = 0,
 	CHANNEL_WIDTH_40 = 1,
-	CHANNEL_WIDTH_80 = 2,
-	CHANNEL_WIDTH_160 = 3,
-	CHANNEL_WIDTH_80_80 = 4,
-	CHANNEL_WIDTH_MAX = 5,
 };
 
 /*  Represent Extension Channel Offset in HT Capabilities */
@@ -99,27 +92,9 @@ enum extchnl_offset {
 };
 
 enum {
-	VHT_DATA_SC_DONOT_CARE = 0,
-	VHT_DATA_SC_20_UPPER_OF_80MHZ = 1,
-	VHT_DATA_SC_20_LOWER_OF_80MHZ = 2,
-	VHT_DATA_SC_20_UPPERST_OF_80MHZ = 3,
-	VHT_DATA_SC_20_LOWEST_OF_80MHZ = 4,
-	VHT_DATA_SC_20_RECV1 = 5,
-	VHT_DATA_SC_20_RECV2 = 6,
-	VHT_DATA_SC_20_RECV3 = 7,
-	VHT_DATA_SC_20_RECV4 = 8,
-	VHT_DATA_SC_40_UPPER_OF_80MHZ = 9,
-	VHT_DATA_SC_40_LOWER_OF_80MHZ = 10,
-};
-
-/* 2007/11/15 MH Define different RF type. */
-enum {
-	RF_1T2R = 0,
-	RF_2T4R = 1,
-	RF_2T2R = 2,
-	RF_1T1R = 3,
-	RF_2T2R_GREEN = 4,
-	RF_MAX_TYPE = 5,
+	HT_DATA_SC_DONOT_CARE = 0,
+	HT_DATA_SC_20_UPPER_OF_40MHZ = 1,
+	HT_DATA_SC_20_LOWER_OF_40MHZ = 2,
 };
 
 u32 rtw_ch2freq(u32 ch);

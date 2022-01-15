@@ -672,7 +672,7 @@ ieee80211_mesh_update_bss_params(struct ieee80211_sub_if_data *sdata,
 				 u8 *ie, u8 ie_len)
 {
 	struct ieee80211_supported_band *sband;
-	const u8 *cap;
+	const struct element *cap;
 	const struct ieee80211_he_operation *he_oper = NULL;
 
 	sband = ieee80211_get_sband(sdata);
@@ -687,9 +687,10 @@ ieee80211_mesh_update_bss_params(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.bss_conf.he_support = true;
 
-	cap = cfg80211_find_ext_ie(WLAN_EID_EXT_HE_OPERATION, ie, ie_len);
-	if (cap && cap[1] >= ieee80211_he_oper_size(&cap[3]))
-		he_oper = (void *)(cap + 3);
+	cap = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION, ie, ie_len);
+	if (cap && cap->datalen >= 1 + sizeof(*he_oper) &&
+	    cap->datalen >= 1 + ieee80211_he_oper_size(cap->data + 1))
+		he_oper = (void *)(cap->data + 1);
 
 	if (he_oper)
 		sdata->vif.bss_conf.he_oper.params =

@@ -401,8 +401,7 @@
 			status = "okay";
 
 			wifi@1 {
-				/* Actually BRCM4330 */
-				compatible = "brcm,bcm4329-fmac";
+				compatible = "brcm,bcm4330-fmac", "brcm,bcm4329-fmac";
 				reg = <1>;
 				/* GPIO216 WL_HOST_WAKE */
 				interrupt-parent = <&gpio6>;
@@ -421,6 +420,8 @@
 			non-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
+			no-sdio;
+			no-sd;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc2_a_1_default>;
@@ -436,6 +437,7 @@
 			status = "okay";
 
 			bluetooth {
+				/* BCM4330B1 actually */
 				compatible = "brcm,bcm4330-bt";
 				/* GPIO222 rail BT_VREG_EN to BT_REG_ON */
 				shutdown-gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
@@ -580,13 +582,12 @@
 					#size-cells = <0>;
 
 					/* Bosch BMA222 accelerometer */
-					accelerometer@08 {
+					accelerometer@8 {
 						compatible = "bosch,bma222";
 						reg = <0x08>;
-						/* FIXME: no idea about this */
-						mount-matrix = "1", "0", "0",
-							       "0", "1", "0",
-							       "0", "0", "1";
+						mount-matrix = "0", "1", "0",
+							       "-1", "0", "0",
+							       "0", "0", "-1";
 						vddio-supply = <&ab8500_ldo_aux2_reg>; // 1.8V
 						vdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
 					};

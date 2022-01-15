@@ -1101,6 +1101,8 @@ static int s2io_print_pci_mode(struct s2io_nic *nic)
  *  @nic: device private variable
  *  @link: link status (UP/DOWN) used to enable/disable continuous
  *  transmit interrupts
+ *  @may_sleep: parameter indicates if sleeping when waiting for
+ *  command complete
  *  Description: The function configures transmit traffic interrupts
  *  Return Value:  SUCCESS on success and
  *  '-1' on failure
@@ -2743,7 +2745,7 @@ static int s2io_chk_rx_buffers(struct s2io_nic *nic, struct ring_info *ring)
 }
 
 /**
- * s2io_poll - Rx interrupt handler for NAPI support
+ * s2io_poll_msix - Rx interrupt handler for NAPI support
  * @napi : pointer to the napi structure.
  * @budget : The number of packets that were budgeted to be processed
  * during  one pass through the 'Poll" function.
@@ -3323,6 +3325,8 @@ static void s2io_updt_xpak_counter(struct net_device *dev)
  *  @addr: address
  *  @busy_bit: bit to check for busy
  *  @bit_state: state to check
+ *  @may_sleep: parameter indicates if sleeping when waiting for
+ *  command complete
  *  Description: Function that waits for a command to Write into RMAC
  *  ADDR DATA registers to be completed and returns either success or
  *  error depending on whether the command was complete or not.
@@ -4868,6 +4872,8 @@ static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 /**
  *  s2io_set_multicast - entry point for multicast address enable/disable.
  *  @dev : pointer to the device structure
+ *  @may_sleep: parameter indicates if sleeping when waiting for command
+ *  complete
  *  Description:
  *  This function is a driver entry point which gets called by the kernel
  *  whenever multicast addresses must be enabled/disabled. This also gets
@@ -5288,7 +5294,7 @@ s2io_ethtool_set_link_ksettings(struct net_device *dev,
 }
 
 /**
- * s2io_ethtol_get_link_ksettings - Return link specific information.
+ * s2io_ethtool_get_link_ksettings - Return link specific information.
  * @dev: pointer to netdev
  * @cmd : pointer to the structure with parameters given by ethtool
  * to return link information.
@@ -7619,7 +7625,7 @@ static const struct net_device_ops s2io_netdev_ops = {
 	.ndo_start_xmit    	= s2io_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= s2io_ndo_set_multicast,
-	.ndo_do_ioctl	   	= s2io_ioctl,
+	.ndo_eth_ioctl		= s2io_ioctl,
 	.ndo_set_mac_address    = s2io_set_mac_addr,
 	.ndo_change_mtu	   	= s2io_change_mtu,
 	.ndo_set_features	= s2io_set_features,
@@ -8560,7 +8566,7 @@ static void s2io_io_resume(struct pci_dev *pdev)
 			return;
 		}
 
-		if (s2io_set_mac_addr(netdev, netdev->dev_addr) == FAILURE) {
+		if (do_s2io_prog_unicast(netdev, netdev->dev_addr) == FAILURE) {
 			s2io_card_down(sp);
 			pr_err("Can't restore mac addr after reset.\n");
 			return;

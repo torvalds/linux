@@ -91,15 +91,12 @@ static void mvebu_pic_handle_cascade_irq(struct irq_desc *desc)
 	struct mvebu_pic *pic = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long irqmap, irqn;
-	unsigned int cascade_irq;
 
 	irqmap = readl_relaxed(pic->base + PIC_CAUSE);
 	chained_irq_enter(chip, desc);
 
-	for_each_set_bit(irqn, &irqmap, BITS_PER_LONG) {
-		cascade_irq = irq_find_mapping(pic->domain, irqn);
-		generic_handle_irq(cascade_irq);
-	}
+	for_each_set_bit(irqn, &irqmap, BITS_PER_LONG)
+		generic_handle_domain_irq(pic->domain, irqn);
 
 	chained_irq_exit(chip, desc);
 }

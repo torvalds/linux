@@ -180,24 +180,30 @@ static const struct rkisp1_rsz_config rkisp1_rsz_config_sp = {
 
 static struct v4l2_mbus_framefmt *
 rkisp1_rsz_get_pad_fmt(struct rkisp1_resizer *rsz,
-		       struct v4l2_subdev_pad_config *cfg,
+		       struct v4l2_subdev_state *sd_state,
 		       unsigned int pad, u32 which)
 {
+	struct v4l2_subdev_state state = {
+		.pads = rsz->pad_cfg
+		};
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&rsz->sd, cfg, pad);
+		return v4l2_subdev_get_try_format(&rsz->sd, sd_state, pad);
 	else
-		return v4l2_subdev_get_try_format(&rsz->sd, rsz->pad_cfg, pad);
+		return v4l2_subdev_get_try_format(&rsz->sd, &state, pad);
 }
 
 static struct v4l2_rect *
 rkisp1_rsz_get_pad_crop(struct rkisp1_resizer *rsz,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			unsigned int pad, u32 which)
 {
+	struct v4l2_subdev_state state = {
+		.pads = rsz->pad_cfg
+		};
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&rsz->sd, cfg, pad);
+		return v4l2_subdev_get_try_crop(&rsz->sd, sd_state, pad);
 	else
-		return v4l2_subdev_get_try_crop(&rsz->sd, rsz->pad_cfg, pad);
+		return v4l2_subdev_get_try_crop(&rsz->sd, &state, pad);
 }
 
 /* ----------------------------------------------------------------------------
@@ -451,12 +457,15 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
  */
 
 static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct rkisp1_resizer *rsz =
 		container_of(sd, struct rkisp1_resizer, sd);
 	struct v4l2_subdev_pad_config dummy_cfg;
+	struct v4l2_subdev_state pad_state = {
+		.pads = &dummy_cfg
+		};
 	u32 pad = code->pad;
 	int ret;
 
@@ -481,7 +490,7 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 	/* supported mbus codes on the sink pad are the same as isp src pad */
 	code->pad = RKISP1_ISP_PAD_SOURCE_VIDEO;
 	ret = v4l2_subdev_call(&rsz->rkisp1->isp.sd, pad, enum_mbus_code,
-			       &dummy_cfg, code);
+			       &pad_state, code);
 
 	/* restore pad */
 	code->pad = pad;
@@ -490,24 +499,27 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int rkisp1_rsz_init_config(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg)
+				  struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *sink_fmt, *src_fmt;
 	struct v4l2_rect *sink_crop;
 
-	sink_fmt = v4l2_subdev_get_try_format(sd, cfg, RKISP1_RSZ_PAD_SRC);
+	sink_fmt = v4l2_subdev_get_try_format(sd, sd_state,
+					      RKISP1_RSZ_PAD_SRC);
 	sink_fmt->width = RKISP1_DEFAULT_WIDTH;
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
 	sink_fmt->field = V4L2_FIELD_NONE;
 	sink_fmt->code = RKISP1_DEF_FMT;
 
-	sink_crop = v4l2_subdev_get_try_crop(sd, cfg, RKISP1_RSZ_PAD_SINK);
+	sink_crop = v4l2_subdev_get_try_crop(sd, sd_state,
+					     RKISP1_RSZ_PAD_SINK);
 	sink_crop->width = RKISP1_DEFAULT_WIDTH;
 	sink_crop->height = RKISP1_DEFAULT_HEIGHT;
 	sink_crop->left = 0;
 	sink_crop->top = 0;
 
-	src_fmt = v4l2_subdev_get_try_format(sd, cfg, RKISP1_RSZ_PAD_SINK);
+	src_fmt = v4l2_subdev_get_try_format(sd, sd_state,
+					     RKISP1_RSZ_PAD_SINK);
 	*src_fmt = *sink_fmt;
 
 	/* NOTE: there is no crop in the source pad, only in the sink */
@@ -516,15 +528,17 @@ static int rkisp1_rsz_init_config(struct v4l2_subdev *sd,
 }
 
 static void rkisp1_rsz_set_src_fmt(struct rkisp1_resizer *rsz,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_mbus_framefmt *format,
 				   unsigned int which)
 {
 	const struct rkisp1_isp_mbus_info *sink_mbus_info;
 	struct v4l2_mbus_framefmt *src_fmt, *sink_fmt;
 
-	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SINK, which);
-	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SRC, which);
+	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SINK,
+					  which);
+	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SRC,
+					 which);
 	sink_mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
 
 	/* for YUV formats, userspace can change the mbus code on the src pad if it is supported */
@@ -543,7 +557,7 @@ static void rkisp1_rsz_set_src_fmt(struct rkisp1_resizer *rsz,
 }
 
 static void rkisp1_rsz_set_sink_crop(struct rkisp1_resizer *rsz,
-				     struct v4l2_subdev_pad_config *cfg,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_rect *r,
 				     unsigned int which)
 {
@@ -551,8 +565,10 @@ static void rkisp1_rsz_set_sink_crop(struct rkisp1_resizer *rsz,
 	struct v4l2_mbus_framefmt *sink_fmt;
 	struct v4l2_rect *sink_crop;
 
-	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SINK, which);
-	sink_crop = rkisp1_rsz_get_pad_crop(rsz, cfg, RKISP1_RSZ_PAD_SINK,
+	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SINK,
+					  which);
+	sink_crop = rkisp1_rsz_get_pad_crop(rsz, sd_state,
+					    RKISP1_RSZ_PAD_SINK,
 					    which);
 
 	/* Not crop for MP bayer raw data */
@@ -579,7 +595,7 @@ static void rkisp1_rsz_set_sink_crop(struct rkisp1_resizer *rsz,
 }
 
 static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_mbus_framefmt *format,
 				    unsigned int which)
 {
@@ -587,9 +603,12 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	struct v4l2_mbus_framefmt *sink_fmt, *src_fmt;
 	struct v4l2_rect *sink_crop;
 
-	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SINK, which);
-	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SRC, which);
-	sink_crop = rkisp1_rsz_get_pad_crop(rsz, cfg, RKISP1_RSZ_PAD_SINK,
+	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SINK,
+					  which);
+	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SRC,
+					 which);
+	sink_crop = rkisp1_rsz_get_pad_crop(rsz, sd_state,
+					    RKISP1_RSZ_PAD_SINK,
 					    which);
 	if (rsz->id == RKISP1_SELFPATH)
 		sink_fmt->code = MEDIA_BUS_FMT_YUYV8_2X8;
@@ -617,24 +636,25 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	*format = *sink_fmt;
 
 	/* Update sink crop */
-	rkisp1_rsz_set_sink_crop(rsz, cfg, sink_crop, which);
+	rkisp1_rsz_set_sink_crop(rsz, sd_state, sink_crop, which);
 }
 
 static int rkisp1_rsz_get_fmt(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct rkisp1_resizer *rsz =
 		container_of(sd, struct rkisp1_resizer, sd);
 
 	mutex_lock(&rsz->ops_lock);
-	fmt->format = *rkisp1_rsz_get_pad_fmt(rsz, cfg, fmt->pad, fmt->which);
+	fmt->format = *rkisp1_rsz_get_pad_fmt(rsz, sd_state, fmt->pad,
+					      fmt->which);
 	mutex_unlock(&rsz->ops_lock);
 	return 0;
 }
 
 static int rkisp1_rsz_set_fmt(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct rkisp1_resizer *rsz =
@@ -642,16 +662,18 @@ static int rkisp1_rsz_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&rsz->ops_lock);
 	if (fmt->pad == RKISP1_RSZ_PAD_SINK)
-		rkisp1_rsz_set_sink_fmt(rsz, cfg, &fmt->format, fmt->which);
+		rkisp1_rsz_set_sink_fmt(rsz, sd_state, &fmt->format,
+					fmt->which);
 	else
-		rkisp1_rsz_set_src_fmt(rsz, cfg, &fmt->format, fmt->which);
+		rkisp1_rsz_set_src_fmt(rsz, sd_state, &fmt->format,
+				       fmt->which);
 
 	mutex_unlock(&rsz->ops_lock);
 	return 0;
 }
 
 static int rkisp1_rsz_get_selection(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_selection *sel)
 {
 	struct rkisp1_resizer *rsz =
@@ -665,7 +687,8 @@ static int rkisp1_rsz_get_selection(struct v4l2_subdev *sd,
 	mutex_lock(&rsz->ops_lock);
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-		mf_sink = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SINK,
+		mf_sink = rkisp1_rsz_get_pad_fmt(rsz, sd_state,
+						 RKISP1_RSZ_PAD_SINK,
 						 sel->which);
 		sel->r.height = mf_sink->height;
 		sel->r.width = mf_sink->width;
@@ -673,7 +696,8 @@ static int rkisp1_rsz_get_selection(struct v4l2_subdev *sd,
 		sel->r.top = 0;
 		break;
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *rkisp1_rsz_get_pad_crop(rsz, cfg, RKISP1_RSZ_PAD_SINK,
+		sel->r = *rkisp1_rsz_get_pad_crop(rsz, sd_state,
+						  RKISP1_RSZ_PAD_SINK,
 						  sel->which);
 		break;
 	default:
@@ -685,7 +709,7 @@ static int rkisp1_rsz_get_selection(struct v4l2_subdev *sd,
 }
 
 static int rkisp1_rsz_set_selection(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_selection *sel)
 {
 	struct rkisp1_resizer *rsz =
@@ -698,7 +722,7 @@ static int rkisp1_rsz_set_selection(struct v4l2_subdev *sd,
 		sel->pad, sel->r.left, sel->r.top, sel->r.width, sel->r.height);
 
 	mutex_lock(&rsz->ops_lock);
-	rkisp1_rsz_set_sink_crop(rsz, cfg, &sel->r, sel->which);
+	rkisp1_rsz_set_sink_crop(rsz, sd_state, &sel->r, sel->which);
 	mutex_unlock(&rsz->ops_lock);
 
 	return 0;
@@ -764,6 +788,9 @@ static void rkisp1_rsz_unregister(struct rkisp1_resizer *rsz)
 
 static int rkisp1_rsz_register(struct rkisp1_resizer *rsz)
 {
+	struct v4l2_subdev_state state = {
+		.pads = rsz->pad_cfg
+		};
 	static const char * const dev_names[] = {
 		RKISP1_RSZ_MP_DEV_NAME,
 		RKISP1_RSZ_SP_DEV_NAME
@@ -802,7 +829,7 @@ static int rkisp1_rsz_register(struct rkisp1_resizer *rsz)
 		goto err_cleanup_media_entity;
 	}
 
-	rkisp1_rsz_init_config(sd, rsz->pad_cfg);
+	rkisp1_rsz_init_config(sd, &state);
 	return 0;
 
 err_cleanup_media_entity:

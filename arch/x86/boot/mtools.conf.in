@@ -14,4 +14,7 @@ drive v:
 drive w:
   file="@OBJ@/fdimage" cylinders=80 heads=2 sectors=36 filter
 
+# Hard disk
+drive h:
+  file="@OBJ@/hdimage" partition=1 mformat_only
 

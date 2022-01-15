@@ -91,8 +91,8 @@ struct atlas_data {
 	struct regmap *regmap;
 	struct irq_work work;
 	unsigned int interrupt_enabled;
-
-	__be32 buffer[6]; /* 96-bit data + 32-bit pad + 64-bit timestamp */
+	/* 96-bit data + 32-bit pad + 64-bit timestamp */
+	__be32 buffer[6] __aligned(8);
 };
 
 static const struct regmap_config atlas_regmap_config = {
@@ -410,11 +410,9 @@ static int atlas_buffer_postenable(struct iio_dev *indio_dev)
 	struct atlas_data *data = iio_priv(indio_dev);
 	int ret;
 
-	ret = pm_runtime_get_sync(&data->client->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&data->client->dev);
+	ret = pm_runtime_resume_and_get(&data->client->dev);
+	if (ret)
 		return ret;
-	}
 
 	return atlas_set_interrupt(data, true);
 }
@@ -487,11 +485,9 @@ static int atlas_read_measurement(struct atlas_data *data, int reg, __be32 *val)
 	int suspended = pm_runtime_suspended(dev);
 	int ret;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
 		return ret;
-	}
 
 	if (suspended)
 		msleep(data->chip->delay);
@@ -640,7 +636,7 @@ static int atlas_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE;
 
 	trig = devm_iio_trigger_alloc(&client->dev, "%s-dev%d",
-				      indio_dev->name, indio_dev->id);
+				      indio_dev->name, iio_device_id(indio_dev));
 
 	if (!trig)
 		return -ENOMEM;
@@ -741,7 +737,6 @@ static int atlas_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
 
 	return atlas_set_powermode(data, 0);
 }

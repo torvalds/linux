@@ -14,28 +14,8 @@
 #include <asm/mipsregs.h>
 #include <asm/mach-ralink/ralink_regs.h>
 #include <asm/mach-ralink/rt288x.h>
-#include <asm/mach-ralink/pinmux.h>
 
 #include "common.h"
-
-static struct rt2880_pmx_func i2c_func[] = { FUNC("i2c", 0, 1, 2) };
-static struct rt2880_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
-static struct rt2880_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 7, 8) };
-static struct rt2880_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
-static struct rt2880_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
-static struct rt2880_pmx_func sdram_func[] = { FUNC("sdram", 0, 24, 16) };
-static struct rt2880_pmx_func pci_func[] = { FUNC("pci", 0, 40, 32) };
-
-static struct rt2880_pmx_group rt2880_pinmux_data_act[] = {
-	GRP("i2c", i2c_func, 1, RT2880_GPIO_MODE_I2C),
-	GRP("spi", spi_func, 1, RT2880_GPIO_MODE_SPI),
-	GRP("uartlite", uartlite_func, 1, RT2880_GPIO_MODE_UART0),
-	GRP("jtag", jtag_func, 1, RT2880_GPIO_MODE_JTAG),
-	GRP("mdio", mdio_func, 1, RT2880_GPIO_MODE_MDIO),
-	GRP("sdram", sdram_func, 1, RT2880_GPIO_MODE_SDRAM),
-	GRP("pci", pci_func, 1, RT2880_GPIO_MODE_PCI),
-	{ 0 }
-};
 
 void __init ralink_clk_init(void)
 {
@@ -106,6 +86,5 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 	soc_info->mem_size_min = RT2880_MEM_SIZE_MIN;
 	soc_info->mem_size_max = RT2880_MEM_SIZE_MAX;
 
-	rt2880_pinmux_data = rt2880_pinmux_data_act;
 	ralink_soc = RT2880_SOC;
 }

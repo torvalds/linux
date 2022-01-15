@@ -100,9 +100,11 @@ static int srf04_read(struct srf04_data *data)
 	u64 dt_ns;
 	u32 time_ns, distance_mm;
 
-	if (data->gpiod_power)
-		pm_runtime_get_sync(data->dev);
-
+	if (data->gpiod_power) {
+		ret = pm_runtime_resume_and_get(data->dev);
+		if (ret < 0)
+			return ret;
+	}
 	/*
 	 * just one read-echo-cycle can take place at a time
 	 * ==> lock against concurrent reading calls

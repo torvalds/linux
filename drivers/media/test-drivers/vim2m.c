@@ -624,11 +624,6 @@ static void device_work(struct work_struct *w)
 
 	curr_ctx = container_of(w, struct vim2m_ctx, work_run.work);
 
-	if (!curr_ctx) {
-		pr_err("Instance released before the end of transaction\n");
-		return;
-	}
-
 	vim2m_dev = curr_ctx->dev;
 
 	src_vb = v4l2_m2m_src_buf_remove(curr_ctx->fh.m2m_ctx);

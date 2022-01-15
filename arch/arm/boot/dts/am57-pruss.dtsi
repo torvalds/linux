@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2020-2021 Texas Instruments Incorporated - https://www.ti.com/
  *
  * Common PRUSS data for TI AM57xx platforms
  */
@@ -25,6 +25,94 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x4b200000 0x80000>;
+
+		pruss1: pruss@0 {
+			compatible = "ti,am5728-pruss";
+			reg = <0x0 0x80000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			pruss1_mem: memories@0 {
+				reg = <0x0 0x2000>,
+				      <0x2000 0x2000>,
+				      <0x10000 0x8000>;
+				reg-names = "dram0", "dram1",
+					    "shrdram2";
+			};
+
+			pruss1_cfg: cfg@26000 {
+				compatible = "ti,pruss-cfg", "syscon";
+				reg = <0x26000 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x26000 0x2000>;
+
+				clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					pruss1_iepclk_mux: iepclk-mux@30 {
+						reg = <0x30>;
+						#clock-cells = <0>;
+						clocks = <&dpll_gmac_m3x2_ck>,  /* icss_iep_clk */
+							 <&dpll_gmac_h13x2_ck>; /* icss_clk */
+					};
+				};
+			};
+
+			pruss1_mii_rt: mii-rt@32000 {
+				compatible = "ti,pruss-mii", "syscon";
+				reg = <0x32000 0x58>;
+			};
+
+			pruss1_intc: interrupt-controller@20000 {
+				compatible = "ti,pruss-intc";
+				reg = <0x20000 0x2000>;
+				interrupt-controller;
+				#interrupt-cells = <3>;
+				interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "host_intr0", "host_intr1",
+						  "host_intr2", "host_intr3",
+						  "host_intr4", "host_intr5",
+						  "host_intr6", "host_intr7";
+			};
+
+			pru1_0: pru@34000 {
+				compatible = "ti,am5728-pru";
+				reg = <0x34000 0x3000>,
+				      <0x22000 0x400>,
+				      <0x22400 0x100>;
+				reg-names = "iram", "control", "debug";
+				firmware-name = "am57xx-pru1_0-fw";
+			};
+
+			pru1_1: pru@38000 {
+				compatible = "ti,am5728-pru";
+				reg = <0x38000 0x3000>,
+				      <0x24000 0x400>,
+				      <0x24400 0x100>;
+				reg-names = "iram", "control", "debug";
+				firmware-name = "am57xx-pru1_1-fw";
+			};
+
+			pruss1_mdio: mdio@32400 {
+				compatible = "ti,davinci_mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&dpll_gmac_h13x2_ck>;
+				clock-names = "fck";
+				bus_freq = <1000000>;
+				reg = <0x32400 0x90>;
+			};
+		};
 	};
 
 	pruss2_tm: target-module@4b2a6000 {
@@ -46,5 +134,93 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x4b280000 0x80000>;
+
+		pruss2: pruss@0 {
+			compatible = "ti,am5728-pruss";
+			reg = <0x0 0x80000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			pruss2_mem: memories@0 {
+				reg = <0x0 0x2000>,
+				      <0x2000 0x2000>,
+				      <0x10000 0x8000>;
+				reg-names = "dram0", "dram1",
+					    "shrdram2";
+			};
+
+			pruss2_cfg: cfg@26000 {
+				compatible = "ti,pruss-cfg", "syscon";
+				reg = <0x26000 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x26000 0x2000>;
+
+				clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					pruss2_iepclk_mux: iepclk-mux@30 {
+						reg = <0x30>;
+						#clock-cells = <0>;
+						clocks = <&dpll_gmac_m3x2_ck>,  /* icss_iep_clk */
+							 <&dpll_gmac_h13x2_ck>; /* icss_clk */
+					};
+				};
+			};
+
+			pruss2_mii_rt: mii-rt@32000 {
+				compatible = "ti,pruss-mii", "syscon";
+				reg = <0x32000 0x58>;
+			};
+
+			pruss2_intc: interrupt-controller@20000 {
+				compatible = "ti,pruss-intc";
+				reg = <0x20000 0x2000>;
+				interrupt-controller;
+				#interrupt-cells = <3>;
+				interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "host_intr0", "host_intr1",
+						  "host_intr2", "host_intr3",
+						  "host_intr4", "host_intr5",
+						  "host_intr6", "host_intr7";
+			};
+
+			pru2_0: pru@34000 {
+				compatible = "ti,am5728-pru";
+				reg = <0x34000 0x3000>,
+				      <0x22000 0x400>,
+				      <0x22400 0x100>;
+				reg-names = "iram", "control", "debug";
+				firmware-name = "am57xx-pru2_0-fw";
+			};
+
+			pru2_1: pru@38000 {
+				compatible = "ti,am5728-pru";
+				reg = <0x38000 0x3000>,
+				      <0x24000 0x400>,
+				      <0x24400 0x100>;
+				reg-names = "iram", "control", "debug";
+				firmware-name = "am57xx-pru2_1-fw";
+			};
+
+			pruss2_mdio: mdio@32400 {
+				compatible = "ti,davinci_mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&dpll_gmac_h13x2_ck>;
+				clock-names = "fck";
+				bus_freq = <1000000>;
+				reg = <0x32400 0x90>;
+			};
+		};
 	};
 };

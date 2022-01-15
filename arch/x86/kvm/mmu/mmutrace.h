@@ -40,7 +40,7 @@
 			 role.direct ? " direct" : "",			\
 			 access_str[role.access],			\
 			 role.invalid ? " invalid" : "",		\
-			 role.nxe ? "" : "!",				\
+			 role.efer_nx ? "" : "!",			\
 			 role.ad_disabled ? "!" : "",			\
 			 __entry->root_count,				\
 			 __entry->unsync ? "unsync" : "sync", 0);	\
@@ -53,6 +53,12 @@
 	{ PFERR_USER_MASK, "U" },	\
 	{ PFERR_RSVD_MASK, "RSVD" },	\
 	{ PFERR_FETCH_MASK, "F" }
+
+TRACE_DEFINE_ENUM(RET_PF_RETRY);
+TRACE_DEFINE_ENUM(RET_PF_EMULATE);
+TRACE_DEFINE_ENUM(RET_PF_INVALID);
+TRACE_DEFINE_ENUM(RET_PF_FIXED);
+TRACE_DEFINE_ENUM(RET_PF_SPURIOUS);
 
 /*
  * A pagetable walk has started

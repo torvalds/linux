@@ -4,9 +4,11 @@ config MACH_INGENIC_GENERIC
 	bool
 	select MACH_INGENIC
 	select MACH_JZ4740
+	select MACH_JZ4725B
 	select MACH_JZ4770
 	select MACH_JZ4780
 	select MACH_X1000
+	select MACH_X1830
 
 choice
 	prompt "Machine type"

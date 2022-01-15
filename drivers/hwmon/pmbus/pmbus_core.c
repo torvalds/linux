@@ -523,6 +523,8 @@ static bool pmbus_check_register(struct i2c_client *client,
 	rv = func(client, page, reg);
 	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
 		rv = pmbus_check_status_cml(client);
+	if (rv < 0 && (data->flags & PMBUS_READ_STATUS_AFTER_FAILED_CHECK))
+		data->read_status(client, -1);
 	pmbus_clear_fault_page(client, -1);
 	return rv >= 0;
 }
@@ -1327,14 +1329,14 @@ static int pmbus_add_sensor_attrs(struct i2c_client *client,
 
 		pages = paged ? info->pages : 1;
 		for (page = 0; page < pages; page++) {
-			if (!(info->func[page] & attrs->func))
-				continue;
-			ret = pmbus_add_sensor_attrs_one(client, data, info,
-							 name, index, page,
-							 0xff, attrs, paged);
-			if (ret)
-				return ret;
-			index++;
+			if (info->func[page] & attrs->func) {
+				ret = pmbus_add_sensor_attrs_one(client, data, info,
+								 name, index, page,
+								 0xff, attrs, paged);
+				if (ret)
+					return ret;
+				index++;
+			}
 			if (info->phases[page]) {
 				int phase;
 
@@ -2140,6 +2142,111 @@ static int pmbus_find_attributes(struct i2c_client *client,
 }
 
 /*
+ * The pmbus_class_attr_map structure maps one sensor class to
+ * it's corresponding sensor attributes array.
+ */
+struct pmbus_class_attr_map {
+	enum pmbus_sensor_classes class;
+	int nattr;
+	const struct pmbus_sensor_attr *attr;
+};
+
+static const struct pmbus_class_attr_map class_attr_map[] = {
+	{
+		.class = PSC_VOLTAGE_IN,
+		.attr = voltage_attributes,
+		.nattr = ARRAY_SIZE(voltage_attributes),
+	}, {
+		.class = PSC_VOLTAGE_OUT,
+		.attr = voltage_attributes,
+		.nattr = ARRAY_SIZE(voltage_attributes),
+	}, {
+		.class = PSC_CURRENT_IN,
+		.attr = current_attributes,
+		.nattr = ARRAY_SIZE(current_attributes),
+	}, {
+		.class = PSC_CURRENT_OUT,
+		.attr = current_attributes,
+		.nattr = ARRAY_SIZE(current_attributes),
+	}, {
+		.class = PSC_POWER,
+		.attr = power_attributes,
+		.nattr = ARRAY_SIZE(power_attributes),
+	}, {
+		.class = PSC_TEMPERATURE,
+		.attr = temp_attributes,
+		.nattr = ARRAY_SIZE(temp_attributes),
+	}
+};
+
+/*
+ * Read the coefficients for direct mode.
+ */
+static int pmbus_read_coefficients(struct i2c_client *client,
+				   struct pmbus_driver_info *info,
+				   const struct pmbus_sensor_attr *attr)
+{
+	int rv;
+	union i2c_smbus_data data;
+	enum pmbus_sensor_classes class = attr->class;
+	s8 R;
+	s16 m, b;
+
+	data.block[0] = 2;
+	data.block[1] = attr->reg;
+	data.block[2] = 0x01;
+
+	rv = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
+			    I2C_SMBUS_WRITE, PMBUS_COEFFICIENTS,
+			    I2C_SMBUS_BLOCK_PROC_CALL, &data);
+
+	if (rv < 0)
+		return rv;
+
+	if (data.block[0] != 5)
+		return -EIO;
+
+	m = data.block[1] | (data.block[2] << 8);
+	b = data.block[3] | (data.block[4] << 8);
+	R = data.block[5];
+	info->m[class] = m;
+	info->b[class] = b;
+	info->R[class] = R;
+
+	return rv;
+}
+
+static int pmbus_init_coefficients(struct i2c_client *client,
+				   struct pmbus_driver_info *info)
+{
+	int i, n, ret = -EINVAL;
+	const struct pmbus_class_attr_map *map;
+	const struct pmbus_sensor_attr *attr;
+
+	for (i = 0; i < ARRAY_SIZE(class_attr_map); i++) {
+		map = &class_attr_map[i];
+		if (info->format[map->class] != direct)
+			continue;
+		for (n = 0; n < map->nattr; n++) {
+			attr = &map->attr[n];
+			if (map->class != attr->class)
+				continue;
+			ret = pmbus_read_coefficients(client, info, attr);
+			if (ret >= 0)
+				break;
+		}
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"No coefficients found for sensor class %d\n",
+				map->class);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+/*
  * Identify chip parameters.
  * This function is called for all chips.
  */
@@ -2214,11 +2321,14 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 		data->has_status_word = true;
 	}
 
-	/* Enable PEC if the controller supports it */
+	/* Enable PEC if the controller and bus supports it */
 	if (!(data->flags & PMBUS_NO_CAPABILITY)) {
 		ret = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
-		if (ret >= 0 && (ret & PB_CAPABILITY_ERROR_CHECK))
-			client->flags |= I2C_CLIENT_PEC;
+		if (ret >= 0 && (ret & PB_CAPABILITY_ERROR_CHECK)) {
+			if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_PEC)) {
+				client->flags |= I2C_CLIENT_PEC;
+			}
+		}
 	}
 
 	/*
@@ -2226,9 +2336,11 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	 * faults, and we should not try it. Also, in that case, writes into
 	 * limit registers need to be disabled.
 	 */
-	ret = i2c_smbus_read_byte_data(client, PMBUS_WRITE_PROTECT);
-	if (ret > 0 && (ret & PB_WP_ANY))
-		data->flags |= PMBUS_WRITE_PROTECTED | PMBUS_SKIP_STATUS_CHECK;
+	if (!(data->flags & PMBUS_NO_WRITE_PROTECT)) {
+		ret = i2c_smbus_read_byte_data(client, PMBUS_WRITE_PROTECT);
+		if (ret > 0 && (ret & PB_WP_ANY))
+			data->flags |= PMBUS_WRITE_PROTECTED | PMBUS_SKIP_STATUS_CHECK;
+	}
 
 	if (data->info->pages)
 		pmbus_clear_faults(client);
@@ -2255,6 +2367,17 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 			return ret;
 		}
 	}
+
+	if (data->flags & PMBUS_USE_COEFFICIENTS_CMD) {
+		if (!i2c_check_functionality(client->adapter,
+					     I2C_FUNC_SMBUS_BLOCK_PROC_CALL))
+			return -ENODEV;
+
+		ret = pmbus_init_coefficients(client, info);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 

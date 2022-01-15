@@ -99,7 +99,7 @@ static unsigned int rest_of_page(void *data)
  * @client: client instance
  *
  * This reclaims a channel by freeing its resources and
- * reseting its inuse flag.
+ * resetting its inuse flag.
  *
  */
 
@@ -463,7 +463,7 @@ req_retry_pinned:
 	 * For example TREAD have 11.
 	 * 11 is the read/write header = PDU Header(7) + IO Size (4).
 	 * Arrange in such a way that server places header in the
-	 * alloced memory and payload onto the user buffer.
+	 * allocated memory and payload onto the user buffer.
 	 */
 	in = pack_sg_list(chan->sg, out,
 			  VIRTQUEUE_NUM, req->rc.sdata, in_hdr_len);
@@ -610,7 +610,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	chan->vc_wq = kmalloc(sizeof(wait_queue_head_t), GFP_KERNEL);
 	if (!chan->vc_wq) {
 		err = -ENOMEM;
-		goto out_free_tag;
+		goto out_remove_file;
 	}
 	init_waitqueue_head(chan->vc_wq);
 	chan->ring_bufs_avail = 1;
@@ -628,6 +628,8 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 
 	return 0;
 
+out_remove_file:
+	sysfs_remove_file(&vdev->dev.kobj, &dev_attr_mount_tag.attr);
 out_free_tag:
 	kfree(tag);
 out_free_vq:
@@ -760,7 +762,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	.cancelled = p9_virtio_cancelled,
 	/*
 	 * We leave one entry for input and one entry for response
-	 * headers. We also skip one more entry to accomodate, address
+	 * headers. We also skip one more entry to accommodate, address
 	 * that are not at page boundary, that can result in an extra
 	 * page in zero copy.
 	 */

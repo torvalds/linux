@@ -15,6 +15,4 @@ cachefiles-y := \
 	security.o \
 	xattr.o
 
-cachefiles-$(CONFIG_CACHEFILES_HISTOGRAM) += proc.o
-
 obj-$(CONFIG_CACHEFILES) := cachefiles.o

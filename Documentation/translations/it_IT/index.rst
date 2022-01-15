@@ -4,6 +4,10 @@
 Traduzione italiana
 ===================
 
+.. raw:: latex
+
+	\kerneldocCJKoff
+
 :manutentore: Federico Vaga <federico.vaga@vaga.pv.it>
 
 .. _it_disclaimer:

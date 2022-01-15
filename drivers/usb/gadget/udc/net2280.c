@@ -1617,6 +1617,7 @@ static struct usb_ep *net2280_match_ep(struct usb_gadget *_gadget,
 static int net2280_start(struct usb_gadget *_gadget,
 		struct usb_gadget_driver *driver);
 static int net2280_stop(struct usb_gadget *_gadget);
+static void net2280_async_callbacks(struct usb_gadget *_gadget, bool enable);
 
 static const struct usb_gadget_ops net2280_ops = {
 	.get_frame	= net2280_get_frame,
@@ -1625,6 +1626,7 @@ static const struct usb_gadget_ops net2280_ops = {
 	.pullup		= net2280_pullup,
 	.udc_start	= net2280_start,
 	.udc_stop	= net2280_stop,
+	.udc_async_callbacks = net2280_async_callbacks,
 	.match_ep	= net2280_match_ep,
 };
 
@@ -2472,7 +2474,7 @@ static void stop_activity(struct net2280 *dev, struct usb_gadget_driver *driver)
 		nuke(&dev->ep[i]);
 
 	/* report disconnect; the driver is already quiesced */
-	if (driver) {
+	if (dev->async_callbacks && driver) {
 		spin_unlock(&dev->lock);
 		driver->disconnect(&dev->gadget);
 		spin_lock(&dev->lock);
@@ -2500,6 +2502,15 @@ static int net2280_stop(struct usb_gadget *_gadget)
 	dev->driver = NULL;
 
 	return 0;
+}
+
+static void net2280_async_callbacks(struct usb_gadget *_gadget, bool enable)
+{
+	struct net2280	*dev = container_of(_gadget, struct net2280, gadget);
+
+	spin_lock_irq(&dev->lock);
+	dev->async_callbacks = enable;
+	spin_unlock_irq(&dev->lock);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2814,8 +2825,6 @@ static void defect7374_workaround(struct net2280 *dev, struct usb_ctrlrequest r)
 		 * - Wait and try again.
 		 */
 		udelay(DEFECT_7374_PROCESSOR_WAIT_TIME);
-
-		continue;
 	}
 
 
@@ -3042,9 +3051,11 @@ usb3_delegate:
 				readl(&ep->cfg->ep_cfg));
 
 		ep->responded = 0;
-		spin_unlock(&dev->lock);
-		tmp = dev->driver->setup(&dev->gadget, &r);
-		spin_lock(&dev->lock);
+		if (dev->async_callbacks) {
+			spin_unlock(&dev->lock);
+			tmp = dev->driver->setup(&dev->gadget, &r);
+			spin_lock(&dev->lock);
+		}
 	}
 do_stall3:
 	if (tmp < 0) {
@@ -3284,9 +3295,11 @@ delegate:
 				w_value, w_index, w_length,
 				readl(&ep->cfg->ep_cfg));
 			ep->responded = 0;
-			spin_unlock(&dev->lock);
-			tmp = dev->driver->setup(&dev->gadget, &u.r);
-			spin_lock(&dev->lock);
+			if (dev->async_callbacks) {
+				spin_unlock(&dev->lock);
+				tmp = dev->driver->setup(&dev->gadget, &u.r);
+				spin_lock(&dev->lock);
+			}
 		}
 
 		/* stall ep0 on error */
@@ -3391,14 +3404,14 @@ __acquires(dev->lock)
 			if (disconnect || reset) {
 				stop_activity(dev, dev->driver);
 				ep0_start(dev);
-				spin_unlock(&dev->lock);
-				if (reset)
-					usb_gadget_udc_reset
-						(&dev->gadget, dev->driver);
-				else
-					(dev->driver->disconnect)
-						(&dev->gadget);
-				spin_lock(&dev->lock);
+				if (dev->async_callbacks) {
+					spin_unlock(&dev->lock);
+					if (reset)
+						usb_gadget_udc_reset(&dev->gadget, dev->driver);
+					else
+						(dev->driver->disconnect)(&dev->gadget);
+					spin_lock(&dev->lock);
+				}
 				return;
 			}
 		}
@@ -3419,12 +3432,12 @@ __acquires(dev->lock)
 		writel(tmp, &dev->regs->irqstat1);
 		spin_unlock(&dev->lock);
 		if (stat & BIT(SUSPEND_REQUEST_INTERRUPT)) {
-			if (dev->driver->suspend)
+			if (dev->async_callbacks && dev->driver->suspend)
 				dev->driver->suspend(&dev->gadget);
 			if (!enable_suspend)
 				stat &= ~BIT(SUSPEND_REQUEST_INTERRUPT);
 		} else {
-			if (dev->driver->resume)
+			if (dev->async_callbacks && dev->driver->resume)
 				dev->driver->resume(&dev->gadget);
 			/* at high speed, note erratum 0133 */
 		}

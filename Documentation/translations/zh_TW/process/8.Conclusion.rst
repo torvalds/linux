@@ -1,0 +1,74 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+.. include:: ../disclaimer-zh_TW.rst
+
+:Original: :ref:`Documentation/process/8.Conclusion.rst <development_conclusion>`
+:Translator:
+
+ 時奎亮 Alex Shi <alex.shi@linux.alibaba.com>
+
+:校譯:
+
+ 吳想成 Wu XiangCheng <bobwxc@email.cn>
+ 胡皓文 Hu Haowen <src.res@email.cn>
+
+.. _tw_development_conclusion:
+
+更多信息
+========
+
+關於Linux內核開發和相關主題的信息來源很多。首先是在內核原始碼分發中找到的
+文檔目錄。頂級
+:ref:`Documentation/translations/zh_TW/process/howto.rst <tw_process_howto>`
+文件是一個重要的起點；
+:ref:`Documentation/translations/zh_TW/process/submitting-patches.rst <tw_submittingpatches>`
+和 :ref:`Documentation/translations/zh_TW/process/submitting-drivers.rst <tw_submittingdrivers>`
+也是所有內核開發人員都應該閱讀的內容。許多內部內核API都是使用kerneldoc機制
+記錄的；「make htmldocs」或「make pdfdocs」可用於以HTML或PDF格式生成這些文檔
+（儘管某些發行版提供的tex版本會遇到內部限制，無法正確處理文檔）。
+
+不同的網站在各個細節層次上討論內核開發。本文作者想謙虛地建議用 https://lwn.net/
+作爲來源；有關許多特定內核主題的信息可以通過以下網址的 LWN 內核索引找到：
+
+  http://lwn.net/kernel/index/
+
+除此之外，內核開發人員的一個寶貴資源是：
+
+  https://kernelnewbies.org/
+
+當然，也不應該忘記 https://kernel.org/ ，這是內核發布信息的最終位置。
+
+關於內核開發有很多書：
+
+  《Linux設備驅動程序》第三版（Jonathan Corbet、Alessandro Rubini和Greg Kroah Hartman）
+  線上版本在 http://lwn.net/kernel/ldd3/
+
+  《Linux內核設計與實現》（Robert Love）
+
+  《深入理解Linux內核》(Daniel Bovet和Marco Cesati）
+
+然而，所有這些書都有一個共同的缺點：它們上架時就往往有些過時，而且已經上架
+一段時間了。不過，在那裡還是可以找到相當多的好信息。
+
+有關git的文檔，請訪問：
+
+  https://www.kernel.org/pub/software/scm/git/docs/
+
+  https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+
+結論
+====
+
+祝賀所有通過這篇冗長的文檔的人。希望它能夠幫助您理解Linux內核是如何開發的，
+以及您如何參與這個過程。
+
+最後，重要的是參與。任何開源軟體項目都不會超過其貢獻者投入其中的總和。Linux
+內核的發展速度和以前一樣快，因爲它得到了大量開發人員的幫助，他們都在努力使它
+變得更好。內核是一個最成功的例子，說明了當成千上萬的人爲了一個共同的目標一起
+工作時，可以做出什麼。
+
+不過，內核總是可以從更大的開發人員基礎中獲益。總有更多的工作要做。但是同樣
+重要的是，Linux生態系統中的大多數其他參與者可以通過爲內核做出貢獻而受益。使
+代碼進入主線是提高代碼質量、降低維護和分發成本、提高對內核開發方向的影響程度
+等的關鍵。這是一種共贏的局面。啓動你的編輯器，來加入我們吧；你會非常受歡迎的。
+

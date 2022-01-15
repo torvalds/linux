@@ -102,7 +102,7 @@ static void reuseport_array_free(struct bpf_map *map)
 	/*
 	 * ops->map_*_elem() will not be able to access this
 	 * array now. Hence, this function only races with
-	 * bpf_sk_reuseport_detach() which was triggerred by
+	 * bpf_sk_reuseport_detach() which was triggered by
 	 * close() or disconnect().
 	 *
 	 * This function and bpf_sk_reuseport_detach() are

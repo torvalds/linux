@@ -53,7 +53,8 @@ static int zynqmp_reset_status(struct reset_controller_dev *rcdev,
 			       unsigned long id)
 {
 	struct zynqmp_reset_data *priv = to_zynqmp_reset_data(rcdev);
-	int val, err;
+	int err;
+	u32 val;
 
 	err = zynqmp_pm_reset_get_status(priv->data->reset_id + id, &val);
 	if (err)
@@ -83,8 +84,8 @@ static const struct zynqmp_reset_soc_data zynqmp_reset_data = {
 };
 
 static const struct zynqmp_reset_soc_data versal_reset_data = {
-        .reset_id = 0,
-        .num_resets = VERSAL_NR_RESETS,
+	.reset_id = 0,
+	.num_resets = VERSAL_NR_RESETS,
 };
 
 static const struct reset_control_ops zynqmp_reset_ops = {

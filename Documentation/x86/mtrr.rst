@@ -28,7 +28,7 @@ are aligned with platform MTRR setup. If MTRRs are only set up by the platform
 firmware code though and the OS does not make any specific MTRR mapping
 requests mtrr_type_lookup() should always return MTRR_TYPE_INVALID.
 
-For details refer to :doc:`pat`.
+For details refer to Documentation/x86/pat.rst.
 
 .. tip::
   On Intel P6 family processors (Pentium Pro, Pentium II and later)

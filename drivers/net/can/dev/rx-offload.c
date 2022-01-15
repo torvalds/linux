@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2014      Protonic Holland,
  *                         David Jander
- * Copyright (C) 2014-2017 Pengutronix,
+ * Copyright (C) 2014-2021 Pengutronix,
  *                         Marc Kleine-Budde <kernel@pengutronix.de>
  */
 
@@ -174,10 +174,8 @@ can_rx_offload_offload_one(struct can_rx_offload *offload, unsigned int n)
 int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload,
 					 u64 pending)
 {
-	struct sk_buff_head skb_queue;
 	unsigned int i;
-
-	__skb_queue_head_init(&skb_queue);
+	int received = 0;
 
 	for (i = offload->mb_first;
 	     can_rx_offload_le(offload, i, offload->mb_last);
@@ -191,26 +189,12 @@ int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload,
 		if (IS_ERR_OR_NULL(skb))
 			continue;
 
-		__skb_queue_add_sort(&skb_queue, skb, can_rx_offload_compare);
+		__skb_queue_add_sort(&offload->skb_irq_queue, skb,
+				     can_rx_offload_compare);
+		received++;
 	}
 
-	if (!skb_queue_empty(&skb_queue)) {
-		unsigned long flags;
-		u32 queue_len;
-
-		spin_lock_irqsave(&offload->skb_queue.lock, flags);
-		skb_queue_splice_tail(&skb_queue, &offload->skb_queue);
-		spin_unlock_irqrestore(&offload->skb_queue.lock, flags);
-
-		queue_len = skb_queue_len(&offload->skb_queue);
-		if (queue_len > offload->skb_queue_len_max / 8)
-			netdev_dbg(offload->dev, "%s: queue_len=%d\n",
-				   __func__, queue_len);
-
-		can_rx_offload_schedule(offload);
-	}
-
-	return skb_queue_len(&skb_queue);
+	return received;
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_irq_offload_timestamp);
 
@@ -226,12 +210,9 @@ int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload)
 		if (!skb)
 			break;
 
-		skb_queue_tail(&offload->skb_queue, skb);
+		__skb_queue_tail(&offload->skb_irq_queue, skb);
 		received++;
 	}
-
-	if (received)
-		can_rx_offload_schedule(offload);
 
 	return received;
 }
@@ -241,7 +222,6 @@ int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
 				struct sk_buff *skb, u32 timestamp)
 {
 	struct can_rx_offload_cb *cb;
-	unsigned long flags;
 
 	if (skb_queue_len(&offload->skb_queue) >
 	    offload->skb_queue_len_max) {
@@ -252,11 +232,8 @@ int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
 	cb = can_rx_offload_get_cb(skb);
 	cb->timestamp = timestamp;
 
-	spin_lock_irqsave(&offload->skb_queue.lock, flags);
-	__skb_queue_add_sort(&offload->skb_queue, skb, can_rx_offload_compare);
-	spin_unlock_irqrestore(&offload->skb_queue.lock, flags);
-
-	can_rx_offload_schedule(offload);
+	__skb_queue_add_sort(&offload->skb_irq_queue, skb,
+			     can_rx_offload_compare);
 
 	return 0;
 }
@@ -295,12 +272,55 @@ int can_rx_offload_queue_tail(struct can_rx_offload *offload,
 		return -ENOBUFS;
 	}
 
-	skb_queue_tail(&offload->skb_queue, skb);
-	can_rx_offload_schedule(offload);
+	__skb_queue_tail(&offload->skb_irq_queue, skb);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_queue_tail);
+
+void can_rx_offload_irq_finish(struct can_rx_offload *offload)
+{
+	unsigned long flags;
+	int queue_len;
+
+	if (skb_queue_empty_lockless(&offload->skb_irq_queue))
+		return;
+
+	spin_lock_irqsave(&offload->skb_queue.lock, flags);
+	skb_queue_splice_tail_init(&offload->skb_irq_queue, &offload->skb_queue);
+	spin_unlock_irqrestore(&offload->skb_queue.lock, flags);
+
+	queue_len = skb_queue_len(&offload->skb_queue);
+	if (queue_len > offload->skb_queue_len_max / 8)
+		netdev_dbg(offload->dev, "%s: queue_len=%d\n",
+			   __func__, queue_len);
+
+	napi_schedule(&offload->napi);
+}
+EXPORT_SYMBOL_GPL(can_rx_offload_irq_finish);
+
+void can_rx_offload_threaded_irq_finish(struct can_rx_offload *offload)
+{
+	unsigned long flags;
+	int queue_len;
+
+	if (skb_queue_empty_lockless(&offload->skb_irq_queue))
+		return;
+
+	spin_lock_irqsave(&offload->skb_queue.lock, flags);
+	skb_queue_splice_tail_init(&offload->skb_irq_queue, &offload->skb_queue);
+	spin_unlock_irqrestore(&offload->skb_queue.lock, flags);
+
+	queue_len = skb_queue_len(&offload->skb_queue);
+	if (queue_len > offload->skb_queue_len_max / 8)
+		netdev_dbg(offload->dev, "%s: queue_len=%d\n",
+			   __func__, queue_len);
+
+	local_bh_disable();
+	napi_schedule(&offload->napi);
+	local_bh_enable();
+}
+EXPORT_SYMBOL_GPL(can_rx_offload_threaded_irq_finish);
 
 static int can_rx_offload_init_queue(struct net_device *dev,
 				     struct can_rx_offload *offload,
@@ -312,6 +332,7 @@ static int can_rx_offload_init_queue(struct net_device *dev,
 	offload->skb_queue_len_max = 2 << fls(weight);
 	offload->skb_queue_len_max *= 4;
 	skb_queue_head_init(&offload->skb_queue);
+	__skb_queue_head_init(&offload->skb_irq_queue);
 
 	netif_napi_add(dev, &offload->napi, can_rx_offload_napi_poll, weight);
 
@@ -373,5 +394,6 @@ void can_rx_offload_del(struct can_rx_offload *offload)
 {
 	netif_napi_del(&offload->napi);
 	skb_queue_purge(&offload->skb_queue);
+	__skb_queue_purge(&offload->skb_irq_queue);
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_del);

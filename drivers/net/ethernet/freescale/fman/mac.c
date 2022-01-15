@@ -524,6 +524,7 @@ static void setup_memac(struct mac_device *mac_dev)
 	| SUPPORTED_Autoneg \
 	| SUPPORTED_Pause \
 	| SUPPORTED_Asym_Pause \
+	| SUPPORTED_FIBRE \
 	| SUPPORTED_MII)
 
 static DEFINE_MUTEX(eth_lock);

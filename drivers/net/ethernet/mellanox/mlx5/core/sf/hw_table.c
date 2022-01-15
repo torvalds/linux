@@ -6,7 +6,6 @@
 #include "sf.h"
 #include "mlx5_ifc_vhca_event.h"
 #include "ecpf.h"
-#include "vhca_event.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
 
@@ -74,26 +73,29 @@ static int mlx5_sf_hw_table_id_alloc(struct mlx5_sf_hw_table *table, u32 control
 				     u32 usr_sfnum)
 {
 	struct mlx5_sf_hwc_table *hwc;
+	int free_idx = -1;
 	int i;
 
 	hwc = mlx5_sf_controller_to_hwc(table->dev, controller);
 	if (!hwc->sfs)
 		return -ENOSPC;
 
-	/* Check if sf with same sfnum already exists or not. */
 	for (i = 0; i < hwc->max_fn; i++) {
+		if (!hwc->sfs[i].allocated && free_idx == -1) {
+			free_idx = i;
+			continue;
+		}
+
 		if (hwc->sfs[i].allocated && hwc->sfs[i].usr_sfnum == usr_sfnum)
 			return -EEXIST;
 	}
-	/* Find the free entry and allocate the entry from the array */
-	for (i = 0; i < hwc->max_fn; i++) {
-		if (!hwc->sfs[i].allocated) {
-			hwc->sfs[i].usr_sfnum = usr_sfnum;
-			hwc->sfs[i].allocated = true;
-			return i;
-		}
-	}
-	return -ENOSPC;
+
+	if (free_idx == -1)
+		return -ENOSPC;
+
+	hwc->sfs[free_idx].usr_sfnum = usr_sfnum;
+	hwc->sfs[free_idx].allocated = true;
+	return free_idx;
 }
 
 static void mlx5_sf_hw_table_id_free(struct mlx5_sf_hw_table *table, u32 controller, int id)

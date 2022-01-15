@@ -5,6 +5,7 @@
  * This file contains the setup_arch() code, which handles the architecture-dependent
  * parts of early kernel initialization.
  */
+#include <linux/acpi.h>
 #include <linux/console.h>
 #include <linux/crash_dump.h>
 #include <linux/dma-map-ops.h>
@@ -14,6 +15,7 @@
 #include <linux/initrd.h>
 #include <linux/iscsi_ibft.h>
 #include <linux/memblock.h>
+#include <linux/panic_notifier.h>
 #include <linux/pci.h>
 #include <linux/root_dev.h>
 #include <linux/hugetlb.h>
@@ -571,16 +573,6 @@ void __init reserve_standard_io_resources(void)
 
 }
 
-static __init void reserve_ibft_region(void)
-{
-	unsigned long addr, size = 0;
-
-	addr = find_ibft_region(&size);
-
-	if (size)
-		memblock_reserve(addr, size);
-}
-
 static bool __init snb_gfx_workaround_needed(void)
 {
 #ifdef CONFIG_PCI
@@ -694,30 +686,6 @@ static void __init e820_add_kernel_range(void)
 	e820__range_remove(start, size, E820_TYPE_RAM, 0);
 	e820__range_add(start, size, E820_TYPE_RAM);
 }
-
-static unsigned reserve_low = CONFIG_X86_RESERVE_LOW << 10;
-
-static int __init parse_reservelow(char *p)
-{
-	unsigned long long size;
-
-	if (!p)
-		return -EINVAL;
-
-	size = memparse(p, &p);
-
-	if (size < 4096)
-		size = 4096;
-
-	if (size > 640*1024)
-		size = 640*1024;
-
-	reserve_low = size;
-
-	return 0;
-}
-
-early_param("reservelow", parse_reservelow);
 
 static void __init early_reserve_memory(void)
 {
@@ -862,6 +830,20 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.oem.arch_setup();
 
+	/*
+	 * Do some memory reservations *before* memory is added to memblock, so
+	 * memblock allocations won't overwrite it.
+	 *
+	 * After this point, everything still needed from the boot loader or
+	 * firmware or kernel text should be early reserved or marked not RAM in
+	 * e820. All other memory is free game.
+	 *
+	 * This call needs to happen before e820__memory_setup() which calls the
+	 * xen_memory_setup() on Xen dom0 which relies on the fact that those
+	 * early reservations have happened already.
+	 */
+	early_reserve_memory();
+
 	iomem_resource.end = (1ULL << boot_cpu_data.x86_phys_bits) - 1;
 	e820__memory_setup();
 	parse_setup_data();
@@ -870,10 +852,7 @@ void __init setup_arch(char **cmdline_p)
 
 	if (!boot_params.hdr.root_flags)
 		root_mountflags &= ~MS_RDONLY;
-	init_mm.start_code = (unsigned long) _text;
-	init_mm.end_code = (unsigned long) _etext;
-	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = _brk_end;
+	setup_initial_init_mm(_text, _etext, _edata, (void *)_brk_end);
 
 	code_resource.start = __pa_symbol(_text);
 	code_resource.end = __pa_symbol(_etext)-1;
@@ -910,18 +889,6 @@ void __init setup_arch(char **cmdline_p)
 	x86_configure_nx();
 
 	parse_early_param();
-
-	/*
-	 * Do some memory reservations *before* memory is added to
-	 * memblock, so memblock allocations won't overwrite it.
-	 * Do it after early param, so we could get (unlikely) panic from
-	 * serial.
-	 *
-	 * After this point everything still needed from the boot loader or
-	 * firmware or kernel text should be early reserved or marked not
-	 * RAM in e820. All other memory is free game.
-	 */
-	early_reserve_memory();
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 	/*
@@ -1084,17 +1051,18 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/*
-	 * Find free memory for the real mode trampoline and place it
-	 * there.
-	 * If there is not enough free memory under 1M, on EFI-enabled
-	 * systems there will be additional attempt to reclaim the memory
-	 * for the real mode trampoline at efi_free_boot_services().
+	 * Find free memory for the real mode trampoline and place it there. If
+	 * there is not enough free memory under 1M, on EFI-enabled systems
+	 * there will be additional attempt to reclaim the memory for the real
+	 * mode trampoline at efi_free_boot_services().
 	 *
-	 * Unconditionally reserve the entire first 1M of RAM because
-	 * BIOSes are know to corrupt low memory and several
-	 * hundred kilobytes are not worth complex detection what memory gets
-	 * clobbered. Moreover, on machines with SandyBridge graphics or in
-	 * setups that use crashkernel the entire 1M is reserved anyway.
+	 * Unconditionally reserve the entire first 1M of RAM because BIOSes
+	 * are known to corrupt low memory and several hundred kilobytes are not
+	 * worth complex detection what memory gets clobbered. Windows does the
+	 * same thing for very similar reasons.
+	 *
+	 * Moreover, on machines with SandyBridge graphics or in setups that use
+	 * crashkernel the entire 1M is reserved anyway.
 	 */
 	reserve_real_mode();
 

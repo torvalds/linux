@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: brcm,bcm2835-vec
+    enum:
+      - brcm,bcm2711-vec
+      - brcm,bcm2835-vec
 
   reg:
     maxItems: 1

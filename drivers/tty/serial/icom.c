@@ -37,7 +37,7 @@
 #include <linux/firmware.h>
 #include <linux/bitops.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 

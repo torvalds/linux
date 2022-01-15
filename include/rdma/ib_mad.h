@@ -718,27 +718,26 @@ int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 void ib_free_recv_mad(struct ib_mad_recv_wc *mad_recv_wc);
 
 /**
- * ib_cancel_mad - Cancels an outstanding send MAD operation.
- * @mad_agent: Specifies the registration associated with sent MAD.
- * @send_buf: Indicates the MAD to cancel.
- *
- * MADs will be returned to the user through the corresponding
- * ib_mad_send_handler.
- */
-void ib_cancel_mad(struct ib_mad_agent *mad_agent,
-		   struct ib_mad_send_buf *send_buf);
-
-/**
  * ib_modify_mad - Modifies an outstanding send MAD operation.
- * @mad_agent: Specifies the registration associated with sent MAD.
  * @send_buf: Indicates the MAD to modify.
  * @timeout_ms: New timeout value for sent MAD.
  *
  * This call will reset the timeout value for a sent MAD to the specified
  * value.
  */
-int ib_modify_mad(struct ib_mad_agent *mad_agent,
-		  struct ib_mad_send_buf *send_buf, u32 timeout_ms);
+int ib_modify_mad(struct ib_mad_send_buf *send_buf, u32 timeout_ms);
+
+/**
+ * ib_cancel_mad - Cancels an outstanding send MAD operation.
+ * @send_buf: Indicates the MAD to cancel.
+ *
+ * MADs will be returned to the user through the corresponding
+ * ib_mad_send_handler.
+ */
+static inline void ib_cancel_mad(struct ib_mad_send_buf *send_buf)
+{
+	ib_modify_mad(send_buf, 0);
+}
 
 /**
  * ib_create_send_mad - Allocate and initialize a data buffer and work request

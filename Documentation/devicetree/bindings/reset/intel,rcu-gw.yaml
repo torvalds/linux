@@ -57,7 +57,6 @@ examples:
     };
 
     pwm: pwm@e0d00000 {
-        status = "disabled";
         compatible = "intel,lgm-pwm";
         reg = <0xe0d00000 0x30>;
         clocks = <&cgu0 1>;

@@ -257,6 +257,13 @@ properties:
 
       where voltage is in V, frequency is in MHz.
 
+  performance-domains:
+    maxItems: 1
+    description:
+      List of phandles and performance domain specifiers, as defined by
+      bindings of the performance domain provider. See also
+      dvfs/performance-domain.yaml.
+
   power-domains:
     description:
       List of phandles and PM domain specifiers, as defined by bindings of the

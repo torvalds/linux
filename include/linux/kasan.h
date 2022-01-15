@@ -2,6 +2,8 @@
 #ifndef _LINUX_KASAN_H
 #define _LINUX_KASAN_H
 
+#include <linux/bug.h>
+#include <linux/kernel.h>
 #include <linux/static_key.h>
 #include <linux/types.h>
 
@@ -17,7 +19,6 @@ struct task_struct;
 
 /* kasan_data struct is used in KUnit tests for KASAN expected failures */
 struct kunit_kasan_expectation {
-	bool report_expected;
 	bool report_found;
 };
 
@@ -41,9 +42,9 @@ struct kunit_kasan_expectation {
 #endif
 
 extern unsigned char kasan_early_shadow_page[PAGE_SIZE];
-extern pte_t kasan_early_shadow_pte[PTRS_PER_PTE + PTE_HWTABLE_PTRS];
-extern pmd_t kasan_early_shadow_pmd[PTRS_PER_PMD];
-extern pud_t kasan_early_shadow_pud[PTRS_PER_PUD];
+extern pte_t kasan_early_shadow_pte[MAX_PTRS_PER_PTE + PTE_HWTABLE_PTRS];
+extern pmd_t kasan_early_shadow_pmd[MAX_PTRS_PER_PMD];
+extern pud_t kasan_early_shadow_pud[MAX_PTRS_PER_PUD];
 extern p4d_t kasan_early_shadow_p4d[MAX_PTRS_PER_P4D];
 
 int kasan_populate_early_shadow(const void *shadow_start,
@@ -79,14 +80,6 @@ static inline void kasan_disable_current(void) {}
 
 #endif /* CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS */
 
-#ifdef CONFIG_KASAN
-
-struct kasan_cache {
-	int alloc_meta_offset;
-	int free_meta_offset;
-	bool is_kmalloc;
-};
-
 #ifdef CONFIG_KASAN_HW_TAGS
 
 DECLARE_STATIC_KEY_FALSE(kasan_flag_enabled);
@@ -101,11 +94,14 @@ static inline bool kasan_has_integrated_init(void)
 	return kasan_enabled();
 }
 
+void kasan_alloc_pages(struct page *page, unsigned int order, gfp_t flags);
+void kasan_free_pages(struct page *page, unsigned int order);
+
 #else /* CONFIG_KASAN_HW_TAGS */
 
 static inline bool kasan_enabled(void)
 {
-	return true;
+	return IS_ENABLED(CONFIG_KASAN);
 }
 
 static inline bool kasan_has_integrated_init(void)
@@ -113,7 +109,29 @@ static inline bool kasan_has_integrated_init(void)
 	return false;
 }
 
+static __always_inline void kasan_alloc_pages(struct page *page,
+					      unsigned int order, gfp_t flags)
+{
+	/* Only available for integrated init. */
+	BUILD_BUG();
+}
+
+static __always_inline void kasan_free_pages(struct page *page,
+					     unsigned int order)
+{
+	/* Only available for integrated init. */
+	BUILD_BUG();
+}
+
 #endif /* CONFIG_KASAN_HW_TAGS */
+
+#ifdef CONFIG_KASAN
+
+struct kasan_cache {
+	int alloc_meta_offset;
+	int free_meta_offset;
+	bool is_kmalloc;
+};
 
 slab_flags_t __kasan_never_merge(void);
 static __always_inline slab_flags_t kasan_never_merge(void)
@@ -130,20 +148,20 @@ static __always_inline void kasan_unpoison_range(const void *addr, size_t size)
 		__kasan_unpoison_range(addr, size);
 }
 
-void __kasan_alloc_pages(struct page *page, unsigned int order, bool init);
-static __always_inline void kasan_alloc_pages(struct page *page,
+void __kasan_poison_pages(struct page *page, unsigned int order, bool init);
+static __always_inline void kasan_poison_pages(struct page *page,
 						unsigned int order, bool init)
 {
 	if (kasan_enabled())
-		__kasan_alloc_pages(page, order, init);
+		__kasan_poison_pages(page, order, init);
 }
 
-void __kasan_free_pages(struct page *page, unsigned int order, bool init);
-static __always_inline void kasan_free_pages(struct page *page,
-						unsigned int order, bool init)
+void __kasan_unpoison_pages(struct page *page, unsigned int order, bool init);
+static __always_inline void kasan_unpoison_pages(struct page *page,
+						 unsigned int order, bool init)
 {
 	if (kasan_enabled())
-		__kasan_free_pages(page, order, init);
+		__kasan_unpoison_pages(page, order, init);
 }
 
 void __kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
@@ -285,21 +303,15 @@ void kasan_restore_multi_shot(bool enabled);
 
 #else /* CONFIG_KASAN */
 
-static inline bool kasan_enabled(void)
-{
-	return false;
-}
-static inline bool kasan_has_integrated_init(void)
-{
-	return false;
-}
 static inline slab_flags_t kasan_never_merge(void)
 {
 	return 0;
 }
 static inline void kasan_unpoison_range(const void *address, size_t size) {}
-static inline void kasan_alloc_pages(struct page *page, unsigned int order, bool init) {}
-static inline void kasan_free_pages(struct page *page, unsigned int order, bool init) {}
+static inline void kasan_poison_pages(struct page *page, unsigned int order,
+				      bool init) {}
+static inline void kasan_unpoison_pages(struct page *page, unsigned int order,
+					bool init) {}
 static inline void kasan_cache_create(struct kmem_cache *cache,
 				      unsigned int *size,
 				      slab_flags_t *flags) {}

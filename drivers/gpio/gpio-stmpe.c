@@ -449,6 +449,11 @@ static void stmpe_init_irq_valid_mask(struct gpio_chip *gc,
 	}
 }
 
+static void stmpe_gpio_disable(void *stmpe)
+{
+	stmpe_disable(stmpe, STMPE_BLOCK_GPIO);
+}
+
 static int stmpe_gpio_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
@@ -461,7 +466,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	stmpe_gpio = kzalloc(sizeof(*stmpe_gpio), GFP_KERNEL);
+	stmpe_gpio = devm_kzalloc(&pdev->dev, sizeof(*stmpe_gpio), GFP_KERNEL);
 	if (!stmpe_gpio)
 		return -ENOMEM;
 
@@ -489,7 +494,11 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
 	if (ret)
-		goto out_free;
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev, stmpe_gpio_disable, stmpe);
+	if (ret)
+		return ret;
 
 	if (irq > 0) {
 		struct gpio_irq_chip *girq;
@@ -499,7 +508,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 				"stmpe-gpio", stmpe_gpio);
 		if (ret) {
 			dev_err(&pdev->dev, "unable to get irq: %d\n", ret);
-			goto out_disable;
+			return ret;
 		}
 
 		girq = &stmpe_gpio->chip.irq;
@@ -514,22 +523,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		girq->init_valid_mask = stmpe_init_irq_valid_mask;
 	}
 
-	ret = gpiochip_add_data(&stmpe_gpio->chip, stmpe_gpio);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
-		goto out_disable;
-	}
-
-	platform_set_drvdata(pdev, stmpe_gpio);
-
-	return 0;
-
-out_disable:
-	stmpe_disable(stmpe, STMPE_BLOCK_GPIO);
-	gpiochip_remove(&stmpe_gpio->chip);
-out_free:
-	kfree(stmpe_gpio);
-	return ret;
+	return devm_gpiochip_add_data(&pdev->dev, &stmpe_gpio->chip, stmpe_gpio);
 }
 
 static struct platform_driver stmpe_gpio_driver = {

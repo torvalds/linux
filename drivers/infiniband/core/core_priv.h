@@ -78,8 +78,6 @@ static inline struct rdma_dev_net *rdma_net_to_dev_net(struct net *net)
 	return net_generic(net, rdma_dev_net_id);
 }
 
-int ib_device_register_sysfs(struct ib_device *device);
-void ib_device_unregister_sysfs(struct ib_device *device);
 int ib_device_rename(struct ib_device *ibdev, const char *name);
 int ib_device_set_dim(struct ib_device *ibdev, u8 use_dim);
 
@@ -214,7 +212,7 @@ int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
 			     struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack);
 
-int ib_get_cached_subnet_prefix(struct ib_device *device,
+void ib_get_cached_subnet_prefix(struct ib_device *device,
 				u32 port_num,
 				u64 *sn_pfx);
 
@@ -318,45 +316,13 @@ struct ib_device *ib_device_get_by_index(const struct net *net, u32 index);
 void nldev_init(void);
 void nldev_exit(void);
 
-static inline struct ib_qp *
-_ib_create_qp(struct ib_device *dev, struct ib_pd *pd,
-	      struct ib_qp_init_attr *attr, struct ib_udata *udata,
-	      struct ib_uqp_object *uobj, const char *caller)
-{
-	struct ib_qp *qp;
+struct ib_qp *ib_create_qp_user(struct ib_device *dev, struct ib_pd *pd,
+				struct ib_qp_init_attr *attr,
+				struct ib_udata *udata,
+				struct ib_uqp_object *uobj, const char *caller);
 
-	if (!dev->ops.create_qp)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	qp = dev->ops.create_qp(pd, attr, udata);
-	if (IS_ERR(qp))
-		return qp;
-
-	qp->device = dev;
-	qp->pd = pd;
-	qp->uobject = uobj;
-	qp->real_qp = qp;
-
-	qp->qp_type = attr->qp_type;
-	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
-	qp->send_cq = attr->send_cq;
-	qp->recv_cq = attr->recv_cq;
-	qp->srq = attr->srq;
-	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
-	qp->event_handler = attr->event_handler;
-	qp->port = attr->port_num;
-
-	atomic_set(&qp->usecnt, 0);
-	spin_lock_init(&qp->mr_lock);
-	INIT_LIST_HEAD(&qp->rdma_mrs);
-	INIT_LIST_HEAD(&qp->sig_mrs);
-
-	rdma_restrack_new(&qp->res, RDMA_RESTRACK_QP);
-	WARN_ONCE(!udata && !caller, "Missing kernel QP owner");
-	rdma_restrack_set_name(&qp->res, udata ? NULL : caller);
-	rdma_restrack_add(&qp->res);
-	return qp;
-}
+void ib_qp_usecnt_inc(struct ib_qp *qp);
+void ib_qp_usecnt_dec(struct ib_qp *qp);
 
 struct rdma_dev_addr;
 int rdma_resolve_ip_route(struct sockaddr *src_addr,
@@ -378,13 +344,16 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
 
 void ib_free_port_attrs(struct ib_core_device *coredev);
 int ib_setup_port_attrs(struct ib_core_device *coredev);
+struct rdma_hw_stats *ib_get_hw_stats_port(struct ib_device *ibdev, u32 port_num);
+void ib_device_release_hw_stats(struct hw_stats_device_data *data);
+int ib_setup_device_attrs(struct ib_device *ibdev);
 
 int rdma_compatdev_set(u8 enable);
 
-int ib_port_register_module_stat(struct ib_device *device, u32 port_num,
-				 struct kobject *kobj, struct kobj_type *ktype,
-				 const char *name);
-void ib_port_unregister_module_stat(struct kobject *kobj);
+int ib_port_register_client_groups(struct ib_device *ibdev, u32 port_num,
+				   const struct attribute_group **groups);
+void ib_port_unregister_client_groups(struct ib_device *ibdev, u32 port_num,
+				     const struct attribute_group **groups);
 
 int ib_device_set_netns_put(struct sk_buff *skb,
 			    struct ib_device *dev, u32 ns_fd);

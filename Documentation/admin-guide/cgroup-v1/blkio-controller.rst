@@ -17,36 +17,37 @@ level logical devices like device mapper.
 
 HOWTO
 =====
+
 Throttling/Upper Limit policy
 -----------------------------
-- Enable Block IO controller::
+Enable Block IO controller::
 
 	CONFIG_BLK_CGROUP=y
 
-- Enable throttling in block layer::
+Enable throttling in block layer::
 
 	CONFIG_BLK_DEV_THROTTLING=y
 
-- Mount blkio controller (see cgroups.txt, Why are cgroups needed?)::
+Mount blkio controller (see cgroups.txt, Why are cgroups needed?)::
 
         mount -t cgroup -o blkio none /sys/fs/cgroup/blkio
 
-- Specify a bandwidth rate on particular device for root group. The format
-  for policy is "<major>:<minor>  <bytes_per_second>"::
+Specify a bandwidth rate on particular device for root group. The format
+for policy is "<major>:<minor>  <bytes_per_second>"::
 
         echo "8:16  1048576" > /sys/fs/cgroup/blkio/blkio.throttle.read_bps_device
 
-  Above will put a limit of 1MB/second on reads happening for root group
-  on device having major/minor number 8:16.
+This will put a limit of 1MB/second on reads happening for root group
+on device having major/minor number 8:16.
 
-- Run dd to read a file and see if rate is throttled to 1MB/s or not::
+Run dd to read a file and see if rate is throttled to 1MB/s or not::
 
         # dd iflag=direct if=/mnt/common/zerofile of=/dev/null bs=4K count=1024
         1024+0 records in
         1024+0 records out
         4194304 bytes (4.2 MB) copied, 4.0001 s, 1.0 MB/s
 
- Limits for writes can be put using blkio.throttle.write_bps_device file.
+Limits for writes can be put using blkio.throttle.write_bps_device file.
 
 Hierarchical Cgroups
 ====================
@@ -79,85 +80,89 @@ following::
 
 Various user visible config options
 ===================================
-CONFIG_BLK_CGROUP
-	- Block IO controller.
 
-CONFIG_BFQ_CGROUP_DEBUG
-	- Debug help. Right now some additional stats file show up in cgroup
+  CONFIG_BLK_CGROUP
+	  Block IO controller.
+
+  CONFIG_BFQ_CGROUP_DEBUG
+	  Debug help. Right now some additional stats file show up in cgroup
 	  if this option is enabled.
 
-CONFIG_BLK_DEV_THROTTLING
-	- Enable block device throttling support in block layer.
+  CONFIG_BLK_DEV_THROTTLING
+	  Enable block device throttling support in block layer.
 
 Details of cgroup files
 =======================
+
 Proportional weight policy files
 --------------------------------
-- blkio.weight
-	- Specifies per cgroup weight. This is default weight of the group
-	  on all the devices until and unless overridden by per device rule.
-	  (See blkio.weight_device).
-	  Currently allowed range of weights is from 10 to 1000.
 
-- blkio.weight_device
-	- One can specify per cgroup per device rules using this interface.
-	  These rules override the default value of group weight as specified
-	  by blkio.weight.
+  blkio.bfq.weight
+	  Specifies per cgroup weight. This is default weight of the group
+	  on all the devices until and unless overridden by per device rule
+	  (see `blkio.bfq.weight_device` below).
+
+	  Currently allowed range of weights is from 1 to 1000. For more details,
+          see Documentation/block/bfq-iosched.rst.
+
+  blkio.bfq.weight_device
+          Specifes per cgroup per device weights, overriding the default group
+          weight. For more details, see Documentation/block/bfq-iosched.rst.
 
 	  Following is the format::
 
-	    # echo dev_maj:dev_minor weight > blkio.weight_device
+	    # echo dev_maj:dev_minor weight > blkio.bfq.weight_device
 
 	  Configure weight=300 on /dev/sdb (8:16) in this cgroup::
 
-	    # echo 8:16 300 > blkio.weight_device
-	    # cat blkio.weight_device
+	    # echo 8:16 300 > blkio.bfq.weight_device
+	    # cat blkio.bfq.weight_device
 	    dev     weight
 	    8:16    300
 
 	  Configure weight=500 on /dev/sda (8:0) in this cgroup::
 
-	    # echo 8:0 500 > blkio.weight_device
-	    # cat blkio.weight_device
+	    # echo 8:0 500 > blkio.bfq.weight_device
+	    # cat blkio.bfq.weight_device
 	    dev     weight
 	    8:0     500
 	    8:16    300
 
 	  Remove specific weight for /dev/sda in this cgroup::
 
-	    # echo 8:0 0 > blkio.weight_device
-	    # cat blkio.weight_device
+	    # echo 8:0 0 > blkio.bfq.weight_device
+	    # cat blkio.bfq.weight_device
 	    dev     weight
 	    8:16    300
 
-- blkio.time
-	- disk time allocated to cgroup per device in milliseconds. First
+  blkio.time
+	  Disk time allocated to cgroup per device in milliseconds. First
 	  two fields specify the major and minor number of the device and
 	  third field specifies the disk time allocated to group in
 	  milliseconds.
 
-- blkio.sectors
-	- number of sectors transferred to/from disk by the group. First
+  blkio.sectors
+	  Number of sectors transferred to/from disk by the group. First
 	  two fields specify the major and minor number of the device and
 	  third field specifies the number of sectors transferred by the
 	  group to/from the device.
 
-- blkio.io_service_bytes
-	- Number of bytes transferred to/from the disk by the group. These
+  blkio.io_service_bytes
+	  Number of bytes transferred to/from the disk by the group. These
 	  are further divided by the type of operation - read or write, sync
 	  or async. First two fields specify the major and minor number of the
 	  device, third field specifies the operation type and the fourth field
 	  specifies the number of bytes.
 
-- blkio.io_serviced
-	- Number of IOs (bio) issued to the disk by the group. These
+  blkio.io_serviced
+	  Number of IOs (bio) issued to the disk by the group. These
 	  are further divided by the type of operation - read or write, sync
 	  or async. First two fields specify the major and minor number of the
 	  device, third field specifies the operation type and the fourth field
 	  specifies the number of IOs.
 
-- blkio.io_service_time
-	- Total amount of time between request dispatch and request completion
+  blkio.io_service_time
+	  Total amount of time between request dispatch and request completion
 	  for the IOs done by this cgroup. This is in nanoseconds to make it
 	  meaningful for flash devices too. For devices with queue depth of 1,
 	  this time represents the actual service time. When queue_depth > 1,
@@ -170,8 +175,8 @@ Proportional weight policy files
 	  specifies the operation type and the fourth field specifies the
 	  io_service_time in ns.
 
-- blkio.io_wait_time
-	- Total amount of time the IOs for this cgroup spent waiting in the
+  blkio.io_wait_time
+	  Total amount of time the IOs for this cgroup spent waiting in the
 	  scheduler queues for service. This can be greater than the total time
 	  elapsed since it is cumulative io_wait_time for all IOs. It is not a
 	  measure of total time the cgroup spent waiting but rather a measure of
@@ -185,24 +190,24 @@ Proportional weight policy files
 	  minor number of the device, third field specifies the operation type
 	  and the fourth field specifies the io_wait_time in ns.
 
-- blkio.io_merged
-	- Total number of bios/requests merged into requests belonging to this
+  blkio.io_merged
+	  Total number of bios/requests merged into requests belonging to this
 	  cgroup. This is further divided by the type of operation - read or
 	  write, sync or async.
 
-- blkio.io_queued
-	- Total number of requests queued up at any given instant for this
+  blkio.io_queued
+	  Total number of requests queued up at any given instant for this
 	  cgroup. This is further divided by the type of operation - read or
 	  write, sync or async.
 
-- blkio.avg_queue_size
-	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
+  blkio.avg_queue_size
+	  Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
 	  The average queue size for this cgroup over the entire time of this
 	  cgroup's existence. Queue size samples are taken each time one of the
 	  queues of this cgroup gets a timeslice.
 
-- blkio.group_wait_time
-	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
+  blkio.group_wait_time
+	  Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
 	  This is the amount of time the cgroup had to wait since it became busy
 	  (i.e., went from 0 to 1 request queued) to get a timeslice for one of
 	  its queues. This is different from the io_wait_time which is the
@@ -212,8 +217,8 @@ Proportional weight policy files
 	  will only report the group_wait_time accumulated till the last time it
 	  got a timeslice and will not include the current delta.
 
-- blkio.empty_time
-	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
+  blkio.empty_time
+	  Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
 	  This is the amount of time a cgroup spends without any pending
 	  requests when not being served, i.e., it does not include any time
 	  spent idling for one of the queues of the cgroup. This is in
@@ -221,8 +226,8 @@ Proportional weight policy files
 	  the stat will only report the empty_time accumulated till the last
 	  time it had a pending request and will not include the current delta.
 
-- blkio.idle_time
-	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
+  blkio.idle_time
+	  Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y.
 	  This is the amount of time spent by the IO scheduler idling for a
 	  given cgroup in anticipation of a better request than the existing ones
 	  from other queues/cgroups. This is in nanoseconds. If this is read
@@ -230,60 +235,60 @@ Proportional weight policy files
 	  idle_time accumulated till the last idle period and will not include
 	  the current delta.
 
-- blkio.dequeue
-	- Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y. This
+  blkio.dequeue
+	  Debugging aid only enabled if CONFIG_BFQ_CGROUP_DEBUG=y. This
 	  gives the statistics about how many a times a group was dequeued
 	  from service tree of the device. First two fields specify the major
 	  and minor number of the device and third field specifies the number
 	  of times a group was dequeued from a particular device.
 
-- blkio.*_recursive
-	- Recursive version of various stats. These files show the
+  blkio.*_recursive
+	  Recursive version of various stats. These files show the
           same information as their non-recursive counterparts but
           include stats from all the descendant cgroups.
 
 Throttling/Upper limit policy files
 -----------------------------------
-- blkio.throttle.read_bps_device
-	- Specifies upper limit on READ rate from the device. IO rate is
+  blkio.throttle.read_bps_device
+	  Specifies upper limit on READ rate from the device. IO rate is
 	  specified in bytes per second. Rules are per device. Following is
 	  the format::
 
 	    echo "<major>:<minor>  <rate_bytes_per_second>" > /cgrp/blkio.throttle.read_bps_device
 
-- blkio.throttle.write_bps_device
-	- Specifies upper limit on WRITE rate to the device. IO rate is
+  blkio.throttle.write_bps_device
+	  Specifies upper limit on WRITE rate to the device. IO rate is
 	  specified in bytes per second. Rules are per device. Following is
 	  the format::
 
 	    echo "<major>:<minor>  <rate_bytes_per_second>" > /cgrp/blkio.throttle.write_bps_device
 
-- blkio.throttle.read_iops_device
-	- Specifies upper limit on READ rate from the device. IO rate is
+  blkio.throttle.read_iops_device
+	  Specifies upper limit on READ rate from the device. IO rate is
 	  specified in IO per second. Rules are per device. Following is
 	  the format::
 
 	   echo "<major>:<minor>  <rate_io_per_second>" > /cgrp/blkio.throttle.read_iops_device
 
-- blkio.throttle.write_iops_device
-	- Specifies upper limit on WRITE rate to the device. IO rate is
+  blkio.throttle.write_iops_device
+	  Specifies upper limit on WRITE rate to the device. IO rate is
 	  specified in io per second. Rules are per device. Following is
 	  the format::
 
 	    echo "<major>:<minor>  <rate_io_per_second>" > /cgrp/blkio.throttle.write_iops_device
 
-Note: If both BW and IOPS rules are specified for a device, then IO is
-      subjected to both the constraints.
+          Note: If both BW and IOPS rules are specified for a device, then IO is
+          subjected to both the constraints.
 
-- blkio.throttle.io_serviced
-	- Number of IOs (bio) issued to the disk by the group. These
+  blkio.throttle.io_serviced
+	  Number of IOs (bio) issued to the disk by the group. These
 	  are further divided by the type of operation - read or write, sync
 	  or async. First two fields specify the major and minor number of the
 	  device, third field specifies the operation type and the fourth field
 	  specifies the number of IOs.
 
-- blkio.throttle.io_service_bytes
-	- Number of bytes transferred to/from the disk by the group. These
+  blkio.throttle.io_service_bytes
+	  Number of bytes transferred to/from the disk by the group. These
 	  are further divided by the type of operation - read or write, sync
 	  or async. First two fields specify the major and minor number of the
 	  device, third field specifies the operation type and the fourth field
@@ -291,6 +296,6 @@ Note: If both BW and IOPS rules are specified for a device, then IO is
 
 Common files among various policies
 -----------------------------------
-- blkio.reset_stats
-	- Writing an int to this file will result in resetting all the stats
+  blkio.reset_stats
+	  Writing an int to this file will result in resetting all the stats
 	  for that cgroup.

@@ -954,8 +954,6 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	int i, ret;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_SCREEN_OBJECT_2)) {
-		DRM_INFO("Not using screen objects,"
-			 " missing cap SCREEN_OBJECT_2\n");
 		return -ENOSYS;
 	}
 
@@ -971,8 +969,6 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	dev_priv->active_display_unit = vmw_du_screen_object;
 
 	drm_mode_config_reset(dev);
-
-	DRM_INFO("Screen Objects Display Unit initialized\n");
 
 	return 0;
 }
@@ -1222,7 +1218,7 @@ static void vmw_sou_bo_clip(struct vmw_kms_dirty *dirty)
 }
 
 /**
- * vmw_kms_do_bo_dirty - Dirty part of a buffer-object backed framebuffer
+ * vmw_kms_sou_do_bo_dirty - Dirty part of a buffer-object backed framebuffer
  *
  * @dev_priv: Pointer to the device private structure.
  * @framebuffer: Pointer to the buffer-object backed framebuffer.

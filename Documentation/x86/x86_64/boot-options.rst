@@ -126,7 +126,7 @@ Idle loop
 Rebooting
 =========
 
-   reboot=b[ios] | t[riple] | k[bd] | a[cpi] | e[fi] [, [w]arm | [c]old]
+   reboot=b[ios] | t[riple] | k[bd] | a[cpi] | e[fi] | p[ci] [, [w]arm | [c]old]
       bios
         Use the CPU reboot vector for warm reset
       warm
@@ -145,6 +145,8 @@ Rebooting
         Use efi reset_system runtime service. If EFI is not configured or
         the EFI reset does not work, the reboot path attempts the reset using
         the keyboard controller.
+      pci
+        Use a write to the PCI config space register 0xcf9 to trigger reboot.
 
    Using warm reset will be much faster especially on big memory
    systems because the BIOS will not go through the memory check.
@@ -154,6 +156,13 @@ Rebooting
    reboot=force
      Don't stop other CPUs on reboot. This can make reboot more reliable
      in some cases.
+
+   reboot=default
+     There are some built-in platform specific "quirks" - you may see:
+     "reboot: <name> series board detected. Selecting <type> for reboots."
+     In the case where you think the quirk is in error (e.g. you have
+     newer BIOS, or newer board) using this option will ignore the built-in
+     quirk table, and use the generic default reboot actions.
 
 Non Executable Mappings
 =======================
@@ -247,16 +256,11 @@ Multiple x86-64 PCI-DMA mapping implementations exist, for example:
       Kernel boot message: "PCI-DMA: Using software bounce buffering
       for IO (SWIOTLB)"
 
-   4. <arch/x86_64/pci-calgary.c> : IBM Calgary hardware IOMMU. Used in IBM
-      pSeries and xSeries servers. This hardware IOMMU supports DMA address
-      mapping with memory protection, etc.
-      Kernel boot message: "PCI-DMA: Using Calgary IOMMU"
-
 ::
 
   iommu=[<size>][,noagp][,off][,force][,noforce]
   [,memaper[=<order>]][,merge][,fullflush][,nomerge]
-  [,noaperture][,calgary]
+  [,noaperture]
 
 General iommu options:
 
@@ -295,8 +299,6 @@ iommu options only relevant to the AMD GART hardware IOMMU:
       Don't initialize the AGP driver and use full aperture.
     panic
       Always panic when IOMMU overflows.
-    calgary
-      Use the Calgary IOMMU if it is available
 
 iommu options only relevant to the software bounce buffering (SWIOTLB) IOMMU
 implementation:
@@ -306,28 +308,6 @@ implementation:
         Prereserve that many 128K pages for the software IO bounce buffering.
       force
         Force all IO through the software TLB.
-
-Settings for the IBM Calgary hardware IOMMU currently found in IBM
-pSeries and xSeries machines
-
-    calgary=[64k,128k,256k,512k,1M,2M,4M,8M]
-      Set the size of each PCI slot's translation table when using the
-      Calgary IOMMU. This is the size of the translation table itself
-      in main memory. The smallest table, 64k, covers an IO space of
-      32MB; the largest, 8MB table, can cover an IO space of 4GB.
-      Normally the kernel will make the right choice by itself.
-    calgary=[translate_empty_slots]
-      Enable translation even on slots that have no devices attached to
-      them, in case a device will be hotplugged in the future.
-    calgary=[disable=<PCI bus number>]
-      Disable translation on a given PHB. For
-      example, the built-in graphics adapter resides on the first bridge
-      (PCI bus number 0); if translation (isolation) is enabled on this
-      bridge, X servers that access the hardware directly from user
-      space might stop working. Use this option if you have devices that
-      are accessed from userspace directly on some PCI host bridge.
-    panic
-      Always panic when IOMMU overflows
 
 
 Miscellaneous

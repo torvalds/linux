@@ -177,7 +177,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 				goto out;
 			}
 			tc->t_tinc = tinc;
-			rdsdebug("alloced tinc %p\n", tinc);
+			rdsdebug("allocated tinc %p\n", tinc);
 			rds_inc_path_init(&tinc->ti_inc, cp,
 					  &cp->cp_conn->c_faddr);
 			tinc->ti_inc.i_rx_lat_trace[RDS_MSG_RX_HDR] =

@@ -151,7 +151,7 @@ static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
+	if (GRAPHICS_VER(dev_priv) >= 9) {
 		switch (tiled) {
 		case PLANE_CTL_TILED_LINEAR:
 			stride = stride_reg * 64;
@@ -215,7 +215,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (!plane->enabled)
 		return -ENODEV;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
+	if (GRAPHICS_VER(dev_priv) >= 9) {
 		plane->tiled = val & PLANE_CTL_TILED_MASK;
 		fmt = skl_format_to_drm(
 			val & PLANE_CTL_FORMAT_MASK,
@@ -256,9 +256,9 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	}
 
 	plane->stride = intel_vgpu_get_stride(vgpu, pipe, plane->tiled,
-		(INTEL_GEN(dev_priv) >= 9) ?
-			(_PRI_PLANE_STRIDE_MASK >> 6) :
-				_PRI_PLANE_STRIDE_MASK, plane->bpp);
+		(GRAPHICS_VER(dev_priv) >= 9) ?
+		(_PRI_PLANE_STRIDE_MASK >> 6) :
+		_PRI_PLANE_STRIDE_MASK, plane->bpp);
 
 	plane->width = (vgpu_vreg_t(vgpu, PIPESRC(pipe)) & _PIPE_H_SRCSZ_MASK) >>
 		_PIPE_H_SRCSZ_SHIFT;

@@ -292,6 +292,12 @@ Some of the interface modes are described below:
     Note: due to legacy usage, some 10GBASE-R usage incorrectly makes
     use of this definition.
 
+``PHY_INTERFACE_MODE_25GBASER``
+    This is the IEEE 802.3 PCS Clause 107 defined 25GBASE-R protocol.
+    The PCS is identical to 10GBASE-R, i.e. 64B/66B encoded
+    running 2.5 as fast, giving a fixed bit rate of 25.78125 Gbaud.
+    Please refer to the IEEE standard for further information.
+
 ``PHY_INTERFACE_MODE_100BASEX``
     This defines IEEE 802.3 Clause 24.  The link operates at a fixed data
     rate of 125Mpbs using a 4B/5B encoding scheme, resulting in an underlying

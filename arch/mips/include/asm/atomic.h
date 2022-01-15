@@ -25,24 +25,25 @@
 #include <asm/war.h>
 
 #define ATOMIC_OPS(pfx, type)						\
-static __always_inline type pfx##_read(const pfx##_t *v)		\
+static __always_inline type arch_##pfx##_read(const pfx##_t *v)		\
 {									\
 	return READ_ONCE(v->counter);					\
 }									\
 									\
-static __always_inline void pfx##_set(pfx##_t *v, type i)		\
+static __always_inline void arch_##pfx##_set(pfx##_t *v, type i)	\
 {									\
 	WRITE_ONCE(v->counter, i);					\
 }									\
 									\
-static __always_inline type pfx##_cmpxchg(pfx##_t *v, type o, type n)	\
+static __always_inline type						\
+arch_##pfx##_cmpxchg(pfx##_t *v, type o, type n)			\
 {									\
-	return cmpxchg(&v->counter, o, n);				\
+	return arch_cmpxchg(&v->counter, o, n);				\
 }									\
 									\
-static __always_inline type pfx##_xchg(pfx##_t *v, type n)		\
+static __always_inline type arch_##pfx##_xchg(pfx##_t *v, type n)	\
 {									\
-	return xchg(&v->counter, n);					\
+	return arch_xchg(&v->counter, n);				\
 }
 
 ATOMIC_OPS(atomic, int)
@@ -53,7 +54,7 @@ ATOMIC_OPS(atomic64, s64)
 #endif
 
 #define ATOMIC_OP(pfx, op, type, c_op, asm_op, ll, sc)			\
-static __inline__ void pfx##_##op(type i, pfx##_t * v)			\
+static __inline__ void arch_##pfx##_##op(type i, pfx##_t * v)		\
 {									\
 	type temp;							\
 									\
@@ -80,7 +81,8 @@ static __inline__ void pfx##_##op(type i, pfx##_t * v)			\
 }
 
 #define ATOMIC_OP_RETURN(pfx, op, type, c_op, asm_op, ll, sc)		\
-static __inline__ type pfx##_##op##_return_relaxed(type i, pfx##_t * v)	\
+static __inline__ type							\
+arch_##pfx##_##op##_return_relaxed(type i, pfx##_t * v)			\
 {									\
 	type temp, result;						\
 									\
@@ -113,7 +115,8 @@ static __inline__ type pfx##_##op##_return_relaxed(type i, pfx##_t * v)	\
 }
 
 #define ATOMIC_FETCH_OP(pfx, op, type, c_op, asm_op, ll, sc)		\
-static __inline__ type pfx##_fetch_##op##_relaxed(type i, pfx##_t * v)	\
+static __inline__ type							\
+arch_##pfx##_fetch_##op##_relaxed(type i, pfx##_t * v)			\
 {									\
 	int temp, result;						\
 									\
@@ -153,18 +156,18 @@ static __inline__ type pfx##_fetch_##op##_relaxed(type i, pfx##_t * v)	\
 ATOMIC_OPS(atomic, add, int, +=, addu, ll, sc)
 ATOMIC_OPS(atomic, sub, int, -=, subu, ll, sc)
 
-#define atomic_add_return_relaxed	atomic_add_return_relaxed
-#define atomic_sub_return_relaxed	atomic_sub_return_relaxed
-#define atomic_fetch_add_relaxed	atomic_fetch_add_relaxed
-#define atomic_fetch_sub_relaxed	atomic_fetch_sub_relaxed
+#define arch_atomic_add_return_relaxed	arch_atomic_add_return_relaxed
+#define arch_atomic_sub_return_relaxed	arch_atomic_sub_return_relaxed
+#define arch_atomic_fetch_add_relaxed	arch_atomic_fetch_add_relaxed
+#define arch_atomic_fetch_sub_relaxed	arch_atomic_fetch_sub_relaxed
 
 #ifdef CONFIG_64BIT
 ATOMIC_OPS(atomic64, add, s64, +=, daddu, lld, scd)
 ATOMIC_OPS(atomic64, sub, s64, -=, dsubu, lld, scd)
-# define atomic64_add_return_relaxed	atomic64_add_return_relaxed
-# define atomic64_sub_return_relaxed	atomic64_sub_return_relaxed
-# define atomic64_fetch_add_relaxed	atomic64_fetch_add_relaxed
-# define atomic64_fetch_sub_relaxed	atomic64_fetch_sub_relaxed
+# define arch_atomic64_add_return_relaxed	arch_atomic64_add_return_relaxed
+# define arch_atomic64_sub_return_relaxed	arch_atomic64_sub_return_relaxed
+# define arch_atomic64_fetch_add_relaxed	arch_atomic64_fetch_add_relaxed
+# define arch_atomic64_fetch_sub_relaxed	arch_atomic64_fetch_sub_relaxed
 #endif /* CONFIG_64BIT */
 
 #undef ATOMIC_OPS
@@ -176,17 +179,17 @@ ATOMIC_OPS(atomic, and, int, &=, and, ll, sc)
 ATOMIC_OPS(atomic, or, int, |=, or, ll, sc)
 ATOMIC_OPS(atomic, xor, int, ^=, xor, ll, sc)
 
-#define atomic_fetch_and_relaxed	atomic_fetch_and_relaxed
-#define atomic_fetch_or_relaxed		atomic_fetch_or_relaxed
-#define atomic_fetch_xor_relaxed	atomic_fetch_xor_relaxed
+#define arch_atomic_fetch_and_relaxed	arch_atomic_fetch_and_relaxed
+#define arch_atomic_fetch_or_relaxed	arch_atomic_fetch_or_relaxed
+#define arch_atomic_fetch_xor_relaxed	arch_atomic_fetch_xor_relaxed
 
 #ifdef CONFIG_64BIT
 ATOMIC_OPS(atomic64, and, s64, &=, and, lld, scd)
 ATOMIC_OPS(atomic64, or, s64, |=, or, lld, scd)
 ATOMIC_OPS(atomic64, xor, s64, ^=, xor, lld, scd)
-# define atomic64_fetch_and_relaxed	atomic64_fetch_and_relaxed
-# define atomic64_fetch_or_relaxed	atomic64_fetch_or_relaxed
-# define atomic64_fetch_xor_relaxed	atomic64_fetch_xor_relaxed
+# define arch_atomic64_fetch_and_relaxed	arch_atomic64_fetch_and_relaxed
+# define arch_atomic64_fetch_or_relaxed		arch_atomic64_fetch_or_relaxed
+# define arch_atomic64_fetch_xor_relaxed	arch_atomic64_fetch_xor_relaxed
 #endif
 
 #undef ATOMIC_OPS
@@ -203,7 +206,7 @@ ATOMIC_OPS(atomic64, xor, s64, ^=, xor, lld, scd)
  * The function returns the old value of @v minus @i.
  */
 #define ATOMIC_SIP_OP(pfx, type, op, ll, sc)				\
-static __inline__ int pfx##_sub_if_positive(type i, pfx##_t * v)	\
+static __inline__ type arch_##pfx##_sub_if_positive(type i, pfx##_t * v)	\
 {									\
 	type temp, result;						\
 									\
@@ -255,11 +258,11 @@ static __inline__ int pfx##_sub_if_positive(type i, pfx##_t * v)	\
 }
 
 ATOMIC_SIP_OP(atomic, int, subu, ll, sc)
-#define atomic_dec_if_positive(v)	atomic_sub_if_positive(1, v)
+#define arch_atomic_dec_if_positive(v)	arch_atomic_sub_if_positive(1, v)
 
 #ifdef CONFIG_64BIT
 ATOMIC_SIP_OP(atomic64, s64, dsubu, lld, scd)
-#define atomic64_dec_if_positive(v)	atomic64_sub_if_positive(1, v)
+#define arch_atomic64_dec_if_positive(v)	arch_atomic64_sub_if_positive(1, v)
 #endif
 
 #undef ATOMIC_SIP_OP

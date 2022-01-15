@@ -45,6 +45,8 @@ void mpc1_set_bg_color(struct mpc *mpc,
 	struct mpcc *bottommost_mpcc = mpc1_get_mpcc(mpc, mpcc_id);
 	uint32_t bg_r_cr, bg_g_y, bg_b_cb;
 
+	bottommost_mpcc->blnd_cfg.black_color = *bg_color;
+
 	/* find bottommost mpcc. */
 	while (bottommost_mpcc->mpcc_bot) {
 		bottommost_mpcc = bottommost_mpcc->mpcc_bot;
@@ -81,7 +83,6 @@ static void mpc1_update_blending(
 			MPCC_GLOBAL_ALPHA,		blnd_cfg->global_alpha,
 			MPCC_GLOBAL_GAIN,		blnd_cfg->global_gain);
 
-	mpc1_set_bg_color(mpc, &blnd_cfg->black_color, mpcc_id);
 	mpcc->blnd_cfg = *blnd_cfg;
 }
 
@@ -495,6 +496,7 @@ static const struct mpc_funcs dcn10_mpc_funcs = {
 	.set_output_csc = NULL,
 	.set_output_gamma = NULL,
 	.get_mpc_out_mux = mpc1_get_mpc_out_mux,
+	.set_bg_color = mpc1_set_bg_color,
 };
 
 void dcn10_mpc_construct(struct dcn10_mpc *mpc10,

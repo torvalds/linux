@@ -31,27 +31,46 @@
  */
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/pgtable.h>
 #include <linux/sched.h>
 #include <linux/debugfs.h>
 #include <drm/drm_sysfs.h>
+#include <drm/ttm/ttm_caching.h>
 
 #include "ttm_module.h"
 
-struct dentry *ttm_debugfs_root;
-
-static int __init ttm_init(void)
+/**
+ * ttm_prot_from_caching - Modify the page protection according to the
+ * ttm cacing mode
+ * @caching: The ttm caching mode
+ * @tmp: The original page protection
+ *
+ * Return: The modified page protection
+ */
+pgprot_t ttm_prot_from_caching(enum ttm_caching caching, pgprot_t tmp)
 {
-	ttm_debugfs_root = debugfs_create_dir("ttm", NULL);
-	return 0;
-}
+	/* Cached mappings need no adjustment */
+	if (caching == ttm_cached)
+		return tmp;
 
-static void __exit ttm_exit(void)
-{
-	debugfs_remove(ttm_debugfs_root);
+#if defined(__i386__) || defined(__x86_64__)
+	if (caching == ttm_write_combined)
+		tmp = pgprot_writecombine(tmp);
+	else if (boot_cpu_data.x86 > 3)
+		tmp = pgprot_noncached(tmp);
+#endif
+#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__) || \
+	defined(__powerpc__) || defined(__mips__)
+	if (caching == ttm_write_combined)
+		tmp = pgprot_writecombine(tmp);
+	else
+		tmp = pgprot_noncached(tmp);
+#endif
+#if defined(__sparc__)
+	tmp = pgprot_noncached(tmp);
+#endif
+	return tmp;
 }
-
-module_init(ttm_init);
-module_exit(ttm_exit);
 
 MODULE_AUTHOR("Thomas Hellstrom, Jerome Glisse");
 MODULE_DESCRIPTION("TTM memory manager subsystem (for DRM device)");

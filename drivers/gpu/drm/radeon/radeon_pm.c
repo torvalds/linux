@@ -154,7 +154,7 @@ static void radeon_unmap_vram_bos(struct radeon_device *rdev)
 		return;
 
 	list_for_each_entry_safe(bo, n, &rdev->gem.objects, list) {
-		if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
+		if (bo->tbo.resource->mem_type == TTM_PL_VRAM)
 			ttm_bo_unmap_virtual(&bo->tbo);
 	}
 }

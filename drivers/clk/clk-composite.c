@@ -58,11 +58,8 @@ static int clk_composite_determine_rate(struct clk_hw *hw,
 	long rate;
 	int i;
 
-	if (rate_hw && rate_ops && rate_ops->determine_rate) {
-		__clk_hw_set_clk(rate_hw, hw);
-		return rate_ops->determine_rate(rate_hw, req);
-	} else if (rate_hw && rate_ops && rate_ops->round_rate &&
-		   mux_hw && mux_ops && mux_ops->set_parent) {
+	if (rate_hw && rate_ops && rate_ops->round_rate &&
+	    mux_hw && mux_ops && mux_ops->set_parent) {
 		req->best_parent_hw = NULL;
 
 		if (clk_hw_get_flags(hw) & CLK_SET_RATE_NO_REPARENT) {
@@ -107,6 +104,9 @@ static int clk_composite_determine_rate(struct clk_hw *hw,
 
 		req->rate = best_rate;
 		return 0;
+	} else if (rate_hw && rate_ops && rate_ops->determine_rate) {
+		__clk_hw_set_clk(rate_hw, hw);
+		return rate_ops->determine_rate(rate_hw, req);
 	} else if (mux_hw && mux_ops && mux_ops->determine_rate) {
 		__clk_hw_set_clk(mux_hw, hw);
 		return mux_ops->determine_rate(mux_hw, req);

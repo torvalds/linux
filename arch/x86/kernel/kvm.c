@@ -884,10 +884,11 @@ static void kvm_wait(u8 *ptr, u8 val)
 	} else {
 		local_irq_disable();
 
+		/* safe_halt() will enable IRQ */
 		if (READ_ONCE(*ptr) == val)
 			safe_halt();
-
-		local_irq_enable();
+		else
+			local_irq_enable();
 	}
 }
 

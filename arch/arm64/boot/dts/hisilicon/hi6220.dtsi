@@ -2,7 +2,7 @@
 /*
  * dts file for Hisilicon Hi6220 SoC
  *
- * Copyright (C) 2015, Hisilicon Ltd.
+ * Copyright (C) 2015, HiSilicon Ltd.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>

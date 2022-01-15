@@ -44,7 +44,6 @@ struct sigmadsp {
 
 struct sigmadsp *devm_sigmadsp_init(struct device *dev,
 	const struct sigmadsp_ops *ops, const char *firmware_name);
-void sigmadsp_reset(struct sigmadsp *sigmadsp);
 
 int sigmadsp_restrict_params(struct sigmadsp *sigmadsp,
 	struct snd_pcm_substream *substream);

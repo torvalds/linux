@@ -91,10 +91,12 @@
 			reg_vdd_soc: BUCK1 {
 				regulator-name = "buck1";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <900000>;
+				regulator-max-microvolt = <850000>;
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-ramp-delay = <3125>;
+				nxp,dvs-run-voltage = <850000>;
+				nxp,dvs-standby-voltage = <800000>;
 			};
 
 			reg_vdd_arm: BUCK2 {
@@ -102,6 +104,7 @@
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <950000>;
 				regulator-boot-on;
+				regulator-always-on;
 				regulator-ramp-delay = <3125>;
 				nxp,dvs-run-voltage = <950000>;
 				nxp,dvs-standby-voltage = <850000>;
@@ -110,7 +113,7 @@
 			reg_vdd_dram: BUCK3 {
 				regulator-name = "buck3";
 				regulator-min-microvolt = <850000>;
-				regulator-max-microvolt = <900000>;
+				regulator-max-microvolt = <950000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
@@ -149,7 +152,7 @@
 
 			reg_vdd_snvs: LDO2 {
 				regulator-name = "ldo2";
-				regulator-min-microvolt = <850000>;
+				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <900000>;
 				regulator-boot-on;
 				regulator-always-on;

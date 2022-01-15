@@ -82,10 +82,10 @@ struct nci_ops {
 	void  (*hci_cmd_received)(struct nci_dev *ndev, u8 pipe, u8 cmd,
 				  struct sk_buff *skb);
 
-	struct nci_driver_ops *prop_ops;
+	const struct nci_driver_ops *prop_ops;
 	size_t n_prop_ops;
 
-	struct nci_driver_ops *core_ops;
+	const struct nci_driver_ops *core_ops;
 	size_t n_core_ops;
 };
 
@@ -194,7 +194,7 @@ struct nci_hci_dev {
 /* NCI Core structures */
 struct nci_dev {
 	struct nfc_dev		*nfc_dev;
-	struct nci_ops		*ops;
+	const struct nci_ops	*ops;
 	struct nci_hci_dev	*hci_dev;
 
 	int			tx_headroom;
@@ -267,7 +267,7 @@ struct nci_dev {
 };
 
 /* ----- NCI Devices ----- */
-struct nci_dev *nci_allocate_device(struct nci_ops *ops,
+struct nci_dev *nci_allocate_device(const struct nci_ops *ops,
 				    __u32 supported_protocols,
 				    int tx_headroom,
 				    int tx_tailroom);
@@ -276,25 +276,27 @@ int nci_register_device(struct nci_dev *ndev);
 void nci_unregister_device(struct nci_dev *ndev);
 int nci_request(struct nci_dev *ndev,
 		void (*req)(struct nci_dev *ndev,
-			    unsigned long opt),
-		unsigned long opt, __u32 timeout);
-int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len, __u8 *payload);
-int nci_core_cmd(struct nci_dev *ndev, __u16 opcode, size_t len, __u8 *payload);
+			    const void *opt),
+		const void *opt, __u32 timeout);
+int nci_prop_cmd(struct nci_dev *ndev, __u8 oid, size_t len,
+		 const __u8 *payload);
+int nci_core_cmd(struct nci_dev *ndev, __u16 opcode, size_t len,
+		 const __u8 *payload);
 int nci_core_reset(struct nci_dev *ndev);
 int nci_core_init(struct nci_dev *ndev);
 
 int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb);
 int nci_send_frame(struct nci_dev *ndev, struct sk_buff *skb);
-int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val);
+int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, const __u8 *val);
 
 int nci_nfcee_discover(struct nci_dev *ndev, u8 action);
 int nci_nfcee_mode_set(struct nci_dev *ndev, u8 nfcee_id, u8 nfcee_mode);
 int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 			 u8 number_destination_params,
 			 size_t params_len,
-			 struct core_conn_create_dest_spec_params *params);
+			 const struct core_conn_create_dest_spec_params *params);
 int nci_core_conn_close(struct nci_dev *ndev, u8 conn_id);
-int nci_nfcc_loopback(struct nci_dev *ndev, void *data, size_t data_len,
+int nci_nfcc_loopback(struct nci_dev *ndev, const void *data, size_t data_len,
 		      struct sk_buff **resp);
 
 struct nci_hci_dev *nci_hci_allocate(struct nci_dev *ndev);
@@ -343,7 +345,7 @@ static inline void *nci_get_drvdata(struct nci_dev *ndev)
 }
 
 static inline int nci_set_vendor_cmds(struct nci_dev *ndev,
-				      struct nfc_vendor_cmd *cmds,
+				      const struct nfc_vendor_cmd *cmds,
 				      int n_cmds)
 {
 	return nfc_set_vendor_cmds(ndev->nfc_dev, cmds, n_cmds);
@@ -360,7 +362,7 @@ int nci_core_rsp_packet(struct nci_dev *ndev, __u16 opcode,
 int nci_core_ntf_packet(struct nci_dev *ndev, __u16 opcode,
 			struct sk_buff *skb);
 void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb);
-int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload);
+int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, const void *payload);
 int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb);
 int nci_conn_max_data_pkt_payload_size(struct nci_dev *ndev, __u8 conn_id);
 void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
@@ -378,7 +380,7 @@ void nci_req_complete(struct nci_dev *ndev, int result);
 struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
 						   int conn_id);
 int nci_get_conn_info_by_dest_type_params(struct nci_dev *ndev, u8 dest_type,
-					  struct dest_spec_params *params);
+					  const struct dest_spec_params *params);
 
 /* ----- NCI status code ----- */
 int nci_to_errno(__u8 code);

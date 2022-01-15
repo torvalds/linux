@@ -72,7 +72,7 @@ static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query temp sensor\n");
 		return err;
 	}
-	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL, NULL, NULL);
 	return sprintf(buf, "%d\n", temp);
 }
 
@@ -95,7 +95,7 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query temp sensor\n");
 		return err;
 	}
-	mlxsw_reg_mtmp_unpack(mtmp_pl, NULL, &temp_max, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, NULL, &temp_max, NULL, NULL, NULL);
 	return sprintf(buf, "%d\n", temp_max);
 }
 
@@ -239,7 +239,7 @@ static int mlxsw_hwmon_module_temp_get(struct device *dev,
 		dev_err(dev, "Failed to query module temperature\n");
 		return err;
 	}
-	mlxsw_reg_mtmp_unpack(mtmp_pl, p_temp, NULL, NULL);
+	mlxsw_reg_mtmp_unpack(mtmp_pl, p_temp, NULL, NULL, NULL, NULL);
 
 	return 0;
 }

@@ -319,7 +319,7 @@
 	};
 
 	pcf_lcd: gpio@20 {
-		compatible = "ti,pcf8575", "nxp,pcf8575";
+		compatible = "nxp,pcf8575";
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -330,7 +330,7 @@
 	};
 
 	pcf_gpio_21: gpio@21 {
-		compatible = "ti,pcf8575", "nxp,pcf8575";
+		compatible = "nxp,pcf8575";
 		reg = <0x21>;
 		lines-initial-states = <0x1408>;
 		gpio-controller;
@@ -362,11 +362,11 @@
 	clock-frequency = <400000>;
 
 	pcf_hdmi: gpio@26 {
-		compatible = "ti,pcf8575", "nxp,pcf8575";
+		compatible = "nxp,pcf8575";
 		reg = <0x26>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		p1 {
+		hdmi-audio-hog {
 			/* vin6_sel_s0: high: VIN6, low: audio */
 			gpio-hog;
 			gpios = <1 GPIO_ACTIVE_HIGH>;

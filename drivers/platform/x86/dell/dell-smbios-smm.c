@@ -24,37 +24,6 @@ static struct calling_interface_buffer *buffer;
 static struct platform_device *platform_device;
 static DEFINE_MUTEX(smm_mutex);
 
-static const struct dmi_system_id dell_device_table[] __initconst = {
-	{
-		.ident = "Dell laptop",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "8"),
-		},
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "9"), /*Laptop*/
-		},
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "10"), /*Notebook*/
-		},
-	},
-	{
-		.ident = "Dell Computer Corporation",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "8"),
-		},
-	},
-	{ }
-};
-MODULE_DEVICE_TABLE(dmi, dell_device_table);
-
 static void parse_da_table(const struct dmi_header *dm)
 {
 	struct calling_interface_structure *table =

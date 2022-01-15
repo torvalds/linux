@@ -74,7 +74,7 @@ void intel_vgpu_detect(struct drm_i915_private *dev_priv)
 	 * we do not support VGT on older gens, return early so we don't have
 	 * to consider differently numbered or sized MMIO bars
 	 */
-	if (INTEL_GEN(dev_priv) < 6)
+	if (GRAPHICS_VER(dev_priv) < 6)
 		return;
 
 	shared_area = pci_iomap_range(pdev, 0, VGT_PVINFO_PAGE, VGT_PVINFO_SIZE);

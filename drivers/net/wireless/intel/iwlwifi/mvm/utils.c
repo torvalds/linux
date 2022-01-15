@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -238,316 +238,6 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	return last_idx;
 }
 
-/*
- * Note: This structure is read from the device with IO accesses,
- * and the reading already does the endian conversion. As it is
- * read with u32-sized accesses, any members with a different size
- * need to be ordered correctly though!
- */
-struct iwl_error_event_table_v1 {
-	u32 valid;		/* (nonzero) valid, (0) log is empty */
-	u32 error_id;		/* type of error */
-	u32 pc;			/* program counter */
-	u32 blink1;		/* branch link */
-	u32 blink2;		/* branch link */
-	u32 ilink1;		/* interrupt link */
-	u32 ilink2;		/* interrupt link */
-	u32 data1;		/* error-specific data */
-	u32 data2;		/* error-specific data */
-	u32 data3;		/* error-specific data */
-	u32 bcon_time;		/* beacon timer */
-	u32 tsf_low;		/* network timestamp function timer */
-	u32 tsf_hi;		/* network timestamp function timer */
-	u32 gp1;		/* GP1 timer register */
-	u32 gp2;		/* GP2 timer register */
-	u32 gp3;		/* GP3 timer register */
-	u32 ucode_ver;		/* uCode version */
-	u32 hw_ver;		/* HW Silicon version */
-	u32 brd_ver;		/* HW board version */
-	u32 log_pc;		/* log program counter */
-	u32 frame_ptr;		/* frame pointer */
-	u32 stack_ptr;		/* stack pointer */
-	u32 hcmd;		/* last host command header */
-	u32 isr0;		/* isr status register LMPM_NIC_ISR0:
-				 * rxtx_flag */
-	u32 isr1;		/* isr status register LMPM_NIC_ISR1:
-				 * host_flag */
-	u32 isr2;		/* isr status register LMPM_NIC_ISR2:
-				 * enc_flag */
-	u32 isr3;		/* isr status register LMPM_NIC_ISR3:
-				 * time_flag */
-	u32 isr4;		/* isr status register LMPM_NIC_ISR4:
-				 * wico interrupt */
-	u32 isr_pref;		/* isr status register LMPM_NIC_PREF_STAT */
-	u32 wait_event;		/* wait event() caller address */
-	u32 l2p_control;	/* L2pControlField */
-	u32 l2p_duration;	/* L2pDurationField */
-	u32 l2p_mhvalid;	/* L2pMhValidBits */
-	u32 l2p_addr_match;	/* L2pAddrMatchStat */
-	u32 lmpm_pmg_sel;	/* indicate which clocks are turned on
-				 * (LMPM_PMG_SEL) */
-	u32 u_timestamp;	/* indicate when the date and time of the
-				 * compilation */
-	u32 flow_handler;	/* FH read/write pointers, RX credit */
-} __packed /* LOG_ERROR_TABLE_API_S_VER_1 */;
-
-struct iwl_error_event_table {
-	u32 valid;		/* (nonzero) valid, (0) log is empty */
-	u32 error_id;		/* type of error */
-	u32 trm_hw_status0;	/* TRM HW status */
-	u32 trm_hw_status1;	/* TRM HW status */
-	u32 blink2;		/* branch link */
-	u32 ilink1;		/* interrupt link */
-	u32 ilink2;		/* interrupt link */
-	u32 data1;		/* error-specific data */
-	u32 data2;		/* error-specific data */
-	u32 data3;		/* error-specific data */
-	u32 bcon_time;		/* beacon timer */
-	u32 tsf_low;		/* network timestamp function timer */
-	u32 tsf_hi;		/* network timestamp function timer */
-	u32 gp1;		/* GP1 timer register */
-	u32 gp2;		/* GP2 timer register */
-	u32 fw_rev_type;	/* firmware revision type */
-	u32 major;		/* uCode version major */
-	u32 minor;		/* uCode version minor */
-	u32 hw_ver;		/* HW Silicon version */
-	u32 brd_ver;		/* HW board version */
-	u32 log_pc;		/* log program counter */
-	u32 frame_ptr;		/* frame pointer */
-	u32 stack_ptr;		/* stack pointer */
-	u32 hcmd;		/* last host command header */
-	u32 isr0;		/* isr status register LMPM_NIC_ISR0:
-				 * rxtx_flag */
-	u32 isr1;		/* isr status register LMPM_NIC_ISR1:
-				 * host_flag */
-	u32 isr2;		/* isr status register LMPM_NIC_ISR2:
-				 * enc_flag */
-	u32 isr3;		/* isr status register LMPM_NIC_ISR3:
-				 * time_flag */
-	u32 isr4;		/* isr status register LMPM_NIC_ISR4:
-				 * wico interrupt */
-	u32 last_cmd_id;	/* last HCMD id handled by the firmware */
-	u32 wait_event;		/* wait event() caller address */
-	u32 l2p_control;	/* L2pControlField */
-	u32 l2p_duration;	/* L2pDurationField */
-	u32 l2p_mhvalid;	/* L2pMhValidBits */
-	u32 l2p_addr_match;	/* L2pAddrMatchStat */
-	u32 lmpm_pmg_sel;	/* indicate which clocks are turned on
-				 * (LMPM_PMG_SEL) */
-	u32 u_timestamp;	/* indicate when the date and time of the
-				 * compilation */
-	u32 flow_handler;	/* FH read/write pointers, RX credit */
-} __packed /* LOG_ERROR_TABLE_API_S_VER_3 */;
-
-/*
- * UMAC error struct - relevant starting from family 8000 chip.
- * Note: This structure is read from the device with IO accesses,
- * and the reading already does the endian conversion. As it is
- * read with u32-sized accesses, any members with a different size
- * need to be ordered correctly though!
- */
-struct iwl_umac_error_event_table {
-	u32 valid;		/* (nonzero) valid, (0) log is empty */
-	u32 error_id;		/* type of error */
-	u32 blink1;		/* branch link */
-	u32 blink2;		/* branch link */
-	u32 ilink1;		/* interrupt link */
-	u32 ilink2;		/* interrupt link */
-	u32 data1;		/* error-specific data */
-	u32 data2;		/* error-specific data */
-	u32 data3;		/* error-specific data */
-	u32 umac_major;
-	u32 umac_minor;
-	u32 frame_pointer;	/* core register 27*/
-	u32 stack_pointer;	/* core register 28 */
-	u32 cmd_header;		/* latest host cmd sent to UMAC */
-	u32 nic_isr_pref;	/* ISR status register */
-} __packed;
-
-#define ERROR_START_OFFSET  (1 * sizeof(u32))
-#define ERROR_ELEM_SIZE     (7 * sizeof(u32))
-
-static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
-{
-	struct iwl_trans *trans = mvm->trans;
-	struct iwl_umac_error_event_table table = {};
-	u32 base = mvm->trans->dbg.umac_error_event_table;
-
-	if (!base &&
-	    !(mvm->trans->dbg.error_event_table_tlv_status &
-	      IWL_ERROR_EVENT_TABLE_UMAC))
-		return;
-
-	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
-
-	if (table.valid)
-		mvm->fwrt.dump.umac_err_id = table.error_id;
-
-	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
-		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
-		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
-			mvm->status, table.valid);
-	}
-
-	IWL_ERR(mvm, "0x%08X | %s\n", table.error_id,
-		iwl_fw_lookup_assert_desc(table.error_id));
-	IWL_ERR(mvm, "0x%08X | umac branchlink1\n", table.blink1);
-	IWL_ERR(mvm, "0x%08X | umac branchlink2\n", table.blink2);
-	IWL_ERR(mvm, "0x%08X | umac interruptlink1\n", table.ilink1);
-	IWL_ERR(mvm, "0x%08X | umac interruptlink2\n", table.ilink2);
-	IWL_ERR(mvm, "0x%08X | umac data1\n", table.data1);
-	IWL_ERR(mvm, "0x%08X | umac data2\n", table.data2);
-	IWL_ERR(mvm, "0x%08X | umac data3\n", table.data3);
-	IWL_ERR(mvm, "0x%08X | umac major\n", table.umac_major);
-	IWL_ERR(mvm, "0x%08X | umac minor\n", table.umac_minor);
-	IWL_ERR(mvm, "0x%08X | frame pointer\n", table.frame_pointer);
-	IWL_ERR(mvm, "0x%08X | stack pointer\n", table.stack_pointer);
-	IWL_ERR(mvm, "0x%08X | last host cmd\n", table.cmd_header);
-	IWL_ERR(mvm, "0x%08X | isr status reg\n", table.nic_isr_pref);
-}
-
-static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
-{
-	struct iwl_trans *trans = mvm->trans;
-	struct iwl_error_event_table table = {};
-	u32 val, base = mvm->trans->dbg.lmac_error_event_table[lmac_num];
-
-	if (mvm->fwrt.cur_fw_img == IWL_UCODE_INIT) {
-		if (!base)
-			base = mvm->fw->init_errlog_ptr;
-	} else {
-		if (!base)
-			base = mvm->fw->inst_errlog_ptr;
-	}
-
-	if (base < 0x400000) {
-		IWL_ERR(mvm,
-			"Not valid error log pointer 0x%08X for %s uCode\n",
-			base,
-			(mvm->fwrt.cur_fw_img == IWL_UCODE_INIT)
-			? "Init" : "RT");
-		return;
-	}
-
-	/* check if there is a HW error */
-	val = iwl_trans_read_mem32(trans, base);
-	if (((val & ~0xf) == 0xa5a5a5a0) || ((val & ~0xf) == 0x5a5a5a50)) {
-		int err;
-
-		IWL_ERR(trans, "HW error, resetting before reading\n");
-
-		/* reset the device */
-		iwl_trans_sw_reset(trans);
-
-		err = iwl_finish_nic_init(trans, trans->trans_cfg);
-		if (err)
-			return;
-	}
-
-	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
-
-	if (table.valid)
-		mvm->fwrt.dump.lmac_err_id[lmac_num] = table.error_id;
-
-	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
-		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
-		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
-			mvm->status, table.valid);
-	}
-
-	/* Do not change this output - scripts rely on it */
-
-	IWL_ERR(mvm, "Loaded firmware version: %s\n", mvm->fw->fw_version);
-
-	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
-		iwl_fw_lookup_assert_desc(table.error_id));
-	IWL_ERR(mvm, "0x%08X | trm_hw_status0\n", table.trm_hw_status0);
-	IWL_ERR(mvm, "0x%08X | trm_hw_status1\n", table.trm_hw_status1);
-	IWL_ERR(mvm, "0x%08X | branchlink2\n", table.blink2);
-	IWL_ERR(mvm, "0x%08X | interruptlink1\n", table.ilink1);
-	IWL_ERR(mvm, "0x%08X | interruptlink2\n", table.ilink2);
-	IWL_ERR(mvm, "0x%08X | data1\n", table.data1);
-	IWL_ERR(mvm, "0x%08X | data2\n", table.data2);
-	IWL_ERR(mvm, "0x%08X | data3\n", table.data3);
-	IWL_ERR(mvm, "0x%08X | beacon time\n", table.bcon_time);
-	IWL_ERR(mvm, "0x%08X | tsf low\n", table.tsf_low);
-	IWL_ERR(mvm, "0x%08X | tsf hi\n", table.tsf_hi);
-	IWL_ERR(mvm, "0x%08X | time gp1\n", table.gp1);
-	IWL_ERR(mvm, "0x%08X | time gp2\n", table.gp2);
-	IWL_ERR(mvm, "0x%08X | uCode revision type\n", table.fw_rev_type);
-	IWL_ERR(mvm, "0x%08X | uCode version major\n", table.major);
-	IWL_ERR(mvm, "0x%08X | uCode version minor\n", table.minor);
-	IWL_ERR(mvm, "0x%08X | hw version\n", table.hw_ver);
-	IWL_ERR(mvm, "0x%08X | board version\n", table.brd_ver);
-	IWL_ERR(mvm, "0x%08X | hcmd\n", table.hcmd);
-	IWL_ERR(mvm, "0x%08X | isr0\n", table.isr0);
-	IWL_ERR(mvm, "0x%08X | isr1\n", table.isr1);
-	IWL_ERR(mvm, "0x%08X | isr2\n", table.isr2);
-	IWL_ERR(mvm, "0x%08X | isr3\n", table.isr3);
-	IWL_ERR(mvm, "0x%08X | isr4\n", table.isr4);
-	IWL_ERR(mvm, "0x%08X | last cmd Id\n", table.last_cmd_id);
-	IWL_ERR(mvm, "0x%08X | wait_event\n", table.wait_event);
-	IWL_ERR(mvm, "0x%08X | l2p_control\n", table.l2p_control);
-	IWL_ERR(mvm, "0x%08X | l2p_duration\n", table.l2p_duration);
-	IWL_ERR(mvm, "0x%08X | l2p_mhvalid\n", table.l2p_mhvalid);
-	IWL_ERR(mvm, "0x%08X | l2p_addr_match\n", table.l2p_addr_match);
-	IWL_ERR(mvm, "0x%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
-	IWL_ERR(mvm, "0x%08X | timestamp\n", table.u_timestamp);
-	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
-}
-
-static void iwl_mvm_dump_iml_error_log(struct iwl_mvm *mvm)
-{
-	struct iwl_trans *trans = mvm->trans;
-	u32 error, data1;
-
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
-		error = UMAG_SB_CPU_2_STATUS;
-		data1 = UMAG_SB_CPU_1_STATUS;
-	} else if (mvm->trans->trans_cfg->device_family >=
-		   IWL_DEVICE_FAMILY_8000) {
-		error = SB_CPU_2_STATUS;
-		data1 = SB_CPU_1_STATUS;
-	} else {
-		return;
-	}
-
-	error = iwl_read_umac_prph(trans, UMAG_SB_CPU_2_STATUS);
-
-	IWL_ERR(trans, "IML/ROM dump:\n");
-
-	if (error & 0xFFFF0000)
-		IWL_ERR(trans, "0x%04X | IML/ROM SYSASSERT\n", error >> 16);
-
-	IWL_ERR(mvm, "0x%08X | IML/ROM error/state\n", error);
-	IWL_ERR(mvm, "0x%08X | IML/ROM data1\n",
-		iwl_read_umac_prph(trans, data1));
-
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000)
-		IWL_ERR(mvm, "0x%08X | IML/ROM WFPM_AUTH_KEY_0\n",
-			iwl_read_umac_prph(trans, SB_MODIFY_CFG_FLAG));
-}
-
-void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
-{
-	if (!test_bit(STATUS_DEVICE_ENABLED, &mvm->trans->status)) {
-		IWL_ERR(mvm,
-			"DEVICE_ENABLED bit is not set. Aborting dump.\n");
-		return;
-	}
-
-	iwl_mvm_dump_lmac_error_log(mvm, 0);
-
-	if (mvm->trans->dbg.lmac_error_event_table[1])
-		iwl_mvm_dump_lmac_error_log(mvm, 1);
-
-	iwl_mvm_dump_umac_error_log(mvm);
-
-	iwl_mvm_dump_iml_error_log(mvm);
-
-	iwl_fw_error_print_fseq_regs(&mvm->fwrt);
-}
-
 int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
 			 int tid, int frame_limit, u16 ssn)
 {
@@ -621,7 +311,7 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 enum ieee80211_smps_mode smps_request)
 {
 	struct iwl_mvm_vif *mvmvif;
-	enum ieee80211_smps_mode smps_mode;
+	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
 	int i;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -630,10 +320,8 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (num_of_ant(iwl_mvm_get_valid_rx_ant(mvm)) == 1)
 		return;
 
-	if (vif->type == NL80211_IFTYPE_AP)
-		smps_mode = IEEE80211_SMPS_OFF;
-	else
-		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	mvmvif->smps_requests[req_type] = smps_request;
@@ -683,23 +371,37 @@ void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm)
 	mvm->accu_radio_stats.on_time_scan += mvm->radio_stats.on_time_scan;
 }
 
+struct iwl_mvm_diversity_iter_data {
+	struct iwl_mvm_phy_ctxt *ctxt;
+	bool result;
+};
+
 static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
 				   struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	bool *result = _data;
+	struct iwl_mvm_diversity_iter_data *data = _data;
 	int i;
+
+	if (mvmvif->phy_ctxt != data->ctxt)
+		return;
 
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
 		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_STATIC ||
-		    mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC)
-			*result = false;
+		    mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
+			data->result = false;
+			break;
+		}
 	}
 }
 
-bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
+bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm,
+				  struct iwl_mvm_phy_ctxt *ctxt)
 {
-	bool result = true;
+	struct iwl_mvm_diversity_iter_data data = {
+		.ctxt = ctxt,
+		.result = true,
+	};
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -711,9 +413,9 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
 
 	ieee80211_iterate_active_interfaces_atomic(
 			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-			iwl_mvm_diversity_iter, &result);
+			iwl_mvm_diversity_iter, &data);
 
-	return result;
+	return data.result;
 }
 
 void iwl_mvm_send_low_latency_cmd(struct iwl_mvm *mvm,
@@ -1398,7 +1100,8 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
 	return iwl_read_prph(mvm->trans, reg_addr);
 }
 
-void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
+void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type,
+			   u32 *gp2, u64 *boottime, ktime_t *realtime)
 {
 	bool ps_disabled;
 
@@ -1412,7 +1115,11 @@ void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
 	}
 
 	*gp2 = iwl_mvm_get_systime(mvm);
-	*boottime = ktime_get_boottime_ns();
+
+	if (clock_type == CLOCK_BOOTTIME && boottime)
+		*boottime = ktime_get_boottime_ns();
+	else if (clock_type == CLOCK_REALTIME && realtime)
+		*realtime = ktime_get_real();
 
 	if (!ps_disabled) {
 		mvm->ps_disabled = ps_disabled;

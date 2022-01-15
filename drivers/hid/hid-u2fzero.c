@@ -198,7 +198,9 @@ static int u2fzero_rng_read(struct hwrng *rng, void *data,
 	}
 
 	ret = u2fzero_recv(dev, &req, &resp);
-	if (ret < 0)
+
+	/* ignore errors or packets without data */
+	if (ret < offsetof(struct u2f_hid_msg, init.data))
 		return 0;
 
 	/* only take the minimum amount of data it is safe to take */

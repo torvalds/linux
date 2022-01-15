@@ -58,12 +58,12 @@
 #define   USB_WAKEUP_DEBOUNCE_COUNT(x)		(((x) & 0x7) << 16)
 
 #define USB_PHY_VBUS_SENSORS			0x404
-#define   B_SESS_VLD_WAKEUP_EN			BIT(6)
-#define   B_VBUS_VLD_WAKEUP_EN			BIT(14)
+#define   B_SESS_VLD_WAKEUP_EN			BIT(14)
 #define   A_SESS_VLD_WAKEUP_EN			BIT(22)
 #define   A_VBUS_VLD_WAKEUP_EN			BIT(30)
 
 #define USB_PHY_VBUS_WAKEUP_ID			0x408
+#define   VBUS_WAKEUP_STS			BIT(10)
 #define   VBUS_WAKEUP_WAKEUP_EN			BIT(30)
 
 #define USB1_LEGACY_CTRL			0x410
@@ -544,7 +544,7 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 		val = readl_relaxed(base + USB_PHY_VBUS_SENSORS);
 		val &= ~(A_VBUS_VLD_WAKEUP_EN | A_SESS_VLD_WAKEUP_EN);
-		val &= ~(B_VBUS_VLD_WAKEUP_EN | B_SESS_VLD_WAKEUP_EN);
+		val &= ~(B_SESS_VLD_WAKEUP_EN);
 		writel_relaxed(val, base + USB_PHY_VBUS_SENSORS);
 
 		val = readl_relaxed(base + UTMIP_BAT_CHRG_CFG0);
@@ -641,6 +641,15 @@ static int utmi_phy_power_off(struct tegra_usb_phy *phy)
 {
 	void __iomem *base = phy->regs;
 	u32 val;
+
+	/*
+	 * Give hardware time to settle down after VBUS disconnection,
+	 * otherwise PHY will immediately wake up from suspend.
+	 */
+	if (phy->wakeup_enabled && phy->mode != USB_DR_MODE_HOST)
+		readl_relaxed_poll_timeout(base + USB_PHY_VBUS_WAKEUP_ID,
+					   val, !(val & VBUS_WAKEUP_STS),
+					   5000, 100000);
 
 	utmi_phy_clk_disable(phy);
 

@@ -67,6 +67,12 @@ properties:
         const: baikal,bt1-sys-ssi
       - description: Canaan Kendryte K210 SoS SPI Controller
         const: canaan,k210-spi
+      - description: Renesas RZ/N1 SPI Controller
+        items:
+          - enum:
+              - renesas,r9a06g032-spi # RZ/N1D
+              - renesas,r9a06g033-spi # RZ/N1S
+          - const: renesas,rzn1-spi   # RZ/N1
 
   reg:
     minItems: 1
@@ -165,7 +171,7 @@ examples:
       cs-gpios = <&gpio0 13 0>,
                  <&gpio0 14 0>;
       rx-sample-delay-ns = <3>;
-      spi-flash@1 {
+      flash@1 {
         compatible = "spi-nand";
         reg = <1>;
         rx-sample-delay-ns = <7>;

@@ -35,7 +35,7 @@ static struct airq_iv *zpci_sbv;
  */
 static struct airq_iv **zpci_ibv;
 
-/* Modify PCI: Register adapter interruptions */
+/* Modify PCI: Register floating adapter interruptions */
 static int zpci_set_airq(struct zpci_dev *zdev)
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_REG_INT);
@@ -53,7 +53,7 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
 }
 
-/* Modify PCI: Unregister adapter interruptions */
+/* Modify PCI: Unregister floating adapter interruptions */
 static int zpci_clear_airq(struct zpci_dev *zdev)
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_DEREG_INT);
@@ -96,6 +96,38 @@ static int zpci_clear_directed_irq(struct zpci_dev *zdev)
 		cc = 0;
 
 	return cc ? -EIO : 0;
+}
+
+/* Register adapter interruptions */
+int zpci_set_irq(struct zpci_dev *zdev)
+{
+	int rc;
+
+	if (irq_delivery == DIRECTED)
+		rc = zpci_set_directed_irq(zdev);
+	else
+		rc = zpci_set_airq(zdev);
+
+	if (!rc)
+		zdev->irqs_registered = 1;
+
+	return rc;
+}
+
+/* Clear adapter interruptions */
+int zpci_clear_irq(struct zpci_dev *zdev)
+{
+	int rc;
+
+	if (irq_delivery == DIRECTED)
+		rc = zpci_clear_directed_irq(zdev);
+	else
+		rc = zpci_clear_airq(zdev);
+
+	if (!rc)
+		zdev->irqs_registered = 0;
+
+	return rc;
 }
 
 static int zpci_set_irq_affinity(struct irq_data *data, const struct cpumask *dest,
@@ -311,10 +343,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	zdev->msi_first_bit = bit;
 	zdev->msi_nr_irqs = msi_vecs;
 
-	if (irq_delivery == DIRECTED)
-		rc = zpci_set_directed_irq(zdev);
-	else
-		rc = zpci_set_airq(zdev);
+	rc = zpci_set_irq(zdev);
 	if (rc)
 		return rc;
 
@@ -328,10 +357,7 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 	int rc;
 
 	/* Disable interrupts */
-	if (irq_delivery == DIRECTED)
-		rc = zpci_clear_directed_irq(zdev);
-	else
-		rc = zpci_clear_airq(zdev);
+	rc = zpci_clear_irq(zdev);
 	if (rc)
 		return;
 
@@ -339,10 +365,6 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 	for_each_pci_msi_entry(msi, pdev) {
 		if (!msi->irq)
 			continue;
-		if (msi->msi_attrib.is_msix)
-			__pci_msix_desc_mask_irq(msi, 1);
-		else
-			__pci_msi_desc_mask_irq(msi, 1, 1);
 		irq_set_msi_desc(msi->irq, NULL);
 		irq_free_desc(msi->irq);
 		msi->msg.address_lo = 0;

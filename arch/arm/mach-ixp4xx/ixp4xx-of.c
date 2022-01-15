@@ -9,8 +9,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/ixp4xx-regs.h>
+/*
+ * These are the only fixed phys to virt mappings we ever need
+ * we put it right after the UART mapping at 0xffc80000-0xffc81fff
+ */
+#define IXP4XX_EXP_CFG_BASE_PHYS	0xC4000000
+#define IXP4XX_EXP_CFG_BASE_VIRT	0xFEC14000
 
 static struct map_desc ixp4xx_of_io_desc[] __initdata = {
 	/*

@@ -186,8 +186,6 @@ asmlinkage void start_secondary(void)
 
 	per_cpu_trap_init();
 
-	preempt_disable();
-
 	notify_cpu_starting(cpu);
 
 	local_irq_enable();

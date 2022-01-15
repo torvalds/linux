@@ -13,7 +13,7 @@ regulators to the device that will undergo OPP transitions we can make use
 of the multi regulator binding that is part of the OPP core described here [1]
 to describe both regulators needed by the platform.
 
-[1] Documentation/devicetree/bindings/opp/opp.txt
+[1] Documentation/devicetree/bindings/opp/opp-v2.yaml
 
 Required Properties for Device Node:
 - vdd-supply: phandle to regulator controlling VDD supply

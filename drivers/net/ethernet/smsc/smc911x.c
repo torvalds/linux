@@ -1550,7 +1550,7 @@ static int smc911x_ethtool_getregslen(struct net_device *dev)
 }
 
 static void smc911x_ethtool_getregs(struct net_device *dev,
-										 struct ethtool_regs* regs, void *buf)
+				    struct ethtool_regs *regs, void *buf)
 {
 	struct smc911x_local *lp = netdev_priv(dev);
 	unsigned long flags;
@@ -1600,7 +1600,7 @@ static int smc911x_ethtool_wait_eeprom_ready(struct net_device *dev)
 }
 
 static inline int smc911x_ethtool_write_eeprom_cmd(struct net_device *dev,
-													int cmd, int addr)
+						   int cmd, int addr)
 {
 	struct smc911x_local *lp = netdev_priv(dev);
 	int ret;
@@ -1614,7 +1614,7 @@ static inline int smc911x_ethtool_write_eeprom_cmd(struct net_device *dev,
 }
 
 static inline int smc911x_ethtool_read_eeprom_byte(struct net_device *dev,
-													u8 *data)
+						   u8 *data)
 {
 	struct smc911x_local *lp = netdev_priv(dev);
 	int ret;
@@ -1626,7 +1626,7 @@ static inline int smc911x_ethtool_read_eeprom_byte(struct net_device *dev,
 }
 
 static inline int smc911x_ethtool_write_eeprom_byte(struct net_device *dev,
-													 u8 data)
+						    u8 data)
 {
 	struct smc911x_local *lp = netdev_priv(dev);
 	int ret;
@@ -1638,7 +1638,7 @@ static inline int smc911x_ethtool_write_eeprom_byte(struct net_device *dev,
 }
 
 static int smc911x_ethtool_geteeprom(struct net_device *dev,
-									  struct ethtool_eeprom *eeprom, u8 *data)
+				     struct ethtool_eeprom *eeprom, u8 *data)
 {
 	u8 eebuf[SMC911X_EEPROM_LEN];
 	int i, ret;
@@ -1654,7 +1654,7 @@ static int smc911x_ethtool_geteeprom(struct net_device *dev,
 }
 
 static int smc911x_ethtool_seteeprom(struct net_device *dev,
-									   struct ethtool_eeprom *eeprom, u8 *data)
+				     struct ethtool_eeprom *eeprom, u8 *data)
 {
 	int i, ret;
 

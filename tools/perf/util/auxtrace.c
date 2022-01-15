@@ -73,8 +73,8 @@ static int evlist__regroup(struct evlist *evlist, struct evsel *leader, struct e
 	grp = false;
 	evlist__for_each_entry(evlist, evsel) {
 		if (grp) {
-			if (!(evsel->leader == leader ||
-			     (evsel->leader == evsel &&
+			if (!(evsel__leader(evsel) == leader ||
+			     (evsel__leader(evsel) == evsel &&
 			      evsel->core.nr_members <= 1)))
 				return -EINVAL;
 		} else if (evsel == leader) {
@@ -87,8 +87,8 @@ static int evlist__regroup(struct evlist *evlist, struct evsel *leader, struct e
 	grp = false;
 	evlist__for_each_entry(evlist, evsel) {
 		if (grp) {
-			if (evsel->leader != leader) {
-				evsel->leader = leader;
+			if (!evsel__has_leader(evsel, leader)) {
+				evsel__set_leader(evsel, leader);
 				if (leader->core.nr_members < 1)
 					leader->core.nr_members = 1;
 				leader->core.nr_members += 1;
@@ -129,11 +129,6 @@ int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 		mm->base = NULL;
 		return 0;
 	}
-
-#if BITS_PER_LONG != 64 && !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	pr_err("Cannot use AUX area tracing mmaps\n");
-	return -1;
-#endif
 
 	pc->aux_offset = mp->offset;
 	pc->aux_size = mp->len;
@@ -1120,8 +1115,9 @@ int auxtrace_queue_data(struct perf_session *session, bool samples, bool events)
 					 auxtrace_queue_data_cb, &qd);
 }
 
-void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
+void *auxtrace_buffer__get_data_rw(struct auxtrace_buffer *buffer, int fd, bool rw)
 {
+	int prot = rw ? PROT_READ | PROT_WRITE : PROT_READ;
 	size_t adj = buffer->data_offset & (page_size - 1);
 	size_t size = buffer->size + adj;
 	off_t file_offset = buffer->data_offset - adj;
@@ -1130,7 +1126,7 @@ void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd)
 	if (buffer->data)
 		return buffer->data;
 
-	addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, file_offset);
+	addr = mmap(NULL, size, prot, MAP_SHARED, fd, file_offset);
 	if (addr == MAP_FAILED)
 		return NULL;
 
@@ -1230,11 +1226,11 @@ static void unleader_evsel(struct evlist *evlist, struct evsel *leader)
 
 	/* Find new leader for the group */
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->leader != leader || evsel == leader)
+		if (!evsel__has_leader(evsel, leader) || evsel == leader)
 			continue;
 		if (!new_leader)
 			new_leader = evsel;
-		evsel->leader = new_leader;
+		evsel__set_leader(evsel, new_leader);
 	}
 
 	/* Update group information */
@@ -1404,10 +1400,9 @@ static int get_flags(const char **ptr, unsigned int *plus_flags, unsigned int *m
  * about the options parsed here, which is introduced after this cset,
  * when support in 'perf script' for these options is introduced.
  */
-int itrace_parse_synth_opts(const struct option *opt, const char *str,
-			    int unset)
+int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
+			       const char *str, int unset)
 {
-	struct itrace_synth_opts *synth_opts = opt->value;
 	const char *p;
 	char *endptr;
 	bool period_type_set = false;
@@ -1569,6 +1564,9 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 		case 'q':
 			synth_opts->quick += 1;
 			break;
+		case 'Z':
+			synth_opts->timeless_decoding = true;
+			break;
 		case ' ':
 		case ',':
 			break;
@@ -1590,6 +1588,11 @@ out:
 out_err:
 	pr_err("Bad Instruction Tracing options '%s'\n", str);
 	return -EINVAL;
+}
+
+int itrace_parse_synth_opts(const struct option *opt, const char *str, int unset)
+{
+	return itrace_do_parse_synth_opts(opt->value, str, unset);
 }
 
 static const char * const auxtrace_error_type_name[] = {
@@ -1666,6 +1669,82 @@ int perf_event__process_auxtrace_error(struct perf_session *session,
 	return 0;
 }
 
+/*
+ * In the compat mode kernel runs in 64-bit and perf tool runs in 32-bit mode,
+ * 32-bit perf tool cannot access 64-bit value atomically, which might lead to
+ * the issues caused by the below sequence on multiple CPUs: when perf tool
+ * accesses either the load operation or the store operation for 64-bit value,
+ * on some architectures the operation is divided into two instructions, one
+ * is for accessing the low 32-bit value and another is for the high 32-bit;
+ * thus these two user operations can give the kernel chances to access the
+ * 64-bit value, and thus leads to the unexpected load values.
+ *
+ *   kernel (64-bit)                        user (32-bit)
+ *
+ *   if (LOAD ->aux_tail) { --,             LOAD ->aux_head_lo
+ *       STORE $aux_data      |       ,--->
+ *       FLUSH $aux_data      |       |     LOAD ->aux_head_hi
+ *       STORE ->aux_head   --|-------`     smp_rmb()
+ *   }                        |             LOAD $data
+ *                            |             smp_mb()
+ *                            |             STORE ->aux_tail_lo
+ *                            `----------->
+ *                                          STORE ->aux_tail_hi
+ *
+ * For this reason, it's impossible for the perf tool to work correctly when
+ * the AUX head or tail is bigger than 4GB (more than 32 bits length); and we
+ * can not simply limit the AUX ring buffer to less than 4GB, the reason is
+ * the pointers can be increased monotonically, whatever the buffer size it is,
+ * at the end the head and tail can be bigger than 4GB and carry out to the
+ * high 32-bit.
+ *
+ * To mitigate the issues and improve the user experience, we can allow the
+ * perf tool working in certain conditions and bail out with error if detect
+ * any overflow cannot be handled.
+ *
+ * For reading the AUX head, it reads out the values for three times, and
+ * compares the high 4 bytes of the values between the first time and the last
+ * time, if there has no change for high 4 bytes injected by the kernel during
+ * the user reading sequence, it's safe for use the second value.
+ *
+ * When compat_auxtrace_mmap__write_tail() detects any carrying in the high
+ * 32 bits, it means there have two store operations in user space and it cannot
+ * promise the atomicity for 64-bit write, so return '-1' in this case to tell
+ * the caller an overflow error has happened.
+ */
+u64 __weak compat_auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+	u64 first, second, last;
+	u64 mask = (u64)(UINT32_MAX) << 32;
+
+	do {
+		first = READ_ONCE(pc->aux_head);
+		/* Ensure all reads are done after we read the head */
+		smp_rmb();
+		second = READ_ONCE(pc->aux_head);
+		/* Ensure all reads are done after we read the head */
+		smp_rmb();
+		last = READ_ONCE(pc->aux_head);
+	} while ((first & mask) != (last & mask));
+
+	return second;
+}
+
+int __weak compat_auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+	u64 mask = (u64)(UINT32_MAX) << 32;
+
+	if (tail & mask)
+		return -1;
+
+	/* Ensure all reads are done before we write the tail out */
+	smp_mb();
+	WRITE_ONCE(pc->aux_tail, tail);
+	return 0;
+}
+
 static int __auxtrace_mmap__read(struct mmap *map,
 				 struct auxtrace_record *itr,
 				 struct perf_tool *tool, process_auxtrace_t fn,
@@ -1677,15 +1756,13 @@ static int __auxtrace_mmap__read(struct mmap *map,
 	size_t size, head_off, old_off, len1, len2, padding;
 	union perf_event ev;
 	void *data1, *data2;
+	int kernel_is_64_bit = perf_env__kernel_is_64_bit(evsel__env(NULL));
 
-	if (snapshot) {
-		head = auxtrace_mmap__read_snapshot_head(mm);
-		if (auxtrace_record__find_snapshot(itr, mm->idx, mm, data,
-						   &head, &old))
-			return -1;
-	} else {
-		head = auxtrace_mmap__read_head(mm);
-	}
+	head = auxtrace_mmap__read_head(mm, kernel_is_64_bit);
+
+	if (snapshot &&
+	    auxtrace_record__find_snapshot(itr, mm->idx, mm, data, &head, &old))
+		return -1;
 
 	if (old == head)
 		return 0;
@@ -1764,10 +1841,13 @@ static int __auxtrace_mmap__read(struct mmap *map,
 	mm->prev = head;
 
 	if (!snapshot) {
-		auxtrace_mmap__write_tail(mm, head);
-		if (itr->read_finish) {
-			int err;
+		int err;
 
+		err = auxtrace_mmap__write_tail(mm, head, kernel_is_64_bit);
+		if (err < 0)
+			return err;
+
+		if (itr->read_finish) {
 			err = itr->read_finish(itr, mm->idx);
 			if (err < 0)
 				return err;

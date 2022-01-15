@@ -401,7 +401,7 @@ static void cpt_disable_all_cores(struct cpt_device *cpt)
 	cpt_write_csr64(cpt->reg_base, CPTX_PF_EXE_CTL(0), 0);
 }
 
-/**
+/*
  * Ensure all cores are disengaged from all groups by
  * calling cpt_disable_all_cores() before calling this
  * function.

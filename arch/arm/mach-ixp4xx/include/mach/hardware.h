@@ -23,7 +23,7 @@
 #include "ixp4xx-regs.h"
 
 #ifndef __ASSEMBLER__
-#include <mach/cpu.h>
+#include <linux/soc/ixp4xx/cpu.h>
 #endif
 
 /* Platform helper functions and definitions */

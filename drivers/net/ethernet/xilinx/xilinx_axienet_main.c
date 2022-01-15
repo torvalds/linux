@@ -1227,7 +1227,7 @@ static const struct net_device_ops axienet_netdev_ops = {
 	.ndo_change_mtu	= axienet_change_mtu,
 	.ndo_set_mac_address = netdev_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_do_ioctl = axienet_ioctl,
+	.ndo_eth_ioctl = axienet_ioctl,
 	.ndo_set_rx_mode = axienet_set_multicast_list,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = axienet_poll_controller,
@@ -1400,6 +1400,8 @@ axienet_ethtools_set_pauseparam(struct net_device *ndev,
  * axienet_ethtools_get_coalesce - Get DMA interrupt coalescing count.
  * @ndev:	Pointer to net_device structure
  * @ecoalesce:	Pointer to ethtool_coalesce structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack:	extack for reporting error messages
  *
  * This implements ethtool command for getting the DMA interrupt coalescing
  * count on Tx and Rx paths. Issue "ethtool -c ethX" under linux prompt to
@@ -1407,8 +1409,11 @@ axienet_ethtools_set_pauseparam(struct net_device *ndev,
  *
  * Return: 0 always
  */
-static int axienet_ethtools_get_coalesce(struct net_device *ndev,
-					 struct ethtool_coalesce *ecoalesce)
+static int
+axienet_ethtools_get_coalesce(struct net_device *ndev,
+			      struct ethtool_coalesce *ecoalesce,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	u32 regval = 0;
 	struct axienet_local *lp = netdev_priv(ndev);
@@ -1425,6 +1430,8 @@ static int axienet_ethtools_get_coalesce(struct net_device *ndev,
  * axienet_ethtools_set_coalesce - Set DMA interrupt coalescing count.
  * @ndev:	Pointer to net_device structure
  * @ecoalesce:	Pointer to ethtool_coalesce structure
+ * @kernel_coal: ethtool CQE mode setting structure
+ * @extack:	extack for reporting error messages
  *
  * This implements ethtool command for setting the DMA interrupt coalescing
  * count on Tx and Rx paths. Issue "ethtool -C ethX rx-frames 5" under linux
@@ -1432,8 +1439,11 @@ static int axienet_ethtools_get_coalesce(struct net_device *ndev,
  *
  * Return: 0, on success, Non-zero error value on failure.
  */
-static int axienet_ethtools_set_coalesce(struct net_device *ndev,
-					 struct ethtool_coalesce *ecoalesce)
+static int
+axienet_ethtools_set_coalesce(struct net_device *ndev,
+			      struct ethtool_coalesce *ecoalesce,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	struct axienet_local *lp = netdev_priv(ndev);
 
@@ -1543,6 +1553,7 @@ static void axienet_validate(struct phylink_config *config,
 	case PHY_INTERFACE_MODE_MII:
 		phylink_set(mask, 100baseT_Full);
 		phylink_set(mask, 10baseT_Full);
+		fallthrough;
 	default:
 		break;
 	}
@@ -1893,8 +1904,7 @@ static int axienet_probe(struct platform_device *pdev)
 		goto cleanup_clk;
 
 	/* Map device registers */
-	ethres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lp->regs = devm_ioremap_resource(&pdev->dev, ethres);
+	lp->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &ethres);
 	if (IS_ERR(lp->regs)) {
 		ret = PTR_ERR(lp->regs);
 		goto cleanup_clk;
@@ -2009,9 +2019,7 @@ static int axienet_probe(struct platform_device *pdev)
 		lp->eth_irq = platform_get_irq_optional(pdev, 0);
 	} else {
 		/* Check for these resources directly on the Ethernet node. */
-		struct resource *res = platform_get_resource(pdev,
-							     IORESOURCE_MEM, 1);
-		lp->dma_regs = devm_ioremap_resource(&pdev->dev, res);
+		lp->dma_regs = devm_platform_get_and_ioremap_resource(pdev, 1, NULL);
 		lp->rx_irq = platform_get_irq(pdev, 1);
 		lp->tx_irq = platform_get_irq(pdev, 0);
 		lp->eth_irq = platform_get_irq_optional(pdev, 2);

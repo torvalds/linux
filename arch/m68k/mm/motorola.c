@@ -467,7 +467,7 @@ void __init paging_init(void)
 	/*
 	 * Set up SFC/DFC registers
 	 */
-	set_fs(KERNEL_DS);
+	set_fc(USER_DATA);
 
 #ifdef DEBUG
 	printk ("before free_area_init\n");

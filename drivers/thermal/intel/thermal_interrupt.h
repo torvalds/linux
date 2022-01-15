@@ -12,4 +12,7 @@ extern int (*platform_thermal_notify)(__u64 msr_val);
  * callback has rate control */
 extern bool (*platform_thermal_package_rate_control)(void);
 
+/* Handle HWP interrupt */
+extern void notify_hwp_interrupt(void);
+
 #endif /* _INTEL_THERMAL_INTERRUPT_H */

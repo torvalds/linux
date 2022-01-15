@@ -2,6 +2,52 @@
 
 if LEDS_CLASS_FLASH
 
+config LEDS_AAT1290
+	tristate "LED support for the AAT1290"
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	depends on GPIOLIB || COMPILE_TEST
+	depends on OF
+	depends on PINCTRL
+	help
+	  This option enables support for the LEDs on the AAT1290.
+
+config LEDS_AS3645A
+	tristate "AS3645A and LM3555 LED flash controllers support"
+	depends on I2C
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  Enable LED flash class support for AS3645A LED flash
+	  controller. V4L2 flash API is provided as well if
+	  CONFIG_V4L2_FLASH_API is enabled.
+
+config LEDS_KTD2692
+	tristate "LED support for Kinetic KTD2692 flash LED controller"
+	depends on OF
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  This option enables support for Kinetic KTD2692 LED flash connected
+	  through ExpressWire interface.
+
+	  Say Y to enable this driver.
+
+config LEDS_LM3601X
+	tristate "LED support for LM3601x Chips"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for the TI LM3601x family
+	  of flash, torch and indicator classes.
+
+config LEDS_MAX77693
+	tristate "LED support for MAX77693 Flash"
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	depends on MFD_MAX77693
+	depends on OF
+	help
+	  This option enables support for the flash part of the MAX77693
+	  multifunction device. It has build in control for two leds in flash
+	  and torch mode.
+
 config LEDS_RT4505
 	tristate "LED support for RT4505 flashlight controller"
 	depends on I2C && OF
@@ -23,5 +69,12 @@ config LEDS_RT8515
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-rt8515.
+
+config LEDS_SGM3140
+	tristate "LED support for the SGM3140"
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  This option enables support for the SGM3140 500mA Buck/Boost Charge
+	  Pump LED Driver.
 
 endif # LEDS_CLASS_FLASH

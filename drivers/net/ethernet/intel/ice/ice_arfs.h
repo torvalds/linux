@@ -52,12 +52,12 @@ bool
 ice_is_arfs_using_perfect_flow(struct ice_hw *hw,
 			       enum ice_fltr_ptype flow_type);
 #else
-#define ice_sync_arfs_fltrs(pf) do {} while (0)
-#define ice_init_arfs(vsi) do {} while (0)
-#define ice_clear_arfs(vsi) do {} while (0)
-#define ice_remove_arfs(pf) do {} while (0)
-#define ice_free_cpu_rx_rmap(vsi) do {} while (0)
-#define ice_rebuild_arfs(pf) do {} while (0)
+static inline void ice_clear_arfs(struct ice_vsi *vsi) { }
+static inline void ice_free_cpu_rx_rmap(struct ice_vsi *vsi) { }
+static inline void ice_init_arfs(struct ice_vsi *vsi) { }
+static inline void ice_sync_arfs_fltrs(struct ice_pf *pf) { }
+static inline void ice_remove_arfs(struct ice_pf *pf) { }
+static inline void ice_rebuild_arfs(struct ice_pf *pf) { }
 
 static inline int ice_set_cpu_rx_rmap(struct ice_vsi __always_unused *vsi)
 {

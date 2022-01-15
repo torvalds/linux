@@ -22,7 +22,7 @@ The major benefit to creating a region is to provide access to internal
 address regions that are otherwise inaccessible to the user.
 
 Regions may also be used to provide an additional way to debug complex error
-states, but see also :doc:`devlink-health`
+states, but see also Documentation/networking/devlink/devlink-health.rst
 
 Regions may optionally support capturing a snapshot on demand via the
 ``DEVLINK_CMD_REGION_NEW`` netlink message. A driver wishing to allow

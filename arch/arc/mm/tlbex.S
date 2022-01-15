@@ -39,7 +39,6 @@
 #include <asm/arcregs.h>
 #include <asm/cache.h>
 #include <asm/processor.h>
-#include <asm/tlb-mmu1.h>
 
 #ifdef CONFIG_ISA_ARCOMPACT
 ;-----------------------------------------------------------------
@@ -94,11 +93,6 @@ ex_saved_reg1:
 	st_s  r1, [r0, 4]
 	st_s  r2, [r0, 8]
 	st_s  r3, [r0, 12]
-
-	; VERIFY if the ASID in MMU-PID Reg is same as
-	; one in Linux data structures
-
-	tlb_paranoid_check_asm
 .endm
 
 .macro TLBMISS_RESTORE_REGS
@@ -148,53 +142,16 @@ ex_saved_reg1:
 #endif
 
 ;============================================================================
-;  Troubleshooting Stuff
-;============================================================================
-
-; Linux keeps ASID (Address Space ID) in task->active_mm->context.asid
-; When Creating TLB Entries, instead of doing 3 dependent loads from memory,
-; we use the MMU PID Reg to get current ASID.
-; In bizzare scenrios SW and HW ASID can get out-of-sync which is trouble.
-; So we try to detect this in TLB Mis shandler
-
-.macro tlb_paranoid_check_asm
-
-#ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-
-	GET_CURR_TASK_ON_CPU  r3
-	ld r0, [r3, TASK_ACT_MM]
-	ld r0, [r0, MM_CTXT+MM_CTXT_ASID]
-	breq r0, 0, 55f	; Error if no ASID allocated
-
-	lr r1, [ARC_REG_PID]
-	and r1, r1, 0xFF
-
-	and r2, r0, 0xFF	; MMU PID bits only for comparison
-	breq r1, r2, 5f
-
-55:
-	; Error if H/w and S/w ASID don't match, but NOT if in kernel mode
-	lr  r2, [erstatus]
-	bbit0 r2, STATUS_U_BIT, 5f
-
-	; We sure are in troubled waters, Flag the error, but to do so
-	; need to switch to kernel mode stack to call error routine
-	GET_TSK_STACK_BASE   r3, sp
-
-	; Call printk to shoutout aloud
-	mov r2, 1
-	j print_asid_mismatch
-
-5:	; ASIDs match so proceed normally
-	nop
-
-#endif
-
-.endm
-
-;============================================================================
 ;TLB Miss handling Code
 ;============================================================================
+
+#ifndef PMD_SHIFT
+#define PMD_SHIFT PUD_SHIFT
+#endif
+
+#ifndef PUD_SHIFT
+#define PUD_SHIFT PGDIR_SHIFT
+#endif
 
 ;-----------------------------------------------------------------------------
 ; This macro does the page-table lookup for the faulting address.
@@ -203,7 +160,7 @@ ex_saved_reg1:
 
 	lr  r2, [efa]
 
-#ifdef ARC_USE_SCRATCH_REG
+#ifdef CONFIG_ISA_ARCV2
 	lr  r1, [ARC_REG_SCRATCH_DATA0] ; current pgd
 #else
 	GET_CURR_TASK_ON_CPU  r1
@@ -215,6 +172,24 @@ ex_saved_reg1:
 	ld.as   r3, [r1, r0]            ; PGD entry corresp to faulting addr
 	tst	r3, r3
 	bz	do_slow_path_pf         ; if no Page Table, do page fault
+
+#if CONFIG_PGTABLE_LEVELS > 3
+	lsr     r0, r2, PUD_SHIFT	; Bits for indexing into PUD
+	and	r0, r0, (PTRS_PER_PUD - 1)
+	ld.as	r1, [r3, r0]		; PMD entry
+	tst	r1, r1
+	bz	do_slow_path_pf
+	mov	r3, r1
+#endif
+
+#if CONFIG_PGTABLE_LEVELS > 2
+	lsr     r0, r2, PMD_SHIFT	; Bits for indexing into PMD
+	and	r0, r0, (PTRS_PER_PMD - 1)
+	ld.as	r1, [r3, r0]		; PMD entry
+	tst	r1, r1
+	bz	do_slow_path_pf
+	mov	r3, r1
+#endif
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	and.f	0, r3, _PAGE_HW_SZ	; Is this Huge PMD (thp)
@@ -279,7 +254,7 @@ ex_saved_reg1:
 ; Commit the TLB entry into MMU
 
 .macro COMMIT_ENTRY_TO_MMU
-#if (CONFIG_ARC_MMU_VER < 4)
+#ifdef CONFIG_ARC_MMU_V3
 
 	/* Get free TLB slot: Set = computed from vaddr, way = random */
 	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
@@ -374,13 +349,6 @@ ENTRY(EV_TLBMissD)
 	st_s    r0, [r1]                      ; Write back PTE
 
 	CONV_PTE_TO_TLB
-
-#if (CONFIG_ARC_MMU_VER == 1)
-	; MMU with 2 way set assoc J-TLB, needs some help in pathetic case of
-	; memcpy where 3 parties contend for 2 ways, ensuing a livelock.
-	; But only for old MMU or one with Metal Fix
-	TLB_WRITE_HEURISTICS
-#endif
 
 	COMMIT_ENTRY_TO_MMU
 	TLBMISS_RESTORE_REGS

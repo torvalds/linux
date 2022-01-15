@@ -56,14 +56,9 @@ static inline int vmx_has_valid_vmcs12(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	/*
-	 * In case we do two consecutive get/set_nested_state()s while L2 was
-	 * running hv_evmcs may end up not being mapped (we map it from
-	 * nested_vmx_run()/vmx_vcpu_run()). Check is_guest_mode() as we always
-	 * have vmcs12 if it is true.
-	 */
-	return is_guest_mode(vcpu) || vmx->nested.current_vmptr != -1ull ||
-		vmx->nested.hv_evmcs;
+	/* 'hv_evmcs_vmptr' can also be EVMPTR_MAP_PENDING here */
+	return vmx->nested.current_vmptr != -1ull ||
+		vmx->nested.hv_evmcs_vmptr != EVMPTR_INVALID;
 }
 
 static inline u16 nested_get_vpid02(struct kvm_vcpu *vcpu)

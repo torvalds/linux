@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2019 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2019, 2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -46,7 +46,8 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 			     enum iwl_fw_dbg_trigger trig_type);
 int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
-			   struct iwl_fwrt_dump_data *dump_data);
+			   struct iwl_fwrt_dump_data *dump_data,
+			   bool sync);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       enum iwl_fw_dbg_trigger trig, const char *str,
 		       size_t len, struct iwl_fw_dbg_trigger_tlv *trigger);
@@ -284,7 +285,7 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 		trans->dbg.umac_error_event_table = umac_error_event_table;
 }
 
-static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
+static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt, bool sync)
 {
 	enum iwl_fw_ini_time_point tp_id;
 
@@ -300,7 +301,7 @@ static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 		tp_id = IWL_FW_INI_TIME_POINT_FW_ASSERT;
 	}
 
-	iwl_dbg_tlv_time_point(fwrt, tp_id, NULL);
+	_iwl_dbg_tlv_time_point(fwrt, tp_id, NULL, sync);
 }
 
 void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);
@@ -321,4 +322,6 @@ static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
 		fwrt->dump.fw_ver.umac_minor = le32_to_cpu(umac->umac_minor);
 	}
 }
+
+void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt);
 #endif  /* __iwl_fw_dbg_h__ */

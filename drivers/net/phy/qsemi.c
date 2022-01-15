@@ -100,6 +100,7 @@ static int qs6612_ack_interrupt(struct phy_device *phydev)
 static int qs6612_config_intr(struct phy_device *phydev)
 {
 	int err;
+
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
 		/* clear any interrupts before enabling them */
 		err = qs6612_ack_interrupt(phydev);

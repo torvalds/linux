@@ -82,6 +82,8 @@ int main(int argc, char **argv)
 	cpu_set_t cpuset;
 	__u32 key = 0;
 
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
+
 	CPU_ZERO(&cpuset);
 	CPU_SET(0, &cpuset);
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
@@ -116,7 +118,7 @@ int main(int argc, char **argv)
 
 	pb_opts.sample_cb = dummyfn;
 	pb = perf_buffer__new(bpf_map__fd(perf_map), 8, &pb_opts);
-	if (IS_ERR(pb))
+	if (!pb)
 		goto err;
 
 	pthread_create(&tid, NULL, poller_thread, pb);
@@ -163,7 +165,6 @@ err:
 	bpf_prog_detach(cg_fd, BPF_CGROUP_SOCK_OPS);
 	close(cg_fd);
 	cleanup_cgroup_environment();
-	if (!IS_ERR_OR_NULL(pb))
-		perf_buffer__free(pb);
+	perf_buffer__free(pb);
 	return error;
 }

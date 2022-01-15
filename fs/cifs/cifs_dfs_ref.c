@@ -125,7 +125,7 @@ cifs_build_devname(char *nodename, const char *prepath)
  * @sb_mountdata:	parent/root DFS mount options (template)
  * @fullpath:		full path in UNC format
  * @ref:		optional server's referral
- *
+ * @devname:		return the built cifs device name if passed pointer not NULL
  * creates mount options for submount based on template options sb_mountdata
  * and replacing unc,ip,prefixpath options with ones we've got form ref_unc.
  *
@@ -151,6 +151,9 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 		return ERR_PTR(-EINVAL);
 
 	if (ref) {
+		if (WARN_ON_ONCE(!ref->node_name || ref->path_consumed < 0))
+			return ERR_PTR(-EINVAL);
+
 		if (strlen(fullpath) - ref->path_consumed) {
 			prepath = fullpath + ref->path_consumed;
 			/* skip initial delimiter */
@@ -173,7 +176,7 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 		}
 	}
 
-	rc = dns_resolve_server_name_to_ip(name, &srvIP);
+	rc = dns_resolve_server_name_to_ip(name, &srvIP, NULL);
 	if (rc < 0) {
 		cifs_dbg(FYI, "%s: Failed to resolve server part of %s to IP: %d\n",
 			 __func__, name, rc);
@@ -208,6 +211,10 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 		else
 			noff = tkn_e - (sb_mountdata + off) + 1;
 
+		if (strncasecmp(sb_mountdata + off, "cruid=", 6) == 0) {
+			off += noff;
+			continue;
+		}
 		if (strncasecmp(sb_mountdata + off, "unc=", 4) == 0) {
 			off += noff;
 			continue;

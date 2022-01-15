@@ -8191,8 +8191,9 @@ static int niu_pci_vpd_fetch(struct niu *np, u32 start)
 		err = niu_pci_vpd_scan_props(np, here, end);
 		if (err < 0)
 			return err;
+		/* ret == 1 is not an error */
 		if (err == 1)
-			return -EINVAL;
+			return 0;
 	}
 	return 0;
 }
@@ -9207,7 +9208,7 @@ static int niu_get_of_props(struct niu *np)
 	else
 		dp = pci_device_to_OF_node(np->pdev);
 
-	phy_type = of_get_property(dp, "phy-type", &prop_len);
+	phy_type = of_get_property(dp, "phy-type", NULL);
 	if (!phy_type) {
 		netdev_err(dev, "%pOF: OF node lacks phy-type property\n", dp);
 		return -EINVAL;
@@ -9241,12 +9242,12 @@ static int niu_get_of_props(struct niu *np)
 		return -EINVAL;
 	}
 
-	model = of_get_property(dp, "model", &prop_len);
+	model = of_get_property(dp, "model", NULL);
 
 	if (model)
 		strcpy(np->vpd.model, model);
 
-	if (of_find_property(dp, "hot-swappable-phy", &prop_len)) {
+	if (of_find_property(dp, "hot-swappable-phy", NULL)) {
 		np->flags |= (NIU_FLAGS_10G | NIU_FLAGS_FIBER |
 			NIU_FLAGS_HOTPLUG_PHY);
 	}
@@ -9667,7 +9668,7 @@ static const struct net_device_ops niu_netdev_ops = {
 	.ndo_set_rx_mode	= niu_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= niu_set_mac_addr,
-	.ndo_do_ioctl		= niu_ioctl,
+	.ndo_eth_ioctl		= niu_ioctl,
 	.ndo_tx_timeout		= niu_tx_timeout,
 	.ndo_change_mtu		= niu_change_mtu,
 };
@@ -9721,7 +9722,6 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct niu *np;
 	int err;
-	u64 dma_mask;
 
 	niu_driver_version();
 
@@ -9776,18 +9776,11 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 		PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE |
 		PCI_EXP_DEVCTL_RELAX_EN);
 
-	dma_mask = DMA_BIT_MASK(44);
-	err = pci_set_dma_mask(pdev, dma_mask);
-	if (!err) {
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(44));
+	if (!err)
 		dev->features |= NETIF_F_HIGHDMA;
-		err = pci_set_consistent_dma_mask(pdev, dma_mask);
-		if (err) {
-			dev_err(&pdev->dev, "Unable to obtain 44 bit DMA for consistent allocations, aborting\n");
-			goto err_out_release_parent;
-		}
-	}
 	if (err) {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
 			goto err_out_release_parent;

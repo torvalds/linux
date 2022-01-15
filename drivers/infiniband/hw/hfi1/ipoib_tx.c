@@ -644,10 +644,13 @@ static int hfi1_ipoib_sdma_sleep(struct sdma_engine *sde,
 			/* came from non-list submit */
 			list_add_tail(&txreq->list, &txq->tx_list);
 		if (list_empty(&txq->wait.list)) {
+			struct hfi1_ibport *ibp = &sde->ppd->ibport_data;
+
 			if (!atomic_xchg(&txq->no_desc, 1)) {
 				trace_hfi1_txq_queued(txq);
 				hfi1_ipoib_stop_txq(txq);
 			}
+			ibp->rvp.n_dmawait++;
 			iowait_queue(pkts_sent, wait->iow, &sde->dmawait);
 		}
 
@@ -873,14 +876,14 @@ void hfi1_ipoib_tx_timeout(struct net_device *dev, unsigned int q)
 	struct hfi1_ipoib_txq *txq = &priv->txqs[q];
 	u64 completed = atomic64_read(&txq->complete_txreqs);
 
-	dd_dev_info(priv->dd, "timeout txq %llx q %u stopped %u stops %d no_desc %d ring_full %d\n",
-		    (unsigned long long)txq, q,
+	dd_dev_info(priv->dd, "timeout txq %p q %u stopped %u stops %d no_desc %d ring_full %d\n",
+		    txq, q,
 		    __netif_subqueue_stopped(dev, txq->q_idx),
 		    atomic_read(&txq->stops),
 		    atomic_read(&txq->no_desc),
 		    atomic_read(&txq->ring_full));
-	dd_dev_info(priv->dd, "sde %llx engine %u\n",
-		    (unsigned long long)txq->sde,
+	dd_dev_info(priv->dd, "sde %p engine %u\n",
+		    txq->sde,
 		    txq->sde ? txq->sde->this_idx : 0);
 	dd_dev_info(priv->dd, "flow %x\n", txq->flow.as_int);
 	dd_dev_info(priv->dd, "sent %llu completed %llu used %llu\n",

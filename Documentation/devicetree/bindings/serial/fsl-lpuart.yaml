@@ -36,14 +36,12 @@ properties:
       - description: ipg clock
       - description: baud clock
     minItems: 1
-    maxItems: 2
 
   clock-names:
     items:
       - const: ipg
       - const: baud
     minItems: 1
-    maxItems: 2
 
   dmas:
     items:

@@ -10,6 +10,7 @@
 #include "ice_txrx_lib.h"
 #include "ice_lib.h"
 #include "ice.h"
+#include "ice_trace.h"
 #include "ice_dcb_lib.h"
 #include "ice_xsk.h"
 
@@ -224,6 +225,7 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 
 		smp_rmb();	/* prevent any other reads prior to eop_desc */
 
+		ice_trace(clean_tx_irq, tx_ring, tx_desc, tx_buf);
 		/* if the descriptor isn't done, no work yet to do */
 		if (!(eop_desc->cmd_type_offset_bsz &
 		      cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)))
@@ -254,6 +256,7 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 
 		/* unmap remaining buffers */
 		while (tx_desc != eop_desc) {
+			ice_trace(clean_tx_irq_unmap, tx_ring, tx_desc, tx_buf);
 			tx_buf++;
 			tx_desc++;
 			i++;
@@ -272,6 +275,7 @@ static bool ice_clean_tx_irq(struct ice_ring *tx_ring, int napi_budget)
 				dma_unmap_len_set(tx_buf, len, 0);
 			}
 		}
+		ice_trace(clean_tx_irq_unmap_eop, tx_ring, tx_desc, tx_buf);
 
 		/* move us one more past the eop_desc for start of next pkt */
 		tx_buf++;
@@ -1082,7 +1086,7 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		u16 stat_err_bits;
 		int rx_buf_pgcnt;
 		u16 vlan_tag = 0;
-		u8 rx_ptype;
+		u16 rx_ptype;
 
 		/* get the Rx desc from Rx ring based on 'next_to_clean' */
 		rx_desc = ICE_RX_DESC(rx_ring, rx_ring->next_to_clean);
@@ -1102,6 +1106,7 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		 */
 		dma_rmb();
 
+		ice_trace(clean_rx_irq, rx_ring, rx_desc);
 		if (rx_desc->wb.rxdid == FDIR_DESC_RXDID || !rx_ring->netdev) {
 			struct ice_vsi *ctrl_vsi = rx_ring->vsi;
 
@@ -1135,15 +1140,11 @@ int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		xdp.frame_sz = ice_rx_frame_truesize(rx_ring, size);
 #endif
 
-		rcu_read_lock();
 		xdp_prog = READ_ONCE(rx_ring->xdp_prog);
-		if (!xdp_prog) {
-			rcu_read_unlock();
+		if (!xdp_prog)
 			goto construct_skb;
-		}
 
 		xdp_res = ice_run_xdp(rx_ring, &xdp, xdp_prog);
-		rcu_read_unlock();
 		if (!xdp_res)
 			goto construct_skb;
 		if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)) {
@@ -1207,6 +1208,7 @@ construct_skb:
 
 		ice_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 
+		ice_trace(clean_rx_irq_indicate, rx_ring, rx_desc, skb);
 		/* send completed skb up the stack */
 		ice_receive_skb(rx_ring, skb, vlan_tag);
 		skb = NULL;
@@ -2137,6 +2139,41 @@ static bool ice_chk_linearize(struct sk_buff *skb, unsigned int count)
 }
 
 /**
+ * ice_tstamp - set up context descriptor for hardware timestamp
+ * @tx_ring: pointer to the Tx ring to send buffer on
+ * @skb: pointer to the SKB we're sending
+ * @first: Tx buffer
+ * @off: Tx offload parameters
+ */
+static void
+ice_tstamp(struct ice_ring *tx_ring, struct sk_buff *skb,
+	   struct ice_tx_buf *first, struct ice_tx_offload_params *off)
+{
+	s8 idx;
+
+	/* only timestamp the outbound packet if the user has requested it */
+	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)))
+		return;
+
+	if (!tx_ring->ptp_tx)
+		return;
+
+	/* Tx timestamps cannot be sampled when doing TSO */
+	if (first->tx_flags & ICE_TX_FLAGS_TSO)
+		return;
+
+	/* Grab an open timestamp slot */
+	idx = ice_ptp_request_ts(tx_ring->tx_tstamps, skb);
+	if (idx < 0)
+		return;
+
+	off->cd_qw1 |= (u64)(ICE_TX_DESC_DTYPE_CTX |
+			     (ICE_TX_CTX_DESC_TSYN << ICE_TXD_CTX_QW1_CMD_S) |
+			     ((u64)idx << ICE_TXD_CTX_QW1_TSO_LEN_S));
+	first->tx_flags |= ICE_TX_FLAGS_TSYN;
+}
+
+/**
  * ice_xmit_frame_ring - Sends buffer on Tx ring
  * @skb: send buffer
  * @tx_ring: ring to send buffer on
@@ -2152,6 +2189,8 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 	struct ethhdr *eth;
 	unsigned int count;
 	int tso, csum;
+
+	ice_trace(xmit_frame_ring, tx_ring, skb);
 
 	count = ice_xmit_desc_count(skb);
 	if (ice_chk_linearize(skb, count)) {
@@ -2205,6 +2244,8 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 					ICE_TX_CTX_DESC_SWTCH_UPLINK <<
 					ICE_TXD_CTX_QW1_CMD_S);
 
+	ice_tstamp(tx_ring, skb, first, &offload);
+
 	if (offload.cd_qw1 & ICE_TX_DESC_DTYPE_CTX) {
 		struct ice_tx_ctx_desc *cdesc;
 		u16 i = tx_ring->next_to_use;
@@ -2225,6 +2266,7 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 	return NETDEV_TX_OK;
 
 out_drop:
+	ice_trace(xmit_frame_ring_drop, tx_ring, skb);
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }

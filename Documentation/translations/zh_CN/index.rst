@@ -4,6 +4,8 @@
 
 	\renewcommand\thesection*
 	\renewcommand\thesubsection*
+	\kerneldocCJKon
+	\kerneldocBeginSC
 
 .. _linux_doc_zh:
 
@@ -15,6 +17,11 @@
 
    **翻译计划:**
    内核中文文档欢迎任何翻译投稿，特别是关于内核用户和管理员指南部分。
+
+这是中文内核文档树的顶级目录。内核文档，就像内核本身一样，在很大程度上是一
+项正在进行的工作；当我们努力将许多分散的文件整合成一个连贯的整体时尤其如此。
+另外，随时欢迎您对内核文档进行改进；如果您想提供帮助，请加入vger.kernel.org
+上的linux-doc邮件列表。
 
 许可证文档
 ----------
@@ -72,11 +79,11 @@ TODOlist:
    dev-tools/index
    doc-guide/index
    kernel-hacking/index
+   maintainer/index
 
 TODOList:
 
 * trace/index
-* maintainer/index
 * fault-injection/index
 * livepatch/index
 * rust/index
@@ -96,12 +103,14 @@ TODOList:
    iio/index
    sound/index
    filesystems/index
+   virt/index
+   infiniband/index
+   accounting/index
 
 TODOList:
 
 * driver-api/index
 * locking/index
-* accounting/index
 * block/index
 * cdrom/index
 * ide/index
@@ -110,7 +119,6 @@ TODOList:
 * hid/index
 * i2c/index
 * isdn/index
-* infiniband/index
 * leds/index
 * netlabel/index
 * networking/index
@@ -121,7 +129,6 @@ TODOList:
 * spi/index
 * w1/index
 * watchdog/index
-* virt/index
 * input/index
 * hwmon/index
 * gpu/index
@@ -153,6 +160,7 @@ TODOList:
    arm64/index
    riscv/index
    openrisc/index
+   parisc/index
 
 TODOList:
 
@@ -160,7 +168,6 @@ TODOList:
 * ia64/index
 * m68k/index
 * nios2/index
-* parisc/index
 * powerpc/index
 * s390/index
 * sh/index
@@ -183,3 +190,7 @@ TODOList:
 ----------
 
 * :ref:`genindex`
+
+.. raw:: latex
+
+	\kerneldocEndSC

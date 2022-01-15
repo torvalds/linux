@@ -117,11 +117,11 @@ ux500_regulator_debug_init(struct platform_device *pdev,
 	rdebug.dir = debugfs_create_dir("ux500-regulator", NULL);
 
 	/* create "status" file */
-	debugfs_create_file("status", S_IRUGO, rdebug.dir, &pdev->dev,
+	debugfs_create_file("status", 0444, rdebug.dir, &pdev->dev,
 			    &ux500_regulator_status_fops);
 
 	/* create "power-state-count" file */
-	debugfs_create_file("power-state-count", S_IRUGO, rdebug.dir,
+	debugfs_create_file("power-state-count", 0444, rdebug.dir,
 			    &pdev->dev, &ux500_regulator_power_state_cnt_fops);
 
 	rdebug.regulator_array = regulator_info;

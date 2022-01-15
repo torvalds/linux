@@ -1862,7 +1862,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	int status;
 	int err = -ENODEV;
 	struct vchiq_mmal_instance *instance;
-	static struct vchiq_instance *vchiq_instance;
+	struct vchiq_instance *vchiq_instance;
 	struct vchiq_service_params_kernel params = {
 		.version		= VC_MMAL_VER,
 		.version_min		= VC_MMAL_MIN_VER,

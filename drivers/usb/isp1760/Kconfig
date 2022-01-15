@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
 config USB_ISP1760
-	tristate "NXP ISP 1760/1761 support"
+	tristate "NXP ISP 1760/1761/1763 support"
 	depends on USB || USB_GADGET
+	select REGMAP_MMIO
 	help
-	  Say Y or M here if your system as an ISP1760 USB host controller
+	  Say Y or M here if your system as an ISP1760/1763 USB host controller
 	  or an ISP1761 USB dual-role controller.
 
 	  This driver does not support isochronous transfers or OTG.

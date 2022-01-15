@@ -742,7 +742,7 @@ static int ft260_is_interface_enabled(struct hid_device *hdev)
 	int ret;
 
 	ret = ft260_get_system_config(hdev, &cfg);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ft260_dbg("interface:  0x%02x\n", interface);
@@ -754,23 +754,16 @@ static int ft260_is_interface_enabled(struct hid_device *hdev)
 	switch (cfg.chip_mode) {
 	case FT260_MODE_ALL:
 	case FT260_MODE_BOTH:
-		if (interface == 1) {
+		if (interface == 1)
 			hid_info(hdev, "uart interface is not supported\n");
-			return 0;
-		}
-		ret = 1;
+		else
+			ret = 1;
 		break;
 	case FT260_MODE_UART:
-		if (interface == 0) {
-			hid_info(hdev, "uart is unsupported on interface 0\n");
-			ret = 0;
-		}
+		hid_info(hdev, "uart interface is not supported\n");
 		break;
 	case FT260_MODE_I2C:
-		if (interface == 1) {
-			hid_info(hdev, "i2c is unsupported on interface 1\n");
-			ret = 0;
-		}
+		ret = 1;
 		break;
 	}
 	return ret;
@@ -785,7 +778,7 @@ static int ft260_byte_show(struct hid_device *hdev, int id, u8 *cfg, int len,
 	if (ret < 0)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%hi\n", *field);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", *field);
 }
 
 static int ft260_word_show(struct hid_device *hdev, int id, u8 *cfg, int len,
@@ -797,7 +790,7 @@ static int ft260_word_show(struct hid_device *hdev, int id, u8 *cfg, int len,
 	if (ret < 0)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%hi\n", le16_to_cpu(*field));
+	return scnprintf(buf, PAGE_SIZE, "%d\n", le16_to_cpu(*field));
 }
 
 #define FT260_ATTR_SHOW(name, reptype, id, type, func)			       \
@@ -1004,11 +997,9 @@ err_hid_stop:
 
 static void ft260_remove(struct hid_device *hdev)
 {
-	int ret;
 	struct ft260_device *dev = hid_get_drvdata(hdev);
 
-	ret = ft260_is_interface_enabled(hdev);
-	if (ret <= 0)
+	if (!dev)
 		return;
 
 	sysfs_remove_group(&hdev->dev.kobj, &ft260_attr_group);

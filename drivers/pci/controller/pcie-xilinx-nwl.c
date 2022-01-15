@@ -6,6 +6,7 @@
  * (C) Copyright 2014 - 2015, Xilinx, Inc.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -169,6 +170,7 @@ struct nwl_pcie {
 	u8 last_busno;
 	struct nwl_msi msi;
 	struct irq_domain *legacy_irq_domain;
+	struct clk *clk;
 	raw_spinlock_t leg_mask_lock;
 };
 
@@ -318,18 +320,14 @@ static void nwl_pcie_leg_handler(struct irq_desc *desc)
 	struct nwl_pcie *pcie;
 	unsigned long status;
 	u32 bit;
-	u32 virq;
 
 	chained_irq_enter(chip, desc);
 	pcie = irq_desc_get_handler_data(desc);
 
 	while ((status = nwl_bridge_readl(pcie, MSGF_LEG_STATUS) &
 				MSGF_LEG_SR_MASKALL) != 0) {
-		for_each_set_bit(bit, &status, PCI_NUM_INTX) {
-			virq = irq_find_mapping(pcie->legacy_irq_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
-		}
+		for_each_set_bit(bit, &status, PCI_NUM_INTX)
+			generic_handle_domain_irq(pcie->legacy_irq_domain, bit);
 	}
 
 	chained_irq_exit(chip, desc);
@@ -340,16 +338,13 @@ static void nwl_pcie_handle_msi_irq(struct nwl_pcie *pcie, u32 status_reg)
 	struct nwl_msi *msi;
 	unsigned long status;
 	u32 bit;
-	u32 virq;
 
 	msi = &pcie->msi;
 
 	while ((status = nwl_bridge_readl(pcie, status_reg)) != 0) {
 		for_each_set_bit(bit, &status, 32) {
 			nwl_bridge_writel(pcie, 1 << bit, status_reg);
-			virq = irq_find_mapping(msi->dev_domain, bit);
-			if (virq)
-				generic_handle_irq(virq);
+			generic_handle_domain_irq(msi->dev_domain, bit);
 		}
 	}
 }
@@ -820,6 +815,16 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 	err = nwl_pcie_parse_dt(pcie, pdev);
 	if (err) {
 		dev_err(dev, "Parsing DT failed\n");
+		return err;
+	}
+
+	pcie->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(pcie->clk))
+		return PTR_ERR(pcie->clk);
+
+	err = clk_prepare_enable(pcie->clk);
+	if (err) {
+		dev_err(dev, "can't enable PCIe ref clock\n");
 		return err;
 	}
 

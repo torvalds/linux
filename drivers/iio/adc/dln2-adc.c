@@ -649,7 +649,8 @@ static int dln2_adc_probe(struct platform_device *pdev)
 	indio_dev->setup_ops = &dln2_adc_buffer_setup_ops;
 
 	dln2->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
-					    indio_dev->name, indio_dev->id);
+					    indio_dev->name,
+					    iio_device_id(indio_dev));
 	if (!dln2->trig) {
 		dev_err(dev, "failed to allocate trigger\n");
 		return -ENOMEM;

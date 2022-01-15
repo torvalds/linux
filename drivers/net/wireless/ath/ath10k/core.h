@@ -301,7 +301,7 @@ struct ath10k_fw_stats_pdev {
 	s32 underrun;
 	u32 hw_paused;
 	s32 tx_abort;
-	s32 mpdus_requed;
+	s32 mpdus_requeued;
 	u32 tx_ko;
 	u32 data_rc;
 	u32 self_triggers;

@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/smsc,lan9115.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Smart Mixed-Signal Connectivity (SMSC) LAN911x/912x Controller
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: smsc,lan9115
+      - items:
+          - enum:
+              - smsc,lan89218
+              - smsc,lan9117
+              - smsc,lan9118
+              - smsc,lan9220
+              - smsc,lan9221
+          - const: smsc,lan9115
+
+  reg:
+    maxItems: 1
+
+  reg-shift: true
+
+  reg-io-width:
+    enum: [ 2, 4 ]
+    default: 2
+
+  interrupts:
+    minItems: 1
+    items:
+      - description:
+          LAN interrupt line
+      - description:
+          Optional PME (power management event) interrupt that is able to wake
+          up the host system with a 50ms pulse on network activity
+
+  clocks:
+    maxItems: 1
+
+  phy-mode: true
+
+  smsc,irq-active-high:
+    type: boolean
+    description: Indicates the IRQ polarity is active-high
+
+  smsc,irq-push-pull:
+    type: boolean
+    description: Indicates the IRQ type is push-pull
+
+  smsc,force-internal-phy:
+    type: boolean
+    description: Forces SMSC LAN controller to use internal PHY
+
+  smsc,force-external-phy:
+    type: boolean
+    description: Forces SMSC LAN controller to use external PHY
+
+  smsc,save-mac-address:
+    type: boolean
+    description:
+      Indicates that MAC address needs to be saved before resetting the
+      controller
+
+  reset-gpios:
+    maxItems: 1
+    description:
+      A GPIO line connected to the RESET (active low) signal of the device.
+      On many systems this is wired high so the device goes out of reset at
+      power-on, but if it is under program control, this optional GPIO can
+      wake up in response to it.
+
+  vdd33a-supply:
+    description: 3.3V analog power supply
+
+  vddvario-supply:
+    description: IO logic power supply
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+# There are lots of bus-specific properties ("qcom,*", "samsung,*", "fsl,*",
+# "gpmc,*", ...) to be found, that actually depend on the compatible value of
+# the parent node.
+additionalProperties: true
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    ethernet@f4000000 {
+            compatible = "smsc,lan9220", "smsc,lan9115";
+            reg = <0xf4000000 0x2000000>;
+            phy-mode = "mii";
+            interrupt-parent = <&gpio1>;
+            interrupts = <31>, <32>;
+            reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
+            reg-io-width = <4>;
+            smsc,irq-push-pull;
+    };

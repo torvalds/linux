@@ -111,6 +111,7 @@ static const struct of_device_id brcmstb_reset_of_match[] = {
 	{ .compatible = "brcm,brcmstb-reset" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, brcmstb_reset_of_match);
 
 static struct platform_driver brcmstb_reset_driver = {
 	.probe	= brcmstb_reset_probe,

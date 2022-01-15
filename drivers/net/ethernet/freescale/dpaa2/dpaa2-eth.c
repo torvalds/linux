@@ -352,8 +352,6 @@ static u32 dpaa2_eth_run_xdp(struct dpaa2_eth_priv *priv,
 	u32 xdp_act = XDP_PASS;
 	int err, offset;
 
-	rcu_read_lock();
-
 	xdp_prog = READ_ONCE(ch->xdp.prog);
 	if (!xdp_prog)
 		goto out;
@@ -414,7 +412,6 @@ static u32 dpaa2_eth_run_xdp(struct dpaa2_eth_priv *priv,
 
 	ch->xdp.res |= xdp_act;
 out:
-	rcu_read_unlock();
 	return xdp_act;
 }
 
@@ -2597,7 +2594,7 @@ static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_get_stats64 = dpaa2_eth_get_stats,
 	.ndo_set_rx_mode = dpaa2_eth_set_rx_mode,
 	.ndo_set_features = dpaa2_eth_set_features,
-	.ndo_do_ioctl = dpaa2_eth_ioctl,
+	.ndo_eth_ioctl = dpaa2_eth_ioctl,
 	.ndo_change_mtu = dpaa2_eth_change_mtu,
 	.ndo_bpf = dpaa2_eth_xdp,
 	.ndo_xdp_xmit = dpaa2_eth_xdp_xmit,
@@ -4141,7 +4138,7 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 	int err;
 
 	dpni_dev = to_fsl_mc_device(priv->net_dev->dev.parent);
-	dpmac_dev = fsl_mc_get_endpoint(dpni_dev);
+	dpmac_dev = fsl_mc_get_endpoint(dpni_dev, 0);
 
 	if (PTR_ERR(dpmac_dev) == -EPROBE_DEFER)
 		return PTR_ERR(dpmac_dev);
@@ -4164,10 +4161,11 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 
 	if (dpaa2_eth_is_type_phy(priv)) {
 		err = dpaa2_mac_connect(mac);
-		if (err) {
-			netdev_err(priv->net_dev, "Error connecting to the MAC endpoint\n");
+		if (err && err != -EPROBE_DEFER)
+			netdev_err(priv->net_dev, "Error connecting to the MAC endpoint: %pe",
+				   ERR_PTR(err));
+		if (err)
 			goto err_close_mac;
-		}
 	}
 
 	return 0;

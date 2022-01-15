@@ -131,18 +131,44 @@ config SENSIRION_SGP30
 	  To compile this driver as module, choose M here: the
 	  module will be called sgp30.
 
-config SPS30
-	tristate "SPS30 particulate matter sensor"
+config SENSIRION_SGP40
+	tristate "Sensirion SGP40 gas sensor"
 	depends on I2C
 	select CRC8
+	help
+	  Say Y here to build I2C interface to support Sensirion SGP40 gas
+	  sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called sgp40.
+
+config SPS30
+	tristate
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+
+config SPS30_I2C
+	tristate "SPS30 particulate matter sensor I2C driver"
+	depends on I2C
+	select SPS30
+	select CRC8
 	help
-	  Say Y here to build support for the Sensirion SPS30 particulate
-	  matter sensor.
+	  Say Y here to build support for the Sensirion SPS30 I2C interface
+	  driver.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called sps30.
+	  be called sps30_i2c.
+
+config SPS30_SERIAL
+	tristate "SPS30 particulate matter sensor serial driver"
+	depends on SERIAL_DEV_BUS
+	select SPS30
+	help
+	  Say Y here to build support for the Sensirion SPS30 serial interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sps30_serial.
 
 config VZ89X
 	tristate "SGX Sensortech MiCS VZ89X VOC sensor"

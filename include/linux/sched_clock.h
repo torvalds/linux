@@ -14,7 +14,7 @@
  * @sched_clock_mask:   Bitmask for two's complement subtraction of non 64bit
  *			clocks.
  * @read_sched_clock:	Current clock source (or dummy source when suspended).
- * @mult:		Multipler for scaled math conversion.
+ * @mult:		Multiplier for scaled math conversion.
  * @shift:		Shift value for scaled math conversion.
  *
  * Care must be taken when updating this structure; it is read by

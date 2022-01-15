@@ -438,6 +438,38 @@ static void amd_gpio_irq_unmask(struct irq_data *d)
 	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 }
 
+static int amd_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	u32 pin_reg;
+	unsigned long flags;
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
+	u32 wake_mask = BIT(WAKE_CNTRL_OFF_S0I3) | BIT(WAKE_CNTRL_OFF_S3);
+	int err;
+
+	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
+	pin_reg = readl(gpio_dev->base + (d->hwirq)*4);
+
+	if (on)
+		pin_reg |= wake_mask;
+	else
+		pin_reg &= ~wake_mask;
+
+	writel(pin_reg, gpio_dev->base + (d->hwirq)*4);
+	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
+
+	if (on)
+		err = enable_irq_wake(gpio_dev->irq);
+	else
+		err = disable_irq_wake(gpio_dev->irq);
+
+	if (err)
+		dev_err(&gpio_dev->pdev->dev, "failed to %s wake-up interrupt\n",
+			on ? "enable" : "disable");
+
+	return 0;
+}
+
 static void amd_gpio_irq_eoi(struct irq_data *d)
 {
 	u32 reg;
@@ -552,9 +584,16 @@ static struct irq_chip amd_gpio_irqchip = {
 	.irq_disable  = amd_gpio_irq_disable,
 	.irq_mask     = amd_gpio_irq_mask,
 	.irq_unmask   = amd_gpio_irq_unmask,
+	.irq_set_wake = amd_gpio_irq_set_wake,
 	.irq_eoi      = amd_gpio_irq_eoi,
 	.irq_set_type = amd_gpio_irq_set_type,
-	.flags        = IRQCHIP_SKIP_SET_WAKE,
+	/*
+	 * We need to set IRQCHIP_ENABLE_WAKEUP_ON_SUSPEND so that a wake event
+	 * also generates an IRQ. We need the IRQ so the irq_handler can clear
+	 * the wake event. Otherwise the wake event will never clear and
+	 * prevent the system from suspending.
+	 */
+	.flags        = IRQCHIP_ENABLE_WAKEUP_ON_SUSPEND,
 };
 
 #define PIN_IRQ_PENDING	(BIT(INTERRUPT_STS_OFF) | BIT(WAKE_STS_OFF))
@@ -591,14 +630,12 @@ static irqreturn_t amd_gpio_irq_handler(int irq, void *dev_id)
 			if (!(regval & PIN_IRQ_PENDING) ||
 			    !(regval & BIT(INTERRUPT_MASK_OFF)))
 				continue;
-			irq = irq_find_mapping(gc->irq.domain, irqnr + i);
-			if (irq != 0)
-				generic_handle_irq(irq);
+			generic_handle_domain_irq(gc->irq.domain, irqnr + i);
 
 			/* Clear interrupt.
 			 * We must read the pin register again, in case the
 			 * value was changed while executing
-			 * generic_handle_irq() above.
+			 * generic_handle_domain_irq() above.
 			 * If we didn't find a mapping for the interrupt,
 			 * disable it in order to avoid a system hang caused
 			 * by an interrupt storm.
@@ -803,6 +840,34 @@ static const struct pinconf_ops amd_pinconf_ops = {
 	.pin_config_group_set = amd_pinconf_group_set,
 };
 
+static void amd_gpio_irq_init(struct amd_gpio *gpio_dev)
+{
+	struct pinctrl_desc *desc = gpio_dev->pctrl->desc;
+	unsigned long flags;
+	u32 pin_reg, mask;
+	int i;
+
+	mask = BIT(WAKE_CNTRL_OFF_S0I3) | BIT(WAKE_CNTRL_OFF_S3) |
+		BIT(INTERRUPT_MASK_OFF) | BIT(INTERRUPT_ENABLE_OFF) |
+		BIT(WAKE_CNTRL_OFF_S4);
+
+	for (i = 0; i < desc->npins; i++) {
+		int pin = desc->pins[i].number;
+		const struct pin_desc *pd = pin_desc_get(gpio_dev->pctrl, pin);
+
+		if (!pd)
+			continue;
+
+		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
+
+		pin_reg = readl(gpio_dev->base + i * 4);
+		pin_reg &= ~mask;
+		writel(pin_reg, gpio_dev->base + i * 4);
+
+		raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
+	}
+}
+
 #ifdef CONFIG_PM_SLEEP
 static bool amd_gpio_should_save(struct amd_gpio *gpio_dev, unsigned int pin)
 {
@@ -875,7 +940,6 @@ static struct pinctrl_desc amd_pinctrl_desc = {
 static int amd_gpio_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	int irq_base;
 	struct resource *res;
 	struct amd_gpio *gpio_dev;
 	struct gpio_irq_chip *girq;
@@ -898,9 +962,9 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	if (!gpio_dev->base)
 		return -ENOMEM;
 
-	irq_base = platform_get_irq(pdev, 0);
-	if (irq_base < 0)
-		return irq_base;
+	gpio_dev->irq = platform_get_irq(pdev, 0);
+	if (gpio_dev->irq < 0)
+		return gpio_dev->irq;
 
 #ifdef CONFIG_PM_SLEEP
 	gpio_dev->saved_regs = devm_kcalloc(&pdev->dev, amd_pinctrl_desc.npins,
@@ -940,6 +1004,9 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gpio_dev->pctrl);
 	}
 
+	/* Disable and mask interrupts */
+	amd_gpio_irq_init(gpio_dev);
+
 	girq = &gpio_dev->gc.irq;
 	girq->chip = &amd_gpio_irqchip;
 	/* This will let us handle the parent IRQ in the driver */
@@ -960,7 +1027,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		goto out2;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq_base, amd_gpio_irq_handler,
+	ret = devm_request_irq(&pdev->dev, gpio_dev->irq, amd_gpio_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, gpio_dev);
 	if (ret)
 		goto out2;
@@ -991,6 +1058,7 @@ static int amd_gpio_remove(struct platform_device *pdev)
 static const struct acpi_device_id amd_gpio_acpi_match[] = {
 	{ "AMD0030", 0 },
 	{ "AMDI0030", 0},
+	{ "AMDI0031", 0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, amd_gpio_acpi_match);

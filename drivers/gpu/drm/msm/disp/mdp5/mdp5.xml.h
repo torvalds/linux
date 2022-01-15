@@ -8,19 +8,27 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/msm.xml                 (    676 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/mdp/mdp5.xml            (  37411 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/dsi/dsi.xml             (  42301 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/hdmi/hdmi.xml           (  41874 bytes, from 2020-07-23 21:58:14)
-- /home/robclark/src/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/msm.xml                   (    981 bytes, from 2021-06-05 21:37:42)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/freedreno_copyright.xml   (   1572 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/mdp/mdp4.xml              (  20912 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/mdp/mdp_common.xml        (   2849 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/mdp/mdp5.xml              (  37461 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi.xml               (  15291 bytes, from 2021-06-15 22:36:13)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_v2.xml        (   3236 bytes, from 2021-06-05 21:37:42)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_28nm_8960.xml (   4935 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_28nm.xml      (   7004 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_20nm.xml      (   3712 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_14nm.xml      (   5381 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_10nm.xml      (   4499 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_7nm.xml       (  10953 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/dsi_phy_5nm.xml       (  10900 bytes, from 2021-05-21 19:18:08)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/sfpb.xml              (    602 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/dsi/mmss_cc.xml           (   1686 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/hdmi/qfprom.xml           (    600 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/hdmi/hdmi.xml             (  41874 bytes, from 2021-02-18 16:45:44)
+- /home/robclark/src/mesa/mesa/src/freedreno/registers/edp/edp.xml               (  10416 bytes, from 2021-02-18 16:45:44)
 
-Copyright (C) 2013-2020 by the following authors:
+Copyright (C) 2013-2021 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -78,6 +86,10 @@ enum mdp5_pipe {
 	SSPP_RGB3 = 10,
 	SSPP_CURSOR0 = 11,
 	SSPP_CURSOR1 = 12,
+};
+
+enum mdp5_format {
+	DUMMY = 0,
 };
 
 enum mdp5_ctl_mode {

@@ -189,7 +189,7 @@ static void sprd_gpio_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 	struct irq_chip *ic = irq_desc_get_chip(desc);
 	struct sprd_gpio *sprd_gpio = gpiochip_get_data(chip);
-	u32 bank, n, girq;
+	u32 bank, n;
 
 	chained_irq_enter(ic, desc);
 
@@ -198,13 +198,9 @@ static void sprd_gpio_irq_handler(struct irq_desc *desc)
 		unsigned long reg = readl_relaxed(base + SPRD_GPIO_MIS) &
 			SPRD_GPIO_BANK_MASK;
 
-		for_each_set_bit(n, &reg, SPRD_GPIO_BANK_NR) {
-			girq = irq_find_mapping(chip->irq.domain,
-						bank * SPRD_GPIO_BANK_NR + n);
-
-			generic_handle_irq(girq);
-		}
-
+		for_each_set_bit(n, &reg, SPRD_GPIO_BANK_NR)
+			generic_handle_domain_irq(chip->irq.domain,
+						  bank * SPRD_GPIO_BANK_NR + n);
 	}
 	chained_irq_exit(ic, desc);
 }
@@ -222,7 +218,6 @@ static int sprd_gpio_probe(struct platform_device *pdev)
 {
 	struct gpio_irq_chip *irq;
 	struct sprd_gpio *sprd_gpio;
-	int ret;
 
 	sprd_gpio = devm_kzalloc(&pdev->dev, sizeof(*sprd_gpio), GFP_KERNEL);
 	if (!sprd_gpio)
@@ -259,14 +254,7 @@ static int sprd_gpio_probe(struct platform_device *pdev)
 	irq->num_parents = 1;
 	irq->parents = &sprd_gpio->irq;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &sprd_gpio->chip, sprd_gpio);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip %d\n", ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, sprd_gpio);
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &sprd_gpio->chip, sprd_gpio);
 }
 
 static const struct of_device_id sprd_gpio_of_match[] = {

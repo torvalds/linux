@@ -1701,7 +1701,7 @@ struct snd_emu10k1 {
 	struct snd_dma_buffer silent_page;	/* silent page */
 	struct snd_dma_buffer ptb_pages;	/* page table pages */
 	struct snd_dma_device p16v_dma_dev;
-	struct snd_dma_buffer p16v_buffer;
+	struct snd_dma_buffer *p16v_buffer;
 
 	struct snd_util_memhdr *memhdr;		/* page allocation list */
 
@@ -1796,14 +1796,12 @@ int snd_emu10k1_create(struct snd_card *card,
 		       unsigned short extout_mask,
 		       long max_cache_bytes,
 		       int enable_ir,
-		       uint subsystem,
-		       struct snd_emu10k1 ** remu);
+		       uint subsystem);
 
 int snd_emu10k1_pcm(struct snd_emu10k1 *emu, int device);
 int snd_emu10k1_pcm_mic(struct snd_emu10k1 *emu, int device);
 int snd_emu10k1_pcm_efx(struct snd_emu10k1 *emu, int device);
 int snd_p16v_pcm(struct snd_emu10k1 *emu, int device);
-int snd_p16v_free(struct snd_emu10k1 * emu);
 int snd_p16v_mixer(struct snd_emu10k1 * emu);
 int snd_emu10k1_pcm_multi(struct snd_emu10k1 *emu, int device);
 int snd_emu10k1_fx8010_pcm(struct snd_emu10k1 *emu, int device);

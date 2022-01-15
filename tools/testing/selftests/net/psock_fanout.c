@@ -111,8 +111,8 @@ static int sock_fanout_open(uint16_t typeflags, uint16_t group_id)
 static void sock_fanout_set_cbpf(int fd)
 {
 	struct sock_filter bpf_filter[] = {
-		BPF_STMT(BPF_LD+BPF_B+BPF_ABS, 80),	      /* ldb [80] */
-		BPF_STMT(BPF_RET+BPF_A, 0),		      /* ret A */
+		BPF_STMT(BPF_LD | BPF_B | BPF_ABS, 80),	      /* ldb [80] */
+		BPF_STMT(BPF_RET | BPF_A, 0),		      /* ret A */
 	};
 	struct sock_fprog bpf_prog;
 

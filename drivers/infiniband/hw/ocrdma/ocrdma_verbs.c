@@ -1288,19 +1288,19 @@ static void ocrdma_store_gsi_qp_cq(struct ocrdma_dev *dev,
 	}
 }
 
-struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
-			       struct ib_qp_init_attr *attrs,
-			       struct ib_udata *udata)
+int ocrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
+		     struct ib_udata *udata)
 {
 	int status;
+	struct ib_pd *ibpd = ibqp->pd;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
-	struct ocrdma_qp *qp;
-	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
+	struct ocrdma_qp *qp = get_ocrdma_qp(ibqp);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibqp->device);
 	struct ocrdma_create_qp_ureq ureq;
 	u16 dpp_credit_lmt, dpp_offset;
 
 	if (attrs->create_flags)
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	status = ocrdma_check_qp_params(ibpd, dev, attrs, udata);
 	if (status)
@@ -1309,12 +1309,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	memset(&ureq, 0, sizeof(ureq));
 	if (udata) {
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
-			return ERR_PTR(-EFAULT);
-	}
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-	if (!qp) {
-		status = -ENOMEM;
-		goto gen_err;
+			return -EFAULT;
 	}
 	ocrdma_set_qp_init_params(qp, pd, attrs);
 	if (udata == NULL)
@@ -1349,7 +1344,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	ocrdma_store_gsi_qp_cq(dev, attrs);
 	qp->ibqp.qp_num = qp->id;
 	mutex_unlock(&dev->dev_lock);
-	return &qp->ibqp;
+	return 0;
 
 cpy_err:
 	ocrdma_del_qpn_map(dev, qp);
@@ -1359,10 +1354,9 @@ mbx_err:
 	mutex_unlock(&dev->dev_lock);
 	kfree(qp->wqe_wr_id_tbl);
 	kfree(qp->rqe_wr_id_tbl);
-	kfree(qp);
 	pr_err("%s(%d) error=%d\n", __func__, dev->id, status);
 gen_err:
-	return ERR_PTR(status);
+	return status;
 }
 
 int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
@@ -1731,7 +1725,6 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 	kfree(qp->wqe_wr_id_tbl);
 	kfree(qp->rqe_wr_id_tbl);
-	kfree(qp);
 	return 0;
 }
 

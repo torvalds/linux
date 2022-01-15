@@ -76,8 +76,6 @@ enum intel_platform {
 	INTEL_GEMINILAKE,
 	INTEL_COFFEELAKE,
 	INTEL_COMETLAKE,
-	/* gen10 */
-	INTEL_CANNONLAKE,
 	/* gen11 */
 	INTEL_ICELAKE,
 	INTEL_ELKHARTLAKE,
@@ -87,6 +85,9 @@ enum intel_platform {
 	INTEL_ROCKETLAKE,
 	INTEL_DG1,
 	INTEL_ALDERLAKE_S,
+	INTEL_ALDERLAKE_P,
+	INTEL_XEHPSDV,
+	INTEL_DG2,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -102,8 +103,12 @@ enum intel_platform {
 #define INTEL_SUBPLATFORM_ULT	(0)
 #define INTEL_SUBPLATFORM_ULX	(1)
 
-/* CNL/ICL */
+/* ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)
+
+/* DG2 */
+#define INTEL_SUBPLATFORM_G10	0
+#define INTEL_SUBPLATFORM_G11	1
 
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
@@ -126,7 +131,7 @@ enum intel_ppgtt_type {
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_elsq); \
-	func(has_master_unit_irq); \
+	func(has_mslices); \
 	func(has_pooled_eu); \
 	func(has_rc6); \
 	func(has_rc6p); \
@@ -140,7 +145,8 @@ enum intel_ppgtt_type {
 #define DEV_INFO_DISPLAY_FOR_EACH_FLAG(func) \
 	/* Keep in alphabetical order */ \
 	func(cursor_needs_physical); \
-	func(has_csr); \
+	func(has_cdclk_crawl); \
+	func(has_dmc); \
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_dsb); \
@@ -160,10 +166,11 @@ enum intel_ppgtt_type {
 	func(supports_tv);
 
 struct intel_device_info {
-	u16 gen_mask;
+	u8 graphics_ver;
+	u8 graphics_rel;
+	u8 media_ver;
+	u8 media_rel;
 
-	u8 gen;
-	u8 gt; /* GT number, 0 if undefined */
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
 
 	enum intel_platform platform;
@@ -179,6 +186,8 @@ struct intel_device_info {
 
 	u32 display_mmio_offset;
 
+	u8 gt; /* GT number, 0 if undefined */
+
 	u8 pipe_mask;
 	u8 cpu_transcoder_mask;
 
@@ -189,15 +198,17 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 
 	struct {
-		u8 version;
+		u8 ver;
 
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
 	} display;
 
-	u16 ddb_size; /* in blocks */
-	u8 num_supported_dbuf_slices; /* number of DBuf slices */
+	struct {
+		u16 size; /* in blocks */
+		u8 slice_mask;
+	} dbuf;
 
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];

@@ -70,6 +70,7 @@ struct mlx5_flow_attr {
 	struct mlx5_fc *counter;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_ct_attr ct_attr;
+	struct mlx5e_sample_attr *sample_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	u32 chain;
 	u16 prio;
@@ -129,7 +130,7 @@ struct tunnel_match_enc_opts {
  */
 #define TUNNEL_INFO_BITS 12
 #define TUNNEL_INFO_BITS_MASK GENMASK(TUNNEL_INFO_BITS - 1, 0)
-#define ENC_OPTS_BITS 12
+#define ENC_OPTS_BITS 11
 #define ENC_OPTS_BITS_MASK GENMASK(ENC_OPTS_BITS - 1, 0)
 #define TUNNEL_ID_BITS (TUNNEL_INFO_BITS + ENC_OPTS_BITS)
 #define TUNNEL_ID_MASK GENMASK(TUNNEL_ID_BITS - 1, 0)
@@ -201,10 +202,10 @@ enum mlx5e_tc_attr_to_reg {
 
 struct mlx5e_tc_attr_to_reg_mapping {
 	int mfield; /* rewrite field */
-	int moffset; /* offset of mfield */
-	int mlen; /* bytes to rewrite/match */
+	int moffset; /* bit offset of mfield */
+	int mlen; /* bits to rewrite/match */
 
-	int soffset; /* offset of spec for match */
+	int soffset; /* byte offset of spec for match */
 };
 
 extern struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[];

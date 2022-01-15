@@ -93,7 +93,7 @@ static const struct devlink_health_reporter_ops qed_fw_fatal_reporter_ops = {
 		.dump = qed_fw_fatal_reporter_dump,
 };
 
-#define QED_REPORTER_FW_GRACEFUL_PERIOD 1200000
+#define QED_REPORTER_FW_GRACEFUL_PERIOD 0
 
 void qed_fw_reporters_create(struct devlink *devlink)
 {
@@ -207,14 +207,15 @@ struct devlink *qed_devlink_register(struct qed_dev *cdev)
 	struct devlink *dl;
 	int rc;
 
-	dl = devlink_alloc(&qed_dl_ops, sizeof(struct qed_devlink));
+	dl = devlink_alloc(&qed_dl_ops, sizeof(struct qed_devlink),
+			   &cdev->pdev->dev);
 	if (!dl)
 		return ERR_PTR(-ENOMEM);
 
 	qdevlink = devlink_priv(dl);
 	qdevlink->cdev = cdev;
 
-	rc = devlink_register(dl, &cdev->pdev->dev);
+	rc = devlink_register(dl);
 	if (rc)
 		goto err_free;
 

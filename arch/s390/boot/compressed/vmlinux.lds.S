@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/vmlinux.lds.h>
+#include <asm/thread_info.h>
+#include <asm/page.h>
+#include <asm/sclp.h>
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
 OUTPUT_ARCH(s390:64-bit)
@@ -34,27 +37,6 @@ SECTIONS
 		*(.data.*)
 		_edata = . ;
 	}
-	/*
-	* .dma section for code, data, ex_table that need to stay below 2 GB,
-	* even when the kernel is relocate: above 2 GB.
-	*/
-	. = ALIGN(PAGE_SIZE);
-	_sdma = .;
-	.dma.text : {
-		_stext_dma = .;
-		*(.dma.text)
-		. = ALIGN(PAGE_SIZE);
-		_etext_dma = .;
-	}
-	. = ALIGN(16);
-	.dma.ex_table : {
-		_start_dma_ex_table = .;
-		KEEP(*(.dma.ex_table))
-		_stop_dma_ex_table = .;
-	}
-	.dma.data : { *(.dma.data) }
-	. = ALIGN(PAGE_SIZE);
-	_edma = .;
 
 	BOOT_DATA
 	BOOT_DATA_PRESERVED
@@ -69,6 +51,17 @@ SECTIONS
 		*(.bss)
 		*(.bss.*)
 		*(COMMON)
+		/*
+		 * Stacks for the decompressor
+		 */
+		. = ALIGN(PAGE_SIZE);
+		_dump_info_stack_start = .;
+		. += PAGE_SIZE;
+		_dump_info_stack_end = .;
+		. = ALIGN(PAGE_SIZE);
+		_stack_start = .;
+		. += BOOT_STACK_SIZE;
+		_stack_end = .;
 		_ebss = .;
 	}
 

@@ -111,6 +111,9 @@ void unregister_mii_timestamper(struct mii_timestamper *mii_ts)
 	struct mii_timestamping_desc *desc;
 	struct list_head *this;
 
+	if (!mii_ts)
+		return;
+
 	/* mii_timestamper statically registered by the PHY driver won't use the
 	 * register_mii_timestamper() and thus don't have ->device set. Don't
 	 * try to unregister these.

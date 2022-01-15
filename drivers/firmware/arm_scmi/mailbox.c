@@ -43,7 +43,7 @@ static void rx_callback(struct mbox_client *cl, void *m)
 {
 	struct scmi_mailbox *smbox = client_to_scmi_mailbox(cl);
 
-	scmi_rx_callback(smbox->cinfo, shmem_read_header(smbox->shmem));
+	scmi_rx_callback(smbox->cinfo, shmem_read_header(smbox->shmem), NULL);
 }
 
 static bool mailbox_chan_available(struct device *dev, int idx)
@@ -69,6 +69,9 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 		return -ENOMEM;
 
 	shmem = of_parse_phandle(cdev->of_node, "shmem", idx);
+	if (!of_device_is_compatible(shmem, "arm,scmi-shmem"))
+		return -ENXIO;
+
 	ret = of_address_to_resource(shmem, 0, &res);
 	of_node_put(shmem);
 	if (ret) {

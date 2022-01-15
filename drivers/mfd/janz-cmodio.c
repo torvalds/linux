@@ -149,15 +149,15 @@ static int cmodio_probe_submodules(struct cmodio_device *priv)
  * SYSFS Attributes
  */
 
-static ssize_t mbus_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t modulbus_number_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	struct cmodio_device *priv = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", priv->hex);
 }
 
-static DEVICE_ATTR(modulbus_number, S_IRUGO, mbus_show, NULL);
+static DEVICE_ATTR_RO(modulbus_number);
 
 static struct attribute *cmodio_sysfs_attrs[] = {
 	&dev_attr_modulbus_number.attr,

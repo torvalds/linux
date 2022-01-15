@@ -339,10 +339,24 @@ static ssize_t bonding_show_peer_notif_delay(struct device *d,
 static DEVICE_ATTR(peer_notif_delay, 0644,
 		   bonding_show_peer_notif_delay, bonding_sysfs_store_option);
 
-/* Show the LACP interval. */
-static ssize_t bonding_show_lacp(struct device *d,
-				 struct device_attribute *attr,
-				 char *buf)
+/* Show the LACP activity and interval. */
+static ssize_t bonding_show_lacp_active(struct device *d,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	const struct bond_opt_value *val;
+
+	val = bond_opt_get_val(BOND_OPT_LACP_ACTIVE, bond->params.lacp_active);
+
+	return sprintf(buf, "%s %d\n", val->string, bond->params.lacp_active);
+}
+static DEVICE_ATTR(lacp_active, 0644,
+		   bonding_show_lacp_active, bonding_sysfs_store_option);
+
+static ssize_t bonding_show_lacp_rate(struct device *d,
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_opt_value *val;
@@ -352,7 +366,7 @@ static ssize_t bonding_show_lacp(struct device *d,
 	return sprintf(buf, "%s %d\n", val->string, bond->params.lacp_fast);
 }
 static DEVICE_ATTR(lacp_rate, 0644,
-		   bonding_show_lacp, bonding_sysfs_store_option);
+		   bonding_show_lacp_rate, bonding_sysfs_store_option);
 
 static ssize_t bonding_show_min_links(struct device *d,
 				      struct device_attribute *attr,
@@ -385,6 +399,7 @@ static ssize_t bonding_show_num_peer_notif(struct device *d,
 					   char *buf)
 {
 	struct bonding *bond = to_bond(d);
+
 	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
 }
 static DEVICE_ATTR(num_grat_arp, 0644,
@@ -496,6 +511,7 @@ static ssize_t bonding_show_ad_aggregator(struct device *d,
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
+
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
 				?  0 : ad_info.aggregator_id);
@@ -516,6 +532,7 @@ static ssize_t bonding_show_ad_num_ports(struct device *d,
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
+
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
 				?  0 : ad_info.ports);
@@ -536,6 +553,7 @@ static ssize_t bonding_show_ad_actor_key(struct device *d,
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
+
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
 				?  0 : ad_info.actor_key);
@@ -556,6 +574,7 @@ static ssize_t bonding_show_ad_partner_key(struct device *d,
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
+
 		count = sprintf(buf, "%d\n",
 				bond_3ad_get_active_agg_info(bond, &ad_info)
 				?  0 : ad_info.partner_key);
@@ -576,6 +595,7 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD && capable(CAP_NET_ADMIN)) {
 		struct ad_info ad_info;
+
 		if (!bond_3ad_get_active_agg_info(bond, &ad_info))
 			count = sprintf(buf, "%pM\n", ad_info.partner_system);
 	}
@@ -660,6 +680,7 @@ static ssize_t bonding_show_tlb_dynamic_lb(struct device *d,
 					   char *buf)
 {
 	struct bonding *bond = to_bond(d);
+
 	return sprintf(buf, "%d\n", bond->params.tlb_dynamic_lb);
 }
 static DEVICE_ATTR(tlb_dynamic_lb, 0644,
@@ -731,6 +752,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_downdelay.attr,
 	&dev_attr_updelay.attr,
 	&dev_attr_peer_notif_delay.attr,
+	&dev_attr_lacp_active.attr,
 	&dev_attr_lacp_rate.attr,
 	&dev_attr_ad_select.attr,
 	&dev_attr_xmit_hash_policy.attr,

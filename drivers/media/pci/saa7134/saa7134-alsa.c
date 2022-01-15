@@ -1215,15 +1215,13 @@ static int alsa_device_exit(struct saa7134_dev *dev)
 static int saa7134_alsa_init(void)
 {
 	struct saa7134_dev *dev = NULL;
-	struct list_head *list;
 
 	saa7134_dmasound_init = alsa_device_init;
 	saa7134_dmasound_exit = alsa_device_exit;
 
 	pr_info("saa7134 ALSA driver for DMA sound loaded\n");
 
-	list_for_each(list,&saa7134_devlist) {
-		dev = list_entry(list, struct saa7134_dev, devlist);
+	list_for_each_entry(dev, &saa7134_devlist, devlist) {
 		if (dev->pci->device == PCI_DEVICE_ID_PHILIPS_SAA7130)
 			pr_info("%s/alsa: %s doesn't support digital audio\n",
 				dev->name, saa7134_boards[dev->board].name);

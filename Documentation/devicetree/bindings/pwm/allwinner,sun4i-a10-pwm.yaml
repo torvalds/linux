@@ -25,6 +25,9 @@ properties:
           - const: allwinner,sun8i-a83t-pwm
           - const: allwinner,sun8i-h3-pwm
       - items:
+          - const: allwinner,sun8i-v3s-pwm
+          - const: allwinner,sun7i-a20-pwm
+      - items:
           - const: allwinner,sun50i-a64-pwm
           - const: allwinner,sun5i-a13-pwm
       - items:
@@ -37,7 +40,6 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
     items:
       - description: Module Clock
       - description: Bus Clock

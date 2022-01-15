@@ -52,7 +52,8 @@ $(OUTPUT)%.$2: $(OUTPUT)%.rst
 ifndef RST2MAN_DEP
 	$$(error "rst2man not found, but required to generate man pages")
 endif
-	$$(QUIET_GEN)rst2man $$< > $$@
+	$$(QUIET_GEN)rst2man --exit-status=1 $$< > $$@.tmp
+	$$(QUIET_GEN)mv $$@.tmp $$@
 
 docs-clean-$1:
 	$$(call QUIET_CLEAN, eBPF_$1-manpage)

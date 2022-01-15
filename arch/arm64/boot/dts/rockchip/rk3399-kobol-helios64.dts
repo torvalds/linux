@@ -23,6 +23,16 @@
 		mmc1 = &sdhci;
 	};
 
+	avdd_0v9_s0: avdd-0v9-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "avdd_0v9_s0";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc1v8_sys_s3>;
+	};
+
 	avdd_1v8_s0: avdd-1v8-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_1v8_s0";
@@ -38,6 +48,20 @@
 		clock-frequency = <125000000>;
 		clock-output-names = "clkin_gmac";
 		#clock-cells = <0>;
+	};
+
+	fan1 {
+		/* fan connected to P7 */
+		compatible = "pwm-fan";
+		pwms = <&pwm0 0 40000 0>;
+		cooling-levels = <0 80 170 255>;
+	};
+
+	fan2 {
+		/* fan connected to P6 */
+		compatible = "pwm-fan";
+		pwms = <&pwm1 0 40000 0>;
+		cooling-levels = <0 80 170 255>;
 	};
 
 	leds {
@@ -56,6 +80,18 @@
 			gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";
 		};
+	};
+
+	pcie_power: pcie-power {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&pcie_pwr>;
+		pinctrl-names = "default";
+		regulator-boot-on;
+		regulator-name = "pcie_power";
+		startup-delay-us = <10000>;
+		vin-supply = <&vcc5v0_perdev>;
 	};
 
 	vcc1v8_sys_s0: vcc1v8-sys-s0 {
@@ -95,6 +131,16 @@
 		};
 	};
 
+	vcc5v0_perdev: vcc5v0-perdev {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_perdev";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dcin_bkup>;
+	};
+
 	vcc5v0_sys: vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
@@ -107,6 +153,20 @@
 		regulator-state-mem {
 			regulator-on-in-suspend;
 		};
+	};
+
+	vcc5v0_usb: vcc5v0-usb {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_usb_en>;
+		regulator-name = "vcc5v0_usb";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v0_perdev>;
 	};
 
 	vcc12v_dcin: vcc12v-dcin {
@@ -317,6 +377,20 @@
 	status = "okay";
 };
 
+&pcie_phy {
+	status = "okay";
+};
+
+&pcie0 {
+	num-lanes = <2>;
+	status = "okay";
+
+	vpcie12v-supply = <&vcc12v_dcin>;
+	vpcie3v3-supply = <&pcie_power>;
+	vpcie1v8-supply = <&avdd_1v8_s0>;
+	vpcie0v9-supply = <&avdd_0v9_s0>;
+};
+
 &pinctrl {
 	gmac {
 		gphy_reset: gphy-reset {
@@ -334,9 +408,22 @@
 		};
 	};
 
+	pcie {
+		pcie_pwr: pcie-pwr {
+			rockchip,pins =
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	power {
+		vcc5v0_usb_en: vcc5v0-usb-en {
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -349,6 +436,16 @@
 
 &pmu_io_domains {
 	pmu1830-supply = <&vcc3v0_s3>;
+	status = "okay";
+};
+
+&pwm0 {
+	/* pwm-fan on P7 */
+	status = "okay";
+};
+
+&pwm1 {
+	/* pwm-fan on P6 */
 	status = "okay";
 };
 
@@ -372,6 +469,30 @@
 	status = "okay";
 };
 
+&tcphy1 {
+	/* phy for &usbdrd_dwc3_1 */
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+
+	otg-port {
+		/* phy for &usbdrd_dwc3_1 */
+		phy-supply = <&vcc5v0_usb>;
+		status = "okay";
+	};
+};
+
 &uart2 {
 	status = "okay";
+};
+
+&usbdrd3_1 {
+	status = "okay";
+
+	usb@fe900000 {
+		dr_mode = "host";
+		status = "okay";
+	};
 };

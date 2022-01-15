@@ -86,6 +86,7 @@ struct ttm_tt;
  * @base: drm_gem_object superclass data.
  * @bdev: Pointer to the buffer object device structure.
  * @type: The bo type.
+ * @page_alignment: Page alignment.
  * @destroy: Destruction function. If NULL, kfree is used.
  * @num_pages: Actual number of pages.
  * @kref: Reference count of this buffer object. When this refcount reaches
@@ -123,6 +124,7 @@ struct ttm_buffer_object {
 
 	struct ttm_device *bdev;
 	enum ttm_bo_type type;
+	uint32_t page_alignment;
 	void (*destroy) (struct ttm_buffer_object *);
 
 	/**
@@ -134,7 +136,7 @@ struct ttm_buffer_object {
 	 * Members protected by the bo::resv::reserved lock.
 	 */
 
-	struct ttm_resource mem;
+	struct ttm_resource *resource;
 	struct ttm_tt *ttm;
 	bool deleted;
 
@@ -523,19 +525,6 @@ void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct dma_buf_map *map);
 int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_mmap - mmap out of the ttm device address space.
- *
- * @filp:      filp as input from the mmap method.
- * @vma:       vma as input from the mmap method.
- * @bdev:      Pointer to the ttm_device with the address space manager.
- *
- * This function is intended to be called by the device mmap method.
- * if the device address space is to be backed by the bo manager.
- */
-int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
-		struct ttm_device *bdev);
-
-/**
  * ttm_bo_io
  *
  * @bdev:      Pointer to the struct ttm_device.
@@ -561,25 +550,6 @@ ssize_t ttm_bo_io(struct ttm_device *bdev, struct file *filp,
 
 int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 		   gfp_t gfp_flags);
-
-/**
- * ttm_bo_uses_embedded_gem_object - check if the given bo uses the
- * embedded drm_gem_object.
- *
- * Most ttm drivers are using gem too, so the embedded
- * ttm_buffer_object.base will be initialized by the driver (before
- * calling ttm_bo_init).  It is also possible to use ttm without gem
- * though (vmwgfx does that).
- *
- * This helper will figure whenever a given ttm bo is a gem object too
- * or not.
- *
- * @bo: The bo to check.
- */
-static inline bool ttm_bo_uses_embedded_gem_object(struct ttm_buffer_object *bo)
-{
-	return bo->base.dev != NULL;
-}
 
 /**
  * ttm_bo_pin - Pin the buffer object.
@@ -636,5 +606,7 @@ void ttm_bo_vm_close(struct vm_area_struct *vma);
 int ttm_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 		     void *buf, int len, int write);
 bool ttm_bo_delayed_delete(struct ttm_device *bdev, bool remove_all);
+
+vm_fault_t ttm_bo_vm_dummy_page(struct vm_fault *vmf, pgprot_t prot);
 
 #endif

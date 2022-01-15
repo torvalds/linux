@@ -2,6 +2,7 @@
 
 config BCACHE
 	tristate "Block device as cache"
+	select BLOCK_HOLDER_DEPRECATED if SYSFS
 	select CRC64
 	help
 	Allows a block device to be used as cache for other devices; uses

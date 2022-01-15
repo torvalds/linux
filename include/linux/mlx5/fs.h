@@ -38,6 +38,8 @@
 
 #define MLX5_FS_DEFAULT_FLOW_TAG 0x0
 
+#define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
+
 enum {
 	MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO	= 1 << 16,
 	MLX5_FLOW_CONTEXT_ACTION_ENCRYPT	= 1 << 17,
@@ -87,6 +89,8 @@ enum {
 	FDB_BYPASS_PATH,
 	FDB_TC_OFFLOAD,
 	FDB_FT_OFFLOAD,
+	FDB_TC_MISS,
+	FDB_BR_OFFLOAD,
 	FDB_SLOW_PATH,
 	FDB_PER_VPORT,
 };
@@ -254,10 +258,16 @@ struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
 				struct mlx5_modify_hdr *modify_hdr);
 
+struct mlx5_pkt_reformat_params {
+	int type;
+	u8 param_0;
+	u8 param_1;
+	size_t size;
+	void *data;
+};
+
 struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
-						     int reformat_type,
-						     size_t size,
-						     void *reformat_data,
+						     struct mlx5_pkt_reformat_params *params,
 						     enum mlx5_flow_namespace_type ns_type);
 void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
 				  struct mlx5_pkt_reformat *reformat);

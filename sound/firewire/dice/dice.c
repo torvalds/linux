@@ -135,22 +135,51 @@ static void dice_card_free(struct snd_card *card)
 
 	snd_dice_stream_destroy_duplex(dice);
 	snd_dice_transaction_destroy(dice);
+
+	mutex_destroy(&dice->mutex);
+	fw_unit_put(dice->unit);
 }
 
-static void do_registration(struct work_struct *work)
+static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
 {
-	struct snd_dice *dice = container_of(work, struct snd_dice, dwork.work);
+	struct snd_card *card;
+	struct snd_dice *dice;
+	snd_dice_detect_formats_t detect_formats;
 	int err;
 
-	if (dice->registered)
-		return;
+	if (!entry->driver_data && entry->vendor_id != OUI_SSL) {
+		err = check_dice_category(unit);
+		if (err < 0)
+			return -ENODEV;
+	}
 
-	err = snd_card_new(&dice->unit->device, -1, NULL, THIS_MODULE, 0,
-			   &dice->card);
+	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE, sizeof(*dice), &card);
 	if (err < 0)
-		return;
-	dice->card->private_free = dice_card_free;
-	dice->card->private_data = dice;
+		return err;
+	card->private_free = dice_card_free;
+
+	dice = card->private_data;
+	dice->unit = fw_unit_get(unit);
+	dev_set_drvdata(&unit->device, dice);
+	dice->card = card;
+
+	if (!entry->driver_data)
+		detect_formats = snd_dice_stream_detect_current_formats;
+	else
+		detect_formats = (snd_dice_detect_formats_t)entry->driver_data;
+
+	// Below models are compliant to IEC 61883-1/6 and have no quirk at high sampling transfer
+	// frequency.
+	// * Avid M-Box 3 Pro
+	// * M-Audio Profire 610
+	// * M-Audio Profire 2626
+	if (entry->vendor_id == OUI_MAUDIO || entry->vendor_id == OUI_AVID)
+		dice->disable_double_pcm_frames = true;
+
+	spin_lock_init(&dice->lock);
+	mutex_init(&dice->mutex);
+	init_completion(&dice->clock_accepted);
+	init_waitqueue_head(&dice->hwdep_wait);
 
 	err = snd_dice_transaction_init(dice);
 	if (err < 0)
@@ -162,7 +191,7 @@ static void do_registration(struct work_struct *work)
 
 	dice_card_strings(dice);
 
-	err = dice->detect_formats(dice);
+	err = detect_formats(dice);
 	if (err < 0)
 		goto error;
 
@@ -184,105 +213,34 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = snd_card_register(dice->card);
+	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
 
-	dice->registered = true;
-
-	return;
-error:
-	snd_card_free(dice->card);
-	dev_info(&dice->unit->device,
-		 "Sound card registration failed: %d\n", err);
-}
-
-static int dice_probe(struct fw_unit *unit,
-		      const struct ieee1394_device_id *entry)
-{
-	struct snd_dice *dice;
-	int err;
-
-	if (!entry->driver_data && entry->vendor_id != OUI_SSL) {
-		err = check_dice_category(unit);
-		if (err < 0)
-			return -ENODEV;
-	}
-
-	/* Allocate this independent of sound card instance. */
-	dice = devm_kzalloc(&unit->device, sizeof(struct snd_dice), GFP_KERNEL);
-	if (!dice)
-		return -ENOMEM;
-	dice->unit = fw_unit_get(unit);
-	dev_set_drvdata(&unit->device, dice);
-
-	if (!entry->driver_data) {
-		dice->detect_formats = snd_dice_stream_detect_current_formats;
-	} else {
-		dice->detect_formats =
-				(snd_dice_detect_formats_t)entry->driver_data;
-	}
-
-	// Below models are compliant to IEC 61883-1/6 and have no quirk at high sampling transfer
-	// frequency.
-	// * Avid M-Box 3 Pro
-	// * M-Audio Profire 610
-	// * M-Audio Profire 2626
-	if (entry->vendor_id == OUI_MAUDIO || entry->vendor_id == OUI_AVID)
-		dice->disable_double_pcm_frames = true;
-
-	spin_lock_init(&dice->lock);
-	mutex_init(&dice->mutex);
-	init_completion(&dice->clock_accepted);
-	init_waitqueue_head(&dice->hwdep_wait);
-
-	/* Allocate and register this sound card later. */
-	INIT_DEFERRABLE_WORK(&dice->dwork, do_registration);
-	snd_fw_schedule_registration(unit, &dice->dwork);
-
 	return 0;
+error:
+	snd_card_free(card);
+	return err;
 }
 
 static void dice_remove(struct fw_unit *unit)
 {
 	struct snd_dice *dice = dev_get_drvdata(&unit->device);
 
-	/*
-	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
-	 */
-	cancel_delayed_work_sync(&dice->dwork);
-
-	if (dice->registered) {
-		// Block till all of ALSA character devices are released.
-		snd_card_free(dice->card);
-	}
-
-	mutex_destroy(&dice->mutex);
-	fw_unit_put(dice->unit);
+	// Block till all of ALSA character devices are released.
+	snd_card_free(dice->card);
 }
 
 static void dice_bus_reset(struct fw_unit *unit)
 {
 	struct snd_dice *dice = dev_get_drvdata(&unit->device);
 
-	/* Postpone a workqueue for deferred registration. */
-	if (!dice->registered)
-		snd_fw_schedule_registration(unit, &dice->dwork);
-
 	/* The handler address register becomes initialized. */
 	snd_dice_transaction_reinit(dice);
 
-	/*
-	 * After registration, userspace can start packet streaming, then this
-	 * code block works fine.
-	 */
-	if (dice->registered) {
-		mutex_lock(&dice->mutex);
-		snd_dice_stream_update_duplex(dice);
-		mutex_unlock(&dice->mutex);
-	}
+	mutex_lock(&dice->mutex);
+	snd_dice_stream_update_duplex(dice);
+	mutex_unlock(&dice->mutex);
 }
 
 #define DICE_INTERFACE	0x000001

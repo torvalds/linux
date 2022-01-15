@@ -538,8 +538,8 @@ enum {
 	CHIP_ID_YUKON_EC_U = 0xb4, /* YUKON-2 EC Ultra */
 	CHIP_ID_YUKON_EX   = 0xb5, /* YUKON-2 Extreme */
 	CHIP_ID_YUKON_EC   = 0xb6, /* YUKON-2 EC */
- 	CHIP_ID_YUKON_FE   = 0xb7, /* YUKON-2 FE */
- 	CHIP_ID_YUKON_FE_P = 0xb8, /* YUKON-2 FE+ */
+	CHIP_ID_YUKON_FE   = 0xb7, /* YUKON-2 FE */
+	CHIP_ID_YUKON_FE_P = 0xb8, /* YUKON-2 FE+ */
 	CHIP_ID_YUKON_SUPR = 0xb9, /* YUKON-2 Supreme */
 	CHIP_ID_YUKON_UL_2 = 0xba, /* YUKON-2 Ultra 2 */
 	CHIP_ID_YUKON_OPT  = 0xbc, /* YUKON-2 Optima */
@@ -2262,8 +2262,8 @@ struct sky2_port {
 #define SKY2_FLAG_AUTO_SPEED		0x0002
 #define SKY2_FLAG_AUTO_PAUSE		0x0004
 
- 	enum flow_control    flow_mode;
- 	enum flow_control    flow_status;
+	enum flow_control    flow_mode;
+	enum flow_control    flow_status;
 
 #ifdef CONFIG_SKY2_DEBUG
 	struct dentry	     *debugfs;

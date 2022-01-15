@@ -873,29 +873,33 @@ static int vortex_eq_init(vortex_t *vortex)
 
 	vortex_Eqlzr_init(vortex);
 
-	if ((kcontrol =
-	     snd_ctl_new1(&vortex_eqtoggle_kcontrol, vortex)) == NULL)
+	kcontrol = snd_ctl_new1(&vortex_eqtoggle_kcontrol, vortex);
+	if (!kcontrol)
 		return -ENOMEM;
 	kcontrol->private_value = 0;
-	if ((err = snd_ctl_add(vortex->card, kcontrol)) < 0)
+	err = snd_ctl_add(vortex->card, kcontrol);
+	if (err < 0)
 		return err;
 
 	/* EQ gain controls */
 	for (i = 0; i < 10; i++) {
-		if ((kcontrol =
-		     snd_ctl_new1(&vortex_eq_kcontrol, vortex)) == NULL)
+		kcontrol = snd_ctl_new1(&vortex_eq_kcontrol, vortex);
+		if (!kcontrol)
 			return -ENOMEM;
 		snprintf(kcontrol->id.name, sizeof(kcontrol->id.name),
 			"%s Playback Volume", EqBandLabels[i]);
 		kcontrol->private_value = i;
-		if ((err = snd_ctl_add(vortex->card, kcontrol)) < 0)
+		err = snd_ctl_add(vortex->card, kcontrol);
+		if (err < 0)
 			return err;
 		//vortex->eqctrl[i] = kcontrol;
 	}
 	/* EQ band levels */
-	if ((kcontrol = snd_ctl_new1(&vortex_levels_kcontrol, vortex)) == NULL)
+	kcontrol = snd_ctl_new1(&vortex_levels_kcontrol, vortex);
+	if (!kcontrol)
 		return -ENOMEM;
-	if ((err = snd_ctl_add(vortex->card, kcontrol)) < 0)
+	err = snd_ctl_add(vortex->card, kcontrol);
+	if (err < 0)
 		return err;
 
 	return 0;

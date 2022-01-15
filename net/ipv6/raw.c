@@ -354,7 +354,7 @@ static void rawv6_err(struct sock *sk, struct sk_buff *skb,
 
 	if (np->recverr || harderr) {
 		sk->sk_err = err;
-		sk->sk_error_report(sk);
+		sk_error_report(sk);
 	}
 }
 

@@ -76,6 +76,12 @@ struct mdp5_intf_block {
 	u32 connect[MDP5_INTF_NUM_MAX]; /* array of enum mdp5_intf_type */
 };
 
+struct mdp5_perf_block {
+	u32 ab_inefficiency;
+	u32 ib_inefficiency;
+	u32 clk_inefficiency;
+};
+
 struct mdp5_cfg_hw {
 	char  *name;
 
@@ -93,6 +99,7 @@ struct mdp5_cfg_hw {
 	struct mdp5_sub_block dsc;
 	struct mdp5_sub_block cdm;
 	struct mdp5_intf_block intf;
+	struct mdp5_perf_block perf;
 
 	uint32_t max_clk;
 };

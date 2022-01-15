@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -104,19 +105,15 @@ static void ioc3_irq_handler(struct irq_desc *desc)
 	struct ioc3_priv_data *ipd = domain->host_data;
 	struct ioc3 __iomem *regs = ipd->regs;
 	u32 pending, mask;
-	unsigned int irq;
 
 	pending = readl(&regs->sio_ir);
 	mask = readl(&regs->sio_ies);
 	pending &= mask; /* Mask off not enabled interrupts */
 
-	if (pending) {
-		irq = irq_find_mapping(domain, __ffs(pending));
-		if (irq)
-			generic_handle_irq(irq);
-	} else  {
+	if (pending)
+		generic_handle_domain_irq(domain, __ffs(pending));
+	else
 		spurious_interrupt();
-	}
 }
 
 /*

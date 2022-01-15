@@ -11,8 +11,9 @@
  *  Copyright (c) 2013 Colin Leitner <colin.leitner@gmail.com>
  *  Copyright (c) 2014-2016 Frank Praznik <frank.praznik@gmail.com>
  *  Copyright (c) 2018 Todd Kelner
- *  Copyright (c) 2020 Pascal Giard <pascal.giard@etsmtl.ca>
+ *  Copyright (c) 2020-2021 Pascal Giard <pascal.giard@etsmtl.ca>
  *  Copyright (c) 2020 Sanjay Govind <sanjay.govind9@gmail.com>
+ *  Copyright (c) 2021 Daniel Nguyen <daniel.nguyen.1@ens.etsmtl.ca>
  */
 
 /*
@@ -62,6 +63,7 @@
 #define SHANWAN_GAMEPAD           BIT(16)
 #define GH_GUITAR_CONTROLLER      BIT(17)
 #define GHL_GUITAR_PS3WIIU        BIT(18)
+#define GHL_GUITAR_PS4            BIT(19)
 
 #define SIXAXIS_CONTROLLER (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)
 #define MOTION_CONTROLLER (MOTION_CONTROLLER_USB | MOTION_CONTROLLER_BT)
@@ -85,16 +87,25 @@
 #define NSG_MRXU_MAX_X 1667
 #define NSG_MRXU_MAX_Y 1868
 
-#define GHL_GUITAR_POKE_INTERVAL 10 /* In seconds */
+/* The PS3/Wii U dongles require a poke every 10 seconds, but the PS4
+ * requires one every 8 seconds. Using 8 seconds for all for simplicity.
+ */
+#define GHL_GUITAR_POKE_INTERVAL 8 /* In seconds */
 #define GUITAR_TILT_USAGE 44
 
-/* Magic value and data taken from GHLtarUtility:
+/* Magic data taken from GHLtarUtility:
  * https://github.com/ghlre/GHLtarUtility/blob/master/PS3Guitar.cs
  * Note: The Wii U and PS3 dongles happen to share the same!
  */
-static const u16 ghl_ps3wiiu_magic_value = 0x201;
 static const char ghl_ps3wiiu_magic_data[] = {
 	0x02, 0x08, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+/* Magic data for the PS4 dongles sniffed with a USB protocol
+ * analyzer.
+ */
+static const char ghl_ps4_magic_data[] = {
+	0x30, 0x02, 0x08, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 /* PS/3 Motion controller */
@@ -597,9 +608,8 @@ struct sony_sc {
 	/* DS4 calibration data */
 	struct ds4_calibration_data ds4_calib_data[6];
 	/* GH Live */
+	struct urb *ghl_urb;
 	struct timer_list ghl_poke_timer;
-	struct usb_ctrlrequest *ghl_cr;
-	u8 *ghl_databuf;
 };
 
 static void sony_set_leds(struct sony_sc *sc);
@@ -625,66 +635,54 @@ static inline void sony_schedule_work(struct sony_sc *sc,
 
 static void ghl_magic_poke_cb(struct urb *urb)
 {
-	if (urb) {
-		/* Free sc->ghl_cr and sc->ghl_databuf allocated in
-		 * ghl_magic_poke()
-		 */
-		kfree(urb->setup_packet);
-		kfree(urb->transfer_buffer);
-	}
+	struct sony_sc *sc = urb->context;
+
+	if (urb->status < 0)
+		hid_err(sc->hdev, "URB transfer failed : %d", urb->status);
+
+	mod_timer(&sc->ghl_poke_timer, jiffies + GHL_GUITAR_POKE_INTERVAL*HZ);
 }
 
 static void ghl_magic_poke(struct timer_list *t)
 {
+	int ret;
 	struct sony_sc *sc = from_timer(sc, t, ghl_poke_timer);
 
-	int ret;
+	ret = usb_submit_urb(sc->ghl_urb, GFP_ATOMIC);
+	if (ret < 0)
+		hid_err(sc->hdev, "usb_submit_urb failed: %d", ret);
+}
+
+static int ghl_init_urb(struct sony_sc *sc, struct usb_device *usbdev,
+					   const char ghl_magic_data[], u16 poke_size)
+{
+	struct usb_ctrlrequest *cr;
+	u8 *databuf;
 	unsigned int pipe;
-	struct urb *urb;
-	struct usb_device *usbdev = to_usb_device(sc->hdev->dev.parent->parent);
-	const u16 poke_size =
-		ARRAY_SIZE(ghl_ps3wiiu_magic_data);
+	u16 ghl_magic_value = (((HID_OUTPUT_REPORT + 1) << 8) | ghl_magic_data[0]);
 
 	pipe = usb_sndctrlpipe(usbdev, 0);
 
-	if (!sc->ghl_cr) {
-		sc->ghl_cr = kzalloc(sizeof(*sc->ghl_cr), GFP_ATOMIC);
-		if (!sc->ghl_cr)
-			goto resched;
-	}
+	cr = devm_kzalloc(&sc->hdev->dev, sizeof(*cr), GFP_ATOMIC);
+	if (cr == NULL)
+		return -ENOMEM;
 
-	if (!sc->ghl_databuf) {
-		sc->ghl_databuf = kzalloc(poke_size, GFP_ATOMIC);
-		if (!sc->ghl_databuf)
-			goto resched;
-	}
+	databuf = devm_kzalloc(&sc->hdev->dev, poke_size, GFP_ATOMIC);
+	if (databuf == NULL)
+		return -ENOMEM;
 
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb)
-		goto resched;
-
-	sc->ghl_cr->bRequestType =
+	cr->bRequestType =
 		USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT;
-	sc->ghl_cr->bRequest = USB_REQ_SET_CONFIGURATION;
-	sc->ghl_cr->wValue = cpu_to_le16(ghl_ps3wiiu_magic_value);
-	sc->ghl_cr->wIndex = 0;
-	sc->ghl_cr->wLength = cpu_to_le16(poke_size);
-	memcpy(sc->ghl_databuf, ghl_ps3wiiu_magic_data, poke_size);
-
+	cr->bRequest = USB_REQ_SET_CONFIGURATION;
+	cr->wValue = cpu_to_le16(ghl_magic_value);
+	cr->wIndex = 0;
+	cr->wLength = cpu_to_le16(poke_size);
+	memcpy(databuf, ghl_magic_data, poke_size);
 	usb_fill_control_urb(
-		urb, usbdev, pipe,
-		(unsigned char *) sc->ghl_cr, sc->ghl_databuf,
-		poke_size, ghl_magic_poke_cb, NULL);
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret < 0) {
-		kfree(sc->ghl_databuf);
-		kfree(sc->ghl_cr);
-	}
-	usb_free_urb(urb);
-
-resched:
-	/* Reschedule for next time */
-	mod_timer(&sc->ghl_poke_timer, jiffies + GHL_GUITAR_POKE_INTERVAL*HZ);
+		sc->ghl_urb, usbdev, pipe,
+		(unsigned char *) cr, databuf, poke_size,
+		ghl_magic_poke_cb, sc);
+	return 0;
 }
 
 static int guitar_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -2981,12 +2979,14 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	int ret;
 	unsigned long quirks = id->driver_data;
 	struct sony_sc *sc;
+	struct usb_device *usbdev;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 
 	if (!strcmp(hdev->name, "FutureMax Dance Mat"))
 		quirks |= FUTUREMAX_DANCE_MAT;
 
-	if (!strcmp(hdev->name, "SHANWAN PS3 GamePad"))
+	if (!strcmp(hdev->name, "SHANWAN PS3 GamePad") ||
+	    !strcmp(hdev->name, "ShanWan PS(R) Ga`epad"))
 		quirks |= SHANWAN_GAMEPAD;
 
 	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);
@@ -3000,6 +3000,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	sc->quirks = quirks;
 	hid_set_drvdata(hdev, sc);
 	sc->hdev = hdev;
+	usbdev = to_usb_device(sc->hdev->dev.parent->parent);
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -3041,7 +3042,22 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENODEV;
 	}
 
-	if (sc->quirks & GHL_GUITAR_PS3WIIU) {
+	if (sc->quirks & (GHL_GUITAR_PS3WIIU | GHL_GUITAR_PS4)) {
+		sc->ghl_urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!sc->ghl_urb)
+			return -ENOMEM;
+
+		if (sc->quirks & GHL_GUITAR_PS3WIIU)
+			ret = ghl_init_urb(sc, usbdev, ghl_ps3wiiu_magic_data,
+							   ARRAY_SIZE(ghl_ps3wiiu_magic_data));
+		else if (sc->quirks & GHL_GUITAR_PS4)
+			ret = ghl_init_urb(sc, usbdev, ghl_ps4_magic_data,
+							   ARRAY_SIZE(ghl_ps4_magic_data));
+		if (ret) {
+			hid_err(hdev, "error preparing URB\n");
+			return ret;
+		}
+
 		timer_setup(&sc->ghl_poke_timer, ghl_magic_poke, 0);
 		mod_timer(&sc->ghl_poke_timer,
 			  jiffies + GHL_GUITAR_POKE_INTERVAL*HZ);
@@ -3054,8 +3070,10 @@ static void sony_remove(struct hid_device *hdev)
 {
 	struct sony_sc *sc = hid_get_drvdata(hdev);
 
-	if (sc->quirks & GHL_GUITAR_PS3WIIU)
+	if (sc->quirks & (GHL_GUITAR_PS3WIIU | GHL_GUITAR_PS4)) {
 		del_timer_sync(&sc->ghl_poke_timer);
+		usb_free_urb(sc->ghl_urb);
+	}
 
 	hid_hw_close(hdev);
 
@@ -3172,11 +3190,14 @@ static const struct hid_device_id sony_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3WIIU_GHLIVE_DONGLE),
 		.driver_data = GHL_GUITAR_PS3WIIU | GH_GUITAR_CONTROLLER },
 	/* Guitar Hero PC Guitar Dongle */
-	{ HID_USB_DEVICE(USB_VENDOR_ID_ACTIVISION, USB_DEVICE_ID_ACTIVISION_GUITAR_DONGLE),
+	{ HID_USB_DEVICE(USB_VENDOR_ID_REDOCTANE, USB_DEVICE_ID_REDOCTANE_GUITAR_DONGLE),
 		.driver_data = GH_GUITAR_CONTROLLER },
 	/* Guitar Hero PS3 World Tour Guitar Dongle */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_GUITAR_DONGLE),
 		.driver_data = GH_GUITAR_CONTROLLER },
+	/* Guitar Hero Live PS4 guitar dongles */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_REDOCTANE, USB_DEVICE_ID_REDOCTANE_PS4_GHLIVE_DONGLE),
+		.driver_data = GHL_GUITAR_PS4 | GH_GUITAR_CONTROLLER },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sony_devices);

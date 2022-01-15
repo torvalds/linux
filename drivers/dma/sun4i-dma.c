@@ -1042,9 +1042,8 @@ handle_pending:
 			 * Move the promise into the completed list now that
 			 * we're done with it
 			 */
-			list_del(&vchan->processing->list);
-			list_add_tail(&vchan->processing->list,
-				      &contract->completed_demands);
+			list_move_tail(&vchan->processing->list,
+				       &contract->completed_demands);
 
 			/*
 			 * Cyclic DMA transfers are special:

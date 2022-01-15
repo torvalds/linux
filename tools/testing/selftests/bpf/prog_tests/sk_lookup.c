@@ -480,7 +480,7 @@ static struct bpf_link *attach_lookup_prog(struct bpf_program *prog)
 	}
 
 	link = bpf_program__attach_netns(prog, net_fd);
-	if (CHECK(IS_ERR(link), "bpf_program__attach_netns", "failed\n")) {
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_netns")) {
 		errno = -PTR_ERR(link);
 		log_err("failed to attach program '%s' to netns",
 			bpf_program__name(prog));

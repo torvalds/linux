@@ -43,13 +43,9 @@ config XEN_PV_SMP
 	def_bool y
 	depends on XEN_PV && SMP
 
-config XEN_DOM0
-	bool "Xen PV Dom0 support"
-	default y
-	depends on XEN_PV && PCI_XEN && SWIOTLB_XEN
-	depends on X86_IO_APIC && ACPI && PCI
-	help
-	  Support running as a Xen PV Dom0 guest.
+config XEN_PV_DOM0
+	def_bool y
+	depends on XEN_PV && XEN_DOM0
 
 config XEN_PVHVM
 	def_bool y
@@ -86,3 +82,12 @@ config XEN_PVH
 	def_bool n
 	help
 	  Support for running as a Xen PVH guest.
+
+config XEN_DOM0
+	bool "Xen Dom0 support"
+	default XEN_PV
+	depends on (XEN_PV && SWIOTLB_XEN) || (XEN_PVH && X86_64)
+	depends on X86_IO_APIC && ACPI && PCI
+	select X86_X2APIC if XEN_PVH && X86_64
+	help
+	  Support running as a Xen Dom0 guest.

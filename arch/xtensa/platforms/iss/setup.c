@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
+#include <linux/panic_notifier.h>
 #include <linux/printk.h>
 #include <linux/string.h>
 

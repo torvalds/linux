@@ -13,11 +13,11 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/crash_dump.h>
+#include <linux/debugfs.h>
 #include <asm/opal.h>
 #include <asm/io.h>
 #include <asm/imc-pmu.h>
 #include <asm/cputhreads.h>
-#include <asm/debugfs.h>
 
 static struct dentry *imc_debugfs_parent;
 
@@ -56,7 +56,7 @@ static void export_imc_mode_and_cmd(struct device_node *node,
 	u32 cb_offset;
 	struct imc_mem_info *ptr = pmu_ptr->mem_info;
 
-	imc_debugfs_parent = debugfs_create_dir("imc", powerpc_debugfs_root);
+	imc_debugfs_parent = debugfs_create_dir("imc", arch_debugfs_dir);
 
 	if (of_property_read_u32(node, "cb_offset", &cb_offset))
 		cb_offset = IMC_CNTL_BLK_OFFSET;
@@ -186,7 +186,7 @@ static void disable_nest_pmu_counters(void)
 	int nid, cpu;
 	const struct cpumask *l_cpumask;
 
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_node_with_cpus(nid) {
 		l_cpumask = cpumask_of_node(nid);
 		cpu = cpumask_first_and(l_cpumask, cpu_online_mask);
@@ -195,7 +195,7 @@ static void disable_nest_pmu_counters(void)
 		opal_imc_counters_stop(OPAL_IMC_COUNTERS_NEST,
 				       get_hard_smp_processor_id(cpu));
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 static void disable_core_pmu_counters(void)
@@ -203,7 +203,7 @@ static void disable_core_pmu_counters(void)
 	cpumask_t cores_map;
 	int cpu, rc;
 
-	get_online_cpus();
+	cpus_read_lock();
 	/* Disable the IMC Core functions */
 	cores_map = cpu_online_cores_map();
 	for_each_cpu(cpu, &cores_map) {
@@ -213,7 +213,7 @@ static void disable_core_pmu_counters(void)
 			pr_err("%s: Failed to stop Core (cpu = %d)\n",
 				__FUNCTION__, cpu);
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 int get_max_nest_dev(void)

@@ -303,7 +303,7 @@ struct ieee_param {
 		struct {
 			u32 len;
 			u8 reserved[32];
-			u8 data[0];
+			u8 data[];
 		} wpa_ie;
 		struct{
 			int command;
@@ -316,7 +316,7 @@ struct ieee_param {
 			u8 idx;
 			u8 seq[8]; /* sequence counter (set: RX, get: TX) */
 			u16 key_len;
-			u8 key[0];
+			u8 key[];
 		} crypt;
 	} u;
 };
@@ -2249,10 +2249,8 @@ void ieee80211_wake_queue(struct ieee80211_device *ieee);
 void ieee80211_stop_queue(struct ieee80211_device *ieee);
 struct sk_buff *ieee80211_get_beacon(struct ieee80211_device *ieee);
 void ieee80211_start_send_beacons(struct ieee80211_device *ieee);
-void ieee80211_stop_send_beacons(struct ieee80211_device *ieee);
 int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee,
 				   struct iw_point *p);
-void notify_wx_assoc_event(struct ieee80211_device *ieee);
 void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success);
 
 void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee);

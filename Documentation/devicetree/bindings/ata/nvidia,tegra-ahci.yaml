@@ -20,7 +20,6 @@ properties:
 
   reg:
     minItems: 2
-    maxItems: 3
     items:
       - description: AHCI registers
       - description: SATA configuration and IPFS registers

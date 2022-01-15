@@ -709,12 +709,12 @@ static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
 static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 unsigned long base,
 			 struct tc_u_knode *n, struct nlattr **tb,
-			 struct nlattr *est, bool ovr,
+			 struct nlattr *est, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr, true, extack);
+	err = tcf_exts_validate(net, tp, tb, est, &n->exts, flags, extack);
 	if (err < 0)
 		return err;
 
@@ -840,7 +840,7 @@ static struct tc_u_knode *u32_init_knode(struct net *net, struct tcf_proto *tp,
 
 static int u32_change(struct net *net, struct sk_buff *in_skb,
 		      struct tcf_proto *tp, unsigned long base, u32 handle,
-		      struct nlattr **tca, void **arg, bool ovr, bool rtnl_held,
+		      struct nlattr **tca, void **arg, u32 flags,
 		      struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
@@ -849,7 +849,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	struct tc_u32_sel *s;
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_U32_MAX + 1];
-	u32 htid, flags = 0;
+	u32 htid, userflags = 0;
 	size_t sel_size;
 	int err;
 
@@ -868,8 +868,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		return err;
 
 	if (tb[TCA_U32_FLAGS]) {
-		flags = nla_get_u32(tb[TCA_U32_FLAGS]);
-		if (!tc_flags_valid(flags)) {
+		userflags = nla_get_u32(tb[TCA_U32_FLAGS]);
+		if (!tc_flags_valid(userflags)) {
 			NL_SET_ERR_MSG_MOD(extack, "Invalid filter flags");
 			return -EINVAL;
 		}
@@ -884,7 +884,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 		}
 
-		if ((n->flags ^ flags) &
+		if ((n->flags ^ userflags) &
 		    ~(TCA_CLS_FLAGS_IN_HW | TCA_CLS_FLAGS_NOT_IN_HW)) {
 			NL_SET_ERR_MSG_MOD(extack, "Key node flags do not match passed flags");
 			return -EINVAL;
@@ -895,7 +895,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -ENOMEM;
 
 		err = u32_set_parms(net, tp, base, new, tb,
-				    tca[TCA_RATE], ovr, extack);
+				    tca[TCA_RATE], flags, extack);
 
 		if (err) {
 			u32_destroy_key(new, false);
@@ -955,9 +955,9 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		ht->handle = handle;
 		ht->prio = tp->prio;
 		idr_init(&ht->handle_idr);
-		ht->flags = flags;
+		ht->flags = userflags;
 
-		err = u32_replace_hw_hnode(tp, ht, flags, extack);
+		err = u32_replace_hw_hnode(tp, ht, userflags, extack);
 		if (err) {
 			idr_remove(&tp_c->handle_idr, handle);
 			kfree(ht);
@@ -1038,7 +1038,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	RCU_INIT_POINTER(n->ht_up, ht);
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
-	n->flags = flags;
+	n->flags = userflags;
 
 	err = tcf_exts_init(&n->exts, net, TCA_U32_ACT, TCA_U32_POLICE);
 	if (err < 0)
@@ -1060,7 +1060,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 #endif
 
-	err = u32_set_parms(net, tp, base, n, tb, tca[TCA_RATE], ovr,
+	err = u32_set_parms(net, tp, base, n, tb, tca[TCA_RATE], flags,
 			    extack);
 	if (err == 0) {
 		struct tc_u_knode __rcu **ins;

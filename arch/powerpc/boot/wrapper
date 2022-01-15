@@ -298,7 +298,7 @@ cuboot*)
     *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555|*-ksi8560*)
         platformo=$object/cuboot-85xx-cpm2.o
         ;;
-    *-mpc85*|*-tqm85*|*-sbc85*)
+    *-mpc85*|*-tqm85*)
         platformo=$object/cuboot-85xx.o
         ;;
     *-amigaone)
@@ -341,6 +341,11 @@ xpedite52*)
 gamecube|wii)
     link_address='0x600000'
     platformo="$object/$platform-head.o $object/$platform.o"
+    ;;
+microwatt)
+    link_address='0x500000'
+    platformo="$object/fixed-head.o $object/$platform.o"
+    binary=y
     ;;
 treeboot-currituck)
     link_address='0x1000000'

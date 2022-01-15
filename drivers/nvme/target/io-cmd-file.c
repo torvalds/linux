@@ -385,9 +385,7 @@ static void nvmet_file_execute_write_zeroes(struct nvmet_req *req)
 
 u16 nvmet_file_parse_io_cmd(struct nvmet_req *req)
 {
-	struct nvme_command *cmd = req->cmd;
-
-	switch (cmd->common.opcode) {
+	switch (req->cmd->common.opcode) {
 	case nvme_cmd_read:
 	case nvme_cmd_write:
 		req->execute = nvmet_file_execute_rw;

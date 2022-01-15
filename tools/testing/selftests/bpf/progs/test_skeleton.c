@@ -38,11 +38,11 @@ extern int LINUX_KERNEL_VERSION __kconfig;
 bool bpf_syscall = 0;
 int kern_ver = 0;
 
+struct s out5 = {};
+
 SEC("raw_tp/sys_enter")
 int handler(const void *ctx)
 {
-	static volatile struct s out5;
-
 	out1 = in1;
 	out2 = in2;
 	out3 = in3;

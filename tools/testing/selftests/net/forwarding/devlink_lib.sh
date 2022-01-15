@@ -1,6 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 ##############################################################################
 # Defines
 
@@ -9,15 +12,21 @@ if [[ ! -v DEVLINK_DEV ]]; then
 			     | jq -r '.port | keys[]' | cut -d/ -f-2)
 	if [ -z "$DEVLINK_DEV" ]; then
 		echo "SKIP: ${NETIFS[p1]} has no devlink device registered for it"
-		exit 1
+		exit $ksft_skip
 	fi
 	if [[ "$(echo $DEVLINK_DEV | grep -c pci)" -eq 0 ]]; then
 		echo "SKIP: devlink device's bus is not PCI"
-		exit 1
+		exit $ksft_skip
 	fi
 
 	DEVLINK_VIDDID=$(lspci -s $(echo $DEVLINK_DEV | cut -d"/" -f2) \
 			 -n | cut -d" " -f3)
+elif [[ ! -z "$DEVLINK_DEV" ]]; then
+	devlink dev show $DEVLINK_DEV &> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "SKIP: devlink device \"$DEVLINK_DEV\" not found"
+		exit $ksft_skip
+	fi
 fi
 
 ##############################################################################
@@ -26,19 +35,19 @@ fi
 devlink help 2>&1 | grep resource &> /dev/null
 if [ $? -ne 0 ]; then
 	echo "SKIP: iproute2 too old, missing devlink resource support"
-	exit 1
+	exit $ksft_skip
 fi
 
 devlink help 2>&1 | grep trap &> /dev/null
 if [ $? -ne 0 ]; then
 	echo "SKIP: iproute2 too old, missing devlink trap support"
-	exit 1
+	exit $ksft_skip
 fi
 
 devlink dev help 2>&1 | grep info &> /dev/null
 if [ $? -ne 0 ]; then
 	echo "SKIP: iproute2 too old, missing devlink dev info support"
-	exit 1
+	exit $ksft_skip
 fi
 
 ##############################################################################
@@ -318,6 +327,14 @@ devlink_trap_rx_bytes_get()
 		| jq '.[][][]["stats"]["rx"]["bytes"]'
 }
 
+devlink_trap_drop_packets_get()
+{
+	local trap_name=$1; shift
+
+	devlink -js trap show $DEVLINK_DEV trap $trap_name \
+		| jq '.[][][]["stats"]["rx"]["dropped"]'
+}
+
 devlink_trap_stats_idle_test()
 {
 	local trap_name=$1; shift
@@ -333,6 +350,24 @@ devlink_trap_stats_idle_test()
 	t1_bytes=$(devlink_trap_rx_bytes_get $trap_name)
 
 	if [[ $t0_packets -eq $t1_packets && $t0_bytes -eq $t1_bytes ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+devlink_trap_drop_stats_idle_test()
+{
+	local trap_name=$1; shift
+	local t0_packets t0_bytes
+
+	t0_packets=$(devlink_trap_drop_packets_get $trap_name)
+
+	sleep 1
+
+	t1_packets=$(devlink_trap_drop_packets_get $trap_name)
+
+	if [[ $t0_packets -eq $t1_packets ]]; then
 		return 0
 	else
 		return 1

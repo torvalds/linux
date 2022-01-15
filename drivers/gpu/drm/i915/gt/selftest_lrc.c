@@ -49,7 +49,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 			   unsigned long timeout)
 {
 	/* Ignore our own attempts to suppress excess tasklets */
-	tasklet_hi_schedule(&engine->execlists.tasklet);
+	tasklet_hi_schedule(&engine->sched_engine->tasklet);
 
 	timeout += jiffies;
 	do {
@@ -584,7 +584,7 @@ static int __live_lrc_gpr(struct intel_engine_cs *engine,
 	int err;
 	int n;
 
-	if (INTEL_GEN(engine->i915) < 9 && engine->class != RENDER_CLASS)
+	if (GRAPHICS_VER(engine->i915) < 9 && engine->class != RENDER_CLASS)
 		return 0; /* GPR only on rcs0 for gen8 */
 
 	err = gpr_make_dirty(engine->kernel_context);
@@ -1221,7 +1221,9 @@ static int compare_isolation(struct intel_engine_cs *engine,
 	}
 
 	lrc = i915_gem_object_pin_map_unlocked(ce->state->obj,
-				      i915_coherent_map_type(engine->i915));
+					       i915_coherent_map_type(engine->i915,
+								      ce->state->obj,
+								      false));
 	if (IS_ERR(lrc)) {
 		err = PTR_ERR(lrc);
 		goto err_B1;
@@ -1387,10 +1389,10 @@ err_A:
 
 static bool skip_isolation(const struct intel_engine_cs *engine)
 {
-	if (engine->class == COPY_ENGINE_CLASS && INTEL_GEN(engine->i915) == 9)
+	if (engine->class == COPY_ENGINE_CLASS && GRAPHICS_VER(engine->i915) == 9)
 		return true;
 
-	if (engine->class == RENDER_CLASS && INTEL_GEN(engine->i915) == 11)
+	if (engine->class == RENDER_CLASS && GRAPHICS_VER(engine->i915) == 11)
 		return true;
 
 	return false;
@@ -1549,7 +1551,7 @@ static int __live_lrc_indirect_ctx_bb(struct intel_engine_cs *engine)
 	/* We use the already reserved extra page in context state */
 	if (!a->wa_bb_page) {
 		GEM_BUG_ON(b->wa_bb_page);
-		GEM_BUG_ON(INTEL_GEN(engine->i915) == 12);
+		GEM_BUG_ON(GRAPHICS_VER(engine->i915) == 12);
 		goto unpin_b;
 	}
 
@@ -1611,12 +1613,12 @@ static void garbage_reset(struct intel_engine_cs *engine,
 
 	local_bh_disable();
 	if (!test_and_set_bit(bit, lock)) {
-		tasklet_disable(&engine->execlists.tasklet);
+		tasklet_disable(&engine->sched_engine->tasklet);
 
 		if (!rq->fence.error)
 			__intel_engine_reset_bh(engine, NULL);
 
-		tasklet_enable(&engine->execlists.tasklet);
+		tasklet_enable(&engine->sched_engine->tasklet);
 		clear_and_wake_up_bit(bit, lock);
 	}
 	local_bh_enable();

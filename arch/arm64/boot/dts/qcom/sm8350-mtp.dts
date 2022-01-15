@@ -286,7 +286,7 @@
 	firmware-name = "qcom/sm8350/modem.mbn";
 };
 
-&qupv3_id_1 {
+&qupv3_id_0 {
 	status = "okay";
 };
 
@@ -363,4 +363,10 @@
 
 	vdda-phy-supply = <&vreg_l6b_1p2>;
 	vdda-pll-supply = <&vreg_l5b_0p88>;
+};
+
+&ipa {
+	status = "okay";
+
+	memory-region = <&pil_ipa_fw_mem>;
 };

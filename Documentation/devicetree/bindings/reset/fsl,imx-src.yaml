@@ -59,7 +59,6 @@ properties:
       - description: SRC interrupt
       - description: CPU WDOG interrupts out of SRC
     minItems: 1
-    maxItems: 2
 
   '#reset-cells':
     const: 1

@@ -74,7 +74,7 @@ static bool n64cart_do_bvec(struct device *dev, struct bio_vec *bv, u32 pos)
 
 	n64cart_wait_dma();
 
-	n64cart_write_reg(PI_DRAM_REG, dma_addr + bv->bv_offset);
+	n64cart_write_reg(PI_DRAM_REG, dma_addr);
 	n64cart_write_reg(PI_CART_REG, (bstart | CART_DOMAIN) & CART_MAX);
 	n64cart_write_reg(PI_WRITE_REG, bv->bv_len - 1);
 
@@ -129,19 +129,15 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	}
 
 	reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (!reg_base)
-		return -EINVAL;
+	if (IS_ERR(reg_base))
+		return PTR_ERR(reg_base);
 
-	disk = alloc_disk(0);
+	disk = blk_alloc_disk(NUMA_NO_NODE);
 	if (!disk)
 		return -ENOMEM;
 
-	disk->queue = blk_alloc_queue(NUMA_NO_NODE);
-	if (!disk->queue)
-		return -ENOMEM;
-
 	disk->first_minor = 0;
-	disk->flags = GENHD_FL_NO_PART_SCAN | GENHD_FL_EXT_DEVT;
+	disk->flags = GENHD_FL_NO_PART_SCAN;
 	disk->fops = &n64cart_fops;
 	disk->private_data = &pdev->dev;
 	strcpy(disk->disk_name, "n64cart");

@@ -24,7 +24,7 @@
 	#define pt_element_t u64
 	#define guest_walker guest_walker64
 	#define FNAME(name) paging##64_##name
-	#define PT_BASE_ADDR_MASK PT64_BASE_ADDR_MASK
+	#define PT_BASE_ADDR_MASK GUEST_PT64_BASE_ADDR_MASK
 	#define PT_LVL_ADDR_MASK(lvl) PT64_LVL_ADDR_MASK(lvl)
 	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
@@ -57,7 +57,7 @@
 	#define pt_element_t u64
 	#define guest_walker guest_walkerEPT
 	#define FNAME(name) ept_##name
-	#define PT_BASE_ADDR_MASK PT64_BASE_ADDR_MASK
+	#define PT_BASE_ADDR_MASK GUEST_PT64_BASE_ADDR_MASK
 	#define PT_LVL_ADDR_MASK(lvl) PT64_LVL_ADDR_MASK(lvl)
 	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
@@ -305,6 +305,35 @@ static inline unsigned FNAME(gpte_pkeys)(struct kvm_vcpu *vcpu, u64 gpte)
 	return pkeys;
 }
 
+static inline bool FNAME(is_last_gpte)(struct kvm_mmu *mmu,
+				       unsigned int level, unsigned int gpte)
+{
+	/*
+	 * For EPT and PAE paging (both variants), bit 7 is either reserved at
+	 * all level or indicates a huge page (ignoring CR3/EPTP).  In either
+	 * case, bit 7 being set terminates the walk.
+	 */
+#if PTTYPE == 32
+	/*
+	 * 32-bit paging requires special handling because bit 7 is ignored if
+	 * CR4.PSE=0, not reserved.  Clear bit 7 in the gpte if the level is
+	 * greater than the last level for which bit 7 is the PAGE_SIZE bit.
+	 *
+	 * The RHS has bit 7 set iff level < (2 + PSE).  If it is clear, bit 7
+	 * is not reserved and does not indicate a large page at this level,
+	 * so clear PT_PAGE_SIZE_MASK in gpte if that is the case.
+	 */
+	gpte &= level - (PT32_ROOT_LEVEL + mmu->mmu_role.ext.cr4_pse);
+#endif
+	/*
+	 * PG_LEVEL_4K always terminates.  The RHS has bit 7 set
+	 * iff level <= PG_LEVEL_4K, which for our purpose means
+	 * level == PG_LEVEL_4K; set PT_PAGE_SIZE_MASK in gpte then.
+	 */
+	gpte |= level - PG_LEVEL_4K - 1;
+
+	return gpte & PT_PAGE_SIZE_MASK;
+}
 /*
  * Fetch a guest pte for a guest virtual address, or for an L2's GPA.
  */
@@ -421,7 +450,7 @@ retry_walk:
 
 		/* Convert to ACC_*_MASK flags for struct guest_walker.  */
 		walker->pt_access[walker->level - 1] = FNAME(gpte_access)(pt_access ^ walk_nx_mask);
-	} while (!is_last_gpte(mmu, walker->level, pte));
+	} while (!FNAME(is_last_gpte)(mmu, walker->level, pte));
 
 	pte_pkey = FNAME(gpte_pkeys)(vcpu, pte);
 	accessed_dirty = have_ad ? pte_access & PT_GUEST_ACCESSED_MASK : 0;
@@ -471,8 +500,7 @@ retry_walk:
 
 error:
 	errcode |= write_fault | user_fault;
-	if (fetch_fault && (mmu->nx ||
-			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP)))
+	if (fetch_fault && (is_efer_nx(mmu) || is_cr4_smep(mmu)))
 		errcode |= PFERR_FETCH_MASK;
 
 	walker->fault.vector = PF_VECTOR;
@@ -679,8 +707,27 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gpa_t addr,
 		if (!is_shadow_present_pte(*it.sptep)) {
 			table_gfn = gw->table_gfn[it.level - 2];
 			access = gw->pt_access[it.level - 2];
-			sp = kvm_mmu_get_page(vcpu, table_gfn, addr, it.level-1,
-					      false, access);
+			sp = kvm_mmu_get_page(vcpu, table_gfn, addr,
+					      it.level-1, false, access);
+			/*
+			 * We must synchronize the pagetable before linking it
+			 * because the guest doesn't need to flush tlb when
+			 * the gpte is changed from non-present to present.
+			 * Otherwise, the guest may use the wrong mapping.
+			 *
+			 * For PG_LEVEL_4K, kvm_mmu_get_page() has already
+			 * synchronized it transiently via kvm_sync_page().
+			 *
+			 * For higher level pagetable, we synchronize it via
+			 * the slower mmu_sync_children().  If it needs to
+			 * break, some progress has been made; return
+			 * RET_PF_RETRY and retry on the next #PF.
+			 * KVM_REQ_MMU_SYNC is not necessary but it
+			 * expedites the process.
+			 */
+			if (sp->unsync_children &&
+			    mmu_sync_children(vcpu, sp, false))
+				return RET_PF_RETRY;
 		}
 
 		/*
@@ -767,7 +814,7 @@ FNAME(is_self_change_mapping)(struct kvm_vcpu *vcpu,
 	bool self_changed = false;
 
 	if (!(walker->pte_access & ACC_WRITE_MASK ||
-	      (!is_write_protection(vcpu) && !user_fault)))
+	    (!is_cr0_wp(vcpu->arch.mmu) && !user_fault)))
 		return false;
 
 	for (level = walker->level; level <= walker->max_level; level++) {
@@ -853,9 +900,9 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
 
-	if (try_async_pf(vcpu, prefault, walker.gfn, addr, &pfn, &hva,
-			 write_fault, &map_writable))
-		return RET_PF_RETRY;
+	if (kvm_faultin_pfn(vcpu, prefault, walker.gfn, addr, &pfn, &hva,
+			 write_fault, &map_writable, &r))
+		return r;
 
 	if (handle_abnormal_pfn(vcpu, addr, walker.gfn, pfn, walker.pte_access, &r))
 		return r;
@@ -865,8 +912,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 	 * we will cache the incorrect access into mmio spte.
 	 */
 	if (write_fault && !(walker.pte_access & ACC_WRITE_MASK) &&
-	     !is_write_protection(vcpu) && !user_fault &&
-	      !is_noslot_pfn(pfn)) {
+	    !is_cr0_wp(vcpu->arch.mmu) && !user_fault && !is_noslot_pfn(pfn)) {
 		walker.pte_access |= ACC_WRITE_MASK;
 		walker.pte_access &= ~ACC_USER_MASK;
 
@@ -876,7 +922,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gpa_t addr, u32 error_code,
 		 * then we should prevent the kernel from executing it
 		 * if SMEP is enabled.
 		 */
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
+		if (is_cr4_smep(vcpu->arch.mmu))
 			walker.pte_access &= ~ACC_EXEC_MASK;
 	}
 
@@ -1020,24 +1066,39 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gpa_t vaddr,
  * Using the cached information from sp->gfns is safe because:
  * - The spte has a reference to the struct page, so the pfn for a given gfn
  *   can't change unless all sptes pointing to it are nuked first.
- *
- * Note:
- *   We should flush all tlbs if spte is dropped even though guest is
- *   responsible for it. Since if we don't, kvm_mmu_notifier_invalidate_page
- *   and kvm_mmu_notifier_invalidate_range_start detect the mapping page isn't
- *   used by guest then tlbs are not flushed, so guest is allowed to access the
- *   freed pages.
- *   And we increase kvm->tlbs_dirty to delay tlbs flush in this case.
  */
 static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
+	union kvm_mmu_page_role mmu_role = vcpu->arch.mmu->mmu_role.base;
 	int i, nr_present = 0;
 	bool host_writable;
 	gpa_t first_pte_gpa;
 	int set_spte_ret = 0;
 
-	/* direct kvm_mmu_page can not be unsync. */
-	BUG_ON(sp->role.direct);
+	/*
+	 * Ignore various flags when verifying that it's safe to sync a shadow
+	 * page using the current MMU context.
+	 *
+	 *  - level: not part of the overall MMU role and will never match as the MMU's
+	 *           level tracks the root level
+	 *  - access: updated based on the new guest PTE
+	 *  - quadrant: not part of the overall MMU role (similar to level)
+	 */
+	const union kvm_mmu_page_role sync_role_ign = {
+		.level = 0xf,
+		.access = 0x7,
+		.quadrant = 0x3,
+	};
+
+	/*
+	 * Direct pages can never be unsync, and KVM should never attempt to
+	 * sync a shadow page for a different MMU context, e.g. if the role
+	 * differs then the memslot lookup (SMM vs. non-SMM) will be bogus, the
+	 * reserved bits checks will be wrong, etc...
+	 */
+	if (WARN_ON_ONCE(sp->role.direct ||
+			 (sp->role.word ^ mmu_role.word) & ~sync_role_ign.word))
+		return 0;
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
 
@@ -1057,13 +1118,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			return 0;
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
-			/*
-			 * Update spte before increasing tlbs_dirty to make
-			 * sure no tlb flush is lost after spte is zapped; see
-			 * the comments in kvm_flush_remote_tlbs().
-			 */
-			smp_wmb();
-			vcpu->kvm->tlbs_dirty++;
+			set_spte_ret |= SET_SPTE_NEED_REMOTE_TLB_FLUSH;
 			continue;
 		}
 
@@ -1078,12 +1133,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		if (gfn != sp->gfns[i]) {
 			drop_spte(vcpu->kvm, &sp->spt[i]);
-			/*
-			 * The same as above where we are doing
-			 * prefetch_invalid_gpte().
-			 */
-			smp_wmb();
-			vcpu->kvm->tlbs_dirty++;
+			set_spte_ret |= SET_SPTE_NEED_REMOTE_TLB_FLUSH;
 			continue;
 		}
 

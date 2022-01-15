@@ -35,8 +35,22 @@ properties:
   powerdown-gpios:
     maxItems: 1
 
+  reset-gpios:
+    maxItems: 1
+
+  adv,force-bt656-4:
+    description:
+      Indicates that the output is a BT.656-4 compatible stream.
+    type: boolean
+
   port:
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
 
   ports: true
 

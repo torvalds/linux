@@ -795,13 +795,17 @@ static int __hinic_set_coalesce(struct net_device *netdev,
 }
 
 static int hinic_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	return __hinic_get_coalesce(netdev, coal, COALESCE_ALL_QUEUE);
 }
 
 static int hinic_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *coal)
+			      struct ethtool_coalesce *coal,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
 {
 	return __hinic_set_coalesce(netdev, coal, COALESCE_ALL_QUEUE);
 }
@@ -1663,7 +1667,6 @@ static void hinic_diag_test(struct net_device *netdev,
 	err = hinic_port_link_state(nic_dev, &link_state);
 	if (!err && link_state == HINIC_LINK_STATE_UP)
 		netif_carrier_on(netdev);
-
 }
 
 static int hinic_set_phys_id(struct net_device *netdev,

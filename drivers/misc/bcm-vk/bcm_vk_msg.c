@@ -354,8 +354,7 @@ static void bcm_vk_drain_all_pend(struct device *dev,
 	for (num = 0; num < chan->q_nr; num++) {
 		list_for_each_entry_safe(entry, tmp, &chan->pendq[num], node) {
 			if ((!ctx) || (entry->ctx->idx == ctx->idx)) {
-				list_del(&entry->node);
-				list_add_tail(&entry->node, &del_q);
+				list_move_tail(&entry->node, &del_q);
 			}
 		}
 	}
@@ -701,8 +700,7 @@ int bcm_vk_send_shutdown_msg(struct bcm_vk *vk, u32 shut_type,
 		return -EINVAL;
 	}
 
-	entry = kzalloc(sizeof(*entry) +
-			sizeof(struct vk_msg_blk), GFP_KERNEL);
+	entry = kzalloc(struct_size(entry, to_v_msg, 1), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 

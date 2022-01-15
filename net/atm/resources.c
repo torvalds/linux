@@ -52,10 +52,8 @@ static struct atm_dev *__alloc_atm_dev(const char *type)
 static struct atm_dev *__atm_dev_lookup(int number)
 {
 	struct atm_dev *dev;
-	struct list_head *p;
 
-	list_for_each(p, &atm_devs) {
-		dev = list_entry(p, struct atm_dev, dev_list);
+	list_for_each_entry(dev, &atm_devs, dev_list) {
 		if (dev->number == number) {
 			atm_dev_hold(dev);
 			return dev;
@@ -215,8 +213,7 @@ int atm_getnames(void __user *buf, int __user *iobuf_len)
 		return -ENOMEM;
 	}
 	tmp_p = tmp_buf;
-	list_for_each(p, &atm_devs) {
-		dev = list_entry(p, struct atm_dev, dev_list);
+	list_for_each_entry(dev, &atm_devs, dev_list) {
 		*tmp_p++ = dev->number;
 	}
 	mutex_unlock(&atm_dev_mutex);

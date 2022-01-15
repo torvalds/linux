@@ -350,7 +350,7 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 	return;
 }
 
-static int pcmcia_device_remove(struct device *dev)
+static void pcmcia_device_remove(struct device *dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
@@ -389,8 +389,6 @@ static int pcmcia_device_remove(struct device *dev)
 	/* references from pcmcia_device_probe */
 	pcmcia_put_dev(p_dev);
 	module_put(p_drv->owner);
-
-	return 0;
 }
 
 

@@ -142,7 +142,7 @@ static void br_cfm_notify(int event, const struct net_bridge_port *port)
 {
 	u32 filter = RTEXT_FILTER_CFM_STATUS;
 
-	return br_info_notify(event, port->br, NULL, filter);
+	br_info_notify(event, port->br, NULL, filter);
 }
 
 static void cc_peer_enable(struct br_cfm_peer_mep *peer_mep)

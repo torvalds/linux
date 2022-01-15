@@ -11,7 +11,7 @@
 
 static LIST_HEAD(llc_engines);
 
-int nfc_llc_init(void)
+int __init nfc_llc_init(void)
 {
 	int r;
 
@@ -41,7 +41,7 @@ void nfc_llc_exit(void)
 	}
 }
 
-int nfc_llc_register(const char *name, struct nfc_llc_ops *ops)
+int nfc_llc_register(const char *name, const struct nfc_llc_ops *ops)
 {
 	struct nfc_llc_engine *llc_engine;
 

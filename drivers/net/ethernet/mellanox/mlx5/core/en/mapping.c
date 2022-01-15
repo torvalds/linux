@@ -5,10 +5,14 @@
 #include <linux/slab.h>
 #include <linux/xarray.h>
 #include <linux/hashtable.h>
+#include <linux/refcount.h>
 
 #include "mapping.h"
 
 #define MAPPING_GRACE_PERIOD 2000
+
+static LIST_HEAD(shared_ctx_list);
+static DEFINE_MUTEX(shared_ctx_lock);
 
 struct mapping_ctx {
 	struct xarray xarray;
@@ -20,6 +24,10 @@ struct mapping_ctx {
 	struct delayed_work dwork;
 	struct list_head pending_list;
 	spinlock_t pending_list_lock; /* Guards pending list */
+	u64 id;
+	u8 type;
+	struct list_head list;
+	refcount_t refcount;
 };
 
 struct mapping_item {
@@ -205,11 +213,48 @@ mapping_create(size_t data_size, u32 max_id, bool delayed_removal)
 	mutex_init(&ctx->lock);
 	xa_init_flags(&ctx->xarray, XA_FLAGS_ALLOC1);
 
+	refcount_set(&ctx->refcount, 1);
+	INIT_LIST_HEAD(&ctx->list);
+
+	return ctx;
+}
+
+struct mapping_ctx *
+mapping_create_for_id(u64 id, u8 type, size_t data_size, u32 max_id, bool delayed_removal)
+{
+	struct mapping_ctx *ctx;
+
+	mutex_lock(&shared_ctx_lock);
+	list_for_each_entry(ctx, &shared_ctx_list, list) {
+		if (ctx->id == id && ctx->type == type) {
+			if (refcount_inc_not_zero(&ctx->refcount))
+				goto unlock;
+			break;
+		}
+	}
+
+	ctx = mapping_create(data_size, max_id, delayed_removal);
+	if (IS_ERR(ctx))
+		goto unlock;
+
+	ctx->id = id;
+	ctx->type = type;
+	list_add(&ctx->list, &shared_ctx_list);
+
+unlock:
+	mutex_unlock(&shared_ctx_lock);
 	return ctx;
 }
 
 void mapping_destroy(struct mapping_ctx *ctx)
 {
+	if (!refcount_dec_and_test(&ctx->refcount))
+		return;
+
+	mutex_lock(&shared_ctx_lock);
+	list_del(&ctx->list);
+	mutex_unlock(&shared_ctx_lock);
+
 	mapping_flush_work(ctx);
 	xa_destroy(&ctx->xarray);
 	mutex_destroy(&ctx->lock);

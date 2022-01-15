@@ -1,10 +1,12 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: :doc:`../../../riscv/boot-image-header`
-:Translator: Yanteng Si <siyanteng@loongson.cn>
+:Original: Documentation/riscv/boot-image-header.rst
+
+:翻译:
+
+ 司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 .. _cn_boot-image-header.rst:
-
 
 ==========================
 RISC-V Linux启动镜像文件头

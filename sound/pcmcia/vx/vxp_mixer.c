@@ -124,11 +124,13 @@ int vxp_add_mic_controls(struct vx_core *_chip)
 	/* mic level */
 	switch (_chip->type) {
 	case VX_TYPE_VXPOCKET:
-		if ((err = snd_ctl_add(_chip->card, snd_ctl_new1(&vx_control_mic_level, chip))) < 0)
+		err = snd_ctl_add(_chip->card, snd_ctl_new1(&vx_control_mic_level, chip));
+		if (err < 0)
 			return err;
 		break;
 	case VX_TYPE_VXP440:
-		if ((err = snd_ctl_add(_chip->card, snd_ctl_new1(&vx_control_mic_boost, chip))) < 0)
+		err = snd_ctl_add(_chip->card, snd_ctl_new1(&vx_control_mic_boost, chip));
+		if (err < 0)
 			return err;
 		break;
 	}

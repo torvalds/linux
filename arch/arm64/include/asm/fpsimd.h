@@ -45,7 +45,6 @@ extern void fpsimd_preserve_current_state(void);
 extern void fpsimd_restore_current_state(void);
 extern void fpsimd_update_current_state(struct user_fpsimd_state const *state);
 
-extern void fpsimd_bind_task_to_cpu(void);
 extern void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *state,
 				     void *sve_state, unsigned int sve_vl);
 
@@ -69,7 +68,7 @@ static inline void *sve_pffr(struct thread_struct *thread)
 extern void sve_save_state(void *state, u32 *pfpsr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
 			   unsigned long vq_minus_1);
-extern void sve_flush_live(void);
+extern void sve_flush_live(unsigned long vq_minus_1);
 extern void sve_load_from_fpsimd_state(struct user_fpsimd_state const *state,
 				       unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);

@@ -354,13 +354,14 @@ static int iio_scan_mask_set(struct iio_dev *indio_dev,
 	const unsigned long *mask;
 	unsigned long *trialmask;
 
-	trialmask = bitmap_zalloc(indio_dev->masklength, GFP_KERNEL);
-	if (trialmask == NULL)
-		return -ENOMEM;
 	if (!indio_dev->masklength) {
 		WARN(1, "Trying to set scanmask prior to registering buffer\n");
-		goto err_invalid_mask;
+		return -EINVAL;
 	}
+
+	trialmask = bitmap_alloc(indio_dev->masklength, GFP_KERNEL);
+	if (!trialmask)
+		return -ENOMEM;
 	bitmap_copy(trialmask, buffer->scan_mask, indio_dev->masklength);
 	set_bit(bit, trialmask);
 
@@ -601,8 +602,10 @@ static unsigned int iio_storage_bytes_for_si(struct iio_dev *indio_dev,
 
 static unsigned int iio_storage_bytes_for_timestamp(struct iio_dev *indio_dev)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
 	return iio_storage_bytes_for_si(indio_dev,
-					indio_dev->scan_index_timestamp);
+					iio_dev_opaque->scan_index_timestamp);
 }
 
 static int iio_compute_scan_bytes(struct iio_dev *indio_dev,
@@ -924,7 +927,6 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 		if (ret)
 			goto error_clear_mux_table;
 		out_loc += length;
-		in_loc += length;
 	}
 	buffer->demux_bounce = kzalloc(out_loc, GFP_KERNEL);
 	if (buffer->demux_bounce == NULL) {
@@ -1148,12 +1150,13 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,
 		       struct iio_buffer *remove_buffer)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	int ret;
 
 	if (insert_buffer == remove_buffer)
 		return 0;
 
-	mutex_lock(&indio_dev->info_exist_lock);
+	mutex_lock(&iio_dev_opaque->info_exist_lock);
 	mutex_lock(&indio_dev->mlock);
 
 	if (insert_buffer && iio_buffer_is_active(insert_buffer))
@@ -1176,7 +1179,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 
 out_unlock:
 	mutex_unlock(&indio_dev->mlock);
-	mutex_unlock(&indio_dev->info_exist_lock);
+	mutex_unlock(&iio_dev_opaque->info_exist_lock);
 
 	return ret;
 }
@@ -1469,6 +1472,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 					     struct iio_dev *indio_dev,
 					     int index)
 {
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_dev_attr *p;
 	struct attribute **attr;
 	int ret, i, attrn, scan_el_attrcount, buffer_attrcount;
@@ -1495,7 +1499,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 				goto error_cleanup_dynamic;
 			scan_el_attrcount += ret;
 			if (channels[i].type == IIO_TIMESTAMP)
-				indio_dev->scan_index_timestamp =
+				iio_dev_opaque->scan_index_timestamp =
 					channels[i].scan_index;
 		}
 		if (indio_dev->masklength && buffer->scan_mask == NULL) {

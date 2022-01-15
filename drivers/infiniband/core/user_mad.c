@@ -700,7 +700,7 @@ static int ib_umad_reg_agent(struct ib_umad_file *file, void __user *arg,
 
 	if (ureq.qpn != 0 && ureq.qpn != 1) {
 		dev_notice(&file->port->dev,
-			   "%s: invalid QPN %d specified\n", __func__,
+			   "%s: invalid QPN %u specified\n", __func__,
 			   ureq.qpn);
 		ret = -EINVAL;
 		goto out;
@@ -800,7 +800,7 @@ static int ib_umad_reg_agent2(struct ib_umad_file *file, void __user *arg)
 	}
 
 	if (ureq.qpn != 0 && ureq.qpn != 1) {
-		dev_notice(&file->port->dev, "%s: invalid QPN %d specified\n",
+		dev_notice(&file->port->dev, "%s: invalid QPN %u specified\n",
 			   __func__, ureq.qpn);
 		ret = -EINVAL;
 		goto out;

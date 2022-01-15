@@ -109,7 +109,7 @@ static void nft_synproxy_do_eval(const struct nft_synproxy *priv,
 {
 	struct synproxy_options opts = {};
 	struct sk_buff *skb = pkt->skb;
-	int thoff = pkt->xt.thoff;
+	int thoff = nft_thoff(pkt);
 	const struct tcphdr *tcp;
 	struct tcphdr _tcph;
 
@@ -123,7 +123,7 @@ static void nft_synproxy_do_eval(const struct nft_synproxy *priv,
 		return;
 	}
 
-	tcp = skb_header_pointer(skb, pkt->xt.thoff,
+	tcp = skb_header_pointer(skb, thoff,
 				 sizeof(struct tcphdr),
 				 &_tcph);
 	if (!tcp) {

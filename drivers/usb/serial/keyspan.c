@@ -1453,13 +1453,13 @@ static void usa67_glocont_callback(struct urb *urb)
 	}
 }
 
-static int keyspan_write_room(struct tty_struct *tty)
+static unsigned int keyspan_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct keyspan_port_private	*p_priv;
 	const struct keyspan_device_details	*d_details;
 	int				flip;
-	int				data_len;
+	unsigned int			data_len;
 	struct urb			*this_urb;
 
 	p_priv = usb_get_serial_port_data(port);

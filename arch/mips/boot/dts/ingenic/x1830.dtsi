@@ -73,6 +73,11 @@
 
 			status = "disabled";
 		};
+
+		mac_phy_ctrl: mac-phy-ctrl@e8 {
+			compatible = "syscon";
+			reg = <0xe8 0x4>;
+		};
 	};
 
 	ost: timer@12000000 {
@@ -97,9 +102,9 @@
 
 		#clock-cells = <1>;
 
-		clocks = <&cgu X1830_CLK_RTCLK
-			  &cgu X1830_CLK_EXCLK
-			  &cgu X1830_CLK_PCLK>;
+		clocks = <&cgu X1830_CLK_RTCLK>,
+			 <&cgu X1830_CLK_EXCLK>,
+			 <&cgu X1830_CLK_PCLK>;
 		clock-names = "rtc", "ext", "pclk";
 
 		interrupt-controller;
@@ -274,8 +279,7 @@
 
 	pdma: dma-controller@13420000 {
 		compatible = "ingenic,x1830-dma";
-		reg = <0x13420000 0x400
-			   0x13421000 0x40>;
+		reg = <0x13420000 0x400>, <0x13421000 0x40>;
 		#dma-cells = <2>;
 
 		interrupt-parent = <&intc>;
@@ -336,6 +340,8 @@
 
 		clocks = <&cgu X1830_CLK_MAC>;
 		clock-names = "stmmaceth";
+
+		mode-reg = <&mac_phy_ctrl>;
 
 		status = "disabled";
 

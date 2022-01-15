@@ -462,7 +462,7 @@ static struct attribute *hdaps_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group hdaps_attribute_group = {
+static const struct attribute_group hdaps_attribute_group = {
 	.attrs = hdaps_attributes,
 };
 
