@@ -23,10 +23,10 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
 
    active_mm
    balance
+   damon/index
 
 TODOLIST:
 * arch_pgtable_helpers
-* damon/index
 * free_page_reporting
 * frontswap
 * highmem
