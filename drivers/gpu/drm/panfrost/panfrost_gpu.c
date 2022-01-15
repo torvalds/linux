@@ -320,19 +320,36 @@ void panfrost_gpu_power_on(struct panfrost_device *pfdev)
 {
 	int ret;
 	u32 val;
+	u64 core_mask = U64_MAX;
 
 	panfrost_gpu_init_quirks(pfdev);
 
-	/* Just turn on everything for now */
-	gpu_write(pfdev, L2_PWRON_LO, pfdev->features.l2_present);
+	if (pfdev->features.l2_present != 1) {
+		/*
+		 * Only support one core group now.
+		 * ~(l2_present - 1) unsets all bits in l2_present except
+		 * the bottom bit. (l2_present - 2) has all the bits in
+		 * the first core group set. AND them together to generate
+		 * a mask of cores in the first core group.
+		 */
+		core_mask = ~(pfdev->features.l2_present - 1) &
+			     (pfdev->features.l2_present - 2);
+		dev_info_once(pfdev->dev, "using only 1st core group (%lu cores from %lu)\n",
+			      hweight64(core_mask),
+			      hweight64(pfdev->features.shader_present));
+	}
+	gpu_write(pfdev, L2_PWRON_LO, pfdev->features.l2_present & core_mask);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + L2_READY_LO,
-		val, val == pfdev->features.l2_present, 100, 20000);
+		val, val == (pfdev->features.l2_present & core_mask),
+		100, 20000);
 	if (ret)
 		dev_err(pfdev->dev, "error powering up gpu L2");
 
-	gpu_write(pfdev, SHADER_PWRON_LO, pfdev->features.shader_present);
+	gpu_write(pfdev, SHADER_PWRON_LO,
+		  pfdev->features.shader_present & core_mask);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + SHADER_READY_LO,
-		val, val == pfdev->features.shader_present, 100, 20000);
+		val, val == (pfdev->features.shader_present & core_mask),
+		100, 20000);
 	if (ret)
 		dev_err(pfdev->dev, "error powering up gpu shader");
 
