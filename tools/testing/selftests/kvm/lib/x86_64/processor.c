@@ -1516,18 +1516,6 @@ struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpui
 	return cpuid;
 }
 
-static inline unsigned x86_family(unsigned int eax)
-{
-        unsigned int x86;
-
-        x86 = (eax >> 8) & 0xf;
-
-        if (x86 == 0xf)
-                x86 += (eax >> 20) & 0xff;
-
-        return x86;
-}
-
 unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 {
 	const unsigned long num_ht_pages = 12 << (30 - vm->page_shift); /* 12 GiB */
