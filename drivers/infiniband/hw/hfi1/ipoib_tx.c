@@ -731,7 +731,7 @@ int hfi1_ipoib_txreq_init(struct hfi1_ipoib_dev_priv *priv)
 			goto free_txqs;
 
 		txq->tx_ring.max_items = tx_ring_size;
-		txq->tx_ring.shift = ilog2(tx_ring_size);
+		txq->tx_ring.shift = ilog2(tx_item_size);
 		txq->tx_ring.avail = hfi1_ipoib_ring_hwat(txq);
 
 		netif_tx_napi_add(dev, &txq->napi,
