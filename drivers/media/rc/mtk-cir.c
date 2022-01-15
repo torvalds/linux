@@ -203,10 +203,10 @@ static inline void mtk_irq_enable(struct mtk_ir *ir, u32 mask)
 
 static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 {
-	struct mtk_ir *ir = dev_id;
-	u8  wid = 0;
-	u32 i, j, val;
 	struct ir_raw_event rawir = {};
+	struct mtk_ir *ir = dev_id;
+	u32 i, j, val;
+	u8 wid;
 
 	/*
 	 * Each pulse and space is encoded as a single byte, each byte
@@ -228,7 +228,8 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 		dev_dbg(ir->dev, "@reg%d=0x%08x\n", i, val);
 
 		for (j = 0 ; j < 4 ; j++) {
-			wid = (val & (MTK_WIDTH_MASK << j * 8)) >> j * 8;
+			wid = val & MTK_WIDTH_MASK;
+			val >>= 8;
 			rawir.pulse = !rawir.pulse;
 			rawir.duration = wid * (MTK_IR_SAMPLE + 1);
 			ir_raw_event_store_with_filter(ir->rc, &rawir);
