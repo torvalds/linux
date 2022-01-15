@@ -1072,6 +1072,7 @@ out_clk_disable_unprepare:
 	clk_disable_unprepare(db->clk);
 out_dispose_mapping:
 	irq_dispose_mapping(ndev->irq);
+	dma_release_channel(db->rx_chan);
 out_iounmap:
 	iounmap(db->membase);
 out:
