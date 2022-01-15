@@ -622,10 +622,10 @@ static const struct tsadc_table rk3568_code_table[] = {
 
 static const struct tsadc_table rk3588_code_table[] = {
 	{0, -40000},
-	{220, -40000},
+	{215, -40000},
 	{285, 25000},
-	{345, 85000},
-	{385, 125000},
+	{350, 85000},
+	{395, 125000},
 	{TSADCV4_DATA_MASK, 125000},
 };
 
