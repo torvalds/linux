@@ -247,7 +247,6 @@ struct dw_dp {
 	struct completion complete;
 	int irq;
 	int id;
-	bool phy_enabled;
 	struct work_struct hpd_work;
 	struct gpio_desc *hpd_gpio;
 	struct dw_dp_hotplug hotplug;
@@ -419,20 +418,6 @@ static void dw_dp_phy_xmit_enable(struct dw_dp *dp, u32 lanes)
 
 	regmap_update_bits(dp->regmap, DPTX_PHYIF_CTRL, XMIT_ENABLE,
 			   FIELD_PREP(XMIT_ENABLE, xmit_enable));
-}
-
-static void dw_dp_phy_power_on(struct dw_dp *dp)
-{
-	phy_power_on(dp->phy);
-
-	dp->phy_enabled = true;
-}
-
-static void dw_dp_phy_power_off(struct dw_dp *dp)
-{
-	phy_power_off(dp->phy);
-
-	dp->phy_enabled = false;
 }
 
 static bool dw_dp_bandwidth_ok(struct dw_dp *dp,
@@ -1644,9 +1629,6 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
 
-	if (!dp->phy_enabled)
-		dw_dp_phy_power_on(dp);
-
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
@@ -1807,8 +1789,7 @@ static void dw_dp_link_disable(struct dw_dp *dp)
 
 	dw_dp_phy_xmit_enable(dp, 0);
 
-	if (dp->phy_enabled)
-		dw_dp_phy_power_off(dp);
+	phy_power_off(dp->phy);
 
 	link->train.clock_recovered = false;
 	link->train.channel_equalized = false;
@@ -1818,8 +1799,9 @@ static int dw_dp_link_enable(struct dw_dp *dp)
 {
 	int ret;
 
-	if (!dp->phy_enabled)
-		dw_dp_phy_power_on(dp);
+	ret = phy_power_on(dp->phy);
+	if (ret)
+		return ret;
 
 	ret = dw_dp_link_power_up(dp);
 	if (ret < 0)
@@ -1869,11 +1851,18 @@ static enum drm_connector_status dw_dp_detect_dpcd(struct dw_dp *dp)
 {
 	int ret;
 
+	ret = phy_power_on(dp->phy);
+	if (ret)
+		return ret;
+
 	ret = dw_dp_link_probe(dp);
 	if (ret) {
+		phy_power_off(dp->phy);
 		dev_err(dp->dev, "failed to probe DP link: %d\n", ret);
 		return connector_status_disconnected;
 	}
+
+	phy_power_off(dp->phy);
 
 	return connector_status_connected;
 }
@@ -1895,8 +1884,18 @@ static struct edid *dw_dp_bridge_get_edid(struct drm_bridge *bridge,
 					  struct drm_connector *connector)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
+	struct edid *edid;
+	int ret;
 
-	return drm_get_edid(connector, &dp->aux.ddc);
+	ret = phy_power_on(dp->phy);
+	if (ret)
+		return NULL;
+
+	edid = drm_get_edid(connector, &dp->aux.ddc);
+
+	phy_power_off(dp->phy);
+
+	return edid;
 }
 
 static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
