@@ -1273,6 +1273,14 @@ bool is_intel_cpu(void)
 	return cpu_vendor_string_is("GenuineIntel");
 }
 
+/*
+ * Exclude early K5 samples with a vendor string of "AMDisbetter!"
+ */
+bool is_amd_cpu(void)
+{
+	return cpu_vendor_string_is("AuthenticAMD");
+}
+
 uint32_t kvm_get_cpuid_max_basic(void)
 {
 	return kvm_get_supported_cpuid_entry(0)->eax;
@@ -1508,10 +1516,6 @@ struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpui
 	return cpuid;
 }
 
-#define X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx 0x68747541
-#define X86EMUL_CPUID_VENDOR_AuthenticAMD_ecx 0x444d4163
-#define X86EMUL_CPUID_VENDOR_AuthenticAMD_edx 0x69746e65
-
 static inline unsigned x86_family(unsigned int eax)
 {
         unsigned int x86;
@@ -1533,11 +1537,7 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
 
 	/* Avoid reserved HyperTransport region on AMD processors.  */
-	eax = ecx = 0;
-	cpuid(&eax, &ebx, &ecx, &edx);
-	if (ebx != X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx ||
-	    ecx != X86EMUL_CPUID_VENDOR_AuthenticAMD_ecx ||
-	    edx != X86EMUL_CPUID_VENDOR_AuthenticAMD_edx)
+	if (!is_amd_cpu())
 		return max_gfn;
 
 	/* On parts with <40 physical address bits, the area is fully hidden */
