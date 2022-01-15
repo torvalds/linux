@@ -496,17 +496,12 @@ MODULE_PARM_DESC(ratelimit_disable, "Disable random ratelimit suppression");
 static u32 input_pool_data[POOL_WORDS] __latent_entropy;
 
 static struct {
-	/* read-only data: */
-	u32 *pool;
-
-	/* read-write data: */
 	spinlock_t lock;
 	u16 add_ptr;
 	u16 input_rotate;
 	int entropy_count;
 } input_pool = {
 	.lock = __SPIN_LOCK_UNLOCKED(input_pool.lock),
-	.pool = input_pool_data
 };
 
 static ssize_t extract_entropy(void *buf, size_t nbytes, int min);
@@ -544,15 +539,15 @@ static void _mix_pool_bytes(const void *in, int nbytes)
 		i = (i - 1) & POOL_WORDMASK;
 
 		/* XOR in the various taps */
-		w ^= input_pool.pool[i];
-		w ^= input_pool.pool[(i + POOL_TAP1) & POOL_WORDMASK];
-		w ^= input_pool.pool[(i + POOL_TAP2) & POOL_WORDMASK];
-		w ^= input_pool.pool[(i + POOL_TAP3) & POOL_WORDMASK];
-		w ^= input_pool.pool[(i + POOL_TAP4) & POOL_WORDMASK];
-		w ^= input_pool.pool[(i + POOL_TAP5) & POOL_WORDMASK];
+		w ^= input_pool_data[i];
+		w ^= input_pool_data[(i + POOL_TAP1) & POOL_WORDMASK];
+		w ^= input_pool_data[(i + POOL_TAP2) & POOL_WORDMASK];
+		w ^= input_pool_data[(i + POOL_TAP3) & POOL_WORDMASK];
+		w ^= input_pool_data[(i + POOL_TAP4) & POOL_WORDMASK];
+		w ^= input_pool_data[(i + POOL_TAP5) & POOL_WORDMASK];
 
 		/* Mix the result back in with a twist */
-		input_pool.pool[i] = (w >> 3) ^ twist_table[w & 7];
+		input_pool_data[i] = (w >> 3) ^ twist_table[w & 7];
 
 		/*
 		 * Normally, we add 7 bits of rotation to the pool.
@@ -1369,7 +1364,7 @@ static void extract_buf(u8 *out)
 
 	/* Generate a hash across the pool */
 	spin_lock_irqsave(&input_pool.lock, flags);
-	blake2s_update(&state, (const u8 *)input_pool.pool, POOL_BYTES);
+	blake2s_update(&state, (const u8 *)input_pool_data, POOL_BYTES);
 	blake2s_final(&state, hash); /* final zeros out state */
 
 	/*
