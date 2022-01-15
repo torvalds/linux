@@ -27,7 +27,9 @@ DAMON是Linux内核的一个数据访问监控框架子系统。DAMON的核心�
 .. toctree::
    :maxdepth: 2
 
+   faq
+
 TODOLIST:
-*   faq
+
 *   design
 *   api
