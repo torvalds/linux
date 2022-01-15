@@ -1290,7 +1290,7 @@ void evlist__close(struct evlist *evlist)
 	 * With perf record core.cpus is usually NULL.
 	 * Use the old method to handle this for now.
 	 */
-	if (!evlist->core.cpus) {
+	if (!evlist->core.cpus || cpu_map__is_dummy(evlist->core.cpus)) {
 		evlist__for_each_entry_reverse(evlist, evsel)
 			evsel__close(evsel);
 		return;
