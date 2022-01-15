@@ -163,9 +163,6 @@ static inline u32 _RND512(u32 sz)
 	return val;
 }
 
-/*  limitation of path length */
-#define PATH_LENGTH_MAX PATH_MAX
-
 struct rtw_netdev_priv_indicator {
 	void *priv;
 	u32 sizeof_priv;
