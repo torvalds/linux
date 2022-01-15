@@ -477,13 +477,13 @@
 
 		prcmu@80157000 {
 			ab8500 {
-				ab8500_usb {
+				phy {
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
-				ab8500-regulators {
+				regulator {
 					ab8500_ldo_aux1 {
 						/* Used for VDD for sensors */
 						regulator-name = "V-SENSORS-VDD";

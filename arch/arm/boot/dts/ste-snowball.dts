@@ -401,7 +401,7 @@
 
 		prcmu@80157000 {
 			ab8500 {
-				ab8500-gpiocontroller {
+				gpio {
 					/*
 					 * AB8500 GPIOs are numbered starting from 1, so the first
 					 * index 0 is what in the datasheet is called "GPIO1", and
@@ -423,13 +423,13 @@
 						     "PM_GPIO42"; /* AB8500 GPIO42 */
 				};
 
-				ab8500_usb {
+				phy {
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
-				ext_regulators: ab8500-ext-regulators {
+				ext_regulators: regulator-external {
 					ab8500_ext1_reg: ab8500_ext1 {
 						regulator-name = "ab8500-ext-supply1";
 					};
@@ -443,7 +443,7 @@
 					};
 				};
 
-				ab8500-regulators {
+				regulator {
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
 						regulator-name = "V-DISPLAY";
 					};
