@@ -99,12 +99,6 @@ static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
 
 extern int RTW_STATUS_CODE(int error_code);
 
-extern unsigned char MCS_rate_2R[16];
-extern unsigned char MCS_rate_1R[16];
-extern unsigned char RTW_WPA_OUI[];
-extern unsigned char WPA_TKIP_CIPHER[4];
-extern unsigned char RSN_TKIP_CIPHER[4];
-
 void *rtw_malloc2d(int h, int w, int size);
 
 #define rtw_init_queue(q)					\
