@@ -125,6 +125,7 @@
 #define ASPEED_RESET_PCIE_DEV_O		20
 #define ASPEED_RESET_PCIE_RC_OE		19
 #define ASPEED_RESET_PCIE_RC_O		18
+#define ASPEED_RESET_EMMC		16
 #define ASPEED_RESET_CRT		13	//for controller register
 #define ASPEED_RESET_MAC2		12
 #define ASPEED_RESET_MAC1		11
