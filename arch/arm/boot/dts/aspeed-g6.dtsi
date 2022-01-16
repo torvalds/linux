@@ -1034,6 +1034,7 @@
 					reg = <0x100 0x100>;
 					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
+					sd-uhs-sdr50;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
 					status = "disabled";
 				};
@@ -1043,6 +1044,7 @@
 					reg = <0x200 0x100>;
 					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
+					sd-uhs-sdr50;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
 					status = "disabled";
 				};
