@@ -149,7 +149,7 @@ void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu)
 static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic)
 {
 	struct kvm_vcpu *vcpu;
-	int i;
+	unsigned long i;
 
 	if (RTC_GSI >= IOAPIC_NUM_PINS)
 		return;
@@ -184,7 +184,7 @@ static bool rtc_irq_check_coalesced(struct kvm_ioapic *ioapic)
 
 static void ioapic_lazy_update_eoi(struct kvm_ioapic *ioapic, int irq)
 {
-	int i;
+	unsigned long i;
 	struct kvm_vcpu *vcpu;
 	union kvm_ioapic_redirect_entry *entry = &ioapic->redirtbl[irq];
 
