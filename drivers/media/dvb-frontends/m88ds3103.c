@@ -1000,6 +1000,13 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		/* to light up the LOCK led */
+		ret = m88ds3103_update_bits(dev, 0x11, 0x80, 0x00);
+		if (ret)
+			goto err;
+	}
+
 	dev->delivery_system = c->delivery_system;
 
 	return 0;
