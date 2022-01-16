@@ -227,7 +227,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(st_sensors_allocate_trigger);
+EXPORT_SYMBOL_NS(st_sensors_allocate_trigger, IIO_ST_SENSORS);
 
 int st_sensors_validate_device(struct iio_trigger *trig,
 			       struct iio_dev *indio_dev)
@@ -239,4 +239,4 @@ int st_sensors_validate_device(struct iio_trigger *trig,
 
 	return 0;
 }
-EXPORT_SYMBOL(st_sensors_validate_device);
+EXPORT_SYMBOL_NS(st_sensors_validate_device, IIO_ST_SENSORS);

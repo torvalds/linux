@@ -76,4 +76,4 @@ st_sensors_get_buffer_element_error:
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL(st_sensors_trigger_handler);
+EXPORT_SYMBOL_NS(st_sensors_trigger_handler, IIO_ST_SENSORS);
