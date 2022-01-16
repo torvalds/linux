@@ -769,11 +769,6 @@ static int axp_v1p8_on(struct device *dev, struct gmin_subdev *gs)
 
 	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p6v,
 				ELDO_CTRL_REG, gs->eldo1_ctrl_shift, true);
-	if (ret)
-		return ret;
-
-	ret = axp_regulator_set(dev, gs, gs->eldo2_sel_reg, gs->eldo2_1p8v,
-				ELDO_CTRL_REG, gs->eldo2_ctrl_shift, false);
 	return ret;
 }
 
