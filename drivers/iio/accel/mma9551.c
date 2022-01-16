@@ -622,3 +622,4 @@ MODULE_AUTHOR("Irina Tirdea <irina.tirdea@intel.com>");
 MODULE_AUTHOR("Vlad Dogaru <vlad.dogaru@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MMA9551L motion-sensing platform driver");
+MODULE_IMPORT_NS(IIO_MMA9551);
