@@ -1386,16 +1386,6 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "SMB2/3 session established successfully\n");
-
-	spin_lock(&ses->chan_lock);
-	cifs_chan_clear_need_reconnect(ses, server);
-	spin_unlock(&ses->chan_lock);
-
-	/* Even if one channel is active, session is in good state */
-	spin_lock(&cifs_tcp_ses_lock);
-	ses->status = CifsGood;
-	spin_unlock(&cifs_tcp_ses_lock);
-
 	return rc;
 }
 
@@ -1923,10 +1913,6 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	tcon->share_flags = le32_to_cpu(rsp->ShareFlags);
 	tcon->capabilities = rsp->Capabilities; /* we keep caps little endian */
 	tcon->maximal_access = le32_to_cpu(rsp->MaximalAccess);
-	spin_lock(&cifs_tcp_ses_lock);
-	tcon->tidStatus = CifsGood;
-	spin_unlock(&cifs_tcp_ses_lock);
-	tcon->need_reconnect = false;
 	tcon->tid = le32_to_cpu(rsp->hdr.Id.SyncId.TreeId);
 	strlcpy(tcon->treeName, tree, sizeof(tcon->treeName));
 

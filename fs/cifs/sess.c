@@ -1052,15 +1052,6 @@ sess_establish_session(struct sess_data *sess_data)
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "CIFS session established successfully\n");
-	spin_lock(&ses->chan_lock);
-	cifs_chan_clear_need_reconnect(ses, server);
-	spin_unlock(&ses->chan_lock);
-
-	/* Even if one channel is active, session is in good state */
-	spin_lock(&cifs_tcp_ses_lock);
-	ses->status = CifsGood;
-	spin_unlock(&cifs_tcp_ses_lock);
-
 	return 0;
 }
 
