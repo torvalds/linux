@@ -26,6 +26,7 @@ properties:
       - aspeed,ast2400-sd-controller
       - aspeed,ast2500-sd-controller
       - aspeed,ast2600-sd-controller
+      - aspeed,ast2600-emmc
   reg:
     maxItems: 1
     description: Common configuration registers
