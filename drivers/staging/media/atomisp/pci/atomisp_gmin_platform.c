@@ -38,7 +38,7 @@ enum clock_rate {
 #define ELDO_CTRL_REG   0x12
 
 #define ELDO1_SEL_REG	0x19
-#define ELDO1_1P8V	0x16
+#define ELDO1_1P6V	0x12
 #define ELDO1_CTRL_SHIFT 0x00
 
 #define ELDO2_SEL_REG	0x1a
@@ -89,7 +89,7 @@ struct gmin_subdev {
 	u8 pwm_i2c_addr;
 
 	/* For PMIC AXP */
-	int eldo1_sel_reg, eldo1_1p8v, eldo1_ctrl_shift;
+	int eldo1_sel_reg, eldo1_1p6v, eldo1_ctrl_shift;
 	int eldo2_sel_reg, eldo2_1p8v, eldo2_ctrl_shift;
 };
 
@@ -685,9 +685,9 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 		break;
 
 	case PMIC_AXP:
-		gs->eldo1_1p8v = gmin_get_var_int(dev, false,
+		gs->eldo1_1p6v = gmin_get_var_int(dev, false,
 						  "eldo1_1p8v",
-						  ELDO1_1P8V);
+						  ELDO1_1P6V);
 		gs->eldo1_sel_reg = gmin_get_var_int(dev, false,
 						     "eldo1_sel_reg",
 						     ELDO1_SEL_REG);
@@ -767,8 +767,8 @@ static int axp_v1p8_on(struct device *dev, struct gmin_subdev *gs)
 	 */
 	usleep_range(110, 150);
 
-	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p8v,
-		ELDO_CTRL_REG, gs->eldo1_ctrl_shift, true);
+	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p6v,
+				ELDO_CTRL_REG, gs->eldo1_ctrl_shift, true);
 	if (ret)
 		return ret;
 
@@ -781,7 +781,7 @@ static int axp_v1p8_off(struct device *dev, struct gmin_subdev *gs)
 {
 	int ret;
 
-	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p8v,
+	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p6v,
 				ELDO_CTRL_REG, gs->eldo1_ctrl_shift, false);
 	if (ret)
 		return ret;
