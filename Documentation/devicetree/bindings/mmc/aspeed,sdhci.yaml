@@ -38,6 +38,9 @@ properties:
     maxItems: 1
     description: The SD/SDIO controller clock gate
 
+  aspeed-max-tap-delay:
+    description: The maximum delay in picosecond for SD/SDIO controller
+
 patternProperties:
   "^sdhci@[0-9a-f]+$":
     type: object
