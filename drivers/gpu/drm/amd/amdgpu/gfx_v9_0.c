@@ -63,9 +63,6 @@
 #define mmGCEA_PROBE_MAP                        0x070c
 #define mmGCEA_PROBE_MAP_BASE_IDX               0
 
-#define GFX9_RLCG_GC_WRITE_OLD			(0x8 << 28)
-#define GFX9_RLCG_GC_WRITE			(0x0 << 28)
-#define GFX9_RLCG_GC_READ			(0x1 << 28)
 #define GFX9_RLCG_VFGATE_DISABLED		0x4000000
 #define GFX9_RLCG_WRONG_OPERATION_TYPE		0x2000000
 #define GFX9_RLCG_NOT_IN_RANGE			0x1000000
@@ -815,35 +812,12 @@ static u32 gfx_v9_0_rlcg_rw(struct amdgpu_device *adev, u32 offset, u32 v, uint3
 	return ret;
 }
 
-static bool gfx_v9_0_get_rlcg_flag(struct amdgpu_device *adev, u32 acc_flags, u32 hwip,
-				int write, u32 *rlcg_flag)
-{
-
-	switch (hwip) {
-	case GC_HWIP:
-		if (amdgpu_sriov_reg_indirect_gc(adev)) {
-			*rlcg_flag = write ? GFX9_RLCG_GC_WRITE : GFX9_RLCG_GC_READ;
-
-			return true;
-		/* only in new version, AMDGPU_REGS_NO_KIQ and AMDGPU_REGS_RLC enabled simultaneously */
-		} else if ((acc_flags & AMDGPU_REGS_RLC) && !(acc_flags & AMDGPU_REGS_NO_KIQ) && write) {
-			*rlcg_flag = GFX9_RLCG_GC_WRITE_OLD;
-			return true;
-		}
-
-		break;
-	default:
-		return false;
-	}
-
-	return false;
-}
-
 static u32 gfx_v9_0_sriov_rreg(struct amdgpu_device *adev, u32 offset, u32 acc_flags, u32 hwip)
 {
 	u32 rlcg_flag;
 
-	if (!amdgpu_sriov_runtime(adev) && gfx_v9_0_get_rlcg_flag(adev, acc_flags, hwip, 0, &rlcg_flag))
+	if (!amdgpu_sriov_runtime(adev) &&
+	    amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))
 		return gfx_v9_0_rlcg_rw(adev, offset, 0, rlcg_flag);
 
 	if (acc_flags & AMDGPU_REGS_NO_KIQ)
@@ -857,7 +831,8 @@ static void gfx_v9_0_sriov_wreg(struct amdgpu_device *adev, u32 offset,
 {
 	u32 rlcg_flag;
 
-	if (!amdgpu_sriov_runtime(adev) && gfx_v9_0_get_rlcg_flag(adev, acc_flags, hwip, 1, &rlcg_flag)) {
+	if (!amdgpu_sriov_runtime(adev) &&
+	    amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, true, &rlcg_flag)) {
 		gfx_v9_0_rlcg_rw(adev, offset, value, rlcg_flag);
 		return;
 	}
