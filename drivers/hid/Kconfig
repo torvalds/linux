@@ -929,6 +929,13 @@ config PLAYSTATION_FF
 	  Say Y here if you would like to enable force feedback support for
 	  PlayStation game controllers.
 
+config HID_RAZER
+	tristate "Razer non-fully HID-compliant devices"
+	depends on HID
+	help
+	Support for Razer devices that are not fully compliant with the
+	HID standard.
+
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"
 	depends on HID
