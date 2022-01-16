@@ -206,6 +206,7 @@ enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
 #define LM90_HAVE_LOW		BIT(15)	/* low limits			*/
 #define LM90_HAVE_CONVRATE	BIT(16)	/* conversion rate		*/
 #define LM90_HAVE_REMOTE_EXT	BIT(17)	/* extended remote temperature	*/
+#define LM90_HAVE_FAULTQUEUE	BIT(18)	/* configurable samples count	*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	BIT(0)	/* local THERM limit tripped */
@@ -404,6 +405,8 @@ struct lm90_params {
 	u8 resolution;		/* 16-bit resolution (default 11 bit) */
 	u8 reg_status2;		/* 2nd status register (optional) */
 	u8 reg_local_ext;	/* Extended local temp register (optional) */
+	u8 faultqueue_mask;	/* fault queue bit mask */
+	u8 faultqueue_depth;	/* fault queue depth if mask is used */
 };
 
 static const struct lm90_params lm90_params[] = {
@@ -419,7 +422,8 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT
 		  | LM90_HAVE_PARTIAL_PEC | LM90_HAVE_ALARMS
-		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT
+		  | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
@@ -433,7 +437,7 @@ static const struct lm90_params lm90_params[] = {
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_CRIT | LM90_HAVE_PARTIAL_PEC
 		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
-		  | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_REMOTE_EXT | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 		.resolution = 10,
@@ -442,7 +446,8 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_CRIT | LM90_HAVE_PEC | LM90_HAVE_ALARMS
-		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT
+		  | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
@@ -451,7 +456,8 @@ static const struct lm90_params lm90_params[] = {
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_PEC
 		  | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT | LM90_HAVE_LOW
-		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT
+		  | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x1c7c,
 		.max_convrate = 11,
 		.resolution = 10,
@@ -461,7 +467,7 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT
 		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
-		  | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_REMOTE_EXT | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 	},
@@ -472,16 +478,22 @@ static const struct lm90_params lm90_params[] = {
 	[lm90] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW
-		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT
+		  | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
+		.faultqueue_mask = BIT(0),
+		.faultqueue_depth = 3,
 	},
 	[lm99] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_CRIT | LM90_HAVE_ALARMS | LM90_HAVE_LOW
-		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT
+		  | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
+		.faultqueue_mask = BIT(0),
+		.faultqueue_depth = 3,
 	},
 	[max1617] = {
 		.flags = LM90_HAVE_CONVRATE | LM90_HAVE_BROKEN_ALERT |
@@ -492,10 +504,12 @@ static const struct lm90_params lm90_params[] = {
 	},
 	[max6642] = {
 		.flags = LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXT_UNSIGNED
-		  | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_REMOTE_EXT | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x50,
 		.resolution = 10,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
+		.faultqueue_mask = BIT(4),
+		.faultqueue_depth = 2,
 	},
 	[max6646] = {
 		.flags = LM90_HAVE_CRIT | LM90_HAVE_BROKEN_ALERT
@@ -553,17 +567,20 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_EMERGENCY
 		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT
 		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
-		  | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_REMOTE_EXT | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x1c7c,
 		.max_convrate = 6,
 		.reg_status2 = MAX6696_REG_STATUS2,
 		.reg_local_ext = MAX6657_REG_LOCAL_TEMPL,
+		.faultqueue_mask = BIT(5),
+		.faultqueue_depth = 4,
 	},
 	[nct72] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
 		  | LM90_HAVE_CRIT | LM90_HAVE_PEC | LM90_HAVE_UNSIGNED_TEMP
-		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_LOW | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT
+		  | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 		.resolution = 10,
@@ -598,16 +615,18 @@ static const struct lm90_params lm90_params[] = {
 		 */
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT
 		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
-		  | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_REMOTE_EXT | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 		.reg_local_ext = SA56004_REG_LOCAL_TEMPL,
+		.faultqueue_mask = BIT(0),
+		.faultqueue_depth = 3,
 	},
 	[tmp451] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT
 		  | LM90_HAVE_UNSIGNED_TEMP | LM90_HAVE_ALARMS | LM90_HAVE_LOW
-		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_CONVRATE | LM90_HAVE_REMOTE_EXT | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.resolution = 12,
@@ -617,7 +636,7 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
 		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT
 		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
-		  | LM90_HAVE_REMOTE_EXT,
+		  | LM90_HAVE_REMOTE_EXT | LM90_HAVE_FAULTQUEUE,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.resolution = 12,
@@ -684,10 +703,13 @@ struct lm90_data {
 	u8 reg_status2;		/* 2nd status register (optional) */
 	u8 reg_local_ext;	/* local extension register offset */
 	u8 reg_remote_ext;	/* remote temperature low byte */
+	u8 faultqueue_mask;	/* fault queue mask */
+	u8 faultqueue_depth;	/* fault queue mask */
 
 	/* registers values */
 	u16 temp[TEMP_REG_NUM];
 	u8 temp_hyst;
+	u8 conalert;
 	u16 reported_alarms;	/* alarms reported as sysfs/udev events */
 	u16 current_alarms;	/* current alarms, reported by chip */
 	u16 alarms;		/* alarms not yet reported to user */
@@ -888,6 +910,26 @@ static int lm90_set_convrate(struct i2c_client *client, struct lm90_data *data,
 	return err;
 }
 
+static int lm90_set_faultqueue(struct i2c_client *client,
+			       struct lm90_data *data, int val)
+{
+	int err;
+
+	if (data->faultqueue_mask) {
+		err = lm90_update_confreg(data, val <= data->faultqueue_depth / 2 ?
+					  data->config & ~data->faultqueue_mask :
+					  data->config | data->faultqueue_mask);
+	} else {
+		static const u8 values[4] = {0, 2, 6, 0x0e};
+
+		data->conalert = (data->conalert & 0xf1) | values[val - 1];
+		err = lm90_write_reg(data->client, TMP451_REG_CONALERT,
+				     data->conalert);
+	}
+
+	return err;
+}
+
 static int lm90_update_limits(struct device *dev)
 {
 	struct lm90_data *data = dev_get_drvdata(dev);
@@ -909,6 +951,12 @@ static int lm90_update_limits(struct device *dev)
 		if (val < 0)
 			return val;
 		data->temp_hyst = val;
+	}
+	if ((data->flags & LM90_HAVE_FAULTQUEUE) && !data->faultqueue_mask) {
+		val = lm90_read_reg(client, TMP451_REG_CONALERT);
+		if (val < 0)
+			return val;
+		data->conalert = val;
 	}
 
 	val = lm90_read16(client, LM90_REG_REMOTE_LOWH,
@@ -1566,6 +1614,28 @@ static int lm90_chip_read(struct device *dev, u32 attr, int channel, long *val)
 	case hwmon_chip_alarms:
 		*val = data->alarms;
 		break;
+	case hwmon_chip_temp_samples:
+		if (data->faultqueue_mask) {
+			*val = (data->config & data->faultqueue_mask) ?
+				data->faultqueue_depth : 1;
+		} else {
+			switch (data->conalert & 0x0e) {
+			case 0x0:
+			default:
+				*val = 1;
+				break;
+			case 0x2:
+				*val = 2;
+				break;
+			case 0x6:
+				*val = 3;
+				break;
+			case 0xe:
+				*val = 4;
+				break;
+			}
+		}
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1590,6 +1660,9 @@ static int lm90_chip_write(struct device *dev, u32 attr, int channel, long val)
 		err = lm90_set_convrate(client, data,
 					clamp_val(val, 0, 100000));
 		break;
+	case hwmon_chip_temp_samples:
+		err = lm90_set_faultqueue(client, data, clamp_val(val, 1, 4));
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -1604,6 +1677,7 @@ static umode_t lm90_chip_is_visible(const void *data, u32 attr, int channel)
 {
 	switch (attr) {
 	case hwmon_chip_update_interval:
+	case hwmon_chip_temp_samples:
 		return 0644;
 	case hwmon_chip_alarms:
 		return 0444;
@@ -2607,7 +2681,8 @@ static int lm90_probe(struct i2c_client *client)
 		data->chip_config[0] |= HWMON_C_ALARMS;
 	if (data->flags & LM90_HAVE_CONVRATE)
 		data->chip_config[0] |= HWMON_C_UPDATE_INTERVAL;
-
+	if (data->flags & LM90_HAVE_FAULTQUEUE)
+		data->chip_config[0] |= HWMON_C_TEMP_SAMPLES;
 	data->info[1] = &data->temp_info;
 
 	info = &data->temp_info;
@@ -2658,6 +2733,8 @@ static int lm90_probe(struct i2c_client *client)
 			data->channel_config[2] |= HWMON_T_EMERGENCY_ALARM;
 	}
 
+	data->faultqueue_mask = lm90_params[data->kind].faultqueue_mask;
+	data->faultqueue_depth = lm90_params[data->kind].faultqueue_depth;
 	data->reg_local_ext = lm90_params[data->kind].reg_local_ext;
 	if (data->flags & LM90_HAVE_REMOTE_EXT)
 		data->reg_remote_ext = LM90_REG_REMOTE_TEMPL;
