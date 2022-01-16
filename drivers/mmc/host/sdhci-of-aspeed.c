@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/spinlock.h>
 
 #include "sdhci-pltfm.h"
@@ -37,12 +38,20 @@
 #define ASPEED_SDC_CAP2_SDR104         (1 * 32 + 1)
 #define ASPEED_SDC_CAP2_SDR50          (1 * 32 + 0)
 
+#define PROBE_AFTER_ASSET_DEASSERT 0x1
+
+struct aspeed_sdc_info {
+	uint32_t flag;
+};
+
 struct aspeed_sdc {
 	struct clk *clk;
 	struct resource *res;
+	struct reset_control *rst;
 
 	spinlock_t lock;
 	void __iomem *regs;
+	u32 max_tap_delay_ps;
 };
 
 struct aspeed_sdhci_tap_param {
@@ -78,6 +87,10 @@ struct aspeed_sdhci {
 	u32 width_mask;
 	struct mmc_clk_phase_map phase_map;
 	const struct aspeed_sdhci_phase_desc *phase_desc;
+};
+
+static struct aspeed_sdc_info ast2600_sdc_info = {
+	.flag = PROBE_AFTER_ASSET_DEASSERT
 };
 
 /*
@@ -160,56 +173,89 @@ aspeed_sdc_set_phase_taps(struct aspeed_sdc *sdc,
 
 #define PICOSECONDS_PER_SECOND		1000000000000ULL
 #define ASPEED_SDHCI_NR_TAPS		15
-/* Measured value with *handwave* environmentals and static loading */
-#define ASPEED_SDHCI_MAX_TAP_DELAY_PS	1253
+
 static int aspeed_sdhci_phase_to_tap(struct device *dev, unsigned long rate_hz,
-				     int phase_deg)
+			bool invert, int phase_deg, bool non_uniform_delay, u32 nr_taps)
 {
 	u64 phase_period_ps;
 	u64 prop_delay_ps;
 	u64 clk_period_ps;
-	unsigned int tap;
-	u8 inverted;
+	u32 tap = 0;
+	struct aspeed_sdc *sdc = dev_get_drvdata(dev->parent);
 
-	phase_deg %= 360;
+	if (sdc->max_tap_delay_ps == 0)
+		return 0;
 
-	if (phase_deg >= 180) {
-		inverted = ASPEED_SDHCI_TAP_PARAM_INVERT_CLK;
-		phase_deg -= 180;
-		dev_dbg(dev,
-			"Inverting clock to reduce phase correction from %d to %d degrees\n",
-			phase_deg + 180, phase_deg);
-	} else {
-		inverted = 0;
+	prop_delay_ps = sdc->max_tap_delay_ps / nr_taps;
+	clk_period_ps = div_u64(PICOSECONDS_PER_SECOND, (u64)rate_hz);
+
+	/*
+	 * For ast2600, if clock phase degree is negative, clock signal is
+	 * output from falling edge first by default. Namely, clock signal
+	 * is leading to data signal by 180 degrees at least.
+	 */
+	if (invert) {
+		if (phase_deg >= 180)
+			phase_deg -= 180;
+		else
+			return -EINVAL;
 	}
 
-	prop_delay_ps = ASPEED_SDHCI_MAX_TAP_DELAY_PS / ASPEED_SDHCI_NR_TAPS;
-	clk_period_ps = div_u64(PICOSECONDS_PER_SECOND, (u64)rate_hz);
 	phase_period_ps = div_u64((u64)phase_deg * clk_period_ps, 360ULL);
 
-	tap = div_u64(phase_period_ps, prop_delay_ps);
+	/*
+	 * The delay cell is non-uniform for eMMC controller.
+	 * The time period of the first tap is two times of others.
+	 */
+	if (non_uniform_delay && phase_period_ps > prop_delay_ps * 2) {
+		phase_period_ps -= prop_delay_ps * 2;
+		tap++;
+	}
+
+	tap += div_u64(phase_period_ps, prop_delay_ps);
 	if (tap > ASPEED_SDHCI_NR_TAPS) {
 		dev_dbg(dev,
-			 "Requested out of range phase tap %d for %d degrees of phase compensation at %luHz, clamping to tap %d\n",
-			 tap, phase_deg, rate_hz, ASPEED_SDHCI_NR_TAPS);
+			"Requested out of range phase tap %d for %d degrees of phase compensation at %luHz, clamping to tap %d\n",
+			tap, phase_deg, rate_hz, ASPEED_SDHCI_NR_TAPS);
 		tap = ASPEED_SDHCI_NR_TAPS;
 	}
 
-	return inverted | tap;
+	if (invert)
+		tap |= ASPEED_SDHCI_TAP_PARAM_INVERT_CLK;
+
+	return tap;
 }
 
-static void
-aspeed_sdhci_phases_to_taps(struct device *dev, unsigned long rate,
-			    const struct mmc_clk_phase *phases,
-			    struct aspeed_sdhci_tap_param *taps)
+static void aspeed_sdhci_phases_to_taps(
+				struct device *dev, unsigned long rate,
+				const struct mmc_clk_phase *phases,
+				struct aspeed_sdhci_tap_param *taps)
 {
+	int tmp_ret;
+	struct sdhci_host *host = dev->driver_data;
+	struct aspeed_sdhci *sdhci;
+
+	sdhci = sdhci_pltfm_priv(sdhci_priv(host));
 	taps->valid = phases->valid;
 
 	if (!phases->valid)
 		return;
 
-	taps->in = aspeed_sdhci_phase_to_tap(dev, rate, phases->in_deg);
-	taps->out = aspeed_sdhci_phase_to_tap(dev, rate, phases->out_deg);
+	tmp_ret = aspeed_sdhci_phase_to_tap(dev, rate, phases->inv_in_deg,
+				phases->in_deg, sdhci->phase_desc->non_uniform_delay,
+				sdhci->phase_desc->nr_taps);
+	if (tmp_ret < 0)
+		return;
+
+	taps->in = tmp_ret;
+
+	tmp_ret = aspeed_sdhci_phase_to_tap(dev, rate, phases->inv_out_deg,
+				phases->out_deg, sdhci->phase_desc->non_uniform_delay,
+				sdhci->phase_desc->nr_taps);
+	if (tmp_ret < 0)
+		return;
+
+	taps->out = tmp_ret;
 }
 
 static void
@@ -238,6 +284,10 @@ aspeed_sdhci_configure_phase(struct sdhci_host *host, unsigned long rate)
 
 static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
+#ifdef CONFIG_MACH_ASPEED_G6
+	sdhci_set_clock(host, clock);
+	aspeed_sdhci_configure_phase(host, host->max_clk);
+#else
 	struct sdhci_pltfm_host *pltfm_host;
 	unsigned long parent, bus;
 	struct aspeed_sdhci *sdhci;
@@ -286,6 +336,7 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	aspeed_sdhci_configure_phase(host, bus);
 
 	sdhci_enable_clk(host, clk);
+#endif
 }
 
 static unsigned int aspeed_sdhci_get_max_clock(struct sdhci_host *host)
@@ -341,9 +392,14 @@ static const struct sdhci_ops aspeed_sdhci_ops = {
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-static const struct sdhci_pltfm_data aspeed_sdhci_pdata = {
-	.ops = &aspeed_sdhci_ops,
+static struct sdhci_pltfm_data aspeed_sdhci_pdata = {
+#ifndef CONFIG_MACH_ASPEED_G6
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN | SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+#else
+	.ops = &aspeed_sdhci_ops,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+#endif
 };
 
 static inline int aspeed_sdhci_calculate_slot(struct aspeed_sdhci *dev,
@@ -569,11 +625,22 @@ static struct platform_driver aspeed_sdhci_driver = {
 	.remove		= aspeed_sdhci_remove,
 };
 
+static const struct of_device_id aspeed_sdc_of_match[] = {
+	{ .compatible = "aspeed,ast2400-sd-controller", },
+	{ .compatible = "aspeed,ast2500-sd-controller", },
+	{ .compatible = "aspeed,ast2600-sd-controller", .data = &ast2600_sdc_info},
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, aspeed_sdc_of_match);
+
 static int aspeed_sdc_probe(struct platform_device *pdev)
 
 {
 	struct device_node *parent, *child;
 	struct aspeed_sdc *sdc;
+	const struct of_device_id *match = NULL;
+	const struct aspeed_sdc_info *info = NULL;
 	int ret;
 
 	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
@@ -581,6 +648,23 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&sdc->lock);
+
+	match = of_match_device(aspeed_sdc_of_match, &pdev->dev);
+	if (!match)
+		return -ENODEV;
+
+	if (match->data)
+		info = match->data;
+
+	if (info) {
+		if (info->flag & PROBE_AFTER_ASSET_DEASSERT) {
+			sdc->rst = devm_reset_control_get(&pdev->dev, NULL);
+			if (!IS_ERR(sdc->rst)) {
+				reset_control_assert(sdc->rst);
+				reset_control_deassert(sdc->rst);
+			}
+		}
+	}
 
 	sdc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sdc->clk))
@@ -598,6 +682,11 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(sdc->regs);
 		goto err_clk;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "aspeed-max-tap-delay",
+		&sdc->max_tap_delay_ps);
+	if (ret)
+		sdc->max_tap_delay_ps = 0;
 
 	dev_set_drvdata(&pdev->dev, sdc);
 
@@ -628,15 +717,6 @@ static int aspeed_sdc_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id aspeed_sdc_of_match[] = {
-	{ .compatible = "aspeed,ast2400-sd-controller", },
-	{ .compatible = "aspeed,ast2500-sd-controller", },
-	{ .compatible = "aspeed,ast2600-sd-controller", },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(of, aspeed_sdc_of_match);
 
 static struct platform_driver aspeed_sdc_driver = {
 	.driver		= {

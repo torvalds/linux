@@ -496,13 +496,21 @@
 
 &emmc_controller {
 	status = "okay";
+	aspeed-max-tap-delay = <736>;
+	mmc-hs200-1_8v;
 };
 
 &emmc {
+	status = "okay";
 	non-removable;
 	bus-width = <4>;
 	max-frequency = <100000000>;
-	clk-phase-mmc-hs200 = <9>, <225>;
+	/* <0 (MHz * 0.26496)>, <1 (MHz * 0.04968 + 180)> */
+	clk-phase-mmc-hs200 = <0 27>, <1 185>;
+	/*
+	 * max-frequency = <200000000>;
+	 * clk-phase-mmc-hs200 = <0 53>, <1 190>;
+	 */
 };
 
 &rtc {
@@ -732,6 +740,7 @@
 
 &sdc {
 	status = "okay";
+	aspeed-max-tap-delay = <9000>;
 };
 
 #if 0
@@ -766,7 +775,8 @@
 	sdhci,wp-inverted;
 	vmmc-supply = <&vcc_sdhci0>;
 	vqmmc-supply = <&vccq_sdhci0>;
-	clk-phase-sd-hs = <7>, <200>;
+	/* <0 (MHz * 1.296)>, <1 (MHz * 2.376> */
+	clk-phase-sd-hs = <0 130>, <0 238>;
 };
 
 &sdhci1 {
@@ -778,7 +788,8 @@
 	sdhci,wp-inverted;
 	vmmc-supply = <&vcc_sdhci1>;
 	vqmmc-supply = <&vccq_sdhci1>;
-	clk-phase-sd-hs = <7>, <200>;
+	/* <0 (MHz * 1.296)>, <1 (MHz * 1.296> */
+	clk-phase-sd-hs = <0 130>, <0 130>;
 };
 
 &bmc_dev {

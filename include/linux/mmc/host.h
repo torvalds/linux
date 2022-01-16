@@ -82,7 +82,9 @@ struct mmc_ios {
 
 struct mmc_clk_phase {
 	bool valid;
+	bool inv_in_deg;
 	u16 in_deg;
+	bool inv_out_deg;
 	u16 out_deg;
 };
 
