@@ -461,6 +461,7 @@ static struct attribute *procfs_queue_attrs[] = {
 	&attr_queue_gpuid,
 	NULL
 };
+ATTRIBUTE_GROUPS(procfs_queue);
 
 static const struct sysfs_ops procfs_queue_ops = {
 	.show = kfd_procfs_queue_show,
@@ -468,7 +469,7 @@ static const struct sysfs_ops procfs_queue_ops = {
 
 static struct kobj_type procfs_queue_type = {
 	.sysfs_ops = &procfs_queue_ops,
-	.default_attrs = procfs_queue_attrs,
+	.default_groups = procfs_queue_groups,
 };
 
 static const struct sysfs_ops procfs_stats_ops = {
