@@ -58,11 +58,11 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 			       const struct mtd_partition **pparts,
 			       struct mtd_part_parser_data *data)
 {
+	size_t len = SMEM_FLASH_PTABLE_HDR_LEN;
+	int ret, i, j, tmpparts, numparts = 0;
 	struct smem_flash_pentry *pentry;
 	struct smem_flash_ptable *ptable;
-	size_t len = SMEM_FLASH_PTABLE_HDR_LEN;
 	struct mtd_partition *parts;
-	int ret, i, numparts;
 	char *name, *c;
 
 	if (IS_ENABLED(CONFIG_MTD_SPI_NOR_USE_4K_SECTORS)
@@ -87,8 +87,8 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 	}
 
 	/* Ensure that # of partitions is less than the max we have allocated */
-	numparts = le32_to_cpu(ptable->numparts);
-	if (numparts > SMEM_FLASH_PTABLE_MAX_PARTS_V4) {
+	tmpparts = le32_to_cpu(ptable->numparts);
+	if (tmpparts > SMEM_FLASH_PTABLE_MAX_PARTS_V4) {
 		pr_err("Partition numbers exceed the max limit\n");
 		return -EINVAL;
 	}
@@ -116,11 +116,17 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 		return PTR_ERR(ptable);
 	}
 
+	for (i = 0; i < tmpparts; i++) {
+		pentry = &ptable->pentry[i];
+		if (pentry->name[0] != '\0')
+			numparts++;
+	}
+
 	parts = kcalloc(numparts, sizeof(*parts), GFP_KERNEL);
 	if (!parts)
 		return -ENOMEM;
 
-	for (i = 0; i < numparts; i++) {
+	for (i = 0, j = 0; i < tmpparts; i++) {
 		pentry = &ptable->pentry[i];
 		if (pentry->name[0] == '\0')
 			continue;
@@ -135,24 +141,25 @@ static int parse_qcomsmem_part(struct mtd_info *mtd,
 		for (c = name; *c != '\0'; c++)
 			*c = tolower(*c);
 
-		parts[i].name = name;
-		parts[i].offset = le32_to_cpu(pentry->offset) * mtd->erasesize;
-		parts[i].mask_flags = pentry->attr;
-		parts[i].size = le32_to_cpu(pentry->length) * mtd->erasesize;
+		parts[j].name = name;
+		parts[j].offset = le32_to_cpu(pentry->offset) * mtd->erasesize;
+		parts[j].mask_flags = pentry->attr;
+		parts[j].size = le32_to_cpu(pentry->length) * mtd->erasesize;
 		pr_debug("%d: %s offs=0x%08x size=0x%08x attr:0x%08x\n",
 			 i, pentry->name, le32_to_cpu(pentry->offset),
 			 le32_to_cpu(pentry->length), pentry->attr);
+		j++;
 	}
 
 	pr_debug("SMEM partition table found: ver: %d len: %d\n",
-		 le32_to_cpu(ptable->version), numparts);
+		 le32_to_cpu(ptable->version), tmpparts);
 	*pparts = parts;
 
 	return numparts;
 
 out_free_parts:
-	while (--i >= 0)
-		kfree(parts[i].name);
+	while (--j >= 0)
+		kfree(parts[j].name);
 	kfree(parts);
 	*pparts = NULL;
 
