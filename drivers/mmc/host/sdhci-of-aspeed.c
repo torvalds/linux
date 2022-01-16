@@ -62,6 +62,8 @@ struct aspeed_sdhci_tap_desc {
 struct aspeed_sdhci_phase_desc {
 	struct aspeed_sdhci_tap_desc in;
 	struct aspeed_sdhci_tap_desc out;
+	bool non_uniform_delay;
+	u32 nr_taps;
 };
 
 struct aspeed_sdhci_pdata {
@@ -492,6 +494,8 @@ static const struct aspeed_sdhci_phase_desc ast2600_sdhci_phase[] = {
 			.enable_mask = ASPEED_SDC_S0_PHASE_OUT_EN,
 			.enable_value = 3,
 		},
+		.non_uniform_delay = false,
+		.nr_taps = 15,
 	},
 	/* SDHCI/Slot 1 */
 	[1] = {
@@ -505,6 +509,33 @@ static const struct aspeed_sdhci_phase_desc ast2600_sdhci_phase[] = {
 			.enable_mask = ASPEED_SDC_S1_PHASE_OUT_EN,
 			.enable_value = 3,
 		},
+		.non_uniform_delay = false,
+		.nr_taps = 15,
+	},
+};
+
+static const struct aspeed_sdhci_phase_desc ast2600_emmc_phase[] = {
+	/* eMMC slot 0 */
+	[0] = {
+		.in = {
+			.tap_mask = ASPEED_SDC_S0_PHASE_IN,
+			.enable_mask = ASPEED_SDC_S0_PHASE_IN_EN,
+			.enable_value = 1,
+		},
+		.out = {
+			.tap_mask = ASPEED_SDC_S0_PHASE_OUT,
+			.enable_mask = ASPEED_SDC_S0_PHASE_OUT_EN,
+			.enable_value = 3,
+		},
+
+		/*
+		 * There are 15 taps recorded in AST2600 datasheet.
+		 * But, actually, the time period of the first tap
+		 * is two times of others. Thus, 16 tap is used to
+		 * emulate this situation.
+		 */
+		.non_uniform_delay = true,
+		.nr_taps = 16,
 	},
 };
 
@@ -514,10 +545,17 @@ static const struct aspeed_sdhci_pdata ast2600_sdhci_pdata = {
 	.nr_phase_descs = ARRAY_SIZE(ast2600_sdhci_phase),
 };
 
+static const struct aspeed_sdhci_pdata ast2600_emmc_pdata = {
+	.clk_div_start = 1,
+	.phase_desc = ast2600_emmc_phase,
+	.nr_phase_descs = ARRAY_SIZE(ast2600_emmc_phase),
+};
+
 static const struct of_device_id aspeed_sdhci_of_match[] = {
 	{ .compatible = "aspeed,ast2400-sdhci", .data = &ast2400_sdhci_pdata, },
 	{ .compatible = "aspeed,ast2500-sdhci", .data = &ast2400_sdhci_pdata, },
 	{ .compatible = "aspeed,ast2600-sdhci", .data = &ast2600_sdhci_pdata, },
+	{ .compatible = "aspeed,ast2600-emmc", .data = &ast2600_emmc_pdata, },
 	{ }
 };
 
