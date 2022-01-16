@@ -476,7 +476,7 @@ err_power_down:
 
 	return ret;
 }
-EXPORT_SYMBOL(kxsd9_common_probe);
+EXPORT_SYMBOL_NS(kxsd9_common_probe, IIO_KXSD9);
 
 void kxsd9_common_remove(struct device *dev)
 {
@@ -490,7 +490,7 @@ void kxsd9_common_remove(struct device *dev)
 	pm_runtime_disable(dev);
 	kxsd9_power_down(st);
 }
-EXPORT_SYMBOL(kxsd9_common_remove);
+EXPORT_SYMBOL_NS(kxsd9_common_remove, IIO_KXSD9);
 
 #ifdef CONFIG_PM
 static int kxsd9_runtime_suspend(struct device *dev)
@@ -516,7 +516,7 @@ const struct dev_pm_ops kxsd9_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(kxsd9_runtime_suspend,
 			   kxsd9_runtime_resume, NULL)
 };
-EXPORT_SYMBOL(kxsd9_dev_pm_ops);
+EXPORT_SYMBOL_NS(kxsd9_dev_pm_ops, IIO_KXSD9);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Kionix KXSD9 driver");
