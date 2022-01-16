@@ -226,6 +226,7 @@ F:	drivers/net/ethernet/8390/
 M:	Eric Van Hensbergen <ericvh@gmail.com>
 M:	Latchesar Ionkov <lucho@ionkov.net>
 M:	Dominique Martinet <asmadeus@codewreck.org>
+R:	Christian Schoenebeck <linux_oss@crudebyte.com>
 L:	v9fs-developer@lists.sourceforge.net
 S:	Maintained
 W:	http://swik.net/v9fs
