@@ -118,6 +118,10 @@ static const char *pmic_name[] = {
 	[PMIC_CRYSTALCOVE]	= "Crystal Cove PMIC",
 };
 
+static DEFINE_MUTEX(gmin_regulator_mutex);
+static int gmin_v1p8_enable_count;
+static int gmin_v2p8_enable_count;
+
 /* The atomisp uses type==0 for the end-of-list marker, so leave space. */
 static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
 
@@ -851,38 +855,58 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 
 	gs->v1p8_on = on;
 
+	ret = 0;
+	mutex_lock(&gmin_regulator_mutex);
+	if (on) {
+		gmin_v1p8_enable_count++;
+		if (gmin_v1p8_enable_count > 1)
+			goto out; /* Already on */
+	} else {
+		gmin_v1p8_enable_count--;
+		if (gmin_v1p8_enable_count > 0)
+			goto out; /* Still needed */
+	}
+
 	if (gs->v1p8_gpio >= 0)
 		gpio_set_value(gs->v1p8_gpio, on);
 
 	if (gs->v1p8_reg) {
 		regulator_set_voltage(gs->v1p8_reg, 1800000, 1800000);
 		if (on)
-			return regulator_enable(gs->v1p8_reg);
+			ret = regulator_enable(gs->v1p8_reg);
 		else
-			return regulator_disable(gs->v1p8_reg);
+			ret = regulator_disable(gs->v1p8_reg);
+
+		goto out;
 	}
 
 	switch (pmic_id) {
 	case PMIC_AXP:
 		if (on)
-			return axp_v1p8_on(subdev->dev, gs);
+			ret = axp_v1p8_on(subdev->dev, gs);
 		else
-			return axp_v1p8_off(subdev->dev, gs);
+			ret = axp_v1p8_off(subdev->dev, gs);
+		break;
 	case PMIC_TI:
 		value = on ? LDO_1P8V_ON : LDO_1P8V_OFF;
 
-		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				      LDO10_REG, value, 0xff);
+		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				     LDO10_REG, value, 0xff);
+		break;
 	case PMIC_CRYSTALCOVE:
 		value = on ? CRYSTAL_ON : CRYSTAL_OFF;
 
-		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				      CRYSTAL_1P8V_REG, value, 0xff);
+		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				     CRYSTAL_1P8V_REG, value, 0xff);
+		break;
 	default:
-		dev_err(subdev->dev, "Couldn't set power mode for v1p2\n");
+		dev_err(subdev->dev, "Couldn't set power mode for v1p8\n");
+		ret = -EINVAL;
 	}
 
-	return -EINVAL;
+out:
+	mutex_unlock(&gmin_regulator_mutex);
+	return ret;
 }
 
 static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
@@ -908,37 +932,57 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 		return 0;
 	gs->v2p8_on = on;
 
+	ret = 0;
+	mutex_lock(&gmin_regulator_mutex);
+	if (on) {
+		gmin_v2p8_enable_count++;
+		if (gmin_v2p8_enable_count > 1)
+			goto out; /* Already on */
+	} else {
+		gmin_v2p8_enable_count--;
+		if (gmin_v2p8_enable_count > 0)
+			goto out; /* Still needed */
+	}
+
 	if (gs->v2p8_gpio >= 0)
 		gpio_set_value(gs->v2p8_gpio, on);
 
 	if (gs->v2p8_reg) {
 		regulator_set_voltage(gs->v2p8_reg, 2900000, 2900000);
 		if (on)
-			return regulator_enable(gs->v2p8_reg);
+			ret = regulator_enable(gs->v2p8_reg);
 		else
-			return regulator_disable(gs->v2p8_reg);
+			ret = regulator_disable(gs->v2p8_reg);
+
+		goto out;
 	}
 
 	switch (pmic_id) {
 	case PMIC_AXP:
-		return axp_regulator_set(subdev->dev, gs, ALDO1_SEL_REG,
-					 ALDO1_2P8V, ALDO1_CTRL3_REG,
-					 ALDO1_CTRL3_SHIFT, on);
+		ret = axp_regulator_set(subdev->dev, gs, ALDO1_SEL_REG,
+					ALDO1_2P8V, ALDO1_CTRL3_REG,
+					ALDO1_CTRL3_SHIFT, on);
+		break;
 	case PMIC_TI:
 		value = on ? LDO_2P8V_ON : LDO_2P8V_OFF;
 
-		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				      LDO9_REG, value, 0xff);
+		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				     LDO9_REG, value, 0xff);
+		break;
 	case PMIC_CRYSTALCOVE:
 		value = on ? CRYSTAL_ON : CRYSTAL_OFF;
 
-		return gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
-				      CRYSTAL_2P8V_REG, value, 0xff);
+		ret = gmin_i2c_write(subdev->dev, gs->pwm_i2c_addr,
+				     CRYSTAL_2P8V_REG, value, 0xff);
+		break;
 	default:
-		dev_err(subdev->dev, "Couldn't set power mode for v1p2\n");
+		dev_err(subdev->dev, "Couldn't set power mode for v2p8\n");
+		ret = -EINVAL;
 	}
 
-	return -EINVAL;
+out:
+	mutex_unlock(&gmin_regulator_mutex);
+	return ret;
 }
 
 static int gmin_acpi_pm_ctrl(struct v4l2_subdev *subdev, int on)
