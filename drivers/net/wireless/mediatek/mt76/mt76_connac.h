@@ -159,6 +159,12 @@ static inline u8 mt76_connac_chan_bw(struct cfg80211_chan_def *chandef)
 	return width_to_bw[chandef->width];
 }
 
+static inline u8 mt76_connac_lmac_mapping(u8 ac)
+{
+	/* LMAC uses the reverse order of mac80211 AC indexes */
+	return 3 - ac;
+}
+
 int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm);
 void mt76_connac_power_save_sched(struct mt76_phy *phy,
 				  struct mt76_connac_pm *pm);

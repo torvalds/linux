@@ -272,12 +272,6 @@ mt7921_hw_dev(struct ieee80211_hw *hw)
 #define mt7921_mutex_release(dev)	\
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
-static inline u8 mt7921_lmac_mapping(struct mt7921_dev *dev, u8 ac)
-{
-	/* LMAC uses the reverse order of mac80211 AC indexes */
-	return 3 - ac;
-}
-
 extern const struct ieee80211_ops mt7921_ops;
 extern struct pci_driver mt7921_pci_driver;
 

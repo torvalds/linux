@@ -378,12 +378,6 @@ mt7915_ext_phy(struct mt7915_dev *dev)
 	return phy->priv;
 }
 
-static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
-{
-	/* LMAC uses the reverse order of mac80211 AC indexes */
-	return 3 - ac;
-}
-
 extern const struct ieee80211_ops mt7915_ops;
 extern const struct mt76_testmode_ops mt7915_testmode_ops;
 extern struct pci_driver mt7915_pci_driver;

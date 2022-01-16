@@ -250,7 +250,7 @@ done:
 	mt7915_tm_set_slot_time(phy, slot_time, sifs);
 
 	return mt7915_tm_set_wmm_qid(dev,
-				     mt7915_lmac_mapping(dev, IEEE80211_AC_BE),
+				     mt76_connac_lmac_mapping(IEEE80211_AC_BE),
 				     aifsn, cw, cw, 0);
 }
 
