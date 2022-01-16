@@ -5117,11 +5117,25 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 				 struct drm_display_mode *adj_mode)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_crtc_state *new_crtc_state = container_of(mode, struct drm_crtc_state, mode);
 
 	drm_mode_set_crtcinfo(adj_mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		adj_mode->crtc_clock *= 2;
+
+	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if ((new_crtc_state->connector_mask & drm_connector_mask(connector)) &&
+		    ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
+		     (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA))) {
+			drm_connector_list_iter_end(&conn_iter);
+			return true;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (adj_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)
 		adj_mode->crtc_clock = DIV_ROUND_UP(clk_round_rate(vp->dclk,
