@@ -7477,10 +7477,10 @@ static void dedupe_in_progress_warn(const struct btrfs_root *root)
 		      root->root_key.objectid, root->dedupe_in_progress);
 }
 
-long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
+long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 {
 	int ret = 0;
-	struct btrfs_root *send_root = BTRFS_I(file_inode(mnt_file))->root;
+	struct btrfs_root *send_root = BTRFS_I(inode)->root;
 	struct btrfs_fs_info *fs_info = send_root->fs_info;
 	struct btrfs_root *clone_root;
 	struct send_ctx *sctx = NULL;

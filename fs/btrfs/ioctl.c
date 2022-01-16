@@ -2227,10 +2227,9 @@ free_args:
 	return ret;
 }
 
-static noinline int btrfs_ioctl_subvol_getflags(struct file *file,
+static noinline int btrfs_ioctl_subvol_getflags(struct inode *inode,
 						void __user *arg)
 {
-	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
@@ -2560,12 +2559,11 @@ err:
 	return ret;
 }
 
-static noinline int btrfs_ioctl_tree_search(struct file *file,
-					   void __user *argp)
+static noinline int btrfs_ioctl_tree_search(struct inode *inode,
+					    void __user *argp)
 {
 	struct btrfs_ioctl_search_args __user *uargs;
 	struct btrfs_ioctl_search_key sk;
-	struct inode *inode;
 	int ret;
 	size_t buf_size;
 
@@ -2579,7 +2577,6 @@ static noinline int btrfs_ioctl_tree_search(struct file *file,
 
 	buf_size = sizeof(uargs->buf);
 
-	inode = file_inode(file);
 	ret = search_ioctl(inode, &sk, &buf_size, uargs->buf);
 
 	/*
@@ -2594,12 +2591,11 @@ static noinline int btrfs_ioctl_tree_search(struct file *file,
 	return ret;
 }
 
-static noinline int btrfs_ioctl_tree_search_v2(struct file *file,
+static noinline int btrfs_ioctl_tree_search_v2(struct inode *inode,
 					       void __user *argp)
 {
 	struct btrfs_ioctl_search_args_v2 __user *uarg;
 	struct btrfs_ioctl_search_args_v2 args;
-	struct inode *inode;
 	int ret;
 	size_t buf_size;
 	const size_t buf_limit = SZ_16M;
@@ -2618,7 +2614,6 @@ static noinline int btrfs_ioctl_tree_search_v2(struct file *file,
 	if (buf_size > buf_limit)
 		buf_size = buf_limit;
 
-	inode = file_inode(file);
 	ret = search_ioctl(inode, &args.key, &buf_size,
 			   (char __user *)(&uarg->buf[0]));
 	if (ret == 0 && copy_to_user(&uarg->key, &args.key, sizeof(args.key)))
@@ -2952,7 +2947,7 @@ static int btrfs_ioctl_ino_lookup_user(struct file *file, void __user *argp)
 }
 
 /* Get the subvolume information in BTRFS_ROOT_ITEM and BTRFS_ROOT_BACKREF */
-static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
+static int btrfs_ioctl_get_subvol_info(struct inode *inode, void __user *argp)
 {
 	struct btrfs_ioctl_get_subvol_info_args *subvol_info;
 	struct btrfs_fs_info *fs_info;
@@ -2964,7 +2959,6 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 	struct extent_buffer *leaf;
 	unsigned long item_off;
 	unsigned long item_len;
-	struct inode *inode;
 	int slot;
 	int ret = 0;
 
@@ -2978,7 +2972,6 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 		return -ENOMEM;
 	}
 
-	inode = file_inode(file);
 	fs_info = BTRFS_I(inode)->root->fs_info;
 
 	/* Get root_item of inode's subvolume */
@@ -3072,12 +3065,11 @@ out_free:
  * Return ROOT_REF information of the subvolume containing this inode
  * except the subvolume name.
  */
-static int btrfs_ioctl_get_subvol_rootref(struct btrfs_root *subvol_root,
+static int btrfs_ioctl_get_subvol_rootref(struct btrfs_root *root,
 					  void __user *argp)
 {
 	struct btrfs_ioctl_get_subvol_rootref_args *rootrefs;
 	struct btrfs_root_ref *rref;
-	struct btrfs_root *root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
@@ -3096,14 +3088,13 @@ static int btrfs_ioctl_get_subvol_rootref(struct btrfs_root *subvol_root,
 		return PTR_ERR(rootrefs);
 	}
 
-	root = subvol_root->fs_info->tree_root;
-	objectid = subvol_root->root_key.objectid;
-
+	objectid = root->root_key.objectid;
 	key.objectid = objectid;
 	key.type = BTRFS_ROOT_REF_KEY;
 	key.offset = rootrefs->min_treeid;
 	found = 0;
 
+	root = root->fs_info->tree_root;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0) {
 		goto out;
@@ -5143,7 +5134,7 @@ out_drop_write:
 	return ret;
 }
 
-static int _btrfs_ioctl_send(struct file *file, void __user *argp, bool compat)
+static int _btrfs_ioctl_send(struct inode *inode, void __user *argp, bool compat)
 {
 	struct btrfs_ioctl_send_args *arg;
 	int ret;
@@ -5173,7 +5164,7 @@ static int _btrfs_ioctl_send(struct file *file, void __user *argp, bool compat)
 		if (IS_ERR(arg))
 			return PTR_ERR(arg);
 	}
-	ret = btrfs_ioctl_send(file, arg);
+	ret = btrfs_ioctl_send(inode, arg);
 	kfree(arg);
 	return ret;
 }
@@ -5208,7 +5199,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_SNAP_DESTROY_V2:
 		return btrfs_ioctl_snap_destroy(file, argp, true);
 	case BTRFS_IOC_SUBVOL_GETFLAGS:
-		return btrfs_ioctl_subvol_getflags(file, argp);
+		return btrfs_ioctl_subvol_getflags(inode, argp);
 	case BTRFS_IOC_SUBVOL_SETFLAGS:
 		return btrfs_ioctl_subvol_setflags(file, argp);
 	case BTRFS_IOC_DEFAULT_SUBVOL:
@@ -5232,9 +5223,9 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_BALANCE:
 		return btrfs_ioctl_balance(file, NULL);
 	case BTRFS_IOC_TREE_SEARCH:
-		return btrfs_ioctl_tree_search(file, argp);
+		return btrfs_ioctl_tree_search(inode, argp);
 	case BTRFS_IOC_TREE_SEARCH_V2:
-		return btrfs_ioctl_tree_search_v2(file, argp);
+		return btrfs_ioctl_tree_search_v2(inode, argp);
 	case BTRFS_IOC_INO_LOOKUP:
 		return btrfs_ioctl_ino_lookup(root, argp);
 	case BTRFS_IOC_INO_PATHS:
@@ -5283,10 +5274,10 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_set_received_subvol_32(file, argp);
 #endif
 	case BTRFS_IOC_SEND:
-		return _btrfs_ioctl_send(file, argp, false);
+		return _btrfs_ioctl_send(inode, argp, false);
 #if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
 	case BTRFS_IOC_SEND_32:
-		return _btrfs_ioctl_send(file, argp, true);
+		return _btrfs_ioctl_send(inode, argp, true);
 #endif
 	case BTRFS_IOC_GET_DEV_STATS:
 		return btrfs_ioctl_get_dev_stats(fs_info, argp);
@@ -5313,7 +5304,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_SET_FEATURES:
 		return btrfs_ioctl_set_features(file, argp);
 	case BTRFS_IOC_GET_SUBVOL_INFO:
-		return btrfs_ioctl_get_subvol_info(file, argp);
+		return btrfs_ioctl_get_subvol_info(inode, argp);
 	case BTRFS_IOC_GET_SUBVOL_ROOTREF:
 		return btrfs_ioctl_get_subvol_rootref(root, argp);
 	case BTRFS_IOC_INO_LOOKUP_USER:
