@@ -306,9 +306,14 @@ static inline void mapping_set_large_folios(struct address_space *mapping)
 	__set_bit(AS_LARGE_FOLIO_SUPPORT, &mapping->flags);
 }
 
+/*
+ * Large folio support currently depends on THP.  These dependencies are
+ * being worked on but are not yet fixed.
+ */
 static inline bool mapping_large_folio_support(struct address_space *mapping)
 {
-	return test_bit(AS_LARGE_FOLIO_SUPPORT, &mapping->flags);
+	return IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
+		test_bit(AS_LARGE_FOLIO_SUPPORT, &mapping->flags);
 }
 
 static inline int filemap_nr_thps(struct address_space *mapping)
