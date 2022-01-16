@@ -4295,16 +4295,6 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 	struct dfs_cache_tgt_iterator *tit;
 	bool target_match;
 
-	/* only send once per connect */
-	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->tidStatus != CifsNew &&
-	    tcon->tidStatus != CifsNeedTcon) {
-		spin_unlock(&cifs_tcp_ses_lock);
-		return 0;
-	}
-	tcon->tidStatus = CifsInTcon;
-	spin_unlock(&cifs_tcp_ses_lock);
-
 	extract_unc_hostname(server->hostname, &tcp_host, &tcp_host_len);
 
 	tit = dfs_cache_get_tgt_iterator(tl);
