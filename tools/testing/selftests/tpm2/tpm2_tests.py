@@ -315,3 +315,19 @@ class AsyncTest(unittest.TestCase):
         log.debug("Calling get_cap in a NON_BLOCKING mode")
         async_client.get_cap(tpm2.TPM2_CAP_HANDLES, tpm2.HR_LOADED_SESSION)
         async_client.close()
+
+    def test_flush_invalid_context(self):
+        log = logging.getLogger(__name__)
+        log.debug(sys._getframe().f_code.co_name)
+
+        async_client = tpm2.Client(tpm2.Client.FLAG_SPACE | tpm2.Client.FLAG_NONBLOCK)
+        log.debug("Calling flush_context passing in an invalid handle ")
+        handle = 0x80123456
+        rc = 0
+        try:
+            async_client.flush_context(handle)
+        except OSError as e:
+            rc = e.errno
+
+        self.assertEqual(rc, 22)
+        async_client.close()
