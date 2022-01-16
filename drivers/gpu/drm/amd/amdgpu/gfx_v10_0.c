@@ -180,11 +180,6 @@
 #define mmRLC_SPARE_INT_0_Sienna_Cichlid               0x4ca5
 #define mmRLC_SPARE_INT_0_Sienna_Cichlid_BASE_IDX      1
 
-#define GFX_RLCG_GC_WRITE_OLD	(0x8 << 28)
-#define GFX_RLCG_GC_WRITE	(0x0 << 28)
-#define GFX_RLCG_GC_READ	(0x1 << 28)
-#define GFX_RLCG_MMHUB_WRITE	(0x2 << 28)
-
 #define RLCG_ERROR_REPORT_ENABLED(adev) \
 	(amdgpu_sriov_reg_indirect_mmhub(adev) || amdgpu_sriov_reg_indirect_gc(adev))
 
@@ -1463,38 +1458,6 @@ static const struct soc15_reg_golden golden_settings_gc_10_1_2[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmUTCL1_CTRL, 0xffffffff, 0x00c00000)
 };
 
-static bool gfx_v10_get_rlcg_flag(struct amdgpu_device *adev, u32 acc_flags, u32 hwip,
-				 int write, u32 *rlcg_flag)
-{
-	switch (hwip) {
-	case GC_HWIP:
-		if (amdgpu_sriov_reg_indirect_gc(adev)) {
-			*rlcg_flag = write ? GFX_RLCG_GC_WRITE : GFX_RLCG_GC_READ;
-
-			return true;
-		/* only in new version, AMDGPU_REGS_NO_KIQ and AMDGPU_REGS_RLC enabled simultaneously */
-		} else if ((acc_flags & AMDGPU_REGS_RLC) && !(acc_flags & AMDGPU_REGS_NO_KIQ)) {
-			*rlcg_flag = GFX_RLCG_GC_WRITE_OLD;
-
-			return true;
-		}
-
-		break;
-	case MMHUB_HWIP:
-		if (amdgpu_sriov_reg_indirect_mmhub(adev) &&
-		    (acc_flags & AMDGPU_REGS_RLC) && write) {
-			*rlcg_flag = GFX_RLCG_MMHUB_WRITE;
-			return true;
-		}
-
-		break;
-	default:
-		DRM_DEBUG("Not program register by RLCG\n");
-	}
-
-	return false;
-}
-
 static u32 gfx_v10_rlcg_rw(struct amdgpu_device *adev, u32 offset, u32 v, uint32_t flag)
 {
 	static void *scratch_reg0;
@@ -1575,7 +1538,7 @@ static void gfx_v10_sriov_wreg(struct amdgpu_device *adev, u32 offset, u32 value
 	u32 rlcg_flag;
 
 	if (!amdgpu_sriov_runtime(adev) &&
-	    gfx_v10_get_rlcg_flag(adev, acc_flags, hwip, 1, &rlcg_flag)) {
+	    amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, true, &rlcg_flag)) {
 		gfx_v10_rlcg_rw(adev, offset, value, rlcg_flag);
 		return;
 	}
@@ -1591,7 +1554,7 @@ static u32 gfx_v10_sriov_rreg(struct amdgpu_device *adev, u32 offset, u32 acc_fl
 	u32 rlcg_flag;
 
 	if (!amdgpu_sriov_runtime(adev) &&
-	    gfx_v10_get_rlcg_flag(adev, acc_flags, hwip, 0, &rlcg_flag))
+	    amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))
 		return gfx_v10_rlcg_rw(adev, offset, 0, rlcg_flag);
 
 	if (acc_flags & AMDGPU_REGS_NO_KIQ)
