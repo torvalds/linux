@@ -741,7 +741,7 @@ static int axp_regulator_set(struct device *dev, struct gmin_subdev *gs,
 
 	val = on ? 1 << shift : 0;
 
-	ret = gmin_i2c_write(dev, gs->pwm_i2c_addr, sel_reg, val, 1 << shift);
+	ret = gmin_i2c_write(dev, gs->pwm_i2c_addr, ctrl_reg, val, 1 << shift);
 	if (ret)
 		return ret;
 
