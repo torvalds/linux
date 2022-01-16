@@ -1467,7 +1467,7 @@ static bool is_valid_device(struct pci_dev *pdev, const struct pci_device_id *id
 	 * remove the if once the driver become generic
 	 */
 
-#if defined(ISP2400)
+#ifndef ISP2401
 	if (IS_ISP2401) {
 		dev_err(&pdev->dev, "Support for %s (ISP2401) was disabled at compile time\n",
 			name);
