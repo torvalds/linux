@@ -1485,6 +1485,15 @@ config SND_SOC_TAS5720
 	  Enable support for Texas Instruments TAS5720L/M high-efficiency mono
 	  Class-D audio power amplifiers.
 
+config SND_SOC_TAS5805M
+	tristate "Texas Instruments TAS5805M speaker amplifier"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments TAS5805M Class-D
+	  amplifiers. This is a speaker amplifier with an integrated
+	  DSP. DSP configuration for each instance needs to be supplied
+	  via a device-tree attribute.
+
 config SND_SOC_TAS6424
 	tristate "Texas Instruments TAS6424 Quad-Channel Audio amplifier"
 	depends on I2C
