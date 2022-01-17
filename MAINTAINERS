@@ -13441,10 +13441,6 @@ F:	include/net/tls.h
 F:	include/uapi/linux/tls.h
 F:	net/tls/*
 
-NETWORKING [WIRELESS]
-L:	linux-wireless@vger.kernel.org
-Q:	http://patchwork.kernel.org/project/linux-wireless/list/
-
 NETXEN (1/10) GbE SUPPORT
 M:	Manish Chopra <manishc@marvell.com>
 M:	Rahul Verma <rahulv@marvell.com>
