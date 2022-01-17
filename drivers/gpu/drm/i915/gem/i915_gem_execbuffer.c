@@ -754,7 +754,7 @@ static int eb_reserve(struct i915_execbuffer *eb)
 		case 1:
 			/* Too fragmented, unbind everything and retry */
 			mutex_lock(&eb->context->vm->mutex);
-			err = i915_gem_evict_vm(eb->context->vm);
+			err = i915_gem_evict_vm(eb->context->vm, &eb->ww);
 			mutex_unlock(&eb->context->vm->mutex);
 			if (err)
 				return err;

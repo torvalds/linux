@@ -331,6 +331,7 @@ static int igt_evict_vm(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct i915_ggtt *ggtt = gt->ggtt;
+	struct i915_gem_ww_ctx ww;
 	LIST_HEAD(objects);
 	int err;
 
@@ -342,7 +343,7 @@ static int igt_evict_vm(void *arg)
 
 	/* Everything is pinned, nothing should happen */
 	mutex_lock(&ggtt->vm.mutex);
-	err = i915_gem_evict_vm(&ggtt->vm);
+	err = i915_gem_evict_vm(&ggtt->vm, NULL);
 	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
 		pr_err("i915_gem_evict_vm on a full GGTT returned err=%d]\n",
@@ -352,9 +353,12 @@ static int igt_evict_vm(void *arg)
 
 	unpin_ggtt(ggtt);
 
-	mutex_lock(&ggtt->vm.mutex);
-	err = i915_gem_evict_vm(&ggtt->vm);
-	mutex_unlock(&ggtt->vm.mutex);
+	for_i915_gem_ww(&ww, err, false) {
+		mutex_lock(&ggtt->vm.mutex);
+		err = i915_gem_evict_vm(&ggtt->vm, &ww);
+		mutex_unlock(&ggtt->vm.mutex);
+	}
+
 	if (err) {
 		pr_err("i915_gem_evict_vm on a full GGTT returned err=%d]\n",
 		       err);
