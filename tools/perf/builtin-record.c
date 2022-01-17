@@ -111,6 +111,8 @@ struct record_thread {
 	unsigned long long	samples;
 	unsigned long		waking;
 	u64			bytes_written;
+	u64			bytes_transferred;
+	u64			bytes_compressed;
 };
 
 static __thread struct record_thread *thread;
@@ -1407,8 +1409,13 @@ static size_t zstd_compress(struct perf_session *session, struct mmap *map,
 	compressed = zstd_compress_stream_to_records(zstd_data, dst, dst_size, src, src_size,
 						     max_record_size, process_comp_header);
 
-	session->bytes_transferred += src_size;
-	session->bytes_compressed  += compressed;
+	if (map && map->file) {
+		thread->bytes_transferred += src_size;
+		thread->bytes_compressed  += compressed;
+	} else {
+		session->bytes_transferred += src_size;
+		session->bytes_compressed  += compressed;
+	}
 
 	return compressed;
 }
@@ -2098,8 +2105,20 @@ static int record__stop_threads(struct record *rec)
 	for (t = 1; t < rec->nr_threads; t++)
 		record__terminate_thread(&thread_data[t]);
 
-	for (t = 0; t < rec->nr_threads; t++)
+	for (t = 0; t < rec->nr_threads; t++) {
 		rec->samples += thread_data[t].samples;
+		if (!record__threads_enabled(rec))
+			continue;
+		rec->session->bytes_transferred += thread_data[t].bytes_transferred;
+		rec->session->bytes_compressed += thread_data[t].bytes_compressed;
+		pr_debug("threads[%d]: samples=%lld, wakes=%ld, ", thread_data[t].tid,
+			 thread_data[t].samples, thread_data[t].waking);
+		if (thread_data[t].bytes_transferred && thread_data[t].bytes_compressed)
+			pr_debug("transferred=%" PRIu64 ", compressed=%" PRIu64 "\n",
+				 thread_data[t].bytes_transferred, thread_data[t].bytes_compressed);
+		else
+			pr_debug("written=%" PRIu64 "\n", thread_data[t].bytes_written);
+	}
 
 	return 0;
 }
