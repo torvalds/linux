@@ -63,7 +63,7 @@ static void rsi_coex_scheduler_thread(struct rsi_common *common)
 		rsi_coex_sched_tx_pkts(coex_cb);
 	} while (atomic_read(&coex_cb->coex_tx_thread.thread_done) == 0);
 
-	complete_and_exit(&coex_cb->coex_tx_thread.completion, 0);
+	kthread_complete_and_exit(&coex_cb->coex_tx_thread.completion, 0);
 }
 
 int rsi_coex_recv_pkt(struct rsi_common *common, u8 *msg)

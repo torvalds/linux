@@ -264,7 +264,7 @@ static void rsi_tx_scheduler_thread(struct rsi_common *common)
 		if (common->init_done)
 			rsi_core_qos_processor(common);
 	} while (atomic_read(&common->tx_thread.thread_done) == 0);
-	complete_and_exit(&common->tx_thread.completion, 0);
+	kthread_complete_and_exit(&common->tx_thread.completion, 0);
 }
 
 #ifdef CONFIG_RSI_COEX

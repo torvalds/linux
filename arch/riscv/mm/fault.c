@@ -31,7 +31,7 @@ static void die_kernel_fault(const char *msg, unsigned long addr,
 
 	bust_spinlocks(0);
 	die(regs, "Oops");
-	do_exit(SIGKILL);
+	make_task_dead(SIGKILL);
 }
 
 static inline void no_context(struct pt_regs *regs, unsigned long addr)

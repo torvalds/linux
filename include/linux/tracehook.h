@@ -54,8 +54,7 @@ struct linux_binprm;
 /*
  * ptrace report for syscall entry and exit looks identical.
  */
-static inline int ptrace_report_syscall(struct pt_regs *regs,
-					unsigned long message)
+static inline int ptrace_report_syscall(unsigned long message)
 {
 	int ptrace = current->ptrace;
 
@@ -102,7 +101,7 @@ static inline int ptrace_report_syscall(struct pt_regs *regs,
 static inline __must_check int tracehook_report_syscall_entry(
 	struct pt_regs *regs)
 {
-	return ptrace_report_syscall(regs, PTRACE_EVENTMSG_SYSCALL_ENTRY);
+	return ptrace_report_syscall(PTRACE_EVENTMSG_SYSCALL_ENTRY);
 }
 
 /**
@@ -127,7 +126,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 	if (step)
 		user_single_step_report(regs);
 	else
-		ptrace_report_syscall(regs, PTRACE_EVENTMSG_SYSCALL_EXIT);
+		ptrace_report_syscall(PTRACE_EVENTMSG_SYSCALL_EXIT);
 }
 
 /**

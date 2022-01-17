@@ -2693,6 +2693,6 @@ static int nfs4_run_state_manager(void *ptr)
 	allow_signal(SIGKILL);
 	nfs4_state_manager(clp);
 	nfs_put_client(clp);
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 	return 0;
 }
