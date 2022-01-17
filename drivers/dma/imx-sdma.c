@@ -701,6 +701,11 @@ static int sdma_config_ownership(struct sdma_channel *sdmac,
 	return 0;
 }
 
+static int is_sdma_channel_enabled(struct sdma_engine *sdma, int channel)
+{
+	return !!(readl(sdma->regs + SDMA_H_STATSTOP) & BIT(channel));
+}
+
 static void sdma_enable_channel(struct sdma_engine *sdma, int channel)
 {
 	writel(BIT(channel), sdma->regs + SDMA_H_START);
@@ -859,6 +864,15 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 
 		if (error)
 			sdmac->status = old_status;
+	}
+
+	/*
+	 * SDMA stops cyclic channel when DMA request triggers a channel and no SDMA
+	 * owned buffer is available (i.e. BD_DONE was set too late).
+	 */
+	if (!is_sdma_channel_enabled(sdmac->sdma, sdmac->channel)) {
+		dev_warn(sdmac->sdma->dev, "restart cyclic channel %d\n", sdmac->channel);
+		sdma_enable_channel(sdmac->sdma, sdmac->channel);
 	}
 }
 
