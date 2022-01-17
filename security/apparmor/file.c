@@ -186,7 +186,7 @@ static int path_name(const char *op, struct aa_label *label,
  */
 struct aa_perms default_perms = {};
 struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
-				 unsigned int state, struct path_cond *cond)
+				 aa_state_t state, struct path_cond *cond)
 {
 	unsigned int index = ACCEPT_TABLE(file_rules->dfa)[state];
 
@@ -209,11 +209,11 @@ struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
  *
  * Returns: the final state in @dfa when beginning @start and walking @name
  */
-unsigned int aa_str_perms(struct aa_policydb *file_rules, unsigned int start,
-			  const char *name, struct path_cond *cond,
-			  struct aa_perms *perms)
+aa_state_t aa_str_perms(struct aa_policydb *file_rules, aa_state_t start,
+			const char *name, struct path_cond *cond,
+			struct aa_perms *perms)
 {
-	unsigned int state;
+	aa_state_t state;
 	state = aa_dfa_match(file_rules->dfa, start, name);
 	*perms = *(aa_lookup_fperms(file_rules, state, cond));
 
@@ -320,7 +320,7 @@ static int profile_path_link(struct aa_profile *profile,
 	struct aa_perms lperms = {}, perms;
 	const char *info = NULL;
 	u32 request = AA_MAY_LINK;
-	unsigned int state;
+	aa_state_t state;
 	int error;
 
 	error = path_name(OP_LINK, &profile->label, link, profile->path_flags,

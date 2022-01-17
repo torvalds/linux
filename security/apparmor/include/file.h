@@ -166,10 +166,10 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		  const char *info, int error);
 
 struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
-				  unsigned int state, struct path_cond *cond);
-unsigned int aa_str_perms(struct aa_policydb *file_rules, unsigned int start,
-			  const char *name, struct path_cond *cond,
-			  struct aa_perms *perms);
+				  aa_state_t state, struct path_cond *cond);
+aa_state_t aa_str_perms(struct aa_policydb *file_rules, aa_state_t start,
+			const char *name, struct path_cond *cond,
+			struct aa_perms *perms);
 
 int __aa_path_perm(const char *op, struct aa_profile *profile,
 		   const char *name, u32 request, struct path_cond *cond,

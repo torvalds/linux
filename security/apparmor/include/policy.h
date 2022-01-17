@@ -78,7 +78,7 @@ struct aa_policydb {
 	struct aa_dfa *dfa;
 	struct aa_perms *perms;
 	struct aa_domain trans;
-	unsigned int start[AA_CLASS_LAST + 1];
+	aa_state_t start[AA_CLASS_LAST + 1];
 };
 
 static inline void aa_destroy_policydb(struct aa_policydb *policy)
@@ -91,7 +91,7 @@ static inline void aa_destroy_policydb(struct aa_policydb *policy)
 }
 
 static inline struct aa_perms *aa_lookup_perms(struct aa_policydb *policy,
-					       unsigned int state)
+					       aa_state_t state)
 {
 	unsigned int index = ACCEPT_TABLE(policy->dfa)[state];
 
@@ -239,7 +239,7 @@ static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
 	return labels_profile(aa_get_newest_label(&p->label));
 }
 
-static inline unsigned int PROFILE_MEDIATES(struct aa_profile *profile,
+static inline aa_state_t PROFILE_MEDIATES(struct aa_profile *profile,
 					    unsigned char class)
 {
 	if (class <= AA_CLASS_LAST)
@@ -249,13 +249,13 @@ static inline unsigned int PROFILE_MEDIATES(struct aa_profile *profile,
 					profile->policy.start[0], &class, 1);
 }
 
-static inline unsigned int PROFILE_MEDIATES_AF(struct aa_profile *profile,
-					       u16 AF) {
-	unsigned int state = PROFILE_MEDIATES(profile, AA_CLASS_NET);
+static inline aa_state_t PROFILE_MEDIATES_AF(struct aa_profile *profile,
+					     u16 AF) {
+	aa_state_t state = PROFILE_MEDIATES(profile, AA_CLASS_NET);
 	__be16 be_af = cpu_to_be16(AF);
 
 	if (!state)
-		return 0;
+		return DFA_NOMATCH;
 	return aa_dfa_match_len(profile->policy.dfa, state, (char *) &be_af, 2);
 }
 

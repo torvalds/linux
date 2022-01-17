@@ -95,9 +95,9 @@ out:
  * If a subns profile is not to be matched should be prescreened with
  * visibility test.
  */
-static inline unsigned int match_component(struct aa_profile *profile,
-					   struct aa_profile *tp,
-					   bool stack, unsigned int state)
+static inline aa_state_t match_component(struct aa_profile *profile,
+					 struct aa_profile *tp,
+					 bool stack, aa_state_t state)
 {
 	const char *ns_name;
 
@@ -132,7 +132,7 @@ static inline unsigned int match_component(struct aa_profile *profile,
  */
 static int label_compound_match(struct aa_profile *profile,
 				struct aa_label *label, bool stack,
-				unsigned int state, bool subns, u32 request,
+				aa_state_t state, bool subns, u32 request,
 				struct aa_perms *perms)
 {
 	struct aa_profile *tp;
@@ -192,14 +192,14 @@ fail:
  */
 static int label_components_match(struct aa_profile *profile,
 				  struct aa_label *label, bool stack,
-				  unsigned int start, bool subns, u32 request,
+				  aa_state_t start, bool subns, u32 request,
 				  struct aa_perms *perms)
 {
 	struct aa_profile *tp;
 	struct label_it i;
 	struct aa_perms tmp;
 	struct path_cond cond = { };
-	unsigned int state = 0;
+	aa_state_t state = 0;
 
 	/* find first subcomponent to test */
 	label_for_each(i, label, tp) {
@@ -252,7 +252,7 @@ fail:
  * Returns: the state the match finished in, may be the none matching state
  */
 static int label_match(struct aa_profile *profile, struct aa_label *label,
-		       bool stack, unsigned int state, bool subns, u32 request,
+		       bool stack, aa_state_t state, bool subns, u32 request,
 		       struct aa_perms *perms)
 {
 	int error;
@@ -286,7 +286,7 @@ static int label_match(struct aa_profile *profile, struct aa_label *label,
  */
 static int change_profile_perms(struct aa_profile *profile,
 				struct aa_label *target, bool stack,
-				u32 request, unsigned int start,
+				u32 request, aa_state_t start,
 				struct aa_perms *perms)
 {
 	if (profile_unconfined(profile)) {
@@ -308,7 +308,7 @@ static int change_profile_perms(struct aa_profile *profile,
  * Returns: number of extended attributes that matched, or < 0 on error
  */
 static int aa_xattrs_match(const struct linux_binprm *bprm,
-			   struct aa_profile *profile, unsigned int state)
+			   struct aa_profile *profile, aa_state_t state)
 {
 	int i;
 	ssize_t size;
@@ -416,7 +416,8 @@ restart:
 		 * match.
 		 */
 		if (profile->xmatch.dfa) {
-			unsigned int state, count;
+			unsigned int count;
+			aa_state_t state;
 			u32 index, perm;
 
 			state = aa_dfa_leftmatch(profile->xmatch.dfa,
@@ -631,7 +632,7 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 {
 	struct aa_label *new = NULL;
 	const char *info = NULL, *name = NULL, *target = NULL;
-	unsigned int state = profile->file.start[AA_CLASS_FILE];
+	aa_state_t state = profile->file.start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
 	bool nonewprivs = false;
 	int error = 0;
@@ -727,7 +728,7 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 			  char *buffer, struct path_cond *cond,
 			  bool *secure_exec)
 {
-	unsigned int state = profile->file.start[AA_CLASS_FILE];
+	aa_state_t state = profile->file.start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
 	const char *xname = NULL, *info = "change_profile onexec";
 	int error = -EACCES;

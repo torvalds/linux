@@ -1265,9 +1265,9 @@ static inline bool label_is_visible(struct aa_profile *profile,
  * If a subns profile is not to be matched should be prescreened with
  * visibility test.
  */
-static inline unsigned int match_component(struct aa_profile *profile,
-					   struct aa_profile *tp,
-					   unsigned int state)
+static inline aa_state_t match_component(struct aa_profile *profile,
+					 struct aa_profile *tp,
+					 aa_state_t state)
 {
 	const char *ns_name;
 
@@ -1299,7 +1299,7 @@ static inline unsigned int match_component(struct aa_profile *profile,
  */
 static int label_compound_match(struct aa_profile *profile,
 				struct aa_label *label,
-				unsigned int state, bool subns, u32 request,
+				aa_state_t state, bool subns, u32 request,
 				struct aa_perms *perms)
 {
 	struct aa_profile *tp;
@@ -1356,14 +1356,14 @@ fail:
  *        check to be stacked.
  */
 static int label_components_match(struct aa_profile *profile,
-				  struct aa_label *label, unsigned int start,
+				  struct aa_label *label, aa_state_t start,
 				  bool subns, u32 request,
 				  struct aa_perms *perms)
 {
 	struct aa_profile *tp;
 	struct label_it i;
 	struct aa_perms tmp;
-	unsigned int state = 0;
+	aa_state_t state = 0;
 
 	/* find first subcomponent to test */
 	label_for_each(i, label, tp) {
@@ -1415,7 +1415,7 @@ fail:
  * Returns: the state the match finished in, may be the none matching state
  */
 int aa_label_match(struct aa_profile *profile, struct aa_label *label,
-		   unsigned int state, bool subns, u32 request,
+		   aa_state_t state, bool subns, u32 request,
 		   struct aa_perms *perms)
 {
 	int error = label_compound_match(profile, label, state, subns, request,

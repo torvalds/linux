@@ -333,7 +333,7 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 static inline const char *aa_label_strn_split(const char *str, int n)
 {
 	const char *pos;
-	unsigned int state;
+	aa_state_t state;
 
 	state = aa_dfa_matchn_until(stacksplitdfa, DFA_START, str, n, &pos);
 	if (!ACCEPT_TABLE(stacksplitdfa)[state])
@@ -345,7 +345,7 @@ static inline const char *aa_label_strn_split(const char *str, int n)
 static inline const char *aa_label_str_split(const char *str)
 {
 	const char *pos;
-	unsigned int state;
+	aa_state_t state;
 
 	state = aa_dfa_match_until(stacksplitdfa, DFA_START, str, &pos);
 	if (!ACCEPT_TABLE(stacksplitdfa)[state])
@@ -358,7 +358,7 @@ static inline const char *aa_label_str_split(const char *str)
 
 struct aa_perms;
 int aa_label_match(struct aa_profile *profile, struct aa_label *label,
-		   unsigned int state, bool subns, u32 request,
+		   aa_state_t state, bool subns, u32 request,
 		   struct aa_perms *perms);
 
 

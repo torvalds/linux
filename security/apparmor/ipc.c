@@ -79,7 +79,7 @@ static int profile_signal_perm(struct aa_profile *profile,
 			       struct common_audit_data *sa)
 {
 	struct aa_perms perms;
-	unsigned int state;
+	aa_state_t state;
 
 	if (profile_unconfined(profile) ||
 	    !PROFILE_MEDIATES(profile, AA_CLASS_SIGNAL))

@@ -698,7 +698,7 @@ static u32 map_old_perms(u32 old)
 }
 
 static void compute_fperms_allow(struct aa_perms *perms, struct aa_dfa *dfa,
-				 unsigned int state)
+				 aa_state_t state)
 {
 	perms->allow |= AA_MAY_GETATTR;
 
@@ -710,7 +710,7 @@ static void compute_fperms_allow(struct aa_perms *perms, struct aa_dfa *dfa,
 }
 
 static struct aa_perms compute_fperms_user(struct aa_dfa *dfa,
-					   unsigned int state)
+					   aa_state_t state)
 {
 	struct aa_perms perms = { };
 
@@ -725,7 +725,7 @@ static struct aa_perms compute_fperms_user(struct aa_dfa *dfa,
 }
 
 static struct aa_perms compute_fperms_other(struct aa_dfa *dfa,
-					    unsigned int state)
+					    aa_state_t state)
 {
 	struct aa_perms perms = { };
 
@@ -748,8 +748,8 @@ static struct aa_perms compute_fperms_other(struct aa_dfa *dfa,
  */
 static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
 {
-	int state;
-	int state_count;
+	aa_state_t state;
+	unsigned int state_count;
 	struct aa_perms *table;
 
 	AA_BUG(!dfa);
@@ -796,7 +796,7 @@ static u32 map_other(u32 x)
 }
 
 static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
-					   unsigned int state)
+					   aa_state_t state)
 {
 	struct aa_perms perms = { };
 
@@ -817,8 +817,8 @@ static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
 
 static struct aa_perms *compute_perms(struct aa_dfa *dfa)
 {
-	int state;
-	int state_count;
+	unsigned int state;
+	unsigned int state_count;
 	struct aa_perms *table;
 
 	AA_BUG(!dfa);

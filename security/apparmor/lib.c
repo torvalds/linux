@@ -357,7 +357,7 @@ void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
 			    int type, u32 request, struct aa_perms *perms)
 {
 	/* TODO: doesn't yet handle extended types */
-	unsigned int state;
+	aa_state_t state;
 
 	state = aa_dfa_next(profile->policy.dfa,
 			    profile->policy.start[AA_CLASS_LABEL],

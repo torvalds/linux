@@ -613,7 +613,7 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 {
 	struct aa_perms tmp = { };
 	struct aa_dfa *dfa;
-	unsigned int state = 0;
+	aa_state_t state = DFA_NOMATCH;
 
 	if (profile_unconfined(profile))
 		return;

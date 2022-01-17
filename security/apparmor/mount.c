@@ -190,7 +190,7 @@ static int audit_mount(struct aa_profile *profile, const char *op,
  *
  * Returns: next state after flags match
  */
-static unsigned int match_mnt_flags(struct aa_dfa *dfa, unsigned int state,
+static aa_state_t match_mnt_flags(struct aa_dfa *dfa, aa_state_t state,
 				    unsigned long flags)
 {
 	unsigned int i;
@@ -217,12 +217,12 @@ static const char * const mnt_info_table[] = {
  * Returns 0 on success else element that match failed in, this is the
  * index into the mnt_info_table above
  */
-static int do_match_mnt(struct aa_policydb *policy, unsigned int start,
+static int do_match_mnt(struct aa_policydb *policy, aa_state_t start,
 			const char *mntpnt, const char *devname,
 			const char *type, unsigned long flags,
 			void *data, bool binary, struct aa_perms *perms)
 {
-	unsigned int state;
+	aa_state_t state;
 
 	AA_BUG(!policy);
 	AA_BUG(!policy->dfa);
@@ -567,7 +567,7 @@ static int profile_umount(struct aa_profile *profile, const struct path *path,
 {
 	struct aa_perms perms = { };
 	const char *name = NULL, *info = NULL;
-	unsigned int state;
+	aa_state_t state;
 	int error;
 
 	AA_BUG(!profile);
@@ -627,7 +627,7 @@ static struct aa_label *build_pivotroot(struct aa_profile *profile,
 	const char *old_name, *new_name = NULL, *info = NULL;
 	const char *trans_name = NULL;
 	struct aa_perms perms = { };
-	unsigned int state;
+	aa_state_t state;
 	int error;
 
 	AA_BUG(!profile);
