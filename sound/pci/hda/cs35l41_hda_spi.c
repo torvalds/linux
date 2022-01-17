@@ -30,7 +30,9 @@ static int cs35l41_hda_spi_probe(struct spi_device *spi)
 
 static int cs35l41_hda_spi_remove(struct spi_device *spi)
 {
-	return cs35l41_hda_remove(&spi->dev);
+	cs35l41_hda_remove(&spi->dev);
+
+	return 0;
 }
 
 static const struct spi_device_id cs35l41_hda_spi_id[] = {

@@ -32,7 +32,9 @@ static int cs35l41_hda_i2c_probe(struct i2c_client *clt, const struct i2c_device
 
 static int cs35l41_hda_i2c_remove(struct i2c_client *clt)
 {
-	return cs35l41_hda_remove(&clt->dev);
+	cs35l41_hda_remove(&clt->dev);
+
+	return 0;
 }
 
 static const struct i2c_device_id cs35l41_hda_i2c_id[] = {

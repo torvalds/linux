@@ -525,7 +525,7 @@ err:
 }
 EXPORT_SYMBOL_NS_GPL(cs35l41_hda_probe, SND_HDA_SCODEC_CS35L41);
 
-int cs35l41_hda_remove(struct device *dev)
+void cs35l41_hda_remove(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 
@@ -534,8 +534,6 @@ int cs35l41_hda_remove(struct device *dev)
 	if (!cs35l41->vspk_always_on)
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 	gpiod_put(cs35l41->reset_gpio);
-
-	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l41_hda_remove, SND_HDA_SCODEC_CS35L41);
 

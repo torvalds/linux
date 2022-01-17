@@ -64,6 +64,6 @@ struct cs35l41_hda {
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
 		      struct regmap *regmap);
-int cs35l41_hda_remove(struct device *dev);
+void cs35l41_hda_remove(struct device *dev);
 
 #endif /*__CS35L41_HDA_H__*/
