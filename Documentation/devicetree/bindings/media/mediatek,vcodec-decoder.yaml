@@ -61,12 +61,6 @@ properties:
     description: |
       Describes the physical address space of IOMMU maps to memory.
 
-  mediatek,larb:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    maxItems: 1
-    description: |
-      Must contain the local arbiters in the current Socs.
-
   mediatek,vpu:
     $ref: /schemas/types.yaml#/definitions/phandle
     maxItems: 1
@@ -137,7 +131,6 @@ examples:
           <0x16027800 0x800>,   /*VP8_VL*/
           <0x16028400 0x400>;   /*VP9_VD*/
       interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_LOW>;
-      mediatek,larb = <&larb1>;
       iommus = <&iommu M4U_PORT_HW_VDEC_MC_EXT>,
              <&iommu M4U_PORT_HW_VDEC_PP_EXT>,
              <&iommu M4U_PORT_HW_VDEC_AVC_MV_EXT>,

@@ -53,12 +53,6 @@ properties:
     description: |
       Describes the physical address space of IOMMU maps to memory.
 
-  mediatek,larb:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    maxItems: 1
-    description: |
-      Must contain the local arbiters in the current Socs.
-
   mediatek,vpu:
     $ref: /schemas/types.yaml#/definitions/phandle
     maxItems: 1
@@ -157,7 +151,6 @@ examples:
              <&iommu M4U_PORT_VENC_REF_CHROMA>,
              <&iommu M4U_PORT_VENC_NBM_RDMA>,
              <&iommu M4U_PORT_VENC_NBM_WDMA>;
-      mediatek,larb = <&larb3>;
       mediatek,vpu = <&vpu>;
       clocks = <&topckgen CLK_TOP_VENC_SEL>;
       clock-names = "venc_sel";
@@ -178,7 +171,6 @@ examples:
              <&iommu M4U_PORT_VENC_CUR_CHROMA_SET2>,
              <&iommu M4U_PORT_VENC_REF_LUMA_SET2>,
              <&iommu M4U_PORT_VENC_REC_CHROMA_SET2>;
-      mediatek,larb = <&larb5>;
       mediatek,vpu = <&vpu>;
       clocks = <&topckgen CLK_TOP_VENC_LT_SEL>;
       clock-names = "venc_lt_sel";

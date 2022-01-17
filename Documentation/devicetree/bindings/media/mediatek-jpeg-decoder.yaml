@@ -42,13 +42,6 @@ properties:
   power-domains:
     maxItems: 1
 
-  mediatek,larb:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
-    description: |
-      Must contain the local arbiters in the current Socs, see
-      Documentation/devicetree/bindings/memory-controllers/mediatek,smi-larb.yaml
-      for details.
-
   iommus:
     maxItems: 2
     description: |
@@ -63,7 +56,6 @@ required:
   - clocks
   - clock-names
   - power-domains
-  - mediatek,larb
   - iommus
 
 additionalProperties: false
@@ -83,7 +75,6 @@ examples:
       clock-names = "jpgdec-smi",
                     "jpgdec";
       power-domains = <&scpsys MT2701_POWER_DOMAIN_ISP>;
-      mediatek,larb = <&larb2>;
       iommus = <&iommu MT2701_M4U_PORT_JPGDEC_WDMA>,
                <&iommu MT2701_M4U_PORT_JPGDEC_BSDMA>;
     };
