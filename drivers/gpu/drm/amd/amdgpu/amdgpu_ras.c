@@ -1704,9 +1704,7 @@ static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
 static void amdgpu_ras_error_status_query(struct amdgpu_device *adev,
 					  struct ras_query_if *info)
 {
-	struct amdgpu_ras_block_object *block_obj = amdgpu_ras_get_ras_block(adev,
-									info->head.block,
-									info->head.sub_block_index);
+	struct amdgpu_ras_block_object *block_obj;
 	/*
 	 * Only two block need to query read/write
 	 * RspStatus at current state
