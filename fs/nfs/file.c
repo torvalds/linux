@@ -430,19 +430,16 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 	return nfs_fscache_release_page(page, gfp);
 }
 
-static void nfs_check_dirty_writeback(struct page *page,
+static void nfs_check_dirty_writeback(struct folio *folio,
 				bool *dirty, bool *writeback)
 {
 	struct nfs_inode *nfsi;
-	struct address_space *mapping = page_file_mapping(page);
-
-	if (!mapping || PageSwapCache(page))
-		return;
+	struct address_space *mapping = folio->mapping;
 
 	/*
-	 * Check if an unstable page is currently being committed and
-	 * if so, have the VM treat it as if the page is under writeback
-	 * so it will not block due to pages that will shortly be freeable.
+	 * Check if an unstable folio is currently being committed and
+	 * if so, have the VM treat it as if the folio is under writeback
+	 * so it will not block due to folios that will shortly be freeable.
 	 */
 	nfsi = NFS_I(mapping->host);
 	if (atomic_read(&nfsi->commit_info.rpcs_out)) {
@@ -451,11 +448,11 @@ static void nfs_check_dirty_writeback(struct page *page,
 	}
 
 	/*
-	 * If PagePrivate() is set, then the page is not freeable and as the
-	 * inode is not being committed, it's not going to be cleaned in the
-	 * near future so treat it as dirty
+	 * If the private flag is set, then the folio is not freeable
+	 * and as the inode is not being committed, it's not going to
+	 * be cleaned in the near future so treat it as dirty
 	 */
-	if (PagePrivate(page))
+	if (folio_test_private(folio))
 		*dirty = true;
 }
 

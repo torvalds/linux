@@ -369,7 +369,7 @@ struct address_space_operations {
 	int (*launder_folio)(struct folio *);
 	bool (*is_partially_uptodate) (struct folio *, size_t from,
 			size_t count);
-	void (*is_dirty_writeback) (struct page *, bool *, bool *);
+	void (*is_dirty_writeback) (struct folio *, bool *dirty, bool *wb);
 	int (*error_remove_page)(struct address_space *, struct page *);
 
 	/* swapfile support */

@@ -1451,7 +1451,7 @@ static void folio_check_dirty_writeback(struct folio *folio,
 
 	mapping = folio_mapping(folio);
 	if (mapping && mapping->a_ops->is_dirty_writeback)
-		mapping->a_ops->is_dirty_writeback(&folio->page, dirty, writeback);
+		mapping->a_ops->is_dirty_writeback(folio, dirty, writeback);
 }
 
 static struct page *alloc_demote_page(struct page *page, unsigned long node)

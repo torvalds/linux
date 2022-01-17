@@ -747,7 +747,7 @@ cache in your filesystem.  The following members are defined:
 
 		bool (*is_partially_uptodate) (struct folio *, size_t from,
 					       size_t count);
-		void (*is_dirty_writeback) (struct page *, bool *, bool *);
+		void (*is_dirty_writeback)(struct folio *, bool *, bool *);
 		int (*error_remove_page) (struct mapping *mapping, struct page *page);
 		int (*swap_activate)(struct file *);
 		int (*swap_deactivate)(struct file *);
@@ -932,14 +932,14 @@ cache in your filesystem.  The following members are defined:
 	without needing I/O to bring the whole page up to date.
 
 ``is_dirty_writeback``
-	Called by the VM when attempting to reclaim a page.  The VM uses
+	Called by the VM when attempting to reclaim a folio.  The VM uses
 	dirty and writeback information to determine if it needs to
 	stall to allow flushers a chance to complete some IO.
-	Ordinarily it can use PageDirty and PageWriteback but some
-	filesystems have more complex state (unstable pages in NFS
+	Ordinarily it can use folio_test_dirty and folio_test_writeback but
+	some filesystems have more complex state (unstable folios in NFS
 	prevent reclaim) or do not set those flags due to locking
 	problems.  This callback allows a filesystem to indicate to the
-	VM if a page should be treated as dirty or writeback for the
+	VM if a folio should be treated as dirty or writeback for the
 	purposes of stalling.
 
 ``error_remove_page``

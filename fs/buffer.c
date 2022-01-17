@@ -79,26 +79,26 @@ void unlock_buffer(struct buffer_head *bh)
 EXPORT_SYMBOL(unlock_buffer);
 
 /*
- * Returns if the page has dirty or writeback buffers. If all the buffers
- * are unlocked and clean then the PageDirty information is stale. If
- * any of the pages are locked, it is assumed they are locked for IO.
+ * Returns if the folio has dirty or writeback buffers. If all the buffers
+ * are unlocked and clean then the folio_test_dirty information is stale. If
+ * any of the buffers are locked, it is assumed they are locked for IO.
  */
-void buffer_check_dirty_writeback(struct page *page,
+void buffer_check_dirty_writeback(struct folio *folio,
 				     bool *dirty, bool *writeback)
 {
 	struct buffer_head *head, *bh;
 	*dirty = false;
 	*writeback = false;
 
-	BUG_ON(!PageLocked(page));
+	BUG_ON(!folio_test_locked(folio));
 
-	if (!page_has_buffers(page))
+	head = folio_buffers(folio);
+	if (!head)
 		return;
 
-	if (PageWriteback(page))
+	if (folio_test_writeback(folio))
 		*writeback = true;
 
-	head = page_buffers(page);
 	bh = head;
 	do {
 		if (buffer_locked(bh))
