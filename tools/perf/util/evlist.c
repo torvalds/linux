@@ -487,12 +487,16 @@ static void __evlist__enable(struct evlist *evlist, char *evsel_name)
 {
 	struct evsel *pos;
 	struct evlist_cpu_iterator evlist_cpu_itr;
-	struct affinity affinity;
+	struct affinity saved_affinity, *affinity = NULL;
 
-	if (affinity__setup(&affinity) < 0)
-		return;
+	// See explanation in evlist__close()
+	if (!cpu_map__is_dummy(evlist->core.cpus)) {
+		if (affinity__setup(&saved_affinity) < 0)
+			return;
+		affinity = &saved_affinity;
+	}
 
-	evlist__for_each_cpu(evlist_cpu_itr, evlist, &affinity) {
+	evlist__for_each_cpu(evlist_cpu_itr, evlist, affinity) {
 		pos = evlist_cpu_itr.evsel;
 		if (evsel__strcmp(pos, evsel_name))
 			continue;
@@ -500,7 +504,7 @@ static void __evlist__enable(struct evlist *evlist, char *evsel_name)
 			continue;
 		evsel__enable_cpu(pos, evlist_cpu_itr.cpu_map_idx);
 	}
-	affinity__cleanup(&affinity);
+	affinity__cleanup(affinity);
 	evlist__for_each_entry(evlist, pos) {
 		if (evsel__strcmp(pos, evsel_name))
 			continue;
