@@ -1615,6 +1615,32 @@ v4l2_subdev_state_get_opposite_stream_format(struct v4l2_subdev_state *state,
 }
 EXPORT_SYMBOL_GPL(v4l2_subdev_state_get_opposite_stream_format);
 
+u64 v4l2_subdev_state_xlate_streams(const struct v4l2_subdev_state *state,
+				    u32 pad0, u32 pad1, u64 *streams)
+{
+	const struct v4l2_subdev_krouting *routing = &state->routing;
+	struct v4l2_subdev_route *route;
+	u64 streams0 = 0;
+	u64 streams1 = 0;
+
+	for_each_active_route(routing, route) {
+		if (route->sink_pad == pad0 && route->source_pad == pad1 &&
+		    (*streams & BIT_ULL(route->sink_stream))) {
+			streams0 |= BIT_ULL(route->sink_stream);
+			streams1 |= BIT_ULL(route->source_stream);
+		}
+		if (route->source_pad == pad0 && route->sink_pad == pad1 &&
+		    (*streams & BIT_ULL(route->source_stream))) {
+			streams0 |= BIT_ULL(route->source_stream);
+			streams1 |= BIT_ULL(route->sink_stream);
+		}
+	}
+
+	*streams = streams0;
+	return streams1;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_state_xlate_streams);
+
 int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 				 const struct v4l2_subdev_krouting *routing,
 				 enum v4l2_subdev_routing_restriction disallow)
