@@ -10705,6 +10705,7 @@ F:	samples/kmemleak/kmemleak-test.c
 KMOD KERNEL MODULE LOADER - USERMODE HELPER
 M:	Luis Chamberlain <mcgrof@kernel.org>
 L:	linux-kernel@vger.kernel.org
+L:	linux-modules@vger.kernel.org
 S:	Maintained
 F:	include/linux/kmod.h
 F:	kernel/kmod.c
@@ -12994,9 +12995,10 @@ F:	drivers/media/dvb-frontends/mn88473*
 
 MODULE SUPPORT
 M:	Luis Chamberlain <mcgrof@kernel.org>
-M:	Jessica Yu <jeyu@kernel.org>
+L:	linux-modules@vger.kernel.org
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jeyu/linux.git modules-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mcgrof/linux.git modules-next
 F:	include/linux/module.h
 F:	kernel/module.c
 
