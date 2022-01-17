@@ -39,7 +39,7 @@ static struct simatic_ipc_led simatic_ipc_leds_io[] = {
 };
 
 /* the actual start will be discovered with PCI, 0 is a placeholder */
-struct resource simatic_ipc_led_mem_res = DEFINE_RES_MEM_NAMED(0, SZ_4K, KBUILD_MODNAME);
+static struct resource simatic_ipc_led_mem_res = DEFINE_RES_MEM_NAMED(0, SZ_4K, KBUILD_MODNAME);
 
 static void *simatic_ipc_led_memory;
 
