@@ -1634,7 +1634,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			nptes = max(nptes, 1u);
 
 			trace_amdgpu_vm_update_ptes(params, frag_start, upd_end,
-						    nptes, dst, incr, upd_flags,
+						    min(nptes, 32u), dst, incr, upd_flags,
 						    vm->task_info.pid,
 						    vm->immediate.fence_context);
 			amdgpu_vm_update_flags(params, to_amdgpu_bo_vm(pt),
