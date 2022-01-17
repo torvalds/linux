@@ -713,6 +713,10 @@ measurements:
  wait -n ${perf_pid}
  exit $?
 
+--threads::
+Write collected trace data into several data files using parallel threads.
+The option creates a data streaming thread for each CPU in the system.
+
 include::intel-hybrid.txt[]
 
 --debuginfod[=URLs]::
