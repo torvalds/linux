@@ -1943,19 +1943,8 @@ static int haptics_load_predefined_effect(struct haptics_chip *chip,
 		return -EINVAL;
 
 	play->effect = effect;
-	if (play->pattern_src == FIFO) {
-		/* Toggle HAPTICS_EN for a clear start point of FIFO playing */
-		rc = haptics_toggle_module_enable(chip);
-		if (rc < 0)
-			return rc;
-	}
-
 	/* Clamp VMAX for different vibration strength */
 	rc = haptics_set_vmax_mv(chip, play->vmax_mv);
-	if (rc < 0)
-		return rc;
-
-	rc = haptics_enable_autores(chip, !play->effect->auto_res_disable);
 	if (rc < 0)
 		return rc;
 
@@ -1966,6 +1955,17 @@ static int haptics_load_predefined_effect(struct haptics_chip *chip,
 				play->pattern_src);
 		return -EINVAL;
 	}
+
+	if (play->pattern_src == FIFO) {
+		/* Toggle HAPTICS_EN for a clear start point of FIFO playing */
+		rc = haptics_toggle_module_enable(chip);
+		if (rc < 0)
+			return rc;
+	}
+
+	rc = haptics_enable_autores(chip, !play->effect->auto_res_disable);
+	if (rc < 0)
+		return rc;
 
 	play->brake = play->effect->brake;
 	/* Config brake settings if it's necessary */
@@ -2149,12 +2149,12 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 	play->effect = chip->custom_effect;
 	play->brake = NULL;
 	play->vmax_mv = (magnitude * chip->custom_effect->vmax_mv) / 0x7fff;
-	/* Toggle HAPTICS_EN for a clear start point of FIFO playing */
-	rc = haptics_toggle_module_enable(chip);
+	rc = haptics_set_vmax_mv(chip, play->vmax_mv);
 	if (rc < 0)
 		goto cleanup;
 
-	rc = haptics_set_vmax_mv(chip, play->vmax_mv);
+	/* Toggle HAPTICS_EN for a clear start point of FIFO playing */
+	rc = haptics_toggle_module_enable(chip);
 	if (rc < 0)
 		goto cleanup;
 
