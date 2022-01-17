@@ -936,6 +936,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 				--array->nent;
 				continue;
 			}
+
+			if (!kvm_cpu_cap_has(X86_FEATURE_XFD))
+				entry->ecx &= ~BIT_ULL(2);
 			entry->edx = 0;
 		}
 		break;
