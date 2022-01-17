@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/bitfield.h>
 
 /* USB QSCRATCH Hardware registers */
 #define QSCRATCH_GENERAL_CFG		(0x08)
@@ -74,20 +75,20 @@
 		 PHY_PARAM_CTRL1_LOS_BIAS_MASK)
 
 #define PHY_PARAM_CTRL1_TX_FULL_SWING(x)	\
-		(((x) << 20) & PHY_PARAM_CTRL1_TX_FULL_SWING_MASK)
+		FIELD_PREP(PHY_PARAM_CTRL1_TX_FULL_SWING_MASK, (x))
 #define PHY_PARAM_CTRL1_TX_DEEMPH_6DB(x)	\
-		(((x) << 14) & PHY_PARAM_CTRL1_TX_DEEMPH_6DB_MASK)
+		FIELD_PREP(PHY_PARAM_CTRL1_TX_DEEMPH_6DB_MASK, (x))
 #define PHY_PARAM_CTRL1_TX_DEEMPH_3_5DB(x)	\
-		(((x) <<  8) & PHY_PARAM_CTRL1_TX_DEEMPH_3_5DB_MASK)
+		FIELD_PREP(PHY_PARAM_CTRL1_TX_DEEMPH_3_5DB_MASK, x)
 #define PHY_PARAM_CTRL1_LOS_BIAS(x)	\
-		(((x) <<  3) & PHY_PARAM_CTRL1_LOS_BIAS_MASK)
+		FIELD_PREP(PHY_PARAM_CTRL1_LOS_BIAS_MASK, (x))
 
 /* RX OVRD IN HI bits */
 #define RX_OVRD_IN_HI_RX_RESET_OVRD		BIT(13)
 #define RX_OVRD_IN_HI_RX_RX_RESET		BIT(12)
 #define RX_OVRD_IN_HI_RX_EQ_OVRD		BIT(11)
 #define RX_OVRD_IN_HI_RX_EQ_MASK		GENMASK(10, 7)
-#define RX_OVRD_IN_HI_RX_EQ(x)			((x) << 8)
+#define RX_OVRD_IN_HI_RX_EQ(x)			FIELD_PREP(RX_OVRD_IN_HI_RX_EQ_MASK, (x))
 #define RX_OVRD_IN_HI_RX_EQ_EN_OVRD		BIT(7)
 #define RX_OVRD_IN_HI_RX_EQ_EN			BIT(6)
 #define RX_OVRD_IN_HI_RX_LOS_FILTER_OVRD	BIT(5)
