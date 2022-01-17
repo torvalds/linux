@@ -7273,7 +7273,9 @@ Extended Verification Module (EVM)
 M:	Mimi Zohar <zohar@linux.ibm.com>
 L:	linux-integrity@vger.kernel.org
 S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/zohar/linux-integrity.git
 F:	security/integrity/evm/
+F:	security/integrity/
 
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
 M:	Ard Biesheuvel <ardb@kernel.org>
@@ -9521,6 +9523,7 @@ L:	linux-integrity@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/zohar/linux-integrity.git
 F:	security/integrity/ima/
+F:	security/integrity/
 
 INTEL 810/815 FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
