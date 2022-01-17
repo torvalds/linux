@@ -182,11 +182,14 @@
 
 &emmc_controller {
 	status = "okay";
+	aspeed-max-tap-delay = <736>;
+	mmc-hs200-1_8v;
 };
 
 &emmc {
 	status = "okay";
-	clk-phase-mmc-hs200 = <36>, <270>;
+	non-removable;
+	clk-phase-mmc-hs200 = <0 40>, <1 271>;
 };
 
 &fsim0 {
