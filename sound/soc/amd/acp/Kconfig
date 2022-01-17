@@ -15,6 +15,9 @@ config SND_SOC_AMD_ACP_COMMON
 
 if SND_SOC_AMD_ACP_COMMON
 
+config SND_SOC_AMD_ACP_PDM
+	tristate
+
 config SND_SOC_AMD_ACP_I2S
 	tristate
 

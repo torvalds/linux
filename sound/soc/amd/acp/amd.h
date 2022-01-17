@@ -17,8 +17,9 @@
 
 #define I2S_SP_INSTANCE			0x00
 #define I2S_BT_INSTANCE			0x01
+#define DMIC_INSTANCE			0x02
 
-#define MEM_WINDOW_START		0x4000000
+#define MEM_WINDOW_START		0x4080000
 
 #define ACP_I2S_REG_START		0x1242400
 #define ACP_I2S_REG_END			0x1242810
@@ -38,6 +39,7 @@
 #define ACP_SRAM_SP_CP_PTE_OFFSET	0x100
 #define ACP_SRAM_BT_PB_PTE_OFFSET	0x200
 #define ACP_SRAM_BT_CP_PTE_OFFSET	0x300
+#define ACP_SRAM_PDM_PTE_OFFSET		0x400
 #define PAGE_SIZE_4K_ENABLE		0x2
 
 #define I2S_SP_TX_MEM_WINDOW_START	0x4000000
@@ -96,6 +98,7 @@ struct acp_dev_data {
 };
 
 extern const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops;
+extern const struct snd_soc_dai_ops acp_dmic_dai_ops;
 
 int asoc_acp_i2s_probe(struct snd_soc_dai *dai);
 int acp_platform_register(struct device *dev);
@@ -130,6 +133,10 @@ static inline u64 acp_get_byte_count(struct acp_dev_data *adata, int dai_id, int
 		case I2S_SP_INSTANCE:
 			high = readl(adata->acp_base + ACP_I2S_RX_LINEARPOSITIONCNTR_HIGH);
 			low = readl(adata->acp_base + ACP_I2S_RX_LINEARPOSITIONCNTR_LOW);
+			break;
+		case DMIC_INSTANCE:
+			high = readl(adata->acp_base + ACP_WOV_RX_LINEARPOSITIONCNTR_HIGH);
+			low = readl(adata->acp_base + ACP_WOV_RX_LINEARPOSITIONCNTR_LOW);
 			break;
 		default:
 			dev_err(adata->dev, "Invalid dai id %x\n", dai_id);
