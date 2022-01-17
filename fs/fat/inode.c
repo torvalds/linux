@@ -1979,3 +1979,4 @@ module_init(init_fat_fs)
 module_exit(exit_fat_fs)
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);

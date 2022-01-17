@@ -2545,5 +2545,6 @@ static unsigned int udf_count_free(struct super_block *sb)
 MODULE_AUTHOR("Ben Fennema");
 MODULE_DESCRIPTION("Universal Disk Format Filesystem");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 module_init(init_udf_fs)
 module_exit(exit_udf_fs)

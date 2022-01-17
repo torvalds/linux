@@ -1583,5 +1583,6 @@ static void __exit exit_nfsd(void)
 
 MODULE_AUTHOR("Olaf Kirch <okir@monad.swb.de>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 module_init(init_nfsd)
 module_exit(exit_nfsd)

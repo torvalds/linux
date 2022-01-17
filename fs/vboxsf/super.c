@@ -482,4 +482,5 @@ module_exit(vboxsf_fini);
 MODULE_DESCRIPTION("Oracle VM VirtualBox Module for Host File System Access");
 MODULE_AUTHOR("Oracle Corporation");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 MODULE_ALIAS_FS("vboxsf");

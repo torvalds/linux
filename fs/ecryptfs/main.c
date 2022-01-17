@@ -891,6 +891,7 @@ MODULE_AUTHOR("Michael A. Halcrow <mhalcrow@us.ibm.com>");
 MODULE_DESCRIPTION("eCryptfs");
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 
 module_init(ecryptfs_init)
 module_exit(ecryptfs_exit)

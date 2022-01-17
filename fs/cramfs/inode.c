@@ -1010,3 +1010,4 @@ static void __exit exit_cramfs_fs(void)
 module_init(init_cramfs_fs)
 module_exit(exit_cramfs_fs)
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);

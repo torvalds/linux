@@ -541,8 +541,8 @@ struct nls_table *load_nls_default(void)
 }
 
 EXPORT_SYMBOL(unregister_nls);
-EXPORT_SYMBOL(unload_nls);
-EXPORT_SYMBOL(load_nls);
-EXPORT_SYMBOL(load_nls_default);
+EXPORT_SYMBOL_NS(unload_nls, ANDROID_GKI_VFS_EXPORT_ONLY);
+EXPORT_SYMBOL_NS(load_nls, ANDROID_GKI_VFS_EXPORT_ONLY);
+EXPORT_SYMBOL_NS(load_nls_default, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 MODULE_LICENSE("Dual BSD/GPL");

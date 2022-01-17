@@ -5180,6 +5180,19 @@ static irqreturn_t ufshcd_uic_cmd_compl(struct ufs_hba *hba, u32 intr_status)
 	return retval;
 }
 
+/* Release the resources allocated for processing a SCSI command. */
+static void ufshcd_release_scsi_cmd(struct ufs_hba *hba,
+				    struct ufshcd_lrb *lrbp)
+{
+	struct scsi_cmnd *cmd = lrbp->cmd;
+
+	scsi_dma_unmap(cmd);
+	ufshcd_crypto_clear_prdt(hba, lrbp);
+	lrbp->cmd = NULL;	/* Mark the command as completed. */
+	ufshcd_release(hba);
+	ufshcd_clk_scaling_update_busy(hba);
+}
+
 /**
  * __ufshcd_transfer_req_compl - handle SCSI and query command completion
  * @hba: per adapter instance
@@ -5190,9 +5203,7 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 {
 	struct ufshcd_lrb *lrbp;
 	struct scsi_cmnd *cmd;
-	int result;
 	int index;
-	bool update_scaling = false;
 
 	for_each_set_bit(index, &completed_reqs, hba->nutrs) {
 		if (!test_and_clear_bit(index, &hba->outstanding_reqs))
@@ -5205,16 +5216,10 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 				ufshcd_update_monitor(hba, lrbp);
 			trace_android_vh_ufs_compl_command(hba, lrbp);
 			ufshcd_add_command_trace(hba, index, "complete");
-			result = ufshcd_transfer_rsp_status(hba, lrbp);
-			scsi_dma_unmap(cmd);
-			cmd->result = result;
-			ufshcd_crypto_clear_prdt(hba, lrbp);
-			/* Mark completed command as NULL in LRB */
-			lrbp->cmd = NULL;
+			cmd->result = ufshcd_transfer_rsp_status(hba, lrbp);
+			ufshcd_release_scsi_cmd(hba, lrbp);
 			/* Do not touch lrbp after scsi done */
 			cmd->scsi_done(cmd);
-			ufshcd_release(hba);
-			update_scaling = true;
 		} else if (lrbp->command_type == UTP_CMD_TYPE_DEV_MANAGE ||
 			lrbp->command_type == UTP_CMD_TYPE_UFS_STORAGE) {
 			if (hba->dev_cmd.complete) {
@@ -5222,11 +5227,9 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 				ufshcd_add_command_trace(hba, index,
 						"dev_complete");
 				complete(hba->dev_cmd.complete);
-				update_scaling = true;
+				ufshcd_clk_scaling_update_busy(hba);
 			}
 		}
-		if (update_scaling)
-			ufshcd_clk_scaling_update_busy(hba);
 	}
 }
 
@@ -6366,9 +6369,8 @@ static irqreturn_t ufshcd_tmc_handler(struct ufs_hba *hba)
 	irqreturn_t ret = IRQ_NONE;
 	int tag;
 
-	pending = ufshcd_readl(hba, REG_UTP_TASK_REQ_DOOR_BELL);
-
 	spin_lock_irqsave(hba->host->host_lock, flags);
+	pending = ufshcd_readl(hba, REG_UTP_TASK_REQ_DOOR_BELL);
 	issued = hba->outstanding_tasks & ~pending;
 	for_each_set_bit(tag, &issued, hba->nutmrs) {
 		struct request *req = tmf_rqs[tag];
@@ -6939,6 +6941,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	unsigned int tag;
 	int err = FAILED, res;
+	bool outstanding;
 	struct ufshcd_lrb *lrbp;
 	u32 reg;
 
@@ -7024,6 +7027,17 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		ufshcd_set_req_abort_skip(hba, hba->outstanding_reqs);
 		goto release;
 	}
+
+	/*
+	 * Clear the corresponding bit from outstanding_reqs since the command
+	 * has been aborted successfully.
+	 */
+	spin_lock_irqsave(host->host_lock, flags);
+	outstanding = __test_and_clear_bit(tag, &hba->outstanding_reqs);
+	spin_unlock_irqrestore(host->host_lock, flags);
+
+	if (outstanding)
+		ufshcd_release_scsi_cmd(hba, lrbp);
 
 	err = SUCCESS;
 

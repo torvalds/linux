@@ -899,6 +899,7 @@
   finish_wait
   firmware_request_nowarn
   flush_dcache_page
+  flush_delayed_fput
   flush_delayed_work
   __flush_icache_range
   flush_work
@@ -1104,6 +1105,7 @@
   idr_replace
   iio_channel_get_all
   iio_read_channel_processed
+  iio_write_channel_raw
   import_iovec
   in4_pton
   in6_pton
@@ -2089,6 +2091,7 @@
   rproc_put
   rproc_remove_subdev
   rproc_report_crash
+  rproc_set_firmware
   rproc_shutdown
   rtc_ktime_to_tm
   __rtc_register_device
@@ -2613,6 +2616,7 @@
   __tracepoint_android_rvh_cpu_cgroup_online
   __tracepoint_android_rvh_cpufreq_transition
   __tracepoint_android_rvh_dequeue_task
+  __tracepoint_android_rvh_do_ptrauth_fault
   __tracepoint_android_rvh_do_sched_yield
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_find_busiest_queue
@@ -2696,6 +2700,7 @@
   __tracepoint_android_vh_show_max_freq
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
+  __tracepoint_android_vh_subpage_dma_contig_alloc
   __tracepoint_android_vh_timer_calc_index
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_clock_scaling

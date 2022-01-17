@@ -4317,9 +4317,11 @@
   usb_unpoison_urb
   usb_unregister_notify
   usb_wakeup_notification
+  usbnet_cdc_unbind
   usbnet_change_mtu
   usbnet_defer_kevent
   usbnet_disconnect
+  usbnet_generic_cdc_bind
   usbnet_get_drvinfo
   usbnet_get_endpoints
   usbnet_get_link

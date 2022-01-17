@@ -49,7 +49,7 @@ void generic_fillattr(struct inode *inode, struct kstat *stat)
 	stat->blksize = i_blocksize(inode);
 	stat->blocks = inode->i_blocks;
 }
-EXPORT_SYMBOL(generic_fillattr);
+EXPORT_SYMBOL_NS(generic_fillattr, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 /**
  * vfs_getattr_nosec - getattr without security checks

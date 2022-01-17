@@ -35,51 +35,6 @@
 
 #include "internal.h"
 
-/* Determine whether we can avoid taking write faults for known dirty pages. */
-static bool may_avoid_write_fault(pte_t pte, struct vm_area_struct *vma,
-				  unsigned long cp_flags)
-{
-	/*
-	 * The dirty accountable bit indicates that we can always make the page
-	 * writable regardless of the number of references.
-	 */
-	if (!(cp_flags & MM_CP_DIRTY_ACCT)) {
-		/* Otherwise, we must have exclusive access to the page. */
-		if (!(vma_is_anonymous(vma) && (vma->vm_flags & VM_WRITE)))
-			return false;
-
-		if (page_count(pte_page(pte)) != 1)
-			return false;
-	}
-
-	/*
-	 * Don't do this optimization for clean pages as we need to be notified
-	 * of the transition from clean to dirty.
-	 */
-	if (!pte_dirty(pte))
-		return false;
-
-	/* Same for softdirty. */
-	if (!pte_soft_dirty(pte) && (vma->vm_flags & VM_SOFTDIRTY))
-		return false;
-
-	/*
-	 * For userfaultfd the user program needs to monitor write faults so we
-	 * can't do this optimization.
-	 */
-	if (pte_uffd_wp(pte))
-		return false;
-
-	/*
-	 * It is unclear whether this optimization can be done safely for NUMA
-	 * pages.
-	 */
-	if (cp_flags & MM_CP_PROT_NUMA)
-		return false;
-
-	return true;
-}
-
 static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, unsigned long end, pgprot_t newprot,
 		unsigned long cp_flags)
@@ -88,6 +43,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 	spinlock_t *ptl;
 	unsigned long pages = 0;
 	int target_node = NUMA_NO_NODE;
+	bool dirty_accountable = cp_flags & MM_CP_DIRTY_ACCT;
 	bool prot_numa = cp_flags & MM_CP_PROT_NUMA;
 	bool uffd_wp = cp_flags & MM_CP_UFFD_WP;
 	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
@@ -175,8 +131,12 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				ptent = pte_clear_uffd_wp(ptent);
 			}
 
-			if (may_avoid_write_fault(ptent, vma, cp_flags))
+			/* Avoid taking write faults for known dirty pages */
+			if (dirty_accountable && pte_dirty(ptent) &&
+					(pte_soft_dirty(ptent) ||
+					 !(vma->vm_flags & VM_SOFTDIRTY))) {
 				ptent = pte_mkwrite(ptent);
+			}
 			ptep_modify_prot_commit(vma, addr, pte, oldpte, ptent);
 			pages++;
 		} else if (is_swap_pte(oldpte)) {

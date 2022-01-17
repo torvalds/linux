@@ -1335,3 +1335,4 @@ MODULE_AUTHOR("Yehuda Sadeh <yehuda@hq.newdream.net>");
 MODULE_AUTHOR("Patience Warnick <patience@newdream.net>");
 MODULE_DESCRIPTION("Ceph filesystem for Linux");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);

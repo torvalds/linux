@@ -44,5 +44,6 @@ module_init(init_incfs_module);
 module_exit(cleanup_incfs_module);
 
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 MODULE_AUTHOR("Eugene Zemtsov <ezemtsov@google.com>");
 MODULE_DESCRIPTION("Incremental File System");

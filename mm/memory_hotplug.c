@@ -1136,9 +1136,6 @@ int add_memory_subsection(int nid, u64 start, u64 size)
 	struct resource *res;
 	int ret;
 
-	if (size == memory_block_size_bytes())
-		return add_memory(nid, start, size, MHP_NONE);
-
 	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
 	    !IS_ALIGNED(size, SUBSECTION_SIZE)) {
 		pr_err("%s: start 0x%llx size 0x%llx not aligned to subsection size\n",
@@ -1837,9 +1834,6 @@ EXPORT_SYMBOL_GPL(remove_memory);
 
 int remove_memory_subsection(int nid, u64 start, u64 size)
 {
-	if (size ==  memory_block_size_bytes())
-		return remove_memory(nid, start, size);
-
 	if (!IS_ALIGNED(start, SUBSECTION_SIZE) ||
 	    !IS_ALIGNED(size, SUBSECTION_SIZE)) {
 		pr_err("%s: start 0x%llx size 0x%llx not aligned to subsection size\n",

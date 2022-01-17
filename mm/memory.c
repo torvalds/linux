@@ -4717,8 +4717,19 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		goto unlock;
 	}
 	if (vmf->flags & FAULT_FLAG_WRITE) {
-		if (!pte_write(entry))
-			return do_wp_page(vmf);
+		if (!pte_write(entry)) {
+			if (!(vmf->flags & FAULT_FLAG_SPECULATIVE))
+				return do_wp_page(vmf);
+
+			if (!mmu_notifier_trylock(vmf->vma->vm_mm)) {
+				ret = VM_FAULT_RETRY;
+				goto unlock;
+			}
+
+			ret = do_wp_page(vmf);
+			mmu_notifier_unlock(vmf->vma->vm_mm);
+			return ret;
+		}
 		entry = pte_mkdirty(entry);
 	}
 	entry = pte_mkyoung(entry);

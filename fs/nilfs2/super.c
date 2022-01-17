@@ -53,6 +53,7 @@ MODULE_AUTHOR("NTT Corp.");
 MODULE_DESCRIPTION("A New Implementation of the Log-structured Filesystem "
 		   "(NILFS)");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 
 static struct kmem_cache *nilfs_inode_cachep;
 struct kmem_cache *nilfs_transaction_cachep;
