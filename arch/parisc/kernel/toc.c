@@ -10,6 +10,7 @@
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
 #include <asm/ldcw.h>
+#include <asm/processor.h>
 
 static unsigned int __aligned(16) toc_lock = 1;
 DEFINE_PER_CPU_PAGE_ALIGNED(char [16384], toc_stack) __visible;
