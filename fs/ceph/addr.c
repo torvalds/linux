@@ -185,7 +185,7 @@ static int ceph_releasepage(struct page *page, gfp_t gfp)
 
 static void ceph_netfs_expand_readahead(struct netfs_read_request *rreq)
 {
-	struct inode *inode = rreq->mapping->host;
+	struct inode *inode = rreq->inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_file_layout *lo = &ci->i_layout;
 	u32 blockoff;
@@ -202,7 +202,7 @@ static void ceph_netfs_expand_readahead(struct netfs_read_request *rreq)
 
 static bool ceph_netfs_clamp_length(struct netfs_read_subrequest *subreq)
 {
-	struct inode *inode = subreq->rreq->mapping->host;
+	struct inode *inode = subreq->rreq->inode;
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 objno, objoff;
@@ -248,7 +248,7 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 static void ceph_netfs_issue_op(struct netfs_read_subrequest *subreq)
 {
 	struct netfs_read_request *rreq = subreq->rreq;
-	struct inode *inode = rreq->mapping->host;
+	struct inode *inode = rreq->inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_osd_request *req;
