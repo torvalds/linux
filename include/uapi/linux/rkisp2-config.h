@@ -55,6 +55,9 @@
 #define RKISP_CMD_SET_CMSK \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 103, struct rkisp_cmsk_cfg)
 
+#define RKISP_CMD_GET_STREAM_INFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 104, struct rkisp_stream_info)
+
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)
@@ -293,6 +296,19 @@ struct rkisp_cmsk_cfg {
 	struct rkisp_cmsk_win win[RKISP_CMSK_WIN_MAX];
 	unsigned int width_ro;
 	unsigned int height_ro;
+} __attribute__ ((packed));
+
+/* struct rkisp_stream_info
+ * cur_frame_id: stream current frame id
+ * input_frame_loss: isp input frame loss num
+ * output_frame_loss: stream output frame loss num
+ * stream_on: stream on/off
+ */
+struct rkisp_stream_info {
+	unsigned int cur_frame_id;
+	unsigned int input_frame_loss;
+	unsigned int output_frame_loss;
+	unsigned char stream_on;
 } __attribute__ ((packed));
 
 /* trigger event mode

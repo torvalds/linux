@@ -1294,6 +1294,20 @@ static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 
 }
 
+static int rkisp_get_stream_info(struct rkisp_stream *stream,
+				 struct rkisp_stream_info *info)
+{
+	struct rkisp_device *dev = stream->ispdev;
+	u32 id = 0;
+
+	rkisp_dmarx_get_frame(stream->ispdev, &id, NULL, NULL, true);
+	info->cur_frame_id = id;
+	info->input_frame_loss = dev->isp_sdev.dbg.frameloss;
+	info->output_frame_loss = stream->dbg.frameloss;
+	info->stream_on = stream->streaming;
+	return 0;
+}
+
 static long rkisp_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -1336,6 +1350,9 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKISP_CMD_SET_CMSK:
 		ret = rkisp_set_cmsk(stream, arg);
+		break;
+	case RKISP_CMD_GET_STREAM_INFO:
+		ret = rkisp_get_stream_info(stream, arg);
 		break;
 	default:
 		ret = -EINVAL;
