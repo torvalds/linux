@@ -2098,8 +2098,17 @@ static void perf_pmu__parse_init(void)
 	pmu = NULL;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 		list_for_each_entry(alias, &pmu->aliases, list) {
-			if (strchr(alias->name, '-'))
+			char *tmp = strchr(alias->name, '-');
+
+			if (tmp) {
+				char *tmp2 = NULL;
+
+				tmp2 = strchr(tmp + 1, '-');
 				len++;
+				if (tmp2)
+					len++;
+			}
+
 			len++;
 		}
 	}
@@ -2119,8 +2128,20 @@ static void perf_pmu__parse_init(void)
 		list_for_each_entry(alias, &pmu->aliases, list) {
 			struct perf_pmu_event_symbol *p = perf_pmu_events_list + len;
 			char *tmp = strchr(alias->name, '-');
+			char *tmp2 = NULL;
 
-			if (tmp != NULL) {
+			if (tmp)
+				tmp2 = strchr(tmp + 1, '-');
+			if (tmp2) {
+				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
+						PMU_EVENT_SYMBOL_PREFIX);
+				p++;
+				tmp++;
+				SET_SYMBOL(strndup(tmp, tmp2 - tmp), PMU_EVENT_SYMBOL_SUFFIX);
+				p++;
+				SET_SYMBOL(strdup(++tmp2), PMU_EVENT_SYMBOL_SUFFIX2);
+				len += 3;
+			} else if (tmp) {
 				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
 						PMU_EVENT_SYMBOL_PREFIX);
 				p++;
