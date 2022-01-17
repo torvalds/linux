@@ -16343,6 +16343,13 @@ S:	Maintained
 F:	include/sound/rt*.h
 F:	sound/soc/codecs/rt*
 
+REALTEK OTTO WATCHDOG
+M:	Sander Vanheule <sander@svanheule.net>
+L:	linux-watchdog@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/watchdog/realtek,otto-wdt.yaml
+F:	drivers/watchdog/realtek_otto_wdt.c
+
 REALTEK RTL83xx SMI DSA ROUTER CHIPS
 M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
