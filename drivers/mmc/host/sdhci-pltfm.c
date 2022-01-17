@@ -110,6 +110,8 @@ void sdhci_get_property(struct platform_device *pdev)
 	if (device_property_read_bool(dev, "wakeup-source") ||
 	    device_property_read_bool(dev, "enable-sdio-wakeup")) /* legacy */
 		host->mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+	if (device_property_read_u8(dev, "sdhci-drive-type", &host->mmc->ios.drv_type) != 0)
+		host->mmc->ios.drv_type = 0;
 }
 EXPORT_SYMBOL_GPL(sdhci_get_property);
 

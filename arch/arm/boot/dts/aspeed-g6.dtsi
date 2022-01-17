@@ -1036,6 +1036,8 @@
 					sdhci,auto-cmd12;
 					sd-uhs-sdr50;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_sd1_default>;
 					status = "disabled";
 				};
 
@@ -1046,6 +1048,8 @@
 					sdhci,auto-cmd12;
 					sd-uhs-sdr50;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_sd2_default>;
 					status = "disabled";
 				};
 			};
