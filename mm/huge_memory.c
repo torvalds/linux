@@ -2465,30 +2465,6 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	}
 }
 
-int total_mapcount(struct page *page)
-{
-	int i, compound, nr, ret;
-
-	VM_BUG_ON_PAGE(PageTail(page), page);
-
-	if (likely(!PageCompound(page)))
-		return atomic_read(&page->_mapcount) + 1;
-
-	compound = compound_mapcount(page);
-	nr = compound_nr(page);
-	if (PageHuge(page))
-		return compound;
-	ret = compound;
-	for (i = 0; i < nr; i++)
-		ret += atomic_read(&page[i]._mapcount) + 1;
-	/* File pages has compound_mapcount included in _mapcount */
-	if (!PageAnon(page))
-		return ret - compound * nr;
-	if (PageDoubleMap(page))
-		ret -= nr;
-	return ret;
-}
-
 /*
  * This calculates accurately how many mappings a transparent hugepage
  * has (unlike page_mapcount() which isn't fully accurate). This full
