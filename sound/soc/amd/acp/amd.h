@@ -12,8 +12,13 @@
 #define __AMD_ACP_H
 
 #include <sound/pcm.h>
+#include <sound/soc.h>
 #include <sound/soc-acpi.h>
+#include <sound/soc-dai.h>
+
 #include "chip_offset_byte.h"
+
+#define ACP3X_DEV			3
 
 #define I2S_SP_INSTANCE			0x00
 #define I2S_BT_INSTANCE			0x01
@@ -70,6 +75,12 @@
 
 #define ACP_MAX_STREAM			6
 
+struct acp_chip_info {
+	char *name;		/* Platform name */
+	unsigned int acp_rev;	/* ACP Revision id */
+	void __iomem *base;	/* ACP memory PCI base */
+};
+
 struct acp_stream {
 	struct snd_pcm_substream *substream;
 	int irq_bit;
@@ -105,6 +116,9 @@ int acp_platform_register(struct device *dev);
 int acp_platform_unregister(struct device *dev);
 
 int acp_machine_select(struct acp_dev_data *adata);
+
+/* Machine configuration */
+int snd_amd_acp_find_config(struct pci_dev *pci);
 
 static inline u64 acp_get_byte_count(struct acp_dev_data *adata, int dai_id, int direction)
 {
