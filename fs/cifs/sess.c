@@ -366,21 +366,6 @@ out:
 	return rc;
 }
 
-/* Mark all session channels for reconnect */
-void cifs_ses_mark_for_reconnect(struct cifs_ses *ses)
-{
-	int i;
-
-	spin_lock(&cifs_tcp_ses_lock);
-	spin_lock(&ses->chan_lock);
-	for (i = 0; i < ses->chan_count; i++) {
-		if (ses->chans[i].server->tcpStatus != CifsExiting)
-			ses->chans[i].server->tcpStatus = CifsNeedReconnect;
-	}
-	spin_unlock(&ses->chan_lock);
-	spin_unlock(&cifs_tcp_ses_lock);
-}
-
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server,
 			     SESSION_SETUP_ANDX *pSMB)

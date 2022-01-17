@@ -168,7 +168,7 @@ static void cifs_resolve_server(struct work_struct *work)
  * @server needs to be previously set to CifsNeedReconnect.
  *
  */
-static void
+void
 cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 				      bool mark_smb_session)
 {
@@ -197,7 +197,10 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 		if (!mark_smb_session && cifs_chan_needs_reconnect(ses, server))
 			goto next_session;
 
-		cifs_chan_set_need_reconnect(ses, server);
+		if (mark_smb_session)
+			CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses);
+		else
+			cifs_chan_set_need_reconnect(ses, server);
 
 		/* If all channels need reconnect, then tcon needs reconnect */
 		if (!mark_smb_session && !CIFS_ALL_CHANS_NEED_RECONNECT(ses))
@@ -4396,7 +4399,7 @@ static int tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tco
 	 */
 	if (rc && server->current_fullpath != server->origin_fullpath) {
 		server->current_fullpath = server->origin_fullpath;
-		cifs_ses_mark_for_reconnect(tcon->ses);
+		cifs_reconnect(tcon->ses->server, true);
 	}
 
 	dfs_cache_free_tgts(tl);
