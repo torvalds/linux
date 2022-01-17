@@ -63,6 +63,10 @@
 #include <linux/devfreq.h>
 #endif /* CONFIG_MALI_BIFROST_DEVFREQ */
 
+#if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
+#include <linux/devfreq_cooling.h>
+#endif
+
 #ifdef CONFIG_MALI_ARBITER_SUPPORT
 #include <arbiter/mali_kbase_arbiter_defs.h>
 #endif /* CONFIG_MALI_ARBITER_SUPPORT */
@@ -1077,6 +1081,7 @@ struct kbase_device {
 	struct kbase_devfreq_queue_info devfreq_queue;
 
 #if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
+	struct devfreq_cooling_power dfc_power;
 	struct thermal_cooling_device *devfreq_cooling;
 	bool ipa_protection_mode_switched;
 	struct {
