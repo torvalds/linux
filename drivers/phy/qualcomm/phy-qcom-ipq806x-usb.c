@@ -112,6 +112,9 @@
 #define SS_CR_READ_REG				BIT(0)
 #define SS_CR_WRITE_REG				BIT(0)
 
+#define LATCH_SLEEP				40
+#define LATCH_TIMEOUT				100
+
 struct usb_phy {
 	void __iomem		*base;
 	struct device		*dev;
@@ -157,19 +160,9 @@ static inline void usb_phy_write_readback(struct usb_phy *phy_dwc3,
 
 static int wait_for_latch(void __iomem *addr)
 {
-	u32 retry = 10;
+	u32 val;
 
-	while (true) {
-		if (!readl(addr))
-			break;
-
-		if (--retry == 0)
-			return -ETIMEDOUT;
-
-		usleep_range(10, 20);
-	}
-
-	return 0;
+	return readl_poll_timeout(addr, val, !val, LATCH_SLEEP, LATCH_TIMEOUT);
 }
 
 /**
