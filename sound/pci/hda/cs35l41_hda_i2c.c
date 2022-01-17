@@ -58,7 +58,6 @@ static struct i2c_driver cs35l41_i2c_driver = {
 	.probe		= cs35l41_hda_i2c_probe,
 	.remove		= cs35l41_hda_i2c_remove,
 };
-
 module_i2c_driver(cs35l41_i2c_driver);
 
 MODULE_DESCRIPTION("HDA CS35L41 driver");

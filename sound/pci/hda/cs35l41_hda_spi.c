@@ -55,7 +55,6 @@ static struct spi_driver cs35l41_spi_driver = {
 	.probe		= cs35l41_hda_spi_probe,
 	.remove		= cs35l41_hda_spi_remove,
 };
-
 module_spi_driver(cs35l41_spi_driver);
 
 MODULE_DESCRIPTION("HDA CS35L41 driver");

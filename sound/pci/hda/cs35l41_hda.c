@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// cs35l41.c -- CS35l41 ALSA HDA audio driver
+// CS35l41 ALSA HDA audio driver
 //
 // Copyright 2021 Cirrus Logic, Inc.
 //
@@ -17,19 +17,19 @@
 #include "cs35l41_hda.h"
 
 static const struct reg_sequence cs35l41_hda_config[] = {
-	{ CS35L41_PLL_CLK_CTRL,		0x00000430 }, //3200000Hz, BCLK Input, PLL_REFCLK_EN = 1
-	{ CS35L41_GLOBAL_CLK_CTRL,	0x00000003 }, //GLOBAL_FS = 48 kHz
-	{ CS35L41_SP_ENABLES,		0x00010000 }, //ASP_RX1_EN = 1
-	{ CS35L41_SP_RATE_CTRL,		0x00000021 }, //ASP_BCLK_FREQ = 3.072 MHz
-	{ CS35L41_SP_FORMAT,		0x20200200 }, //24 bits, I2S, BCLK Slave, FSYNC Slave
-	{ CS35L41_DAC_PCM1_SRC,		0x00000008 }, //DACPCM1_SRC = ASPRX1
-	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00000000 }, //AMP_VOL_PCM  0.0 dB
-	{ CS35L41_AMP_GAIN_CTRL,	0x00000084 }, //AMP_GAIN_PCM 4.5 dB
-	{ CS35L41_PWR_CTRL2,		0x00000001 }, //AMP_EN = 1
+	{ CS35L41_PLL_CLK_CTRL,		0x00000430 }, // 3200000Hz, BCLK Input, PLL_REFCLK_EN = 1
+	{ CS35L41_GLOBAL_CLK_CTRL,	0x00000003 }, // GLOBAL_FS = 48 kHz
+	{ CS35L41_SP_ENABLES,		0x00010000 }, // ASP_RX1_EN = 1
+	{ CS35L41_SP_RATE_CTRL,		0x00000021 }, // ASP_BCLK_FREQ = 3.072 MHz
+	{ CS35L41_SP_FORMAT,		0x20200200 }, // 24 bits, I2S, BCLK Slave, FSYNC Slave
+	{ CS35L41_DAC_PCM1_SRC,		0x00000008 }, // DACPCM1_SRC = ASPRX1
+	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00000000 }, // AMP_VOL_PCM  0.0 dB
+	{ CS35L41_AMP_GAIN_CTRL,	0x00000084 }, // AMP_GAIN_PCM 4.5 dB
+	{ CS35L41_PWR_CTRL2,		0x00000001 }, // AMP_EN = 1
 };
 
 static const struct reg_sequence cs35l41_hda_start_bst[] = {
-	{ CS35L41_PWR_CTRL2,		0x00000021 }, //BST_EN = 10, AMP_EN = 1
+	{ CS35L41_PWR_CTRL2,		0x00000021 }, // BST_EN = 10, AMP_EN = 1
 	{ CS35L41_PWR_CTRL1,		0x00000001, 3000}, // set GLOBAL_EN = 1
 };
 
@@ -60,7 +60,7 @@ static const struct reg_sequence cs35l41_stop_ext_vspk[] = {
 	{ 0x00000040,			0x00000055 },
 	{ 0x00000040,			0x000000AA },
 	{ 0x00007438,			0x00585941 },
-	{ 0x00002014,			0x00000000, 3000}, //set GLOBAL_EN = 0
+	{ 0x00002014,			0x00000000, 3000}, // set GLOBAL_EN = 0
 	{ 0x0000742C,			0x00000009 },
 	{ 0x00007438,			0x00580941 },
 	{ 0x00011008,			0x00000001 },
@@ -78,7 +78,7 @@ static const struct reg_sequence cs35l41_safe_to_active[] = {
 	{ 0x0000742C,			0x0000000F },
 	{ 0x0000742C,			0x00000079 },
 	{ 0x00007438,			0x00585941 },
-	{ CS35L41_PWR_CTRL1,		0x00000001, 2000 }, //GLOBAL_EN = 1
+	{ CS35L41_PWR_CTRL1,		0x00000001, 2000 }, // GLOBAL_EN = 1
 	{ 0x0000742C,			0x000000F9 },
 	{ 0x00007438,			0x00580941 },
 	{ 0x00000040,			0x000000CC },
@@ -89,8 +89,8 @@ static const struct reg_sequence cs35l41_active_to_safe[] = {
 	{ 0x00000040,			0x00000055 },
 	{ 0x00000040,			0x000000AA },
 	{ 0x00007438,			0x00585941 },
-	{ CS35L41_AMP_DIG_VOL_CTRL,	0x0000A678 }, //AMP_VOL_PCM Mute
-	{ CS35L41_PWR_CTRL2,		0x00000000 }, //AMP_EN = 0
+	{ CS35L41_AMP_DIG_VOL_CTRL,	0x0000A678 }, // AMP_VOL_PCM Mute
+	{ CS35L41_PWR_CTRL2,		0x00000000 }, // AMP_EN = 0
 	{ CS35L41_PWR_CTRL1,		0x00000000 },
 	{ 0x0000742C,			0x00000009, 2000 },
 	{ 0x00007438,			0x00580941 },
@@ -168,7 +168,6 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 
 	if (ret)
 		dev_warn(cs35l41->dev, "Failed to apply multi reg write: %d\n", ret);
-
 }
 
 static int cs35l41_hda_channel_map(struct device *dev, unsigned int tx_num, unsigned int *tx_slot,
@@ -185,20 +184,19 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 	struct hda_component *comps = master_data;
 
-	if (comps && cs35l41->index >= 0 && cs35l41->index < HDA_MAX_COMPONENTS)
-		comps = &comps[cs35l41->index];
-	else
+	if (!comps || cs35l41->index < 0 || cs35l41->index >= HDA_MAX_COMPONENTS)
 		return -EINVAL;
 
-	if (!comps->dev) {
-		comps->dev = dev;
-		strscpy(comps->name, dev_name(dev), sizeof(comps->name));
-		comps->playback_hook = cs35l41_hda_playback_hook;
-		comps->set_channel_map = cs35l41_hda_channel_map;
-		return 0;
-	}
+	comps = &comps[cs35l41->index];
+	if (comps->dev)
+		return -EBUSY;
 
-	return -EBUSY;
+	comps->dev = dev;
+	strscpy(comps->name, dev_name(dev), sizeof(comps->name));
+	comps->playback_hook = cs35l41_hda_playback_hook;
+	comps->set_channel_map = cs35l41_hda_channel_map;
+
+	return 0;
 }
 
 static void cs35l41_hda_unbind(struct device *dev, struct device *master, void *master_data)
@@ -269,11 +267,7 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41,
 		cs35l41->reg_seq = &cs35l41_hda_reg_seq_ext_bst;
 	}
 
-	ret = cs35l41_hda_channel_map(cs35l41->dev, 0, NULL, 1, (unsigned int *)&hw_cfg->spk_pos);
-	if (ret)
-		return ret;
-
-	return 0;
+	return cs35l41_hda_channel_map(cs35l41->dev, 0, NULL, 1, (unsigned int *)&hw_cfg->spk_pos);
 }
 
 static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41,
@@ -282,7 +276,7 @@ static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *c
 	struct cs35l41_hda_hw_config *hw_cfg;
 	u32 values[HDA_MAX_COMPONENTS];
 	struct acpi_device *adev;
-	struct device *acpi_dev;
+	struct device *physdev;
 	char *property;
 	size_t nval;
 	int i, ret;
@@ -293,11 +287,11 @@ static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *c
 		return ERR_PTR(-ENODEV);
 	}
 
-	acpi_dev = get_device(acpi_get_first_physical_node(adev));
+	physdev = get_device(acpi_get_first_physical_node(adev));
 	acpi_dev_put(adev);
 
 	property = "cirrus,dev-index";
-	ret = device_property_count_u32(acpi_dev, property);
+	ret = device_property_count_u32(physdev, property);
 	if (ret <= 0)
 		goto no_acpi_dsd;
 
@@ -307,7 +301,7 @@ static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *c
 	}
 	nval = ret;
 
-	ret = device_property_read_u32_array(acpi_dev, property, values, nval);
+	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret)
 		goto err;
 
@@ -324,7 +318,9 @@ static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *c
 		goto err;
 	}
 
-	/* No devm_ version as CLSA0100, in no_acpi_dsd case, can't use devm version */
+	/* To use the same release code for all laptop variants we can't use devm_ version of
+	 * gpiod_get here, as CLSA010* don't have a fully functional bios with an _DSD node
+	 */
 	cs35l41->reset_gpio = fwnode_gpiod_get_index(&adev->fwnode, "reset", cs35l41->index,
 						     GPIOD_OUT_LOW, "cs35l41-reset");
 
@@ -335,46 +331,46 @@ static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *c
 	}
 
 	property = "cirrus,speaker-position";
-	ret = device_property_read_u32_array(acpi_dev, property, values, nval);
+	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret)
 		goto err_free;
 	hw_cfg->spk_pos = values[cs35l41->index];
 
 	property = "cirrus,gpio1-func";
-	ret = device_property_read_u32_array(acpi_dev, property, values, nval);
+	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret)
 		goto err_free;
 	hw_cfg->gpio1_func = values[cs35l41->index];
 
 	property = "cirrus,gpio2-func";
-	ret = device_property_read_u32_array(acpi_dev, property, values, nval);
+	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret)
 		goto err_free;
 	hw_cfg->gpio2_func = values[cs35l41->index];
 
 	property = "cirrus,boost-peak-milliamp";
-	ret = device_property_read_u32_array(acpi_dev, property, values, nval);
+	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret == 0)
 		hw_cfg->bst_ipk = values[cs35l41->index];
 
 	property = "cirrus,boost-ind-nanohenry";
-	ret = device_property_read_u32_array(acpi_dev, property, values, nval);
+	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret == 0)
 		hw_cfg->bst_ind = values[cs35l41->index];
 
 	property = "cirrus,boost-cap-microfarad";
-	ret = device_property_read_u32_array(acpi_dev, property, values, nval);
+	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret == 0)
 		hw_cfg->bst_cap = values[cs35l41->index];
 
-	put_device(acpi_dev);
+	put_device(physdev);
 
 	return hw_cfg;
 
 err_free:
 	kfree(hw_cfg);
 err:
-	put_device(acpi_dev);
+	put_device(physdev);
 	dev_err(cs35l41->dev, "Failed property %s: %d\n", property, ret);
 
 	return ERR_PTR(ret);
@@ -383,18 +379,18 @@ no_acpi_dsd:
 	/*
 	 * Device CLSA0100 doesn't have _DSD so a gpiod_get by the label reset won't work.
 	 * And devices created by i2c-multi-instantiate don't have their device struct pointing to
-	 * the correct fwnode, so acpi_dev must be used here
+	 * the correct fwnode, so acpi_dev must be used here.
 	 * And devm functions expect that the device requesting the resource has the correct
-	 * fwnode
+	 * fwnode.
 	 */
 	if (strncmp(hid, "CLSA0100", 8) != 0)
 		return ERR_PTR(-EINVAL);
 
 	/* check I2C address to assign the index */
 	cs35l41->index = id == 0x40 ? 0 : 1;
-	cs35l41->reset_gpio = gpiod_get_index(acpi_dev, NULL, 0, GPIOD_OUT_HIGH);
+	cs35l41->reset_gpio = gpiod_get_index(physdev, NULL, 0, GPIOD_OUT_HIGH);
 	cs35l41->vspk_always_on = true;
-	put_device(acpi_dev);
+	put_device(physdev);
 
 	return NULL;
 }
@@ -449,7 +445,8 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 
 	ret = regmap_read(cs35l41->regmap, CS35L41_IRQ1_STATUS3, &int_sts);
 	if (ret || (int_sts & CS35L41_OTP_BOOT_ERR)) {
-		dev_err(cs35l41->dev, "OTP Boot error\n");
+		dev_err(cs35l41->dev, "OTP Boot status %x error: %d\n",
+			int_sts & CS35L41_OTP_BOOT_ERR, ret);
 		ret = -EIO;
 		goto err;
 	}
@@ -501,7 +498,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 
 	if (cs35l41->reg_seq->probe) {
 		ret = regmap_multi_reg_write(cs35l41->regmap, cs35l41->reg_seq->probe,
-					    cs35l41->reg_seq->num_probe);
+					     cs35l41->reg_seq->num_probe);
 		if (ret) {
 			dev_err(cs35l41->dev, "Fail to apply probe reg patch: %d\n", ret);
 			goto err;

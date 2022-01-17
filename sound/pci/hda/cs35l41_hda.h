@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * cs35l41_hda.h -- CS35L41 ALSA HDA audio driver
+ * CS35L41 ALSA HDA audio driver
  *
  * Copyright 2021 Cirrus Logic, Inc.
  *
