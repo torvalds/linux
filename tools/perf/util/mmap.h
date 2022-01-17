@@ -15,6 +15,7 @@
 #endif
 #include "auxtrace.h"
 #include "event.h"
+#include "util/compress.h"
 
 struct aiocb;
 
@@ -46,6 +47,7 @@ struct mmap {
 	void		*data;
 	int		comp_level;
 	struct perf_data_file *file;
+	struct zstd_data      zstd_data;
 };
 
 struct mmap_params {
