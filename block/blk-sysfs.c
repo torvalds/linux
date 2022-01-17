@@ -887,7 +887,6 @@ int blk_register_queue(struct gendisk *disk)
 		kobject_uevent(&q->elevator->kobj, KOBJ_ADD);
 	mutex_unlock(&q->sysfs_lock);
 
-	ret = 0;
 unlock:
 	mutex_unlock(&q->sysfs_dir_lock);
 
