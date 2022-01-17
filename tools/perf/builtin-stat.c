@@ -788,7 +788,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	const bool forks = (argc > 0);
 	bool is_pipe = STAT_RECORD ? perf_stat.data.is_pipe : false;
 	struct evlist_cpu_iterator evlist_cpu_itr;
-	struct affinity affinity;
+	struct affinity saved_affinity, *affinity = NULL;
 	int err;
 	bool second_pass = false;
 
@@ -803,8 +803,11 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	if (group)
 		evlist__set_leader(evsel_list);
 
-	if (affinity__setup(&affinity) < 0)
-		return -1;
+	if (!cpu_map__is_dummy(evsel_list->core.cpus)) {
+		if (affinity__setup(&saved_affinity) < 0)
+			return -1;
+		affinity = &saved_affinity;
+	}
 
 	evlist__for_each_entry(evsel_list, counter) {
 		if (bpf_counter__load(counter, &target))
@@ -813,7 +816,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 			all_counters_use_bpf = false;
 	}
 
-	evlist__for_each_cpu(evlist_cpu_itr, evsel_list, &affinity) {
+	evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
 		counter = evlist_cpu_itr.evsel;
 
 		/*
@@ -869,7 +872,7 @@ try_again:
 		 */
 
 		/* First close errored or weak retry */
-		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, &affinity) {
+		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
 			counter = evlist_cpu_itr.evsel;
 
 			if (!counter->reset_group && !counter->errored)
@@ -878,7 +881,7 @@ try_again:
 			perf_evsel__close_cpu(&counter->core, evlist_cpu_itr.cpu_map_idx);
 		}
 		/* Now reopen weak */
-		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, &affinity) {
+		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
 			counter = evlist_cpu_itr.evsel;
 
 			if (!counter->reset_group && !counter->errored)
@@ -904,7 +907,7 @@ try_again_reset:
 			counter->supported = true;
 		}
 	}
-	affinity__cleanup(&affinity);
+	affinity__cleanup(affinity);
 
 	evlist__for_each_entry(evsel_list, counter) {
 		if (!counter->supported) {
