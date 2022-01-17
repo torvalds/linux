@@ -514,7 +514,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cs35l41_hda_probe);
+EXPORT_SYMBOL_NS_GPL(cs35l41_hda_probe, SND_HDA_SCODEC_CS35L41);
 
 int cs35l41_hda_remove(struct device *dev)
 {
@@ -528,8 +528,7 @@ int cs35l41_hda_remove(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cs35l41_hda_remove);
-
+EXPORT_SYMBOL_NS_GPL(cs35l41_hda_remove, SND_HDA_SCODEC_CS35L41);
 
 MODULE_DESCRIPTION("CS35L41 HDA Driver");
 MODULE_AUTHOR("Lucas Tanure, Cirrus Logic Inc, <tanureal@opensource.cirrus.com>");
