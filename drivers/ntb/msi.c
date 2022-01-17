@@ -262,8 +262,9 @@ static int ntbm_msi_setup_callback(struct ntb_dev *ntb, struct msi_desc *entry,
  * @handler:	Function to be called when the IRQ occurs
  * @thread_fn:  Function to be called in a threaded interrupt context. NULL
  *              for clients which handle everything in @handler
- * @devname:    An ascii name for the claiming device, dev_name(dev) if NULL
+ * @name:    An ascii name for the claiming device, dev_name(dev) if NULL
  * @dev_id:     A cookie passed back to the handler function
+ * @msi_desc:	MSI descriptor data which triggers the interrupt
  *
  * This function assigns an interrupt handler to an unused
  * MSI interrupt and returns the descriptor used to trigger
