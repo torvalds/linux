@@ -614,7 +614,7 @@ int hl_device_utilization(struct hl_device *hdev, u32 *utilization)
 	u64 max_power, curr_power, dc_power, dividend;
 	int rc;
 
-	max_power = hdev->asic_prop.max_power_default;
+	max_power = hdev->max_power;
 	dc_power = hdev->asic_prop.dc_power_default;
 	rc = hl_fw_cpucp_power_get(hdev, &curr_power);
 
