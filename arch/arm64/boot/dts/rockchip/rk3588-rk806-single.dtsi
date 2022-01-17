@@ -82,8 +82,9 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
 
-		pinctrl-names = "default";
+		pinctrl-names = "default", "pmic-power-off";
 		pinctrl-0 = <&pmic_pins>, <&rk806_dvs1_null>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
+		pinctrl-1 = <&rk806_dvs1_pwrdn>;
 
 		/* 2800mv-3500mv */
 		low_voltage_threshold = <3000>;
