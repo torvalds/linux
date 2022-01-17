@@ -114,6 +114,16 @@ struct record_thread {
 
 static __thread struct record_thread *thread;
 
+enum thread_msg {
+	THREAD_MSG__UNDEFINED = 0,
+	THREAD_MSG__READY,
+	THREAD_MSG__MAX,
+};
+
+static const char *thread_msg_tags[THREAD_MSG__MAX] = {
+	"UNDEFINED", "READY"
+};
+
 struct record {
 	struct perf_tool	tool;
 	struct record_opts	opts;
@@ -1886,6 +1896,24 @@ static void record__uniquify_name(struct record *rec)
 	}
 }
 
+static int record__terminate_thread(struct record_thread *thread_data)
+{
+	int err;
+	enum thread_msg ack = THREAD_MSG__UNDEFINED;
+	pid_t tid = thread_data->tid;
+
+	close(thread_data->pipes.msg[1]);
+	thread_data->pipes.msg[1] = -1;
+	err = read(thread_data->pipes.ack[0], &ack, sizeof(ack));
+	if (err > 0)
+		pr_debug2("threads[%d]: sent %s\n", tid, thread_msg_tags[ack]);
+	else
+		pr_warning("threads[%d]: failed to receive termination notification from %d\n",
+			   thread->tid, tid);
+
+	return 0;
+}
+
 static int record__start_threads(struct record *rec)
 {
 	struct record_thread *thread_data = rec->thread_data;
@@ -1901,6 +1929,9 @@ static int record__stop_threads(struct record *rec)
 {
 	int t;
 	struct record_thread *thread_data = rec->thread_data;
+
+	for (t = 1; t < rec->nr_threads; t++)
+		record__terminate_thread(&thread_data[t]);
 
 	for (t = 0; t < rec->nr_threads; t++)
 		rec->samples += thread_data[t].samples;
