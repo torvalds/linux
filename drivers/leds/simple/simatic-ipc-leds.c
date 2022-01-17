@@ -41,7 +41,7 @@ static struct simatic_ipc_led simatic_ipc_leds_io[] = {
 /* the actual start will be discovered with PCI, 0 is a placeholder */
 static struct resource simatic_ipc_led_mem_res = DEFINE_RES_MEM_NAMED(0, SZ_4K, KBUILD_MODNAME);
 
-static void *simatic_ipc_led_memory;
+static void __iomem *simatic_ipc_led_memory;
 
 static struct simatic_ipc_led simatic_ipc_leds_mem[] = {
 	{0x500 + 0x1A0, "red:" LED_FUNCTION_STATUS "-1"},
@@ -92,21 +92,22 @@ static void simatic_ipc_led_set_mem(struct led_classdev *led_cd,
 				    enum led_brightness brightness)
 {
 	struct simatic_ipc_led *led = cdev_to_led(led_cd);
+	void __iomem *reg = simatic_ipc_led_memory + led->value;
+	u32 val;
 
-	u32 *p;
-
-	p = simatic_ipc_led_memory + led->value;
-	*p = (*p & ~1) | (brightness == LED_OFF);
+	val = readl(reg);
+	val = (val & ~1) | (brightness == LED_OFF);
+	writel(val, reg);
 }
 
 static enum led_brightness simatic_ipc_led_get_mem(struct led_classdev *led_cd)
 {
 	struct simatic_ipc_led *led = cdev_to_led(led_cd);
+	void __iomem *reg = simatic_ipc_led_memory + led->value;
+	u32 val;
 
-	u32 *p;
-
-	p = simatic_ipc_led_memory + led->value;
-	return (*p & 1) ? LED_OFF : led_cd->max_brightness;
+	val = readl(reg);
+	return (val & 1) ? LED_OFF : led_cd->max_brightness;
 }
 
 static int simatic_ipc_leds_probe(struct platform_device *pdev)
@@ -116,8 +117,9 @@ static int simatic_ipc_leds_probe(struct platform_device *pdev)
 	struct simatic_ipc_led *ipcled;
 	struct led_classdev *cdev;
 	struct resource *res;
+	void __iomem *reg;
 	int err, type;
-	u32 *p;
+	u32 val;
 
 	switch (plat->devmode) {
 	case SIMATIC_IPC_DEVICE_227D:
@@ -157,11 +159,13 @@ static int simatic_ipc_leds_probe(struct platform_device *pdev)
 			return PTR_ERR(simatic_ipc_led_memory);
 
 		/* initialize power/watchdog LED */
-		p = simatic_ipc_led_memory + 0x500 + 0x1D8; /* PM_WDT_OUT */
-		*p = (*p & ~1);
-		p = simatic_ipc_led_memory + 0x500 + 0x1C0; /* PM_BIOS_BOOT_N */
-		*p = (*p | 1);
+		reg = simatic_ipc_led_memory + 0x500 + 0x1D8; /* PM_WDT_OUT */
+		val = readl(reg);
+		writel(val & ~1, reg);
 
+		reg = simatic_ipc_led_memory + 0x500 + 0x1C0; /* PM_BIOS_BOOT_N */
+		val = readl(reg);
+		writel(val | 1, reg);
 		break;
 	default:
 		return -ENODEV;
