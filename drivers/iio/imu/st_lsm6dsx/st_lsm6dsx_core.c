@@ -54,6 +54,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/minmax.h>
 #include <linux/pm.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -1615,8 +1616,7 @@ int st_lsm6dsx_set_watermark(struct iio_dev *iio_dev, unsigned int val)
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int err;
 
-	if (val < 1 || val > hw->settings->fifo_ops.max_size)
-		return -EINVAL;
+	val = clamp_val(val, 1, hw->settings->fifo_ops.max_size);
 
 	mutex_lock(&hw->conf_lock);
 
