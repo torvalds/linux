@@ -1575,10 +1575,10 @@ retry:
 		 */
 		folio_check_dirty_writeback(folio, &dirty, &writeback);
 		if (dirty || writeback)
-			stat->nr_dirty++;
+			stat->nr_dirty += nr_pages;
 
 		if (dirty && !writeback)
-			stat->nr_unqueued_dirty++;
+			stat->nr_unqueued_dirty += nr_pages;
 
 		/*
 		 * Treat this page as congested if the underlying BDI is or if
@@ -1590,7 +1590,7 @@ retry:
 		if (((dirty || writeback) && mapping &&
 		     inode_write_congested(mapping->host)) ||
 		    (writeback && PageReclaim(page)))
-			stat->nr_congested++;
+			stat->nr_congested += nr_pages;
 
 		/*
 		 * If a page at the tail of the LRU is under writeback, there
@@ -1639,7 +1639,7 @@ retry:
 			if (current_is_kswapd() &&
 			    PageReclaim(page) &&
 			    test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
-				stat->nr_immediate++;
+				stat->nr_immediate += nr_pages;
 				goto activate_locked;
 
 			/* Case 2 above */
@@ -1657,7 +1657,7 @@ retry:
 				 * and it's also appropriate in global reclaim.
 				 */
 				SetPageReclaim(page);
-				stat->nr_writeback++;
+				stat->nr_writeback += nr_pages;
 				goto activate_locked;
 
 			/* Case 3 above */
@@ -1823,7 +1823,7 @@ retry:
 			case PAGE_ACTIVATE:
 				goto activate_locked;
 			case PAGE_SUCCESS:
-				stat->nr_pageout += thp_nr_pages(page);
+				stat->nr_pageout += nr_pages;
 
 				if (PageWriteback(page))
 					goto keep;
