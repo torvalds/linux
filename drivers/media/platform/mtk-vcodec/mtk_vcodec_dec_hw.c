@@ -184,7 +184,6 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 	return 0;
 err:
 	pm_runtime_disable(subdev_dev->pm.dev);
-	put_device(subdev_dev->pm.larbvdec);
 	return ret;
 }
 

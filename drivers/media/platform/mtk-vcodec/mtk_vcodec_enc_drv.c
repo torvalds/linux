@@ -371,7 +371,6 @@ err_enc_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_res:
 	pm_runtime_disable(dev->pm.dev);
-	put_device(dev->pm.larbvenc);
 err_enc_pm:
 	mtk_vcodec_fw_release(dev->fw_handler);
 	return ret;
@@ -461,7 +460,6 @@ static int mtk_vcodec_enc_remove(struct platform_device *pdev)
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 	pm_runtime_disable(dev->pm.dev);
-	put_device(dev->pm.larbvenc);
 	mtk_vcodec_fw_release(dev->fw_handler);
 	return 0;
 }
