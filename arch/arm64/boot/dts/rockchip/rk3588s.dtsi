@@ -11,6 +11,7 @@
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/suspend/rockchip-rk3588.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "rockchip,rk3588";
@@ -331,6 +332,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <128>;
 			next-level-cache = <&l2_cache_l0>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <228>;
 		};
 
 		cpu_l1: cpu@100 {
@@ -403,6 +406,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2_cache_b0>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <416>;
 		};
 
 		cpu_b1: cpu@500 {
@@ -439,6 +444,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2_cache_b2>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <416>;
 		};
 
 		cpu_b3: cpu@700 {
@@ -1126,15 +1133,48 @@
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <2100>; /* milliwatts */
 
 			thermal-sensors = <&tsadc 0>;
 			trips {
+				threshold: trip-point-0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				target: trip-point-1 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
 				soc_crit: soc-crit {
 					/* millicelsius */
 					temperature = <115000>;
 					/* millicelsius */
 					hysteresis = <2000>;
 					type = "critical";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map1 {
+					trip = <&target>;
+					cooling-device = <&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map2 {
+					trip = <&target>;
+					cooling-device = <&cpu_b2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map3 {
+					trip = <&target>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
 				};
 			};
 		};
@@ -1211,6 +1251,8 @@
 			      "clk_gpu_stacks", "clk_gpu";
 		power-domains = <&power RK3588_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
+		#cooling-cells = <2>;
+		dynamic-power-coefficient = <2982>;
 
 		upthreshold = <30>;
 		downdifferential = <10>;
