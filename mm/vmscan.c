@@ -1437,7 +1437,7 @@ static enum page_references page_check_references(struct page *page,
 }
 
 /* Check if a page is dirty or under writeback */
-static void page_check_dirty_writeback(struct page *page,
+static void folio_check_dirty_writeback(struct folio *folio,
 				       bool *dirty, bool *writeback)
 {
 	struct address_space *mapping;
@@ -1446,24 +1446,24 @@ static void page_check_dirty_writeback(struct page *page,
 	 * Anonymous pages are not handled by flushers and must be written
 	 * from reclaim context. Do not stall reclaim based on them
 	 */
-	if (!page_is_file_lru(page) ||
-	    (PageAnon(page) && !PageSwapBacked(page))) {
+	if (!folio_is_file_lru(folio) ||
+	    (folio_test_anon(folio) && !folio_test_swapbacked(folio))) {
 		*dirty = false;
 		*writeback = false;
 		return;
 	}
 
-	/* By default assume that the page flags are accurate */
-	*dirty = PageDirty(page);
-	*writeback = PageWriteback(page);
+	/* By default assume that the folio flags are accurate */
+	*dirty = folio_test_dirty(folio);
+	*writeback = folio_test_writeback(folio);
 
 	/* Verify dirty/writeback state if the filesystem supports it */
-	if (!page_has_private(page))
+	if (!folio_test_private(folio))
 		return;
 
-	mapping = page_mapping(page);
+	mapping = folio_mapping(folio);
 	if (mapping && mapping->a_ops->is_dirty_writeback)
-		mapping->a_ops->is_dirty_writeback(page, dirty, writeback);
+		mapping->a_ops->is_dirty_writeback(&folio->page, dirty, writeback);
 }
 
 static struct page *alloc_demote_page(struct page *page, unsigned long node)
@@ -1572,7 +1572,7 @@ retry:
 		 * reclaim_congested. kswapd will stall and start writing
 		 * pages if the tail of the LRU is all dirty unqueued pages.
 		 */
-		page_check_dirty_writeback(page, &dirty, &writeback);
+		folio_check_dirty_writeback(folio, &dirty, &writeback);
 		if (dirty || writeback)
 			stat->nr_dirty++;
 
