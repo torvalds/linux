@@ -275,7 +275,6 @@ static int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num)
 {
 	u32 in[MLX5_ST_SZ_DW(pmlp_reg)] = {0};
 	u32 out[MLX5_ST_SZ_DW(pmlp_reg)];
-	int module_mapping;
 	int err;
 
 	MLX5_SET(pmlp_reg, in, local_port, 1);
@@ -284,8 +283,9 @@ static int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num)
 	if (err)
 		return err;
 
-	module_mapping = MLX5_GET(pmlp_reg, out, lane0_module_mapping);
-	*module_num = module_mapping & MLX5_EEPROM_IDENTIFIER_BYTE_MASK;
+	*module_num = MLX5_GET(lane_2_module_mapping,
+			       MLX5_ADDR_OF(pmlp_reg, out, lane0_module_mapping),
+			       module);
 
 	return 0;
 }

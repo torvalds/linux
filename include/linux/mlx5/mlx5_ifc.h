@@ -9888,10 +9888,10 @@ struct mlx5_ifc_pcmr_reg_bits {
 };
 
 struct mlx5_ifc_lane_2_module_mapping_bits {
-	u8         reserved_at_0[0x6];
-	u8         rx_lane[0x2];
-	u8         reserved_at_8[0x6];
-	u8         tx_lane[0x2];
+	u8         reserved_at_0[0x4];
+	u8         rx_lane[0x4];
+	u8         reserved_at_8[0x4];
+	u8         tx_lane[0x4];
 	u8         reserved_at_10[0x8];
 	u8         module[0x8];
 };
