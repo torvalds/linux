@@ -297,6 +297,108 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 	return -ENOMSG;
 }
 
+static struct input_dev *goodix_create_pen_input(struct goodix_ts_data *ts)
+{
+	struct device *dev = &ts->client->dev;
+	struct input_dev *input;
+
+	input = devm_input_allocate_device(dev);
+	if (!input)
+		return NULL;
+
+	input_alloc_absinfo(input);
+	if (!input->absinfo) {
+		input_free_device(input);
+		return NULL;
+	}
+
+	input->absinfo[ABS_X] = ts->input_dev->absinfo[ABS_MT_POSITION_X];
+	input->absinfo[ABS_Y] = ts->input_dev->absinfo[ABS_MT_POSITION_Y];
+	__set_bit(ABS_X, input->absbit);
+	__set_bit(ABS_Y, input->absbit);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 255, 0, 0);
+
+	input_set_capability(input, EV_KEY, BTN_TOUCH);
+	input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
+	input_set_capability(input, EV_KEY, BTN_STYLUS);
+	input_set_capability(input, EV_KEY, BTN_STYLUS2);
+	__set_bit(INPUT_PROP_DIRECT, input->propbit);
+	/*
+	 * The resolution of these touchscreens is about 10 units/mm, the actual
+	 * resolution does not matter much since we set INPUT_PROP_DIRECT.
+	 * Userspace wants something here though, so just set it to 10 units/mm.
+	 */
+	input_abs_set_res(input, ABS_X, 10);
+	input_abs_set_res(input, ABS_Y, 10);
+
+	input->name = "Goodix Active Pen";
+	input->phys = "input/pen";
+	input->id.bustype = BUS_I2C;
+	input->id.vendor = 0x0416;
+	if (kstrtou16(ts->id, 10, &input->id.product))
+		input->id.product = 0x1001;
+	input->id.version = ts->version;
+
+	if (input_register_device(input) != 0) {
+		input_free_device(input);
+		return NULL;
+	}
+
+	return input;
+}
+
+static void goodix_ts_report_pen_down(struct goodix_ts_data *ts, u8 *data)
+{
+	int input_x, input_y, input_w;
+	u8 key_value;
+
+	if (!ts->input_pen) {
+		ts->input_pen = goodix_create_pen_input(ts);
+		if (!ts->input_pen)
+			return;
+	}
+
+	if (ts->contact_size == 9) {
+		input_x = get_unaligned_le16(&data[4]);
+		input_y = get_unaligned_le16(&data[6]);
+		input_w = get_unaligned_le16(&data[8]);
+	} else {
+		input_x = get_unaligned_le16(&data[2]);
+		input_y = get_unaligned_le16(&data[4]);
+		input_w = get_unaligned_le16(&data[6]);
+	}
+
+	touchscreen_report_pos(ts->input_pen, &ts->prop, input_x, input_y, false);
+	input_report_abs(ts->input_pen, ABS_PRESSURE, input_w);
+
+	input_report_key(ts->input_pen, BTN_TOUCH, 1);
+	input_report_key(ts->input_pen, BTN_TOOL_PEN, 1);
+
+	if (data[0] & GOODIX_HAVE_KEY) {
+		key_value = data[1 + ts->contact_size];
+		input_report_key(ts->input_pen, BTN_STYLUS, key_value & 0x10);
+		input_report_key(ts->input_pen, BTN_STYLUS2, key_value & 0x20);
+	} else {
+		input_report_key(ts->input_pen, BTN_STYLUS, 0);
+		input_report_key(ts->input_pen, BTN_STYLUS2, 0);
+	}
+
+	input_sync(ts->input_pen);
+}
+
+static void goodix_ts_report_pen_up(struct goodix_ts_data *ts)
+{
+	if (!ts->input_pen)
+		return;
+
+	input_report_key(ts->input_pen, BTN_TOUCH, 0);
+	input_report_key(ts->input_pen, BTN_TOOL_PEN, 0);
+	input_report_key(ts->input_pen, BTN_STYLUS, 0);
+	input_report_key(ts->input_pen, BTN_STYLUS2, 0);
+
+	input_sync(ts->input_pen);
+}
+
 static void goodix_ts_report_touch_8b(struct goodix_ts_data *ts, u8 *coor_data)
 {
 	int id = coor_data[0] & 0x0F;
@@ -327,6 +429,14 @@ static void goodix_ts_report_touch_9b(struct goodix_ts_data *ts, u8 *coor_data)
 	input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
 }
 
+static void goodix_ts_release_keys(struct goodix_ts_data *ts)
+{
+	int i;
+
+	for (i = 0; i < GOODIX_MAX_KEYS; i++)
+		input_report_key(ts->input_dev, ts->keymap[i], 0);
+}
+
 static void goodix_ts_report_key(struct goodix_ts_data *ts, u8 *data)
 {
 	int touch_num;
@@ -341,8 +451,7 @@ static void goodix_ts_report_key(struct goodix_ts_data *ts, u8 *data)
 				input_report_key(ts->input_dev,
 						 ts->keymap[i], 1);
 	} else {
-		for (i = 0; i < GOODIX_MAX_KEYS; i++)
-			input_report_key(ts->input_dev, ts->keymap[i], 0);
+		goodix_ts_release_keys(ts);
 	}
 }
 
@@ -364,6 +473,15 @@ static void goodix_process_events(struct goodix_ts_data *ts)
 	if (touch_num < 0)
 		return;
 
+	/* The pen being down is always reported as a single touch */
+	if (touch_num == 1 && (point_data[1] & 0x80)) {
+		goodix_ts_report_pen_down(ts, point_data);
+		goodix_ts_release_keys(ts);
+		goto sync; /* Release any previously registered touches */
+	} else {
+		goodix_ts_report_pen_up(ts);
+	}
+
 	goodix_ts_report_key(ts, point_data);
 
 	for (i = 0; i < touch_num; i++)
@@ -374,6 +492,7 @@ static void goodix_process_events(struct goodix_ts_data *ts)
 			goodix_ts_report_touch_8b(ts,
 				&point_data[1 + ts->contact_size * i]);
 
+sync:
 	input_mt_sync_frame(ts->input_dev);
 	input_sync(ts->input_dev);
 }
@@ -857,7 +976,7 @@ retry_get_irq_gpio:
 	if (IS_ERR(gpiod)) {
 		error = PTR_ERR(gpiod);
 		if (error != -EPROBE_DEFER)
-			dev_dbg(dev, "Failed to get %s GPIO: %d\n",
+			dev_err(dev, "Failed to get %s GPIO: %d\n",
 				GOODIX_GPIO_INT_NAME, error);
 		return error;
 	}
@@ -874,7 +993,7 @@ retry_get_irq_gpio:
 	if (IS_ERR(gpiod)) {
 		error = PTR_ERR(gpiod);
 		if (error != -EPROBE_DEFER)
-			dev_dbg(dev, "Failed to get %s GPIO: %d\n",
+			dev_err(dev, "Failed to get %s GPIO: %d\n",
 				GOODIX_GPIO_RST_NAME, error);
 		return error;
 	}
