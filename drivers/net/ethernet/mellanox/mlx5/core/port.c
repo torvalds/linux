@@ -365,6 +365,12 @@ static void mlx5_sfp_eeprom_params_set(u16 *i2c_addr, int *page_num, u16 *offset
 	*offset -= MLX5_EEPROM_PAGE_LENGTH;
 }
 
+static int mlx5_mcia_max_bytes(struct mlx5_core_dev *dev)
+{
+	/* mcia supports either 12 dwords or 32 dwords */
+	return (MLX5_CAP_MCAM_FEATURE(dev, mcia_32dwords) ? 32 : 12) * sizeof(u32);
+}
+
 static int mlx5_query_mcia(struct mlx5_core_dev *dev,
 			   struct mlx5_module_eeprom_query_params *params, u8 *data)
 {
@@ -374,7 +380,7 @@ static int mlx5_query_mcia(struct mlx5_core_dev *dev,
 	void *ptr;
 	u16 size;
 
-	size = min_t(int, params->size, MLX5_EEPROM_MAX_BYTES);
+	size = min_t(int, params->size, mlx5_mcia_max_bytes(dev));
 
 	MLX5_SET(mcia_reg, in, l, 0);
 	MLX5_SET(mcia_reg, in, size, size);
