@@ -26,14 +26,12 @@ enum mtk_mdp_comp_type {
  * @node:	list node to track sibing MDP components
  * @dev_node:	component device node
  * @clk:	clocks required for component
- * @larb_dev:	SMI device required for component
  * @type:	component type
  */
 struct mtk_mdp_comp {
 	struct list_head	node;
 	struct device_node	*dev_node;
 	struct clk		*clk[2];
-	struct device		*larb_dev;
 	enum mtk_mdp_comp_type	type;
 };
 
