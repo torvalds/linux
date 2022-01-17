@@ -713,9 +713,39 @@ measurements:
  wait -n ${perf_pid}
  exit $?
 
---threads::
+--threads=<spec>::
 Write collected trace data into several data files using parallel threads.
-The option creates a data streaming thread for each CPU in the system.
+<spec> value can be user defined list of masks. Masks separated by colon
+define CPUs to be monitored by a thread and affinity mask of that thread
+is separated by slash:
+
+    <cpus mask 1>/<affinity mask 1>:<cpus mask 2>/<affinity mask 2>:...
+
+CPUs or affinity masks must not overlap with other corresponding masks.
+Invalid CPUs are ignored, but masks containing only invalid CPUs are not
+allowed.
+
+For example user specification like the following:
+
+    0,2-4/2-4:1,5-7/5-7
+
+specifies parallel threads layout that consists of two threads,
+the first thread monitors CPUs 0 and 2-4 with the affinity mask 2-4,
+the second monitors CPUs 1 and 5-7 with the affinity mask 5-7.
+
+<spec> value can also be a string meaning predefined parallel threads
+layout:
+
+    cpu    - create new data streaming thread for every monitored cpu
+    core   - create new thread to monitor CPUs grouped by a core
+    package - create new thread to monitor CPUs grouped by a package
+    numa   - create new threed to monitor CPUs grouped by a NUMA domain
+
+Predefined layouts can be used on systems with large number of CPUs in
+order not to spawn multiple per-cpu streaming threads but still avoid LOST
+events in data directory files. Option specified with no or empty value
+defaults to CPU layout. Masks defined or provided by the option value are
+filtered through the mask provided by -C option.
 
 include::intel-hybrid.txt[]
 

@@ -79,6 +79,7 @@ struct record_opts {
 	bool	      ctl_fd_close;
 	int	      synth;
 	int	      threads_spec;
+	const char    *threads_user_spec;
 };
 
 extern const char * const *record_usage;

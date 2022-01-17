@@ -51,6 +51,7 @@
 #include "util/evlist-hybrid.h"
 #include "asm/bug.h"
 #include "perf.h"
+#include "cputopo.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -130,6 +131,15 @@ static const char *thread_msg_tags[THREAD_MSG__MAX] = {
 enum thread_spec {
 	THREAD_SPEC__UNDEFINED = 0,
 	THREAD_SPEC__CPU,
+	THREAD_SPEC__CORE,
+	THREAD_SPEC__PACKAGE,
+	THREAD_SPEC__NUMA,
+	THREAD_SPEC__USER,
+	THREAD_SPEC__MAX,
+};
+
+static const char *thread_spec_tags[THREAD_SPEC__MAX] = {
+	"undefined", "cpu", "core", "package", "numa", "user"
 };
 
 struct record {
@@ -2775,10 +2785,31 @@ static void record__thread_mask_free(struct thread_mask *mask)
 
 static int record__parse_threads(const struct option *opt, const char *str, int unset)
 {
+	int s;
 	struct record_opts *opts = opt->value;
 
-	if (unset || !str || !strlen(str))
+	if (unset || !str || !strlen(str)) {
 		opts->threads_spec = THREAD_SPEC__CPU;
+	} else {
+		for (s = 1; s < THREAD_SPEC__MAX; s++) {
+			if (s == THREAD_SPEC__USER) {
+				opts->threads_user_spec = strdup(str);
+				if (!opts->threads_user_spec)
+					return -ENOMEM;
+				opts->threads_spec = THREAD_SPEC__USER;
+				break;
+			}
+			if (!strncasecmp(str, thread_spec_tags[s], strlen(thread_spec_tags[s]))) {
+				opts->threads_spec = s;
+				break;
+			}
+		}
+	}
+
+	if (opts->threads_spec == THREAD_SPEC__USER)
+		pr_debug("threads_spec: %s\n", opts->threads_user_spec);
+	else
+		pr_debug("threads_spec: %s\n", thread_spec_tags[opts->threads_spec]);
 
 	return 0;
 }
@@ -3273,6 +3304,21 @@ static void record__mmap_cpu_mask_init(struct mmap_cpu_mask *mask, struct perf_c
 		set_bit(cpus->map[c].cpu, mask->bits);
 }
 
+static int record__mmap_cpu_mask_init_spec(struct mmap_cpu_mask *mask, const char *mask_spec)
+{
+	struct perf_cpu_map *cpus;
+
+	cpus = perf_cpu_map__new(mask_spec);
+	if (!cpus)
+		return -ENOMEM;
+
+	bitmap_zero(mask->bits, mask->nbits);
+	record__mmap_cpu_mask_init(mask, cpus);
+	perf_cpu_map__put(cpus);
+
+	return 0;
+}
+
 static void record__free_thread_masks(struct record *rec, int nr_threads)
 {
 	int t;
@@ -3335,6 +3381,253 @@ static int record__init_thread_cpu_masks(struct record *rec, struct perf_cpu_map
 	return 0;
 }
 
+static int record__init_thread_masks_spec(struct record *rec, struct perf_cpu_map *cpus,
+					  const char **maps_spec, const char **affinity_spec,
+					  u32 nr_spec)
+{
+	u32 s;
+	int ret = 0, t = 0;
+	struct mmap_cpu_mask cpus_mask;
+	struct thread_mask thread_mask, full_mask, *thread_masks;
+
+	ret = record__mmap_cpu_mask_alloc(&cpus_mask, cpu__max_cpu().cpu);
+	if (ret) {
+		pr_err("Failed to allocate CPUs mask\n");
+		return ret;
+	}
+	record__mmap_cpu_mask_init(&cpus_mask, cpus);
+
+	ret = record__thread_mask_alloc(&full_mask, cpu__max_cpu().cpu);
+	if (ret) {
+		pr_err("Failed to allocate full mask\n");
+		goto out_free_cpu_mask;
+	}
+
+	ret = record__thread_mask_alloc(&thread_mask, cpu__max_cpu().cpu);
+	if (ret) {
+		pr_err("Failed to allocate thread mask\n");
+		goto out_free_full_and_cpu_masks;
+	}
+
+	for (s = 0; s < nr_spec; s++) {
+		ret = record__mmap_cpu_mask_init_spec(&thread_mask.maps, maps_spec[s]);
+		if (ret) {
+			pr_err("Failed to initialize maps thread mask\n");
+			goto out_free;
+		}
+		ret = record__mmap_cpu_mask_init_spec(&thread_mask.affinity, affinity_spec[s]);
+		if (ret) {
+			pr_err("Failed to initialize affinity thread mask\n");
+			goto out_free;
+		}
+
+		/* ignore invalid CPUs but do not allow empty masks */
+		if (!bitmap_and(thread_mask.maps.bits, thread_mask.maps.bits,
+				cpus_mask.bits, thread_mask.maps.nbits)) {
+			pr_err("Empty maps mask: %s\n", maps_spec[s]);
+			ret = -EINVAL;
+			goto out_free;
+		}
+		if (!bitmap_and(thread_mask.affinity.bits, thread_mask.affinity.bits,
+				cpus_mask.bits, thread_mask.affinity.nbits)) {
+			pr_err("Empty affinity mask: %s\n", affinity_spec[s]);
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		/* do not allow intersection with other masks (full_mask) */
+		if (bitmap_intersects(thread_mask.maps.bits, full_mask.maps.bits,
+				      thread_mask.maps.nbits)) {
+			pr_err("Intersecting maps mask: %s\n", maps_spec[s]);
+			ret = -EINVAL;
+			goto out_free;
+		}
+		if (bitmap_intersects(thread_mask.affinity.bits, full_mask.affinity.bits,
+				      thread_mask.affinity.nbits)) {
+			pr_err("Intersecting affinity mask: %s\n", affinity_spec[s]);
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		bitmap_or(full_mask.maps.bits, full_mask.maps.bits,
+			  thread_mask.maps.bits, full_mask.maps.nbits);
+		bitmap_or(full_mask.affinity.bits, full_mask.affinity.bits,
+			  thread_mask.affinity.bits, full_mask.maps.nbits);
+
+		thread_masks = realloc(rec->thread_masks, (t + 1) * sizeof(struct thread_mask));
+		if (!thread_masks) {
+			pr_err("Failed to reallocate thread masks\n");
+			ret = -ENOMEM;
+			goto out_free;
+		}
+		rec->thread_masks = thread_masks;
+		rec->thread_masks[t] = thread_mask;
+		if (verbose) {
+			pr_debug("thread_masks[%d]: ", t);
+			mmap_cpu_mask__scnprintf(&rec->thread_masks[t].maps, "maps");
+			pr_debug("thread_masks[%d]: ", t);
+			mmap_cpu_mask__scnprintf(&rec->thread_masks[t].affinity, "affinity");
+		}
+		t++;
+		ret = record__thread_mask_alloc(&thread_mask, cpu__max_cpu().cpu);
+		if (ret) {
+			pr_err("Failed to allocate thread mask\n");
+			goto out_free_full_and_cpu_masks;
+		}
+	}
+	rec->nr_threads = t;
+	pr_debug("nr_threads: %d\n", rec->nr_threads);
+	if (!rec->nr_threads)
+		ret = -EINVAL;
+
+out_free:
+	record__thread_mask_free(&thread_mask);
+out_free_full_and_cpu_masks:
+	record__thread_mask_free(&full_mask);
+out_free_cpu_mask:
+	record__mmap_cpu_mask_free(&cpus_mask);
+
+	return ret;
+}
+
+static int record__init_thread_core_masks(struct record *rec, struct perf_cpu_map *cpus)
+{
+	int ret;
+	struct cpu_topology *topo;
+
+	topo = cpu_topology__new();
+	if (!topo) {
+		pr_err("Failed to allocate CPU topology\n");
+		return -ENOMEM;
+	}
+
+	ret = record__init_thread_masks_spec(rec, cpus, topo->core_cpus_list,
+					     topo->core_cpus_list, topo->core_cpus_lists);
+	cpu_topology__delete(topo);
+
+	return ret;
+}
+
+static int record__init_thread_package_masks(struct record *rec, struct perf_cpu_map *cpus)
+{
+	int ret;
+	struct cpu_topology *topo;
+
+	topo = cpu_topology__new();
+	if (!topo) {
+		pr_err("Failed to allocate CPU topology\n");
+		return -ENOMEM;
+	}
+
+	ret = record__init_thread_masks_spec(rec, cpus, topo->package_cpus_list,
+					     topo->package_cpus_list, topo->package_cpus_lists);
+	cpu_topology__delete(topo);
+
+	return ret;
+}
+
+static int record__init_thread_numa_masks(struct record *rec, struct perf_cpu_map *cpus)
+{
+	u32 s;
+	int ret;
+	const char **spec;
+	struct numa_topology *topo;
+
+	topo = numa_topology__new();
+	if (!topo) {
+		pr_err("Failed to allocate NUMA topology\n");
+		return -ENOMEM;
+	}
+
+	spec = zalloc(topo->nr * sizeof(char *));
+	if (!spec) {
+		pr_err("Failed to allocate NUMA spec\n");
+		ret = -ENOMEM;
+		goto out_delete_topo;
+	}
+	for (s = 0; s < topo->nr; s++)
+		spec[s] = topo->nodes[s].cpus;
+
+	ret = record__init_thread_masks_spec(rec, cpus, spec, spec, topo->nr);
+
+	zfree(&spec);
+
+out_delete_topo:
+	numa_topology__delete(topo);
+
+	return ret;
+}
+
+static int record__init_thread_user_masks(struct record *rec, struct perf_cpu_map *cpus)
+{
+	int t, ret;
+	u32 s, nr_spec = 0;
+	char **maps_spec = NULL, **affinity_spec = NULL, **tmp_spec;
+	char *user_spec, *spec, *spec_ptr, *mask, *mask_ptr, *dup_mask = NULL;
+
+	for (t = 0, user_spec = (char *)rec->opts.threads_user_spec; ; t++, user_spec = NULL) {
+		spec = strtok_r(user_spec, ":", &spec_ptr);
+		if (spec == NULL)
+			break;
+		pr_debug2("threads_spec[%d]: %s\n", t, spec);
+		mask = strtok_r(spec, "/", &mask_ptr);
+		if (mask == NULL)
+			break;
+		pr_debug2("  maps mask: %s\n", mask);
+		tmp_spec = realloc(maps_spec, (nr_spec + 1) * sizeof(char *));
+		if (!tmp_spec) {
+			pr_err("Failed to reallocate maps spec\n");
+			ret = -ENOMEM;
+			goto out_free;
+		}
+		maps_spec = tmp_spec;
+		maps_spec[nr_spec] = dup_mask = strdup(mask);
+		if (!maps_spec[nr_spec]) {
+			pr_err("Failed to allocate maps spec[%d]\n", nr_spec);
+			ret = -ENOMEM;
+			goto out_free;
+		}
+		mask = strtok_r(NULL, "/", &mask_ptr);
+		if (mask == NULL) {
+			pr_err("Invalid thread maps or affinity specs\n");
+			ret = -EINVAL;
+			goto out_free;
+		}
+		pr_debug2("  affinity mask: %s\n", mask);
+		tmp_spec = realloc(affinity_spec, (nr_spec + 1) * sizeof(char *));
+		if (!tmp_spec) {
+			pr_err("Failed to reallocate affinity spec\n");
+			ret = -ENOMEM;
+			goto out_free;
+		}
+		affinity_spec = tmp_spec;
+		affinity_spec[nr_spec] = strdup(mask);
+		if (!affinity_spec[nr_spec]) {
+			pr_err("Failed to allocate affinity spec[%d]\n", nr_spec);
+			ret = -ENOMEM;
+			goto out_free;
+		}
+		dup_mask = NULL;
+		nr_spec++;
+	}
+
+	ret = record__init_thread_masks_spec(rec, cpus, (const char **)maps_spec,
+					     (const char **)affinity_spec, nr_spec);
+
+out_free:
+	free(dup_mask);
+	for (s = 0; s < nr_spec; s++) {
+		if (maps_spec)
+			free(maps_spec[s]);
+		if (affinity_spec)
+			free(affinity_spec[s]);
+	}
+	free(affinity_spec);
+	free(maps_spec);
+
+	return ret;
+}
+
 static int record__init_thread_default_masks(struct record *rec, struct perf_cpu_map *cpus)
 {
 	int ret;
@@ -3352,12 +3645,33 @@ static int record__init_thread_default_masks(struct record *rec, struct perf_cpu
 
 static int record__init_thread_masks(struct record *rec)
 {
+	int ret = 0;
 	struct perf_cpu_map *cpus = rec->evlist->core.cpus;
 
 	if (!record__threads_enabled(rec))
 		return record__init_thread_default_masks(rec, cpus);
 
-	return record__init_thread_cpu_masks(rec, cpus);
+	switch (rec->opts.threads_spec) {
+	case THREAD_SPEC__CPU:
+		ret = record__init_thread_cpu_masks(rec, cpus);
+		break;
+	case THREAD_SPEC__CORE:
+		ret = record__init_thread_core_masks(rec, cpus);
+		break;
+	case THREAD_SPEC__PACKAGE:
+		ret = record__init_thread_package_masks(rec, cpus);
+		break;
+	case THREAD_SPEC__NUMA:
+		ret = record__init_thread_numa_masks(rec, cpus);
+		break;
+	case THREAD_SPEC__USER:
+		ret = record__init_thread_user_masks(rec, cpus);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 int cmd_record(int argc, const char **argv)
