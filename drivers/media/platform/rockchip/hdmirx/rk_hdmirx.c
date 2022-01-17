@@ -32,6 +32,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
+#include <sound/hdmi-codec.h>
 #include "rk_hdmirx.h"
 
 static int debug;
@@ -49,6 +50,29 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define MEMORY_ALIGN_ROUND_UP_BYTES	64
 #define HDMIRX_PLANE_Y			0
 #define HDMIRX_PLANE_CBCR		1
+#define INIT_FIFO_STATE			64
+
+#define is_validfs(x) (x == 32000 || \
+			x == 44100 || \
+			x == 48000 || \
+			x == 88200 || \
+			x == 96000 || \
+			x == 176400 || \
+			x == 192000 || \
+			x == 768000)
+
+struct hdmirx_audiostate {
+	struct platform_device *pdev;
+	u32 hdmirx_aud_clkrate;
+	u32 fs_audio;
+	u32 ch_audio;
+	u32 ctsn_flag;
+	u32 fifo_flag;
+	int init_state;
+	int pre_state;
+	bool fifo_int;
+	bool audio_enabled;
+};
 
 enum hdmirx_pix_fmt {
 	HDMIRX_RGB888 = 0,
@@ -121,6 +145,7 @@ struct rk_hdmirx_dev {
 	struct gpio_desc *hdmirx_det_gpio;
 	struct delayed_work delayed_work_hotplug;
 	struct delayed_work delayed_work_res_change;
+	struct delayed_work delayed_work_audio;
 	struct mutex stream_lock;
 	struct mutex work_lock;
 	struct reset_control *reset;
@@ -145,11 +170,20 @@ struct rk_hdmirx_dev {
 	u32 cur_vic;
 	u32 cur_fmt_fourcc;
 	u32 color_depth;
+	int audio_present;
+	struct hdmirx_audiostate audio_state;
+	hdmi_codec_plugged_cb plugged_cb;
+	struct device *codec_dev;
 };
 
 static bool tx_5v_power_present(struct rk_hdmirx_dev *hdmirx_dev);
 static void hdmirx_set_fmt(struct hdmirx_stream *stream,
 		struct v4l2_pix_format_mplane *pixm, bool try);
+static void hdmirx_audio_setup(struct rk_hdmirx_dev *hdmirx_dev);
+static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev);
+static u32 hdmirx_audio_ch(struct rk_hdmirx_dev *hdmirx_dev);
+static void hdmirx_audio_handle_plugged_change(struct rk_hdmirx_dev *hdmirx_dev, bool plugged);
+static void hdmirx_audio_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en);
 
 static u8 edid_init_data[] = {
 	0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
@@ -1650,6 +1684,20 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 			msecs_to_jiffies(10));
 }
 
+static void avpunit_1_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
+				  int status, bool *handled)
+{
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	if (status & DEFRAMER_VSYNC_THR_REACHED_IRQ) {
+		v4l2_info(v4l2_dev, "Vertical Sync threshold reached interrupt %#x", status);
+		hdmirx_update_bits(hdmirx_dev, AVPUNIT_1_INT_MASK_N,
+				   DEFRAMER_VSYNC_THR_REACHED_MASK_N,
+				   0);
+		schedule_delayed_work(&hdmirx_dev->delayed_work_audio, HZ / 2);
+		*handled = true;
+	}
+}
 static void mainunit_0_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		int status, bool *handled)
 {
@@ -1758,8 +1806,8 @@ static irqreturn_t hdmirx_hdmi_irq_handler(int irq, void *dev_id)
 	struct rk_hdmirx_dev *hdmirx_dev = dev_id;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	bool handled = false;
-	u32 mu0_st, mu2_st, pk2_st, scdc_st;
-	u32 mu0_mask, mu2_mask, pk2_mask, scdc_mask;
+	u32 mu0_st, mu2_st, pk2_st, scdc_st, avp_st;
+	u32 mu0_mask, mu2_mask, pk2_mask, scdc_mask, avp_msk;
 
 	mu0_mask = hdmirx_readl(hdmirx_dev, MAINUNIT_0_INT_MASK_N);
 	mu2_mask = hdmirx_readl(hdmirx_dev, MAINUNIT_2_INT_MASK_N);
@@ -1769,11 +1817,16 @@ static irqreturn_t hdmirx_hdmi_irq_handler(int irq, void *dev_id)
 	mu2_st = hdmirx_readl(hdmirx_dev, MAINUNIT_2_INT_STATUS);
 	pk2_st = hdmirx_readl(hdmirx_dev, PKT_2_INT_STATUS);
 	scdc_st = hdmirx_readl(hdmirx_dev, SCDC_INT_STATUS);
+	avp_st = hdmirx_readl(hdmirx_dev, AVPUNIT_1_INT_STATUS);
+	avp_msk = hdmirx_readl(hdmirx_dev, AVPUNIT_1_INT_MASK_N);
 	mu0_st &= mu0_mask;
 	mu2_st &= mu2_mask;
 	pk2_st &= pk2_mask;
+	avp_st &= avp_msk;
 	scdc_st &= scdc_mask;
 
+	if (avp_st)
+		avpunit_1_int_handler(hdmirx_dev, avp_st, &handled);
 	if (mu0_st)
 		mainunit_0_int_handler(hdmirx_dev, mu0_st, &handled);
 	if (mu2_st)
@@ -1941,6 +1994,20 @@ static irqreturn_t hdmirx_dma_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void hdmirx_audio_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
+{
+	dev_info(hdmirx_dev->dev, "%s: %d", __func__, en);
+	if (en) {
+		hdmirx_update_bits(hdmirx_dev, AVPUNIT_1_INT_MASK_N,
+				   DEFRAMER_VSYNC_THR_REACHED_MASK_N,
+				   DEFRAMER_VSYNC_THR_REACHED_MASK_N);
+	} else {
+		hdmirx_update_bits(hdmirx_dev, AVPUNIT_1_INT_MASK_N,
+				   DEFRAMER_VSYNC_THR_REACHED_MASK_N,
+				   0);
+	}
+}
+
 static void hdmirx_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 {
 	v4l2_dbg(1, debug, &hdmirx_dev->v4l2_dev, "%s: %sable\n",
@@ -1958,9 +2025,13 @@ static void hdmirx_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 				TMDSQPCLK_OFF_CHG | TMDSQPCLK_LOCKED_CHG);
 		hdmirx_update_bits(hdmirx_dev, MAINUNIT_2_INT_MASK_N,
 				TMDSVALID_STABLE_CHG, TMDSVALID_STABLE_CHG);
+		hdmirx_update_bits(hdmirx_dev, PKT_2_INT_MASK_N,
+				PKTDEC_ACR_RCV_MASK_N,
+				PKTDEC_ACR_RCV_MASK_N);
 	} else {
 		hdmirx_writel(hdmirx_dev, MAINUNIT_0_INT_MASK_N, 0);
 		hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_MASK_N, 0);
+		hdmirx_writel(hdmirx_dev, PKT_2_INT_MASK_N, 0);
 	}
 }
 
@@ -1982,10 +2053,13 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 					POWERPROVIDED);
 		hdmirx_hpd_ctrl(hdmirx_dev, true);
 		hdmirx_phy_config(hdmirx_dev);
+		hdmirx_audio_setup(hdmirx_dev);
 		hdmirx_wait_lock_and_get_timing(hdmirx_dev);
 		hdmirx_dma_config(hdmirx_dev);
 		hdmirx_interrupts_setup(hdmirx_dev, true);
+		hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
 	} else {
+		hdmirx_audio_handle_plugged_change(hdmirx_dev, 0);
 		hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED, 0);
 		hdmirx_interrupts_setup(hdmirx_dev, false);
 		hdmirx_hpd_ctrl(hdmirx_dev, false);
@@ -1999,8 +2073,319 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 				FIFO_UNDERFLOW_INT_EN |
 				HDMIRX_AXI_ERROR_INT_EN, 0);
 		cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
+		cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
 	}
 	mutex_unlock(&hdmirx_dev->work_lock);
+}
+
+static u32 hdmirx_audio_ch(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	u32 acr_pb3_0, acr_pb7_4, ch, ca;
+
+	hdmirx_readl(hdmirx_dev, PKTDEC_AUDIF_PH2_1);
+	acr_pb3_0 = hdmirx_readl(hdmirx_dev, PKTDEC_AUDIF_PB3_0);
+	acr_pb7_4 =  hdmirx_readl(hdmirx_dev, PKTDEC_AUDIF_PB7_4);
+	ca = acr_pb7_4 & 0xff;
+	ch = ((acr_pb3_0>>8) & 0x07) + 1;
+	dev_dbg(hdmirx_dev->dev, "%s: acr_pb3_0=%#x; ch=%u; ca=%#x\n",
+		__func__, acr_pb3_0, ch, ca);
+	return ch;
+}
+
+static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	u64 tmds_clk, fs_audio = 0;
+	u32 acr_cts, acr_n, tmdsqpclk_freq;
+	u32 acr_pb7_4, acr_pb3_0;
+
+	tmdsqpclk_freq = hdmirx_readl(hdmirx_dev, CMU_TMDSQPCLK_FREQ);
+	hdmirx_readl(hdmirx_dev, PKTDEC_ACR_PH2_1);
+	acr_pb7_4 = hdmirx_readl(hdmirx_dev, PKTDEC_ACR_PB3_0);
+	acr_pb3_0 = hdmirx_readl(hdmirx_dev, PKTDEC_ACR_PB7_4);
+	acr_cts = __be32_to_cpu(acr_pb7_4) & 0xfffff;
+	acr_n = (__be32_to_cpu(acr_pb3_0) & 0x0fffff00) >> 8;
+	tmds_clk = tmdsqpclk_freq * 4 * 1000U;
+	if (acr_cts != 0) {
+		fs_audio = div_u64((tmds_clk * acr_n), acr_cts);
+		fs_audio /= 128;
+		fs_audio = div_u64(fs_audio + 50, 100);
+		fs_audio *= 100;
+	}
+	dev_dbg(hdmirx_dev->dev, "%s: fs_audio=%llu; acr_cts=%u; acr_n=%u\n",
+		__func__, fs_audio, acr_cts, acr_n);
+	return fs_audio;
+}
+
+static void hdmirx_audio_clk_set_rate(struct rk_hdmirx_dev *hdmirx_dev, u32 rate)
+{
+	dev_dbg(hdmirx_dev->dev, "%s: %u to %u\n",
+		__func__, hdmirx_dev->audio_state.hdmirx_aud_clkrate, rate);
+	clk_set_rate(hdmirx_dev->clks[1].clk, rate);
+	hdmirx_dev->audio_state.hdmirx_aud_clkrate = rate;
+}
+
+static void hdmirx_audio_set_ch(struct rk_hdmirx_dev *hdmirx_dev, u32 ch_audio)
+{
+	hdmirx_dev->audio_state.ch_audio = ch_audio;
+}
+
+static void hdmirx_audio_set_fs(struct rk_hdmirx_dev *hdmirx_dev, u32 fs_audio)
+{
+	u32 hdmirx_aud_clkrate_t = fs_audio*128;
+
+	dev_dbg(hdmirx_dev->dev, "%s: %u to %u with fs %u\n", __func__,
+		hdmirx_dev->audio_state.hdmirx_aud_clkrate, hdmirx_aud_clkrate_t,
+		fs_audio);
+	clk_set_rate(hdmirx_dev->clks[1].clk, hdmirx_aud_clkrate_t);
+	hdmirx_dev->audio_state.hdmirx_aud_clkrate = hdmirx_aud_clkrate_t;
+	hdmirx_dev->audio_state.fs_audio = fs_audio;
+}
+
+static void hdmirx_audio_fifo_init(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	dev_info(hdmirx_dev->dev, "%s\n", __func__);
+	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_CONTROL, 1);
+	usleep_range(200, 210);
+	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_CONTROL, 0);
+}
+
+static void hdmirx_audio_clk_ppm_inc(struct rk_hdmirx_dev *hdmirx_dev, int ppm)
+{
+	int delta, rate, inc;
+
+	rate = hdmirx_dev->audio_state.hdmirx_aud_clkrate;
+	if (ppm < 0) {
+		ppm = -ppm;
+		inc = -1;
+	} else
+		inc = 1;
+	delta = (int)div64_u64((uint64_t)rate * ppm + 500000, 1000000);
+	delta *= inc;
+	rate = hdmirx_dev->audio_state.hdmirx_aud_clkrate + delta;
+	dev_dbg(hdmirx_dev->dev, "%s: %u to %u(delta:%d)\n",
+		__func__, hdmirx_dev->audio_state.hdmirx_aud_clkrate, rate, delta);
+	clk_set_rate(hdmirx_dev->clks[1].clk, rate);
+	hdmirx_dev->audio_state.hdmirx_aud_clkrate = rate;
+}
+
+static void hdmirx_audio_setup(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	struct hdmirx_audiostate *as = &hdmirx_dev->audio_state;
+
+	as->ctsn_flag = 0;
+	as->fs_audio = 0;
+	as->ch_audio = 0;
+	as->pre_state = 0;
+	as->init_state = INIT_FIFO_STATE*4;
+	as->fifo_int = false;
+	as->audio_enabled = false;
+	hdmirx_audio_clk_set_rate(hdmirx_dev, 5644800);
+	/* Disable audio domain */
+	hdmirx_update_bits(hdmirx_dev, GLOBAL_SWENABLE, AUDIO_ENABLE, 0);
+	/* Configure Vsync interrupt threshold */
+	hdmirx_update_bits(hdmirx_dev, DEFRAMER_CONFIG0, VS_CNT_THR_QST_MASK, VS_CNT_THR_QST(3));
+	hdmirx_audio_interrupts_setup(hdmirx_dev, true);
+	hdmirx_writel(hdmirx_dev, DEFRAMER_VSYNC_CNT_CLEAR, VSYNC_CNT_CLR_P);
+	hdmirx_writel(hdmirx_dev, AVPUNIT_1_INT_CLEAR, DEFRAMER_VSYNC_THR_REACHED_CLEAR);
+	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_THR_PASS, INIT_FIFO_STATE);
+	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_THR,
+		      AFIFO_THR_LOW_QST(0x20) | AFIFO_THR_HIGH_QST(0x160));
+	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_MUTE_THR,
+		      AFIFO_THR_MUTE_LOW_QST(0x8) | AFIFO_THR_MUTE_HIGH_QST(0x178));
+}
+
+static int hdmirx_audio_hw_params(struct device *dev, void *data,
+				  struct hdmi_codec_daifmt *daifmt,
+				  struct hdmi_codec_params *params)
+{
+	dev_dbg(dev, "%s\n", __func__);
+	return 0;
+}
+
+static int hdmirx_audio_startup(struct device *dev, void *data)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+
+	if (tx_5v_power_present(hdmirx_dev))
+		return 0;
+	dev_err(dev, "%s: device is no connected\n", __func__);
+	return -ENODEV;
+}
+
+static void hdmirx_audio_shutdown(struct device *dev, void *data)
+{
+	dev_dbg(dev, "%s\n", __func__);
+}
+
+static int hdmirx_audio_get_dai_id(struct snd_soc_component *comment,
+				   struct device_node *endpoint)
+{
+	dev_dbg(comment->dev, "%s\n", __func__);
+	return 0;
+}
+
+static void hdmirx_audio_handle_plugged_change(struct rk_hdmirx_dev *hdmirx_dev, bool plugged)
+{
+	if (hdmirx_dev->plugged_cb && hdmirx_dev->codec_dev)
+		hdmirx_dev->plugged_cb(hdmirx_dev->codec_dev, plugged);
+}
+
+static int hdmirx_audio_hook_plugged_cb(struct device *dev, void *data,
+					hdmi_codec_plugged_cb fn,
+					struct device *codec_dev)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "%s\n", __func__);
+	mutex_lock(&hdmirx_dev->work_lock);
+	hdmirx_dev->plugged_cb = fn;
+	hdmirx_dev->codec_dev = codec_dev;
+	hdmirx_audio_handle_plugged_change(hdmirx_dev, tx_5v_power_present(hdmirx_dev));
+	mutex_unlock(&hdmirx_dev->work_lock);
+	return 0;
+}
+
+static const struct hdmi_codec_ops hdmirx_audio_codec_ops = {
+	.hw_params = hdmirx_audio_hw_params,
+	.audio_startup = hdmirx_audio_startup,
+	.audio_shutdown = hdmirx_audio_shutdown,
+	.get_dai_id = hdmirx_audio_get_dai_id,
+	.hook_plugged_cb = hdmirx_audio_hook_plugged_cb
+};
+
+static int hdmirx_register_audio_device(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	struct hdmirx_audiostate *as = &hdmirx_dev->audio_state;
+	struct hdmi_codec_pdata codec_data = {
+		.ops = &hdmirx_audio_codec_ops,
+		.spdif = 1,
+		.i2s = 1,
+		.max_i2s_channels = 8,
+		.data = hdmirx_dev,
+	};
+
+	as->pdev = platform_device_register_data(hdmirx_dev->dev,
+						 HDMI_CODEC_DRV_NAME,
+						 PLATFORM_DEVID_AUTO,
+						 &codec_data,
+						 sizeof(codec_data));
+
+	return PTR_ERR_OR_ZERO(as->pdev);
+}
+
+static void hdmirx_unregister_audio_device(void *data)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = data;
+	struct hdmirx_audiostate *as = &hdmirx_dev->audio_state;
+
+	if (as->pdev) {
+		platform_device_unregister(as->pdev);
+		as->pdev = NULL;
+	}
+}
+
+static const char *audio_fifo_err(u32 fifo_status)
+{
+	switch (fifo_status & (AFIFO_UNDERFLOW_ST | AFIFO_OVERFLOW_ST)) {
+	case AFIFO_UNDERFLOW_ST:
+		return "underflow";
+	case AFIFO_OVERFLOW_ST:
+		return "overflow";
+	case AFIFO_UNDERFLOW_ST | AFIFO_OVERFLOW_ST:
+		return "underflow and overflow";
+	}
+	return "underflow or overflow";
+}
+
+static void hdmirx_enable_audio_output(struct rk_hdmirx_dev *hdmirx_dev,
+				      int ch_audio, int fs_audio, int spdif)
+{
+	if (spdif) {
+		dev_warn(hdmirx_dev->dev, "We don't recommend using spdif\n");
+	} else {
+		if (ch_audio > 2) {
+			hdmirx_update_bits(hdmirx_dev, AUDIO_PROC_CONFIG0,
+					   SPEAKER_ALLOC_OVR_EN | I2S_EN,
+					   SPEAKER_ALLOC_OVR_EN | I2S_EN);
+			hdmirx_writel(hdmirx_dev, AUDIO_PROC_CONFIG3, 0xffffffff);
+		} else {
+			hdmirx_update_bits(hdmirx_dev, AUDIO_PROC_CONFIG0,
+					   SPEAKER_ALLOC_OVR_EN | I2S_EN, I2S_EN);
+		}
+	}
+}
+
+static void hdmirx_delayed_work_audio(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rk_hdmirx_dev *hdmirx_dev = container_of(dwork,
+							struct rk_hdmirx_dev,
+							delayed_work_audio);
+	struct hdmirx_audiostate *as = &hdmirx_dev->audio_state;
+	u32 fs_audio, ch_audio;
+	int cur_state, init_state, pre_state, fifo_status2;
+	unsigned long delay = 200;
+
+	if (!as->audio_enabled) {
+		dev_info(hdmirx_dev->dev, "%s: enable audio\n", __func__);
+		hdmirx_update_bits(hdmirx_dev, GLOBAL_SWENABLE, AUDIO_ENABLE, AUDIO_ENABLE);
+		hdmirx_writel(hdmirx_dev, GLOBAL_SWRESET_REQUEST, AUDIO_SWRESETREQ);
+		as->audio_enabled = true;
+	}
+	fs_audio = hdmirx_audio_fs(hdmirx_dev);
+	ch_audio = hdmirx_audio_ch(hdmirx_dev);
+	fifo_status2 =  hdmirx_readl(hdmirx_dev, AUDIO_FIFO_STATUS2);
+	if (fifo_status2 & (AFIFO_UNDERFLOW_ST | AFIFO_OVERFLOW_ST)) {
+		dev_warn(hdmirx_dev->dev, "%s: audio %s %#x, with fs %svalid %d\n",
+			 __func__, audio_fifo_err(fifo_status2), fifo_status2,
+			 is_validfs(fs_audio) ? "" : "in", fs_audio);
+		if (is_validfs(fs_audio)) {
+			hdmirx_audio_set_fs(hdmirx_dev, fs_audio);
+			hdmirx_audio_set_ch(hdmirx_dev, ch_audio);
+			hdmirx_enable_audio_output(hdmirx_dev, ch_audio, fs_audio, 0);
+		}
+		hdmirx_audio_fifo_init(hdmirx_dev);
+		as->pre_state = 0;
+		goto exit;
+	}
+	cur_state = fifo_status2 & 0xFFFF;
+	init_state = as->init_state;
+	pre_state = as->pre_state;
+	dev_dbg(hdmirx_dev->dev, "%s: HDMI_RX_AUD_FIFO_FILLSTS1:%#x, single offset:%d, total offset:%d\n",
+		__func__, cur_state, cur_state - pre_state, cur_state - init_state);
+	if (!is_validfs(fs_audio)) {
+		dev_warn(hdmirx_dev->dev, "%s: no supported fs(%u), cur_state %d\n",
+			 __func__, fs_audio, cur_state);
+		delay = 1000;
+	} else if (abs(fs_audio - as->fs_audio) > 1000 || ch_audio != as->ch_audio) {
+		dev_info(hdmirx_dev->dev, "%s: restart audio fs(%d -> %d) ch(%d -> %d)\n",
+			 __func__, as->fs_audio, fs_audio, as->ch_audio, ch_audio);
+		hdmirx_audio_set_fs(hdmirx_dev, fs_audio);
+		hdmirx_audio_set_ch(hdmirx_dev, ch_audio);
+		hdmirx_enable_audio_output(hdmirx_dev, ch_audio, fs_audio, 0);
+		hdmirx_audio_fifo_init(hdmirx_dev);
+		as->pre_state = 0;
+		goto exit;
+	}
+
+	if (cur_state != 0) {
+		if (!hdmirx_dev->audio_present) {
+			dev_info(hdmirx_dev->dev, "audio on");
+			hdmirx_dev->audio_present = true;
+		}
+		if (cur_state - init_state > 16 && cur_state - pre_state > 0)
+			hdmirx_audio_clk_ppm_inc(hdmirx_dev, 10);
+		else if (cur_state - init_state < -16 && cur_state - pre_state < 0)
+			hdmirx_audio_clk_ppm_inc(hdmirx_dev, -10);
+	} else {
+		if (hdmirx_dev->audio_present) {
+			dev_info(hdmirx_dev->dev, "audio off");
+			hdmirx_dev->audio_present = false;
+		}
+	}
+	as->pre_state = cur_state;
+exit:
+	schedule_delayed_work(&hdmirx_dev->delayed_work_audio, msecs_to_jiffies(delay));
 }
 
 static void hdmirx_delayed_work_res_change(struct work_struct *work)
@@ -2238,6 +2623,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 			hdmirx_delayed_work_hotplug);
 	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_res_change,
 			hdmirx_delayed_work_res_change);
+	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_audio,
+			hdmirx_delayed_work_audio);
 	hdmirx_dev->power_on = false;
 
 	ret = hdmirx_power_on(hdmirx_dev);
@@ -2309,6 +2696,15 @@ static int hdmirx_probe(struct platform_device *pdev)
 		goto err_unreg_v4l2_dev;
 	}
 
+	ret = hdmirx_register_audio_device(hdmirx_dev);
+	if (ret) {
+		dev_err(dev, "register audio_driver failed!\n");
+		goto err_unreg_video_dev;
+	}
+	ret = devm_add_action_or_reset(dev, hdmirx_unregister_audio_device, hdmirx_dev);
+	if (ret)
+		goto err_unreg_video_dev;
+
 	irq = gpiod_to_irq(hdmirx_dev->hdmirx_det_gpio);
 	if (irq < 0) {
 		dev_err(dev, "failed to get hdmirx-det gpio irq\n");
@@ -2341,6 +2737,7 @@ err_hdl:
 err_work_queues:
 	cancel_delayed_work(&hdmirx_dev->delayed_work_hotplug);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
+	cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
 	clk_bulk_disable_unprepare(hdmirx_dev->num_clks, hdmirx_dev->clks);
 	if (hdmirx_dev->power_on)
 		pm_runtime_put_sync(dev);
@@ -2356,6 +2753,7 @@ static int hdmirx_remove(struct platform_device *pdev)
 
 	cancel_delayed_work(&hdmirx_dev->delayed_work_hotplug);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
+	cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
 	clk_bulk_disable_unprepare(hdmirx_dev->num_clks, hdmirx_dev->clks);
 	reset_control_assert(hdmirx_dev->reset);
 
