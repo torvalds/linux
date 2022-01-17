@@ -226,7 +226,7 @@ static int amd_pmc_stb_debugfs_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-const struct file_operations amd_pmc_stb_debugfs_fops = {
+static const struct file_operations amd_pmc_stb_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.open = amd_pmc_stb_debugfs_open,
 	.read = amd_pmc_stb_debugfs_read,
