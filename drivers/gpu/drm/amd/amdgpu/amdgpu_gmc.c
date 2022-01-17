@@ -822,3 +822,49 @@ void amdgpu_gmc_get_reserved_allocation(struct amdgpu_device *adev)
 		break;
 	}
 }
+
+int amdgpu_gmc_vram_checking(struct amdgpu_device *adev)
+{
+	struct amdgpu_bo *vram_bo;
+	uint64_t vram_gpu;
+	void *vram_ptr;
+
+	int ret, size = 0x100000;
+	uint8_t cptr[10];
+
+	ret = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
+				AMDGPU_GEM_DOMAIN_VRAM,
+				&vram_bo,
+				&vram_gpu,
+				&vram_ptr);
+	if (ret)
+		return ret;
+
+	memset(vram_ptr, 0x86, size);
+	memset(cptr, 0x86, 10);
+
+	/**
+	 * Check the start, the mid, and the end of the memory if the content of
+	 * each byte is the pattern "0x86". If yes, we suppose the vram bo is
+	 * workable.
+	 *
+	 * Note: If check the each byte of whole 1M bo, it will cost too many
+	 * seconds, so here, we just pick up three parts for emulation.
+	 */
+	ret = memcmp(vram_ptr, cptr, 10);
+	if (ret)
+		return ret;
+
+	ret = memcmp(vram_ptr + (size / 2), cptr, 10);
+	if (ret)
+		return ret;
+
+	ret = memcmp(vram_ptr + size - 10, cptr, 10);
+	if (ret)
+		return ret;
+
+	amdgpu_bo_free_kernel(&vram_bo, &vram_gpu,
+			&vram_ptr);
+
+	return 0;
+}
