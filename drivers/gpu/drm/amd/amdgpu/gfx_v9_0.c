@@ -63,10 +63,6 @@
 #define mmGCEA_PROBE_MAP                        0x070c
 #define mmGCEA_PROBE_MAP_BASE_IDX               0
 
-#define GFX9_RLCG_VFGATE_DISABLED		0x4000000
-#define GFX9_RLCG_WRONG_OPERATION_TYPE		0x2000000
-#define GFX9_RLCG_NOT_IN_RANGE			0x1000000
-
 MODULE_FIRMWARE("amdgpu/vega10_ce.bin");
 MODULE_FIRMWARE("amdgpu/vega10_pfp.bin");
 MODULE_FIRMWARE("amdgpu/vega10_me.bin");
@@ -742,106 +738,6 @@ static const u32 GFX_RLC_SRM_INDEX_CNTL_DATA_OFFSETS[] =
 	mmRLC_SRM_INDEX_CNTL_DATA_6 - mmRLC_SRM_INDEX_CNTL_DATA_0,
 	mmRLC_SRM_INDEX_CNTL_DATA_7 - mmRLC_SRM_INDEX_CNTL_DATA_0,
 };
-
-static u32 gfx_v9_0_rlcg_rw(struct amdgpu_device *adev, u32 offset, u32 v, uint32_t flag)
-{
-	static void *scratch_reg0;
-	static void *scratch_reg1;
-	static void *scratch_reg2;
-	static void *scratch_reg3;
-	static void *spare_int;
-	static uint32_t grbm_cntl;
-	static uint32_t grbm_idx;
-	uint32_t i = 0;
-	uint32_t retries = 50000;
-	u32 ret = 0;
-	u32 tmp;
-
-	scratch_reg0 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG0)*4;
-	scratch_reg1 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG1)*4;
-	scratch_reg2 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG2_BASE_IDX] + mmSCRATCH_REG2)*4;
-	scratch_reg3 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG3_BASE_IDX] + mmSCRATCH_REG3)*4;
-	spare_int = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmRLC_SPARE_INT_BASE_IDX] + mmRLC_SPARE_INT)*4;
-
-	grbm_cntl = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_CNTL_BASE_IDX] + mmGRBM_GFX_CNTL;
-	grbm_idx = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_INDEX_BASE_IDX] + mmGRBM_GFX_INDEX;
-
-	if (offset == grbm_cntl || offset == grbm_idx) {
-		if (offset  == grbm_cntl)
-			writel(v, scratch_reg2);
-		else if (offset == grbm_idx)
-			writel(v, scratch_reg3);
-
-		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
-	} else {
-		/*
-		 * SCRATCH_REG0 	= read/write value
-		 * SCRATCH_REG1[30:28]	= command
-		 * SCRATCH_REG1[19:0]	= address in dword
-		 * SCRATCH_REG1[26:24]	= Error reporting
-		 */
-		writel(v, scratch_reg0);
-		writel(offset | flag, scratch_reg1);
-		writel(1, spare_int);
-
-		for (i = 0; i < retries; i++) {
-			tmp = readl(scratch_reg1);
-			if (!(tmp & flag))
-				break;
-
-			udelay(10);
-		}
-
-		if (i >= retries) {
-			if (amdgpu_sriov_reg_indirect_gc(adev)) {
-				if (tmp & GFX9_RLCG_VFGATE_DISABLED)
-					pr_err("The vfgate is disabled, program reg:0x%05x failed!\n", offset);
-				else if (tmp & GFX9_RLCG_WRONG_OPERATION_TYPE)
-					pr_err("Wrong operation type, program reg:0x%05x failed!\n", offset);
-				else if (tmp & GFX9_RLCG_NOT_IN_RANGE)
-					pr_err("The register is not in range, program reg:0x%05x failed!\n", offset);
-				else
-					pr_err("Unknown error type, program reg:0x%05x failed!\n", offset);
-			} else
-				pr_err("timeout: rlcg program reg:0x%05x failed!\n", offset);
-		}
-	}
-
-	ret = readl(scratch_reg0);
-
-	return ret;
-}
-
-static u32 gfx_v9_0_sriov_rreg(struct amdgpu_device *adev, u32 offset, u32 acc_flags, u32 hwip)
-{
-	u32 rlcg_flag;
-
-	if (!amdgpu_sriov_runtime(adev) &&
-	    amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))
-		return gfx_v9_0_rlcg_rw(adev, offset, 0, rlcg_flag);
-
-	if (acc_flags & AMDGPU_REGS_NO_KIQ)
-		return RREG32_NO_KIQ(offset);
-	else
-		return RREG32(offset);
-}
-
-static void gfx_v9_0_sriov_wreg(struct amdgpu_device *adev, u32 offset,
-			       u32 value, u32 acc_flags, u32 hwip)
-{
-	u32 rlcg_flag;
-
-	if (!amdgpu_sriov_runtime(adev) &&
-	    amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, true, &rlcg_flag)) {
-		gfx_v9_0_rlcg_rw(adev, offset, value, rlcg_flag);
-		return;
-	}
-
-	if (acc_flags & AMDGPU_REGS_NO_KIQ)
-		WREG32_NO_KIQ(offset, value);
-	else
-		WREG32(offset, value);
-}
 
 #define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
 #define VEGA12_GB_ADDR_CONFIG_GOLDEN 0x24104041
@@ -5268,8 +5164,6 @@ static const struct amdgpu_rlc_funcs gfx_v9_0_rlc_funcs = {
 	.reset = gfx_v9_0_rlc_reset,
 	.start = gfx_v9_0_rlc_start,
 	.update_spm_vmid = gfx_v9_0_update_spm_vmid,
-	.sriov_wreg = gfx_v9_0_sriov_wreg,
-	.sriov_rreg = gfx_v9_0_sriov_rreg,
 	.is_rlcg_access_range = gfx_v9_0_is_rlcg_access_range,
 };
 

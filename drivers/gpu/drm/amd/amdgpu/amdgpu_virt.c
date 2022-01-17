@@ -821,8 +821,9 @@ void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
 	}
 }
 
-bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev, u32 acc_flags,
-					  u32 hwip, bool write, u32 *rlcg_flag)
+static bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
+						 u32 acc_flags, u32 hwip,
+						 bool write, u32 *rlcg_flag)
 {
 	bool ret = false;
 
