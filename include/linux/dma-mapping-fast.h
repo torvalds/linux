@@ -9,6 +9,7 @@
 #include <linux/iommu.h>
 #include <linux/io-pgtable-fast.h>
 #include <linux/rbtree.h>
+#include <linux/mutex.h>
 
 struct dma_iommu_mapping;
 struct io_pgtable_ops;
@@ -37,6 +38,7 @@ struct dma_fast_smmu_mapping {
 	spinlock_t	lock;
 	struct notifier_block notifier;
 	struct rb_node node;
+	struct mutex msi_cookie_init_lock;
 };
 
 #ifdef CONFIG_IOMMU_IO_PGTABLE_FAST
