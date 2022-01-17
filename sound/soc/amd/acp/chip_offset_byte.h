@@ -14,6 +14,12 @@
 #define ACPAXI2AXI_ATU_CTRL                           0xC40
 #define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_5                0xC20
 #define ACPAXI2AXI_ATU_BASE_ADDR_GRP_5                0xC24
+
+#define ACP_PGFSM_CONTROL			0x141C
+#define ACP_PGFSM_STATUS                        0x1420
+#define ACP_SOFT_RESET                          0x1000
+#define ACP_CONTROL                             0x1004
+
 #define ACP_EXTERNAL_INTR_ENB                         0x1800
 #define ACP_EXTERNAL_INTR_CNTL                        0x1804
 #define ACP_EXTERNAL_INTR_STAT                        0x1808

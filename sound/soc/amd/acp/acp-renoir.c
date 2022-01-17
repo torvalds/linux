@@ -25,6 +25,20 @@
 
 #define DRV_NAME "acp_asoc_renoir"
 
+#define ACP_SOFT_RST_DONE_MASK	0x00010001
+
+#define ACP_PWR_ON_MASK		0x01
+#define ACP_PWR_OFF_MASK	0x00
+#define ACP_PGFSM_STAT_MASK	0x03
+#define ACP_POWERED_ON		0x00
+#define ACP_PWR_ON_IN_PROGRESS	0x01
+#define ACP_POWERED_OFF		0x02
+#define DELAY_US		5
+#define ACP_TIMEOUT		500
+
+#define ACP_ERROR_MASK 0x20000000
+#define ACP_EXT_INTR_STAT_CLEAR_MASK 0xFFFFFFFF
+
 static struct snd_soc_acpi_codecs amp_rt1019 = {
 	.num_codecs = 1,
 	.codecs = {"10EC1019"}
@@ -112,11 +126,130 @@ static struct snd_soc_dai_driver acp_renoir_dai[] = {
 },
 };
 
+static int acp3x_power_on(void __iomem *base)
+{
+	u32 val;
+
+	val = readl(base + ACP_PGFSM_STATUS);
+
+	if (val == ACP_POWERED_ON)
+		return 0;
+
+	if ((val & ACP_PGFSM_STAT_MASK) != ACP_PWR_ON_IN_PROGRESS)
+		writel(ACP_PWR_ON_MASK, base + ACP_PGFSM_CONTROL);
+
+	return readl_poll_timeout(base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP_TIMEOUT);
+}
+
+static int acp3x_power_off(void __iomem *base)
+{
+	u32 val;
+
+	writel(ACP_PWR_OFF_MASK, base + ACP_PGFSM_CONTROL);
+
+	return readl_poll_timeout(base + ACP_PGFSM_STATUS, val,
+				  (val & ACP_PGFSM_STAT_MASK) == ACP_POWERED_OFF,
+				  DELAY_US, ACP_TIMEOUT);
+}
+
+static int acp3x_reset(void __iomem *base)
+{
+	u32 val;
+	int ret;
+
+	writel(1, base + ACP_SOFT_RESET);
+
+	ret = readl_poll_timeout(base + ACP_SOFT_RESET, val, val & ACP_SOFT_RST_DONE_MASK,
+				 DELAY_US, ACP_TIMEOUT);
+	if (ret)
+		return ret;
+
+	writel(0, base + ACP_SOFT_RESET);
+
+	return readl_poll_timeout(base + ACP_SOFT_RESET, val, !val, DELAY_US, ACP_TIMEOUT);
+}
+
+static void acp3x_enable_interrupts(void __iomem *base)
+{
+	u32 ext_intr_ctrl;
+
+	writel(0x01, base + ACP_EXTERNAL_INTR_ENB);
+	ext_intr_ctrl = readl(base + ACP_EXTERNAL_INTR_CNTL);
+	ext_intr_ctrl |= ACP_ERROR_MASK;
+	writel(ext_intr_ctrl, base + ACP_EXTERNAL_INTR_CNTL);
+}
+
+static void acp3x_disable_interrupts(void __iomem *base)
+{
+	writel(ACP_EXT_INTR_STAT_CLEAR_MASK, base + ACP_EXTERNAL_INTR_STAT);
+	writel(0x00, base + ACP_EXTERNAL_INTR_ENB);
+}
+
+static int rn_acp_init(void __iomem *base)
+{
+	int ret;
+
+	/* power on */
+	ret = acp3x_power_on(base);
+	if (ret)
+		return ret;
+
+	writel(0x01, base + ACP_CONTROL);
+
+	/* Reset */
+	ret = acp3x_reset(base);
+	if (ret)
+		return ret;
+
+	acp3x_enable_interrupts(base);
+
+	return 0;
+}
+
+static int rn_acp_deinit(void __iomem *base)
+{
+	int ret = 0;
+
+	acp3x_disable_interrupts(base);
+
+	/* Reset */
+	ret = acp3x_reset(base);
+	if (ret)
+		return ret;
+
+	writel(0x00, base + ACP_CONTROL);
+
+	/* power off */
+	ret = acp3x_power_off(base);
+	if (ret)
+		return ret;
+
+	return 0;
+}
 static int renoir_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct acp_chip_info *chip;
 	struct acp_dev_data *adata;
 	struct resource *res;
+	int ret;
+
+	chip = dev_get_platdata(&pdev->dev);
+	if (!chip || !chip->base) {
+		dev_err(&pdev->dev, "ACP chip data is NULL\n");
+		return -ENODEV;
+	}
+
+	if (chip->acp_rev != ACP3X_DEV) {
+		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
+		return -ENODEV;
+	}
+
+	ret = rn_acp_init(chip->base);
+	if (ret) {
+		dev_err(&pdev->dev, "ACP Init failed\n");
+		return -EINVAL;
+	}
 
 	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
 	if (!adata)
@@ -155,6 +288,20 @@ static int renoir_audio_probe(struct platform_device *pdev)
 static int renoir_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct acp_chip_info *chip;
+	int ret;
+
+	chip = dev_get_platdata(&pdev->dev);
+	if (!chip || !chip->base) {
+		dev_err(&pdev->dev, "ACP chip data is NULL\n");
+		return -ENODEV;
+	}
+
+	ret = rn_acp_deinit(chip->base);
+	if (ret) {
+		dev_err(&pdev->dev, "ACP de-init Failed\n");
+		return -EINVAL;
+	}
 
 	acp_platform_unregister(dev);
 	return 0;
