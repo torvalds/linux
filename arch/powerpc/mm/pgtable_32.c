@@ -148,6 +148,9 @@ void mark_rodata_ro(void)
 {
 	unsigned long numpages;
 
+	if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX) && mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		pr_warn("This platform has HASH MMU, STRICT_MODULE_RWX won't work\n");
+
 	if (v_block_mapped((unsigned long)_stext + 1)) {
 		mmu_mark_rodata_ro();
 		ptdump_check_wx();
