@@ -51,6 +51,7 @@ struct rkisp_hw_dev {
 	enum rkisp_isp_ver isp_ver;
 	struct rkisp_device *isp[DEV_MAX];
 	int dev_num;
+	int dev_link_num;
 	int cur_dev_id;
 	int mipi_dev_id;
 	struct max_input max_in;

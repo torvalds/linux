@@ -879,6 +879,7 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 		hw_dev->is_feature_on = false;
 
 	hw_dev->dev_num = 0;
+	hw_dev->dev_link_num = 0;
 	hw_dev->cur_dev_id = 0;
 	hw_dev->mipi_dev_id = 0;
 	hw_dev->isp_ver = match_data->isp_ver;
@@ -951,6 +952,8 @@ static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
 {
 	struct rkisp_hw_dev *hw_dev = dev_get_drvdata(dev);
 
+	hw_dev->is_single = true;
+	hw_dev->dev_link_num = 0;
 	disable_sys_clk(hw_dev);
 	return pinctrl_pm_select_sleep_state(dev);
 }
@@ -969,8 +972,14 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	enable_sys_clk(hw_dev);
 
 	for (i = 0; i < hw_dev->dev_num; i++) {
-		void *buf = hw_dev->isp[i]->sw_base_addr;
+		struct rkisp_device *isp = hw_dev->isp[i];
+		void *buf;
 
+		if (!isp || (isp && !isp->is_hw_link))
+			continue;
+		if (hw_dev->dev_link_num++)
+			hw_dev->is_single = false;
+		buf = isp->sw_base_addr;
 		memset(buf, 0, RKISP_ISP_SW_MAX_SIZE * mult);
 		memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
 		if (hw_dev->is_unite) {

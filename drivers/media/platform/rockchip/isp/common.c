@@ -234,8 +234,6 @@ int rkisp_attach_hw(struct rkisp_device *isp)
 		return -EINVAL;
 	}
 
-	if (hw->dev_num)
-		hw->is_single = false;
 	isp->dev_id = hw->dev_num;
 	hw->isp[hw->dev_num] = isp;
 	hw->dev_num++;
@@ -323,6 +321,8 @@ int rkisp_alloc_common_dummy_buf(struct rkisp_device *dev)
 		size = hw->max_in.w * hw->max_in.h * 2;
 	for (i = 0; i < hw->dev_num; i++) {
 		isp = hw->isp[i];
+		if (!isp || (isp && !isp->is_hw_link))
+			continue;
 		for (j = 0; j < RKISP_MAX_STREAM; j++) {
 			stream = &isp->cap_dev.stream[j];
 			if (!stream->linked)

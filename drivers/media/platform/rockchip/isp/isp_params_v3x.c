@@ -4178,18 +4178,18 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 
 	tasklet_enable(&priv_val->lsc_tasklet);
 
-	if (hw->dev_num > 2) {
+	if (hw->dev_link_num > 2) {
 		bigmode_max_w = ISP3X_VIR4_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_VIR4_NOBIG_OVERFLOW_SIZE;
 		if (width > ISP3X_VIR4_MAX_WIDTH || size > ISP3X_VIR4_MAX_SIZE)
 			dev_err(dev, "%dx%d > max:2560x1536 for %d virtual isp\n",
-				width, height, hw->dev_num);
-	} else if (hw->dev_num > 1) {
+				width, height, hw->dev_link_num);
+	} else if (hw->dev_link_num > 1) {
 		bigmode_max_w = ISP3X_VIR2_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_VIR2_NOBIG_OVERFLOW_SIZE;
 		if (width > ISP3X_VIR2_MAX_WIDTH || size > ISP3X_VIR2_MAX_SIZE)
 			dev_err(dev, "%dx%d > max:3840x2160 for %d virtual isp\n",
-				width, height, hw->dev_num);
+				width, height, hw->dev_link_num);
 	} else {
 		bigmode_max_w = ISP3X_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_NOBIG_OVERFLOW_SIZE;

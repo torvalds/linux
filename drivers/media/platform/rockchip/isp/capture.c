@@ -360,7 +360,8 @@ void rkisp_config_dmatx_valid_buf(struct rkisp_device *dev)
 	 */
 	for (i = 0; i < hw->dev_num; i++) {
 		isp = hw->isp[i];
-		if (!(isp->isp_inp & INP_CSI))
+		if (!isp ||
+		    (isp && !(isp->isp_inp & INP_CSI)))
 			continue;
 		for (j = RKISP_STREAM_DMATX0; j < RKISP_MAX_STREAM; j++) {
 			stream = &isp->cap_dev.stream[j];

@@ -130,7 +130,8 @@ static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size
 	for (i = 0; i < hw->dev_num; i++) {
 		struct rkisp_device *isp = hw->isp[i];
 
-		if (!(isp->isp_inp & INP_CSI))
+		if (!isp ||
+		    (isp && !(isp->isp_inp & INP_CSI)))
 			continue;
 		ret = rkisp_alloc_common_dummy_buf(isp);
 		if (ret < 0)

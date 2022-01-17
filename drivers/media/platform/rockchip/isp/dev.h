@@ -234,5 +234,6 @@ struct rkisp_device {
 	spinlock_t cmsk_lock;
 	struct rkisp_cmsk_cfg cmsk_cfg;
 	bool is_cmsk_upd;
+	bool is_hw_link;
 };
 #endif

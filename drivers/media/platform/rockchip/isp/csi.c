@@ -318,9 +318,13 @@ static int csi_config(struct rkisp_csi_device *csi)
 			rkisp_write(dev, CSI2RX_DATA_IDS_1, val, true);
 		} else {
 			rkisp_set_bits(dev, CSI2RX_DATA_IDS_1, mask, val, true);
-			for (i = 0; i < dev->hw_dev->dev_num; i++)
+			for (i = 0; i < dev->hw_dev->dev_num; i++) {
+				if (dev->hw_dev->isp[i] &&
+				    !dev->hw_dev->isp[i]->is_hw_link)
+					continue;
 				rkisp_set_bits(dev->hw_dev->isp[i],
 					CSI2RX_DATA_IDS_1, mask, val, false);
+			}
 		}
 		val = SW_CSI_ID4(csi->mipi_di[4]);
 		rkisp_write(dev, CSI2RX_DATA_IDS_2, val, true);

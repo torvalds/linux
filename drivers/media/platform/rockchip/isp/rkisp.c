@@ -579,11 +579,6 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 			val = rkisp_read(dev, MI_WR_CTRL2, false);
 			rkisp_set_bits(dev, MI_WR_CTRL2, 0, val, true);
 			rkisp_write(dev, MI_WR_INIT, ISP21_SP_FORCE_UPD | ISP21_MP_FORCE_UPD, true);
-			/* sensor mode & index */
-			val = rkisp_read_reg_cache(dev, ISP_ACQ_H_OFFS);
-			val |= ISP21_SENSOR_MODE(hw->dev_num >= 3 ? 2 : hw->dev_num - 1) |
-				ISP21_SENSOR_INDEX(dev->dev_id);
-			writel(val, hw->base_addr + ISP_ACQ_H_OFFS);
 		} else if (dev->isp_ver == ISP_V30) {
 			val = rkisp_read(dev, MI_WR_CTRL2, false);
 			val |= ISP3X_MPSELF_UPD | ISP3X_SPSELF_UPD | ISP3X_BPSELF_UPD |
@@ -596,11 +591,16 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 			val = rkisp_read(dev, ISP3X_MPFBC_CTRL, false);
 			val |= ISP3X_MPFBC_FORCE_UPD;
 			writel(val, hw->base_addr + ISP3X_MPFBC_CTRL);
+		}
+		/* sensor mode & index */
+		if (dev->isp_ver == ISP_V21 || dev->isp_ver == ISP_V30) {
+			u32 mode = hw->dev_link_num >= 3 ? 2 : hw->dev_link_num - 1;
+			u32 index = dev->dev_id;
 
-			/* sensor mode & index */
+			if (index >= hw->dev_link_num)
+				index = hw->dev_link_num - 1;
 			val = rkisp_read_reg_cache(dev, ISP_ACQ_H_OFFS);
-			val |= ISP21_SENSOR_MODE(hw->dev_num >= 3 ? 2 : hw->dev_num - 1) |
-			       ISP21_SENSOR_INDEX(dev->dev_id);
+			val |= ISP21_SENSOR_MODE(mode) | ISP21_SENSOR_INDEX(index);
 			writel(val, hw->base_addr + ISP_ACQ_H_OFFS);
 		}
 		is_upd = true;
@@ -673,7 +673,8 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 
 	for (i = 0; i < hw->dev_num; i++) {
 		isp = hw->isp[i];
-		if (!(isp->isp_state & ISP_START))
+		if (!isp ||
+		    (isp && !(isp->isp_state & ISP_START)))
 			continue;
 		rkisp_rdbk_trigger_event(isp, T_CMD_LEN, &len[i]);
 		if (max < len[i]) {
@@ -990,7 +991,7 @@ static void rkisp_restart_monitor(struct work_struct *work)
 		     !(monitor->state & ISP_MIPI_ERROR))) {
 			for (i = 0; i < hw->dev_num; i++) {
 				isp = hw->isp[i];
-				if (!(isp->isp_inp & INP_CSI))
+				if (isp && !(isp->isp_inp & INP_CSI))
 					continue;
 				if (!(isp->isp_state & ISP_START))
 					break;
@@ -1012,6 +1013,8 @@ static void rkisp_restart_monitor(struct work_struct *work)
 		}
 		for (i = 0; i < hw->dev_num; i++) {
 			isp = hw->isp[i];
+			if (!isp)
+				continue;
 			if (isp->isp_inp & INP_CSI ||
 			    isp->isp_inp & INP_DVP ||
 			    isp->isp_inp & INP_LVDS) {
@@ -1038,6 +1041,8 @@ static void rkisp_restart_monitor(struct work_struct *work)
 
 		for (i = 0; i < hw->dev_num; i++) {
 			isp = hw->isp[i];
+			if (!isp)
+				continue;
 			if (isp->isp_inp & INP_CSI ||
 			    isp->isp_inp & INP_DVP ||
 			    isp->isp_inp & INP_LVDS) {
@@ -1871,8 +1876,9 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	u32 val;
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
-		 "%s refcnt:%d\n", __func__,
-		 atomic_read(&dev->hw_dev->refcnt));
+		 "%s refcnt:%d link_num:%d\n", __func__,
+		 atomic_read(&dev->hw_dev->refcnt),
+		 dev->hw_dev->dev_link_num);
 
 	/* Activate MIPI */
 	if (sensor && sensor->mbus.type == V4L2_MBUS_CSI2_DPHY) {
@@ -2530,6 +2536,7 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
+	struct rkisp_hw_dev *hw_dev = isp_dev->hw_dev;
 
 	if (!on) {
 		rkisp_stop_3a_run(isp_dev);
@@ -2538,14 +2545,19 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 			(!IS_HDR_RDBK(isp_dev->rd_mode) ||
 			 isp_dev->isp_state & ISP_STOP), msecs_to_jiffies(5));
 		rkisp_isp_stop(isp_dev);
-		atomic_dec(&isp_dev->hw_dev->refcnt);
+		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
 		return 0;
 	}
 
 	rkisp_start_3a_run(isp_dev);
 	memset(&isp_dev->isp_sdev.dbg, 0, sizeof(isp_dev->isp_sdev.dbg));
-	atomic_inc(&isp_dev->hw_dev->refcnt);
+	if (atomic_inc_return(&hw_dev->refcnt) > hw_dev->dev_link_num) {
+		dev_err(isp_dev->dev, "%s fail: input link before hw start\n", __func__);
+		atomic_dec(&hw_dev->refcnt);
+		return -EINVAL;
+	}
+
 	atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
 	rkisp_global_update_mi(isp_dev);
 	rkisp_config_cif(isp_dev);
@@ -2814,6 +2826,10 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 				 RKISP_VICAP_CMD_MODE, &mode);
 	}
 
+	if (!dev->isp_inp)
+		dev->is_hw_link = false;
+	else
+		dev->is_hw_link = true;
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "isp input:0x%x\n", dev->isp_inp);
 	return 0;

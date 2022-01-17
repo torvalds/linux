@@ -288,7 +288,9 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 		if (dev->vs_irq >= 0)
 			enable_irq(dev->vs_irq);
 		rockchip_set_system_status(SYS_STATUS_ISP);
-		v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, true);
+		ret = v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, true);
+		if (ret < 0)
+			goto err;
 		/* phy -> sensor */
 		for (i = 0; i < p->num_subdevs; ++i) {
 			ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
@@ -311,7 +313,9 @@ err_stream_off:
 	for (--i; i >= 0; --i)
 		v4l2_subdev_call(p->subdevs[i], video, s_stream, false);
 	v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, false);
+err:
 	rockchip_clear_system_status(SYS_STATUS_ISP);
+	atomic_dec_return(&p->stream_cnt);
 	return ret;
 }
 
@@ -490,6 +494,7 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 			v4l2_err(&dev->v4l2_dev, "update sensor failed\n");
 			goto unlock;
 		}
+		dev->is_hw_link = true;
 	}
 
 	ret = _set_pipeline_default_fmt(dev);
@@ -551,9 +556,28 @@ static int rkisp_fwnode_parse(struct device *dev,
 	return 0;
 }
 
+static void subdev_notifier_unbind(struct v4l2_async_notifier *notifier,
+				   struct v4l2_subdev *subdev,
+				   struct v4l2_async_subdev *asd)
+{
+	struct rkisp_device *isp_dev = container_of(notifier, struct rkisp_device, notifier);
+	struct rkisp_isp_subdev *isp_sdev = &isp_dev->isp_sdev;
+	struct v4l2_subdev *isp_sd = &isp_sdev->sd;
+	int i;
+
+	for (i = 0; i < isp_dev->num_sensors; i++) {
+		if (isp_dev->sensors[i].sd == subdev) {
+			media_entity_call(&isp_sd->entity, link_setup,
+				isp_sd->entity.pads, subdev->entity.pads, 0);
+			isp_dev->sensors[i].sd = NULL;
+		}
+	}
+}
+
 static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
 	.bound = subdev_notifier_bound,
 	.complete = subdev_notifier_complete,
+	.unbind = subdev_notifier_unbind,
 };
 
 static int isp_subdev_notifier(struct rkisp_device *isp_dev)
@@ -832,6 +856,9 @@ err_unreg_v4l2_dev:
 static int rkisp_plat_remove(struct platform_device *pdev)
 {
 	struct rkisp_device *isp_dev = platform_get_drvdata(pdev);
+
+	isp_dev->is_hw_link = false;
+	isp_dev->hw_dev->isp[isp_dev->dev_id] = NULL;
 
 	pm_runtime_disable(&pdev->dev);
 
