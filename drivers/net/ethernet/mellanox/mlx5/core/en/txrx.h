@@ -431,10 +431,10 @@ mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 	}
 }
 
-static inline u16 mlx5e_stop_room_for_wqe(u16 wqe_size)
-{
-	BUILD_BUG_ON(PAGE_SIZE / MLX5_SEND_WQE_BB < MLX5_SEND_WQE_MAX_WQEBBS);
+#define MLX5E_STOP_ROOM(wqebbs) ((wqebbs) * 2 - 1)
 
+static inline u16 mlx5e_stop_room_for_wqe(struct mlx5_core_dev *mdev, u16 wqe_size)
+{
 	/* A WQE must not cross the page boundary, hence two conditions:
 	 * 1. Its size must not exceed the page size.
 	 * 2. If the WQE size is X, and the space remaining in a page is less
@@ -443,18 +443,28 @@ static inline u16 mlx5e_stop_room_for_wqe(u16 wqe_size)
 	 *    stop room of X-1 + X.
 	 * WQE size is also limited by the hardware limit.
 	 */
+	WARN_ONCE(wqe_size > mlx5e_get_max_sq_wqebbs(mdev),
+		  "wqe_size %u is greater than max SQ WQEBBs %u",
+		  wqe_size, mlx5e_get_max_sq_wqebbs(mdev));
 
-	if (__builtin_constant_p(wqe_size))
-		BUILD_BUG_ON(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
-	else
-		WARN_ON_ONCE(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
 
-	return wqe_size * 2 - 1;
+	return MLX5E_STOP_ROOM(wqe_size);
+}
+
+static inline u16 mlx5e_stop_room_for_max_wqe(struct mlx5_core_dev *mdev)
+{
+	return MLX5E_STOP_ROOM(mlx5e_get_max_sq_wqebbs(mdev));
 }
 
 static inline bool mlx5e_icosq_can_post_wqe(struct mlx5e_icosq *sq, u16 wqe_size)
 {
-	u16 room = sq->reserved_room + mlx5e_stop_room_for_wqe(wqe_size);
+	u16 room = sq->reserved_room;
+
+	WARN_ONCE(wqe_size > sq->max_sq_wqebbs,
+		  "wqe_size %u is greater than max SQ WQEBBs %u",
+		  wqe_size, sq->max_sq_wqebbs);
+
+	room += MLX5E_STOP_ROOM(wqe_size);
 
 	return mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, room);
 }

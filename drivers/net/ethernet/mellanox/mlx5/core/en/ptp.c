@@ -448,7 +448,7 @@ static void mlx5e_ptp_build_sq_param(struct mlx5_core_dev *mdev,
 
 	wq = MLX5_ADDR_OF(sqc, sqc, wq);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
-	param->stop_room = mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+	param->stop_room = mlx5e_stop_room_for_max_wqe(mdev);
 	mlx5e_build_tx_cq_param(mdev, params, &param->cqp);
 }
 
