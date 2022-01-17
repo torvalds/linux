@@ -330,7 +330,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default
 				&pinctrl_spi2cs2_default &pinctrl_qspi2_default>;
-	fmc-spi-user-mode;
 	status = "okay";
 
 	flash@0 {
