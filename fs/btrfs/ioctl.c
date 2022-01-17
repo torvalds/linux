@@ -1518,11 +1518,15 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 
 	if (range->start + range->len > range->start) {
 		/* Got a specific range */
-		last_byte = min(isize, range->start + range->len) - 1;
+		last_byte = min(isize, range->start + range->len);
 	} else {
 		/* Defrag until file end */
-		last_byte = isize - 1;
+		last_byte = isize;
 	}
+
+	/* Align the range */
+	cur = round_down(range->start, fs_info->sectorsize);
+	last_byte = round_up(last_byte, fs_info->sectorsize) - 1;
 
 	/*
 	 * If we were not given a ra, allocate a readahead context. As
@@ -1535,10 +1539,6 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		if (ra)
 			file_ra_state_init(ra, inode->i_mapping);
 	}
-
-	/* Align the range */
-	cur = round_down(range->start, fs_info->sectorsize);
-	last_byte = round_up(last_byte, fs_info->sectorsize) - 1;
 
 	while (cur < last_byte) {
 		u64 cluster_end;
