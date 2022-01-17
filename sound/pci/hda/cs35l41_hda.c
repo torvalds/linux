@@ -161,6 +161,9 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 		if (reg_seq->close)
 			ret = regmap_multi_reg_write(reg, reg_seq->close, reg_seq->num_close);
 		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 	if (ret)
@@ -227,6 +230,8 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41,
 		internal_boost = true;
 
 	switch (hw_cfg->gpio1_func) {
+	case CS35L41_NOT_USED:
+		break;
 	case CS35l41_VSPK_SWITCH:
 		regmap_update_bits(cs35l41->regmap, CS35L41_GPIO_PAD_CONTROL,
 				   CS35L41_GPIO1_CTRL_MASK, 1 << CS35L41_GPIO1_CTRL_SHIFT);
@@ -235,13 +240,21 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41,
 		regmap_update_bits(cs35l41->regmap, CS35L41_GPIO_PAD_CONTROL,
 				   CS35L41_GPIO1_CTRL_MASK, 2 << CS35L41_GPIO1_CTRL_SHIFT);
 		break;
+	default:
+		dev_err(cs35l41->dev, "Invalid function %d for GPIO1\n", hw_cfg->gpio1_func);
+		return -EINVAL;
 	}
 
 	switch (hw_cfg->gpio2_func) {
+	case CS35L41_NOT_USED:
+		break;
 	case CS35L41_INTERRUPT:
 		regmap_update_bits(cs35l41->regmap, CS35L41_GPIO_PAD_CONTROL,
 				   CS35L41_GPIO2_CTRL_MASK, 2 << CS35L41_GPIO2_CTRL_SHIFT);
 		break;
+	default:
+		dev_err(cs35l41->dev, "Invalid function %d for GPIO2\n", hw_cfg->gpio2_func);
+		return -EINVAL;
 	}
 
 	if (internal_boost) {
