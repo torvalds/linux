@@ -679,6 +679,12 @@ static int tsc2046_adc_setup_spi_msg(struct tsc2046_adc_priv *priv)
 	for (ch_idx = 0; ch_idx < priv->dcfg->num_channels; ch_idx++)
 		size += tsc2046_adc_group_set_layout(priv, ch_idx, ch_idx);
 
+	if (size > PAGE_SIZE) {
+		dev_err(&priv->spi->dev,
+			"Calculated scan buffer is too big. Try to reduce spi-max-frequency, settling-time-us or oversampling-ratio\n");
+		return -ENOSPC;
+	}
+
 	priv->tx = devm_kzalloc(&priv->spi->dev, size, GFP_KERNEL);
 	if (!priv->tx)
 		return -ENOMEM;
