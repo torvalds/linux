@@ -155,6 +155,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		if (ASICREV_IS_YELLOW_CARP(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_1;
 		break;
+	case AMDGPU_FAMILY_GC_10_3_7:
+		if (ASICREV_IS_GC_10_3_7(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_16;
+		break;
 #endif
 
 	default:

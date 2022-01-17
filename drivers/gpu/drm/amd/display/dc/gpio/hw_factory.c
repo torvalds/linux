@@ -114,6 +114,7 @@ bool dal_hw_factory_init(
 	case DCN_VERSION_3_02:
 	case DCN_VERSION_3_03:
 	case DCN_VERSION_3_1:
+	case DCN_VERSION_3_16:
 		dal_hw_factory_dcn30_init(factory);
 		return true;
 #endif
