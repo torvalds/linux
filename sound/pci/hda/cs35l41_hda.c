@@ -429,8 +429,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 		if (ret == -EBUSY) {
 			dev_info(cs35l41->dev, "Reset line busy, assuming shared reset\n");
 		} else {
-			if (ret != -EPROBE_DEFER)
-				dev_err(cs35l41->dev, "Failed to get reset GPIO: %d\n", ret);
+			dev_err_probe(cs35l41->dev, ret, "Failed to get reset GPIO: %d\n", ret);
 			goto err;
 		}
 	}
