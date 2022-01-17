@@ -480,7 +480,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	acpi_hw_cfg = NULL;
 
 	if (cs35l41->reg_seq->probe) {
-		ret = regmap_register_patch(cs35l41->regmap, cs35l41->reg_seq->probe,
+		ret = regmap_multi_reg_write(cs35l41->regmap, cs35l41->reg_seq->probe,
 					    cs35l41->reg_seq->num_probe);
 		if (ret) {
 			dev_err(cs35l41->dev, "Fail to apply probe reg patch: %d\n", ret);
