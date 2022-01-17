@@ -4,7 +4,6 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
 
