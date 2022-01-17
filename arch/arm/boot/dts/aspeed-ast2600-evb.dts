@@ -505,8 +505,14 @@
 
 &emmc {
 	status = "okay";
-	non-removable;
+#if 1
 	bus-width = <4>;
+#else
+	bus-width = <8>;
+	pinctrl-0 = <&pinctrl_emmc_default
+			&pinctrl_emmcg8_default>;
+#endif
+	non-removable;
 	max-frequency = <100000000>;
 	/* <0 (MHz * 0.26496)>, <1 (MHz * 0.04968 + 180)> */
 	clk-phase-mmc-hs200 = <0 27>, <1 185>;
