@@ -194,13 +194,11 @@ u32 __pure __weak __crc32c_le(u32 crc, unsigned char const *p, size_t len)
 #else
 u32 __pure __weak crc32_le(u32 crc, unsigned char const *p, size_t len)
 {
-	return crc32_le_generic(crc, p, len,
-			(const u32 (*)[256])crc32table_le, CRC32_POLY_LE);
+	return crc32_le_generic(crc, p, len, crc32table_le, CRC32_POLY_LE);
 }
 u32 __pure __weak __crc32c_le(u32 crc, unsigned char const *p, size_t len)
 {
-	return crc32_le_generic(crc, p, len,
-			(const u32 (*)[256])crc32ctable_le, CRC32C_POLY_LE);
+	return crc32_le_generic(crc, p, len, crc32ctable_le, CRC32C_POLY_LE);
 }
 #endif
 EXPORT_SYMBOL(crc32_le);
@@ -339,8 +337,7 @@ u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 #else
 u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
-	return crc32_be_generic(crc, p, len,
-			(const u32 (*)[256])crc32table_be, CRC32_POLY_BE);
+	return crc32_be_generic(crc, p, len, crc32table_be, CRC32_POLY_BE);
 }
 #endif
 EXPORT_SYMBOL(crc32_be);
