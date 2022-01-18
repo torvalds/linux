@@ -115,6 +115,7 @@ struct mtk_nor {
 	struct clk *spi_clk;
 	struct clk *ctlr_clk;
 	struct clk *axi_clk;
+	struct clk *axi_s_clk;
 	unsigned int spi_freq;
 	bool wbuf_en;
 	bool has_irq;
@@ -691,6 +692,7 @@ static void mtk_nor_disable_clk(struct mtk_nor *sp)
 	clk_disable_unprepare(sp->spi_clk);
 	clk_disable_unprepare(sp->ctlr_clk);
 	clk_disable_unprepare(sp->axi_clk);
+	clk_disable_unprepare(sp->axi_s_clk);
 }
 
 static int mtk_nor_enable_clk(struct mtk_nor *sp)
@@ -711,6 +713,14 @@ static int mtk_nor_enable_clk(struct mtk_nor *sp)
 	if (ret) {
 		clk_disable_unprepare(sp->spi_clk);
 		clk_disable_unprepare(sp->ctlr_clk);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(sp->axi_s_clk);
+	if (ret) {
+		clk_disable_unprepare(sp->spi_clk);
+		clk_disable_unprepare(sp->ctlr_clk);
+		clk_disable_unprepare(sp->axi_clk);
 		return ret;
 	}
 
@@ -789,7 +799,7 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	struct mtk_nor *sp;
 	struct mtk_nor_caps *caps;
 	void __iomem *base;
-	struct clk *spi_clk, *ctlr_clk, *axi_clk;
+	struct clk *spi_clk, *ctlr_clk, *axi_clk, *axi_s_clk;
 	int ret, irq;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -807,6 +817,10 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	axi_clk = devm_clk_get_optional(&pdev->dev, "axi");
 	if (IS_ERR(axi_clk))
 		return PTR_ERR(axi_clk);
+
+	axi_s_clk = devm_clk_get_optional(&pdev->dev, "axi_s");
+	if (IS_ERR(axi_s_clk))
+		return PTR_ERR(axi_s_clk);
 
 	caps = (struct mtk_nor_caps *)of_device_get_match_data(&pdev->dev);
 
@@ -843,6 +857,7 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	sp->spi_clk = spi_clk;
 	sp->ctlr_clk = ctlr_clk;
 	sp->axi_clk = axi_clk;
+	sp->axi_s_clk = axi_s_clk;
 	sp->caps = caps;
 	sp->high_dma = caps->dma_bits > 32;
 	sp->buffer = dmam_alloc_coherent(&pdev->dev,
