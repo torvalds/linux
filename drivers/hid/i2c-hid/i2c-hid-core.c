@@ -180,7 +180,7 @@ static int i2c_hid_xfer(struct i2c_hid *ihid,
 			    __func__, send_len, send_buf);
 
 		msgs[n].addr = client->addr;
-		msgs[n].flags = client->flags & I2C_M_TEN;
+		msgs[n].flags = (client->flags & I2C_M_TEN) | I2C_M_DMA_SAFE;
 		msgs[n].len = send_len;
 		msgs[n].buf = send_buf;
 		n++;
@@ -188,7 +188,8 @@ static int i2c_hid_xfer(struct i2c_hid *ihid,
 
 	if (recv_len) {
 		msgs[n].addr = client->addr;
-		msgs[n].flags = (client->flags & I2C_M_TEN) | I2C_M_RD;
+		msgs[n].flags = (client->flags & I2C_M_TEN) |
+				I2C_M_RD | I2C_M_DMA_SAFE;
 		msgs[n].len = recv_len;
 		msgs[n].buf = recv_buf;
 		n++;
