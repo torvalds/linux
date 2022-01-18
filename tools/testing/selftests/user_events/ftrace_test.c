@@ -309,6 +309,71 @@ TEST_F(user, write_fault) {
 	ASSERT_EQ(0, munmap(anon, l));
 }
 
+TEST_F(user, write_validator) {
+	struct user_reg reg = {0};
+	struct iovec io[3];
+	int loc, bytes;
+	char data[8];
+	int before = 0, after = 0;
+
+	reg.size = sizeof(reg);
+	reg.name_args = (__u64)"__test_event __rel_loc char[] data";
+
+	/* Register should work */
+	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
+	ASSERT_EQ(0, reg.write_index);
+	ASSERT_NE(0, reg.status_index);
+
+	io[0].iov_base = &reg.write_index;
+	io[0].iov_len = sizeof(reg.write_index);
+	io[1].iov_base = &loc;
+	io[1].iov_len = sizeof(loc);
+	io[2].iov_base = data;
+	bytes = snprintf(data, sizeof(data), "Test") + 1;
+	io[2].iov_len = bytes;
+
+	/* Undersized write should fail */
+	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 1));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Enable event */
+	self->enable_fd = open(enable_file, O_RDWR);
+	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
+
+	/* Full in-bounds write should work */
+	before = trace_bytes();
+	loc = DYN_LOC(0, bytes);
+	ASSERT_NE(-1, writev(self->data_fd, (const struct iovec *)io, 3));
+	after = trace_bytes();
+	ASSERT_GT(after, before);
+
+	/* Out of bounds write should fault (offset way out) */
+	loc = DYN_LOC(1024, bytes);
+	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
+	ASSERT_EQ(EFAULT, errno);
+
+	/* Out of bounds write should fault (offset 1 byte out) */
+	loc = DYN_LOC(1, bytes);
+	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
+	ASSERT_EQ(EFAULT, errno);
+
+	/* Out of bounds write should fault (size way out) */
+	loc = DYN_LOC(0, bytes + 1024);
+	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
+	ASSERT_EQ(EFAULT, errno);
+
+	/* Out of bounds write should fault (size 1 byte out) */
+	loc = DYN_LOC(0, bytes + 1);
+	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
+	ASSERT_EQ(EFAULT, errno);
+
+	/* Non-Null should fault */
+	memset(data, 'A', sizeof(data));
+	loc = DYN_LOC(0, bytes);
+	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
+	ASSERT_EQ(EFAULT, errno);
+}
+
 TEST_F(user, print_fmt) {
 	int ret;
 
