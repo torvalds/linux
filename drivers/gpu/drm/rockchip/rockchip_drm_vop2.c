@@ -3297,7 +3297,7 @@ static void vop2_power_off_all_pd(struct vop2 *vop2)
 	struct vop2_power_domain *pd, *n;
 
 	VOP_CTRL_SET(vop2, pd_off_imd, 1);
-	list_for_each_entry_safe(pd, n, &vop2->pd_list_head, list) {
+	list_for_each_entry_safe_reverse(pd, n, &vop2->pd_list_head, list) {
 		VOP_MODULE_SET(vop2, pd->data, pd, 1);
 		vop2_wait_power_domain_off(pd);
 		pd->on = false;
