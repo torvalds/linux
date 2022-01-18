@@ -68,6 +68,7 @@ config DRM_DEBUG_SELFTEST
 	depends on DRM
 	depends on DEBUG_KERNEL
 	select PRIME_NUMBERS
+	select DRM_DP_HELPER
 	select DRM_LIB_RANDOM
 	select DRM_KMS_HELPER
 	select DRM_EXPORT_FOR_TESTS if m
