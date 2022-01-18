@@ -13,10 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
-#include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
@@ -656,7 +654,11 @@ static int s3c64xx_spi_prepare_message(struct spi_master *master,
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
 
 	/* Configure feedback delay */
-	writel(cs->fb_delay & 0x3, sdd->regs + S3C64XX_SPI_FB_CLK);
+	if (!cs)
+		/* No delay if not defined */
+		writel(0, sdd->regs + S3C64XX_SPI_FB_CLK);
+	else
+		writel(cs->fb_delay & 0x3, sdd->regs + S3C64XX_SPI_FB_CLK);
 
 	return 0;
 }
@@ -830,34 +832,16 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	if (spi->dev.of_node) {
 		cs = s3c64xx_get_slave_ctrldata(spi);
 		spi->controller_data = cs;
-	} else if (cs) {
-		/* On non-DT platforms the SPI core will set spi->cs_gpio
-		 * to -ENOENT. The GPIO pin used to drive the chip select
-		 * is defined by using platform data so spi->cs_gpio value
-		 * has to be override to have the proper GPIO pin number.
-		 */
-		spi->cs_gpio = cs->line;
 	}
 
-	if (IS_ERR_OR_NULL(cs)) {
+	/* NULL is fine, we just avoid using the FB delay (=0) */
+	if (IS_ERR(cs)) {
 		dev_err(&spi->dev, "No CS for SPI(%d)\n", spi->chip_select);
 		return -ENODEV;
 	}
 
-	if (!spi_get_ctldata(spi)) {
-		if (gpio_is_valid(spi->cs_gpio)) {
-			err = gpio_request_one(spi->cs_gpio, GPIOF_OUT_INIT_HIGH,
-					       dev_name(&spi->dev));
-			if (err) {
-				dev_err(&spi->dev,
-					"Failed to get /CS gpio [%d]: %d\n",
-					spi->cs_gpio, err);
-				goto err_gpio_req;
-			}
-		}
-
+	if (!spi_get_ctldata(spi))
 		spi_set_ctldata(spi, cs);
-	}
 
 	pm_runtime_get_sync(&sdd->pdev->dev);
 
@@ -909,11 +893,9 @@ setup_exit:
 	/* setup() returns with device de-selected */
 	s3c64xx_spi_set_cs(spi, false);
 
-	if (gpio_is_valid(spi->cs_gpio))
-		gpio_free(spi->cs_gpio);
 	spi_set_ctldata(spi, NULL);
 
-err_gpio_req:
+	/* This was dynamically allocated on the DT path */
 	if (spi->dev.of_node)
 		kfree(cs);
 
@@ -924,19 +906,9 @@ static void s3c64xx_spi_cleanup(struct spi_device *spi)
 {
 	struct s3c64xx_spi_csinfo *cs = spi_get_ctldata(spi);
 
-	if (gpio_is_valid(spi->cs_gpio)) {
-		gpio_free(spi->cs_gpio);
-		if (spi->dev.of_node)
-			kfree(cs);
-		else {
-			/* On non-DT platforms, the SPI core sets
-			 * spi->cs_gpio to -ENOENT and .setup()
-			 * overrides it with the GPIO pin value
-			 * passed using platform data.
-			 */
-			spi->cs_gpio = -ENOENT;
-		}
-	}
+	/* This was dynamically allocated on the DT path */
+	if (spi->dev.of_node)
+		kfree(cs);
 
 	spi_set_ctldata(spi, NULL);
 }
@@ -1131,6 +1103,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	master->prepare_message = s3c64xx_spi_prepare_message;
 	master->transfer_one = s3c64xx_spi_transfer_one;
 	master->num_chipselect = sci->num_cs;
+	master->use_gpio_descriptors = true;
 	master->dma_alignment = 8;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) |
 					SPI_BPW_MASK(8);
