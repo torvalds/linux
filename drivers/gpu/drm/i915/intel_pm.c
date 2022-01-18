@@ -4272,8 +4272,7 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 	return max(num_active == 1 ? 32 : 8, min_ddb_alloc);
 }
 
-static void skl_ddb_entry_init_from_hw(struct drm_i915_private *dev_priv,
-				       struct skl_ddb_entry *entry, u32 reg)
+static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
 {
 	entry->start = REG_FIELD_GET(PLANE_BUF_START_MASK, reg);
 	entry->end = REG_FIELD_GET(PLANE_BUF_END_MASK, reg);
@@ -4294,7 +4293,7 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 	/* Cursor doesn't support NV12/planar, so no extra calculation needed */
 	if (plane_id == PLANE_CURSOR) {
 		val = intel_uncore_read(&dev_priv->uncore, CUR_BUF_CFG(pipe));
-		skl_ddb_entry_init_from_hw(dev_priv, ddb_y, val);
+		skl_ddb_entry_init_from_hw(ddb_y, val);
 		return;
 	}
 
@@ -4308,7 +4307,7 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		val = intel_uncore_read(&dev_priv->uncore, PLANE_BUF_CFG(pipe, plane_id));
-		skl_ddb_entry_init_from_hw(dev_priv, ddb_y, val);
+		skl_ddb_entry_init_from_hw(ddb_y, val);
 	} else {
 		val = intel_uncore_read(&dev_priv->uncore, PLANE_BUF_CFG(pipe, plane_id));
 		val2 = intel_uncore_read(&dev_priv->uncore, PLANE_NV12_BUF_CFG(pipe, plane_id));
@@ -4317,8 +4316,8 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 		    drm_format_info_is_yuv_semiplanar(drm_format_info(fourcc)))
 			swap(val, val2);
 
-		skl_ddb_entry_init_from_hw(dev_priv, ddb_y, val);
-		skl_ddb_entry_init_from_hw(dev_priv, ddb_uv, val2);
+		skl_ddb_entry_init_from_hw(ddb_y, val);
+		skl_ddb_entry_init_from_hw(ddb_uv, val2);
 	}
 }
 
