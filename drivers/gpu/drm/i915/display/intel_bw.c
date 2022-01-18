@@ -673,6 +673,49 @@ intel_atomic_get_bw_state(struct intel_atomic_state *state)
 	return to_intel_bw_state(bw_state);
 }
 
+static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
+				  const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[crtc->pipe];
+	enum plane_id plane_id;
+
+	memset(&crtc_bw->used_bw, 0, sizeof(crtc_bw->used_bw));
+
+	if (!crtc_state->hw.active)
+		return;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		const struct skl_ddb_entry *ddb_y =
+			&crtc_state->wm.skl.plane_ddb_y[plane_id];
+		const struct skl_ddb_entry *ddb_uv =
+			&crtc_state->wm.skl.plane_ddb_uv[plane_id];
+		unsigned int data_rate = crtc_state->data_rate[plane_id];
+		unsigned int dbuf_mask = 0;
+		enum dbuf_slice slice;
+
+		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb_y);
+		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb_uv);
+
+		/*
+		 * FIXME: To calculate that more properly we probably
+		 * need to split per plane data_rate into data_rate_y
+		 * and data_rate_uv for multiplanar formats in order not
+		 * to get accounted those twice if they happen to reside
+		 * on different slices.
+		 * However for pre-icl this would work anyway because
+		 * we have only single slice and for icl+ uv plane has
+		 * non-zero data rate.
+		 * So in worst case those calculation are a bit
+		 * pessimistic, which shouldn't pose any significant
+		 * problem anyway.
+		 */
+		for_each_dbuf_slice_in_mask(i915, slice, dbuf_mask)
+			crtc_bw->used_bw[slice] += data_rate;
+	}
+}
+
 int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
@@ -685,50 +728,13 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		enum plane_id plane_id;
-		struct intel_dbuf_bw *crtc_bw;
-
 		new_bw_state = intel_atomic_get_bw_state(state);
 		if (IS_ERR(new_bw_state))
 			return PTR_ERR(new_bw_state);
 
 		old_bw_state = intel_atomic_get_old_bw_state(state);
 
-		crtc_bw = &new_bw_state->dbuf_bw[crtc->pipe];
-
-		memset(&crtc_bw->used_bw, 0, sizeof(crtc_bw->used_bw));
-
-		if (!crtc_state->hw.active)
-			continue;
-
-		for_each_plane_id_on_crtc(crtc, plane_id) {
-			const struct skl_ddb_entry *plane_alloc =
-				&crtc_state->wm.skl.plane_ddb_y[plane_id];
-			const struct skl_ddb_entry *uv_plane_alloc =
-				&crtc_state->wm.skl.plane_ddb_uv[plane_id];
-			unsigned int data_rate = crtc_state->data_rate[plane_id];
-			unsigned int dbuf_mask = 0;
-			enum dbuf_slice slice;
-
-			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, plane_alloc);
-			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, uv_plane_alloc);
-
-			/*
-			 * FIXME: To calculate that more properly we probably
-			 * need to to split per plane data_rate into data_rate_y
-			 * and data_rate_uv for multiplanar formats in order not
-			 * to get accounted those twice if they happen to reside
-			 * on different slices.
-			 * However for pre-icl this would work anyway because
-			 * we have only single slice and for icl+ uv plane has
-			 * non-zero data rate.
-			 * So in worst case those calculation are a bit
-			 * pessimistic, which shouldn't pose any significant
-			 * problem anyway.
-			 */
-			for_each_dbuf_slice_in_mask(dev_priv, slice, dbuf_mask)
-				crtc_bw->used_bw[slice] += data_rate;
-		}
+		skl_crtc_calc_dbuf_bw(new_bw_state, crtc_state);
 	}
 
 	if (!old_bw_state)
