@@ -28,7 +28,9 @@ properties:
               - fsl,imx8ulp-lpuart
           - const: fsl,imx7ulp-lpuart
       - items:
-          - const: fsl,imx8qm-lpuart
+          - enum:
+              - fsl,imx8qm-lpuart
+              - fsl,imx8dxl-lpuart
           - const: fsl,imx8qxp-lpuart
 
   reg:
