@@ -86,10 +86,7 @@ svm_migrate_gart_map(struct amdgpu_ring *ring, uint64_t npages,
 
 	cpu_addr = &job->ibs[0].ptr[num_dw];
 
-	r = amdgpu_gart_map(adev, 0, npages, addr, pte_flags, cpu_addr);
-	if (r)
-		goto error_free;
-
+	amdgpu_gart_map(adev, 0, npages, addr, pte_flags, cpu_addr);
 	r = amdgpu_job_submit(job, &adev->mman.entity,
 			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
 	if (r)

@@ -242,10 +242,7 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 		dma_addr_t *dma_addr;
 
 		dma_addr = &bo->ttm->dma_address[mm_cur->start >> PAGE_SHIFT];
-		r = amdgpu_gart_map(adev, 0, num_pages, dma_addr, flags,
-				    cpu_addr);
-		if (r)
-			goto error_free;
+		amdgpu_gart_map(adev, 0, num_pages, dma_addr, flags, cpu_addr);
 	} else {
 		dma_addr_t dma_address;
 
@@ -253,11 +250,8 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 		dma_address += adev->vm_manager.vram_base_offset;
 
 		for (i = 0; i < num_pages; ++i) {
-			r = amdgpu_gart_map(adev, i << PAGE_SHIFT, 1,
-					    &dma_address, flags, cpu_addr);
-			if (r)
-				goto error_free;
-
+			amdgpu_gart_map(adev, i << PAGE_SHIFT, 1, &dma_address,
+					flags, cpu_addr);
 			dma_address += PAGE_SIZE;
 		}
 	}
@@ -822,14 +816,13 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_device *bdev,
 #endif
 }
 
-static int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
-				struct ttm_buffer_object *tbo,
-				uint64_t flags)
+static void amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
+				 struct ttm_buffer_object *tbo,
+				 uint64_t flags)
 {
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(tbo);
 	struct ttm_tt *ttm = tbo->ttm;
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-	int r;
 
 	if (amdgpu_bo_encrypted(abo))
 		flags |= AMDGPU_PTE_TMZ;
@@ -837,10 +830,8 @@ static int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 	if (abo->flags & AMDGPU_GEM_CREATE_CP_MQD_GFX9) {
 		uint64_t page_idx = 1;
 
-		r = amdgpu_gart_bind(adev, gtt->offset, page_idx,
-				gtt->ttm.dma_address, flags);
-		if (r)
-			goto gart_bind_fail;
+		amdgpu_gart_bind(adev, gtt->offset, page_idx,
+				 gtt->ttm.dma_address, flags);
 
 		/* The memory type of the first page defaults to UC. Now
 		 * modify the memory type to NC from the second page of
@@ -849,21 +840,13 @@ static int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 		flags &= ~AMDGPU_PTE_MTYPE_VG10_MASK;
 		flags |= AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_NC);
 
-		r = amdgpu_gart_bind(adev,
-				gtt->offset + (page_idx << PAGE_SHIFT),
-				ttm->num_pages - page_idx,
-				&(gtt->ttm.dma_address[page_idx]), flags);
+		amdgpu_gart_bind(adev, gtt->offset + (page_idx << PAGE_SHIFT),
+				 ttm->num_pages - page_idx,
+				 &(gtt->ttm.dma_address[page_idx]), flags);
 	} else {
-		r = amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
-				     gtt->ttm.dma_address, flags);
+		amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
+				 gtt->ttm.dma_address, flags);
 	}
-
-gart_bind_fail:
-	if (r)
-		DRM_ERROR("failed to bind %u pages at 0x%08llX\n",
-			  ttm->num_pages, gtt->offset);
-
-	return r;
 }
 
 /*
@@ -879,7 +862,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
 	struct amdgpu_ttm_tt *gtt = (void*)ttm;
 	uint64_t flags;
-	int r = 0;
+	int r;
 
 	if (!bo_mem)
 		return -EINVAL;
@@ -926,14 +909,10 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 
 	/* bind pages into GART page tables */
 	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
-	r = amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
-		gtt->ttm.dma_address, flags);
-
-	if (r)
-		DRM_ERROR("failed to bind %u pages at 0x%08llX\n",
-			  ttm->num_pages, gtt->offset);
+	amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
+			 gtt->ttm.dma_address, flags);
 	gtt->bound = true;
-	return r;
+	return 0;
 }
 
 /*
@@ -983,12 +962,7 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 
 	/* Bind pages */
 	gtt->offset = (u64)tmp->start << PAGE_SHIFT;
-	r = amdgpu_ttm_gart_bind(adev, bo, flags);
-	if (unlikely(r)) {
-		ttm_resource_free(bo, &tmp);
-		return r;
-	}
-
+	amdgpu_ttm_gart_bind(adev, bo, flags);
 	amdgpu_gart_invalidate_tlb(adev);
 	ttm_resource_free(bo, &bo->resource);
 	ttm_bo_assign_mem(bo, tmp);
@@ -1002,19 +976,16 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
  * Called by amdgpu_gtt_mgr_recover() from amdgpu_device_reset() to
  * rebind GTT pages during a GPU reset.
  */
-int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo)
+void amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
 	uint64_t flags;
-	int r;
 
 	if (!tbo->ttm)
-		return 0;
+		return;
 
 	flags = amdgpu_ttm_tt_pte_flags(adev, tbo->ttm, tbo->resource);
-	r = amdgpu_ttm_gart_bind(adev, tbo, flags);
-
-	return r;
+	amdgpu_ttm_gart_bind(adev, tbo, flags);
 }
 
 /*
@@ -1028,7 +999,6 @@ static void amdgpu_ttm_backend_unbind(struct ttm_device *bdev,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-	int r;
 
 	/* if the pages have userptr pinning then clear that first */
 	if (gtt->userptr) {
@@ -1048,10 +1018,7 @@ static void amdgpu_ttm_backend_unbind(struct ttm_device *bdev,
 		return;
 
 	/* unbind shouldn't be done for GDS/GWS/OA in ttm_bo_clean_mm */
-	r = amdgpu_gart_unbind(adev, gtt->offset, ttm->num_pages);
-	if (r)
-		DRM_ERROR("failed to unbind %u pages at 0x%08llX\n",
-			  gtt->ttm.num_pages, gtt->offset);
+	amdgpu_gart_unbind(adev, gtt->offset, ttm->num_pages);
 	gtt->bound = false;
 }
 

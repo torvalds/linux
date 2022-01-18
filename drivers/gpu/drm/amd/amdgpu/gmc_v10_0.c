@@ -1000,14 +1000,7 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))
-		goto skip_pin_bo;
-
-	r = amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
-	if (r)
-		return r;
-
-skip_pin_bo:
+	amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
 	r = adev->gfxhub.funcs->gart_enable(adev);
 	if (r)
 		return r;
@@ -1032,8 +1025,6 @@ skip_pin_bo:
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
-
-	adev->gart.ready = true;
 
 	return 0;
 }
