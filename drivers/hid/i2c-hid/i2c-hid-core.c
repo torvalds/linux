@@ -508,9 +508,9 @@ out_unlock:
 
 static void i2c_hid_get_input(struct i2c_hid *ihid)
 {
+	u16 size = le16_to_cpu(ihid->hdesc.wMaxInputLength);
+	u16 ret_size;
 	int ret;
-	u32 ret_size;
-	int size = le16_to_cpu(ihid->hdesc.wMaxInputLength);
 
 	if (size > ihid->bufsize)
 		size = ihid->bufsize;
@@ -525,8 +525,8 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 		return;
 	}
 
-	ret_size = ihid->inbuf[0] | ihid->inbuf[1] << 8;
-
+	/* Receiving buffer is properly aligned */
+	ret_size = le16_to_cpup((__le16 *)ihid->inbuf);
 	if (!ret_size) {
 		/* host or device initiated RESET completed */
 		if (test_and_clear_bit(I2C_HID_RESET_PENDING, &ihid->flags))
@@ -534,19 +534,20 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 		return;
 	}
 
-	if (ihid->quirks & I2C_HID_QUIRK_BOGUS_IRQ && ret_size == 0xffff) {
-		dev_warn_once(&ihid->client->dev, "%s: IRQ triggered but "
-			      "there's no data\n", __func__);
+	if ((ihid->quirks & I2C_HID_QUIRK_BOGUS_IRQ) && ret_size == 0xffff) {
+		dev_warn_once(&ihid->client->dev,
+			      "%s: IRQ triggered but there's no data\n",
+			      __func__);
 		return;
 	}
 
-	if ((ret_size > size) || (ret_size < 2)) {
+	if (ret_size > size || ret_size < sizeof(__le16)) {
 		if (ihid->quirks & I2C_HID_QUIRK_BAD_INPUT_SIZE) {
-			ihid->inbuf[0] = size & 0xff;
-			ihid->inbuf[1] = size >> 8;
+			*(__le16 *)ihid->inbuf = cpu_to_le16(size);
 			ret_size = size;
 		} else {
-			dev_err(&ihid->client->dev, "%s: incomplete report (%d/%d)\n",
+			dev_err(&ihid->client->dev,
+				"%s: incomplete report (%d/%d)\n",
 				__func__, size, ret_size);
 			return;
 		}
@@ -557,8 +558,9 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 	if (test_bit(I2C_HID_STARTED, &ihid->flags)) {
 		pm_wakeup_event(&ihid->client->dev, 0);
 
-		hid_input_report(ihid->hid, HID_INPUT_REPORT, ihid->inbuf + 2,
-				ret_size - 2, 1);
+		hid_input_report(ihid->hid, HID_INPUT_REPORT,
+				ihid->inbuf + sizeof(__le16),
+				ret_size - sizeof(__le16), 1);
 	}
 
 	return;
