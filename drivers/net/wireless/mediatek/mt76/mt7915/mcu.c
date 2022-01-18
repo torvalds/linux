@@ -416,6 +416,22 @@ mt7915_mcu_cca_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 static void
+mt7915_mcu_rx_bcc_notify(struct mt7915_dev *dev, struct sk_buff *skb)
+{
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt7915_mcu_bcc_notify *b;
+
+	b = (struct mt7915_mcu_bcc_notify *)skb->data;
+
+	if ((b->band_idx && !dev->phy.band_idx) && dev->mt76.phy2)
+		mphy = dev->mt76.phy2;
+
+	ieee80211_iterate_active_interfaces_atomic(mphy->hw,
+			IEEE80211_IFACE_ITER_RESUME_ALL,
+			mt7915_mcu_cca_finish, mphy->hw);
+}
+
+static void
 mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
 {
 	struct mt7915_mcu_rxd *rxd = (struct mt7915_mcu_rxd *)skb->data;
@@ -434,9 +450,7 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
 		mt7915_mcu_rx_log_message(dev, skb);
 		break;
 	case MCU_EXT_EVENT_BCC_NOTIFY:
-		ieee80211_iterate_active_interfaces_atomic(dev->mt76.hw,
-				IEEE80211_IFACE_ITER_RESUME_ALL,
-				mt7915_mcu_cca_finish, dev);
+		mt7915_mcu_rx_bcc_notify(dev, skb);
 		break;
 	default:
 		break;
