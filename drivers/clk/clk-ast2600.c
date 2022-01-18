@@ -736,8 +736,8 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_LHCLK] = hw;
 
-	/* gfx d1clk : use dp clk */
-	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(10, 8), BIT(10));
+	/* gfx d1clk : use usb phy */
+	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION1, GENMASK(10, 8), BIT(9));
 	/* SoC Display clock selection */
 	hw = clk_hw_register_mux(dev, "d1clk", d1clk_parent_names,
 			ARRAY_SIZE(d1clk_parent_names), 0,
