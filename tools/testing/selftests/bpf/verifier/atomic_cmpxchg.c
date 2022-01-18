@@ -138,6 +138,8 @@
 		BPF_EXIT_INSN(),
 	},
 	.result = ACCEPT,
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "R0 leaks addr into mem",
 },
 {
 	"Dest pointer in r0 - succeed",
@@ -156,4 +158,88 @@
 		BPF_EXIT_INSN(),
 	},
 	.result = ACCEPT,
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "R0 leaks addr into mem",
+},
+{
+	"Dest pointer in r0 - succeed, check 2",
+	.insns = {
+		/* r0 = &val */
+		BPF_MOV64_REG(BPF_REG_0, BPF_REG_10),
+		/* val = r0; */
+		BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),
+		/* r5 = &val */
+		BPF_MOV64_REG(BPF_REG_5, BPF_REG_10),
+		/* r0 = atomic_cmpxchg(&val, r0, r5); */
+		BPF_ATOMIC_OP(BPF_DW, BPF_CMPXCHG, BPF_REG_10, BPF_REG_5, -8),
+		/* r1 = *r0 */
+		BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0, -8),
+		/* exit(0); */
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "R0 leaks addr into mem",
+},
+{
+	"Dest pointer in r0 - succeed, check 3",
+	.insns = {
+		/* r0 = &val */
+		BPF_MOV64_REG(BPF_REG_0, BPF_REG_10),
+		/* val = r0; */
+		BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),
+		/* r5 = &val */
+		BPF_MOV64_REG(BPF_REG_5, BPF_REG_10),
+		/* r0 = atomic_cmpxchg(&val, r0, r5); */
+		BPF_ATOMIC_OP(BPF_W, BPF_CMPXCHG, BPF_REG_10, BPF_REG_5, -8),
+		/* exit(0); */
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.errstr = "invalid size of register fill",
+	.errstr_unpriv = "R0 leaks addr into mem",
+},
+{
+	"Dest pointer in r0 - succeed, check 4",
+	.insns = {
+		/* r0 = &val */
+		BPF_MOV32_REG(BPF_REG_0, BPF_REG_10),
+		/* val = r0; */
+		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_0, -8),
+		/* r5 = &val */
+		BPF_MOV32_REG(BPF_REG_5, BPF_REG_10),
+		/* r0 = atomic_cmpxchg(&val, r0, r5); */
+		BPF_ATOMIC_OP(BPF_W, BPF_CMPXCHG, BPF_REG_10, BPF_REG_5, -8),
+		/* r1 = *r10 */
+		BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_10, -8),
+		/* exit(0); */
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.result_unpriv = REJECT,
+	.errstr_unpriv = "R10 partial copy of pointer",
+},
+{
+	"Dest pointer in r0 - succeed, check 5",
+	.insns = {
+		/* r0 = &val */
+		BPF_MOV32_REG(BPF_REG_0, BPF_REG_10),
+		/* val = r0; */
+		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_0, -8),
+		/* r5 = &val */
+		BPF_MOV32_REG(BPF_REG_5, BPF_REG_10),
+		/* r0 = atomic_cmpxchg(&val, r0, r5); */
+		BPF_ATOMIC_OP(BPF_W, BPF_CMPXCHG, BPF_REG_10, BPF_REG_5, -8),
+		/* r1 = *r0 */
+		BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_0, -8),
+		/* exit(0); */
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.errstr = "R0 invalid mem access",
+	.errstr_unpriv = "R10 partial copy of pointer",
 },

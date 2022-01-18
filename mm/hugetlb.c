@@ -2973,7 +2973,7 @@ int __alloc_bootmem_huge_page(struct hstate *h, int nid)
 	struct huge_bootmem_page *m = NULL; /* initialize for clang */
 	int nr_nodes, node;
 
-	if (nid >= nr_online_nodes)
+	if (nid != NUMA_NO_NODE && nid >= nr_online_nodes)
 		return 0;
 	/* do node specific alloc */
 	if (nid != NUMA_NO_NODE) {

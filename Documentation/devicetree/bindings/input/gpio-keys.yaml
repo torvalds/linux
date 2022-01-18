@@ -142,7 +142,7 @@ examples:
         down {
             label = "GPIO Key DOWN";
             linux,code = <108>;
-            interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+            interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
         };
     };
 

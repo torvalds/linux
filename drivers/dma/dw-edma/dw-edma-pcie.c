@@ -187,17 +187,9 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 
 	/* DMA configuration */
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (!err) {
+	if (err) {
 		pci_err(pdev, "DMA mask 64 set failed\n");
 		return err;
-	} else {
-		pci_err(pdev, "DMA mask 64 set failed\n");
-
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			pci_err(pdev, "DMA mask 32 set failed\n");
-			return err;
-		}
 	}
 
 	/* Data structure allocation */

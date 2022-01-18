@@ -3016,11 +3016,11 @@ static const struct snd_djm_ctl snd_djm_ctls_750mk2[] = {
 
 
 static const struct snd_djm_device snd_djm_devices[] = {
-	SND_DJM_DEVICE(250mk2),
-	SND_DJM_DEVICE(750),
-	SND_DJM_DEVICE(750mk2),
-	SND_DJM_DEVICE(850),
-	SND_DJM_DEVICE(900nxs2)
+	[SND_DJM_250MK2_IDX] = SND_DJM_DEVICE(250mk2),
+	[SND_DJM_750_IDX] = SND_DJM_DEVICE(750),
+	[SND_DJM_850_IDX] = SND_DJM_DEVICE(850),
+	[SND_DJM_900NXS2_IDX] = SND_DJM_DEVICE(900nxs2),
+	[SND_DJM_750MK2_IDX] = SND_DJM_DEVICE(750mk2),
 };
 
 

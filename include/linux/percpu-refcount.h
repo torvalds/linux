@@ -51,9 +51,9 @@
 #define _LINUX_PERCPU_REFCOUNT_H
 
 #include <linux/atomic.h>
-#include <linux/kernel.h>
 #include <linux/percpu.h>
 #include <linux/rcupdate.h>
+#include <linux/types.h>
 #include <linux/gfp.h>
 
 struct percpu_ref;

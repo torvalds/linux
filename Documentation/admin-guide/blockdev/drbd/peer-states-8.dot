@@ -1,8 +1,3 @@
-digraph node_states {
-	Secondary -> Primary           [ label = "ioctl_set_state()" ]
-	Primary   -> Secondary 	       [ label = "ioctl_set_state()" ]
-}
-
 digraph peer_states {
 	Secondary -> Primary           [ label = "recv state packet" ]
 	Primary   -> Secondary 	       [ label = "recv state packet" ]

@@ -478,7 +478,7 @@ static void stm32_usbphyc_phy_tuning(struct stm32_usbphyc *usbphyc,
 	if (!of_property_read_bool(np, "st,no-lsfs-fb-cap"))
 		usbphyc_phy->tune |= LFSCAPEN;
 
-	if (of_property_read_bool(np, "st,slow-hs-slew-rate"))
+	if (of_property_read_bool(np, "st,decrease-hs-slew-rate"))
 		usbphyc_phy->tune |= HSDRVSLEW;
 
 	ret = of_property_read_u32(np, "st,tune-hs-dc-level", &val);

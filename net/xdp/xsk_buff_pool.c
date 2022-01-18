@@ -83,6 +83,7 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 		xskb = &pool->heads[i];
 		xskb->pool = pool;
 		xskb->xdp.frame_sz = umem->chunk_size - umem->headroom;
+		INIT_LIST_HEAD(&xskb->free_list_node);
 		if (pool->unaligned)
 			pool->free_heads[i] = xskb;
 		else

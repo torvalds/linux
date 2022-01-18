@@ -564,6 +564,7 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 		container_of_user(base, typeof(*ext), base);
 	const struct set_proto_ctx_engines *set = data;
 	struct drm_i915_private *i915 = set->i915;
+	struct i915_engine_class_instance prev_engine;
 	u64 flags;
 	int err = 0, n, i, j;
 	u16 slot, width, num_siblings;
@@ -629,7 +630,6 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 	/* Create contexts / engines */
 	for (i = 0; i < width; ++i) {
 		intel_engine_mask_t current_mask = 0;
-		struct i915_engine_class_instance prev_engine;
 
 		for (j = 0; j < num_siblings; ++j) {
 			struct i915_engine_class_instance ci;

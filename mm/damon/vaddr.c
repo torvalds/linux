@@ -13,6 +13,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/page_idle.h>
 #include <linux/pagewalk.h>
+#include <linux/sched/mm.h>
 
 #include "prmtv-common.h"
 
@@ -626,7 +627,6 @@ int damon_va_apply_scheme(struct damon_ctx *ctx, struct damon_target *t,
 	case DAMOS_STAT:
 		return 0;
 	default:
-		pr_warn("Wrong action %d\n", scheme->action);
 		return -EINVAL;
 	}
 

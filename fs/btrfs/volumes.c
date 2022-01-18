@@ -1370,8 +1370,10 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, fmode_t flags,
 
 	bytenr_orig = btrfs_sb_offset(0);
 	ret = btrfs_sb_log_location_bdev(bdev, 0, READ, &bytenr);
-	if (ret)
-		return ERR_PTR(ret);
+	if (ret) {
+		device = ERR_PTR(ret);
+		goto error_bdev_put;
+	}
 
 	disk_super = btrfs_read_disk_super(bdev, bytenr, bytenr_orig);
 	if (IS_ERR(disk_super)) {

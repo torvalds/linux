@@ -4,6 +4,9 @@
 #include <linux/ftrace.h>
 #include <asm/asm-offsets.h>
 
+extern void my_direct_func1(void);
+extern void my_direct_func2(void);
+
 void my_direct_func1(void)
 {
 	trace_printk("my direct func1\n");

@@ -6,5 +6,7 @@
 #define PCI_IOSIZE	SZ_64K
 #define IO_SPACE_LIMIT	(PCI_IOSIZE - 1)
 
+#define pci_remap_iospace pci_remap_iospace
+
 #include <asm/mach-generic/spaces.h>
 #endif

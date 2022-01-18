@@ -136,6 +136,19 @@ static inline void sk_mark_napi_id(struct sock *sk, const struct sk_buff *skb)
 	sk_rx_queue_update(sk, skb);
 }
 
+/* Variant of sk_mark_napi_id() for passive flow setup,
+ * as sk->sk_napi_id and sk->sk_rx_queue_mapping content
+ * needs to be set.
+ */
+static inline void sk_mark_napi_id_set(struct sock *sk,
+				       const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	WRITE_ONCE(sk->sk_napi_id, skb->napi_id);
+#endif
+	sk_rx_queue_set(sk, skb);
+}
+
 static inline void __sk_mark_napi_id_once(struct sock *sk, unsigned int napi_id)
 {
 #ifdef CONFIG_NET_RX_BUSY_POLL
