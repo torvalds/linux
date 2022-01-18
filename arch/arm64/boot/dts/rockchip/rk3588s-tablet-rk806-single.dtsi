@@ -122,15 +122,6 @@
 		};
 	};
 
-	vbus5v0_typec: vbus5v0-typec {
-		compatible = "regulator-fixed";
-		regulator-name = "vbus5v0_typec";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
-
 	vcc3v3_lcd_n: vcc3v3-lcd0-n {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_lcd0_n";
@@ -1121,7 +1112,7 @@
 		pinctrl-0 = <&charger_ok>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <RK_PC3 IRQ_TYPE_EDGE_FALLING>;
-		/*phys = <&u2phy0>;*/
+		otg-mode-en-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
 		ti,usb-charger-detection = <&usbc0>;
 
 		ti,battery-regulation-voltage = <4192000>; /* 4.192V */
@@ -1130,7 +1121,13 @@
 		ti,precharge-current = <130000>; /* 130mA */
 		ti,minimum-sys-voltage = <3000000>; /* 3V */
 		ti,boost-voltage = <5000000>; /* 5V */
-		ti,boost-max-current = <50000>; /* 50mA */
+		ti,boost-max-current = <1600000>; /* 1600mA */
+		regulators {
+			vbus5v0_typec: vbus5v0-typec {
+				regulator-compatible = "otg-vbus";
+				regulator-name = "vbus5v0_typec";
+			};
+		};
 	};
 
 };
