@@ -2858,8 +2858,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				struct hl_cb_mgr *cb_mgr, u64 timeout_us,
 				u64 cq_counters_handle,	u64 cq_counters_offset,
 				u64 target_value, struct hl_user_interrupt *interrupt,
-				u32 *status,
-				u64 *timestamp)
+				u32 *status, u64 *timestamp)
 {
 	struct hl_user_pending_interrupt *pend;
 	unsigned long timeout, flags;
@@ -2900,10 +2899,13 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 		*status = HL_WAIT_CS_STATUS_COMPLETED;
 		/* There was no interrupt, we assume the completion is now. */
 		pend->fence.timestamp = ktime_get();
-	}
-
-	if (!timeout_us || (*status == HL_WAIT_CS_STATUS_COMPLETED))
 		goto set_timestamp;
+
+	} else if (!timeout_us) {
+		*status = HL_WAIT_CS_STATUS_BUSY;
+		pend->fence.timestamp = ktime_get();
+		goto set_timestamp;
+	}
 
 	/* Add pending user interrupt to relevant list for the interrupt
 	 * handler to monitor
