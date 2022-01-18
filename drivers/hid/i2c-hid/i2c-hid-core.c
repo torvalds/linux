@@ -104,14 +104,6 @@ struct i2c_hid_cmd {
 	.opcode = opcode_, .length = 4, \
 	.registerIndex = offsetof(struct i2c_hid_desc, wCommandRegister)
 
-/* fetch HID descriptor */
-static const struct i2c_hid_cmd hid_descr_cmd = { .length = 2 };
-/* fetch report descriptors */
-static const struct i2c_hid_cmd hid_report_descr_cmd = {
-		.registerIndex = offsetof(struct i2c_hid_desc,
-			wReportDescRegister),
-		.opcode = 0x00,
-		.length = 2 };
 /* commands */
 static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01) };
 static const struct i2c_hid_cmd hid_get_report_cmd =	{ I2C_HID_CMD(0x02) };
@@ -243,6 +235,14 @@ static int i2c_hid_xfer(struct i2c_hid *ihid,
 	return 0;
 }
 
+static int i2c_hid_read_register(struct i2c_hid *ihid, __le16 reg,
+				 void *buf, size_t len)
+{
+	*(__le16 *)ihid->cmdbuf = reg;
+
+	return i2c_hid_xfer(ihid, ihid->cmdbuf, sizeof(__le16), buf, len);
+}
+
 static size_t i2c_hid_encode_command(u8 *buf, u8 opcode,
 				     int report_type, int report_id)
 {
@@ -268,13 +268,8 @@ static int __i2c_hid_command(struct i2c_hid *ihid,
 	int length = command->length;
 	unsigned int registerIndex = command->registerIndex;
 
-	/* special case for hid_descr_cmd */
-	if (command == &hid_descr_cmd) {
-		*(__le16 *)ihid->cmdbuf = ihid->wHIDDescRegister;
-	} else {
-		ihid->cmdbuf[0] = ihid->hdesc_buffer[registerIndex];
-		ihid->cmdbuf[1] = ihid->hdesc_buffer[registerIndex + 1];
-	}
+	ihid->cmdbuf[0] = ihid->hdesc_buffer[registerIndex];
+	ihid->cmdbuf[1] = ihid->hdesc_buffer[registerIndex + 1];
 
 	if (length > 2) {
 		length = sizeof(__le16) + /* register */
@@ -794,8 +789,9 @@ static int i2c_hid_parse(struct hid_device *hid)
 
 		i2c_hid_dbg(ihid, "asking HID report descriptor\n");
 
-		ret = i2c_hid_command(ihid, &hid_report_descr_cmd,
-				      rdesc, rsize);
+		ret = i2c_hid_read_register(ihid,
+					    ihid->hdesc.wReportDescRegister,
+					    rdesc, rsize);
 		if (ret) {
 			hid_err(hid, "reading report descriptor failed\n");
 			kfree(rdesc);
@@ -905,7 +901,7 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 	struct i2c_client *client = ihid->client;
 	struct i2c_hid_desc *hdesc = &ihid->hdesc;
 	unsigned int dsize;
-	int ret;
+	int error;
 
 	/* i2c hid fetch using a fixed descriptor size (30 bytes) */
 	if (i2c_hid_get_dmi_i2c_hid_desc_override(client->name)) {
@@ -914,11 +910,14 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 			*i2c_hid_get_dmi_i2c_hid_desc_override(client->name);
 	} else {
 		i2c_hid_dbg(ihid, "Fetching the HID descriptor\n");
-		ret = i2c_hid_command(ihid, &hid_descr_cmd,
-				      ihid->hdesc_buffer,
-				      sizeof(struct i2c_hid_desc));
-		if (ret) {
-			dev_err(&ihid->client->dev, "hid_descr_cmd failed\n");
+		error = i2c_hid_read_register(ihid,
+					      ihid->wHIDDescRegister,
+					      &ihid->hdesc,
+					      sizeof(ihid->hdesc));
+		if (error) {
+			dev_err(&ihid->client->dev,
+				"failed to fetch HID descriptor: %d\n",
+				error);
 			return -ENODEV;
 		}
 	}
