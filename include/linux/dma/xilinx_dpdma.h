@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_DMA_XILINX_DPDMA_H
 #define __LINUX_DMA_XILINX_DPDMA_H
 
