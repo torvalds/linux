@@ -267,43 +267,47 @@
 		};
 
 		mdio0: mdio@1e650000 {
-			compatible = "aspeed,ast2600-mdio";
+			compatible = "aspeed,ast2600-mdio", "syscon";
 			reg = <0x1e650000 0x8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_mdio1_default>;
+			resets = <&syscon ASPEED_RESET_MII>;
 		};
 
 		mdio1: mdio@1e650008 {
-			compatible = "aspeed,ast2600-mdio";
+			compatible = "aspeed,ast2600-mdio", "syscon";
 			reg = <0x1e650008 0x8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_mdio2_default>;
+			resets = <&syscon ASPEED_RESET_MII>;
 		};
 
 		mdio2: mdio@1e650010 {
-			compatible = "aspeed,ast2600-mdio";
+			compatible = "aspeed,ast2600-mdio", "syscon";
 			reg = <0x1e650010 0x8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_mdio3_default>;
+			resets = <&syscon ASPEED_RESET_MII>;
 		};
 
 		mdio3: mdio@1e650018 {
-			compatible = "aspeed,ast2600-mdio";
+			compatible = "aspeed,ast2600-mdio", "syscon";
 			reg = <0x1e650018 0x8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_mdio4_default>;
+			resets = <&syscon ASPEED_RESET_MII>;
 		};
 
 		mac0: ftgmac@1e660000 {
