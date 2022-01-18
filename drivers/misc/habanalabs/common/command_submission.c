@@ -2892,16 +2892,21 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	pend->cq_kernel_addr = (u64 *) cb->kernel_address + cq_counters_offset;
 	pend->cq_target_value = target_value;
 
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
+
 	/* We check for completion value as interrupt could have been received
 	 * before we added the node to the wait list
 	 */
 	if (*pend->cq_kernel_addr >= target_value) {
+		spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
 		*status = HL_WAIT_CS_STATUS_COMPLETED;
 		/* There was no interrupt, we assume the completion is now. */
 		pend->fence.timestamp = ktime_get();
 		goto set_timestamp;
 
 	} else if (!timeout_us) {
+		spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 		*status = HL_WAIT_CS_STATUS_BUSY;
 		pend->fence.timestamp = ktime_get();
 		goto set_timestamp;
@@ -2910,7 +2915,6 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	/* Add pending user interrupt to relevant list for the interrupt
 	 * handler to monitor
 	 */
-	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_add_tail(&pend->wait_list_node, &interrupt->wait_list_head);
 	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
