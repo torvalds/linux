@@ -219,6 +219,7 @@ void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 					  NFS_INO_DATA_INVAL_DEFER);
 	else if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
 		nfsi->cache_validity &= ~NFS_INO_DATA_INVAL_DEFER;
+	trace_nfs_set_cache_invalid(inode, 0);
 }
 EXPORT_SYMBOL_GPL(nfs_set_cache_invalid);
 

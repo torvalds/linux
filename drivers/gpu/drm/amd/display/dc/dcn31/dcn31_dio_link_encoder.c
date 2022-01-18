@@ -67,6 +67,68 @@
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #endif
 
+static uint8_t phy_id_from_transmitter(enum transmitter t)
+{
+	uint8_t phy_id;
+
+	switch (t) {
+	case TRANSMITTER_UNIPHY_A:
+		phy_id = 0;
+		break;
+	case TRANSMITTER_UNIPHY_B:
+		phy_id = 1;
+		break;
+	case TRANSMITTER_UNIPHY_C:
+		phy_id = 2;
+		break;
+	case TRANSMITTER_UNIPHY_D:
+		phy_id = 3;
+		break;
+	case TRANSMITTER_UNIPHY_E:
+		phy_id = 4;
+		break;
+	case TRANSMITTER_UNIPHY_F:
+		phy_id = 5;
+		break;
+	case TRANSMITTER_UNIPHY_G:
+		phy_id = 6;
+		break;
+	default:
+		phy_id = 0;
+		break;
+	}
+	return phy_id;
+}
+
+static bool has_query_dp_alt(struct link_encoder *enc)
+{
+	struct dc_dmub_srv *dc_dmub_srv = enc->ctx->dmub_srv;
+
+	/* Supports development firmware and firmware >= 4.0.11 */
+	return dc_dmub_srv &&
+	       !(dc_dmub_srv->dmub->fw_version >= DMUB_FW_VERSION(4, 0, 0) &&
+		 dc_dmub_srv->dmub->fw_version <= DMUB_FW_VERSION(4, 0, 10));
+}
+
+static bool query_dp_alt_from_dmub(struct link_encoder *enc,
+				   union dmub_rb_cmd *cmd)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	struct dc_dmub_srv *dc_dmub_srv = enc->ctx->dmub_srv;
+
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->query_dp_alt.header.type = DMUB_CMD__VBIOS;
+	cmd->query_dp_alt.header.sub_type =
+		DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT;
+	cmd->query_dp_alt.header.payload_bytes = sizeof(cmd->query_dp_alt.data);
+	cmd->query_dp_alt.data.phy_id = phy_id_from_transmitter(enc10->base.transmitter);
+
+	if (!dc_dmub_srv_cmd_with_reply_data(dc_dmub_srv, cmd))
+		return false;
+
+	return true;
+}
+
 void dcn31_link_encoder_set_dio_phy_mux(
 	struct link_encoder *enc,
 	enum encoder_type_select sel,
@@ -141,7 +203,7 @@ void dcn31_link_encoder_set_dio_phy_mux(
 	}
 }
 
-void enc31_hw_init(struct link_encoder *enc)
+static void enc31_hw_init(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 
@@ -536,57 +598,90 @@ void dcn31_link_encoder_disable_output(
 bool dcn31_link_encoder_is_in_alt_mode(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	union dmub_rb_cmd cmd;
 	uint32_t dp_alt_mode_disable;
-	bool is_usb_c_alt_mode = false;
 
-	if (enc->features.flags.bits.DP_IS_USB_C) {
-		if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
-			// [Note] no need to check hw_internal_rev once phy mux selection is ready
-			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
-		} else {
+	/* Only applicable to USB-C PHY. */
+	if (!enc->features.flags.bits.DP_IS_USB_C)
+		return false;
+
+	/*
+	 * Use the new interface from DMCUB if available.
+	 * Avoids hanging the RDCPSPIPE if DMCUB wasn't already running.
+	 */
+	if (has_query_dp_alt(enc)) {
+		if (!query_dp_alt_from_dmub(enc, &cmd))
+			return false;
+
+		return (cmd.query_dp_alt.data.is_dp_alt_disable == 0);
+	}
+
+	/* Legacy path, avoid if possible. */
+	if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
+		REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE,
+			&dp_alt_mode_disable);
+	} else {
 		/*
 		 * B0 phys use a new set of registers to check whether alt mode is disabled.
 		 * if value == 1 alt mode is disabled, otherwise it is enabled.
 		 */
-			if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A)
-					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_B)
-					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
-				REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
-			} else {
-			// [Note] need to change TRANSMITTER_UNIPHY_C/D to F/G once phy mux selection is ready
-				REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
-			}
+		if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A) ||
+		    (enc10->base.transmitter == TRANSMITTER_UNIPHY_B) ||
+		    (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
+			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE,
+				&dp_alt_mode_disable);
+		} else {
+			REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE,
+				&dp_alt_mode_disable);
 		}
-
-		is_usb_c_alt_mode = (dp_alt_mode_disable == 0);
 	}
 
-	return is_usb_c_alt_mode;
+	return (dp_alt_mode_disable == 0);
 }
 
-void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc,
-										 struct dc_link_settings *link_settings)
+void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc, struct dc_link_settings *link_settings)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	union dmub_rb_cmd cmd;
 	uint32_t is_in_usb_c_dp4_mode = 0;
 
 	dcn10_link_encoder_get_max_link_cap(enc, link_settings);
 
-	/* in usb c dp2 mode, max lane count is 2 */
-	if (enc->funcs->is_in_alt_mode && enc->funcs->is_in_alt_mode(enc)) {
-		if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
-			// [Note] no need to check hw_internal_rev once phy mux selection is ready
-			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
-		} else {
-			if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A)
-					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_B)
-					|| (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
-				REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
-			} else {
-				REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
-			}
-		}
-		if (!is_in_usb_c_dp4_mode)
+	/* Take the link cap directly if not USB */
+	if (!enc->features.flags.bits.DP_IS_USB_C)
+		return;
+
+	/*
+	 * Use the new interface from DMCUB if available.
+	 * Avoids hanging the RDCPSPIPE if DMCUB wasn't already running.
+	 */
+	if (has_query_dp_alt(enc)) {
+		if (!query_dp_alt_from_dmub(enc, &cmd))
+			return;
+
+		if (cmd.query_dp_alt.data.is_usb &&
+		    cmd.query_dp_alt.data.is_dp4 == 0)
 			link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
+
+		return;
 	}
+
+	/* Legacy path, avoid if possible. */
+	if (enc->ctx->asic_id.hw_internal_rev != YELLOW_CARP_B0) {
+		REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4,
+			&is_in_usb_c_dp4_mode);
+	} else {
+		if ((enc10->base.transmitter == TRANSMITTER_UNIPHY_A) ||
+		    (enc10->base.transmitter == TRANSMITTER_UNIPHY_B) ||
+		    (enc10->base.transmitter == TRANSMITTER_UNIPHY_E)) {
+			REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4,
+				&is_in_usb_c_dp4_mode);
+		} else {
+			REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DP4,
+				&is_in_usb_c_dp4_mode);
+		}
+	}
+
+	if (!is_in_usb_c_dp4_mode)
+		link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
 }

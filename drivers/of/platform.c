@@ -540,6 +540,10 @@ static int __init of_platform_default_populate_init(void)
 		of_node_put(node);
 	}
 
+	node = of_get_compatible_child(of_chosen, "simple-framebuffer");
+	of_platform_device_create(node, NULL, NULL);
+	of_node_put(node);
+
 	/* Populate everything else. */
 	of_platform_default_populate(NULL, NULL, NULL);
 

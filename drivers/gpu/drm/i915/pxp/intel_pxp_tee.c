@@ -4,8 +4,10 @@
  */
 
 #include <linux/component.h>
-#include "drm/i915_pxp_tee_interface.h"
-#include "drm/i915_component.h"
+
+#include <drm/i915_pxp_tee_interface.h>
+#include <drm/i915_component.h>
+
 #include "i915_drv.h"
 #include "intel_pxp.h"
 #include "intel_pxp_session.h"

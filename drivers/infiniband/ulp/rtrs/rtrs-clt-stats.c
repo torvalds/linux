@@ -19,7 +19,7 @@ void rtrs_clt_update_wc_stats(struct rtrs_clt_con *con)
 	int cpu;
 
 	cpu = raw_smp_processor_id();
-	s = this_cpu_ptr(stats->pcpu_stats);
+	s = get_cpu_ptr(stats->pcpu_stats);
 	if (con->cpu != cpu) {
 		s->cpu_migr.to++;
 
@@ -27,14 +27,16 @@ void rtrs_clt_update_wc_stats(struct rtrs_clt_con *con)
 		s = per_cpu_ptr(stats->pcpu_stats, con->cpu);
 		atomic_inc(&s->cpu_migr.from);
 	}
+	put_cpu_ptr(stats->pcpu_stats);
 }
 
 void rtrs_clt_inc_failover_cnt(struct rtrs_clt_stats *stats)
 {
 	struct rtrs_clt_stats_pcpu *s;
 
-	s = this_cpu_ptr(stats->pcpu_stats);
+	s = get_cpu_ptr(stats->pcpu_stats);
 	s->rdma.failover_cnt++;
+	put_cpu_ptr(stats->pcpu_stats);
 }
 
 int rtrs_clt_stats_migration_from_cnt_to_str(struct rtrs_clt_stats *stats, char *buf)
@@ -169,9 +171,10 @@ static inline void rtrs_clt_update_rdma_stats(struct rtrs_clt_stats *stats,
 {
 	struct rtrs_clt_stats_pcpu *s;
 
-	s = this_cpu_ptr(stats->pcpu_stats);
+	s = get_cpu_ptr(stats->pcpu_stats);
 	s->rdma.dir[d].cnt++;
 	s->rdma.dir[d].size_total += size;
+	put_cpu_ptr(stats->pcpu_stats);
 }
 
 void rtrs_clt_update_all_stats(struct rtrs_clt_io_req *req, int dir)

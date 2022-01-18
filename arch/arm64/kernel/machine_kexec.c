@@ -147,7 +147,7 @@ int machine_kexec_post_load(struct kimage *kimage)
 	if (rc)
 		return rc;
 	kimage->arch.ttbr1 = __pa(trans_pgd);
-	kimage->arch.zero_page = __pa(empty_zero_page);
+	kimage->arch.zero_page = __pa_symbol(empty_zero_page);
 
 	reloc_size = __relocate_new_kernel_end - __relocate_new_kernel_start;
 	memcpy(reloc_code, __relocate_new_kernel_start, reloc_size);

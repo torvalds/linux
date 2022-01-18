@@ -219,7 +219,6 @@ struct vmw_framebuffer {
 	int (*pin)(struct vmw_framebuffer *fb);
 	int (*unpin)(struct vmw_framebuffer *fb);
 	bool bo;
-	struct ttm_base_object *user_obj;
 	uint32_t user_handle;
 };
 

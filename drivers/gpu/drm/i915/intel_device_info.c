@@ -170,6 +170,10 @@ static const u16 subplatform_portf_ids[] = {
 	INTEL_ICL_PORT_F_IDS(0),
 };
 
+static const u16 subplatform_rpls_ids[] = {
+	INTEL_RPLS_IDS(0),
+};
+
 static bool find_devid(u16 id, const u16 *p, unsigned int num)
 {
 	for (; num; num--, p++) {
@@ -206,6 +210,9 @@ void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	} else if (find_devid(devid, subplatform_portf_ids,
 			      ARRAY_SIZE(subplatform_portf_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_PORTF);
+	} else if (find_devid(devid, subplatform_rpls_ids,
+			      ARRAY_SIZE(subplatform_rpls_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_RPL_S);
 	}
 
 	if (IS_TIGERLAKE(i915)) {
@@ -319,33 +326,33 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
 			drm_info(&dev_priv->drm,
 				 "Display fused off, disabling\n");
-			info->pipe_mask = 0;
-			info->cpu_transcoder_mask = 0;
+			info->display.pipe_mask = 0;
+			info->display.cpu_transcoder_mask = 0;
 		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
 			drm_info(&dev_priv->drm, "PipeC fused off\n");
-			info->pipe_mask &= ~BIT(PIPE_C);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+			info->display.pipe_mask &= ~BIT(PIPE_C);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
 	} else if (HAS_DISPLAY(dev_priv) && DISPLAY_VER(dev_priv) >= 9) {
 		u32 dfsm = intel_de_read(dev_priv, SKL_DFSM);
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
-			info->pipe_mask &= ~BIT(PIPE_A);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
+			info->display.pipe_mask &= ~BIT(PIPE_A);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
 		}
 		if (dfsm & SKL_DFSM_PIPE_B_DISABLE) {
-			info->pipe_mask &= ~BIT(PIPE_B);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
+			info->display.pipe_mask &= ~BIT(PIPE_B);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_B);
 		}
 		if (dfsm & SKL_DFSM_PIPE_C_DISABLE) {
-			info->pipe_mask &= ~BIT(PIPE_C);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
+			info->display.pipe_mask &= ~BIT(PIPE_C);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
 
 		if (DISPLAY_VER(dev_priv) >= 12 &&
 		    (dfsm & TGL_DFSM_PIPE_D_DISABLE)) {
-			info->pipe_mask &= ~BIT(PIPE_D);
-			info->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
+			info->display.pipe_mask &= ~BIT(PIPE_D);
+			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
 		}
 
 		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)

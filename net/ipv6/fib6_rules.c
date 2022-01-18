@@ -267,6 +267,7 @@ INDIRECT_CALLABLE_SCOPE int fib6_rule_action(struct fib_rule *rule,
 }
 
 INDIRECT_CALLABLE_SCOPE bool fib6_rule_suppress(struct fib_rule *rule,
+						int flags,
 						struct fib_lookup_arg *arg)
 {
 	struct fib6_result *res = arg->result;
@@ -294,8 +295,7 @@ INDIRECT_CALLABLE_SCOPE bool fib6_rule_suppress(struct fib_rule *rule,
 	return false;
 
 suppress_route:
-	if (!(arg->flags & FIB_LOOKUP_NOREF))
-		ip6_rt_put(rt);
+	ip6_rt_put_flags(rt, flags);
 	return true;
 }
 

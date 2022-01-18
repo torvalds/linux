@@ -867,12 +867,20 @@ static int hw_atl_fw1x_deinit(struct aq_hw_s *self)
 int hw_atl_utils_update_stats(struct aq_hw_s *self)
 {
 	struct aq_stats_s *cs = &self->curr_stats;
+	struct aq_stats_s curr_stats = *cs;
 	struct hw_atl_utils_mbox mbox;
+	bool corrupted_stats = false;
 
 	hw_atl_utils_mpi_read_stats(self, &mbox);
 
-#define AQ_SDELTA(_N_) (self->curr_stats._N_ += \
-			mbox.stats._N_ - self->last_stats._N_)
+#define AQ_SDELTA(_N_)  \
+do { \
+	if (!corrupted_stats && \
+	    ((s64)(mbox.stats._N_ - self->last_stats._N_)) >= 0) \
+		curr_stats._N_ += mbox.stats._N_ - self->last_stats._N_; \
+	else \
+		corrupted_stats = true; \
+} while (0)
 
 	if (self->aq_link_status.mbps) {
 		AQ_SDELTA(uprc);
@@ -892,6 +900,9 @@ int hw_atl_utils_update_stats(struct aq_hw_s *self)
 		AQ_SDELTA(bbrc);
 		AQ_SDELTA(bbtc);
 		AQ_SDELTA(dpc);
+
+		if (!corrupted_stats)
+			*cs = curr_stats;
 	}
 #undef AQ_SDELTA
 

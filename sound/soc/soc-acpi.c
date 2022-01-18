@@ -20,8 +20,10 @@ static bool snd_soc_acpi_id_present(struct snd_soc_acpi_mach *machine)
 
 	if (comp_ids) {
 		for (i = 0; i < comp_ids->num_codecs; i++) {
-			if (acpi_dev_present(comp_ids->codecs[i], NULL, -1))
+			if (acpi_dev_present(comp_ids->codecs[i], NULL, -1)) {
+				strscpy(machine->id, comp_ids->codecs[i], ACPI_ID_LEN);
 				return true;
+			}
 		}
 	}
 

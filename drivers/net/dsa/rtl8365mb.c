@@ -107,6 +107,7 @@
 #define RTL8365MB_LEARN_LIMIT_MAX_8365MB_VC	2112
 
 /* Family-specific data and limits */
+#define RTL8365MB_PHYADDRMAX	7
 #define RTL8365MB_NUM_PHYREGS	32
 #define RTL8365MB_PHYREGMAX	(RTL8365MB_NUM_PHYREGS - 1)
 #define RTL8365MB_MAX_NUM_PORTS	(RTL8365MB_CPU_PORT_NUM_8365MB_VC + 1)
@@ -176,7 +177,7 @@
 #define RTL8365MB_INDIRECT_ACCESS_STATUS_REG			0x1F01
 #define RTL8365MB_INDIRECT_ACCESS_ADDRESS_REG			0x1F02
 #define   RTL8365MB_INDIRECT_ACCESS_ADDRESS_OCPADR_5_1_MASK	GENMASK(4, 0)
-#define   RTL8365MB_INDIRECT_ACCESS_ADDRESS_PHYNUM_MASK		GENMASK(6, 5)
+#define   RTL8365MB_INDIRECT_ACCESS_ADDRESS_PHYNUM_MASK		GENMASK(7, 5)
 #define   RTL8365MB_INDIRECT_ACCESS_ADDRESS_OCPADR_9_6_MASK	GENMASK(11, 8)
 #define   RTL8365MB_PHY_BASE					0x2000
 #define RTL8365MB_INDIRECT_ACCESS_WRITE_DATA_REG		0x1F03
@@ -679,6 +680,9 @@ static int rtl8365mb_phy_read(struct realtek_smi *smi, int phy, int regnum)
 	u16 val;
 	int ret;
 
+	if (phy > RTL8365MB_PHYADDRMAX)
+		return -EINVAL;
+
 	if (regnum > RTL8365MB_PHYREGMAX)
 		return -EINVAL;
 
@@ -703,6 +707,9 @@ static int rtl8365mb_phy_write(struct realtek_smi *smi, int phy, int regnum,
 {
 	u32 ocp_addr;
 	int ret;
+
+	if (phy > RTL8365MB_PHYADDRMAX)
+		return -EINVAL;
 
 	if (regnum > RTL8365MB_PHYREGMAX)
 		return -EINVAL;

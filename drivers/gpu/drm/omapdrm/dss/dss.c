@@ -1569,7 +1569,7 @@ static void dss_shutdown(struct platform_device *pdev)
 	DSSDBG("shutdown\n");
 }
 
-static int dss_runtime_suspend(struct device *dev)
+static __maybe_unused int dss_runtime_suspend(struct device *dev)
 {
 	struct dss_device *dss = dev_get_drvdata(dev);
 
@@ -1581,7 +1581,7 @@ static int dss_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int dss_runtime_resume(struct device *dev)
+static __maybe_unused int dss_runtime_resume(struct device *dev)
 {
 	struct dss_device *dss = dev_get_drvdata(dev);
 	int r;

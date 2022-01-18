@@ -1017,6 +1017,7 @@ EXPORT_SYMBOL(submit_bio);
 /**
  * bio_poll - poll for BIO completions
  * @bio: bio to poll for
+ * @iob: batches of IO
  * @flags: BLK_POLL_* flags that control the behavior
  *
  * Poll for completions on queue associated with the bio. Returns number of

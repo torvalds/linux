@@ -7,9 +7,9 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_graph.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -2176,7 +2176,7 @@ static struct i2c_driver hi846_i2c_driver = {
 	.driver = {
 		.name = "hi846",
 		.pm = &hi846_pm_ops,
-		.of_match_table = of_match_ptr(hi846_of_match),
+		.of_match_table = hi846_of_match,
 	},
 	.probe_new = hi846_probe,
 	.remove = hi846_remove,

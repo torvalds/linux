@@ -74,21 +74,13 @@ static enum ice_protocol_type ice_proto_type_from_ipv6(bool inner)
 	return inner ? ICE_IPV6_IL : ICE_IPV6_OFOS;
 }
 
-static enum ice_protocol_type
-ice_proto_type_from_l4_port(bool inner, u16 ip_proto)
+static enum ice_protocol_type ice_proto_type_from_l4_port(u16 ip_proto)
 {
-	if (inner) {
-		switch (ip_proto) {
-		case IPPROTO_UDP:
-			return ICE_UDP_ILOS;
-		}
-	} else {
-		switch (ip_proto) {
-		case IPPROTO_TCP:
-			return ICE_TCP_IL;
-		case IPPROTO_UDP:
-			return ICE_UDP_OF;
-		}
+	switch (ip_proto) {
+	case IPPROTO_TCP:
+		return ICE_TCP_IL;
+	case IPPROTO_UDP:
+		return ICE_UDP_ILOS;
 	}
 
 	return 0;
@@ -191,8 +183,9 @@ ice_tc_fill_tunnel_outer(u32 flags, struct ice_tc_flower_fltr *fltr,
 		i++;
 	}
 
-	if (flags & ICE_TC_FLWR_FIELD_ENC_DEST_L4_PORT) {
-		list[i].type = ice_proto_type_from_l4_port(false, hdr->l3_key.ip_proto);
+	if ((flags & ICE_TC_FLWR_FIELD_ENC_DEST_L4_PORT) &&
+	    hdr->l3_key.ip_proto == IPPROTO_UDP) {
+		list[i].type = ICE_UDP_OF;
 		list[i].h_u.l4_hdr.dst_port = hdr->l4_key.dst_port;
 		list[i].m_u.l4_hdr.dst_port = hdr->l4_mask.dst_port;
 		i++;
@@ -317,7 +310,7 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 		     ICE_TC_FLWR_FIELD_SRC_L4_PORT)) {
 		struct ice_tc_l4_hdr *l4_key, *l4_mask;
 
-		list[i].type = ice_proto_type_from_l4_port(inner, headers->l3_key.ip_proto);
+		list[i].type = ice_proto_type_from_l4_port(headers->l3_key.ip_proto);
 		l4_key = &headers->l4_key;
 		l4_mask = &headers->l4_mask;
 
@@ -802,7 +795,8 @@ ice_parse_tunnel_attr(struct net_device *dev, struct flow_rule *rule,
 		headers->l3_mask.ttl = match.mask->ttl;
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS) &&
+	    fltr->tunnel_type != TNL_VXLAN && fltr->tunnel_type != TNL_GENEVE) {
 		struct flow_match_ports match;
 
 		flow_rule_match_enc_ports(rule, &match);

@@ -84,7 +84,7 @@ enum mapping_flags {
 	AS_EXITING	= 4, 	/* final truncate in progress */
 	/* writeback related tags are not used */
 	AS_NO_WRITEBACK_TAGS = 5,
-	AS_THP_SUPPORT = 6,	/* THPs supported */
+	AS_LARGE_FOLIO_SUPPORT = 6,
 };
 
 /**
@@ -176,9 +176,25 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
 	m->gfp_mask = mask;
 }
 
-static inline bool mapping_thp_support(struct address_space *mapping)
+/**
+ * mapping_set_large_folios() - Indicate the file supports large folios.
+ * @mapping: The file.
+ *
+ * The filesystem should call this function in its inode constructor to
+ * indicate that the VFS can use large folios to cache the contents of
+ * the file.
+ *
+ * Context: This should not be called while the inode is active as it
+ * is non-atomic.
+ */
+static inline void mapping_set_large_folios(struct address_space *mapping)
 {
-	return test_bit(AS_THP_SUPPORT, &mapping->flags);
+	__set_bit(AS_LARGE_FOLIO_SUPPORT, &mapping->flags);
+}
+
+static inline bool mapping_large_folio_support(struct address_space *mapping)
+{
+	return test_bit(AS_LARGE_FOLIO_SUPPORT, &mapping->flags);
 }
 
 static inline int filemap_nr_thps(struct address_space *mapping)
@@ -193,7 +209,7 @@ static inline int filemap_nr_thps(struct address_space *mapping)
 static inline void filemap_nr_thps_inc(struct address_space *mapping)
 {
 #ifdef CONFIG_READ_ONLY_THP_FOR_FS
-	if (!mapping_thp_support(mapping))
+	if (!mapping_large_folio_support(mapping))
 		atomic_inc(&mapping->nr_thps);
 #else
 	WARN_ON_ONCE(1);
@@ -203,7 +219,7 @@ static inline void filemap_nr_thps_inc(struct address_space *mapping)
 static inline void filemap_nr_thps_dec(struct address_space *mapping)
 {
 #ifdef CONFIG_READ_ONLY_THP_FOR_FS
-	if (!mapping_thp_support(mapping))
+	if (!mapping_large_folio_support(mapping))
 		atomic_dec(&mapping->nr_thps);
 #else
 	WARN_ON_ONCE(1);

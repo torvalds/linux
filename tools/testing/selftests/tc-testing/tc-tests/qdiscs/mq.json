@@ -15,7 +15,7 @@
 	    "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: mq",
 	    "expExitCode": "0",
 	    "verifyCmd": "$TC qdisc show dev $ETH",
-	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchPattern": "qdisc [a-zA-Z0-9_]+ 0: parent 1:[1-4]",
 	    "matchCount": "4",
 	    "teardown": [
 		    "echo \"1\" > /sys/bus/netdevsim/del_device"
@@ -37,7 +37,7 @@
 	    "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: mq",
 	    "expExitCode": "0",
 	    "verifyCmd": "$TC qdisc show dev $ETH",
-	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-9,a-f][0-9,a-f]{0,2} bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchPattern": "qdisc [a-zA-Z0-9_]+ 0: parent 1:[1-9,a-f][0-9,a-f]{0,2}",
 	    "matchCount": "256",
 	    "teardown": [
 		    "echo \"1\" > /sys/bus/netdevsim/del_device"
@@ -60,7 +60,7 @@
 	    "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: mq",
 	    "expExitCode": "2",
 	    "verifyCmd": "$TC qdisc show dev $ETH",
-	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchPattern": "qdisc [a-zA-Z0-9_]+ 0: parent 1:[1-4]",
 	    "matchCount": "4",
 	    "teardown": [
 		    "echo \"1\" > /sys/bus/netdevsim/del_device"
@@ -82,7 +82,7 @@
 	    "cmdUnderTest": "$TC qdisc del dev $ETH root handle 1: mq",
 	    "expExitCode": "2",
 	    "verifyCmd": "$TC qdisc show dev $ETH",
-	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchPattern": "qdisc [a-zA-Z0-9_]+ 0: parent 1:[1-4]",
 	    "matchCount": "0",
 	    "teardown": [
 		    "echo \"1\" > /sys/bus/netdevsim/del_device"
@@ -106,7 +106,7 @@
 	    "cmdUnderTest": "$TC qdisc del dev $ETH root handle 1: mq",
 	    "expExitCode": "2",
 	    "verifyCmd": "$TC qdisc show dev $ETH",
-	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchPattern": "qdisc [a-zA-Z0-9_]+ 0: parent 1:[1-4]",
 	    "matchCount": "0",
 	    "teardown": [
 		    "echo \"1\" > /sys/bus/netdevsim/del_device"
@@ -128,7 +128,7 @@
 	    "cmdUnderTest": "$TC qdisc add dev $ETH root handle 1: mq",
 	    "expExitCode": "2",
 	    "verifyCmd": "$TC qdisc show dev $ETH",
-	    "matchPattern": "qdisc pfifo_fast 0: parent 1:[1-4] bands 3 priomap 1 2 2 2 1 2 0 0 1 1 1 1 1 1 1 1",
+	    "matchPattern": "qdisc [a-zA-Z0-9_]+ 0: parent 1:[1-4]",
 	    "matchCount": "0",
 	    "teardown": [
 		    "echo \"1\" > /sys/bus/netdevsim/del_device"

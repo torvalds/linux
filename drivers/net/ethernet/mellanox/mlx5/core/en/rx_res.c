@@ -13,6 +13,9 @@ struct mlx5e_rx_res {
 	unsigned int max_nch;
 	u32 drop_rqn;
 
+	struct mlx5e_packet_merge_param pkt_merge_param;
+	struct rw_semaphore pkt_merge_param_sem;
+
 	struct mlx5e_rss *rss[MLX5E_MAX_NUM_RSS];
 	bool rss_active;
 	u32 rss_rqns[MLX5E_INDIR_RQT_SIZE];
@@ -392,6 +395,7 @@ static int mlx5e_rx_res_ptp_init(struct mlx5e_rx_res *res)
 	if (err)
 		goto out;
 
+	/* Separated from the channels RQs, does not share pkt_merge state with them */
 	mlx5e_tir_builder_build_rqt(builder, res->mdev->mlx5e_res.hw_objs.td.tdn,
 				    mlx5e_rqt_get_rqtn(&res->ptp.rqt),
 				    inner_ft_support);
@@ -446,6 +450,9 @@ int mlx5e_rx_res_init(struct mlx5e_rx_res *res, struct mlx5_core_dev *mdev,
 	res->features = features;
 	res->max_nch = max_nch;
 	res->drop_rqn = drop_rqn;
+
+	res->pkt_merge_param = *init_pkt_merge_param;
+	init_rwsem(&res->pkt_merge_param_sem);
 
 	err = mlx5e_rx_res_rss_init_def(res, init_pkt_merge_param, init_nch);
 	if (err)
@@ -513,7 +520,7 @@ u32 mlx5e_rx_res_get_tirn_ptp(struct mlx5e_rx_res *res)
 	return mlx5e_tir_get_tirn(&res->ptp.tir);
 }
 
-u32 mlx5e_rx_res_get_rqtn_direct(struct mlx5e_rx_res *res, unsigned int ix)
+static u32 mlx5e_rx_res_get_rqtn_direct(struct mlx5e_rx_res *res, unsigned int ix)
 {
 	return mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt);
 }
@@ -656,6 +663,9 @@ int mlx5e_rx_res_packet_merge_set_param(struct mlx5e_rx_res *res,
 	if (!builder)
 		return -ENOMEM;
 
+	down_write(&res->pkt_merge_param_sem);
+	res->pkt_merge_param = *pkt_merge_param;
+
 	mlx5e_tir_builder_build_packet_merge(builder, pkt_merge_param);
 
 	final_err = 0;
@@ -681,6 +691,7 @@ int mlx5e_rx_res_packet_merge_set_param(struct mlx5e_rx_res *res,
 		}
 	}
 
+	up_write(&res->pkt_merge_param_sem);
 	mlx5e_tir_builder_free(builder);
 	return final_err;
 }
@@ -688,4 +699,32 @@ int mlx5e_rx_res_packet_merge_set_param(struct mlx5e_rx_res *res,
 struct mlx5e_rss_params_hash mlx5e_rx_res_get_current_hash(struct mlx5e_rx_res *res)
 {
 	return mlx5e_rss_get_hash(res->rss[0]);
+}
+
+int mlx5e_rx_res_tls_tir_create(struct mlx5e_rx_res *res, unsigned int rxq,
+				struct mlx5e_tir *tir)
+{
+	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
+	struct mlx5e_tir_builder *builder;
+	u32 rqtn;
+	int err;
+
+	builder = mlx5e_tir_builder_alloc(false);
+	if (!builder)
+		return -ENOMEM;
+
+	rqtn = mlx5e_rx_res_get_rqtn_direct(res, rxq);
+
+	mlx5e_tir_builder_build_rqt(builder, res->mdev->mlx5e_res.hw_objs.td.tdn, rqtn,
+				    inner_ft_support);
+	mlx5e_tir_builder_build_direct(builder);
+	mlx5e_tir_builder_build_tls(builder);
+	down_read(&res->pkt_merge_param_sem);
+	mlx5e_tir_builder_build_packet_merge(builder, &res->pkt_merge_param);
+	err = mlx5e_tir_init(tir, builder, res->mdev, false);
+	up_read(&res->pkt_merge_param_sem);
+
+	mlx5e_tir_builder_free(builder);
+
+	return err;
 }

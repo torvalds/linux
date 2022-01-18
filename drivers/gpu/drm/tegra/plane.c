@@ -74,7 +74,7 @@ tegra_plane_atomic_duplicate_state(struct drm_plane *plane)
 
 	for (i = 0; i < 3; i++) {
 		copy->iova[i] = DMA_MAPPING_ERROR;
-		copy->sgt[i] = NULL;
+		copy->map[i] = NULL;
 	}
 
 	return &copy->base;
@@ -138,55 +138,37 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 
 static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dc->dev);
 	unsigned int i;
 	int err;
 
 	for (i = 0; i < state->base.fb->format->num_planes; i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
-		dma_addr_t phys_addr, *phys;
-		struct sg_table *sgt;
+		struct host1x_bo_mapping *map;
 
-		/*
-		 * If we're not attached to a domain, we already stored the
-		 * physical address when the buffer was allocated. If we're
-		 * part of a group that's shared between all display
-		 * controllers, we've also already mapped the framebuffer
-		 * through the SMMU. In both cases we can short-circuit the
-		 * code below and retrieve the stored IOV address.
-		 */
-		if (!domain || dc->client.group)
-			phys = &phys_addr;
-		else
-			phys = NULL;
-
-		sgt = host1x_bo_pin(dc->dev, &bo->base, phys);
-		if (IS_ERR(sgt)) {
-			err = PTR_ERR(sgt);
+		map = host1x_bo_pin(dc->dev, &bo->base, DMA_TO_DEVICE, &dc->client.cache);
+		if (IS_ERR(map)) {
+			err = PTR_ERR(map);
 			goto unpin;
 		}
 
-		if (sgt) {
-			err = dma_map_sgtable(dc->dev, sgt, DMA_TO_DEVICE, 0);
-			if (err)
-				goto unpin;
-
+		if (!dc->client.group) {
 			/*
 			 * The display controller needs contiguous memory, so
 			 * fail if the buffer is discontiguous and we fail to
 			 * map its SG table to a single contiguous chunk of
 			 * I/O virtual memory.
 			 */
-			if (sgt->nents > 1) {
+			if (map->chunks > 1) {
 				err = -EINVAL;
 				goto unpin;
 			}
 
-			state->iova[i] = sg_dma_address(sgt->sgl);
-			state->sgt[i] = sgt;
+			state->iova[i] = map->phys;
 		} else {
-			state->iova[i] = phys_addr;
+			state->iova[i] = bo->iova;
 		}
+
+		state->map[i] = map;
 	}
 
 	return 0;
@@ -195,15 +177,9 @@ unpin:
 	dev_err(dc->dev, "failed to map plane %u: %d\n", i, err);
 
 	while (i--) {
-		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
-		struct sg_table *sgt = state->sgt[i];
-
-		if (sgt)
-			dma_unmap_sgtable(dc->dev, sgt, DMA_TO_DEVICE, 0);
-
-		host1x_bo_unpin(dc->dev, &bo->base, sgt);
+		host1x_bo_unpin(state->map[i]);
 		state->iova[i] = DMA_MAPPING_ERROR;
-		state->sgt[i] = NULL;
+		state->map[i] = NULL;
 	}
 
 	return err;
@@ -214,15 +190,9 @@ static void tegra_dc_unpin(struct tegra_dc *dc, struct tegra_plane_state *state)
 	unsigned int i;
 
 	for (i = 0; i < state->base.fb->format->num_planes; i++) {
-		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
-		struct sg_table *sgt = state->sgt[i];
-
-		if (sgt)
-			dma_unmap_sgtable(dc->dev, sgt, DMA_TO_DEVICE, 0);
-
-		host1x_bo_unpin(dc->dev, &bo->base, sgt);
+		host1x_bo_unpin(state->map[i]);
 		state->iova[i] = DMA_MAPPING_ERROR;
-		state->sgt[i] = NULL;
+		state->map[i] = NULL;
 	}
 }
 
@@ -230,11 +200,14 @@ int tegra_plane_prepare_fb(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	int err;
 
 	if (!state->fb)
 		return 0;
 
-	drm_gem_plane_helper_prepare_fb(plane, state);
+	err = drm_gem_plane_helper_prepare_fb(plane, state);
+	if (err < 0)
+		return err;
 
 	return tegra_dc_pin(dc, to_tegra_plane_state(state));
 }

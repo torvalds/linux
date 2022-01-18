@@ -111,7 +111,7 @@ static int _dpu_mdss_irq_domain_add(struct dpu_mdss *dpu_mdss)
 	struct device *dev;
 	struct irq_domain *domain;
 
-	dev = dpu_mdss->base.dev->dev;
+	dev = dpu_mdss->base.dev;
 
 	domain = irq_domain_add_linear(dev->of_node, 32,
 			&dpu_mdss_irqdomain_ops, dpu_mdss);
@@ -184,16 +184,15 @@ static int dpu_mdss_disable(struct msm_mdss *mdss)
 	return ret;
 }
 
-static void dpu_mdss_destroy(struct drm_device *dev)
+static void dpu_mdss_destroy(struct msm_mdss *mdss)
 {
-	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct msm_drm_private *priv = dev->dev_private;
-	struct dpu_mdss *dpu_mdss = to_dpu_mdss(priv->mdss);
+	struct platform_device *pdev = to_platform_device(mdss->dev);
+	struct dpu_mdss *dpu_mdss = to_dpu_mdss(mdss);
 	struct dss_module_power *mp = &dpu_mdss->mp;
 	int irq;
 
-	pm_runtime_suspend(dev->dev);
-	pm_runtime_disable(dev->dev);
+	pm_runtime_suspend(mdss->dev);
+	pm_runtime_disable(mdss->dev);
 	_dpu_mdss_irq_domain_fini(dpu_mdss);
 	irq = platform_get_irq(pdev, 0);
 	irq_set_chained_handler_and_data(irq, NULL, NULL);
@@ -203,7 +202,6 @@ static void dpu_mdss_destroy(struct drm_device *dev)
 	if (dpu_mdss->mmio)
 		devm_iounmap(&pdev->dev, dpu_mdss->mmio);
 	dpu_mdss->mmio = NULL;
-	priv->mdss = NULL;
 }
 
 static const struct msm_mdss_funcs mdss_funcs = {
@@ -212,16 +210,15 @@ static const struct msm_mdss_funcs mdss_funcs = {
 	.destroy = dpu_mdss_destroy,
 };
 
-int dpu_mdss_init(struct drm_device *dev)
+int dpu_mdss_init(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
 	struct dpu_mdss *dpu_mdss;
 	struct dss_module_power *mp;
 	int ret;
 	int irq;
 
-	dpu_mdss = devm_kzalloc(dev->dev, sizeof(*dpu_mdss), GFP_KERNEL);
+	dpu_mdss = devm_kzalloc(&pdev->dev, sizeof(*dpu_mdss), GFP_KERNEL);
 	if (!dpu_mdss)
 		return -ENOMEM;
 
@@ -238,7 +235,7 @@ int dpu_mdss_init(struct drm_device *dev)
 		goto clk_parse_err;
 	}
 
-	dpu_mdss->base.dev = dev;
+	dpu_mdss->base.dev = &pdev->dev;
 	dpu_mdss->base.funcs = &mdss_funcs;
 
 	ret = _dpu_mdss_irq_domain_add(dpu_mdss);
@@ -256,7 +253,7 @@ int dpu_mdss_init(struct drm_device *dev)
 
 	priv->mdss = &dpu_mdss->base;
 
-	pm_runtime_enable(dev->dev);
+	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 

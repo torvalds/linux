@@ -5058,7 +5058,7 @@ static int dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int dsi_runtime_suspend(struct device *dev)
+static __maybe_unused int dsi_runtime_suspend(struct device *dev)
 {
 	struct dsi_data *dsi = dev_get_drvdata(dev);
 
@@ -5071,7 +5071,7 @@ static int dsi_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int dsi_runtime_resume(struct device *dev)
+static __maybe_unused int dsi_runtime_resume(struct device *dev)
 {
 	struct dsi_data *dsi = dev_get_drvdata(dev);
 

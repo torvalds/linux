@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_managed.h>
+#include <drm/intel-gtt.h>
 
 #include "intel_gt_debugfs.h"
 
