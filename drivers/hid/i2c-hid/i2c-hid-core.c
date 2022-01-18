@@ -107,7 +107,6 @@ struct i2c_hid_cmd {
 /* commands */
 static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01) };
 static const struct i2c_hid_cmd hid_get_report_cmd =	{ I2C_HID_CMD(0x02) };
-static const struct i2c_hid_cmd hid_set_power_cmd =	{ I2C_HID_CMD(0x08) };
 
 /*
  * These definitions are not used here, but are defined by the spec.
@@ -396,6 +395,22 @@ static int i2c_hid_set_or_send_report(struct i2c_hid *ihid,
 	return data_len;
 }
 
+static int i2c_hid_set_power_command(struct i2c_hid *ihid, int power_state)
+{
+	size_t length;
+
+	/* SET_POWER uses command register */
+	*(__le16 *)ihid->cmdbuf = ihid->hdesc.wCommandRegister;
+	length = sizeof(__le16);
+
+	/* Now the command itself */
+	length += i2c_hid_encode_command(ihid->cmdbuf + length,
+					 I2C_HID_OPCODE_SET_POWER,
+					 0, power_state);
+
+	return i2c_hid_xfer(ihid, ihid->cmdbuf, length, NULL, 0);
+}
+
 static int i2c_hid_set_power(struct i2c_hid *ihid, int power_state)
 {
 	int ret;
@@ -409,15 +424,14 @@ static int i2c_hid_set_power(struct i2c_hid *ihid, int power_state)
 	 */
 	if (power_state == I2C_HID_PWR_ON &&
 	    ihid->quirks & I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV) {
-		ret = i2c_hid_command(ihid, &hid_set_power_cmd, NULL, 0);
+		ret = i2c_hid_set_power_command(ihid, I2C_HID_PWR_ON);
 
 		/* Device was already activated */
 		if (!ret)
 			goto set_pwr_exit;
 	}
 
-	ret = __i2c_hid_command(ihid, &hid_set_power_cmd, power_state,
-		0, NULL, 0, NULL, 0);
+	ret = i2c_hid_set_power_command(ihid, power_state);
 	if (ret)
 		dev_err(&ihid->client->dev,
 			"failed to change power setting.\n");
