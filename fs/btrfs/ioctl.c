@@ -1443,8 +1443,10 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 		u32 range_len = entry->len;
 
 		/* Reached or beyond the limit */
-		if (max_sectors && *sectors_defragged >= max_sectors)
+		if (max_sectors && *sectors_defragged >= max_sectors) {
+			ret = 1;
 			break;
+		}
 
 		if (max_sectors)
 			range_len = min_t(u32, range_len,
@@ -1487,7 +1489,10 @@ out:
  *		   will be defragged.
  *
  * Return <0 for error.
- * Return >=0 for the number of sectors defragged.
+ * Return >=0 for the number of sectors defragged, and range->start will be updated
+ * to indicate the file offset where next defrag should be started at.
+ * (Mostly for autodefrag, which sets @max_to_defrag thus we may exit early without
+ *  defragging all the range).
  */
 int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		      struct btrfs_ioctl_defrag_range_args *range,
@@ -1580,10 +1585,19 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		if (ret < 0)
 			break;
 		cur = cluster_end + 1;
+		if (ret > 0) {
+			ret = 0;
+			break;
+		}
 	}
 
 	if (ra_allocated)
 		kfree(ra);
+	/*
+	 * Update range.start for autodefrag, this will indicate where to start
+	 * in next run.
+	 */
+	range->start = cur;
 	if (sectors_defragged) {
 		/*
 		 * We have defragged some sectors, for compression case they
