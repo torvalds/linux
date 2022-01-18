@@ -13,10 +13,97 @@
 #include <linux/gpio/consumer.h>
 #include <linux/mfd/rk630.h>
 
+static int rk630_macphy_enable(struct rk630 *rk630)
+{
+	u32 val;
+	int ret;
+
+	/* IOMUX */
+	val = 0xfffc5554;
+	ret = regmap_write(rk630->grf, GRF_REG(0x8), val);
+	if (ret != 0) {
+		dev_err(rk630->dev, "Could not write to GRF: %d\n", ret);
+		return ret;
+	}
+
+	/* IOMUX */
+	val = 0x00330021;
+	ret = regmap_write(rk630->grf, GRF_REG(0x10), val);
+	if (ret != 0) {
+		dev_err(rk630->dev, "Could not write to GRF: %d\n", ret);
+		return ret;
+	}
+
+	/* reset */
+	val = BIT(12 + 16) | BIT(12);
+	ret = regmap_write(rk630->cru, CRU_REG(0x50), val);
+	if (ret != 0) {
+		dev_err(rk630->dev, "Could not write to CRU: %d\n", ret);
+		return ret;
+	}
+	udelay(20);
+
+	val = BIT(12 + 16);
+	ret = regmap_write(rk630->cru, CRU_REG(0x50), val);
+	if (ret != 0) {
+		dev_err(rk630->dev, "Could not write to CRU: %d\n", ret);
+		return ret;
+	}
+	udelay(20);
+
+	/* power up && led*/
+	val = BIT(1 + 16) | BIT(1) | BIT(2 + 16);
+	ret = regmap_write(rk630->grf, GRF_REG(0x408), val);
+	if (ret != 0) {
+		dev_err(rk630->dev, "Could not write to GRF: %d\n", ret);
+		return ret;
+	}
+	usleep_range(20000, 50000);
+
+	/* mdio_sel: mdio */
+	val = BIT(8 + 16) | BIT(8);
+	ret = regmap_write(rk630->grf, GRF_REG(0x400), val);
+	if (ret != 0) {
+		dev_err(rk630->dev, "Could not write to GRF: %d\n", ret);
+		return ret;
+	}
+
+	/* mode sel: RMII && clock sel: 24M && BGS value: OTP && id */
+	val = (2 << 14) | (0 << 12) | (0x1 << 8) | (6 << 5) | 1;
+	ret = regmap_write(rk630->grf, GRF_REG(0x404), val | 0xffff0000);
+	if (ret != 0) {
+		dev_err(rk630->dev, "Could not write to GRF: %d\n", ret);
+		return ret;
+	}
+	usleep_range(100, 150);
+
+	return 0;
+}
+
+static int rk630_macphy_disable(struct rk630 *rk630)
+{
+	u32 val;
+	int ret;
+
+	/* GRF_SOC_CON2_CFG */
+	val = BIT(2) | BIT(16 + 2);
+	ret = regmap_write(rk630->grf, GRF_REG(0x408), val);
+	if (ret != 0) {
+		dev_err(rk630->dev, "Could not write to GRF: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct mfd_cell rk630_devs[] = {
 	{
 		.name = "rk630-tve",
 		.of_compatible = "rockchip,rk630-tve",
+	},
+	{
+		.name = "rk630-macphy",
+		.of_compatible = "rockchip,rk630-macphy",
 	},
 };
 
@@ -79,6 +166,8 @@ EXPORT_SYMBOL_GPL(rk630_cru_regmap_config);
 
 int rk630_core_probe(struct rk630 *rk630)
 {
+	bool macphy_enabled = false;
+	struct device_node *np;
 	int ret;
 
 	rk630->reset_gpio = devm_gpiod_get(rk630->dev, "reset", 0);
@@ -101,6 +190,23 @@ int rk630_core_probe(struct rk630 *rk630)
 		dev_err(rk630->dev, "failed to add MFD children: %d\n", ret);
 		return ret;
 	}
+
+	for_each_child_of_node(rk630->dev->of_node, np) {
+		if (!of_device_is_compatible(np, "rockchip,rk630-macphy"))
+			continue;
+
+		if (!of_device_is_available(np)) {
+			continue;
+		} else {
+			macphy_enabled = true;
+			break;
+		}
+	}
+
+	if (macphy_enabled)
+		rk630_macphy_enable(rk630);
+	else
+		rk630_macphy_disable(rk630);
 
 	return 0;
 }

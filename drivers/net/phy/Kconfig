@@ -260,6 +260,11 @@ config ROCKCHIP_PHY
 	help
 	  Currently supports the integrated Ethernet PHY.
 
+config RK630_PHY
+	tristate "Driver for RK630 Ethernet PHYs"
+	help
+	  Currently supports the RK630 Ethernet PHY.
+
 config SMSC_PHY
 	tristate "SMSC PHYs"
 	help
