@@ -14,3 +14,12 @@
 	model = "Rockchip RK3588 EVB1 LP4 V10 Board";
 	compatible = "rockchip,rk3588-evb1-lp4-v10", "rockchip,rk3588";
 };
+
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	status = "okay";
+	center-supply = <&vdd_ddr_s0>;
+};
