@@ -32,6 +32,12 @@
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 #define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
 
+/* flags for indirect register access path supported by rlcg for sriov */
+#define AMDGPU_RLCG_GC_WRITE_LEGACY    (0x8 << 28)
+#define AMDGPU_RLCG_GC_WRITE           (0x0 << 28)
+#define AMDGPU_RLCG_GC_READ            (0x1 << 28)
+#define AMDGPU_RLCG_MMHUB_WRITE        (0x2 << 28)
+
 /* all asic after AI use this offset */
 #define mmRCC_IOV_FUNC_IDENTIFIER 0xDE5
 /* tonga/fiji use this offset */
@@ -321,4 +327,6 @@ enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *ad
 void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
 			struct amdgpu_video_codec_info *encode, uint32_t encode_array_size,
 			struct amdgpu_video_codec_info *decode, uint32_t decode_array_size);
+bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev, u32 acc_flags,
+					  u32 hwip, bool write, u32 *rlcg_flag);
 #endif

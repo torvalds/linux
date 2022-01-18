@@ -820,3 +820,38 @@ void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
 		}
 	}
 }
+
+bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev, u32 acc_flags,
+					  u32 hwip, bool write, u32 *rlcg_flag)
+{
+	bool ret = false;
+
+	switch (hwip) {
+	case GC_HWIP:
+		if (amdgpu_sriov_reg_indirect_gc(adev)) {
+			*rlcg_flag =
+				write ? AMDGPU_RLCG_GC_WRITE : AMDGPU_RLCG_GC_READ;
+			ret = true;
+		/* only in new version, AMDGPU_REGS_NO_KIQ and
+		 * AMDGPU_REGS_RLC are enabled simultaneously */
+		} else if ((acc_flags & AMDGPU_REGS_RLC) &&
+			   !(acc_flags & AMDGPU_REGS_NO_KIQ)) {
+			*rlcg_flag = AMDGPU_RLCG_GC_WRITE_LEGACY;
+			ret = true;
+		}
+		break;
+	case MMHUB_HWIP:
+		if (amdgpu_sriov_reg_indirect_mmhub(adev) &&
+		    (acc_flags & AMDGPU_REGS_RLC) && write) {
+			*rlcg_flag = AMDGPU_RLCG_MMHUB_WRITE;
+			ret = true;
+		}
+		break;
+	default:
+		dev_err(adev->dev,
+			"indirect registers access through rlcg is not supported\n");
+		ret = false;
+		break;
+	}
+	return ret;
+}
