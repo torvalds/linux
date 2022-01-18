@@ -30,7 +30,9 @@ static int cs35l41_hda_spi_probe(struct spi_device *spi)
 
 static int cs35l41_hda_spi_remove(struct spi_device *spi)
 {
-	return cs35l41_hda_remove(&spi->dev);
+	cs35l41_hda_remove(&spi->dev);
+
+	return 0;
 }
 
 static const struct spi_device_id cs35l41_hda_spi_id[] = {
@@ -55,9 +57,9 @@ static struct spi_driver cs35l41_spi_driver = {
 	.probe		= cs35l41_hda_spi_probe,
 	.remove		= cs35l41_hda_spi_remove,
 };
-
 module_spi_driver(cs35l41_spi_driver);
 
 MODULE_DESCRIPTION("HDA CS35L41 driver");
+MODULE_IMPORT_NS(SND_HDA_SCODEC_CS35L41);
 MODULE_AUTHOR("Lucas Tanure <tanureal@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
