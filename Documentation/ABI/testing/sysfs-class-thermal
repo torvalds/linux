@@ -203,7 +203,7 @@ Description:
 
 		- for generic ACPI: should be "Fan", "Processor" or "LCD"
 		- for memory controller device on intel_menlow platform:
-		should be "Memory controller".
+		  should be "Memory controller".
 
 		RO, Required
 
