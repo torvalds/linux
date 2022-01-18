@@ -765,6 +765,11 @@ const struct mtk_nor_caps mtk_nor_caps_mt8173 = {
 	.extra_dummy_bit = 0,
 };
 
+const struct mtk_nor_caps mtk_nor_caps_mt8186 = {
+	.dma_bits = 32,
+	.extra_dummy_bit = 1,
+};
+
 const struct mtk_nor_caps mtk_nor_caps_mt8192 = {
 	.dma_bits = 36,
 	.extra_dummy_bit = 0,
@@ -772,6 +777,7 @@ const struct mtk_nor_caps mtk_nor_caps_mt8192 = {
 
 static const struct of_device_id mtk_nor_match[] = {
 	{ .compatible = "mediatek,mt8173-nor", .data = &mtk_nor_caps_mt8173 },
+	{ .compatible = "mediatek,mt8186-nor", .data = &mtk_nor_caps_mt8186 },
 	{ .compatible = "mediatek,mt8192-nor", .data = &mtk_nor_caps_mt8192 },
 	{ /* sentinel */ }
 };
