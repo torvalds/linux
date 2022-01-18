@@ -165,7 +165,8 @@ static bool has_die_topology(void)
 	if (uname(&uts) < 0)
 		return false;
 
-	if (strncmp(uts.machine, "x86_64", 6))
+	if (strncmp(uts.machine, "x86_64", 6) &&
+	    strncmp(uts.machine, "s390x", 5))
 		return false;
 
 	scnprintf(filename, MAXPATHLEN, DIE_CPUS_FMT,
@@ -187,7 +188,7 @@ struct cpu_topology *cpu_topology__new(void)
 	struct perf_cpu_map *map;
 	bool has_die = has_die_topology();
 
-	ncpus = cpu__max_present_cpu();
+	ncpus = cpu__max_present_cpu().cpu;
 
 	/* build online CPU map */
 	map = perf_cpu_map__new(NULL);
@@ -218,7 +219,7 @@ struct cpu_topology *cpu_topology__new(void)
 	tp->core_cpus_list = addr;
 
 	for (i = 0; i < nr; i++) {
-		if (!cpu_map__has(map, i))
+		if (!perf_cpu_map__has(map, (struct perf_cpu){ .cpu = i }))
 			continue;
 
 		ret = build_cpu_topology(tp, i);
@@ -333,7 +334,7 @@ struct numa_topology *numa_topology__new(void)
 	tp->nr = nr;
 
 	for (i = 0; i < nr; i++) {
-		if (load_numa_node(&tp->nodes[i], node_map->map[i])) {
+		if (load_numa_node(&tp->nodes[i], node_map->map[i].cpu)) {
 			numa_topology__delete(tp);
 			tp = NULL;
 			break;

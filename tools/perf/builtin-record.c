@@ -111,6 +111,7 @@ struct record {
 	unsigned long long	samples;
 	struct mmap_cpu_mask	affinity_mask;
 	unsigned long		output_max_size;	/* = 0: unlimited */
+	struct perf_debuginfod	debuginfod;
 };
 
 static volatile int done;
@@ -2177,6 +2178,12 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 			rec->opts.nr_cblocks = nr_cblocks_default;
 	}
 #endif
+	if (!strcmp(var, "record.debuginfod")) {
+		rec->debuginfod.urls = strdup(value);
+		if (!rec->debuginfod.urls)
+			return -ENOMEM;
+		rec->debuginfod.set = true;
+	}
 
 	return 0;
 }
@@ -2265,6 +2272,10 @@ static int record__parse_mmap_pages(const struct option *opt,
 out_free:
 	free(s);
 	return ret;
+}
+
+void __weak arch__add_leaf_frame_record_opts(struct record_opts *opts __maybe_unused)
+{
 }
 
 static int parse_control_option(const struct option *opt,
@@ -2663,6 +2674,10 @@ static struct option __record_options[] = {
 		      parse_control_option),
 	OPT_CALLBACK(0, "synth", &record.opts, "no|all|task|mmap|cgroup",
 		     "Fine-tune event synthesis: default=all", parse_record_synth_option),
+	OPT_STRING_OPTARG_SET(0, "debuginfod", &record.debuginfod.urls,
+			  &record.debuginfod.set, "debuginfod urls",
+			  "Enable debuginfod data retrieval from DEBUGINFOD_URLS or specified urls",
+			  "system"),
 	OPT_END()
 };
 
@@ -2715,6 +2730,8 @@ int cmd_record(int argc, const char **argv)
 	err = symbol__validate_sym_arguments();
 	if (err)
 		return err;
+
+	perf_debuginfod_setup(&record.debuginfod);
 
 	/* Make system wide (-a) the default target. */
 	if (!argc && target__none(&rec->opts.target))
@@ -2792,7 +2809,7 @@ int cmd_record(int argc, const char **argv)
 	symbol__init(NULL);
 
 	if (rec->opts.affinity != PERF_AFFINITY_SYS) {
-		rec->affinity_mask.nbits = cpu__max_cpu();
+		rec->affinity_mask.nbits = cpu__max_cpu().cpu;
 		rec->affinity_mask.bits = bitmap_zalloc(rec->affinity_mask.nbits);
 		if (!rec->affinity_mask.bits) {
 			pr_err("Failed to allocate thread mask for %zd cpus\n", rec->affinity_mask.nbits);
@@ -2898,6 +2915,10 @@ int cmd_record(int argc, const char **argv)
 	}
 
 	rec->opts.target.hybrid = perf_pmu__has_hybrid();
+
+	if (callchain_param.enabled && callchain_param.record_mode == CALLCHAIN_FP)
+		arch__add_leaf_frame_record_opts(&rec->opts);
+
 	err = -ENOMEM;
 	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);

@@ -152,7 +152,7 @@ static void block_threads(pthread_t *w, pthread_attr_t thread_attr,
 	/* create and block all threads */
 	for (i = 0; i < params.nthreads; i++) {
 		CPU_ZERO(&cpuset);
-		CPU_SET(cpu->map[i % cpu->nr], &cpuset);
+		CPU_SET(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu, &cpuset);
 
 		if (pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpuset))
 			err(EXIT_FAILURE, "pthread_attr_setaffinity_np");

@@ -300,6 +300,30 @@
         "BriefDescription": "No operation sent for execution on a slot"
     },
     {
+        "PublicDescription": "Sample Population",
+        "EventCode": "0x4000",
+        "EventName": "SAMPLE_POP",
+        "BriefDescription": "Sample Population"
+    },
+    {
+        "PublicDescription": "Sample Taken",
+        "EventCode": "0x4001",
+        "EventName": "SAMPLE_FEED",
+        "BriefDescription": "Sample Taken"
+    },
+    {
+        "PublicDescription": "Sample Taken and not removed by filtering",
+        "EventCode": "0x4002",
+        "EventName": "SAMPLE_FILTRATE",
+        "BriefDescription": "Sample Taken and not removed by filtering"
+    },
+    {
+        "PublicDescription": "Sample collided with previous sample",
+        "EventCode": "0x4003",
+        "EventName": "SAMPLE_COLLISION",
+        "BriefDescription": "Sample collided with previous sample"
+    },
+    {
         "PublicDescription": "Constant frequency cycles.  The counter increments at a constant frequency equal to the rate of increment of the system counter, CNTPCT_EL0.",
         "EventCode": "0x4004",
         "EventName": "CNT_CYCLES",
@@ -330,6 +354,96 @@
         "BriefDescription": "Level 3 data cache long-latency read miss"
     },
     {
+        "PublicDescription": "Trace buffer current write pointer wrapped",
+        "EventCode": "0x400C",
+        "EventName": "TRB_WRAP",
+        "BriefDescription": "Trace buffer current write pointer wrapped"
+    },
+    {
+        "PublicDescription": "PE Trace Unit external output 0",
+        "EventCode": "0x4010",
+        "EventName": "TRCEXTOUT0",
+        "BriefDescription": "PE Trace Unit external output 0"
+    },
+    {
+        "PublicDescription": "PE Trace Unit external output 1",
+        "EventCode": "0x4011",
+        "EventName": "TRCEXTOUT1",
+        "BriefDescription": "PE Trace Unit external output 1"
+    },
+    {
+        "PublicDescription": "PE Trace Unit external output 2",
+        "EventCode": "0x4012",
+        "EventName": "TRCEXTOUT2",
+        "BriefDescription": "PE Trace Unit external output 2"
+    },
+    {
+        "PublicDescription": "PE Trace Unit external output 3",
+        "EventCode": "0x4013",
+        "EventName": "TRCEXTOUT3",
+        "BriefDescription": "PE Trace Unit external output 3"
+    },
+    {
+        "PublicDescription": "Cross-trigger Interface output trigger 4",
+        "EventCode": "0x4018",
+        "EventName": "CTI_TRIGOUT4",
+        "BriefDescription": "Cross-trigger Interface output trigger 4"
+    },
+    {
+        "PublicDescription": "Cross-trigger Interface output trigger 5 ",
+        "EventCode": "0x4019",
+        "EventName": "CTI_TRIGOUT5",
+        "BriefDescription": "Cross-trigger Interface output trigger 5 "
+    },
+    {
+        "PublicDescription": "Cross-trigger Interface output trigger 6",
+        "EventCode": "0x401A",
+        "EventName": "CTI_TRIGOUT6",
+        "BriefDescription": "Cross-trigger Interface output trigger 6"
+    },
+    {
+        "PublicDescription": "Cross-trigger Interface output trigger 7",
+        "EventCode": "0x401B",
+        "EventName": "CTI_TRIGOUT7",
+        "BriefDescription": "Cross-trigger Interface output trigger 7"
+    },
+    {
+        "PublicDescription": "Access with additional latency from alignment",
+        "EventCode": "0x4020",
+        "EventName": "LDST_ALIGN_LAT",
+        "BriefDescription": "Access with additional latency from alignment"
+    },
+    {
+        "PublicDescription": "Load with additional latency from alignment",
+        "EventCode": "0x4021",
+        "EventName": "LD_ALIGN_LAT",
+        "BriefDescription": "Load with additional latency from alignment"
+    },
+    {
+        "PublicDescription": "Store with additional latency from alignment",
+        "EventCode": "0x4022",
+        "EventName": "ST_ALIGN_LAT",
+        "BriefDescription": "Store with additional latency from alignment"
+    },
+    {
+        "PublicDescription": "Checked data memory access",
+        "EventCode": "0x4024",
+        "EventName": "MEM_ACCESS_CHECKED",
+        "BriefDescription": "Checked data memory access"
+    },
+    {
+        "PublicDescription": "Checked data memory access, read",
+        "EventCode": "0x4025",
+        "EventName": "MEM_ACCESS_CHECKED_RD",
+        "BriefDescription": "Checked data memory access, read"
+    },
+    {
+        "PublicDescription": "Checked data memory access, write",
+        "EventCode": "0x4026",
+        "EventName": "MEM_ACCESS_CHECKED_WR",
+        "BriefDescription": "Checked data memory access, write"
+    },
+    {
         "PublicDescription": "SIMD Instruction architecturally executed.",
         "EventCode": "0x8000",
         "EventName": "SIMD_INST_RETIRED",
@@ -340,6 +454,18 @@
         "EventCode": "0x8002",
         "EventName": "SVE_INST_RETIRED",
         "BriefDescription": "Instruction architecturally executed, SVE."
+    },
+    {
+        "PublicDescription": "ASE operations speculatively executed",
+        "EventCode": "0x8005",
+        "EventName": "ASE_INST_SPEC",
+        "BriefDescription": "ASE operations speculatively executed"
+    },
+    {
+        "PublicDescription": "SVE operations speculatively executed",
+        "EventCode": "0x8006",
+        "EventName": "SVE_INST_SPEC",
+        "BriefDescription": "SVE operations speculatively executed"
     },
     {
         "PublicDescription": "Microarchitectural operation, Operations speculatively executed.",
@@ -358,6 +484,24 @@
         "EventCode": "0x8010",
         "EventName": "FP_SPEC",
         "BriefDescription": "Floating-point Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Floating-point half-precision operations speculatively executed",
+        "EventCode": "0x8014",
+        "EventName": "FP_HP_SPEC",
+        "BriefDescription": "Floating-point half-precision operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Floating-point single-precision operations speculatively executed",
+        "EventCode": "0x8018",
+        "EventName": "FP_SP_SPEC",
+        "BriefDescription": "Floating-point single-precision operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Floating-point double-precision operations speculatively executed",
+        "EventCode": "0x801C",
+        "EventName": "FP_DP_SPEC",
+        "BriefDescription": "Floating-point double-precision operations speculatively executed"
     },
     {
         "PublicDescription": "Floating-point FMA Operations speculatively executed.",
@@ -388,6 +532,30 @@
         "EventCode": "0x8074",
         "EventName": "SVE_PRED_SPEC",
         "BriefDescription": "SVE predicated Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "SVE predicated operations with no active predicates speculatively executed",
+        "EventCode": "0x8075",
+        "EventName": "SVE_PRED_EMPTY_SPEC",
+        "BriefDescription": "SVE predicated operations with no active predicates speculatively executed"
+    },
+    {
+        "PublicDescription": "SVE predicated operations speculatively executed with all active predicates",
+        "EventCode": "0x8076",
+        "EventName": "SVE_PRED_FULL_SPEC",
+        "BriefDescription": "SVE predicated operations speculatively executed with all active predicates"
+    },
+    {
+        "PublicDescription": "SVE predicated operations speculatively executed with partially active predicates",
+        "EventCode": "0x8077",
+        "EventName": "SVE_PRED_PARTIAL_SPEC",
+        "BriefDescription": "SVE predicated operations speculatively executed with partially active predicates"
+    },
+    {
+        "PublicDescription": "SVE predicated operations with empty or partially active predicates",
+        "EventCode": "0x8079",
+        "EventName": "SVE_PRED_NOT_FULL_SPEC",
+        "BriefDescription": "SVE predicated operations with empty or partially active predicates"
     },
     {
         "PublicDescription": "SVE MOVPRFX Operations speculatively executed.",
@@ -498,6 +666,12 @@
         "BriefDescription": "SVE First-fault load Operations speculatively executed."
     },
     {
+        "PublicDescription": "SVE first-fault load operations speculatively executed which set FFR bit to 0",
+        "EventCode": "0x80BD",
+        "EventName": "SVE_LDFF_FAULT_SPEC",
+        "BriefDescription": "SVE first-fault load operations speculatively executed which set FFR bit to 0"
+    },
+    {
         "PublicDescription": "Scalable floating-point element Operations speculatively executed.",
         "EventCode": "0x80C0",
         "EventName": "FP_SCALE_OPS_SPEC",
@@ -544,5 +718,29 @@
         "EventCode": "0x80C7",
         "EventName": "FP_DP_FIXED_OPS_SPEC",
         "BriefDescription": "Non-scalable double-precision floating-point element Operations speculatively executed."
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE 8-bit integer operations speculatively executed",
+        "EventCode": "0x80E3",
+        "EventName": "ASE_SVE_INT8_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE 8-bit integer operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE 16-bit integer operations speculatively executed",
+        "EventCode": "0x80E7",
+        "EventName": "ASE_SVE_INT16_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE 16-bit integer operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE 32-bit integer operations speculatively executed",
+        "EventCode": "0x80EB",
+        "EventName": "ASE_SVE_INT32_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE 32-bit integer operations speculatively executed"
+    },
+    {
+        "PublicDescription": "Advanced SIMD and SVE 64-bit integer operations speculatively executed",
+        "EventCode": "0x80EF",
+        "EventName": "ASE_SVE_INT64_SPEC",
+        "BriefDescription": "Advanced SIMD and SVE 64-bit integer operations speculatively executed"
     }
 ]
