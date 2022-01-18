@@ -6,16 +6,17 @@
 # Author: Felix Guo <felixguoxiuping@gmail.com>
 # Author: Brendan Higgins <brendanhiggins@google.com>
 
-import collections
+from dataclasses import dataclass
 import re
 from typing import List, Set
 
 CONFIG_IS_NOT_SET_PATTERN = r'^# CONFIG_(\w+) is not set$'
 CONFIG_PATTERN = r'^CONFIG_(\w+)=(\S+|".*")$'
 
-KconfigEntryBase = collections.namedtuple('KconfigEntryBase', ['name', 'value'])
-
-class KconfigEntry(KconfigEntryBase):
+@dataclass(frozen=True)
+class KconfigEntry:
+	name: str
+	value: str
 
 	def __str__(self) -> str:
 		if self.value == 'n':
