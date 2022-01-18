@@ -45,8 +45,10 @@ int vp_legacy_probe(struct virtio_pci_legacy_device *ldev)
 		return rc;
 
 	ldev->ioaddr = pci_iomap(pci_dev, 0, 0);
-	if (!ldev->ioaddr)
+	if (!ldev->ioaddr) {
+		rc = -EIO;
 		goto err_iomap;
+	}
 
 	ldev->isr = ldev->ioaddr + VIRTIO_PCI_ISR;
 
