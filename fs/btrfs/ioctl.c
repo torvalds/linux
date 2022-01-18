@@ -1442,8 +1442,8 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 	list_for_each_entry(entry, &target_list, list) {
 		u32 range_len = entry->len;
 
-		/* Reached the limit */
-		if (max_sectors && max_sectors == *sectors_defragged)
+		/* Reached or beyond the limit */
+		if (max_sectors && *sectors_defragged >= max_sectors)
 			break;
 
 		if (max_sectors)
@@ -1465,7 +1465,8 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 				       extent_thresh, newer_than, do_compress);
 		if (ret < 0)
 			break;
-		*sectors_defragged += range_len;
+		*sectors_defragged += range_len >>
+				      inode->root->fs_info->sectorsize_bits;
 	}
 out:
 	list_for_each_entry_safe(entry, tmp, &target_list, list) {
@@ -1484,6 +1485,9 @@ out:
  * @newer_than:	   minimum transid to defrag
  * @max_to_defrag: max number of sectors to be defragged, if 0, the whole inode
  *		   will be defragged.
+ *
+ * Return <0 for error.
+ * Return >=0 for the number of sectors defragged.
  */
 int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		      struct btrfs_ioctl_defrag_range_args *range,
