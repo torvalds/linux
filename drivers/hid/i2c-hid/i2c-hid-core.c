@@ -88,7 +88,6 @@ struct i2c_hid_cmd {
 	unsigned int registerIndex;
 	__u8 opcode;
 	unsigned int length;
-	bool wait;
 };
 
 union command {
@@ -114,8 +113,7 @@ static const struct i2c_hid_cmd hid_report_descr_cmd = {
 		.opcode = 0x00,
 		.length = 2 };
 /* commands */
-static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01),
-							  .wait = true };
+static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01) };
 static const struct i2c_hid_cmd hid_get_report_cmd =	{ I2C_HID_CMD(0x02) };
 static const struct i2c_hid_cmd hid_set_report_cmd =	{ I2C_HID_CMD(0x03) };
 static const struct i2c_hid_cmd hid_set_power_cmd =	{ I2C_HID_CMD(0x08) };
@@ -220,7 +218,6 @@ static int __i2c_hid_command(struct i2c_hid *ihid,
 	int msg_num = 1;
 
 	int length = command->length;
-	bool wait = command->wait;
 	unsigned int registerIndex = command->registerIndex;
 
 	/* special case for hid_descr_cmd */
@@ -261,9 +258,6 @@ static int __i2c_hid_command(struct i2c_hid *ihid,
 		set_bit(I2C_HID_READ_PENDING, &ihid->flags);
 	}
 
-	if (wait)
-		set_bit(I2C_HID_RESET_PENDING, &ihid->flags);
-
 	ret = i2c_transfer(client->adapter, msg, msg_num);
 
 	if (data_len > 0)
@@ -272,20 +266,7 @@ static int __i2c_hid_command(struct i2c_hid *ihid,
 	if (ret != msg_num)
 		return ret < 0 ? ret : -EIO;
 
-	ret = 0;
-
-	if (wait && (ihid->quirks & I2C_HID_QUIRK_NO_IRQ_AFTER_RESET)) {
-		msleep(100);
-	} else if (wait) {
-		i2c_hid_dbg(ihid, "%s: waiting...\n", __func__);
-		if (!wait_event_timeout(ihid->wait,
-				!test_bit(I2C_HID_RESET_PENDING, &ihid->flags),
-				msecs_to_jiffies(5000)))
-			ret = -ENODATA;
-		i2c_hid_dbg(ihid, "%s: finished.\n", __func__);
-	}
-
-	return ret;
+	return 0;
 }
 
 static int i2c_hid_command(struct i2c_hid *ihid,
@@ -432,6 +413,39 @@ set_pwr_exit:
 	return ret;
 }
 
+static int i2c_hid_execute_reset(struct i2c_hid *ihid)
+{
+	int ret;
+
+	i2c_hid_dbg(ihid, "resetting...\n");
+
+	set_bit(I2C_HID_RESET_PENDING, &ihid->flags);
+
+	ret = i2c_hid_command(ihid, &hid_reset_cmd, NULL, 0);
+	if (ret) {
+		dev_err(&ihid->client->dev, "failed to reset device.\n");
+		goto out;
+	}
+
+	if (ihid->quirks & I2C_HID_QUIRK_NO_IRQ_AFTER_RESET) {
+		msleep(100);
+		goto out;
+	}
+
+	i2c_hid_dbg(ihid, "%s: waiting...\n", __func__);
+	if (!wait_event_timeout(ihid->wait,
+				!test_bit(I2C_HID_RESET_PENDING, &ihid->flags),
+				msecs_to_jiffies(5000))) {
+		ret = -ENODATA;
+		goto out;
+	}
+	i2c_hid_dbg(ihid, "%s: finished.\n", __func__);
+
+out:
+	clear_bit(I2C_HID_RESET_PENDING, &ihid->flags);
+	return ret;
+}
+
 static int i2c_hid_hwreset(struct i2c_hid *ihid)
 {
 	int ret;
@@ -449,11 +463,10 @@ static int i2c_hid_hwreset(struct i2c_hid *ihid)
 	if (ret)
 		goto out_unlock;
 
-	i2c_hid_dbg(ihid, "resetting...\n");
-
-	ret = i2c_hid_command(ihid, &hid_reset_cmd, NULL, 0);
+	ret = i2c_hid_execute_reset(ihid);
 	if (ret) {
-		dev_err(&ihid->client->dev, "failed to reset device.\n");
+		dev_err(&ihid->client->dev,
+			"failed to reset device: %d\n", ret);
 		i2c_hid_set_power(ihid, I2C_HID_PWR_SLEEP);
 		goto out_unlock;
 	}
