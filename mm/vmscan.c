@@ -978,15 +978,15 @@ void drop_slab(void)
 		drop_slab_node(nid);
 }
 
-static inline int is_page_cache_freeable(struct page *page)
+static inline int is_page_cache_freeable(struct folio *folio)
 {
 	/*
 	 * A freeable page cache page is referenced only by the caller
 	 * that isolated the page, the page cache and optional buffer
 	 * heads at page->private.
 	 */
-	int page_cache_pins = thp_nr_pages(page);
-	return page_count(page) - page_has_private(page) == 1 + page_cache_pins;
+	return folio_ref_count(folio) - folio_test_private(folio) ==
+		1 + folio_nr_pages(folio);
 }
 
 static int may_write_to_inode(struct inode *inode)
@@ -1001,24 +1001,24 @@ static int may_write_to_inode(struct inode *inode)
 }
 
 /*
- * We detected a synchronous write error writing a page out.  Probably
+ * We detected a synchronous write error writing a folio out.  Probably
  * -ENOSPC.  We need to propagate that into the address_space for a subsequent
  * fsync(), msync() or close().
  *
  * The tricky part is that after writepage we cannot touch the mapping: nothing
- * prevents it from being freed up.  But we have a ref on the page and once
- * that page is locked, the mapping is pinned.
+ * prevents it from being freed up.  But we have a ref on the folio and once
+ * that folio is locked, the mapping is pinned.
  *
- * We're allowed to run sleeping lock_page() here because we know the caller has
+ * We're allowed to run sleeping folio_lock() here because we know the caller has
  * __GFP_FS.
  */
 static void handle_write_error(struct address_space *mapping,
-				struct page *page, int error)
+				struct folio *folio, int error)
 {
-	lock_page(page);
-	if (page_mapping(page) == mapping)
+	folio_lock(folio);
+	if (folio_mapping(folio) == mapping)
 		mapping_set_error(mapping, error);
-	unlock_page(page);
+	folio_unlock(folio);
 }
 
 static bool skip_throttle_noprogress(pg_data_t *pgdat)
@@ -1165,35 +1165,35 @@ typedef enum {
  * pageout is called by shrink_page_list() for each dirty page.
  * Calls ->writepage().
  */
-static pageout_t pageout(struct page *page, struct address_space *mapping)
+static pageout_t pageout(struct folio *folio, struct address_space *mapping)
 {
 	/*
-	 * If the page is dirty, only perform writeback if that write
+	 * If the folio is dirty, only perform writeback if that write
 	 * will be non-blocking.  To prevent this allocation from being
 	 * stalled by pagecache activity.  But note that there may be
 	 * stalls if we need to run get_block().  We could test
 	 * PagePrivate for that.
 	 *
 	 * If this process is currently in __generic_file_write_iter() against
-	 * this page's queue, we can perform writeback even if that
+	 * this folio's queue, we can perform writeback even if that
 	 * will block.
 	 *
-	 * If the page is swapcache, write it back even if that would
+	 * If the folio is swapcache, write it back even if that would
 	 * block, for some throttling. This happens by accident, because
 	 * swap_backing_dev_info is bust: it doesn't reflect the
 	 * congestion state of the swapdevs.  Easy to fix, if needed.
 	 */
-	if (!is_page_cache_freeable(page))
+	if (!is_page_cache_freeable(folio))
 		return PAGE_KEEP;
 	if (!mapping) {
 		/*
-		 * Some data journaling orphaned pages can have
-		 * page->mapping == NULL while being dirty with clean buffers.
+		 * Some data journaling orphaned folios can have
+		 * folio->mapping == NULL while being dirty with clean buffers.
 		 */
-		if (page_has_private(page)) {
-			if (try_to_free_buffers(page)) {
-				ClearPageDirty(page);
-				pr_info("%s: orphaned page\n", __func__);
+		if (folio_test_private(folio)) {
+			if (try_to_free_buffers(&folio->page)) {
+				folio_clear_dirty(folio);
+				pr_info("%s: orphaned folio\n", __func__);
 				return PAGE_CLEAN;
 			}
 		}
@@ -1204,7 +1204,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 	if (!may_write_to_inode(mapping->host))
 		return PAGE_KEEP;
 
-	if (clear_page_dirty_for_io(page)) {
+	if (folio_clear_dirty_for_io(folio)) {
 		int res;
 		struct writeback_control wbc = {
 			.sync_mode = WB_SYNC_NONE,
@@ -1214,21 +1214,21 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 			.for_reclaim = 1,
 		};
 
-		SetPageReclaim(page);
-		res = mapping->a_ops->writepage(page, &wbc);
+		folio_set_reclaim(folio);
+		res = mapping->a_ops->writepage(&folio->page, &wbc);
 		if (res < 0)
-			handle_write_error(mapping, page, res);
+			handle_write_error(mapping, folio, res);
 		if (res == AOP_WRITEPAGE_ACTIVATE) {
-			ClearPageReclaim(page);
+			folio_clear_reclaim(folio);
 			return PAGE_ACTIVATE;
 		}
 
-		if (!PageWriteback(page)) {
+		if (!folio_test_writeback(folio)) {
 			/* synchronous write or broken a_ops? */
-			ClearPageReclaim(page);
+			folio_clear_reclaim(folio);
 		}
-		trace_mm_vmscan_writepage(page);
-		inc_node_page_state(page, NR_VMSCAN_WRITE);
+		trace_mm_vmscan_write_folio(folio);
+		node_stat_add_folio(folio, NR_VMSCAN_WRITE);
 		return PAGE_SUCCESS;
 	}
 
@@ -1816,7 +1816,7 @@ retry:
 			 * starts and then write it out here.
 			 */
 			try_to_unmap_flush_dirty();
-			switch (pageout(page, mapping)) {
+			switch (pageout(folio, mapping)) {
 			case PAGE_KEEP:
 				goto keep_locked;
 			case PAGE_ACTIVATE:
