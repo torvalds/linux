@@ -5109,9 +5109,24 @@ struct skl_plane_ddb_iter {
 	u16 start, size;
 };
 
+static u16
+skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
+		       const struct skl_wm_level *wm,
+		       u64 data_rate)
+{
+	u16 extra;
+
+	extra = min_t(u16, iter->size,
+		      DIV64_U64_ROUND_UP(iter->size * data_rate, iter->data_rate));
+	iter->size -= extra;
+	iter->data_rate -= data_rate;
+
+	return wm->min_ddb_alloc + extra;
+}
+
 static int
-skl_allocate_plane_ddb(struct intel_atomic_state *state,
-		       struct intel_crtc *crtc)
+skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
@@ -5196,8 +5211,6 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
-		u64 data_rate;
-		u16 extra;
 
 		if (plane_id == PLANE_CURSOR)
 			continue;
@@ -5209,22 +5222,16 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 		if (iter.data_rate == 0)
 			break;
 
-		data_rate = crtc_state->plane_data_rate[plane_id];
-		extra = min_t(u16, iter.size,
-			      DIV64_U64_ROUND_UP(iter.size * data_rate, iter.data_rate));
-		iter.total[plane_id] = wm->wm[level].min_ddb_alloc + extra;
-		iter.size -= extra;
-		iter.data_rate -= data_rate;
+		iter.total[plane_id] =
+			skl_allocate_plane_ddb(&iter, &wm->wm[level],
+					       crtc_state->plane_data_rate[plane_id]);
 
 		if (iter.data_rate == 0)
 			break;
 
-		data_rate = crtc_state->uv_plane_data_rate[plane_id];
-		extra = min_t(u16, iter.size,
-			      DIV64_U64_ROUND_UP(iter.size * data_rate, iter.data_rate));
-		iter.uv_total[plane_id] = wm->uv_wm[level].min_ddb_alloc + extra;
-		iter.size -= extra;
-		iter.data_rate -= data_rate;
+		iter.uv_total[plane_id] =
+			skl_allocate_plane_ddb(&iter, &wm->uv_wm[level],
+					       crtc_state->uv_plane_data_rate[plane_id]);
 	}
 	drm_WARN_ON(&dev_priv->drm, iter.size != 0 || iter.data_rate != 0);
 
@@ -6177,7 +6184,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		ret = skl_allocate_plane_ddb(state, crtc);
+		ret = skl_crtc_allocate_plane_ddb(state, crtc);
 		if (ret)
 			return ret;
 
