@@ -63,8 +63,6 @@ class KunitRequest(KunitExecRequest, KunitBuildRequest):
 	pass
 
 
-KernelDirectoryPath = sys.argv[0].split('tools/testing/kunit/')[0]
-
 def get_kernel_root_path() -> str:
 	path = sys.argv[0] if not __file__ else __file__
 	parts = os.path.realpath(path).split('tools/testing/kunit')
