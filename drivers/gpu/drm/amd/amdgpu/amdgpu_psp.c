@@ -941,19 +941,15 @@ static void psp_prep_ta_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 static int psp_ta_init_shared_buf(struct psp_context *psp,
 				  struct ta_mem_context *mem_ctx)
 {
-	int ret;
-
 	/*
 	* Allocate 16k memory aligned to 4k from Frame Buffer (local
 	* physical) for ta to host memory
 	*/
-	ret = amdgpu_bo_create_kernel(psp->adev, mem_ctx->shared_mem_size,
+	return amdgpu_bo_create_kernel(psp->adev, mem_ctx->shared_mem_size,
 				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
 				      &mem_ctx->shared_bo,
 				      &mem_ctx->shared_mc_addr,
 				      &mem_ctx->shared_buf);
-
-	return ret;
 }
 
 static void psp_ta_free_shared_buf(struct ta_mem_context *mem_ctx)
