@@ -469,7 +469,7 @@ class KUnitJsonTest(unittest.TestCase):
 			json_obj = kunit_json.get_json_result(
 				test=test_result,
 				def_config='kunit_defconfig',
-				build_dir=None)
+				build_dir='.kunit')
 		return json.loads(json_obj)
 
 	def test_failed_test_json(self):

@@ -12,12 +12,11 @@ import os
 import kunit_parser
 
 from kunit_parser import Test, TestStatus
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 JsonObj = Dict[str, Any]
 
-def _get_group_json(test: Test, def_config: str,
-		build_dir: Optional[str]) -> JsonObj:
+def _get_group_json(test: Test, def_config: str, build_dir: str) -> JsonObj:
 	sub_groups = []  # List[JsonObj]
 	test_cases = []  # List[JsonObj]
 
@@ -50,8 +49,7 @@ def _get_group_json(test: Test, def_config: str,
 	}
 	return test_group
 
-def get_json_result(test: Test, def_config: str,
-		build_dir: Optional[str]) -> str:
+def get_json_result(test: Test, def_config: str, build_dir: str) -> str:
 	test_group = _get_group_json(test, def_config, build_dir)
 	test_group["name"] = "KUnit Test Group"
 	return json.dumps(test_group, indent=4)
