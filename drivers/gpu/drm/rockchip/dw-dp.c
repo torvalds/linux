@@ -21,6 +21,7 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/extcon-provider.h>
 #include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/of_device.h>
@@ -251,6 +252,7 @@ struct dw_dp {
 	struct gpio_desc *hpd_gpio;
 	struct dw_dp_hotplug hotplug;
 	struct mutex irq_lock;
+	struct extcon_dev *extcon;
 
 	struct drm_bridge bridge;
 	struct drm_connector connector;
@@ -317,6 +319,11 @@ enum {
 	DPTX_PHY_PATTERN_CUSTOM_80BIT,
 	DPTX_PHY_PATTERN_CP2520_1,
 	DPTX_PHY_PATTERN_CP2520_2,
+};
+
+static const unsigned int dw_dp_cable[] = {
+	EXTCON_DISP_DP,
+	EXTCON_NONE,
 };
 
 struct dw_dp_output_format {
@@ -457,10 +464,21 @@ dw_dp_connector_detect(struct drm_connector *connector, bool force)
 	return drm_bridge_detect(&dp->bridge);
 }
 
+static void dw_dp_connector_force(struct drm_connector *connector)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+
+	if (connector->status == connector_status_connected)
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
+	else
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
+}
+
 static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.detect			= dw_dp_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= drm_connector_cleanup,
+	.force			= dw_dp_connector_force,
 	.reset			= drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
@@ -1877,6 +1895,11 @@ static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 	else
 		status = connector_status_disconnected;
 
+	if (status == connector_status_connected)
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
+	else
+		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
+
 	return status;
 }
 
@@ -2419,6 +2442,16 @@ static int dw_dp_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request irq: %d\n", ret);
 		return ret;
 	}
+
+	dp->extcon = devm_extcon_dev_allocate(dev, dw_dp_cable);
+	if (IS_ERR(dp->extcon))
+		return dev_err_probe(dev, PTR_ERR(dp->extcon),
+				     "failed to allocate extcon device\n");
+
+	ret = devm_extcon_dev_register(dev, dp->extcon);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to register extcon device\n");
 
 	ret = dw_dp_register_audio_driver(dp);
 	if (ret)
