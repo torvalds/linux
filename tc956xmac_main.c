@@ -97,6 +97,8 @@
  *  11 Jan 2022 : 1. Fixed phymode support added
  *	          2. Error return when no phy driver found during ISR work queue execution
  *  VERSION     : 01-00-35
+ *  18 Jan 2022 : 1. IRQ device name change
+ *  VERSION     : 01-00-36
 */
 
 #include <linux/clk.h>
@@ -4413,7 +4415,7 @@ static int tc956xmac_open(struct net_device *dev)
 
 	/* Request the IRQ lines */
 	ret = request_irq(dev->irq, tc956xmac_interrupt,
-			  IRQF_NO_SUSPEND, dev->name, dev);
+			  IRQF_NO_SUSPEND, IRQ_DEV_NAME(priv->port_num), dev);
 	if (unlikely(ret < 0)) {
 		netdev_err(priv->dev,
 			   "%s: ERROR: allocating the IRQ %d (error: %d)\n",
@@ -4426,7 +4428,7 @@ static int tc956xmac_open(struct net_device *dev)
 		/* Request the Wake IRQ in case of another line is used for WoL */
 		if (priv->wol_irq != dev->irq) {
 			ret = request_irq(priv->wol_irq, tc956xmac_wol_interrupt,
-					  IRQF_NO_SUSPEND, dev->name, dev);
+					  IRQF_NO_SUSPEND, WOL_IRQ_DEV_NAME(priv->port_num), dev);
 			if (unlikely(ret < 0)) {
 				netdev_err(priv->dev,
 					   "%s: ERROR: allocating the WoL IRQ %d (%d)\n",

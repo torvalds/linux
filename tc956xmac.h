@@ -115,6 +115,9 @@
  *  VERSION     : 01-00-34
  *  11 Jan 2022 : 1. Version update
  *  VERSION     : 01-00-35
+ *  18 Jan 2022 : 1. IRQ device name change
+ *		  2. Version update
+ *  VERSION     : 01-00-36
  */
 
 #ifndef __TC956XMAC_H__
@@ -167,7 +170,10 @@
 #ifdef TC956X
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
-#define DRV_MODULE_VERSION	"V_01-00-35"
+#define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
+#define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
+
+#define DRV_MODULE_VERSION	"V_01-00-36"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
