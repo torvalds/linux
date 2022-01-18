@@ -404,6 +404,8 @@ enum hl_server_type {
  * @cpucp_version: The CPUCP f/w version.
  * @card_name: The card name as passed by the f/w.
  * @dram_page_size: The DRAM physical page size.
+ * @number_of_user_interrupts: The number of interrupts that are available to the userspace
+ *                             application to use. Relevant for Gaudi2 and later.
  */
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -428,6 +430,9 @@ struct hl_info_hw_ip_info {
 	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
 	__u64 reserved2;
 	__u64 dram_page_size;
+	__u32 reserved3;
+	__u16 number_of_user_interrupts;
+	__u16 pad2;
 };
 
 struct hl_info_dram_usage {
