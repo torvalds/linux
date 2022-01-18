@@ -923,6 +923,21 @@
 		};
 	};
 
+	mco2_pins_a: mco2-0 {
+		pins {
+			pinmux = <STM32_PINMUX('G', 2, AF1)>; /* MCO2 */
+			bias-disable;
+			drive-push-pull;
+			slew-rate = <2>;
+		};
+	};
+
+	mco2_sleep_pins_a: mco2-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('G', 2, ANALOG)>; /* MCO2 */
+		};
+	};
+
 	m_can1_pins_a: m-can1-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX('H', 13, AF9)>; /* CAN1_TX */
