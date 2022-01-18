@@ -97,6 +97,7 @@ union command {
 		__le16 reg;
 		__u8 reportTypeID;
 		__u8 opcode;
+		__u8 reportID;
 	} __packed c;
 };
 
@@ -232,7 +233,13 @@ static int __i2c_hid_command(struct i2c_client *client,
 
 	if (length > 2) {
 		cmd->c.opcode = command->opcode;
-		cmd->c.reportTypeID = reportID | reportType << 4;
+		if (reportID < 0x0F) {
+			cmd->c.reportTypeID = reportType << 4 | reportID;
+		} else {
+			cmd->c.reportTypeID = reportType << 4 | 0x0F;
+			cmd->c.reportID = reportID;
+			length++;
+		}
 	}
 
 	memcpy(cmd->data + length, args, args_len);
@@ -293,17 +300,12 @@ static int i2c_hid_get_report(struct i2c_client *client, u8 reportType,
 		u8 reportID, unsigned char *buf_recv, int data_len)
 {
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
-	u8 args[3];
+	u8 args[2];
 	int ret;
 	int args_len = 0;
 	u16 readRegister = le16_to_cpu(ihid->hdesc.wDataRegister);
 
 	i2c_hid_dbg(ihid, "%s\n", __func__);
-
-	if (reportID >= 0x0F) {
-		args[args_len++] = reportID;
-		reportID = 0x0F;
-	}
 
 	args[args_len++] = readRegister & 0xFF;
 	args[args_len++] = readRegister >> 8;
@@ -350,17 +352,11 @@ static int i2c_hid_set_or_send_report(struct i2c_client *client, u8 reportType,
 	size =		2			/* size */ +
 			(reportID ? 1 : 0)	/* reportID */ +
 			data_len		/* buf */;
-	args_len =	(reportID >= 0x0F ? 1 : 0) /* optional third byte */ +
-			2			/* dataRegister */ +
+	args_len =	2			/* dataRegister */ +
 			size			/* args */;
 
 	if (!use_data && maxOutputLength == 0)
 		return -ENOSYS;
-
-	if (reportID >= 0x0F) {
-		args[index++] = reportID;
-		reportID = 0x0F;
-	}
 
 	/*
 	 * use the data register for feature reports or if the device does not
