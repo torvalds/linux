@@ -206,6 +206,7 @@ EXPORT_SYMBOL(__crc32c_le);
 
 u32 __pure crc32_le_base(u32, unsigned char const *, size_t) __alias(crc32_le);
 u32 __pure __crc32c_le_base(u32, unsigned char const *, size_t) __alias(__crc32c_le);
+u32 __pure crc32_be_base(u32, unsigned char const *, size_t) __alias(crc32_be);
 
 /*
  * This multiplies the polynomials x and y modulo the given modulus.
@@ -330,12 +331,12 @@ static inline u32 __pure crc32_be_generic(u32 crc, unsigned char const *p,
 }
 
 #if CRC_BE_BITS == 1
-u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
+u32 __pure __weak crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_be_generic(crc, p, len, NULL, CRC32_POLY_BE);
 }
 #else
-u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
+u32 __pure __weak crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_be_generic(crc, p, len, crc32table_be, CRC32_POLY_BE);
 }
