@@ -51,15 +51,7 @@ def _get_group_json(test: Test, def_config: str,
 	return test_group
 
 def get_json_result(test: Test, def_config: str,
-		build_dir: Optional[str], json_path: str) -> str:
+		build_dir: Optional[str]) -> str:
 	test_group = _get_group_json(test, def_config, build_dir)
 	test_group["name"] = "KUnit Test Group"
-	json_obj = json.dumps(test_group, indent=4)
-	if json_path != 'stdout':
-		with open(json_path, 'w') as result_path:
-			result_path.write(json_obj)
-		root = __file__.split('tools/testing/kunit/')[0]
-		kunit_parser.print_with_timestamp(
-			"Test results stored in %s" %
-			os.path.join(root, result_path.name))
-	return json_obj
+	return json.dumps(test_group, indent=4)
