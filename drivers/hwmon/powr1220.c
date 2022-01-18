@@ -111,7 +111,7 @@ static int powr1220_read_adc(struct device *dev, int ch_num)
 	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->adc_last_updated[ch_num] + HZ) ||
-			!data->adc_valid[ch_num]) {
+	    !data->adc_valid[ch_num]) {
 		/*
 		 * figure out if we need to use the attenuator for
 		 * high inputs or inputs that we don't yet have a measurement
@@ -119,12 +119,12 @@ static int powr1220_read_adc(struct device *dev, int ch_num)
 		 * max reading.
 		 */
 		if (data->adc_maxes[ch_num] > ADC_MAX_LOW_MEASUREMENT_MV ||
-				data->adc_maxes[ch_num] == 0)
+		    data->adc_maxes[ch_num] == 0)
 			adc_range = 1 << 4;
 
 		/* set the attenuator and mux */
 		result = i2c_smbus_write_byte_data(data->client, ADC_MUX,
-				adc_range | ch_num);
+						   adc_range | ch_num);
 		if (result)
 			goto exit;
 
