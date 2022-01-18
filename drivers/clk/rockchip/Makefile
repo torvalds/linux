@@ -21,6 +21,7 @@ clk-rockchip-$(CONFIG_RESET_CONTROLLER) += softrst.o
 obj-$(CONFIG_ROCKCHIP_CLK_LINK)	+= clk-link.o
 
 obj-$(CONFIG_CLK_PX30)          += clk-px30.o
+obj-$(CONFIG_CLK_RV1106)        += clk-rv1106.o
 obj-$(CONFIG_CLK_RV1108)        += clk-rv1108.o
 obj-$(CONFIG_CLK_RV1126)	+= clk-rv1126.o
 obj-$(CONFIG_CLK_RK1808)        += clk-rk1808.o

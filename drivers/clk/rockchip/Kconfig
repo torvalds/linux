@@ -16,6 +16,13 @@ config CLK_PX30
 	help
 	  Build the driver for PX30 Clock Driver.
 
+config CLK_RV1106
+	tristate "Rockchip RV1106 clock controller support"
+	depends on ARM || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RV1106 Clock Driver.
+
 config CLK_RV1108
 	tristate "Rockchip RV1108 clock controller support"
 	depends on ARM || COMPILE_TEST
