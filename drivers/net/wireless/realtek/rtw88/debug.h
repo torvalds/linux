@@ -21,6 +21,7 @@ enum rtw_debug_mask {
 	RTW_DBG_WOW		= 0x00001000,
 	RTW_DBG_CFO		= 0x00002000,
 	RTW_DBG_PATH_DIV	= 0x00004000,
+	RTW_DBG_ADAPTIVITY	= 0x00008000,
 
 	RTW_DBG_ALL		= 0xffffffff
 };

@@ -124,17 +124,19 @@ static int expand_group_events(void)
 	evlist = evlist__new();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, event_str, &err);
 	if (ret < 0) {
 		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
 			 event_str, ret, err.str);
-		parse_events_print_error(&err, event_str);
+		parse_events_error__print(&err, event_str);
 		goto out;
 	}
 
 	rblist__init(&metric_events);
 	ret = test_expand_events(evlist, &metric_events);
 out:
+	parse_events_error__exit(&err);
 	evlist__delete(evlist);
 	return ret;
 }
@@ -193,7 +195,7 @@ static int expand_metric_events(void)
 			.metric_name	= NULL,
 		},
 	};
-	struct pmu_events_map ev_map = {
+	const struct pmu_events_map ev_map = {
 		.cpuid		= "test",
 		.version	= "1",
 		.type		= "core",
@@ -219,8 +221,8 @@ out:
 	return ret;
 }
 
-int test__expand_cgroup_events(struct test *test __maybe_unused,
-			       int subtest __maybe_unused)
+static int test__expand_cgroup_events(struct test_suite *test __maybe_unused,
+				      int subtest __maybe_unused)
 {
 	int ret;
 
@@ -238,3 +240,5 @@ int test__expand_cgroup_events(struct test *test __maybe_unused,
 
 	return ret;
 }
+
+DEFINE_SUITE("Event expansion for cgroups", expand_cgroup_events);

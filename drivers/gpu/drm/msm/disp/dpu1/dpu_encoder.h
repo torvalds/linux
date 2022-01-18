@@ -163,9 +163,9 @@ void dpu_encoder_set_idle_timeout(struct drm_encoder *drm_enc,
 int dpu_encoder_get_linecount(struct drm_encoder *drm_enc);
 
 /**
- * dpu_encoder_get_frame_count - get interface frame count for the encoder.
+ * dpu_encoder_get_vsync_count - get vsync count for the encoder.
  * @drm_enc:    Pointer to previously created drm encoder structure
  */
-int dpu_encoder_get_frame_count(struct drm_encoder *drm_enc);
+int dpu_encoder_get_vsync_count(struct drm_encoder *drm_enc);
 
 #endif /* __DPU_ENCODER_H__ */

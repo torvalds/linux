@@ -54,22 +54,22 @@
 
 /* connection context union */
 union conn_context {
-	struct e4_core_conn_context core_ctx;
-	struct e4_eth_conn_context eth_ctx;
-	struct e4_iscsi_conn_context iscsi_ctx;
-	struct e4_fcoe_conn_context fcoe_ctx;
-	struct e4_roce_conn_context roce_ctx;
+	struct core_conn_context core_ctx;
+	struct eth_conn_context eth_ctx;
+	struct iscsi_conn_context iscsi_ctx;
+	struct fcoe_conn_context fcoe_ctx;
+	struct roce_conn_context roce_ctx;
 };
 
 /* TYPE-0 task context - iSCSI, FCOE */
 union type0_task_context {
-	struct e4_iscsi_task_context iscsi_ctx;
-	struct e4_fcoe_task_context fcoe_ctx;
+	struct iscsi_task_context iscsi_ctx;
+	struct fcoe_task_context fcoe_ctx;
 };
 
 /* TYPE-1 task context - ROCE */
 union type1_task_context {
-	struct e4_rdma_task_context roce_ctx;
+	struct rdma_task_context roce_ctx;
 };
 
 struct src_ent {

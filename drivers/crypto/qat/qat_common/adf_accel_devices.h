@@ -42,13 +42,17 @@ struct adf_bar {
 	resource_size_t base_addr;
 	void __iomem *virt_addr;
 	resource_size_t size;
-} __packed;
+};
+
+struct adf_irq {
+	bool enabled;
+	char name[ADF_MAX_MSIX_VECTOR_NAME];
+};
 
 struct adf_accel_msix {
-	struct msix_entry *entries;
-	char **names;
+	struct adf_irq *irqs;
 	u32 num_entries;
-} __packed;
+};
 
 struct adf_accel_pci {
 	struct pci_dev *pci_dev;
@@ -56,7 +60,7 @@ struct adf_accel_pci {
 	struct adf_bar pci_bars[ADF_PCI_MAX_BARS];
 	u8 revid;
 	u8 sku;
-} __packed;
+};
 
 enum dev_state {
 	DEV_DOWN = 0,
@@ -96,7 +100,7 @@ struct adf_hw_device_class {
 	const char *name;
 	const enum adf_device_type type;
 	u32 instances;
-} __packed;
+};
 
 struct arb_info {
 	u32 arb_cfg;
@@ -166,12 +170,18 @@ struct adf_hw_device_data {
 	int (*init_arb)(struct adf_accel_dev *accel_dev);
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
 	const u32 *(*get_arb_mapping)(void);
+	int (*init_device)(struct adf_accel_dev *accel_dev);
 	void (*disable_iov)(struct adf_accel_dev *accel_dev);
 	void (*configure_iov_threads)(struct adf_accel_dev *accel_dev,
 				      bool enable);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	void (*set_ssm_wdtimer)(struct adf_accel_dev *accel_dev);
 	int (*enable_pfvf_comms)(struct adf_accel_dev *accel_dev);
+	u32 (*get_vf2pf_sources)(void __iomem *pmisc_addr);
+	void (*enable_vf2pf_interrupts)(void __iomem *pmisc_bar_addr,
+					u32 vf_mask);
+	void (*disable_vf2pf_interrupts)(void __iomem *pmisc_bar_addr,
+					 u32 vf_mask);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	char *(*uof_get_name)(u32 obj_num);
@@ -195,7 +205,7 @@ struct adf_hw_device_data {
 	u8 num_logical_accel;
 	u8 num_engines;
 	u8 min_iov_compat_ver;
-} __packed;
+};
 
 /* CSR write macro */
 #define ADF_CSR_WR(csr_base, csr_offset, val) \
@@ -251,7 +261,8 @@ struct adf_accel_dev {
 			struct adf_accel_vf_info *vf_info;
 		} pf;
 		struct {
-			char *irq_name;
+			bool irq_enabled;
+			char irq_name[ADF_MAX_MSIX_VECTOR_NAME];
 			struct tasklet_struct pf2vf_bh_tasklet;
 			struct mutex vf2pf_lock; /* protect CSR access */
 			struct completion iov_msg_completion;
@@ -261,5 +272,5 @@ struct adf_accel_dev {
 	};
 	bool is_vf;
 	u32 accel_id;
-} __packed;
+};
 #endif

@@ -3027,7 +3027,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* mark random mac */
 		netdev->addr_assign_type = NET_ADDR_RANDOM;
 	}
-	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
+	eth_hw_addr_set(netdev, adapter->hw.mac_addr);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		err = -EIO;

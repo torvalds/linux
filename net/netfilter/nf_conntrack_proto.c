@@ -155,6 +155,16 @@ unsigned int nf_confirm(struct sk_buff *skb, unsigned int protoff,
 }
 EXPORT_SYMBOL_GPL(nf_confirm);
 
+static bool in_vrf_postrouting(const struct nf_hook_state *state)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (state->hook == NF_INET_POST_ROUTING &&
+	    netif_is_l3_master(state->out))
+		return true;
+#endif
+	return false;
+}
+
 static unsigned int ipv4_confirm(void *priv,
 				 struct sk_buff *skb,
 				 const struct nf_hook_state *state)
@@ -165,6 +175,9 @@ static unsigned int ipv4_confirm(void *priv,
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
 		return nf_conntrack_confirm(skb);
+
+	if (in_vrf_postrouting(state))
+		return NF_ACCEPT;
 
 	return nf_confirm(skb,
 			  skb_network_offset(skb) + ip_hdrlen(skb),
@@ -373,6 +386,9 @@ static unsigned int ipv6_confirm(void *priv,
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
 		return nf_conntrack_confirm(skb);
+
+	if (in_vrf_postrouting(state))
+		return NF_ACCEPT;
 
 	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum,
 				   &frag_off);

@@ -38,7 +38,7 @@ static void cdv_disable_vga(struct drm_device *dev)
 
 static int cdv_output_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	drm_mode_create_scaling_mode_property(dev);
 
@@ -146,7 +146,7 @@ static const struct backlight_ops cdv_ops = {
 
 static int cdv_backlight_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct backlight_properties props;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
@@ -206,7 +206,7 @@ static inline void CDV_MSG_WRITE32(int domain, uint port, uint offset,
 
 static void cdv_init_pm(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u32 pwr_cnt;
 	int domain = pci_domain_nr(pdev->bus);
@@ -259,7 +259,7 @@ static void cdv_errata(struct drm_device *dev)
  */
 static int cdv_save_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct psb_save_area *regs = &dev_priv->regs;
 	struct drm_connector *connector;
@@ -314,7 +314,7 @@ static int cdv_save_display_registers(struct drm_device *dev)
  */
 static int cdv_restore_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct psb_save_area *regs = &dev_priv->regs;
 	struct drm_connector *connector;
@@ -383,7 +383,7 @@ static int cdv_restore_display_registers(struct drm_device *dev)
 
 static int cdv_power_down(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 pwr_cnt, pwr_mask, pwr_sts;
 	int tries = 5;
 
@@ -405,7 +405,7 @@ static int cdv_power_down(struct drm_device *dev)
 
 static int cdv_power_up(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 pwr_cnt, pwr_mask, pwr_sts;
 	int tries = 5;
 
@@ -429,7 +429,7 @@ static void cdv_hotplug_work_func(struct work_struct *work)
 {
         struct drm_psb_private *dev_priv = container_of(work, struct drm_psb_private,
 							hotplug_work);
-        struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->dev;
 
         /* Just fire off a uevent and let userspace tell us what to do */
         drm_helper_hpd_irq_event(dev);
@@ -440,7 +440,7 @@ static void cdv_hotplug_work_func(struct work_struct *work)
 
 static int cdv_hotplug_event(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	schedule_work(&dev_priv->hotplug_work);
 	REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
 	return 1;
@@ -468,7 +468,7 @@ static const char *force_audio_names[] = {
 void cdv_intel_attach_force_audio_property(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct drm_property *prop;
 	int i;
 
@@ -497,7 +497,7 @@ static const char *broadcast_rgb_names[] = {
 void cdv_intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct drm_property *prop;
 	int i;
 
@@ -574,7 +574,7 @@ static const struct psb_offset cdv_regmap[2] = {
 
 static int cdv_chip_setup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	INIT_WORK(&dev_priv->hotplug_work, cdv_hotplug_work_func);
 

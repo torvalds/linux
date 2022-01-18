@@ -541,7 +541,7 @@ close_servers:
 	}
 }
 
-void test_migrate_reuseport(void)
+void serial_test_migrate_reuseport(void)
 {
 	struct test_migrate_reuseport *skel;
 	int i;

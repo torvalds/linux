@@ -31,7 +31,6 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/slab.h>
 
-#include <asm/intel-mid.h>
 #include <asm/unaligned.h>
 
 #include <drm/drm_crtc.h>
@@ -42,7 +41,7 @@
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
-#include "intel_sideband.h"
+#include "vlv_sideband.h"
 
 #define MIPI_TRANSFER_MODE_SHIFT	0
 #define MIPI_VIRTUAL_CHANNEL_SHIFT	1

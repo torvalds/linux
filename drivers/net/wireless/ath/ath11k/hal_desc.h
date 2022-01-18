@@ -496,6 +496,8 @@ struct hal_tlv_hdr {
 #define RX_MPDU_DESC_INFO0_DA_IDX_TIMEOUT	BIT(29)
 #define RX_MPDU_DESC_INFO0_RAW_MPDU		BIT(30)
 
+#define RX_MPDU_DESC_META_DATA_PEER_ID		GENMASK(15, 0)
+
 struct rx_mpdu_desc {
 	u32 info0; /* %RX_MPDU_DESC_INFO */
 	u32 meta_data;

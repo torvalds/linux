@@ -41,18 +41,21 @@ static void guc_prepare_xfer(struct intel_uncore *uncore)
 }
 
 /* Copy RSA signature from the fw image to HW for verification */
-static void guc_xfer_rsa(struct intel_uc_fw *guc_fw,
-			 struct intel_uncore *uncore)
+static int guc_xfer_rsa(struct intel_uc_fw *guc_fw,
+			struct intel_uncore *uncore)
 {
 	u32 rsa[UOS_RSA_SCRATCH_COUNT];
 	size_t copied;
 	int i;
 
 	copied = intel_uc_fw_copy_rsa(guc_fw, rsa, sizeof(rsa));
-	GEM_BUG_ON(copied < sizeof(rsa));
+	if (copied < sizeof(rsa))
+		return -ENOMEM;
 
 	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
 		intel_uncore_write(uncore, UOS_RSA_SCRATCH(i), rsa[i]);
+
+	return 0;
 }
 
 /*
@@ -141,7 +144,9 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	 * by the DMA engine in one operation, whereas the RSA signature is
 	 * loaded via MMIO.
 	 */
-	guc_xfer_rsa(&guc->fw, uncore);
+	ret = guc_xfer_rsa(&guc->fw, uncore);
+	if (ret)
+		goto out;
 
 	/*
 	 * Current uCode expects the code to be loaded at 8k; locations below

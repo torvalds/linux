@@ -360,7 +360,7 @@ static void axienet_set_mac_address(struct net_device *ndev,
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	if (address)
-		memcpy(ndev->dev_addr, address, ETH_ALEN);
+		eth_hw_addr_set(ndev, address);
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 
@@ -1525,7 +1525,7 @@ static void axienet_validate(struct phylink_config *config,
 			netdev_warn(ndev, "Cannot use PHY mode %s, supported: %s\n",
 				    phy_modes(state->interface),
 				    phy_modes(lp->phy_mode));
-			bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+			linkmode_zero(supported);
 			return;
 		}
 	}
@@ -1558,10 +1558,8 @@ static void axienet_validate(struct phylink_config *config,
 		break;
 	}
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static void axienet_mac_pcs_get_state(struct phylink_config *config,

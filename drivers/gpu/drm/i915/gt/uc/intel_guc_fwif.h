@@ -52,27 +52,27 @@
 
 #define GUC_DOORBELL_INVALID		256
 
-#define GUC_WQ_SIZE			(PAGE_SIZE * 2)
-
-/* Work queue item header definitions */
+/*
+ * Work queue item header definitions
+ *
+ * Work queue is circular buffer used to submit complex (multi-lrc) submissions
+ * to the GuC. A work queue item is an entry in the circular buffer.
+ */
 #define WQ_STATUS_ACTIVE		1
 #define WQ_STATUS_SUSPENDED		2
 #define WQ_STATUS_CMD_ERROR		3
 #define WQ_STATUS_ENGINE_ID_NOT_USED	4
 #define WQ_STATUS_SUSPENDED_FROM_RESET	5
-#define WQ_TYPE_SHIFT			0
-#define   WQ_TYPE_BATCH_BUF		(0x1 << WQ_TYPE_SHIFT)
-#define   WQ_TYPE_PSEUDO		(0x2 << WQ_TYPE_SHIFT)
-#define   WQ_TYPE_INORDER		(0x3 << WQ_TYPE_SHIFT)
-#define   WQ_TYPE_NOOP			(0x4 << WQ_TYPE_SHIFT)
-#define WQ_TARGET_SHIFT			10
-#define WQ_LEN_SHIFT			16
-#define WQ_NO_WCFLUSH_WAIT		(1 << 27)
-#define WQ_PRESENT_WORKLOAD		(1 << 28)
+#define WQ_TYPE_BATCH_BUF		0x1
+#define WQ_TYPE_PSEUDO			0x2
+#define WQ_TYPE_INORDER			0x3
+#define WQ_TYPE_NOOP			0x4
+#define WQ_TYPE_MULTI_LRC		0x5
+#define WQ_TYPE_MASK			GENMASK(7, 0)
+#define WQ_LEN_MASK			GENMASK(26, 16)
 
-#define WQ_RING_TAIL_SHIFT		20
-#define WQ_RING_TAIL_MAX		0x7FF	/* 2^11 QWords */
-#define WQ_RING_TAIL_MASK		(WQ_RING_TAIL_MAX << WQ_RING_TAIL_SHIFT)
+#define WQ_GUC_ID_MASK			GENMASK(15, 0)
+#define WQ_RING_TAIL_MASK		GENMASK(28, 18)
 
 #define GUC_STAGE_DESC_ATTR_ACTIVE	BIT(0)
 #define GUC_STAGE_DESC_ATTR_PENDING_DB	BIT(1)
@@ -186,7 +186,7 @@ struct guc_process_desc {
 	u32 wq_status;
 	u32 engine_presence;
 	u32 priority;
-	u32 reserved[30];
+	u32 reserved[36];
 } __packed;
 
 #define CONTEXT_REGISTRATION_FLAG_KMD	BIT(0)

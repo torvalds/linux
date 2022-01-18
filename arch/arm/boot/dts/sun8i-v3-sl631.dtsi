@@ -115,7 +115,7 @@
 &spi0 {
 	status = "okay";
 
-	spi-flash@0 {
+	flash@0 {
 		reg = <0>;
 		compatible = "jedec,spi-nor";
 		spi-max-frequency = <50000000>;

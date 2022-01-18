@@ -28,13 +28,12 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps62360.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -65,8 +64,8 @@ struct tps62360_chip {
 	struct regulator_desc desc;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
-	int vsel0_gpio;
-	int vsel1_gpio;
+	struct gpio_desc *vsel0_gpio;
+	struct gpio_desc *vsel1_gpio;
 	u8 voltage_reg_mask;
 	bool en_internal_pulldn;
 	bool en_discharge;
@@ -165,8 +164,8 @@ static int tps62360_dcdc_set_voltage_sel(struct regulator_dev *dev,
 
 	/* Select proper VSET register vio gpios */
 	if (tps->valid_gpios) {
-		gpio_set_value_cansleep(tps->vsel0_gpio, new_vset_id & 0x1);
-		gpio_set_value_cansleep(tps->vsel1_gpio,
+		gpiod_set_value_cansleep(tps->vsel0_gpio, new_vset_id & 0x1);
+		gpiod_set_value_cansleep(tps->vsel1_gpio,
 					(new_vset_id >> 1) & 0x1);
 	}
 	return 0;
@@ -310,9 +309,6 @@ static struct tps62360_regulator_platform_data *
 		return NULL;
 	}
 
-	pdata->vsel0_gpio = of_get_named_gpio(np, "vsel0-gpio", 0);
-	pdata->vsel1_gpio = of_get_named_gpio(np, "vsel1-gpio", 0);
-
 	if (of_find_property(np, "ti,vsel0-state-high", NULL))
 		pdata->vsel0_def_state = 1;
 
@@ -349,6 +345,7 @@ static int tps62360_probe(struct i2c_client *client,
 	int ret;
 	int i;
 	int chip_id;
+	int gpio_flags;
 
 	pdata = dev_get_platdata(&client->dev);
 
@@ -390,8 +387,6 @@ static int tps62360_probe(struct i2c_client *client,
 
 	tps->en_discharge = pdata->en_discharge;
 	tps->en_internal_pulldn = pdata->en_internal_pulldn;
-	tps->vsel0_gpio = pdata->vsel0_gpio;
-	tps->vsel1_gpio = pdata->vsel1_gpio;
 	tps->dev = &client->dev;
 
 	switch (chip_id) {
@@ -426,29 +421,27 @@ static int tps62360_probe(struct i2c_client *client,
 	tps->lru_index[0] = tps->curr_vset_id;
 	tps->valid_gpios = false;
 
-	if (gpio_is_valid(tps->vsel0_gpio) && gpio_is_valid(tps->vsel1_gpio)) {
-		int gpio_flags;
-		gpio_flags = (pdata->vsel0_def_state) ?
-				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-		ret = devm_gpio_request_one(&client->dev, tps->vsel0_gpio,
-				gpio_flags, "tps62360-vsel0");
-		if (ret) {
-			dev_err(&client->dev,
-				"%s(): Could not obtain vsel0 GPIO %d: %d\n",
-				__func__, tps->vsel0_gpio, ret);
-			return ret;
-		}
+	gpio_flags = (pdata->vsel0_def_state) ?
+			GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+	tps->vsel0_gpio = devm_gpiod_get_optional(&client->dev, "vsel0", gpio_flags);
+	if (IS_ERR(tps->vsel0_gpio)) {
+		dev_err(&client->dev,
+			"%s(): Could not obtain vsel0 GPIO: %ld\n",
+			__func__, PTR_ERR(tps->vsel0_gpio));
+		return PTR_ERR(tps->vsel0_gpio);
+	}
 
-		gpio_flags = (pdata->vsel1_def_state) ?
-				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-		ret = devm_gpio_request_one(&client->dev, tps->vsel1_gpio,
-				gpio_flags, "tps62360-vsel1");
-		if (ret) {
-			dev_err(&client->dev,
-				"%s(): Could not obtain vsel1 GPIO %d: %d\n",
-				__func__, tps->vsel1_gpio, ret);
-			return ret;
-		}
+	gpio_flags = (pdata->vsel1_def_state) ?
+			GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+	tps->vsel1_gpio = devm_gpiod_get_optional(&client->dev, "vsel1", gpio_flags);
+	if (IS_ERR(tps->vsel1_gpio)) {
+		dev_err(&client->dev,
+			"%s(): Could not obtain vsel1 GPIO: %ld\n",
+			__func__, PTR_ERR(tps->vsel1_gpio));
+		return PTR_ERR(tps->vsel1_gpio);
+	}
+
+	if (tps->vsel0_gpio != NULL && tps->vsel1_gpio != NULL) {
 		tps->valid_gpios = true;
 
 		/*

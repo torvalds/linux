@@ -39,6 +39,7 @@
 		 * u-boot is broken
 		 */
 		clock-frequency = <6000000>;
+		arm,cpu-registers-not-fw-configured;
 	};
 
 	pmu: pmu {
@@ -109,11 +110,19 @@
 				mask = <0x79>;
 			};
 
+			rtc@2400 {
+				compatible = "mstar,msc313-rtc";
+				reg = <0x2400 0x40>;
+				clocks = <&xtal_div2>;
+				interrupts-extended = <&intc_irq GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			watchdog@6000 {
 				compatible = "mstar,msc313e-wdt";
 				reg = <0x6000 0x1f>;
 				clocks = <&xtal_div2>;
 			};
+
 
 			intc_fiq: interrupt-controller@201310 {
 				compatible = "mstar,mst-intc";

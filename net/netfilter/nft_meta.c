@@ -244,7 +244,11 @@ static bool nft_meta_get_eval_ifname(enum nft_meta_keys key, u32 *dest,
 	case NFT_META_OIF:
 		nft_meta_store_ifindex(dest, nft_out(pkt));
 		break;
-	case NFT_META_IIFTYPE:
+	case NFT_META_IFTYPE:
+		if (!nft_meta_store_iftype(dest, pkt->skb->dev))
+			return false;
+		break;
+	case __NFT_META_IIFTYPE:
 		if (!nft_meta_store_iftype(dest, nft_in(pkt)))
 			return false;
 		break;
@@ -329,7 +333,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		nft_reg_store8(dest, nft_pf(pkt));
 		break;
 	case NFT_META_L4PROTO:
-		if (!pkt->tprot_set)
+		if (!(pkt->flags & NFT_PKTINFO_L4PROTO))
 			goto err;
 		nft_reg_store8(dest, pkt->tprot);
 		break;

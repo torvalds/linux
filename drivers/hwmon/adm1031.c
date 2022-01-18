@@ -65,7 +65,7 @@ struct adm1031_data {
 	const struct attribute_group *groups[3];
 	struct mutex update_lock;
 	int chip_type;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 	unsigned int update_interval;	/* In milliseconds */
 	/*
@@ -187,7 +187,7 @@ static struct adm1031_data *adm1031_update_device(struct device *dev)
 					ADM1031_REG_PWM) >> (4 * chan)) & 0x0f;
 		}
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -650,7 +650,7 @@ static ssize_t fan_div_store(struct device *dev,
 			    data->fan_min[nr]);
 
 	/* Invalidate the cache: fan speed is no longer valid */
-	data->valid = 0;
+	data->valid = false;
 	mutex_unlock(&data->update_lock);
 	return count;
 }

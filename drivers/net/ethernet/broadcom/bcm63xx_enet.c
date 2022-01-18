@@ -670,7 +670,7 @@ static int bcm_enet_set_mac_address(struct net_device *dev, void *p)
 	u32 val;
 
 	priv = netdev_priv(dev);
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	/* use perfect match register 0 to store my mac address */
 	val = (dev->dev_addr[2] << 24) | (dev->dev_addr[3] << 16) |
@@ -1762,7 +1762,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd) {
-		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, pd->mac_addr);
 		priv->has_phy = pd->has_phy;
 		priv->phy_id = pd->phy_id;
 		priv->has_phy_interrupt = pd->has_phy_interrupt;
@@ -2665,7 +2665,7 @@ static int bcm_enetsw_probe(struct platform_device *pdev)
 
 	pd = dev_get_platdata(&pdev->dev);
 	if (pd) {
-		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, pd->mac_addr);
 		memcpy(priv->used_ports, pd->used_ports,
 		       sizeof(pd->used_ports));
 		priv->num_ports = pd->num_ports;

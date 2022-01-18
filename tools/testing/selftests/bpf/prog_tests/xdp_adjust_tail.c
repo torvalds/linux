@@ -2,7 +2,7 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 
-void test_xdp_adjust_tail_shrink(void)
+static void test_xdp_adjust_tail_shrink(void)
 {
 	const char *file = "./test_xdp_adjust_tail_shrink.o";
 	__u32 duration, retval, size, expect_sz;
@@ -30,7 +30,7 @@ void test_xdp_adjust_tail_shrink(void)
 	bpf_object__close(obj);
 }
 
-void test_xdp_adjust_tail_grow(void)
+static void test_xdp_adjust_tail_grow(void)
 {
 	const char *file = "./test_xdp_adjust_tail_grow.o";
 	struct bpf_object *obj;
@@ -58,7 +58,7 @@ void test_xdp_adjust_tail_grow(void)
 	bpf_object__close(obj);
 }
 
-void test_xdp_adjust_tail_grow2(void)
+static void test_xdp_adjust_tail_grow2(void)
 {
 	const char *file = "./test_xdp_adjust_tail_grow.o";
 	char buf[4096]; /* avoid segfault: large buf to hold grow results */

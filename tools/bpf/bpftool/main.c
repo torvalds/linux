@@ -10,8 +10,9 @@
 #include <string.h>
 
 #include <bpf/bpf.h>
-#include <bpf/libbpf.h>
 #include <bpf/btf.h>
+#include <bpf/hashmap.h>
+#include <bpf/libbpf.h>
 
 #include "main.h"
 
@@ -31,10 +32,7 @@ bool verifier_logs;
 bool relaxed_maps;
 bool use_loader;
 struct btf *base_btf;
-struct pinned_obj_table prog_table;
-struct pinned_obj_table map_table;
-struct pinned_obj_table link_table;
-struct obj_refs_table refs_table;
+struct hashmap *refs_table;
 
 static void __noreturn clean_and_exit(int i)
 {
@@ -409,10 +407,6 @@ int main(int argc, char **argv)
 	block_mount = false;
 	bin_name = argv[0];
 
-	hash_init(prog_table.table);
-	hash_init(map_table.table);
-	hash_init(link_table.table);
-
 	opterr = 0;
 	while ((opt = getopt_long(argc, argv, "VhpjfLmndB:",
 				  options, NULL)) >= 0) {
@@ -479,11 +473,6 @@ int main(int argc, char **argv)
 	if (json_output)
 		jsonw_destroy(&json_wtr);
 
-	if (show_pinned) {
-		delete_pinned_obj_table(&prog_table);
-		delete_pinned_obj_table(&map_table);
-		delete_pinned_obj_table(&link_table);
-	}
 	btf__free(base_btf);
 
 	return ret;

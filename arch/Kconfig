@@ -191,6 +191,14 @@ config HAVE_OPTPROBES
 config HAVE_KPROBES_ON_FTRACE
 	bool
 
+config ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
+	bool
+	help
+	  Since kretprobes modifies return address on the stack, the
+	  stacktrace may see the kretprobe trampoline address instead
+	  of correct one. If the architecture stacktrace code and
+	  unwinder can adjust such entries, select this configuration.
+
 config HAVE_FUNCTION_ERROR_INJECTION
 	bool
 
@@ -983,6 +991,16 @@ config HAVE_ARCH_COMPAT_MMAP_BASES
 	  and vice-versa 32-bit applications to call 64-bit mmap().
 	  Required for applications doing different bitness syscalls.
 
+config PAGE_SIZE_LESS_THAN_64KB
+	def_bool y
+	depends on !ARM64_64K_PAGES
+	depends on !IA64_PAGE_SIZE_64KB
+	depends on !PAGE_SIZE_64KB
+	depends on !PARISC_PAGE_SIZE_64KB
+	depends on !PPC_64K_PAGES
+	depends on !PPC_256K_PAGES
+	depends on !PAGE_SIZE_256KB
+
 # This allows to use a set of generic functions to determine mmap base
 # address by giving priority to top-down scheme only if the process
 # is not in legacy mode (compat task, unlimited stack size or
@@ -1234,6 +1252,9 @@ config RELR
 config ARCH_HAS_MEM_ENCRYPT
 	bool
 
+config ARCH_HAS_CC_PLATFORM
+	bool
+
 config HAVE_SPARSE_SYSCALL_NR
        bool
        help
@@ -1286,6 +1307,9 @@ config ARCH_HAS_ELFCORE_COMPAT
 	bool
 
 config ARCH_HAS_PARANOID_L1D_FLUSH
+	bool
+
+config DYNAMIC_SIGFRAME
 	bool
 
 source "kernel/gcov/Kconfig"

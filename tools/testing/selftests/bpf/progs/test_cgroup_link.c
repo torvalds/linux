@@ -6,14 +6,14 @@
 int calls = 0;
 int alt_calls = 0;
 
-SEC("cgroup_skb/egress1")
+SEC("cgroup_skb/egress")
 int egress(struct __sk_buff *skb)
 {
 	__sync_fetch_and_add(&calls, 1);
 	return 1;
 }
 
-SEC("cgroup_skb/egress2")
+SEC("cgroup_skb/egress")
 int egress_alt(struct __sk_buff *skb)
 {
 	__sync_fetch_and_add(&alt_calls, 1);

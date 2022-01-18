@@ -12,6 +12,7 @@
 / {
 	model = "Samsung Galaxy S3 (GT-I9300) based on Exynos4412";
 	compatible = "samsung,i9300", "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
+	chassis-type = "handset";
 
 	/* bootargs are passed in by bootloader */
 

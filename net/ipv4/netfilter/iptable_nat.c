@@ -29,34 +29,27 @@ static const struct xt_table nf_nat_ipv4_table = {
 	.af		= NFPROTO_IPV4,
 };
 
-static unsigned int iptable_nat_do_chain(void *priv,
-					 struct sk_buff *skb,
-					 const struct nf_hook_state *state)
-{
-	return ipt_do_table(skb, state, priv);
-}
-
 static const struct nf_hook_ops nf_nat_ipv4_ops[] = {
 	{
-		.hook		= iptable_nat_do_chain,
+		.hook		= ipt_do_table,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_NAT_DST,
 	},
 	{
-		.hook		= iptable_nat_do_chain,
+		.hook		= ipt_do_table,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_NAT_SRC,
 	},
 	{
-		.hook		= iptable_nat_do_chain,
+		.hook		= ipt_do_table,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP_PRI_NAT_DST,
 	},
 	{
-		.hook		= iptable_nat_do_chain,
+		.hook		= ipt_do_table,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_NAT_SRC,

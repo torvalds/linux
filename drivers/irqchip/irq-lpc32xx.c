@@ -126,7 +126,7 @@ static void __exception_irq_entry lpc32xx_handle_irq(struct pt_regs *regs)
 	while (hwirq) {
 		irq = __ffs(hwirq);
 		hwirq &= ~BIT(irq);
-		handle_domain_irq(lpc32xx_mic_irqc->domain, irq, regs);
+		generic_handle_domain_irq(lpc32xx_mic_irqc->domain, irq);
 	}
 }
 

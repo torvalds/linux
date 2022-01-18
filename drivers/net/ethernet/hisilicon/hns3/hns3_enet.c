@@ -2284,7 +2284,7 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 		return ret;
 	}
 
-	ether_addr_copy(netdev->dev_addr, mac_addr->sa_data);
+	eth_hw_addr_set(netdev, mac_addr->sa_data);
 
 	return 0;
 }
@@ -4210,6 +4210,13 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 	}
 
 out:
+	/* sync head pointer before exiting, since hardware will calculate
+	 * FBD number with head pointer
+	 */
+	if (unused_count > 0)
+		failure = failure ||
+			  hns3_nic_alloc_rx_buffers(ring, unused_count);
+
 	return failure ? budget : recv_pkts;
 }
 
@@ -4940,7 +4947,7 @@ static int hns3_init_mac_addr(struct net_device *netdev)
 		dev_warn(priv->dev, "using random MAC address %pM\n",
 			 netdev->dev_addr);
 	} else if (!ether_addr_equal(netdev->dev_addr, mac_addr_temp)) {
-		ether_addr_copy(netdev->dev_addr, mac_addr_temp);
+		eth_hw_addr_set(netdev, mac_addr_temp);
 		ether_addr_copy(netdev->perm_addr, mac_addr_temp);
 	} else {
 		return 0;

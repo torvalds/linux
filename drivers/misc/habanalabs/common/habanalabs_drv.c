@@ -225,6 +225,17 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	if (!hpriv)
 		return -ENOMEM;
 
+	/* Prevent other routines from reading partial hpriv data by
+	 * initializing hpriv fields before inserting it to the list
+	 */
+	hpriv->hdev = hdev;
+	filp->private_data = hpriv;
+	hpriv->filp = filp;
+	hpriv->is_control = true;
+	nonseekable_open(inode, filp);
+
+	hpriv->taskpid = find_get_pid(current->pid);
+
 	mutex_lock(&hdev->fpriv_list_lock);
 
 	if (!hl_device_operational(hdev, NULL)) {
@@ -238,19 +249,15 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	list_add(&hpriv->dev_node, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
-	hpriv->hdev = hdev;
-	filp->private_data = hpriv;
-	hpriv->filp = filp;
-	hpriv->is_control = true;
-	nonseekable_open(inode, filp);
-
-	hpriv->taskpid = find_get_pid(current->pid);
-
 	return 0;
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
+	filp->private_data = NULL;
+	put_pid(hpriv->taskpid);
+
 	kfree(hpriv);
+
 	return rc;
 }
 
@@ -339,6 +346,7 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	set_driver_behavior_per_device(hdev);
 
 	hdev->curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
+	hdev->prev_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
 
 	if (timeout_locked)
 		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);

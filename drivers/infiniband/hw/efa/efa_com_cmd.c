@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_com.h"
 #include "efa_com_cmd.h"
-
-void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low)
-{
-	*addr_low = lower_32_bits(addr);
-	*addr_high = upper_32_bits(addr);
-}
 
 int efa_com_create_qp(struct efa_com_dev *edev,
 		      struct efa_com_create_qp_params *params,
@@ -157,7 +151,7 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 		      struct efa_com_create_cq_params *params,
 		      struct efa_com_create_cq_result *result)
 {
-	struct efa_admin_create_cq_resp cmd_completion;
+	struct efa_admin_create_cq_resp cmd_completion = {};
 	struct efa_admin_create_cq_cmd create_cmd = {};
 	struct efa_com_admin_queue *aq = &edev->aq;
 	int err;
@@ -169,6 +163,11 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	create_cmd.cq_depth = params->cq_depth;
 	create_cmd.num_sub_cqs = params->num_sub_cqs;
 	create_cmd.uar = params->uarn;
+	if (params->interrupt_mode_enabled) {
+		EFA_SET(&create_cmd.cq_caps_1,
+			EFA_ADMIN_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED, 1);
+		create_cmd.eqn = params->eqn;
+	}
 
 	efa_com_set_dma_addr(params->dma_addr,
 			     &create_cmd.cq_ba.mem_addr_high,
@@ -187,6 +186,9 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 
 	result->cq_idx = cmd_completion.cq_idx;
 	result->actual_depth = params->cq_depth;
+	result->db_off = cmd_completion.db_offset;
+	result->db_valid = EFA_GET(&cmd_completion.flags,
+				   EFA_ADMIN_CREATE_CQ_RESP_DB_VALID);
 
 	return 0;
 }
@@ -496,6 +498,23 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	memcpy(result->addr, resp.u.network_attr.addr,
 	       sizeof(resp.u.network_attr.addr));
 	result->mtu = resp.u.network_attr.mtu;
+
+	if (efa_com_check_supported_feature_id(edev,
+					       EFA_ADMIN_EVENT_QUEUE_ATTR)) {
+		err = efa_com_get_feature(edev, &resp,
+					  EFA_ADMIN_EVENT_QUEUE_ATTR);
+		if (err) {
+			ibdev_err_ratelimited(
+				edev->efa_dev,
+				"Failed to get event queue attributes %d\n",
+				err);
+			return err;
+		}
+
+		result->max_eq = resp.u.event_queue_attr.max_eq;
+		result->max_eq_depth = resp.u.event_queue_attr.max_eq_depth;
+		result->event_bitmask = resp.u.event_queue_attr.event_bitmask;
+	}
 
 	return 0;
 }

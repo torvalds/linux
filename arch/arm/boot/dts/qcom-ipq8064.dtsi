@@ -49,7 +49,7 @@
 	};
 
 	thermal-zones {
-		tsens_tz_sensor0 {
+		sensor0-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 0>;
@@ -69,7 +69,7 @@
 			};
 		};
 
-		tsens_tz_sensor1 {
+		sensor1-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 1>;
@@ -89,7 +89,7 @@
 			};
 		};
 
-		tsens_tz_sensor2 {
+		sensor2-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 2>;
@@ -109,7 +109,7 @@
 			};
 		};
 
-		tsens_tz_sensor3 {
+		sensor3-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 3>;
@@ -129,7 +129,7 @@
 			};
 		};
 
-		tsens_tz_sensor4 {
+		sensor4-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 4>;
@@ -149,7 +149,7 @@
 			};
 		};
 
-		tsens_tz_sensor5 {
+		sensor5-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 5>;
@@ -169,7 +169,7 @@
 			};
 		};
 
-		tsens_tz_sensor6 {
+		sensor6-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 6>;
@@ -189,7 +189,7 @@
 			};
 		};
 
-		tsens_tz_sensor7 {
+		sensor7-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 7>;
@@ -209,7 +209,7 @@
 			};
 		};
 
-		tsens_tz_sensor8 {
+		sensor8-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 8>;
@@ -229,7 +229,7 @@
 			};
 		};
 
-		tsens_tz_sensor9 {
+		sensor9-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 9>;
@@ -249,7 +249,7 @@
 			};
 		};
 
-		tsens_tz_sensor10 {
+		sensor10-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tsens 10>;
@@ -1181,7 +1181,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status          = "disabled";
 				compatible      = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -1201,7 +1201,7 @@
 				dma-names = "tx", "rx";
 			};
 
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				compatible      = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status          = "disabled";

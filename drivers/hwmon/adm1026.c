@@ -259,7 +259,7 @@ struct adm1026_data {
 	const struct attribute_group *groups[3];
 
 	struct mutex update_lock;
-	int valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_reading;	/* In jiffies */
 	unsigned long last_config;	/* In jiffies */
 
@@ -459,7 +459,7 @@ static struct adm1026_data *adm1026_update_device(struct device *dev)
 		data->last_config = jiffies;
 	}	/* last_config */
 
-	data->valid = 1;
+	data->valid = true;
 	mutex_unlock(&data->update_lock);
 	return data;
 }

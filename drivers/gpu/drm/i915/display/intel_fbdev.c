@@ -45,6 +45,8 @@
 
 #include "i915_drv.h"
 #include "intel_display_types.h"
+#include "intel_fb.h"
+#include "intel_fb_pin.h"
 #include "intel_fbdev.h"
 #include "intel_frontbuffer.h"
 
@@ -228,8 +230,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(vma);
 		goto out_unlock;
 	}
-
-	intel_frontbuffer_flush(to_frontbuffer(ifbdev), ORIGIN_DIRTYFB);
 
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {

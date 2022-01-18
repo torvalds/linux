@@ -17,12 +17,12 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "intel_display_power.h"
+#include "intel_connector.h"
 #include "intel_de.h"
+#include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
-#include "intel_sideband.h"
-#include "intel_connector.h"
+#include "intel_pcode.h"
 
 #define KEY_LOAD_TRIES	5
 #define HDCP2_LC_RETRY_CNT			3
@@ -31,21 +31,6 @@ static int intel_conn_to_vcpi(struct intel_connector *connector)
 {
 	/* For HDMI this is forced to be 0x0. For DP SST also this is 0x0. */
 	return connector->port	? connector->port->vcpi.vcpi : 0;
-}
-
-static bool
-intel_streams_type1_capable(struct intel_connector *connector)
-{
-	const struct intel_hdcp_shim *shim = connector->hdcp.shim;
-	bool capable = false;
-
-	if (!shim)
-		return capable;
-
-	if (shim->streams_type1_capable)
-		shim->streams_type1_capable(connector, &capable);
-
-	return capable;
 }
 
 /*
@@ -86,7 +71,7 @@ intel_hdcp_required_content_stream(struct intel_digital_port *dig_port)
 		if (conn_dig_port != dig_port)
 			continue;
 
-		if (!enforce_type0 && !intel_streams_type1_capable(connector))
+		if (!enforce_type0 && !dig_port->hdcp_mst_type1_capable)
 			enforce_type0 = true;
 
 		data->streams[data->k].stream_id = intel_conn_to_vcpi(connector);
@@ -108,6 +93,25 @@ intel_hdcp_required_content_stream(struct intel_digital_port *dig_port)
 	for (k = 0; k < data->k; k++)
 		data->streams[k].stream_type =
 			enforce_type0 ? DRM_MODE_HDCP_CONTENT_TYPE0 : DRM_MODE_HDCP_CONTENT_TYPE1;
+
+	return 0;
+}
+
+static int intel_hdcp_prepare_streams(struct intel_connector *connector)
+{
+	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
+	struct hdcp_port_data *data = &dig_port->hdcp_port_data;
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	int ret;
+
+	if (!intel_encoder_is_mst(intel_attached_encoder(connector))) {
+		data->k = 1;
+		data->streams[0].stream_type = hdcp->content_type;
+	} else {
+		ret = intel_hdcp_required_content_stream(dig_port);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -1632,6 +1636,14 @@ int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 		return -EINVAL;
 	}
 
+	/*
+	 * MST topology is not Type 1 capable if it contains a downstream
+	 * device that is only HDCP 1.x or Legacy HDCP 2.0/2.1 compliant.
+	 */
+	dig_port->hdcp_mst_type1_capable =
+		!HDCP_2_2_HDCP1_DEVICE_CONNECTED(rx_info[1]) &&
+		!HDCP_2_2_HDCP_2_0_REP_CONNECTED(rx_info[1]);
+
 	/* Converting and Storing the seq_num_v to local variable as DWORD */
 	seq_num_v =
 		drm_hdcp_be24_to_cpu((const u8 *)msgs.recvid_list.seq_num_v);
@@ -1876,6 +1888,14 @@ static int hdcp2_authenticate_and_encrypt(struct intel_connector *connector)
 	for (i = 0; i < tries && !dig_port->hdcp_auth_status; i++) {
 		ret = hdcp2_authenticate_sink(connector);
 		if (!ret) {
+			ret = intel_hdcp_prepare_streams(connector);
+			if (ret) {
+				drm_dbg_kms(&i915->drm,
+					    "Prepare streams failed.(%d)\n",
+					    ret);
+				break;
+			}
+
 			ret = hdcp2_propagate_stream_management_info(connector);
 			if (ret) {
 				drm_dbg_kms(&i915->drm,
@@ -1921,25 +1941,13 @@ static int hdcp2_authenticate_and_encrypt(struct intel_connector *connector)
 
 static int _intel_hdcp2_enable(struct intel_connector *connector)
 {
-	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	struct hdcp_port_data *data = &dig_port->hdcp_port_data;
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	int ret;
 
 	drm_dbg_kms(&i915->drm, "[%s:%d] HDCP2.2 is being enabled. Type: %d\n",
 		    connector->base.name, connector->base.base.id,
 		    hdcp->content_type);
-
-	/* Stream which requires encryption */
-	if (!intel_encoder_is_mst(intel_attached_encoder(connector))) {
-		data->k = 1;
-		data->streams[0].stream_type = hdcp->content_type;
-	} else {
-		ret = intel_hdcp_required_content_stream(dig_port);
-		if (ret)
-			return ret;
-	}
 
 	ret = hdcp2_authenticate_and_encrypt(connector);
 	if (ret) {

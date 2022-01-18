@@ -501,6 +501,10 @@ static const struct of_device_id realtek_smi_of_match[] = {
 		.compatible = "realtek,rtl8366s",
 		.data = NULL,
 	},
+	{
+		.compatible = "realtek,rtl8365mb",
+		.data = &rtl8365mb_variant,
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, realtek_smi_of_match);

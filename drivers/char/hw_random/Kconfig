@@ -63,7 +63,7 @@ config HW_RANDOM_AMD
 
 config HW_RANDOM_ATMEL
 	tristate "Atmel Random Number Generator support"
-	depends on ARCH_AT91 && HAVE_CLK && OF
+	depends on (ARCH_AT91 || COMPILE_TEST) && HAVE_CLK && OF
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
@@ -87,7 +87,7 @@ config HW_RANDOM_BA431
 config HW_RANDOM_BCM2835
 	tristate "Broadcom BCM2835/BCM63xx Random Number Generator support"
 	depends on ARCH_BCM2835 || ARCH_BCM_NSP || ARCH_BCM_5301X || \
-		   ARCH_BCM_63XX || BCM63XX || BMIPS_GENERIC
+		   ARCH_BCM_63XX || BCM63XX || BMIPS_GENERIC || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
@@ -100,7 +100,7 @@ config HW_RANDOM_BCM2835
 
 config HW_RANDOM_IPROC_RNG200
 	tristate "Broadcom iProc/STB RNG200 support"
-	depends on ARCH_BCM_IPROC || ARCH_BCM2835 || ARCH_BRCMSTB
+	depends on ARCH_BCM_IPROC || ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the RNG200
@@ -165,7 +165,7 @@ config HW_RANDOM_IXP4XX
 
 config HW_RANDOM_OMAP
 	tristate "OMAP Random Number Generator support"
-	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS || ARCH_MVEBU || ARCH_K3
+	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS || ARCH_MVEBU || ARCH_K3 || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
@@ -179,7 +179,7 @@ config HW_RANDOM_OMAP
 
 config HW_RANDOM_OMAP3_ROM
 	tristate "OMAP3 ROM Random Number Generator support"
-	depends on ARCH_OMAP3
+	depends on ARCH_OMAP3 || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
@@ -298,7 +298,7 @@ config HW_RANDOM_INGENIC_TRNG
 
 config HW_RANDOM_NOMADIK
 	tristate "ST-Ericsson Nomadik Random Number Generator support"
-	depends on ARCH_NOMADIK
+	depends on ARCH_NOMADIK || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number

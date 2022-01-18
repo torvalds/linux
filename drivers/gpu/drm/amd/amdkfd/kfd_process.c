@@ -72,6 +72,8 @@ static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep);
 static void evict_process_worker(struct work_struct *work);
 static void restore_process_worker(struct work_struct *work);
 
+static void kfd_process_device_destroy_cwsr_dgpu(struct kfd_process_device *pdd);
+
 struct kfd_procfs_tree {
 	struct kobject *kobj;
 };
@@ -685,9 +687,14 @@ void kfd_process_destroy_wq(void)
 }
 
 static void kfd_process_free_gpuvm(struct kgd_mem *mem,
-			struct kfd_process_device *pdd)
+			struct kfd_process_device *pdd, void *kptr)
 {
 	struct kfd_dev *dev = pdd->dev;
+
+	if (kptr) {
+		amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(dev->kgd, mem);
+		kptr = NULL;
+	}
 
 	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(dev->kgd, mem, pdd->drm_priv);
 	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(dev->kgd, mem, pdd->drm_priv,
@@ -702,63 +709,46 @@ static void kfd_process_free_gpuvm(struct kgd_mem *mem,
  */
 static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
 				   uint64_t gpu_va, uint32_t size,
-				   uint32_t flags, void **kptr)
+				   uint32_t flags, struct kgd_mem **mem, void **kptr)
 {
 	struct kfd_dev *kdev = pdd->dev;
-	struct kgd_mem *mem = NULL;
-	int handle;
 	int err;
 
 	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(kdev->kgd, gpu_va, size,
-						 pdd->drm_priv, &mem, NULL, flags);
+						 pdd->drm_priv, mem, NULL, flags);
 	if (err)
 		goto err_alloc_mem;
 
-	err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(kdev->kgd, mem,
+	err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(kdev->kgd, *mem,
 			pdd->drm_priv, NULL);
 	if (err)
 		goto err_map_mem;
 
-	err = amdgpu_amdkfd_gpuvm_sync_memory(kdev->kgd, mem, true);
+	err = amdgpu_amdkfd_gpuvm_sync_memory(kdev->kgd, *mem, true);
 	if (err) {
 		pr_debug("Sync memory failed, wait interrupted by user signal\n");
 		goto sync_memory_failed;
 	}
 
-	/* Create an obj handle so kfd_process_device_remove_obj_handle
-	 * will take care of the bo removal when the process finishes.
-	 * We do not need to take p->mutex, because the process is just
-	 * created and the ioctls have not had the chance to run.
-	 */
-	handle = kfd_process_device_create_obj_handle(pdd, mem);
-
-	if (handle < 0) {
-		err = handle;
-		goto free_gpuvm;
-	}
-
 	if (kptr) {
 		err = amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(kdev->kgd,
-				(struct kgd_mem *)mem, kptr, NULL);
+				(struct kgd_mem *)*mem, kptr, NULL);
 		if (err) {
 			pr_debug("Map GTT BO to kernel failed\n");
-			goto free_obj_handle;
+			goto sync_memory_failed;
 		}
 	}
 
 	return err;
 
-free_obj_handle:
-	kfd_process_device_remove_obj_handle(pdd, handle);
-free_gpuvm:
 sync_memory_failed:
-	kfd_process_free_gpuvm(mem, pdd);
-	return err;
+	amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(kdev->kgd, *mem, pdd->drm_priv);
 
 err_map_mem:
-	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(kdev->kgd, mem, pdd->drm_priv,
+	amdgpu_amdkfd_gpuvm_free_memory_of_gpu(kdev->kgd, *mem, pdd->drm_priv,
 					       NULL);
 err_alloc_mem:
+	*mem = NULL;
 	*kptr = NULL;
 	return err;
 }
@@ -776,6 +766,7 @@ static int kfd_process_device_reserve_ib_mem(struct kfd_process_device *pdd)
 			KFD_IOC_ALLOC_MEM_FLAGS_NO_SUBSTITUTE |
 			KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE |
 			KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE;
+	struct kgd_mem *mem;
 	void *kaddr;
 	int ret;
 
@@ -784,13 +775,24 @@ static int kfd_process_device_reserve_ib_mem(struct kfd_process_device *pdd)
 
 	/* ib_base is only set for dGPU */
 	ret = kfd_process_alloc_gpuvm(pdd, qpd->ib_base, PAGE_SIZE, flags,
-				      &kaddr);
+				      &mem, &kaddr);
 	if (ret)
 		return ret;
 
+	qpd->ib_mem = mem;
 	qpd->ib_kaddr = kaddr;
 
 	return 0;
+}
+
+static void kfd_process_device_destroy_ib_mem(struct kfd_process_device *pdd)
+{
+	struct qcm_process_device *qpd = &pdd->qpd;
+
+	if (!qpd->ib_kaddr || !qpd->ib_base)
+		return;
+
+	kfd_process_free_gpuvm(qpd->ib_mem, pdd, qpd->ib_kaddr);
 }
 
 struct kfd_process *kfd_create_process(struct file *filep)
@@ -947,6 +949,37 @@ static void kfd_process_device_free_bos(struct kfd_process_device *pdd)
 	}
 }
 
+/*
+ * Just kunmap and unpin signal BO here. It will be freed in
+ * kfd_process_free_outstanding_kfd_bos()
+ */
+static void kfd_process_kunmap_signal_bo(struct kfd_process *p)
+{
+	struct kfd_process_device *pdd;
+	struct kfd_dev *kdev;
+	void *mem;
+
+	kdev = kfd_device_by_id(GET_GPU_ID(p->signal_handle));
+	if (!kdev)
+		return;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_get_process_device_data(kdev, p);
+	if (!pdd)
+		goto out;
+
+	mem = kfd_process_device_translate_handle(
+		pdd, GET_IDR_HANDLE(p->signal_handle));
+	if (!mem)
+		goto out;
+
+	amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(kdev->kgd, mem);
+
+out:
+	mutex_unlock(&p->mutex);
+}
+
 static void kfd_process_free_outstanding_kfd_bos(struct kfd_process *p)
 {
 	int i;
@@ -964,6 +997,9 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 
 		pr_debug("Releasing pdd (topology id %d) for process (pasid 0x%x)\n",
 				pdd->dev->id, p->pasid);
+
+		kfd_process_device_destroy_cwsr_dgpu(pdd);
+		kfd_process_device_destroy_ib_mem(pdd);
 
 		if (pdd->drm_file) {
 			amdgpu_amdkfd_gpuvm_release_process_vm(
@@ -1049,9 +1085,11 @@ static void kfd_process_wq_release(struct work_struct *work)
 {
 	struct kfd_process *p = container_of(work, struct kfd_process,
 					     release_work);
+
 	kfd_process_remove_sysfs(p);
 	kfd_iommu_unbind_process(p);
 
+	kfd_process_kunmap_signal_bo(p);
 	kfd_process_free_outstanding_kfd_bos(p);
 	svm_range_list_fini(p);
 
@@ -1198,6 +1236,7 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 	uint32_t flags = KFD_IOC_ALLOC_MEM_FLAGS_GTT
 			| KFD_IOC_ALLOC_MEM_FLAGS_NO_SUBSTITUTE
 			| KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE;
+	struct kgd_mem *mem;
 	void *kaddr;
 	int ret;
 
@@ -1206,10 +1245,11 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 
 	/* cwsr_base is only set for dGPU */
 	ret = kfd_process_alloc_gpuvm(pdd, qpd->cwsr_base,
-				      KFD_CWSR_TBA_TMA_SIZE, flags, &kaddr);
+				      KFD_CWSR_TBA_TMA_SIZE, flags, &mem, &kaddr);
 	if (ret)
 		return ret;
 
+	qpd->cwsr_mem = mem;
 	qpd->cwsr_kaddr = kaddr;
 	qpd->tba_addr = qpd->cwsr_base;
 
@@ -1220,6 +1260,17 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 		 qpd->tba_addr, qpd->tma_addr, qpd->cwsr_kaddr);
 
 	return 0;
+}
+
+static void kfd_process_device_destroy_cwsr_dgpu(struct kfd_process_device *pdd)
+{
+	struct kfd_dev *dev = pdd->dev;
+	struct qcm_process_device *qpd = &pdd->qpd;
+
+	if (!dev->cwsr_enabled || !qpd->cwsr_kaddr || !qpd->cwsr_base)
+		return;
+
+	kfd_process_free_gpuvm(qpd->cwsr_mem, pdd, qpd->cwsr_kaddr);
 }
 
 void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
@@ -1664,7 +1715,11 @@ int kfd_process_evict_queues(struct kfd_process *p)
 
 		r = pdd->dev->dqm->ops.evict_process_queues(pdd->dev->dqm,
 							    &pdd->qpd);
-		if (r) {
+		/* evict return -EIO if HWS is hang or asic is resetting, in this case
+		 * we would like to set all the queues to be in evicted state to prevent
+		 * them been add back since they actually not be saved right now.
+		 */
+		if (r && r != -EIO) {
 			pr_err("Failed to evict process queues\n");
 			goto fail;
 		}

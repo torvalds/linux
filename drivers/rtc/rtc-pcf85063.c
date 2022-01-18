@@ -34,6 +34,7 @@
 #define PCF85063_REG_CTRL1		0x00 /* status */
 #define PCF85063_REG_CTRL1_CAP_SEL	BIT(0)
 #define PCF85063_REG_CTRL1_STOP		BIT(5)
+#define PCF85063_REG_CTRL1_EXT_TEST	BIT(7)
 
 #define PCF85063_REG_CTRL2		0x01
 #define PCF85063_CTRL2_AF		BIT(6)
@@ -117,6 +118,7 @@ static int pcf85063_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	 * reset state until all time/date registers are written
 	 */
 	rc = regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL1,
+				PCF85063_REG_CTRL1_EXT_TEST |
 				PCF85063_REG_CTRL1_STOP,
 				PCF85063_REG_CTRL1_STOP);
 	if (rc)
@@ -297,7 +299,7 @@ static int pcf85063_ioctl(struct device *dev, unsigned int cmd,
 		if (ret < 0)
 			return ret;
 
-		status = status & PCF85063_REG_SC_OS ? RTC_VL_DATA_INVALID : 0;
+		status = (status & PCF85063_REG_SC_OS) ? RTC_VL_DATA_INVALID : 0;
 
 		return put_user(status, (unsigned int __user *)arg);
 
@@ -479,6 +481,18 @@ static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
 	struct clk *clk;
 	struct clk_init_data init;
 	struct device_node *node = pcf85063->rtc->dev.parent->of_node;
+	struct device_node *fixed_clock;
+
+	fixed_clock = of_get_child_by_name(node, "clock");
+	if (fixed_clock) {
+		/*
+		 * skip registering square wave clock when a fixed
+		 * clock has been registered. The fixed clock is
+		 * registered automatically when being referenced.
+		 */
+		of_node_put(fixed_clock);
+		return NULL;
+	}
 
 	init.name = "pcf85063-clkout";
 	init.ops = &pcf85063_clkout_ops;

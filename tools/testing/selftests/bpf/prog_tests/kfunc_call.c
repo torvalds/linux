@@ -7,10 +7,10 @@
 
 static void test_main(void)
 {
-	struct kfunc_call_test *skel;
+	struct kfunc_call_test_lskel *skel;
 	int prog_fd, retval, err;
 
-	skel = kfunc_call_test__open_and_load();
+	skel = kfunc_call_test_lskel__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel"))
 		return;
 
@@ -26,7 +26,7 @@ static void test_main(void)
 	ASSERT_OK(err, "bpf_prog_test_run(test2)");
 	ASSERT_EQ(retval, 3, "test2-retval");
 
-	kfunc_call_test__destroy(skel);
+	kfunc_call_test_lskel__destroy(skel);
 }
 
 static void test_subprog(void)

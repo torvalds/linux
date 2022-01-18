@@ -100,15 +100,18 @@ additionalProperties: false
 examples:
   # Lager board
   - |
-    #include <dt-bindings/clock/r8a7790-clock.h>
-    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7790-sysc.h>
+    #include <dt-bindings/gpio/gpio.h>
 
     ethernet@ee700000 {
         compatible = "renesas,ether-r8a7790", "renesas,rcar-gen2-ether";
         reg = <0xee700000 0x400>;
-        interrupt-parent = <&gic>;
-        interrupts = <0 162 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&mstp8_clks R8A7790_CLK_ETHER>;
+        interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cpg CPG_MOD 813>;
+        power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+        resets = <&cpg 813>;
         phy-mode = "rmii";
         phy-handle = <&phy1>;
         renesas,ether-link-active-low;
@@ -116,8 +119,12 @@ examples:
         #size-cells = <0>;
 
         phy1: ethernet-phy@1 {
+            compatible = "ethernet-phy-id0022.1537",
+                         "ethernet-phy-ieee802.3-c22";
             reg = <1>;
             interrupt-parent = <&irqc0>;
             interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+            micrel,led-mode = <1>;
+            reset-gpios = <&gpio5 31 GPIO_ACTIVE_LOW>;
         };
     };

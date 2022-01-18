@@ -12,6 +12,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/threads.h>
 
+#include <asm/assembly.h>
 #include <asm/prefetch.h>
 #include <asm/hardware.h>
 #include <asm/pdc.h>
@@ -37,15 +38,11 @@
 #define DEFAULT_MAP_BASE	DEFAULT_MAP_BASE32
 #endif
 
-#ifdef __KERNEL__
-
 /* XXX: STACK_TOP actually should be STACK_BOTTOM for parisc.
  * prumpf */
 
 #define STACK_TOP	TASK_SIZE
 #define STACK_TOP_MAX	DEFAULT_TASK_SIZE
-
-#endif
 
 #ifndef __ASSEMBLY__
 
@@ -100,8 +97,6 @@ extern struct system_cpuinfo_parisc boot_cpu_data;
 DECLARE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 
 #define CPU_HVERSION ((boot_cpu_data.hversion >> 4) & 0x0FFF)
-
-#define ARCH_MIN_TASKALIGN	8
 
 struct thread_struct {
 	struct pt_regs regs;
@@ -273,7 +268,7 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-extern unsigned long get_wchan(struct task_struct *p);
+extern unsigned long __get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)	((tsk)->thread.regs.iaoq[0])
 #define KSTK_ESP(tsk)	((tsk)->thread.regs.gr[30])
@@ -293,6 +288,10 @@ extern int _parisc_requires_coherency;
 #endif
 
 extern int running_on_qemu;
+
+extern void toc_handler(void);
+extern unsigned int toc_handler_size;
+extern unsigned int toc_handler_csum;
 
 #endif /* __ASSEMBLY__ */
 

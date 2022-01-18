@@ -553,12 +553,12 @@ static int start_dma(struct goku_ep *ep, struct goku_request *req)
 
 		master &= ~MST_R_BITS;
 		if (unlikely(req->req.length == 0))
-			master = MST_RD_ENA | MST_RD_EOPB;
+			master |= MST_RD_ENA | MST_RD_EOPB;
 		else if ((req->req.length % ep->ep.maxpacket) != 0
 					|| req->req.zero)
-			master = MST_RD_ENA | MST_EOPB_ENA;
+			master |= MST_RD_ENA | MST_EOPB_ENA;
 		else
-			master = MST_RD_ENA | MST_EOPB_DIS;
+			master |= MST_RD_ENA | MST_EOPB_DIS;
 
 		ep->dev->int_enable |= INT_MSTRDEND;
 

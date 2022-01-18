@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 DFSDM ADC device driver
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
-  - Olivier Moysan <olivier.moysan@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
+  - Olivier Moysan <olivier.moysan@foss.st.com>
 
 description: |
   STM32 DFSDM ADC is a sigma delta analog-to-digital converter dedicated to

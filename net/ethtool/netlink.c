@@ -40,7 +40,8 @@ int ethnl_ops_begin(struct net_device *dev)
 	if (dev->dev.parent)
 		pm_runtime_get_sync(dev->dev.parent);
 
-	if (!netif_device_present(dev)) {
+	if (!netif_device_present(dev) ||
+	    dev->reg_state == NETREG_UNREGISTERING) {
 		ret = -ENODEV;
 		goto err;
 	}
@@ -282,6 +283,7 @@ ethnl_default_requests[__ETHTOOL_MSG_USER_CNT] = {
 	[ETHTOOL_MSG_MODULE_EEPROM_GET]	= &ethnl_module_eeprom_request_ops,
 	[ETHTOOL_MSG_STATS_GET]		= &ethnl_stats_request_ops,
 	[ETHTOOL_MSG_PHC_VCLOCKS_GET]	= &ethnl_phc_vclocks_request_ops,
+	[ETHTOOL_MSG_MODULE_GET]	= &ethnl_module_request_ops,
 };
 
 static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
@@ -593,6 +595,7 @@ ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_PAUSE_NTF]		= &ethnl_pause_request_ops,
 	[ETHTOOL_MSG_EEE_NTF]		= &ethnl_eee_request_ops,
 	[ETHTOOL_MSG_FEC_NTF]		= &ethnl_fec_request_ops,
+	[ETHTOOL_MSG_MODULE_NTF]	= &ethnl_module_request_ops,
 };
 
 /* default notification handler */
@@ -686,6 +689,7 @@ static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_PAUSE_NTF]		= ethnl_default_notify,
 	[ETHTOOL_MSG_EEE_NTF]		= ethnl_default_notify,
 	[ETHTOOL_MSG_FEC_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_MODULE_NTF]	= ethnl_default_notify,
 };
 
 void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
@@ -998,6 +1002,22 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.done	= ethnl_default_done,
 		.policy = ethnl_phc_vclocks_get_policy,
 		.maxattr = ARRAY_SIZE(ethnl_phc_vclocks_get_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_MODULE_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+		.policy = ethnl_module_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_module_get_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_MODULE_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_set_module,
+		.policy = ethnl_module_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_module_set_policy) - 1,
 	},
 };
 

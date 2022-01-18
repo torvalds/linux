@@ -378,7 +378,7 @@ TRACE_EVENT(tx_stats,
 		__array(int, tx_count, 4)
 	),
 	TP_fast_assign(
-		// Keep sync with wfx_rates definition in main.c
+		/* Keep sync with wfx_rates definition in main.c */
 		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9,
 					       10, 11, 12, 13 };
 		const struct ieee80211_tx_info *tx_info =

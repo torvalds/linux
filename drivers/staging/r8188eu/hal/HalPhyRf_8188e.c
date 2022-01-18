@@ -110,7 +110,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	bool is2t = false;
 
 	u8 OFDM_min_index = 6, rf; /* OFDM BB Swing should be less than +3.0dB, which is required by Arthur */
-	u8 Indexforchannel = 0/*GetRightChnlPlaceforIQK(pHalData->CurrentChannel)*/;
 	s8 OFDM_index_mapping[2][index_mapping_NUM_88E] = {
 		{0, 0, 2, 3, 4, 4, 		/* 2.4G, decrease power */
 		5, 6, 7, 7, 8, 9,
@@ -280,8 +279,8 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 
 				/* Adujst OFDM Ant_A according to IQK result */
 				ele_D = (OFDMSwingTable[(u8)OFDM_index[0]] & 0xFFC00000) >> 22;
-				X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[Indexforchannel].Value[0][0];
-				Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[Indexforchannel].Value[0][1];
+				X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][0];
+				Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][1];
 
 				/*  Revse TX power table. */
 				dm_odm->BbSwingIdxOfdm		= (u8)OFDM_index[0];
@@ -315,10 +314,10 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 					ele_D = (OFDMSwingTable[(u8)OFDM_index[1]] & 0xFFC00000) >> 22;
 
 					/* new element A = element D x X */
-					X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[Indexforchannel].Value[0][4];
-					Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[Indexforchannel].Value[0][5];
+					X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][4];
+					Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][5];
 
-					if ((X != 0) && (*dm_odm->pBandType == ODM_BAND_2_4G)) {
+					if (X != 0) {
 						if ((X & 0x00000200) != 0)	/* consider minus */
 							X = X | 0xFFFFFC00;
 						ele_A = ((X * ele_D) >> 8) & 0x000003FF;
@@ -584,67 +583,11 @@ static void patha_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u
 	}
 }
 
-static void pathb_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8], u8 final_candidate, bool txonly)
-{
-	u32 Oldval_1, X, TX1_A, reg;
-	s32 Y, TX1_C;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	if (final_candidate == 0xFF) {
-		return;
-	} else if (iqkok) {
-		Oldval_1 = (ODM_GetBBReg(dm_odm, rOFDM0_XBTxIQImbalance, bMaskDWord) >> 22) & 0x3FF;
-
-		X = result[final_candidate][4];
-		if ((X & 0x00000200) != 0)
-			X = X | 0xFFFFFC00;
-		TX1_A = (X * Oldval_1) >> 8;
-		ODM_SetBBReg(dm_odm, rOFDM0_XBTxIQImbalance, 0x3FF, TX1_A);
-
-		ODM_SetBBReg(dm_odm, rOFDM0_ECCAThreshold, BIT(27), ((X * Oldval_1 >> 7) & 0x1));
-
-		Y = result[final_candidate][5];
-		if ((Y & 0x00000200) != 0)
-			Y = Y | 0xFFFFFC00;
-
-		TX1_C = (Y * Oldval_1) >> 8;
-		ODM_SetBBReg(dm_odm, rOFDM0_XDTxAFE, 0xF0000000, ((TX1_C & 0x3C0) >> 6));
-		ODM_SetBBReg(dm_odm, rOFDM0_XBTxIQImbalance, 0x003F0000, (TX1_C & 0x3F));
-
-		ODM_SetBBReg(dm_odm, rOFDM0_ECCAThreshold, BIT(25), ((Y * Oldval_1 >> 7) & 0x1));
-
-		if (txonly)
-			return;
-
-		reg = result[final_candidate][6];
-		ODM_SetBBReg(dm_odm, rOFDM0_XBRxIQImbalance, 0x3FF, reg);
-
-		reg = result[final_candidate][7] & 0x3F;
-		ODM_SetBBReg(dm_odm, rOFDM0_XBRxIQImbalance, 0xFC00, reg);
-
-		reg = (result[final_candidate][7] >> 6) & 0xF;
-		ODM_SetBBReg(dm_odm, rOFDM0_AGCRSSITable, 0x0000F000, reg);
-	}
-}
-
-/*  */
-/*  2011/07/26 MH Add an API for testing IQK fail case. */
-/*  */
-/*  MP Already declare in odm.c */
-static bool ODM_CheckPowerStatus(struct adapter *Adapter)
-{
-	return	true;
-}
-
 void _PHY_SaveADDARegisters(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegisterNum)
 {
 	u32 i;
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	if (!ODM_CheckPowerStatus(adapt))
-		return;
 
 	for (i = 0; i < RegisterNum; i++) {
 		ADDABackup[i] = ODM_GetBBReg(dm_odm, ADDAReg[i], bMaskDWord);
@@ -772,23 +715,11 @@ static bool phy_SimularityCompare_8188E(
 	)
 {
 	u32 i, j, diff, sim_bitmap, bound = 0;
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 	u8 final_candidate[2] = {0xFF, 0xFF};	/* for path A and path B */
 	bool result = true;
-	bool is2t;
 	s32 tmp1 = 0, tmp2 = 0;
 
-	if ((dm_odm->RFType == ODM_2T2R) || (dm_odm->RFType == ODM_2T3R) || (dm_odm->RFType == ODM_2T4R))
-		is2t = true;
-	else
-		is2t = false;
-
-	if (is2t)
-		bound = 8;
-	else
-		bound = 4;
-
+	bound = 4;
 	sim_bitmap = 0;
 
 	for (i = 0; i < bound; i++) {
@@ -881,12 +812,7 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t, 
 							rFPGA0_XAB_RFInterfaceSW, rFPGA0_XA_RFInterfaceOE,
 							rFPGA0_XB_RFInterfaceOE, rFPGA0_RFMOD
 							};
-
-	u32 retryCount = 9;
-	if (*dm_odm->mp_mode == 1)
-		retryCount = 9;
-	else
-		retryCount = 2;
+	u32 retryCount = 2;
 	/*  Note: IQ calibration must be performed after loading */
 	/* 		PHY_REG.txt , and radio_a, radio_b.txt */
 
@@ -1065,11 +991,10 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	struct mpt_context *pMptCtx = &adapt->mppriv.MptCtx;
 	s32 result[4][8];	/* last is final result */
 	u8 i, final_candidate;
-	bool pathaok, pathbok;
-	s32 RegE94, RegE9C, RegEA4, RegEB4, RegEBC, RegEC4;
+	bool pathaok;
+	s32 RegE94, RegE9C, RegEA4, RegEB4, RegEBC;
 	bool is12simular, is13simular, is23simular;
 	bool singletone = false, carrier_sup = false;
 	u32 IQK_BB_REG_92C[IQK_BB_REG_NUM] = {
@@ -1078,19 +1003,9 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		rOFDM0_XATxIQImbalance, rOFDM0_XBTxIQImbalance,
 		rOFDM0_XCTxAFE, rOFDM0_XDTxAFE,
 		rOFDM0_RxIQExtAnta};
-	bool is2t;
-
-	is2t = (dm_odm->RFType == ODM_2T2R) ? true : false;
-	if (!ODM_CheckPowerStatus(adapt))
-		return;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
-
-	if (*dm_odm->mp_mode == 1) {
-		singletone = pMptCtx->bSingleTone;
-		carrier_sup = pMptCtx->bCarrierSuppression;
-	}
 
 	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
 	if (singletone || carrier_sup)
@@ -1112,13 +1027,12 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	}
 	final_candidate = 0xff;
 	pathaok = false;
-	pathbok = false;
 	is12simular = false;
 	is23simular = false;
 	is13simular = false;
 
 	for (i = 0; i < 3; i++) {
-		phy_IQCalibrate_8188E(adapt, result, i, is2t);
+		phy_IQCalibrate_8188E(adapt, result, i, false);
 
 		if (i == 1) {
 			is12simular = phy_SimularityCompare_8188E(adapt, result, 0, 1);
@@ -1150,7 +1064,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		RegEA4 = result[i][2];
 		RegEB4 = result[i][4];
 		RegEBC = result[i][5];
-		RegEC4 = result[i][6];
 	}
 
 	if (final_candidate != 0xff) {
@@ -1163,9 +1076,7 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		dm_odm->RFCalibrateInfo.RegE9C = RegE9C;
 		dm_odm->RFCalibrateInfo.RegEB4 = RegEB4;
 		dm_odm->RFCalibrateInfo.RegEBC = RegEBC;
-		RegEC4 = result[final_candidate][6];
 		pathaok = true;
-		pathbok = true;
 	} else {
 		dm_odm->RFCalibrateInfo.RegE94 = 0x100;
 		dm_odm->RFCalibrateInfo.RegEB4 = 0x100;	/* X default value */
@@ -1174,17 +1085,13 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	}
 	if (RegE94 != 0)
 		patha_fill_iqk(adapt, pathaok, result, final_candidate, (RegEA4 == 0));
-	if (is2t) {
-		if (RegEB4 != 0)
-			pathb_fill_iqk(adapt, pathbok, result, final_candidate, (RegEC4 == 0));
-	}
 
 /* To Fix BSOD when final_candidate is 0xff */
 /* by sherry 20120321 */
 	if (final_candidate < 4) {
 		for (i = 0; i < IQK_Matrix_REG_NUM; i++)
-			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[0].Value[0][i] = result[final_candidate][i];
-		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[0].bIQKDone = true;
+			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][i] = result[final_candidate][i];
+		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.bIQKDone = true;
 	}
 
 	_PHY_SaveADDARegisters(adapt, IQK_BB_REG_92C, dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
@@ -1196,12 +1103,7 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 	u32 timeout = 2000, timecount = 0;
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(adapt);
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-	struct mpt_context *pMptCtx = &adapt->mppriv.MptCtx;
 
-	if (*dm_odm->mp_mode == 1) {
-		singletone = pMptCtx->bSingleTone;
-		carrier_sup = pMptCtx->bCarrierSuppression;
-	}
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
 		return;
 	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
@@ -1213,52 +1115,5 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 		timecount += 50;
 	}
 
-	dm_odm->RFCalibrateInfo.bLCKInProgress = true;
-
-	if (dm_odm->RFType == ODM_2T2R) {
-		phy_LCCalibrate_8188E(adapt, true);
-	} else {
-		/*  For 88C 1T1R */
-		phy_LCCalibrate_8188E(adapt, false);
-	}
-
-	dm_odm->RFCalibrateInfo.bLCKInProgress = false;
-}
-
-static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2t)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	if (!adapt->hw_init_completed) {
-		u8 u1btmp;
-		u1btmp = ODM_Read1Byte(dm_odm, REG_LEDCFG2) | BIT(7);
-		ODM_Write1Byte(dm_odm, REG_LEDCFG2, u1btmp);
-		ODM_SetBBReg(dm_odm, rFPGA0_XAB_RFParameter, BIT(13), 0x01);
-	}
-
-	if (is2t) {	/* 92C */
-		if (main)
-			ODM_SetBBReg(dm_odm, rFPGA0_XB_RFInterfaceOE, BIT(5) | BIT(6), 0x1);	/* 92C_Path_A */
-		else
-			ODM_SetBBReg(dm_odm, rFPGA0_XB_RFInterfaceOE, BIT(5) | BIT(6), 0x2);	/* BT */
-	} else {			/* 88C */
-		if (main)
-			ODM_SetBBReg(dm_odm, rFPGA0_XA_RFInterfaceOE, BIT(8) | BIT(9), 0x2);	/* Main */
-		else
-			ODM_SetBBReg(dm_odm, rFPGA0_XA_RFInterfaceOE, BIT(8) | BIT(9), 0x1);	/* Aux */
-	}
-}
-
-void PHY_SetRFPathSwitch_8188E(struct adapter *adapt, bool main)
-{
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(adapt);
-	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	if (dm_odm->RFType == ODM_2T2R) {
-		phy_setrfpathswitch_8188e(adapt, main, true);
-	} else {
-		/*  For 88C 1T1R */
-		phy_setrfpathswitch_8188e(adapt, main, false);
-	}
+	phy_LCCalibrate_8188E(adapt, false);
 }

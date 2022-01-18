@@ -541,7 +541,7 @@
 					<&sleep_clk>;
 		};
 
-		rpm_msg_ram: memory@778000 {
+		rpm_msg_ram: sram@778000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x00778000 0x7000>;
 		};
@@ -1174,6 +1174,11 @@
 				<GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
 
 			status = "disabled";
+		};
+
+		sram@290000 {
+			compatible = "qcom,rpm-stats";
+			reg = <0x00290000 0x10000>;
 		};
 
 		spmi_bus: spmi@800f000 {
@@ -2017,6 +2022,57 @@
 				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+			};
+		};
+
+		venus: video-codec@cc00000 {
+			compatible = "qcom,sdm660-venus";
+			reg = <0x0cc00000 0xff000>;
+			clocks = <&mmcc VIDEO_CORE_CLK>,
+				 <&mmcc VIDEO_AHB_CLK>,
+				 <&mmcc VIDEO_AXI_CLK>,
+				 <&mmcc THROTTLE_VIDEO_AXI_CLK>;
+			clock-names = "core", "iface", "bus", "bus_throttle";
+			interconnects = <&gnoc 0 &mnoc 13>,
+					<&mnoc 4 &bimc 5>;
+			interconnect-names = "cpu-cfg", "video-mem";
+			interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
+			iommus = <&mmss_smmu 0x400>,
+				 <&mmss_smmu 0x401>,
+				 <&mmss_smmu 0x40a>,
+				 <&mmss_smmu 0x407>,
+				 <&mmss_smmu 0x40e>,
+				 <&mmss_smmu 0x40f>,
+				 <&mmss_smmu 0x408>,
+				 <&mmss_smmu 0x409>,
+				 <&mmss_smmu 0x40b>,
+				 <&mmss_smmu 0x40c>,
+				 <&mmss_smmu 0x40d>,
+				 <&mmss_smmu 0x410>,
+				 <&mmss_smmu 0x421>,
+				 <&mmss_smmu 0x428>,
+				 <&mmss_smmu 0x429>,
+				 <&mmss_smmu 0x42b>,
+				 <&mmss_smmu 0x42c>,
+				 <&mmss_smmu 0x42d>,
+				 <&mmss_smmu 0x411>,
+				 <&mmss_smmu 0x431>;
+			memory-region = <&venus_region>;
+			power-domains = <&mmcc VENUS_GDSC>;
+			status = "disabled";
+
+			video-decoder {
+				compatible = "venus-decoder";
+				clocks = <&mmcc VIDEO_SUBCORE0_CLK>;
+				clock-names = "vcodec0_core";
+				power-domains = <&mmcc VENUS_CORE0_GDSC>;
+			};
+
+			video-encoder {
+				compatible = "venus-encoder";
+				clocks = <&mmcc VIDEO_SUBCORE0_CLK>;
+				clock-names = "vcodec0_core";
+				power-domains = <&mmcc VENUS_CORE0_GDSC>;
 			};
 		};
 

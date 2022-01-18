@@ -11,47 +11,47 @@ import os
 
 import kunit_parser
 
-from kunit_parser import TestStatus
+from kunit_parser import Test, TestResult, TestStatus
+from typing import Any, Dict, Optional
 
-def get_json_result(test_result, def_config, build_dir, json_path) -> str:
-	sub_groups = []
+JsonObj = Dict[str, Any]
 
-	# Each test suite is mapped to a KernelCI sub_group
-	for test_suite in test_result.suites:
-		sub_group = {
-			"name": test_suite.name,
-			"arch": "UM",
-			"defconfig": def_config,
-			"build_environment": build_dir,
-			"test_cases": [],
-			"lab_name": None,
-			"kernel": None,
-			"job": None,
-			"git_branch": "kselftest",
-		}
-		test_cases = []
-		# TODO: Add attachments attribute in test_case with detailed
-		#  failure message, see https://api.kernelci.org/schema-test-case.html#get
-		for case in test_suite.cases:
-			test_case = {"name": case.name, "status": "FAIL"}
-			if case.status == TestStatus.SUCCESS:
+def _get_group_json(test: Test, def_config: str,
+		build_dir: Optional[str]) -> JsonObj:
+	sub_groups = []  # List[JsonObj]
+	test_cases = []  # List[JsonObj]
+
+	for subtest in test.subtests:
+		if len(subtest.subtests):
+			sub_group = _get_group_json(subtest, def_config,
+				build_dir)
+			sub_groups.append(sub_group)
+		else:
+			test_case = {"name": subtest.name, "status": "FAIL"}
+			if subtest.status == TestStatus.SUCCESS:
 				test_case["status"] = "PASS"
-			elif case.status == TestStatus.TEST_CRASHED:
+			elif subtest.status == TestStatus.TEST_CRASHED:
 				test_case["status"] = "ERROR"
 			test_cases.append(test_case)
-		sub_group["test_cases"] = test_cases
-		sub_groups.append(sub_group)
+
 	test_group = {
-		"name": "KUnit Test Group",
+		"name": test.name,
 		"arch": "UM",
 		"defconfig": def_config,
 		"build_environment": build_dir,
 		"sub_groups": sub_groups,
+		"test_cases": test_cases,
 		"lab_name": None,
 		"kernel": None,
 		"job": None,
 		"git_branch": "kselftest",
 	}
+	return test_group
+
+def get_json_result(test_result: TestResult, def_config: str,
+		build_dir: Optional[str], json_path: str) -> str:
+	test_group = _get_group_json(test_result.test, def_config, build_dir)
+	test_group["name"] = "KUnit Test Group"
 	json_obj = json.dumps(test_group, indent=4)
 	if json_path != 'stdout':
 		with open(json_path, 'w') as result_path:

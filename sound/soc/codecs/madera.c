@@ -905,7 +905,7 @@ static int madera_adsp_rate_put(struct snd_kcontrol *kcontrol,
 	 */
 	mutex_lock(&priv->rate_lock);
 
-	if (!madera_can_change_grp_rate(priv, priv->adsp[adsp_num].base)) {
+	if (!madera_can_change_grp_rate(priv, priv->adsp[adsp_num].cs_dsp.base)) {
 		dev_warn(priv->madera->dev,
 			 "Cannot change '%s' while in use by active audio paths\n",
 			 kcontrol->id.name);
@@ -964,7 +964,7 @@ static int madera_write_adsp_clk_setting(struct madera_priv *priv,
 	unsigned int mask = MADERA_DSP_RATE_MASK;
 	int ret;
 
-	val = priv->adsp_rate_cache[dsp->num - 1] << MADERA_DSP_RATE_SHIFT;
+	val = priv->adsp_rate_cache[dsp->cs_dsp.num - 1] << MADERA_DSP_RATE_SHIFT;
 
 	switch (priv->madera->type) {
 	case CS47L35:
@@ -978,15 +978,15 @@ static int madera_write_adsp_clk_setting(struct madera_priv *priv,
 		/* Configure exact dsp frequency */
 		dev_dbg(priv->madera->dev, "Set DSP frequency to 0x%x\n", freq);
 
-		ret = regmap_write(dsp->regmap,
-				   dsp->base + MADERA_DSP_CONFIG_2_OFFS, freq);
+		ret = regmap_write(dsp->cs_dsp.regmap,
+				   dsp->cs_dsp.base + MADERA_DSP_CONFIG_2_OFFS, freq);
 		if (ret)
 			goto err;
 		break;
 	}
 
-	ret = regmap_update_bits(dsp->regmap,
-				 dsp->base + MADERA_DSP_CONFIG_1_OFFS,
+	ret = regmap_update_bits(dsp->cs_dsp.regmap,
+				 dsp->cs_dsp.base + MADERA_DSP_CONFIG_1_OFFS,
 				 mask, val);
 	if (ret)
 		goto err;
@@ -996,7 +996,7 @@ static int madera_write_adsp_clk_setting(struct madera_priv *priv,
 	return 0;
 
 err:
-	dev_err(dsp->dev, "Failed to set DSP%d clock: %d\n", dsp->num, ret);
+	dev_err(dsp->cs_dsp.dev, "Failed to set DSP%d clock: %d\n", dsp->cs_dsp.num, ret);
 
 	return ret;
 }
@@ -1018,7 +1018,7 @@ int madera_set_adsp_clk(struct madera_priv *priv, int dsp_num,
 	 * changes are locked out by the domain_group_ref reference count.
 	 */
 
-	ret = regmap_read(dsp->regmap,  dsp->base, &cur);
+	ret = regmap_read(dsp->cs_dsp.regmap,  dsp->cs_dsp.base, &cur);
 	if (ret) {
 		dev_err(madera->dev,
 			"Failed to read current DSP rate: %d\n", ret);
@@ -1027,7 +1027,7 @@ int madera_set_adsp_clk(struct madera_priv *priv, int dsp_num,
 
 	cur &= MADERA_DSP_RATE_MASK;
 
-	new = priv->adsp_rate_cache[dsp->num - 1] << MADERA_DSP_RATE_SHIFT;
+	new = priv->adsp_rate_cache[dsp->cs_dsp.num - 1] << MADERA_DSP_RATE_SHIFT;
 
 	if (new == cur) {
 		dev_dbg(madera->dev, "DSP rate not changed\n");

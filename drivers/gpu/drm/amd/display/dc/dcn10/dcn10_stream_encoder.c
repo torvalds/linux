@@ -29,6 +29,9 @@
 #include "dcn10_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
+#include "inc/link_dpcd.h"
+#include "dpcd_defs.h"
+#include "dcn30/dcn30_afmt.h"
 
 #define DC_LOGGER \
 		enc1->base.ctx->logger
@@ -644,6 +647,12 @@ void enc1_stream_encoder_set_throttled_vcp_size(
 				x),
 			26));
 
+	// If y rounds up to integer, carry it over to x.
+	if (y >> 26) {
+		x += 1;
+		y = 0;
+	}
+
 	REG_SET_2(DP_MSE_RATE_CNTL, 0,
 		DP_MSE_RATE_X, x,
 		DP_MSE_RATE_Y, y);
@@ -724,6 +733,16 @@ void enc1_stream_encoder_update_dp_info_packets(
 		enc1_update_generic_info_packet(
 					enc1,
 					0,  /* packetIndex */
+					&info_frame->vsc);
+
+	/* VSC SDP at packetIndex 1 is used by PSR in DMCUB FW.
+	 * Note that the enablement of GSP1 is not done below,
+	 * it's done in FW.
+	 */
+	if (info_frame->vsc.valid)
+		enc1_update_generic_info_packet(
+					enc1,
+					1,  /* packetIndex */
 					&info_frame->vsc);
 
 	if (info_frame->spd.valid)
@@ -884,6 +903,7 @@ void enc1_stream_encoder_stop_dp_info_packets(
 }
 
 void enc1_stream_encoder_dp_blank(
+	struct dc_link *link,
 	struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
@@ -914,6 +934,8 @@ void enc1_stream_encoder_dp_blank(
 	/* disable DP stream */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, 0);
 
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_DP_VID_STREAM);
+
 	/* the encoder stops sending the video stream
 	 * at the start of the vertical blanking.
 	 * Poll for DP_VID_STREAM_STATUS == 0
@@ -930,10 +952,13 @@ void enc1_stream_encoder_dp_blank(
 	 */
 
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, true);
+
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_FIFO_STEER_RESET);
 }
 
 /* output video stream to link encoder */
 void enc1_stream_encoder_dp_unblank(
+	struct dc_link *link,
 	struct stream_encoder *enc,
 	const struct encoder_unblank_param *param)
 {
@@ -1000,6 +1025,8 @@ void enc1_stream_encoder_dp_unblank(
 	 */
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
+
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
 void enc1_stream_encoder_set_avmute(
@@ -1444,6 +1471,10 @@ void enc1_se_hdmi_audio_setup(
 void enc1_se_hdmi_audio_disable(
 	struct stream_encoder *enc)
 {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (enc->afmt && enc->afmt->funcs->afmt_powerdown)
+		enc->afmt->funcs->afmt_powerdown(enc->afmt);
+#endif
 	enc1_se_enable_audio_clock(enc, false);
 }
 

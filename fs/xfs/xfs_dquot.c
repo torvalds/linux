@@ -38,8 +38,8 @@
  * otherwise by the lowest id first, see xfs_dqlock2.
  */
 
-struct kmem_zone		*xfs_qm_dqtrxzone;
-static struct kmem_zone		*xfs_qm_dqzone;
+struct kmem_cache		*xfs_dqtrx_cache;
+static struct kmem_cache	*xfs_dquot_cache;
 
 static struct lock_class_key xfs_dquot_group_class;
 static struct lock_class_key xfs_dquot_project_class;
@@ -57,7 +57,7 @@ xfs_qm_dqdestroy(
 	mutex_destroy(&dqp->q_qlock);
 
 	XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot);
-	kmem_cache_free(xfs_qm_dqzone, dqp);
+	kmem_cache_free(xfs_dquot_cache, dqp);
 }
 
 /*
@@ -458,7 +458,7 @@ xfs_dquot_alloc(
 {
 	struct xfs_dquot	*dqp;
 
-	dqp = kmem_cache_zalloc(xfs_qm_dqzone, GFP_KERNEL | __GFP_NOFAIL);
+	dqp = kmem_cache_zalloc(xfs_dquot_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	dqp->q_type = type;
 	dqp->q_id = id;
@@ -471,7 +471,7 @@ xfs_dquot_alloc(
 	 * Offset of dquot in the (fixed sized) dquot chunk.
 	 */
 	dqp->q_bufoffset = (id % mp->m_quotainfo->qi_dqperchunk) *
-			sizeof(xfs_dqblk_t);
+			sizeof(struct xfs_dqblk);
 
 	/*
 	 * Because we want to use a counting completion, complete
@@ -1363,22 +1363,22 @@ xfs_dqlock2(
 int __init
 xfs_qm_init(void)
 {
-	xfs_qm_dqzone = kmem_cache_create("xfs_dquot",
+	xfs_dquot_cache = kmem_cache_create("xfs_dquot",
 					  sizeof(struct xfs_dquot),
 					  0, 0, NULL);
-	if (!xfs_qm_dqzone)
+	if (!xfs_dquot_cache)
 		goto out;
 
-	xfs_qm_dqtrxzone = kmem_cache_create("xfs_dqtrx",
+	xfs_dqtrx_cache = kmem_cache_create("xfs_dqtrx",
 					     sizeof(struct xfs_dquot_acct),
 					     0, 0, NULL);
-	if (!xfs_qm_dqtrxzone)
-		goto out_free_dqzone;
+	if (!xfs_dqtrx_cache)
+		goto out_free_dquot_cache;
 
 	return 0;
 
-out_free_dqzone:
-	kmem_cache_destroy(xfs_qm_dqzone);
+out_free_dquot_cache:
+	kmem_cache_destroy(xfs_dquot_cache);
 out:
 	return -ENOMEM;
 }
@@ -1386,8 +1386,8 @@ out:
 void
 xfs_qm_exit(void)
 {
-	kmem_cache_destroy(xfs_qm_dqtrxzone);
-	kmem_cache_destroy(xfs_qm_dqzone);
+	kmem_cache_destroy(xfs_dqtrx_cache);
+	kmem_cache_destroy(xfs_dquot_cache);
 }
 
 /*

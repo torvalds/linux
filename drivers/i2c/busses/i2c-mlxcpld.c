@@ -27,7 +27,7 @@
 #define MLXCPLD_I2C_MAX_ADDR_LEN	4
 #define MLXCPLD_I2C_RETR_NUM		2
 #define MLXCPLD_I2C_XFER_TO		500000 /* usec */
-#define MLXCPLD_I2C_POLL_TIME		400   /* usec */
+#define MLXCPLD_I2C_POLL_TIME		200   /* usec */
 
 /* LPC I2C registers */
 #define MLXCPLD_LPCI2C_CPBLTY_REG	0x0
@@ -73,6 +73,7 @@ struct mlxcpld_i2c_priv {
 	struct  mlxcpld_i2c_curr_xfer xfer;
 	struct device *dev;
 	bool smbus_block;
+	int polling_time;
 };
 
 static void mlxcpld_i2c_lpc_write_buf(u8 *data, u8 len, u32 addr)
@@ -267,8 +268,8 @@ static int mlxcpld_i2c_wait_for_free(struct mlxcpld_i2c_priv *priv)
 	do {
 		if (!mlxcpld_i2c_check_busy(priv))
 			break;
-		usleep_range(MLXCPLD_I2C_POLL_TIME / 2, MLXCPLD_I2C_POLL_TIME);
-		timeout += MLXCPLD_I2C_POLL_TIME;
+		usleep_range(priv->polling_time / 2, priv->polling_time);
+		timeout += priv->polling_time;
 	} while (timeout <= MLXCPLD_I2C_XFER_TO);
 
 	if (timeout > MLXCPLD_I2C_XFER_TO)
@@ -288,10 +289,10 @@ static int mlxcpld_i2c_wait_for_tc(struct mlxcpld_i2c_priv *priv)
 	u8 datalen, val;
 
 	do {
-		usleep_range(MLXCPLD_I2C_POLL_TIME / 2, MLXCPLD_I2C_POLL_TIME);
+		usleep_range(priv->polling_time / 2, priv->polling_time);
 		if (!mlxcpld_i2c_check_status(priv, &status))
 			break;
-		timeout += MLXCPLD_I2C_POLL_TIME;
+		timeout += priv->polling_time;
 	} while (status == 0 && timeout < MLXCPLD_I2C_XFER_TO);
 
 	switch (status) {
@@ -498,9 +499,11 @@ mlxcpld_i2c_set_frequency(struct mlxcpld_i2c_priv *priv,
 	switch ((regval & data->mask) >> data->bit) {
 	case MLXCPLD_I2C_FREQ_1000KHZ:
 		freq = MLXCPLD_I2C_FREQ_1000KHZ_SET;
+		priv->polling_time /= 4;
 		break;
 	case MLXCPLD_I2C_FREQ_400KHZ:
 		freq = MLXCPLD_I2C_FREQ_400KHZ_SET;
+		priv->polling_time /= 4;
 		break;
 	default:
 		return 0;
@@ -527,6 +530,7 @@ static int mlxcpld_i2c_probe(struct platform_device *pdev)
 
 	priv->dev = &pdev->dev;
 	priv->base_addr = MLXPLAT_CPLD_LPC_I2C_BASE_ADDR;
+	priv->polling_time = MLXCPLD_I2C_POLL_TIME;
 
 	/* Set I2C bus frequency if platform data provides this info. */
 	pdata = dev_get_platdata(&pdev->dev);

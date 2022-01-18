@@ -10,8 +10,8 @@ struct {
 } jmp_table SEC(".maps");
 
 #define TAIL_FUNC(x) 				\
-	SEC("classifier/" #x)			\
-	int bpf_func_##x(struct __sk_buff *skb)	\
+	SEC("tc")				\
+	int classifier_##x(struct __sk_buff *skb)	\
 	{					\
 		return x;			\
 	}
@@ -26,7 +26,7 @@ int subprog_tail(struct __sk_buff *skb)
 	return skb->len * 2;
 }
 
-SEC("classifier")
+SEC("tc")
 int entry(struct __sk_buff *skb)
 {
 	bpf_tail_call_static(skb, &jmp_table, 1);
@@ -35,4 +35,3 @@ int entry(struct __sk_buff *skb)
 }
 
 char __license[] SEC("license") = "GPL";
-int _version SEC("version") = 1;

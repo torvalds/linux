@@ -126,7 +126,6 @@ static inline int sigequalsets(const sigset_t *set1, const sigset_t *set2)
 #define sigmask(sig)	(1UL << ((sig) - 1))
 
 #ifndef __HAVE_ARCH_SIG_SETOPS
-#include <linux/string.h>
 
 #define _SIG_SET_BINOP(name, op)					\
 static inline void name(sigset_t *r, const sigset_t *a, const sigset_t *b) \
@@ -463,6 +462,12 @@ int __save_altstack(stack_t __user *, unsigned long);
 	unsafe_put_user(t->sas_ss_flags, &__uss->ss_flags, label); \
 	unsafe_put_user(t->sas_ss_size, &__uss->ss_size, label); \
 } while (0);
+
+#ifdef CONFIG_DYNAMIC_SIGFRAME
+bool sigaltstack_size_valid(size_t ss_size);
+#else
+static inline bool sigaltstack_size_valid(size_t size) { return true; }
+#endif /* !CONFIG_DYNAMIC_SIGFRAME */
 
 #ifdef CONFIG_PROC_FS
 struct seq_file;

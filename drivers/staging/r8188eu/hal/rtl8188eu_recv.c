@@ -12,7 +12,7 @@
 
 #include "../include/rtl8188e_hal.h"
 
-void rtl8188eu_init_recvbuf(struct adapter *padapter, struct recv_buf *precvbuf)
+void rtl8188eu_init_recvbuf(struct recv_buf *precvbuf)
 {
 	precvbuf->transfer_len = 0;
 
@@ -39,7 +39,7 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 		     (unsigned long)padapter);
 
 	/* init recv_buf */
-	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
+	rtw_init_queue(&precvpriv->free_recv_buf_queue);
 
 	precvpriv->pallocated_recv_buf = kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4,
 						 GFP_KERNEL);

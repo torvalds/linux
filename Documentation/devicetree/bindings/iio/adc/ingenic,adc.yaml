@@ -74,7 +74,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4740-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
     #include <dt-bindings/iio/adc/ingenic,adc.h>
 
     adc@10070000 {

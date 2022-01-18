@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STM32MP1 PWR voltage regulators
 
 maintainers:
-  - Pascal Paillet <p.paillet@st.com>
+  - Pascal Paillet <p.paillet@foss.st.com>
 
 properties:
   compatible:

@@ -8,6 +8,6 @@
 int kxsd9_common_probe(struct device *dev,
 		       struct regmap *map,
 		       const char *name);
-int kxsd9_common_remove(struct device *dev);
+void kxsd9_common_remove(struct device *dev);
 
 extern const struct dev_pm_ops kxsd9_dev_pm_ops;

@@ -141,10 +141,13 @@ static void handle_user_cq(struct hl_device *hdev,
 			struct hl_user_interrupt *user_cq)
 {
 	struct hl_user_pending_interrupt *pend;
+	ktime_t now = ktime_get();
 
 	spin_lock(&user_cq->wait_list_lock);
-	list_for_each_entry(pend, &user_cq->wait_list_head, wait_list_node)
+	list_for_each_entry(pend, &user_cq->wait_list_head, wait_list_node) {
+		pend->fence.timestamp = now;
 		complete_all(&pend->fence.completion);
+	}
 	spin_unlock(&user_cq->wait_list_lock);
 }
 

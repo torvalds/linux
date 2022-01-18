@@ -576,6 +576,16 @@ enum ocelot_mask_mode {
 	OCELOT_MASK_MODE_REDIRECT,
 };
 
+enum ocelot_es0_vid_sel {
+	OCELOT_ES0_VID_PLUS_CLASSIFIED_VID = 0,
+	OCELOT_ES0_VID = 1,
+};
+
+enum ocelot_es0_pcp_sel {
+	OCELOT_CLASSIFIED_PCP = 0,
+	OCELOT_ES0_PCP = 1,
+};
+
 enum ocelot_es0_tag {
 	OCELOT_NO_ES0_TAG,
 	OCELOT_ES0_TAG,
@@ -693,6 +703,8 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 			   struct netlink_ext_ack *extack);
 int ocelot_vcap_filter_del(struct ocelot *ocelot,
 			   struct ocelot_vcap_filter *rule);
+int ocelot_vcap_filter_replace(struct ocelot *ocelot,
+			       struct ocelot_vcap_filter *filter);
 struct ocelot_vcap_filter *
 ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block,
 				    unsigned long cookie, bool tc_offload);

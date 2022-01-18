@@ -10,11 +10,9 @@
 #include <linux/soc/qcom/qmi.h>
 
 #define ATH11K_HOST_VERSION_STRING		"WIN"
-#define ATH11K_QMI_WLANFW_TIMEOUT_MS		5000
+#define ATH11K_QMI_WLANFW_TIMEOUT_MS		10000
 #define ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE	64
 #define ATH11K_QMI_CALDB_ADDRESS		0x4BA00000
-#define ATH11K_QMI_BDF_MAX_SIZE			(256 * 1024)
-#define ATH11K_QMI_CALDATA_OFFSET		(128 * 1024)
 #define ATH11K_QMI_WLANFW_MAX_BUILD_ID_LEN_V01	128
 #define ATH11K_QMI_WLFW_SERVICE_ID_V01		0x45
 #define ATH11K_QMI_WLFW_SERVICE_VERS_V01	0x01
@@ -44,6 +42,7 @@ struct ath11k_base;
 enum ath11k_qmi_file_type {
 	ATH11K_QMI_FILE_TYPE_BDF_GOLDEN,
 	ATH11K_QMI_FILE_TYPE_CALDATA,
+	ATH11K_QMI_FILE_TYPE_EEPROM,
 	ATH11K_QMI_MAX_FILE_TYPE,
 };
 
@@ -104,6 +103,7 @@ struct target_info {
 	u32 board_id;
 	u32 soc_id;
 	u32 fw_version;
+	u32 eeprom_caldata;
 	char fw_build_timestamp[ATH11K_QMI_WLANFW_MAX_TIMESTAMP_LEN_V01 + 1];
 	char fw_build_id[ATH11K_QMI_WLANFW_MAX_BUILD_ID_LEN_V01 + 1];
 	char bdf_ext[ATH11K_QMI_BDF_EXT_STR_LENGTH];
@@ -135,7 +135,7 @@ struct ath11k_qmi {
 	wait_queue_head_t cold_boot_waitq;
 };
 
-#define QMI_WLANFW_HOST_CAP_REQ_MSG_V01_MAX_LEN		189
+#define QMI_WLANFW_HOST_CAP_REQ_MSG_V01_MAX_LEN		261
 #define QMI_WLANFW_HOST_CAP_REQ_V01			0x0034
 #define QMI_WLANFW_HOST_CAP_RESP_MSG_V01_MAX_LEN	7
 #define QMI_WLFW_HOST_CAP_RESP_V01			0x0034
@@ -285,7 +285,7 @@ struct qmi_wlanfw_fw_cold_cal_done_ind_msg_v01 {
 };
 
 #define QMI_WLANFW_CAP_REQ_MSG_V01_MAX_LEN	0
-#define QMI_WLANFW_CAP_RESP_MSG_V01_MAX_LEN	207
+#define QMI_WLANFW_CAP_RESP_MSG_V01_MAX_LEN	235
 #define QMI_WLANFW_CAP_REQ_V01			0x0024
 #define QMI_WLANFW_CAP_RESP_V01			0x0024
 
@@ -366,6 +366,14 @@ struct qmi_wlanfw_cap_resp_msg_v01 {
 	char fw_build_id[ATH11K_QMI_WLANFW_MAX_BUILD_ID_LEN_V01 + 1];
 	u8 num_macs_valid;
 	u8 num_macs;
+	u8 voltage_mv_valid;
+	u32 voltage_mv;
+	u8 time_freq_hz_valid;
+	u32 time_freq_hz;
+	u8 otp_version_valid;
+	u32 otp_version;
+	u8 eeprom_read_timeout_valid;
+	u32 eeprom_read_timeout;
 };
 
 struct qmi_wlanfw_cap_req_msg_v01 {

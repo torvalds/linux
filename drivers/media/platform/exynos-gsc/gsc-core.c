@@ -1137,8 +1137,7 @@ static int gsc_probe(struct platform_device *pdev)
 	spin_lock_init(&gsc->slock);
 	mutex_init(&gsc->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gsc->regs = devm_ioremap_resource(dev, res);
+	gsc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gsc->regs))
 		return PTR_ERR(gsc->regs);
 

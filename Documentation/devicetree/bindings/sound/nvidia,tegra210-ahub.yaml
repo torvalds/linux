@@ -85,6 +85,26 @@ patternProperties:
     type: object
     $ref: nvidia,tegra186-dspk.yaml#
 
+  '^mvc@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-mvc.yaml#
+
+  '^sfc@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-sfc.yaml#
+
+  '^amx@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-amx.yaml#
+
+  '^adx@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-adx.yaml#
+
+  '^amixer@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-mixer.yaml#
+
 required:
   - compatible
   - reg

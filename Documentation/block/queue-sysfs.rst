@@ -4,7 +4,7 @@ Queue sysfs files
 
 This text file will detail the queue files that are located in the sysfs tree
 for each block device. Note that stacked devices typically do not export
-any settings, since their queue merely functions are a remapping target.
+any settings, since their queue merely functions as a remapping target.
 These files are the ones found in the /sys/block/xxx/queue/ directory.
 
 Files denoted with a RO postfix are readonly and the RW postfix means
@@ -40,10 +40,11 @@ discard_max_hw_bytes (RO)
 -------------------------
 Devices that support discard functionality may have internal limits on
 the number of bytes that can be trimmed or unmapped in a single operation.
-The discard_max_bytes parameter is set by the device driver to the maximum
-number of bytes that can be discarded in a single operation. Discard
-requests issued to the device must not exceed this limit. A discard_max_bytes
-value of 0 means that the device does not support discard functionality.
+The `discard_max_hw_bytes` parameter is set by the device driver to the
+maximum number of bytes that can be discarded in a single operation.
+Discard requests issued to the device must not exceed this limit.
+A `discard_max_hw_bytes` value of 0 means that the device does not support
+discard functionality.
 
 discard_max_bytes (RW)
 ----------------------
@@ -285,5 +286,36 @@ This indicates the alignment constraint, in bytes, for write operations in
 sequential zones of zoned block devices (devices with a zoned attributed
 that reports "host-managed" or "host-aware"). This value is always 0 for
 regular block devices.
+
+independent_access_ranges (RO)
+------------------------------
+
+The presence of this sub-directory of the /sys/block/xxx/queue/ directory
+indicates that the device is capable of executing requests targeting
+different sector ranges in parallel. For instance, single LUN multi-actuator
+hard-disks will have an independent_access_ranges directory if the device
+correctly advertizes the sector ranges of its actuators.
+
+The independent_access_ranges directory contains one directory per access
+range, with each range described using the sector (RO) attribute file to
+indicate the first sector of the range and the nr_sectors (RO) attribute file
+to indicate the total number of sectors in the range starting from the first
+sector of the range.  For example, a dual-actuator hard-disk will have the
+following independent_access_ranges entries.::
+
+        $ tree /sys/block/<device>/queue/independent_access_ranges/
+        /sys/block/<device>/queue/independent_access_ranges/
+        |-- 0
+        |   |-- nr_sectors
+        |   `-- sector
+        `-- 1
+            |-- nr_sectors
+            `-- sector
+
+The sector and nr_sectors attributes use 512B sector unit, regardless of
+the actual block size of the device. Independent access ranges do not
+overlap and include all sectors within the device capacity. The access
+ranges are numbered in increasing order of the range start sector,
+that is, the sector attribute of range 0 always has the value 0.
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009

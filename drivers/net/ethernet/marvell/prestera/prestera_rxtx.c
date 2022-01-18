@@ -794,14 +794,7 @@ void prestera_rxtx_switch_fini(struct prestera_switch *sw)
 
 int prestera_rxtx_port_init(struct prestera_port *port)
 {
-	int err;
-
-	err = prestera_hw_rxtx_port_init(port);
-	if (err)
-		return err;
-
 	port->dev->needed_headroom = PRESTERA_DSA_HLEN;
-
 	return 0;
 }
 

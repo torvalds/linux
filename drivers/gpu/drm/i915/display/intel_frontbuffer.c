@@ -62,6 +62,7 @@
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
+#include "intel_drrs.h"
 #include "intel_psr.h"
 
 /**
@@ -91,7 +92,7 @@ static void frontbuffer_flush(struct drm_i915_private *i915,
 	trace_intel_frontbuffer_flush(frontbuffer_bits, origin);
 
 	might_sleep();
-	intel_edp_drrs_flush(i915, frontbuffer_bits);
+	intel_drrs_flush(i915, frontbuffer_bits);
 	intel_psr_flush(i915, frontbuffer_bits, origin);
 	intel_fbc_flush(i915, frontbuffer_bits, origin);
 }
@@ -180,7 +181,7 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 
 	might_sleep();
 	intel_psr_invalidate(i915, frontbuffer_bits, origin);
-	intel_edp_drrs_invalidate(i915, frontbuffer_bits);
+	intel_drrs_invalidate(i915, frontbuffer_bits);
 	intel_fbc_invalidate(i915, frontbuffer_bits, origin);
 }
 

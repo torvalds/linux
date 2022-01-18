@@ -26,12 +26,12 @@ static struct qed_ooo_archipelago
 	u32 idx = (cid & 0xffff) - p_ooo_info->cid_base;
 	struct qed_ooo_archipelago *p_archipelago;
 
-	if (idx >= p_ooo_info->max_num_archipelagos)
+	if (unlikely(idx >= p_ooo_info->max_num_archipelagos))
 		return NULL;
 
 	p_archipelago = &p_ooo_info->p_archipelagos_mem[idx];
 
-	if (list_empty(&p_archipelago->isles_list))
+	if (unlikely(list_empty(&p_archipelago->isles_list)))
 		return NULL;
 
 	return p_archipelago;
@@ -46,7 +46,7 @@ static struct qed_ooo_isle *qed_ooo_seek_isle(struct qed_hwfn *p_hwfn,
 	u8 the_num_of_isle = 1;
 
 	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
-	if (!p_archipelago) {
+	if (unlikely(!p_archipelago)) {
 		DP_NOTICE(p_hwfn,
 			  "Connection %d is not found in OOO list\n", cid);
 		return NULL;
@@ -362,7 +362,7 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 	if (ooo_isle > 1) {
 		p_prev_isle = qed_ooo_seek_isle(p_hwfn,
 						p_ooo_info, cid, ooo_isle - 1);
-		if (!p_prev_isle) {
+		if (unlikely(!p_prev_isle)) {
 			DP_NOTICE(p_hwfn,
 				  "Isle %d is not found(cid %d)\n",
 				  ooo_isle - 1, cid);
@@ -370,7 +370,7 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 		}
 	}
 	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
-	if (!p_archipelago && (ooo_isle != 1)) {
+	if (unlikely(!p_archipelago && ooo_isle != 1)) {
 		DP_NOTICE(p_hwfn,
 			  "Connection %d is not found in OOO list\n", cid);
 		return;
@@ -381,7 +381,7 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 					  struct qed_ooo_isle, list_entry);
 
 		list_del(&p_isle->list_entry);
-		if (!list_empty(&p_isle->buffers_list)) {
+		if (unlikely(!list_empty(&p_isle->buffers_list))) {
 			DP_NOTICE(p_hwfn, "Free isle is not empty\n");
 			INIT_LIST_HEAD(&p_isle->buffers_list);
 		}
@@ -418,13 +418,13 @@ void qed_ooo_add_new_buffer(struct qed_hwfn *p_hwfn,
 	struct qed_ooo_isle *p_isle = NULL;
 
 	p_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid, ooo_isle);
-	if (!p_isle) {
+	if (unlikely(!p_isle)) {
 		DP_NOTICE(p_hwfn,
 			  "Isle %d is not found(cid %d)\n", ooo_isle, cid);
 		return;
 	}
 
-	if (buffer_side == QED_OOO_LEFT_BUF)
+	if (unlikely(buffer_side == QED_OOO_LEFT_BUF))
 		list_add(&p_buffer->list_entry, &p_isle->buffers_list);
 	else
 		list_add_tail(&p_buffer->list_entry, &p_isle->buffers_list);
@@ -438,7 +438,7 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 
 	p_right_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid,
 					 left_isle + 1);
-	if (!p_right_isle) {
+	if (unlikely(!p_right_isle)) {
 		DP_NOTICE(p_hwfn,
 			  "Right isle %d is not found(cid %d)\n",
 			  left_isle + 1, cid);
@@ -450,7 +450,7 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 	if (left_isle) {
 		p_left_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid,
 						left_isle);
-		if (!p_left_isle) {
+		if (unlikely(!p_left_isle)) {
 			DP_NOTICE(p_hwfn,
 				  "Left isle %d is not found(cid %d)\n",
 				  left_isle, cid);

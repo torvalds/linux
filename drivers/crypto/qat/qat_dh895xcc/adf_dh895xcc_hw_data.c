@@ -35,34 +35,6 @@ static u32 get_ae_mask(struct adf_hw_device_data *self)
 	return ~fuses & ADF_DH895XCC_ACCELENGINES_MASK;
 }
 
-static u32 get_num_accels(struct adf_hw_device_data *self)
-{
-	u32 i, ctr = 0;
-
-	if (!self || !self->accel_mask)
-		return 0;
-
-	for (i = 0; i < ADF_DH895XCC_MAX_ACCELERATORS; i++) {
-		if (self->accel_mask & (1 << i))
-			ctr++;
-	}
-	return ctr;
-}
-
-static u32 get_num_aes(struct adf_hw_device_data *self)
-{
-	u32 i, ctr = 0;
-
-	if (!self || !self->ae_mask)
-		return 0;
-
-	for (i = 0; i < ADF_DH895XCC_MAX_ACCELENGINES; i++) {
-		if (self->ae_mask & (1 << i))
-			ctr++;
-	}
-	return ctr;
-}
-
 static u32 get_misc_bar_id(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCC_PMISC_BAR;
@@ -126,41 +98,6 @@ static const u32 *adf_get_arbiter_mapping(void)
 	return thrd_to_arb_map;
 }
 
-static u32 get_pf2vf_offset(u32 i)
-{
-	return ADF_DH895XCC_PF2VF_OFFSET(i);
-}
-
-static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
-{
-	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_DH895XCC_PMISC_BAR];
-	unsigned long accel_mask = hw_device->accel_mask;
-	unsigned long ae_mask = hw_device->ae_mask;
-	void __iomem *csr = misc_bar->virt_addr;
-	unsigned int val, i;
-
-	/* Enable Accel Engine error detection & correction */
-	for_each_set_bit(i, &ae_mask, GET_MAX_ACCELENGINES(accel_dev)) {
-		val = ADF_CSR_RD(csr, ADF_DH895XCC_AE_CTX_ENABLES(i));
-		val |= ADF_DH895XCC_ENABLE_AE_ECC_ERR;
-		ADF_CSR_WR(csr, ADF_DH895XCC_AE_CTX_ENABLES(i), val);
-		val = ADF_CSR_RD(csr, ADF_DH895XCC_AE_MISC_CONTROL(i));
-		val |= ADF_DH895XCC_ENABLE_AE_ECC_PARITY_CORR;
-		ADF_CSR_WR(csr, ADF_DH895XCC_AE_MISC_CONTROL(i), val);
-	}
-
-	/* Enable shared memory error detection & correction */
-	for_each_set_bit(i, &accel_mask, ADF_DH895XCC_MAX_ACCELERATORS) {
-		val = ADF_CSR_RD(csr, ADF_DH895XCC_UERRSSMSH(i));
-		val |= ADF_DH895XCC_ERRSSMSH_EN;
-		ADF_CSR_WR(csr, ADF_DH895XCC_UERRSSMSH(i), val);
-		val = ADF_CSR_RD(csr, ADF_DH895XCC_CERRSSMSH(i));
-		val |= ADF_DH895XCC_ERRSSMSH_EN;
-		ADF_CSR_WR(csr, ADF_DH895XCC_CERRSSMSH(i), val);
-	}
-}
-
 static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 {
 	void __iomem *addr;
@@ -175,11 +112,50 @@ static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 		   ADF_DH895XCC_SMIA1_MASK);
 }
 
-static int adf_enable_pf2vf_comms(struct adf_accel_dev *accel_dev)
+static u32 get_vf2pf_sources(void __iomem *pmisc_bar)
 {
-	spin_lock_init(&accel_dev->pf.vf2pf_ints_lock);
+	u32 errsou5, errmsk5, vf_int_mask;
 
-	return 0;
+	vf_int_mask = adf_gen2_get_vf2pf_sources(pmisc_bar);
+
+	/* Get the interrupt sources triggered by VFs, but to avoid duplicates
+	 * in the work queue, clear vf_int_mask_sets bits that are already
+	 * masked in ERRMSK register.
+	 */
+	errsou5 = ADF_CSR_RD(pmisc_bar, ADF_GEN2_ERRSOU5);
+	errmsk5 = ADF_CSR_RD(pmisc_bar, ADF_GEN2_ERRMSK5);
+	vf_int_mask |= ADF_DH895XCC_ERR_REG_VF2PF_U(errsou5);
+	vf_int_mask &= ~ADF_DH895XCC_ERR_REG_VF2PF_U(errmsk5);
+
+	return vf_int_mask;
+}
+
+static void enable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
+{
+	/* Enable VF2PF Messaging Ints - VFs 0 through 15 per vf_mask[15:0] */
+	adf_gen2_enable_vf2pf_interrupts(pmisc_addr, vf_mask);
+
+	/* Enable VF2PF Messaging Ints - VFs 16 through 31 per vf_mask[31:16] */
+	if (vf_mask >> 16) {
+		u32 val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_ERRMSK5)
+			  & ~ADF_DH895XCC_ERR_MSK_VF2PF_U(vf_mask);
+
+		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK5, val);
+	}
+}
+
+static void disable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
+{
+	/* Disable VF2PF interrupts for VFs 0 through 15 per vf_mask[15:0] */
+	adf_gen2_disable_vf2pf_interrupts(pmisc_addr, vf_mask);
+
+	/* Disable VF2PF interrupts for VFs 16 through 31 per vf_mask[31:16] */
+	if (vf_mask >> 16) {
+		u32 val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_ERRMSK5)
+			  | ADF_DH895XCC_ERR_MSK_VF2PF_U(vf_mask);
+
+		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK5, val);
+	}
 }
 
 static void configure_iov_threads(struct adf_accel_dev *accel_dev, bool enable)
@@ -198,16 +174,16 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->num_accel = ADF_DH895XCC_MAX_ACCELERATORS;
 	hw_data->num_logical_accel = 1;
 	hw_data->num_engines = ADF_DH895XCC_MAX_ACCELENGINES;
-	hw_data->tx_rx_gap = ADF_DH895XCC_RX_RINGS_OFFSET;
-	hw_data->tx_rings_mask = ADF_DH895XCC_TX_RINGS_MASK;
+	hw_data->tx_rx_gap = ADF_GEN2_RX_RINGS_OFFSET;
+	hw_data->tx_rings_mask = ADF_GEN2_TX_RINGS_MASK;
 	hw_data->alloc_irq = adf_isr_resource_alloc;
 	hw_data->free_irq = adf_isr_resource_free;
-	hw_data->enable_error_correction = adf_enable_error_correction;
+	hw_data->enable_error_correction = adf_gen2_enable_error_correction;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
 	hw_data->get_accel_cap = get_accel_cap;
-	hw_data->get_num_accels = get_num_accels;
-	hw_data->get_num_aes = get_num_aes;
+	hw_data->get_num_accels = adf_gen2_get_num_accels;
+	hw_data->get_num_aes = adf_gen2_get_num_aes;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
 	hw_data->get_admin_info = adf_gen2_get_admin_info;
@@ -225,7 +201,10 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
 	hw_data->enable_ints = adf_enable_ints;
 	hw_data->reset_device = adf_reset_sbr;
-	hw_data->get_pf2vf_offset = get_pf2vf_offset;
+	hw_data->get_pf2vf_offset = adf_gen2_get_pf2vf_offset;
+	hw_data->get_vf2pf_sources = get_vf2pf_sources;
+	hw_data->enable_vf2pf_interrupts = enable_vf2pf_interrupts;
+	hw_data->disable_vf2pf_interrupts = disable_vf2pf_interrupts;
 	hw_data->enable_pfvf_comms = adf_enable_pf2vf_comms;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPAT_THIS_VERSION;

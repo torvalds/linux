@@ -39,6 +39,25 @@ config CRYPTO_DEV_KEEMBAY_OCS_AES_SM4_CTS
 
 	  Intel does not recommend use of CTS mode with AES/SM4.
 
+config CRYPTO_DEV_KEEMBAY_OCS_ECC
+	tristate "Support for Intel Keem Bay OCS ECC HW acceleration"
+	depends on ARCH_KEEMBAY || COMPILE_TEST
+	depends on OF || COMPILE_TEST
+	depends on HAS_IOMEM
+	select CRYPTO_ECDH
+	select CRYPTO_ENGINE
+	help
+	  Support for Intel Keem Bay Offload and Crypto Subsystem (OCS)
+	  Elliptic Curve Cryptography (ECC) hardware acceleration for use with
+	  Crypto API.
+
+	  Provides OCS acceleration for ECDH-256 and ECDH-384.
+
+	  Say Y or M if you are compiling for the Intel Keem Bay SoC. The
+	  module will be called keembay-ocs-ecc.
+
+	  If unsure, say N.
+
 config CRYPTO_DEV_KEEMBAY_OCS_HCU
 	tristate "Support for Intel Keem Bay OCS HCU HW acceleration"
 	select CRYPTO_HASH

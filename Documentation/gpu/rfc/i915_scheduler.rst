@@ -135,8 +135,8 @@ Add I915_CONTEXT_ENGINES_EXT_PARALLEL_SUBMIT and
 drm_i915_context_engines_parallel_submit to the uAPI to implement this
 extension.
 
-.. kernel-doc:: Documentation/gpu/rfc/i915_parallel_execbuf.h
-        :functions: drm_i915_context_engines_parallel_submit
+.. kernel-doc:: include/uapi/drm/i915_drm.h
+        :functions: i915_context_engines_parallel_submit
 
 Extend execbuf2 IOCTL to support submitting N BBs in a single IOCTL
 -------------------------------------------------------------------

@@ -9,6 +9,8 @@
 #include "sf/sf.h"
 #include "sf/mlx5_ifc_vhca_event.h"
 #include "ecpf.h"
+#define CREATE_TRACE_POINTS
+#include "diag/dev_tracepoint.h"
 
 struct mlx5_sf_dev_table {
 	struct xarray devices;
@@ -66,13 +68,18 @@ static void mlx5_sf_dev_release(struct device *device)
 	kfree(sf_dev);
 }
 
-static void mlx5_sf_dev_remove(struct mlx5_sf_dev *sf_dev)
+static void mlx5_sf_dev_remove(struct mlx5_core_dev *dev, struct mlx5_sf_dev *sf_dev)
 {
+	int id;
+
+	id = sf_dev->adev.id;
+	trace_mlx5_sf_dev_del(dev, sf_dev, id);
+
 	auxiliary_device_delete(&sf_dev->adev);
 	auxiliary_device_uninit(&sf_dev->adev);
 }
 
-static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u32 sfnum)
+static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u16 fn_id, u32 sfnum)
 {
 	struct mlx5_sf_dev_table *table = dev->priv.sf_dev_table;
 	struct mlx5_sf_dev *sf_dev;
@@ -100,6 +107,7 @@ static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u32 sfnum)
 	sf_dev->adev.dev.groups = sf_attr_groups;
 	sf_dev->sfnum = sfnum;
 	sf_dev->parent_mdev = dev;
+	sf_dev->fn_id = fn_id;
 
 	if (!table->max_sfs) {
 		mlx5_adev_idx_free(id);
@@ -108,6 +116,8 @@ static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u32 sfnum)
 		goto add_err;
 	}
 	sf_dev->bar_base_addr = table->base_address + (sf_index * table->sf_bar_length);
+
+	trace_mlx5_sf_dev_add(dev, sf_dev, id);
 
 	err = auxiliary_device_init(&sf_dev->adev);
 	if (err) {
@@ -128,7 +138,7 @@ static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u32 sfnum)
 	return;
 
 xa_err:
-	mlx5_sf_dev_remove(sf_dev);
+	mlx5_sf_dev_remove(dev, sf_dev);
 add_err:
 	mlx5_core_err(dev, "SF DEV: fail device add for index=%d sfnum=%d err=%d\n",
 		      sf_index, sfnum, err);
@@ -139,7 +149,7 @@ static void mlx5_sf_dev_del(struct mlx5_core_dev *dev, struct mlx5_sf_dev *sf_de
 	struct mlx5_sf_dev_table *table = dev->priv.sf_dev_table;
 
 	xa_erase(&table->devices, sf_index);
-	mlx5_sf_dev_remove(sf_dev);
+	mlx5_sf_dev_remove(dev, sf_dev);
 }
 
 static int
@@ -178,7 +188,8 @@ mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_
 		break;
 	case MLX5_VHCA_STATE_ACTIVE:
 		if (!sf_dev)
-			mlx5_sf_dev_add(table->dev, sf_index, event->sw_function_id);
+			mlx5_sf_dev_add(table->dev, sf_index, event->function_id,
+					event->sw_function_id);
 		break;
 	default:
 		break;
@@ -260,7 +271,7 @@ static void mlx5_sf_dev_destroy_all(struct mlx5_sf_dev_table *table)
 
 	xa_for_each(&table->devices, index, sf_dev) {
 		xa_erase(&table->devices, index);
-		mlx5_sf_dev_remove(sf_dev);
+		mlx5_sf_dev_remove(table->dev, sf_dev);
 	}
 }
 

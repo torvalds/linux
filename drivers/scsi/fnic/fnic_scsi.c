@@ -420,8 +420,9 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
  * Routine to send a scsi cdb
  * Called with host_lock held and interrupts disabled.
  */
-static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
+static int fnic_queuecommand_lck(struct scsi_cmnd *sc)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	const int tag = scsi_cmd_to_rq(sc)->tag;
 	struct fc_lport *lp = shost_priv(sc->device->host);
 	struct fc_rport *rport;
@@ -560,7 +561,6 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	CMD_STATE(sc) = FNIC_IOREQ_CMD_PENDING;
 	CMD_SP(sc) = (char *)io_req;
 	CMD_FLAGS(sc) |= FNIC_IO_INITIALIZED;
-	sc->scsi_done = done;
 
 	/* create copy wq desc and enqueue it */
 	wq = &fnic->wq_copy[0];
@@ -1051,8 +1051,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 	}
 
 	/* Call SCSI completion function to complete the IO */
-	if (sc->scsi_done)
-		sc->scsi_done(sc);
+	scsi_done(sc);
 }
 
 /* fnic_fcpio_itmf_cmpl_handler
@@ -1193,28 +1192,25 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 
 			fnic_release_ioreq_buf(fnic, io_req, sc);
 			mempool_free(io_req, fnic->io_req_pool);
-			if (sc->scsi_done) {
-				FNIC_TRACE(fnic_fcpio_itmf_cmpl_handler,
-					sc->device->host->host_no, id,
-					sc,
-					jiffies_to_msecs(jiffies - start_time),
-					desc,
-					(((u64)hdr_status << 40) |
-					(u64)sc->cmnd[0] << 32 |
-					(u64)sc->cmnd[2] << 24 |
-					(u64)sc->cmnd[3] << 16 |
-					(u64)sc->cmnd[4] << 8 | sc->cmnd[5]),
-					(((u64)CMD_FLAGS(sc) << 32) |
-					CMD_STATE(sc)));
-				sc->scsi_done(sc);
-				atomic64_dec(&fnic_stats->io_stats.active_ios);
-				if (atomic64_read(&fnic->io_cmpl_skip))
-					atomic64_dec(&fnic->io_cmpl_skip);
-				else
-					atomic64_inc(&fnic_stats->io_stats.io_completions);
-			}
+			FNIC_TRACE(fnic_fcpio_itmf_cmpl_handler,
+				   sc->device->host->host_no, id,
+				   sc,
+				   jiffies_to_msecs(jiffies - start_time),
+				   desc,
+				   (((u64)hdr_status << 40) |
+				    (u64)sc->cmnd[0] << 32 |
+				    (u64)sc->cmnd[2] << 24 |
+				    (u64)sc->cmnd[3] << 16 |
+				    (u64)sc->cmnd[4] << 8 | sc->cmnd[5]),
+				   (((u64)CMD_FLAGS(sc) << 32) |
+				    CMD_STATE(sc)));
+			scsi_done(sc);
+			atomic64_dec(&fnic_stats->io_stats.active_ios);
+			if (atomic64_read(&fnic->io_cmpl_skip))
+				atomic64_dec(&fnic->io_cmpl_skip);
+			else
+				atomic64_inc(&fnic_stats->io_stats.io_completions);
 		}
-
 	} else if (id & FNIC_TAG_DEV_RST) {
 		/* Completion of device reset */
 		CMD_LR_STATUS(sc) = hdr_status;
@@ -1421,23 +1417,22 @@ cleanup_scsi_cmd:
 		atomic64_inc(&fnic_stats->io_stats.io_completions);
 
 	/* Complete the command to SCSI */
-	if (sc->scsi_done) {
-		if (!(CMD_FLAGS(sc) & FNIC_IO_ISSUED))
-			shost_printk(KERN_ERR, fnic->lport->host,
-				     "Calling done for IO not issued to fw: tag:0x%x sc:0x%p\n",
-				     tag, sc);
+	if (!(CMD_FLAGS(sc) & FNIC_IO_ISSUED))
+		shost_printk(KERN_ERR, fnic->lport->host,
+			     "Calling done for IO not issued to fw: tag:0x%x sc:0x%p\n",
+			     tag, sc);
 
-		FNIC_TRACE(fnic_cleanup_io,
-			   sc->device->host->host_no, tag, sc,
-			   jiffies_to_msecs(jiffies - start_time),
-			   0, ((u64)sc->cmnd[0] << 32 |
-			       (u64)sc->cmnd[2] << 24 |
-			       (u64)sc->cmnd[3] << 16 |
-			       (u64)sc->cmnd[4] << 8 | sc->cmnd[5]),
-			   (((u64)CMD_FLAGS(sc) << 32) | CMD_STATE(sc)));
+	FNIC_TRACE(fnic_cleanup_io,
+		   sc->device->host->host_no, tag, sc,
+		   jiffies_to_msecs(jiffies - start_time),
+		   0, ((u64)sc->cmnd[0] << 32 |
+		       (u64)sc->cmnd[2] << 24 |
+		       (u64)sc->cmnd[3] << 16 |
+		       (u64)sc->cmnd[4] << 8 | sc->cmnd[5]),
+		   (((u64)CMD_FLAGS(sc) << 32) | CMD_STATE(sc)));
 
-		sc->scsi_done(sc);
-	}
+	scsi_done(sc);
+
 	return true;
 }
 
@@ -1495,17 +1490,15 @@ wq_copy_cleanup_scsi_cmd:
 	FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host, "wq_copy_cleanup_handler:"
 		      " DID_NO_CONNECT\n");
 
-	if (sc->scsi_done) {
-		FNIC_TRACE(fnic_wq_copy_cleanup_handler,
-			  sc->device->host->host_no, id, sc,
-			  jiffies_to_msecs(jiffies - start_time),
-			  0, ((u64)sc->cmnd[0] << 32 |
-			  (u64)sc->cmnd[2] << 24 | (u64)sc->cmnd[3] << 16 |
-			  (u64)sc->cmnd[4] << 8 | sc->cmnd[5]),
-			  (((u64)CMD_FLAGS(sc) << 32) | CMD_STATE(sc)));
+	FNIC_TRACE(fnic_wq_copy_cleanup_handler,
+		   sc->device->host->host_no, id, sc,
+		   jiffies_to_msecs(jiffies - start_time),
+		   0, ((u64)sc->cmnd[0] << 32 |
+		       (u64)sc->cmnd[2] << 24 | (u64)sc->cmnd[3] << 16 |
+		       (u64)sc->cmnd[4] << 8 | sc->cmnd[5]),
+		   (((u64)CMD_FLAGS(sc) << 32) | CMD_STATE(sc)));
 
-		sc->scsi_done(sc);
-	}
+	scsi_done(sc);
 }
 
 static inline int fnic_queue_abort_io_req(struct fnic *fnic, int tag,
@@ -1931,16 +1924,14 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	fnic_release_ioreq_buf(fnic, io_req, sc);
 	mempool_free(io_req, fnic->io_req_pool);
 
-	if (sc->scsi_done) {
 	/* Call SCSI completion function to complete the IO */
-		sc->result = (DID_ABORT << 16);
-		sc->scsi_done(sc);
-		atomic64_dec(&fnic_stats->io_stats.active_ios);
-		if (atomic64_read(&fnic->io_cmpl_skip))
-			atomic64_dec(&fnic->io_cmpl_skip);
-		else
-			atomic64_inc(&fnic_stats->io_stats.io_completions);
-	}
+	sc->result = DID_ABORT << 16;
+	scsi_done(sc);
+	atomic64_dec(&fnic_stats->io_stats.active_ios);
+	if (atomic64_read(&fnic->io_cmpl_skip))
+		atomic64_dec(&fnic->io_cmpl_skip);
+	else
+		atomic64_inc(&fnic_stats->io_stats.io_completions);
 
 fnic_abort_cmd_end:
 	FNIC_TRACE(fnic_abort_cmd, sc->device->host->host_no, tag, sc,
@@ -2153,11 +2144,10 @@ static bool fnic_pending_aborts_iter(struct scsi_cmnd *sc,
 	 * Any IO is returned during reset, it needs to call scsi_done
 	 * to return the scsi_cmnd to upper layer.
 	 */
-	if (sc->scsi_done) {
-		/* Set result to let upper SCSI layer retry */
-		sc->result = DID_RESET << 16;
-		sc->scsi_done(sc);
-	}
+	/* Set result to let upper SCSI layer retry */
+	sc->result = DID_RESET << 16;
+	scsi_done(sc);
+
 	return true;
 }
 

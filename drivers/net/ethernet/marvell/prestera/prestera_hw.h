@@ -20,6 +20,23 @@ enum prestera_fdb_flush_mode {
 };
 
 enum {
+	PRESTERA_MAC_MODE_INTERNAL,
+	PRESTERA_MAC_MODE_SGMII,
+	PRESTERA_MAC_MODE_1000BASE_X,
+	PRESTERA_MAC_MODE_KR,
+	PRESTERA_MAC_MODE_KR2,
+	PRESTERA_MAC_MODE_KR4,
+	PRESTERA_MAC_MODE_CR,
+	PRESTERA_MAC_MODE_CR2,
+	PRESTERA_MAC_MODE_CR4,
+	PRESTERA_MAC_MODE_SR_LR,
+	PRESTERA_MAC_MODE_SR_LR2,
+	PRESTERA_MAC_MODE_SR_LR4,
+
+	PRESTERA_MAC_MODE_MAX
+};
+
+enum {
 	PRESTERA_LINK_MODE_10baseT_Half,
 	PRESTERA_LINK_MODE_10baseT_Full,
 	PRESTERA_LINK_MODE_100baseT_Half,
@@ -116,32 +133,29 @@ int prestera_hw_switch_mac_set(struct prestera_switch *sw, const char *mac);
 /* Port API */
 int prestera_hw_port_info_get(const struct prestera_port *port,
 			      u32 *dev_id, u32 *hw_id, u16 *fp_id);
-int prestera_hw_port_state_set(const struct prestera_port *port,
-			       bool admin_state);
+
+int prestera_hw_port_mac_mode_get(const struct prestera_port *port,
+				  u32 *mode, u32 *speed, u8 *duplex, u8 *fec);
+int prestera_hw_port_mac_mode_set(const struct prestera_port *port,
+				  bool admin, u32 mode, u8 inband,
+				  u32 speed, u8 duplex, u8 fec);
+int prestera_hw_port_phy_mode_get(const struct prestera_port *port,
+				  u8 *mdix, u64 *lmode_bmap,
+				  bool *fc_pause, bool *fc_asym);
+int prestera_hw_port_phy_mode_set(const struct prestera_port *port,
+				  bool admin, bool adv, u32 mode, u64 modes,
+				  u8 mdix);
+
 int prestera_hw_port_mtu_set(const struct prestera_port *port, u32 mtu);
 int prestera_hw_port_mtu_get(const struct prestera_port *port, u32 *mtu);
 int prestera_hw_port_mac_set(const struct prestera_port *port, const char *mac);
 int prestera_hw_port_mac_get(const struct prestera_port *port, char *mac);
 int prestera_hw_port_cap_get(const struct prestera_port *port,
 			     struct prestera_port_caps *caps);
-int prestera_hw_port_remote_cap_get(const struct prestera_port *port,
-				    u64 *link_mode_bitmap);
-int prestera_hw_port_remote_fc_get(const struct prestera_port *port,
-				   bool *pause, bool *asym_pause);
 int prestera_hw_port_type_get(const struct prestera_port *port, u8 *type);
-int prestera_hw_port_fec_get(const struct prestera_port *port, u8 *fec);
-int prestera_hw_port_fec_set(const struct prestera_port *port, u8 fec);
-int prestera_hw_port_autoneg_set(const struct prestera_port *port,
-				 bool autoneg, u64 link_modes, u8 fec);
 int prestera_hw_port_autoneg_restart(struct prestera_port *port);
-int prestera_hw_port_duplex_get(const struct prestera_port *port, u8 *duplex);
 int prestera_hw_port_stats_get(const struct prestera_port *port,
 			       struct prestera_port_stats *stats);
-int prestera_hw_port_link_mode_set(const struct prestera_port *port, u32 mode);
-int prestera_hw_port_link_mode_get(const struct prestera_port *port, u32 *mode);
-int prestera_hw_port_mdix_get(const struct prestera_port *port, u8 *status,
-			      u8 *admin_mode);
-int prestera_hw_port_mdix_set(const struct prestera_port *port, u8 mode);
 int prestera_hw_port_speed_get(const struct prestera_port *port, u32 *speed);
 int prestera_hw_port_learning_set(struct prestera_port *port, bool enable);
 int prestera_hw_port_flood_set(struct prestera_port *port, unsigned long mask,
@@ -206,7 +220,6 @@ void prestera_hw_event_handler_unregister(struct prestera_switch *sw,
 /* RX/TX */
 int prestera_hw_rxtx_init(struct prestera_switch *sw,
 			  struct prestera_rxtx_params *params);
-int prestera_hw_rxtx_port_init(struct prestera_port *port);
 
 /* LAG API */
 int prestera_hw_lag_member_add(struct prestera_port *port, u16 lag_id);

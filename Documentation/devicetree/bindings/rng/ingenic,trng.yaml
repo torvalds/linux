@@ -32,7 +32,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/x1830-cgu.h>
+    #include <dt-bindings/clock/ingenic,x1830-cgu.h>
 
     dtrng: trng@10072000 {
         compatible = "ingenic,x1830-dtrng";

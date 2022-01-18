@@ -60,7 +60,7 @@ static int tipc_eth_addr2msg(char *msg, struct tipc_media_addr *addr)
 /* Convert raw mac address format to media addr format */
 static int tipc_eth_raw2addr(struct tipc_bearer *b,
 			     struct tipc_media_addr *addr,
-			     char *msg)
+			     const char *msg)
 {
 	memset(addr, 0, sizeof(*addr));
 	ether_addr_copy(addr->value, msg);

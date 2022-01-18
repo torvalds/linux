@@ -77,7 +77,34 @@ static int nsim_set_ringparam(struct net_device *dev,
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	memcpy(&ns->ethtool.ring, ring, sizeof(ns->ethtool.ring));
+	ns->ethtool.ring.rx_pending = ring->rx_pending;
+	ns->ethtool.ring.rx_jumbo_pending = ring->rx_jumbo_pending;
+	ns->ethtool.ring.rx_mini_pending = ring->rx_mini_pending;
+	ns->ethtool.ring.tx_pending = ring->tx_pending;
+	return 0;
+}
+
+static void
+nsim_get_channels(struct net_device *dev, struct ethtool_channels *ch)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+
+	ch->max_combined = ns->nsim_bus_dev->num_queues;
+	ch->combined_count = ns->ethtool.channels;
+}
+
+static int
+nsim_set_channels(struct net_device *dev, struct ethtool_channels *ch)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+	int err;
+
+	err = netif_set_real_num_queues(dev, ch->combined_count,
+					ch->combined_count);
+	if (err)
+		return err;
+
+	ns->ethtool.channels = ch->combined_count;
 	return 0;
 }
 
@@ -118,6 +145,8 @@ static const struct ethtool_ops nsim_ethtool_ops = {
 	.get_coalesce			= nsim_get_coalesce,
 	.get_ringparam			= nsim_get_ringparam,
 	.set_ringparam			= nsim_set_ringparam,
+	.get_channels			= nsim_get_channels,
+	.set_channels			= nsim_set_channels,
 	.get_fecparam			= nsim_get_fecparam,
 	.set_fecparam			= nsim_set_fecparam,
 };
@@ -140,6 +169,8 @@ void nsim_ethtool_init(struct netdevsim *ns)
 
 	ns->ethtool.fec.fec = ETHTOOL_FEC_NONE;
 	ns->ethtool.fec.active_fec = ETHTOOL_FEC_NONE;
+
+	ns->ethtool.channels = ns->nsim_bus_dev->num_queues;
 
 	ethtool = debugfs_create_dir("ethtool", ns->nsim_dev_port->ddir);
 

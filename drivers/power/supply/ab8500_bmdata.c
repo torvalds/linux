@@ -497,8 +497,7 @@ int ab8500_bm_of_probe(struct device *dev,
 	const char *btech;
 	int i;
 
-	/* get phandle to 'battery-info' node */
-	battery_node = of_parse_phandle(np, "battery", 0);
+	battery_node = of_parse_phandle(np, "monitored-battery", 0);
 	if (!battery_node) {
 		dev_err(dev, "battery node or reference missing\n");
 		return -EINVAL;

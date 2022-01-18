@@ -422,7 +422,7 @@ static int br_mdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	cb->seq = net->dev_base_seq;
 
 	for_each_netdev_rcu(net, dev) {
-		if (dev->priv_flags & IFF_EBRIDGE) {
+		if (netif_is_bridge_master(dev)) {
 			struct net_bridge *br = netdev_priv(dev);
 			struct br_port_msg *bpm;
 
@@ -552,252 +552,16 @@ out:
 	return nlmsg_size;
 }
 
-struct br_mdb_complete_info {
-	struct net_bridge_port *port;
-	struct br_ip ip;
-};
-
-static void br_mdb_complete(struct net_device *dev, int err, void *priv)
-{
-	struct br_mdb_complete_info *data = priv;
-	struct net_bridge_port_group __rcu **pp;
-	struct net_bridge_port_group *p;
-	struct net_bridge_mdb_entry *mp;
-	struct net_bridge_port *port = data->port;
-	struct net_bridge *br = port->br;
-
-	if (err)
-		goto err;
-
-	spin_lock_bh(&br->multicast_lock);
-	mp = br_mdb_ip_get(br, &data->ip);
-	if (!mp)
-		goto out;
-	for (pp = &mp->ports; (p = mlock_dereference(*pp, br)) != NULL;
-	     pp = &p->next) {
-		if (p->key.port != port)
-			continue;
-		p->flags |= MDB_PG_FLAGS_OFFLOAD;
-	}
-out:
-	spin_unlock_bh(&br->multicast_lock);
-err:
-	kfree(priv);
-}
-
-static void br_switchdev_mdb_populate(struct switchdev_obj_port_mdb *mdb,
-				      const struct net_bridge_mdb_entry *mp)
-{
-	if (mp->addr.proto == htons(ETH_P_IP))
-		ip_eth_mc_map(mp->addr.dst.ip4, mdb->addr);
-#if IS_ENABLED(CONFIG_IPV6)
-	else if (mp->addr.proto == htons(ETH_P_IPV6))
-		ipv6_eth_mc_map(&mp->addr.dst.ip6, mdb->addr);
-#endif
-	else
-		ether_addr_copy(mdb->addr, mp->addr.dst.mac_addr);
-
-	mdb->vid = mp->addr.vid;
-}
-
-static int br_mdb_replay_one(struct notifier_block *nb, struct net_device *dev,
-			     const struct switchdev_obj_port_mdb *mdb,
-			     unsigned long action, const void *ctx,
-			     struct netlink_ext_ack *extack)
-{
-	struct switchdev_notifier_port_obj_info obj_info = {
-		.info = {
-			.dev = dev,
-			.extack = extack,
-			.ctx = ctx,
-		},
-		.obj = &mdb->obj,
-	};
-	int err;
-
-	err = nb->notifier_call(nb, action, &obj_info);
-	return notifier_to_errno(err);
-}
-
-static int br_mdb_queue_one(struct list_head *mdb_list,
-			    enum switchdev_obj_id id,
-			    const struct net_bridge_mdb_entry *mp,
-			    struct net_device *orig_dev)
-{
-	struct switchdev_obj_port_mdb *mdb;
-
-	mdb = kzalloc(sizeof(*mdb), GFP_ATOMIC);
-	if (!mdb)
-		return -ENOMEM;
-
-	mdb->obj.id = id;
-	mdb->obj.orig_dev = orig_dev;
-	br_switchdev_mdb_populate(mdb, mp);
-	list_add_tail(&mdb->obj.list, mdb_list);
-
-	return 0;
-}
-
-int br_mdb_replay(struct net_device *br_dev, struct net_device *dev,
-		  const void *ctx, bool adding, struct notifier_block *nb,
-		  struct netlink_ext_ack *extack)
-{
-	const struct net_bridge_mdb_entry *mp;
-	struct switchdev_obj *obj, *tmp;
-	struct net_bridge *br;
-	unsigned long action;
-	LIST_HEAD(mdb_list);
-	int err = 0;
-
-	ASSERT_RTNL();
-
-	if (!nb)
-		return 0;
-
-	if (!netif_is_bridge_master(br_dev) || !netif_is_bridge_port(dev))
-		return -EINVAL;
-
-	br = netdev_priv(br_dev);
-
-	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
-		return 0;
-
-	/* We cannot walk over br->mdb_list protected just by the rtnl_mutex,
-	 * because the write-side protection is br->multicast_lock. But we
-	 * need to emulate the [ blocking ] calling context of a regular
-	 * switchdev event, so since both br->multicast_lock and RCU read side
-	 * critical sections are atomic, we have no choice but to pick the RCU
-	 * read side lock, queue up all our events, leave the critical section
-	 * and notify switchdev from blocking context.
-	 */
-	rcu_read_lock();
-
-	hlist_for_each_entry_rcu(mp, &br->mdb_list, mdb_node) {
-		struct net_bridge_port_group __rcu * const *pp;
-		const struct net_bridge_port_group *p;
-
-		if (mp->host_joined) {
-			err = br_mdb_queue_one(&mdb_list,
-					       SWITCHDEV_OBJ_ID_HOST_MDB,
-					       mp, br_dev);
-			if (err) {
-				rcu_read_unlock();
-				goto out_free_mdb;
-			}
-		}
-
-		for (pp = &mp->ports; (p = rcu_dereference(*pp)) != NULL;
-		     pp = &p->next) {
-			if (p->key.port->dev != dev)
-				continue;
-
-			err = br_mdb_queue_one(&mdb_list,
-					       SWITCHDEV_OBJ_ID_PORT_MDB,
-					       mp, dev);
-			if (err) {
-				rcu_read_unlock();
-				goto out_free_mdb;
-			}
-		}
-	}
-
-	rcu_read_unlock();
-
-	if (adding)
-		action = SWITCHDEV_PORT_OBJ_ADD;
-	else
-		action = SWITCHDEV_PORT_OBJ_DEL;
-
-	list_for_each_entry(obj, &mdb_list, list) {
-		err = br_mdb_replay_one(nb, dev, SWITCHDEV_OBJ_PORT_MDB(obj),
-					action, ctx, extack);
-		if (err)
-			goto out_free_mdb;
-	}
-
-out_free_mdb:
-	list_for_each_entry_safe(obj, tmp, &mdb_list, list) {
-		list_del(&obj->list);
-		kfree(SWITCHDEV_OBJ_PORT_MDB(obj));
-	}
-
-	return err;
-}
-
-static void br_mdb_switchdev_host_port(struct net_device *dev,
-				       struct net_device *lower_dev,
-				       struct net_bridge_mdb_entry *mp,
-				       int type)
-{
-	struct switchdev_obj_port_mdb mdb = {
-		.obj = {
-			.id = SWITCHDEV_OBJ_ID_HOST_MDB,
-			.flags = SWITCHDEV_F_DEFER,
-			.orig_dev = dev,
-		},
-	};
-
-	br_switchdev_mdb_populate(&mdb, mp);
-
-	switch (type) {
-	case RTM_NEWMDB:
-		switchdev_port_obj_add(lower_dev, &mdb.obj, NULL);
-		break;
-	case RTM_DELMDB:
-		switchdev_port_obj_del(lower_dev, &mdb.obj);
-		break;
-	}
-}
-
-static void br_mdb_switchdev_host(struct net_device *dev,
-				  struct net_bridge_mdb_entry *mp, int type)
-{
-	struct net_device *lower_dev;
-	struct list_head *iter;
-
-	netdev_for_each_lower_dev(dev, lower_dev, iter)
-		br_mdb_switchdev_host_port(dev, lower_dev, mp, type);
-}
-
 void br_mdb_notify(struct net_device *dev,
 		   struct net_bridge_mdb_entry *mp,
 		   struct net_bridge_port_group *pg,
 		   int type)
 {
-	struct br_mdb_complete_info *complete_info;
-	struct switchdev_obj_port_mdb mdb = {
-		.obj = {
-			.id = SWITCHDEV_OBJ_ID_PORT_MDB,
-			.flags = SWITCHDEV_F_DEFER,
-		},
-	};
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	if (pg) {
-		br_switchdev_mdb_populate(&mdb, mp);
-
-		mdb.obj.orig_dev = pg->key.port->dev;
-		switch (type) {
-		case RTM_NEWMDB:
-			complete_info = kmalloc(sizeof(*complete_info), GFP_ATOMIC);
-			if (!complete_info)
-				break;
-			complete_info->port = pg->key.port;
-			complete_info->ip = mp->addr;
-			mdb.obj.complete_priv = complete_info;
-			mdb.obj.complete = br_mdb_complete;
-			if (switchdev_port_obj_add(pg->key.port->dev, &mdb.obj, NULL))
-				kfree(complete_info);
-			break;
-		case RTM_DELMDB:
-			switchdev_port_obj_del(pg->key.port->dev, &mdb.obj);
-			break;
-		}
-	} else {
-		br_mdb_switchdev_host(dev, mp, type);
-	}
+	br_switchdev_mdb_notify(dev, mp, pg, type);
 
 	skb = nlmsg_new(rtnl_mdb_nlmsg_size(pg), GFP_ATOMIC);
 	if (!skb)
@@ -1016,7 +780,7 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENODEV;
 	}
 
-	if (!(dev->priv_flags & IFF_EBRIDGE)) {
+	if (!netif_is_bridge_master(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Device is not a bridge");
 		return -EOPNOTSUPP;
 	}

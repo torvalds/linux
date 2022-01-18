@@ -5,6 +5,7 @@
  */
 
 #include <linux/dma-map-ops.h>
+#include <linux/vmalloc.h>
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
@@ -85,7 +86,7 @@ static struct page **get_pages_vram(struct drm_gem_object *obj, int npages)
 
 	paddr = physaddr(obj);
 	for (i = 0; i < npages; i++) {
-		p[i] = phys_to_page(paddr);
+		p[i] = pfn_to_page(__phys_to_pfn(paddr));
 		paddr += PAGE_SIZE;
 	}
 
@@ -1055,8 +1056,7 @@ static int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_flags |= VM_MIXEDMAP | VM_DONTEXPAND;
+	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_page_prot = msm_gem_pgprot(msm_obj, vm_get_page_prot(vma->vm_flags));
 
 	return 0;
@@ -1120,7 +1120,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 			break;
 		fallthrough;
 	default:
-		DRM_DEV_ERROR(dev->dev, "invalid cache flag: %x\n",
+		DRM_DEV_DEBUG(dev->dev, "invalid cache flag: %x\n",
 				(flags & MSM_BO_CACHE_MASK));
 		return -EINVAL;
 	}
@@ -1132,6 +1132,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	msm_obj->flags = flags;
 	msm_obj->madv = MSM_MADV_WILLNEED;
 
+	INIT_LIST_HEAD(&msm_obj->node);
 	INIT_LIST_HEAD(&msm_obj->vmas);
 
 	*obj = &msm_obj->base;
@@ -1166,7 +1167,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev, uint32_t size, uint32
 
 	ret = msm_gem_new_impl(dev, size, flags, &obj);
 	if (ret)
-		goto fail;
+		return ERR_PTR(ret);
 
 	msm_obj = to_msm_bo(obj);
 
@@ -1250,7 +1251,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 
 	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, &obj);
 	if (ret)
-		goto fail;
+		return ERR_PTR(ret);
 
 	drm_gem_private_object_init(dev, obj, size);
 

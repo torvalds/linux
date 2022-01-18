@@ -905,6 +905,16 @@ static const struct ts_dmi_data trekstor_primetab_t13b_data = {
 	.properties = trekstor_primetab_t13b_props,
 };
 
+static const struct property_entry trekstor_surftab_duo_w1_props[] = {
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	{ }
+};
+
+static const struct ts_dmi_data trekstor_surftab_duo_w1_data = {
+	.acpi_name	= "GDIX1001:00",
+	.properties	= trekstor_surftab_duo_w1_props,
+};
+
 static const struct property_entry trekstor_surftab_twin_10_1_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 20),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 0),
@@ -936,6 +946,23 @@ static const struct property_entry trekstor_surftab_wintron70_props[] = {
 static const struct ts_dmi_data trekstor_surftab_wintron70_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= trekstor_surftab_wintron70_props,
+};
+
+static const struct property_entry viglen_connect_10_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1890),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_U32("touchscreen-fuzz-x", 6),
+	PROPERTY_ENTRY_U32("touchscreen-fuzz-y", 6),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3680-viglen-connect-10.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data viglen_connect_10_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= viglen_connect_10_props,
 };
 
 static const struct property_entry vinga_twizzle_j116_props[] = {
@@ -1486,6 +1513,14 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* TrekStor SurfTab duo W1 10.1 ST10432-10b */
+		.driver_data = (void *)&trekstor_surftab_duo_w1_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TrekStor"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SurfTab duo W1 10.1 (VT4)"),
+		},
+	},
+	{
 		/* TrekStor SurfTab twin 10.1 ST10432-8 */
 		.driver_data = (void *)&trekstor_surftab_twin_10_1_data,
 		.matches = {
@@ -1519,6 +1554,14 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "YOURBOOK C11B"),
+		},
+	},
+	{
+		/* Viglen Connect 10 */
+		.driver_data = (void *)&viglen_connect_10_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Viglen Ltd."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Connect 10'' Tablet PC"),
 		},
 	},
 	{

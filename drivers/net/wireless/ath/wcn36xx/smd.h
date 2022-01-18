@@ -70,6 +70,7 @@ int wcn36xx_smd_update_scan_params(struct wcn36xx *wcn, u8 *channels, size_t cha
 int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 			      struct cfg80211_scan_request *req);
 int wcn36xx_smd_stop_hw_scan(struct wcn36xx *wcn);
+int wcn36xx_smd_update_channel_list(struct wcn36xx *wcn, struct cfg80211_scan_request *req);
 int wcn36xx_smd_add_sta_self(struct wcn36xx *wcn, struct ieee80211_vif *vif);
 int wcn36xx_smd_delete_sta_self(struct wcn36xx *wcn, u8 *addr);
 int wcn36xx_smd_delete_sta(struct wcn36xx *wcn, u8 sta_index);
@@ -162,5 +163,8 @@ int wcn36xx_smd_gtk_offload_get_info(struct wcn36xx *wcn,
 int wcn36xx_smd_wlan_host_suspend_ind(struct wcn36xx *wcn);
 
 int wcn36xx_smd_host_resume(struct wcn36xx *wcn);
+
+int wcn36xx_smd_enter_imps(struct wcn36xx *wcn);
+int wcn36xx_smd_exit_imps(struct wcn36xx *wcn);
 
 #endif	/* _SMD_H_ */

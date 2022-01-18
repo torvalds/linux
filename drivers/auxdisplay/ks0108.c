@@ -15,10 +15,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/fs.h>
-#include <linux/io.h>
 #include <linux/parport.h>
-#include <linux/uaccess.h>
 #include <linux/ks0108.h>
 
 #define KS0108_NAME "ks0108"

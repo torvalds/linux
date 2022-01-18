@@ -116,17 +116,20 @@ gre_gst_test_checks()
 {
 	local name=$1
 	local addr=$2
+	local proto=$3
 
-	$NS_EXEC nc -kl $port >/dev/null &
+	[ "$proto" == 6 ] && addr="[$addr]"
+
+	$NS_EXEC socat - tcp${proto}-listen:$port,reuseaddr,fork >/dev/null &
 	PID=$!
 	while ! $NS_EXEC ss -ltn | grep -q $port; do ((i++)); sleep 0.01; done
 
-	cat $TMPFILE | timeout 1 nc $addr $port
+	cat $TMPFILE | timeout 1 socat -u STDIN TCP:$addr:$port
 	log_test $? 0 "$name - copy file w/ TSO"
 
 	ethtool -K veth0 tso off
 
-	cat $TMPFILE | timeout 1 nc $addr $port
+	cat $TMPFILE | timeout 1 socat -u STDIN TCP:$addr:$port
 	log_test $? 0 "$name - copy file w/ GSO"
 
 	ethtool -K veth0 tso on
@@ -154,8 +157,8 @@ gre6_gso_test()
 
 	sleep 2
 
-	gre_gst_test_checks GREv6/v4 172.16.2.2
-	gre_gst_test_checks GREv6/v6 2001:db8:1::2
+	gre_gst_test_checks GREv6/v4 172.16.2.2 4
+	gre_gst_test_checks GREv6/v6 2001:db8:1::2 6
 
 	cleanup
 }
@@ -211,8 +214,8 @@ if [ ! -x "$(command -v ip)" ]; then
 	exit $ksft_skip
 fi
 
-if [ ! -x "$(command -v nc)" ]; then
-	echo "SKIP: Could not run test without nc tool"
+if [ ! -x "$(command -v socat)" ]; then
+	echo "SKIP: Could not run test without socat tool"
 	exit $ksft_skip
 fi
 

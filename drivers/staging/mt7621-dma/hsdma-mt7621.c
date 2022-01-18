@@ -162,8 +162,7 @@ struct mtk_hsdam_engine {
 	struct mtk_hsdma_chan chan[1];
 };
 
-static inline struct mtk_hsdam_engine *mtk_hsdma_chan_get_dev(
-		struct mtk_hsdma_chan *chan)
+static inline struct mtk_hsdam_engine *mtk_hsdma_chan_get_dev(struct mtk_hsdma_chan *chan)
 {
 	return container_of(chan->vchan.chan.device, struct mtk_hsdam_engine,
 			ddev);
@@ -174,8 +173,7 @@ static inline struct mtk_hsdma_chan *to_mtk_hsdma_chan(struct dma_chan *c)
 	return container_of(c, struct mtk_hsdma_chan, vchan.chan);
 }
 
-static inline struct mtk_hsdma_desc *to_mtk_hsdma_desc(
-		struct virt_dma_desc *vdesc)
+static inline struct mtk_hsdma_desc *to_mtk_hsdma_desc(struct virt_dma_desc *vdesc)
 {
 	return container_of(vdesc, struct mtk_hsdma_desc, vdesc);
 }

@@ -3817,7 +3817,7 @@ static int sky2_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 	memcpy_toio(hw->regs + B2_MAC_1 + port * 8,
 		    dev->dev_addr, ETH_ALEN);
 	memcpy_toio(hw->regs + B2_MAC_2 + port * 8,
@@ -4440,86 +4440,6 @@ static const struct ethtool_ops sky2_ethtool_ops = {
 
 static struct dentry *sky2_debug;
 
-
-/*
- * Read and parse the first part of Vital Product Data
- */
-#define VPD_SIZE	128
-#define VPD_MAGIC	0x82
-
-static const struct vpd_tag {
-	char tag[2];
-	char *label;
-} vpd_tags[] = {
-	{ "PN",	"Part Number" },
-	{ "EC", "Engineering Level" },
-	{ "MN", "Manufacturer" },
-	{ "SN", "Serial Number" },
-	{ "YA", "Asset Tag" },
-	{ "VL", "First Error Log Message" },
-	{ "VF", "Second Error Log Message" },
-	{ "VB", "Boot Agent ROM Configuration" },
-	{ "VE", "EFI UNDI Configuration" },
-};
-
-static void sky2_show_vpd(struct seq_file *seq, struct sky2_hw *hw)
-{
-	size_t vpd_size;
-	loff_t offs;
-	u8 len;
-	unsigned char *buf;
-	u16 reg2;
-
-	reg2 = sky2_pci_read16(hw, PCI_DEV_REG2);
-	vpd_size = 1 << ( ((reg2 & PCI_VPD_ROM_SZ) >> 14) + 8);
-
-	seq_printf(seq, "%s Product Data\n", pci_name(hw->pdev));
-	buf = kmalloc(vpd_size, GFP_KERNEL);
-	if (!buf) {
-		seq_puts(seq, "no memory!\n");
-		return;
-	}
-
-	if (pci_read_vpd(hw->pdev, 0, vpd_size, buf) < 0) {
-		seq_puts(seq, "VPD read failed\n");
-		goto out;
-	}
-
-	if (buf[0] != VPD_MAGIC) {
-		seq_printf(seq, "VPD tag mismatch: %#x\n", buf[0]);
-		goto out;
-	}
-	len = buf[1];
-	if (len == 0 || len > vpd_size - 4) {
-		seq_printf(seq, "Invalid id length: %d\n", len);
-		goto out;
-	}
-
-	seq_printf(seq, "%.*s\n", len, buf + 3);
-	offs = len + 3;
-
-	while (offs < vpd_size - 4) {
-		int i;
-
-		if (!memcmp("RW", buf + offs, 2))	/* end marker */
-			break;
-		len = buf[offs + 2];
-		if (offs + len + 3 >= vpd_size)
-			break;
-
-		for (i = 0; i < ARRAY_SIZE(vpd_tags); i++) {
-			if (!memcmp(vpd_tags[i].tag, buf + offs, 2)) {
-				seq_printf(seq, " %s: %.*s\n",
-					   vpd_tags[i].label, len, buf + offs + 3);
-				break;
-			}
-		}
-		offs += len + 3;
-	}
-out:
-	kfree(buf);
-}
-
 static int sky2_debug_show(struct seq_file *seq, void *v)
 {
 	struct net_device *dev = seq->private;
@@ -4529,9 +4449,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 	unsigned idx, last;
 	int sop;
 
-	sky2_show_vpd(seq, hw);
-
-	seq_printf(seq, "\nIRQ src=%x mask=%x control=%x\n",
+	seq_printf(seq, "IRQ src=%x mask=%x control=%x\n",
 		   sky2_read32(hw, B0_ISRC),
 		   sky2_read32(hw, B0_IMSK),
 		   sky2_read32(hw, B0_Y2_SP_ICR));
@@ -4802,10 +4720,13 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	 * 1) from device tree data
 	 * 2) from internal registers set by bootloader
 	 */
-	ret = of_get_mac_address(hw->pdev->dev.of_node, dev->dev_addr);
-	if (ret)
-		memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port * 8,
-			      ETH_ALEN);
+	ret = of_get_ethdev_address(hw->pdev->dev.of_node, dev);
+	if (ret) {
+		u8 addr[ETH_ALEN];
+
+		memcpy_fromio(addr, hw->regs + B2_MAC_1 + port * 8, ETH_ALEN);
+		eth_hw_addr_set(dev, addr);
+	}
 
 	/* if the address is invalid, use a random value */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
@@ -4989,7 +4910,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	if (sizeof(dma_addr_t) > sizeof(u32) &&
-	    !(err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
+	    !dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		using_dac = 1;
 		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 		if (err < 0) {

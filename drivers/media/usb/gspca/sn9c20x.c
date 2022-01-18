@@ -50,6 +50,7 @@ MODULE_LICENSE("GPL");
 #define HAS_NO_BUTTON	0x1
 #define LED_REVERSE	0x2 /* some cameras unset gpio to turn on leds */
 #define FLIP_DETECT	0x4
+#define HAS_LED_TORCH	0x8
 
 /* specific webcam descriptor */
 struct sd {
@@ -76,6 +77,8 @@ struct sd {
 		struct v4l2_ctrl *gain;
 	};
 	struct v4l2_ctrl *jpegqual;
+
+	struct v4l2_ctrl *led_mode;
 
 	struct work_struct work;
 
@@ -1533,6 +1536,12 @@ static void set_gain(struct gspca_dev *gspca_dev, s32 g)
 	i2c_w(gspca_dev, gain);
 }
 
+static void set_led_mode(struct gspca_dev *gspca_dev, s32 val)
+{
+	reg_w1(gspca_dev, 0x1007, 0x60);
+	reg_w1(gspca_dev, 0x1006, val ? 0x40 : 0x00);
+}
+
 static void set_quality(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1699,6 +1708,9 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
 		set_quality(gspca_dev, ctrl->val);
 		break;
+	case V4L2_CID_FLASH_LED_MODE:
+		set_led_mode(gspca_dev, ctrl->val);
+		break;
 	}
 	return gspca_dev->usb_err;
 }
@@ -1757,6 +1769,12 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 
 	sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_JPEG_COMPRESSION_QUALITY, 50, 90, 1, 80);
+
+	if (sd->flags & HAS_LED_TORCH)
+		sd->led_mode = v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
+				V4L2_CID_FLASH_LED_MODE, V4L2_FLASH_LED_MODE_TORCH,
+				~0x5, V4L2_FLASH_LED_MODE_NONE);
+
 	if (hdl->error) {
 		pr_err("Could not initialize controls\n");
 		return hdl->error;
@@ -2048,6 +2066,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		sd->pktsz = sd->npkt = 0;
 		sd->nchg = 0;
 	}
+	if (sd->led_mode)
+		v4l2_ctrl_s_ctrl(sd->led_mode, 0);
 
 	return gspca_dev->usb_err;
 }
@@ -2325,7 +2345,7 @@ static const struct sd_desc sd_desc = {
 
 static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6240), SN9C20X(MT9M001, 0x5d, 0)},
-	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, 0)},
+	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, HAS_LED_TORCH)},
 	{USB_DEVICE(0x0c45, 0x6248), SN9C20X(OV9655, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x624c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, LED_REVERSE)},

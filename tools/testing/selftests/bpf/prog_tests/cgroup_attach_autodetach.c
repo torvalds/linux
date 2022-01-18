@@ -21,7 +21,7 @@ static int prog_load(void)
 			       bpf_log_buf, BPF_LOG_BUF_SIZE);
 }
 
-void test_cgroup_attach_autodetach(void)
+void serial_test_cgroup_attach_autodetach(void)
 {
 	__u32 duration = 0, prog_cnt = 4, attach_flags;
 	int allow_prog[2] = {-1};

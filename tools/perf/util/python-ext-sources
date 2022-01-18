@@ -18,6 +18,7 @@ util/mmap.c
 util/namespaces.c
 ../lib/bitmap.c
 ../lib/find_bit.c
+../lib/list_sort.c
 ../lib/hweight.c
 ../lib/string.c
 ../lib/vsprintf.c

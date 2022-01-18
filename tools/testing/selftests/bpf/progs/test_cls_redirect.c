@@ -928,7 +928,7 @@ static INLINING verdict_t process_ipv6(buf_t *pkt, metrics_t *metrics)
 	}
 }
 
-SEC("classifier/cls_redirect")
+SEC("tc")
 int cls_redirect(struct __sk_buff *skb)
 {
 	metrics_t *metrics = get_global_metrics();

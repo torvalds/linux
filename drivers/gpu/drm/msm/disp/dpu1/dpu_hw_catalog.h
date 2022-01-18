@@ -676,10 +676,6 @@ struct dpu_perf_cdp_cfg {
  * @min_core_ib        minimum mnoc ib vote in kbps
  * @min_llcc_ib        minimum llcc ib vote in kbps
  * @min_dram_ib        minimum dram ib vote in kbps
- * @core_ib_ff         core instantaneous bandwidth fudge factor
- * @core_clk_ff        core clock fudge factor
- * @comp_ratio_rt      string of 0 or more of <fourcc>/<ven>/<mod>/<comp ratio>
- * @comp_ratio_nrt     string of 0 or more of <fourcc>/<ven>/<mod>/<comp ratio>
  * @undersized_prefill_lines   undersized prefill in lines
  * @xtra_prefill_lines         extra prefill latency in lines
  * @dest_scale_prefill_lines   destination scaler latency in lines
@@ -702,10 +698,6 @@ struct dpu_perf_cfg {
 	u32 min_core_ib;
 	u32 min_llcc_ib;
 	u32 min_dram_ib;
-	const char *core_ib_ff;
-	const char *core_clk_ff;
-	const char *comp_ratio_rt;
-	const char *comp_ratio_nrt;
 	u32 undersized_prefill_lines;
 	u32 xtra_prefill_lines;
 	u32 dest_scale_prefill_lines;

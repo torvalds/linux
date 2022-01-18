@@ -67,7 +67,7 @@ static int wfx_sdio_copy_to_io(void *priv, unsigned int reg_id,
 	/* Use queue mode buffers */
 	if (reg_id == WFX_REG_IN_OUT_QUEUE)
 		sdio_addr |= bus->buf_id_tx << 7;
-	// FIXME: discards 'const' qualifier for src
+	/* FIXME: discards 'const' qualifier for src */
 	ret = sdio_memcpy_toio(bus->func, sdio_addr, (void *)src, count);
 	if (!ret && reg_id == WFX_REG_IN_OUT_QUEUE)
 		bus->buf_id_tx = (bus->buf_id_tx + 1) % 32;
@@ -120,19 +120,22 @@ static int wfx_sdio_irq_subscribe(void *priv)
 		return ret;
 	}
 
+	flags = irq_get_trigger_type(bus->of_irq);
+	if (!flags)
+		flags = IRQF_TRIGGER_HIGH;
+	flags |= IRQF_ONESHOT;
+	ret = devm_request_threaded_irq(&bus->func->dev, bus->of_irq, NULL,
+					wfx_sdio_irq_handler_ext, flags,
+					"wfx", bus);
+	if (ret)
+		return ret;
 	sdio_claim_host(bus->func);
 	cccr = sdio_f0_readb(bus->func, SDIO_CCCR_IENx, NULL);
 	cccr |= BIT(0);
 	cccr |= BIT(bus->func->num);
 	sdio_f0_writeb(bus->func, cccr, SDIO_CCCR_IENx, NULL);
 	sdio_release_host(bus->func);
-	flags = irq_get_trigger_type(bus->of_irq);
-	if (!flags)
-		flags = IRQF_TRIGGER_HIGH;
-	flags |= IRQF_ONESHOT;
-	return devm_request_threaded_irq(&bus->func->dev, bus->of_irq, NULL,
-					 wfx_sdio_irq_handler_ext, flags,
-					 "wfx", bus);
+	return 0;
 }
 
 static int wfx_sdio_irq_unsubscribe(void *priv)
@@ -198,7 +201,7 @@ static int wfx_sdio_probe(struct sdio_func *func,
 	} else {
 		dev_warn(&func->dev,
 			 "device is not declared in DT, features will be limited\n");
-		// FIXME: ignore VID/PID and only rely on device tree
+		/* FIXME: ignore VID/PID and only rely on device tree */
 		// return -ENODEV;
 	}
 
@@ -210,7 +213,7 @@ static int wfx_sdio_probe(struct sdio_func *func,
 
 	sdio_claim_host(func);
 	ret = sdio_enable_func(func);
-	// Block of 64 bytes is more efficient than 512B for frame sizes < 4k
+	/* Block of 64 bytes is more efficient than 512B for frame sizes < 4k */
 	sdio_set_block_size(func, 64);
 	sdio_release_host(func);
 	if (ret)
@@ -251,7 +254,7 @@ static void wfx_sdio_remove(struct sdio_func *func)
 #define SDIO_DEVICE_ID_SILABS_WF200  0x1000
 static const struct sdio_device_id wfx_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_SILABS, SDIO_DEVICE_ID_SILABS_WF200) },
-	// FIXME: ignore VID/PID and only rely on device tree
+	/* FIXME: ignore VID/PID and only rely on device tree */
 	// { SDIO_DEVICE(SDIO_ANY_ID, SDIO_ANY_ID) },
 	{ },
 };

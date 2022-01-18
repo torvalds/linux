@@ -155,6 +155,7 @@ struct svc_rdma_chunk_ctxt {
 	struct ib_cqe		cc_cqe;
 	struct svcxprt_rdma	*cc_rdma;
 	struct list_head	cc_rwctxts;
+	ktime_t			cc_posttime;
 	int			cc_sqecount;
 	enum ib_wc_status	cc_status;
 	struct completion	cc_done;
@@ -267,7 +268,16 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct svc_rdma_write_info *info =
 			container_of(cc, struct svc_rdma_write_info, wi_cc);
 
-	trace_svcrdma_wc_write(wc, &cc->cc_cid);
+	switch (wc->status) {
+	case IB_WC_SUCCESS:
+		trace_svcrdma_wc_write(wc, &cc->cc_cid);
+		break;
+	case IB_WC_WR_FLUSH_ERR:
+		trace_svcrdma_wc_write_flush(wc, &cc->cc_cid);
+		break;
+	default:
+		trace_svcrdma_wc_write_err(wc, &cc->cc_cid);
+	}
 
 	svc_rdma_wake_send_waiters(rdma, cc->cc_sqecount);
 
@@ -320,11 +330,22 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_chunk_ctxt *cc =
 			container_of(cqe, struct svc_rdma_chunk_ctxt, cc_cqe);
-	struct svcxprt_rdma *rdma = cc->cc_rdma;
+	struct svc_rdma_read_info *info;
 
-	trace_svcrdma_wc_read(wc, &cc->cc_cid);
+	switch (wc->status) {
+	case IB_WC_SUCCESS:
+		info = container_of(cc, struct svc_rdma_read_info, ri_cc);
+		trace_svcrdma_wc_read(wc, &cc->cc_cid, info->ri_totalbytes,
+				      cc->cc_posttime);
+		break;
+	case IB_WC_WR_FLUSH_ERR:
+		trace_svcrdma_wc_read_flush(wc, &cc->cc_cid);
+		break;
+	default:
+		trace_svcrdma_wc_read_err(wc, &cc->cc_cid);
+	}
 
-	svc_rdma_wake_send_waiters(rdma, cc->cc_sqecount);
+	svc_rdma_wake_send_waiters(cc->cc_rdma, cc->cc_sqecount);
 	cc->cc_status = wc->status;
 	complete(&cc->cc_done);
 	return;
@@ -363,6 +384,7 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 	do {
 		if (atomic_sub_return(cc->cc_sqecount,
 				      &rdma->sc_sq_avail) > 0) {
+			cc->cc_posttime = ktime_get();
 			ret = ib_post_send(rdma->sc_qp, first_wr, &bad_wr);
 			if (ret)
 				break;

@@ -401,6 +401,12 @@ process_start:
 		     !adapter->scan_processing) &&
 		    !adapter->data_sent &&
 		    !skb_queue_empty(&adapter->tx_data_q)) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_process_tx_queue(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
@@ -418,6 +424,12 @@ process_start:
 		    !mwifiex_bypass_txlist_empty(adapter) &&
 		    !mwifiex_is_tdls_chan_switching
 			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_process_bypass_tx(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
@@ -434,6 +446,12 @@ process_start:
 		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter) &&
 		    !mwifiex_is_tdls_chan_switching
 			(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA))) {
+			if (adapter->hs_activated_manually) {
+				mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY),
+						  MWIFIEX_ASYNC_CMD);
+				adapter->hs_activated_manually = false;
+			}
+
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
 				clear_bit(MWIFIEX_IS_HS_CONFIGURED,
@@ -498,13 +516,11 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 static void mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
 {
 	if (adapter->workqueue) {
-		flush_workqueue(adapter->workqueue);
 		destroy_workqueue(adapter->workqueue);
 		adapter->workqueue = NULL;
 	}
 
 	if (adapter->rx_workqueue) {
-		flush_workqueue(adapter->rx_workqueue);
 		destroy_workqueue(adapter->rx_workqueue);
 		adapter->rx_workqueue = NULL;
 	}
@@ -987,7 +1003,7 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 		return ret;
 	}
 
-	ether_addr_copy(dev->dev_addr, priv->curr_addr);
+	eth_hw_addr_set(dev, priv->curr_addr);
 	return 0;
 }
 

@@ -490,7 +490,7 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 		inc_unaligned_user_access();
 
 		oldfs = force_uaccess_begin();
-		if (copy_from_user(&instruction, (insn_size_t *)(regs->pc & ~1),
+		if (copy_from_user(&instruction, (insn_size_t __user *)(regs->pc & ~1),
 				   sizeof(instruction))) {
 			force_uaccess_end(oldfs);
 			goto uspace_segv;
@@ -614,7 +614,7 @@ asmlinkage void do_reserved_inst(void)
 	unsigned short inst = 0;
 	int err;
 
-	get_user(inst, (unsigned short*)regs->pc);
+	get_user(inst, (unsigned short __user *)regs->pc);
 
 	err = do_fpu_inst(inst, regs);
 	if (!err) {
@@ -699,9 +699,9 @@ asmlinkage void do_illegal_slot_inst(void)
 		return;
 
 #ifdef CONFIG_SH_FPU_EMU
-	get_user(inst, (unsigned short *)regs->pc + 1);
+	get_user(inst, (unsigned short __user *)regs->pc + 1);
 	if (!do_fpu_inst(inst, regs)) {
-		get_user(inst, (unsigned short *)regs->pc);
+		get_user(inst, (unsigned short __user *)regs->pc);
 		if (!emulate_branch(inst, regs))
 			return;
 		/* fault in branch.*/

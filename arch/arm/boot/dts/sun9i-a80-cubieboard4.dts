@@ -87,7 +87,7 @@
 	};
 
 	vga-dac {
-		compatible = "corpro,gm7123", "adi,adv7123", "dumb-vga-dac";
+		compatible = "corpro,gm7123", "adi,adv7123";
 		vdd-supply = <&reg_dcdc1>;
 
 		ports {

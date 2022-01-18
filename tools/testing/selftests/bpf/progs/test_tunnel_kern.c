@@ -26,8 +26,6 @@
 		bpf_trace_printk(fmt, sizeof(fmt), __LINE__, ret); \
 	} while (0)
 
-int _version SEC("version") = 1;
-
 struct geneve_opt {
 	__be16	opt_class;
 	__u8	type;

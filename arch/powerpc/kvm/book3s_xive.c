@@ -1928,7 +1928,7 @@ int kvmppc_xive_set_nr_servers(struct kvmppc_xive *xive, u64 addr)
 
 	pr_devel("%s nr_servers=%u\n", __func__, nr_servers);
 
-	if (!nr_servers || nr_servers > KVM_MAX_VCPU_ID)
+	if (!nr_servers || nr_servers > KVM_MAX_VCPU_IDS)
 		return -EINVAL;
 
 	mutex_lock(&xive->lock);

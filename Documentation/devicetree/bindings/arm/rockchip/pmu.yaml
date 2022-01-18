@@ -22,7 +22,9 @@ select:
           - rockchip,px30-pmu
           - rockchip,rk3066-pmu
           - rockchip,rk3288-pmu
+          - rockchip,rk3368-pmu
           - rockchip,rk3399-pmu
+          - rockchip,rk3568-pmu
 
   required:
     - compatible
@@ -34,7 +36,9 @@ properties:
           - rockchip,px30-pmu
           - rockchip,rk3066-pmu
           - rockchip,rk3288-pmu
+          - rockchip,rk3368-pmu
           - rockchip,rk3399-pmu
+          - rockchip,rk3568-pmu
       - const: syscon
       - const: simple-mfd
 

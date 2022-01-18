@@ -3,19 +3,6 @@
 # Intel x86 Platform Specific Drivers
 #
 
-menuconfig X86_PLATFORM_DRIVERS_INTEL
-	bool "Intel x86 Platform Specific Device Drivers"
-	default y
-	help
-	  Say Y here to get to see options for device drivers for
-	  various Intel x86 platforms, including vendor-specific
-	  drivers. This option alone does not add any kernel code.
-
-	  If you say N, all options in this submenu will be skipped
-	  and disabled.
-
-if X86_PLATFORM_DRIVERS_INTEL
-
 source "drivers/platform/x86/intel/atomisp2/Kconfig"
 source "drivers/platform/x86/intel/int1092/Kconfig"
 source "drivers/platform/x86/intel/int33fe/Kconfig"
@@ -102,6 +89,22 @@ config INTEL_CHTDC_TI_PWRBTN
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_chtdc_ti_pwrbtn.
 
+config INTEL_ISHTP_ECLITE
+	tristate "Intel ISHTP eclite controller Driver"
+	depends on INTEL_ISH_HID
+	depends on ACPI
+	help
+	  This driver is for accessing the PSE (Programmable Service Engine) -
+	  an Embedded Controller like IP - using ISHTP (Integrated Sensor Hub
+	  Transport Protocol) to get battery, thermal and UCSI (USB Type-C
+	  Connector System Software Interface) related data from the platform.
+	  Users who don't want to use discrete Embedded Controller on Intel's
+	  Elkhartlake platform can leverage this integrated solution of
+	  ECLite which is part of PSE subsystem.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_ishtp_eclite.
+
 config INTEL_MRFLD_PWRBTN
 	tristate "Intel Merrifield Basin Cove power button driver"
 	depends on INTEL_SOC_PMIC_MRFLD
@@ -167,5 +170,3 @@ config INTEL_UNCORE_FREQ_CONTROL
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel-uncore-frequency.
-
-endif # X86_PLATFORM_DRIVERS_INTEL

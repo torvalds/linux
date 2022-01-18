@@ -84,6 +84,7 @@ enum dmub_status {
 	DMUB_STATUS_QUEUE_FULL,
 	DMUB_STATUS_TIMEOUT,
 	DMUB_STATUS_INVALID,
+	DMUB_STATUS_HW_FAILURE,
 };
 
 /* enum dmub_asic - dmub asic identifier */
@@ -96,6 +97,7 @@ enum dmub_asic {
 	DMUB_ASIC_DCN302,
 	DMUB_ASIC_DCN303,
 	DMUB_ASIC_DCN31,
+	DMUB_ASIC_DCN31B,
 	DMUB_ASIC_MAX,
 };
 
@@ -118,6 +120,7 @@ enum dmub_notification_type {
 	DMUB_NOTIFICATION_AUX_REPLY,
 	DMUB_NOTIFICATION_HPD,
 	DMUB_NOTIFICATION_HPD_IRQ,
+	DMUB_NOTIFICATION_SET_CONFIG_REPLY,
 	DMUB_NOTIFICATION_MAX
 };
 
@@ -235,6 +238,9 @@ struct dmub_srv_hw_params {
 	bool load_inst_const;
 	bool skip_panel_power_sequence;
 	bool disable_z10;
+	bool power_optimization;
+	bool dpia_supported;
+	bool disable_dpia;
 };
 
 /**
@@ -358,6 +364,8 @@ struct dmub_srv_hw_funcs {
 	uint32_t (*get_current_time)(struct dmub_srv *dmub);
 
 	void (*get_diagnostic_data)(struct dmub_srv *dmub, struct dmub_diagnostic_data *dmub_oca);
+
+	bool (*should_detect)(struct dmub_srv *dmub);
 };
 
 /**
@@ -437,6 +445,7 @@ struct dmub_notification {
 	union {
 		struct aux_reply_data aux_reply;
 		enum dp_hpd_status hpd_status;
+		enum set_config_status sc_status;
 	};
 };
 
@@ -723,6 +732,8 @@ enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry);
 
 bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
+
+bool dmub_srv_should_detect(struct dmub_srv *dmub);
 
 #if defined(__cplusplus)
 }

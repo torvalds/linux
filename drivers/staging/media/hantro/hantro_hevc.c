@@ -20,6 +20,8 @@
 /* tile border coefficients of filter */
 #define VERT_SAO_RAM_SIZE 48 /* bytes per pixel */
 
+#define SCALING_LIST_SIZE (16 * 64)
+
 #define MAX_TILE_COLS 20
 #define MAX_TILE_ROWS 22
 
@@ -256,6 +258,11 @@ int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx)
 	if (WARN_ON(!ctrls->decode_params))
 		return -EINVAL;
 
+	ctrls->scaling =
+		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_HEVC_SCALING_MATRIX);
+	if (WARN_ON(!ctrls->scaling))
+		return -EINVAL;
+
 	ctrls->sps =
 		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_HEVC_SPS);
 	if (WARN_ON(!ctrls->sps))
@@ -283,6 +290,12 @@ void hantro_hevc_dec_exit(struct hantro_ctx *ctx)
 				  hevc_dec->tile_sizes.cpu,
 				  hevc_dec->tile_sizes.dma);
 	hevc_dec->tile_sizes.cpu = NULL;
+
+	if (hevc_dec->scaling_lists.cpu)
+		dma_free_coherent(vpu->dev, hevc_dec->scaling_lists.size,
+				  hevc_dec->scaling_lists.cpu,
+				  hevc_dec->scaling_lists.dma);
+	hevc_dec->scaling_lists.cpu = NULL;
 
 	if (hevc_dec->tile_filter.cpu)
 		dma_free_coherent(vpu->dev, hevc_dec->tile_filter.size,
@@ -326,6 +339,14 @@ int hantro_hevc_dec_init(struct hantro_ctx *ctx)
 		return -ENOMEM;
 
 	hevc_dec->tile_sizes.size = size;
+
+	hevc_dec->scaling_lists.cpu = dma_alloc_coherent(vpu->dev, SCALING_LIST_SIZE,
+							 &hevc_dec->scaling_lists.dma,
+							 GFP_KERNEL);
+	if (!hevc_dec->scaling_lists.cpu)
+		return -ENOMEM;
+
+	hevc_dec->scaling_lists.size = SCALING_LIST_SIZE;
 
 	hantro_hevc_ref_init(ctx);
 

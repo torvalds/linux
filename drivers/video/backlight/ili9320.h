@@ -68,7 +68,7 @@ extern int ili9320_write_regs(struct ili9320 *ili,
 extern int ili9320_probe_spi(struct spi_device *spi,
 			     struct ili9320_client *cli);
 
-extern int ili9320_remove(struct ili9320 *lcd);
+extern void ili9320_remove(struct ili9320 *lcd);
 extern void ili9320_shutdown(struct ili9320 *lcd);
 
 /* PM */

@@ -1,4 +1,4 @@
-What:		/sys/bus/usb/devices/INTERFACE/authorized
+What:		/sys/bus/usb/devices/<INTERFACE>/authorized
 Date:		August 2015
 Description:
 		This allows to authorize (1) or deauthorize (0)
@@ -166,14 +166,14 @@ Description:
 		The file will be present for all speeds of USB devices, and will
 		always read "no" for USB 1.1 and USB 2.0 devices.
 
-What:		/sys/bus/usb/devices/.../(hub interface)/portX
+What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>
 Date:		August 2012
 Contact:	Lan Tianyu <tianyu.lan@intel.com>
 Description:
-		The /sys/bus/usb/devices/.../(hub interface)/portX
+		The /sys/bus/usb/devices/.../<hub_interface>/port<X>
 		is usb port device's sysfs directory.
 
-What:		/sys/bus/usb/devices/.../(hub interface)/portX/connect_type
+What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/connect_type
 Date:		January 2013
 Contact:	Lan Tianyu <tianyu.lan@intel.com>
 Description:
@@ -182,7 +182,7 @@ Description:
 		The file will read "hotplug", "hardwired" and "not used" if the
 		information is available, and "unknown" otherwise.
 
-What:		/sys/bus/usb/devices/.../(hub interface)/portX/location
+What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/location
 Date:		October 2018
 Contact:	Bjørn Mork <bjorn@mork.no>
 Description:
@@ -192,7 +192,7 @@ Description:
 		raw location value as a hex integer.
 
 
-What:		/sys/bus/usb/devices/.../(hub interface)/portX/quirks
+What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/quirks
 Date:		May 2018
 Contact:	Nicolas Boichat <drinkcat@chromium.org>
 Description:
@@ -216,7 +216,7 @@ Description:
 		   used to help make enumeration work better on some high speed
 		   devices.
 
-What:		/sys/bus/usb/devices/.../(hub interface)/portX/over_current_count
+What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/over_current_count
 Date:		February 2018
 Contact:	Richard Leitner <richard.leitner@skidata.com>
 Description:
@@ -230,10 +230,10 @@ Description:
 		Any time this value changes the corresponding hub device will send a
 		udev event with the following attributes::
 
-		  OVER_CURRENT_PORT=/sys/bus/usb/devices/.../(hub interface)/portX
+		  OVER_CURRENT_PORT=/sys/bus/usb/devices/.../<hub_interface>/port<X>
 		  OVER_CURRENT_COUNT=[current value of this sysfs attribute]
 
-What:		/sys/bus/usb/devices/.../(hub interface)/portX/usb3_lpm_permit
+What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/usb3_lpm_permit
 Date:		November 2015
 Contact:	Lu Baolu <baolu.lu@linux.intel.com>
 Description:
@@ -288,3 +288,277 @@ Description:
 		USB 3.2 adds Dual-lane support, 2 rx and 2 tx -lanes over Type-C.
 		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
 		direction. Devices before USB 3.2 are single lane (tx_lanes = 1)
+
+What:		/sys/bus/usb/devices/usbX/bAlternateSetting
+Description:
+		The current interface alternate setting number, in decimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bcdDevice
+Description:
+		The device's release number, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bConfigurationValue
+Description:
+		While a USB device typically have just one configuration
+		setting, some devices support multiple configurations.
+
+		This value shows the current configuration, in decimal.
+
+		Changing its value will change the device's configuration
+		to another setting.
+
+		The number of configurations supported by a device is at:
+
+			/sys/bus/usb/devices/usbX/bNumConfigurations
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bDeviceClass
+Description:
+		Class code of the device, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bDeviceProtocol
+Description:
+		Protocol code of the device, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bDeviceSubClass
+Description:
+		Subclass code of the device, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bInterfaceClass
+Description:
+		Class code of the interface, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bInterfaceNumber
+Description:
+		Interface number, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bInterfaceProtocol
+Description:
+		Protocol code of the interface, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bInterfaceSubClass
+Description:
+		Subclass code of the interface, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bmAttributes
+Description:
+		Attributes of the current configuration, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bMaxPacketSize0
+Description:
+		Maximum endpoint 0 packet size, in decimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bMaxPower
+Description:
+		Maximum power consumption of the active configuration of
+		the device, in miliamperes.
+
+What:		/sys/bus/usb/devices/usbX/bNumConfigurations
+Description:
+		Number of the possible configurations of the device, in
+		decimal. The current configuration is controlled via:
+
+			/sys/bus/usb/devices/usbX/bConfigurationValue
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bNumEndpoints
+Description:
+		Number of endpoints used on this interface, in hexadecimal.
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/bNumInterfaces
+Description:
+		Number of interfaces on this device, in decimal.
+
+What:		/sys/bus/usb/devices/usbX/busnum
+Description:
+		Number of the bus.
+
+What:		/sys/bus/usb/devices/usbX/configuration
+Description:
+		Contents of the string descriptor associated with the
+		current configuration. It may include the firmware version
+		of a device and/or its serial number.
+
+What:		/sys/bus/usb/devices/usbX/descriptors
+Description:
+		Contains the interface descriptors, in binary.
+
+What:		/sys/bus/usb/devices/usbX/idProduct
+Description:
+		Product ID, in hexadecimal.
+
+What:		/sys/bus/usb/devices/usbX/idVendor
+Description:
+		Vendor ID, in hexadecimal.
+
+What:		/sys/bus/usb/devices/usbX/devspec
+Description:
+		Displays the Device Tree Open Firmware node of the interface.
+
+What:		/sys/bus/usb/devices/usbX/avoid_reset_quirk
+Description:
+		Most devices have this set to zero.
+
+		If the value is 1, enable a USB quirk that prevents this
+		device to use reset.
+
+		(read/write)
+
+What:		/sys/bus/usb/devices/usbX/devnum
+Description:
+		USB interface device number, in decimal.
+
+What:		/sys/bus/usb/devices/usbX/devpath
+Description:
+		String containing the USB interface device path.
+
+What:		/sys/bus/usb/devices/usbX/manufacturer
+Description:
+		Vendor specific string containing the name of the
+		manufacturer of the device.
+
+What:		/sys/bus/usb/devices/usbX/maxchild
+Description:
+		Number of ports of an USB hub
+
+What:		/sys/bus/usb/devices/usbX/persist
+Description:
+		Keeps the device even if it gets disconnected.
+
+What:		/sys/bus/usb/devices/usbX/product
+Description:
+		Vendor specific string containing the name of the
+		device's product.
+
+What:		/sys/bus/usb/devices/usbX/speed
+Description:
+		Shows the device's max speed, according to the USB version,
+		in Mbps.
+		Can be:
+
+			=======		====================
+			Unknown		speed unknown
+			1.5		Low speed
+			15		Full speed
+			480		High Speed
+			5000		Super Speed
+			10000		Super Speed+
+			20000		Super Speed+ Gen 2x2
+			=======		====================
+
+What:		/sys/bus/usb/devices/usbX/supports_autosuspend
+Description:
+		Returns 1 if the device doesn't support autosuspend.
+		Otherwise, returns 0.
+
+What:		/sys/bus/usb/devices/usbX/urbnum
+Description:
+		Number of URBs submitted for the whole device.
+
+What:		/sys/bus/usb/devices/usbX/version
+Description:
+		String containing the USB device version, as encoded
+		at the BCD descriptor.
+
+What:		/sys/bus/usb/devices/usbX/power/autosuspend
+Description:
+		Time in milliseconds for the device to autosuspend. If the
+		value is negative, then autosuspend is prevented.
+
+		(read/write)
+
+What:		/sys/bus/usb/devices/usbX/power/active_duration
+Description:
+		The total time the device has not been suspended.
+
+What:		/sys/bus/usb/devices/usbX/power/connected_duration
+Description:
+		The total time (in msec) that the device has been connected.
+
+What:		/sys/bus/usb/devices/usbX/power/level
+Description:
+
+What:		/sys/bus/usb/devices/usbX/ep_<N>/bEndpointAddress
+Description:
+		The address of the endpoint described by this descriptor,
+		in hexadecimal. The endpoint direction on this bitmapped field
+		is also shown at:
+
+			/sys/bus/usb/devices/usbX/ep_<N>/direction
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/ep_<N>/bInterval
+Description:
+		The interval of the endpoint as described on its descriptor,
+		in hexadecimal. The actual interval depends on the version
+		of the USB. Also shown in time units at
+		/sys/bus/usb/devices/usbX/ep_<N>/interval.
+
+What:		/sys/bus/usb/devices/usbX/ep_<N>/bLength
+Description:
+		Number of bytes of the endpoint descriptor, in hexadecimal.
+
+What:		/sys/bus/usb/devices/usbX/ep_<N>/bmAttributes
+Description:
+		Attributes which apply to the endpoint as described on its
+		descriptor, in hexadecimal. The endpoint type on this
+		bitmapped field is also shown at:
+
+			/sys/bus/usb/devices/usbX/ep_<N>/type
+
+		See USB specs for its meaning.
+
+What:		/sys/bus/usb/devices/usbX/ep_<N>/direction
+Description:
+		Direction of the endpoint. Can be:
+
+		    - both (on control endpoints)
+		    - in
+		    - out
+
+What:		/sys/bus/usb/devices/usbX/ep_<N>/interval
+Description:
+		Interval for polling endpoint for data transfers, in
+		milisseconds or microseconds.
+
+What:		/sys/bus/usb/devices/usbX/ep_<N>/type
+Description:
+		Descriptor type. Can be:
+
+		    - Control
+		    - Isoc
+		    - Bulk
+		    - Interrupt
+		    - unknown
+
+What:		/sys/bus/usb/devices/usbX/ep_<N>/wMaxPacketSize
+Description:
+		Maximum packet size this endpoint is capable of
+		sending or receiving, in hexadecimal.

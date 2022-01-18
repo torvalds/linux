@@ -80,13 +80,6 @@
 		clock-output-names = "phy_27m";
 	};
 
-	dpclk: clock-controller@f1f0000 {
-		compatible = "fsl,ls1028a-plldig";
-		reg = <0x0 0xf1f0000 0x0 0xffff>;
-		#clock-cells = <0>;
-		clocks = <&osc_27m>;
-	};
-
 	firmware {
 		optee: optee  {
 			compatible = "linaro,optee-tz";
@@ -592,6 +585,7 @@
 			snps,dis_rxdet_inp3_quirk;
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+			status = "disabled";
 		};
 
 		usb1: usb@3110000 {
@@ -602,6 +596,7 @@
 			snps,dis_rxdet_inp3_quirk;
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
+			status = "disabled";
 		};
 
 		sata: sata@3200000 {
@@ -800,6 +795,38 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
+		malidp0: display@f080000 {
+			compatible = "arm,mali-dp500";
+			reg = <0x0 0xf080000 0x0 0x10000>;
+			interrupts = <0 222 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 223 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "DE", "SE";
+			clocks = <&dpclk>,
+				 <&clockgen QORIQ_CLK_HWACCEL 2>,
+				 <&clockgen QORIQ_CLK_HWACCEL 2>,
+				 <&clockgen QORIQ_CLK_HWACCEL 2>;
+			clock-names = "pxlclk", "mclk", "aclk", "pclk";
+			arm,malidp-output-port-lines = /bits/ 8 <8 8 8>;
+			arm,malidp-arqos-value = <0xd000d000>;
+
+			port {
+				dpi0_out: endpoint {
+
+				};
+			};
+		};
+
+		gpu: gpu@f0c0000 {
+			compatible = "vivante,gc";
+			reg = <0x0 0xf0c0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen QORIQ_CLK_HWACCEL 2>,
+				 <&clockgen QORIQ_CLK_HWACCEL 2>,
+				 <&clockgen QORIQ_CLK_HWACCEL 2>;
+			clock-names = "core", "shader", "bus";
+			#cooling-cells = <2>;
+		};
+
 		sai1: audio-controller@f100000 {
 			#sound-dai-cells = <0>;
 			compatible = "fsl,vf610-sai";
@@ -926,6 +953,13 @@
 			status = "disabled";
 		};
 
+		dpclk: clock-controller@f1f0000 {
+			compatible = "fsl,ls1028a-plldig";
+			reg = <0x0 0xf1f0000 0x0 0x10000>;
+			#clock-cells = <0>;
+			clocks = <&osc_27m>;
+		};
+
 		tmu: tmu@1f80000 {
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f80000 0x0 0x10000>;
@@ -1025,6 +1059,7 @@
 				fixed-link {
 					speed = <2500>;
 					full-duplex;
+					pause;
 				};
 			};
 
@@ -1083,6 +1118,7 @@
 						fixed-link {
 							speed = <2500>;
 							full-duplex;
+							pause;
 						};
 					};
 
@@ -1094,6 +1130,7 @@
 						fixed-link {
 							speed = <1000>;
 							full-duplex;
+							pause;
 						};
 					};
 				};
@@ -1108,6 +1145,7 @@
 				fixed-link {
 					speed = <1000>;
 					full-duplex;
+					pause;
 				};
 			};
 
@@ -1139,24 +1177,4 @@
 		};
 	};
 
-	malidp0: display@f080000 {
-		compatible = "arm,mali-dp500";
-		reg = <0x0 0xf080000 0x0 0x10000>;
-		interrupts = <0 222 IRQ_TYPE_LEVEL_HIGH>,
-			     <0 223 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "DE", "SE";
-		clocks = <&dpclk>,
-			 <&clockgen QORIQ_CLK_HWACCEL 2>,
-			 <&clockgen QORIQ_CLK_HWACCEL 2>,
-			 <&clockgen QORIQ_CLK_HWACCEL 2>;
-		clock-names = "pxlclk", "mclk", "aclk", "pclk";
-		arm,malidp-output-port-lines = /bits/ 8 <8 8 8>;
-		arm,malidp-arqos-value = <0xd000d000>;
-
-		port {
-			dp0_out: endpoint {
-
-			};
-		};
-	};
 };

@@ -28,7 +28,6 @@
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/time.h>
-#include <linux/version.h>
 #include <linux/wait.h>
 #include <linux/pinctrl/pinctrl.h>
 

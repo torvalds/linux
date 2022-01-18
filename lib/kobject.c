@@ -777,7 +777,7 @@ static struct kobj_type dynamic_kobj_ktype = {
  * call to kobject_put() and not kfree(), as kobject_init() has
  * already been called on this structure.
  */
-struct kobject *kobject_create(void)
+static struct kobject *kobject_create(void)
 {
 	struct kobject *kobj;
 

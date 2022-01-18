@@ -155,7 +155,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 		printf("%d\n", nh->nlmsg_type);
 
 	memset(&route, 0, sizeof(route));
-	printf("Destination\t\tGateway\t\tGenmask\t\tMetric\t\tIface\n");
+	printf("Destination     Gateway         Genmask         Metric Iface\n");
 	for (; NLMSG_OK(nh, nll); nh = NLMSG_NEXT(nh, nll)) {
 		rt_msg = (struct rtmsg *)NLMSG_DATA(nh);
 		rtm_family = rt_msg->rtm_family;
@@ -207,6 +207,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 				int metric;
 				__be32 gw;
 			} *prefix_value;
+			struct in_addr dst_addr, gw_addr, mask_addr;
 
 			prefix_key = alloca(sizeof(*prefix_key) + 3);
 			prefix_value = alloca(sizeof(*prefix_value));
@@ -234,14 +235,17 @@ static void read_route(struct nlmsghdr *nh, int nll)
 			for (i = 0; i < 4; i++)
 				prefix_key->data[i] = (route.dst >> i * 8) & 0xff;
 
-			printf("%3d.%d.%d.%d\t\t%3x\t\t%d\t\t%d\t\t%s\n",
-			       (int)prefix_key->data[0],
-			       (int)prefix_key->data[1],
-			       (int)prefix_key->data[2],
-			       (int)prefix_key->data[3],
-			       route.gw, route.dst_len,
+			dst_addr.s_addr = route.dst;
+			printf("%-16s", inet_ntoa(dst_addr));
+
+			gw_addr.s_addr = route.gw;
+			printf("%-16s", inet_ntoa(gw_addr));
+
+			mask_addr.s_addr = htonl(~(0xffffffffU >> route.dst_len));
+			printf("%-16s%-7d%s\n", inet_ntoa(mask_addr),
 			       route.metric,
 			       route.iface_name);
+
 			if (bpf_map_lookup_elem(lpm_map_fd, prefix_key,
 						prefix_value) < 0) {
 				for (i = 0; i < 4; i++)
@@ -393,8 +397,12 @@ static void read_arp(struct nlmsghdr *nh, int nll)
 
 	if (nh->nlmsg_type == RTM_GETNEIGH)
 		printf("READING arp entry\n");
-	printf("Address\tHwAddress\n");
+	printf("Address         HwAddress\n");
 	for (; NLMSG_OK(nh, nll); nh = NLMSG_NEXT(nh, nll)) {
+		struct in_addr dst_addr;
+		char mac_str[18];
+		int len = 0, i;
+
 		rt_msg = (struct ndmsg *)NLMSG_DATA(nh);
 		rt_attr = (struct rtattr *)RTM_RTA(rt_msg);
 		ndm_family = rt_msg->ndm_family;
@@ -415,7 +423,14 @@ static void read_arp(struct nlmsghdr *nh, int nll)
 		}
 		arp_entry.dst = atoi(dsts);
 		arp_entry.mac = atol(mac);
-		printf("%x\t\t%llx\n", arp_entry.dst, arp_entry.mac);
+
+		dst_addr.s_addr = arp_entry.dst;
+		for (i = 0; i < 6; i++)
+			len += snprintf(mac_str + len, 18 - len, "%02llx%s",
+					((arp_entry.mac >> i * 8) & 0xff),
+					i < 5 ? ":" : "");
+		printf("%-16s%s\n", inet_ntoa(dst_addr), mac_str);
+
 		if (ndm_family == AF_INET) {
 			if (bpf_map_lookup_elem(exact_match_map_fd,
 						&arp_entry.dst,
@@ -672,7 +687,7 @@ int main(int ac, char **argv)
 	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
 		return 1;
 
-	printf("\n**************loading bpf file*********************\n\n\n");
+	printf("\n******************loading bpf file*********************\n");
 	if (!prog_fd) {
 		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
 		return 1;
@@ -722,9 +737,9 @@ int main(int ac, char **argv)
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
 
-	printf("*******************ROUTE TABLE*************************\n\n\n");
+	printf("\n*******************ROUTE TABLE*************************\n");
 	get_route_table(AF_INET);
-	printf("*******************ARP TABLE***************************\n\n\n");
+	printf("\n*******************ARP TABLE***************************\n");
 	get_arp_table(AF_INET);
 	if (monitor_route() < 0) {
 		printf("Error in receiving route update");

@@ -99,10 +99,6 @@ static const u32 qed_mfw_ext_10g[] __initconst = {
 	ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
 };
 
-static const u32 qed_mfw_ext_20g[] __initconst = {
-	ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
-};
-
 static const u32 qed_mfw_ext_25g[] __initconst = {
 	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
 	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
@@ -148,7 +144,6 @@ static const u32 qed_mfw_ext_100g_base_r4[] __initconst = {
 static struct qed_mfw_speed_map qed_mfw_ext_maps[] __ro_after_init = {
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_1G, qed_mfw_ext_1g),
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_10G, qed_mfw_ext_10g),
-	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_20G, qed_mfw_ext_20g),
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_25G, qed_mfw_ext_25g),
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_40G, qed_mfw_ext_40g),
 	QED_MFW_SPEED_MAP(ETH_EXT_ADV_SPEED_50G_BASE_R,
@@ -262,7 +257,7 @@ module_exit(qed_exit);
 
 /* Check if the DMA controller on the machine can properly handle the DMA
  * addressing required by the device.
-*/
+ */
 static int qed_set_coherency_mask(struct qed_dev *cdev)
 {
 	struct device *dev = &cdev->pdev->dev;
@@ -547,7 +542,7 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 		goto err2;
 	}
 
-	DP_INFO(cdev, "qed_probe completed successfully\n");
+	DP_INFO(cdev, "%s completed successfully\n", __func__);
 
 	return cdev;
 
@@ -980,7 +975,7 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 
 	rc = qed_set_int_mode(cdev, false);
 	if (rc)  {
-		DP_ERR(cdev, "qed_slowpath_setup_int ERR\n");
+		DP_ERR(cdev, "%s ERR\n", __func__);
 		return rc;
 	}
 
@@ -1161,6 +1156,7 @@ static int qed_slowpath_delayed_work(struct qed_hwfn *hwfn,
 	/* Memory barrier for setting atomic bit */
 	smp_mb__before_atomic();
 	set_bit(wq_flag, &hwfn->slowpath_task_flags);
+	/* Memory barrier after setting atomic bit */
 	smp_mb__after_atomic();
 	queue_delayed_work(hwfn->slowpath_wq, &hwfn->slowpath_task, delay);
 
@@ -1382,7 +1378,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 				      (params->drv_minor << 16) |
 				      (params->drv_rev << 8) |
 				      (params->drv_eng);
-		strlcpy(drv_version.name, params->name,
+		strscpy(drv_version.name, params->name,
 			MCP_DRV_VER_STR_SIZE - 4);
 		rc = qed_mcp_send_drv_version(hwfn, hwfn->p_main_ptt,
 					      &drv_version);
@@ -2892,7 +2888,7 @@ static int qed_update_drv_state(struct qed_dev *cdev, bool active)
 	return status;
 }
 
-static int qed_update_mac(struct qed_dev *cdev, u8 *mac)
+static int qed_update_mac(struct qed_dev *cdev, const u8 *mac)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_ptt *ptt;
@@ -3079,8 +3075,10 @@ int qed_mfw_tlv_req(struct qed_hwfn *hwfn)
 	DP_VERBOSE(hwfn->cdev, NETIF_MSG_DRV,
 		   "Scheduling slowpath task [Flag: %d]\n",
 		   QED_SLOWPATH_MFW_TLV_REQ);
+	/* Memory barrier for setting atomic bit */
 	smp_mb__before_atomic();
 	set_bit(QED_SLOWPATH_MFW_TLV_REQ, &hwfn->slowpath_task_flags);
+	/* Memory barrier after setting atomic bit */
 	smp_mb__after_atomic();
 	queue_delayed_work(hwfn->slowpath_wq, &hwfn->slowpath_task, 0);
 
@@ -3158,4 +3156,9 @@ int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn, enum qed_mfw_tlv_type type,
 	}
 
 	return 0;
+}
+
+unsigned long qed_get_epoch_time(void)
+{
+	return ktime_get_real_seconds();
 }

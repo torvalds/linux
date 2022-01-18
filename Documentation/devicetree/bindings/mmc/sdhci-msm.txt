@@ -13,6 +13,7 @@ Required properties:
 		string is added to support this change - "qcom,sdhci-msm-v5".
 	full compatible strings with SoC and version:
 		"qcom,apq8084-sdhci", "qcom,sdhci-msm-v4"
+		"qcom,msm8226-sdhci", "qcom,sdhci-msm-v4"
 		"qcom,msm8974-sdhci", "qcom,sdhci-msm-v4"
 		"qcom,msm8916-sdhci", "qcom,sdhci-msm-v4"
 		"qcom,msm8992-sdhci", "qcom,sdhci-msm-v4"

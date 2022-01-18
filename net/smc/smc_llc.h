@@ -30,10 +30,19 @@ enum smc_llc_msg_type {
 	SMC_LLC_ADD_LINK		= 0x02,
 	SMC_LLC_ADD_LINK_CONT		= 0x03,
 	SMC_LLC_DELETE_LINK		= 0x04,
+	SMC_LLC_REQ_ADD_LINK		= 0x05,
 	SMC_LLC_CONFIRM_RKEY		= 0x06,
 	SMC_LLC_TEST_LINK		= 0x07,
 	SMC_LLC_CONFIRM_RKEY_CONT	= 0x08,
 	SMC_LLC_DELETE_RKEY		= 0x09,
+	/* V2 types */
+	SMC_LLC_CONFIRM_LINK_V2		= 0x21,
+	SMC_LLC_ADD_LINK_V2		= 0x22,
+	SMC_LLC_DELETE_LINK_V2		= 0x24,
+	SMC_LLC_REQ_ADD_LINK_V2		= 0x25,
+	SMC_LLC_CONFIRM_RKEY_V2		= 0x26,
+	SMC_LLC_TEST_LINK_V2		= 0x27,
+	SMC_LLC_DELETE_RKEY_V2		= 0x29,
 };
 
 #define smc_link_downing(state) \
@@ -102,7 +111,8 @@ void smc_llc_flow_qentry_del(struct smc_llc_flow *flow);
 void smc_llc_send_link_delete_all(struct smc_link_group *lgr, bool ord,
 				  u32 rsn);
 int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry);
-int smc_llc_srv_add_link(struct smc_link *link);
+int smc_llc_srv_add_link(struct smc_link *link,
+			 struct smc_llc_qentry *req_qentry);
 void smc_llc_add_link_local(struct smc_link *link);
 int smc_llc_init(void) __init;
 

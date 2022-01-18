@@ -12,8 +12,6 @@
 #ifndef __UVC_VIDEO_H__
 #define __UVC_VIDEO_H__
 
-#define UVCG_REQUEST_HEADER_LEN			2
-
 struct uvc_video;
 
 int uvcg_video_enable(struct uvc_video *video, int enable);

@@ -71,7 +71,7 @@ aic_handle(struct pt_regs *regs)
 	if (!irqstat)
 		irq_reg_writel(gc, 0, AT91_AIC_EOICR);
 	else
-		handle_domain_irq(aic_domain, irqnr, regs);
+		generic_handle_domain_irq(aic_domain, irqnr);
 }
 
 static int aic_retrigger(struct irq_data *d)

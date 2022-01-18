@@ -1162,7 +1162,7 @@ static int mipi_csis_async_register(struct csi_state *state)
 	unsigned int i;
 	int ret;
 
-	v4l2_async_notifier_init(&state->notifier);
+	v4l2_async_nf_init(&state->notifier);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(state->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
@@ -1187,8 +1187,8 @@ static int mipi_csis_async_register(struct csi_state *state)
 	dev_dbg(state->dev, "data lanes: %d\n", state->bus.num_data_lanes);
 	dev_dbg(state->dev, "flags: 0x%08x\n", state->bus.flags);
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&state->notifier, ep, struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&state->notifier, ep,
+					      struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto err_parse;
@@ -1198,7 +1198,7 @@ static int mipi_csis_async_register(struct csi_state *state)
 
 	state->notifier.ops = &mipi_csis_notify_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&state->sd, &state->notifier);
+	ret = v4l2_async_subdev_nf_register(&state->sd, &state->notifier);
 	if (ret)
 		return ret;
 
@@ -1429,8 +1429,8 @@ unregister_all:
 	mipi_csis_debugfs_exit(state);
 cleanup:
 	media_entity_cleanup(&state->sd.entity);
-	v4l2_async_notifier_unregister(&state->notifier);
-	v4l2_async_notifier_cleanup(&state->notifier);
+	v4l2_async_nf_unregister(&state->notifier);
+	v4l2_async_nf_cleanup(&state->notifier);
 	v4l2_async_unregister_subdev(&state->sd);
 disable_clock:
 	mipi_csis_clk_disable(state);
@@ -1445,8 +1445,8 @@ static int mipi_csis_remove(struct platform_device *pdev)
 	struct csi_state *state = mipi_sd_to_csis_state(sd);
 
 	mipi_csis_debugfs_exit(state);
-	v4l2_async_notifier_unregister(&state->notifier);
-	v4l2_async_notifier_cleanup(&state->notifier);
+	v4l2_async_nf_unregister(&state->notifier);
+	v4l2_async_nf_cleanup(&state->notifier);
 	v4l2_async_unregister_subdev(&state->sd);
 
 	pm_runtime_disable(&pdev->dev);

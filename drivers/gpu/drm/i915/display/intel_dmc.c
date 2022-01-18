@@ -45,8 +45,8 @@
 
 #define GEN12_DMC_MAX_FW_SIZE		ICL_DMC_MAX_FW_SIZE
 
-#define ADLP_DMC_PATH			DMC_PATH(adlp, 2, 10)
-#define ADLP_DMC_VERSION_REQUIRED	DMC_VERSION(2, 10)
+#define ADLP_DMC_PATH			DMC_PATH(adlp, 2, 12)
+#define ADLP_DMC_VERSION_REQUIRED	DMC_VERSION(2, 12)
 MODULE_FIRMWARE(ADLP_DMC_PATH);
 
 #define ADLS_DMC_PATH			DMC_PATH(adls, 2, 01)
@@ -255,20 +255,10 @@ intel_get_stepping_info(struct drm_i915_private *i915,
 
 static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 {
-	u32 val, mask;
-
-	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
-
-	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		mask |= DC_STATE_DEBUG_MASK_CORES;
-
 	/* The below bit doesn't need to be cleared ever afterwards */
-	val = intel_de_read(dev_priv, DC_STATE_DEBUG);
-	if ((val & mask) != mask) {
-		val |= mask;
-		intel_de_write(dev_priv, DC_STATE_DEBUG, val);
-		intel_de_posting_read(dev_priv, DC_STATE_DEBUG);
-	}
+	intel_de_rmw(dev_priv, DC_STATE_DEBUG, 0,
+		     DC_STATE_DEBUG_MASK_CORES | DC_STATE_DEBUG_MASK_MEMORY_UP);
+	intel_de_posting_read(dev_priv, DC_STATE_DEBUG);
 }
 
 /**
@@ -606,7 +596,7 @@ static void parse_dmc_fw(struct drm_i915_private *dev_priv,
 			continue;
 
 		offset = readcount + dmc->dmc_info[id].dmc_offset * 4;
-		if (fw->size - offset < 0) {
+		if (offset > fw->size) {
 			drm_err(&dev_priv->drm, "Reading beyond the fw_size\n");
 			continue;
 		}

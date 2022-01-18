@@ -65,6 +65,30 @@ extern const struct xfs_defer_op_type xfs_extent_free_defer_type;
 extern const struct xfs_defer_op_type xfs_agfl_free_defer_type;
 
 /*
+ * Deferred operation item relogging limits.
+ */
+#define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
+#define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
+
+/* Resources that must be held across a transaction roll. */
+struct xfs_defer_resources {
+	/* held buffers */
+	struct xfs_buf		*dr_bp[XFS_DEFER_OPS_NR_BUFS];
+
+	/* inodes with no unlock flags */
+	struct xfs_inode	*dr_ip[XFS_DEFER_OPS_NR_INODES];
+
+	/* number of held buffers */
+	unsigned short		dr_bufs;
+
+	/* bitmap of ordered buffers */
+	unsigned short		dr_ordered;
+
+	/* number of held inodes */
+	unsigned short		dr_inos;
+};
+
+/*
  * This structure enables a dfops user to detach the chain of deferred
  * operations from a transaction so that they can be continued later.
  */
@@ -83,11 +107,7 @@ struct xfs_defer_capture {
 	/* Log reservation saved from the transaction. */
 	unsigned int		dfc_logres;
 
-	/*
-	 * An inode reference that must be maintained to complete the deferred
-	 * work.
-	 */
-	struct xfs_inode	*dfc_capture_ip;
+	struct xfs_defer_resources dfc_held;
 };
 
 /*
@@ -95,9 +115,14 @@ struct xfs_defer_capture {
  * This doesn't normally happen except log recovery.
  */
 int xfs_defer_ops_capture_and_commit(struct xfs_trans *tp,
-		struct xfs_inode *capture_ip, struct list_head *capture_list);
+		struct list_head *capture_list);
 void xfs_defer_ops_continue(struct xfs_defer_capture *d, struct xfs_trans *tp,
-		struct xfs_inode **captured_ipp);
-void xfs_defer_ops_release(struct xfs_mount *mp, struct xfs_defer_capture *d);
+		struct xfs_defer_resources *dres);
+void xfs_defer_ops_capture_free(struct xfs_mount *mp,
+		struct xfs_defer_capture *d);
+void xfs_defer_resources_rele(struct xfs_defer_resources *dres);
+
+int __init xfs_defer_init_item_caches(void);
+void xfs_defer_destroy_item_caches(void);
 
 #endif /* __XFS_DEFER_H__ */

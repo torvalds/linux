@@ -538,7 +538,7 @@ error_disable_reg:
 }
 EXPORT_SYMBOL_GPL(ad5686_probe);
 
-int ad5686_remove(struct device *dev)
+void ad5686_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
@@ -546,8 +546,6 @@ int ad5686_remove(struct device *dev)
 	iio_device_unregister(indio_dev);
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ad5686_remove);
 

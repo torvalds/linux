@@ -36,8 +36,3 @@ void __init init_IRQ(void)
 {
 	irqchip_init();
 }
-
-void __irq_entry do_IRQ(struct pt_regs *regs)
-{
-	handle_arch_irq(regs);
-}

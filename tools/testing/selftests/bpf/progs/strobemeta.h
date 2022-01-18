@@ -358,7 +358,7 @@ static __always_inline uint64_t read_str_var(struct strobemeta_cfg *cfg,
 					     void *payload)
 {
 	void *location;
-	uint32_t len;
+	uint64_t len;
 
 	data->str_lens[idx] = 0;
 	location = calc_location(&cfg->str_locs[idx], tls_base);
@@ -390,7 +390,7 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 	struct strobe_map_descr* descr = &data->map_descrs[idx];
 	struct strobe_map_raw map;
 	void *location;
-	uint32_t len;
+	uint64_t len;
 	int i;
 
 	descr->tag_len = 0; /* presume no tag is set */

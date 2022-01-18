@@ -563,12 +563,6 @@ devlink_trap_group_policer_get()
 		| jq '.[][][]["policer"]'
 }
 
-devlink_trap_policer_ids_get()
-{
-	devlink -j -p trap policer show \
-		| jq '.[]["'$DEVLINK_DEV'"][]["policer"]'
-}
-
 devlink_port_by_netdev()
 {
 	local if_name=$1

@@ -415,6 +415,190 @@ static int bcm7xxx_28nm_ephy_config_init(struct phy_device *phydev)
 	return bcm7xxx_28nm_ephy_apd_enable(phydev);
 }
 
+static int bcm7xxx_16nm_ephy_afe_config(struct phy_device *phydev)
+{
+	int tmp, rcalcode, rcalnewcodelp, rcalnewcode11, rcalnewcode11d2;
+
+	/* Reset PHY */
+	tmp = genphy_soft_reset(phydev);
+	if (tmp)
+		return tmp;
+
+	/* Reset AFE and PLL */
+	bcm_phy_write_exp_sel(phydev, 0x0003, 0x0006);
+	/* Clear reset */
+	bcm_phy_write_exp_sel(phydev, 0x0003, 0x0000);
+
+	/* Write PLL/AFE control register to select 54MHz crystal */
+	bcm_phy_write_misc(phydev, 0x0030, 0x0001, 0x0000);
+	bcm_phy_write_misc(phydev, 0x0031, 0x0000, 0x044a);
+
+	/* Change Ka,Kp,Ki to pdiv=1 */
+	bcm_phy_write_misc(phydev, 0x0033, 0x0002, 0x71a1);
+	/* Configuration override */
+	bcm_phy_write_misc(phydev, 0x0033, 0x0001, 0x8000);
+
+	/* Change PLL_NDIV and PLL_NUDGE */
+	bcm_phy_write_misc(phydev, 0x0031, 0x0001, 0x2f68);
+	bcm_phy_write_misc(phydev, 0x0031, 0x0002, 0x0000);
+
+	/* Reference frequency is 54Mhz, config_mode[15:14] = 3 (low
+	 * phase)
+	 */
+	bcm_phy_write_misc(phydev, 0x0030, 0x0003, 0xc036);
+
+	/* Initialize bypass mode */
+	bcm_phy_write_misc(phydev, 0x0032, 0x0003, 0x0000);
+	/* Bypass code, default: VCOCLK enabled */
+	bcm_phy_write_misc(phydev, 0x0033, 0x0000, 0x0002);
+	/* LDOs at default setting */
+	bcm_phy_write_misc(phydev, 0x0030, 0x0002, 0x01c0);
+	/* Release PLL reset */
+	bcm_phy_write_misc(phydev, 0x0030, 0x0001, 0x0001);
+
+	/* Bandgap curvature correction to correct default */
+	bcm_phy_write_misc(phydev, 0x0038, 0x0000, 0x0010);
+
+	/* Run RCAL */
+	bcm_phy_write_misc(phydev, 0x0039, 0x0003, 0x0038);
+	bcm_phy_write_misc(phydev, 0x0039, 0x0003, 0x003b);
+	udelay(2);
+	bcm_phy_write_misc(phydev, 0x0039, 0x0003, 0x003f);
+	mdelay(5);
+
+	/* AFE_CAL_CONFIG_0, Vref=1000, Target=10, averaging enabled */
+	bcm_phy_write_misc(phydev, 0x0039, 0x0001, 0x1c82);
+	/* AFE_CAL_CONFIG_0, no reset and analog powerup */
+	bcm_phy_write_misc(phydev, 0x0039, 0x0001, 0x9e82);
+	udelay(2);
+	/* AFE_CAL_CONFIG_0, start calibration */
+	bcm_phy_write_misc(phydev, 0x0039, 0x0001, 0x9f82);
+	udelay(100);
+	/* AFE_CAL_CONFIG_0, clear start calibration, set HiBW */
+	bcm_phy_write_misc(phydev, 0x0039, 0x0001, 0x9e86);
+	udelay(2);
+	/* AFE_CAL_CONFIG_0, start calibration with hi BW mode set */
+	bcm_phy_write_misc(phydev, 0x0039, 0x0001, 0x9f86);
+	udelay(100);
+
+	/* Adjust 10BT amplitude additional +7% and 100BT +2% */
+	bcm_phy_write_misc(phydev, 0x0038, 0x0001, 0xe7ea);
+	/* Adjust 1G mode amplitude and 1G testmode1 */
+	bcm_phy_write_misc(phydev, 0x0038, 0x0002, 0xede0);
+
+	/* Read CORE_EXPA9 */
+	tmp = bcm_phy_read_exp(phydev, 0x00a9);
+	/* CORE_EXPA9[6:1] is rcalcode[5:0] */
+	rcalcode = (tmp & 0x7e) / 2;
+	/* Correct RCAL code + 1 is -1% rprogr, LP: +16 */
+	rcalnewcodelp = rcalcode + 16;
+	/* Correct RCAL code + 1 is -15 rprogr, 11: +10 */
+	rcalnewcode11 = rcalcode + 10;
+	/* Saturate if necessary */
+	if (rcalnewcodelp > 0x3f)
+		rcalnewcodelp = 0x3f;
+	if (rcalnewcode11 > 0x3f)
+		rcalnewcode11 = 0x3f;
+	/* REXT=1 BYP=1 RCAL_st1<5:0>=new rcal code */
+	tmp = 0x00f8 + rcalnewcodelp * 256;
+	/* Program into AFE_CAL_CONFIG_2 */
+	bcm_phy_write_misc(phydev, 0x0039, 0x0003, tmp);
+	/* AFE_BIAS_CONFIG_0 10BT bias code (Bias: E4) */
+	bcm_phy_write_misc(phydev, 0x0038, 0x0001, 0xe7e4);
+	/* invert adc clock output and 'adc refp ldo current To correct
+	 * default
+	 */
+	bcm_phy_write_misc(phydev, 0x003b, 0x0000, 0x8002);
+	/* 100BT stair case, high BW, 1G stair case, alternate encode */
+	bcm_phy_write_misc(phydev, 0x003c, 0x0003, 0xf882);
+	/* 1000BT DAC transition method per Erol, bits[32], DAC Shuffle
+	 * sequence 1 + 10BT imp adjust bits
+	 */
+	bcm_phy_write_misc(phydev, 0x003d, 0x0000, 0x3201);
+	/* Non-overlap fix */
+	bcm_phy_write_misc(phydev, 0x003a, 0x0002, 0x0c00);
+
+	/* pwdb override (rxconfig<5>) to turn on RX LDO indpendent of
+	 * pwdb controls from DSP_TAP10
+	 */
+	bcm_phy_write_misc(phydev, 0x003a, 0x0001, 0x0020);
+
+	/* Remove references to channel 2 and 3 */
+	bcm_phy_write_misc(phydev, 0x003b, 0x0002, 0x0000);
+	bcm_phy_write_misc(phydev, 0x003b, 0x0003, 0x0000);
+
+	/* Set cal_bypassb bit rxconfig<43> */
+	bcm_phy_write_misc(phydev, 0x003a, 0x0003, 0x0800);
+	udelay(2);
+
+	/* Revert pwdb_override (rxconfig<5>) to 0 so that the RX pwr
+	 * is controlled by DSP.
+	 */
+	bcm_phy_write_misc(phydev, 0x003a, 0x0001, 0x0000);
+
+	/* Drop LSB */
+	rcalnewcode11d2 = (rcalnewcode11 & 0xfffe) / 2;
+	tmp = bcm_phy_read_misc(phydev, 0x003d, 0x0001);
+	/* Clear bits [11:5] */
+	tmp &= ~0xfe0;
+	/* set txcfg_ch0<5>=1 (enable + set local rcal) */
+	tmp |= 0x0020 | (rcalnewcode11d2 * 64);
+	bcm_phy_write_misc(phydev, 0x003d, 0x0001, tmp);
+	bcm_phy_write_misc(phydev, 0x003d, 0x0002, tmp);
+
+	tmp = bcm_phy_read_misc(phydev, 0x003d, 0x0000);
+	/* set txcfg<45:44>=11 (enable Rextra + invert fullscaledetect)
+	 */
+	tmp &= ~0x3000;
+	tmp |= 0x3000;
+	bcm_phy_write_misc(phydev, 0x003d, 0x0000, tmp);
+
+	return 0;
+}
+
+static int bcm7xxx_16nm_ephy_config_init(struct phy_device *phydev)
+{
+	int ret, val;
+
+	ret = bcm7xxx_16nm_ephy_afe_config(phydev);
+	if (ret)
+		return ret;
+
+	ret = bcm_phy_set_eee(phydev, true);
+	if (ret)
+		return ret;
+
+	ret = bcm_phy_read_shadow(phydev, BCM54XX_SHD_SCR3);
+	if (ret < 0)
+		return ret;
+
+	val = ret;
+
+	/* Auto power down of DLL enabled,
+	 * TXC/RXC disabled during auto power down.
+	 */
+	val &= ~BCM54XX_SHD_SCR3_DLLAPD_DIS;
+	val |= BIT(8);
+
+	ret = bcm_phy_write_shadow(phydev, BCM54XX_SHD_SCR3, val);
+	if (ret < 0)
+		return ret;
+
+	return bcm_phy_enable_apd(phydev, true);
+}
+
+static int bcm7xxx_16nm_ephy_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Re-apply workarounds coming out suspend/resume */
+	ret = bcm7xxx_16nm_ephy_config_init(phydev);
+	if (ret)
+		return ret;
+
+	return genphy_config_aneg(phydev);
+}
+
 #define MII_BCM7XXX_REG_INVALID	0xff
 
 static u8 bcm7xxx_28nm_ephy_regnum_to_shd(u16 regnum)
@@ -716,9 +900,25 @@ static void bcm7xxx_28nm_remove(struct phy_device *phydev)
 	.resume         = bcm7xxx_config_init,				\
 }
 
+#define BCM7XXX_16NM_EPHY(_oui, _name)					\
+{									\
+	.phy_id		= (_oui),					\
+	.phy_id_mask	= 0xfffffff0,					\
+	.name		= _name,					\
+	/* PHY_BASIC_FEATURES */					\
+	.flags		= PHY_IS_INTERNAL,				\
+	.probe		= bcm7xxx_28nm_probe,				\
+	.remove		= bcm7xxx_28nm_remove,				\
+	.config_init	= bcm7xxx_16nm_ephy_config_init,		\
+	.config_aneg	= genphy_config_aneg,				\
+	.read_status	= genphy_read_status,				\
+	.resume		= bcm7xxx_16nm_ephy_resume,			\
+}
+
 static struct phy_driver bcm7xxx_driver[] = {
 	BCM7XXX_28NM_EPHY(PHY_ID_BCM72113, "Broadcom BCM72113"),
 	BCM7XXX_28NM_EPHY(PHY_ID_BCM72116, "Broadcom BCM72116"),
+	BCM7XXX_16NM_EPHY(PHY_ID_BCM72165, "Broadcom BCM72165"),
 	BCM7XXX_28NM_GPHY(PHY_ID_BCM7250, "Broadcom BCM7250"),
 	BCM7XXX_28NM_EPHY(PHY_ID_BCM7255, "Broadcom BCM7255"),
 	BCM7XXX_28NM_EPHY(PHY_ID_BCM7260, "Broadcom BCM7260"),
@@ -736,11 +936,13 @@ static struct phy_driver bcm7xxx_driver[] = {
 	BCM7XXX_40NM_EPHY(PHY_ID_BCM7425, "Broadcom BCM7425"),
 	BCM7XXX_40NM_EPHY(PHY_ID_BCM7429, "Broadcom BCM7429"),
 	BCM7XXX_40NM_EPHY(PHY_ID_BCM7435, "Broadcom BCM7435"),
+	BCM7XXX_16NM_EPHY(PHY_ID_BCM7712, "Broadcom BCM7712"),
 };
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM72113, 0xfffffff0 },
 	{ PHY_ID_BCM72116, 0xfffffff0, },
+	{ PHY_ID_BCM72165, 0xfffffff0, },
 	{ PHY_ID_BCM7250, 0xfffffff0, },
 	{ PHY_ID_BCM7255, 0xfffffff0, },
 	{ PHY_ID_BCM7260, 0xfffffff0, },
@@ -757,6 +959,7 @@ static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM7439, 0xfffffff0, },
 	{ PHY_ID_BCM7435, 0xfffffff0, },
 	{ PHY_ID_BCM7445, 0xfffffff0, },
+	{ PHY_ID_BCM7712, 0xfffffff0, },
 	{ }
 };
 

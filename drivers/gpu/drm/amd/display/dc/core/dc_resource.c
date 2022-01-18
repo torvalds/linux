@@ -41,6 +41,8 @@
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
+#include "link_enc_cfg.h"
+#include "dc_link_dp.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
@@ -54,6 +56,7 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn20/dcn20_resource.h"
 #include "dcn21/dcn21_resource.h"
+#include "dcn201/dcn201_resource.h"
 #include "dcn30/dcn30_resource.h"
 #include "dcn301/dcn301_resource.h"
 #include "dcn302/dcn302_resource.h"
@@ -128,6 +131,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 
 	case FAMILY_NV:
 		dc_version = DCN_VERSION_2_0;
+		if (asic_id.chip_id == DEVICE_ID_NV_13FE) {
+			dc_version = DCN_VERSION_2_01;
+			break;
+		}
 		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_0;
 		if (ASICREV_IS_DIMGREY_CAVEFISH_P(asic_id.hw_internal_rev))
@@ -216,6 +223,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_2_1:
 		res_pool = dcn21_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_2_01:
+		res_pool = dcn201_create_resource_pool(init_data, dc);
 		break;
 	case DCN_VERSION_3_0:
 		res_pool = dcn30_create_resource_pool(init_data, dc);
@@ -345,6 +355,29 @@ bool resource_construct(
 			pool->stream_enc_count++;
 		}
 	}
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	pool->hpo_dp_stream_enc_count = 0;
+	if (create_funcs->create_hpo_dp_stream_encoder) {
+		for (i = 0; i < caps->num_hpo_dp_stream_encoder; i++) {
+			pool->hpo_dp_stream_enc[i] = create_funcs->create_hpo_dp_stream_encoder(i+ENGINE_ID_HPO_DP_0, ctx);
+			if (pool->hpo_dp_stream_enc[i] == NULL)
+				DC_ERR("DC: failed to create HPO DP stream encoder!\n");
+			pool->hpo_dp_stream_enc_count++;
+
+		}
+	}
+
+	pool->hpo_dp_link_enc_count = 0;
+	if (create_funcs->create_hpo_dp_link_encoder) {
+		for (i = 0; i < caps->num_hpo_dp_link_encoder; i++) {
+			pool->hpo_dp_link_enc[i] = create_funcs->create_hpo_dp_link_encoder(i, ctx);
+			if (pool->hpo_dp_link_enc[i] == NULL)
+				DC_ERR("DC: failed to create HPO DP link encoder!\n");
+			pool->hpo_dp_link_enc_count++;
+		}
+	}
+#endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	for (i = 0; i < caps->num_mpc_3dlut; i++) {
@@ -1122,9 +1155,17 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width;
 	}
 
-	if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE ||
-			pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
-		res = false;
+	if (!pipe_ctx->stream->ctx->dc->config.enable_windowed_mpo_odm) {
+		if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE ||
+				pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
+			res = false;
+	} else {
+		/* Clamp minimum viewport size */
+		if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE)
+			pipe_ctx->plane_res.scl_data.viewport.height = MIN_VIEWPORT_SIZE;
+		if (pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
+			pipe_ctx->plane_res.scl_data.viewport.width = MIN_VIEWPORT_SIZE;
+	}
 
 	DC_LOG_SCALER("%s pipe %d:\nViewport: height:%d width:%d x:%d y:%d  Recout: height:%d width:%d x:%d y:%d  HACTIVE:%d VACTIVE:%d\n"
 			"src_rect: height:%d width:%d x:%d y:%d  dst_rect: height:%d width:%d x:%d y:%d  clip_rect: height:%d width:%d x:%d y:%d\n",
@@ -1623,6 +1664,10 @@ bool dc_is_stream_unchanged(
 	if (old_stream->ignore_msa_timing_param != stream->ignore_msa_timing_param)
 		return false;
 
+	// Only Have Audio left to check whether it is same or not. This is a corner case for Tiled sinks
+	if (old_stream->audio_info.mode_count != stream->audio_info.mode_count)
+		return false;
+
 	return true;
 }
 
@@ -1664,6 +1709,22 @@ static void update_stream_engine_usage(
 			res_ctx->is_stream_enc_acquired[i] = acquired;
 	}
 }
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static void update_hpo_dp_stream_engine_usage(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct hpo_dp_stream_encoder *hpo_dp_stream_enc,
+		bool acquired)
+{
+	int i;
+
+	for (i = 0; i < pool->hpo_dp_stream_enc_count; i++) {
+		if (pool->hpo_dp_stream_enc[i] == hpo_dp_stream_enc)
+			res_ctx->is_hpo_dp_stream_enc_acquired[i] = acquired;
+	}
+}
+#endif
 
 /* TODO: release audio object */
 void update_audio_usage(
@@ -1708,6 +1769,26 @@ static int acquire_first_free_pipe(
 	}
 	return -1;
 }
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static struct hpo_dp_stream_encoder *find_first_free_match_hpo_dp_stream_enc_for_link(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream)
+{
+	int i;
+
+	for (i = 0; i < pool->hpo_dp_stream_enc_count; i++) {
+		if (!res_ctx->is_hpo_dp_stream_enc_acquired[i] &&
+				pool->hpo_dp_stream_enc[i]) {
+
+			return pool->hpo_dp_stream_enc[i];
+		}
+	}
+
+	return NULL;
+}
+#endif
 
 static struct audio *find_first_free_audio(
 		struct resource_context *res_ctx,
@@ -1798,6 +1879,15 @@ enum dc_status dc_remove_stream_from_ctx(
 	/* Release link encoder from stream in new dc_state. */
 	if (dc->res_pool->funcs->link_enc_unassign)
 		dc->res_pool->funcs->link_enc_unassign(new_ctx, del_pipe->stream);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (is_dp_128b_132b_signal(del_pipe)) {
+		update_hpo_dp_stream_engine_usage(
+			&new_ctx->res_ctx, dc->res_pool,
+			del_pipe->stream_res.hpo_dp_stream_enc,
+			false);
+	}
+#endif
 
 	if (del_pipe->stream_res.audio)
 		update_audio_usage(
@@ -2051,6 +2141,31 @@ enum dc_status resource_map_pool_resources(
 		pipe_ctx->stream_res.stream_enc,
 		true);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* Allocate DP HPO Stream Encoder based on signal, hw capabilities
+	 * and link settings
+	 */
+	if (dc_is_dp_signal(stream->signal) &&
+			dc->caps.dp_hpo) {
+		struct dc_link_settings link_settings = {0};
+
+		decide_link_settings(stream, &link_settings);
+		if (dp_get_link_encoding_format(&link_settings) == DP_128b_132b_ENCODING) {
+			pipe_ctx->stream_res.hpo_dp_stream_enc =
+					find_first_free_match_hpo_dp_stream_enc_for_link(
+							&context->res_ctx, pool, stream);
+
+			if (!pipe_ctx->stream_res.hpo_dp_stream_enc)
+				return DC_NO_STREAM_ENC_RESOURCE;
+
+			update_hpo_dp_stream_engine_usage(
+					&context->res_ctx, pool,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					true);
+		}
+	}
+#endif
+
 	/* TODO: Add check if ASIC support and EDID audio */
 	if (!stream->converter_disable_audio &&
 	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
@@ -2141,16 +2256,6 @@ enum dc_status dc_validate_global_state(
 
 	if (!new_ctx)
 		return DC_ERROR_UNEXPECTED;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-
-	/*
-	 * Update link encoder to stream assignment.
-	 * TODO: Split out reason allocation from validation.
-	 */
-	if (dc->res_pool->funcs->link_encs_assign)
-		dc->res_pool->funcs->link_encs_assign(
-			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
-#endif
 
 	if (dc->res_pool->funcs->validate_global) {
 		result = dc->res_pool->funcs->validate_global(dc, new_ctx);
@@ -2201,6 +2306,16 @@ enum dc_status dc_validate_global_state(
 	if (result == DC_OK)
 		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate))
 			result = DC_FAIL_BANDWIDTH_VALIDATE;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/*
+	 * Only update link encoder to stream assignment after bandwidth validation passed.
+	 * TODO: Split out assignment and validation.
+	 */
+	if (result == DC_OK && dc->res_pool->funcs->link_encs_assign && fast_validate == false)
+		dc->res_pool->funcs->link_encs_assign(
+			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
+#endif
 
 	return result;
 }
@@ -2726,9 +2841,24 @@ bool pipe_need_reprogram(
 	if (pipe_ctx_old->stream_res.dsc != pipe_ctx->stream_res.dsc)
 		return true;
 
-	/* DIG link encoder resource assignment for stream changed. */
-	if (pipe_ctx_old->stream->link_enc != pipe_ctx->stream->link_enc)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (pipe_ctx_old->stream_res.hpo_dp_stream_enc != pipe_ctx->stream_res.hpo_dp_stream_enc)
 		return true;
+#endif
+
+	/* DIG link encoder resource assignment for stream changed. */
+	if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
+		bool need_reprogram = false;
+		struct dc *dc = pipe_ctx_old->stream->ctx->dc;
+		enum link_enc_cfg_mode mode = dc->current_state->res_ctx.link_enc_cfg_ctx.mode;
+
+		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
+		if (link_enc_cfg_get_link_enc_used_by_stream(dc, pipe_ctx_old->stream) != pipe_ctx->stream->link_enc)
+			need_reprogram = true;
+		dc->current_state->res_ctx.link_enc_cfg_ctx.mode = mode;
+
+		return need_reprogram;
+	}
 
 	return false;
 }
@@ -2871,7 +3001,8 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 		res = DC_FAIL_CONTROLLER_VALIDATE;
 
 	if (res == DC_OK) {
-		if (!link->link_enc->funcs->validate_output_with_stream(
+		if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
+				!link->link_enc->funcs->validate_output_with_stream(
 						link->link_enc, stream))
 			res = DC_FAIL_ENC_VALIDATE;
 	}
@@ -2889,6 +3020,11 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state)
 {
 	enum dc_status res = DC_OK;
+
+	/* check if surface has invalid dimensions */
+	if (plane_state->src_rect.width == 0 || plane_state->src_rect.height == 0 ||
+		plane_state->dst_rect.width == 0 || plane_state->dst_rect.height == 0)
+		return DC_FAIL_SURFACE_VALIDATE;
 
 	/* TODO For now validates pixel format only */
 	if (dc->res_pool->funcs->validate_plane)
@@ -2975,3 +3111,22 @@ void get_audio_check(struct audio_info *aud_modes,
 	}
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+struct hpo_dp_link_encoder *resource_get_unused_hpo_dp_link_encoder(
+		const struct resource_pool *pool)
+{
+	uint8_t i;
+	struct hpo_dp_link_encoder *enc = NULL;
+
+	ASSERT(pool->hpo_dp_link_enc_count <= MAX_HPO_DP2_LINK_ENCODERS);
+
+	for (i = 0; i < pool->hpo_dp_link_enc_count; i++) {
+		if (pool->hpo_dp_link_enc[i]->transmitter == TRANSMITTER_UNKNOWN) {
+			enc = pool->hpo_dp_link_enc[i];
+			break;
+		}
+	}
+
+	return enc;
+}
+#endif

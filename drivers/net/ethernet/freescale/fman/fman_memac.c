@@ -354,7 +354,7 @@ struct fman_mac {
 	bool allmulti_enabled;
 };
 
-static void add_addr_in_paddr(struct memac_regs __iomem *regs, u8 *adr,
+static void add_addr_in_paddr(struct memac_regs __iomem *regs, const u8 *adr,
 			      u8 paddr_num)
 {
 	u32 tmp0, tmp1;
@@ -897,12 +897,12 @@ int memac_accept_rx_pause_frames(struct fman_mac *memac, bool en)
 	return 0;
 }
 
-int memac_modify_mac_address(struct fman_mac *memac, enet_addr_t *enet_addr)
+int memac_modify_mac_address(struct fman_mac *memac, const enet_addr_t *enet_addr)
 {
 	if (!is_init_done(memac->memac_drv_param))
 		return -EINVAL;
 
-	add_addr_in_paddr(memac->regs, (u8 *)(*enet_addr), 0);
+	add_addr_in_paddr(memac->regs, (const u8 *)(*enet_addr), 0);
 
 	return 0;
 }
@@ -1058,7 +1058,7 @@ int memac_init(struct fman_mac *memac)
 	/* MAC Address */
 	if (memac->addr != 0) {
 		MAKE_ENET_ADDR_FROM_UINT64(memac->addr, eth_addr);
-		add_addr_in_paddr(memac->regs, (u8 *)eth_addr, 0);
+		add_addr_in_paddr(memac->regs, (const u8 *)eth_addr, 0);
 	}
 
 	fixed_link = memac_drv_param->fixed_link;

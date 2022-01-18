@@ -245,10 +245,9 @@ ppp_sync_close(struct tty_struct *tty)
  * Wait for I/O to driver to complete and unregister PPP channel.
  * This is already done by the close routine, so just call that.
  */
-static int ppp_sync_hangup(struct tty_struct *tty)
+static void ppp_sync_hangup(struct tty_struct *tty)
 {
 	ppp_sync_close(tty);
-	return 0;
 }
 
 /*
@@ -304,7 +303,7 @@ ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
 		/* flush our buffers and the serial port's buffer */
 		if (arg == TCIOFLUSH || arg == TCOFLUSH)
 			ppp_sync_flush_output(ap);
-		err = n_tty_ioctl_helper(tty, file, cmd, arg);
+		err = n_tty_ioctl_helper(tty, cmd, arg);
 		break;
 
 	case FIONREAD:
@@ -315,7 +314,7 @@ ppp_synctty_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 
 	default:
-		err = tty_mode_ioctl(tty, file, cmd, arg);
+		err = tty_mode_ioctl(tty, cmd, arg);
 		break;
 	}
 

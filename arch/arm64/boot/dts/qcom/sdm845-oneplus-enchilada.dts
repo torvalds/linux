@@ -10,6 +10,7 @@
 / {
 	model = "OnePlus 6";
 	compatible = "oneplus,enchilada", "qcom,sdm845";
+	chassis-type = "handset";
 };
 
 &display_panel {

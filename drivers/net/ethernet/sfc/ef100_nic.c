@@ -609,6 +609,9 @@ static size_t ef100_update_stats(struct efx_nic *efx,
 	ef100_common_stat_mask(mask);
 	ef100_ethtool_stat_mask(mask);
 
+	if (!mc_stats)
+		return 0;
+
 	efx_nic_copy_stats(efx, mc_stats);
 	efx_nic_update_stats(ef100_stat_desc, EF100_STAT_COUNT, mask,
 			     stats, mc_stats, false);
@@ -1250,7 +1253,7 @@ int ef100_probe_pf(struct efx_nic *efx)
 	if (rc)
 		goto fail;
 	/* Assign MAC address */
-	memcpy(net_dev->dev_addr, net_dev->perm_addr, ETH_ALEN);
+	eth_hw_addr_set(net_dev, net_dev->perm_addr);
 	memcpy(nic_data->port_id, net_dev->perm_addr, ETH_ALEN);
 
 	return 0;

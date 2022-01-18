@@ -380,6 +380,8 @@ void dsa_port_pre_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	switchdev_bridge_port_unoffload(brport_dev, dp,
 					&dsa_slave_switchdev_notifier,
 					&dsa_slave_switchdev_blocking_notifier);
+
+	dsa_flush_workqueue();
 }
 
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
@@ -515,14 +517,15 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 					      struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
-	int err, i;
+	struct dsa_port *other_dp;
+	int err;
 
 	/* VLAN awareness was off, so the question is "can we turn it on".
 	 * We may have had 8021q uppers, those need to go. Make sure we don't
 	 * enter an inconsistent state: deny changing the VLAN awareness state
 	 * as long as we have 8021q uppers.
 	 */
-	if (vlan_filtering && dsa_is_user_port(ds, dp->index)) {
+	if (vlan_filtering && dsa_port_is_user(dp)) {
 		struct net_device *upper_dev, *slave = dp->slave;
 		struct net_device *br = dp->bridge_dev;
 		struct list_head *iter;
@@ -557,10 +560,10 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 	 * different ports of the same switch device and one of them has a
 	 * different setting than what is being requested.
 	 */
-	for (i = 0; i < ds->num_ports; i++) {
+	dsa_switch_for_each_port(other_dp, ds) {
 		struct net_device *other_bridge;
 
-		other_bridge = dsa_to_port(ds, i)->bridge_dev;
+		other_bridge = other_dp->bridge_dev;
 		if (!other_bridge)
 			continue;
 		/* If it's the same bridge, it also has same
@@ -607,20 +610,16 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 		return err;
 
 	if (ds->vlan_filtering_is_global) {
-		int port;
+		struct dsa_port *other_dp;
 
 		ds->vlan_filtering = vlan_filtering;
 
-		for (port = 0; port < ds->num_ports; port++) {
-			struct net_device *slave;
-
-			if (!dsa_is_user_port(ds, port))
-				continue;
+		dsa_switch_for_each_user_port(other_dp, ds) {
+			struct net_device *slave = dp->slave;
 
 			/* We might be called in the unbind path, so not
 			 * all slave devices might still be registered.
 			 */
-			slave = dsa_to_port(ds, port)->slave;
 			if (!slave)
 				continue;
 
@@ -1041,7 +1040,7 @@ static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 	struct phy_device *phydev = NULL;
 	struct dsa_switch *ds = dp->ds;
 
-	if (dsa_is_user_port(ds, dp->index))
+	if (dsa_port_is_user(dp))
 		phydev = dp->slave->phydev;
 
 	if (!ds->ops->phylink_mac_link_down) {
@@ -1168,6 +1167,10 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 	dp->pl_config.dev = ds->dev;
 	dp->pl_config.type = PHYLINK_DEV;
 	dp->pl_config.pcs_poll = ds->pcs_poll;
+
+	if (ds->ops->phylink_get_interfaces)
+		ds->ops->phylink_get_interfaces(ds, dp->index,
+					dp->pl_config.supported_interfaces);
 
 	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn),
 				mode, &dsa_port_phylink_mac_ops);

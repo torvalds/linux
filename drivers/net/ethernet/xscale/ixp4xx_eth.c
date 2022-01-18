@@ -1103,10 +1103,9 @@ static int init_queues(struct port *port)
 			return -ENOMEM;
 	}
 
-	if (!(port->desc_tab = dma_pool_alloc(dma_pool, GFP_KERNEL,
-					      &port->desc_tab_phys)))
+	port->desc_tab = dma_pool_zalloc(dma_pool, GFP_KERNEL, &port->desc_tab_phys);
+	if (!port->desc_tab)
 		return -ENOMEM;
-	memset(port->desc_tab, 0, POOL_ALLOC_SIZE);
 	memset(port->rx_buff_tab, 0, sizeof(port->rx_buff_tab)); /* tables */
 	memset(port->tx_buff_tab, 0, sizeof(port->tx_buff_tab));
 
@@ -1524,7 +1523,7 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 
 	port->plat = plat;
 	npe_port_tab[NPE_ID(port->id)] = port;
-	memcpy(ndev->dev_addr, plat->hwaddr, ETH_ALEN);
+	eth_hw_addr_set(ndev, plat->hwaddr);
 
 	platform_set_drvdata(pdev, ndev);
 

@@ -62,4 +62,9 @@ void xen_arch_register_cpu(int num);
 void xen_arch_unregister_cpu(int num);
 #endif
 
+#ifdef CONFIG_PVH
+void __init xen_pvh_init(struct boot_params *boot_params);
+void __init mem_map_via_hcall(struct boot_params *boot_params_p);
+#endif
+
 #endif /* _ASM_X86_XEN_HYPERVISOR_H */

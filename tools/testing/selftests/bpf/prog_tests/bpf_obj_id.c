@@ -3,7 +3,7 @@
 
 #define nr_iters 2
 
-void test_bpf_obj_id(void)
+void serial_test_bpf_obj_id(void)
 {
 	const __u64 array_magic_value = 0xfaceb00c;
 	const __u32 array_key = 0;

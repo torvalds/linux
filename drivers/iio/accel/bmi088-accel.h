@@ -13,6 +13,6 @@ extern const struct dev_pm_ops bmi088_accel_pm_ops;
 
 int bmi088_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 			    const char *name, bool block_supported);
-int bmi088_accel_core_remove(struct device *dev);
+void bmi088_accel_core_remove(struct device *dev);
 
 #endif /* BMI088_ACCEL_H */

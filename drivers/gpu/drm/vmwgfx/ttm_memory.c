@@ -468,7 +468,6 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	struct ttm_mem_zone *zone;
 	unsigned int i;
 
-	flush_workqueue(glob->swap_queue);
 	destroy_workqueue(glob->swap_queue);
 	glob->swap_queue = NULL;
 	for (i = 0; i < glob->num_zones; ++i) {

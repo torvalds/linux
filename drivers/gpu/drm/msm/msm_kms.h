@@ -136,8 +136,7 @@ struct msm_kms;
  * shortly before vblank to flush pending async updates.
  */
 struct msm_pending_timer {
-	struct hrtimer timer;
-	struct kthread_work work;
+	struct msm_hrtimer_work work;
 	struct kthread_worker *worker;
 	struct msm_kms *kms;
 	unsigned crtc_idx;

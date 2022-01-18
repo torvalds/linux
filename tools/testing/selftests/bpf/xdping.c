@@ -178,9 +178,8 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	main_prog = bpf_object__find_program_by_title(obj,
-						      server ? "xdpserver" :
-							       "xdpclient");
+	main_prog = bpf_object__find_program_by_name(obj,
+						     server ? "xdping_server" : "xdping_client");
 	if (main_prog)
 		prog_fd = bpf_program__fd(main_prog);
 	if (!main_prog || prog_fd < 0) {
@@ -188,7 +187,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	map = bpf_map__next(NULL, obj);
+	map = bpf_object__next_map(obj, NULL);
 	if (map)
 		map_fd = bpf_map__fd(map);
 	if (!map || map_fd < 0) {

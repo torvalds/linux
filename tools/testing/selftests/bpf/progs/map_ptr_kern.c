@@ -683,5 +683,4 @@ int cg_skb(void *ctx)
 	return 1;
 }
 
-__u32 _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";

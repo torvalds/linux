@@ -7,6 +7,7 @@
 / {
 	model = "Samsung Galaxy A5U (EUR)";
 	compatible = "samsung,a5u-eur", "qcom,msm8916";
+	chassis-type = "handset";
 
 	reg_touch_key: regulator-touch-key {
 		compatible = "regulator-fixed";

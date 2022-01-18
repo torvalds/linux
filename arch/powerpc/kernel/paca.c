@@ -322,8 +322,8 @@ void __init free_unused_pacas(void)
 
 	new_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
 	if (new_ptrs_size < paca_ptrs_size)
-		memblock_free(__pa(paca_ptrs) + new_ptrs_size,
-					paca_ptrs_size - new_ptrs_size);
+		memblock_phys_free(__pa(paca_ptrs) + new_ptrs_size,
+				   paca_ptrs_size - new_ptrs_size);
 
 	paca_nr_cpu_ids = nr_cpu_ids;
 	paca_ptrs_size = new_ptrs_size;
@@ -331,8 +331,8 @@ void __init free_unused_pacas(void)
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (early_radix_enabled()) {
 		/* Ugly fixup, see new_slb_shadow() */
-		memblock_free(__pa(paca_ptrs[boot_cpuid]->slb_shadow_ptr),
-				sizeof(struct slb_shadow));
+		memblock_phys_free(__pa(paca_ptrs[boot_cpuid]->slb_shadow_ptr),
+				   sizeof(struct slb_shadow));
 		paca_ptrs[boot_cpuid]->slb_shadow_ptr = NULL;
 	}
 #endif

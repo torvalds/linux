@@ -42,12 +42,14 @@ _bootparam:
 
 	.align  4
 _SetupMMU:
+#if XCHAL_HAVE_WINDOWED
 	movi	a0, 0
 	wsr	a0, windowbase
 	rsync
 	movi	a0, 1
 	wsr	a0, windowstart
 	rsync
+#endif
 	movi	a0, 0x1F
 	wsr	a0, ps
 	rsync

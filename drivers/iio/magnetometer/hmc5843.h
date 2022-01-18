@@ -50,7 +50,7 @@ struct hmc5843_data {
 
 int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 			 enum hmc5843_ids id, const char *name);
-int hmc5843_common_remove(struct device *dev);
+void hmc5843_common_remove(struct device *dev);
 
 int hmc5843_common_suspend(struct device *dev);
 int hmc5843_common_resume(struct device *dev);

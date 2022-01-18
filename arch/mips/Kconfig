@@ -47,7 +47,6 @@ config MIPS
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select GUP_GET_PTE_LOW_HIGH if CPU_MIPS32 && PHYS_ADDR_T_64BIT
-	select HANDLE_DOMAIN_IRQ
 	select HAVE_ARCH_COMPILER_H
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_KGDB if MIPS_FP_SUPPORT
@@ -57,7 +56,6 @@ config MIPS
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_CBPF_JIT if !64BIT && !CPU_MICROMIPS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_TIF_NOHZ
 	select HAVE_C_RECORDMCOUNT
@@ -65,7 +63,10 @@ config MIPS
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
-	select HAVE_EBPF_JIT if 64BIT && !CPU_MICROMIPS && TARGET_ISA_REV >= 2
+	select HAVE_EBPF_JIT if !CPU_MICROMIPS && \
+				!CPU_DADDI_WORKAROUNDS && \
+				!CPU_R4000_WORKAROUNDS && \
+				!CPU_R4400_WORKAROUNDS
 	select HAVE_EXIT_THREAD
 	select HAVE_FAST_GUP
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -291,6 +292,8 @@ config BMIPS_GENERIC
 	select USB_OHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select HARDIRQS_SW_RESEND
+	select HAVE_PCI
+	select PCI_DRIVERS_GENERIC
 	help
 	  Build a generic DT-based kernel image that boots on select
 	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
@@ -332,6 +335,9 @@ config BCM63XX
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
+	select SYS_HAS_CPU_BMIPS32_3300
+	select SYS_HAS_CPU_BMIPS4350
+	select SYS_HAS_CPU_BMIPS4380
 	select SWAP_IO_SPACE
 	select GPIOLIB
 	select MIPS_L1_CACHE_SHIFT_4
@@ -994,60 +1000,6 @@ config CAVIUM_OCTEON_SOC
 		Hikari
 	  Say Y here for most Octeon reference boards.
 
-config NLM_XLR_BOARD
-	bool "Netlogic XLR/XLS based systems"
-	select BOOT_ELF32
-	select NLM_COMMON
-	select SYS_HAS_CPU_XLR
-	select SYS_SUPPORTS_SMP
-	select HAVE_PCI
-	select SWAP_IO_SPACE
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select PHYS_ADDR_T_64BIT
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HIGHMEM
-	select NR_CPUS_DEFAULT_32
-	select CEVT_R4K
-	select CSRC_R4K
-	select IRQ_MIPS_CPU
-	select ZONE_DMA32 if 64BIT
-	select SYNC_R4K
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_ZBOOT
-	select SYS_SUPPORTS_ZBOOT_UART16550
-	help
-	  Support for systems based on Netlogic XLR and XLS processors.
-	  Say Y here if you have a XLR or XLS based board.
-
-config NLM_XLP_BOARD
-	bool "Netlogic XLP based systems"
-	select BOOT_ELF32
-	select NLM_COMMON
-	select SYS_HAS_CPU_XLP
-	select SYS_SUPPORTS_SMP
-	select HAVE_PCI
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select PHYS_ADDR_T_64BIT
-	select GPIOLIB
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_HIGHMEM
-	select NR_CPUS_DEFAULT_32
-	select CEVT_R4K
-	select CSRC_R4K
-	select IRQ_MIPS_CPU
-	select ZONE_DMA32 if 64BIT
-	select SYNC_R4K
-	select SYS_HAS_EARLY_PRINTK
-	select USE_OF
-	select SYS_SUPPORTS_ZBOOT
-	select SYS_SUPPORTS_ZBOOT_UART16550
-	help
-	  This board is based on Netlogic XLP Processor.
-	  Say Y here if you have a XLP based board.
-
 endchoice
 
 source "arch/mips/alchemy/Kconfig"
@@ -1070,7 +1022,6 @@ source "arch/mips/cavium-octeon/Kconfig"
 source "arch/mips/loongson2ef/Kconfig"
 source "arch/mips/loongson32/Kconfig"
 source "arch/mips/loongson64/Kconfig"
-source "arch/mips/netlogic/Kconfig"
 
 endmenu
 
@@ -1211,15 +1162,6 @@ config SYS_SUPPORTS_RELOCATABLE
 	  Selected if the platform supports relocating the kernel.
 	  The platform must provide plat_get_fdt() if it selects CONFIG_USE_OF
 	  to allow access to command line and entropy sources.
-
-config MIPS_CBPF_JIT
-	def_bool y
-	depends on BPF_JIT && HAVE_CBPF_JIT
-
-config MIPS_EBPF_JIT
-	def_bool y
-	depends on BPF_JIT && HAVE_EBPF_JIT
-
 
 #
 # Endianness selection.  Sufficiently obscure so many users don't know what to
@@ -1379,6 +1321,7 @@ config CPU_LOONGSON64
 	select MIPS_ASID_BITS_VARIABLE
 	select MIPS_PGD_C0_CONTEXT
 	select MIPS_L1_CACHE_SHIFT_6
+	select MIPS_FP_SUPPORT
 	select GPIOLIB
 	select SWIOTLB
 	select HAVE_KVM
@@ -1782,35 +1725,10 @@ config CPU_BMIPS
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_CPUFREQ
 	select MIPS_EXTERNAL_TIMER
+	select GENERIC_IRQ_MIGRATION if HOTPLUG_CPU
 	help
 	  Support for BMIPS32/3300/4350/4380 and BMIPS5000 processors.
 
-config CPU_XLR
-	bool "Netlogic XLR SoC"
-	depends on SYS_HAS_CPU_XLR
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_SUPPORTS_HIGHMEM
-	select CPU_SUPPORTS_HUGEPAGES
-	select WEAK_ORDERING
-	select WEAK_REORDERING_BEYOND_LLSC
-	help
-	  Netlogic Microsystems XLR/XLS processors.
-
-config CPU_XLP
-	bool "Netlogic XLP SoC"
-	depends on SYS_HAS_CPU_XLP
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_SUPPORTS_HIGHMEM
-	select WEAK_ORDERING
-	select WEAK_REORDERING_BEYOND_LLSC
-	select CPU_HAS_PREFETCH
-	select CPU_MIPSR2
-	select CPU_SUPPORTS_HUGEPAGES
-	select MIPS_ASID_BITS_VARIABLE
-	help
-	  Netlogic Microsystems XLP processors.
 endchoice
 
 config CPU_MIPS32_3_5_FEATURES
@@ -2057,12 +1975,6 @@ config SYS_HAS_CPU_BMIPS5000
 	select SYS_HAS_CPU_BMIPS
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 
-config SYS_HAS_CPU_XLR
-	bool
-
-config SYS_HAS_CPU_XLP
-	bool
-
 #
 # CPU may reorder R->R, R->W, W->R, W->W
 # Reordering beyond LL and SC is handled in WEAK_REORDERING_BEYOND_LLSC
@@ -2157,7 +2069,7 @@ config CPU_SUPPORTS_HUGEPAGES
 config MIPS_PGD_C0_CONTEXT
 	bool
 	depends on 64BIT
-	default y if (CPU_MIPSR2 || CPU_MIPSR6) && !CPU_XLP
+	default y if (CPU_MIPSR2 || CPU_MIPSR6)
 
 #
 # Set to y for ptrace access to watch registers.
@@ -2840,7 +2752,7 @@ config NODES_SHIFT
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP || CPU_LOONGSON64)
+	depends on PERF_EVENTS && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_LOONGSON64)
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
@@ -3185,7 +3097,7 @@ config STACKTRACE_SUPPORT
 config PGTABLE_LEVELS
 	int
 	default 4 if PAGE_SIZE_4KB && MIPS_VA_BITS_48
-	default 3 if 64BIT && !PAGE_SIZE_64KB
+	default 3 if 64BIT && (!PAGE_SIZE_64KB || MIPS_VA_BITS_48)
 	default 2
 
 config MIPS_AUTO_PFN_OFFSET

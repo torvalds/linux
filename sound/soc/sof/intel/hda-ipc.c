@@ -253,9 +253,9 @@ int hda_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 	return SRAM_WINDOW_OFFSET(id);
 }
 
-void hda_ipc_msg_data(struct snd_sof_dev *sdev,
-		      struct snd_pcm_substream *substream,
-		      void *p, size_t sz)
+int hda_ipc_msg_data(struct snd_sof_dev *sdev,
+		     struct snd_pcm_substream *substream,
+		     void *p, size_t sz)
 {
 	if (!substream || !sdev->stream_box.size) {
 		sof_mailbox_read(sdev, sdev->dsp_box.offset, p, sz);
@@ -268,10 +268,13 @@ void hda_ipc_msg_data(struct snd_sof_dev *sdev,
 					  hda_stream.hstream);
 
 		/* The stream might already be closed */
-		if (hstream)
-			sof_mailbox_read(sdev, hda_stream->stream.posn_offset,
-					 p, sz);
+		if (!hstream)
+			return -ESTRPIPE;
+
+		sof_mailbox_read(sdev, hda_stream->stream.posn_offset, p, sz);
 	}
+
+	return 0;
 }
 
 int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
