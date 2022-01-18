@@ -50,6 +50,7 @@ struct waltgov_policy {
 	s64			down_rate_delay_ns;
 	unsigned int		next_freq;
 	unsigned int		cached_raw_freq;
+	unsigned int		driving_cpu;
 
 	/* The next fields are only needed if fast switch cannot be used: */
 	struct	irq_work	irq_work;
@@ -70,6 +71,7 @@ struct waltgov_cpu {
 	unsigned long		util;
 	unsigned long		max;
 	unsigned int		flags;
+	unsigned int		reasons;
 };
 
 DEFINE_PER_CPU(struct waltgov_callback *, waltgov_cb_data);
@@ -224,19 +226,24 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 {
 	struct cpufreq_policy *policy = wg_policy->policy;
 	unsigned int freq, raw_freq, final_freq;
+	struct waltgov_cpu *wg_driv_cpu = &per_cpu(waltgov_cpu, wg_policy->driving_cpu);
 
 	raw_freq = walt_map_util_freq(util, wg_policy, max, wg_cpu->cpu);
 	freq = raw_freq;
 
 	if (wg_policy->tunables->adaptive_high_freq) {
-		if (raw_freq < wg_policy->tunables->adaptive_low_freq)
+		if (raw_freq < wg_policy->tunables->adaptive_low_freq) {
 			freq = wg_policy->tunables->adaptive_low_freq;
-		else if (raw_freq <= wg_policy->tunables->adaptive_high_freq)
+			wg_driv_cpu->reasons = CPUFREQ_REASON_ADAPTIVE_LOW;
+		} else if (raw_freq <= wg_policy->tunables->adaptive_high_freq) {
 			freq = wg_policy->tunables->adaptive_high_freq;
+			wg_driv_cpu->reasons = CPUFREQ_REASON_ADAPTIVE_HIGH;
+		}
 	}
 
 	trace_waltgov_next_freq(policy->cpu, util, max, raw_freq, freq, policy->min, policy->max,
-				wg_policy->cached_raw_freq, wg_policy->need_freq_update);
+				wg_policy->cached_raw_freq, wg_policy->need_freq_update,
+				wg_driv_cpu->cpu, wg_driv_cpu->reasons);
 
 	if (wg_policy->cached_raw_freq && freq == wg_policy->cached_raw_freq &&
 		!wg_policy->need_freq_update)
@@ -259,7 +266,8 @@ static unsigned long waltgov_get_util(struct waltgov_cpu *wg_cpu)
 	unsigned long util;
 
 	wg_cpu->max = max;
-	util = cpu_util_freq_walt(wg_cpu->cpu, &wg_cpu->walt_load);
+	wg_cpu->reasons = 0;
+	util = cpu_util_freq_walt(wg_cpu->cpu, &wg_cpu->walt_load, &wg_cpu->reasons);
 	return uclamp_rq_util_with(rq, util, NULL);
 }
 
@@ -270,6 +278,16 @@ static unsigned long waltgov_get_util(struct waltgov_cpu *wg_cpu)
 #define DEFAULT_PRIME_RTG_BOOST_FREQ 0
 #define DEFAULT_TARGET_LOAD_THRESH 1024
 #define DEFAULT_TARGET_LOAD_SHIFT 4
+static inline void max_and_reason(unsigned long *cur_util, unsigned long boost_util,
+		struct waltgov_cpu *wg_cpu, unsigned int reason)
+{
+	if (boost_util >= *cur_util) {
+		*cur_util = boost_util;
+		wg_cpu->reasons = reason;
+		wg_cpu->wg_policy->driving_cpu = wg_cpu->cpu;
+	}
+}
+
 static void waltgov_walt_adjust(struct waltgov_cpu *wg_cpu, unsigned long cpu_util,
 				unsigned long nl, unsigned long *util,
 				unsigned long *max)
@@ -281,22 +299,22 @@ static void waltgov_walt_adjust(struct waltgov_cpu *wg_cpu, unsigned long cpu_ut
 	unsigned long pl = wg_cpu->walt_load.pl;
 
 	if (is_rtg_boost)
-		*util = max(*util, wg_policy->rtg_boost_util);
+		max_and_reason(util, wg_policy->rtg_boost_util, wg_cpu, CPUFREQ_REASON_RTG_BOOST);
 
 	is_hiload = (cpu_util >= mult_frac(wg_policy->avg_cap,
 					   wg_policy->tunables->hispeed_load,
 					   100));
 
 	if (is_hiload && !is_migration)
-		*util = max(*util, wg_policy->hispeed_util);
+		max_and_reason(util, wg_policy->hispeed_util, wg_cpu, CPUFREQ_REASON_HISPEED);
 
 	if (is_hiload && nl >= mult_frac(cpu_util, NL_RATIO, 100))
-		*util = *max;
+		max_and_reason(util, *max, wg_cpu, CPUFREQ_REASON_NWD);
 
 	if (wg_policy->tunables->pl) {
 		if (sysctl_sched_conservative_pl)
 			pl = mult_frac(pl, TARGET_LOAD, 100);
-		*util = max(*util, pl);
+		max_and_reason(util, pl, wg_cpu, CPUFREQ_REASON_PL);
 	}
 }
 
@@ -346,6 +364,7 @@ static unsigned int waltgov_next_freq_shared(struct waltgov_cpu *wg_cpu, u64 tim
 		if (j_util * max >= j_max * util) {
 			util = j_util;
 			max = j_max;
+			wg_policy->driving_cpu = j;
 		}
 
 		waltgov_walt_adjust(j_wg_cpu, j_util, j_nl, &util, &max);

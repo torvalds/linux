@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _WALT_H
@@ -297,6 +297,18 @@ extern unsigned int sched_lib_mask_force;
 #define WALT_CPUFREQ_EARLY_DET		(1U << 4)
 #define WALT_CPUFREQ_BOOST_UPDATE	(1U << 5)
 
+#define CPUFREQ_REASON_PL		(1U << 1)
+#define CPUFREQ_REASON_EARLY_DET	(1U << 2)
+#define CPUFREQ_REASON_RTG_BOOST	(1U << 3)
+#define CPUFREQ_REASON_HISPEED		(1U << 4)
+#define CPUFREQ_REASON_NWD		(1U << 5)
+#define CPUFREQ_REASON_FREQ_AGR		(1U << 6)
+#define CPUFREQ_REASON_KSOFTIRQD	(1U << 7)
+#define CPUFREQ_REASON_TT_LOAD		(1U << 8)
+#define CPUFREQ_REASON_SUH		(1U << 9)
+#define CPUFREQ_REASON_ADAPTIVE_LOW	(1U << 10)
+#define CPUFREQ_REASON_ADAPTIVE_HIGH	(1U << 11)
+
 #define NO_BOOST 0
 #define FULL_THROTTLE_BOOST 1
 #define CONSERVATIVE_BOOST 2
@@ -366,7 +378,8 @@ static inline void waltgov_run_callback(struct rq *rq, unsigned int flags)
 		cb->func(cb, walt_sched_clock(), flags);
 }
 
-extern unsigned long cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load);
+extern unsigned long cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load,
+		unsigned int *reason);
 int waltgov_register(void);
 
 extern void walt_lb_init(void);

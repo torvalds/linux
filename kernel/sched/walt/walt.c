@@ -590,30 +590,41 @@ should_apply_suh_freq_boost(struct walt_sched_cluster *cluster)
 	return is_cluster_hosting_top_app(cluster);
 }
 
-static inline u64 freq_policy_load(struct rq *rq)
+static inline u64 freq_policy_load(struct rq *rq, unsigned int *reason)
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_sched_cluster *cluster = wrq->cluster;
 	u64 aggr_grp_load = cluster->aggr_grp_load;
-	u64 load, tt_load = 0;
+	u64 load, tt_load = 0, kload = 0;
 	struct task_struct *cpu_ksoftirqd = per_cpu(ksoftirqd, cpu_of(rq));
 
 	if (wrq->ed_task != NULL) {
 		load = sched_ravg_window;
+		*reason = CPUFREQ_REASON_EARLY_DET;
 		goto done;
 	}
 
-	if (sched_freq_aggr_en)
+	if (sched_freq_aggr_en) {
 		load = wrq->prev_runnable_sum + aggr_grp_load;
+		*reason = CPUFREQ_REASON_FREQ_AGR;
+	}
 	else
 		load = wrq->prev_runnable_sum +
 					wrq->grp_time.prev_runnable_sum;
 
-	if (cpu_ksoftirqd && READ_ONCE(cpu_ksoftirqd->__state) == TASK_RUNNING)
-		load = max_t(u64, load, task_load(cpu_ksoftirqd));
+	if (cpu_ksoftirqd && READ_ONCE(cpu_ksoftirqd->__state) == TASK_RUNNING) {
+		kload = task_load(cpu_ksoftirqd);
+		if (kload > load) {
+			load = kload;
+			*reason = CPUFREQ_REASON_KSOFTIRQD;
+		}
+	}
 
 	tt_load = top_task_load(rq);
-	load = max_t(u64, load, tt_load);
+	if (tt_load > load) {
+		load = tt_load;
+		*reason = CPUFREQ_REASON_TT_LOAD;
+	}
 
 	if (should_apply_suh_freq_boost(cluster)) {
 		if (is_suh_max())
@@ -621,26 +632,27 @@ static inline u64 freq_policy_load(struct rq *rq)
 		else
 			load = div64_u64(load * sysctl_sched_user_hint,
 					 (u64)100);
+		*reason = CPUFREQ_REASON_SUH;
 	}
 
 done:
 	trace_sched_load_to_gov(rq, aggr_grp_load, tt_load, sched_freq_aggr_en,
 				load, 0, walt_rotation_enabled,
-				sysctl_sched_user_hint, wrq);
+				sysctl_sched_user_hint, wrq, *reason);
 	return load;
 }
 
 static bool rtgb_active;
 
 static inline unsigned long
-__cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load)
+__cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reason)
 {
 	u64 util;
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long capacity = capacity_orig_of(cpu);
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
-	util = div64_u64(freq_policy_load(rq),
+	util = div64_u64(freq_policy_load(rq, reason),
 			sched_ravg_window >> SCHED_CAPACITY_SHIFT);
 
 	if (walt_load) {
@@ -665,7 +677,7 @@ __cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load)
 			(max(orig, mult_frac(other, x, 100)))
 
 unsigned long
-cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load)
+cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reason)
 {
 	struct walt_cpu_load wl_other = {0};
 	unsigned long util = 0, util_other = 0;
@@ -673,13 +685,13 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load)
 	int i, mpct = sysctl_sched_asym_cap_sibling_freq_match_pct;
 
 	if (!cpumask_test_cpu(cpu, &asym_cap_sibling_cpus))
-		return __cpu_util_freq_walt(cpu, walt_load);
+		return __cpu_util_freq_walt(cpu, walt_load, reason);
 
 	for_each_cpu(i, &asym_cap_sibling_cpus) {
 		if (i == cpu)
-			util = __cpu_util_freq_walt(cpu, walt_load);
+			util = __cpu_util_freq_walt(cpu, walt_load, reason);
 		else
-			util_other = __cpu_util_freq_walt(i, &wl_other);
+			util_other = __cpu_util_freq_walt(i, &wl_other, reason);
 	}
 
 	if (cpu == cpumask_last(&asym_cap_sibling_cpus))
