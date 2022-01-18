@@ -204,6 +204,12 @@ config DRM_TTM
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
 
+config DRM_BUDDY
+	tristate
+	depends on DRM
+	help
+	  A page based buddy allocator
+
 config DRM_VRAM_HELPER
 	tristate
 	depends on DRM
