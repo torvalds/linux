@@ -284,6 +284,12 @@ aspeed_sdhci_configure_phase(struct sdhci_host *host, unsigned long rate)
 
 static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
+#ifdef CONFIG_MACH_ASPEED_G6
+	if (clock >= 50000000)
+		aspeed_sdhci_configure_phase(host, clock);
+
+	sdhci_set_clock(host, clock);
+#else
 	struct sdhci_pltfm_host *pltfm_host;
 	unsigned long parent, bus;
 	struct aspeed_sdhci *sdhci;
@@ -332,13 +338,11 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	aspeed_sdhci_configure_phase(host, bus);
 
 	sdhci_enable_clk(host, clk);
+#endif
 }
 
 static unsigned int aspeed_sdhci_get_max_clock(struct sdhci_host *host)
 {
-	if (host->mmc->f_max)
-		return host->mmc->f_max;
-
 	return sdhci_pltfm_clk_get_max_clock(host);
 }
 
@@ -388,11 +392,11 @@ static const struct sdhci_ops aspeed_sdhci_ops = {
 };
 
 static struct sdhci_pltfm_data aspeed_sdhci_pdata = {
-#ifndef CONFIG_MACH_ASPEED_G6
+	.ops = &aspeed_sdhci_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+#ifndef CONFIG_MACH_ASPEED_G6
 	.quirks2 = SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN | SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 #else
-	.ops = &aspeed_sdhci_ops,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 #endif
 };
