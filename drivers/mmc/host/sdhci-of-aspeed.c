@@ -284,10 +284,6 @@ aspeed_sdhci_configure_phase(struct sdhci_host *host, unsigned long rate)
 
 static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
-#ifdef CONFIG_MACH_ASPEED_G6
-	sdhci_set_clock(host, clock);
-	aspeed_sdhci_configure_phase(host, host->max_clk);
-#else
 	struct sdhci_pltfm_host *pltfm_host;
 	unsigned long parent, bus;
 	struct aspeed_sdhci *sdhci;
@@ -336,7 +332,6 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	aspeed_sdhci_configure_phase(host, bus);
 
 	sdhci_enable_clk(host, clk);
-#endif
 }
 
 static unsigned int aspeed_sdhci_get_max_clock(struct sdhci_host *host)
