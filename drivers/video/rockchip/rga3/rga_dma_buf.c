@@ -934,13 +934,14 @@ static void rga_dma_put_channel_info(struct rga_dma_buffer_t **rga_dma_buffer, s
 		return;
 
 	rga_dma_unmap_buffer(buffer);
-	if (*dma_buf)
+	if (*dma_buf && buffer->use_dma_buf == false) {
 		dma_buf_put(*dma_buf);
+		*dma_buf = NULL;
+	}
 
 	kfree(buffer);
 
 	*rga_dma_buffer = NULL;
-	*dma_buf = NULL;
 }
 
 int rga_dma_buf_get(struct rga_job *job)

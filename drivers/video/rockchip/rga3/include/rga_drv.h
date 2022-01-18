@@ -113,6 +113,11 @@ enum {
 	RGA_NONE_CORE			 = 0x0,
 };
 
+enum {
+	RGA_CMD_SLAVE		= 1,
+	RGA_CMD_MASTER		= 2,
+};
+
 enum iommu_dma_cookie_type {
 	IOMMU_DMA_IOVA_COOKIE,
 	IOMMU_DMA_MSI_COOKIE,
@@ -286,10 +291,11 @@ struct rga_job {
 	ktime_t timestamp;
 	ktime_t running_time;
 	unsigned int flags;
-	int job_id;
+	int ctx_id;
 	int priority;
 	int core;
 	int ret;
+	bool use_batch_mode;
 };
 
 struct rga_scheduler_t;
@@ -329,6 +335,44 @@ struct rga_scheduler_t {
 	struct rga_timer timer;
 };
 
+struct rga_internal_ctx_t {
+	struct rga_req *cached_cmd;
+	int cmd_num;
+	int flags;
+	int id;
+
+	uint8_t mpi_config_flags;
+	uint32_t sync_mode;
+
+	uint32_t finished_job_count;
+
+	bool use_batch_mode;
+	bool is_running;
+
+	struct dma_fence *out_fence;
+	int32_t out_fence_fd;
+
+	spinlock_t lock;
+	struct kref refcount;
+
+	pid_t pid;
+	/* TODO: add some common work */
+};
+
+struct rga_pending_ctx_manager {
+	struct mutex lock;
+
+	/*
+	 * @ctx_id_idr:
+	 *
+	 * Mapping of ctx id to object pointers. Used by the GEM
+	 * subsystem. Protected by @lock.
+	 */
+	struct idr ctx_id_idr;
+
+	int ctx_count;
+};
+
 struct rga_drvdata_t {
 	struct miscdevice miscdev;
 
@@ -344,6 +388,9 @@ struct rga_drvdata_t {
 	struct wake_lock wake_lock;
 
 	struct rga_mm *mm;
+
+	/* rga_job pending manager, import by RGA_START_CONFIG */
+	struct rga_pending_ctx_manager *pend_ctx_manager;
 
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	struct rga_debugger *debugger;

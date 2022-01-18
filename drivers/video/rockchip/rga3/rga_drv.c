@@ -41,24 +41,71 @@ static const struct rga_backend_ops rga2_ops = {
 	.soft_reset = rga2_soft_reset
 };
 
-int rga_mpi_commit(struct rga_req *cmd, struct rga_mpi_job_t *mpi_job)
+int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 {
-	int ret;
+	int ret = 0;
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_internal_ctx_t *ctx;
+	struct rga_req *cached_cmd;
+	unsigned long flags;
+	int i;
 
-	if (DEBUGGER_EN(MSG))
-		rga_cmd_print_debug_info(cmd);
+	ctx_manager = rga_drvdata->pend_ctx_manager;
 
-	ret = rga_job_mpi_commit(cmd, mpi_job, RGA_BLIT_SYNC);
-	if (ret < 0) {
-		if (ret == -ERESTARTSYS) {
-			if (DEBUGGER_EN(MSG))
-				pr_err("%s, commit mpi job failed, by a software interrupt.\n",
-				       __func__);
-		} else {
-			pr_err("%s, commit mpi job failed\n", __func__);
+	ctx = rga_internal_ctx_lookup(ctx_manager, mpi_job->ctx_id);
+	if (IS_ERR_OR_NULL(ctx)) {
+		pr_err("can not find internal ctx from id[%d]", mpi_job->ctx_id);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&ctx->lock, flags);
+
+	ctx->sync_mode = RGA_BLIT_SYNC;
+	/* TODO: batch mode need mpi async mode */
+	ctx->use_batch_mode = false;
+
+	cached_cmd = ctx->cached_cmd;
+
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	/* change src cmd config by mpi frame info */
+	if (!ctx->mpi_config_flags) {
+		cached_cmd->src.x_offset = mpi_job->src.x_offset;
+		cached_cmd->src.y_offset = mpi_job->src.y_offset;
+		cached_cmd->src.act_w = mpi_job->src.width;
+		cached_cmd->src.act_h = mpi_job->src.height;
+		cached_cmd->src.vir_w = mpi_job->src.vir_w;
+		cached_cmd->src.vir_h = mpi_job->src.vir_h;
+		cached_cmd->src.rd_mode = mpi_job->src.rd_mode;
+		cached_cmd->src.format = mpi_job->src.format;
+	}
+
+	/* copy dst info to mpi job */
+	mpi_job->dst.x_offset = cached_cmd->dst.x_offset;
+	mpi_job->dst.y_offset = cached_cmd->dst.y_offset;
+	mpi_job->dst.width = cached_cmd->dst.act_w;
+	mpi_job->dst.height = cached_cmd->dst.act_h;
+	mpi_job->dst.vir_w = cached_cmd->dst.vir_w;
+	mpi_job->dst.vir_h = cached_cmd->dst.vir_h;
+	mpi_job->dst.rd_mode = cached_cmd->dst.rd_mode;
+	mpi_job->dst.format = cached_cmd->dst.format;
+
+	for (i = 0; i < ctx->cmd_num; i++) {
+		if (DEBUGGER_EN(MSG))
+			rga_cmd_print_debug_info(&(cached_cmd[i]));
+
+		ret = rga_job_mpi_commit(&(cached_cmd[i]), mpi_job, ctx);
+		if (ret < 0) {
+			if (ret == -ERESTARTSYS) {
+				if (DEBUGGER_EN(MSG))
+					pr_err("%s, commit mpi job failed, by a software interrupt.\n",
+						__func__);
+			} else {
+				pr_err("%s, commit mpi job failed\n", __func__);
+			}
+
+			return ret;
 		}
-
-		return ret;
 	}
 
 	return ret;
@@ -67,12 +114,16 @@ EXPORT_SYMBOL_GPL(rga_mpi_commit);
 
 int rga_kernel_commit(struct rga_req *cmd)
 {
-	int ret;
+	int ret = 0;
+	struct rga_internal_ctx_t ctx;
 
 	if (DEBUGGER_EN(MSG))
 		rga_cmd_print_debug_info(cmd);
 
-	ret = rga_job_commit(cmd, RGA_BLIT_SYNC);
+	ctx.sync_mode = RGA_BLIT_SYNC;
+	ctx.use_batch_mode = false;
+
+	ret = rga_job_commit(cmd, &ctx);
 	if (ret < 0) {
 		if (ret == -ERESTARTSYS) {
 			if (DEBUGGER_EN(MSG))
@@ -302,6 +353,113 @@ err_free_external_buffer:
 	return ret;
 }
 
+static long rga_ioctl_cmd_start(unsigned long arg)
+{
+	uint32_t rga_user_ctx_id;
+	int ret = 0;
+
+	rga_user_ctx_id = rga_internal_ctx_alloc_to_get_idr_id();
+
+	if (copy_to_user((void *)arg, &rga_user_ctx_id, sizeof(uint32_t)))
+		ret = -EFAULT;
+
+	return ret;
+}
+
+static long rga_ioctl_cmd_config(unsigned long arg)
+{
+	struct rga_user_ctx_t rga_user_ctx;
+	int ret = 0;
+
+	if (unlikely(copy_from_user(&rga_user_ctx, (struct rga_user_ctx_t *)arg,
+			sizeof(rga_user_ctx)))) {
+		pr_err("rga_user_ctx copy_from_user failed!\n");
+		return -EFAULT;
+	}
+
+	if (rga_user_ctx.cmd_num > RGA_CMD_NUM_MAX) {
+		pr_err("Cannot import more than %d buffers at a time!\n",
+			RGA_CMD_NUM_MAX);
+		return -EFBIG;
+	}
+
+	if (rga_user_ctx.cmd_ptr == 0) {
+		pr_err("Cmd is NULL");
+		return -EINVAL;
+	}
+
+	if (rga_user_ctx.id <= 0) {
+		pr_err("ctx id[%d] is invalid", rga_user_ctx.id);
+		return -EINVAL;
+	}
+
+	if (DEBUGGER_EN(MSG))
+		pr_err("config cmd id = %d", rga_user_ctx.id);
+
+	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
+	ret = rga_job_config_by_user_ctx(&rga_user_ctx);
+	if (ret < 0) {
+		pr_err("config ctx id[%d] failed!\n", rga_user_ctx.id);
+		return -EFAULT;
+	}
+
+	return ret;
+}
+
+static long rga_ioctl_cmd_end(unsigned long arg)
+{
+	struct rga_user_ctx_t rga_user_ctx;
+	int ret = 0;
+
+	if (unlikely(copy_from_user(&rga_user_ctx, (struct rga_user_ctx_t *)arg,
+			sizeof(rga_user_ctx)))) {
+		pr_err("rga_user_ctx copy_from_user failed!\n");
+		return -EFAULT;
+	}
+
+	if (DEBUGGER_EN(MSG))
+		pr_err("config end id = %d", rga_user_ctx.id);
+
+	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
+	ret = rga_job_commit_by_user_ctx(&rga_user_ctx);
+	if (ret < 0) {
+		pr_err("commit ctx id[%d] failed!\n", rga_user_ctx.id);
+		return -EFAULT;
+	}
+
+	if (copy_to_user((struct rga_user_ctx_t *)arg,
+			&rga_user_ctx, sizeof(struct rga_user_ctx_t))) {
+		pr_err("copy_to_user failed\n");
+		return -EFAULT;
+	}
+
+	return ret;
+}
+
+static long rga_ioctl_cmd_cancel(unsigned long arg)
+{
+	uint32_t rga_user_ctx_id;
+	int ret = 0;
+
+	if (unlikely(copy_from_user(&rga_user_ctx_id, (uint32_t *)arg,
+			sizeof(uint32_t)))) {
+		pr_err("rga_user_ctx_id copy_from_user failed!\n");
+		return -EFAULT;
+	}
+
+	if (DEBUGGER_EN(MSG))
+		pr_err("config cancel id = %d", rga_user_ctx_id);
+
+	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
+	ret = rga_job_cancel_by_user_ctx(rga_user_ctx_id);
+	if (ret < 0) {
+		pr_err("cancel ctx id[%d] failed!\n", rga_user_ctx_id);
+		return -EFAULT;
+	}
+
+	return ret;
+}
+
 static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
 	struct rga_drvdata_t *rga = rga_drvdata;
@@ -312,6 +470,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	char version[16] = { 0 };
 	struct rga_version_t driver_version;
 	struct rga_hw_versions_t hw_versions;
+	struct rga_internal_ctx_t ctx;
 
 	if (!rga) {
 		pr_err("rga_drvdata is null, rga is not init\n");
@@ -334,7 +493,10 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		if (DEBUGGER_EN(MSG))
 			rga_cmd_print_debug_info(&req_rga);
 
-		ret = rga_job_commit(&req_rga, cmd);
+		ctx.sync_mode = cmd;
+		ctx.use_batch_mode = false;
+
+		ret = rga_job_commit(&req_rga, &ctx);
 		if (ret < 0) {
 			if (ret == -ERESTARTSYS) {
 				if (DEBUGGER_EN(MSG))
@@ -438,6 +600,26 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 		break;
 
+	case RGA_START_CONFIG:
+		ret = rga_ioctl_cmd_start(arg);
+
+		break;
+
+	case RGA_END_CONFIG:
+		ret = rga_ioctl_cmd_end(arg);
+
+		break;
+
+	case RGA_CMD_CONFIG:
+		ret = rga_ioctl_cmd_config(arg);
+
+		break;
+
+	case RGA_CANCEL_CONFIG:
+		ret = rga_ioctl_cmd_cancel(arg);
+
+		break;
+
 	case RGA_IMPORT_DMA:
 	case RGA_RELEASE_DMA:
 	default:
@@ -497,6 +679,31 @@ static int rga_open(struct inode *inode, struct file *file)
 
 static int rga_release(struct inode *inode, struct file *file)
 {
+	pid_t pid;
+	int ctx_id;
+	struct rga_pending_ctx_manager *ctx_manager;
+	struct rga_internal_ctx_t *ctx;
+
+	pid = current->pid;
+
+	ctx_manager = rga_drvdata->pend_ctx_manager;
+
+	mutex_lock(&ctx_manager->lock);
+
+	idr_for_each_entry(&ctx_manager->ctx_id_idr, ctx, ctx_id) {
+
+		mutex_unlock(&ctx_manager->lock);
+
+		if (pid == ctx->pid) {
+			pr_err("[pid:%d] destroy ctx[%d] when the user exits", pid, ctx->id);
+			kref_put(&ctx->refcount, rga_internel_ctx_kref_release);
+		}
+
+		mutex_lock(&ctx_manager->lock);
+	}
+
+	mutex_unlock(&ctx_manager->lock);
+
 	return 0;
 }
 
@@ -986,6 +1193,8 @@ static int __init rga_init(void)
 
 	rga_mm_init(&rga_drvdata->mm);
 
+	rga_ctx_manager_init(&rga_drvdata->pend_ctx_manager);
+
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	rga_debugger_init(&rga_drvdata->debugger);
 #endif
@@ -1006,6 +1215,8 @@ static void __exit rga_exit(void)
 #endif
 
 	rga_mm_remove(&rga_drvdata->mm);
+
+	rga_ctx_manager_remove(&rga_drvdata->pend_ctx_manager);
 
 	wake_lock_destroy(&rga_drvdata->wake_lock);
 

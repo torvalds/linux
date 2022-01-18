@@ -24,12 +24,23 @@ enum job_flags {
 struct rga_scheduler_t *rga_job_get_scheduler(int core);
 
 void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret);
-int rga_job_commit(struct rga_req *rga_command_base, int flags);
+int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *ctx);
 
 int rga_job_mpi_commit(struct rga_req *rga_command_base,
-		       struct rga_mpi_job_t *mpi_job, int flags);
+		       struct rga_mpi_job_t *mpi_job, struct rga_internal_ctx_t *ctx);
 
 int rga_job_assign(struct rga_job *job);
+
+int rga_ctx_manager_init(struct rga_pending_ctx_manager **ctx_manager_session);
+int rga_ctx_manager_remove(struct rga_pending_ctx_manager **ctx_manager_session);
+
+struct rga_internal_ctx_t *
+	rga_internal_ctx_lookup(struct rga_pending_ctx_manager *ctx_manager, uint32_t id);
+uint32_t rga_internal_ctx_alloc_to_get_idr_id(void);
+void rga_internel_ctx_kref_release(struct kref *ref);
+int rga_job_config_by_user_ctx(struct rga_user_ctx_t *user_ctx);
+int rga_job_commit_by_user_ctx(struct rga_user_ctx_t *user_ctx);
+int rga_job_cancel_by_user_ctx(uint32_t ctx_id);
 
 struct rga_job *
 rga_scheduler_get_pending_job_list(struct rga_scheduler_t *scheduler);
