@@ -1406,6 +1406,7 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 {
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
 	struct amdgpu_device *adev = amdgpu_ttm_adev(abo->tbo.bdev);
+	struct amdgpu_res_cursor src_mm;
 	struct amdgpu_job *job;
 	struct dma_fence *fence;
 	uint64_t src_addr, dst_addr;
@@ -1418,9 +1419,8 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 	if (!adev->mman.sdma_access_ptr)
 		return -EACCES;
 
-	r = drm_dev_enter(adev_to_drm(adev), &idx);
-	if (r)
-		return r;
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
+		return -ENODEV;
 
 	if (write)
 		memcpy(adev->mman.sdma_access_ptr, buf, len);
@@ -1430,7 +1430,8 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 	if (r)
 		goto out;
 
-	src_addr = amdgpu_bo_gpu_offset(abo);
+	amdgpu_res_first(abo->tbo.resource, offset, len, &src_mm);
+	src_addr = amdgpu_ttm_domain_start(adev, bo->resource->mem_type) + src_mm.start;
 	dst_addr = amdgpu_bo_gpu_offset(adev->mman.sdma_access_bo);
 	if (write)
 		swap(src_addr, dst_addr);
@@ -1828,7 +1829,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	if (amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
 				AMDGPU_GEM_DOMAIN_GTT,
 				&adev->mman.sdma_access_bo, NULL,
-				adev->mman.sdma_access_ptr))
+				&adev->mman.sdma_access_ptr))
 		DRM_WARN("Debug VRAM access will use slowpath MM access\n");
 
 	return 0;
@@ -1852,6 +1853,8 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	if (adev->mman.stolen_reserved_size)
 		amdgpu_bo_free_kernel(&adev->mman.stolen_reserved_memory,
 				      NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->mman.sdma_access_bo, NULL,
+					&adev->mman.sdma_access_ptr);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
 
 	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
@@ -1871,8 +1874,6 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_OA);
 	ttm_device_fini(&adev->mman.bdev);
 	adev->mman.initialized = false;
-	amdgpu_bo_free_kernel(&adev->mman.sdma_access_bo, NULL,
-					&adev->mman.sdma_access_ptr);
 	DRM_INFO("amdgpu: ttm finalized\n");
 }
 
