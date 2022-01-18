@@ -98,10 +98,7 @@ struct i2c_hid_desc {
 struct i2c_hid {
 	struct i2c_client	*client;	/* i2c client */
 	struct hid_device	*hid;	/* pointer to corresponding HID dev */
-	union {
-		__u8 hdesc_buffer[sizeof(struct i2c_hid_desc)];
-		struct i2c_hid_desc hdesc;	/* the HID Descriptor */
-	};
+	struct i2c_hid_desc hdesc;		/* the HID Descriptor */
 	__le16			wHIDDescRegister; /* location of the i2c
 						   * register of the HID
 						   * descriptor. */
@@ -923,7 +920,7 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 			"weird size of HID descriptor (%u)\n", dsize);
 		return -ENODEV;
 	}
-	i2c_hid_dbg(ihid, "HID Descriptor: %*ph\n", dsize, ihid->hdesc_buffer);
+	i2c_hid_dbg(ihid, "HID Descriptor: %*ph\n", dsize, &ihid->hdesc);
 	return 0;
 }
 
