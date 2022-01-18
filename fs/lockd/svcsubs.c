@@ -180,6 +180,7 @@ static int nlm_unlock_files(struct nlm_file *file)
 {
 	struct file_lock lock;
 
+	locks_init_lock(&lock);
 	lock.fl_type  = F_UNLCK;
 	lock.fl_start = 0;
 	lock.fl_end   = OFFSET_MAX;
