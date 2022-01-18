@@ -105,7 +105,6 @@ struct i2c_hid_cmd {
 	.registerIndex = offsetof(struct i2c_hid_desc, wCommandRegister)
 
 /* commands */
-static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01) };
 static const struct i2c_hid_cmd hid_get_report_cmd =	{ I2C_HID_CMD(0x02) };
 
 /*
@@ -283,14 +282,6 @@ static int __i2c_hid_command(struct i2c_hid *ihid,
 	return i2c_hid_xfer(ihid, ihid->cmdbuf, length, buf_recv, data_len);
 }
 
-static int i2c_hid_command(struct i2c_hid *ihid,
-		const struct i2c_hid_cmd *command,
-		unsigned char *buf_recv, int data_len)
-{
-	return __i2c_hid_command(ihid, command, 0, 0, NULL, 0,
-				buf_recv, data_len);
-}
-
 static int i2c_hid_get_report(struct i2c_hid *ihid, u8 reportType,
 		u8 reportID, unsigned char *buf_recv, int data_len)
 {
@@ -455,13 +446,21 @@ set_pwr_exit:
 
 static int i2c_hid_execute_reset(struct i2c_hid *ihid)
 {
+	size_t length = 0;
 	int ret;
 
 	i2c_hid_dbg(ihid, "resetting...\n");
 
+	/* Prepare reset command. Command register goes first. */
+	*(__le16 *)ihid->cmdbuf = ihid->hdesc.wCommandRegister;
+	length += sizeof(__le16);
+	/* Next is RESET command itself */
+	length += i2c_hid_encode_command(ihid->cmdbuf + length,
+					 I2C_HID_OPCODE_RESET, 0, 0);
+
 	set_bit(I2C_HID_RESET_PENDING, &ihid->flags);
 
-	ret = i2c_hid_command(ihid, &hid_reset_cmd, NULL, 0);
+	ret = i2c_hid_xfer(ihid, ihid->cmdbuf, length, NULL, 0);
 	if (ret) {
 		dev_err(&ihid->client->dev, "failed to reset device.\n");
 		goto out;
