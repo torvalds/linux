@@ -1541,7 +1541,8 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	/* Need to call this again because the max power might change,
 	 * depending on card type for certain ASICs
 	 */
-	hl_fw_set_max_power(hdev);
+	if (hdev->asic_prop.set_max_power_on_device_init)
+		hl_fw_set_max_power(hdev);
 
 	/*
 	 * hl_hwmon_init() must be called after device_late_init(), because only

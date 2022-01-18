@@ -562,6 +562,7 @@ struct hl_hints_range {
  *                              to the fact that training runs on multiple
  *                              devices)
  * @configurable_stop_on_err: is stop-on-error option configurable via debugfs.
+ * @set_max_power_on_device_init: true if need to set max power in F/W on device init.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -646,6 +647,7 @@ struct asic_fixed_properties {
 	u8				supports_soft_reset;
 	u8				allow_inference_soft_reset;
 	u8				configurable_stop_on_err;
+	u8				set_max_power_on_device_init;
 };
 
 /**

@@ -485,6 +485,8 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 
 	prop->configurable_stop_on_err = true;
 
+	prop->set_max_power_on_device_init = true;
+
 	return 0;
 }
 
