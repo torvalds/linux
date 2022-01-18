@@ -48,7 +48,8 @@ const struct trace_print_flags vmaflag_names[] = {
 
 static void __dump_page(struct page *page)
 {
-	struct page *head = compound_head(page);
+	struct folio *folio = page_folio(page);
+	struct page *head = &folio->page;
 	struct address_space *mapping;
 	bool compound = PageCompound(page);
 	/*
@@ -76,6 +77,7 @@ static void __dump_page(struct page *page)
 		else
 			mapping = (void *)(tmp & ~PAGE_MAPPING_FLAGS);
 		head = page;
+		folio = (struct folio *)page;
 		compound = false;
 	} else {
 		mapping = page_mapping(page);
@@ -94,7 +96,7 @@ static void __dump_page(struct page *page)
 	if (compound) {
 		pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
 				head, compound_order(head),
-				head_compound_mapcount(head),
+				folio_entire_mapcount(folio),
 				head_compound_pincount(head));
 	}
 

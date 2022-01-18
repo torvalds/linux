@@ -776,21 +776,26 @@ static inline int is_vmalloc_or_module_addr(const void *x)
 }
 #endif
 
-static inline int head_compound_mapcount(struct page *head)
+/*
+ * How many times the entire folio is mapped as a single unit (eg by a
+ * PMD or PUD entry).  This is probably not what you want, except for
+ * debugging purposes; look at folio_mapcount() or page_mapcount()
+ * instead.
+ */
+static inline int folio_entire_mapcount(struct folio *folio)
 {
-	return atomic_read(compound_mapcount_ptr(head)) + 1;
+	VM_BUG_ON_FOLIO(!folio_test_large(folio), folio);
+	return atomic_read(folio_mapcount_ptr(folio)) + 1;
 }
 
 /*
  * Mapcount of compound page as a whole, does not include mapped sub-pages.
  *
- * Must be called only for compound pages or any their tail sub-pages.
+ * Must be called only for compound pages.
  */
 static inline int compound_mapcount(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageCompound(page), page);
-	page = compound_head(page);
-	return head_compound_mapcount(page);
+	return folio_entire_mapcount(page_folio(page));
 }
 
 /*
