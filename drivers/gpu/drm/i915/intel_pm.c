@@ -4356,55 +4356,6 @@ void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 }
 
-/*
- * Determines the downscale amount of a plane for the purposes of watermark calculations.
- * The bspec defines downscale amount as:
- *
- * """
- * Horizontal down scale amount = maximum[1, Horizontal source size /
- *                                           Horizontal destination size]
- * Vertical down scale amount = maximum[1, Vertical source size /
- *                                         Vertical destination size]
- * Total down scale amount = Horizontal down scale amount *
- *                           Vertical down scale amount
- * """
- *
- * Return value is provided in 16.16 fixed point form to retain fractional part.
- * Caller should take care of dividing & rounding off the value.
- */
-static uint_fixed_16_16_t
-skl_plane_downscale_amount(const struct intel_crtc_state *crtc_state,
-			   const struct intel_plane_state *plane_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	u32 src_w, src_h, dst_w, dst_h;
-	uint_fixed_16_16_t fp_w_ratio, fp_h_ratio;
-	uint_fixed_16_16_t downscale_h, downscale_w;
-
-	if (drm_WARN_ON(&dev_priv->drm,
-			!intel_wm_plane_visible(crtc_state, plane_state)))
-		return u32_to_fixed16(0);
-
-	/*
-	 * Src coordinates are already rotated by 270 degrees for
-	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
-	 *
-	 * n.b., src is 16.16 fixed point, dst is whole integer.
-	 */
-	src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
-	src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	dst_w = drm_rect_width(&plane_state->uapi.dst);
-	dst_h = drm_rect_height(&plane_state->uapi.dst);
-
-	fp_w_ratio = div_fixed16(src_w, dst_w);
-	fp_h_ratio = div_fixed16(src_h, dst_h);
-	downscale_w = max_fixed16(fp_w_ratio, u32_to_fixed16(1));
-	downscale_h = max_fixed16(fp_h_ratio, u32_to_fixed16(1));
-
-	return mul_fixed16(downscale_w, downscale_h);
-}
-
 struct dbuf_slice_conf_entry {
 	u8 active_pipes;
 	u8 dbuf_mask[I915_MAX_PIPES];
@@ -4960,10 +4911,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	u32 data_rate;
-	u32 width = 0, height = 0;
-	uint_fixed_16_16_t down_scale_amount;
-	u64 rate;
+	int width, height;
 
 	if (!plane_state->uapi.visible)
 		return 0;
@@ -4997,14 +4945,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 		height /= 2;
 	}
 
-	data_rate = width * height;
-
-	down_scale_amount = skl_plane_downscale_amount(crtc_state, plane_state);
-
-	rate = mul_round_up_u32_fixed16(data_rate, down_scale_amount);
-
-	rate *= fb->format->cpp[color_plane];
-	return rate;
+	return width * height * fb->format->cpp[color_plane];
 }
 
 static u64
