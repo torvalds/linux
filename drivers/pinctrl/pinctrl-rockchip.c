@@ -2017,7 +2017,8 @@ static void rk3399_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 #define RK3568_SR_PMU_OFFSET		0x60
 #define RK3568_SR_GRF_OFFSET		0x0180
 #define RK3568_SR_BANK_STRIDE		0x10
-#define RK3568_SR_PINS_PER_REG		16
+#define RK3568_SR_BITS_PER_PIN		2
+#define RK3568_SR_PINS_PER_REG		8
 
 static int rk3568_calc_slew_rate_reg_and_bit(struct rockchip_pin_bank *bank,
 					     int pin_num,
@@ -2036,6 +2037,7 @@ static int rk3568_calc_slew_rate_reg_and_bit(struct rockchip_pin_bank *bank,
 	}
 	*reg += ((pin_num / RK3568_SR_PINS_PER_REG) * 4);
 	*bit = pin_num % RK3568_SR_PINS_PER_REG;
+	*bit *= RK3568_SR_BITS_PER_PIN;
 
 	return 0;
 }
