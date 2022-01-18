@@ -214,7 +214,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	dma_addr_t pkt_dma_addr;
 	struct hl_bd *sent_bd;
 	u32 tmp, expected_ack_val, pi;
-	int rc = 0;
+	int rc;
 
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
 								&pkt_dma_addr);
@@ -228,8 +228,11 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	mutex_lock(&hdev->send_cpu_message_lock);
 
-	if (hdev->disabled)
+	/* CPU-CP messages can be sent during soft-reset */
+	if (hdev->disabled && !hdev->reset_info.is_in_soft_reset) {
+		rc = 0;
 		goto out;
+	}
 
 	if (hdev->device_cpu_disabled) {
 		rc = -EIO;
