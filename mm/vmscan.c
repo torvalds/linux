@@ -1715,16 +1715,16 @@ retry:
 					 * tail pages can be freed without IO.
 					 */
 					if (!compound_mapcount(page) &&
-					    split_huge_page_to_list(page,
-								    page_list))
+					    split_folio_to_list(folio,
+								page_list))
 						goto activate_locked;
 				}
 				if (!add_to_swap(page)) {
 					if (!PageTransHuge(page))
 						goto activate_locked_split;
 					/* Fallback to swap normal pages */
-					if (split_huge_page_to_list(page,
-								    page_list))
+					if (split_folio_to_list(folio,
+								page_list))
 						goto activate_locked;
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 					count_vm_event(THP_SWPOUT_FALLBACK);
@@ -1740,7 +1740,7 @@ retry:
 			}
 		} else if (unlikely(PageTransHuge(page))) {
 			/* Split file THP */
-			if (split_huge_page_to_list(page, page_list))
+			if (split_folio_to_list(folio, page_list))
 				goto keep_locked;
 		}
 

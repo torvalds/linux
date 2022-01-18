@@ -483,6 +483,12 @@ static inline bool thp_migration_supported(void)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
+static inline int split_folio_to_list(struct folio *folio,
+		struct list_head *list)
+{
+	return split_huge_page_to_list(&folio->page, list);
+}
+
 /**
  * thp_size - Size of a transparent huge page.
  * @page: Head page of a transparent huge page.
