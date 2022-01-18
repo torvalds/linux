@@ -121,6 +121,11 @@ static const struct mssr_mod_clk r8a779f0_mod_clks[] __initconst = {
 	DEF_MOD("scif4",	705,	R8A779F0_CLK_S0D12_PER),
 	DEF_MOD("sys-dmac0",	709,	R8A779F0_CLK_S0D3_PER),
 	DEF_MOD("sys-dmac1",	710,	R8A779F0_CLK_S0D3_PER),
+	DEF_MOD("wdt",		907,	R8A779F0_CLK_R),
+};
+
+static const unsigned int r8a779f0_crit_mod_clks[] __initconst = {
+	MOD_CLK_ID(907),	/* WDT */
 };
 
 /*
@@ -176,6 +181,10 @@ const struct cpg_mssr_info r8a779f0_cpg_mssr_info __initconst = {
 	.mod_clks = r8a779f0_mod_clks,
 	.num_mod_clks = ARRAY_SIZE(r8a779f0_mod_clks),
 	.num_hw_mod_clks = 28 * 32,
+
+	/* Critical Module Clocks */
+	.crit_mod_clks = r8a779f0_crit_mod_clks,
+	.num_crit_mod_clks = ARRAY_SIZE(r8a779f0_crit_mod_clks),
 
 	/* Callbacks */
 	.init = r8a779f0_cpg_mssr_init,
