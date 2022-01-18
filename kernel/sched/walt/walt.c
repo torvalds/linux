@@ -1857,7 +1857,7 @@ static void update_history(struct rq *rq, struct task_struct *p,
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 	u32 *hist = &wts->sum_history[0];
-	int ridx, widx;
+	int i;
 	u32 max = 0, avg, demand, pred_demand;
 	u64 sum = 0;
 	u16 demand_scaled, pred_demand_scaled;
@@ -1868,20 +1868,15 @@ static void update_history(struct rq *rq, struct task_struct *p,
 		goto done;
 
 	/* Push new 'runtime' value onto stack */
-	widx = sched_ravg_hist_size - 1;
-	ridx = widx - samples;
-	for (; ridx >= 0; --widx, --ridx) {
-		hist[widx] = hist[ridx];
-		sum += hist[widx];
-		if (hist[widx] > max)
-			max = hist[widx];
+	for (; samples > 0; samples--) {
+		hist[wts->cidx] = runtime;
+		wts->cidx = ++(wts->cidx) % sched_ravg_hist_size;
 	}
 
-	for (widx = 0; widx < samples && widx < sched_ravg_hist_size; widx++) {
-		hist[widx] = runtime;
-		sum += hist[widx];
-		if (hist[widx] > max)
-			max = hist[widx];
+	for (i = 0; i < sched_ravg_hist_size; i++) {
+		sum += hist[i];
+		if (hist[i] > max)
+			max = hist[i];
 	}
 
 	wts->sum = 0;
@@ -2260,6 +2255,7 @@ static void init_new_task_load(struct task_struct *p)
 	wts->sum_exec_snapshot = 0;
 	wts->total_exec = 0;
 	wts->mvp_prio = WALT_NOT_MVP;
+	wts->cidx = 0;
 	__sched_fork_init(p);
 }
 
