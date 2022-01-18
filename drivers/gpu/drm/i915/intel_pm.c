@@ -4038,6 +4038,15 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 	return 0;
 }
 
+static u16 skl_ddb_entry_init(struct skl_ddb_entry *entry,
+			      u16 start, u16 end)
+{
+	entry->start = start;
+	entry->end = end;
+
+	return end;
+}
+
 static int intel_dbuf_slice_size(struct drm_i915_private *dev_priv)
 {
 	return INTEL_INFO(dev_priv)->dbuf.size /
@@ -4176,8 +4185,7 @@ skl_crtc_allocate_ddb(struct intel_atomic_state *state, struct intel_crtc *crtc)
 	int ret;
 
 	if (new_dbuf_state->weight[pipe] == 0) {
-		new_dbuf_state->ddb[pipe].start = 0;
-		new_dbuf_state->ddb[pipe].end = 0;
+		skl_ddb_entry_init(&new_dbuf_state->ddb[pipe], 0, 0);
 		goto out;
 	}
 
@@ -4193,8 +4201,10 @@ skl_crtc_allocate_ddb(struct intel_atomic_state *state, struct intel_crtc *crtc)
 	start = ddb_range_size * weight_start / weight_total;
 	end = ddb_range_size * weight_end / weight_total;
 
-	new_dbuf_state->ddb[pipe].start = ddb_slices.start - mbus_offset + start;
-	new_dbuf_state->ddb[pipe].end = ddb_slices.start - mbus_offset + end;
+	skl_ddb_entry_init(&new_dbuf_state->ddb[pipe],
+			   ddb_slices.start - mbus_offset + start,
+			   ddb_slices.start - mbus_offset + end);
+
 out:
 	if (old_dbuf_state->slices[pipe] == new_dbuf_state->slices[pipe] &&
 	    skl_ddb_entry_equal(&old_dbuf_state->ddb[pipe],
@@ -4274,8 +4284,9 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 
 static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
 {
-	entry->start = REG_FIELD_GET(PLANE_BUF_START_MASK, reg);
-	entry->end = REG_FIELD_GET(PLANE_BUF_END_MASK, reg);
+	skl_ddb_entry_init(entry,
+			   REG_FIELD_GET(PLANE_BUF_START_MASK, reg),
+			   REG_FIELD_GET(PLANE_BUF_END_MASK, reg));
 	if (entry->end)
 		entry->end++;
 }
@@ -5190,9 +5201,8 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 	/* Allocate fixed number of blocks for cursor. */
 	total[PLANE_CURSOR] = skl_cursor_allocation(crtc_state, num_active);
 	alloc_size -= total[PLANE_CURSOR];
-	crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR].start =
-		alloc->end - total[PLANE_CURSOR];
-	crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR].end = alloc->end;
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR],
+			   alloc->end - total[PLANE_CURSOR], alloc->end);
 
 	if (total_data_rate == 0)
 		return 0;
@@ -5293,17 +5303,13 @@ skl_allocate_plane_ddb(struct intel_atomic_state *state,
 			    DISPLAY_VER(dev_priv) >= 11 && uv_total[plane_id]);
 
 		/* Leave disabled planes at (0,0) */
-		if (total[plane_id]) {
-			plane_alloc->start = start;
-			start += total[plane_id];
-			plane_alloc->end = start;
-		}
+		if (total[plane_id])
+			start = skl_ddb_entry_init(plane_alloc, start,
+						   start + total[plane_id]);
 
-		if (uv_total[plane_id]) {
-			uv_plane_alloc->start = start;
-			start += uv_total[plane_id];
-			uv_plane_alloc->end = start;
-		}
+		if (uv_total[plane_id])
+			start = skl_ddb_entry_init(uv_plane_alloc, start,
+						   start + uv_total[plane_id]);
 	}
 
 	/*
