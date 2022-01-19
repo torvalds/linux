@@ -3433,6 +3433,8 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
 	struct link_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp;
+	const struct dc_link_settings empty_link_settings = {0};
+	const struct dc_link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* slot X.Y for SST payload deallocate */
@@ -3441,10 +3443,11 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 
 		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
 
-		hpo_dp_link_encoder->funcs->set_throttled_vcp_size(
-				hpo_dp_link_encoder,
-				hpo_dp_stream_encoder->inst,
-				avg_time_slots_per_mtp);
+		link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+		if (link_hwss->set_hblank_min_symbol_width)
+			link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+					&empty_link_settings,
+					avg_time_slots_per_mtp);
 	}
 
 	/* calculate VC payload and update branch with new payload allocation table*/
@@ -3488,10 +3491,11 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 
 		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
 
-		hpo_dp_link_encoder->funcs->set_throttled_vcp_size(
-				hpo_dp_link_encoder,
-				hpo_dp_stream_encoder->inst,
-				avg_time_slots_per_mtp);
+		link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+		if (link_hwss->set_hblank_min_symbol_width)
+			link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+					&link->cur_link_settings,
+					avg_time_slots_per_mtp);
 	}
 
 	/* Always return DC_OK.
@@ -3508,15 +3512,14 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	struct link_encoder *link_encoder = NULL;
-	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
-	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
 	int i;
 	enum act_return_status ret;
+	const struct dc_link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* Link encoder may have been dynamically assigned to non-physical display endpoint. */
@@ -3622,22 +3625,13 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	pbn = get_pbn_from_timing(pipe_ctx);
 	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
-	switch (dp_get_link_encoding_format(&link->cur_link_settings)) {
-	case DP_8b_10b_ENCODING:
-		stream_encoder->funcs->set_throttled_vcp_size(
-			stream_encoder,
-			avg_time_slots_per_mtp);
-		break;
-	case DP_128b_132b_ENCODING:
-		hpo_dp_link_encoder->funcs->set_throttled_vcp_size(
-				hpo_dp_link_encoder,
-				hpo_dp_stream_encoder->inst,
+	dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
+
+	link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+	if (link_hwss->set_hblank_min_symbol_width)
+		link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+				&link->cur_link_settings,
 				avg_time_slots_per_mtp);
-		break;
-	case DP_UNKNOWN_ENCODING:
-		DC_LOG_ERROR("Failure: unknown encoding format\n");
-		return DC_ERROR_UNEXPECTED;
-	}
 
 	return DC_OK;
 
@@ -3651,10 +3645,10 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
 	struct link_encoder *link_encoder = link->link_enc;
-	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	uint8_t i;
 	enum act_return_status ret;
+	const struct dc_link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* decrease throttled vcp size */
@@ -3662,8 +3656,10 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 	pbn = get_pbn_from_bw_in_kbps(bw_in_kbps);
 	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
-	stream_encoder->funcs->set_throttled_vcp_size(
-				stream_encoder,
+	link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+	if (link_hwss->set_hblank_min_symbol_width)
+		link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+				&link->cur_link_settings,
 				avg_time_slots_per_mtp);
 
 	/* send ALLOCATE_PAYLOAD sideband message with updated pbn */
@@ -3731,10 +3727,10 @@ enum dc_status dc_link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t 
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
 	struct link_encoder *link_encoder = link->link_enc;
-	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	uint8_t i;
 	enum act_return_status ret;
+	const struct dc_link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* notify immediate branch device table update */
@@ -3793,8 +3789,10 @@ enum dc_status dc_link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t 
 	pbn_per_slot = get_pbn_per_slot(stream);
 	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
-	stream_encoder->funcs->set_throttled_vcp_size(
-				stream_encoder,
+	link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+	if (link_hwss->set_hblank_min_symbol_width)
+		link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+				&link->cur_link_settings,
 				avg_time_slots_per_mtp);
 
 	return DC_OK;
@@ -3805,13 +3803,13 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	struct link_encoder *link_encoder = NULL;
-	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
-	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp = dc_fixpt_from_int(0);
 	int i;
 	bool mst_mode = (link->type == dc_connection_mst_branch);
+	const struct dc_link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
+	const struct dc_link_settings empty_link_settings = {0};
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* Link encoder may have been dynamically assigned to non-physical display endpoint. */
@@ -3829,22 +3827,11 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	 */
 
 	/* slot X.Y */
-	switch (dp_get_link_encoding_format(&link->cur_link_settings)) {
-	case DP_8b_10b_ENCODING:
-		stream_encoder->funcs->set_throttled_vcp_size(
-			stream_encoder,
-			avg_time_slots_per_mtp);
-		break;
-	case DP_128b_132b_ENCODING:
-		hpo_dp_link_encoder->funcs->set_throttled_vcp_size(
-				hpo_dp_link_encoder,
-				hpo_dp_stream_encoder->inst,
+	link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+	if (link_hwss->set_hblank_min_symbol_width)
+		link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+				&empty_link_settings,
 				avg_time_slots_per_mtp);
-		break;
-	case DP_UNKNOWN_ENCODING:
-		DC_LOG_ERROR("Failure: unknown encoding format\n");
-		return DC_ERROR_UNEXPECTED;
-	}
 
 	/* TODO: which component is responsible for remove payload table? */
 	if (mst_mode) {

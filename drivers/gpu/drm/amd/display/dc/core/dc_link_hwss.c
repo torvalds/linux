@@ -844,4 +844,89 @@ void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	}
 }
 
+/******************************* dio_link_hwss ********************************/
+static void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
+		struct fixed31_32 throttled_vcp_size)
+{
+	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
+
+	stream_encoder->funcs->set_throttled_vcp_size(
+				stream_encoder,
+				throttled_vcp_size);
+}
+
+/***************************** hpo_dp_link_hwss *******************************/
+static void set_dp_hpo_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
+		struct fixed31_32 throttled_vcp_size)
+{
+	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
+	struct hpo_dp_link_encoder *hpo_dp_link_encoder = pipe_ctx->link_res.hpo_dp_link_enc;
+
+	hpo_dp_link_encoder->funcs->set_throttled_vcp_size(hpo_dp_link_encoder,
+			hpo_dp_stream_encoder->inst,
+			throttled_vcp_size);
+}
+
+static void set_dp_hpo_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
+		const struct dc_link_settings *link_settings,
+		struct fixed31_32 throttled_vcp_size)
+{
+	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder = pipe_ctx->stream_res.hpo_dp_stream_enc;
+	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	struct fixed31_32 h_blank_in_ms, time_slot_in_ms, mtp_cnt_per_h_blank;
+	uint32_t link_bw_in_kbps = dc_link_bandwidth_kbps(pipe_ctx->stream->link, link_settings);
+	uint16_t hblank_min_symbol_width = 0;
+
+	if (link_bw_in_kbps > 0) {
+		h_blank_in_ms = dc_fixpt_div(dc_fixpt_from_int(timing->h_total-timing->h_addressable),
+				dc_fixpt_from_fraction(timing->pix_clk_100hz, 10));
+		time_slot_in_ms = dc_fixpt_from_fraction(32 * 4, link_bw_in_kbps);
+		mtp_cnt_per_h_blank = dc_fixpt_div(h_blank_in_ms, dc_fixpt_mul_int(time_slot_in_ms, 64));
+		hblank_min_symbol_width = dc_fixpt_floor(
+				dc_fixpt_mul(mtp_cnt_per_h_blank, throttled_vcp_size));
+	}
+
+	hpo_dp_stream_encoder->funcs->set_hblank_min_symbol_width(hpo_dp_stream_encoder,
+			hblank_min_symbol_width);
+}
+
+static const struct dc_link_hwss hpo_dp_link_hwss = {
+	.set_throttled_vcp_size = set_dp_hpo_throttled_vcp_size,
+
+	/* function pointers below this point require check for NULL
+	 * *********************************************************************
+	 */
+	.set_hblank_min_symbol_width = set_dp_hpo_hblank_min_symbol_width,
+};
+
+static const struct dc_link_hwss dio_link_hwss = {
+	.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+};
+
+const struct dc_link_hwss *dc_link_hwss_get(const struct dc_link *link,
+		const struct link_resource *link_res)
+{
+	if (link_res->hpo_dp_link_enc)
+		/* TODO: some assumes that if decided link settings is 128b/132b
+		 * channel coding format hpo_dp_link_enc should be used.
+		 * Others believe that if hpo_dp_link_enc is available in link
+		 * resource then hpo_dp_link_enc must be used. This bound between
+		 * hpo_dp_link_enc != NULL and decided link settings is loosely coupled
+		 * with a premise that both hpo_dp_link_enc pointer and decided link
+		 * settings are determined based on single policy function like
+		 * "decide_link_settings" from upper layer. This "convention"
+		 * cannot be maintained and enforced at current level.
+		 * Therefore a refactor is due so we can enforce a strong bound
+		 * between those two parameters at this level.
+		 *
+		 * To put it simple, we want to make enforcement at low level so that
+		 * we will not return link hwss if caller plans to do 8b/10b
+		 * with an hpo encoder. Or we can return a very dummy one that doesn't
+		 * do work for all functions
+		 */
+		return &hpo_dp_link_hwss;
+	else
+		return &dio_link_hwss;
+}
+
 #undef DC_LOGGER

@@ -327,6 +327,10 @@ struct hpo_dp_stream_encoder_funcs {
 	void (*read_state)(
 			struct hpo_dp_stream_encoder *enc,
 			struct hpo_dp_stream_encoder_state *state);
+
+	void (*set_hblank_min_symbol_width)(
+			struct hpo_dp_stream_encoder *enc,
+			uint16_t width);
 };
 
 #endif /* STREAM_ENCODER_H_ */
