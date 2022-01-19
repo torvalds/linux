@@ -405,8 +405,7 @@ static void io_wqe_dec_running(struct io_worker *worker)
  * Worker will start processing some work. Move it to the busy list, if
  * it's currently on the freelist
  */
-static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
-			     struct io_wq_work *work)
+static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker)
 	__must_hold(wqe->lock)
 {
 	if (worker->flags & IO_WORKER_F_FREE) {
@@ -556,7 +555,7 @@ get_next:
 		 */
 		work = io_get_next_work(acct, worker);
 		if (work)
-			__io_worker_busy(wqe, worker, work);
+			__io_worker_busy(wqe, worker);
 
 		raw_spin_unlock(&wqe->lock);
 		if (!work)
