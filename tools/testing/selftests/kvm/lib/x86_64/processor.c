@@ -1535,6 +1535,7 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 	/* Before family 17h, the HyperTransport area is just below 1T.  */
 	ht_gfn = (1 << 28) - num_ht_pages;
 	eax = 1;
+	ecx = 0;
 	cpuid(&eax, &ebx, &ecx, &edx);
 	if (x86_family(eax) < 0x17)
 		goto done;
