@@ -983,9 +983,9 @@ TRACE_EVENT(sched_compute_energy,
 		__field(unsigned long,	m0)
 		__field(unsigned long,	m1)
 		__field(unsigned long,	m2)
-		__field(u16,	c0)
-		__field(u16,	c1)
-		__field(u16,	c2)
+		__field(unsigned long,	c0)
+		__field(unsigned long,	c1)
+		__field(unsigned long,	c2)
 	),
 
 	TP_fast_assign(

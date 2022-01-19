@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2022, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _WALT_H
@@ -135,8 +135,7 @@ struct walt_sched_cluster {
 	unsigned int		max_possible_freq;
 	unsigned int		max_freq;
 	u64			aggr_grp_load;
-
-	u16			util_to_cost[1024];
+	unsigned long		util_to_cost[1024];
 };
 
 extern struct walt_sched_cluster *sched_cluster[WALT_NR_CPUS];
@@ -900,7 +899,7 @@ void create_util_to_cost(void);
 struct compute_energy_output {
 	unsigned long	sum_util[MAX_CLUSTERS];
 	unsigned long	max_util[MAX_CLUSTERS];
-	u16		cost[MAX_CLUSTERS];
+	unsigned long	cost[MAX_CLUSTERS];
 	unsigned int	cluster_first_cpu[MAX_CLUSTERS];
 };
 
