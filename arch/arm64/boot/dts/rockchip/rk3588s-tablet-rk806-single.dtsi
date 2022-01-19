@@ -1189,7 +1189,37 @@
 &i2c5 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c5m3_xfer>;
+	//pinctrl-0 = <&i2c5m3_xfer>;
+	pinctrl-0 = <&i2c5m0_xfer>;
+
+	ls_ucs14620: light@38 {
+		compatible = "ls_ucs14620";
+		status = "okay";
+		reg = <0x38>;
+		type = <SENSOR_TYPE_LIGHT>;
+		irq_enable = <0>;
+		als_threshold_high = <100>;
+		als_threshold_low = <10>;
+		als_ctrl_gain = <3>;/* 0:x1 1:x4 2:x16 3:x64 */
+		als_ctrl_time = <0x9f>;
+		poll_delay_ms = <100>;
+	};
+
+	ps_ucs14620: proximity@38 {
+		status = "okay";
+		compatible = "ps_ucs14620";
+		reg = <0x38>;
+		type = <SENSOR_TYPE_PROXIMITY>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&gpio3_c6>;
+		irq-gpio = <&gpio3 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <0>;
+		ps_threshold_high = <0x20>;
+		ps_threshold_low = <0x1d>;
+		ps_ctrl_gain = <3>; /* 0:x1 1:x2 2:x5 3:x8 */
+		ps_led_current = <3>; /* 0:12.5mA 1:100mA 2:150mA 3:200mA*/
+		poll_delay_ms = <100>;
+	};
 
 	regulator@3e {
 		compatible = "tps65132";
