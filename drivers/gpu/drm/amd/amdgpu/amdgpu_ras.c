@@ -158,14 +158,9 @@ static int amdgpu_reserve_page_direct(struct amdgpu_device *adev, uint64_t addre
 	}
 
 	memset(&err_rec, 0x0, sizeof(struct eeprom_table_record));
-
-	err_rec.address = address;
-	err_rec.retired_page = address >> AMDGPU_GPU_PAGE_SHIFT;
-	err_rec.ts = (uint64_t)ktime_get_real_seconds();
-	err_rec.err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
-
 	err_data.err_addr = &err_rec;
-	err_data.err_addr_cnt = 1;
+	amdgpu_umc_fill_error_record(&err_data, address,
+			(address >> AMDGPU_GPU_PAGE_SHIFT), 0, 0);
 
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
@@ -2660,8 +2655,6 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	dev_info(adev->dev, "Uncorrectable error detected in UMC inst: %d, chan_idx: %d",
 			     umc_inst, ch_inst);
 
-	memset(&err_rec, 0x0, sizeof(struct eeprom_table_record));
-
 	/*
 	 * Translate UMC channel address to Physical address
 	 */
@@ -2673,16 +2666,10 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 			ADDR_OF_256B_BLOCK(channel_index) |
 			OFFSET_IN_256B_BLOCK(m->addr);
 
-	err_rec.address = m->addr;
-	err_rec.retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
-	err_rec.ts = (uint64_t)ktime_get_real_seconds();
-	err_rec.err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
-	err_rec.cu = 0;
-	err_rec.mem_channel = channel_index;
-	err_rec.mcumc_id = umc_inst;
-
+	memset(&err_rec, 0x0, sizeof(struct eeprom_table_record));
 	err_data.err_addr = &err_rec;
-	err_data.err_addr_cnt = 1;
+	amdgpu_umc_fill_error_record(&err_data, m->addr,
+			retired_page, channel_index, umc_inst);
 
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,

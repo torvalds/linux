@@ -218,3 +218,24 @@ int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;
 }
+
+void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
+		uint64_t err_addr,
+		uint64_t retired_page,
+		uint32_t channel_index,
+		uint32_t umc_inst)
+{
+	struct eeprom_table_record *err_rec =
+		&err_data->err_addr[err_data->err_addr_cnt];
+
+	err_rec->address = err_addr;
+	/* page frame address is saved */
+	err_rec->retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+	err_rec->ts = (uint64_t)ktime_get_real_seconds();
+	err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
+	err_rec->cu = 0;
+	err_rec->mem_channel = channel_index;
+	err_rec->mcumc_id = umc_inst;
+
+	err_data->err_addr_cnt++;
+}
