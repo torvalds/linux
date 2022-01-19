@@ -5550,6 +5550,28 @@ static bool retrieve_link_cap(struct dc_link *link)
 				link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw,
 				sizeof(link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw));
 #endif
+
+		/* Apply work around to disable FEC and DSC for USB4 tunneling in TBT3 compatibility mode
+		 * only if required.
+		 */
+		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+#if defined(CONFIG_DRM_AMD_DC_DCN3_1)
+				!link->dc->debug.dpia_debug.bits.disable_force_tbt3_work_around &&
+#endif
+				link->dpcd_caps.is_branch_dev &&
+				link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
+				link->dpcd_caps.branch_hw_revision == DP_BRANCH_HW_REV_10 &&
+				(link->dpcd_caps.fec_cap.bits.FEC_CAPABLE ||
+				link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT)) {
+			/* A TBT3 device is expected to report no support for FEC or DSC to a USB4 DPIA.
+			 * Clear FEC and DSC capabilities as a work around if that is not the case.
+			 */
+			link->wa_flags.dpia_forced_tbt3_mode = true;
+			memset(&link->dpcd_caps.dsc_caps, '\0', sizeof(link->dpcd_caps.dsc_caps));
+			memset(&link->dpcd_caps.fec_cap, '\0', sizeof(link->dpcd_caps.fec_cap));
+			DC_LOG_DSC("Clear DSC SUPPORT for USB4 link(%d) in TBT3 compatibility mode", link->link_index);
+		} else
+			link->wa_flags.dpia_forced_tbt3_mode = false;
 	}
 
 	if (!dpcd_read_sink_ext_caps(link))

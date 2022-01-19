@@ -806,6 +806,7 @@ static void apply_dpia_mst_dsc_always_on_wa(struct dc_link *link)
 	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
 			link->type == dc_connection_mst_branch &&
 			link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
+			link->dpcd_caps.branch_hw_revision == DP_BRANCH_HW_REV_20 &&
 			link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
 			!link->dc->debug.dpia_debug.bits.disable_mst_dsc_work_around)
 		link->wa_flags.dpia_mst_dsc_always_on = true;
