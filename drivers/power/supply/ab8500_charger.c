@@ -171,7 +171,7 @@ enum ab8500_usb_state {
 	struct ab8500_charger, ac_chg)
 
 /**
- * struct ab8500_charger_interrupts - ab8500 interupts
+ * struct ab8500_charger_interrupts - ab8500 interrupts
  * @name:	name of the interrupt
  * @isr		function pointer to the isr
  */
@@ -1083,7 +1083,7 @@ static int ab8500_vbus_in_curr_to_regval(struct ab8500_charger *di, int curr_ua)
 
 /**
  * ab8500_charger_get_usb_cur() - get usb current
- * @di:		pointer to the ab8500_charger structre
+ * @di:		pointer to the ab8500_charger structure
  *
  * The usb stack provides the maximum current that can be drawn from
  * the standard usb host. This will be in uA.
