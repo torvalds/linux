@@ -6,6 +6,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/err.h>
@@ -114,6 +115,10 @@
 #define IBI_REQ_REJECT_ALL		GENMASK(31, 0)
 
 #define RESET_CTRL			0x34
+#define RESET_CTRL_BUS			BIT(31)
+#define RESET_CTRL_BUS_RESET_TYPE	GENMASK(30, 29)
+#define   BUS_RESET_TYPE_EXIT		0b00
+#define   BUS_RESET_TYPE_SCL_LOW	0b11
 #define RESET_CTRL_IBI_QUEUE		BIT(5)
 #define RESET_CTRL_RX_FIFO		BIT(4)
 #define RESET_CTRL_TX_FIFO		BIT(3)
@@ -1123,6 +1128,17 @@ static void aspeed_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 	aspeed_i3c_master_disable(master);
 }
 
+static void aspeed_i3c_master_bus_reset(struct i3c_master_controller *m)
+{
+	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
+	u32 reset;
+
+	reset = RESET_CTRL_BUS |
+		FIELD_PREP(RESET_CTRL_BUS_RESET_TYPE, BUS_RESET_TYPE_SCL_LOW);
+
+	writel(reset, master->regs + RESET_CTRL);
+}
+
 static int aspeed_i3c_ccc_set(struct aspeed_i3c_master *master,
 			  struct i3c_ccc_cmd *ccc)
 {
@@ -1985,6 +2001,7 @@ static int aspeed_i3c_maser_send_sir(struct i3c_master_controller *m,
 static const struct i3c_master_controller_ops aspeed_i3c_ops = {
 	.bus_init = aspeed_i3c_master_bus_init,
 	.bus_cleanup = aspeed_i3c_master_bus_cleanup,
+	.bus_reset = aspeed_i3c_master_bus_reset,
 	.attach_i3c_dev = aspeed_i3c_master_attach_i3c_dev,
 	.reattach_i3c_dev = aspeed_i3c_master_reattach_i3c_dev,
 	.detach_i3c_dev = aspeed_i3c_master_detach_i3c_dev,
