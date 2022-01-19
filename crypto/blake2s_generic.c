@@ -15,12 +15,12 @@
 static int crypto_blake2s_update_generic(struct shash_desc *desc,
 					 const u8 *in, unsigned int inlen)
 {
-	return crypto_blake2s_update(desc, in, inlen, blake2s_compress_generic);
+	return crypto_blake2s_update(desc, in, inlen, true);
 }
 
 static int crypto_blake2s_final_generic(struct shash_desc *desc, u8 *out)
 {
-	return crypto_blake2s_final(desc, out, blake2s_compress_generic);
+	return crypto_blake2s_final(desc, out, true);
 }
 
 #define BLAKE2S_ALG(name, driver_name, digest_size)			\
