@@ -418,6 +418,21 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled);
 u64 make_mmio_spte(struct kvm_vcpu *vcpu, u64 gfn, unsigned int access);
 u64 mark_spte_for_access_track(u64 spte);
+
+/* Restore an acc-track PTE back to a regular PTE */
+static inline u64 restore_acc_track_spte(u64 spte)
+{
+	u64 saved_bits = (spte >> SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)
+			 & SHADOW_ACC_TRACK_SAVED_BITS_MASK;
+
+	spte &= ~shadow_acc_track_mask;
+	spte &= ~(SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
+		  SHADOW_ACC_TRACK_SAVED_BITS_SHIFT);
+	spte |= saved_bits;
+
+	return spte;
+}
+
 u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn);
 
 void kvm_mmu_reset_all_pte_masks(void);
