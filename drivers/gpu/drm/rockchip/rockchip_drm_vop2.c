@@ -7205,14 +7205,15 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	}
 
 	atv_layer_cfg = vop2_read_layer_cfg(vop2);
-	if ((new_layer_cfg != old_layer_cfg) &&
-	    (atv_layer_cfg != old_layer_cfg) &&
+	if (new_layer_cfg != old_layer_cfg &&
+	    atv_layer_cfg != old_layer_cfg &&
 	    !vp->splice_mode_right) {
-		dev_printk(KERN_DEBUG, vop2->dev, "wait old_layer_sel: 0x%x\n", old_layer_cfg);
+		dev_dbg(vop2->dev, "wait old_layer_sel: 0x%x\n", old_layer_cfg);
 		vop2_wait_for_layer_cfg_done(vop2, old_layer_cfg);
 	}
 	vop2_writel(vop2, RK3568_OVL_LAYER_SEL, new_layer_cfg);
-	VOP_CTRL_SET(vop2, ovl_cfg_done_port, vp->id);
+	if (new_layer_cfg != old_layer_cfg)
+		VOP_CTRL_SET(vop2, ovl_cfg_done_port, vp->id);
 	VOP_CTRL_SET(vop2, ovl_port_mux_cfg_done_imd, 0);
 }
 
