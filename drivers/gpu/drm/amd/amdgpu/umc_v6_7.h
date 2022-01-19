@@ -45,6 +45,10 @@
 #define UMC_V6_7_NA_MAP_PA_NUM	8
 /* R14 bit shift should be considered, double the number */
 #define UMC_V6_7_BAD_PAGE_NUM_PER_CHANNEL	(UMC_V6_7_NA_MAP_PA_NUM * 2)
+/* The C2 bit in SOC physical address */
+#define UMC_V6_7_PA_C2_BIT	17
+/* The R14 bit in SOC physical address */
+#define UMC_V6_7_PA_R14_BIT	34
 /* UMC regiser per channel offset */
 #define UMC_V6_7_PER_CHANNEL_OFFSET		0x400
 extern struct amdgpu_umc_ras umc_v6_7_ras;
