@@ -2339,6 +2339,30 @@
 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
 			Default is 0 (don't ignore, but inject #GP)
 
+	kvm.eager_page_split=
+			[KVM,X86] Controls whether or not KVM will try to
+			proactively split all huge pages during dirty logging.
+			Eager page splitting reduces interruptions to vCPU
+			execution by eliminating the write-protection faults
+			and MMU lock contention that would otherwise be
+			required to split huge pages lazily.
+
+			VM workloads that rarely perform writes or that write
+			only to a small region of VM memory may benefit from
+			disabling eager page splitting to allow huge pages to
+			still be used for reads.
+
+			The behavior of eager page splitting depends on whether
+			KVM_DIRTY_LOG_INITIALLY_SET is enabled or disabled. If
+			disabled, all huge pages in a memslot will be eagerly
+			split when dirty logging is enabled on that memslot. If
+			enabled, huge pages will not be eagerly split.
+
+			Eager page splitting currently only supports splitting
+			huge pages mapped by the TDP MMU.
+
+			Default is Y (on).
+
 	kvm.enable_vmware_backdoor=[KVM] Support VMware backdoor PV interface.
 				   Default is false (don't support).
 

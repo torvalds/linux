@@ -192,6 +192,65 @@ out:
 	return wrprot;
 }
 
+static u64 make_spte_executable(u64 spte)
+{
+	bool is_access_track = is_access_track_spte(spte);
+
+	if (is_access_track)
+		spte = restore_acc_track_spte(spte);
+
+	spte &= ~shadow_nx_mask;
+	spte |= shadow_x_mask;
+
+	if (is_access_track)
+		spte = mark_spte_for_access_track(spte);
+
+	return spte;
+}
+
+/*
+ * Construct an SPTE that maps a sub-page of the given huge page SPTE where
+ * `index` identifies which sub-page.
+ *
+ * This is used during huge page splitting to build the SPTEs that make up the
+ * new page table.
+ */
+u64 make_huge_page_split_spte(u64 huge_spte, int huge_level, int index)
+{
+	u64 child_spte;
+	int child_level;
+
+	if (WARN_ON_ONCE(!is_shadow_present_pte(huge_spte)))
+		return 0;
+
+	if (WARN_ON_ONCE(!is_large_pte(huge_spte)))
+		return 0;
+
+	child_spte = huge_spte;
+	child_level = huge_level - 1;
+
+	/*
+	 * The child_spte already has the base address of the huge page being
+	 * split. So we just have to OR in the offset to the page at the next
+	 * lower level for the given index.
+	 */
+	child_spte |= (index * KVM_PAGES_PER_HPAGE(child_level)) << PAGE_SHIFT;
+
+	if (child_level == PG_LEVEL_4K) {
+		child_spte &= ~PT_PAGE_SIZE_MASK;
+
+		/*
+		 * When splitting to a 4K page, mark the page executable as the
+		 * NX hugepage mitigation no longer applies.
+		 */
+		if (is_nx_huge_page_enabled())
+			child_spte = make_spte_executable(child_spte);
+	}
+
+	return child_spte;
+}
+
+
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 {
 	u64 spte = SPTE_MMU_PRESENT_MASK;

@@ -192,6 +192,9 @@ bool __read_mostly enable_pmu = true;
 EXPORT_SYMBOL_GPL(enable_pmu);
 module_param(enable_pmu, bool, 0444);
 
+static bool __read_mostly eager_page_split = true;
+module_param(eager_page_split, bool, 0644);
+
 /*
  * Restoring the host value for MSRs that are only consumed when running in
  * usermode, e.g. SYSCALL MSRs and TSC_AUX, can be deferred until the CPU
@@ -11969,6 +11972,9 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 		 */
 		if (kvm_dirty_log_manual_protect_and_init_set(kvm))
 			return;
+
+		if (READ_ONCE(eager_page_split))
+			kvm_mmu_slot_try_split_huge_pages(kvm, new, PG_LEVEL_4K);
 
 		if (kvm_x86_ops.cpu_dirty_log_size) {
 			kvm_mmu_slot_leaf_clear_dirty(kvm, new);
