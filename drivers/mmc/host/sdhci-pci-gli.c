@@ -397,6 +397,20 @@ static void gl9750_set_ssc_pll_205mhz(struct sdhci_host *host)
 	gl9750_set_pll(host, 0x1, 0x246, 0x0);
 }
 
+static void gl9750_set_ssc_pll_100mhz(struct sdhci_host *host)
+{
+	/* set pll to 100MHz and enable ssc */
+	gl9750_set_ssc(host, 0x1, 0xE, 0x51EC);
+	gl9750_set_pll(host, 0x1, 0x244, 0x1);
+}
+
+static void gl9750_set_ssc_pll_50mhz(struct sdhci_host *host)
+{
+	/* set pll to 50MHz and enable ssc */
+	gl9750_set_ssc(host, 0x1, 0xE, 0x51EC);
+	gl9750_set_pll(host, 0x1, 0x244, 0x3);
+}
+
 static void sdhci_gl9750_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct mmc_ios *ios = &host->mmc->ios;
@@ -414,6 +428,10 @@ static void sdhci_gl9750_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (clock == 200000000 && ios->timing == MMC_TIMING_UHS_SDR104) {
 		host->mmc->actual_clock = 205000000;
 		gl9750_set_ssc_pll_205mhz(host);
+	} else if (clock == 100000000) {
+		gl9750_set_ssc_pll_100mhz(host);
+	} else if (clock == 50000000) {
+		gl9750_set_ssc_pll_50mhz(host);
 	}
 
 	sdhci_enable_clk(host, clk);
@@ -540,6 +558,20 @@ static void gl9755_set_ssc_pll_205mhz(struct pci_dev *pdev)
 	gl9755_set_pll(pdev, 0x1, 0x246, 0x0);
 }
 
+static void gl9755_set_ssc_pll_100mhz(struct pci_dev *pdev)
+{
+	/* set pll to 100MHz and enable ssc */
+	gl9755_set_ssc(pdev, 0x1, 0xE, 0x51EC);
+	gl9755_set_pll(pdev, 0x1, 0x244, 0x1);
+}
+
+static void gl9755_set_ssc_pll_50mhz(struct pci_dev *pdev)
+{
+	/* set pll to 50MHz and enable ssc */
+	gl9755_set_ssc(pdev, 0x1, 0xE, 0x51EC);
+	gl9755_set_pll(pdev, 0x1, 0x244, 0x3);
+}
+
 static void sdhci_gl9755_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
@@ -560,6 +592,10 @@ static void sdhci_gl9755_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (clock == 200000000 && ios->timing == MMC_TIMING_UHS_SDR104) {
 		host->mmc->actual_clock = 205000000;
 		gl9755_set_ssc_pll_205mhz(pdev);
+	} else if (clock == 100000000) {
+		gl9755_set_ssc_pll_100mhz(pdev);
+	} else if (clock == 50000000) {
+		gl9755_set_ssc_pll_50mhz(pdev);
 	}
 
 	sdhci_enable_clk(host, clk);
