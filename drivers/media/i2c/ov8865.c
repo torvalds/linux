@@ -2838,8 +2838,8 @@ static int ov8865_get_selection(struct v4l2_subdev *subdev,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
 		mutex_lock(&sensor->mutex);
-			__ov8865_get_pad_crop(sensor, state, sel->pad,
-					      sel->which, &sel->r);
+		__ov8865_get_pad_crop(sensor, state, sel->pad,
+				      sel->which, &sel->r);
 		mutex_unlock(&sensor->mutex);
 		break;
 	case V4L2_SEL_TGT_NATIVE_SIZE:
