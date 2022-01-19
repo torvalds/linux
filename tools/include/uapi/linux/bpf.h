@@ -5033,6 +5033,22 @@ union bpf_attr {
  *
  *	Return
  *		The number of arguments of the traced function.
+ *
+ * int bpf_get_retval(void)
+ *	Description
+ *		Get the syscall's return value that will be returned to userspace.
+ *
+ *		This helper is currently supported by cgroup programs only.
+ *	Return
+ *		The syscall's return value.
+ *
+ * int bpf_set_retval(int retval)
+ *	Description
+ *		Set the syscall's return value that will be returned to userspace.
+ *
+ *		This helper is currently supported by cgroup programs only.
+ *	Return
+ *		0 on success, or a negative error in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5221,6 +5237,8 @@ union bpf_attr {
 	FN(get_func_arg),		\
 	FN(get_func_ret),		\
 	FN(get_func_arg_cnt),		\
+	FN(get_retval),			\
+	FN(set_retval),			\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper

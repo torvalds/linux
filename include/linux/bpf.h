@@ -1245,6 +1245,7 @@ struct bpf_run_ctx {};
 struct bpf_cg_run_ctx {
 	struct bpf_run_ctx run_ctx;
 	const struct bpf_prog_array_item *prog_item;
+	int retval;
 };
 
 struct bpf_trace_run_ctx {
@@ -1277,19 +1278,19 @@ static inline void bpf_reset_run_ctx(struct bpf_run_ctx *old_ctx)
 
 typedef u32 (*bpf_prog_run_fn)(const struct bpf_prog *prog, const void *ctx);
 
-static __always_inline u32
+static __always_inline int
 BPF_PROG_RUN_ARRAY_CG_FLAGS(const struct bpf_prog_array __rcu *array_rcu,
 			    const void *ctx, bpf_prog_run_fn run_prog,
-			    u32 *ret_flags)
+			    int retval, u32 *ret_flags)
 {
 	const struct bpf_prog_array_item *item;
 	const struct bpf_prog *prog;
 	const struct bpf_prog_array *array;
 	struct bpf_run_ctx *old_run_ctx;
 	struct bpf_cg_run_ctx run_ctx;
-	u32 ret = 1;
 	u32 func_ret;
 
+	run_ctx.retval = retval;
 	migrate_disable();
 	rcu_read_lock();
 	array = rcu_dereference(array_rcu);
@@ -1298,27 +1299,29 @@ BPF_PROG_RUN_ARRAY_CG_FLAGS(const struct bpf_prog_array __rcu *array_rcu,
 	while ((prog = READ_ONCE(item->prog))) {
 		run_ctx.prog_item = item;
 		func_ret = run_prog(prog, ctx);
-		ret &= (func_ret & 1);
+		if (!(func_ret & 1) && !IS_ERR_VALUE((long)run_ctx.retval))
+			run_ctx.retval = -EPERM;
 		*(ret_flags) |= (func_ret >> 1);
 		item++;
 	}
 	bpf_reset_run_ctx(old_run_ctx);
 	rcu_read_unlock();
 	migrate_enable();
-	return ret;
+	return run_ctx.retval;
 }
 
-static __always_inline u32
+static __always_inline int
 BPF_PROG_RUN_ARRAY_CG(const struct bpf_prog_array __rcu *array_rcu,
-		      const void *ctx, bpf_prog_run_fn run_prog)
+		      const void *ctx, bpf_prog_run_fn run_prog,
+		      int retval)
 {
 	const struct bpf_prog_array_item *item;
 	const struct bpf_prog *prog;
 	const struct bpf_prog_array *array;
 	struct bpf_run_ctx *old_run_ctx;
 	struct bpf_cg_run_ctx run_ctx;
-	u32 ret = 1;
 
+	run_ctx.retval = retval;
 	migrate_disable();
 	rcu_read_lock();
 	array = rcu_dereference(array_rcu);
@@ -1326,13 +1329,14 @@ BPF_PROG_RUN_ARRAY_CG(const struct bpf_prog_array __rcu *array_rcu,
 	old_run_ctx = bpf_set_run_ctx(&run_ctx.run_ctx);
 	while ((prog = READ_ONCE(item->prog))) {
 		run_ctx.prog_item = item;
-		ret &= run_prog(prog, ctx);
+		if (!run_prog(prog, ctx) && !IS_ERR_VALUE((long)run_ctx.retval))
+			run_ctx.retval = -EPERM;
 		item++;
 	}
 	bpf_reset_run_ctx(old_run_ctx);
 	rcu_read_unlock();
 	migrate_enable();
-	return ret;
+	return run_ctx.retval;
 }
 
 static __always_inline u32
@@ -1385,19 +1389,21 @@ out:
  *   0: NET_XMIT_SUCCESS  skb should be transmitted
  *   1: NET_XMIT_DROP     skb should be dropped and cn
  *   2: NET_XMIT_CN       skb should be transmitted and cn
- *   3: -EPERM            skb should be dropped
+ *   3: -err              skb should be dropped
  */
 #define BPF_PROG_CGROUP_INET_EGRESS_RUN_ARRAY(array, ctx, func)		\
 	({						\
 		u32 _flags = 0;				\
 		bool _cn;				\
 		u32 _ret;				\
-		_ret = BPF_PROG_RUN_ARRAY_CG_FLAGS(array, ctx, func, &_flags); \
+		_ret = BPF_PROG_RUN_ARRAY_CG_FLAGS(array, ctx, func, 0, &_flags); \
 		_cn = _flags & BPF_RET_SET_CN;		\
-		if (_ret)				\
+		if (_ret && !IS_ERR_VALUE((long)_ret))	\
+			_ret = -EFAULT;			\
+		if (!_ret)				\
 			_ret = (_cn ? NET_XMIT_CN : NET_XMIT_SUCCESS);	\
 		else					\
-			_ret = (_cn ? NET_XMIT_DROP : -EPERM);		\
+			_ret = (_cn ? NET_XMIT_DROP : _ret);		\
 		_ret;					\
 	})
 
