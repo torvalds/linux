@@ -92,14 +92,14 @@ class HeaderParser(object):
 
     def parse_element(self):
         proto    = self.parse_symbol()
-        desc     = self.parse_desc()
-        ret      = self.parse_ret()
+        desc     = self.parse_desc(proto)
+        ret      = self.parse_ret(proto)
         return APIElement(proto=proto, desc=desc, ret=ret)
 
     def parse_helper(self):
         proto    = self.parse_proto()
-        desc     = self.parse_desc()
-        ret      = self.parse_ret()
+        desc     = self.parse_desc(proto)
+        ret      = self.parse_ret(proto)
         return Helper(proto=proto, desc=desc, ret=ret)
 
     def parse_symbol(self):
@@ -129,16 +129,15 @@ class HeaderParser(object):
         self.line = self.reader.readline()
         return capture.group(1)
 
-    def parse_desc(self):
+    def parse_desc(self, proto):
         p = re.compile(' \* ?(?:\t| {5,8})Description$')
         capture = p.match(self.line)
         if not capture:
-            # Helper can have empty description and we might be parsing another
-            # attribute: return but do not consume.
-            return ''
+            raise Exception("No description section found for " + proto)
         # Description can be several lines, some of them possibly empty, and it
         # stops when another subsection title is met.
         desc = ''
+        desc_present = False
         while True:
             self.line = self.reader.readline()
             if self.line == ' *\n':
@@ -147,21 +146,24 @@ class HeaderParser(object):
                 p = re.compile(' \* ?(?:\t| {5,8})(?:\t| {8})(.*)')
                 capture = p.match(self.line)
                 if capture:
+                    desc_present = True
                     desc += capture.group(1) + '\n'
                 else:
                     break
+
+        if not desc_present:
+            raise Exception("No description found for " + proto)
         return desc
 
-    def parse_ret(self):
+    def parse_ret(self, proto):
         p = re.compile(' \* ?(?:\t| {5,8})Return$')
         capture = p.match(self.line)
         if not capture:
-            # Helper can have empty retval and we might be parsing another
-            # attribute: return but do not consume.
-            return ''
+            raise Exception("No return section found for " + proto)
         # Return value description can be several lines, some of them possibly
         # empty, and it stops when another subsection title is met.
         ret = ''
+        ret_present = False
         while True:
             self.line = self.reader.readline()
             if self.line == ' *\n':
@@ -170,9 +172,13 @@ class HeaderParser(object):
                 p = re.compile(' \* ?(?:\t| {5,8})(?:\t| {8})(.*)')
                 capture = p.match(self.line)
                 if capture:
+                    ret_present = True
                     ret += capture.group(1) + '\n'
                 else:
                     break
+
+        if not ret_present:
+            raise Exception("No return found for " + proto)
         return ret
 
     def seek_to(self, target, help_message):
