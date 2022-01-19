@@ -926,7 +926,7 @@ static bool can_use_dpia_link_hwss(const struct dc_link *link,
 }
 
 static const struct link_hwss dpia_link_hwss = {
-	.set_throttled_vcp_size = set_dummy_throttled_vcp_size,
+	.set_throttled_vcp_size = set_dio_throttled_vcp_size,
 };
 
 /*********************** below goes to link_hwss ******************************/
