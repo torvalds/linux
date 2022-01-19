@@ -463,7 +463,7 @@ int i915_vma_bind(struct i915_vma *vma,
 	if (vma->resource || !vma_res) {
 		/* Rebinding with an additional I915_VMA_*_BIND */
 		GEM_WARN_ON(!vma_flags);
-		kfree(vma_res);
+		i915_vma_resource_free(vma_res);
 	} else {
 		i915_vma_resource_init_from_vma(vma_res, vma);
 		vma->resource = vma_res;
@@ -1406,7 +1406,7 @@ err_active:
 err_unlock:
 	mutex_unlock(&vma->vm->mutex);
 err_vma_res:
-	kfree(vma_res);
+	i915_vma_resource_free(vma_res);
 err_fence:
 	if (work)
 		dma_fence_work_commit_imm(&work->base);

@@ -62,7 +62,8 @@ struct i915_vma_resource *i915_vma_resource_alloc(void)
  */
 void i915_vma_resource_free(struct i915_vma_resource *vma_res)
 {
-	kmem_cache_free(slab_vma_resources, vma_res);
+	if (vma_res)
+		kmem_cache_free(slab_vma_resources, vma_res);
 }
 
 static const char *get_driver_name(struct dma_fence *fence)
