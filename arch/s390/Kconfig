@@ -945,6 +945,9 @@ config S390_GUEST
 
 endmenu
 
+config S390_MODULES_SANITY_TEST_HELPERS
+	def_bool n
+
 menu "Selftests"
 
 config S390_UNWIND_SELFTEST
@@ -971,4 +974,16 @@ config S390_KPROBES_SANITY_TEST
 
 	  Say N if you are unsure.
 
+config S390_MODULES_SANITY_TEST
+	def_tristate n
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	prompt "Enable s390 specific modules tests"
+	select S390_MODULES_SANITY_TEST_HELPERS
+	help
+	  This option enables an s390 specific modules test. This option is
+	  not useful for distributions or general kernels, but only for
+	  kernel developers working on architecture code.
+
+	  Say N if you are unsure.
 endmenu
