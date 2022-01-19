@@ -41,6 +41,10 @@
 #define UMC_V6_7_CHANNEL_INSTANCE_NUM		8
 /* total channel instances in one umc block */
 #define UMC_V6_7_TOTAL_CHANNEL_NUM	(UMC_V6_7_CHANNEL_INSTANCE_NUM * UMC_V6_7_UMC_INSTANCE_NUM)
+/* one piece of normalizing address is mapped to 8 pieces of physical address */
+#define UMC_V6_7_NA_MAP_PA_NUM	8
+/* R14 bit shift should be considered, double the number */
+#define UMC_V6_7_BAD_PAGE_NUM_PER_CHANNEL	(UMC_V6_7_NA_MAP_PA_NUM * 2)
 /* UMC regiser per channel offset */
 #define UMC_V6_7_PER_CHANNEL_OFFSET		0x400
 extern struct amdgpu_umc_ras umc_v6_7_ras;
