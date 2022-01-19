@@ -87,6 +87,7 @@ msm-y := \
 	msm_gem_vma.o \
 	msm_gpu.o \
 	msm_gpu_devfreq.o \
+	msm_io_utils.o \
 	msm_iommu.o \
 	msm_perf.o \
 	msm_rd.o \
