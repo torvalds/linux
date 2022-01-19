@@ -171,19 +171,8 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 		if (kvm_mmu_page_as_id(_root) != _as_id) {		\
 		} else
 
-static union kvm_mmu_page_role page_role_for_level(struct kvm_vcpu *vcpu,
-						   int level)
-{
-	union kvm_mmu_page_role role;
-
-	role = vcpu->arch.mmu->mmu_role.base;
-	role.level = level;
-
-	return role;
-}
-
 static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu, gfn_t gfn,
-					     int level)
+					     union kvm_mmu_page_role role)
 {
 	struct kvm_mmu_page *sp;
 
@@ -191,7 +180,7 @@ static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu, gfn_t gfn,
 	sp->spt = kvm_mmu_memory_cache_alloc(&vcpu->arch.mmu_shadow_page_cache);
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
 
-	sp->role.word = page_role_for_level(vcpu, level).word;
+	sp->role = role;
 	sp->gfn = gfn;
 	sp->tdp_mmu_page = true;
 
@@ -200,15 +189,27 @@ static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu, gfn_t gfn,
 	return sp;
 }
 
+static struct kvm_mmu_page *tdp_mmu_alloc_child_sp(struct kvm_vcpu *vcpu,
+						   struct tdp_iter *iter)
+{
+	struct kvm_mmu_page *parent_sp;
+	union kvm_mmu_page_role role;
+
+	parent_sp = sptep_to_sp(rcu_dereference(iter->sptep));
+
+	role = parent_sp->role;
+	role.level--;
+
+	return tdp_mmu_alloc_sp(vcpu, iter->gfn, role);
+}
+
 hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 {
-	union kvm_mmu_page_role role;
+	union kvm_mmu_page_role role = vcpu->arch.mmu->mmu_role.base;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_mmu_page *root;
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
-
-	role = page_role_for_level(vcpu, vcpu->arch.mmu->shadow_root_level);
 
 	/*
 	 * Check for an existing root before allocating a new one.  Note, the
@@ -220,7 +221,7 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 			goto out;
 	}
 
-	root = tdp_mmu_alloc_sp(vcpu, 0, vcpu->arch.mmu->shadow_root_level);
+	root = tdp_mmu_alloc_sp(vcpu, 0, role);
 	refcount_set(&root->tdp_mmu_root_count, 1);
 
 	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
@@ -1041,7 +1042,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			if (is_removed_spte(iter.old_spte))
 				break;
 
-			sp = tdp_mmu_alloc_sp(vcpu, iter.gfn, iter.level - 1);
+			sp = tdp_mmu_alloc_child_sp(vcpu, &iter);
 			if (tdp_mmu_link_sp_atomic(vcpu->kvm, &iter, sp, account_nx)) {
 				tdp_mmu_free_sp(sp);
 				break;
