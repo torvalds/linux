@@ -236,7 +236,7 @@ examples:
         scpi {
             compatible = "amlogic,meson-gxbb-scpi", "arm,scpi-pre-1.0";
             mboxes = <&mailbox 1 &mailbox 2>;
-            shmem = <&cpu_scp_lpri &cpu_scp_hpri>;
+            shmem = <&cpu_scp_lpri>, <&cpu_scp_hpri>;
 
             scpi_sensors1: sensors {
                 compatible = "amlogic,meson-gxbb-scpi-sensors", "arm,scpi-sensors";

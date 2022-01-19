@@ -66,6 +66,10 @@ properties:
 
   socionext,syscon-phy-mode:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to syscon that configures phy mode
+          - description: ID of MAC instance
     description:
       A phandle to syscon with one argument that configures phy mode.
       The argument is the ID of MAC instance.

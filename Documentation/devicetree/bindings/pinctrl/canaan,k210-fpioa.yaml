@@ -39,6 +39,10 @@ properties:
 
   canaan,k210-sysctl-power:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle of the K210 system controller node
+          - description: offset of its power domain control register
     description: |
       phandle of the K210 system controller node and offset of its
       power domain control register.

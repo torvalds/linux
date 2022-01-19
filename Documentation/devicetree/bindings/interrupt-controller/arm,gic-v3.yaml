@@ -138,6 +138,8 @@ properties:
         properties:
           affinity:
             $ref: /schemas/types.yaml#/definitions/phandle-array
+            items:
+              maxItems: 1
             description:
               Should be a list of phandles to CPU nodes (as described in
               Documentation/devicetree/bindings/arm/cpus.yaml).
@@ -273,11 +275,11 @@ examples:
 
       ppi-partitions {
         part0: interrupt-partition-0 {
-          affinity = <&cpu0 &cpu2>;
+          affinity = <&cpu0>, <&cpu2>;
         };
 
         part1: interrupt-partition-1 {
-          affinity = <&cpu1 &cpu3>;
+          affinity = <&cpu1>, <&cpu3>;
         };
       };
     };

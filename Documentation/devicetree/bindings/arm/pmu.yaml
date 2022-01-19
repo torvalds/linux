@@ -66,6 +66,8 @@ properties:
 
   interrupt-affinity:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description:
       When using SPIs, specifies a list of phandles to CPU
       nodes corresponding directly to the affinity of

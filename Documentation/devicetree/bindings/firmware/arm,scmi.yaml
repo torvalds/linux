@@ -330,7 +330,7 @@ examples:
     firmware {
         scmi {
             compatible = "arm,scmi-smc";
-            shmem = <&cpu_scp_lpri0 &cpu_scp_lpri1>;
+            shmem = <&cpu_scp_lpri0>, <&cpu_scp_lpri1>;
             arm,smc-id = <0xc3000001>;
 
             #address-cells = <1>;

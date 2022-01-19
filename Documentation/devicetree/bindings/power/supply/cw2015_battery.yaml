@@ -14,6 +14,9 @@ description: |
   phandle in monitored-battery. If specified the driver uses the
   charge-full-design-microamp-hours property of the battery.
 
+allOf:
+  - $ref: power-supply.yaml#
+
 properties:
   compatible:
     const: cellwise,cw2015
@@ -37,9 +40,6 @@ properties:
     minimum: 250
 
   power-supplies:
-    description:
-      Specifies supplies used for charging the battery connected to this gauge
-    $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 8 # Should be enough
 

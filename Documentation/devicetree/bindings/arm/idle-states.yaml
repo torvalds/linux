@@ -337,8 +337,8 @@ examples:
             compatible = "arm,cortex-a57";
             reg = <0x0 0x0>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_0_0 &CPU_SLEEP_0_0
-                   &CLUSTER_RETENTION_0 &CLUSTER_SLEEP_0>;
+            cpu-idle-states = <&CPU_RETENTION_0_0>, <&CPU_SLEEP_0_0>,
+                    <&CLUSTER_RETENTION_0>, <&CLUSTER_SLEEP_0>;
         };
 
         cpu@1 {
@@ -346,8 +346,8 @@ examples:
             compatible = "arm,cortex-a57";
             reg = <0x0 0x1>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_0_0 &CPU_SLEEP_0_0
-                   &CLUSTER_RETENTION_0 &CLUSTER_SLEEP_0>;
+            cpu-idle-states = <&CPU_RETENTION_0_0>, <&CPU_SLEEP_0_0>,
+                    <&CLUSTER_RETENTION_0>, <&CLUSTER_SLEEP_0>;
         };
 
         cpu@100 {
@@ -355,8 +355,8 @@ examples:
             compatible = "arm,cortex-a57";
             reg = <0x0 0x100>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_0_0 &CPU_SLEEP_0_0
-                   &CLUSTER_RETENTION_0 &CLUSTER_SLEEP_0>;
+            cpu-idle-states = <&CPU_RETENTION_0_0>, <&CPU_SLEEP_0_0>,
+                    <&CLUSTER_RETENTION_0>, <&CLUSTER_SLEEP_0>;
         };
 
         cpu@101 {
@@ -364,8 +364,8 @@ examples:
             compatible = "arm,cortex-a57";
             reg = <0x0 0x101>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_0_0 &CPU_SLEEP_0_0
-                   &CLUSTER_RETENTION_0 &CLUSTER_SLEEP_0>;
+            cpu-idle-states = <&CPU_RETENTION_0_0>, <&CPU_SLEEP_0_0>,
+                    <&CLUSTER_RETENTION_0>, <&CLUSTER_SLEEP_0>;
         };
 
         cpu@10000 {
@@ -373,8 +373,8 @@ examples:
             compatible = "arm,cortex-a57";
             reg = <0x0 0x10000>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_0_0 &CPU_SLEEP_0_0
-                   &CLUSTER_RETENTION_0 &CLUSTER_SLEEP_0>;
+            cpu-idle-states = <&CPU_RETENTION_0_0>, <&CPU_SLEEP_0_0>,
+                    <&CLUSTER_RETENTION_0>, <&CLUSTER_SLEEP_0>;
         };
 
         cpu@10001 {
@@ -382,8 +382,8 @@ examples:
             compatible = "arm,cortex-a57";
             reg = <0x0 0x10001>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_0_0 &CPU_SLEEP_0_0
-                   &CLUSTER_RETENTION_0 &CLUSTER_SLEEP_0>;
+            cpu-idle-states = <&CPU_RETENTION_0_0>, <&CPU_SLEEP_0_0>,
+                    <&CLUSTER_RETENTION_0>, <&CLUSTER_SLEEP_0>;
         };
 
         cpu@10100 {
@@ -391,8 +391,8 @@ examples:
             compatible = "arm,cortex-a57";
             reg = <0x0 0x10100>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_0_0 &CPU_SLEEP_0_0
-                   &CLUSTER_RETENTION_0 &CLUSTER_SLEEP_0>;
+            cpu-idle-states = <&CPU_RETENTION_0_0>, <&CPU_SLEEP_0_0>,
+                    <&CLUSTER_RETENTION_0>, <&CLUSTER_SLEEP_0>;
         };
 
         cpu@10101 {
@@ -400,8 +400,8 @@ examples:
             compatible = "arm,cortex-a57";
             reg = <0x0 0x10101>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_0_0 &CPU_SLEEP_0_0
-                   &CLUSTER_RETENTION_0 &CLUSTER_SLEEP_0>;
+            cpu-idle-states = <&CPU_RETENTION_0_0>, <&CPU_SLEEP_0_0>,
+                    <&CLUSTER_RETENTION_0>, <&CLUSTER_SLEEP_0>;
         };
 
         cpu@100000000 {
@@ -409,8 +409,8 @@ examples:
             compatible = "arm,cortex-a53";
             reg = <0x1 0x0>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_1_0 &CPU_SLEEP_1_0
-                   &CLUSTER_RETENTION_1 &CLUSTER_SLEEP_1>;
+            cpu-idle-states = <&CPU_RETENTION_1_0>, <&CPU_SLEEP_1_0>,
+                    <&CLUSTER_RETENTION_1>, <&CLUSTER_SLEEP_1>;
         };
 
         cpu@100000001 {
@@ -418,8 +418,8 @@ examples:
             compatible = "arm,cortex-a53";
             reg = <0x1 0x1>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_1_0 &CPU_SLEEP_1_0
-                   &CLUSTER_RETENTION_1 &CLUSTER_SLEEP_1>;
+            cpu-idle-states = <&CPU_RETENTION_1_0>, <&CPU_SLEEP_1_0>,
+                    <&CLUSTER_RETENTION_1>, <&CLUSTER_SLEEP_1>;
         };
 
         cpu@100000100 {
@@ -427,8 +427,8 @@ examples:
             compatible = "arm,cortex-a53";
             reg = <0x1 0x100>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_1_0 &CPU_SLEEP_1_0
-                   &CLUSTER_RETENTION_1 &CLUSTER_SLEEP_1>;
+            cpu-idle-states = <&CPU_RETENTION_1_0>, <&CPU_SLEEP_1_0>,
+                    <&CLUSTER_RETENTION_1>, <&CLUSTER_SLEEP_1>;
         };
 
         cpu@100000101 {
@@ -436,8 +436,8 @@ examples:
             compatible = "arm,cortex-a53";
             reg = <0x1 0x101>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_1_0 &CPU_SLEEP_1_0
-                   &CLUSTER_RETENTION_1 &CLUSTER_SLEEP_1>;
+            cpu-idle-states = <&CPU_RETENTION_1_0>, <&CPU_SLEEP_1_0>,
+                    <&CLUSTER_RETENTION_1>, <&CLUSTER_SLEEP_1>;
         };
 
         cpu@100010000 {
@@ -445,8 +445,8 @@ examples:
             compatible = "arm,cortex-a53";
             reg = <0x1 0x10000>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_1_0 &CPU_SLEEP_1_0
-                   &CLUSTER_RETENTION_1 &CLUSTER_SLEEP_1>;
+            cpu-idle-states = <&CPU_RETENTION_1_0>, <&CPU_SLEEP_1_0>,
+                    <&CLUSTER_RETENTION_1>, <&CLUSTER_SLEEP_1>;
         };
 
         cpu@100010001 {
@@ -454,8 +454,8 @@ examples:
             compatible = "arm,cortex-a53";
             reg = <0x1 0x10001>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_1_0 &CPU_SLEEP_1_0
-                   &CLUSTER_RETENTION_1 &CLUSTER_SLEEP_1>;
+            cpu-idle-states = <&CPU_RETENTION_1_0>, <&CPU_SLEEP_1_0>,
+                    <&CLUSTER_RETENTION_1>, <&CLUSTER_SLEEP_1>;
         };
 
         cpu@100010100 {
@@ -463,8 +463,8 @@ examples:
             compatible = "arm,cortex-a53";
             reg = <0x1 0x10100>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_1_0 &CPU_SLEEP_1_0
-                   &CLUSTER_RETENTION_1 &CLUSTER_SLEEP_1>;
+            cpu-idle-states = <&CPU_RETENTION_1_0>, <&CPU_SLEEP_1_0>,
+                    <&CLUSTER_RETENTION_1>, <&CLUSTER_SLEEP_1>;
         };
 
         cpu@100010101 {
@@ -472,8 +472,8 @@ examples:
             compatible = "arm,cortex-a53";
             reg = <0x1 0x10101>;
             enable-method = "psci";
-            cpu-idle-states = <&CPU_RETENTION_1_0 &CPU_SLEEP_1_0
-                   &CLUSTER_RETENTION_1 &CLUSTER_SLEEP_1>;
+            cpu-idle-states = <&CPU_RETENTION_1_0>, <&CPU_SLEEP_1_0>,
+                    <&CLUSTER_RETENTION_1>, <&CLUSTER_SLEEP_1>;
         };
 
         idle-states {
@@ -567,56 +567,56 @@ examples:
             device_type = "cpu";
             compatible = "arm,cortex-a15";
             reg = <0x0>;
-            cpu-idle-states = <&cpu_sleep_0_0 &cluster_sleep_0>;
+            cpu-idle-states = <&cpu_sleep_0_0>, <&cluster_sleep_0>;
         };
 
         cpu@1 {
             device_type = "cpu";
             compatible = "arm,cortex-a15";
             reg = <0x1>;
-            cpu-idle-states = <&cpu_sleep_0_0 &cluster_sleep_0>;
+            cpu-idle-states = <&cpu_sleep_0_0>, <&cluster_sleep_0>;
         };
 
         cpu@2 {
             device_type = "cpu";
             compatible = "arm,cortex-a15";
             reg = <0x2>;
-            cpu-idle-states = <&cpu_sleep_0_0 &cluster_sleep_0>;
+            cpu-idle-states = <&cpu_sleep_0_0>, <&cluster_sleep_0>;
         };
 
         cpu@3 {
             device_type = "cpu";
             compatible = "arm,cortex-a15";
             reg = <0x3>;
-            cpu-idle-states = <&cpu_sleep_0_0 &cluster_sleep_0>;
+            cpu-idle-states = <&cpu_sleep_0_0>, <&cluster_sleep_0>;
         };
 
         cpu@100 {
             device_type = "cpu";
             compatible = "arm,cortex-a7";
             reg = <0x100>;
-            cpu-idle-states = <&cpu_sleep_1_0 &cluster_sleep_1>;
+            cpu-idle-states = <&cpu_sleep_1_0>, <&cluster_sleep_1>;
         };
 
         cpu@101 {
             device_type = "cpu";
             compatible = "arm,cortex-a7";
             reg = <0x101>;
-            cpu-idle-states = <&cpu_sleep_1_0 &cluster_sleep_1>;
+            cpu-idle-states = <&cpu_sleep_1_0>, <&cluster_sleep_1>;
         };
 
         cpu@102 {
             device_type = "cpu";
             compatible = "arm,cortex-a7";
             reg = <0x102>;
-            cpu-idle-states = <&cpu_sleep_1_0 &cluster_sleep_1>;
+            cpu-idle-states = <&cpu_sleep_1_0>, <&cluster_sleep_1>;
         };
 
         cpu@103 {
             device_type = "cpu";
             compatible = "arm,cortex-a7";
             reg = <0x103>;
-            cpu-idle-states = <&cpu_sleep_1_0 &cluster_sleep_1>;
+            cpu-idle-states = <&cpu_sleep_1_0>, <&cluster_sleep_1>;
         };
 
         idle-states {

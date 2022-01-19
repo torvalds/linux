@@ -52,7 +52,7 @@ properties:
     maxItems: 1
 
   mediatek,smi:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: a phandle to the smi_common node.
 
   mediatek,larb-id:

@@ -54,6 +54,10 @@ properties:
 
   mediatek,mtd-eeprom:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to MTD partition
+          - description: offset containing EEPROM data
     description:
       Phandle to a MTD partition + offset containing EEPROM data
 

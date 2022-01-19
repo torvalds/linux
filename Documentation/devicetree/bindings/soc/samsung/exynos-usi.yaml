@@ -48,6 +48,10 @@ properties:
 
   samsung,sysreg:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to System Register syscon node
+          - description: offset of SW_CONF register for this USI controller
     description:
       Should be phandle/offset pair. The phandle to System Register syscon node
       (for the same domain where this USI controller resides) and the offset

@@ -115,6 +115,12 @@ properties:
 
   qcom,halt-regs:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle reference to a syscon representing TCSR
+          - description: offsets within syscon for q6 halt registers
+          - description: offsets within syscon for modem halt registers
+          - description: offsets within syscon for nc halt registers
     description:
       Phandle reference to a syscon representing TCSR followed by the
       three offsets within syscon for q6, modem and nc halt registers.

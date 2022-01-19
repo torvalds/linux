@@ -177,6 +177,8 @@ patternProperties:
           for the functioning of the current device at the current OPP (where
           this property is present).
         $ref: /schemas/types.yaml#/definitions/phandle-array
+        items:
+          maxItems: 1
 
     patternProperties:
       '^opp-microvolt-':

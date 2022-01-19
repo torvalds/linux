@@ -102,9 +102,11 @@ patternProperties:
           By default SAI sub-block is in asynchronous mode.
           Must contain the phandle and index of the SAI sub-block providing
           the synchronization.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/phandle-array
-          - maxItems: 1
+        $ref: /schemas/types.yaml#/definitions/phandle-array
+        items:
+          - items:
+              - description: phandle of the SAI sub-block
+              - description: index of the SAI sub-block
 
       st,iec60958:
         description:

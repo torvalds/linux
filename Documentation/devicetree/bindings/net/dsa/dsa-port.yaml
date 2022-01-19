@@ -34,6 +34,8 @@ properties:
       full routing information must be given, not just the one hop
       routes to neighbouring switches
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
 
   ethernet:
     description:

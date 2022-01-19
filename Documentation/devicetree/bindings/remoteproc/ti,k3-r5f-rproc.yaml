@@ -189,6 +189,8 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/phandle-array
         minItems: 1
         maxItems: 4
+        items:
+          maxItems: 1
         description: |
           phandles to one or more reserved on-chip SRAM regions. The regions
           should be defined as child nodes of the respective SRAM node, and

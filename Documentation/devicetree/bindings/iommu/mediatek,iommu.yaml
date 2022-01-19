@@ -101,6 +101,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 32
+    items:
+      maxItems: 1
     description: |
       List of phandle to the local arbiters in the current Socs.
       Refer to bindings/memory-controllers/mediatek,smi-larb.yaml. It must sort
@@ -167,8 +169,8 @@ examples:
             interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_LOW>;
             clocks = <&infracfg CLK_INFRA_M4U>;
             clock-names = "bclk";
-            mediatek,larbs = <&larb0 &larb1 &larb2
-                              &larb3 &larb4 &larb5>;
+            mediatek,larbs = <&larb0>, <&larb1>, <&larb2>,
+                             <&larb3>, <&larb4>, <&larb5>;
             #iommu-cells = <1>;
     };
 
