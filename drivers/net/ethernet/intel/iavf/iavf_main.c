@@ -876,6 +876,7 @@ struct iavf_mac_filter *iavf_add_filter(struct iavf_adapter *adapter,
 		list_add_tail(&f->list, &adapter->mac_filter_list);
 		f->add = true;
 		f->is_new_mac = true;
+		f->is_primary = false;
 		adapter->aq_required |= IAVF_FLAG_AQ_ADD_MAC_FILTER;
 	} else {
 		f->remove = false;
@@ -909,16 +910,21 @@ static int iavf_set_mac(struct net_device *netdev, void *p)
 	f = iavf_find_filter(adapter, hw->mac.addr);
 	if (f) {
 		f->remove = true;
+		f->is_primary = true;
 		adapter->aq_required |= IAVF_FLAG_AQ_DEL_MAC_FILTER;
 	}
 
 	f = iavf_add_filter(adapter, addr->sa_data);
+	if (f) {
+		f->is_primary = true;
+		ether_addr_copy(hw->mac.addr, addr->sa_data);
+	}
 
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
-	if (f) {
-		ether_addr_copy(hw->mac.addr, addr->sa_data);
-	}
+	/* schedule the watchdog task to immediately process the request */
+	if (f)
+		queue_work(iavf_wq, &adapter->watchdog_task.work);
 
 	return (f == NULL) ? -ENOMEM : 0;
 }
