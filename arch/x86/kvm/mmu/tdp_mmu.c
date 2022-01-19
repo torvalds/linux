@@ -512,16 +512,23 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
  * and handle the associated bookkeeping.  Do not mark the page dirty
  * in KVM's dirty bitmaps.
  *
+ * If setting the SPTE fails because it has changed, iter->old_spte will be
+ * refreshed to the current value of the spte.
+ *
  * @kvm: kvm instance
  * @iter: a tdp_iter instance currently on the SPTE that should be set
  * @new_spte: The value the SPTE should be set to
  * Returns: true if the SPTE was set, false if it was not. If false is returned,
- *	    this function will have no side-effects.
+ *          this function will have no side-effects other than setting
+ *          iter->old_spte to the last known value of spte.
  */
 static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
 					   struct tdp_iter *iter,
 					   u64 new_spte)
 {
+	u64 *sptep = rcu_dereference(iter->sptep);
+	u64 old_spte;
+
 	WARN_ON_ONCE(iter->yielded);
 
 	lockdep_assert_held_read(&kvm->mmu_lock);
@@ -537,9 +544,17 @@ static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
 	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
 	 * does not hold the mmu_lock.
 	 */
-	if (cmpxchg64(rcu_dereference(iter->sptep), iter->old_spte,
-		      new_spte) != iter->old_spte)
+	old_spte = cmpxchg64(sptep, iter->old_spte, new_spte);
+	if (old_spte != iter->old_spte) {
+		/*
+		 * The page table entry was modified by a different logical
+		 * CPU. Refresh iter->old_spte with the current value so the
+		 * caller operates on fresh data, e.g. if it retries
+		 * tdp_mmu_set_spte_atomic().
+		 */
+		iter->old_spte = old_spte;
 		return false;
+	}
 
 	__handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
 			      new_spte, iter->level, true);
@@ -771,11 +786,6 @@ retry:
 			tdp_mmu_set_spte(kvm, &iter, 0);
 			flush = true;
 		} else if (!tdp_mmu_zap_spte_atomic(kvm, &iter)) {
-			/*
-			 * The iter must explicitly re-read the SPTE because
-			 * the atomic cmpxchg failed.
-			 */
-			iter.old_spte = READ_ONCE(*rcu_dereference(iter.sptep));
 			goto retry;
 		}
 	}
@@ -1208,14 +1218,9 @@ retry:
 
 		new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
 
-		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte)) {
-			/*
-			 * The iter must explicitly re-read the SPTE because
-			 * the atomic cmpxchg failed.
-			 */
-			iter.old_spte = READ_ONCE(*rcu_dereference(iter.sptep));
+		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte))
 			goto retry;
-		}
+
 		spte_set = true;
 	}
 
@@ -1276,14 +1281,9 @@ retry:
 				continue;
 		}
 
-		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte)) {
-			/*
-			 * The iter must explicitly re-read the SPTE because
-			 * the atomic cmpxchg failed.
-			 */
-			iter.old_spte = READ_ONCE(*rcu_dereference(iter.sptep));
+		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte))
 			goto retry;
-		}
+
 		spte_set = true;
 	}
 
@@ -1407,14 +1407,8 @@ retry:
 			continue;
 
 		/* Note, a successful atomic zap also does a remote TLB flush. */
-		if (!tdp_mmu_zap_spte_atomic(kvm, &iter)) {
-			/*
-			 * The iter must explicitly re-read the SPTE because
-			 * the atomic cmpxchg failed.
-			 */
-			iter.old_spte = READ_ONCE(*rcu_dereference(iter.sptep));
+		if (!tdp_mmu_zap_spte_atomic(kvm, &iter))
 			goto retry;
-		}
 	}
 
 	rcu_read_unlock();
