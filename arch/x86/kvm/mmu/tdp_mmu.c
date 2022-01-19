@@ -518,13 +518,15 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
  * @kvm: kvm instance
  * @iter: a tdp_iter instance currently on the SPTE that should be set
  * @new_spte: The value the SPTE should be set to
- * Returns: true if the SPTE was set, false if it was not. If false is returned,
- *          this function will have no side-effects other than setting
- *          iter->old_spte to the last known value of spte.
+ * Return:
+ * * 0      - If the SPTE was set.
+ * * -EBUSY - If the SPTE cannot be set. In this case this function will have
+ *            no side-effects other than setting iter->old_spte to the last
+ *            known value of the spte.
  */
-static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
-					   struct tdp_iter *iter,
-					   u64 new_spte)
+static inline int tdp_mmu_set_spte_atomic(struct kvm *kvm,
+					  struct tdp_iter *iter,
+					  u64 new_spte)
 {
 	u64 *sptep = rcu_dereference(iter->sptep);
 	u64 old_spte;
@@ -538,7 +540,7 @@ static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
 	 * may modify it.
 	 */
 	if (is_removed_spte(iter->old_spte))
-		return false;
+		return -EBUSY;
 
 	/*
 	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
@@ -553,27 +555,30 @@ static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
 		 * tdp_mmu_set_spte_atomic().
 		 */
 		iter->old_spte = old_spte;
-		return false;
+		return -EBUSY;
 	}
 
 	__handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
 			      new_spte, iter->level, true);
 	handle_changed_spte_acc_track(iter->old_spte, new_spte, iter->level);
 
-	return true;
+	return 0;
 }
 
-static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
-					   struct tdp_iter *iter)
+static inline int tdp_mmu_zap_spte_atomic(struct kvm *kvm,
+					  struct tdp_iter *iter)
 {
+	int ret;
+
 	/*
 	 * Freeze the SPTE by setting it to a special,
 	 * non-present value. This will stop other threads from
 	 * immediately installing a present entry in its place
 	 * before the TLBs are flushed.
 	 */
-	if (!tdp_mmu_set_spte_atomic(kvm, iter, REMOVED_SPTE))
-		return false;
+	ret = tdp_mmu_set_spte_atomic(kvm, iter, REMOVED_SPTE);
+	if (ret)
+		return ret;
 
 	kvm_flush_remote_tlbs_with_address(kvm, iter->gfn,
 					   KVM_PAGES_PER_HPAGE(iter->level));
@@ -588,7 +593,7 @@ static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 	 */
 	WRITE_ONCE(*rcu_dereference(iter->sptep), 0);
 
-	return true;
+	return 0;
 }
 
 
@@ -785,7 +790,7 @@ retry:
 		if (!shared) {
 			tdp_mmu_set_spte(kvm, &iter, 0);
 			flush = true;
-		} else if (!tdp_mmu_zap_spte_atomic(kvm, &iter)) {
+		} else if (tdp_mmu_zap_spte_atomic(kvm, &iter)) {
 			goto retry;
 		}
 	}
@@ -943,7 +948,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 
 	if (new_spte == iter->old_spte)
 		ret = RET_PF_SPURIOUS;
-	else if (!tdp_mmu_set_spte_atomic(vcpu->kvm, iter, new_spte))
+	else if (tdp_mmu_set_spte_atomic(vcpu->kvm, iter, new_spte))
 		return RET_PF_RETRY;
 
 	/*
@@ -1009,7 +1014,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		 */
 		if (is_shadow_present_pte(iter.old_spte) &&
 		    is_large_pte(iter.old_spte)) {
-			if (!tdp_mmu_zap_spte_atomic(vcpu->kvm, &iter))
+			if (tdp_mmu_zap_spte_atomic(vcpu->kvm, &iter))
 				break;
 
 			/*
@@ -1035,7 +1040,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			new_spte = make_nonleaf_spte(child_pt,
 						     !shadow_accessed_mask);
 
-			if (tdp_mmu_set_spte_atomic(vcpu->kvm, &iter, new_spte)) {
+			if (!tdp_mmu_set_spte_atomic(vcpu->kvm, &iter, new_spte)) {
 				tdp_mmu_link_page(vcpu->kvm, sp,
 						  fault->huge_page_disallowed &&
 						  fault->req_level >= iter.level);
@@ -1218,7 +1223,7 @@ retry:
 
 		new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
 
-		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte))
+		if (tdp_mmu_set_spte_atomic(kvm, &iter, new_spte))
 			goto retry;
 
 		spte_set = true;
@@ -1281,7 +1286,7 @@ retry:
 				continue;
 		}
 
-		if (!tdp_mmu_set_spte_atomic(kvm, &iter, new_spte))
+		if (tdp_mmu_set_spte_atomic(kvm, &iter, new_spte))
 			goto retry;
 
 		spte_set = true;
@@ -1407,7 +1412,7 @@ retry:
 			continue;
 
 		/* Note, a successful atomic zap also does a remote TLB flush. */
-		if (!tdp_mmu_zap_spte_atomic(kvm, &iter))
+		if (tdp_mmu_zap_spte_atomic(kvm, &iter))
 			goto retry;
 	}
 
