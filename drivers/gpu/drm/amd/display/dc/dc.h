@@ -195,10 +195,8 @@ struct dc_caps {
 	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool dp_hpo;
 	bool hdmi_frl_pcon_support;
-#endif
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
@@ -306,7 +304,6 @@ struct dc_cap_funcs {
 
 struct link_training_settings;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 union allow_lttpr_non_transparent_mode {
 	struct {
 		bool DP1_4A : 1;
@@ -314,7 +311,7 @@ union allow_lttpr_non_transparent_mode {
 	} bits;
 	unsigned char raw;
 };
-#endif
+
 /* Structure to hold configuration flags set by dm at dc creation. */
 struct dc_config {
 	bool gpu_vm_support;
@@ -327,11 +324,7 @@ struct dc_config {
 	bool edp_no_power_sequencing;
 	bool force_enum_edp;
 	bool forced_clocks;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	union allow_lttpr_non_transparent_mode allow_lttpr_non_transparent_mode;
-#else
-	bool allow_lttpr_non_transparent_mode;
-#endif
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
 	bool enable_4to1MPC;
@@ -689,13 +682,11 @@ struct dc_debug_options {
 	bool disable_dsc_edp;
 	unsigned int  force_dsc_edp_policy;
 	bool enable_dram_clock_change_one_display_vactive;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* TODO - remove once tested */
 	bool legacy_dp2_lt;
 	bool set_mst_en_for_sst;
 	bool disable_uhbr;
 	bool force_dp2_lt_fallback_method;
-#endif
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
 	bool hpo_optimization;
@@ -1239,12 +1230,10 @@ struct dpcd_caps {
 	struct psr_caps psr_caps;
 	struct dpcd_usb4_dp_tunneling_info usb4_dp_tun_info;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	union dp_128b_132b_supported_link_rates dp_128b_132b_supported_link_rates;
 	union dp_main_line_channel_coding_cap channel_coding_cap;
 	union dp_sink_video_fallback_formats fallback_formats;
 	union dp_fec_capability1 fec_cap1;
-#endif
 };
 
 union dpcd_sink_ext_caps {

@@ -220,7 +220,6 @@ enum link_enc_cfg_mode {
 	LINK_ENC_CFG_TRANSIENT /* During commit state - use state to be committed. */
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 enum dp2_link_mode {
 	DP2_LINK_TRAINING_TPS1,
 	DP2_LINK_TRAINING_TPS2,
@@ -306,6 +305,5 @@ struct hpo_dp_link_encoder_funcs {
 		const struct dc_link_settings *link_settings,
 		uint8_t ffe_preset);
 };
-#endif
 
 #endif /* LINK_ENCODER_H_ */

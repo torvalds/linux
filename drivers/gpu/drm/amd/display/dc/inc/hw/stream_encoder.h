@@ -249,7 +249,6 @@ struct stream_encoder_funcs {
 		struct stream_encoder *enc);
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 struct hpo_dp_stream_encoder_state {
 	uint32_t stream_enc_enabled;
 	uint32_t vid_stream_enabled;
@@ -329,6 +328,5 @@ struct hpo_dp_stream_encoder_funcs {
 			struct hpo_dp_stream_encoder *enc,
 			struct hpo_dp_stream_encoder_state *state);
 };
-#endif
 
 #endif /* STREAM_ENCODER_H_ */
