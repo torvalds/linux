@@ -59,6 +59,7 @@
 			compatible = "aspeed,ast2500-fmc";
 			reg = < 0x1e620000 0xc4
 				0x20000000 0x10000000 >;
+			fmc-spi-user-mode;
 #else
 			/* for fmc_spi.c verification */
 			compatible = "aspeed,fmc-spi";
@@ -94,6 +95,7 @@
 		spi1: spi@1e630000 {
 			reg = < 0x1e630000 0xc4
 				0x30000000 0x08000000 >;
+			fmc-spi-user-mode;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2500-spi";
@@ -116,6 +118,7 @@
 		spi2: spi@1e631000 {
 			reg = < 0x1e631000 0xc4
 				0x38000000 0x08000000 >;
+			fmc-spi-user-mode;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2500-spi";

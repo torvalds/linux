@@ -259,6 +259,7 @@ struct aspeed_smc_controller {
 	u32 ahb_window_size;			/* full mapping window size */
 	int irq; /* for dma write */
 	struct completion dma_done;
+	bool user_mode;
 
 	unsigned long	clk_frequency;
 
@@ -510,7 +511,7 @@ static void aspeed_smc_chip_check_config(struct aspeed_smc_chip *chip)
 	writel(reg, controller->regs + CONFIG_REG);
 }
 
-static void aspeed_smc_start_user(struct spi_nor *nor)
+static void aspeed_smc_start_user(struct spi_nor *nor, uint32_t frequency_config)
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 	u32 ctl = chip->ctl_val[smc_base];
@@ -522,7 +523,7 @@ static void aspeed_smc_start_user(struct spi_nor *nor)
 	aspeed_smc_chip_check_config(chip);
 
 	ctl |= CONTROL_COMMAND_MODE_USER |
-		CONTROL_CE_STOP_ACTIVE_CONTROL;
+		CONTROL_CE_STOP_ACTIVE_CONTROL | frequency_config;
 	writel(ctl, chip->ctl);
 
 	ctl &= ~CONTROL_CE_STOP_ACTIVE_CONTROL;
@@ -561,7 +562,7 @@ static int aspeed_smc_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 
-	aspeed_smc_start_user(nor);
+	aspeed_smc_start_user(nor, 0);
 	aspeed_smc_write_to_ahb(chip->ahb_base, &opcode, 1);
 	aspeed_smc_read_from_ahb(buf, chip->ahb_base, len);
 	aspeed_smc_stop_user(nor);
@@ -573,7 +574,7 @@ static int aspeed_smc_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
 {
 	struct aspeed_smc_chip *chip = nor->priv;
 
-	aspeed_smc_start_user(nor);
+	aspeed_smc_start_user(nor, 0);
 	aspeed_smc_write_to_ahb(chip->ahb_base, &opcode, 1);
 	aspeed_smc_write_to_ahb(chip->ahb_base, buf, len);
 	aspeed_smc_stop_user(nor);
@@ -658,7 +659,7 @@ static ssize_t aspeed_smc_read_user(struct spi_nor *nor, loff_t from,
 	u8 dummy = 0xFF;
 	int io_mode = aspeed_smc_get_io_mode(chip);
 
-	aspeed_smc_start_user(nor);
+	aspeed_smc_start_user(nor, (chip->ctl_val[smc_read] & 0x00000f00));
 	aspeed_smc_send_cmd_addr(nor, nor->read_opcode, from);
 	for (i = 0; i < chip->nor.read_dummy / 8; i++)
 		aspeed_smc_write_to_ahb(chip->ahb_base, &dummy, sizeof(dummy));
@@ -672,7 +673,20 @@ static ssize_t aspeed_smc_read_user(struct spi_nor *nor, loff_t from,
 	return len;
 }
 
-static ssize_t aspeed_smc_write(struct spi_nor *nor, loff_t to,
+static ssize_t aspeed_smc_write_user(struct spi_nor *nor, loff_t to,
+					size_t len, const u_char *write_buf)
+{
+	struct aspeed_smc_chip *chip = nor->priv;
+
+	aspeed_smc_start_user(nor, (chip->ctl_val[smc_write] & 0x00000f00));
+	aspeed_smc_send_cmd_addr(nor, nor->program_opcode, to);
+	aspeed_smc_write_to_ahb(chip->ahb_base, write_buf, len);
+	aspeed_smc_stop_user(nor);
+
+	return len;
+}
+
+static ssize_t aspeed_smc_write_dma(struct spi_nor *nor, loff_t to,
 				     size_t len, const u_char *write_buf)
 {
 	int ret;
@@ -1453,13 +1467,27 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 	return 0;
 }
 
+/*
+ * Design for AST2600-A1/A2.
+ * If it is okay, please use the new SPI driver, spi-aspeed.c, on AST2600.
+ */
 static const struct spi_nor_controller_ops aspeed_smc_controller_ops = {
 	.prepare = aspeed_smc_prep,
 	.unprepare = aspeed_smc_unprep,
 	.read_reg = aspeed_smc_read_reg,
 	.write_reg = aspeed_smc_write_reg,
 	.read = aspeed_smc_read,
-	.write = aspeed_smc_write,
+	.write = aspeed_smc_write_dma,
+};
+
+/* for AST2500 */
+static const struct spi_nor_controller_ops aspeed_smc_controller_ops_user = {
+	.prepare = aspeed_smc_prep,
+	.unprepare = aspeed_smc_unprep,
+	.read_reg = aspeed_smc_read_reg,
+	.write_reg = aspeed_smc_write_reg,
+	.read = aspeed_smc_read,
+	.write = aspeed_smc_write_user,
 };
 
 static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
@@ -1539,7 +1567,11 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 		nor->dev = dev;
 		nor->priv = chip;
 		spi_nor_set_flash_node(nor, child);
-		nor->controller_ops = &aspeed_smc_controller_ops;
+
+		if (chip->controller->user_mode)
+			nor->controller_ops = &aspeed_smc_controller_ops_user;
+		else
+			nor->controller_ops = &aspeed_smc_controller_ops;
 
 		ret = aspeed_smc_chip_setup_init(chip, r);
 		if (ret)
@@ -1628,25 +1660,33 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 
 	controller->ahb_window_size = resource_size(res);
 
-	controller->write_buf = dma_alloc_coherent(&pdev->dev,
-		WRITTEN_DMA_BUF_LEN, &controller->dma_addr_phy, GFP_DMA | GFP_KERNEL);
-	if (!controller->write_buf)
-		return -ENOMEM;
-
-	controller->irq = platform_get_irq(pdev, 0);
-	if (controller->irq < 0) {
-		dev_err(dev, "fail to get irq (%d)\n", controller->irq);
-		return controller->irq;
+	controller->user_mode = false;
+	if (of_property_read_bool(dev->of_node, "fmc-spi-user-mode")) {
+		dev_info(dev, "adopt user mode\n");
+		controller->user_mode = true;
 	}
 
-	ret = devm_request_irq(dev, controller->irq, aspeed_spi_dma_isr,
-					IRQF_SHARED, dev_name(dev), controller);
-	if (ret < 0) {
-		dev_err(dev, "fail to request irq (%d)\n", ret);
-		return ret;
-	}
+	if (!controller->user_mode) {
+		controller->write_buf = dma_alloc_coherent(&pdev->dev,
+			WRITTEN_DMA_BUF_LEN, &controller->dma_addr_phy, GFP_DMA | GFP_KERNEL);
+		if (!controller->write_buf)
+			return -ENOMEM;
 
-	init_completion(&controller->dma_done);
+		controller->irq = platform_get_irq(pdev, 0);
+		if (controller->irq < 0) {
+			dev_err(dev, "fail to get irq (%d)\n", controller->irq);
+			return controller->irq;
+		}
+
+		ret = devm_request_irq(dev, controller->irq, aspeed_spi_dma_isr,
+						IRQF_SHARED, dev_name(dev), controller);
+		if (ret < 0) {
+			dev_err(dev, "fail to request irq (%d)\n", ret);
+			return ret;
+		}
+
+		init_completion(&controller->dma_done);
+	}
 
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk))
