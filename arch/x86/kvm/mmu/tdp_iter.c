@@ -40,17 +40,19 @@ void tdp_iter_restart(struct tdp_iter *iter)
  * Sets a TDP iterator to walk a pre-order traversal of the paging structure
  * rooted at root_pt, starting with the walk to translate next_last_level_gfn.
  */
-void tdp_iter_start(struct tdp_iter *iter, u64 *root_pt, int root_level,
+void tdp_iter_start(struct tdp_iter *iter, struct kvm_mmu_page *root,
 		    int min_level, gfn_t next_last_level_gfn)
 {
+	int root_level = root->role.level;
+
 	WARN_ON(root_level < 1);
 	WARN_ON(root_level > PT64_ROOT_MAX_LEVEL);
 
 	iter->next_last_level_gfn = next_last_level_gfn;
 	iter->root_level = root_level;
 	iter->min_level = min_level;
-	iter->pt_path[iter->root_level - 1] = (tdp_ptep_t)root_pt;
-	iter->as_id = kvm_mmu_page_as_id(sptep_to_sp(root_pt));
+	iter->pt_path[iter->root_level - 1] = (tdp_ptep_t)root->spt;
+	iter->as_id = kvm_mmu_page_as_id(root);
 
 	tdp_iter_restart(iter);
 }
