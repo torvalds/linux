@@ -648,14 +648,6 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		/* We don't need the original edid anymore */
 		kfree(edid);
 
-		/* connector->display_info is parsed from EDID and saved
-		 * into drm_connector->display_info
-		 *
-		 * drm_connector->display_info will be used by amdgpu_dm funcs,
-		 * like fill_stream_properties_from_drm_display_mode
-		 */
-		amdgpu_dm_update_connector_after_detect(aconnector);
-
 		edid_status = dm_helpers_parse_edid_caps(
 						link,
 						&sink->dc_edid,
