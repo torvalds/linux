@@ -1412,13 +1412,13 @@
 		};
 	};
 
-	pmu1_grf: syscon@fd58a000 {
-		compatible = "rockchip,rk3588-pmu1-grf", "syscon", "simple-mfd";
-		reg = <0x0 0xfd58a000 0x0 0x2000>;
+	pmu0_grf: syscon@fd588000 {
+		compatible = "rockchip,rk3588-pmu0-grf", "syscon", "simple-mfd";
+		reg = <0x0 0xfd588000 0x0 0x2000>;
 
 		reboot_mode: reboot-mode {
 			compatible = "syscon-reboot-mode";
-			offset = <0x200>;
+			offset = <0x80>;
 			mode-bootloader = <BOOT_BL_DOWNLOAD>;
 			mode-charge = <BOOT_CHARGING>;
 			mode-fastboot = <BOOT_FASTBOOT>;
@@ -1429,6 +1429,11 @@
 			mode-panic = <BOOT_PANIC>;
 			mode-watchdog = <BOOT_WATCHDOG>;
 		};
+	};
+
+	pmu1_grf: syscon@fd58a000 {
+		compatible = "rockchip,rk3588-pmu1-grf", "syscon";
+		reg = <0x0 0xfd58a000 0x0 0x2000>;
 	};
 
 	sys_grf: syscon@fd58c000 {
