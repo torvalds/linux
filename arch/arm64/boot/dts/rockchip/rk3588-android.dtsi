@@ -91,15 +91,6 @@
 	memory-region-names = "drm-logo";
 };
 
-&dfi {
-	status = "okay";
-};
-
-&dmc {
-	status = "okay";
-	center-supply = <&vdd_ddr_s0>;
-};
-
 &rng {
 	status = "okay";
 };
