@@ -63,6 +63,7 @@
 #define   GLI_9750_MISC_RX_INV_OFF       0x0
 #define   GLI_9750_MISC_RX_INV_VALUE     GLI_9750_MISC_RX_INV_OFF
 #define   GLI_9750_MISC_TX1_DLY_VALUE    0x5
+#define   SDHCI_GLI_9750_MISC_SSC_OFF    BIT(26)
 
 #define SDHCI_GLI_9750_TUNING_CONTROL	          0x540
 #define   SDHCI_GLI_9750_TUNING_CONTROL_EN          BIT(4)
@@ -136,6 +137,9 @@
 
 #define PCI_GLI_9755_SerDes  0x70
 #define PCI_GLI_9755_SCP_DIS   BIT(19)
+
+#define PCI_GLI_9755_MISC	    0x78
+#define   PCI_GLI_9755_MISC_SSC_OFF    BIT(26)
 
 #define GLI_MAX_TUNING_LOOP 40
 
@@ -371,6 +375,19 @@ static void gl9750_set_pll(struct sdhci_host *host, u8 dir, u16 ldiv, u8 pdiv)
 	mdelay(1);
 }
 
+static bool gl9750_ssc_enable(struct sdhci_host *host)
+{
+	u32 misc;
+	u8 off;
+
+	gl9750_wt_on(host);
+	misc = sdhci_readl(host, SDHCI_GLI_9750_MISC);
+	off = FIELD_GET(SDHCI_GLI_9750_MISC_SSC_OFF, misc);
+	gl9750_wt_off(host);
+
+	return !off;
+}
+
 static void gl9750_set_ssc(struct sdhci_host *host, u8 enable, u8 step, u16 ppm)
 {
 	u32 pll;
@@ -392,22 +409,28 @@ static void gl9750_set_ssc(struct sdhci_host *host, u8 enable, u8 step, u16 ppm)
 
 static void gl9750_set_ssc_pll_205mhz(struct sdhci_host *host)
 {
-	/* set pll to 205MHz and enable ssc */
-	gl9750_set_ssc(host, 0x1, 0xF, 0x5A1D);
+	bool enable = gl9750_ssc_enable(host);
+
+	/* set pll to 205MHz and ssc */
+	gl9750_set_ssc(host, enable, 0xF, 0x5A1D);
 	gl9750_set_pll(host, 0x1, 0x246, 0x0);
 }
 
 static void gl9750_set_ssc_pll_100mhz(struct sdhci_host *host)
 {
-	/* set pll to 100MHz and enable ssc */
-	gl9750_set_ssc(host, 0x1, 0xE, 0x51EC);
+	bool enable = gl9750_ssc_enable(host);
+
+	/* set pll to 100MHz and ssc */
+	gl9750_set_ssc(host, enable, 0xE, 0x51EC);
 	gl9750_set_pll(host, 0x1, 0x244, 0x1);
 }
 
 static void gl9750_set_ssc_pll_50mhz(struct sdhci_host *host)
 {
-	/* set pll to 50MHz and enable ssc */
-	gl9750_set_ssc(host, 0x1, 0xE, 0x51EC);
+	bool enable = gl9750_ssc_enable(host);
+
+	/* set pll to 50MHz and ssc */
+	gl9750_set_ssc(host, enable, 0xE, 0x51EC);
 	gl9750_set_pll(host, 0x1, 0x244, 0x3);
 }
 
@@ -532,6 +555,19 @@ static void gl9755_set_pll(struct pci_dev *pdev, u8 dir, u16 ldiv, u8 pdiv)
 	mdelay(1);
 }
 
+static bool gl9755_ssc_enable(struct pci_dev *pdev)
+{
+	u32 misc;
+	u8 off;
+
+	gl9755_wt_on(pdev);
+	pci_read_config_dword(pdev, PCI_GLI_9755_MISC, &misc);
+	off = FIELD_GET(PCI_GLI_9755_MISC_SSC_OFF, misc);
+	gl9755_wt_off(pdev);
+
+	return !off;
+}
+
 static void gl9755_set_ssc(struct pci_dev *pdev, u8 enable, u8 step, u16 ppm)
 {
 	u32 pll;
@@ -553,22 +589,28 @@ static void gl9755_set_ssc(struct pci_dev *pdev, u8 enable, u8 step, u16 ppm)
 
 static void gl9755_set_ssc_pll_205mhz(struct pci_dev *pdev)
 {
-	/* set pll to 205MHz and enable ssc */
-	gl9755_set_ssc(pdev, 0x1, 0xF, 0x5A1D);
+	bool enable = gl9755_ssc_enable(pdev);
+
+	/* set pll to 205MHz and ssc */
+	gl9755_set_ssc(pdev, enable, 0xF, 0x5A1D);
 	gl9755_set_pll(pdev, 0x1, 0x246, 0x0);
 }
 
 static void gl9755_set_ssc_pll_100mhz(struct pci_dev *pdev)
 {
-	/* set pll to 100MHz and enable ssc */
-	gl9755_set_ssc(pdev, 0x1, 0xE, 0x51EC);
+	bool enable = gl9755_ssc_enable(pdev);
+
+	/* set pll to 100MHz and ssc */
+	gl9755_set_ssc(pdev, enable, 0xE, 0x51EC);
 	gl9755_set_pll(pdev, 0x1, 0x244, 0x1);
 }
 
 static void gl9755_set_ssc_pll_50mhz(struct pci_dev *pdev)
 {
-	/* set pll to 50MHz and enable ssc */
-	gl9755_set_ssc(pdev, 0x1, 0xE, 0x51EC);
+	bool enable = gl9755_ssc_enable(pdev);
+
+	/* set pll to 50MHz and ssc */
+	gl9755_set_ssc(pdev, enable, 0xE, 0x51EC);
 	gl9755_set_pll(pdev, 0x1, 0x244, 0x3);
 }
 
