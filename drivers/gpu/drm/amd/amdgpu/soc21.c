@@ -511,6 +511,8 @@ static int soc21_common_early_init(void *handle)
 	adev->pcie_wreg = &soc21_pcie_wreg;
 	adev->pcie_rreg64 = &soc21_pcie_rreg64;
 	adev->pcie_wreg64 = &soc21_pcie_wreg64;
+	adev->pciep_rreg = amdgpu_device_pcie_port_rreg;
+	adev->pciep_wreg = amdgpu_device_pcie_port_wreg;
 
 	/* TODO: will add them during VCN v2 implementation */
 	adev->uvd_ctx_rreg = NULL;
