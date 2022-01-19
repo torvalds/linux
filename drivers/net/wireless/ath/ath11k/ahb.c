@@ -466,7 +466,7 @@ static irqreturn_t ath11k_ahb_ext_interrupt_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int ath11k_ahb_ext_irq_config(struct ath11k_base *ab)
+static int ath11k_ahb_config_ext_irq(struct ath11k_base *ab)
 {
 	struct ath11k_hw_params *hw = &ab->hw_params;
 	int i, j;
@@ -574,7 +574,7 @@ static int ath11k_ahb_config_irq(struct ath11k_base *ab)
 	}
 
 	/* Configure external interrupts */
-	ret = ath11k_ahb_ext_irq_config(ab);
+	ret = ath11k_ahb_config_ext_irq(ab);
 
 	return ret;
 }
