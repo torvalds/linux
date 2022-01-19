@@ -15,15 +15,6 @@
 	compatible = "rockchip,rk3588-evb1-lp4-v10", "rockchip,rk3588";
 };
 
-&dfi {
-	status = "okay";
-};
-
-&dmc {
-	status = "okay";
-	center-supply = <&vdd_ddr_s0>;
-};
-
 &vcc_1v8_s0 {
 	/delete-property/ regulator-state-mem;
 	regulator-state-mem {
