@@ -864,7 +864,7 @@ static void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 				throttled_vcp_size);
 }
 
-static const struct dc_link_hwss dio_link_hwss = {
+static const struct link_hwss dio_link_hwss = {
 	.set_throttled_vcp_size = set_dio_throttled_vcp_size,
 };
 
@@ -909,7 +909,7 @@ static void set_dp_hpo_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
 			hblank_min_symbol_width);
 }
 
-static const struct dc_link_hwss hpo_dp_link_hwss = {
+static const struct link_hwss hpo_dp_link_hwss = {
 	.set_throttled_vcp_size = set_dp_hpo_throttled_vcp_size,
 
 	/* function pointers below this point require check for NULL
@@ -925,7 +925,7 @@ static bool can_use_dpia_link_hwss(const struct dc_link *link,
 			link->dc->res_pool->funcs->link_encs_assign;
 }
 
-static const struct dc_link_hwss dpia_link_hwss = {
+static const struct link_hwss dpia_link_hwss = {
 	.set_throttled_vcp_size = set_dummy_throttled_vcp_size,
 };
 
@@ -936,11 +936,11 @@ static void set_dummy_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 	return;
 }
 
-static const struct dc_link_hwss dummy_link_hwss = {
+static const struct link_hwss dummy_link_hwss = {
 	.set_throttled_vcp_size = set_dummy_throttled_vcp_size,
 };
 
-const struct dc_link_hwss *dc_link_hwss_get(const struct dc_link *link,
+const struct link_hwss *dc_link_hwss_get(const struct dc_link *link,
 		const struct link_resource *link_res)
 {
 	if (can_use_dp_hpo_link_hwss(link, link_res))
