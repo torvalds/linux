@@ -125,6 +125,14 @@ struct aspeed_spi_info {
 	int (*set_segment)(u32 *reg, u32 start, u32 end);
 };
 
+/*
+ * Keeping default setting. If it is modified before,
+ * its segment address should be re-configured.
+ */
+struct aspeed_spi_info ast2500_spi_info = {
+	.set_segment = NULL,
+};
+
 struct aspeed_spi_info ast2600_spi_info = {
 	.set_segment = ast2600_set_spi_segment_addr,
 };
@@ -374,7 +382,7 @@ static void fmc_spi_cleanup(struct spi_device *spi)
 
 
 static const struct of_device_id fmc_spi_of_match[] = {
-	{ .compatible = "aspeed,fmc-spi" },
+	{ .compatible = "aspeed,fmc-spi", .data = &ast2500_spi_info},
 	{ .compatible = "aspeed,ast2600-fmc-spi", .data = &ast2600_spi_info},
 	{ },
 };

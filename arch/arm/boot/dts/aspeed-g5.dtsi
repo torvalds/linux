@@ -55,11 +55,19 @@
 		ranges;
 
 		fmc: spi@1e620000 {
+#if 1
+			compatible = "aspeed,ast2500-fmc";
 			reg = < 0x1e620000 0xc4
 				0x20000000 0x10000000 >;
+#else
+			/* for fmc_spi.c verification */
+			compatible = "aspeed,fmc-spi";
+			reg = < 0x1e620000 0xc4
+				0x20000000 0x2000 >;
+			number_of_chip_select = /bits/ 16 <1>;
+#endif
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2500-fmc";
 			clocks = <&syscon ASPEED_CLK_AHB>;
 			status = "disabled";
 			interrupts = <19>;
