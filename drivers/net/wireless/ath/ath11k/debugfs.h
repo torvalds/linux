@@ -88,6 +88,7 @@ enum ath11k_pktlog_mode {
 };
 
 enum ath11k_pktlog_enum {
+	ATH11K_PKTLOG_TYPE_INVALID      = 0,
 	ATH11K_PKTLOG_TYPE_TX_CTRL      = 1,
 	ATH11K_PKTLOG_TYPE_TX_STAT      = 2,
 	ATH11K_PKTLOG_TYPE_TX_MSDU_ID   = 3,
