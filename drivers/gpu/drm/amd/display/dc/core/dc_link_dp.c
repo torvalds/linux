@@ -104,9 +104,6 @@ static bool decide_fallback_link_setting(
 		struct dc_link_settings initial_link_settings,
 		struct dc_link_settings *current_link_setting,
 		enum link_training_result training_result);
-static struct dc_link_settings get_common_supported_link_settings(
-		struct dc_link_settings link_setting_a,
-		struct dc_link_settings link_setting_b);
 static void maximize_lane_settings(const struct link_training_settings *lt_settings,
 		struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
 static void override_lane_settings(const struct link_training_settings *lt_settings,
@@ -3186,13 +3183,11 @@ bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_
 	return false;
 }
 
-static struct dc_link_settings get_max_link_cap(struct dc_link *link,
-		const struct link_resource *link_res)
+
+struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 {
 	struct dc_link_settings max_link_cap = {0};
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum dc_link_rate lttpr_max_link_rate;
-#endif
 	struct link_encoder *link_enc = NULL;
 
 	/* Links supporting dynamically assigned link encoder will be assigned next
@@ -3210,13 +3205,6 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link,
 	/* get max link encoder capability */
 	if (link_enc)
 		link_enc->funcs->get_max_link_cap(link_enc, &max_link_cap);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (max_link_cap.link_rate >= LINK_RATE_UHBR10) {
-		if (!link_res->hpo_dp_link_enc ||
-				link->dc->debug.disable_uhbr)
-			max_link_cap.link_rate = LINK_RATE_HIGH3;
-	}
-#endif
 
 	/* Lower link settings based on sink's link cap */
 	if (link->reported_link_cap.lane_count < max_link_cap.lane_count)
@@ -3236,22 +3224,21 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link,
 	if (link->lttpr_mode != LTTPR_MODE_NON_LTTPR) {
 		if (link->dpcd_caps.lttpr_caps.max_lane_count < max_link_cap.lane_count)
 			max_link_cap.lane_count = link->dpcd_caps.lttpr_caps.max_lane_count;
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		lttpr_max_link_rate = get_lttpr_max_link_rate(link);
 
 		if (lttpr_max_link_rate < max_link_cap.link_rate)
 			max_link_cap.link_rate = lttpr_max_link_rate;
-#else
-		if (link->dpcd_caps.lttpr_caps.max_link_rate < max_link_cap.link_rate)
-			max_link_cap.link_rate = link->dpcd_caps.lttpr_caps.max_link_rate;
-#endif
 
 		DC_LOG_HW_LINK_TRAINING("%s\n Training with LTTPR,  max_lane count %d max_link rate %d \n",
 						__func__,
 						max_link_cap.lane_count,
 						max_link_cap.link_rate);
 	}
+
+	if (dp_get_link_encoding_format(&max_link_cap) == DP_128b_132b_ENCODING &&
+			link->dc->debug.disable_uhbr)
+		max_link_cap.link_rate = LINK_RATE_HIGH3;
+
 	return max_link_cap;
 }
 
@@ -3376,38 +3363,15 @@ bool dp_verify_link_cap(
 	struct dc_link_settings *known_limit_link_setting,
 	int *fail_count)
 {
-	struct dc_link_settings max_link_cap = {0};
 	struct dc_link_settings cur_link_setting = {0};
 	struct dc_link_settings *cur = &cur_link_setting;
-	struct dc_link_settings initial_link_settings = {0};
+	struct dc_link_settings initial_link_settings = *known_limit_link_setting;
 	bool success;
 	bool skip_link_training;
 	bool skip_video_pattern;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	enum link_training_result status;
 	union hpd_irq_data irq_data;
-
-	/* link training starts with the maximum common settings
-	 * supported by both sink and ASIC.
-	 */
-	max_link_cap = get_max_link_cap(link, link_res);
-	initial_link_settings = get_common_supported_link_settings(
-			*known_limit_link_setting,
-			max_link_cap);
-
-	/* Accept reported capabilities if link supports flexible encoder mapping or encoder already in use. */
-	if (link->dc->debug.skip_detection_link_training ||
-			link->is_dig_mapping_flexible) {
-		/* TODO - should we check link encoder's max link caps here?
-		 * How do we know which link encoder to check from?
-		 */
-		link->verified_link_cap = *known_limit_link_setting;
-		return true;
-	} else if (link->link_enc && link->dc->res_pool->funcs->link_encs_assign &&
-			!link_enc_cfg_is_link_enc_avail(link->ctx->dc, link->link_enc->preferred_engine, link)) {
-		link->verified_link_cap = initial_link_settings;
-		return true;
-	}
 
 	memset(&irq_data, 0, sizeof(irq_data));
 	success = false;
@@ -3420,10 +3384,6 @@ bool dp_verify_link_cap(
 		core_link_write_dpcd(link, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT, &grant, sizeof(grant));
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (dp_get_link_encoding_format(&link->cur_link_settings) == DP_128b_132b_ENCODING)
-		reset_dp_hpo_stream_encoders_for_link(link);
-#endif
 	/* TODO implement override and monitor patch later */
 
 	/* try to train the link from high to low to
@@ -3540,79 +3500,32 @@ bool dp_verify_link_cap_with_retries(
 	return success;
 }
 
-bool dp_verify_mst_link_cap(
-	struct dc_link *link, const struct link_resource *link_res)
+/* in DP compliance test, DPR-120 may have
+ * a random value in its MAX_LINK_BW dpcd field.
+ * We map it to the maximum supported link rate that
+ * is smaller than MAX_LINK_BW in this case.
+ */
+static enum dc_link_rate get_link_rate_from_max_link_bw(
+		 uint8_t max_link_bw)
 {
-	struct dc_link_settings max_link_cap = {0};
+	enum dc_link_rate link_rate;
 
-	if (dp_get_link_encoding_format(&link->reported_link_cap) ==
-			DP_8b_10b_ENCODING) {
-		max_link_cap = get_max_link_cap(link, link_res);
-		link->verified_link_cap = get_common_supported_link_settings(
-				link->reported_link_cap,
-				max_link_cap);
-	}
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	else if (dp_get_link_encoding_format(&link->reported_link_cap) ==
-			DP_128b_132b_ENCODING) {
-		dp_verify_link_cap_with_retries(link,
-				link_res,
-				&link->reported_link_cap,
-				LINK_TRAINING_MAX_VERIFY_RETRY);
-	}
-#endif
-	return true;
-}
-
-static struct dc_link_settings get_common_supported_link_settings(
-		struct dc_link_settings link_setting_a,
-		struct dc_link_settings link_setting_b)
-{
-	struct dc_link_settings link_settings = {0};
-
-	link_settings.lane_count =
-		(link_setting_a.lane_count <=
-			link_setting_b.lane_count) ?
-			link_setting_a.lane_count :
-			link_setting_b.lane_count;
-	link_settings.link_rate =
-		(link_setting_a.link_rate <=
-			link_setting_b.link_rate) ?
-			link_setting_a.link_rate :
-			link_setting_b.link_rate;
-	link_settings.link_spread = LINK_SPREAD_DISABLED;
-
-	/* in DP compliance test, DPR-120 may have
-	 * a random value in its MAX_LINK_BW dpcd field.
-	 * We map it to the maximum supported link rate that
-	 * is smaller than MAX_LINK_BW in this case.
-	 */
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (link_settings.link_rate > LINK_RATE_UHBR20) {
-		link_settings.link_rate = LINK_RATE_UHBR20;
-	} else if (link_settings.link_rate < LINK_RATE_UHBR20 &&
-			link_settings.link_rate > LINK_RATE_UHBR13_5) {
-		link_settings.link_rate = LINK_RATE_UHBR13_5;
-	} else if (link_settings.link_rate < LINK_RATE_UHBR10 &&
-			link_settings.link_rate > LINK_RATE_HIGH3) {
-#else
-	if (link_settings.link_rate > LINK_RATE_HIGH3) {
-#endif
-		link_settings.link_rate = LINK_RATE_HIGH3;
-	} else if (link_settings.link_rate < LINK_RATE_HIGH3
-			&& link_settings.link_rate > LINK_RATE_HIGH2) {
-		link_settings.link_rate = LINK_RATE_HIGH2;
-	} else if (link_settings.link_rate < LINK_RATE_HIGH2
-			&& link_settings.link_rate > LINK_RATE_HIGH) {
-		link_settings.link_rate = LINK_RATE_HIGH;
-	} else if (link_settings.link_rate < LINK_RATE_HIGH
-			&& link_settings.link_rate > LINK_RATE_LOW) {
-		link_settings.link_rate = LINK_RATE_LOW;
-	} else if (link_settings.link_rate < LINK_RATE_LOW) {
-		link_settings.link_rate = LINK_RATE_UNKNOWN;
+	if (max_link_bw >= LINK_RATE_HIGH3) {
+		link_rate = LINK_RATE_HIGH3;
+	} else if (max_link_bw < LINK_RATE_HIGH3
+			&& max_link_bw >= LINK_RATE_HIGH2) {
+		link_rate = LINK_RATE_HIGH2;
+	} else if (max_link_bw < LINK_RATE_HIGH2
+			&& max_link_bw >= LINK_RATE_HIGH) {
+		link_rate = LINK_RATE_HIGH;
+	} else if (max_link_bw < LINK_RATE_HIGH
+			&& max_link_bw >= LINK_RATE_LOW) {
+		link_rate = LINK_RATE_LOW;
+	} else {
+		link_rate = LINK_RATE_UNKNOWN;
 	}
 
-	return link_settings;
+	return link_rate;
 }
 
 static inline bool reached_minimum_lane_count(enum dc_lane_count lane_count)
@@ -5516,6 +5429,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 	read_dp_device_vendor_id(link);
 
+	/* TODO - decouple raw mst capability from policy decision */
+	link->dpcd_caps.is_mst_capable = is_mst_supported(link);
+
 	get_active_converter_info(ds_port.byte, link);
 
 	dp_wa_power_up_0010FA(link, dpcd_data, sizeof(dpcd_data));
@@ -5534,8 +5450,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 	link->reported_link_cap.lane_count =
 		link->dpcd_caps.max_ln_count.bits.MAX_LANE_COUNT;
-	link->reported_link_cap.link_rate = dpcd_data[
-		DP_MAX_LINK_RATE - DP_DPCD_REV];
+	link->reported_link_cap.link_rate = get_link_rate_from_max_link_bw(
+			dpcd_data[DP_MAX_LINK_RATE - DP_DPCD_REV]);
 	link->reported_link_cap.link_spread =
 		link->dpcd_caps.max_down_spread.bits.MAX_DOWN_SPREAD ?
 		LINK_SPREAD_05_DOWNSPREAD_30KHZ : LINK_SPREAD_DISABLED;
@@ -5759,14 +5675,6 @@ bool dp_overwrite_extended_receiver_cap(struct dc_link *link)
 bool detect_dp_sink_caps(struct dc_link *link)
 {
 	return retrieve_link_cap(link);
-
-	/* dc init_hw has power encoder using default
-	 * signal for connector. For native DP, no
-	 * need to power up encoder again. If not native
-	 * DP, hw_init may need check signal or power up
-	 * encoder here.
-	 */
-	/* TODO save sink caps in link->sink */
 }
 
 static enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in_khz)
@@ -5844,8 +5752,6 @@ void detect_edp_sink_caps(struct dc_link *link)
 			}
 		}
 	}
-	link->verified_link_cap = link->reported_link_cap;
-
 	core_link_read_dpcd(link, DP_EDP_BACKLIGHT_ADJUSTMENT_CAP,
 						&backlight_adj_cap, sizeof(backlight_adj_cap));
 

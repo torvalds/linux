@@ -720,35 +720,8 @@ static bool detect_dp(struct dc_link *link,
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 		if (!detect_dp_sink_caps(link))
 			return false;
-		if (is_mst_supported(link)) {
-			sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
-			link->type = dc_connection_mst_branch;
 
-			dal_ddc_service_set_transaction_type(link->ddc,
-							     sink_caps->transaction_type);
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-			/* Apply work around for tunneled MST on certain USB4 docks. Always use DSC if dock
-			 * reports DSC support.
-			 */
-			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
-					link->type == dc_connection_mst_branch &&
-					link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
-					link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
-					!link->dc->debug.dpia_debug.bits.disable_mst_dsc_work_around)
-				link->wa_flags.dpia_mst_dsc_always_on = true;
-#endif
-
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
-			/* In case of fallback to SST when topology discovery below fails
-			 * HDCP caps will be querried again later by the upper layer (caller
-			 * of this function). */
-			query_hdcp_capability(SIGNAL_TYPE_DISPLAY_PORT_MST, link);
-#endif
-		}
-
-		if (link->type != dc_connection_mst_branch &&
-				is_dp_branch_device(link))
+		if (is_dp_branch_device(link))
 			/* DP SST branch */
 			link->type = dc_connection_sst_branch;
 	} else {
@@ -824,15 +797,215 @@ static bool wait_for_entering_dp_alt_mode(struct dc_link *link)
 	return false;
 }
 
-/*
- * dc_link_detect() - Detect if a sink is attached to a given link
+static void apply_dpia_mst_dsc_always_on_wa(struct dc_link *link)
+{
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* Apply work around for tunneled MST on certain USB4 docks. Always use DSC if dock
+	 * reports DSC support.
+	 */
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+			link->type == dc_connection_mst_branch &&
+			link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
+			link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
+			!link->dc->debug.dpia_debug.bits.disable_mst_dsc_work_around)
+		link->wa_flags.dpia_mst_dsc_always_on = true;
+#endif
+}
+
+static void revert_dpia_mst_dsc_always_on_wa(struct dc_link *link)
+{
+	/* Disable work around which keeps DSC on for tunneled MST on certain USB4 docks. */
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+		link->wa_flags.dpia_mst_dsc_always_on = false;
+}
+
+static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason reason)
+{
+	DC_LOGGER_INIT(link->ctx->logger);
+
+	LINK_INFO("link=%d, mst branch is now Connected\n",
+		  link->link_index);
+
+	apply_dpia_mst_dsc_always_on_wa(link);
+	link->type = dc_connection_mst_branch;
+	dm_helpers_dp_update_branch_info(link->ctx, link);
+	if (dm_helpers_dp_mst_start_top_mgr(link->ctx,
+			link, reason == DETECT_REASON_BOOT)) {
+		link_disconnect_sink(link);
+	} else {
+		link->type = dc_connection_sst_branch;
+	}
+
+	return link->type == dc_connection_mst_branch;
+}
+
+static void reset_cur_dp_mst_topology(struct dc_link *link)
+{
+	DC_LOGGER_INIT(link->ctx->logger);
+
+	LINK_INFO("link=%d, mst branch is now Disconnected\n",
+		  link->link_index);
+
+	revert_dpia_mst_dsc_always_on_wa(link);
+	dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
+
+	link->mst_stream_alloc_table.stream_count = 0;
+	memset(link->mst_stream_alloc_table.stream_allocations,
+			0,
+			sizeof(link->mst_stream_alloc_table.stream_allocations));
+}
+
+static bool should_prepare_phy_clocks_for_link_verification(const struct dc *dc,
+		enum dc_detect_reason reason)
+{
+	int i;
+	bool can_apply_seamless_boot = false;
+
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		if (dc->current_state->streams[i]->apply_seamless_boot_optimization) {
+			can_apply_seamless_boot = true;
+			break;
+		}
+	}
+
+	return !can_apply_seamless_boot && reason != DETECT_REASON_BOOT;
+}
+
+static void prepare_phy_clocks_for_destructive_link_verification(const struct dc *dc)
+{
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	dc_z10_restore(dc);
+#endif
+	clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
+}
+
+static void restore_phy_clocks_for_destructive_link_verification(const struct dc *dc)
+{
+	clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
+}
+
+static void set_all_streams_dpms_off_for_link(struct dc_link *link)
+{
+	int i;
+	struct pipe_ctx *pipe_ctx;
+	struct dc_stream_update stream_update;
+	bool dpms_off = true;
+
+	memset(&stream_update, 0, sizeof(stream_update));
+	stream_update.dpms_off = &dpms_off;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
+				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
+			stream_update.stream = pipe_ctx->stream;
+			dc_commit_updates_for_stream(link->ctx->dc, NULL, 0,
+					pipe_ctx->stream, &stream_update,
+					link->ctx->dc->current_state);
+		}
+	}
+}
+
+static void verify_link_capability_destructive(struct dc_link *link,
+		struct dc_sink *sink,
+		enum dc_detect_reason reason)
+{
+	struct link_resource link_res = { 0 };
+	bool should_prepare_phy_clocks =
+			should_prepare_phy_clocks_for_link_verification(link->dc, reason);
+
+	if (should_prepare_phy_clocks)
+		prepare_phy_clocks_for_destructive_link_verification(link->dc);
+
+
+	if (dc_is_dp_signal(link->local_sink->sink_signal)) {
+		struct dc_link_settings known_limit_link_setting =
+				dp_get_max_link_cap(link);
+
+		set_all_streams_dpms_off_for_link(link);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (dp_get_link_encoding_format(&known_limit_link_setting) ==
+				DP_128b_132b_ENCODING)
+			link_res.hpo_dp_link_enc = resource_get_hpo_dp_link_enc_for_det_lt(
+					&link->dc->current_state->res_ctx,
+					link->dc->res_pool,
+					link);
+#endif
+		dp_verify_link_cap_with_retries(
+				link, &link_res, &known_limit_link_setting,
+				LINK_TRAINING_MAX_VERIFY_RETRY);
+	} else {
+		ASSERT(0);
+	}
+
+	if (should_prepare_phy_clocks)
+		restore_phy_clocks_for_destructive_link_verification(link->dc);
+}
+
+static void verify_link_capability_non_destructive(struct dc_link *link)
+{
+	if (dc_is_dp_signal(link->local_sink->sink_signal)) {
+		if (dc_is_embedded_signal(link->local_sink->sink_signal) ||
+				link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+			/* TODO - should we check link encoder's max link caps here?
+			 * How do we know which link encoder to check from?
+			 */
+			link->verified_link_cap = link->reported_link_cap;
+		else
+			link->verified_link_cap = dp_get_max_link_cap(link);
+	}
+}
+
+static bool should_verify_link_capability_destructively(struct dc_link *link,
+		enum dc_detect_reason reason)
+{
+	bool destrictive = false;
+	struct dc_link_settings max_link_cap;
+	bool is_link_enc_unavailable = link->link_enc &&
+			link->dc->res_pool->funcs->link_encs_assign &&
+			!link_enc_cfg_is_link_enc_avail(
+					link->ctx->dc,
+					link->link_enc->preferred_engine,
+					link);
+
+	if (dc_is_dp_signal(link->local_sink->sink_signal)) {
+		max_link_cap = dp_get_max_link_cap(link);
+		destrictive = true;
+
+		if (link->dc->debug.skip_detection_link_training ||
+				dc_is_embedded_signal(link->local_sink->sink_signal) ||
+				link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+			destrictive = false;
+		} else if (dp_get_link_encoding_format(&max_link_cap) ==
+				DP_8b_10b_ENCODING) {
+			if (link->dpcd_caps.is_mst_capable ||
+					is_link_enc_unavailable) {
+				destrictive = false;
+			}
+		}
+	}
+
+	return destrictive;
+}
+
+static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
+		enum dc_detect_reason reason)
+{
+	if (should_verify_link_capability_destructively(link, reason))
+		verify_link_capability_destructive(link, sink, reason);
+	else
+		verify_link_capability_non_destructive(link);
+}
+
+
+/**
+ * detect_link_and_local_sink() - Detect if a sink is attached to a given link
  *
  * link->local_sink is created or destroyed as needed.
  *
- * This does not create remote sinks but will trigger DM
- * to start MST detection if a branch is detected.
+ * This does not create remote sinks.
  */
-static bool dc_link_detect_helper(struct dc_link *link,
+static bool detect_link_and_local_sink(struct dc_link *link,
 				  enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
@@ -848,9 +1021,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	struct dpcd_caps prev_dpcd_caps;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	enum dc_connection_type pre_connection_type = dc_connection_none;
-	bool perform_dp_seamless_boot = false;
 	const uint32_t post_oui_delay = 30; // 30ms
-	struct link_resource link_res = { 0 };
 
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -944,61 +1115,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 				return false;
 			}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-			if (dp_get_link_encoding_format(&link->reported_link_cap) == DP_128b_132b_ENCODING)
-				link_res.hpo_dp_link_enc = resource_get_hpo_dp_link_enc_for_det_lt(
-						&link->dc->current_state->res_ctx,
-						link->dc->res_pool,
-						link);
-#endif
-
-			if (link->type == dc_connection_mst_branch) {
-				LINK_INFO("link=%d, mst branch is now Connected\n",
-					  link->link_index);
-				/* Need to setup mst link_cap struct here
-				 * otherwise dc_link_detect() will leave mst link_cap
-				 * empty which leads to allocate_mst_payload() has "0"
-				 * pbn_per_slot value leading to exception on dc_fixpt_div()
-				 */
-				dp_verify_mst_link_cap(link, &link_res);
-
-				/*
-				 * This call will initiate MST topology discovery. Which
-				 * will detect MST ports and add new DRM connector DRM
-				 * framework. Then read EDID via remote i2c over aux. In
-				 * the end, will notify DRM detect result and save EDID
-				 * into DRM framework.
-				 *
-				 * .detect is called by .fill_modes.
-				 * .fill_modes is called by user mode ioctl
-				 * DRM_IOCTL_MODE_GETCONNECTOR.
-				 *
-				 * .get_modes is called by .fill_modes.
-				 *
-				 * call .get_modes, AMDGPU DM implementation will create
-				 * new dc_sink and add to dc_link. For long HPD plug
-				 * in/out, MST has its own handle.
-				 *
-				 * Therefore, just after dc_create, link->sink is not
-				 * created for MST until user mode app calls
-				 * DRM_IOCTL_MODE_GETCONNECTOR.
-				 *
-				 * Need check ->sink usages in case ->sink = NULL
-				 * TODO: s3 resume check
-				 */
-
-				dm_helpers_dp_update_branch_info(link->ctx, link);
-				if (dm_helpers_dp_mst_start_top_mgr(link->ctx,
-						link, reason == DETECT_REASON_BOOT)) {
-					if (prev_sink)
-						dc_sink_release(prev_sink);
-					return false;
-				} else {
-					link->type = dc_connection_sst_branch;
-					sink_caps.signal = SIGNAL_TYPE_DISPLAY_PORT;
-				}
-			}
-
 			/* Active SST downstream branch device unplug*/
 			if (link->type == dc_connection_sst_branch &&
 			    link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
@@ -1019,7 +1135,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 			if (pre_connection_type == dc_connection_mst_branch &&
 					link->type != dc_connection_mst_branch)
 				dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
-
 			break;
 		}
 
@@ -1108,13 +1223,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 			query_hdcp_capability(sink->sink_signal, link);
 #endif
-
-			// verify link cap for SST non-seamless boot
-			if (!perform_dp_seamless_boot)
-				dp_verify_link_cap_with_retries(link,
-								&link_res,
-								&link->reported_link_cap,
-								LINK_TRAINING_MAX_VERIFY_RETRY);
 		} else {
 			// If edid is the same, then discard new sink and revert back to original sink
 			if (same_edid) {
@@ -1174,27 +1282,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		}
 	} else {
 		/* From Connected-to-Disconnected. */
-		if (link->type == dc_connection_mst_branch) {
-			LINK_INFO("link=%d, mst branch is now Disconnected\n",
-				  link->link_index);
-
-			/* Disable work around which keeps DSC on for tunneled MST on certain USB4 docks. */
-			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
-				link->wa_flags.dpia_mst_dsc_always_on = false;
-
-			dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
-
-			link->mst_stream_alloc_table.stream_count = 0;
-			memset(link->mst_stream_alloc_table.stream_allocations,
-			       0,
-			       sizeof(link->mst_stream_alloc_table.stream_allocations));
-		}
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-		if (dp_get_link_encoding_format(&link->cur_link_settings) == DP_128b_132b_ENCODING)
-			reset_dp_hpo_stream_encoders_for_link(link);
-#endif
-
 		link->type = dc_connection_none;
 		sink_caps.signal = SIGNAL_TYPE_NONE;
 		/* When we unplug a passive DP-HDMI dongle connection, dongle_max_pix_clk
@@ -1219,33 +1306,26 @@ static bool dc_link_detect_helper(struct dc_link *link,
 
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
-	const struct dc *dc = link->dc;
-	bool ret;
-	bool can_apply_seamless_boot = false;
-	int i;
+	bool is_local_sink_detect_success;
+	bool is_remote_sink_detect_required = false;
+	enum dc_connection_type pre_link_type = link->type;
 
-	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (dc->current_state->streams[i]->apply_seamless_boot_optimization) {
-			can_apply_seamless_boot = true;
-			break;
-		}
-	}
+	is_local_sink_detect_success = detect_link_and_local_sink(link, reason);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	dc_z10_restore(dc);
-#endif
+	if (is_local_sink_detect_success && link->local_sink)
+		verify_link_capability(link, link->local_sink, reason);
 
-	/* get out of low power state */
-	if (!can_apply_seamless_boot && reason != DETECT_REASON_BOOT)
-		clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
+	if (is_local_sink_detect_success && link->local_sink &&
+			dc_is_dp_signal(link->local_sink->sink_signal) &&
+			link->dpcd_caps.is_mst_capable)
+		is_remote_sink_detect_required = discover_dp_mst_topology(link, reason);
 
-	ret = dc_link_detect_helper(link, reason);
+	if (is_local_sink_detect_success &&
+			pre_link_type == dc_connection_mst_branch &&
+			link->type != dc_connection_mst_branch)
+		reset_cur_dp_mst_topology(link);
 
-	/* Go back to power optimized state */
-	if (!can_apply_seamless_boot && reason != DETECT_REASON_BOOT)
-		clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
-
-	return ret;
+	return is_local_sink_detect_success && !is_remote_sink_detect_required;
 }
 
 bool dc_link_get_hpd_state(struct dc_link *dc_link)

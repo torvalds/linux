@@ -897,21 +897,5 @@ void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	}
 }
 
-void reset_dp_hpo_stream_encoders_for_link(struct dc_link *link)
-{
-	const struct dc *dc = link->dc;
-	struct dc_state *state = dc->current_state;
-	uint8_t i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (state->res_ctx.pipe_ctx[i].stream_res.hpo_dp_stream_enc &&
-				state->res_ctx.pipe_ctx[i].stream &&
-				state->res_ctx.pipe_ctx[i].stream->link == link &&
-				!state->res_ctx.pipe_ctx[i].stream->dpms_off) {
-			setup_dp_hpo_stream(&state->res_ctx.pipe_ctx[i], false);
-		}
-	}
-}
-
 #undef DC_LOGGER
 #endif

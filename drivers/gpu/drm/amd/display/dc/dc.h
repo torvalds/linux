@@ -1212,6 +1212,7 @@ struct dpcd_caps {
 	bool is_branch_dev;
 	/* Dongle's downstream count. */
 	union sink_count sink_count;
+	bool is_mst_capable;
 	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
 	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
 	struct dc_dongle_caps dongle_caps;
