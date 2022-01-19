@@ -33,9 +33,6 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	sig->data = cert->tbs;
 	sig->data_size = cert->tbs_size;
 
-	if (!cert->pub->pkey_algo)
-		cert->unsupported_key = true;
-
 	if (!sig->pkey_algo)
 		cert->unsupported_sig = true;
 
@@ -173,12 +170,6 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 
 	pr_devel("Cert Issuer: %s\n", cert->issuer);
 	pr_devel("Cert Subject: %s\n", cert->subject);
-
-	if (cert->unsupported_key) {
-		ret = -ENOPKG;
-		goto error_free_cert;
-	}
-
 	pr_devel("Cert Key Algo: %s\n", cert->pub->pkey_algo);
 	pr_devel("Cert Valid period: %lld-%lld\n", cert->valid_from, cert->valid_to);
 
