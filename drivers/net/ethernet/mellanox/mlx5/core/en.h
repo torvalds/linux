@@ -714,6 +714,7 @@ struct mlx5e_rq {
 			u8                     umr_in_progress;
 			u8                     umr_last_bulk;
 			u8                     umr_completed;
+			u8                     min_wqe_bulk;
 			struct mlx5e_shampo_hd *shampo;
 		} mpwqe;
 	};

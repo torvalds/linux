@@ -178,6 +178,12 @@ u8 mlx5e_mpwqe_get_log_num_strides(struct mlx5_core_dev *mdev,
 		mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk);
 }
 
+u8 mlx5e_mpwqe_get_min_wqe_bulk(unsigned int wq_sz)
+{
+#define UMR_WQE_BULK (2)
+	return min_t(unsigned int, UMR_WQE_BULK, wq_sz / 2 - 1);
+}
+
 u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 			  struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk)
