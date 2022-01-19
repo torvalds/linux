@@ -1590,6 +1590,10 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 void kvm_mmu_slot_try_split_huge_pages(struct kvm *kvm,
 				       const struct kvm_memory_slot *memslot,
 				       int target_level);
+void kvm_mmu_try_split_huge_pages(struct kvm *kvm,
+				  const struct kvm_memory_slot *memslot,
+				  u64 start, u64 end,
+				  int target_level);
 void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 				   const struct kvm_memory_slot *memslot);
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,

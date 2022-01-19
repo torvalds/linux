@@ -1358,6 +1358,9 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 		gfn_t start = slot->base_gfn + gfn_offset + __ffs(mask);
 		gfn_t end = slot->base_gfn + gfn_offset + __fls(mask);
 
+		if (READ_ONCE(eager_page_split))
+			kvm_mmu_try_split_huge_pages(kvm, slot, start, end, PG_LEVEL_4K);
+
 		kvm_mmu_slot_gfn_write_protect(kvm, slot, start, PG_LEVEL_2M);
 
 		/* Cross two large pages? */
@@ -5830,16 +5833,32 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 		kvm_arch_flush_remote_tlbs_memslot(kvm, memslot);
 }
 
+/* Must be called with the mmu_lock held in write-mode. */
+void kvm_mmu_try_split_huge_pages(struct kvm *kvm,
+				   const struct kvm_memory_slot *memslot,
+				   u64 start, u64 end,
+				   int target_level)
+{
+	if (is_tdp_mmu_enabled(kvm))
+		kvm_tdp_mmu_try_split_huge_pages(kvm, memslot, start, end,
+						 target_level, false);
+
+	/*
+	 * A TLB flush is unnecessary at this point for the same resons as in
+	 * kvm_mmu_slot_try_split_huge_pages().
+	 */
+}
+
 void kvm_mmu_slot_try_split_huge_pages(struct kvm *kvm,
-				       const struct kvm_memory_slot *memslot,
-				       int target_level)
+					const struct kvm_memory_slot *memslot,
+					int target_level)
 {
 	u64 start = memslot->base_gfn;
 	u64 end = start + memslot->npages;
 
 	if (is_tdp_mmu_enabled(kvm)) {
 		read_lock(&kvm->mmu_lock);
-		kvm_tdp_mmu_try_split_huge_pages(kvm, memslot, start, end, target_level);
+		kvm_tdp_mmu_try_split_huge_pages(kvm, memslot, start, end, target_level, true);
 		read_unlock(&kvm->mmu_lock);
 	}
 

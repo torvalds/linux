@@ -70,7 +70,7 @@ bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
 void kvm_tdp_mmu_try_split_huge_pages(struct kvm *kvm,
 				      const struct kvm_memory_slot *slot,
 				      gfn_t start, gfn_t end,
-				      int target_level);
+				      int target_level, bool shared);
 
 static inline void kvm_tdp_mmu_walk_lockless_begin(void)
 {

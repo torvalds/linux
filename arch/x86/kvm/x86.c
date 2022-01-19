@@ -192,7 +192,7 @@ bool __read_mostly enable_pmu = true;
 EXPORT_SYMBOL_GPL(enable_pmu);
 module_param(enable_pmu, bool, 0444);
 
-static bool __read_mostly eager_page_split = true;
+bool __read_mostly eager_page_split = true;
 module_param(eager_page_split, bool, 0644);
 
 /*

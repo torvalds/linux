@@ -963,27 +963,33 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 }
 
 /*
- * tdp_mmu_link_sp_atomic - Atomically replace the given spte with an spte
- * pointing to the provided page table.
+ * tdp_mmu_link_sp - Replace the given spte with an spte pointing to the
+ * provided page table.
  *
  * @kvm: kvm instance
  * @iter: a tdp_iter instance currently on the SPTE that should be set
  * @sp: The new TDP page table to install.
  * @account_nx: True if this page table is being installed to split a
  *              non-executable huge page.
+ * @shared: This operation is running under the MMU lock in read mode.
  *
  * Returns: 0 if the new page table was installed. Non-0 if the page table
  *          could not be installed (e.g. the atomic compare-exchange failed).
  */
-static int tdp_mmu_link_sp_atomic(struct kvm *kvm, struct tdp_iter *iter,
-				  struct kvm_mmu_page *sp, bool account_nx)
+static int tdp_mmu_link_sp(struct kvm *kvm, struct tdp_iter *iter,
+			   struct kvm_mmu_page *sp, bool account_nx,
+			   bool shared)
 {
 	u64 spte = make_nonleaf_spte(sp->spt, !shadow_accessed_mask);
-	int ret;
+	int ret = 0;
 
-	ret = tdp_mmu_set_spte_atomic(kvm, iter, spte);
-	if (ret)
-		return ret;
+	if (shared) {
+		ret = tdp_mmu_set_spte_atomic(kvm, iter, spte);
+		if (ret)
+			return ret;
+	} else {
+		tdp_mmu_set_spte(kvm, iter, spte);
+	}
 
 	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
 	list_add(&sp->link, &kvm->arch.tdp_mmu_pages);
@@ -1051,7 +1057,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			sp = tdp_mmu_alloc_sp(vcpu);
 			tdp_mmu_init_child_sp(sp, &iter);
 
-			if (tdp_mmu_link_sp_atomic(vcpu->kvm, &iter, sp, account_nx)) {
+			if (tdp_mmu_link_sp(vcpu->kvm, &iter, sp, account_nx, true)) {
 				tdp_mmu_free_sp(sp);
 				break;
 			}
@@ -1277,11 +1283,10 @@ static struct kvm_mmu_page *__tdp_mmu_alloc_sp_for_split(gfp_t gfp)
 }
 
 static struct kvm_mmu_page *tdp_mmu_alloc_sp_for_split(struct kvm *kvm,
-						       struct tdp_iter *iter)
+						       struct tdp_iter *iter,
+						       bool shared)
 {
 	struct kvm_mmu_page *sp;
-
-	lockdep_assert_held_read(&kvm->mmu_lock);
 
 	/*
 	 * Since we are allocating while under the MMU lock we have to be
@@ -1297,20 +1302,27 @@ static struct kvm_mmu_page *tdp_mmu_alloc_sp_for_split(struct kvm *kvm,
 		return sp;
 
 	rcu_read_unlock();
-	read_unlock(&kvm->mmu_lock);
+
+	if (shared)
+		read_unlock(&kvm->mmu_lock);
+	else
+		write_unlock(&kvm->mmu_lock);
 
 	iter->yielded = true;
 	sp = __tdp_mmu_alloc_sp_for_split(GFP_KERNEL_ACCOUNT);
 
-	read_lock(&kvm->mmu_lock);
+	if (shared)
+		read_lock(&kvm->mmu_lock);
+	else
+		write_lock(&kvm->mmu_lock);
+
 	rcu_read_lock();
 
 	return sp;
 }
 
-static int tdp_mmu_split_huge_page_atomic(struct kvm *kvm,
-					  struct tdp_iter *iter,
-					  struct kvm_mmu_page *sp)
+static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
+				   struct kvm_mmu_page *sp, bool shared)
 {
 	const u64 huge_spte = iter->old_spte;
 	const int level = iter->level;
@@ -1333,7 +1345,7 @@ static int tdp_mmu_split_huge_page_atomic(struct kvm *kvm,
 	 * correctness standpoint since the translation will be the same either
 	 * way.
 	 */
-	ret = tdp_mmu_link_sp_atomic(kvm, iter, sp, false);
+	ret = tdp_mmu_link_sp(kvm, iter, sp, false, shared);
 	if (ret)
 		return ret;
 
@@ -1350,7 +1362,7 @@ static int tdp_mmu_split_huge_page_atomic(struct kvm *kvm,
 static int tdp_mmu_split_huge_pages_root(struct kvm *kvm,
 					 struct kvm_mmu_page *root,
 					 gfn_t start, gfn_t end,
-					 int target_level)
+					 int target_level, bool shared)
 {
 	struct kvm_mmu_page *sp = NULL;
 	struct tdp_iter iter;
@@ -1371,14 +1383,14 @@ static int tdp_mmu_split_huge_pages_root(struct kvm *kvm,
 	 */
 	for_each_tdp_pte_min_level(iter, root, target_level + 1, start, end) {
 retry:
-		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, true))
+		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, shared))
 			continue;
 
 		if (!is_shadow_present_pte(iter.old_spte) || !is_large_pte(iter.old_spte))
 			continue;
 
 		if (!sp) {
-			sp = tdp_mmu_alloc_sp_for_split(kvm, &iter);
+			sp = tdp_mmu_alloc_sp_for_split(kvm, &iter, shared);
 			if (!sp) {
 				ret = -ENOMEM;
 				break;
@@ -1388,7 +1400,7 @@ retry:
 				continue;
 		}
 
-		if (tdp_mmu_split_huge_page_atomic(kvm, &iter, sp))
+		if (tdp_mmu_split_huge_page(kvm, &iter, sp, shared))
 			goto retry;
 
 		sp = NULL;
@@ -1408,23 +1420,24 @@ retry:
 	return ret;
 }
 
+
 /*
  * Try to split all huge pages mapped by the TDP MMU down to the target level.
  */
 void kvm_tdp_mmu_try_split_huge_pages(struct kvm *kvm,
 				      const struct kvm_memory_slot *slot,
 				      gfn_t start, gfn_t end,
-				      int target_level)
+				      int target_level, bool shared)
 {
 	struct kvm_mmu_page *root;
 	int r = 0;
 
-	lockdep_assert_held_read(&kvm->mmu_lock);
+	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
 
-	for_each_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, true) {
-		r = tdp_mmu_split_huge_pages_root(kvm, root, start, end, target_level);
+	for_each_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, shared) {
+		r = tdp_mmu_split_huge_pages_root(kvm, root, start, end, target_level, shared);
 		if (r) {
-			kvm_tdp_mmu_put_root(kvm, root, true);
+			kvm_tdp_mmu_put_root(kvm, root, shared);
 			break;
 		}
 	}

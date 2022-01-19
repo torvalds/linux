@@ -2356,7 +2356,9 @@
 			KVM_DIRTY_LOG_INITIALLY_SET is enabled or disabled. If
 			disabled, all huge pages in a memslot will be eagerly
 			split when dirty logging is enabled on that memslot. If
-			enabled, huge pages will not be eagerly split.
+			enabled, eager page splitting will be performed during
+			the KVM_CLEAR_DIRTY ioctl, and only for the pages being
+			cleared.
 
 			Eager page splitting currently only supports splitting
 			huge pages mapped by the TDP MMU.
