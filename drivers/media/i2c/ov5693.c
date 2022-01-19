@@ -986,9 +986,9 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov5693->lock);
 
-	ov5693->mode.binning_x = hratio > 1 ? true : false;
+	ov5693->mode.binning_x = hratio > 1;
 	ov5693->mode.inc_x_odd = hratio > 1 ? 3 : 1;
-	ov5693->mode.binning_y = vratio > 1 ? true : false;
+	ov5693->mode.binning_y = vratio > 1;
 	ov5693->mode.inc_y_odd = vratio > 1 ? 3 : 1;
 
 	ov5693->mode.vts = __ov5693_calc_vts(fmt->height);
