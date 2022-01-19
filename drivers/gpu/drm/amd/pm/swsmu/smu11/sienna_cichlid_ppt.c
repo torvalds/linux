@@ -3925,6 +3925,58 @@ static void sienna_cichlid_stb_init(struct smu_context *smu)
 
 }
 
+static int sienna_cichlid_get_default_config_table_settings(struct smu_context *smu,
+							    struct config_table_setting *table)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!table)
+		return -EINVAL;
+
+	table->gfxclk_average_tau = 10;
+	table->socclk_average_tau = 10;
+	table->fclk_average_tau = 10;
+	table->uclk_average_tau = 10;
+	table->gfx_activity_average_tau = 10;
+	table->mem_activity_average_tau = 10;
+	table->socket_power_average_tau = 100;
+	if (adev->asic_type != CHIP_SIENNA_CICHLID)
+		table->apu_socket_power_average_tau = 100;
+
+	return 0;
+}
+
+static int sienna_cichlid_set_config_table(struct smu_context *smu,
+					   struct config_table_setting *table)
+{
+	DriverSmuConfigExternal_t driver_smu_config_table;
+
+	if (!table)
+		return -EINVAL;
+
+	memset(&driver_smu_config_table,
+	       0,
+	       sizeof(driver_smu_config_table));
+	driver_smu_config_table.DriverSmuConfig.GfxclkAverageLpfTau =
+				table->gfxclk_average_tau;
+	driver_smu_config_table.DriverSmuConfig.FclkAverageLpfTau =
+				table->fclk_average_tau;
+	driver_smu_config_table.DriverSmuConfig.UclkAverageLpfTau =
+				table->uclk_average_tau;
+	driver_smu_config_table.DriverSmuConfig.GfxActivityLpfTau =
+				table->gfx_activity_average_tau;
+	driver_smu_config_table.DriverSmuConfig.UclkActivityLpfTau =
+				table->mem_activity_average_tau;
+	driver_smu_config_table.DriverSmuConfig.SocketPowerLpfTau =
+				table->socket_power_average_tau;
+
+	return smu_cmn_update_table(smu,
+				    SMU_TABLE_DRIVER_SMU_CONFIG,
+				    0,
+				    (void *)&driver_smu_config_table,
+				    true);
+}
+
 static int sienna_cichlid_stb_get_data_direct(struct smu_context *smu,
 					      void *buf,
 					      uint32_t size)
@@ -4039,6 +4091,8 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_mp1_state = sienna_cichlid_set_mp1_state,
 	.stb_collect_info = sienna_cichlid_stb_get_data_direct,
 	.get_ecc_info = sienna_cichlid_get_ecc_info,
+	.get_default_config_table_settings = sienna_cichlid_get_default_config_table_settings,
+	.set_config_table = sienna_cichlid_set_config_table,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)
