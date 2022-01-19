@@ -192,6 +192,7 @@ struct ath11k_hw_params {
 	bool wakeup_mhi;
 	bool supports_rssi_stats;
 	bool fw_wmi_diag_event;
+	bool current_cc_support;
 };
 
 struct ath11k_hw_ops {

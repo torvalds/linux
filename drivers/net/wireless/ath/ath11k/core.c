@@ -98,6 +98,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
+		.current_cc_support = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -162,6 +163,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
+		.current_cc_support = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -225,6 +227,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
+		.current_cc_support = true,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -288,6 +291,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
+		.current_cc_support = false,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -351,6 +355,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
+		.current_cc_support = true,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -413,6 +418,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
+		.current_cc_support = true,
 	},
 };
 
