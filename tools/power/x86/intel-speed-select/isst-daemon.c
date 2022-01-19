@@ -123,6 +123,7 @@ static void signal_handler(int sig)
 	case SIGINT:
 	case SIGTERM:
 		done = 1;
+		hfi_exit();
 		exit(0);
 		break;
 	default:
@@ -225,6 +226,10 @@ int isst_daemon(int debug_mode, int poll_interval, int no_daemon)
 	init_levels();
 
 	if (poll_interval < 0) {
+		ret = hfi_main();
+		if (ret) {
+			fprintf(stderr, "HFI initialization failed\n");
+		}
 		fprintf(stderr, "Must specify poll-interval\n");
 		return ret;
 	}
