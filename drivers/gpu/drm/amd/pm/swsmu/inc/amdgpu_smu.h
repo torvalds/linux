@@ -1282,6 +1282,16 @@ struct pptable_funcs {
 	 * @stb_collect_info: Collects Smart Trace Buffers data.
 	 */
 	int (*stb_collect_info)(struct smu_context *smu, void *buf, uint32_t size);
+
+	/**
+	 * @get_default_config_table_settings: Get the ASIC default DriverSmuConfig table settings.
+	 */
+	int (*get_default_config_table_settings)(struct smu_context *smu, struct config_table_setting *table);
+
+	/**
+	 * @set_config_table: Apply the input DriverSmuConfig table settings.
+	 */
+	int (*set_config_table)(struct smu_context *smu, struct config_table_setting *table);
 };
 
 typedef enum {
