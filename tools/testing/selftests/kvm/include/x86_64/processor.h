@@ -368,14 +368,14 @@ bool is_amd_cpu(void);
 
 static inline unsigned int x86_family(unsigned int eax)
 {
-        unsigned int x86;
+	unsigned int x86;
 
-        x86 = (eax >> 8) & 0xf;
+	x86 = (eax >> 8) & 0xf;
 
-        if (x86 == 0xf)
-                x86 += (eax >> 20) & 0xff;
+	if (x86 == 0xf)
+		x86 += (eax >> 20) & 0xff;
 
-        return x86;
+	return x86;
 }
 
 static inline unsigned int x86_model(unsigned int eax)

@@ -1144,25 +1144,25 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
 	list->nmsrs = nmsrs;
 	r = ioctl(vm->kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MSR_INDEX_LIST, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MSR_INDEX_LIST, r: %i",
+		    r);
 
 	state = malloc(sizeof(*state) + nmsrs * sizeof(state->msrs.entries[0]));
 	r = ioctl(vcpu->fd, KVM_GET_VCPU_EVENTS, &state->events);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_VCPU_EVENTS, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_VCPU_EVENTS, r: %i",
+		    r);
 
 	r = ioctl(vcpu->fd, KVM_GET_MP_STATE, &state->mp_state);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MP_STATE, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MP_STATE, r: %i",
+		    r);
 
 	r = ioctl(vcpu->fd, KVM_GET_REGS, &state->regs);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_REGS, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_REGS, r: %i",
+		    r);
 
 	r = vcpu_save_xsave_state(vm, vcpu, state);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_XSAVE, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_XSAVE, r: %i",
+		    r);
 
 	if (kvm_check_cap(KVM_CAP_XCRS)) {
 		r = ioctl(vcpu->fd, KVM_GET_XCRS, &state->xcrs);
@@ -1171,17 +1171,17 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	}
 
 	r = ioctl(vcpu->fd, KVM_GET_SREGS, &state->sregs);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_SREGS, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_SREGS, r: %i",
+		    r);
 
 	if (nested_size) {
 		state->nested.size = sizeof(state->nested_);
 		r = ioctl(vcpu->fd, KVM_GET_NESTED_STATE, &state->nested);
 		TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_NESTED_STATE, r: %i",
-			r);
+			    r);
 		TEST_ASSERT(state->nested.size <= nested_size,
-			"Nested state size too big, %i (KVM_CHECK_CAP gave %i)",
-			state->nested.size, nested_size);
+			    "Nested state size too big, %i (KVM_CHECK_CAP gave %i)",
+			    state->nested.size, nested_size);
 	} else
 		state->nested.size = 0;
 
@@ -1189,12 +1189,12 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	for (i = 0; i < nmsrs; i++)
 		state->msrs.entries[i].index = list->indices[i];
 	r = ioctl(vcpu->fd, KVM_GET_MSRS, &state->msrs);
-        TEST_ASSERT(r == nmsrs, "Unexpected result from KVM_GET_MSRS, r: %i (failed MSR was 0x%x)",
-                r, r == nmsrs ? -1 : list->indices[r]);
+	TEST_ASSERT(r == nmsrs, "Unexpected result from KVM_GET_MSRS, r: %i (failed MSR was 0x%x)",
+		    r, r == nmsrs ? -1 : list->indices[r]);
 
 	r = ioctl(vcpu->fd, KVM_GET_DEBUGREGS, &state->debugregs);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_DEBUGREGS, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_DEBUGREGS, r: %i",
+		    r);
 
 	free(list);
 	return state;
@@ -1207,7 +1207,7 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 
 	r = ioctl(vcpu->fd, KVM_SET_SREGS, &state->sregs);
 	TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_SREGS, r: %i",
-                r);
+		    r);
 
 	r = ioctl(vcpu->fd, KVM_SET_MSRS, &state->msrs);
 	TEST_ASSERT(r == state->msrs.nmsrs,
@@ -1222,28 +1222,28 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 
 	r = ioctl(vcpu->fd, KVM_SET_XSAVE, state->xsave);
 	TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XSAVE, r: %i",
-                r);
+		    r);
 
 	r = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, &state->events);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_VCPU_EVENTS, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_VCPU_EVENTS, r: %i",
+		    r);
 
 	r = ioctl(vcpu->fd, KVM_SET_MP_STATE, &state->mp_state);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_MP_STATE, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_MP_STATE, r: %i",
+		    r);
 
 	r = ioctl(vcpu->fd, KVM_SET_DEBUGREGS, &state->debugregs);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_DEBUGREGS, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_DEBUGREGS, r: %i",
+		    r);
 
 	r = ioctl(vcpu->fd, KVM_SET_REGS, &state->regs);
-        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_REGS, r: %i",
-                r);
+	TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_REGS, r: %i",
+		    r);
 
 	if (state->nested.size) {
 		r = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, &state->nested);
 		TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_NESTED_STATE, r: %i",
-			r);
+			    r);
 	}
 }
 
