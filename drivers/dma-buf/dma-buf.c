@@ -473,9 +473,6 @@ static long dma_buf_ioctl(struct file *file,
 		if (sync_p.len == 0)
 			return 0;
 
-		if ((sync_p.offset % cache_line_size()) || (sync_p.len % cache_line_size()))
-			return -EINVAL;
-
 		if (sync_p.len > dmabuf->size || sync_p.offset > dmabuf->size - sync_p.len)
 			return -EINVAL;
 
