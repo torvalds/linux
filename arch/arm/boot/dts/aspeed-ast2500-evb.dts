@@ -25,20 +25,46 @@
 		#size-cells = <1>;
 		ranges;
 
-		video_engine_memory: video {
-			size = <0x02000000>;
-			alignment = <0x01000000>;
-			compatible = "shared-dma-pool";
-			reusable;
-		};
-
 		gfx_memory: framebuffer {
 			size = <0x01000000>;
 			alignment = <0x01000000>;
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 3>,
+				<&adc 4>, <&adc 5>, <&adc 6>, <&adc 7>,
+				<&adc 8>, <&adc 9>, <&adc 10>, <&adc 11>,
+				<&adc 12>, <&adc 13>, <&adc 14>, <&adc 15>;
+	};
+};
+
+&adc {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default
+		&pinctrl_adc8_default &pinctrl_adc9_default
+		&pinctrl_adc10_default &pinctrl_adc11_default
+		&pinctrl_adc12_default &pinctrl_adc13_default
+		&pinctrl_adc14_default &pinctrl_adc15_default>;
+};
+
+&mctp {
+	status = "okay";
 };
 
 &fmc {
@@ -48,7 +74,36 @@
 		m25p,fast-read;
 		label = "bmc";
 		spi-max-frequency = <50000000>;
-#include "openbmc-flash-layout.dtsi"
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			u-boot@0 {
+				reg = <0x0 0xf0000>; // 960KB
+				label = "u-boot";
+			};
+
+			u-boot-env@f0000 {
+				reg = <0xf0000 0x10000>; // 64KB
+				label = "u-boot-env";
+			};
+
+			kernel@100000 {
+				reg = <0x100000 0x500000>; // 5MB
+				label = "kernel";
+			};
+
+			rofs@600000 {
+				reg = <0x600000 0x1740000>; // 23.25MB
+				label = "rofs";
+			};
+
+			rwfs@1d40000 {
+				reg = <0x1d40000 0x2c0000>; // 2.75MB
+				label = "rwfs";
+			};
+		};
 	};
 };
 
@@ -94,6 +149,11 @@
 	};
 };
 
+&sgpio {
+	status = "okay";
+	ngpios = <80>;
+};
+
 &i2c7 {
 	status = "okay";
 
@@ -113,6 +173,20 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sd1_default>;
 };
+
+
+&sdhci1 {
+	status = "okay";
+
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sd2_default>;
+};
+
+&jtag {
+	status = "okay";
+};
+
 
 /*
  * Enable port A as device (via the virtual hub) and port B as
@@ -140,9 +214,98 @@
 };
 #endif
 
+&pwm_tacho {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_pwm1_default
+		&pinctrl_pwm2_default &pinctrl_pwm3_default
+		&pinctrl_pwm4_default &pinctrl_pwm5_default
+		&pinctrl_pwm6_default &pinctrl_pwm7_default>;
+	aspeed,minrpm = <1000>;
+	aspeed,pulse-pr = <2>;
+
+	fan@0 {
+		reg = <0x00>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+	};
+
+	fan@1 {
+		reg = <0x01>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
+	};
+
+	fan@2 {
+		reg = <0x02>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
+	};
+
+	fan@3 {
+		reg = <0x03>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
+	};
+
+	fan@4 {
+		reg = <0x04>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
+	};
+
+	fan@5 {
+		reg = <0x05>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
+	};
+
+	fan@6 {
+		reg = <0x06>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
+	};
+
+	fan@7 {
+		reg = <0x07>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
+	};
+
+};
+
 &video {
 	status = "okay";
 	memory-region = <&video_engine_memory>;
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&kcs1 {
+	kcs_addr = <0xca0>;
+	status = "okay";
+};
+
+&kcs2 {
+	kcs_addr = <0xca8>;
+	status = "okay";
+};
+
+&kcs3 {
+	kcs_addr = <0xca2>;
+	status = "okay";
+};
+
+&kcs4 {
+	kcs_addr = <0xca4>;
+	status = "okay";
+};
+
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
+
+&lpc_ctrl {
+	status = "okay";
 };
 
 &rtc {
