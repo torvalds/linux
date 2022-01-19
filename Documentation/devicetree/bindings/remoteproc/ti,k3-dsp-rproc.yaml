@@ -142,6 +142,14 @@ examples:
         #address-cells = <2>;
         #size-cells = <2>;
 
+        mailbox0_cluster3: mailbox-0 {
+            #mbox-cells = <1>;
+        };
+
+        mailbox0_cluster4: mailbox-1 {
+            #mbox-cells = <1>;
+        };
+
         bus@100000 {
             compatible = "simple-bus";
             #address-cells = <2>;

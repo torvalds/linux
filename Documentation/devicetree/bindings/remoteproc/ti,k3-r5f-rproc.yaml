@@ -238,6 +238,14 @@ examples:
         #address-cells = <2>;
         #size-cells = <2>;
 
+        mailbox0: mailbox-0 {
+            #mbox-cells = <1>;
+        };
+
+        mailbox1: mailbox-1 {
+            #mbox-cells = <1>;
+        };
+
         bus@100000 {
             compatible = "simple-bus";
             #address-cells = <2>;
