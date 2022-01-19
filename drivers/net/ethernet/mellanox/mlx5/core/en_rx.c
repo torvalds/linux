@@ -34,6 +34,7 @@
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
 #include <linux/bitmap.h>
+#include <linux/filter.h>
 #include <net/ip6_checksum.h>
 #include <net/page_pool.h>
 #include <net/inet_ecn.h>
@@ -1523,11 +1524,11 @@ mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 {
 	struct mlx5e_dma_info *di = wi->di;
 	u16 rx_headroom = rq->buff.headroom;
-	struct xdp_buff xdp;
+	struct bpf_prog *prog;
 	struct sk_buff *skb;
+	u32 metasize = 0;
 	void *va, *data;
 	u32 frag_size;
-	u32 metasize;
 
 	va             = page_address(di->page) + wi->offset;
 	data           = va + rx_headroom;
@@ -1535,16 +1536,21 @@ mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 
 	dma_sync_single_range_for_cpu(rq->pdev, di->addr, wi->offset,
 				      frag_size, DMA_FROM_DEVICE);
-	net_prefetchw(va); /* xdp_frame data area */
 	net_prefetch(data);
 
-	mlx5e_fill_xdp_buff(rq, va, rx_headroom, cqe_bcnt, &xdp);
-	if (mlx5e_xdp_handle(rq, di, &cqe_bcnt, &xdp))
-		return NULL; /* page/packet was consumed by XDP */
+	prog = rcu_dereference(rq->xdp_prog);
+	if (prog) {
+		struct xdp_buff xdp;
 
-	rx_headroom = xdp.data - xdp.data_hard_start;
+		net_prefetchw(va); /* xdp_frame data area */
+		mlx5e_fill_xdp_buff(rq, va, rx_headroom, cqe_bcnt, &xdp);
+		if (mlx5e_xdp_handle(rq, di, prog, &cqe_bcnt, &xdp))
+			return NULL; /* page/packet was consumed by XDP */
+
+		rx_headroom = xdp.data - xdp.data_hard_start;
+		metasize = xdp.data - xdp.data_meta;
+	}
 	frag_size = MLX5_SKB_FRAG_SZ(rx_headroom + cqe_bcnt);
-	metasize = xdp.data - xdp.data_meta;
 	skb = mlx5e_build_linear_skb(rq, va, frag_size, rx_headroom, cqe_bcnt, metasize);
 	if (unlikely(!skb))
 		return NULL;
@@ -1842,11 +1848,11 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 	struct mlx5e_dma_info *di = &wi->umr.dma_info[page_idx];
 	u16 rx_headroom = rq->buff.headroom;
 	u32 cqe_bcnt32 = cqe_bcnt;
-	struct xdp_buff xdp;
+	struct bpf_prog *prog;
 	struct sk_buff *skb;
+	u32 metasize = 0;
 	void *va, *data;
 	u32 frag_size;
-	u32 metasize;
 
 	/* Check packet size. Note LRO doesn't use linear SKB */
 	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
@@ -1860,19 +1866,24 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 
 	dma_sync_single_range_for_cpu(rq->pdev, di->addr, head_offset,
 				      frag_size, DMA_FROM_DEVICE);
-	net_prefetchw(va); /* xdp_frame data area */
 	net_prefetch(data);
 
-	mlx5e_fill_xdp_buff(rq, va, rx_headroom, cqe_bcnt32, &xdp);
-	if (mlx5e_xdp_handle(rq, di, &cqe_bcnt32, &xdp)) {
-		if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags))
-			__set_bit(page_idx, wi->xdp_xmit_bitmap); /* non-atomic */
-		return NULL; /* page/packet was consumed by XDP */
-	}
+	prog = rcu_dereference(rq->xdp_prog);
+	if (prog) {
+		struct xdp_buff xdp;
 
-	rx_headroom = xdp.data - xdp.data_hard_start;
+		net_prefetchw(va); /* xdp_frame data area */
+		mlx5e_fill_xdp_buff(rq, va, rx_headroom, cqe_bcnt32, &xdp);
+		if (mlx5e_xdp_handle(rq, di, prog, &cqe_bcnt32, &xdp)) {
+			if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags))
+				__set_bit(page_idx, wi->xdp_xmit_bitmap); /* non-atomic */
+			return NULL; /* page/packet was consumed by XDP */
+		}
+
+		rx_headroom = xdp.data - xdp.data_hard_start;
+		metasize = xdp.data - xdp.data_meta;
+	}
 	frag_size = MLX5_SKB_FRAG_SZ(rx_headroom + cqe_bcnt32);
-	metasize = xdp.data - xdp.data_meta;
 	skb = mlx5e_build_linear_skb(rq, va, frag_size, rx_headroom, cqe_bcnt32, metasize);
 	if (unlikely(!skb))
 		return NULL;
