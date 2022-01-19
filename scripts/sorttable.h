@@ -199,6 +199,8 @@ static int compare_extable(const void *a, const void *b)
 	return 0;
 }
 #ifdef MCOUNT_SORT_ENABLED
+pthread_t mcount_sort_thread;
+
 struct elf_mcount_loc {
 	Elf_Ehdr *ehdr;
 	Elf_Shdr *init_data_sec;
@@ -282,10 +284,9 @@ static int do_sort(Elf_Ehdr *ehdr,
 	unsigned int shnum;
 	unsigned int shstrndx;
 #ifdef MCOUNT_SORT_ENABLED
-	struct elf_mcount_loc mstruct;
+	struct elf_mcount_loc mstruct = {0};
 	uint_t _start_mcount_loc = 0;
 	uint_t _stop_mcount_loc = 0;
-	pthread_t mcount_sort_thread;
 #endif
 #if defined(SORTTABLE_64) && defined(UNWINDER_ORC_ENABLED)
 	unsigned int orc_ip_size = 0;
