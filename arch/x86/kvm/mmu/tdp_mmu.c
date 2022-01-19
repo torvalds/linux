@@ -312,7 +312,7 @@ static void tdp_mmu_unlink_sp(struct kvm *kvm, struct kvm_mmu_page *sp,
 }
 
 /**
- * handle_removed_tdp_mmu_page - handle a pt removed from the TDP structure
+ * handle_removed_pt() - handle a page table removed from the TDP structure
  *
  * @kvm: kvm instance
  * @pt: the page removed from the paging structure
@@ -328,8 +328,7 @@ static void tdp_mmu_unlink_sp(struct kvm *kvm, struct kvm_mmu_page *sp,
  * this thread will be responsible for ensuring the page is freed. Hence the
  * early rcu_dereferences in the function.
  */
-static void handle_removed_tdp_mmu_page(struct kvm *kvm, tdp_ptep_t pt,
-					bool shared)
+static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 {
 	struct kvm_mmu_page *sp = sptep_to_sp(rcu_dereference(pt));
 	int level = sp->role.level;
@@ -492,8 +491,7 @@ static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 	 * the paging structure.
 	 */
 	if (was_present && !was_leaf && (pfn_changed || !is_present))
-		handle_removed_tdp_mmu_page(kvm,
-				spte_to_child_pt(old_spte, level), shared);
+		handle_removed_pt(kvm, spte_to_child_pt(old_spte, level), shared);
 }
 
 static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
