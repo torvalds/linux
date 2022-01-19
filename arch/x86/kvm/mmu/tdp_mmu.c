@@ -186,8 +186,8 @@ static union kvm_mmu_page_role page_role_for_level(struct kvm_vcpu *vcpu,
 	return role;
 }
 
-static struct kvm_mmu_page *alloc_tdp_mmu_page(struct kvm_vcpu *vcpu, gfn_t gfn,
-					       int level)
+static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu, gfn_t gfn,
+					     int level)
 {
 	struct kvm_mmu_page *sp;
 
@@ -224,7 +224,7 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 			goto out;
 	}
 
-	root = alloc_tdp_mmu_page(vcpu, 0, vcpu->arch.mmu->shadow_root_level);
+	root = tdp_mmu_alloc_sp(vcpu, 0, vcpu->arch.mmu->shadow_root_level);
 	refcount_set(&root->tdp_mmu_root_count, 1);
 
 	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
@@ -269,15 +269,15 @@ static void handle_changed_spte_dirty_log(struct kvm *kvm, int as_id, gfn_t gfn,
 }
 
 /**
- * tdp_mmu_link_page - Add a new page to the list of pages used by the TDP MMU
+ * tdp_mmu_link_sp() - Add a new shadow page to the list of used pages
  *
  * @kvm: kvm instance
  * @sp: the new page
  * @account_nx: This page replaces a NX large page and should be marked for
  *		eventual reclaim.
  */
-static void tdp_mmu_link_page(struct kvm *kvm, struct kvm_mmu_page *sp,
-			      bool account_nx)
+static void tdp_mmu_link_sp(struct kvm *kvm, struct kvm_mmu_page *sp,
+			    bool account_nx)
 {
 	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
 	list_add(&sp->link, &kvm->arch.tdp_mmu_pages);
@@ -287,7 +287,7 @@ static void tdp_mmu_link_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 }
 
 /**
- * tdp_mmu_unlink_page - Remove page from the list of pages used by the TDP MMU
+ * tdp_mmu_unlink_sp() - Remove a shadow page from the list of used pages
  *
  * @kvm: kvm instance
  * @sp: the page to be removed
@@ -295,8 +295,8 @@ static void tdp_mmu_link_page(struct kvm *kvm, struct kvm_mmu_page *sp,
  *	    the MMU lock and the operation must synchronize with other
  *	    threads that might be adding or removing pages.
  */
-static void tdp_mmu_unlink_page(struct kvm *kvm, struct kvm_mmu_page *sp,
-				bool shared)
+static void tdp_mmu_unlink_sp(struct kvm *kvm, struct kvm_mmu_page *sp,
+			      bool shared)
 {
 	if (shared)
 		spin_lock(&kvm->arch.tdp_mmu_pages_lock);
@@ -338,7 +338,7 @@ static void handle_removed_tdp_mmu_page(struct kvm *kvm, tdp_ptep_t pt,
 
 	trace_kvm_mmu_prepare_zap_page(sp);
 
-	tdp_mmu_unlink_page(kvm, sp, shared);
+	tdp_mmu_unlink_sp(kvm, sp, shared);
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
 		u64 *sptep = rcu_dereference(pt) + i;
@@ -1034,16 +1034,16 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			if (is_removed_spte(iter.old_spte))
 				break;
 
-			sp = alloc_tdp_mmu_page(vcpu, iter.gfn, iter.level - 1);
+			sp = tdp_mmu_alloc_sp(vcpu, iter.gfn, iter.level - 1);
 			child_pt = sp->spt;
 
 			new_spte = make_nonleaf_spte(child_pt,
 						     !shadow_accessed_mask);
 
 			if (!tdp_mmu_set_spte_atomic(vcpu->kvm, &iter, new_spte)) {
-				tdp_mmu_link_page(vcpu->kvm, sp,
-						  fault->huge_page_disallowed &&
-						  fault->req_level >= iter.level);
+				tdp_mmu_link_sp(vcpu->kvm, sp,
+						fault->huge_page_disallowed &&
+						fault->req_level >= iter.level);
 
 				trace_kvm_mmu_get_page(sp, true);
 			} else {
