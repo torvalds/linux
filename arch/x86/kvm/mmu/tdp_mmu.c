@@ -269,24 +269,6 @@ static void handle_changed_spte_dirty_log(struct kvm *kvm, int as_id, gfn_t gfn,
 }
 
 /**
- * tdp_mmu_link_sp() - Add a new shadow page to the list of used pages
- *
- * @kvm: kvm instance
- * @sp: the new page
- * @account_nx: This page replaces a NX large page and should be marked for
- *		eventual reclaim.
- */
-static void tdp_mmu_link_sp(struct kvm *kvm, struct kvm_mmu_page *sp,
-			    bool account_nx)
-{
-	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
-	list_add(&sp->link, &kvm->arch.tdp_mmu_pages);
-	if (account_nx)
-		account_huge_nx_page(kvm, sp);
-	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
-}
-
-/**
  * tdp_mmu_unlink_sp() - Remove a shadow page from the list of used pages
  *
  * @kvm: kvm instance
@@ -980,6 +962,38 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 }
 
 /*
+ * tdp_mmu_link_sp_atomic - Atomically replace the given spte with an spte
+ * pointing to the provided page table.
+ *
+ * @kvm: kvm instance
+ * @iter: a tdp_iter instance currently on the SPTE that should be set
+ * @sp: The new TDP page table to install.
+ * @account_nx: True if this page table is being installed to split a
+ *              non-executable huge page.
+ *
+ * Returns: 0 if the new page table was installed. Non-0 if the page table
+ *          could not be installed (e.g. the atomic compare-exchange failed).
+ */
+static int tdp_mmu_link_sp_atomic(struct kvm *kvm, struct tdp_iter *iter,
+				  struct kvm_mmu_page *sp, bool account_nx)
+{
+	u64 spte = make_nonleaf_spte(sp->spt, !shadow_accessed_mask);
+	int ret;
+
+	ret = tdp_mmu_set_spte_atomic(kvm, iter, spte);
+	if (ret)
+		return ret;
+
+	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
+	list_add(&sp->link, &kvm->arch.tdp_mmu_pages);
+	if (account_nx)
+		account_huge_nx_page(kvm, sp);
+	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
+
+	return 0;
+}
+
+/*
  * Handle a TDP page fault (NPT/EPT violation/misconfiguration) by installing
  * page tables and SPTEs to translate the faulting guest physical address.
  */
@@ -988,8 +1002,6 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	struct tdp_iter iter;
 	struct kvm_mmu_page *sp;
-	u64 *child_pt;
-	u64 new_spte;
 	int ret;
 
 	kvm_mmu_hugepage_adjust(vcpu, fault);
@@ -1024,6 +1036,9 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		}
 
 		if (!is_shadow_present_pte(iter.old_spte)) {
+			bool account_nx = fault->huge_page_disallowed &&
+					  fault->req_level >= iter.level;
+
 			/*
 			 * If SPTE has been frozen by another thread, just
 			 * give up and retry, avoiding unnecessary page table
@@ -1033,18 +1048,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 				break;
 
 			sp = tdp_mmu_alloc_sp(vcpu, iter.gfn, iter.level - 1);
-			child_pt = sp->spt;
-
-			new_spte = make_nonleaf_spte(child_pt,
-						     !shadow_accessed_mask);
-
-			if (!tdp_mmu_set_spte_atomic(vcpu->kvm, &iter, new_spte)) {
-				tdp_mmu_link_sp(vcpu->kvm, sp,
-						fault->huge_page_disallowed &&
-						fault->req_level >= iter.level);
-
-				trace_kvm_mmu_get_page(sp, true);
-			} else {
+			if (tdp_mmu_link_sp_atomic(vcpu->kvm, &iter, sp, account_nx)) {
 				tdp_mmu_free_sp(sp);
 				break;
 			}
