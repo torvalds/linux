@@ -1347,7 +1347,7 @@ static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
 	 */
 	ret = tdp_mmu_link_sp(kvm, iter, sp, false, shared);
 	if (ret)
-		return ret;
+		goto out;
 
 	/*
 	 * tdp_mmu_link_sp_atomic() will handle subtracting the huge page we
@@ -1356,7 +1356,9 @@ static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
 	 */
 	kvm_update_page_stats(kvm, level - 1, PT64_ENT_PER_PAGE);
 
-	return 0;
+out:
+	trace_kvm_mmu_split_huge_page(iter->gfn, huge_spte, level, ret);
+	return ret;
 }
 
 static int tdp_mmu_split_huge_pages_root(struct kvm *kvm,
@@ -1393,6 +1395,9 @@ retry:
 			sp = tdp_mmu_alloc_sp_for_split(kvm, &iter, shared);
 			if (!sp) {
 				ret = -ENOMEM;
+				trace_kvm_mmu_split_huge_page(iter.gfn,
+							      iter.old_spte,
+							      iter.level, ret);
 				break;
 			}
 
@@ -1415,7 +1420,6 @@ retry:
 	 */
 	if (sp)
 		tdp_mmu_free_sp(sp);
-
 
 	return ret;
 }
