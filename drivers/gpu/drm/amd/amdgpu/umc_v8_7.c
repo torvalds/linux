@@ -94,16 +94,12 @@ static void umc_v8_7_ecc_info_query_ras_error_count(struct amdgpu_device *adev,
 
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
-	uint32_t umc_reg_offset  = 0;
 	uint32_t channel_index   = 0;
 
 	/* TODO: driver needs to toggle DF Cstate to ensure
 	 * safe access of UMC registers. Will add the protection
 	 */
 	LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
-		umc_reg_offset = get_umc_v8_7_reg_offset(adev,
-							umc_inst,
-							ch_inst);
 		channel_index = get_umc_v8_7_channel_index(adev,
 							umc_inst,
 							ch_inst);
