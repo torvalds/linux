@@ -78,6 +78,9 @@ struct fixed31_32;
 struct pipe_ctx;
 
 struct dc_link_hwss {
+	/* you must define a dummy implementation and assign the function to
+	 * dummy_link_hwss if you don't want to check for NULL pointer
+	 */
 	void (*set_throttled_vcp_size)(struct pipe_ctx *pipe_ctx,
 			struct fixed31_32 throttled_vcp_size);
 

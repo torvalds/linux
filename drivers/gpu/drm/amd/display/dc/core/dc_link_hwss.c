@@ -844,7 +844,16 @@ void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	}
 }
 
-/******************************* dio_link_hwss ********************************/
+static void set_dummy_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
+		struct fixed31_32 throttled_vcp_size);
+
+/************************* below goes to dio_link_hwss ************************/
+static bool can_use_dio_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res)
+{
+	return link->link_enc != NULL;
+}
+
 static void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size)
 {
@@ -855,7 +864,17 @@ static void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 				throttled_vcp_size);
 }
 
-/***************************** hpo_dp_link_hwss *******************************/
+static const struct dc_link_hwss dio_link_hwss = {
+	.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+};
+
+/*********************** below goes to hpo_dp_link_hwss ***********************/
+static bool can_use_dp_hpo_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res)
+{
+	return link_res->hpo_dp_link_enc != NULL;
+}
+
 static void set_dp_hpo_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size)
 {
@@ -898,15 +917,33 @@ static const struct dc_link_hwss hpo_dp_link_hwss = {
 	 */
 	.set_hblank_min_symbol_width = set_dp_hpo_hblank_min_symbol_width,
 };
+/*********************** below goes to dpia_link_hwss *************************/
+static bool can_use_dpia_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res)
+{
+	return link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign;
+}
 
-static const struct dc_link_hwss dio_link_hwss = {
-	.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+static const struct dc_link_hwss dpia_link_hwss = {
+	.set_throttled_vcp_size = set_dummy_throttled_vcp_size,
+};
+
+/*********************** below goes to link_hwss ******************************/
+static void set_dummy_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
+		struct fixed31_32 throttled_vcp_size)
+{
+	return;
+}
+
+static const struct dc_link_hwss dummy_link_hwss = {
+	.set_throttled_vcp_size = set_dummy_throttled_vcp_size,
 };
 
 const struct dc_link_hwss *dc_link_hwss_get(const struct dc_link *link,
 		const struct link_resource *link_res)
 {
-	if (link_res->hpo_dp_link_enc)
+	if (can_use_dp_hpo_link_hwss(link, link_res))
 		/* TODO: some assumes that if decided link settings is 128b/132b
 		 * channel coding format hpo_dp_link_enc should be used.
 		 * Others believe that if hpo_dp_link_enc is available in link
@@ -925,8 +962,12 @@ const struct dc_link_hwss *dc_link_hwss_get(const struct dc_link *link,
 		 * do work for all functions
 		 */
 		return &hpo_dp_link_hwss;
-	else
+	else if (can_use_dpia_link_hwss(link, link_res))
+		return &dpia_link_hwss;
+	else if (can_use_dio_link_hwss(link, link_res))
 		return &dio_link_hwss;
+	else
+		return &dummy_link_hwss;
 }
 
 #undef DC_LOGGER
