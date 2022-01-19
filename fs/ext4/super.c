@@ -5541,7 +5541,7 @@ static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sbi = ext4_alloc_sbi(sb);
 	if (!sbi)
-		ret = -ENOMEM;
+		return -ENOMEM;
 
 	fc->s_fs_info = sbi;
 
