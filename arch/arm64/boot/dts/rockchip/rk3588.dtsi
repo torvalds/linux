@@ -58,6 +58,7 @@
 		/* Reserve 128MB cma memory for hdmirx driver */
 		hdmirx_reserved: hdmirx@10000000 {
 			compatible = "shared-dma-pool";
+			reusable;
 			reg = <0x0 0x10000000 0x0 (128 * 0x100000)>;
 			status = "disabled";
 		};
