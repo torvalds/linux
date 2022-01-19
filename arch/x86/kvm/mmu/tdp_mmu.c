@@ -171,13 +171,19 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 		if (kvm_mmu_page_as_id(_root) != _as_id) {		\
 		} else
 
-static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu, gfn_t gfn,
-					     union kvm_mmu_page_role role)
+static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_page *sp;
 
 	sp = kvm_mmu_memory_cache_alloc(&vcpu->arch.mmu_page_header_cache);
 	sp->spt = kvm_mmu_memory_cache_alloc(&vcpu->arch.mmu_shadow_page_cache);
+
+	return sp;
+}
+
+static void tdp_mmu_init_sp(struct kvm_mmu_page *sp, gfn_t gfn,
+			      union kvm_mmu_page_role role)
+{
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
 
 	sp->role = role;
@@ -185,12 +191,10 @@ static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu, gfn_t gfn,
 	sp->tdp_mmu_page = true;
 
 	trace_kvm_mmu_get_page(sp, true);
-
-	return sp;
 }
 
-static struct kvm_mmu_page *tdp_mmu_alloc_child_sp(struct kvm_vcpu *vcpu,
-						   struct tdp_iter *iter)
+static void tdp_mmu_init_child_sp(struct kvm_mmu_page *child_sp,
+				  struct tdp_iter *iter)
 {
 	struct kvm_mmu_page *parent_sp;
 	union kvm_mmu_page_role role;
@@ -200,7 +204,7 @@ static struct kvm_mmu_page *tdp_mmu_alloc_child_sp(struct kvm_vcpu *vcpu,
 	role = parent_sp->role;
 	role.level--;
 
-	return tdp_mmu_alloc_sp(vcpu, iter->gfn, role);
+	tdp_mmu_init_sp(child_sp, iter->gfn, role);
 }
 
 hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
@@ -221,7 +225,9 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 			goto out;
 	}
 
-	root = tdp_mmu_alloc_sp(vcpu, 0, role);
+	root = tdp_mmu_alloc_sp(vcpu);
+	tdp_mmu_init_sp(root, 0, role);
+
 	refcount_set(&root->tdp_mmu_root_count, 1);
 
 	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
@@ -1042,7 +1048,9 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			if (is_removed_spte(iter.old_spte))
 				break;
 
-			sp = tdp_mmu_alloc_child_sp(vcpu, &iter);
+			sp = tdp_mmu_alloc_sp(vcpu);
+			tdp_mmu_init_child_sp(sp, &iter);
+
 			if (tdp_mmu_link_sp_atomic(vcpu->kvm, &iter, sp, account_nx)) {
 				tdp_mmu_free_sp(sp);
 				break;
