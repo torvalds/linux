@@ -206,6 +206,7 @@ struct rockchip_drm_vcnt {
 
 struct rockchip_logo {
 	dma_addr_t dma_addr;
+	struct drm_mm_node logo_reserved_node;
 	void *kvaddr;
 	phys_addr_t start;
 	phys_addr_t size;
@@ -393,6 +394,7 @@ struct rockchip_drm_private {
 
 	dma_addr_t cubic_lut_dma_addr;
 	void *cubic_lut_kvaddr;
+	struct drm_mm_node *clut_reserved_node;
 	struct loader_cubic_lut cubic_lut[ROCKCHIP_MAX_CRTC];
 };
 

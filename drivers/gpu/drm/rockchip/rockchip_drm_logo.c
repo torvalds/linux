@@ -121,6 +121,25 @@ err_put_encoder:
 	return sub_dev;
 }
 
+static void rockchip_drm_release_reserve_vm(struct drm_mm_node *node)
+{
+	if (drm_mm_node_allocated(node))
+		drm_mm_remove_node(node);
+}
+
+static int rockchip_drm_reserve_vm(struct drm_mm *mm,
+				   struct drm_mm_node *node, u64 size, u64 offset)
+{
+	int ret;
+
+	node->size = size;
+	node->start = offset;
+	node->color = 0;
+	ret = drm_mm_reserve_node(mm, node);
+
+	return ret;
+}
+
 static unsigned long
 rockchip_drm_free_reserved_area(void *start, void *end, int poison, const char *s)
 {
@@ -175,6 +194,7 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 		u32 pg_size = 1UL << __ffs(private->domain->pgsize_bitmap);
 
 		iommu_unmap(private->domain, logo->dma_addr, ALIGN(logo->size, pg_size));
+		rockchip_drm_release_reserve_vm(&logo->logo_reserved_node);
 	}
 
 	memblock_free(logo->start, logo->size);
@@ -220,6 +240,9 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	logo->kvaddr = phys_to_virt(start);
 
 	if (private->domain) {
+		ret = rockchip_drm_reserve_vm(&private->mm, &logo->logo_reserved_node, size, start);
+		if (ret)
+			dev_err(drm_dev->dev, "failed to reserve vm for logo memory\n");
 		ret = iommu_map(private->domain, start, start, ALIGN(size, pg_size),
 				IOMMU_WRITE | IOMMU_READ);
 		if (ret) {
@@ -251,18 +274,31 @@ static int init_loader_memory(struct drm_device *drm_dev)
 
 	private->cubic_lut_kvaddr = phys_to_virt(start);
 	if (private->domain) {
+		private->clut_reserved_node = kmalloc(sizeof(struct drm_mm_node), GFP_KERNEL);
+		if (!private->clut_reserved_node)
+			return -ENOMEM;
+
+		ret = rockchip_drm_reserve_vm(&private->mm, private->clut_reserved_node, size, start);
+		if (ret)
+			dev_err(drm_dev->dev, "failed to reserve vm for clut memory\n");
+
 		ret = iommu_map(private->domain, start, start, ALIGN(size, pg_size),
 				IOMMU_WRITE | IOMMU_READ);
 		if (ret) {
 			dev_err(drm_dev->dev, "failed to create 1v1 mapping for cubic lut\n");
-			goto err_free_logo;
+			goto err_free_clut;
 		}
 	}
 	private->cubic_lut_dma_addr = start;
 
 	return 0;
 
+err_free_clut:
+	rockchip_drm_release_reserve_vm(private->clut_reserved_node);
+	kfree(private->clut_reserved_node);
+	private->clut_reserved_node = NULL;
 err_free_logo:
+	rockchip_drm_release_reserve_vm(&logo->logo_reserved_node);
 	kfree(logo);
 
 	return ret;
