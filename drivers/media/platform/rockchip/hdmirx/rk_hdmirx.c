@@ -2082,10 +2082,8 @@ static int hdmirx_parse_dt(struct rk_hdmirx_dev *hdmirx_dev)
 	}
 
 	ret = of_reserved_mem_device_init(dev);
-	if (ret) {
-		dev_err(dev, "No reserved memory for HDMIRX, ret:%d\n", ret);
-		return -ENOMEM;
-	}
+	if (ret)
+		dev_warn(dev, "No reserved memory for HDMIRX, ret:%d\n", ret);
 
 	return 0;
 }
