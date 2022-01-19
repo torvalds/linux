@@ -547,7 +547,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 
 	do {
 		struct io_wq_work *work;
-get_next:
+
 		/*
 		 * If we got some work, mark us as busy. If we didn't, but
 		 * the list isn't empty, it means we stalled on hashed work.
@@ -606,11 +606,6 @@ get_next:
 				spin_unlock_irq(&wq->hash->wait.lock);
 				if (wq_has_sleeper(&wq->hash->wait))
 					wake_up(&wq->hash->wait);
-				raw_spin_lock(&wqe->lock);
-				/* skip unnecessary unlock-lock wqe->lock */
-				if (!work)
-					goto get_next;
-				raw_spin_unlock(&wqe->lock);
 			}
 		} while (work);
 
