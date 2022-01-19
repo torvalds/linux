@@ -750,6 +750,46 @@ void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,
 	}
 }
 
+static int omap_gem_pin_tiler(struct drm_gem_object *obj)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	u32 npages = obj->size >> PAGE_SHIFT;
+	enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
+	struct tiler_block *block;
+	int ret;
+
+	BUG_ON(omap_obj->block);
+
+	if (omap_obj->flags & OMAP_BO_TILED_MASK) {
+		block = tiler_reserve_2d(fmt, omap_obj->width, omap_obj->height,
+					 PAGE_SIZE);
+	} else {
+		block = tiler_reserve_1d(obj->size);
+	}
+
+	if (IS_ERR(block)) {
+		ret = PTR_ERR(block);
+		dev_err(obj->dev->dev, "could not remap: %d (%d)\n", ret, fmt);
+		goto fail;
+	}
+
+	/* TODO: enable async refill.. */
+	ret = tiler_pin(block, omap_obj->pages, npages, omap_obj->roll, true);
+	if (ret) {
+		tiler_release(block);
+		dev_err(obj->dev->dev, "could not pin: %d\n", ret);
+		goto fail;
+	}
+
+	omap_obj->dma_addr = tiler_ssptr(block);
+	omap_obj->block = block;
+
+	DBG("got dma address: %pad", &omap_obj->dma_addr);
+
+fail:
+	return ret;
+}
+
 /**
  * omap_gem_pin() - Pin a GEM object in memory
  * @obj: the GEM object
@@ -774,11 +814,6 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 
 	if (!omap_gem_is_contiguous(omap_obj) && priv->has_dmm) {
 		if (refcount_read(&omap_obj->dma_addr_cnt) == 0) {
-			u32 npages = obj->size >> PAGE_SHIFT;
-			enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
-			struct tiler_block *block;
-
-			BUG_ON(omap_obj->block);
 
 			refcount_set(&omap_obj->dma_addr_cnt, 1);
 
@@ -786,35 +821,9 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 			if (ret)
 				goto fail;
 
-			if (omap_obj->flags & OMAP_BO_TILED_MASK) {
-				block = tiler_reserve_2d(fmt,
-						omap_obj->width,
-						omap_obj->height, PAGE_SIZE);
-			} else {
-				block = tiler_reserve_1d(obj->size);
-			}
-
-			if (IS_ERR(block)) {
-				ret = PTR_ERR(block);
-				dev_err(obj->dev->dev,
-					"could not remap: %d (%d)\n", ret, fmt);
+			ret = omap_gem_pin_tiler(obj);
+			if (ret)
 				goto fail;
-			}
-
-			/* TODO: enable async refill.. */
-			ret = tiler_pin(block, omap_obj->pages, npages,
-					omap_obj->roll, true);
-			if (ret) {
-				tiler_release(block);
-				dev_err(obj->dev->dev,
-						"could not pin: %d\n", ret);
-				goto fail;
-			}
-
-			omap_obj->dma_addr = tiler_ssptr(block);
-			omap_obj->block = block;
-
-			DBG("got dma address: %pad", &omap_obj->dma_addr);
 		} else {
 			refcount_inc(&omap_obj->dma_addr_cnt);
 		}
