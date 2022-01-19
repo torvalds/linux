@@ -19,7 +19,6 @@
 struct x509_parse_context {
 	struct x509_certificate	*cert;		/* Certificate being constructed */
 	unsigned long	data;			/* Start of data */
-	const void	*cert_start;		/* Start of cert content */
 	const void	*key;			/* Key data */
 	size_t		key_size;		/* Size of key data */
 	const void	*params;		/* Key parameters */
@@ -27,7 +26,6 @@ struct x509_parse_context {
 	enum OID	key_algo;		/* Algorithm used by the cert's key */
 	enum OID	last_oid;		/* Last OID encountered */
 	enum OID	sig_algo;		/* Algorithm used to sign the cert */
-	unsigned char	nr_mpi;			/* Number of MPIs stored */
 	u8		o_size;			/* Size of organizationName (O) */
 	u8		cn_size;		/* Size of commonName (CN) */
 	u8		email_size;		/* Size of emailAddress */
