@@ -821,10 +821,12 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 			if (ret)
 				goto fail;
 
-			if (priv->has_dmm) {
-				ret = omap_gem_pin_tiler(obj);
-				if (ret)
-					goto fail;
+			if (omap_obj->flags & OMAP_BO_SCANOUT) {
+				if (priv->has_dmm) {
+					ret = omap_gem_pin_tiler(obj);
+					if (ret)
+						goto fail;
+				}
 			}
 		} else {
 			refcount_inc(&omap_obj->pin_cnt);
@@ -861,6 +863,8 @@ static void omap_gem_unpin_locked(struct drm_gem_object *obj)
 			kfree(omap_obj->sgt);
 			omap_obj->sgt = NULL;
 		}
+		if (!(omap_obj->flags & OMAP_BO_SCANOUT))
+			return;
 		if (priv->has_dmm) {
 			ret = tiler_unpin(omap_obj->block);
 			if (ret) {
