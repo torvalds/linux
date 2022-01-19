@@ -89,6 +89,8 @@ class HeaderParser(object):
         self.commands = []
         self.desc_unique_helpers = set()
         self.define_unique_helpers = []
+        self.desc_syscalls = []
+        self.enum_syscalls = []
 
     def parse_element(self):
         proto    = self.parse_symbol()
@@ -103,7 +105,7 @@ class HeaderParser(object):
         return Helper(proto=proto, desc=desc, ret=ret)
 
     def parse_symbol(self):
-        p = re.compile(' \* ?(.+)$')
+        p = re.compile(' \* ?(BPF\w+)$')
         capture = p.match(self.line)
         if not capture:
             raise NoSyscallCommandFound
@@ -181,25 +183,54 @@ class HeaderParser(object):
             raise Exception("No return found for " + proto)
         return ret
 
-    def seek_to(self, target, help_message):
+    def seek_to(self, target, help_message, discard_lines = 1):
         self.reader.seek(0)
         offset = self.reader.read().find(target)
         if offset == -1:
             raise Exception(help_message)
         self.reader.seek(offset)
         self.reader.readline()
-        self.reader.readline()
+        for _ in range(discard_lines):
+            self.reader.readline()
         self.line = self.reader.readline()
 
-    def parse_syscall(self):
+    def parse_desc_syscall(self):
         self.seek_to('* DOC: eBPF Syscall Commands',
                      'Could not find start of eBPF syscall descriptions list')
         while True:
             try:
                 command = self.parse_element()
                 self.commands.append(command)
+                self.desc_syscalls.append(command.proto)
+
             except NoSyscallCommandFound:
                 break
+
+    def parse_enum_syscall(self):
+        self.seek_to('enum bpf_cmd {',
+                     'Could not find start of bpf_cmd enum', 0)
+        # Searches for either one or more BPF\w+ enums
+        bpf_p = re.compile('\s*(BPF\w+)+')
+        # Searches for an enum entry assigned to another entry,
+        # for e.g. BPF_PROG_RUN = BPF_PROG_TEST_RUN, which is
+        # not documented hence should be skipped in check to
+        # determine if the right number of syscalls are documented
+        assign_p = re.compile('\s*(BPF\w+)\s*=\s*(BPF\w+)')
+        bpf_cmd_str = ''
+        while True:
+            capture = assign_p.match(self.line)
+            if capture:
+                # Skip line if an enum entry is assigned to another entry
+                self.line = self.reader.readline()
+                continue
+            capture = bpf_p.match(self.line)
+            if capture:
+                bpf_cmd_str += self.line
+            else:
+                break
+            self.line = self.reader.readline()
+        # Find the number of occurences of BPF\w+
+        self.enum_syscalls = re.findall('(BPF\w+)+', bpf_cmd_str)
 
     def parse_desc_helpers(self):
         self.seek_to('* Start of BPF helper function descriptions:',
@@ -234,7 +265,8 @@ class HeaderParser(object):
         self.define_unique_helpers = re.findall('FN\(\w+\)', fn_defines_str)
 
     def run(self):
-        self.parse_syscall()
+        self.parse_desc_syscall()
+        self.parse_enum_syscall()
         self.parse_desc_helpers()
         self.parse_define_helpers()
         self.reader.close()
@@ -266,6 +298,25 @@ class Printer(object):
             self.print_one(elem)
         self.print_footer()
 
+    def elem_number_check(self, desc_unique_elem, define_unique_elem, type, instance):
+        """
+        Checks the number of helpers/syscalls documented within the header file
+        description with those defined as part of enum/macro and raise an
+        Exception if they don't match.
+        """
+        nr_desc_unique_elem = len(desc_unique_elem)
+        nr_define_unique_elem = len(define_unique_elem)
+        if nr_desc_unique_elem != nr_define_unique_elem:
+            exception_msg = '''
+The number of unique %s in description (%d) doesn\'t match the number of unique %s defined in %s (%d)
+''' % (type, nr_desc_unique_elem, type, instance, nr_define_unique_elem)
+            if nr_desc_unique_elem < nr_define_unique_elem:
+                # Function description is parsed until no helper is found (which can be due to
+                # misformatting). Hence, only print the first missing/misformatted helper/enum.
+                exception_msg += '''
+The description for %s is not present or formatted correctly.
+''' % (define_unique_elem[nr_desc_unique_elem])
+            raise Exception(exception_msg)
 
 class PrinterRST(Printer):
     """
@@ -326,26 +377,6 @@ class PrinterRST(Printer):
 
         print('')
 
-def helper_number_check(desc_unique_helpers, define_unique_helpers):
-    """
-    Checks the number of functions documented within the header file
-    with those present as part of #define __BPF_FUNC_MAPPER and raise an
-    Exception if they don't match.
-    """
-    nr_desc_unique_helpers = len(desc_unique_helpers)
-    nr_define_unique_helpers = len(define_unique_helpers)
-    if nr_desc_unique_helpers != nr_define_unique_helpers:
-        helper_exception = '''
-The number of unique helpers in description (%d) doesn\'t match the number of unique helpers defined in __BPF_FUNC_MAPPER (%d)
-''' % (nr_desc_unique_helpers, nr_define_unique_helpers)
-        if nr_desc_unique_helpers < nr_define_unique_helpers:
-            # Function description is parsed until no helper is found (which can be due to
-            # misformatting). Hence, only print the first missing/misformatted function.
-            helper_exception += '''
-The description for %s is not present or formatted correctly.
-''' % (define_unique_helpers[nr_desc_unique_helpers])
-        raise Exception(helper_exception)
-
 class PrinterHelpersRST(PrinterRST):
     """
     A printer for dumping collected information about helpers as a ReStructured
@@ -355,7 +386,7 @@ class PrinterHelpersRST(PrinterRST):
     """
     def __init__(self, parser):
         self.elements = parser.helpers
-        helper_number_check(parser.desc_unique_helpers, parser.define_unique_helpers)
+        self.elem_number_check(parser.desc_unique_helpers, parser.define_unique_helpers, 'helper', '__BPF_FUNC_MAPPER')
 
     def print_header(self):
         header = '''\
@@ -529,6 +560,7 @@ class PrinterSyscallRST(PrinterRST):
     """
     def __init__(self, parser):
         self.elements = parser.commands
+        self.elem_number_check(parser.desc_syscalls, parser.enum_syscalls, 'syscall', 'bpf_cmd')
 
     def print_header(self):
         header = '''\
@@ -560,7 +592,7 @@ class PrinterHelpers(Printer):
     """
     def __init__(self, parser):
         self.elements = parser.helpers
-        helper_number_check(parser.desc_unique_helpers, parser.define_unique_helpers)
+        self.elem_number_check(parser.desc_unique_helpers, parser.define_unique_helpers, 'helper', '__BPF_FUNC_MAPPER')
 
     type_fwds = [
             'struct bpf_fib_lookup',
