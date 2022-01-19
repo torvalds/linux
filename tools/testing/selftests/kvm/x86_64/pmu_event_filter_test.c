@@ -347,9 +347,7 @@ static bool check_intel_pmu_leaf(struct kvm_cpuid_entry2 *entry)
 static bool use_intel_pmu(void)
 {
 	struct kvm_cpuid_entry2 *entry;
-	struct kvm_cpuid2 *cpuid;
 
-	cpuid = kvm_get_supported_cpuid();
 	entry = kvm_get_supported_cpuid_index(0xa, 0);
 	return is_intel_cpu() && entry && check_intel_pmu_leaf(entry);
 }
@@ -381,9 +379,7 @@ static bool is_zen3(uint32_t eax)
 static bool use_amd_pmu(void)
 {
 	struct kvm_cpuid_entry2 *entry;
-	struct kvm_cpuid2 *cpuid;
 
-	cpuid = kvm_get_supported_cpuid();
 	entry = kvm_get_supported_cpuid_index(1, 0);
 	return is_amd_cpu() && entry &&
 		(is_zen1(entry->eax) ||
