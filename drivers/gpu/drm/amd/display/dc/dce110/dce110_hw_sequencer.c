@@ -1608,7 +1608,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx->stream_res.stream_enc,
 			pipe_ctx->stream_res.tg->inst);
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
+	if (dc_is_embedded_signal(pipe_ctx->stream->signal) &&
 		pipe_ctx->stream_res.stream_enc->funcs->reset_fifo)
 		pipe_ctx->stream_res.stream_enc->funcs->reset_fifo(
 			pipe_ctx->stream_res.stream_enc);
