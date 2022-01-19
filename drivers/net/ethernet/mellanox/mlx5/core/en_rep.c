@@ -1094,6 +1094,7 @@ static mlx5e_stats_grp_t mlx5e_ul_rep_stats_grps[] = {
 	&MLX5E_STATS_GRP(ipsec_sw),
 	&MLX5E_STATS_GRP(ipsec_hw),
 #endif
+	&MLX5E_STATS_GRP(ptp),
 };
 
 static unsigned int mlx5e_ul_rep_stats_grps_num(struct mlx5e_priv *priv)
