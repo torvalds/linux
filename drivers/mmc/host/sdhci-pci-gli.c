@@ -393,7 +393,7 @@ static void gl9750_set_ssc(struct sdhci_host *host, u8 enable, u8 step, u16 ppm)
 static void gl9750_set_ssc_pll_205mhz(struct sdhci_host *host)
 {
 	/* set pll to 205MHz and enable ssc */
-	gl9750_set_ssc(host, 0x1, 0x1F, 0xFFE7);
+	gl9750_set_ssc(host, 0x1, 0xF, 0x5A1D);
 	gl9750_set_pll(host, 0x1, 0x246, 0x0);
 }
 
@@ -536,7 +536,7 @@ static void gl9755_set_ssc(struct pci_dev *pdev, u8 enable, u8 step, u16 ppm)
 static void gl9755_set_ssc_pll_205mhz(struct pci_dev *pdev)
 {
 	/* set pll to 205MHz and enable ssc */
-	gl9755_set_ssc(pdev, 0x1, 0x1F, 0xFFE7);
+	gl9755_set_ssc(pdev, 0x1, 0xF, 0x5A1D);
 	gl9755_set_pll(pdev, 0x1, 0x246, 0x0);
 }
 
