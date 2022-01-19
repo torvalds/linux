@@ -48,7 +48,7 @@ struct io_worker {
 	struct io_wqe *wqe;
 
 	struct io_wq_work *cur_work;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 
 	struct completion ref_done;
 
@@ -528,9 +528,9 @@ static void io_assign_current_work(struct io_worker *worker,
 		cond_resched();
 	}
 
-	spin_lock(&worker->lock);
+	raw_spin_lock(&worker->lock);
 	worker->cur_work = work;
-	spin_unlock(&worker->lock);
+	raw_spin_unlock(&worker->lock);
 }
 
 static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work);
@@ -814,7 +814,7 @@ fail:
 
 	refcount_set(&worker->ref, 1);
 	worker->wqe = wqe;
-	spin_lock_init(&worker->lock);
+	raw_spin_lock_init(&worker->lock);
 	init_completion(&worker->ref_done);
 
 	if (index == IO_WQ_ACCT_BOUND)
@@ -980,13 +980,13 @@ static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 	 * Hold the lock to avoid ->cur_work going out of scope, caller
 	 * may dereference the passed in work.
 	 */
-	spin_lock(&worker->lock);
+	raw_spin_lock(&worker->lock);
 	if (worker->cur_work &&
 	    match->fn(worker->cur_work, match->data)) {
 		set_notify_signal(worker->task);
 		match->nr_running++;
 	}
-	spin_unlock(&worker->lock);
+	raw_spin_unlock(&worker->lock);
 
 	return match->nr_running && !match->cancel_all;
 }
