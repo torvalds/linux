@@ -131,6 +131,8 @@ struct amdgpu_reset_domain *amdgpu_reset_create_reset_domain(enum amdgpu_reset_d
 
 	}
 
+	init_rwsem(&reset_domain->sem);
+
 	return reset_domain;
 }
 

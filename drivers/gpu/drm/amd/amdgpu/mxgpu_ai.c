@@ -262,7 +262,7 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 	if (atomic_cmpxchg(&adev->in_gpu_reset, 0, 1) != 0)
 		return;
 
-	down_write(&adev->reset_sem);
+	down_write(&adev->reset_domain->sem);
 
 	amdgpu_virt_fini_data_exchange(adev);
 
@@ -278,7 +278,7 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 
 flr_done:
 	atomic_set(&adev->in_gpu_reset, 0);
-	up_write(&adev->reset_sem);
+	up_write(&adev->reset_domain->sem);
 
 	/* Trigger recovery for world switch failure if no TDR */
 	if (amdgpu_device_should_recover_gpu(adev)

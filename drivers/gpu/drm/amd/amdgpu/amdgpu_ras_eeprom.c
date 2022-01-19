@@ -31,6 +31,8 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
+#include "amdgpu_reset.h"
+
 #define EEPROM_I2C_MADDR_VEGA20         0x0
 #define EEPROM_I2C_MADDR_ARCTURUS       0x40000
 #define EEPROM_I2C_MADDR_ARCTURUS_D342  0x0
@@ -193,12 +195,12 @@ static int __write_table_header(struct amdgpu_ras_eeprom_control *control)
 	__encode_table_header_to_buf(&control->tbl_hdr, buf);
 
 	/* i2c may be unstable in gpu reset */
-	down_read(&adev->reset_sem);
+	down_read(&adev->reset_domain->sem);
 	res = amdgpu_eeprom_write(&adev->pm.smu_i2c,
 				  control->i2c_address +
 				  control->ras_header_offset,
 				  buf, RAS_TABLE_HEADER_SIZE);
-	up_read(&adev->reset_sem);
+	up_read(&adev->reset_domain->sem);
 
 	if (res < 0) {
 		DRM_ERROR("Failed to write EEPROM table header:%d", res);
@@ -387,13 +389,13 @@ static int __amdgpu_ras_eeprom_write(struct amdgpu_ras_eeprom_control *control,
 	int res;
 
 	/* i2c may be unstable in gpu reset */
-	down_read(&adev->reset_sem);
+	down_read(&adev->reset_domain->sem);
 	buf_size = num * RAS_TABLE_RECORD_SIZE;
 	res = amdgpu_eeprom_write(&adev->pm.smu_i2c,
 				  control->i2c_address +
 				  RAS_INDEX_TO_OFFSET(control, fri),
 				  buf, buf_size);
-	up_read(&adev->reset_sem);
+	up_read(&adev->reset_domain->sem);
 	if (res < 0) {
 		DRM_ERROR("Writing %d EEPROM table records error:%d",
 			  num, res);
@@ -547,12 +549,12 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 		goto Out;
 	}
 
-	down_read(&adev->reset_sem);
+	down_read(&adev->reset_domain->sem);
 	res = amdgpu_eeprom_read(&adev->pm.smu_i2c,
 				 control->i2c_address +
 				 control->ras_record_offset,
 				 buf, buf_size);
-	up_read(&adev->reset_sem);
+	up_read(&adev->reset_domain->sem);
 	if (res < 0) {
 		DRM_ERROR("EEPROM failed reading records:%d\n",
 			  res);
@@ -642,13 +644,13 @@ static int __amdgpu_ras_eeprom_read(struct amdgpu_ras_eeprom_control *control,
 	int res;
 
 	/* i2c may be unstable in gpu reset */
-	down_read(&adev->reset_sem);
+	down_read(&adev->reset_domain->sem);
 	buf_size = num * RAS_TABLE_RECORD_SIZE;
 	res = amdgpu_eeprom_read(&adev->pm.smu_i2c,
 				 control->i2c_address +
 				 RAS_INDEX_TO_OFFSET(control, fri),
 				 buf, buf_size);
-	up_read(&adev->reset_sem);
+	up_read(&adev->reset_domain->sem);
 	if (res < 0) {
 		DRM_ERROR("Reading %d EEPROM table records error:%d",
 			  num, res);
