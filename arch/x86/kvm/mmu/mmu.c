@@ -648,16 +648,15 @@ static u64 mmu_spte_get_lockless(u64 *sptep)
 /* Restore an acc-track PTE back to a regular PTE */
 static u64 restore_acc_track_spte(u64 spte)
 {
-	u64 new_spte = spte;
 	u64 saved_bits = (spte >> SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)
 			 & SHADOW_ACC_TRACK_SAVED_BITS_MASK;
 
-	new_spte &= ~shadow_acc_track_mask;
-	new_spte &= ~(SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
-		      SHADOW_ACC_TRACK_SAVED_BITS_SHIFT);
-	new_spte |= saved_bits;
+	spte &= ~shadow_acc_track_mask;
+	spte &= ~(SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
+		  SHADOW_ACC_TRACK_SAVED_BITS_SHIFT);
+	spte |= saved_bits;
 
-	return new_spte;
+	return spte;
 }
 
 /* Returns the Accessed status of the PTE and resets it at the same time. */
