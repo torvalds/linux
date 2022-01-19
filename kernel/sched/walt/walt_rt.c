@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2022, The Linux Foundation. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -216,6 +216,17 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	if (target != -1 &&
 	    (may_not_preempt || task->prio < cpu_rq(target)->rt.highest_prio.curr))
 		*new_cpu = target;
+
+	/* if backup or chosen cpu is halted, pick something else */
+	if (cpu_halted(*new_cpu)) {
+		cpumask_t non_halted;
+
+		/* choose the lowest-order, unhalted, allowed CPU */
+		cpumask_andnot(&non_halted, task->cpus_ptr, cpu_halt_mask);
+		target = cpumask_first(&non_halted);
+		if (target < nr_cpu_ids)
+			*new_cpu = target;
+	}
 
 	rcu_read_unlock();
 }
