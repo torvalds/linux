@@ -35,9 +35,10 @@
  * - 1.7 - Checkpoint Restore (CRIU) API
  * - 1.8 - CRIU - Support for SDMA transfers with GTT BOs
  * - 1.9 - Add available memory ioctl
+ * - 1.10 - Add SMI profiler event log
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 9
+#define KFD_IOCTL_MINOR_VERSION 10
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
