@@ -3126,13 +3126,8 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 				args->in.interrupt_timeout_us, args->in.addr,
 				args->in.target, interrupt, &status,
 				&timestamp);
-	if (rc) {
-		if (rc != -EINTR)
-			dev_err_ratelimited(hdev->dev,
-				"interrupt_wait_ioctl failed (%d)\n", rc);
-
+	if (rc)
 		return rc;
-	}
 
 	memset(args, 0, sizeof(*args));
 	args->out.status = status;
