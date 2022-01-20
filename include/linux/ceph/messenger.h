@@ -532,7 +532,7 @@ extern const char *ceph_pr_addr(const struct ceph_entity_addr *addr);
 
 extern int ceph_parse_ips(const char *c, const char *end,
 			  struct ceph_entity_addr *addr,
-			  int max_count, int *count);
+			  int max_count, int *count, char delim);
 
 extern int ceph_msgr_init(void);
 extern void ceph_msgr_exit(void);
