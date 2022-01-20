@@ -1506,7 +1506,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	if (rc)
 		goto out_err;
 
-	rc = build_ntlmssp_negotiate_blob(&ntlmssp_blob,
+	rc = build_ntlmssp_smb3_negotiate_blob(&ntlmssp_blob,
 					  &blob_length, ses, server,
 					  sess_data->nls_cp);
 	if (rc)
