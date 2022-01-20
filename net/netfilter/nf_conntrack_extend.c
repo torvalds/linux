@@ -65,7 +65,7 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 		return NULL;
 	}
 
-	newoff = ALIGN(oldlen, t->align);
+	newoff = ALIGN(oldlen, __alignof__(struct nf_ct_ext));
 	newlen = newoff + t->len;
 	rcu_read_unlock();
 

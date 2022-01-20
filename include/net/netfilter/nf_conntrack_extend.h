@@ -49,7 +49,7 @@ enum nf_ct_ext_id {
 struct nf_ct_ext {
 	u8 offset[NF_CT_EXT_NUM];
 	u8 len;
-	char data[];
+	char data[] __aligned(8);
 };
 
 static inline bool __nf_ct_ext_exist(const struct nf_ct_ext *ext, u8 id)
@@ -83,10 +83,7 @@ struct nf_ct_ext_type {
 	void (*destroy)(struct nf_conn *ct);
 
 	enum nf_ct_ext_id id;
-
-	/* Length and min alignment. */
 	u8 len;
-	u8 align;
 };
 
 int nf_ct_extend_register(const struct nf_ct_ext_type *type);

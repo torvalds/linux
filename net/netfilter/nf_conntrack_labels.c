@@ -81,7 +81,6 @@ EXPORT_SYMBOL_GPL(nf_connlabels_put);
 
 static const struct nf_ct_ext_type labels_extend = {
 	.len    = sizeof(struct nf_conn_labels),
-	.align  = __alignof__(struct nf_conn_labels),
 	.id     = NF_CT_EXT_LABELS,
 };
 

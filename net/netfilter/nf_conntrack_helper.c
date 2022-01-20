@@ -552,7 +552,6 @@ EXPORT_SYMBOL_GPL(nf_nat_helper_unregister);
 
 static const struct nf_ct_ext_type helper_extend = {
 	.len	= sizeof(struct nf_conn_help),
-	.align	= __alignof__(struct nf_conn_help),
 	.id	= NF_CT_EXT_HELPER,
 };
 
