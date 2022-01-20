@@ -237,7 +237,7 @@ static int nft_quota_clone(struct nft_expr *dst, const struct nft_expr *src)
 	struct nft_quota *priv_dst = nft_expr_priv(dst);
 
 	priv_dst->consumed = kmalloc(sizeof(*priv_dst->consumed), GFP_ATOMIC);
-	if (priv_dst->consumed)
+	if (!priv_dst->consumed)
 		return -ENOMEM;
 
 	atomic64_set(priv_dst->consumed, 0);

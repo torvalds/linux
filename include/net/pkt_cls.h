@@ -218,8 +218,10 @@ static inline int tcf_exts_init(struct tcf_exts *exts, struct net *net,
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
 	exts->nr_actions = 0;
+	/* Note: we do not own yet a reference on net.
+	 * This reference might be taken later from tcf_exts_get_net().
+	 */
 	exts->net = net;
-	netns_tracker_alloc(net, &exts->ns_tracker, GFP_KERNEL);
 	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
 				GFP_KERNEL);
 	if (!exts->actions)

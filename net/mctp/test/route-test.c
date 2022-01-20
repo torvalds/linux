@@ -285,7 +285,7 @@ static void __mctp_route_test_init(struct kunit *test,
 				   struct mctp_test_route **rtp,
 				   struct socket **sockp)
 {
-	struct sockaddr_mctp addr;
+	struct sockaddr_mctp addr = {0};
 	struct mctp_test_route *rt;
 	struct mctp_test_dev *dev;
 	struct socket *sock;

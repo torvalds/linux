@@ -25,10 +25,10 @@ static int __prestera_inetaddr_port_event(struct net_device *port_dev,
 					  struct netlink_ext_ack *extack)
 {
 	struct prestera_port *port = netdev_priv(port_dev);
-	int err;
-	struct prestera_rif_entry *re;
 	struct prestera_rif_entry_key re_key = {};
+	struct prestera_rif_entry *re;
 	u32 kern_tb_id;
+	int err;
 
 	err = prestera_is_valid_mac_addr(port, port_dev->dev_addr);
 	if (err) {
@@ -45,21 +45,21 @@ static int __prestera_inetaddr_port_event(struct net_device *port_dev,
 	switch (event) {
 	case NETDEV_UP:
 		if (re) {
-			NL_SET_ERR_MSG_MOD(extack, "rif_entry already exist");
+			NL_SET_ERR_MSG_MOD(extack, "RIF already exist");
 			return -EEXIST;
 		}
 		re = prestera_rif_entry_create(port->sw, &re_key,
 					       prestera_fix_tb_id(kern_tb_id),
 					       port_dev->dev_addr);
 		if (!re) {
-			NL_SET_ERR_MSG_MOD(extack, "Can't create rif_entry");
+			NL_SET_ERR_MSG_MOD(extack, "Can't create RIF");
 			return -EINVAL;
 		}
 		dev_hold(port_dev);
 		break;
 	case NETDEV_DOWN:
 		if (!re) {
-			NL_SET_ERR_MSG_MOD(extack, "rif_entry not exist");
+			NL_SET_ERR_MSG_MOD(extack, "Can't find RIF");
 			return -EEXIST;
 		}
 		prestera_rif_entry_destroy(port->sw, re);
@@ -75,11 +75,11 @@ static int __prestera_inetaddr_event(struct prestera_switch *sw,
 				     unsigned long event,
 				     struct netlink_ext_ack *extack)
 {
-	if (prestera_netdev_check(dev) && !netif_is_bridge_port(dev) &&
-	    !netif_is_lag_port(dev) && !netif_is_ovs_port(dev))
-		return __prestera_inetaddr_port_event(dev, event, extack);
+	if (!prestera_netdev_check(dev) || netif_is_bridge_port(dev) ||
+	    netif_is_lag_port(dev) || netif_is_ovs_port(dev))
+		return 0;
 
-	return 0;
+	return __prestera_inetaddr_port_event(dev, event, extack);
 }
 
 static int __prestera_inetaddr_cb(struct notifier_block *nb,
@@ -126,6 +126,8 @@ static int __prestera_inetaddr_valid_cb(struct notifier_block *nb,
 		goto out;
 
 	if (ipv4_is_multicast(ivi->ivi_addr)) {
+		NL_SET_ERR_MSG_MOD(ivi->extack,
+				   "Multicast addr on RIF is not supported");
 		err = -EINVAL;
 		goto out;
 	}
@@ -166,7 +168,7 @@ int prestera_router_init(struct prestera_switch *sw)
 err_register_inetaddr_notifier:
 	unregister_inetaddr_validator_notifier(&router->inetaddr_valid_nb);
 err_register_inetaddr_validator_notifier:
-	/* prestera_router_hw_fini */
+	prestera_router_hw_fini(sw);
 err_router_lib_init:
 	kfree(sw->router);
 	return err;
@@ -176,7 +178,7 @@ void prestera_router_fini(struct prestera_switch *sw)
 {
 	unregister_inetaddr_notifier(&sw->router->inetaddr_nb);
 	unregister_inetaddr_validator_notifier(&sw->router->inetaddr_valid_nb);
-	/* router_hw_fini */
+	prestera_router_hw_fini(sw);
 	kfree(sw->router);
 	sw->router = NULL;
 }

@@ -844,6 +844,8 @@ static int sock_timestamping_bind_phc(struct sock *sk, int phc_index)
 	}
 
 	num = ethtool_get_phc_vclocks(dev, &vclock_index);
+	dev_put(dev);
+
 	for (i = 0; i < num; i++) {
 		if (*(vclock_index + i) == phc_index) {
 			match = true;
@@ -2046,6 +2048,9 @@ static void __sk_destruct(struct rcu_head *head)
 void sk_destruct(struct sock *sk)
 {
 	bool use_call_rcu = sock_flag(sk, SOCK_RCU_FREE);
+
+	WARN_ON_ONCE(!llist_empty(&sk->defer_list));
+	sk_defer_free_flush(sk);
 
 	if (rcu_access_pointer(sk->sk_reuseport_cb)) {
 		reuseport_detach_sock(sk);

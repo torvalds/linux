@@ -69,9 +69,12 @@ int ref_tracker_alloc(struct ref_tracker_dir *dir,
 	unsigned long entries[REF_TRACKER_STACK_ENTRIES];
 	struct ref_tracker *tracker;
 	unsigned int nr_entries;
+	gfp_t gfp_mask = gfp;
 	unsigned long flags;
 
-	*trackerp = tracker = kzalloc(sizeof(*tracker), gfp | __GFP_NOFAIL);
+	if (gfp & __GFP_DIRECT_RECLAIM)
+		gfp_mask |= __GFP_NOFAIL;
+	*trackerp = tracker = kzalloc(sizeof(*tracker), gfp_mask);
 	if (unlikely(!tracker)) {
 		pr_err_once("memory allocation failure, unreliable refcount tracker.\n");
 		refcount_inc(&dir->untracked);
