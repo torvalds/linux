@@ -886,7 +886,7 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_i2c_init(smu, &smu->adev->pm.smu_i2c);
+	ret = smu_i2c_init(smu);
 	if (ret)
 		return ret;
 
@@ -897,7 +897,7 @@ static int smu_smc_table_sw_fini(struct smu_context *smu)
 {
 	int ret;
 
-	smu_i2c_fini(smu, &smu->adev->pm.smu_i2c);
+	smu_i2c_fini(smu);
 
 	smu_free_dummy_read_table(smu);
 

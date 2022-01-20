@@ -284,6 +284,15 @@ enum ip_power_state {
 /* Used to mask smu debug modes */
 #define SMU_DEBUG_HALT_ON_ERROR		0x1
 
+#define MAX_SMU_I2C_BUSES       2
+
+struct amdgpu_smu_i2c_bus {
+	struct i2c_adapter adapter;
+	struct amdgpu_device *adev;
+	int port;
+	struct mutex mutex;
+};
+
 struct amdgpu_pm {
 	struct mutex		mutex;
 	u32                     current_sclk;
@@ -316,8 +325,9 @@ struct amdgpu_pm {
 	uint32_t pp_feature;
 
 	/* Used for I2C access to various EEPROMs on relevant ASICs */
-	struct i2c_adapter smu_i2c;
-	struct mutex		smu_i2c_mutex;
+	struct amdgpu_smu_i2c_bus smu_i2c[MAX_SMU_I2C_BUSES];
+	struct i2c_adapter     *ras_eeprom_i2c_bus;
+	struct i2c_adapter     *fru_eeprom_i2c_bus;
 	struct list_head	pm_attr_list;
 
 	atomic_t		pwr_state[AMD_IP_BLOCK_TYPE_NUM];

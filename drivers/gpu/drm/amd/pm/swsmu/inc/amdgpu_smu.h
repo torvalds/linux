@@ -816,12 +816,12 @@ struct pptable_funcs {
 	 * other devices. The i2c's EEPROM also stores bad page tables on boards
 	 * with ECC.
 	 */
-	int (*i2c_init)(struct smu_context *smu, struct i2c_adapter *control);
+	int (*i2c_init)(struct smu_context *smu);
 
 	/**
 	 * @i2c_fini: Tear down i2c.
 	 */
-	void (*i2c_fini)(struct smu_context *smu, struct i2c_adapter *control);
+	void (*i2c_fini)(struct smu_context *smu);
 
 	/**
 	 * @get_unique_id: Get the GPU's unique id. Used for asset tracking.

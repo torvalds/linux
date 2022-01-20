@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/i2c.h>
 #include "amdgpu.h"
+#include "amdgpu_dpm.h"
 #include "amdgpu_smu.h"
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
@@ -56,8 +57,6 @@
 #undef pr_warn
 #undef pr_info
 #undef pr_debug
-
-#define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
 #define FEATURE_MASK(feature) (1ULL << feature)
 #define SMC_DPM_FEATURE ( \
@@ -2746,7 +2745,8 @@ static ssize_t navi10_get_legacy_gpu_metrics(struct smu_context *smu,
 static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
 			   struct i2c_msg *msg, int num_msgs)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(i2c_adap);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(i2c_adap);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *table = &smu_table->driver_table;
@@ -2758,7 +2758,7 @@ static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!req)
 		return -ENOMEM;
 
-	req->I2CcontrollerPort = 0;
+	req->I2CcontrollerPort = smu_i2c->port;
 	req->I2CSpeed = I2C_SPEED_FAST_400K;
 	req->SlaveAddress = msg[0].addr << 1; /* wants an 8-bit address */
 	dir = msg[0].flags & I2C_M_RD;
@@ -2836,28 +2836,60 @@ static const struct i2c_adapter_quirks navi10_i2c_control_quirks = {
 	.max_comb_2nd_msg_len = MAX_SW_I2C_COMMANDS - 2,
 };
 
-static int navi10_i2c_control_init(struct smu_context *smu, struct i2c_adapter *control)
+static int navi10_i2c_control_init(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
-	int res;
+	struct amdgpu_device *adev = smu->adev;
+	int res, i;
 
-	control->owner = THIS_MODULE;
-	control->class = I2C_CLASS_HWMON;
-	control->dev.parent = &adev->pdev->dev;
-	control->algo = &navi10_i2c_algo;
-	snprintf(control->name, sizeof(control->name), "AMDGPU SMU");
-	control->quirks = &navi10_i2c_control_quirks;
+	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
 
-	res = i2c_add_adapter(control);
-	if (res)
-		DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
+		smu_i2c->adev = adev;
+		smu_i2c->port = i;
+		mutex_init(&smu_i2c->mutex);
+		control->owner = THIS_MODULE;
+		control->class = I2C_CLASS_HWMON;
+		control->dev.parent = &adev->pdev->dev;
+		control->algo = &navi10_i2c_algo;
+		snprintf(control->name, sizeof(control->name), "AMDGPU SMU %d", i);
+		control->quirks = &navi10_i2c_control_quirks;
+		i2c_set_adapdata(control, smu_i2c);
 
+		res = i2c_add_adapter(control);
+		if (res) {
+			DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
+			goto Out_err;
+		}
+	}
+
+	adev->pm.ras_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
+	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[1].adapter;
+
+	return 0;
+Out_err:
+	for ( ; i >= 0; i--) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		i2c_del_adapter(control);
+	}
 	return res;
 }
 
-static void navi10_i2c_control_fini(struct smu_context *smu, struct i2c_adapter *control)
+static void navi10_i2c_control_fini(struct smu_context *smu)
 {
-	i2c_del_adapter(control);
+	struct amdgpu_device *adev = smu->adev;
+	int i;
+
+	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
+		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
+		struct i2c_adapter *control = &smu_i2c->adapter;
+
+		i2c_del_adapter(control);
+	}
+	adev->pm.ras_eeprom_i2c_bus = NULL;
+	adev->pm.fru_eeprom_i2c_bus = NULL;
 }
 
 static ssize_t navi10_get_gpu_metrics(struct smu_context *smu,
