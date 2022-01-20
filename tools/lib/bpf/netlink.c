@@ -217,6 +217,28 @@ static int __bpf_set_link_xdp_fd_replace(int ifindex, int fd, int old_fd,
 	return libbpf_netlink_send_recv(&req, NULL, NULL, NULL);
 }
 
+int bpf_xdp_attach(int ifindex, int prog_fd, __u32 flags, const struct bpf_xdp_attach_opts *opts)
+{
+	int old_prog_fd, err;
+
+	if (!OPTS_VALID(opts, bpf_xdp_attach_opts))
+		return libbpf_err(-EINVAL);
+
+	old_prog_fd = OPTS_GET(opts, old_prog_fd, 0);
+	if (old_prog_fd)
+		flags |= XDP_FLAGS_REPLACE;
+	else
+		old_prog_fd = -1;
+
+	err = __bpf_set_link_xdp_fd_replace(ifindex, prog_fd, old_prog_fd, flags);
+	return libbpf_err(err);
+}
+
+int bpf_xdp_detach(int ifindex, __u32 flags, const struct bpf_xdp_attach_opts *opts)
+{
+	return bpf_xdp_attach(ifindex, -1, flags, opts);
+}
+
 int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
 			     const struct bpf_xdp_set_link_opts *opts)
 {
@@ -303,69 +325,98 @@ static int get_xdp_info(void *cookie, void *msg, struct nlattr **tb)
 	return 0;
 }
 
-int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
-			  size_t info_size, __u32 flags)
+int bpf_xdp_query(int ifindex, int xdp_flags, struct bpf_xdp_query_opts *opts)
 {
-	struct xdp_id_md xdp_id = {};
-	__u32 mask;
-	int ret;
 	struct libbpf_nla_req req = {
 		.nh.nlmsg_len      = NLMSG_LENGTH(sizeof(struct ifinfomsg)),
 		.nh.nlmsg_type     = RTM_GETLINK,
 		.nh.nlmsg_flags    = NLM_F_DUMP | NLM_F_REQUEST,
 		.ifinfo.ifi_family = AF_PACKET,
 	};
+	struct xdp_id_md xdp_id = {};
+	int err;
 
-	if (flags & ~XDP_FLAGS_MASK || !info_size)
+	if (!OPTS_VALID(opts, bpf_xdp_query_opts))
+		return libbpf_err(-EINVAL);
+
+	if (xdp_flags & ~XDP_FLAGS_MASK)
 		return libbpf_err(-EINVAL);
 
 	/* Check whether the single {HW,DRV,SKB} mode is set */
-	flags &= (XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE);
-	mask = flags - 1;
-	if (flags && flags & mask)
+	xdp_flags &= XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE;
+	if (xdp_flags & (xdp_flags - 1))
 		return libbpf_err(-EINVAL);
 
 	xdp_id.ifindex = ifindex;
-	xdp_id.flags = flags;
+	xdp_id.flags = xdp_flags;
 
-	ret = libbpf_netlink_send_recv(&req, __dump_link_nlmsg,
+	err = libbpf_netlink_send_recv(&req, __dump_link_nlmsg,
 				       get_xdp_info, &xdp_id);
-	if (!ret) {
-		size_t sz = min(info_size, sizeof(xdp_id.info));
+	if (err)
+		return libbpf_err(err);
 
-		memcpy(info, &xdp_id.info, sz);
-		memset((void *) info + sz, 0, info_size - sz);
-	}
-
-	return libbpf_err(ret);
-}
-
-static __u32 get_xdp_id(struct xdp_link_info *info, __u32 flags)
-{
-	flags &= XDP_FLAGS_MODES;
-
-	if (info->attach_mode != XDP_ATTACHED_MULTI && !flags)
-		return info->prog_id;
-	if (flags & XDP_FLAGS_DRV_MODE)
-		return info->drv_prog_id;
-	if (flags & XDP_FLAGS_HW_MODE)
-		return info->hw_prog_id;
-	if (flags & XDP_FLAGS_SKB_MODE)
-		return info->skb_prog_id;
+	OPTS_SET(opts, prog_id, xdp_id.info.prog_id);
+	OPTS_SET(opts, drv_prog_id, xdp_id.info.drv_prog_id);
+	OPTS_SET(opts, hw_prog_id, xdp_id.info.hw_prog_id);
+	OPTS_SET(opts, skb_prog_id, xdp_id.info.skb_prog_id);
+	OPTS_SET(opts, attach_mode, xdp_id.info.attach_mode);
 
 	return 0;
 }
 
-int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags)
+int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
+			  size_t info_size, __u32 flags)
 {
-	struct xdp_link_info info;
+	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
+	size_t sz;
+	int err;
+
+	if (!info_size)
+		return libbpf_err(-EINVAL);
+
+	err = bpf_xdp_query(ifindex, flags, &opts);
+	if (err)
+		return libbpf_err(err);
+
+	/* struct xdp_link_info field layout matches struct bpf_xdp_query_opts
+	 * layout after sz field
+	 */
+	sz = min(info_size, offsetofend(struct xdp_link_info, attach_mode));
+	memcpy(info, &opts.prog_id, sz);
+	memset((void *)info + sz, 0, info_size - sz);
+
+	return 0;
+}
+
+int bpf_xdp_query_id(int ifindex, int flags, __u32 *prog_id)
+{
+	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
 	int ret;
 
-	ret = bpf_get_link_xdp_info(ifindex, &info, sizeof(info), flags);
-	if (!ret)
-		*prog_id = get_xdp_id(&info, flags);
+	ret = bpf_xdp_query(ifindex, flags, &opts);
+	if (ret)
+		return libbpf_err(ret);
 
-	return libbpf_err(ret);
+	flags &= XDP_FLAGS_MODES;
+
+	if (opts.attach_mode != XDP_ATTACHED_MULTI && !flags)
+		*prog_id = opts.prog_id;
+	else if (flags & XDP_FLAGS_DRV_MODE)
+		*prog_id = opts.drv_prog_id;
+	else if (flags & XDP_FLAGS_HW_MODE)
+		*prog_id = opts.hw_prog_id;
+	else if (flags & XDP_FLAGS_SKB_MODE)
+		*prog_id = opts.skb_prog_id;
+	else
+		*prog_id = 0;
+
+	return 0;
+}
+
+
+int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags)
+{
+	return bpf_xdp_query_id(ifindex, flags, prog_id);
 }
 
 typedef int (*qdisc_config_t)(struct libbpf_nla_req *req);
