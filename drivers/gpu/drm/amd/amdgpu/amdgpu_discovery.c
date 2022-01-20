@@ -846,8 +846,14 @@ static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
 {
 	if (adev->enable_virtual_display || amdgpu_sriov_vf(adev)) {
 		amdgpu_device_ip_block_add(adev, &amdgpu_vkms_ip_block);
+		return 0;
+	}
+
+	if (!amdgpu_device_has_dc_support(adev))
+		return 0;
+
 #if defined(CONFIG_DRM_AMD_DC)
-	} else if (adev->ip_versions[DCE_HWIP][0]) {
+	if (adev->ip_versions[DCE_HWIP][0]) {
 		switch (adev->ip_versions[DCE_HWIP][0]) {
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
@@ -882,8 +888,8 @@ static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
 				adev->ip_versions[DCI_HWIP][0]);
 			return -EINVAL;
 		}
-#endif
 	}
+#endif
 	return 0;
 }
 
