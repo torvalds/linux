@@ -268,6 +268,18 @@ struct dw_dp {
 	bool split_mode;
 	struct dw_dp *left;
 	struct dw_dp *right;
+
+	struct drm_property *color_depth_property;
+	struct drm_property *color_format_property;
+	struct drm_property *color_depth_capacity;
+	struct drm_property *color_format_capacity;
+};
+
+struct dw_dp_state {
+	struct drm_connector_state state;
+
+	int bpc;
+	int color_format;
 };
 
 enum {
@@ -355,6 +367,20 @@ static const struct dw_dp_output_format possible_output_fmts[] = {
 	  DPTX_VM_RGB_6BIT, 6, 18 },
 };
 
+static const struct drm_prop_enum_list color_depth_enum_list[] = {
+	{ 0, "Automatic" },
+	{ 6, "18bit" },
+	{ 8, "24bit" },
+	{ 10, "30bit" },
+};
+
+static const struct drm_prop_enum_list color_format_enum_list[] = {
+	{ RK_IF_FORMAT_RGB, "rgb" },
+	{ RK_IF_FORMAT_YCBCR444, "ycbcr444" },
+	{ RK_IF_FORMAT_YCBCR422, "ycbcr422" },
+	{ RK_IF_FORMAT_YCBCR420, "ycbcr420" },
+};
+
 static const struct dw_dp_output_format *dw_dp_get_output_format(u32 bus_format)
 {
 	unsigned int i;
@@ -379,6 +405,11 @@ static inline struct dw_dp *encoder_to_dp(struct drm_encoder *e)
 static inline struct dw_dp *bridge_to_dp(struct drm_bridge *b)
 {
 	return container_of(b, struct dw_dp, bridge);
+}
+
+static inline struct dw_dp_state *connector_to_dp_state(struct drm_connector_state *cstate)
+{
+	return container_of(cstate, struct dw_dp_state, state);
 }
 
 static int dw_dp_match_by_id(struct device *dev, const void *data)
@@ -474,14 +505,135 @@ static void dw_dp_connector_force(struct drm_connector *connector)
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
 }
 
+static void dw_dp_atomic_connector_reset(struct drm_connector *connector)
+{
+	struct dw_dp_state *dp_state = connector_to_dp_state(connector->state);
+
+	if (connector->state) {
+		__drm_atomic_helper_connector_destroy_state(connector->state);
+		kfree(dp_state);
+	}
+
+	dp_state = kzalloc(sizeof(*dp_state), GFP_KERNEL);
+	if (!dp_state)
+		return;
+
+	__drm_atomic_helper_connector_reset(connector, &dp_state->state);
+	dp_state->bpc = 0;
+	dp_state->color_format = RK_IF_FORMAT_RGB;
+}
+
+static struct drm_connector_state *
+dw_dp_atomic_connector_duplicate_state(struct drm_connector *connector)
+{
+	struct dw_dp_state *cstate, *old_cstate;
+
+	if (WARN_ON(!connector->state))
+		return NULL;
+
+	old_cstate = connector_to_dp_state(connector->state);
+	cstate = kmalloc(sizeof(*cstate), GFP_KERNEL);
+	if (!cstate)
+		return NULL;
+
+	__drm_atomic_helper_connector_duplicate_state(connector, &cstate->state);
+	cstate->bpc = old_cstate->bpc;
+	cstate->color_format = old_cstate->color_format;
+
+	return &cstate->state;
+}
+
+static void dw_dp_atomic_connector_destroy_state(struct drm_connector *connector,
+						 struct drm_connector_state *state)
+{
+	struct dw_dp_state *cstate = connector_to_dp_state(state);
+
+	__drm_atomic_helper_connector_destroy_state(&cstate->state);
+	kfree(cstate);
+}
+
+static int dw_dp_atomic_connector_get_property(struct drm_connector *connector,
+					       const struct drm_connector_state *state,
+					       struct drm_property *property,
+					       uint64_t *val)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+	struct dw_dp_state *dp_state = connector_to_dp_state((struct drm_connector_state *)state);
+	struct drm_display_info *info = &connector->display_info;
+
+	if (property == dp->color_depth_property) {
+		*val = dp_state->bpc;
+		return 0;
+	} else if (property == dp->color_format_property) {
+		*val = dp_state->color_format;
+		return 0;
+	} else if (property == dp->color_depth_capacity) {
+		*val = BIT(RK_IF_DEPTH_8);
+		switch (info->bpc) {
+		case 16:
+			fallthrough;
+		case 12:
+			fallthrough;
+		case 10:
+			*val |= BIT(RK_IF_DEPTH_10);
+			fallthrough;
+		case 8:
+			*val |= BIT(RK_IF_DEPTH_8);
+			fallthrough;
+		case 6:
+			*val |= BIT(RK_IF_DEPTH_6);
+			fallthrough;
+		default:
+			break;
+		}
+		return 0;
+	} else if (property == dp->color_format_capacity) {
+		*val = info->color_formats;
+		return 0;
+	}
+
+	dev_err(dp->dev, "Unknown property [PROP:%d:%s]\n",
+		  property->base.id, property->name);
+
+	return 0;
+}
+
+static int dw_dp_atomic_connector_set_property(struct drm_connector *connector,
+					       struct drm_connector_state *state,
+					       struct drm_property *property,
+					       uint64_t val)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+	struct dw_dp_state *dp_state = connector_to_dp_state(state);
+
+	if (property == dp->color_depth_property) {
+		dp_state->bpc = val;
+		return 0;
+	} else if (property == dp->color_format_property) {
+		dp_state->color_format = val;
+		return 0;
+	} else if (property == dp->color_depth_capacity) {
+		return 0;
+	} else if (property == dp->color_format_capacity) {
+		return 0;
+	}
+
+	dev_err(dp->dev, "Unknown property [PROP:%d:%s]\n",
+		 property->base.id, property->name);
+
+	return -EINVAL;
+}
+
 static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.detect			= dw_dp_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= drm_connector_cleanup,
 	.force			= dw_dp_connector_force,
-	.reset			= drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
+	.reset			= dw_dp_atomic_connector_reset,
+	.atomic_duplicate_state	= dw_dp_atomic_connector_duplicate_state,
+	.atomic_destroy_state	= dw_dp_atomic_connector_destroy_state,
+	.atomic_get_property	= dw_dp_atomic_connector_get_property,
+	.atomic_set_property	= dw_dp_atomic_connector_set_property,
 };
 
 static int dw_dp_connector_get_modes(struct drm_connector *connector)
@@ -516,8 +668,50 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 	return num_modes;
 }
 
+static int dw_dp_connector_atomic_check(struct drm_connector *conn,
+					struct drm_atomic_state *state)
+{
+	struct drm_connector_state *old_state, *new_state;
+	struct dw_dp_state *dp_old_state, *dp_new_state;
+	struct drm_crtc_state *crtc_state;
+	struct dw_dp *dp = connector_to_dp(conn);
+
+	old_state = drm_atomic_get_old_connector_state(state, conn);
+	new_state = drm_atomic_get_new_connector_state(state, conn);
+	dp_old_state = connector_to_dp_state(old_state);
+	dp_new_state = connector_to_dp_state(new_state);
+
+	if (!new_state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
+
+	if ((dp_new_state->bpc != 0) && (dp_new_state->bpc != 6) && (dp_new_state->bpc != 8) &&
+	    (dp_new_state->bpc != 10)) {
+		dev_err(dp->dev, "set invalid bpc:%d\n", dp_new_state->bpc);
+		return -EINVAL;
+	}
+
+	if ((dp_new_state->color_format < RK_IF_FORMAT_RGB) ||
+	    (dp_new_state->color_format > RK_IF_FORMAT_YCBCR420)) {
+		dev_err(dp->dev, "set invalid color format:%d\n", dp_new_state->color_format);
+		return -EINVAL;
+	}
+
+	if ((dp_old_state->bpc != dp_new_state->bpc) ||
+	    (dp_old_state->color_format != dp_new_state->color_format)) {
+		if ((dp_old_state->bpc == 0) && (dp_new_state->bpc == 0))
+			dev_info(dp->dev, "still auto set color mode\n");
+		else
+			crtc_state->mode_changed = true;
+	}
+
+	return 0;
+}
+
 static const struct drm_connector_helper_funcs dw_dp_connector_helper_funcs = {
 	.get_modes = dw_dp_connector_get_modes,
+	.atomic_check = dw_dp_connector_atomic_check,
 };
 
 static void dw_dp_link_caps_reset(struct drm_dp_link_caps *caps)
@@ -1928,6 +2122,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 					unsigned int *num_output_fmts)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
+	struct dw_dp_state *dp_state = connector_to_dp_state(conn_state);
 	struct dw_dp_link *link = &dp->link;
 	struct drm_display_info *di = &conn_state->connector->display_info;
 	struct drm_display_mode mode = crtc_state->mode;
@@ -1964,6 +2159,11 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		if (!dw_dp_bandwidth_ok(dp, &mode, fmt->bpp, link->lanes, link->rate))
 			continue;
 
+		if (dp_state->bpc != 0) {
+			if ((fmt->bpc != dp_state->bpc) ||
+			    (fmt->color_format != BIT(dp_state->color_format)))
+				continue;
+		}
 		output_fmts[j++] = fmt->bus_format;
 	}
 
@@ -2287,6 +2487,51 @@ static void dw_dp_aux_unregister(void *data)
 	drm_dp_aux_unregister(&dp->aux);
 }
 
+static int dw_dp_attach_properties(struct drm_connector *connector, struct dw_dp *dp)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_enum(connector->dev, 0, RK_IF_PROP_COLOR_DEPTH,
+					color_depth_enum_list,
+					ARRAY_SIZE(color_depth_enum_list));
+	if (!prop) {
+		dev_err(dp->dev, "create color depth prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->color_depth_property = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+
+	prop = drm_property_create_enum(connector->dev, 0, RK_IF_PROP_COLOR_FORMAT,
+					color_format_enum_list,
+					ARRAY_SIZE(color_format_enum_list));
+	if (!prop) {
+		dev_err(dp->dev, "create color format prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->color_format_property = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+
+	prop = drm_property_create_range(connector->dev, 0, RK_IF_PROP_COLOR_DEPTH_CAPS,
+					 0, 1 << RK_IF_DEPTH_MAX);
+	if (!prop) {
+		dev_err(dp->dev, "create color depth caps prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->color_depth_capacity = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+
+	prop = drm_property_create_range(connector->dev, 0, RK_IF_PROP_COLOR_FORMAT_CAPS,
+					 0, 1 << RK_IF_FORMAT_MAX);
+	if (!prop) {
+		dev_err(dp->dev, "create color format caps prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->color_format_capacity = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+
+	return 0;
+}
+
 static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
@@ -2307,6 +2552,10 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 			dev_err(dev, "failed to attach bridge: %d\n", ret);
 			return ret;
 		}
+
+		ret = dw_dp_attach_properties(&dp->connector, dp);
+		if (ret)
+			return ret;
 	}
 
 	if (dp->right) {
