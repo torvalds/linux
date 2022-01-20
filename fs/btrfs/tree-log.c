@@ -6796,6 +6796,9 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
  *                      parent directory.
  * @old_dir:            The inode of the previous parent directory for the case
  *                      of a rename. For a link operation, it must be NULL.
+ * @old_dir_index:      The index number associated with the old name, meaningful
+ *                      only for rename operations (when @old_dir is not NULL).
+ *                      Ignored for link operations.
  * @parent:             The dentry associated with the directory under which the
  *                      new name is located.
  *
@@ -6804,7 +6807,7 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
  */
 void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct dentry *old_dentry, struct btrfs_inode *old_dir,
-			struct dentry *parent)
+			u64 old_dir_index, struct dentry *parent)
 {
 	struct btrfs_inode *inode = BTRFS_I(d_inode(old_dentry));
 	struct btrfs_log_ctx ctx;
@@ -6826,20 +6829,56 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 
 	/*
 	 * If we are doing a rename (old_dir is not NULL) from a directory that
-	 * was previously logged, make sure the next log attempt on the directory
-	 * is not skipped and logs the inode again. This is because the log may
-	 * not currently be authoritative for a range including the old
-	 * BTRFS_DIR_INDEX_KEY key, so we want to make sure after a log replay we
-	 * do not end up with both the new and old dentries around (in case the
-	 * inode is a directory we would have a directory with two hard links and
-	 * 2 inode references for different parents). The next log attempt of
-	 * old_dir will happen at btrfs_log_all_parents(), called through
-	 * btrfs_log_inode_parent() below, because we have previously set
-	 * inode->last_unlink_trans to the current transaction ID, either here or
-	 * at btrfs_record_unlink_dir() in case the inode is a directory.
+	 * was previously logged, make sure that on log replay we get the old
+	 * dir entry deleted. This is needed because we will also log the new
+	 * name of the renamed inode, so we need to make sure that after log
+	 * replay we don't end up with both the new and old dir entries existing.
 	 */
-	if (old_dir)
-		old_dir->logged_trans = 0;
+	if (old_dir && old_dir->logged_trans == trans->transid) {
+		struct btrfs_root *log = old_dir->root->log_root;
+		struct btrfs_path *path;
+		int ret;
+
+		ASSERT(old_dir_index >= BTRFS_DIR_START_INDEX);
+
+		path = btrfs_alloc_path();
+		if (!path) {
+			btrfs_set_log_full_commit(trans);
+			return;
+		}
+
+		/*
+		 * Other concurrent task might be logging the old directory,
+		 * as it can be triggered when logging other inode that had or
+		 * still has a dentry in the old directory. So take the old
+		 * directory's log_mutex to prevent getting an -EEXIST when
+		 * logging a key to record the deletion, or having that other
+		 * task logging the old directory get an -EEXIST if it attempts
+		 * to log the same key after we just did it. In both cases that
+		 * would result in falling back to a transaction commit.
+		 */
+		mutex_lock(&old_dir->log_mutex);
+		ret = del_logged_dentry(trans, log, path, btrfs_ino(old_dir),
+					old_dentry->d_name.name,
+					old_dentry->d_name.len, old_dir_index);
+		if (ret > 0) {
+			/*
+			 * The dentry does not exist in the log, so record its
+			 * deletion.
+			 */
+			btrfs_release_path(path);
+			ret = insert_dir_log_key(trans, log, path,
+						 btrfs_ino(old_dir),
+						 old_dir_index, old_dir_index);
+		}
+		mutex_unlock(&old_dir->log_mutex);
+
+		btrfs_free_path(path);
+		if (ret < 0) {
+			btrfs_set_log_full_commit(trans);
+			return;
+		}
+	}
 
 	btrfs_init_log_ctx(&ctx, &inode->vfs_inode);
 	ctx.logging_new_name = true;

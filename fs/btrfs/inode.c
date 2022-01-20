@@ -66,6 +66,11 @@ struct btrfs_dio_data {
 	struct extent_changeset *data_reserved;
 };
 
+struct btrfs_rename_ctx {
+	/* Output field. Stores the index number of the old directory entry. */
+	u64 index;
+};
+
 static const struct inode_operations btrfs_dir_inode_operations;
 static const struct inode_operations btrfs_symlink_inode_operations;
 static const struct inode_operations btrfs_special_inode_operations;
@@ -4062,7 +4067,8 @@ int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
 static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *dir,
 				struct btrfs_inode *inode,
-				const char *name, int name_len)
+				const char *name, int name_len,
+				struct btrfs_rename_ctx *rename_ctx)
 {
 	struct btrfs_root *root = dir->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -4118,6 +4124,9 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		goto err;
 	}
 skip_backref:
+	if (rename_ctx)
+		rename_ctx->index = index;
+
 	ret = btrfs_delete_delayed_dir_index(trans, dir, index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
@@ -4158,7 +4167,7 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		       const char *name, int name_len)
 {
 	int ret;
-	ret = __btrfs_unlink_inode(trans, dir, inode, name, name_len);
+	ret = __btrfs_unlink_inode(trans, dir, inode, name, name_len, NULL);
 	if (!ret) {
 		drop_nlink(&inode->vfs_inode);
 		ret = btrfs_update_inode(trans, inode->root, inode);
@@ -6531,7 +6540,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 				goto fail;
 		}
 		d_instantiate(dentry, inode);
-		btrfs_log_new_name(trans, old_dentry, NULL, parent);
+		btrfs_log_new_name(trans, old_dentry, NULL, 0, parent);
 	}
 
 fail:
@@ -9024,6 +9033,8 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	struct inode *new_inode = new_dentry->d_inode;
 	struct inode *old_inode = old_dentry->d_inode;
 	struct timespec64 ctime = current_time(old_inode);
+	struct btrfs_rename_ctx old_rename_ctx;
+	struct btrfs_rename_ctx new_rename_ctx;
 	u64 old_ino = btrfs_ino(BTRFS_I(old_inode));
 	u64 new_ino = btrfs_ino(BTRFS_I(new_inode));
 	u64 old_idx = 0;
@@ -9164,7 +9175,8 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					   BTRFS_I(old_dentry->d_inode),
 					   old_dentry->d_name.name,
-					   old_dentry->d_name.len);
+					   old_dentry->d_name.len,
+					   &old_rename_ctx);
 		if (!ret)
 			ret = btrfs_update_inode(trans, root, BTRFS_I(old_inode));
 	}
@@ -9180,7 +9192,8 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(new_dir),
 					   BTRFS_I(new_dentry->d_inode),
 					   new_dentry->d_name.name,
-					   new_dentry->d_name.len);
+					   new_dentry->d_name.len,
+					   &new_rename_ctx);
 		if (!ret)
 			ret = btrfs_update_inode(trans, dest, BTRFS_I(new_inode));
 	}
@@ -9212,13 +9225,13 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 
 	if (root_log_pinned) {
 		btrfs_log_new_name(trans, old_dentry, BTRFS_I(old_dir),
-				   new_dentry->d_parent);
+				   old_rename_ctx.index, new_dentry->d_parent);
 		btrfs_end_log_trans(root);
 		root_log_pinned = false;
 	}
 	if (dest_log_pinned) {
 		btrfs_log_new_name(trans, new_dentry, BTRFS_I(new_dir),
-				   old_dentry->d_parent);
+				   new_rename_ctx.index, old_dentry->d_parent);
 		btrfs_end_log_trans(dest);
 		dest_log_pinned = false;
 	}
@@ -9324,6 +9337,7 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 	struct btrfs_root *dest = BTRFS_I(new_dir)->root;
 	struct inode *new_inode = d_inode(new_dentry);
 	struct inode *old_inode = d_inode(old_dentry);
+	struct btrfs_rename_ctx rename_ctx;
 	u64 index = 0;
 	int ret;
 	int ret2;
@@ -9455,7 +9469,8 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					BTRFS_I(d_inode(old_dentry)),
 					old_dentry->d_name.name,
-					old_dentry->d_name.len);
+					old_dentry->d_name.len,
+					&rename_ctx);
 		if (!ret)
 			ret = btrfs_update_inode(trans, root, BTRFS_I(old_inode));
 	}
@@ -9499,7 +9514,7 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 
 	if (log_pinned) {
 		btrfs_log_new_name(trans, old_dentry, BTRFS_I(old_dir),
-				   new_dentry->d_parent);
+				   rename_ctx.index, new_dentry->d_parent);
 		btrfs_end_log_trans(root);
 		log_pinned = false;
 	}
