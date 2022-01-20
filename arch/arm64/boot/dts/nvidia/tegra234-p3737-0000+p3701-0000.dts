@@ -14,6 +14,7 @@
 	aliases {
 		mmc3 = "/bus@0/mmc@3460000";
 		serial0 = &tcu;
+		serial1 = &uarta;
 	};
 
 	bus@0 {
@@ -1741,6 +1742,11 @@
 			interrupt-controller@2a40000 {
 				status = "okay";
 			};
+		};
+
+		serial@3100000 {
+			compatible = "nvidia,tegra194-hsuart";
+			status = "okay";
 		};
 
 		hda@3510000 {
