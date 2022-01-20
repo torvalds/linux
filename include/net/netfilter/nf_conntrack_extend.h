@@ -72,16 +72,7 @@ static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)
 #define nf_ct_ext_find(ext, id)	\
 	((id##_TYPE *)__nf_ct_ext_find((ext), (id)))
 
-/* Destroy all relationships */
-void nf_ct_ext_destroy(struct nf_conn *ct);
-
 /* Add this type, returns pointer to data or NULL. */
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
 
-struct nf_ct_ext_type {
-	enum nf_ct_ext_id id;
-};
-
-int nf_ct_extend_register(const struct nf_ct_ext_type *type);
-void nf_ct_extend_unregister(const struct nf_ct_ext_type *type);
 #endif /* _NF_CONNTRACK_EXTEND_H */

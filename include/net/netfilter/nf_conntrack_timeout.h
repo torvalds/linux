@@ -89,23 +89,11 @@ static inline unsigned int *nf_ct_timeout_lookup(const struct nf_conn *ct)
 }
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-int nf_conntrack_timeout_init(void);
-void nf_conntrack_timeout_fini(void);
 void nf_ct_untimeout(struct net *net, struct nf_ct_timeout *timeout);
 int nf_ct_set_timeout(struct net *net, struct nf_conn *ct, u8 l3num, u8 l4num,
 		      const char *timeout_name);
 void nf_ct_destroy_timeout(struct nf_conn *ct);
 #else
-static inline int nf_conntrack_timeout_init(void)
-{
-        return 0;
-}
-
-static inline void nf_conntrack_timeout_fini(void)
-{
-        return;
-}
-
 static inline int nf_ct_set_timeout(struct net *net, struct nf_conn *ct,
 				    u8 l3num, u8 l4num,
 				    const char *timeout_name)

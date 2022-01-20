@@ -25,8 +25,6 @@
 #include <net/netfilter/nf_conntrack_act_ct.h>
 #include <net/netfilter/nf_nat.h>
 
-static struct nf_ct_ext_type __rcu *nf_ct_ext_types[NF_CT_EXT_NUM];
-static DEFINE_MUTEX(nf_ct_ext_type_mutex);
 #define NF_CT_EXT_PREALLOC	128u /* conntrack events are on by default */
 
 static const u8 nf_ct_ext_type_len[NF_CT_EXT_NUM] = {
@@ -97,6 +95,8 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	/* Conntrack must not be confirmed to avoid races on reallocation. */
 	WARN_ON(nf_ct_is_confirmed(ct));
 
+	/* struct nf_ct_ext uses u8 to store offsets/size */
+	BUILD_BUG_ON(total_extension_size() > 255u);
 
 	if (ct->ext) {
 		const struct nf_ct_ext *old = ct->ext;
@@ -127,34 +127,3 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	return (void *)new + newoff;
 }
 EXPORT_SYMBOL(nf_ct_ext_add);
-
-/* This MUST be called in process context. */
-int nf_ct_extend_register(const struct nf_ct_ext_type *type)
-{
-	int ret = 0;
-
-	/* struct nf_ct_ext uses u8 to store offsets/size */
-	BUILD_BUG_ON(total_extension_size() > 255u);
-
-	mutex_lock(&nf_ct_ext_type_mutex);
-	if (nf_ct_ext_types[type->id]) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	rcu_assign_pointer(nf_ct_ext_types[type->id], type);
-out:
-	mutex_unlock(&nf_ct_ext_type_mutex);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_ct_extend_register);
-
-/* This MUST be called in process context. */
-void nf_ct_extend_unregister(const struct nf_ct_ext_type *type)
-{
-	mutex_lock(&nf_ct_ext_type_mutex);
-	RCU_INIT_POINTER(nf_ct_ext_types[type->id], NULL);
-	mutex_unlock(&nf_ct_ext_type_mutex);
-	synchronize_rcu();
-}
-EXPORT_SYMBOL_GPL(nf_ct_extend_unregister);

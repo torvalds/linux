@@ -232,17 +232,3 @@ s32 nf_ct_seq_offset(const struct nf_conn *ct,
 		 this_way->offset_after : this_way->offset_before;
 }
 EXPORT_SYMBOL_GPL(nf_ct_seq_offset);
-
-static const struct nf_ct_ext_type nf_ct_seqadj_extend = {
-	.id	= NF_CT_EXT_SEQADJ,
-};
-
-int nf_conntrack_seqadj_init(void)
-{
-	return nf_ct_extend_register(&nf_ct_seqadj_extend);
-}
-
-void nf_conntrack_seqadj_fini(void)
-{
-	nf_ct_extend_unregister(&nf_ct_seqadj_extend);
-}

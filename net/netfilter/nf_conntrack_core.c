@@ -38,7 +38,6 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
-#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_acct.h>
@@ -2477,13 +2476,7 @@ void nf_conntrack_cleanup_end(void)
 	kvfree(nf_conntrack_hash);
 
 	nf_conntrack_proto_fini();
-	nf_conntrack_seqadj_fini();
-	nf_conntrack_labels_fini();
 	nf_conntrack_helper_fini();
-	nf_conntrack_timeout_fini();
-	nf_conntrack_ecache_fini();
-	nf_conntrack_tstamp_fini();
-	nf_conntrack_acct_fini();
 	nf_conntrack_expect_fini();
 
 	kmem_cache_destroy(nf_conntrack_cachep);
@@ -2689,33 +2682,9 @@ int nf_conntrack_init_start(void)
 	if (ret < 0)
 		goto err_expect;
 
-	ret = nf_conntrack_acct_init();
-	if (ret < 0)
-		goto err_acct;
-
-	ret = nf_conntrack_tstamp_init();
-	if (ret < 0)
-		goto err_tstamp;
-
-	ret = nf_conntrack_ecache_init();
-	if (ret < 0)
-		goto err_ecache;
-
-	ret = nf_conntrack_timeout_init();
-	if (ret < 0)
-		goto err_timeout;
-
 	ret = nf_conntrack_helper_init();
 	if (ret < 0)
 		goto err_helper;
-
-	ret = nf_conntrack_labels_init();
-	if (ret < 0)
-		goto err_labels;
-
-	ret = nf_conntrack_seqadj_init();
-	if (ret < 0)
-		goto err_seqadj;
 
 	ret = nf_conntrack_proto_init();
 	if (ret < 0)
@@ -2734,20 +2703,8 @@ err_kfunc:
 	cancel_delayed_work_sync(&conntrack_gc_work.dwork);
 	nf_conntrack_proto_fini();
 err_proto:
-	nf_conntrack_seqadj_fini();
-err_seqadj:
-	nf_conntrack_labels_fini();
-err_labels:
 	nf_conntrack_helper_fini();
 err_helper:
-	nf_conntrack_timeout_fini();
-err_timeout:
-	nf_conntrack_ecache_fini();
-err_ecache:
-	nf_conntrack_tstamp_fini();
-err_tstamp:
-	nf_conntrack_acct_fini();
-err_acct:
 	nf_conntrack_expect_fini();
 err_expect:
 	kmem_cache_destroy(nf_conntrack_cachep);

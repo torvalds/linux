@@ -868,10 +868,6 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	return 0;
 }
 
-static struct nf_ct_ext_type nat_extend __read_mostly = {
-	.id		= NF_CT_EXT_NAT,
-};
-
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -1179,19 +1175,11 @@ static int __init nf_nat_init(void)
 	if (!nf_nat_bysource)
 		return -ENOMEM;
 
-	ret = nf_ct_extend_register(&nat_extend);
-	if (ret < 0) {
-		kvfree(nf_nat_bysource);
-		pr_err("Unable to register extension\n");
-		return ret;
-	}
-
 	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_nat_locks[i]);
 
 	ret = register_pernet_subsys(&nat_net_ops);
 	if (ret < 0) {
-		nf_ct_extend_unregister(&nat_extend);
 		kvfree(nf_nat_bysource);
 		return ret;
 	}
@@ -1210,7 +1198,6 @@ static void __exit nf_nat_cleanup(void)
 
 	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
 
-	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
 	RCU_INIT_POINTER(nf_nat_hook, NULL);
 

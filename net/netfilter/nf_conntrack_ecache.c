@@ -304,10 +304,6 @@ void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state)
 #define NF_CT_EVENTS_DEFAULT 1
 static int nf_ct_events __read_mostly = NF_CT_EVENTS_DEFAULT;
 
-static const struct nf_ct_ext_type event_extend = {
-	.id	= NF_CT_EXT_ECACHE,
-};
-
 void nf_conntrack_ecache_pernet_init(struct net *net)
 {
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
@@ -315,6 +311,8 @@ void nf_conntrack_ecache_pernet_init(struct net *net)
 	net->ct.sysctl_events = nf_ct_events;
 	cnet->ct_net = &net->ct;
 	INIT_DELAYED_WORK(&cnet->ecache_dwork, ecache_work);
+
+	BUILD_BUG_ON(__IPCT_MAX >= 16);	/* ctmask, missed use u16 */
 }
 
 void nf_conntrack_ecache_pernet_fini(struct net *net)
@@ -322,20 +320,4 @@ void nf_conntrack_ecache_pernet_fini(struct net *net)
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	cancel_delayed_work_sync(&cnet->ecache_dwork);
-}
-
-int nf_conntrack_ecache_init(void)
-{
-	int ret = nf_ct_extend_register(&event_extend);
-	if (ret < 0)
-		pr_err("Unable to register event extension\n");
-
-	BUILD_BUG_ON(__IPCT_MAX >= 16);	/* ctmask, missed use u16 */
-
-	return ret;
-}
-
-void nf_conntrack_ecache_fini(void)
-{
-	nf_ct_extend_unregister(&event_extend);
 }

@@ -67,6 +67,8 @@ int nf_connlabels_get(struct net *net, unsigned int bits)
 	net->ct.labels_used++;
 	spin_unlock(&nf_connlabels_lock);
 
+	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE / sizeof(long) >= U8_MAX);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_connlabels_get);
@@ -78,19 +80,3 @@ void nf_connlabels_put(struct net *net)
 	spin_unlock(&nf_connlabels_lock);
 }
 EXPORT_SYMBOL_GPL(nf_connlabels_put);
-
-static const struct nf_ct_ext_type labels_extend = {
-	.id     = NF_CT_EXT_LABELS,
-};
-
-int nf_conntrack_labels_init(void)
-{
-	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE / sizeof(long) >= U8_MAX);
-
-	return nf_ct_extend_register(&labels_extend);
-}
-
-void nf_conntrack_labels_fini(void)
-{
-	nf_ct_extend_unregister(&labels_extend);
-}
