@@ -15,12 +15,14 @@
 
 static void guc_prepare_xfer(struct intel_uncore *uncore)
 {
-	u32 shim_flags = GUC_DISABLE_SRAM_INIT_TO_ZEROES |
-			 GUC_ENABLE_READ_CACHE_LOGIC |
-			 GUC_ENABLE_MIA_CACHING |
+	u32 shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
 			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
 			 GUC_ENABLE_MIA_CLOCK_GATING;
+
+	if (GRAPHICS_VER_FULL(uncore->i915) < IP_VER(12, 50))
+		shim_flags |= GUC_DISABLE_SRAM_INIT_TO_ZEROES |
+			      GUC_ENABLE_MIA_CACHING;
 
 	/* Must program this register before loading the ucode with DMA */
 	intel_uncore_write(uncore, GUC_SHIM_CONTROL, shim_flags);
