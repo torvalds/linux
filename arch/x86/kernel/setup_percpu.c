@@ -101,7 +101,7 @@ static int __init pcpu_cpu_to_node(int cpu)
 	return early_cpu_to_node(cpu);
 }
 
-static void __init pcpup_populate_pte(unsigned long addr)
+void __init pcpu_populate_pte(unsigned long addr)
 {
 	populate_extra_pte(addr);
 }
@@ -163,8 +163,7 @@ void __init setup_per_cpu_areas(void)
 	}
 	if (rc < 0)
 		rc = pcpu_page_first_chunk(PERCPU_FIRST_CHUNK_RESERVE,
-					   pcpu_cpu_to_node,
-					   pcpup_populate_pte);
+					   pcpu_cpu_to_node);
 	if (rc < 0)
 		panic("cannot initialize percpu area (err=%d)", rc);
 
