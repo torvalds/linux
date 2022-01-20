@@ -3625,13 +3625,17 @@ update_status:
 }
 
 static void
-intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, bool *handled)
+intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, u8 *ack)
 {
-	drm_dp_mst_hpd_irq(&intel_dp->mst_mgr, esi, handled);
+	bool handled = false;
+
+	drm_dp_mst_hpd_irq(&intel_dp->mst_mgr, esi, &handled);
+	if (handled)
+		ack[1] |= esi[1] & (DP_DOWN_REP_MSG_RDY | DP_UP_REQ_MSG_RDY);
 
 	if (esi[1] & DP_CP_IRQ) {
 		intel_hdcp_handle_cp_irq(intel_dp->attached_connector);
-		*handled = true;
+		ack[1] |= DP_CP_IRQ;
 	}
 }
 
@@ -3683,7 +3687,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 	for (;;) {
 		u8 esi[4] = {};
-		bool handled;
+		u8 ack[4] = {};
 
 		if (!intel_dp_get_sink_irq_esi(intel_dp, esi)) {
 			drm_dbg_kms(&i915->drm,
@@ -3699,15 +3703,15 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		    esi[3] & LINK_STATUS_CHANGED) {
 			if (!intel_dp_mst_link_status(intel_dp))
 				link_ok = false;
-			handled = true;
+			ack[3] |= LINK_STATUS_CHANGED;
 		}
 
-		intel_dp_mst_hpd_irq(intel_dp, esi, &handled);
+		intel_dp_mst_hpd_irq(intel_dp, esi, ack);
 
-		if (!handled)
+		if (!memchr_inv(ack, 0, sizeof(ack)))
 			break;
 
-		if (!intel_dp_ack_sink_irq_esi(intel_dp, esi))
+		if (!intel_dp_ack_sink_irq_esi(intel_dp, ack))
 			drm_dbg_kms(&i915->drm, "Failed to ack ESI\n");
 	}
 
