@@ -237,13 +237,15 @@ static int dmaengine_pcm_new(struct snd_soc_component *component,
 	size_t max_buffer_size;
 	unsigned int i;
 
-	if (config && config->prealloc_buffer_size) {
+	if (config && config->prealloc_buffer_size)
 		prealloc_buffer_size = config->prealloc_buffer_size;
-		max_buffer_size = config->pcm_hardware->buffer_bytes_max;
-	} else {
+	else
 		prealloc_buffer_size = prealloc_buffer_size_kbytes * 1024;
+
+	if (config && config->pcm_hardware && config->pcm_hardware->buffer_bytes_max)
+		max_buffer_size = config->pcm_hardware->buffer_bytes_max;
+	else
 		max_buffer_size = SIZE_MAX;
-	}
 
 	for_each_pcm_streams(i) {
 		struct snd_pcm_substream *substream = rtd->pcm->streams[i].substream;
