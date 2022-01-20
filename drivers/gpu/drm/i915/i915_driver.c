@@ -76,6 +76,7 @@
 #include "i915_drv.h"
 #include "i915_getparam.h"
 #include "i915_ioc32.h"
+#include "i915_ioctl.h"
 #include "i915_irq.h"
 #include "i915_memcpy.h"
 #include "i915_perf.h"
