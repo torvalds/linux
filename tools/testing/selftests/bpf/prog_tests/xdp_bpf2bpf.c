@@ -12,26 +12,14 @@ struct meta {
 
 static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 {
-	int duration = 0;
 	struct meta *meta = (struct meta *)data;
 	struct ipv4_packet *trace_pkt_v4 = data + sizeof(*meta);
 
-	if (CHECK(size < sizeof(pkt_v4) + sizeof(*meta),
-		  "check_size", "size %u < %zu\n",
-		  size, sizeof(pkt_v4) + sizeof(*meta)))
-		return;
-
-	if (CHECK(meta->ifindex != if_nametoindex("lo"), "check_meta_ifindex",
-		  "meta->ifindex = %d\n", meta->ifindex))
-		return;
-
-	if (CHECK(meta->pkt_len != sizeof(pkt_v4), "check_meta_pkt_len",
-		  "meta->pkt_len = %zd\n", sizeof(pkt_v4)))
-		return;
-
-	if (CHECK(memcmp(trace_pkt_v4, &pkt_v4, sizeof(pkt_v4)),
-		  "check_packet_content", "content not the same\n"))
-		return;
+	ASSERT_GE(size, sizeof(pkt_v4) + sizeof(*meta), "check_size");
+	ASSERT_EQ(meta->ifindex, if_nametoindex("lo"), "check_meta_ifindex");
+	ASSERT_EQ(meta->pkt_len, sizeof(pkt_v4), "check_meta_pkt_len");
+	ASSERT_EQ(memcmp(trace_pkt_v4, &pkt_v4, sizeof(pkt_v4)), 0,
+		  "check_packet_content");
 
 	*(bool *)ctx = true;
 }
@@ -52,7 +40,7 @@ void test_xdp_bpf2bpf(void)
 
 	/* Load XDP program to introspect */
 	pkt_skel = test_xdp__open_and_load();
-	if (CHECK(!pkt_skel, "pkt_skel_load", "test_xdp skeleton failed\n"))
+	if (!ASSERT_OK_PTR(pkt_skel, "test_xdp__open_and_load"))
 		return;
 
 	pkt_fd = bpf_program__fd(pkt_skel->progs._xdp_tx_iptunnel);
@@ -62,7 +50,7 @@ void test_xdp_bpf2bpf(void)
 
 	/* Load trace program */
 	ftrace_skel = test_xdp_bpf2bpf__open();
-	if (CHECK(!ftrace_skel, "__open", "ftrace skeleton failed\n"))
+	if (!ASSERT_OK_PTR(ftrace_skel, "test_xdp_bpf2bpf__open"))
 		goto out;
 
 	/* Demonstrate the bpf_program__set_attach_target() API rather than
@@ -77,11 +65,11 @@ void test_xdp_bpf2bpf(void)
 	bpf_program__set_attach_target(prog, pkt_fd, "_xdp_tx_iptunnel");
 
 	err = test_xdp_bpf2bpf__load(ftrace_skel);
-	if (CHECK(err, "__load", "ftrace skeleton failed\n"))
+	if (!ASSERT_OK(err, "test_xdp_bpf2bpf__load"))
 		goto out;
 
 	err = test_xdp_bpf2bpf__attach(ftrace_skel);
-	if (CHECK(err, "ftrace_attach", "ftrace attach failed: %d\n", err))
+	if (!ASSERT_OK(err, "test_xdp_bpf2bpf__attach"))
 		goto out;
 
 	/* Set up perf buffer */
@@ -94,33 +82,25 @@ void test_xdp_bpf2bpf(void)
 	err = bpf_prog_test_run(pkt_fd, 1, &pkt_v4, sizeof(pkt_v4),
 				buf, &size, &retval, &duration);
 	memcpy(&iph, buf + sizeof(struct ethhdr), sizeof(iph));
-	if (CHECK(err || retval != XDP_TX || size != 74 ||
-		  iph.protocol != IPPROTO_IPIP, "ipv4",
-		  "err %d errno %d retval %d size %d\n",
-		  err, errno, retval, size))
-		goto out;
+
+	ASSERT_OK(err, "ipv4");
+	ASSERT_EQ(retval, XDP_TX, "ipv4 retval");
+	ASSERT_EQ(size, 74, "ipv4 size");
+	ASSERT_EQ(iph.protocol, IPPROTO_IPIP, "ipv4 proto");
 
 	/* Make sure bpf_xdp_output() was triggered and it sent the expected
 	 * data to the perf ring buffer.
 	 */
 	err = perf_buffer__poll(pb, 100);
-	if (CHECK(err < 0, "perf_buffer__poll", "err %d\n", err))
-		goto out;
 
-	CHECK_FAIL(!passed);
-
+	ASSERT_GE(err, 0, "perf_buffer__poll");
+	ASSERT_TRUE(passed, "test passed");
 	/* Verify test results */
-	if (CHECK(ftrace_skel->bss->test_result_fentry != if_nametoindex("lo"),
-		  "result", "fentry failed err %llu\n",
-		  ftrace_skel->bss->test_result_fentry))
-		goto out;
-
-	CHECK(ftrace_skel->bss->test_result_fexit != XDP_TX, "result",
-	      "fexit failed err %llu\n", ftrace_skel->bss->test_result_fexit);
-
+	ASSERT_EQ(ftrace_skel->bss->test_result_fentry, if_nametoindex("lo"),
+		  "fentry result");
+	ASSERT_EQ(ftrace_skel->bss->test_result_fexit, XDP_TX, "fexit result");
 out:
-	if (pb)
-		perf_buffer__free(pb);
+	perf_buffer__free(pb);
 	test_xdp__destroy(pkt_skel);
 	test_xdp_bpf2bpf__destroy(ftrace_skel);
 }
