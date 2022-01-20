@@ -6810,6 +6810,13 @@ int kvm_write_guest_virt_system(struct kvm_vcpu *vcpu, gva_t addr, void *val,
 }
 EXPORT_SYMBOL_GPL(kvm_write_guest_virt_system);
 
+static int kvm_can_emulate_insn(struct kvm_vcpu *vcpu, int emul_type,
+				void *insn, int insn_len)
+{
+	return static_call(kvm_x86_can_emulate_instruction)(vcpu, emul_type,
+							    insn, insn_len);
+}
+
 int handle_ud(struct kvm_vcpu *vcpu)
 {
 	static const char kvm_emulate_prefix[] = { __KVM_EMULATE_PREFIX };
@@ -6817,7 +6824,7 @@ int handle_ud(struct kvm_vcpu *vcpu)
 	char sig[5]; /* ud2; .ascii "kvm" */
 	struct x86_exception e;
 
-	if (unlikely(!static_call(kvm_x86_can_emulate_instruction)(vcpu, NULL, 0)))
+	if (unlikely(!kvm_can_emulate_insn(vcpu, emul_type, NULL, 0)))
 		return 1;
 
 	if (force_emulation_prefix &&
@@ -8193,7 +8200,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	bool writeback = true;
 	bool write_fault_to_spt;
 
-	if (unlikely(!static_call(kvm_x86_can_emulate_instruction)(vcpu, insn, insn_len)))
+	if (unlikely(!kvm_can_emulate_insn(vcpu, emulation_type, insn, insn_len)))
 		return 1;
 
 	vcpu->arch.l1tf_flush_l1d = true;

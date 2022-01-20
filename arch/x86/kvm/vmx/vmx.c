@@ -1487,11 +1487,12 @@ static int vmx_rtit_ctl_check(struct kvm_vcpu *vcpu, u64 data)
 	return 0;
 }
 
-static bool vmx_can_emulate_instruction(struct kvm_vcpu *vcpu, void *insn, int insn_len)
+static bool vmx_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
+					void *insn, int insn_len)
 {
 	/*
 	 * Emulation of instructions in SGX enclaves is impossible as RIP does
-	 * not point  tthe failing instruction, and even if it did, the code
+	 * not point at the failing instruction, and even if it did, the code
 	 * stream is inaccessible.  Inject #UD instead of exiting to userspace
 	 * so that guest userspace can't DoS the guest simply by triggering
 	 * emulation (enclaves are CPL3 only).
@@ -5425,7 +5426,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
 	gpa_t gpa;
 
-	if (!vmx_can_emulate_instruction(vcpu, NULL, 0))
+	if (!vmx_can_emulate_instruction(vcpu, EMULTYPE_PF, NULL, 0))
 		return 1;
 
 	/*

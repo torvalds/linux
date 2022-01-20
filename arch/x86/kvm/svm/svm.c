@@ -4258,7 +4258,8 @@ static void svm_enable_smi_window(struct kvm_vcpu *vcpu)
 	}
 }
 
-static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, void *insn, int insn_len)
+static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
+					void *insn, int insn_len)
 {
 	bool smep, smap, is_user;
 	unsigned long cr4;
