@@ -94,22 +94,7 @@ test_int_hash(unsigned long long h64, u32 hash_or[2][33])
 			pr_err("hash_32(%#x, %d) = %#x > %#x", h0, k, h1, m);
 			return false;
 		}
-#ifdef HAVE_ARCH_HASH_32
-		h2 = hash_32_generic(h0, k);
-#if HAVE_ARCH_HASH_32 == 1
-		if (h1 != h2) {
-			pr_err("hash_32(%#x, %d) = %#x != hash_32_generic() "
-				" = %#x", h0, k, h1, h2);
-			return false;
-		}
-#else
-		if (h2 > m) {
-			pr_err("hash_32_generic(%#x, %d) = %#x > %#x",
-				h0, k, h1, m);
-			return false;
-		}
-#endif
-#endif
+
 		/* Test hash_64 */
 		hash_or[1][k] |= h1 = hash_64(h64, k);
 		if (h1 > m) {
@@ -226,13 +211,6 @@ test_hash_init(void)
 #endif
 #else
 	pr_info("__hash_32() has no arch implementation to test.");
-#endif
-#ifdef HAVE_ARCH_HASH_32
-#if HAVE_ARCH_HASH_32 != 1
-	pr_info("hash_32() is arch-specific; not compared to generic.");
-#endif
-#else
-	pr_info("hash_32() has no arch implementation to test.");
 #endif
 #ifdef HAVE_ARCH_HASH_64
 #if HAVE_ARCH_HASH_64 != 1
