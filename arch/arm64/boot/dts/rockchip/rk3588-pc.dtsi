@@ -4,7 +4,10 @@
  *
  */
 
+#include <dt-bindings/display/rockchip_vop.h>
+
 / {
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		brightness-levels = <
@@ -44,16 +47,6 @@
 		default-brightness-level = <200>;
 	};
 
-	hdmi1_sound: hdmi1-sound {
-		compatible = "rockchip,hdmi";
-		rockchip,mclk-fs = <128>;
-		rockchip,card-name = "rockchip,hdmi1";
-		rockchip,cpu = <&i2s6_8ch>;
-		rockchip,codec = <&hdmi1>;
-		rockchip,jack-det;
-		status = "disabled";
-	};
-
 	vcc12v_dcin: vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
@@ -84,11 +77,6 @@
 	};
 };
 
-&cpu_l0 {
-	cpu-supply = <&vdd_cpu_lit_s0>;
-	mem-supply = <&vdd_cpu_lit_mem_s0>;
-};
-
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0_s0>;
 	mem-supply = <&vdd_cpu_big0_mem_s0>;
@@ -99,10 +87,31 @@
 	mem-supply = <&vdd_cpu_big1_mem_s0>;
 };
 
+&cpu_l0 {
+	cpu-supply = <&vdd_cpu_lit_s0>;
+	mem-supply = <&vdd_cpu_lit_mem_s0>;
+};
+
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_ddr_s0>;
+	status = "okay";
+};
+
 &gpu {
 	mali-supply = <&vdd_gpu_s0>;
 	mem-supply = <&vdd_gpu_mem_s0>;
 	status = "okay";
+};
+
+&gpu_opp_table {
+	/delete-node/ opp-198000000;
+	/delete-node/ opp-297000000;
+	/delete-node/ opp-396000000;
+	/delete-node/ opp-594000000;
 };
 
 &iep {
@@ -121,6 +130,10 @@
 	status = "okay";
 };
 
+&jpege_ccu {
+	status = "okay";
+};
+
 &jpege0 {
 	status = "okay";
 };
@@ -129,7 +142,35 @@
 	status = "okay";
 };
 
+&jpege1 {
+	status = "okay";
+};
+
+&jpege1_mmu {
+	status = "okay";
+};
+
+&jpege2 {
+	status = "okay";
+};
+
+&jpege2_mmu {
+	status = "okay";
+};
+
+&jpege3 {
+	status = "okay";
+};
+
+&jpege3_mmu {
+	status = "okay";
+};
+
 &mpp_srv {
+	status = "okay";
+};
+
+&rga2 {
 	status = "okay";
 };
 
@@ -149,7 +190,17 @@
 	status = "okay";
 };
 
-&rga2 {
+&rknpu {
+	rknpu-supply = <&vdd_npu_s0>;
+	mem-supply = <&vdd_npu_mem_s0>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
+};
+
+&rkvdec_ccu {
 	status = "okay";
 };
 
@@ -161,11 +212,31 @@
 	status = "okay";
 };
 
+&rkvdec1 {
+	status = "okay";
+};
+
+&rkvdec1_mmu {
+	status = "okay";
+};
+
+&rkvenc_ccu {
+	status = "okay";
+};
+
 &rkvenc0 {
 	status = "okay";
 };
 
 &rkvenc0_mmu {
+	status = "okay";
+};
+
+&rkvenc1 {
+	status = "okay";
+};
+
+&rkvenc1_mmu {
 	status = "okay";
 };
 
@@ -194,21 +265,6 @@
 	status = "okay";
 };
 
-&u2phy0_otg {
-	status = "okay";
-};
-
-&u2phy1_otg {
-	status = "okay";
-};
-
-&u2phy2_host {
-	status = "okay";
-};
-
-&u2phy3_host {
-	status = "okay";
-};
 
 &usb_host0_ehci {
 	status = "okay";
@@ -238,10 +294,6 @@
 	status = "okay";
 };
 
-&usbdp_phy1 {
-	status = "okay";
-};
-
 &usbdp_phy1_dp {
 	status = "okay";
 };
@@ -267,14 +319,6 @@
 	status = "okay";
 };
 
-&usbdrd3_1 {
-	status = "okay";
-};
-
-&usbdrd_dwc3_1 {
-	status = "okay";
-};
-
 &vdpu {
 	status = "okay";
 };
@@ -295,26 +339,4 @@
 
 &vop_mmu {
 	status = "okay";
-};
-
-&vp0 {
-	cursor-win-id=<ROCKCHIP_VOP2_ESMART2>;
-	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0 | 1 << ROCKCHIP_VOP2_ESMART2)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART0>;
-};
-
-&vp1 {
-	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART1>;
-};
-
-&vp2 {
-	cursor-win-id=<ROCKCHIP_VOP2_ESMART3>;
-	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER2 | 1 << ROCKCHIP_VOP2_CLUSTER3 | 1 << ROCKCHIP_VOP2_ESMART3)>;
-	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER3>;
-};
-
-&vp3 {
-	/delete-property/ rockchip,plane-mask;
-	/delete-property/ rockchip,primary-plane;
 };
