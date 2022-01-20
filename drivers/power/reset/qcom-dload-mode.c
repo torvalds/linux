@@ -112,7 +112,9 @@ static int param_set_download_mode(const char *val,
 	if (ret)
 		return ret;
 
-	msm_enable_dump_mode(true);
+	msm_enable_dump_mode(enable_dump);
+	if (!enable_dump)
+		qcom_scm_disable_sdi();
 
 	return 0;
 }
