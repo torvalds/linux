@@ -4133,9 +4133,18 @@ skip_backref:
 		goto err;
 	}
 
-	btrfs_del_inode_ref_in_log(trans, root, name, name_len, inode,
-				   dir_ino);
-	btrfs_del_dir_entries_in_log(trans, root, name, name_len, dir, index);
+	/*
+	 * If we are in a rename context, we don't need to update anything in the
+	 * log. That will be done later during the rename by btrfs_log_new_name().
+	 * Besides that, doing it here would only cause extra unncessary btree
+	 * operations on the log tree, increasing latency for applications.
+	 */
+	if (!rename_ctx) {
+		btrfs_del_inode_ref_in_log(trans, root, name, name_len, inode,
+					   dir_ino);
+		btrfs_del_dir_entries_in_log(trans, root, name, name_len, dir,
+					     index);
+	}
 
 	/*
 	 * If we have a pending delayed iput we could end up with the final iput
@@ -9041,8 +9050,6 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	u64 new_idx = 0;
 	int ret;
 	int ret2;
-	bool root_log_pinned = false;
-	bool dest_log_pinned = false;
 	bool need_abort = false;
 
 	/*
@@ -9145,29 +9152,6 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 				BTRFS_I(new_inode), 1);
 	}
 
-	/*
-	 * Now pin the logs of the roots. We do it to ensure that no other task
-	 * can sync the logs while we are in progress with the rename, because
-	 * that could result in an inconsistency in case any of the inodes that
-	 * are part of this rename operation were logged before.
-	 *
-	 * We pin the logs even if at this precise moment none of the inodes was
-	 * logged before. This is because right after we checked for that, some
-	 * other task fsyncing some other inode not involved with this rename
-	 * operation could log that one of our inodes exists.
-	 *
-	 * We don't need to pin the logs before the above calls to
-	 * btrfs_insert_inode_ref(), since those don't ever need to change a log.
-	 */
-	if (old_ino != BTRFS_FIRST_FREE_OBJECTID) {
-		btrfs_pin_log_trans(root);
-		root_log_pinned = true;
-	}
-	if (new_ino != BTRFS_FIRST_FREE_OBJECTID) {
-		btrfs_pin_log_trans(dest);
-		dest_log_pinned = true;
-	}
-
 	/* src is a subvolume */
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		ret = btrfs_unlink_subvol(trans, old_dir, old_dentry);
@@ -9223,46 +9207,31 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	if (new_inode->i_nlink == 1)
 		BTRFS_I(new_inode)->dir_index = new_idx;
 
-	if (root_log_pinned) {
+	/*
+	 * Now pin the logs of the roots. We do it to ensure that no other task
+	 * can sync the logs while we are in progress with the rename, because
+	 * that could result in an inconsistency in case any of the inodes that
+	 * are part of this rename operation were logged before.
+	 */
+	if (old_ino != BTRFS_FIRST_FREE_OBJECTID)
+		btrfs_pin_log_trans(root);
+	if (new_ino != BTRFS_FIRST_FREE_OBJECTID)
+		btrfs_pin_log_trans(dest);
+
+	/* Do the log updates for all inodes. */
+	if (old_ino != BTRFS_FIRST_FREE_OBJECTID)
 		btrfs_log_new_name(trans, old_dentry, BTRFS_I(old_dir),
 				   old_rename_ctx.index, new_dentry->d_parent);
-		btrfs_end_log_trans(root);
-		root_log_pinned = false;
-	}
-	if (dest_log_pinned) {
+	if (new_ino != BTRFS_FIRST_FREE_OBJECTID)
 		btrfs_log_new_name(trans, new_dentry, BTRFS_I(new_dir),
 				   new_rename_ctx.index, old_dentry->d_parent);
-		btrfs_end_log_trans(dest);
-		dest_log_pinned = false;
-	}
-out_fail:
-	/*
-	 * If we have pinned a log and an error happened, we unpin tasks
-	 * trying to sync the log and force them to fallback to a transaction
-	 * commit if the log currently contains any of the inodes involved in
-	 * this rename operation (to ensure we do not persist a log with an
-	 * inconsistent state for any of these inodes or leading to any
-	 * inconsistencies when replayed). If the transaction was aborted, the
-	 * abortion reason is propagated to userspace when attempting to commit
-	 * the transaction. If the log does not contain any of these inodes, we
-	 * allow the tasks to sync it.
-	 */
-	if (ret && (root_log_pinned || dest_log_pinned)) {
-		if (btrfs_inode_in_log(BTRFS_I(old_dir), fs_info->generation) ||
-		    btrfs_inode_in_log(BTRFS_I(new_dir), fs_info->generation) ||
-		    btrfs_inode_in_log(BTRFS_I(old_inode), fs_info->generation) ||
-		    btrfs_inode_in_log(BTRFS_I(new_inode), fs_info->generation))
-			btrfs_set_log_full_commit(trans);
 
-		if (root_log_pinned) {
-			btrfs_end_log_trans(root);
-			root_log_pinned = false;
-		}
-		if (dest_log_pinned) {
-			btrfs_end_log_trans(dest);
-			dest_log_pinned = false;
-		}
-	}
+	/* Now unpin the logs. */
+	if (old_ino != BTRFS_FIRST_FREE_OBJECTID)
+		btrfs_end_log_trans(root);
+	if (new_ino != BTRFS_FIRST_FREE_OBJECTID)
+		btrfs_end_log_trans(dest);
+out_fail:
 	ret2 = btrfs_end_transaction(trans);
 	ret = ret ? ret : ret2;
 out_notrans:
@@ -9342,7 +9311,6 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 	int ret;
 	int ret2;
 	u64 old_ino = btrfs_ino(BTRFS_I(old_inode));
-	bool log_pinned = false;
 
 	if (btrfs_ino(BTRFS_I(new_dir)) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)
 		return -EPERM;
@@ -9447,25 +9415,6 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		ret = btrfs_unlink_subvol(trans, old_dir, old_dentry);
 	} else {
-		/*
-		 * Now pin the log. We do it to ensure that no other task can
-		 * sync the log while we are in progress with the rename, as
-		 * that could result in an inconsistency in case any of the
-		 * inodes that are part of this rename operation were logged
-		 * before.
-		 *
-		 * We pin the log even if at this precise moment none of the
-		 * inodes was logged before. This is because right after we
-		 * checked for that, some other task fsyncing some other inode
-		 * not involved with this rename operation could log that one of
-		 * our inodes exists.
-		 *
-		 * We don't need to pin the logs before the above call to
-		 * btrfs_insert_inode_ref(), since that does not need to change
-		 * a log.
-		 */
-		btrfs_pin_log_trans(root);
-		log_pinned = true;
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					BTRFS_I(d_inode(old_dentry)),
 					old_dentry->d_name.name,
@@ -9512,12 +9461,9 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 	if (old_inode->i_nlink == 1)
 		BTRFS_I(old_inode)->dir_index = index;
 
-	if (log_pinned) {
+	if (old_ino != BTRFS_FIRST_FREE_OBJECTID)
 		btrfs_log_new_name(trans, old_dentry, BTRFS_I(old_dir),
 				   rename_ctx.index, new_dentry->d_parent);
-		btrfs_end_log_trans(root);
-		log_pinned = false;
-	}
 
 	if (flags & RENAME_WHITEOUT) {
 		ret = btrfs_whiteout_for_rename(trans, root, mnt_userns,
@@ -9529,28 +9475,6 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 		}
 	}
 out_fail:
-	/*
-	 * If we have pinned the log and an error happened, we unpin tasks
-	 * trying to sync the log and force them to fallback to a transaction
-	 * commit if the log currently contains any of the inodes involved in
-	 * this rename operation (to ensure we do not persist a log with an
-	 * inconsistent state for any of these inodes or leading to any
-	 * inconsistencies when replayed). If the transaction was aborted, the
-	 * abortion reason is propagated to userspace when attempting to commit
-	 * the transaction. If the log does not contain any of these inodes, we
-	 * allow the tasks to sync it.
-	 */
-	if (ret && log_pinned) {
-		if (btrfs_inode_in_log(BTRFS_I(old_dir), fs_info->generation) ||
-		    btrfs_inode_in_log(BTRFS_I(new_dir), fs_info->generation) ||
-		    btrfs_inode_in_log(BTRFS_I(old_inode), fs_info->generation) ||
-		    (new_inode &&
-		     btrfs_inode_in_log(BTRFS_I(new_inode), fs_info->generation)))
-			btrfs_set_log_full_commit(trans);
-
-		btrfs_end_log_trans(root);
-		log_pinned = false;
-	}
 	ret2 = btrfs_end_transaction(trans);
 	ret = ret ? ret : ret2;
 out_notrans:

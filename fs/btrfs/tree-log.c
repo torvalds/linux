@@ -6810,7 +6810,10 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			u64 old_dir_index, struct dentry *parent)
 {
 	struct btrfs_inode *inode = BTRFS_I(d_inode(old_dentry));
+	struct btrfs_root *root = inode->root;
 	struct btrfs_log_ctx ctx;
+	bool log_pinned = false;
+	int ret = 0;
 
 	/*
 	 * this will force the logging code to walk the dentry chain
@@ -6837,14 +6840,22 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	if (old_dir && old_dir->logged_trans == trans->transid) {
 		struct btrfs_root *log = old_dir->root->log_root;
 		struct btrfs_path *path;
-		int ret;
 
 		ASSERT(old_dir_index >= BTRFS_DIR_START_INDEX);
 
+		/*
+		 * We have two inodes to update in the log, the old directory and
+		 * the inode that got renamed, so we must pin the log to prevent
+		 * anyone from syncing the log until we have updated both inodes
+		 * in the log.
+		 */
+		log_pinned = true;
+		btrfs_pin_log_trans(root);
+
 		path = btrfs_alloc_path();
 		if (!path) {
-			btrfs_set_log_full_commit(trans);
-			return;
+			ret = -ENOMEM;
+			goto out;
 		}
 
 		/*
@@ -6874,10 +6885,8 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		mutex_unlock(&old_dir->log_mutex);
 
 		btrfs_free_path(path);
-		if (ret < 0) {
-			btrfs_set_log_full_commit(trans);
-			return;
-		}
+		if (ret < 0)
+			goto out;
 	}
 
 	btrfs_init_log_ctx(&ctx, &inode->vfs_inode);
@@ -6890,5 +6899,16 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 * inconsistent state after a rename operation.
 	 */
 	btrfs_log_inode_parent(trans, inode, parent, LOG_INODE_EXISTS, &ctx);
+out:
+	if (log_pinned) {
+		/*
+		 * If an error happened mark the log for a full commit because
+		 * it's not consistent and up to date. Do it before unpinning the
+		 * log, to avoid any races with someone else trying to commit it.
+		 */
+		if (ret < 0)
+			btrfs_set_log_full_commit(trans);
+		btrfs_end_log_trans(root);
+	}
 }
 
