@@ -155,20 +155,6 @@ static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 	return node_distance(early_cpu_to_node(from), early_cpu_to_node(to));
 }
 
-static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align,
-				   pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn)
-{
-	int nid = cpu_to_nd_fn(cpu);
-
-	return  memblock_alloc_try_nid(size, align,
-			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-}
-
-static void __init pcpu_fc_free(void *ptr, size_t size)
-{
-	memblock_free(ptr, size);
-}
-
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 static void __init pcpu_populate_pte(unsigned long addr)
 {
@@ -229,8 +215,7 @@ void __init setup_per_cpu_areas(void)
 		rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
 					    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE,
 					    pcpu_cpu_distance,
-					    early_cpu_to_node,
-					    pcpu_fc_alloc, pcpu_fc_free);
+					    early_cpu_to_node);
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 		if (rc < 0)
 			pr_warn("PERCPU: %s allocator failed (%d), falling back to page size\n",
@@ -242,8 +227,6 @@ void __init setup_per_cpu_areas(void)
 	if (rc < 0)
 		rc = pcpu_page_first_chunk(PERCPU_MODULE_RESERVE,
 					   early_cpu_to_node,
-					   pcpu_fc_alloc,
-					   pcpu_fc_free,
 					   pcpu_populate_pte);
 #endif
 	if (rc < 0)
