@@ -1579,6 +1579,7 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 	}
 
 	while (cur < last_byte) {
+		const unsigned long prev_sectors_defragged = sectors_defragged;
 		u64 cluster_end;
 
 		/* The cluster size 256K should always be page aligned */
@@ -1610,6 +1611,10 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 				cluster_end + 1 - cur, extent_thresh,
 				newer_than, do_compress,
 				&sectors_defragged, max_to_defrag);
+
+		if (sectors_defragged > prev_sectors_defragged)
+			balance_dirty_pages_ratelimited(inode->i_mapping);
+
 		btrfs_inode_unlock(inode, 0);
 		if (ret < 0)
 			break;
