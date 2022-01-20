@@ -14,6 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
@@ -95,6 +96,8 @@ enum rk_pcie_device_mode {
 
 #define PCIE_CAP_LINK_CONTROL2_LINK_STATUS	0xa0
 
+#define PCIE_CLIENT_INTR_STATUS_MSG_RX	0x04
+#define PME_TO_ACK			(BIT(9) | BIT(25))
 #define PCIE_CLIENT_INTR_STATUS_LEGACY	0x08
 #define PCIE_CLIENT_INTR_STATUS_MISC	0x10
 #define PCIE_CLIENT_INTR_MASK_LEGACY	0x1c
@@ -102,6 +105,10 @@ enum rk_pcie_device_mode {
 #define MASK_LEGACY_INT(x)		(0x00110011 << x)
 #define UNMASK_LEGACY_INT(x)		(0x00110000 << x)
 #define PCIE_CLIENT_INTR_MASK		0x24
+#define PCIE_CLIENT_POWER		0x2c
+#define READY_ENTER_L23			BIT(3)
+#define PCIE_CLIENT_MSG_GEN		0x34
+#define PME_TURN_OFF			(BIT(4) | BIT(20))
 #define PCIE_CLIENT_GENERAL_DEBUG	0x104
 #define PCIE_CLIENT_HOT_RESET_CTRL	0x180
 #define PCIE_LTSSM_ENABLE_ENHANCE	BIT(4)
@@ -124,6 +131,14 @@ enum rk_pcie_device_mode {
 #define PCIE_SB_BAR0_MASK_REG		0x100010
 
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
+
+enum rk_pcie_ltssm_code {
+	S_L0 = 0x11,
+	S_L0S = 0x12,
+	S_L1_IDLE = 0x14,
+	S_L2_IDLE = 0x15,
+	S_MAX = 0x1f,
+};
 
 struct rk_pcie {
 	struct dw_pcie			*pci;
@@ -158,6 +173,7 @@ struct rk_pcie {
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
 	raw_spinlock_t			intx_lock;
+	u16				aspm;
 };
 
 struct rk_pcie_of_data {
@@ -642,8 +658,7 @@ static int rk_pcie_link_up(struct dw_pcie *pci)
 
 	if (rk_pcie->is_rk1808) {
 		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_GENERAL_DEBUG);
-		if ((val & (PCIE_PHY_LINKUP | PCIE_DATA_LINKUP)) == 0x3 &&
-		    ((val & GENMASK(15, 10)) >> 10) == 0x11)
+		if ((val & (PCIE_PHY_LINKUP | PCIE_DATA_LINKUP)) == 0x3)
 			return 1;
 	} else {
 		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
@@ -1906,12 +1921,122 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	return rk_pcie_really_probe(pdev);
 }
 
+static void rk_pcie_downstream_dev_to_d0(struct rk_pcie *rk_pcie, bool enable)
+{
+	struct pcie_port *pp = &rk_pcie->pci->pp;
+	struct pci_bus *child, *root_bus = NULL;
+	struct pci_dev *pdev;
+	u32 reg, val;
+
+	list_for_each_entry(child, &pp->bridge->bus->children, node) {
+		/* Bring downstream devices to D3 if they are not already in */
+		if (child->parent == pp->bridge->bus) {
+			root_bus = child;
+			break;
+		}
+	}
+
+	if (!root_bus) {
+		dev_err(rk_pcie->pci->dev, "Failed to find downstream devices\n");
+		return;
+	}
+
+	/* Save and restore root bus ASPM */
+	reg = dw_pcie_find_capability(rk_pcie->pci, PCI_CAP_ID_EXP);
+	val = dw_pcie_readl_dbi(rk_pcie->pci, reg + PCI_EXP_LNKCTL);
+	if (enable) {
+		/* rk_pcie->aspm woule be saved in advance when enable is false */
+		dw_pcie_writel_dbi(rk_pcie->pci, reg + PCI_EXP_LNKCTL, rk_pcie->aspm);
+	} else {
+		rk_pcie->aspm = val & PCI_EXP_LNKCTL_ASPMC;
+		val &= ~(PCI_EXP_LNKCAP_ASPM_L1 | PCI_EXP_LNKCAP_ASPM_L0S);
+		dw_pcie_writel_dbi(rk_pcie->pci, reg + PCI_EXP_LNKCTL, val);
+	}
+
+	list_for_each_entry(pdev, &root_bus->devices, bus_list) {
+		if (PCI_SLOT(pdev->devfn) == 0) {
+			if (pci_set_power_state(pdev, PCI_D0))
+				dev_err(rk_pcie->pci->dev,
+					"Failed to transition %s to D3hot state\n",
+					dev_name(&pdev->dev));
+			if (enable)
+				pcie_capability_clear_and_set_word(pdev, PCI_EXP_LNKCTL,
+								   PCI_EXP_LNKCTL_ASPMC, rk_pcie->aspm);
+			else
+				pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
+		}
+	}
+}
+
 static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
-	int ret;
+	int ret = 0;
+	struct dw_pcie *pci = rk_pcie->pci;
+	u32 status;
+
+	/*
+	 * This is as per PCI Express Base r5.0 r1.0 May 22-2019,
+	 * 5.2 Link State Power Management (Page #440).
+	 *
+	 * L2/L3 Ready entry negotiations happen while in the L0 state.
+	 * L2/L3 Ready are entered only after the negotiation completes.
+	 *
+	 * The following example sequence illustrates the multi-step Link state
+	 * transition process leading up to entering a system sleep state:
+	 * 1. System software directs all Functions of a Downstream component to D3Hot.
+	 * 2. The Downstream component then initiates the transition of the Link to L1
+	 *    as required.
+	 * 3. System software then causes the Root Complex to broadcast the PME_Turn_Off
+	 *    Message in preparation for removing the main power source.
+	 * 4. This Message causes the subject Link to transition back to L0 in order to
+	 *    send it and to enable the Downstream component to respond with PME_TO_Ack.
+	 * 5. After sending the PME_TO_Ack, the Downstream component initiates the L2/L3
+	 *    Ready transition protocol.
+	 */
+
+	/* 1. All sub-devices are in D3hot by PCIe stack */
+	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
 
 	rk_pcie_link_status_clear(rk_pcie);
+
+	/* 2. Broadcast PME_Turn_Off Message */
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_MSG_GEN, PME_TURN_OFF);
+	ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_MSG_GEN,
+				 status, !(status & BIT(4)), 20,
+				 jiffies_to_usecs(5 * HZ));
+	if (ret) {
+		dev_err(dev, "Failed to send PME_Turn_Off\n");
+		goto no_l2;
+	}
+
+	/* 3. Wait for PME_TO_Ack */
+	ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_INTR_STATUS_MSG_RX,
+				 status, status & BIT(9), 20,
+				 jiffies_to_usecs(5 * HZ));
+	if (ret) {
+		dev_err(dev, "Failed to receive PME_TO_Ack\n");
+		goto no_l2;
+	}
+
+	/* 4. Clear PME_TO_Ack and Wait for ready to enter L23 message */
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_STATUS_MSG_RX, PME_TO_ACK);
+	ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_POWER,
+				 status, status & READY_ENTER_L23, 20,
+				 jiffies_to_usecs(5 * HZ));
+	if (ret) {
+		dev_err(dev, "Failed to ready to enter L23\n");
+		goto no_l2;
+	}
+
+	/* 5. Check we are in L2 */
+	ret = readl_poll_timeout(rk_pcie->apb_base + PCIE_CLIENT_LTSSM_STATUS,
+				 status, ((status & S_MAX) == S_L2_IDLE), 20,
+				 jiffies_to_usecs(5 * HZ));
+	if (ret)
+		dev_err(pci->dev, "Link isn't in L2 idle!\n");
+
+no_l2:
 	rk_pcie_disable_ltssm(rk_pcie);
 
 	/* make sure assert phy success */
@@ -1935,6 +2060,10 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
 	bool std_rc = rk_pcie->mode == RK_PCIE_RC_TYPE && !rk_pcie->dma_obj;
 	int ret;
+
+	reset_control_assert(rk_pcie->rsts);
+	udelay(10);
+	reset_control_deassert(rk_pcie->rsts);
 
 	ret = rk_pcie_enable_power(rk_pcie);
 	if (ret)
@@ -2015,7 +2144,33 @@ err:
 	return ret;
 }
 
+static int rockchip_dw_pcie_prepare(struct device *dev)
+{
+	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
+	u32 val;
+
+	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
+	if ((val & S_MAX) != S_L0) {
+		dw_pcie_dbi_ro_wr_en(rk_pcie->pci);
+		rk_pcie_downstream_dev_to_d0(rk_pcie, false);
+		dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
+	}
+
+	return 0;
+}
+
+static void rockchip_dw_pcie_complete(struct device *dev)
+{
+	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
+
+	dw_pcie_dbi_ro_wr_en(rk_pcie->pci);
+	rk_pcie_downstream_dev_to_d0(rk_pcie, true);
+	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
+}
+
 static const struct dev_pm_ops rockchip_dw_pcie_pm_ops = {
+	.prepare = rockchip_dw_pcie_prepare,
+	.complete = rockchip_dw_pcie_complete,
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_dw_pcie_suspend,
 				      rockchip_dw_pcie_resume)
 };
