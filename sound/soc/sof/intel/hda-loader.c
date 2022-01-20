@@ -101,14 +101,14 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 		goto err;
 	}
 
-	/* DSP is powered up, set all SSPs to slave mode */
+	/* DSP is powered up, set all SSPs to clock consumer/codec provider mode */
 	for (i = 0; i < chip->ssp_count; i++) {
 		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
 						 chip->ssp_base_offset
 						 + i * SSP_DEV_MEM_SIZE
 						 + SSP_SSC1_OFFSET,
-						 SSP_SET_SLAVE,
-						 SSP_SET_SLAVE);
+						 SSP_SET_CBP_CFP,
+						 SSP_SET_CBP_CFP);
 	}
 
 	/* step 2: purge FW request */
