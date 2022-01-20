@@ -3509,6 +3509,41 @@ static bool inode_logged(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * Delete a directory entry from the log if it exists.
+ *
+ * Returns < 0 on error
+ *           1 if the entry does not exists
+ *           0 if the entry existed and was successfully deleted
+ */
+static int del_logged_dentry(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *log,
+			     struct btrfs_path *path,
+			     u64 dir_ino,
+			     const char *name, int name_len,
+			     u64 index)
+{
+	struct btrfs_dir_item *di;
+
+	/*
+	 * We only log dir index items of a directory, so we don't need to look
+	 * for dir item keys.
+	 */
+	di = btrfs_lookup_dir_index_item(trans, log, path, dir_ino,
+					 index, name, name_len, -1);
+	if (IS_ERR(di))
+		return PTR_ERR(di);
+	else if (!di)
+		return 1;
+
+	/*
+	 * We do not need to update the size field of the directory's
+	 * inode item because on log replay we update the field to reflect
+	 * all existing entries in the directory (see overwrite_item()).
+	 */
+	return btrfs_delete_one_dir_name(trans, log, path, di);
+}
+
+/*
  * If both a file and directory are logged, and unlinks or renames are
  * mixed in, we have a few interesting corners:
  *
@@ -3534,12 +3569,8 @@ void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 				  const char *name, int name_len,
 				  struct btrfs_inode *dir, u64 index)
 {
-	struct btrfs_root *log;
-	struct btrfs_dir_item *di;
 	struct btrfs_path *path;
 	int ret;
-	int err = 0;
-	u64 dir_ino = btrfs_ino(dir);
 
 	if (!inode_logged(trans, dir))
 		return;
@@ -3550,41 +3581,18 @@ void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&dir->log_mutex);
 
-	log = root->log_root;
 	path = btrfs_alloc_path();
 	if (!path) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto out_unlock;
 	}
 
-	/*
-	 * We only log dir index items of a directory, so we don't need to look
-	 * for dir item keys.
-	 */
-	di = btrfs_lookup_dir_index_item(trans, log, path, dir_ino,
-					 index, name, name_len, -1);
-	if (IS_ERR(di)) {
-		err = PTR_ERR(di);
-		goto fail;
-	}
-	if (di) {
-		ret = btrfs_delete_one_dir_name(trans, log, path, di);
-		if (ret) {
-			err = ret;
-			goto fail;
-		}
-	}
-
-	/*
-	 * We do not need to update the size field of the directory's inode item
-	 * because on log replay we update the field to reflect all existing
-	 * entries in the directory (see overwrite_item()).
-	 */
-fail:
+	ret = del_logged_dentry(trans, root->log_root, path, btrfs_ino(dir),
+				name, name_len, index);
 	btrfs_free_path(path);
 out_unlock:
 	mutex_unlock(&dir->log_mutex);
-	if (err < 0)
+	if (ret < 0)
 		btrfs_set_log_full_commit(trans);
 	btrfs_end_log_trans(root);
 }
