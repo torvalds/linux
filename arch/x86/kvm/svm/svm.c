@@ -4263,6 +4263,7 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 {
 	bool smep, smap, is_user;
 	unsigned long cr4;
+	u64 error_code;
 
 	/* Emulation is always possible when KVM has access to all guest state. */
 	if (!sev_guest(vcpu->kvm))
@@ -4328,22 +4329,31 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 	 * loap uop with CPL=0 privileges.  If the load hits a SMAP #PF, ucode
 	 * gives up and does not fill the instruction bytes buffer.
 	 *
-	 * Detection:
-	 * KVM reaches this point if the VM is an SEV guest, the CPU supports
-	 * DecodeAssist, a #NPF was raised, KVM's page fault handler triggered
-	 * emulation (e.g. for MMIO), and the CPU returned 0 in GuestIntrBytes
-	 * field of the VMCB.
+	 * As above, KVM reaches this point iff the VM is an SEV guest, the CPU
+	 * supports DecodeAssist, a #NPF was raised, KVM's page fault handler
+	 * triggered emulation (e.g. for MMIO), and the CPU returned 0 in the
+	 * GuestIntrBytes field of the VMCB.
 	 *
 	 * This does _not_ mean that the erratum has been encountered, as the
 	 * DecodeAssist will also fail if the load for CS:RIP hits a legitimate
 	 * #PF, e.g. if the guest attempt to execute from emulated MMIO and
 	 * encountered a reserved/not-present #PF.
 	 *
-	 * To reduce the likelihood of false positives, take action if and only
-	 * if CR4.SMAP=1 (obviously required to hit the erratum) and CR4.SMEP=0
-	 * or CPL=3.  If SMEP=1 and CPL!=3, the erratum cannot have been hit as
-	 * the guest would have encountered a SMEP violation #PF, not a #NPF.
+	 * To hit the erratum, the following conditions must be true:
+	 *    1. CR4.SMAP=1 (obviously).
+	 *    2. CR4.SMEP=0 || CPL=3.  If SMEP=1 and CPL<3, the erratum cannot
+	 *       have been hit as the guest would have encountered a SMEP
+	 *       violation #PF, not a #NPF.
+	 *    3. The #NPF is not due to a code fetch, in which case failure to
+	 *       retrieve the instruction bytes is legitimate (see abvoe).
+	 *
+	 * In addition, don't apply the erratum workaround if the #NPF occurred
+	 * while translating guest page tables (see below).
 	 */
+	error_code = to_svm(vcpu)->vmcb->control.exit_info_1;
+	if (error_code & (PFERR_GUEST_PAGE_MASK | PFERR_FETCH_MASK))
+		goto resume_guest;
+
 	cr4 = kvm_read_cr4(vcpu);
 	smep = cr4 & X86_CR4_SMEP;
 	smap = cr4 & X86_CR4_SMAP;
@@ -4353,6 +4363,21 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 		kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 	}
 
+resume_guest:
+	/*
+	 * If the erratum was not hit, simply resume the guest and let it fault
+	 * again.  While awful, e.g. the vCPU may get stuck in an infinite loop
+	 * if the fault is at CPL=0, it's the lesser of all evils.  Exiting to
+	 * userspace will kill the guest, and letting the emulator read garbage
+	 * will yield random behavior and potentially corrupt the guest.
+	 *
+	 * Simply resuming the guest is technically not a violation of the SEV
+	 * architecture.  AMD's APM states that all code fetches and page table
+	 * accesses for SEV guest are encrypted, regardless of the C-Bit.  The
+	 * APM also states that encrypted accesses to MMIO are "ignored", but
+	 * doesn't explicitly define "ignored", i.e. doing nothing and letting
+	 * the guest spin is technically "ignoring" the access.
+	 */
 	return false;
 }
 
