@@ -25,6 +25,23 @@
 
 #define HDA_CL_STREAM_FORMAT 0x40
 
+static void hda_ssp_set_cbp_cfp(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+	int i;
+
+	/* DSP is powered up, set all SSPs to clock consumer/codec provider mode */
+	for (i = 0; i < chip->ssp_count; i++) {
+		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
+						 chip->ssp_base_offset
+						 + i * SSP_DEV_MEM_SIZE
+						 + SSP_SSC1_OFFSET,
+						 SSP_SET_CBP_CFP,
+						 SSP_SET_CBP_CFP);
+	}
+}
+
 static struct hdac_ext_stream *cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 						 unsigned int size, struct snd_dma_buffer *dmab,
 						 int direction)
@@ -91,7 +108,6 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	char *dump_msg;
 	u32 flags, j;
 	int ret;
-	int i;
 
 	/* step 1: power up corex */
 	ret = hda_dsp_enable_core(sdev, chip->host_managed_cores_mask);
@@ -101,15 +117,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 		goto err;
 	}
 
-	/* DSP is powered up, set all SSPs to clock consumer/codec provider mode */
-	for (i = 0; i < chip->ssp_count; i++) {
-		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
-						 chip->ssp_base_offset
-						 + i * SSP_DEV_MEM_SIZE
-						 + SSP_SSC1_OFFSET,
-						 SSP_SET_CBP_CFP,
-						 SSP_SET_CBP_CFP);
-	}
+	hda_ssp_set_cbp_cfp(sdev);
 
 	/* step 2: purge FW request */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR, chip->ipc_req,
