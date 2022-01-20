@@ -369,11 +369,16 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 
 	pll_out = params_rate(params) * 512;
 
-	/* Configure pll for codec */
-	ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source, pll_in,
-				  pll_out);
-	if (ret < 0)
-		dev_err(rtd->dev, "snd_soc_dai_set_pll err = %d\n", ret);
+	/* when MCLK is 512FS, no need to set PLL configuration additionally. */
+	if (pll_in == pll_out)
+		clk_id = RT5682S_SCLK_S_MCLK;
+	else {
+		/* Configure pll for codec */
+		ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source, pll_in,
+					  pll_out);
+		if (ret < 0)
+			dev_err(rtd->dev, "snd_soc_dai_set_pll err = %d\n", ret);
+	}
 
 	/* Configure sysclk for codec */
 	ret = snd_soc_dai_set_sysclk(codec_dai, clk_id,
