@@ -1914,6 +1914,8 @@ static void hdptx_phy_clk_unprepare(struct clk_hw *hw)
 	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
 
 	hdptx->dclk_en = false;
+	if (hdptx->pll_locked)
+		rockchip_hdptx_phy_power_off(hdptx->phy);
 }
 
 static unsigned long hdptx_phy_clk_recalc_rate(struct clk_hw *hw,
