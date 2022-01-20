@@ -99,6 +99,8 @@
  *  VERSION     : 01-00-35
  *  18 Jan 2022 : 1. IRQ device name change
  *  VERSION     : 01-00-36
+ *  20 Jan 2022 : 1. Reset eMAC if port unavailable (PHY not connected) during suspend-resume.
+ *  VERSION     : 01-00-37
 */
 
 #include <linux/clk.h>
@@ -10321,8 +10323,8 @@ int tc956xmac_dvr_probe(struct device *device,
 	u32 mac_addr;
 #endif
 #ifndef TC956X_WITHOUT_MDIO
-	void *nrst_reg, *nclk_reg;
-	u32 nrst_val, nclk_val;
+	void *nrst_reg = NULL, *nclk_reg = NULL;
+	u32 nrst_val = 0, nclk_val = 0;
 #endif
 #ifdef TC956X
 	KPRINT_INFO("HFR0 Val = 0x%08x", readl(res->addr + mac_offset_base +
@@ -10972,7 +10974,10 @@ int tc956xmac_resume(struct device *dev)
 	struct tc956xmac_resources res;
 	u32 cm3_reset_status = 0;
 	s32 fw_load_status = 0;
-
+#ifndef TC956X_WITHOUT_MDIO
+	void *nrst_reg = NULL, *nclk_reg = NULL;
+	u32 nrst_val = 0, nclk_val = 0;
+#endif
 	KPRINT_INFO("---> %s : Port %d", __func__, priv->port_num);
 
 	memset(&res, 0, sizeof(res));
@@ -11008,12 +11013,31 @@ int tc956xmac_resume(struct device *dev)
 	netif_device_attach(ndev);
 
 clean_exit:
-	if (priv->tc956xmac_pm_wol_interrupt) {
-		KPRINT_INFO("%s : Port %d Clearing WOL and queuing phy work", __func__, priv->port_num);
-		/* Clear WOL Interrupt after resume, if WOL enabled */
-		priv->tc956xmac_pm_wol_interrupt = false;
-		/* Queue the work in system_wq */
-		queue_work(system_wq, &priv->emac_phy_work);
+	/*  Reset eMAC when Port unavailable */
+	if ((priv->plat->phy_addr == -1) || (priv->mii == NULL)) {
+		KPRINT_ERR("%s : Port %d : Invalid PHY Address (%d)\n", __func__, priv->port_num, 
+			priv->plat->phy_addr);
+#ifndef TC956X_WITHOUT_MDIO
+		/* Set Clocks same as before suspend */
+		if (priv->port_num == 0) {
+			nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
+			nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+		} else {
+			nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL1_OFFSET;
+			nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL1_OFFSET;
+		}
+		nrst_val = readl(nrst_reg);
+		nclk_val = readl(nclk_reg);
+		KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
+			nrst_val, nclk_val);
+		/* Assert reset and Disable Clock for EMAC */
+		nrst_val = nrst_val | NRSTCTRL_EMAC_MASK;
+		nclk_val = nclk_val & ~NCLKCTRL_EMAC_MASK;
+		writel(nrst_val, nrst_reg);
+		writel(nclk_val, nclk_reg);
+		KPRINT_INFO("%s : Port %d Wr RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
+			readl(nrst_reg), readl(nclk_reg));
+#endif
 	}
 	KPRINT_INFO("<--- %s : Port %d", __func__, priv->port_num);
 	return 0;

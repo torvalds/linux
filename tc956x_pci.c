@@ -126,6 +126,11 @@
  *  VERSION     : 01-00-35
  *  18 Jan 2022 : 1. Version update
  *  VERSION     : 01-00-36
+ *  20 Jan 2022 : 1. Restore clock after resume in set_power.
+		  2. Skip Resume-Config if port unavailable (PHY not connected) during suspend-resume.
+		  3. Shifted Queuing Work to end of resume to prevent MSI disable on resume.
+		  4. Version update
+ *  VERSION     : 01-00-37
  */
 
 #include <linux/clk-provider.h>
@@ -190,7 +195,7 @@ static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
 unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
 unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 6};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 7};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -248,8 +253,8 @@ static struct tc956xmac_rx_parser_entry snps_rxp_entries_filter_phy_pause_frames
  */
 static void tc956xmac_pm_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT_PM_STATE state)
 {
-	void *nrst_reg, *nclk_reg, *commonclk_reg;
-	u32 nrst_val, nclk_val, commonclk_val;
+	void *nrst_reg = NULL, *nclk_reg = NULL, *commonclk_reg = NULL;
+	u32 nrst_val = 0, nclk_val = 0, commonclk_val = 0;
 	KPRINT_INFO("-->%s : Port %d", __func__, priv->port_num);
 	/* Select register address by port */
 	if (priv->port_num == 0) {
@@ -304,6 +309,7 @@ static void tc956xmac_pm_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT
 			nrst_val, nclk_val);
 		/* Restore values same as before suspend */
 		nrst_val = (nrst_val & ~NRSTCTRL_EMAC_MASK) | priv->pm_saved_emac_rst;
+		nclk_val = nclk_val | priv->pm_saved_emac_clk; /* Restore Clock */
 		writel(nclk_val, nclk_reg);
 		writel(nrst_val, nrst_reg);
 	}
@@ -2971,6 +2977,14 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 	uint8_t SgmSigPol = 0;
 	int ret = 0;
 
+	DBGPR_FUNC(&(pdev->dev), "---> %s", __func__);	
+	/* Skip Config when Port unavailable */
+	if ((priv->plat->phy_addr == -1) || (priv->mii == NULL)) {
+		DBGPR_FUNC(&(pdev->dev), "%s : Invalid PHY Address (%d)\n", __func__, priv->plat->phy_addr);
+		ret = -1;
+		goto err_phy_addr;
+	}
+
 	if (priv->port_num == RM_PF0_ID) {
 		ret = readl(priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET);
 
@@ -3113,6 +3127,8 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 			KPRINT_INFO("XPCS initialization error\n");
 	}
 
+err_phy_addr:
+	DBGPR_FUNC(&(pdev->dev), "<--- %s", __func__);
 	return ret;
 }
 #endif
@@ -3219,6 +3235,15 @@ static int tc956x_pcie_resume(struct device *dev)
 	DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Resumed = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
 
 	priv->tc956x_port_pm_suspend = false;
+
+	/* Queue Work after resume complete to prevent MSI Disable */
+	if (priv->tc956xmac_pm_wol_interrupt) {
+		DBGPR_FUNC(&(pdev->dev), "%s : Clearing WOL and queuing phy work", __func__);
+		/* Clear WOL Interrupt after resume, if WOL enabled */
+		priv->tc956xmac_pm_wol_interrupt = false;
+		/* Queue the work in system_wq */
+		queue_work(system_wq, &priv->emac_phy_work);
+	}
 
 err:
 	mutex_unlock(&tc956x_pm_suspend_lock);
