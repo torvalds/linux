@@ -89,16 +89,6 @@ static void test_ubsan_misaligned_access(void)
 	*ptr = val;
 }
 
-static void test_ubsan_object_size_mismatch(void)
-{
-	/* "((aligned(8)))" helps this not into be misaligned for ptr-access. */
-	volatile int val __aligned(8) = 4;
-	volatile long long *ptr, val2;
-
-	ptr = (long long *)&val;
-	val2 = *ptr;
-}
-
 static const test_ubsan_fp test_ubsan_array[] = {
 	test_ubsan_add_overflow,
 	test_ubsan_sub_overflow,
@@ -110,7 +100,6 @@ static const test_ubsan_fp test_ubsan_array[] = {
 	test_ubsan_load_invalid_value,
 	//test_ubsan_null_ptr_deref, /* exclude it because there is a crash */
 	test_ubsan_misaligned_access,
-	test_ubsan_object_size_mismatch,
 };
 
 static int __init test_ubsan_init(void)
