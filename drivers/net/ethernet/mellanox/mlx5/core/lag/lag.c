@@ -347,6 +347,7 @@ int mlx5_activate_lag(struct mlx5_lag *ldev,
 static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
+	struct mlx5_core_dev *dev1 = ldev->pf[MLX5_LAG_P2].dev;
 	u32 in[MLX5_ST_SZ_DW(destroy_lag_in)] = {};
 	bool roce_lag = __mlx5_lag_is_roce(ldev);
 	u8 flags = ldev->flags;
@@ -356,8 +357,8 @@ static int mlx5_deactivate_lag(struct mlx5_lag *ldev)
 	mlx5_lag_mp_reset(ldev);
 
 	if (ldev->shared_fdb) {
-		mlx5_eswitch_offloads_destroy_single_fdb(ldev->pf[MLX5_LAG_P1].dev->priv.eswitch,
-							 ldev->pf[MLX5_LAG_P2].dev->priv.eswitch);
+		mlx5_eswitch_offloads_destroy_single_fdb(dev0->priv.eswitch,
+							 dev1->priv.eswitch);
 		ldev->shared_fdb = false;
 	}
 
