@@ -58,7 +58,6 @@ static const struct rhashtable_params zones_params = {
 };
 
 static struct nf_ct_ext_type act_ct_extend __read_mostly = {
-	.len		= sizeof(struct nf_conn_act_ct_ext),
 	.id		= NF_CT_EXT_ACT_CT,
 };
 

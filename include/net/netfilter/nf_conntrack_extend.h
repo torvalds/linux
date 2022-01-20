@@ -83,7 +83,6 @@ struct nf_ct_ext_type {
 	void (*destroy)(struct nf_conn *ct);
 
 	enum nf_ct_ext_id id;
-	u8 len;
 };
 
 int nf_ct_extend_register(const struct nf_ct_ext_type *type);

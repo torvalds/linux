@@ -23,7 +23,6 @@ module_param_named(acct, nf_ct_acct, bool, 0644);
 MODULE_PARM_DESC(acct, "Enable connection tracking flow accounting.");
 
 static const struct nf_ct_ext_type acct_extend = {
-	.len	= sizeof(struct nf_conn_acct),
 	.id	= NF_CT_EXT_ACCT,
 };
 

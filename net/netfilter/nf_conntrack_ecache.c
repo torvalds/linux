@@ -305,7 +305,6 @@ void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state)
 static int nf_ct_events __read_mostly = NF_CT_EVENTS_DEFAULT;
 
 static const struct nf_ct_ext_type event_extend = {
-	.len	= sizeof(struct nf_conntrack_ecache),
 	.id	= NF_CT_EXT_ECACHE,
 };
 

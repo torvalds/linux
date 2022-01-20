@@ -876,7 +876,6 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 }
 
 static struct nf_ct_ext_type nat_extend __read_mostly = {
-	.len		= sizeof(struct nf_conn_nat),
 	.destroy	= nf_nat_cleanup_conntrack,
 	.id		= NF_CT_EXT_NAT,
 };

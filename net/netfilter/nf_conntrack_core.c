@@ -48,7 +48,6 @@
 #include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_conntrack_synproxy.h>
-#include <net/netfilter/nf_conntrack_act_ct.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netns/hash.h>
@@ -2629,48 +2628,12 @@ int nf_conntrack_set_hashsize(const char *val, const struct kernel_param *kp)
 	return nf_conntrack_hash_resize(hashsize);
 }
 
-static __always_inline unsigned int total_extension_size(void)
-{
-	/* remember to add new extensions below */
-	BUILD_BUG_ON(NF_CT_EXT_NUM > 10);
-
-	return sizeof(struct nf_ct_ext) +
-	       sizeof(struct nf_conn_help)
-#if IS_ENABLED(CONFIG_NF_NAT)
-		+ sizeof(struct nf_conn_nat)
-#endif
-		+ sizeof(struct nf_conn_seqadj)
-		+ sizeof(struct nf_conn_acct)
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-		+ sizeof(struct nf_conntrack_ecache)
-#endif
-#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
-		+ sizeof(struct nf_conn_tstamp)
-#endif
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-		+ sizeof(struct nf_conn_timeout)
-#endif
-#ifdef CONFIG_NF_CONNTRACK_LABELS
-		+ sizeof(struct nf_conn_labels)
-#endif
-#if IS_ENABLED(CONFIG_NETFILTER_SYNPROXY)
-		+ sizeof(struct nf_conn_synproxy)
-#endif
-#if IS_ENABLED(CONFIG_NET_ACT_CT)
-		+ sizeof(struct nf_conn_act_ct_ext)
-#endif
-	;
-};
-
 int nf_conntrack_init_start(void)
 {
 	unsigned long nr_pages = totalram_pages();
 	int max_factor = 8;
 	int ret = -ENOMEM;
 	int i;
-
-	/* struct nf_ct_ext uses u8 to store offsets/size */
-	BUILD_BUG_ON(total_extension_size() > 255u);
 
 	seqcount_spinlock_init(&nf_conntrack_generation,
 			       &nf_conntrack_locks_all_lock);

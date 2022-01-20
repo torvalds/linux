@@ -20,7 +20,6 @@ module_param_named(tstamp, nf_ct_tstamp, bool, 0644);
 MODULE_PARM_DESC(tstamp, "Enable connection tracking flow timestamping.");
 
 static const struct nf_ct_ext_type tstamp_extend = {
-	.len	= sizeof(struct nf_conn_tstamp),
 	.id	= NF_CT_EXT_TSTAMP,
 };
 
