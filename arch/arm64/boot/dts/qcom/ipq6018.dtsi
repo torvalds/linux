@@ -749,7 +749,7 @@
 				snps,hird-threshold = /bits/ 8 <0x0>;
 				snps,dis_u2_susphy_quirk;
 				snps,dis_u3_susphy_quirk;
-				snps,ref-clock-period-ns = <0x32>;
+				snps,ref-clock-period-ns = <0x29>;
 				dr_mode = "host";
 			};
 		};
