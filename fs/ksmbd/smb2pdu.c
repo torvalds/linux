@@ -6126,13 +6126,26 @@ static int smb2_set_remote_key_for_rdma(struct ksmbd_work *work,
 					__le16 ChannelInfoOffset,
 					__le16 ChannelInfoLength)
 {
+	unsigned int i, ch_count;
+
 	if (work->conn->dialect == SMB30_PROT_ID &&
 	    Channel != SMB2_CHANNEL_RDMA_V1)
 		return -EINVAL;
 
-	if (ChannelInfoOffset == 0 ||
-	    le16_to_cpu(ChannelInfoLength) < sizeof(*desc))
+	ch_count = le16_to_cpu(ChannelInfoLength) / sizeof(*desc);
+	if (ksmbd_debug_types & KSMBD_DEBUG_RDMA) {
+		for (i = 0; i < ch_count; i++) {
+			pr_info("RDMA r/w request %#x: token %#x, length %#x\n",
+				i,
+				le32_to_cpu(desc[i].token),
+				le32_to_cpu(desc[i].length));
+		}
+	}
+	if (ch_count != 1) {
+		ksmbd_debug(RDMA, "RDMA multiple buffer descriptors %d are not supported yet\n",
+			    ch_count);
 		return -EINVAL;
+	}
 
 	work->need_invalidate_rkey =
 		(Channel == SMB2_CHANNEL_RDMA_V1_INVALIDATE);
@@ -6185,9 +6198,15 @@ int smb2_read(struct ksmbd_work *work)
 
 	if (req->Channel == SMB2_CHANNEL_RDMA_V1_INVALIDATE ||
 	    req->Channel == SMB2_CHANNEL_RDMA_V1) {
+		unsigned int ch_offset = le16_to_cpu(req->ReadChannelInfoOffset);
+
+		if (ch_offset < offsetof(struct smb2_read_req, Buffer)) {
+			err = -EINVAL;
+			goto out;
+		}
 		err = smb2_set_remote_key_for_rdma(work,
 						   (struct smb2_buffer_desc_v1 *)
-						   &req->Buffer[0],
+						   ((char *)req + ch_offset),
 						   req->Channel,
 						   req->ReadChannelInfoOffset,
 						   req->ReadChannelInfoLength);
@@ -6428,11 +6447,16 @@ int smb2_write(struct ksmbd_work *work)
 
 	if (req->Channel == SMB2_CHANNEL_RDMA_V1 ||
 	    req->Channel == SMB2_CHANNEL_RDMA_V1_INVALIDATE) {
-		if (req->Length != 0 || req->DataOffset != 0)
-			return -EINVAL;
+		unsigned int ch_offset = le16_to_cpu(req->WriteChannelInfoOffset);
+
+		if (req->Length != 0 || req->DataOffset != 0 ||
+		    ch_offset < offsetof(struct smb2_write_req, Buffer)) {
+			err = -EINVAL;
+			goto out;
+		}
 		err = smb2_set_remote_key_for_rdma(work,
 						   (struct smb2_buffer_desc_v1 *)
-						   &req->Buffer[0],
+						   ((char *)req + ch_offset),
 						   req->Channel,
 						   req->WriteChannelInfoOffset,
 						   req->WriteChannelInfoLength);
