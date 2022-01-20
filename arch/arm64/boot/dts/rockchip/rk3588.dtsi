@@ -50,20 +50,6 @@
 		status = "disabled";
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		/* Reserve 128MB cma memory for hdmirx driver */
-		hdmirx_reserved: hdmirx@10000000 {
-			compatible = "shared-dma-pool";
-			reusable;
-			reg = <0x0 0x10000000 0x0 (128 * 0x100000)>;
-			status = "disabled";
-		};
-	};
-
 	rkcif_mipi_lvds4: rkcif-mipi-lvds4 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
@@ -483,7 +469,6 @@
 		power-domains = <&power RK3588_PD_VO1>;
 		rockchip,grf = <&sys_grf>;
 		rockchip,vo1_grf = <&vo1_grf>;
-		memory-region = <&hdmirx_reserved>;
 		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
