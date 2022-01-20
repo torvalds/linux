@@ -353,6 +353,38 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	return ret;
 }
 
+static int hda_dsp_boot_imr(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+	unsigned long mask;
+	u32 j;
+	int ret;
+
+	/* power up & unstall/run the cores to run the firmware */
+	ret = hda_dsp_enable_core(sdev, chip->init_core_mask);
+	if (ret < 0) {
+		dev_err(sdev->dev, "dsp core start failed %d\n", ret);
+		return -EIO;
+	}
+
+	/* set enabled cores mask and increment ref count for cores in init_core_mask */
+	sdev->enabled_cores_mask |= chip->init_core_mask;
+	mask = sdev->enabled_cores_mask;
+	for_each_set_bit(j, &mask, SOF_MAX_DSP_NUM_CORES)
+		sdev->dsp_core_ref_count[j]++;
+
+	hda_ssp_set_cbp_cfp(sdev);
+
+	/* enable IPC interrupts */
+	hda_dsp_ipc_int_enable(sdev);
+
+	/* process wakes */
+	hda_sdw_process_wakeen(sdev);
+
+	return ret;
+}
+
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
@@ -362,6 +394,12 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	struct hdac_ext_stream *stream;
 	struct firmware stripped_firmware;
 	int ret, ret1, i;
+
+	if ((sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT) &&
+	    !sdev->first_boot) {
+		dev_dbg(sdev->dev, "IMR restore supported, booting from IMR directly\n");
+		return hda_dsp_boot_imr(sdev);
+	}
 
 	chip_info = desc->chip_info;
 
