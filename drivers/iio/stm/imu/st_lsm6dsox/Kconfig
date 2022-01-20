@@ -9,8 +9,8 @@ config IIO_ST_LSM6DSOX
 	select IIO_ST_LSM6DSOX_SPI if (SPI_MASTER)
 	select IIO_ST_LSM6DSOX_I3C if (I3C)
 	help
-	  Say yes here to build support for STMicroelectronics LSM6DSOX imu
-	  sensor.
+	  Say yes here to build support for STMicroelectronics
+	  LSM6DSO/LSM6DSOX/LSM6DSO32/LSM6DSO32X imu sensors.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called st_lsm6dsox.
@@ -29,27 +29,6 @@ config IIO_ST_LSM6DSOX_I3C
 	tristate
 	depends on IIO_ST_LSM6DSOX
 	select REGMAP_I3C
-
-config IIO_ST_LSM6DSOX_MLC
-	bool "Enable machine learning core"
-	depends on IIO_ST_LSM6DSOX
-	help
-	  Enable support to loading MLC binary for internal hw machine learning
-	  core. The configuration code is loaded via the firmware support upload
-	  the file st_lsm6dsox_mlc.bin in / etc / firmware
-
-	  The binary configuration code must be generated using the ST UNICO tool
-	  application
-
-config IIO_ST_LSM6DSOX_MLC_PRELOAD
-	bool "Preload some examples on MLC/FSM core"
-	depends on IIO_ST_LSM6DSOX_MLC
-	help
-	  Select yes if you want to preload some examples on machine learning core
-	  and finite state machine.
-
-	  The examples code is a 6D position recognition and is hardcoded in the
-	  driver in the mlcdata structure.
 
 config IIO_ST_LSM6DSOX_MAY_WAKEUP
 	bool "Enable wake-up irq"

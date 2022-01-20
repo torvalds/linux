@@ -7,8 +7,6 @@
  * Tesi Mario <mario.tesi@st.com>
  */
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -38,7 +36,6 @@ DECLARE_BUILTIN_FIRMWARE(LSM6DSOX_MLC_FIRMWARE_NAME, st_lsm6dsox_mlc_fw);
 #define LSM6DSOX_MLC_FIRMWARE_NAME		"st_lsm6dsox_mlc.bin"
 #endif /* CONFIG_IIO_LSM6DSOX_MLC_BUILTIN_FIRMWARE */
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC_PRELOAD
 static const u8 mlcdata[] = {
 	/*
 	 * Machine Learning Core Tool v1.2.0.0 Beta, LSM6DSOX
@@ -111,7 +108,6 @@ static const struct firmware st_lsm6dsox_mlc_preload = {
 		.size = sizeof(mlcdata),
 		.data = mlcdata
 };
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC_PRELOAD */
 
 /* Converts MLC odr to main sensor trigger odr (acc) */
 static const uint16_t mlc_odr_data[] = {
@@ -391,7 +387,8 @@ static int st_lsm6dsox_program_mlc(const struct firmware *fw,
 	return fsm_num + mlc_num;
 }
 
-static void st_lsm6dsox_mlc_update(const struct firmware *fw, void *context)
+static void st_lsm6dsox_mlc_update(const struct firmware *fw,
+				   void *context)
 {
 	struct st_lsm6dsox_hw *hw = context;
 	enum st_lsm6dsox_sensor_id id;
@@ -638,7 +635,7 @@ struct iio_dev *st_lsm6dsox_mlc_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsox_mlc_channels);
 		iio_dev->info = &st_lsm6dsox_mlc_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LSM6DSOX_DEV_NAME "_mlc");
+			  "%s_mlc", hw->dev_name);
 		break;
 	}
 	case ST_LSM6DSOX_ID_MLC_0:
@@ -666,7 +663,7 @@ struct iio_dev *st_lsm6dsox_mlc_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsox_mlc_x_ch);
 		iio_dev->info = &st_lsm6dsox_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LSM6DSOX_DEV_NAME "_mlc_%d",
+			  "%s_mlc_%d", hw->dev_name,
 			  id - ST_LSM6DSOX_ID_MLC_0);
 		sensor->outreg_addr = ST_LSM6DSOX_REG_MLC0_SRC_ADDR +
 				id - ST_LSM6DSOX_ID_MLC_0;
@@ -709,7 +706,7 @@ struct iio_dev *st_lsm6dsox_mlc_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsox_fsm_x_ch);
 		iio_dev->info = &st_lsm6dsox_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LSM6DSOX_DEV_NAME "_fsm_%d",
+			  "%s_fsm_%d", hw->dev_name,
 			  id - ST_LSM6DSOX_ID_FSM_0);
 		sensor->outreg_addr = ST_LSM6DSOX_FSM_OUTS1_ADDR +
 				id - ST_LSM6DSOX_ID_FSM_0;
@@ -846,11 +843,8 @@ EXPORT_SYMBOL(st_lsm6dsox_mlc_remove);
 
 int st_lsm6dsox_mlc_init_preload(struct st_lsm6dsox_hw *hw)
 {
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC_PRELOAD
 	hw->preload_mlc = 1;
 	st_lsm6dsox_mlc_update(&st_lsm6dsox_mlc_preload, hw);
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC_PRELOAD */
 
 	return 0;
 }
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */

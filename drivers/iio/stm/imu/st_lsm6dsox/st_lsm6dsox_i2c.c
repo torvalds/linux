@@ -23,6 +23,7 @@ static const struct regmap_config st_lsm6dsox_i2c_regmap_config = {
 static int st_lsm6dsox_i2c_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
+	int hw_id = id->driver_data;
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_i2c(client, &st_lsm6dsox_i2c_regmap_config);
@@ -32,28 +33,47 @@ static int st_lsm6dsox_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
- 	return st_lsm6dsox_probe(&client->dev, client->irq, regmap);
+	return st_lsm6dsox_probe(&client->dev, client->irq,
+				 hw_id, regmap);
 }
 
 static int st_lsm6dsox_i2c_remove(struct i2c_client *client)
 {
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
-	return st_lsm6dsox_mlc_remove(&client->dev);
-#else /* CONFIG_IIO_ST_LSM6DSOX_MLC */
-	return 0;
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
+	int err = 0;
+	struct st_lsm6dsox_hw *hw = dev_get_drvdata(&client->dev);
+
+	if (hw->settings->st_mlc_probe)
+		err = st_lsm6dsox_mlc_remove(&client->dev);
+
+	return err;
 }
 
 static const struct of_device_id st_lsm6dsox_i2c_of_match[] = {
 	{
-		.compatible = "st," ST_LSM6DSOX_DEV_NAME,
+		.compatible = "st,lsm6dso",
+		.data = (void *)ST_LSM6DSO_ID,
+	},
+	{
+		.compatible = "st,lsm6dsox",
+		.data = (void *)ST_LSM6DSOX_ID,
+	},
+	{
+		.compatible = "st,lsm6dso32",
+		.data = (void *)ST_LSM6DSO32_ID,
+	},
+	{
+		.compatible = "st,lsm6dso32x",
+		.data = (void *)ST_LSM6DSO32X_ID,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsox_i2c_of_match);
 
 static const struct i2c_device_id st_lsm6dsox_i2c_id_table[] = {
-	{ ST_LSM6DSOX_DEV_NAME },
+	{ ST_LSM6DSO_DEV_NAME, ST_LSM6DSO_ID },
+	{ ST_LSM6DSOX_DEV_NAME, ST_LSM6DSOX_ID },
+	{ ST_LSM6DSO32_DEV_NAME, ST_LSM6DSO32_ID },
+	{ ST_LSM6DSO32X_DEV_NAME, ST_LSM6DSO32X_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_lsm6dsox_i2c_id_table);

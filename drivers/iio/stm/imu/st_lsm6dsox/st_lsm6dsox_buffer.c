@@ -102,8 +102,8 @@ st_lsm6dsox_set_sensor_batching_odr(struct st_lsm6dsox_sensor *sensor,
 	}
 
 	return st_lsm6dsox_update_bits_locked(hw,
-				hw->odr_table_entry[id].batching_reg.addr,
-				hw->odr_table_entry[id].batching_reg.mask,
+				hw->st_lsm6dsox_odr_table[id].batching_reg.addr,
+				hw->st_lsm6dsox_odr_table[id].batching_reg.mask,
 				data);
 }
 
@@ -447,8 +447,8 @@ static int st_lsm6dsox_update_fifo(struct iio_dev *iio_dev, bool enable)
 			}
 
 			err = st_lsm6dsox_update_bits_locked(hw,
-				hw->odr_table_entry[ST_LSM6DSOX_ID_ACC].batching_reg.addr,
-				hw->odr_table_entry[ST_LSM6DSOX_ID_ACC].batching_reg.mask,
+				hw->st_lsm6dsox_odr_table[ST_LSM6DSOX_ID_ACC].batching_reg.addr,
+				hw->st_lsm6dsox_odr_table[ST_LSM6DSOX_ID_ACC].batching_reg.mask,
 				data);
 			if (err < 0)
 				goto out;
@@ -497,9 +497,8 @@ static irqreturn_t st_lsm6dsox_handler_thread(int irq, void *private)
 {
 	struct st_lsm6dsox_hw *hw = (struct st_lsm6dsox_hw *)private;
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
-	st_lsm6dsox_mlc_check_status(hw);
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
+	if (hw->settings->st_mlc_probe)
+		st_lsm6dsox_mlc_check_status(hw);
 
 	mutex_lock(&hw->fifo_lock);
 	st_lsm6dsox_read_fifo(hw);

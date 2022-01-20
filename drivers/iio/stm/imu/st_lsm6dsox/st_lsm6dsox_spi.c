@@ -22,6 +22,8 @@ static const struct regmap_config st_lsm6dsox_spi_regmap_config = {
 
 static int st_lsm6dsox_spi_probe(struct spi_device *spi)
 {
+	const struct spi_device_id *id = spi_get_device_id(spi);
+	int hw_id = id->driver_data;
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_spi(spi, &st_lsm6dsox_spi_regmap_config);
@@ -31,28 +33,46 @@ static int st_lsm6dsox_spi_probe(struct spi_device *spi)
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsox_probe(&spi->dev, spi->irq, regmap);
+	return st_lsm6dsox_probe(&spi->dev, spi->irq, hw_id, regmap);
 }
 
 static int st_lsm6dsox_spi_remove(struct spi_device *spi)
 {
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
-	return st_lsm6dsox_mlc_remove(&spi->dev);
-#else /* CONFIG_IIO_ST_LSM6DSOX_MLC */
-	return 0;
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
+	int err = 0;
+	struct st_lsm6dsox_hw *hw = dev_get_drvdata(&spi->dev);
+
+	if (hw->settings->st_mlc_probe)
+		err = st_lsm6dsox_mlc_remove(&spi->dev);
+
+	return err;
 }
 
 static const struct of_device_id st_lsm6dsox_spi_of_match[] = {
 	{
-		.compatible = "st," ST_LSM6DSOX_DEV_NAME,
+		.compatible = "st,lsm6dso",
+		.data = (void *)ST_LSM6DSO_ID,
+	},
+	{
+		.compatible = "st,lsm6dsox",
+		.data = (void *)ST_LSM6DSOX_ID,
+	},
+	{
+		.compatible = "st,lsm6dso32",
+		.data = (void *)ST_LSM6DSO32_ID,
+	},
+	{
+		.compatible = "st,lsm6dso32x",
+		.data = (void *)ST_LSM6DSO32X_ID,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsox_spi_of_match);
 
 static const struct spi_device_id st_lsm6dsox_spi_id_table[] = {
-	{ ST_LSM6DSOX_DEV_NAME },
+	{ ST_LSM6DSO_DEV_NAME, ST_LSM6DSO_ID },
+	{ ST_LSM6DSOX_DEV_NAME, ST_LSM6DSOX_ID },
+	{ ST_LSM6DSO32_DEV_NAME, ST_LSM6DSO32_ID },
+	{ ST_LSM6DSO32X_DEV_NAME, ST_LSM6DSO32X_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_lsm6dsox_spi_id_table);

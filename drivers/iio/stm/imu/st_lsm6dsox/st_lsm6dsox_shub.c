@@ -86,7 +86,7 @@ static const struct st_lsm6dsox_ext_dev_settings st_lsm6dsox_ext_dev_table[] = {
 			.odr_avl[4] = { 100,  0,  0x3,  0 },
 		},
 		.fs_table = {
-			.size = 1,
+			.fs_len = 1,
 			.fs_avl[0] = {
 				.gain = 1500,
 				.val = 0x0,
@@ -146,36 +146,24 @@ static const struct st_lsm6dsox_ext_dev_settings st_lsm6dsox_ext_dev_table[] = {
 			.odr_avl[5] = { 100,  0,  0x7,  0 },
 		},
 		.fs_table = {
-			.size = 4,
+			.fs_len = 4,
+			.reg = {
+				.addr = 0x21,
+				.mask = GENMASK(6, 5),
+			},
 			.fs_avl[0] = {
-				.reg = {
-					.addr = 0x21,
-					.mask = GENMASK(6, 5),
-				},
 				.gain = 6842,
 				.val = 0x0,
 			},
 			.fs_avl[1] = {
-				.reg = {
-					.addr = 0x21,
-					.mask = GENMASK(6, 5),
-				},
 				.gain = 3421,
 				.val = 0x1,
 			},
 			.fs_avl[2] = {
-				.reg = {
-					.addr = 0x21,
-					.mask = GENMASK(6, 5),
-				},
 				.gain = 2281,
 				.val = 0x2,
 			},
 			.fs_avl[3] = {
-				.reg = {
-					.addr = 0x21,
-					.mask = GENMASK(6, 5),
-				},
 				.gain = 1711,
 				.val = 0x3,
 			},
@@ -228,7 +216,7 @@ static const struct st_lsm6dsox_ext_dev_settings st_lsm6dsox_ext_dev_table[] = {
 			.odr_avl[3] = { 50,  0,  0x4,  0 },
 		},
 		.fs_table = {
-			.size = 1,
+			.fs_len = 1,
 			/* hPa miscro scale */
 			.fs_avl[0] = {
 				.gain = 1000000UL/4096UL,
@@ -267,7 +255,7 @@ static const struct st_lsm6dsox_ext_dev_settings st_lsm6dsox_ext_dev_table[] = {
 			.odr_avl[4] = { 100,  0,  0x6,  0 },
 		},
 		.fs_table = {
-			.size = 1,
+			.fs_len = 1,
 			/* hPa miscro scale */
 			.fs_avl[0] = {
 				.gain = 1000000UL/4096UL,
@@ -877,7 +865,7 @@ static ssize_t st_lsm6dsox_sysfs_shub_scale_avail(struct device *dev,
 	struct st_lsm6dsox_ext_dev_info *ext_info = &sensor->ext_dev_info;
 	int i, len = 0;
 
-	for (i = 0; i < ext_info->ext_dev_settings->fs_table.size; i++) {
+	for (i = 0; i < ext_info->ext_dev_settings->fs_table.fs_len; i++) {
 		u16 val = ext_info->ext_dev_settings->fs_table.fs_avl[i].gain;
 
 		if (val > 0)
@@ -943,19 +931,6 @@ static struct iio_dev *st_lsm6dsox_shub_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 	iio_dev->info = &st_lsm6dsox_ext_info;
 	iio_dev->channels = ext_settings->ext_channels;
 	iio_dev->num_channels = ext_settings->ext_chan_depth;
-
-	switch (iio_dev->channels[0].type) {
-	case IIO_MAGN:
-		iio_dev->name = ST_LSM6DSOX_DEV_NAME "_magn";
-		break;
-	case IIO_PRESSURE:
-		iio_dev->name = ST_LSM6DSOX_DEV_NAME "_press";
-		break;
-	default:
-		iio_dev->name = ST_LSM6DSOX_DEV_NAME "_ext";
-		break;
-	}
-
 	sensor = iio_priv(iio_dev);
 	sensor->id = id;
 	sensor->hw = hw;
@@ -968,6 +943,23 @@ static struct iio_dev *st_lsm6dsox_shub_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 	sensor->decimator = 0;
 	sensor->dec_counter = 0;
 	sensor->pm = ST_LSM6DSOX_NO_MODE;
+
+	switch (iio_dev->channels[0].type) {
+	case IIO_MAGN:
+		scnprintf(sensor->name, sizeof(sensor->name), "%s_magn",
+			  hw->dev_name);
+		break;
+	case IIO_PRESSURE:
+		scnprintf(sensor->name, sizeof(sensor->name), "%s_press",
+			  hw->dev_name);
+		break;
+	default:
+		scnprintf(sensor->name, sizeof(sensor->name), "%s_ext",
+			  hw->dev_name);
+		break;
+	}
+
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }

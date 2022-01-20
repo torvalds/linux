@@ -18,7 +18,11 @@
 
 #define ST_LSM6DSOX_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 
+#define ST_LSM6DSO_DEV_NAME			"lsm6dso"
 #define ST_LSM6DSOX_DEV_NAME			"lsm6dsox"
+#define ST_LSM6DSO32_DEV_NAME			"lsm6dso32"
+#define ST_LSM6DSO32X_DEV_NAME			"lsm6dso32x"
+
 #define ST_LSM6DSOX_DRV_VERSION			"1.2"
 
 #define ST_LSM6DSOX_REG_FUNC_CFG_ACCESS_ADDR	0x01
@@ -206,6 +210,14 @@
 						 ST_LSM6DSOX_TAG_SIZE)
 #define ST_LSM6DSOX_MAX_FIFO_DEPTH		416
 
+enum st_lsm6dsox_hw_id {
+	ST_LSM6DSO_ID,
+	ST_LSM6DSOX_ID,
+	ST_LSM6DSO32_ID,
+	ST_LSM6DSO32X_ID,
+	ST_LSM6DSOX_MAX_ID,
+};
+
 #define ST_LSM6DSOX_DATA_CHANNEL(chan_type, addr, mod, ch2, scan_idx,	\
 				rb, sb, sg, ext_inf)			\
 {									\
@@ -261,9 +273,8 @@ enum st_lsm6dsox_fsm_mlc_enable_id {
 	ST_LSM6DSOX_FSM_ENABLED = BIT(1),
 };
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
 /**
- * struct mlc_config_t -
+ * struct mlc_config_t - MLC/FSM data register structure
  * @mlc_int_addr: interrupt register address.
  * @mlc_int_mask: interrupt register mask.
  * @fsm_int_addr: interrupt register address.
@@ -285,10 +296,11 @@ struct st_lsm6dsox_mlc_config_t {
 	uint16_t requested_odr;
 	enum st_lsm6dsox_fsm_mlc_enable_id status;
 };
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
 
 /**
- * struct st_lsm6dsox_reg - Generic sensor register description (addr + mask)
+ * struct st_lsm6dsox_reg - Generic sensor register
+ * description (addr + mask)
+ *
  * @addr: Address of register.
  * @mask: Bitmask register for proper usage.
  */
@@ -381,25 +393,28 @@ struct st_lsm6dsox_odr_table_entry {
 };
 
 /**
- * struct st_lsm6dsox_fs - Full Scale sensor table entry
- * @reg: Register description for FS settings.
- * @gain: Sensor sensitivity (mdps/LSB, mg/LSB and uC/LSB).
- * @val: FS register value.
+ * struct st_lsm6dsox_fs
+ * brief Full scale entry
+ *
+ * @gain: The gain to obtain data value from raw data (LSB).
+ * @val: Register value.
  */
 struct st_lsm6dsox_fs {
-	struct st_lsm6dsox_reg reg;
 	u32 gain;
 	u8 val;
 };
 
 /**
  * struct st_lsm6dsox_fs_table_entry - Full Scale sensor table
- * @size: Full Scale sensor table size.
+ * @reg: st_lsm6dsox_reg struct.
  * @fs_avl: Full Scale list entries.
+ * @fs_len: Real size of fs_avl array.
  */
+#define ST_LSM6DSOX_FS_LIST_SIZE			4
 struct st_lsm6dsox_fs_table_entry {
-	u8 size;
-	struct st_lsm6dsox_fs fs_avl[5];
+	struct st_lsm6dsox_reg reg;
+	struct st_lsm6dsox_fs fs_avl[ST_LSM6DSOX_FS_LIST_SIZE];
+	int fs_len;
 };
 
 enum st_lsm6dsox_sensor_id {
@@ -412,7 +427,6 @@ enum st_lsm6dsox_sensor_id {
 	ST_LSM6DSOX_ID_STEP_DETECTOR,
 	ST_LSM6DSOX_ID_SIGN_MOTION,
 	ST_LSM6DSOX_ID_TILT,
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
 	ST_LSM6DSOX_ID_MLC,
 	ST_LSM6DSOX_ID_MLC_0,
 	ST_LSM6DSOX_ID_MLC_1,
@@ -438,7 +452,6 @@ enum st_lsm6dsox_sensor_id {
 	ST_LSM6DSOX_ID_FSM_13,
 	ST_LSM6DSOX_ID_FSM_14,
 	ST_LSM6DSOX_ID_FSM_15,
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
 	ST_LSM6DSOX_ID_MAX,
 };
 
@@ -456,7 +469,6 @@ static const enum st_lsm6dsox_sensor_id st_lsm6dsox_main_sensor_list[] = {
 	 [6] = ST_LSM6DSOX_ID_TILT,
 };
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
 static const enum st_lsm6dsox_sensor_id st_lsm6dsox_mlc_sensor_list[] = {
 	 [0] = ST_LSM6DSOX_ID_MLC_0,
 	 [1] = ST_LSM6DSOX_ID_MLC_1,
@@ -511,11 +523,8 @@ static const enum st_lsm6dsox_sensor_id st_lsm6dsox_fsm_sensor_list[] = {
 				    BIT(ST_LSM6DSOX_ID_FSM_13) | \
 				    BIT(ST_LSM6DSOX_ID_FSM_14) | \
 				    BIT(ST_LSM6DSOX_ID_FSM_15))
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
 
-/*
- * HW devices that can wakeup the target
- */
+/* HW devices that can wakeup the target */
 #define ST_LSM6DSOX_WAKE_UP_SENSORS (BIT(ST_LSM6DSOX_ID_GYRO) | \
 				     BIT(ST_LSM6DSOX_ID_ACC))
 
@@ -543,19 +552,23 @@ struct st_lsm6dsox_ext_dev_info {
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_lsm6dsox_hw.
  * @ext_dev_info: For sensor hub indicate device info struct.
- * @gain: Configured sensor sensitivity.
  * @odr: Output data rate of the sensor [Hz].
  * @uodr: Output data rate of the sensor [uHz].
+ * @gain: Configured sensor sensitivity.
  * @offset: Sensor data offset.
- * decimator: Sensor decimator
- * dec_counter: Sensor decimator counter
+ * @decimator: Sensor decimator
+ * @dec_counter: Sensor decimator counter
  * @old_data: Used by Temperature sensor for data comtinuity.
  * @max_watermark: Max supported watermark level.
  * @watermark: Sensor watermark level.
  * @pm: sensor power mode (HP, LP).
+ * @last_fifo_timestamp: Timestamp related to last sample in FIFO.
  * @selftest_status: Report last self test status.
  * @min_st: Min self test raw data value.
  * @max_st: Max self test raw data value.
+ * @status_reg: Status register used by mlc/fsm.
+ * @outreg_addr: Output data register used by mlc/fsm.
+ * @status: Status of mlc/fsm algos.
  */
 struct st_lsm6dsox_sensor {
 	char name[32];
@@ -593,9 +606,11 @@ struct st_lsm6dsox_sensor {
 
 /**
  * struct st_lsm6dsox_hw - ST IMU MEMS hw instance
+ * @dev_name: STM device name.
  * @dev: Pointer to instance of struct device (I2C or SPI).
  * @irq: Device interrupt line (I2C or SPI).
  * @regmap: Register map of the device.
+ * @page_lock: Mutex to prevent concurrent access to the page selector.
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
@@ -609,13 +624,18 @@ struct st_lsm6dsox_sensor {
  * @ts: Latest timestamp from irq handler.
  * @i2c_master_pu: I2C master line Pull Up configuration.
  * @orientation: Sensor orientation matrix.
- * @mlc_config:
- * @odr_table_entry: Sensors ODR table.
+ * @vdd_supply: Voltage regulator for VDD.
+ * @vddio_supply: Voltage regulator for VDDIIO.
+ * @mlc_config: MLC/FSM data register structure.
+ * @settings: ST IMU sensor settings.
+ * @st_lsm6dsox_odr_table: Sensors ODR table.
+ * @preload_mlc: MLC/FSM preload flag.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @embfunc_irq_reg: Embedded function irq configuration register (other).
  * @embfunc_pg0_irq_reg: Embedded function irq configuration register (page 0).
  */
 struct st_lsm6dsox_hw {
+	char dev_name[16];
 	struct device *dev;
 	int irq;
 	struct regmap *regmap;
@@ -637,7 +657,8 @@ struct st_lsm6dsox_hw {
 	struct regulator *vddio_supply;
 
 	struct st_lsm6dsox_mlc_config_t *mlc_config;
-	const struct st_lsm6dsox_odr_table_entry *odr_table_entry;
+	const struct st_lsm6dsox_settings *settings;
+	const struct st_lsm6dsox_odr_table_entry *st_lsm6dsox_odr_table;
 
 	bool preload_mlc;
 
@@ -649,7 +670,26 @@ struct st_lsm6dsox_hw {
 
 extern const struct dev_pm_ops st_lsm6dsox_pm_ops;
 
-static inline bool st_lsm6dsox_is_fifo_enabled(struct st_lsm6dsox_hw *hw)
+/**
+ * struct st_lsm6dsox_settings - ST IMU sensor settings
+ *
+ * @hw_id: Hw id supported by the driver configuration.
+ * @name: Device name supported by the driver configuration.
+ * @fs_table: Full scale table for a selected device.
+ * @st_mlc_probe: MLC probe flag.
+ */
+struct st_lsm6dsox_settings {
+	struct {
+		enum st_lsm6dsox_hw_id hw_id;
+		const char *name;
+	} id[ST_LSM6DSOX_MAX_ID];
+	struct st_lsm6dsox_fs_table_entry fs_table[ST_LSM6DSOX_ID_MAX];
+	bool st_mlc_probe;
+};
+
+
+static inline bool
+st_lsm6dsox_is_fifo_enabled(struct st_lsm6dsox_hw *hw)
 {
 	return hw->enable_mask & (BIT(ST_LSM6DSOX_ID_GYRO) |
 				  BIT(ST_LSM6DSOX_ID_STEP_COUNTER) |
@@ -683,10 +723,10 @@ st_lsm6dsox_update_bits_locked(struct st_lsm6dsox_hw *hw, unsigned int addr,
 }
 
 /* use when mask is constant */
-static inline int st_lsm6dsox_write_with_mask_locked(struct st_lsm6dsox_hw *hw,
-						     unsigned int addr,
-						     unsigned int mask,
-						     unsigned int data)
+static inline int
+st_lsm6dsox_write_with_mask_locked(struct st_lsm6dsox_hw *hw,
+				   unsigned int addr, unsigned int mask,
+				   unsigned int data)
 {
 	int err;
 	unsigned int val = FIELD_PREP(mask, data);
@@ -729,18 +769,18 @@ static inline int st_lsm6dsox_set_page_access(struct st_lsm6dsox_hw *hw,
 					      unsigned int mask)
 {
 	return regmap_update_bits(hw->regmap,
-				 ST_LSM6DSOX_REG_FUNC_CFG_ACCESS_ADDR,
-				 mask,
-				 ST_LSM6DSOX_SHIFT_VAL(val, mask));
+				  ST_LSM6DSOX_REG_FUNC_CFG_ACCESS_ADDR,
+				  mask,
+				  ST_LSM6DSOX_SHIFT_VAL(val, mask));
 }
 
-int st_lsm6dsox_probe(struct device *dev, int irq,
+int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 		      struct regmap *regmap);
 int st_lsm6dsox_sensor_set_enable(struct st_lsm6dsox_sensor *sensor,
 				  bool enable);
 int st_lsm6dsox_buffers_setup(struct st_lsm6dsox_hw *hw);
-int st_lsm6dsox_get_batch_val(struct st_lsm6dsox_sensor *sensor, int odr,
-			      int uodr, u8 *val);
+int st_lsm6dsox_get_batch_val(struct st_lsm6dsox_sensor *sensor,
+			      int odr, int uodr, u8 *val);
 int st_lsm6dsox_update_watermark(struct st_lsm6dsox_sensor *sensor,
 				 u16 watermark);
 ssize_t st_lsm6dsox_flush_fifo(struct device *dev,
@@ -750,7 +790,8 @@ ssize_t st_lsm6dsox_get_max_watermark(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf);
 ssize_t st_lsm6dsox_get_watermark(struct device *dev,
-				  struct device_attribute *attr, char *buf);
+				  struct device_attribute *attr,
+				  char *buf);
 ssize_t st_lsm6dsox_set_watermark(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t size);
@@ -763,12 +804,10 @@ int st_lsm6dsox_shub_probe(struct st_lsm6dsox_hw *hw);
 int st_lsm6dsox_shub_set_enable(struct st_lsm6dsox_sensor *sensor,
 				bool enable);
 
-#ifdef CONFIG_IIO_ST_LSM6DSOX_MLC
 int st_lsm6dsox_mlc_probe(struct st_lsm6dsox_hw *hw);
 int st_lsm6dsox_mlc_remove(struct device *dev);
 int st_lsm6dsox_mlc_check_status(struct st_lsm6dsox_hw *hw);
 int st_lsm6dsox_mlc_init_preload(struct st_lsm6dsox_hw *hw);
-#endif /* CONFIG_IIO_ST_LSM6DSOX_MLC */
 
 int st_lsm6dsox_embfunc_sensor_set_enable(struct st_lsm6dsox_sensor *sensor,
 					  bool enable);
