@@ -26,6 +26,8 @@
 
 /* Register Access Macros */
 #define SOC15_REG_OFFSET(ip, inst, reg)	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
+#define SOC15_REG_OFFSET1(ip, inst, reg, offset) \
+	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg)+(offset))
 
 #define __WREG32_SOC15_RLC__(reg, value, flag, hwip) \
 	((amdgpu_sriov_vf(adev) && adev->gfx.rlc.funcs && adev->gfx.rlc.rlcg_reg_access_supported) ? \
@@ -86,31 +88,15 @@
 	 __WREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, \
 			  value, 0, ip##_HWIP)
 
-#define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask) \
-({	int ret = 0;						\
-	do {							\
-		uint32_t old_ = 0;				\
-		uint32_t tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
-		uint32_t loop = adev->usec_timeout;		\
-		ret = 0;					\
-		while ((tmp_ & (mask)) != (expected_value)) {	\
-			if (old_ != tmp_) {			\
-				loop = adev->usec_timeout;	\
-				old_ = tmp_;			\
-			} else					\
-				udelay(1);			\
-			tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
-			loop--;					\
-			if (!loop) {				\
-				DRM_WARN("Register(%d) [%s] failed to reach value 0x%08x != 0x%08x\n", \
-					  inst, #reg, (unsigned)expected_value, (unsigned)(tmp_ & (mask))); \
-				ret = -ETIMEDOUT;		\
-				break;				\
-			}					\
-		}						\
-	} while (0);						\
-	ret;							\
-})
+#define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask)      \
+	amdgpu_device_wait_on_rreg(adev, inst,                       \
+	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg)), \
+	#reg, expected_value, mask)
+
+#define SOC15_WAIT_ON_RREG_OFFSET(ip, inst, reg, offset, expected_value, mask)  \
+	amdgpu_device_wait_on_rreg(adev, inst,                                  \
+	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg) + (offset)), \
+	#reg, expected_value, mask)
 
 #define WREG32_RLC(reg, value) \
 	__WREG32_SOC15_RLC__(reg, value, AMDGPU_REGS_RLC, GC_HWIP)
