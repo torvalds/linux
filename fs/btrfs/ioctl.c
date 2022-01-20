@@ -1537,6 +1537,7 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 	int compress_type = BTRFS_COMPRESS_ZLIB;
 	int ret = 0;
 	u32 extent_thresh = range->extent_thresh;
+	pgoff_t start_index;
 
 	if (isize == 0)
 		return 0;
@@ -1577,6 +1578,14 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		if (ra)
 			file_ra_state_init(ra, inode->i_mapping);
 	}
+
+	/*
+	 * Make writeback start from the beginning of the range, so that the
+	 * defrag range can be written sequentially.
+	 */
+	start_index = cur >> PAGE_SHIFT;
+	if (start_index < inode->i_mapping->writeback_index)
+		inode->i_mapping->writeback_index = start_index;
 
 	while (cur < last_byte) {
 		const unsigned long prev_sectors_defragged = sectors_defragged;
