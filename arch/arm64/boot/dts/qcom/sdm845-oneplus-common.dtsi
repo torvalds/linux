@@ -376,6 +376,17 @@
 	};
 };
 
+&i2c10 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	bq27441_fg: bq27441-battery@55 {
+		compatible = "ti,bq27411";
+		status = "okay";
+		reg = <0x55>;
+	};
+};
+
 &i2c12 {
 	status = "okay";
 	clock-frequency = <400000>;
