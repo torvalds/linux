@@ -1179,6 +1179,10 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
+
+#define SDW_CODEC_ADR_MASK(_adr) ((_adr) & (SDW_DISCO_LINK_ID_MASK | SDW_VERSION_MASK | \
+				  SDW_MFG_ID_MASK | SDW_PART_ID_MASK))
+
 /* Check if all Slaves defined on the link can be found */
 static bool link_slaves_found(struct snd_sof_dev *sdev,
 			      const struct snd_soc_acpi_link_adr *link,
@@ -1220,17 +1224,8 @@ static bool link_slaves_found(struct snd_sof_dev *sdev,
 			/* find out how many identical parts are expected */
 			for (k = 0; k < link->num_adr; k++) {
 				u64 adr2 = link->adr_d[k].adr;
-				unsigned int part_id2, link_id2, mfg_id2, version2;
 
-				mfg_id2 = SDW_MFG_ID(adr2);
-				part_id2 = SDW_PART_ID(adr2);
-				link_id2 = SDW_DISCO_LINK_ID(adr2);
-				version2 = SDW_VERSION(adr2);
-
-				if (link_id2 == link_id &&
-				    part_id2 == part_id &&
-				    mfg_id2 == mfg_id &&
-				    version2 == version)
+				if (SDW_CODEC_ADR_MASK(adr2) == SDW_CODEC_ADR_MASK(adr))
 					expected_part_count++;
 			}
 
