@@ -2992,6 +2992,42 @@ static struct pcpu_alloc_info * __init __flatten pcpu_build_alloc_info(
 
 	return ai;
 }
+
+static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align,
+				   pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn)
+{
+	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
+#ifdef CONFIG_NUMA
+	int node = NUMA_NO_NODE;
+	void *ptr;
+
+	if (cpu_to_nd_fn)
+		node = cpu_to_nd_fn(cpu);
+
+	if (node == NUMA_NO_NODE || !node_online(node) || !NODE_DATA(node)) {
+		ptr = memblock_alloc_from(size, align, goal);
+		pr_info("cpu %d has no node %d or node-local memory\n",
+			cpu, node);
+		pr_debug("per cpu data for cpu%d %zu bytes at 0x%llx\n",
+			 cpu, size, (u64)__pa(ptr));
+	} else {
+		ptr = memblock_alloc_try_nid(size, align, goal,
+					     MEMBLOCK_ALLOC_ACCESSIBLE,
+					     node);
+
+		pr_debug("per cpu data for cpu%d %zu bytes on node%d at 0x%llx\n",
+			 cpu, size, node, (u64)__pa(ptr));
+	}
+	return ptr;
+#else
+	return memblock_alloc_from(size, align, goal);
+#endif
+}
+
+static void __init pcpu_fc_free(void *ptr, size_t size)
+{
+	memblock_free(ptr, size);
+}
 #endif /* BUILD_EMBED_FIRST_CHUNK || BUILD_PAGE_FIRST_CHUNK */
 
 #if defined(BUILD_EMBED_FIRST_CHUNK)
@@ -3001,14 +3037,13 @@ static struct pcpu_alloc_info * __init __flatten pcpu_build_alloc_info(
  * @dyn_size: minimum free size for dynamic allocation in bytes
  * @atom_size: allocation atom size
  * @cpu_distance_fn: callback to determine distance between cpus, optional
- * @alloc_fn: function to allocate percpu page
- * @free_fn: function to free percpu page
+ * @cpu_to_nd_fn: callback to convert cpu to it's node, optional
  *
  * This is a helper to ease setting up embedded first percpu chunk and
  * can be called where pcpu_setup_first_chunk() is expected.
  *
  * If this function is used to setup the first chunk, it is allocated
- * by calling @alloc_fn and used as-is without being mapped into
+ * by calling pcpu_fc_alloc and used as-is without being mapped into
  * vmalloc area.  Allocations are always whole multiples of @atom_size
  * aligned to @atom_size.
  *
@@ -3022,7 +3057,7 @@ static struct pcpu_alloc_info * __init __flatten pcpu_build_alloc_info(
  * @dyn_size specifies the minimum dynamic area size.
  *
  * If the needed size is smaller than the minimum or specified unit
- * size, the leftover is returned using @free_fn.
+ * size, the leftover is returned using pcpu_fc_free.
  *
  * RETURNS:
  * 0 on success, -errno on failure.
@@ -3030,8 +3065,7 @@ static struct pcpu_alloc_info * __init __flatten pcpu_build_alloc_info(
 int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 				  size_t atom_size,
 				  pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
-				  pcpu_fc_alloc_fn_t alloc_fn,
-				  pcpu_fc_free_fn_t free_fn)
+				  pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn)
 {
 	void *base = (void *)ULONG_MAX;
 	void **areas = NULL;
@@ -3066,7 +3100,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 		BUG_ON(cpu == NR_CPUS);
 
 		/* allocate space for the whole group */
-		ptr = alloc_fn(cpu, gi->nr_units * ai->unit_size, atom_size);
+		ptr = pcpu_fc_alloc(cpu, gi->nr_units * ai->unit_size, atom_size, cpu_to_nd_fn);
 		if (!ptr) {
 			rc = -ENOMEM;
 			goto out_free_areas;
@@ -3105,12 +3139,12 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 		for (i = 0; i < gi->nr_units; i++, ptr += ai->unit_size) {
 			if (gi->cpu_map[i] == NR_CPUS) {
 				/* unused unit, free whole */
-				free_fn(ptr, ai->unit_size);
+				pcpu_fc_free(ptr, ai->unit_size);
 				continue;
 			}
 			/* copy and return the unused part */
 			memcpy(ptr, __per_cpu_load, ai->static_size);
-			free_fn(ptr + size_sum, ai->unit_size - size_sum);
+			pcpu_fc_free(ptr + size_sum, ai->unit_size - size_sum);
 		}
 	}
 
@@ -3129,7 +3163,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 out_free_areas:
 	for (group = 0; group < ai->nr_groups; group++)
 		if (areas[group])
-			free_fn(areas[group],
+			pcpu_fc_free(areas[group],
 				ai->groups[group].nr_units * ai->unit_size);
 out_free:
 	pcpu_free_alloc_info(ai);
@@ -3140,12 +3174,79 @@ out_free:
 #endif /* BUILD_EMBED_FIRST_CHUNK */
 
 #ifdef BUILD_PAGE_FIRST_CHUNK
+#include <asm/pgalloc.h>
+
+#ifndef P4D_TABLE_SIZE
+#define P4D_TABLE_SIZE PAGE_SIZE
+#endif
+
+#ifndef PUD_TABLE_SIZE
+#define PUD_TABLE_SIZE PAGE_SIZE
+#endif
+
+#ifndef PMD_TABLE_SIZE
+#define PMD_TABLE_SIZE PAGE_SIZE
+#endif
+
+#ifndef PTE_TABLE_SIZE
+#define PTE_TABLE_SIZE PAGE_SIZE
+#endif
+void __init __weak pcpu_populate_pte(unsigned long addr)
+{
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+
+	if (pgd_none(*pgd)) {
+		p4d_t *new;
+
+		new = memblock_alloc(P4D_TABLE_SIZE, P4D_TABLE_SIZE);
+		if (!new)
+			goto err_alloc;
+		pgd_populate(&init_mm, pgd, new);
+	}
+
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d)) {
+		pud_t *new;
+
+		new = memblock_alloc(PUD_TABLE_SIZE, PUD_TABLE_SIZE);
+		if (!new)
+			goto err_alloc;
+		p4d_populate(&init_mm, p4d, new);
+	}
+
+	pud = pud_offset(p4d, addr);
+	if (pud_none(*pud)) {
+		pmd_t *new;
+
+		new = memblock_alloc(PMD_TABLE_SIZE, PMD_TABLE_SIZE);
+		if (!new)
+			goto err_alloc;
+		pud_populate(&init_mm, pud, new);
+	}
+
+	pmd = pmd_offset(pud, addr);
+	if (!pmd_present(*pmd)) {
+		pte_t *new;
+
+		new = memblock_alloc(PTE_TABLE_SIZE, PTE_TABLE_SIZE);
+		if (!new)
+			goto err_alloc;
+		pmd_populate_kernel(&init_mm, pmd, new);
+	}
+
+	return;
+
+err_alloc:
+	panic("%s: Failed to allocate memory\n", __func__);
+}
+
 /**
  * pcpu_page_first_chunk - map the first chunk using PAGE_SIZE pages
  * @reserved_size: the size of reserved percpu area in bytes
- * @alloc_fn: function to allocate percpu page, always called with PAGE_SIZE
- * @free_fn: function to free percpu page, always called with PAGE_SIZE
- * @populate_pte_fn: function to populate pte
+ * @cpu_to_nd_fn: callback to convert cpu to it's node, optional
  *
  * This is a helper to ease setting up page-remapped first percpu
  * chunk and can be called where pcpu_setup_first_chunk() is expected.
@@ -3156,10 +3257,7 @@ out_free:
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-int __init pcpu_page_first_chunk(size_t reserved_size,
-				 pcpu_fc_alloc_fn_t alloc_fn,
-				 pcpu_fc_free_fn_t free_fn,
-				 pcpu_fc_populate_pte_fn_t populate_pte_fn)
+int __init pcpu_page_first_chunk(size_t reserved_size, pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn)
 {
 	static struct vm_struct vm;
 	struct pcpu_alloc_info *ai;
@@ -3201,7 +3299,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 		for (i = 0; i < unit_pages; i++) {
 			void *ptr;
 
-			ptr = alloc_fn(cpu, PAGE_SIZE, PAGE_SIZE);
+			ptr = pcpu_fc_alloc(cpu, PAGE_SIZE, PAGE_SIZE, cpu_to_nd_fn);
 			if (!ptr) {
 				pr_warn("failed to allocate %s page for cpu%u\n",
 						psize_str, cpu);
@@ -3223,7 +3321,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 			(unsigned long)vm.addr + unit * ai->unit_size;
 
 		for (i = 0; i < unit_pages; i++)
-			populate_pte_fn(unit_addr + (i << PAGE_SHIFT));
+			pcpu_populate_pte(unit_addr + (i << PAGE_SHIFT));
 
 		/* pte already populated, the following shouldn't fail */
 		rc = __pcpu_map_pages(unit_addr, &pages[unit * unit_pages],
@@ -3253,7 +3351,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 
 enomem:
 	while (--j >= 0)
-		free_fn(page_address(pages[j]), PAGE_SIZE);
+		pcpu_fc_free(page_address(pages[j]), PAGE_SIZE);
 	rc = -ENOMEM;
 out_free_ar:
 	memblock_free(pages, pages_size);
@@ -3278,17 +3376,6 @@ out_free_ar:
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
 
-static void * __init pcpu_dfl_fc_alloc(unsigned int cpu, size_t size,
-				       size_t align)
-{
-	return  memblock_alloc_from(size, align, __pa(MAX_DMA_ADDRESS));
-}
-
-static void __init pcpu_dfl_fc_free(void *ptr, size_t size)
-{
-	memblock_free(ptr, size);
-}
-
 void __init setup_per_cpu_areas(void)
 {
 	unsigned long delta;
@@ -3299,9 +3386,8 @@ void __init setup_per_cpu_areas(void)
 	 * Always reserve area for module percpu variables.  That's
 	 * what the legacy allocator did.
 	 */
-	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
-				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE, NULL,
-				    pcpu_dfl_fc_alloc, pcpu_dfl_fc_free);
+	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE, PERCPU_DYNAMIC_RESERVE,
+				    PAGE_SIZE, NULL, NULL);
 	if (rc < 0)
 		panic("Failed to initialize percpu areas.");
 

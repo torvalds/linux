@@ -13,6 +13,8 @@ a) waiting for a CPU (while being runnable)
 b) completion of synchronous block I/O initiated by the task
 c) swapping in pages
 d) memory reclaim
+e) thrashing page cache
+f) direct compact
 
 and makes these statistics available to userspace through
 the taskstats interface.
@@ -41,11 +43,12 @@ generic data structure to userspace corresponding to per-pid and per-tgid
 statistics. The delay accounting functionality populates specific fields of
 this structure. See
 
-     include/linux/taskstats.h
+     include/uapi/linux/taskstats.h
 
 for a description of the fields pertaining to delay accounting.
 It will generally be in the form of counters returning the cumulative
-delay seen for cpu, sync block I/O, swapin, memory reclaim etc.
+delay seen for cpu, sync block I/O, swapin, memory reclaim, thrash page
+cache, direct compact etc.
 
 Taking the difference of two successive readings of a given
 counter (say cpu_delay_total) for a task will give the delay
@@ -88,41 +91,37 @@ seen.
 
 General format of the getdelays command::
 
-	getdelays [-t tgid] [-p pid] [-c cmd...]
-
+	getdelays [-dilv] [-t tgid] [-p pid]
 
 Get delays, since system boot, for pid 10::
 
-	# ./getdelays -p 10
+	# ./getdelays -d -p 10
 	(output similar to next case)
 
 Get sum of delays, since system boot, for all pids with tgid 5::
 
-	# ./getdelays -t 5
+	# ./getdelays -d -t 5
+	print delayacct stats ON
+	TGID	5
 
 
-	CPU	count	real total	virtual total	delay total
-		7876	92005750	100000000	24001500
-	IO	count	delay total
-		0	0
-	SWAP	count	delay total
-		0	0
-	RECLAIM	count	delay total
-		0	0
+	CPU             count     real total  virtual total    delay total  delay average
+	                    8        7000000        6872122        3382277          0.423ms
+	IO              count    delay total  delay average
+		            0              0              0ms
+	SWAP            count    delay total  delay average
+	                    0              0              0ms
+	RECLAIM         count    delay total  delay average
+		            0              0              0ms
+	THRASHING       count    delay total  delay average
+	                    0              0              0ms
+	COMPACT         count    delay total  delay average
+	                    0              0              0ms
 
-Get delays seen in executing a given simple command::
+Get IO accounting for pid 1, it works only with -p::
 
-  # ./getdelays -c ls /
+	# ./getdelays -i -p 1
+	printing IO accounting
+	linuxrc: read=65536, write=0, cancelled_write=0
 
-  bin   data1  data3  data5  dev  home  media  opt   root  srv        sys  usr
-  boot  data2  data4  data6  etc  lib   mnt    proc  sbin  subdomain  tmp  var
-
-
-  CPU	count	real total	virtual total	delay total
-	6	4000250		4000000		0
-  IO	count	delay total
-	0	0
-  SWAP	count	delay total
-	0	0
-  RECLAIM	count	delay total
-	0	0
+The above command can be used with -v to get more debug information.
