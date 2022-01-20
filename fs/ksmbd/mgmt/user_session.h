@@ -45,7 +45,6 @@ struct ksmbd_session {
 	int				state;
 	__u8				*Preauth_HashValue;
 
-	struct ntlmssp_auth		ntlmssp;
 	char				sess_key[CIFS_KEY_SIZE];
 
 	struct hlist_node		hlist;
