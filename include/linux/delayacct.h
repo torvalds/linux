@@ -12,7 +12,6 @@
 #ifdef CONFIG_TASK_DELAY_ACCT
 struct task_delay_info {
 	raw_spinlock_t	lock;
-	unsigned int	flags;	/* Private per-task flags */
 
 	/* For each stat XXX, add following, aligned appropriately
 	 *
@@ -73,18 +72,6 @@ extern void __delayacct_thrashing_start(void);
 extern void __delayacct_thrashing_end(void);
 extern void __delayacct_swapin_start(void);
 extern void __delayacct_swapin_end(void);
-
-static inline void delayacct_set_flag(struct task_struct *p, int flag)
-{
-	if (p->delays)
-		p->delays->flags |= flag;
-}
-
-static inline void delayacct_clear_flag(struct task_struct *p, int flag)
-{
-	if (p->delays)
-		p->delays->flags &= ~flag;
-}
 
 static inline void delayacct_tsk_init(struct task_struct *tsk)
 {
@@ -184,10 +171,6 @@ static inline void delayacct_swapin_end(void)
 }
 
 #else
-static inline void delayacct_set_flag(struct task_struct *p, int flag)
-{}
-static inline void delayacct_clear_flag(struct task_struct *p, int flag)
-{}
 static inline void delayacct_init(void)
 {}
 static inline void delayacct_tsk_init(struct task_struct *tsk)
