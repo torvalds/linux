@@ -1284,6 +1284,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G10)
 #define IS_DG2_G11(dev_priv) \
 	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G11)
+#define IS_DG2_G12(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G12)
 #define IS_ADLS_RPLS(dev_priv) \
 	IS_SUBPLATFORM(dev_priv, INTEL_ALDERLAKE_S, INTEL_SUBPLATFORM_RPL_S)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
@@ -1398,16 +1400,17 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_XEHPSDV(__i915) && IS_GRAPHICS_STEP(__i915, since, until))
 
 /*
- * DG2 hardware steppings are a bit unusual.  The hardware design was forked
- * to create two variants (G10 and G11) which have distinct workaround sets.
- * The G11 fork of the DG2 design resets the GT stepping back to "A0" for its
- * first iteration, even though it's more similar to a G10 B0 stepping in terms
- * of functionality and workarounds.  However the display stepping does not
- * reset in the same manner --- a specific stepping like "B0" has a consistent
- * meaning regardless of whether it belongs to a G10 or G11 DG2.
+ * DG2 hardware steppings are a bit unusual.  The hardware design was forked to
+ * create three variants (G10, G11, and G12) which each have distinct
+ * workaround sets.  The G11 and G12 forks of the DG2 design reset the GT
+ * stepping back to "A0" for their first iterations, even though they're more
+ * similar to a G10 B0 stepping and G10 C0 stepping respectively in terms of
+ * functionality and workarounds.  However the display stepping does not reset
+ * in the same manner --- a specific stepping like "B0" has a consistent
+ * meaning regardless of whether it belongs to a G10, G11, or G12 DG2.
  *
  * TLDR:  All GT workarounds and stepping-specific logic must be applied in
- * relation to a specific subplatform (G10 or G11), whereas display workarounds
+ * relation to a specific subplatform (G10/G11/G12), whereas display workarounds
  * and stepping-specific logic will be applied with a general DG2-wide stepping
  * number.
  */

@@ -2087,7 +2087,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	}
 
 	if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_B0, STEP_FOREVER) ||
-	    IS_DG2_G11(i915)) {
+	    IS_DG2_G11(i915) || IS_DG2_G12(i915)) {
 		/* Wa_22013037850:dg2 */
 		wa_write_or(wal, LSC_CHICKEN_BIT_0_UDW,
 			    DISABLE_128B_EVICTION_COMMAND_UDW);
