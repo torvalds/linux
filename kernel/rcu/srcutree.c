@@ -632,20 +632,21 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 {
 	unsigned long flags;
 	int idx = rcu_seq_ctr(s) % ARRAY_SIZE(sdp->mynode->srcu_have_cbs);
-	struct srcu_node *snp = sdp->mynode;
+	struct srcu_node *snp;
+	struct srcu_node *snp_leaf = sdp->mynode;
 	unsigned long snp_seq;
 
 	/* Each pass through the loop does one level of the srcu_node tree. */
-	for (; snp != NULL; snp = snp->srcu_parent) {
-		if (rcu_seq_done(&ssp->srcu_gp_seq, s) && snp != sdp->mynode)
+	for (snp = snp_leaf; snp != NULL; snp = snp->srcu_parent) {
+		if (rcu_seq_done(&ssp->srcu_gp_seq, s) && snp != snp_leaf)
 			return; /* GP already done and CBs recorded. */
 		spin_lock_irqsave_rcu_node(snp, flags);
 		if (ULONG_CMP_GE(snp->srcu_have_cbs[idx], s)) {
 			snp_seq = snp->srcu_have_cbs[idx];
-			if (snp == sdp->mynode && snp_seq == s)
+			if (snp == snp_leaf && snp_seq == s)
 				snp->srcu_data_have_cbs[idx] |= sdp->grpmask;
 			spin_unlock_irqrestore_rcu_node(snp, flags);
-			if (snp == sdp->mynode && snp_seq != s) {
+			if (snp == snp_leaf && snp_seq != s) {
 				srcu_schedule_cbs_sdp(sdp, do_norm
 							   ? SRCU_INTERVAL
 							   : 0);
@@ -656,7 +657,7 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 			return;
 		}
 		snp->srcu_have_cbs[idx] = s;
-		if (snp == sdp->mynode)
+		if (snp == snp_leaf)
 			snp->srcu_data_have_cbs[idx] |= sdp->grpmask;
 		if (!do_norm && ULONG_CMP_LT(snp->srcu_gp_seq_needed_exp, s))
 			WRITE_ONCE(snp->srcu_gp_seq_needed_exp, s);
