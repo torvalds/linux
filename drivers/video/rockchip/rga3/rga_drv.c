@@ -158,8 +158,8 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 		/* if timer action on job running */
 		job = scheduler->running_job;
 		if (job) {
-			scheduler->timer.busy_time += ktime_us_delta(now, job->timestamp);
-			job->timestamp = now;
+			scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
+			job->hw_recoder_time = now;
 		}
 
 		scheduler->timer.busy_time_record = scheduler->timer.busy_time;

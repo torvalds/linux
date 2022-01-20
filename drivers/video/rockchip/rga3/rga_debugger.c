@@ -160,7 +160,7 @@ static int rga_load_show(struct seq_file *m, void *data)
 		spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
 
 		load = (busy_time_total * 100000 / RGA_LOAD_INTERVAL);
-		seq_printf(m, "load = %d", load);
+		seq_printf(m, "\t load = %d\n", load);
 		seq_printf(m, "-----------------------------------\n");
 	}
 	return 0;

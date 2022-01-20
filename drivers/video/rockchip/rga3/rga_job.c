@@ -136,6 +136,13 @@ static void rga_job_free(struct rga_job *job)
 
 static int rga_job_cleanup(struct rga_job *job)
 {
+	ktime_t now = ktime_get();
+
+	if (DEBUGGER_EN(TIME)) {
+		pr_err("(pid:%d) job clean use time = %lld\n", job->pid,
+			ktime_us_delta(now, job->timestamp));
+	}
+
 	rga_job_free(job);
 
 	return 0;
@@ -214,7 +221,7 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 	INIT_LIST_HEAD(&job->head);
 
 	job->timestamp = ktime_get();
-	job->running_time = ktime_get();
+	job->pid = current->pid;
 
 	job->rga_command_base = *rga_command_base;
 
@@ -461,15 +468,16 @@ next_job:
 static void rga_job_finish_and_next(struct rga_scheduler_t *rga_scheduler,
 		struct rga_job *job, int ret)
 {
-	ktime_t now = ktime_get();
+	ktime_t now;
 
 	job->ret = ret;
 
-	if (DEBUGGER_EN(TIME))
-		pr_err("%s use time = %lld\n", __func__,
-			ktime_us_delta(now, job->running_time));
-
-	job->running_time = now;
+	if (DEBUGGER_EN(TIME)) {
+		now = ktime_get();
+		pr_err("hw use time = %lld\n", ktime_us_delta(now, job->hw_running_time));
+		pr_err("(pid:%d) job done use time = %lld\n", job->pid,
+			ktime_us_delta(now, job->timestamp));
+	}
 
 	if (job->core == RGA2_SCHEDULER_CORE0)
 		rga2_dma_flush_cache_for_virtual_address(&job->vir_page_table,
@@ -510,7 +518,7 @@ void rga_job_done(struct rga_scheduler_t *rga_scheduler, int ret)
 	job = rga_scheduler->running_job;
 	rga_scheduler->running_job = NULL;
 
-	rga_scheduler->timer.busy_time += ktime_us_delta(now, job->timestamp);
+	rga_scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
 
 	spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
 
@@ -527,7 +535,7 @@ static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
 
 	job = scheduler->running_job;
 	if (job && (job->flags & RGA_JOB_ASYNC) &&
-	   (ktime_to_ms(ktime_sub(now, job->timestamp)) >= RGA_ASYNC_TIMEOUT_DELAY)) {
+	   (ktime_ms_delta(now, job->hw_running_time) >= RGA_ASYNC_TIMEOUT_DELAY)) {
 		scheduler->running_job = NULL;
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
@@ -665,7 +673,7 @@ static inline int rga_job_wait(struct rga_scheduler_t *rga_scheduler,
 
 	if (DEBUGGER_EN(TIME))
 		pr_err("%s use time = %lld\n", __func__,
-			 ktime_to_us(ktime_sub(now, job->running_time)));
+			ktime_us_delta(now, job->hw_running_time));
 
 	return ret;
 }
@@ -682,7 +690,7 @@ static void rga_input_fence_signaled(struct dma_fence *fence,
 
 	if (DEBUGGER_EN(TIME))
 		pr_err("rga job wait in_fence signal use time = %lld\n",
-			ktime_to_us(ktime_sub(now, waiter->job->timestamp)));
+			ktime_us_delta(now, waiter->job->timestamp));
 
 	scheduler = rga_job_schedule(waiter->job);
 
@@ -882,7 +890,7 @@ void rga_internel_ctx_kref_release(struct kref *ref)
 
 			if (job->ctx_id == ctx->id) {
 				scheduler->running_job = NULL;
-				scheduler->timer.busy_time += ktime_us_delta(now, job->timestamp);
+				scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
 				need_reset = true;
 			}
 		}

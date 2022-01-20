@@ -2271,11 +2271,11 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		pr_err("sys_ctrl = %x, int = %x, set cmd use time = %lld\n",
 			 rga_read(RGA2_SYS_CTRL, scheduler),
 			 rga_read(RGA2_INT, scheduler),
-			 ktime_to_us(ktime_sub(now, job->running_time)));
+			 ktime_us_delta(now, job->timestamp));
 	}
 
-	job->timestamp = now;
-	job->running_time = now;
+	job->hw_running_time = now;
+	job->hw_recoder_time = now;
 
 	rga_write(1, RGA2_CMD_CTRL, scheduler);
 

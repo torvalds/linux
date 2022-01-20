@@ -288,13 +288,18 @@ struct rga_job {
 	struct dma_fence *out_fence;
 	struct dma_fence *in_fence;
 	spinlock_t fence_lock;
+	/* job time stamp */
 	ktime_t timestamp;
-	ktime_t running_time;
+	/* The time when the job is actually executed on the hardware */
+	ktime_t hw_running_time;
+	/* The time only for hrtimer to calculate the load */
+	ktime_t hw_recoder_time;
 	unsigned int flags;
 	int ctx_id;
 	int priority;
 	int core;
 	int ret;
+	pid_t pid;
 	bool use_batch_mode;
 };
 

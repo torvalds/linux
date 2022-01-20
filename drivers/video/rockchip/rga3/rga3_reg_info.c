@@ -1930,10 +1930,10 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	}
 
 	if (DEBUGGER_EN(TIME))
-		pr_err("set cmd use time = %lld\n", ktime_to_us(ktime_sub(now, job->running_time)));
+		pr_err("set cmd use time = %lld\n", ktime_us_delta(now, job->timestamp));
 
-	job->timestamp = now;
-	job->running_time = now;
+	job->hw_running_time = now;
+	job->hw_recoder_time = now;
 
 	rga_write(1, RGA3_SYS_CTRL, scheduler);
 
