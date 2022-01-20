@@ -571,13 +571,13 @@ static void remove_xdp_program(void)
 {
 	u32 curr_prog_id = 0;
 
-	if (bpf_get_link_xdp_id(opt_ifindex, &curr_prog_id, opt_xdp_flags)) {
-		printf("bpf_get_link_xdp_id failed\n");
+	if (bpf_xdp_query_id(opt_ifindex, opt_xdp_flags, &curr_prog_id)) {
+		printf("bpf_xdp_query_id failed\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if (prog_id == curr_prog_id)
-		bpf_set_link_xdp_fd(opt_ifindex, -1, opt_xdp_flags);
+		bpf_xdp_detach(opt_ifindex, opt_xdp_flags, NULL);
 	else if (!curr_prog_id)
 		printf("couldn't find a prog id on a given interface\n");
 	else
@@ -1027,7 +1027,7 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
 	if (ret)
 		exit_with_error(-ret);
 
-	ret = bpf_get_link_xdp_id(opt_ifindex, &prog_id, opt_xdp_flags);
+	ret = bpf_xdp_query_id(opt_ifindex, opt_xdp_flags, &prog_id);
 	if (ret)
 		exit_with_error(-ret);
 
@@ -1760,7 +1760,7 @@ static void load_xdp_program(char **argv, struct bpf_object **obj)
 		exit(EXIT_FAILURE);
 	}
 
-	if (bpf_set_link_xdp_fd(opt_ifindex, prog_fd, opt_xdp_flags) < 0) {
+	if (bpf_xdp_attach(opt_ifindex, prog_fd, opt_xdp_flags, NULL) < 0) {
 		fprintf(stderr, "ERROR: link set xdp fd failed\n");
 		exit(EXIT_FAILURE);
 	}

@@ -33,7 +33,7 @@ static int do_attach(int idx, int prog_fd, int map_fd, const char *name)
 {
 	int err;
 
-	err = bpf_set_link_xdp_fd(idx, prog_fd, xdp_flags);
+	err = bpf_xdp_attach(idx, prog_fd, xdp_flags, NULL);
 	if (err < 0) {
 		printf("ERROR: failed to attach program to %s\n", name);
 		return err;
@@ -51,7 +51,7 @@ static int do_detach(int idx, const char *name)
 {
 	int err;
 
-	err = bpf_set_link_xdp_fd(idx, -1, xdp_flags);
+	err = bpf_xdp_detach(idx, xdp_flags, NULL);
 	if (err < 0)
 		printf("ERROR: failed to detach program from %s\n", name);
 

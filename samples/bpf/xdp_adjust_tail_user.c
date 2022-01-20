@@ -34,12 +34,12 @@ static void int_exit(int sig)
 	__u32 curr_prog_id = 0;
 
 	if (ifindex > -1) {
-		if (bpf_get_link_xdp_id(ifindex, &curr_prog_id, xdp_flags)) {
-			printf("bpf_get_link_xdp_id failed\n");
+		if (bpf_xdp_query_id(ifindex, xdp_flags, &curr_prog_id)) {
+			printf("bpf_xdp_query_id failed\n");
 			exit(1);
 		}
 		if (prog_id == curr_prog_id)
-			bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+			bpf_xdp_detach(ifindex, xdp_flags, NULL);
 		else if (!curr_prog_id)
 			printf("couldn't find a prog id on a given iface\n");
 		else
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
 
-	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
+	if (bpf_xdp_attach(ifindex, prog_fd, xdp_flags, NULL) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
