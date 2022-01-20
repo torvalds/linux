@@ -428,4 +428,12 @@ source "drivers/clk/x86/Kconfig"
 source "drivers/clk/xilinx/Kconfig"
 source "drivers/clk/zynqmp/Kconfig"
 
+# Kunit test cases
+config CLK_GATE_KUNIT_TEST
+	tristate "Basic gate type Kunit test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Kunit test for the basic clk gate type.
+
 endif
