@@ -79,9 +79,6 @@ void nf_ct_ext_destroy(struct nf_conn *ct);
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
 
 struct nf_ct_ext_type {
-	/* Destroys relationships (can be NULL). */
-	void (*destroy)(struct nf_conn *ct);
-
 	enum nf_ct_ext_id id;
 };
 

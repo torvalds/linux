@@ -89,27 +89,6 @@ static __always_inline unsigned int total_extension_size(void)
 	;
 }
 
-void nf_ct_ext_destroy(struct nf_conn *ct)
-{
-	unsigned int i;
-	struct nf_ct_ext_type *t;
-
-	for (i = 0; i < NF_CT_EXT_NUM; i++) {
-		rcu_read_lock();
-		t = rcu_dereference(nf_ct_ext_types[i]);
-
-		/* Here the nf_ct_ext_type might have been unregisterd.
-		 * I.e., it has responsible to cleanup private
-		 * area in all conntracks when it is unregisterd.
-		 */
-		if (t && t->destroy)
-			t->destroy(ct);
-		rcu_read_unlock();
-	}
-
-	kfree(ct->ext);
-}
-
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 {
 	unsigned int newlen, newoff, oldlen, alloc;
