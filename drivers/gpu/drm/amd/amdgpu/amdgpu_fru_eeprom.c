@@ -40,6 +40,12 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 	 */
 	struct atom_context *atom_ctx = adev->mode_info.atom_context;
 
+	/* The i2c access is blocked on VF
+	 * TODO: Need other way to get the info
+	 */
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
 	/* VBIOS is of the format ###-DXXXYY-##. For SKU identification,
 	 * we can use just the "DXXX" portion. If there were more models, we
 	 * could convert the 3 characters to a hex integer and use a switch
