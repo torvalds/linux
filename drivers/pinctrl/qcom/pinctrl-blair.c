@@ -1368,7 +1368,7 @@ static const struct msm_pingroup blair_groups[] = {
 	[26] = PINGROUP(26, qup13_f1, qup13_f2, NA, NA, NA, NA, NA, NA, NA, 0, -1),
 	[27] = PINGROUP(27, qup11_f1, qup11_f2, MDP_VSYNC, PLL_BIST, NA, qdss_gpio14,
 			NA, NA, NA, 0x9C010, 0),
-	[28] = PINGROUP(28, qup11_f2, qup11_f2, MDP_VSYNC, NA, qdss_gpio15, NA, NA,
+	[28] = PINGROUP(28, qup11_f1, qup11_f2, MDP_VSYNC, NA, qdss_gpio15, NA, NA,
 			NA, NA, 0x9C010, 1),
 	[29] = PINGROUP(29, cam_mclk, NA, NA, NA, NA, NA, NA, NA, NA, 0, -1),
 	[30] = PINGROUP(30, cam_mclk, NA, NA, NA, NA, NA, NA, NA, NA, 0, -1),
