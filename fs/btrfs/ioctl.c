@@ -1214,6 +1214,35 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 			goto next;
 
 		/*
+		 * Our start offset might be in the middle of an existing extent
+		 * map, so take that into account.
+		 */
+		range_len = em->len - (cur - em->start);
+		/*
+		 * If this range of the extent map is already flagged for delalloc,
+		 * skip it, because:
+		 *
+		 * 1) We could deadlock later, when trying to reserve space for
+		 *    delalloc, because in case we can't immediately reserve space
+		 *    the flusher can start delalloc and wait for the respective
+		 *    ordered extents to complete. The deadlock would happen
+		 *    because we do the space reservation while holding the range
+		 *    locked, and starting writeback, or finishing an ordered
+		 *    extent, requires locking the range;
+		 *
+		 * 2) If there's delalloc there, it means there's dirty pages for
+		 *    which writeback has not started yet (we clean the delalloc
+		 *    flag when starting writeback and after creating an ordered
+		 *    extent). If we mark pages in an adjacent range for defrag,
+		 *    then we will have a larger contiguous range for delalloc,
+		 *    very likely resulting in a larger extent after writeback is
+		 *    triggered (except in a case of free space fragmentation).
+		 */
+		if (test_range_bit(&inode->io_tree, cur, cur + range_len - 1,
+				   EXTENT_DELALLOC, 0, NULL))
+			goto next;
+
+		/*
 		 * For do_compress case, we want to compress all valid file
 		 * extents, thus no @extent_thresh or mergeable check.
 		 */
@@ -1221,7 +1250,7 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 			goto add;
 
 		/* Skip too large extent */
-		if (em->len >= extent_thresh)
+		if (range_len >= extent_thresh)
 			goto next;
 
 		next_mergeable = defrag_check_next_extent(&inode->vfs_inode, em,
