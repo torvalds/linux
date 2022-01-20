@@ -930,13 +930,14 @@ int page_referenced(struct page *page,
 static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 			    unsigned long address, void *arg)
 {
-	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, PVMW_SYNC);
+	struct folio *folio = page_folio(page);
+	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, PVMW_SYNC);
 	struct mmu_notifier_range range;
 	int *cleaned = arg;
 
 	/*
 	 * We have to assume the worse case ie pmd for invalidation. Note that
-	 * the page can not be free from this function.
+	 * the folio can not be freed from this function.
 	 */
 	mmu_notifier_range_init(&range, MMU_NOTIFY_PROTECTION_PAGE,
 				0, vma, vma->vm_mm, address,
@@ -968,14 +969,14 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 			if (!pmd_dirty(*pmd) && !pmd_write(*pmd))
 				continue;
 
-			flush_cache_page(vma, address, page_to_pfn(page));
+			flush_cache_page(vma, address, folio_pfn(folio));
 			entry = pmdp_invalidate(vma, address, pmd);
 			entry = pmd_wrprotect(entry);
 			entry = pmd_mkclean(entry);
 			set_pmd_at(vma->vm_mm, address, pmd, entry);
 			ret = 1;
 #else
-			/* unexpected pmd-mapped page? */
+			/* unexpected pmd-mapped folio? */
 			WARN_ON_ONCE(1);
 #endif
 		}
