@@ -264,8 +264,8 @@ pmp_done:
 	blt a0, t0, .Lgood_cores
 	tail .Lsecondary_park
 .Lgood_cores:
-#endif
 
+	/* The lottery system is only required for spinwait booting method */
 #ifndef CONFIG_XIP_KERNEL
 	/* Pick one hart to run the main boot sequence */
 	la a3, hart_lottery
@@ -284,6 +284,10 @@ pmp_done:
 	/* first time here if hart_lottery in RAM is not set */
 	beq t0, t1, .Lsecondary_start
 
+#endif /* CONFIG_XIP */
+#endif /* CONFIG_SMP */
+
+#ifdef CONFIG_XIP_KERNEL
 	la sp, _end + THREAD_SIZE
 	XIP_FIXUP_OFFSET sp
 	mv s0, a0
@@ -340,8 +344,8 @@ clear_bss_done:
 	call soc_early_init
 	tail start_kernel
 
-.Lsecondary_start:
 #ifdef CONFIG_SMP
+.Lsecondary_start:
 	/* Set trap vector to spin forever to help debug */
 	la a3, .Lsecondary_park
 	csrw CSR_TVEC, a3
