@@ -511,6 +511,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   TAG_BLOCK_CLKGATE_DIS		REG_BIT(7)
 
 #define GEN12_MERT_MOD_CTRL		_MMIO(0xcf28)
+#define RENDER_MOD_CTRL			_MMIO(0xcf2c)
+#define COMP_MOD_CTRL			_MMIO(0xcf30)
+#define VDBX_MOD_CTRL			_MMIO(0xcf34)
+#define VEBX_MOD_CTRL			_MMIO(0xcf38)
 #define   FORCE_MISS_FTLB		REG_BIT(3)
 
 #define GAB_CTL				_MMIO(0x24000)
