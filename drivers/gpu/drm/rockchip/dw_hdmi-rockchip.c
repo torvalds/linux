@@ -1504,9 +1504,9 @@ static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 
 	if (!hdmi->mode_changed) {
 		if (!hdmi->id)
-			s->output_if &= ~VOP_OUTPUT_IF_HDMI1;
-		else
 			s->output_if &= ~VOP_OUTPUT_IF_HDMI0;
+		else
+			s->output_if &= ~VOP_OUTPUT_IF_HDMI1;
 	}
 	/*
 	 * when plug out hdmi it will be switch cvbs and then phy bus width
