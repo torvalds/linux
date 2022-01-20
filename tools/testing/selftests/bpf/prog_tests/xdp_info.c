@@ -14,13 +14,13 @@ void serial_test_xdp_info(void)
 
 	/* Get prog_id for XDP_ATTACHED_NONE mode */
 
-	err = bpf_get_link_xdp_id(IFINDEX_LO, &prog_id, 0);
+	err = bpf_xdp_query_id(IFINDEX_LO, 0, &prog_id);
 	if (CHECK(err, "get_xdp_none", "errno=%d\n", errno))
 		return;
 	if (CHECK(prog_id, "prog_id_none", "unexpected prog_id=%u\n", prog_id))
 		return;
 
-	err = bpf_get_link_xdp_id(IFINDEX_LO, &prog_id, XDP_FLAGS_SKB_MODE);
+	err = bpf_xdp_query_id(IFINDEX_LO, XDP_FLAGS_SKB_MODE, &prog_id);
 	if (CHECK(err, "get_xdp_none_skb", "errno=%d\n", errno))
 		return;
 	if (CHECK(prog_id, "prog_id_none_skb", "unexpected prog_id=%u\n",
@@ -37,32 +37,32 @@ void serial_test_xdp_info(void)
 	if (CHECK(err, "get_prog_info", "errno=%d\n", errno))
 		goto out_close;
 
-	err = bpf_set_link_xdp_fd(IFINDEX_LO, prog_fd, XDP_FLAGS_SKB_MODE);
+	err = bpf_xdp_attach(IFINDEX_LO, prog_fd, XDP_FLAGS_SKB_MODE, NULL);
 	if (CHECK(err, "set_xdp_skb", "errno=%d\n", errno))
 		goto out_close;
 
 	/* Get prog_id for single prog mode */
 
-	err = bpf_get_link_xdp_id(IFINDEX_LO, &prog_id, 0);
+	err = bpf_xdp_query_id(IFINDEX_LO, 0, &prog_id);
 	if (CHECK(err, "get_xdp", "errno=%d\n", errno))
 		goto out;
 	if (CHECK(prog_id != info.id, "prog_id", "prog_id not available\n"))
 		goto out;
 
-	err = bpf_get_link_xdp_id(IFINDEX_LO, &prog_id, XDP_FLAGS_SKB_MODE);
+	err = bpf_xdp_query_id(IFINDEX_LO, XDP_FLAGS_SKB_MODE, &prog_id);
 	if (CHECK(err, "get_xdp_skb", "errno=%d\n", errno))
 		goto out;
 	if (CHECK(prog_id != info.id, "prog_id_skb", "prog_id not available\n"))
 		goto out;
 
-	err = bpf_get_link_xdp_id(IFINDEX_LO, &prog_id, XDP_FLAGS_DRV_MODE);
+	err = bpf_xdp_query_id(IFINDEX_LO, XDP_FLAGS_DRV_MODE, &prog_id);
 	if (CHECK(err, "get_xdp_drv", "errno=%d\n", errno))
 		goto out;
 	if (CHECK(prog_id, "prog_id_drv", "unexpected prog_id=%u\n", prog_id))
 		goto out;
 
 out:
-	bpf_set_link_xdp_fd(IFINDEX_LO, -1, 0);
+	bpf_xdp_detach(IFINDEX_LO, 0, NULL);
 out_close:
 	bpf_object__close(obj);
 }
