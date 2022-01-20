@@ -97,12 +97,12 @@ static bool __init pcpu_need_numa(void)
  * RETURNS:
  * Pointer to the allocated area on success, NULL on failure.
  */
-static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
-					unsigned long align)
+static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size, unsigned long align,
+					pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn)
 {
 	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
 #ifdef CONFIG_NUMA
-	int node = early_cpu_to_node(cpu);
+	int node = cpu_to_nd_fn(cpu);
 	void *ptr;
 
 	if (!node_online(node) || !NODE_DATA(node)) {
@@ -128,9 +128,10 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 /*
  * Helpers for first chunk memory allocation
  */
-static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
+static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align,
+				   pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn)
 {
-	return pcpu_alloc_bootmem(cpu, size, align);
+	return pcpu_alloc_bootmem(cpu, size, align, cpu_to_nd_fn);
 }
 
 static void __init pcpu_fc_free(void *ptr, size_t size)
@@ -148,6 +149,11 @@ static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 #else
 	return LOCAL_DISTANCE;
 #endif
+}
+
+static int __init pcpu_cpu_to_node(int cpu)
+{
+	return early_cpu_to_node(cpu);
 }
 
 static void __init pcpup_populate_pte(unsigned long addr)
@@ -205,6 +211,7 @@ void __init setup_per_cpu_areas(void)
 		rc = pcpu_embed_first_chunk(PERCPU_FIRST_CHUNK_RESERVE,
 					    dyn_size, atom_size,
 					    pcpu_cpu_distance,
+					    pcpu_cpu_to_node,
 					    pcpu_fc_alloc, pcpu_fc_free);
 		if (rc < 0)
 			pr_warn("%s allocator failed (%d), falling back to page size\n",
@@ -212,6 +219,7 @@ void __init setup_per_cpu_areas(void)
 	}
 	if (rc < 0)
 		rc = pcpu_page_first_chunk(PERCPU_FIRST_CHUNK_RESERVE,
+					   pcpu_cpu_to_node,
 					   pcpu_fc_alloc, pcpu_fc_free,
 					   pcpup_populate_pte);
 	if (rc < 0)

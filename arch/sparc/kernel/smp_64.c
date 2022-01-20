@@ -1539,12 +1539,12 @@ void smp_send_stop(void)
  * RETURNS:
  * Pointer to the allocated area on success, NULL on failure.
  */
-static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
-					size_t align)
+static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size, size_t align,
+					pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn)
 {
 	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
 #ifdef CONFIG_NUMA
-	int node = cpu_to_node(cpu);
+	int node = cpu_to_nd_fn(cpu);
 	void *ptr;
 
 	if (!node_online(node) || !NODE_DATA(node)) {
@@ -1576,6 +1576,11 @@ static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
+}
+
+static int __init pcpu_cpu_to_node(int cpu)
+{
+	return cpu_to_node(cpu);
 }
 
 static void __init pcpu_populate_pte(unsigned long addr)
@@ -1641,6 +1646,7 @@ void __init setup_per_cpu_areas(void)
 		rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
 					    PERCPU_DYNAMIC_RESERVE, 4 << 20,
 					    pcpu_cpu_distance,
+					    pcpu_cpu_to_node,
 					    pcpu_alloc_bootmem,
 					    pcpu_free_bootmem);
 		if (rc)
@@ -1650,6 +1656,7 @@ void __init setup_per_cpu_areas(void)
 	}
 	if (rc < 0)
 		rc = pcpu_page_first_chunk(PERCPU_MODULE_RESERVE,
+					   pcpu_cpu_to_node,
 					   pcpu_alloc_bootmem,
 					   pcpu_free_bootmem,
 					   pcpu_populate_pte);

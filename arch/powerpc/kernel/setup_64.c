@@ -784,12 +784,12 @@ void __init emergency_stack_init(void)
  * RETURNS:
  * Pointer to the allocated area on success, NULL on failure.
  */
-static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
-					size_t align)
+static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size, size_t align,
+					pcpu_fc_cpu_to_node_fn_t cpu_to_nd_fn)
 {
 	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
 #ifdef CONFIG_NUMA
-	int node = early_cpu_to_node(cpu);
+	int node = cpu_to_nd_fun(cpu);
 	void *ptr;
 
 	if (!node_online(node) || !NODE_DATA(node)) {
@@ -821,6 +821,11 @@ static int pcpu_cpu_distance(unsigned int from, unsigned int to)
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
+}
+
+static __init int pcpu_cpu_to_node(int cpu)
+{
+	return early_cpu_to_node(cpu);
 }
 
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
@@ -891,6 +896,7 @@ void __init setup_per_cpu_areas(void)
 
 	if (pcpu_chosen_fc != PCPU_FC_PAGE) {
 		rc = pcpu_embed_first_chunk(0, dyn_size, atom_size, pcpu_cpu_distance,
+					    pcpu_cpu_to_node,
 					    pcpu_alloc_bootmem, pcpu_free_bootmem);
 		if (rc)
 			pr_warn("PERCPU: %s allocator failed (%d), "
@@ -899,7 +905,8 @@ void __init setup_per_cpu_areas(void)
 	}
 
 	if (rc < 0)
-		rc = pcpu_page_first_chunk(0, pcpu_alloc_bootmem, pcpu_free_bootmem,
+		rc = pcpu_page_first_chunk(0, pcpu_cpu_to_node,
+					   pcpu_alloc_bootmem, pcpu_free_bootmem,
 					   pcpu_populate_pte);
 	if (rc < 0)
 		panic("cannot initialize percpu area (err=%d)", rc);
