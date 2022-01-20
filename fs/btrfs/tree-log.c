@@ -5702,8 +5702,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_key min_key;
 	struct btrfs_key max_key;
 	struct btrfs_root *log = inode->root->log_root;
-	int err = 0;
-	int ret = 0;
+	int ret;
 	bool fast_search = false;
 	u64 ino = btrfs_ino(inode);
 	struct extent_map_tree *em_tree = &inode->extent_tree;
@@ -5746,8 +5745,8 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	 * and figure out which index ranges have to be logged.
 	 */
 	if (S_ISDIR(inode->vfs_inode.i_mode)) {
-		err = btrfs_commit_inode_delayed_items(trans, inode);
-		if (err)
+		ret = btrfs_commit_inode_delayed_items(trans, inode);
+		if (ret)
 			goto out;
 	}
 
@@ -5768,11 +5767,10 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	 * the inode was previously logged in this transaction.
 	 */
 	ret = inode_logged(trans, inode, path);
-	if (ret < 0) {
-		err = ret;
+	if (ret < 0)
 		goto out_unlock;
-	}
 	ctx->logged_before = (ret == 1);
+	ret = 0;
 
 	/*
 	 * This is for cases where logging a directory could result in losing a
@@ -5785,7 +5783,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	    inode_only == LOG_INODE_ALL &&
 	    inode->last_unlink_trans >= trans->transid) {
 		btrfs_set_log_full_commit(trans);
-		err = 1;
+		ret = 1;
 		goto out_unlock;
 	}
 
@@ -5817,8 +5815,8 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			 * (zeroes), as if an expanding truncate happened,
 			 * instead of getting a file of 4Kb only.
 			 */
-			err = logged_inode_size(log, inode, path, &logged_isize);
-			if (err)
+			ret = logged_inode_size(log, inode, path, &logged_isize);
+			if (ret)
 				goto out_unlock;
 		}
 		if (test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
@@ -5854,37 +5852,35 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		}
 
 	}
-	if (ret) {
-		err = ret;
+	if (ret)
 		goto out_unlock;
-	}
 
-	err = copy_inode_items_to_log(trans, inode, &min_key, &max_key,
+	ret = copy_inode_items_to_log(trans, inode, &min_key, &max_key,
 				      path, dst_path, logged_isize,
 				      recursive_logging, inode_only, ctx,
 				      &need_log_inode_item);
-	if (err)
+	if (ret)
 		goto out_unlock;
 
 	btrfs_release_path(path);
 	btrfs_release_path(dst_path);
-	err = btrfs_log_all_xattrs(trans, inode, path, dst_path);
-	if (err)
+	ret = btrfs_log_all_xattrs(trans, inode, path, dst_path);
+	if (ret)
 		goto out_unlock;
 	xattrs_logged = true;
 	if (max_key.type >= BTRFS_EXTENT_DATA_KEY && !fast_search) {
 		btrfs_release_path(path);
 		btrfs_release_path(dst_path);
-		err = btrfs_log_holes(trans, inode, path);
-		if (err)
+		ret = btrfs_log_holes(trans, inode, path);
+		if (ret)
 			goto out_unlock;
 	}
 log_extents:
 	btrfs_release_path(path);
 	btrfs_release_path(dst_path);
 	if (need_log_inode_item) {
-		err = log_inode_item(trans, log, dst_path, inode, inode_item_dropped);
-		if (err)
+		ret = log_inode_item(trans, log, dst_path, inode, inode_item_dropped);
+		if (ret)
 			goto out_unlock;
 		/*
 		 * If we are doing a fast fsync and the inode was logged before
@@ -5895,18 +5891,16 @@ log_extents:
 		 * BTRFS_INODE_COPY_EVERYTHING set.
 		 */
 		if (!xattrs_logged && inode->logged_trans < trans->transid) {
-			err = btrfs_log_all_xattrs(trans, inode, path, dst_path);
-			if (err)
+			ret = btrfs_log_all_xattrs(trans, inode, path, dst_path);
+			if (ret)
 				goto out_unlock;
 			btrfs_release_path(path);
 		}
 	}
 	if (fast_search) {
 		ret = btrfs_log_changed_extents(trans, inode, dst_path, ctx);
-		if (ret) {
-			err = ret;
+		if (ret)
 			goto out_unlock;
-		}
 	} else if (inode_only == LOG_INODE_ALL) {
 		struct extent_map *em, *n;
 
@@ -5918,10 +5912,8 @@ log_extents:
 
 	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->vfs_inode.i_mode)) {
 		ret = log_directory_changes(trans, inode, path, dst_path, ctx);
-		if (ret) {
-			err = ret;
+		if (ret)
 			goto out_unlock;
-		}
 	}
 
 	spin_lock(&inode->lock);
@@ -5969,7 +5961,7 @@ out:
 	if (recursive_logging)
 		ctx->logged_before = orig_logged_before;
 
-	return err;
+	return ret;
 }
 
 /*
