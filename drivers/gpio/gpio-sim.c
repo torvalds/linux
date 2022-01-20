@@ -816,7 +816,7 @@ gpio_sim_make_bank_swnode(struct gpio_sim_bank *bank,
 
 	properties[prop_idx++] = PROPERTY_ENTRY_U32("ngpios", bank->num_lines);
 
-	if (bank->label)
+	if (bank->label && (strlen(bank->label) > 0))
 		properties[prop_idx++] = PROPERTY_ENTRY_STRING("gpio-sim,label",
 							       bank->label);
 
