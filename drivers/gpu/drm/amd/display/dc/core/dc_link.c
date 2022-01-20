@@ -831,7 +831,7 @@ static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason
 	link->type = dc_connection_mst_branch;
 	dm_helpers_dp_update_branch_info(link->ctx, link);
 	if (dm_helpers_dp_mst_start_top_mgr(link->ctx,
-			link, reason == DETECT_REASON_BOOT)) {
+			link, (reason == DETECT_REASON_BOOT || reason == DETECT_REASON_RESUMEFROMS3S4))) {
 		link_disconnect_sink(link);
 	} else {
 		link->type = dc_connection_sst_branch;

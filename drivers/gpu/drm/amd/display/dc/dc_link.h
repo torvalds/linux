@@ -312,6 +312,7 @@ void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init);
  */
 enum dc_detect_reason {
 	DETECT_REASON_BOOT,
+	DETECT_REASON_RESUMEFROMS3S4,
 	DETECT_REASON_HPD,
 	DETECT_REASON_HPDRX,
 	DETECT_REASON_FALLBACK,
