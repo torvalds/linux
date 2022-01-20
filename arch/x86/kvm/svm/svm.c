@@ -4268,6 +4268,11 @@ static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
 	if (!sev_guest(vcpu->kvm))
 		return true;
 
+	/* #UD and #GP should never be intercepted for SEV guests. */
+	WARN_ON_ONCE(emul_type & (EMULTYPE_TRAP_UD |
+				  EMULTYPE_TRAP_UD_FORCED |
+				  EMULTYPE_VMWARE_GP));
+
 	/*
 	 * Emulation is impossible for SEV-ES guests as KVM doesn't have access
 	 * to guest register state.
