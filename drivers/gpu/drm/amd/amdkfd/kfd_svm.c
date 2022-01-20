@@ -1200,7 +1200,7 @@ svm_range_unmap_from_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 static int
 svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
-			  unsigned long last)
+			  unsigned long last, uint32_t trigger)
 {
 	DECLARE_BITMAP(bitmap, MAX_GPU_INSTANCE);
 	struct kfd_process_device *pdd;
@@ -1231,6 +1231,9 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 			pr_debug("failed to find device idx %d\n", gpuidx);
 			return -EINVAL;
 		}
+
+		kfd_smi_event_unmap_from_gpu(pdd->dev, p->lead_thread->pid,
+					     start, last, trigger);
 
 		r = svm_range_unmap_from_gpu(pdd->dev->adev,
 					     drm_priv_to_vm(pdd->drm_priv),
@@ -1759,7 +1762,8 @@ out_reschedule:
  */
 static int
 svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
-		unsigned long start, unsigned long last)
+		unsigned long start, unsigned long last,
+		enum mmu_notifier_event event)
 {
 	struct svm_range_list *svms = prange->svms;
 	struct svm_range *pchild;
@@ -1804,6 +1808,12 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 			msecs_to_jiffies(AMDGPU_SVM_RANGE_RESTORE_DELAY_MS));
 	} else {
 		unsigned long s, l;
+		uint32_t trigger;
+
+		if (event == MMU_NOTIFY_MIGRATE)
+			trigger = KFD_SVM_UNMAP_TRIGGER_MMU_NOTIFY_MIGRATE;
+		else
+			trigger = KFD_SVM_UNMAP_TRIGGER_MMU_NOTIFY;
 
 		pr_debug("invalidate unmap svms 0x%p [0x%lx 0x%lx] from GPUs\n",
 			 prange->svms, start, last);
@@ -1812,13 +1822,13 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 			s = max(start, pchild->start);
 			l = min(last, pchild->last);
 			if (l >= s)
-				svm_range_unmap_from_gpus(pchild, s, l);
+				svm_range_unmap_from_gpus(pchild, s, l, trigger);
 			mutex_unlock(&pchild->lock);
 		}
 		s = max(start, prange->start);
 		l = min(last, prange->last);
 		if (l >= s)
-			svm_range_unmap_from_gpus(prange, s, l);
+			svm_range_unmap_from_gpus(prange, s, l, trigger);
 	}
 
 	return r;
@@ -2232,6 +2242,7 @@ static void
 svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 			 unsigned long start, unsigned long last)
 {
+	uint32_t trigger = KFD_SVM_UNMAP_TRIGGER_UNMAP_FROM_CPU;
 	struct svm_range_list *svms;
 	struct svm_range *pchild;
 	struct kfd_process *p;
@@ -2259,14 +2270,14 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 		s = max(start, pchild->start);
 		l = min(last, pchild->last);
 		if (l >= s)
-			svm_range_unmap_from_gpus(pchild, s, l);
+			svm_range_unmap_from_gpus(pchild, s, l, trigger);
 		svm_range_unmap_split(mm, prange, pchild, start, last);
 		mutex_unlock(&pchild->lock);
 	}
 	s = max(start, prange->start);
 	l = min(last, prange->last);
 	if (l >= s)
-		svm_range_unmap_from_gpus(prange, s, l);
+		svm_range_unmap_from_gpus(prange, s, l, trigger);
 	svm_range_unmap_split(mm, prange, prange, start, last);
 
 	if (unmap_parent)
@@ -2333,7 +2344,7 @@ svm_range_cpu_invalidate_pagetables(struct mmu_interval_notifier *mni,
 		svm_range_unmap_from_cpu(mni->mm, prange, start, last);
 		break;
 	default:
-		svm_range_evict(prange, mni->mm, start, last);
+		svm_range_evict(prange, mni->mm, start, last, range->event);
 		break;
 	}
 

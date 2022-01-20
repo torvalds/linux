@@ -318,6 +318,15 @@ void kfd_smi_event_queue_restore_rescheduled(struct mm_struct *mm)
 	kfd_unref_process(p);
 }
 
+void kfd_smi_event_unmap_from_gpu(struct kfd_dev *dev, pid_t pid,
+				  unsigned long address, unsigned long last,
+				  uint32_t trigger)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_UNMAP_FROM_GPU,
+			  "%lld -%d @%lx(%lx) %x %d\n", ktime_get_boottime_ns(),
+			  pid, address, last - address + 1, dev->id, trigger);
+}
+
 int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd)
 {
 	struct kfd_smi_client *client;

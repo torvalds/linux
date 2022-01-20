@@ -46,4 +46,7 @@ void kfd_smi_event_queue_eviction(struct kfd_dev *dev, pid_t pid,
 				  uint32_t trigger);
 void kfd_smi_event_queue_restore(struct kfd_dev *dev, pid_t pid);
 void kfd_smi_event_queue_restore_rescheduled(struct mm_struct *mm);
+void kfd_smi_event_unmap_from_gpu(struct kfd_dev *dev, pid_t pid,
+				  unsigned long address, unsigned long last,
+				  uint32_t trigger);
 #endif
