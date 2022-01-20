@@ -825,9 +825,9 @@ void amdgpu_gmc_get_reserved_allocation(struct amdgpu_device *adev)
 
 int amdgpu_gmc_vram_checking(struct amdgpu_device *adev)
 {
-	struct amdgpu_bo *vram_bo;
-	uint64_t vram_gpu;
-	void *vram_ptr;
+	struct amdgpu_bo *vram_bo = NULL;
+	uint64_t vram_gpu = 0;
+	void *vram_ptr = NULL;
 
 	int ret, size = 0x100000;
 	uint8_t cptr[10];
