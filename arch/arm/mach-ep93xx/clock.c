@@ -209,7 +209,7 @@ static int ep93xx_mux_determine_rate(struct clk_hw *hw,
 				struct clk_rate_request *req)
 {
 	unsigned long rate = req->rate;
-	struct clk *best_parent = 0;
+	struct clk *best_parent = NULL;
 	unsigned long __parent_rate;
 	unsigned long best_rate = 0, actual_rate, mclk_rate;
 	unsigned long best_parent_rate;
