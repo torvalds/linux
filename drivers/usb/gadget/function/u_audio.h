@@ -42,16 +42,16 @@ struct uac_params {
 	/* playback */
 	int p_chmask;	/* channel mask */
 	int p_srates[UAC_MAX_RATES];	/* available rates in Hz (0 terminated list) */
-	int p_srate;	/* selected rate in Hz */
 	int p_ssize;	/* sample size */
 	struct uac_fu_params p_fu;	/* Feature Unit parameters */
 
 	/* capture */
 	int c_chmask;	/* channel mask */
 	int c_srates[UAC_MAX_RATES];	/* available rates in Hz (0 terminated list) */
-	int c_srate;	/* selected rate in Hz */
 	int c_ssize;	/* sample size */
 	struct uac_fu_params c_fu;	/* Feature Unit parameters */
+
+	/* rates are dynamic, in uac_rtd_params */
 
 	int req_number; /* number of preallocated requests */
 	int fb_max;	/* upper frequency drift feedback limit per-mil */
