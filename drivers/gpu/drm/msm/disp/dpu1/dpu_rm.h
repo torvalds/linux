@@ -84,5 +84,13 @@ void dpu_rm_release(struct dpu_global_state *global_state,
 int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
 	struct dpu_global_state *global_state, uint32_t enc_id,
 	enum dpu_hw_blk_type type, struct dpu_hw_blk **blks, int blks_size);
+
+/**
+ * dpu_rm_get_intf - Return a struct dpu_hw_intf instance given it's index.
+ * @rm: DPU Resource Manager handle
+ * @intf_idx: INTF's index
+ */
+struct dpu_hw_intf *dpu_rm_get_intf(struct dpu_rm *rm, enum dpu_intf intf_idx);
+
 #endif /* __DPU_RM_H__ */
 
