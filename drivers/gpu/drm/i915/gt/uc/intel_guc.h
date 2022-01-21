@@ -119,6 +119,15 @@ struct intel_guc {
 		 * function as it might be in an atomic context (no sleeping)
 		 */
 		struct work_struct destroyed_worker;
+		/**
+		 * @reset_fail_worker: worker to trigger a GT reset after an
+		 * engine reset fails
+		 */
+		struct work_struct reset_fail_worker;
+		/**
+		 * @reset_fail_mask: mask of engines that failed to reset
+		 */
+		intel_engine_mask_t reset_fail_mask;
 	} submission_state;
 
 	/**

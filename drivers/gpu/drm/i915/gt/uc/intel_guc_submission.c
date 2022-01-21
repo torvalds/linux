@@ -1730,6 +1730,7 @@ void intel_guc_submission_reset_finish(struct intel_guc *guc)
 }
 
 static void destroyed_worker_func(struct work_struct *w);
+static void reset_fail_worker_func(struct work_struct *w);
 
 /*
  * Set up the memory resources to be shared with the GuC (via the GGTT)
@@ -1760,6 +1761,8 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	INIT_LIST_HEAD(&guc->submission_state.destroyed_contexts);
 	INIT_WORK(&guc->submission_state.destroyed_worker,
 		  destroyed_worker_func);
+	INIT_WORK(&guc->submission_state.reset_fail_worker,
+		  reset_fail_worker_func);
 
 	guc->submission_state.guc_ids_bitmap =
 		bitmap_zalloc(NUMBER_MULTI_LRC_GUC_ID(guc), GFP_KERNEL);
@@ -4025,6 +4028,26 @@ guc_lookup_engine(struct intel_guc *guc, u8 guc_class, u8 instance)
 	return gt->engine_class[engine_class][instance];
 }
 
+static void reset_fail_worker_func(struct work_struct *w)
+{
+	struct intel_guc *guc = container_of(w, struct intel_guc,
+					     submission_state.reset_fail_worker);
+	struct intel_gt *gt = guc_to_gt(guc);
+	intel_engine_mask_t reset_fail_mask;
+	unsigned long flags;
+
+	spin_lock_irqsave(&guc->submission_state.lock, flags);
+	reset_fail_mask = guc->submission_state.reset_fail_mask;
+	guc->submission_state.reset_fail_mask = 0;
+	spin_unlock_irqrestore(&guc->submission_state.lock, flags);
+
+	if (likely(reset_fail_mask))
+		intel_gt_handle_error(gt, reset_fail_mask,
+				      I915_ERROR_CAPTURE,
+				      "GuC failed to reset engine mask=0x%x\n",
+				      reset_fail_mask);
+}
+
 int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 					 const u32 *msg, u32 len)
 {
@@ -4032,6 +4055,7 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 	struct intel_gt *gt = guc_to_gt(guc);
 	u8 guc_class, instance;
 	u32 reason;
+	unsigned long flags;
 
 	if (unlikely(len != 3)) {
 		drm_err(&gt->i915->drm, "Invalid length %u", len);
@@ -4056,10 +4080,15 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 	drm_err(&gt->i915->drm, "GuC engine reset request failed on %d:%d (%s) because 0x%08X",
 		guc_class, instance, engine->name, reason);
 
-	intel_gt_handle_error(gt, engine->mask,
-			      I915_ERROR_CAPTURE,
-			      "GuC failed to reset %s (reason=0x%08x)\n",
-			      engine->name, reason);
+	spin_lock_irqsave(&guc->submission_state.lock, flags);
+	guc->submission_state.reset_fail_mask |= engine->mask;
+	spin_unlock_irqrestore(&guc->submission_state.lock, flags);
+
+	/*
+	 * A GT reset flushes this worker queue (G2H handler) so we must use
+	 * another worker to trigger a GT reset.
+	 */
+	queue_work(system_unbound_wq, &guc->submission_state.reset_fail_worker);
 
 	return 0;
 }
