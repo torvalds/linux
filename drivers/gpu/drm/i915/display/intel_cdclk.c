@@ -1625,7 +1625,7 @@ static void adlp_cdclk_pll_crawl(struct drm_i915_private *dev_priv, int vco)
 	/* Timeout 200us */
 	if (intel_de_wait_for_set(dev_priv, BXT_DE_PLL_ENABLE,
 				  BXT_DE_PLL_LOCK | BXT_DE_PLL_FREQ_REQ_ACK, 1))
-		DRM_ERROR("timeout waiting for FREQ change request ack\n");
+		drm_err(&dev_priv->drm, "timeout waiting for FREQ change request ack\n");
 
 	val &= ~BXT_DE_PLL_FREQ_REQ;
 	intel_de_write(dev_priv, BXT_DE_PLL_ENABLE, val);
