@@ -61,10 +61,6 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 extern void pcibios_resource_survey(void);
 
 struct file;
-extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
-					 unsigned long pfn,
-					 unsigned long size,
-					 pgprot_t prot);
 
 /* This part of code was originally in xilinx-pci.h */
 #ifdef CONFIG_PCI_XILINX
