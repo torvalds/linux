@@ -109,7 +109,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			continue;
 		}
 		hw = dpu_hw_lm_init(lm->id, mmio, cat);
-		if (IS_ERR_OR_NULL(hw)) {
+		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed lm object creation: err %d\n", rc);
 			goto fail;
@@ -126,7 +126,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			continue;
 		}
 		hw = dpu_hw_merge_3d_init(merge_3d->id, mmio, cat);
-		if (IS_ERR_OR_NULL(hw)) {
+		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed merge_3d object creation: err %d\n",
 				rc);
@@ -144,7 +144,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			continue;
 		}
 		hw = dpu_hw_pingpong_init(pp->id, mmio, cat);
-		if (IS_ERR_OR_NULL(hw)) {
+		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed pingpong object creation: err %d\n",
 				rc);
@@ -168,7 +168,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			continue;
 		}
 		hw = dpu_hw_intf_init(intf->id, mmio, cat);
-		if (IS_ERR_OR_NULL(hw)) {
+		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed intf object creation: err %d\n", rc);
 			goto fail;
@@ -185,7 +185,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			continue;
 		}
 		hw = dpu_hw_ctl_init(ctl->id, mmio, cat);
-		if (IS_ERR_OR_NULL(hw)) {
+		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed ctl object creation: err %d\n", rc);
 			goto fail;
@@ -202,7 +202,7 @@ int dpu_rm_init(struct dpu_rm *rm,
 			continue;
 		}
 		hw = dpu_hw_dspp_init(dspp->id, mmio, cat);
-		if (IS_ERR_OR_NULL(hw)) {
+		if (IS_ERR(hw)) {
 			rc = PTR_ERR(hw);
 			DPU_ERROR("failed dspp object creation: err %d\n", rc);
 			goto fail;
