@@ -1112,7 +1112,7 @@ struct mgmt_ev_adv_monitor_device_found {
 	__s8   rssi;
 	__le32 flags;
 	__le16 eir_len;
-	__u8   eir[0];
+	__u8   eir[];
 } __packed;
 
 #define MGMT_EV_ADV_MONITOR_DEVICE_LOST		0x0030
