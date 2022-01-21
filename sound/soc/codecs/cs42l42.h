@@ -842,7 +842,7 @@ struct  cs42l42_private {
 	struct gpio_desc *reset_gpio;
 	struct completion pdn_done;
 	struct snd_soc_jack *jack;
-	struct mutex jack_detect_mutex;
+	struct mutex irq_lock;
 	int pll_config;
 	int bclk;
 	u32 sclk;
