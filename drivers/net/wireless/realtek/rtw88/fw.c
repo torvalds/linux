@@ -2030,7 +2030,7 @@ void rtw_hw_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	rtwdev->hal.rcr |= BIT_CBSSID_BCN;
 	rtw_write32(rtwdev, REG_RCR, rtwdev->hal.rcr);
 
-	rtw_core_scan_complete(rtwdev, vif);
+	rtw_core_scan_complete(rtwdev, vif, true);
 
 	ieee80211_wake_queues(rtwdev->hw);
 	ieee80211_scan_completed(rtwdev->hw, &info);

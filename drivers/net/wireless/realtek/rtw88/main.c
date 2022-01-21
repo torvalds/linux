@@ -272,6 +272,15 @@ static void rtw_c2h_work(struct work_struct *work)
 	}
 }
 
+static void rtw_ips_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev, ips_work);
+
+	mutex_lock(&rtwdev->mutex);
+	rtw_enter_ips(rtwdev);
+	mutex_unlock(&rtwdev->mutex);
+}
+
 static u8 rtw_acquire_macid(struct rtw_dev *rtwdev)
 {
 	unsigned long mac_id;
@@ -1339,7 +1348,8 @@ void rtw_core_scan_start(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
 }
 
-void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
+void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+			    bool hw_scan)
 {
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	u32 config = 0;
@@ -1354,6 +1364,9 @@ void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
 	rtw_coex_scan_notify(rtwdev, COEX_SCAN_FINISH);
+
+	if (rtwvif->net_type == RTW_NET_NO_LINK && hw_scan)
+		ieee80211_queue_work(rtwdev->hw, &rtwdev->ips_work);
 }
 
 int rtw_core_start(struct rtw_dev *rtwdev)
@@ -1919,6 +1932,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	INIT_DELAYED_WORK(&coex->wl_ccklock_work, rtw_coex_wl_ccklock_work);
 	INIT_WORK(&rtwdev->tx_work, rtw_tx_work);
 	INIT_WORK(&rtwdev->c2h_work, rtw_c2h_work);
+	INIT_WORK(&rtwdev->ips_work, rtw_ips_work);
 	INIT_WORK(&rtwdev->fw_recovery_work, rtw_fw_recovery_work);
 	INIT_WORK(&rtwdev->ba_work, rtw_txq_ba_work);
 	skb_queue_head_init(&rtwdev->c2h_queue);

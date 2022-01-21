@@ -1960,6 +1960,7 @@ struct rtw_dev {
 	/* c2h cmd queue & handler work */
 	struct sk_buff_head c2h_queue;
 	struct work_struct c2h_work;
+	struct work_struct ips_work;
 	struct work_struct fw_recovery_work;
 
 	/* used to protect txqs list */
@@ -2101,7 +2102,8 @@ void rtw_tx_report_purge_timer(struct timer_list *t);
 void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
 void rtw_core_scan_start(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 			 const u8 *mac_addr, bool hw_scan);
-void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif);
+void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+			    bool hw_scan);
 int rtw_core_start(struct rtw_dev *rtwdev);
 void rtw_core_stop(struct rtw_dev *rtwdev);
 int rtw_chip_info_setup(struct rtw_dev *rtwdev);
