@@ -789,29 +789,30 @@ out:
 	return pmd;
 }
 
-struct page_referenced_arg {
+struct folio_referenced_arg {
 	int mapcount;
 	int referenced;
 	unsigned long vm_flags;
 	struct mem_cgroup *memcg;
 };
 /*
- * arg: page_referenced_arg will be passed
+ * arg: folio_referenced_arg will be passed
  */
-static bool page_referenced_one(struct page *page, struct vm_area_struct *vma,
+static bool folio_referenced_one(struct page *page, struct vm_area_struct *vma,
 			unsigned long address, void *arg)
 {
-	struct page_referenced_arg *pra = arg;
-	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
+	struct folio *folio = page_folio(page);
+	struct folio_referenced_arg *pra = arg;
+	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	int referenced = 0;
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		address = pvmw.address;
 
 		if ((vma->vm_flags & VM_LOCKED) &&
-		    (!PageTransCompound(page) || !pvmw.pte)) {
+		    (!folio_test_large(folio) || !pvmw.pte)) {
 			/* Restore the mlock which got missed */
-			mlock_vma_page(page, vma, !pvmw.pte);
+			mlock_vma_folio(folio, vma, !pvmw.pte);
 			page_vma_mapped_walk_done(&pvmw);
 			pra->vm_flags |= VM_LOCKED;
 			return false; /* To break the loop */
@@ -823,10 +824,10 @@ static bool page_referenced_one(struct page *page, struct vm_area_struct *vma,
 				/*
 				 * Don't treat a reference through
 				 * a sequentially read mapping as such.
-				 * If the page has been used in another mapping,
+				 * If the folio has been used in another mapping,
 				 * we will catch it; if this other mapping is
 				 * already gone, the unmap path will have set
-				 * PG_referenced or activated the page.
+				 * the referenced flag or activated the folio.
 				 */
 				if (likely(!(vma->vm_flags & VM_SEQ_READ)))
 					referenced++;
@@ -836,7 +837,7 @@ static bool page_referenced_one(struct page *page, struct vm_area_struct *vma,
 						pvmw.pmd))
 				referenced++;
 		} else {
-			/* unexpected pmd-mapped page? */
+			/* unexpected pmd-mapped folio? */
 			WARN_ON_ONCE(1);
 		}
 
@@ -844,8 +845,8 @@ static bool page_referenced_one(struct page *page, struct vm_area_struct *vma,
 	}
 
 	if (referenced)
-		clear_page_idle(page);
-	if (test_and_clear_page_young(page))
+		folio_clear_idle(folio);
+	if (folio_test_clear_young(folio))
 		referenced++;
 
 	if (referenced) {
@@ -859,9 +860,9 @@ static bool page_referenced_one(struct page *page, struct vm_area_struct *vma,
 	return true;
 }
 
-static bool invalid_page_referenced_vma(struct vm_area_struct *vma, void *arg)
+static bool invalid_folio_referenced_vma(struct vm_area_struct *vma, void *arg)
 {
-	struct page_referenced_arg *pra = arg;
+	struct folio_referenced_arg *pra = arg;
 	struct mem_cgroup *memcg = pra->memcg;
 
 	if (!mm_match_cgroup(vma->vm_mm, memcg))
@@ -871,27 +872,26 @@ static bool invalid_page_referenced_vma(struct vm_area_struct *vma, void *arg)
 }
 
 /**
- * page_referenced - test if the page was referenced
- * @page: the page to test
- * @is_locked: caller holds lock on the page
+ * folio_referenced() - Test if the folio was referenced.
+ * @folio: The folio to test.
+ * @is_locked: Caller holds lock on the folio.
  * @memcg: target memory cgroup
- * @vm_flags: collect encountered vma->vm_flags who actually referenced the page
+ * @vm_flags: A combination of all the vma->vm_flags which referenced the folio.
  *
- * Quick test_and_clear_referenced for all mappings to a page,
- * returns the number of ptes which referenced the page.
+ * Quick test_and_clear_referenced for all mappings of a folio,
+ *
+ * Return: The number of mappings which referenced the folio.
  */
-int page_referenced(struct page *page,
-		    int is_locked,
-		    struct mem_cgroup *memcg,
-		    unsigned long *vm_flags)
+int folio_referenced(struct folio *folio, int is_locked,
+		     struct mem_cgroup *memcg, unsigned long *vm_flags)
 {
 	int we_locked = 0;
-	struct page_referenced_arg pra = {
-		.mapcount = total_mapcount(page),
+	struct folio_referenced_arg pra = {
+		.mapcount = folio_mapcount(folio),
 		.memcg = memcg,
 	};
 	struct rmap_walk_control rwc = {
-		.rmap_one = page_referenced_one,
+		.rmap_one = folio_referenced_one,
 		.arg = (void *)&pra,
 		.anon_lock = page_lock_anon_vma_read,
 	};
@@ -900,11 +900,11 @@ int page_referenced(struct page *page,
 	if (!pra.mapcount)
 		return 0;
 
-	if (!page_rmapping(page))
+	if (!folio_raw_mapping(folio))
 		return 0;
 
-	if (!is_locked && (!PageAnon(page) || PageKsm(page))) {
-		we_locked = trylock_page(page);
+	if (!is_locked && (!folio_test_anon(folio) || folio_test_ksm(folio))) {
+		we_locked = folio_trylock(folio);
 		if (!we_locked)
 			return 1;
 	}
@@ -915,14 +915,14 @@ int page_referenced(struct page *page,
 	 * cgroups
 	 */
 	if (memcg) {
-		rwc.invalid_vma = invalid_page_referenced_vma;
+		rwc.invalid_vma = invalid_folio_referenced_vma;
 	}
 
-	rmap_walk(page, &rwc);
+	rmap_walk(&folio->page, &rwc);
 	*vm_flags = pra.vm_flags;
 
 	if (we_locked)
-		unlock_page(page);
+		folio_unlock(folio);
 
 	return pra.referenced;
 }
@@ -1052,8 +1052,8 @@ void page_move_anon_rmap(struct page *page, struct vm_area_struct *vma)
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	/*
 	 * Ensure that anon_vma and the PAGE_MAPPING_ANON bit are written
-	 * simultaneously, so a concurrent reader (eg page_referenced()'s
-	 * PageAnon()) will not see one without the other.
+	 * simultaneously, so a concurrent reader (eg folio_referenced()'s
+	 * folio_test_anon()) will not see one without the other.
 	 */
 	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
 }

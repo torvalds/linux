@@ -77,7 +77,7 @@ static bool page_idle_clear_pte_refs_one(struct page *page,
 		/*
 		 * We cleared the referenced bit in a mapping to this page. To
 		 * avoid interference with page reclaim, mark it young so that
-		 * page_referenced() will return > 0.
+		 * folio_referenced() will return > 0.
 		 */
 		folio_set_young(folio);
 	}

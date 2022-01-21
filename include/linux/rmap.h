@@ -190,7 +190,7 @@ static inline void page_dup_rmap(struct page *page, bool compound)
 /*
  * Called from mm/vmscan.c to handle paging out
  */
-int page_referenced(struct page *, int is_locked,
+int folio_referenced(struct folio *, int is_locked,
 			struct mem_cgroup *memcg, unsigned long *vm_flags);
 
 void try_to_migrate(struct page *page, enum ttu_flags flags);
@@ -301,7 +301,7 @@ void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc);
 #define anon_vma_prepare(vma)	(0)
 #define anon_vma_link(vma)	do {} while (0)
 
-static inline int page_referenced(struct page *page, int is_locked,
+static inline int folio_referenced(struct folio *folio, int is_locked,
 				  struct mem_cgroup *memcg,
 				  unsigned long *vm_flags)
 {

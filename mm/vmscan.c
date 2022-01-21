@@ -1386,11 +1386,12 @@ enum page_references {
 static enum page_references page_check_references(struct page *page,
 						  struct scan_control *sc)
 {
+	struct folio *folio = page_folio(page);
 	int referenced_ptes, referenced_page;
 	unsigned long vm_flags;
 
-	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
-					  &vm_flags);
+	referenced_ptes = folio_referenced(folio, 1, sc->target_mem_cgroup,
+					   &vm_flags);
 	referenced_page = TestClearPageReferenced(page);
 
 	/*
@@ -2490,7 +2491,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
  *
  * If the pages are mostly unmapped, the processing is fast and it is
  * appropriate to hold lru_lock across the whole operation.  But if
- * the pages are mapped, the processing is slow (page_referenced()), so
+ * the pages are mapped, the processing is slow (folio_referenced()), so
  * we should drop lru_lock around each page.  It's impossible to balance
  * this, so instead we remove the pages from the LRU while processing them.
  * It is safe to rely on PG_active against the non-LRU pages in here because
@@ -2510,7 +2511,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
 	LIST_HEAD(l_active);
 	LIST_HEAD(l_inactive);
-	struct page *page;
 	unsigned nr_deactivate, nr_activate;
 	unsigned nr_rotated = 0;
 	int file = is_file_lru(lru);
@@ -2532,9 +2532,13 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	spin_unlock_irq(&lruvec->lru_lock);
 
 	while (!list_empty(&l_hold)) {
+		struct folio *folio;
+		struct page *page;
+
 		cond_resched();
-		page = lru_to_page(&l_hold);
-		list_del(&page->lru);
+		folio = lru_to_folio(&l_hold);
+		list_del(&folio->lru);
+		page = &folio->page;
 
 		if (unlikely(!page_evictable(page))) {
 			putback_lru_page(page);
@@ -2549,8 +2553,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			}
 		}
 
-		if (page_referenced(page, 0, sc->target_mem_cgroup,
-				    &vm_flags)) {
+		if (folio_referenced(folio, 0, sc->target_mem_cgroup,
+				     &vm_flags)) {
 			/*
 			 * Identify referenced, file-backed active pages and
 			 * give them one more trip around the active list. So
