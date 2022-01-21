@@ -1028,7 +1028,7 @@ struct ext4_inode_info {
 
 	/*
 	 * Extended attributes can be read independently of the main file
-	 * data. Taking i_mutex even when reading would cause contention
+	 * data. Taking i_rwsem even when reading would cause contention
 	 * between readers of EAs and writers of regular file data, so
 	 * instead we synchronize on xattr_sem when reading or changing
 	 * EAs.
@@ -3407,7 +3407,7 @@ do {								\
 #define EXT4_FREECLUSTERS_WATERMARK 0
 #endif
 
-/* Update i_disksize. Requires i_mutex to avoid races with truncate */
+/* Update i_disksize. Requires i_rwsem to avoid races with truncate */
 static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
 {
 	WARN_ON_ONCE(S_ISREG(inode->i_mode) &&
@@ -3418,7 +3418,7 @@ static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
 	up_write(&EXT4_I(inode)->i_data_sem);
 }
 
-/* Update i_size, i_disksize. Requires i_mutex to avoid races with truncate */
+/* Update i_size, i_disksize. Requires i_rwsem to avoid races with truncate */
 static inline int ext4_update_inode_size(struct inode *inode, loff_t newsize)
 {
 	int changed = 0;

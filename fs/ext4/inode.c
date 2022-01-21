@@ -1223,7 +1223,7 @@ retry_journal:
 		/*
 		 * __block_write_begin may have instantiated a few blocks
 		 * outside i_size.  Trim these off again. Don't need
-		 * i_size_read because we hold i_mutex.
+		 * i_size_read because we hold i_rwsem.
 		 *
 		 * Add inode to orphan list in case we crash before
 		 * truncate finishes
@@ -3972,7 +3972,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 
 	}
 
-	/* Wait all existing dio workers, newcomers will block on i_mutex */
+	/* Wait all existing dio workers, newcomers will block on i_rwsem */
 	inode_dio_wait(inode);
 
 	/*
@@ -4122,7 +4122,7 @@ int ext4_truncate(struct inode *inode)
 	/*
 	 * There is a possibility that we're either freeing the inode
 	 * or it's a completely new inode. In those cases we might not
-	 * have i_mutex locked because it's not necessary.
+	 * have i_rwsem locked because it's not necessary.
 	 */
 	if (!(inode->i_state & (I_NEW|I_FREEING)))
 		WARN_ON(!inode_is_locked(inode));
@@ -5264,7 +5264,7 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
  * transaction are already on disk (truncate waits for pages under
  * writeback).
  *
- * Called with inode->i_mutex down.
+ * Called with inode->i_rwsem down.
  */
 int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 struct iattr *attr)

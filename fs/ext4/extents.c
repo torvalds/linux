@@ -97,7 +97,7 @@ static int ext4_ext_trunc_restart_fn(struct inode *inode, int *dropped)
 	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
 	 * moment, get_block can be called only for blocks inside i_size since
 	 * page cache has been already dropped and writes are blocked by
-	 * i_mutex. So we can safely drop the i_data_sem here.
+	 * i_rwsem. So we can safely drop the i_data_sem here.
 	 */
 	BUG_ON(EXT4_JOURNAL(inode) == NULL);
 	ext4_discard_preallocations(inode, 0);
@@ -4574,7 +4574,7 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 
 	flags = EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT;
 
-	/* Wait all existing dio workers, newcomers will block on i_mutex */
+	/* Wait all existing dio workers, newcomers will block on i_rwsem */
 	inode_dio_wait(inode);
 
 	/* Preallocate the range including the unaligned edges */
@@ -4740,7 +4740,7 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 			goto out;
 	}
 
-	/* Wait all existing dio workers, newcomers will block on i_mutex */
+	/* Wait all existing dio workers, newcomers will block on i_rwsem */
 	inode_dio_wait(inode);
 
 	ret = ext4_alloc_file_blocks(file, lblk, max_blocks, new_size, flags);
@@ -5573,7 +5573,7 @@ out_mutex:
  * stuff such as page-cache locking consistency, bh mapping consistency or
  * extent's data copying must be performed by caller.
  * Locking:
- * 		i_mutex is held for both inodes
+ *		i_rwsem is held for both inodes
  * 		i_data_sem is locked for write for both inodes
  * Assumptions:
  *		All pages from requested range are locked for both inodes
