@@ -65,6 +65,7 @@ struct uac_rtd_params {
 
 	struct snd_kcontrol *snd_kctl_rate; /* read-only current rate */
 	int srate; /* selected samplerate */
+	int active; /* playback/capture running */
 
   spinlock_t lock; /* lock for control transfers */
 
@@ -490,6 +491,21 @@ static inline void free_ep_fback(struct uac_rtd_params *prm, struct usb_ep *ep)
 		dev_err(uac->card->dev, "%s:%d Error!\n", __func__, __LINE__);
 }
 
+static void set_active(struct uac_rtd_params *prm, bool active)
+{
+	// notifying through the Rate ctrl
+	struct snd_kcontrol *kctl = prm->snd_kctl_rate;
+	unsigned long flags;
+
+	spin_lock_irqsave(&prm->lock, flags);
+	if (prm->active != active) {
+		prm->active = active;
+		snd_ctl_notify(prm->uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
+				&kctl->id);
+	}
+	spin_unlock_irqrestore(&prm->lock, flags);
+}
+
 int u_audio_set_capture_srate(struct g_audio *audio_dev, int srate)
 {
 	struct uac_params *params = &audio_dev->params;
@@ -607,6 +623,8 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 	}
 
+	set_active(&uac->c_prm, true);
+
 	ep_fback = audio_dev->in_ep_fback;
 	if (!ep_fback)
 		return 0;
@@ -652,6 +670,7 @@ void u_audio_stop_capture(struct g_audio *audio_dev)
 {
 	struct snd_uac_chip *uac = audio_dev->uac;
 
+	set_active(&uac->c_prm, false);
 	if (audio_dev->in_ep_fback)
 		free_ep_fback(&uac->c_prm, audio_dev->in_ep_fback);
 	free_ep(&uac->c_prm, audio_dev->out_ep);
@@ -723,6 +742,8 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
 	}
 
+	set_active(&uac->p_prm, true);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(u_audio_start_playback);
@@ -731,6 +752,7 @@ void u_audio_stop_playback(struct g_audio *audio_dev)
 {
 	struct snd_uac_chip *uac = audio_dev->uac;
 
+	set_active(&uac->p_prm, false);
 	free_ep(&uac->p_prm, audio_dev->in_ep);
 }
 EXPORT_SYMBOL_GPL(u_audio_stop_playback);
@@ -1074,7 +1096,11 @@ static int u_audio_rate_get(struct snd_kcontrol *kcontrol,
 	unsigned long flags;
 
 	spin_lock_irqsave(&prm->lock, flags);
-	ucontrol->value.integer.value[0] = prm->srate;
+	if (prm->active)
+		ucontrol->value.integer.value[0] = prm->srate;
+	else
+		/* not active: reporting zero rate */
+		ucontrol->value.integer.value[0] = 0;
 	spin_unlock_irqrestore(&prm->lock, flags);
 	return 0;
 }
