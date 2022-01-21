@@ -3295,10 +3295,6 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 			request_ps->classification.ui_label);
 	data->mclk_ignore_signal = false;
 
-	PP_ASSERT_WITH_CODE(smu7_ps->performance_level_count == 2,
-				 "VI should always have 2 performance levels",
-				);
-
 	max_limits = adev->pm.ac_power ?
 			&(hwmgr->dyn_state.max_clock_voltage_on_ac) :
 			&(hwmgr->dyn_state.max_clock_voltage_on_dc);
