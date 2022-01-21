@@ -56,6 +56,33 @@ struct iommu_domain;
 #define DRM_FORMAT_NV30		fourcc_code('N', 'V', '3', '0') /* non-subsampled Cr:Cb plane */
 #endif
 
+#define RK_IF_PROP_COLOR_DEPTH		"color_depth"
+#define RK_IF_PROP_COLOR_FORMAT		"color_format"
+#define RK_IF_PROP_COLOR_DEPTH_CAPS	"color_depth_caps"
+#define RK_IF_PROP_COLOR_FORMAT_CAPS	"color_format_caps"
+
+enum rk_if_color_depth {
+	RK_IF_DEPTH_8,
+	RK_IF_DEPTH_10,
+	RK_IF_DEPTH_12,
+	RK_IF_DEPTH_16,
+	RK_IF_DEPTH_420_10,
+	RK_IF_DEPTH_420_12,
+	RK_IF_DEPTH_420_16,
+	RK_IF_DEPTH_6,
+	RK_IF_DEPTH_MAX,
+};
+
+enum rk_if_color_format {
+	RK_IF_FORMAT_RGB, /* default RGB */
+	RK_IF_FORMAT_YCBCR444, /* YCBCR 444 */
+	RK_IF_FORMAT_YCBCR422, /* YCBCR 422 */
+	RK_IF_FORMAT_YCBCR420, /* YCBCR 420 */
+	RK_IF_FORMAT_YCBCR_HQ, /* Highest subsampled YUV */
+	RK_IF_FORMAT_YCBCR_LQ, /* Lowest subsampled YUV */
+	RK_IF_FORMAT_MAX,
+};
+
 struct rockchip_drm_sub_dev {
 	struct list_head list;
 	struct drm_connector *connector;
