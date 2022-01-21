@@ -65,7 +65,7 @@ V_FUNCTION_END(__kernel_clock_getres)
  *
  */
 V_FUNCTION_BEGIN(__kernel_time)
-	cvdso_call_time __c_kernel_time
+	cvdso_call __c_kernel_time call_time=1
 V_FUNCTION_END(__kernel_time)
 
 /* Routines for restoring integer registers, called by the compiler.  */
