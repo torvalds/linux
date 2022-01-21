@@ -207,7 +207,7 @@ static void parse_backlight_data(struct drm_psb_private *dev_priv,
 
 	lvds_bl = kmemdup(vbt_lvds_bl, sizeof(*vbt_lvds_bl), GFP_KERNEL);
 	if (!lvds_bl) {
-		dev_err(dev_priv->dev->dev, "out of memory for backlight data\n");
+		dev_err(dev_priv->dev.dev, "out of memory for backlight data\n");
 		return;
 	}
 	dev_priv->lvds_bl = lvds_bl;
@@ -248,7 +248,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode),
 				      GFP_KERNEL);
 	if (panel_fixed_mode == NULL) {
-		dev_err(dev_priv->dev->dev, "out of memory for fixed panel mode\n");
+		dev_err(dev_priv->dev.dev, "out of memory for fixed panel mode\n");
 		return;
 	}
 
@@ -259,7 +259,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 		dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
 		drm_mode_debug_printmodeline(panel_fixed_mode);
 	} else {
-		dev_dbg(dev_priv->dev->dev, "ignoring invalid LVDS VBT\n");
+		dev_dbg(dev_priv->dev.dev, "ignoring invalid LVDS VBT\n");
 		dev_priv->lvds_vbt = 0;
 		kfree(panel_fixed_mode);
 	}
@@ -515,7 +515,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
  */
 int psb_intel_init_bios(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct vbt_header *vbt = NULL;
 	struct bdb_header *bdb = NULL;
@@ -579,7 +579,7 @@ int psb_intel_init_bios(struct drm_device *dev)
  */
 void psb_intel_destroy_bios(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	kfree(dev_priv->sdvo_lvds_vbt_mode);
 	kfree(dev_priv->lfp_lvds_vbt_mode);

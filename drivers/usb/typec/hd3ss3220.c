@@ -125,11 +125,9 @@ static irqreturn_t hd3ss3220_irq(struct hd3ss3220 *hd3ss3220)
 	int err;
 
 	hd3ss3220_set_role(hd3ss3220);
-	err = regmap_update_bits_base(hd3ss3220->regmap,
-				      HD3SS3220_REG_CN_STAT_CTRL,
-				      HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS,
-				      HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS,
-				      NULL, false, true);
+	err = regmap_write_bits(hd3ss3220->regmap, HD3SS3220_REG_CN_STAT_CTRL,
+				HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS,
+				HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS);
 	if (err < 0)
 		return IRQ_NONE;
 

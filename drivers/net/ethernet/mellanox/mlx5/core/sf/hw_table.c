@@ -8,6 +8,7 @@
 #include "ecpf.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
+#include "diag/sf_tracepoint.h"
 
 struct mlx5_sf_hw {
 	u32 usr_sfnum;
@@ -142,6 +143,7 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 controller, u32 usr
 			goto vhca_err;
 	}
 
+	trace_mlx5_sf_hwc_alloc(dev, controller, hw_fn_id, usr_sfnum);
 	mutex_unlock(&table->table_lock);
 	return sw_id;
 
@@ -172,6 +174,7 @@ static void mlx5_sf_hw_table_hwc_sf_free(struct mlx5_core_dev *dev,
 	mlx5_cmd_dealloc_sf(dev, hwc->start_fn_id + idx);
 	hwc->sfs[idx].allocated = false;
 	hwc->sfs[idx].pending_delete = false;
+	trace_mlx5_sf_hwc_free(dev, hwc->start_fn_id + idx);
 }
 
 void mlx5_sf_hw_table_sf_deferred_free(struct mlx5_core_dev *dev, u32 controller, u16 id)
@@ -195,6 +198,7 @@ void mlx5_sf_hw_table_sf_deferred_free(struct mlx5_core_dev *dev, u32 controller
 		hwc->sfs[id].allocated = false;
 	} else {
 		hwc->sfs[id].pending_delete = true;
+		trace_mlx5_sf_hwc_deferred_free(dev, hw_fn_id);
 	}
 err:
 	mutex_unlock(&table->table_lock);
@@ -243,7 +247,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_hw_table *table;
 	u16 max_ext_fn = 0;
-	u16 ext_base_id;
+	u16 ext_base_id = 0;
 	u16 max_fn = 0;
 	u16 base_id;
 	int err;

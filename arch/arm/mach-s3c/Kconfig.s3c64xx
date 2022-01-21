@@ -12,7 +12,6 @@ menuconfig ARCH_S3C64XX
 	select COMMON_CLK_SAMSUNG
 	select GPIO_SAMSUNG if ATAGS
 	select GPIOLIB
-	select HAVE_S3C2410_I2C if I2C
 	select HAVE_TCM
 	select PLAT_SAMSUNG
 	select PM_GENERIC_DOMAINS if PM

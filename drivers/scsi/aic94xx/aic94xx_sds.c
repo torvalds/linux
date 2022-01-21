@@ -517,8 +517,10 @@ struct asd_ms_conn_map {
 	u8    num_nodes;
 	u8    usage_model_id;
 	u32   _resvd;
-	struct asd_ms_conn_desc conn_desc[0];
-	struct asd_ms_node_desc node_desc[];
+	union {
+		DECLARE_FLEX_ARRAY(struct asd_ms_conn_desc, conn_desc);
+		DECLARE_FLEX_ARRAY(struct asd_ms_node_desc, node_desc);
+	};
 } __attribute__ ((packed));
 
 struct asd_ctrla_phy_entry {

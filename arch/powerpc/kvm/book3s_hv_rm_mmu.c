@@ -207,6 +207,15 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
+	/*
+	 * The HPTE gets used by compute_tlbie_rb() to set TLBIE bits, so
+	 * these functions should work together -- must ensure a guest can not
+	 * cause problems with the TLBIE that KVM executes.
+	 */
+	if ((pteh >> HPTE_V_SSIZE_SHIFT) & 0x2) {
+		/* B=0b1x is a reserved value, disallow it. */
+		return H_PARAMETER;
+	}
 	psize = kvmppc_actual_pgsz(pteh, ptel);
 	if (!psize)
 		return H_PARAMETER;

@@ -217,7 +217,7 @@ static __be64 sig_mkey_mask(void)
 static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
 			    struct mlx5_ib_mr *mr, u8 flags, bool atomic)
 {
-	int size = (mr->ndescs + mr->meta_ndescs) * mr->desc_size;
+	int size = (mr->mmkey.ndescs + mr->meta_ndescs) * mr->desc_size;
 
 	memset(umr, 0, sizeof(*umr));
 
@@ -374,7 +374,7 @@ static void set_reg_mkey_seg(struct mlx5_mkey_seg *seg,
 			     struct mlx5_ib_mr *mr,
 			     u32 key, int access)
 {
-	int ndescs = ALIGN(mr->ndescs + mr->meta_ndescs, 8) >> 1;
+	int ndescs = ALIGN(mr->mmkey.ndescs + mr->meta_ndescs, 8) >> 1;
 
 	memset(seg, 0, sizeof(*seg));
 
@@ -439,7 +439,7 @@ static void set_reg_data_seg(struct mlx5_wqe_data_seg *dseg,
 			     struct mlx5_ib_mr *mr,
 			     struct mlx5_ib_pd *pd)
 {
-	int bcount = mr->desc_size * (mr->ndescs + mr->meta_ndescs);
+	int bcount = mr->desc_size * (mr->mmkey.ndescs + mr->meta_ndescs);
 
 	dseg->addr = cpu_to_be64(mr->desc_map);
 	dseg->byte_count = cpu_to_be32(ALIGN(bcount, 64));
@@ -861,7 +861,7 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 	struct mlx5_ib_mr *mr = to_mmr(wr->mr);
 	struct mlx5_ib_pd *pd = to_mpd(qp->ibqp.pd);
 	struct mlx5_ib_dev *dev = to_mdev(pd->ibpd.device);
-	int mr_list_size = (mr->ndescs + mr->meta_ndescs) * mr->desc_size;
+	int mr_list_size = (mr->mmkey.ndescs + mr->meta_ndescs) * mr->desc_size;
 	bool umr_inline = mr_list_size <= MLX5_IB_SQ_UMR_INLINE_THRESHOLD;
 	bool atomic = wr->access & IB_ACCESS_REMOTE_ATOMIC;
 	u8 flags = 0;
@@ -1111,7 +1111,7 @@ static int handle_reg_mr_integrity(struct mlx5_ib_dev *dev,
 		memset(&pa_pi_mr, 0, sizeof(struct mlx5_ib_mr));
 		/* No UMR, use local_dma_lkey */
 		pa_pi_mr.ibmr.lkey = mr->ibmr.pd->local_dma_lkey;
-		pa_pi_mr.ndescs = mr->ndescs;
+		pa_pi_mr.mmkey.ndescs = mr->mmkey.ndescs;
 		pa_pi_mr.data_length = mr->data_length;
 		pa_pi_mr.data_iova = mr->data_iova;
 		if (mr->meta_ndescs) {

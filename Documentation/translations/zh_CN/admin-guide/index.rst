@@ -65,8 +65,10 @@ Todolist:
 
    clearing-warn-once
    cpu-load
+   cputopology
    lockup-watchdogs
    unicode
+   sysrq
 
 Todolist:
 
@@ -83,7 +85,6 @@ Todolist:
    cgroup-v1/index
    cgroup-v2
    cifs/index
-   cputopology
    dell_rbu
    device-mapper/index
    edid
@@ -118,7 +119,6 @@ Todolist:
    rtc
    serial-console
    svga
-   sysrq
    thunderbolt
    ufs
    vga-softcursor

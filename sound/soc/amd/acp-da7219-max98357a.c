@@ -33,7 +33,7 @@ static struct clk *da7219_dai_wclk;
 static struct clk *da7219_dai_bclk;
 static struct clk *rt5682_dai_wclk;
 static struct clk *rt5682_dai_bclk;
-extern bool bt_uart_enable;
+
 void *acp_soc_is_rltk_max(struct device *dev);
 
 static int cz_da7219_init(struct snd_soc_pcm_runtime *rtd)
@@ -760,8 +760,8 @@ static int cz_probe(struct platform_device *pdev)
 				"devm_snd_soc_register_card(%s) failed\n",
 				card->name);
 	}
-	bt_uart_enable = !device_property_read_bool(&pdev->dev,
-						    "bt-pad-enable");
+	acp_bt_uart_enable = !device_property_read_bool(&pdev->dev,
+							"bt-pad-enable");
 	return 0;
 }
 

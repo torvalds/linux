@@ -113,9 +113,8 @@ int hantro_h1_jpeg_enc_run(struct hantro_ctx *ctx)
 
 	hantro_h1_set_src_img_ctrl(vpu, ctx);
 	hantro_h1_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
-	hantro_h1_jpeg_enc_set_qtable(vpu,
-				      hantro_jpeg_get_qtable(0),
-				      hantro_jpeg_get_qtable(1));
+	hantro_h1_jpeg_enc_set_qtable(vpu, jpeg_ctx.hw_luma_qtable,
+				      jpeg_ctx.hw_chroma_qtable);
 
 	reg = H1_REG_AXI_CTRL_OUTPUT_SWAP16
 		| H1_REG_AXI_CTRL_INPUT_SWAP16
@@ -140,7 +139,7 @@ int hantro_h1_jpeg_enc_run(struct hantro_ctx *ctx)
 	return 0;
 }
 
-void hantro_jpeg_enc_done(struct hantro_ctx *ctx)
+void hantro_h1_jpeg_enc_done(struct hantro_ctx *ctx)
 {
 	struct hantro_dev *vpu = ctx->dev;
 	u32 bytesused = vepu_read(vpu, H1_REG_STR_BUF_LIMIT) / 8;

@@ -73,7 +73,7 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops evm_ops = {
+static const struct snd_soc_ops evm_ops = {
 	.startup = evm_startup,
 	.shutdown = evm_shutdown,
 	.hw_params = evm_hw_params,

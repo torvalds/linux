@@ -2,7 +2,7 @@
 /* Copyright (C) 2020 Felix Fietkau <nbd@nbd.name> */
 #include "mt76.h"
 
-static const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
+const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_RESET] = { .type = NLA_FLAG },
 	[MT76_TM_ATTR_STATE] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_COUNT] = { .type = NLA_U32 },
@@ -21,7 +21,9 @@ static const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_TX_IPG] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_TX_TIME] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_FREQ_OFFSET] = { .type = NLA_U32 },
+	[MT76_TM_ATTR_DRV_DATA] = { .type = NLA_NESTED },
 };
+EXPORT_SYMBOL_GPL(mt76_tm_policy);
 
 void mt76_testmode_tx_pending(struct mt76_phy *phy)
 {
@@ -124,9 +126,9 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 
 	hdr = __skb_put_zero(head, head_len);
 	hdr->frame_control = cpu_to_le16(fc);
-	memcpy(hdr->addr1, phy->macaddr, sizeof(phy->macaddr));
-	memcpy(hdr->addr2, phy->macaddr, sizeof(phy->macaddr));
-	memcpy(hdr->addr3, phy->macaddr, sizeof(phy->macaddr));
+	memcpy(hdr->addr1, td->addr[0], ETH_ALEN);
+	memcpy(hdr->addr2, td->addr[1], ETH_ALEN);
+	memcpy(hdr->addr3, td->addr[2], ETH_ALEN);
 	skb_set_queue_mapping(head, IEEE80211_AC_BE);
 
 	info = IEEE80211_SKB_CB(head);
@@ -316,6 +318,10 @@ mt76_testmode_init_defaults(struct mt76_phy *phy)
 	td->tx_count = 1;
 	td->tx_rate_mode = MT76_TM_TX_MODE_OFDM;
 	td->tx_rate_nss = 1;
+
+	memcpy(td->addr[0], phy->macaddr, ETH_ALEN);
+	memcpy(td->addr[1], phy->macaddr, ETH_ALEN);
+	memcpy(td->addr[2], phy->macaddr, ETH_ALEN);
 }
 
 static int
@@ -491,6 +497,20 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 	}
 
+	if (tb[MT76_TM_ATTR_MAC_ADDRS]) {
+		struct nlattr *cur;
+		int idx = 0;
+		int rem;
+
+		nla_for_each_nested(cur, tb[MT76_TM_ATTR_MAC_ADDRS], rem) {
+			if (nla_len(cur) != ETH_ALEN || idx >= 3)
+				goto out;
+
+			memcpy(td->addr[idx], nla_data(cur), ETH_ALEN);
+			idx++;
+		}
+	}
+
 	if (dev->test_ops->set_params) {
 		err = dev->test_ops->set_params(phy, tb, state);
 		if (err)
@@ -628,6 +648,18 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 
 		for (i = 0; i < ARRAY_SIZE(td->tx_power); i++)
 			if (nla_put_u8(msg, i, td->tx_power[i]))
+				goto out;
+
+		nla_nest_end(msg, a);
+	}
+
+	if (mt76_testmode_param_present(td, MT76_TM_ATTR_MAC_ADDRS)) {
+		a = nla_nest_start(msg, MT76_TM_ATTR_MAC_ADDRS);
+		if (!a)
+			goto out;
+
+		for (i = 0; i < 3; i++)
+			if (nla_put(msg, i, ETH_ALEN, td->addr[i]))
 				goto out;
 
 		nla_nest_end(msg, a);

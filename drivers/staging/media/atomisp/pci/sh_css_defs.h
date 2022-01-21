@@ -117,13 +117,8 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_NUM_INPUT_BUF_LINES        4
 
 /* Left cropping only applicable for sufficiently large nway */
-#if ISP_VEC_NELEMS == 16
-#define SH_CSS_MAX_LEFT_CROPPING          0
-#define SH_CSS_MAX_TOP_CROPPING           0
-#else
 #define SH_CSS_MAX_LEFT_CROPPING          12
 #define SH_CSS_MAX_TOP_CROPPING           12
-#endif
 
 #define	SH_CSS_SP_MAX_WIDTH               1280
 
@@ -137,13 +132,8 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MIN_DVS_ENVELOPE           12U
 
 /* The FPGA system (vec_nelems == 16) only supports upto 5MP */
-#if ISP_VEC_NELEMS == 16
-#define SH_CSS_MAX_SENSOR_WIDTH           2560
-#define SH_CSS_MAX_SENSOR_HEIGHT          1920
-#else
 #define SH_CSS_MAX_SENSOR_WIDTH           4608
 #define SH_CSS_MAX_SENSOR_HEIGHT          3450
-#endif
 
 /* Limited to reduce vmem pressure */
 #if ISP_VMEM_DEPTH >= 3072
@@ -178,50 +168,20 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD \
 	(HIVE_ISP_DDR_WORD_BYTES / SH_CSS_MORPH_TABLE_ELEM_BYTES)
 
-#define ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 1)
-#define ISP2400_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 1)
+#define SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 1)
+#define SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 1)
 
-#define ISP2400_SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR \
-	CEIL_MUL(ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR, ISP_VEC_NELEMS)
-
-/* TODO: I will move macros of "*_SCTBL_*" to SC kernel.
-   "+ 2" should be "+ SH_CSS_SCTBL_CENTERING_MARGIN + SH_CSS_SCTBL_LAST_GRID_COUNT". (michie, Sep/23/2014) */
-#define ISP2401_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 2)
-#define ISP2401_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 2)
-
-#define ISP2401_SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR \
-	CEIL_MUL(ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR, ISP_VEC_NELEMS)
+#define SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR \
+	CEIL_MUL(SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR, ISP_VEC_NELEMS)
 
 /* Each line of this table is aligned to the maximum line width. */
 #define SH_CSS_MAX_S3ATBL_WIDTH              SH_CSS_MAX_BQ_GRID_WIDTH
 
 /* Video mode specific DVS define */
 /* The video binary supports a delay of 1 or 2 frames */
-#define VIDEO_FRAME_DELAY		2
+#define MAX_DVS_FRAME_DELAY		2
 /* +1 because DVS reads the previous and writes the current frame concurrently */
-#define MAX_NUM_VIDEO_DELAY_FRAMES	(VIDEO_FRAME_DELAY + 1)
-
-/* Preview mode specific DVS define. */
-/* In preview we only need GDC functionality (and not the DVS functionality) */
-/* The minimum number of DVS frames you need is 2, one were GDC reads from and another where GDC writes into */
-#define NUM_PREVIEW_DVS_FRAMES		(2)
-
-/* TNR is no longer exclusive to video, SkyCam preview has TNR too (same kernel as video).
- * All uses the generic define NUM_TNR_FRAMES. The define NUM_VIDEO_TNR_FRAMES has been deprecated.
- *
- * Notes
- * 1) The value depends on the used TNR kernel and is not something that depends on the mode
- *    and it is not something you just could choice.
- * 2) For the luma only pipeline a version that supports two different sets of TNR reference frames
- * is being used.
- *.
- */
-#define NUM_VALID_TNR_REF_FRAMES		(1) /* At least one valid TNR reference frame is required */
-#define NUM_TNR_FRAMES_PER_REF_BUF_SET		(2)
-/* In luma-only mode alternate illuminated frames are supported, that requires two double buffers */
-#define NUM_TNR_REF_BUF_SETS	(1)
-
-#define NUM_TNR_FRAMES		(NUM_TNR_FRAMES_PER_REF_BUF_SET * NUM_TNR_REF_BUF_SETS)
+#define MAX_NUM_VIDEO_DELAY_FRAMES	(MAX_DVS_FRAME_DELAY + 1)
 
 #define NUM_VIDEO_TNR_FRAMES		2
 
@@ -250,11 +210,11 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 	CEIL_MUL(_ISP_MORPH_TABLE_WIDTH(width), \
 		 SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD)
 
-#define _ISP2400_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
+#define _ISP_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
 	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + 1)
-#define _ISP2400_SCTBL_HEIGHT(input_height, deci_factor_log2) \
+#define _ISP_SCTBL_HEIGHT(input_height, deci_factor_log2) \
 	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + 1)
-#define _ISP2400_SCTBL_ALIGNED_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
+#define _ISP_SCTBL_ALIGNED_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
 	CEIL_MUL(_ISP_SCTBL_WIDTH_PER_COLOR(input_width, deci_factor_log2), \
 		 ISP_VEC_NELEMS)
 

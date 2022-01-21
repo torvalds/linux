@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =================================
-NETWORK FILESYSTEM HELPER LIBRARY
+Network Filesystem Helper Library
 =================================
 
 .. Contents:
@@ -37,22 +37,22 @@ into a common call framework.
 
 The following services are provided:
 
- * Handles transparent huge pages (THPs).
+ * Handle folios that span multiple pages.
 
- * Insulates the netfs from VM interface changes.
+ * Insulate the netfs from VM interface changes.
 
- * Allows the netfs to arbitrarily split reads up into pieces, even ones that
-   don't match page sizes or page alignments and that may cross pages.
+ * Allow the netfs to arbitrarily split reads up into pieces, even ones that
+   don't match folio sizes or folio alignments and that may cross folios.
 
- * Allows the netfs to expand a readahead request in both directions to meet
-   its needs.
+ * Allow the netfs to expand a readahead request in both directions to meet its
+   needs.
 
- * Allows the netfs to partially fulfil a read, which will then be resubmitted.
+ * Allow the netfs to partially fulfil a read, which will then be resubmitted.
 
- * Handles local caching, allowing cached data and server-read data to be
+ * Handle local caching, allowing cached data and server-read data to be
    interleaved for a single request.
 
- * Handles clearing of bufferage that aren't on the server.
+ * Handle clearing of bufferage that aren't on the server.
 
  * Handle retrying of reads that failed, switching reads from the cache to the
    server as necessary.
@@ -70,22 +70,22 @@ Read Helper Functions
 
 Three read helpers are provided::
 
- * void netfs_readahead(struct readahead_control *ractl,
-			const struct netfs_read_request_ops *ops,
-			void *netfs_priv);``
- * int netfs_readpage(struct file *file,
-		      struct page *page,
-		      const struct netfs_read_request_ops *ops,
-		      void *netfs_priv);
- * int netfs_write_begin(struct file *file,
-			 struct address_space *mapping,
-			 loff_t pos,
-			 unsigned int len,
-			 unsigned int flags,
-			 struct page **_page,
-			 void **_fsdata,
-			 const struct netfs_read_request_ops *ops,
-			 void *netfs_priv);
+	void netfs_readahead(struct readahead_control *ractl,
+			     const struct netfs_read_request_ops *ops,
+			     void *netfs_priv);
+	int netfs_readpage(struct file *file,
+			   struct folio *folio,
+			   const struct netfs_read_request_ops *ops,
+			   void *netfs_priv);
+	int netfs_write_begin(struct file *file,
+			      struct address_space *mapping,
+			      loff_t pos,
+			      unsigned int len,
+			      unsigned int flags,
+			      struct folio **_folio,
+			      void **_fsdata,
+			      const struct netfs_read_request_ops *ops,
+			      void *netfs_priv);
 
 Each corresponds to a VM operation, with the addition of a couple of parameters
 for the use of the read helpers:
@@ -103,8 +103,8 @@ Both of these values will be stored into the read request structure.
 For ->readahead() and ->readpage(), the network filesystem should just jump
 into the corresponding read helper; whereas for ->write_begin(), it may be a
 little more complicated as the network filesystem might want to flush
-conflicting writes or track dirty data and needs to put the acquired page if an
-error occurs after calling the helper.
+conflicting writes or track dirty data and needs to put the acquired folio if
+an error occurs after calling the helper.
 
 The helpers manage the read request, calling back into the network filesystem
 through the suppplied table of operations.  Waits will be performed as
@@ -253,7 +253,7 @@ through which it can issue requests and negotiate::
 		void (*issue_op)(struct netfs_read_subrequest *subreq);
 		bool (*is_still_valid)(struct netfs_read_request *rreq);
 		int (*check_write_begin)(struct file *file, loff_t pos, unsigned len,
-					 struct page *page, void **_fsdata);
+					 struct folio *folio, void **_fsdata);
 		void (*done)(struct netfs_read_request *rreq);
 		void (*cleanup)(struct address_space *mapping, void *netfs_priv);
 	};
@@ -313,13 +313,14 @@ The operations are as follows:
 
    There is no return value; the netfs_subreq_terminated() function should be
    called to indicate whether or not the operation succeeded and how much data
-   it transferred.  The filesystem also should not deal with setting pages
+   it transferred.  The filesystem also should not deal with setting folios
    uptodate, unlocking them or dropping their refs - the helpers need to deal
    with this as they have to coordinate with copying to the local cache.
 
-   Note that the helpers have the pages locked, but not pinned.  It is possible
-   to use the ITER_XARRAY iov iterator to refer to the range of the inode that
-   is being operated upon without the need to allocate large bvec tables.
+   Note that the helpers have the folios locked, but not pinned.  It is
+   possible to use the ITER_XARRAY iov iterator to refer to the range of the
+   inode that is being operated upon without the need to allocate large bvec
+   tables.
 
  * ``is_still_valid()``
 
@@ -330,15 +331,15 @@ The operations are as follows:
  * ``check_write_begin()``
 
    [Optional] This is called from the netfs_write_begin() helper once it has
-   allocated/grabbed the page to be modified to allow the filesystem to flush
+   allocated/grabbed the folio to be modified to allow the filesystem to flush
    conflicting state before allowing it to be modified.
 
-   It should return 0 if everything is now fine, -EAGAIN if the page should be
+   It should return 0 if everything is now fine, -EAGAIN if the folio should be
    regrabbed and any other error code to abort the operation.
 
  * ``done``
 
-   [Optional] This is called after the pages in the request have all been
+   [Optional] This is called after the folios in the request have all been
    unlocked (and marked uptodate if applicable).
 
  * ``cleanup``
@@ -390,7 +391,7 @@ The read helpers work by the following general procedure:
      * If NETFS_SREQ_CLEAR_TAIL was set, a short read will be cleared to the
        end of the slice instead of reissuing.
 
- * Once the data is read, the pages that have been fully read/cleared:
+ * Once the data is read, the folios that have been fully read/cleared:
 
    * Will be marked uptodate.
 
@@ -398,11 +399,11 @@ The read helpers work by the following general procedure:
 
    * Unlocked
 
- * Any pages that need writing to the cache will then have DIO writes issued.
+ * Any folios that need writing to the cache will then have DIO writes issued.
 
  * Synchronous operations will wait for reading to be complete.
 
- * Writes to the cache will proceed asynchronously and the pages will have the
+ * Writes to the cache will proceed asynchronously and the folios will have the
    PG_fscache mark removed when that completes.
 
  * The request structures will be cleaned up when everything has completed.
@@ -451,6 +452,9 @@ operation table looks like the following::
 			    bool seek_data,
 			    netfs_io_terminated_t term_func,
 			    void *term_func_priv);
+
+		int (*prepare_write)(struct netfs_cache_resources *cres,
+				     loff_t *_start, size_t *_len, loff_t i_size);
 
 		int (*write)(struct netfs_cache_resources *cres,
 			     loff_t start_pos,
@@ -509,6 +513,14 @@ The methods defined in the table are:
    indicating whether the termination is definitely happening in the caller's
    context.
 
+ * ``prepare_write()``
+
+   [Required] Called to adjust a write to the cache and check that there is
+   sufficient space in the cache.  The start and length values indicate the
+   size of the write that netfslib is proposing, and this can be adjusted by
+   the cache to respect DIO boundaries.  The file size is passed for
+   information.
+
  * ``write()``
 
    [Required] Called to write to the cache.  The start file offset is given
@@ -524,3 +536,10 @@ Note that these methods are passed a pointer to the cache resource structure,
 not the read request structure as they could be used in other situations where
 there isn't a read request structure as well, such as writing dirty data to the
 cache.
+
+
+API Function Reference
+======================
+
+.. kernel-doc:: include/linux/netfs.h
+.. kernel-doc:: fs/netfs/read_helper.c

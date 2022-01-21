@@ -60,7 +60,7 @@ struct save_area * __init save_area_alloc(bool is_boot_cpu)
 {
 	struct save_area *sa;
 
-	sa = (void *) memblock_phys_alloc(sizeof(*sa), 8);
+	sa = memblock_alloc(sizeof(*sa), 8);
 	if (!sa)
 		panic("Failed to allocate save area\n");
 
@@ -191,8 +191,8 @@ static int copy_oldmem_user(void __user *dst, void *src, size_t count)
 				return rc;
 		} else {
 			/* Check for swapped kdump oldmem areas */
-			if (oldmem_data.start && from - oldmem_data.size < oldmem_data.size) {
-				from -= oldmem_data.size;
+			if (oldmem_data.start && from - oldmem_data.start < oldmem_data.size) {
+				from -= oldmem_data.start;
 				len = min(count, oldmem_data.size - from);
 			} else if (oldmem_data.start && from < oldmem_data.size) {
 				len = min(count, oldmem_data.size - from);

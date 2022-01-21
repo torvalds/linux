@@ -84,7 +84,7 @@ static void default_trap_handler(struct pt_regs *regs)
 {
 	if (user_mode(regs)) {
 		report_user_fault(regs, SIGSEGV, 0);
-		do_exit(SIGSEGV);
+		force_exit_sig(SIGSEGV);
 	} else
 		die(regs, "Unknown program exception");
 }
@@ -300,7 +300,6 @@ static void (*pgm_check_table[128])(struct pt_regs *regs);
 
 void noinstr __do_pgm_check(struct pt_regs *regs)
 {
-	unsigned long last_break = S390_lowcore.breaking_event_addr;
 	unsigned int trapnr;
 	irqentry_state_t state;
 
@@ -311,10 +310,11 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 
 	if (user_mode(regs)) {
 		update_timer_sys();
-		if (last_break < 4096)
-			last_break = 1;
-		current->thread.last_break = last_break;
-		regs->args[0] = last_break;
+		if (!static_branch_likely(&cpu_has_bear)) {
+			if (regs->last_break < 4096)
+				regs->last_break = 1;
+		}
+		current->thread.last_break = regs->last_break;
 	}
 
 	if (S390_lowcore.pgm_code & 0x0200) {

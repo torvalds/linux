@@ -26,6 +26,8 @@
  *      | guc_policies                          |
  *      +---------------------------------------+
  *      | guc_gt_system_info                    |
+ *      +---------------------------------------+
+ *      | guc_engine_usage                      |
  *      +---------------------------------------+ <== static
  *      | guc_mmio_reg[countA] (engine 0.0)     |
  *      | guc_mmio_reg[countB] (engine 0.1)     |
@@ -47,6 +49,7 @@ struct __guc_ads_blob {
 	struct guc_ads ads;
 	struct guc_policies policies;
 	struct guc_gt_system_info system_info;
+	struct guc_engine_usage engine_usage;
 	/* From here on, location is dynamic! Refer to above diagram. */
 	struct guc_mmio_reg regset[0];
 } __packed;
@@ -176,7 +179,7 @@ static void guc_mapping_table_init(struct intel_gt *gt,
 	for_each_engine(engine, gt, id) {
 		u8 guc_class = engine_class_to_guc_class(engine->class);
 
-		system_info->mapping_table[guc_class][engine->instance] =
+		system_info->mapping_table[guc_class][ilog2(engine->logical_mask)] =
 			engine->instance;
 	}
 }
@@ -349,6 +352,8 @@ static void fill_engine_enable_masks(struct intel_gt *gt,
 	info->engine_enabled_masks[GUC_VIDEOENHANCE_CLASS] = VEBOX_MASK(gt);
 }
 
+#define LR_HW_CONTEXT_SIZE (80 * sizeof(u32))
+#define LRC_SKIP_SIZE (LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE)
 static int guc_prep_golden_context(struct intel_guc *guc,
 				   struct __guc_ads_blob *blob)
 {
@@ -396,7 +401,18 @@ static int guc_prep_golden_context(struct intel_guc *guc,
 		if (!blob)
 			continue;
 
-		blob->ads.eng_state_size[guc_class] = real_size;
+		/*
+		 * This interface is slightly confusing. We need to pass the
+		 * base address of the full golden context and the size of just
+		 * the engine state, which is the section of the context image
+		 * that starts after the execlists context. This is required to
+		 * allow the GuC to restore just the engine state when a
+		 * watchdog reset occurs.
+		 * We calculate the engine state size by removing the size of
+		 * what comes before it in the context image (which is identical
+		 * on all engines).
+		 */
+		blob->ads.eng_state_size[guc_class] = real_size - LRC_SKIP_SIZE;
 		blob->ads.golden_context_lrca[guc_class] = addr_ggtt;
 		addr_ggtt += alloc_size;
 	}
@@ -436,11 +452,6 @@ static void guc_init_golden_context(struct intel_guc *guc)
 	u8 engine_class, guc_class;
 	u8 *ptr;
 
-	/* Skip execlist and PPGTT registers + HWSP */
-	const u32 lr_hw_context_size = 80 * sizeof(u32);
-	const u32 skip_size = LRC_PPHWSP_SZ * PAGE_SIZE +
-		lr_hw_context_size;
-
 	if (!intel_uc_uses_guc_submission(&gt->uc))
 		return;
 
@@ -476,12 +487,12 @@ static void guc_init_golden_context(struct intel_guc *guc)
 			continue;
 		}
 
-		GEM_BUG_ON(blob->ads.eng_state_size[guc_class] != real_size);
+		GEM_BUG_ON(blob->ads.eng_state_size[guc_class] !=
+			   real_size - LRC_SKIP_SIZE);
 		GEM_BUG_ON(blob->ads.golden_context_lrca[guc_class] != addr_ggtt);
 		addr_ggtt += alloc_size;
 
-		shmem_read(engine->default_state, skip_size, ptr + skip_size,
-			   real_size - skip_size);
+		shmem_read(engine->default_state, 0, ptr, real_size);
 		ptr += alloc_size;
 	}
 
@@ -619,4 +630,22 @@ void intel_guc_ads_reset(struct intel_guc *guc)
 	__guc_ads_init(guc);
 
 	guc_ads_private_data_reset(guc);
+}
+
+u32 intel_guc_engine_usage_offset(struct intel_guc *guc)
+{
+	struct __guc_ads_blob *blob = guc->ads_blob;
+	u32 base = intel_guc_ggtt_offset(guc, guc->ads_vma);
+	u32 offset = base + ptr_offset(blob, engine_usage);
+
+	return offset;
+}
+
+struct guc_engine_usage_record *intel_guc_engine_usage(struct intel_engine_cs *engine)
+{
+	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct __guc_ads_blob *blob = guc->ads_blob;
+	u8 guc_class = engine_class_to_guc_class(engine->class);
+
+	return &blob->engine_usage.engines[guc_class][ilog2(engine->logical_mask)];
 }

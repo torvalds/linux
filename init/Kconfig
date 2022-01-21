@@ -137,6 +137,20 @@ config COMPILE_TEST
 	  here. If you are a user/distributor, say N here to exclude useless
 	  drivers to be distributed.
 
+config WERROR
+	bool "Compile the kernel with warnings as errors"
+	default y
+	help
+	  A kernel build should not cause any compiler warnings, and this
+	  enables the '-Werror' flag to enforce that rule by default.
+
+	  However, if you have a new (or very old) compiler with odd and
+	  unusual warnings, or you have some architecture with problems,
+	  you may need to disable this config option in order to
+	  successfully build the kernel.
+
+	  If in doubt, say Y.
+
 config UAPI_HEADER_TEST
 	bool "Compile test UAPI headers"
 	depends on HEADERS_INSTALL && CC_CAN_LINK
@@ -536,7 +550,7 @@ config SCHED_THERMAL_PRESSURE
 	  i.e. put less load on throttled CPUs than on non/less throttled ones.
 
 	  This requires the architecture to implement
-	  arch_set_thermal_pressure() and arch_scale_thermal_pressure().
+	  arch_update_thermal_pressure() and arch_scale_thermal_pressure().
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
@@ -871,6 +885,11 @@ config ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
 config CC_HAS_INT128
 	def_bool !$(cc-option,$(m64-flag) -D__SIZEOF_INT128__=0) && 64BIT
 
+config CC_IMPLICIT_FALLTHROUGH
+	string
+	default "-Wimplicit-fallthrough=5" if CC_IS_GCC && $(cc-option,-Wimplicit-fallthrough=5)
+	default "-Wimplicit-fallthrough" if CC_IS_CLANG && $(cc-option,-Wunreachable-code-fallthrough)
+
 #
 # For architectures that know their GCC __int128 support is sound
 #
@@ -887,7 +906,7 @@ config NUMA_BALANCING
 	bool "Memory placement aware NUMA scheduler"
 	depends on ARCH_SUPPORTS_NUMA_BALANCING
 	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
-	depends on SMP && NUMA && MIGRATION
+	depends on SMP && NUMA && MIGRATION && !PREEMPT_RT
 	help
 	  This option adds support for automatic NUMA aware memory/task placement.
 	  The mechanism is quite primitive and is based on migrating memory when
@@ -1571,6 +1590,7 @@ config BASE_FULL
 
 config FUTEX
 	bool "Enable futex support" if EXPERT
+	depends on !(SPARC32 && SMP)
 	default y
 	imply RT_MUTEXES
 	help
@@ -1582,14 +1602,6 @@ config FUTEX_PI
 	bool
 	depends on FUTEX && RT_MUTEXES
 	default y
-
-config HAVE_FUTEX_CMPXCHG
-	bool
-	depends on FUTEX
-	help
-	  Architectures should select this if futex_atomic_cmpxchg_inatomic()
-	  is implemented and always working. This removes a couple of runtime
-	  checks.
 
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT
@@ -1893,6 +1905,7 @@ choice
 
 config SLAB
 	bool "SLAB"
+	depends on !PREEMPT_RT
 	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	  The regular slab allocator that is established and known to work
@@ -1913,6 +1926,7 @@ config SLUB
 config SLOB
 	depends on EXPERT
 	bool "SLOB (Simple Allocator)"
+	depends on !PREEMPT_RT
 	help
 	   SLOB replaces the stock allocator with a drastically simpler
 	   allocator. SLOB is generally more space efficient but
@@ -1923,6 +1937,7 @@ endchoice
 config SLAB_MERGE_DEFAULT
 	bool "Allow slab caches to be merged"
 	default y
+	depends on SLAB || SLUB
 	help
 	  For reduced kernel memory fragmentation, slab caches can be
 	  merged when they share the same size and other characteristics.
@@ -2181,6 +2196,19 @@ config MODULE_SIG_FORCE
 	help
 	  Reject unsigned modules or signed modules for which we don't have a
 	  key.  Without this, such modules will simply taint the kernel.
+
+config MODULE_SIG_PROTECT
+	bool "Android GKI module protection"
+	depends on MODULE_SIG && !MODULE_SIG_FORCE
+	help
+	  Enables Android GKI symbol and export protection support.
+
+	  This modifies the behavior of the MODULE_SIG_FORCE as follows:
+	  - Allows Android GKI Modules signed using MODULE_SIG_ALL during build.
+	  - Allows other modules to load if they don't violate the access to
+	    Android GKI protected symbols and do not export the symbols already
+	    exported by the Android GKI modules. Loading will fail and return
+	    -EACCES (Permission denied) if symbol access contidions are not met.
 
 config MODULE_SIG_ALL
 	bool "Automatically sign all modules"

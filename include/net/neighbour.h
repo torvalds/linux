@@ -70,6 +70,7 @@ enum {
 struct neigh_parms {
 	possible_net_t net;
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 	struct list_head list;
 	int	(*neigh_setup)(struct neighbour *);
 	struct neigh_table *tbl;
@@ -144,19 +145,21 @@ struct neighbour {
 	struct timer_list	timer;
 	unsigned long		used;
 	atomic_t		probes;
-	__u8			flags;
-	__u8			nud_state;
-	__u8			type;
-	__u8			dead;
+	u8			nud_state;
+	u8			type;
+	u8			dead;
 	u8			protocol;
+	u32			flags;
 	seqlock_t		ha_lock;
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))] __aligned(8);
 	struct hh_cache		hh;
 	int			(*output)(struct neighbour *, struct sk_buff *);
 	const struct neigh_ops	*ops;
 	struct list_head	gc_list;
+	struct list_head	managed_list;
 	struct rcu_head		rcu;
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
 	u8			primary_key[0];
 } __randomize_layout;
 
@@ -172,7 +175,8 @@ struct pneigh_entry {
 	struct pneigh_entry	*next;
 	possible_net_t		net;
 	struct net_device	*dev;
-	u8			flags;
+	netdevice_tracker	dev_tracker;
+	u32			flags;
 	u8			protocol;
 	u8			key[];
 };
@@ -216,11 +220,13 @@ struct neigh_table {
 	int			gc_thresh3;
 	unsigned long		last_flush;
 	struct delayed_work	gc_work;
+	struct delayed_work	managed_work;
 	struct timer_list 	proxy_timer;
 	struct sk_buff_head	proxy_queue;
 	atomic_t		entries;
 	atomic_t		gc_entries;
 	struct list_head	gc_list;
+	struct list_head	managed_list;
 	rwlock_t		lock;
 	unsigned long		last_rand;
 	struct neigh_statistics	__percpu *stats;
@@ -250,12 +256,21 @@ static inline void *neighbour_priv(const struct neighbour *n)
 }
 
 /* flags for neigh_update() */
-#define NEIGH_UPDATE_F_OVERRIDE			0x00000001
-#define NEIGH_UPDATE_F_WEAK_OVERRIDE		0x00000002
-#define NEIGH_UPDATE_F_OVERRIDE_ISROUTER	0x00000004
-#define NEIGH_UPDATE_F_EXT_LEARNED		0x20000000
-#define NEIGH_UPDATE_F_ISROUTER			0x40000000
-#define NEIGH_UPDATE_F_ADMIN			0x80000000
+#define NEIGH_UPDATE_F_OVERRIDE			BIT(0)
+#define NEIGH_UPDATE_F_WEAK_OVERRIDE		BIT(1)
+#define NEIGH_UPDATE_F_OVERRIDE_ISROUTER	BIT(2)
+#define NEIGH_UPDATE_F_USE			BIT(3)
+#define NEIGH_UPDATE_F_MANAGED			BIT(4)
+#define NEIGH_UPDATE_F_EXT_LEARNED		BIT(5)
+#define NEIGH_UPDATE_F_ISROUTER			BIT(6)
+#define NEIGH_UPDATE_F_ADMIN			BIT(7)
+
+/* In-kernel representation for NDA_FLAGS_EXT flags: */
+#define NTF_OLD_MASK		0xff
+#define NTF_EXT_SHIFT		8
+#define NTF_EXT_MASK		(NTF_EXT_MANAGED)
+
+#define NTF_MANAGED		(NTF_EXT_MANAGED << NTF_EXT_SHIFT)
 
 extern const struct nla_policy nda_policy[];
 
@@ -307,6 +322,17 @@ static inline struct neighbour *__neigh_lookup_noref(struct neigh_table *tbl,
 						     struct net_device *dev)
 {
 	return ___neigh_lookup_noref(tbl, tbl->key_eq, tbl->hash, pkey, dev);
+}
+
+static inline void neigh_confirm(struct neighbour *n)
+{
+	if (n) {
+		unsigned long now = jiffies;
+
+		/* avoid dirtying neighbour */
+		if (READ_ONCE(n->confirmed) != now)
+			WRITE_ONCE(n->confirmed, now);
+	}
 }
 
 void neigh_table_init(int index, struct neigh_table *tbl);
@@ -504,10 +530,15 @@ static inline int neigh_output(struct neighbour *n, struct sk_buff *skb,
 {
 	const struct hh_cache *hh = &n->hh;
 
-	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len && !skip_cache)
+	/* n->nud_state and hh->hh_len could be changed under us.
+	 * neigh_hh_output() is taking care of the race later.
+	 */
+	if (!skip_cache &&
+	    (READ_ONCE(n->nud_state) & NUD_CONNECTED) &&
+	    READ_ONCE(hh->hh_len))
 		return neigh_hh_output(hh, skb);
-	else
-		return n->output(n, skb);
+
+	return n->output(n, skb);
 }
 
 static inline struct neighbour *

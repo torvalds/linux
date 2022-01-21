@@ -60,6 +60,13 @@ enum msm_mdp_plane_property {
 	PLANE_PROP_MAX_NUM
 };
 
+enum msm_dp_controller {
+	MSM_DP_CONTROLLER_0,
+	MSM_DP_CONTROLLER_1,
+	MSM_DP_CONTROLLER_2,
+	MSM_DP_CONTROLLER_COUNT,
+};
+
 #define MSM_GPU_MAX_RINGS 4
 #define MAX_H_TILES_PER_DISPLAY 2
 
@@ -144,20 +151,14 @@ struct msm_drm_private {
 	 */
 	struct hdmi *hdmi;
 
-	/* eDP is for mdp5 only, but kms has not been created
-	 * when edp_bind() and edp_init() are called. Here is the only
-	 * place to keep the edp instance.
-	 */
-	struct msm_edp *edp;
-
 	/* DSI is shared by mdp4 and mdp5 */
 	struct msm_dsi *dsi[2];
 
-	struct msm_dp *dp;
+	struct msm_dp *dp[MSM_DP_CONTROLLER_COUNT];
 
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
-	struct msm_file_private *lastctx;
+
 	/* gpu is only set on open(), but we need this info earlier */
 	bool is_a2xx;
 	bool has_cached_coherent;
@@ -239,6 +240,15 @@ struct msm_drm_private {
 
 	/* For hang detection, in ms */
 	unsigned int hangcheck_period;
+
+	/**
+	 * disable_err_irq:
+	 *
+	 * Disable handling of GPU hw error interrupts, to force fallback to
+	 * sw hangcheck timer.  Written (via debugfs) by igt tests to test
+	 * the sw hangcheck mechanism.
+	 */
+	bool disable_err_irq;
 };
 
 struct msm_format {
@@ -328,14 +338,10 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
 void __init msm_hdmi_register(void);
 void __exit msm_hdmi_unregister(void);
 
-struct msm_edp;
-void __init msm_edp_register(void);
-void __exit msm_edp_unregister(void);
-int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
-		struct drm_encoder *encoder);
-
 struct msm_dsi;
 #ifdef CONFIG_DRM_MSM_DSI
+int dsi_dev_attach(struct platform_device *pdev);
+void dsi_dev_detach(struct platform_device *pdev);
 void __init msm_dsi_register(void);
 void __exit msm_dsi_unregister(void);
 int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
@@ -383,8 +389,12 @@ int msm_dp_display_enable(struct msm_dp *dp, struct drm_encoder *encoder);
 int msm_dp_display_disable(struct msm_dp *dp, struct drm_encoder *encoder);
 int msm_dp_display_pre_disable(struct msm_dp *dp, struct drm_encoder *encoder);
 void msm_dp_display_mode_set(struct msm_dp *dp, struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
+				const struct drm_display_mode *mode,
+				const struct drm_display_mode *adjusted_mode);
+
+struct drm_bridge *msm_dp_bridge_init(struct msm_dp *dp_display,
+					struct drm_device *dev,
+					struct drm_encoder *encoder);
 void msm_dp_irq_postinstall(struct msm_dp *dp_display);
 void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp_display);
 
@@ -421,8 +431,8 @@ static inline int msm_dp_display_pre_disable(struct msm_dp *dp,
 }
 static inline void msm_dp_display_mode_set(struct msm_dp *dp,
 				struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+				const struct drm_display_mode *mode,
+				const struct drm_display_mode *adjusted_mode)
 {
 }
 
@@ -479,6 +489,28 @@ void __iomem *msm_ioremap_quiet(struct platform_device *pdev, const char *name,
 void msm_writel(u32 data, void __iomem *addr);
 u32 msm_readl(const void __iomem *addr);
 void msm_rmw(void __iomem *addr, u32 mask, u32 or);
+
+/**
+ * struct msm_hrtimer_work - a helper to combine an hrtimer with kthread_work
+ *
+ * @timer: hrtimer to control when the kthread work is triggered
+ * @work:  the kthread work
+ * @worker: the kthread worker the work will be scheduled on
+ */
+struct msm_hrtimer_work {
+	struct hrtimer timer;
+	struct kthread_work work;
+	struct kthread_worker *worker;
+};
+
+void msm_hrtimer_queue_work(struct msm_hrtimer_work *work,
+			    ktime_t wakeup_time,
+			    enum hrtimer_mode mode);
+void msm_hrtimer_work_init(struct msm_hrtimer_work *work,
+			   struct kthread_worker *worker,
+			   kthread_work_func_t fn,
+			   clockid_t clock_id,
+			   enum hrtimer_mode mode);
 
 #define DBG(fmt, ...) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)

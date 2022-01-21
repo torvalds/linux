@@ -2,9 +2,7 @@
 # parisc/Makefile
 #
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" and "archdep" for cleaning up and making dependencies for
-# this architecture
+# architecture-specific flags and dependencies.
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
@@ -17,7 +15,12 @@
 # Mike Shaver, Helge Deller and Martin K. Petersen
 #
 
+ifdef CONFIG_PARISC_SELF_EXTRACT
+boot := arch/parisc/boot
+KBUILD_IMAGE := $(boot)/bzImage
+else
 KBUILD_IMAGE := vmlinuz
+endif
 
 NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
@@ -180,9 +183,6 @@ define archhelp
 	@echo  '		  copy to $$(INSTALL_PATH)'
 	@echo  '  zinstall	- Install compressed vmlinuz kernel'
 endef
-
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/parisc/kernel/syscalls all

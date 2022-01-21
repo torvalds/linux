@@ -19,6 +19,7 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.friendly_name = "AES-256-XTS",
 		.cipher_str = "xts(aes)",
 		.keysize = 64,
+		.security_strength = 32,
 		.ivsize = 16,
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_AES_256_XTS,
 	},
@@ -26,12 +27,14 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.friendly_name = "AES-256-CTS-CBC",
 		.cipher_str = "cts(cbc(aes))",
 		.keysize = 32,
+		.security_strength = 32,
 		.ivsize = 16,
 	},
 	[FSCRYPT_MODE_AES_128_CBC] = {
 		.friendly_name = "AES-128-CBC-ESSIV",
 		.cipher_str = "essiv(cbc(aes),sha256)",
 		.keysize = 16,
+		.security_strength = 16,
 		.ivsize = 16,
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_AES_128_CBC_ESSIV,
 	},
@@ -39,12 +42,14 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.friendly_name = "AES-128-CTS-CBC",
 		.cipher_str = "cts(cbc(aes))",
 		.keysize = 16,
+		.security_strength = 16,
 		.ivsize = 16,
 	},
 	[FSCRYPT_MODE_ADIANTUM] = {
 		.friendly_name = "Adiantum",
 		.cipher_str = "adiantum(xchacha12,aes)",
 		.keysize = 32,
+		.security_strength = 32,
 		.ivsize = 32,
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_ADIANTUM,
 	},
@@ -117,12 +122,16 @@ err_free_tfm:
 
 /*
  * Prepare the crypto transform object or blk-crypto key in @prep_key, given the
- * raw key, encryption mode, and flag indicating which encryption implementation
- * (fs-layer or blk-crypto) will be used.
+ * raw key, encryption mode (@ci->ci_mode), flag indicating which encryption
+ * implementation (fs-layer or blk-crypto) will be used (@ci->ci_inlinecrypt),
+ * and IV generation method (@ci->ci_policy.flags).  The raw key can be either a
+ * standard key or a hardware-wrapped key, as indicated by @is_hw_wrapped; it
+ * can only be a hardware-wrapped key if blk-crypto will be used.
  */
-int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
-			const u8 *raw_key, unsigned int raw_key_size,
-			bool is_hw_wrapped, const struct fscrypt_info *ci)
+static int __fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
+				 const u8 *raw_key, unsigned int raw_key_size,
+				 bool is_hw_wrapped,
+				 const struct fscrypt_info *ci)
 {
 	struct crypto_skcipher *tfm;
 
@@ -146,6 +155,13 @@ int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
 	return 0;
 }
 
+int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
+			const u8 *raw_key, const struct fscrypt_info *ci)
+{
+	return __fscrypt_prepare_key(prep_key, raw_key, ci->ci_mode->keysize,
+				     false, ci);
+}
+
 /* Destroy a crypto transform object and/or blk-crypto key. */
 void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key)
 {
@@ -157,9 +173,7 @@ void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key)
 int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key)
 {
 	ci->ci_owns_key = true;
-	return fscrypt_prepare_key(&ci->ci_enc_key, raw_key,
-				   ci->ci_mode->keysize,
-				   false /*is_hw_wrapped*/, ci);
+	return fscrypt_prepare_key(&ci->ci_enc_key, raw_key, ci);
 }
 
 static int setup_per_mode_enc_key(struct fscrypt_info *ci,
@@ -172,13 +186,28 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 	struct fscrypt_mode *mode = ci->ci_mode;
 	const u8 mode_num = mode - fscrypt_modes;
 	struct fscrypt_prepared_key *prep_key;
-	u8 mode_key[FSCRYPT_MAX_KEY_SIZE];
+	u8 mode_key[FSCRYPT_MAX_STANDARD_KEY_SIZE];
 	u8 hkdf_info[sizeof(mode_num) + sizeof(sb->s_uuid)];
 	unsigned int hkdf_infolen = 0;
+	bool use_hw_wrapped_key = false;
 	int err;
 
 	if (WARN_ON(mode_num > FSCRYPT_MODE_MAX))
 		return -EINVAL;
+
+	if (mk->mk_secret.is_hw_wrapped && S_ISREG(inode->i_mode)) {
+		/* Using a hardware-wrapped key for file contents encryption */
+		if (!fscrypt_using_inline_encryption(ci)) {
+			if (sb->s_flags & SB_INLINECRYPT)
+				fscrypt_warn(ci->ci_inode,
+					     "Hardware-wrapped key required, but no suitable inline encryption hardware is available");
+			else
+				fscrypt_warn(ci->ci_inode,
+					     "Hardware-wrapped keys require inline encryption (-o inlinecrypt)");
+			return -EINVAL;
+		}
+		use_hw_wrapped_key = true;
+	}
 
 	prep_key = &keys[mode_num];
 	if (fscrypt_is_key_prepared(prep_key, ci)) {
@@ -191,48 +220,32 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 	if (fscrypt_is_key_prepared(prep_key, ci))
 		goto done_unlock;
 
-	if (mk->mk_secret.is_hw_wrapped && S_ISREG(inode->i_mode)) {
-		int i;
-
-		if (!fscrypt_using_inline_encryption(ci)) {
-			fscrypt_warn(ci->ci_inode,
-				     "Hardware-wrapped keys require inline encryption (-o inlinecrypt)");
-			err = -EINVAL;
-			goto out_unlock;
-		}
-		for (i = 0; i <= FSCRYPT_MODE_MAX; i++) {
-			if (fscrypt_is_key_prepared(&keys[i], ci)) {
-				fscrypt_warn(ci->ci_inode,
-					     "Each hardware-wrapped key can only be used with one encryption mode");
-				err = -EINVAL;
-				goto out_unlock;
-			}
-		}
-		err = fscrypt_prepare_key(prep_key, mk->mk_secret.raw,
-					  mk->mk_secret.size, true, ci);
+	if (use_hw_wrapped_key) {
+		err = __fscrypt_prepare_key(prep_key, mk->mk_secret.raw,
+					    mk->mk_secret.size, true, ci);
 		if (err)
 			goto out_unlock;
-	} else {
-		BUILD_BUG_ON(sizeof(mode_num) != 1);
-		BUILD_BUG_ON(sizeof(sb->s_uuid) != 16);
-		BUILD_BUG_ON(sizeof(hkdf_info) != 17);
-		hkdf_info[hkdf_infolen++] = mode_num;
-		if (include_fs_uuid) {
-			memcpy(&hkdf_info[hkdf_infolen], &sb->s_uuid,
-				   sizeof(sb->s_uuid));
-			hkdf_infolen += sizeof(sb->s_uuid);
-		}
-		err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
-					  hkdf_context, hkdf_info, hkdf_infolen,
-					  mode_key, mode->keysize);
-		if (err)
-			goto out_unlock;
-		err = fscrypt_prepare_key(prep_key, mode_key, mode->keysize,
-					  false /*is_hw_wrapped*/, ci);
-		memzero_explicit(mode_key, mode->keysize);
-		if (err)
-			goto out_unlock;
+		goto done_unlock;
 	}
+
+	BUILD_BUG_ON(sizeof(mode_num) != 1);
+	BUILD_BUG_ON(sizeof(sb->s_uuid) != 16);
+	BUILD_BUG_ON(sizeof(hkdf_info) != 17);
+	hkdf_info[hkdf_infolen++] = mode_num;
+	if (include_fs_uuid) {
+		memcpy(&hkdf_info[hkdf_infolen], &sb->s_uuid,
+		       sizeof(sb->s_uuid));
+		hkdf_infolen += sizeof(sb->s_uuid);
+	}
+	err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
+				  hkdf_context, hkdf_info, hkdf_infolen,
+				  mode_key, mode->keysize);
+	if (err)
+		goto out_unlock;
+	err = fscrypt_prepare_key(prep_key, mode_key, ci);
+	memzero_explicit(mode_key, mode->keysize);
+	if (err)
+		goto out_unlock;
 done_unlock:
 	ci->ci_enc_key = *prep_key;
 	err = 0;
@@ -371,7 +384,7 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 		   FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
 		err = fscrypt_setup_iv_ino_lblk_32_key(ci, mk);
 	} else {
-		u8 derived_key[FSCRYPT_MAX_KEY_SIZE];
+		u8 derived_key[FSCRYPT_MAX_STANDARD_KEY_SIZE];
 
 		err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
 					  HKDF_CONTEXT_PER_FILE_ENC_KEY,
@@ -394,6 +407,45 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 	}
 
 	return 0;
+}
+
+/*
+ * Check whether the size of the given master key (@mk) is appropriate for the
+ * encryption settings which a particular file will use (@ci).
+ *
+ * If the file uses a v1 encryption policy, then the master key must be at least
+ * as long as the derived key, as this is a requirement of the v1 KDF.
+ *
+ * Otherwise, the KDF can accept any size key, so we enforce a slightly looser
+ * requirement: we require that the size of the master key be at least the
+ * maximum security strength of any algorithm whose key will be derived from it
+ * (but in practice we only need to consider @ci->ci_mode, since any other
+ * possible subkeys such as DIRHASH and INODE_HASH will never increase the
+ * required key size over @ci->ci_mode).  This allows AES-256-XTS keys to be
+ * derived from a 256-bit master key, which is cryptographically sufficient,
+ * rather than requiring a 512-bit master key which is unnecessarily long.  (We
+ * still allow 512-bit master keys if the user chooses to use them, though.)
+ */
+static bool fscrypt_valid_master_key_size(const struct fscrypt_master_key *mk,
+					  const struct fscrypt_info *ci)
+{
+	unsigned int min_keysize;
+
+	if (ci->ci_policy.version == FSCRYPT_POLICY_V1)
+		min_keysize = ci->ci_mode->keysize;
+	else
+		min_keysize = ci->ci_mode->security_strength;
+
+	if (mk->mk_secret.size < min_keysize) {
+		fscrypt_warn(NULL,
+			     "key with %s %*phN is too short (got %u bytes, need %u+ bytes)",
+			     master_key_spec_type(&mk->mk_spec),
+			     master_key_spec_len(&mk->mk_spec),
+			     (u8 *)&mk->mk_spec.u,
+			     mk->mk_secret.size, min_keysize);
+		return false;
+	}
+	return true;
 }
 
 /*
@@ -461,18 +513,7 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 		goto out_release_key;
 	}
 
-	/*
-	 * Require that the master key be at least as long as the derived key.
-	 * Otherwise, the derived key cannot possibly contain as much entropy as
-	 * that required by the encryption mode it will be used for.  For v1
-	 * policies it's also required for the KDF to work at all.
-	 */
-	if (mk->mk_secret.size < ci->ci_mode->keysize) {
-		fscrypt_warn(NULL,
-			     "key with %s %*phN is too short (got %u bytes, need %u+ bytes)",
-			     master_key_spec_type(&mk_spec),
-			     master_key_spec_len(&mk_spec), (u8 *)&mk_spec.u,
-			     mk->mk_secret.size, ci->ci_mode->keysize);
+	if (!fscrypt_valid_master_key_size(mk, ci)) {
 		err = -ENOKEY;
 		goto out_release_key;
 	}
@@ -483,6 +524,14 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 
 	switch (ci->ci_policy.version) {
 	case FSCRYPT_POLICY_V1:
+		if (WARN_ON(mk->mk_secret.is_hw_wrapped)) {
+			/*
+			 * This should never happen, as adding a v1 policy key
+			 * that is hardware-wrapped isn't allowed.
+			 */
+			err = -EINVAL;
+			goto out_release_key;
+		}
 		err = fscrypt_setup_v1_file_key(ci, mk->mk_secret.raw);
 		break;
 	case FSCRYPT_POLICY_V2:

@@ -163,7 +163,7 @@ static inline int zpci_load_fh(u64 *data, const volatile void __iomem *addr,
 			       unsigned long len)
 {
 	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(addr)];
-	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, len);
+	u64 req = ZPCI_CREATE_REQ(READ_ONCE(entry->fh), entry->bar, len);
 
 	return __zpci_load(data, req, ZPCI_OFFSET(addr));
 }
@@ -244,7 +244,7 @@ static inline int zpci_store_fh(const volatile void __iomem *addr, u64 data,
 				unsigned long len)
 {
 	struct zpci_iomap_entry *entry = &zpci_iomap_start[ZPCI_IDX(addr)];
-	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, len);
+	u64 req = ZPCI_CREATE_REQ(READ_ONCE(entry->fh), entry->bar, len);
 
 	return __zpci_store(data, req, ZPCI_OFFSET(addr));
 }
@@ -365,10 +365,7 @@ EXPORT_SYMBOL_GPL(zpci_write_block);
 
 static inline void __pciwb_mio(void)
 {
-	unsigned long unused = 0;
-
-	asm volatile (".insn    rre,0xb9d50000,%[op],%[op]\n"
-		      : [op] "+d" (unused));
+	asm volatile (".insn    rre,0xb9d50000,0,0\n");
 }
 
 void zpci_barrier(void)

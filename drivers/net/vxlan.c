@@ -17,6 +17,7 @@
 #include <linux/ethtool.h>
 #include <net/arp.h>
 #include <net/ndisc.h>
+#include <net/gro.h>
 #include <net/ipv6_stubs.h>
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -3233,7 +3234,6 @@ static const struct net_device_ops vxlan_netdev_ether_ops = {
 	.ndo_fdb_dump		= vxlan_fdb_dump,
 	.ndo_fdb_get		= vxlan_fdb_get,
 	.ndo_fill_metadata_dst	= vxlan_fill_metadata_dst,
-	.ndo_change_proto_down  = dev_change_proto_down_generic,
 };
 
 static const struct net_device_ops vxlan_netdev_raw_ops = {
@@ -3304,7 +3304,7 @@ static void vxlan_setup(struct net_device *dev)
 	dev->hw_features |= NETIF_F_RXCSUM;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
 	netif_keep_dst(dev);
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_NO_QUEUE | IFF_CHANGE_PROTO_DOWN;
 
 	/* MTU range: 68 - 65535 */
 	dev->min_mtu = ETH_MIN_MTU;
@@ -3747,7 +3747,7 @@ static int vxlan_config_validate(struct net *src_net, struct vxlan_config *conf,
 
 	if (!conf->dst_port) {
 		if (conf->flags & VXLAN_F_GPE)
-			conf->dst_port = htons(4790); /* IANA VXLAN-GPE port */
+			conf->dst_port = htons(IANA_VXLAN_GPE_UDP_PORT);
 		else
 			conf->dst_port = htons(vxlan_port);
 	}
@@ -3810,8 +3810,8 @@ static void vxlan_config_apply(struct net_device *dev,
 	if (lowerdev) {
 		dst->remote_ifindex = conf->remote_ifindex;
 
-		dev->gso_max_size = lowerdev->gso_max_size;
-		dev->gso_max_segs = lowerdev->gso_max_segs;
+		netif_set_gso_max_size(dev, lowerdev->gso_max_size);
+		netif_set_gso_max_segs(dev, lowerdev->gso_max_segs);
 
 		needed_headroom = lowerdev->hard_header_len;
 		needed_headroom += lowerdev->needed_headroom;

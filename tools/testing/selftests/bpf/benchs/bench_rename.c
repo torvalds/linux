@@ -11,7 +11,7 @@ static struct ctx {
 	int fd;
 } ctx;
 
-static void validate()
+static void validate(void)
 {
 	if (env.producer_cnt != 1) {
 		fprintf(stderr, "benchmark doesn't support multi-producer!\n");
@@ -43,7 +43,7 @@ static void measure(struct bench_res *res)
 	res->hits = atomic_swap(&ctx.hits.value, 0);
 }
 
-static void setup_ctx()
+static void setup_ctx(void)
 {
 	setup_libbpf();
 
@@ -71,36 +71,36 @@ static void attach_bpf(struct bpf_program *prog)
 	}
 }
 
-static void setup_base()
+static void setup_base(void)
 {
 	setup_ctx();
 }
 
-static void setup_kprobe()
+static void setup_kprobe(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.prog1);
 }
 
-static void setup_kretprobe()
+static void setup_kretprobe(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.prog2);
 }
 
-static void setup_rawtp()
+static void setup_rawtp(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.prog3);
 }
 
-static void setup_fentry()
+static void setup_fentry(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.prog4);
 }
 
-static void setup_fexit()
+static void setup_fexit(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.prog5);

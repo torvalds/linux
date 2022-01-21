@@ -154,6 +154,8 @@ void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
 	regs->psw = S390_lowcore.svc_old_psw;
 	regs->int_code = S390_lowcore.svc_int_code;
 	update_timer_sys();
+	if (static_branch_likely(&cpu_has_bear))
+		current->thread.last_break = regs->last_break;
 
 	local_irq_enable();
 	regs->orig_gpr2 = regs->gprs[2];

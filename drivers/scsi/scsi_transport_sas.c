@@ -154,6 +154,7 @@ static struct {
 	{ SAS_LINK_RATE_3_0_GBPS,	"3.0 Gbit" },
 	{ SAS_LINK_RATE_6_0_GBPS,	"6.0 Gbit" },
 	{ SAS_LINK_RATE_12_0_GBPS,	"12.0 Gbit" },
+	{ SAS_LINK_RATE_22_5_GBPS,	"22.5 Gbit" },
 };
 sas_bitfield_name_search(linkspeed, sas_linkspeed_names)
 sas_bitfield_name_set(linkspeed, sas_linkspeed_names)

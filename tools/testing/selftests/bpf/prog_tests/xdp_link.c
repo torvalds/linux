@@ -6,7 +6,7 @@
 
 #define IFINDEX_LO 1
 
-void test_xdp_link(void)
+void serial_test_xdp_link(void)
 {
 	__u32 duration = 0, id1, id2, id0 = 0, prog_fd1, prog_fd2, err;
 	DECLARE_LIBBPF_OPTS(bpf_xdp_set_link_opts, opts, .old_fd = -1);

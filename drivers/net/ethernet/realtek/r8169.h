@@ -37,7 +37,7 @@ enum mac_version {
 	RTL_GIGA_MAC_VER_24,
 	RTL_GIGA_MAC_VER_25,
 	RTL_GIGA_MAC_VER_26,
-	RTL_GIGA_MAC_VER_27,
+	/* support for RTL_GIGA_MAC_VER_27 has been removed */
 	RTL_GIGA_MAC_VER_28,
 	RTL_GIGA_MAC_VER_29,
 	RTL_GIGA_MAC_VER_30,

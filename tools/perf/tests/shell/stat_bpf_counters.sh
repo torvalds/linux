@@ -23,7 +23,7 @@ compare_number()
 
 # skip if --bpf-counters is not supported
 if ! perf stat --bpf-counters true > /dev/null 2>&1; then
-	if [ "$1" == "-v" ]; then
+	if [ "$1" = "-v" ]; then
 		echo "Skipping: --bpf-counters not supported"
 		perf --no-pager stat --bpf-counters true || true
 	fi

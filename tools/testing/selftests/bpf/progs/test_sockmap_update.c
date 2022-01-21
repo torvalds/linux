@@ -24,7 +24,7 @@ struct {
 	__type(value, __u64);
 } dst_sock_hash SEC(".maps");
 
-SEC("classifier/copy_sock_map")
+SEC("tc")
 int copy_sock_map(void *ctx)
 {
 	struct bpf_sock *sk;

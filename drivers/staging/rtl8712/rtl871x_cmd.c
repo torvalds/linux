@@ -554,7 +554,7 @@ void r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 }
 
-void r8712_setMacAddr_cmd(struct _adapter *padapter, u8 *mac_addr)
+void r8712_setMacAddr_cmd(struct _adapter *padapter, const u8 *mac_addr)
 {
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
 	struct cmd_obj *ph2c;

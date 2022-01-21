@@ -7,6 +7,7 @@
 #define	_MTD_NAND_OMAP2_H
 
 #include <linux/mtd/partitions.h>
+#include <linux/mod_devicetable.h>
 
 #define	GPMC_BCH_NUM_REMAINDER	8
 
@@ -61,4 +62,11 @@ struct gpmc_nand_regs {
 	void __iomem	*gpmc_bch_result5[GPMC_BCH_NUM_REMAINDER];
 	void __iomem	*gpmc_bch_result6[GPMC_BCH_NUM_REMAINDER];
 };
-#endif
+
+static const struct of_device_id omap_nand_ids[] = {
+	{ .compatible = "ti,omap2-nand", },
+	{ .compatible = "ti,am64-nand", },
+	{},
+};
+
+#endif /* _MTD_NAND_OMAP2_H */

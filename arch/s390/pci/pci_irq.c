@@ -45,9 +45,9 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 	fib.fmt0.isc = PCI_ISC;
 	fib.fmt0.sum = 1;	/* enable summary notifications */
 	fib.fmt0.noi = airq_iv_end(zdev->aibv);
-	fib.fmt0.aibv = (unsigned long) zdev->aibv->vector;
+	fib.fmt0.aibv = virt_to_phys(zdev->aibv->vector);
 	fib.fmt0.aibvo = 0;	/* each zdev has its own interrupt vector */
-	fib.fmt0.aisb = (unsigned long) zpci_sbv->vector + (zdev->aisb/64)*8;
+	fib.fmt0.aisb = virt_to_phys(zpci_sbv->vector) + (zdev->aisb / 64) * 8;
 	fib.fmt0.aisbo = zdev->aisb & 63;
 
 	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
@@ -387,6 +387,15 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 		airq_iv_free(zpci_ibv[0], zdev->msi_first_bit, zdev->msi_nr_irqs);
 }
 
+void arch_restore_msi_irqs(struct pci_dev *pdev)
+{
+	struct zpci_dev *zdev = to_zpci(pdev);
+
+	if (!zdev->irqs_registered)
+		zpci_set_irq(zdev);
+	default_restore_msi_irqs(pdev);
+}
+
 static struct airq_struct zpci_airq = {
 	.handler = zpci_floating_irq_handler,
 	.isc = PCI_ISC,
@@ -413,7 +422,7 @@ static int __init zpci_directed_irq_init(void)
 
 	iib.diib.isc = PCI_ISC;
 	iib.diib.nr_cpus = num_possible_cpus();
-	iib.diib.disb_addr = (u64) zpci_sbv->vector;
+	iib.diib.disb_addr = virt_to_phys(zpci_sbv->vector);
 	__zpci_set_irq_ctrl(SIC_IRQ_MODE_DIRECT, 0, &iib);
 
 	zpci_ibv = kcalloc(num_possible_cpus(), sizeof(*zpci_ibv),

@@ -869,7 +869,7 @@ static void xgene_enet_timeout(struct net_device *ndev, unsigned int txqueue)
 
 	for (i = 0; i < pdata->txq_cnt; i++) {
 		txq = netdev_get_tx_queue(ndev, i);
-		txq->trans_start = jiffies;
+		txq_trans_cond_update(txq);
 		netif_tx_start_queue(txq);
 	}
 }
@@ -1731,7 +1731,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		xgene_get_port_id_acpi(dev, pdata);
 #endif
 
-	if (!device_get_mac_address(dev, ndev->dev_addr, ETH_ALEN))
+	if (device_get_ethdev_address(dev, ndev))
 		eth_hw_addr_random(ndev);
 
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);

@@ -27,6 +27,7 @@ struct clk_generated {
 	u32 id;
 	u32 gckdiv;
 	const struct clk_pcr_layout *layout;
+	struct at91_clk_pms pms;
 	u8 parent_id;
 	int chg_pid;
 };
@@ -34,25 +35,35 @@ struct clk_generated {
 #define to_clk_generated(hw) \
 	container_of(hw, struct clk_generated, hw)
 
-static int clk_generated_enable(struct clk_hw *hw)
+static int clk_generated_set(struct clk_generated *gck, int status)
 {
-	struct clk_generated *gck = to_clk_generated(hw);
 	unsigned long flags;
-
-	pr_debug("GCLK: %s, gckdiv = %d, parent id = %d\n",
-		 __func__, gck->gckdiv, gck->parent_id);
+	unsigned int enable = status ? AT91_PMC_PCR_GCKEN : 0;
 
 	spin_lock_irqsave(gck->lock, flags);
 	regmap_write(gck->regmap, gck->layout->offset,
 		     (gck->id & gck->layout->pid_mask));
 	regmap_update_bits(gck->regmap, gck->layout->offset,
 			   AT91_PMC_PCR_GCKDIV_MASK | gck->layout->gckcss_mask |
-			   gck->layout->cmd | AT91_PMC_PCR_GCKEN,
+			   gck->layout->cmd | enable,
 			   field_prep(gck->layout->gckcss_mask, gck->parent_id) |
 			   gck->layout->cmd |
 			   FIELD_PREP(AT91_PMC_PCR_GCKDIV_MASK, gck->gckdiv) |
-			   AT91_PMC_PCR_GCKEN);
+			   enable);
 	spin_unlock_irqrestore(gck->lock, flags);
+
+	return 0;
+}
+
+static int clk_generated_enable(struct clk_hw *hw)
+{
+	struct clk_generated *gck = to_clk_generated(hw);
+
+	pr_debug("GCLK: %s, gckdiv = %d, parent id = %d\n",
+		 __func__, gck->gckdiv, gck->parent_id);
+
+	clk_generated_set(gck, 1);
+
 	return 0;
 }
 
@@ -245,6 +256,23 @@ static int clk_generated_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
+static int clk_generated_save_context(struct clk_hw *hw)
+{
+	struct clk_generated *gck = to_clk_generated(hw);
+
+	gck->pms.status = clk_generated_is_enabled(&gck->hw);
+
+	return 0;
+}
+
+static void clk_generated_restore_context(struct clk_hw *hw)
+{
+	struct clk_generated *gck = to_clk_generated(hw);
+
+	if (gck->pms.status)
+		clk_generated_set(gck, gck->pms.status);
+}
+
 static const struct clk_ops generated_ops = {
 	.enable = clk_generated_enable,
 	.disable = clk_generated_disable,
@@ -254,6 +282,8 @@ static const struct clk_ops generated_ops = {
 	.get_parent = clk_generated_get_parent,
 	.set_parent = clk_generated_set_parent,
 	.set_rate = clk_generated_set_rate,
+	.save_context = clk_generated_save_context,
+	.restore_context = clk_generated_restore_context,
 };
 
 /**
@@ -320,8 +350,6 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 	if (ret) {
 		kfree(gck);
 		hw = ERR_PTR(ret);
-	} else {
-		pmc_register_id(id);
 	}
 
 	return hw;

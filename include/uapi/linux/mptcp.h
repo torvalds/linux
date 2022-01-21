@@ -4,6 +4,13 @@
 
 #include <linux/const.h>
 #include <linux/types.h>
+#include <linux/in.h>		/* for sockaddr_in			*/
+#include <linux/in6.h>		/* for sockaddr_in6			*/
+#include <linux/socket.h>	/* for sockaddr_storage and sa_family	*/
+
+#ifndef __KERNEL__
+#include <sys/socket.h>		/* for struct sockaddr			*/
+#endif
 
 #define MPTCP_SUBFLOW_FLAG_MCAP_REM		_BITUL(0)
 #define MPTCP_SUBFLOW_FLAG_MCAP_LOC		_BITUL(1)
@@ -129,19 +136,21 @@ struct mptcp_info {
  * MPTCP_EVENT_REMOVED: token, rem_id
  * An address has been lost by the peer.
  *
- * MPTCP_EVENT_SUB_ESTABLISHED: token, family, saddr4 | saddr6,
- *                              daddr4 | daddr6, sport, dport, backup,
- *                              if_idx [, error]
+ * MPTCP_EVENT_SUB_ESTABLISHED: token, family, loc_id, rem_id,
+ *                              saddr4 | saddr6, daddr4 | daddr6, sport,
+ *                              dport, backup, if_idx [, error]
  * A new subflow has been established. 'error' should not be set.
  *
- * MPTCP_EVENT_SUB_CLOSED: token, family, saddr4 | saddr6, daddr4 | daddr6,
- *                         sport, dport, backup, if_idx [, error]
+ * MPTCP_EVENT_SUB_CLOSED: token, family, loc_id, rem_id, saddr4 | saddr6,
+ *                         daddr4 | daddr6, sport, dport, backup, if_idx
+ *                         [, error]
  * A subflow has been closed. An error (copy of sk_err) could be set if an
  * error has been detected for this subflow.
  *
- * MPTCP_EVENT_SUB_PRIORITY: token, family, saddr4 | saddr6, daddr4 | daddr6,
- *                           sport, dport, backup, if_idx [, error]
- *       The priority of a subflow has changed. 'error' should not be set.
+ * MPTCP_EVENT_SUB_PRIORITY: token, family, loc_id, rem_id, saddr4 | saddr6,
+ *                           daddr4 | daddr6, sport, dport, backup, if_idx
+ *                           [, error]
+ * The priority of a subflow has changed. 'error' should not be set.
  */
 enum mptcp_event_type {
 	MPTCP_EVENT_UNSPEC = 0,
@@ -192,5 +201,33 @@ enum mptcp_event_attr {
 #define MPTCP_RST_EWQ2BIG	4
 #define MPTCP_RST_EBADPERF	5
 #define MPTCP_RST_EMIDDLEBOX	6
+
+struct mptcp_subflow_data {
+	__u32		size_subflow_data;		/* size of this structure in userspace */
+	__u32		num_subflows;			/* must be 0, set by kernel */
+	__u32		size_kernel;			/* must be 0, set by kernel */
+	__u32		size_user;			/* size of one element in data[] */
+} __attribute__((aligned(8)));
+
+struct mptcp_subflow_addrs {
+	union {
+		__kernel_sa_family_t sa_family;
+		struct sockaddr sa_local;
+		struct sockaddr_in sin_local;
+		struct sockaddr_in6 sin6_local;
+		struct __kernel_sockaddr_storage ss_local;
+	};
+	union {
+		struct sockaddr sa_remote;
+		struct sockaddr_in sin_remote;
+		struct sockaddr_in6 sin6_remote;
+		struct __kernel_sockaddr_storage ss_remote;
+	};
+};
+
+/* MPTCP socket options */
+#define MPTCP_INFO		1
+#define MPTCP_TCPINFO		2
+#define MPTCP_SUBFLOW_ADDRS	3
 
 #endif /* _UAPI_MPTCP_H */

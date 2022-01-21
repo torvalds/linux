@@ -17,6 +17,14 @@ static guid_t nvdimm_btt2_guid;
 static guid_t nvdimm_pfn_guid;
 static guid_t nvdimm_dax_guid;
 
+static uuid_t nvdimm_btt_uuid;
+static uuid_t nvdimm_btt2_uuid;
+static uuid_t nvdimm_pfn_uuid;
+static uuid_t nvdimm_dax_uuid;
+
+static uuid_t cxl_region_uuid;
+static uuid_t cxl_namespace_uuid;
+
 static const char NSINDEX_SIGNATURE[] = "NAMESPACE_INDEX\0";
 
 static u32 best_seq(u32 a, u32 b)
@@ -321,7 +329,8 @@ static bool preamble_index(struct nvdimm_drvdata *ndd, int idx,
 	return true;
 }
 
-char *nd_label_gen_id(struct nd_label_id *label_id, u8 *uuid, u32 flags)
+char *nd_label_gen_id(struct nd_label_id *label_id, const uuid_t *uuid,
+		      u32 flags)
 {
 	if (!label_id || !uuid)
 		return NULL;
@@ -351,7 +360,7 @@ static bool nsl_validate_checksum(struct nvdimm_drvdata *ndd,
 {
 	u64 sum, sum_save;
 
-	if (!namespace_label_has(ndd, checksum))
+	if (!ndd->cxl && !efi_namespace_label_has(ndd, checksum))
 		return true;
 
 	sum_save = nsl_get_checksum(ndd, nd_label);
@@ -366,7 +375,7 @@ static void nsl_calculate_checksum(struct nvdimm_drvdata *ndd,
 {
 	u64 sum;
 
-	if (!namespace_label_has(ndd, checksum))
+	if (!ndd->cxl && !efi_namespace_label_has(ndd, checksum))
 		return;
 	nsl_set_checksum(ndd, nd_label, 0);
 	sum = nd_fletcher64(nd_label, sizeof_namespace_label(ndd), 1);
@@ -400,9 +409,9 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 		struct nvdimm *nvdimm = to_nvdimm(ndd->dev);
 		struct nd_namespace_label *nd_label;
 		struct nd_region *nd_region = NULL;
-		u8 label_uuid[NSLABEL_UUID_LEN];
 		struct nd_label_id label_id;
 		struct resource *res;
+		uuid_t label_uuid;
 		u32 flags;
 
 		nd_label = to_label(ndd, slot);
@@ -410,11 +419,11 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 		if (!slot_valid(ndd, nd_label, slot))
 			continue;
 
-		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
+		nsl_get_uuid(ndd, nd_label, &label_uuid);
 		flags = nsl_get_flags(ndd, nd_label);
 		if (test_bit(NDD_NOBLK, &nvdimm->flags))
 			flags &= ~NSLABEL_FLAG_LOCAL;
-		nd_label_gen_id(&label_id, label_uuid, flags);
+		nd_label_gen_id(&label_id, &label_uuid, flags);
 		res = nvdimm_allocate_dpa(ndd, &label_id,
 					  nsl_get_dpa(ndd, nd_label),
 					  nsl_get_rawsize(ndd, nd_label));
@@ -724,7 +733,7 @@ static unsigned long nd_label_offset(struct nvdimm_drvdata *ndd,
 		- (unsigned long) to_namespace_index(ndd, 0);
 }
 
-static enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid)
+static enum nvdimm_claim_class guid_to_nvdimm_cclass(guid_t *guid)
 {
 	if (guid_equal(guid, &nvdimm_btt_guid))
 		return NVDIMM_CCLASS_BTT;
@@ -735,6 +744,23 @@ static enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid)
 	else if (guid_equal(guid, &nvdimm_dax_guid))
 		return NVDIMM_CCLASS_DAX;
 	else if (guid_equal(guid, &guid_null))
+		return NVDIMM_CCLASS_NONE;
+
+	return NVDIMM_CCLASS_UNKNOWN;
+}
+
+/* CXL labels store UUIDs instead of GUIDs for the same data */
+static enum nvdimm_claim_class uuid_to_nvdimm_cclass(uuid_t *uuid)
+{
+	if (uuid_equal(uuid, &nvdimm_btt_uuid))
+		return NVDIMM_CCLASS_BTT;
+	else if (uuid_equal(uuid, &nvdimm_btt2_uuid))
+		return NVDIMM_CCLASS_BTT2;
+	else if (uuid_equal(uuid, &nvdimm_pfn_uuid))
+		return NVDIMM_CCLASS_PFN;
+	else if (uuid_equal(uuid, &nvdimm_dax_uuid))
+		return NVDIMM_CCLASS_DAX;
+	else if (uuid_equal(uuid, &uuid_null))
 		return NVDIMM_CCLASS_NONE;
 
 	return NVDIMM_CCLASS_UNKNOWN;
@@ -761,6 +787,28 @@ static const guid_t *to_abstraction_guid(enum nvdimm_claim_class claim_class,
 		return &guid_null;
 }
 
+/* CXL labels store UUIDs instead of GUIDs for the same data */
+static const uuid_t *to_abstraction_uuid(enum nvdimm_claim_class claim_class,
+					 uuid_t *target)
+{
+	if (claim_class == NVDIMM_CCLASS_BTT)
+		return &nvdimm_btt_uuid;
+	else if (claim_class == NVDIMM_CCLASS_BTT2)
+		return &nvdimm_btt2_uuid;
+	else if (claim_class == NVDIMM_CCLASS_PFN)
+		return &nvdimm_pfn_uuid;
+	else if (claim_class == NVDIMM_CCLASS_DAX)
+		return &nvdimm_dax_uuid;
+	else if (claim_class == NVDIMM_CCLASS_UNKNOWN) {
+		/*
+		 * If we're modifying a namespace for which we don't
+		 * know the claim_class, don't touch the existing uuid.
+		 */
+		return target;
+	} else
+		return &uuid_null;
+}
+
 static void reap_victim(struct nd_mapping *nd_mapping,
 		struct nd_label_ent *victim)
 {
@@ -775,18 +823,18 @@ static void reap_victim(struct nd_mapping *nd_mapping,
 static void nsl_set_type_guid(struct nvdimm_drvdata *ndd,
 			      struct nd_namespace_label *nd_label, guid_t *guid)
 {
-	if (namespace_label_has(ndd, type_guid))
-		guid_copy(&nd_label->type_guid, guid);
+	if (efi_namespace_label_has(ndd, type_guid))
+		guid_copy(&nd_label->efi.type_guid, guid);
 }
 
 bool nsl_validate_type_guid(struct nvdimm_drvdata *ndd,
 			    struct nd_namespace_label *nd_label, guid_t *guid)
 {
-	if (!namespace_label_has(ndd, type_guid))
+	if (ndd->cxl || !efi_namespace_label_has(ndd, type_guid))
 		return true;
-	if (!guid_equal(&nd_label->type_guid, guid)) {
+	if (!guid_equal(&nd_label->efi.type_guid, guid)) {
 		dev_dbg(ndd->dev, "expect type_guid %pUb got %pUb\n", guid,
-			&nd_label->type_guid);
+			&nd_label->efi.type_guid);
 		return false;
 	}
 	return true;
@@ -796,19 +844,34 @@ static void nsl_set_claim_class(struct nvdimm_drvdata *ndd,
 				struct nd_namespace_label *nd_label,
 				enum nvdimm_claim_class claim_class)
 {
-	if (!namespace_label_has(ndd, abstraction_guid))
+	if (ndd->cxl) {
+		uuid_t uuid;
+
+		import_uuid(&uuid, nd_label->cxl.abstraction_uuid);
+		export_uuid(nd_label->cxl.abstraction_uuid,
+			    to_abstraction_uuid(claim_class, &uuid));
 		return;
-	guid_copy(&nd_label->abstraction_guid,
+	}
+
+	if (!efi_namespace_label_has(ndd, abstraction_guid))
+		return;
+	guid_copy(&nd_label->efi.abstraction_guid,
 		  to_abstraction_guid(claim_class,
-				      &nd_label->abstraction_guid));
+				      &nd_label->efi.abstraction_guid));
 }
 
 enum nvdimm_claim_class nsl_get_claim_class(struct nvdimm_drvdata *ndd,
 					    struct nd_namespace_label *nd_label)
 {
-	if (!namespace_label_has(ndd, abstraction_guid))
+	if (ndd->cxl) {
+		uuid_t uuid;
+
+		import_uuid(&uuid, nd_label->cxl.abstraction_uuid);
+		return uuid_to_nvdimm_cclass(&uuid);
+	}
+	if (!efi_namespace_label_has(ndd, abstraction_guid))
 		return NVDIMM_CCLASS_NONE;
-	return to_nvdimm_cclass(&nd_label->abstraction_guid);
+	return guid_to_nvdimm_cclass(&nd_label->efi.abstraction_guid);
 }
 
 static int __pmem_label_update(struct nd_region *nd_region,
@@ -851,10 +914,11 @@ static int __pmem_label_update(struct nd_region *nd_region,
 
 	nd_label = to_label(ndd, slot);
 	memset(nd_label, 0, sizeof_namespace_label(ndd));
-	memcpy(nd_label->uuid, nspm->uuid, NSLABEL_UUID_LEN);
+	nsl_set_uuid(ndd, nd_label, nspm->uuid);
 	nsl_set_name(ndd, nd_label, nspm->alt_name);
 	nsl_set_flags(ndd, nd_label, flags);
 	nsl_set_nlabel(ndd, nd_label, nd_region->ndr_mappings);
+	nsl_set_nrange(ndd, nd_label, 1);
 	nsl_set_position(ndd, nd_label, pos);
 	nsl_set_isetcookie(ndd, nd_label, cookie);
 	nsl_set_rawsize(ndd, nd_label, resource_size(res));
@@ -878,9 +942,8 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	list_for_each_entry(label_ent, &nd_mapping->labels, list) {
 		if (!label_ent->label)
 			continue;
-		if (test_and_clear_bit(ND_LABEL_REAP, &label_ent->flags)
-				|| memcmp(nspm->uuid, label_ent->label->uuid,
-					NSLABEL_UUID_LEN) == 0)
+		if (test_and_clear_bit(ND_LABEL_REAP, &label_ent->flags) ||
+		    nsl_uuid_equal(ndd, label_ent->label, nspm->uuid))
 			reap_victim(nd_mapping, label_ent);
 	}
 
@@ -941,7 +1004,7 @@ static void nsl_set_blk_isetcookie(struct nvdimm_drvdata *ndd,
 				   struct nd_namespace_label *nd_label,
 				   u64 isetcookie)
 {
-	if (namespace_label_has(ndd, type_guid)) {
+	if (efi_namespace_label_has(ndd, type_guid)) {
 		nsl_set_isetcookie(ndd, nd_label, isetcookie);
 		return;
 	}
@@ -952,7 +1015,7 @@ bool nsl_validate_blk_isetcookie(struct nvdimm_drvdata *ndd,
 				 struct nd_namespace_label *nd_label,
 				 u64 isetcookie)
 {
-	if (!namespace_label_has(ndd, type_guid))
+	if (!efi_namespace_label_has(ndd, type_guid))
 		return true;
 
 	if (nsl_get_isetcookie(ndd, nd_label) != isetcookie) {
@@ -968,7 +1031,7 @@ static void nsl_set_blk_nlabel(struct nvdimm_drvdata *ndd,
 			       struct nd_namespace_label *nd_label, int nlabel,
 			       bool first)
 {
-	if (!namespace_label_has(ndd, type_guid)) {
+	if (!efi_namespace_label_has(ndd, type_guid)) {
 		nsl_set_nlabel(ndd, nd_label, 0); /* N/A */
 		return;
 	}
@@ -979,7 +1042,7 @@ static void nsl_set_blk_position(struct nvdimm_drvdata *ndd,
 				 struct nd_namespace_label *nd_label,
 				 bool first)
 {
-	if (!namespace_label_has(ndd, type_guid)) {
+	if (!efi_namespace_label_has(ndd, type_guid)) {
 		nsl_set_position(ndd, nd_label, 0);
 		return;
 	}
@@ -1005,7 +1068,6 @@ static int __blk_label_update(struct nd_region *nd_region,
 	unsigned long *free, *victim_map = NULL;
 	struct resource *res, **old_res_list;
 	struct nd_label_id label_id;
-	u8 uuid[NSLABEL_UUID_LEN];
 	int min_dpa_idx = 0;
 	LIST_HEAD(list);
 	u32 nslot, slot;
@@ -1043,8 +1105,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 		/* mark unused labels for garbage collection */
 		for_each_clear_bit_le(slot, free, nslot) {
 			nd_label = to_label(ndd, slot);
-			memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-			if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
+			if (!nsl_uuid_equal(ndd, nd_label, nsblk->uuid))
 				continue;
 			res = to_resource(ndd, nd_label);
 			if (res && is_old_resource(res, old_res_list,
@@ -1113,7 +1174,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 
 		nd_label = to_label(ndd, slot);
 		memset(nd_label, 0, sizeof_namespace_label(ndd));
-		memcpy(nd_label->uuid, nsblk->uuid, NSLABEL_UUID_LEN);
+		nsl_set_uuid(ndd, nd_label, nsblk->uuid);
 		nsl_set_name(ndd, nd_label, nsblk->alt_name);
 		nsl_set_flags(ndd, nd_label, NSLABEL_FLAG_LOCAL);
 
@@ -1161,8 +1222,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 		if (!nd_label)
 			continue;
 		nlabel++;
-		memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-		if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
+		if (!nsl_uuid_equal(ndd, nd_label, nsblk->uuid))
 			continue;
 		nlabel--;
 		list_move(&label_ent->list, &list);
@@ -1192,8 +1252,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 	}
 	for_each_clear_bit_le(slot, free, nslot) {
 		nd_label = to_label(ndd, slot);
-		memcpy(uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-		if (memcmp(uuid, nsblk->uuid, NSLABEL_UUID_LEN) != 0)
+		if (!nsl_uuid_equal(ndd, nd_label, nsblk->uuid))
 			continue;
 		res = to_resource(ndd, nd_label);
 		res->flags &= ~DPA_RESOURCE_ADJUSTED;
@@ -1273,12 +1332,11 @@ static int init_labels(struct nd_mapping *nd_mapping, int num_labels)
 	return max(num_labels, old_num_labels);
 }
 
-static int del_labels(struct nd_mapping *nd_mapping, u8 *uuid)
+static int del_labels(struct nd_mapping *nd_mapping, uuid_t *uuid)
 {
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_label_ent *label_ent, *e;
 	struct nd_namespace_index *nsindex;
-	u8 label_uuid[NSLABEL_UUID_LEN];
 	unsigned long *free;
 	LIST_HEAD(list);
 	u32 nslot, slot;
@@ -1298,8 +1356,7 @@ static int del_labels(struct nd_mapping *nd_mapping, u8 *uuid)
 		if (!nd_label)
 			continue;
 		active++;
-		memcpy(label_uuid, nd_label->uuid, NSLABEL_UUID_LEN);
-		if (memcmp(label_uuid, uuid, NSLABEL_UUID_LEN) != 0)
+		if (!nsl_uuid_equal(ndd, nd_label, uuid))
 			continue;
 		active--;
 		slot = to_slot(ndd, nd_label);
@@ -1394,6 +1451,14 @@ int __init nd_label_init(void)
 	WARN_ON(guid_parse(NVDIMM_BTT2_GUID, &nvdimm_btt2_guid));
 	WARN_ON(guid_parse(NVDIMM_PFN_GUID, &nvdimm_pfn_guid));
 	WARN_ON(guid_parse(NVDIMM_DAX_GUID, &nvdimm_dax_guid));
+
+	WARN_ON(uuid_parse(NVDIMM_BTT_GUID, &nvdimm_btt_uuid));
+	WARN_ON(uuid_parse(NVDIMM_BTT2_GUID, &nvdimm_btt2_uuid));
+	WARN_ON(uuid_parse(NVDIMM_PFN_GUID, &nvdimm_pfn_uuid));
+	WARN_ON(uuid_parse(NVDIMM_DAX_GUID, &nvdimm_dax_uuid));
+
+	WARN_ON(uuid_parse(CXL_REGION_UUID, &cxl_region_uuid));
+	WARN_ON(uuid_parse(CXL_NAMESPACE_UUID, &cxl_namespace_uuid));
 
 	return 0;
 }

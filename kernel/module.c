@@ -271,7 +271,7 @@ static void module_assert_mutex_or_preempt(void)
 #endif
 }
 
-#ifdef CONFIG_MODULE_SIG
+#if defined(CONFIG_MODULE_SIG) && !defined(CONFIG_MODULE_SIG_PROTECT)
 static bool sig_enforce = IS_ENABLED(CONFIG_MODULE_SIG_FORCE);
 module_param(sig_enforce, bool_enable_only, 0644);
 
@@ -2267,6 +2267,14 @@ static int verify_exported_symbols(struct module *mod)
 				.name	= kernel_symbol_name(s),
 				.gplok	= true,
 			};
+
+			if (!mod->sig_ok && gki_is_module_exported_symbol(
+						    kernel_symbol_name(s))) {
+				pr_err("%s: exporting protected symbol(%s)\n",
+				       mod->name, kernel_symbol_name(s));
+				return -EACCES;
+			}
+
 			if (find_symbol(&fsa)) {
 				pr_err("%s: exports duplicate symbol %s"
 				       " (owned by %s)\n",
@@ -2334,6 +2342,13 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			break;
 
 		case SHN_UNDEF:
+			if (!mod->sig_ok &&
+			    gki_is_module_protected_symbol(name)) {
+				pr_err("%s: is not an Android GKI signed module. It can not access protected symbol: %s\n",
+				       mod->name, name);
+				return -EACCES;
+			}
+
 			ksym = resolve_symbol_wait(mod, info, name);
 			/* Ok if resolved.  */
 			if (ksym && !IS_ERR(ksym)) {
@@ -2945,7 +2960,15 @@ static int module_sig_check(struct load_info *info, int flags)
 		return -EKEYREJECTED;
 	}
 
+/*
+ * ANDROID: GKI: Do not prevent loading of unsigned modules;
+ * as all modules except GKI modules are not signed.
+ */
+#ifndef CONFIG_MODULE_SIG_PROTECT
 	return security_locked_down(LOCKDOWN_MODULE_SIGNATURE);
+#else
+	return 0;
+#endif
 }
 #else /* !CONFIG_MODULE_SIG */
 static int module_sig_check(struct load_info *info, int flags)
@@ -2956,7 +2979,11 @@ static int module_sig_check(struct load_info *info, int flags)
 
 static int validate_section_offset(struct load_info *info, Elf_Shdr *shdr)
 {
+#if defined(CONFIG_64BIT)
+	unsigned long long secend;
+#else
 	unsigned long secend;
+#endif
 
 	/*
 	 * Check for both overflow and offset/size being
@@ -2981,14 +3008,29 @@ static int elf_validity_check(struct load_info *info)
 	Elf_Shdr *shdr, *strhdr;
 	int err;
 
-	if (info->len < sizeof(*(info->hdr)))
-		return -ENOEXEC;
+	if (info->len < sizeof(*(info->hdr))) {
+		pr_err("Invalid ELF header len %lu\n", info->len);
+		goto no_exec;
+	}
 
-	if (memcmp(info->hdr->e_ident, ELFMAG, SELFMAG) != 0
-	    || info->hdr->e_type != ET_REL
-	    || !elf_check_arch(info->hdr)
-	    || info->hdr->e_shentsize != sizeof(Elf_Shdr))
-		return -ENOEXEC;
+	if (memcmp(info->hdr->e_ident, ELFMAG, SELFMAG) != 0) {
+		pr_err("Invalid ELF header magic: != %s\n", ELFMAG);
+		goto no_exec;
+	}
+	if (info->hdr->e_type != ET_REL) {
+		pr_err("Invalid ELF header type: %u != %u\n",
+		       info->hdr->e_type, ET_REL);
+		goto no_exec;
+	}
+	if (!elf_check_arch(info->hdr)) {
+		pr_err("Invalid architecture in ELF header: %u\n",
+		       info->hdr->e_machine);
+		goto no_exec;
+	}
+	if (info->hdr->e_shentsize != sizeof(Elf_Shdr)) {
+		pr_err("Invalid ELF section header size\n");
+		goto no_exec;
+	}
 
 	/*
 	 * e_shnum is 16 bits, and sizeof(Elf_Shdr) is
@@ -2997,8 +3039,10 @@ static int elf_validity_check(struct load_info *info)
 	 */
 	if (info->hdr->e_shoff >= info->len
 	    || (info->hdr->e_shnum * sizeof(Elf_Shdr) >
-		info->len - info->hdr->e_shoff))
-		return -ENOEXEC;
+		info->len - info->hdr->e_shoff)) {
+		pr_err("Invalid ELF section header overflow\n");
+		goto no_exec;
+	}
 
 	info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
 
@@ -3006,13 +3050,19 @@ static int elf_validity_check(struct load_info *info)
 	 * Verify if the section name table index is valid.
 	 */
 	if (info->hdr->e_shstrndx == SHN_UNDEF
-	    || info->hdr->e_shstrndx >= info->hdr->e_shnum)
-		return -ENOEXEC;
+	    || info->hdr->e_shstrndx >= info->hdr->e_shnum) {
+		pr_err("Invalid ELF section name index: %d || e_shstrndx (%d) >= e_shnum (%d)\n",
+		       info->hdr->e_shstrndx, info->hdr->e_shstrndx,
+		       info->hdr->e_shnum);
+		goto no_exec;
+	}
 
 	strhdr = &info->sechdrs[info->hdr->e_shstrndx];
 	err = validate_section_offset(info, strhdr);
-	if (err < 0)
+	if (err < 0) {
+		pr_err("Invalid ELF section hdr(type %u)\n", strhdr->sh_type);
 		return err;
+	}
 
 	/*
 	 * The section name table must be NUL-terminated, as required
@@ -3020,8 +3070,10 @@ static int elf_validity_check(struct load_info *info)
 	 * strings in the section safe.
 	 */
 	info->secstrings = (void *)info->hdr + strhdr->sh_offset;
-	if (info->secstrings[strhdr->sh_size - 1] != '\0')
-		return -ENOEXEC;
+	if (info->secstrings[strhdr->sh_size - 1] != '\0') {
+		pr_err("ELF Spec violation: section name table isn't null terminated\n");
+		goto no_exec;
+	}
 
 	/*
 	 * The code assumes that section 0 has a length of zero and
@@ -3029,8 +3081,11 @@ static int elf_validity_check(struct load_info *info)
 	 */
 	if (info->sechdrs[0].sh_type != SHT_NULL
 	    || info->sechdrs[0].sh_size != 0
-	    || info->sechdrs[0].sh_addr != 0)
-		return -ENOEXEC;
+	    || info->sechdrs[0].sh_addr != 0) {
+		pr_err("ELF Spec violation: section 0 type(%d)!=SH_NULL or non-zero len or addr\n",
+		       info->sechdrs[0].sh_type);
+		goto no_exec;
+	}
 
 	for (i = 1; i < info->hdr->e_shnum; i++) {
 		shdr = &info->sechdrs[i];
@@ -3040,8 +3095,12 @@ static int elf_validity_check(struct load_info *info)
 			continue;
 		case SHT_SYMTAB:
 			if (shdr->sh_link == SHN_UNDEF
-			    || shdr->sh_link >= info->hdr->e_shnum)
-				return -ENOEXEC;
+			    || shdr->sh_link >= info->hdr->e_shnum) {
+				pr_err("Invalid ELF sh_link!=SHN_UNDEF(%d) or (sh_link(%d) >= hdr->e_shnum(%d)\n",
+				       shdr->sh_link, shdr->sh_link,
+				       info->hdr->e_shnum);
+				goto no_exec;
+			}
 			fallthrough;
 		default:
 			err = validate_section_offset(info, shdr);
@@ -3063,6 +3122,9 @@ static int elf_validity_check(struct load_info *info)
 	}
 
 	return 0;
+
+no_exec:
+	return -ENOEXEC;
 }
 
 #define COPY_CHUNK_SIZE (16*PAGE_SIZE)
@@ -3968,10 +4030,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	 * sections.
 	 */
 	err = elf_validity_check(info);
-	if (err) {
-		pr_err("Module has invalid ELF structures\n");
+	if (err)
 		goto free_copy;
-	}
 
 	/*
 	 * Everything checks out, so set up the section info
@@ -4023,6 +4083,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 			       "kernel\n", mod->name);
 		add_taint_module(mod, TAINT_UNSIGNED_MODULE, LOCKDEP_STILL_OK);
 	}
+#else
+	mod->sig_ok = 0;
 #endif
 
 	/* To avoid stressing percpu allocator, do this once we're unique. */

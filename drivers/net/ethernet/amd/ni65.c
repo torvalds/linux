@@ -251,7 +251,7 @@ static void ni65_recv_intr(struct net_device *dev,int);
 static void ni65_xmit_intr(struct net_device *dev,int);
 static int  ni65_open(struct net_device *dev);
 static int  ni65_lance_reinit(struct net_device *dev);
-static void ni65_init_lance(struct priv *p,unsigned char*,int,int);
+static void ni65_init_lance(struct priv *p,const unsigned char*,int,int);
 static netdev_tx_t ni65_send_packet(struct sk_buff *skb,
 				    struct net_device *dev);
 static void  ni65_timeout(struct net_device *dev, unsigned int txqueue);
@@ -418,6 +418,7 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 {
 	int i,j;
 	struct priv *p;
+	u8 addr[ETH_ALEN];
 	unsigned long flags;
 
 	dev->irq = irq;
@@ -444,7 +445,8 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 		return -ENODEV;
 
 	for(j=0;j<6;j++)
-		dev->dev_addr[j] = inb(ioaddr+cards[i].addr_offset+j);
+		addr[j] = inb(ioaddr+cards[i].addr_offset+j);
+	eth_hw_addr_set(dev, addr);
 
 	if( (j=ni65_alloc_buffer(dev)) < 0) {
 		release_region(ioaddr, cards[i].total_size);
@@ -566,7 +568,7 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 /*
  * set lance register and trigger init
  */
-static void ni65_init_lance(struct priv *p,unsigned char *daddr,int filter,int mode)
+static void ni65_init_lance(struct priv *p,const unsigned char *daddr,int filter,int mode)
 {
 	int i;
 	u32 pib;

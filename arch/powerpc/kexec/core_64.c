@@ -32,7 +32,7 @@
 #include <asm/svm.h>
 #include <asm/ultravisor.h>
 
-int default_machine_kexec_prepare(struct kimage *image)
+int machine_kexec_prepare(struct kimage *image)
 {
 	int i;
 	unsigned long begin, end;	/* limits of segment */

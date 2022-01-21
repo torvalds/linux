@@ -99,7 +99,7 @@ config ARM_MVEBU_V7_CPUIDLE
 
 config ARM_TEGRA_CPUIDLE
 	bool "CPU Idle Driver for NVIDIA Tegra SoCs"
-	depends on ARCH_TEGRA && !ARM64
+	depends on (ARCH_TEGRA || COMPILE_TEST) && !ARM64 && MMU
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	select ARM_CPU_SUSPEND
 	help
@@ -112,6 +112,7 @@ config ARM_QCOM_SPM_CPUIDLE
 	select CPU_IDLE_MULTIPLE_DRIVERS
 	select DT_IDLE_STATES
 	select QCOM_SCM
+	select QCOM_SPM
 	help
 	  Select this to enable cpuidle for Qualcomm processors.
 	  The Subsystem Power Manager (SPM) controls low power modes for the

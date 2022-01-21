@@ -4,6 +4,7 @@
 #
 
 source "virt/lib/Kconfig"
+source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
@@ -19,7 +20,7 @@ if VIRTUALIZATION
 
 menuconfig KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
-	depends on OF
+	depends on HAVE_KVM
 	select MMU_NOTIFIER
 	select PREEMPT_NOTIFIERS
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
@@ -43,19 +44,14 @@ menuconfig KVM
 
 	  If unsure, say N.
 
-if KVM
-
-source "virt/kvm/Kconfig"
-
 config NVHE_EL2_DEBUG
 	bool "Debug mode for non-VHE EL2 object"
+	depends on KVM
 	help
 	  Say Y here to enable the debug mode for the non-VHE KVM EL2 object.
 	  Failure reports will BUG() in the hypervisor. This is intended for
 	  local EL2 hypervisor development.
 
 	  If unsure, say N.
-
-endif # KVM
 
 endif # VIRTUALIZATION

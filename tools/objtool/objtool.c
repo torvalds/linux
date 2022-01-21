@@ -135,6 +135,32 @@ struct objtool_file *objtool_open_read(const char *_objname)
 	return &file;
 }
 
+void objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
+{
+	if (!noinstr)
+		return;
+
+	if (!f->pv_ops) {
+		WARN("paravirt confusion");
+		return;
+	}
+
+	/*
+	 * These functions will be patched into native code,
+	 * see paravirt_patch().
+	 */
+	if (!strcmp(func->name, "_paravirt_nop") ||
+	    !strcmp(func->name, "_paravirt_ident_64"))
+		return;
+
+	/* already added this function */
+	if (!list_empty(&func->pv_target))
+		return;
+
+	list_add(&func->pv_target, &f->pv_ops[idx].targets);
+	f->pv_ops[idx].clean = false;
+}
+
 static void cmd_usage(void)
 {
 	unsigned int i, longest = 0;

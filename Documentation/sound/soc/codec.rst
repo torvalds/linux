@@ -40,7 +40,7 @@ e.g.
 	.prepare	= wm8731_pcm_prepare,
 	.hw_params	= wm8731_hw_params,
 	.shutdown	= wm8731_shutdown,
-	.digital_mute	= wm8731_mute,
+	.mute_stream	= wm8731_mute,
 	.set_sysclk	= wm8731_set_dai_sysclk,
 	.set_fmt	= wm8731_set_dai_fmt,
   };
@@ -60,7 +60,7 @@ e.g.
 		.rates = WM8731_RATES,
 		.formats = WM8731_FORMATS,},
 	.ops = &wm8731_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
   };
 
 
@@ -177,10 +177,10 @@ when the mute is applied or freed.
 i.e.
 ::
 
-  static int wm8974_mute(struct snd_soc_dai *dai, int mute)
+  static int wm8974_mute(struct snd_soc_dai *dai, int mute, int direction)
   {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, WM8974_DAC) & 0xffbf;
+	u16 mute_reg = snd_soc_component_read(component, WM8974_DAC) & 0xffbf;
 
 	if (mute)
 		snd_soc_component_write(component, WM8974_DAC, mute_reg | 0x40);

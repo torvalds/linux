@@ -120,7 +120,7 @@ static inline int ftrace_graph_ignore_irqs(void)
 	if (!ftrace_graph_skip_irqs || trace_recursion_test(TRACE_IRQ_BIT))
 		return 0;
 
-	return in_irq();
+	return in_hardirq();
 }
 
 int trace_graph_entry(struct ftrace_graph_ent *trace)
@@ -1340,7 +1340,7 @@ static __init int init_graph_tracefs(void)
 	if (ret)
 		return 0;
 
-	trace_create_file("max_graph_depth", 0644, NULL,
+	trace_create_file("max_graph_depth", TRACE_MODE_WRITE, NULL,
 			  NULL, &graph_depth_fops);
 
 	return 0;

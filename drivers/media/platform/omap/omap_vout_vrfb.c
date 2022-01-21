@@ -305,7 +305,7 @@ int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
 	/* Store buffers physical address into an array. Addresses
 	 * from this array will be used to configure DSS */
 	rotation = calc_rotation(vout);
-	vout->queued_buf_addr[vb->index] = (u8 *)
+	vout->queued_buf_addr[vb->index] =
 		vout->vrfb_context[vb->index].paddr[rotation];
 	return 0;
 }

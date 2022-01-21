@@ -104,11 +104,23 @@ static const struct i2c_device_id arizona_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, arizona_i2c_id);
 
+#ifdef CONFIG_OF
+const struct of_device_id arizona_i2c_of_match[] = {
+	{ .compatible = "wlf,wm5102", .data = (void *)WM5102 },
+	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
+	{ .compatible = "wlf,wm8280", .data = (void *)WM8280 },
+	{ .compatible = "wlf,wm8997", .data = (void *)WM8997 },
+	{ .compatible = "wlf,wm8998", .data = (void *)WM8998 },
+	{ .compatible = "wlf,wm1814", .data = (void *)WM1814 },
+	{},
+};
+#endif
+
 static struct i2c_driver arizona_i2c_driver = {
 	.driver = {
 		.name	= "arizona",
 		.pm	= &arizona_pm_ops,
-		.of_match_table	= of_match_ptr(arizona_of_match),
+		.of_match_table	= of_match_ptr(arizona_i2c_of_match),
 	},
 	.probe		= arizona_i2c_probe,
 	.remove		= arizona_i2c_remove,

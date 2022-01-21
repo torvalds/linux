@@ -24,19 +24,6 @@
 #define QBUFF_PER_PAGE (PAGE_SIZE / sizeof(struct qdio_buffer))
 
 static struct kmem_cache *qdio_q_cache;
-static struct kmem_cache *qdio_aob_cache;
-
-struct qaob *qdio_allocate_aob(void)
-{
-	return kmem_cache_zalloc(qdio_aob_cache, GFP_ATOMIC);
-}
-EXPORT_SYMBOL_GPL(qdio_allocate_aob);
-
-void qdio_release_aob(struct qaob *aob)
-{
-	kmem_cache_free(qdio_aob_cache, aob);
-}
-EXPORT_SYMBOL_GPL(qdio_release_aob);
 
 /**
  * qdio_free_buffers() - free qdio buffers
@@ -364,19 +351,18 @@ static void setup_qib(struct qdio_irq *irq_ptr,
 		       sizeof(irq_ptr->qib.parm));
 }
 
-int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
+void qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 {
 	struct ccw_device *cdev = irq_ptr->cdev;
-	struct ciw *ciw;
 
 	irq_ptr->qdioac1 = 0;
-	memset(&irq_ptr->ccw, 0, sizeof(irq_ptr->ccw));
 	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
 	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
 
 	irq_ptr->debugfs_dev = NULL;
 	irq_ptr->sch_token = irq_ptr->perf_stat_enabled = 0;
 	irq_ptr->state = QDIO_IRQ_STATE_INACTIVE;
+	irq_ptr->error_handler = init_data->input_handler;
 
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
@@ -399,23 +385,6 @@ int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data)
 	irq_ptr->orig_handler = cdev->handler;
 	cdev->handler = qdio_int_handler;
 	spin_unlock_irq(get_ccwdev_lock(cdev));
-
-	/* get qdio commands */
-	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_EQUEUE);
-	if (!ciw) {
-		DBF_ERROR("%4x NO EQ", irq_ptr->schid.sch_no);
-		return -EINVAL;
-	}
-	irq_ptr->equeue = *ciw;
-
-	ciw = ccw_device_get_ciw(cdev, CIW_TYPE_AQUEUE);
-	if (!ciw) {
-		DBF_ERROR("%4x NO AQ", irq_ptr->schid.sch_no);
-		return -EINVAL;
-	}
-	irq_ptr->aqueue = *ciw;
-
-	return 0;
 }
 
 void qdio_shutdown_irq(struct qdio_irq *irq)
@@ -447,22 +416,10 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr)
 
 int __init qdio_setup_init(void)
 {
-	int rc;
-
 	qdio_q_cache = kmem_cache_create("qdio_q", sizeof(struct qdio_q),
 					 256, 0, NULL);
 	if (!qdio_q_cache)
 		return -ENOMEM;
-
-	qdio_aob_cache = kmem_cache_create("qdio_aob",
-					sizeof(struct qaob),
-					sizeof(struct qaob),
-					0,
-					NULL);
-	if (!qdio_aob_cache) {
-		rc = -ENOMEM;
-		goto free_qdio_q_cache;
-	}
 
 	/* Check for OSA/FCP thin interrupts (bit 67). */
 	DBF_EVENT("thinint:%1d",
@@ -470,16 +427,11 @@ int __init qdio_setup_init(void)
 
 	/* Check for QEBSM support in general (bit 58). */
 	DBF_EVENT("cssQEBSM:%1d", css_general_characteristics.qebsm);
-	rc = 0;
-out:
-	return rc;
-free_qdio_q_cache:
-	kmem_cache_destroy(qdio_q_cache);
-	goto out;
+
+	return 0;
 }
 
 void qdio_setup_exit(void)
 {
-	kmem_cache_destroy(qdio_aob_cache);
 	kmem_cache_destroy(qdio_q_cache);
 }

@@ -158,8 +158,6 @@ struct ast_private {
 	uint32_t dram_type;
 	uint32_t mclk;
 
-	int fb_mtrr;
-
 	struct drm_plane primary_plane;
 	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;
@@ -358,5 +356,8 @@ bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
+
+/* ast_i2c.c */
+struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
 
 #endif

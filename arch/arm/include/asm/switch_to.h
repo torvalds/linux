@@ -26,6 +26,8 @@ extern struct task_struct *__switch_to(struct task_struct *, struct thread_info 
 #define switch_to(prev,next,last)					\
 do {									\
 	__complete_pending_tlbi();					\
+	if (IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO))		\
+		__this_cpu_write(__entry_task, next);			\
 	last = __switch_to(prev,task_thread_info(prev), task_thread_info(next));	\
 } while (0)
 

@@ -117,6 +117,7 @@ struct zpci_report_error_header {
 
 extern char *sclp_early_sccb;
 
+void sclp_early_adjust_va(void);
 void sclp_early_set_buffer(void *sccb);
 int sclp_early_read_info(void);
 int sclp_early_read_storage_info(void);

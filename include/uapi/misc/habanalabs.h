@@ -272,6 +272,16 @@ enum hl_gaudi_pll_index {
 	HL_GAUDI_PLL_MAX
 };
 
+/**
+ * enum hl_device_status - Device status information.
+ * @HL_DEVICE_STATUS_OPERATIONAL: Device is operational.
+ * @HL_DEVICE_STATUS_IN_RESET: Device is currently during reset.
+ * @HL_DEVICE_STATUS_MALFUNCTION: Device is unusable.
+ * @HL_DEVICE_STATUS_NEEDS_RESET: Device needs reset because auto reset was disabled.
+ * @HL_DEVICE_STATUS_IN_DEVICE_CREATION: Device is operational but its creation is still in
+ *                                       progress.
+ * @HL_DEVICE_STATUS_LAST: Last status.
+ */
 enum hl_device_status {
 	HL_DEVICE_STATUS_OPERATIONAL,
 	HL_DEVICE_STATUS_IN_RESET,
@@ -556,33 +566,30 @@ enum gaudi_dcores {
 	HL_GAUDI_ES_DCORE
 };
 
+/**
+ * struct hl_info_args - Main structure to retrieve device related information.
+ * @return_pointer: User space address of the relevant structure related to HL_INFO_* operation
+ *                  mentioned in @op.
+ * @return_size: Size of the structure used in @return_pointer, just like "size" in "snprintf", it
+ *               limits how many bytes the kernel can write. For hw_events array, the size should be
+ *               hl_info_hw_ip_info.num_of_events * sizeof(__u32).
+ * @op: Defines which type of information to be retrieved. Refer HL_INFO_* for details.
+ * @dcore_id: DCORE id for which the information is relevant (for Gaudi refer to enum gaudi_dcores).
+ * @ctx_id: Context ID of the user. Currently not in use.
+ * @period_ms: Period value, in milliseconds, for utilization rate in range 100ms - 1000ms in 100 ms
+ *             resolution. Currently not in use.
+ * @pll_index: Index as defined in hl_<asic type>_pll_index enumeration.
+ * @pad: Padding to 64 bit.
+ */
 struct hl_info_args {
-	/* Location of relevant struct in userspace */
 	__u64 return_pointer;
-	/*
-	 * The size of the return value. Just like "size" in "snprintf",
-	 * it limits how many bytes the kernel can write
-	 *
-	 * For hw_events array, the size should be
-	 * hl_info_hw_ip_info.num_of_events * sizeof(__u32)
-	 */
 	__u32 return_size;
-
-	/* HL_INFO_* */
 	__u32 op;
 
 	union {
-		/* Dcore id for which the information is relevant.
-		 * For Gaudi refer to 'enum gaudi_dcores'
-		 */
 		__u32 dcore_id;
-		/* Context ID - Currently not in use */
 		__u32 ctx_id;
-		/* Period value for utilization rate (100ms - 1000ms, in 100ms
-		 * resolution.
-		 */
 		__u32 period_ms;
-		/* PLL frequency retrieval */
 		__u32 pll_index;
 	};
 
@@ -890,11 +897,7 @@ struct hl_wait_cs_in {
 			 */
 			__u64 addr;
 			/* Target value for completion comparison */
-			__u32 target;
-			/* Absolute timeout to wait for interrupt
-			 * in microseconds
-			 */
-			__u32 interrupt_timeout_us;
+			__u64 target;
 		};
 	};
 
@@ -910,7 +913,12 @@ struct hl_wait_cs_in {
 
 	/* Multi CS API info- valid entries in multi-CS array */
 	__u8 seq_arr_len;
-	__u8 pad[7];
+	__u8 pad[3];
+
+	/* Absolute timeout to wait for an interrupt in microseconds.
+	 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
+	 */
+	__u32 interrupt_timeout_us;
 };
 
 #define HL_WAIT_CS_STATUS_COMPLETED	0
@@ -952,6 +960,10 @@ union hl_wait_cs_args {
 #define HL_MEM_OP_UNMAP			3
 /* Opcode to map a hw block */
 #define HL_MEM_OP_MAP_BLOCK		4
+/* Opcode to create DMA-BUF object for an existing device memory allocation
+ * and to export an FD of that DMA-BUF back to the caller
+ */
+#define HL_MEM_OP_EXPORT_DMABUF_FD	5
 
 /* Memory flags */
 #define HL_MEM_CONTIGUOUS	0x1
@@ -1023,11 +1035,26 @@ struct hl_mem_in {
 			/* Virtual address returned from HL_MEM_OP_MAP */
 			__u64 device_virt_addr;
 		} unmap;
+
+		/* HL_MEM_OP_EXPORT_DMABUF_FD */
+		struct {
+			/* Handle returned from HL_MEM_OP_ALLOC. In Gaudi,
+			 * where we don't have MMU for the device memory, the
+			 * driver expects a physical address (instead of
+			 * a handle) in the device memory space.
+			 */
+			__u64 handle;
+			/* Size of memory allocation. Relevant only for GAUDI */
+			__u64 mem_size;
+		} export_dmabuf_fd;
 	};
 
 	/* HL_MEM_OP_* */
 	__u32 op;
-	/* HL_MEM_* flags */
+	/* HL_MEM_* flags.
+	 * For the HL_MEM_OP_EXPORT_DMABUF_FD opcode, this field holds the
+	 * DMA-BUF file/FD flags.
+	 */
 	__u32 flags;
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
@@ -1064,6 +1091,13 @@ struct hl_mem_out {
 
 			__u32 pad;
 		};
+
+		/* Returned in HL_MEM_OP_EXPORT_DMABUF_FD. Represents the
+		 * DMA-BUF object that was created to describe a memory
+		 * allocation on the device's memory space. The FD should be
+		 * passed to the importer driver
+		 */
+		__s32 fd;
 	};
 };
 

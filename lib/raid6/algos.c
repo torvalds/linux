@@ -145,13 +145,13 @@ static inline const struct raid6_recov_calls *raid6_choose_recov(void)
 static inline const struct raid6_calls *raid6_choose_gen(
 	void *(*const dptrs)[RAID6_TEST_DISKS], const int disks)
 {
-	unsigned long perf, bestgenperf, bestxorperf, j0, j1;
+	unsigned long perf, bestgenperf, j0, j1;
 	int start = (disks>>1)-1, stop = disks-3;	/* work on the second half of the disks */
 	const struct raid6_calls *const *algo;
 	const struct raid6_calls *best;
 
-	for (bestgenperf = 0, bestxorperf = 0, best = NULL, algo = raid6_algos; *algo; algo++) {
-		if (!best || (*algo)->prefer >= best->prefer) {
+	for (bestgenperf = 0, best = NULL, algo = raid6_algos; *algo; algo++) {
+		if (!best || (*algo)->priority >= best->priority) {
 			if ((*algo)->valid && !(*algo)->valid())
 				continue;
 
@@ -180,50 +180,48 @@ static inline const struct raid6_calls *raid6_choose_gen(
 			pr_info("raid6: %-8s gen() %5ld MB/s\n", (*algo)->name,
 				(perf * HZ * (disks-2)) >>
 				(20 - PAGE_SHIFT + RAID6_TIME_JIFFIES_LG2));
-
-			if (!(*algo)->xor_syndrome)
-				continue;
-
-			perf = 0;
-
-			preempt_disable();
-			j0 = jiffies;
-			while ((j1 = jiffies) == j0)
-				cpu_relax();
-			while (time_before(jiffies,
-					    j1 + (1<<RAID6_TIME_JIFFIES_LG2))) {
-				(*algo)->xor_syndrome(disks, start, stop,
-						      PAGE_SIZE, *dptrs);
-				perf++;
-			}
-			preempt_enable();
-
-			if (best == *algo)
-				bestxorperf = perf;
-
-			pr_info("raid6: %-8s xor() %5ld MB/s\n", (*algo)->name,
-				(perf * HZ * (disks-2)) >>
-				(20 - PAGE_SHIFT + RAID6_TIME_JIFFIES_LG2 + 1));
 		}
 	}
 
-	if (best) {
-		if (IS_ENABLED(CONFIG_RAID6_PQ_BENCHMARK)) {
-			pr_info("raid6: using algorithm %s gen() %ld MB/s\n",
-				best->name,
-				(bestgenperf * HZ * (disks-2)) >>
-				(20 - PAGE_SHIFT+RAID6_TIME_JIFFIES_LG2));
-			if (best->xor_syndrome)
-				pr_info("raid6: .... xor() %ld MB/s, rmw enabled\n",
-					(bestxorperf * HZ * (disks-2)) >>
-					(20 - PAGE_SHIFT + RAID6_TIME_JIFFIES_LG2 + 1));
-		} else
-			pr_info("raid6: skip pq benchmark and using algorithm %s\n",
-				best->name);
-		raid6_call = *best;
-	} else
-		pr_err("raid6: Yikes!  No algorithm found!\n");
+	if (!best) {
+		pr_err("raid6: Yikes! No algorithm found!\n");
+		goto out;
+	}
 
+	raid6_call = *best;
+
+	if (!IS_ENABLED(CONFIG_RAID6_PQ_BENCHMARK)) {
+		pr_info("raid6: skipped pq benchmark and selected %s\n",
+			best->name);
+		goto out;
+	}
+
+	pr_info("raid6: using algorithm %s gen() %ld MB/s\n",
+		best->name,
+		(bestgenperf * HZ * (disks - 2)) >>
+		(20 - PAGE_SHIFT + RAID6_TIME_JIFFIES_LG2));
+
+	if (best->xor_syndrome) {
+		perf = 0;
+
+		preempt_disable();
+		j0 = jiffies;
+		while ((j1 = jiffies) == j0)
+			cpu_relax();
+		while (time_before(jiffies,
+				   j1 + (1 << RAID6_TIME_JIFFIES_LG2))) {
+			best->xor_syndrome(disks, start, stop,
+					   PAGE_SIZE, *dptrs);
+			perf++;
+		}
+		preempt_enable();
+
+		pr_info("raid6: .... xor() %ld MB/s, rmw enabled\n",
+			(perf * HZ * (disks - 2)) >>
+			(20 - PAGE_SHIFT + RAID6_TIME_JIFFIES_LG2 + 1));
+	}
+
+out:
 	return best;
 }
 

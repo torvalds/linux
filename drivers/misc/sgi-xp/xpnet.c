@@ -514,6 +514,7 @@ static const struct net_device_ops xpnet_netdev_ops = {
 static int __init
 xpnet_init(void)
 {
+	u8 addr[ETH_ALEN];
 	int result;
 
 	if (!is_uv_system())
@@ -545,15 +546,17 @@ xpnet_init(void)
 	xpnet_device->min_mtu = XPNET_MIN_MTU;
 	xpnet_device->max_mtu = XPNET_MAX_MTU;
 
+	memset(addr, 0, sizeof(addr));
 	/*
 	 * Multicast assumes the LSB of the first octet is set for multicast
 	 * MAC addresses.  We chose the first octet of the MAC to be unlikely
 	 * to collide with any vendor's officially issued MAC.
 	 */
-	xpnet_device->dev_addr[0] = 0x02;     /* locally administered, no OUI */
+	addr[0] = 0x02;     /* locally administered, no OUI */
 
-	xpnet_device->dev_addr[XPNET_PARTID_OCTET + 1] = xp_partition_id;
-	xpnet_device->dev_addr[XPNET_PARTID_OCTET + 0] = (xp_partition_id >> 8);
+	addr[XPNET_PARTID_OCTET + 1] = xp_partition_id;
+	addr[XPNET_PARTID_OCTET + 0] = (xp_partition_id >> 8);
+	eth_hw_addr_set(xpnet_device, addr);
 
 	/*
 	 * ether_setup() sets this to a multicast device.  We are

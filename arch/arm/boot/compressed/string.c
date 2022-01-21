@@ -5,6 +5,7 @@
  * Small subset of simple string routines
  */
 
+#define __NO_FORTIFY
 #include <linux/string.h>
 
 /*

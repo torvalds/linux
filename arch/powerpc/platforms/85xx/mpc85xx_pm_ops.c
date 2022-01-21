@@ -17,6 +17,7 @@
 
 static struct ccsr_guts __iomem *guts;
 
+#ifdef CONFIG_FSL_PMC
 static void mpc85xx_irq_mask(int cpu)
 {
 
@@ -49,6 +50,7 @@ static void mpc85xx_cpu_up_prepare(int cpu)
 {
 
 }
+#endif
 
 static void mpc85xx_freeze_time_base(bool freeze)
 {
@@ -76,10 +78,12 @@ static const struct of_device_id mpc85xx_smp_guts_ids[] = {
 
 static const struct fsl_pm_ops mpc85xx_pm_ops = {
 	.freeze_time_base = mpc85xx_freeze_time_base,
+#ifdef CONFIG_FSL_PMC
 	.irq_mask = mpc85xx_irq_mask,
 	.irq_unmask = mpc85xx_irq_unmask,
 	.cpu_die = mpc85xx_cpu_die,
 	.cpu_up_prepare = mpc85xx_cpu_up_prepare,
+#endif
 };
 
 int __init mpc85xx_setup_pmc(void)
@@ -94,9 +98,8 @@ int __init mpc85xx_setup_pmc(void)
 			pr_err("Could not map guts node address\n");
 			return -ENOMEM;
 		}
+		qoriq_pm_ops = &mpc85xx_pm_ops;
 	}
-
-	qoriq_pm_ops = &mpc85xx_pm_ops;
 
 	return 0;
 }

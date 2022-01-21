@@ -13,32 +13,9 @@
 #define BIT(x)	(1 << (x))
 
 #define WLAN_ETHHDR_LEN		14
-#define WLAN_ETHADDR_LEN	6
-#define WLAN_IEEE_OUI_LEN	3
-#define WLAN_ADDR_LEN		6
-#define WLAN_CRC_LEN		4
-#define WLAN_BSSID_LEN		6
-#define WLAN_BSS_TS_LEN		8
 #define WLAN_HDR_A3_LEN		24
-#define WLAN_HDR_A4_LEN		30
 #define WLAN_HDR_A3_QOS_LEN	26
-#define WLAN_HDR_A4_QOS_LEN	32
 #define WLAN_SSID_MAXLEN	32
-#define WLAN_DATA_MAXLEN	2312
-
-#define WLAN_A3_PN_OFFSET	24
-#define WLAN_A4_PN_OFFSET	30
-
-#define WLAN_MIN_ETHFRM_LEN	60
-#define WLAN_MAX_ETHFRM_LEN	1514
-#define WLAN_ETHHDR_LEN		14
-
-#define P80211CAPTURE_VERSION	0x80211001
-
-/*  This value is tested by WiFi 11n Test Plan 5.2.3. */
-/*  This test verifies the WLAN NIC can update the NAV through sending
- *  the CTS with large duration. */
-#define	WiFiNavUpperUs				30000	/*  30 ms */
 
 enum WIFI_FRAME_TYPE {
 	WIFI_MGT_TYPE  =	(0),
@@ -114,35 +91,6 @@ enum WIFI_REASON_CODE	{
 	_RSON_TDLS_TEAR_UN_RSN_		= 26,
 };
 
-/* Reason codes (IEEE 802.11-2007, 7.3.1.7, Table 7-22)
-
-#define WLAN_REASON_UNSPECIFIED 1
-#define WLAN_REASON_PREV_AUTH_NOT_VALID 2
-#define WLAN_REASON_DEAUTH_LEAVING 3
-#define WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY 4
-#define WLAN_REASON_DISASSOC_AP_BUSY 5
-#define WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA 6
-#define WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA 7
-#define WLAN_REASON_DISASSOC_STA_HAS_LEFT 8
-#define WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH 9 */
-/* IEEE 802.11h */
-#define WLAN_REASON_PWR_CAPABILITY_NOT_VALID 10
-#define WLAN_REASON_SUPPORTED_CHANNEL_NOT_VALID 11
-
-/* IEEE 802.11i
-#define WLAN_REASON_INVALID_IE 13
-#define WLAN_REASON_MICHAEL_MIC_FAILURE 14
-#define WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT 15
-#define WLAN_REASON_GROUP_KEY_UPDATE_TIMEOUT 16
-#define WLAN_REASON_IE_IN_4WAY_DIFFERS 17
-#define WLAN_REASON_GROUP_CIPHER_NOT_VALID 18
-#define WLAN_REASON_PAIRWISE_CIPHER_NOT_VALID 19
-#define WLAN_REASON_AKMP_NOT_VALID 20
-#define WLAN_REASON_UNSUPPORTED_RSN_IE_VERSION 21
-#define WLAN_REASON_INVALID_RSN_IE_CAPAB 22
-#define WLAN_REASON_IEEE_802_1X_AUTH_FAILED 23
-#define WLAN_REASON_CIPHER_SUITE_REJECTED 24 */
-
 enum WIFI_STATUS_CODE {
 	_STATS_SUCCESSFUL_		= 0,
 	_STATS_FAILURE_			= 1,
@@ -156,19 +104,6 @@ enum WIFI_STATUS_CODE {
 	_STATS_UNABLE_HANDLE_STA_	= 17,
 	_STATS_RATE_FAIL_		= 18,
 };
-
-/* Status codes (IEEE 802.11-2007, 7.3.1.9, Table 7-23)
-#define WLAN_STATUS_SUCCESS 0
-#define WLAN_STATUS_UNSPECIFIED_FAILURE 1
-#define WLAN_STATUS_CAPS_UNSUPPORTED 10
-#define WLAN_STATUS_REASSOC_NO_ASSOC 11
-#define WLAN_STATUS_ASSOC_DENIED_UNSPEC 12
-#define WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG 13
-#define WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION 14
-#define WLAN_STATUS_CHALLENGE_FAIL 15
-#define WLAN_STATUS_AUTH_TIMEOUT 16
-#define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
-#define WLAN_STATUS_ASSOC_DENIED_RATES 18 */
 
 /* entended */
 /* IEEE 802.11b */
@@ -529,13 +464,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _STATUS_CODE_		2
 #define _TIMESTAMP_		8
 
-#define AUTH_ODD_TO		0
-#define AUTH_EVEN_TO		1
-
-#define WLAN_ETHCONV_ENCAP	1
-#define WLAN_ETHCONV_RFC1042	2
-#define WLAN_ETHCONV_8021h	3
-
 #define cap_ESS		BIT(0)
 #define cap_IBSS	BIT(1)
 #define cap_CFPollable	BIT(2)
@@ -553,16 +481,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 ------------------------------------------------------------------------------*/
 #define _IEEE8021X_MGT_			1	/*  WPA */
 #define _IEEE8021X_PSK_			2	/*  WPA with pre-shared key */
-
-/*
-#define _NO_PRIVACY_			0
-#define _WEP_40_PRIVACY_		1
-#define _TKIP_PRIVACY_			2
-#define _WRAP_PRIVACY_			3
-#define _CCMP_PRIVACY_			4
-#define _WEP_104_PRIVACY_		5
-#define _WEP_WPA_MIXED_PRIVACY_ 6	WEP + WPA
-*/
 
 /*-----------------------------------------------------------------------------
 				Below is the definition for WMM
@@ -683,13 +601,6 @@ enum ht_cap_ampdu_factor {
 #define HT_INFO_OPERATION_MODE_NON_GF_DEVS_PRESENT	((u8) BIT(2))
 #define HT_INFO_OPERATION_MODE_TRANSMIT_BURST_LIMIT	((u8) BIT(3))
 #define HT_INFO_OPERATION_MODE_NON_HT_STA_PRESENT	((u8) BIT(4))
-
-#define HT_INFO_STBC_PARAM_DUAL_BEACON		((u16) BIT(6))
-#define HT_INFO_STBC_PARAM_DUAL_STBC_PROTECT	((u16) BIT(7))
-#define HT_INFO_STBC_PARAM_SECONDARY_BC		((u16) BIT(8))
-#define HT_INFO_STBC_PARAM_LSIG_TXOP_PROTECT_ALLOWED	((u16) BIT(9))
-#define HT_INFO_STBC_PARAM_PCO_ACTIVE		((u16) BIT(10))
-#define HT_INFO_STBC_PARAM_PCO_PHASE		((u16) BIT(11))
 
 /*	===============WPS Section=============== */
 /*	For WPSv1.0 */
@@ -982,7 +893,7 @@ enum P2P_PROTO_WK_ID {
 	P2P_PRE_TX_PROVDISC_PROCESS_WK = 2,
 	P2P_PRE_TX_NEGOREQ_PROCESS_WK = 3,
 	P2P_PRE_TX_INVITEREQ_PROCESS_WK = 4,
-	P2P_AP_P2P_CH_SWITCH_PROCESS_WK =5,
+	P2P_AP_P2P_CH_SWITCH_PROCESS_WK = 5,
 	P2P_RO_CH_WK = 6,
 };
 
@@ -1000,26 +911,6 @@ enum P2P_PS_MODE {
 	P2P_PS_NOA	 = 2,
 	P2P_PS_MIX = 3, /*  CTWindow and NoA */
 };
-
-/*	=====================WFD Section===================== */
-/*	For Wi-Fi Display */
-#define	WFD_ATTR_DEVICE_INFO		0x00
-#define	WFD_ATTR_ASSOC_BSSID		0x01
-#define	WFD_ATTR_COUPLED_SINK_INFO	0x06
-#define	WFD_ATTR_LOCAL_IP_ADDR		0x08
-#define	WFD_ATTR_SESSION_INFO		0x09
-#define	WFD_ATTR_ALTER_MAC		0x0a
-
-/*	For WFD Device Information Attribute */
-#define	WFD_DEVINFO_SOURCE			0x0000
-#define	WFD_DEVINFO_PSINK			0x0001
-#define	WFD_DEVINFO_SSINK			0x0002
-#define	WFD_DEVINFO_DUAL			0x0003
-
-#define	WFD_DEVINFO_SESSION_AVAIL		0x0010
-#define	WFD_DEVINFO_WSD				0x0040
-#define	WFD_DEVINFO_PC_TDLS			0x0080
-#define	WFD_DEVINFO_HDCP_SUPPORT		0x0100
 
 #define IP_MCAST_MAC(mac)				\
 	((mac[0] == 0x01) && (mac[1] == 0x00) && (mac[2] == 0x5e))

@@ -181,6 +181,9 @@ properties:
 
     additionalProperties: false
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - gpio-controller

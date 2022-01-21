@@ -25,7 +25,6 @@
  * 1) Add mechanism to deal with reverse congestion.
  */
 
-#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/math64.h>
 #include <net/tcp.h>

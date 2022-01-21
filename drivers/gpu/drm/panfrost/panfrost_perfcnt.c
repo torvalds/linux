@@ -51,8 +51,8 @@ static int panfrost_perfcnt_dump_locked(struct panfrost_device *pfdev)
 
 	reinit_completion(&pfdev->perfcnt->dump_comp);
 	gpuva = pfdev->perfcnt->mapping->mmnode.start << PAGE_SHIFT;
-	gpu_write(pfdev, GPU_PERFCNT_BASE_LO, gpuva);
-	gpu_write(pfdev, GPU_PERFCNT_BASE_HI, gpuva >> 32);
+	gpu_write(pfdev, GPU_PERFCNT_BASE_LO, lower_32_bits(gpuva));
+	gpu_write(pfdev, GPU_PERFCNT_BASE_HI, upper_32_bits(gpuva));
 	gpu_write(pfdev, GPU_INT_CLEAR,
 		  GPU_IRQ_CLEAN_CACHES_COMPLETED |
 		  GPU_IRQ_PERFCNT_SAMPLE_COMPLETED);
@@ -105,7 +105,7 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 		goto err_close_bo;
 	}
 
-	ret = drm_gem_shmem_vmap(&bo->base, &map);
+	ret = drm_gem_shmem_vmap(bo, &map);
 	if (ret)
 		goto err_put_mapping;
 	perfcnt->buf = map.vaddr;
@@ -164,7 +164,7 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 	return 0;
 
 err_vunmap:
-	drm_gem_shmem_vunmap(&bo->base, &map);
+	drm_gem_shmem_vunmap(bo, &map);
 err_put_mapping:
 	panfrost_gem_mapping_put(perfcnt->mapping);
 err_close_bo:
@@ -194,7 +194,7 @@ static int panfrost_perfcnt_disable_locked(struct panfrost_device *pfdev,
 		  GPU_PERFCNT_CFG_MODE(GPU_PERFCNT_CFG_MODE_OFF));
 
 	perfcnt->user = NULL;
-	drm_gem_shmem_vunmap(&perfcnt->mapping->obj->base.base, &map);
+	drm_gem_shmem_vunmap(&perfcnt->mapping->obj->base, &map);
 	perfcnt->buf = NULL;
 	panfrost_gem_close(&perfcnt->mapping->obj->base.base, file_priv);
 	panfrost_mmu_as_put(pfdev, perfcnt->mapping->mmu);

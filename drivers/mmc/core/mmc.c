@@ -1224,6 +1224,14 @@ static int mmc_select_hs400(struct mmc_card *card)
 	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	mmc_set_bus_speed(card);
 
+	if (host->ops->execute_hs400_tuning) {
+		mmc_retune_disable(host);
+		err = host->ops->execute_hs400_tuning(host, card);
+		mmc_retune_enable(host);
+		if (err)
+			goto out_err;
+	}
+
 	if (host->ops->hs400_complete)
 		host->ops->hs400_complete(host);
 
@@ -1954,7 +1962,7 @@ static int mmc_sleep(struct mmc_host *host)
 		goto out_release;
 	}
 
-	err = __mmc_poll_for_busy(card, timeout_ms, &mmc_sleep_busy_cb, host);
+	err = __mmc_poll_for_busy(host, timeout_ms, &mmc_sleep_busy_cb, host);
 
 out_release:
 	mmc_retune_release(host);

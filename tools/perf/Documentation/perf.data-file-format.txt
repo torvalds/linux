@@ -346,7 +346,7 @@ to special needs.
 
         HEADER_BPF_PROG_INFO = 25,
 
-struct bpf_prog_info_linear, which contains detailed information about
+struct perf_bpil, which contains detailed information about
 a BPF program, including type, id, tag, jited/xlated instructions, etc.
 
         HEADER_BPF_BTF = 26,

@@ -82,10 +82,10 @@ static int intel_pt_log_open(void)
 	if (f)
 		return 0;
 
-	if (!log_name[0])
-		return -1;
-
-	f = fopen(log_name, "w+");
+	if (log_name[0])
+		f = fopen(log_name, "w+");
+	else
+		f = stdout;
 	if (!f) {
 		intel_pt_enable_logging = false;
 		return -1;

@@ -2378,11 +2378,38 @@
 		};
 
 		target-module@4c000 {			/* 0x4834c000, ap 114 72.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x4c000 0x4>,
+			      <0x4c010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&l3s_clkctrl AM4_L3S_ADC1_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x4c000 0x2000>;
+
+			magadc: magadc@0 {
+				compatible = "ti,am4372-magadc";
+				reg = <0x0 0x2000>;
+				interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&adc_mag_fck>;
+				clock-names = "fck";
+				dmas = <&edma 54 0>, <&edma 55 0>;
+				dma-names = "fifo0", "fifo1";
+				status = "disabled";
+
+				mag {
+					compatible = "ti,am4372-mag";
+				};
+
+				adc {
+					#io-channel-cells = <1>;
+					compatible ="ti,am4372-adc";
+				};
+			};
 		};
 
 		target-module@80000 {			/* 0x48380000, ap 123 42.0 */

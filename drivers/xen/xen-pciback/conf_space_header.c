@@ -236,8 +236,12 @@ static void *bar_init(struct pci_dev *dev, int offset)
 	else {
 		pos = (offset - PCI_BASE_ADDRESS_0) / 4;
 		if (pos && (res[pos - 1].flags & IORESOURCE_MEM_64)) {
-			bar->val = res[pos - 1].start >> 32;
-			bar->len_val = -resource_size(&res[pos - 1]) >> 32;
+			/*
+			 * Use ">> 16 >> 16" instead of direct ">> 32" shift
+			 * to avoid warnings on 32-bit architectures.
+			 */
+			bar->val = res[pos - 1].start >> 16 >> 16;
+			bar->len_val = -resource_size(&res[pos - 1]) >> 16 >> 16;
 			return bar;
 		}
 	}

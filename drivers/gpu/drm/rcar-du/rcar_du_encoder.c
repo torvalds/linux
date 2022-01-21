@@ -103,8 +103,8 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			return -ENOLINK;
 	}
 
-	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %u\n",
-		enc_node, output);
+	dev_dbg(rcdu->dev, "initializing encoder %pOF for output %s\n",
+		enc_node, rcar_du_output_name(output));
 
 	renc = drmm_encoder_alloc(&rcdu->ddev, struct rcar_du_encoder, base,
 				  &rcar_du_encoder_funcs, DRM_MODE_ENCODER_NONE,
@@ -118,8 +118,9 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	ret = drm_bridge_attach(&renc->base, bridge, NULL,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret) {
-		dev_err(rcdu->dev, "failed to attach bridge for output %u\n",
-			output);
+		dev_err(rcdu->dev,
+			"failed to attach bridge %pOF for output %s (%d)\n",
+			bridge->of_node, rcar_du_output_name(output), ret);
 		return ret;
 	}
 
@@ -127,7 +128,8 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	connector = drm_bridge_connector_init(&rcdu->ddev, &renc->base);
 	if (IS_ERR(connector)) {
 		dev_err(rcdu->dev,
-			"failed to created connector for output %u\n", output);
+			"failed to created connector for output %s (%ld)\n",
+			rcar_du_output_name(output), PTR_ERR(connector));
 		return PTR_ERR(connector);
 	}
 

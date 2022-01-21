@@ -809,6 +809,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long iosize;
 	void __iomem *ioaddr;
 	const int pcibar = 1; /* PCI base address register */
+	u8 addr[ETH_ALEN];
 	int prev_eedata;
 	u32 tmp;
 
@@ -859,10 +860,11 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 	prev_eedata = eeprom_read(ioaddr, 6);
 	for (i = 0; i < 3; i++) {
 		int eedata = eeprom_read(ioaddr, i + 7);
-		dev->dev_addr[i*2] = (eedata << 1) + (prev_eedata >> 15);
-		dev->dev_addr[i*2+1] = eedata >> 7;
+		addr[i*2] = (eedata << 1) + (prev_eedata >> 15);
+		addr[i*2+1] = eedata >> 7;
 		prev_eedata = eedata;
 	}
+	eth_hw_addr_set(dev, addr);
 
 	np = netdev_priv(dev);
 	np->ioaddr = ioaddr;

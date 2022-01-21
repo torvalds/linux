@@ -5,8 +5,6 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "sc7180.dtsi"
-
 ap_ec_spi: &spi6 {};
 ap_h1_spi: &spi0 {};
 
@@ -52,6 +50,18 @@ ap_ts_pen_1v8: &i2c4 {
 
 &panel {
 	compatible = "boe,nv133fhm-n62";
+};
+
+&pm6150_adc {
+	status = "disabled";
+
+	/delete-node/ charger-thermistor@4f;
+};
+
+&pm6150_adc_tm {
+	status = "disabled";
+
+	/delete-node/ charger-thermistor@0;
 };
 
 &trackpad {

@@ -252,7 +252,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 			}
 
 			if (!dlen) {
-				hu->padding = (skb->len - 1) % alignment;
+				hu->padding = (skb->len + 1) % alignment;
 				hu->padding = (alignment - hu->padding) % alignment;
 
 				/* No more data, complete frame */
@@ -260,7 +260,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 				skb = NULL;
 			}
 		} else {
-			hu->padding = (skb->len - 1) % alignment;
+			hu->padding = (skb->len + 1) % alignment;
 			hu->padding = (alignment - hu->padding) % alignment;
 
 			/* Complete frame */

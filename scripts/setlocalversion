@@ -41,8 +41,6 @@ if test $# -gt 0; then
 		kmi_generation=$1
 		[ $(expr $kmi_generation : '^[0-9]\+$') -eq 0 ] && usage
 		shift
-	else
-		usage
 	fi
 fi
 if test $# -gt 0 -o ! -d "$srctree"; then
@@ -68,6 +66,8 @@ scm_version()
 
 		if [ -n "$android_release" ] && [ -n "$kmi_generation" ]; then
 			printf '%s' "-$android_release-$kmi_generation"
+		elif [ -n "$android_release" ]; then
+			printf '%s' "-$android_release"
 		fi
 
 		# If we are at a tagged commit (like "v2.6.30-rc6"), we ignore

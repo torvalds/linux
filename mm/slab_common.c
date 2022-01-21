@@ -37,14 +37,6 @@ LIST_HEAD(slab_caches);
 DEFINE_MUTEX(slab_mutex);
 struct kmem_cache *kmem_cache;
 
-#ifdef CONFIG_HARDENED_USERCOPY
-bool usercopy_fallback __ro_after_init =
-		IS_ENABLED(CONFIG_HARDENED_USERCOPY_FALLBACK);
-module_param(usercopy_fallback, bool, 0400);
-MODULE_PARM_DESC(usercopy_fallback,
-		"WARN instead of reject usercopy whitelist violations");
-#endif
-
 static LIST_HEAD(slab_caches_to_rcu_destroy);
 static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work);
 static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
@@ -558,13 +550,13 @@ bool slab_is_available(void)
  */
 bool kmem_valid_obj(void *object)
 {
-	struct page *page;
+	struct folio *folio;
 
 	/* Some arches consider ZERO_SIZE_PTR to be a valid address. */
 	if (object < (void *)PAGE_SIZE || !virt_addr_valid(object))
 		return false;
-	page = virt_to_head_page(object);
-	return PageSlab(page);
+	folio = virt_to_folio(object);
+	return folio_test_slab(folio);
 }
 EXPORT_SYMBOL_GPL(kmem_valid_obj);
 
@@ -587,18 +579,18 @@ void kmem_dump_obj(void *object)
 {
 	char *cp = IS_ENABLED(CONFIG_MMU) ? "" : "/vmalloc";
 	int i;
-	struct page *page;
+	struct slab *slab;
 	unsigned long ptroffset;
 	struct kmem_obj_info kp = { };
 
 	if (WARN_ON_ONCE(!virt_addr_valid(object)))
 		return;
-	page = virt_to_head_page(object);
-	if (WARN_ON_ONCE(!PageSlab(page))) {
+	slab = virt_to_slab(object);
+	if (WARN_ON_ONCE(!slab)) {
 		pr_cont(" non-slab memory.\n");
 		return;
 	}
-	kmem_obj_info(&kp, object, page);
+	kmem_obj_info(&kp, object, slab);
 	if (kp.kp_slab_cache)
 		pr_cont(" slab%s %s", cp, kp.kp_slab_cache->name);
 	else

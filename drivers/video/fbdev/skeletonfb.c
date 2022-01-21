@@ -505,15 +505,15 @@ void xxxfb_fillrect(struct fb_info *p, const struct fb_fillrect *region)
 }
 
 /**
- *      xxxfb_copyarea - REQUIRED function. Can use generic routines if
- *                       non acclerated hardware and packed pixel based.
+ *      xxxfb_copyarea - OBSOLETE function.
  *                       Copies one area of the screen to another area.
+ *                       Will be deleted in a future version
  *
  *      @info: frame buffer structure that represents a single frame buffer
  *      @area: Structure providing the data to copy the framebuffer contents
  *	       from one region to another.
  *
- *      This drawing operation copies a rectangular area from one area of the
+ *      This drawing operation copied a rectangular area from one area of the
  *	screen to another area.
  */
 void xxxfb_copyarea(struct fb_info *p, const struct fb_copyarea *area) 
@@ -645,9 +645,9 @@ static const struct fb_ops xxxfb_ops = {
 	.fb_setcolreg	= xxxfb_setcolreg,
 	.fb_blank	= xxxfb_blank,
 	.fb_pan_display	= xxxfb_pan_display,
-	.fb_fillrect	= xxxfb_fillrect, 	/* Needed !!! */
-	.fb_copyarea	= xxxfb_copyarea,	/* Needed !!! */
-	.fb_imageblit	= xxxfb_imageblit,	/* Needed !!! */
+	.fb_fillrect	= xxxfb_fillrect,	/* Needed !!!   */
+	.fb_copyarea	= xxxfb_copyarea,	/* Obsolete     */
+	.fb_imageblit	= xxxfb_imageblit,	/* Needed !!!   */
 	.fb_cursor	= xxxfb_cursor,		/* Optional !!! */
 	.fb_sync	= xxxfb_sync,
 	.fb_ioctl	= xxxfb_ioctl,

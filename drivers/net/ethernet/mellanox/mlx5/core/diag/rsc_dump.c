@@ -30,7 +30,7 @@ static const char *const mlx5_rsc_sgmt_name[] = {
 
 struct mlx5_rsc_dump {
 	u32 pdn;
-	struct mlx5_core_mkey mkey;
+	u32 mkey;
 	u16 fw_segment_type[MLX5_SGMT_TYPE_NUM];
 };
 
@@ -89,7 +89,7 @@ static int mlx5_rsc_dump_trigger(struct mlx5_core_dev *dev, struct mlx5_rsc_dump
 		return -ENOMEM;
 
 	in_seq_num = MLX5_GET(resource_dump, cmd->cmd, seq_num);
-	MLX5_SET(resource_dump, cmd->cmd, mkey, rsc_dump->mkey.key);
+	MLX5_SET(resource_dump, cmd->cmd, mkey, rsc_dump->mkey);
 	MLX5_SET64(resource_dump, cmd->cmd, address, dma);
 
 	err = mlx5_core_access_reg(dev, cmd->cmd, sizeof(cmd->cmd), cmd->cmd,
@@ -202,7 +202,7 @@ free_page:
 }
 
 static int mlx5_rsc_dump_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
-				     struct mlx5_core_mkey *mkey)
+				     u32 *mkey)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
 	void *mkc;
@@ -276,7 +276,7 @@ int mlx5_rsc_dump_init(struct mlx5_core_dev *dev)
 	return err;
 
 destroy_mkey:
-	mlx5_core_destroy_mkey(dev, &rsc_dump->mkey);
+	mlx5_core_destroy_mkey(dev, rsc_dump->mkey);
 free_pd:
 	mlx5_core_dealloc_pd(dev, rsc_dump->pdn);
 	return err;
@@ -287,6 +287,6 @@ void mlx5_rsc_dump_cleanup(struct mlx5_core_dev *dev)
 	if (IS_ERR_OR_NULL(dev->rsc_dump))
 		return;
 
-	mlx5_core_destroy_mkey(dev, &dev->rsc_dump->mkey);
+	mlx5_core_destroy_mkey(dev, dev->rsc_dump->mkey);
 	mlx5_core_dealloc_pd(dev, dev->rsc_dump->pdn);
 }

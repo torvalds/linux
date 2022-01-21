@@ -291,7 +291,6 @@ static int ads5121_chipselect_init(struct mtd_info *mtd)
 /* Control chips select signal on ADS5121 board */
 static void ads5121_select_chip(struct nand_chip *nand, int chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct mpc5121_nfc_prv *prv = nand_get_controller_data(nand);
 	u8 v;
 
@@ -605,9 +604,8 @@ static void mpc5121_nfc_free(struct device *dev, struct mtd_info *mtd)
 
 static int mpc5121_nfc_attach_chip(struct nand_chip *chip)
 {
-	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-
-	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -771,6 +769,13 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 		dev_err(dev, "Error requesting IRQ!\n");
 		goto error;
 	}
+
+	/*
+	 * This driver assumes that the default ECC engine should be TYPE_SOFT.
+	 * Set ->engine_type before registering the NAND devices in order to
+	 * provide a driver specific default value.
+	 */
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 
 	/* Detect NAND chips */
 	retval = nand_scan(chip, be32_to_cpup(chips_no));

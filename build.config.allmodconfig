@@ -3,9 +3,9 @@ DEFCONFIG=allmodconfig
 POST_DEFCONFIG_CMDS="update_config"
 function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
-         -d TEST_KMOD  \
          -e UNWINDER_FRAME_POINTER \
-	 -d INFINIBAND_QIB \
+         -d WERROR \
+         -d PINCTRL_THUNDERBAY \
 
     (cd ${OUT_DIR} && \
      make O=${OUT_DIR} $archsubarch CROSS_COMPILE=${CROSS_COMPILE} ${TOOL_ARGS} ${MAKE_ARGS} olddefconfig)

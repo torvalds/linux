@@ -776,7 +776,7 @@ put_noaddr:
 	err = __netpoll_setup(np, ndev);
 	if (err)
 		goto put;
-
+	netdev_tracker_alloc(ndev, &np->dev_tracker, GFP_KERNEL);
 	rtnl_unlock();
 	return 0;
 
@@ -853,7 +853,7 @@ void netpoll_cleanup(struct netpoll *np)
 	if (!np->dev)
 		goto out;
 	__netpoll_cleanup(np);
-	dev_put(np->dev);
+	dev_put_track(np->dev, &np->dev_tracker);
 	np->dev = NULL;
 out:
 	rtnl_unlock();

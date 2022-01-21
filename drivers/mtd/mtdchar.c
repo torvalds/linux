@@ -573,14 +573,32 @@ static int mtdchar_blkpg_ioctl(struct mtd_info *mtd,
 	}
 }
 
+static void adjust_oob_length(struct mtd_info *mtd, uint64_t start,
+			      struct mtd_oob_ops *ops)
+{
+	uint32_t start_page, end_page;
+	u32 oob_per_page;
+
+	if (ops->len == 0 || ops->ooblen == 0)
+		return;
+
+	start_page = mtd_div_by_ws(start, mtd);
+	end_page = mtd_div_by_ws(start + ops->len - 1, mtd);
+	oob_per_page = mtd_oobavail(mtd, ops);
+
+	ops->ooblen = min_t(size_t, ops->ooblen,
+			    (end_page - start_page + 1) * oob_per_page);
+}
+
 static int mtdchar_write_ioctl(struct mtd_info *mtd,
 		struct mtd_write_req __user *argp)
 {
 	struct mtd_info *master = mtd_get_master(mtd);
 	struct mtd_write_req req;
-	struct mtd_oob_ops ops = {};
 	const void __user *usr_data, *usr_oob;
-	int ret;
+	uint8_t *datbuf = NULL, *oobbuf = NULL;
+	size_t datbuf_len, oobbuf_len;
+	int ret = 0;
 
 	if (copy_from_user(&req, argp, sizeof(req)))
 		return -EFAULT;
@@ -590,33 +608,79 @@ static int mtdchar_write_ioctl(struct mtd_info *mtd,
 
 	if (!master->_write_oob)
 		return -EOPNOTSUPP;
-	ops.mode = req.mode;
-	ops.len = (size_t)req.len;
-	ops.ooblen = (size_t)req.ooblen;
-	ops.ooboffs = 0;
 
-	if (usr_data) {
-		ops.datbuf = memdup_user(usr_data, ops.len);
-		if (IS_ERR(ops.datbuf))
-			return PTR_ERR(ops.datbuf);
-	} else {
-		ops.datbuf = NULL;
+	if (!usr_data)
+		req.len = 0;
+
+	if (!usr_oob)
+		req.ooblen = 0;
+
+	if (req.start + req.len > mtd->size)
+		return -EINVAL;
+
+	datbuf_len = min_t(size_t, req.len, mtd->erasesize);
+	if (datbuf_len > 0) {
+		datbuf = kmalloc(datbuf_len, GFP_KERNEL);
+		if (!datbuf)
+			return -ENOMEM;
 	}
 
-	if (usr_oob) {
-		ops.oobbuf = memdup_user(usr_oob, ops.ooblen);
-		if (IS_ERR(ops.oobbuf)) {
-			kfree(ops.datbuf);
-			return PTR_ERR(ops.oobbuf);
+	oobbuf_len = min_t(size_t, req.ooblen, mtd->erasesize);
+	if (oobbuf_len > 0) {
+		oobbuf = kmalloc(oobbuf_len, GFP_KERNEL);
+		if (!oobbuf) {
+			kfree(datbuf);
+			return -ENOMEM;
 		}
-	} else {
-		ops.oobbuf = NULL;
 	}
 
-	ret = mtd_write_oob(mtd, (loff_t)req.start, &ops);
+	while (req.len > 0 || (!usr_data && req.ooblen > 0)) {
+		struct mtd_oob_ops ops = {
+			.mode = req.mode,
+			.len = min_t(size_t, req.len, datbuf_len),
+			.ooblen = min_t(size_t, req.ooblen, oobbuf_len),
+			.datbuf = datbuf,
+			.oobbuf = oobbuf,
+		};
 
-	kfree(ops.datbuf);
-	kfree(ops.oobbuf);
+		/*
+		 * Shorten non-page-aligned, eraseblock-sized writes so that
+		 * the write ends on an eraseblock boundary.  This is necessary
+		 * for adjust_oob_length() to properly handle non-page-aligned
+		 * writes.
+		 */
+		if (ops.len == mtd->erasesize)
+			ops.len -= mtd_mod_by_ws(req.start + ops.len, mtd);
+
+		/*
+		 * For writes which are not OOB-only, adjust the amount of OOB
+		 * data written according to the number of data pages written.
+		 * This is necessary to prevent OOB data from being skipped
+		 * over in data+OOB writes requiring multiple mtd_write_oob()
+		 * calls to be completed.
+		 */
+		adjust_oob_length(mtd, req.start, &ops);
+
+		if (copy_from_user(datbuf, usr_data, ops.len) ||
+		    copy_from_user(oobbuf, usr_oob, ops.ooblen)) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = mtd_write_oob(mtd, req.start, &ops);
+		if (ret)
+			break;
+
+		req.start += ops.retlen;
+		req.len -= ops.retlen;
+		usr_data += ops.retlen;
+
+		req.ooblen -= ops.oobretlen;
+		usr_oob += ops.oobretlen;
+	}
+
+	kfree(datbuf);
+	kfree(oobbuf);
 
 	return ret;
 }

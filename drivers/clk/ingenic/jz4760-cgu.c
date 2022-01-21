@@ -12,7 +12,7 @@
 
 #include <linux/clk.h>
 
-#include <dt-bindings/clock/jz4760-cgu.h>
+#include <dt-bindings/clock/ingenic,jz4760-cgu.h>
 
 #include "cgu.h"
 #include "pm.h"

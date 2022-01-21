@@ -31,7 +31,7 @@ static int read32(struct wfx_dev *wdev, int reg, u32 *val)
 	int ret;
 	__le32 *tmp = kmalloc(sizeof(u32), GFP_KERNEL);
 
-	*val = ~0; // Never return undefined value
+	*val = ~0; /* Never return undefined value */
 	if (!tmp)
 		return -ENOMEM;
 	ret = wdev->hwbus_ops->copy_from_io(wdev->hwbus_priv, reg, tmp,
@@ -153,7 +153,7 @@ static int indirect_read(struct wfx_dev *wdev, int reg, u32 addr,
 
 err:
 	if (ret < 0)
-		memset(buf, 0xFF, len); // Never return undefined value
+		memset(buf, 0xFF, len); /* Never return undefined value */
 	return ret;
 }
 
@@ -335,7 +335,7 @@ int igpr_reg_read(struct wfx_dev *wdev, int index, u32 *val)
 {
 	int ret;
 
-	*val = ~0; // Never return undefined value
+	*val = ~0; /* Never return undefined value */
 	ret = write32_locked(wdev, WFX_REG_SET_GEN_R_W, IGPR_RW | index << 24);
 	if (ret)
 		return ret;

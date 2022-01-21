@@ -36,8 +36,8 @@
 #define ST_MIN_BUFFER ST_MAX_BUFFER
 
 #define DRV_NAME "acp_audio_dma"
-bool bt_uart_enable = true;
-EXPORT_SYMBOL(bt_uart_enable);
+bool acp_bt_uart_enable = true;
+EXPORT_SYMBOL(acp_bt_uart_enable);
 
 static const struct snd_pcm_hardware acp_pcm_hardware_playback = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
@@ -596,7 +596,7 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 	acp_reg_write(val, acp_mmio, mmACP_SOFT_RESET);
 
 	/* For BT instance change pins from UART to BT */
-	if (!bt_uart_enable) {
+	if (!acp_bt_uart_enable) {
 		val = acp_reg_read(acp_mmio, mmACP_BT_UART_PAD_SEL);
 		val |= ACP_BT_UART_PAD_SELECT_MASK;
 		acp_reg_write(val, acp_mmio, mmACP_BT_UART_PAD_SEL);

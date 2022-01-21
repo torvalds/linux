@@ -209,6 +209,6 @@ struct ad_dpot_bus_data {
 
 int ad_dpot_probe(struct device *dev, struct ad_dpot_bus_data *bdata,
 		  unsigned long devid, const char *name);
-int ad_dpot_remove(struct device *dev);
+void ad_dpot_remove(struct device *dev);
 
 #endif

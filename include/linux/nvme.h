@@ -27,8 +27,20 @@
 #define NVME_NSID_ALL		0xffffffff
 
 enum nvme_subsys_type {
-	NVME_NQN_DISC	= 1,		/* Discovery type target subsystem */
-	NVME_NQN_NVME	= 2,		/* NVME type target subsystem */
+	/* Referral to another discovery type target subsystem */
+	NVME_NQN_DISC	= 1,
+
+	/* NVME type target subsystem */
+	NVME_NQN_NVME	= 2,
+
+	/* Current discovery type target subsystem */
+	NVME_NQN_CURR	= 3,
+};
+
+enum nvme_ctrl_type {
+	NVME_CTRL_IO	= 1,		/* I/O controller */
+	NVME_CTRL_DISC	= 2,		/* Discovery controller */
+	NVME_CTRL_ADMIN	= 3,		/* Administrative controller */
 };
 
 /* Address Family codes for Discovery Log Page entry ADRFAM field */
@@ -244,7 +256,9 @@ struct nvme_id_ctrl {
 	__le32			rtd3e;
 	__le32			oaes;
 	__le32			ctratt;
-	__u8			rsvd100[28];
+	__u8			rsvd100[11];
+	__u8			cntrltype;
+	__u8			fguid[16];
 	__le16			crdt1;
 	__le16			crdt2;
 	__le16			crdt3;
@@ -312,6 +326,7 @@ struct nvme_id_ctrl {
 };
 
 enum {
+	NVME_CTRL_CMIC_MULTI_PORT		= 1 << 0,
 	NVME_CTRL_CMIC_MULTI_CTRL		= 1 << 1,
 	NVME_CTRL_CMIC_ANA			= 1 << 3,
 	NVME_CTRL_ONCS_COMPARE			= 1 << 0,
@@ -1303,6 +1318,12 @@ struct nvmf_common_command {
 
 #define MAX_DISC_LOGS	255
 
+/* Discovery log page entry flags (EFLAGS): */
+enum {
+	NVME_DISC_EFLAGS_EPCSD		= (1 << 1),
+	NVME_DISC_EFLAGS_DUPRETINFO	= (1 << 0),
+};
+
 /* Discovery log page entry */
 struct nvmf_disc_rsp_page_entry {
 	__u8		trtype;
@@ -1312,7 +1333,8 @@ struct nvmf_disc_rsp_page_entry {
 	__le16		portid;
 	__le16		cntlid;
 	__le16		asqsz;
-	__u8		resv8[22];
+	__le16		eflags;
+	__u8		resv10[20];
 	char		trsvcid[NVMF_TRSVCID_SIZE];
 	__u8		resv64[192];
 	char		subnqn[NVMF_NQN_FIELD_LEN];

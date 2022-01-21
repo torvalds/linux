@@ -135,7 +135,7 @@ davinci_cp_intc_handle_irq(struct pt_regs *regs)
 		return;
 	}
 
-	handle_domain_irq(davinci_cp_intc_irq_domain, irqnr, regs);
+	generic_handle_domain_irq(davinci_cp_intc_irq_domain, irqnr);
 }
 
 static int davinci_cp_intc_host_map(struct irq_domain *h, unsigned int virq,

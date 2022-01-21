@@ -2,7 +2,7 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 
-void test_flow_dissector_load_bytes(void)
+void serial_test_flow_dissector_load_bytes(void)
 {
 	struct bpf_flow_keys flow_keys;
 	__u32 duration = 0, retval, size;
@@ -30,7 +30,7 @@ void test_flow_dissector_load_bytes(void)
 
 	/* make sure bpf_skb_load_bytes is not allowed from skb-less context
 	 */
-	fd = bpf_load_program(BPF_PROG_TYPE_FLOW_DISSECTOR, prog,
+	fd = bpf_test_load_program(BPF_PROG_TYPE_FLOW_DISSECTOR, prog,
 			      ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 	CHECK(fd < 0,
 	      "flow_dissector-bpf_skb_load_bytes-load",

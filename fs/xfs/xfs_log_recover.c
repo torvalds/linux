@@ -27,7 +27,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_ag.h"
 #include "xfs_quota.h"
-
+#include "xfs_reflink.h"
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
 
@@ -2466,11 +2466,11 @@ xlog_finish_defer_ops(
 {
 	struct xfs_defer_capture *dfc, *next;
 	struct xfs_trans	*tp;
-	struct xfs_inode	*ip;
 	int			error = 0;
 
 	list_for_each_entry_safe(dfc, next, capture_list, dfc_list) {
 		struct xfs_trans_res	resv;
+		struct xfs_defer_resources dres;
 
 		/*
 		 * Create a new transaction reservation from the captured
@@ -2494,13 +2494,9 @@ xlog_finish_defer_ops(
 		 * from recovering a single intent item.
 		 */
 		list_del_init(&dfc->dfc_list);
-		xfs_defer_ops_continue(dfc, tp, &ip);
-
+		xfs_defer_ops_continue(dfc, tp, &dres);
 		error = xfs_trans_commit(tp);
-		if (ip) {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-			xfs_irele(ip);
-		}
+		xfs_defer_resources_rele(&dres);
 		if (error)
 			return error;
 	}
@@ -2520,7 +2516,7 @@ xlog_abort_defer_ops(
 
 	list_for_each_entry_safe(dfc, next, capture_list, dfc_list) {
 		list_del_init(&dfc->dfc_list);
-		xfs_defer_ops_release(mp, dfc);
+		xfs_defer_ops_capture_free(mp, dfc);
 	}
 }
 /*
@@ -3502,6 +3498,28 @@ xlog_recover_finish(
 
 	xlog_recover_process_iunlinks(log);
 	xlog_recover_check_summary(log);
+
+	/*
+	 * Recover any CoW staging blocks that are still referenced by the
+	 * ondisk refcount metadata.  During mount there cannot be any live
+	 * staging extents as we have not permitted any user modifications.
+	 * Therefore, it is safe to free them all right now, even on a
+	 * read-only mount.
+	 */
+	error = xfs_reflink_recover_cow(log->l_mp);
+	if (error) {
+		xfs_alert(log->l_mp,
+	"Failed to recover leftover CoW staging extents, err %d.",
+				error);
+		/*
+		 * If we get an error here, make sure the log is shut down
+		 * but return zero so that any log items committed since the
+		 * end of intents processing can be pushed through the CIL
+		 * and AIL.
+		 */
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+	}
+
 	return 0;
 }
 
@@ -3531,8 +3549,6 @@ xlog_recover_check_summary(
 	uint64_t		itotal;
 	uint64_t		ifree;
 	int			error;
-
-	mp = log->l_mp;
 
 	freeblks = 0LL;
 	itotal = 0LL;

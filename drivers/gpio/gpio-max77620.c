@@ -365,5 +365,4 @@ module_platform_driver(max77620_gpio_driver);
 MODULE_DESCRIPTION("GPIO interface for MAX77620 and MAX20024 PMIC");
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
 MODULE_AUTHOR("Chaitanya Bandi <bandik@nvidia.com>");
-MODULE_ALIAS("platform:max77620-gpio");
 MODULE_LICENSE("GPL v2");

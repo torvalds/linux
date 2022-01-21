@@ -242,7 +242,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 					    * This feeds CPU. It should not
 					    * be disabled.
 					    */
-					  CLK_IS_CRITICAL | CLK_SET_RATE_GATE);
+					  CLK_IS_CRITICAL | CLK_SET_RATE_GATE, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 
@@ -260,7 +260,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 					  &pll_div_layout,
 					  CLK_SET_RATE_GATE |
 					  CLK_SET_PARENT_GATE |
-					  CLK_SET_RATE_PARENT);
+					  CLK_SET_RATE_PARENT, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 
@@ -279,7 +279,7 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 	hw = at91_clk_register_master_div(regmap, "masterck_div",
 					  "masterck_pres", &sam9x60_master_layout,
 					  &mck_characteristics, &mck_lock,
-					  CLK_SET_RATE_GATE);
+					  CLK_SET_RATE_GATE, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 

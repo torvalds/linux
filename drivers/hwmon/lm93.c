@@ -202,7 +202,7 @@ struct lm93_data {
 	/* client update function */
 	void (*update)(struct lm93_data *, struct i2c_client *);
 
-	char valid; /* !=0 if following fields are valid */
+	bool valid; /* true if following fields are valid */
 
 	/* register values, arranged by block read groups */
 	struct block1_t block1;
@@ -917,7 +917,7 @@ static struct lm93_data *lm93_update_device(struct device *dev)
 
 		data->update(data, client);
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

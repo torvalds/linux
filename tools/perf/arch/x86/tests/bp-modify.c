@@ -204,7 +204,7 @@ out:
 	return rip == (unsigned long) bp_1 ? TEST_OK : TEST_FAIL;
 }
 
-int test__bp_modify(struct test *test __maybe_unused,
+int test__bp_modify(struct test_suite *test __maybe_unused,
 		    int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("modify test 1 failed\n", !bp_modify1());

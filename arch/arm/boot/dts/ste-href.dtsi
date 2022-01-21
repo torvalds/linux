@@ -13,6 +13,12 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		battery-type = "lithium-ion-polymer";
+		thermistor-on-batctrl;
+	};
+
 	soc {
 		uart@80120000 {
 			pinctrl-names = "default", "sleep";

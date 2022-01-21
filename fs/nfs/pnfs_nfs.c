@@ -468,7 +468,6 @@ pnfs_bucket_alloc_ds_commits(struct list_head *list,
 				goto out_error;
 			data->ds_commit_index = i;
 			list_add_tail(&data->list, list);
-			atomic_inc(&cinfo->mds->rpcs_out);
 			nreq++;
 		}
 		mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
@@ -520,7 +519,6 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 		data->ds_commit_index = -1;
 		list_splice_init(mds_pages, &data->pages);
 		list_add_tail(&data->list, &list);
-		atomic_inc(&cinfo->mds->rpcs_out);
 		nreq++;
 	}
 
@@ -895,7 +893,7 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 	}
 
 	smp_wmb();
-	ds->ds_clp = clp;
+	WRITE_ONCE(ds->ds_clp, clp);
 	dprintk("%s [new] addr: %s\n", __func__, ds->ds_remotestr);
 out:
 	return status;
@@ -973,7 +971,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 	}
 
 	smp_wmb();
-	ds->ds_clp = clp;
+	WRITE_ONCE(ds->ds_clp, clp);
 	dprintk("%s [new] addr: %s\n", __func__, ds->ds_remotestr);
 out:
 	return status;

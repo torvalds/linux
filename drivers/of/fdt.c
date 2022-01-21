@@ -562,39 +562,35 @@ static int __init __reserved_mem_check_root(unsigned long node)
 }
 
 /*
- * __fdt_scan_reserved_mem() - scan a single FDT node for reserved memory
+ * fdt_scan_reserved_mem() - scan a single FDT node for reserved memory
  */
-static int __init __fdt_scan_reserved_mem(unsigned long node, const char *uname,
-					  int depth, void *data)
+static int __init fdt_scan_reserved_mem(void)
 {
-	static int found;
-	int err;
+	int node, child;
+	const void *fdt = initial_boot_params;
 
-	if (!found && depth == 1 && strcmp(uname, "reserved-memory") == 0) {
-		if (__reserved_mem_check_root(node) != 0) {
-			pr_err("Reserved memory: unsupported node format, ignoring\n");
-			/* break scan */
-			return 1;
-		}
-		found = 1;
-		/* scan next node */
-		return 0;
-	} else if (!found) {
-		/* scan next node */
-		return 0;
-	} else if (found && depth < 2) {
-		/* scanning of /reserved-memory has been finished */
-		return 1;
+	node = fdt_path_offset(fdt, "/reserved-memory");
+	if (node < 0)
+		return -ENODEV;
+
+	if (__reserved_mem_check_root(node) != 0) {
+		pr_err("Reserved memory: unsupported node format, ignoring\n");
+		return -EINVAL;
 	}
 
-	if (!of_fdt_device_is_available(initial_boot_params, node))
-		return 0;
+	fdt_for_each_subnode(child, fdt, node) {
+		const char *uname;
+		int err;
 
-	err = __reserved_mem_reserve_reg(node, uname);
-	if (err == -ENOENT && of_get_flat_dt_prop(node, "size", NULL))
-		fdt_reserved_mem_save_node(node, uname, 0, 0);
+		if (!of_fdt_device_is_available(fdt, child))
+			continue;
 
-	/* scan next node */
+		uname = fdt_get_name(fdt, child, NULL);
+
+		err = __reserved_mem_reserve_reg(child, uname);
+		if (err == -ENOENT && of_get_flat_dt_prop(child, "size", NULL))
+			fdt_reserved_mem_save_node(child, uname, 0, 0);
+	}
 	return 0;
 }
 
@@ -645,7 +641,7 @@ void __init early_init_fdt_scan_reserved_mem(void)
 		early_init_dt_reserve_memory_arch(base, size, false);
 	}
 
-	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
+	fdt_scan_reserved_mem();
 	fdt_init_reserved_mem();
 	fdt_reserve_elfcorehdr();
 }

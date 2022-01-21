@@ -111,9 +111,13 @@
 #define VNIE_FIE		(1 << 4)
 #define VNIE_EFE		(1 << 1)
 
+/* Video n Interrupt Status Register bits */
+#define VNINTS_FIS		(1 << 4)
+
 /* Video n Data Mode Register bits */
 #define VNDMR_A8BIT(n)		(((n) & 0xff) << 24)
 #define VNDMR_A8BIT_MASK	(0xff << 24)
+#define VNDMR_YMODE_Y8		(1 << 12)
 #define VNDMR_EXRGB		(1 << 8)
 #define VNDMR_BPSM		(1 << 4)
 #define VNDMR_ABIT		(1 << 2)
@@ -603,6 +607,7 @@ void rvin_crop_scale_comp(struct rvin_dev *vin)
 	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_SGRBG8:
 	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_GREY:
 		stride /= 2;
 		break;
 	default:
@@ -695,6 +700,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	case MEDIA_BUS_FMT_SGBRG8_1X8:
 	case MEDIA_BUS_FMT_SGRBG8_1X8:
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		vnmc |= VNMC_INF_RAW8;
 		break;
 	default:
@@ -774,6 +780,14 @@ static int rvin_setup(struct rvin_dev *vin)
 	case V4L2_PIX_FMT_SRGGB8:
 		dmr = 0;
 		break;
+	case V4L2_PIX_FMT_GREY:
+		if (input_is_yuv) {
+			dmr = VNDMR_DTMD_YCSEP | VNDMR_YMODE_Y8;
+			output_is_yuv = true;
+		} else {
+			dmr = 0;
+		}
+		break;
 	default:
 		vin_err(vin, "Invalid pixelformat (0x%x)\n",
 			vin->format.pixelformat);
@@ -783,16 +797,18 @@ static int rvin_setup(struct rvin_dev *vin)
 	/* Always update on field change */
 	vnmc |= VNMC_VUP;
 
-	/* If input and output use the same colorspace, use bypass mode */
-	if (input_is_yuv == output_is_yuv)
-		vnmc |= VNMC_BPS;
+	if (!vin->info->use_isp) {
+		/* If input and output use the same colorspace, use bypass mode */
+		if (input_is_yuv == output_is_yuv)
+			vnmc |= VNMC_BPS;
 
-	if (vin->info->model == RCAR_GEN3) {
-		/* Select between CSI-2 and parallel input */
-		if (vin->is_csi)
-			vnmc &= ~VNMC_DPINE;
-		else
-			vnmc |= VNMC_DPINE;
+		if (vin->info->model == RCAR_GEN3) {
+			/* Select between CSI-2 and parallel input */
+			if (vin->is_csi)
+				vnmc &= ~VNMC_DPINE;
+			else
+				vnmc |= VNMC_DPINE;
+		}
 	}
 
 	/* Progressive or interlaced mode */
@@ -904,7 +920,8 @@ static void rvin_fill_hw_slot(struct rvin_dev *vin, int slot)
 				vin->format.sizeimage / 2;
 			break;
 		}
-	} else if (vin->state != RUNNING || list_empty(&vin->buf_list)) {
+	} else if ((vin->state != STOPPED && vin->state != RUNNING) ||
+		   list_empty(&vin->buf_list)) {
 		vin->buf_hw[slot].buffer = NULL;
 		vin->buf_hw[slot].type = FULL;
 		phys_addr = vin->scratch_phys;
@@ -990,6 +1007,10 @@ static irqreturn_t rvin_irq(int irq, void *data)
 
 	rvin_ack_interrupt(vin);
 	handled = 1;
+
+	/* Nothing to do if nothing was captured. */
+	if (!(int_status & VNINTS_FIS))
+		goto done;
 
 	/* Nothing to do if capture status is 'STOPPED' */
 	if (vin->state == STOPPED) {
@@ -1143,6 +1164,10 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		break;
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
 		if (vin->format.pixelformat != V4L2_PIX_FMT_SRGGB8)
+			return -EPIPE;
+		break;
+	case MEDIA_BUS_FMT_Y8_1X8:
+		if (vin->format.pixelformat != V4L2_PIX_FMT_GREY)
 			return -EPIPE;
 		break;
 	default:
@@ -1352,6 +1377,16 @@ void rvin_stop_streaming(struct rvin_dev *vin)
 	}
 
 	spin_unlock_irqrestore(&vin->qlock, flags);
+
+	/* If something went wrong, free buffers with an error. */
+	if (!buffersFreed) {
+		return_unused_buffers(vin, VB2_BUF_STATE_ERROR);
+		for (i = 0; i < HW_BUFFER_NUM; i++) {
+			if (vin->buf_hw[i].buffer)
+				vb2_buffer_done(&vin->buf_hw[i].buffer->vb2_buf,
+						VB2_BUF_STATE_ERROR);
+		}
+	}
 
 	rvin_set_stream(vin, 0);
 

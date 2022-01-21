@@ -42,14 +42,9 @@
 			reg = <0xa000>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			interrupts = <0 0xa0 0 IRQ_TYPE_NONE>,
-				     <0 0xa1 0 IRQ_TYPE_NONE>,
-				     <0 0xa2 0 IRQ_TYPE_NONE>,
-				     <0 0xa3 0 IRQ_TYPE_NONE>,
-				     <0 0xa4 0 IRQ_TYPE_NONE>,
-				     <0 0xa5 0 IRQ_TYPE_NONE>,
-				     <0 0xa6 0 IRQ_TYPE_NONE>,
-				     <0 0xa7 0 IRQ_TYPE_NONE>;
+			gpio-ranges = <&pma8084_mpps 0 0 8>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		pma8084_temp: temp-alarm@2400 {

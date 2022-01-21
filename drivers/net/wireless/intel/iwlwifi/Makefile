@@ -15,7 +15,7 @@ iwlwifi-objs		+= iwl-dbg-tlv.o
 iwlwifi-objs		+= iwl-trans.o
 iwlwifi-objs		+= queue/tx.o
 
-iwlwifi-objs		+= fw/img.o fw/notif-wait.o
+iwlwifi-objs		+= fw/img.o fw/notif-wait.o fw/rs.o
 iwlwifi-objs		+= fw/dbg.o fw/pnvm.o fw/dump.o
 iwlwifi-$(CONFIG_IWLMVM) += fw/paging.o fw/smem.o fw/init.o
 iwlwifi-$(CONFIG_ACPI) += fw/acpi.o
@@ -30,5 +30,6 @@ ccflags-y += -I$(src)
 
 obj-$(CONFIG_IWLDVM)	+= dvm/
 obj-$(CONFIG_IWLMVM)	+= mvm/
+obj-$(CONFIG_IWLMEI)	+= mei/
 
 CFLAGS_iwl-devtrace.o := -I$(src)

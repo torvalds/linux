@@ -909,7 +909,11 @@ static uint32_t ish_ipc_get_header(struct ishtp_device *dev, int length,
  */
 static bool _dma_no_cache_snooping(struct ishtp_device *dev)
 {
-	return dev->pdev->device == EHL_Ax_DEVICE_ID;
+	return (dev->pdev->device == EHL_Ax_DEVICE_ID ||
+		dev->pdev->device == TGL_LP_DEVICE_ID ||
+		dev->pdev->device == TGL_H_DEVICE_ID ||
+		dev->pdev->device == ADL_S_DEVICE_ID ||
+		dev->pdev->device == ADL_P_DEVICE_ID);
 }
 
 static const struct ishtp_hw_ops ish_hw_ops = {

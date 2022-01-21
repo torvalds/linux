@@ -33,6 +33,14 @@ struct gve_tx_pkt_desc {
 	__be64	seg_addr;  /* Base address (see note) of this segment */
 } __packed;
 
+struct gve_tx_mtd_desc {
+	u8      type_flags;     /* type is lower 4 bits, subtype upper  */
+	u8      path_state;     /* state is lower 4 bits, hash type upper */
+	__be16  reserved0;
+	__be32  path_hash;
+	__be64  reserved1;
+} __packed;
+
 struct gve_tx_seg_desc {
 	u8	type_flags;	/* type is lower 4 bits, flags upper	*/
 	u8	l3_offset;	/* TSO: 2 byte units to start of IPH	*/
@@ -46,6 +54,7 @@ struct gve_tx_seg_desc {
 #define	GVE_TXD_STD		(0x0 << 4) /* Std with Host Address	*/
 #define	GVE_TXD_TSO		(0x1 << 4) /* TSO with Host Address	*/
 #define	GVE_TXD_SEG		(0x2 << 4) /* Seg with Host Address	*/
+#define	GVE_TXD_MTD		(0x3 << 4) /* Metadata			*/
 
 /* GVE Transmit Descriptor Flags for Std Pkts */
 #define	GVE_TXF_L4CSUM	BIT(0)	/* Need csum offload */
@@ -53,6 +62,17 @@ struct gve_tx_seg_desc {
 
 /* GVE Transmit Descriptor Flags for TSO Segs */
 #define	GVE_TXSF_IPV6	BIT(1)	/* IPv6 TSO */
+
+/* GVE Transmit Descriptor Options for MTD Segs */
+#define GVE_MTD_SUBTYPE_PATH		0
+
+#define GVE_MTD_PATH_STATE_DEFAULT	0
+#define GVE_MTD_PATH_STATE_TIMEOUT	1
+#define GVE_MTD_PATH_STATE_CONGESTION	2
+#define GVE_MTD_PATH_STATE_RETRANSMIT	3
+
+#define GVE_MTD_PATH_HASH_NONE         (0x0 << 4)
+#define GVE_MTD_PATH_HASH_L4           (0x1 << 4)
 
 /* GVE Receive Packet Descriptor */
 /* The start of an ethernet packet comes 2 bytes into the rx buffer.
@@ -90,12 +110,13 @@ union gve_rx_data_slot {
 
 /* GVE Recive Packet Descriptor Flags */
 #define GVE_RXFLG(x)	cpu_to_be16(1 << (3 + (x)))
-#define	GVE_RXF_FRAG	GVE_RXFLG(3)	/* IP Fragment			*/
-#define	GVE_RXF_IPV4	GVE_RXFLG(4)	/* IPv4				*/
-#define	GVE_RXF_IPV6	GVE_RXFLG(5)	/* IPv6				*/
-#define	GVE_RXF_TCP	GVE_RXFLG(6)	/* TCP Packet			*/
-#define	GVE_RXF_UDP	GVE_RXFLG(7)	/* UDP Packet			*/
-#define	GVE_RXF_ERR	GVE_RXFLG(8)	/* Packet Error Detected	*/
+#define	GVE_RXF_FRAG		GVE_RXFLG(3)	/* IP Fragment			*/
+#define	GVE_RXF_IPV4		GVE_RXFLG(4)	/* IPv4				*/
+#define	GVE_RXF_IPV6		GVE_RXFLG(5)	/* IPv6				*/
+#define	GVE_RXF_TCP		GVE_RXFLG(6)	/* TCP Packet			*/
+#define	GVE_RXF_UDP		GVE_RXFLG(7)	/* UDP Packet			*/
+#define	GVE_RXF_ERR		GVE_RXFLG(8)	/* Packet Error Detected	*/
+#define	GVE_RXF_PKT_CONT	GVE_RXFLG(10)	/* Multi Fragment RX packet	*/
 
 /* GVE IRQ */
 #define GVE_IRQ_ACK	BIT(31)

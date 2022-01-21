@@ -306,7 +306,6 @@ static int em_gio_probe(struct platform_device *pdev)
 	}
 
 	gpio_chip = &p->gpio_chip;
-	gpio_chip->of_node = dev->of_node;
 	gpio_chip->direction_input = em_gio_direction_input;
 	gpio_chip->get = em_gio_get;
 	gpio_chip->direction_output = em_gio_direction_output;

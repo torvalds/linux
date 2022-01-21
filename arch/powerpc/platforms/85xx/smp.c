@@ -40,7 +40,6 @@ struct epapr_spin_table {
 	u32	pir;
 };
 
-#ifdef CONFIG_HOTPLUG_CPU
 static u64 timebase;
 static int tb_req;
 static int tb_valid;
@@ -112,6 +111,7 @@ static void mpc85xx_take_timebase(void)
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static void smp_85xx_cpu_offline_self(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -220,7 +220,7 @@ static int smp_85xx_start_cpu(int cpu)
 	local_irq_save(flags);
 	hard_irq_disable();
 
-	if (qoriq_pm_ops)
+	if (qoriq_pm_ops && qoriq_pm_ops->cpu_up_prepare)
 		qoriq_pm_ops->cpu_up_prepare(cpu);
 
 	/* if cpu is not spinning, reset it */
@@ -292,7 +292,7 @@ static int smp_85xx_kick_cpu(int nr)
 		booting_thread_hwid = cpu_thread_in_core(nr);
 		primary = cpu_first_thread_sibling(nr);
 
-		if (qoriq_pm_ops)
+		if (qoriq_pm_ops && qoriq_pm_ops->cpu_up_prepare)
 			qoriq_pm_ops->cpu_up_prepare(nr);
 
 		/*
@@ -495,21 +495,21 @@ void __init mpc85xx_smp_init(void)
 		smp_85xx_ops.probe = NULL;
 	}
 
-#ifdef CONFIG_HOTPLUG_CPU
 #ifdef CONFIG_FSL_CORENET_RCPM
+	/* Assign a value to qoriq_pm_ops on PPC_E500MC */
 	fsl_rcpm_init();
-#endif
-
-#ifdef CONFIG_FSL_PMC
+#else
+	/* Assign a value to qoriq_pm_ops on !PPC_E500MC */
 	mpc85xx_setup_pmc();
 #endif
 	if (qoriq_pm_ops) {
 		smp_85xx_ops.give_timebase = mpc85xx_give_timebase;
 		smp_85xx_ops.take_timebase = mpc85xx_take_timebase;
+#ifdef CONFIG_HOTPLUG_CPU
 		smp_85xx_ops.cpu_offline_self = smp_85xx_cpu_offline_self;
 		smp_85xx_ops.cpu_die = qoriq_cpu_kill;
-	}
 #endif
+	}
 	smp_ops = &smp_85xx_ops;
 
 #ifdef CONFIG_KEXEC_CORE

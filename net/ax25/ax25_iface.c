@@ -98,7 +98,7 @@ void ax25_linkfail_release(struct ax25_linkfail *lf)
 
 EXPORT_SYMBOL(ax25_linkfail_release);
 
-int ax25_listen_register(ax25_address *callsign, struct net_device *dev)
+int ax25_listen_register(const ax25_address *callsign, struct net_device *dev)
 {
 	struct listen_struct *listen;
 
@@ -121,7 +121,7 @@ int ax25_listen_register(ax25_address *callsign, struct net_device *dev)
 
 EXPORT_SYMBOL(ax25_listen_register);
 
-void ax25_listen_release(ax25_address *callsign, struct net_device *dev)
+void ax25_listen_release(const ax25_address *callsign, struct net_device *dev)
 {
 	struct listen_struct *s, *listen;
 
@@ -171,7 +171,7 @@ int (*ax25_protocol_function(unsigned int pid))(struct sk_buff *, ax25_cb *)
 	return res;
 }
 
-int ax25_listen_mine(ax25_address *callsign, struct net_device *dev)
+int ax25_listen_mine(const ax25_address *callsign, struct net_device *dev)
 {
 	struct listen_struct *listen;
 

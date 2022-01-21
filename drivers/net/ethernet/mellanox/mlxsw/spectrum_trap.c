@@ -60,7 +60,7 @@ enum {
 };
 
 static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-				u8 local_port,
+				u16 local_port,
 				struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp_port_pcpu_stats *pcpu_stats;
@@ -85,7 +85,7 @@ static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 	return 0;
 }
 
-static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u16 local_port,
 				      void *trap_ctx)
 {
 	struct devlink_port *in_devlink_port;
@@ -109,7 +109,7 @@ static void mlxsw_sp_rx_drop_listener(struct sk_buff *skb, u8 local_port,
 	consume_skb(skb);
 }
 
-static void mlxsw_sp_rx_acl_drop_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_acl_drop_listener(struct sk_buff *skb, u16 local_port,
 					  void *trap_ctx)
 {
 	u32 cookie_index = mlxsw_skb_cb(skb)->rx_md_info.cookie_index;
@@ -138,7 +138,7 @@ static void mlxsw_sp_rx_acl_drop_listener(struct sk_buff *skb, u8 local_port,
 	consume_skb(skb);
 }
 
-static int __mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u8 local_port,
+static int __mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u16 local_port,
 					  void *trap_ctx)
 {
 	struct devlink_port *in_devlink_port;
@@ -164,7 +164,7 @@ static int __mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u8 local_port,
 	return 0;
 }
 
-static void mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u16 local_port,
 					 void *trap_ctx)
 {
 	int err;
@@ -176,14 +176,14 @@ static void mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u8 local_port,
 	netif_receive_skb(skb);
 }
 
-static void mlxsw_sp_rx_mark_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_mark_listener(struct sk_buff *skb, u16 local_port,
 				      void *trap_ctx)
 {
 	skb->offload_fwd_mark = 1;
 	mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
 }
 
-static void mlxsw_sp_rx_l3_mark_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_l3_mark_listener(struct sk_buff *skb, u16 local_port,
 					 void *trap_ctx)
 {
 	skb->offload_l3_fwd_mark = 1;
@@ -191,7 +191,7 @@ static void mlxsw_sp_rx_l3_mark_listener(struct sk_buff *skb, u8 local_port,
 	mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
 }
 
-static void mlxsw_sp_rx_ptp_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_ptp_listener(struct sk_buff *skb, u16 local_port,
 				     void *trap_ctx)
 {
 	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
@@ -212,7 +212,7 @@ static struct mlxsw_sp_port *
 mlxsw_sp_sample_tx_port_get(struct mlxsw_sp *mlxsw_sp,
 			    const struct mlxsw_rx_md_info *rx_md_info)
 {
-	u8 local_port;
+	u16 local_port;
 
 	if (!rx_md_info->tx_port_valid)
 		return NULL;
@@ -257,7 +257,7 @@ static void mlxsw_sp_psample_md_init(struct mlxsw_sp *mlxsw_sp,
 	md->latency <<= MLXSW_SP_MIRROR_LATENCY_SHIFT;
 }
 
-static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u16 local_port,
 					void *trap_ctx)
 {
 	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
@@ -293,7 +293,7 @@ out:
 	consume_skb(skb);
 }
 
-static void mlxsw_sp_rx_sample_tx_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_sample_tx_listener(struct sk_buff *skb, u16 local_port,
 					   void *trap_ctx)
 {
 	struct mlxsw_rx_md_info *rx_md_info = &mlxsw_skb_cb(skb)->rx_md_info;
@@ -343,7 +343,7 @@ out:
 	consume_skb(skb);
 }
 
-static void mlxsw_sp_rx_sample_acl_listener(struct sk_buff *skb, u8 local_port,
+static void mlxsw_sp_rx_sample_acl_listener(struct sk_buff *skb, u16 local_port,
 					    void *trap_ctx)
 {
 	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);

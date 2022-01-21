@@ -184,9 +184,11 @@ int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u32);
 
-union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
-					 union acpi_object *data,
-					 int data_size, int *tbl_rev)
+union acpi_object *iwl_acpi_get_wifi_pkg_range(struct device *dev,
+					       union acpi_object *data,
+					       int min_data_size,
+					       int max_data_size,
+					       int *tbl_rev)
 {
 	int i;
 	union acpi_object *wifi_pkg;
@@ -196,7 +198,7 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 	 * describes the domain, and one more entry, otherwise there's
 	 * no point in reading it.
 	 */
-	if (WARN_ON_ONCE(data_size < 2))
+	if (WARN_ON_ONCE(min_data_size < 2 || min_data_size > max_data_size))
 		return ERR_PTR(-EINVAL);
 
 	/*
@@ -222,7 +224,8 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 
 		/* skip entries that are not a package with the right size */
 		if (wifi_pkg->type != ACPI_TYPE_PACKAGE ||
-		    wifi_pkg->package.count != data_size)
+		    wifi_pkg->package.count < min_data_size ||
+		    wifi_pkg->package.count > max_data_size)
 			continue;
 
 		domain = &wifi_pkg->package.elements[0];
@@ -236,20 +239,19 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 found:
 	return wifi_pkg;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg);
+IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg_range);
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     __le32 *block_list_array,
-		     int *block_list_size)
+		     struct iwl_tas_config_cmd_v3 *cmd)
 {
 	union acpi_object *wifi_pkg, *data;
-	int ret, tbl_rev, i;
-	bool enabled;
+	int ret, tbl_rev, i, block_list_size, enabled;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WTAS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	/* try to read wtas table revision 1 or revision 0*/
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WTAS_WIFI_DATA_SIZE,
 					 &tbl_rev);
@@ -258,40 +260,54 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 
-	if (wifi_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    tbl_rev != 0) {
+	if (tbl_rev == 1 && wifi_pkg->package.elements[1].type ==
+		ACPI_TYPE_INTEGER) {
+		u32 tas_selection =
+			(u32)wifi_pkg->package.elements[1].integer.value;
+		u16 override_iec =
+			(tas_selection & ACPI_WTAS_OVERRIDE_IEC_MSK) >> ACPI_WTAS_OVERRIDE_IEC_POS;
+		u16 enabled_iec = (tas_selection & ACPI_WTAS_ENABLE_IEC_MSK) >>
+			ACPI_WTAS_ENABLE_IEC_POS;
+
+		enabled = tas_selection & ACPI_WTAS_ENABLED_MSK;
+		cmd->override_tas_iec = cpu_to_le16(override_iec);
+		cmd->enable_tas_iec = cpu_to_le16(enabled_iec);
+
+	} else if (tbl_rev == 0 &&
+		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
+		enabled = !!wifi_pkg->package.elements[1].integer.value;
+	} else {
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	enabled = !!wifi_pkg->package.elements[1].integer.value;
-
 	if (!enabled) {
-		*block_list_size = -1;
 		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
 		ret = 0;
 		goto out_free;
 	}
 
+	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n", tbl_rev);
 	if (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER ||
 	    wifi_pkg->package.elements[2].integer.value >
 	    APCI_WTAS_BLACK_LIST_MAX) {
 		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size %llu\n",
-				wifi_pkg->package.elements[1].integer.value);
+				wifi_pkg->package.elements[2].integer.value);
 		ret = -EINVAL;
 		goto out_free;
 	}
-	*block_list_size = wifi_pkg->package.elements[2].integer.value;
+	block_list_size = wifi_pkg->package.elements[2].integer.value;
+	cmd->block_list_size = cpu_to_le32(block_list_size);
 
-	IWL_DEBUG_RADIO(fwrt, "TAS array size %d\n", *block_list_size);
-	if (*block_list_size > APCI_WTAS_BLACK_LIST_MAX) {
+	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
+	if (block_list_size > APCI_WTAS_BLACK_LIST_MAX) {
 		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size value %u\n",
-				*block_list_size);
+				block_list_size);
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	for (i = 0; i < *block_list_size; i++) {
+	for (i = 0; i < block_list_size; i++) {
 		u32 country;
 
 		if (wifi_pkg->package.elements[3 + i].type !=
@@ -303,11 +319,11 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[3 + i].integer.value;
-		block_list_array[i] = cpu_to_le32(country);
+		cmd->block_list_array[i] = cpu_to_le32(country);
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 
-	ret = 0;
+	ret = 1;
 out_free:
 	kfree(data);
 	return ret;
@@ -707,49 +723,103 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *data;
 	int i, j, k, ret, tbl_rev;
-	int idx = 1; /* start from one to skip the domain */
-	u8 num_bands;
+	u8 num_bands, num_profiles;
+	static const struct {
+		u8 revisions;
+		u8 bands;
+		u8 profiles;
+		u8 min_profiles;
+	} rev_data[] = {
+		{
+			.revisions = BIT(3),
+			.bands = ACPI_GEO_NUM_BANDS_REV2,
+			.profiles = ACPI_NUM_GEO_PROFILES_REV3,
+			.min_profiles = 3,
+		},
+		{
+			.revisions = BIT(2),
+			.bands = ACPI_GEO_NUM_BANDS_REV2,
+			.profiles = ACPI_NUM_GEO_PROFILES,
+		},
+		{
+			.revisions = BIT(0) | BIT(1),
+			.bands = ACPI_GEO_NUM_BANDS_REV0,
+			.profiles = ACPI_NUM_GEO_PROFILES,
+		},
+	};
+	int idx;
+	/* start from one to skip the domain */
+	int entry_idx = 1;
+
+	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES_REV3 != IWL_NUM_GEO_PROFILES_V3);
+	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES != IWL_NUM_GEO_PROFILES);
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WGDS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* start by trying to read revision 2 */
-	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
-					 ACPI_WGDS_WIFI_DATA_SIZE_REV2,
-					 &tbl_rev);
-	if (!IS_ERR(wifi_pkg)) {
-		if (tbl_rev != 2) {
-			ret = PTR_ERR(wifi_pkg);
-			goto out_free;
+	/* read the highest revision we understand first */
+	for (idx = 0; idx < ARRAY_SIZE(rev_data); idx++) {
+		/* min_profiles != 0 requires num_profiles header */
+		u32 hdr_size = 1 + !!rev_data[idx].min_profiles;
+		u32 profile_size = ACPI_GEO_PER_CHAIN_SIZE *
+				   rev_data[idx].bands;
+		u32 max_size = hdr_size + profile_size * rev_data[idx].profiles;
+		u32 min_size;
+
+		if (!rev_data[idx].min_profiles)
+			min_size = max_size;
+		else
+			min_size = hdr_size +
+				   profile_size * rev_data[idx].min_profiles;
+
+		wifi_pkg = iwl_acpi_get_wifi_pkg_range(fwrt->dev, data,
+						       min_size, max_size,
+						       &tbl_rev);
+		if (!IS_ERR(wifi_pkg)) {
+			if (!(BIT(tbl_rev) & rev_data[idx].revisions))
+				continue;
+
+			num_bands = rev_data[idx].bands;
+			num_profiles = rev_data[idx].profiles;
+
+			if (rev_data[idx].min_profiles) {
+				/* read header that says # of profiles */
+				union acpi_object *entry;
+
+				entry = &wifi_pkg->package.elements[entry_idx];
+				entry_idx++;
+				if (entry->type != ACPI_TYPE_INTEGER ||
+				    entry->integer.value > num_profiles) {
+					ret = -EINVAL;
+					goto out_free;
+				}
+				num_profiles = entry->integer.value;
+
+				/*
+				 * this also validates >= min_profiles since we
+				 * otherwise wouldn't have gotten the data when
+				 * looking up in ACPI
+				 */
+				if (wifi_pkg->package.count !=
+				    hdr_size + profile_size * num_profiles) {
+					ret = -EINVAL;
+					goto out_free;
+				}
+			}
+			goto read_table;
 		}
-
-		num_bands = ACPI_GEO_NUM_BANDS_REV2;
-
-		goto read_table;
 	}
 
-	/* then try revision 0 (which is the same as 1) */
-	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
-					 ACPI_WGDS_WIFI_DATA_SIZE_REV0,
-					 &tbl_rev);
-	if (!IS_ERR(wifi_pkg)) {
-		if (tbl_rev != 0 && tbl_rev != 1) {
-			ret = PTR_ERR(wifi_pkg);
-			goto out_free;
-		}
-
-		num_bands = ACPI_GEO_NUM_BANDS_REV0;
-
-		goto read_table;
-	}
-
-	ret = PTR_ERR(wifi_pkg);
+	if (idx < ARRAY_SIZE(rev_data))
+		ret = PTR_ERR(wifi_pkg);
+	else
+		ret = -ENOENT;
 	goto out_free;
 
 read_table:
 	fwrt->geo_rev = tbl_rev;
-	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
+	for (i = 0; i < num_profiles; i++) {
 		for (j = 0; j < ACPI_GEO_NUM_BANDS_REV2; j++) {
 			union acpi_object *entry;
 
@@ -762,7 +832,8 @@ read_table:
 				fwrt->geo_profiles[i].bands[j].max =
 					fwrt->geo_profiles[i].bands[1].max;
 			} else {
-				entry = &wifi_pkg->package.elements[idx++];
+				entry = &wifi_pkg->package.elements[entry_idx];
+				entry_idx++;
 				if (entry->type != ACPI_TYPE_INTEGER ||
 				    entry->integer.value > U8_MAX) {
 					ret = -EINVAL;
@@ -779,7 +850,8 @@ read_table:
 					fwrt->geo_profiles[i].bands[j].chains[k] =
 						fwrt->geo_profiles[i].bands[1].chains[k];
 				} else {
-					entry = &wifi_pkg->package.elements[idx++];
+					entry = &wifi_pkg->package.elements[entry_idx];
+					entry_idx++;
 					if (entry->type != ACPI_TYPE_INTEGER ||
 					    entry->integer.value > U8_MAX) {
 						ret = -EINVAL;
@@ -793,6 +865,8 @@ read_table:
 		}
 	}
 
+	fwrt->geo_num_profiles = num_profiles;
+	fwrt->geo_enabled = true;
 	ret = 0;
 out_free:
 	kfree(data);
@@ -803,10 +877,10 @@ IWL_EXPORT_SYMBOL(iwl_sar_get_wgds_table);
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 {
 	/*
-	 * The GEO_TX_POWER_LIMIT command is not supported on earlier
-	 * firmware versions.  Unfortunately, we don't have a TLV API
-	 * flag to rely on, so rely on the major version which is in
-	 * the first byte of ucode_ver.  This was implemented
+	 * The PER_CHAIN_LIMIT_OFFSET_CMD command is not supported on
+	 * earlier firmware versions.  Unfortunately, we don't have a
+	 * TLV API flag to rely on, so rely on the major version which
+	 * is in the first byte of ucode_ver.  This was implemented
 	 * initially on version 38 and then backported to 17.  It was
 	 * also backported to 29, but only for 7265D devices.  The
 	 * intention was to have it in 36 as well, but not all 8000
@@ -822,14 +896,15 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
 
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
-		     struct iwl_per_chain_offset *table, u32 n_bands)
+		     struct iwl_per_chain_offset *table,
+		     u32 n_bands, u32 n_profiles)
 {
 	int i, j;
 
 	if (!iwl_sar_geo_support(fwrt))
 		return -EOPNOTSUPP;
 
-	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
+	for (i = 0; i < n_profiles; i++) {
 		for (j = 0; j < n_bands; j++) {
 			struct iwl_per_chain_offset *chain =
 				&table[i * n_bands + j];

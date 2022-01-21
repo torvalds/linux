@@ -37,7 +37,9 @@ static int aic3x_spi_probe(struct spi_device *spi)
 
 static int aic3x_spi_remove(struct spi_device *spi)
 {
-	return aic3x_remove(&spi->dev);
+	aic3x_remove(&spi->dev);
+
+	return 0;
 }
 
 static const struct spi_device_id aic3x_spi_id[] = {

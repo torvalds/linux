@@ -10,8 +10,48 @@
 #include "spectrum.h"
 #include "spectrum_nve.h"
 
-#define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	(VXLAN_F_UDP_ZERO_CSUM_TX | \
+#define MLXSW_SP_NVE_VXLAN_IPV4_SUPPORTED_FLAGS (VXLAN_F_UDP_ZERO_CSUM_TX | \
 						 VXLAN_F_LEARN)
+#define MLXSW_SP_NVE_VXLAN_IPV6_SUPPORTED_FLAGS (VXLAN_F_IPV6 | \
+						 VXLAN_F_UDP_ZERO_CSUM6_TX | \
+						 VXLAN_F_UDP_ZERO_CSUM6_RX)
+
+static bool mlxsw_sp_nve_vxlan_ipv4_flags_check(const struct vxlan_config *cfg,
+						struct netlink_ext_ack *extack)
+{
+	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM_TX)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Zero UDP checksum must be allowed for TX");
+		return false;
+	}
+
+	if (cfg->flags & ~MLXSW_SP_NVE_VXLAN_IPV4_SUPPORTED_FLAGS) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Unsupported flag");
+		return false;
+	}
+
+	return true;
+}
+
+static bool mlxsw_sp_nve_vxlan_ipv6_flags_check(const struct vxlan_config *cfg,
+						struct netlink_ext_ack *extack)
+{
+	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM6_TX)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Zero UDP checksum must be allowed for TX");
+		return false;
+	}
+
+	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM6_RX)) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Zero UDP checksum must be allowed for RX");
+		return false;
+	}
+
+	if (cfg->flags & ~MLXSW_SP_NVE_VXLAN_IPV6_SUPPORTED_FLAGS) {
+		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Unsupported flag");
+		return false;
+	}
+
+	return true;
+}
 
 static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 					   const struct mlxsw_sp_nve_params *params,
@@ -19,11 +59,6 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 {
 	struct vxlan_dev *vxlan = netdev_priv(params->dev);
 	struct vxlan_config *cfg = &vxlan->cfg;
-
-	if (cfg->saddr.sa.sa_family != AF_INET) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Only IPv4 underlay is supported");
-		return false;
-	}
 
 	if (vxlan_addr_multicast(&cfg->remote_ip)) {
 		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Multicast destination IP is not supported");
@@ -55,14 +90,15 @@ static bool mlxsw_sp_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 		return false;
 	}
 
-	if (!(cfg->flags & VXLAN_F_UDP_ZERO_CSUM_TX)) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: UDP checksum is not supported");
-		return false;
-	}
-
-	if (cfg->flags & ~MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Unsupported flag");
-		return false;
+	switch (cfg->saddr.sa.sa_family) {
+	case AF_INET:
+		if (!mlxsw_sp_nve_vxlan_ipv4_flags_check(cfg, extack))
+			return false;
+		break;
+	case AF_INET6:
+		if (!mlxsw_sp_nve_vxlan_ipv6_flags_check(cfg, extack))
+			return false;
+		break;
 	}
 
 	if (cfg->ttl == 0) {
@@ -90,6 +126,22 @@ static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 	return mlxsw_sp_nve_vxlan_can_offload(nve, params, extack);
 }
 
+static void
+mlxsw_sp_nve_vxlan_ul_proto_sip_config(const struct vxlan_config *cfg,
+				       struct mlxsw_sp_nve_config *config)
+{
+	switch (cfg->saddr.sa.sa_family) {
+	case AF_INET:
+		config->ul_proto = MLXSW_SP_L3_PROTO_IPV4;
+		config->ul_sip.addr4 = cfg->saddr.sin.sin_addr.s_addr;
+		break;
+	case AF_INET6:
+		config->ul_proto = MLXSW_SP_L3_PROTO_IPV6;
+		config->ul_sip.addr6 = cfg->saddr.sin6.sin6_addr;
+		break;
+	}
+}
+
 static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
 				      const struct mlxsw_sp_nve_params *params,
 				      struct mlxsw_sp_nve_config *config)
@@ -102,8 +154,7 @@ static void mlxsw_sp_nve_vxlan_config(const struct mlxsw_sp_nve *nve,
 	config->flowlabel = cfg->label;
 	config->learning_en = cfg->flags & VXLAN_F_LEARN ? 1 : 0;
 	config->ul_tb_id = RT_TABLE_MAIN;
-	config->ul_proto = MLXSW_SP_L3_PROTO_IPV4;
-	config->ul_sip.addr4 = cfg->saddr.sin.sin_addr.s_addr;
+	mlxsw_sp_nve_vxlan_ul_proto_sip_config(cfg, config);
 	config->udp_dport = cfg->dst_port;
 }
 
@@ -111,6 +162,7 @@ static void
 mlxsw_sp_nve_vxlan_config_prepare(char *tngcr_pl,
 				  const struct mlxsw_sp_nve_config *config)
 {
+	struct in6_addr addr6;
 	u8 udp_sport;
 
 	mlxsw_reg_tngcr_pack(tngcr_pl, MLXSW_REG_TNGCR_TYPE_VXLAN, true,
@@ -122,7 +174,18 @@ mlxsw_sp_nve_vxlan_config_prepare(char *tngcr_pl,
 	get_random_bytes(&udp_sport, sizeof(udp_sport));
 	udp_sport = (udp_sport % (0xee - 0x80 + 1)) + 0x80;
 	mlxsw_reg_tngcr_nve_udp_sport_prefix_set(tngcr_pl, udp_sport);
-	mlxsw_reg_tngcr_usipv4_set(tngcr_pl, be32_to_cpu(config->ul_sip.addr4));
+
+	switch (config->ul_proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		mlxsw_reg_tngcr_usipv4_set(tngcr_pl,
+					   be32_to_cpu(config->ul_sip.addr4));
+		break;
+	case MLXSW_SP_L3_PROTO_IPV6:
+		addr6 = config->ul_sip.addr6;
+		mlxsw_reg_tngcr_usipv6_memcpy_to(tngcr_pl,
+						 (const char *)&addr6);
+		break;
+	}
 }
 
 static int

@@ -224,6 +224,11 @@ acpi_ev_pci_bar_region_setup(acpi_handle handle,
 			     void *handler_context, void **region_context);
 
 acpi_status
+acpi_ev_data_table_region_setup(acpi_handle handle,
+				u32 function,
+				void *handler_context, void **region_context);
+
+acpi_status
 acpi_ev_default_region_setup(acpi_handle handle,
 			     u32 function,
 			     void *handler_context, void **region_context);

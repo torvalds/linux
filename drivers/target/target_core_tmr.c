@@ -50,15 +50,6 @@ EXPORT_SYMBOL(core_tmr_alloc_req);
 
 void core_tmr_release_req(struct se_tmr_req *tmr)
 {
-	struct se_device *dev = tmr->tmr_dev;
-	unsigned long flags;
-
-	if (dev) {
-		spin_lock_irqsave(&dev->se_tmr_lock, flags);
-		list_del_init(&tmr->tmr_list);
-		spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
-	}
-
 	kfree(tmr);
 }
 
@@ -156,13 +147,6 @@ void core_tmr_abort_task(
 			se_cmd->state_active = false;
 			spin_unlock_irqrestore(&dev->queues[i].lock, flags);
 
-			/*
-			 * Ensure that this ABORT request is visible to the LU
-			 * RESET code.
-			 */
-			if (!tmr->tmr_dev)
-				WARN_ON_ONCE(transport_lookup_tmr_lun(tmr->task_cmd) < 0);
-
 			if (dev->transport->tmr_notify)
 				dev->transport->tmr_notify(dev, TMR_ABORT_TASK,
 							   &aborted_list);
@@ -234,6 +218,7 @@ static void core_tmr_drain_tmr_list(
 		}
 
 		list_move_tail(&tmr_p->tmr_list, &drain_tmr_list);
+		tmr_p->tmr_dev = NULL;
 	}
 	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 

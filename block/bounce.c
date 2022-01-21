@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/mempool.h>
 #include <linux/blkdev.h>
+#include <linux/blk-cgroup.h>
 #include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/hash.h>

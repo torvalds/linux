@@ -166,10 +166,11 @@ Description:    read only
                 Decimal value of the Per Process MMIO space length.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<afu>m/pp_mmio_off (not in a guest)
+What:           /sys/class/cxl/<afu>m/pp_mmio_off
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
+                (not in a guest)
                 Decimal value of the Per Process MMIO space offset.
 Users:		https://github.com/ibm-capi/libcxl
 
@@ -190,28 +191,31 @@ Description:    read only
                 Identifies the revision level of the PSL.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/base_image (not in a guest)
+What:           /sys/class/cxl/<card>/base_image
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
+                (not in a guest)
                 Identifies the revision level of the base image for devices
                 that support loadable PSLs. For FPGAs this field identifies
                 the image contained in the on-adapter flash which is loaded
                 during the initial program load.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/image_loaded (not in a guest)
+What:           /sys/class/cxl/<card>/image_loaded
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
+                (not in a guest)
                 Will return "user" or "factory" depending on the image loaded
                 onto the card.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<card>/load_image_on_perst (not in a guest)
+What:           /sys/class/cxl/<card>/load_image_on_perst
 Date:           December 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
+                (not in a guest)
                 Valid entries are "none", "user", and "factory".
                 "none" means PERST will not cause image to be loaded to the
                 card.  A power cycle is required to load the image.
@@ -235,10 +239,11 @@ Description:    write only
                 contexts on the card AFUs.
 Users:		https://github.com/ibm-capi/libcxl
 
-What:		/sys/class/cxl/<card>/perst_reloads_same_image (not in a guest)
+What:		/sys/class/cxl/<card>/perst_reloads_same_image
 Date:		July 2015
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read/write
+                (not in a guest)
 		Trust that when an image is reloaded via PERST, it will not
 		have changed.
 

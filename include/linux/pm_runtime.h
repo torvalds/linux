@@ -58,6 +58,7 @@ extern void pm_runtime_get_suppliers(struct device *dev);
 extern void pm_runtime_put_suppliers(struct device *dev);
 extern void pm_runtime_new_link(struct device *dev);
 extern void pm_runtime_drop_link(struct device_link *link);
+extern void pm_runtime_release_supplier(struct device_link *link, bool check_idle);
 
 extern int devm_pm_runtime_enable(struct device *dev);
 
@@ -129,7 +130,7 @@ static inline bool pm_runtime_suspended(struct device *dev)
  * pm_runtime_active - Check whether or not a device is runtime-active.
  * @dev: Target device.
  *
- * Return %true if runtime PM is enabled for @dev and its runtime PM status is
+ * Return %true if runtime PM is disabled for @dev or its runtime PM status is
  * %RPM_ACTIVE, or %false otherwise.
  *
  * Note that the return value of this function can only be trusted if it is
@@ -283,6 +284,8 @@ static inline void pm_runtime_get_suppliers(struct device *dev) {}
 static inline void pm_runtime_put_suppliers(struct device *dev) {}
 static inline void pm_runtime_new_link(struct device *dev) {}
 static inline void pm_runtime_drop_link(struct device_link *link) {}
+static inline void pm_runtime_release_supplier(struct device_link *link,
+					       bool check_idle) {}
 
 #endif /* !CONFIG_PM */
 

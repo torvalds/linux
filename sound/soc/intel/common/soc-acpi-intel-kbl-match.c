@@ -12,32 +12,32 @@
 
 static struct skl_machine_pdata skl_dmic_data;
 
-static struct snd_soc_acpi_codecs kbl_codecs = {
+static const struct snd_soc_acpi_codecs kbl_codecs = {
 	.num_codecs = 1,
 	.codecs = {"10508825"}
 };
 
-static struct snd_soc_acpi_codecs kbl_poppy_codecs = {
+static const struct snd_soc_acpi_codecs kbl_poppy_codecs = {
 	.num_codecs = 1,
 	.codecs = {"10EC5663"}
 };
 
-static struct snd_soc_acpi_codecs kbl_5663_5514_codecs = {
+static const struct snd_soc_acpi_codecs kbl_5663_5514_codecs = {
 	.num_codecs = 2,
 	.codecs = {"10EC5663", "10EC5514"}
 };
 
-static struct snd_soc_acpi_codecs kbl_7219_98357_codecs = {
+static const struct snd_soc_acpi_codecs kbl_7219_98357_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98357A"}
 };
 
-static struct snd_soc_acpi_codecs kbl_7219_98927_codecs = {
+static const struct snd_soc_acpi_codecs kbl_7219_98927_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98927"}
 };
 
-static struct snd_soc_acpi_codecs kbl_7219_98373_codecs = {
+static const struct snd_soc_acpi_codecs kbl_7219_98373_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98373"}
 };

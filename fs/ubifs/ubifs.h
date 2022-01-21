@@ -27,6 +27,8 @@
 #include <linux/security.h>
 #include <linux/xattr.h>
 #include <linux/random.h>
+#include <linux/sysfs.h>
+#include <linux/completion.h>
 #include <crypto/hash_info.h>
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
@@ -154,6 +156,13 @@
 #define UBIFS_HASH_ARR_SZ 0
 #define UBIFS_HMAC_ARR_SZ 0
 #endif
+
+/*
+ * The UBIFS sysfs directory name pattern and maximum name length (3 for "ubi"
+ * + 1 for "_" and plus 2x2 for 2 UBI numbers and 1 for the trailing zero byte.
+ */
+#define UBIFS_DFS_DIR_NAME "ubi%d_%d"
+#define UBIFS_DFS_DIR_LEN  (3 + 1 + 2*2 + 1)
 
 /*
  * Lockdep classes for UBIFS inode @ui_mutex.
@@ -990,6 +999,18 @@ struct ubifs_budg_info {
 	int dent_budget;
 };
 
+/**
+ * ubifs_stats_info - per-FS statistics information.
+ * @magic_errors: number of bad magic numbers (will be reset with a new mount).
+ * @node_errors: number of bad nodes (will be reset with a new mount).
+ * @crc_errors: number of bad crcs (will be reset with a new mount).
+ */
+struct ubifs_stats_info {
+	unsigned int magic_errors;
+	unsigned int node_errors;
+	unsigned int crc_errors;
+};
+
 struct ubifs_debug_info;
 
 /**
@@ -1251,6 +1272,10 @@ struct ubifs_debug_info;
  * @mount_opts: UBIFS-specific mount options
  *
  * @dbg: debugging-related information
+ * @stats: statistics exported over sysfs
+ *
+ * @kobj: kobject for /sys/fs/ubifs/
+ * @kobj_unregister: completion to unregister sysfs kobject
  */
 struct ubifs_info {
 	struct super_block *vfs_sb;
@@ -1285,6 +1310,9 @@ struct ubifs_info {
 	int cmt_state;
 	spinlock_t cs_lock;
 	wait_queue_head_t cmt_wq;
+
+	struct kobject kobj;
+	struct completion kobj_unregister;
 
 	unsigned int big_lpt:1;
 	unsigned int space_fixup:1;
@@ -1493,6 +1521,7 @@ struct ubifs_info {
 	struct ubifs_mount_opts mount_opts;
 
 	struct ubifs_debug_info *dbg;
+	struct ubifs_stats_info *stats;
 };
 
 extern struct list_head ubifs_infos;
@@ -2071,6 +2100,12 @@ void ubifs_compress(const struct ubifs_info *c, const void *in_buf, int in_len,
 		    void *out_buf, int *out_len, int *compr_type);
 int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
 		     void *out, int *out_len, int compr_type);
+
+/* sysfs.c */
+int ubifs_sysfs_init(void);
+void ubifs_sysfs_exit(void);
+int ubifs_sysfs_register(struct ubifs_info *c);
+void ubifs_sysfs_unregister(struct ubifs_info *c);
 
 #include "debug.h"
 #include "misc.h"

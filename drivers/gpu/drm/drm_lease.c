@@ -489,12 +489,6 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
 
-	/* need some objects */
-	if (cl->object_count == 0) {
-		DRM_DEBUG_LEASE("no objects in lease\n");
-		return -EINVAL;
-	}
-
 	if (cl->flags && (cl->flags & ~(O_CLOEXEC | O_NONBLOCK))) {
 		DRM_DEBUG_LEASE("invalid flags\n");
 		return -EINVAL;
@@ -510,23 +504,26 @@ int drm_mode_create_lease_ioctl(struct drm_device *dev,
 
 	object_count = cl->object_count;
 
-	object_ids = memdup_user(u64_to_user_ptr(cl->object_ids),
-			array_size(object_count, sizeof(__u32)));
-	if (IS_ERR(object_ids)) {
-		ret = PTR_ERR(object_ids);
-		goto out_lessor;
-	}
-
+	/* Handle leased objects, if any */
 	idr_init(&leases);
+	if (object_count != 0) {
+		object_ids = memdup_user(u64_to_user_ptr(cl->object_ids),
+					 array_size(object_count, sizeof(__u32)));
+		if (IS_ERR(object_ids)) {
+			ret = PTR_ERR(object_ids);
+			idr_destroy(&leases);
+			goto out_lessor;
+		}
 
-	/* fill and validate the object idr */
-	ret = fill_object_idr(dev, lessor_priv, &leases,
-			      object_count, object_ids);
-	kfree(object_ids);
-	if (ret) {
-		DRM_DEBUG_LEASE("lease object lookup failed: %i\n", ret);
-		idr_destroy(&leases);
-		goto out_lessor;
+		/* fill and validate the object idr */
+		ret = fill_object_idr(dev, lessor_priv, &leases,
+				      object_count, object_ids);
+		kfree(object_ids);
+		if (ret) {
+			DRM_DEBUG_LEASE("lease object lookup failed: %i\n", ret);
+			idr_destroy(&leases);
+			goto out_lessor;
+		}
 	}
 
 	/* Allocate a file descriptor for the lease */

@@ -6,31 +6,32 @@
 #ifndef ATH11K_HW_H
 #define ATH11K_HW_H
 
+#include "hal.h"
 #include "wmi.h"
 
 /* Target configuration defines */
 
 /* Num VDEVS per radio */
-#define TARGET_NUM_VDEVS	(16 + 1)
+#define TARGET_NUM_VDEVS(ab)	(ab->hw_params.num_vdevs)
 
-#define TARGET_NUM_PEERS_PDEV	(512 + TARGET_NUM_VDEVS)
+#define TARGET_NUM_PEERS_PDEV(ab) (ab->hw_params.num_peers + TARGET_NUM_VDEVS(ab))
 
 /* Num of peers for Single Radio mode */
-#define TARGET_NUM_PEERS_SINGLE		(TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_SINGLE(ab) (TARGET_NUM_PEERS_PDEV(ab))
 
 /* Num of peers for DBS */
-#define TARGET_NUM_PEERS_DBS		(2 * TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_DBS(ab) (2 * TARGET_NUM_PEERS_PDEV(ab))
 
 /* Num of peers for DBS_SBS */
-#define TARGET_NUM_PEERS_DBS_SBS	(3 * TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_DBS_SBS(ab)	(3 * TARGET_NUM_PEERS_PDEV(ab))
 
 /* Max num of stations (per radio) */
-#define TARGET_NUM_STATIONS	512
+#define TARGET_NUM_STATIONS(ab)	(ab->hw_params.num_peers)
 
-#define TARGET_NUM_PEERS(x)	TARGET_NUM_PEERS_##x
+#define TARGET_NUM_PEERS(ab, x)	TARGET_NUM_PEERS_##x(ab)
 #define TARGET_NUM_PEER_KEYS	2
-#define TARGET_NUM_TIDS(x)	(2 * TARGET_NUM_PEERS(x) + \
-				 4 * TARGET_NUM_VDEVS + 8)
+#define TARGET_NUM_TIDS(ab, x)	(2 * TARGET_NUM_PEERS(ab, x) +	\
+				 4 * TARGET_NUM_VDEVS(ab) + 8)
 
 #define TARGET_AST_SKID_LIMIT	16
 #define TARGET_NUM_OFFLD_PEERS	4
@@ -76,6 +77,7 @@
 #define ATH11K_DEFAULT_CAL_FILE		"caldata.bin"
 #define ATH11K_AMSS_FILE		"amss.bin"
 #define ATH11K_M3_FILE			"m3.bin"
+#define ATH11K_REGDB_FILE_NAME		"regdb.bin"
 
 enum ath11k_hw_rate_cck {
 	ATH11K_HW_RATE_CCK_LP_11M = 0,
@@ -119,6 +121,10 @@ struct ath11k_hw_ring_mask {
 	u8 host2rxdma[ATH11K_EXT_IRQ_GRP_NUM_MAX];
 };
 
+struct ath11k_hw_hal_params {
+	enum hal_rx_buf_return_buf_manager rx_buf_rbm;
+};
+
 struct ath11k_hw_params {
 	const char *name;
 	u16 hw_rev;
@@ -128,7 +134,7 @@ struct ath11k_hw_params {
 	struct {
 		const char *dir;
 		size_t board_size;
-		size_t cal_size;
+		size_t cal_offset;
 	} fw;
 
 	const struct ath11k_hw_ops *hw_ops;
@@ -146,23 +152,46 @@ struct ath11k_hw_params {
 	u32 svc_to_ce_map_len;
 
 	bool single_pdev_only;
+	u32 rfkill_pin;
+	u32 rfkill_cfg;
+	u32 rfkill_on_level;
 
 	bool rxdma1_enable;
 	int num_rxmda_per_pdev;
 	bool rx_mac_buf_ring;
 	bool vdev_start_delay;
 	bool htt_peer_map_v2;
-	bool tcl_0_only;
-	u8 spectral_fft_sz;
+
+	struct {
+		u8 fft_sz;
+		u8 fft_pad_sz;
+		u8 summary_pad_sz;
+		u8 fft_hdr_len;
+		u16 max_fft_bins;
+	} spectral;
 
 	u16 interface_modes;
 	bool supports_monitor;
+	bool full_monitor_mode;
 	bool supports_shadow_regs;
 	bool idle_ps;
+	bool supports_sta_ps;
 	bool cold_boot_calib;
+	int fw_mem_mode;
+	u32 num_vdevs;
+	u32 num_peers;
 	bool supports_suspend;
 	u32 hal_desc_sz;
+	bool supports_regdb;
 	bool fix_l1ss;
+	bool credit_flow;
+	u8 max_tx_ring;
+	const struct ath11k_hw_hal_params *hal_params;
+	bool supports_dynamic_smps_6ghz;
+	bool alloc_cacheable_memory;
+	bool wakeup_mhi;
+	bool supports_rssi_stats;
+	bool fw_wmi_diag_event;
 };
 
 struct ath11k_hw_ops {
@@ -202,6 +231,8 @@ struct ath11k_hw_ops {
 	u8 *(*rx_desc_get_msdu_payload)(struct hal_rx_desc *desc);
 	void (*reo_setup)(struct ath11k_base *ab);
 	u16 (*mpdu_info_get_peerid)(u8 *tlv_data);
+	bool (*rx_desc_mac_addr2_valid)(struct hal_rx_desc *desc);
+	u8* (*rx_desc_mpdu_start_addr2)(struct hal_rx_desc *desc);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
@@ -213,6 +244,9 @@ extern const struct ath11k_hw_ops wcn6855_ops;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qcn9074;
+
+extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_ipq8074;
+extern const struct ath11k_hw_hal_params ath11k_hw_hal_params_qca6390;
 
 static inline
 int ath11k_hw_get_mac_from_pdev_id(struct ath11k_hw_params *hw,

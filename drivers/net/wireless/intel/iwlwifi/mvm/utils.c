@@ -135,31 +135,25 @@ int iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u32 id, u16 len,
 	return iwl_mvm_send_cmd_status(mvm, &cmd, status);
 }
 
-#define IWL_DECLARE_RATE_INFO(r) \
-	[IWL_RATE_##r##M_INDEX] = IWL_RATE_##r##M_PLCP
+int iwl_mvm_legacy_hw_idx_to_mac80211_idx(u32 rate_n_flags,
+					  enum nl80211_band band)
+{
+	int format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
+	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK;
+	bool is_LB = band == NL80211_BAND_2GHZ;
 
-/*
- * Translate from fw_rate_index (IWL_RATE_XXM_INDEX) to PLCP
- */
-static const u8 fw_rate_idx_to_plcp[IWL_RATE_COUNT] = {
-	IWL_DECLARE_RATE_INFO(1),
-	IWL_DECLARE_RATE_INFO(2),
-	IWL_DECLARE_RATE_INFO(5),
-	IWL_DECLARE_RATE_INFO(11),
-	IWL_DECLARE_RATE_INFO(6),
-	IWL_DECLARE_RATE_INFO(9),
-	IWL_DECLARE_RATE_INFO(12),
-	IWL_DECLARE_RATE_INFO(18),
-	IWL_DECLARE_RATE_INFO(24),
-	IWL_DECLARE_RATE_INFO(36),
-	IWL_DECLARE_RATE_INFO(48),
-	IWL_DECLARE_RATE_INFO(54),
-};
+	if (format == RATE_MCS_LEGACY_OFDM_MSK)
+		return is_LB ? rate + IWL_FIRST_OFDM_RATE :
+			rate;
+
+	/* CCK is not allowed in HB */
+	return is_LB ? rate : -1;
+}
 
 int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 					enum nl80211_band band)
 {
-	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK;
+	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK_V1;
 	int idx;
 	int band_offset = 0;
 
@@ -167,16 +161,24 @@ int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 	if (band != NL80211_BAND_2GHZ)
 		band_offset = IWL_FIRST_OFDM_RATE;
 	for (idx = band_offset; idx < IWL_RATE_COUNT_LEGACY; idx++)
-		if (fw_rate_idx_to_plcp[idx] == rate)
+		if (iwl_fw_rate_idx_to_plcp(idx) == rate)
 			return idx - band_offset;
 
 	return -1;
 }
 
-u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx)
+u8 iwl_mvm_mac80211_idx_to_hwrate(const struct iwl_fw *fw, int rate_idx)
 {
-	/* Get PLCP rate for tx_cmd->rate_n_flags */
-	return fw_rate_idx_to_plcp[rate_idx];
+	if (iwl_fw_lookup_cmd_ver(fw, LONG_GROUP,
+				  TX_CMD, 0) > 8)
+		/* In the new rate legacy rates are indexed:
+		 * 0 - 3 for CCK and 0 - 7 for OFDM.
+		 */
+		return (rate_idx >= IWL_FIRST_OFDM_RATE ?
+			rate_idx - IWL_FIRST_OFDM_RATE :
+			rate_idx);
+
+	return iwl_fw_rate_idx_to_plcp(rate_idx);
 }
 
 u8 iwl_mvm_mac80211_ac_to_ucode_ac(enum ieee80211_ac_numbers ac)
@@ -217,6 +219,7 @@ u8 first_antenna(u8 mask)
 	return BIT(ffs(mask) - 1);
 }
 
+#define MAX_ANT_NUM 2
 /*
  * Toggles between TX antennas to send the probe request on.
  * Receives the bitmask of valid TX antennas and the *index* used
@@ -337,25 +340,64 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ieee80211_request_smps(vif, smps_mode);
 }
 
+static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,
+				    struct iwl_rx_packet *pkt, void *data)
+{
+	WARN_ON(pkt->hdr.cmd != STATISTICS_NOTIFICATION);
+
+	return true;
+}
+
 int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 {
 	struct iwl_statistics_cmd scmd = {
 		.flags = clear ? cpu_to_le32(IWL_STATISTICS_FLG_CLEAR) : 0,
 	};
+
 	struct iwl_host_cmd cmd = {
 		.id = STATISTICS_CMD,
 		.len[0] = sizeof(scmd),
 		.data[0] = &scmd,
-		.flags = CMD_WANT_SKB,
 	};
 	int ret;
 
-	ret = iwl_mvm_send_cmd(mvm, &cmd);
-	if (ret)
-		return ret;
+	/* From version 15 - STATISTICS_NOTIFICATION, the reply for
+	 * STATISTICS_CMD is empty, and the response is with
+	 * STATISTICS_NOTIFICATION notification
+	 */
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
+				    STATISTICS_NOTIFICATION, 0) < 15) {
+		cmd.flags = CMD_WANT_SKB;
 
-	iwl_mvm_handle_rx_statistics(mvm, cmd.resp_pkt);
-	iwl_free_resp(&cmd);
+		ret = iwl_mvm_send_cmd(mvm, &cmd);
+		if (ret)
+			return ret;
+
+		iwl_mvm_handle_rx_statistics(mvm, cmd.resp_pkt);
+		iwl_free_resp(&cmd);
+	} else {
+		struct iwl_notification_wait stats_wait;
+		static const u16 stats_complete[] = {
+			STATISTICS_NOTIFICATION,
+		};
+
+		iwl_init_notification_wait(&mvm->notif_wait, &stats_wait,
+					   stats_complete, ARRAY_SIZE(stats_complete),
+					   iwl_wait_stats_complete, NULL);
+
+		ret = iwl_mvm_send_cmd(mvm, &cmd);
+		if (ret) {
+			iwl_remove_notification(&mvm->notif_wait, &stats_wait);
+			return ret;
+		}
+
+		/* 200ms should be enough for FW to collect data from all
+		 * LMACs and send STATISTICS_NOTIFICATION to host
+		 */
+		ret = iwl_wait_notification(&mvm->notif_wait, &stats_wait, HZ / 5);
+		if (ret)
+			return ret;
+	}
 
 	if (clear)
 		iwl_mvm_accu_radio_stats(mvm);
@@ -404,6 +446,9 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm,
 	};
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
+		return false;
 
 	if (num_of_ant(iwl_mvm_get_valid_rx_ant(mvm)) == 1)
 		return false;

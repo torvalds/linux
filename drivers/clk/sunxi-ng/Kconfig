@@ -71,6 +71,7 @@ config SUN8I_A33_CCU
 config SUN8I_A83T_CCU
 	bool "Support for the Allwinner A83T CCU"
 	default MACH_SUN8I
+	depends on MACH_SUN8I || COMPILE_TEST
 
 config SUN8I_H3_CCU
 	bool "Support for the Allwinner H3 CCU"

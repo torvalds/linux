@@ -10,10 +10,12 @@ FRAGMENT_CONFIG=${KERNEL_DIR}/arch/arm64/configs/rockpi4_gki.fragment
 PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${FRAGMENT_CONFIG}"
 POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
 
+DTS_EXT_DIR=common-modules/virtual-device
+DTC_INCLUDE=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/boot/dts/rockchip
 MAKE_GOALS="${MAKE_GOALS}
-rockchip/rk3399-rock-pi-4b.dtb
+rk3399-rock-pi-4b.dtb
 "
 
 FILES="${FILES}
-arch/arm64/boot/dts/rockchip/rk3399-rock-pi-4b.dtb
+../common-modules/virtual-device/rk3399-rock-pi-4b.dtb
 "

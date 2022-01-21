@@ -11,9 +11,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
-#include <linux/timecounter.h>
 #include <linux/timekeeping.h>
 #include <linux/ptp_classify.h>
 #include "bnxt_hsi.h"
@@ -418,9 +416,6 @@ int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 
 	if (copy_from_user(&stmpconf, ifr->ifr_data, sizeof(stmpconf)))
 		return -EFAULT;
-
-	if (stmpconf.flags)
-		return -EINVAL;
 
 	if (stmpconf.tx_type != HWTSTAMP_TX_ON &&
 	    stmpconf.tx_type != HWTSTAMP_TX_OFF)

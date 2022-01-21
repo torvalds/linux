@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
-/* src/prism2/driver/prism2mib.c
+/*
  *
  * Management request for mibset/mibget
  *
@@ -679,16 +679,8 @@ static int prism2mib_priv(struct mibrec *mib,
 					       HFA384x_RID_CNFWPADATA,
 					       (u8 *)&wpa,
 					       sizeof(wpa));
-			/*
-			pstr->len = le16_to_cpu(wpa.datalen);
-			memcpy(pstr->data, wpa.data, pstr->len);
-			*/
 			pstr->len = 0;
 		} else {
-			/*
-			wpa.datalen = cpu_to_le16(pstr->len);
-			memcpy(wpa.data, pstr->data, pstr->len);
-			*/
 			wpa.datalen = 0;
 
 			hfa384x_drvr_setconfig(hw,

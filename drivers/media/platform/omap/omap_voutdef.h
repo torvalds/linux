@@ -170,7 +170,7 @@ struct omap_vout_device {
 	struct omap_vout_buffer *cur_frm, *next_frm;
 	spinlock_t vbq_lock;            /* spinlock for dma_queue */
 	struct list_head dma_queue;
-	u8 *queued_buf_addr[VIDEO_MAX_FRAME];
+	dma_addr_t queued_buf_addr[VIDEO_MAX_FRAME];
 	u32 cropped_offset;
 	s32 tv_field1_offset;
 	void *isr_handle;

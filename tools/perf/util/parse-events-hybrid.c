@@ -38,7 +38,8 @@ static void config_hybrid_attr(struct perf_event_attr *attr,
 
 static int create_event_hybrid(__u32 config_type, int *idx,
 			       struct list_head *list,
-			       struct perf_event_attr *attr, char *name,
+			       struct perf_event_attr *attr, const char *name,
+			       const char *metric_id,
 			       struct list_head *config_terms,
 			       struct perf_pmu *pmu)
 {
@@ -47,7 +48,7 @@ static int create_event_hybrid(__u32 config_type, int *idx,
 	__u64 config = attr->config;
 
 	config_hybrid_attr(attr, config_type, pmu->type);
-	evsel = parse_events__add_event_hybrid(list, idx, attr, name,
+	evsel = parse_events__add_event_hybrid(list, idx, attr, name, metric_id,
 					       pmu, config_terms);
 	if (evsel)
 		evsel->pmu_name = strdup(pmu->name);
@@ -70,7 +71,8 @@ static int pmu_cmp(struct parse_events_state *parse_state,
 
 static int add_hw_hybrid(struct parse_events_state *parse_state,
 			 struct list_head *list, struct perf_event_attr *attr,
-			 char *name, struct list_head *config_terms)
+			 const char *name, const char *metric_id,
+			 struct list_head *config_terms)
 {
 	struct perf_pmu *pmu;
 	int ret;
@@ -84,7 +86,7 @@ static int add_hw_hybrid(struct parse_events_state *parse_state,
 		copy_config_terms(&terms, config_terms);
 		ret = create_event_hybrid(PERF_TYPE_HARDWARE,
 					  &parse_state->idx, list, attr, name,
-					  &terms, pmu);
+					  metric_id, &terms, pmu);
 		free_config_terms(&terms);
 		if (ret)
 			return ret;
@@ -94,14 +96,16 @@ static int add_hw_hybrid(struct parse_events_state *parse_state,
 }
 
 static int create_raw_event_hybrid(int *idx, struct list_head *list,
-				   struct perf_event_attr *attr, char *name,
+				   struct perf_event_attr *attr,
+				   const char *name,
+				   const char *metric_id,
 				   struct list_head *config_terms,
 				   struct perf_pmu *pmu)
 {
 	struct evsel *evsel;
 
 	attr->type = pmu->type;
-	evsel = parse_events__add_event_hybrid(list, idx, attr, name,
+	evsel = parse_events__add_event_hybrid(list, idx, attr, name, metric_id,
 					       pmu, config_terms);
 	if (evsel)
 		evsel->pmu_name = strdup(pmu->name);
@@ -113,7 +117,8 @@ static int create_raw_event_hybrid(int *idx, struct list_head *list,
 
 static int add_raw_hybrid(struct parse_events_state *parse_state,
 			  struct list_head *list, struct perf_event_attr *attr,
-			  char *name, struct list_head *config_terms)
+			  const char *name, const char *metric_id,
+			  struct list_head *config_terms)
 {
 	struct perf_pmu *pmu;
 	int ret;
@@ -126,7 +131,7 @@ static int add_raw_hybrid(struct parse_events_state *parse_state,
 
 		copy_config_terms(&terms, config_terms);
 		ret = create_raw_event_hybrid(&parse_state->idx, list, attr,
-					      name, &terms, pmu);
+					      name, metric_id, &terms, pmu);
 		free_config_terms(&terms);
 		if (ret)
 			return ret;
@@ -138,7 +143,8 @@ static int add_raw_hybrid(struct parse_events_state *parse_state,
 int parse_events__add_numeric_hybrid(struct parse_events_state *parse_state,
 				     struct list_head *list,
 				     struct perf_event_attr *attr,
-				     char *name, struct list_head *config_terms,
+				     const char *name, const char *metric_id,
+				     struct list_head *config_terms,
 				     bool *hybrid)
 {
 	*hybrid = false;
@@ -150,16 +156,18 @@ int parse_events__add_numeric_hybrid(struct parse_events_state *parse_state,
 
 	*hybrid = true;
 	if (attr->type != PERF_TYPE_RAW) {
-		return add_hw_hybrid(parse_state, list, attr, name,
+		return add_hw_hybrid(parse_state, list, attr, name, metric_id,
 				     config_terms);
 	}
 
-	return add_raw_hybrid(parse_state, list, attr, name,
+	return add_raw_hybrid(parse_state, list, attr, name, metric_id,
 			      config_terms);
 }
 
 int parse_events__add_cache_hybrid(struct list_head *list, int *idx,
-				   struct perf_event_attr *attr, char *name,
+				   struct perf_event_attr *attr,
+				   const char *name,
+				   const char *metric_id,
 				   struct list_head *config_terms,
 				   bool *hybrid,
 				   struct parse_events_state *parse_state)
@@ -180,7 +188,7 @@ int parse_events__add_cache_hybrid(struct list_head *list, int *idx,
 
 		copy_config_terms(&terms, config_terms);
 		ret = create_event_hybrid(PERF_TYPE_HW_CACHE, idx, list,
-					  attr, name, &terms, pmu);
+					  attr, name, metric_id, &terms, pmu);
 		free_config_terms(&terms);
 		if (ret)
 			return ret;

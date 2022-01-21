@@ -178,7 +178,7 @@ struct pc87360_data {
 	struct device *hwmon_dev;
 	struct mutex lock;
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	int address[3];
@@ -1673,7 +1673,7 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 		}
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

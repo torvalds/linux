@@ -17,7 +17,9 @@ description: |
 properties:
   compatible:
     items:
-      - const: apple,t8103-pinctrl
+      - enum:
+          - apple,t8103-pinctrl
+          - apple,t6000-pinctrl
       - const: apple,pinctrl
 
   reg:
@@ -34,6 +36,10 @@ properties:
   gpio-ranges:
     maxItems: 1
 
+  apple,npins:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: The number of pins in this GPIO controller.
+
   interrupts:
     description: One interrupt for each of the (up to 7) interrupt
       groups supported by the controller sorted by interrupt group
@@ -42,6 +48,12 @@ properties:
     maxItems: 7
 
   interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  power-domains:
+    maxItems: 1
 
 patternProperties:
   '-pins$':
@@ -60,12 +72,16 @@ patternProperties:
 
     additionalProperties: false
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg
   - gpio-controller
   - '#gpio-cells'
   - gpio-ranges
+  - apple,npins
 
 additionalProperties: false
 
@@ -86,8 +102,10 @@ examples:
         gpio-controller;
         #gpio-cells = <2>;
         gpio-ranges = <&pinctrl 0 0 212>;
+        apple,npins = <212>;
 
         interrupt-controller;
+        #interrupt-cells = <2>;
         interrupt-parent = <&aic>;
         interrupts = <AIC_IRQ 16 IRQ_TYPE_LEVEL_HIGH>,
                      <AIC_IRQ 17 IRQ_TYPE_LEVEL_HIGH>,

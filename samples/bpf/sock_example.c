@@ -37,8 +37,8 @@ static int test_sock(void)
 	int sock = -1, map_fd, prog_fd, i, key;
 	long long value = 0, tcp_cnt, udp_cnt, icmp_cnt;
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value),
-				256, 0);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(key), sizeof(value),
+				256, NULL);
 	if (map_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 		goto cleanup;
@@ -59,9 +59,13 @@ static int test_sock(void)
 		BPF_EXIT_INSN(),
 	};
 	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.log_buf = bpf_log_buf,
+		.log_size = BPF_LOG_BUF_SIZE,
+	);
 
-	prog_fd = bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog, insns_cnt,
-				   "GPL", 0, bpf_log_buf, BPF_LOG_BUF_SIZE);
+	prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
+				prog, insns_cnt, &opts);
 	if (prog_fd < 0) {
 		printf("failed to load prog '%s'\n", strerror(errno));
 		goto cleanup;

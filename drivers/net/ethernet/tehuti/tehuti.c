@@ -832,7 +832,7 @@ static int bdx_set_mac(struct net_device *ndev, void *p)
 	   if (netif_running(dev))
 	   return -EBUSY
 	 */
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 	bdx_restore_mac(ndev, priv);
 	RET(0);
 }
@@ -840,6 +840,7 @@ static int bdx_set_mac(struct net_device *ndev, void *p)
 static int bdx_read_mac(struct bdx_priv *priv)
 {
 	u16 macAddress[3], i;
+	u8 addr[ETH_ALEN];
 	ENTER;
 
 	macAddress[2] = READ_REG(priv, regUNC_MAC0_A);
@@ -849,9 +850,10 @@ static int bdx_read_mac(struct bdx_priv *priv)
 	macAddress[0] = READ_REG(priv, regUNC_MAC2_A);
 	macAddress[0] = READ_REG(priv, regUNC_MAC2_A);
 	for (i = 0; i < 3; i++) {
-		priv->ndev->dev_addr[i * 2 + 1] = macAddress[i];
-		priv->ndev->dev_addr[i * 2] = macAddress[i] >> 8;
+		addr[i * 2 + 1] = macAddress[i];
+		addr[i * 2] = macAddress[i] >> 8;
 	}
+	eth_hw_addr_set(priv->ndev, addr);
 	RET(0);
 }
 
@@ -1882,10 +1884,10 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *ndev;
 	struct bdx_priv *priv;
-	int err, pci_using_dac, port;
 	unsigned long pciaddr;
 	u32 regionSize;
 	struct pci_nic *nic;
+	int err, port;
 
 	ENTER;
 
@@ -1898,16 +1900,10 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)			/* it triggers interrupt, dunno why. */
 		goto err_pci;		/* it's not a problem though */
 
-	if (!(err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) &&
-	    !(err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
-		pci_using_dac = 1;
-	} else {
-		if ((err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) ||
-		    (err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32)))) {
-			pr_err("No usable DMA configuration, aborting\n");
-			goto err_dma;
-		}
-		pci_using_dac = 0;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		pr_err("No usable DMA configuration, aborting\n");
+		goto err_dma;
 	}
 
 	err = pci_request_regions(pdev, BDX_DRV_NAME);
@@ -1980,15 +1976,13 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* these fields are used for info purposes only
 		 * so we can have them same for all ports of the board */
 		ndev->if_port = port;
-		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
-		    | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
-		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM
-		    ;
+		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO |
+		    NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM |
+		    NETIF_F_HIGHDMA;
+
 		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 			NETIF_F_TSO | NETIF_F_HW_VLAN_CTAG_TX;
-
-		if (pci_using_dac)
-			ndev->features |= NETIF_F_HIGHDMA;
 
 	/************** priv ****************/
 		priv = nic->priv[port] = netdev_priv(ndev);
@@ -2243,9 +2237,13 @@ static inline int bdx_tx_fifo_size_to_packets(int tx_size)
  * bdx_get_ringparam - report ring sizes
  * @netdev
  * @ring
+ * @kernel_ring
+ * @extack
  */
 static void
-bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
+bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
+		  struct kernel_ethtool_ringparam *kernel_ring,
+		  struct netlink_ext_ack *extack)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 
@@ -2260,9 +2258,13 @@ bdx_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
  * bdx_set_ringparam - set ring sizes
  * @netdev
  * @ring
+ * @kernel_ring
+ * @extack
  */
 static int
-bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
+bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
+		  struct kernel_ethtool_ringparam *kernel_ring,
+		  struct netlink_ext_ack *extack)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 	int rx_size = 0;

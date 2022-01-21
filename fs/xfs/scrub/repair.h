@@ -44,6 +44,9 @@ struct xrep_find_ag_btree {
 	/* in: buffer ops */
 	const struct xfs_buf_ops	*buf_ops;
 
+	/* in: maximum btree height */
+	unsigned int			maxlevels;
+
 	/* out: the highest btree block found and the tree height */
 	xfs_agblock_t			root;
 	unsigned int			height;

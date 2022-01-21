@@ -77,7 +77,7 @@ struct asc7621_data {
 	struct i2c_client client;
 	struct device *class_dev;
 	struct mutex update_lock;
-	int valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_high_reading;	/* In jiffies */
 	unsigned long last_low_reading;		/* In jiffies */
 	/*
@@ -1032,7 +1032,7 @@ static struct asc7621_data *asc7621_update_device(struct device *dev)
 		data->last_low_reading = jiffies;
 	}			/* last_reading */
 
-	data->valid = 1;
+	data->valid = true;
 
 	mutex_unlock(&data->update_lock);
 

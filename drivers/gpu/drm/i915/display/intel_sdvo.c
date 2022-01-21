@@ -1335,6 +1335,13 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 							   adjusted_mode);
 		pipe_config->sdvo_tv_clock = true;
 	} else if (IS_LVDS(intel_sdvo_connector)) {
+		int ret;
+
+		ret = intel_panel_compute_config(&intel_sdvo_connector->base,
+						 adjusted_mode);
+		if (ret)
+			return ret;
+
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
 							     intel_sdvo_connector->base.panel.fixed_mode))
 			return -EINVAL;
@@ -1835,7 +1842,7 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
 	for (i = 0; i < 2; i++)
-		intel_wait_for_vblank(dev_priv, crtc->pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	success = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
 	/*
@@ -1873,7 +1880,6 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
-
 	if (clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
@@ -1890,14 +1896,11 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	if (IS_LVDS(intel_sdvo_connector)) {
-		const struct drm_display_mode *fixed_mode =
-			intel_sdvo_connector->base.panel.fixed_mode;
+		enum drm_mode_status status;
 
-		if (mode->hdisplay > fixed_mode->hdisplay)
-			return MODE_PANEL;
-
-		if (mode->vdisplay > fixed_mode->vdisplay)
-			return MODE_PANEL;
+		status = intel_panel_mode_valid(&intel_sdvo_connector->base, mode);
+		if (status != MODE_OK)
+			return status;
 	}
 
 	return MODE_OK;

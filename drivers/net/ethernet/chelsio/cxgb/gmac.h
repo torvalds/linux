@@ -117,7 +117,7 @@ struct cmac_ops {
 	const struct cmac_statistics *(*statistics_update)(struct cmac *, int);
 
 	int (*macaddress_get)(struct cmac *, u8 mac_addr[6]);
-	int (*macaddress_set)(struct cmac *, u8 mac_addr[6]);
+	int (*macaddress_set)(struct cmac *, const u8 mac_addr[6]);
 };
 
 typedef struct _cmac_instance cmac_instance;

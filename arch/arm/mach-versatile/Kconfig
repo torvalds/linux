@@ -7,7 +7,7 @@ config ARCH_VERSATILE
 	select ARM_VIC
 	select CLKSRC_VERSATILE
 	select CPU_ARM926T
-	select ICST
+	select CLK_ICST
 	select MFD_SYSCON
 	select PLAT_VERSATILE
 	select POWER_RESET

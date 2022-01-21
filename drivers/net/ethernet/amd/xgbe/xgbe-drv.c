@@ -1508,9 +1508,6 @@ static int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
 	if (copy_from_user(&config, ifreq->ifr_data, sizeof(config)))
 		return -EFAULT;
 
-	if (config.flags)
-		return -EINVAL;
-
 	mac_tscr = 0;
 
 	switch (config.tx_type) {
@@ -1912,10 +1909,8 @@ static int xgbe_close(struct net_device *netdev)
 	clk_disable_unprepare(pdata->ptpclk);
 	clk_disable_unprepare(pdata->sysclk);
 
-	flush_workqueue(pdata->an_workqueue);
 	destroy_workqueue(pdata->an_workqueue);
 
-	flush_workqueue(pdata->dev_workqueue);
 	destroy_workqueue(pdata->dev_workqueue);
 
 	set_bit(XGBE_DOWN, &pdata->dev_state);
@@ -2016,7 +2011,7 @@ static int xgbe_set_mac_address(struct net_device *netdev, void *addr)
 	if (!is_valid_ether_addr(saddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, saddr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, saddr->sa_data);
 
 	hw_if->set_mac_address(pdata, netdev->dev_addr);
 

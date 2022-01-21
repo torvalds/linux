@@ -45,6 +45,7 @@
 #define SA_UNSUPPORTED	0x00000400
 #define SA_EXPOSE_TAGBITS	0x00000800
 /* 0x00010000 used on mips */
+/* 0x00800000 used for internal SA_IMMUTABLE */
 /* 0x01000000 used on x86 */
 /* 0x02000000 used on x86 */
 /*

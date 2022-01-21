@@ -180,8 +180,6 @@
  *	Copy all security options from a given superblock to another
  *	@oldsb old superblock which contain information to clone
  *	@newsb new superblock which needs filled in
- * @sb_add_mnt_opt:
- * 	Add one mount @option to @mnt_opts.
  * @sb_parse_opts_str:
  *	Parse a string of security data filling in the opts structure
  *	@options string containing all mount options known by the LSM
@@ -196,6 +194,9 @@
  *	@dentry dentry to use in calculating the context.
  *	@mode mode used to determine resource type.
  *	@name name of the last path component used to create file
+ *	@xattr_name pointer to place the pointer to security xattr name.
+ *		    Caller does not have to free the resulting pointer. Its
+ *		    a pointer to static string.
  *	@ctx pointer to place the pointer to the resulting context in.
  *	@ctxlen point to place the length of the resulting context.
  * @dentry_create_files_as:
@@ -716,11 +717,9 @@
  *	@p.
  *	@p contains the task_struct for the process.
  *	Return 0 if permission is granted.
- * @task_getsecid_subj:
- *	Retrieve the subjective security identifier of the task_struct in @p
- *	and return it in @secid.  Special care must be taken to ensure that @p
- *	is the either the "current" task, or the caller has exclusive access
- *	to @p.
+ * @current_getsecid_subj:
+ *	Retrieve the subjective security identifier of the current task and
+ *	return it in @secid.
  *	In case of failure, @secid will be set to zero.
  * @task_getsecid_obj:
  *	Retrieve the objective security identifier of the task_struct in @p
@@ -1024,9 +1023,9 @@
  * Security hooks for SCTP
  *
  * @sctp_assoc_request:
- *	Passes the @ep and @chunk->skb of the association INIT packet to
+ *	Passes the @asoc and @chunk->skb of the association INIT packet to
  *	the security module.
- *	@ep pointer to sctp endpoint structure.
+ *	@asoc pointer to sctp association structure.
  *	@skb pointer to skbuff of association packet.
  *	Return 0 on success, error on failure.
  * @sctp_bind_connect:
@@ -1044,9 +1043,9 @@
  *	Called whenever a new socket is created by accept(2) (i.e. a TCP
  *	style socket) or when a socket is 'peeled off' e.g userspace
  *	calls sctp_peeloff(3).
- *	@ep pointer to current sctp endpoint structure.
+ *	@asoc pointer to current sctp association structure.
  *	@sk pointer to current sock structure.
- *	@sk pointer to new sock structure.
+ *	@newsk pointer to new sock structure.
  *
  * Security hooks for Infiniband
  *
@@ -1313,22 +1312,22 @@
  *
  * @binder_set_context_mgr:
  *	Check whether @mgr is allowed to be the binder context manager.
- *	@mgr contains the task_struct for the task being registered.
+ *	@mgr contains the struct cred for the current binder process.
  *	Return 0 if permission is granted.
  * @binder_transaction:
  *	Check whether @from is allowed to invoke a binder transaction call
  *	to @to.
- *	@from contains the task_struct for the sending task.
- *	@to contains the task_struct for the receiving task.
+ *	@from contains the struct cred for the sending process.
+ *	@to contains the struct cred for the receiving process.
  * @binder_transfer_binder:
  *	Check whether @from is allowed to transfer a binder reference to @to.
- *	@from contains the task_struct for the sending task.
- *	@to contains the task_struct for the receiving task.
+ *	@from contains the struct cred for the sending process.
+ *	@to contains the struct cred for the receiving process.
  * @binder_transfer_file:
  *	Check whether @from is allowed to transfer @file to @to.
- *	@from contains the task_struct for the sending task.
+ *	@from contains the struct cred for the sending process.
  *	@file contains the struct file being transferred.
- *	@to contains the task_struct for the receiving task.
+ *	@to contains the struct cred for the receiving process.
  *
  * @ptrace_access_check:
  *	Check permission before allowing the current process to trace the
@@ -1557,6 +1556,19 @@
  * 	Read perf_event security info if allowed.
  * @perf_event_write:
  * 	Write perf_event security info if allowed.
+ *
+ * Security hooks for io_uring
+ *
+ * @uring_override_creds:
+ *      Check if the current task, executing an io_uring operation, is allowed
+ *      to override it's credentials with @new.
+ *
+ *      @new: the new creds to use
+ *
+ * @uring_sqpoll:
+ *      Check whether the current task is allowed to spawn a io_uring polling
+ *      thread (IORING_SETUP_SQPOLL).
+ *
  */
 union security_list_options {
 	#define LSM_HOOK(RET, DEFAULT, NAME, ...) RET (*NAME)(__VA_ARGS__);

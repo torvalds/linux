@@ -197,7 +197,9 @@ int smu_v11_0_notify_display_change(struct smu_context *smu);
 int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 				      uint32_t *power_limit);
 
-int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n);
+int smu_v11_0_set_power_limit(struct smu_context *smu,
+			      enum smu_ppt_limit_type limit_type,
+			      uint32_t limit);
 
 int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu);
 
@@ -310,7 +312,7 @@ int smu_v11_0_deep_sleep_control(struct smu_context *smu,
 
 void smu_v11_0_interrupt_work(struct smu_context *smu);
 
-int smu_v11_0_set_light_sbr(struct smu_context *smu, bool enable);
+int smu_v11_0_handle_passthrough_sbr(struct smu_context *smu, bool enable);
 
 int smu_v11_0_restore_user_od_settings(struct smu_context *smu);
 

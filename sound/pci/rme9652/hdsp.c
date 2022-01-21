@@ -468,8 +468,11 @@ struct hdsp {
 	unsigned char         ss_out_channels;
 	u32                   io_loopback;          /* output loopback channel states*/
 
-	struct snd_dma_buffer *capture_dma_buf;
-	struct snd_dma_buffer *playback_dma_buf;
+	/* DMA buffers; those are copied instances from the original snd_dma_buf
+	 * objects (which are managed via devres) for the address alignments
+	 */
+	struct snd_dma_buffer capture_dma_buf;
+	struct snd_dma_buffer playback_dma_buf;
 	unsigned char        *capture_buffer;	    /* suitably aligned address */
 	unsigned char        *playback_buffer;	    /* suitably aligned address */
 
@@ -3764,30 +3767,32 @@ static void snd_hdsp_proc_init(struct hdsp *hdsp)
 
 static int snd_hdsp_initialize_memory(struct hdsp *hdsp)
 {
-	unsigned long pb_bus, cb_bus;
+	struct snd_dma_buffer *capture_dma, *playback_dma;
 
-	hdsp->capture_dma_buf =
-		snd_hammerfall_get_buffer(hdsp->pci, HDSP_DMA_AREA_BYTES);
-	hdsp->playback_dma_buf =
-		snd_hammerfall_get_buffer(hdsp->pci, HDSP_DMA_AREA_BYTES);
-	if (!hdsp->capture_dma_buf || !hdsp->playback_dma_buf) {
+	capture_dma = snd_hammerfall_get_buffer(hdsp->pci, HDSP_DMA_AREA_BYTES);
+	playback_dma = snd_hammerfall_get_buffer(hdsp->pci, HDSP_DMA_AREA_BYTES);
+	if (!capture_dma || !playback_dma) {
 		dev_err(hdsp->card->dev,
 			"%s: no buffers available\n", hdsp->card_name);
 		return -ENOMEM;
 	}
 
-	/* Align to bus-space 64K boundary */
+	/* copy to the own data for alignment */
+	hdsp->capture_dma_buf = *capture_dma;
+	hdsp->playback_dma_buf = *playback_dma;
 
-	cb_bus = ALIGN(hdsp->capture_dma_buf->addr, 0x10000ul);
-	pb_bus = ALIGN(hdsp->playback_dma_buf->addr, 0x10000ul);
+	/* Align to bus-space 64K boundary */
+	hdsp->capture_dma_buf.addr = ALIGN(capture_dma->addr, 0x10000ul);
+	hdsp->playback_dma_buf.addr = ALIGN(playback_dma->addr, 0x10000ul);
 
 	/* Tell the card where it is */
+	hdsp_write(hdsp, HDSP_inputBufferAddress, hdsp->capture_dma_buf.addr);
+	hdsp_write(hdsp, HDSP_outputBufferAddress, hdsp->playback_dma_buf.addr);
 
-	hdsp_write(hdsp, HDSP_inputBufferAddress, cb_bus);
-	hdsp_write(hdsp, HDSP_outputBufferAddress, pb_bus);
-
-	hdsp->capture_buffer = hdsp->capture_dma_buf->area + (cb_bus - hdsp->capture_dma_buf->addr);
-	hdsp->playback_buffer = hdsp->playback_dma_buf->area + (pb_bus - hdsp->playback_dma_buf->addr);
+	hdsp->capture_dma_buf.area += hdsp->capture_dma_buf.addr - capture_dma->addr;
+	hdsp->playback_dma_buf.area += hdsp->playback_dma_buf.addr - playback_dma->addr;
+	hdsp->capture_buffer = hdsp->capture_dma_buf.area;
+	hdsp->playback_buffer = hdsp->playback_dma_buf.area;
 
 	return 0;
 }
@@ -4507,7 +4512,7 @@ static int snd_hdsp_playback_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
         runtime->hw = snd_hdsp_playback_subinfo;
-	snd_pcm_set_runtime_buffer(substream, hdsp->playback_dma_buf);
+	snd_pcm_set_runtime_buffer(substream, &hdsp->playback_dma_buf);
 
 	hdsp->playback_pid = current->pid;
 	hdsp->playback_substream = substream;
@@ -4583,7 +4588,7 @@ static int snd_hdsp_capture_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
 	runtime->hw = snd_hdsp_capture_subinfo;
-	snd_pcm_set_runtime_buffer(substream, hdsp->capture_dma_buf);
+	snd_pcm_set_runtime_buffer(substream, &hdsp->capture_dma_buf);
 
 	hdsp->capture_pid = current->pid;
 	hdsp->capture_substream = substream;

@@ -111,14 +111,18 @@ struct xsk_queue {
 
 /* Functions that read and validate content from consumer rings. */
 
-static inline bool xskq_cons_read_addr_unchecked(struct xsk_queue *q, u64 *addr)
+static inline void __xskq_cons_read_addr_unchecked(struct xsk_queue *q, u32 cached_cons, u64 *addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
+	u32 idx = cached_cons & q->ring_mask;
 
+	*addr = ring->desc[idx];
+}
+
+static inline bool xskq_cons_read_addr_unchecked(struct xsk_queue *q, u64 *addr)
+{
 	if (q->cached_cons != q->cached_prod) {
-		u32 idx = q->cached_cons & q->ring_mask;
-
-		*addr = ring->desc[idx];
+		__xskq_cons_read_addr_unchecked(q, q->cached_cons, addr);
 		return true;
 	}
 

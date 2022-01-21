@@ -1912,6 +1912,7 @@ static int xillyusb_setup_base_eps(struct xillyusb_dev *xdev)
 
 dealloc:
 	endpoint_dealloc(xdev->msg_ep); /* Also frees FIFO mem if allocated */
+	xdev->msg_ep = NULL;
 	return -ENOMEM;
 }
 

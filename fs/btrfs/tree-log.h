@@ -17,6 +17,8 @@ struct btrfs_log_ctx {
 	int log_transid;
 	bool log_new_dentries;
 	bool logging_new_name;
+	/* Tracks the last logged dir item/index key offset. */
+	u64 last_dir_item_offset;
 	struct inode *inode;
 	struct list_head list;
 	/* Only used for fast fsyncs. */
@@ -68,14 +70,14 @@ int btrfs_recover_log_trees(struct btrfs_root *tree_root);
 int btrfs_log_dentry_safe(struct btrfs_trans_handle *trans,
 			  struct dentry *dentry,
 			  struct btrfs_log_ctx *ctx);
-int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
-				 const char *name, int name_len,
-				 struct btrfs_inode *dir, u64 index);
-int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
-			       const char *name, int name_len,
-			       struct btrfs_inode *inode, u64 dirid);
+void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  const char *name, int name_len,
+				  struct btrfs_inode *dir, u64 index);
+void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				const char *name, int name_len,
+				struct btrfs_inode *inode, u64 dirid);
 void btrfs_end_log_trans(struct btrfs_root *root);
 void btrfs_pin_log_trans(struct btrfs_root *root);
 void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,

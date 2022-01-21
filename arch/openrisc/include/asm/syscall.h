@@ -57,13 +57,6 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 	memcpy(args, &regs->gpr[3], 6 * sizeof(args[0]));
 }
 
-static inline void
-syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
-		      const unsigned long *args)
-{
-	memcpy(&regs->gpr[3], args, 6 * sizeof(args[0]));
-}
-
 static inline int syscall_get_arch(struct task_struct *task)
 {
 	return AUDIT_ARCH_OPENRISC;

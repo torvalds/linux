@@ -41,7 +41,7 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 
-MODULE_DESCRIPTION("Analog Devices ADV7604 video decoder driver");
+MODULE_DESCRIPTION("Analog Devices ADV7604/10/11/12 video decoder driver");
 MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
 MODULE_AUTHOR("Mats Randgaard <mats.randgaard@cisco.com>");
 MODULE_LICENSE("GPL");
@@ -77,7 +77,7 @@ MODULE_LICENSE("GPL");
 
 enum adv76xx_type {
 	ADV7604,
-	ADV7611,
+	ADV7611, // including ADV7610
 	ADV7612,
 };
 
@@ -398,14 +398,14 @@ static inline int io_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask,
 	return io_write(sd, reg, (io_read(sd, reg) & ~mask) | val);
 }
 
-static inline int avlink_read(struct v4l2_subdev *sd, u8 reg)
+static inline int __always_unused avlink_read(struct v4l2_subdev *sd, u8 reg)
 {
 	struct adv76xx_state *state = to_state(sd);
 
 	return adv76xx_read_check(state, ADV7604_PAGE_AVLINK, reg);
 }
 
-static inline int avlink_write(struct v4l2_subdev *sd, u8 reg, u8 val)
+static inline int __always_unused avlink_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
 	struct adv76xx_state *state = to_state(sd);
 
@@ -439,14 +439,14 @@ static inline int infoframe_read(struct v4l2_subdev *sd, u8 reg)
 	return adv76xx_read_check(state, ADV76XX_PAGE_INFOFRAME, reg);
 }
 
-static inline int infoframe_write(struct v4l2_subdev *sd, u8 reg, u8 val)
+static inline int __always_unused infoframe_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
 	struct adv76xx_state *state = to_state(sd);
 
 	return regmap_write(state->regmap[ADV76XX_PAGE_INFOFRAME], reg, val);
 }
 
-static inline int afe_read(struct v4l2_subdev *sd, u8 reg)
+static inline int __always_unused afe_read(struct v4l2_subdev *sd, u8 reg)
 {
 	struct adv76xx_state *state = to_state(sd);
 
@@ -479,14 +479,14 @@ static inline int rep_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 
 	return rep_write(sd, reg, (rep_read(sd, reg) & ~mask) | val);
 }
 
-static inline int edid_read(struct v4l2_subdev *sd, u8 reg)
+static inline int __always_unused edid_read(struct v4l2_subdev *sd, u8 reg)
 {
 	struct adv76xx_state *state = to_state(sd);
 
 	return adv76xx_read_check(state, ADV76XX_PAGE_EDID, reg);
 }
 
-static inline int edid_write(struct v4l2_subdev *sd, u8 reg, u8 val)
+static inline int __always_unused edid_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
 	struct adv76xx_state *state = to_state(sd);
 
@@ -570,7 +570,7 @@ static inline int hdmi_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask, u8
 	return hdmi_write(sd, reg, (hdmi_read(sd, reg) & ~mask) | val);
 }
 
-static inline int test_write(struct v4l2_subdev *sd, u8 reg, u8 val)
+static inline int __always_unused test_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
 	struct adv76xx_state *state = to_state(sd);
 
@@ -601,14 +601,14 @@ static inline int cp_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 v
 	return cp_write(sd, reg, (cp_read(sd, reg) & ~mask) | val);
 }
 
-static inline int vdp_read(struct v4l2_subdev *sd, u8 reg)
+static inline int __always_unused vdp_read(struct v4l2_subdev *sd, u8 reg)
 {
 	struct adv76xx_state *state = to_state(sd);
 
 	return adv76xx_read_check(state, ADV7604_PAGE_VDP, reg);
 }
 
-static inline int vdp_write(struct v4l2_subdev *sd, u8 reg, u8 val)
+static inline int __always_unused vdp_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
 	struct adv76xx_state *state = to_state(sd);
 
@@ -3176,6 +3176,7 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 
 static const struct i2c_device_id adv76xx_i2c_id[] = {
 	{ "adv7604", (kernel_ulong_t)&adv76xx_chip_info[ADV7604] },
+	{ "adv7610", (kernel_ulong_t)&adv76xx_chip_info[ADV7611] },
 	{ "adv7611", (kernel_ulong_t)&adv76xx_chip_info[ADV7611] },
 	{ "adv7612", (kernel_ulong_t)&adv76xx_chip_info[ADV7612] },
 	{ }
@@ -3183,6 +3184,7 @@ static const struct i2c_device_id adv76xx_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, adv76xx_i2c_id);
 
 static const struct of_device_id adv76xx_of_id[] __maybe_unused = {
+	{ .compatible = "adi,adv7610", .data = &adv76xx_chip_info[ADV7611] },
 	{ .compatible = "adi,adv7611", .data = &adv76xx_chip_info[ADV7611] },
 	{ .compatible = "adi,adv7612", .data = &adv76xx_chip_info[ADV7612] },
 	{ }
@@ -3500,8 +3502,8 @@ static int adv76xx_probe(struct i2c_client *client,
 			return -ENODEV;
 		}
 		if (val != 0x68) {
-			v4l2_err(sd, "not an adv7604 on address 0x%x\n",
-					client->addr << 1);
+			v4l2_err(sd, "not an ADV7604 on address 0x%x\n",
+				 client->addr << 1);
 			return -ENODEV;
 		}
 		break;
@@ -3525,8 +3527,9 @@ static int adv76xx_probe(struct i2c_client *client,
 		val |= val2;
 		if ((state->info->type == ADV7611 && val != 0x2051) ||
 			(state->info->type == ADV7612 && val != 0x2041)) {
-			v4l2_err(sd, "not an adv761x on address 0x%x\n",
-					client->addr << 1);
+			v4l2_err(sd, "not an %s on address 0x%x\n",
+				 state->info->type == ADV7611 ? "ADV7610/11" : "ADV7612",
+				 client->addr << 1);
 			return -ENODEV;
 		}
 		break;

@@ -139,13 +139,6 @@ struct cafe_camera {
  */
 #define CAFE_SMBUS_TIMEOUT (HZ)  /* generous */
 
-static inline struct cafe_camera *to_cam(struct v4l2_device *dev)
-{
-	struct mcam_camera *m = container_of(dev, struct mcam_camera, v4l2_dev);
-	return container_of(m, struct cafe_camera, mcam);
-}
-
-
 static int cafe_smbus_write_done(struct mcam_camera *mcam)
 {
 	unsigned long flags;
@@ -544,12 +537,11 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_pdown;
 
-	v4l2_async_notifier_init(&mcam->notifier);
+	v4l2_async_nf_init(&mcam->notifier);
 
-	asd = v4l2_async_notifier_add_i2c_subdev(&mcam->notifier,
-					i2c_adapter_id(cam->i2c_adapter),
-					ov7670_info.addr,
-					struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_i2c(&mcam->notifier,
+				    i2c_adapter_id(cam->i2c_adapter),
+				    ov7670_info.addr, struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out_smbus_shutdown;

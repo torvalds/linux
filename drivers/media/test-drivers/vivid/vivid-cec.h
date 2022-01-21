@@ -9,12 +9,5 @@
 struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 					 unsigned int idx,
 					 bool is_source);
-void vivid_cec_bus_free_work(struct vivid_dev *dev);
-
-#else
-
-static inline void vivid_cec_bus_free_work(struct vivid_dev *dev)
-{
-}
-
+int vivid_cec_bus_thread(void *_dev);
 #endif

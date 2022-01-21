@@ -15,7 +15,6 @@
 #include "network_helpers.h"
 #include "cgroup_helpers.h"
 #include "test_progs.h"
-#include "bpf_rlimit.h"
 #include "test_sock_fields.skel.h"
 
 enum bpf_linum_array_idx {
@@ -329,7 +328,7 @@ done:
 		close(listen_fd);
 }
 
-void test_sock_fields(void)
+void serial_test_sock_fields(void)
 {
 	struct bpf_link *egress_link = NULL, *ingress_link = NULL;
 	int parent_cg_fd = -1, child_cg_fd = -1;

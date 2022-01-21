@@ -328,40 +328,25 @@ int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 EXPORT_SYMBOL(rpmsg_trysend_offchannel);
 
 /**
- * rpmsg_get_signals() - get the signals for this endpoint
- * @ept:	the rpmsg endpoint
+ * rpmsg_get_mtu() - get maximum transmission buffer size for sending message.
+ * @ept: the rpmsg endpoint
  *
- * Returns signal bits on success and an appropriate error value on failure.
+ * This function returns maximum buffer size available for a single outgoing message.
+ *
+ * Return: the maximum transmission size on success and an appropriate error
+ * value on failure.
  */
-int rpmsg_get_signals(struct rpmsg_endpoint *ept)
+
+ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept)
 {
 	if (WARN_ON(!ept))
 		return -EINVAL;
-	if (!ept->ops->get_signals)
-		return -ENXIO;
+	if (!ept->ops->get_mtu)
+		return -ENOTSUPP;
 
-	return ept->ops->get_signals(ept);
+	return ept->ops->get_mtu(ept);
 }
-EXPORT_SYMBOL(rpmsg_get_signals);
-
-/**
- * rpmsg_set_signals() - set the remote signals for this endpoint
- * @ept:	the rpmsg endpoint
- * @set:	set mask for signals
- * @clear:	clear mask for signals
- *
- * Returns 0 on success and an appropriate error value on failure.
- */
-int rpmsg_set_signals(struct rpmsg_endpoint *ept, u32 set, u32 clear)
-{
-	if (WARN_ON(!ept))
-		return -EINVAL;
-	if (!ept->ops->set_signals)
-		return -ENXIO;
-
-	return ept->ops->set_signals(ept, set, clear);
-}
-EXPORT_SYMBOL(rpmsg_set_signals);
+EXPORT_SYMBOL(rpmsg_get_mtu);
 
 /*
  * match a rpmsg channel with a channel info struct.
@@ -550,10 +535,6 @@ static int rpmsg_dev_probe(struct device *dev)
 
 		rpdev->ept = ept;
 		rpdev->src = ept->addr;
-
-		if (rpdrv->signals)
-			ept->sig_cb = rpdrv->signals;
-
 	}
 
 	err = rpdrv->probe(rpdev);

@@ -17,7 +17,7 @@
 #include "sof-audio.h"
 #include "ops.h"
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "compress.h"
+#include "sof-probes.h"
 #endif
 
 /* Create DMA buffer page table for DSP */
@@ -57,13 +57,18 @@ static int sof_pcm_dsp_params(struct snd_sof_pcm *spcm, struct snd_pcm_substream
 /*
  * sof pcm period elapse work
  */
-void snd_sof_pcm_period_elapsed_work(struct work_struct *work)
+static void snd_sof_pcm_period_elapsed_work(struct work_struct *work)
 {
 	struct snd_sof_pcm_stream *sps =
 		container_of(work, struct snd_sof_pcm_stream,
 			     period_elapsed_work);
 
 	snd_pcm_period_elapsed(sps->substream);
+}
+
+void snd_sof_pcm_init_elapsed_work(struct work_struct *work)
+{
+	 INIT_WORK(work, snd_sof_pcm_period_elapsed_work);
 }
 
 /*
@@ -114,6 +119,40 @@ static int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream,
 		spcm->prepared[substream->stream] = false;
 
 	return ret;
+}
+
+static int sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev,
+					   struct snd_soc_pcm_runtime *rtd,
+					   struct snd_sof_pcm *spcm, int dir)
+{
+	struct snd_soc_dai *dai;
+	int ret, j;
+
+	/* query DAPM for list of connected widgets and set them up */
+	for_each_rtd_cpu_dais(rtd, j, dai) {
+		struct snd_soc_dapm_widget_list *list;
+
+		ret = snd_soc_dapm_dai_get_connected_widgets(dai, dir, &list,
+							     dpcm_end_walk_at_be);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: dai %s has no valid %s path\n", dai->name,
+				dir == SNDRV_PCM_STREAM_PLAYBACK ? "playback" : "capture");
+			return ret;
+		}
+
+		spcm->stream[dir].list = list;
+
+		ret = sof_widget_list_setup(sdev, spcm, dir);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: failed widget list set up for pcm %d dir %d\n",
+				spcm->pcm.pcm_id, dir);
+			spcm->stream[dir].list = NULL;
+			snd_soc_dapm_dai_free_widgets(&list);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int sof_pcm_hw_params(struct snd_soc_component *component,
@@ -213,7 +252,14 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 	dev_dbg(component->dev, "stream_tag %d", pcm.params.stream_tag);
 
-	/* send IPC to the DSP */
+	/* if this is a repeated hw_params without hw_free, skip setting up widgets */
+	if (!spcm->stream[substream->stream].list) {
+		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, substream->stream);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* send hw_params IPC to the DSP */
 	ret = sof_ipc_tx_message(sdev->ipc, pcm.hdr.cmd, &pcm, sizeof(pcm),
 				 &ipc_params_reply, sizeof(ipc_params_reply));
 	if (ret < 0) {
@@ -258,6 +304,10 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 		if (ret < 0)
 			err = ret;
 	}
+
+	ret = sof_widget_list_free(sdev, spcm, substream->stream);
+	if (ret < 0)
+		err = ret;
 
 	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
@@ -316,6 +366,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 	struct sof_ipc_stream stream;
 	struct sof_ipc_reply reply;
 	bool reset_hw_params = false;
+	bool free_widget_list = false;
 	bool ipc_first = false;
 	int ret;
 
@@ -386,6 +437,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			spcm->stream[substream->stream].suspend_ignored = true;
 			return 0;
 		}
+		free_widget_list = true;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
@@ -414,8 +466,15 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 
 	/* free PCM if reset_hw_params is set and the STOP IPC is successful */
-	if (!ret && reset_hw_params)
+	if (!ret && reset_hw_params) {
 		ret = sof_pcm_dsp_pcm_free(substream, sdev, spcm);
+		if (ret < 0)
+			return ret;
+
+		/* free widget list only for SUSPEND trigger */
+		if (free_widget_list)
+			ret = sof_widget_list_free(sdev, spcm, substream->stream);
+	}
 
 	return ret;
 }
@@ -829,11 +888,7 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->trigger = sof_pcm_trigger;
 	pd->pointer = sof_pcm_pointer;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
-	pd->compress_ops = &sof_compressed_ops;
-#endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-	/* override cops when probe support is enabled */
 	pd->compress_ops = &sof_probe_compressed_ops;
 #endif
 	pd->pcm_construct = sof_pcm_new;

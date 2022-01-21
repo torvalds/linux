@@ -113,37 +113,13 @@ static void mptcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	struct mptcp_info *info = _info;
-	u32 flags = 0;
-	bool slow;
-	u8 val;
 
 	r->idiag_rqueue = sk_rmem_alloc_get(sk);
 	r->idiag_wqueue = sk_wmem_alloc_get(sk);
 	if (!info)
 		return;
 
-	slow = lock_sock_fast(sk);
-	info->mptcpi_subflows = READ_ONCE(msk->pm.subflows);
-	info->mptcpi_add_addr_signal = READ_ONCE(msk->pm.add_addr_signaled);
-	info->mptcpi_add_addr_accepted = READ_ONCE(msk->pm.add_addr_accepted);
-	info->mptcpi_local_addr_used = READ_ONCE(msk->pm.local_addr_used);
-	info->mptcpi_subflows_max = mptcp_pm_get_subflows_max(msk);
-	val = mptcp_pm_get_add_addr_signal_max(msk);
-	info->mptcpi_add_addr_signal_max = val;
-	val = mptcp_pm_get_add_addr_accept_max(msk);
-	info->mptcpi_add_addr_accepted_max = val;
-	info->mptcpi_local_addr_max = mptcp_pm_get_local_addr_max(msk);
-	if (test_bit(MPTCP_FALLBACK_DONE, &msk->flags))
-		flags |= MPTCP_INFO_FLAG_FALLBACK;
-	if (READ_ONCE(msk->can_ack))
-		flags |= MPTCP_INFO_FLAG_REMOTE_KEY_RECEIVED;
-	info->mptcpi_flags = flags;
-	info->mptcpi_token = READ_ONCE(msk->token);
-	info->mptcpi_write_seq = READ_ONCE(msk->write_seq);
-	info->mptcpi_snd_una = READ_ONCE(msk->snd_una);
-	info->mptcpi_rcv_nxt = READ_ONCE(msk->ack_seq);
-	info->mptcpi_csum_enabled = READ_ONCE(msk->csum_enabled);
-	unlock_sock_fast(sk, slow);
+	mptcp_diag_fill_info(msk, info);
 }
 
 static const struct inet_diag_handler mptcp_diag_handler = {

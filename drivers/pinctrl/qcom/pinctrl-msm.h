@@ -77,6 +77,8 @@ struct msm_pingroup {
 	unsigned drv_bit:5;
 
 	unsigned od_bit:5;
+	unsigned egpio_enable:5;
+	unsigned egpio_present:5;
 	unsigned oe_bit:5;
 	unsigned in_bit:5;
 	unsigned out_bit:5;
@@ -119,6 +121,13 @@ struct msm_gpio_wakeirq_map {
  *                            to be aware that their parent can't handle dual
  *                            edge interrupts.
  * @gpio_func: Which function number is GPIO (usually 0).
+ * @egpio_func: If non-zero then this SoC supports eGPIO. Even though in
+ *              hardware this is a mux 1-level above the TLMM, we'll treat
+ *              it as if this is just another mux state of the TLMM. Since
+ *              it doesn't really map to hardware, we'll allocate a virtual
+ *              function number for eGPIO and any time we see that function
+ *              number used we'll treat it as a request to mux away from
+ *              our TLMM towards another owner.
  */
 struct msm_pinctrl_soc_data {
 	const struct pinctrl_pin_desc *pins;
@@ -136,6 +145,7 @@ struct msm_pinctrl_soc_data {
 	unsigned int nwakeirq_map;
 	bool wakeirq_dual_edge_errata;
 	unsigned int gpio_func;
+	unsigned int egpio_func;
 };
 
 extern const struct dev_pm_ops msm_pinctrl_dev_pm_ops;

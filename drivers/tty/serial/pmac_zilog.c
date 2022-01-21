@@ -1702,17 +1702,21 @@ extern struct platform_device scc_a_pdev, scc_b_pdev;
 
 static int __init pmz_init_port(struct uart_pmac_port *uap)
 {
-	struct resource *r_ports, *r_irq;
+	struct resource *r_ports;
+	int irq;
 
 	r_ports = platform_get_resource(uap->pdev, IORESOURCE_MEM, 0);
-	r_irq = platform_get_resource(uap->pdev, IORESOURCE_IRQ, 0);
-	if (!r_ports || !r_irq)
+	if (!r_ports)
 		return -ENODEV;
+
+	irq = platform_get_irq(uap->pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	uap->port.mapbase  = r_ports->start;
 	uap->port.membase  = (unsigned char __iomem *) r_ports->start;
 	uap->port.iotype   = UPIO_MEM;
-	uap->port.irq      = r_irq->start;
+	uap->port.irq      = irq;
 	uap->port.uartclk  = ZS_CLOCK;
 	uap->port.fifosize = 1;
 	uap->port.ops      = &pmz_pops;

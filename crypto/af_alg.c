@@ -931,15 +931,18 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			sg_unmark_end(sg + sgl->cur - 1);
 
 		do {
+			struct page *pg;
 			unsigned int i = sgl->cur;
 
 			plen = min_t(size_t, len, PAGE_SIZE);
 
-			sg_assign_page(sg + i, alloc_page(GFP_KERNEL));
-			if (!sg_page(sg + i)) {
+			pg = alloc_page(GFP_KERNEL);
+			if (!pg) {
 				err = -ENOMEM;
 				goto unlock;
 			}
+
+			sg_assign_page(sg + i, pg);
 
 			err = memcpy_from_msg(page_address(sg_page(sg + i)),
 					      msg, plen);
@@ -1076,7 +1079,7 @@ void af_alg_async_cb(struct crypto_async_request *_req, int err)
 	af_alg_free_resources(areq);
 	sock_put(sk);
 
-	iocb->ki_complete(iocb, err ? err : (int)resultlen, 0);
+	iocb->ki_complete(iocb, err ? err : (int)resultlen);
 }
 EXPORT_SYMBOL_GPL(af_alg_async_cb);
 

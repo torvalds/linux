@@ -12,15 +12,15 @@ struct {
 
 int count = 0;
 
-SEC("classifier/0")
-int bpf_func_0(struct __sk_buff *skb)
+SEC("tc")
+int classifier_0(struct __sk_buff *skb)
 {
 	count++;
 	bpf_tail_call_static(skb, &jmp_table, 0);
 	return 1;
 }
 
-SEC("classifier")
+SEC("tc")
 int entry(struct __sk_buff *skb)
 {
 	bpf_tail_call_static(skb, &jmp_table, 0);
@@ -28,4 +28,3 @@ int entry(struct __sk_buff *skb)
 }
 
 char __license[] SEC("license") = "GPL";
-int _version SEC("version") = 1;

@@ -19,7 +19,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <asm/unaligned.h>
 #include <net/rsi_91x.h>
-#include <net/genetlink.h>
 
 #define RSI_DMA_ALIGN	8
 #define RSI_FRAME_DESC_SIZE	16

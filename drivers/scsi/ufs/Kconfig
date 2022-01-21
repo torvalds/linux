@@ -165,14 +165,14 @@ config SCSI_UFS_BSG
 	  If unsure, say N.
 
 config SCSI_UFS_EXYNOS
-	tristate "EXYNOS specific hooks to UFS controller platform driver"
+	tristate "Exynos specific hooks to UFS controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM && (ARCH_EXYNOS || COMPILE_TEST)
 	help
-	  This selects the EXYNOS specific additions to UFSHCD platform driver.
-	  UFS host on EXYNOS includes HCI and UNIPRO layer, and associates with
-	  UFS-PHY driver.
+	  This selects the Samsung Exynos SoC specific additions to UFSHCD
+	  platform driver.  UFS host on Samsung Exynos SoC includes HCI and
+	  UNIPRO layer, and associates with UFS-PHY driver.
 
-	  Select this if you have UFS host controller on EXYNOS chipset.
+	  Select this if you have UFS host controller on Samsung Exynos SoC.
 	  If unsure, say N.
 
 config SCSI_UFS_CRYPTO
@@ -199,3 +199,12 @@ config SCSI_UFS_FAULT_INJECTION
 	help
 	  Enable fault injection support in the UFS driver. This makes it easier
 	  to test the UFS error handler and abort handler.
+
+config SCSI_UFS_HWMON
+	bool "UFS  Temperature Notification"
+	depends on SCSI_UFSHCD=HWMON || HWMON=y
+	help
+	  This provides support for UFS hardware monitoring. If enabled,
+	  a hardware monitoring device will be created for the UFS device.
+
+	  If unsure, say N.

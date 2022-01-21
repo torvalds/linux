@@ -50,7 +50,7 @@ description: |
 
 
 maintainers:
-  - Amelie Delaunay <amelie.delaunay@st.com>
+  - Amelie Delaunay <amelie.delaunay@foss.st.com>
 
 allOf:
   - $ref: "dma-controller.yaml#"

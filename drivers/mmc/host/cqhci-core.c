@@ -902,8 +902,8 @@ static bool cqhci_timeout(struct mmc_host *mmc, struct mmc_request *mrq,
 	spin_unlock_irqrestore(&cq_host->lock, flags);
 
 	if (timed_out) {
-		pr_err("%s: cqhci: timeout for tag %d\n",
-		       mmc_hostname(mmc), tag);
+		pr_err("%s: cqhci: timeout for tag %d, qcnt %d\n",
+		       mmc_hostname(mmc), tag, cq_host->qcnt);
 		cqhci_dumpregs(cq_host);
 	}
 

@@ -4,9 +4,8 @@
 #include <bpf/bpf_helpers.h>
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1;
 
-SEC("cgroup/getsockopt/child")
+SEC("cgroup/getsockopt")
 int _getsockopt_child(struct bpf_sockopt *ctx)
 {
 	__u8 *optval_end = ctx->optval_end;
@@ -29,7 +28,7 @@ int _getsockopt_child(struct bpf_sockopt *ctx)
 	return 1;
 }
 
-SEC("cgroup/getsockopt/parent")
+SEC("cgroup/getsockopt")
 int _getsockopt_parent(struct bpf_sockopt *ctx)
 {
 	__u8 *optval_end = ctx->optval_end;

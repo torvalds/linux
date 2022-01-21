@@ -241,8 +241,9 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 		fifo_attrs = NULL;
 
 	ret = iio_triggered_buffer_setup_ext(indio_dev,
-					     &iio_pollfunc_store_time,
-					     NULL, NULL, fifo_attrs);
+					     &iio_pollfunc_store_time, NULL,
+					     IIO_BUFFER_DIRECTION_IN,
+					     NULL, fifo_attrs);
 	if (ret) {
 		dev_err(&indio_dev->dev, "Triggered Buffer Setup Failed\n");
 		return ret;

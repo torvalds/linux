@@ -52,6 +52,9 @@
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "hw_sequencer.h"
+#include "inc/link_dpcd.h"
+#include "dpcd_defs.h"
+#include "inc/link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -612,6 +615,11 @@ void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 					pipe_ctx->pipe_idx);
 }
 
+void dcn20_disable_pixel_data(struct dc *dc, struct pipe_ctx *pipe_ctx, bool blank)
+{
+	dcn20_blank_pixel_data(dc, pipe_ctx, blank);
+}
+
 static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
 		int opp_cnt)
 {
@@ -1077,10 +1085,8 @@ static void dcn20_power_on_plane(
 	}
 }
 
-void dcn20_enable_plane(
-	struct dc *dc,
-	struct pipe_ctx *pipe_ctx,
-	struct dc_state *context)
+static void dcn20_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
+			       struct dc_state *context)
 {
 	//if (dc->debug.sanity_checks) {
 	//	dcn10_verify_allow_pstate_change_high(dc);
@@ -1839,6 +1845,11 @@ void dcn20_optimize_bandwidth(
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					true);
 
+	if (dc->clk_mgr->dc_mode_softmax_enabled)
+		if (dc->clk_mgr->clks.dramclk_khz > dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
+				context->bw_ctx.bw.dcn.clk.dramclk_khz <= dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
+			dc->clk_mgr->funcs->set_max_memclk(dc->clk_mgr, dc->clk_mgr->bw_params->dc_mode_softmax_memclk);
+
 	dc->clk_mgr->funcs->update_clocks(
 			dc->clk_mgr,
 			context,
@@ -2120,7 +2131,7 @@ void dcn20_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
 void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings)
 {
-	struct encoder_unblank_param params = { { 0 } };
+	struct encoder_unblank_param params = {0};
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	struct dce_hwseq *hws = link->dc->hwseq;
@@ -2135,12 +2146,17 @@ void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	params.link_settings.link_rate = link_settings->link_rate;
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				pipe_ctx->stream_res.tg->inst);
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		if (optc2_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt > 1)
 			params.timing.pix_clk_100hz /= 2;
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
 				pipe_ctx->stream_res.stream_enc, params.opp_cnt > 1);
-		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
+		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(link, pipe_ctx->stream_res.stream_enc, &params);
 	}
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
@@ -2262,7 +2278,7 @@ void dcn20_reset_hw_ctx_wrap(
 
 			dcn20_reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
 			if (hws->funcs.enable_stream_gating)
-				hws->funcs.enable_stream_gating(dc, pipe_ctx);
+				hws->funcs.enable_stream_gating(dc, pipe_ctx_old);
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 		}
@@ -2290,7 +2306,7 @@ void dcn20_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx,
 void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
-	struct mpcc_blnd_cfg blnd_cfg = { {0} };
+	struct mpcc_blnd_cfg blnd_cfg = {0};
 	bool per_pixel_alpha = pipe_ctx->plane_state->per_pixel_alpha;
 	int mpcc_id;
 	struct mpcc *new_mpcc;
@@ -2374,14 +2390,39 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	uint32_t active_total_with_borders;
 	uint32_t early_control = 0;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct link_encoder *link_enc;
+
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign)
+		link_enc = link_enc_cfg_get_link_enc_used_by_stream(link->ctx->dc, pipe_ctx->stream);
+	else
+		link_enc = link->link_enc;
+	ASSERT(link_enc);
 
 	/* For MST, there are multiply stream go to only one link.
 	 * connect DIG back_end to front_end while enable_stream and
 	 * disconnect them during disable_stream
 	 * BY this, it is logic clean to separate stream and link
 	 */
-	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-						    pipe_ctx->stream_res.stream_enc->id, true);
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		if (pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control)
+			pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control(
+				pipe_ctx->stream->ctx->dc->hwseq, true);
+		setup_dp_hpo_stream(pipe_ctx, true);
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->enable_stream(
+				pipe_ctx->stream_res.hpo_dp_stream_enc);
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->map_stream_to_link(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				pipe_ctx->stream_res.hpo_dp_stream_enc->inst,
+				pipe_ctx->link_res.hpo_dp_link_enc->inst);
+	}
+
+	if (!is_dp_128b_132b_signal(pipe_ctx) && link_enc)
+		link_enc->funcs->connect_dig_be_to_fe(
+			link_enc, pipe_ctx->stream_res.stream_enc->id, true);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
 
 	if (pipe_ctx->plane_state && pipe_ctx->plane_state->flip_immediate != 1) {
 		if (link->dc->hwss.program_dmdata_engine)
@@ -2389,6 +2430,9 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	}
 
 	link->dc->hwss.update_info_frame(pipe_ctx);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME);
 
 	/* enable early control to avoid corruption on DP monitor*/
 	active_total_with_borders =
@@ -2406,7 +2450,9 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 
 	/* enable audio only within mode set */
 	if (pipe_ctx->stream_res.audio != NULL) {
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		if (is_dp_128b_132b_signal(pipe_ctx))
+			pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.hpo_dp_stream_enc);
+		else if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
 	}
 }

@@ -1590,7 +1590,7 @@ static void send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 	netdev = devdata->netdev;
 	rcv_bufs_allocated = 0;
 	/* this code is trying to prevent getting stuck here forever,
-	 * but still retry it if you cant allocate them all this time.
+	 * but still retry it if you can't allocate them all this time.
 	 */
 	cur_num_rcv_bufs_to_alloc = devdata->num_rcv_bufs_could_not_alloc;
 	while (cur_num_rcv_bufs_to_alloc > 0) {
@@ -1759,13 +1759,11 @@ static void visornic_channel_interrupt(struct visor_device *dev)
 	if (!devdata)
 		return;
 
-	if (!visorchannel_signalempty(
-				   devdata->dev->visorchannel,
-				   IOCHAN_FROM_IOPART))
+	if (!visorchannel_signalempty(devdata->dev->visorchannel,
+				      IOCHAN_FROM_IOPART))
 		napi_schedule(&devdata->napi);
 
 	atomic_set(&devdata->interrupt_rcvd, 0);
-
 }
 
 /* visornic_probe - probe function for visornic devices
@@ -1782,6 +1780,7 @@ static int visornic_probe(struct visor_device *dev)
 	struct net_device *netdev = NULL;
 	int err;
 	int channel_offset = 0;
+	u8 addr[ETH_ALEN];
 	u64 features;
 
 	netdev = alloc_etherdev(sizeof(struct visornic_devdata));
@@ -1798,14 +1797,14 @@ static int visornic_probe(struct visor_device *dev)
 	/* Get MAC address from channel and read it into the device. */
 	netdev->addr_len = ETH_ALEN;
 	channel_offset = offsetof(struct visor_io_channel, vnic.macaddr);
-	err = visorbus_read_channel(dev, channel_offset, netdev->dev_addr,
-				    ETH_ALEN);
+	err = visorbus_read_channel(dev, channel_offset, addr, ETH_ALEN);
 	if (err < 0) {
 		dev_err(&dev->device,
 			"%s failed to get mac addr from chan (%d)\n",
 			__func__, err);
 		goto cleanup_netdev;
 	}
+	eth_hw_addr_set(netdev, addr);
 
 	devdata = devdata_initialize(netdev_priv(netdev), dev);
 	if (!devdata) {

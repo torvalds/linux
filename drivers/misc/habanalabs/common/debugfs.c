@@ -1167,6 +1167,45 @@ static ssize_t hl_state_dump_write(struct file *f, const char __user *buf,
 	return count;
 }
 
+static ssize_t hl_timeout_locked_read(struct file *f, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	char tmp_buf[200];
+	ssize_t rc;
+
+	if (*ppos)
+		return 0;
+
+	sprintf(tmp_buf, "%d\n",
+		jiffies_to_msecs(hdev->timeout_jiffies) / 1000);
+	rc = simple_read_from_buffer(buf, strlen(tmp_buf) + 1, ppos, tmp_buf,
+			strlen(tmp_buf) + 1);
+
+	return rc;
+}
+
+static ssize_t hl_timeout_locked_write(struct file *f, const char __user *buf,
+				     size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	u32 value;
+	ssize_t rc;
+
+	rc = kstrtouint_from_user(buf, count, 10, &value);
+	if (rc)
+		return rc;
+
+	if (value)
+		hdev->timeout_jiffies = msecs_to_jiffies(value * 1000);
+	else
+		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
+
+	return count;
+}
+
 static const struct file_operations hl_data32b_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_data_read32,
@@ -1238,6 +1277,12 @@ static const struct file_operations hl_state_dump_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_state_dump_read,
 	.write = hl_state_dump_write
+};
+
+static const struct file_operations hl_timeout_locked_fops = {
+	.owner = THIS_MODULE,
+	.read = hl_timeout_locked_read,
+	.write = hl_timeout_locked_write
 };
 
 static const struct hl_info_list hl_debugfs_list[] = {
@@ -1420,6 +1465,12 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				dev_entry,
 				&hl_state_dump_fops);
+
+	debugfs_create_file("timeout_locked",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_timeout_locked_fops);
 
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 		debugfs_create_file(hl_debugfs_list[i].name,

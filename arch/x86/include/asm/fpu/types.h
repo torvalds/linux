@@ -120,6 +120,9 @@ enum xfeature {
 	XFEATURE_RSRVD_COMP_13,
 	XFEATURE_RSRVD_COMP_14,
 	XFEATURE_LBR,
+	XFEATURE_RSRVD_COMP_16,
+	XFEATURE_XTILE_CFG,
+	XFEATURE_XTILE_DATA,
 
 	XFEATURE_MAX,
 };
@@ -136,11 +139,20 @@ enum xfeature {
 #define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
 #define XFEATURE_MASK_PASID		(1 << XFEATURE_PASID)
 #define XFEATURE_MASK_LBR		(1 << XFEATURE_LBR)
+#define XFEATURE_MASK_XTILE_CFG		(1 << XFEATURE_XTILE_CFG)
+#define XFEATURE_MASK_XTILE_DATA	(1 << XFEATURE_XTILE_DATA)
 
 #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
 #define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK \
 					 | XFEATURE_MASK_ZMM_Hi256 \
 					 | XFEATURE_MASK_Hi16_ZMM)
+
+#ifdef CONFIG_X86_64
+# define XFEATURE_MASK_XTILE		(XFEATURE_MASK_XTILE_DATA \
+					 | XFEATURE_MASK_XTILE_CFG)
+#else
+# define XFEATURE_MASK_XTILE		(0)
+#endif
 
 #define FIRST_EXTENDED_XFEATURE	XFEATURE_YMM
 
@@ -152,6 +164,9 @@ struct reg_256_bit {
 };
 struct reg_512_bit {
 	u8	regbytes[512/8];
+};
+struct reg_1024_byte {
+	u8	regbytes[1024];
 };
 
 /*
@@ -255,6 +270,23 @@ struct arch_lbr_state {
 	u64 ler_to;
 	u64 ler_info;
 	struct lbr_entry		entries[];
+};
+
+/*
+ * State component 17: 64-byte tile configuration register.
+ */
+struct xtile_cfg {
+	u64				tcfg[8];
+} __packed;
+
+/*
+ * State component 18: 1KB tile data register.
+ * Each register represents 16 64-byte rows of the matrix
+ * data. But the number of registers depends on the actual
+ * implementation.
+ */
+struct xtile_data {
+	struct reg_1024_byte		tmm;
 } __packed;
 
 /*
@@ -309,6 +341,91 @@ union fpregs_state {
 	u8 __padding[PAGE_SIZE];
 };
 
+struct fpstate {
+	/* @kernel_size: The size of the kernel register image */
+	unsigned int		size;
+
+	/* @user_size: The size in non-compacted UABI format */
+	unsigned int		user_size;
+
+	/* @xfeatures:		xfeatures for which the storage is sized */
+	u64			xfeatures;
+
+	/* @user_xfeatures:	xfeatures valid in UABI buffers */
+	u64			user_xfeatures;
+
+	/* @xfd:		xfeatures disabled to trap userspace use. */
+	u64			xfd;
+
+	/* @is_valloc:		Indicator for dynamically allocated state */
+	unsigned int		is_valloc	: 1;
+
+	/* @is_guest:		Indicator for guest state (KVM) */
+	unsigned int		is_guest	: 1;
+
+	/*
+	 * @is_confidential:	Indicator for KVM confidential mode.
+	 *			The FPU registers are restored by the
+	 *			vmentry firmware from encrypted guest
+	 *			memory. On vmexit the FPU registers are
+	 *			saved by firmware to encrypted guest memory
+	 *			and the registers are scrubbed before
+	 *			returning to the host. So there is no
+	 *			content which is worth saving and restoring.
+	 *			The fpstate has to be there so that
+	 *			preemption and softirq FPU usage works
+	 *			without special casing.
+	 */
+	unsigned int		is_confidential	: 1;
+
+	/* @in_use:		State is in use */
+	unsigned int		in_use		: 1;
+
+	/* @regs: The register state union for all supported formats */
+	union fpregs_state	regs;
+
+	/* @regs is dynamically sized! Don't add anything after @regs! */
+} __aligned(64);
+
+struct fpu_state_perm {
+	/*
+	 * @__state_perm:
+	 *
+	 * This bitmap indicates the permission for state components, which
+	 * are available to a thread group. The permission prctl() sets the
+	 * enabled state bits in thread_group_leader()->thread.fpu.
+	 *
+	 * All run time operations use the per thread information in the
+	 * currently active fpu.fpstate which contains the xfeature masks
+	 * and sizes for kernel and user space.
+	 *
+	 * This master permission field is only to be used when
+	 * task.fpu.fpstate based checks fail to validate whether the task
+	 * is allowed to expand it's xfeatures set which requires to
+	 * allocate a larger sized fpstate buffer.
+	 *
+	 * Do not access this field directly.  Use the provided helper
+	 * function. Unlocked access is possible for quick checks.
+	 */
+	u64				__state_perm;
+
+	/*
+	 * @__state_size:
+	 *
+	 * The size required for @__state_perm. Only valid to access
+	 * with sighand locked.
+	 */
+	unsigned int			__state_size;
+
+	/*
+	 * @__user_state_size:
+	 *
+	 * The size required for @__state_perm user part. Only valid to
+	 * access with sighand locked.
+	 */
+	unsigned int			__user_state_size;
+};
+
 /*
  * Highest level per task FPU state data structure that
  * contains the FPU register state plus various FPU
@@ -337,19 +454,100 @@ struct fpu {
 	unsigned long			avx512_timestamp;
 
 	/*
-	 * @state:
+	 * @fpstate:
 	 *
-	 * In-memory copy of all FPU registers that we save/restore
-	 * over context switches. If the task is using the FPU then
-	 * the registers in the FPU are more recent than this state
-	 * copy. If the task context-switches away then they get
-	 * saved here and represent the FPU state.
+	 * Pointer to the active struct fpstate. Initialized to
+	 * point at @__fpstate below.
 	 */
-	union fpregs_state		state;
+	struct fpstate			*fpstate;
+
 	/*
-	 * WARNING: 'state' is dynamically-sized.  Do not put
+	 * @__task_fpstate:
+	 *
+	 * Pointer to an inactive struct fpstate. Initialized to NULL. Is
+	 * used only for KVM support to swap out the regular task fpstate.
+	 */
+	struct fpstate			*__task_fpstate;
+
+	/*
+	 * @perm:
+	 *
+	 * Permission related information
+	 */
+	struct fpu_state_perm		perm;
+
+	/*
+	 * @__fpstate:
+	 *
+	 * Initial in-memory storage for FPU registers which are saved in
+	 * context switch and when the kernel uses the FPU. The registers
+	 * are restored from this storage on return to user space if they
+	 * are not longer containing the tasks FPU register state.
+	 */
+	struct fpstate			__fpstate;
+	/*
+	 * WARNING: '__fpstate' is dynamically-sized.  Do not put
 	 * anything after it here.
 	 */
 };
+
+/*
+ * Guest pseudo FPU container
+ */
+struct fpu_guest {
+	/*
+	 * @fpstate:			Pointer to the allocated guest fpstate
+	 */
+	struct fpstate			*fpstate;
+};
+
+/*
+ * FPU state configuration data. Initialized at boot time. Read only after init.
+ */
+struct fpu_state_config {
+	/*
+	 * @max_size:
+	 *
+	 * The maximum size of the register state buffer. Includes all
+	 * supported features except independent managed features.
+	 */
+	unsigned int		max_size;
+
+	/*
+	 * @default_size:
+	 *
+	 * The default size of the register state buffer. Includes all
+	 * supported features except independent managed features and
+	 * features which have to be requested by user space before usage.
+	 */
+	unsigned int		default_size;
+
+	/*
+	 * @max_features:
+	 *
+	 * The maximum supported features bitmap. Does not include
+	 * independent managed features.
+	 */
+	u64 max_features;
+
+	/*
+	 * @default_features:
+	 *
+	 * The default supported features bitmap. Does not include
+	 * independent managed features and features which have to
+	 * be requested by user space before usage.
+	 */
+	u64 default_features;
+	/*
+	 * @legacy_features:
+	 *
+	 * Features which can be reported back to user space
+	 * even without XSAVE support, i.e. legacy features FP + SSE
+	 */
+	u64 legacy_features;
+};
+
+/* FPU state configuration information */
+extern struct fpu_state_config fpu_kernel_cfg, fpu_user_cfg;
 
 #endif /* _ASM_X86_FPU_H */

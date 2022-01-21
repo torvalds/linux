@@ -25,6 +25,7 @@
 / {
 	model = "Huawei Ascend G7";
 	compatible = "huawei,g7", "qcom,msm8916";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart2;

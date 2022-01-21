@@ -53,85 +53,94 @@ enum _dmae_cmd_crc_mask {
 #define DMAE_MAX_CLIENTS        32
 
 /**
- * @brief qed_gtt_init - Initialize GTT windows
+ * qed_gtt_init(): Initialize GTT windows.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_gtt_init(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_ptt_invalidate - Forces all ptt entries to be re-configured
+ * qed_ptt_invalidate(): Forces all ptt entries to be re-configured
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_ptt_invalidate(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_ptt_pool_alloc - Allocate and initialize PTT pool
+ * qed_ptt_pool_alloc(): Allocate and initialize PTT pool.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return struct _qed_status - success (0), negative - error.
+ * Return: struct _qed_status - success (0), negative - error.
  */
 int qed_ptt_pool_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_ptt_pool_free -
+ * qed_ptt_pool_free(): Free PTT pool.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_ptt_pool_free(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_ptt_get_hw_addr - Get PTT's GRC/HW address
+ * qed_ptt_get_hw_addr(): Get PTT's GRC/HW address.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt
  *
- * @return u32
+ * Return: u32.
  */
 u32 qed_ptt_get_hw_addr(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt);
 
 /**
- * @brief qed_ptt_get_bar_addr - Get PPT's external BAR address
+ * qed_ptt_get_bar_addr(): Get PPT's external BAR address.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_ptt: P_ptt
  *
- * @return u32
+ * Return: u32.
  */
 u32 qed_ptt_get_bar_addr(struct qed_ptt *p_ptt);
 
 /**
- * @brief qed_ptt_set_win - Set PTT Window's GRC BAR address
+ * qed_ptt_set_win(): Set PTT Window's GRC BAR address
  *
- * @param p_hwfn
- * @param new_hw_addr
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @new_hw_addr: New HW address.
+ * @p_ptt: P_Ptt
+ *
+ * Return: Void.
  */
 void qed_ptt_set_win(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt,
 		     u32 new_hw_addr);
 
 /**
- * @brief qed_get_reserved_ptt - Get a specific reserved PTT
+ * qed_get_reserved_ptt(): Get a specific reserved PTT.
  *
- * @param p_hwfn
- * @param ptt_idx
+ * @p_hwfn: HW device data.
+ * @ptt_idx: Ptt Index.
  *
- * @return struct qed_ptt *
+ * Return: struct qed_ptt *.
  */
 struct qed_ptt *qed_get_reserved_ptt(struct qed_hwfn *p_hwfn,
 				     enum reserved_ptts ptt_idx);
 
 /**
- * @brief qed_wr - Write value to BAR using the given ptt
+ * qed_wr(): Write value to BAR using the given ptt.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param val
- * @param hw_addr
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @val: Val.
+ * @hw_addr: HW address
+ *
+ * Return: Void.
  */
 void qed_wr(struct qed_hwfn *p_hwfn,
 	    struct qed_ptt *p_ptt,
@@ -139,26 +148,28 @@ void qed_wr(struct qed_hwfn *p_hwfn,
 	    u32 val);
 
 /**
- * @brief qed_rd - Read value from BAR using the given ptt
+ * qed_rd(): Read value from BAR using the given ptt.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param val
- * @param hw_addr
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @hw_addr: HW address
+ *
+ * Return: Void.
  */
 u32 qed_rd(struct qed_hwfn *p_hwfn,
 	   struct qed_ptt *p_ptt,
 	   u32 hw_addr);
 
 /**
- * @brief qed_memcpy_from - copy n bytes from BAR using the given
- *        ptt
+ * qed_memcpy_from(): Copy n bytes from BAR using the given ptt.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param dest
- * @param hw_addr
- * @param n
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @dest: Destination.
+ * @hw_addr: HW address.
+ * @n: N
+ *
+ * Return: Void.
  */
 void qed_memcpy_from(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt,
@@ -167,14 +178,15 @@ void qed_memcpy_from(struct qed_hwfn *p_hwfn,
 		     size_t n);
 
 /**
- * @brief qed_memcpy_to - copy n bytes to BAR using the given
- *        ptt
+ * qed_memcpy_to(): Copy n bytes to BAR using the given  ptt
  *
- * @param p_hwfn
- * @param p_ptt
- * @param hw_addr
- * @param src
- * @param n
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @hw_addr: HW address.
+ * @src: Source.
+ * @n: N
+ *
+ * Return: Void.
  */
 void qed_memcpy_to(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt,
@@ -182,83 +194,97 @@ void qed_memcpy_to(struct qed_hwfn *p_hwfn,
 		   void *src,
 		   size_t n);
 /**
- * @brief qed_fid_pretend - pretend to another function when
- *        accessing the ptt window. There is no way to unpretend
- *        a function. The only way to cancel a pretend is to
- *        pretend back to the original function.
+ * qed_fid_pretend(): pretend to another function when
+ *                    accessing the ptt window. There is no way to unpretend
+ *                    a function. The only way to cancel a pretend is to
+ *                    pretend back to the original function.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param fid - fid field of pxp_pretend structure. Can contain
- *            either pf / vf, port/path fields are don't care.
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @fid: fid field of pxp_pretend structure. Can contain
+ *        either pf / vf, port/path fields are don't care.
+ *
+ * Return: Void.
  */
 void qed_fid_pretend(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt,
 		     u16 fid);
 
 /**
- * @brief qed_port_pretend - pretend to another port when
- *        accessing the ptt window
+ * qed_port_pretend(): Pretend to another port when accessing the ptt window
  *
- * @param p_hwfn
- * @param p_ptt
- * @param port_id - the port to pretend to
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @port_id: The port to pretend to
+ *
+ * Return: Void.
  */
 void qed_port_pretend(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt,
 		      u8 port_id);
 
 /**
- * @brief qed_port_unpretend - cancel any previously set port
- *        pretend
+ * qed_port_unpretend(): Cancel any previously set port pretend
  *
- * @param p_hwfn
- * @param p_ptt
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ *
+ * Return: Void.
  */
 void qed_port_unpretend(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt);
 
 /**
- * @brief qed_port_fid_pretend - pretend to another port and another function
- *        when accessing the ptt window
+ * qed_port_fid_pretend(): Pretend to another port and another function
+ *                         when accessing the ptt window
  *
- * @param p_hwfn
- * @param p_ptt
- * @param port_id - the port to pretend to
- * @param fid - fid field of pxp_pretend structure. Can contain either pf / vf.
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @port_id: The port to pretend to
+ * @fid: fid field of pxp_pretend structure. Can contain either pf / vf.
+ *
+ * Return: Void.
  */
 void qed_port_fid_pretend(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt, u8 port_id, u16 fid);
 
 /**
- * @brief qed_vfid_to_concrete - build a concrete FID for a
- *        given VF ID
+ * qed_vfid_to_concrete(): Build a concrete FID for a given VF ID
  *
- * @param p_hwfn
- * @param p_ptt
- * @param vfid
+ * @p_hwfn: HW device data.
+ * @vfid: VFID.
+ *
+ * Return: Void.
  */
 u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid);
 
 /**
- * @brief qed_dmae_idx_to_go_cmd - map the idx to dmae cmd
- * this is declared here since other files will require it.
- * @param idx
+ * qed_dmae_idx_to_go_cmd(): Map the idx to dmae cmd
+ *    this is declared here since other files will require it.
+ *
+ * @idx: Index
+ *
+ * Return: Void.
  */
 u32 qed_dmae_idx_to_go_cmd(u8 idx);
 
 /**
- * @brief qed_dmae_info_alloc - Init the dmae_info structure
- * which is part of p_hwfn.
- * @param p_hwfn
+ * qed_dmae_info_alloc(): Init the dmae_info structure
+ *                        which is part of p_hwfn.
+ *
+ * @p_hwfn: HW device data.
+ *
+ * Return: Int.
  */
 int qed_dmae_info_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_dmae_info_free - Free the dmae_info structure
- * which is part of p_hwfn
+ * qed_dmae_info_free(): Free the dmae_info structure
+ *                       which is part of p_hwfn.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  */
 void qed_dmae_info_free(struct qed_hwfn *p_hwfn);
 
@@ -292,14 +318,16 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 #define QED_HW_ERR_MAX_STR_SIZE 256
 
 /**
- * @brief qed_hw_err_notify - Notify upper layer driver and management FW
- *	about a HW error.
+ * qed_hw_err_notify(): Notify upper layer driver and management FW
+ *                      about a HW error.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param err_type
- * @param fmt - debug data buffer to send to the MFW
- * @param ... - buffer format args
+ * @p_hwfn: HW device data.
+ * @p_ptt: P_ptt.
+ * @err_type: Err Type.
+ * @fmt: Debug data buffer to send to the MFW
+ * @...: buffer format args
+ *
+ * Return void.
  */
 void __printf(4, 5) __cold qed_hw_err_notify(struct qed_hwfn *p_hwfn,
 					     struct qed_ptt *p_ptt,

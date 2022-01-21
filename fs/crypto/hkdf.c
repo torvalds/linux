@@ -4,7 +4,9 @@
  * Function"), aka RFC 5869.  See also the original paper (Krawczyk 2010):
  * "Cryptographic Extraction and Key Derivation: The HKDF Scheme".
  *
- * This is used to derive keys from the fscrypt master keys.
+ * This is used to derive keys from the fscrypt master keys (or from the
+ * "software secrets" which hardware derives from the fscrypt master keys, in
+ * the case that the fscrypt master keys are hardware-wrapped keys).
  *
  * Copyright 2019 Google LLC
  */
@@ -16,9 +18,14 @@
 
 /*
  * HKDF supports any unkeyed cryptographic hash algorithm, but fscrypt uses
- * SHA-512 because it is reasonably secure and efficient; and since it produces
- * a 64-byte digest, deriving an AES-256-XTS key preserves all 64 bytes of
- * entropy from the master key and requires only one iteration of HKDF-Expand.
+ * SHA-512 because it is well-established, secure, and reasonably efficient.
+ *
+ * HKDF-SHA256 was also considered, as its 256-bit security strength would be
+ * sufficient here.  A 512-bit security strength is "nice to have", though.
+ * Also, on 64-bit CPUs, SHA-512 is usually just as fast as SHA-256.  In the
+ * common case of deriving an AES-256-XTS key (512 bits), that can result in
+ * HKDF-SHA512 being much faster than HKDF-SHA256, as the longer digest size of
+ * SHA-512 causes HKDF-Expand to only need to do one iteration rather than two.
  */
 #define HKDF_HMAC_ALG		"hmac(sha512)"
 #define HKDF_HASHLEN		SHA512_DIGEST_SIZE

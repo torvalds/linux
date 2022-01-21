@@ -97,47 +97,8 @@ For example:
 	};
 
 == Pin controller devices ==
-Required properties: See the pin controller driver specific documentation
 
-Optional properties:
-#pinctrl-cells:	Number of pin control cells in addition to the index within the
-		pin controller device instance
-
-pinctrl-use-default: Boolean. Indicates that the OS can use the boot default
-		pin configuration. This allows using an OS that does not have a
-		driver for the pin controller. This property can be set either
-		globally for the pin controller or in child nodes for individual
-		pin group control.
-
-Pin controller devices should contain the pin configuration nodes that client
-devices reference.
-
-For example:
-
-	pincontroller {
-		... /* Standard DT properties for the device itself elided */
-
-		state_0_node_a {
-			...
-		};
-		state_1_node_a {
-			...
-		};
-		state_1_node_b {
-			...
-		};
-	}
-
-The contents of each of those pin configuration child nodes is defined
-entirely by the binding for the individual pin controller device. There
-exists no common standard for this content. The pinctrl framework only
-provides generic helper bindings that the pin controller driver can use.
-
-The pin configuration nodes need not be direct children of the pin controller
-device; they may be grandchildren, for example. Whether this is legal, and
-whether there is any interaction between the child and intermediate parent
-nodes, is again defined entirely by the binding for the individual pin
-controller device.
+See pinctrl.yaml
 
 == Generic pin multiplexing node content ==
 
