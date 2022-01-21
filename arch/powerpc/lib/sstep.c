@@ -1065,14 +1065,11 @@ Efault:
 int emulate_dcbz(unsigned long ea, struct pt_regs *regs)
 {
 	int err;
-	unsigned long size;
+	unsigned long size = l1_dcache_bytes();
 
 #ifdef __powerpc64__
-	size = ppc64_caches.l1d.block_size;
 	if (!(regs->msr & MSR_64BIT))
 		ea &= 0xffffffffUL;
-#else
-	size = L1_CACHE_BYTES;
 #endif
 	ea &= ~(size - 1);
 	if (!address_ok(regs, ea, size))
