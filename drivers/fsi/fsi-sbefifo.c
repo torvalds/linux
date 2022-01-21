@@ -125,6 +125,7 @@ struct sbefifo {
 	bool			dead;
 	bool			async_ffdc;
 	bool			timed_out;
+	u32			timeout_start_rsp_ms;
 };
 
 struct sbefifo_user {
@@ -549,7 +550,7 @@ static int sbefifo_read_response(struct sbefifo *sbefifo, struct iov_iter *respo
 
 	dev_vdbg(dev, "reading response, buflen = %zd\n", iov_iter_count(response));
 
-	timeout = msecs_to_jiffies(SBEFIFO_TIMEOUT_START_RSP);
+	timeout = msecs_to_jiffies(sbefifo->timeout_start_rsp_ms);
 	for (;;) {
 		/* Grab FIFO status (this will handle parity errors) */
 		rc = sbefifo_wait(sbefifo, false, &status, timeout);
@@ -972,6 +973,7 @@ static int sbefifo_probe(struct device *dev)
 	sbefifo->fsi_dev = fsi_dev;
 	dev_set_drvdata(dev, sbefifo);
 	mutex_init(&sbefifo->lock);
+	sbefifo->timeout_start_rsp_ms = SBEFIFO_TIMEOUT_START_RSP;
 
 	/*
 	 * Try cleaning up the FIFO. If this fails, we still register the
