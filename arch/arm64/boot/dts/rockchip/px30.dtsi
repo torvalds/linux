@@ -3109,3 +3109,4 @@
 		};
 	};
 };
+#include "px30s-pinctrl.dtsi"

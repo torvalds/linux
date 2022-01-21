@@ -1,0 +1,169 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ */
+
+&pinctrl {
+	/* default for px30 and 4ma for px30s */
+	pcfg_pull_none_n_4ma: pcfg-pull-none-n-4ma {
+		bias-disable;
+		drive-strength-s = <4>;
+	};
+	pcfg_pull_up_n_4ma: pcfg-pull-up-n-4ma {
+		bias-pull-up;
+		drive-strength-s = <4>;
+	};
+	pcfg_pull_down_n_4ma: pcfg-pull-down-n-4ma {
+		bias-pull-down;
+		drive-strength-s = <4>;
+	};
+
+	/* default for px30 and 6ma for px30s */
+	pcfg_pull_none_0_6ma: pcfg-pull-none-0-6ma {
+		bias-disable;
+		drive-strength-s = <6>;
+	};
+	pcfg_pull_up_0_6ma: pcfg-pull-up-0-6ma {
+		bias-pull-up;
+		drive-strength-s = <6>;
+	};
+	pcfg_pull_down_0_6ma: pcfg-pull-down-0-6ma {
+		bias-pull-down;
+		drive-strength-s = <6>;
+	};
+
+	/* 4ma for px30 and 6ma for px30s */
+	pcfg_pull_none_4_6ma: pcfg-pull-none-4-6ma {
+		bias-disable;
+		drive-strength = <4>;
+		drive-strength-s = <6>;
+	};
+	pcfg_pull_up_4_6ma: pcfg-pull-up-4-6ma {
+		bias-pull-up;
+		drive-strength = <4>;
+		drive-strength-s = <6>;
+	};
+	pcfg_pull_down_4_6ma: pcfg-pull-down-4-6ma {
+		bias-pull-down;
+		drive-strength = <4>;
+		drive-strength-s = <6>;
+	};
+
+	/* 8ma for px30 and 6ma for px30s */
+	pcfg_pull_none_8_6ma: pcfg-pull-none-8-6ma {
+		bias-disable;
+		drive-strength = <8>;
+		drive-strength-s = <6>;
+	};
+	pcfg_pull_up_8_6ma: pcfg-pull-up-8-6ma {
+		bias-pull-up;
+		drive-strength = <8>;
+		drive-strength-s = <6>;
+	};
+	pcfg_pull_down_8_6ma: pcfg-pull-down-8-6ma {
+		bias-pull-down;
+		drive-strength = <8>;
+		drive-strength-s = <6>;
+	};
+
+	/* 8ma for px30 and 4ma for px30s */
+	pcfg_pull_none_8_4ma: pcfg-pull-none-8-4ma {
+		bias-disable;
+		drive-strength = <8>;
+		drive-strength-s = <4>;
+	};
+	pcfg_pull_up_8_4ma: pcfg-pull-up-8-4ma {
+		bias-pull-up;
+		drive-strength = <8>;
+		drive-strength-s = <4>;
+	};
+	pcfg_pull_down_8_4ma: pcfg-pull-down-8-4ma {
+		bias-pull-down;
+		drive-strength = <8>;
+		drive-strength-s = <4>;
+	};
+
+	/* 12ma for px30 and 4ma for px30s */
+	pcfg_pull_none_12_4ma: pcfg-pull-none-12-4ma {
+		bias-disable;
+		drive-strength = <12>;
+		drive-strength-s = <4>;
+	};
+	pcfg_pull_up_12_4ma: pcfg-pull-up-12-4ma {
+		bias-pull-up;
+		drive-strength = <12>;
+		drive-strength-s = <4>;
+	};
+	pcfg_pull_down_12_4ma: pcfg-pull-down-12-4ma {
+		bias-pull-down;
+		drive-strength = <12>;
+		drive-strength-s = <4>;
+	};
+
+	/* 12ma for px30 and 6ma for px30s */
+	pcfg_pull_none_12_6ma: pcfg-pull-none-12-6ma {
+		bias-disable;
+		drive-strength = <12>;
+		drive-strength-s = <6>;
+	};
+	pcfg_pull_up_12_6ma: pcfg-pull-up-12-6ma {
+		bias-pull-up;
+		drive-strength = <12>;
+		drive-strength-s = <6>;
+	};
+	pcfg_pull_down_12_6ma: pcfg-pull-down-12-6ma {
+		bias-pull-down;
+		drive-strength = <12>;
+		drive-strength-s = <6>;
+	};
+};
+
+&pinctrl {
+	/delete-node/ emmc;
+	emmc {
+		emmc_clk: emmc-clk {
+			rockchip,pins =
+				<1 RK_PB1 2 &pcfg_pull_none_8_6ma>;
+		};
+
+		emmc_cmd: emmc-cmd {
+			rockchip,pins =
+				<1 RK_PB2 2 &pcfg_pull_up_8_6ma>;
+		};
+
+		emmc_pwren: emmc-pwren {
+			rockchip,pins =
+				<1 RK_PB0 2 &pcfg_pull_none>;
+		};
+
+		emmc_rstnout: emmc-rstnout {
+			rockchip,pins =
+				<1 RK_PB3 2 &pcfg_pull_none>;
+		};
+
+		emmc_bus1: emmc-bus1 {
+			rockchip,pins =
+				<1 RK_PA0 2 &pcfg_pull_up_8_6ma>;
+		};
+
+		emmc_bus4: emmc-bus4 {
+			rockchip,pins =
+				<1 RK_PA0 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA1 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA2 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA3 2 &pcfg_pull_up_8_6ma>;
+		};
+
+		emmc_bus8: emmc-bus8 {
+			rockchip,pins =
+				<1 RK_PA0 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA1 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA2 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA3 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA4 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA5 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA6 2 &pcfg_pull_up_8_6ma>,
+				<1 RK_PA7 2 &pcfg_pull_up_8_6ma>;
+		};
+	};
+};
