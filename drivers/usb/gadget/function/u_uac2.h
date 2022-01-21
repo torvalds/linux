@@ -14,6 +14,7 @@
 #define U_UAC2_H
 
 #include <linux/usb/composite.h>
+#include "uac_common.h"
 
 #define UAC2_DEF_PCHMASK 0x3
 #define UAC2_DEF_PSRATE 48000
@@ -35,10 +36,10 @@
 struct f_uac2_opts {
 	struct usb_function_instance	func_inst;
 	int				p_chmask;
-	int				p_srate;
+	int				p_srates[UAC_MAX_RATES];
 	int				p_ssize;
 	int				c_chmask;
-	int				c_srate;
+	int				c_srates[UAC_MAX_RATES];
 	int				c_ssize;
 	int				c_sync;
 
