@@ -53,6 +53,7 @@
 
 int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct drm_rect *src = &plane_state->uapi.src;
 	u32 src_x, src_y, src_w, src_h, hsub, vsub;
@@ -94,14 +95,14 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 		hsub = vsub = max(hsub, vsub);
 
 	if (src_x % hsub || src_w % hsub) {
-		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of %u (rotated: %s)\n",
-			      src_x, src_w, hsub, yesno(rotated));
+		drm_dbg_kms(&i915->drm, "src x/w (%u, %u) must be a multiple of %u (rotated: %s)\n",
+			    src_x, src_w, hsub, yesno(rotated));
 		return -EINVAL;
 	}
 
 	if (src_y % vsub || src_h % vsub) {
-		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of %u (rotated: %s)\n",
-			      src_y, src_h, vsub, yesno(rotated));
+		drm_dbg_kms(&i915->drm, "src y/h (%u, %u) must be a multiple of %u (rotated: %s)\n",
+			    src_y, src_h, vsub, yesno(rotated));
 		return -EINVAL;
 	}
 
@@ -1332,6 +1333,7 @@ static int
 g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	const struct drm_rect *src = &plane_state->uapi.src;
 	const struct drm_rect *dst = &plane_state->uapi.dst;
@@ -1357,7 +1359,7 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		if (src_h & 1) {
-			DRM_DEBUG_KMS("Source height must be even with interlaced modes\n");
+			drm_dbg_kms(&i915->drm, "Source height must be even with interlaced modes\n");
 			return -EINVAL;
 		}
 		min_height = 6;
@@ -1369,20 +1371,20 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 
 	if (src_w < min_width || src_h < min_height ||
 	    src_w > 2048 || src_h > 2048) {
-		DRM_DEBUG_KMS("Source dimensions (%dx%d) exceed hardware limits (%dx%d - %dx%d)\n",
-			      src_w, src_h, min_width, min_height, 2048, 2048);
+		drm_dbg_kms(&i915->drm, "Source dimensions (%dx%d) exceed hardware limits (%dx%d - %dx%d)\n",
+			    src_w, src_h, min_width, min_height, 2048, 2048);
 		return -EINVAL;
 	}
 
 	if (width_bytes > 4096) {
-		DRM_DEBUG_KMS("Fetch width (%d) exceeds hardware max with scaling (%u)\n",
-			      width_bytes, 4096);
+		drm_dbg_kms(&i915->drm, "Fetch width (%d) exceeds hardware max with scaling (%u)\n",
+			    width_bytes, 4096);
 		return -EINVAL;
 	}
 
 	if (stride > 4096) {
-		DRM_DEBUG_KMS("Stride (%u) exceeds hardware max with scaling (%u)\n",
-			      stride, 4096);
+		drm_dbg_kms(&i915->drm, "Stride (%u) exceeds hardware max with scaling (%u)\n",
+			    stride, 4096);
 		return -EINVAL;
 	}
 
