@@ -414,23 +414,20 @@ static uint32_t find_max_clk_value(const uint32_t clocks[], uint32_t num_clocks)
 	return max;
 }
 
-static unsigned int find_dfpstate_for_voltage(
-		const DfPstateTable_t table[],
-		unsigned int NumDfPstatesEnabled,
+static unsigned int find_clk_for_voltage(
+		const DpmClocks_315_t *clock_table,
+		const uint32_t clocks[],
 		unsigned int voltage)
 {
 	int i;
-	unsigned int minVoltage = table[0].Voltage;
-	unsigned int minlevel = 0;
 
-	for (i = 1; i < NumDfPstatesEnabled; i++) {
-		if (table[i].Voltage >= voltage && minVoltage > table[i].Voltage) {
-			minVoltage = table[i].Voltage;
-			minlevel = i;
-		}
+	for (i = 0; i < NUM_SOC_VOLTAGE_LEVELS; i++) {
+		if (clock_table->SocVoltage[i] == voltage)
+			return clocks[i];
 	}
 
-	return minlevel;
+	ASSERT(0);
+	return 0;
 }
 
 void dcn315_clk_mgr_helper_populate_bw_params(
@@ -438,21 +435,30 @@ void dcn315_clk_mgr_helper_populate_bw_params(
 		struct integrated_info *bios_info,
 		const DpmClocks_315_t *clock_table)
 {
-	int i, num_clk_lvl;
+	int i, j;
 	struct clk_bw_params *bw_params = clk_mgr->base.bw_params;
 	uint32_t max_dispclk = 0, max_dppclk = 0;
 
-	num_clk_lvl = clock_table->NumDcfClkLevelsEnabled;
+	j = -1;
 
-	ASSERT(num_clk_lvl <= MAX_NUM_DPM_LVL);
+	ASSERT(NUM_DF_PSTATE_LEVELS <= MAX_NUM_DPM_LVL);
 
-	if (num_clk_lvl == 0 || clock_table->DcfClocks[0] == 0) {
-		/* clock table is no good, just use our own hardcode */
+	/* Find lowest DPM, FCLK is filled in reverse order*/
+
+	for (i = NUM_DF_PSTATE_LEVELS - 1; i >= 0; i--) {
+		if (clock_table->DfPstateTable[i].FClk != 0) {
+			j = i;
+			break;
+		}
+	}
+
+	if (j == -1) {
+		/* clock table is all 0s, just use our own hardcode */
 		ASSERT(0);
 		return;
 	}
 
-	bw_params->clk_table.num_entries = num_clk_lvl;
+	bw_params->clk_table.num_entries = j + 1;
 
 	/* dispclk and dppclk can be max at any voltage, same number of levels for both */
 	if (clock_table->NumDispClkLevelsEnabled <= NUM_DISPCLK_DPM_LEVELS &&
@@ -463,15 +469,19 @@ void dcn315_clk_mgr_helper_populate_bw_params(
 		ASSERT(0);
 	}
 
-	for (i = 0; i < bw_params->clk_table.num_entries; i++) {
-		int j = find_dfpstate_for_voltage(clock_table->DfPstateTable, clock_table->NumDfPstatesEnabled, clock_table->SocVoltage[i]);
+	for (i = 0; i < bw_params->clk_table.num_entries; i++, j--) {
+		int temp;
 
 		bw_params->clk_table.entries[i].fclk_mhz = clock_table->DfPstateTable[j].FClk;
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[j].MemClk;
 		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[j].Voltage;
 		bw_params->clk_table.entries[i].wck_ratio = 1;
-		bw_params->clk_table.entries[i].dcfclk_mhz = clock_table->DcfClocks[i];
-		bw_params->clk_table.entries[i].socclk_mhz = clock_table->SocClocks[i];
+		temp = find_clk_for_voltage(clock_table, clock_table->DcfClocks, clock_table->DfPstateTable[j].Voltage);
+		if (temp)
+			bw_params->clk_table.entries[i].dcfclk_mhz = temp;
+		temp = find_clk_for_voltage(clock_table, clock_table->SocClocks, clock_table->DfPstateTable[j].Voltage);
+		if (temp)
+			bw_params->clk_table.entries[i].socclk_mhz = temp;
 		bw_params->clk_table.entries[i].dispclk_mhz = max_dispclk;
 		bw_params->clk_table.entries[i].dppclk_mhz = max_dppclk;
 	}
