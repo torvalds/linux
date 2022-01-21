@@ -30,11 +30,15 @@ V_FUNCTION_BEGIN(__kernel_get_syscall_map)
 	mr.	r4,r3
 	get_datapage	r3
 	mtlr	r12
+#ifdef __powerpc64__
+	addi	r3,r3,CFG_SYSCALL_MAP64
+#else
 	addi	r3,r3,CFG_SYSCALL_MAP32
+#endif
+	crclr	cr0*4+so
 	beqlr
 	li	r0,NR_syscalls
 	stw	r0,0(r4)
-	crclr	cr0*4+so
 	blr
   .cfi_endproc
 V_FUNCTION_END(__kernel_get_syscall_map)
@@ -49,8 +53,10 @@ V_FUNCTION_BEGIN(__kernel_get_tbfreq)
 	mflr	r12
   .cfi_register lr,r12
 	get_datapage	r3
+#ifndef __powerpc64__
 	lwz	r4,(CFG_TB_TICKS_PER_SEC + 4)(r3)
-	lwz	r3,CFG_TB_TICKS_PER_SEC(r3)
+#endif
+	PPC_LL	r3,CFG_TB_TICKS_PER_SEC(r3)
 	mtlr	r12
 	crclr	cr0*4+so
 	blr
