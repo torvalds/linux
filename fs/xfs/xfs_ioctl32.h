@@ -154,10 +154,6 @@ typedef struct compat_xfs_flock64 {
 	__s32		l_pad[4];	/* reserve area */
 } compat_xfs_flock64_t;
 
-#define XFS_IOC_ALLOCSP_32	_IOW('X', 10, struct compat_xfs_flock64)
-#define XFS_IOC_FREESP_32	_IOW('X', 11, struct compat_xfs_flock64)
-#define XFS_IOC_ALLOCSP64_32	_IOW('X', 36, struct compat_xfs_flock64)
-#define XFS_IOC_FREESP64_32	_IOW('X', 37, struct compat_xfs_flock64)
 #define XFS_IOC_RESVSP_32	_IOW('X', 40, struct compat_xfs_flock64)
 #define XFS_IOC_UNRESVSP_32	_IOW('X', 41, struct compat_xfs_flock64)
 #define XFS_IOC_RESVSP64_32	_IOW('X', 42, struct compat_xfs_flock64)
