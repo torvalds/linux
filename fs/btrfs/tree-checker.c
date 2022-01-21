@@ -1007,6 +1007,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 	struct btrfs_inode_item *iitem;
 	u64 super_gen = btrfs_super_generation(fs_info->super_copy);
 	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
+	const u32 item_size = btrfs_item_size_nr(leaf, slot);
 	u32 mode;
 	int ret;
 	u32 flags;
@@ -1015,6 +1016,12 @@ static int check_inode_item(struct extent_buffer *leaf,
 	ret = check_inode_key(leaf, key, slot);
 	if (unlikely(ret < 0))
 		return ret;
+
+	if (unlikely(item_size != sizeof(*iitem))) {
+		generic_err(leaf, slot, "invalid item size: has %u expect %zu",
+			    item_size, sizeof(*iitem));
+		return -EUCLEAN;
+	}
 
 	iitem = btrfs_item_ptr(leaf, slot, struct btrfs_inode_item);
 
