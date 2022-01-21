@@ -282,7 +282,7 @@ static void rockchip_snd_xfer_sync_reset(struct rk_i2s_tdm_dev *i2s_tdm)
 	int tx_id, rx_id;
 	int tx_bank, rx_bank, tx_offset, rx_offset;
 
-	if (!i2s_tdm->cru_base || !i2s_tdm->soc_data)
+	if (!i2s_tdm->cru_base || !i2s_tdm->soc_data || !i2s_tdm->is_master_mode)
 		return;
 
 	tx_id = i2s_tdm->tx_reset_id;
@@ -410,21 +410,25 @@ static void rockchip_snd_txctrl(struct rk_i2s_tdm_dev *i2s_tdm, int on)
 				   I2S_XFER_TXS_STOP);
 
 		udelay(150);
-		regmap_update_bits(i2s_tdm->regmap, I2S_CLR,
-				   I2S_CLR_TXC,
-				   I2S_CLR_TXC);
+		if (i2s_tdm->is_master_mode) {
+			regmap_update_bits(i2s_tdm->regmap, I2S_CLR,
+					   I2S_CLR_TXC,
+					   I2S_CLR_TXC);
 
-		regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
-
-		/* Should wait for clear operation to finish */
-		while (val) {
 			regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
-			retry--;
-			if (!retry) {
-				dev_warn(i2s_tdm->dev, "reset tx\n");
-				rockchip_snd_reset(i2s_tdm->tx_reset);
-				break;
+
+			/* Should wait for clear operation to finish */
+			while (val) {
+				regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
+				retry--;
+				if (!retry) {
+					dev_warn(i2s_tdm->dev, "reset tx\n");
+					rockchip_snd_reset(i2s_tdm->tx_reset);
+					break;
+				}
 			}
+		} else {
+			rockchip_snd_reset(i2s_tdm->tx_reset);
 		}
 	}
 }
@@ -450,21 +454,25 @@ static void rockchip_snd_rxctrl(struct rk_i2s_tdm_dev *i2s_tdm, int on)
 				   I2S_XFER_RXS_STOP);
 
 		udelay(150);
-		regmap_update_bits(i2s_tdm->regmap, I2S_CLR,
-				   I2S_CLR_RXC,
-				   I2S_CLR_RXC);
+		if (i2s_tdm->is_master_mode) {
+			regmap_update_bits(i2s_tdm->regmap, I2S_CLR,
+					   I2S_CLR_RXC,
+					   I2S_CLR_RXC);
 
-		regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
-
-		/* Should wait for clear operation to finish */
-		while (val) {
 			regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
-			retry--;
-			if (!retry) {
-				dev_warn(i2s_tdm->dev, "reset rx\n");
-				rockchip_snd_reset(i2s_tdm->rx_reset);
-				break;
+
+			/* Should wait for clear operation to finish */
+			while (val) {
+				regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
+				retry--;
+				if (!retry) {
+					dev_warn(i2s_tdm->dev, "reset rx\n");
+					rockchip_snd_reset(i2s_tdm->rx_reset);
+					break;
+				}
 			}
+		} else {
+			rockchip_snd_reset(i2s_tdm->rx_reset);
 		}
 	}
 }
