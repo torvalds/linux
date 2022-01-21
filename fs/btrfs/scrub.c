@@ -3190,7 +3190,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 generation;
 	int mirror_num;
 	struct btrfs_key key;
-	u64 increment = map->stripe_len;
+	u64 increment;
 	u64 offset;
 	u64 extent_logical;
 	u64 extent_physical;
