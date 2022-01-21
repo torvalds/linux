@@ -421,9 +421,9 @@ ifeq ($(KBUILD_EXTMOD),)
 prepare: vdso_prepare
 vdso_prepare: prepare0
 	$(if $(CONFIG_VDSO32),$(Q)$(MAKE) \
-		$(build)=arch/powerpc/kernel/vdso32 include/generated/vdso32-offsets.h)
+		$(build)=arch/powerpc/kernel/vdso include/generated/vdso32-offsets.h)
 	$(if $(CONFIG_PPC64),$(Q)$(MAKE) \
-		$(build)=arch/powerpc/kernel/vdso64 include/generated/vdso64-offsets.h)
+		$(build)=arch/powerpc/kernel/vdso include/generated/vdso64-offsets.h)
 endif
 
 archprepare: checkbin
