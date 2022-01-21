@@ -324,6 +324,16 @@ config VIDEO_BT866
 	  To compile this driver as a module, choose M here: the
 	  module will be called bt866.
 
+config VIDEO_EP9461E
+	tristate "Semiconn EP9461E decoder"
+	depends on I2C
+	select HDMI
+	help
+	  Support for the Semiconn EP9461E 4 HDMI switch.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ep9461e.
+
 config VIDEO_KS0127
 	tristate "KS0127 video decoder"
 	depends on VIDEO_V4L2 && I2C
