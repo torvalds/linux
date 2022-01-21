@@ -345,6 +345,10 @@ static void gser_free(struct usb_function *f)
 
 static void gser_unbind(struct usb_configuration *c, struct usb_function *f)
 {
+	struct f_gser	*gser = func_to_gser(f);
+
+	/* Ensure port is disconnected before unbinding */
+	gserial_disconnect(&gser->port);
 	usb_free_all_descriptors(f);
 }
 
