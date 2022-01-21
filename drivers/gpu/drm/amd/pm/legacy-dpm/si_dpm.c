@@ -7032,10 +7032,7 @@ static int si_power_control_set_level(struct amdgpu_device *adev)
 	ret = si_resume_smc(adev);
 	if (ret)
 		return ret;
-	ret = si_set_sw_state(adev);
-	if (ret)
-		return ret;
-	return 0;
+	return si_set_sw_state(adev);
 }
 
 static void si_set_vce_clock(struct amdgpu_device *adev,
