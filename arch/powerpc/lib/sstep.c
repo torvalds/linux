@@ -75,10 +75,8 @@ extern int do_stqcx(unsigned long ea, unsigned long val0, unsigned long val1,
 static nokprobe_inline unsigned long truncate_if_32bit(unsigned long msr,
 							unsigned long val)
 {
-#ifdef __powerpc64__
 	if ((msr & MSR_64BIT) == 0)
 		val &= 0xffffffffUL;
-#endif
 	return val;
 }
 
@@ -1067,10 +1065,8 @@ int emulate_dcbz(unsigned long ea, struct pt_regs *regs)
 	int err;
 	unsigned long size = l1_dcache_bytes();
 
-#ifdef __powerpc64__
 	if (!(regs->msr & MSR_64BIT))
 		ea &= 0xffffffffUL;
-#endif
 	ea &= ~(size - 1);
 	if (!address_ok(regs, ea, size))
 		return -EFAULT;
@@ -1136,10 +1132,8 @@ static nokprobe_inline void set_cr0(const struct pt_regs *regs,
 
 	op->type |= SETCC;
 	op->ccval = (regs->ccr & 0x0fffffff) | ((regs->xer >> 3) & 0x10000000);
-#ifdef __powerpc64__
 	if (!(regs->msr & MSR_64BIT))
 		val = (int) val;
-#endif
 	if (val < 0)
 		op->ccval |= 0x80000000;
 	else if (val > 0)
@@ -1170,12 +1164,10 @@ static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
 	op->type = COMPUTE + SETREG + SETXER;
 	op->reg = rd;
 	op->val = val;
-#ifdef __powerpc64__
 	if (!(regs->msr & MSR_64BIT)) {
 		val = (unsigned int) val;
 		val1 = (unsigned int) val1;
 	}
-#endif
 	op->xerval = regs->xer;
 	if (val < val1 || (carry_in && val == val1))
 		op->xerval |= XER_CA;
