@@ -115,7 +115,7 @@ static int vega20_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 	ret = vega20_wait_for_response(hwmgr);
 	if (ret != PPSMC_Result_OK)
-		pr_err("Failed to send message 0x%x, response 0x%x\n", msg, ret);
+		dev_err(adev->dev, "Failed to send message 0x%x, response 0x%x\n", msg, ret);
 
 	return (ret == PPSMC_Result_OK) ? 0 : -EIO;
 }
@@ -143,7 +143,7 @@ static int vega20_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 
 	ret = vega20_wait_for_response(hwmgr);
 	if (ret != PPSMC_Result_OK)
-		pr_err("Failed to send message 0x%x, response 0x%x\n", msg, ret);
+		dev_err(adev->dev, "Failed to send message 0x%x, response 0x%x\n", msg, ret);
 
 	return (ret == PPSMC_Result_OK) ? 0 : -EIO;
 }
