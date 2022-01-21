@@ -515,6 +515,20 @@ int u_audio_set_capture_srate(struct g_audio *audio_dev, int srate)
 }
 EXPORT_SYMBOL_GPL(u_audio_set_capture_srate);
 
+int u_audio_get_capture_srate(struct g_audio *audio_dev, u32 *val)
+{
+	struct snd_uac_chip *uac = audio_dev->uac;
+	struct uac_rtd_params *prm;
+	unsigned long flags;
+
+	prm = &uac->c_prm;
+	spin_lock_irqsave(&prm->lock, flags);
+	*val = prm->srate;
+	spin_unlock_irqrestore(&prm->lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(u_audio_get_capture_srate);
+
 int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate)
 {
 	struct uac_params *params = &audio_dev->params;
@@ -539,6 +553,20 @@ int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate)
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(u_audio_set_playback_srate);
+
+int u_audio_get_playback_srate(struct g_audio *audio_dev, u32 *val)
+{
+	struct snd_uac_chip *uac = audio_dev->uac;
+	struct uac_rtd_params *prm;
+	unsigned long flags;
+
+	prm = &uac->p_prm;
+	spin_lock_irqsave(&prm->lock, flags);
+	*val = prm->srate;
+	spin_unlock_irqrestore(&prm->lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(u_audio_get_playback_srate);
 
 int u_audio_start_capture(struct g_audio *audio_dev)
 {
