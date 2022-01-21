@@ -199,15 +199,15 @@ out:
 /*
  * Check if physical address is within prefix or zero page
  */
-static int is_swapped(unsigned long addr)
+static int is_swapped(phys_addr_t addr)
 {
-	unsigned long lc;
+	phys_addr_t lc;
 	int cpu;
 
 	if (addr < sizeof(struct lowcore))
 		return 1;
 	for_each_online_cpu(cpu) {
-		lc = (unsigned long) lowcore_ptr[cpu];
+		lc = virt_to_phys(lowcore_ptr[cpu]);
 		if (addr > lc + sizeof(struct lowcore) - 1 || addr < lc)
 			continue;
 		return 1;
@@ -223,7 +223,8 @@ static int is_swapped(unsigned long addr)
  */
 void *xlate_dev_mem_ptr(phys_addr_t addr)
 {
-	void *bounce = (void *) addr;
+	void *ptr = phys_to_virt(addr);
+	void *bounce = ptr;
 	unsigned long size;
 
 	cpus_read_lock();
@@ -232,7 +233,7 @@ void *xlate_dev_mem_ptr(phys_addr_t addr)
 		size = PAGE_SIZE - (addr & ~PAGE_MASK);
 		bounce = (void *) __get_free_page(GFP_ATOMIC);
 		if (bounce)
-			memcpy_absolute(bounce, (void *) addr, size);
+			memcpy_absolute(bounce, ptr, size);
 	}
 	preempt_enable();
 	cpus_read_unlock();
@@ -242,8 +243,8 @@ void *xlate_dev_mem_ptr(phys_addr_t addr)
 /*
  * Free converted buffer for /dev/mem access (if necessary)
  */
-void unxlate_dev_mem_ptr(phys_addr_t addr, void *buf)
+void unxlate_dev_mem_ptr(phys_addr_t addr, void *ptr)
 {
-	if ((void *) addr != buf)
-		free_page((unsigned long) buf);
+	if (addr != virt_to_phys(ptr))
+		free_page((unsigned long)ptr);
 }
