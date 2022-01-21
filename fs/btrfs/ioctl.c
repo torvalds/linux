@@ -3353,7 +3353,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	struct block_device *bdev = NULL;
 	fmode_t mode;
 	int ret;
-	bool cancel;
+	bool cancel = false;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
