@@ -29,96 +29,132 @@ struct smi_instance {
 
 struct smi {
 	int i2c_num;
-	struct i2c_client *i2c_devs[];
+	struct i2c_client **i2c_devs;
 };
 
-static int smi_probe(struct platform_device *pdev)
+static int smi_get_irq(struct platform_device *pdev, struct acpi_device *adev,
+		       const struct smi_instance *inst)
 {
-	struct i2c_board_info board_info = {};
-	const struct smi_instance *inst;
-	struct device *dev = &pdev->dev;
-	struct acpi_device *adev;
-	struct smi *smi;
-	char name[32];
-	int i, ret;
+	int ret;
 
-	inst = device_get_match_data(dev);
-	if (!inst) {
-		dev_err(dev, "Error ACPI match data is missing\n");
-		return -ENODEV;
+	switch (inst->flags & IRQ_RESOURCE_TYPE) {
+	case IRQ_RESOURCE_GPIO:
+		ret = acpi_dev_gpio_irq_get(adev, inst->irq_idx);
+		break;
+	case IRQ_RESOURCE_APIC:
+		ret = platform_get_irq(pdev, inst->irq_idx);
+		break;
+	default:
+		return 0;
 	}
 
-	adev = ACPI_COMPANION(dev);
+	if (ret < 0)
+		dev_err_probe(&pdev->dev, ret, "Error requesting irq at index %d: %d\n",
+			      inst->irq_idx, ret);
 
-	/* Count number of clients to instantiate */
+	return ret;
+}
+
+static void smi_devs_unregister(struct smi *smi)
+{
+	while (smi->i2c_num > 0)
+		i2c_unregister_device(smi->i2c_devs[--smi->i2c_num]);
+}
+
+/**
+ * smi_i2c_probe - Instantiate multiple I2C devices from inst array
+ * @pdev:	Platform device
+ * @adev:	ACPI device
+ * @smi:	Internal struct for Serial multi instantiate driver
+ * @inst_array:	Array of instances to probe
+ *
+ * Returns the number of I2C devices instantiate, Zero if none is found or a negative error code.
+ */
+static int smi_i2c_probe(struct platform_device *pdev, struct acpi_device *adev, struct smi *smi,
+			 const struct smi_instance *inst_array)
+{
+	struct i2c_board_info board_info = {};
+	struct device *dev = &pdev->dev;
+	char name[32];
+	int i, ret, count;
+
 	ret = i2c_acpi_client_count(adev);
 	if (ret < 0)
 		return ret;
+	else if (!ret)
+		return -ENODEV;
 
-	smi = devm_kmalloc(dev, struct_size(smi, i2c_devs, ret), GFP_KERNEL);
-	if (!smi)
+	count = ret;
+
+	smi->i2c_devs = devm_kcalloc(dev, count, sizeof(*smi->i2c_devs), GFP_KERNEL);
+	if (!smi->i2c_devs)
 		return -ENOMEM;
 
-	smi->i2c_num = ret;
-
-	for (i = 0; i < smi->i2c_num && inst[i].type; i++) {
+	for (i = 0; i < count && inst_array[i].type; i++) {
 		memset(&board_info, 0, sizeof(board_info));
-		strlcpy(board_info.type, inst[i].type, I2C_NAME_SIZE);
-		snprintf(name, sizeof(name), "%s-%s.%d", dev_name(dev), inst[i].type, i);
+		strscpy(board_info.type, inst_array[i].type, I2C_NAME_SIZE);
+		snprintf(name, sizeof(name), "%s-%s.%d", dev_name(dev), inst_array[i].type, i);
 		board_info.dev_name = name;
-		switch (inst[i].flags & IRQ_RESOURCE_TYPE) {
-		case IRQ_RESOURCE_GPIO:
-			ret = acpi_dev_gpio_irq_get(adev, inst[i].irq_idx);
-			if (ret < 0) {
-				dev_err(dev, "Error requesting irq at index %d: %d\n",
-						inst[i].irq_idx, ret);
-				goto error;
-			}
-			board_info.irq = ret;
-			break;
-		case IRQ_RESOURCE_APIC:
-			ret = platform_get_irq(pdev, inst[i].irq_idx);
-			if (ret < 0) {
-				dev_dbg(dev, "Error requesting irq at index %d: %d\n",
-					inst[i].irq_idx, ret);
-				goto error;
-			}
-			board_info.irq = ret;
-			break;
-		default:
-			board_info.irq = 0;
-			break;
-		}
+
+		ret = smi_get_irq(pdev, adev, &inst_array[i]);
+		if (ret < 0)
+			goto error;
+		board_info.irq = ret;
+
 		smi->i2c_devs[i] = i2c_acpi_new_device(dev, i, &board_info);
 		if (IS_ERR(smi->i2c_devs[i])) {
 			ret = dev_err_probe(dev, PTR_ERR(smi->i2c_devs[i]),
 					    "Error creating i2c-client, idx %d\n", i);
 			goto error;
 		}
+		smi->i2c_num++;
 	}
-	if (i < smi->i2c_num) {
-		dev_err(dev, "Error finding driver, idx %d\n", i);
+	if (smi->i2c_num < count) {
+		dev_dbg(dev, "Error finding driver, idx %d\n", i);
 		ret = -ENODEV;
 		goto error;
 	}
 
-	platform_set_drvdata(pdev, smi);
-	return 0;
+	dev_info(dev, "Instantiated %d I2C devices.\n", smi->i2c_num);
 
+	return 0;
 error:
-	while (--i >= 0)
-		i2c_unregister_device(smi->i2c_devs[i]);
+	smi_devs_unregister(smi);
 
 	return ret;
+}
+
+static int smi_probe(struct platform_device *pdev)
+{
+	const struct smi_instance *inst_array;
+	struct device *dev = &pdev->dev;
+	struct acpi_device *adev;
+	struct smi *smi;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return -ENODEV;
+
+	inst_array = device_get_match_data(dev);
+	if (!inst_array) {
+		dev_dbg(dev, "Error ACPI match data is missing\n");
+		return -ENODEV;
+	}
+
+	smi = devm_kzalloc(dev, sizeof(*smi), GFP_KERNEL);
+	if (!smi)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, smi);
+
+	return smi_i2c_probe(pdev, adev, smi, inst_array);
 }
 
 static int smi_remove(struct platform_device *pdev)
 {
 	struct smi *smi = platform_get_drvdata(pdev);
-	int i;
 
-	for (i = 0; i < smi->i2c_num; i++)
-		i2c_unregister_device(smi->i2c_devs[i]);
+	smi_devs_unregister(smi);
 
 	return 0;
 }
