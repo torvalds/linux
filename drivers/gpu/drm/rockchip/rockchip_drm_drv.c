@@ -52,6 +52,37 @@ static bool is_support_iommu = true;
 
 static struct drm_driver rockchip_drm_driver;
 
+/**
+ * rockchip_drm_wait_vact_end
+ * @crtc: CRTC to enable line flag
+ * @mstimeout: millisecond for timeout
+ *
+ * Wait for vact_end line flag irq or timeout.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
+{
+	struct rockchip_drm_private *priv;
+	int pipe, ret = 0;
+
+	if (!crtc)
+		return -ENODEV;
+
+	if (mstimeout <= 0)
+		return -EINVAL;
+
+	priv = crtc->dev->dev_private;
+	pipe = drm_crtc_index(crtc);
+
+	if (priv->crtc_funcs[pipe] && priv->crtc_funcs[pipe]->wait_vact_end)
+		ret = priv->crtc_funcs[pipe]->wait_vact_end(crtc, mstimeout);
+
+	return ret;
+}
+EXPORT_SYMBOL(rockchip_drm_wait_vact_end);
+
 void drm_mode_convert_to_split_mode(struct drm_display_mode *mode)
 {
 	u16 hactive, hfp, hsync, hbp;

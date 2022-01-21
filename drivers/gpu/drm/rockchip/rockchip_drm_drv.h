@@ -340,6 +340,15 @@ struct next_hdr_sink_data {
  * @enable_vblank: enable crtc vblank irq.
  * @disable_vblank: disable crtc vblank irq.
  * @bandwidth: report present crtc bandwidth consume.
+ * @cancel_pending_vblank: cancel pending vblank.
+ * @debugfs_init: init crtc debugfs.
+ * @debugfs_dump: debugfs to dump crtc and plane state.
+ * @regs_dump: dump vop current register config.
+ * @mode_valid: verify that the current mode is supported.
+ * @crtc_close: close vop.
+ * @crtc_send_mcu_cmd: send mcu panel init cmd.
+ * @te_handler: soft te hand for cmd mode panel.
+ * @wait_vact_end: wait the last active line.
  */
 struct rockchip_crtc_funcs {
 	int (*loader_protect)(struct drm_crtc *crtc, bool on);
@@ -359,6 +368,7 @@ struct rockchip_crtc_funcs {
 	void (*crtc_close)(struct drm_crtc *crtc);
 	void (*crtc_send_mcu_cmd)(struct drm_crtc *crtc, u32 type, u32 value);
 	void (*te_handler)(struct drm_crtc *crtc);
+	int (*wait_vact_end)(struct drm_crtc *crtc, unsigned int mstimeout);
 };
 
 struct rockchip_dclk_pll {
