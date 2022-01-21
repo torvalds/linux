@@ -43,6 +43,8 @@
 #define RPMX_MTI_STAT_DATA_HI_CDC            0x10038
 
 #define RPM_LMAC_FWI			0xa
+#define RPM_TX_EN			BIT_ULL(0)
+#define RPM_RX_EN			BIT_ULL(1)
 
 /* Function Declarations */
 int rpm_get_nr_lmacs(void *rpmd);
@@ -57,4 +59,6 @@ int rpm_lmac_enadis_pause_frm(void *rpmd, int lmac_id, u8 tx_pause,
 int rpm_get_tx_stats(void *rpmd, int lmac_id, int idx, u64 *tx_stat);
 int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat);
 void rpm_lmac_ptp_config(void *rpmd, int lmac_id, bool enable);
+int rpm_lmac_rx_tx_enable(void *rpmd, int lmac_id, bool enable);
+int rpm_lmac_tx_enable(void *rpmd, int lmac_id, bool enable);
 #endif /* RPM_H */
