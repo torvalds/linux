@@ -1571,6 +1571,8 @@ static struct mac_ops	cgx_mac_ops    = {
 	.mac_enadis_pause_frm =		cgx_lmac_enadis_pause_frm,
 	.mac_pause_frm_config =		cgx_lmac_pause_frm_config,
 	.mac_enadis_ptp_config =	cgx_lmac_ptp_config,
+	.mac_rx_tx_enable =		cgx_lmac_rx_tx_enable,
+	.mac_tx_enable =		cgx_lmac_tx_enable,
 };
 
 static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
