@@ -262,6 +262,10 @@
 	};
 };
 
+&av1d_mmu {
+	status = "okay";
+};
+
 &avdd_1v2_cam_s0 {
 	regulator-min-microvolt = <1350000>;
 	regulator-max-microvolt = <1350000>;

@@ -161,6 +161,10 @@
 	};
 };
 
+&av1d_mmu {
+	status = "okay";
+};
+
 &combphy0_ps {
 	status = "okay";
 };
