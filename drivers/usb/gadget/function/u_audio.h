@@ -120,7 +120,9 @@ void u_audio_stop_capture(struct g_audio *g_audio);
 int u_audio_start_playback(struct g_audio *g_audio);
 void u_audio_stop_playback(struct g_audio *g_audio);
 
+int u_audio_get_capture_srate(struct g_audio *audio_dev, u32 *val);
 int u_audio_set_capture_srate(struct g_audio *audio_dev, int srate);
+int u_audio_get_playback_srate(struct g_audio *audio_dev, u32 *val);
 int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate);
 
 int u_audio_get_volume(struct g_audio *g_audio, int playback, s16 *val);
