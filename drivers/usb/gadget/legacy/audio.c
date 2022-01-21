@@ -26,9 +26,10 @@ module_param(p_chmask, uint, 0444);
 MODULE_PARM_DESC(p_chmask, "Playback Channel Mask");
 
 /* Playback Default 48 KHz */
-static int p_srate = UAC2_DEF_PSRATE;
-module_param(p_srate, uint, 0444);
-MODULE_PARM_DESC(p_srate, "Playback Sampling Rate");
+static int p_srates[UAC_MAX_RATES] = {UAC2_DEF_PSRATE};
+static int p_srates_cnt = 1;
+module_param_array_named(p_srate, p_srates, uint, &p_srates_cnt, 0444);
+MODULE_PARM_DESC(p_srate, "Playback Sampling Rates (array)");
 
 /* Playback Default 16bits/sample */
 static int p_ssize = UAC2_DEF_PSSIZE;
@@ -41,9 +42,10 @@ module_param(c_chmask, uint, 0444);
 MODULE_PARM_DESC(c_chmask, "Capture Channel Mask");
 
 /* Capture Default 64 KHz */
-static int c_srate = UAC2_DEF_CSRATE;
-module_param(c_srate, uint, 0444);
-MODULE_PARM_DESC(c_srate, "Capture Sampling Rate");
+static int c_srates[UAC_MAX_RATES] = {UAC2_DEF_CSRATE};
+static int c_srates_cnt = 1;
+module_param_array_named(c_srate, c_srates, uint, &c_srates_cnt, 0444);
+MODULE_PARM_DESC(c_srate, "Capture Sampling Rates (array)");
 
 /* Capture Default 16bits/sample */
 static int c_ssize = UAC2_DEF_CSSIZE;
@@ -237,6 +239,7 @@ static int audio_bind(struct usb_composite_dev *cdev)
 {
 #ifndef CONFIG_GADGET_UAC1
 	struct f_uac2_opts	*uac2_opts;
+	int i;
 #else
 #ifndef CONFIG_GADGET_UAC1_LEGACY
 	struct f_uac1_opts	*uac1_opts;
@@ -263,10 +266,16 @@ static int audio_bind(struct usb_composite_dev *cdev)
 #ifndef CONFIG_GADGET_UAC1
 	uac2_opts = container_of(fi_uac2, struct f_uac2_opts, func_inst);
 	uac2_opts->p_chmask = p_chmask;
-	uac2_opts->p_srate = p_srate;
+
+	for (i = 0; i < p_srates_cnt; ++i)
+		uac2_opts->p_srates[i] = p_srates[i];
+
 	uac2_opts->p_ssize = p_ssize;
 	uac2_opts->c_chmask = c_chmask;
-	uac2_opts->c_srate = c_srate;
+
+	for (i = 0; i < c_srates_cnt; ++i)
+		uac2_opts->c_srates[i] = c_srates[i];
+
 	uac2_opts->c_ssize = c_ssize;
 	uac2_opts->req_number = UAC2_DEF_REQ_NUM;
 #else
