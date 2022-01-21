@@ -3891,8 +3891,8 @@ nix_config_link_credits(struct rvu *rvu, int blkaddr, int link,
 			    NIX_AF_TL1X_SW_XOFF(schq), BIT_ULL(0));
 	}
 
-	rc = -EBUSY;
-	poll_tmo = jiffies + usecs_to_jiffies(10000);
+	rc = NIX_AF_ERR_LINK_CREDITS;
+	poll_tmo = jiffies + usecs_to_jiffies(200000);
 	/* Wait for credits to return */
 	do {
 		if (time_after(jiffies, poll_tmo))
