@@ -54,10 +54,24 @@ struct strp_msg {
 	int offset;
 };
 
+struct _strp_msg {
+	/* Internal cb structure. struct strp_msg must be first for passing
+	 * to upper layer.
+	 */
+	struct strp_msg strp;
+	int accum_len;
+};
+
+struct sk_skb_cb {
+#define SK_SKB_CB_PRIV_LEN 20
+	unsigned char data[SK_SKB_CB_PRIV_LEN];
+	struct _strp_msg strp;
+};
+
 static inline struct strp_msg *strp_msg(struct sk_buff *skb)
 {
 	return (struct strp_msg *)((void *)skb->cb +
-		offsetof(struct qdisc_skb_cb, data));
+		offsetof(struct sk_skb_cb, strp));
 }
 
 /* Structure for an attached lower socket */

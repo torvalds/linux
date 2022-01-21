@@ -452,12 +452,12 @@ static int check_sq_size_with_integrity(struct hns_roce_dev *hr_dev,
 	/* Sanity check SQ size before proceeding */
 	if (ucmd->log_sq_stride > max_sq_stride ||
 	    ucmd->log_sq_stride < HNS_ROCE_IB_MIN_SQ_STRIDE) {
-		ibdev_err(&hr_dev->ib_dev, "Failed to check SQ stride size\n");
+		ibdev_err(&hr_dev->ib_dev, "failed to check SQ stride size.\n");
 		return -EINVAL;
 	}
 
 	if (cap->max_send_sge > hr_dev->caps.max_sq_sg) {
-		ibdev_err(&hr_dev->ib_dev, "Failed to check SQ SGE size %d\n",
+		ibdev_err(&hr_dev->ib_dev, "failed to check SQ SGE size %u.\n",
 			  cap->max_send_sge);
 		return -EINVAL;
 	}
@@ -563,7 +563,7 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 
 	cnt = roundup_pow_of_two(max(cap->max_send_wr, hr_dev->caps.min_wqes));
 	if (cnt > hr_dev->caps.max_wqes) {
-		ibdev_err(ibdev, "failed to check WQE num, WQE num = %d.\n",
+		ibdev_err(ibdev, "failed to check WQE num, WQE num = %u.\n",
 			  cnt);
 		return -EINVAL;
 	}
@@ -736,11 +736,11 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 						   &hr_qp->sdb);
 			if (ret) {
 				ibdev_err(ibdev,
-					  "Failed to map user SQ doorbell\n");
+					  "failed to map user SQ doorbell, ret = %d.\n",
+					  ret);
 				goto err_out;
 			}
 			hr_qp->en_flags |= HNS_ROCE_QP_CAP_SQ_RECORD_DB;
-			resp->cap_flags |= HNS_ROCE_QP_CAP_SQ_RECORD_DB;
 		}
 
 		if (user_qp_has_rdb(hr_dev, init_attr, udata, resp)) {
@@ -748,11 +748,11 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 						   &hr_qp->rdb);
 			if (ret) {
 				ibdev_err(ibdev,
-					  "Failed to map user RQ doorbell\n");
+					  "failed to map user RQ doorbell, ret = %d.\n",
+					  ret);
 				goto err_sdb;
 			}
 			hr_qp->en_flags |= HNS_ROCE_QP_CAP_RQ_RECORD_DB;
-			resp->cap_flags |= HNS_ROCE_QP_CAP_RQ_RECORD_DB;
 		}
 	} else {
 		/* QP doorbell register address */
@@ -765,7 +765,8 @@ static int alloc_qp_db(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			ret = hns_roce_alloc_db(hr_dev, &hr_qp->rdb, 0);
 			if (ret) {
 				ibdev_err(ibdev,
-					  "Failed to alloc kernel RQ doorbell\n");
+					  "failed to alloc kernel RQ doorbell, ret = %d.\n",
+					  ret);
 				goto err_out;
 			}
 			*hr_qp->rdb.db_record = 0;
@@ -808,14 +809,14 @@ static int alloc_kernel_wrid(struct hns_roce_dev *hr_dev,
 
 	sq_wrid = kcalloc(hr_qp->sq.wqe_cnt, sizeof(u64), GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(sq_wrid)) {
-		ibdev_err(ibdev, "Failed to alloc SQ wrid\n");
+		ibdev_err(ibdev, "failed to alloc SQ wrid.\n");
 		return -ENOMEM;
 	}
 
 	if (hr_qp->rq.wqe_cnt) {
 		rq_wrid = kcalloc(hr_qp->rq.wqe_cnt, sizeof(u64), GFP_KERNEL);
 		if (ZERO_OR_NULL_PTR(rq_wrid)) {
-			ibdev_err(ibdev, "Failed to alloc RQ wrid\n");
+			ibdev_err(ibdev, "failed to alloc RQ wrid.\n");
 			ret = -ENOMEM;
 			goto err_sq;
 		}
@@ -875,7 +876,9 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 
 		ret = set_user_sq_size(hr_dev, &init_attr->cap, hr_qp, ucmd);
 		if (ret)
-			ibdev_err(ibdev, "Failed to set user SQ size\n");
+			ibdev_err(ibdev,
+				  "failed to set user SQ size, ret = %d.\n",
+				  ret);
 	} else {
 		if (init_attr->create_flags &
 		    IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
@@ -890,7 +893,9 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 
 		ret = set_kernel_sq_size(hr_dev, &init_attr->cap, hr_qp);
 		if (ret)
-			ibdev_err(ibdev, "Failed to set kernel SQ size\n");
+			ibdev_err(ibdev,
+				  "failed to set kernel SQ size, ret = %d.\n",
+				  ret);
 	}
 
 	return ret;
@@ -916,49 +921,53 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 	ret = set_qp_param(hr_dev, hr_qp, init_attr, udata, &ucmd);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to set QP param\n");
+		ibdev_err(ibdev, "failed to set QP param, ret = %d.\n", ret);
 		return ret;
 	}
 
 	if (!udata) {
 		ret = alloc_kernel_wrid(hr_dev, hr_qp);
 		if (ret) {
-			ibdev_err(ibdev, "Failed to alloc wrid\n");
+			ibdev_err(ibdev, "failed to alloc wrid, ret = %d.\n",
+				  ret);
 			return ret;
 		}
 	}
 
 	ret = alloc_qp_db(hr_dev, hr_qp, init_attr, udata, &ucmd, &resp);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc QP doorbell\n");
+		ibdev_err(ibdev, "failed to alloc QP doorbell, ret = %d.\n",
+			  ret);
 		goto err_wrid;
 	}
 
 	ret = alloc_qp_buf(hr_dev, hr_qp, init_attr, udata, ucmd.buf_addr);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc QP buffer\n");
+		ibdev_err(ibdev, "failed to alloc QP buffer, ret = %d.\n", ret);
 		goto err_db;
 	}
 
 	ret = alloc_qpn(hr_dev, hr_qp);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc QPN\n");
+		ibdev_err(ibdev, "failed to alloc QPN, ret = %d.\n", ret);
 		goto err_buf;
 	}
 
 	ret = alloc_qpc(hr_dev, hr_qp);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc QP context\n");
+		ibdev_err(ibdev, "failed to alloc QP context, ret = %d.\n",
+			  ret);
 		goto err_qpn;
 	}
 
 	ret = hns_roce_qp_store(hr_dev, hr_qp, init_attr);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to store QP\n");
+		ibdev_err(ibdev, "failed to store QP, ret = %d.\n", ret);
 		goto err_qpc;
 	}
 
 	if (udata) {
+		resp.cap_flags = hr_qp->en_flags;
 		ret = ib_copy_to_udata(udata, &resp,
 				       min(udata->outlen, sizeof(resp)));
 		if (ret) {
@@ -1099,9 +1108,8 @@ static int hns_roce_check_qp_attr(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if ((attr_mask & IB_QP_PORT) &&
 	    (attr->port_num == 0 || attr->port_num > hr_dev->caps.num_ports)) {
-		ibdev_err(&hr_dev->ib_dev,
-			"attr port_num invalid.attr->port_num=%d\n",
-			attr->port_num);
+		ibdev_err(&hr_dev->ib_dev, "invalid attr, port_num = %u.\n",
+			  attr->port_num);
 		return -EINVAL;
 	}
 
@@ -1109,8 +1117,8 @@ static int hns_roce_check_qp_attr(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
 		if (attr->pkey_index >= hr_dev->caps.pkey_table_len[p]) {
 			ibdev_err(&hr_dev->ib_dev,
-				"attr pkey_index invalid.attr->pkey_index=%d\n",
-				attr->pkey_index);
+				  "invalid attr, pkey_index = %u.\n",
+				  attr->pkey_index);
 			return -EINVAL;
 		}
 	}
@@ -1118,16 +1126,16 @@ static int hns_roce_check_qp_attr(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
 	    attr->max_rd_atomic > hr_dev->caps.max_qp_init_rdma) {
 		ibdev_err(&hr_dev->ib_dev,
-			"attr max_rd_atomic invalid.attr->max_rd_atomic=%d\n",
-			attr->max_rd_atomic);
+			  "invalid attr, max_rd_atomic = %u.\n",
+			  attr->max_rd_atomic);
 		return -EINVAL;
 	}
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
 	    attr->max_dest_rd_atomic > hr_dev->caps.max_qp_dest_rdma) {
 		ibdev_err(&hr_dev->ib_dev,
-			"attr max_dest_rd_atomic invalid.attr->max_dest_rd_atomic=%d\n",
-			attr->max_dest_rd_atomic);
+			  "invalid attr, max_dest_rd_atomic = %u.\n",
+			  attr->max_dest_rd_atomic);
 		return -EINVAL;
 	}
 

@@ -54,16 +54,6 @@ static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *paren
 }
 
 /*
- * Set the file size and block count.  Estimate the number of 512 bytes blocks
- * used, rounded up to nearest 1K for consistency with other AFS clients.
- */
-static void afs_set_i_size(struct afs_vnode *vnode, u64 size)
-{
-	i_size_write(&vnode->vfs_inode, size);
-	vnode->vfs_inode.i_blocks = ((size + 1023) >> 10) << 1;
-}
-
-/*
  * Initialise an inode from the vnode status.
  */
 static int afs_inode_init_from_status(struct afs_operation *op,

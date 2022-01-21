@@ -224,7 +224,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	}
 
 	chip->gc.label = dev_name(dev);
-	if (of_property_read_u32(dn, "ngpios", &num_gpios))
+	if (!of_property_read_u32(dn, "ngpios", &num_gpios))
 		chip->gc.ngpio = num_gpios;
 
 	irq = platform_get_irq(pdev, 0);

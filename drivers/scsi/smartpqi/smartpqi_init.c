@@ -1207,6 +1207,7 @@ static int pqi_get_raid_map(struct pqi_ctrl_info *ctrl_info,
 				"Requested %d bytes, received %d bytes",
 				raid_map_size,
 				get_unaligned_le32(&raid_map->structure_size));
+			rc = -EINVAL;
 			goto error;
 		}
 	}

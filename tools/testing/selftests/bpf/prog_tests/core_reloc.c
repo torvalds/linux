@@ -857,7 +857,7 @@ void test_core_reloc(void)
 			goto cleanup;
 		}
 
-		if (!ASSERT_FALSE(test_case->fails, "obj_load_should_fail"))
+		if (!ASSERT_EQ(test_case->fails, false, "obj_load_should_fail"))
 			goto cleanup;
 
 		equal = memcmp(data->out, test_case->output,

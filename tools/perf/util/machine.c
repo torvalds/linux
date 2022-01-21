@@ -2100,6 +2100,7 @@ static int add_callchain_ip(struct thread *thread,
 
 	al.filtered = 0;
 	al.sym = NULL;
+	al.srcline = NULL;
 	if (!cpumode) {
 		thread__find_cpumode_addr_location(thread, ip, &al);
 	} else {

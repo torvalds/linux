@@ -581,6 +581,7 @@ static void load_gpu(struct drm_device *dev)
 
 static int context_init(struct drm_device *dev, struct drm_file *file)
 {
+	static atomic_t ident = ATOMIC_INIT(0);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_file_private *ctx;
 
@@ -593,6 +594,8 @@ static int context_init(struct drm_device *dev, struct drm_file *file)
 
 	ctx->aspace = msm_gpu_create_private_address_space(priv->gpu, current);
 	file->driver_priv = ctx;
+
+	ctx->seqno = atomic_inc_return(&ident);
 
 	return 0;
 }

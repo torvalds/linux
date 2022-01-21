@@ -452,7 +452,7 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 		return rc;
 
 	ver_resp = &bp->ver_resp;
-	sprintf(buf, "%X", ver_resp->chip_rev);
+	sprintf(buf, "%c%d", 'A' + ver_resp->chip_rev, ver_resp->chip_metal);
 	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_FIXED,
 			      DEVLINK_INFO_VERSION_GENERIC_ASIC_REV, buf);
 	if (rc)
@@ -474,8 +474,8 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (BNXT_PF(bp) && !bnxt_hwrm_get_nvm_cfg_ver(bp, &nvm_cfg_ver)) {
 		u32 ver = nvm_cfg_ver.vu32;
 
-		sprintf(buf, "%d.%d.%d", (ver >> 16) & 0xf, (ver >> 8) & 0xf,
-			ver & 0xf);
+		sprintf(buf, "%d.%d.%d", (ver >> 16) & 0xff, (ver >> 8) & 0xff,
+			ver & 0xff);
 		rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_STORED,
 				      DEVLINK_INFO_VERSION_GENERIC_FW_PSID,
 				      buf);

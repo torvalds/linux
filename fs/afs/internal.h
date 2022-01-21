@@ -1574,6 +1574,16 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
 }
 
 /*
+ * Set the file size and block count.  Estimate the number of 512 bytes blocks
+ * used, rounded up to nearest 1K for consistency with other AFS clients.
+ */
+static inline void afs_set_i_size(struct afs_vnode *vnode, u64 size)
+{
+	i_size_write(&vnode->vfs_inode, size);
+	vnode->vfs_inode.i_blocks = ((size + 1023) >> 10) << 1;
+}
+
+/*
  * Check for a conflicting operation on a directory that we just unlinked from.
  * If someone managed to sneak a link or an unlink in on the file we just
  * unlinked, we won't be able to trust nlink on an AFS file (but not YFS).

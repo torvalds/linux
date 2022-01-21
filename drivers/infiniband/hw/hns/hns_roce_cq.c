@@ -50,29 +50,29 @@ static int alloc_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 
 	ret = hns_roce_mtr_find(hr_dev, &hr_cq->mtr, 0, mtts, ARRAY_SIZE(mtts),
 				&dma_handle);
-	if (ret < 1) {
-		ibdev_err(ibdev, "Failed to find CQ mtr\n");
+	if (!ret) {
+		ibdev_err(ibdev, "failed to find CQ mtr, ret = %d.\n", ret);
 		return -EINVAL;
 	}
 
 	cq_table = &hr_dev->cq_table;
 	ret = hns_roce_bitmap_alloc(&cq_table->bitmap, &hr_cq->cqn);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc CQ bitmap, err %d\n", ret);
+		ibdev_err(ibdev, "failed to alloc CQ bitmap, ret = %d.\n", ret);
 		return ret;
 	}
 
 	/* Get CQC memory HEM(Hardware Entry Memory) table */
 	ret = hns_roce_table_get(hr_dev, &cq_table->table, hr_cq->cqn);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to get CQ(0x%lx) context, err %d\n",
+		ibdev_err(ibdev, "failed to get CQ(0x%lx) context, ret = %d.\n",
 			  hr_cq->cqn, ret);
 		goto err_out;
 	}
 
 	ret = xa_err(xa_store(&cq_table->array, hr_cq->cqn, hr_cq, GFP_KERNEL));
 	if (ret) {
-		ibdev_err(ibdev, "Failed to xa_store CQ\n");
+		ibdev_err(ibdev, "failed to xa_store CQ, ret = %d.\n", ret);
 		goto err_put;
 	}
 
@@ -91,7 +91,7 @@ static int alloc_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	if (ret) {
 		ibdev_err(ibdev,
-			  "Failed to send create cmd for CQ(0x%lx), err %d\n",
+			  "failed to send create cmd for CQ(0x%lx), ret = %d.\n",
 			  hr_cq->cqn, ret);
 		goto err_xa;
 	}
@@ -147,7 +147,7 @@ static int alloc_cq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_buf_attr buf_attr = {};
-	int err;
+	int ret;
 
 	buf_attr.page_shift = hr_dev->caps.cqe_buf_pg_sz + HNS_HW_PAGE_SHIFT;
 	buf_attr.region[0].size = hr_cq->cq_depth * hr_cq->cqe_size;
@@ -155,13 +155,13 @@ static int alloc_cq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 	buf_attr.region_count = 1;
 	buf_attr.fixed_page = true;
 
-	err = hns_roce_mtr_create(hr_dev, &hr_cq->mtr, &buf_attr,
+	ret = hns_roce_mtr_create(hr_dev, &hr_cq->mtr, &buf_attr,
 				  hr_dev->caps.cqe_ba_pg_sz + HNS_HW_PAGE_SHIFT,
 				  udata, addr);
-	if (err)
-		ibdev_err(ibdev, "Failed to alloc CQ mtr, err %d\n", err);
+	if (ret)
+		ibdev_err(ibdev, "failed to alloc CQ mtr, ret = %d.\n", ret);
 
-	return err;
+	return ret;
 }
 
 static void free_cq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
@@ -252,13 +252,13 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 	int ret;
 
 	if (cq_entries < 1 || cq_entries > hr_dev->caps.max_cqes) {
-		ibdev_err(ibdev, "Failed to check CQ count %d max=%d\n",
+		ibdev_err(ibdev, "failed to check CQ count %u, max = %u.\n",
 			  cq_entries, hr_dev->caps.max_cqes);
 		return -EINVAL;
 	}
 
 	if (vector >= hr_dev->caps.num_comp_vectors) {
-		ibdev_err(ibdev, "Failed to check CQ vector=%d max=%d\n",
+		ibdev_err(ibdev, "failed to check CQ vector = %d, max = %d.\n",
 			  vector, hr_dev->caps.num_comp_vectors);
 		return -EINVAL;
 	}
@@ -276,7 +276,7 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 		ret = ib_copy_from_udata(&ucmd, udata,
 					 min(udata->inlen, sizeof(ucmd)));
 		if (ret) {
-			ibdev_err(ibdev, "Failed to copy CQ udata, err %d\n",
+			ibdev_err(ibdev, "failed to copy CQ udata, ret = %d.\n",
 				  ret);
 			return ret;
 		}
@@ -286,19 +286,20 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 
 	ret = alloc_cq_buf(hr_dev, hr_cq, udata, ucmd.buf_addr);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc CQ buf, err %d\n", ret);
+		ibdev_err(ibdev, "failed to alloc CQ buf, ret = %d.\n", ret);
 		return ret;
 	}
 
 	ret = alloc_cq_db(hr_dev, hr_cq, udata, ucmd.db_addr, &resp);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc CQ db, err %d\n", ret);
+		ibdev_err(ibdev, "failed to alloc CQ db, ret = %d.\n", ret);
 		goto err_cq_buf;
 	}
 
 	ret = alloc_cqc(hr_dev, hr_cq);
 	if (ret) {
-		ibdev_err(ibdev, "Failed to alloc CQ context, err %d\n", ret);
+		ibdev_err(ibdev,
+			  "failed to alloc CQ context, ret = %d.\n", ret);
 		goto err_cq_db;
 	}
 

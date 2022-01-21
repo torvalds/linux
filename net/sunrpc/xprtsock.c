@@ -1639,6 +1639,13 @@ static int xs_get_srcport(struct sock_xprt *transport)
 	return port;
 }
 
+unsigned short get_srcport(struct rpc_xprt *xprt)
+{
+	struct sock_xprt *sock = container_of(xprt, struct sock_xprt, xprt);
+	return xs_sock_getport(sock->sock);
+}
+EXPORT_SYMBOL(get_srcport);
+
 static unsigned short xs_next_srcport(struct sock_xprt *transport, unsigned short port)
 {
 	if (transport->srcport != 0)

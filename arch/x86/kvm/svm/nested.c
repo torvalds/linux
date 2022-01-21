@@ -447,7 +447,6 @@ static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
 		(svm->nested.ctl.int_ctl & int_ctl_vmcb12_bits) |
 		(svm->nested.hsave->control.int_ctl & int_ctl_vmcb01_bits);
 
-	svm->vmcb->control.virt_ext            = svm->nested.ctl.virt_ext;
 	svm->vmcb->control.int_vector          = svm->nested.ctl.int_vector;
 	svm->vmcb->control.int_state           = svm->nested.ctl.int_state;
 	svm->vmcb->control.event_inj           = svm->nested.ctl.event_inj;

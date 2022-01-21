@@ -1732,7 +1732,6 @@ static const unsigned int avb_mii_pins[] = {
 	PIN_AVB_RX_CTL, PIN_AVB_RXC, PIN_AVB_RD0,
 	PIN_AVB_RD1, PIN_AVB_RD2, PIN_AVB_RD3,
 	PIN_AVB_TXCREFCLK,
-
 };
 static const unsigned int avb_mii_mux[] = {
 	AVB_TX_CTL_MARK, AVB_TXC_MARK, AVB_TD0_MARK,
