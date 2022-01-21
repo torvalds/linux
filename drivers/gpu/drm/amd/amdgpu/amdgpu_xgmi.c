@@ -32,6 +32,8 @@
 #include "wafl/wafl2_4_0_0_smn.h"
 #include "wafl/wafl2_4_0_0_sh_mask.h"
 
+#include "amdgpu_reset.h"
+
 #define smnPCS_XGMI23_PCS_ERROR_STATUS   0x11a01210
 #define smnPCS_XGMI3X16_PCS_ERROR_STATUS 0x11a0020c
 #define smnPCS_GOPX1_PCS_ERROR_STATUS    0x12200210
@@ -227,6 +229,9 @@ static void amdgpu_xgmi_hive_release(struct kobject *kobj)
 	struct amdgpu_hive_info *hive = container_of(
 		kobj, struct amdgpu_hive_info, kobj);
 
+	amdgpu_reset_put_reset_domain(hive->reset_domain);
+	hive->reset_domain = NULL;
+
 	mutex_destroy(&hive->hive_lock);
 	kfree(hive);
 }
@@ -398,12 +403,24 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 		goto pro_end;
 	}
 
-	hive->reset_domain.wq = alloc_ordered_workqueue("amdgpu-reset-hive", 0);
-	if (!hive->reset_domain.wq) {
-		dev_err(adev->dev, "XGMI: failed allocating wq for reset domain!\n");
-		kfree(hive);
-		hive = NULL;
-		goto pro_end;
+	/**
+	 * Avoid recreating reset domain when hive is reconstructed for the case
+	 * of reset the devices in the XGMI hive during probe for SRIOV
+	 * See https://www.spinics.net/lists/amd-gfx/msg58836.html
+	 */
+	if (adev->reset_domain->type != XGMI_HIVE) {
+		hive->reset_domain = amdgpu_reset_create_reset_domain(XGMI_HIVE, "amdgpu-reset-hive");
+			if (!hive->reset_domain) {
+				dev_err(adev->dev, "XGMI: failed initializing reset domain for xgmi hive\n");
+				ret = -ENOMEM;
+				kobject_put(&hive->kobj);
+				kfree(hive);
+				hive = NULL;
+				goto pro_end;
+			}
+	} else {
+		amdgpu_reset_get_reset_domain(adev->reset_domain);
+		hive->reset_domain = adev->reset_domain;
 	}
 
 	hive->hive_id = adev->gmc.xgmi.hive_id;

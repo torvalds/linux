@@ -2316,7 +2316,7 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
 
 		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
 				   ring->num_hw_submission, amdgpu_job_hang_limit,
-				   timeout, adev->reset_domain.wq, ring->sched_score, ring->name);
+				   timeout, adev->reset_domain->wq, ring->sched_score, ring->name);
 		if (r) {
 			DRM_ERROR("Failed to create scheduler on ring %s.\n",
 				  ring->name);
@@ -2439,24 +2439,22 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	if (r)
 		goto init_failed;
 
+	/**
+	 * In case of XGMI grab extra reference for reset domain for this device
+	 */
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
-		struct amdgpu_hive_info *hive;
+		if (amdgpu_xgmi_add_device(adev) == 0) {
+			struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
 
-		amdgpu_xgmi_add_device(adev);
+			if (!hive->reset_domain ||
+			    !amdgpu_reset_get_reset_domain(hive->reset_domain)) {
+				r = -ENOENT;
+				goto init_failed;
+			}
 
-		hive = amdgpu_get_xgmi_hive(adev);
-		if (!hive || !hive->reset_domain.wq) {
-			DRM_ERROR("Failed to obtain reset domain info for XGMI hive:%llx", hive->hive_id);
-			r = -EINVAL;
-			goto init_failed;
-		}
-
-		adev->reset_domain.wq = hive->reset_domain.wq;
-	} else {
-		adev->reset_domain.wq = alloc_ordered_workqueue("amdgpu-reset-dev", 0);
-		if (!adev->reset_domain.wq) {
-			r = -ENOMEM;
-			goto init_failed;
+			/* Drop the early temporary reset domain we created for device */
+			amdgpu_reset_put_reset_domain(adev->reset_domain);
+			adev->reset_domain = hive->reset_domain;
 		}
 	}
 
@@ -3640,6 +3638,15 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 	}
 
+	/*
+	 * Reset domain needs to be present early, before XGMI hive discovered
+	 * (if any) and intitialized to use reset sem and in_gpu reset flag
+	 * early on during init.
+	 */
+	adev->reset_domain = amdgpu_reset_create_reset_domain(SINGLE_DEVICE ,"amdgpu-reset-dev");
+	if (!adev->reset_domain)
+		return -ENOMEM;
+
 	/* early init functions */
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
@@ -4015,6 +4022,9 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
 		amdgpu_pmu_fini(adev);
 	if (adev->mman.discovery_bin)
 		amdgpu_discovery_fini(adev);
+
+	amdgpu_reset_put_reset_domain(adev->reset_domain);
+	adev->reset_domain = NULL;
 
 	kfree(adev->pci_state);
 
@@ -5241,7 +5251,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	INIT_WORK(&work.base, amdgpu_device_queue_gpu_recover_work);
 
-	if (!queue_work(adev->reset_domain.wq, &work.base))
+	if (!amdgpu_reset_domain_schedule(adev->reset_domain, &work.base))
 		return -EAGAIN;
 
 	flush_work(&work.base);

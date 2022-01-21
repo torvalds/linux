@@ -42,7 +42,7 @@ struct amdgpu_hive_info {
 		AMDGPU_XGMI_PSTATE_UNKNOWN
 	} pstate;
 
-	struct amdgpu_reset_domain reset_domain;
+	struct amdgpu_reset_domain *reset_domain;
 };
 
 struct amdgpu_pcs_ras_field {

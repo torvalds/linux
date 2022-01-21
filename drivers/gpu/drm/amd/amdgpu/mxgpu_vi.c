@@ -42,6 +42,8 @@
 #include "smu/smu_7_1_3_d.h"
 #include "mxgpu_vi.h"
 
+#include "amdgpu_reset.h"
+
 /* VI golden setting */
 static const u32 xgpu_fiji_mgcg_cgcg_init[] = {
 	mmRLC_CGTT_MGCG_OVERRIDE, 0xffffffff, 0xffffffff,
@@ -551,8 +553,8 @@ static int xgpu_vi_mailbox_rcv_irq(struct amdgpu_device *adev,
 
 		/* only handle FLR_NOTIFY now */
 		if (!r && !amdgpu_in_reset(adev))
-			WARN_ONCE(!queue_work(adev->reset_domain.wq,
-					      &adev->virt.flr_work),
+			WARN_ONCE(!amdgpu_reset_domain_schedule(adev->reset_domain,
+								&adev->virt.flr_work),
 				  "Failed to queue work! at %s",
 				  __func__);
 	}
