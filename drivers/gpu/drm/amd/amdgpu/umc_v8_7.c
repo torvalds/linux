@@ -55,29 +55,36 @@ static inline uint32_t get_umc_v8_7_channel_index(struct amdgpu_device *adev,
 }
 
 static void umc_v8_7_ecc_info_query_correctable_error_count(struct amdgpu_device *adev,
-						uint32_t channel_index,
+						uint32_t umc_inst, uint32_t ch_inst,
 						unsigned long *error_count)
 {
 	uint64_t mc_umc_status;
+	uint32_t eccinfo_table_idx;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	eccinfo_table_idx = umc_inst * adev->umc.channel_inst_num + ch_inst;
+
 	/* check for SRAM correctable error
 	 * MCUMC_STATUS is a 64 bit register
 	 */
-	mc_umc_status = ras->umc_ecc.ecc[channel_index].mca_umc_status;
+	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
 	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1)
 		*error_count += 1;
 }
 
 static void umc_v8_7_ecc_info_querry_uncorrectable_error_count(struct amdgpu_device *adev,
-							uint32_t channel_index,
+							uint32_t umc_inst, uint32_t ch_inst,
 							unsigned long *error_count)
 {
 	uint64_t mc_umc_status;
+	uint32_t eccinfo_table_idx;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
+	eccinfo_table_idx = umc_inst * adev->umc.channel_inst_num + ch_inst;
+
 	/* check the MCUMC_STATUS */
-	mc_umc_status = ras->umc_ecc.ecc[channel_index].mca_umc_status;
+	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
 	if ((REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1) &&
 	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Deferred) == 1 ||
 	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
@@ -94,20 +101,16 @@ static void umc_v8_7_ecc_info_query_ras_error_count(struct amdgpu_device *adev,
 
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
-	uint32_t channel_index   = 0;
 
 	/* TODO: driver needs to toggle DF Cstate to ensure
 	 * safe access of UMC registers. Will add the protection
 	 */
 	LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
-		channel_index = get_umc_v8_7_channel_index(adev,
-							umc_inst,
-							ch_inst);
 		umc_v8_7_ecc_info_query_correctable_error_count(adev,
-							channel_index,
+							umc_inst, ch_inst,
 							&(err_data->ce_count));
 		umc_v8_7_ecc_info_querry_uncorrectable_error_count(adev,
-							channel_index,
+							umc_inst, ch_inst,
 							&(err_data->ue_count));
 	}
 }
@@ -120,12 +123,14 @@ static void umc_v8_7_ecc_info_query_error_address(struct amdgpu_device *adev,
 	uint64_t mc_umc_status, err_addr, retired_page;
 	struct eeprom_table_record *err_rec;
 	uint32_t channel_index;
+	uint32_t eccinfo_table_idx;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
+	eccinfo_table_idx = umc_inst * adev->umc.channel_inst_num + ch_inst;
 	channel_index =
 		adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num + ch_inst];
 
-	mc_umc_status = ras->umc_ecc.ecc[channel_index].mca_umc_status;
+	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
 
 	if (mc_umc_status == 0)
 		return;
@@ -140,7 +145,7 @@ static void umc_v8_7_ecc_info_query_error_address(struct amdgpu_device *adev,
 	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
 	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1)) {
 
-		err_addr = ras->umc_ecc.ecc[channel_index].mca_umc_addr;
+		err_addr = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_addr;
 		err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
 
 		/* translate umc channel address to soc pa, 3 parts are included */
