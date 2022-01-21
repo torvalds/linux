@@ -1259,6 +1259,19 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 3, 0):
+	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 3, 1):
+	case IP_VERSION(10, 3, 3):
+		adev->flags |= AMD_IS_APU;
+		break;
+	default:
+		break;
+	}
+
 	if (adev->ip_versions[XGMI_HWIP][0] == IP_VERSION(4, 8, 0))
 		adev->gmc.xgmi.supported = true;
 
