@@ -468,7 +468,7 @@ int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev)
 {
 	int ret;
 
-	if (!info)
+	if (!info || info->skip_refresh)
 		return 0;
 
 	/* disable iommu */

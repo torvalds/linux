@@ -73,6 +73,7 @@ struct mpp_iommu_info {
 	struct iommu_group *group;
 	struct mpp_rk_iommu *iommu;
 	iommu_fault_handler_t hdl;
+	u32 skip_refresh;
 };
 
 struct mpp_dma_session *
