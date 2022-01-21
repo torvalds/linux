@@ -833,12 +833,41 @@ struct bpf_xdp_set_link_opts {
 };
 #define bpf_xdp_set_link_opts__last_field old_fd
 
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_attach() instead")
 LIBBPF_API int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_attach() instead")
 LIBBPF_API int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
 					const struct bpf_xdp_set_link_opts *opts);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_query_id() instead")
 LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_query() instead")
 LIBBPF_API int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
 				     size_t info_size, __u32 flags);
+
+struct bpf_xdp_attach_opts {
+	size_t sz;
+	int old_prog_fd;
+	size_t :0;
+};
+#define bpf_xdp_attach_opts__last_field old_prog_fd
+
+struct bpf_xdp_query_opts {
+	size_t sz;
+	__u32 prog_id;		/* output */
+	__u32 drv_prog_id;	/* output */
+	__u32 hw_prog_id;	/* output */
+	__u32 skb_prog_id;	/* output */
+	__u8 attach_mode;	/* output */
+	size_t :0;
+};
+#define bpf_xdp_query_opts__last_field attach_mode
+
+LIBBPF_API int bpf_xdp_attach(int ifindex, int prog_fd, __u32 flags,
+			      const struct bpf_xdp_attach_opts *opts);
+LIBBPF_API int bpf_xdp_detach(int ifindex, __u32 flags,
+			      const struct bpf_xdp_attach_opts *opts);
+LIBBPF_API int bpf_xdp_query(int ifindex, int flags, struct bpf_xdp_query_opts *opts);
+LIBBPF_API int bpf_xdp_query_id(int ifindex, int flags, __u32 *prog_id);
 
 /* TC related API */
 enum bpf_tc_attach_point {
