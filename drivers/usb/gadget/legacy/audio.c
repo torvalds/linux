@@ -22,32 +22,32 @@ USB_GADGET_COMPOSITE_OPTIONS();
 
 /* Playback(USB-IN) Default Stereo - Fl/Fr */
 static int p_chmask = UAC2_DEF_PCHMASK;
-module_param(p_chmask, uint, S_IRUGO);
+module_param(p_chmask, uint, 0444);
 MODULE_PARM_DESC(p_chmask, "Playback Channel Mask");
 
 /* Playback Default 48 KHz */
 static int p_srate = UAC2_DEF_PSRATE;
-module_param(p_srate, uint, S_IRUGO);
+module_param(p_srate, uint, 0444);
 MODULE_PARM_DESC(p_srate, "Playback Sampling Rate");
 
 /* Playback Default 16bits/sample */
 static int p_ssize = UAC2_DEF_PSSIZE;
-module_param(p_ssize, uint, S_IRUGO);
+module_param(p_ssize, uint, 0444);
 MODULE_PARM_DESC(p_ssize, "Playback Sample Size(bytes)");
 
 /* Capture(USB-OUT) Default Stereo - Fl/Fr */
 static int c_chmask = UAC2_DEF_CCHMASK;
-module_param(c_chmask, uint, S_IRUGO);
+module_param(c_chmask, uint, 0444);
 MODULE_PARM_DESC(c_chmask, "Capture Channel Mask");
 
 /* Capture Default 64 KHz */
 static int c_srate = UAC2_DEF_CSRATE;
-module_param(c_srate, uint, S_IRUGO);
+module_param(c_srate, uint, 0444);
 MODULE_PARM_DESC(c_srate, "Capture Sampling Rate");
 
 /* Capture Default 16bits/sample */
 static int c_ssize = UAC2_DEF_CSSIZE;
-module_param(c_ssize, uint, S_IRUGO);
+module_param(c_ssize, uint, 0444);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
 #else
 #ifndef CONFIG_GADGET_UAC1_LEGACY
@@ -55,58 +55,58 @@ MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
 
 /* Playback(USB-IN) Default Stereo - Fl/Fr */
 static int p_chmask = UAC1_DEF_PCHMASK;
-module_param(p_chmask, uint, S_IRUGO);
+module_param(p_chmask, uint, 0444);
 MODULE_PARM_DESC(p_chmask, "Playback Channel Mask");
 
 /* Playback Default 48 KHz */
 static int p_srate = UAC1_DEF_PSRATE;
-module_param(p_srate, uint, S_IRUGO);
+module_param(p_srate, uint, 0444);
 MODULE_PARM_DESC(p_srate, "Playback Sampling Rate");
 
 /* Playback Default 16bits/sample */
 static int p_ssize = UAC1_DEF_PSSIZE;
-module_param(p_ssize, uint, S_IRUGO);
+module_param(p_ssize, uint, 0444);
 MODULE_PARM_DESC(p_ssize, "Playback Sample Size(bytes)");
 
 /* Capture(USB-OUT) Default Stereo - Fl/Fr */
 static int c_chmask = UAC1_DEF_CCHMASK;
-module_param(c_chmask, uint, S_IRUGO);
+module_param(c_chmask, uint, 0444);
 MODULE_PARM_DESC(c_chmask, "Capture Channel Mask");
 
 /* Capture Default 48 KHz */
 static int c_srate = UAC1_DEF_CSRATE;
-module_param(c_srate, uint, S_IRUGO);
+module_param(c_srate, uint, 0444);
 MODULE_PARM_DESC(c_srate, "Capture Sampling Rate");
 
 /* Capture Default 16bits/sample */
 static int c_ssize = UAC1_DEF_CSSIZE;
-module_param(c_ssize, uint, S_IRUGO);
+module_param(c_ssize, uint, 0444);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
 #else /* CONFIG_GADGET_UAC1_LEGACY */
 #include "u_uac1_legacy.h"
 
 static char *fn_play = FILE_PCM_PLAYBACK;
-module_param(fn_play, charp, S_IRUGO);
+module_param(fn_play, charp, 0444);
 MODULE_PARM_DESC(fn_play, "Playback PCM device file name");
 
 static char *fn_cap = FILE_PCM_CAPTURE;
-module_param(fn_cap, charp, S_IRUGO);
+module_param(fn_cap, charp, 0444);
 MODULE_PARM_DESC(fn_cap, "Capture PCM device file name");
 
 static char *fn_cntl = FILE_CONTROL;
-module_param(fn_cntl, charp, S_IRUGO);
+module_param(fn_cntl, charp, 0444);
 MODULE_PARM_DESC(fn_cntl, "Control device file name");
 
 static int req_buf_size = UAC1_OUT_EP_MAX_PACKET_SIZE;
-module_param(req_buf_size, int, S_IRUGO);
+module_param(req_buf_size, int, 0444);
 MODULE_PARM_DESC(req_buf_size, "ISO OUT endpoint request buffer size");
 
 static int req_count = UAC1_REQ_COUNT;
-module_param(req_count, int, S_IRUGO);
+module_param(req_count, int, 0444);
 MODULE_PARM_DESC(req_count, "ISO OUT endpoint request count");
 
 static int audio_buf_size = UAC1_AUDIO_BUF_SIZE;
-module_param(audio_buf_size, int, S_IRUGO);
+module_param(audio_buf_size, int, 0444);
 MODULE_PARM_DESC(audio_buf_size, "Audio buffer size");
 #endif /* CONFIG_GADGET_UAC1_LEGACY */
 #endif
