@@ -1707,23 +1707,29 @@ static int rk_pcie_really_probe(void *p)
 	const struct rk_pcie_of_data *data;
 	enum rk_pcie_device_mode mode;
 	struct device_node *np = pdev->dev.of_node;
-	u32 val;
+	u32 val = 0;
 	int irq;
 
 	match = of_match_device(rk_pcie_of_match, dev);
-	if (!match)
-		return -EINVAL;
+	if (!match) {
+		ret = -EINVAL;
+		goto release_driver;
+	}
 
 	data = (struct rk_pcie_of_data *)match->data;
 	mode = (enum rk_pcie_device_mode)data->mode;
 
 	rk_pcie = devm_kzalloc(dev, sizeof(*rk_pcie), GFP_KERNEL);
-	if (!rk_pcie)
-		return -ENOMEM;
+	if (!rk_pcie) {
+		ret = -ENOMEM;
+		goto release_driver;
+	}
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
-	if (!pci)
-		return -ENOMEM;
+	if (!pci) {
+		ret = -ENOMEM;
+		goto release_driver;
+	}
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
@@ -1743,20 +1749,31 @@ static int rk_pcie_really_probe(void *p)
 	ret = rk_pcie_resource_get(pdev, rk_pcie);
 	if (ret) {
 		dev_err(dev, "resource init failed\n");
-		return ret;
+		goto release_driver;
 	}
 
+retry_regulator:
 	/* DON'T MOVE ME: must be enable before phy init */
 	rk_pcie->vpcie3v3 = devm_regulator_get_optional(dev, "vpcie3v3");
 	if (IS_ERR(rk_pcie->vpcie3v3)) {
-		if (PTR_ERR(rk_pcie->vpcie3v3) != -ENODEV)
-			return PTR_ERR(rk_pcie->vpcie3v3);
+		if (PTR_ERR(rk_pcie->vpcie3v3) != -ENODEV) {
+			if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT)) {
+				/* Deferred but in threaded context for most 10s */
+				msleep(20);
+				if (++val < 500)
+					goto retry_regulator;
+			}
+
+			ret = PTR_ERR(rk_pcie->vpcie3v3);
+			goto release_driver;
+		}
+
 		dev_info(dev, "no vpcie3v3 regulator found\n");
 	}
 
 	ret = rk_pcie_enable_power(rk_pcie);
 	if (ret)
-		return ret;
+		goto release_driver;
 
 	ret = rk_pcie_phy_init(rk_pcie);
 	if (ret) {
@@ -1878,6 +1895,7 @@ deinit_clk:
 	rk_pcie_clk_deinit(rk_pcie);
 disable_vpcie3v3:
 	rk_pcie_disable_power(rk_pcie);
+release_driver:
 	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT))
 		device_release_driver(dev);
 
