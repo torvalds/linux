@@ -13,6 +13,8 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_self_refresh_helper.h>
+
 #include <drm/drm_writeback.h>
 #ifdef CONFIG_DRM_ANALOGIX_DP
 #include <drm/bridge/analogix_dp.h>
@@ -679,6 +681,9 @@ struct vop2 {
 	bool disable_win_move;
 
 	bool loader_protect;
+
+	bool aclk_rate_reset;
+	unsigned long aclk_rate;
 
 	const struct vop2_data *data;
 	/* Number of win that registered as plane,
@@ -3591,6 +3596,19 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 	return 0;
 }
 
+static void vop2_crtc_atomic_disable_for_psr(struct drm_crtc *crtc,
+					     struct drm_crtc_state *old_state)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	vop2_disable_all_planes_for_crtc(crtc);
+	drm_crtc_vblank_off(crtc);
+	vop2->aclk_rate = clk_get_rate(vop2->aclk);
+	clk_set_rate(vop2->aclk, vop2->aclk_rate / 3);
+	vop2->aclk_rate_reset = true;
+}
+
 static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
@@ -3603,6 +3621,12 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	int ret;
 
 	WARN_ON(vp->event);
+
+	if (crtc->state->self_refresh_active) {
+		vop2_crtc_atomic_disable_for_psr(crtc, old_state);
+		goto out;
+	}
+
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Crtc atomic disable vp%d\n", vp->id);
 	drm_crtc_vblank_off(crtc);
@@ -3686,6 +3710,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vop2->active_vp_mask &= ~BIT(vp->id);
 	vop2_set_system_status(vop2);
 
+out:
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
 		drm_crtc_send_vblank_event(crtc, crtc->state->event);
@@ -4814,6 +4839,89 @@ static void vop2_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
+static bool vop2_crtc_line_flag_irq_is_enabled(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	const struct vop_intr *intr = vp_data->intr;
+	uint32_t line_flag_irq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	line_flag_irq = VOP_INTR_GET_TYPE(vop2, intr, enable, LINE_FLAG_INTR);
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+
+	return !!line_flag_irq;
+}
+
+static void vop2_crtc_line_flag_irq_enable(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	const struct vop_intr *intr = vp_data->intr;
+	unsigned long flags;
+
+	if (!vop2->is_enabled)
+		return;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	VOP_INTR_SET_TYPE(vop2, intr, clear, LINE_FLAG_INTR, 1);
+	VOP_INTR_SET_TYPE(vop2, intr, enable, LINE_FLAG_INTR, 1);
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+}
+
+static void vop2_crtc_line_flag_irq_disable(struct vop2_video_port *vp)
+{
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	const struct vop_intr *intr = vp_data->intr;
+	unsigned long flags;
+
+	if (!vop2->is_enabled)
+		return;
+
+	spin_lock_irqsave(&vop2->irq_lock, flags);
+	VOP_INTR_SET_TYPE(vop2, intr, enable, LINE_FLAG_INTR, 0);
+	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+}
+
+static int vop2_crtc_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	unsigned long jiffies_left;
+	int ret = 0;
+
+	if (!vop2->is_enabled)
+		return -ENODEV;
+
+	mutex_lock(&vop2->vop2_lock);
+
+	if (vop2_crtc_line_flag_irq_is_enabled(vp)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	reinit_completion(&vp->line_flag_completion);
+	vop2_crtc_line_flag_irq_enable(vp);
+	jiffies_left = wait_for_completion_timeout(&vp->line_flag_completion,
+						   msecs_to_jiffies(mstimeout));
+	vop2_crtc_line_flag_irq_disable(vp);
+
+	if (jiffies_left == 0) {
+		DRM_DEV_ERROR(vop2->dev, "timeout waiting for lineflag IRQ\n");
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
+out:
+	mutex_unlock(&vop2->vop2_lock);
+	return ret;
+}
+
 static int vop2_crtc_enable_line_flag_event(struct drm_crtc *crtc, uint32_t line)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -5368,6 +5476,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.bandwidth = vop2_crtc_bandwidth,
 	.crtc_close = vop2_crtc_close,
 	.te_handler = vop2_crtc_te_handler,
+	.wait_vact_end = vop2_crtc_wait_vact_end,
 };
 
 static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -6109,6 +6218,15 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	int splice_en = 0;
 	int port_mux;
 	int ret;
+
+	if (old_state && old_state->self_refresh_active) {
+		drm_crtc_vblank_on(crtc);
+		if (vop2->aclk_rate_reset)
+			clk_set_rate(vop2->aclk, vop2->aclk_rate);
+		vop2->aclk_rate_reset = false;
+
+		return;
+	}
 
 	vop2->active_vp_mask |= BIT(vp->id);
 	vop2_set_system_status(vop2);
@@ -8660,6 +8778,13 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		}
 		vop2_crtc_create_plane_mask_property(vop2, crtc);
 		vop2_crtc_create_feature_property(vop2, crtc);
+
+		ret = drm_self_refresh_helper_init(crtc);
+		if (ret)
+			DRM_DEV_DEBUG_KMS(vop2->dev,
+					  "Failed to init %s with SR helpers %d, ignoring\n",
+					  crtc->name, ret);
+
 		registered_num_crtcs++;
 	}
 
@@ -8721,6 +8846,8 @@ static int vop2_create_crtc(struct vop2 *vop2)
 static void vop2_destroy_crtc(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+
+	drm_self_refresh_helper_cleanup(crtc);
 
 	of_node_put(crtc->port);
 
