@@ -62,7 +62,8 @@ bool intel_cdclk_needs_modeset(const struct intel_cdclk_config *a,
 			       const struct intel_cdclk_config *b);
 void intel_set_cdclk_pre_plane_update(struct intel_atomic_state *state);
 void intel_set_cdclk_post_plane_update(struct intel_atomic_state *state);
-void intel_dump_cdclk_config(const struct intel_cdclk_config *cdclk_config,
+void intel_cdclk_dump_config(struct drm_i915_private *i915,
+			     const struct intel_cdclk_config *cdclk_config,
 			     const char *context);
 int intel_modeset_calc_cdclk(struct intel_atomic_state *state);
 void intel_cdclk_get_cdclk(struct drm_i915_private *dev_priv,
