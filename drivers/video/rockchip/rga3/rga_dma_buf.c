@@ -837,7 +837,7 @@ err_get_sg:
 	if (attach)
 		dma_buf_detach(dma_buf, attach);
 err_get_attach:
-	if (dma_buf && (rga_dma_buffer->use_dma_buf == false))
+	if (dma_buf)
 		dma_buf_put(dma_buf);
 
 	return ret;
@@ -875,7 +875,6 @@ static int rga_dma_buf_get_channel_info(struct rga_img_info_t *channel_info,
 			return -ENOMEM;
 		}
 
-		alloc_buffer->use_dma_buf = false;
 		alloc_buffer->use_viraddr = false;
 
 		scheduler = rga_job_get_scheduler(core);
@@ -934,7 +933,7 @@ static void rga_dma_put_channel_info(struct rga_dma_buffer_t **rga_dma_buffer, s
 		return;
 
 	rga_dma_unmap_buffer(buffer);
-	if (*dma_buf && buffer->use_dma_buf == false) {
+	if (*dma_buf) {
 		dma_buf_put(*dma_buf);
 		*dma_buf = NULL;
 	}
@@ -1016,6 +1015,27 @@ int rga_dma_buf_get(struct rga_job *job)
 	return 0;
 }
 
+void rga_get_dma_buf(struct rga_job *job)
+{
+	int mmu_flag;
+
+	mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 8) & 1);
+	if (mmu_flag && job->dma_buf_src0)
+		get_dma_buf(job->dma_buf_src0);
+
+	mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 10) & 1);
+	if (mmu_flag && job->dma_buf_dst)
+		get_dma_buf(job->dma_buf_dst);
+
+	mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 9) & 1);
+	if (mmu_flag && job->dma_buf_src1)
+		get_dma_buf(job->dma_buf_src1);
+
+	mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 11) & 1);
+	if (mmu_flag && job->dma_buf_els)
+		get_dma_buf(job->dma_buf_els);
+}
+
 int rga_dma_get_info(struct rga_job *job)
 {
 	int ret = 0;
@@ -1044,9 +1064,6 @@ int rga_dma_get_info(struct rga_job *job)
 				pr_err("src0 channel get info error!\n");
 				goto src0_channel_err;
 			}
-
-			if (src0->yrgb_addr <= 0)
-				job->rga_dma_buffer_src0->use_dma_buf = true;
 		} else {
 			src0->yrgb_addr = src0->uv_addr;
 			rga_convert_addr(src0, true);
@@ -1078,9 +1095,6 @@ int rga_dma_get_info(struct rga_job *job)
 				pr_err("dst channel get info error!\n");
 				goto dst_channel_err;
 			}
-
-			if (dst->yrgb_addr <= 0)
-				job->rga_dma_buffer_dst->use_dma_buf = true;
 		} else {
 			dst->yrgb_addr = dst->uv_addr;
 			rga_convert_addr(dst, true);
@@ -1112,9 +1126,6 @@ int rga_dma_get_info(struct rga_job *job)
 				pr_err("src1 channel get info error!\n");
 				goto src1_channel_err;
 			}
-
-			if (src1->yrgb_addr <= 0)
-				job->rga_dma_buffer_src1->use_dma_buf = true;
 		} else {
 			src1->yrgb_addr = src1->uv_addr;
 			rga_convert_addr(src1, true);
@@ -1146,9 +1157,6 @@ int rga_dma_get_info(struct rga_job *job)
 				pr_err("els channel get info error!\n");
 				goto els_channel_err;
 			}
-
-			if (els->yrgb_addr <= 0)
-				job->rga_dma_buffer_els->use_dma_buf = true;
 		} else {
 			els->yrgb_addr = els->uv_addr;
 			rga_convert_addr(els, true);

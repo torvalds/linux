@@ -167,12 +167,6 @@ struct rga_dma_buffer_t {
 	struct iommu_domain *domain;
 	struct rga_iommu_dma_cookie *cookie;
 
-	/*
-	 * use dma_buf directly,
-	 * do not call dma_buf_put, such as mpi
-	 */
-	bool use_dma_buf;
-
 	bool use_viraddr;
 };
 

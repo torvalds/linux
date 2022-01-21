@@ -1086,6 +1086,9 @@ int rga_job_mpi_commit(struct rga_req *rga_command_base,
 		job->dma_buf_dst = mpi_job->dma_buf_dst;
 	}
 
+	/* Increments the reference count on the dma-buf */
+	rga_get_dma_buf(job);
+
 	job->ctx_id = ctx->id;
 
 	if (ctx->sync_mode == RGA_BLIT_ASYNC) {
