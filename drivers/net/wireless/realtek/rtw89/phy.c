@@ -2855,7 +2855,9 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 	enum rtw89_bandwidth cbw = rtwdev->hal.current_band_width;
 	struct rtw89_dig_info *dig = &rtwdev->dig;
 	u8 final_rssi = 0, under_region = dig->pd_low_th_ofst;
-	u32 val = 0;
+	u8 ofdm_cca_th;
+	s8 cck_cca_th;
+	u32 pd_val = 0;
 
 	under_region += PD_TH_SB_FLTR_CMP_VAL;
 
@@ -2865,6 +2867,9 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 		break;
 	case RTW89_CHANNEL_WIDTH_80:
 		under_region += PD_TH_BW80_CMP_VAL;
+		break;
+	case RTW89_CHANNEL_WIDTH_160:
+		under_region += PD_TH_BW160_CMP_VAL;
 		break;
 	case RTW89_CHANNEL_WIDTH_20:
 		fallthrough;
@@ -2876,23 +2881,38 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 	dig->dyn_pd_th_max = dig->igi_rssi;
 
 	final_rssi = min_t(u8, rssi, dig->igi_rssi);
-	final_rssi = clamp_t(u8, final_rssi, PD_TH_MIN_RSSI + under_region,
-			     PD_TH_MAX_RSSI + under_region);
+	ofdm_cca_th = clamp_t(u8, final_rssi, PD_TH_MIN_RSSI + under_region,
+			      PD_TH_MAX_RSSI + under_region);
 
 	if (enable) {
-		val = (final_rssi - under_region - PD_TH_MIN_RSSI) >> 1;
+		pd_val = (ofdm_cca_th - under_region - PD_TH_MIN_RSSI) >> 1;
 		rtw89_debug(rtwdev, RTW89_DBG_DIG,
-			    "dyn_max=%d, final_rssi=%d, total=%d, PD_low=%d\n",
-			    dig->igi_rssi, final_rssi, under_region, val);
+			    "igi=%d, ofdm_ccaTH=%d, backoff=%d, PD_low=%d\n",
+			    final_rssi, ofdm_cca_th, under_region, pd_val);
 	} else {
 		rtw89_debug(rtwdev, RTW89_DBG_DIG,
 			    "Dynamic PD th disabled, Set PD_low_bd=0\n");
 	}
 
 	rtw89_phy_write32_mask(rtwdev, R_SEG0R_PD, B_SEG0R_PD_LOWER_BOUND_MSK,
-			       val);
+			       pd_val);
 	rtw89_phy_write32_mask(rtwdev, R_SEG0R_PD,
 			       B_SEG0R_PD_SPATIAL_REUSE_EN_MSK, enable);
+
+	if (!rtwdev->hal.support_cckpd)
+		return;
+
+	cck_cca_th = max_t(s8, final_rssi - under_region, CCKPD_TH_MIN_RSSI);
+	pd_val = (u32)(cck_cca_th - IGI_RSSI_MAX);
+
+	rtw89_debug(rtwdev, RTW89_DBG_DIG,
+		    "igi=%d, cck_ccaTH=%d, backoff=%d, cck_PD_low=((%d))dB\n",
+		    final_rssi, cck_cca_th, under_region, pd_val);
+
+	rtw89_phy_write32_mask(rtwdev, R_BMODE_PDTH_EN_V1,
+			       B_BMODE_PDTH_LIMIT_EN_MSK_V1, enable);
+	rtw89_phy_write32_mask(rtwdev, R_BMODE_PDTH_V1,
+			       B_BMODE_PDTH_LOWER_BOUND_MSK_V1, pd_val);
 }
 
 void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev)

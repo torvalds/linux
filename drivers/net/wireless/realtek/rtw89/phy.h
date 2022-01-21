@@ -87,8 +87,11 @@
 #define RXB_IDX_MAX 31
 #define RXB_IDX_MIN 0
 
+#define IGI_RSSI_MAX 110
 #define PD_TH_MAX_RSSI 70
 #define PD_TH_MIN_RSSI 8
+#define CCKPD_TH_MIN_RSSI (-18)
+#define PD_TH_BW160_CMP_VAL 9
 #define PD_TH_BW80_CMP_VAL 6
 #define PD_TH_BW40_CMP_VAL 3
 #define PD_TH_BW20_CMP_VAL 0

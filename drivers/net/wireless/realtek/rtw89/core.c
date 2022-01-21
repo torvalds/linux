@@ -2563,6 +2563,13 @@ static void rtw89_read_chip_ver(struct rtw89_dev *rtwdev)
 	rtwdev->hal.cv = cv;
 }
 
+static void rtw89_core_setup_phycap(struct rtw89_dev *rtwdev)
+{
+	rtwdev->hal.support_cckpd =
+		!(rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv <= CHIP_CBV) &&
+		!(rtwdev->chip->chip_id == RTL8852B && rtwdev->hal.cv <= CHIP_CAV);
+}
+
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 {
 	int ret;
@@ -2582,6 +2589,8 @@ static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 	ret = rtw89_mac_setup_phycap(rtwdev);
 	if (ret)
 		return ret;
+
+	rtw89_core_setup_phycap(rtwdev);
 
 	rtw89_mac_pwr_off(rtwdev);
 
