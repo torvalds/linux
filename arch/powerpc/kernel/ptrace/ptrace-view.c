@@ -841,7 +841,7 @@ static const struct user_regset_view user_ppc_compat_view = {
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
-	if (IS_ENABLED(CONFIG_PPC64) && test_tsk_thread_flag(task, TIF_32BIT))
+	if (IS_ENABLED(CONFIG_COMPAT) && is_tsk_32bit_task(task))
 		return &user_ppc_compat_view;
 	return &user_ppc_native_view;
 }
