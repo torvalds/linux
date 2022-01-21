@@ -92,7 +92,7 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 			goto frontend_init_err;
 
 		/* use exclusive FE lock if there is multiple shared FEs */
-		if (adap->fe_adap[1].fe)
+		if (adap->fe_adap[1].fe && adap->dvb_adap.mfe_shared < 1)
 			adap->dvb_adap.mfe_shared = 1;
 
 		d->num_adapters_initialized++;

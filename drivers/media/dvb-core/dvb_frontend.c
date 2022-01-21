@@ -2765,7 +2765,17 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 	if (fe->exit == DVB_FE_DEVICE_REMOVED)
 		return -ENODEV;
 
-	if (adapter->mfe_shared) {
+	if (adapter->mfe_shared == 2) {
+		mutex_lock(&adapter->mfe_lock);
+		if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+			if (adapter->mfe_dvbdev &&
+			    !adapter->mfe_dvbdev->writers) {
+				mutex_unlock(&adapter->mfe_lock);
+				return -EBUSY;
+			}
+			adapter->mfe_dvbdev = dvbdev;
+		}
+	} else if (adapter->mfe_shared) {
 		mutex_lock(&adapter->mfe_lock);
 
 		if (!adapter->mfe_dvbdev)

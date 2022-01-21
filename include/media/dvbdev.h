@@ -87,7 +87,11 @@ struct dvb_frontend;
  * @device:		pointer to struct device
  * @module:		pointer to struct module
  * @mfe_shared:		indicates mutually exclusive frontends.
- *			Use of this flag is currently deprecated.
+ *			1 = legacy exclusion behavior: blocking any open() call
+ *			2 = enhanced exclusion behavior, emulating the standard
+ *			behavior of busy frontends: allowing read-only sharing
+ *			and otherwise returning immediately with -EBUSY when any
+ *			of the frontends is already opened with write access.
  * @mfe_dvbdev:		Frontend device in use, in the case of MFE
  * @mfe_lock:		Lock to prevent using the other frontends when MFE is
  *			used.
