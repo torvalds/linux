@@ -2113,11 +2113,11 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 }
 
 void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze, struct page *page)
+		unsigned long address, bool freeze, struct folio *folio)
 {
 	spinlock_t *ptl;
 	struct mmu_notifier_range range;
-	bool do_unlock_page = false;
+	bool do_unlock_folio = false;
 	pmd_t _pmd;
 
 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, vma->vm_mm,
@@ -2127,20 +2127,20 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 	ptl = pmd_lock(vma->vm_mm, pmd);
 
 	/*
-	 * If caller asks to setup a migration entries, we need a page to check
-	 * pmd against. Otherwise we can end up replacing wrong page.
+	 * If caller asks to setup a migration entry, we need a folio to check
+	 * pmd against. Otherwise we can end up replacing wrong folio.
 	 */
-	VM_BUG_ON(freeze && !page);
-	if (page) {
-		VM_WARN_ON_ONCE(!PageLocked(page));
-		if (page != pmd_page(*pmd))
+	VM_BUG_ON(freeze && !folio);
+	if (folio) {
+		VM_WARN_ON_ONCE(!folio_test_locked(folio));
+		if (folio != page_folio(pmd_page(*pmd)))
 			goto out;
 	}
 
 repeat:
 	if (pmd_trans_huge(*pmd)) {
-		if (!page) {
-			page = pmd_page(*pmd);
+		if (!folio) {
+			folio = page_folio(pmd_page(*pmd));
 			/*
 			 * An anonymous page must be locked, to ensure that a
 			 * concurrent reuse_swap_page() sees stable mapcount;
@@ -2148,22 +2148,22 @@ repeat:
 			 * and page lock must not be taken when zap_pmd_range()
 			 * calls __split_huge_pmd() while i_mmap_lock is held.
 			 */
-			if (PageAnon(page)) {
-				if (unlikely(!trylock_page(page))) {
-					get_page(page);
+			if (folio_test_anon(folio)) {
+				if (unlikely(!folio_trylock(folio))) {
+					folio_get(folio);
 					_pmd = *pmd;
 					spin_unlock(ptl);
-					lock_page(page);
+					folio_lock(folio);
 					spin_lock(ptl);
 					if (unlikely(!pmd_same(*pmd, _pmd))) {
-						unlock_page(page);
-						put_page(page);
-						page = NULL;
+						folio_unlock(folio);
+						folio_put(folio);
+						folio = NULL;
 						goto repeat;
 					}
-					put_page(page);
+					folio_put(folio);
 				}
-				do_unlock_page = true;
+				do_unlock_folio = true;
 			}
 		}
 	} else if (!(pmd_devmap(*pmd) || is_pmd_migration_entry(*pmd)))
@@ -2171,8 +2171,8 @@ repeat:
 	__split_huge_pmd_locked(vma, pmd, range.start, freeze);
 out:
 	spin_unlock(ptl);
-	if (do_unlock_page)
-		unlock_page(page);
+	if (do_unlock_folio)
+		folio_unlock(folio);
 	/*
 	 * No need to double call mmu_notifier->invalidate_range() callback.
 	 * They are 3 cases to consider inside __split_huge_pmd_locked():
@@ -2190,7 +2190,7 @@ out:
 }
 
 void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
-		bool freeze, struct page *page)
+		bool freeze, struct folio *folio)
 {
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -2211,7 +2211,7 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
 
 	pmd = pmd_offset(pud, address);
 
-	__split_huge_pmd(vma, pmd, address, freeze, page);
+	__split_huge_pmd(vma, pmd, address, freeze, folio);
 }
 
 static inline void split_huge_pmd_if_needed(struct vm_area_struct *vma, unsigned long address)

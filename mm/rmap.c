@@ -1410,6 +1410,7 @@ out:
 static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		     unsigned long address, void *arg)
 {
+	struct folio *folio = page_folio(page);
 	struct mm_struct *mm = vma->vm_mm;
 	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
 	pte_t pteval;
@@ -1428,7 +1429,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		pvmw.flags = PVMW_SYNC;
 
 	if (flags & TTU_SPLIT_HUGE_PMD)
-		split_huge_pmd_address(vma, address, false, page);
+		split_huge_pmd_address(vma, address, false, folio);
 
 	/*
 	 * For THP, we have to assume the worse case ie pmd for invalidation.
@@ -1700,6 +1701,7 @@ void try_to_unmap(struct page *page, enum ttu_flags flags)
 static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 		     unsigned long address, void *arg)
 {
+	struct folio *folio = page_folio(page);
 	struct mm_struct *mm = vma->vm_mm;
 	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
 	pte_t pteval;
@@ -1722,7 +1724,7 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 	 * TTU_SPLIT_HUGE_PMD and it wants to freeze.
 	 */
 	if (flags & TTU_SPLIT_HUGE_PMD)
-		split_huge_pmd_address(vma, address, true, page);
+		split_huge_pmd_address(vma, address, true, folio);
 
 	/*
 	 * For THP, we have to assume the worse case ie pmd for invalidation.

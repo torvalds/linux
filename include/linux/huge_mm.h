@@ -194,7 +194,7 @@ static inline int split_huge_page(struct page *page)
 void deferred_split_huge_page(struct page *page);
 
 void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze, struct page *page);
+		unsigned long address, bool freeze, struct folio *folio);
 
 #define split_huge_pmd(__vma, __pmd, __address)				\
 	do {								\
@@ -207,7 +207,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 
 
 void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
-		bool freeze, struct page *page);
+		bool freeze, struct folio *folio);
 
 void __split_huge_pud(struct vm_area_struct *vma, pud_t *pud,
 		unsigned long address);
@@ -406,9 +406,9 @@ static inline void deferred_split_huge_page(struct page *page) {}
 	do { } while (0)
 
 static inline void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze, struct page *page) {}
+		unsigned long address, bool freeze, struct folio *folio) {}
 static inline void split_huge_pmd_address(struct vm_area_struct *vma,
-		unsigned long address, bool freeze, struct page *page) {}
+		unsigned long address, bool freeze, struct folio *folio) {}
 
 #define split_huge_pud(__vma, __pmd, __address)	\
 	do { } while (0)
