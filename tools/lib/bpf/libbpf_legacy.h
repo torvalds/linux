@@ -73,6 +73,11 @@ enum libbpf_strict_mode {
 	 * operation.
 	 */
 	LIBBPF_STRICT_AUTO_RLIMIT_MEMLOCK = 0x10,
+	/*
+	 * Error out on any SEC("maps") map definition, which are deprecated
+	 * in favor of BTF-defined map definitions in SEC(".maps").
+	 */
+	LIBBPF_STRICT_MAP_DEFINITIONS = 0x20,
 
 	__LIBBPF_STRICT_LAST,
 };
