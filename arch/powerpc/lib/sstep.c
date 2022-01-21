@@ -1065,8 +1065,7 @@ int emulate_dcbz(unsigned long ea, struct pt_regs *regs)
 	int err;
 	unsigned long size = l1_dcache_bytes();
 
-	if (!(regs->msr & MSR_64BIT))
-		ea &= 0xffffffffUL;
+	ea = truncate_if_32bit(regs->msr, ea);
 	ea &= ~(size - 1);
 	if (!address_ok(regs, ea, size))
 		return -EFAULT;
@@ -1164,10 +1163,8 @@ static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
 	op->type = COMPUTE + SETREG + SETXER;
 	op->reg = rd;
 	op->val = val;
-	if (!(regs->msr & MSR_64BIT)) {
-		val = (unsigned int) val;
-		val1 = (unsigned int) val1;
-	}
+	val = truncate_if_32bit(regs->msr, val);
+	val1 = truncate_if_32bit(regs->msr, val1);
 	op->xerval = regs->xer;
 	if (val < val1 || (carry_in && val == val1))
 		op->xerval |= XER_CA;
