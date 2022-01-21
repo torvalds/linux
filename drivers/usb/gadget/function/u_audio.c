@@ -64,6 +64,7 @@ struct uac_rtd_params {
   int mute;
 
 	struct snd_kcontrol *snd_kctl_rate; /* read-only current rate */
+	int srate; /* selected samplerate */
 
   spinlock_t lock; /* lock for control transfers */
 
@@ -153,8 +154,6 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	struct snd_pcm_runtime *runtime;
 	struct uac_rtd_params *prm = req->context;
 	struct snd_uac_chip *uac = prm->uac;
-	struct g_audio *audio_dev = uac->audio_dev;
-	struct uac_params *params = &audio_dev->params;
 	unsigned int frames, p_pktsize;
 	unsigned long long pitched_rate_mil, p_pktsize_residue_mil,
 			residue_frames_mil, div_result;
@@ -199,15 +198,14 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 		 */
 		unsigned long long p_interval_mil = uac->p_interval * 1000000ULL;
 
-		pitched_rate_mil = (unsigned long long)
-				params->p_srate * prm->pitch;
+		pitched_rate_mil = (unsigned long long) prm->srate * prm->pitch;
 		div_result = pitched_rate_mil;
 		do_div(div_result, uac->p_interval);
 		do_div(div_result, 1000000);
 		frames = (unsigned int) div_result;
 
 		pr_debug("p_srate %d, pitch %d, interval_mil %llu, frames %d\n",
-				params->p_srate, prm->pitch, p_interval_mil, frames);
+				prm->srate, prm->pitch, p_interval_mil, frames);
 
 		p_pktsize = min_t(unsigned int,
 					uac->p_framesize * frames,
@@ -284,7 +282,6 @@ static void u_audio_iso_fback_complete(struct usb_ep *ep,
 	struct uac_rtd_params *prm = req->context;
 	struct snd_uac_chip *uac = prm->uac;
 	struct g_audio *audio_dev = uac->audio_dev;
-	struct uac_params *params = &audio_dev->params;
 	int status = req->status;
 
 	/* i/f shutting down */
@@ -306,7 +303,7 @@ static void u_audio_iso_fback_complete(struct usb_ep *ep,
 			__func__, status, req->actual, req->length);
 
 	u_audio_set_fback_frequency(audio_dev->gadget->speed, audio_dev->out_ep,
-				    params->c_srate, prm->pitch,
+				    prm->srate, prm->pitch,
 				    req->buf);
 
 	if (usb_ep_queue(ep, req, GFP_ATOMIC))
@@ -390,16 +387,14 @@ static int uac_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct g_audio *audio_dev;
 	struct uac_params *params;
+	struct uac_rtd_params *prm;
 	int p_ssize, c_ssize;
-	int p_srate, c_srate;
 	int p_chmask, c_chmask;
 
 	audio_dev = uac->audio_dev;
 	params = &audio_dev->params;
 	p_ssize = params->p_ssize;
 	c_ssize = params->c_ssize;
-	p_srate = params->p_srate;
-	c_srate = params->c_srate;
 	p_chmask = params->p_chmask;
 	c_chmask = params->c_chmask;
 	uac->p_residue_mil = 0;
@@ -407,19 +402,18 @@ static int uac_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw = uac_pcm_hardware;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		runtime->hw.rate_min = p_srate;
 		runtime->hw.formats = uac_ssize_to_fmt(p_ssize);
 		runtime->hw.channels_min = num_channels(p_chmask);
-		runtime->hw.period_bytes_min = 2 * uac->p_prm.max_psize
-						/ runtime->hw.periods_min;
+		prm = &uac->p_prm;
 	} else {
-		runtime->hw.rate_min = c_srate;
 		runtime->hw.formats = uac_ssize_to_fmt(c_ssize);
 		runtime->hw.channels_min = num_channels(c_chmask);
-		runtime->hw.period_bytes_min = 2 * uac->c_prm.max_psize
-						/ runtime->hw.periods_min;
+		prm = &uac->c_prm;
 	}
 
+	runtime->hw.period_bytes_min = 2 * prm->max_psize
+					/ runtime->hw.periods_min;
+	runtime->hw.rate_min = prm->srate;
 	runtime->hw.rate_max = runtime->hw.rate_min;
 	runtime->hw.channels_max = runtime->hw.channels_min;
 
@@ -499,12 +493,18 @@ static inline void free_ep_fback(struct uac_rtd_params *prm, struct usb_ep *ep)
 int u_audio_set_capture_srate(struct g_audio *audio_dev, int srate)
 {
 	struct uac_params *params = &audio_dev->params;
+	struct snd_uac_chip *uac = audio_dev->uac;
+	struct uac_rtd_params *prm;
 	int i;
+	unsigned long flags;
 
 	dev_dbg(&audio_dev->gadget->dev, "%s: srate %d\n", __func__, srate);
+	prm = &uac->c_prm;
 	for (i = 0; i < UAC_MAX_RATES; i++) {
 		if (params->c_srates[i] == srate) {
-			params->c_srate = srate;
+			spin_lock_irqsave(&prm->lock, flags);
+			prm->srate = srate;
+			spin_unlock_irqrestore(&prm->lock, flags);
 			return 0;
 		}
 		if (params->c_srates[i] == 0)
@@ -518,12 +518,18 @@ EXPORT_SYMBOL_GPL(u_audio_set_capture_srate);
 int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate)
 {
 	struct uac_params *params = &audio_dev->params;
+	struct snd_uac_chip *uac = audio_dev->uac;
+	struct uac_rtd_params *prm;
 	int i;
+	unsigned long flags;
 
 	dev_dbg(&audio_dev->gadget->dev, "%s: srate %d\n", __func__, srate);
+	prm = &uac->p_prm;
 	for (i = 0; i < UAC_MAX_RATES; i++) {
 		if (params->p_srates[i] == srate) {
-			params->p_srate = srate;
+			spin_lock_irqsave(&prm->lock, flags);
+			prm->srate = srate;
+			spin_unlock_irqrestore(&prm->lock, flags);
 			return 0;
 		}
 		if (params->p_srates[i] == 0)
@@ -545,9 +551,9 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 	struct uac_params *params = &audio_dev->params;
 	int req_len, i;
 
-	dev_dbg(dev, "start capture with rate %d\n", params->c_srate);
-	ep = audio_dev->out_ep;
 	prm = &uac->c_prm;
+	dev_dbg(dev, "start capture with rate %d\n", prm->srate);
+	ep = audio_dev->out_ep;
 	config_ep_by_speed(gadget, &audio_dev->func, ep);
 	req_len = ep->maxpacket;
 
@@ -604,7 +610,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 	 */
 	prm->pitch = 1000000;
 	u_audio_set_fback_frequency(audio_dev->gadget->speed, ep,
-				    params->c_srate, prm->pitch,
+				    prm->srate, prm->pitch,
 				    req_fback->buf);
 
 	if (usb_ep_queue(ep_fback, req_fback, GFP_ATOMIC))
@@ -638,9 +644,9 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	int req_len, i;
 	unsigned int p_pktsize;
 
-	dev_dbg(dev, "start playback with rate %d\n", params->p_srate);
-	ep = audio_dev->in_ep;
 	prm = &uac->p_prm;
+	dev_dbg(dev, "start playback with rate %d\n", prm->srate);
+	ep = audio_dev->in_ep;
 	config_ep_by_speed(gadget, &audio_dev->func, ep);
 
 	ep_desc = ep->desc;
@@ -661,7 +667,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	uac->p_interval = factor / (1 << (ep_desc->bInterval - 1));
 	p_pktsize = min_t(unsigned int,
 				uac->p_framesize *
-					(params->p_srate / uac->p_interval),
+					(prm->srate / uac->p_interval),
 				ep->maxpacket);
 
 	req_len = p_pktsize;
@@ -1037,15 +1043,11 @@ static int u_audio_rate_get(struct snd_kcontrol *kcontrol,
 						 struct snd_ctl_elem_value *ucontrol)
 {
 	struct uac_rtd_params *prm = snd_kcontrol_chip(kcontrol);
-	struct snd_uac_chip *uac = prm->uac;
-	struct g_audio *audio_dev = uac->audio_dev;
-	struct uac_params *params = &audio_dev->params;
+	unsigned long flags;
 
-	if (prm == &uac->c_prm)
-		ucontrol->value.integer.value[0] = params->c_srate;
-	else
-		ucontrol->value.integer.value[0] = params->p_srate;
-
+	spin_lock_irqsave(&prm->lock, flags);
+	ucontrol->value.integer.value[0] = prm->srate;
+	spin_unlock_irqrestore(&prm->lock, flags);
 	return 0;
 }
 
@@ -1117,6 +1119,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
     spin_lock_init(&prm->lock);
     uac->c_prm.uac = uac;
 		prm->max_psize = g_audio->out_ep_maxpsize;
+		prm->srate = params->c_srates[0];
 
 		prm->reqs = kcalloc(params->req_number,
 				    sizeof(struct usb_request *),
@@ -1141,6 +1144,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		spin_lock_init(&prm->lock);
 		uac->p_prm.uac = uac;
 		prm->max_psize = g_audio->in_ep_maxpsize;
+		prm->srate = params->p_srates[0];
 
 		prm->reqs = kcalloc(params->req_number,
 				    sizeof(struct usb_request *),
