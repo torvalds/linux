@@ -32,6 +32,7 @@ enum {
 	UAC_P_PITCH_CTRL,
 	UAC_MUTE_CTRL,
 	UAC_VOLUME_CTRL,
+	UAC_RATE_CTRL,
 };
 
 /* Runtime data params for one stream */
@@ -61,6 +62,8 @@ struct uac_rtd_params {
   s16 volume_min, volume_max, volume_res;
   s16 volume;
   int mute;
+
+	struct snd_kcontrol *snd_kctl_rate; /* read-only current rate */
 
   spinlock_t lock; /* lock for control transfers */
 
@@ -493,6 +496,44 @@ static inline void free_ep_fback(struct uac_rtd_params *prm, struct usb_ep *ep)
 		dev_err(uac->card->dev, "%s:%d Error!\n", __func__, __LINE__);
 }
 
+int u_audio_set_capture_srate(struct g_audio *audio_dev, int srate)
+{
+	struct uac_params *params = &audio_dev->params;
+	int i;
+
+	dev_dbg(&audio_dev->gadget->dev, "%s: srate %d\n", __func__, srate);
+	for (i = 0; i < UAC_MAX_RATES; i++) {
+		if (params->c_srates[i] == srate) {
+			params->c_srate = srate;
+			return 0;
+		}
+		if (params->c_srates[i] == 0)
+			break;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(u_audio_set_capture_srate);
+
+int u_audio_set_playback_srate(struct g_audio *audio_dev, int srate)
+{
+	struct uac_params *params = &audio_dev->params;
+	int i;
+
+	dev_dbg(&audio_dev->gadget->dev, "%s: srate %d\n", __func__, srate);
+	for (i = 0; i < UAC_MAX_RATES; i++) {
+		if (params->p_srates[i] == srate) {
+			params->p_srate = srate;
+			return 0;
+		}
+		if (params->p_srates[i] == 0)
+			break;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(u_audio_set_playback_srate);
+
 int u_audio_start_capture(struct g_audio *audio_dev)
 {
 	struct snd_uac_chip *uac = audio_dev->uac;
@@ -504,6 +545,7 @@ int u_audio_start_capture(struct g_audio *audio_dev)
 	struct uac_params *params = &audio_dev->params;
 	int req_len, i;
 
+	dev_dbg(dev, "start capture with rate %d\n", params->c_srate);
 	ep = audio_dev->out_ep;
 	prm = &uac->c_prm;
 	config_ep_by_speed(gadget, &audio_dev->func, ep);
@@ -596,6 +638,7 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 	int req_len, i;
 	unsigned int p_pktsize;
 
+	dev_dbg(dev, "start playback with rate %d\n", params->p_srate);
 	ep = audio_dev->in_ep;
 	prm = &uac->p_prm;
 	config_ep_by_speed(gadget, &audio_dev->func, ep);
@@ -943,6 +986,68 @@ static int u_audio_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static int get_max_srate(const int *srates)
+{
+	int i, max_srate = 0;
+
+	for (i = 0; i < UAC_MAX_RATES; i++) {
+		if (srates[i] == 0)
+			break;
+		if (srates[i] > max_srate)
+			max_srate = srates[i];
+	}
+	return max_srate;
+}
+
+static int get_min_srate(const int *srates)
+{
+	int i, min_srate = INT_MAX;
+
+	for (i = 0; i < UAC_MAX_RATES; i++) {
+		if (srates[i] == 0)
+			break;
+		if (srates[i] < min_srate)
+			min_srate = srates[i];
+	}
+	return min_srate;
+}
+
+static int u_audio_rate_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	const int *srates;
+	struct uac_rtd_params *prm = snd_kcontrol_chip(kcontrol);
+	struct snd_uac_chip *uac = prm->uac;
+	struct g_audio *audio_dev = uac->audio_dev;
+	struct uac_params *params = &audio_dev->params;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+
+	if (prm == &uac->c_prm)
+		srates = params->c_srates;
+	else
+		srates = params->p_srates;
+	uinfo->value.integer.min = get_min_srate(srates);
+	uinfo->value.integer.max = get_max_srate(srates);
+	return 0;
+}
+
+static int u_audio_rate_get(struct snd_kcontrol *kcontrol,
+						 struct snd_ctl_elem_value *ucontrol)
+{
+	struct uac_rtd_params *prm = snd_kcontrol_chip(kcontrol);
+	struct snd_uac_chip *uac = prm->uac;
+	struct g_audio *audio_dev = uac->audio_dev;
+	struct uac_params *params = &audio_dev->params;
+
+	if (prm == &uac->c_prm)
+		ucontrol->value.integer.value[0] = params->c_srate;
+	else
+		ucontrol->value.integer.value[0] = params->p_srate;
+
+	return 0;
+}
 
 static struct snd_kcontrol_new u_audio_controls[]  = {
   [UAC_FBACK_CTRL] {
@@ -972,6 +1077,13 @@ static struct snd_kcontrol_new u_audio_controls[]  = {
 		.info =		u_audio_volume_info,
 		.get =		u_audio_volume_get,
 		.put =		u_audio_volume_put,
+	},
+	[UAC_RATE_CTRL] {
+		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+		.name =		"", /* will be filled later */
+		.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
+		.info =		u_audio_rate_info,
+		.get =		u_audio_rate_get,
 	},
 };
 
@@ -1186,6 +1298,25 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 			prm->volume_min = fu->volume_min;
 			prm->volume_res = fu->volume_res;
 		}
+
+		/* Add rate control */
+		snprintf(ctrl_name, sizeof(ctrl_name),
+				"%s Rate", direction);
+		u_audio_controls[UAC_RATE_CTRL].name = ctrl_name;
+
+		kctl = snd_ctl_new1(&u_audio_controls[UAC_RATE_CTRL], prm);
+		if (!kctl) {
+			err = -ENOMEM;
+			goto snd_fail;
+		}
+
+		kctl->id.device = pcm->device;
+		kctl->id.subdevice = 0;
+
+		err = snd_ctl_add(card, kctl);
+		if (err < 0)
+			goto snd_fail;
+		prm->snd_kctl_rate = kctl;
 	}
 
 	strscpy(card->driver, card_name, sizeof(card->driver));
