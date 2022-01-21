@@ -961,6 +961,7 @@ static u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 			    int color_plane)
 {
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	u32 offset = plane_state->view.color_plane[color_plane].offset;
 
@@ -969,11 +970,11 @@ static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 		 * The DPT object contains only one vma, so the VMA's offset
 		 * within the DPT is always 0.
 		 */
-		WARN_ON(plane_state->dpt_vma->node.start);
-		WARN_ON(offset & 0x1fffff);
+		drm_WARN_ON(&i915->drm, plane_state->dpt_vma->node.start);
+		drm_WARN_ON(&i915->drm, offset & 0x1fffff);
 		return offset >> 9;
 	} else {
-		WARN_ON(offset & 0xfff);
+		drm_WARN_ON(&i915->drm, offset & 0xfff);
 		return offset;
 	}
 }
@@ -1350,6 +1351,7 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 
 static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
 	int src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
@@ -1359,7 +1361,7 @@ static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_s
 	    src_w & 3 &&
 	    (rotation == DRM_MODE_ROTATE_270 ||
 	     rotation == (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90))) {
-		DRM_DEBUG_KMS("src width must be multiple of 4 for rotated planar YUV\n");
+		drm_dbg_kms(&i915->drm, "src width must be multiple of 4 for rotated planar YUV\n");
 		return -EINVAL;
 	}
 
