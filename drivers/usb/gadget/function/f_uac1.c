@@ -1298,6 +1298,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	audio->in_ep_maxpsize = le16_to_cpu(as_in_ep_desc.wMaxPacketSize);
 	audio->params.c_chmask = audio_opts->c_chmask;
 	audio->params.c_srate = audio_opts->c_srate;
+	audio->params.c_srates[0] = audio_opts->c_srate;
 	audio->params.c_ssize = audio_opts->c_ssize;
 	if (FUIN_EN(audio_opts)) {
 		audio->params.p_fu.id = USB_IN_FU_ID;
@@ -1310,6 +1311,7 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	}
 	audio->params.p_chmask = audio_opts->p_chmask;
 	audio->params.p_srate = audio_opts->p_srate;
+	audio->params.p_srates[0] = audio_opts->p_srate;
 	audio->params.p_ssize = audio_opts->p_ssize;
 	if (FUOUT_EN(audio_opts)) {
 		audio->params.c_fu.id = USB_OUT_FU_ID;
