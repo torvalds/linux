@@ -1357,18 +1357,18 @@ int remove_mapping(struct address_space *mapping, struct page *page)
 }
 
 /**
- * putback_lru_page - put previously isolated page onto appropriate LRU list
- * @page: page to be put back to appropriate lru list
+ * folio_putback_lru - Put previously isolated folio onto appropriate LRU list.
+ * @folio: Folio to be returned to an LRU list.
  *
- * Add previously isolated @page to appropriate LRU list.
- * Page may still be unevictable for other reasons.
+ * Add previously isolated @folio to appropriate LRU list.
+ * The folio may still be unevictable for other reasons.
  *
- * lru_lock must not be held, interrupts must be enabled.
+ * Context: lru_lock must not be held, interrupts must be enabled.
  */
-void putback_lru_page(struct page *page)
+void folio_putback_lru(struct folio *folio)
 {
-	lru_cache_add(page);
-	put_page(page);		/* drop ref from isolate */
+	folio_add_lru(folio);
+	folio_put(folio);		/* drop ref from isolate */
 }
 
 enum page_references {

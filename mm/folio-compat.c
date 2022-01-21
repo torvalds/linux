@@ -159,3 +159,8 @@ int isolate_lru_page(struct page *page)
 		return -EBUSY;
 	return folio_isolate_lru((struct folio *)page);
 }
+
+void putback_lru_page(struct page *page)
+{
+	folio_putback_lru(page_folio(page));
+}

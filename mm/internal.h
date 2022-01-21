@@ -154,7 +154,8 @@ extern unsigned long highest_memmap_pfn;
  */
 int isolate_lru_page(struct page *page);
 int folio_isolate_lru(struct folio *folio);
-extern void putback_lru_page(struct page *page);
+void putback_lru_page(struct page *page);
+void folio_putback_lru(struct folio *folio);
 extern void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason);
 
 /*
