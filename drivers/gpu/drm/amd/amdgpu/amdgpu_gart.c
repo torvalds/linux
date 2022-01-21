@@ -161,7 +161,7 @@ void amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	uint64_t flags = 0;
 	int idx;
 
-	if (WARN_ON(!adev->gart.ptr))
+	if (!adev->gart.ptr)
 		return;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
@@ -241,7 +241,7 @@ void amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     int pages, dma_addr_t *dma_addr,
 		     uint64_t flags)
 {
-	if (WARN_ON(!adev->gart.ptr))
+	if (!adev->gart.ptr)
 		return;
 
 	amdgpu_gart_map(adev, offset, pages, dma_addr, flags, adev->gart.ptr);
