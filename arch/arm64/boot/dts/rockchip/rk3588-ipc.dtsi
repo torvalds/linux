@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3588-linux.dtsi"
+
+&CPU_SLEEP {
+	status = "disabled";
+};
+
+&cluster1_opp_table {
+	/delete-node/ opp-2400000000;
+};
+
+&cluster2_opp_table {
+	/delete-node/ opp-2400000000;
+};
+
+&dfi {
+	status = "disabled";
+};
+
+&dmc {
+	status = "disabled";
+};

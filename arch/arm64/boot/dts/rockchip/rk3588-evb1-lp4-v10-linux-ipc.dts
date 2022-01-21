@@ -8,7 +8,7 @@
 
 #include "rk3588-evb1-lp4.dtsi"
 #include "rk3588-evb1-imx415.dtsi"
-#include "rk3588-linux.dtsi"
+#include "rk3588-ipc.dtsi"
 
 / {
 	model = "Rockchip RK3588 EVB1 LP4 V10 Board";

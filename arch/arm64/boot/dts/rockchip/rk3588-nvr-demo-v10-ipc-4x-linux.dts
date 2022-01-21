@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include "rk3588-nvr-demo.dtsi"
-#include "rk3588-linux.dtsi"
+#include "rk3588-ipc.dtsi"
 #include "rk3588-nvr-demo-v10-cam-4x.dtsi"
 
 / {
