@@ -246,7 +246,6 @@ static struct clk_hw *visconti_register_pll(struct visconti_pll_provider *ctx,
 {
 	struct clk_init_data init;
 	struct visconti_pll *pll;
-	struct clk *pll_clk;
 	struct clk_hw *pll_hw_clk;
 	size_t len;
 	int ret;
@@ -277,7 +276,7 @@ static struct clk_hw *visconti_register_pll(struct visconti_pll_provider *ctx,
 	pll_hw_clk = &pll->hw;
 	ret = clk_hw_register(NULL, &pll->hw);
 	if (ret) {
-		pr_err("failed to register pll clock %s : %ld\n", name, PTR_ERR(pll_clk));
+		pr_err("failed to register pll clock %s : %d\n", name, ret);
 		kfree(pll);
 		pll_hw_clk = ERR_PTR(ret);
 	}
