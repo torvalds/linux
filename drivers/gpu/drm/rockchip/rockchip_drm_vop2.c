@@ -5157,10 +5157,15 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		request_clock *= 2;
 
-	if (request_clock <= VOP2_MAX_DCLK_RATE)
-		clock = clk_round_rate(vp->dclk, request_clock * 1000) / 1000;
-	else
+	if (request_clock <= VOP2_MAX_DCLK_RATE) {
+		if (vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll") ||
+		    vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll"))
+			clock = request_clock;
+		else
+			clock = clk_round_rate(vp->dclk, request_clock * 1000) / 1000;
+	} else {
 		clock = request_clock;
+	}
 
 	/*
 	 * Hdmi or DisplayPort request a Accurate clock.
