@@ -889,11 +889,11 @@ TRACE_EVENT(nfs_aop_readpage_done,
 TRACE_EVENT(nfs_aop_readahead,
 		TP_PROTO(
 			const struct inode *inode,
-			struct page *page,
+			loff_t pos,
 			unsigned int nr_pages
 		),
 
-		TP_ARGS(inode, page, nr_pages),
+		TP_ARGS(inode, pos, nr_pages),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -911,7 +911,7 @@ TRACE_EVENT(nfs_aop_readahead,
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->version = inode_peek_iversion_raw(inode);
-			__entry->offset = page_index(page) << PAGE_SHIFT;
+			__entry->offset = pos;
 			__entry->nr_pages = nr_pages;
 		),
 

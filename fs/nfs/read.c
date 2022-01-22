@@ -290,9 +290,8 @@ static void nfs_readpage_result(struct rpc_task *task,
 }
 
 static int
-readpage_async_filler(void *data, struct page *page)
+readpage_async_filler(struct nfs_readdesc *desc, struct page *page)
 {
-	struct nfs_readdesc *desc = data;
 	struct inode *inode = page_file_mapping(page)->host;
 	unsigned int rsize = NFS_SERVER(inode)->rsize;
 	struct nfs_page *new;
@@ -397,14 +396,16 @@ out_unlock:
 	return ret;
 }
 
-int nfs_readpages(struct file *file, struct address_space *mapping,
-		struct list_head *pages, unsigned nr_pages)
+void nfs_readahead(struct readahead_control *ractl)
 {
+	unsigned int nr_pages = readahead_count(ractl);
+	struct file *file = ractl->file;
 	struct nfs_readdesc desc;
-	struct inode *inode = mapping->host;
+	struct inode *inode = ractl->mapping->host;
+	struct page *page;
 	int ret;
 
-	trace_nfs_aop_readahead(inode, lru_to_page(pages), nr_pages);
+	trace_nfs_aop_readahead(inode, readahead_pos(ractl), nr_pages);
 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGES);
 
 	ret = -ESTALE;
@@ -422,14 +423,18 @@ int nfs_readpages(struct file *file, struct address_space *mapping,
 	nfs_pageio_init_read(&desc.pgio, inode, false,
 			     &nfs_async_read_completion_ops);
 
-	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
+	while ((page = readahead_page(ractl)) != NULL) {
+		ret = readpage_async_filler(&desc, page);
+		put_page(page);
+		if (ret)
+			break;
+	}
 
 	nfs_pageio_complete_read(&desc.pgio);
 
 	put_nfs_open_context(desc.ctx);
 out:
 	trace_nfs_aop_readahead_done(inode, nr_pages, ret);
-	return ret;
 }
 
 int __init nfs_init_readpagecache(void)
