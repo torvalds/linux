@@ -254,10 +254,6 @@ struct zs_pool {
 #ifdef CONFIG_COMPACTION
 	struct inode *inode;
 	struct work_struct free_work;
-	/* A wait queue for when migration races with async_free_zspage() */
-	struct wait_queue_head migration_wait;
-	atomic_long_t isolated_pages;
-	bool destroying;
 #endif
 };
 
@@ -453,11 +449,6 @@ MODULE_ALIAS("zpool-zsmalloc");
 
 /* per-cpu VM mapping areas for zspage accesses that cross page boundaries */
 static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
-
-static bool is_zspage_isolated(struct zspage *zspage)
-{
-	return zspage->isolated;
-}
 
 static __maybe_unused int is_first_page(struct page *page)
 {
@@ -744,7 +735,6 @@ static void remove_zspage(struct size_class *class,
 				enum fullness_group fullness)
 {
 	VM_BUG_ON(list_empty(&class->fullness_list[fullness]));
-	VM_BUG_ON(is_zspage_isolated(zspage));
 
 	list_del_init(&zspage->list);
 	class_stat_dec(class, fullness, 1);
@@ -770,13 +760,9 @@ static enum fullness_group fix_fullness_group(struct size_class *class,
 	if (newfg == currfg)
 		goto out;
 
-	if (!is_zspage_isolated(zspage)) {
-		remove_zspage(class, zspage, currfg);
-		insert_zspage(class, zspage, newfg);
-	}
-
+	remove_zspage(class, zspage, currfg);
+	insert_zspage(class, zspage, newfg);
 	set_zspage_mapping(zspage, class_idx, newfg);
-
 out:
 	return newfg;
 }
@@ -1511,7 +1497,6 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
 	unsigned long obj;
 	struct size_class *class;
 	enum fullness_group fullness;
-	bool isolated;
 
 	if (unlikely(!handle))
 		return;
@@ -1533,11 +1518,9 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
 		goto out;
 	}
 
-	isolated = is_zspage_isolated(zspage);
 	migrate_read_unlock(zspage);
 	/* If zspage is isolated, zs_page_putback will free the zspage */
-	if (likely(!isolated))
-		free_zspage(pool, class, zspage);
+	free_zspage(pool, class, zspage);
 out:
 
 	spin_unlock(&class->lock);
@@ -1718,7 +1701,6 @@ static struct zspage *isolate_zspage(struct size_class *class, bool source)
 		zspage = list_first_entry_or_null(&class->fullness_list[fg[i]],
 							struct zspage, list);
 		if (zspage) {
-			VM_BUG_ON(is_zspage_isolated(zspage));
 			remove_zspage(class, zspage, fg[i]);
 			return zspage;
 		}
@@ -1738,8 +1720,6 @@ static enum fullness_group putback_zspage(struct size_class *class,
 			struct zspage *zspage)
 {
 	enum fullness_group fullness;
-
-	VM_BUG_ON(is_zspage_isolated(zspage));
 
 	fullness = get_fullness_group(class, zspage);
 	insert_zspage(class, zspage, fullness);
@@ -1822,33 +1802,8 @@ static void inc_zspage_isolation(struct zspage *zspage)
 
 static void dec_zspage_isolation(struct zspage *zspage)
 {
+	VM_BUG_ON(zspage->isolated == 0);
 	zspage->isolated--;
-}
-
-static void putback_zspage_deferred(struct zs_pool *pool,
-				    struct size_class *class,
-				    struct zspage *zspage)
-{
-	enum fullness_group fg;
-
-	fg = putback_zspage(class, zspage);
-	if (fg == ZS_EMPTY)
-		schedule_work(&pool->free_work);
-
-}
-
-static inline void zs_pool_dec_isolated(struct zs_pool *pool)
-{
-	VM_BUG_ON(atomic_long_read(&pool->isolated_pages) <= 0);
-	atomic_long_dec(&pool->isolated_pages);
-	/*
-	 * Checking pool->destroying must happen after atomic_long_dec()
-	 * for pool->isolated_pages above. Paired with the smp_mb() in
-	 * zs_unregister_migration().
-	 */
-	smp_mb__after_atomic();
-	if (atomic_long_read(&pool->isolated_pages) == 0 && pool->destroying)
-		wake_up_all(&pool->migration_wait);
 }
 
 static void replace_sub_page(struct size_class *class, struct zspage *zspage,
@@ -1876,10 +1831,7 @@ static void replace_sub_page(struct size_class *class, struct zspage *zspage,
 
 static bool zs_page_isolate(struct page *page, isolate_mode_t mode)
 {
-	struct zs_pool *pool;
-	struct size_class *class;
 	struct zspage *zspage;
-	struct address_space *mapping;
 
 	/*
 	 * Page is locked so zspage couldn't be destroyed. For detail, look at
@@ -1889,39 +1841,9 @@ static bool zs_page_isolate(struct page *page, isolate_mode_t mode)
 	VM_BUG_ON_PAGE(PageIsolated(page), page);
 
 	zspage = get_zspage(page);
-
-	mapping = page_mapping(page);
-	pool = mapping->private_data;
-
-	class = zspage_class(pool, zspage);
-
-	spin_lock(&class->lock);
-	if (get_zspage_inuse(zspage) == 0) {
-		spin_unlock(&class->lock);
-		return false;
-	}
-
-	/* zspage is isolated for object migration */
-	if (list_empty(&zspage->list) && !is_zspage_isolated(zspage)) {
-		spin_unlock(&class->lock);
-		return false;
-	}
-
-	/*
-	 * If this is first time isolation for the zspage, isolate zspage from
-	 * size_class to prevent further object allocation from the zspage.
-	 */
-	if (!list_empty(&zspage->list) && !is_zspage_isolated(zspage)) {
-		enum fullness_group fullness;
-		unsigned int class_idx;
-
-		get_zspage_mapping(zspage, &class_idx, &fullness);
-		atomic_long_inc(&pool->isolated_pages);
-		remove_zspage(class, zspage, fullness);
-	}
-
+	migrate_write_lock(zspage);
 	inc_zspage_isolation(zspage);
-	spin_unlock(&class->lock);
+	migrate_write_unlock(zspage);
 
 	return true;
 }
@@ -2004,21 +1926,6 @@ static int zs_page_migrate(struct address_space *mapping, struct page *newpage,
 
 	dec_zspage_isolation(zspage);
 
-	/*
-	 * Page migration is done so let's putback isolated zspage to
-	 * the list if @page is final isolated subpage in the zspage.
-	 */
-	if (!is_zspage_isolated(zspage)) {
-		/*
-		 * We cannot race with zs_destroy_pool() here because we wait
-		 * for isolation to hit zero before we start destroying.
-		 * Also, we ensure that everyone can see pool->destroying before
-		 * we start waiting.
-		 */
-		putback_zspage_deferred(pool, class, zspage);
-		zs_pool_dec_isolated(pool);
-	}
-
 	if (page_zone(newpage) != page_zone(page)) {
 		dec_zone_page_state(page, NR_ZSPAGES);
 		inc_zone_page_state(newpage, NR_ZSPAGES);
@@ -2046,30 +1953,15 @@ unpin_objects:
 
 static void zs_page_putback(struct page *page)
 {
-	struct zs_pool *pool;
-	struct size_class *class;
-	struct address_space *mapping;
 	struct zspage *zspage;
 
 	VM_BUG_ON_PAGE(!PageMovable(page), page);
 	VM_BUG_ON_PAGE(!PageIsolated(page), page);
 
 	zspage = get_zspage(page);
-	mapping = page_mapping(page);
-	pool = mapping->private_data;
-	class = zspage_class(pool, zspage);
-
-	spin_lock(&class->lock);
+	migrate_write_lock(zspage);
 	dec_zspage_isolation(zspage);
-	if (!is_zspage_isolated(zspage)) {
-		/*
-		 * Due to page_lock, we cannot free zspage immediately
-		 * so let's defer.
-		 */
-		putback_zspage_deferred(pool, class, zspage);
-		zs_pool_dec_isolated(pool);
-	}
-	spin_unlock(&class->lock);
+	migrate_write_unlock(zspage);
 }
 
 static const struct address_space_operations zsmalloc_aops = {
@@ -2091,36 +1983,8 @@ static int zs_register_migration(struct zs_pool *pool)
 	return 0;
 }
 
-static bool pool_isolated_are_drained(struct zs_pool *pool)
-{
-	return atomic_long_read(&pool->isolated_pages) == 0;
-}
-
-/* Function for resolving migration */
-static void wait_for_isolated_drain(struct zs_pool *pool)
-{
-
-	/*
-	 * We're in the process of destroying the pool, so there are no
-	 * active allocations. zs_page_isolate() fails for completely free
-	 * zspages, so we need only wait for the zs_pool's isolated
-	 * count to hit zero.
-	 */
-	wait_event(pool->migration_wait,
-		   pool_isolated_are_drained(pool));
-}
-
 static void zs_unregister_migration(struct zs_pool *pool)
 {
-	pool->destroying = true;
-	/*
-	 * We need a memory barrier here to ensure global visibility of
-	 * pool->destroying. Thus pool->isolated pages will either be 0 in which
-	 * case we don't care, or it will be > 0 and pool->destroying will
-	 * ensure that we wake up once isolation hits 0.
-	 */
-	smp_mb();
-	wait_for_isolated_drain(pool); /* This can block */
 	flush_work(&pool->free_work);
 	iput(pool->inode);
 }
@@ -2149,7 +2013,6 @@ static void async_free_zspage(struct work_struct *work)
 		list_splice_init(&class->fullness_list[ZS_EMPTY], &free_pages);
 		spin_unlock(&class->lock);
 	}
-
 
 	list_for_each_entry_safe(zspage, tmp, &free_pages, list) {
 		list_del(&zspage->list);
@@ -2362,10 +2225,6 @@ struct zs_pool *zs_create_pool(const char *name)
 	pool->name = kstrdup(name, GFP_KERNEL);
 	if (!pool->name)
 		goto err;
-
-#ifdef CONFIG_COMPACTION
-	init_waitqueue_head(&pool->migration_wait);
-#endif
 
 	if (create_cache(pool))
 		goto err;
