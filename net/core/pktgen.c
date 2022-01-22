@@ -546,7 +546,7 @@ static ssize_t pgctrl_write(struct file *file, const char __user *buf,
 
 static int pgctrl_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pgctrl_show, PDE_DATA(inode));
+	return single_open(file, pgctrl_show, pde_data(inode));
 }
 
 static const struct proc_ops pktgen_proc_ops = {
@@ -1811,7 +1811,7 @@ static ssize_t pktgen_if_write(struct file *file,
 
 static int pktgen_if_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pktgen_if_show, PDE_DATA(inode));
+	return single_open(file, pktgen_if_show, pde_data(inode));
 }
 
 static const struct proc_ops pktgen_if_proc_ops = {
@@ -1948,7 +1948,7 @@ out:
 
 static int pktgen_thread_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pktgen_thread_show, PDE_DATA(inode));
+	return single_open(file, pktgen_thread_show, pde_data(inode));
 }
 
 static const struct proc_ops pktgen_thread_proc_ops = {

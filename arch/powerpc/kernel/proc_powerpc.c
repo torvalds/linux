@@ -25,7 +25,7 @@ static ssize_t page_map_read( struct file *file, char __user *buf, size_t nbytes
 			      loff_t *ppos)
 {
 	return simple_read_from_buffer(buf, nbytes, ppos,
-			PDE_DATA(file_inode(file)), PAGE_SIZE);
+			pde_data(file_inode(file)), PAGE_SIZE);
 }
 
 static int page_map_mmap( struct file *file, struct vm_area_struct *vma )
@@ -34,7 +34,7 @@ static int page_map_mmap( struct file *file, struct vm_area_struct *vma )
 		return -EINVAL;
 
 	remap_pfn_range(vma, vma->vm_start,
-			__pa(PDE_DATA(file_inode(file))) >> PAGE_SHIFT,
+			__pa(pde_data(file_inode(file))) >> PAGE_SHIFT,
 			PAGE_SIZE, vma->vm_page_prot);
 	return 0;
 }
