@@ -12,7 +12,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/spi-mt65xx.h>
 #include <linux/pm_runtime.h>
@@ -605,8 +605,9 @@ static int mtk_spi_setup(struct spi_device *spi)
 	if (!spi->controller_data)
 		spi->controller_data = (void *)&mtk_default_chip_info;
 
-	if (mdata->dev_comp->need_pad_sel && gpio_is_valid(spi->cs_gpio))
-		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
+	if (mdata->dev_comp->need_pad_sel && spi->cs_gpiod)
+		/* CS de-asserted, gpiolib will handle inversion */
+		gpiod_direction_output(spi->cs_gpiod, 0);
 
 	return 0;
 }
@@ -730,6 +731,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	master->can_dma = mtk_spi_can_dma;
 	master->setup = mtk_spi_setup;
 	master->set_cs_timing = mtk_spi_set_hw_cs_timing;
+	master->use_gpio_descriptors = true;
 
 	of_id = of_match_node(mtk_spi_of_match, pdev->dev.of_node);
 	if (!of_id) {
@@ -853,24 +855,11 @@ static int mtk_spi_probe(struct platform_device *pdev)
 			goto err_disable_runtime_pm;
 		}
 
-		if (!master->cs_gpios && master->num_chipselect > 1) {
+		if (!master->cs_gpiods && master->num_chipselect > 1) {
 			dev_err(&pdev->dev,
 				"cs_gpios not specified and num_chipselect > 1\n");
 			ret = -EINVAL;
 			goto err_disable_runtime_pm;
-		}
-
-		if (master->cs_gpios) {
-			for (i = 0; i < master->num_chipselect; i++) {
-				ret = devm_gpio_request(&pdev->dev,
-							master->cs_gpios[i],
-							dev_name(&pdev->dev));
-				if (ret) {
-					dev_err(&pdev->dev,
-						"can't get CS GPIO %i\n", i);
-					goto err_disable_runtime_pm;
-				}
-			}
 		}
 	}
 
