@@ -2096,6 +2096,7 @@ void mt7615_pm_wake_work(struct work_struct *work)
 		int i;
 
 		if (mt76_is_sdio(mdev)) {
+			mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
 			mt76_worker_schedule(&mdev->sdio.txrx_worker);
 		} else {
 			mt76_for_each_q_rx(mdev, i)
