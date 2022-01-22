@@ -14,10 +14,6 @@ struct core_vma_metadata {
 	unsigned long dump_size;
 };
 
-extern int core_uses_pid;
-extern char core_pattern[];
-extern unsigned int core_pipe_limit;
-
 /*
  * These are the only things you should do on a core-file: use only these
  * functions to write out all the necessary info.
@@ -35,6 +31,12 @@ int dump_vma_snapshot(struct coredump_params *cprm, int *vma_count,
 extern void do_coredump(const kernel_siginfo_t *siginfo);
 #else
 static inline void do_coredump(const kernel_siginfo_t *siginfo) {}
+#endif
+
+#if defined(CONFIG_COREDUMP) && defined(CONFIG_SYSCTL)
+extern void validate_coredump_safety(void);
+#else
+static inline void validate_coredump_safety(void) {}
 #endif
 
 #endif /* _LINUX_COREDUMP_H */
