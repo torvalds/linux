@@ -5241,7 +5241,8 @@ static int its_cpu_memreserve_lpi(unsigned int cpu)
 
 out:
 	/* Last CPU being brought up gets to issue the cleanup */
-	if (cpumask_equal(&cpus_booted_once_mask, cpu_possible_mask))
+	if (!IS_ENABLED(CONFIG_SMP) ||
+	    cpumask_equal(&cpus_booted_once_mask, cpu_possible_mask))
 		schedule_work(&rdist_memreserve_cpuhp_cleanup_work);
 
 	gic_data_rdist()->flags |= RD_LOCAL_MEMRESERVE_DONE;
