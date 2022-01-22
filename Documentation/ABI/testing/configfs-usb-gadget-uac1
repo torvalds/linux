@@ -29,4 +29,5 @@ Description:
 					(in 1/256 dB)
 		req_number		the number of pre-allocated requests
 					for both capture and playback
+		function_name		name of the interface
 		=====================	=======================================
