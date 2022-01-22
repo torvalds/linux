@@ -52,6 +52,8 @@ struct f_uac1_opts {
 	int				req_number;
 	unsigned			bound:1;
 
+	char			function_name[32];
+
 	struct mutex			lock;
 	int				refcnt;
 };

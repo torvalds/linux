@@ -309,7 +309,7 @@ enum {
 };
 
 static struct usb_string strings_uac1[] = {
-	[STR_AC_IF].s = "AC Interface",
+	/* [STR_AC_IF].s = DYNAMIC, */
 	[STR_USB_OUT_IT].s = "Playback Input terminal",
 	[STR_USB_OUT_IT_CH_NAMES].s = "Playback Channels",
 	[STR_IO_OUT_OT].s = "Playback Output terminal",
@@ -1192,6 +1192,8 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 
 	audio_opts = container_of(f->fi, struct f_uac1_opts, func_inst);
 
+	strings_uac1[STR_AC_IF].s = audio_opts->function_name;
+
 	us = usb_gstrings_attach(cdev, uac1_strings, ARRAY_SIZE(strings_uac1));
 	if (IS_ERR(us))
 		return PTR_ERR(us);
@@ -1551,6 +1553,42 @@ end:									\
 									\
 CONFIGFS_ATTR(f_uac1_opts_, name)
 
+#define UAC1_ATTRIBUTE_STRING(name)					\
+static ssize_t f_uac1_opts_##name##_show(struct config_item *item,	\
+					 char *page)			\
+{									\
+	struct f_uac1_opts *opts = to_f_uac1_opts(item);		\
+	int result;							\
+									\
+	mutex_lock(&opts->lock);					\
+	result = snprintf(page, sizeof(opts->name), "%s", opts->name);	\
+	mutex_unlock(&opts->lock);					\
+									\
+	return result;							\
+}									\
+									\
+static ssize_t f_uac1_opts_##name##_store(struct config_item *item,	\
+					  const char *page, size_t len)	\
+{									\
+	struct f_uac1_opts *opts = to_f_uac1_opts(item);		\
+	int ret = 0;							\
+									\
+	mutex_lock(&opts->lock);					\
+	if (opts->refcnt) {						\
+		ret = -EBUSY;						\
+		goto end;						\
+	}								\
+									\
+	ret = snprintf(opts->name, min(sizeof(opts->name), len),	\
+			"%s", page);					\
+									\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	return ret;							\
+}									\
+									\
+CONFIGFS_ATTR(f_uac1_opts_, name)
+
 UAC1_ATTRIBUTE(u32, c_chmask);
 UAC1_RATE_ATTRIBUTE(c_srate);
 UAC1_ATTRIBUTE(u32, c_ssize);
@@ -1570,6 +1608,7 @@ UAC1_ATTRIBUTE(bool, c_volume_present);
 UAC1_ATTRIBUTE(s16, c_volume_min);
 UAC1_ATTRIBUTE(s16, c_volume_max);
 UAC1_ATTRIBUTE(s16, c_volume_res);
+UAC1_ATTRIBUTE_STRING(function_name);
 
 static struct configfs_attribute *f_uac1_attrs[] = {
 	&f_uac1_opts_attr_c_chmask,
@@ -1591,6 +1630,8 @@ static struct configfs_attribute *f_uac1_attrs[] = {
 	&f_uac1_opts_attr_c_volume_min,
 	&f_uac1_opts_attr_c_volume_max,
 	&f_uac1_opts_attr_c_volume_res,
+
+	&f_uac1_opts_attr_function_name,
 
 	NULL,
 };
@@ -1643,6 +1684,9 @@ static struct usb_function_instance *f_audio_alloc_inst(void)
 	opts->c_volume_res = UAC1_DEF_RES_DB;
 
 	opts->req_number = UAC1_DEF_REQ_NUM;
+
+	snprintf(opts->function_name, sizeof(opts->function_name), "AC Interface");
+
 	return &opts->func_inst;
 }
 
