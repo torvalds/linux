@@ -700,6 +700,10 @@ void media_device_init(struct media_device *mdev)
 
 	atomic_set(&mdev->request_id, 0);
 
+	if (!*mdev->bus_info)
+		media_set_bus_info(mdev->bus_info, sizeof(mdev->bus_info),
+				   mdev->dev);
+
 	dev_dbg(mdev->dev, "Media device initialized\n");
 }
 EXPORT_SYMBOL_GPL(media_device_init);

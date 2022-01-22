@@ -884,8 +884,6 @@ static int cal_media_init(struct cal_dev *cal)
 	mdev->dev = cal->dev;
 	mdev->hw_revision = cal->revision;
 	strscpy(mdev->model, "CAL", sizeof(mdev->model));
-	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
-		 dev_name(mdev->dev));
 	media_device_init(mdev);
 
 	/*

@@ -225,6 +225,9 @@ static inline __must_check int media_entity_enum_init(
  *
  * - dev must point to the parent device
  * - model must be filled with the device model name
+ *
+ * The bus_info field is set by media_device_init() for PCI and platform devices
+ * if the field begins with '\0'.
  */
 void media_device_init(struct media_device *mdev);
 
@@ -248,9 +251,6 @@ void media_device_cleanup(struct media_device *mdev);
  *
  * The caller is responsible for initializing the &media_device structure
  * before registration. The following fields of &media_device must be set:
- *
- *  - &media_device.dev must point to the parent device (usually a &pci_dev,
- *    &usb_interface or &platform_device instance).
  *
  *  - &media_device.model must be filled with the device model name as a
  *    NUL-terminated UTF-8 string. The device/model revision must not be
