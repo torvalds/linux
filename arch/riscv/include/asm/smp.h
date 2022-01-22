@@ -92,8 +92,6 @@ static inline void riscv_clear_ipi(void)
 
 #endif /* CONFIG_SMP */
 
-void riscv_cpuid_to_hartid_mask(const struct cpumask *in, struct cpumask *out);
-
 #if defined(CONFIG_HOTPLUG_CPU) && (CONFIG_SMP)
 bool cpu_has_hotplug(unsigned int cpu);
 #else
