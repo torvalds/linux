@@ -4698,7 +4698,7 @@ uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw)
 	return 0;
 }
 
-/**
+/*
  * Return PCON's post FRL link training supported BW if its non-zero, otherwise return max_supported_frl_bw.
  */
 static uint32_t intersect_frl_link_bw_support(
