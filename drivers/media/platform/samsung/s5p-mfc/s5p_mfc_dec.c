@@ -288,8 +288,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 	strscpy(cap->driver, S5P_MFC_NAME, sizeof(cap->driver));
 	strscpy(cap->card, dev->vfd_dec->name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(&dev->plat_dev->dev));
 	return 0;
 }
 

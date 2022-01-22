@@ -1046,12 +1046,8 @@ static const struct vb2_ops cio2_vb2_ops = {
 static int cio2_v4l2_querycap(struct file *file, void *fh,
 			      struct v4l2_capability *cap)
 {
-	struct cio2_device *cio2 = video_drvdata(file);
-
 	strscpy(cap->driver, CIO2_NAME, sizeof(cap->driver));
 	strscpy(cap->card, CIO2_DEVICE_NAME, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "PCI:%s", pci_name(cio2->pci_dev));
 
 	return 0;
 }

@@ -18,6 +18,7 @@
 
 #include <linux/videodev2.h>
 
+#include <media/media-device.h> /* for media_set_bus_info() */
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
@@ -1051,6 +1052,9 @@ static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 	cap->version = LINUX_VERSION_CODE;
 	cap->device_caps = vfd->device_caps;
 	cap->capabilities = vfd->device_caps | V4L2_CAP_DEVICE_CAPS;
+
+	media_set_bus_info(cap->bus_info, sizeof(cap->bus_info),
+			   vfd->dev_parent);
 
 	ret = ops->vidioc_querycap(file, fh, cap);
 

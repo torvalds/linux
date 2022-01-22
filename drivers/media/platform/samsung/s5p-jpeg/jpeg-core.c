@@ -1257,8 +1257,6 @@ static int s5p_jpeg_querycap(struct file *file, void *priv,
 		strscpy(cap->card, S5P_JPEG_M2M_NAME " decoder",
 			sizeof(cap->card));
 	}
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(ctx->jpeg->dev));
 	return 0;
 }
 
