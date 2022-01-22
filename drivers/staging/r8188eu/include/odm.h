@@ -151,9 +151,6 @@ enum odm_ability_def {
 	ODM_BB_RSSI_MONITOR		= BIT(4),
 	ODM_BB_ANT_DIV			= BIT(6),
 	ODM_BB_PWR_TRA			= BIT(8),
-
-	/*  RF ODM section BIT 24-31 */
-	ODM_RF_CALIBRATION		= BIT(26),
 };
 
 # define ODM_ITRF_USB 0x2

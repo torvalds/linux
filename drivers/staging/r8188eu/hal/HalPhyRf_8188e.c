@@ -893,9 +893,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 		rOFDM0_XCTxAFE, rOFDM0_XDTxAFE,
 		rOFDM0_RxIQExtAnta};
 
-	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
-		return;
-
 	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
 	if (singletone || carrier_sup)
 		return;
@@ -993,8 +990,6 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 
-	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
-		return;
 	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
 	if (singletone || carrier_sup)
 		return;
