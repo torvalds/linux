@@ -59,6 +59,8 @@ struct f_uac2_opts {
 	int				fb_max;
 	bool			bound;
 
+	char			function_name[32];
+
 	struct mutex			lock;
 	int				refcnt;
 };
