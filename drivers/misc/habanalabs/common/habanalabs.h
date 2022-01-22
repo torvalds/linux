@@ -402,8 +402,11 @@ enum hl_device_hw_state {
  * @hop4_mask: mask to get the PTE address in hop 4.
  * @hop5_mask: mask to get the PTE address in hop 5.
  * @last_mask: mask to get the bit indicating this is the last hop.
+ * @pgt_size: size for page tables.
  * @page_size: default page size used to allocate memory.
  * @num_hops: The amount of hops supported by the translation table.
+ * @hop_table_size: HOP table size.
+ * @hop0_tables_total_size: total size for all HOP0 tables.
  * @host_resident: Should the MMU page table reside in host memory or in the
  *                 device DRAM.
  */
@@ -423,8 +426,11 @@ struct hl_mmu_properties {
 	u64	hop4_mask;
 	u64	hop5_mask;
 	u64	last_mask;
+	u64	pgt_size;
 	u32	page_size;
 	u32	num_hops;
+	u32	hop_table_size;
+	u32	hop0_tables_total_size;
 	u8	host_resident;
 };
 
@@ -3015,6 +3021,9 @@ int hl_mmu_unmap_contiguous(struct hl_ctx *ctx, u64 virt_addr, u32 size);
 int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags);
 int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 					u32 flags, u32 asid, u64 va, u64 size);
+u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte);
+u64 hl_mmu_get_hop_pte_phys_addr(struct hl_ctx *ctx, struct hl_mmu_properties *mmu_prop,
+					u8 hop_idx, u64 hop_addr, u64 virt_addr);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
