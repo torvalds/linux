@@ -81,14 +81,12 @@ properties:
               data-lanes:
                 description:
                   Note that 'fsl,imx7-mipi-csi2' only supports up to 2 data lines.
+                minItems: 1
                 items:
-                  minItems: 1
-                  maxItems: 4
-                  items:
-                    - const: 1
-                    - const: 2
-                    - const: 3
-                    - const: 4
+                  - const: 1
+                  - const: 2
+                  - const: 3
+                  - const: 4
 
             required:
               - data-lanes
