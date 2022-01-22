@@ -2238,10 +2238,6 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 	if (error_code)
 		goto reinject;
 
-	/* All SVM instructions expect page aligned RAX */
-	if (svm->vmcb->save.rax & ~PAGE_MASK)
-		goto reinject;
-
 	/* Decode the instruction for usage later */
 	if (x86_decode_emulated_instruction(vcpu, 0, NULL, 0) != EMULATION_OK)
 		goto reinject;
@@ -2259,8 +2255,13 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 		if (!is_guest_mode(vcpu))
 			return kvm_emulate_instruction(vcpu,
 				EMULTYPE_VMWARE_GP | EMULTYPE_NO_DECODE);
-	} else
+	} else {
+		/* All SVM instructions expect page aligned RAX */
+		if (svm->vmcb->save.rax & ~PAGE_MASK)
+			goto reinject;
+
 		return emulate_svm_instr(vcpu, opcode);
+	}
 
 reinject:
 	kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
