@@ -621,6 +621,7 @@
 #define LANE_REG062C			0x18B0
 #define LANE_REG062D			0x18B4
 
+#define HDMI20_MAX_RATE 600000000
 #define DATA_RATE_MASK 0xFFFFFFF
 #define COLOR_DEPTH_MASK BIT(31)
 #define HDMI_MODE_MASK BIT(30)
@@ -1932,6 +1933,9 @@ static long hdptx_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct ropll_config *cfg = ropll_tmds_cfg;
 	u32 bit_rate = rate / 100;
 
+	if (rate > HDMI20_MAX_RATE)
+		return rate;
+
 	for (; cfg->bit_rate != ~0; cfg++)
 		if (bit_rate == cfg->bit_rate)
 			break;
@@ -2021,7 +2025,6 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *regs;
 	int ret;
-	u32 val;
 
 	hdptx = devm_kzalloc(dev, sizeof(*hdptx), GFP_KERNEL);
 	if (!hdptx)
@@ -2043,10 +2046,6 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "failed to get clocks\n");
 
 	hdptx->nr_clks = ret;
-
-	ret = clk_bulk_prepare_enable(hdptx->nr_clks, hdptx->clks);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to enable clocks\n");
 
 	hdptx->regmap = devm_regmap_init_mmio(dev, regs,
 					      &rockchip_hdptx_phy_regmap_config);
@@ -2134,33 +2133,9 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 		goto err_regsmap;
 	}
 
-	reset_control_assert(hdptx->apb_reset);
-	udelay(10);
 	reset_control_deassert(hdptx->apb_reset);
-
-	reset_control_assert(hdptx->cmn_reset);
-	udelay(10);
 	reset_control_deassert(hdptx->cmn_reset);
-
-	reset_control_assert(hdptx->init_reset);
-	udelay(10);
 	reset_control_deassert(hdptx->init_reset);
-	/*
-	 * the default state of hdmiphy power on, power consumption
-	 * is high. some configurations need to be adjusted.
-	 */
-	hdptx_write(hdptx, LANE_REG0300, 0x82);
-	hdptx_write(hdptx, SB_REG010F, 0xc1);
-	hdptx_write(hdptx, SB_REG0110, 0x1);
-	hdptx_write(hdptx, LANE_REG0301, 0x80);
-	hdptx_write(hdptx, LANE_REG0401, 0x80);
-	hdptx_write(hdptx, LANE_REG0501, 0x80);
-	hdptx_write(hdptx, LANE_REG0601, 0x80);
-
-	val = (HDPTX_I_PLL_EN | HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16;
-	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
-
-	clk_bulk_disable_unprepare(hdptx->nr_clks, hdptx->clks);
 
 	ret = rockchip_hdptx_phy_clk_register(hdptx);
 	if (ret)
