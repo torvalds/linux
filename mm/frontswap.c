@@ -179,7 +179,7 @@ void frontswap_init(unsigned type, unsigned long *map)
 		ops->init(type);
 }
 
-bool __frontswap_test(struct swap_info_struct *sis,
+static bool __frontswap_test(struct swap_info_struct *sis,
 				pgoff_t offset)
 {
 	if (sis->frontswap_map)
