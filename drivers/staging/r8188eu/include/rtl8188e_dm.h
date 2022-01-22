@@ -12,9 +12,8 @@ enum{
 struct	dm_priv {
 	u32	InitODMFlag;
 
-	/*  Upper and Lower Signal threshold for Rate Adaptive*/
+	/* Lower Signal threshold for Rate Adaptive */
 	int	EntryMinUndecoratedSmoothedPWDB;
-	int	EntryMaxUndecoratedSmoothedPWDB;
 	int	MinUndecoratedPWDBForDM;
 };
 

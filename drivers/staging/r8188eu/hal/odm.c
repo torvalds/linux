@@ -494,11 +494,6 @@ static void odm_RSSIMonitorCheck(struct odm_dm_struct *pDM_Odm)
 		}
 	}
 
-	if (tmpEntryMaxPWDB != 0)	/*  If associated entry is found */
-		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = tmpEntryMaxPWDB;
-	else
-		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = 0;
-
 	if (tmpEntryMinPWDB != 0xff) /*  If associated entry is found */
 		pdmpriv->EntryMinUndecoratedSmoothedPWDB = tmpEntryMinPWDB;
 	else
