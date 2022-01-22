@@ -29,10 +29,11 @@ static struct ctl_table fs_shared_sysctls[] = {
 	{ }
 };
 
-static int __init init_fs_shared_sysctls(void)
+DECLARE_SYSCTL_BASE(fs, fs_shared_sysctls);
+
+static int __init init_fs_sysctls(void)
 {
-	register_sysctl_init("fs", fs_shared_sysctls);
-	return 0;
+	return register_sysctl_base(fs);
 }
 
-early_initcall(init_fs_shared_sysctls);
+early_initcall(init_fs_sysctls);
