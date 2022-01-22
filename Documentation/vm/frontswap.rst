@@ -255,19 +255,6 @@ the old data and ensure that it is no longer accessible.  Since the
 swap subsystem then writes the new data to the read swap device,
 this is the correct course of action to ensure coherency.
 
-* What is frontswap_shrink for?
-
-When the (non-frontswap) swap subsystem swaps out a page to a real
-swap device, that page is only taking up low-value pre-allocated disk
-space.  But if frontswap has placed a page in transcendent memory, that
-page may be taking up valuable real estate.  The frontswap_shrink
-routine allows code outside of the swap subsystem to force pages out
-of the memory managed by frontswap and back into kernel-addressable memory.
-For example, in RAMster, a "suction driver" thread will attempt
-to "repatriate" pages sent to a remote machine back to the local machine;
-this is driven using the frontswap_shrink mechanism when memory pressure
-subsides.
-
 * Why does the frontswap patch create the new include file swapfile.h?
 
 The frontswap code depends on some swap-subsystem-internal data
