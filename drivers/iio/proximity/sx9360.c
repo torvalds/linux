@@ -775,7 +775,7 @@ static const struct sx_common_chip_info sx9360_chip_info = {
 	.reg_reset = SX9360_REG_RESET,
 
 	.mask_enable_chan = SX9360_REG_GNRL_CTRL0_PHEN_MASK,
-	.stat_offset = 3,
+	.stat_offset = 2,
 	.num_channels = SX9360_NUM_CHANNELS,
 	.num_default_regs = ARRAY_SIZE(sx9360_default_regs),
 

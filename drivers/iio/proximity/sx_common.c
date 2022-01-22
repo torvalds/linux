@@ -87,7 +87,7 @@ static void sx_common_push_events(struct iio_dev *indio_dev)
 		return;
 	}
 
-	val <<= data->chip_info->stat_offset;
+	val >>= data->chip_info->stat_offset;
 
 	/*
 	 * Only iterate over channels with changes on proximity status that have
