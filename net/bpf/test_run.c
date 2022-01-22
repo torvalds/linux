@@ -324,7 +324,7 @@ struct prog_test_fail2 {
 struct prog_test_fail3 {
 	int len;
 	char arr1[2];
-	char arr2[0];
+	char arr2[];
 };
 
 noinline void bpf_kfunc_call_test_pass_ctx(struct __sk_buff *skb)
