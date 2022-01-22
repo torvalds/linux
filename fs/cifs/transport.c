@@ -431,7 +431,8 @@ unmask:
 		 * socket so the server throws away the partial SMB
 		 */
 		spin_lock(&cifs_tcp_ses_lock);
-		server->tcpStatus = CifsNeedReconnect;
+		if (server->tcpStatus != CifsExiting)
+			server->tcpStatus = CifsNeedReconnect;
 		spin_unlock(&cifs_tcp_ses_lock);
 		trace_smb3_partial_send_reconnect(server->CurrentMid,
 						  server->conn_id, server->hostname);
@@ -729,17 +730,6 @@ static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 			struct mid_q_entry **ppmidQ)
 {
 	spin_lock(&cifs_tcp_ses_lock);
-	if (ses->server->tcpStatus == CifsExiting) {
-		spin_unlock(&cifs_tcp_ses_lock);
-		return -ENOENT;
-	}
-
-	if (ses->server->tcpStatus == CifsNeedReconnect) {
-		spin_unlock(&cifs_tcp_ses_lock);
-		cifs_dbg(FYI, "tcp session dead - return to caller to retry\n");
-		return -EAGAIN;
-	}
-
 	if (ses->status == CifsNew) {
 		if ((in_buf->Command != SMB_COM_SESSION_SETUP_ANDX) &&
 			(in_buf->Command != SMB_COM_NEGOTIATE)) {
@@ -1059,7 +1049,10 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 
 	/* round robin */
 	index = (uint)atomic_inc_return(&ses->chan_seq);
+
+	spin_lock(&ses->chan_lock);
 	index %= ses->chan_count;
+	spin_unlock(&ses->chan_lock);
 
 	return ses->chans[index].server;
 }
