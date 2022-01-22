@@ -726,7 +726,7 @@
 			compatible = "qcom,sm8450-smmu-500", "arm,mmu-500";
 			reg = <0 0x15000000 0 0x100000>;
 			#iommu-cells = <2>;
-			#global-interrupts = <2>;
+			#global-interrupts = <1>;
 			interrupts =    <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
@@ -813,6 +813,7 @@
 					<GIC_SPI 412 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 707 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 690 IRQ_TYPE_LEVEL_HIGH>,
