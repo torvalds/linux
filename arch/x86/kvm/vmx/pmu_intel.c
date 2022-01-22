@@ -21,7 +21,6 @@
 #define MSR_PMC_FULL_WIDTH_BIT      (MSR_IA32_PMC0 - MSR_IA32_PERFCTR0)
 
 static struct kvm_event_hw_type_mapping intel_arch_events[] = {
-	/* Index must match CPUID 0x0A.EBX bit vector */
 	[0] = { 0x3c, 0x00, PERF_COUNT_HW_CPU_CYCLES },
 	[1] = { 0xc0, 0x00, PERF_COUNT_HW_INSTRUCTIONS },
 	[2] = { 0x3c, 0x01, PERF_COUNT_HW_BUS_CYCLES  },
@@ -29,6 +28,7 @@ static struct kvm_event_hw_type_mapping intel_arch_events[] = {
 	[4] = { 0x2e, 0x41, PERF_COUNT_HW_CACHE_MISSES },
 	[5] = { 0xc4, 0x00, PERF_COUNT_HW_BRANCH_INSTRUCTIONS },
 	[6] = { 0xc5, 0x00, PERF_COUNT_HW_BRANCH_MISSES },
+	/* The above index must match CPUID 0x0A.EBX bit vector */
 	[7] = { 0x00, 0x03, PERF_COUNT_HW_REF_CPU_CYCLES },
 };
 
@@ -75,11 +75,17 @@ static unsigned int intel_pmc_perf_hw_id(struct kvm_pmc *pmc)
 	u8 unit_mask = (pmc->eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(intel_arch_events); i++)
-		if (intel_arch_events[i].eventsel == event_select &&
-		    intel_arch_events[i].unit_mask == unit_mask &&
-		    (pmc_is_fixed(pmc) || pmu->available_event_types & (1 << i)))
-			break;
+	for (i = 0; i < ARRAY_SIZE(intel_arch_events); i++) {
+		if (intel_arch_events[i].eventsel != event_select ||
+		    intel_arch_events[i].unit_mask != unit_mask)
+			continue;
+
+		/* disable event that reported as not present by cpuid */
+		if ((i < 7) && !(pmu->available_event_types & (1 << i)))
+			return PERF_COUNT_HW_MAX + 1;
+
+		break;
+	}
 
 	if (i == ARRAY_SIZE(intel_arch_events))
 		return PERF_COUNT_HW_MAX;
@@ -481,7 +487,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->reserved_bits = 0xffffffff00200000ull;
 
 	entry = kvm_find_cpuid_entry(vcpu, 0xa, 0);
-	if (!entry)
+	if (!entry || !enable_pmu)
 		return;
 	eax.full = entry->eax;
 	edx.full = entry->edx;
