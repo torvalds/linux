@@ -48,6 +48,7 @@
 #define SCDC_MIN_SOURCE_VERSION	0x1
 
 #define HDMI14_MAX_TMDSCLK	340000000
+#define HDMI20_MAX_TMDSCLK_KHZ	600000
 
 static const unsigned int dw_hdmi_cable[] = {
 	EXTCON_DISP_HDMI,
@@ -1737,9 +1738,6 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	struct drm_display_mode *mode = NULL;
 	void *data = hdmi->plat_data->phy_data;
 	struct hdmi_vmode_qp *vmode = &hdmi->hdmi_data.video_mode;
-	unsigned int in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
-	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
-	bool color_changed = false;
 
 	if (!crtc)
 		return 0;
@@ -1776,14 +1774,10 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 						       vmode->mpixelclock);
 		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 			vmode->mtmdsclock /= 2;
-
-		if (in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
-		    out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
-			color_changed = true;
 	}
 
 	if (!hdr_metadata_equal(old_state, new_state) ||
-	    dw_hdmi_color_changed(connector) || color_changed) {
+	    dw_hdmi_color_changed(connector)) {
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
@@ -1881,21 +1875,29 @@ static void dw_hdmi_qp_bridge_detach(struct drm_bridge *bridge)
 	mutex_unlock(&hdmi->cec_notifier_mutex);
 }
 
+static const u32 supported_freq[] = {
+	594000, 371250, 297000, 162000, 185625, 148500, 146250, 106500, 108000,
+	85500, 83500, 92812, 74250, 65000, 33750, 40000, 27000, 25175
+};
+
 static enum drm_mode_status
 dw_hdmi_qp_bridge_mode_valid(struct drm_bridge *bridge,
 			     const struct drm_display_info *info,
 			     const struct drm_display_mode *mode)
 {
-	struct dw_hdmi_qp *hdmi = bridge->driver_private;
-	struct drm_connector *connector = &hdmi->connector;
-	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
-	enum drm_mode_status mode_status = MODE_OK;
+	int i;
 
-	if (pdata->mode_valid)
-		mode_status = pdata->mode_valid(connector, pdata->priv_data,
-						info, mode);
+	if (mode->clock > HDMI20_MAX_TMDSCLK_KHZ)
+		return MODE_OK;
 
-	return mode_status;
+	for (i = 0; i < ARRAY_SIZE(supported_freq); i++)
+		if (supported_freq[i] == mode->clock)
+			break;
+
+	if (i == ARRAY_SIZE(supported_freq))
+		return MODE_CLOCK_RANGE;
+
+	return MODE_OK;
 }
 
 static void dw_hdmi_qp_bridge_mode_set(struct drm_bridge *bridge,

@@ -2488,15 +2488,25 @@ static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
 					      struct drm_display_mode *adj)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
-	struct drm_crtc *crtc = encoder->crtc;
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
+	struct drm_crtc *crtc;
+	struct rockchip_crtc_state *s;
+
+	if (!encoder->crtc)
+		return;
+	crtc = encoder->crtc;
+
+	if (!crtc->state)
+		return;
+	s = to_rockchip_crtc_state(crtc->state);
+
+	if (!s)
+		return;
 
 	if (hdmi->is_hdmi_qp) {
 		s->dsc_enable = 0;
-		if (hdmi->link_cfg.dsc_mode) {
-			s->dsc_enable = 1;
+		if (hdmi->link_cfg.dsc_mode)
 			dw_hdmi_qp_dsc_configure(hdmi, s, crtc->state);
-		}
+
 		phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
 	}
 
