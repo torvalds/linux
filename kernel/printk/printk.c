@@ -171,7 +171,7 @@ static int __init control_devkmsg(char *str)
 __setup("printk.devkmsg=", control_devkmsg);
 
 char devkmsg_log_str[DEVKMSG_STR_MAX_SIZE] = "ratelimit";
-
+#if defined(CONFIG_PRINTK) && defined(CONFIG_SYSCTL)
 int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 			      void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -210,6 +210,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 
 	return 0;
 }
+#endif /* CONFIG_PRINTK && CONFIG_SYSCTL */
 
 /* Number of registered extended console drivers. */
 static int nr_ext_console_drivers;
