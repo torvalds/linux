@@ -33,16 +33,6 @@ static struct frontswap_ops *frontswap_ops __read_mostly;
 	for ((ops) = frontswap_ops; (ops); (ops) = (ops)->next)
 
 /*
- * If enabled, frontswap_store will return failure even on success.  As
- * a result, the swap subsystem will always write the page to swap, in
- * effect converting frontswap into a writethrough cache.  In this mode,
- * there is no direct reduction in swap writes, but a frontswap backend
- * can unilaterally "reclaim" any pages in use with no data loss, thus
- * providing increases control over maximum memory usage due to frontswap.
- */
-static bool frontswap_writethrough_enabled __read_mostly;
-
-/*
  * If enabled, the underlying tmem implementation is capable of doing
  * exclusive gets, so frontswap_load, on a successful tmem_get must
  * mark the page as no longer in frontswap AND mark it dirty.
@@ -171,15 +161,6 @@ void frontswap_register_ops(struct frontswap_ops *ops)
 EXPORT_SYMBOL(frontswap_register_ops);
 
 /*
- * Enable/disable frontswap writethrough (see above).
- */
-void frontswap_writethrough(bool enable)
-{
-	frontswap_writethrough_enabled = enable;
-}
-EXPORT_SYMBOL(frontswap_writethrough);
-
-/*
  * Enable/disable frontswap exclusive gets (see above).
  */
 void frontswap_tmem_exclusive_gets(bool enable)
@@ -283,9 +264,7 @@ int __frontswap_store(struct page *page)
 	} else {
 		inc_frontswap_failed_stores();
 	}
-	if (frontswap_writethrough_enabled)
-		/* report failure so swap also writes to swap device */
-		ret = -1;
+
 	return ret;
 }
 EXPORT_SYMBOL(__frontswap_store);

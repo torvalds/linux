@@ -39,12 +39,6 @@ a disk write and, if the data is later read back, a disk read are avoided.
 If a store returns failure, transcendent memory has rejected the data, and the
 page can be written to swap as usual.
 
-If a backend chooses, frontswap can be configured as a "writethrough
-cache" by calling frontswap_writethrough().  In this mode, the reduction
-in swap device writes is lost (and also a non-trivial performance advantage)
-in order to allow the backend to arbitrarily "reclaim" space used to
-store frontswap pages to more completely manage its memory usage.
-
 Note that if a page is stored and the page already exists in transcendent memory
 (a "duplicate" store), either the store succeeds and the data is overwritten,
 or the store fails AND the page is invalidated.  This ensures stale data may
