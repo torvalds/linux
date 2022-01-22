@@ -281,7 +281,7 @@ static int set_tracing_cpumask(struct perf_cpu_map *cpumap)
 	int ret;
 	int last_cpu;
 
-	last_cpu = perf_cpu_map__cpu(cpumap, cpumap->nr - 1).cpu;
+	last_cpu = perf_cpu_map__cpu(cpumap, perf_cpu_map__nr(cpumap) - 1).cpu;
 	mask_size = last_cpu / 4 + 2; /* one more byte for EOS */
 	mask_size += last_cpu / 32; /* ',' is needed for every 32th cpus */
 

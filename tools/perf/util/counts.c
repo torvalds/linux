@@ -61,7 +61,7 @@ int evsel__alloc_counts(struct evsel *evsel)
 	struct perf_cpu_map *cpus = evsel__cpus(evsel);
 	int nthreads = perf_thread_map__nr(evsel->core.threads);
 
-	evsel->counts = perf_counts__new(cpus ? cpus->nr : 1, nthreads);
+	evsel->counts = perf_counts__new(perf_cpu_map__nr(cpus), nthreads);
 	return evsel->counts != NULL ? 0 : -ENOMEM;
 }
 

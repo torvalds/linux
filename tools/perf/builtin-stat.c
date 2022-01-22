@@ -230,11 +230,12 @@ static bool cpus_map_matched(struct evsel *a, struct evsel *b)
 	if (!a->core.cpus || !b->core.cpus)
 		return false;
 
-	if (a->core.cpus->nr != b->core.cpus->nr)
+	if (perf_cpu_map__nr(a->core.cpus) != perf_cpu_map__nr(b->core.cpus))
 		return false;
 
-	for (int i = 0; i < a->core.cpus->nr; i++) {
-		if (a->core.cpus->map[i].cpu != b->core.cpus->map[i].cpu)
+	for (int i = 0; i < perf_cpu_map__nr(a->core.cpus); i++) {
+		if (perf_cpu_map__cpu(a->core.cpus, i).cpu !=
+		    perf_cpu_map__cpu(b->core.cpus, i).cpu)
 			return false;
 	}
 
