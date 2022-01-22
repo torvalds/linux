@@ -901,7 +901,7 @@ static const struct {
 	},
 	{ MPI3MR_RESET_FROM_SYSFS, "sysfs invocation" },
 	{ MPI3MR_RESET_FROM_SYSFS_TIMEOUT, "sysfs TM timeout" },
-	{ MPI3MR_RESET_FROM_FIRMWARE, "firmware asynchronus reset" },
+	{ MPI3MR_RESET_FROM_FIRMWARE, "firmware asynchronous reset" },
 };
 
 /**
@@ -1242,7 +1242,7 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 		ioc_state = mpi3mr_get_iocstate(mrioc);
 		if (ioc_state == MRIOC_STATE_READY) {
 			ioc_info(mrioc,
-			    "successfully transistioned to %s state\n",
+			    "successfully transitioned to %s state\n",
 			    mpi3mr_iocstate_name(ioc_state));
 			return 0;
 		}
@@ -2174,7 +2174,7 @@ out:
  * mpi3mr_check_rh_fault_ioc - check reset history and fault
  * controller
  * @mrioc: Adapter instance reference
- * @reason_code, reason code for the fault.
+ * @reason_code: reason code for the fault.
  *
  * This routine will save snapdump and fault the controller with
  * the given reason code if it is not already in the fault or
@@ -3633,7 +3633,6 @@ static int mpi3mr_enable_events(struct mpi3mr_ioc *mrioc)
 /**
  * mpi3mr_init_ioc - Initialize the controller
  * @mrioc: Adapter instance reference
- * @init_type: Flag to indicate is the init_type
  *
  * This the controller initialization routine, executed either
  * after soft reset or from pci probe callback.
@@ -3844,7 +3843,7 @@ retry_init:
 
 	if (mrioc->shost->nr_hw_queues > mrioc->num_op_reply_q) {
 		ioc_err(mrioc,
-		    "cannot create minimum number of operatioanl queues expected:%d created:%d\n",
+		    "cannot create minimum number of operational queues expected:%d created:%d\n",
 		    mrioc->shost->nr_hw_queues, mrioc->num_op_reply_q);
 		goto out_failed_noretry;
 	}
@@ -4174,7 +4173,7 @@ static void mpi3mr_issue_ioc_shutdown(struct mpi3mr_ioc *mrioc)
 /**
  * mpi3mr_cleanup_ioc - Cleanup controller
  * @mrioc: Adapter instance reference
-
+ *
  * controller cleanup handler, Message unit reset or soft reset
  * and shutdown notification is issued to the controller.
  *
