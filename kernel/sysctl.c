@@ -2844,7 +2844,7 @@ DECLARE_SYSCTL_BASE(vm, vm_table);
 DECLARE_SYSCTL_BASE(debug, debug_table);
 DECLARE_SYSCTL_BASE(dev, dev_table);
 
-int __init sysctl_init(void)
+int __init sysctl_init_bases(void)
 {
 	register_sysctl_base(kernel);
 	register_sysctl_base(vm);
