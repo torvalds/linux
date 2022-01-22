@@ -824,6 +824,19 @@
 
 };
 
+&display_subsystem {
+	route {
+		route_hdmi1: route-hdmi1 {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp1_out_hdmi1>;
+		};
+	};
+};
+
 &vop {
 	clocks = <&cru ACLK_VOP>,
 		 <&cru HCLK_VOP>,
