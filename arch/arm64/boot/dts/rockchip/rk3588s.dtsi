@@ -1408,6 +1408,8 @@
 			 <&cru CLK_GPU_STACKS>, <&cru CLK_GPU>;
 		clock-names = "clk_mali", "clk_gpu_coregroup",
 			      "clk_gpu_stacks", "clk_gpu";
+		assigned-clocks = <&scmi_clk SCMI_CLK_GPU>;
+		assigned-clock-rates = <200000000>;
 		power-domains = <&power RK3588_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
 		#cooling-cells = <2>;
@@ -1422,6 +1424,23 @@
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
+		rockchip,pvtm-voltage-sel = <
+			0	840	0
+			841	865	1
+			866	890	2
+			891	915	3
+			916	940	4
+			941	9999	5
+		>;
+		rockchip,pvtm-pvtpll;
+		rockchip,pvtm-offset = <0x1c>;
+		rockchip,pvtm-sample-time = <1100>;
+		rockchip,pvtm-freq = <800000>;
+		rockchip,pvtm-volt = <750000>;
+		rockchip,pvtm-ref-temp = <25>;
+		rockchip,pvtm-temp-prop = <250 170>;
+		rockchip,pvtm-thermal-zone = "gpu-thermal";
+
 		clocks = <&cru CLK_GPU>;
 		clock-names = "clk";
 		rockchip,grf = <&gpu_grf>;
@@ -1429,53 +1448,96 @@
 			855000	1
 			765000	2
 			675000	3
-			585000	4
+			495000	4
 		>;
+		low-volt-mem-read-margin = <4>;
+		intermediate-threshold-freq = <400000>;	/* KHz */
 
-		opp-198000000 {
-			opp-hz = /bits/ 64 <198000000>;
-			opp-microvolt = <675000 675000 850000>,
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <625000 625000 850000>,
 					<675000 675000 850000>;
 		};
-		opp-297000000 {
-			opp-hz = /bits/ 64 <297000000>;
-			opp-microvolt = <675000 675000 850000>,
-					<675000 675000 850000>;
-		};
-		opp-396000000 {
-			opp-hz = /bits/ 64 <396000000>;
-			opp-microvolt = <675000 675000 850000>,
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <625000 625000 850000>,
 					<675000 675000 850000>;
 		};
 		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <675000 675000 850000>,
+			opp-microvolt = <625000 625000 850000>,
 					<675000 675000 850000>;
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <675000 675000 850000>,
+			opp-microvolt = <662500 662500 850000>,
 					<675000 675000 850000>;
+			opp-microvolt-L2 = <650000 650000 850000>,
+					   <675000 675000 850000>;
+			opp-microvolt-L3 = <637500 637500 850000>,
+					   <675000 675000 850000>;
+			opp-microvolt-L4 = <625000 625000 850000>,
+					   <675000 675000 850000>;
+			opp-microvolt-L5 = <625000 625000 850000>,
+					   <675000 675000 850000>;
 		};
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <700000 700000 850000>,
 					<700000 700000 850000>;
+			opp-microvolt-L2 = <687500 687500 850000>,
+					   <687500 687500 850000>;
+			opp-microvolt-L3 = <675000 675000 850000>,
+					   <675000 675000 850000>;
+			opp-microvolt-L4 = <662500 662500 850000>,
+					   <675000 675000 850000>;
+			opp-microvolt-L5 = <662500 662500 850000>,
+					   <675000 675000 850000>;
 		};
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <750000 750000 850000>,
 					<750000 750000 850000>;
+			opp-microvolt-L1 = <737500 737500 850000>,
+					   <737500 737500 850000>;
+			opp-microvolt-L2 = <725000 725000 850000>,
+					   <725000 725000 850000>;
+			opp-microvolt-L3 = <712500 712500 850000>,
+					   <712500 712500 850000>;
+			opp-microvolt-L4 = <700000 700000 850000>,
+					   <700000 700000 850000>;
+			opp-microvolt-L5 = <700000 700000 850000>,
+					   <700000 700000 850000>;
 		};
 		opp-900000000 {
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <800000 800000 850000>,
 					<800000 800000 850000>;
+			opp-microvolt-L1 = <787500 787500 850000>,
+					   <787500 787500 850000>;
+			opp-microvolt-L2 = <775000 775000 850000>,
+					   <775000 775000 850000>;
+			opp-microvolt-L3 = <762500 762500 850000>,
+					   <762500 762500 850000>;
+			opp-microvolt-L4 = <750000 750000 850000>,
+					   <750000 750000 850000>;
+			opp-microvolt-L5 = <737500 737500 850000>,
+					   <737500 737500 850000>;
 		};
 		opp-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <850000 850000 850000>,
 					<850000 850000 850000>;
+			opp-microvolt-L1 = <837500 837500 850000>,
+					   <837500 837500 850000>;
+			opp-microvolt-L2 = <825000 825000 850000>,
+					   <825000 825000 850000>;
+			opp-microvolt-L3 = <812500 812500 850000>,
+					   <812500 812500 850000>;
+			opp-microvolt-L4 = <800000 800000 850000>,
+					   <800000 800000 850000>;
+			opp-microvolt-L5 = <787500 787500 850000>,
+					   <787500 787500 850000>;
 		};
 	};
 
