@@ -4094,10 +4094,14 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	vmcs_write32(HOST_IA32_SYSENTER_CS, low32);
 
 	/*
-	 * If 32-bit syscall is enabled, vmx_vcpu_load_vcms rewrites
-	 * HOST_IA32_SYSENTER_ESP.
+	 * SYSENTER is used for 32-bit system calls on either 32-bit or
+	 * 64-bit kernels.  It is always zero If neither is allowed, otherwise
+	 * vmx_vcpu_load_vmcs loads it with the per-CPU entry stack (and may
+	 * have already done so!).
 	 */
-	vmcs_writel(HOST_IA32_SYSENTER_ESP, 0);
+	if (!IS_ENABLED(CONFIG_IA32_EMULATION) && !IS_ENABLED(CONFIG_X86_32))
+		vmcs_writel(HOST_IA32_SYSENTER_ESP, 0);
+
 	rdmsrl(MSR_IA32_SYSENTER_EIP, tmpl);
 	vmcs_writel(HOST_IA32_SYSENTER_EIP, tmpl);   /* 22.2.3 */
 
