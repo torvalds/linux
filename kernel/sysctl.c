@@ -62,12 +62,10 @@
 #include <linux/capability.h>
 #include <linux/binfmts.h>
 #include <linux/sched/sysctl.h>
-#include <linux/sched/coredump.h>
 #include <linux/kexec.h>
 #include <linux/bpf.h>
 #include <linux/mount.h>
 #include <linux/userfaultfd_k.h>
-#include <linux/coredump.h>
 #include <linux/latencytop.h>
 #include <linux/pid.h>
 #include <linux/delayacct.h>
