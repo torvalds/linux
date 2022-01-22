@@ -13,10 +13,9 @@ struct frontswap_ops {
 	int (*load)(unsigned, pgoff_t, struct page *); /* load a page */
 	void (*invalidate_page)(unsigned, pgoff_t); /* page no longer needed */
 	void (*invalidate_area)(unsigned); /* swap type just swapoff'ed */
-	struct frontswap_ops *next; /* private pointer to next ops */
 };
 
-extern void frontswap_register_ops(struct frontswap_ops *ops);
+int frontswap_register_ops(const struct frontswap_ops *ops);
 
 extern void frontswap_init(unsigned type, unsigned long *map);
 extern int __frontswap_store(struct page *page);

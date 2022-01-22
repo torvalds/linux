@@ -27,10 +27,7 @@ DEFINE_STATIC_KEY_FALSE(frontswap_enabled_key);
  * may be registered, but implementations can never deregister.  This
  * is a simple singly-linked list of all registered implementations.
  */
-static struct frontswap_ops *frontswap_ops __read_mostly;
-
-#define for_each_frontswap_ops(ops)		\
-	for ((ops) = frontswap_ops; (ops); (ops) = (ops)->next)
+static const struct frontswap_ops *frontswap_ops __read_mostly;
 
 #ifdef CONFIG_DEBUG_FS
 /*
@@ -97,18 +94,14 @@ static inline void inc_frontswap_invalidates(void) { }
 /*
  * Register operations for frontswap
  */
-void frontswap_register_ops(struct frontswap_ops *ops)
+int frontswap_register_ops(const struct frontswap_ops *ops)
 {
-	/*
-	 * Setting frontswap_ops must happen after the ops->init() calls
-	 * above; cmpxchg implies smp_mb() which will ensure the init is
-	 * complete at this point.
-	 */
-	do {
-		ops->next = frontswap_ops;
-	} while (cmpxchg(&frontswap_ops, ops->next, ops) != ops->next);
+	if (frontswap_ops)
+		return -EINVAL;
 
+	frontswap_ops = ops;
 	static_branch_inc(&frontswap_enabled_key);
+	return 0;
 }
 
 /*
@@ -117,7 +110,6 @@ void frontswap_register_ops(struct frontswap_ops *ops)
 void frontswap_init(unsigned type, unsigned long *map)
 {
 	struct swap_info_struct *sis = swap_info[type];
-	struct frontswap_ops *ops;
 
 	VM_BUG_ON(sis == NULL);
 
@@ -133,9 +125,7 @@ void frontswap_init(unsigned type, unsigned long *map)
 	 * p->frontswap set to something valid to work properly.
 	 */
 	frontswap_map_set(sis, map);
-
-	for_each_frontswap_ops(ops)
-		ops->init(type);
+	frontswap_ops->init(type);
 }
 
 static bool __frontswap_test(struct swap_info_struct *sis,
@@ -174,7 +164,6 @@ int __frontswap_store(struct page *page)
 	int type = swp_type(entry);
 	struct swap_info_struct *sis = swap_info[type];
 	pgoff_t offset = swp_offset(entry);
-	struct frontswap_ops *ops;
 
 	VM_BUG_ON(!frontswap_ops);
 	VM_BUG_ON(!PageLocked(page));
@@ -188,16 +177,10 @@ int __frontswap_store(struct page *page)
 	 */
 	if (__frontswap_test(sis, offset)) {
 		__frontswap_clear(sis, offset);
-		for_each_frontswap_ops(ops)
-			ops->invalidate_page(type, offset);
+		frontswap_ops->invalidate_page(type, offset);
 	}
 
-	/* Try to store in each implementation, until one succeeds. */
-	for_each_frontswap_ops(ops) {
-		ret = ops->store(type, offset, page);
-		if (!ret) /* successful store */
-			break;
-	}
+	ret = frontswap_ops->store(type, offset, page);
 	if (ret == 0) {
 		__frontswap_set(sis, offset);
 		inc_frontswap_succ_stores();
@@ -220,7 +203,6 @@ int __frontswap_load(struct page *page)
 	int type = swp_type(entry);
 	struct swap_info_struct *sis = swap_info[type];
 	pgoff_t offset = swp_offset(entry);
-	struct frontswap_ops *ops;
 
 	VM_BUG_ON(!frontswap_ops);
 	VM_BUG_ON(!PageLocked(page));
@@ -230,11 +212,7 @@ int __frontswap_load(struct page *page)
 		return -1;
 
 	/* Try loading from each implementation, until one succeeds. */
-	for_each_frontswap_ops(ops) {
-		ret = ops->load(type, offset, page);
-		if (!ret) /* successful load */
-			break;
-	}
+	ret = frontswap_ops->load(type, offset, page);
 	if (ret == 0)
 		inc_frontswap_loads();
 	return ret;
@@ -247,7 +225,6 @@ int __frontswap_load(struct page *page)
 void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
 {
 	struct swap_info_struct *sis = swap_info[type];
-	struct frontswap_ops *ops;
 
 	VM_BUG_ON(!frontswap_ops);
 	VM_BUG_ON(sis == NULL);
@@ -255,8 +232,7 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
 	if (!__frontswap_test(sis, offset))
 		return;
 
-	for_each_frontswap_ops(ops)
-		ops->invalidate_page(type, offset);
+	frontswap_ops->invalidate_page(type, offset);
 	__frontswap_clear(sis, offset);
 	inc_frontswap_invalidates();
 }
@@ -268,7 +244,6 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
 void __frontswap_invalidate_area(unsigned type)
 {
 	struct swap_info_struct *sis = swap_info[type];
-	struct frontswap_ops *ops;
 
 	VM_BUG_ON(!frontswap_ops);
 	VM_BUG_ON(sis == NULL);
@@ -276,8 +251,7 @@ void __frontswap_invalidate_area(unsigned type)
 	if (sis->frontswap_map == NULL)
 		return;
 
-	for_each_frontswap_ops(ops)
-		ops->invalidate_area(type);
+	frontswap_ops->invalidate_area(type);
 	atomic_set(&sis->frontswap_pages, 0);
 	bitmap_zero(sis->frontswap_map, sis->max);
 }
