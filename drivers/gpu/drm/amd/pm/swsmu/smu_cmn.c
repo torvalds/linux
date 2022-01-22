@@ -51,6 +51,17 @@
 #define mmMP1_SMN_C2PMSG_90                                                                            0x029a
 #define mmMP1_SMN_C2PMSG_90_BASE_IDX                                                                   0
 
+/* SMU 13.0.5 has its specific mailbox messaging registers */
+
+#define mmMP1_C2PMSG_2                                                                            (0xbee142 + 0xb00000 / 4)
+#define mmMP1_C2PMSG_2_BASE_IDX                                                                   0
+
+#define mmMP1_C2PMSG_34                                                                           (0xbee262 + 0xb00000 / 4)
+#define mmMP1_C2PMSG_34_BASE_IDX                                                                   0
+
+#define mmMP1_C2PMSG_33                                                                                (0xbee261 + 0xb00000 / 4)
+#define mmMP1_C2PMSG_33_BASE_IDX                                                                   0
+
 #define MP1_C2PMSG_90__CONTENT_MASK                                                                    0xFFFFFFFFL
 
 #undef __SMU_DUMMY_MAP
@@ -73,7 +84,10 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5))
+		*arg = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
+	else
+		*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
 }
 
 /* Redefine the SMU error codes here.
@@ -119,7 +133,10 @@ static u32 __smu_cmn_poll_stat(struct smu_context *smu)
 	u32 reg;
 
 	for ( ; timeout > 0; timeout--) {
-		reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5))
+			reg = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_33);
+		else
+			reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((reg & MP1_C2PMSG_90__CONTENT_MASK) != 0)
 			break;
 
@@ -235,9 +252,16 @@ static void __smu_cmn_send_msg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
+		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_33, 0);
+		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34, param);
+		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2, msg);
+	} else {
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+	}
+
 }
 
 /**
