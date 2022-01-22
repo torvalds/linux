@@ -934,6 +934,7 @@ The uac1 function provides these attributes in its function directory:
 	p_volume_res     playback volume control resolution (in 1/256 dB)
 	req_number       the number of pre-allocated requests for both capture
 	                 and playback
+	function_name    name of the interface
 	================ ====================================================
 
 The attributes have sane default values.
