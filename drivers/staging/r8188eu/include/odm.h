@@ -153,7 +153,6 @@ enum odm_ability_def {
 	ODM_BB_PWR_TRA			= BIT(8),
 
 	/*  RF ODM section BIT 24-31 */
-	ODM_RF_TX_PWR_TRACK		= BIT(24),
 	ODM_RF_CALIBRATION		= BIT(26),
 };
 
