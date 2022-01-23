@@ -2687,8 +2687,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 			} else {
 				service->client_id = 0;
 				service->remoteport = VCHIQ_PORT_FREE;
-				if (service->srvstate ==
-					VCHIQ_SRVSTATE_CLOSEWAIT)
+				if (service->srvstate == VCHIQ_SRVSTATE_CLOSEWAIT)
 					set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
 			}
 			complete(&service->remove_event);
@@ -2893,7 +2892,7 @@ vchiq_close_service(unsigned int handle)
 		status = vchiq_close_service_internal(service, NO_CLOSE_RECVD);
 		WARN_ON(status == VCHIQ_RETRY);
 	} else {
-	/* Mark the service for termination by the slot handler */
+		/* Mark the service for termination by the slot handler */
 		request_poll(service->state, service, VCHIQ_POLL_TERMINATE);
 	}
 
