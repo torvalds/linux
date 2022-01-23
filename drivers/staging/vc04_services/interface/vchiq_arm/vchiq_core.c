@@ -1521,15 +1521,17 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 			if (queue_message_sync(state, NULL, openack_id, memcpy_copy_callback,
 					       &ack_payload, sizeof(ack_payload), 0) == VCHIQ_RETRY)
 				goto bail_not_ready;
+
+			/* The service is now open */
+			set_service_state(service, VCHIQ_SRVSTATE_OPENSYNC);
 		} else {
 			if (queue_message(state, NULL, openack_id, memcpy_copy_callback,
 					  &ack_payload, sizeof(ack_payload), 0) == VCHIQ_RETRY)
 				goto bail_not_ready;
-		}
 
-		/* The service is now open */
-		set_service_state(service, service->sync ? VCHIQ_SRVSTATE_OPENSYNC
-					: VCHIQ_SRVSTATE_OPEN);
+			/* The service is now open */
+			set_service_state(service, VCHIQ_SRVSTATE_OPEN);
+		}
 	}
 
 	/* Success - the message has been dealt with */
