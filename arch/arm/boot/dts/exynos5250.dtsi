@@ -634,7 +634,7 @@
 			#sound-dai-cells = <1>;
 		};
 
-		usb_dwc3 {
+		usbdrd: usb3 {
 			compatible = "samsung,exynos5250-dwusb3";
 			clocks = <&clock CLK_USB3>;
 			clock-names = "usbdrd30";
