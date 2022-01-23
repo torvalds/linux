@@ -36,7 +36,12 @@
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 #include <asm/kvm_book3s_asm.h>		/* for MAX_SMT_THREADS */
 #define KVM_MAX_VCPU_IDS	(MAX_SMT_THREADS * KVM_MAX_VCORES)
-#define KVM_MAX_NESTED_GUESTS	KVMPPC_NR_LPIDS
+
+/*
+ * Limit the nested partition table to 4096 entries (because that's what
+ * hardware supports). Both guest and host use this value.
+ */
+#define KVM_MAX_NESTED_GUESTS_SHIFT	12
 
 #else
 #define KVM_MAX_VCPU_IDS	KVM_MAX_VCPUS

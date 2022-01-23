@@ -266,7 +266,7 @@ int kvmppc_mmu_hv_init(void)
 			return -EINVAL;
 		nr_lpids = 1UL << mmu_lpid_bits;
 	} else {
-		nr_lpids = KVM_MAX_NESTED_GUESTS;
+		nr_lpids = 1UL << KVM_MAX_NESTED_GUESTS_SHIFT;
 	}
 
 	if (nr_lpids > KVMPPC_NR_LPIDS)

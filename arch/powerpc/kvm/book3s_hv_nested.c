@@ -439,10 +439,11 @@ long kvmhv_nested_init(void)
 	if (!radix_enabled())
 		return -ENODEV;
 
-	/* find log base 2 of KVMPPC_NR_LPIDS, rounding up */
-	ptb_order = __ilog2(KVMPPC_NR_LPIDS - 1) + 1;
-	if (ptb_order < 8)
-		ptb_order = 8;
+	/* Partition table entry is 1<<4 bytes in size, hence the 4. */
+	ptb_order = KVM_MAX_NESTED_GUESTS_SHIFT + 4;
+	/* Minimum partition table size is 1<<12 bytes */
+	if (ptb_order < 12)
+		ptb_order = 12;
 	pseries_partition_tb = kmalloc(sizeof(struct patb_entry) << ptb_order,
 				       GFP_KERNEL);
 	if (!pseries_partition_tb) {
@@ -450,7 +451,7 @@ long kvmhv_nested_init(void)
 		return -ENOMEM;
 	}
 
-	ptcr = __pa(pseries_partition_tb) | (ptb_order - 8);
+	ptcr = __pa(pseries_partition_tb) | (ptb_order - 12);
 	rc = plpar_hcall_norets(H_SET_PARTITION_TABLE, ptcr);
 	if (rc != H_SUCCESS) {
 		pr_err("kvm-hv: Parent hypervisor does not support nesting (rc=%ld)\n",
@@ -534,16 +535,14 @@ long kvmhv_set_partition_table(struct kvm_vcpu *vcpu)
 	long ret = H_SUCCESS;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	/*
-	 * Limit the partition table to 4096 entries (because that's what
-	 * hardware supports), and check the base address.
-	 */
-	if ((ptcr & PRTS_MASK) > 12 - 8 ||
+	/* Check partition size and base address. */
+	if ((ptcr & PRTS_MASK) + 12 - 4 > KVM_MAX_NESTED_GUESTS_SHIFT ||
 	    !kvm_is_visible_gfn(vcpu->kvm, (ptcr & PRTB_MASK) >> PAGE_SHIFT))
 		ret = H_PARAMETER;
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	if (ret == H_SUCCESS)
 		kvm->arch.l1_ptcr = ptcr;
+
 	return ret;
 }
 
@@ -639,7 +638,7 @@ static void kvmhv_update_ptbl_cache(struct kvm_nested_guest *gp)
 
 	ret = -EFAULT;
 	ptbl_addr = (kvm->arch.l1_ptcr & PRTB_MASK) + (gp->l1_lpid << 4);
-	if (gp->l1_lpid < (1ul << ((kvm->arch.l1_ptcr & PRTS_MASK) + 8))) {
+	if (gp->l1_lpid < (1ul << ((kvm->arch.l1_ptcr & PRTS_MASK) + 12 - 4))) {
 		int srcu_idx = srcu_read_lock(&kvm->srcu);
 		ret = kvm_read_guest(kvm, ptbl_addr,
 				     &ptbl_entry, sizeof(ptbl_entry));
@@ -809,8 +808,7 @@ struct kvm_nested_guest *kvmhv_get_nested(struct kvm *kvm, int l1_lpid,
 {
 	struct kvm_nested_guest *gp, *newgp;
 
-	if (l1_lpid >= KVM_MAX_NESTED_GUESTS ||
-	    l1_lpid >= (1ul << ((kvm->arch.l1_ptcr & PRTS_MASK) + 12 - 4)))
+	if (l1_lpid >= (1ul << ((kvm->arch.l1_ptcr & PRTS_MASK) + 12 - 4)))
 		return NULL;
 
 	spin_lock(&kvm->mmu_lock);
