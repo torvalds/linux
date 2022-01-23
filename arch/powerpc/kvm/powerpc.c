@@ -2515,12 +2515,6 @@ long kvmppc_alloc_lpid(void)
 }
 EXPORT_SYMBOL_GPL(kvmppc_alloc_lpid);
 
-void kvmppc_claim_lpid(long lpid)
-{
-	set_bit(lpid, lpid_inuse);
-}
-EXPORT_SYMBOL_GPL(kvmppc_claim_lpid);
-
 void kvmppc_free_lpid(long lpid)
 {
 	clear_bit(lpid, lpid_inuse);
@@ -2531,6 +2525,7 @@ void kvmppc_init_lpid(unsigned long nr_lpids_param)
 {
 	nr_lpids = min_t(unsigned long, KVMPPC_NR_LPIDS, nr_lpids_param);
 	memset(lpid_inuse, 0, sizeof(lpid_inuse));
+	set_bit(0, lpid_inuse); /* The host LPID must always be 0 */
 }
 EXPORT_SYMBOL_GPL(kvmppc_init_lpid);
 

@@ -256,14 +256,15 @@ void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 
 int kvmppc_mmu_hv_init(void)
 {
-	unsigned long host_lpid, rsvd_lpid;
+	unsigned long rsvd_lpid;
 
 	if (!mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE))
 		return -EINVAL;
 
-	host_lpid = 0;
-	if (cpu_has_feature(CPU_FTR_HVMODE))
-		host_lpid = mfspr(SPRN_LPID);
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		if (WARN_ON(mfspr(SPRN_LPID) != 0))
+			return -EINVAL;
+	}
 
 	/* POWER8 and above have 12-bit LPIDs (10-bit in POWER7) */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
@@ -271,11 +272,8 @@ int kvmppc_mmu_hv_init(void)
 	else
 		rsvd_lpid = LPID_RSVD_POWER7;
 
-	kvmppc_init_lpid(rsvd_lpid + 1);
-
-	kvmppc_claim_lpid(host_lpid);
 	/* rsvd_lpid is reserved for use in partition switching */
-	kvmppc_claim_lpid(rsvd_lpid);
+	kvmppc_init_lpid(rsvd_lpid);
 
 	return 0;
 }
