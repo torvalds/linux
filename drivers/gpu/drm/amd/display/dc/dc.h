@@ -703,6 +703,7 @@ struct dc_debug_options {
 	int crb_alloc_policy_min_disp_count;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_z10;
+	bool enable_z9_disable_interface;
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
 #endif

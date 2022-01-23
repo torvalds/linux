@@ -308,11 +308,15 @@ void dcn31_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
 
 void dcn31_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zstate_support_state support)
 {
-	//TODO: Work with smu team to define optimization options.
 	unsigned int msg_id, param;
 
 	if (!clk_mgr->smu_present)
 		return;
+
+	if (!clk_mgr->base.ctx->dc->debug.enable_z9_disable_interface &&
+			(support == DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY))
+		support = DCN_ZSTATE_SUPPORT_DISALLOW;
+
 
 	if (support == DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY)
 		param = 1;
