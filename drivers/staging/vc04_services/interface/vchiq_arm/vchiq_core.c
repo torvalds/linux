@@ -255,9 +255,9 @@ find_service_by_handle(unsigned int handle)
 }
 
 struct vchiq_service *
-find_service_by_port(struct vchiq_state *state, int localport)
+find_service_by_port(struct vchiq_state *state, unsigned int localport)
 {
-	if ((unsigned int)localport <= VCHIQ_PORT_MAX) {
+	if (localport <= VCHIQ_PORT_MAX) {
 		struct vchiq_service *service;
 
 		rcu_read_lock();
@@ -271,7 +271,7 @@ find_service_by_port(struct vchiq_state *state, int localport)
 		rcu_read_unlock();
 	}
 	vchiq_log_info(vchiq_core_log_level,
-		       "Invalid port %d", localport);
+		       "Invalid port %u", localport);
 	return NULL;
 }
 
