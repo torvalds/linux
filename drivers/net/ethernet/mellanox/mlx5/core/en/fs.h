@@ -143,6 +143,8 @@ struct mlx5e_fs_any;
 struct mlx5e_ptp_fs;
 
 struct mlx5e_flow_steering {
+	bool				state_destroy;
+	bool				vlan_strip_disable;
 	struct mlx5_core_dev		*mdev;
 	struct mlx5_flow_namespace      *ns;
 #ifdef CONFIG_MLX5_EN_RXNFC
@@ -180,13 +182,14 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 
 struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
-					  struct mlx5_core_dev *mdev);
+					  struct mlx5_core_dev *mdev,
+					  bool state_destroy);
 void mlx5e_fs_cleanup(struct mlx5e_flow_steering *fs);
 
 int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
 void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
 int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
 void mlx5e_remove_mac_trap(struct mlx5e_priv *priv);
-
+void mlx5e_fs_set_rx_mode_work(struct mlx5e_flow_steering *fs, struct net_device *netdev);
 #endif /* __MLX5E_FLOW_STEER_H__ */
 
