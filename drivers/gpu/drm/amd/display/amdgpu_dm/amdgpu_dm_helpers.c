@@ -39,6 +39,7 @@
 #include "amdgpu_dm_mst_types.h"
 
 #include "dm_helpers.h"
+#include "ddc_service_types.h"
 
 struct monitor_patch_info {
 	unsigned int manufacturer_id;
@@ -537,6 +538,7 @@ bool dm_helpers_submit_i2c(
 	return result;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 static bool execute_synatpics_rc_command(struct drm_dp_aux *aux,
 		bool is_write_cmd,
 		unsigned char cmd,
@@ -669,6 +671,43 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 	DC_LOG_DC("Done apply_synaptics_fifo_reset_wa\n");
 }
 
+static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
+		struct drm_dp_aux *aux,
+		const struct dc_stream_state *stream,
+		bool enable)
+{
+	uint8_t ret = 0;
+
+	DC_LOG_DC("Configure DSC to non-virtual dpcd synaptics\n");
+
+	if (enable) {
+		/* When DSC is enabled on previous boot and reboot with the hub,
+		 * there is a chance that Synaptics hub gets stuck during reboot sequence.
+		 * Applying a workaround to reset Synaptics SDP fifo before enabling the first stream
+		 */
+		if (!stream->link->link_status.link_active &&
+			memcmp(stream->link->dpcd_caps.branch_dev_name,
+				(int8_t *)SYNAPTICS_DEVICE_ID, 4) == 0)
+			apply_synaptics_fifo_reset_wa(aux);
+
+		ret = drm_dp_dpcd_write(aux, DP_DSC_ENABLE, &enable, 1);
+		DRM_INFO("Send DSC enable to synaptics\n");
+
+	} else {
+		/* Synaptics hub not support virtual dpcd,
+		 * external monitor occur garbage while disable DSC,
+		 * Disable DSC only when entire link status turn to false,
+		 */
+		if (!stream->link->link_status.link_active) {
+			ret = drm_dp_dpcd_write(aux, DP_DSC_ENABLE, &enable, 1);
+			DRM_INFO("Send DSC disable to synaptics\n");
+		}
+	}
+
+	return ret;
+}
+#endif
+
 bool dm_helpers_dp_write_dsc_enable(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream,
@@ -687,7 +726,16 @@ bool dm_helpers_dp_write_dsc_enable(
 		if (!aconnector->dsc_aux)
 			return false;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		// apply w/a to synaptics
+		if (needs_dsc_aux_workaround(aconnector->dc_link) &&
+		    (aconnector->mst_downstream_port_present.byte & 0x7) != 0x3)
+			return write_dsc_enable_synaptics_non_virtual_dpcd_mst(
+				aconnector->dsc_aux, stream, enable_dsc);
+#endif
+
 		ret = drm_dp_dpcd_write(aconnector->dsc_aux, DP_DSC_ENABLE, &enable_dsc, 1);
+		DC_LOG_DC("Send DSC %s to MST RX\n", enable_dsc ? "enable" : "disable");
 	}
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT || stream->signal == SIGNAL_TYPE_EDP) {
