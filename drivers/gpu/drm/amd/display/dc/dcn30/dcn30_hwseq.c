@@ -355,11 +355,6 @@ void dcn30_prepare_bandwidth(struct dc *dc,
  	dcn20_prepare_bandwidth(dc, context);
 }
 
-void dcn30_optimize_bandwidth(struct dc *dc, struct dc_state *context)
-{
-	dcn20_optimize_bandwidth(dc, context);
-}
-
 void dcn30_disable_writeback(
 		struct dc *dc,
 		unsigned int dwb_pipe_inst)
