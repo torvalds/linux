@@ -1285,14 +1285,18 @@ int vchiq_dump_platform_service_state(void *dump_context,
 struct vchiq_state *
 vchiq_get_state(void)
 {
-	if (!g_state.remote)
+	if (!g_state.remote) {
 		pr_err("%s: g_state.remote == NULL\n", __func__);
-	else if (g_state.remote->initialised != 1)
+		return NULL;
+	}
+
+	if (g_state.remote->initialised != 1) {
 		pr_notice("%s: g_state.remote->initialised != 1 (%d)\n",
 			  __func__, g_state.remote->initialised);
+		return NULL;
+	}
 
-	return (g_state.remote &&
-		(g_state.remote->initialised == 1)) ? &g_state : NULL;
+	return &g_state;
 }
 
 /*
