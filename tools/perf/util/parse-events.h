@@ -53,6 +53,7 @@ enum perf_pmu_event_symbol_type {
 	PMU_EVENT_SYMBOL,		/* normal style PMU event */
 	PMU_EVENT_SYMBOL_PREFIX,	/* prefix of pre-suf style event */
 	PMU_EVENT_SYMBOL_SUFFIX,	/* suffix of pre-suf style event */
+	PMU_EVENT_SYMBOL_SUFFIX2,	/* suffix of pre-suf2 style event */
 };
 
 struct perf_pmu_event_symbol {

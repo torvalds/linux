@@ -734,8 +734,8 @@ static int str_to_bitmap(char *s, cpumask_t *b, int nr_cpus)
 	if (!m)
 		return -1;
 
-	for (i = 0; i < m->nr; i++) {
-		c = m->map[i];
+	for (i = 0; i < perf_cpu_map__nr(m); i++) {
+		c = perf_cpu_map__cpu(m, i);
 		if (c.cpu >= nr_cpus) {
 			ret = -1;
 			break;

@@ -141,7 +141,7 @@ int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 	}
 
 	if (evsel->fd == NULL &&
-	    perf_evsel__alloc_fd(evsel, cpus->nr, threads->nr) < 0)
+	    perf_evsel__alloc_fd(evsel, perf_cpu_map__nr(cpus), threads->nr) < 0)
 		return -ENOMEM;
 
 	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
@@ -384,7 +384,7 @@ int perf_evsel__apply_filter(struct perf_evsel *evsel, const char *filter)
 {
 	int err = 0, i;
 
-	for (i = 0; i < evsel->cpus->nr && !err; i++)
+	for (i = 0; i < perf_cpu_map__nr(evsel->cpus) && !err; i++)
 		err = perf_evsel__run_ioctl(evsel,
 				     PERF_EVENT_IOC_SET_FILTER,
 				     (void *)filter, i);

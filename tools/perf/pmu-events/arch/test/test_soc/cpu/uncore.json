@@ -19,6 +19,22 @@
 	    "EdgeDetect": "0"
   },
   {
+	    "Unit": "CBO",
+	    "EventCode": "0xE0",
+	    "UMask": "0x00",
+	    "EventName": "event-hyphen",
+	    "BriefDescription": "UNC_CBO_HYPHEN",
+	    "PublicDescription": "UNC_CBO_HYPHEN"
+  },
+  {
+	    "Unit": "CBO",
+	    "EventCode": "0xC0",
+	    "UMask": "0x00",
+	    "EventName": "event-two-hyph",
+	    "BriefDescription": "UNC_CBO_TWO_HYPH",
+	    "PublicDescription": "UNC_CBO_TWO_HYPH"
+  },
+  {
 	    "EventCode": "0x7",
 	    "EventName": "uncore_hisi_l3c.rd_hit_cpipe",
 	    "BriefDescription": "Total read hits",

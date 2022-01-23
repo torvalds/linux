@@ -252,7 +252,7 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 		err(EXIT_FAILURE, "calloc");
 
 	if (!params.nthreads)
-		params.nthreads = cpu->nr;
+		params.nthreads = perf_cpu_map__nr(cpu);
 
 	/* some sanity checks */
 	if (params.nwakes > params.nthreads ||
