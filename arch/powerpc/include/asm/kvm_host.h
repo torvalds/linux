@@ -327,8 +327,7 @@ struct kvm_arch {
 	struct list_head uvmem_pfns;
 	struct mutex mmu_setup_lock;	/* nests inside vcpu mutexes */
 	u64 l1_ptcr;
-	int max_nested_lpid;
-	struct kvm_nested_guest *nested_guests[KVM_MAX_NESTED_GUESTS];
+	struct idr kvm_nested_guest_idr;
 	/* This array can grow quite large, keep it at the end */
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 #endif
