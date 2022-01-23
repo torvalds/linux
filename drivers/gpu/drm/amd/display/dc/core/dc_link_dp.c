@@ -261,14 +261,7 @@ static enum dc_dp_training_pattern decide_eq_training_pattern(struct dc_link *li
 	struct dpcd_caps *rx_caps = &link->dpcd_caps;
 	enum dc_dp_training_pattern pattern = DP_TRAINING_PATTERN_SEQUENCE_2;
 
-	/* Access link encoder capability based on whether it is statically
-	 * or dynamically assigned to a link.
-	 */
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-	else
-		link_enc = link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 	enc_caps = &link_enc->features;
 
@@ -2997,16 +2990,7 @@ bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_
 		return false;
 	}
 
-	/* Links supporting dynamically assigned link encoder will be assigned next
-	 * available encoder if one not already assigned.
-	 */
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign) {
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-		if (link_enc == NULL)
-			link_enc = link_enc_cfg_get_next_avail_link_enc(link->ctx->dc);
-	} else
-		link_enc = link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
 	if (link_enc && link_enc->funcs->get_max_link_cap) {
@@ -3027,16 +3011,7 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 	enum dc_link_rate lttpr_max_link_rate;
 	struct link_encoder *link_enc = NULL;
 
-	/* Links supporting dynamically assigned link encoder will be assigned next
-	 * available encoder if one not already assigned.
-	 */
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign) {
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-		if (link_enc == NULL)
-			link_enc = link_enc_cfg_get_next_avail_link_enc(link->ctx->dc);
-	} else
-		link_enc = link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
 	/* get max link encoder capability */
@@ -6175,14 +6150,7 @@ enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource
 	enum dc_status status = DC_OK;
 	uint8_t fec_config = 0;
 
-	/* Access link encoder based on whether it is statically
-	 * or dynamically assigned to a link.
-	 */
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-	else
-		link_enc = link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
 	if (!dc_link_should_enable_fec(link))
@@ -6222,14 +6190,7 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 {
 	struct link_encoder *link_enc = NULL;
 
-	/* Access link encoder based on whether it is statically
-	 * or dynamically assigned to a link.
-	 */
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-	else
-		link_enc = link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
 	if (!dc_link_should_enable_fec(link))
@@ -6253,23 +6214,6 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 			link->fec_state = dc_link_fec_ready;
 		}
 	}
-}
-
-struct link_encoder *dp_get_link_enc(struct dc_link *link)
-{
-	struct link_encoder *link_enc;
-
-	link_enc = link->link_enc;
-	if (link->is_dig_mapping_flexible &&
-	    link->dc->res_pool->funcs->link_encs_assign) {
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc,
-								  link);
-		if (!link->link_enc)
-			link_enc = link_enc_cfg_get_next_avail_link_enc(
-				link->ctx->dc);
-	}
-
-	return link_enc;
 }
 
 void dpcd_set_source_specific_data(struct dc_link *link)

@@ -86,11 +86,7 @@ void dp_enable_link_phy(
 			link->dc->res_pool->dp_clock_source;
 	unsigned int i;
 
-	/* Link should always be assigned encoder when en-/disabling. */
-	if (link->is_dig_mapping_flexible && dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(dc, link);
-	else
-		link_enc = link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
@@ -228,11 +224,7 @@ void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_
 	struct hpo_dp_link_encoder *hpo_link_enc = link_res->hpo_dp_link_enc;
 	struct link_encoder *link_enc;
 
-	/* Link should always be assigned encoder when en-/disabling. */
-	if (link->is_dig_mapping_flexible && dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(dc, link);
-	else
-		link_enc = link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
 	if (!link->wa_flags.dp_keep_receiver_powered)
@@ -360,14 +352,8 @@ void dp_set_hw_test_pattern(
 	struct link_encoder *encoder;
 	enum dp_link_encoding link_encoding_format = dp_get_link_encoding_format(&link->cur_link_settings);
 
-	/* Access link encoder based on whether it is statically
-	 * or dynamically assigned to a link.
-	 */
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign)
-		encoder = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-	else
-		encoder = link->link_enc;
+	encoder = link_enc_cfg_get_link_enc(link);
+	ASSERT(encoder);
 
 	pattern_param.dp_phy_pattern = test_pattern;
 	pattern_param.custom_pattern = custom_pattern;

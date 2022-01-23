@@ -4621,16 +4621,7 @@ bool dc_link_is_fec_supported(const struct dc_link *link)
 	 */
 	struct link_encoder *link_enc = NULL;
 
-	/* Links supporting dynamically assigned link encoder will be assigned next
-	 * available encoder if one not already assigned.
-	 */
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign) {
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-		if (link_enc == NULL)
-			link_enc = link_enc_cfg_get_next_avail_link_enc(link->ctx->dc);
-	} else
-		link_enc = link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
 	return (dc_is_dp_signal(link->connector_signal) && link_enc &&
