@@ -2887,7 +2887,7 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Input value. No HW will be programmed\n");
 		prefer_link_settings.use_link_rate_set = false;
-		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, true);
+		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, false);
 		return size;
 	}
 
