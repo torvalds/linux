@@ -225,7 +225,7 @@ static const char *msg_type_str(unsigned int msg_type)
 }
 
 static inline void
-vchiq_set_service_state(struct vchiq_service *service, int newstate)
+set_service_state(struct vchiq_service *service, int newstate)
 {
 	vchiq_log_info(vchiq_core_log_level, "%d: srv:%d %s->%s",
 		       service->state->id, service->localport,
@@ -1122,7 +1122,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 	wmb();
 
 	if (service && (type == VCHIQ_MSG_CLOSE))
-		vchiq_set_service_state(service, VCHIQ_SRVSTATE_CLOSESENT);
+		set_service_state(service, VCHIQ_SRVSTATE_CLOSESENT);
 
 	if (!(flags & QMFLAGS_NO_MUTEX_UNLOCK))
 		mutex_unlock(&state->slot_mutex);
@@ -1531,7 +1531,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 		}
 
 		/* The service is now open */
-		vchiq_set_service_state(service, service->sync ? VCHIQ_SRVSTATE_OPENSYNC
+		set_service_state(service, service->sync ? VCHIQ_SRVSTATE_OPENSYNC
 					: VCHIQ_SRVSTATE_OPEN);
 	}
 
@@ -1666,7 +1666,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			       service->peer_version);
 		if (service->srvstate == VCHIQ_SRVSTATE_OPENING) {
 			service->remoteport = remoteport;
-			vchiq_set_service_state(service, VCHIQ_SRVSTATE_OPEN);
+			set_service_state(service, VCHIQ_SRVSTATE_OPEN);
 			complete(&service->remove_event);
 		} else {
 			vchiq_log_error(vchiq_core_log_level, "OPENACK received in state %s",
@@ -2063,7 +2063,7 @@ sync_func(void *v)
 				       service->peer_version);
 			if (service->srvstate == VCHIQ_SRVSTATE_OPENING) {
 				service->remoteport = remoteport;
-				vchiq_set_service_state(service, VCHIQ_SRVSTATE_OPENSYNC);
+				set_service_state(service, VCHIQ_SRVSTATE_OPENSYNC);
 				service->sync = 1;
 				complete(&service->remove_event);
 			}
@@ -2465,7 +2465,7 @@ vchiq_add_service_internal(struct vchiq_state *state,
 			- 1;
 
 	/* Bring this service online */
-	vchiq_set_service_state(service, srvstate);
+	set_service_state(service, srvstate);
 
 	vchiq_log_info(vchiq_core_msg_log_level, "%s Service %c%c%c%c SrcPort:%d",
 		       (srvstate == VCHIQ_SRVSTATE_OPENING) ? "Open" : "Add",
@@ -2621,7 +2621,7 @@ close_service_complete(struct vchiq_service *service, int failstate)
 		} else {
 			newstate = VCHIQ_SRVSTATE_CLOSED;
 		}
-		vchiq_set_service_state(service, newstate);
+		set_service_state(service, newstate);
 		break;
 	case VCHIQ_SRVSTATE_LISTENING:
 		break;
@@ -2657,7 +2657,7 @@ close_service_complete(struct vchiq_service *service, int failstate)
 			complete(&service->remove_event);
 		}
 	} else {
-		vchiq_set_service_state(service, failstate);
+		set_service_state(service, failstate);
 	}
 
 	return status;
@@ -2692,7 +2692,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 				service->remoteport = VCHIQ_PORT_FREE;
 				if (service->srvstate ==
 					VCHIQ_SRVSTATE_CLOSEWAIT)
-					vchiq_set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
+					set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
 			}
 			complete(&service->remove_event);
 		} else {
@@ -2702,7 +2702,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 	case VCHIQ_SRVSTATE_OPENING:
 		if (close_recvd) {
 			/* The open was rejected - tell the user */
-			vchiq_set_service_state(service, VCHIQ_SRVSTATE_CLOSEWAIT);
+			set_service_state(service, VCHIQ_SRVSTATE_CLOSEWAIT);
 			complete(&service->remove_event);
 		} else {
 			/* Shutdown mid-open - let the other side know */
@@ -2733,8 +2733,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 
 		if (!close_recvd) {
 			/* Change the state while the mutex is still held */
-			vchiq_set_service_state(service,
-						VCHIQ_SRVSTATE_CLOSESENT);
+			set_service_state(service, VCHIQ_SRVSTATE_CLOSESENT);
 			mutex_unlock(&state->slot_mutex);
 			if (service->sync)
 				mutex_unlock(&state->sync_mutex);
@@ -2742,7 +2741,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 		}
 
 		/* Change the state while the mutex is still held */
-		vchiq_set_service_state(service, VCHIQ_SRVSTATE_CLOSERECVD);
+		set_service_state(service, VCHIQ_SRVSTATE_CLOSERECVD);
 		mutex_unlock(&state->slot_mutex);
 		if (service->sync)
 			mutex_unlock(&state->sync_mutex);
@@ -2767,7 +2766,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 	case VCHIQ_SRVSTATE_CLOSERECVD:
 		if (!close_recvd && is_server)
 			/* Force into LISTENING mode */
-			vchiq_set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
+			set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
 		status = close_service_complete(service, VCHIQ_SRVSTATE_CLOSERECVD);
 		break;
 
@@ -2816,7 +2815,7 @@ vchiq_free_service_internal(struct vchiq_service *service)
 		return;
 	}
 
-	vchiq_set_service_state(service, VCHIQ_SRVSTATE_FREE);
+	set_service_state(service, VCHIQ_SRVSTATE_FREE);
 
 	complete(&service->remove_event);
 
@@ -2834,7 +2833,7 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 	i = 0;
 	while ((service = next_service_by_instance(state, instance, &i)) != NULL) {
 		if (service->srvstate == VCHIQ_SRVSTATE_HIDDEN)
-			vchiq_set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
+			set_service_state(service, VCHIQ_SRVSTATE_LISTENING);
 		vchiq_service_put(service);
 	}
 
