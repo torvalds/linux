@@ -558,6 +558,13 @@ union smu_info {
 	struct atom_smu_info_v3_1 v31;
 };
 
+union gfx_info {
+	struct atom_gfx_info_v2_2 v22;
+	struct atom_gfx_info_v2_4 v24;
+	struct atom_gfx_info_v2_7 v27;
+	struct atom_gfx_info_v3_0 v30;
+};
+
 int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
@@ -639,22 +646,25 @@ int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
 						   gfx_info);
 		if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
 					  &frev, &crev, &data_offset)) {
-			struct atom_gfx_info_v2_2 *gfx_info = (struct atom_gfx_info_v2_2*)
+			union gfx_info *gfx_info = (union gfx_info *)
 				(mode_info->atom_context->bios + data_offset);
-			if ((frev == 2) && (crev >= 2))
-				spll->reference_freq = le32_to_cpu(gfx_info->rlc_gpu_timer_refclk);
-			ret = 0;
+			if ((frev == 3) ||
+			    (frev == 2 && crev == 6)) {
+				spll->reference_freq = le32_to_cpu(gfx_info->v30.golden_tsc_count_lower_refclk);
+				ret = 0;
+			} else if ((frev == 2) &&
+				   (crev >= 2) &&
+				   (crev != 6)) {
+				spll->reference_freq = le32_to_cpu(gfx_info->v22.rlc_gpu_timer_refclk);
+				ret = 0;
+			} else {
+				BUG();
+			}
 		}
 	}
 
 	return ret;
 }
-
-union gfx_info {
-	struct atom_gfx_info_v2_4 v24;
-	struct atom_gfx_info_v2_7 v27;
-	struct atom_gfx_info_v3_0 v30;
-};
 
 int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev)
 {
