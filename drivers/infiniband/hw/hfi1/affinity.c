@@ -5,7 +5,6 @@
 
 #include <linux/topology.h>
 #include <linux/cpumask.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/numa.h>
 
