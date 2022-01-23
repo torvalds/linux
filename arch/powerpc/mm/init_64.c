@@ -372,6 +372,9 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 
 #ifdef CONFIG_PPC_BOOK3S_64
 unsigned int mmu_lpid_bits;
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+EXPORT_SYMBOL_GPL(mmu_lpid_bits);
+#endif
 unsigned int mmu_pid_bits;
 
 static bool disable_radix = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);

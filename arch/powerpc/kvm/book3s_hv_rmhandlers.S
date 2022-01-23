@@ -51,6 +51,14 @@
 #define STACK_SLOT_FSCR		(SFS-96)
 
 /*
+ * Use the last LPID (all implemented LPID bits = 1) for partition switching.
+ * This is reserved in the LPID allocator. POWER7 only implements 0x3ff, but
+ * we write 0xfff into the LPID SPR anyway, which seems to work and just
+ * ignores the top bits.
+ */
+#define   LPID_RSVD		0xfff
+
+/*
  * Call kvmppc_hv_entry in real mode.
  * Must be called with interrupts hard-disabled.
  *

@@ -256,7 +256,7 @@ void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 
 int kvmppc_mmu_hv_init(void)
 {
-	unsigned long rsvd_lpid;
+	unsigned long nr_lpids;
 
 	if (!mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE))
 		return -EINVAL;
@@ -264,16 +264,29 @@ int kvmppc_mmu_hv_init(void)
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
 		if (WARN_ON(mfspr(SPRN_LPID) != 0))
 			return -EINVAL;
+		nr_lpids = 1UL << mmu_lpid_bits;
+	} else {
+		nr_lpids = KVM_MAX_NESTED_GUESTS;
 	}
 
-	/* POWER8 and above have 12-bit LPIDs (10-bit in POWER7) */
-	if (cpu_has_feature(CPU_FTR_ARCH_207S))
-		rsvd_lpid = LPID_RSVD;
-	else
-		rsvd_lpid = LPID_RSVD_POWER7;
+	if (nr_lpids > KVMPPC_NR_LPIDS)
+		nr_lpids = KVMPPC_NR_LPIDS;
 
-	/* rsvd_lpid is reserved for use in partition switching */
-	kvmppc_init_lpid(rsvd_lpid);
+	if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/* POWER7 has 10-bit LPIDs, POWER8 has 12-bit LPIDs */
+		if (cpu_has_feature(CPU_FTR_ARCH_207S))
+			WARN_ON(nr_lpids != 1UL << 12);
+		else
+			WARN_ON(nr_lpids != 1UL << 10);
+
+		/*
+		 * Reserve the last implemented LPID use in partition
+		 * switching for POWER7 and POWER8.
+		 */
+		nr_lpids -= 1;
+	}
+
+	kvmppc_init_lpid(nr_lpids);
 
 	return 0;
 }
