@@ -4744,7 +4744,7 @@ const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link)
 void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map)
 {
 	struct dc_link *link;
-	uint8_t i;
+	uint32_t i;
 	uint32_t hpo_dp_recycle_map = 0;
 
 	*map = 0;
@@ -4785,7 +4785,7 @@ void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map)
 void dc_restore_link_res_map(const struct dc *dc, uint32_t *map)
 {
 	struct dc_link *link;
-	uint8_t i;
+	uint32_t i;
 	unsigned int available_hpo_dp_count;
 	uint32_t hpo_dp_recycle_map = (*map & LINK_RES_HPO_DP_REC_MAP__MASK)
 			>> LINK_RES_HPO_DP_REC_MAP__SHIFT;
