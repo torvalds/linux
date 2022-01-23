@@ -473,7 +473,7 @@ static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 	return !(regs->msr & MSR_EE);
 }
 
-static inline bool should_hard_irq_enable(void)
+static __always_inline bool should_hard_irq_enable(void)
 {
 	return false;
 }
