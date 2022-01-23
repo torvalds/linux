@@ -536,6 +536,139 @@ bool dm_helpers_submit_i2c(
 
 	return result;
 }
+
+static bool execute_synatpics_rc_command(struct drm_dp_aux *aux,
+		bool is_write_cmd,
+		unsigned char cmd,
+		unsigned int length,
+		unsigned int offset,
+		unsigned char *data)
+{
+	bool success = false;
+	unsigned char rc_data[16] = {0};
+	unsigned char rc_offset[4] = {0};
+	unsigned char rc_length[2] = {0};
+	unsigned char rc_cmd = 0;
+	unsigned char rc_result = 0xFF;
+	unsigned char i = 0;
+	uint8_t ret = 0;
+
+	if (is_write_cmd) {
+		// write rc data
+		memmove(rc_data, data, length);
+		ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_DATA, rc_data, sizeof(rc_data));
+	}
+
+	// write rc offset
+	rc_offset[0] = (unsigned char) offset & 0xFF;
+	rc_offset[1] = (unsigned char) (offset >> 8) & 0xFF;
+	rc_offset[2] = (unsigned char) (offset >> 16) & 0xFF;
+	rc_offset[3] = (unsigned char) (offset >> 24) & 0xFF;
+	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_OFFSET, rc_offset, sizeof(rc_offset));
+
+	// write rc length
+	rc_length[0] = (unsigned char) length & 0xFF;
+	rc_length[1] = (unsigned char) (length >> 8) & 0xFF;
+	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_LENGTH, rc_length, sizeof(rc_length));
+
+	// write rc cmd
+	rc_cmd = cmd | 0x80;
+	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_COMMAND, &rc_cmd, sizeof(rc_cmd));
+
+	if (ret < 0) {
+		DRM_ERROR("	execute_synatpics_rc_command - write cmd ..., err = %d\n", ret);
+		return false;
+	}
+
+	// poll until active is 0
+	for (i = 0; i < 10; i++) {
+		drm_dp_dpcd_read(aux, SYNAPTICS_RC_COMMAND, &rc_cmd, sizeof(rc_cmd));
+		if (rc_cmd == cmd)
+			// active is 0
+			break;
+		msleep(10);
+	}
+
+	// read rc result
+	drm_dp_dpcd_read(aux, SYNAPTICS_RC_RESULT, &rc_result, sizeof(rc_result));
+	success = (rc_result == 0);
+
+	if (success && !is_write_cmd) {
+		// read rc data
+		drm_dp_dpcd_read(aux, SYNAPTICS_RC_DATA, data, length);
+	}
+
+	DC_LOG_DC("	execute_synatpics_rc_command - success = %d\n", success);
+
+	return success;
+}
+
+static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
+{
+	unsigned char data[16] = {0};
+
+	DC_LOG_DC("Start apply_synaptics_fifo_reset_wa\n");
+
+	// Step 2
+	data[0] = 'P';
+	data[1] = 'R';
+	data[2] = 'I';
+	data[3] = 'U';
+	data[4] = 'S';
+
+	if (!execute_synatpics_rc_command(aux, true, 0x01, 5, 0, data))
+		return;
+
+	// Step 3 and 4
+	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x220998, data))
+		return;
+
+	data[0] &= (~(1 << 1)); // set bit 1 to 0
+	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x220998, data))
+		return;
+
+	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x220D98, data))
+		return;
+
+	data[0] &= (~(1 << 1)); // set bit 1 to 0
+	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x220D98, data))
+		return;
+
+	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x221198, data))
+		return;
+
+	data[0] &= (~(1 << 1)); // set bit 1 to 0
+	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x221198, data))
+		return;
+
+	// Step 3 and 5
+	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x220998, data))
+		return;
+
+	data[0] |= (1 << 1); // set bit 1 to 1
+	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x220998, data))
+		return;
+
+	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x220D98, data))
+		return;
+
+	data[0] |= (1 << 1); // set bit 1 to 1
+		return;
+
+	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x221198, data))
+		return;
+
+	data[0] |= (1 << 1); // set bit 1 to 1
+	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x221198, data))
+		return;
+
+	// Step 6
+	if (!execute_synatpics_rc_command(aux, true, 0x02, 0, 0, NULL))
+		return;
+
+	DC_LOG_DC("Done apply_synaptics_fifo_reset_wa\n");
+}
+
 bool dm_helpers_dp_write_dsc_enable(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream,
