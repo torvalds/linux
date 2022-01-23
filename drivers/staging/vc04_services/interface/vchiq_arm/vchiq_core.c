@@ -3666,10 +3666,10 @@ enum vchiq_status vchiq_send_remote_use_active(struct vchiq_state *state)
 
 void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem, size_t num_bytes)
 {
-	const u8  *mem = void_mem;
-	size_t          offset;
-	char            line_buf[100];
-	char           *s;
+	const u8 *mem = void_mem;
+	size_t offset;
+	char line_buf[100];
+	char *s;
 
 	while (num_bytes > 0) {
 		s = line_buf;
