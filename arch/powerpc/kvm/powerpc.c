@@ -2496,20 +2496,22 @@ out:
 	return r;
 }
 
-static unsigned long lpid_inuse[BITS_TO_LONGS(KVMPPC_NR_LPIDS)];
+static DEFINE_IDA(lpid_inuse);
 static unsigned long nr_lpids;
 
 long kvmppc_alloc_lpid(void)
 {
-	long lpid;
+	int lpid;
 
-	do {
-		lpid = find_first_zero_bit(lpid_inuse, KVMPPC_NR_LPIDS);
-		if (lpid >= nr_lpids) {
+	/* The host LPID must always be 0 (allocation starts at 1) */
+	lpid = ida_alloc_range(&lpid_inuse, 1, nr_lpids - 1, GFP_KERNEL);
+	if (lpid < 0) {
+		if (lpid == -ENOMEM)
+			pr_err("%s: Out of memory\n", __func__);
+		else
 			pr_err("%s: No LPIDs free\n", __func__);
-			return -ENOMEM;
-		}
-	} while (test_and_set_bit(lpid, lpid_inuse));
+		return -ENOMEM;
+	}
 
 	return lpid;
 }
@@ -2517,15 +2519,14 @@ EXPORT_SYMBOL_GPL(kvmppc_alloc_lpid);
 
 void kvmppc_free_lpid(long lpid)
 {
-	clear_bit(lpid, lpid_inuse);
+	ida_free(&lpid_inuse, lpid);
 }
 EXPORT_SYMBOL_GPL(kvmppc_free_lpid);
 
+/* nr_lpids_param includes the host LPID */
 void kvmppc_init_lpid(unsigned long nr_lpids_param)
 {
-	nr_lpids = min_t(unsigned long, KVMPPC_NR_LPIDS, nr_lpids_param);
-	memset(lpid_inuse, 0, sizeof(lpid_inuse));
-	set_bit(0, lpid_inuse); /* The host LPID must always be 0 */
+	nr_lpids = nr_lpids_param;
 }
 EXPORT_SYMBOL_GPL(kvmppc_init_lpid);
 
