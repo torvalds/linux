@@ -195,6 +195,7 @@ struct vba_vars_st {
 	unsigned int LBLatencyHidingSourceLinesY;
 	unsigned int LBLatencyHidingSourceLinesC;
 	double ActiveDRAMClockChangeLatencyMargin[DC__NUM_DPP__MAX];
+	double CachedActiveDRAMClockChangeLatencyMargin[DC__NUM_DPP__MAX]; // Cache in dml_get_voltage_level for debug purposes only
 	double MinActiveDRAMClockChangeMargin;
 	double InitFillLevel;
 	double FinalFillMargin;
