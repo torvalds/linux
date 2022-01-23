@@ -872,9 +872,8 @@ copy_message_data(ssize_t (*copy_callback)(void *context, void *dest, size_t off
 		ssize_t callback_result;
 		size_t max_bytes = size - pos;
 
-		callback_result =
-			copy_callback(context, dest + pos,
-				      pos, max_bytes);
+		callback_result = copy_callback(context, dest + pos, pos,
+						max_bytes);
 
 		if (callback_result < 0)
 			return callback_result;
@@ -1028,8 +1027,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 
 		if (callback_result < 0) {
 			mutex_unlock(&state->slot_mutex);
-			VCHIQ_SERVICE_STATS_INC(service,
-						error_count);
+			VCHIQ_SERVICE_STATS_INC(service, error_count);
 			return VCHIQ_ERROR;
 		}
 
@@ -1177,8 +1175,7 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 
 	if (callback_result < 0) {
 		mutex_unlock(&state->slot_mutex);
-		VCHIQ_SERVICE_STATS_INC(service,
-					error_count);
+		VCHIQ_SERVICE_STATS_INC(service, error_count);
 		return VCHIQ_ERROR;
 	}
 
