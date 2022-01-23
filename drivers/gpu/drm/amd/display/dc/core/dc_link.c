@@ -840,20 +840,22 @@ static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason
 	return link->type == dc_connection_mst_branch;
 }
 
-static void reset_cur_dp_mst_topology(struct dc_link *link)
+static bool reset_cur_dp_mst_topology(struct dc_link *link)
 {
+	bool result = false;
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	LINK_INFO("link=%d, mst branch is now Disconnected\n",
 		  link->link_index);
 
 	revert_dpia_mst_dsc_always_on_wa(link);
-	dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
+	result = dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 
 	link->mst_stream_alloc_table.stream_count = 0;
 	memset(link->mst_stream_alloc_table.stream_allocations,
 			0,
 			sizeof(link->mst_stream_alloc_table.stream_allocations));
+	return result;
 }
 
 static bool should_prepare_phy_clocks_for_link_verification(const struct dc *dc,
@@ -1306,7 +1308,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	bool is_local_sink_detect_success;
-	bool is_remote_sink_detect_required = false;
+	bool is_delegated_to_mst_top_mgr = false;
 	enum dc_connection_type pre_link_type = link->type;
 
 	is_local_sink_detect_success = detect_link_and_local_sink(link, reason);
@@ -1317,14 +1319,14 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	if (is_local_sink_detect_success && link->local_sink &&
 			dc_is_dp_signal(link->local_sink->sink_signal) &&
 			link->dpcd_caps.is_mst_capable)
-		is_remote_sink_detect_required = discover_dp_mst_topology(link, reason);
+		is_delegated_to_mst_top_mgr = discover_dp_mst_topology(link, reason);
 
 	if (is_local_sink_detect_success &&
 			pre_link_type == dc_connection_mst_branch &&
 			link->type != dc_connection_mst_branch)
-		reset_cur_dp_mst_topology(link);
+		is_delegated_to_mst_top_mgr = reset_cur_dp_mst_topology(link);
 
-	return is_local_sink_detect_success && !is_remote_sink_detect_required;
+	return is_local_sink_detect_success && !is_delegated_to_mst_top_mgr;
 }
 
 bool dc_link_get_hpd_state(struct dc_link *dc_link)

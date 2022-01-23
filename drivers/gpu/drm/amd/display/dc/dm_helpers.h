@@ -113,7 +113,7 @@ bool dm_helpers_dp_mst_start_top_mgr(
 		const struct dc_link *link,
 		bool boot);
 
-void dm_helpers_dp_mst_stop_top_mgr(
+bool dm_helpers_dp_mst_stop_top_mgr(
 		struct dc_context *ctx,
 		struct dc_link *link);
 /**
