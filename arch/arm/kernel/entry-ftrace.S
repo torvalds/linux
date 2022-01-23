@@ -270,3 +270,19 @@ ENTRY(ftrace_stub)
 .Lftrace_stub:
 	ret	lr
 ENDPROC(ftrace_stub)
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+	__INIT
+
+	.macro	init_tramp, dst:req
+ENTRY(\dst\()_from_init)
+	ldr	pc, =\dst
+ENDPROC(\dst\()_from_init)
+	.endm
+
+	init_tramp	ftrace_caller
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	init_tramp	ftrace_regs_caller
+#endif
+#endif

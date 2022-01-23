@@ -62,9 +62,20 @@ static unsigned long ftrace_nop_replace(struct dyn_ftrace *rec)
 	return NOP;
 }
 
-static unsigned long adjust_address(struct dyn_ftrace *rec, unsigned long addr)
+void ftrace_caller_from_init(void);
+void ftrace_regs_caller_from_init(void);
+
+static unsigned long __ref adjust_address(struct dyn_ftrace *rec,
+					  unsigned long addr)
 {
-	return addr;
+	if (!IS_ENABLED(CONFIG_DYNAMIC_FTRACE) ||
+	    system_state >= SYSTEM_FREEING_INITMEM ||
+	    likely(!is_kernel_inittext(rec->ip)))
+		return addr;
+	if (!IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS) ||
+	    addr == (unsigned long)&ftrace_caller)
+		return (unsigned long)&ftrace_caller_from_init;
+	return (unsigned long)&ftrace_regs_caller_from_init;
 }
 
 int ftrace_arch_code_modify_prepare(void)
@@ -200,7 +211,13 @@ int ftrace_make_nop(struct module *mod,
 #endif
 
 	new = ftrace_nop_replace(rec);
-	ret = ftrace_modify_code(ip, old, new, true);
+	/*
+	 * Locations in .init.text may call __gnu_mcount_mc via a linker
+	 * emitted veneer if they are too far away from its implementation, and
+	 * so validation may fail spuriously in such cases. Let's work around
+	 * this by omitting those from validation.
+	 */
+	ret = ftrace_modify_code(ip, old, new, !is_kernel_inittext(ip));
 
 	return ret;
 }
