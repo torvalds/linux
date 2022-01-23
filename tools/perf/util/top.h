@@ -33,7 +33,10 @@ struct perf_top {
 	int		   print_entries, count_filter, delay_secs;
 	int		   max_stack;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
-	bool		   use_tui, use_stdio;
+#ifdef HAVE_SLANG_SUPPORT
+	bool		   use_tui;
+#endif
+	bool		   use_stdio;
 	bool		   vmlinux_warned;
 	bool		   dump_symtab;
 	bool		   stitch_lbr;
