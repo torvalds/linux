@@ -5020,7 +5020,7 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 
 	mlx5e_timestamp_init(priv);
 
-	fs = mlx5e_fs_init(priv->profile);
+	fs = mlx5e_fs_init(priv->profile, mdev);
 	if (!fs) {
 		err = -ENOMEM;
 		mlx5_core_err(mdev, "FS initialization failed, %d\n", err);

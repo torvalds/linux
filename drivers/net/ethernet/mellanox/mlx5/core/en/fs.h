@@ -143,6 +143,7 @@ struct mlx5e_fs_any;
 struct mlx5e_ptp_fs;
 
 struct mlx5e_flow_steering {
+	struct mlx5_core_dev		*mdev;
 	struct mlx5_flow_namespace      *ns;
 #ifdef CONFIG_MLX5_EN_RXNFC
 	struct mlx5e_ethtool_steering   ethtool;
@@ -178,7 +179,8 @@ void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 
-struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile);
+struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
+					  struct mlx5_core_dev *mdev);
 void mlx5e_fs_cleanup(struct mlx5e_flow_steering *fs);
 
 int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);

@@ -836,7 +836,7 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
-	priv->fs = mlx5e_fs_init(priv->profile);
+	priv->fs = mlx5e_fs_init(priv->profile, mdev);
 	if (!priv->fs) {
 		netdev_err(priv->netdev, "FS allocation failed\n");
 		return -ENOMEM;
