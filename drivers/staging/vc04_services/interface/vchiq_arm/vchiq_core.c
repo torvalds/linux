@@ -2292,6 +2292,9 @@ void vchiq_msg_queue_push(unsigned int handle, struct vchiq_header *header)
 	struct vchiq_service *service = find_service_by_handle(handle);
 	int pos;
 
+	if (!service)
+		return;
+
 	while (service->msg_queue_write == service->msg_queue_read +
 		VCHIQ_MAX_SLOTS) {
 		if (wait_for_completion_interruptible(&service->msg_queue_pop))
@@ -2311,6 +2314,9 @@ struct vchiq_header *vchiq_msg_hold(unsigned int handle)
 	struct vchiq_service *service = find_service_by_handle(handle);
 	struct vchiq_header *header;
 	int pos;
+
+	if (!service)
+		return NULL;
 
 	if (service->msg_queue_write == service->msg_queue_read)
 		return NULL;
