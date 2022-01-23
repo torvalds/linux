@@ -1035,8 +1035,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 				     VCHIQ_LOG_INFO))
 			vchiq_log_dump_mem("Sent", 0,
 					   header->data,
-					   min((size_t)16,
-					       (size_t)callback_result));
+					   min_t(size_t, 16, callback_result));
 
 		spin_lock(&quota_spinlock);
 		quota->message_use_count++;
@@ -1184,8 +1183,7 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 				     VCHIQ_LOG_INFO))
 			vchiq_log_dump_mem("Sent", 0,
 					   header->data,
-					   min((size_t)16,
-					       (size_t)callback_result));
+					   min_t(size_t, 16, callback_result));
 
 		VCHIQ_SERVICE_STATS_INC(service, ctrl_tx_count);
 		VCHIQ_SERVICE_STATS_ADD(service, ctrl_tx_bytes, size);
@@ -2209,8 +2207,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 
 	state->default_slot_quota = state->slot_queue_available / 2;
 	state->default_message_quota =
-		min((unsigned short)(state->default_slot_quota * 256),
-		    (unsigned short)~0);
+		min_t(unsigned short, state->default_slot_quota * 256, ~0);
 
 	state->previous_data_index = -1;
 	state->data_use_count = 0;
