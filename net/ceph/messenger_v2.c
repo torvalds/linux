@@ -57,8 +57,9 @@
 #define IN_S_HANDLE_CONTROL_REMAINDER	3
 #define IN_S_PREPARE_READ_DATA		4
 #define IN_S_PREPARE_READ_DATA_CONT	5
-#define IN_S_HANDLE_EPILOGUE		6
-#define IN_S_FINISH_SKIP		7
+#define IN_S_PREPARE_READ_ENC_PAGE	6
+#define IN_S_HANDLE_EPILOGUE		7
+#define IN_S_FINISH_SKIP		8
 
 #define OUT_S_QUEUE_DATA		1
 #define OUT_S_QUEUE_DATA_CONT		2
@@ -1032,10 +1033,19 @@ static int decrypt_control_remainder(struct ceph_connection *con)
 			 padded_len(rem_len) + CEPH_GCM_TAG_LEN);
 }
 
-static int decrypt_message(struct ceph_connection *con)
+static int decrypt_tail(struct ceph_connection *con)
 {
+	struct sg_table enc_sgt = {};
 	struct sg_table sgt = {};
+	int tail_len;
 	int ret;
+
+	tail_len = tail_onwire_len(con->in_msg, true);
+	ret = sg_alloc_table_from_pages(&enc_sgt, con->v2.in_enc_pages,
+					con->v2.in_enc_page_cnt, 0, tail_len,
+					GFP_NOIO);
+	if (ret)
+		goto out;
 
 	ret = setup_message_sgs(&sgt, con->in_msg, FRONT_PAD(con->v2.in_buf),
 			MIDDLE_PAD(con->v2.in_buf), DATA_PAD(con->v2.in_buf),
@@ -1043,11 +1053,21 @@ static int decrypt_message(struct ceph_connection *con)
 	if (ret)
 		goto out;
 
-	ret = gcm_crypt(con, false, sgt.sgl, sgt.sgl,
-			tail_onwire_len(con->in_msg, true));
+	dout("%s con %p msg %p enc_page_cnt %d sg_cnt %d\n", __func__, con,
+	     con->in_msg, con->v2.in_enc_page_cnt, sgt.orig_nents);
+	ret = gcm_crypt(con, false, enc_sgt.sgl, sgt.sgl, tail_len);
+	if (ret)
+		goto out;
+
+	WARN_ON(!con->v2.in_enc_page_cnt);
+	ceph_release_page_vector(con->v2.in_enc_pages,
+				 con->v2.in_enc_page_cnt);
+	con->v2.in_enc_pages = NULL;
+	con->v2.in_enc_page_cnt = 0;
 
 out:
 	sg_free_table(&sgt);
+	sg_free_table(&enc_sgt);
 	return ret;
 }
 
@@ -1737,8 +1757,7 @@ static void prepare_read_data(struct ceph_connection *con)
 {
 	struct bio_vec bv;
 
-	if (!con_secure(con))
-		con->in_data_crc = -1;
+	con->in_data_crc = -1;
 	ceph_msg_data_cursor_init(&con->v2.in_cursor, con->in_msg,
 				  data_len(con->in_msg));
 
@@ -1751,11 +1770,10 @@ static void prepare_read_data_cont(struct ceph_connection *con)
 {
 	struct bio_vec bv;
 
-	if (!con_secure(con))
-		con->in_data_crc = ceph_crc32c_page(con->in_data_crc,
-						    con->v2.in_bvec.bv_page,
-						    con->v2.in_bvec.bv_offset,
-						    con->v2.in_bvec.bv_len);
+	con->in_data_crc = ceph_crc32c_page(con->in_data_crc,
+					    con->v2.in_bvec.bv_page,
+					    con->v2.in_bvec.bv_offset,
+					    con->v2.in_bvec.bv_len);
 
 	ceph_msg_data_advance(&con->v2.in_cursor, con->v2.in_bvec.bv_len);
 	if (con->v2.in_cursor.total_resid) {
@@ -1766,19 +1784,92 @@ static void prepare_read_data_cont(struct ceph_connection *con)
 	}
 
 	/*
-	 * We've read all data.  Prepare to read data padding (if any)
-	 * and epilogue.
+	 * We've read all data.  Prepare to read epilogue.
 	 */
 	reset_in_kvecs(con);
-	if (con_secure(con)) {
-		if (need_padding(data_len(con->in_msg)))
-			add_in_kvec(con, DATA_PAD(con->v2.in_buf),
-				    padding_len(data_len(con->in_msg)));
-		add_in_kvec(con, con->v2.in_buf, CEPH_EPILOGUE_SECURE_LEN);
+	add_in_kvec(con, con->v2.in_buf, CEPH_EPILOGUE_PLAIN_LEN);
+	con->v2.in_state = IN_S_HANDLE_EPILOGUE;
+}
+
+static void prepare_read_tail_plain(struct ceph_connection *con)
+{
+	struct ceph_msg *msg = con->in_msg;
+
+	if (!front_len(msg) && !middle_len(msg)) {
+		WARN_ON(!data_len(msg));
+		prepare_read_data(con);
+		return;
+	}
+
+	reset_in_kvecs(con);
+	if (front_len(msg)) {
+		add_in_kvec(con, msg->front.iov_base, front_len(msg));
+		WARN_ON(msg->front.iov_len != front_len(msg));
+	}
+	if (middle_len(msg)) {
+		add_in_kvec(con, msg->middle->vec.iov_base, middle_len(msg));
+		WARN_ON(msg->middle->vec.iov_len != middle_len(msg));
+	}
+
+	if (data_len(msg)) {
+		con->v2.in_state = IN_S_PREPARE_READ_DATA;
 	} else {
 		add_in_kvec(con, con->v2.in_buf, CEPH_EPILOGUE_PLAIN_LEN);
+		con->v2.in_state = IN_S_HANDLE_EPILOGUE;
 	}
+}
+
+static void prepare_read_enc_page(struct ceph_connection *con)
+{
+	struct bio_vec bv;
+
+	dout("%s con %p i %d resid %d\n", __func__, con, con->v2.in_enc_i,
+	     con->v2.in_enc_resid);
+	WARN_ON(!con->v2.in_enc_resid);
+
+	bv.bv_page = con->v2.in_enc_pages[con->v2.in_enc_i];
+	bv.bv_offset = 0;
+	bv.bv_len = min(con->v2.in_enc_resid, (int)PAGE_SIZE);
+
+	set_in_bvec(con, &bv);
+	con->v2.in_enc_i++;
+	con->v2.in_enc_resid -= bv.bv_len;
+
+	if (con->v2.in_enc_resid) {
+		con->v2.in_state = IN_S_PREPARE_READ_ENC_PAGE;
+		return;
+	}
+
+	/*
+	 * We are set to read the last piece of ciphertext (ending
+	 * with epilogue) + auth tag.
+	 */
+	WARN_ON(con->v2.in_enc_i != con->v2.in_enc_page_cnt);
 	con->v2.in_state = IN_S_HANDLE_EPILOGUE;
+}
+
+static int prepare_read_tail_secure(struct ceph_connection *con)
+{
+	struct page **enc_pages;
+	int enc_page_cnt;
+	int tail_len;
+
+	tail_len = tail_onwire_len(con->in_msg, true);
+	WARN_ON(!tail_len);
+
+	enc_page_cnt = calc_pages_for(0, tail_len);
+	enc_pages = ceph_alloc_page_vector(enc_page_cnt, GFP_NOIO);
+	if (IS_ERR(enc_pages))
+		return PTR_ERR(enc_pages);
+
+	WARN_ON(con->v2.in_enc_pages || con->v2.in_enc_page_cnt);
+	con->v2.in_enc_pages = enc_pages;
+	con->v2.in_enc_page_cnt = enc_page_cnt;
+	con->v2.in_enc_resid = tail_len;
+	con->v2.in_enc_i = 0;
+
+	prepare_read_enc_page(con);
+	return 0;
 }
 
 static void __finish_skip(struct ceph_connection *con)
@@ -2589,46 +2680,26 @@ static int __handle_control(struct ceph_connection *con, void *p)
 	}
 
 	msg = con->in_msg;  /* set in process_message_header() */
-	if (!front_len(msg) && !middle_len(msg)) {
-		if (!data_len(msg))
-			return process_message(con);
-
-		prepare_read_data(con);
-		return 0;
-	}
-
-	reset_in_kvecs(con);
 	if (front_len(msg)) {
 		WARN_ON(front_len(msg) > msg->front_alloc_len);
-		add_in_kvec(con, msg->front.iov_base, front_len(msg));
 		msg->front.iov_len = front_len(msg);
-
-		if (con_secure(con) && need_padding(front_len(msg)))
-			add_in_kvec(con, FRONT_PAD(con->v2.in_buf),
-				    padding_len(front_len(msg)));
 	} else {
 		msg->front.iov_len = 0;
 	}
 	if (middle_len(msg)) {
 		WARN_ON(middle_len(msg) > msg->middle->alloc_len);
-		add_in_kvec(con, msg->middle->vec.iov_base, middle_len(msg));
 		msg->middle->vec.iov_len = middle_len(msg);
-
-		if (con_secure(con) && need_padding(middle_len(msg)))
-			add_in_kvec(con, MIDDLE_PAD(con->v2.in_buf),
-				    padding_len(middle_len(msg)));
 	} else if (msg->middle) {
 		msg->middle->vec.iov_len = 0;
 	}
 
-	if (data_len(msg)) {
-		con->v2.in_state = IN_S_PREPARE_READ_DATA;
-	} else {
-		add_in_kvec(con, con->v2.in_buf,
-			    con_secure(con) ? CEPH_EPILOGUE_SECURE_LEN :
-					      CEPH_EPILOGUE_PLAIN_LEN);
-		con->v2.in_state = IN_S_HANDLE_EPILOGUE;
-	}
+	if (!front_len(msg) && !middle_len(msg) && !data_len(msg))
+		return process_message(con);
+
+	if (con_secure(con))
+		return prepare_read_tail_secure(con);
+
+	prepare_read_tail_plain(con);
 	return 0;
 }
 
@@ -2717,7 +2788,7 @@ static int handle_epilogue(struct ceph_connection *con)
 	int ret;
 
 	if (con_secure(con)) {
-		ret = decrypt_message(con);
+		ret = decrypt_tail(con);
 		if (ret) {
 			if (ret == -EBADMSG)
 				con->error_msg = "integrity error, bad epilogue auth tag";
@@ -2790,6 +2861,10 @@ static int populate_in_iter(struct ceph_connection *con)
 			break;
 		case IN_S_PREPARE_READ_DATA_CONT:
 			prepare_read_data_cont(con);
+			ret = 0;
+			break;
+		case IN_S_PREPARE_READ_ENC_PAGE:
+			prepare_read_enc_page(con);
 			ret = 0;
 			break;
 		case IN_S_HANDLE_EPILOGUE:
@@ -3326,20 +3401,16 @@ void ceph_con_v2_revoke(struct ceph_connection *con)
 
 static void revoke_at_prepare_read_data(struct ceph_connection *con)
 {
-	int remaining;  /* data + [data padding] + epilogue */
+	int remaining;
 	int resid;
 
+	WARN_ON(con_secure(con));
 	WARN_ON(!data_len(con->in_msg));
 	WARN_ON(!iov_iter_is_kvec(&con->v2.in_iter));
 	resid = iov_iter_count(&con->v2.in_iter);
 	WARN_ON(!resid);
 
-	if (con_secure(con))
-		remaining = padded_len(data_len(con->in_msg)) +
-			    CEPH_EPILOGUE_SECURE_LEN;
-	else
-		remaining = data_len(con->in_msg) + CEPH_EPILOGUE_PLAIN_LEN;
-
+	remaining = data_len(con->in_msg) + CEPH_EPILOGUE_PLAIN_LEN;
 	dout("%s con %p resid %d remaining %d\n", __func__, con, resid,
 	     remaining);
 	con->v2.in_iter.count -= resid;
@@ -3350,8 +3421,9 @@ static void revoke_at_prepare_read_data(struct ceph_connection *con)
 static void revoke_at_prepare_read_data_cont(struct ceph_connection *con)
 {
 	int recved, resid;  /* current piece of data */
-	int remaining;  /* [data padding] + epilogue */
+	int remaining;
 
+	WARN_ON(con_secure(con));
 	WARN_ON(!data_len(con->in_msg));
 	WARN_ON(!iov_iter_is_bvec(&con->v2.in_iter));
 	resid = iov_iter_count(&con->v2.in_iter);
@@ -3363,12 +3435,7 @@ static void revoke_at_prepare_read_data_cont(struct ceph_connection *con)
 		ceph_msg_data_advance(&con->v2.in_cursor, recved);
 	WARN_ON(resid > con->v2.in_cursor.total_resid);
 
-	if (con_secure(con))
-		remaining = padding_len(data_len(con->in_msg)) +
-			    CEPH_EPILOGUE_SECURE_LEN;
-	else
-		remaining = CEPH_EPILOGUE_PLAIN_LEN;
-
+	remaining = CEPH_EPILOGUE_PLAIN_LEN;
 	dout("%s con %p total_resid %zu remaining %d\n", __func__, con,
 	     con->v2.in_cursor.total_resid, remaining);
 	con->v2.in_iter.count -= resid;
@@ -3376,11 +3443,26 @@ static void revoke_at_prepare_read_data_cont(struct ceph_connection *con)
 	con->v2.in_state = IN_S_FINISH_SKIP;
 }
 
+static void revoke_at_prepare_read_enc_page(struct ceph_connection *con)
+{
+	int resid;  /* current enc page (not necessarily data) */
+
+	WARN_ON(!con_secure(con));
+	WARN_ON(!iov_iter_is_bvec(&con->v2.in_iter));
+	resid = iov_iter_count(&con->v2.in_iter);
+	WARN_ON(!resid || resid > con->v2.in_bvec.bv_len);
+
+	dout("%s con %p resid %d enc_resid %d\n", __func__, con, resid,
+	     con->v2.in_enc_resid);
+	con->v2.in_iter.count -= resid;
+	set_in_skip(con, resid + con->v2.in_enc_resid);
+	con->v2.in_state = IN_S_FINISH_SKIP;
+}
+
 static void revoke_at_handle_epilogue(struct ceph_connection *con)
 {
 	int resid;
 
-	WARN_ON(!iov_iter_is_kvec(&con->v2.in_iter));
 	resid = iov_iter_count(&con->v2.in_iter);
 	WARN_ON(!resid);
 
@@ -3398,6 +3480,9 @@ void ceph_con_v2_revoke_incoming(struct ceph_connection *con)
 		break;
 	case IN_S_PREPARE_READ_DATA_CONT:
 		revoke_at_prepare_read_data_cont(con);
+		break;
+	case IN_S_PREPARE_READ_ENC_PAGE:
+		revoke_at_prepare_read_enc_page(con);
 		break;
 	case IN_S_HANDLE_EPILOGUE:
 		revoke_at_handle_epilogue(con);
@@ -3432,6 +3517,13 @@ void ceph_con_v2_reset_protocol(struct ceph_connection *con)
 	clear_out_sign_kvecs(con);
 	free_conn_bufs(con);
 
+	if (con->v2.in_enc_pages) {
+		WARN_ON(!con->v2.in_enc_page_cnt);
+		ceph_release_page_vector(con->v2.in_enc_pages,
+					 con->v2.in_enc_page_cnt);
+		con->v2.in_enc_pages = NULL;
+		con->v2.in_enc_page_cnt = 0;
+	}
 	if (con->v2.out_enc_pages) {
 		WARN_ON(!con->v2.out_enc_page_cnt);
 		ceph_release_page_vector(con->v2.out_enc_pages,

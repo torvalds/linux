@@ -383,6 +383,10 @@ struct ceph_connection_v2_info {
 	struct ceph_gcm_nonce in_gcm_nonce;
 	struct ceph_gcm_nonce out_gcm_nonce;
 
+	struct page **in_enc_pages;
+	int in_enc_page_cnt;
+	int in_enc_resid;
+	int in_enc_i;
 	struct page **out_enc_pages;
 	int out_enc_page_cnt;
 	int out_enc_resid;
