@@ -854,15 +854,13 @@ static int spi_mem_probe(struct spi_device *spi)
 	return memdrv->probe(mem);
 }
 
-static int spi_mem_remove(struct spi_device *spi)
+static void spi_mem_remove(struct spi_device *spi)
 {
 	struct spi_mem_driver *memdrv = to_spi_mem_drv(spi->dev.driver);
 	struct spi_mem *mem = spi_get_drvdata(spi);
 
 	if (memdrv->remove)
-		return memdrv->remove(mem);
-
-	return 0;
+		memdrv->remove(mem);
 }
 
 static void spi_mem_shutdown(struct spi_device *spi)

@@ -648,7 +648,7 @@ static struct olpc_ec_driver olpc_xo175_ec_driver = {
 	.ec_cmd = olpc_xo175_ec_cmd,
 };
 
-static int olpc_xo175_ec_remove(struct spi_device *spi)
+static void olpc_xo175_ec_remove(struct spi_device *spi)
 {
 	if (pm_power_off == olpc_xo175_ec_power_off)
 		pm_power_off = NULL;
@@ -657,8 +657,6 @@ static int olpc_xo175_ec_remove(struct spi_device *spi)
 
 	platform_device_unregister(olpc_ec);
 	olpc_ec = NULL;
-
-	return 0;
 }
 
 static int olpc_xo175_ec_probe(struct spi_device *spi)

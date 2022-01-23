@@ -293,15 +293,13 @@ static int y030xx067a_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int y030xx067a_remove(struct spi_device *spi)
+static void y030xx067a_remove(struct spi_device *spi)
 {
 	struct y030xx067a *priv = spi_get_drvdata(spi);
 
 	drm_panel_remove(&priv->panel);
 	drm_panel_disable(&priv->panel);
 	drm_panel_unprepare(&priv->panel);
-
-	return 0;
 }
 
 static const struct drm_display_mode y030xx067a_modes[] = {

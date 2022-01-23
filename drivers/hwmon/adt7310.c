@@ -88,10 +88,9 @@ static int adt7310_spi_probe(struct spi_device *spi)
 			&adt7310_spi_ops);
 }
 
-static int adt7310_spi_remove(struct spi_device *spi)
+static void adt7310_spi_remove(struct spi_device *spi)
 {
 	adt7x10_remove(&spi->dev, spi->irq);
-	return 0;
 }
 
 static const struct spi_device_id adt7310_id[] = {

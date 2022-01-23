@@ -392,7 +392,7 @@ static int pcap_add_subdev(struct pcap_chip *pcap,
 	return ret;
 }
 
-static int ezx_pcap_remove(struct spi_device *spi)
+static void ezx_pcap_remove(struct spi_device *spi)
 {
 	struct pcap_chip *pcap = spi_get_drvdata(spi);
 	unsigned long flags;
@@ -412,8 +412,6 @@ static int ezx_pcap_remove(struct spi_device *spi)
 		irq_set_chip_and_handler(i, NULL, NULL);
 
 	destroy_workqueue(pcap->workqueue);
-
-	return 0;
 }
 
 static int ezx_pcap_probe(struct spi_device *spi)

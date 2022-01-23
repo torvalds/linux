@@ -546,13 +546,11 @@ out_dev_put:
 	return ret;
 }
 
-static int wl1271_remove(struct spi_device *spi)
+static void wl1271_remove(struct spi_device *spi)
 {
 	struct wl12xx_spi_glue *glue = spi_get_drvdata(spi);
 
 	platform_device_unregister(glue->core);
-
-	return 0;
 }
 
 static struct spi_driver wl1271_spi_driver = {

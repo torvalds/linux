@@ -728,7 +728,7 @@ static int ili9341_probe(struct spi_device *spi)
 	return -1;
 }
 
-static int ili9341_remove(struct spi_device *spi)
+static void ili9341_remove(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct ili9341 *ili = spi_get_drvdata(spi);
@@ -741,7 +741,6 @@ static int ili9341_remove(struct spi_device *spi)
 		drm_dev_unplug(drm);
 		drm_atomic_helper_shutdown(drm);
 	}
-	return 0;
 }
 
 static void ili9341_shutdown(struct spi_device *spi)

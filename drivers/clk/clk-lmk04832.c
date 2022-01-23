@@ -1544,14 +1544,12 @@ err_disable_oscin:
 	return ret;
 }
 
-static int lmk04832_remove(struct spi_device *spi)
+static void lmk04832_remove(struct spi_device *spi)
 {
 	struct lmk04832 *lmk = spi_get_drvdata(spi);
 
 	clk_disable_unprepare(lmk->oscin);
 	of_clk_del_provider(spi->dev.of_node);
-
-	return 0;
 }
 static const struct spi_device_id lmk04832_id[] = {
 	{ "lmk04832", LMK04832 },

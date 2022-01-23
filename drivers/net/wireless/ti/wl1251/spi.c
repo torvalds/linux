@@ -327,14 +327,12 @@ out_free:
 	return ret;
 }
 
-static int wl1251_spi_remove(struct spi_device *spi)
+static void wl1251_spi_remove(struct spi_device *spi)
 {
 	struct wl1251 *wl = spi_get_drvdata(spi);
 
 	wl1251_free_hw(wl);
 	regulator_disable(wl->vio);
-
-	return 0;
 }
 
 static struct spi_driver wl1251_spi_driver = {

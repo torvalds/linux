@@ -341,13 +341,11 @@ static int mchp48l640_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int mchp48l640_remove(struct spi_device *spi)
+static void mchp48l640_remove(struct spi_device *spi)
 {
 	struct mchp48l640_flash *flash = spi_get_drvdata(spi);
 
 	WARN_ON(mtd_device_unregister(&flash->mtd));
-
-	return 0;
 }
 
 static const struct of_device_id mchp48l640_of_table[] = {

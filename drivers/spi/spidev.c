@@ -803,7 +803,7 @@ static int spidev_probe(struct spi_device *spi)
 	return status;
 }
 
-static int spidev_remove(struct spi_device *spi)
+static void spidev_remove(struct spi_device *spi)
 {
 	struct spidev_data	*spidev = spi_get_drvdata(spi);
 
@@ -820,8 +820,6 @@ static int spidev_remove(struct spi_device *spi)
 	if (spidev->users == 0)
 		kfree(spidev);
 	mutex_unlock(&device_list_lock);
-
-	return 0;
 }
 
 static struct spi_driver spidev_spi_driver = {
