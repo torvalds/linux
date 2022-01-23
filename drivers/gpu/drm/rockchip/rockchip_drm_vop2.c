@@ -132,8 +132,13 @@
 #define to_vop2_win(x) container_of(x, struct vop2_win, base)
 #define to_vop2_plane_state(x) container_of(x, struct vop2_plane_state, base)
 #define to_wb_state(x) container_of(x, struct vop2_wb_connector_state, base)
-#define output_if_is_hdmi(x) (x & (VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1))
-#define output_if_is_dp(x) (x & (VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1))
+#define output_if_is_hdmi(x)		(x & (VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1))
+#define output_if_is_dp(x)		(x & (VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1))
+#define output_if_is_edp(x)		(x & (VOP_OUTPUT_IF_eDP0 | VOP_OUTPUT_IF_eDP1))
+#define output_if_is_mipi(x)		(x & (VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_MIPI1))
+#define output_if_is_lvds(x)		(x & (VOP_OUTPUT_IF_LVDS0 | VOP_OUTPUT_IF_LVDS1))
+#define output_if_is_dpi(x)		(x & (VOP_OUTPUT_IF_BT656 | VOP_OUTPUT_IF_BT1120 | \
+					      VOP_OUTPUT_IF_RGB))
 
 /*
  * max two jobs a time, one is running(writing back),
@@ -5375,14 +5380,14 @@ static int vop2_set_dsc_clk(struct drm_crtc *crtc, u8 dsc_id)
 }
 
 static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_if_data *if_data,
-			    struct vop2_clk *if_pixclk, struct vop2_clk *if_dclk)
+			    struct vop2_clk *if_pixclk, struct vop2_clk *if_dclk, int conn_id)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	u64 v_pixclk = adjusted_mode->crtc_clock * 1000LL; /* video timing pixclk */
-	unsigned long dclk_core_rate, dclk_out_rate;
+	unsigned long dclk_core_rate, dclk_out_rate = 0;
 	/*conn_dclk = conn_pixclk or conn_dclk = conn_pixclk / 2 */
 	u64 hdmi_edp_pixclk, hdmi_edp_dclk, mipi_pixclk;
 	char dclk_core_div_shift = 2;
@@ -5391,13 +5396,12 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	struct vop2_clk *dclk_core, *dclk_out, *dclk;
 	int ret;
 	bool dsc_txp_clk_is_biggest = false;
-	u8 dsc_id = vcstate->output_if & (VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_HDMI0) ? 0 : 1;
+	u8 dsc_id = conn_id & (VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_HDMI0) ? 0 : 1;
 
 	dclk_core_div_shift = if_data->post_proc_div_shift;
 	dclk_core_rate = v_pixclk >> dclk_core_div_shift;
 
-	if (!if_dclk && (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA ||
-	    vcstate->output_type == DRM_MODE_CONNECTOR_eDP))
+	if (!if_dclk && (output_if_is_hdmi(conn_id) || output_if_is_edp(conn_id)))
 		return -EINVAL;
 	if ((vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) &&
 	    (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)) {
@@ -5409,7 +5413,7 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	    (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420))
 		K = 2;
 
-	if (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA) {
+	if (output_if_is_hdmi(conn_id)) {
 		if (vcstate->dsc_enable) {
 			hdmi_edp_pixclk = vcstate->dsc_cds_clk_rate << 1;
 			hdmi_edp_dclk = vcstate->dsc_cds_clk_rate;
@@ -5420,18 +5424,18 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 
 		if_pixclk->rate = hdmi_edp_pixclk;
 		if_dclk->rate = hdmi_edp_dclk;
-	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_eDP) {
+	} else if (output_if_is_edp(conn_id)) {
 		hdmi_edp_pixclk = v_pixclk;
 		do_div(hdmi_edp_pixclk, K);
 		hdmi_edp_dclk = hdmi_edp_pixclk;
 
 		if_pixclk->rate = hdmi_edp_pixclk;
 		if_dclk->rate = hdmi_edp_dclk;
-	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_DisplayPort) {
+	} else if (output_if_is_dp(conn_id)) {
 		dclk_out_rate = v_pixclk >> 2;
 		dclk_out_rate = dclk_out_rate / K;
 		if_pixclk->rate = dclk_out_rate;
-	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_DSI) {
+	} else if (output_if_is_mipi(conn_id)) {
 		if (vcstate->dsc_enable) {
 			dclk_out_rate = dclk_core_rate / K;
 			/* dsc output is 96bit, dsi input is 192 bit */
@@ -5441,7 +5445,7 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 		}
 
 		if_pixclk->rate = mipi_pixclk;
-	} else if (vcstate->output_type == DRM_MODE_CONNECTOR_DPI) {
+	} else if (output_if_is_dpi(conn_id)) {
 		if_pixclk->rate = v_pixclk;
 	}
 
@@ -5478,7 +5482,7 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	 * When used for HDMI, the input freq and v_pixclk must
 	 * keep 1:1 for rgb/yuv444, 1:2 for yuv420
 	 */
-	if (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA) {
+	if (output_if_is_hdmi(conn_id)) {
 		snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
 		dclk = vop2_clk_get(vop2, clk_name);
 		if (v_pixclk <= (VOP2_MAX_DCLK_RATE * 1000)) {
@@ -5490,13 +5494,13 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 
 	if (dclk_core_rate > if_pixclk->rate) {
 		clk_set_rate(dclk_core->hw.clk, dclk_core_rate);
-		if (vcstate->output_type == DRM_MODE_CONNECTOR_DSI && vcstate->dsc_enable)
+		if (output_if_is_mipi(conn_id) && vcstate->dsc_enable)
 			clk_set_rate(dclk_out->hw.clk, dclk_out_rate);
 		ret = vop2_cru_set_rate(if_pixclk, if_dclk);
 	} else {
 		ret = vop2_cru_set_rate(if_pixclk, if_dclk);
 		clk_set_rate(dclk_core->hw.clk, dclk_core_rate);
-		if (vcstate->output_type == DRM_MODE_CONNECTOR_DSI && vcstate->dsc_enable)
+		if (output_if_is_mipi(conn_id) && vcstate->dsc_enable)
 			clk_set_rate(dclk_out->hw.clk, dclk_out_rate);
 	}
 
@@ -5550,18 +5554,14 @@ static int vop2_calc_cru_cfg(struct drm_crtc *crtc, int conn_id,
 			     struct vop2_clk **if_pixclk, struct vop2_clk **if_dclk)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_connector_if_data *if_data;
 	struct vop2_clk *if_clk_src, *if_clk_parent;
-	int output_type;
 	char clk_name[32];
 	int ret;
 
 	if (vop2->version < VOP_VERSION_RK3588)
 		return 0;
-
-	output_type = vcstate->output_type;
 
 	if_data = vop2_find_connector_if_data(vop2, conn_id);
 	if_clk_src = vop2_clk_get(vop2, if_data->clk_src_name);
@@ -5583,10 +5583,10 @@ static int vop2_calc_cru_cfg(struct drm_crtc *crtc, int conn_id,
 	}
 
 	/* HDMI and eDP use independent if_pixclk and if_dclk, and others if_pixclk = if_dclk */
-	if (output_type == DRM_MODE_CONNECTOR_HDMIA || output_type == DRM_MODE_CONNECTOR_eDP)
-		ret = vop2_calc_if_clk(crtc, if_data, *if_pixclk, *if_dclk);
+	if (output_if_is_hdmi(conn_id) || output_if_is_edp(conn_id))
+		ret = vop2_calc_if_clk(crtc, if_data, *if_pixclk, *if_dclk, conn_id);
 	else
-		ret = vop2_calc_if_clk(crtc, if_data, *if_pixclk, NULL);
+		ret = vop2_calc_if_clk(crtc, if_data, *if_pixclk, NULL, conn_id);
 
 	return ret;
 }
@@ -5888,10 +5888,10 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	vop2_set_system_status(vop2);
 
 	vop2_lock(vop2);
-	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d for vp%d dclk: %d\n",
+	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d(if:%x) for vp%d dclk: %d\n",
 		     hdisplay, vdisplay, interlaced ? "i" : "p",
-		     drm_mode_vrefresh(adjusted_mode), vcstate->output_type, vp->id,
-		     adjusted_mode->crtc_clock * 1000);
+		     drm_mode_vrefresh(adjusted_mode), vcstate->output_type, vcstate->output_if,
+		     vp->id, adjusted_mode->crtc_clock * 1000);
 
 	if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
 		vcstate->splice_mode = true;
@@ -6230,7 +6230,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		 * use HDMI_PHY_PLL as dclk source under 4K@60
 		 * otherwise use system cru as dclk source.
 		 */
-		if (vcstate->output_type == DRM_MODE_CONNECTOR_HDMIA) {
+		if (output_if_is_hdmi(vcstate->output_if)) {
 			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE)
 				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
 			else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0)
