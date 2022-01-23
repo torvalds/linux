@@ -62,3 +62,12 @@ number of devices probed.
 * Clean up Sparse warnings from __user annotations. See
 vchiq_irq_queue_bulk_tx_rx(). Ensure that the address of "&waiter->bulk_waiter"
 is never disclosed to userspace.
+
+* Fix behavior of message handling
+
+The polling behavior of vchiq_bulk_transmit(), vchiq_bulk_receive() and
+vchiq_queue_kernel_message() looks broken. A possible signal should be
+propagated back to user space to let the calling task handle it before
+retrying. Hopefully these msleep(1) shouldn't be necessary anymore.
+
+https://lore.kernel.org/linux-staging/CAK8P3a3HGm1cPo4sW9fOY4E8AN8yAq3tevXxU5m8bmtmsU8WKw@mail.gmail.com/
