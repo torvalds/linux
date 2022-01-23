@@ -121,7 +121,8 @@ static void dccg31_enable_dpstreamclk(struct dccg *dccg, int otg_inst)
 		return;
 	}
 	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream)
-		REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+		REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+			DPSTREAMCLK_GATE_DISABLE, 1,
 			DPSTREAMCLK_ROOT_GATE_DISABLE, 1);
 }
 
@@ -130,8 +131,9 @@ static void dccg31_disable_dpstreamclk(struct dccg *dccg, int otg_inst)
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
 	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream)
-		REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
-				DPSTREAMCLK_ROOT_GATE_DISABLE, 0);
+		REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+				DPSTREAMCLK_ROOT_GATE_DISABLE, 0,
+				DPSTREAMCLK_GATE_DISABLE, 0);
 
 	switch (otg_inst) {
 	case 0:
@@ -180,7 +182,8 @@ void dccg31_enable_symclk32_se(
 	switch (hpo_se_inst) {
 	case 0:
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE0_GATE_DISABLE, 1,
 					SYMCLK32_ROOT_SE0_GATE_DISABLE, 1);
 		REG_UPDATE_2(SYMCLK32_SE_CNTL,
 				SYMCLK32_SE0_SRC_SEL, phyd32clk,
@@ -188,7 +191,8 @@ void dccg31_enable_symclk32_se(
 		break;
 	case 1:
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE1_GATE_DISABLE, 1,
 					SYMCLK32_ROOT_SE1_GATE_DISABLE, 1);
 		REG_UPDATE_2(SYMCLK32_SE_CNTL,
 				SYMCLK32_SE1_SRC_SEL, phyd32clk,
@@ -196,7 +200,8 @@ void dccg31_enable_symclk32_se(
 		break;
 	case 2:
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE2_GATE_DISABLE, 1,
 					SYMCLK32_ROOT_SE2_GATE_DISABLE, 1);
 		REG_UPDATE_2(SYMCLK32_SE_CNTL,
 				SYMCLK32_SE2_SRC_SEL, phyd32clk,
@@ -204,7 +209,8 @@ void dccg31_enable_symclk32_se(
 		break;
 	case 3:
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE3_GATE_DISABLE, 1,
 					SYMCLK32_ROOT_SE3_GATE_DISABLE, 1);
 		REG_UPDATE_2(SYMCLK32_SE_CNTL,
 				SYMCLK32_SE3_SRC_SEL, phyd32clk,
@@ -229,7 +235,8 @@ void dccg31_disable_symclk32_se(
 				SYMCLK32_SE0_SRC_SEL, 0,
 				SYMCLK32_SE0_EN, 0);
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE0_GATE_DISABLE, 0,
 					SYMCLK32_ROOT_SE0_GATE_DISABLE, 0);
 		break;
 	case 1:
@@ -237,7 +244,8 @@ void dccg31_disable_symclk32_se(
 				SYMCLK32_SE1_SRC_SEL, 0,
 				SYMCLK32_SE1_EN, 0);
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE1_GATE_DISABLE, 0,
 					SYMCLK32_ROOT_SE1_GATE_DISABLE, 0);
 		break;
 	case 2:
@@ -245,7 +253,8 @@ void dccg31_disable_symclk32_se(
 				SYMCLK32_SE2_SRC_SEL, 0,
 				SYMCLK32_SE2_EN, 0);
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE2_GATE_DISABLE, 0,
 					SYMCLK32_ROOT_SE2_GATE_DISABLE, 0);
 		break;
 	case 3:
@@ -253,7 +262,8 @@ void dccg31_disable_symclk32_se(
 				SYMCLK32_SE3_SRC_SEL, 0,
 				SYMCLK32_SE3_EN, 0);
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE3_GATE_DISABLE, 0,
 					SYMCLK32_ROOT_SE3_GATE_DISABLE, 0);
 		break;
 	default:
@@ -275,7 +285,8 @@ void dccg31_enable_symclk32_le(
 	switch (hpo_le_inst) {
 	case 0:
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_LE0_GATE_DISABLE, 1,
 					SYMCLK32_ROOT_LE0_GATE_DISABLE, 1);
 		REG_UPDATE_2(SYMCLK32_LE_CNTL,
 				SYMCLK32_LE0_SRC_SEL, phyd32clk,
@@ -283,7 +294,8 @@ void dccg31_enable_symclk32_le(
 		break;
 	case 1:
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_LE1_GATE_DISABLE, 1,
 					SYMCLK32_ROOT_LE1_GATE_DISABLE, 1);
 		REG_UPDATE_2(SYMCLK32_LE_CNTL,
 				SYMCLK32_LE1_SRC_SEL, phyd32clk,
@@ -308,7 +320,8 @@ void dccg31_disable_symclk32_le(
 				SYMCLK32_LE0_SRC_SEL, 0,
 				SYMCLK32_LE0_EN, 0);
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_LE0_GATE_DISABLE, 0,
 					SYMCLK32_ROOT_LE0_GATE_DISABLE, 0);
 		break;
 	case 1:
@@ -316,7 +329,8 @@ void dccg31_disable_symclk32_le(
 				SYMCLK32_LE1_SRC_SEL, 0,
 				SYMCLK32_LE1_EN, 0);
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+			REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_LE1_GATE_DISABLE, 0,
 					SYMCLK32_ROOT_LE1_GATE_DISABLE, 0);
 		break;
 	default:
