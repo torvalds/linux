@@ -2097,16 +2097,6 @@ sync_func(void *v)
 	return 0;
 }
 
-static void
-init_bulk_queue(struct vchiq_bulk_queue *queue)
-{
-	queue->local_insert = 0;
-	queue->remote_insert = 0;
-	queue->process = 0;
-	queue->remote_notify = 0;
-	queue->remove = 0;
-}
-
 inline const char *
 get_conn_state_name(enum vchiq_connstate conn_state)
 {
@@ -2371,7 +2361,7 @@ vchiq_add_service_internal(struct vchiq_state *state,
 	if (ret)
 		return NULL;
 
-	service = kmalloc(sizeof(*service), GFP_KERNEL);
+	service = kzalloc(sizeof(*service), GFP_KERNEL);
 	if (!service)
 		return service;
 
@@ -2387,28 +2377,17 @@ vchiq_add_service_internal(struct vchiq_state *state,
 
 	service->public_fourcc = (srvstate == VCHIQ_SRVSTATE_OPENING) ?
 		VCHIQ_FOURCC_INVALID : params->fourcc;
-	service->client_id     = 0;
 	service->auto_close    = 1;
-	service->sync          = 0;
-	service->closing       = 0;
-	service->trace         = 0;
 	atomic_set(&service->poll_flags, 0);
 	service->version       = params->version;
 	service->version_min   = params->version_min;
 	service->state         = state;
 	service->instance      = instance;
-	service->service_use_count = 0;
-	service->msg_queue_read = 0;
-	service->msg_queue_write = 0;
-	init_bulk_queue(&service->bulk_tx);
-	init_bulk_queue(&service->bulk_rx);
 	init_completion(&service->remove_event);
 	init_completion(&service->bulk_remove_event);
 	init_completion(&service->msg_queue_pop);
 	init_completion(&service->msg_queue_push);
 	mutex_init(&service->bulk_mutex);
-	memset(&service->stats, 0, sizeof(service->stats));
-	memset(&service->msg_queue, 0, sizeof(service->msg_queue));
 
 	/*
 	 * Although it is perfectly possible to use a spinlock
