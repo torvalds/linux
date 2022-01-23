@@ -704,6 +704,8 @@ static void msft_monitor_device_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		   ev->monitor_state, &ev->bdaddr);
 
 	handle_data = msft_find_handle_data(hdev, ev->monitor_handle, false);
+	if (!handle_data)
+		return;
 
 	switch (ev->addr_type) {
 	case ADDR_LE_DEV_PUBLIC:
