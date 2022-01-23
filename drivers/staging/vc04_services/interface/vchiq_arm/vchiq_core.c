@@ -205,21 +205,21 @@ release_message_sync(struct vchiq_state *state, struct vchiq_header *header);
 static const char *msg_type_str(unsigned int msg_type)
 {
 	switch (msg_type) {
-	case VCHIQ_MSG_PADDING:       return "PADDING";
-	case VCHIQ_MSG_CONNECT:       return "CONNECT";
-	case VCHIQ_MSG_OPEN:          return "OPEN";
-	case VCHIQ_MSG_OPENACK:       return "OPENACK";
-	case VCHIQ_MSG_CLOSE:         return "CLOSE";
-	case VCHIQ_MSG_DATA:          return "DATA";
-	case VCHIQ_MSG_BULK_RX:       return "BULK_RX";
-	case VCHIQ_MSG_BULK_TX:       return "BULK_TX";
-	case VCHIQ_MSG_BULK_RX_DONE:  return "BULK_RX_DONE";
-	case VCHIQ_MSG_BULK_TX_DONE:  return "BULK_TX_DONE";
-	case VCHIQ_MSG_PAUSE:         return "PAUSE";
-	case VCHIQ_MSG_RESUME:        return "RESUME";
-	case VCHIQ_MSG_REMOTE_USE:    return "REMOTE_USE";
-	case VCHIQ_MSG_REMOTE_RELEASE:      return "REMOTE_RELEASE";
-	case VCHIQ_MSG_REMOTE_USE_ACTIVE:   return "REMOTE_USE_ACTIVE";
+	case VCHIQ_MSG_PADDING:			return "PADDING";
+	case VCHIQ_MSG_CONNECT:			return "CONNECT";
+	case VCHIQ_MSG_OPEN:			return "OPEN";
+	case VCHIQ_MSG_OPENACK:			return "OPENACK";
+	case VCHIQ_MSG_CLOSE:			return "CLOSE";
+	case VCHIQ_MSG_DATA:			return "DATA";
+	case VCHIQ_MSG_BULK_RX:			return "BULK_RX";
+	case VCHIQ_MSG_BULK_TX:			return "BULK_TX";
+	case VCHIQ_MSG_BULK_RX_DONE:		return "BULK_RX_DONE";
+	case VCHIQ_MSG_BULK_TX_DONE:		return "BULK_TX_DONE";
+	case VCHIQ_MSG_PAUSE:			return "PAUSE";
+	case VCHIQ_MSG_RESUME:			return "RESUME";
+	case VCHIQ_MSG_REMOTE_USE:		return "REMOTE_USE";
+	case VCHIQ_MSG_REMOTE_RELEASE:		return "REMOTE_RELEASE";
+	case VCHIQ_MSG_REMOTE_USE_ACTIVE:	return "REMOTE_USE_ACTIVE";
 	}
 	return "???";
 }
