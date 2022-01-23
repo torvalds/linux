@@ -164,31 +164,32 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	return 0;
 }
 
-static void brcl_disable(void *brcl)
+static int ftrace_patch_branch_mask(void *addr, u16 expected, bool enable)
 {
-	u8 op = 0x04; /* set mask field to zero */
+	u16 old;
+	u8 op;
 
-	s390_kernel_write((char *)brcl + 1, &op, sizeof(op));
+	if (get_kernel_nofault(old, addr))
+		return -EFAULT;
+	if (old != expected)
+		return -EINVAL;
+	/* set mask field to all ones or zeroes */
+	op = enable ? 0xf4 : 0x04;
+	s390_kernel_write((char *)addr + 1, &op, sizeof(op));
+	return 0;
 }
 
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
-	brcl_disable((void *)rec->ip);
-	return 0;
-}
-
-static void brcl_enable(void *brcl)
-{
-	u8 op = 0xf4; /* set mask field to all ones */
-
-	s390_kernel_write((char *)brcl + 1, &op, sizeof(op));
+	/* Expect brcl 0xf,... */
+	return ftrace_patch_branch_mask((void *)rec->ip, 0xc0f4, false);
 }
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
-	brcl_enable((void *)rec->ip);
-	return 0;
+	/* Expect brcl 0x0,... */
+	return ftrace_patch_branch_mask((void *)rec->ip, 0xc004, true);
 }
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
@@ -261,14 +262,24 @@ NOKPROBE_SYMBOL(prepare_ftrace_return);
  */
 int ftrace_enable_ftrace_graph_caller(void)
 {
-	brcl_disable(ftrace_graph_caller);
+	int rc;
+
+	/* Expect brc 0xf,... */
+	rc = ftrace_patch_branch_mask(ftrace_graph_caller, 0xa7f4, false);
+	if (rc)
+		return rc;
 	text_poke_sync_lock();
 	return 0;
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	brcl_enable(ftrace_graph_caller);
+	int rc;
+
+	/* Expect brc 0x0,... */
+	rc = ftrace_patch_branch_mask(ftrace_graph_caller, 0xa704, true);
+	if (rc)
+		return rc;
 	text_poke_sync_lock();
 	return 0;
 }
