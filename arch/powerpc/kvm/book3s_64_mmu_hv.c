@@ -269,9 +269,6 @@ int kvmppc_mmu_hv_init(void)
 		nr_lpids = 1UL << KVM_MAX_NESTED_GUESTS_SHIFT;
 	}
 
-	if (nr_lpids > KVMPPC_NR_LPIDS)
-		nr_lpids = KVMPPC_NR_LPIDS;
-
 	if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
 		/* POWER7 has 10-bit LPIDs, POWER8 has 12-bit LPIDs */
 		if (cpu_has_feature(CPU_FTR_ARCH_207S))
