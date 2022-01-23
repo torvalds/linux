@@ -901,6 +901,9 @@ struct dpcd_usb4_dp_tunneling_info {
 #ifndef DP_LINK_SQUARE_PATTERN
 #define DP_LINK_SQUARE_PATTERN				0x10F
 #endif
+#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX
+#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX		0x110
+#endif
 #ifndef DP_DSC_CONFIGURATION
 #define DP_DSC_CONFIGURATION				0x161
 #endif
@@ -912,6 +915,9 @@ struct dpcd_usb4_dp_tunneling_info {
 #endif
 #ifndef DP_128b_132b_TRAINING_AUX_RD_INTERVAL
 #define DP_128b_132b_TRAINING_AUX_RD_INTERVAL		0x2216
+#endif
+#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX
+#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX		0x2217
 #endif
 #ifndef DP_TEST_264BIT_CUSTOM_PATTERN_7_0
 #define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0X2230
@@ -1008,6 +1014,16 @@ union dp_fec_capability1 {
 	struct {
 		uint8_t AGGREGATED_ERROR_COUNTERS_CAPABLE	:1;
 		uint8_t RESERVED				:7;
+	} bits;
+	uint8_t raw;
+};
+
+union dp_cable_attributes {
+	struct {
+		uint8_t UHBR10_20_CAPABILITY	:2;
+		uint8_t UHBR13_5_CAPABILITY	:1;
+		uint8_t CABLE_TYPE		:3;
+		uint8_t RESERVED		:2;
 	} bits;
 	uint8_t raw;
 };

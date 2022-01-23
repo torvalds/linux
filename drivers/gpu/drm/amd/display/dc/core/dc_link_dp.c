@@ -2981,6 +2981,20 @@ static enum dc_link_rate get_lttpr_max_link_rate(struct dc_link *link)
 	return lttpr_max_link_rate;
 }
 
+static enum dc_link_rate get_cable_max_link_rate(struct dc_link *link)
+{
+	enum dc_link_rate cable_max_link_rate = LINK_RATE_HIGH3;
+
+	if (link->dpcd_caps.cable_attributes.bits.UHBR10_20_CAPABILITY & DP_UHBR20)
+		cable_max_link_rate = LINK_RATE_UHBR20;
+	else if (link->dpcd_caps.cable_attributes.bits.UHBR13_5_CAPABILITY)
+		cable_max_link_rate = LINK_RATE_UHBR13_5;
+	else if (link->dpcd_caps.cable_attributes.bits.UHBR10_20_CAPABILITY & DP_UHBR10)
+		cable_max_link_rate = LINK_RATE_UHBR10;
+
+	return cable_max_link_rate;
+}
+
 bool dc_link_dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
 {
 	struct link_encoder *link_enc = NULL;
@@ -3009,7 +3023,9 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 {
 	struct dc_link_settings max_link_cap = {0};
 	enum dc_link_rate lttpr_max_link_rate;
+	enum dc_link_rate cable_max_link_rate;
 	struct link_encoder *link_enc = NULL;
+
 
 	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
@@ -3029,6 +3045,14 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 			max_link_cap.link_spread)
 		max_link_cap.link_spread =
 				link->reported_link_cap.link_spread;
+
+	/* Lower link settings based on cable attributes */
+	cable_max_link_rate = get_cable_max_link_rate(link);
+
+	if (!link->dc->debug.ignore_cable_id &&
+			cable_max_link_rate < max_link_cap.link_rate)
+		max_link_cap.link_rate = cable_max_link_rate;
+
 	/*
 	 * account for lttpr repeaters cap
 	 * notes: repeaters do not snoop in the DPRX Capabilities addresses (3.6.3).
@@ -5059,6 +5083,13 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 	return is_lttpr_present;
 }
 
+
+static bool is_usbc_connector(struct dc_link *link)
+{
+	return link->link_enc &&
+			link->link_enc->features.flags.bits.DP_IS_USB_C;
+}
+
 static bool retrieve_link_cap(struct dc_link *link)
 {
 	/* DP_ADAPTER_CAP - DP_DPCD_REV + 1 == 16 and also DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT + 1 == 16,
@@ -5114,6 +5145,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 	 * time before proceeding with possibly vendor specific transactions
 	 */
 	msleep(post_oui_delay);
+
+	/* Read cable ID and update receiver */
+	dpcd_update_cable_id(link);
 
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
 		status = core_link_read_dpcd(
@@ -6292,6 +6326,26 @@ void dpcd_set_source_specific_data(struct dc_link *link)
 	}
 }
 
+void dpcd_update_cable_id(struct dc_link *link)
+{
+	if (!link->link_enc->features.flags.bits.IS_UHBR10_CAPABLE ||
+			link->dprx_status.cable_id_updated)
+		return;
+
+	/* Retrieve cable attributes */
+	if (!is_usbc_connector(link))
+		core_link_read_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX,
+				&link->dpcd_caps.cable_attributes.raw,
+				sizeof(uint8_t));
+
+	/* Update receiver with cable attributes */
+	core_link_write_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX,
+			&link->dpcd_caps.cable_attributes.raw,
+			sizeof(link->dpcd_caps.cable_attributes.raw));
+
+	link->dprx_status.cable_id_updated = 1;
+}
+
 bool dc_link_set_backlight_level_nits(struct dc_link *link,
 		bool isHDR,
 		uint32_t backlight_millinits,
@@ -6688,4 +6742,9 @@ void edp_panel_backlight_power_on(struct dc_link *link)
 	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	if (link->dc->hwss.edp_backlight_control)
 		link->dc->hwss.edp_backlight_control(link, true);
+}
+
+void dc_link_dp_clear_rx_status(struct dc_link *link)
+{
+	memset(&link->dprx_status, 0, sizeof(link->dprx_status));
 }

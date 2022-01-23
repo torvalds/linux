@@ -687,6 +687,7 @@ struct dc_debug_options {
 	bool set_mst_en_for_sst;
 	bool disable_uhbr;
 	bool force_dp2_lt_fallback_method;
+	bool ignore_cable_id;
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
 	bool hpo_optimization;
@@ -1234,6 +1235,7 @@ struct dpcd_caps {
 	union dp_main_line_channel_coding_cap channel_coding_cap;
 	union dp_sink_video_fallback_formats fallback_formats;
 	union dp_fec_capability1 fec_cap1;
+	union dp_cable_attributes cable_attributes;
 };
 
 union dpcd_sink_ext_caps {

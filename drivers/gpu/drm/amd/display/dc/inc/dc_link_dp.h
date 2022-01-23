@@ -112,6 +112,9 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 bool dp_overwrite_extended_receiver_cap(struct dc_link *link);
 
 void dpcd_set_source_specific_data(struct dc_link *link);
+
+void dpcd_update_cable_id(struct dc_link *link);
+
 /* Write DPCD link configuration data. */
 enum dc_status dpcd_set_link_settings(
 	struct dc_link *link,

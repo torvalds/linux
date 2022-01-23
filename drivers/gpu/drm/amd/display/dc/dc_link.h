@@ -43,6 +43,10 @@ struct dc_link_status {
 	struct dpcd_caps *dpcd_caps;
 };
 
+struct dp_receiver_status {
+	bool cable_id_updated;
+};
+
 /* DP MST stream allocation (payload bandwidth number) */
 struct link_mst_stream_allocation {
 	/* DIG front */
@@ -201,6 +205,7 @@ struct dc_link {
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
 	struct dc_link_status link_status;
+	struct dp_receiver_status dprx_status;
 
 	struct link_trace link_trace;
 	struct gpio *hpd_gpio;
@@ -459,4 +464,6 @@ const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link)
 void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
 /* restore link resource allocation state from a snapshot */
 void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
+
+void dc_link_dp_clear_rx_status(struct dc_link *link);
 #endif /* DC_LINK_H_ */
