@@ -750,7 +750,7 @@ static int lan743x_ethtool_set_eee(struct net_device *netdev,
 	}
 
 	if (eee->eee_enabled) {
-		ret = phy_init_eee(phydev, 0);
+		ret = phy_init_eee(phydev, false);
 		if (ret) {
 			netif_err(adapter, drv, adapter->netdev,
 				  "EEE initialization failed\n");
