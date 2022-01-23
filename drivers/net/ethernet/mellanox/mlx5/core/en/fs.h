@@ -191,5 +191,11 @@ void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
 int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
 void mlx5e_remove_mac_trap(struct mlx5e_priv *priv);
 void mlx5e_fs_set_rx_mode_work(struct mlx5e_flow_steering *fs, struct net_device *netdev);
+int mlx5e_fs_vlan_rx_add_vid(struct mlx5e_flow_steering *fs,
+			     struct net_device *netdev,
+			     __be16 proto, u16 vid);
+int mlx5e_fs_vlan_rx_kill_vid(struct mlx5e_flow_steering *fs,
+			      struct net_device *netdev,
+			      __be16 proto, u16 vid);
 #endif /* __MLX5E_FLOW_STEER_H__ */
 
