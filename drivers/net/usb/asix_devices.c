@@ -858,7 +858,6 @@ static int marvell_phy_init(struct usbnet *dev)
 		reg = asix_mdio_read(dev->net, dev->mii.phy_id,
 			MII_MARVELL_LED_CTRL);
 		netdev_dbg(dev->net, "MII_MARVELL_LED_CTRL (2) = 0x%04x\n", reg);
-		reg &= 0xfc0f;
 	}
 
 	return 0;
