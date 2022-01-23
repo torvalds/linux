@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
+#include <media/mipi-csi2.h>
 #include <media/v4l2-subdev.h>
 
 #define ISPINPUTSEL0_REG				0x0008
@@ -51,12 +52,31 @@ struct rcar_isp_format {
 };
 
 static const struct rcar_isp_format rcar_isp_formats[] = {
-	{ .code = MEDIA_BUS_FMT_RGB888_1X24,	.datatype = 0x24, .procmode = 0x15 },
-	{ .code = MEDIA_BUS_FMT_Y10_1X10,	.datatype = 0x2b, .procmode = 0x10 },
-	{ .code = MEDIA_BUS_FMT_UYVY8_1X16,	.datatype = 0x1e, .procmode = 0x0c },
-	{ .code = MEDIA_BUS_FMT_YUYV8_1X16,	.datatype = 0x1e, .procmode = 0x0c },
-	{ .code = MEDIA_BUS_FMT_UYVY8_2X8,	.datatype = 0x1e, .procmode = 0x0c },
-	{ .code = MEDIA_BUS_FMT_YUYV10_2X10,	.datatype = 0x1e, .procmode = 0x0c },
+	{
+		.code = MEDIA_BUS_FMT_RGB888_1X24,
+		.datatype = MIPI_CSI2_DT_RGB888,
+		.procmode = 0x15
+	}, {
+		.code = MEDIA_BUS_FMT_Y10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.procmode = 0x10,
+	}, {
+		.code = MEDIA_BUS_FMT_UYVY8_1X16,
+		.datatype = MIPI_CSI2_DT_YUV422_8B,
+		.procmode = 0x0c,
+	}, {
+		.code = MEDIA_BUS_FMT_YUYV8_1X16,
+		.datatype = MIPI_CSI2_DT_YUV422_8B,
+		.procmode = 0x0c,
+	}, {
+		.code = MEDIA_BUS_FMT_UYVY8_2X8,
+		.datatype = MIPI_CSI2_DT_YUV422_8B,
+		.procmode = 0x0c,
+	}, {
+		.code = MEDIA_BUS_FMT_YUYV10_2X10,
+		.datatype = MIPI_CSI2_DT_YUV422_8B,
+		.procmode = 0x0c,
+	},
 };
 
 static const struct rcar_isp_format *risp_code_to_fmt(unsigned int code)
