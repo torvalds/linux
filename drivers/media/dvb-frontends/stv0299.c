@@ -161,8 +161,9 @@ static int stv0299_set_FEC(struct stv0299_state *state, enum fe_code_rate fec)
 
 static enum fe_code_rate stv0299_get_fec(struct stv0299_state *state)
 {
-	static enum fe_code_rate fec_tab[] = { FEC_2_3, FEC_3_4, FEC_5_6,
-					       FEC_7_8, FEC_1_2 };
+	static const enum fe_code_rate fec_tab[] = {
+		FEC_2_3, FEC_3_4, FEC_5_6, FEC_7_8, FEC_1_2
+	};
 	u8 index;
 
 	dprintk ("%s\n", __func__);
