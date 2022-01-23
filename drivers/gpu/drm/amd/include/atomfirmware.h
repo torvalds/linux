@@ -1673,6 +1673,39 @@ struct atom_gfx_info_v2_7 {
 	uint32_t reserved2[6];
 };
 
+struct atom_gfx_info_v3_0 {
+	struct atom_common_table_header table_header;
+	uint8_t gfxip_min_ver;
+	uint8_t gfxip_max_ver;
+	uint8_t max_shader_engines;
+	uint8_t max_tile_pipes;
+	uint8_t max_cu_per_sh;
+	uint8_t max_sh_per_se;
+	uint8_t max_backends_per_se;
+	uint8_t max_texture_channel_caches;
+	uint32_t regaddr_lsdma_queue0_rb_rptr;
+	uint32_t regaddr_lsdma_queue0_rb_rptr_hi;
+	uint32_t regaddr_lsdma_queue0_rb_wptr;
+	uint32_t regaddr_lsdma_queue0_rb_wptr_hi;
+	uint32_t regaddr_lsdma_command;
+	uint32_t regaddr_lsdma_status;
+	uint32_t regaddr_golden_tsc_count_lower;
+	uint32_t golden_tsc_count_lower_refclk;
+	uint8_t active_wgp_per_se;
+	uint8_t active_rb_per_se;
+	uint8_t active_se;
+	uint8_t reserved1;
+	uint32_t sram_rm_fuses_val;
+	uint32_t sram_custom_rm_fuses_val;
+	uint32_t inactive_sa_mask;
+	uint32_t gc_config;
+	uint8_t inactive_wgp[16];
+	uint8_t inactive_rb[16];
+	uint32_t gdfll_as_wait_ctrl_val;
+	uint32_t gdfll_as_step_ctrl_val;
+	uint32_t reserved[8];
+};
+
 /* 
   ***************************************************************************
     Data Table smu_info  structure
