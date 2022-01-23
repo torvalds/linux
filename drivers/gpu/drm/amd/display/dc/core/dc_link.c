@@ -4455,22 +4455,17 @@ void dc_link_set_drive_settings(struct dc *dc,
 {
 
 	int i;
-	struct pipe_ctx *pipe = NULL;
-	const struct link_resource *link_res;
+	struct link_resource link_res;
 
-	link_res = dc_link_get_cur_link_res(link);
+	for (i = 0; i < dc->link_count; i++)
+		if (dc->links[i] == link)
+			break;
 
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe->stream && pipe->stream->link) {
-			if (pipe->stream->link == link)
-				break;
-		}
-	}
-	if (pipe && link_res)
-		dc_link_dp_set_drive_settings(pipe->stream->link, link_res, lt_settings);
-	else
+	if (i >= dc->link_count)
 		ASSERT_CRITICAL(false);
+
+	dc_link_get_cur_link_res(link, &link_res);
+	dc_link_dp_set_drive_settings(dc->links[i], &link_res, lt_settings);
 }
 
 void dc_link_set_preferred_link_settings(struct dc *dc,
@@ -4712,23 +4707,24 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 
 }
 
-const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link)
+void dc_link_get_cur_link_res(const struct dc_link *link,
+		struct link_resource *link_res)
 {
 	int i;
 	struct pipe_ctx *pipe = NULL;
-	const struct link_resource *link_res = NULL;
+
+	memset(link_res, 0, sizeof(*link_res));
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &link->dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe->stream && pipe->stream->link && pipe->top_pipe == NULL) {
 			if (pipe->stream->link == link) {
-				link_res = &pipe->link_res;
+				*link_res = pipe->link_res;
 				break;
 			}
 		}
 	}
 
-	return link_res;
 }
 
 /**

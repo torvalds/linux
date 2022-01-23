@@ -459,7 +459,8 @@ bool dc_link_should_enable_fec(const struct dc_link *link);
 uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw);
 enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc_link *link);
 
-const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link);
+void dc_link_get_cur_link_res(const struct dc_link *link,
+		struct link_resource *link_res);
 /* take a snapshot of current link resource allocation state */
 void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
 /* restore link resource allocation state from a snapshot */
