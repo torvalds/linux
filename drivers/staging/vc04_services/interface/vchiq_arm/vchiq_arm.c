@@ -189,6 +189,20 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 			  pagelistinfo->pagelist, pagelistinfo->dma_addr);
 }
 
+static inline bool
+is_adjacent_block(u32 *addrs, u32 addr, unsigned int k)
+{
+	u32 tmp;
+
+	if (!k)
+		return false;
+
+	tmp = (addrs[k - 1] & PAGE_MASK) +
+	      (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT);
+
+	return tmp == (addr & PAGE_MASK);
+}
+
 /* There is a potential problem with partial cache lines (pages?)
  * at the ends of the block when reading. If the CPU accessed anything in
  * the same line (page?) then it may have pulled old data into the cache,
@@ -349,10 +363,7 @@ create_pagelist(char *buf, char __user *ubuf,
 		WARN_ON(len == 0);
 		WARN_ON(i && (i != (dma_buffers - 1)) && (len & ~PAGE_MASK));
 		WARN_ON(i && (addr & ~PAGE_MASK));
-		if (k > 0 &&
-		    ((addrs[k - 1] & PAGE_MASK) +
-		     (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT))
-		    == (addr & PAGE_MASK))
+		if (is_adjacent_block(addrs, addr, k))
 			addrs[k - 1] += ((len + PAGE_SIZE - 1) >> PAGE_SHIFT);
 		else
 			addrs[k++] = (addr & PAGE_MASK) |
