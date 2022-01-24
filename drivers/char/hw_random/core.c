@@ -335,8 +335,9 @@ static ssize_t rng_current_store(struct device *dev,
 	} else {
 		list_for_each_entry(rng, &rng_list, list) {
 			if (sysfs_streq(rng->name, buf)) {
-				cur_rng_set_by_user = 1;
 				err = set_current_rng(rng);
+				if (!err)
+					cur_rng_set_by_user = 1;
 				break;
 			}
 		}
