@@ -215,9 +215,13 @@ static void ionic_adminq_flush(struct ionic_lif *lif)
 void ionic_adminq_netdev_err_print(struct ionic_lif *lif, u8 opcode,
 				   u8 status, int err)
 {
+	const char *stat_str;
+
+	stat_str = (err == -ETIMEDOUT) ? "TIMEOUT" :
+					 ionic_error_to_str(status);
+
 	netdev_err(lif->netdev, "%s (%d) failed: %s (%d)\n",
-		   ionic_opcode_to_str(opcode), opcode,
-		   ionic_error_to_str(status), err);
+		   ionic_opcode_to_str(opcode), opcode, stat_str, err);
 }
 
 static int ionic_adminq_check_err(struct ionic_lif *lif,
