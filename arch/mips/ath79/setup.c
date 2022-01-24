@@ -168,6 +168,12 @@ static void __init ath79_detect_sys_type(void)
 		rev = id & QCA956X_REV_ID_REVISION_MASK;
 		break;
 
+	case REV_ID_MAJOR_QCN550X:
+		ath79_soc = ATH79_SOC_QCA956X;
+		chip = "550X";
+		rev = id & QCA956X_REV_ID_REVISION_MASK;
+		break;
+
 	case REV_ID_MAJOR_TP9343:
 		ath79_soc = ATH79_SOC_TP9343;
 		chip = "9343";
