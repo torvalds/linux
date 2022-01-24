@@ -148,6 +148,10 @@ static void umc_v6_7_ecc_info_query_error_address(struct amdgpu_device *adev,
 		soc_pa = ADDR_OF_8KB_BLOCK(err_addr) |
 				ADDR_OF_256B_BLOCK(channel_index) |
 				OFFSET_IN_256B_BLOCK(err_addr);
+
+		/* The umc channel bits are not original values, they are hashed */
+		SET_CHANNEL_HASH(channel_index, soc_pa);
+
 		/* clear [C4 C3 C2] in soc physical address */
 		soc_pa &= ~(0x7ULL << UMC_V6_7_PA_C2_BIT);
 
@@ -379,6 +383,10 @@ static void umc_v6_7_query_error_address(struct amdgpu_device *adev,
 		soc_pa = ADDR_OF_8KB_BLOCK(err_addr) |
 				ADDR_OF_256B_BLOCK(channel_index) |
 				OFFSET_IN_256B_BLOCK(err_addr);
+
+		/* The umc channel bits are not original values, they are hashed */
+		SET_CHANNEL_HASH(channel_index, soc_pa);
+
 		/* clear [C4 C3 C2] in soc physical address */
 		soc_pa &= ~(0x7ULL << UMC_V6_7_PA_C2_BIT);
 
