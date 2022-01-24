@@ -211,6 +211,20 @@ static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 	}
 }
 
+void ilk_pch_pre_enable(struct intel_atomic_state *state,
+			struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	/*
+	 * Note: FDI PLL enabling _must_ be done before we enable the
+	 * cpu pipes, hence this is separate from all the other fdi/pch
+	 * enabling.
+	 */
+	ilk_fdi_pll_enable(crtc_state);
+}
+
 /*
  * Enable PCH resources required for PCH ports:
  *   - PCH PLLs

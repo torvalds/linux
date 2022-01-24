@@ -10,6 +10,8 @@ struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 
+void ilk_pch_pre_enable(struct intel_atomic_state *state,
+			struct intel_crtc *crtc);
 void ilk_pch_enable(struct intel_atomic_state *state,
 		    struct intel_crtc *crtc);
 void ilk_pch_disable(struct intel_atomic_state *state,
