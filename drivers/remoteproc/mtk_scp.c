@@ -757,10 +757,8 @@ static int scp_probe(struct platform_device *pdev)
 	int ret, i;
 
 	rproc = devm_rproc_alloc(dev, np->name, &scp_ops, fw_name, sizeof(*scp));
-	if (!rproc) {
-		dev_err(dev, "unable to allocate remoteproc\n");
-		return -ENOMEM;
-	}
+	if (!rproc)
+		return dev_err_probe(dev, -ENOMEM, "unable to allocate remoteproc\n");
 
 	scp = (struct mtk_scp *)rproc->priv;
 	scp->rproc = rproc;
@@ -770,21 +768,20 @@ static int scp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sram");
 	scp->sram_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR((__force void *)scp->sram_base)) {
-		dev_err(dev, "Failed to parse and map sram memory\n");
-		return PTR_ERR((__force void *)scp->sram_base);
-	}
+	if (IS_ERR(scp->sram_base))
+		return dev_err_probe(dev, PTR_ERR(scp->sram_base),
+				     "Failed to parse and map sram memory\n");
+
 	scp->sram_size = resource_size(res);
 	scp->sram_phys = res->start;
 
 	/* l1tcm is an optional memory region */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "l1tcm");
 	scp->l1tcm_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR((__force void *)scp->l1tcm_base)) {
-		ret = PTR_ERR((__force void *)scp->l1tcm_base);
+	if (IS_ERR(scp->l1tcm_base)) {
+		ret = PTR_ERR(scp->l1tcm_base);
 		if (ret != -EINVAL) {
-			dev_err(dev, "Failed to map l1tcm memory\n");
-			return ret;
+			return dev_err_probe(dev, ret, "Failed to map l1tcm memory\n");
 		}
 	} else {
 		scp->l1tcm_size = resource_size(res);
@@ -792,10 +789,9 @@ static int scp_probe(struct platform_device *pdev)
 	}
 
 	scp->reg_base = devm_platform_ioremap_resource_byname(pdev, "cfg");
-	if (IS_ERR((__force void *)scp->reg_base)) {
-		dev_err(dev, "Failed to parse and map cfg memory\n");
-		return PTR_ERR((__force void *)scp->reg_base);
-	}
+	if (IS_ERR(scp->reg_base))
+		return dev_err_probe(dev, PTR_ERR(scp->reg_base),
+				     "Failed to parse and map cfg memory\n");
 
 	ret = scp->data->scp_clk_get(scp);
 	if (ret)
