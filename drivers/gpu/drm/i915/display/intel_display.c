@@ -1369,7 +1369,8 @@ static void intel_crtc_enable_flip_done(struct intel_atomic_state *state,
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
 		if (plane->enable_flip_done &&
 		    plane->pipe == crtc->pipe &&
-		    update_planes & BIT(plane->id))
+		    update_planes & BIT(plane->id) &&
+		    plane_state->do_async_flip)
 			plane->enable_flip_done(plane);
 	}
 }
@@ -1387,7 +1388,8 @@ static void intel_crtc_disable_flip_done(struct intel_atomic_state *state,
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
 		if (plane->disable_flip_done &&
 		    plane->pipe == crtc->pipe &&
-		    update_planes & BIT(plane->id))
+		    update_planes & BIT(plane->id) &&
+		    plane_state->do_async_flip)
 			plane->disable_flip_done(plane);
 	}
 }
@@ -5023,6 +5025,9 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	    (turn_on || (!needs_scaling(old_plane_state) &&
 			 needs_scaling(new_plane_state))))
 		new_crtc_state->disable_lp_wm = true;
+
+	if (new_crtc_state->uapi.async_flip && plane->async_flip)
+		new_plane_state->do_async_flip = true;
 
 	return 0;
 }
