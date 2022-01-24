@@ -68,6 +68,7 @@ bool module_exit_section(const char *name)
 		strstarts(name, ".ARM.exidx.exit");
 }
 
+#ifdef CONFIG_ARM_HAS_GROUP_RELOCS
 /*
  * This implements the partitioning algorithm for group relocations as
  * documented in the ARM AArch32 ELF psABI (IHI 0044).
@@ -103,6 +104,7 @@ static u32 get_group_rem(u32 group, u32 *offset)
 	} while (group--);
 	return shift;
 }
+#endif
 
 int
 apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
@@ -118,7 +120,9 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		unsigned long loc;
 		Elf32_Sym *sym;
 		const char *symname;
+#ifdef CONFIG_ARM_HAS_GROUP_RELOCS
 		u32 shift, group = 1;
+#endif
 		s32 offset;
 		u32 tmp;
 #ifdef CONFIG_THUMB2_KERNEL
@@ -249,6 +253,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			*(u32 *)loc = __opcode_to_mem_arm(tmp);
 			break;
 
+#ifdef CONFIG_ARM_HAS_GROUP_RELOCS
 		case R_ARM_ALU_PC_G0_NC:
 			group = 0;
 			fallthrough;
@@ -296,7 +301,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			}
 			*(u32 *)loc = __opcode_to_mem_arm((tmp & ~0xfff) | offset);
 			break;
-
+#endif
 #ifdef CONFIG_THUMB2_KERNEL
 		case R_ARM_THM_CALL:
 		case R_ARM_THM_JUMP24:
