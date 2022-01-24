@@ -17,16 +17,20 @@ enum {
 };
 
 enum {
-	MLX5_LAG_FLAG_ROCE   = 1 << 0,
-	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
-	MLX5_LAG_FLAG_MULTIPATH = 1 << 2,
-	MLX5_LAG_FLAG_READY = 1 << 3,
-	MLX5_LAG_FLAG_HASH_BASED = 1 << 4,
+	MLX5_LAG_FLAG_NDEVS_READY,
 };
 
-#define MLX5_LAG_MODE_FLAGS (MLX5_LAG_FLAG_ROCE | MLX5_LAG_FLAG_SRIOV |\
-			     MLX5_LAG_FLAG_MULTIPATH | \
-			     MLX5_LAG_FLAG_HASH_BASED)
+enum {
+	MLX5_LAG_MODE_FLAG_HASH_BASED,
+	MLX5_LAG_MODE_FLAG_SHARED_FDB,
+};
+
+enum mlx5_lag_mode {
+	MLX5_LAG_MODE_NONE,
+	MLX5_LAG_MODE_ROCE,
+	MLX5_LAG_MODE_SRIOV,
+	MLX5_LAG_MODE_MULTIPATH,
+};
 
 struct lag_func {
 	struct mlx5_core_dev *dev;
@@ -47,11 +51,12 @@ struct lag_tracker {
  * It serves both its phys functions.
  */
 struct mlx5_lag {
-	u8                        flags;
+	enum mlx5_lag_mode        mode;
+	unsigned long		  mode_flags;
+	unsigned long		  state_flags;
 	u8			  ports;
 	u8			  buckets;
 	int			  mode_changes_in_progress;
-	bool			  shared_fdb;
 	u8			  v2p_map[MLX5_MAX_PORTS * MLX5_LAG_MAX_HASH_BUCKETS];
 	struct kref               ref;
 	struct lag_func           pf[MLX5_MAX_PORTS];
@@ -74,25 +79,25 @@ mlx5_lag_dev(struct mlx5_core_dev *dev)
 static inline bool
 __mlx5_lag_is_active(struct mlx5_lag *ldev)
 {
-	return !!(ldev->flags & MLX5_LAG_MODE_FLAGS);
+	return ldev->mode != MLX5_LAG_MODE_NONE;
 }
 
 static inline bool
 mlx5_lag_is_ready(struct mlx5_lag *ldev)
 {
-	return ldev->flags & MLX5_LAG_FLAG_READY;
+	return test_bit(MLX5_LAG_FLAG_NDEVS_READY, &ldev->state_flags);
 }
 
 void mlx5_modify_lag(struct mlx5_lag *ldev,
 		     struct lag_tracker *tracker);
 int mlx5_activate_lag(struct mlx5_lag *ldev,
 		      struct lag_tracker *tracker,
-		      u8 flags,
+		      enum mlx5_lag_mode mode,
 		      bool shared_fdb);
 int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
 				struct net_device *ndev);
 
-char *get_str_port_sel_mode(u8 flags);
+char *get_str_port_sel_mode(unsigned long flags);
 void mlx5_infer_tx_enabled(struct lag_tracker *tracker, u8 num_ports,
 			   u8 *ports, int *num_enabled);
 
