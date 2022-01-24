@@ -900,6 +900,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			   bool try)
 {
 	const struct capture_fmt *fmt;
+	struct rkisp_vdev_node *node = &stream->vnode;
 	const struct stream_config *config = stream->config;
 	struct rkisp_device *dev = stream->ispdev;
 	u32 planes, imagsize = 0;
@@ -927,7 +928,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 	fmt = find_fmt(stream, pixm->pixelformat);
 	if (!fmt) {
 		v4l2_err(&dev->v4l2_dev,
-			 "nonsupport pixelformat:%c%c%c%c\n",
+			 "%s nonsupport pixelformat:%c%c%c%c\n",
+			 node->vdev.name,
 			 pixm->pixelformat,
 			 pixm->pixelformat >> 8,
 			 pixm->pixelformat >> 16,
@@ -949,7 +951,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		    pixm->width != dev->isp_sdev.out_crop.width &&
 		    pixm->height != dev->isp_sdev.out_crop.height) {
 			v4l2_warn(&dev->v4l2_dev,
-				  "fullpath %dx%d no equal to isp output %dx%d\n",
+				  "%s %dx%d no equal to isp output %dx%d\n",
+				  node->vdev.name,
 				  pixm->width, pixm->height,
 				  dev->isp_sdev.out_crop.width,
 				  dev->isp_sdev.out_crop.height);
@@ -959,11 +962,30 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			   pixm->width != stream->dcrop.width &&
 			   pixm->height != stream->dcrop.height) {
 			v4l2_warn(&dev->v4l2_dev,
-				  "fbcpatch no scale %dx%d should equal to crop %dx%d\n",
+				  "%s no scale %dx%d should equal to crop %dx%d\n",
+				  node->vdev.name,
 				  pixm->width, pixm->height,
 				  stream->dcrop.width, stream->dcrop.height);
 			pixm->width = stream->dcrop.width;
 			pixm->height = stream->dcrop.height;
+		}
+	} else if (stream->id == RKISP_STREAM_MPDS || stream->id == RKISP_STREAM_BPDS) {
+		struct rkisp_stream *t = &dev->cap_dev.stream[stream->conn_id];
+
+		if (pixm->pixelformat != t->out_fmt.pixelformat ||
+		    pixm->width != t->out_fmt.width / 4 ||
+		    pixm->height != t->out_fmt.height / 4) {
+			v4l2_warn(&dev->v4l2_dev,
+				  "%s from %s, force to %dx%d %c%c%c%c\n",
+				  node->vdev.name, t->vnode.vdev.name,
+				  t->out_fmt.width / 4, t->out_fmt.height / 4,
+				  t->out_fmt.pixelformat,
+				  t->out_fmt.pixelformat >> 8,
+				  t->out_fmt.pixelformat >> 16,
+				  t->out_fmt.pixelformat >> 24);
+			pixm->pixelformat = t->out_fmt.pixelformat;
+			pixm->width = t->out_fmt.width / 4;
+			pixm->height = t->out_fmt.height / 4;
 		}
 	}
 
@@ -985,6 +1007,9 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			ALIGN(pixm->width, 16) : pixm->width;
 		h = (fmt->fmt_type == FMT_FBC) ?
 			ALIGN(pixm->height, 16) : pixm->height;
+		/* mainpath for warp default */
+		if (dev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP)
+			h = dev->cap_dev.wrap_line;
 		width = i ? w / xsubs : w;
 		height = i ? h / ysubs : h;
 
@@ -1009,7 +1034,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 		/* 128bit AXI, 16byte align for bytesperline */
 		if ((dev->isp_ver == ISP_V20 && stream->id == RKISP_STREAM_SP) ||
-		    dev->isp_ver == ISP_V30)
+		    dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32)
 			plane_fmt->bytesperline = ALIGN(plane_fmt->bytesperline, 16);
 
 		plane_fmt->sizeimage = plane_fmt->bytesperline * height;
@@ -1048,8 +1073,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		}
 
 		v4l2_dbg(1, rkisp_debug, &stream->ispdev->v4l2_dev,
-			 "%s: stream: %d req(%d, %d) out(%d, %d)\n", __func__,
-			 stream->id, pixm->width, pixm->height,
+			 "%s: %s req(%d, %d) out(%d, %d)\n", __func__,
+			 node->vdev.name, pixm->width, pixm->height,
 			 stream->out_fmt.width, stream->out_fmt.height);
 	}
 
@@ -1181,7 +1206,10 @@ static int rkisp_get_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 	unsigned long lock_flags = 0;
 	u32 i, win_en, mode;
 
-	if (dev->isp_ver != ISP_V30 || stream->id == RKISP_STREAM_FBC) {
+	if ((dev->isp_ver != ISP_V30 && dev->isp_ver != ISP_V32) ||
+	    stream->id == RKISP_STREAM_FBC ||
+	    stream->id == RKISP_STREAM_MPDS ||
+	    stream->id == RKISP_STREAM_BPDS) {
 		v4l2_err(&dev->v4l2_dev, "%s not support\n", __func__);
 		return -EINVAL;
 	}
@@ -1226,7 +1254,10 @@ static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 	u32 height = dev->isp_sdev.out_crop.height;
 	bool warn = false;
 
-	if (dev->isp_ver != ISP_V30 || stream->id == RKISP_STREAM_FBC) {
+	if ((dev->isp_ver != ISP_V30 && dev->isp_ver != ISP_V32) ||
+	    stream->id == RKISP_STREAM_FBC ||
+	    stream->id == RKISP_STREAM_MPDS ||
+	    stream->id == RKISP_STREAM_BPDS) {
 		v4l2_err(&dev->v4l2_dev, "%s not support\n", __func__);
 		return -EINVAL;
 	}
@@ -1510,7 +1541,9 @@ static struct v4l2_rect *rkisp_update_crop(struct rkisp_stream *stream,
 	    stream->id == RKISP_STREAM_DMATX0 ||
 	    stream->id == RKISP_STREAM_DMATX1 ||
 	    stream->id == RKISP_STREAM_DMATX2 ||
-	    stream->id == RKISP_STREAM_DMATX3) {
+	    stream->id == RKISP_STREAM_DMATX3 ||
+	    stream->id == RKISP_STREAM_MPDS ||
+	    stream->id == RKISP_STREAM_BPDS) {
 		sel->left = 0;
 		sel->top = 0;
 		sel->width = in->width;
@@ -1678,7 +1711,7 @@ unreg:
 int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 {
 	struct rkisp_capture_device *cap_dev = &dev->cap_dev;
-	struct stream_config *mp_cfg = &rkisp_mp_stream_config;
+	struct stream_config *st_cfg = &rkisp_mp_stream_config;
 	int ret = 0;
 
 	memset(cap_dev, 0, sizeof(*cap_dev));
@@ -1687,25 +1720,32 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 
 	if (dev->isp_ver <= ISP_V13) {
 		if (dev->isp_ver == ISP_V12) {
-			mp_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V12;
-			mp_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V12;
+			st_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V12;
+			st_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V12;
 		} else if (dev->isp_ver == ISP_V13) {
-			mp_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V13;
-			mp_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V13;
+			st_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V13;
+			st_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V13;
 		}
 		ret = rkisp_register_stream_v1x(dev);
 	} else if (dev->isp_ver == ISP_V20) {
 		ret = rkisp_register_stream_v20(dev);
 	} else if (dev->isp_ver == ISP_V21) {
-		mp_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V21;
-		mp_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V21;
+		st_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V21;
+		st_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V21;
 		ret = rkisp_register_stream_v21(dev);
 	} else if (dev->isp_ver == ISP_V30) {
-		mp_cfg->max_rsz_width = dev->hw_dev->is_unite ?
+		st_cfg->max_rsz_width = dev->hw_dev->is_unite ?
 					CIF_ISP_INPUT_W_MAX_V30_UNITE : CIF_ISP_INPUT_W_MAX_V30;
-		mp_cfg->max_rsz_height = dev->hw_dev->is_unite ?
+		st_cfg->max_rsz_height = dev->hw_dev->is_unite ?
 					 CIF_ISP_INPUT_H_MAX_V30_UNITE : CIF_ISP_INPUT_H_MAX_V30;
 		ret = rkisp_register_stream_v30(dev);
+	} else if (dev->isp_ver == ISP_V32) {
+		st_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V32;
+		st_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V32;
+		st_cfg = &rkisp_sp_stream_config;
+		st_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V32;
+		st_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V32;
+		ret = rkisp_register_stream_v32(dev);
 	}
 	return ret;
 }
@@ -1720,6 +1760,8 @@ void rkisp_unregister_stream_vdevs(struct rkisp_device *dev)
 		rkisp_unregister_stream_v21(dev);
 	else if (dev->isp_ver == ISP_V30)
 		rkisp_unregister_stream_v30(dev);
+	else if (dev->isp_ver == ISP_V32)
+		rkisp_unregister_stream_v32(dev);
 }
 
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
@@ -1732,4 +1774,6 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 		rkisp_mi_v21_isr(mis_val, dev);
 	else if (dev->isp_ver == ISP_V30)
 		rkisp_mi_v30_isr(mis_val, dev);
+	else if (dev->isp_ver == ISP_V32)
+		rkisp_mi_v32_isr(mis_val, dev);
 }

@@ -265,7 +265,8 @@ static int rkisp_pipeline_close(struct rkisp_pipeline *p)
 
 	atomic_dec(&p->power_cnt);
 
-	if (dev->isp_ver == ISP_V30 && !atomic_read(&p->power_cnt))
+	if (!atomic_read(&p->power_cnt) &&
+	    (dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32))
 		rkisp_rx_buf_pool_free(dev);
 
 	return 0;
@@ -469,6 +470,23 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
 					 width, height, V4L2_PIX_FMT_NV12);
 #endif
+	}
+
+	if (dev->isp_ver == ISP_V32) {
+		struct v4l2_pix_format_mplane pixm = {
+			.width = width,
+			.height = height,
+			.pixelformat = rkisp_mbus_pixelcode_to_v4l2(code),
+		};
+
+		rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0], pixm);
+		rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2], pixm);
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
+					 width, height, V4L2_PIX_FMT_NV12);
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MPDS,
+					 width / 4, height / 4, V4L2_PIX_FMT_NV12);
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BPDS,
+					 width / 4, height / 4, V4L2_PIX_FMT_NV12);
 	}
 	return 0;
 }

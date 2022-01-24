@@ -619,7 +619,8 @@ static void dmarx_stop_streaming(struct vb2_queue *queue)
 	if (stream->id == RKISP_STREAM_RAWRD2 &&
 	    (stream->ispdev->isp_ver == ISP_V20 ||
 	     stream->ispdev->isp_ver == ISP_V21 ||
-	     stream->ispdev->isp_ver == ISP_V30))
+	     stream->ispdev->isp_ver == ISP_V30 ||
+	     stream->ispdev->isp_ver == ISP_V32))
 		kfifo_reset(&stream->ispdev->rdbk_kfifo);
 }
 
@@ -732,7 +733,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 		if ((stream->ispdev->isp_ver == ISP_V20 ||
 		     stream->ispdev->isp_ver == ISP_V21 ||
-		     stream->ispdev->isp_ver == ISP_V30) &&
+		     stream->ispdev->isp_ver == ISP_V30 ||
+		     stream->ispdev->isp_ver == ISP_V32) &&
 		    fmt->fmt_type == FMT_BAYER &&
 		    !stream->memory &&
 		    stream->id != RKISP_STREAM_DMARX)
@@ -1132,7 +1134,8 @@ int rkisp_register_dmarx_vdev(struct rkisp_device *dev)
 #endif
 	if (dev->isp_ver == ISP_V20 ||
 	    dev->isp_ver == ISP_V21 ||
-	    dev->isp_ver == ISP_V30) {
+	    dev->isp_ver == ISP_V30 ||
+	    dev->isp_ver == ISP_V32) {
 		ret = dmarx_init(dev, RKISP_STREAM_RAWRD0);
 		if (ret < 0)
 			goto err_free_dmarx;
@@ -1171,7 +1174,8 @@ void rkisp_unregister_dmarx_vdev(struct rkisp_device *dev)
 
 	if (dev->isp_ver == ISP_V20 ||
 	    dev->isp_ver == ISP_V21 ||
-	    dev->isp_ver == ISP_V30) {
+	    dev->isp_ver == ISP_V30 ||
+	    dev->isp_ver == ISP_V32) {
 		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD0];
 		rkisp_unregister_dmarx_video(stream);
 

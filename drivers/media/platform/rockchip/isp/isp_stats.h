@@ -71,11 +71,13 @@ struct rkisp_isp_stats_vdev {
 
 	struct rkisp_dummy_buffer tmp_statsbuf;
 	struct rkisp_buffer *cur_buf;
+	struct rkisp_buffer *nxt_buf;
 };
 
 void rkisp_stats_rdbk_enable(struct rkisp_isp_stats_vdev *stats_vdev, bool en);
 
 void rkisp_stats_first_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev);
+void rkisp_stats_next_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev);
 
 void rkisp_stats_isr(struct rkisp_isp_stats_vdev *stats_vdev,
 		     u32 isp_ris, u32 isp3a_ris);

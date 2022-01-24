@@ -762,6 +762,9 @@ static int isp_show(struct seq_file *p, void *v)
 		else
 			isp30_show(dev, p);
 		break;
+	case ISP_V32:
+		isp30_show(dev, p);
+		break;
 	default:
 		break;
 	}

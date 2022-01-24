@@ -44,7 +44,9 @@
 #define SP_VDEV_NAME DRIVER_NAME	"_selfpath"
 #define MP_VDEV_NAME DRIVER_NAME	"_mainpath"
 #define FBC_VDEV_NAME DRIVER_NAME	"_fbcpath"
-#define BP_VDEV_NAME DRIVER_NAME	"_fullpath"
+#define BP_VDEV_NAME DRIVER_NAME	"_bypasspath"
+#define MPDS_VDEV_NAME DRIVER_NAME	"_mainpath_4x4sampling"
+#define BPDS_VDEV_NAME DRIVER_NAME	"_bypasspath_4x4sampling"
 #define VIR_VDEV_NAME DRIVER_NAME	"_iqtool"
 
 #define DMATX0_VDEV_NAME DRIVER_NAME	"_rawwr0"
@@ -70,6 +72,8 @@ enum {
 	RKISP_STREAM_DMATX3,
 	RKISP_STREAM_FBC,
 	RKISP_STREAM_BP,
+	RKISP_STREAM_MPDS,
+	RKISP_STREAM_BPDS,
 	RKISP_STREAM_VIR,
 	RKISP_MAX_STREAM,
 };
@@ -187,6 +191,7 @@ struct stream_config {
 		u32 cr_offs_cnt_init;
 		u32 y_base_ad_shd;
 		u32 length;
+		u32 ctrl;
 	} mi;
 	struct {
 		u32 ctrl;
@@ -241,6 +246,7 @@ struct rkisp_stream {
 	struct list_head buf_queue;
 	struct rkisp_buffer *curr_buf;
 	struct rkisp_buffer *next_buf;
+	struct rkisp_dummy_buffer dummy_buf;
 	struct mutex apilock;
 	bool streaming;
 	bool stopping;
@@ -275,6 +281,7 @@ struct rkisp_capture_device {
 	struct rkisp_vir_cpy vir_cpy;
 	atomic_t refcnt;
 	u32 wait_line;
+	u32 wrap_line;
 	bool is_done_early;
 };
 

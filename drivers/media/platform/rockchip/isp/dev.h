@@ -60,8 +60,8 @@
 #define GRP_ID_ISP_BRIDGE		BIT(6)
 #define GRP_ID_CSI			BIT(7)
 
-#define RKISP_MAX_SENSOR		2
-#define RKISP_MAX_PIPELINE		4
+#define RKISP_MAX_SENSOR		4
+#define RKISP_MAX_PIPELINE		8
 
 #define RKISP_MEDIA_BUS_FMT_MASK	0xF000
 #define RKISP_MEDIA_BUS_FMT_BAYER	0x3000
@@ -181,7 +181,6 @@ struct rkisp_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct media_device media_dev;
 	struct v4l2_async_notifier notifier;
-	struct v4l2_subdev *subdevs[RKISP_SD_MAX];
 	struct rkisp_sensor_info *active_sensor;
 	struct rkisp_sensor_info sensors[RKISP_MAX_SENSOR];
 	int num_sensors;

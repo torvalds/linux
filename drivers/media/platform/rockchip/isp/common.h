@@ -71,6 +71,7 @@ enum rkisp_isp_ver {
 	ISP_V20 = 0x40,
 	ISP_V21 = 0x50,
 	ISP_V30 = 0x60,
+	ISP_V32 = 0x70,
 };
 
 enum rkisp_sd_type {
@@ -110,11 +111,9 @@ enum rkisp_fmt_raw_pat_type {
 struct rkisp_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
+	void *vaddr[VIDEO_MAX_PLANES];
+	u32 buff_addr[VIDEO_MAX_PLANES];
 	int dev_id;
-	union {
-		u32 buff_addr[VIDEO_MAX_PLANES];
-		void *vaddr[VIDEO_MAX_PLANES];
-	};
 };
 
 struct rkisp_dummy_buffer {

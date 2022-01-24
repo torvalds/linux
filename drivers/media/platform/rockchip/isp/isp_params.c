@@ -13,6 +13,7 @@
 #include "isp_params_v2x.h"
 #include "isp_params_v21.h"
 #include "isp_params_v3x.h"
+#include "isp_params_v32.h"
 
 #define PARAMS_NAME DRIVER_NAME "-input-params"
 #define RKISP_ISP_PARAMS_REQ_BUFS_MIN	2
@@ -297,8 +298,10 @@ static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		ret = rkisp_init_params_vdev_v21(params_vdev);
 	else if (params_vdev->dev->isp_ver == ISP_V20)
 		ret = rkisp_init_params_vdev_v2x(params_vdev);
-	else
+	else if (params_vdev->dev->isp_ver == ISP_V30)
 		ret = rkisp_init_params_vdev_v3x(params_vdev);
+	else
+		ret = rkisp_init_params_vdev_v32(params_vdev);
 
 	params_vdev->vdev_fmt.fmt.meta.dataformat =
 		V4L2_META_FMT_RK_ISP1_PARAMS;
@@ -316,8 +319,10 @@ static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_uninit_params_vdev_v21(params_vdev);
 	else if (params_vdev->dev->isp_ver == ISP_V20)
 		rkisp_uninit_params_vdev_v2x(params_vdev);
-	else
+	else if (params_vdev->dev->isp_ver == ISP_V30)
 		rkisp_uninit_params_vdev_v3x(params_vdev);
+	else
+		rkisp_uninit_params_vdev_v32(params_vdev);
 }
 
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id)
