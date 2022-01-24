@@ -110,6 +110,7 @@ static const struct of_device_id blocklist[] __initconst = {
 
 	{ .compatible = "fsl,imx7ulp", },
 	{ .compatible = "fsl,imx7d", },
+	{ .compatible = "fsl,imx7s", },
 	{ .compatible = "fsl,imx8mq", },
 	{ .compatible = "fsl,imx8mm", },
 	{ .compatible = "fsl,imx8mn", },
