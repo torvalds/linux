@@ -248,6 +248,14 @@ static void label_area_release(void *lsa)
 	vfree(lsa);
 }
 
+static void mock_validate_dvsec_ranges(struct cxl_dev_state *cxlds)
+{
+	struct cxl_endpoint_dvsec_info *info;
+
+	info = &cxlds->info;
+	info->mem_enabled = true;
+}
+
 static int cxl_mock_mem_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -284,6 +292,8 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	rc = cxl_mem_create_range_info(cxlds);
 	if (rc)
 		return rc;
+
+	mock_validate_dvsec_ranges(cxlds);
 
 	cxlmd = devm_cxl_add_memdev(cxlds);
 	if (IS_ERR(cxlmd))
