@@ -879,6 +879,8 @@ int snd_soc_put_xr_sx(struct snd_kcontrol *kcontrol,
 	long val = ucontrol->value.integer.value[0];
 	unsigned int i;
 
+	if (val < mc->min || val > mc->max)
+		return -EINVAL;
 	if (invert)
 		val = max - val;
 	val &= mask;
