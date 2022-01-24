@@ -217,10 +217,6 @@ static irqreturn_t linflex_txint(int irq, void *dev_id)
 	}
 
 	linflex_transmit_buffer(sport);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(sport);
-
 out:
 	spin_unlock_irqrestore(&sport->lock, flags);
 	return IRQ_HANDLED;
