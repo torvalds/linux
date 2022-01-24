@@ -519,7 +519,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	struct dm_target_io *tio;
 	struct bio *clone;
 
-	clone = bio_alloc_bioset(GFP_NOIO, 0, &md->io_bs);
+	clone = bio_alloc_bioset(NULL, 0, 0, GFP_NOIO, &md->io_bs);
 
 	tio = container_of(clone, struct dm_target_io, clone);
 	tio->inside_dm_io = true;
@@ -552,7 +552,8 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci, struct dm_target *t
 		/* the dm_target_io embedded in ci->io is available */
 		tio = &ci->io->tio;
 	} else {
-		struct bio *clone = bio_alloc_bioset(gfp_mask, 0, &ci->io->md->bs);
+		struct bio *clone = bio_alloc_bioset(NULL, 0, 0, gfp_mask,
+						     &ci->io->md->bs);
 		if (!clone)
 			return NULL;
 

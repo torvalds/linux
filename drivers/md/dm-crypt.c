@@ -1672,11 +1672,10 @@ retry:
 	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
 		mutex_lock(&cc->bio_alloc_lock);
 
-	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, &cc->bs);
+	clone = bio_alloc_bioset(cc->dev->bdev, nr_iovecs, io->base_bio->bi_opf,
+				 GFP_NOIO, &cc->bs);
 	clone->bi_private = io;
 	clone->bi_end_io = crypt_endio;
-	bio_set_dev(clone, cc->dev->bdev);
-	clone->bi_opf = io->base_bio->bi_opf;
 
 	remaining_size = size;
 

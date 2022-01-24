@@ -165,12 +165,10 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *    asking for trouble and would force extra work on
 	 *    __bio_clone_fast() anyways.
 	 */
-	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src),
-			       &bounce_bio_set);
-	bio->bi_bdev		= bio_src->bi_bdev;
+	bio = bio_alloc_bioset(bio_src->bi_bdev, bio_segments(bio_src),
+			       bio_src->bi_opf, GFP_NOIO, &bounce_bio_set);
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
-	bio->bi_opf		= bio_src->bi_opf;
 	bio->bi_ioprio		= bio_src->bi_ioprio;
 	bio->bi_write_hint	= bio_src->bi_write_hint;
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
