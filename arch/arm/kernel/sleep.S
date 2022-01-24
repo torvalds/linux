@@ -119,6 +119,13 @@ ENTRY(cpu_resume_mmu)
 ENDPROC(cpu_resume_mmu)
 	.popsection
 cpu_resume_after_mmu:
+#if defined(CONFIG_VMAP_STACK) && !defined(CONFIG_ARM_LPAE)
+	@ Before using the vmap'ed stack, we have to switch to swapper_pg_dir
+	@ as the ID map does not cover the vmalloc region.
+	mrc	p15, 0, ip, c2, c0, 1	@ read TTBR1
+	mcr	p15, 0, ip, c2, c0, 0	@ set TTBR0
+	instr_sync
+#endif
 	bl	cpu_init		@ restore the und/abt/irq banked regs
 	mov	r0, #0			@ return zero on success
 	ldmfd	sp!, {r4 - r11, pc}
