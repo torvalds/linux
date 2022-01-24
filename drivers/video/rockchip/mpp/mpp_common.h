@@ -760,6 +760,13 @@ static inline int mpp_pmu_idle_request(struct mpp_dev *mpp, bool idle)
 	return rockchip_pmu_idle_request(mpp->dev, idle);
 }
 
+static inline struct mpp_dev *
+mpp_get_task_used_device(const struct mpp_task *task,
+			 const struct mpp_session *session)
+{
+	return task->mpp ? task->mpp : session->mpp;
+}
+
 #ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 struct proc_dir_entry *
 mpp_procfs_create_u32(const char *name, umode_t mode,

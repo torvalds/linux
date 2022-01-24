@@ -403,7 +403,7 @@ void mpp_free_task(struct kref *ref)
 		       session->index, task->task_index, task->state,
 		       atomic_read(&task->abort_request));
 
-	mpp = task->mpp ? task->mpp : session->mpp;
+	mpp = mpp_get_task_used_device(task, session);
 	if (!mpp) {
 		mpp_err("task %d:%d mpp is null.\n",
 			session->index, task->task_index);
@@ -465,7 +465,7 @@ static int mpp_process_task_default(struct mpp_session *session,
 	struct mpp_dev *mpp = session->mpp;
 
 	if (unlikely(!mpp)) {
-		mpp_err("pid %d clinet %d found invalid process function\n",
+		mpp_err("pid %d client %d found invalid process function\n",
 			session->pid, session->device_type);
 		return -EINVAL;
 	}
@@ -687,7 +687,7 @@ static void mpp_task_worker_default(struct kthread_work *work_s)
 	 */
 	/* Push a pending task to running queue */
 	if (task) {
-		struct mpp_dev *task_mpp = task->mpp ? task->mpp : mpp;
+		struct mpp_dev *task_mpp = mpp_get_task_used_device(task, task->session);
 
 		mpp_taskqueue_pending_to_run(queue, task);
 		set_bit(TASK_STATE_RUNNING, &task->state);
@@ -718,12 +718,6 @@ done:
 		mutex_lock(&queue->session_lock);
 	}
 	mutex_unlock(&queue->session_lock);
-}
-
-static inline struct mpp_dev *
-mpp_get_task_used_device(const struct mpp_task *task, const struct mpp_session *session)
-{
-	return task->mpp ? task->mpp : session->mpp;
 }
 
 static int mpp_wait_result_default(struct mpp_session *session,
@@ -1227,7 +1221,7 @@ static int mpp_process_request(struct mpp_session *session,
 	default: {
 		mpp = session->mpp;
 		if (!mpp) {
-			mpp_err("pid %d not find clinet %d\n",
+			mpp_err("pid %d not find client %d\n",
 				session->pid, session->device_type);
 			return -EINVAL;
 		}
@@ -1981,7 +1975,7 @@ int mpp_time_record(struct mpp_task *task)
 int mpp_time_diff(struct mpp_task *task)
 {
 	struct timespec64 end;
-	struct mpp_dev *mpp = task->mpp ? task->mpp : task->session->mpp;
+	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
 
 	ktime_get_real_ts64(&end);
 	mpp_debug(DEBUG_TIMING, "%s: pid: %d, session: %p, time: %lld us\n",

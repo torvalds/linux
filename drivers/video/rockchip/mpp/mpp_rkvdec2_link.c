@@ -1658,7 +1658,7 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 	list_for_each_entry_safe(mpp_task, n,
 				 &queue->running_list,
 				 queue_link) {
-		struct mpp_dev *mpp = mpp_task->mpp ? mpp_task->mpp : mpp_task->session->mpp;
+		struct mpp_dev *mpp = mpp_get_task_used_device(mpp_task, mpp_task->session);
 		u32 irq_status = mpp->irq_status;
 		u32 timeout_flag = test_bit(TASK_STATE_TIMEOUT, &mpp_task->state);
 		u32 abort_flag = test_bit(TASK_STATE_ABORT, &mpp_task->state);
