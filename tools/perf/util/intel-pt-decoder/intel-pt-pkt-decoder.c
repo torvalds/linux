@@ -197,8 +197,7 @@ static int intel_pt_get_mnt(const unsigned char *buf, size_t len,
 		return INTEL_PT_NEED_MORE_BYTES;
 	packet->type = INTEL_PT_MNT;
 	memcpy_le64(&packet->payload, buf + 3, 8);
-	return 11
-;
+	return 11;
 }
 
 static int intel_pt_get_3byte(const unsigned char *buf, size_t len,
