@@ -13,7 +13,6 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/stat.h>
-#include <linux/genhd.h>
 #include <linux/list.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>

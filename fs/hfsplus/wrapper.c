@@ -12,7 +12,6 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/cdrom.h>
-#include <linux/genhd.h>
 #include <asm/unaligned.h>
 
 #include "hfsplus_fs.h"

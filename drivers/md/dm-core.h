@@ -11,7 +11,6 @@
 
 #include <linux/kthread.h>
 #include <linux/ktime.h>
-#include <linux/genhd.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-crypto-profile.h>
 

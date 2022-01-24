@@ -16,7 +16,6 @@
 #include <linux/file.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
-#include <linux/genhd.h>
 #include <linux/device.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>

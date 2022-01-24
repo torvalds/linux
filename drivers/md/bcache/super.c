@@ -18,7 +18,6 @@
 #include <linux/blkdev.h>
 #include <linux/pagemap.h>
 #include <linux/debugfs.h>
-#include <linux/genhd.h>
 #include <linux/idr.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
