@@ -791,24 +791,23 @@ static int scp_probe(struct platform_device *pdev)
 		scp->l1tcm_phys = res->start;
 	}
 
-	mutex_init(&scp->send_lock);
-	for (i = 0; i < SCP_IPI_MAX; i++)
-		mutex_init(&scp->ipi_desc[i].lock);
-
 	scp->reg_base = devm_platform_ioremap_resource_byname(pdev, "cfg");
 	if (IS_ERR((__force void *)scp->reg_base)) {
 		dev_err(dev, "Failed to parse and map cfg memory\n");
-		ret = PTR_ERR((__force void *)scp->reg_base);
-		goto destroy_mutex;
+		return PTR_ERR((__force void *)scp->reg_base);
 	}
-
-	ret = scp_map_memory_region(scp);
-	if (ret)
-		goto destroy_mutex;
 
 	ret = scp->data->scp_clk_get(scp);
 	if (ret)
-		goto release_dev_mem;
+		return ret;
+
+	ret = scp_map_memory_region(scp);
+	if (ret)
+		return ret;
+
+	mutex_init(&scp->send_lock);
+	for (i = 0; i < SCP_IPI_MAX; i++)
+		mutex_init(&scp->ipi_desc[i].lock);
 
 	/* register SCP initialization IPI */
 	ret = scp_ipi_register(scp, SCP_IPI_INIT, scp_init_ipi_handler, scp);
@@ -842,7 +841,6 @@ remove_subdev:
 	scp_ipi_unregister(scp, SCP_IPI_INIT);
 release_dev_mem:
 	scp_unmap_memory_region(scp);
-destroy_mutex:
 	for (i = 0; i < SCP_IPI_MAX; i++)
 		mutex_destroy(&scp->ipi_desc[i].lock);
 	mutex_destroy(&scp->send_lock);
