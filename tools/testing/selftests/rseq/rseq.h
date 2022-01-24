@@ -43,12 +43,19 @@
 #define RSEQ_INJECT_FAILED
 #endif
 
-extern __thread struct rseq_abi __rseq_abi;
-extern int __rseq_handled;
+#include "rseq-thread-pointer.h"
+
+/* Offset from the thread pointer to the rseq area.  */
+extern int rseq_offset;
+/* Size of the registered rseq area.  0 if the registration was
+   unsuccessful.  */
+extern unsigned int rseq_size;
+/* Flags used during rseq registration.  */
+extern unsigned int rseq_flags;
 
 static inline struct rseq_abi *rseq_get_abi(void)
 {
-	return &__rseq_abi;
+	return (struct rseq_abi *) ((uintptr_t) rseq_thread_pointer() + rseq_offset);
 }
 
 #define rseq_likely(x)		__builtin_expect(!!(x), 1)
