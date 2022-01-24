@@ -2835,6 +2835,7 @@ static void ionic_lif_handle_fw_down(struct ionic_lif *lif)
 
 	mutex_unlock(&lif->queue_lock);
 
+	clear_bit(IONIC_LIF_F_FW_STOPPING, lif->state);
 	dev_info(ionic->dev, "FW Down: LIFs stopped\n");
 }
 

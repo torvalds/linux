@@ -332,7 +332,9 @@ int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx,
 			break;
 
 		/* interrupt the wait if FW stopped */
-		if (test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+		if ((test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
+		     !lif->ionic->idev.fw_status_ready) ||
+		    test_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
 			if (do_msg)
 				netdev_err(netdev, "%s (%d) interrupted, FW in reset\n",
 					   name, ctx->cmd.cmd.opcode);

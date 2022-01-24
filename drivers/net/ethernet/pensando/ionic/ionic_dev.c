@@ -197,20 +197,23 @@ do_check_time:
 		struct ionic_lif *lif = ionic->lif;
 		bool trigger = false;
 
-		idev->fw_status_ready = fw_status_ready;
+		if (!fw_status_ready && lif &&
+		    !test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
+		    !test_and_set_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
+			dev_info(ionic->dev, "FW stopped 0x%02x\n", fw_status);
+			trigger = true;
 
-		if (!fw_status_ready) {
-			dev_info(ionic->dev, "FW stopped %u\n", fw_status);
-			if (lif && !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
-				trigger = true;
-		} else {
-			dev_info(ionic->dev, "FW running %u\n", fw_status);
-			if (lif && test_bit(IONIC_LIF_F_FW_RESET, lif->state))
-				trigger = true;
+		} else if (fw_status_ready && lif &&
+			   test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
+			   !test_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
+			dev_info(ionic->dev, "FW running 0x%02x\n", fw_status);
+			trigger = true;
 		}
 
 		if (trigger) {
 			struct ionic_deferred_work *work;
+
+			idev->fw_status_ready = fw_status_ready;
 
 			work = kzalloc(sizeof(*work), GFP_ATOMIC);
 			if (work) {
@@ -221,7 +224,7 @@ do_check_time:
 		}
 	}
 
-	if (!fw_status_ready)
+	if (!idev->fw_status_ready)
 		return -ENXIO;
 
 	/* wait at least one watchdog period since the last heartbeat */
