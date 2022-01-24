@@ -124,6 +124,9 @@ struct intel_pt {
 	u64 evt_sample_type;
 	u64 evt_id;
 
+	u64 iflag_chg_sample_type;
+	u64 iflag_chg_id;
+
 	u64 tsc_bit;
 	u64 mtc_bit;
 	u64 mtc_freq_bits;
@@ -2209,6 +2212,39 @@ static int intel_pt_synth_events_sample(struct intel_pt_queue *ptq)
 					    pt->evt_sample_type);
 }
 
+static int intel_pt_synth_iflag_chg_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_iflag_chg raw;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->iflag_chg_id;
+	sample.stream_id = ptq->pt->iflag_chg_id;
+
+	raw.flags = 0;
+	raw.iflag = ptq->state->to_iflag;
+
+	if (ptq->state->type & INTEL_PT_BRANCH) {
+		raw.via_branch = 1;
+		raw.branch_ip = ptq->state->to_ip;
+	} else {
+		sample.addr = 0;
+	}
+	sample.flags = ptq->flags;
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, event, &sample,
+					    pt->iflag_chg_sample_type);
+}
+
 static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
 				pid_t pid, pid_t tid, u64 ip, u64 timestamp)
 {
@@ -2318,6 +2354,11 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	if (pt->synth_opts.intr_events) {
 		if (state->type & INTEL_PT_EVT) {
 			err = intel_pt_synth_events_sample(ptq);
+			if (err)
+				return err;
+		}
+		if (state->type & INTEL_PT_IFLAG_CHG) {
+			err = intel_pt_synth_iflag_chg_sample(ptq);
 			if (err)
 				return err;
 		}
@@ -3528,6 +3569,17 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		pt->evt_sample_type = attr.sample_type;
 		pt->evt_id = id;
 		intel_pt_set_event_name(evlist, id, "evt");
+		id += 1;
+	}
+
+	if (pt->synth_opts.intr_events && pt->cap_event_trace) {
+		attr.config = PERF_SYNTH_INTEL_IFLAG_CHG;
+		err = intel_pt_synth_event(session, "iflag", &attr, id);
+		if (err)
+			return err;
+		pt->iflag_chg_sample_type = attr.sample_type;
+		pt->iflag_chg_id = id;
+		intel_pt_set_event_name(evlist, id, "iflag");
 		id += 1;
 	}
 
