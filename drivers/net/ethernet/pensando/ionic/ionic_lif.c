@@ -1787,7 +1787,7 @@ static void ionic_lif_quiesce(struct ionic_lif *lif)
 
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
-		netdev_err(lif->netdev, "lif quiesce failed %d\n", err);
+		netdev_dbg(lif->netdev, "lif quiesce failed %d\n", err);
 }
 
 static void ionic_txrx_disable(struct ionic_lif *lif)

@@ -236,9 +236,11 @@ do_check_time:
 	if (!idev->fw_status_ready)
 		return -ENXIO;
 
-	/* wait at least one watchdog period since the last heartbeat */
+	/* Because of some variability in the actual FW heartbeat, we
+	 * wait longer than the DEVCMD_TIMEOUT before checking again.
+	 */
 	last_check_time = idev->last_hb_time;
-	if (time_before(check_time, last_check_time + ionic->watchdog_period))
+	if (time_before(check_time, last_check_time + DEVCMD_TIMEOUT * 2 * HZ))
 		return 0;
 
 	fw_hb = ioread32(&idev->dev_info_regs->fw_heartbeat);
