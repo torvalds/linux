@@ -743,27 +743,6 @@ static int rvin_parallel_init(struct rvin_dev *vin)
  * CSI-2
  */
 
-static unsigned int rvin_csi2_get_mask(struct rvin_dev *vin,
-				       enum rvin_csi_id csi_id,
-				       unsigned char channel)
-{
-	const struct rvin_group_route *route;
-	unsigned int mask = 0;
-
-	for (route = vin->info->routes; route->mask; route++) {
-		if (route->vin == vin->id &&
-		    route->csi == csi_id &&
-		    route->channel == channel) {
-			vin_dbg(vin,
-				"Adding route: vin: %d csi: %d channel: %d\n",
-				route->vin, route->csi, route->channel);
-			mask |= route->mask;
-		}
-	}
-
-	return mask;
-}
-
 /*
  * Link setup for the links between a VIN and a CSI-2 receiver is a bit
  * complex. The reason for this is that the register controlling routing
@@ -849,9 +828,9 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 			link->source->entity->name);
 		ret = -ENODEV;
 	} else {
-		unsigned int master_id, channel, mask_new;
-		unsigned int mask = ~0;
-		struct media_pad *csi_pad;
+		const struct rvin_group_route *route;
+		unsigned int chsel = UINT_MAX;
+		unsigned int master_id;
 
 		master_id = rvin_group_id_to_master(vin->id);
 
@@ -860,8 +839,10 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 			goto out;
 		}
 
-		/* Build a mask for already enabled links. */
+		/* Make sure group is connected to same CSI-2 */
 		for (i = master_id; i < master_id + 4; i++) {
+			struct media_pad *csi_pad;
+
 			if (!group->vin[i])
 				continue;
 
@@ -871,26 +852,28 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 			if (!csi_pad)
 				continue;
 
-			csi_id = rvin_group_entity_to_remote_id(group,
-								csi_pad->entity);
-			channel = rvin_group_csi_pad_to_channel(csi_pad->index);
-
-			mask &= rvin_csi2_get_mask(group->vin[i], csi_id, channel);
+			if (csi_pad->entity != link->source->entity) {
+				vin_dbg(vin, "Already attached to %s\n",
+					csi_pad->entity->name);
+				ret = -EBUSY;
+				goto out;
+			}
 		}
 
-		channel = rvin_group_csi_pad_to_channel(link->source->index);
-		mask_new = mask & rvin_csi2_get_mask(vin, csi_id, channel);
-		vin_dbg(vin, "Try link change mask: 0x%x new: 0x%x\n", mask,
-			mask_new);
+		for (route = vin->info->routes; route->chsel; route++) {
+			if (route->master == master_id && route->csi == csi_id) {
+				chsel = route->chsel;
+				break;
+			}
+		}
 
-		if (!mask_new) {
-			ret = -EMLINK;
+		if (chsel == UINT_MAX) {
+			vin_err(vin, "No CHSEL value found\n");
+			ret = -EINVAL;
 			goto out;
 		}
 
-		/* New valid CHSEL found, set the new value. */
-		ret = rvin_set_channel_routing(group->vin[master_id],
-					       __ffs(mask_new));
+		ret = rvin_set_channel_routing(group->vin[master_id], chsel);
 		if (ret)
 			goto out;
 
@@ -906,47 +889,60 @@ static const struct media_device_ops rvin_csi2_media_ops = {
 	.link_notify = rvin_csi2_link_notify,
 };
 
-static int rvin_csi2_create_link(struct rvin_group *group,
+static int rvin_csi2_create_link(struct rvin_group *group, unsigned int id,
 				 const struct rvin_group_route *route)
 
 {
 	struct media_entity *source = &group->remotes[route->csi].subdev->entity;
-	unsigned int source_idx = rvin_group_csi_channel_to_pad(route->channel);
-	struct media_entity *sink = &group->vin[route->vin]->vdev.entity;
-	struct media_pad *source_pad = &source->pads[source_idx];
+	struct media_entity *sink = &group->vin[id]->vdev.entity;
 	struct media_pad *sink_pad = &sink->pads[0];
+	unsigned int channel;
+	int ret;
 
-	/* Skip if link already exists. */
-	if (media_entity_find_link(source_pad, sink_pad))
-		return 0;
+	for (channel = 0; channel < 4; channel++) {
+		unsigned int source_idx = rvin_group_csi_channel_to_pad(channel);
+		struct media_pad *source_pad = &source->pads[source_idx];
 
-	return media_create_pad_link(source, source_idx, sink, 0, 0);
+		/* Skip if link already exists. */
+		if (media_entity_find_link(source_pad, sink_pad))
+			continue;
+
+		ret = media_create_pad_link(source, source_idx, sink, 0, 0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int rvin_csi2_setup_links(struct rvin_dev *vin)
 {
 	const struct rvin_group_route *route;
+	unsigned int id;
 	int ret = -EINVAL;
 
 	/* Create all media device links between VINs and CSI-2's. */
 	mutex_lock(&vin->group->lock);
-	for (route = vin->info->routes; route->mask; route++) {
-		/* Check that VIN is part of the group. */
-		if (!vin->group->vin[route->vin])
-			continue;
-
+	for (route = vin->info->routes; route->chsel; route++) {
 		/* Check that VIN' master is part of the group. */
-		if (!vin->group->vin[rvin_group_id_to_master(route->vin)])
+		if (!vin->group->vin[route->master])
 			continue;
 
 		/* Check that CSI-2 is part of the group. */
 		if (!vin->group->remotes[route->csi].subdev)
 			continue;
 
-		ret = rvin_csi2_create_link(vin->group, route);
-		if (ret)
-			break;
+		for (id = route->master; id < route->master + 4; id++) {
+			/* Check that VIN is part of the group. */
+			if (!vin->group->vin[id])
+				continue;
+
+			ret = rvin_csi2_create_link(vin->group, id, route);
+			if (ret)
+				goto out;
+		}
 	}
+out:
 	mutex_unlock(&vin->group->lock);
 
 	return ret;
@@ -1156,30 +1152,9 @@ static const struct rvin_info rcar_info_gen2 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a774e1_routes[] = {
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 0, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 0, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 1, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(1) | BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 1, .mask = BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 2, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 2, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 2, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 3, .mask = BIT(1) | BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 3, .mask = BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 4, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 5, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 5, .mask = BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 6, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 6, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 6, .mask = BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 7, .mask = BIT(1) | BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 7, .mask = BIT(4) },
+	{ .master = 0, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
+	{ .master = 4, .csi = RVIN_CSI20, .chsel = 0x04 },
 	{ /* Sentinel */ }
 };
 
@@ -1192,38 +1167,10 @@ static const struct rvin_info rcar_info_r8a774e1 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a7795_routes[] = {
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 0, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 0, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 1, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(1) | BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 1, .mask = BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 2, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 2, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 2, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 3, .mask = BIT(1) | BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 3, .mask = BIT(4) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 4, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI41, .channel = 1, .vin = 4, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 5, .mask = BIT(0) },
-	{ .csi = RVIN_CSI41, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 5, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 5, .mask = BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 6, .mask = BIT(0) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 6, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 6, .mask = BIT(2) },
-	{ .csi = RVIN_CSI41, .channel = 2, .vin = 6, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 6, .mask = BIT(4) },
-	{ .csi = RVIN_CSI41, .channel = 1, .vin = 7, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 7, .mask = BIT(1) | BIT(2) },
-	{ .csi = RVIN_CSI41, .channel = 3, .vin = 7, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 7, .mask = BIT(4) },
+	{ .master = 0, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
+	{ .master = 4, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 4, .csi = RVIN_CSI41, .chsel = 0x03 },
 	{ /* Sentinel */ }
 };
 
@@ -1237,48 +1184,12 @@ static const struct rvin_info rcar_info_r8a7795 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a7795es1_routes[] = {
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 0, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI21, .channel = 0, .vin = 0, .mask = BIT(2) | BIT(5) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 1, .mask = BIT(0) },
-	{ .csi = RVIN_CSI21, .channel = 0, .vin = 1, .mask = BIT(1) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 1, .mask = BIT(4) },
-	{ .csi = RVIN_CSI21, .channel = 1, .vin = 1, .mask = BIT(5) },
-	{ .csi = RVIN_CSI21, .channel = 0, .vin = 2, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 2, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 2, .mask = BIT(4) },
-	{ .csi = RVIN_CSI21, .channel = 2, .vin = 2, .mask = BIT(5) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 3, .mask = BIT(1) },
-	{ .csi = RVIN_CSI21, .channel = 1, .vin = 3, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 3, .mask = BIT(4) },
-	{ .csi = RVIN_CSI21, .channel = 3, .vin = 3, .mask = BIT(5) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 4, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI21, .channel = 0, .vin = 4, .mask = BIT(2) | BIT(5) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 5, .mask = BIT(0) },
-	{ .csi = RVIN_CSI21, .channel = 0, .vin = 5, .mask = BIT(1) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 5, .mask = BIT(2) },
-	{ .csi = RVIN_CSI41, .channel = 1, .vin = 5, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 5, .mask = BIT(4) },
-	{ .csi = RVIN_CSI21, .channel = 1, .vin = 5, .mask = BIT(5) },
-	{ .csi = RVIN_CSI21, .channel = 0, .vin = 6, .mask = BIT(0) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 6, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 6, .mask = BIT(2) },
-	{ .csi = RVIN_CSI41, .channel = 2, .vin = 6, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 6, .mask = BIT(4) },
-	{ .csi = RVIN_CSI21, .channel = 2, .vin = 6, .mask = BIT(5) },
-	{ .csi = RVIN_CSI41, .channel = 1, .vin = 7, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 7, .mask = BIT(1) },
-	{ .csi = RVIN_CSI21, .channel = 1, .vin = 7, .mask = BIT(2) },
-	{ .csi = RVIN_CSI41, .channel = 3, .vin = 7, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 7, .mask = BIT(4) },
-	{ .csi = RVIN_CSI21, .channel = 3, .vin = 7, .mask = BIT(5) },
+	{ .master = 0, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 0, .csi = RVIN_CSI21, .chsel = 0x05 },
+	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
+	{ .master = 4, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 4, .csi = RVIN_CSI21, .chsel = 0x05 },
+	{ .master = 4, .csi = RVIN_CSI41, .chsel = 0x03 },
 	{ /* Sentinel */ }
 };
 
@@ -1291,34 +1202,10 @@ static const struct rvin_info rcar_info_r8a7795es1 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a7796_routes[] = {
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 0, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 1, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 1, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 2, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 2, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 3, .mask = BIT(1) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 3, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 4, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 5, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 5, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 5, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 5, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 6, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 6, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 6, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 6, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 7, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 7, .mask = BIT(1) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 7, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 7, .mask = BIT(4) },
+	{ .master = 0, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
+	{ .master = 4, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 4, .csi = RVIN_CSI40, .chsel = 0x03 },
 	{ /* Sentinel */ }
 };
 
@@ -1332,38 +1219,10 @@ static const struct rvin_info rcar_info_r8a7796 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a77965_routes[] = {
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 0, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 0, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 1, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(1) | BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 1, .mask = BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 2, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 2, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 2, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 3, .mask = BIT(1) | BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 3, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 4, .mask = BIT(1) | BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 4, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 5, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 5, .mask = BIT(2) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 5, .mask = BIT(4) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 6, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 6, .mask = BIT(1) },
-	{ .csi = RVIN_CSI20, .channel = 0, .vin = 6, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 6, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 2, .vin = 6, .mask = BIT(4) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 7, .mask = BIT(0) },
-	{ .csi = RVIN_CSI20, .channel = 1, .vin = 7, .mask = BIT(1) | BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 7, .mask = BIT(3) },
-	{ .csi = RVIN_CSI20, .channel = 3, .vin = 7, .mask = BIT(4) },
+	{ .master = 0, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
+	{ .master = 4, .csi = RVIN_CSI20, .chsel = 0x04 },
+	{ .master = 4, .csi = RVIN_CSI40, .chsel = 0x03 },
 	{ /* Sentinel */ }
 };
 
@@ -1377,13 +1236,7 @@ static const struct rvin_info rcar_info_r8a77965 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a77970_routes[] = {
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
+	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
 	{ /* Sentinel */ }
 };
 
@@ -1396,22 +1249,8 @@ static const struct rvin_info rcar_info_r8a77970 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a77980_routes[] = {
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 0, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(1) | BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
-	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
-	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI41, .channel = 1, .vin = 4, .mask = BIT(2) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 5, .mask = BIT(2) },
-	{ .csi = RVIN_CSI41, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
-	{ .csi = RVIN_CSI41, .channel = 0, .vin = 6, .mask = BIT(1) },
-	{ .csi = RVIN_CSI41, .channel = 2, .vin = 6, .mask = BIT(3) },
-	{ .csi = RVIN_CSI41, .channel = 1, .vin = 7, .mask = BIT(0) },
-	{ .csi = RVIN_CSI41, .channel = 3, .vin = 7, .mask = BIT(3) },
+	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
+	{ .master = 4, .csi = RVIN_CSI41, .chsel = 0x03 },
 	{ /* Sentinel */ }
 };
 
@@ -1425,10 +1264,7 @@ static const struct rvin_info rcar_info_r8a77980 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a77990_routes[] = {
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
-	{ .csi = RVIN_CSI40, .channel = 0, .vin = 5, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 4, .mask = BIT(2) },
-	{ .csi = RVIN_CSI40, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
+	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
 	{ /* Sentinel */ }
 };
 
