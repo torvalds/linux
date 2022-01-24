@@ -50,6 +50,7 @@
 #define INTEL_PT_CFG_PWR_EVT_EN	BIT_ULL(4)
 #define INTEL_PT_CFG_BRANCH_EN	BIT_ULL(13)
 #define INTEL_PT_CFG_EVT_EN	BIT_ULL(31)
+#define INTEL_PT_CFG_TNT_DIS	BIT_ULL(55)
 
 struct range {
 	u64 start;
@@ -972,6 +973,19 @@ static bool intel_pt_branch_enable(struct intel_pt *pt)
 	return true;
 }
 
+static bool intel_pt_disabled_tnt(struct intel_pt *pt)
+{
+	struct evsel *evsel;
+	u64 config;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
+		    config & INTEL_PT_CFG_TNT_DIS)
+			return true;
+	}
+	return false;
+}
+
 static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
 {
 	struct evsel *evsel;
@@ -1226,6 +1240,10 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.vm_tm_corr_dry_run = pt->synth_opts.vm_tm_corr_dry_run;
 	params.first_timestamp = pt->first_timestamp;
 	params.max_loops = pt->max_loops;
+
+	/* Cannot walk code without TNT, so force 'quick' mode */
+	if (params.branch_enable && intel_pt_disabled_tnt(pt) && !params.quick)
+		params.quick = 1;
 
 	if (pt->filts.cnt > 0)
 		params.pgd_ip = intel_pt_pgd_ip;
