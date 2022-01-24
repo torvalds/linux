@@ -1111,3 +1111,14 @@ config MMC_LITEX
 	  module will be called litex_mmc.
 
 	  If unsure, say N.
+
+config SDHCI_MSM_DBG
+	bool "Qualcomm Technologies, Inc. SDHCI_MSM_DBG Driver"
+	depends on MMC_SDHCI_MSM
+	help
+	  This enables the IPC tracing events for sdhci_msm driver.
+
+	  Tracing sdhci_msm events helps to trace significant events
+	  used for debugging purpose.
+
+	  If unsure, say N here.
