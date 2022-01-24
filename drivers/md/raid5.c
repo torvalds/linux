@@ -2310,8 +2310,8 @@ static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp,
 		for (i = 0; i < disks; i++) {
 			struct r5dev *dev = &sh->dev[i];
 
-			bio_init(&dev->req, &dev->vec, 1);
-			bio_init(&dev->rreq, &dev->rvec, 1);
+			bio_init(&dev->req, NULL, &dev->vec, 1, 0);
+			bio_init(&dev->rreq, NULL, &dev->rvec, 1, 0);
 		}
 
 		if (raid5_has_ppl(conf)) {

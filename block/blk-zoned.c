@@ -238,10 +238,7 @@ static int blkdev_zone_reset_all(struct block_device *bdev, gfp_t gfp_mask)
 {
 	struct bio bio;
 
-	bio_init(&bio, NULL, 0);
-	bio_set_dev(&bio, bdev);
-	bio.bi_opf = REQ_OP_ZONE_RESET_ALL | REQ_SYNC;
-
+	bio_init(&bio, bdev, NULL, 0, REQ_OP_ZONE_RESET_ALL | REQ_SYNC);
 	return submit_bio_wait(&bio);
 }
 

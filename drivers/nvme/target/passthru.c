@@ -206,8 +206,8 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 
 	if (nvmet_use_inline_bvec(req)) {
 		bio = &req->p.inline_bio;
-		bio_init(bio, req->inline_bvec, ARRAY_SIZE(req->inline_bvec));
-		bio->bi_opf = req_op(rq);
+		bio_init(bio, NULL, req->inline_bvec,
+			 ARRAY_SIZE(req->inline_bvec), req_op(rq));
 	} else {
 		bio = bio_alloc(NULL, bio_max_segs(req->sg_cnt), req_op(rq),
 				GFP_KERNEL);

@@ -75,8 +75,13 @@ static ssize_t __blkdev_direct_IO_simple(struct kiocb *iocb,
 			return -ENOMEM;
 	}
 
-	bio_init(&bio, vecs, nr_pages);
-	bio_set_dev(&bio, bdev);
+	if (iov_iter_rw(iter) == READ) {
+		bio_init(&bio, bdev, vecs, nr_pages, REQ_OP_READ);
+		if (iter_is_iovec(iter))
+			should_dirty = true;
+	} else {
+		bio_init(&bio, bdev, vecs, nr_pages, dio_bio_write_op(iocb));
+	}
 	bio.bi_iter.bi_sector = pos >> SECTOR_SHIFT;
 	bio.bi_write_hint = iocb->ki_hint;
 	bio.bi_private = current;
@@ -88,14 +93,9 @@ static ssize_t __blkdev_direct_IO_simple(struct kiocb *iocb,
 		goto out;
 	ret = bio.bi_iter.bi_size;
 
-	if (iov_iter_rw(iter) == READ) {
-		bio.bi_opf = REQ_OP_READ;
-		if (iter_is_iovec(iter))
-			should_dirty = true;
-	} else {
-		bio.bi_opf = dio_bio_write_op(iocb);
+	if (iov_iter_rw(iter) == WRITE)
 		task_io_account_write(ret);
-	}
+
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		bio.bi_opf |= REQ_NOWAIT;
 	if (iocb->ki_flags & IOCB_HIPRI)

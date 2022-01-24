@@ -36,9 +36,7 @@ xfs_flush_bdev_async(
 		return;
 	}
 
-	bio_init(bio, NULL, 0);
-	bio_set_dev(bio, bdev);
-	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC;
+	bio_init(bio, bdev, NULL, 0, REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC);
 	bio->bi_private = done;
 	bio->bi_end_io = xfs_flush_bdev_async_endio;
 
