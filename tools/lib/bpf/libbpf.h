@@ -593,18 +593,31 @@ LIBBPF_API int bpf_program__nth_fd(const struct bpf_program *prog, int n);
 /*
  * Adjust type of BPF program. Default is kprobe.
  */
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_socket_filter(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_tracepoint(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_raw_tracepoint(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_kprobe(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_lsm(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_sched_cls(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_sched_act(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_xdp(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_perf_event(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_tracing(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_struct_ops(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_extension(struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_sk_lookup(struct bpf_program *prog);
 
 LIBBPF_API enum bpf_prog_type bpf_program__type(const struct bpf_program *prog);
@@ -633,18 +646,31 @@ LIBBPF_API int
 bpf_program__set_attach_target(struct bpf_program *prog, int attach_prog_fd,
 			       const char *attach_func_name);
 
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_socket_filter(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_tracepoint(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_raw_tracepoint(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_kprobe(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_lsm(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_sched_cls(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_sched_act(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_xdp(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_perf_event(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_tracing(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_struct_ops(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_extension(const struct bpf_program *prog);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
 LIBBPF_API bool bpf_program__is_sk_lookup(const struct bpf_program *prog);
 
 /*
