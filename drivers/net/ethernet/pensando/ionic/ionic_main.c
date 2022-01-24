@@ -384,7 +384,20 @@ static void ionic_dev_cmd_clean(struct ionic *ionic)
 	memset_io(&idev->dev_cmd_regs->cmd, 0, sizeof(idev->dev_cmd_regs->cmd));
 }
 
-int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
+void ionic_dev_cmd_dev_err_print(struct ionic *ionic, u8 opcode, u8 status,
+				 int err)
+{
+	const char *stat_str;
+
+	stat_str = (err == -ETIMEDOUT) ? "TIMEOUT" :
+					 ionic_error_to_str(status);
+
+	dev_err(ionic->dev, "DEV_CMD %s (%d) error, %s (%d) failed\n",
+		ionic_opcode_to_str(opcode), opcode, stat_str, err);
+}
+
+static int __ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds,
+				const bool do_msg)
 {
 	struct ionic_dev *idev = &ionic->idev;
 	unsigned long start_time;
@@ -452,14 +465,24 @@ try_again:
 		}
 
 		if (!(opcode == IONIC_CMD_FW_CONTROL && err == IONIC_RC_EAGAIN))
-			dev_err(ionic->dev, "DEV_CMD %s (%d) error, %s (%d) failed\n",
-				ionic_opcode_to_str(opcode), opcode,
-				ionic_error_to_str(err), err);
+			if (do_msg)
+				ionic_dev_cmd_dev_err_print(ionic, opcode, err,
+							    ionic_error_to_errno(err));
 
 		return ionic_error_to_errno(err);
 	}
 
 	return 0;
+}
+
+int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
+{
+	return __ionic_dev_cmd_wait(ionic, max_seconds, true);
+}
+
+int ionic_dev_cmd_wait_nomsg(struct ionic *ionic, unsigned long max_seconds)
+{
+	return __ionic_dev_cmd_wait(ionic, max_seconds, false);
 }
 
 int ionic_setup(struct ionic *ionic)
