@@ -34,6 +34,15 @@ Description:
 		capability. Mandatory for CXL devices, see CXL 2.0 8.1.12.2
 		Memory Device PCIe Capabilities and Extended Capabilities.
 
+What:		/sys/bus/cxl/devices/memX/numa_node
+Date:		January, 2022
+KernelVersion:	v5.18
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) If NUMA is enabled and the platform has affinitized the
+		host PCI device for this memory device, emit the CPU node
+		affinity for this device.
+
 What:		/sys/bus/cxl/devices/*/devtype
 Date:		June, 2021
 KernelVersion:	v5.14

@@ -99,11 +99,19 @@ static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(serial);
 
+static ssize_t numa_node_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	return sprintf(buf, "%d\n", dev_to_node(dev));
+}
+static DEVICE_ATTR_RO(numa_node);
+
 static struct attribute *cxl_memdev_attributes[] = {
 	&dev_attr_serial.attr,
 	&dev_attr_firmware_version.attr,
 	&dev_attr_payload_max.attr,
 	&dev_attr_label_storage_size.attr,
+	&dev_attr_numa_node.attr,
 	NULL,
 };
 
@@ -117,8 +125,17 @@ static struct attribute *cxl_memdev_ram_attributes[] = {
 	NULL,
 };
 
+static umode_t cxl_memdev_visible(struct kobject *kobj, struct attribute *a,
+				  int n)
+{
+	if (!IS_ENABLED(CONFIG_NUMA) && a == &dev_attr_numa_node.attr)
+		return 0;
+	return a->mode;
+}
+
 static struct attribute_group cxl_memdev_attribute_group = {
 	.attrs = cxl_memdev_attributes,
+	.is_visible = cxl_memdev_visible,
 };
 
 static struct attribute_group cxl_memdev_ram_attribute_group = {

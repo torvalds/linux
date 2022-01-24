@@ -583,6 +583,7 @@ static __init int cxl_test_init(void)
 		if (!pdev)
 			goto err_mem;
 		pdev->dev.parent = &port->dev;
+		set_dev_node(&pdev->dev, i % 2);
 
 		rc = platform_device_add(pdev);
 		if (rc) {
