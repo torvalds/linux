@@ -5076,6 +5076,16 @@ union bpf_attr {
  *		associated to *xdp_md*, at *offset*.
  *	Return
  *		0 on success, or a negative error in case of failure.
+ *
+ * long bpf_copy_from_user_task(void *dst, u32 size, const void *user_ptr, struct task_struct *tsk, u64 flags)
+ *	Description
+ *		Read *size* bytes from user space address *user_ptr* in *tsk*'s
+ *		address space, and stores the data in *dst*. *flags* is not
+ *		used yet and is provided for future extensibility. This helper
+ *		can only be used by sleepable programs.
+ *	Return
+ *		0 on success, or a negative error in case of failure. On error
+ *		*dst* buffer is zeroed out.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5269,6 +5279,7 @@ union bpf_attr {
 	FN(xdp_get_buff_len),		\
 	FN(xdp_load_bytes),		\
 	FN(xdp_store_bytes),		\
+	FN(copy_from_user_task),	\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
