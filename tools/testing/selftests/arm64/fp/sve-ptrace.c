@@ -261,7 +261,7 @@ static void ptrace_sve_fpsimd(pid_t child, const struct vec_type *type)
 	}
 
 	ksft_test_result((sve->flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD,
-			 "Set FPSIMD registers via %s\n", type->name);
+			 "Got FPSIMD registers via %s\n", type->name);
 	if ((sve->flags & SVE_PT_REGS_MASK) != SVE_PT_REGS_FPSIMD)
 		goto out;
 
