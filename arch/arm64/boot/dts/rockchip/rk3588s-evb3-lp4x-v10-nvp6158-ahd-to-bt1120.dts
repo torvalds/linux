@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/display/media-bus-format.h>
+#include "rk3588s-evb3-lp4x.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588S EVB3 LP4 V10 Board + Rockchip RK3588S EVB V10 Extboard";
+	compatible = "rockchip,rk3588s-evb3-lp4x-v10-nvp6158-ahd-to-bt1120", "rockchip,rk3588";
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m4_xfer>;
+
+	nvp6158: nvp6158@30 {
+		compatible = "nvp6158-v4l2";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru CLK_CIFOUT_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clk &cif_dvp_clk &cif_dvp_bus8 &cif_dvp_bus16>;
+		// pwr-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pwr2-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
+		rst-gpios = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
+		// rst2-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		// pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		// pwdn2-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,dvp_mode = "BT1120"; //BT656 or BT1120 or BT656_TEST
+		rockchip,channel_nums = <4>; //channel nums, 1/2/4
+		rockchip,dual_edge = <1>; // pclk dual edge, 0/1
+		rockchip,default_rect= <1920 1080>; // default resolution
+		port {
+			nvp6158_out: endpoint {
+				remote-endpoint = <&dvp_in_bcam1>;
+			};
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_dvp {
+	status = "okay";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Parallel bus endpoint */
+			dvp_in_bcam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&nvp6158_out>;
+				bus-width = <16>;
+			};
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
