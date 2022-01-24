@@ -28,6 +28,7 @@
 
 #include <uapi/linux/aspeed-mctp.h>
 
+static DEFINE_IDA(mctp_ida);
 /* AST2600 MCTP Controller registers */
 #define ASPEED_MCTP_CTRL	0x000
 #define  TX_CMD_TRIGGER		BIT(0)
@@ -251,6 +252,7 @@ struct mctp_channel {
 
 struct aspeed_mctp {
 	struct device *dev;
+	struct miscdevice mctp_miscdev;
 	const struct aspeed_mctp_match_data *match_data;
 	struct regmap *map;
 	struct reset_control *reset;
@@ -1667,12 +1669,6 @@ struct device_type aspeed_mctp_type = {
 	.name		= "aspeed-mctp",
 };
 
-static struct miscdevice aspeed_mctp_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "aspeed-mctp",
-	.fops = &aspeed_mctp_fops,
-};
-
 static void aspeed_mctp_send_pcie_uevent(struct kobject *kobj, bool ready)
 {
 	char *pcie_not_ready_event[] = { ASPEED_MCTP_READY "=0", NULL };
@@ -1718,7 +1714,7 @@ static void aspeed_mctp_reset_work(struct work_struct *work)
 {
 	struct aspeed_mctp *priv = container_of(work, typeof(*priv),
 						pcie.rst_dwork.work);
-	struct kobject *kobj = &aspeed_mctp_miscdev.this_device->kobj;
+	struct kobject *kobj = &priv->mctp_miscdev.this_device->kobj;
 	u16 bdf;
 
 	if (priv->pcie.need_uevent) {
@@ -1856,14 +1852,17 @@ static int aspeed_mctp_resources_init(struct aspeed_mctp *priv)
 	if (IS_ERR(priv->map))
 		return PTR_ERR(priv->map);
 
-	priv->reset = devm_reset_control_get_by_index(priv->dev, 0);
+	priv->reset =
+		priv->rc_f ?
+			      devm_reset_control_get_by_index(priv->dev, 0) :
+			      devm_reset_control_get_shared_by_index(priv->dev, 0);
 	if (IS_ERR(priv->reset)) {
 		dev_err(priv->dev, "Failed to get reset!\n");
 		return PTR_ERR(priv->reset);
 	}
 
 	if (priv->rc_f) {
-		priv->reset_dma = devm_reset_control_get_by_index(priv->dev, 1);
+		priv->reset_dma = devm_reset_control_get_shared_by_index(priv->dev, 1);
 		if (IS_ERR(priv->reset_dma)) {
 			dev_err(priv->dev, "Failed to get ep reset!\n");
 			return PTR_ERR(priv->reset_dma);
@@ -2012,16 +2011,10 @@ static void aspeed_mctp_hw_reset(struct aspeed_mctp *priv)
 		}
 	}
 
-	if (reset_control_assert(priv->reset) != 0)
-		dev_warn(priv->dev, "Failed to assert reset\n");
-
 	if (reset_control_deassert(priv->reset) != 0)
 		dev_warn(priv->dev, "Failed to deassert reset\n");
 
 	if (priv->rc_f) {
-		if (reset_control_assert(priv->reset_dma) != 0)
-			dev_warn(priv->dev, "Failed to assert ep reset\n");
-
 		if (reset_control_deassert(priv->reset_dma) != 0)
 			dev_warn(priv->dev, "Failed to deassert ep reset\n");
 	}
@@ -2030,7 +2023,8 @@ static void aspeed_mctp_hw_reset(struct aspeed_mctp *priv)
 static int aspeed_mctp_probe(struct platform_device *pdev)
 {
 	struct aspeed_mctp *priv;
-	int ret;
+	int ret, id;
+	const char *name;
 	u16 bdf;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -2084,13 +2078,19 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 
 	aspeed_mctp_channels_init(priv);
 
-	aspeed_mctp_miscdev.parent = priv->dev;
-	ret = misc_register(&aspeed_mctp_miscdev);
+	id = ida_simple_get(&mctp_ida, 0, 0, GFP_KERNEL);
+	if (id < 0)
+		return id;
+	priv->mctp_miscdev.parent = priv->dev;
+	priv->mctp_miscdev.minor = MISC_DYNAMIC_MINOR;
+	priv->mctp_miscdev.name = kasprintf(GFP_KERNEL, "aspeed-mctp%d", id);
+	priv->mctp_miscdev.fops = &aspeed_mctp_fops;
+	ret = misc_register(&priv->mctp_miscdev);
 	if (ret) {
 		dev_err(priv->dev, "Failed to register miscdev\n");
 		goto out_dma;
 	}
-	aspeed_mctp_miscdev.this_device->type = &aspeed_mctp_type;
+	priv->mctp_miscdev.this_device->type = &aspeed_mctp_type;
 
 	ret = aspeed_mctp_irq_init(priv);
 	if (ret) {
@@ -2114,9 +2114,9 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 				   FIELD_GET(TX_MAX_PAYLOAD_SIZE_MASK, fls(ASPEED_MCTP_MTU >> 6)));
 	}
 
+	name = kasprintf(GFP_KERNEL, "peci-mctp%d", id);
 	priv->peci_mctp =
-		platform_device_register_data(priv->dev, "peci-mctp",
-					      PLATFORM_DEVID_NONE, NULL, 0);
+		platform_device_register_data(priv->dev, name, PLATFORM_DEVID_NONE, NULL, 0);
 	if (IS_ERR(priv->peci_mctp))
 		dev_err(priv->dev, "Failed to register peci-mctp device\n");
 
@@ -2139,13 +2139,18 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 
 	platform_device_unregister(priv->peci_mctp);
 
-	misc_deregister(&aspeed_mctp_miscdev);
+	misc_deregister(&priv->mctp_miscdev);
 
 	aspeed_mctp_irq_disable(priv);
 
 	aspeed_mctp_dma_fini(priv);
 
 	aspeed_mctp_drv_fini(priv);
+
+	if (priv->rc_f)
+		reset_control_assert(priv->reset_dma);
+
+	reset_control_assert(priv->reset);
 
 	return 0;
 }
