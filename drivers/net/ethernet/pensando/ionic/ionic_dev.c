@@ -129,6 +129,16 @@ int ionic_dev_setup(struct ionic *ionic)
 }
 
 /* Devcmd Interface */
+bool ionic_is_fw_running(struct ionic_dev *idev)
+{
+	u8 fw_status = ioread8(&idev->dev_info_regs->fw_status);
+
+	/* firmware is useful only if the running bit is set and
+	 * fw_status != 0xff (bad PCI read)
+	 */
+	return (fw_status != 0xff) && (fw_status & IONIC_FW_STS_F_RUNNING);
+}
+
 int ionic_heartbeat_check(struct ionic *ionic)
 {
 	struct ionic_dev *idev = &ionic->idev;
@@ -152,13 +162,10 @@ do_check_time:
 		goto do_check_time;
 	}
 
-	/* firmware is useful only if the running bit is set and
-	 * fw_status != 0xff (bad PCI read)
-	 * If fw_status is not ready don't bother with the generation.
-	 */
 	fw_status = ioread8(&idev->dev_info_regs->fw_status);
 
-	if (fw_status == 0xff || !(fw_status & IONIC_FW_STS_F_RUNNING)) {
+	/* If fw_status is not ready don't bother with the generation */
+	if (!ionic_is_fw_running(idev)) {
 		fw_status_ready = false;
 	} else {
 		fw_generation = fw_status & IONIC_FW_STS_F_GENERATION;
