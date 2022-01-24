@@ -2253,12 +2253,15 @@ config SENSORS_ASUS_WMI
 
 config SENSORS_ASUS_WMI_EC
 	tristate "ASUS WMI B550/X570"
-	depends on ACPI_WMI
+	depends on ACPI_WMI && SENSORS_ASUS_EC=n
 	help
 	  If you say yes here you get support for the ACPI embedded controller
 	  hardware monitoring interface found in B550/X570 ASUS motherboards.
 	  This driver will provide readings of fans, voltages and temperatures
 	  through the system firmware.
+
+	  This driver is deprecated in favor of the ASUS EC Sensors driver
+	  which provides fully compatible output.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_wmi_sensors_ec.
