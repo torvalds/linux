@@ -69,15 +69,54 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 	}
 }
 
-void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
-			     struct ttm_lru_bulk_move *bulk)
+/**
+ * ttm_bo_move_to_lru_tail
+ *
+ * @bo: The buffer object.
+ *
+ * Move this BO to the tail of all lru lists used to lookup and reserve an
+ * object. This function must be called with struct ttm_global::lru_lock
+ * held, and is used to make a BO less likely to be considered for eviction.
+ */
+void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
 
 	if (bo->resource)
-		ttm_resource_move_to_lru_tail(bo->resource, bulk);
+		ttm_resource_move_to_lru_tail(bo->resource);
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
+
+/**
+ * ttm_bo_set_bulk_move - update BOs bulk move object
+ *
+ * @bo: The buffer object.
+ *
+ * Update the BOs bulk move object, making sure that resources are added/removed
+ * as well. A bulk move allows to move many resource on the LRU at once,
+ * resulting in much less overhead of maintaining the LRU.
+ * The only requirement is that the resources stay together on the LRU and are
+ * never separated. This is enforces by setting the bulk_move structure on a BO.
+ * ttm_lru_bulk_move_tail() should be used to move all resources to the tail of
+ * their LRU list.
+ */
+void ttm_bo_set_bulk_move(struct ttm_buffer_object *bo,
+			  struct ttm_lru_bulk_move *bulk)
+{
+	dma_resv_assert_held(bo->base.resv);
+
+	if (bo->bulk_move == bulk)
+		return;
+
+	spin_lock(&bo->bdev->lru_lock);
+	if (bo->bulk_move && bo->resource)
+		ttm_lru_bulk_move_del(bo->bulk_move, bo->resource);
+	bo->bulk_move = bulk;
+	if (bo->bulk_move && bo->resource)
+		ttm_lru_bulk_move_add(bo->bulk_move, bo->resource);
+	spin_unlock(&bo->bdev->lru_lock);
+}
+EXPORT_SYMBOL(ttm_bo_set_bulk_move);
 
 static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_resource *mem, bool evict,
@@ -316,6 +355,7 @@ static void ttm_bo_release(struct kref *kref)
 	int ret;
 
 	WARN_ON_ONCE(bo->pin_count);
+	WARN_ON_ONCE(bo->bulk_move);
 
 	if (!bo->deleted) {
 		ret = ttm_bo_individualize_resv(bo);
@@ -352,7 +392,7 @@ static void ttm_bo_release(struct kref *kref)
 		 */
 		if (bo->pin_count) {
 			bo->pin_count = 0;
-			ttm_resource_move_to_lru_tail(bo->resource, NULL);
+			ttm_resource_move_to_lru_tail(bo->resource);
 		}
 
 		kref_init(&bo->kref);
@@ -644,7 +684,8 @@ void ttm_bo_pin(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
 	WARN_ON_ONCE(!kref_read(&bo->kref));
-	++bo->pin_count;
+	if (!(bo->pin_count++) && bo->bulk_move && bo->resource)
+		ttm_lru_bulk_move_del(bo->bulk_move, bo->resource);
 }
 EXPORT_SYMBOL(ttm_bo_pin);
 
@@ -658,10 +699,11 @@ void ttm_bo_unpin(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
 	WARN_ON_ONCE(!kref_read(&bo->kref));
-	if (bo->pin_count)
-		--bo->pin_count;
-	else
-		WARN_ON_ONCE(true);
+	if (WARN_ON_ONCE(!bo->pin_count))
+		return;
+
+	if (!(--bo->pin_count) && bo->bulk_move && bo->resource)
+		ttm_lru_bulk_move_add(bo->bulk_move, bo->resource);
 }
 EXPORT_SYMBOL(ttm_bo_unpin);
 
@@ -906,6 +948,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 	bo->moving = NULL;
 	bo->pin_count = 0;
 	bo->sg = sg;
+	bo->bulk_move = NULL;
 	if (resv) {
 		bo->base.resv = resv;
 		dma_resv_assert_held(bo->base.resv);

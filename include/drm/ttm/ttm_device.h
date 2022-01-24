@@ -199,15 +199,6 @@ struct ttm_device_funcs {
 			     void *buf, int len, int write);
 
 	/**
-	 * struct ttm_bo_driver member del_from_lru_notify
-	 *
-	 * @bo: the buffer object deleted from lru
-	 *
-	 * notify driver that a BO was deleted from LRU.
-	 */
-	void (*del_from_lru_notify)(struct ttm_buffer_object *bo);
-
-	/**
 	 * Notify the driver that we're about to release a BO
 	 *
 	 * @bo: BO that is about to be released

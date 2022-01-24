@@ -73,42 +73,77 @@ void ttm_lru_bulk_move_tail(struct ttm_lru_bulk_move *bulk)
 }
 EXPORT_SYMBOL(ttm_lru_bulk_move_tail);
 
-/* Record a resource position in a bulk move structure */
-static void ttm_lru_bulk_move_set_pos(struct ttm_lru_bulk_move_pos *pos,
-				      struct ttm_resource *res)
+/* Return the bulk move pos object for this resource */
+static struct ttm_lru_bulk_move_pos *
+ttm_lru_bulk_move_pos(struct ttm_lru_bulk_move *bulk, struct ttm_resource *res)
 {
-	if (!pos->first)
-		pos->first = res;
-	pos->last = res;
+	return &bulk->pos[res->mem_type][res->bo->priority];
 }
 
-/* Move a resource to the LRU tail and track the bulk position */
-void ttm_resource_move_to_lru_tail(struct ttm_resource *res,
-				   struct ttm_lru_bulk_move *bulk)
+/* Move the resource to the tail of the bulk move range */
+static void ttm_lru_bulk_move_pos_tail(struct ttm_lru_bulk_move_pos *pos,
+				       struct ttm_resource *res)
+{
+	if (pos->last != res) {
+		list_move(&res->lru, &pos->last->lru);
+		pos->last = res;
+	}
+}
+
+/* Add the resource to a bulk_move cursor */
+void ttm_lru_bulk_move_add(struct ttm_lru_bulk_move *bulk,
+			   struct ttm_resource *res)
+{
+	struct ttm_lru_bulk_move_pos *pos = ttm_lru_bulk_move_pos(bulk, res);
+
+	if (!pos->first) {
+		pos->first = res;
+		pos->last = res;
+	} else {
+		ttm_lru_bulk_move_pos_tail(pos, res);
+	}
+}
+
+/* Remove the resource from a bulk_move range */
+void ttm_lru_bulk_move_del(struct ttm_lru_bulk_move *bulk,
+			   struct ttm_resource *res)
+{
+	struct ttm_lru_bulk_move_pos *pos = ttm_lru_bulk_move_pos(bulk, res);
+
+	if (unlikely(pos->first == res && pos->last == res)) {
+		pos->first = NULL;
+		pos->last = NULL;
+	} else if (pos->first == res) {
+		pos->first = list_next_entry(res, lru);
+	} else if (pos->last == res) {
+		pos->last = list_prev_entry(res, lru);
+	} else {
+		list_move(&res->lru, &pos->last->lru);
+	}
+}
+
+/* Move a resource to the LRU or bulk tail */
+void ttm_resource_move_to_lru_tail(struct ttm_resource *res)
 {
 	struct ttm_buffer_object *bo = res->bo;
 	struct ttm_device *bdev = bo->bdev;
-	struct ttm_resource_manager *man;
 
 	lockdep_assert_held(&bo->bdev->lru_lock);
 
 	if (bo->pin_count) {
 		list_move_tail(&res->lru, &bdev->pinned);
-		if (bdev->funcs->del_from_lru_notify)
-			bdev->funcs->del_from_lru_notify(res->bo);
-		return;
+
+	} else	if (bo->bulk_move) {
+		struct ttm_lru_bulk_move_pos *pos =
+			ttm_lru_bulk_move_pos(bo->bulk_move, res);
+
+		ttm_lru_bulk_move_pos_tail(pos, res);
+	} else {
+		struct ttm_resource_manager *man;
+
+		man = ttm_manager_type(bdev, res->mem_type);
+		list_move_tail(&res->lru, &man->lru[bo->priority]);
 	}
-
-	man = ttm_manager_type(bdev, res->mem_type);
-	list_move_tail(&res->lru, &man->lru[bo->priority]);
-
-	if (bdev->funcs->del_from_lru_notify)
-		bdev->funcs->del_from_lru_notify(bo);
-
-	if (!bulk)
-		return;
-
-	ttm_lru_bulk_move_set_pos(&bulk->pos[res->mem_type][bo->priority], res);
 }
 
 /**
@@ -139,7 +174,10 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
 	man = ttm_manager_type(bo->bdev, place->mem_type);
 	spin_lock(&bo->bdev->lru_lock);
 	man->usage += res->num_pages << PAGE_SHIFT;
-	ttm_resource_move_to_lru_tail(res, NULL);
+	if (bo->bulk_move)
+		ttm_lru_bulk_move_add(bo->bulk_move, res);
+	else
+		ttm_resource_move_to_lru_tail(res);
 	spin_unlock(&bo->bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_resource_init);
@@ -161,8 +199,6 @@ void ttm_resource_fini(struct ttm_resource_manager *man,
 
 	spin_lock(&bdev->lru_lock);
 	list_del_init(&res->lru);
-	if (res->bo && bdev->funcs->del_from_lru_notify)
-		bdev->funcs->del_from_lru_notify(res->bo);
 	man->usage -= res->num_pages << PAGE_SHIFT;
 	spin_unlock(&bdev->lru_lock);
 }
@@ -184,6 +220,12 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
 
 	if (!*res)
 		return;
+
+	if (bo->bulk_move) {
+		spin_lock(&bo->bdev->lru_lock);
+		ttm_lru_bulk_move_del(bo->bulk_move, *res);
+		spin_unlock(&bo->bdev->lru_lock);
+	}
 
 	man = ttm_manager_type(bo->bdev, (*res)->mem_type);
 	man->func->free(man, *res);
