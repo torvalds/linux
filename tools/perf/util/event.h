@@ -308,7 +308,7 @@ struct perf_synth_intel_evt {
 		};
 		u32	cfe;
 	};
-	struct perf_synth_intel_evd evd[];
+	struct perf_synth_intel_evd evd[0];
 };
 
 struct perf_synth_intel_iflag_chg {

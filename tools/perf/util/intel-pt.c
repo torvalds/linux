@@ -49,6 +49,7 @@
 #define INTEL_PT_CFG_PASS_THRU	BIT_ULL(0)
 #define INTEL_PT_CFG_PWR_EVT_EN	BIT_ULL(4)
 #define INTEL_PT_CFG_BRANCH_EN	BIT_ULL(13)
+#define INTEL_PT_CFG_EVT_EN	BIT_ULL(31)
 
 struct range {
 	u64 start;
@@ -119,6 +120,9 @@ struct intel_pt {
 	bool single_pebs;
 	bool sample_pebs;
 	struct evsel *pebs_evsel;
+
+	u64 evt_sample_type;
+	u64 evt_id;
 
 	u64 tsc_bit;
 	u64 mtc_bit;
@@ -2166,6 +2170,45 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	return err;
 }
 
+static int intel_pt_synth_events_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct {
+		struct perf_synth_intel_evt cfe;
+		struct perf_synth_intel_evd evd[INTEL_PT_MAX_EVDS];
+	} raw;
+	int i;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id        = ptq->pt->evt_id;
+	sample.stream_id = ptq->pt->evt_id;
+
+	raw.cfe.type     = ptq->state->cfe_type;
+	raw.cfe.reserved = 0;
+	raw.cfe.ip       = !!(ptq->state->flags & INTEL_PT_FUP_IP);
+	raw.cfe.vector   = ptq->state->cfe_vector;
+	raw.cfe.evd_cnt  = ptq->state->evd_cnt;
+
+	for (i = 0; i < ptq->state->evd_cnt; i++) {
+		raw.evd[i].et       = 0;
+		raw.evd[i].evd_type = ptq->state->evd[i].type;
+		raw.evd[i].payload  = ptq->state->evd[i].payload;
+	}
+
+	sample.raw_size = perf_synth__raw_size(raw) +
+			  ptq->state->evd_cnt * sizeof(struct perf_synth_intel_evd);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, event, &sample,
+					    pt->evt_sample_type);
+}
+
 static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
 				pid_t pid, pid_t tid, u64 ip, u64 timestamp)
 {
@@ -2270,6 +2313,14 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 		err = intel_pt_synth_pebs_sample(ptq);
 		if (err)
 			return err;
+	}
+
+	if (pt->synth_opts.intr_events) {
+		if (state->type & INTEL_PT_EVT) {
+			err = intel_pt_synth_events_sample(ptq);
+			if (err)
+				return err;
+		}
 	}
 
 	if (pt->sample_pwr_events) {
@@ -3466,6 +3517,17 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 			return err;
 		pt->pwrx_id = id;
 		intel_pt_set_event_name(evlist, id, "pwrx");
+		id += 1;
+	}
+
+	if (pt->synth_opts.intr_events && (evsel->core.attr.config & INTEL_PT_CFG_EVT_EN)) {
+		attr.config = PERF_SYNTH_INTEL_EVT;
+		err = intel_pt_synth_event(session, "evt", &attr, id);
+		if (err)
+			return err;
+		pt->evt_sample_type = attr.sample_type;
+		pt->evt_id = id;
+		intel_pt_set_event_name(evlist, id, "evt");
 		id += 1;
 	}
 
