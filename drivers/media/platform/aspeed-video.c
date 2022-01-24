@@ -26,6 +26,8 @@
 #include <linux/debugfs.h>
 #include <linux/ktime.h>
 #include <linux/reset.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -207,6 +209,23 @@
 #define VE_MEM_RESTRICT_START		0x310
 #define VE_MEM_RESTRICT_END		0x314
 
+#define SCU_MISC_CTRL			0xC0
+#define  SCU_DPLL_SOURCE		BIT(20)
+
+#define GFX_CTRL			0x60
+#define  GFX_CTRL_ENABLE		BIT(0)
+#define  GFX_CTRL_FMT			GENMASK(9, 7)
+
+#define GFX_H_DISPLAY			0x70
+#define  GFX_H_DISPLAY_DE		GENMASK(28, 16)
+#define  GFX_H_DISPLAY_TOTAL		GENMASK(12, 0)
+
+#define GFX_V_DISPLAY			0x78
+#define  GFX_V_DISPLAY_DE		GENMASK(27, 16)
+#define  GFX_V_DISPLAY_TOTAL		GENMASK(11, 0)
+
+#define GFX_DISPLAY_ADDR		0x80
+
 /*
  * @VIDEO_MODE_DETECT_DONE:	a flag raised if signal lock
  * @VIDEO_RES_CHANGE:		a flag raised if res_change work on-going
@@ -224,6 +243,12 @@ enum {
 	VIDEO_FRAME_INPRG,
 	VIDEO_STOPPED,
 	VIDEO_CLOCKS_ON,
+};
+
+enum aspeed_video_input {
+	VIDEO_INPUT_VGA = 0,
+	VIDEO_INPUT_GFX,
+	VIDEO_INPUT_MAX
 };
 
 enum aspeed_video_format {
@@ -268,6 +293,7 @@ struct aspeed_video_perf {
  * @yuv420:		a flag raised if JPEG subsampling is 420
  * @format:		holds the video format
  * @hq_mode:		a flag raised if HQ is enabled. Only for VIDEO_FMT_ASPEED
+ * @input:		holds the video input
  * @frame_rate:		holds the frame_rate
  * @jpeg_quality:	holds jpeq's quality (0~11)
  * @jpeg_hq_quality:	holds hq's quality (1~12) only if hq_mode enabled
@@ -295,6 +321,9 @@ struct aspeed_video {
 	struct video_device vdev;
 	struct mutex video_lock;	/* v4l2 and videobuf2 lock */
 
+	struct regmap *scu;
+	struct regmap *gfx;
+
 	u32 version;
 	u32 jpeg_mode;
 	u32 comp_size_read;
@@ -314,6 +343,7 @@ struct aspeed_video {
 	bool yuv420;
 	enum aspeed_video_format format;
 	bool hq_mode;
+	enum aspeed_video_input input;
 	unsigned int frame_rate;
 	unsigned int jpeg_quality;
 	unsigned int jpeg_hq_quality;
@@ -490,6 +520,7 @@ static const char * const compress_scheme_str[] = {"DCT Only",
 	"DCT VQ mix 2-color", "DCT VQ mix 4-color"};
 static const char * const format_str[] = {"Standard JPEG",
 	"Aspeed JPEG"};
+static const char * const input_str[] = {"GFX", "BMC GFX"};
 
 static unsigned int debug;
 
@@ -612,6 +643,14 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 			 video->bcd.dma, video->bcd.size);
 	} else if (!bcd_buf_need && video->bcd.size) {
 		aspeed_video_free_buf(video, &video->bcd);
+	}
+
+	if (video->input == VIDEO_INPUT_GFX) {
+		u32 val;
+
+		// update input buffer address as gfx's
+		regmap_read(video->gfx, GFX_DISPLAY_ADDR, &val);
+		aspeed_video_write(video, VE_TGS_0, val);
 	}
 
 	spin_lock_irqsave(&video->lock, flags);
@@ -1043,9 +1082,23 @@ static void aspeed_video_get_timings(struct aspeed_video *v,
 		 det->hfrontporch, det->hsync, det->hbackporch, det->width);
 }
 
+static void aspeed_video_get_resolution_gfx(struct aspeed_video *video,
+					    struct v4l2_bt_timings *det)
+{
+	u32 h_val, v_val;
+
+	regmap_read(video->gfx, GFX_H_DISPLAY, &h_val);
+	regmap_read(video->gfx, GFX_V_DISPLAY, &v_val);
+
+	det->width = FIELD_GET(GFX_H_DISPLAY_DE, h_val) + 1;
+	det->height = FIELD_GET(GFX_V_DISPLAY_DE, v_val) + 1;
+	video->v4l2_input_status = 0;
+}
+
 #define res_check(v) test_and_clear_bit(VIDEO_MODE_DETECT_DONE, &(v)->flags)
 
-static void aspeed_video_get_resolution(struct aspeed_video *video)
+static void aspeed_video_get_resolution_vga(struct aspeed_video *video,
+					    struct v4l2_bt_timings *det)
 {
 	bool invalid_resolution = true;
 	int rc;
@@ -1053,7 +1106,6 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 	u32 mds;
 	u32 src_lr_edge;
 	u32 src_tb_edge;
-	struct v4l2_bt_timings *det = &video->detected_timings;
 
 	det->width = MIN_WIDTH;
 	det->height = MIN_HEIGHT;
@@ -1132,14 +1184,20 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 
 	aspeed_video_get_timings(video, det);
 
-	/*
-	 * Enable mode-detect watchdog, resolution-change watchdog and
-	 * automatic compression after frame capture.
-	 */
+	/* Enable mode-detect watchdog, resolution-change watchdog */
 	aspeed_video_update(video, VE_INTERRUPT_CTRL, 0,
 			    VE_INTERRUPT_MODE_DETECT_WD);
-	aspeed_video_update(video, VE_SEQ_CTRL, 0,
-			    VE_SEQ_CTRL_AUTO_COMP | VE_SEQ_CTRL_EN_WATCHDOG);
+	aspeed_video_update(video, VE_SEQ_CTRL, 0, VE_SEQ_CTRL_EN_WATCHDOG);
+}
+
+static void aspeed_video_get_resolution(struct aspeed_video *video)
+{
+	struct v4l2_bt_timings *det = &video->detected_timings;
+
+	if (video->input == VIDEO_INPUT_GFX)
+		aspeed_video_get_resolution_gfx(video, det);
+	else
+		aspeed_video_get_resolution_vga(video, det);
 
 	v4l2_dbg(1, debug, &video->v4l2_dev, "Got resolution: %dx%d\n",
 		 det->width, det->height);
@@ -1176,7 +1234,7 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 	aspeed_video_write(video, VE_SRC_SCANLINE_OFFSET, act->width * 4);
 
 	/* Don't use direct mode below 1024 x 768 (irqs don't fire) */
-	if (size < DIRECT_FETCH_THRESHOLD) {
+	if (video->input == VIDEO_INPUT_VGA && size < DIRECT_FETCH_THRESHOLD) {
 		v4l2_dbg(1, debug, &video->v4l2_dev, "Capture: Sync Mode\n");
 		aspeed_video_write(video, VE_TGS_0,
 				   FIELD_PREP(VE_TGS_FIRST,
@@ -1191,10 +1249,20 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 				    VE_CTRL_INT_DE | VE_CTRL_DIRECT_FETCH,
 				    VE_CTRL_INT_DE);
 	} else {
+		u32 ctrl, val, bpp;
+
 		v4l2_dbg(1, debug, &video->v4l2_dev, "Capture: Direct Mode\n");
+		ctrl = VE_CTRL_DIRECT_FETCH;
+		if (video->input == VIDEO_INPUT_GFX) {
+			regmap_read(video->gfx, GFX_CTRL, &val);
+			bpp = FIELD_GET(GFX_CTRL_FMT, val) ? 32 : 16;
+			if (bpp == 16)
+				ctrl |= VE_CTRL_INT_DE;
+			aspeed_video_write(video, VE_TGS_1, act->width * (bpp >> 3));
+		}
 		aspeed_video_update(video, VE_CTRL,
 				    VE_CTRL_INT_DE | VE_CTRL_DIRECT_FETCH,
-				    VE_CTRL_DIRECT_FETCH);
+				    ctrl);
 	}
 
 	size *= 4;
@@ -1239,6 +1307,8 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 	u32 ctrl = 0;
 	u32 seq_ctrl = 0;
 
+	v4l2_dbg(1, debug, &video->v4l2_dev, "input(%s)\n",
+		 input_str[video->input]);
 	v4l2_dbg(1, debug, &video->v4l2_dev, "framerate(%d)\n",
 		 video->frame_rate);
 	v4l2_dbg(1, debug, &video->v4l2_dev, "jpeg format(%s) subsample(%s)\n",
@@ -1255,6 +1325,9 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 		aspeed_video_update(video, VE_BCD_CTRL, 0, VE_BCD_CTRL_EN_BCD);
 	else
 		aspeed_video_update(video, VE_BCD_CTRL, VE_BCD_CTRL_EN_BCD, 0);
+
+	if (video->input == VIDEO_INPUT_VGA)
+		ctrl |= VE_CTRL_AUTO_OR_CURSOR;
 
 	if (video->frame_rate)
 		ctrl |= FIELD_PREP(VE_CTRL_FRC, video->frame_rate);
@@ -1289,7 +1362,7 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 	aspeed_video_update(video, VE_SEQ_CTRL,
 			    video->jpeg_mode | VE_SEQ_CTRL_YUV420,
 			    seq_ctrl);
-	aspeed_video_update(video, VE_CTRL, VE_CTRL_FRC, ctrl);
+	aspeed_video_update(video, VE_CTRL, VE_CTRL_FRC | VE_CTRL_AUTO_OR_CURSOR, ctrl);
 	aspeed_video_update(video, VE_COMP_CTRL,
 			    VE_COMP_CTRL_DCT_LUM | VE_COMP_CTRL_DCT_CHR |
 			    VE_COMP_CTRL_EN_HQ | VE_COMP_CTRL_HQ_DCT_LUM |
@@ -1314,6 +1387,7 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 	aspeed_video_write(video, VE_JPEG_ADDR, video->jpeg.dma);
 
 	/* Set control registers */
+	aspeed_video_write(video, VE_SEQ_CTRL, VE_SEQ_CTRL_AUTO_COMP);
 	aspeed_video_write(video, VE_CTRL, VE_CTRL_AUTO_OR_CURSOR);
 	aspeed_video_write(video, VE_COMP_CTRL, VE_COMP_CTRL_RSVD);
 
@@ -1335,9 +1409,44 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 	aspeed_video_write(video, VE_BCD_CTRL, 0);
 }
 
+/*
+ * Decide video's input.
+ * Check if bmc's gfx enabled to decide.
+ *
+ * @v: the struct of aspeed_video
+ */
+static void aspeed_video_decide_input(struct aspeed_video *v)
+{
+	u32 val;
+
+	if (IS_ERR(v->scu)) {
+		v4l2_dbg(1, debug, &v->v4l2_dev, "%s: scu isn't ready for input-control\n", __func__);
+		return;
+	}
+
+	if (IS_ERR(v->gfx)) {
+		v4l2_dbg(1, debug, &v->v4l2_dev, "%s: gfx isn't ready for input-control\n", __func__);
+		return;
+	}
+
+	regmap_read(v->gfx, GFX_CTRL, &val);
+	if (val & GFX_CTRL_ENABLE)
+		v->input = VIDEO_INPUT_GFX;
+	else
+		v->input = VIDEO_INPUT_VGA;
+
+	// modify dpll source per current input
+	if (v->input == VIDEO_INPUT_VGA)
+		regmap_update_bits(v->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, 0);
+	else
+		regmap_update_bits(v->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, SCU_DPLL_SOURCE);
+}
+
 static void aspeed_video_start(struct aspeed_video *video)
 {
 	aspeed_video_on(video);
+
+	aspeed_video_decide_input(video);
 
 	aspeed_video_init_regs(video);
 
@@ -1971,6 +2080,7 @@ static int aspeed_video_debugfs_show(struct seq_file *s, void *data)
 	val08 = aspeed_video_read(v, VE_CTRL);
 	if (FIELD_GET(VE_CTRL_DIRECT_FETCH, val08)) {
 		seq_printf(s, "  %-20s:\tDirect fetch\n", "Mode");
+		seq_printf(s, "  %-20s:\t%s\n", "Input", input_str[v->input]);
 		seq_printf(s, "  %-20s:\t%s\n", "VGA bpp mode",
 			   FIELD_GET(VE_CTRL_INT_DE, val08) ? "16" : "32");
 	} else {
@@ -2254,6 +2364,15 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	video->version = config->version;
 	video->jpeg_mode = config->jpeg_mode;
 	video->comp_size_read = config->comp_size_read;
+
+	if (video->version == 6) {
+		video->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
+		video->gfx = syscon_regmap_lookup_by_compatible("aspeed,ast2600-gfx");
+		if (IS_ERR(video->scu))
+			dev_err(video->dev, "can't find regmap for scu");
+		if (IS_ERR(video->gfx))
+			dev_err(video->dev, "can't find regmap for gfx");
+	}
 
 	video->frame_rate = 30;
 	video->jpeg_hq_quality = 1;
