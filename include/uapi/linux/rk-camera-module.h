@@ -124,6 +124,55 @@
 #define RKMODULE_SET_SYNC_MODE       \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 22, __u32)
 
+#define RKMODULE_SET_MCLK       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 23, __u32)
+
+#define RKMODULE_SET_LINK_FREQ       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 24, __s64)
+
+#define RKMODULE_SET_BUS_CONFIG       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 25, struct rkmodule_bus_config)
+
+#define RKMODULE_GET_BUS_CONFIG       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 26, struct rkmodule_bus_config)
+
+#define RKMODULE_SET_REGISTER       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 27, struct rkmodule_reg)
+
+#define RKMODULE_SYNC_I2CDEV       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 28, __u8)
+
+#define RKMODULE_SYNC_I2CDEV_COMPLETE       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 29, __u8)
+
+/* csi0/csi1 phy support full/split mode */
+enum rkmodule_phy_mode {
+	PHY_FULL_MODE,
+	PHY_SPLIT_01,
+	PHY_SPLIT_23,
+};
+
+struct rkmodule_mipi_lvds_bus {
+	__u32 bus_type;
+	__u32 lanes;
+	__u32 phy_mode; /* data type enum rkmodule_phy_mode */
+};
+
+struct rkmodule_bus_config {
+	union {
+		struct rkmodule_mipi_lvds_bus bus;
+		__u32 reserved[32];
+	};
+} __attribute__ ((packed));
+
+struct rkmodule_reg {
+	__u64 num_regs;
+	__u64 preg_addr;
+	__u64 preg_value;
+	__u64 preg_addr_bytes;
+	__u64 preg_value_bytes;
+} __attribute__ ((packed));
+
 /**
  * struct rkmodule_base_inf - module base information
  *
