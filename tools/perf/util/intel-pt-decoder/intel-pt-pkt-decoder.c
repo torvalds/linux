@@ -504,6 +504,7 @@ static int intel_pt_get_mode(const unsigned char *buf, size_t len,
 	switch (buf[1] >> 5) {
 	case 0:
 		packet->type = INTEL_PT_MODE_EXEC;
+		packet->count = buf[1];
 		switch (buf[1] & 3) {
 		case 0:
 			packet->payload = 16;
@@ -741,7 +742,8 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 		return snprintf(buf, buf_len, "%s CTC 0x%x FC 0x%x", name,
 				(unsigned)payload, packet->count);
 	case INTEL_PT_MODE_EXEC:
-		return snprintf(buf, buf_len, "%s %lld", name, payload);
+		return snprintf(buf, buf_len, "%s IF:%d %lld",
+				name, !!(packet->count & 4), payload);
 	case INTEL_PT_MODE_TSX:
 		return snprintf(buf, buf_len, "%s TXAbort:%u InTX:%u",
 				name, (unsigned)(payload >> 1) & 1,

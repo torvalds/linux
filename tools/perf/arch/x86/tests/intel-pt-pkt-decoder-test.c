@@ -70,8 +70,11 @@ static struct test_data {
 	{8, {0x02, 0x43, 3, 4, 6, 8, 10, 12}, 0, {INTEL_PT_PIP, 0, 0xC0A08060403}, 0, 0 },
 	/* Mode Exec Packet */
 	{2, {0x99, 0x00}, 0, {INTEL_PT_MODE_EXEC, 0, 16}, 0, 0 },
-	{2, {0x99, 0x01}, 0, {INTEL_PT_MODE_EXEC, 0, 64}, 0, 0 },
-	{2, {0x99, 0x02}, 0, {INTEL_PT_MODE_EXEC, 0, 32}, 0, 0 },
+	{2, {0x99, 0x01}, 0, {INTEL_PT_MODE_EXEC, 1, 64}, 0, 0 },
+	{2, {0x99, 0x02}, 0, {INTEL_PT_MODE_EXEC, 2, 32}, 0, 0 },
+	{2, {0x99, 0x04}, 0, {INTEL_PT_MODE_EXEC, 4, 16}, 0, 0 },
+	{2, {0x99, 0x05}, 0, {INTEL_PT_MODE_EXEC, 5, 64}, 0, 0 },
+	{2, {0x99, 0x06}, 0, {INTEL_PT_MODE_EXEC, 6, 32}, 0, 0 },
 	/* Mode TSX Packet */
 	{2, {0x99, 0x20}, 0, {INTEL_PT_MODE_TSX, 0, 0}, 0, 0 },
 	{2, {0x99, 0x21}, 0, {INTEL_PT_MODE_TSX, 0, 1}, 0, 0 },
