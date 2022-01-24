@@ -250,6 +250,39 @@ static void attiny_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 	mutex_unlock(&state->lock);
 }
 
+static int attiny_i2c_read(struct i2c_client *client, u8 reg, unsigned int *buf)
+{
+	struct i2c_msg msgs[1];
+	u8 addr_buf[1] = { reg };
+	u8 data_buf[1] = { 0, };
+	int ret;
+
+	/* Write register address */
+	msgs[0].addr = client->addr;
+	msgs[0].flags = 0;
+	msgs[0].len = ARRAY_SIZE(addr_buf);
+	msgs[0].buf = addr_buf;
+
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	if (ret != ARRAY_SIZE(msgs))
+		return -EIO;
+
+	usleep_range(5000, 10000);
+
+	/* Read data from register */
+	msgs[0].addr = client->addr;
+	msgs[0].flags = I2C_M_RD;
+	msgs[0].len = 1;
+	msgs[0].buf = data_buf;
+
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	if (ret != ARRAY_SIZE(msgs))
+		return -EIO;
+
+	*buf = data_buf[0];
+	return 0;
+}
+
 /*
  * I2C driver interface functions
  */
@@ -280,7 +313,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c,
 		goto error;
 	}
 
-	ret = regmap_read(regmap, REG_ID, &data);
+	ret = attiny_i2c_read(i2c, REG_ID, &data);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to read REG_ID reg: %d\n", ret);
 		goto error;
