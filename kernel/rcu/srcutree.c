@@ -562,6 +562,7 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	unsigned long mask;
 	struct srcu_data *sdp;
 	struct srcu_node *snp;
+	int ss_state;
 
 	/* Prevent more than one additional grace period. */
 	mutex_lock(&ssp->srcu_cb_mutex);
@@ -628,6 +629,15 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 		srcu_reschedule(ssp, 0);
 	} else {
 		spin_unlock_irq_rcu_node(ssp);
+	}
+
+	/* Transition to big if needed. */
+	ss_state = smp_load_acquire(&ssp->srcu_size_state);
+	if (ss_state != SRCU_SIZE_SMALL && ss_state != SRCU_SIZE_BIG) {
+		if (ss_state == SRCU_SIZE_ALLOC)
+			init_srcu_struct_nodes(ssp);
+		else
+			smp_store_release(&ssp->srcu_size_state, ss_state + 1);
 	}
 }
 
@@ -1178,6 +1188,7 @@ static void srcu_barrier_one_cpu(struct srcu_struct *ssp, struct srcu_data *sdp)
 void srcu_barrier(struct srcu_struct *ssp)
 {
 	int cpu;
+	int idx;
 	unsigned long s = rcu_seq_snap(&ssp->srcu_barrier_seq);
 
 	check_init_srcu_struct(ssp);
@@ -1193,11 +1204,13 @@ void srcu_barrier(struct srcu_struct *ssp)
 	/* Initial count prevents reaching zero until all CBs are posted. */
 	atomic_set(&ssp->srcu_barrier_cpu_cnt, 1);
 
+	idx = srcu_read_lock(ssp);
 	if (smp_load_acquire(&ssp->srcu_size_state) < SRCU_SIZE_WAIT_BARRIER)
 		srcu_barrier_one_cpu(ssp, per_cpu_ptr(ssp->sda, 0));
 	else
 		for_each_possible_cpu(cpu)
 			srcu_barrier_one_cpu(ssp, per_cpu_ptr(ssp->sda, cpu));
+	srcu_read_unlock(ssp, idx);
 
 	/* Remove the initial count, at which point reaching zero can happen. */
 	if (atomic_dec_and_test(&ssp->srcu_barrier_cpu_cnt))
