@@ -641,7 +641,12 @@ static __init int cxl_test_init(void)
 			platform_device_put(pdev);
 			goto err_bridge;
 		}
+
 		cxl_host_bridge[i] = pdev;
+		rc = sysfs_create_link(&pdev->dev.kobj, &pdev->dev.kobj,
+				       "physical_node");
+		if (rc)
+			goto err_bridge;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(cxl_root_port); i++) {
@@ -745,8 +750,14 @@ err_port:
 	for (i = ARRAY_SIZE(cxl_root_port) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_root_port[i]);
 err_bridge:
-	for (i = ARRAY_SIZE(cxl_host_bridge) - 1; i >= 0; i--)
+	for (i = ARRAY_SIZE(cxl_host_bridge) - 1; i >= 0; i--) {
+		struct platform_device *pdev = cxl_host_bridge[i];
+
+		if (!pdev)
+			continue;
+		sysfs_remove_link(&pdev->dev.kobj, "physical_node");
 		platform_device_unregister(cxl_host_bridge[i]);
+	}
 err_populate:
 	depopulate_all_mock_resources();
 err_gen_pool_add:
@@ -769,8 +780,14 @@ static __exit void cxl_test_exit(void)
 		platform_device_unregister(cxl_switch_uport[i]);
 	for (i = ARRAY_SIZE(cxl_root_port) - 1; i >= 0; i--)
 		platform_device_unregister(cxl_root_port[i]);
-	for (i = ARRAY_SIZE(cxl_host_bridge) - 1; i >= 0; i--)
+	for (i = ARRAY_SIZE(cxl_host_bridge) - 1; i >= 0; i--) {
+		struct platform_device *pdev = cxl_host_bridge[i];
+
+		if (!pdev)
+			continue;
+		sysfs_remove_link(&pdev->dev.kobj, "physical_node");
 		platform_device_unregister(cxl_host_bridge[i]);
+	}
 	depopulate_all_mock_resources();
 	gen_pool_destroy(cxl_mock_pool);
 	unregister_cxl_mock_ops(&cxl_mock_ops);
