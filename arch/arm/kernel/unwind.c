@@ -55,6 +55,7 @@ struct unwind_ctrl_block {
 	const unsigned long *insn;	/* pointer to the current instructions word */
 	unsigned long sp_low;		/* lowest value of sp allowed */
 	unsigned long sp_high;		/* highest value of sp allowed */
+	unsigned long *lr_addr;		/* address of LR value on the stack */
 	/*
 	 * 1 : check for stack overflow for each register pop.
 	 * 0 : save overhead if there is plenty of stack remaining.
@@ -239,6 +240,8 @@ static int unwind_pop_register(struct unwind_ctrl_block *ctrl,
 	 * from being tracked by KASAN.
 	 */
 	ctrl->vrs[reg] = READ_ONCE_NOCHECK(*(*vsp));
+	if (reg == 14)
+		ctrl->lr_addr = *vsp;
 	(*vsp)++;
 	return URC_OK;
 }
@@ -395,9 +398,6 @@ int unwind_frame(struct stackframe *frame)
 	pr_debug("%s(pc = %08lx lr = %08lx sp = %08lx)\n", __func__,
 		 frame->pc, frame->lr, frame->sp);
 
-	if (!kernel_text_address(frame->pc))
-		return -URC_FAILURE;
-
 	idx = unwind_find_idx(frame->pc);
 	if (!idx) {
 		pr_warn("unwind: Index not found %08lx\n", frame->pc);
@@ -476,6 +476,7 @@ int unwind_frame(struct stackframe *frame)
 	frame->lr = ctrl.vrs[LR];
 	frame->pc = ctrl.vrs[PC];
 	frame->sp_low = ctrl.sp_low;
+	frame->lr_addr = ctrl.lr_addr;
 
 	return URC_OK;
 }
