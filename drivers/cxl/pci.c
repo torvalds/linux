@@ -10,7 +10,7 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 #include "cxlmem.h"
-#include "pci.h"
+#include "cxlpci.h"
 #include "cxl.h"
 
 /**

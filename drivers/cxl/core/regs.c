@@ -5,7 +5,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <cxlmem.h>
-#include <pci.h>
+#include <cxlpci.h>
 
 /**
  * DOC: cxl registers
