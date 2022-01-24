@@ -15,6 +15,7 @@
 #include <linux/bcd.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -136,6 +137,8 @@ static const unsigned long refclk_list[] = {
 
 struct sft_rtc {
 	struct rtc_device *rtc_dev;
+	struct completion cal_done;
+	struct completion onesec_done;
 	struct clk *pclk;
 	struct clk *cal_clk;
 	int hw_cal_map;
@@ -271,19 +274,18 @@ static inline void sft_rtc_update_pulse(struct sft_rtc *srtc)
 
 static irqreturn_t sft_rtc_irq_handler(int irq, void *data)
 {
-	struct device *dev = data;
-	struct sft_rtc *srtc = dev_get_drvdata(dev);
+	struct sft_rtc *srtc = data;
 	u32 irq_flags = 0, irq_mask = 0;
 	u32 val;
-
-	mutex_lock(&srtc->rtc_dev->ops_lock);
 
 	val = readl(srtc->regs + SFT_RTC_IRQ_EVEVT);
 	if (val & RTC_IRQ_CAL_START)
 		irq_mask |= RTC_IRQ_CAL_START;
 
-	if (val & RTC_IRQ_CAL_FINISH)
+	if (val & RTC_IRQ_CAL_FINISH) {
 		irq_mask |= RTC_IRQ_CAL_FINISH;
+		complete(&srtc->cal_done);
+	}
 
 	if (val & RTC_IRQ_CMP)
 		irq_mask |= RTC_IRQ_CMP;
@@ -291,19 +293,25 @@ static irqreturn_t sft_rtc_irq_handler(int irq, void *data)
 	if (val & RTC_IRQ_1SEC) {
 		irq_flags |= RTC_PF;
 		irq_mask |= RTC_IRQ_1SEC;
+		complete(&srtc->onesec_done);
 	}
 
 	if (val & RTC_IRQ_ALAEM) {
 		irq_flags |= RTC_AF;
 		irq_mask |= RTC_IRQ_ALAEM;
 	}
-	/* clear interrupt */
-	writel(irq_mask, srtc->regs + SFT_RTC_IRQ_EVEVT);
+
+	/*
+	 * Hardware workaround:
+	 * need to keep clearing interrupts until the clearing succeeds
+	 */
+	do {
+		writel(irq_mask, srtc->regs + SFT_RTC_IRQ_EVEVT);
+
+	} while (readl(srtc->regs + SFT_RTC_IRQ_EVEVT) & irq_mask);
 
 	if (irq_flags)
 		rtc_update_irq(srtc->rtc_dev, 1, irq_flags | RTC_IRQF);
-
-	mutex_unlock(&srtc->rtc_dev->ops_lock);
 
 	return IRQ_HANDLED;
 }
@@ -341,13 +349,8 @@ static int sft_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	sft_rtc_update_pulse(srtc);
 
 	/* Ensure that data is fully written */
-	do {
-		val = readl(srtc->regs + SFT_RTC_IRQ_STATUS) & RTC_IRQ_1SEC;
-	} while (val);
-
-	/* Delay: Noc bus to IP direct data delay */
-	udelay(120);
-
+	wait_for_completion_interruptible_timeout(&srtc->onesec_done,
+						usecs_to_jiffies(120));
 	return 0;
 }
 
@@ -443,9 +446,16 @@ static __maybe_unused int
 sft_rtc_hw_adjustmen(struct device *dev, unsigned int enable)
 {
 	struct sft_rtc *srtc = dev_get_drvdata(dev);
-	int val;
+	u32 val;
+
+	if (srtc->hw_cal_map <= 0) {
+		dev_err(dev, "fail to get cal-clock-freq.\n");
+		return -EFAULT;
+	}
 
 	if (enable) {
+		sft_rtc_irq_enable(srtc, RTC_IRQ_CAL_FINISH, true);
+
 		/* Set reference clock frequency value */
 		val = readl(srtc->regs + SFT_RTC_HW_CAL_CFG);
 		val |= (srtc->hw_cal_map << RTC_HW_CAL_FRQ_SEL_SHIFT);
@@ -457,10 +467,10 @@ sft_rtc_hw_adjustmen(struct device *dev, unsigned int enable)
 		/* Set CFG_RTC-cal_en_hw to launch hardware calibretion.*/
 		sft_rtc_set_cal_hw_enable(srtc, true);
 
-		do {
-			val = readl(srtc->regs + SFT_RTC_IRQ_STATUS) & RTC_IRQ_CAL_FINISH;
-		} while (val);
+		wait_for_completion_interruptible_timeout(&srtc->cal_done,
+							usecs_to_jiffies(100));
 
+		sft_rtc_irq_enable(srtc, RTC_IRQ_CAL_FINISH, false);
 	} else {
 		sft_rtc_set_cal_mode(srtc, RTC_CAL_MODE_SW);
 		sft_rtc_set_cal_hw_enable(srtc, false);
@@ -511,20 +521,19 @@ err_disable_cal_clk:
 	return ret;
 }
 
-static int sft_rtc_get_irq(struct device *dev, struct sft_rtc *srtc)
+static int sft_rtc_get_irq(struct platform_device *pdev, struct sft_rtc *srtc)
 {
-	struct device_node *np = dev->of_node;
 	int ret;
 
-	srtc->rtc_irq = of_irq_get_byname(np, "rtc");
+	srtc->rtc_irq = platform_get_irq_byname(pdev, "rtc");
 	if (srtc->rtc_irq < 0)
 		return -EINVAL;
 
-	ret = devm_request_irq(dev, srtc->rtc_irq,
+	ret = devm_request_irq(&pdev->dev, srtc->rtc_irq,
 				sft_rtc_irq_handler, 0,
-				dev_name(dev), &dev);
+				KBUILD_MODNAME, srtc);
 	if (ret)
-		dev_err(dev, "Failed to request interrupt, %d\n", ret);
+		dev_err(&pdev->dev, "Failed to request interrupt, %d\n", ret);
 
 	return ret;
 }
@@ -553,10 +562,6 @@ static int sft_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(srtc->regs))
 		return PTR_ERR(srtc->regs);
 
-	ret = sft_rtc_get_irq(dev, srtc);
-	if (ret)
-		return ret;
-
 	srtc->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(srtc->pclk)) {
 		ret = PTR_ERR(srtc->pclk);
@@ -564,6 +569,9 @@ static int sft_rtc_probe(struct platform_device *pdev)
 			"Failed to retrieve the peripheral clock, %d\n", ret);
 		return ret;
 	}
+
+	init_completion(&srtc->cal_done);
+	init_completion(&srtc->onesec_done);
 
 	ret = clk_prepare_enable(srtc->pclk);
 	if (ret) {
@@ -575,6 +583,10 @@ static int sft_rtc_probe(struct platform_device *pdev)
 	ret = sft_rtc_get_cal_clk(dev, srtc);
 	if (ret)
 		goto err_disable_pclk;
+
+	ret = sft_rtc_get_irq(pdev, srtc);
+	if (ret)
+		return ret;
 
 	srtc->rtc_dev = devm_rtc_allocate_device(dev);
 	if (IS_ERR(srtc->rtc_dev))
@@ -593,6 +605,9 @@ static int sft_rtc_probe(struct platform_device *pdev)
 	sft_rtc_set_mode(srtc, RTC_HOUR_MODE_24H);
 
 	sft_rtc_set_enabled(srtc, true);
+
+	if (device_property_read_bool(dev, "rtc,hw-adjustment"))
+		sft_rtc_hw_adjustmen(dev, true);
 
 	ret = devm_rtc_register_device(srtc->rtc_dev);
 	if (ret)
