@@ -131,6 +131,9 @@
 		  3. Shifted Queuing Work to end of resume to prevent MSI disable on resume.
 		  4. Version update
  *  VERSION     : 01-00-37
+ *  24 Jan 2022 : 1. Set Clock control and Reset control register to default value on driver unload.
+ *		  2. Version update
+ *  VERSION     : 01-00-38
  */
 
 #include <linux/clk-provider.h>
@@ -195,7 +198,7 @@ static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
 unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
 unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 7};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 3, 8};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -2721,6 +2724,8 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
+	void *nrst_reg, *nclk_reg;
+	u32 nrst_val, nclk_val;
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 
@@ -2734,6 +2739,23 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 	 */
 	if (priv->plat->phy_addr != -1)
 		tc956xmac_dvr_remove(&pdev->dev);
+
+	/* Set reset value for CLK control and RESET Control registers */
+	if (priv->port_num == 0) {
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+		nrst_val = NRSTCTRL0_DEFAULT; 
+		nclk_val = NCLKCTRL0_DEFAULT;
+	} else {
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL1_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL1_OFFSET;
+		nrst_val = NRSTCTRL_EMAC_MASK;
+		nclk_val = 0;		
+	}
+	writel(nrst_val, nrst_reg);
+	writel(nclk_val, nclk_reg);
+	KPRINT_INFO("%s : Port %d Wr RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
+		readl(nrst_reg), readl(nclk_reg));
 
 	pdev->irq = 0;
 
