@@ -365,8 +365,12 @@ retry:
 	MLX5_SET(manage_pages_in, in, input_num_entries, npages);
 	MLX5_SET(manage_pages_in, in, embedded_cpu_function, ec_function);
 
-	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+	err = mlx5_cmd_do(dev, in, inlen, out, sizeof(out));
 	if (err) {
+		if (err == -EREMOTEIO)
+			notify_fail = 0;
+
+		err = mlx5_cmd_check(dev, err, in, out);
 		mlx5_core_warn(dev, "func_id 0x%x, npages %d, err %d\n",
 			       func_id, npages, err);
 		goto out_4k;
