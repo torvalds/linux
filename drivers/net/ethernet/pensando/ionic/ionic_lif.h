@@ -214,7 +214,6 @@ struct ionic_lif {
 	u32 rx_coalesce_hw;		/* what the hw is using */
 	u32 tx_coalesce_usecs;		/* what the user asked for */
 	u32 tx_coalesce_hw;		/* what the hw is using */
-	unsigned long *dbid_inuse;
 	unsigned int dbid_count;
 
 	struct ionic_phc *phc;

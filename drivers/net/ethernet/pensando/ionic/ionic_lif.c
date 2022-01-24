@@ -3014,8 +3014,6 @@ void ionic_lif_free(struct ionic_lif *lif)
 	/* unmap doorbell page */
 	ionic_bus_unmap_dbpage(lif->ionic, lif->kern_dbpage);
 	lif->kern_dbpage = NULL;
-	kfree(lif->dbid_inuse);
-	lif->dbid_inuse = NULL;
 
 	mutex_destroy(&lif->config_lock);
 	mutex_destroy(&lif->queue_lock);
@@ -3215,22 +3213,12 @@ int ionic_lif_init(struct ionic_lif *lif)
 		return -EINVAL;
 	}
 
-	lif->dbid_inuse = bitmap_zalloc(lif->dbid_count, GFP_KERNEL);
-	if (!lif->dbid_inuse) {
-		dev_err(dev, "Failed alloc doorbell id bitmap, aborting\n");
-		return -ENOMEM;
-	}
-
-	/* first doorbell id reserved for kernel (dbid aka pid == zero) */
-	set_bit(0, lif->dbid_inuse);
 	lif->kern_pid = 0;
-
 	dbpage_num = ionic_db_page_num(lif, lif->kern_pid);
 	lif->kern_dbpage = ionic_bus_map_dbpage(lif->ionic, dbpage_num);
 	if (!lif->kern_dbpage) {
 		dev_err(dev, "Cannot map dbpage, aborting\n");
-		err = -ENOMEM;
-		goto err_out_free_dbid;
+		return -ENOMEM;
 	}
 
 	err = ionic_lif_adminq_init(lif);
@@ -3273,9 +3261,6 @@ err_out_adminq_deinit:
 	ionic_lif_reset(lif);
 	ionic_bus_unmap_dbpage(lif->ionic, lif->kern_dbpage);
 	lif->kern_dbpage = NULL;
-err_out_free_dbid:
-	kfree(lif->dbid_inuse);
-	lif->dbid_inuse = NULL;
 
 	return err;
 }
