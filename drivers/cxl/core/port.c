@@ -46,8 +46,14 @@ static ssize_t start_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+	u64 start;
 
-	return sysfs_emit(buf, "%#llx\n", cxld->range.start);
+	if (is_root_decoder(dev))
+		start = cxld->platform_res.start;
+	else
+		start = cxld->decoder_range.start;
+
+	return sysfs_emit(buf, "%#llx\n", start);
 }
 static DEVICE_ATTR_ADMIN_RO(start);
 
@@ -55,8 +61,14 @@ static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+	u64 size;
 
-	return sysfs_emit(buf, "%#llx\n", range_len(&cxld->range));
+	if (is_root_decoder(dev))
+		size = resource_size(&cxld->platform_res);
+	else
+		size = range_len(&cxld->decoder_range);
+
+	return sysfs_emit(buf, "%#llx\n", size);
 }
 static DEVICE_ATTR_RO(size);
 
@@ -545,6 +557,13 @@ int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map)
 	rc = dev_set_name(dev, "decoder%d.%d", port->id, cxld->id);
 	if (rc)
 		return rc;
+
+	/*
+	 * Platform decoder resources should show up with a reasonable name. All
+	 * other resources are just sub ranges within the main decoder resource.
+	 */
+	if (is_root_decoder(dev))
+		cxld->platform_res.name = dev_name(dev);
 
 	return device_add(dev);
 }
