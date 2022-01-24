@@ -459,7 +459,7 @@ extern int submit_bio_wait(struct bio *bio);
 void bio_init(struct bio *bio, struct block_device *bdev, struct bio_vec *table,
 	      unsigned short max_vecs, unsigned int opf);
 extern void bio_uninit(struct bio *);
-extern void bio_reset(struct bio *);
+void bio_reset(struct bio *bio, struct block_device *bdev, unsigned int opf);
 void bio_chain(struct bio *, struct bio *);
 
 int bio_add_page(struct bio *, struct page *, unsigned len, unsigned off);
@@ -515,13 +515,6 @@ static inline void bio_set_dev(struct bio *bio, struct block_device *bdev)
 		bio_clear_flag(bio, BIO_THROTTLED);
 	bio->bi_bdev = bdev;
 	bio_associate_blkg(bio);
-}
-
-static inline void bio_copy_dev(struct bio *dst, struct bio *src)
-{
-	bio_clear_flag(dst, BIO_REMAPPED);
-	dst->bi_bdev = src->bi_bdev;
-	bio_clone_blkg_association(dst, src);
 }
 
 /*

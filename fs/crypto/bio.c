@@ -80,9 +80,7 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 			err = submit_bio_wait(bio);
 			if (err)
 				goto out;
-			bio_reset(bio);
-			bio_set_dev(bio, inode->i_sb->s_bdev);
-			bio->bi_opf = REQ_OP_WRITE;
+			bio_reset(bio, inode->i_sb->s_bdev, REQ_OP_WRITE);
 			num_pages = 0;
 		}
 	}
@@ -181,9 +179,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 		err = submit_bio_wait(bio);
 		if (err)
 			goto out;
-		bio_reset(bio);
-		bio_set_dev(bio, inode->i_sb->s_bdev);
-		bio->bi_opf = REQ_OP_WRITE;
+		bio_reset(bio, inode->i_sb->s_bdev, REQ_OP_WRITE);
 	} while (len != 0);
 	err = 0;
 out:

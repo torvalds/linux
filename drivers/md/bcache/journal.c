@@ -53,14 +53,12 @@ static int journal_read_bucket(struct cache *ca, struct list_head *list,
 reread:		left = ca->sb.bucket_size - offset;
 		len = min_t(unsigned int, left, PAGE_SECTORS << JSET_BITS);
 
-		bio_reset(bio);
+		bio_reset(bio, ca->bdev, REQ_OP_READ);
 		bio->bi_iter.bi_sector	= bucket + offset;
-		bio_set_dev(bio, ca->bdev);
 		bio->bi_iter.bi_size	= len << 9;
 
 		bio->bi_end_io	= journal_read_endio;
 		bio->bi_private = &cl;
-		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		bch_bio_map(bio, data);
 
 		closure_bio_submit(ca->set, bio, &cl);
@@ -771,16 +769,14 @@ static void journal_write_unlocked(struct closure *cl)
 
 		atomic_long_add(sectors, &ca->meta_sectors_written);
 
-		bio_reset(bio);
+		bio_reset(bio, ca->bdev, REQ_OP_WRITE | 
+			  REQ_SYNC | REQ_META | REQ_PREFLUSH | REQ_FUA);
+		bch_bio_map(bio, w->data);
 		bio->bi_iter.bi_sector	= PTR_OFFSET(k, i);
-		bio_set_dev(bio, ca->bdev);
 		bio->bi_iter.bi_size = sectors << 9;
 
 		bio->bi_end_io	= journal_write_endio;
 		bio->bi_private = w;
-		bio_set_op_attrs(bio, REQ_OP_WRITE,
-				 REQ_SYNC|REQ_META|REQ_PREFLUSH|REQ_FUA);
-		bch_bio_map(bio, w->data);
 
 		trace_bcache_journal_write(bio, w->data->keys);
 		bio_list_add(&list, bio);
