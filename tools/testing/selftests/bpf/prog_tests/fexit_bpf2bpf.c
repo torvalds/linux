@@ -132,7 +132,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 					     &link_info, &info_len);
 		ASSERT_OK(err, "link_fd_get_info");
 		ASSERT_EQ(link_info.tracing.attach_type,
-			  bpf_program__get_expected_attach_type(prog[i]),
+			  bpf_program__expected_attach_type(prog[i]),
 			  "link_attach_type");
 		ASSERT_EQ(link_info.tracing.target_obj_id, tgt_prog_id, "link_tgt_obj_id");
 		ASSERT_EQ(link_info.tracing.target_btf_id, btf_id, "link_tgt_btf_id");
