@@ -22,6 +22,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-device.h>
 #include "phy-rockchip-csi2-dphy-common.h"
+#include <linux/rk-camera-module.h>
 
 struct sensor_async_subdev {
 	struct v4l2_async_subdev asd;
@@ -102,6 +103,7 @@ static int csi2_dphy_update_sensor_mbus(struct v4l2_subdev *sd)
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
 	struct csi2_sensor *sensor = sd_to_sensor(dphy, sensor_sd);
 	struct v4l2_mbus_config mbus;
+	struct rkmodule_bus_config bus_config;
 	int ret;
 
 	ret = v4l2_subdev_call(sensor_sd, pad, get_mbus_config, 0, &mbus);
@@ -125,8 +127,46 @@ static int csi2_dphy_update_sensor_mbus(struct v4l2_subdev *sd)
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
+	ret = v4l2_subdev_call(sensor_sd, core, ioctl, RKMODULE_GET_BUS_CONFIG, &bus_config);
+	if (!ret) {
+		dev_info(dphy->dev, "phy_mode %d,lane %d\n",
+			 bus_config.bus.phy_mode, bus_config.bus.lanes);
+		if (bus_config.bus.phy_mode == PHY_FULL_MODE) {
+			if (dphy->dphy_hw->drv_data->chip_id == CHIP_ID_RK3588 && dphy->phy_index % 3 == 2) {
+				dev_err(dphy->dev, "%s dphy%d only use for PHY_SPLIT_23\n",
+					__func__, dphy->phy_index);
+				ret = -EINVAL;
+			}
+			dphy->lane_mode = LANE_MODE_FULL;
+		} else if (bus_config.bus.phy_mode == PHY_SPLIT_01) {
+			if (dphy->dphy_hw->drv_data->chip_id == CHIP_ID_RK3588_DCPHY) {
+				dev_err(dphy->dev, "%s The chip not support split mode\n",
+					__func__);
+				ret = -EINVAL;
+			} else if (dphy->phy_index % 3 == 2) {
+				dev_err(dphy->dev, "%s dphy%d only use for PHY_SPLIT_23\n",
+					__func__, dphy->phy_index);
+				ret = -EINVAL;
+			} else {
+				dphy->lane_mode = LANE_MODE_SPLIT;
+			}
+		} else if (bus_config.bus.phy_mode == PHY_SPLIT_23) {
+			if (dphy->dphy_hw->drv_data->chip_id == CHIP_ID_RK3588_DCPHY) {
+				dev_err(dphy->dev, "%s The chip not support split mode\n",
+					__func__);
+				ret = -EINVAL;
+			} else if (dphy->phy_index % 3 != 2) {
+				dev_err(dphy->dev, "%s dphy%d not support PHY_SPLIT_23\n",
+					__func__, dphy->phy_index);
+				ret = -EINVAL;
+			} else {
+				dphy->lane_mode = LANE_MODE_SPLIT;
+			}
+		}
+	} else {
+		ret = 0;
+	}
+	return ret;
 }
 
 static int csi2_dphy_s_stream_start(struct v4l2_subdev *sd)
