@@ -4907,6 +4907,17 @@ static u8 skl_compute_dbuf_slices(struct intel_crtc *crtc, u8 active_pipes)
 }
 
 static bool
+use_min_ddb(const struct intel_crtc_state *crtc_state,
+	    struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	return DISPLAY_VER(i915) >= 13 &&
+	       crtc_state->uapi.async_flip &&
+	       plane->async_flip;
+}
+
+static bool
 use_minimal_wm0_only(const struct intel_crtc_state *crtc_state,
 		     struct intel_plane *plane)
 {
@@ -4933,6 +4944,14 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 		return 0;
 
 	if (plane->id == PLANE_CURSOR)
+		return 0;
+
+	/*
+	 * We calculate extra ddb based on ratio plane rate/total data rate
+	 * in case, in some cases we should not allocate extra ddb for the plane,
+	 * so do not count its data rate, if this is the case.
+	 */
+	if (use_min_ddb(crtc_state, plane))
 		return 0;
 
 	if (color_plane == 1 &&
