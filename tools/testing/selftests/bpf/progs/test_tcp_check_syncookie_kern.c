@@ -16,12 +16,12 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-struct bpf_map_def SEC("maps") results = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
-	.max_entries = 3,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, __u32);
+	__type(value, __u32);
+	__uint(max_entries, 3);
+} results SEC(".maps");
 
 static __always_inline __s64 gen_syncookie(void *data_end, struct bpf_sock *sk,
 					   void *iph, __u32 ip_size,

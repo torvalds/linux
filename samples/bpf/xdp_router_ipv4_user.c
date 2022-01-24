@@ -43,13 +43,13 @@ static void int_exit(int sig)
 	int i = 0;
 
 	for (i = 0; i < total_ifindex; i++) {
-		if (bpf_get_link_xdp_id(ifindex_list[i], &prog_id, flags)) {
-			printf("bpf_get_link_xdp_id on iface %d failed\n",
+		if (bpf_xdp_query_id(ifindex_list[i], flags, &prog_id)) {
+			printf("bpf_xdp_query_id on iface %d failed\n",
 			       ifindex_list[i]);
 			exit(1);
 		}
 		if (prog_id_list[i] == prog_id)
-			bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
+			bpf_xdp_detach(ifindex_list[i], flags, NULL);
 		else if (!prog_id)
 			printf("couldn't find a prog id on iface %d\n",
 			       ifindex_list[i]);
@@ -716,12 +716,12 @@ int main(int ac, char **argv)
 	}
 	prog_id_list = (__u32 *)calloc(total_ifindex, sizeof(__u32 *));
 	for (i = 0; i < total_ifindex; i++) {
-		if (bpf_set_link_xdp_fd(ifindex_list[i], prog_fd, flags) < 0) {
+		if (bpf_xdp_attach(ifindex_list[i], prog_fd, flags, NULL) < 0) {
 			printf("link set xdp fd failed\n");
 			int recovery_index = i;
 
 			for (i = 0; i < recovery_index; i++)
-				bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
+				bpf_xdp_detach(ifindex_list[i], flags, NULL);
 
 			return 1;
 		}

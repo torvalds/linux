@@ -34,6 +34,7 @@
 #include <linux/rculist_nulls.h>
 
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_bpf.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
@@ -2750,8 +2751,15 @@ int nf_conntrack_init_start(void)
 	conntrack_gc_work_init(&conntrack_gc_work);
 	queue_delayed_work(system_power_efficient_wq, &conntrack_gc_work.dwork, HZ);
 
+	ret = register_nf_conntrack_bpf();
+	if (ret < 0)
+		goto err_kfunc;
+
 	return 0;
 
+err_kfunc:
+	cancel_delayed_work_sync(&conntrack_gc_work.dwork);
+	nf_conntrack_proto_fini();
 err_proto:
 	nf_conntrack_seqadj_fini();
 err_seqadj:

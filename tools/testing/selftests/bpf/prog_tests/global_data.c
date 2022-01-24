@@ -121,7 +121,7 @@ static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 	if (CHECK_FAIL(map_fd < 0))
 		return;
 
-	buff = malloc(bpf_map__def(map)->value_size);
+	buff = malloc(bpf_map__value_size(map));
 	if (buff)
 		err = bpf_map_update_elem(map_fd, &zero, buff, 0);
 	free(buff);

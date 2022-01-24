@@ -1416,43 +1416,106 @@ static struct sk_psock_progs *sock_map_progs(struct bpf_map *map)
 	return NULL;
 }
 
-static int sock_map_prog_update(struct bpf_map *map, struct bpf_prog *prog,
-				struct bpf_prog *old, u32 which)
+static int sock_map_prog_lookup(struct bpf_map *map, struct bpf_prog ***pprog,
+				u32 which)
 {
 	struct sk_psock_progs *progs = sock_map_progs(map);
-	struct bpf_prog **pprog;
 
 	if (!progs)
 		return -EOPNOTSUPP;
 
 	switch (which) {
 	case BPF_SK_MSG_VERDICT:
-		pprog = &progs->msg_parser;
+		*pprog = &progs->msg_parser;
 		break;
 #if IS_ENABLED(CONFIG_BPF_STREAM_PARSER)
 	case BPF_SK_SKB_STREAM_PARSER:
-		pprog = &progs->stream_parser;
+		*pprog = &progs->stream_parser;
 		break;
 #endif
 	case BPF_SK_SKB_STREAM_VERDICT:
 		if (progs->skb_verdict)
 			return -EBUSY;
-		pprog = &progs->stream_verdict;
+		*pprog = &progs->stream_verdict;
 		break;
 	case BPF_SK_SKB_VERDICT:
 		if (progs->stream_verdict)
 			return -EBUSY;
-		pprog = &progs->skb_verdict;
+		*pprog = &progs->skb_verdict;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	return 0;
+}
+
+static int sock_map_prog_update(struct bpf_map *map, struct bpf_prog *prog,
+				struct bpf_prog *old, u32 which)
+{
+	struct bpf_prog **pprog;
+	int ret;
+
+	ret = sock_map_prog_lookup(map, &pprog, which);
+	if (ret)
+		return ret;
 
 	if (old)
 		return psock_replace_prog(pprog, prog, old);
 
 	psock_set_prog(pprog, prog);
 	return 0;
+}
+
+int sock_map_bpf_prog_query(const union bpf_attr *attr,
+			    union bpf_attr __user *uattr)
+{
+	__u32 __user *prog_ids = u64_to_user_ptr(attr->query.prog_ids);
+	u32 prog_cnt = 0, flags = 0, ufd = attr->target_fd;
+	struct bpf_prog **pprog;
+	struct bpf_prog *prog;
+	struct bpf_map *map;
+	struct fd f;
+	u32 id = 0;
+	int ret;
+
+	if (attr->query.query_flags)
+		return -EINVAL;
+
+	f = fdget(ufd);
+	map = __bpf_map_get(f);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	rcu_read_lock();
+
+	ret = sock_map_prog_lookup(map, &pprog, attr->query.attach_type);
+	if (ret)
+		goto end;
+
+	prog = *pprog;
+	prog_cnt = !prog ? 0 : 1;
+
+	if (!attr->query.prog_cnt || !prog_ids || !prog_cnt)
+		goto end;
+
+	/* we do not hold the refcnt, the bpf prog may be released
+	 * asynchronously and the id would be set to 0.
+	 */
+	id = data_race(prog->aux->id);
+	if (id == 0)
+		prog_cnt = 0;
+
+end:
+	rcu_read_unlock();
+
+	if (copy_to_user(&uattr->query.attach_flags, &flags, sizeof(flags)) ||
+	    (id != 0 && copy_to_user(prog_ids, &id, sizeof(u32))) ||
+	    copy_to_user(&uattr->query.prog_cnt, &prog_cnt, sizeof(prog_cnt)))
+		ret = -EFAULT;
+
+	fdput(f);
+	return ret;
 }
 
 static void sock_map_unlink(struct sock *sk, struct sk_psock_link *link)

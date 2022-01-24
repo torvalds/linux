@@ -4560,6 +4560,8 @@ static void do_test_file(unsigned int test_num)
 	has_btf_ext = btf_ext != NULL;
 	btf_ext__free(btf_ext);
 
+	/* temporary disable LIBBPF_STRICT_MAP_DEFINITIONS to test legacy maps */
+	libbpf_set_strict_mode((__LIBBPF_STRICT_LAST - 1) & ~LIBBPF_STRICT_MAP_DEFINITIONS);
 	obj = bpf_object__open(test->file);
 	err = libbpf_get_error(obj);
 	if (CHECK(err, "obj: %d", err))
@@ -4684,6 +4686,8 @@ skip:
 	fprintf(stderr, "OK");
 
 done:
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
+
 	btf__free(btf);
 	free(func_info);
 	bpf_object__close(obj);

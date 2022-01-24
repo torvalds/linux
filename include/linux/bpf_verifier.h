@@ -521,6 +521,8 @@ bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt);
 
 int check_ptr_off_reg(struct bpf_verifier_env *env,
 		      const struct bpf_reg_state *reg, int regno);
+int check_kfunc_mem_size_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
+			     u32 regno);
 int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 		   u32 regno, u32 mem_size);
 
@@ -562,6 +564,11 @@ static inline u32 base_type(u32 type)
 static inline u32 type_flag(u32 type)
 {
 	return type & ~BPF_BASE_TYPE_MASK;
+}
+
+static inline enum bpf_prog_type resolve_prog_type(struct bpf_prog *prog)
+{
+	return prog->aux->dst_prog ? prog->aux->dst_prog->type : prog->type;
 }
 
 #endif /* _LINUX_BPF_VERIFIER_H */

@@ -424,8 +424,10 @@ out_free:
 	free(value);
 }
 
-static void print_prog_header_json(struct bpf_prog_info *info)
+static void print_prog_header_json(struct bpf_prog_info *info, int fd)
 {
+	char prog_name[MAX_PROG_FULL_NAME];
+
 	jsonw_uint_field(json_wtr, "id", info->id);
 	if (info->type < ARRAY_SIZE(prog_type_name))
 		jsonw_string_field(json_wtr, "type",
@@ -433,8 +435,10 @@ static void print_prog_header_json(struct bpf_prog_info *info)
 	else
 		jsonw_uint_field(json_wtr, "type", info->type);
 
-	if (*info->name)
-		jsonw_string_field(json_wtr, "name", info->name);
+	if (*info->name) {
+		get_prog_full_name(info, fd, prog_name, sizeof(prog_name));
+		jsonw_string_field(json_wtr, "name", prog_name);
+	}
 
 	jsonw_name(json_wtr, "tag");
 	jsonw_printf(json_wtr, "\"" BPF_TAG_FMT "\"",
@@ -455,7 +459,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	char *memlock;
 
 	jsonw_start_object(json_wtr);
-	print_prog_header_json(info);
+	print_prog_header_json(info, fd);
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 
 	if (info->load_time) {
@@ -507,16 +511,20 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	jsonw_end_object(json_wtr);
 }
 
-static void print_prog_header_plain(struct bpf_prog_info *info)
+static void print_prog_header_plain(struct bpf_prog_info *info, int fd)
 {
+	char prog_name[MAX_PROG_FULL_NAME];
+
 	printf("%u: ", info->id);
 	if (info->type < ARRAY_SIZE(prog_type_name))
 		printf("%s  ", prog_type_name[info->type]);
 	else
 		printf("type %u  ", info->type);
 
-	if (*info->name)
-		printf("name %s  ", info->name);
+	if (*info->name) {
+		get_prog_full_name(info, fd, prog_name, sizeof(prog_name));
+		printf("name %s  ", prog_name);
+	}
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
@@ -534,7 +542,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 {
 	char *memlock;
 
-	print_prog_header_plain(info);
+	print_prog_header_plain(info, fd);
 
 	if (info->load_time) {
 		char buf[32];
@@ -641,7 +649,7 @@ static int do_show(int argc, char **argv)
 	if (show_pinned) {
 		prog_table = hashmap__new(hash_fn_for_key_as_id,
 					  equal_fn_for_key_as_id, NULL);
-		if (!prog_table) {
+		if (IS_ERR(prog_table)) {
 			p_err("failed to create hashmap for pinned paths");
 			return -1;
 		}
@@ -972,10 +980,10 @@ static int do_dump(int argc, char **argv)
 
 		if (json_output && nb_fds > 1) {
 			jsonw_start_object(json_wtr);	/* prog object */
-			print_prog_header_json(&info);
+			print_prog_header_json(&info, fds[i]);
 			jsonw_name(json_wtr, "insns");
 		} else if (nb_fds > 1) {
-			print_prog_header_plain(&info);
+			print_prog_header_plain(&info, fds[i]);
 		}
 
 		err = prog_dump(&info, mode, filepath, opcodes, visual, linum);

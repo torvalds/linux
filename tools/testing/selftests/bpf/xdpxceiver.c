@@ -906,7 +906,10 @@ static bool rx_stats_are_valid(struct ifobject *ifobject)
 			return true;
 		case STAT_TEST_RX_FULL:
 			xsk_stat = stats.rx_ring_full;
-			expected_stat -= RX_FULL_RXQSIZE;
+			if (ifobject->umem->num_frames < XSK_RING_PROD__DEFAULT_NUM_DESCS)
+				expected_stat = ifobject->umem->num_frames - RX_FULL_RXQSIZE;
+			else
+				expected_stat = XSK_RING_PROD__DEFAULT_NUM_DESCS - RX_FULL_RXQSIZE;
 			break;
 		case STAT_TEST_RX_FILL_EMPTY:
 			xsk_stat = stats.rx_fill_ring_empty_descs;

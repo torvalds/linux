@@ -24,6 +24,7 @@
 #include <bpf/bpf.h>
 #include <bpf/hashmap.h>
 #include <bpf/libbpf.h> /* libbpf_num_possible_cpus */
+#include <bpf/btf.h>
 
 #include "main.h"
 
@@ -302,6 +303,49 @@ const char *get_fd_type_name(enum bpf_obj_type type)
 		return names[BPF_OBJ_UNKNOWN];
 
 	return names[type];
+}
+
+void get_prog_full_name(const struct bpf_prog_info *prog_info, int prog_fd,
+			char *name_buff, size_t buff_len)
+{
+	const char *prog_name = prog_info->name;
+	const struct btf_type *func_type;
+	const struct bpf_func_info finfo;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	struct btf *prog_btf = NULL;
+
+	if (buff_len <= BPF_OBJ_NAME_LEN ||
+	    strlen(prog_info->name) < BPF_OBJ_NAME_LEN - 1)
+		goto copy_name;
+
+	if (!prog_info->btf_id || prog_info->nr_func_info == 0)
+		goto copy_name;
+
+	info.nr_func_info = 1;
+	info.func_info_rec_size = prog_info->func_info_rec_size;
+	if (info.func_info_rec_size > sizeof(finfo))
+		info.func_info_rec_size = sizeof(finfo);
+	info.func_info = ptr_to_u64(&finfo);
+
+	if (bpf_obj_get_info_by_fd(prog_fd, &info, &info_len))
+		goto copy_name;
+
+	prog_btf = btf__load_from_kernel_by_id(info.btf_id);
+	if (!prog_btf)
+		goto copy_name;
+
+	func_type = btf__type_by_id(prog_btf, finfo.type_id);
+	if (!func_type || !btf_is_func(func_type))
+		goto copy_name;
+
+	prog_name = btf__name_by_offset(prog_btf, func_type->name_off);
+
+copy_name:
+	snprintf(name_buff, buff_len, "%s", prog_name);
+
+	if (prog_btf)
+		btf__free(prog_btf);
 }
 
 int get_fd_type(int fd)

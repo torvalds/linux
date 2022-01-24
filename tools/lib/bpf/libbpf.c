@@ -235,6 +235,8 @@ enum sec_def_flags {
 	SEC_SLEEPABLE = 8,
 	/* allow non-strict prefix matching */
 	SEC_SLOPPY_PFX = 16,
+	/* BPF program support non-linear XDP buffer */
+	SEC_XDP_FRAGS = 32,
 };
 
 struct bpf_sec_def {
@@ -1937,6 +1939,11 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 	if (obj->efile.maps_shndx < 0)
 		return 0;
 
+	if (libbpf_mode & LIBBPF_STRICT_MAP_DEFINITIONS) {
+		pr_warn("legacy map definitions in SEC(\"maps\") are not supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (!symbols)
 		return -EINVAL;
 
@@ -1998,6 +2005,8 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 				i, obj->path);
 			return -LIBBPF_ERRNO__FORMAT;
 		}
+
+		pr_warn("map '%s' (legacy): legacy map definitions are deprecated, use BTF-defined maps instead\n", map_name);
 
 		if (ELF64_ST_BIND(sym->st_info) == STB_LOCAL) {
 			pr_warn("map '%s' (legacy): static maps are not supported\n", map_name);
@@ -4190,6 +4199,7 @@ static int bpf_map_find_btf_info(struct bpf_object *obj, struct bpf_map *map)
 		return 0;
 
 	if (!bpf_map__is_internal(map)) {
+		pr_warn("Use of BPF_ANNOTATE_KV_PAIR is deprecated, use BTF-defined maps in .maps section instead\n");
 		ret = btf__get_map_kv_tids(obj->btf, map->name, def->key_size,
 					   def->value_size, &key_type_id,
 					   &value_type_id);
@@ -6562,6 +6572,9 @@ static int libbpf_preload_prog(struct bpf_program *prog,
 	if (def & SEC_SLEEPABLE)
 		opts->prog_flags |= BPF_F_SLEEPABLE;
 
+	if (prog->type == BPF_PROG_TYPE_XDP && (def & SEC_XDP_FRAGS))
+		opts->prog_flags |= BPF_F_XDP_HAS_FRAGS;
+
 	if ((prog->type == BPF_PROG_TYPE_TRACING ||
 	     prog->type == BPF_PROG_TYPE_LSM ||
 	     prog->type == BPF_PROG_TYPE_EXT) && !prog->attach_btf_id) {
@@ -8600,8 +8613,11 @@ static const struct bpf_sec_def section_defs[] = {
 	SEC_DEF("lsm.s/",		LSM, BPF_LSM_MAC, SEC_ATTACH_BTF | SEC_SLEEPABLE, attach_lsm),
 	SEC_DEF("iter/",		TRACING, BPF_TRACE_ITER, SEC_ATTACH_BTF, attach_iter),
 	SEC_DEF("syscall",		SYSCALL, 0, SEC_SLEEPABLE),
+	SEC_DEF("xdp.frags/devmap",	XDP, BPF_XDP_DEVMAP, SEC_XDP_FRAGS),
 	SEC_DEF("xdp_devmap/",		XDP, BPF_XDP_DEVMAP, SEC_ATTACHABLE),
+	SEC_DEF("xdp.frags/cpumap",	XDP, BPF_XDP_CPUMAP, SEC_XDP_FRAGS),
 	SEC_DEF("xdp_cpumap/",		XDP, BPF_XDP_CPUMAP, SEC_ATTACHABLE),
+	SEC_DEF("xdp.frags",		XDP, BPF_XDP, SEC_XDP_FRAGS),
 	SEC_DEF("xdp",			XDP, BPF_XDP, SEC_ATTACHABLE_OPT | SEC_SLOPPY_PFX),
 	SEC_DEF("perf_event",		PERF_EVENT, 0, SEC_NONE | SEC_SLOPPY_PFX),
 	SEC_DEF("lwt_in",		LWT_IN, 0, SEC_NONE | SEC_SLOPPY_PFX),
@@ -11795,6 +11811,9 @@ void bpf_object__detach_skeleton(struct bpf_object_skeleton *s)
 
 void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s)
 {
+	if (!s)
+		return;
+
 	if (s->progs)
 		bpf_object__detach_skeleton(s);
 	if (s->obj)

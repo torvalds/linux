@@ -2,19 +2,19 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-struct bpf_map_def SEC("maps") htab = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(long),
-	.max_entries = 2,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, __u32);
+	__type(value, long);
+	__uint(max_entries, 2);
+} htab SEC(".maps");
 
-struct bpf_map_def SEC("maps") array = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(long),
-	.max_entries = 2,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, __u32);
+	__type(value, long);
+	__uint(max_entries, 2);
+} array SEC(".maps");
 
 /* Sample program which should always load for testing control paths. */
 SEC(".text") int func()

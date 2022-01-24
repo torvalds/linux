@@ -391,6 +391,10 @@ struct bpf_prog_attach_opts {
 
 LIBBPF_API int bpf_prog_attach(int prog_fd, int attachable_fd,
 			       enum bpf_attach_type type, unsigned int flags);
+LIBBPF_API int bpf_prog_attach_opts(int prog_fd, int attachable_fd,
+				     enum bpf_attach_type type,
+				     const struct bpf_prog_attach_opts *opts);
+LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_prog_attach_opts() instead")
 LIBBPF_API int bpf_prog_attach_xattr(int prog_fd, int attachable_fd,
 				     enum bpf_attach_type type,
 				     const struct bpf_prog_attach_opts *opts);

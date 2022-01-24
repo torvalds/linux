@@ -9,25 +9,25 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static bool bpf_map_def__is_per_cpu(const struct bpf_map_def *def)
+static bool bpf_map__is_per_cpu(enum bpf_map_type type)
 {
-	return def->type == BPF_MAP_TYPE_PERCPU_HASH ||
-	       def->type == BPF_MAP_TYPE_PERCPU_ARRAY ||
-	       def->type == BPF_MAP_TYPE_LRU_PERCPU_HASH ||
-	       def->type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE;
+	return type == BPF_MAP_TYPE_PERCPU_HASH ||
+	       type == BPF_MAP_TYPE_PERCPU_ARRAY ||
+	       type == BPF_MAP_TYPE_LRU_PERCPU_HASH ||
+	       type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE;
 }
 
-static void *bpf_map_def__alloc_value(const struct bpf_map_def *def)
+static void *bpf_map__alloc_value(const struct bpf_map *map)
 {
-	if (bpf_map_def__is_per_cpu(def))
-		return malloc(round_up(def->value_size, 8) * sysconf(_SC_NPROCESSORS_CONF));
+	if (bpf_map__is_per_cpu(bpf_map__type(map)))
+		return malloc(round_up(bpf_map__value_size(map), 8) *
+			      sysconf(_SC_NPROCESSORS_CONF));
 
-	return malloc(def->value_size);
+	return malloc(bpf_map__value_size(map));
 }
 
 int bpf_map__fprintf(struct bpf_map *map, FILE *fp)
 {
-	const struct bpf_map_def *def = bpf_map__def(map);
 	void *prev_key = NULL, *key, *value;
 	int fd = bpf_map__fd(map), err;
 	int printed = 0;
@@ -35,15 +35,15 @@ int bpf_map__fprintf(struct bpf_map *map, FILE *fp)
 	if (fd < 0)
 		return fd;
 
-	if (IS_ERR(def))
-		return PTR_ERR(def);
+	if (!map)
+		return PTR_ERR(map);
 
 	err = -ENOMEM;
-	key = malloc(def->key_size);
+	key = malloc(bpf_map__key_size(map));
 	if (key == NULL)
 		goto out;
 
-	value = bpf_map_def__alloc_value(def);
+	value = bpf_map__alloc_value(map);
 	if (value == NULL)
 		goto out_free_key;
 
