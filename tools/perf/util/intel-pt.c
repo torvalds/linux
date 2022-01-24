@@ -75,6 +75,7 @@ struct intel_pt {
 	bool mispred_all;
 	bool use_thread_stack;
 	bool callstack;
+	bool cap_event_trace;
 	unsigned int br_stack_sz;
 	unsigned int br_stack_sz_plus;
 	int have_sched_switch;
@@ -3795,7 +3796,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	}
 
 	info = &auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] + 1;
-	info_end = (void *)info + auxtrace_info->header.size;
+	info_end = (void *)auxtrace_info + auxtrace_info->header.size;
 
 	if (intel_pt_has(auxtrace_info, INTEL_PT_FILTER_STR_LEN)) {
 		size_t len;
@@ -3832,6 +3833,13 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 				goto err_free_queues;
 		}
 		intel_pt_print_info_str("Filter string", pt->filter);
+	}
+
+	if ((void *)info < info_end) {
+		pt->cap_event_trace = *info++;
+		if (dump_trace)
+			fprintf(stdout, "  Cap Event Trace     %d\n",
+				pt->cap_event_trace);
 	}
 
 	pt->timeless_decoding = intel_pt_timeless_decoding(pt);
