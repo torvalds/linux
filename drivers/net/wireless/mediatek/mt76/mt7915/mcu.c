@@ -1686,8 +1686,10 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 	}
 
 	ret = mt7915_mcu_sta_wtbl_tlv(dev, skb, vif, sta);
-	if (ret)
+	if (ret) {
+		dev_kfree_skb(skb);
 		return ret;
+	}
 
 	if (sta && sta->ht_cap.ht_supported) {
 		/* starec amsdu */
@@ -1701,8 +1703,10 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 	}
 
 	ret = mt7915_mcu_add_group(dev, vif, sta);
-	if (ret)
+	if (ret) {
+		dev_kfree_skb(skb);
 		return ret;
+	}
 out:
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_EXT_CMD(STA_REC_UPDATE), true);
