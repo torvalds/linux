@@ -221,8 +221,15 @@ struct dw_dp_video {
 	u8 bpp;
 };
 
+enum audio_format {
+	AFMT_I2S = 0,
+	AFMT_SPDIF = 1,
+	AFMT_UNUSED,
+};
+
 struct dw_dp_audio {
 	struct platform_device *pdev;
+	enum audio_format format;
 	u8 channels;
 };
 
@@ -241,8 +248,11 @@ struct dw_dp {
 	struct device *dev;
 	struct regmap *regmap;
 	struct phy *phy;
-	struct clk_bulk_data *clks;
-	int nr_clks;
+	struct clk *apb_clk;
+	struct clk *aux_clk;
+	struct clk *hclk;
+	struct clk *i2s_clk;
+	struct clk *spdif_clk;
 	struct reset_control *rstc;
 	struct regmap *grf;
 	struct completion complete;
@@ -2343,14 +2353,19 @@ static int dw_dp_audio_hw_params(struct device *dev, void *data,
 	switch (daifmt->fmt) {
 	case HDMI_SPDIF:
 		audio_inf_select = 0x1;
+		audio->format = AFMT_SPDIF;
 		break;
 	case HDMI_I2S:
 		audio_inf_select = 0x0;
+		audio->format = AFMT_I2S;
 		break;
 	default:
 		dev_err(dp->dev, "invalid daifmt %d\n", daifmt->fmt);
 		return -EINVAL;
 	}
+
+	clk_prepare_enable(dp->spdif_clk);
+	clk_prepare_enable(dp->i2s_clk);
 
 	regmap_update_bits(dp->regmap, DPTX_AUD_CONFIG1,
 			   AUDIO_DATA_IN_EN | NUM_CHANNELS | AUDIO_DATA_WIDTH |
@@ -2359,6 +2374,13 @@ static int dw_dp_audio_hw_params(struct device *dev, void *data,
 			   FIELD_PREP(NUM_CHANNELS, num_channels) |
 			   FIELD_PREP(AUDIO_DATA_WIDTH, params->sample_width) |
 			   FIELD_PREP(AUDIO_INF_SELECT, audio_inf_select));
+
+	/* Wait for inf switch */
+	usleep_range(20, 40);
+	if (audio->format == AFMT_I2S)
+		clk_disable_unprepare(dp->spdif_clk);
+	else if (audio->format == AFMT_SPDIF)
+		clk_disable_unprepare(dp->i2s_clk);
 
 	return 0;
 }
@@ -2427,9 +2449,17 @@ static int dw_dp_audio_startup(struct device *dev, void *data)
 static void dw_dp_audio_shutdown(struct device *dev, void *data)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
+	struct dw_dp_audio *audio = &dp->audio;
 
 	regmap_update_bits(dp->regmap, DPTX_AUD_CONFIG1, AUDIO_DATA_IN_EN,
 			   FIELD_PREP(AUDIO_DATA_IN_EN, 0));
+
+	if (audio->format == AFMT_SPDIF)
+		clk_disable_unprepare(dp->spdif_clk);
+	else if (audio->format == AFMT_I2S)
+		clk_disable_unprepare(dp->i2s_clk);
+
+	audio->format = AFMT_UNUSED;
 }
 
 static int dw_dp_audio_get_eld(struct device *dev, void *data, uint8_t *buf,
@@ -2460,6 +2490,7 @@ static int dw_dp_register_audio_driver(struct dw_dp *dp)
 		.max_i2s_channels = 8,
 	};
 
+	audio->format = AFMT_UNUSED;
 	audio->pdev = platform_device_register_data(dp->dev,
 						    HDMI_CODEC_DRV_NAME,
 						    PLATFORM_DEVID_AUTO,
@@ -2651,11 +2682,30 @@ static int dw_dp_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(dp->phy),
 				     "failed to get phy\n");
 
-	ret = devm_clk_bulk_get_all(dev, &dp->clks);
-	if (ret < 1)
-		return dev_err_probe(dev, ret, "failed to get clocks\n");
+	dp->apb_clk = devm_clk_get(dev, "apb");
+	if (IS_ERR(dp->apb_clk))
+		return dev_err_probe(dev, PTR_ERR(dp->apb_clk),
+				     "failed to get apb clock\n");
 
-	dp->nr_clks = ret;
+	dp->aux_clk = devm_clk_get(dev, "aux");
+	if (IS_ERR(dp->aux_clk))
+		return dev_err_probe(dev, PTR_ERR(dp->aux_clk),
+				     "failed to get aux clock\n");
+
+	dp->i2s_clk = devm_clk_get(dev, "i2s");
+	if (IS_ERR(dp->i2s_clk))
+		return dev_err_probe(dev, PTR_ERR(dp->i2s_clk),
+				     "failed to get i2s clock\n");
+
+	dp->spdif_clk = devm_clk_get(dev, "spdif");
+	if (IS_ERR(dp->spdif_clk))
+		return dev_err_probe(dev, PTR_ERR(dp->spdif_clk),
+				     "failed to get spdif clock\n");
+
+	dp->hclk = devm_clk_get_optional(dev, "hclk");
+	if (IS_ERR(dp->hclk))
+		return dev_err_probe(dev, PTR_ERR(dp->hclk),
+				     "failed to get hclk\n");
 
 	dp->rstc = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(dp->rstc))
@@ -2760,7 +2810,9 @@ static int __maybe_unused dw_dp_runtime_suspend(struct device *dev)
 
 	disable_irq(dp->irq);
 
-	clk_bulk_disable_unprepare(dp->nr_clks, dp->clks);
+	clk_disable_unprepare(dp->aux_clk);
+	clk_disable_unprepare(dp->apb_clk);
+	clk_disable_unprepare(dp->hclk);
 
 	return 0;
 }
@@ -2768,11 +2820,10 @@ static int __maybe_unused dw_dp_runtime_suspend(struct device *dev)
 static int __maybe_unused dw_dp_runtime_resume(struct device *dev)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
-	int ret;
 
-	ret = clk_bulk_prepare_enable(dp->nr_clks, dp->clks);
-	if (ret)
-		return ret;
+	clk_prepare_enable(dp->hclk);
+	clk_prepare_enable(dp->apb_clk);
+	clk_prepare_enable(dp->aux_clk);
 
 	reset_control_assert(dp->rstc);
 	udelay(10);
