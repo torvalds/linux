@@ -125,22 +125,6 @@ static int cyan_skillfish_init_smc_tables(struct smu_context *smu)
 	return smu_v11_0_init_smc_tables(smu);
 }
 
-static int cyan_skillfish_finit_smc_tables(struct smu_context *smu)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-
-	kfree(smu_table->metrics_table);
-	smu_table->metrics_table = NULL;
-
-	kfree(smu_table->gpu_metrics_table);
-	smu_table->gpu_metrics_table = NULL;
-	smu_table->gpu_metrics_table_size = 0;
-
-	smu_table->metrics_time = 0;
-
-	return 0;
-}
-
 static int
 cyan_skillfish_get_smu_metrics_data(struct smu_context *smu,
 					MetricsMember_t member,
@@ -579,7 +563,7 @@ static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
 	.init_power = smu_v11_0_init_power,
 	.fini_power = smu_v11_0_fini_power,
 	.init_smc_tables = cyan_skillfish_init_smc_tables,
-	.fini_smc_tables = cyan_skillfish_finit_smc_tables,
+	.fini_smc_tables = smu_v11_0_fini_smc_tables,
 	.read_sensor = cyan_skillfish_read_sensor,
 	.print_clk_levels = cyan_skillfish_print_clk_levels,
 	.is_dpm_running = cyan_skillfish_is_dpm_running,
