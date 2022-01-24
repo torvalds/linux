@@ -14,7 +14,7 @@ struct task_struct;
 
 extern struct task_struct *__current;
 
-static inline __attribute_const__ struct task_struct *get_current(void)
+static __always_inline __attribute_const__ struct task_struct *get_current(void)
 {
 	struct task_struct *cur;
 
