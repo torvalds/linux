@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "rseq-abi.h"
+#include "compiler.h"
 
 /*
  * Empty code injection macros, override when testing.
