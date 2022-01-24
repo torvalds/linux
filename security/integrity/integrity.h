@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/integrity.h>
 #include <crypto/sha1.h>
+#include <crypto/hash.h>
 #include <linux/key.h>
 #include <linux/audit.h>
 
@@ -108,6 +109,15 @@ struct ima_digest_data {
 		u8 data[2];
 	} xattr;
 	u8 digest[];
+} __packed;
+
+/*
+ * Instead of wrapping the ima_digest_data struct inside a local structure
+ * with the maximum hash size, define ima_max_digest_data struct.
+ */
+struct ima_max_digest_data {
+	struct ima_digest_data hdr;
+	u8 digest[HASH_MAX_DIGESTSIZE];
 } __packed;
 
 /*

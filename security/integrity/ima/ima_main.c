@@ -874,10 +874,7 @@ int process_buffer_measurement(struct user_namespace *mnt_userns,
 					    .buf = buf,
 					    .buf_len = size};
 	struct ima_template_desc *template;
-	struct {
-		struct ima_digest_data hdr;
-		char digest[IMA_MAX_DIGEST_SIZE];
-	} hash = {};
+	struct ima_max_digest_data hash;
 	char digest_hash[IMA_MAX_DIGEST_SIZE];
 	int digest_hash_len = hash_digest_size[ima_hash_algo];
 	int violation = 0;
