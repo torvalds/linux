@@ -1774,18 +1774,18 @@ TRACE_EVENT(svc_xprt_create_err,
 		__field(long, error)
 		__string(program, program)
 		__string(protocol, protocol)
-		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
+		__sockaddr(addr, salen)
 	),
 
 	TP_fast_assign(
 		__entry->error = PTR_ERR(xprt);
 		__assign_str(program, program);
 		__assign_str(protocol, protocol);
-		memcpy(__entry->addr, sap, min(salen, sizeof(__entry->addr)));
+		__assign_sockaddr(addr, sap, salen);
 	),
 
 	TP_printk("addr=%pISpc program=%s protocol=%s error=%ld",
-		__entry->addr, __get_str(program), __get_str(protocol),
+		__get_sockaddr(addr), __get_str(program), __get_str(protocol),
 		__entry->error)
 );
 
