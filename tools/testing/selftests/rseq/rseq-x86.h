@@ -172,7 +172,7 @@ error2:
  */
 static inline __attribute__((always_inline))
 int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
-			       off_t voffp, intptr_t *load, int cpu)
+			       long voffp, intptr_t *load, int cpu)
 {
 	RSEQ_INJECT_C(9)
 
@@ -286,7 +286,7 @@ error1:
  *  *pval += inc;
  */
 static inline __attribute__((always_inline))
-int rseq_offset_deref_addv(intptr_t *ptr, off_t off, intptr_t inc, int cpu)
+int rseq_offset_deref_addv(intptr_t *ptr, long off, intptr_t inc, int cpu)
 {
 	RSEQ_INJECT_C(9)
 
@@ -750,7 +750,7 @@ error2:
  */
 static inline __attribute__((always_inline))
 int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
-			       off_t voffp, intptr_t *load, int cpu)
+			       long voffp, intptr_t *load, int cpu)
 {
 	RSEQ_INJECT_C(9)
 
