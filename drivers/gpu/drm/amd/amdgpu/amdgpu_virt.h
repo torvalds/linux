@@ -294,8 +294,10 @@ struct amdgpu_video_codec_info;
 
 static inline bool is_virtual_machine(void)
 {
-#ifdef CONFIG_X86
+#if defined(CONFIG_X86)
 	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
+#elif defined(CONFIG_ARM64)
+	return !is_kernel_in_hyp_mode();
 #else
 	return false;
 #endif
