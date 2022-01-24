@@ -70,7 +70,6 @@ struct netns_ipv4 {
 	struct hlist_head	*fib_table_hash;
 	struct sock		*fibnl;
 
-	struct sock  * __percpu	*icmp_sk;
 	struct sock		*mc_autojoin_sk;
 
 	struct inet_peer_base	*peers;
