@@ -184,7 +184,6 @@ static struct attribute *cxl_decoder_base_attrs[] = {
 	&dev_attr_start.attr,
 	&dev_attr_size.attr,
 	&dev_attr_locked.attr,
-	&dev_attr_target_list.attr,
 	NULL,
 };
 
@@ -197,6 +196,7 @@ static struct attribute *cxl_decoder_root_attrs[] = {
 	&dev_attr_cap_ram.attr,
 	&dev_attr_cap_type2.attr,
 	&dev_attr_cap_type3.attr,
+	&dev_attr_target_list.attr,
 	NULL,
 };
 
@@ -213,6 +213,7 @@ static const struct attribute_group *cxl_decoder_root_attribute_groups[] = {
 
 static struct attribute *cxl_decoder_switch_attrs[] = {
 	&dev_attr_target_type.attr,
+	&dev_attr_target_list.attr,
 	NULL,
 };
 
