@@ -542,6 +542,36 @@ static int cyan_skillfish_od_edit_dpm_table(struct smu_context *smu,
 	return ret;
 }
 
+static int cyan_skillfish_get_dpm_ultimate_freq(struct smu_context *smu,
+						enum smu_clk_type clk_type,
+						uint32_t *min,
+						uint32_t *max)
+{
+	int ret = 0;
+	uint32_t low, high;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		low = CYAN_SKILLFISH_SCLK_MIN;
+		high = CYAN_SKILLFISH_SCLK_MAX;
+		break;
+	default:
+		ret = cyan_skillfish_get_current_clk_freq(smu, clk_type, &low);
+		if (ret)
+			return ret;
+		high = low;
+		break;
+	}
+
+	if (min)
+		*min = low;
+	if (max)
+		*max = high;
+
+	return 0;
+}
+
 static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
 
 	.check_fw_status = smu_v11_0_check_fw_status,
@@ -555,6 +585,7 @@ static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
 	.is_dpm_running = cyan_skillfish_is_dpm_running,
 	.get_gpu_metrics = cyan_skillfish_get_gpu_metrics,
 	.od_edit_dpm_table = cyan_skillfish_od_edit_dpm_table,
+	.get_dpm_ultimate_freq = cyan_skillfish_get_dpm_ultimate_freq,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
