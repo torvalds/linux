@@ -8,6 +8,7 @@
  *
  *  DMA support added by Chip Coldwell.
  */
+#include <linux/circ_buf.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
