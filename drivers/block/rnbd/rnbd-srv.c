@@ -149,7 +149,8 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 	priv->sess_dev = sess_dev;
 	priv->id = id;
 
-	bio = bio_alloc(GFP_KERNEL, 1);
+	bio = bio_alloc(sess_dev->rnbd_dev->bdev, 1,
+			rnbd_to_bio_flags(le32_to_cpu(msg->rw)), GFP_KERNEL);
 	if (bio_add_page(bio, virt_to_page(data), datalen,
 			offset_in_page(data)) != datalen) {
 		rnbd_srv_err(sess_dev, "Failed to map data to bio\n");
@@ -159,13 +160,11 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 
 	bio->bi_end_io = rnbd_dev_bi_end_io;
 	bio->bi_private = priv;
-	bio->bi_opf = rnbd_to_bio_flags(le32_to_cpu(msg->rw));
 	bio->bi_iter.bi_sector = le64_to_cpu(msg->sector);
 	bio->bi_iter.bi_size = le32_to_cpu(msg->bi_size);
 	prio = srv_sess->ver < RNBD_PROTO_VER_MAJOR ||
 	       usrlen < sizeof(*msg) ? 0 : le16_to_cpu(msg->prio);
 	bio_set_prio(bio, prio);
-	bio_set_dev(bio, sess_dev->rnbd_dev->bdev);
 
 	submit_bio(bio);
 

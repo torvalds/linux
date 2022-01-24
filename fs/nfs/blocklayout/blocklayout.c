@@ -154,12 +154,10 @@ do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
 
 retry:
 	if (!bio) {
-		bio = bio_alloc(GFP_NOIO, bio_max_segs(npg));
+		bio = bio_alloc(map->bdev, bio_max_segs(npg), rw, GFP_NOIO);
 		bio->bi_iter.bi_sector = disk_addr >> SECTOR_SHIFT;
-		bio_set_dev(bio, map->bdev);
 		bio->bi_end_io = end_io;
 		bio->bi_private = par;
-		bio_set_op_attrs(bio, rw, 0);
 	}
 	if (bio_add_page(bio, page, *len, offset) < *len) {
 		bio = bl_submit_bio(bio);

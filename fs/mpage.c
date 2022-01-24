@@ -273,10 +273,10 @@ alloc_new:
 								page))
 				goto out;
 		}
-		args->bio = bio_alloc(gfp, bio_max_segs(args->nr_pages));
+		args->bio = bio_alloc(bdev, bio_max_segs(args->nr_pages), 0,
+				      gfp);
 		if (args->bio == NULL)
 			goto confused;
-		bio_set_dev(args->bio, bdev);
 		args->bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
 	}
 
@@ -586,8 +586,7 @@ alloc_new:
 								page, wbc))
 				goto out;
 		}
-		bio = bio_alloc(GFP_NOFS, BIO_MAX_VECS);
-		bio_set_dev(bio, bdev);
+		bio = bio_alloc(bdev, BIO_MAX_VECS, 0, GFP_NOFS);
 		bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
 
 		wbc_init_bio(wbc, bio);

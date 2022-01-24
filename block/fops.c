@@ -256,9 +256,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		}
 		atomic_inc(&dio->ref);
 		submit_bio(bio);
-		bio = bio_alloc(GFP_KERNEL, nr_pages);
-		bio_set_dev(bio, bdev);
-		bio->bi_opf = opf;
+		bio = bio_alloc(bdev, nr_pages, opf, GFP_KERNEL);
 	}
 
 	blk_finish_plug(&plug);

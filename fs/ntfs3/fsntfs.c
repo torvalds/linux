@@ -1485,15 +1485,13 @@ int ntfs_bio_pages(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 		lbo = ((u64)lcn << cluster_bits) + off;
 		len = ((u64)clen << cluster_bits) - off;
 new_bio:
-		new = bio_alloc(GFP_NOFS, nr_pages - page_idx);
+		new = bio_alloc(bdev, nr_pages - page_idx, op, GFP_NOFS);
 		if (bio) {
 			bio_chain(bio, new);
 			submit_bio(bio);
 		}
 		bio = new;
-		bio_set_dev(bio, bdev);
 		bio->bi_iter.bi_sector = lbo >> 9;
-		bio->bi_opf = op;
 
 		while (len) {
 			off = vbo & (PAGE_SIZE - 1);
@@ -1584,14 +1582,12 @@ int ntfs_bio_fill_1(struct ntfs_sb_info *sbi, const struct runs_tree *run)
 		lbo = (u64)lcn << cluster_bits;
 		len = (u64)clen << cluster_bits;
 new_bio:
-		new = bio_alloc(GFP_NOFS, BIO_MAX_VECS);
+		new = bio_alloc(bdev, BIO_MAX_VECS, REQ_OP_WRITE, GFP_NOFS);
 		if (bio) {
 			bio_chain(bio, new);
 			submit_bio(bio);
 		}
 		bio = new;
-		bio_set_dev(bio, bdev);
-		bio->bi_opf = REQ_OP_WRITE;
 		bio->bi_iter.bi_sector = lbo >> 9;
 
 		for (;;) {

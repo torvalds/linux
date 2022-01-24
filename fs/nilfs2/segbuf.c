@@ -391,8 +391,8 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
 	BUG_ON(wi->nr_vecs <= 0);
  repeat:
 	if (!wi->bio) {
-		wi->bio = bio_alloc(GFP_NOIO, wi->nr_vecs);
-		bio_set_dev(wi->bio, wi->nilfs->ns_bdev);
+		wi->bio = bio_alloc(wi->nilfs->ns_bdev, wi->nr_vecs, 0,
+				    GFP_NOIO);
 		wi->bio->bi_iter.bi_sector = (wi->blocknr + wi->end) <<
 			(wi->nilfs->ns_blocksize_bits - 9);
 	}

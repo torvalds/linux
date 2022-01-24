@@ -347,10 +347,7 @@ EXPORT_SYMBOL(bio_chain);
 struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,
 		unsigned int nr_pages, unsigned int opf, gfp_t gfp)
 {
-	struct bio *new = bio_alloc(gfp, nr_pages);
-
-	bio_set_dev(new, bdev);
-	new->bi_opf = opf;
+	struct bio *new = bio_alloc(bdev, nr_pages, opf, gfp);
 
 	if (bio) {
 		bio_chain(bio, new);

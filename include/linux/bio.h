@@ -418,9 +418,10 @@ extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
 
 extern struct bio_set fs_bio_set;
 
-static inline struct bio *bio_alloc(gfp_t gfp_mask, unsigned short nr_iovecs)
+static inline struct bio *bio_alloc(struct block_device *bdev,
+		unsigned short nr_vecs, unsigned int opf, gfp_t gfp_mask)
 {
-	return bio_alloc_bioset(NULL, nr_iovecs, 0, gfp_mask, &fs_bio_set);
+	return bio_alloc_bioset(bdev, nr_vecs, opf, gfp_mask, &fs_bio_set);
 }
 
 void submit_bio(struct bio *bio);

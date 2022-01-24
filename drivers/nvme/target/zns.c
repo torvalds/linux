@@ -522,6 +522,7 @@ static void nvmet_bdev_zone_append_bio_done(struct bio *bio)
 void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 {
 	sector_t sect = nvmet_lba_to_sect(req->ns, req->cmd->rw.slba);
+	const unsigned int op = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
 	u16 status = NVME_SC_SUCCESS;
 	unsigned int total_len = 0;
 	struct scatterlist *sg;
@@ -552,13 +553,12 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 	if (nvmet_use_inline_bvec(req)) {
 		bio = &req->z.inline_bio;
 		bio_init(bio, req->inline_bvec, ARRAY_SIZE(req->inline_bvec));
+		bio->bi_opf = op;
 	} else {
-		bio = bio_alloc(GFP_KERNEL, req->sg_cnt);
+		bio = bio_alloc(req->ns->bdev, req->sg_cnt, op, GFP_KERNEL);
 	}
 
-	bio->bi_opf = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
 	bio->bi_end_io = nvmet_bdev_zone_append_bio_done;
-	bio_set_dev(bio, req->ns->bdev);
 	bio->bi_iter.bi_sector = sect;
 	bio->bi_private = req;
 	if (req->cmd->rw.control & cpu_to_le16(NVME_RW_FUA))

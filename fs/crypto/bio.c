@@ -54,7 +54,8 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 	int num_pages = 0;
 
 	/* This always succeeds since __GFP_DIRECT_RECLAIM is set. */
-	bio = bio_alloc(GFP_NOFS, BIO_MAX_VECS);
+	bio = bio_alloc(inode->i_sb->s_bdev, BIO_MAX_VECS, REQ_OP_WRITE,
+			GFP_NOFS);
 
 	while (len) {
 		unsigned int blocks_this_page = min(len, blocks_per_page);
@@ -62,10 +63,8 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 
 		if (num_pages == 0) {
 			fscrypt_set_bio_crypt_ctx(bio, inode, lblk, GFP_NOFS);
-			bio_set_dev(bio, inode->i_sb->s_bdev);
 			bio->bi_iter.bi_sector =
 					pblk << (blockbits - SECTOR_SHIFT);
-			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 		}
 		ret = bio_add_page(bio, ZERO_PAGE(0), bytes_this_page, 0);
 		if (WARN_ON(ret != bytes_this_page)) {
@@ -82,6 +81,8 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 			if (err)
 				goto out;
 			bio_reset(bio);
+			bio_set_dev(bio, inode->i_sb->s_bdev);
+			bio->bi_opf = REQ_OP_WRITE;
 			num_pages = 0;
 		}
 	}
@@ -150,12 +151,10 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 		return -EINVAL;
 
 	/* This always succeeds since __GFP_DIRECT_RECLAIM is set. */
-	bio = bio_alloc(GFP_NOFS, nr_pages);
+	bio = bio_alloc(inode->i_sb->s_bdev, nr_pages, REQ_OP_WRITE, GFP_NOFS);
 
 	do {
-		bio_set_dev(bio, inode->i_sb->s_bdev);
 		bio->bi_iter.bi_sector = pblk << (blockbits - 9);
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		i = 0;
 		offset = 0;
@@ -183,6 +182,8 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 		if (err)
 			goto out;
 		bio_reset(bio);
+		bio_set_dev(bio, inode->i_sb->s_bdev);
+		bio->bi_opf = REQ_OP_WRITE;
 	} while (len != 0);
 	err = 0;
 out:

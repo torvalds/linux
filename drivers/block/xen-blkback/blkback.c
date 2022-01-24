@@ -1326,13 +1326,13 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 				     pages[i]->page,
 				     seg[i].nsec << 9,
 				     seg[i].offset) == 0)) {
-			bio = bio_alloc(GFP_KERNEL, bio_max_segs(nseg - i));
+			bio = bio_alloc(preq.bdev, bio_max_segs(nseg - i),
+					operation | operation_flags,
+					GFP_KERNEL);
 			biolist[nbio++] = bio;
-			bio_set_dev(bio, preq.bdev);
 			bio->bi_private = pending_req;
 			bio->bi_end_io  = end_block_io_op;
 			bio->bi_iter.bi_sector  = preq.sector_number;
-			bio_set_op_attrs(bio, operation, operation_flags);
 		}
 
 		preq.sector_number += seg[i].nsec;
@@ -1342,12 +1342,11 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	if (!bio) {
 		BUG_ON(operation_flags != REQ_PREFLUSH);
 
-		bio = bio_alloc(GFP_KERNEL, 0);
+		bio = bio_alloc(preq.bdev, 0, operation | operation_flags,
+				GFP_KERNEL);
 		biolist[nbio++] = bio;
-		bio_set_dev(bio, preq.bdev);
 		bio->bi_private = pending_req;
 		bio->bi_end_io  = end_block_io_op;
-		bio_set_op_attrs(bio, operation, operation_flags);
 	}
 
 	atomic_set(&pending_req->pendcnt, nbio);
