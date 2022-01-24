@@ -1217,6 +1217,7 @@
 #define SRST_M_SPDIF5_DP1		923
 /********Name=SOFTRST_CON59,Offset=0xAEC********/
 #define SRST_A_HDCP1_BIU		950
+#define SRST_A_HDMIRX_BIU		951
 #define SRST_A_VO1_BIU			952
 #define SRST_H_VOP1_BIU			953
 #define SRST_H_VOP1_S_BIU		954
