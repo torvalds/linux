@@ -250,6 +250,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c,
 
 	regmap_write(regmap, REG_POWERON, 0);
 	msleep(30);
+	regmap_write(regmap, REG_PWM, 0);
 
 	config.dev = &i2c->dev;
 	config.regmap = regmap;
