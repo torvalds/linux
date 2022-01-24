@@ -1206,6 +1206,16 @@ out_no_progress:
 	return err;
 }
 
+static void intel_pt_clear_fup_event(struct intel_pt_decoder *decoder)
+{
+	decoder->set_fup_tx_flags = false;
+	decoder->set_fup_ptw = false;
+	decoder->set_fup_mwait = false;
+	decoder->set_fup_pwre = false;
+	decoder->set_fup_exstop = false;
+	decoder->set_fup_bep = false;
+}
+
 static bool intel_pt_fup_event(struct intel_pt_decoder *decoder)
 {
 	enum intel_pt_sample_type type = decoder->state.type;
@@ -1623,12 +1633,7 @@ static int intel_pt_overflow(struct intel_pt_decoder *decoder)
 	decoder->state.from_ip = decoder->ip;
 	decoder->ip = 0;
 	decoder->pge = false;
-	decoder->set_fup_tx_flags = false;
-	decoder->set_fup_ptw = false;
-	decoder->set_fup_mwait = false;
-	decoder->set_fup_pwre = false;
-	decoder->set_fup_exstop = false;
-	decoder->set_fup_bep = false;
+	intel_pt_clear_fup_event(decoder);
 	decoder->overflow = true;
 	return -EOVERFLOW;
 }
@@ -3518,12 +3523,7 @@ static int intel_pt_sync_ip(struct intel_pt_decoder *decoder)
 {
 	int err;
 
-	decoder->set_fup_tx_flags = false;
-	decoder->set_fup_ptw = false;
-	decoder->set_fup_mwait = false;
-	decoder->set_fup_pwre = false;
-	decoder->set_fup_exstop = false;
-	decoder->set_fup_bep = false;
+	intel_pt_clear_fup_event(decoder);
 	decoder->overflow = false;
 
 	if (!decoder->branch_enable) {
