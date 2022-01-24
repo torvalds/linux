@@ -906,6 +906,23 @@ static const struct media_device_ops rvin_csi2_media_ops = {
 	.link_notify = rvin_csi2_link_notify,
 };
 
+static int rvin_csi2_create_link(struct rvin_group *group,
+				 const struct rvin_group_route *route)
+
+{
+	struct media_entity *source = &group->remotes[route->csi].subdev->entity;
+	unsigned int source_idx = rvin_group_csi_channel_to_pad(route->channel);
+	struct media_entity *sink = &group->vin[route->vin]->vdev.entity;
+	struct media_pad *source_pad = &source->pads[source_idx];
+	struct media_pad *sink_pad = &sink->pads[0];
+
+	/* Skip if link already exists. */
+	if (media_entity_find_link(source_pad, sink_pad))
+		return 0;
+
+	return media_create_pad_link(source, source_idx, sink, 0, 0);
+}
+
 static int rvin_csi2_setup_links(struct rvin_dev *vin)
 {
 	const struct rvin_group_route *route;
@@ -914,10 +931,6 @@ static int rvin_csi2_setup_links(struct rvin_dev *vin)
 	/* Create all media device links between VINs and CSI-2's. */
 	mutex_lock(&vin->group->lock);
 	for (route = vin->info->routes; route->mask; route++) {
-		struct media_pad *source_pad, *sink_pad;
-		struct media_entity *source, *sink;
-		unsigned int source_idx;
-
 		/* Check that VIN is part of the group. */
 		if (!vin->group->vin[route->vin])
 			continue;
@@ -930,23 +943,9 @@ static int rvin_csi2_setup_links(struct rvin_dev *vin)
 		if (!vin->group->remotes[route->csi].subdev)
 			continue;
 
-		source = &vin->group->remotes[route->csi].subdev->entity;
-		source_idx = rvin_group_csi_channel_to_pad(route->channel);
-		source_pad = &source->pads[source_idx];
-
-		sink = &vin->group->vin[route->vin]->vdev.entity;
-		sink_pad = &sink->pads[0];
-
-		/* Skip if link already exists. */
-		if (media_entity_find_link(source_pad, sink_pad))
-			continue;
-
-		ret = media_create_pad_link(source, source_idx, sink, 0, 0);
-		if (ret) {
-			vin_err(vin, "Error adding link from %s to %s\n",
-				source->name, sink->name);
+		ret = rvin_csi2_create_link(vin->group, route);
+		if (ret)
 			break;
-		}
 	}
 	mutex_unlock(&vin->group->lock);
 
