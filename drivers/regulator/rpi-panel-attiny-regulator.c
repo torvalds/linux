@@ -207,31 +207,8 @@ static int attiny_update_status(struct backlight_device *bl)
 	return ret;
 }
 
-static int attiny_get_brightness(struct backlight_device *bl)
-{
-	struct attiny_lcd *state = bl_get_data(bl);
-	struct regmap *regmap = state->regmap;
-	int ret, brightness, i;
-
-	mutex_lock(&state->lock);
-
-	for (i = 0; i < 10; i++) {
-		ret = regmap_read(regmap, REG_PWM, &brightness);
-		if (!ret)
-			break;
-	}
-
-	mutex_unlock(&state->lock);
-
-	if (ret)
-		return ret;
-
-	return brightness;
-}
-
 static const struct backlight_ops attiny_bl = {
 	.update_status	= attiny_update_status,
-	.get_brightness	= attiny_get_brightness,
 };
 
 static int attiny_gpio_get_direction(struct gpio_chip *gc, unsigned int off)
