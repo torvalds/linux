@@ -1848,6 +1848,19 @@ static int perf_sample__fprintf_synth_evt(struct perf_sample *sample, FILE *fp)
 	return len + perf_sample__fprintf_pt_spacing(len, fp);
 }
 
+static int perf_sample__fprintf_synth_iflag_chg(struct perf_sample *sample, FILE *fp)
+{
+	struct perf_synth_intel_iflag_chg *data = perf_sample__synth_ptr(sample);
+	int len;
+
+	if (perf_sample__bad_synth_size(sample, *data))
+		return 0;
+
+	len = fprintf(fp, " IFLAG: %d->%d %s branch", !data->iflag, data->iflag,
+		      data->via_branch ? "via" : "non");
+	return len + perf_sample__fprintf_pt_spacing(len, fp);
+}
+
 static int perf_sample__fprintf_synth(struct perf_sample *sample,
 				      struct evsel *evsel, FILE *fp)
 {
@@ -1868,6 +1881,8 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 		return perf_sample__fprintf_synth_psb(sample, fp);
 	case PERF_SYNTH_INTEL_EVT:
 		return perf_sample__fprintf_synth_evt(sample, fp);
+	case PERF_SYNTH_INTEL_IFLAG_CHG:
+		return perf_sample__fprintf_synth_iflag_chg(sample, fp);
 	default:
 		break;
 	}
