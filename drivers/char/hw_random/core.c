@@ -429,6 +429,9 @@ static int hwrng_fillfn(void *unused)
 	while (!kthread_should_stop()) {
 		struct hwrng *rng;
 
+		if (!current_quality)
+			break;
+
 		rng = get_current_rng();
 		if (IS_ERR(rng) || !rng)
 			break;
