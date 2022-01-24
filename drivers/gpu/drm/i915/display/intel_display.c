@@ -4379,12 +4379,12 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		active = true;
 	}
 
+	if (!active)
+		goto out;
+
 	intel_dsc_get_config(pipe_config);
 	if (DISPLAY_VER(dev_priv) >= 13 && !pipe_config->dsc.compression_enable)
 		intel_uncompressed_joiner_get_config(pipe_config);
-
-	if (!active)
-		goto out;
 
 	if (!transcoder_is_dsi(pipe_config->cpu_transcoder) ||
 	    DISPLAY_VER(dev_priv) >= 11)
