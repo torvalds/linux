@@ -376,10 +376,24 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 
 		spin_unlock_bh(&lif->rx_filters.lock);
 
-		if (err == -ENOSPC) {
-			if (le16_to_cpu(ctx.cmd.rx_filter_add.match) == IONIC_RX_FILTER_MATCH_VLAN)
-				lif->max_vlans = lif->nvlans;
+		/* store the max_vlans limit that we found */
+		if (err == -ENOSPC &&
+		    le16_to_cpu(ctx.cmd.rx_filter_add.match) == IONIC_RX_FILTER_MATCH_VLAN)
+			lif->max_vlans = lif->nvlans;
+
+		/* Prevent unnecessary error messages on recoverable
+		 * errors as the filter will get retried on the next
+		 * sync attempt.
+		 */
+		switch (err) {
+		case -ENOSPC:
+		case -ENXIO:
+		case -ETIMEDOUT:
+		case -EAGAIN:
+		case -EBUSY:
 			return 0;
+		default:
+			break;
 		}
 
 		ionic_adminq_netdev_err_print(lif, ctx.cmd.cmd.opcode,
@@ -494,9 +508,22 @@ static int ionic_lif_filter_del(struct ionic_lif *lif,
 	spin_unlock_bh(&lif->rx_filters.lock);
 
 	if (state != IONIC_FILTER_STATE_NEW) {
-		err = ionic_adminq_post_wait(lif, &ctx);
-		if (err && err != -EEXIST)
+		err = ionic_adminq_post_wait_nomsg(lif, &ctx);
+
+		switch (err) {
+			/* ignore these errors */
+		case -EEXIST:
+		case -ENXIO:
+		case -ETIMEDOUT:
+		case -EAGAIN:
+		case -EBUSY:
+		case 0:
+			break;
+		default:
+			ionic_adminq_netdev_err_print(lif, ctx.cmd.cmd.opcode,
+						      ctx.comp.comp.status, err);
 			return err;
+		}
 	}
 
 	return 0;
