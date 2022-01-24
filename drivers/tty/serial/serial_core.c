@@ -105,6 +105,7 @@ void uart_write_wakeup(struct uart_port *port)
 	BUG_ON(!state);
 	tty_port_tty_wakeup(&state->port);
 }
+EXPORT_SYMBOL(uart_write_wakeup);
 
 static void uart_stop(struct tty_struct *tty)
 {
@@ -351,7 +352,6 @@ uart_update_timeout(struct uart_port *port, unsigned int cflag,
 	 */
 	port->timeout = (HZ * size) / baud + HZ/50;
 }
-
 EXPORT_SYMBOL(uart_update_timeout);
 
 /**
@@ -453,7 +453,6 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 	WARN_ON(1);
 	return 0;
 }
-
 EXPORT_SYMBOL(uart_get_baud_rate);
 
 /**
@@ -478,7 +477,6 @@ uart_get_divisor(struct uart_port *port, unsigned int baud)
 
 	return quot;
 }
-
 EXPORT_SYMBOL(uart_get_divisor);
 
 /* Caller holds port mutex */
@@ -2220,6 +2218,7 @@ unlock:
 
 	return 0;
 }
+EXPORT_SYMBOL(uart_suspend_port);
 
 int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 {
@@ -2305,6 +2304,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 
 	return 0;
 }
+EXPORT_SYMBOL(uart_resume_port);
 
 static inline void
 uart_report_port(struct uart_driver *drv, struct uart_port *port)
@@ -2599,6 +2599,7 @@ out_kfree:
 out:
 	return retval;
 }
+EXPORT_SYMBOL(uart_register_driver);
 
 /**
  *	uart_unregister_driver - remove a driver from the uart core layer
@@ -2622,6 +2623,7 @@ void uart_unregister_driver(struct uart_driver *drv)
 	drv->state = NULL;
 	drv->tty_driver = NULL;
 }
+EXPORT_SYMBOL(uart_unregister_driver);
 
 struct tty_driver *uart_console_device(struct console *co, int *index)
 {
@@ -2956,6 +2958,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 
 	return ret;
 }
+EXPORT_SYMBOL(uart_add_one_port);
 
 /**
  *	uart_remove_one_port - detach a driver defined port structure
@@ -3036,6 +3039,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL(uart_remove_one_port);
 
 /*
  *	Are the two ports equivalent?
@@ -3211,14 +3215,6 @@ bool uart_try_toggle_sysrq(struct uart_port *port, unsigned int ch)
 }
 EXPORT_SYMBOL_GPL(uart_try_toggle_sysrq);
 #endif
-
-EXPORT_SYMBOL(uart_write_wakeup);
-EXPORT_SYMBOL(uart_register_driver);
-EXPORT_SYMBOL(uart_unregister_driver);
-EXPORT_SYMBOL(uart_suspend_port);
-EXPORT_SYMBOL(uart_resume_port);
-EXPORT_SYMBOL(uart_add_one_port);
-EXPORT_SYMBOL(uart_remove_one_port);
 
 /**
  * uart_get_rs485_mode() - retrieve rs485 properties for given uart
