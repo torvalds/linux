@@ -183,6 +183,7 @@ enum perf_synth_id {
 	PERF_SYNTH_INTEL_CBR,
 	PERF_SYNTH_INTEL_PSB,
 	PERF_SYNTH_INTEL_EVT,
+	PERF_SYNTH_INTEL_IFLAG_CHG,
 };
 
 /*
@@ -306,6 +307,18 @@ struct perf_synth_intel_evt {
 		u32	cfe;
 	};
 	struct perf_synth_intel_evd evd[];
+};
+
+struct perf_synth_intel_iflag_chg {
+	u32 padding;
+	union {
+		struct {
+			u32	iflag		:  1,
+				via_branch	:  1;
+		};
+		u32	flags;
+	};
+	u64	branch_ip; /* If via_branch */
 };
 
 /*
