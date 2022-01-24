@@ -166,6 +166,14 @@ static struct test_data {
 	{2, {0x02, 0xb3}, INTEL_PT_BLK_4_CTX, {INTEL_PT_BEP_IP, 0, 0}, 0, 0 },
 	{2, {0x02, 0x33}, INTEL_PT_BLK_8_CTX, {INTEL_PT_BEP, 0, 0}, 0, 0 },
 	{2, {0x02, 0xb3}, INTEL_PT_BLK_8_CTX, {INTEL_PT_BEP_IP, 0, 0}, 0, 0 },
+	/* Control Flow Event Packet */
+	{4, {0x02, 0x13, 0x01, 0x03}, 0, {INTEL_PT_CFE, 1, 3}, 0, 0 },
+	{4, {0x02, 0x13, 0x81, 0x03}, 0, {INTEL_PT_CFE_IP, 1, 3}, 0, 0 },
+	{4, {0x02, 0x13, 0x1f, 0x00}, 0, {INTEL_PT_CFE, 0x1f, 0}, 0, 0 },
+	{4, {0x02, 0x13, 0x9f, 0xff}, 0, {INTEL_PT_CFE_IP, 0x1f, 0xff}, 0, 0 },
+	/*  */
+	{11, {0x02, 0x53, 0x09, 1, 2, 3, 4, 5, 6, 7}, 0, {INTEL_PT_EVD, 0x09, 0x7060504030201}, 0, 0 },
+	{11, {0x02, 0x53, 0x3f, 2, 3, 4, 5, 6, 7, 8}, 0, {INTEL_PT_EVD, 0x3f, 0x8070605040302}, 0, 0 },
 	/* Terminator */
 	{0, {0}, 0, {0, 0, 0}, 0, 0 },
 };
