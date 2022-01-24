@@ -49,7 +49,7 @@ static ssize_t start_show(struct device *dev, struct device_attribute *attr,
 
 	return sysfs_emit(buf, "%#llx\n", cxld->range.start);
 }
-static DEVICE_ATTR_RO(start);
+static DEVICE_ATTR_ADMIN_RO(start);
 
 static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
