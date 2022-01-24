@@ -33,7 +33,8 @@ static void ionic_watchdog_cb(struct timer_list *t)
 	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 		ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
 
-	if (test_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state)) {
+	if (test_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state) &&
+	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
 		if (!work) {
 			netdev_err(lif->netdev, "rxmode change dropped\n");
@@ -148,8 +149,9 @@ bool ionic_is_fw_running(struct ionic_dev *idev)
 
 int ionic_heartbeat_check(struct ionic *ionic)
 {
-	struct ionic_dev *idev = &ionic->idev;
 	unsigned long check_time, last_check_time;
+	struct ionic_dev *idev = &ionic->idev;
+	struct ionic_lif *lif = ionic->lif;
 	bool fw_status_ready = true;
 	bool fw_hb_ready;
 	u8 fw_generation;
@@ -187,14 +189,21 @@ do_check_time:
 			 * the down, the next watchdog will see the fw is up
 			 * and the generation value stable, so will trigger
 			 * the fw-up activity.
+			 *
+			 * If we had already moved to FW_RESET from a RESET event,
+			 * it is possible that we never saw the fw_status go to 0,
+			 * so we fake the current idev->fw_status_ready here to
+			 * force the transition and get FW up again.
 			 */
-			fw_status_ready = false;
+			if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+				idev->fw_status_ready = false;	/* go to running */
+			else
+				fw_status_ready = false;	/* go to down */
 		}
 	}
 
 	/* is this a transition? */
 	if (fw_status_ready != idev->fw_status_ready) {
-		struct ionic_lif *lif = ionic->lif;
 		bool trigger = false;
 
 		if (!fw_status_ready && lif &&
