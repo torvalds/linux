@@ -225,8 +225,11 @@ int tty_port_alloc_xmit_buf(struct tty_port *port)
 {
 	/* We may sleep in get_zeroed_page() */
 	mutex_lock(&port->buf_mutex);
-	if (port->xmit_buf == NULL)
+	if (port->xmit_buf == NULL) {
 		port->xmit_buf = (unsigned char *)get_zeroed_page(GFP_KERNEL);
+		if (port->xmit_buf)
+			kfifo_init(&port->xmit_fifo, port->xmit_buf, PAGE_SIZE);
+	}
 	mutex_unlock(&port->buf_mutex);
 	if (port->xmit_buf == NULL)
 		return -ENOMEM;
@@ -240,6 +243,7 @@ void tty_port_free_xmit_buf(struct tty_port *port)
 	if (port->xmit_buf != NULL) {
 		free_page((unsigned long)port->xmit_buf);
 		port->xmit_buf = NULL;
+		INIT_KFIFO(port->xmit_fifo);
 	}
 	mutex_unlock(&port->buf_mutex);
 }
