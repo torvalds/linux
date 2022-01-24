@@ -7624,6 +7624,7 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 					struct intel_crtc_state *old_crtc_state,
 					struct intel_crtc_state *new_crtc_state)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *slave_crtc_state, *master_crtc_state;
 	struct intel_crtc *slave_crtc, *master_crtc;
 
@@ -7641,9 +7642,10 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 
 	slave_crtc = intel_dsc_get_bigjoiner_secondary(crtc);
 	if (!slave_crtc) {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] Big joiner configuration requires "
-			      "CRTC + 1 to be used, doesn't exist\n",
-			      crtc->base.base.id, crtc->base.name);
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] Big joiner configuration requires "
+			    "CRTC + 1 to be used, doesn't exist\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
@@ -7657,16 +7659,18 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 	if (slave_crtc_state->uapi.enable)
 		goto claimed;
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s] Used as slave for big joiner\n",
-		      slave_crtc->base.base.id, slave_crtc->base.name);
+	drm_dbg_kms(&i915->drm,
+		    "[CRTC:%d:%s] Used as slave for big joiner\n",
+		    slave_crtc->base.base.id, slave_crtc->base.name);
 
 	return copy_bigjoiner_crtc_state(slave_crtc_state, new_crtc_state);
 
 claimed:
-	DRM_DEBUG_KMS("[CRTC:%d:%s] Slave is enabled as normal CRTC, but "
-		      "[CRTC:%d:%s] claiming this CRTC for bigjoiner.\n",
-		      slave_crtc->base.base.id, slave_crtc->base.name,
-		      master_crtc->base.base.id, master_crtc->base.name);
+	drm_dbg_kms(&i915->drm,
+		    "[CRTC:%d:%s] Slave is enabled as normal CRTC, but "
+		    "[CRTC:%d:%s] claiming this CRTC for bigjoiner.\n",
+		    slave_crtc->base.base.id, slave_crtc->base.name,
+		    master_crtc->base.base.id, master_crtc->base.name);
 	return -EINVAL;
 }
 
