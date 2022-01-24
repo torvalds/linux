@@ -557,7 +557,7 @@ static struct platform_driver mt7621_pcie_driver = {
 	.remove = mt7621_pcie_remove,
 	.driver = {
 		.name = "mt7621-pci",
-		.of_match_table = of_match_ptr(mt7621_pcie_ids),
+		.of_match_table = mt7621_pcie_ids,
 	},
 };
 builtin_platform_driver(mt7621_pcie_driver);
