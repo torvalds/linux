@@ -1384,7 +1384,7 @@ static int vangogh_set_peak_clock_by_device(struct smu_context *smu)
 static int vangogh_set_performance_level(struct smu_context *smu,
 					enum amd_dpm_forced_level level)
 {
-	int ret = 0;
+	int ret = 0, i;
 	uint32_t soc_mask, mclk_mask, fclk_mask;
 	uint32_t vclk_mask = 0, dclk_mask = 0;
 
@@ -1477,6 +1477,24 @@ static int vangogh_set_performance_level(struct smu_context *smu,
 					      smu->gfx_actual_soft_max_freq, NULL);
 	if (ret)
 		return ret;
+
+	if (smu->adev->pm.fw_version >= 0x43f1b00) {
+		for (i = 0; i < smu->cpu_core_num; i++) {
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinCclk,
+							      ((i << 20)
+							       | smu->cpu_actual_soft_min_freq),
+							      NULL);
+			if (ret)
+				return ret;
+
+			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxCclk,
+							      ((i << 20)
+							       | smu->cpu_actual_soft_max_freq),
+							      NULL);
+			if (ret)
+				return ret;
+		}
+	}
 
 	return ret;
 }
