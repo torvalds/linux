@@ -52,8 +52,7 @@ static void inet_twsk_kill(struct inet_timewait_sock *tw)
 	spin_unlock(lock);
 
 	/* Disassociate with bind bucket. */
-	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), tw->tw_num,
-			hashinfo->bhash_size)];
+	bhead = &hashinfo->bhash[tw->tw_bslot];
 
 	spin_lock(&bhead->lock);
 	inet_twsk_bind_unhash(tw, hashinfo);
@@ -110,8 +109,12 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	   Note, that any socket with inet->num != 0 MUST be bound in
 	   binding cache, even if it is closed.
 	 */
-	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), inet->inet_num,
-			hashinfo->bhash_size)];
+	/* Cache inet_bhashfn(), because 'struct net' might be no longer
+	 * available later in inet_twsk_kill().
+	 */
+	tw->tw_bslot = inet_bhashfn(twsk_net(tw), inet->inet_num,
+				    hashinfo->bhash_size);
+	bhead = &hashinfo->bhash[tw->tw_bslot];
 	spin_lock(&bhead->lock);
 	tw->tw_tb = icsk->icsk_bind_hash;
 	WARN_ON(!icsk->icsk_bind_hash);
