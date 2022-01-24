@@ -3266,6 +3266,7 @@ int ionic_lif_init(struct ionic_lif *lif)
 	return 0;
 
 err_out_notifyq_deinit:
+	napi_disable(&lif->adminqcq->napi);
 	ionic_lif_qcq_deinit(lif, lif->notifyqcq);
 err_out_adminq_deinit:
 	ionic_lif_qcq_deinit(lif, lif->adminqcq);
