@@ -46,6 +46,24 @@ static void ionic_watchdog_cb(struct timer_list *t)
 	}
 }
 
+static void ionic_watchdog_init(struct ionic *ionic)
+{
+	struct ionic_dev *idev = &ionic->idev;
+
+	timer_setup(&ionic->watchdog_timer, ionic_watchdog_cb, 0);
+	ionic->watchdog_period = IONIC_WATCHDOG_SECS * HZ;
+
+	/* set times to ensure the first check will proceed */
+	atomic_long_set(&idev->last_check_time, jiffies - 2 * HZ);
+	idev->last_hb_time = jiffies - 2 * ionic->watchdog_period;
+	/* init as ready, so no transition if the first check succeeds */
+	idev->last_fw_hb = 0;
+	idev->fw_hb_ready = true;
+	idev->fw_status_ready = true;
+	idev->fw_generation = IONIC_FW_STS_F_GENERATION &
+			      ioread8(&idev->dev_info_regs->fw_status);
+}
+
 void ionic_init_devinfo(struct ionic *ionic)
 {
 	struct ionic_dev *idev = &ionic->idev;
@@ -109,18 +127,7 @@ int ionic_dev_setup(struct ionic *ionic)
 		return -EFAULT;
 	}
 
-	timer_setup(&ionic->watchdog_timer, ionic_watchdog_cb, 0);
-	ionic->watchdog_period = IONIC_WATCHDOG_SECS * HZ;
-
-	/* set times to ensure the first check will proceed */
-	atomic_long_set(&idev->last_check_time, jiffies - 2 * HZ);
-	idev->last_hb_time = jiffies - 2 * ionic->watchdog_period;
-	/* init as ready, so no transition if the first check succeeds */
-	idev->last_fw_hb = 0;
-	idev->fw_hb_ready = true;
-	idev->fw_status_ready = true;
-	idev->fw_generation = IONIC_FW_STS_F_GENERATION &
-			      ioread8(&idev->dev_info_regs->fw_status);
+	ionic_watchdog_init(ionic);
 
 	idev->db_pages = bar->vaddr;
 	idev->phy_db_pages = bar->bus_addr;
