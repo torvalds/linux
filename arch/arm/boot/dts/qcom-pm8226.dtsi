@@ -39,6 +39,16 @@
 
 			chg_otg: otg-vbus { };
 		};
+
+		pm8226_mpps: mpps@a000 {
+			compatible = "qcom,pm8226-mpp", "qcom,spmi-mpp";
+			reg = <0xa000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pm8226_mpps 0 0 8>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 
 	pm8226_1: pm8226@1 {
