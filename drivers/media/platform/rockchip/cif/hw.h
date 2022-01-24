@@ -80,6 +80,7 @@ enum rkcif_chip_id {
 	CHIP_RV1126_CIF_LITE,
 	CHIP_RK3568_CIF,
 	CHIP_RK3588_CIF,
+	CHIP_RV1106_CIF,
 };
 
 struct rkcif_hw_match_data {

@@ -141,6 +141,10 @@ enum cif_reg_index {
 	CIF_REG_MIPI_EFFECT_CODE_ID1,
 	CIF_REG_MIPI_EFFECT_CODE_ID2,
 	CIF_REG_MIPI_EFFECT_CODE_ID3,
+	CIF_REG_LVDS_ID0_CTRL0,
+	CIF_REG_LVDS_ID1_CTRL0,
+	CIF_REG_LVDS_ID2_CTRL0,
+	CIF_REG_LVDS_ID3_CTRL0,
 	CIF_REG_MIPI_ON_PAD,
 
 	CIF_REG_Y_STAT_CONTROL,
@@ -416,6 +420,28 @@ enum cif_reg_index {
 #define CSI_MIPI0_EFFECT_CODE_ID3	0x1B8
 #define CSI_MIPI0_ON_PAD		0x1BC
 
+/* RV1106 CONTROL Registers Offset */
+#define CIF_LVDS0_ID0_CTRL0		0x1D0
+#define CIF_LVDS0_ID1_CTRL0		0x1D4
+#define CIF_LVDS0_ID2_CTRL0		0x1D8
+#define CIF_LVDS0_ID3_CTRL0		0x1DC
+#define CIF_LVDS_SAV_EAV_ACT0_ID0_RV1106	0x1E0
+#define CIF_LVDS_SAV_EAV_BLK0_ID0_RV1106	0x1E4
+#define CIF_LVDS_SAV_EAV_ACT1_ID0_RV1106	0x1E8
+#define CIF_LVDS_SAV_EAV_BLK1_ID0_RV1106	0x1EC
+#define CIF_LVDS_SAV_EAV_ACT0_ID1_RV1106	0x1F0
+#define CIF_LVDS_SAV_EAV_BLK0_ID1_RV1106	0x1F4
+#define CIF_LVDS_SAV_EAV_ACT1_ID1_RV1106	0x1F8
+#define CIF_LVDS_SAV_EAV_BLK1_ID1_RV1106	0x1FC
+#define CIF_LVDS_SAV_EAV_ACT0_ID2_RV1106	0x200
+#define CIF_LVDS_SAV_EAV_BLK0_ID2_RV1106	0x204
+#define CIF_LVDS_SAV_EAV_ACT1_ID2_RV1106	0x208
+#define CIF_LVDS_SAV_EAV_BLK1_ID2_RV1106	0x20C
+#define CIF_LVDS_SAV_EAV_ACT0_ID3_RV1106	0x210
+#define CIF_LVDS_SAV_EAV_BLK0_ID3_RV1106	0x214
+#define CIF_LVDS_SAV_EAV_ACT1_ID3_RV1106	0x218
+#define CIF_LVDS_SAV_EAV_BLK1_ID3_RV1106	0x21C
+
 /* RK3588 CONTROL Registers Offset */
 #define GLB_CTRL			0X000
 #define GLB_INTEN			0X004
@@ -510,6 +536,8 @@ enum cif_reg_index {
 
 #define DVP_SW_PRESS_VALUE(val)		(((val) & 0x7) << 13)
 #define DVP_SW_HURRY_VALUE(val)		(((val) & 0x7) << 9)
+#define DVP_SW_CAP_EN(ID)		(2 << ID)
+#define DVP_SW_DMA_EN(ID)		(0x100000 << ID)
 
 #define DVP_DMA_END_INTEN(id)	\
 	({ \
@@ -801,6 +829,37 @@ enum cif_reg_index {
 #define LVDS_HDR_FRAME_X3		(0x1 << 28)
 #define LVDS_COMPACT			(0x1 << 29)
 
+#define LVDS_ENABLE_CAPTURE_RV1106		(0x1 << 0)
+#define LVDS_MODE_RV1106(mode)			(((mode) & 0x7) << 1)
+#define LVDS_LANES_ENABLED_RV1106(lanes)	\
+	({ \
+		unsigned int mask; \
+		switch (lanes) { \
+		case 1: \
+			mask = 0x1 << 4; \
+			break; \
+		case 2: \
+			mask = 0x3 << 4; \
+			break; \
+		case 3: \
+			mask = 0x7 << 4; \
+			break; \
+		case 4: \
+			mask = 0xf << 4; \
+			break; \
+		default: \
+			mask = 0x1 << 4; \
+			break; \
+		} \
+		mask; \
+	})
+
+#define LVDS_MAIN_LANE_RV1106(index)		(((index) & 0x3) << 8)
+#define LVDS_FID_RV1106(id)			(((id) & 0x3) << 10)
+#define LVDS_HDR_FRAME_X2_RV1106		(0x0 << 12)
+#define LVDS_HDR_FRAME_X3_RV1106		(0x1 << 12)
+#define LVDS_DMAEN_RV1106			(0x1 << 15)
+
 /* CIF_CSI_INTEN */
 #define CSI_FRAME1_START_INTEN(id)	(0x1 << ((id) * 2 + 1))
 #define CSI_FRAME0_END_INTEN(id)	(0x1 << ((id) * 2 + 8))
@@ -904,6 +963,7 @@ enum cif_reg_index {
 #define CIF_MIPI_LVDS_SW_LVDS_WIDTH_10BITS		(0x1 << 9)
 #define CIF_MIPI_LVDS_SW_LVDS_WIDTH_12BITS		(0x2 << 9)
 #define CIF_MIPI_LVDS_SW_SEL_LVDS			(0x1 << 8)
+#define CIF_MIPI_LVDS_SW_SEL_LVDS_RV1106		(0x1 << 3)
 #define CIF_MIPI_LVDS_SW_HURRY_VALUE(val)		(((val) & 0x3) << 5)
 #define CIF_MIPI_LVDS_SW_HURRY_VALUE_RK3588(val)	(((val) & 0x7) << 5)
 #define CIF_MIPI_LVDS_SW_HURRY_ENABLE			(0x1 << 4)

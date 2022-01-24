@@ -772,6 +772,31 @@ static enum cif_reg_index get_reg_index_of_id_ctrl0(int channel_id)
 	return index;
 }
 
+static enum cif_reg_index get_reg_index_of_lvds_id_ctrl0(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_LVDS_ID0_CTRL0;
+		break;
+	case 1:
+		index = CIF_REG_LVDS_ID1_CTRL0;
+		break;
+	case 2:
+		index = CIF_REG_LVDS_ID2_CTRL0;
+		break;
+	case 3:
+		index = CIF_REG_LVDS_ID3_CTRL0;
+		break;
+	default:
+		index = CIF_REG_LVDS_ID0_CTRL0;
+		break;
+	}
+
+	return index;
+}
+
 static enum cif_reg_index get_reg_index_of_id_ctrl1(int channel_id)
 {
 	enum cif_reg_index index;
@@ -1977,7 +2002,7 @@ static unsigned char get_csi_fmt_val(const struct cif_input_fmt	*cif_fmt_in,
 	} else if (cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB888) {
 		csi_fmt_val = CSI_WRDDR_TYPE_RAW8;
 	} else {
-		csi_fmt_val  = cif_fmt_in->csi_fmt_val;
+		csi_fmt_val = cif_fmt_in->csi_fmt_val;
 	}
 	return csi_fmt_val;
 }
@@ -2043,7 +2068,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	 * and the width is double Because the real input fmt is
 	 * yuyv
 	 */
-	fourcc  = stream->cif_fmt_out->fourcc;
+	fourcc = stream->cif_fmt_out->fourcc;
 	if (fourcc == V4L2_PIX_FMT_YUYV || fourcc == V4L2_PIX_FMT_YVYU ||
 	    fourcc == V4L2_PIX_FMT_UYVY || fourcc == V4L2_PIX_FMT_VYUY) {
 		channel->fmt_val = CSI_WRDDR_TYPE_RAW8;
@@ -2131,9 +2156,9 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 		CIF_MIPI_LVDS_SW_HURRY_ENABLE |
 		CIF_MIPI_LVDS_SW_WATER_LINE_25 |
 		CIF_MIPI_LVDS_SW_WATER_LINE_ENABLE;
-	if (mbus_type  == V4L2_MBUS_CSI2_DPHY) {
+	if (mbus_type == V4L2_MBUS_CSI2_DPHY) {
 		val &= ~CIF_MIPI_LVDS_SW_SEL_LVDS;
-	} else if (mbus_type  == V4L2_MBUS_CCP2) {
+	} else if (mbus_type == V4L2_MBUS_CCP2) {
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RAW12)
 			val |= CIF_MIPI_LVDS_SW_LVDS_WIDTH_12BITS;
 		else if (channel->fmt_val == CSI_WRDDR_TYPE_RAW10)
@@ -2168,7 +2193,7 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 					 RKCIF_YUV_ADDR_STATE_INIT,
 					 channel->id);
 
-	if (mbus_type  == V4L2_MBUS_CSI2_DPHY) {
+	if (mbus_type == V4L2_MBUS_CSI2_DPHY) {
 		//need always enable crop
 		val = CSI_ENABLE_CAPTURE | channel->fmt_val |
 		      channel->cmd_mode_en << 4 | CSI_ENABLE_CROP |
@@ -2180,7 +2205,7 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 
 		if (stream->cifdev->chip_id >= CHIP_RK3568_CIF)
 			val |= stream->cif_fmt_in->csi_yuv_order;
-	} else if (mbus_type  == V4L2_MBUS_CCP2) {
+	} else if (mbus_type == V4L2_MBUS_CCP2) {
 		rkcif_csi_set_lvds_sav_eav(stream, channel);
 		val = LVDS_ENABLE_CAPTURE | LVDS_MODE(channel->lvds_cfg.mode) |
 		      LVDS_MAIN_LANE(0) | LVDS_FID(0) |
@@ -2294,6 +2319,90 @@ static int rkcif_csi_get_output_type_mask(struct rkcif_stream *stream)
 	return mask;
 }
 
+static int rkcif_lvds_get_output_type_mask(struct rkcif_stream *stream)
+{
+	unsigned int mask;
+	const struct cif_output_fmt *fmt = stream->cif_fmt_out;
+	int wr_type_offset = 0;
+	int yuvout_offset = 0;
+
+	if (stream->cifdev->chip_id == CHIP_RV1106_CIF) {
+		wr_type_offset = 17;
+		yuvout_offset = 9;
+	}
+
+	switch (fmt->fourcc) {
+	case V4L2_PIX_FMT_NV16:
+		mask = (CSI_WRDDR_TYPE_YUV422SP_RK3588 << wr_type_offset) |
+			(CSI_YUV_OUTPUT_ORDER_UYVY << yuvout_offset);
+		break;
+	case V4L2_PIX_FMT_NV61:
+		mask = (CSI_WRDDR_TYPE_YUV422SP_RK3588 << wr_type_offset) |
+			(CSI_YUV_OUTPUT_ORDER_VYUY << yuvout_offset);
+		break;
+	case V4L2_PIX_FMT_NV12:
+		mask = (CSI_WRDDR_TYPE_YUV420SP_RK3588 << wr_type_offset) |
+			(CSI_YUV_OUTPUT_ORDER_UYVY << yuvout_offset);
+		break;
+	case V4L2_PIX_FMT_NV21:
+		mask = (CSI_WRDDR_TYPE_YUV420SP_RK3588 << wr_type_offset) |
+			(CSI_YUV_OUTPUT_ORDER_VYUY << yuvout_offset);
+		break;
+	case V4L2_PIX_FMT_YUYV:
+		mask = (CSI_WRDDR_TYPE_YUV_PACKET << wr_type_offset) |
+			(CSI_YUV_OUTPUT_ORDER_YUYV << yuvout_offset);
+		break;
+	case V4L2_PIX_FMT_YVYU:
+		mask = (CSI_WRDDR_TYPE_YUV_PACKET << wr_type_offset) |
+			(CSI_YUV_OUTPUT_ORDER_YVYU << yuvout_offset);
+		break;
+	case V4L2_PIX_FMT_UYVY:
+		mask = (CSI_WRDDR_TYPE_YUV_PACKET << wr_type_offset) |
+			(CSI_YUV_OUTPUT_ORDER_UYVY << yuvout_offset);
+		break;
+	case V4L2_PIX_FMT_VYUY:
+		mask = (CSI_WRDDR_TYPE_YUV_PACKET << wr_type_offset) |
+			(CSI_YUV_OUTPUT_ORDER_VYUY << yuvout_offset);
+		break;
+	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_BGR666:
+		mask = CSI_WRDDR_TYPE_RAW_COMPACT << wr_type_offset;
+		break;
+	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SRGGB10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SRGGB12:
+	case V4L2_PIX_FMT_SGRBG12:
+	case V4L2_PIX_FMT_SGBRG12:
+	case V4L2_PIX_FMT_SBGGR12:
+	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_Y10:
+	case V4L2_PIX_FMT_Y12:
+		if (stream->is_compact)
+			mask = CSI_WRDDR_TYPE_RAW_COMPACT << wr_type_offset;
+		else
+			mask = CSI_WRDDR_TYPE_RAW_UNCOMPACT << wr_type_offset;
+		break;
+	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_PIX_FMT_SGBRG16:
+	case V4L2_PIX_FMT_SGRBG16:
+	case V4L2_PIX_FMT_SRGGB16:
+	case V4L2_PIX_FMT_Y16:
+		mask = CSI_WRDDR_TYPE_RAW_UNCOMPACT << wr_type_offset;
+		break;
+	default:
+		mask = CSI_WRDDR_TYPE_RAW_COMPACT << wr_type_offset;
+		break;
+	}
+	return mask;
+}
+
 /*config reg for rk3588*/
 static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 				       struct csi_channel_info *channel,
@@ -2344,6 +2453,11 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 			CIF_MIPI_LVDS_SW_HURRY_ENABLE |
 			CIF_MIPI_LVDS_SW_WATER_LINE_25 |
 			CIF_MIPI_LVDS_SW_WATER_LINE_ENABLE;
+		if (mbus_type == V4L2_MBUS_CSI2_DPHY ||
+		    mbus_type == V4L2_MBUS_CSI2_CPHY)
+			val &= ~CIF_MIPI_LVDS_SW_SEL_LVDS_RV1106;
+		else
+			val |= CIF_MIPI_LVDS_SW_SEL_LVDS_RV1106;
 		rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, val);
 
 		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
@@ -2358,8 +2472,13 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 	if (channel->crop_en)
 		rkcif_write_register(dev, get_reg_index_of_id_crop_start(channel->id),
 				     channel->crop_st_y << 16 | channel->crop_st_x);
-	if (stream->dma_en)
-		dma_en = CSI_DMA_ENABLE;
+	if (stream->dma_en) {
+		if (mbus_type == V4L2_MBUS_CSI2_DPHY ||
+		    mbus_type == V4L2_MBUS_CSI2_CPHY)
+			dma_en = CSI_DMA_ENABLE;
+		else
+			dma_en = LVDS_DMAEN_RV1106;
+	}
 	if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
 		rkcif_assign_new_buffer_pingpong(stream,
 						 RKCIF_YUV_ADDR_STATE_INIT,
@@ -2368,8 +2487,8 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 		rkcif_assign_new_buffer_pingpong_toisp(stream,
 						       RKCIF_YUV_ADDR_STATE_INIT,
 						       channel->id);
-	if (mbus_type  == V4L2_MBUS_CSI2_DPHY ||
-	    mbus_type  == V4L2_MBUS_CSI2_CPHY) {
+	if (mbus_type == V4L2_MBUS_CSI2_DPHY ||
+	    mbus_type == V4L2_MBUS_CSI2_CPHY) {
 
 		if (stream->cifdev->hdr.esp.mode == HDR_LINE_CNT ||
 		    stream->cifdev->hdr.esp.mode == HDR_ID_CODE)
@@ -2401,22 +2520,23 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 			val |= CSI_HIGH_ALIGN_RK3588;
 		else
 			val &= ~CSI_HIGH_ALIGN_RK3588;
-	} else if (mbus_type  == V4L2_MBUS_CCP2) {
-		//not used
+		rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
+		rkcif_write_register(dev, CIF_REG_MIPI_EFFECT_CODE_ID0, 0x02410251);
+		rkcif_write_register(dev, CIF_REG_MIPI_EFFECT_CODE_ID1, 0x02420252);
+	} else if (mbus_type == V4L2_MBUS_CCP2) {
 		rkcif_csi_set_lvds_sav_eav(stream, channel);
-		val = LVDS_ENABLE_CAPTURE | LVDS_MODE(channel->lvds_cfg.mode) |
-		      LVDS_MAIN_LANE(0) | LVDS_FID(0) |
-		      LVDS_LANES_ENABLED(dev->active_sensor->lanes);
-
-		if (stream->is_compact)
-			val |= LVDS_COMPACT;
-		else
-			val &= ~LVDS_COMPACT;
+		val = LVDS_ENABLE_CAPTURE_RV1106 | LVDS_MODE_RV1106(channel->lvds_cfg.mode) |
+		      LVDS_MAIN_LANE_RV1106(0) | LVDS_FID_RV1106(0) |
+		      LVDS_LANES_ENABLED_RV1106(dev->active_sensor->lanes) |
+		      (channel->csi_fmt_val << 18) |
+		      rkcif_lvds_get_output_type_mask(stream) |
+		      (stream->cif_fmt_in->csi_yuv_order << 9) |
+		      dma_en;
+		if (stream->cifdev->hdr.hdr_mode == HDR_X3)
+			val |= BIT(12);
+		rkcif_write_register(dev, get_reg_index_of_lvds_id_ctrl0(channel->id), val);
 	}
 
-	rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
-	rkcif_write_register(dev, CIF_REG_MIPI_EFFECT_CODE_ID0, 0x02410251);
-	rkcif_write_register(dev, CIF_REG_MIPI_EFFECT_CODE_ID1, 0x02420252);
 	stream->cifdev->id_use_cnt++;
 	return 0;
 }
@@ -2869,7 +2989,7 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 	 * and the width is double Because the real input fmt is
 	 * yuyv
 	 */
-	fourcc  = stream->cif_fmt_out->fourcc;
+	fourcc = stream->cif_fmt_out->fourcc;
 	if (fourcc == V4L2_PIX_FMT_YUYV || fourcc == V4L2_PIX_FMT_YVYU ||
 	    fourcc == V4L2_PIX_FMT_UYVY || fourcc == V4L2_PIX_FMT_VYUY)
 		dummy_buf->size *= 2;
@@ -3681,10 +3801,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	sensor_info = dev->active_sensor;
 	mbus = &sensor_info->mbus;
 
-	if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE) {
-		dma_en = DVP_DMA_EN;
+	if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE)
 		stream->dma_en = RKCIF_DMAEN_BY_VICAP;
-	}
 
 	if (sensor_info->sd && mbus->type == V4L2_MBUS_BT656) {
 		int ret;
@@ -3863,7 +3981,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 		rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, 0x033ffff);//0x3c3ffff
 	}
 
-	if (dma_en) {
+	if (stream->dma_en) {
 		if (dev->chip_id < CHIP_RK1808_CIF)
 			rkcif_assign_new_buffer_oneframe(stream,
 							 RKCIF_YUV_ADDR_STATE_INIT);
@@ -3892,10 +4010,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 		dev->workmode = RKCIF_WORKMODE_PINGPONG;
 	}
 
-	if (dev->chip_id < CHIP_RK3588_CIF)
-		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
-			     AXI_BURST_16 | workmode | ENABLE_CAPTURE);
-	else
+	if (dev->chip_id == CHIP_RK3588_CIF) {
+		dma_en = DVP_DMA_EN;
 		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
 			     DVP_SW_WATER_LINE_25
 			     | dma_en
@@ -3905,6 +4021,22 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 			     | DVP_SW_PRESS_VALUE(3)
 			     | DVP_SW_HURRY_VALUE(3)
 			     | ENABLE_CAPTURE);
+	} else if (dev->chip_id == CHIP_RV1106_CIF) {
+		dma_en = DVP_SW_DMA_EN(stream->id);
+		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
+			     DVP_SW_WATER_LINE_25
+			     | DVP_PRESS_EN
+			     | DVP_HURRY_EN
+			     | DVP_SW_WATER_LINE_25
+			     | DVP_SW_PRESS_VALUE(3)
+			     | DVP_SW_HURRY_VALUE(3)
+			     | DVP_SW_CAP_EN(stream->id)
+			     | dma_en
+			     | ENABLE_CAPTURE);
+	} else {
+		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
+				     AXI_BURST_16 | workmode | ENABLE_CAPTURE);
+	}
 
 	atomic_set(&sof_sd->frm_sync_seq, 0);
 	stream->state = RKCIF_STATE_STREAMING;
@@ -4480,11 +4612,7 @@ static int rkcif_fh_open(struct file *filp)
 	 * Because CRU would reset iommu too, so there's not chance
 	 * to reset cif once we hold buffers after buf queued
 	 */
-	if (cifdev->chip_id == CHIP_RK1808_CIF ||
-	    cifdev->chip_id == CHIP_RV1126_CIF ||
-	    cifdev->chip_id == CHIP_RV1126_CIF_LITE ||
-	    cifdev->chip_id == CHIP_RK3568_CIF ||
-	    cifdev->chip_id == CHIP_RK3588_CIF) {
+	if (cifdev->chip_id >= CHIP_RK1808_CIF) {
 		mutex_lock(&cifdev->stream_lock);
 		if (!atomic_read(&cifdev->fh_cnt))
 			rkcif_soft_reset(cifdev, true);
@@ -7055,29 +7183,47 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream)
 	}
 
 	stream->dma_en |= stream->to_en_dma;
-	val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
 	if (stream->to_en_dma == RKCIF_DMAEN_BY_VICAP) {
 		rkcif_assign_new_buffer_pingpong(stream,
 						 RKCIF_YUV_ADDR_STATE_INIT,
 						 stream->id);
 		rkcif_write_register(cif_dev, get_reg_index_of_frm0_y_vlw(stream->id),
 				     channel->virtual_width);
-		if (!stream->is_compact)
-			val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT;
-		else
-			val &= ~CSI_WRDDR_TYPE_RAW_UNCOMPACT;
 	} else if (stream->to_en_dma == RKCIF_DMAEN_BY_ISP) {
 		rkcif_assign_new_buffer_pingpong_toisp(stream,
 						       RKCIF_YUV_ADDR_STATE_INIT,
 						       stream->id);
 	}
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
-	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY ||
-	    mbus_cfg->type == V4L2_MBUS_CCP2) {
-		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
-		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
-			val |= CSI_DMA_ENABLE;
+	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
+		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
+		if (!stream->is_compact)
+			val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT;
+		else
+			val &= ~CSI_WRDDR_TYPE_RAW_UNCOMPACT;
+		val |= CSI_DMA_ENABLE;
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id), val);
+	} else if (mbus_cfg->type == V4L2_MBUS_CCP2) {
+		val = rkcif_read_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id));
+		if (!stream->is_compact)
+			val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT << 17;
+		else
+			val &= ~(CSI_WRDDR_TYPE_RAW_UNCOMPACT << 17);
+		val |= LVDS_DMAEN_RV1106;
+		rkcif_write_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id), val);
+	} else {
+		val = rkcif_read_register(cif_dev, CIF_REG_DVP_FOR);
+		if (!stream->is_compact)
+			val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT << 11;
+		else
+			val &= ~(CSI_WRDDR_TYPE_RAW_UNCOMPACT << 11);
+		rkcif_write_register(cif_dev, CIF_REG_DVP_FOR, val);
+		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
+		if (cif_dev->chip_id == CHIP_RK3588_CIF)
+			val |= DVP_DMA_EN;
+		else if (cif_dev->chip_id == CHIP_RV1106_CIF)
+			val |= DVP_SW_DMA_EN(stream->id);
+		rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL, val);
 	}
 
 	stream->to_en_dma = 0;
@@ -7096,14 +7242,21 @@ static void rkcif_stop_dma_capture(struct rkcif_stream *stream)
 	}
 
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
-	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY ||
-	    mbus_cfg->type == V4L2_MBUS_CCP2) {
+	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
-		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
-		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
-			val &= ~CSI_DMA_ENABLE;
-
+		val &= ~CSI_DMA_ENABLE;
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id), val);
+	} else if (mbus_cfg->type == V4L2_MBUS_CCP2) {
+		val = rkcif_read_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id));
+		val &= ~LVDS_DMAEN_RV1106;
+		rkcif_write_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id), val);
+	}  else {
+		val = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
+		if (cif_dev->chip_id == CHIP_RK3588_CIF)
+			val &= ~DVP_DMA_EN;
+		else if (cif_dev->chip_id == CHIP_RV1106_CIF)
+			val &= ~(DVP_SW_DMA_EN(stream->id));
+		rkcif_write_register(cif_dev, CIF_REG_DVP_CTRL, val);
 	}
 	stream->to_stop_dma = 0;
 }
