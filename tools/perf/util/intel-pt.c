@@ -46,6 +46,10 @@
 
 #define MAX_TIMESTAMP (~0ULL)
 
+#define INTEL_PT_CFG_PASS_THRU	BIT_ULL(0)
+#define INTEL_PT_CFG_PWR_EVT_EN	BIT_ULL(4)
+#define INTEL_PT_CFG_BRANCH_EN	BIT_ULL(13)
+
 struct range {
 	u64 start;
 	u64 end;
@@ -953,7 +957,8 @@ static bool intel_pt_branch_enable(struct intel_pt *pt)
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
-		    (config & 1) && !(config & 0x2000))
+		    (config & INTEL_PT_CFG_PASS_THRU) &&
+		    !(config & INTEL_PT_CFG_BRANCH_EN))
 			return false;
 	}
 	return true;
@@ -3429,7 +3434,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		id += 1;
 	}
 
-	if (pt->synth_opts.pwr_events && (evsel->core.attr.config & 0x10)) {
+	if (pt->synth_opts.pwr_events && (evsel->core.attr.config & INTEL_PT_CFG_PWR_EVT_EN)) {
 		attr.config = PERF_SYNTH_INTEL_MWAIT;
 		err = intel_pt_synth_event(session, "mwait", &attr, id);
 		if (err)
