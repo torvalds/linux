@@ -3694,6 +3694,7 @@ M:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/brcm,bcm4908-pinctrl.yaml
+F:	drivers/pinctrl/bcm/pinctrl-bcm4908.c
 
 BROADCOM BCM5301X ARM ARCHITECTURE
 M:	Florian Fainelli <f.fainelli@gmail.com>
