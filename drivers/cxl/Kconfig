@@ -13,25 +13,26 @@ menuconfig CXL_BUS
 
 if CXL_BUS
 
-config CXL_MEM
-	tristate "CXL.mem: Memory Devices"
+config CXL_PCI
+	tristate "PCI manageability"
 	default CXL_BUS
 	help
-	  The CXL.mem protocol allows a device to act as a provider of
-	  "System RAM" and/or "Persistent Memory" that is fully coherent
-	  as if the memory was attached to the typical CPU memory
-	  controller.
+	  The CXL specification defines a "CXL memory device" sub-class in the
+	  PCI "memory controller" base class of devices. Device's identified by
+	  this class code provide support for volatile and / or persistent
+	  memory to be mapped into the system address map (Host-managed Device
+	  Memory (HDM)).
 
-	  Say 'y/m' to enable a driver that will attach to CXL.mem devices for
-	  configuration and management primarily via the mailbox interface. See
-	  Chapter 2.3 Type 3 CXL Device in the CXL 2.0 specification for more
-	  details.
+	  Say 'y/m' to enable a driver that will attach to CXL memory expander
+	  devices enumerated by the memory device class code for configuration
+	  and management primarily via the mailbox interface. See Chapter 2.3
+	  Type 3 CXL Device in the CXL 2.0 specification for more details.
 
 	  If unsure say 'm'.
 
 config CXL_MEM_RAW_COMMANDS
 	bool "RAW Command Interface for Memory Devices"
-	depends on CXL_MEM
+	depends on CXL_PCI
 	help
 	  Enable CXL RAW command interface.
 
