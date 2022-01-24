@@ -63,8 +63,9 @@ struct srcu_struct {
 	struct srcu_node node[NUM_RCU_NODES];	/* Combining tree. */
 	struct srcu_node *level[RCU_NUM_LVLS + 1];
 						/* First node at each level. */
+	int srcu_size_state;			/* Small-to-big transition state. */
 	struct mutex srcu_cb_mutex;		/* Serialize CB preparation. */
-	spinlock_t __private lock;		/* Protect counters */
+	spinlock_t __private lock;		/* Protect counters and size state. */
 	struct mutex srcu_gp_mutex;		/* Serialize GP work. */
 	unsigned int srcu_idx;			/* Current rdr array element. */
 	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
@@ -82,6 +83,17 @@ struct srcu_struct {
 	struct delayed_work work;
 	struct lockdep_map dep_map;
 };
+
+/* Values for size state variable (->srcu_size_state). */
+#define SRCU_SIZE_SMALL		0
+#define SRCU_SIZE_ALLOC		1
+#define SRCU_SIZE_WAIT_BARRIER	2
+#define SRCU_SIZE_WAIT_CALL	3
+#define SRCU_SIZE_WAIT_CBS1	4
+#define SRCU_SIZE_WAIT_CBS2	5
+#define SRCU_SIZE_WAIT_CBS3	6
+#define SRCU_SIZE_WAIT_CBS4	7
+#define SRCU_SIZE_BIG		8
 
 /* Values for state variable (bottom bits of ->srcu_gp_seq). */
 #define SRCU_STATE_IDLE		0
