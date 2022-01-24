@@ -213,6 +213,8 @@ struct intel_pt_decoder {
 	bool set_fup_pwre;
 	bool set_fup_exstop;
 	bool set_fup_bep;
+	bool set_fup_cfe_ip;
+	bool set_fup_cfe;
 	bool sample_cyc;
 	unsigned int fup_tx_flags;
 	unsigned int tx_flags;
@@ -223,6 +225,7 @@ struct intel_pt_decoder {
 	uint64_t timestamp_insn_cnt;
 	uint64_t sample_insn_cnt;
 	uint64_t stuck_ip;
+	struct intel_pt_pkt fup_cfe_pkt;
 	int max_loops;
 	int no_progress;
 	int stuck_ip_prd;
@@ -231,6 +234,8 @@ struct intel_pt_decoder {
 	const unsigned char *next_buf;
 	size_t next_len;
 	unsigned char temp_buf[INTEL_PT_PKT_MAX_SZ];
+	int evd_cnt;
+	struct intel_pt_evd evd[INTEL_PT_MAX_EVDS];
 };
 
 static uint64_t intel_pt_lower_power_of_2(uint64_t x)
@@ -1214,6 +1219,9 @@ static void intel_pt_clear_fup_event(struct intel_pt_decoder *decoder)
 	decoder->set_fup_pwre = false;
 	decoder->set_fup_exstop = false;
 	decoder->set_fup_bep = false;
+	decoder->set_fup_cfe_ip = false;
+	decoder->set_fup_cfe = false;
+	decoder->evd_cnt = 0;
 }
 
 static bool intel_pt_fup_event(struct intel_pt_decoder *decoder)
@@ -1223,6 +1231,23 @@ static bool intel_pt_fup_event(struct intel_pt_decoder *decoder)
 
 	decoder->state.type &= ~INTEL_PT_BRANCH;
 
+	if (decoder->set_fup_cfe_ip || decoder->set_fup_cfe) {
+		bool ip = decoder->set_fup_cfe_ip;
+
+		decoder->set_fup_cfe_ip = false;
+		decoder->set_fup_cfe = false;
+		decoder->state.type |= INTEL_PT_EVT;
+		if (!ip && decoder->pge)
+			decoder->state.type |= INTEL_PT_BRANCH;
+		decoder->state.cfe_type = decoder->fup_cfe_pkt.count;
+		decoder->state.cfe_vector = decoder->fup_cfe_pkt.payload;
+		decoder->state.evd_cnt = decoder->evd_cnt;
+		decoder->state.evd = decoder->evd;
+		decoder->evd_cnt = 0;
+		if (ip || decoder->pge)
+			decoder->state.flags |= INTEL_PT_FUP_IP;
+		ret = true;
+	}
 	if (decoder->set_fup_tx_flags) {
 		decoder->set_fup_tx_flags = false;
 		decoder->tx_flags = decoder->fup_tx_flags;
@@ -1537,6 +1562,19 @@ static int intel_pt_mode_tsx(struct intel_pt_decoder *decoder, bool *no_tip)
 				decoder->pos);
 		intel_pt_update_in_tx(decoder);
 	}
+	return 0;
+}
+
+static int intel_pt_evd(struct intel_pt_decoder *decoder)
+{
+	if (decoder->evd_cnt >= INTEL_PT_MAX_EVDS) {
+		intel_pt_log_at("ERROR: Too many EVD packets", decoder->pos);
+		return -ENOSYS;
+	}
+	decoder->evd[decoder->evd_cnt++] = (struct intel_pt_evd){
+		.type = decoder->packet.count,
+		.payload = decoder->packet.payload,
+	};
 	return 0;
 }
 
@@ -3250,8 +3288,32 @@ next:
 			goto next;
 
 		case INTEL_PT_CFE:
+			decoder->fup_cfe_pkt = decoder->packet;
+			decoder->set_fup_cfe = true;
+			if (!decoder->pge) {
+				intel_pt_fup_event(decoder);
+				return 0;
+			}
+			break;
+
 		case INTEL_PT_CFE_IP:
+			decoder->fup_cfe_pkt = decoder->packet;
+			err = intel_pt_get_next_packet(decoder);
+			if (err)
+				return err;
+			if (decoder->packet.type == INTEL_PT_FUP) {
+				decoder->set_fup_cfe_ip = true;
+				no_tip = true;
+			} else {
+				intel_pt_log_at("ERROR: Missing FUP after CFE",
+						decoder->pos);
+			}
+			goto next;
+
 		case INTEL_PT_EVD:
+			err = intel_pt_evd(decoder);
+			if (err)
+				return err;
 			break;
 
 		default:

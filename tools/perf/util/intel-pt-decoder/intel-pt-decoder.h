@@ -35,6 +35,7 @@ enum intel_pt_sample_type {
 	INTEL_PT_TRACE_END	= 1 << 10,
 	INTEL_PT_BLK_ITEMS	= 1 << 11,
 	INTEL_PT_PSB_EVT	= 1 << 12,
+	INTEL_PT_EVT		= 1 << 13,
 };
 
 enum intel_pt_period_type {
@@ -209,6 +210,18 @@ struct intel_pt_vmcs_info {
 	bool error_printed;
 };
 
+/*
+ * Maximum number of event trace data in one go, assuming at most 1 per type
+ * and 6-bits of type in the EVD packet.
+ */
+#define INTEL_PT_MAX_EVDS 64
+
+/* Event trace data from EVD packet */
+struct intel_pt_evd {
+	int type;
+	uint64_t payload;
+};
+
 struct intel_pt_state {
 	enum intel_pt_sample_type type;
 	bool from_nr;
@@ -234,6 +247,10 @@ struct intel_pt_state {
 	int insn_len;
 	char insn[INTEL_PT_INSN_BUF_SZ];
 	struct intel_pt_blk_items items;
+	int cfe_type;
+	int cfe_vector;
+	int evd_cnt;
+	struct intel_pt_evd *evd;
 };
 
 struct intel_pt_insn;
