@@ -656,11 +656,11 @@ int bpf__probe(struct bpf_object *obj)
 		}
 
 		if (priv->is_tp) {
-			bpf_program__set_tracepoint(prog);
+			bpf_program__set_type(prog, BPF_PROG_TYPE_TRACEPOINT);
 			continue;
 		}
 
-		bpf_program__set_kprobe(prog);
+		bpf_program__set_type(prog, BPF_PROG_TYPE_KPROBE);
 		pev = &priv->pev;
 
 		err = convert_perf_probe_events(pev, 1);
