@@ -181,8 +181,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c,
 
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 0xff;
-	bl = devm_backlight_device_register(&i2c->dev,
-					    "7inch-touchscreen-panel-bl",
+	bl = devm_backlight_device_register(&i2c->dev, dev_name(&i2c->dev),
 					    &i2c->dev, regmap, &attiny_bl,
 					    &props);
 	if (IS_ERR(bl))
