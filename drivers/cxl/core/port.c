@@ -362,6 +362,8 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 	if (IS_ERR(port))
 		return port;
 
+	if (parent_port)
+		port->depth = parent_port->depth + 1;
 	dev = &port->dev;
 	if (parent_port)
 		rc = dev_set_name(dev, "port%d", port->id);
