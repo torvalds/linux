@@ -185,9 +185,6 @@ static inline int bdev_read_only(struct block_device *bdev)
 	return bdev->bd_read_only || get_disk_ro(bdev->bd_disk);
 }
 
-extern void disk_block_events(struct gendisk *disk);
-extern void disk_unblock_events(struct gendisk *disk);
-extern void disk_flush_events(struct gendisk *disk, unsigned int mask);
 bool set_capacity_and_notify(struct gendisk *disk, sector_t size);
 bool disk_force_media_change(struct gendisk *disk, unsigned int events);
 
