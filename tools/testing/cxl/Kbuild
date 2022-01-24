@@ -25,7 +25,7 @@ cxl_pmem-y += config_check.o
 
 obj-m += cxl_core.o
 
-cxl_core-y := $(CXL_CORE_SRC)/bus.o
+cxl_core-y := $(CXL_CORE_SRC)/port.o
 cxl_core-y += $(CXL_CORE_SRC)/pmem.o
 cxl_core-y += $(CXL_CORE_SRC)/regs.o
 cxl_core-y += $(CXL_CORE_SRC)/memdev.o
