@@ -91,6 +91,13 @@ config PCIE_DW_ROCKCHIP
 	help
 	  Enables support for the DW PCIe controller in the Rockchip SoC.
 
+config PCIE_RK_THREADED_INIT
+	bool "Threaded initialize Rockchip DW based PCIe controller"
+	depends on PCIE_DW_ROCKCHIP
+	default y
+	help
+	  Enables threaded initialize Rockchip DW based PCIe controller.
+
 config PCI_EXYNOS
 	bool "Samsung Exynos PCIe controller"
 	depends on SOC_EXYNOS5440 || COMPILE_TEST

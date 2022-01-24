@@ -55,6 +55,8 @@ struct reset_bulk_data	{
 	struct reset_control *rst;
 };
 
+#define RK_PCIE_DBG			0
+
 #define PCIE_DMA_OFFSET			0x380000
 
 #define PCIE_DMA_WR_ENB			0xc
@@ -119,7 +121,6 @@ struct reset_bulk_data	{
 #define PCIE_CLIENT_DBG_FIFO_STATUS	0x350
 #define PCIE_CLIENT_DBG_TRANSITION_DATA	0xffff0000
 #define PCIE_CLIENT_DBF_EN		0xffff0003
-#define RK_PCIE_DBG			0
 
 #define PCIE_PHY_LINKUP			BIT(0)
 #define PCIE_DATA_LINKUP		BIT(1)
@@ -1877,22 +1878,27 @@ deinit_clk:
 	rk_pcie_clk_deinit(rk_pcie);
 disable_vpcie3v3:
 	rk_pcie_disable_power(rk_pcie);
-
-	device_release_driver(dev);
+	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT))
+		device_release_driver(dev);
 
 	return ret;
 }
 
 static int rk_pcie_probe(struct platform_device *pdev)
 {
-	struct task_struct *tsk;
+	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT)) {
+		struct task_struct *tsk;
 
-	tsk = kthread_run(rk_pcie_really_probe, pdev, "rk-pcie");
-	if (IS_ERR(tsk)) {
-		dev_err(&pdev->dev, "start rk-pcie thread failed\n");
-		return PTR_ERR(tsk);
+		tsk = kthread_run(rk_pcie_really_probe, pdev, "rk-pcie");
+		if (IS_ERR(tsk)) {
+			dev_err(&pdev->dev, "start rk-pcie thread failed\n");
+			return PTR_ERR(tsk);
+		}
+
+		return 0;
 	}
-	return 0;
+
+	return rk_pcie_really_probe(pdev);
 }
 
 static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
