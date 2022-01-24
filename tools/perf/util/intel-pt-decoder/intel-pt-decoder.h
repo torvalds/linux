@@ -17,6 +17,7 @@
 
 #define INTEL_PT_IN_TX		(1 << 0)
 #define INTEL_PT_ABORT_TX	(1 << 1)
+#define INTEL_PT_IFLAG		(1 << 2)
 #define INTEL_PT_ASYNC		(1 << 2)
 #define INTEL_PT_FUP_IP		(1 << 3)
 #define INTEL_PT_SAMPLE_IPC	(1 << 4)
@@ -36,6 +37,7 @@ enum intel_pt_sample_type {
 	INTEL_PT_BLK_ITEMS	= 1 << 11,
 	INTEL_PT_PSB_EVT	= 1 << 12,
 	INTEL_PT_EVT		= 1 << 13,
+	INTEL_PT_IFLAG_CHG	= 1 << 14,
 };
 
 enum intel_pt_period_type {
@@ -226,6 +228,8 @@ struct intel_pt_state {
 	enum intel_pt_sample_type type;
 	bool from_nr;
 	bool to_nr;
+	bool from_iflag;
+	bool to_iflag;
 	int err;
 	uint64_t from_ip;
 	uint64_t to_ip;
