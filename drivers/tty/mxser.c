@@ -742,13 +742,12 @@ static void mxser_disable_and_clear_FIFO(struct mxser_port *info)
 static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	struct mxser_port *info = container_of(port, struct mxser_port, port);
-	unsigned long page;
 	unsigned long flags;
 	int ret;
 
-	page = __get_free_page(GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
+	ret = tty_port_alloc_xmit_buf(port);
+	if (ret < 0)
+		return ret;
 
 	spin_lock_irqsave(&info->slock, flags);
 
@@ -758,7 +757,6 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 		ret = 0;
 		goto err_free_xmit;
 	}
-	info->port.xmit_buf = (unsigned char *) page;
 
 	/*
 	 * Clear the FIFO buffers and disable them
@@ -825,8 +823,7 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 
 	return 0;
 err_free_xmit:
-	free_page(page);
-	info->port.xmit_buf = NULL;
+	tty_port_free_xmit_buf(port);
 	return ret;
 }
 
@@ -862,14 +859,6 @@ static void mxser_shutdown_port(struct tty_port *port)
 	 */
 	wake_up_interruptible(&info->port.delta_msr_wait);
 
-	/*
-	 * Free the xmit buffer, if necessary
-	 */
-	if (info->port.xmit_buf) {
-		free_page((unsigned long) info->port.xmit_buf);
-		info->port.xmit_buf = NULL;
-	}
-
 	info->IER = 0;
 	outb(0x00, info->ioaddr + UART_IER);
 
@@ -884,6 +873,11 @@ static void mxser_shutdown_port(struct tty_port *port)
 		mxser_must_no_sw_flow_control(info->ioaddr);
 
 	spin_unlock_irqrestore(&info->slock, flags);
+
+	/* make sure ISR is not running while we free the buffer */
+	synchronize_irq(info->board->irq);
+
+	tty_port_free_xmit_buf(port);
 }
 
 /*
