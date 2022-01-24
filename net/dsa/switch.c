@@ -180,9 +180,11 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 						info->sw_index, info->port,
 						info->bridge);
 
-	err = dsa_switch_sync_vlan_filtering(ds, info);
-	if (err)
-		return err;
+	if (ds->dst->index == info->tree_index && ds->index == info->sw_index) {
+		err = dsa_switch_sync_vlan_filtering(ds, info);
+		if (err)
+			return err;
+	}
 
 	return dsa_tag_8021q_bridge_leave(ds, info);
 }
