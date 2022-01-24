@@ -1216,7 +1216,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	struct tables *tables = container_of(dbe, struct tables, dbe);
 	PyObject *t;
 
-	t = tuple_new(24);
+	t = tuple_new(25);
 
 	tuple_set_d64(t, 0, es->db_id);
 	tuple_set_d64(t, 1, es->evsel->db_id);
@@ -1242,6 +1242,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	tuple_set_d64(t, 21, es->call_path_id);
 	tuple_set_d64(t, 22, es->sample->insn_cnt);
 	tuple_set_d64(t, 23, es->sample->cyc_cnt);
+	tuple_set_s32(t, 24, es->sample->flags);
 
 	call_object(tables->sample_handler, t, "sample_table");
 
