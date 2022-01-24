@@ -120,6 +120,10 @@ struct papr_scm_priv {
 
 	/* length of the stat buffer as expected by phyp */
 	size_t stat_buffer_len;
+
+	/* The bits which needs to be overridden */
+	u64 health_bitmap_inject_mask;
+
 };
 
 static int papr_scm_pmem_flush(struct nd_region *nd_region,
@@ -347,19 +351,29 @@ static ssize_t drc_pmem_query_stats(struct papr_scm_priv *p,
 static int __drc_pmem_query_health(struct papr_scm_priv *p)
 {
 	unsigned long ret[PLPAR_HCALL_BUFSIZE];
+	u64 bitmap = 0;
 	long rc;
 
 	/* issue the hcall */
 	rc = plpar_hcall(H_SCM_HEALTH, ret, p->drc_index);
-	if (rc != H_SUCCESS) {
+	if (rc == H_SUCCESS)
+		bitmap = ret[0] & ret[1];
+	else if (rc == H_FUNCTION)
+		dev_info_once(&p->pdev->dev,
+			      "Hcall H_SCM_HEALTH not implemented, assuming empty health bitmap");
+	else {
+
 		dev_err(&p->pdev->dev,
 			"Failed to query health information, Err:%ld\n", rc);
 		return -ENXIO;
 	}
 
 	p->lasthealth_jiffies = jiffies;
-	p->health_bitmap = ret[0] & ret[1];
-
+	/* Allow injecting specific health bits via inject mask. */
+	if (p->health_bitmap_inject_mask)
+		bitmap = (bitmap & ~p->health_bitmap_inject_mask) |
+			p->health_bitmap_inject_mask;
+	WRITE_ONCE(p->health_bitmap, bitmap);
 	dev_dbg(&p->pdev->dev,
 		"Queried dimm health info. Bitmap:0x%016lx Mask:0x%016lx\n",
 		ret[0], ret[1]);
@@ -669,6 +683,56 @@ out:
 	return rc;
 }
 
+/* Inject a smart error Add the dirty-shutdown-counter value to the pdsm */
+static int papr_pdsm_smart_inject(struct papr_scm_priv *p,
+				  union nd_pdsm_payload *payload)
+{
+	int rc;
+	u32 supported_flags = 0;
+	u64 inject_mask = 0, clear_mask = 0;
+	u64 mask;
+
+	/* Check for individual smart error flags and update inject/clear masks */
+	if (payload->smart_inject.flags & PDSM_SMART_INJECT_HEALTH_FATAL) {
+		supported_flags |= PDSM_SMART_INJECT_HEALTH_FATAL;
+		if (payload->smart_inject.fatal_enable)
+			inject_mask |= PAPR_PMEM_HEALTH_FATAL;
+		else
+			clear_mask |= PAPR_PMEM_HEALTH_FATAL;
+	}
+
+	if (payload->smart_inject.flags & PDSM_SMART_INJECT_BAD_SHUTDOWN) {
+		supported_flags |= PDSM_SMART_INJECT_BAD_SHUTDOWN;
+		if (payload->smart_inject.unsafe_shutdown_enable)
+			inject_mask |= PAPR_PMEM_SHUTDOWN_DIRTY;
+		else
+			clear_mask |= PAPR_PMEM_SHUTDOWN_DIRTY;
+	}
+
+	dev_dbg(&p->pdev->dev, "[Smart-inject] inject_mask=%#llx clear_mask=%#llx\n",
+		inject_mask, clear_mask);
+
+	/* Prevent concurrent access to dimm health bitmap related members */
+	rc = mutex_lock_interruptible(&p->health_mutex);
+	if (rc)
+		return rc;
+
+	/* Use inject/clear masks to set health_bitmap_inject_mask */
+	mask = READ_ONCE(p->health_bitmap_inject_mask);
+	mask = (mask & ~clear_mask) | inject_mask;
+	WRITE_ONCE(p->health_bitmap_inject_mask, mask);
+
+	/* Invalidate cached health bitmap */
+	p->lasthealth_jiffies = 0;
+
+	mutex_unlock(&p->health_mutex);
+
+	/* Return the supported flags back to userspace */
+	payload->smart_inject.flags = supported_flags;
+
+	return sizeof(struct nd_papr_pdsm_health);
+}
+
 /*
  * 'struct pdsm_cmd_desc'
  * Identifies supported PDSMs' expected length of in/out payloads
@@ -701,6 +765,12 @@ static const struct pdsm_cmd_desc __pdsm_cmd_descriptors[] = {
 		.size_in = 0,
 		.size_out = sizeof(struct nd_papr_pdsm_health),
 		.service = papr_pdsm_health,
+	},
+
+	[PAPR_PDSM_SMART_INJECT] = {
+		.size_in = sizeof(struct nd_papr_pdsm_smart_inject),
+		.size_out = sizeof(struct nd_papr_pdsm_smart_inject),
+		.service = papr_pdsm_smart_inject,
 	},
 	/* Empty */
 	[PAPR_PDSM_MAX] = {
@@ -838,6 +908,19 @@ static int papr_scm_ndctl(struct nvdimm_bus_descriptor *nd_desc,
 	return 0;
 }
 
+static ssize_t health_bitmap_inject_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct nvdimm *dimm = to_nvdimm(dev);
+	struct papr_scm_priv *p = nvdimm_provider_data(dimm);
+
+	return sprintf(buf, "%#llx\n",
+		       READ_ONCE(p->health_bitmap_inject_mask));
+}
+
+static DEVICE_ATTR_ADMIN_RO(health_bitmap_inject);
+
 static ssize_t perf_stats_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -952,6 +1035,7 @@ static struct attribute *papr_nd_attributes[] = {
 	&dev_attr_flags.attr,
 	&dev_attr_perf_stats.attr,
 	&dev_attr_dirty_shutdown.attr,
+	&dev_attr_health_bitmap_inject.attr,
 	NULL,
 };
 
