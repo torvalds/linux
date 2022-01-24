@@ -113,9 +113,6 @@
 #define RK3588_GRF_VO1_CON6		0x0018
 #define RK3588_GRF_VO1_CON7		0x001c
 
-#define RK_HDMI_COLORIMETRY_BT2020	(HDMI_COLORIMETRY_EXTENDED + \
-					 HDMI_EXTENDED_COLORIMETRY_BT2020)
-
 #define COLOR_DEPTH_10BIT		BIT(31)
 #define HDMI_FRL_MODE			BIT(30)
 #define HDMI_EARC_MODE			BIT(29)
@@ -185,7 +182,6 @@ struct rockchip_hdmi {
 	struct drm_property *hdmi_output_property;
 	struct drm_property *colordepth_capacity;
 	struct drm_property *outputmode_capacity;
-	struct drm_property *colorimetry_property;
 	struct drm_property *quant_range;
 	struct drm_property *hdr_panel_metadata_property;
 	struct drm_property *next_hdr_sink_data_property;
@@ -1742,10 +1738,12 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			*eotf = output_eotf;
 	}
 
+	hdmi->colorimetry = conn_state->colorspace;
+
 	if ((*eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR &&
 	     conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf &
-	     BIT(*eotf)) || (hdmi->colorimetry ==
-	     RK_HDMI_COLORIMETRY_BT2020))
+	     BIT(*eotf)) || ((hdmi->colorimetry >= DRM_MODE_COLORIMETRY_BT2020_CYCC) &&
+	     (hdmi->colorimetry <= DRM_MODE_COLORIMETRY_BT2020_YCC)))
 		*enc_out_encoding = V4L2_YCBCR_ENC_BT2020;
 	else if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
 		 (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18))
@@ -2098,11 +2096,6 @@ static const struct drm_prop_enum_list quant_range_enum_list[] = {
 	{ HDMI_QUANTIZATION_RANGE_FULL, "full" },
 };
 
-static const struct drm_prop_enum_list colorimetry_enum_list[] = {
-	{ HDMI_COLORIMETRY_NONE, "None" },
-	{ RK_HDMI_COLORIMETRY_BT2020, "ITU_2020" },
-};
-
 static const struct drm_prop_enum_list output_hdmi_dvi_enum_list[] = {
 	{ 0, "auto" },
 	{ 1, "force_hdmi" },
@@ -2190,15 +2183,6 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
-	prop = drm_property_create_enum(connector->dev, 0,
-					"hdmi_output_colorimetry",
-					colorimetry_enum_list,
-					ARRAY_SIZE(colorimetry_enum_list));
-	if (prop) {
-		hdmi->colorimetry_property = prop;
-		drm_object_attach_property(&connector->base, prop, 0);
-	}
-
 	prop = drm_property_create_range(connector->dev, 0,
 					 RK_IF_PROP_COLOR_DEPTH_CAPS,
 					 0, 0xff);
@@ -2265,6 +2249,10 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 	prop = connector->dev->mode_config.hdr_output_metadata_property;
 	if (version >= 0x211a || hdmi->is_hdmi_qp)
 		drm_object_attach_property(&connector->base, prop, 0);
+
+	if (!drm_mode_create_hdmi_colorspace_property(connector))
+		drm_object_attach_property(&connector->base,
+					   connector->colorspace_property, 0);
 	drm_object_attach_property(&connector->base, private->connector_id_prop, hdmi->id);
 }
 
@@ -2302,12 +2290,6 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev,
 				     hdmi->quant_range);
 		hdmi->quant_range = NULL;
-	}
-
-	if (hdmi->colorimetry_property) {
-		drm_property_destroy(connector->dev,
-				     hdmi->colorimetry_property);
-		hdmi->colordepth_capacity = NULL;
 	}
 
 	if (hdmi->hdr_panel_metadata_property) {
@@ -2368,9 +2350,6 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 			dw_hdmi_set_quant_range(hdmi->hdmi);
 		return 0;
 	} else if (property == config->hdr_output_metadata_property) {
-		return 0;
-	} else if (property == hdmi->colorimetry_property) {
-		hdmi->colorimetry = val;
 		return 0;
 	} else if (property == hdmi->output_hdmi_dvi) {
 		if (hdmi->force_output != val)
@@ -2443,9 +2422,6 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 	} else if (property == config->hdr_output_metadata_property) {
 		*val = state->hdr_output_metadata ?
 			state->hdr_output_metadata->base.id : 0;
-		return 0;
-	} else if (property == hdmi->colorimetry_property) {
-		*val = hdmi->colorimetry;
 		return 0;
 	} else if (property == hdmi->output_hdmi_dvi) {
 		*val = hdmi->force_output;

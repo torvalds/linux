@@ -1696,15 +1696,23 @@ dw_hdmi_connector_best_encoder(struct drm_connector *connector)
 	return hdmi->bridge.encoder;
 }
 
-static bool dw_hdmi_color_changed(struct drm_connector *connector)
+static bool dw_hdmi_color_changed(struct drm_connector *connector,
+				  struct drm_atomic_state *state)
 {
 	struct dw_hdmi_qp *hdmi =
 		container_of(connector, struct dw_hdmi_qp, connector);
 	void *data = hdmi->plat_data->phy_data;
+	struct drm_connector_state *old_state =
+		drm_atomic_get_old_connector_state(state, connector);
+	struct drm_connector_state *new_state =
+		drm_atomic_get_new_connector_state(state, connector);
 	bool ret = false;
 
 	if (hdmi->plat_data->get_color_changed)
 		ret = hdmi->plat_data->get_color_changed(data);
+
+	if (new_state->colorspace != old_state->colorspace)
+		ret = true;
 
 	return ret;
 }
@@ -1777,7 +1785,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	}
 
 	if (!hdr_metadata_equal(old_state, new_state) ||
-	    dw_hdmi_color_changed(connector)) {
+	    dw_hdmi_color_changed(connector, state)) {
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
