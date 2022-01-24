@@ -1579,26 +1579,34 @@ static const char *sample_flags_to_name(u32 flags)
 
 int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz)
 {
+	u32 xf = PERF_IP_FLAG_IN_TX | PERF_IP_FLAG_INTR_DISABLE |
+		 PERF_IP_FLAG_INTR_TOGGLE;
 	const char *chars = PERF_IP_FLAG_CHARS;
 	const size_t n = strlen(PERF_IP_FLAG_CHARS);
-	bool in_tx = flags & PERF_IP_FLAG_IN_TX;
 	const char *name = NULL;
 	size_t i, pos = 0;
+	char xs[16] = {0};
 
-	name = sample_flags_to_name(flags & ~PERF_IP_FLAG_IN_TX);
+	if (flags & xf)
+		snprintf(xs, sizeof(xs), "(%s%s%s)",
+			 flags & PERF_IP_FLAG_IN_TX ? "x" : "",
+			 flags & PERF_IP_FLAG_INTR_DISABLE ? "D" : "",
+			 flags & PERF_IP_FLAG_INTR_TOGGLE ? "t" : "");
+
+	name = sample_flags_to_name(flags & ~xf);
 	if (name)
-		return snprintf(str, sz, "%-15s%4s", name, in_tx ? "(x)" : "");
+		return snprintf(str, sz, "%-15s%6s", name, xs);
 
 	if (flags & PERF_IP_FLAG_TRACE_BEGIN) {
-		name = sample_flags_to_name(flags & ~(PERF_IP_FLAG_IN_TX | PERF_IP_FLAG_TRACE_BEGIN));
+		name = sample_flags_to_name(flags & ~(xf | PERF_IP_FLAG_TRACE_BEGIN));
 		if (name)
-			return snprintf(str, sz, "tr strt %-7s%4s", name, in_tx ? "(x)" : "");
+			return snprintf(str, sz, "tr strt %-7s%6s", name, xs);
 	}
 
 	if (flags & PERF_IP_FLAG_TRACE_END) {
-		name = sample_flags_to_name(flags & ~(PERF_IP_FLAG_IN_TX | PERF_IP_FLAG_TRACE_END));
+		name = sample_flags_to_name(flags & ~(xf | PERF_IP_FLAG_TRACE_END));
 		if (name)
-			return snprintf(str, sz, "tr end  %-7s%4s", name, in_tx ? "(x)" : "");
+			return snprintf(str, sz, "tr end  %-7s%6s", name, xs);
 	}
 
 	for (i = 0; i < n; i++, flags >>= 1) {
@@ -1620,7 +1628,7 @@ static int perf_sample__fprintf_flags(u32 flags, FILE *fp)
 	char str[SAMPLE_FLAGS_BUF_SIZE];
 
 	perf_sample__sprintf_flags(flags, str, sizeof(str));
-	return fprintf(fp, "  %-19s ", str);
+	return fprintf(fp, "  %-21s ", str);
 }
 
 struct printer_data {

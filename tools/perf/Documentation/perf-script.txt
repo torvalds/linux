@@ -195,16 +195,19 @@ OPTIONS
 	At this point usage is displayed, and perf-script exits.
 
 	The flags field is synthesized and may have a value when Instruction
-	Trace decoding. The flags are "bcrosyiABExgh" which stand for branch,
+	Trace decoding. The flags are "bcrosyiABExghDt" which stand for branch,
 	call, return, conditional, system, asynchronous, interrupt,
-	transaction abort, trace begin, trace end, in transaction, VM-Entry, and VM-Exit
-	respectively. Known combinations of flags are printed more nicely e.g.
+	transaction abort, trace begin, trace end, in transaction, VM-Entry,
+	VM-Exit, interrupt disabled and interrupt disable toggle respectively.
+	Known combinations of flags are printed more nicely e.g.
 	"call" for "bc", "return" for "br", "jcc" for "bo", "jmp" for "b",
 	"int" for "bci", "iret" for "bri", "syscall" for "bcs", "sysret" for "brs",
 	"async" for "by", "hw int" for "bcyi", "tx abrt" for "bA", "tr strt" for "bB",
 	"tr end" for "bE", "vmentry" for "bcg", "vmexit" for "bch".
-	However the "x" flag will be displayed separately in those
-	cases e.g. "jcc     (x)" for a condition branch within a transaction.
+	However the "x", "D" and "t" flags will be displayed separately in those
+	cases e.g. "jcc     (xD)" for a condition branch within a transaction
+	with interrupts disabled. Note, interrupts becoming disabled is "t",
+	whereas interrupts becoming enabled is "Dt".
 
 	The callindent field is synthesized and may have a value when
 	Instruction Trace decoding. For calls and returns, it will display the
