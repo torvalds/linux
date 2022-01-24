@@ -1329,6 +1329,8 @@ static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 
 static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 {
+	struct intel_pt *pt = ptq->pt;
+
 	ptq->insn_len = 0;
 	if (ptq->state->flags & INTEL_PT_ABORT_TX) {
 		ptq->flags = PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT;
@@ -1359,6 +1361,17 @@ static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 		ptq->flags |= PERF_IP_FLAG_TRACE_BEGIN;
 	if (ptq->state->type & INTEL_PT_TRACE_END)
 		ptq->flags |= PERF_IP_FLAG_TRACE_END;
+
+	if (pt->cap_event_trace) {
+		if (ptq->state->type & INTEL_PT_IFLAG_CHG) {
+			if (!ptq->state->from_iflag)
+				ptq->flags |= PERF_IP_FLAG_INTR_DISABLE;
+			if (ptq->state->from_iflag != ptq->state->to_iflag)
+				ptq->flags |= PERF_IP_FLAG_INTR_TOGGLE;
+		} else if (!ptq->state->to_iflag) {
+			ptq->flags |= PERF_IP_FLAG_INTR_DISABLE;
+		}
+	}
 }
 
 static void intel_pt_setup_time_range(struct intel_pt *pt,
