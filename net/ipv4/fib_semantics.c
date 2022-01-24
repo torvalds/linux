@@ -1257,34 +1257,13 @@ fib_info_laddrhash_bucket(const struct net *net, __be32 val)
 	return &fib_info_laddrhash[slot];
 }
 
-static struct hlist_head *fib_info_hash_alloc(int bytes)
-{
-	if (bytes <= PAGE_SIZE)
-		return kzalloc(bytes, GFP_KERNEL);
-	else
-		return (struct hlist_head *)
-			__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-					 get_order(bytes));
-}
-
-static void fib_info_hash_free(struct hlist_head *hash, int bytes)
-{
-	if (!hash)
-		return;
-
-	if (bytes <= PAGE_SIZE)
-		kfree(hash);
-	else
-		free_pages((unsigned long) hash, get_order(bytes));
-}
-
 static void fib_info_hash_move(struct hlist_head *new_info_hash,
 			       struct hlist_head *new_laddrhash,
 			       unsigned int new_size)
 {
 	struct hlist_head *old_info_hash, *old_laddrhash;
 	unsigned int old_size = fib_info_hash_size;
-	unsigned int i, bytes;
+	unsigned int i;
 
 	spin_lock_bh(&fib_info_lock);
 	old_info_hash = fib_info_hash;
@@ -1325,9 +1304,8 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 
 	spin_unlock_bh(&fib_info_lock);
 
-	bytes = old_size * sizeof(struct hlist_head *);
-	fib_info_hash_free(old_info_hash, bytes);
-	fib_info_hash_free(old_laddrhash, bytes);
+	kvfree(old_info_hash);
+	kvfree(old_laddrhash);
 }
 
 __be32 fib_info_update_nhc_saddr(struct net *net, struct fib_nh_common *nhc,
@@ -1444,19 +1422,19 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		unsigned int new_size = fib_info_hash_size << 1;
 		struct hlist_head *new_info_hash;
 		struct hlist_head *new_laddrhash;
-		unsigned int bytes;
+		size_t bytes;
 
 		if (!new_size)
 			new_size = 16;
-		bytes = new_size * sizeof(struct hlist_head *);
-		new_info_hash = fib_info_hash_alloc(bytes);
-		new_laddrhash = fib_info_hash_alloc(bytes);
+		bytes = (size_t)new_size * sizeof(struct hlist_head *);
+		new_info_hash = kvzalloc(bytes, GFP_KERNEL);
+		new_laddrhash = kvzalloc(bytes, GFP_KERNEL);
 		if (!new_info_hash || !new_laddrhash) {
-			fib_info_hash_free(new_info_hash, bytes);
-			fib_info_hash_free(new_laddrhash, bytes);
-		} else
+			kvfree(new_info_hash);
+			kvfree(new_laddrhash);
+		} else {
 			fib_info_hash_move(new_info_hash, new_laddrhash, new_size);
-
+		}
 		if (!fib_info_hash_size)
 			goto failure;
 	}
