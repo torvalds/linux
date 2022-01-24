@@ -793,12 +793,10 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 {
 	struct rvin_group *group = container_of(link->graph_obj.mdev,
 						struct rvin_group, mdev);
-	unsigned int master_id, channel, mask_new, i;
-	unsigned int mask = ~0;
 	struct media_entity *entity;
 	struct video_device *vdev;
-	struct media_pad *csi_pad;
-	struct rvin_dev *vin = NULL;
+	struct rvin_dev *vin;
+	unsigned int i;
 	int csi_id, ret;
 
 	ret = v4l2_pipeline_link_notify(link, flags, notification);
@@ -819,38 +817,13 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 		if (entity->stream_count)
 			return -EBUSY;
 
-	mutex_lock(&group->lock);
-
 	/* Find the master VIN that controls the routes. */
 	vdev = media_entity_to_video_device(link->sink->entity);
 	vin = container_of(vdev, struct rvin_dev, vdev);
-	master_id = rvin_group_id_to_master(vin->id);
 
-	if (WARN_ON(!group->vin[master_id])) {
-		ret = -ENODEV;
-		goto out;
-	}
+	mutex_lock(&group->lock);
 
-	/* Build a mask for already enabled links. */
-	for (i = master_id; i < master_id + 4; i++) {
-		if (!group->vin[i])
-			continue;
-
-		/* Get remote CSI-2, if any. */
-		csi_pad = media_entity_remote_pad(
-				&group->vin[i]->vdev.entity.pads[0]);
-		if (!csi_pad)
-			continue;
-
-		csi_id = rvin_group_entity_to_remote_id(group, csi_pad->entity);
-		channel = rvin_group_csi_pad_to_channel(csi_pad->index);
-
-		mask &= rvin_csi2_get_mask(group->vin[i], csi_id, channel);
-	}
-
-	/* Add the new link to the existing mask and check if it works. */
 	csi_id = rvin_group_entity_to_remote_id(group, link->source->entity);
-
 	if (csi_id == -ENODEV) {
 		struct v4l2_subdev *sd;
 
@@ -875,25 +848,54 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 		vin_err(vin, "Subdevice %s not registered to any VIN\n",
 			link->source->entity->name);
 		ret = -ENODEV;
-		goto out;
+	} else {
+		unsigned int master_id, channel, mask_new;
+		unsigned int mask = ~0;
+		struct media_pad *csi_pad;
+
+		master_id = rvin_group_id_to_master(vin->id);
+
+		if (WARN_ON(!group->vin[master_id])) {
+			ret = -ENODEV;
+			goto out;
+		}
+
+		/* Build a mask for already enabled links. */
+		for (i = master_id; i < master_id + 4; i++) {
+			if (!group->vin[i])
+				continue;
+
+			/* Get remote CSI-2, if any. */
+			csi_pad = media_entity_remote_pad(
+					&group->vin[i]->vdev.entity.pads[0]);
+			if (!csi_pad)
+				continue;
+
+			csi_id = rvin_group_entity_to_remote_id(group,
+								csi_pad->entity);
+			channel = rvin_group_csi_pad_to_channel(csi_pad->index);
+
+			mask &= rvin_csi2_get_mask(group->vin[i], csi_id, channel);
+		}
+
+		channel = rvin_group_csi_pad_to_channel(link->source->index);
+		mask_new = mask & rvin_csi2_get_mask(vin, csi_id, channel);
+		vin_dbg(vin, "Try link change mask: 0x%x new: 0x%x\n", mask,
+			mask_new);
+
+		if (!mask_new) {
+			ret = -EMLINK;
+			goto out;
+		}
+
+		/* New valid CHSEL found, set the new value. */
+		ret = rvin_set_channel_routing(group->vin[master_id],
+					       __ffs(mask_new));
+		if (ret)
+			goto out;
+
+		vin->is_csi = true;
 	}
-
-	channel = rvin_group_csi_pad_to_channel(link->source->index);
-	mask_new = mask & rvin_csi2_get_mask(vin, csi_id, channel);
-	vin_dbg(vin, "Try link change mask: 0x%x new: 0x%x\n", mask, mask_new);
-
-	if (!mask_new) {
-		ret = -EMLINK;
-		goto out;
-	}
-
-	/* New valid CHSEL found, set the new value. */
-	ret = rvin_set_channel_routing(group->vin[master_id], __ffs(mask_new));
-	if (ret)
-		goto out;
-
-	vin->is_csi = true;
-
 out:
 	mutex_unlock(&group->lock);
 
