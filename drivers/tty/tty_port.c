@@ -736,6 +736,9 @@ EXPORT_SYMBOL_GPL(tty_port_install);
  * the device to be ready using tty_port_block_til_ready() (e.g.  raises
  * DTR/CTS and waits for carrier).
  *
+ * Note that @port->ops->shutdown is not called when @port->ops->activate
+ * returns an error (on the contrary, @tty->ops->close is).
+ *
  * Locking: Caller holds tty lock.
  *
  * Note: may drop and reacquire tty lock (in tty_port_block_til_ready()) so
