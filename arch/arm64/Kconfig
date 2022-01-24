@@ -671,14 +671,14 @@ config ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
 	bool
 
 config ARM64_ERRATUM_2119858
-	bool "Cortex-A710: 2119858: workaround TRBE overwriting trace data in FILL mode"
+	bool "Cortex-A710/X2: 2119858: workaround TRBE overwriting trace data in FILL mode"
 	default y
 	depends on CORESIGHT_TRBE
 	select ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
 	help
-	  This option adds the workaround for ARM Cortex-A710 erratum 2119858.
+	  This option adds the workaround for ARM Cortex-A710/X2 erratum 2119858.
 
-	  Affected Cortex-A710 cores could overwrite up to 3 cache lines of trace
+	  Affected Cortex-A710/X2 cores could overwrite up to 3 cache lines of trace
 	  data at the base of the buffer (pointed to by TRBASER_EL1) in FILL mode in
 	  the event of a WRAP event.
 
@@ -761,14 +761,14 @@ config ARM64_ERRATUM_2253138
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_2224489
-	bool "Cortex-A710: 2224489: workaround TRBE writing to address out-of-range"
+	bool "Cortex-A710/X2: 2224489: workaround TRBE writing to address out-of-range"
 	depends on CORESIGHT_TRBE
 	default y
 	select ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE
 	help
-	  This option adds the workaround for ARM Cortex-A710 erratum 2224489.
+	  This option adds the workaround for ARM Cortex-A710/X2 erratum 2224489.
 
-	  Affected Cortex-A710 cores might write to an out-of-range address, not reserved
+	  Affected Cortex-A710/X2 cores might write to an out-of-range address, not reserved
 	  for TRBE. Under some conditions, the TRBE might generate a write to the next
 	  virtually addressed page following the last page of the TRBE address space
 	  (i.e., the TRBLIMITR_EL1.LIMIT), instead of wrapping around to the base.
