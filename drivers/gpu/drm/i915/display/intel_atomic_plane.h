@@ -16,6 +16,7 @@ struct intel_crtc;
 struct intel_crtc_state;
 struct intel_plane;
 struct intel_plane_state;
+enum plane_id;
 
 unsigned int intel_adjusted_rate(const struct drm_rect *src,
 				 const struct drm_rect *dst,
