@@ -942,15 +942,21 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 		return err;
 	}
 
+	err = mlx5e_tc_ht_init(&rpriv->tc_ht);
+	if (err)
+		goto err_ht_init;
+
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
 		err = mlx5e_init_uplink_rep_tx(rpriv);
 		if (err)
-			goto destroy_tises;
+			goto err_init_tx;
 	}
 
 	return 0;
 
-destroy_tises:
+err_init_tx:
+	mlx5e_tc_ht_cleanup(&rpriv->tc_ht);
+err_ht_init:
 	mlx5e_destroy_tises(priv);
 	return err;
 }
@@ -970,6 +976,8 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK)
 		mlx5e_cleanup_uplink_rep_tx(rpriv);
+
+	mlx5e_tc_ht_cleanup(&rpriv->tc_ht);
 }
 
 static void mlx5e_rep_enable(struct mlx5e_priv *priv)

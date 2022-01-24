@@ -3609,12 +3609,11 @@ static const struct rhashtable_params tc_ht_params = {
 static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv,
 				    unsigned long flags)
 {
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5e_rep_priv *uplink_rpriv;
+	struct mlx5e_rep_priv *rpriv;
 
 	if (flags & MLX5_TC_FLAG(ESW_OFFLOAD)) {
-		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
-		return &uplink_rpriv->uplink_priv.tc_ht;
+		rpriv = priv->ppriv;
+		return &rpriv->tc_ht;
 	} else /* NIC offload */
 		return &priv->fs.tc.ht;
 }
@@ -4447,10 +4446,27 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 	mlx5_chains_destroy(tc->chains);
 }
 
-int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
+int mlx5e_tc_ht_init(struct rhashtable *tc_ht)
+{
+	int err;
+
+	err = rhashtable_init(tc_ht, &tc_ht_params);
+	if (err)
+		return err;
+
+	lockdep_set_class(&tc_ht->mutex, &tc_ht_lock_key);
+
+	return 0;
+}
+
+void mlx5e_tc_ht_cleanup(struct rhashtable *tc_ht)
+{
+	rhashtable_free_and_destroy(tc_ht, _mlx5e_tc_del_flow, NULL);
+}
+
+int mlx5e_tc_esw_init(struct mlx5_rep_uplink_priv *uplink_priv)
 {
 	const size_t sz_enc_opts = sizeof(struct tunnel_match_enc_opts);
-	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *rpriv;
 	struct mapping_ctx *mapping;
 	struct mlx5_eswitch *esw;
@@ -4458,7 +4474,6 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 	u64 mapping_id;
 	int err = 0;
 
-	uplink_priv = container_of(tc_ht, struct mlx5_rep_uplink_priv, tc_ht);
 	rpriv = container_of(uplink_priv, struct mlx5e_rep_priv, uplink_priv);
 	priv = netdev_priv(rpriv->netdev);
 	esw = priv->mdev->priv.eswitch;
@@ -4498,12 +4513,6 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 	}
 	uplink_priv->tunnel_enc_opts_mapping = mapping;
 
-	err = rhashtable_init(tc_ht, &tc_ht_params);
-	if (err)
-		goto err_ht_init;
-
-	lockdep_set_class(&tc_ht->mutex, &tc_ht_lock_key);
-
 	uplink_priv->encap = mlx5e_tc_tun_init(priv);
 	if (IS_ERR(uplink_priv->encap)) {
 		err = PTR_ERR(uplink_priv->encap);
@@ -4513,8 +4522,6 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 	return 0;
 
 err_register_fib_notifier:
-	rhashtable_destroy(tc_ht);
-err_ht_init:
 	mapping_destroy(uplink_priv->tunnel_enc_opts_mapping);
 err_enc_opts_mapping:
 	mapping_destroy(uplink_priv->tunnel_mapping);
@@ -4528,13 +4535,8 @@ err_tun_mapping:
 	return err;
 }
 
-void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht)
+void mlx5e_tc_esw_cleanup(struct mlx5_rep_uplink_priv *uplink_priv)
 {
-	struct mlx5_rep_uplink_priv *uplink_priv;
-
-	uplink_priv = container_of(tc_ht, struct mlx5_rep_uplink_priv, tc_ht);
-
-	rhashtable_free_and_destroy(tc_ht, _mlx5e_tc_del_flow, NULL);
 	mlx5e_tc_tun_cleanup(uplink_priv->encap);
 
 	mapping_destroy(uplink_priv->tunnel_enc_opts_mapping);
