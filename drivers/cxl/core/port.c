@@ -505,7 +505,8 @@ out_unlock:
  * some address space for CXL.mem utilization. A decoder is expected to be
  * configured by the caller before registering.
  *
- * Return: A new cxl decoder to be registered by cxl_decoder_add()
+ * Return: A new cxl decoder to be registered by cxl_decoder_add(). The decoder
+ *	   is initialized to be a "passthrough" decoder.
  */
 static struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port,
 					     unsigned int nr_targets)
@@ -536,6 +537,12 @@ static struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port,
 		cxld->dev.type = &cxl_decoder_root_type;
 	else
 		cxld->dev.type = &cxl_decoder_switch_type;
+
+	/* Pre initialize an "empty" decoder */
+	cxld->interleave_ways = 1;
+	cxld->interleave_granularity = PAGE_SIZE;
+	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->platform_res = (struct resource)DEFINE_RES_MEM(0, 0);
 
 	return cxld;
 err:
