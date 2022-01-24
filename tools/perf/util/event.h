@@ -182,6 +182,7 @@ enum perf_synth_id {
 	PERF_SYNTH_INTEL_PWRX,
 	PERF_SYNTH_INTEL_CBR,
 	PERF_SYNTH_INTEL_PSB,
+	PERF_SYNTH_INTEL_EVT,
 };
 
 /*
@@ -278,6 +279,33 @@ struct perf_synth_intel_psb {
 	u32 padding;
 	u32 reserved;
 	u64 offset;
+};
+
+struct perf_synth_intel_evd {
+	union {
+		struct {
+			u8	evd_type;
+			u8	reserved[7];
+		};
+		u64	et;
+	};
+	u64	payload;
+};
+
+/* Intel PT Event Trace */
+struct perf_synth_intel_evt {
+	u32 padding;
+	union {
+		struct {
+			u32	type		:  5,
+				reserved	:  2,
+				ip		:  1,
+				vector		:  8,
+				evd_cnt		: 16;
+		};
+		u32	cfe;
+	};
+	struct perf_synth_intel_evd evd[];
 };
 
 /*
