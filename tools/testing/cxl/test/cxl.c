@@ -14,6 +14,7 @@
 #define NR_CXL_HOST_BRIDGES 2
 #define NR_CXL_ROOT_PORTS 2
 #define NR_CXL_SWITCH_PORTS 2
+#define NR_CXL_PORT_DECODERS 2
 
 static struct platform_device *cxl_acpi;
 static struct platform_device *cxl_host_bridge[NR_CXL_HOST_BRIDGES];
@@ -406,38 +407,115 @@ static int mock_cxl_add_passthrough_decoder(struct cxl_port *port)
 	return -EOPNOTSUPP;
 }
 
+
+struct target_map_ctx {
+	int *target_map;
+	int index;
+	int target_count;
+};
+
+static int map_targets(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct target_map_ctx *ctx = data;
+
+	ctx->target_map[ctx->index++] = pdev->id;
+
+	if (ctx->index > ctx->target_count) {
+		dev_WARN_ONCE(dev, 1, "too many targets found?\n");
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
 static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 {
+	struct cxl_port *port = cxlhdm->port;
+	struct cxl_port *parent_port = to_cxl_port(port->dev.parent);
+	int target_count, i;
+
+	if (is_cxl_endpoint(port))
+		target_count = 0;
+	else if (is_cxl_root(parent_port))
+		target_count = NR_CXL_ROOT_PORTS;
+	else
+		target_count = NR_CXL_SWITCH_PORTS;
+
+	for (i = 0; i < NR_CXL_PORT_DECODERS; i++) {
+		int target_map[CXL_DECODER_MAX_INTERLEAVE] = { 0 };
+		struct target_map_ctx ctx = {
+			.target_map = target_map,
+			.target_count = target_count,
+		};
+		struct cxl_decoder *cxld;
+		int rc;
+
+		if (target_count)
+			cxld = cxl_switch_decoder_alloc(port, target_count);
+		else
+			cxld = cxl_endpoint_decoder_alloc(port);
+		if (IS_ERR(cxld)) {
+			dev_warn(&port->dev,
+				 "Failed to allocate the decoder\n");
+			return PTR_ERR(cxld);
+		}
+
+		cxld->decoder_range = (struct range) {
+			.start = 0,
+			.end = -1,
+		};
+
+		cxld->flags = CXL_DECODER_F_ENABLE;
+		cxld->interleave_ways = min_not_zero(target_count, 1);
+		cxld->interleave_granularity = SZ_4K;
+		cxld->target_type = CXL_DECODER_EXPANDER;
+
+		if (target_count) {
+			rc = device_for_each_child(port->uport, &ctx,
+						   map_targets);
+			if (rc) {
+				put_device(&cxld->dev);
+				return rc;
+			}
+		}
+
+		rc = cxl_decoder_add_locked(cxld, target_map);
+		if (rc) {
+			put_device(&cxld->dev);
+			dev_err(&port->dev, "Failed to add decoder\n");
+			return rc;
+		}
+
+		rc = cxl_decoder_autoremove(&port->dev, cxld);
+		if (rc)
+			return rc;
+		dev_dbg(&cxld->dev, "Added to port %s\n", dev_name(&port->dev));
+	}
+
 	return 0;
 }
 
 static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 {
 	struct device *dev = &port->dev;
-	int i;
+	struct platform_device **array;
+	int i, array_size;
 
-	for (i = 0; i < ARRAY_SIZE(cxl_root_port); i++) {
-		struct platform_device *pdev = cxl_root_port[i];
-		struct cxl_dport *dport;
-
-		if (pdev->dev.parent != port->uport)
-			continue;
-
-		dport = devm_cxl_add_dport(port, &pdev->dev, pdev->id,
-					   CXL_RESOURCE_NONE);
-
-		if (IS_ERR(dport)) {
-			dev_err(dev, "failed to add dport: %s (%ld)\n",
-				dev_name(&pdev->dev), PTR_ERR(dport));
-			return PTR_ERR(dport);
-		}
-
-		dev_dbg(dev, "add dport%d: %s\n", pdev->id,
-			dev_name(&pdev->dev));
+	if (port->depth == 1) {
+		array_size = ARRAY_SIZE(cxl_root_port);
+		array = cxl_root_port;
+	} else if (port->depth == 2) {
+		array_size = ARRAY_SIZE(cxl_switch_dport);
+		array = cxl_switch_dport;
+	} else {
+		dev_WARN_ONCE(&port->dev, 1, "unexpected depth %d\n",
+			      port->depth);
+		return -ENXIO;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(cxl_switch_dport); i++) {
-		struct platform_device *pdev = cxl_switch_dport[i];
+	for (i = 0; i < array_size; i++) {
+		struct platform_device *pdev = array[i];
 		struct cxl_dport *dport;
 
 		if (pdev->dev.parent != port->uport)
