@@ -24,6 +24,7 @@
 #include "dev.h"
 #include "mipi-csi2.h"
 #include "common.h"
+#include "rkcif-externel.h"
 
 #define CIF_REQ_BUFS_MIN	3
 #define CIF_MIN_WIDTH		64
@@ -7913,3 +7914,19 @@ void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev)
 	}
 }
 
+int rkcif_sditf_disconnect(struct video_device *vdev)
+{
+	struct rkcif_vdev_node *vnode = vdev_to_node(vdev);
+	struct rkcif_stream *stream = to_rkcif_stream(vnode);
+	struct rkcif_device *cifdev = stream->cifdev;
+	struct media_link *link;
+	int ret;
+
+	link = list_first_entry(&cifdev->sditf->sd.entity.links, struct media_link, list);
+	ret = media_entity_setup_link(link, 0);
+	if (ret)
+		dev_err(cifdev->dev, "failed to disable link of sditf with isp");
+
+	return ret;
+}
+EXPORT_SYMBOL(rkcif_sditf_disconnect);
