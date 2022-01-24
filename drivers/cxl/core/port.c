@@ -34,8 +34,25 @@ static ssize_t devtype_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(devtype);
 
+static int cxl_device_id(struct device *dev)
+{
+	if (dev->type == &cxl_nvdimm_bridge_type)
+		return CXL_DEVICE_NVDIMM_BRIDGE;
+	if (dev->type == &cxl_nvdimm_type)
+		return CXL_DEVICE_NVDIMM;
+	return 0;
+}
+
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return sysfs_emit(buf, CXL_MODALIAS_FMT "\n", cxl_device_id(dev));
+}
+static DEVICE_ATTR_RO(modalias);
+
 static struct attribute *cxl_base_attributes[] = {
 	&dev_attr_devtype.attr,
+	&dev_attr_modalias.attr,
 	NULL,
 };
 
@@ -854,15 +871,6 @@ void cxl_driver_unregister(struct cxl_driver *cxl_drv)
 	driver_unregister(&cxl_drv->drv);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_driver_unregister, CXL);
-
-static int cxl_device_id(struct device *dev)
-{
-	if (dev->type == &cxl_nvdimm_bridge_type)
-		return CXL_DEVICE_NVDIMM_BRIDGE;
-	if (dev->type == &cxl_nvdimm_type)
-		return CXL_DEVICE_NVDIMM;
-	return 0;
-}
 
 static int cxl_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {

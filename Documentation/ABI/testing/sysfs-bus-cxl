@@ -34,6 +34,15 @@ Description:
 		the same value communicated in the DEVTYPE environment variable
 		for uevents for devices on the "cxl" bus.
 
+What:		/sys/bus/cxl/devices/*/modalias
+Date:		December, 2021
+KernelVersion:	v5.18
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		CXL device objects export the modalias attribute which mirrors
+		the same value communicated in the MODALIAS environment variable
+		for uevents for devices on the "cxl" bus.
+
 What:		/sys/bus/cxl/devices/portX/uport
 Date:		June, 2021
 KernelVersion:	v5.14
