@@ -2263,6 +2263,17 @@ config SENSORS_ASUS_WMI_EC
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_wmi_sensors_ec.
 
+config SENSORS_ASUS_EC
+	tristate "ASUS EC Sensors"
+	help
+	  If you say yes here you get support for the ACPI embedded controller
+	  hardware monitoring interface found in ASUS motherboards. The driver
+	  currently supports B550/X570 boards, although other ASUS boards might
+	  provide this monitoring interface as well.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_ec_sensors.
+
 endif # ACPI
 
 endif # HWMON
