@@ -3199,7 +3199,7 @@ static bool dp_verify_link_cap(
 	bool success = false;
 	bool skip_video_pattern;
 	enum clock_source_id dp_cs_id = get_clock_source_id(link);
-	enum link_training_result status;
+	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	union hpd_irq_data irq_data;
 	struct link_resource link_res;
 
