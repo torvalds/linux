@@ -339,6 +339,7 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
 	       __is_rsvd_bits_set(rsvd_check, spte, level);
 }
 
+/* Note: spte must be a shadow-present leaf SPTE. */
 static inline void check_spte_writable_invariants(u64 spte)
 {
 	if (spte & shadow_mmu_writable_mask)
@@ -352,7 +353,6 @@ static inline void check_spte_writable_invariants(u64 spte)
 
 static inline bool spte_can_locklessly_be_made_writable(u64 spte)
 {
-	check_spte_writable_invariants(spte);
 	return spte & shadow_mmu_writable_mask;
 }
 
