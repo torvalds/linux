@@ -367,33 +367,28 @@ failure:
 }
 
 /**
- * ice_alloc_rx_bufs_zc - allocate a number of Rx buffers
- * @rx_ring: Rx ring
+ * ice_fill_rx_descs - pick buffers from XSK buffer pool and use it
+ * @pool: XSK Buffer pool to pull the buffers from
+ * @xdp: SW ring of xdp_buff that will hold the buffers
+ * @rx_desc: Pointer to Rx descriptors that will be filled
  * @count: The number of buffers to allocate
  *
  * This function allocates a number of Rx buffers from the fill ring
  * or the internal recycle mechanism and places them on the Rx ring.
  *
- * Returns true if all allocations were successful, false if any fail.
+ * Note that ring wrap should be handled by caller of this function.
+ *
+ * Returns the amount of allocated Rx descriptors
  */
-bool ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
+static u16 ice_fill_rx_descs(struct xsk_buff_pool *pool, struct xdp_buff **xdp,
+			     union ice_32b_rx_flex_desc *rx_desc, u16 count)
 {
-	union ice_32b_rx_flex_desc *rx_desc;
-	u16 ntu = rx_ring->next_to_use;
-	struct xdp_buff **xdp;
-	u32 nb_buffs, i;
 	dma_addr_t dma;
+	u16 buffs;
+	int i;
 
-	rx_desc = ICE_RX_DESC(rx_ring, ntu);
-	xdp = ice_xdp_buf(rx_ring, ntu);
-
-	nb_buffs = min_t(u16, count, rx_ring->count - ntu);
-	nb_buffs = xsk_buff_alloc_batch(rx_ring->xsk_pool, xdp, nb_buffs);
-	if (!nb_buffs)
-		return false;
-
-	i = nb_buffs;
-	while (i--) {
+	buffs = xsk_buff_alloc_batch(pool, xdp, count);
+	for (i = 0; i < buffs; i++) {
 		dma = xsk_buff_xdp_get_dma(*xdp);
 		rx_desc->read.pkt_addr = cpu_to_le64(dma);
 		rx_desc->wb.status_error0 = 0;
@@ -402,13 +397,77 @@ bool ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
 		xdp++;
 	}
 
+	return buffs;
+}
+
+/**
+ * __ice_alloc_rx_bufs_zc - allocate a number of Rx buffers
+ * @rx_ring: Rx ring
+ * @count: The number of buffers to allocate
+ *
+ * Place the @count of descriptors onto Rx ring. Handle the ring wrap
+ * for case where space from next_to_use up to the end of ring is less
+ * than @count. Finally do a tail bump.
+ *
+ * Returns true if all allocations were successful, false if any fail.
+ */
+static bool __ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
+{
+	union ice_32b_rx_flex_desc *rx_desc;
+	u32 nb_buffs_extra = 0, nb_buffs;
+	u16 ntu = rx_ring->next_to_use;
+	u16 total_count = count;
+	struct xdp_buff **xdp;
+
+	rx_desc = ICE_RX_DESC(rx_ring, ntu);
+	xdp = ice_xdp_buf(rx_ring, ntu);
+
+	if (ntu + count >= rx_ring->count) {
+		nb_buffs_extra = ice_fill_rx_descs(rx_ring->xsk_pool, xdp,
+						   rx_desc,
+						   rx_ring->count - ntu);
+		rx_desc = ICE_RX_DESC(rx_ring, 0);
+		xdp = ice_xdp_buf(rx_ring, 0);
+		ntu = 0;
+		count -= nb_buffs_extra;
+		ice_release_rx_desc(rx_ring, 0);
+	}
+
+	nb_buffs = ice_fill_rx_descs(rx_ring->xsk_pool, xdp, rx_desc, count);
+
 	ntu += nb_buffs;
 	if (ntu == rx_ring->count)
 		ntu = 0;
 
-	ice_release_rx_desc(rx_ring, ntu);
+	if (rx_ring->next_to_use != ntu)
+		ice_release_rx_desc(rx_ring, ntu);
 
-	return count == nb_buffs;
+	return total_count == (nb_buffs_extra + nb_buffs);
+}
+
+/**
+ * ice_alloc_rx_bufs_zc - allocate a number of Rx buffers
+ * @rx_ring: Rx ring
+ * @count: The number of buffers to allocate
+ *
+ * Wrapper for internal allocation routine; figure out how many tail
+ * bumps should take place based on the given threshold
+ *
+ * Returns true if all calls to internal alloc routine succeeded
+ */
+bool ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
+{
+	u16 rx_thresh = ICE_RING_QUARTER(rx_ring);
+	u16 batched, leftover, i, tail_bumps;
+
+	batched = ALIGN_DOWN(count, rx_thresh);
+	tail_bumps = batched / rx_thresh;
+	leftover = count & (rx_thresh - 1);
+
+	for (i = 0; i < tail_bumps; i++)
+		if (!__ice_alloc_rx_bufs_zc(rx_ring, rx_thresh))
+			return false;
+	return __ice_alloc_rx_bufs_zc(rx_ring, leftover);
 }
 
 /**
