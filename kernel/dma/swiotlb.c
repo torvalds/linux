@@ -207,8 +207,6 @@ void __init swiotlb_update_mem_attributes(void)
 	mem->vaddr = swiotlb_mem_remap(mem, bytes);
 	if (!mem->vaddr)
 		mem->vaddr = vaddr;
-
-	memset(mem->vaddr, 0, bytes);
 }
 
 static void swiotlb_init_io_tlb_mem(struct io_tlb_mem *mem, phys_addr_t start,
