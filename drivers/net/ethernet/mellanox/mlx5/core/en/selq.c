@@ -164,36 +164,62 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	if (unlikely(!selq))
 		return 0;
 
-	if (unlikely(selq->is_ptp || selq->is_htb)) {
-		if (unlikely(selq->is_htb)) {
-			txq_ix = mlx5e_select_htb_queue(priv, skb);
-			if (txq_ix > 0)
-				return txq_ix;
-		}
-
-		if (unlikely(selq->is_ptp && mlx5e_use_ptpsq(skb)))
-			return mlx5e_select_ptpsq(dev, skb, selq);
+	if (likely(!selq->is_ptp && !selq->is_htb)) {
+		/* No special queues, netdev_pick_tx returns one of the regular ones. */
 
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
+
+		if (selq->num_tcs <= 1)
+			return txq_ix;
+
+		up = mlx5e_get_up(priv, skb);
+
+		/* Normalize any picked txq_ix to [0, num_channels),
+		 * So we can return a txq_ix that matches the channel and
+		 * packet UP.
+		 */
+		return txq_ix % selq->num_channels + up * selq->num_channels;
+	}
+
+	if (unlikely(selq->is_htb)) {
+		/* num_tcs == 1, shortcut for PTP */
+
+		txq_ix = mlx5e_select_htb_queue(priv, skb);
+		if (txq_ix > 0)
+			return txq_ix;
+
+		if (unlikely(selq->is_ptp && mlx5e_use_ptpsq(skb)))
+			return selq->num_channels;
+
+		txq_ix = netdev_pick_tx(dev, skb, NULL);
+
 		/* Fix netdev_pick_tx() not to choose ptp_channel and HTB txqs.
 		 * If they are selected, switch to regular queues.
 		 * Driver to select these queues only at mlx5e_select_ptpsq()
 		 * and mlx5e_select_htb_queue().
 		 */
-		if (unlikely(txq_ix >= selq->num_regular_queues))
-			txq_ix %= selq->num_regular_queues;
-	} else {
-		txq_ix = netdev_pick_tx(dev, skb, NULL);
+		return txq_ix % selq->num_channels;
 	}
+
+	/* PTP is enabled */
+
+	if (mlx5e_use_ptpsq(skb))
+		return mlx5e_select_ptpsq(dev, skb, selq);
+
+	txq_ix = netdev_pick_tx(dev, skb, NULL);
+
+	/* Normalize any picked txq_ix to [0, num_channels). Queues in range
+	 * [0, num_regular_queues) will be mapped to the corresponding channel
+	 * index, so that we can apply the packet's UP (if num_tcs > 1).
+	 * If netdev_pick_tx() picks ptp_channel, switch to a regular queue,
+	 * because driver should select the PTP only at mlx5e_select_ptpsq().
+	 */
+	txq_ix %= selq->num_channels;
 
 	if (selq->num_tcs <= 1)
 		return txq_ix;
 
 	up = mlx5e_get_up(priv, skb);
 
-	/* Normalize any picked txq_ix to [0, num_channels),
-	 * So we can return a txq_ix that matches the channel and
-	 * packet UP.
-	 */
-	return txq_ix % selq->num_channels + up * selq->num_channels;
+	return txq_ix + up * selq->num_channels;
 }
