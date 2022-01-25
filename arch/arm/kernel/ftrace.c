@@ -233,6 +233,11 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
+	if (IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER)) {
+		/* FP points one word below parent's top of stack */
+		frame_pointer += 4;
+	}
+
 	old = *parent;
 	*parent = return_hooker;
 

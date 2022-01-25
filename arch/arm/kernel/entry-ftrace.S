@@ -247,7 +247,7 @@ ENDPROC(ftrace_graph_regs_caller)
 	.globl return_to_handler
 return_to_handler:
 	stmdb	sp!, {r0-r3}
-	mov	r0, fp			@ frame pointer
+	add	r0, sp, #16		@ sp at exit of instrumented routine
 	bl	ftrace_return_to_handler
 	mov	lr, r0			@ r0 has real ret addr
 	ldmia	sp!, {r0-r3}
