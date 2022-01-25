@@ -361,8 +361,8 @@ void kvm_mmu_reset_all_pte_masks(void)
 	shadow_acc_track_mask	= 0;
 	shadow_me_mask		= sme_me_mask;
 
-	shadow_host_writable_mask = DEFAULT_SPTE_HOST_WRITEABLE;
-	shadow_mmu_writable_mask  = DEFAULT_SPTE_MMU_WRITEABLE;
+	shadow_host_writable_mask = DEFAULT_SPTE_HOST_WRITABLE;
+	shadow_mmu_writable_mask  = DEFAULT_SPTE_MMU_WRITABLE;
 
 	/*
 	 * Set a reserved PA bit in MMIO SPTEs to generate page faults with

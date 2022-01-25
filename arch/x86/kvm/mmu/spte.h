@@ -75,7 +75,7 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 static_assert(!(SPTE_TDP_AD_MASK & SHADOW_ACC_TRACK_SAVED_MASK));
 
 /*
- * *_SPTE_HOST_WRITEABLE (aka Host-writable) indicates whether the host permits
+ * *_SPTE_HOST_WRITABLE (aka Host-writable) indicates whether the host permits
  * writes to the guest page mapped by the SPTE. This bit is cleared on SPTEs
  * that map guest pages in read-only memslots and read-only VMAs.
  *
@@ -83,7 +83,7 @@ static_assert(!(SPTE_TDP_AD_MASK & SHADOW_ACC_TRACK_SAVED_MASK));
  *  - If Host-writable is clear, PT_WRITABLE_MASK must be clear.
  *
  *
- * *_SPTE_MMU_WRITEABLE (aka MMU-writable) indicates whether the shadow MMU
+ * *_SPTE_MMU_WRITABLE (aka MMU-writable) indicates whether the shadow MMU
  * allows writes to the guest page mapped by the SPTE. This bit is cleared when
  * the guest page mapped by the SPTE contains a page table that is being
  * monitored for shadow paging. In this case the SPTE can only be made writable
@@ -100,8 +100,8 @@ static_assert(!(SPTE_TDP_AD_MASK & SHADOW_ACC_TRACK_SAVED_MASK));
  */
 
 /* Bits 9 and 10 are ignored by all non-EPT PTEs. */
-#define DEFAULT_SPTE_HOST_WRITEABLE	BIT_ULL(9)
-#define DEFAULT_SPTE_MMU_WRITEABLE	BIT_ULL(10)
+#define DEFAULT_SPTE_HOST_WRITABLE	BIT_ULL(9)
+#define DEFAULT_SPTE_MMU_WRITABLE	BIT_ULL(10)
 
 /*
  * Low ignored bits are at a premium for EPT, use high ignored bits, taking care
