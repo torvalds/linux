@@ -195,8 +195,6 @@ static int adis16080_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 	st = iio_priv(indio_dev);
-	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, indio_dev);
 
 	mutex_init(&st->lock);
 
@@ -210,13 +208,7 @@ static int adis16080_probe(struct spi_device *spi)
 	indio_dev->info = &adis16080_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	return iio_device_register(indio_dev);
-}
-
-static int adis16080_remove(struct spi_device *spi)
-{
-	iio_device_unregister(spi_get_drvdata(spi));
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id adis16080_ids[] = {
@@ -231,7 +223,6 @@ static struct spi_driver adis16080_driver = {
 		.name = "adis16080",
 	},
 	.probe = adis16080_probe,
-	.remove = adis16080_remove,
 	.id_table = adis16080_ids,
 };
 module_spi_driver(adis16080_driver);

@@ -25,11 +25,14 @@
 #include "ocelot_rew.h"
 #include "ocelot_qs.h"
 
+#define OCELOT_VLAN_UNAWARE_PVID 0
 #define OCELOT_BUFFER_CELL_SZ 60
 
 #define OCELOT_STATS_CHECK_DELAY (2 * HZ)
 
 #define OCELOT_PTP_QUEUE_SZ	128
+
+#define OCELOT_JUMBO_MTU	9000
 
 struct ocelot_port_tc {
 	bool block_shared;
@@ -52,19 +55,6 @@ struct ocelot_dump_ctx {
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
 	int idx;
-};
-
-/* MAC table entry types.
- * ENTRYTYPE_NORMAL is subject to aging.
- * ENTRYTYPE_LOCKED is not subject to aging.
- * ENTRYTYPE_MACv4 is not subject to aging. For IPv4 multicast.
- * ENTRYTYPE_MACv6 is not subject to aging. For IPv6 multicast.
- */
-enum macaccess_entry_type {
-	ENTRYTYPE_NORMAL = 0,
-	ENTRYTYPE_LOCKED,
-	ENTRYTYPE_MACv4,
-	ENTRYTYPE_MACv6,
 };
 
 /* A (PGID) port mask structure, encoding the 2^ocelot->num_phys_ports

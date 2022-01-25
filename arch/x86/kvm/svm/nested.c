@@ -238,6 +238,18 @@ static bool nested_svm_check_bitmap_pa(struct kvm_vcpu *vcpu, u64 pa, u32 size)
 	    kvm_vcpu_is_legal_gpa(vcpu, addr + size - 1);
 }
 
+static bool nested_svm_check_tlb_ctl(struct kvm_vcpu *vcpu, u8 tlb_ctl)
+{
+	/* Nested FLUSHBYASID is not supported yet.  */
+	switch(tlb_ctl) {
+		case TLB_CONTROL_DO_NOTHING:
+		case TLB_CONTROL_FLUSH_ALL_ASID:
+			return true;
+		default:
+			return false;
+	}
+}
+
 static bool nested_vmcb_check_controls(struct kvm_vcpu *vcpu,
 				       struct vmcb_control_area *control)
 {
@@ -255,6 +267,9 @@ static bool nested_vmcb_check_controls(struct kvm_vcpu *vcpu,
 		return false;
 	if (CC(!nested_svm_check_bitmap_pa(vcpu, control->iopm_base_pa,
 					   IOPM_SIZE)))
+		return false;
+
+	if (CC(!nested_svm_check_tlb_ctl(vcpu, control->tlb_ctl)))
 		return false;
 
 	return true;
@@ -538,8 +553,17 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	if (nested_npt_enabled(svm))
 		nested_svm_init_mmu_context(vcpu);
 
-	svm->vmcb->control.tsc_offset = vcpu->arch.tsc_offset =
-		vcpu->arch.l1_tsc_offset + svm->nested.ctl.tsc_offset;
+	vcpu->arch.tsc_offset = kvm_calc_nested_tsc_offset(
+			vcpu->arch.l1_tsc_offset,
+			svm->nested.ctl.tsc_offset,
+			svm->tsc_ratio_msr);
+
+	svm->vmcb->control.tsc_offset = vcpu->arch.tsc_offset;
+
+	if (svm->tsc_ratio_msr != kvm_default_tsc_scaling_ratio) {
+		WARN_ON(!svm->tsc_scaling_enabled);
+		nested_svm_update_tsc_ratio_msr(vcpu);
+	}
 
 	svm->vmcb->control.int_ctl             =
 		(svm->nested.ctl.int_ctl & int_ctl_vmcb12_bits) |
@@ -549,9 +573,6 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	svm->vmcb->control.int_state           = svm->nested.ctl.int_state;
 	svm->vmcb->control.event_inj           = svm->nested.ctl.event_inj;
 	svm->vmcb->control.event_inj_err       = svm->nested.ctl.event_inj_err;
-
-	svm->vmcb->control.pause_filter_count  = svm->nested.ctl.pause_filter_count;
-	svm->vmcb->control.pause_filter_thresh = svm->nested.ctl.pause_filter_thresh;
 
 	nested_svm_transition_tlb_flush(vcpu);
 
@@ -810,11 +831,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	vmcb12->control.event_inj         = svm->nested.ctl.event_inj;
 	vmcb12->control.event_inj_err     = svm->nested.ctl.event_inj_err;
 
-	vmcb12->control.pause_filter_count =
-		svm->vmcb->control.pause_filter_count;
-	vmcb12->control.pause_filter_thresh =
-		svm->vmcb->control.pause_filter_thresh;
-
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
@@ -830,6 +846,12 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	if (svm->vmcb->control.tsc_offset != svm->vcpu.arch.tsc_offset) {
 		svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset;
 		vmcb_mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
+	}
+
+	if (svm->tsc_ratio_msr != kvm_default_tsc_scaling_ratio) {
+		WARN_ON(!svm->tsc_scaling_enabled);
+		vcpu->arch.tsc_scaling_ratio = vcpu->arch.l1_tsc_scaling_ratio;
+		svm_write_tsc_multiplier(vcpu, vcpu->arch.tsc_scaling_ratio);
 	}
 
 	svm->nested.ctl.nested_cr3 = 0;
@@ -1217,6 +1239,16 @@ int nested_svm_exit_special(struct vcpu_svm *svm)
 	}
 
 	return NESTED_EXIT_CONTINUE;
+}
+
+void nested_svm_update_tsc_ratio_msr(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	vcpu->arch.tsc_scaling_ratio =
+		kvm_calc_nested_tsc_multiplier(vcpu->arch.l1_tsc_scaling_ratio,
+					       svm->tsc_ratio_msr);
+	svm_write_tsc_multiplier(vcpu, vcpu->arch.tsc_scaling_ratio);
 }
 
 static int svm_get_nested_state(struct kvm_vcpu *vcpu,

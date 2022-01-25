@@ -178,7 +178,6 @@ static int s5p_cec_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device *hdmi_dev;
-	struct resource *res;
 	struct s5p_cec_dev *cec;
 	bool needs_hpd = of_property_read_bool(pdev->dev.of_node, "needs-hpd");
 	int ret;
@@ -212,8 +211,7 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	if (IS_ERR(cec->pmu))
 		return -EPROBE_DEFER;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cec->reg = devm_ioremap_resource(dev, res);
+	cec->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cec->reg))
 		return PTR_ERR(cec->reg);
 

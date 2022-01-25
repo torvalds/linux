@@ -212,7 +212,7 @@ config SND_SOC_DM365_VOICE_CODEC
 	  Say Y if you want to add support for SoC On-chip voice codec
 endchoice
 
-config SND_SOC_DM365_VOICE_CODEC_MODULE
+config SND_SOC_DM365_SELECT_VOICE_CODECS
 	def_tristate y
 	depends on SND_SOC_DM365_VOICE_CODEC && SND_SOC
 	select MFD_DAVINCI_VOICECODEC

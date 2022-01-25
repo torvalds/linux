@@ -34,6 +34,11 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	TAS_CONFIG = 0x3,
 
 	/**
+	 * @SAR_OFFSET_MAPPING_TABLE_CMD: &iwl_sar_offset_mapping_cmd
+	 */
+	SAR_OFFSET_MAPPING_TABLE_CMD = 0x4,
+
+	/**
 	 * @PNVM_INIT_COMPLETE_NTFY: &struct iwl_pnvm_init_complete_ntfy
 	 */
 	PNVM_INIT_COMPLETE_NTFY = 0xFE,
@@ -388,16 +393,31 @@ enum iwl_mcc_source {
 	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
-#define IWL_TAS_BLACK_LIST_MAX 16
+#define IWL_TAS_BLOCK_LIST_MAX 16
 /**
- * struct iwl_tas_config_cmd - configures the TAS
+ * struct iwl_tas_config_cmd_v2 - configures the TAS
  * @block_list_size: size of relevant field in block_list_array
- * @block_list_array: block list countries (without TAS)
+ * @block_list_array: list of countries where TAS must be disabled
  */
-struct iwl_tas_config_cmd {
+struct iwl_tas_config_cmd_v2 {
 	__le32 block_list_size;
-	__le32 block_list_array[IWL_TAS_BLACK_LIST_MAX];
+	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_tas_config_cmd_v3 - configures the TAS
+ * @block_list_size: size of relevant field in block_list_array
+ * @block_list_array: list of countries where TAS must be disabled
+ * @override_tas_iec: indicates whether to override default value of IEC regulatory
+ * @enable_tas_iec: in case override_tas_iec is set -
+ *	indicates whether IEC regulatory is enabled or disabled
+ */
+struct iwl_tas_config_cmd_v3 {
+	__le32 block_list_size;
+	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	__le16 override_tas_iec;
+	__le16 enable_tas_iec;
+} __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
 
 /**
  * enum iwl_lari_configs - bit masks for the various LARI config operations
@@ -470,6 +490,29 @@ struct iwl_lari_config_change_cmd_v4 {
 	__le32 oem_11ax_allow_bitmap;
 	__le32 oem_unii4_allow_bitmap;
 } __packed; /* LARI_CHANGE_CONF_CMD_S_VER_4 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v5 - change LARI configuration
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *     different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate allow/disallow unii4 channels.
+ * @chan_state_active_bitmap: Bitmap for overriding channel state to active.
+ *     Each bit represents a country or region to activate, according to the BIOS
+ *     definitions.
+ */
+struct iwl_lari_config_change_cmd_v5 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+	__le32 chan_state_active_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_5 */
 
 /**
  * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete

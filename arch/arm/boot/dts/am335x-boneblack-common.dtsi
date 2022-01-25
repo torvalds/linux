@@ -22,10 +22,6 @@
 	non-removable;
 };
 
-&rtc {
-	system-power-controller;
-};
-
 / {
 	memory@80000000 {
 		device_type = "memory";

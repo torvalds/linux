@@ -625,7 +625,7 @@ static enum hrtimer_restart bcm_rx_thr_handler(struct hrtimer *hrtimer)
 	struct bcm_op *op = container_of(hrtimer, struct bcm_op, thrtimer);
 
 	if (bcm_rx_thr_flush(op)) {
-		hrtimer_forward(hrtimer, ktime_get(), op->kt_ival2);
+		hrtimer_forward_now(hrtimer, op->kt_ival2);
 		return HRTIMER_RESTART;
 	} else {
 		/* rearm throttle handling */

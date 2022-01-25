@@ -42,7 +42,16 @@ struct core_reloc_mods {
 	core_reloc_mods_substruct_t h;
 };
 
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define CORE_READ(dst, src) bpf_core_read(dst, sizeof(*(dst)), src)
+#else
+#define CORE_READ(dst, src) ({ \
+	int __sz = sizeof(*(dst)) < sizeof(*(src)) ? sizeof(*(dst)) : \
+						     sizeof(*(src)); \
+	bpf_core_read((char *)(dst) + sizeof(*(dst)) - __sz, __sz, \
+		      (const char *)(src) + sizeof(*(src)) - __sz); \
+})
+#endif
 
 SEC("raw_tracepoint/sys_enter")
 int test_core_mods(void *ctx)

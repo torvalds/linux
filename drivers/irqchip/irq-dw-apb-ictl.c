@@ -42,7 +42,7 @@ static void __irq_entry dw_apb_ictl_handle_irq(struct pt_regs *regs)
 		while (stat) {
 			u32 hwirq = ffs(stat) - 1;
 
-			handle_domain_irq(d, hwirq, regs);
+			generic_handle_domain_irq(d, hwirq);
 			stat &= ~BIT(hwirq);
 		}
 	}

@@ -602,6 +602,9 @@ nfsd_file_fsnotify_handle_event(struct fsnotify_mark *mark, u32 mask,
 				struct inode *inode, struct inode *dir,
 				const struct qstr *name, u32 cookie)
 {
+	if (WARN_ON_ONCE(!inode))
+		return 0;
+
 	trace_nfsd_file_fsnotify_handle_event(inode, mask);
 
 	/* Should be no marks on non-regular files */

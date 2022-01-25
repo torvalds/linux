@@ -159,6 +159,10 @@ static struct cpufreq_frequency_table *init_vhint_table(
 		table = ERR_PTR(err);
 		goto free;
 	}
+	if (msg.rx.ret) {
+		table = ERR_PTR(-EINVAL);
+		goto free;
+	}
 
 	for (i = data->vfloor; i <= data->vceil; i++) {
 		u16 ndiv = data->ndiv[i];

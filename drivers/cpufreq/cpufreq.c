@@ -558,7 +558,7 @@ static unsigned int __resolve_freq(struct cpufreq_policy *policy,
 unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 					 unsigned int target_freq)
 {
-	return __resolve_freq(policy, target_freq, CPUFREQ_RELATION_L);
+	return __resolve_freq(policy, target_freq, CPUFREQ_RELATION_LE);
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_resolve_freq);
 
@@ -935,7 +935,7 @@ cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
 
-static struct attribute *default_attrs[] = {
+static struct attribute *cpufreq_attrs[] = {
 	&cpuinfo_min_freq.attr,
 	&cpuinfo_max_freq.attr,
 	&cpuinfo_transition_latency.attr,
@@ -949,6 +949,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_setspeed.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(cpufreq);
 
 #define to_policy(k) container_of(k, struct cpufreq_policy, kobj)
 #define to_attr(a) container_of(a, struct freq_attr, attr)
@@ -1011,14 +1012,13 @@ static const struct sysfs_ops sysfs_ops = {
 
 static struct kobj_type ktype_cpufreq = {
 	.sysfs_ops	= &sysfs_ops,
-	.default_attrs	= default_attrs,
+	.default_groups	= cpufreq_groups,
 	.release	= cpufreq_sysfs_release,
 };
 
-static void add_cpu_dev_symlink(struct cpufreq_policy *policy, unsigned int cpu)
+static void add_cpu_dev_symlink(struct cpufreq_policy *policy, unsigned int cpu,
+				struct device *dev)
 {
-	struct device *dev = get_cpu_device(cpu);
-
 	if (unlikely(!dev))
 		return;
 
@@ -1307,8 +1307,9 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 
 	if (policy->max_freq_req) {
 		/*
-		 * CPUFREQ_CREATE_POLICY notification is sent only after
-		 * successfully adding max_freq_req request.
+		 * Remove max_freq_req after sending CPUFREQ_REMOVE_POLICY
+		 * notification, since CPUFREQ_CREATE_POLICY notification was
+		 * sent after adding max_freq_req earlier.
 		 */
 		blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 					     CPUFREQ_REMOVE_POLICY, policy);
@@ -1402,7 +1403,7 @@ static int cpufreq_online(unsigned int cpu)
 	if (new_policy) {
 		for_each_cpu(j, policy->related_cpus) {
 			per_cpu(cpufreq_cpu_data, j) = policy;
-			add_cpu_dev_symlink(policy, j);
+			add_cpu_dev_symlink(policy, j, get_cpu_device(j));
 		}
 
 		policy->min_freq_req = kzalloc(2 * sizeof(*policy->min_freq_req),
@@ -1414,7 +1415,7 @@ static int cpufreq_online(unsigned int cpu)
 
 		ret = freq_qos_add_request(&policy->constraints,
 					   policy->min_freq_req, FREQ_QOS_MIN,
-					   policy->min);
+					   FREQ_QOS_MIN_DEFAULT_VALUE);
 		if (ret < 0) {
 			/*
 			 * So we don't call freq_qos_remove_request() for an
@@ -1434,7 +1435,7 @@ static int cpufreq_online(unsigned int cpu)
 
 		ret = freq_qos_add_request(&policy->constraints,
 					   policy->max_freq_req, FREQ_QOS_MAX,
-					   policy->max);
+					   FREQ_QOS_MAX_DEFAULT_VALUE);
 		if (ret < 0) {
 			policy->max_freq_req = NULL;
 			goto out_destroy_policy;
@@ -1577,7 +1578,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	/* Create sysfs link on CPU registration */
 	policy = per_cpu(cpufreq_cpu_data, cpu);
 	if (policy)
-		add_cpu_dev_symlink(policy, cpu);
+		add_cpu_dev_symlink(policy, cpu, dev);
 
 	return 0;
 }
@@ -2273,8 +2274,16 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	    !(cpufreq_driver->flags & CPUFREQ_NEED_UPDATE_LIMITS))
 		return 0;
 
-	if (cpufreq_driver->target)
+	if (cpufreq_driver->target) {
+		/*
+		 * If the driver hasn't setup a single inefficient frequency,
+		 * it's unlikely it knows how to decode CPUFREQ_RELATION_E.
+		 */
+		if (!policy->efficiencies_available)
+			relation &= ~CPUFREQ_RELATION_E;
+
 		return cpufreq_driver->target(policy, target_freq, relation);
+	}
 
 	if (!cpufreq_driver->target_index)
 		return -EINVAL;
@@ -2536,8 +2545,15 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	if (ret)
 		return ret;
 
+	/*
+	 * Resolve policy min/max to available frequencies. It ensures
+	 * no frequency resolution will neither overshoot the requested maximum
+	 * nor undershoot the requested minimum.
+	 */
 	policy->min = new_data.min;
 	policy->max = new_data.max;
+	policy->min = __resolve_freq(policy, policy->min, CPUFREQ_RELATION_L);
+	policy->max = __resolve_freq(policy, policy->max, CPUFREQ_RELATION_H);
 	trace_cpu_frequency_limits(policy);
 
 	policy->cached_target_freq = UINT_MAX;

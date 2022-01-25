@@ -40,6 +40,7 @@
 #include <asm/kasan.h>
 #include <asm/kaslr.h>
 #include <asm/mce.h>
+#include <asm/memtype.h>
 #include <asm/mtrr.h>
 #include <asm/realmode.h>
 #include <asm/olpc_ofw.h>
@@ -322,7 +323,7 @@ static void __init reserve_initrd(void)
 
 	relocate_initrd();
 
-	memblock_free(ramdisk_image, ramdisk_end - ramdisk_image);
+	memblock_phys_free(ramdisk_image, ramdisk_end - ramdisk_image);
 }
 
 #else
@@ -521,7 +522,7 @@ static void __init reserve_crashkernel(void)
 	}
 
 	if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
-		memblock_free(crash_base, crash_size);
+		memblock_phys_free(crash_base, crash_size);
 		return;
 	}
 
@@ -713,9 +714,6 @@ static void __init early_reserve_memory(void)
 
 	early_reserve_initrd();
 
-	if (efi_enabled(EFI_BOOT))
-		efi_memblock_x86_reserve_range();
-
 	memblock_x86_reserve_range_setup_data();
 
 	reserve_ibft_region();
@@ -890,6 +888,9 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	if (efi_enabled(EFI_BOOT))
+		efi_memblock_x86_reserve_range();
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 	/*
 	 * Memory used by the kernel cannot be hot-removed because Linux
@@ -967,7 +968,11 @@ void __init setup_arch(char **cmdline_p)
 	max_pfn = e820__end_of_ram_pfn();
 
 	/* update e820 for memory not covered by WB MTRRs */
-	mtrr_bp_init();
+	if (IS_ENABLED(CONFIG_MTRR))
+		mtrr_bp_init();
+	else
+		pat_disable("PAT support disabled because CONFIG_MTRR is disabled in the kernel.");
+
 	if (mtrr_trim_uncached_memory(max_pfn))
 		max_pfn = e820__end_of_ram_pfn();
 

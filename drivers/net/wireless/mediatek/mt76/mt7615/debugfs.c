@@ -3,6 +3,33 @@
 #include "mt7615.h"
 
 static int
+mt7615_reg_set(void *data, u64 val)
+{
+	struct mt7615_dev *dev = data;
+
+	mt7615_mutex_acquire(dev);
+	mt76_wr(dev, dev->mt76.debugfs_reg, val);
+	mt7615_mutex_release(dev);
+
+	return 0;
+}
+
+static int
+mt7615_reg_get(void *data, u64 *val)
+{
+	struct mt7615_dev *dev = data;
+
+	mt7615_mutex_acquire(dev);
+	*val = mt76_rr(dev, dev->mt76.debugfs_reg);
+	mt7615_mutex_release(dev);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_regval, mt7615_reg_get, mt7615_reg_set,
+			 "0x%08llx\n");
+
+static int
 mt7615_radar_pattern_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
@@ -332,6 +359,9 @@ mt7615_queues_acq(struct seq_file *s, void *data)
 		int acs = i / MT7615_MAX_WMM_SETS;
 		u32 ctrl, val, qlen = 0;
 
+		if (wmm_idx == 3 && is_mt7663(&dev->mt76))
+			continue;
+
 		val = mt76_rr(dev, MT_PLE_AC_QEMPTY(acs, wmm_idx));
 		ctrl = BIT(31) | BIT(15) | (acs << 8);
 
@@ -506,7 +536,7 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = mt76_register_debugfs(&dev->mt76);
+	dir = mt76_register_debugfs_fops(&dev->mphy, &fops_regval);
 	if (!dir)
 		return -ENOMEM;
 

@@ -21,7 +21,11 @@ allOf:
 properties:
   compatible:
     items:
-      - const: qcom,sdm845-qspi
+      - enum:
+          - qcom,sc7180-qspi
+          - qcom,sc7280-qspi
+          - qcom,sdm845-qspi
+
       - const: qcom,qspi-v1
 
   reg:

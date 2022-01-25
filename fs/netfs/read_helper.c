@@ -230,7 +230,7 @@ static void netfs_rreq_completed(struct netfs_read_request *rreq, bool was_async
 
 /*
  * Deal with the completion of writing the data to the cache.  We have to clear
- * the PG_fscache bits on the pages involved and release the caller's ref.
+ * the PG_fscache bits on the folios involved and release the caller's ref.
  *
  * May be called in softirq mode and we inherit a ref from the caller.
  */
@@ -238,7 +238,7 @@ static void netfs_rreq_unmark_after_write(struct netfs_read_request *rreq,
 					  bool was_async)
 {
 	struct netfs_read_subrequest *subreq;
-	struct page *page;
+	struct folio *folio;
 	pgoff_t unlocked = 0;
 	bool have_unlocked = false;
 
@@ -247,14 +247,14 @@ static void netfs_rreq_unmark_after_write(struct netfs_read_request *rreq,
 	list_for_each_entry(subreq, &rreq->subrequests, rreq_link) {
 		XA_STATE(xas, &rreq->mapping->i_pages, subreq->start / PAGE_SIZE);
 
-		xas_for_each(&xas, page, (subreq->start + subreq->len - 1) / PAGE_SIZE) {
+		xas_for_each(&xas, folio, (subreq->start + subreq->len - 1) / PAGE_SIZE) {
 			/* We might have multiple writes from the same huge
-			 * page, but we mustn't unlock a page more than once.
+			 * folio, but we mustn't unlock a folio more than once.
 			 */
-			if (have_unlocked && page->index <= unlocked)
+			if (have_unlocked && folio_index(folio) <= unlocked)
 				continue;
-			unlocked = page->index;
-			end_page_fscache(page);
+			unlocked = folio_index(folio);
+			folio_end_fscache(folio);
 			have_unlocked = true;
 		}
 	}
@@ -354,31 +354,25 @@ static void netfs_rreq_write_to_cache_work(struct work_struct *work)
 	netfs_rreq_do_write_to_cache(rreq);
 }
 
-static void netfs_rreq_write_to_cache(struct netfs_read_request *rreq,
-				      bool was_async)
+static void netfs_rreq_write_to_cache(struct netfs_read_request *rreq)
 {
-	if (was_async) {
-		rreq->work.func = netfs_rreq_write_to_cache_work;
-		if (!queue_work(system_unbound_wq, &rreq->work))
-			BUG();
-	} else {
-		netfs_rreq_do_write_to_cache(rreq);
-	}
+	rreq->work.func = netfs_rreq_write_to_cache_work;
+	if (!queue_work(system_unbound_wq, &rreq->work))
+		BUG();
 }
 
 /*
- * Unlock the pages in a read operation.  We need to set PG_fscache on any
- * pages we're going to write back before we unlock them.
+ * Unlock the folios in a read operation.  We need to set PG_fscache on any
+ * folios we're going to write back before we unlock them.
  */
 static void netfs_rreq_unlock(struct netfs_read_request *rreq)
 {
 	struct netfs_read_subrequest *subreq;
-	struct page *page;
+	struct folio *folio;
 	unsigned int iopos, account = 0;
 	pgoff_t start_page = rreq->start / PAGE_SIZE;
 	pgoff_t last_page = ((rreq->start + rreq->len) / PAGE_SIZE) - 1;
 	bool subreq_failed = false;
-	int i;
 
 	XA_STATE(xas, &rreq->mapping->i_pages, start_page);
 
@@ -403,9 +397,9 @@ static void netfs_rreq_unlock(struct netfs_read_request *rreq)
 	trace_netfs_rreq(rreq, netfs_rreq_trace_unlock);
 
 	rcu_read_lock();
-	xas_for_each(&xas, page, last_page) {
-		unsigned int pgpos = (page->index - start_page) * PAGE_SIZE;
-		unsigned int pgend = pgpos + thp_size(page);
+	xas_for_each(&xas, folio, last_page) {
+		unsigned int pgpos = (folio_index(folio) - start_page) * PAGE_SIZE;
+		unsigned int pgend = pgpos + folio_size(folio);
 		bool pg_failed = false;
 
 		for (;;) {
@@ -414,7 +408,7 @@ static void netfs_rreq_unlock(struct netfs_read_request *rreq)
 				break;
 			}
 			if (test_bit(NETFS_SREQ_WRITE_TO_CACHE, &subreq->flags))
-				set_page_fscache(page);
+				folio_start_fscache(folio);
 			pg_failed |= subreq_failed;
 			if (pgend < iopos + subreq->len)
 				break;
@@ -433,17 +427,16 @@ static void netfs_rreq_unlock(struct netfs_read_request *rreq)
 		}
 
 		if (!pg_failed) {
-			for (i = 0; i < thp_nr_pages(page); i++)
-				flush_dcache_page(page);
-			SetPageUptodate(page);
+			flush_dcache_folio(folio);
+			folio_mark_uptodate(folio);
 		}
 
-		if (!test_bit(NETFS_RREQ_DONT_UNLOCK_PAGES, &rreq->flags)) {
-			if (page->index == rreq->no_unlock_page &&
-			    test_bit(NETFS_RREQ_NO_UNLOCK_PAGE, &rreq->flags))
+		if (!test_bit(NETFS_RREQ_DONT_UNLOCK_FOLIOS, &rreq->flags)) {
+			if (folio_index(folio) == rreq->no_unlock_folio &&
+			    test_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags))
 				_debug("no unlock");
 			else
-				unlock_page(page);
+				folio_unlock(folio);
 		}
 	}
 	rcu_read_unlock();
@@ -560,7 +553,7 @@ again:
 	wake_up_bit(&rreq->flags, NETFS_RREQ_IN_PROGRESS);
 
 	if (test_bit(NETFS_RREQ_WRITE_TO_CACHE, &rreq->flags))
-		return netfs_rreq_write_to_cache(rreq, was_async);
+		return netfs_rreq_write_to_cache(rreq);
 
 	netfs_rreq_completed(rreq, was_async);
 }
@@ -876,7 +869,6 @@ void netfs_readahead(struct readahead_control *ractl,
 		     void *netfs_priv)
 {
 	struct netfs_read_request *rreq;
-	struct page *page;
 	unsigned int debug_index = 0;
 	int ret;
 
@@ -911,11 +903,11 @@ void netfs_readahead(struct readahead_control *ractl,
 
 	} while (rreq->submitted < rreq->len);
 
-	/* Drop the refs on the pages here rather than in the cache or
+	/* Drop the refs on the folios here rather than in the cache or
 	 * filesystem.  The locks will be dropped in netfs_rreq_unlock().
 	 */
-	while ((page = readahead_page(ractl)))
-		put_page(page);
+	while (readahead_folio(ractl))
+		;
 
 	/* If we decrement nr_rd_ops to 0, the ref belongs to us. */
 	if (atomic_dec_and_test(&rreq->nr_rd_ops))
@@ -935,7 +927,7 @@ EXPORT_SYMBOL(netfs_readahead);
 /**
  * netfs_readpage - Helper to manage a readpage request
  * @file: The file to read from
- * @page: The page to read
+ * @folio: The folio to read
  * @ops: The network filesystem's operations for the helper to use
  * @netfs_priv: Private netfs data to be retained in the request
  *
@@ -950,7 +942,7 @@ EXPORT_SYMBOL(netfs_readahead);
  * This is usable whether or not caching is enabled.
  */
 int netfs_readpage(struct file *file,
-		   struct page *page,
+		   struct folio *folio,
 		   const struct netfs_read_request_ops *ops,
 		   void *netfs_priv)
 {
@@ -958,23 +950,23 @@ int netfs_readpage(struct file *file,
 	unsigned int debug_index = 0;
 	int ret;
 
-	_enter("%lx", page_index(page));
+	_enter("%lx", folio_index(folio));
 
 	rreq = netfs_alloc_read_request(ops, netfs_priv, file);
 	if (!rreq) {
 		if (netfs_priv)
-			ops->cleanup(netfs_priv, page_file_mapping(page));
-		unlock_page(page);
+			ops->cleanup(folio_file_mapping(folio), netfs_priv);
+		folio_unlock(folio);
 		return -ENOMEM;
 	}
-	rreq->mapping	= page_file_mapping(page);
-	rreq->start	= page_file_offset(page);
-	rreq->len	= thp_size(page);
+	rreq->mapping	= folio_file_mapping(folio);
+	rreq->start	= folio_file_pos(folio);
+	rreq->len	= folio_size(folio);
 
 	if (ops->begin_cache_operation) {
 		ret = ops->begin_cache_operation(rreq);
 		if (ret == -ENOMEM || ret == -EINTR || ret == -ERESTARTSYS) {
-			unlock_page(page);
+			folio_unlock(folio);
 			goto out;
 		}
 	}
@@ -1011,41 +1003,41 @@ out:
 }
 EXPORT_SYMBOL(netfs_readpage);
 
-/**
- * netfs_skip_page_read - prep a page for writing without reading first
- * @page: page being prepared
+/*
+ * Prepare a folio for writing without reading first
+ * @folio: The folio being prepared
  * @pos: starting position for the write
  * @len: length of write
  *
  * In some cases, write_begin doesn't need to read at all:
- * - full page write
- * - write that lies in a page that is completely beyond EOF
- * - write that covers the the page from start to EOF or beyond it
+ * - full folio write
+ * - write that lies in a folio that is completely beyond EOF
+ * - write that covers the folio from start to EOF or beyond it
  *
  * If any of these criteria are met, then zero out the unwritten parts
- * of the page and return true. Otherwise, return false.
+ * of the folio and return true. Otherwise, return false.
  */
-static bool netfs_skip_page_read(struct page *page, loff_t pos, size_t len)
+static bool netfs_skip_folio_read(struct folio *folio, loff_t pos, size_t len)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio_inode(folio);
 	loff_t i_size = i_size_read(inode);
-	size_t offset = offset_in_thp(page, pos);
+	size_t offset = offset_in_folio(folio, pos);
 
-	/* Full page write */
-	if (offset == 0 && len >= thp_size(page))
+	/* Full folio write */
+	if (offset == 0 && len >= folio_size(folio))
 		return true;
 
-	/* pos beyond last page in the file */
+	/* pos beyond last folio in the file */
 	if (pos - offset >= i_size)
 		goto zero_out;
 
-	/* Write that covers from the start of the page to EOF or beyond */
+	/* Write that covers from the start of the folio to EOF or beyond */
 	if (offset == 0 && (pos + len) >= i_size)
 		goto zero_out;
 
 	return false;
 zero_out:
-	zero_user_segments(page, 0, offset, offset + len, thp_size(page));
+	zero_user_segments(&folio->page, 0, offset, offset + len, folio_size(folio));
 	return true;
 }
 
@@ -1054,9 +1046,9 @@ zero_out:
  * @file: The file to read from
  * @mapping: The mapping to read from
  * @pos: File position at which the write will begin
- * @len: The length of the write (may extend beyond the end of the page chosen)
- * @flags: AOP_* flags
- * @_page: Where to put the resultant page
+ * @len: The length of the write (may extend beyond the end of the folio chosen)
+ * @aop_flags: AOP_* flags
+ * @_folio: Where to put the resultant folio
  * @_fsdata: Place for the netfs to store a cookie
  * @ops: The network filesystem's operations for the helper to use
  * @netfs_priv: Private netfs data to be retained in the request
@@ -1072,37 +1064,41 @@ zero_out:
  * issue_op, is mandatory.
  *
  * The check_write_begin() operation can be provided to check for and flush
- * conflicting writes once the page is grabbed and locked.  It is passed a
+ * conflicting writes once the folio is grabbed and locked.  It is passed a
  * pointer to the fsdata cookie that gets returned to the VM to be passed to
  * write_end.  It is permitted to sleep.  It should return 0 if the request
- * should go ahead; unlock the page and return -EAGAIN to cause the page to be
- * regot; or return an error.
+ * should go ahead; unlock the folio and return -EAGAIN to cause the folio to
+ * be regot; or return an error.
  *
  * This is usable whether or not caching is enabled.
  */
 int netfs_write_begin(struct file *file, struct address_space *mapping,
-		      loff_t pos, unsigned int len, unsigned int flags,
-		      struct page **_page, void **_fsdata,
+		      loff_t pos, unsigned int len, unsigned int aop_flags,
+		      struct folio **_folio, void **_fsdata,
 		      const struct netfs_read_request_ops *ops,
 		      void *netfs_priv)
 {
 	struct netfs_read_request *rreq;
-	struct page *page, *xpage;
+	struct folio *folio;
 	struct inode *inode = file_inode(file);
-	unsigned int debug_index = 0;
+	unsigned int debug_index = 0, fgp_flags;
 	pgoff_t index = pos >> PAGE_SHIFT;
 	int ret;
 
 	DEFINE_READAHEAD(ractl, file, NULL, mapping, index);
 
 retry:
-	page = grab_cache_page_write_begin(mapping, index, flags);
-	if (!page)
+	fgp_flags = FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_STABLE;
+	if (aop_flags & AOP_FLAG_NOFS)
+		fgp_flags |= FGP_NOFS;
+	folio = __filemap_get_folio(mapping, index, fgp_flags,
+				    mapping_gfp_mask(mapping));
+	if (!folio)
 		return -ENOMEM;
 
 	if (ops->check_write_begin) {
 		/* Allow the netfs (eg. ceph) to flush conflicts. */
-		ret = ops->check_write_begin(file, pos, len, page, _fsdata);
+		ret = ops->check_write_begin(file, pos, len, folio, _fsdata);
 		if (ret < 0) {
 			trace_netfs_failure(NULL, NULL, ret, netfs_fail_check_write_begin);
 			if (ret == -EAGAIN)
@@ -1111,28 +1107,28 @@ retry:
 		}
 	}
 
-	if (PageUptodate(page))
-		goto have_page;
+	if (folio_test_uptodate(folio))
+		goto have_folio;
 
 	/* If the page is beyond the EOF, we want to clear it - unless it's
 	 * within the cache granule containing the EOF, in which case we need
 	 * to preload the granule.
 	 */
 	if (!ops->is_cache_enabled(inode) &&
-	    netfs_skip_page_read(page, pos, len)) {
+	    netfs_skip_folio_read(folio, pos, len)) {
 		netfs_stat(&netfs_n_rh_write_zskip);
-		goto have_page_no_wait;
+		goto have_folio_no_wait;
 	}
 
 	ret = -ENOMEM;
 	rreq = netfs_alloc_read_request(ops, netfs_priv, file);
 	if (!rreq)
 		goto error;
-	rreq->mapping		= page->mapping;
-	rreq->start		= page_offset(page);
-	rreq->len		= thp_size(page);
-	rreq->no_unlock_page	= page->index;
-	__set_bit(NETFS_RREQ_NO_UNLOCK_PAGE, &rreq->flags);
+	rreq->mapping		= folio_file_mapping(folio);
+	rreq->start		= folio_file_pos(folio);
+	rreq->len		= folio_size(folio);
+	rreq->no_unlock_folio	= folio_index(folio);
+	__set_bit(NETFS_RREQ_NO_UNLOCK_FOLIO, &rreq->flags);
 	netfs_priv = NULL;
 
 	if (ops->begin_cache_operation) {
@@ -1147,14 +1143,14 @@ retry:
 	/* Expand the request to meet caching requirements and download
 	 * preferences.
 	 */
-	ractl._nr_pages = thp_nr_pages(page);
+	ractl._nr_pages = folio_nr_pages(folio);
 	netfs_rreq_expand(rreq, &ractl);
 	netfs_get_read_request(rreq);
 
-	/* We hold the page locks, so we can drop the references */
-	while ((xpage = readahead_page(&ractl)))
-		if (xpage != page)
-			put_page(xpage);
+	/* We hold the folio locks, so we can drop the references */
+	folio_get(folio);
+	while (readahead_folio(&ractl))
+		;
 
 	atomic_set(&rreq->nr_rd_ops, 1);
 	do {
@@ -1184,24 +1180,24 @@ retry:
 	if (ret < 0)
 		goto error;
 
-have_page:
-	ret = wait_on_page_fscache_killable(page);
+have_folio:
+	ret = folio_wait_fscache_killable(folio);
 	if (ret < 0)
 		goto error;
-have_page_no_wait:
+have_folio_no_wait:
 	if (netfs_priv)
-		ops->cleanup(netfs_priv, mapping);
-	*_page = page;
+		ops->cleanup(mapping, netfs_priv);
+	*_folio = folio;
 	_leave(" = 0");
 	return 0;
 
 error_put:
 	netfs_put_read_request(rreq, false);
 error:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 	if (netfs_priv)
-		ops->cleanup(netfs_priv, mapping);
+		ops->cleanup(mapping, netfs_priv);
 	_leave(" = %d", ret);
 	return ret;
 }

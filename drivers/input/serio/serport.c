@@ -207,8 +207,8 @@ static void serport_set_type(struct tty_struct *tty, unsigned long type)
  * serport_ldisc_ioctl() allows to set the port protocol, and device ID
  */
 
-static int serport_ldisc_ioctl(struct tty_struct *tty, struct file *file,
-			       unsigned int cmd, unsigned long arg)
+static int serport_ldisc_ioctl(struct tty_struct *tty, unsigned int cmd,
+			       unsigned long arg)
 {
 	if (cmd == SPIOCSTYPE) {
 		unsigned long type;
@@ -226,7 +226,6 @@ static int serport_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 #ifdef CONFIG_COMPAT
 #define COMPAT_SPIOCSTYPE	_IOW('q', 0x01, compat_ulong_t)
 static int serport_ldisc_compat_ioctl(struct tty_struct *tty,
-				       struct file *file,
 				       unsigned int cmd, unsigned long arg)
 {
 	if (cmd == COMPAT_SPIOCSTYPE) {
@@ -244,7 +243,7 @@ static int serport_ldisc_compat_ioctl(struct tty_struct *tty,
 }
 #endif
 
-static int serport_ldisc_hangup(struct tty_struct *tty)
+static void serport_ldisc_hangup(struct tty_struct *tty)
 {
 	struct serport *serport = (struct serport *) tty->disc_data;
 	unsigned long flags;
@@ -254,7 +253,6 @@ static int serport_ldisc_hangup(struct tty_struct *tty)
 	spin_unlock_irqrestore(&serport->lock, flags);
 
 	wake_up_interruptible(&serport->wait);
-	return 0;
 }
 
 static void serport_ldisc_write_wakeup(struct tty_struct * tty)

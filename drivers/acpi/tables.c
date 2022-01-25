@@ -500,7 +500,7 @@ static const char table_sigs[][ACPI_NAMESEG_SIZE] __initconst = {
 	ACPI_SIG_WDDT, ACPI_SIG_WDRT, ACPI_SIG_DSDT, ACPI_SIG_FADT,
 	ACPI_SIG_PSDT, ACPI_SIG_RSDT, ACPI_SIG_XSDT, ACPI_SIG_SSDT,
 	ACPI_SIG_IORT, ACPI_SIG_NFIT, ACPI_SIG_HMAT, ACPI_SIG_PPTT,
-	ACPI_SIG_NHLT };
+	ACPI_SIG_NHLT, ACPI_SIG_AEST };
 
 #define ACPI_HEADER_SIZE sizeof(struct acpi_table_header)
 
@@ -723,7 +723,7 @@ static void __init acpi_table_initrd_scan(void)
 		/*
 		 * Mark the table to avoid being used in
 		 * acpi_table_initrd_override(). Though this is not possible
-		 * because override is disabled in acpi_install_table().
+		 * because override is disabled in acpi_install_physical_table().
 		 */
 		if (test_and_set_bit(table_index, acpi_initrd_installed)) {
 			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
@@ -734,7 +734,7 @@ static void __init acpi_table_initrd_scan(void)
 			table->signature, table->oem_id,
 			table->oem_table_id);
 		acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
-		acpi_install_table(acpi_tables_addr + table_offset, TRUE);
+		acpi_install_physical_table(acpi_tables_addr + table_offset);
 next_table:
 		table_offset += table_length;
 		table_index++;

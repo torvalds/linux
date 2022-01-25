@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/thread_info.h>
+#include <linux/mm_types.h>
 #include <uapi/linux/uio.h>
 
 struct page;
@@ -35,6 +36,7 @@ struct iov_iter_state {
 
 struct iov_iter {
 	u8 iter_type;
+	bool nofault;
 	bool data_source;
 	size_t iov_offset;
 	size_t count;
@@ -133,7 +135,8 @@ size_t copy_page_from_iter_atomic(struct page *page, unsigned offset,
 				  size_t bytes, struct iov_iter *i);
 void iov_iter_advance(struct iov_iter *i, size_t bytes);
 void iov_iter_revert(struct iov_iter *i, size_t bytes);
-int iov_iter_fault_in_readable(const struct iov_iter *i, size_t bytes);
+size_t fault_in_iov_iter_readable(const struct iov_iter *i, size_t bytes);
+size_t fault_in_iov_iter_writeable(const struct iov_iter *i, size_t bytes);
 size_t iov_iter_single_seg_count(const struct iov_iter *i);
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i);
@@ -143,6 +146,12 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i);
+
+static inline size_t copy_folio_to_iter(struct folio *folio, size_t offset,
+		size_t bytes, struct iov_iter *i)
+{
+	return copy_page_to_iter(&folio->page, offset, bytes, i);
+}
 
 static __always_inline __must_check
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)

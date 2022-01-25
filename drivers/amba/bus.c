@@ -19,8 +19,7 @@
 #include <linux/clk/clk-conf.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
-
-#include <asm/irq.h>
+#include <linux/of_irq.h>
 
 #define to_amba_driver(d)	container_of(d, struct amba_driver, drv)
 
@@ -135,8 +134,6 @@ static ssize_t name##_show(struct device *_dev,				\
 static DEVICE_ATTR_RO(name)
 
 amba_attr_func(id, "%08x\n", dev->periphid);
-amba_attr_func(irq0, "%u\n", dev->irq[0]);
-amba_attr_func(irq1, "%u\n", dev->irq[1]);
 amba_attr_func(resource, "\t%016llx\t%016llx\t%016lx\n",
 	 (unsigned long long)dev->res.start, (unsigned long long)dev->res.end,
 	 dev->res.flags);
@@ -174,6 +171,28 @@ static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return retval;
 }
 
+static int of_amba_device_decode_irq(struct amba_device *dev)
+{
+	struct device_node *node = dev->dev.of_node;
+	int i, irq = 0;
+
+	if (IS_ENABLED(CONFIG_OF_IRQ) && node) {
+		/* Decode the IRQs and address ranges */
+		for (i = 0; i < AMBA_NR_IRQS; i++) {
+			irq = of_irq_get(node, i);
+			if (irq < 0) {
+				if (irq == -EPROBE_DEFER)
+					return irq;
+				irq = 0;
+			}
+
+			dev->irq[i] = irq;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * These are the device model conversion veneers; they convert the
  * device model structures to our more specific structures.
@@ -186,6 +205,10 @@ static int amba_probe(struct device *dev)
 	int ret;
 
 	do {
+		ret = of_amba_device_decode_irq(pcdev);
+		if (ret)
+			break;
+
 		ret = of_clk_set_defaults(dev->of_node, false);
 		if (ret < 0)
 			break;
@@ -377,9 +400,6 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 	void __iomem *tmp;
 	int i, ret;
 
-	WARN_ON(dev->irq[0] == (unsigned int)-1);
-	WARN_ON(dev->irq[1] == (unsigned int)-1);
-
 	ret = request_resource(parent, &dev->res);
 	if (ret)
 		goto err_out;
@@ -464,20 +484,9 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 
  skip_probe:
 	ret = device_add(&dev->dev);
-	if (ret)
-		goto err_release;
-
-	if (dev->irq[0])
-		ret = device_create_file(&dev->dev, &dev_attr_irq0);
-	if (ret == 0 && dev->irq[1])
-		ret = device_create_file(&dev->dev, &dev_attr_irq1);
-	if (ret == 0)
-		return ret;
-
-	device_unregister(&dev->dev);
-
  err_release:
-	release_resource(&dev->res);
+	if (ret)
+		release_resource(&dev->res);
  err_out:
 	return ret;
 
@@ -578,78 +587,6 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(amba_device_add);
-
-static struct amba_device *
-amba_aphb_device_add(struct device *parent, const char *name,
-		     resource_size_t base, size_t size, int irq1, int irq2,
-		     void *pdata, unsigned int periphid, u64 dma_mask,
-		     struct resource *resbase)
-{
-	struct amba_device *dev;
-	int ret;
-
-	dev = amba_device_alloc(name, base, size);
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	dev->dev.coherent_dma_mask = dma_mask;
-	dev->irq[0] = irq1;
-	dev->irq[1] = irq2;
-	dev->periphid = periphid;
-	dev->dev.platform_data = pdata;
-	dev->dev.parent = parent;
-
-	ret = amba_device_add(dev, resbase);
-	if (ret) {
-		amba_device_put(dev);
-		return ERR_PTR(ret);
-	}
-
-	return dev;
-}
-
-struct amba_device *
-amba_apb_device_add(struct device *parent, const char *name,
-		    resource_size_t base, size_t size, int irq1, int irq2,
-		    void *pdata, unsigned int periphid)
-{
-	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
-				    periphid, 0, &iomem_resource);
-}
-EXPORT_SYMBOL_GPL(amba_apb_device_add);
-
-struct amba_device *
-amba_ahb_device_add(struct device *parent, const char *name,
-		    resource_size_t base, size_t size, int irq1, int irq2,
-		    void *pdata, unsigned int periphid)
-{
-	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
-				    periphid, ~0ULL, &iomem_resource);
-}
-EXPORT_SYMBOL_GPL(amba_ahb_device_add);
-
-struct amba_device *
-amba_apb_device_add_res(struct device *parent, const char *name,
-			resource_size_t base, size_t size, int irq1,
-			int irq2, void *pdata, unsigned int periphid,
-			struct resource *resbase)
-{
-	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
-				    periphid, 0, resbase);
-}
-EXPORT_SYMBOL_GPL(amba_apb_device_add_res);
-
-struct amba_device *
-amba_ahb_device_add_res(struct device *parent, const char *name,
-			resource_size_t base, size_t size, int irq1,
-			int irq2, void *pdata, unsigned int periphid,
-			struct resource *resbase)
-{
-	return amba_aphb_device_add(parent, name, base, size, irq1, irq2, pdata,
-				    periphid, ~0ULL, resbase);
-}
-EXPORT_SYMBOL_GPL(amba_ahb_device_add_res);
-
 
 static void amba_device_initialize(struct amba_device *dev, const char *name)
 {

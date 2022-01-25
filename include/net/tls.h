@@ -66,7 +66,7 @@
 #define MAX_IV_SIZE			16
 #define TLS_MAX_REC_SEQ_SIZE		8
 
-/* For AES-CCM, the full 16-bytes of IV is made of '4' fields of given sizes.
+/* For CCM mode, the full 16-bytes of IV is made of '4' fields of given sizes.
  *
  * IV[16] = b0[1] || implicit nonce[4] || explicit nonce[8] || length[3]
  *
@@ -74,6 +74,7 @@
  * Hence b0 contains (3 - 1) = 2.
  */
 #define TLS_AES_CCM_IV_B0_BYTE		2
+#define TLS_SM4_CCM_IV_B0_BYTE		2
 
 #define __TLS_INC_STATS(net, field)				\
 	__SNMP_INC_STATS((net)->mib.tls_statistics, field)
@@ -220,6 +221,8 @@ union tls_crypto_context {
 		struct tls12_crypto_info_aes_gcm_128 aes_gcm_128;
 		struct tls12_crypto_info_aes_gcm_256 aes_gcm_256;
 		struct tls12_crypto_info_chacha20_poly1305 chacha20_poly1305;
+		struct tls12_crypto_info_sm4_gcm sm4_gcm;
+		struct tls12_crypto_info_sm4_ccm sm4_ccm;
 	};
 };
 

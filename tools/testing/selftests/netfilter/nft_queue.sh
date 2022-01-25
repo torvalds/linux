@@ -16,6 +16,10 @@ timeout=4
 
 cleanup()
 {
+	ip netns pids ${ns1} | xargs kill 2>/dev/null
+	ip netns pids ${ns2} | xargs kill 2>/dev/null
+	ip netns pids ${nsrouter} | xargs kill 2>/dev/null
+
 	ip netns del ${ns1}
 	ip netns del ${ns2}
 	ip netns del ${nsrouter}
@@ -332,6 +336,55 @@ EOF
 	echo "PASS: tcp via loopback and re-queueing"
 }
 
+test_icmp_vrf() {
+	ip -net $ns1 link add tvrf type vrf table 9876
+	if [ $? -ne 0 ];then
+		echo "SKIP: Could not add vrf device"
+		return
+	fi
+
+	ip -net $ns1 li set eth0 master tvrf
+	ip -net $ns1 li set tvrf up
+
+	ip -net $ns1 route add 10.0.2.0/24 via 10.0.1.1 dev eth0 table 9876
+ip netns exec ${ns1} nft -f /dev/stdin <<EOF
+flush ruleset
+table inet filter {
+	chain output {
+		type filter hook output priority 0; policy accept;
+		meta oifname "tvrf" icmp type echo-request counter queue num 1
+		meta oifname "eth0" icmp type echo-request counter queue num 1
+	}
+	chain post {
+		type filter hook postrouting priority 0; policy accept;
+		meta oifname "tvrf" icmp type echo-request counter queue num 1
+		meta oifname "eth0" icmp type echo-request counter queue num 1
+	}
+}
+EOF
+	ip netns exec ${ns1} ./nf-queue -q 1 -t $timeout &
+	local nfqpid=$!
+
+	sleep 1
+	ip netns exec ${ns1} ip vrf exec tvrf ping -c 1 10.0.2.99 > /dev/null
+
+	for n in output post; do
+		for d in tvrf eth0; do
+			ip netns exec ${ns1} nft list chain inet filter $n | grep -q "oifname \"$d\" icmp type echo-request counter packets 1"
+			if [ $? -ne 0 ] ; then
+				echo "FAIL: chain $n: icmp packet counter mismatch for device $d" 1>&2
+				ip netns exec ${ns1} nft list ruleset
+				ret=1
+				return
+			fi
+		done
+	done
+
+	wait $nfqpid
+	[ $? -eq 0 ] && echo "PASS: icmp+nfqueue via vrf"
+	wait 2>/dev/null
+}
+
 ip netns exec ${nsrouter} sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
 ip netns exec ${nsrouter} sysctl net.ipv4.conf.veth0.forwarding=1 > /dev/null
 ip netns exec ${nsrouter} sysctl net.ipv4.conf.veth1.forwarding=1 > /dev/null
@@ -372,5 +425,6 @@ test_queue 20
 test_tcp_forward
 test_tcp_localhost
 test_tcp_localhost_requeue
+test_icmp_vrf
 
 exit $ret

@@ -2358,8 +2358,10 @@ urb_submit_failed:
 touch_setup_failed:
 find_endpoint_failed:
 	usb_put_dev(ictx->usbdev_intf1);
+	ictx->usbdev_intf1 = NULL;
 	mutex_unlock(&ictx->lock);
 	usb_free_urb(rx_urb);
+	ictx->rx_urb_intf1 = NULL;
 rx_urb_alloc_failed:
 	dev_err(ictx->dev, "unable to initialize intf1, err %d\n", ret);
 

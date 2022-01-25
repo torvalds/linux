@@ -109,7 +109,7 @@ static int contextidr_notifier(struct notifier_block *unused, unsigned long cmd,
 	if (cmd != THREAD_NOTIFY_SWITCH)
 		return NOTIFY_DONE;
 
-	pid = task_pid_nr(thread->task) << ASID_BITS;
+	pid = task_pid_nr(thread_task(thread)) << ASID_BITS;
 	asm volatile(
 	"	mrc	p15, 0, %0, c13, c0, 1\n"
 	"	and	%0, %0, %2\n"

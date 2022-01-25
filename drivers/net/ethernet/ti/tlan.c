@@ -184,7 +184,7 @@ static void	tlan_print_list(struct tlan_list *, char *, int);
 static void	tlan_read_and_clear_stats(struct net_device *, int);
 static void	tlan_reset_adapter(struct net_device *);
 static void	tlan_finish_reset(struct net_device *);
-static void	tlan_set_mac(struct net_device *, int areg, char *mac);
+static void	tlan_set_mac(struct net_device *, int areg, const char *mac);
 
 static void	__tlan_phy_print(struct net_device *);
 static void	tlan_phy_print(struct net_device *);
@@ -817,6 +817,7 @@ static int tlan_init(struct net_device *dev)
 	int		err;
 	int		i;
 	struct tlan_priv	*priv;
+	u8 addr[ETH_ALEN];
 
 	priv = netdev_priv(dev);
 
@@ -842,7 +843,7 @@ static int tlan_init(struct net_device *dev)
 	for (i = 0; i < ETH_ALEN; i++)
 		err |= tlan_ee_read_byte(dev,
 					 (u8) priv->adapter->addr_ofs + i,
-					 (u8 *) &dev->dev_addr[i]);
+					 addr + i);
 	if (err) {
 		pr_err("%s: Error reading MAC from eeprom: %d\n",
 		       dev->name, err);
@@ -850,11 +851,12 @@ static int tlan_init(struct net_device *dev)
 	/* Olicom OC-2325/OC-2326 have the address byte-swapped */
 	if (priv->adapter->addr_ofs == 0xf8) {
 		for (i = 0; i < ETH_ALEN; i += 2) {
-			char tmp = dev->dev_addr[i];
-			dev->dev_addr[i] = dev->dev_addr[i + 1];
-			dev->dev_addr[i + 1] = tmp;
+			char tmp = addr[i];
+			addr[i] = addr[i + 1];
+			addr[i + 1] = tmp;
 		}
 	}
+	eth_hw_addr_set(dev, addr);
 
 	netif_carrier_off(dev);
 
@@ -2346,7 +2348,7 @@ tlan_finish_reset(struct net_device *dev)
  *
  **************************************************************/
 
-static void tlan_set_mac(struct net_device *dev, int areg, char *mac)
+static void tlan_set_mac(struct net_device *dev, int areg, const char *mac)
 {
 	int i;
 

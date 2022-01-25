@@ -1341,7 +1341,6 @@ static inline void mtk_jpeg_clk_release(struct mtk_jpeg_dev *jpeg)
 static int mtk_jpeg_probe(struct platform_device *pdev)
 {
 	struct mtk_jpeg_dev *jpeg;
-	struct resource *res;
 	int jpeg_irq;
 	int ret;
 
@@ -1355,18 +1354,15 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	jpeg->variant = of_device_get_match_data(jpeg->dev);
 	INIT_DELAYED_WORK(&jpeg->job_timeout_work, mtk_jpeg_job_timeout_work);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	jpeg->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	jpeg->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(jpeg->reg_base)) {
 		ret = PTR_ERR(jpeg->reg_base);
 		return ret;
 	}
 
 	jpeg_irq = platform_get_irq(pdev, 0);
-	if (jpeg_irq < 0) {
-		dev_err(&pdev->dev, "Failed to get jpeg_irq %d.\n", jpeg_irq);
+	if (jpeg_irq < 0)
 		return jpeg_irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, jpeg_irq,
 			       jpeg->variant->irq_handler, 0, pdev->name, jpeg);

@@ -157,6 +157,8 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		aq->queue_count = max_t(int, 0, aq->queue_count - 1);
+		if (!status.queue_empty && !aq->queue_count)
+			aq->queue_count++;
 		if (aq->queue_count > 0)
 			mod_timer(&aq->timeout,
 				  jiffies + aq->request_timeout);
@@ -246,6 +248,7 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 
 	if (aq->requestq_count <= 0)
 		return AP_SM_WAIT_NONE;
+
 	/* Start the next request on the queue. */
 	ap_msg = list_entry(aq->requestq.next, struct ap_message, list);
 #ifdef CONFIG_ZCRYPT_DEBUG
@@ -279,7 +282,7 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
 		return AP_SM_WAIT_TIMEOUT;
 	case AP_RESPONSE_INVALID_DOMAIN:
-		AP_DBF(DBF_WARN, "AP_RESPONSE_INVALID_DOMAIN on NQAP\n");
+		AP_DBF_WARN("%s RESPONSE_INVALID_DOMAIN on NQAP\n", __func__);
 		fallthrough;
 	case AP_RESPONSE_MESSAGE_TOO_BIG:
 	case AP_RESPONSE_REQ_FAC_NOT_INST:
@@ -571,8 +574,8 @@ static ssize_t reset_store(struct device *dev,
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);
 
-	AP_DBF(DBF_INFO, "reset queue=%02x.%04x triggered by user\n",
-	       AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+	AP_DBF_INFO("%s reset queue=%02x.%04x triggered by user\n",
+		    __func__, AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 
 	return count;
 }

@@ -182,12 +182,9 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 	return prev;
 }
 
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long pc;
-
-	if (!p || p == current || task_is_running(p))
-		return 0;
 
 	/*
 	 * The same comment as on the Alpha applies here, too ...

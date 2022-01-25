@@ -69,7 +69,7 @@ corec57d = {
 	.head = &headc57d,
 	.sor = &sorc37d,
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-	.crc = &crcc37d,
+	.crc = &crcc57d,
 #endif
 };
 

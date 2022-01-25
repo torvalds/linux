@@ -419,21 +419,26 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
 	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
 	dma_addr_t hash_addr;
 	dma_addr_t addr;
+	u32 zero_offset;
 	u16 hash_count;
+	u32 zero_size;
 	u16 hash_size;
 	u16 count;
 	u16 size;
 
-	/* The number of filtering endpoints determines number of entries
-	 * in the filter table.  The hashed and non-hashed filter table
-	 * will have the same number of entries.  The size of the route
-	 * table region determines the number of entries it has.
-	 */
+	/* Compute the number of table entries to initialize */
 	if (filter) {
-		/* Include one extra "slot" to hold the filter map itself */
+		/* The number of filtering endpoints determines number of
+		 * entries in the filter table; we also add one more "slot"
+		 * to hold the bitmap itself.  The size of the hashed filter
+		 * table is either the same as the non-hashed one, or zero.
+		 */
 		count = 1 + hweight32(ipa->filter_map);
 		hash_count = hash_mem->size ? count : 0;
 	} else {
+		/* The size of a route table region determines the number
+		 * of entries it has.
+		 */
 		count = mem->size / sizeof(__le64);
 		hash_count = hash_mem->size / sizeof(__le64);
 	}
@@ -445,13 +450,42 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
 
 	ipa_cmd_table_init_add(trans, opcode, size, mem->offset, addr,
 			       hash_size, hash_mem->offset, hash_addr);
+	if (!filter)
+		return;
+
+	/* Zero the unused space in the filter table */
+	zero_offset = mem->offset + size;
+	zero_size = mem->size - size;
+	ipa_cmd_dma_shared_mem_add(trans, zero_offset, zero_size,
+				   ipa->zero_addr, true);
+	if (!hash_size)
+		return;
+
+	/* Zero the unused space in the hashed filter table */
+	zero_offset = hash_mem->offset + hash_size;
+	zero_size = hash_mem->size - hash_size;
+	ipa_cmd_dma_shared_mem_add(trans, zero_offset, zero_size,
+				   ipa->zero_addr, true);
 }
 
 int ipa_table_setup(struct ipa *ipa)
 {
 	struct gsi_trans *trans;
 
-	trans = ipa_cmd_trans_alloc(ipa, 4);
+	/* We will need at most 8 TREs:
+	 * - IPv4:
+	 *     - One for route table initialization (non-hashed and hashed)
+	 *     - One for filter table initialization (non-hashed and hashed)
+	 *     - One to zero unused entries in the non-hashed filter table
+	 *     - One to zero unused entries in the hashed filter table
+	 * - IPv6:
+	 *     - One for route table initialization (non-hashed and hashed)
+	 *     - One for filter table initialization (non-hashed and hashed)
+	 *     - One to zero unused entries in the non-hashed filter table
+	 *     - One to zero unused entries in the hashed filter table
+	 * All platforms support at least 8 TREs in a transaction.
+	 */
+	trans = ipa_cmd_trans_alloc(ipa, 8);
 	if (!trans) {
 		dev_err(&ipa->pdev->dev, "no transaction for table setup\n");
 		return -EBUSY;

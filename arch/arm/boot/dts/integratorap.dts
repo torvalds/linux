@@ -88,8 +88,9 @@
 		};
 
 		/* Oscillator on the core module, clocks the CPU core */
-		cmosc: cmosc@24M {
+		cmosc: clock-controller@8 {
 			compatible = "arm,syscon-icst525-integratorap-cm";
+			reg = <0x08 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x14>;
 			vco-offset = <0x08>;
@@ -97,8 +98,9 @@
 		};
 
 		/* Auxilary oscillator on the core module, 32.369MHz at boot */
-		auxosc: auxosc@24M {
+		auxosc: clock-controller@1c {
 			compatible = "arm,syscon-icst525";
+			reg = <0x1c 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x14>;
 			vco-offset = <0x1c>;
@@ -109,13 +111,17 @@
 	syscon {
 		compatible = "arm,integrator-ap-syscon", "syscon";
 		reg = <0x11000000 0x100>;
+		ranges = <0x0 0x11000000 0x100>;
+		#size-cells = <1>;
+		#address-cells = <1>;
 
 		/*
 		 * SYSCLK clocks PCIv3 bridge, system controller and the
 		 * logic modules.
 		 */
-		sysclk: apsys@24M {
+		sysclk: clock-controller@4 {
 			compatible = "arm,syscon-icst525-integratorap-sys";
+			reg = <0x04 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x1c>;
 			vco-offset = <0x04>;
@@ -123,8 +129,9 @@
 		};
 
 		/* One-bit control for the PCI bus clock (33 or 25 MHz) */
-		pciclk: pciclk@24M {
+		pciclk: clock-controller@4,8 {
 			compatible = "arm,syscon-icst525-integratorap-pci";
+			reg = <0x04 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x1c>;
 			vco-offset = <0x04>;

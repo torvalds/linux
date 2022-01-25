@@ -154,6 +154,8 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_NET_NS_FD]			= { .type = NLA_U32 },
 	[RDMA_NLDEV_SYS_ATTR_NETNS_MODE]	= { .type = NLA_U8 },
 	[RDMA_NLDEV_SYS_ATTR_COPY_ON_FORK]	= { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_STAT_HWCOUNTER_INDEX]	= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_STAT_HWCOUNTER_DYNAMIC] = { .type = NLA_U8 },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -968,14 +970,21 @@ static int fill_stat_counter_hwcounters(struct sk_buff *msg,
 	if (!table_attr)
 		return -EMSGSIZE;
 
-	for (i = 0; i < st->num_counters; i++)
-		if (rdma_nl_stat_hwcounter_entry(msg, st->names[i], st->value[i]))
+	mutex_lock(&st->lock);
+	for (i = 0; i < st->num_counters; i++) {
+		if (test_bit(i, st->is_disabled))
+			continue;
+		if (rdma_nl_stat_hwcounter_entry(msg, st->descs[i].name,
+						 st->value[i]))
 			goto err;
+	}
+	mutex_unlock(&st->lock);
 
 	nla_nest_end(msg, table_attr);
 	return 0;
 
 err:
+	mutex_unlock(&st->lock);
 	nla_nest_cancel(msg, table_attr);
 	return -EMSGSIZE;
 }
@@ -1888,24 +1897,112 @@ static int nldev_set_sys_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return err;
 }
 
+static int nldev_stat_set_mode_doit(struct sk_buff *msg,
+				    struct netlink_ext_ack *extack,
+				    struct nlattr *tb[],
+				    struct ib_device *device, u32 port)
+{
+	u32 mode, mask = 0, qpn, cntn = 0;
+	int ret;
+
+	/* Currently only counter for QP is supported */
+	if (!tb[RDMA_NLDEV_ATTR_STAT_RES] ||
+	    nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_RES]) != RDMA_NLDEV_ATTR_RES_QP)
+		return -EINVAL;
+
+	mode = nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_MODE]);
+	if (mode == RDMA_COUNTER_MODE_AUTO) {
+		if (tb[RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK])
+			mask = nla_get_u32(
+				tb[RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK]);
+		return rdma_counter_set_auto_mode(device, port, mask, extack);
+	}
+
+	if (!tb[RDMA_NLDEV_ATTR_RES_LQPN])
+		return -EINVAL;
+
+	qpn = nla_get_u32(tb[RDMA_NLDEV_ATTR_RES_LQPN]);
+	if (tb[RDMA_NLDEV_ATTR_STAT_COUNTER_ID]) {
+		cntn = nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_COUNTER_ID]);
+		ret = rdma_counter_bind_qpn(device, port, qpn, cntn);
+		if (ret)
+			return ret;
+	} else {
+		ret = rdma_counter_bind_qpn_alloc(device, port, qpn, &cntn);
+		if (ret)
+			return ret;
+	}
+
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_COUNTER_ID, cntn) ||
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LQPN, qpn)) {
+		ret = -EMSGSIZE;
+		goto err_fill;
+	}
+
+	return 0;
+
+err_fill:
+	rdma_counter_unbind_qpn(device, port, qpn, cntn);
+	return ret;
+}
+
+static int nldev_stat_set_counter_dynamic_doit(struct nlattr *tb[],
+					       struct ib_device *device,
+					       u32 port)
+{
+	struct rdma_hw_stats *stats;
+	int rem, i, index, ret = 0;
+	struct nlattr *entry_attr;
+	unsigned long *target;
+
+	stats = ib_get_hw_stats_port(device, port);
+	if (!stats)
+		return -EINVAL;
+
+	target = kcalloc(BITS_TO_LONGS(stats->num_counters),
+			 sizeof(*stats->is_disabled), GFP_KERNEL);
+	if (!target)
+		return -ENOMEM;
+
+	nla_for_each_nested(entry_attr, tb[RDMA_NLDEV_ATTR_STAT_HWCOUNTERS],
+			    rem) {
+		index = nla_get_u32(entry_attr);
+		if ((index >= stats->num_counters) ||
+		    !(stats->descs[index].flags & IB_STAT_FLAG_OPTIONAL)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		set_bit(index, target);
+	}
+
+	for (i = 0; i < stats->num_counters; i++) {
+		if (!(stats->descs[i].flags & IB_STAT_FLAG_OPTIONAL))
+			continue;
+
+		ret = rdma_counter_modify(device, port, i, test_bit(i, target));
+		if (ret)
+			goto out;
+	}
+
+out:
+	kfree(target);
+	return ret;
+}
+
 static int nldev_stat_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 			       struct netlink_ext_ack *extack)
 {
-	u32 index, port, mode, mask = 0, qpn, cntn = 0;
 	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
 	struct ib_device *device;
 	struct sk_buff *msg;
+	u32 index, port;
 	int ret;
 
-	ret = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
-			  nldev_policy, extack);
-	/* Currently only counter for QP is supported */
-	if (ret || !tb[RDMA_NLDEV_ATTR_STAT_RES] ||
-	    !tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
-	    !tb[RDMA_NLDEV_ATTR_PORT_INDEX] || !tb[RDMA_NLDEV_ATTR_STAT_MODE])
-		return -EINVAL;
-
-	if (nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_RES]) != RDMA_NLDEV_ATTR_RES_QP)
+	ret = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1, nldev_policy,
+			  extack);
+	if (ret || !tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
+	    !tb[RDMA_NLDEV_ATTR_PORT_INDEX])
 		return -EINVAL;
 
 	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
@@ -1916,59 +2013,49 @@ static int nldev_stat_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	port = nla_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
 	if (!rdma_is_port_valid(device, port)) {
 		ret = -EINVAL;
-		goto err;
+		goto err_put_device;
+	}
+
+	if (!tb[RDMA_NLDEV_ATTR_STAT_MODE] &&
+	    !tb[RDMA_NLDEV_ATTR_STAT_HWCOUNTERS]) {
+		ret = -EINVAL;
+		goto err_put_device;
 	}
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_put_device;
 	}
 	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
 			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV,
 					 RDMA_NLDEV_CMD_STAT_SET),
 			0, 0);
+	if (fill_nldev_handle(msg, device) ||
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, port)) {
+		ret = -EMSGSIZE;
+		goto err_free_msg;
+	}
 
-	mode = nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_MODE]);
-	if (mode == RDMA_COUNTER_MODE_AUTO) {
-		if (tb[RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK])
-			mask = nla_get_u32(
-				tb[RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK]);
-		ret = rdma_counter_set_auto_mode(device, port, mask, extack);
+	if (tb[RDMA_NLDEV_ATTR_STAT_MODE]) {
+		ret = nldev_stat_set_mode_doit(msg, extack, tb, device, port);
 		if (ret)
-			goto err_msg;
-	} else {
-		if (!tb[RDMA_NLDEV_ATTR_RES_LQPN])
-			goto err_msg;
-		qpn = nla_get_u32(tb[RDMA_NLDEV_ATTR_RES_LQPN]);
-		if (tb[RDMA_NLDEV_ATTR_STAT_COUNTER_ID]) {
-			cntn = nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_COUNTER_ID]);
-			ret = rdma_counter_bind_qpn(device, port, qpn, cntn);
-		} else {
-			ret = rdma_counter_bind_qpn_alloc(device, port,
-							  qpn, &cntn);
-		}
-		if (ret)
-			goto err_msg;
+			goto err_free_msg;
+	}
 
-		if (fill_nldev_handle(msg, device) ||
-		    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, port) ||
-		    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_COUNTER_ID, cntn) ||
-		    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LQPN, qpn)) {
-			ret = -EMSGSIZE;
-			goto err_fill;
-		}
+	if (tb[RDMA_NLDEV_ATTR_STAT_HWCOUNTERS]) {
+		ret = nldev_stat_set_counter_dynamic_doit(tb, device, port);
+		if (ret)
+			goto err_free_msg;
 	}
 
 	nlmsg_end(msg, nlh);
 	ib_device_put(device);
 	return rdma_nl_unicast(sock_net(skb->sk), msg, NETLINK_CB(skb).portid);
 
-err_fill:
-	rdma_counter_unbind_qpn(device, port, qpn, cntn);
-err_msg:
+err_free_msg:
 	nlmsg_free(msg);
-err:
+err_put_device:
 	ib_device_put(device);
 	return ret;
 }
@@ -2103,9 +2190,13 @@ static int stat_get_doit_default_counter(struct sk_buff *skb,
 		goto err_stats;
 	}
 	for (i = 0; i < num_cnts; i++) {
+		if (test_bit(i, stats->is_disabled))
+			continue;
+
 		v = stats->value[i] +
 			rdma_counter_get_hwstat_value(device, port, i);
-		if (rdma_nl_stat_hwcounter_entry(msg, stats->names[i], v)) {
+		if (rdma_nl_stat_hwcounter_entry(msg,
+						 stats->descs[i].name, v)) {
 			ret = -EMSGSIZE;
 			goto err_table;
 		}
@@ -2253,6 +2344,99 @@ static int nldev_stat_get_dumpit(struct sk_buff *skb,
 	return ret;
 }
 
+static int nldev_stat_get_counter_status_doit(struct sk_buff *skb,
+					      struct nlmsghdr *nlh,
+					      struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX], *table, *entry;
+	struct rdma_hw_stats *stats;
+	struct ib_device *device;
+	struct sk_buff *msg;
+	u32 devid, port;
+	int ret, i;
+
+	ret = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
+			  nldev_policy, extack);
+	if (ret || !tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
+	    !tb[RDMA_NLDEV_ATTR_PORT_INDEX])
+		return -EINVAL;
+
+	devid = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+	device = ib_device_get_by_index(sock_net(skb->sk), devid);
+	if (!device)
+		return -EINVAL;
+
+	port = nla_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
+	if (!rdma_is_port_valid(device, port)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	stats = ib_get_hw_stats_port(device, port);
+	if (!stats) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	nlh = nlmsg_put(
+		msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
+		RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, RDMA_NLDEV_CMD_STAT_GET_STATUS),
+		0, 0);
+
+	ret = -EMSGSIZE;
+	if (fill_nldev_handle(msg, device) ||
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, port))
+		goto err_msg;
+
+	table = nla_nest_start(msg, RDMA_NLDEV_ATTR_STAT_HWCOUNTERS);
+	if (!table)
+		goto err_msg;
+
+	mutex_lock(&stats->lock);
+	for (i = 0; i < stats->num_counters; i++) {
+		entry = nla_nest_start(msg,
+				       RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY);
+		if (!entry)
+			goto err_msg_table;
+
+		if (nla_put_string(msg,
+				   RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY_NAME,
+				   stats->descs[i].name) ||
+		    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_HWCOUNTER_INDEX, i))
+			goto err_msg_entry;
+
+		if ((stats->descs[i].flags & IB_STAT_FLAG_OPTIONAL) &&
+		    (nla_put_u8(msg, RDMA_NLDEV_ATTR_STAT_HWCOUNTER_DYNAMIC,
+				!test_bit(i, stats->is_disabled))))
+			goto err_msg_entry;
+
+		nla_nest_end(msg, entry);
+	}
+	mutex_unlock(&stats->lock);
+
+	nla_nest_end(msg, table);
+	nlmsg_end(msg, nlh);
+	ib_device_put(device);
+	return rdma_nl_unicast(sock_net(skb->sk), msg, NETLINK_CB(skb).portid);
+
+err_msg_entry:
+	nla_nest_cancel(msg, entry);
+err_msg_table:
+	mutex_unlock(&stats->lock);
+	nla_nest_cancel(msg, table);
+err_msg:
+	nlmsg_free(msg);
+err:
+	ib_device_put(device);
+	return ret;
+}
+
 static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_GET] = {
 		.doit = nldev_get_doit,
@@ -2341,6 +2525,9 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 		.doit = nldev_res_get_mr_raw_doit,
 		.dump = nldev_res_get_mr_raw_dumpit,
 		.flags = RDMA_NL_ADMIN_PERM,
+	},
+	[RDMA_NLDEV_CMD_STAT_GET_STATUS] = {
+		.doit = nldev_stat_get_counter_status_doit,
 	},
 };
 

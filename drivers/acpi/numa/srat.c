@@ -254,9 +254,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	}
 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
 		goto out_err;
-	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
-	if (hotpluggable && !IS_ENABLED(CONFIG_MEMORY_HOTPLUG))
-		goto out_err;
+	hotpluggable = IS_ENABLED(CONFIG_MEMORY_HOTPLUG) &&
+		(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE);
 
 	start = ma->base_address;
 	end = start + ma->length;

@@ -16,6 +16,7 @@
 / {
 	model = "Samsung Trats based on Exynos4210";
 	compatible = "samsung,trats", "samsung,exynos4210", "samsung,exynos4";
+	chassis-type = "handset";
 
 	memory@40000000 {
 		device_type = "memory";

@@ -368,10 +368,6 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t
 	if (unlikely((ssize_t) count < 0))
 		return -EINVAL;
 
-	/*
-	 * ranged mandatory locking does not apply to streams - it makes sense
-	 * only for files where position has a meaning.
-	 */
 	if (ppos) {
 		loff_t pos = *ppos;
 

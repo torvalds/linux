@@ -1,20 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) Realtek Semiconductor Corp.
-Module Name:
-	RateAdaptive.c
+/* Copyright (c) Realtek Semiconductor Corp. */
 
-Abstract:
-	Implement Rate Adaptive functions for common operations.
-
-Major Change History:
-	When       Who               What
-	---------- ---------------   -------------------------------
-	2011-08-12 Page            Create.
-
---*/
-#include "../include/odm_precomp.h"
-
-/*  Rate adaptive parameters */
+#include "../include/drv_types.h"
 
 static u8 RETRY_PENALTY[PERENTRY][RETRYSIZE + 1] = {
 		{5, 4, 3, 2, 0, 3},      /* 92 , idx = 0 */
@@ -316,19 +303,19 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & 0x0000000d;
 		break;
 	case 12:
-		MaskFromReg = ODM_Read4Byte(dm_odm, REG_ARFR0);
+		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR0);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 13:
-		MaskFromReg = ODM_Read4Byte(dm_odm, REG_ARFR1);
+		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR1);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 14:
-		MaskFromReg = ODM_Read4Byte(dm_odm, REG_ARFR2);
+		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR2);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 15:
-		MaskFromReg = ODM_Read4Byte(dm_odm, REG_ARFR3);
+		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR3);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	default:
@@ -471,16 +458,6 @@ odm_RATxRPTTimerSetting(
 	}
 }
 
-void
-ODM_RASupport_Init(
-		struct odm_dm_struct *dm_odm
-	)
-{
-	/*  2012/02/14 MH Be noticed, the init must be after IC type is recognized!!!!! */
-	if (dm_odm->SupportICType == ODM_RTL8188E)
-		dm_odm->RaSupport88E = true;
-}
-
 int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	struct odm_ra_info *pRaInfo = &dm_odm->RAInfo[macid];
@@ -548,7 +525,7 @@ int ODM_RAInfo_Init_all(struct odm_dm_struct *dm_odm)
 
 u8 ODM_RA_GetShortGI_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return 0;
 	return dm_odm->RAInfo[macid].RateSGI;
 }
@@ -557,7 +534,7 @@ u8 ODM_RA_GetDecisionRate_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	u8 DecisionRate = 0;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return 0;
 	DecisionRate = (dm_odm->RAInfo[macid].DecisionRate);
 	return DecisionRate;
@@ -567,7 +544,7 @@ u8 ODM_RA_GetHwPwrStatus_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 {
 	u8 PTStage = 5;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return 0;
 	PTStage = (dm_odm->RAInfo[macid].PTStage);
 	return PTStage;
@@ -577,7 +554,7 @@ void ODM_RA_UpdateRateInfo_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rate
 {
 	struct odm_ra_info *pRaInfo = NULL;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return;
 
 	pRaInfo = &dm_odm->RAInfo[macid];
@@ -591,7 +568,7 @@ void ODM_RA_SetRSSI_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rssi)
 {
 	struct odm_ra_info *pRaInfo = NULL;
 
-	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
+	if ((NULL == dm_odm) || (macid >= ODM_ASSOCIATE_ENTRY_NUM))
 		return;
 
 	pRaInfo = &dm_odm->RAInfo[macid];
@@ -600,7 +577,7 @@ void ODM_RA_SetRSSI_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rssi)
 
 void ODM_RA_Set_TxRPT_Time(struct odm_dm_struct *dm_odm, u16 minRptTime)
 {
-	ODM_Write2Byte(dm_odm, REG_TX_RPT_TIME, minRptTime);
+	rtw_write16(dm_odm->Adapter, REG_TX_RPT_TIME, minRptTime);
 }
 
 void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 TxRPT_Len, u32 macid_entry0, u32 macid_entry1)
@@ -615,7 +592,7 @@ void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 
 	pBuffer = TxRPT_Buf;
 
 	do {
-		if (MacId >= ASSOCIATE_ENTRY_NUM)
+		if (MacId >= ODM_ASSOCIATE_ENTRY_NUM)
 			valid = 0;
 		else if (MacId >= 32)
 			valid = (1 << (MacId - 32)) & macid_entry1;

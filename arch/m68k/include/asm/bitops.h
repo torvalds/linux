@@ -451,7 +451,7 @@ static inline unsigned long ffz(unsigned long word)
  *	generic functions for those.
  */
 #if (defined(__mcfisaaplus__) || defined(__mcfisac__)) && \
-	!defined(CONFIG_M68000) && !defined(CONFIG_MCPU32)
+	!defined(CONFIG_M68000)
 static inline unsigned long __ffs(unsigned long x)
 {
 	__asm__ __volatile__ ("bitrev %0; ff1 %0"

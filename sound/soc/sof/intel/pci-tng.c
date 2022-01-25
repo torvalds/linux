@@ -142,6 +142,10 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	.block_read	= sof_block_read,
 	.block_write	= sof_block_write,
 
+	/* Mailbox IO */
+	.mailbox_read	= sof_mailbox_read,
+	.mailbox_write	= sof_mailbox_write,
+
 	/* doorbell */
 	.irq_handler	= atom_irq_handler,
 	.irq_thread	= atom_irq_thread,
@@ -152,8 +156,8 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	.get_mailbox_offset = atom_get_mailbox_offset,
 	.get_window_offset = atom_get_window_offset,
 
-	.ipc_msg_data	= intel_ipc_msg_data,
-	.ipc_pcm_params	= intel_ipc_pcm_params,
+	.ipc_msg_data	= sof_ipc_msg_data,
+	.ipc_pcm_params	= sof_ipc_pcm_params,
 
 	/* machine driver */
 	.machine_select = atom_machine_select,
@@ -165,10 +169,11 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 	.debug_map	= tng_debugfs,
 	.debug_map_count	= ARRAY_SIZE(tng_debugfs),
 	.dbg_dump	= atom_dump,
+	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 
 	/* stream callbacks */
-	.pcm_open	= intel_pcm_open,
-	.pcm_close	= intel_pcm_close,
+	.pcm_open	= sof_stream_pcm_open,
+	.pcm_close	= sof_stream_pcm_close,
 
 	/* module loading */
 	.load_module	= snd_sof_parse_module_memcpy,
@@ -187,7 +192,7 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 			SNDRV_PCM_INFO_PAUSE |
 			SNDRV_PCM_INFO_BATCH,
 
-	.arch_ops = &sof_xtensa_arch_ops,
+	.dsp_arch_ops = &sof_xtensa_arch_ops,
 };
 
 const struct sof_intel_dsp_desc tng_chip_info = {
@@ -201,7 +206,6 @@ static const struct sof_dev_desc tng_desc = {
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= 0,
 	.irqindex_host_ipc	= -1,
-	.resindex_dma_base	= -1,
 	.chip_info = &tng_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",

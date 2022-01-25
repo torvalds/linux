@@ -244,7 +244,7 @@ static bool s390_cpumsf_basic_show(const char *color, size_t pos,
 				   struct hws_basic_entry *basicp)
 {
 	struct hws_basic_entry *basic = basicp;
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	struct hws_basic_entry local;
 	unsigned long long word = be64toh(*(unsigned long long *)basicp);
 
@@ -288,7 +288,7 @@ static bool s390_cpumsf_diag_show(const char *color, size_t pos,
 				  struct hws_diag_entry *diagp)
 {
 	struct hws_diag_entry *diag = diagp;
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	struct hws_diag_entry local;
 	unsigned long long word = be64toh(*(unsigned long long *)diagp);
 
@@ -322,7 +322,7 @@ static unsigned long long trailer_timestamp(struct hws_trailer_entry *te,
 static bool s390_cpumsf_trailer_show(const char *color, size_t pos,
 				     struct hws_trailer_entry *te)
 {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	struct hws_trailer_entry local;
 	const unsigned long long flags = be64toh(te->flags);
 
@@ -552,7 +552,7 @@ static unsigned long long get_trailer_time(const unsigned char *buf)
 	te = (struct hws_trailer_entry *)(buf + S390_CPUMSF_PAGESZ
 					      - sizeof(*te));
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	clock_base = be64toh(te->progusage[0]) >> 63 & 0x1;
 	progusage2 = be64toh(te->progusage[1]);
 #else

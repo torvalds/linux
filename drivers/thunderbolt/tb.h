@@ -89,15 +89,31 @@ enum tb_switch_tmu_rate {
  * @cap: Offset to the TMU capability (%0 if not found)
  * @has_ucap: Does the switch support uni-directional mode
  * @rate: TMU refresh rate related to upstream switch. In case of root
- *	  switch this holds the domain rate.
+ *	  switch this holds the domain rate. Reflects the HW setting.
  * @unidirectional: Is the TMU in uni-directional or bi-directional mode
- *		    related to upstream switch. Don't case for root switch.
+ *		    related to upstream switch. Don't care for root switch.
+ *		    Reflects the HW setting.
+ * @unidirectional_request: Is the new TMU mode: uni-directional or bi-directional
+ *			    that is requested to be set. Related to upstream switch.
+ *			    Don't care for root switch.
+ * @rate_request: TMU new refresh rate related to upstream switch that is
+ *		  requested to be set. In case of root switch, this holds
+ *		  the new domain rate that is requested to be set.
  */
 struct tb_switch_tmu {
 	int cap;
 	bool has_ucap;
 	enum tb_switch_tmu_rate rate;
 	bool unidirectional;
+	bool unidirectional_request;
+	enum tb_switch_tmu_rate rate_request;
+};
+
+enum tb_clx {
+	TB_CLX_DISABLE,
+	TB_CL0S,
+	TB_CL1,
+	TB_CL2,
 };
 
 /**
@@ -122,7 +138,9 @@ struct tb_switch_tmu {
  * @link_usb4: Upstream link is USB4
  * @generation: Switch Thunderbolt generation
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
+ * @cap_vsec_tmu: Offset to the TMU vendor specific capability (%0 if not found)
  * @cap_lc: Offset to the link controller capability (%0 if not found)
+ * @cap_lp: Offset to the low power (CLx for TBT) capability (%0 if not found)
  * @is_unplugged: The switch is going away
  * @drom: DROM of the switch (%NULL if not found)
  * @nvm: Pointer to the NVM if the switch has one (%NULL otherwise)
@@ -148,6 +166,7 @@ struct tb_switch_tmu {
  * @min_dp_main_credits: Router preferred minimum number of buffers for DP MAIN
  * @max_pcie_credits: Router preferred number of buffers for PCIe
  * @max_dma_credits: Router preferred number of buffers for DMA/P2P
+ * @clx: CLx state on the upstream link of the router
  *
  * When the switch is being added or removed to the domain (other
  * switches) you need to have domain lock held.
@@ -172,7 +191,9 @@ struct tb_switch {
 	bool link_usb4;
 	unsigned int generation;
 	int cap_plug_events;
+	int cap_vsec_tmu;
 	int cap_lc;
+	int cap_lp;
 	bool is_unplugged;
 	u8 *drom;
 	struct tb_nvm *nvm;
@@ -196,6 +217,7 @@ struct tb_switch {
 	unsigned int min_dp_main_credits;
 	unsigned int max_pcie_credits;
 	unsigned int max_dma_credits;
+	enum tb_clx clx;
 };
 
 /**
@@ -354,6 +376,7 @@ enum tb_path_port {
  *	      when deactivating this path
  * @hops: Path hops
  * @path_length: How many hops the path uses
+ * @alloc_hopid: Does this path consume port HopID
  *
  * A path consists of a number of hops (see &struct tb_path_hop). To
  * establish a PCIe tunnel two paths have to be created between the two
@@ -374,6 +397,7 @@ struct tb_path {
 	bool clear_fc;
 	struct tb_path_hop *hops;
 	int path_length;
+	bool alloc_hopid;
 };
 
 /* HopIDs 0-7 are reserved by the Thunderbolt protocol */
@@ -740,6 +764,8 @@ void tb_switch_remove(struct tb_switch *sw);
 void tb_switch_suspend(struct tb_switch *sw, bool runtime);
 int tb_switch_resume(struct tb_switch *sw);
 int tb_switch_reset(struct tb_switch *sw);
+int tb_switch_wait_for_bit(struct tb_switch *sw, u32 offset, u32 bit,
+			   u32 value, int timeout_msec);
 void tb_sw_set_unplugged(struct tb_switch *sw);
 struct tb_port *tb_switch_find_port(struct tb_switch *sw,
 				    enum tb_port_type type);
@@ -851,6 +877,20 @@ static inline bool tb_switch_is_titan_ridge(const struct tb_switch *sw)
 	return false;
 }
 
+static inline bool tb_switch_is_tiger_lake(const struct tb_switch *sw)
+{
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_TGL_NHI0:
+		case PCI_DEVICE_ID_INTEL_TGL_NHI1:
+		case PCI_DEVICE_ID_INTEL_TGL_H_NHI0:
+		case PCI_DEVICE_ID_INTEL_TGL_H_NHI1:
+			return true;
+		}
+	}
+	return false;
+}
+
 /**
  * tb_switch_is_usb4() - Is the switch USB4 compliant
  * @sw: Switch to check
@@ -889,12 +929,63 @@ int tb_switch_tmu_init(struct tb_switch *sw);
 int tb_switch_tmu_post_time(struct tb_switch *sw);
 int tb_switch_tmu_disable(struct tb_switch *sw);
 int tb_switch_tmu_enable(struct tb_switch *sw);
-
-static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
+void tb_switch_tmu_configure(struct tb_switch *sw,
+			     enum tb_switch_tmu_rate rate,
+			     bool unidirectional);
+/**
+ * tb_switch_tmu_hifi_is_enabled() - Checks if the specified TMU mode is enabled
+ * @sw: Router whose TMU mode to check
+ * @unidirectional: If uni-directional (bi-directional otherwise)
+ *
+ * Return true if hardware TMU configuration matches the one passed in
+ * as parameter. That is HiFi and either uni-directional or bi-directional.
+ */
+static inline bool tb_switch_tmu_hifi_is_enabled(const struct tb_switch *sw,
+						 bool unidirectional)
 {
 	return sw->tmu.rate == TB_SWITCH_TMU_RATE_HIFI &&
-	       !sw->tmu.unidirectional;
+	       sw->tmu.unidirectional == unidirectional;
 }
+
+int tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx);
+int tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx);
+
+/**
+ * tb_switch_is_clx_enabled() - Checks if the CLx is enabled
+ * @sw: Router to check the CLx state for
+ *
+ * Checks if the CLx is enabled on the router upstream link.
+ * Not applicable for a host router.
+ */
+static inline bool tb_switch_is_clx_enabled(const struct tb_switch *sw)
+{
+	return sw->clx != TB_CLX_DISABLE;
+}
+
+/**
+ * tb_switch_is_cl0s_enabled() - Checks if the CL0s is enabled
+ * @sw: Router to check for the CL0s
+ *
+ * Checks if the CL0s is enabled on the router upstream link.
+ * Not applicable for a host router.
+ */
+static inline bool tb_switch_is_cl0s_enabled(const struct tb_switch *sw)
+{
+	return sw->clx == TB_CL0S;
+}
+
+/**
+ * tb_switch_is_clx_supported() - Is CLx supported on this type of router
+ * @sw: The router to check CLx support for
+ */
+static inline bool tb_switch_is_clx_supported(const struct tb_switch *sw)
+{
+	return tb_switch_is_usb4(sw) || tb_switch_is_titan_ridge(sw);
+}
+
+int tb_switch_mask_clx_objections(struct tb_switch *sw);
+
+int tb_switch_pcie_l1_enable(struct tb_switch *sw);
 
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
@@ -957,7 +1048,8 @@ int tb_dp_port_enable(struct tb_port *port, bool enable);
 
 struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 				 struct tb_port *dst, int dst_hopid,
-				 struct tb_port **last, const char *name);
+				 struct tb_port **last, const char *name,
+				 bool alloc_hopid);
 struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 			      struct tb_port *dst, int dst_hopid, int link_nr,
 			      const char *name);
@@ -988,6 +1080,7 @@ void tb_lc_unconfigure_port(struct tb_port *port);
 int tb_lc_configure_xdomain(struct tb_port *port);
 void tb_lc_unconfigure_xdomain(struct tb_port *port);
 int tb_lc_start_lane_initialization(struct tb_port *port);
+bool tb_lc_is_clx_supported(struct tb_port *port);
 int tb_lc_set_wake(struct tb_switch *sw, unsigned int flags);
 int tb_lc_set_sleep(struct tb_switch *sw);
 bool tb_lc_lane_bonding_possible(struct tb_switch *sw);
@@ -1074,6 +1167,7 @@ void usb4_port_unconfigure_xdomain(struct tb_port *port);
 int usb4_port_router_offline(struct tb_port *port);
 int usb4_port_router_online(struct tb_port *port);
 int usb4_port_enumerate_retimers(struct tb_port *port);
+bool usb4_port_clx_supported(struct tb_port *port);
 
 int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index);
 int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,

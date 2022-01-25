@@ -185,8 +185,8 @@ static void rkisp1_bls_config(struct rkisp1_params *params,
 
 /* ISP LS correction interface function */
 static void
-rkisp1_lsc_correct_matrix_config(struct rkisp1_params *params,
-				 const struct rkisp1_cif_isp_lsc_config *pconfig)
+rkisp1_lsc_matrix_config_v10(struct rkisp1_params *params,
+			     const struct rkisp1_cif_isp_lsc_config *pconfig)
 {
 	unsigned int isp_lsc_status, sram_addr, isp_lsc_table_sel, i, j, data;
 
@@ -212,39 +212,111 @@ rkisp1_lsc_correct_matrix_config(struct rkisp1_params *params,
 		 * DWORDs (2nd value of last DWORD unused)
 		 */
 		for (j = 0; j < RKISP1_CIF_ISP_LSC_SAMPLES_MAX - 1; j += 2) {
-			data = RKISP1_CIF_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i][j],
-							     pconfig->r_data_tbl[i][j + 1]);
+			data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V10(pconfig->r_data_tbl[i][j],
+								 pconfig->r_data_tbl[i][j + 1]);
 			rkisp1_write(params->rkisp1, data,
 				     RKISP1_CIF_ISP_LSC_R_TABLE_DATA);
 
-			data = RKISP1_CIF_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i][j],
-							     pconfig->gr_data_tbl[i][j + 1]);
+			data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V10(pconfig->gr_data_tbl[i][j],
+								 pconfig->gr_data_tbl[i][j + 1]);
 			rkisp1_write(params->rkisp1, data,
 				     RKISP1_CIF_ISP_LSC_GR_TABLE_DATA);
 
-			data = RKISP1_CIF_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i][j],
-							     pconfig->gb_data_tbl[i][j + 1]);
+			data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V10(pconfig->gb_data_tbl[i][j],
+								 pconfig->gb_data_tbl[i][j + 1]);
 			rkisp1_write(params->rkisp1, data,
 				     RKISP1_CIF_ISP_LSC_GB_TABLE_DATA);
 
-			data = RKISP1_CIF_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i][j],
-							     pconfig->b_data_tbl[i][j + 1]);
+			data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V10(pconfig->b_data_tbl[i][j],
+								 pconfig->b_data_tbl[i][j + 1]);
 			rkisp1_write(params->rkisp1, data,
 				     RKISP1_CIF_ISP_LSC_B_TABLE_DATA);
 		}
-		data = RKISP1_CIF_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i][j], 0);
+		data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V10(pconfig->r_data_tbl[i][j], 0);
 		rkisp1_write(params->rkisp1, data,
 			     RKISP1_CIF_ISP_LSC_R_TABLE_DATA);
 
-		data = RKISP1_CIF_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i][j], 0);
+		data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V10(pconfig->gr_data_tbl[i][j], 0);
 		rkisp1_write(params->rkisp1, data,
 			     RKISP1_CIF_ISP_LSC_GR_TABLE_DATA);
 
-		data = RKISP1_CIF_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i][j], 0);
+		data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V10(pconfig->gb_data_tbl[i][j], 0);
 		rkisp1_write(params->rkisp1, data,
 			     RKISP1_CIF_ISP_LSC_GB_TABLE_DATA);
 
-		data = RKISP1_CIF_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i][j], 0);
+		data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V10(pconfig->b_data_tbl[i][j], 0);
+		rkisp1_write(params->rkisp1, data,
+			     RKISP1_CIF_ISP_LSC_B_TABLE_DATA);
+	}
+	isp_lsc_table_sel = (isp_lsc_status & RKISP1_CIF_ISP_LSC_ACTIVE_TABLE) ?
+			    RKISP1_CIF_ISP_LSC_TABLE_0 :
+			    RKISP1_CIF_ISP_LSC_TABLE_1;
+	rkisp1_write(params->rkisp1, isp_lsc_table_sel,
+		     RKISP1_CIF_ISP_LSC_TABLE_SEL);
+}
+
+static void
+rkisp1_lsc_matrix_config_v12(struct rkisp1_params *params,
+			     const struct rkisp1_cif_isp_lsc_config *pconfig)
+{
+	unsigned int isp_lsc_status, sram_addr, isp_lsc_table_sel, i, j, data;
+
+	isp_lsc_status = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_LSC_STATUS);
+
+	/* RKISP1_CIF_ISP_LSC_TABLE_ADDRESS_153 = ( 17 * 18 ) >> 1 */
+	sram_addr = (isp_lsc_status & RKISP1_CIF_ISP_LSC_ACTIVE_TABLE) ?
+		     RKISP1_CIF_ISP_LSC_TABLE_ADDRESS_0 :
+		     RKISP1_CIF_ISP_LSC_TABLE_ADDRESS_153;
+	rkisp1_write(params->rkisp1, sram_addr, RKISP1_CIF_ISP_LSC_R_TABLE_ADDR);
+	rkisp1_write(params->rkisp1, sram_addr, RKISP1_CIF_ISP_LSC_GR_TABLE_ADDR);
+	rkisp1_write(params->rkisp1, sram_addr, RKISP1_CIF_ISP_LSC_GB_TABLE_ADDR);
+	rkisp1_write(params->rkisp1, sram_addr, RKISP1_CIF_ISP_LSC_B_TABLE_ADDR);
+
+	/* program data tables (table size is 9 * 17 = 153) */
+	for (i = 0; i < RKISP1_CIF_ISP_LSC_SAMPLES_MAX; i++) {
+		/*
+		 * 17 sectors with 2 values in one DWORD = 9
+		 * DWORDs (2nd value of last DWORD unused)
+		 */
+		for (j = 0; j < RKISP1_CIF_ISP_LSC_SAMPLES_MAX - 1; j += 2) {
+			data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V12(
+					pconfig->r_data_tbl[i][j],
+					pconfig->r_data_tbl[i][j + 1]);
+			rkisp1_write(params->rkisp1, data,
+				     RKISP1_CIF_ISP_LSC_R_TABLE_DATA);
+
+			data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V12(
+					pconfig->gr_data_tbl[i][j],
+					pconfig->gr_data_tbl[i][j + 1]);
+			rkisp1_write(params->rkisp1, data,
+				     RKISP1_CIF_ISP_LSC_GR_TABLE_DATA);
+
+			data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V12(
+					pconfig->gb_data_tbl[i][j],
+					pconfig->gb_data_tbl[i][j + 1]);
+			rkisp1_write(params->rkisp1, data,
+				     RKISP1_CIF_ISP_LSC_GB_TABLE_DATA);
+
+			data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V12(
+					pconfig->b_data_tbl[i][j],
+					pconfig->b_data_tbl[i][j + 1]);
+			rkisp1_write(params->rkisp1, data,
+				     RKISP1_CIF_ISP_LSC_B_TABLE_DATA);
+		}
+
+		data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V12(pconfig->r_data_tbl[i][j], 0);
+		rkisp1_write(params->rkisp1, data,
+			     RKISP1_CIF_ISP_LSC_R_TABLE_DATA);
+
+		data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V12(pconfig->gr_data_tbl[i][j], 0);
+		rkisp1_write(params->rkisp1, data,
+			     RKISP1_CIF_ISP_LSC_GR_TABLE_DATA);
+
+		data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V12(pconfig->gb_data_tbl[i][j], 0);
+		rkisp1_write(params->rkisp1, data,
+			     RKISP1_CIF_ISP_LSC_GB_TABLE_DATA);
+
+		data = RKISP1_CIF_ISP_LSC_TABLE_DATA_V12(pconfig->b_data_tbl[i][j], 0);
 		rkisp1_write(params->rkisp1, data,
 			     RKISP1_CIF_ISP_LSC_B_TABLE_DATA);
 	}
@@ -265,7 +337,7 @@ static void rkisp1_lsc_config(struct rkisp1_params *params,
 	lsc_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_LSC_CTRL);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_LSC_CTRL,
 				RKISP1_CIF_ISP_LSC_CTRL_ENA);
-	rkisp1_lsc_correct_matrix_config(params, arg);
+	params->ops->lsc_matrix_config(params, arg);
 
 	for (i = 0; i < RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE / 2; i++) {
 		/* program x size tables */
@@ -382,18 +454,37 @@ static void rkisp1_sdg_config(struct rkisp1_params *params,
 }
 
 /* ISP GAMMA correction interface function */
-static void rkisp1_goc_config(struct rkisp1_params *params,
-			      const struct rkisp1_cif_isp_goc_config *arg)
+static void rkisp1_goc_config_v10(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_goc_config *arg)
 {
 	unsigned int i;
 
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_CTRL,
 				RKISP1_CIF_ISP_CTRL_ISP_GAMMA_OUT_ENA);
-	rkisp1_write(params->rkisp1, arg->mode, RKISP1_CIF_ISP_GAMMA_OUT_MODE);
+	rkisp1_write(params->rkisp1, arg->mode, RKISP1_CIF_ISP_GAMMA_OUT_MODE_V10);
 
 	for (i = 0; i < RKISP1_CIF_ISP_GAMMA_OUT_MAX_SAMPLES_V10; i++)
 		rkisp1_write(params->rkisp1, arg->gamma_y[i],
-			     RKISP1_CIF_ISP_GAMMA_OUT_Y_0 + i * 4);
+			     RKISP1_CIF_ISP_GAMMA_OUT_Y_0_V10 + i * 4);
+}
+
+static void rkisp1_goc_config_v12(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_goc_config *arg)
+{
+	unsigned int i;
+	u32 value;
+
+	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_CTRL,
+				RKISP1_CIF_ISP_CTRL_ISP_GAMMA_OUT_ENA);
+	rkisp1_write(params->rkisp1, arg->mode, RKISP1_CIF_ISP_GAMMA_OUT_MODE_V12);
+
+	for (i = 0; i < RKISP1_CIF_ISP_GAMMA_OUT_MAX_SAMPLES_V12 / 2; i++) {
+		value = RKISP1_CIF_ISP_GAMMA_VALUE_V12(
+			arg->gamma_y[2 * i + 1],
+			arg->gamma_y[2 * i]);
+		rkisp1_write(params->rkisp1, value,
+			     RKISP1_CIF_ISP_GAMMA_OUT_Y_0_V12 + i * 4);
+	}
 }
 
 /* ISP Cross Talk */
@@ -433,8 +524,8 @@ static void rkisp1_ctk_enable(struct rkisp1_params *params, bool en)
 }
 
 /* ISP White Balance Mode */
-static void rkisp1_awb_meas_config(struct rkisp1_params *params,
-				   const struct rkisp1_cif_isp_awb_meas_config *arg)
+static void rkisp1_awb_meas_config_v10(struct rkisp1_params *params,
+				       const struct rkisp1_cif_isp_awb_meas_config *arg)
 {
 	u32 reg_val = 0;
 	/* based on the mode,configure the awb module */
@@ -442,43 +533,82 @@ static void rkisp1_awb_meas_config(struct rkisp1_params *params,
 		/* Reference Cb and Cr */
 		rkisp1_write(params->rkisp1,
 			     RKISP1_CIF_ISP_AWB_REF_CR_SET(arg->awb_ref_cr) |
-			     arg->awb_ref_cb, RKISP1_CIF_ISP_AWB_REF);
+			     arg->awb_ref_cb, RKISP1_CIF_ISP_AWB_REF_V10);
 		/* Yc Threshold */
 		rkisp1_write(params->rkisp1,
 			     RKISP1_CIF_ISP_AWB_MAX_Y_SET(arg->max_y) |
 			     RKISP1_CIF_ISP_AWB_MIN_Y_SET(arg->min_y) |
 			     RKISP1_CIF_ISP_AWB_MAX_CS_SET(arg->max_csum) |
-			     arg->min_c, RKISP1_CIF_ISP_AWB_THRESH);
+			     arg->min_c, RKISP1_CIF_ISP_AWB_THRESH_V10);
 	}
 
-	reg_val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AWB_PROP);
+	reg_val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AWB_PROP_V10);
 	if (arg->enable_ymax_cmp)
 		reg_val |= RKISP1_CIF_ISP_AWB_YMAX_CMP_EN;
 	else
 		reg_val &= ~RKISP1_CIF_ISP_AWB_YMAX_CMP_EN;
-	rkisp1_write(params->rkisp1, reg_val, RKISP1_CIF_ISP_AWB_PROP);
+	rkisp1_write(params->rkisp1, reg_val, RKISP1_CIF_ISP_AWB_PROP_V10);
 
 	/* window offset */
 	rkisp1_write(params->rkisp1,
-		     arg->awb_wnd.v_offs, RKISP1_CIF_ISP_AWB_WND_V_OFFS);
+		     arg->awb_wnd.v_offs, RKISP1_CIF_ISP_AWB_WND_V_OFFS_V10);
 	rkisp1_write(params->rkisp1,
-		     arg->awb_wnd.h_offs, RKISP1_CIF_ISP_AWB_WND_H_OFFS);
+		     arg->awb_wnd.h_offs, RKISP1_CIF_ISP_AWB_WND_H_OFFS_V10);
 	/* AWB window size */
 	rkisp1_write(params->rkisp1,
-		     arg->awb_wnd.v_size, RKISP1_CIF_ISP_AWB_WND_V_SIZE);
+		     arg->awb_wnd.v_size, RKISP1_CIF_ISP_AWB_WND_V_SIZE_V10);
 	rkisp1_write(params->rkisp1,
-		     arg->awb_wnd.h_size, RKISP1_CIF_ISP_AWB_WND_H_SIZE);
+		     arg->awb_wnd.h_size, RKISP1_CIF_ISP_AWB_WND_H_SIZE_V10);
 	/* Number of frames */
 	rkisp1_write(params->rkisp1,
-		     arg->frames, RKISP1_CIF_ISP_AWB_FRAMES);
+		     arg->frames, RKISP1_CIF_ISP_AWB_FRAMES_V10);
+}
+
+static void rkisp1_awb_meas_config_v12(struct rkisp1_params *params,
+				       const struct rkisp1_cif_isp_awb_meas_config *arg)
+{
+	u32 reg_val = 0;
+	/* based on the mode,configure the awb module */
+	if (arg->awb_mode == RKISP1_CIF_ISP_AWB_MODE_YCBCR) {
+		/* Reference Cb and Cr */
+		rkisp1_write(params->rkisp1,
+			     RKISP1_CIF_ISP_AWB_REF_CR_SET(arg->awb_ref_cr) |
+			     arg->awb_ref_cb, RKISP1_CIF_ISP_AWB_REF_V12);
+		/* Yc Threshold */
+		rkisp1_write(params->rkisp1,
+			     RKISP1_CIF_ISP_AWB_MAX_Y_SET(arg->max_y) |
+			     RKISP1_CIF_ISP_AWB_MIN_Y_SET(arg->min_y) |
+			     RKISP1_CIF_ISP_AWB_MAX_CS_SET(arg->max_csum) |
+			     arg->min_c, RKISP1_CIF_ISP_AWB_THRESH_V12);
+	}
+
+	reg_val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AWB_PROP_V12);
+	if (arg->enable_ymax_cmp)
+		reg_val |= RKISP1_CIF_ISP_AWB_YMAX_CMP_EN;
+	else
+		reg_val &= ~RKISP1_CIF_ISP_AWB_YMAX_CMP_EN;
+	reg_val &= ~RKISP1_CIF_ISP_AWB_SET_FRAMES_MASK_V12;
+	reg_val |= RKISP1_CIF_ISP_AWB_SET_FRAMES_V12(arg->frames);
+	rkisp1_write(params->rkisp1, reg_val, RKISP1_CIF_ISP_AWB_PROP_V12);
+
+	/* window offset */
+	rkisp1_write(params->rkisp1,
+		     arg->awb_wnd.v_offs << 16 |
+		     arg->awb_wnd.h_offs,
+		     RKISP1_CIF_ISP_AWB_OFFS_V12);
+	/* AWB window size */
+	rkisp1_write(params->rkisp1,
+		     arg->awb_wnd.v_size << 16 |
+		     arg->awb_wnd.h_size,
+		     RKISP1_CIF_ISP_AWB_SIZE_V12);
 }
 
 static void
-rkisp1_awb_meas_enable(struct rkisp1_params *params,
-		       const struct rkisp1_cif_isp_awb_meas_config *arg,
-		       bool en)
+rkisp1_awb_meas_enable_v10(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_awb_meas_config *arg,
+			   bool en)
 {
-	u32 reg_val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AWB_PROP);
+	u32 reg_val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AWB_PROP_V10);
 
 	/* switch off */
 	reg_val &= RKISP1_CIF_ISP_AWB_MODE_MASK_NONE;
@@ -489,34 +619,76 @@ rkisp1_awb_meas_enable(struct rkisp1_params *params,
 		else
 			reg_val |= RKISP1_CIF_ISP_AWB_MODE_YCBCR_EN;
 
-		rkisp1_write(params->rkisp1, reg_val, RKISP1_CIF_ISP_AWB_PROP);
+		rkisp1_write(params->rkisp1, reg_val, RKISP1_CIF_ISP_AWB_PROP_V10);
 
 		/* Measurements require AWB block be active. */
 		rkisp1_param_set_bits(params, RKISP1_CIF_ISP_CTRL,
 				      RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
 	} else {
 		rkisp1_write(params->rkisp1,
-			     reg_val, RKISP1_CIF_ISP_AWB_PROP);
+			     reg_val, RKISP1_CIF_ISP_AWB_PROP_V10);
 		rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_CTRL,
 					RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
 	}
 }
 
 static void
-rkisp1_awb_gain_config(struct rkisp1_params *params,
-		       const struct rkisp1_cif_isp_awb_gain_config *arg)
+rkisp1_awb_meas_enable_v12(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_awb_meas_config *arg,
+			   bool en)
+{
+	u32 reg_val = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AWB_PROP_V12);
+
+	/* switch off */
+	reg_val &= RKISP1_CIF_ISP_AWB_MODE_MASK_NONE;
+
+	if (en) {
+		if (arg->awb_mode == RKISP1_CIF_ISP_AWB_MODE_RGB)
+			reg_val |= RKISP1_CIF_ISP_AWB_MODE_RGB_EN;
+		else
+			reg_val |= RKISP1_CIF_ISP_AWB_MODE_YCBCR_EN;
+
+		rkisp1_write(params->rkisp1, reg_val, RKISP1_CIF_ISP_AWB_PROP_V12);
+
+		/* Measurements require AWB block be active. */
+		rkisp1_param_set_bits(params, RKISP1_CIF_ISP_CTRL,
+				      RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
+	} else {
+		rkisp1_write(params->rkisp1,
+			     reg_val, RKISP1_CIF_ISP_AWB_PROP_V12);
+		rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_CTRL,
+					RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
+	}
+}
+
+static void
+rkisp1_awb_gain_config_v10(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_awb_gain_config *arg)
 {
 	rkisp1_write(params->rkisp1,
 		     RKISP1_CIF_ISP_AWB_GAIN_R_SET(arg->gain_green_r) |
-		     arg->gain_green_b, RKISP1_CIF_ISP_AWB_GAIN_G);
+		     arg->gain_green_b, RKISP1_CIF_ISP_AWB_GAIN_G_V10);
 
 	rkisp1_write(params->rkisp1,
 		     RKISP1_CIF_ISP_AWB_GAIN_R_SET(arg->gain_red) |
-		     arg->gain_blue, RKISP1_CIF_ISP_AWB_GAIN_RB);
+		     arg->gain_blue, RKISP1_CIF_ISP_AWB_GAIN_RB_V10);
 }
 
-static void rkisp1_aec_config(struct rkisp1_params *params,
-			      const struct rkisp1_cif_isp_aec_config *arg)
+static void
+rkisp1_awb_gain_config_v12(struct rkisp1_params *params,
+			   const struct rkisp1_cif_isp_awb_gain_config *arg)
+{
+	rkisp1_write(params->rkisp1,
+		     RKISP1_CIF_ISP_AWB_GAIN_R_SET(arg->gain_green_r) |
+		     arg->gain_green_b, RKISP1_CIF_ISP_AWB_GAIN_G_V12);
+
+	rkisp1_write(params->rkisp1,
+		     RKISP1_CIF_ISP_AWB_GAIN_R_SET(arg->gain_red) |
+		     arg->gain_blue, RKISP1_CIF_ISP_AWB_GAIN_RB_V12);
+}
+
+static void rkisp1_aec_config_v10(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_aec_config *arg)
 {
 	unsigned int block_hsize, block_vsize;
 	u32 exp_ctrl;
@@ -531,21 +703,53 @@ static void rkisp1_aec_config(struct rkisp1_params *params,
 	rkisp1_write(params->rkisp1, exp_ctrl, RKISP1_CIF_ISP_EXP_CTRL);
 
 	rkisp1_write(params->rkisp1,
-		     arg->meas_window.h_offs, RKISP1_CIF_ISP_EXP_H_OFFSET);
+		     arg->meas_window.h_offs, RKISP1_CIF_ISP_EXP_H_OFFSET_V10);
 	rkisp1_write(params->rkisp1,
-		     arg->meas_window.v_offs, RKISP1_CIF_ISP_EXP_V_OFFSET);
+		     arg->meas_window.v_offs, RKISP1_CIF_ISP_EXP_V_OFFSET_V10);
 
 	block_hsize = arg->meas_window.h_size /
-		      RKISP1_CIF_ISP_EXP_COLUMN_NUM - 1;
+		      RKISP1_CIF_ISP_EXP_COLUMN_NUM_V10 - 1;
 	block_vsize = arg->meas_window.v_size /
-		      RKISP1_CIF_ISP_EXP_ROW_NUM - 1;
+		      RKISP1_CIF_ISP_EXP_ROW_NUM_V10 - 1;
 
 	rkisp1_write(params->rkisp1,
-		     RKISP1_CIF_ISP_EXP_H_SIZE_SET(block_hsize),
-		     RKISP1_CIF_ISP_EXP_H_SIZE);
+		     RKISP1_CIF_ISP_EXP_H_SIZE_SET_V10(block_hsize),
+		     RKISP1_CIF_ISP_EXP_H_SIZE_V10);
 	rkisp1_write(params->rkisp1,
-		     RKISP1_CIF_ISP_EXP_V_SIZE_SET(block_vsize),
-		     RKISP1_CIF_ISP_EXP_V_SIZE);
+		     RKISP1_CIF_ISP_EXP_V_SIZE_SET_V10(block_vsize),
+		     RKISP1_CIF_ISP_EXP_V_SIZE_V10);
+}
+
+static void rkisp1_aec_config_v12(struct rkisp1_params *params,
+			       const struct rkisp1_cif_isp_aec_config *arg)
+{
+	u32 exp_ctrl;
+	u32 block_hsize, block_vsize;
+	u32 wnd_num_idx = 1;
+	const u32 ae_wnd_num[] = { 5, 9, 15, 15 };
+
+	/* avoid to override the old enable value */
+	exp_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_EXP_CTRL);
+	exp_ctrl &= RKISP1_CIF_ISP_EXP_ENA;
+	if (arg->autostop)
+		exp_ctrl |= RKISP1_CIF_ISP_EXP_CTRL_AUTOSTOP;
+	if (arg->mode == RKISP1_CIF_ISP_EXP_MEASURING_MODE_1)
+		exp_ctrl |= RKISP1_CIF_ISP_EXP_CTRL_MEASMODE_1;
+	exp_ctrl |= RKISP1_CIF_ISP_EXP_CTRL_WNDNUM_SET_V12(wnd_num_idx);
+	rkisp1_write(params->rkisp1, exp_ctrl, RKISP1_CIF_ISP_EXP_CTRL);
+
+	rkisp1_write(params->rkisp1,
+		     RKISP1_CIF_ISP_EXP_V_OFFSET_SET_V12(arg->meas_window.v_offs) |
+		     RKISP1_CIF_ISP_EXP_H_OFFSET_SET_V12(arg->meas_window.h_offs),
+		     RKISP1_CIF_ISP_EXP_OFFS_V12);
+
+	block_hsize = arg->meas_window.h_size / ae_wnd_num[wnd_num_idx] - 1;
+	block_vsize = arg->meas_window.v_size / ae_wnd_num[wnd_num_idx] - 1;
+
+	rkisp1_write(params->rkisp1,
+		     RKISP1_CIF_ISP_EXP_V_SIZE_SET_V12(block_vsize) |
+		     RKISP1_CIF_ISP_EXP_H_SIZE_SET_V12(block_hsize),
+		     RKISP1_CIF_ISP_EXP_SIZE_V12);
 }
 
 static void rkisp1_cproc_config(struct rkisp1_params *params,
@@ -578,73 +782,151 @@ static void rkisp1_cproc_config(struct rkisp1_params *params,
 	}
 }
 
-static void rkisp1_hst_config(struct rkisp1_params *params,
-			      const struct rkisp1_cif_isp_hst_config *arg)
+static void rkisp1_hst_config_v10(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_hst_config *arg)
 {
 	unsigned int block_hsize, block_vsize;
 	static const u32 hist_weight_regs[] = {
-		RKISP1_CIF_ISP_HIST_WEIGHT_00TO30,
-		RKISP1_CIF_ISP_HIST_WEIGHT_40TO21,
-		RKISP1_CIF_ISP_HIST_WEIGHT_31TO12,
-		RKISP1_CIF_ISP_HIST_WEIGHT_22TO03,
-		RKISP1_CIF_ISP_HIST_WEIGHT_13TO43,
-		RKISP1_CIF_ISP_HIST_WEIGHT_04TO34,
+		RKISP1_CIF_ISP_HIST_WEIGHT_00TO30_V10,
+		RKISP1_CIF_ISP_HIST_WEIGHT_40TO21_V10,
+		RKISP1_CIF_ISP_HIST_WEIGHT_31TO12_V10,
+		RKISP1_CIF_ISP_HIST_WEIGHT_22TO03_V10,
+		RKISP1_CIF_ISP_HIST_WEIGHT_13TO43_V10,
+		RKISP1_CIF_ISP_HIST_WEIGHT_04TO34_V10,
 	};
 	const u8 *weight;
 	unsigned int i;
 	u32 hist_prop;
 
 	/* avoid to override the old enable value */
-	hist_prop = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_HIST_PROP);
-	hist_prop &= RKISP1_CIF_ISP_HIST_PROP_MODE_MASK;
-	hist_prop |= RKISP1_CIF_ISP_HIST_PREDIV_SET(arg->histogram_predivider);
-	rkisp1_write(params->rkisp1, hist_prop, RKISP1_CIF_ISP_HIST_PROP);
+	hist_prop = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_HIST_PROP_V10);
+	hist_prop &= RKISP1_CIF_ISP_HIST_PROP_MODE_MASK_V10;
+	hist_prop |= RKISP1_CIF_ISP_HIST_PREDIV_SET_V10(arg->histogram_predivider);
+	rkisp1_write(params->rkisp1, hist_prop, RKISP1_CIF_ISP_HIST_PROP_V10);
 	rkisp1_write(params->rkisp1,
 		     arg->meas_window.h_offs,
-		     RKISP1_CIF_ISP_HIST_H_OFFS);
+		     RKISP1_CIF_ISP_HIST_H_OFFS_V10);
 	rkisp1_write(params->rkisp1,
 		     arg->meas_window.v_offs,
-		     RKISP1_CIF_ISP_HIST_V_OFFS);
+		     RKISP1_CIF_ISP_HIST_V_OFFS_V10);
 
 	block_hsize = arg->meas_window.h_size /
-		      RKISP1_CIF_ISP_HIST_COLUMN_NUM - 1;
-	block_vsize = arg->meas_window.v_size / RKISP1_CIF_ISP_HIST_ROW_NUM - 1;
+		      RKISP1_CIF_ISP_HIST_COLUMN_NUM_V10 - 1;
+	block_vsize = arg->meas_window.v_size / RKISP1_CIF_ISP_HIST_ROW_NUM_V10 - 1;
 
-	rkisp1_write(params->rkisp1, block_hsize, RKISP1_CIF_ISP_HIST_H_SIZE);
-	rkisp1_write(params->rkisp1, block_vsize, RKISP1_CIF_ISP_HIST_V_SIZE);
+	rkisp1_write(params->rkisp1, block_hsize, RKISP1_CIF_ISP_HIST_H_SIZE_V10);
+	rkisp1_write(params->rkisp1, block_vsize, RKISP1_CIF_ISP_HIST_V_SIZE_V10);
 
 	weight = arg->hist_weight;
 	for (i = 0; i < ARRAY_SIZE(hist_weight_regs); ++i, weight += 4)
 		rkisp1_write(params->rkisp1,
-			     RKISP1_CIF_ISP_HIST_WEIGHT_SET(weight[0],
+			     RKISP1_CIF_ISP_HIST_WEIGHT_SET_V10(weight[0],
 							    weight[1],
 							    weight[2],
 							    weight[3]),
 				 hist_weight_regs[i]);
 
-	rkisp1_write(params->rkisp1, weight[0] & 0x1F, RKISP1_CIF_ISP_HIST_WEIGHT_44);
+	rkisp1_write(params->rkisp1, weight[0] & 0x1F, RKISP1_CIF_ISP_HIST_WEIGHT_44_V10);
+}
+
+static void rkisp1_hst_config_v12(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_hst_config *arg)
+{
+	unsigned int i, j;
+	u32 block_hsize, block_vsize;
+	u32 wnd_num_idx, hist_weight_num, hist_ctrl, value;
+	u8 weight15x15[RKISP1_CIF_ISP_HIST_WEIGHT_REG_SIZE_V12];
+	const u32 hist_wnd_num[] = { 5, 9, 15, 15 };
+
+	/* now we just support 9x9 window */
+	wnd_num_idx = 1;
+	memset(weight15x15, 0x00, sizeof(weight15x15));
+	/* avoid to override the old enable value */
+	hist_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_HIST_CTRL_V12);
+	hist_ctrl &= RKISP1_CIF_ISP_HIST_CTRL_MODE_MASK_V12 |
+		     RKISP1_CIF_ISP_HIST_CTRL_EN_MASK_V12;
+	hist_ctrl = hist_ctrl |
+		    RKISP1_CIF_ISP_HIST_CTRL_INTRSEL_SET_V12(1) |
+		    RKISP1_CIF_ISP_HIST_CTRL_DATASEL_SET_V12(0) |
+		    RKISP1_CIF_ISP_HIST_CTRL_WATERLINE_SET_V12(0) |
+		    RKISP1_CIF_ISP_HIST_CTRL_AUTOSTOP_SET_V12(0) |
+		    RKISP1_CIF_ISP_HIST_CTRL_WNDNUM_SET_V12(1) |
+		    RKISP1_CIF_ISP_HIST_CTRL_STEPSIZE_SET_V12(arg->histogram_predivider);
+	rkisp1_write(params->rkisp1, hist_ctrl, RKISP1_CIF_ISP_HIST_CTRL_V12);
+
+	rkisp1_write(params->rkisp1,
+		     RKISP1_CIF_ISP_HIST_OFFS_SET_V12(arg->meas_window.h_offs,
+						      arg->meas_window.v_offs),
+		     RKISP1_CIF_ISP_HIST_OFFS_V12);
+
+	block_hsize = arg->meas_window.h_size / hist_wnd_num[wnd_num_idx] - 1;
+	block_vsize = arg->meas_window.v_size / hist_wnd_num[wnd_num_idx] - 1;
+	rkisp1_write(params->rkisp1,
+		     RKISP1_CIF_ISP_HIST_SIZE_SET_V12(block_hsize, block_vsize),
+		     RKISP1_CIF_ISP_HIST_SIZE_V12);
+
+	for (i = 0; i < hist_wnd_num[wnd_num_idx]; i++) {
+		for (j = 0; j < hist_wnd_num[wnd_num_idx]; j++) {
+			weight15x15[i * RKISP1_CIF_ISP_HIST_ROW_NUM_V12 + j] =
+				arg->hist_weight[i * hist_wnd_num[wnd_num_idx] + j];
+		}
+	}
+
+	hist_weight_num = RKISP1_CIF_ISP_HIST_WEIGHT_REG_SIZE_V12;
+	for (i = 0; i < (hist_weight_num / 4); i++) {
+		value = RKISP1_CIF_ISP_HIST_WEIGHT_SET_V12(
+				 weight15x15[4 * i + 0],
+				 weight15x15[4 * i + 1],
+				 weight15x15[4 * i + 2],
+				 weight15x15[4 * i + 3]);
+		rkisp1_write(params->rkisp1, value,
+				 RKISP1_CIF_ISP_HIST_WEIGHT_V12 + 4 * i);
+	}
+	value = RKISP1_CIF_ISP_HIST_WEIGHT_SET_V12(weight15x15[4 * i + 0], 0, 0, 0);
+	rkisp1_write(params->rkisp1, value,
+				 RKISP1_CIF_ISP_HIST_WEIGHT_V12 + 4 * i);
 }
 
 static void
-rkisp1_hst_enable(struct rkisp1_params *params,
-		  const struct rkisp1_cif_isp_hst_config *arg, bool en)
+rkisp1_hst_enable_v10(struct rkisp1_params *params,
+		      const struct rkisp1_cif_isp_hst_config *arg, bool en)
 {
 	if (en)	{
 		u32 hist_prop = rkisp1_read(params->rkisp1,
-					    RKISP1_CIF_ISP_HIST_PROP);
+					    RKISP1_CIF_ISP_HIST_PROP_V10);
 
-		hist_prop &= ~RKISP1_CIF_ISP_HIST_PROP_MODE_MASK;
+		hist_prop &= ~RKISP1_CIF_ISP_HIST_PROP_MODE_MASK_V10;
 		hist_prop |= arg->mode;
-		rkisp1_param_set_bits(params, RKISP1_CIF_ISP_HIST_PROP,
+		rkisp1_param_set_bits(params, RKISP1_CIF_ISP_HIST_PROP_V10,
 				      hist_prop);
 	} else {
-		rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_HIST_PROP,
-					RKISP1_CIF_ISP_HIST_PROP_MODE_MASK);
+		rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_HIST_PROP_V10,
+					RKISP1_CIF_ISP_HIST_PROP_MODE_MASK_V10);
 	}
 }
 
-static void rkisp1_afm_config(struct rkisp1_params *params,
-			      const struct rkisp1_cif_isp_afc_config *arg)
+static void
+rkisp1_hst_enable_v12(struct rkisp1_params *params,
+		      const struct rkisp1_cif_isp_hst_config *arg, bool en)
+{
+	if (en) {
+		u32 hist_ctrl = rkisp1_read(params->rkisp1,
+					    RKISP1_CIF_ISP_HIST_CTRL_V12);
+
+		hist_ctrl &= ~RKISP1_CIF_ISP_HIST_CTRL_MODE_MASK_V12;
+		hist_ctrl |= RKISP1_CIF_ISP_HIST_CTRL_MODE_SET_V12(arg->mode);
+		hist_ctrl |= RKISP1_CIF_ISP_HIST_CTRL_EN_SET_V12(1);
+		rkisp1_param_set_bits(params, RKISP1_CIF_ISP_HIST_CTRL_V12,
+				      hist_ctrl);
+	} else {
+		rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_HIST_CTRL_V12,
+					RKISP1_CIF_ISP_HIST_CTRL_MODE_MASK_V12 |
+					RKISP1_CIF_ISP_HIST_CTRL_EN_MASK_V12);
+	}
+}
+
+static void rkisp1_afm_config_v10(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_afc_config *arg)
 {
 	size_t num_of_win = min_t(size_t, ARRAY_SIZE(arg->afm_win),
 				  arg->num_afm_win);
@@ -670,6 +952,45 @@ static void rkisp1_afm_config(struct rkisp1_params *params,
 	rkisp1_write(params->rkisp1, arg->thres, RKISP1_CIF_ISP_AFM_THRES);
 	rkisp1_write(params->rkisp1, arg->var_shift,
 		     RKISP1_CIF_ISP_AFM_VAR_SHIFT);
+	/* restore afm status */
+	rkisp1_write(params->rkisp1, afm_ctrl, RKISP1_CIF_ISP_AFM_CTRL);
+}
+
+static void rkisp1_afm_config_v12(struct rkisp1_params *params,
+				  const struct rkisp1_cif_isp_afc_config *arg)
+{
+	size_t num_of_win = min_t(size_t, ARRAY_SIZE(arg->afm_win),
+				  arg->num_afm_win);
+	u32 afm_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_AFM_CTRL);
+	u32 lum_var_shift, afm_var_shift;
+	unsigned int i;
+
+	/* Switch off to configure. */
+	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_AFM_CTRL,
+				RKISP1_CIF_ISP_AFM_ENA);
+
+	for (i = 0; i < num_of_win; i++) {
+		rkisp1_write(params->rkisp1,
+			     RKISP1_CIF_ISP_AFM_WINDOW_X(arg->afm_win[i].h_offs) |
+			     RKISP1_CIF_ISP_AFM_WINDOW_Y(arg->afm_win[i].v_offs),
+			     RKISP1_CIF_ISP_AFM_LT_A + i * 8);
+		rkisp1_write(params->rkisp1,
+			     RKISP1_CIF_ISP_AFM_WINDOW_X(arg->afm_win[i].h_size +
+							 arg->afm_win[i].h_offs) |
+			     RKISP1_CIF_ISP_AFM_WINDOW_Y(arg->afm_win[i].v_size +
+							 arg->afm_win[i].v_offs),
+			     RKISP1_CIF_ISP_AFM_RB_A + i * 8);
+	}
+	rkisp1_write(params->rkisp1, arg->thres, RKISP1_CIF_ISP_AFM_THRES);
+
+	lum_var_shift = RKISP1_CIF_ISP_AFM_GET_LUM_SHIFT_a_V12(arg->var_shift);
+	afm_var_shift = RKISP1_CIF_ISP_AFM_GET_AFM_SHIFT_a_V12(arg->var_shift);
+	rkisp1_write(params->rkisp1,
+		     RKISP1_CIF_ISP_AFM_SET_SHIFT_a_V12(lum_var_shift, afm_var_shift) |
+		     RKISP1_CIF_ISP_AFM_SET_SHIFT_b_V12(lum_var_shift, afm_var_shift) |
+		     RKISP1_CIF_ISP_AFM_SET_SHIFT_c_V12(lum_var_shift, afm_var_shift),
+		     RKISP1_CIF_ISP_AFM_VAR_SHIFT);
+
 	/* restore afm status */
 	rkisp1_write(params->rkisp1, afm_ctrl, RKISP1_CIF_ISP_AFM_CTRL);
 }
@@ -955,7 +1276,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 
 	/* update awb gains */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
-		rkisp1_awb_gain_config(params, &new_params->others.awb_gain_config);
+		params->ops->awb_gain_config(params, &new_params->others.awb_gain_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN) {
 		if (module_ens & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
@@ -1010,8 +1331,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 
 	/* update goc config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_GOC)
-		rkisp1_goc_config(params,
-				  &new_params->others.goc_config);
+		params->ops->goc_config(params, &new_params->others.goc_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_GOC) {
 		if (module_ens & RKISP1_CIF_ISP_MODULE_GOC)
@@ -1081,17 +1401,17 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 
 	/* update awb config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB)
-		rkisp1_awb_meas_config(params, &new_params->meas.awb_meas_config);
+		params->ops->awb_meas_config(params, &new_params->meas.awb_meas_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB)
-		rkisp1_awb_meas_enable(params,
-				       &new_params->meas.awb_meas_config,
-				       !!(module_ens & RKISP1_CIF_ISP_MODULE_AWB));
+		params->ops->awb_meas_enable(params,
+					     &new_params->meas.awb_meas_config,
+					     !!(module_ens & RKISP1_CIF_ISP_MODULE_AWB));
 
 	/* update afc config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AFC)
-		rkisp1_afm_config(params,
-				  &new_params->meas.afc_config);
+		params->ops->afm_config(params,
+					&new_params->meas.afc_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_AFC) {
 		if (module_ens & RKISP1_CIF_ISP_MODULE_AFC)
@@ -1106,18 +1426,18 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 
 	/* update hst config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_HST)
-		rkisp1_hst_config(params,
-				  &new_params->meas.hst_config);
+		params->ops->hst_config(params,
+					&new_params->meas.hst_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_HST)
-		rkisp1_hst_enable(params,
-				  &new_params->meas.hst_config,
-				  !!(module_ens & RKISP1_CIF_ISP_MODULE_HST));
+		params->ops->hst_enable(params,
+					&new_params->meas.hst_config,
+					!!(module_ens & RKISP1_CIF_ISP_MODULE_HST));
 
 	/* update aec config */
 	if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AEC)
-		rkisp1_aec_config(params,
-				  &new_params->meas.aec_config);
+		params->ops->aec_config(params,
+					&new_params->meas.aec_config);
 
 	if (module_en_update & RKISP1_CIF_ISP_MODULE_AEC) {
 		if (module_ens & RKISP1_CIF_ISP_MODULE_AEC)
@@ -1218,21 +1538,21 @@ static void rkisp1_params_config_parameter(struct rkisp1_params *params)
 {
 	struct rkisp1_cif_isp_hst_config hst = rkisp1_hst_params_default_config;
 
-	rkisp1_awb_meas_config(params, &rkisp1_awb_params_default_config);
-	rkisp1_awb_meas_enable(params, &rkisp1_awb_params_default_config,
-			       true);
+	params->ops->awb_meas_config(params, &rkisp1_awb_params_default_config);
+	params->ops->awb_meas_enable(params, &rkisp1_awb_params_default_config,
+				     true);
 
-	rkisp1_aec_config(params, &rkisp1_aec_params_default_config);
+	params->ops->aec_config(params, &rkisp1_aec_params_default_config);
 	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_EXP_CTRL,
 			      RKISP1_CIF_ISP_EXP_ENA);
 
-	rkisp1_afm_config(params, &rkisp1_afc_params_default_config);
+	params->ops->afm_config(params, &rkisp1_afc_params_default_config);
 	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_AFM_CTRL,
 			      RKISP1_CIF_ISP_AFM_ENA);
 
 	memset(hst.hist_weight, 0x01, sizeof(hst.hist_weight));
-	rkisp1_hst_config(params, &hst);
-	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_HIST_PROP,
+	params->ops->hst_config(params, &hst);
+	rkisp1_param_set_bits(params, RKISP1_CIF_ISP_HIST_PROP_V10,
 			      rkisp1_hst_params_default_config.mode);
 
 	/* set the  range */
@@ -1278,7 +1598,7 @@ void rkisp1_params_disable(struct rkisp1_params *params)
 				RKISP1_CIF_ISP_DEMOSAIC_BYPASS);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_FILT_MODE,
 				RKISP1_CIF_ISP_FLT_ENA);
-	rkisp1_awb_meas_enable(params, NULL, false);
+	params->ops->awb_meas_enable(params, NULL, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_CTRL,
 				RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_EXP_CTRL,
@@ -1286,13 +1606,37 @@ void rkisp1_params_disable(struct rkisp1_params *params)
 	rkisp1_ctk_enable(params, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_C_PROC_CTRL,
 				RKISP1_CIF_C_PROC_CTR_ENABLE);
-	rkisp1_hst_enable(params, NULL, false);
+	params->ops->hst_enable(params, NULL, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_AFM_CTRL,
 				RKISP1_CIF_ISP_AFM_ENA);
 	rkisp1_ie_enable(params, false);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_DPF_MODE,
 				RKISP1_CIF_ISP_DPF_MODE_EN);
 }
+
+static const struct rkisp1_params_ops rkisp1_v10_params_ops = {
+	.lsc_matrix_config = rkisp1_lsc_matrix_config_v10,
+	.goc_config = rkisp1_goc_config_v10,
+	.awb_meas_config = rkisp1_awb_meas_config_v10,
+	.awb_meas_enable = rkisp1_awb_meas_enable_v10,
+	.awb_gain_config = rkisp1_awb_gain_config_v10,
+	.aec_config = rkisp1_aec_config_v10,
+	.hst_config = rkisp1_hst_config_v10,
+	.hst_enable = rkisp1_hst_enable_v10,
+	.afm_config = rkisp1_afm_config_v10,
+};
+
+static struct rkisp1_params_ops rkisp1_v12_params_ops = {
+	.lsc_matrix_config = rkisp1_lsc_matrix_config_v12,
+	.goc_config = rkisp1_goc_config_v12,
+	.awb_meas_config = rkisp1_awb_meas_config_v12,
+	.awb_meas_enable = rkisp1_awb_meas_enable_v12,
+	.awb_gain_config = rkisp1_awb_gain_config_v12,
+	.aec_config = rkisp1_aec_config_v12,
+	.hst_config = rkisp1_hst_config_v12,
+	.hst_enable = rkisp1_hst_enable_v12,
+	.afm_config = rkisp1_afm_config_v12,
+};
 
 static int rkisp1_params_enum_fmt_meta_out(struct file *file, void *priv,
 					   struct v4l2_fmtdesc *f)
@@ -1459,6 +1803,11 @@ static void rkisp1_init_params(struct rkisp1_params *params)
 		V4L2_META_FMT_RK_ISP1_PARAMS;
 	params->vdev_fmt.fmt.meta.buffersize =
 		sizeof(struct rkisp1_params_cfg);
+
+	if (params->rkisp1->media_dev.hw_revision == RKISP1_V12)
+		params->ops = &rkisp1_v12_params_ops;
+	else
+		params->ops = &rkisp1_v10_params_ops;
 }
 
 int rkisp1_params_register(struct rkisp1_device *rkisp1)

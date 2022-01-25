@@ -122,6 +122,7 @@ static void sclp_sd_listener_remove(struct sclp_sd_listener *listener)
 
 /**
  * sclp_sd_listener_init() - Initialize a Store Data response listener
+ * @listener: Response listener to initialize
  * @id: Event ID to listen for
  *
  * Initialize a listener for asynchronous Store Data responses. This listener
@@ -193,7 +194,7 @@ static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 	struct sclp_sd_evbuf *evbuf;
 	int rc;
 
-	sclp_sd_listener_init(&listener, (u32) (addr_t) sccb);
+	sclp_sd_listener_init(&listener, __pa(sccb));
 	sclp_sd_listener_add(&listener);
 
 	/* Prepare SCCB */
@@ -403,6 +404,7 @@ static int sclp_sd_file_update(struct sclp_sd_file *sd_file)
 /**
  * sclp_sd_file_update_async() - Wrapper for asynchronous update call
  * @data: Object to update
+ * @cookie: Unused
  */
 static void sclp_sd_file_update_async(void *data, async_cookie_t cookie)
 {
@@ -414,6 +416,9 @@ static void sclp_sd_file_update_async(void *data, async_cookie_t cookie)
 /**
  * reload_store() - Store function for "reload" sysfs attribute
  * @kobj: Kobject of sclp_sd_file object
+ * @attr: Reload attribute
+ * @buf: Data written to sysfs attribute
+ * @count: Count of bytes written
  *
  * Initiate a reload of the data associated with an sclp_sd_file object.
  */
@@ -433,16 +438,19 @@ static struct attribute *sclp_sd_file_default_attrs[] = {
 	&reload_attr.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(sclp_sd_file_default);
 
 static struct kobj_type sclp_sd_file_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = sclp_sd_file_release,
-	.default_attrs = sclp_sd_file_default_attrs,
+	.default_groups = sclp_sd_file_default_groups,
 };
 
 /**
- * data_read() - Read function for "read" sysfs attribute
+ * data_read() - Read function for "data" sysfs attribute
+ * @file: Open file pointer
  * @kobj: Kobject of sclp_sd_file object
+ * @attr: Data attribute
  * @buffer: Target buffer
  * @off: Requested file offset
  * @size: Requested number of bytes

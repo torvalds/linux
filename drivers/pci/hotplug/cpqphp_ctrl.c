@@ -519,7 +519,7 @@ error:
  * @head: list to search
  * @size: size of node to find, must be a power of two.
  *
- * Description: This function sorts the resource list by size and then returns
+ * Description: This function sorts the resource list by size and then
  * returns the first node of "size" length that is not in the ISA aliasing
  * window.  If it finds a node larger than "size" it will split it up.
  */
@@ -1202,7 +1202,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 
 	mdelay(5);
 
-	/* Reenable interrupts */
+	/* Re-enable interrupts */
 	writel(0, ctrl->hpc_reg + INT_MASK);
 
 	pci_write_config_byte(ctrl->pci_dev, 0x41, reg);

@@ -328,6 +328,7 @@ struct integrated_info {
 
 		uint8_t gu_id[NUMBER_OF_UCHAR_FOR_GUID];
 		uint8_t checksum;
+		uint8_t fixdpvoltageswing;
 	} ext_disp_conn_info; /* exiting long long time */
 
 	struct available_s_clk_list {

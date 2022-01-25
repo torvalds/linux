@@ -35,6 +35,7 @@ int main(void)
 	OFFSET(__PT_ORIG_GPR2, pt_regs, orig_gpr2);
 	OFFSET(__PT_FLAGS, pt_regs, flags);
 	OFFSET(__PT_CR1, pt_regs, cr1);
+	OFFSET(__PT_LAST_BREAK, pt_regs, last_break);
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	/* stack_frame offsets */
@@ -45,6 +46,7 @@ int main(void)
 	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[2]);
 	OFFSET(__SF_SIE_REASON, stack_frame, empty1[3]);
 	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[4]);
+	DEFINE(STACK_FRAME_OVERHEAD, sizeof(struct stack_frame));
 	BLANK();
 	/* idle data offsets */
 	OFFSET(__CLOCK_IDLE_ENTER, s390_idle_data, clock_idle_enter);
@@ -77,7 +79,7 @@ int main(void)
 	OFFSET(__LC_MCCK_CODE, lowcore, mcck_interruption_code);
 	OFFSET(__LC_EXT_DAMAGE_CODE, lowcore, external_damage_code);
 	OFFSET(__LC_MCCK_FAIL_STOR_ADDR, lowcore, failing_storage_address);
-	OFFSET(__LC_LAST_BREAK, lowcore, breaking_event_addr);
+	OFFSET(__LC_PGM_LAST_BREAK, lowcore, pgm_last_break);
 	OFFSET(__LC_RETURN_LPSWE, lowcore, return_lpswe);
 	OFFSET(__LC_RETURN_MCCK_LPSWE, lowcore, return_mcck_lpswe);
 	OFFSET(__LC_RST_OLD_PSW, lowcore, restart_old_psw);
@@ -126,6 +128,7 @@ int main(void)
 	OFFSET(__LC_PREEMPT_COUNT, lowcore, preempt_count);
 	OFFSET(__LC_GMAP, lowcore, gmap);
 	OFFSET(__LC_BR_R1, lowcore, br_r1_trampoline);
+	OFFSET(__LC_LAST_BREAK, lowcore, last_break);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);
 	/* hardware defined lowcore locations 0x1000 - 0x18ff */
@@ -139,6 +142,7 @@ int main(void)
 	OFFSET(__LC_TOD_PROGREG_SAVE_AREA, lowcore, tod_progreg_save_area);
 	OFFSET(__LC_CPU_TIMER_SAVE_AREA, lowcore, cpu_timer_save_area);
 	OFFSET(__LC_CLOCK_COMP_SAVE_AREA, lowcore, clock_comp_save_area);
+	OFFSET(__LC_LAST_BREAK_SAVE_AREA, lowcore, last_break_save_area);
 	OFFSET(__LC_AREGS_SAVE_AREA, lowcore, access_regs_save_area);
 	OFFSET(__LC_CREGS_SAVE_AREA, lowcore, cregs_save_area);
 	OFFSET(__LC_PGM_TDB, lowcore, pgm_tdb);
@@ -160,5 +164,6 @@ int main(void)
 	DEFINE(OLDMEM_BASE, PARMAREA + offsetof(struct parmarea, oldmem_base));
 	DEFINE(OLDMEM_SIZE, PARMAREA + offsetof(struct parmarea, oldmem_size));
 	DEFINE(COMMAND_LINE, PARMAREA + offsetof(struct parmarea, command_line));
+	DEFINE(MAX_COMMAND_LINE_SIZE, PARMAREA + offsetof(struct parmarea, max_command_line_size));
 	return 0;
 }

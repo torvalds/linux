@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2019 Mellanox Technologies */
 
+#include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
 #include "fs_core.h"
 #include "fs_cmd.h"
@@ -194,6 +195,15 @@ static struct mlx5dr_action *create_vport_action(struct mlx5dr_domain *domain,
 					       dest_attr->vport.vhca_id);
 }
 
+static struct mlx5dr_action *create_uplink_action(struct mlx5dr_domain *domain,
+						  struct mlx5_flow_rule *dst)
+{
+	struct mlx5_flow_destination *dest_attr = &dst->dest_attr;
+
+	return mlx5dr_action_create_dest_vport(domain, MLX5_VPORT_UPLINK, 1,
+					       dest_attr->vport.vhca_id);
+}
+
 static struct mlx5dr_action *create_ft_action(struct mlx5dr_domain *domain,
 					      struct mlx5_flow_rule *dst)
 {
@@ -218,11 +228,12 @@ static struct mlx5dr_action *create_action_push_vlan(struct mlx5dr_domain *domai
 
 static bool contain_vport_reformat_action(struct mlx5_flow_rule *dst)
 {
-	return dst->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
+	return (dst->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_VPORT ||
+		dst->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_UPLINK) &&
 		dst->dest_attr.vport.flags & MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
 }
 
-#define MLX5_FLOW_CONTEXT_ACTION_MAX  20
+#define MLX5_FLOW_CONTEXT_ACTION_MAX  32
 static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				  struct mlx5_flow_table *ft,
 				  struct mlx5_flow_group *group,
@@ -411,8 +422,11 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 				fs_dr_actions[fs_dr_num_actions++] = tmp_action;
 				term_actions[num_term_actions++].dest = tmp_action;
 				break;
+			case MLX5_FLOW_DESTINATION_TYPE_UPLINK:
 			case MLX5_FLOW_DESTINATION_TYPE_VPORT:
-				tmp_action = create_vport_action(domain, dst);
+				tmp_action = type == MLX5_FLOW_DESTINATION_TYPE_VPORT ?
+					     create_vport_action(domain, dst) :
+					     create_uplink_action(domain, dst);
 				if (!tmp_action) {
 					err = -ENOMEM;
 					goto free_actions;
@@ -625,6 +639,19 @@ static void mlx5_cmd_dr_modify_header_dealloc(struct mlx5_flow_root_namespace *n
 	mlx5dr_action_destroy(modify_hdr->action.dr_action);
 }
 
+static int
+mlx5_cmd_dr_destroy_match_definer(struct mlx5_flow_root_namespace *ns,
+				  int definer_id)
+{
+	return -EOPNOTSUPP;
+}
+
+static int mlx5_cmd_dr_create_match_definer(struct mlx5_flow_root_namespace *ns,
+					    u16 format_id, u32 *match_mask)
+{
+	return -EOPNOTSUPP;
+}
+
 static int mlx5_cmd_dr_delete_fte(struct mlx5_flow_root_namespace *ns,
 				  struct mlx5_flow_table *ft,
 				  struct fs_fte *fte)
@@ -727,6 +754,8 @@ static const struct mlx5_flow_cmds mlx5_flow_cmds_dr = {
 	.packet_reformat_dealloc = mlx5_cmd_dr_packet_reformat_dealloc,
 	.modify_header_alloc = mlx5_cmd_dr_modify_header_alloc,
 	.modify_header_dealloc = mlx5_cmd_dr_modify_header_dealloc,
+	.create_match_definer = mlx5_cmd_dr_create_match_definer,
+	.destroy_match_definer = mlx5_cmd_dr_destroy_match_definer,
 	.set_peer = mlx5_cmd_dr_set_peer,
 	.create_ns = mlx5_cmd_dr_create_ns,
 	.destroy_ns = mlx5_cmd_dr_destroy_ns,

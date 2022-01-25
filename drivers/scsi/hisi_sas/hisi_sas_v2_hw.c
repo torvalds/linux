@@ -2368,18 +2368,18 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	case STAT_IO_COMPLETE:
 		/* internal abort command complete */
 		ts->stat = TMF_RESP_FUNC_SUCC;
-		del_timer(&slot->internal_abort_timer);
+		del_timer_sync(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NO_DEVICE:
 		ts->stat = TMF_RESP_FUNC_COMPLETE;
-		del_timer(&slot->internal_abort_timer);
+		del_timer_sync(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NOT_VALID:
 		/* abort single io, controller don't find
 		 * the io need to abort
 		 */
 		ts->stat = TMF_RESP_FUNC_FAILED;
-		del_timer(&slot->internal_abort_timer);
+		del_timer_sync(&slot->internal_abort_timer);
 		goto out;
 	default:
 		break;
@@ -2641,7 +2641,6 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	struct device *dev = hisi_hba->dev;
 	u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
 	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
-	unsigned long flags;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 1);
 
@@ -2696,14 +2695,9 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 			set_link_timer_quirk(hisi_hba);
 	}
 	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
-	spin_lock_irqsave(&phy->lock, flags);
-	if (phy->reset_completion) {
-		phy->in_reset = 0;
-		complete(phy->reset_completion);
-	}
-	spin_unlock_irqrestore(&phy->lock, flags);
-
 end:
+	if (phy->reset_completion)
+		complete(phy->reset_completion);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_PHY_ENABLE_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 0);
@@ -2824,7 +2818,7 @@ static void phy_bcast_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
 	bcast_status = hisi_sas_phy_read32(hisi_hba, phy_no, RX_PRIMS_STATUS);
 	if ((bcast_status & RX_BCAST_CHG_MSK) &&
-	    !test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
+	    !test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
 		sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD,
 				      GFP_ATOMIC);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
@@ -3204,7 +3198,6 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	u32 ent_tmp, ent_msk, ent_int, port_id, link_rate, hard_phy_linkrate;
 	irqreturn_t res = IRQ_HANDLED;
 	u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
-	unsigned long flags;
 	int phy_no, offset;
 
 	del_timer(&phy->timer);
@@ -3280,12 +3273,8 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	phy->identify.target_port_protocols = SAS_PROTOCOL_SATA;
 	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
 
-	spin_lock_irqsave(&phy->lock, flags);
-	if (phy->reset_completion) {
-		phy->in_reset = 0;
+	if (phy->reset_completion)
 		complete(phy->reset_completion);
-	}
-	spin_unlock_irqrestore(&phy->lock, flags);
 end:
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC1 + offset, ent_tmp);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1 + offset, ent_msk);
@@ -3542,10 +3531,12 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 
 }
 
-static struct device_attribute *host_attrs_v2_hw[] = {
-	&dev_attr_phy_event_threshold,
+static struct attribute *host_v2_hw_attrs[] = {
+	&dev_attr_phy_event_threshold.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(host_v2_hw);
 
 static int map_queues_v2_hw(struct Scsi_Host *shost)
 {
@@ -3584,13 +3575,13 @@ static struct scsi_host_template sht_v2_hw = {
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
-	.slave_alloc		= sas_slave_alloc,
+	.slave_alloc		= hisi_sas_slave_alloc,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sas_ioctl,
 #endif
-	.shost_attrs		= host_attrs_v2_hw,
+	.shost_groups		= host_v2_hw_groups,
 	.host_reset		= hisi_sas_host_reset,
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,

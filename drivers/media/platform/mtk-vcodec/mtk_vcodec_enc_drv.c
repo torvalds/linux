@@ -23,10 +23,7 @@
 #include "mtk_vcodec_util.h"
 #include "mtk_vcodec_fw.h"
 
-module_param(mtk_v4l2_dbg_level, int, S_IRUGO | S_IWUSR);
-module_param(mtk_vcodec_dbg, bool, S_IRUGO | S_IWUSR);
-
-static const struct mtk_video_fmt mtk_video_formats_output_mt8173[] = {
+static const struct mtk_video_fmt mtk_video_formats_output[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12M,
 		.type = MTK_FMT_FRAME,
@@ -49,7 +46,7 @@ static const struct mtk_video_fmt mtk_video_formats_output_mt8173[] = {
 	},
 };
 
-static const struct mtk_video_fmt mtk_video_formats_capture_mt8173_avc[] =  {
+static const struct mtk_video_fmt mtk_video_formats_capture_h264[] =  {
 	{
 		.fourcc = V4L2_PIX_FMT_H264,
 		.type = MTK_FMT_ENC,
@@ -57,17 +54,9 @@ static const struct mtk_video_fmt mtk_video_formats_capture_mt8173_avc[] =  {
 	},
 };
 
-static const struct mtk_video_fmt mtk_video_formats_capture_mt8173_vp8[] =  {
+static const struct mtk_video_fmt mtk_video_formats_capture_vp8[] =  {
 	{
 		.fourcc = V4L2_PIX_FMT_VP8,
-		.type = MTK_FMT_ENC,
-		.num_planes = 1,
-	},
-};
-
-static const struct mtk_video_fmt mtk_video_formats_capture_mt8183[] =  {
-	{
-		.fourcc = V4L2_PIX_FMT_H264,
 		.type = MTK_FMT_ENC,
 		.num_planes = 1,
 	},
@@ -131,6 +120,7 @@ static int fops_vcodec_open(struct file *file)
 	struct mtk_vcodec_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_ctx *ctx = NULL;
 	int ret = 0;
+	struct vb2_queue *src_vq;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -157,13 +147,16 @@ static int fops_vcodec_open(struct file *file)
 		goto err_ctrls_setup;
 	}
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev_enc, ctx,
-				&mtk_vcodec_enc_queue_init);
+					 &mtk_vcodec_enc_queue_init);
 	if (IS_ERR((__force void *)ctx->m2m_ctx)) {
 		ret = PTR_ERR((__force void *)ctx->m2m_ctx);
 		mtk_v4l2_err("Failed to v4l2_m2m_ctx_init() (%d)",
 				ret);
 		goto err_m2m_ctx_init;
 	}
+	src_vq = v4l2_m2m_get_vq(ctx->m2m_ctx,
+				 V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+	ctx->empty_flush_buf.vb.vb2_buf.vb2_queue = src_vq;
 	mtk_vcodec_enc_set_default_params(ctx);
 
 	if (v4l2_fh_is_singular(&ctx->fh)) {
@@ -218,11 +211,11 @@ static int fops_vcodec_release(struct file *file)
 	mtk_v4l2_debug(1, "[%d] encoder", ctx->id);
 	mutex_lock(&dev->dev_mutex);
 
+	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 	mtk_vcodec_enc_release(ctx);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	v4l2_ctrl_handler_free(&ctx->ctrl_hdl);
-	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 
 	list_del_init(&ctx->list);
 	kfree(ctx);
@@ -392,34 +385,33 @@ err_enc_pm:
 
 static const struct mtk_vcodec_enc_pdata mt8173_avc_pdata = {
 	.chip = MTK_MT8173,
-	.capture_formats = mtk_video_formats_capture_mt8173_avc,
-	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_mt8173_avc),
-	.output_formats = mtk_video_formats_output_mt8173,
-	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output_mt8173),
-	.min_bitrate = 1,
-	.max_bitrate = 4000000,
+	.capture_formats = mtk_video_formats_capture_h264,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_h264),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
+	.min_bitrate = 64,
+	.max_bitrate = 60000000,
 	.core_id = VENC_SYS,
 };
 
 static const struct mtk_vcodec_enc_pdata mt8173_vp8_pdata = {
 	.chip = MTK_MT8173,
-	.capture_formats = mtk_video_formats_capture_mt8173_vp8,
-	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_mt8173_vp8),
-	.output_formats = mtk_video_formats_output_mt8173,
-	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output_mt8173),
+	.capture_formats = mtk_video_formats_capture_vp8,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_vp8),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
 	.min_bitrate = 64,
-	.max_bitrate = 4000000,
+	.max_bitrate = 9000000,
 	.core_id = VENC_LT_SYS,
 };
 
 static const struct mtk_vcodec_enc_pdata mt8183_pdata = {
 	.chip = MTK_MT8183,
 	.uses_ext = true,
-	.capture_formats = mtk_video_formats_capture_mt8183,
-	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_mt8183),
-	/* MT8183 supports the same output formats as MT8173 */
-	.output_formats = mtk_video_formats_output_mt8173,
-	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output_mt8173),
+	.capture_formats = mtk_video_formats_capture_h264,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_h264),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
 	.min_bitrate = 64,
 	.max_bitrate = 40000000,
 	.core_id = VENC_SYS,
@@ -428,16 +420,27 @@ static const struct mtk_vcodec_enc_pdata mt8183_pdata = {
 static const struct mtk_vcodec_enc_pdata mt8192_pdata = {
 	.chip = MTK_MT8192,
 	.uses_ext = true,
-	/* MT8192 supports the same capture formats as MT8183 */
-	.capture_formats = mtk_video_formats_capture_mt8183,
-	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_mt8183),
-	/* MT8192 supports the same output formats as MT8173 */
-	.output_formats = mtk_video_formats_output_mt8173,
-	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output_mt8173),
+	.capture_formats = mtk_video_formats_capture_h264,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_h264),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
 	.min_bitrate = 64,
 	.max_bitrate = 100000000,
 	.core_id = VENC_SYS,
 };
+
+static const struct mtk_vcodec_enc_pdata mt8195_pdata = {
+	.chip = MTK_MT8195,
+	.uses_ext = true,
+	.capture_formats = mtk_video_formats_capture_h264,
+	.num_capture_formats = ARRAY_SIZE(mtk_video_formats_capture_h264),
+	.output_formats = mtk_video_formats_output,
+	.num_output_formats = ARRAY_SIZE(mtk_video_formats_output),
+	.min_bitrate = 64,
+	.max_bitrate = 100000000,
+	.core_id = VENC_SYS,
+};
+
 static const struct of_device_id mtk_vcodec_enc_match[] = {
 	{.compatible = "mediatek,mt8173-vcodec-enc",
 			.data = &mt8173_avc_pdata},
@@ -445,6 +448,7 @@ static const struct of_device_id mtk_vcodec_enc_match[] = {
 			.data = &mt8173_vp8_pdata},
 	{.compatible = "mediatek,mt8183-vcodec-enc", .data = &mt8183_pdata},
 	{.compatible = "mediatek,mt8192-vcodec-enc", .data = &mt8192_pdata},
+	{.compatible = "mediatek,mt8195-vcodec-enc", .data = &mt8195_pdata},
 	{},
 };
 MODULE_DEVICE_TABLE(of, mtk_vcodec_enc_match);
@@ -454,7 +458,6 @@ static int mtk_vcodec_enc_remove(struct platform_device *pdev)
 	struct mtk_vcodec_dev *dev = platform_get_drvdata(pdev);
 
 	mtk_v4l2_debug_enter();
-	flush_workqueue(dev->encode_workqueue);
 	destroy_workqueue(dev->encode_workqueue);
 	if (dev->m2m_dev_enc)
 		v4l2_m2m_release(dev->m2m_dev_enc);

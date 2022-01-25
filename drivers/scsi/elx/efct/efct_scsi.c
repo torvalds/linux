@@ -38,8 +38,6 @@ efct_scsi_io_alloc(struct efct_node *node)
 
 	xport = efct->xport;
 
-	spin_lock_irqsave(&node->active_ios_lock, flags);
-
 	io = efct_io_pool_io_alloc(efct->xport->io_pool);
 	if (!io) {
 		efc_log_err(efct, "IO alloc Failed\n");
@@ -65,6 +63,7 @@ efct_scsi_io_alloc(struct efct_node *node)
 
 	/* Add to node's active_ios list */
 	INIT_LIST_HEAD(&io->list_entry);
+	spin_lock_irqsave(&node->active_ios_lock, flags);
 	list_add(&io->list_entry, &node->active_ios);
 
 	spin_unlock_irqrestore(&node->active_ios_lock, flags);

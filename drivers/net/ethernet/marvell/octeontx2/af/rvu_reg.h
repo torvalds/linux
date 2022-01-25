@@ -236,6 +236,8 @@
 #define NIX_AF_RX_DEF_OIP6_DSCP		(0x02F8)
 #define NIX_AF_RX_IPSEC_GEN_CFG		(0x0300)
 #define NIX_AF_RX_CPTX_INST_ADDR	(0x0310)
+#define NIX_AF_RX_CPTX_INST_QSEL(a)	(0x0320ull | (uint64_t)(a) << 3)
+#define NIX_AF_RX_CPTX_CREDIT(a)	(0x0360ull | (uint64_t)(a) << 3)
 #define NIX_AF_NDC_TX_SYNC		(0x03F0)
 #define NIX_AF_AQ_CFG			(0x0400)
 #define NIX_AF_AQ_BASE			(0x0410)
@@ -525,6 +527,7 @@
 #define CPT_AF_CTX_WBACK_LATENCY_PC     (0x49448ull)
 #define CPT_AF_CTX_PSH_PC               (0x49450ull)
 #define CPT_AF_CTX_PSH_LATENCY_PC       (0x49458ull)
+#define CPT_AF_CTX_CAM_DATA(a)          (0x49800ull | (u64)(a) << 3)
 #define CPT_AF_RXC_TIME                 (0x50010ull)
 #define CPT_AF_RXC_TIME_CFG             (0x50018ull)
 #define CPT_AF_RXC_DFRG                 (0x50020ull)
@@ -542,6 +545,7 @@
 #define CPT_LF_CTL                      0x10
 #define CPT_LF_INPROG                   0x40
 #define CPT_LF_Q_GRP_PTR                0x120
+#define CPT_LF_CTX_FLUSH                0x510
 
 #define NPC_AF_BLK_RST                  (0x00040)
 

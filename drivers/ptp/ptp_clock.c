@@ -284,11 +284,11 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	/* Create a posix clock and link it to the device. */
 	err = posix_clock_register(&ptp->clock, &ptp->dev);
 	if (err) {
-	        if (ptp->pps_source)
-	                pps_unregister_source(ptp->pps_source);
+		if (ptp->pps_source)
+			pps_unregister_source(ptp->pps_source);
 
 		if (ptp->kworker)
-	                kthread_destroy_worker(ptp->kworker);
+			kthread_destroy_worker(ptp->kworker);
 
 		put_device(&ptp->dev);
 

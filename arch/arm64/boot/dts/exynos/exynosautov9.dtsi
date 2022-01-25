@@ -1,0 +1,325 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's ExynosAuto v9 SoC device tree source
+ *
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ *
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/soc/samsung,exynos-usi.h>
+
+/ {
+	compatible = "samsung,exynosautov9";
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&gic>;
+
+	aliases {
+		pinctrl0 = &pinctrl_alive;
+		pinctrl1 = &pinctrl_aud;
+		pinctrl2 = &pinctrl_fsys0;
+		pinctrl3 = &pinctrl_fsys1;
+		pinctrl4 = &pinctrl_fsys2;
+		pinctrl5 = &pinctrl_peric0;
+		pinctrl6 = &pinctrl_peric1;
+	};
+
+	arm-pmu {
+		compatible = "arm,cortex-a76-pmu";
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>,
+				     <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu4>;
+				};
+				core1 {
+					cpu = <&cpu5>;
+				};
+				core2 {
+					cpu = <&cpu6>;
+				};
+				core3 {
+					cpu = <&cpu7>;
+				};
+			};
+		};
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x0>;
+			enable-method = "psci";
+		};
+
+		cpu1: cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x100>;
+			enable-method = "psci";
+		};
+
+		cpu2: cpu@200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x200>;
+			enable-method = "psci";
+		};
+
+		cpu3: cpu@300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x300>;
+			enable-method = "psci";
+		};
+
+		cpu4: cpu@10000 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x10000>;
+			enable-method = "psci";
+		};
+
+		cpu5: cpu@10100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x10100>;
+			enable-method = "psci";
+		};
+
+		cpu6: cpu@10200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x10200>;
+			enable-method = "psci";
+		};
+
+		cpu7: cpu@10300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a76";
+			reg = <0x10300>;
+			enable-method = "psci";
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+		cpu_suspend = <0xc4000001>;
+		cpu_off = <0x84000002>;
+		cpu_on = <0xc4000003>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	fixed-rate-clocks {
+		xtcxo: clock {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <26000000>;
+			clock-output-names = "oscclk";
+		};
+
+		/*
+		 * Keep the stub clock for serial driver, until proper clock
+		 * driver is implemented.
+		 */
+		uart_clock: uart-clock {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <133250000>;
+			clock-output-names = "uart";
+		};
+
+		/*
+		 * Keep the stub clock for ufs driver, until proper clock
+		 * driver is implemented.
+		 */
+		ufs_core_clock: ufs-core-clock {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <166562500>;
+		};
+	};
+
+	soc: soc@0 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x0 0x20000000>;
+
+		chipid@10000000 {
+			compatible = "samsung,exynos850-chipid";
+			reg = <0x10000000 0x24>;
+		};
+
+		gic: interrupt-controller@10101000 {
+			compatible = "arm,gic-400";
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			interrupt-controller;
+			reg = <0x10101000 0x1000>,
+			      <0x10102000 0x2000>,
+			      <0x10104000 0x2000>,
+			      <0x10106000 0x2000>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) |
+						 IRQ_TYPE_LEVEL_HIGH)>;
+		};
+
+		pinctrl_alive: pinctrl@10450000 {
+			compatible = "samsung,exynosautov9-pinctrl";
+			reg = <0x10450000 0x1000>;
+
+			wakeup-interrupt-controller {
+				compatible = "samsung,exynos7-wakeup-eint";
+			};
+		};
+
+		pinctrl_aud: pinctrl@19c60000{
+			compatible = "samsung,exynosautov9-pinctrl";
+			reg = <0x19c60000 0x1000>;
+		};
+
+		pinctrl_fsys0: pinctrl@17740000 {
+			compatible = "samsung,exynosautov9-pinctrl";
+			reg = <0x17740000 0x1000>;
+			interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_fsys1: pinctrl@17060000 {
+			compatible = "samsung,exynosautov9-pinctrl";
+			reg = <0x17060000 0x1000>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_fsys2: pinctrl@17c30000 {
+			compatible = "samsung,exynosautov9-pinctrl";
+			reg = <0x17c30000 0x1000>;
+			interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_peric0: pinctrl@10230000 {
+			compatible = "samsung,exynosautov9-pinctrl";
+			reg = <0x10230000 0x1000>;
+			interrupts = <GIC_SPI 338 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pinctrl_peric1: pinctrl@10830000 {
+			compatible = "samsung,exynosautov9-pinctrl";
+			reg = <0x10830000 0x1000>;
+			interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pmu_system_controller: system-controller@10460000 {
+			compatible = "samsung,exynos7-pmu", "syscon";
+			reg = <0x10460000 0x10000>;
+		};
+
+		syscon_fsys2: syscon@17c20000 {
+			compatible = "samsung,exynosautov9-sysreg", "syscon";
+			reg = <0x17c20000 0x1000>;
+		};
+
+		syscon_peric0: syscon@10220000 {
+			compatible = "samsung,exynosautov9-sysreg", "syscon";
+			reg = <0x10220000 0x2000>;
+		};
+
+		usi_0: usi@103000c0 {
+			compatible = "samsung,exynos850-usi";
+			reg = <0x103000c0 0x20>;
+			samsung,sysreg = <&syscon_peric0 0x1000>;
+			samsung,mode = <USI_V2_UART>;
+			samsung,clkreq-on; /* needed for UART mode */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			clocks = <&uart_clock>, <&uart_clock>;
+			clock-names = "pclk", "ipclk";
+			status = "disabled";
+
+			/* USI: UART */
+			serial_0: serial@10300000 {
+				compatible = "samsung,exynos850-uart";
+				reg = <0x10300000 0xc0>;
+				interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart0_bus_dual>;
+				clocks = <&uart_clock>, <&uart_clock>;
+				clock-names = "uart", "clk_uart_baud0";
+				status = "disabled";
+			};
+		};
+
+		ufs_0_phy: ufs0-phy@17e04000 {
+			compatible = "samsung,exynosautov9-ufs-phy";
+			reg = <0x17e04000 0xc00>;
+			reg-names = "phy-pma";
+			samsung,pmu-syscon = <&pmu_system_controller>;
+			#phy-cells = <0>;
+			clocks = <&xtcxo>;
+			clock-names = "ref_clk";
+			status = "disabled";
+		};
+
+		ufs_0: ufs0@17e00000 {
+			compatible ="samsung,exynosautov9-ufs";
+
+			reg = <0x17e00000 0x100>,  /* 0: HCI standard */
+				<0x17e01100 0x410>,  /* 1: Vendor-specific */
+				<0x17e80000 0x8000>,  /* 2: UNIPRO */
+				<0x17dc0000 0x2200>;  /* 3: UFS protector */
+			reg-names = "hci", "vs_hci", "unipro", "ufsp";
+			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ufs_core_clock>,
+				<&ufs_core_clock>;
+			clock-names = "core_clk", "sclk_unipro_main";
+			freq-table-hz = <0 0>, <0 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&ufs_rst_n &ufs_refclk_out>;
+			phys = <&ufs_0_phy>;
+			phy-names = "ufs-phy";
+			samsung,sysreg = <&syscon_fsys2 0x710>;
+			status = "disabled";
+		};
+	};
+};
+
+#include "exynosautov9-pinctrl.dtsi"

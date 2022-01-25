@@ -44,7 +44,7 @@ Properties
   of prior implementations. DO add new compatibles in case there are new
   features or bugs.
 
-- DO use a vendor prefix on device specific property names. Consider if
+- DO use a vendor prefix on device-specific property names. Consider if
   properties could be common among devices of the same class. Check other
   existing bindings for similar devices.
 

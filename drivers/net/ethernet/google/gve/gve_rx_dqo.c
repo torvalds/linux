@@ -240,8 +240,8 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 	rx->dqo.bufq.mask = buffer_queue_slots - 1;
 	rx->dqo.complq.num_free_slots = completion_queue_slots;
 	rx->dqo.complq.mask = completion_queue_slots - 1;
-	rx->skb_head = NULL;
-	rx->skb_tail = NULL;
+	rx->ctx.skb_head = NULL;
+	rx->ctx.skb_tail = NULL;
 
 	rx->dqo.num_buf_states = min_t(s16, S16_MAX, buffer_queue_slots * 4);
 	rx->dqo.buf_states = kvcalloc(rx->dqo.num_buf_states,
@@ -467,12 +467,12 @@ static void gve_rx_skb_hash(struct sk_buff *skb,
 
 static void gve_rx_free_skb(struct gve_rx_ring *rx)
 {
-	if (!rx->skb_head)
+	if (!rx->ctx.skb_head)
 		return;
 
-	dev_kfree_skb_any(rx->skb_head);
-	rx->skb_head = NULL;
-	rx->skb_tail = NULL;
+	dev_kfree_skb_any(rx->ctx.skb_head);
+	rx->ctx.skb_head = NULL;
+	rx->ctx.skb_tail = NULL;
 }
 
 /* Chains multi skbs for single rx packet.
@@ -483,7 +483,7 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 			       u16 buf_len, struct gve_rx_ring *rx,
 			       struct gve_priv *priv)
 {
-	int num_frags = skb_shinfo(rx->skb_tail)->nr_frags;
+	int num_frags = skb_shinfo(rx->ctx.skb_tail)->nr_frags;
 
 	if (unlikely(num_frags == MAX_SKB_FRAGS)) {
 		struct sk_buff *skb;
@@ -492,17 +492,17 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 		if (!skb)
 			return -1;
 
-		skb_shinfo(rx->skb_tail)->frag_list = skb;
-		rx->skb_tail = skb;
+		skb_shinfo(rx->ctx.skb_tail)->frag_list = skb;
+		rx->ctx.skb_tail = skb;
 		num_frags = 0;
 	}
-	if (rx->skb_tail != rx->skb_head) {
-		rx->skb_head->len += buf_len;
-		rx->skb_head->data_len += buf_len;
-		rx->skb_head->truesize += priv->data_buffer_size_dqo;
+	if (rx->ctx.skb_tail != rx->ctx.skb_head) {
+		rx->ctx.skb_head->len += buf_len;
+		rx->ctx.skb_head->data_len += buf_len;
+		rx->ctx.skb_head->truesize += priv->data_buffer_size_dqo;
 	}
 
-	skb_add_rx_frag(rx->skb_tail, num_frags,
+	skb_add_rx_frag(rx->ctx.skb_tail, num_frags,
 			buf_state->page_info.page,
 			buf_state->page_info.page_offset,
 			buf_len, priv->data_buffer_size_dqo);
@@ -556,7 +556,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 				      buf_len, DMA_FROM_DEVICE);
 
 	/* Append to current skb if one exists. */
-	if (rx->skb_head) {
+	if (rx->ctx.skb_head) {
 		if (unlikely(gve_rx_append_frags(napi, buf_state, buf_len, rx,
 						 priv)) != 0) {
 			goto error;
@@ -567,11 +567,11 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	}
 
 	if (eop && buf_len <= priv->rx_copybreak) {
-		rx->skb_head = gve_rx_copy(priv->dev, napi,
-					   &buf_state->page_info, buf_len, 0);
-		if (unlikely(!rx->skb_head))
+		rx->ctx.skb_head = gve_rx_copy(priv->dev, napi,
+					       &buf_state->page_info, buf_len, 0, NULL);
+		if (unlikely(!rx->ctx.skb_head))
 			goto error;
-		rx->skb_tail = rx->skb_head;
+		rx->ctx.skb_tail = rx->ctx.skb_head;
 
 		u64_stats_update_begin(&rx->statss);
 		rx->rx_copied_pkt++;
@@ -583,12 +583,12 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 		return 0;
 	}
 
-	rx->skb_head = napi_get_frags(napi);
-	if (unlikely(!rx->skb_head))
+	rx->ctx.skb_head = napi_get_frags(napi);
+	if (unlikely(!rx->ctx.skb_head))
 		goto error;
-	rx->skb_tail = rx->skb_head;
+	rx->ctx.skb_tail = rx->ctx.skb_head;
 
-	skb_add_rx_frag(rx->skb_head, 0, buf_state->page_info.page,
+	skb_add_rx_frag(rx->ctx.skb_head, 0, buf_state->page_info.page,
 			buf_state->page_info.page_offset, buf_len,
 			priv->data_buffer_size_dqo);
 	gve_dec_pagecnt_bias(&buf_state->page_info);
@@ -635,27 +635,27 @@ static int gve_rx_complete_skb(struct gve_rx_ring *rx, struct napi_struct *napi,
 		rx->gve->ptype_lut_dqo->ptypes[desc->packet_type];
 	int err;
 
-	skb_record_rx_queue(rx->skb_head, rx->q_num);
+	skb_record_rx_queue(rx->ctx.skb_head, rx->q_num);
 
 	if (feat & NETIF_F_RXHASH)
-		gve_rx_skb_hash(rx->skb_head, desc, ptype);
+		gve_rx_skb_hash(rx->ctx.skb_head, desc, ptype);
 
 	if (feat & NETIF_F_RXCSUM)
-		gve_rx_skb_csum(rx->skb_head, desc, ptype);
+		gve_rx_skb_csum(rx->ctx.skb_head, desc, ptype);
 
 	/* RSC packets must set gso_size otherwise the TCP stack will complain
 	 * that packets are larger than MTU.
 	 */
 	if (desc->rsc) {
-		err = gve_rx_complete_rsc(rx->skb_head, desc, ptype);
+		err = gve_rx_complete_rsc(rx->ctx.skb_head, desc, ptype);
 		if (err < 0)
 			return err;
 	}
 
-	if (skb_headlen(rx->skb_head) == 0)
+	if (skb_headlen(rx->ctx.skb_head) == 0)
 		napi_gro_frags(napi);
 	else
-		napi_gro_receive(napi, rx->skb_head);
+		napi_gro_receive(napi, rx->ctx.skb_head);
 
 	return 0;
 }
@@ -717,18 +717,18 @@ int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 		/* Free running counter of completed descriptors */
 		rx->cnt++;
 
-		if (!rx->skb_head)
+		if (!rx->ctx.skb_head)
 			continue;
 
 		if (!compl_desc->end_of_packet)
 			continue;
 
 		work_done++;
-		pkt_bytes = rx->skb_head->len;
+		pkt_bytes = rx->ctx.skb_head->len;
 		/* The ethernet header (first ETH_HLEN bytes) is snipped off
 		 * by eth_type_trans.
 		 */
-		if (skb_headlen(rx->skb_head))
+		if (skb_headlen(rx->ctx.skb_head))
 			pkt_bytes += ETH_HLEN;
 
 		/* gve_rx_complete_skb() will consume skb if successful */
@@ -741,8 +741,8 @@ int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 		}
 
 		bytes += pkt_bytes;
-		rx->skb_head = NULL;
-		rx->skb_tail = NULL;
+		rx->ctx.skb_head = NULL;
+		rx->ctx.skb_tail = NULL;
 	}
 
 	gve_rx_post_buffers_dqo(rx);

@@ -364,9 +364,9 @@ int nand_ecc_sw_hamming_calculate(struct nand_device *nand,
 {
 	struct nand_ecc_sw_hamming_conf *engine_conf = nand->ecc.ctx.priv;
 	unsigned int step_size = nand->ecc.ctx.conf.step_size;
+	bool sm_order = engine_conf ? engine_conf->sm_order : false;
 
-	return ecc_sw_hamming_calculate(buf, step_size, code,
-					engine_conf->sm_order);
+	return ecc_sw_hamming_calculate(buf, step_size, code, sm_order);
 }
 EXPORT_SYMBOL(nand_ecc_sw_hamming_calculate);
 
@@ -457,9 +457,10 @@ int nand_ecc_sw_hamming_correct(struct nand_device *nand, unsigned char *buf,
 {
 	struct nand_ecc_sw_hamming_conf *engine_conf = nand->ecc.ctx.priv;
 	unsigned int step_size = nand->ecc.ctx.conf.step_size;
+	bool sm_order = engine_conf ? engine_conf->sm_order : false;
 
 	return ecc_sw_hamming_correct(buf, read_ecc, calc_ecc, step_size,
-				      engine_conf->sm_order);
+				      sm_order);
 }
 EXPORT_SYMBOL(nand_ecc_sw_hamming_correct);
 

@@ -10,7 +10,7 @@ obj-y	     	:= cache.o pacache.o setup.o pdt.o traps.o time.o irq.o \
 		   ptrace.o hardware.o inventory.o drivers.o alternative.o \
 		   signal.o hpmc.o real2.o parisc_ksyms.o unaligned.o \
 		   process.o processor.o pdc_cons.o pdc_chassis.o unwind.o \
-		   patch.o
+		   patch.o toc.o toc_asm.o
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not profile debug and lowlevel utilities

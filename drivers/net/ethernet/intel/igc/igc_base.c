@@ -40,7 +40,7 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 	ctrl = rd32(IGC_CTRL);
 
 	hw_dbg("Issuing a global reset to MAC\n");
-	wr32(IGC_CTRL, ctrl | IGC_CTRL_DEV_RST);
+	wr32(IGC_CTRL, ctrl | IGC_CTRL_RST);
 
 	ret_val = igc_get_auto_rd_done(hw);
 	if (ret_val) {
@@ -158,11 +158,6 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 	struct igc_phy_info *phy = &hw->phy;
 	s32 ret_val = 0;
 
-	if (hw->phy.media_type != igc_media_type_copper) {
-		phy->type = igc_phy_none;
-		goto out;
-	}
-
 	phy->autoneg_mask	= AUTONEG_ADVERTISE_SPEED_DEFAULT_2500;
 	phy->reset_delay_us	= 100;
 
@@ -207,6 +202,7 @@ static s32 igc_get_invariants_base(struct igc_hw *hw)
 	case IGC_DEV_ID_I225_K2:
 	case IGC_DEV_ID_I226_K:
 	case IGC_DEV_ID_I225_LMVP:
+	case IGC_DEV_ID_I226_LMVP:
 	case IGC_DEV_ID_I225_IT:
 	case IGC_DEV_ID_I226_LM:
 	case IGC_DEV_ID_I226_V:

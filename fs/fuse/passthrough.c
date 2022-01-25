@@ -2,6 +2,7 @@
 
 #include "fuse_i.h"
 
+#include <linux/file.h>
 #include <linux/fuse.h>
 #include <linux/idr.h>
 #include <linux/uio.h>
@@ -61,14 +62,14 @@ static void fuse_aio_cleanup_handler(struct fuse_aio_req *aio_req)
 	kfree(aio_req);
 }
 
-static void fuse_aio_rw_complete(struct kiocb *iocb, long res, long res2)
+static void fuse_aio_rw_complete(struct kiocb *iocb, long res)
 {
 	struct fuse_aio_req *aio_req =
 		container_of(iocb, struct fuse_aio_req, iocb);
 	struct kiocb *iocb_fuse = aio_req->iocb_fuse;
 
 	fuse_aio_cleanup_handler(aio_req);
-	iocb_fuse->ki_complete(iocb_fuse, res, res2);
+	iocb_fuse->ki_complete(iocb_fuse, res);
 }
 
 ssize_t fuse_passthrough_read_iter(struct kiocb *iocb_fuse,

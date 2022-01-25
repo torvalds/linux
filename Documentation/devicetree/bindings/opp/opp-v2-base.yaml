@@ -33,7 +33,7 @@ properties:
     type: boolean
 
 patternProperties:
-  '^opp-?[0-9]+$':
+  '^opp(-?[0-9]+)*$':
     type: object
     description:
       One or more OPP nodes describing voltage-current-frequency combinations.

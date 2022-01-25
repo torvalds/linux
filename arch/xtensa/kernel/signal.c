@@ -45,12 +45,13 @@ struct rt_sigframe
 	unsigned int window[4];
 };
 
-/* 
+#if defined(USER_SUPPORT_WINDOWED)
+/*
  * Flush register windows stored in pt_regs to stack.
  * Returns 1 for errors.
  */
 
-int
+static int
 flush_window_regs_user(struct pt_regs *regs)
 {
 	const unsigned long ws = regs->windowstart;
@@ -121,6 +122,13 @@ flush_window_regs_user(struct pt_regs *regs)
 errout:
 	return err;
 }
+#else
+static int
+flush_window_regs_user(struct pt_regs *regs)
+{
+	return 0;
+}
+#endif
 
 /*
  * Note: We don't copy double exception 'regs', we have to finish double exc. 

@@ -29,3 +29,17 @@ struct load_info {
 };
 
 extern int mod_verify_sig(const void *mod, struct load_info *info);
+
+#ifdef CONFIG_MODULE_SIG_PROTECT
+extern bool gki_is_module_exported_symbol(const char *name);
+extern bool gki_is_module_protected_symbol(const char *name);
+#else
+static inline bool gki_is_module_exported_symbol(const char *name)
+{
+	return 0;
+}
+static inline bool gki_is_module_protected_symbol(const char *name)
+{
+	return 0;
+}
+#endif /* CONFIG_MODULE_SIG_PROTECT */

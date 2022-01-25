@@ -22,6 +22,7 @@
 #include "fw/api/commands.h"
 #include "fw/api/cmdhdr.h"
 #include "fw/img.h"
+#include "mei/iwl-mei.h"
 
 /* NVM offsets (in words) definitions */
 enum nvm_offsets {
@@ -534,6 +535,17 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 		cpu_to_le16(IEEE80211_VHT_EXT_NSS_BW_CAPABLE);
 }
 
+static const u8 iwl_vendor_caps[] = {
+	0xdd,			/* vendor element */
+	0x06,			/* length */
+	0x00, 0x17, 0x35,	/* Intel OUI */
+	0x08,			/* type (Intel Capabilities) */
+	/* followed by 16 bits of capabilities */
+#define IWL_VENDOR_CAP_IMPROVED_BF_FDBK_HE	BIT(0)
+	IWL_VENDOR_CAP_IMPROVED_BF_FDBK_HE,
+	0x00
+};
+
 static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 	{
 		.types_mask = BIT(NL80211_IFTYPE_STATION),
@@ -596,7 +608,8 @@ static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 				.phy_cap_info[9] =
 					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
 					IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB |
-					IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_RESERVED,
+					(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED <<
+					IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_POS),
 				.phy_cap_info[10] =
 					IEEE80211_HE_PHY_CAP10_HE_MU_M1RU_MAX_LTF,
 			},
@@ -653,7 +666,8 @@ static const struct ieee80211_sband_iftype_data iwl_he_capa[] = {
 					IEEE80211_HE_PHY_CAP8_HE_ER_SU_PPDU_4XLTF_AND_08_US_GI |
 					IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_242,
 				.phy_cap_info[9] =
-					IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_RESERVED,
+					IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED
+					<< IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_POS,
 			},
 			/*
 			 * Set default Tx/Rx HE MCS NSS Support field.
@@ -781,6 +795,12 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	if (fw_has_capa(&fw->ucode_capa, IWL_UCODE_TLV_CAPA_BROADCAST_TWT))
 		iftype_data->he_cap.he_cap_elem.mac_cap_info[2] |=
 			IEEE80211_HE_MAC_CAP2_BCAST_TWT;
+
+	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_22000 &&
+	    !is_ap) {
+		iftype_data->vendor_elems.data = iwl_vendor_caps;
+		iftype_data->vendor_elems.len = ARRAY_SIZE(iwl_vendor_caps);
+	}
 }
 
 static void iwl_init_he_hw_capab(struct iwl_trans *trans,
@@ -1096,6 +1116,66 @@ iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	return false;
 }
+
+struct iwl_nvm_data *
+iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+		       const struct iwl_mei_nvm *mei_nvm,
+		       const struct iwl_fw *fw)
+{
+	struct iwl_nvm_data *data;
+	u32 sbands_flags = 0;
+	u8 rx_chains = fw->valid_rx_ant;
+	u8 tx_chains = fw->valid_rx_ant;
+
+	if (cfg->uhb_supported)
+		data = kzalloc(struct_size(data, channels,
+					   IWL_NVM_NUM_CHANNELS_UHB),
+					   GFP_KERNEL);
+	else
+		data = kzalloc(struct_size(data, channels,
+					   IWL_NVM_NUM_CHANNELS_EXT),
+					   GFP_KERNEL);
+	if (!data)
+		return NULL;
+
+	BUILD_BUG_ON(ARRAY_SIZE(mei_nvm->channels) !=
+		     IWL_NVM_NUM_CHANNELS_UHB);
+	data->nvm_version = mei_nvm->nvm_version;
+
+	iwl_set_radio_cfg(cfg, data, mei_nvm->radio_cfg);
+	if (data->valid_tx_ant)
+		tx_chains &= data->valid_tx_ant;
+	if (data->valid_rx_ant)
+		rx_chains &= data->valid_rx_ant;
+
+	data->sku_cap_mimo_disabled = false;
+	data->sku_cap_band_24ghz_enable = true;
+	data->sku_cap_band_52ghz_enable = true;
+	data->sku_cap_11n_enable =
+		!(iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL);
+	data->sku_cap_11ac_enable = true;
+	data->sku_cap_11ax_enable =
+		mei_nvm->caps & MEI_NVM_CAPS_11AX_SUPPORT;
+
+	data->lar_enabled = mei_nvm->caps & MEI_NVM_CAPS_LARI_SUPPORT;
+
+	data->n_hw_addrs = mei_nvm->n_hw_addrs;
+	/* If no valid mac address was found - bail out */
+	if (iwl_set_hw_address(trans, cfg, data, NULL, NULL)) {
+		kfree(data);
+		return NULL;
+	}
+
+	if (data->lar_enabled &&
+	    fw_has_capa(&fw->ucode_capa, IWL_UCODE_TLV_CAPA_LAR_SUPPORT))
+		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
+
+	iwl_init_sbands(trans, data, mei_nvm->channels, tx_chains, rx_chains,
+			sbands_flags, true, fw);
+
+	return data;
+}
+IWL_EXPORT_SYMBOL(iwl_parse_mei_nvm_data);
 
 struct iwl_nvm_data *
 iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
@@ -1531,7 +1611,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 
 		/* nvm file validation, dword_buff[2] holds the file version */
 		if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-		    CSR_HW_REV_STEP(trans->hw_rev) == SILICON_C_STEP &&
+		    trans->hw_rev_step == SILICON_C_STEP &&
 		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
 			ret = -EFAULT;
 			goto out;

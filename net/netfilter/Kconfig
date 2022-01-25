@@ -10,6 +10,17 @@ config NETFILTER_INGRESS
 	  This allows you to classify packets from ingress using the Netfilter
 	  infrastructure.
 
+config NETFILTER_EGRESS
+	bool "Netfilter egress support"
+	default y
+	select NET_EGRESS
+	help
+	  This allows you to classify packets before transmission using the
+	  Netfilter infrastructure.
+
+config NETFILTER_SKIP_EGRESS
+	def_bool NETFILTER_EGRESS && (NET_CLS_ACT || IFB)
+
 config NETFILTER_NETLINK
 	tristate
 
@@ -503,12 +514,6 @@ config NFT_FLOW_OFFLOAD
 	help
 	  This option adds the "flow_offload" expression that you can use to
 	  choose what flows are placed into the hardware.
-
-config NFT_COUNTER
-	tristate "Netfilter nf_tables counter module"
-	help
-	  This option adds the "counter" expression that you can use to
-	  include packet and byte counters in a rule.
 
 config NFT_CONNLIMIT
 	tristate "Netfilter nf_tables connlimit module"

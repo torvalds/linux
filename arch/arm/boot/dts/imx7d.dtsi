@@ -164,7 +164,7 @@
 	};
 
 	pcie: pcie@33800000 {
-		compatible = "fsl,imx7d-pcie", "snps,dw-pcie";
+		compatible = "fsl,imx7d-pcie";
 		reg = <0x33800000 0x4000>,
 		      <0x4ff00000 0x80000>;
 		reg-names = "dbi", "config";
@@ -172,10 +172,9 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		bus-range = <0x00 0xff>;
-		ranges = <0x81000000 0 0          0x4ff80000 0 0x00010000   /* downstream I/O */
-			  0x82000000 0 0x40000000 0x40000000 0 0x0ff00000>; /* non-prefetchable memory */
+		ranges = <0x81000000 0 0          0x4ff80000 0 0x00010000>, /* downstream I/O */
+			 <0x82000000 0 0x40000000 0x40000000 0 0x0ff00000>; /* non-prefetchable memory */
 		num-lanes = <1>;
-		num-viewport = <4>;
 		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "msi";
 		#interrupt-cells = <1>;

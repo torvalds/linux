@@ -500,6 +500,8 @@ static int am35x_probe(struct platform_device *pdev)
 	pinfo.num_res = pdev->num_resources;
 	pinfo.data = pdata;
 	pinfo.size_data = sizeof(*pdata);
+	pinfo.fwnode = of_fwnode_handle(pdev->dev.of_node);
+	pinfo.of_node_reused = true;
 
 	glue->musb = musb = platform_device_register_full(&pinfo);
 	if (IS_ERR(musb)) {

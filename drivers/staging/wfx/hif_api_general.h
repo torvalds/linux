@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * WFx hardware interface definitions
+ * WF200 hardware interface definitions
  *
  * Copyright (c) 2018-2020, Silicon Laboratories Inc.
  */
@@ -113,16 +113,11 @@ enum hif_api_rate_index {
 	API_RATE_NUM_ENTRIES       = 22
 };
 
-enum hif_fw_type {
-	HIF_FW_TYPE_ETF  = 0x0,
-	HIF_FW_TYPE_WFM  = 0x1,
-	HIF_FW_TYPE_WSM  = 0x2
-};
-
 struct hif_ind_startup {
-	// As the others, this struct is interpreted as little endian by the
-	// device. However, this struct is also used by the driver. We prefer to
-	// declare it in native order and doing byte swap on reception.
+	/* As the others, this struct is interpreted as little endian by the
+	 * device. However, this struct is also used by the driver. We prefer to
+	 * declare it in native order and doing byte swap on reception.
+	 */
 	__le32 status;
 	u16    hardware_id;
 	u8     opn[14];
@@ -199,9 +194,9 @@ struct hif_rx_stats {
 	__le32 throughput;
 	__le32 nb_rx_by_rate[API_RATE_NUM_ENTRIES];
 	__le16 per[API_RATE_NUM_ENTRIES];
-	__le16 snr[API_RATE_NUM_ENTRIES];  // signed value
-	__le16 rssi[API_RATE_NUM_ENTRIES]; // signed value
-	__le16 cfo[API_RATE_NUM_ENTRIES];  // signed value
+	__le16 snr[API_RATE_NUM_ENTRIES];  /* signed value */
+	__le16 rssi[API_RATE_NUM_ENTRIES]; /* signed value */
+	__le16 cfo[API_RATE_NUM_ENTRIES];  /* signed value */
 	__le32 date;
 	__le32 pwr_clk_freq;
 	u8     is_ext_pwr_clk;
@@ -211,8 +206,8 @@ struct hif_rx_stats {
 struct hif_tx_power_loop_info {
 	__le16 tx_gain_dig;
 	__le16 tx_gain_pa;
-	__le16 target_pout; // signed value
-	__le16 p_estimation; // signed value
+	__le16 target_pout; /* signed value */
+	__le16 p_estimation; /* signed value */
 	__le16 vpdet;
 	u8     measurement_index;
 	u8     reserved;

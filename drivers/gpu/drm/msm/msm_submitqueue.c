@@ -101,6 +101,7 @@ get_sched_entity(struct msm_file_private *ctx, struct msm_ringbuffer *ring,
 
 		ret = drm_sched_entity_init(entity, sched_prio, &sched, 1, NULL);
 		if (ret) {
+			mutex_unlock(&entity_lock);
 			kfree(entity);
 			return ERR_PTR(ret);
 		}

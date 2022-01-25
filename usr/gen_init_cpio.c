@@ -188,7 +188,7 @@ struct generic_type {
 	mode_t mode;
 };
 
-static struct generic_type generic_type_table[] = {
+static const struct generic_type generic_type_table[] = {
 	[GT_DIR] = {
 		.type = "dir",
 		.mode = S_IFDIR
@@ -318,6 +318,12 @@ static int cpio_mkfile(const char *name, const char *location,
 	if (retval) {
 		fprintf(stderr, "File %s could not be stat()'ed\n", location);
 		goto error;
+	}
+
+	if (buf.st_mtime > 0xffffffff) {
+		fprintf(stderr, "%s: Timestamp exceeds maximum cpio timestamp, clipping.\n",
+			location);
+		buf.st_mtime = 0xffffffff;
 	}
 
 	filebuf = malloc(buf.st_size);
@@ -491,7 +497,7 @@ static void usage(const char *prog)
 		prog);
 }
 
-struct file_handler file_handler_table[] = {
+static const struct file_handler file_handler_table[] = {
 	{
 		.type    = "file",
 		.handler = cpio_mkfile_line,
@@ -549,6 +555,16 @@ int main (int argc, char *argv[])
 			usage(argv[0]);
 			exit(opt == 'h' ? 0 : 1);
 		}
+	}
+
+	/*
+	 * Timestamps after 2106-02-07 06:28:15 UTC have an ascii hex time_t
+	 * representation that exceeds 8 chars and breaks the cpio header
+	 * specification.
+	 */
+	if (default_mtime > 0xffffffff) {
+		fprintf(stderr, "ERROR: Timestamp too large for cpio format\n");
+		exit(1);
 	}
 
 	if (argc - optind != 1) {

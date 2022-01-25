@@ -1307,14 +1307,12 @@ static struct regmap_config sun8i_r40_ccu_regmap_config = {
 
 static int sun8i_r40_ccu_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct regmap *regmap;
 	void __iomem *reg;
 	u32 val;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(&pdev->dev, res);
+	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
@@ -1346,7 +1344,7 @@ static int sun8i_r40_ccu_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ret = sunxi_ccu_probe(pdev->dev.of_node, reg, &sun8i_r40_ccu_desc);
+	ret = devm_sunxi_ccu_probe(&pdev->dev, reg, &sun8i_r40_ccu_desc);
 	if (ret)
 		return ret;
 
@@ -1369,6 +1367,7 @@ static struct platform_driver sun8i_r40_ccu_driver = {
 	.probe	= sun8i_r40_ccu_probe,
 	.driver	= {
 		.name	= "sun8i-r40-ccu",
+		.suppress_bind_attrs = true,
 		.of_match_table	= sun8i_r40_ccu_ids,
 	},
 };

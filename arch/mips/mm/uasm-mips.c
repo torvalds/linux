@@ -90,7 +90,7 @@ static const struct insn insn_table[insn_invalid] = {
 				RS | RT | RD},
 	[insn_dmtc0]	= {M(cop0_op, dmtc_op, 0, 0, 0, 0), RT | RD | SET},
 	[insn_dmultu]	= {M(spec_op, 0, 0, 0, 0, dmultu_op), RS | RT},
-	[insn_dmulu]	= {M(spec_op, 0, 0, 0, dmult_dmul_op, dmultu_op),
+	[insn_dmulu]	= {M(spec_op, 0, 0, 0, dmultu_dmulu_op, dmultu_op),
 				RS | RT | RD},
 	[insn_drotr]	= {M(spec_op, 1, 0, 0, 0, dsrl_op), RT | RD | RE},
 	[insn_drotr32]	= {M(spec_op, 1, 0, 0, 0, dsrl32_op), RT | RD | RE},
@@ -149,6 +149,8 @@ static const struct insn insn_table[insn_invalid] = {
 	[insn_mthi]	= {M(spec_op, 0, 0, 0, 0, mthi_op), RS},
 	[insn_mtlo]	= {M(spec_op, 0, 0, 0, 0, mtlo_op), RS},
 	[insn_mulu]	= {M(spec_op, 0, 0, 0, multu_mulu_op, multu_op),
+				RS | RT | RD},
+	[insn_muhu]	= {M(spec_op, 0, 0, 0, multu_muhu_op, multu_op),
 				RS | RT | RD},
 #ifndef CONFIG_CPU_MIPSR6
 	[insn_mul]	= {M(spec2_op, 0, 0, 0, 0, mul_op), RS | RT | RD},

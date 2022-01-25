@@ -79,7 +79,6 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 	struct oxnas_nand_ctrl *oxnas;
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
-	struct resource *res;
 	int count = 0;
 	int err = 0;
 	int i;
@@ -92,8 +91,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 
 	nand_controller_init(&oxnas->base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	oxnas->io_base = devm_ioremap_resource(&pdev->dev, res);
+	oxnas->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(oxnas->io_base))
 		return PTR_ERR(oxnas->io_base);
 

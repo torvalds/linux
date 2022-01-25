@@ -631,9 +631,9 @@ static void batadv_tp_recv_ack(struct batadv_priv *bat_priv,
 	struct batadv_orig_node *orig_node = NULL;
 	const struct batadv_icmp_tp_packet *icmp;
 	struct batadv_tp_vars *tp_vars;
+	const unsigned char *dev_addr;
 	size_t packet_len, mss;
 	u32 rtt, recv_ack, cwnd;
-	unsigned char *dev_addr;
 
 	packet_len = BATADV_TP_PLEN;
 	mss = BATADV_TP_PLEN;
@@ -890,7 +890,7 @@ out:
 
 	batadv_tp_vars_put(tp_vars);
 
-	do_exit(0);
+	return 0;
 }
 
 /**

@@ -21,7 +21,7 @@ Harding <me@tobin.cc>。
 
 原始邮件线程::
 
-	http://lkml.kernel.org/r/20171114110500.GA21175@kroah.com
+	https://lore.kernel.org/r/20171114110500.GA21175@kroah.com
 
 
 创建分支

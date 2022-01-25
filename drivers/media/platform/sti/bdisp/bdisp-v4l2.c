@@ -1315,8 +1315,7 @@ static int bdisp_probe(struct platform_device *pdev)
 	mutex_init(&bdisp->lock);
 
 	/* get resources */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	bdisp->regs = devm_ioremap_resource(dev, res);
+	bdisp->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bdisp->regs)) {
 		ret = PTR_ERR(bdisp->regs);
 		goto err_wq;
@@ -1395,6 +1394,7 @@ err_filter:
 err_pm:
 	pm_runtime_put(dev);
 err_remove:
+	pm_runtime_disable(dev);
 	bdisp_debugfs_remove(bdisp);
 	v4l2_device_unregister(&bdisp->v4l2_dev);
 err_clk:

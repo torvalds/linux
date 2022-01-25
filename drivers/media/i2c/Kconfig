@@ -450,6 +450,7 @@ config VIDEO_TW9906
 config VIDEO_TW9910
 	tristate "Techwell TW9910 video decoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_ASYNC
 	help
 	  Support for Techwell TW9910 NTSC/PAL/SECAM video decoder.
 
@@ -468,6 +469,7 @@ config VIDEO_VPX3220
 config VIDEO_MAX9286
 	tristate "Maxim MAX9286 GMSL deserializer support"
 	depends on I2C && I2C_MUX
+	depends on VIDEO_V4L2
 	depends on OF_GPIO
 	select V4L2_FWNODE
 	select VIDEO_V4L2_SUBDEV_API
@@ -597,6 +599,7 @@ config VIDEO_AK881X
 config VIDEO_THS8200
 	tristate "Texas Instruments THS8200 video encoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_ASYNC
 	help
 	  Support for the Texas Instruments THS8200 video encoder.
 
@@ -610,6 +613,7 @@ menu "Video improvement chips"
 config VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_ASYNC
 	help
 	  Support for the NEC Electronics uPD64031A Ghost Reduction
 	  video chip. It is most often found in NTSC TV cards made for
@@ -741,6 +745,19 @@ config VIDEO_HI556
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hi556.
+
+config VIDEO_HI846
+	tristate "Hynix Hi-846 sensor support"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Hynix
+	  Hi-846 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hi846.
 
 config VIDEO_IMX208
 	tristate "Sony IMX208 sensor support"
@@ -1042,6 +1059,17 @@ config VIDEO_OV5675
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5675.
 
+config VIDEO_OV5693
+	tristate "OmniVision OV5693 sensor support"
+	depends on I2C && VIDEO_V4L2
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV5693 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov5693.
+
 config VIDEO_OV5695
 	tristate "OmniVision OV5695 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -1186,6 +1214,16 @@ config VIDEO_OV13858
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV13858 camera.
 
+config VIDEO_OV13B10
+	tristate "OmniVision OV13B10 sensor support"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV13B10 camera.
+
 config VIDEO_VS6624
 	tristate "ST VS6624 sensor support"
 	depends on VIDEO_V4L2 && I2C
@@ -1229,6 +1267,7 @@ config VIDEO_MT9P031
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEO_APTINA_PLL
+	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the Aptina
 	  (Micron) mt9p031 5 Mpixel camera.

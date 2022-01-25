@@ -362,6 +362,7 @@ void efi_native_runtime_setup(void);
 
 /* OEM GUIDs */
 #define DELLEMC_EFI_RCI2_TABLE_GUID		EFI_GUID(0x2d9f28a2, 0xa886, 0x456a,  0x97, 0xa8, 0xf1, 0x1e, 0xf2, 0x4f, 0xf4, 0x55)
+#define AMD_SEV_MEM_ENCRYPT_GUID		EFI_GUID(0x0cf29b71, 0x9e51, 0x433a,  0xa3, 0xb7, 0x81, 0xf3, 0xab, 0x16, 0xb8, 0x75)
 
 typedef struct {
 	efi_guid_t guid;
@@ -569,8 +570,8 @@ extern struct efi {
 	unsigned long			flags;
 } efi;
 
-#define EFI_RT_SUPPORTED_GET_TIME 				0x0001
-#define EFI_RT_SUPPORTED_SET_TIME 				0x0002
+#define EFI_RT_SUPPORTED_GET_TIME				0x0001
+#define EFI_RT_SUPPORTED_SET_TIME				0x0002
 #define EFI_RT_SUPPORTED_GET_WAKEUP_TIME			0x0004
 #define EFI_RT_SUPPORTED_SET_WAKEUP_TIME			0x0008
 #define EFI_RT_SUPPORTED_GET_VARIABLE				0x0010
@@ -837,7 +838,7 @@ extern int efi_status_to_err(efi_status_t status);
 #define EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS 0x0000000000000020
 #define EFI_VARIABLE_APPEND_WRITE	0x0000000000000040
 
-#define EFI_VARIABLE_MASK 	(EFI_VARIABLE_NON_VOLATILE | \
+#define EFI_VARIABLE_MASK	(EFI_VARIABLE_NON_VOLATILE | \
 				EFI_VARIABLE_BOOTSERVICE_ACCESS | \
 				EFI_VARIABLE_RUNTIME_ACCESS | \
 				EFI_VARIABLE_HARDWARE_ERROR_RECORD | \
@@ -1280,6 +1281,12 @@ static inline struct efi_mokvar_table_entry *efi_mokvar_entry_find(
 {
 	return NULL;
 }
+#endif
+
+#ifdef CONFIG_SYSFB
+extern void efifb_setup_from_dmi(struct screen_info *si, const char *opt);
+#else
+static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt) { }
 #endif
 
 #endif /* _LINUX_EFI_H */

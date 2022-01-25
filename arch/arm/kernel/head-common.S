@@ -105,6 +105,11 @@ __mmap_switched:
 	mov	r1, #0
 	bl	__memset			@ clear .bss
 
+#ifdef CONFIG_CURRENT_POINTER_IN_TPIDRURO
+	adr_l	r0, init_task			@ get swapper task_struct
+	set_current r0
+#endif
+
 	ldmia	r4, {r0, r1, r2, r3}
 	str	r9, [r0]			@ Save processor ID
 	str	r7, [r1]			@ Save machine type

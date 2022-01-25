@@ -24,7 +24,7 @@ struct brcms_led {
 	struct gpio_desc *gpiod;
 };
 
-#ifdef CONFIG_BCMA_DRIVER_GPIO
+#ifdef CONFIG_BRCMSMAC_LEDS
 void brcms_led_unregister(struct brcms_info *wl);
 int brcms_led_register(struct brcms_info *wl);
 #else

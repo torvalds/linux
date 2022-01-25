@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015 QLogic Corporation
- * Copyright (c) 2019-2020 Marvell International Ltd.
+ * Copyright (c) 2019-2021 Marvell International Ltd.
  */
 
-#ifndef _QED_DEBUGFS_H
-#define _QED_DEBUGFS_H
+#ifndef _QED_DEBUG_H
+#define _QED_DEBUG_H
 
 enum qed_dbg_features {
 	DBG_FEATURE_GRC,
@@ -45,6 +45,7 @@ int qed_dbg_ilt_size(struct qed_dev *cdev);
 int qed_dbg_mcp_trace(struct qed_dev *cdev, void *buffer,
 		      u32 *num_dumped_bytes);
 int qed_dbg_mcp_trace_size(struct qed_dev *cdev);
+int qed_dbg_phy_size(struct qed_dev *cdev);
 int qed_dbg_all_data(struct qed_dev *cdev, void *buffer);
 int qed_dbg_all_data_size(struct qed_dev *cdev);
 u8 qed_get_debug_engine(struct qed_dev *cdev);

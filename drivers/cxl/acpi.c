@@ -52,6 +52,12 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 		return -EINVAL;
 	}
 
+	if (CFMWS_INTERLEAVE_WAYS(cfmws) > CXL_DECODER_MAX_INTERLEAVE) {
+		dev_err(dev, "CFMWS Interleave Ways (%d) too large\n",
+			CFMWS_INTERLEAVE_WAYS(cfmws));
+		return -EINVAL;
+	}
+
 	expected_len = struct_size((cfmws), interleave_targets,
 				   CFMWS_INTERLEAVE_WAYS(cfmws));
 
@@ -71,11 +77,11 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 static void cxl_add_cfmws_decoders(struct device *dev,
 				   struct cxl_port *root_port)
 {
+	int target_map[CXL_DECODER_MAX_INTERLEAVE];
 	struct acpi_cedt_cfmws *cfmws;
 	struct cxl_decoder *cxld;
 	acpi_size len, cur = 0;
 	void *cedt_subtable;
-	unsigned long flags;
 	int rc;
 
 	len = acpi_cedt->length - sizeof(*acpi_cedt);
@@ -83,6 +89,7 @@ static void cxl_add_cfmws_decoders(struct device *dev,
 
 	while (cur < len) {
 		struct acpi_cedt_header *c = cedt_subtable + cur;
+		int i;
 
 		if (c->type != ACPI_CEDT_TYPE_CFMWS) {
 			cur += c->length;
@@ -108,24 +115,39 @@ static void cxl_add_cfmws_decoders(struct device *dev,
 			continue;
 		}
 
-		flags = cfmws_to_decoder_flags(cfmws->restrictions);
-		cxld = devm_cxl_add_decoder(dev, root_port,
-					    CFMWS_INTERLEAVE_WAYS(cfmws),
-					    cfmws->base_hpa, cfmws->window_size,
-					    CFMWS_INTERLEAVE_WAYS(cfmws),
-					    CFMWS_INTERLEAVE_GRANULARITY(cfmws),
-					    CXL_DECODER_EXPANDER,
-					    flags);
+		for (i = 0; i < CFMWS_INTERLEAVE_WAYS(cfmws); i++)
+			target_map[i] = cfmws->interleave_targets[i];
 
-		if (IS_ERR(cxld)) {
+		cxld = cxl_decoder_alloc(root_port,
+					 CFMWS_INTERLEAVE_WAYS(cfmws));
+		if (IS_ERR(cxld))
+			goto next;
+
+		cxld->flags = cfmws_to_decoder_flags(cfmws->restrictions);
+		cxld->target_type = CXL_DECODER_EXPANDER;
+		cxld->range = (struct range) {
+			.start = cfmws->base_hpa,
+			.end = cfmws->base_hpa + cfmws->window_size - 1,
+		};
+		cxld->interleave_ways = CFMWS_INTERLEAVE_WAYS(cfmws);
+		cxld->interleave_granularity =
+			CFMWS_INTERLEAVE_GRANULARITY(cfmws);
+
+		rc = cxl_decoder_add(cxld, target_map);
+		if (rc)
+			put_device(&cxld->dev);
+		else
+			rc = cxl_decoder_autoremove(dev, cxld);
+		if (rc) {
 			dev_err(dev, "Failed to add decoder for %#llx-%#llx\n",
 				cfmws->base_hpa, cfmws->base_hpa +
 				cfmws->window_size - 1);
-		} else {
-			dev_dbg(dev, "add: %s range %#llx-%#llx\n",
-				dev_name(&cxld->dev), cfmws->base_hpa,
-				 cfmws->base_hpa + cfmws->window_size - 1);
+			goto next;
 		}
+		dev_dbg(dev, "add: %s range %#llx-%#llx\n",
+			dev_name(&cxld->dev), cfmws->base_hpa,
+			cfmws->base_hpa + cfmws->window_size - 1);
+next:
 		cur += c->length;
 	}
 }
@@ -182,15 +204,7 @@ static resource_size_t get_chbcr(struct acpi_cedt_chbs *chbs)
 	return IS_ERR(chbs) ? CXL_RESOURCE_NONE : chbs->base;
 }
 
-struct cxl_walk_context {
-	struct device *dev;
-	struct pci_bus *root;
-	struct cxl_port *port;
-	int error;
-	int count;
-};
-
-static int match_add_root_ports(struct pci_dev *pdev, void *data)
+__mock int match_add_root_ports(struct pci_dev *pdev, void *data)
 {
 	struct cxl_walk_context *ctx = data;
 	struct pci_bus *root_bus = ctx->root;
@@ -239,7 +253,8 @@ static struct cxl_dport *find_dport_by_dev(struct cxl_port *port, struct device 
 	return NULL;
 }
 
-static struct acpi_device *to_cxl_host_bridge(struct device *dev)
+__mock struct acpi_device *to_cxl_host_bridge(struct device *host,
+					      struct device *dev)
 {
 	struct acpi_device *adev = to_acpi_device(dev);
 
@@ -257,11 +272,12 @@ static struct acpi_device *to_cxl_host_bridge(struct device *dev)
  */
 static int add_host_bridge_uport(struct device *match, void *arg)
 {
-	struct acpi_device *bridge = to_cxl_host_bridge(match);
 	struct cxl_port *root_port = arg;
 	struct device *host = root_port->dev.parent;
+	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
 	struct acpi_pci_root *pci_root;
 	struct cxl_walk_context ctx;
+	int single_port_map[1], rc;
 	struct cxl_decoder *cxld;
 	struct cxl_dport *dport;
 	struct cxl_port *port;
@@ -272,7 +288,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	dport = find_dport_by_dev(root_port, match);
 	if (!dport) {
 		dev_dbg(host, "host bridge expected and not found\n");
-		return -ENODEV;
+		return 0;
 	}
 
 	port = devm_cxl_add_port(host, match, dport->component_reg_phys,
@@ -297,22 +313,46 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 		return -ENODEV;
 	if (ctx.error)
 		return ctx.error;
+	if (ctx.count > 1)
+		return 0;
 
 	/* TODO: Scan CHBCR for HDM Decoder resources */
 
 	/*
-	 * In the single-port host-bridge case there are no HDM decoders
-	 * in the CHBCR and a 1:1 passthrough decode is implied.
+	 * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability
+	 * Structure) single ported host-bridges need not publish a decoder
+	 * capability when a passthrough decode can be assumed, i.e. all
+	 * transactions that the uport sees are claimed and passed to the single
+	 * dport. Disable the range until the first CXL region is enumerated /
+	 * activated.
 	 */
-	if (ctx.count == 1) {
-		cxld = devm_cxl_add_passthrough_decoder(host, port);
-		if (IS_ERR(cxld))
-			return PTR_ERR(cxld);
+	cxld = cxl_decoder_alloc(port, 1);
+	if (IS_ERR(cxld))
+		return PTR_ERR(cxld);
 
+	cxld->interleave_ways = 1;
+	cxld->interleave_granularity = PAGE_SIZE;
+	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->range = (struct range) {
+		.start = 0,
+		.end = -1,
+	};
+
+	device_lock(&port->dev);
+	dport = list_first_entry(&port->dports, typeof(*dport), list);
+	device_unlock(&port->dev);
+
+	single_port_map[0] = dport->port_id;
+
+	rc = cxl_decoder_add(cxld, single_port_map);
+	if (rc)
+		put_device(&cxld->dev);
+	else
+		rc = cxl_decoder_autoremove(host, cxld);
+
+	if (rc == 0)
 		dev_dbg(host, "add: %s\n", dev_name(&cxld->dev));
-	}
-
-	return 0;
+	return rc;
 }
 
 static int add_host_bridge_dport(struct device *match, void *arg)
@@ -323,7 +363,7 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	struct acpi_cedt_chbs *chbs;
 	struct cxl_port *root_port = arg;
 	struct device *host = root_port->dev.parent;
-	struct acpi_device *bridge = to_cxl_host_bridge(match);
+	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
 
 	if (!bridge)
 		return 0;
@@ -337,9 +377,11 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	}
 
 	chbs = cxl_acpi_match_chbs(host, uid);
-	if (IS_ERR(chbs))
-		dev_dbg(host, "No CHBS found for Host Bridge: %s\n",
-			dev_name(match));
+	if (IS_ERR(chbs)) {
+		dev_warn(host, "No CHBS found for Host Bridge: %s\n",
+			 dev_name(match));
+		return 0;
+	}
 
 	rc = cxl_add_dport(root_port, match, uid, get_chbcr(chbs));
 	if (rc) {
@@ -375,6 +417,17 @@ static int add_root_nvdimm_bridge(struct device *match, void *data)
 	return 1;
 }
 
+static u32 cedt_instance(struct platform_device *pdev)
+{
+	const bool *native_acpi0017 = acpi_device_get_match_data(&pdev->dev);
+
+	if (native_acpi0017 && *native_acpi0017)
+		return 0;
+
+	/* for cxl_test request a non-canonical instance */
+	return U32_MAX;
+}
+
 static int cxl_acpi_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -388,7 +441,7 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 		return PTR_ERR(root_port);
 	dev_dbg(host, "add: %s\n", dev_name(&root_port->dev));
 
-	status = acpi_get_table(ACPI_SIG_CEDT, 0, &acpi_cedt);
+	status = acpi_get_table(ACPI_SIG_CEDT, cedt_instance(pdev), &acpi_cedt);
 	if (ACPI_FAILURE(status))
 		return -ENXIO;
 
@@ -419,9 +472,11 @@ out:
 	return 0;
 }
 
+static bool native_acpi0017 = true;
+
 static const struct acpi_device_id cxl_acpi_ids[] = {
-	{ "ACPI0017", 0 },
-	{ "", 0 },
+	{ "ACPI0017", (unsigned long) &native_acpi0017 },
+	{ },
 };
 MODULE_DEVICE_TABLE(acpi, cxl_acpi_ids);
 

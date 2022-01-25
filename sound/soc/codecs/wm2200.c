@@ -145,13 +145,13 @@ static const struct regmap_range_cfg wm2200_ranges[] = {
 	  .window_start = WM2200_DSP2_ZM_0, .window_len = 1024, },
 };
 
-static const struct wm_adsp_region wm2200_dsp1_regions[] = {
+static const struct cs_dsp_region wm2200_dsp1_regions[] = {
 	{ .type = WMFW_ADSP1_PM, .base = WM2200_DSP1_PM_BASE },
 	{ .type = WMFW_ADSP1_DM, .base = WM2200_DSP1_DM_BASE },
 	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP1_ZM_BASE },
 };
 
-static const struct wm_adsp_region wm2200_dsp2_regions[] = {
+static const struct cs_dsp_region wm2200_dsp2_regions[] = {
 	{ .type = WMFW_ADSP1_PM, .base = WM2200_DSP2_PM_BASE },
 	{ .type = WMFW_ADSP1_DM, .base = WM2200_DSP2_DM_BASE },
 	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP2_ZM_BASE },
@@ -2202,23 +2202,23 @@ static int wm2200_i2c_probe(struct i2c_client *i2c,
 	}
 
 	for (i = 0; i < 2; i++) {
-		wm2200->dsp[i].type = WMFW_ADSP1;
+		wm2200->dsp[i].cs_dsp.type = WMFW_ADSP1;
 		wm2200->dsp[i].part = "wm2200";
-		wm2200->dsp[i].num = i + 1;
-		wm2200->dsp[i].dev = &i2c->dev;
-		wm2200->dsp[i].regmap = wm2200->regmap;
-		wm2200->dsp[i].sysclk_reg = WM2200_CLOCKING_3;
-		wm2200->dsp[i].sysclk_mask = WM2200_SYSCLK_FREQ_MASK;
-		wm2200->dsp[i].sysclk_shift =  WM2200_SYSCLK_FREQ_SHIFT;
+		wm2200->dsp[i].cs_dsp.num = i + 1;
+		wm2200->dsp[i].cs_dsp.dev = &i2c->dev;
+		wm2200->dsp[i].cs_dsp.regmap = wm2200->regmap;
+		wm2200->dsp[i].cs_dsp.sysclk_reg = WM2200_CLOCKING_3;
+		wm2200->dsp[i].cs_dsp.sysclk_mask = WM2200_SYSCLK_FREQ_MASK;
+		wm2200->dsp[i].cs_dsp.sysclk_shift =  WM2200_SYSCLK_FREQ_SHIFT;
 	}
 
-	wm2200->dsp[0].base = WM2200_DSP1_CONTROL_1;
-	wm2200->dsp[0].mem = wm2200_dsp1_regions;
-	wm2200->dsp[0].num_mems = ARRAY_SIZE(wm2200_dsp1_regions);
+	wm2200->dsp[0].cs_dsp.base = WM2200_DSP1_CONTROL_1;
+	wm2200->dsp[0].cs_dsp.mem = wm2200_dsp1_regions;
+	wm2200->dsp[0].cs_dsp.num_mems = ARRAY_SIZE(wm2200_dsp1_regions);
 
-	wm2200->dsp[1].base = WM2200_DSP2_CONTROL_1;
-	wm2200->dsp[1].mem = wm2200_dsp2_regions;
-	wm2200->dsp[1].num_mems = ARRAY_SIZE(wm2200_dsp2_regions);
+	wm2200->dsp[1].cs_dsp.base = WM2200_DSP2_CONTROL_1;
+	wm2200->dsp[1].cs_dsp.mem = wm2200_dsp2_regions;
+	wm2200->dsp[1].cs_dsp.num_mems = ARRAY_SIZE(wm2200_dsp2_regions);
 
 	for (i = 0; i < ARRAY_SIZE(wm2200->dsp); i++)
 		wm_adsp1_init(&wm2200->dsp[i]);

@@ -398,7 +398,7 @@ static int iterate_incfs_dir(struct file *file, struct dir_context *ctx)
 	struct mount_info *mi = get_mount_info(file_superblock(file));
 	bool root;
 
-	if (!dir) {
+	if (!dir || !mi) {
 		error = -EBADF;
 		goto out;
 	}
@@ -1342,6 +1342,9 @@ static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct renamedata rd = {};
 	int error = 0;
 
+	if (!mi)
+		return -EBADF;
+
 	error = mutex_lock_interruptible(&mi->mi_dir_struct_mutex);
 	if (error)
 		return error;
@@ -1673,6 +1676,9 @@ static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 	size_t stored_size;
 	int i;
 
+	if (!mi)
+		return -EBADF;
+
 	if (di && di->backing_path.dentry)
 		return vfs_getxattr(&init_user_ns, di->backing_path.dentry, name, value, size);
 
@@ -1707,6 +1713,9 @@ static ssize_t incfs_setxattr(struct user_namespace *ns, struct dentry *d,
 	u8 **stored_value;
 	size_t *stored_size;
 	int i;
+
+	if (!mi)
+		return -EBADF;
 
 	if (di && di->backing_path.dentry)
 		return vfs_setxattr(ns, di->backing_path.dentry, name, value,
@@ -1746,6 +1755,11 @@ static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size)
 	return vfs_listxattr(di->backing_path.dentry, list, size);
 }
 
+static int incfs_test_super(struct super_block *s, void *p)
+{
+	return s->s_fs_info != NULL;
+}
+
 struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 			      const char *dev_name, void *data)
 {
@@ -1756,7 +1770,8 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 	struct dentry *incomplete_dir = NULL;
 	struct super_block *src_fs_sb = NULL;
 	struct inode *root_inode = NULL;
-	struct super_block *sb = sget(type, NULL, set_anon_super, flags, NULL);
+	struct super_block *sb = sget(type, incfs_test_super, set_anon_super,
+				      flags, NULL);
 	int error = 0;
 
 	if (IS_ERR(sb))
@@ -1797,13 +1812,18 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 	src_fs_sb = backing_dir_path.dentry->d_sb;
 	sb->s_maxbytes = src_fs_sb->s_maxbytes;
 
-	mi = incfs_alloc_mount_info(sb, &options, &backing_dir_path);
+	if (!sb->s_fs_info) {
+		mi = incfs_alloc_mount_info(sb, &options, &backing_dir_path);
 
-	if (IS_ERR_OR_NULL(mi)) {
-		error = PTR_ERR(mi);
-		pr_err("incfs: Error allocating mount info. %d\n", error);
-		mi = NULL;
-		goto err;
+		if (IS_ERR_OR_NULL(mi)) {
+			error = PTR_ERR(mi);
+			pr_err("incfs: Error allocating mount info. %d\n", error);
+			mi = NULL;
+			goto err;
+		}
+		sb->s_fs_info = mi;
+	} else {
+		mi = sb->s_fs_info;
 	}
 
 	index_dir = open_or_create_special_dir(backing_dir_path.dentry,
@@ -1828,21 +1848,22 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 	}
 	mi->mi_incomplete_dir = incomplete_dir;
 
-	sb->s_fs_info = mi;
 	root_inode = fetch_regular_inode(sb, backing_dir_path.dentry);
 	if (IS_ERR(root_inode)) {
 		error = PTR_ERR(root_inode);
 		goto err;
 	}
 
-	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
-		error = -ENOMEM;
-		goto err;
+		sb->s_root = d_make_root(root_inode);
+		if (!sb->s_root) {
+			error = -ENOMEM;
+			goto err;
+		}
+		error = incfs_init_dentry(sb->s_root, &backing_dir_path);
+		if (error)
+			goto err;
 	}
-	error = incfs_init_dentry(sb->s_root, &backing_dir_path);
-	if (error)
-		goto err;
 
 	path_put(&backing_dir_path);
 	sb->s_flags |= SB_ACTIVE;
@@ -1863,6 +1884,9 @@ static int incfs_remount_fs(struct super_block *sb, int *flags, char *data)
 	struct mount_options options;
 	struct mount_info *mi = get_mount_info(sb);
 	int err = 0;
+
+	if (!mi)
+		return err;
 
 	sync_filesystem(sb);
 	err = parse_options(&options, (char *)data);
@@ -1893,11 +1917,15 @@ void incfs_kill_sb(struct super_block *sb)
 	pr_debug("incfs: unmount\n");
 	generic_shutdown_super(sb);
 	incfs_free_mount_info(mi);
+	sb->s_fs_info = NULL;
 }
 
 static int show_options(struct seq_file *m, struct dentry *root)
 {
 	struct mount_info *mi = get_mount_info(root->d_sb);
+
+	if (!mi)
+		return -EBADF;
 
 	seq_printf(m, ",read_timeout_ms=%u", mi->mi_options.read_timeout_ms);
 	seq_printf(m, ",readahead=%u", mi->mi_options.readahead_pages);

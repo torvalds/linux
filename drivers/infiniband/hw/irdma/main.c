@@ -207,7 +207,7 @@ static void irdma_remove(struct auxiliary_device *aux_dev)
 							    struct iidc_auxiliary_dev,
 							    adev);
 	struct ice_pf *pf = iidc_adev->pf;
-	struct irdma_device *iwdev = dev_get_drvdata(&aux_dev->dev);
+	struct irdma_device *iwdev = auxiliary_get_drvdata(aux_dev);
 
 	irdma_ib_unregister_device(iwdev);
 	ice_rdma_update_vsi_filter(pf, iwdev->vsi_num, false);
@@ -228,7 +228,8 @@ static void irdma_fill_device_info(struct irdma_device *iwdev, struct ice_pf *pf
 	rf->msix_count =  pf->num_rdma_msix;
 	rf->msix_entries = &pf->msix_entries[pf->rdma_base_vector];
 	rf->default_vsi.vsi_idx = vsi->vsi_num;
-	rf->protocol_used = IRDMA_ROCE_PROTOCOL_ONLY;
+	rf->protocol_used = pf->rdma_mode & IIDC_RDMA_PROTOCOL_ROCEV2 ?
+			    IRDMA_ROCE_PROTOCOL_ONLY : IRDMA_IWARP_PROTOCOL_ONLY;
 	rf->rdma_ver = IRDMA_GEN_2;
 	rf->rsrc_profile = IRDMA_HMC_PROFILE_DEFAULT;
 	rf->rst_to = IRDMA_RST_TIMEOUT_HZ;
@@ -294,7 +295,7 @@ static int irdma_probe(struct auxiliary_device *aux_dev, const struct auxiliary_
 	ice_rdma_update_vsi_filter(pf, iwdev->vsi_num, true);
 
 	ibdev_dbg(&iwdev->ibdev, "INIT: Gen2 PF[%d] device probe success\n", PCI_FUNC(rf->pcidev->devfn));
-	dev_set_drvdata(&aux_dev->dev, iwdev);
+	auxiliary_set_drvdata(aux_dev, iwdev);
 
 	return 0;
 

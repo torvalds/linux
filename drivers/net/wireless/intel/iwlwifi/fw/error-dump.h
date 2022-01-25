@@ -232,6 +232,24 @@ struct iwl_fw_error_dump_mem {
 #define IWL_INI_DUMP_INFO_TYPE BIT(31)
 
 /**
+ * struct iwl_fw_error_dump_data - data for one type
+ * @type: &enum iwl_fw_ini_region_type
+ * @sub_type: sub type id
+ * @sub_type_ver: sub type version
+ * @reserved: not in use
+ * @len: the length starting from %data
+ * @data: the data itself
+ */
+struct iwl_fw_ini_error_dump_data {
+	u8 type;
+	u8 sub_type;
+	u8 sub_type_ver;
+	u8 reserved;
+	__le32 len;
+	__u8 data[];
+} __packed;
+
+/**
  * struct iwl_fw_ini_dump_entry
  * @list: list of dump entries
  * @size: size of the data
@@ -342,10 +360,6 @@ struct iwl_fw_ini_dump_cfg_name {
 #define IWL_AX210_HW_TYPE 0x42
 /* How many bits to roll when adding to the HW type of AX210 HW */
 #define IWL_AX210_HW_TYPE_ADDITION_SHIFT 12
-/* This prph is used to tell apart HW_TYPE == 0x42 NICs */
-#define WFPM_OTP_CFG1_ADDR 0xd03098
-#define WFPM_OTP_CFG1_IS_JACKET_BIT BIT(4)
-#define WFPM_OTP_CFG1_IS_CDB_BIT BIT(5)
 
 /* struct iwl_fw_ini_dump_info - ini dump information
  * @version: dump version

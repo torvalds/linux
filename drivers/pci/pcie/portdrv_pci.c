@@ -160,6 +160,9 @@ static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
 
 static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 {
+	size_t off = offsetof(struct pcie_port_service_driver, slot_reset);
+	device_for_each_child(&dev->dev, &off, pcie_port_device_iter);
+
 	pci_restore_state(dev);
 	pci_save_state(dev);
 	return PCI_ERS_RESULT_RECOVERED;
@@ -168,29 +171,6 @@ static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
 {
 	return PCI_ERS_RESULT_RECOVERED;
-}
-
-static int resume_iter(struct device *device, void *data)
-{
-	struct pcie_device *pcie_device;
-	struct pcie_port_service_driver *driver;
-
-	if (device->bus == &pcie_port_bus_type && device->driver) {
-		driver = to_service_driver(device->driver);
-		if (driver && driver->error_resume) {
-			pcie_device = to_pcie_device(device);
-
-			/* Forward error message to service drivers */
-			driver->error_resume(pcie_device->port);
-		}
-	}
-
-	return 0;
-}
-
-static void pcie_portdrv_err_resume(struct pci_dev *dev)
-{
-	device_for_each_child(&dev->dev, NULL, resume_iter);
 }
 
 /*
@@ -210,7 +190,6 @@ static const struct pci_error_handlers pcie_portdrv_err_handler = {
 	.error_detected = pcie_portdrv_error_detected,
 	.slot_reset = pcie_portdrv_slot_reset,
 	.mmio_enabled = pcie_portdrv_mmio_enabled,
-	.resume = pcie_portdrv_err_resume,
 };
 
 static struct pci_driver pcie_portdriver = {

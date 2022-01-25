@@ -39,6 +39,10 @@ any extra expressions computed by perf stat.
 --deprecated::
 Print deprecated events. By default the deprecated events are hidden.
 
+--cputype::
+Print events applying cpu with this type for hybrid platform
+(e.g. --cputype core or --cputype atom)
+
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
 ---------------

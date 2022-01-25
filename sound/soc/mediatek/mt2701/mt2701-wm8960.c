@@ -40,7 +40,7 @@ static int mt2701_wm8960_be_ops_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops mt2701_wm8960_be_ops = {
+static const struct snd_soc_ops mt2701_wm8960_be_ops = {
 	.hw_params = mt2701_wm8960_be_ops_hw_params
 };
 

@@ -347,12 +347,7 @@
 			interrupts = < 3 2 >;
 			reg = < 0x83c00000 0x10000 >;
 			xlnx,count-width = <0x20>;
-			xlnx,family = "virtex5";
-			xlnx,gen0-assert = <0x1>;
-			xlnx,gen1-assert = <0x1>;
 			xlnx,one-timer-only = <0x0>;
-			xlnx,trig0-assert = <0x1>;
-			xlnx,trig1-assert = <0x1>;
 		} ;
 	} ;
 }  ;

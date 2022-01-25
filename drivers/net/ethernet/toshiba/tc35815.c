@@ -708,7 +708,7 @@ static int tc35815_read_plat_dev_addr(struct net_device *dev)
 					    lp->pci_dev, tc35815_mac_match);
 	if (pd) {
 		if (pd->platform_data)
-			memcpy(dev->dev_addr, pd->platform_data, ETH_ALEN);
+			eth_hw_addr_set(dev, pd->platform_data);
 		put_device(pd);
 		return is_valid_ether_addr(dev->dev_addr) ? 0 : -ENODEV;
 	}
@@ -725,6 +725,7 @@ static int tc35815_init_dev_addr(struct net_device *dev)
 {
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
+	u8 addr[ETH_ALEN];
 	int i;
 
 	while (tc_readl(&tr->PROM_Ctl) & PROM_Busy)
@@ -735,9 +736,10 @@ static int tc35815_init_dev_addr(struct net_device *dev)
 		while (tc_readl(&tr->PROM_Ctl) & PROM_Busy)
 			;
 		data = tc_readl(&tr->PROM_Data);
-		dev->dev_addr[i] = data & 0xff;
-		dev->dev_addr[i+1] = data >> 8;
+		addr[i] = data & 0xff;
+		addr[i+1] = data >> 8;
 	}
+	eth_hw_addr_set(dev, addr);
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return tc35815_read_plat_dev_addr(dev);
 	return 0;
@@ -1859,7 +1861,8 @@ static struct net_device_stats *tc35815_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-static void tc35815_set_cam_entry(struct net_device *dev, int index, unsigned char *addr)
+static void tc35815_set_cam_entry(struct net_device *dev, int index,
+				  const unsigned char *addr)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct tc35815_regs __iomem *tr =

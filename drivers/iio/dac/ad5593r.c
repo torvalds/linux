@@ -99,7 +99,9 @@ static int ad5593r_i2c_probe(struct i2c_client *i2c,
 
 static int ad5593r_i2c_remove(struct i2c_client *i2c)
 {
-	return ad5592r_remove(&i2c->dev);
+	ad5592r_remove(&i2c->dev);
+
+	return 0;
 }
 
 static const struct i2c_device_id ad5593r_i2c_ids[] = {

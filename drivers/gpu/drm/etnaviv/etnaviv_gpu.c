@@ -1658,7 +1658,7 @@ etnaviv_gpu_cooling_set_cur_state(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-static struct thermal_cooling_device_ops cooling_ops = {
+static const struct thermal_cooling_device_ops cooling_ops = {
 	.get_max_state = etnaviv_gpu_cooling_get_max_state,
 	.get_cur_state = etnaviv_gpu_cooling_get_cur_state,
 	.set_cur_state = etnaviv_gpu_cooling_set_cur_state,
@@ -1733,7 +1733,6 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 
 	DBG("%s", dev_name(gpu->dev));
 
-	flush_workqueue(gpu->wq);
 	destroy_workqueue(gpu->wq);
 
 	etnaviv_sched_fini(gpu);

@@ -794,9 +794,6 @@ static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
 		goto retry_cancel;
 	}
 
-	dprintk("lockd: cancel status %u (task %u)\n",
-			status, task->tk_pid);
-
 	switch (status) {
 	case NLM_LCK_GRANTED:
 	case NLM_LCK_DENIED_GRACE_PERIOD:

@@ -13,7 +13,7 @@ function do_one
 
     orig=$(cat "$mitigation")
 
-    start=$EPOCHSECONDS
+    start=$(date +%s)
     now=$start
 
     while [[ $((now-start)) -lt "$TIMEOUT" ]]
@@ -21,7 +21,7 @@ function do_one
         echo 0 > "$mitigation"
         echo 1 > "$mitigation"
 
-        now=$EPOCHSECONDS
+        now=$(date +%s)
     done
 
     echo "$orig" > "$mitigation"

@@ -1301,7 +1301,6 @@ static int sparc_lance_probe_one(struct platform_device *op,
 	struct device_node *dp = op->dev.of_node;
 	struct lance_private *lp;
 	struct net_device *dev;
-	int    i;
 
 	dev = alloc_etherdev(sizeof(struct lance_private) + 8);
 	if (!dev)
@@ -1315,8 +1314,7 @@ static int sparc_lance_probe_one(struct platform_device *op,
 	 * will copy the address in the device structure to the lance
 	 * initialization block.
 	 */
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = idprom->id_ethaddr[i];
+	eth_hw_addr_set(dev, idprom->id_ethaddr);
 
 	/* Get the IO region */
 	lp->lregs = of_ioremap(&op->resource[0], 0,

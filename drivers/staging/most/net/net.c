@@ -564,7 +564,7 @@ static void on_netinfo(struct most_interface *iface,
 	if (m && is_valid_ether_addr(m)) {
 		if (!is_valid_ether_addr(dev->dev_addr)) {
 			netdev_info(dev, "set mac %pM\n", m);
-			ether_addr_copy(dev->dev_addr, m);
+			eth_hw_addr_set(dev, m);
 			netif_dormant_off(dev);
 		} else if (!ether_addr_equal(dev->dev_addr, m)) {
 			netdev_warn(dev, "reject mac %pM\n", m);

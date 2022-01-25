@@ -42,6 +42,7 @@ struct tegra_cpu_car_ops {
 #endif
 };
 
+#ifdef CONFIG_ARCH_TEGRA
 extern struct tegra_cpu_car_ops *tegra_cpu_car_ops;
 
 static inline void tegra_wait_cpu_in_reset(u32 cpu)
@@ -83,8 +84,29 @@ static inline void tegra_disable_cpu_clock(u32 cpu)
 
 	tegra_cpu_car_ops->disable_clock(cpu);
 }
+#else
+static inline void tegra_wait_cpu_in_reset(u32 cpu)
+{
+}
 
-#ifdef CONFIG_PM_SLEEP
+static inline void tegra_put_cpu_in_reset(u32 cpu)
+{
+}
+
+static inline void tegra_cpu_out_of_reset(u32 cpu)
+{
+}
+
+static inline void tegra_enable_cpu_clock(u32 cpu)
+{
+}
+
+static inline void tegra_disable_cpu_clock(u32 cpu)
+{
+}
+#endif
+
+#if defined(CONFIG_ARCH_TEGRA) && defined(CONFIG_PM_SLEEP)
 static inline bool tegra_cpu_rail_off_ready(void)
 {
 	if (WARN_ON(!tegra_cpu_car_ops->rail_off_ready))

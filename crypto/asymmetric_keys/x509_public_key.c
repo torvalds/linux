@@ -223,6 +223,13 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		goto error_free_desc;
 	kids->id[0] = cert->id;
 	kids->id[1] = cert->skid;
+	kids->id[2] = asymmetric_key_generate_id(cert->raw_subject,
+						 cert->raw_subject_size,
+						 "", 0);
+	if (IS_ERR(kids->id[2])) {
+		ret = PTR_ERR(kids->id[2]);
+		goto error_free_kids;
+	}
 
 	/* We're pinning the module by being linked against it */
 	__module_get(public_key_subtype.owner);
@@ -239,8 +246,11 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	cert->skid = NULL;
 	cert->sig = NULL;
 	desc = NULL;
+	kids = NULL;
 	ret = 0;
 
+error_free_kids:
+	kfree(kids);
 error_free_desc:
 	kfree(desc);
 error_free_cert:

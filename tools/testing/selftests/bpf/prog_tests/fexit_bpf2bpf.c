@@ -60,18 +60,15 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 	struct bpf_object *obj = NULL, *tgt_obj;
 	__u32 retval, tgt_prog_id, info_len;
 	struct bpf_prog_info prog_info = {};
-	struct bpf_program **prog = NULL;
+	struct bpf_program **prog = NULL, *p;
 	struct bpf_link **link = NULL;
 	int err, tgt_fd, i;
 	struct btf *btf;
 
-	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
+	err = bpf_prog_test_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &tgt_obj, &tgt_fd);
 	if (!ASSERT_OK(err, "tgt_prog_load"))
 		return;
-	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
-			    .attach_prog_fd = tgt_fd,
-			   );
 
 	info_len = sizeof(prog_info);
 	err = bpf_obj_get_info_by_fd(tgt_fd, &prog_info, &info_len);
@@ -89,9 +86,14 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 	if (!ASSERT_OK_PTR(prog, "prog_ptr"))
 		goto close_prog;
 
-	obj = bpf_object__open_file(obj_file, &opts);
+	obj = bpf_object__open_file(obj_file, NULL);
 	if (!ASSERT_OK_PTR(obj, "obj_open"))
 		goto close_prog;
+
+	bpf_object__for_each_program(p, obj) {
+		err = bpf_program__set_attach_target(p, tgt_fd, NULL);
+		ASSERT_OK(err, "set_attach_target");
+	}
 
 	err = bpf_object__load(obj);
 	if (!ASSERT_OK(err, "obj_load"))
@@ -99,6 +101,8 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 	for (i = 0; i < prog_cnt; i++) {
 		struct bpf_link_info link_info;
+		struct bpf_program *pos;
+		const char *pos_sec_name;
 		char *tgt_name;
 		__s32 btf_id;
 
@@ -107,7 +111,14 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 			goto close_prog;
 		btf_id = btf__find_by_name_kind(btf, tgt_name + 1, BTF_KIND_FUNC);
 
-		prog[i] = bpf_object__find_program_by_title(obj, prog_name[i]);
+		prog[i] = NULL;
+		bpf_object__for_each_program(pos, obj) {
+			pos_sec_name = bpf_program__section_name(pos);
+			if (pos_sec_name && !strcmp(pos_sec_name, prog_name[i])) {
+				prog[i] = pos;
+				break;
+			}
+		}
 		if (!ASSERT_OK_PTR(prog[i], prog_name[i]))
 			goto close_prog;
 
@@ -209,8 +220,8 @@ static void test_func_replace_verify(void)
 
 static int test_second_attach(struct bpf_object *obj)
 {
-	const char *prog_name = "freplace/get_constant";
-	const char *tgt_name = prog_name + 9; /* cut off freplace/ */
+	const char *prog_name = "security_new_get_constant";
+	const char *tgt_name = "get_constant";
 	const char *tgt_obj_file = "./test_pkt_access.o";
 	struct bpf_program *prog = NULL;
 	struct bpf_object *tgt_obj;
@@ -218,11 +229,11 @@ static int test_second_attach(struct bpf_object *obj)
 	struct bpf_link *link;
 	int err = 0, tgt_fd;
 
-	prog = bpf_object__find_program_by_title(obj, prog_name);
+	prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (CHECK(!prog, "find_prog", "prog %s not found\n", prog_name))
 		return -ENOENT;
 
-	err = bpf_prog_load(tgt_obj_file, BPF_PROG_TYPE_UNSPEC,
+	err = bpf_prog_test_load(tgt_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &tgt_obj, &tgt_fd);
 	if (CHECK(err, "second_prog_load", "file %s err %d errno %d\n",
 		  tgt_obj_file, err, errno))
@@ -270,33 +281,39 @@ static void test_fmod_ret_freplace(void)
 	struct bpf_link *freplace_link = NULL;
 	struct bpf_program *prog;
 	__u32 duration = 0;
-	int err, pkt_fd;
+	int err, pkt_fd, attach_prog_fd;
 
-	err = bpf_prog_load(tgt_name, BPF_PROG_TYPE_UNSPEC,
+	err = bpf_prog_test_load(tgt_name, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
 	/* the target prog should load fine */
 	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",
 		  tgt_name, err, errno))
 		return;
-	opts.attach_prog_fd = pkt_fd;
 
-	freplace_obj = bpf_object__open_file(freplace_name, &opts);
+	freplace_obj = bpf_object__open_file(freplace_name, NULL);
 	if (!ASSERT_OK_PTR(freplace_obj, "freplace_obj_open"))
 		goto out;
+
+	prog = bpf_object__next_program(freplace_obj, NULL);
+	err = bpf_program__set_attach_target(prog, pkt_fd, NULL);
+	ASSERT_OK(err, "freplace__set_attach_target");
 
 	err = bpf_object__load(freplace_obj);
 	if (CHECK(err, "freplace_obj_load", "err %d\n", err))
 		goto out;
 
-	prog = bpf_program__next(NULL, freplace_obj);
 	freplace_link = bpf_program__attach_trace(prog);
 	if (!ASSERT_OK_PTR(freplace_link, "freplace_attach_trace"))
 		goto out;
 
-	opts.attach_prog_fd = bpf_program__fd(prog);
-	fmod_obj = bpf_object__open_file(fmod_ret_name, &opts);
+	fmod_obj = bpf_object__open_file(fmod_ret_name, NULL);
 	if (!ASSERT_OK_PTR(fmod_obj, "fmod_obj_open"))
 		goto out;
+
+	attach_prog_fd = bpf_program__fd(prog);
+	prog = bpf_object__next_program(fmod_obj, NULL);
+	err = bpf_program__set_attach_target(prog, attach_prog_fd, NULL);
+	ASSERT_OK(err, "fmod_ret_set_attach_target");
 
 	err = bpf_object__load(fmod_obj);
 	if (CHECK(!err, "fmod_obj_load", "loading fmod_ret should fail\n"))
@@ -322,30 +339,31 @@ static void test_func_sockmap_update(void)
 }
 
 static void test_obj_load_failure_common(const char *obj_file,
-					  const char *target_obj_file)
-
+					 const char *target_obj_file)
 {
 	/*
 	 * standalone test that asserts failure to load freplace prog
 	 * because of invalid return code.
 	 */
 	struct bpf_object *obj = NULL, *pkt_obj;
+	struct bpf_program *prog;
 	int err, pkt_fd;
 	__u32 duration = 0;
 
-	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
+	err = bpf_prog_test_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
 	/* the target prog should load fine */
 	if (CHECK(err, "tgt_prog_load", "file %s err %d errno %d\n",
 		  target_obj_file, err, errno))
 		return;
-	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
-			    .attach_prog_fd = pkt_fd,
-			   );
 
-	obj = bpf_object__open_file(obj_file, &opts);
+	obj = bpf_object__open_file(obj_file, NULL);
 	if (!ASSERT_OK_PTR(obj, "obj_open"))
 		goto close_prog;
+
+	prog = bpf_object__next_program(obj, NULL);
+	err = bpf_program__set_attach_target(prog, pkt_fd, NULL);
+	ASSERT_OK(err, "set_attach_target");
 
 	/* It should fail to load the program */
 	err = bpf_object__load(obj);
@@ -371,7 +389,8 @@ static void test_func_map_prog_compatibility(void)
 				     "./test_attach_probe.o");
 }
 
-void test_fexit_bpf2bpf(void)
+/* NOTE: affect other tests, must run in serial mode */
+void serial_test_fexit_bpf2bpf(void)
 {
 	if (test__start_subtest("target_no_callees"))
 		test_target_no_callees();

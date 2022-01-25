@@ -2149,6 +2149,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	u32 inta_fh_msk = ~MSIX_FH_INT_CAUSES_DATA_QUEUE;
 	u32 inta_fh, inta_hw;
 	bool polling = false;
+	bool sw_err;
 
 	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX)
 		inta_fh_msk |= MSIX_FH_INT_CAUSES_Q0;
@@ -2221,9 +2222,13 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		wake_up(&trans_pcie->ucode_write_waitq);
 	}
 
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		sw_err = inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR_BZ;
+	else
+		sw_err = inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR;
+
 	/* Error detected by uCode */
-	if ((inta_fh & MSIX_FH_INT_CAUSES_FH_ERR) ||
-	    (inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR)) {
+	if ((inta_fh & MSIX_FH_INT_CAUSES_FH_ERR) || sw_err) {
 		IWL_ERR(trans,
 			"Microcode SW error detected. Restarting 0x%X.\n",
 			inta_fh);
@@ -2261,7 +2266,12 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP) {
+	/*
+	 * In some rare cases when the HW is in a bad state, we may
+	 * get this interrupt too early, when prph_info is still NULL.
+	 * So make sure that it's not NULL to prevent crashing.
+	 */
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP && trans_pcie->prph_info) {
 		u32 sleep_notif =
 			le32_to_cpu(trans_pcie->prph_info->sleep_notif);
 		if (sleep_notif == IWL_D3_SLEEP_STATUS_SUSPEND ||

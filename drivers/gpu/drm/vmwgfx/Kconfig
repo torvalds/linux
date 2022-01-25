@@ -4,6 +4,7 @@ config DRM_VMWGFX
 	depends on DRM && PCI && MMU
 	depends on X86 || ARM64
 	select DRM_TTM
+	select DRM_TTM_HELPER
 	select MAPPING_DIRTY_HELPERS
 	# Only needed for the transitional use of drm_crtc_init - can be removed
 	# again once vmwgfx sets up the primary plane itself.

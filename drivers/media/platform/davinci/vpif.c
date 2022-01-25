@@ -425,12 +425,11 @@ EXPORT_SYMBOL(vpif_channel_getfid);
 
 static int vpif_probe(struct platform_device *pdev)
 {
-	static struct resource	*res, *res_irq;
+	static struct resource *res_irq;
 	struct platform_device *pdev_capture, *pdev_display;
 	struct device_node *endpoint = NULL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	vpif_base = devm_ioremap_resource(&pdev->dev, res);
+	vpif_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vpif_base))
 		return PTR_ERR(vpif_base);
 

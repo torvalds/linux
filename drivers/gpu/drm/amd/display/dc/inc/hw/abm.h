@@ -54,6 +54,7 @@ struct abm_funcs {
 			const char *src,
 			unsigned int bytes,
 			unsigned int inst);
+	bool (*set_abm_pause)(struct abm *abm, bool pause, unsigned int panel_inst, unsigned int otg_inst);
 };
 
 #endif

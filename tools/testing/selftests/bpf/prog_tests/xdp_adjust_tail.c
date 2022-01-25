@@ -2,7 +2,7 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 
-void test_xdp_adjust_tail_shrink(void)
+static void test_xdp_adjust_tail_shrink(void)
 {
 	const char *file = "./test_xdp_adjust_tail_shrink.o";
 	__u32 duration, retval, size, expect_sz;
@@ -10,7 +10,7 @@ void test_xdp_adjust_tail_shrink(void)
 	int err, prog_fd;
 	char buf[128];
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -30,7 +30,7 @@ void test_xdp_adjust_tail_shrink(void)
 	bpf_object__close(obj);
 }
 
-void test_xdp_adjust_tail_grow(void)
+static void test_xdp_adjust_tail_grow(void)
 {
 	const char *file = "./test_xdp_adjust_tail_grow.o";
 	struct bpf_object *obj;
@@ -38,7 +38,7 @@ void test_xdp_adjust_tail_grow(void)
 	__u32 duration, retval, size, expect_sz;
 	int err, prog_fd;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
@@ -58,7 +58,7 @@ void test_xdp_adjust_tail_grow(void)
 	bpf_object__close(obj);
 }
 
-void test_xdp_adjust_tail_grow2(void)
+static void test_xdp_adjust_tail_grow2(void)
 {
 	const char *file = "./test_xdp_adjust_tail_grow.o";
 	char buf[4096]; /* avoid segfault: large buf to hold grow results */
@@ -75,7 +75,7 @@ void test_xdp_adjust_tail_grow2(void)
 		.data_size_out	= 0, /* Per test */
 	};
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_XDP, &obj, &tattr.prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &tattr.prog_fd);
 	if (CHECK_ATTR(err, "load", "err %d errno %d\n", err, errno))
 		return;
 

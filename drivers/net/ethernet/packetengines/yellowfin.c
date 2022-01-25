@@ -384,6 +384,7 @@ static int yellowfin_init_one(struct pci_dev *pdev,
 #else
 	int bar = 1;
 #endif
+	u8 addr[ETH_ALEN];
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -416,12 +417,13 @@ static int yellowfin_init_one(struct pci_dev *pdev,
 
 	if (drv_flags & DontUseEeprom)
 		for (i = 0; i < 6; i++)
-			dev->dev_addr[i] = ioread8(ioaddr + StnAddr + i);
+			addr[i] = ioread8(ioaddr + StnAddr + i);
 	else {
 		int ee_offset = (read_eeprom(ioaddr, 6) == 0xff ? 0x100 : 0);
 		for (i = 0; i < 6; i++)
-			dev->dev_addr[i] = read_eeprom(ioaddr, ee_offset + i);
+			addr[i] = read_eeprom(ioaddr, ee_offset + i);
 	}
+	eth_hw_addr_set(dev, addr);
 
 	/* Reset the chip. */
 	iowrite32(0x80000000, ioaddr + DMACtrl);

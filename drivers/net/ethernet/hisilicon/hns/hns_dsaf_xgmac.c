@@ -255,7 +255,7 @@ static void hns_xgmac_pausefrm_cfg(void *mac_drv, u32 rx_en, u32 tx_en)
 	dsaf_write_dev(drv, XGMAC_MAC_PAUSE_CTRL_REG, origin);
 }
 
-static void hns_xgmac_set_pausefrm_mac_addr(void *mac_drv, char *mac_addr)
+static void hns_xgmac_set_pausefrm_mac_addr(void *mac_drv, const char *mac_addr)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
 

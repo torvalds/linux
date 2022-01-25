@@ -19,7 +19,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		input-name = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin_a>;
@@ -374,14 +373,14 @@
 		};
 
 		amba {
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status = "okay";
 
 				vmmc-supply = <&pm8921_l5>;
 				vqmmc-supply = <&pm8921_s4>;
 			};
 
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				status = "okay";
 
 				vmmc-supply = <&pm8921_l6>;

@@ -420,7 +420,7 @@ static void emac_mac_dma_config(struct emac_adapter *adpt)
 }
 
 /* set MAC address */
-static void emac_set_mac_address(struct emac_adapter *adpt, u8 *addr)
+static void emac_set_mac_address(struct emac_adapter *adpt, const u8 *addr)
 {
 	u32 sta;
 

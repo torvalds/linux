@@ -905,13 +905,11 @@ static int setup_expected_interrupts(struct Scsi_Host *shpnt)
  *  Queue a command and setup interrupts for a free bus.
  */
 static int aha152x_internal_queue(struct scsi_cmnd *SCpnt,
-				  struct completion *complete,
-				  int phase, void (*done)(struct scsi_cmnd *))
+				  struct completion *complete, int phase)
 {
 	struct Scsi_Host *shpnt = SCpnt->device->host;
 	unsigned long flags;
 
-	SCpnt->scsi_done	= done;
 	SCpnt->SCp.phase	= not_issued | phase;
 	SCpnt->SCp.Status	= 0x1; /* Ilegal status by SCSI standard */
 	SCpnt->SCp.Message	= 0;
@@ -977,10 +975,9 @@ static int aha152x_internal_queue(struct scsi_cmnd *SCpnt,
  *  queue a command
  *
  */
-static int aha152x_queue_lck(struct scsi_cmnd *SCpnt,
-			     void (*done)(struct scsi_cmnd *))
+static int aha152x_queue_lck(struct scsi_cmnd *SCpnt)
 {
-	return aha152x_internal_queue(SCpnt, NULL, 0, done);
+	return aha152x_internal_queue(SCpnt, NULL, 0);
 }
 
 static DEF_SCSI_QCMD(aha152x_queue)
@@ -996,6 +993,14 @@ static void reset_done(struct scsi_cmnd *SCpnt)
 	} else {
 		printk(KERN_ERR "aha152x: reset_done w/o completion\n");
 	}
+}
+
+static void aha152x_scsi_done(struct scsi_cmnd *SCpnt)
+{
+	if (SCpnt->SCp.phase & resetting)
+		reset_done(SCpnt);
+	else
+		scsi_done(SCpnt);
 }
 
 /*
@@ -1064,7 +1069,7 @@ static int aha152x_device_reset(struct scsi_cmnd * SCpnt)
 
 	SCpnt->cmd_len         = 0;
 
-	aha152x_internal_queue(SCpnt, &done, resetting, reset_done);
+	aha152x_internal_queue(SCpnt, &done, resetting);
 
 	timeleft = wait_for_completion_timeout(&done, 100*HZ);
 	if (!timeleft) {
@@ -1439,12 +1444,12 @@ static void busfree_run(struct Scsi_Host *shpnt)
 				scsi_eh_prep_cmnd(ptr, &sc->ses, NULL, 0, ~0);
 
 				DO_UNLOCK(flags);
-				aha152x_internal_queue(ptr, NULL, check_condition, ptr->scsi_done);
+				aha152x_internal_queue(ptr, NULL, check_condition);
 				DO_LOCK(flags);
 			}
 		}
 
-		if(DONE_SC && DONE_SC->scsi_done) {
+		if (DONE_SC) {
 			struct scsi_cmnd *ptr = DONE_SC;
 			DONE_SC=NULL;
 
@@ -1453,13 +1458,13 @@ static void busfree_run(struct Scsi_Host *shpnt)
 			if (!HOSTDATA(shpnt)->commands)
 				SETPORT(PORTA, 0);	/* turn led off */
 
-			if(ptr->scsi_done != reset_done) {
+			if (!(ptr->SCp.phase & resetting)) {
 				kfree(ptr->host_scribble);
 				ptr->host_scribble=NULL;
 			}
 
 			DO_UNLOCK(flags);
-			ptr->scsi_done(ptr);
+			aha152x_scsi_done(ptr);
 			DO_LOCK(flags);
 		}
 
@@ -2258,7 +2263,7 @@ static void rsti_run(struct Scsi_Host *shpnt)
 			ptr->host_scribble=NULL;
 
 			set_host_byte(ptr, DID_RESET);
-			ptr->scsi_done(ptr);
+			aha152x_scsi_done(ptr);
 		}
 
 		ptr = next;

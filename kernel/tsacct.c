@@ -137,7 +137,7 @@ static void __acct_update_integrals(struct task_struct *tsk,
 	 * the rest of the math is done in xacct_add_tsk.
 	 */
 	tsk->acct_rss_mem1 += delta * get_mm_rss(tsk->mm) >> 10;
-	tsk->acct_vm_mem1 += delta * tsk->mm->total_vm >> 10;
+	tsk->acct_vm_mem1 += delta * READ_ONCE(tsk->mm->total_vm) >> 10;
 }
 
 /**

@@ -166,12 +166,12 @@
 		};
 	};
 
-	vdd_3v3_sys: regulator@1 {
+	vdd_3v3_sys: regulator-3v3 {
 		gpio = <&pmic 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
-	regulator@4 {
+	regulator-usb {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_usb";
 		regulator-min-microvolt = <3300000>;

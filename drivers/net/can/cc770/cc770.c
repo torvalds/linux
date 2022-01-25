@@ -489,17 +489,17 @@ static void cc770_rx(struct net_device *dev, unsigned int mo, u8 ctrl1)
 		cf->len = can_cc_dlc2len((config & 0xf0) >> 4);
 		for (i = 0; i < cf->len; i++)
 			cf->data[i] = cc770_read_reg(priv, msgobj[mo].data[i]);
-	}
 
+		stats->rx_bytes += cf->len;
+	}
 	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
+
 	netif_rx(skb);
 }
 
 static int cc770_err(struct net_device *dev, u8 status)
 {
 	struct cc770_priv *priv = netdev_priv(dev);
-	struct net_device_stats *stats = &dev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
 	u8 lec;
@@ -571,8 +571,6 @@ static int cc770_err(struct net_device *dev, u8 status)
 	}
 
 
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 
 	return 0;
@@ -666,7 +664,6 @@ static void cc770_tx_interrupt(struct net_device *dev, unsigned int o)
 	struct cc770_priv *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	unsigned int mo = obj2msgobj(o);
-	struct can_frame *cf;
 	u8 ctrl1;
 
 	ctrl1 = cc770_read_reg(priv, msgobj[mo].ctrl1);
@@ -698,12 +695,9 @@ static void cc770_tx_interrupt(struct net_device *dev, unsigned int o)
 		return;
 	}
 
-	cf = (struct can_frame *)priv->tx_skb->data;
-	stats->tx_bytes += cf->len;
-	stats->tx_packets++;
-
 	can_put_echo_skb(priv->tx_skb, dev, 0, 0);
-	can_get_echo_skb(dev, 0, NULL);
+	stats->tx_bytes += can_get_echo_skb(dev, 0, NULL);
+	stats->tx_packets++;
 	priv->tx_skb = NULL;
 
 	netif_wake_queue(dev);

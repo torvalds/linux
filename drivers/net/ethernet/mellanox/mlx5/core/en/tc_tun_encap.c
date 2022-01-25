@@ -13,6 +13,30 @@ enum {
 	MLX5E_ROUTE_ENTRY_VALID     = BIT(0),
 };
 
+static int mlx5e_set_int_port_tunnel(struct mlx5e_priv *priv,
+				     struct mlx5_flow_attr *attr,
+				     struct mlx5e_encap_entry *e,
+				     int out_index)
+{
+	struct net_device *route_dev;
+	int err = 0;
+
+	route_dev = dev_get_by_index(dev_net(e->out_dev), e->route_dev_ifindex);
+
+	if (!route_dev || !netif_is_ovs_master(route_dev))
+		goto out;
+
+	err = mlx5e_set_fwd_to_int_port_actions(priv, attr, e->route_dev_ifindex,
+						MLX5E_TC_INT_PORT_EGRESS,
+						&attr->action, out_index);
+
+out:
+	if (route_dev)
+		dev_put(route_dev);
+
+	return err;
+}
+
 struct mlx5e_route_key {
 	int ip_version;
 	union {
@@ -221,8 +245,14 @@ static void mlx5e_take_tmp_flow(struct mlx5e_tc_flow *flow,
 				struct list_head *flow_list,
 				int index)
 {
-	if (IS_ERR(mlx5e_flow_get(flow)))
+	if (IS_ERR(mlx5e_flow_get(flow))) {
+		/* Flow is being deleted concurrently. Wait for it to be
+		 * unoffloaded from hardware, otherwise deleting encap will
+		 * fail.
+		 */
+		wait_for_completion(&flow->del_hw_done);
 		return;
+	}
 	wait_for_completion(&flow->init_done);
 
 	flow->tmp_entry_index = index;
@@ -809,6 +839,17 @@ attach_flow:
 	if (err)
 		goto out_err;
 
+	err = mlx5e_set_int_port_tunnel(priv, attr, e, out_index);
+	if (err == -EOPNOTSUPP) {
+		/* If device doesn't support int port offload,
+		 * redirect to uplink vport.
+		 */
+		mlx5_core_dbg(priv->mdev, "attaching int port as encap dev not supported, using uplink\n");
+		err = 0;
+	} else if (err) {
+		goto out_err;
+	}
+
 	flow->encaps[out_index].e = e;
 	list_add(&flow->encaps[out_index].list, &e->flows);
 	flow->encaps[out_index].index = out_index;
@@ -1118,7 +1159,7 @@ int mlx5e_attach_decap_route(struct mlx5e_priv *priv,
 
 	tbl_time_before = mlx5e_route_tbl_get_last_update(priv);
 	tbl_time_after = tbl_time_before;
-	err = mlx5e_tc_tun_route_lookup(priv, &parse_attr->spec, attr);
+	err = mlx5e_tc_tun_route_lookup(priv, &parse_attr->spec, attr, parse_attr->filter_dev);
 	if (err || !esw_attr->rx_tun_attr->decap_vport)
 		goto out;
 
@@ -1439,7 +1480,7 @@ static void mlx5e_reoffload_decap(struct mlx5e_priv *priv,
 
 		parse_attr = attr->parse_attr;
 		spec = &parse_attr->spec;
-		err = mlx5e_tc_tun_route_lookup(priv, spec, attr);
+		err = mlx5e_tc_tun_route_lookup(priv, spec, attr, parse_attr->filter_dev);
 		if (err) {
 			mlx5_core_warn(priv->mdev, "Failed to lookup route for flow, %d\n",
 				       err);
@@ -1538,6 +1579,8 @@ mlx5e_init_fib_work_ipv4(struct mlx5e_priv *priv,
 	struct net_device *fib_dev;
 
 	fen_info = container_of(info, struct fib_entry_notifier_info, info);
+	if (fen_info->fi->nh)
+		return NULL;
 	fib_dev = fib_info_nh(fen_info->fi, 0)->fib_nh_dev;
 	if (!fib_dev || fib_dev->netdev_ops != &mlx5e_netdev_ops ||
 	    fen_info->dst_len != 32)

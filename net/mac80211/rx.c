@@ -364,7 +364,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	 * the compiler to think we have walked past the end of the
 	 * struct member.
 	 */
-	pos = (void *)&rthdr->it_optional[it_present - rthdr->it_optional];
+	pos = (void *)&rthdr->it_optional[it_present + 1 - rthdr->it_optional];
 
 	/* the order of the following fields is important */
 
@@ -465,7 +465,12 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		unsigned int stbc;
 
 		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_MCS));
-		*pos++ = local->hw.radiotap_mcs_details;
+		*pos = local->hw.radiotap_mcs_details;
+		if (status->enc_flags & RX_ENC_FLAG_HT_GF)
+			*pos |= IEEE80211_RADIOTAP_MCS_HAVE_FMT;
+		if (status->enc_flags & RX_ENC_FLAG_LDPC)
+			*pos |= IEEE80211_RADIOTAP_MCS_HAVE_FEC;
+		pos++;
 		*pos = 0;
 		if (status->enc_flags & RX_ENC_FLAG_SHORT_GI)
 			*pos |= IEEE80211_RADIOTAP_MCS_SGI;
@@ -1952,7 +1957,8 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		int keyid = rx->sta->ptk_idx;
 		sta_ptk = rcu_dereference(rx->sta->ptk[keyid]);
 
-		if (ieee80211_has_protected(fc)) {
+		if (ieee80211_has_protected(fc) &&
+		    !(status->flag & RX_FLAG_IV_STRIPPED)) {
 			cs = rx->sta->cipher_scheme;
 			keyid = ieee80211_get_keyid(rx->skb, cs);
 
@@ -2943,6 +2949,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	if (!fwd_skb)
 		goto out;
 
+	fwd_skb->dev = sdata->dev;
 	fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
 	fwd_hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_RETRY);
 	info = IEEE80211_SKB_CB(fwd_skb);
@@ -3216,10 +3223,7 @@ static bool
 ieee80211_process_rx_twt_action(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)rx->skb->data;
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
-	const struct ieee80211_sta_he_cap *hecap;
-	struct ieee80211_supported_band *sband;
 
 	/* TWT actions are only supported in AP for the moment */
 	if (sdata->vif.type != NL80211_IFTYPE_AP)
@@ -3228,14 +3232,7 @@ ieee80211_process_rx_twt_action(struct ieee80211_rx_data *rx)
 	if (!rx->local->ops->add_twt_setup)
 		return false;
 
-	sband = rx->local->hw.wiphy->bands[status->band];
-	hecap = ieee80211_get_he_iftype_cap(sband,
-					    ieee80211_vif_type_p2p(&sdata->vif));
-	if (!hecap)
-		return false;
-
-	if (!(hecap->he_cap_elem.mac_cap_info[0] &
-	      IEEE80211_HE_MAC_CAP0_TWT_RES))
+	if (!sdata->vif.bss_conf.twt_responder)
 		return false;
 
 	if (!rx->sta)
@@ -4873,6 +4870,7 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 	struct ieee80211_rate *rate = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
@@ -4931,7 +4929,7 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 				goto drop;
 			break;
 		case RX_ENC_VHT:
-			if (WARN_ONCE(status->rate_idx > 9 ||
+			if (WARN_ONCE(status->rate_idx > 11 ||
 				      !status->nss ||
 				      status->nss > 8,
 				      "Rate marked as a VHT rate but data is invalid: MCS: %d, NSS: %d\n",
@@ -4969,9 +4967,9 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 	if (!(status->flag & RX_FLAG_8023))
 		skb = ieee80211_rx_monitor(local, skb, rate);
 	if (skb) {
-		ieee80211_tpt_led_trig_rx(local,
-					  ((struct ieee80211_hdr *)skb->data)->frame_control,
-					  skb->len);
+		if ((status->flag & RX_FLAG_8023) ||
+			ieee80211_is_data_present(hdr->frame_control))
+			ieee80211_tpt_led_trig_rx(local, skb->len);
 
 		if (status->flag & RX_FLAG_8023)
 			__ieee80211_rx_handle_8023(hw, pubsta, skb, list);

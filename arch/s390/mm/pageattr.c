@@ -57,7 +57,7 @@ void arch_report_meminfo(struct seq_file *m)
 static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 		    unsigned long dtt)
 {
-	unsigned long table, mask;
+	unsigned long *table, mask;
 
 	mask = 0;
 	if (MACHINE_HAS_EDAT2) {
@@ -72,7 +72,7 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 			mask = ~(PTRS_PER_PTE * sizeof(pte_t) - 1);
 			break;
 		}
-		table = (unsigned long)old & mask;
+		table = (unsigned long *)((unsigned long)old & mask);
 		crdte(*old, new, table, dtt, addr, S390_lowcore.kernel_asce);
 	} else if (MACHINE_HAS_IDTE) {
 		cspg(old, *old, new);

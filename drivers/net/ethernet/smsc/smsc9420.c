@@ -404,7 +404,7 @@ static const struct ethtool_ops smsc9420_ethtool_ops = {
 static void smsc9420_set_mac_address(struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
-	u8 *dev_addr = dev->dev_addr;
+	const u8 *dev_addr = dev->dev_addr;
 	u32 mac_high16 = (dev_addr[5] << 8) | dev_addr[4];
 	u32 mac_low32 = (dev_addr[3] << 24) | (dev_addr[2] << 16) |
 	    (dev_addr[1] << 8) | dev_addr[0];
@@ -416,6 +416,7 @@ static void smsc9420_set_mac_address(struct net_device *dev)
 static void smsc9420_check_mac_address(struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
+	u8 addr[ETH_ALEN];
 
 	/* Check if mac address has been specified when bringing interface up */
 	if (is_valid_ether_addr(dev->dev_addr)) {
@@ -427,15 +428,16 @@ static void smsc9420_check_mac_address(struct net_device *dev)
 		 * it will already have been set */
 		u32 mac_high16 = smsc9420_reg_read(pd, ADDRH);
 		u32 mac_low32 = smsc9420_reg_read(pd, ADDRL);
-		dev->dev_addr[0] = (u8)(mac_low32);
-		dev->dev_addr[1] = (u8)(mac_low32 >> 8);
-		dev->dev_addr[2] = (u8)(mac_low32 >> 16);
-		dev->dev_addr[3] = (u8)(mac_low32 >> 24);
-		dev->dev_addr[4] = (u8)(mac_high16);
-		dev->dev_addr[5] = (u8)(mac_high16 >> 8);
+		addr[0] = (u8)(mac_low32);
+		addr[1] = (u8)(mac_low32 >> 8);
+		addr[2] = (u8)(mac_low32 >> 16);
+		addr[3] = (u8)(mac_low32 >> 24);
+		addr[4] = (u8)(mac_high16);
+		addr[5] = (u8)(mac_high16 >> 8);
 
-		if (is_valid_ether_addr(dev->dev_addr)) {
+		if (is_valid_ether_addr(addr)) {
 			/* eeprom values are valid  so use them */
+			eth_hw_addr_set(dev, addr);
 			netif_dbg(pd, probe, pd->dev,
 				  "Mac Address is read from EEPROM\n");
 		} else {
@@ -788,7 +790,7 @@ static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)
 				 PKT_BUF_SZ, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&pd->pdev->dev, mapping)) {
 		dev_kfree_skb_any(skb);
-		netif_warn(pd, rx_err, pd->dev, "pci_map_single failed!\n");
+		netif_warn(pd, rx_err, pd->dev, "dma_map_single failed!\n");
 		return -ENOMEM;
 	}
 
@@ -940,7 +942,7 @@ static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(&pd->pdev->dev, mapping)) {
 		netif_warn(pd, tx_err, pd->dev,
-			   "pci_map_single failed, dropping packet\n");
+			   "dma_map_single failed, dropping packet\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1551,7 +1553,7 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!pd->rx_ring)
 		goto out_free_io_4;
 
-	/* descriptors are aligned due to the nature of pci_alloc_consistent */
+	/* descriptors are aligned due to the nature of dma_alloc_coherent */
 	pd->tx_ring = (pd->rx_ring + RX_RING_SIZE);
 	pd->tx_dma_addr = pd->rx_dma_addr +
 	    sizeof(struct smsc9420_dma_desc) * RX_RING_SIZE;

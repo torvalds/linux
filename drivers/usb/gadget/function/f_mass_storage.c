@@ -588,7 +588,7 @@ static int sleep_thread(struct fsg_common *common, bool can_freeze,
 static int do_read(struct fsg_common *common)
 {
 	struct fsg_lun		*curlun = common->curlun;
-	u32			lba;
+	u64			lba;
 	struct fsg_buffhd	*bh;
 	int			rc;
 	u32			amount_left;
@@ -603,7 +603,10 @@ static int do_read(struct fsg_common *common)
 	if (common->cmnd[0] == READ_6)
 		lba = get_unaligned_be24(&common->cmnd[1]);
 	else {
-		lba = get_unaligned_be32(&common->cmnd[2]);
+		if (common->cmnd[0] == READ_16)
+			lba = get_unaligned_be64(&common->cmnd[2]);
+		else		/* READ_10 or READ_12 */
+			lba = get_unaligned_be32(&common->cmnd[2]);
 
 		/*
 		 * We allow DPO (Disable Page Out = don't save data in the
@@ -716,7 +719,7 @@ static int do_read(struct fsg_common *common)
 static int do_write(struct fsg_common *common)
 {
 	struct fsg_lun		*curlun = common->curlun;
-	u32			lba;
+	u64			lba;
 	struct fsg_buffhd	*bh;
 	int			get_some_more;
 	u32			amount_left_to_req, amount_left_to_write;
@@ -740,7 +743,10 @@ static int do_write(struct fsg_common *common)
 	if (common->cmnd[0] == WRITE_6)
 		lba = get_unaligned_be24(&common->cmnd[1]);
 	else {
-		lba = get_unaligned_be32(&common->cmnd[2]);
+		if (common->cmnd[0] == WRITE_16)
+			lba = get_unaligned_be64(&common->cmnd[2]);
+		else		/* WRITE_10 or WRITE_12 */
+			lba = get_unaligned_be32(&common->cmnd[2]);
 
 		/*
 		 * We allow DPO (Disable Page Out = don't save data in the
@@ -1115,6 +1121,7 @@ static int do_read_capacity(struct fsg_common *common, struct fsg_buffhd *bh)
 	u32		lba = get_unaligned_be32(&common->cmnd[2]);
 	int		pmi = common->cmnd[8];
 	u8		*buf = (u8 *)bh->buf;
+	u32		max_lba;
 
 	/* Check the PMI and LBA fields */
 	if (pmi > 1 || (pmi == 0 && lba != 0)) {
@@ -1122,10 +1129,35 @@ static int do_read_capacity(struct fsg_common *common, struct fsg_buffhd *bh)
 		return -EINVAL;
 	}
 
-	put_unaligned_be32(curlun->num_sectors - 1, &buf[0]);
-						/* Max logical block */
-	put_unaligned_be32(curlun->blksize, &buf[4]);/* Block length */
+	if (curlun->num_sectors < 0x100000000ULL)
+		max_lba = curlun->num_sectors - 1;
+	else
+		max_lba = 0xffffffff;
+	put_unaligned_be32(max_lba, &buf[0]);		/* Max logical block */
+	put_unaligned_be32(curlun->blksize, &buf[4]);	/* Block length */
 	return 8;
+}
+
+static int do_read_capacity_16(struct fsg_common *common, struct fsg_buffhd *bh)
+{
+	struct fsg_lun  *curlun = common->curlun;
+	u64		lba = get_unaligned_be64(&common->cmnd[2]);
+	int		pmi = common->cmnd[14];
+	u8		*buf = (u8 *)bh->buf;
+
+	/* Check the PMI and LBA fields */
+	if (pmi > 1 || (pmi == 0 && lba != 0)) {
+		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
+		return -EINVAL;
+	}
+
+	put_unaligned_be64(curlun->num_sectors - 1, &buf[0]);
+							/* Max logical block */
+	put_unaligned_be32(curlun->blksize, &buf[8]);	/* Block length */
+
+	/* It is safe to keep other fields zeroed */
+	memset(&buf[12], 0, 32 - 12);
+	return 32;
 }
 
 static int do_read_header(struct fsg_common *common, struct fsg_buffhd *bh)
@@ -1874,6 +1906,17 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_read(common);
 		break;
 
+	case READ_16:
+		common->data_size_from_cmnd =
+				get_unaligned_be32(&common->cmnd[10]);
+		reply = check_command_size_in_blocks(common, 16,
+				      DATA_DIR_TO_HOST,
+				      (1<<1) | (0xff<<2) | (0xf<<10), 1,
+				      "READ(16)");
+		if (reply == 0)
+			reply = do_read(common);
+		break;
+
 	case READ_CAPACITY:
 		common->data_size_from_cmnd = 8;
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
@@ -1924,6 +1967,25 @@ static int do_scsi_command(struct fsg_common *common)
 				      "REQUEST SENSE");
 		if (reply == 0)
 			reply = do_request_sense(common, bh);
+		break;
+
+	case SERVICE_ACTION_IN_16:
+		switch (common->cmnd[1] & 0x1f) {
+
+		case SAI_READ_CAPACITY_16:
+			common->data_size_from_cmnd =
+				get_unaligned_be32(&common->cmnd[10]);
+			reply = check_command(common, 16, DATA_DIR_TO_HOST,
+					      (1<<1) | (0xff<<2) | (0xf<<10) |
+					      (1<<14), 1,
+					      "READ CAPACITY(16)");
+			if (reply == 0)
+				reply = do_read_capacity_16(common, bh);
+			break;
+
+		default:
+			goto unknown_cmnd;
+		}
 		break;
 
 	case START_STOP:
@@ -1993,6 +2055,17 @@ static int do_scsi_command(struct fsg_common *common)
 				      DATA_DIR_FROM_HOST,
 				      (1<<1) | (0xf<<2) | (0xf<<6), 1,
 				      "WRITE(12)");
+		if (reply == 0)
+			reply = do_write(common);
+		break;
+
+	case WRITE_16:
+		common->data_size_from_cmnd =
+				get_unaligned_be32(&common->cmnd[10]);
+		reply = check_command_size_in_blocks(common, 16,
+				      DATA_DIR_FROM_HOST,
+				      (1<<1) | (0xff<<2) | (0xf<<10), 1,
+				      "WRITE(16)");
 		if (reply == 0)
 			reply = do_write(common);
 		break;
@@ -2268,6 +2341,16 @@ static int fsg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 static void fsg_disable(struct usb_function *f)
 {
 	struct fsg_dev *fsg = fsg_from_func(f);
+
+	/* Disable the endpoints */
+	if (fsg->bulk_in_enabled) {
+		usb_ep_disable(fsg->bulk_in);
+		fsg->bulk_in_enabled = 0;
+	}
+	if (fsg->bulk_out_enabled) {
+		usb_ep_disable(fsg->bulk_out);
+		fsg->bulk_out_enabled = 0;
+	}
 
 	__raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE, NULL);
 }

@@ -24,7 +24,7 @@
 #define SDSP_DOMAIN_ID (2)
 #define CDSP_DOMAIN_ID (3)
 #define FASTRPC_DEV_MAX		4 /* adsp, mdsp, slpi, cdsp*/
-#define FASTRPC_MAX_SESSIONS	9 /*8 compute, 1 cpz*/
+#define FASTRPC_MAX_SESSIONS	13 /*12 compute, 1 cpz*/
 #define FASTRPC_ALIGN		128
 #define FASTRPC_MAX_FDLIST	16
 #define FASTRPC_MAX_CRCLIST	64
@@ -719,16 +719,18 @@ static int fastrpc_get_meta_size(struct fastrpc_invoke_ctx *ctx)
 static u64 fastrpc_get_payload_size(struct fastrpc_invoke_ctx *ctx, int metalen)
 {
 	u64 size = 0;
-	int i;
+	int oix;
 
 	size = ALIGN(metalen, FASTRPC_ALIGN);
-	for (i = 0; i < ctx->nscalars; i++) {
+	for (oix = 0; oix < ctx->nbufs; oix++) {
+		int i = ctx->olaps[oix].raix;
+
 		if (ctx->args[i].fd == 0 || ctx->args[i].fd == -1) {
 
-			if (ctx->olaps[i].offset == 0)
+			if (ctx->olaps[oix].offset == 0)
 				size = ALIGN(size, FASTRPC_ALIGN);
 
-			size += (ctx->olaps[i].mend - ctx->olaps[i].mstart);
+			size += (ctx->olaps[oix].mend - ctx->olaps[oix].mstart);
 		}
 	}
 
@@ -892,15 +894,17 @@ static int fastrpc_put_args(struct fastrpc_invoke_ctx *ctx,
 	inbufs = REMOTE_SCALARS_INBUFS(ctx->sc);
 
 	for (i = inbufs; i < ctx->nbufs; ++i) {
-		void *src = (void *)(uintptr_t)rpra[i].pv;
-		void *dst = (void *)(uintptr_t)ctx->args[i].ptr;
-		u64 len = rpra[i].len;
+		if (!ctx->maps[i]) {
+			void *src = (void *)(uintptr_t)rpra[i].pv;
+			void *dst = (void *)(uintptr_t)ctx->args[i].ptr;
+			u64 len = rpra[i].len;
 
-		if (!kernel) {
-			if (copy_to_user((void __user *)dst, src, len))
-				return -EFAULT;
-		} else {
-			memcpy(dst, src, len);
+			if (!kernel) {
+				if (copy_to_user((void __user *)dst, src, len))
+					return -EFAULT;
+			} else {
+				memcpy(dst, src, len);
+			}
 		}
 	}
 
@@ -1765,3 +1769,4 @@ static void fastrpc_exit(void)
 module_exit(fastrpc_exit);
 
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(DMA_BUF);

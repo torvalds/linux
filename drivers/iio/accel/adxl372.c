@@ -1214,6 +1214,7 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 	ret = devm_iio_triggered_buffer_setup_ext(dev,
 						  indio_dev, NULL,
 						  adxl372_trigger_handler,
+						  IIO_BUFFER_DIRECTION_IN,
 						  &adxl372_buffer_ops,
 						  adxl372_fifo_attributes);
 	if (ret < 0)

@@ -4,7 +4,7 @@
 
 #define IFINDEX_LO 1
 
-void test_xdp_info(void)
+void serial_test_xdp_info(void)
 {
 	__u32 len = sizeof(struct bpf_prog_info), duration = 0, prog_id;
 	const char *file = "./xdp_dummy.o";
@@ -29,7 +29,7 @@ void test_xdp_info(void)
 
 	/* Setup prog */
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 

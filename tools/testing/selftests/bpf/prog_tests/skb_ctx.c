@@ -11,12 +11,14 @@ void test_skb_ctx(void)
 		.cb[3] = 4,
 		.cb[4] = 5,
 		.priority = 6,
+		.ingress_ifindex = 11,
 		.ifindex = 1,
 		.tstamp = 7,
 		.wire_len = 100,
 		.gso_segs = 8,
 		.mark = 9,
 		.gso_size = 10,
+		.hwtstamp = 11,
 	};
 	struct bpf_prog_test_run_attr tattr = {
 		.data_in = &pkt_v4,
@@ -30,7 +32,7 @@ void test_skb_ctx(void)
 	int err;
 	int i;
 
-	err = bpf_prog_load("./test_skb_ctx.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
+	err = bpf_prog_test_load("./test_skb_ctx.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &tattr.prog_fd);
 	if (CHECK_ATTR(err, "load", "err %d errno %d\n", err, errno))
 		return;
@@ -97,6 +99,10 @@ void test_skb_ctx(void)
 		   "ctx_out_ifindex",
 		   "skb->ifindex == %d, expected %d\n",
 		   skb.ifindex, 1);
+	CHECK_ATTR(skb.ingress_ifindex != 11,
+		   "ctx_out_ingress_ifindex",
+		   "skb->ingress_ifindex == %d, expected %d\n",
+		   skb.ingress_ifindex, 11);
 	CHECK_ATTR(skb.tstamp != 8,
 		   "ctx_out_tstamp",
 		   "skb->tstamp == %lld, expected %d\n",
@@ -105,4 +111,6 @@ void test_skb_ctx(void)
 		   "ctx_out_mark",
 		   "skb->mark == %u, expected %d\n",
 		   skb.mark, 10);
+
+	bpf_object__close(obj);
 }

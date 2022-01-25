@@ -1046,7 +1046,7 @@ int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
 	if (!ret && i2)
 		ret = writeback_inode(i2);
 	if (!ret)
-		ret = filemap_flush(sb->s_bdev->bd_inode->i_mapping);
+		ret = sync_blockdev_nowait(sb->s_bdev);
 	return ret;
 }
 

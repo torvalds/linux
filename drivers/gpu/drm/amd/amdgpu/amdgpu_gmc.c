@@ -153,10 +153,6 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 {
 	void __iomem *ptr = (void *)cpu_pt_addr;
 	uint64_t value;
-	int idx;
-
-	if (!drm_dev_enter(&adev->ddev, &idx))
-		return 0;
 
 	/*
 	 * The following is for PTE only. GART does not have PDEs.
@@ -164,8 +160,6 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 	value = addr & 0x0000FFFFFFFFF000ULL;
 	value |= flags;
 	writeq(value, ptr + (gpu_page_idx * 8));
-
-	drm_dev_exit(idx);
 
 	return 0;
 }
@@ -356,6 +350,7 @@ static inline uint64_t amdgpu_gmc_fault_key(uint64_t addr, uint16_t pasid)
  * amdgpu_gmc_filter_faults - filter VM faults
  *
  * @adev: amdgpu device structure
+ * @ih: interrupt ring that the fault received from
  * @addr: address of the VM fault
  * @pasid: PASID of the process causing the fault
  * @timestamp: timestamp of the fault
@@ -364,13 +359,18 @@ static inline uint64_t amdgpu_gmc_fault_key(uint64_t addr, uint16_t pasid)
  * True if the fault was filtered and should not be processed further.
  * False if the fault is a new one and needs to be handled.
  */
-bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
+bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev,
+			      struct amdgpu_ih_ring *ih, uint64_t addr,
 			      uint16_t pasid, uint64_t timestamp)
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
 	uint64_t stamp, key = amdgpu_gmc_fault_key(addr, pasid);
 	struct amdgpu_gmc_fault *fault;
 	uint32_t hash;
+
+	/* Stale retry fault if timestamp goes backward */
+	if (amdgpu_ih_ts_after(timestamp, ih->processed_timestamp))
+		return true;
 
 	/* If we don't have space left in the ring buffer return immediately */
 	stamp = max(timestamp, AMDGPU_GMC_FAULT_TIMEOUT + 1) -
@@ -749,6 +749,10 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
 	u64 vram_end = vram_addr + vram_size;
 	u64 gart_ptb_gpu_pa = amdgpu_gmc_vram_pa(adev, adev->gart.bo);
+	int idx;
+
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
+		return;
 
 	flags |= AMDGPU_PTE_VALID | AMDGPU_PTE_READABLE;
 	flags |= AMDGPU_PTE_WRITEABLE;
@@ -770,6 +774,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	flags |= AMDGPU_PDE_BFS(0) | AMDGPU_PTE_SNOOPED;
 	/* Requires gart_ptb_gpu_pa to be 4K aligned */
 	amdgpu_gmc_set_pte_pde(adev, adev->gmc.ptr_pdb0, i, gart_ptb_gpu_pa, flags);
+	drm_dev_exit(idx);
 }
 
 /**

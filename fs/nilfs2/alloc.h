@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * alloc.h - persistent object (dat entry/disk inode) allocator/deallocator
+ * Persistent object (dat entry/disk inode) allocator/deallocator
  *
  * Copyright (C) 2006-2008 Nippon Telegraph and Telephone Corporation.
  *

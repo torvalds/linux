@@ -18,7 +18,7 @@ struct mlx5e_rss_params_traffic_type {
 };
 
 struct mlx5e_tir_builder;
-struct mlx5e_lro_param;
+struct mlx5e_packet_merge_param;
 
 struct mlx5e_tir_builder *mlx5e_tir_builder_alloc(bool modify);
 void mlx5e_tir_builder_free(struct mlx5e_tir_builder *builder);
@@ -27,8 +27,8 @@ void mlx5e_tir_builder_clear(struct mlx5e_tir_builder *builder);
 void mlx5e_tir_builder_build_inline(struct mlx5e_tir_builder *builder, u32 tdn, u32 rqn);
 void mlx5e_tir_builder_build_rqt(struct mlx5e_tir_builder *builder, u32 tdn,
 				 u32 rqtn, bool inner_ft_support);
-void mlx5e_tir_builder_build_lro(struct mlx5e_tir_builder *builder,
-				 const struct mlx5e_lro_param *lro_param);
+void mlx5e_tir_builder_build_packet_merge(struct mlx5e_tir_builder *builder,
+					  const struct mlx5e_packet_merge_param *pkt_merge_param);
 void mlx5e_tir_builder_build_rss(struct mlx5e_tir_builder *builder,
 				 const struct mlx5e_rss_params_hash *rss_hash,
 				 const struct mlx5e_rss_params_traffic_type *rss_tt,

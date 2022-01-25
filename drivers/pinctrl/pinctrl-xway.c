@@ -1763,7 +1763,6 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	/* register the gpio chip */
 	xway_chip.parent = &pdev->dev;
 	xway_chip.owner = THIS_MODULE;
-	xway_chip.of_node = pdev->dev.of_node;
 	ret = devm_gpiochip_add_data(&pdev->dev, &xway_chip, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register gpio chip\n");

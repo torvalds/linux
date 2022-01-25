@@ -296,14 +296,6 @@
 			reg = <2>;
 			color = <LED_COLOR_ID_BLUE>;
 		};
-
-		chan@3 {
-			chan-name = "W";
-			led-cur = /bits/ 8 <0x0>;
-			max-cur = /bits/ 8 <0x0>;
-			reg = <3>;
-			color = <LED_COLOR_ID_WHITE>;
-		};
 	};
 
 	eeprom@57 {

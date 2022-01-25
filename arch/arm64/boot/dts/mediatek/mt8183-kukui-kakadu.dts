@@ -5,6 +5,7 @@
 
 /dts-v1/;
 #include "mt8183-kukui-kakadu.dtsi"
+#include "mt8183-kukui-audio-da7219-rt1015p.dtsi"
 
 / {
 	model = "MediaTek kakadu board";

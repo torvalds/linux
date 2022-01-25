@@ -115,6 +115,7 @@ config MLX5_TC_CT
 config MLX5_TC_SAMPLE
 	bool "MLX5 TC sample offload support"
 	depends on MLX5_CLS_ACT
+	depends on PSAMPLE=y || PSAMPLE=n || MLX5_CORE=m
 	default y
 	help
 	  Say Y here if you want to support offloading sample rules via tc

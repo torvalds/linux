@@ -167,9 +167,11 @@ free:
 static void wilc_sdio_remove(struct sdio_func *func)
 {
 	struct wilc *wilc = sdio_get_drvdata(func);
+	struct wilc_sdio *sdio_priv = wilc->bus_data;
 
 	clk_disable_unprepare(wilc->rtc_clk);
 	wilc_netdev_cleanup(wilc);
+	kfree(sdio_priv);
 }
 
 static int wilc_sdio_reset(struct wilc *wilc)
@@ -978,6 +980,7 @@ static const struct wilc_hif_func wilc_hif_sdio = {
 	.hif_sync_ext = wilc_sdio_sync_ext,
 	.enable_interrupt = wilc_sdio_enable_interrupt,
 	.disable_interrupt = wilc_sdio_disable_interrupt,
+	.hif_reset = wilc_sdio_reset,
 };
 
 static int wilc_sdio_resume(struct device *dev)

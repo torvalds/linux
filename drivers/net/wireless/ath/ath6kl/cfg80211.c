@@ -3781,6 +3781,7 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 {
 	struct net_device *ndev;
 	struct ath6kl_vif *vif;
+	u8 addr[ETH_ALEN];
 
 	ndev = alloc_netdev(sizeof(*vif), name, name_assign_type, ether_setup);
 	if (!ndev)
@@ -3803,14 +3804,14 @@ struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
 	vif->htcap[NL80211_BAND_2GHZ].ht_enable = true;
 	vif->htcap[NL80211_BAND_5GHZ].ht_enable = true;
 
-	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
+	ether_addr_copy(addr, ar->mac_addr);
 	if (fw_vif_idx != 0) {
-		ndev->dev_addr[0] = (ndev->dev_addr[0] ^ (1 << fw_vif_idx)) |
-				     0x2;
+		addr[0] = (addr[0] ^ (1 << fw_vif_idx)) | 0x2;
 		if (test_bit(ATH6KL_FW_CAPABILITY_CUSTOM_MAC_ADDR,
 			     ar->fw_capabilities))
-			ndev->dev_addr[4] ^= 0x80;
+			addr[4] ^= 0x80;
 	}
+	eth_hw_addr_set(ndev, addr);
 
 	init_netdev(ndev);
 

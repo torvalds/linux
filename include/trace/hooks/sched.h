@@ -89,6 +89,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_sched_nohz_balancer_kick,
 	TP_PROTO(struct rq *rq, unsigned int *flags, int *done),
 	TP_ARGS(rq, flags, done), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_rebalance_domains,
+	TP_PROTO(struct rq *rq, int *continue_balancing),
+	TP_ARGS(rq, continue_balancing), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_find_busiest_queue,
 	TP_PROTO(int dst_cpu, struct sched_group *group,
 		 struct cpumask *env_cpus, struct rq **busiest,
@@ -109,8 +113,8 @@ DECLARE_HOOK(android_vh_set_sugov_sched_attr,
 	TP_PROTO(struct sched_attr *attr),
 	TP_ARGS(attr));
 DECLARE_RESTRICTED_HOOK(android_rvh_set_iowait,
-	TP_PROTO(struct task_struct *p, int *should_iowait_boost),
-	TP_ARGS(p, should_iowait_boost), 1);
+	TP_PROTO(struct task_struct *p, struct rq *rq, int *should_iowait_boost),
+	TP_ARGS(p, rq, should_iowait_boost), 1);
 struct sugov_policy;
 DECLARE_RESTRICTED_HOOK(android_rvh_set_sugov_update,
 	TP_PROTO(struct sugov_policy *sg_policy, unsigned int next_freq, bool *should_update),
@@ -174,7 +178,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_account_irq,
 
 struct sched_entity;
 DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
-	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 vruntime),
+	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 *vruntime),
 	TP_ARGS(cfs_rq, se, initial, vruntime), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_build_perf_domains,
@@ -301,6 +305,14 @@ DECLARE_RESTRICTED_HOOK(android_rvh_enqueue_task_fair,
 DECLARE_RESTRICTED_HOOK(android_rvh_dequeue_task_fair,
 	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
 	TP_ARGS(rq, p, flags), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_post_init_entity_util_avg,
+	TP_PROTO(struct sched_entity *se),
+	TP_ARGS(se), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_find_new_ilb,
+	TP_PROTO(struct cpumask *nohz_idle_cpus_mask, int *ilb),
+	TP_ARGS(nohz_idle_cpus_mask, ilb), 1);
 
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */

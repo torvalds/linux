@@ -77,6 +77,20 @@ enum hal_rx_mon_status {
 	HAL_RX_MON_STATUS_BUF_DONE,
 };
 
+struct hal_sw_mon_ring_entries {
+	dma_addr_t mon_dst_paddr;
+	dma_addr_t mon_status_paddr;
+	u32 mon_dst_sw_cookie;
+	u32 mon_status_sw_cookie;
+	void *dst_buf_addr_info;
+	void *status_buf_addr_info;
+	u16 ppdu_id;
+	u8 status_buf_count;
+	u8 msdu_cnt;
+	bool end_of_ppdu;
+	bool drop_ppdu;
+};
+
 struct hal_rx_mon_ppdu_info {
 	u32 ppdu_id;
 	u32 ppdu_ts;
@@ -98,6 +112,7 @@ struct hal_rx_mon_ppdu_info {
 	u8 ldpc;
 	u8 beamformed;
 	u8 rssi_comb;
+	u8 rssi_chain_pri20[HAL_RX_MAX_NSS];
 	u8 tid;
 	u8 dcm;
 	u8 ru_alloc;
@@ -248,8 +263,17 @@ struct hal_rx_he_sig_b2_ofdma_info {
 
 #define HAL_RX_PHYRX_RSSI_LEGACY_INFO_INFO1_RSSI_COMB	GENMASK(15, 8)
 
+#define HAL_RX_PHYRX_RSSI_PREAMBLE_PRI20	GENMASK(7, 0)
+
+struct hal_rx_phyrx_chain_rssi {
+	__le32 rssi_2040;
+	__le32 rssi_80;
+} __packed;
+
 struct hal_rx_phyrx_rssi_legacy_info {
-	__le32 rsvd[35];
+	__le32 rsvd[3];
+	struct hal_rx_phyrx_chain_rssi pre_rssi[HAL_RX_MAX_NSS];
+	struct hal_rx_phyrx_chain_rssi preamble[HAL_RX_MAX_NSS];
 	__le32 info0;
 } __packed;
 
@@ -331,37 +355,13 @@ void ath11k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc,
 					 dma_addr_t *paddr, u32 *sw_cookie,
 					 void **pp_buf_addr_info, u8 *rbm,
 					 u32 *msdu_cnt);
+void
+ath11k_hal_rx_sw_mon_ring_buf_paddr_get(void *rx_desc,
+					struct hal_sw_mon_ring_entries *sw_mon_ent);
 enum hal_rx_mon_status
 ath11k_hal_rx_parse_mon_status(struct ath11k_base *ab,
 			       struct hal_rx_mon_ppdu_info *ppdu_info,
 			       struct sk_buff *skb);
-
-static inline u32 ath11k_he_ru_tones_to_nl80211_he_ru_alloc(u16 ru_tones)
-{
-	u32 ret = 0;
-
-	switch (ru_tones) {
-	case RU_26:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_26;
-		break;
-	case RU_52:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_52;
-		break;
-	case RU_106:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_106;
-		break;
-	case RU_242:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_242;
-		break;
-	case RU_484:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_484;
-		break;
-	case RU_996:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_996;
-		break;
-	}
-	return ret;
-}
 
 #define REO_QUEUE_DESC_MAGIC_DEBUG_PATTERN_0 0xDDBEEF
 #define REO_QUEUE_DESC_MAGIC_DEBUG_PATTERN_1 0xADBEEF

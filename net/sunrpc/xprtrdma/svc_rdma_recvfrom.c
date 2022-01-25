@@ -330,9 +330,9 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	/* WARNING: Only wc->wr_cqe and wc->status are reliable */
 	ctxt = container_of(cqe, struct svc_rdma_recv_ctxt, rc_cqe);
 
-	trace_svcrdma_wc_receive(wc, &ctxt->rc_cid);
 	if (wc->status != IB_WC_SUCCESS)
 		goto flushed;
+	trace_svcrdma_wc_recv(wc, &ctxt->rc_cid);
 
 	/* If receive posting fails, the connection is about to be
 	 * lost anyway. The server will not be able to send a reply
@@ -345,7 +345,7 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	 */
 	if (rdma->sc_pending_recvs < rdma->sc_max_requests)
 		if (!svc_rdma_refresh_recvs(rdma, rdma->sc_recv_batch, false))
-			goto flushed;
+			goto dropped;
 
 	/* All wc fields are now known to be valid */
 	ctxt->rc_byte_len = wc->byte_len;
@@ -360,6 +360,11 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	return;
 
 flushed:
+	if (wc->status == IB_WC_WR_FLUSH_ERR)
+		trace_svcrdma_wc_recv_flush(wc, &ctxt->rc_cid);
+	else
+		trace_svcrdma_wc_recv_err(wc, &ctxt->rc_cid);
+dropped:
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	svc_xprt_deferred_close(&rdma->sc_xprt);
 }

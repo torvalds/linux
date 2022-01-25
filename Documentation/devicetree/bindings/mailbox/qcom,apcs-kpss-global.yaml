@@ -11,7 +11,7 @@ description:
   platforms.
 
 maintainers:
-  - Sivaprakash Murugesan <sivaprak@codeaurora.org>
+  - Jassi Brar <jassisinghbrar@gmail.com>
 
 properties:
   compatible:
@@ -24,6 +24,7 @@ properties:
       - qcom,msm8994-apcs-kpss-global
       - qcom,msm8996-apcs-hmss-global
       - qcom,msm8998-apcs-hmss-global
+      - qcom,qcm2290-apcs-hmss-global
       - qcom,qcs404-apcs-apps-global
       - qcom,sc7180-apss-shared
       - qcom,sc8180x-apss-shared

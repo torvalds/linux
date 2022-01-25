@@ -183,26 +183,23 @@ Frame Buffer Compression (FBC)
 Display Refresh Rate Switching (DRRS)
 -------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
    :doc: Display Refresh Rate Switching (DRRS)
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_dp_set_drrs_state
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_enable
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_edp_drrs_enable
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_disable
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_edp_drrs_disable
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_invalidate
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_edp_drrs_invalidate
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_flush
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_edp_drrs_flush
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
-   :functions: intel_dp_drrs_init
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
+   :functions: intel_drrs_init
 
 DPIO
 ----
@@ -474,6 +471,14 @@ Object Tiling IOCTLs
 .. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_tiling.c
    :doc: buffer object tiling
 
+Protected Objects
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/pxp/intel_pxp.c
+   :doc: PXP
+
+.. kernel-doc:: drivers/gpu/drm/i915/pxp/intel_pxp_types.h
+
 Microcontrollers
 ================
 
@@ -497,6 +502,8 @@ GuC
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
    :doc: GuC
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.h
 
 GuC Firmware Layout
 ~~~~~~~~~~~~~~~~~~~

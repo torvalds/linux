@@ -817,7 +817,9 @@ static void cpmac_tx_timeout(struct net_device *dev, unsigned int txqueue)
 }
 
 static void cpmac_get_ringparam(struct net_device *dev,
-						struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 
@@ -833,7 +835,9 @@ static void cpmac_get_ringparam(struct net_device *dev,
 }
 
 static int cpmac_set_ringparam(struct net_device *dev,
-						struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 
@@ -1112,7 +1116,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->ring_size = 64;
 	priv->msg_enable = netif_msg_init(debug_level, 0xff);
-	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(pdata->dev_addr));
+	eth_hw_addr_set(dev, pdata->dev_addr);
 
 	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT,
 						mdio_bus_id, phy_id);

@@ -36,7 +36,6 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 	u64 max_tcam_regions;
 	u64 max_regions;
 	u64 max_groups;
-	size_t alloc_size;
 	int err;
 
 	mutex_init(&tcam->lock);
@@ -52,15 +51,13 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 	if (max_tcam_regions < max_regions)
 		max_regions = max_tcam_regions;
 
-	alloc_size = sizeof(tcam->used_regions[0]) * BITS_TO_LONGS(max_regions);
-	tcam->used_regions = kzalloc(alloc_size, GFP_KERNEL);
+	tcam->used_regions = bitmap_zalloc(max_regions, GFP_KERNEL);
 	if (!tcam->used_regions)
 		return -ENOMEM;
 	tcam->max_regions = max_regions;
 
 	max_groups = MLXSW_CORE_RES_GET(mlxsw_sp->core, ACL_MAX_GROUPS);
-	alloc_size = sizeof(tcam->used_groups[0]) * BITS_TO_LONGS(max_groups);
-	tcam->used_groups = kzalloc(alloc_size, GFP_KERNEL);
+	tcam->used_groups = bitmap_zalloc(max_groups, GFP_KERNEL);
 	if (!tcam->used_groups) {
 		err = -ENOMEM;
 		goto err_alloc_used_groups;
@@ -76,9 +73,9 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_tcam_init:
-	kfree(tcam->used_groups);
+	bitmap_free(tcam->used_groups);
 err_alloc_used_groups:
-	kfree(tcam->used_regions);
+	bitmap_free(tcam->used_regions);
 	return err;
 }
 
@@ -89,8 +86,8 @@ void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp,
 
 	mutex_destroy(&tcam->lock);
 	ops->fini(mlxsw_sp, tcam->priv);
-	kfree(tcam->used_groups);
-	kfree(tcam->used_regions);
+	bitmap_free(tcam->used_groups);
+	bitmap_free(tcam->used_regions);
 }
 
 int mlxsw_sp_acl_tcam_priority_get(struct mlxsw_sp *mlxsw_sp,

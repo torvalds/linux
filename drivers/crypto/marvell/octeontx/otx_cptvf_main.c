@@ -94,15 +94,13 @@ static int alloc_pending_queues(struct otx_cpt_pending_qinfo *pqinfo, u32 qlen,
 				u32 num_queues)
 {
 	struct otx_cpt_pending_queue *queue = NULL;
-	size_t size;
 	int ret;
 	u32 i;
 
 	pqinfo->num_queues = num_queues;
-	size = (qlen * sizeof(struct otx_cpt_pending_entry));
 
 	for_each_pending_queue(pqinfo, queue, i) {
-		queue->head = kzalloc((size), GFP_KERNEL);
+		queue->head = kcalloc(qlen, sizeof(*queue->head), GFP_KERNEL);
 		if (!queue->head) {
 			ret = -ENOMEM;
 			goto pending_qfail;

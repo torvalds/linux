@@ -409,7 +409,7 @@ static int genmii_read_link(struct mii_phy *phy)
 	 * though magic-aneg shouldn't prevent this case from occurring
 	 */
 
-	 return 0;
+	return 0;
 }
 
 static int generic_suspend(struct mii_phy* phy)

@@ -16,7 +16,7 @@
 	model = "intercontrol,digsy-mtc";
 	compatible = "intercontrol,digsy-mtc";
 
-	memory {
+	memory@0 {
 		reg = <0x00000000 0x02000000>;	// 32MB
 	};
 
@@ -98,9 +98,9 @@
 		clock-frequency = <0>; // From boot loader
 		interrupts = <2 8 0 2 9 0 2 10 0>;
 		bus-range = <0 0>;
-		ranges = <0x42000000 0 0x80000000 0x80000000 0 0x10000000
-			  0x02000000 0 0x90000000 0x90000000 0 0x10000000
-			  0x01000000 0 0x00000000 0xa0000000 0 0x01000000>;
+		ranges = <0x42000000 0 0x80000000 0x80000000 0 0x10000000>,
+			 <0x02000000 0 0x90000000 0x90000000 0 0x10000000>,
+			 <0x01000000 0 0x00000000 0xa0000000 0 0x01000000>;
 	};
 
 	localbus {

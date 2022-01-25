@@ -331,9 +331,11 @@ static int lis3lv02d_probe(struct platform_device *device)
 	INIT_WORK(&hpled_led.work, delayed_set_status_worker);
 	ret = led_classdev_register(NULL, &hpled_led.led_classdev);
 	if (ret) {
+		i8042_remove_filter(hp_accel_i8042_filter);
 		lis3lv02d_joystick_disable(&lis3_dev);
 		lis3lv02d_poweroff(&lis3_dev);
 		flush_work(&hpled_led.work);
+		lis3lv02d_remove_fs(&lis3_dev);
 		return ret;
 	}
 
@@ -349,42 +351,24 @@ static int lis3lv02d_remove(struct platform_device *device)
 	led_classdev_unregister(&hpled_led.led_classdev);
 	flush_work(&hpled_led.work);
 
-	return lis3lv02d_remove_fs(&lis3_dev);
+	lis3lv02d_remove_fs(&lis3_dev);
+	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int lis3lv02d_suspend(struct device *dev)
+static int __maybe_unused lis3lv02d_suspend(struct device *dev)
 {
 	/* make sure the device is off when we suspend */
 	lis3lv02d_poweroff(&lis3_dev);
 	return 0;
 }
 
-static int lis3lv02d_resume(struct device *dev)
+static int __maybe_unused lis3lv02d_resume(struct device *dev)
 {
 	lis3lv02d_poweron(&lis3_dev);
 	return 0;
 }
 
-static int lis3lv02d_restore(struct device *dev)
-{
-	lis3lv02d_poweron(&lis3_dev);
-	return 0;
-}
-
-static const struct dev_pm_ops hp_accel_pm = {
-	.suspend = lis3lv02d_suspend,
-	.resume = lis3lv02d_resume,
-	.freeze = lis3lv02d_suspend,
-	.thaw = lis3lv02d_resume,
-	.poweroff = lis3lv02d_suspend,
-	.restore = lis3lv02d_restore,
-};
-
-#define HP_ACCEL_PM (&hp_accel_pm)
-#else
-#define HP_ACCEL_PM NULL
-#endif
+static SIMPLE_DEV_PM_OPS(hp_accel_pm, lis3lv02d_suspend, lis3lv02d_resume);
 
 /* For the HP MDPS aka 3D Driveguard */
 static struct platform_driver lis3lv02d_driver = {
@@ -392,7 +376,7 @@ static struct platform_driver lis3lv02d_driver = {
 	.remove	= lis3lv02d_remove,
 	.driver	= {
 		.name	= "hp_accel",
-		.pm	= HP_ACCEL_PM,
+		.pm	= &hp_accel_pm,
 		.acpi_match_table = lis3lv02d_device_ids,
 	},
 };

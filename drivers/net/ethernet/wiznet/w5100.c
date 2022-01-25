@@ -985,7 +985,7 @@ static int w5100_set_macaddr(struct net_device *ndev, void *addr)
 
 	if (!is_valid_ether_addr(sock_addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, sock_addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(ndev, sock_addr->sa_data);
 	w5100_write_macaddr(priv);
 	return 0;
 }
@@ -1064,7 +1064,9 @@ static int w5100_mmio_probe(struct platform_device *pdev)
 
 static int w5100_mmio_remove(struct platform_device *pdev)
 {
-	return w5100_remove(&pdev->dev);
+	w5100_remove(&pdev->dev);
+
+	return 0;
 }
 
 void *w5100_ops_priv(const struct net_device *ndev)
@@ -1155,7 +1157,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	INIT_WORK(&priv->restart_work, w5100_restart_work);
 
 	if (mac_addr)
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+		eth_hw_addr_set(ndev, mac_addr);
 	else
 		eth_hw_addr_random(ndev);
 
@@ -1210,7 +1212,7 @@ err_register:
 }
 EXPORT_SYMBOL_GPL(w5100_probe);
 
-int w5100_remove(struct device *dev)
+void w5100_remove(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct w5100_priv *priv = netdev_priv(ndev);
@@ -1226,7 +1228,6 @@ int w5100_remove(struct device *dev)
 
 	unregister_netdev(ndev);
 	free_netdev(ndev);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(w5100_remove);
 

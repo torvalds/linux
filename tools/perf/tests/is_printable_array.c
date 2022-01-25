@@ -5,7 +5,7 @@
 #include "debug.h"
 #include "print_binary.h"
 
-int test__is_printable_array(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__is_printable_array(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	char buf1[] = { 'k', 'r', 4, 'v', 'a', 0 };
 	char buf2[] = { 'k', 'r', 'a', 'v', 4, 0 };
@@ -36,3 +36,5 @@ int test__is_printable_array(struct test *test __maybe_unused, int subtest __may
 
 	return TEST_OK;
 }
+
+DEFINE_SUITE("is_printable_array", is_printable_array);

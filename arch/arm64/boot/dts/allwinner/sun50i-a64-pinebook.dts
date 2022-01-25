@@ -15,6 +15,7 @@
 / {
 	model = "Pinebook";
 	compatible = "pine64,pinebook", "allwinner,sun50i-a64";
+	chassis-type = "laptop";
 
 	aliases {
 		serial0 = &uart0;

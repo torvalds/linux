@@ -159,7 +159,7 @@ static int mock_hwsp_freelist(void *arg)
 	INIT_RADIX_TREE(&state.cachelines, GFP_KERNEL);
 	state.prng = I915_RND_STATE_INITIALIZER(i915_selftest.random_seed);
 
-	state.gt = &i915->gt;
+	state.gt = to_gt(i915);
 
 	/*
 	 * Create a bunch of timelines and check that their HWSP do not overlap.
@@ -1416,8 +1416,8 @@ int intel_timeline_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_hwsp_rollover_user),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

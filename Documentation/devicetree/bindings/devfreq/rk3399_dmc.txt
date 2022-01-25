@@ -174,7 +174,7 @@ Example:
 		compatible = "rockchip,rk3399-dmc";
 		devfreq-events = <&dfi>;
 		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_DDRCLK>;
+		clocks = <&cru SCLK_DDRC>;
 		clock-names = "dmc_clk";
 		operating-points-v2 = <&dmc_opp_table>;
 		center-supply = <&ppvar_centerlogic>;

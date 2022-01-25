@@ -23,6 +23,18 @@
 
 #include "remoteproc_internal.h"
 
+static struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
+{
+	return container_of(vdev->dev.parent, struct rproc_vdev, dev);
+}
+
+static  struct rproc *vdev_to_rproc(struct virtio_device *vdev)
+{
+	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
+
+	return rvdev->rproc;
+}
+
 /* kick the remote processor, and let it know which virtqueue to poke at */
 static bool rproc_virtio_notify(struct virtqueue *vq)
 {

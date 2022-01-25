@@ -8,9 +8,11 @@
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/net_tstamp.h>
 
 #include "otx2_common.h"
 #include "otx2_reg.h"
+#include "otx2_ptp.h"
 #include "cn10k.h"
 
 #define DRV_NAME	"rvu_nicvf"
@@ -277,7 +279,6 @@ static void otx2vf_vfaf_mbox_destroy(struct otx2_nic *vf)
 	struct mbox *mbox = &vf->mbox;
 
 	if (vf->mbox_wq) {
-		flush_workqueue(vf->mbox_wq);
 		destroy_workqueue(vf->mbox_wq);
 		vf->mbox_wq = NULL;
 	}
@@ -500,6 +501,7 @@ static const struct net_device_ops otx2vf_netdev_ops = {
 	.ndo_set_features = otx2vf_set_features,
 	.ndo_get_stats64 = otx2_get_stats64,
 	.ndo_tx_timeout = otx2_tx_timeout,
+	.ndo_eth_ioctl	= otx2_ioctl,
 };
 
 static int otx2_wq_init(struct otx2_nic *vf)
@@ -583,6 +585,7 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->rx_queues = qcount;
 	hw->tx_queues = qcount;
 	hw->max_queues = qcount;
+	hw->tot_tx_queues = qcount;
 
 	hw->irq_name = devm_kmalloc_array(&hw->pdev->dev, num_vec, NAME_SIZE,
 					  GFP_KERNEL);
@@ -640,6 +643,9 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_detach_rsrc;
 
+	/* Don't check for error.  Proceed without ptp */
+	otx2_ptp_init(vf);
+
 	/* Assign default mac address */
 	otx2_get_mac_from_af(netdev);
 
@@ -657,7 +663,7 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	netdev->hw_features |= NETIF_F_NTUPLE;
 	netdev->hw_features |= NETIF_F_RXALL;
 
-	netdev->gso_max_segs = OTX2_MAX_GSO_SEGS;
+	netif_set_gso_max_segs(netdev, OTX2_MAX_GSO_SEGS);
 	netdev->watchdog_timeo = OTX2_TX_TIMEOUT;
 
 	netdev->netdev_ops = &otx2vf_netdev_ops;
@@ -678,7 +684,7 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(dev, "Failed to register netdevice\n");
-		goto err_detach_rsrc;
+		goto err_ptp_destroy;
 	}
 
 	err = otx2_wq_init(vf);
@@ -703,6 +709,8 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 err_unreg_netdev:
 	unregister_netdev(netdev);
+err_ptp_destroy:
+	otx2_ptp_destroy(vf);
 err_detach_rsrc:
 	if (test_bit(CN10K_LMTST, &vf->hw.cap_flag))
 		qmem_free(vf->dev, vf->dync_lmt);
@@ -736,6 +744,7 @@ static void otx2vf_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 	if (vf->otx2_wq)
 		destroy_workqueue(vf->otx2_wq);
+	otx2_ptp_destroy(vf);
 	otx2vf_disable_mbox_intr(vf);
 	otx2_detach_resources(&vf->mbox);
 	if (test_bit(CN10K_LMTST, &vf->hw.cap_flag))

@@ -773,7 +773,7 @@ static int arc_emac_set_address(struct net_device *ndev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 
 	arc_emac_set_address_internal(ndev);
 
@@ -941,7 +941,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	}
 
 	/* Get MAC address from device tree */
-	err = of_get_mac_address(dev->of_node, ndev->dev_addr);
+	err = of_get_ethdev_address(dev->of_node, ndev);
 	if (err)
 		eth_hw_addr_random(ndev);
 

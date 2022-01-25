@@ -37,8 +37,6 @@ void irdma_hw_stats_read_all(struct irdma_vsi_pestat *stats,
 enum irdma_status_code
 irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
 		      struct irdma_ws_node_info *node_info);
-enum irdma_status_code irdma_cqp_up_map_cmd(struct irdma_sc_dev *dev, u8 cmd,
-					    struct irdma_up_info *map_info);
 enum irdma_status_code irdma_cqp_ceq_cmd(struct irdma_sc_dev *dev,
 					 struct irdma_sc_ceq *sc_ceq, u8 op);
 enum irdma_status_code irdma_cqp_aeq_cmd(struct irdma_sc_dev *dev,

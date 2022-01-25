@@ -139,7 +139,7 @@ struct lm63_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
 	const struct attribute_group *groups[5];
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	char lut_valid; /* zero until lut fields are valid */
 	unsigned long last_updated; /* in jiffies */
 	unsigned long lut_last_updated; /* in jiffies */
@@ -289,7 +289,7 @@ static struct lm63_data *lm63_update_device(struct device *dev)
 			       LM63_REG_ALERT_STATUS) & 0x7F;
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	lm63_update_lut(data);
@@ -714,7 +714,7 @@ static ssize_t temp2_type_store(struct device *dev,
 	reg = i2c_smbus_read_byte_data(client, LM96163_REG_TRUTHERM) & ~0x02;
 	i2c_smbus_write_byte_data(client, LM96163_REG_TRUTHERM,
 				  reg | (data->trutherm ? 0x02 : 0x00));
-	data->valid = 0;
+	data->valid = false;
 	mutex_unlock(&data->update_lock);
 
 	return count;

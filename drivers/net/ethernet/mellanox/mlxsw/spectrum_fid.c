@@ -317,13 +317,13 @@ mlxsw_sp_fid_flood_table_lookup(const struct mlxsw_sp_fid *fid,
 }
 
 int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
-			   enum mlxsw_sp_flood_type packet_type, u8 local_port,
+			   enum mlxsw_sp_flood_type packet_type, u16 local_port,
 			   bool member)
 {
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 	const struct mlxsw_sp_fid_ops *ops = fid_family->ops;
 	const struct mlxsw_sp_flood_table *flood_table;
-	char *sftr_pl;
+	char *sftr2_pl;
 	int err;
 
 	if (WARN_ON(!fid_family->flood_tables || !ops->flood_index))
@@ -333,16 +333,16 @@ int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
 	if (!flood_table)
 		return -ESRCH;
 
-	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
-	if (!sftr_pl)
+	sftr2_pl = kmalloc(MLXSW_REG_SFTR2_LEN, GFP_KERNEL);
+	if (!sftr2_pl)
 		return -ENOMEM;
 
-	mlxsw_reg_sftr_pack(sftr_pl, flood_table->table_index,
-			    ops->flood_index(fid), flood_table->table_type, 1,
-			    local_port, member);
-	err = mlxsw_reg_write(fid_family->mlxsw_sp->core, MLXSW_REG(sftr),
-			      sftr_pl);
-	kfree(sftr_pl);
+	mlxsw_reg_sftr2_pack(sftr2_pl, flood_table->table_index,
+			     ops->flood_index(fid), flood_table->table_type, 1,
+			     local_port, member);
+	err = mlxsw_reg_write(fid_family->mlxsw_sp->core, MLXSW_REG(sftr2),
+			      sftr2_pl);
+	kfree(sftr2_pl);
 	return err;
 }
 
@@ -439,7 +439,7 @@ static int mlxsw_sp_fid_vni_op(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
 }
 
 static int __mlxsw_sp_fid_port_vid_map(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
-				       u8 local_port, u16 vid, bool valid)
+				       u16 local_port, u16 vid, bool valid)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
 	char svfa_pl[MLXSW_REG_SVFA_LEN];
@@ -573,7 +573,7 @@ static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 					   u16 vid)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 	int err;
 
 	err = __mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
@@ -601,7 +601,7 @@ mlxsw_sp_fid_8021d_port_vid_unmap(struct mlxsw_sp_fid *fid,
 				  struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 
 	if (mlxsw_sp->fid_core->port_fid_mappings[local_port] == 1)
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
@@ -784,7 +784,7 @@ static int mlxsw_sp_fid_rfid_port_vid_map(struct mlxsw_sp_fid *fid,
 					  u16 vid)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 	int err;
 
 	/* We only need to transition the port to virtual mode since
@@ -808,7 +808,7 @@ mlxsw_sp_fid_rfid_port_vid_unmap(struct mlxsw_sp_fid *fid,
 				 struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 local_port = mlxsw_sp_port->local_port;
+	u16 local_port = mlxsw_sp_port->local_port;
 
 	if (mlxsw_sp->fid_core->port_fid_mappings[local_port] == 1)
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);

@@ -33,7 +33,7 @@ page_set_nocache(pte_t *pte, unsigned long addr,
 	 * Flush the page out of the TLB so that the new page flags get
 	 * picked up next time there's an access
 	 */
-	flush_tlb_page(NULL, addr);
+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 
 	/* Flush page out of dcache */
 	for (cl = __pa(addr); cl < __pa(next); cl += cpuinfo->dcache_block_size)
@@ -56,7 +56,7 @@ page_clear_nocache(pte_t *pte, unsigned long addr,
 	 * Flush the page out of the TLB so that the new page flags get
 	 * picked up next time there's an access
 	 */
-	flush_tlb_page(NULL, addr);
+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 
 	return 0;
 }

@@ -31,6 +31,7 @@ enum {
 	NDA_PROTOCOL,  /* Originator of entry */
 	NDA_NH_ID,
 	NDA_FDB_EXT_ATTRS,
+	NDA_FLAGS_EXT,
 	__NDA_MAX
 };
 
@@ -40,14 +41,16 @@ enum {
  *	Neighbor Cache Entry Flags
  */
 
-#define NTF_USE		0x01
-#define NTF_SELF	0x02
-#define NTF_MASTER	0x04
-#define NTF_PROXY	0x08	/* == ATF_PUBL */
-#define NTF_EXT_LEARNED	0x10
-#define NTF_OFFLOADED   0x20
-#define NTF_STICKY	0x40
-#define NTF_ROUTER	0x80
+#define NTF_USE		(1 << 0)
+#define NTF_SELF	(1 << 1)
+#define NTF_MASTER	(1 << 2)
+#define NTF_PROXY	(1 << 3)	/* == ATF_PUBL */
+#define NTF_EXT_LEARNED	(1 << 4)
+#define NTF_OFFLOADED   (1 << 5)
+#define NTF_STICKY	(1 << 6)
+#define NTF_ROUTER	(1 << 7)
+/* Extended flags under NDA_FLAGS_EXT: */
+#define NTF_EXT_MANAGED	(1 << 0)
 
 /*
  *	Neighbor Cache Entry States.
@@ -65,12 +68,22 @@ enum {
 #define NUD_PERMANENT	0x80
 #define NUD_NONE	0x00
 
-/* NUD_NOARP & NUD_PERMANENT are pseudostates, they never change
- * and make no address resolution or NUD.
- * NUD_PERMANENT also cannot be deleted by garbage collectors.
+/* NUD_NOARP & NUD_PERMANENT are pseudostates, they never change and make no
+ * address resolution or NUD.
+ *
+ * NUD_PERMANENT also cannot be deleted by garbage collectors. This holds true
+ * for dynamic entries with NTF_EXT_LEARNED flag as well. However, upon carrier
+ * down event, NUD_PERMANENT entries are not flushed whereas NTF_EXT_LEARNED
+ * flagged entries explicitly are (which is also consistent with the routing
+ * subsystem).
+ *
  * When NTF_EXT_LEARNED is set for a bridge fdb entry the different cache entry
  * states don't make sense and thus are ignored. Such entries don't age and
  * can roam.
+ *
+ * NTF_EXT_MANAGED flagged neigbor entries are managed by the kernel on behalf
+ * of a user space control plane, and automatically refreshed so that (if
+ * possible) they remain in NUD_REACHABLE state.
  */
 
 struct nda_cacheinfo {

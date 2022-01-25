@@ -103,6 +103,7 @@ static inline unsigned int __shrink_ple_window(unsigned int val,
 
 #define MSR_IA32_CR_PAT_DEFAULT  0x0007040600070406ULL
 
+void kvm_service_local_tlb_flush_requests(struct kvm_vcpu *vcpu);
 int kvm_check_nested_events(struct kvm_vcpu *vcpu);
 
 static inline void kvm_clear_exception_queue(struct kvm_vcpu *vcpu)
@@ -153,10 +154,22 @@ static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
 {
 	int cs_db, cs_l;
 
+	WARN_ON_ONCE(vcpu->arch.guest_state_protected);
+
 	if (!is_long_mode(vcpu))
 		return false;
 	static_call(kvm_x86_get_cs_db_l_bits)(vcpu, &cs_db, &cs_l);
 	return cs_l;
+}
+
+static inline bool is_64_bit_hypercall(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * If running with protected guest state, the CS register is not
+	 * accessible. The hypercall register values will have had to been
+	 * provided in 64-bit mode, so assume the guest is in 64-bit.
+	 */
+	return vcpu->arch.guest_state_protected || is_64_bit_mode(vcpu);
 }
 
 static inline bool x86_exception_has_error_code(unsigned int vector)
@@ -171,12 +184,6 @@ static inline bool x86_exception_has_error_code(unsigned int vector)
 static inline bool mmu_is_nested(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.walk_mmu == &vcpu->arch.nested_mmu;
-}
-
-static inline void kvm_vcpu_flush_tlb_current(struct kvm_vcpu *vcpu)
-{
-	++vcpu->stat.tlb_flush;
-	static_call(kvm_x86_tlb_flush_current)(vcpu);
 }
 
 static inline int is_pae(struct kvm_vcpu *vcpu)
@@ -342,8 +349,6 @@ extern unsigned int min_timer_period_us;
 extern bool enable_vmware_backdoor;
 
 extern int pi_inject_timer;
-
-extern struct static_key kvm_no_apic_vcpu;
 
 extern bool report_ignored_msrs;
 

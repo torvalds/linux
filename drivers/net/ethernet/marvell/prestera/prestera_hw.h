@@ -5,6 +5,7 @@
 #define _PRESTERA_HW_H_
 
 #include <linux/types.h>
+#include "prestera_acl.h"
 
 enum prestera_accept_frm_type {
 	PRESTERA_ACCEPT_FRAME_TYPE_TAGGED,
@@ -17,6 +18,23 @@ enum prestera_fdb_flush_mode {
 	PRESTERA_FDB_FLUSH_MODE_STATIC = BIT(1),
 	PRESTERA_FDB_FLUSH_MODE_ALL = PRESTERA_FDB_FLUSH_MODE_DYNAMIC
 					| PRESTERA_FDB_FLUSH_MODE_STATIC,
+};
+
+enum {
+	PRESTERA_MAC_MODE_INTERNAL,
+	PRESTERA_MAC_MODE_SGMII,
+	PRESTERA_MAC_MODE_1000BASE_X,
+	PRESTERA_MAC_MODE_KR,
+	PRESTERA_MAC_MODE_KR2,
+	PRESTERA_MAC_MODE_KR4,
+	PRESTERA_MAC_MODE_CR,
+	PRESTERA_MAC_MODE_CR2,
+	PRESTERA_MAC_MODE_CR4,
+	PRESTERA_MAC_MODE_SR_LR,
+	PRESTERA_MAC_MODE_SR_LR2,
+	PRESTERA_MAC_MODE_SR_LR4,
+
+	PRESTERA_MAC_MODE_MAX
 };
 
 enum {
@@ -94,18 +112,32 @@ enum prestera_hw_cpu_code_cnt_t {
 	PRESTERA_HW_CPU_CODE_CNT_TYPE_TRAP = 1,
 };
 
+enum prestera_hw_vtcam_direction_t {
+	PRESTERA_HW_VTCAM_DIR_INGRESS = 0,
+	PRESTERA_HW_VTCAM_DIR_EGRESS = 1,
+};
+
+enum {
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_0 = 0,
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_1 = 1,
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_2 = 2,
+};
+
 struct prestera_switch;
 struct prestera_port;
 struct prestera_port_stats;
 struct prestera_port_caps;
 enum prestera_event_type;
 struct prestera_event;
-struct prestera_acl_rule;
 
 typedef void (*prestera_event_cb_t)
 	(struct prestera_switch *sw, struct prestera_event *evt, void *arg);
 
 struct prestera_rxtx_params;
+struct prestera_acl_hw_action_info;
+struct prestera_acl_iface;
+struct prestera_counter_stats;
+struct prestera_iface;
 
 /* Switch API */
 int prestera_hw_switch_init(struct prestera_switch *sw);
@@ -116,32 +148,29 @@ int prestera_hw_switch_mac_set(struct prestera_switch *sw, const char *mac);
 /* Port API */
 int prestera_hw_port_info_get(const struct prestera_port *port,
 			      u32 *dev_id, u32 *hw_id, u16 *fp_id);
-int prestera_hw_port_state_set(const struct prestera_port *port,
-			       bool admin_state);
+
+int prestera_hw_port_mac_mode_get(const struct prestera_port *port,
+				  u32 *mode, u32 *speed, u8 *duplex, u8 *fec);
+int prestera_hw_port_mac_mode_set(const struct prestera_port *port,
+				  bool admin, u32 mode, u8 inband,
+				  u32 speed, u8 duplex, u8 fec);
+int prestera_hw_port_phy_mode_get(const struct prestera_port *port,
+				  u8 *mdix, u64 *lmode_bmap,
+				  bool *fc_pause, bool *fc_asym);
+int prestera_hw_port_phy_mode_set(const struct prestera_port *port,
+				  bool admin, bool adv, u32 mode, u64 modes,
+				  u8 mdix);
+
 int prestera_hw_port_mtu_set(const struct prestera_port *port, u32 mtu);
 int prestera_hw_port_mtu_get(const struct prestera_port *port, u32 *mtu);
 int prestera_hw_port_mac_set(const struct prestera_port *port, const char *mac);
 int prestera_hw_port_mac_get(const struct prestera_port *port, char *mac);
 int prestera_hw_port_cap_get(const struct prestera_port *port,
 			     struct prestera_port_caps *caps);
-int prestera_hw_port_remote_cap_get(const struct prestera_port *port,
-				    u64 *link_mode_bitmap);
-int prestera_hw_port_remote_fc_get(const struct prestera_port *port,
-				   bool *pause, bool *asym_pause);
 int prestera_hw_port_type_get(const struct prestera_port *port, u8 *type);
-int prestera_hw_port_fec_get(const struct prestera_port *port, u8 *fec);
-int prestera_hw_port_fec_set(const struct prestera_port *port, u8 fec);
-int prestera_hw_port_autoneg_set(const struct prestera_port *port,
-				 bool autoneg, u64 link_modes, u8 fec);
 int prestera_hw_port_autoneg_restart(struct prestera_port *port);
-int prestera_hw_port_duplex_get(const struct prestera_port *port, u8 *duplex);
 int prestera_hw_port_stats_get(const struct prestera_port *port,
 			       struct prestera_port_stats *stats);
-int prestera_hw_port_link_mode_set(const struct prestera_port *port, u32 mode);
-int prestera_hw_port_link_mode_get(const struct prestera_port *port, u32 *mode);
-int prestera_hw_port_mdix_get(const struct prestera_port *port, u8 *status,
-			      u8 *admin_mode);
-int prestera_hw_port_mdix_set(const struct prestera_port *port, u8 mode);
 int prestera_hw_port_speed_get(const struct prestera_port *port, u32 *speed);
 int prestera_hw_port_learning_set(struct prestera_port *port, bool enable);
 int prestera_hw_port_flood_set(struct prestera_port *port, unsigned long mask,
@@ -172,27 +201,53 @@ int prestera_hw_bridge_delete(struct prestera_switch *sw, u16 bridge_id);
 int prestera_hw_bridge_port_add(struct prestera_port *port, u16 bridge_id);
 int prestera_hw_bridge_port_delete(struct prestera_port *port, u16 bridge_id);
 
-/* ACL API */
-int prestera_hw_acl_ruleset_create(struct prestera_switch *sw,
-				   u16 *ruleset_id);
-int prestera_hw_acl_ruleset_del(struct prestera_switch *sw,
-				u16 ruleset_id);
-int prestera_hw_acl_rule_add(struct prestera_switch *sw,
-			     struct prestera_acl_rule *rule,
-			     u32 *rule_id);
-int prestera_hw_acl_rule_del(struct prestera_switch *sw, u32 rule_id);
-int prestera_hw_acl_rule_stats_get(struct prestera_switch *sw,
-				   u32 rule_id, u64 *packets, u64 *bytes);
-int prestera_hw_acl_port_bind(const struct prestera_port *port,
-			      u16 ruleset_id);
-int prestera_hw_acl_port_unbind(const struct prestera_port *port,
-				u16 ruleset_id);
+/* vTCAM API */
+int prestera_hw_vtcam_create(struct prestera_switch *sw,
+			     u8 lookup, const u32 *keymask, u32 *vtcam_id,
+			     enum prestera_hw_vtcam_direction_t direction);
+int prestera_hw_vtcam_rule_add(struct prestera_switch *sw, u32 vtcam_id,
+			       u32 prio, void *key, void *keymask,
+			       struct prestera_acl_hw_action_info *act,
+			       u8 n_act, u32 *rule_id);
+int prestera_hw_vtcam_rule_del(struct prestera_switch *sw,
+			       u32 vtcam_id, u32 rule_id);
+int prestera_hw_vtcam_destroy(struct prestera_switch *sw, u32 vtcam_id);
+int prestera_hw_vtcam_iface_bind(struct prestera_switch *sw,
+				 struct prestera_acl_iface *iface,
+				 u32 vtcam_id, u16 pcl_id);
+int prestera_hw_vtcam_iface_unbind(struct prestera_switch *sw,
+				   struct prestera_acl_iface *iface,
+				   u32 vtcam_id);
+
+/* Counter API */
+int prestera_hw_counter_trigger(struct prestera_switch *sw, u32 block_id);
+int prestera_hw_counter_abort(struct prestera_switch *sw);
+int prestera_hw_counters_get(struct prestera_switch *sw, u32 idx,
+			     u32 *len, bool *done,
+			     struct prestera_counter_stats *stats);
+int prestera_hw_counter_block_get(struct prestera_switch *sw,
+				  u32 client, u32 *block_id, u32 *offset,
+				  u32 *num_counters);
+int prestera_hw_counter_block_release(struct prestera_switch *sw,
+				      u32 block_id);
+int prestera_hw_counter_clear(struct prestera_switch *sw, u32 block_id,
+			      u32 counter_id);
 
 /* SPAN API */
 int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id);
 int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id);
 int prestera_hw_span_unbind(const struct prestera_port *port);
 int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id);
+
+/* Router API */
+int prestera_hw_rif_create(struct prestera_switch *sw,
+			   struct prestera_iface *iif, u8 *mac, u16 *rif_id);
+int prestera_hw_rif_delete(struct prestera_switch *sw, u16 rif_id,
+			   struct prestera_iface *iif);
+
+/* Virtual Router API */
+int prestera_hw_vr_create(struct prestera_switch *sw, u16 *vr_id);
+int prestera_hw_vr_delete(struct prestera_switch *sw, u16 vr_id);
 
 /* Event handlers */
 int prestera_hw_event_handler_register(struct prestera_switch *sw,
@@ -206,7 +261,6 @@ void prestera_hw_event_handler_unregister(struct prestera_switch *sw,
 /* RX/TX */
 int prestera_hw_rxtx_init(struct prestera_switch *sw,
 			  struct prestera_rxtx_params *params);
-int prestera_hw_rxtx_port_init(struct prestera_port *port);
 
 /* LAG API */
 int prestera_hw_lag_member_add(struct prestera_port *port, u16 lag_id);

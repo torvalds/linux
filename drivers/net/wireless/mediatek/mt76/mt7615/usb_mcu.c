@@ -21,7 +21,7 @@ mt7663u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	int ret, ep, len, pad;
 
 	mt7615_mcu_fill_msg(dev, skb, cmd, seq);
-	if (cmd != MCU_CMD_FW_SCATTER)
+	if (cmd != MCU_CMD(FW_SCATTER))
 		ep = MT_EP_OUT_INBAND_CMD;
 	else
 		ep = MT_EP_OUT_AC_BE;

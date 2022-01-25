@@ -42,14 +42,4 @@ int ipc_wwan_receive(struct iosm_wwan *ipc_wwan, struct sk_buff *skb_arg,
  *
  */
 void ipc_wwan_tx_flowctrl(struct iosm_wwan *ipc_wwan, int id, bool on);
-
-/**
- * ipc_wwan_is_tx_stopped - Checks if Tx stopped for a Interface id.
- * @ipc_wwan:	Pointer to wwan instance
- * @id:		Ipc mux channel session id
- *
- * Return: true if stopped, false otherwise
- */
-bool ipc_wwan_is_tx_stopped(struct iosm_wwan *ipc_wwan, int id);
-
 #endif

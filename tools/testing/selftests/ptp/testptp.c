@@ -354,6 +354,18 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (pin_index >= 0) {
+		memset(&desc, 0, sizeof(desc));
+		desc.index = pin_index;
+		desc.func = pin_func;
+		desc.chan = index;
+		if (ioctl(fd, PTP_PIN_SETFUNC, &desc)) {
+			perror("PTP_PIN_SETFUNC");
+		} else {
+			puts("set pin function okay");
+		}
+	}
+
 	if (extts) {
 		memset(&extts_request, 0, sizeof(extts_request));
 		extts_request.index = index;
@@ -441,18 +453,6 @@ int main(int argc, char *argv[])
 			perror("PTP_PEROUT_REQUEST");
 		} else {
 			puts("periodic output request okay");
-		}
-	}
-
-	if (pin_index >= 0) {
-		memset(&desc, 0, sizeof(desc));
-		desc.index = pin_index;
-		desc.func = pin_func;
-		desc.chan = index;
-		if (ioctl(fd, PTP_PIN_SETFUNC, &desc)) {
-			perror("PTP_PIN_SETFUNC");
-		} else {
-			puts("set pin function okay");
 		}
 	}
 

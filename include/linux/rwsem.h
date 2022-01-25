@@ -11,7 +11,6 @@
 #include <linux/linkage.h>
 
 #include <linux/types.h>
-#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
@@ -32,7 +31,6 @@
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 #include <linux/osq_lock.h>
 #endif
-#include <linux/android_vendor.h>
 
 /*
  * For an uncontended rwsem, count and owner are the only fields a task
@@ -65,7 +63,6 @@ struct rw_semaphore {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
-	ANDROID_VENDOR_DATA(1);
 };
 
 /* In all implementations count != 0 means locked */

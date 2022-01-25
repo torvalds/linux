@@ -70,6 +70,7 @@ static int btrfs_dev_replace_kthread(void *data);
 
 int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info)
 {
+	struct btrfs_dev_lookup_args args = { .devid = BTRFS_DEV_REPLACE_DEVID };
 	struct btrfs_key key;
 	struct btrfs_root *dev_root = fs_info->dev_root;
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
@@ -100,8 +101,7 @@ no_valid_dev_replace_entry_found:
 		 * We don't have a replace item or it's corrupted.  If there is
 		 * a replace target, fail the mount.
 		 */
-		if (btrfs_find_device(fs_info->fs_devices,
-				      BTRFS_DEV_REPLACE_DEVID, NULL, NULL)) {
+		if (btrfs_find_device(fs_info->fs_devices, &args)) {
 			btrfs_err(fs_info,
 			"found replace target device without a valid replace item");
 			ret = -EUCLEAN;
@@ -128,7 +128,7 @@ no_valid_dev_replace_entry_found:
 	}
 	slot = path->slots[0];
 	eb = path->nodes[0];
-	item_size = btrfs_item_size_nr(eb, slot);
+	item_size = btrfs_item_size(eb, slot);
 	ptr = btrfs_item_ptr(eb, slot, struct btrfs_dev_replace_item);
 
 	if (item_size != sizeof(struct btrfs_dev_replace_item)) {
@@ -163,8 +163,7 @@ no_valid_dev_replace_entry_found:
 		 * We don't have an active replace item but if there is a
 		 * replace target, fail the mount.
 		 */
-		if (btrfs_find_device(fs_info->fs_devices,
-				      BTRFS_DEV_REPLACE_DEVID, NULL, NULL)) {
+		if (btrfs_find_device(fs_info->fs_devices, &args)) {
 			btrfs_err(fs_info,
 			"replace devid present without an active replace item");
 			ret = -EUCLEAN;
@@ -175,11 +174,10 @@ no_valid_dev_replace_entry_found:
 		break;
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
-		dev_replace->srcdev = btrfs_find_device(fs_info->fs_devices,
-						src_devid, NULL, NULL);
-		dev_replace->tgtdev = btrfs_find_device(fs_info->fs_devices,
-							BTRFS_DEV_REPLACE_DEVID,
-							NULL, NULL);
+		dev_replace->tgtdev = btrfs_find_device(fs_info->fs_devices, &args);
+		args.devid = src_devid;
+		dev_replace->srcdev = btrfs_find_device(fs_info->fs_devices, &args);
+
 		/*
 		 * allow 'btrfs dev replace_cancel' if src/tgt device is
 		 * missing
@@ -283,8 +281,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	}
 
 
-	if (i_size_read(bdev->bd_inode) <
-	    btrfs_device_get_total_bytes(srcdev)) {
+	if (bdev_nr_bytes(bdev) < btrfs_device_get_total_bytes(srcdev)) {
 		btrfs_err(fs_info,
 			  "target device is smaller than source device!");
 		ret = -EINVAL;
@@ -325,7 +322,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
 	device->fs_devices = fs_info->fs_devices;
 
-	ret = btrfs_get_dev_zone_info(device);
+	ret = btrfs_get_dev_zone_info(device, false);
 	if (ret)
 		goto error;
 
@@ -384,7 +381,7 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans)
 	}
 
 	if (ret == 0 &&
-	    btrfs_item_size_nr(path->nodes[0], path->slots[0]) < sizeof(*ptr)) {
+	    btrfs_item_size(path->nodes[0], path->slots[0]) < sizeof(*ptr)) {
 		/*
 		 * need to delete old one and insert a new one.
 		 * Since no attempt is made to recover any old state, if the
@@ -909,9 +906,6 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	}
 	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 
-	if (!scrub_ret)
-		btrfs_reada_remove_dev(src_device);
-
 	/*
 	 * We have to use this loop approach because at this point src_device
 	 * has to be available for transaction commit to complete, yet new
@@ -920,7 +914,6 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	while (1) {
 		trans = btrfs_start_transaction(root, 0);
 		if (IS_ERR(trans)) {
-			btrfs_reada_undo_remove_dev(src_device);
 			mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 			return PTR_ERR(trans);
 		}
@@ -971,7 +964,6 @@ error:
 		up_write(&dev_replace->rwsem);
 		mutex_unlock(&fs_info->chunk_mutex);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		btrfs_reada_undo_remove_dev(src_device);
 		btrfs_rm_dev_replace_blocked(fs_info);
 		if (tgt_device)
 			btrfs_destroy_dev_replace_tgtdev(tgt_device);

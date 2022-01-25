@@ -241,16 +241,8 @@ static inline int serial8250_in_MCR(struct uart_8250_port *up)
 	return mctrl;
 }
 
-#if defined(__alpha__) && !defined(CONFIG_PCI)
-/*
- * Digital did something really horribly wrong with the OUT1 and OUT2
- * lines on at least some ALPHA's.  The failure mode is that if either
- * is cleared, the machine locks up with endless interrupts.
- */
-#define ALPHA_KLUDGE_MCR  (UART_MCR_OUT2 | UART_MCR_OUT1)
-#else
-#define ALPHA_KLUDGE_MCR 0
-#endif
+bool alpha_jensen(void);
+void alpha_jensen_set_mctrl(struct uart_port *port, unsigned int mctrl);
 
 #ifdef CONFIG_SERIAL_8250_PNP
 int serial8250_pnp_init(void);

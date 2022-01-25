@@ -12,6 +12,7 @@
 struct mlx5_ib_counter {
 	const char *name;
 	size_t offset;
+	u32 type;
 };
 
 #define INIT_Q_COUNTER(_name)		\
@@ -73,6 +74,21 @@ static const struct mlx5_ib_counter roce_accl_cnts[] = {
 
 static const struct mlx5_ib_counter ext_ppcnt_cnts[] = {
 	INIT_EXT_PPCNT_COUNTER(rx_icrc_encapsulated),
+};
+
+#define INIT_OP_COUNTER(_name, _type)		\
+	{ .name = #_name, .type = MLX5_IB_OPCOUNTER_##_type}
+
+static const struct mlx5_ib_counter basic_op_cnts[] = {
+	INIT_OP_COUNTER(cc_rx_ce_pkts, CC_RX_CE_PKTS),
+};
+
+static const struct mlx5_ib_counter rdmarx_cnp_op_cnts[] = {
+	INIT_OP_COUNTER(cc_rx_cnp_pkts, CC_RX_CNP_PKTS),
+};
+
+static const struct mlx5_ib_counter rdmatx_cnp_op_cnts[] = {
+	INIT_OP_COUNTER(cc_tx_cnp_pkts, CC_TX_CNP_PKTS),
 };
 
 static int mlx5_ib_read_counters(struct ib_counters *counters,
@@ -161,17 +177,34 @@ u16 mlx5_ib_get_counters_id(struct mlx5_ib_dev *dev, u32 port_num)
 	return cnts->set_id;
 }
 
+static struct rdma_hw_stats *do_alloc_stats(const struct mlx5_ib_counters *cnts)
+{
+	struct rdma_hw_stats *stats;
+	u32 num_hw_counters;
+	int i;
+
+	num_hw_counters = cnts->num_q_counters + cnts->num_cong_counters +
+			  cnts->num_ext_ppcnt_counters;
+	stats = rdma_alloc_hw_stats_struct(cnts->descs,
+					   num_hw_counters +
+					   cnts->num_op_counters,
+					   RDMA_HW_STATS_DEFAULT_LIFESPAN);
+	if (!stats)
+		return NULL;
+
+	for (i = 0; i < cnts->num_op_counters; i++)
+		set_bit(num_hw_counters + i, stats->is_disabled);
+
+	return stats;
+}
+
 static struct rdma_hw_stats *
 mlx5_ib_alloc_hw_device_stats(struct ib_device *ibdev)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	const struct mlx5_ib_counters *cnts = &dev->port[0].cnts;
 
-	return rdma_alloc_hw_stats_struct(cnts->names,
-					  cnts->num_q_counters +
-						  cnts->num_cong_counters +
-						  cnts->num_ext_ppcnt_counters,
-					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+	return do_alloc_stats(cnts);
 }
 
 static struct rdma_hw_stats *
@@ -180,11 +213,7 @@ mlx5_ib_alloc_hw_port_stats(struct ib_device *ibdev, u32 port_num)
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	const struct mlx5_ib_counters *cnts = &dev->port[port_num - 1].cnts;
 
-	return rdma_alloc_hw_stats_struct(cnts->names,
-					  cnts->num_q_counters +
-						  cnts->num_cong_counters +
-						  cnts->num_ext_ppcnt_counters,
-					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+	return do_alloc_stats(cnts);
 }
 
 static int mlx5_ib_query_q_counters(struct mlx5_core_dev *mdev,
@@ -241,9 +270,9 @@ free:
 	return ret;
 }
 
-static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
-				struct rdma_hw_stats *stats,
-				u32 port_num, int index)
+static int do_get_hw_stats(struct ib_device *ibdev,
+			   struct rdma_hw_stats *stats,
+			   u32 port_num, int index)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	const struct mlx5_ib_counters *cnts = get_counters(dev, port_num - 1);
@@ -295,6 +324,88 @@ done:
 	return num_counters;
 }
 
+static int do_get_op_stat(struct ib_device *ibdev,
+			  struct rdma_hw_stats *stats,
+			  u32 port_num, int index)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+	const struct mlx5_ib_counters *cnts;
+	const struct mlx5_ib_op_fc *opfcs;
+	u64 packets = 0, bytes;
+	u32 type;
+	int ret;
+
+	cnts = get_counters(dev, port_num - 1);
+	opfcs = cnts->opfcs;
+	type = *(u32 *)cnts->descs[index].priv;
+	if (type >= MLX5_IB_OPCOUNTER_MAX)
+		return -EINVAL;
+
+	if (!opfcs[type].fc)
+		goto out;
+
+	ret = mlx5_fc_query(dev->mdev, opfcs[type].fc,
+			    &packets, &bytes);
+	if (ret)
+		return ret;
+
+out:
+	stats->value[index] = packets;
+	return index;
+}
+
+static int do_get_op_stats(struct ib_device *ibdev,
+			   struct rdma_hw_stats *stats,
+			   u32 port_num)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+	const struct mlx5_ib_counters *cnts;
+	int index, ret, num_hw_counters;
+
+	cnts = get_counters(dev, port_num - 1);
+	num_hw_counters = cnts->num_q_counters + cnts->num_cong_counters +
+			  cnts->num_ext_ppcnt_counters;
+	for (index = num_hw_counters;
+	     index < (num_hw_counters + cnts->num_op_counters); index++) {
+		ret = do_get_op_stat(ibdev, stats, port_num, index);
+		if (ret != index)
+			return ret;
+	}
+
+	return cnts->num_op_counters;
+}
+
+static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
+				struct rdma_hw_stats *stats,
+				u32 port_num, int index)
+{
+	int num_counters, num_hw_counters, num_op_counters;
+	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+	const struct mlx5_ib_counters *cnts;
+
+	cnts = get_counters(dev, port_num - 1);
+	num_hw_counters = cnts->num_q_counters + cnts->num_cong_counters +
+		cnts->num_ext_ppcnt_counters;
+	num_counters = num_hw_counters + cnts->num_op_counters;
+
+	if (index < 0 || index > num_counters)
+		return -EINVAL;
+	else if (index > 0 && index < num_hw_counters)
+		return do_get_hw_stats(ibdev, stats, port_num, index);
+	else if (index >= num_hw_counters && index < num_counters)
+		return do_get_op_stat(ibdev, stats, port_num, index);
+
+	num_hw_counters = do_get_hw_stats(ibdev, stats, port_num, index);
+	if (num_hw_counters < 0)
+		return num_hw_counters;
+
+	num_op_counters = do_get_op_stats(ibdev, stats, port_num);
+	if (num_op_counters < 0)
+		return num_op_counters;
+
+	return num_hw_counters + num_op_counters;
+}
+
 static struct rdma_hw_stats *
 mlx5_ib_counter_alloc_stats(struct rdma_counter *counter)
 {
@@ -302,11 +413,7 @@ mlx5_ib_counter_alloc_stats(struct rdma_counter *counter)
 	const struct mlx5_ib_counters *cnts =
 		get_counters(dev, counter->port - 1);
 
-	return rdma_alloc_hw_stats_struct(cnts->names,
-					  cnts->num_q_counters +
-					  cnts->num_cong_counters +
-					  cnts->num_ext_ppcnt_counters,
-					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+	return do_alloc_stats(cnts);
 }
 
 static int mlx5_ib_counter_update_stats(struct rdma_counter *counter)
@@ -371,58 +478,80 @@ static int mlx5_ib_counter_unbind_qp(struct ib_qp *qp)
 	return mlx5_ib_qp_set_counter(qp, NULL);
 }
 
-
 static void mlx5_ib_fill_counters(struct mlx5_ib_dev *dev,
-				  const char **names,
-				  size_t *offsets)
+				  struct rdma_stat_desc *descs, size_t *offsets)
 {
 	int i;
 	int j = 0;
 
 	for (i = 0; i < ARRAY_SIZE(basic_q_cnts); i++, j++) {
-		names[j] = basic_q_cnts[i].name;
+		descs[j].name = basic_q_cnts[i].name;
 		offsets[j] = basic_q_cnts[i].offset;
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, out_of_seq_cnt)) {
 		for (i = 0; i < ARRAY_SIZE(out_of_seq_q_cnts); i++, j++) {
-			names[j] = out_of_seq_q_cnts[i].name;
+			descs[j].name = out_of_seq_q_cnts[i].name;
 			offsets[j] = out_of_seq_q_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, retransmission_q_counters)) {
 		for (i = 0; i < ARRAY_SIZE(retrans_q_cnts); i++, j++) {
-			names[j] = retrans_q_cnts[i].name;
+			descs[j].name = retrans_q_cnts[i].name;
 			offsets[j] = retrans_q_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, enhanced_error_q_counters)) {
 		for (i = 0; i < ARRAY_SIZE(extended_err_cnts); i++, j++) {
-			names[j] = extended_err_cnts[i].name;
+			descs[j].name = extended_err_cnts[i].name;
 			offsets[j] = extended_err_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, roce_accl)) {
 		for (i = 0; i < ARRAY_SIZE(roce_accl_cnts); i++, j++) {
-			names[j] = roce_accl_cnts[i].name;
+			descs[j].name = roce_accl_cnts[i].name;
 			offsets[j] = roce_accl_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, cc_query_allowed)) {
 		for (i = 0; i < ARRAY_SIZE(cong_cnts); i++, j++) {
-			names[j] = cong_cnts[i].name;
+			descs[j].name = cong_cnts[i].name;
 			offsets[j] = cong_cnts[i].offset;
 		}
 	}
 
 	if (MLX5_CAP_PCAM_FEATURE(dev->mdev, rx_icrc_encapsulated_counter)) {
 		for (i = 0; i < ARRAY_SIZE(ext_ppcnt_cnts); i++, j++) {
-			names[j] = ext_ppcnt_cnts[i].name;
+			descs[j].name = ext_ppcnt_cnts[i].name;
 			offsets[j] = ext_ppcnt_cnts[i].offset;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(basic_op_cnts); i++, j++) {
+		descs[j].name = basic_op_cnts[i].name;
+		descs[j].flags |= IB_STAT_FLAG_OPTIONAL;
+		descs[j].priv = &basic_op_cnts[i].type;
+	}
+
+	if (MLX5_CAP_FLOWTABLE(dev->mdev,
+			       ft_field_support_2_nic_receive_rdma.bth_opcode)) {
+		for (i = 0; i < ARRAY_SIZE(rdmarx_cnp_op_cnts); i++, j++) {
+			descs[j].name = rdmarx_cnp_op_cnts[i].name;
+			descs[j].flags |= IB_STAT_FLAG_OPTIONAL;
+			descs[j].priv = &rdmarx_cnp_op_cnts[i].type;
+		}
+	}
+
+	if (MLX5_CAP_FLOWTABLE(dev->mdev,
+			       ft_field_support_2_nic_transmit_rdma.bth_opcode)) {
+		for (i = 0; i < ARRAY_SIZE(rdmatx_cnp_op_cnts); i++, j++) {
+			descs[j].name = rdmatx_cnp_op_cnts[i].name;
+			descs[j].flags |= IB_STAT_FLAG_OPTIONAL;
+			descs[j].priv = &rdmatx_cnp_op_cnts[i].type;
 		}
 	}
 }
@@ -431,7 +560,7 @@ static void mlx5_ib_fill_counters(struct mlx5_ib_dev *dev,
 static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 				    struct mlx5_ib_counters *cnts)
 {
-	u32 num_counters;
+	u32 num_counters, num_op_counters;
 
 	num_counters = ARRAY_SIZE(basic_q_cnts);
 
@@ -457,20 +586,34 @@ static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 		cnts->num_ext_ppcnt_counters = ARRAY_SIZE(ext_ppcnt_cnts);
 		num_counters += ARRAY_SIZE(ext_ppcnt_cnts);
 	}
-	cnts->names = kcalloc(num_counters, sizeof(*cnts->names), GFP_KERNEL);
-	if (!cnts->names)
+
+	num_op_counters = ARRAY_SIZE(basic_op_cnts);
+
+	if (MLX5_CAP_FLOWTABLE(dev->mdev,
+			       ft_field_support_2_nic_receive_rdma.bth_opcode))
+		num_op_counters += ARRAY_SIZE(rdmarx_cnp_op_cnts);
+
+	if (MLX5_CAP_FLOWTABLE(dev->mdev,
+			       ft_field_support_2_nic_transmit_rdma.bth_opcode))
+		num_op_counters += ARRAY_SIZE(rdmatx_cnp_op_cnts);
+
+	cnts->num_op_counters = num_op_counters;
+	num_counters += num_op_counters;
+	cnts->descs = kcalloc(num_counters,
+			      sizeof(struct rdma_stat_desc), GFP_KERNEL);
+	if (!cnts->descs)
 		return -ENOMEM;
 
 	cnts->offsets = kcalloc(num_counters,
 				sizeof(*cnts->offsets), GFP_KERNEL);
 	if (!cnts->offsets)
-		goto err_names;
+		goto err;
 
 	return 0;
 
-err_names:
-	kfree(cnts->names);
-	cnts->names = NULL;
+err:
+	kfree(cnts->descs);
+	cnts->descs = NULL;
 	return -ENOMEM;
 }
 
@@ -478,7 +621,7 @@ static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 {
 	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
 	int num_cnt_ports;
-	int i;
+	int i, j;
 
 	num_cnt_ports = is_mdev_switchdev_mode(dev->mdev) ? 1 : dev->num_ports;
 
@@ -491,8 +634,20 @@ static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 				 dev->port[i].cnts.set_id);
 			mlx5_cmd_exec_in(dev->mdev, dealloc_q_counter, in);
 		}
-		kfree(dev->port[i].cnts.names);
+		kfree(dev->port[i].cnts.descs);
 		kfree(dev->port[i].cnts.offsets);
+
+		for (j = 0; j < MLX5_IB_OPCOUNTER_MAX; j++) {
+			if (!dev->port[i].cnts.opfcs[j].fc)
+				continue;
+
+			if (IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS))
+				mlx5_ib_fs_remove_op_fc(dev,
+					&dev->port[i].cnts.opfcs[j], j);
+			mlx5_fc_destroy(dev->mdev,
+					dev->port[i].cnts.opfcs[j].fc);
+			dev->port[i].cnts.opfcs[j].fc = NULL;
+		}
 	}
 }
 
@@ -514,7 +669,7 @@ static int mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev)
 		if (err)
 			goto err_alloc;
 
-		mlx5_ib_fill_counters(dev, dev->port[i].cnts.names,
+		mlx5_ib_fill_counters(dev, dev->port[i].cnts.descs,
 				      dev->port[i].cnts.offsets);
 
 		MLX5_SET(alloc_q_counter_in, in, uid,
@@ -672,6 +827,56 @@ void mlx5_ib_counters_clear_description(struct ib_counters *counters)
 	mutex_unlock(&mcounters->mcntrs_mutex);
 }
 
+static int mlx5_ib_modify_stat(struct ib_device *device, u32 port,
+			       unsigned int index, bool enable)
+{
+	struct mlx5_ib_dev *dev = to_mdev(device);
+	struct mlx5_ib_counters *cnts;
+	struct mlx5_ib_op_fc *opfc;
+	u32 num_hw_counters, type;
+	int ret;
+
+	cnts = &dev->port[port - 1].cnts;
+	num_hw_counters = cnts->num_q_counters + cnts->num_cong_counters +
+		cnts->num_ext_ppcnt_counters;
+	if (index < num_hw_counters ||
+	    index >= (num_hw_counters + cnts->num_op_counters))
+		return -EINVAL;
+
+	if (!(cnts->descs[index].flags & IB_STAT_FLAG_OPTIONAL))
+		return -EINVAL;
+
+	type = *(u32 *)cnts->descs[index].priv;
+	if (type >= MLX5_IB_OPCOUNTER_MAX)
+		return -EINVAL;
+
+	opfc = &cnts->opfcs[type];
+
+	if (enable) {
+		if (opfc->fc)
+			return -EEXIST;
+
+		opfc->fc = mlx5_fc_create(dev->mdev, false);
+		if (IS_ERR(opfc->fc))
+			return PTR_ERR(opfc->fc);
+
+		ret = mlx5_ib_fs_add_op_fc(dev, port, opfc, type);
+		if (ret) {
+			mlx5_fc_destroy(dev->mdev, opfc->fc);
+			opfc->fc = NULL;
+		}
+		return ret;
+	}
+
+	if (!opfc->fc)
+		return -EINVAL;
+
+	mlx5_ib_fs_remove_op_fc(dev, opfc, type);
+	mlx5_fc_destroy(dev->mdev, opfc->fc);
+	opfc->fc = NULL;
+	return 0;
+}
+
 static const struct ib_device_ops hw_stats_ops = {
 	.alloc_hw_port_stats = mlx5_ib_alloc_hw_port_stats,
 	.get_hw_stats = mlx5_ib_get_hw_stats,
@@ -680,6 +885,8 @@ static const struct ib_device_ops hw_stats_ops = {
 	.counter_dealloc = mlx5_ib_counter_dealloc,
 	.counter_alloc_stats = mlx5_ib_counter_alloc_stats,
 	.counter_update_stats = mlx5_ib_counter_update_stats,
+	.modify_hw_stat = IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS) ?
+			  mlx5_ib_modify_stat : NULL,
 };
 
 static const struct ib_device_ops hw_switchdev_stats_ops = {
