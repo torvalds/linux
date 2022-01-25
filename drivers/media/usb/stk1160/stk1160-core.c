@@ -403,7 +403,7 @@ static void stk1160_disconnect(struct usb_interface *interface)
 	/* Here is the only place where isoc get released */
 	stk1160_uninit_isoc(dev);
 
-	stk1160_clear_queue(dev);
+	stk1160_clear_queue(dev, VB2_BUF_STATE_ERROR);
 
 	video_unregister_device(&dev->vdev);
 	v4l2_device_disconnect(&dev->v4l2_dev);
