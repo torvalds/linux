@@ -687,6 +687,7 @@ static void
 ice_clean_xdp_tx_buf(struct ice_tx_ring *xdp_ring, struct ice_tx_buf *tx_buf)
 {
 	xdp_return_frame((struct xdp_frame *)tx_buf->raw_buf);
+	xdp_ring->xdp_tx_active--;
 	dma_unmap_single(xdp_ring->dev, dma_unmap_addr(tx_buf, dma),
 			 dma_unmap_len(tx_buf, len), DMA_TO_DEVICE);
 	dma_unmap_len_set(tx_buf, len, 0);
@@ -703,9 +704,8 @@ static u16 ice_clean_xdp_irq_zc(struct ice_tx_ring *xdp_ring, int napi_budget)
 {
 	u16 tx_thresh = ICE_RING_QUARTER(xdp_ring);
 	int budget = napi_budget / tx_thresh;
-	u16 ntc = xdp_ring->next_to_clean;
 	u16 next_dd = xdp_ring->next_dd;
-	u16 cleared_dds = 0;
+	u16 ntc, cleared_dds = 0;
 
 	do {
 		struct ice_tx_desc *next_dd_desc;
@@ -721,6 +721,12 @@ static u16 ice_clean_xdp_irq_zc(struct ice_tx_ring *xdp_ring, int napi_budget)
 
 		cleared_dds++;
 		xsk_frames = 0;
+		if (likely(!xdp_ring->xdp_tx_active)) {
+			xsk_frames = tx_thresh;
+			goto skip;
+		}
+
+		ntc = xdp_ring->next_to_clean;
 
 		for (i = 0; i < tx_thresh; i++) {
 			tx_buf = &xdp_ring->tx_buf[ntc];
@@ -736,6 +742,10 @@ static u16 ice_clean_xdp_irq_zc(struct ice_tx_ring *xdp_ring, int napi_budget)
 			if (ntc >= xdp_ring->count)
 				ntc = 0;
 		}
+skip:
+		xdp_ring->next_to_clean += tx_thresh;
+		if (xdp_ring->next_to_clean >= desc_cnt)
+			xdp_ring->next_to_clean -= desc_cnt;
 		if (xsk_frames)
 			xsk_tx_completed(xdp_ring->xsk_pool, xsk_frames);
 		next_dd_desc->cmd_type_offset_bsz = 0;
@@ -744,7 +754,6 @@ static u16 ice_clean_xdp_irq_zc(struct ice_tx_ring *xdp_ring, int napi_budget)
 			next_dd = tx_thresh - 1;
 	} while (budget--);
 
-	xdp_ring->next_to_clean = ntc;
 	xdp_ring->next_dd = next_dd;
 
 	return cleared_dds * tx_thresh;
