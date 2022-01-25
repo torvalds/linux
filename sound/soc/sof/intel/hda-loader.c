@@ -21,9 +21,27 @@
 #include <sound/sof.h>
 #include "ext_manifest.h"
 #include "../ops.h"
+#include "../sof-priv.h"
 #include "hda.h"
 
 #define HDA_CL_STREAM_FORMAT 0x40
+
+static void hda_ssp_set_cbp_cfp(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+	int i;
+
+	/* DSP is powered up, set all SSPs to clock consumer/codec provider mode */
+	for (i = 0; i < chip->ssp_count; i++) {
+		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
+						 chip->ssp_base_offset
+						 + i * SSP_DEV_MEM_SIZE
+						 + SSP_SSC1_OFFSET,
+						 SSP_SET_CBP_CFP,
+						 SSP_SET_CBP_CFP);
+	}
+}
 
 static struct hdac_ext_stream *cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 						 unsigned int size, struct snd_dma_buffer *dmab,
@@ -91,7 +109,6 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	char *dump_msg;
 	u32 flags, j;
 	int ret;
-	int i;
 
 	/* step 1: power up corex */
 	ret = hda_dsp_enable_core(sdev, chip->host_managed_cores_mask);
@@ -101,15 +118,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 		goto err;
 	}
 
-	/* DSP is powered up, set all SSPs to slave mode */
-	for (i = 0; i < chip->ssp_count; i++) {
-		snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
-						 chip->ssp_base_offset
-						 + i * SSP_DEV_MEM_SIZE
-						 + SSP_SSC1_OFFSET,
-						 SSP_SET_SLAVE,
-						 SSP_SET_SLAVE);
-	}
+	hda_ssp_set_cbp_cfp(sdev);
 
 	/* step 2: purge FW request */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR, chip->ipc_req,
@@ -345,6 +354,38 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	return ret;
 }
 
+static int hda_dsp_boot_imr(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+	unsigned long mask;
+	u32 j;
+	int ret;
+
+	/* power up & unstall/run the cores to run the firmware */
+	ret = hda_dsp_enable_core(sdev, chip->init_core_mask);
+	if (ret < 0) {
+		dev_err(sdev->dev, "dsp core start failed %d\n", ret);
+		return -EIO;
+	}
+
+	/* set enabled cores mask and increment ref count for cores in init_core_mask */
+	sdev->enabled_cores_mask |= chip->init_core_mask;
+	mask = sdev->enabled_cores_mask;
+	for_each_set_bit(j, &mask, SOF_MAX_DSP_NUM_CORES)
+		sdev->dsp_core_ref_count[j]++;
+
+	hda_ssp_set_cbp_cfp(sdev);
+
+	/* enable IPC interrupts */
+	hda_dsp_ipc_int_enable(sdev);
+
+	/* process wakes */
+	hda_sdw_process_wakeen(sdev);
+
+	return ret;
+}
+
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
@@ -354,6 +395,13 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	struct hdac_ext_stream *stream;
 	struct firmware stripped_firmware;
 	int ret, ret1, i;
+
+	if ((sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT) &&
+	    !(sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT)) &&
+	    !sdev->first_boot) {
+		dev_dbg(sdev->dev, "IMR restore supported, booting from IMR directly\n");
+		return hda_dsp_boot_imr(sdev);
+	}
 
 	chip_info = desc->chip_info;
 
