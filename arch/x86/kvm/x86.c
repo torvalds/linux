@@ -8965,7 +8965,7 @@ static int kvm_pv_clock_pairing(struct kvm_vcpu *vcpu, gpa_t paddr,
  *
  * @apicid - apicid of vcpu to be kicked.
  */
-static void kvm_pv_kick_cpu_op(struct kvm *kvm, unsigned long flags, int apicid)
+static void kvm_pv_kick_cpu_op(struct kvm *kvm, int apicid)
 {
 	struct kvm_lapic_irq lapic_irq;
 
@@ -9084,7 +9084,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		if (!guest_pv_has(vcpu, KVM_FEATURE_PV_UNHALT))
 			break;
 
-		kvm_pv_kick_cpu_op(vcpu->kvm, a0, a1);
+		kvm_pv_kick_cpu_op(vcpu->kvm, a1);
 		kvm_sched_yield(vcpu, a1);
 		ret = 0;
 		break;
