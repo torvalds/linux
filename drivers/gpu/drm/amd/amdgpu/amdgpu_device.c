@@ -5053,7 +5053,7 @@ int amdgpu_device_gpu_recover_imp(struct amdgpu_device *adev,
 	/* We need to lock reset domain only once both for XGMI and single device */
 	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
 				    reset_list);
-	amdgpu_device_lock_reset_domain(tmp_adev->reset_domain, hive);
+	amdgpu_device_lock_reset_domain(tmp_adev->reset_domain);
 
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
@@ -5477,7 +5477,7 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 		 * Locking adev->reset_domain->sem will prevent any external access
 		 * to GPU during PCI error recovery
 		 */
-		amdgpu_device_lock_reset_domain(adev->reset_domain, NULL);
+		amdgpu_device_lock_reset_domain(adev->reset_domain);
 		amdgpu_device_set_mp1_state(adev);
 
 		/*

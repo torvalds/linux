@@ -137,16 +137,10 @@ struct amdgpu_reset_domain *amdgpu_reset_create_reset_domain(enum amdgpu_reset_d
 	return reset_domain;
 }
 
-void amdgpu_device_lock_reset_domain(struct amdgpu_reset_domain *reset_domain,
-				     struct amdgpu_hive_info *hive)
+void amdgpu_device_lock_reset_domain(struct amdgpu_reset_domain *reset_domain)
 {
 	atomic_set(&reset_domain->in_gpu_reset, 1);
-
-	if (hive) {
-		down_write_nest_lock(&reset_domain->sem, &hive->hive_lock);
-	} else {
-		down_write(&reset_domain->sem);
-	}
+	down_write(&reset_domain->sem);
 }
 
 
