@@ -191,7 +191,7 @@ static int go7007_snd_free(struct snd_device *device)
 	return 0;
 }
 
-static struct snd_device_ops go7007_snd_device_ops = {
+static const struct snd_device_ops go7007_snd_device_ops = {
 	.dev_free	= go7007_snd_free,
 };
 
