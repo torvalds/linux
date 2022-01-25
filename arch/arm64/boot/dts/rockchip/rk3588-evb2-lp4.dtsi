@@ -211,6 +211,10 @@
 	status = "okay";
 };
 
+&dp0_sound {
+	status = "okay";
+};
+
 &dp1 {
 	pinctrl-0 = <&dp1m2_pins>;
 	pinctrl-names = "default";
@@ -476,6 +480,10 @@
 &sdmmc {
 	status = "okay";
 	vmmc-supply = <&vcc_3v3_sd_s0>;
+};
+
+&spdif_tx2 {
+	status = "okay";
 };
 
 &u2phy0_otg {
