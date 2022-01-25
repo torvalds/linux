@@ -254,8 +254,8 @@ struct av_decision {
 #define XPERMS_AUDITALLOW 2
 #define XPERMS_DONTAUDIT 4
 
-#define security_xperm_set(perms, x) (perms[x >> 5] |= 1 << (x & 0x1f))
-#define security_xperm_test(perms, x) (1 & (perms[x >> 5] >> (x & 0x1f)))
+#define security_xperm_set(perms, x) ((perms)[(x) >> 5] |= 1 << ((x) & 0x1f))
+#define security_xperm_test(perms, x) (1 & ((perms)[(x) >> 5] >> ((x) & 0x1f)))
 struct extended_perms_data {
 	u32 p[8];
 };

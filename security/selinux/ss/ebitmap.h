@@ -118,9 +118,9 @@ static inline void ebitmap_node_clr_bit(struct ebitmap_node *n,
 }
 
 #define ebitmap_for_each_positive_bit(e, n, bit)	\
-	for (bit = ebitmap_start_positive(e, &n);	\
-	     bit < ebitmap_length(e);			\
-	     bit = ebitmap_next_positive(e, &n, bit))	\
+	for ((bit) = ebitmap_start_positive(e, &(n));	\
+	     (bit) < ebitmap_length(e);			\
+	     (bit) = ebitmap_next_positive(e, &(n), bit))	\
 
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2);
 int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src);
