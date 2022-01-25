@@ -437,6 +437,7 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	struct optee_msg_arg *msg_arg;
 	struct tee_shm *shm_arg;
 	u64 *pages_list;
+	size_t sz;
 	int rc;
 
 	if (!num_pages)
@@ -450,15 +451,30 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	if (!pages_list)
 		return -ENOMEM;
 
-	shm_arg = optee_get_msg_arg(ctx, 1, &msg_arg);
+	/*
+	 * We're about to register shared memory we can't register shared
+	 * memory for this request or there's a catch-22.
+	 *
+	 * So in this we'll have to do the good old temporary private
+	 * allocation instead of using optee_get_msg_arg().
+	 */
+	sz = optee_msg_arg_size(optee->rpc_param_count);
+	shm_arg = tee_shm_alloc_priv_buf(ctx, sz);
 	if (IS_ERR(shm_arg)) {
 		rc = PTR_ERR(shm_arg);
+		goto out;
+	}
+	msg_arg = tee_shm_get_va(shm_arg, 0);
+	if (IS_ERR(msg_arg)) {
+		rc = PTR_ERR(msg_arg);
 		goto out;
 	}
 
 	optee_fill_pages_list(pages_list, pages, num_pages,
 			      tee_shm_get_page_offset(shm));
 
+	memset(msg_arg, 0, OPTEE_MSG_GET_ARG_SIZE(1));
+	msg_arg->num_params = 1;
 	msg_arg->cmd = OPTEE_MSG_CMD_REGISTER_SHM;
 	msg_arg->params->attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 				OPTEE_MSG_ATTR_NONCONTIG;
@@ -471,7 +487,7 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	msg_arg->params->u.tmem.buf_ptr = virt_to_phys(pages_list) |
 	  (tee_shm_get_page_offset(shm) & (OPTEE_MSG_NONCONTIG_PAGE_SIZE - 1));
 
-	if (optee->ops->do_call_with_arg(ctx, shm_arg) ||
+	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0) ||
 	    msg_arg->ret != TEEC_SUCCESS)
 		rc = -EINVAL;
 
@@ -487,19 +503,37 @@ static int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm)
 	struct optee_msg_arg *msg_arg;
 	struct tee_shm *shm_arg;
 	int rc = 0;
+	size_t sz;
 
-	shm_arg = optee_get_msg_arg(ctx, 1, &msg_arg);
+	/*
+	 * We're about to unregister shared memory and we may not be able
+	 * register shared memory for this request in case we're called
+	 * from optee_shm_arg_cache_uninit().
+	 *
+	 * So in order to keep things simple in this function just as in
+	 * optee_shm_register() we'll use temporary private allocation
+	 * instead of using optee_get_msg_arg().
+	 */
+	sz = optee_msg_arg_size(optee->rpc_param_count);
+	shm_arg = tee_shm_alloc_priv_buf(ctx, sz);
 	if (IS_ERR(shm_arg))
 		return PTR_ERR(shm_arg);
+	msg_arg = tee_shm_get_va(shm_arg, 0);
+	if (IS_ERR(msg_arg)) {
+		rc = PTR_ERR(msg_arg);
+		goto out;
+	}
 
+	memset(msg_arg, 0, sz);
+	msg_arg->num_params = 1;
 	msg_arg->cmd = OPTEE_MSG_CMD_UNREGISTER_SHM;
-
 	msg_arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
 	msg_arg->params[0].u.rmem.shm_ref = (unsigned long)shm;
 
-	if (optee->ops->do_call_with_arg(ctx, shm_arg) ||
+	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0) ||
 	    msg_arg->ret != TEEC_SUCCESS)
 		rc = -EINVAL;
+out:
 	tee_shm_free(shm_arg);
 	return rc;
 }
@@ -823,6 +857,7 @@ static void optee_handle_rpc(struct tee_context *ctx,
  * optee_smc_do_call_with_arg() - Do an SMC to OP-TEE in secure world
  * @ctx:	calling context
  * @shm:	shared memory holding the message to pass to secure world
+ * @offs:	offset of the message in @shm
  *
  * Does and SMC to OP-TEE in secure world and handles eventual resulting
  * Remote Procedure Calls (RPC) from OP-TEE.
@@ -830,7 +865,7 @@ static void optee_handle_rpc(struct tee_context *ctx,
  * Returns return code from secure world, 0 is OK
  */
 static int optee_smc_do_call_with_arg(struct tee_context *ctx,
-				      struct tee_shm *shm)
+				      struct tee_shm *shm, u_int offs)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_call_waiter w;
@@ -843,12 +878,12 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 		struct optee_msg_arg *arg;
 		unsigned int rpc_arg_offs;
 
-		arg = tee_shm_get_va(shm, 0);
+		arg = tee_shm_get_va(shm, offs);
 		if (IS_ERR(arg))
 			return PTR_ERR(arg);
 
 		rpc_arg_offs = OPTEE_MSG_GET_ARG_SIZE(arg->num_params);
-		rpc_arg = tee_shm_get_va(shm, rpc_arg_offs);
+		rpc_arg = tee_shm_get_va(shm, offs + rpc_arg_offs);
 		if (IS_ERR(arg))
 			return PTR_ERR(arg);
 	}
@@ -856,11 +891,11 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 	if  (rpc_arg && tee_shm_is_dynamic(shm)) {
 		param.a0 = OPTEE_SMC_CALL_WITH_REGD_ARG;
 		reg_pair_from_64(&param.a1, &param.a2, (u_long)shm);
-		param.a3 = 0;
+		param.a3 = offs;
 	} else {
 		phys_addr_t parg;
 
-		rc = tee_shm_get_pa(shm, 0, &parg);
+		rc = tee_shm_get_pa(shm, offs, &parg);
 		if (rc)
 			return rc;
 
@@ -912,17 +947,19 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 
 static int simple_call_with_arg(struct tee_context *ctx, u32 cmd)
 {
+	struct optee_shm_arg_entry *entry;
 	struct optee_msg_arg *msg_arg;
 	struct tee_shm *shm;
+	u_int offs;
 
-	shm = optee_get_msg_arg(ctx, 0, &msg_arg);
-	if (IS_ERR(shm))
-		return PTR_ERR(shm);
+	msg_arg = optee_get_msg_arg(ctx, 0, &entry, &shm, &offs);
+	if (IS_ERR(msg_arg))
+		return PTR_ERR(msg_arg);
 
 	msg_arg->cmd = cmd;
-	optee_smc_do_call_with_arg(ctx, shm);
+	optee_smc_do_call_with_arg(ctx, shm, offs);
 
-	tee_shm_free(shm);
+	optee_free_msg_arg(ctx, entry, offs);
 	return 0;
 }
 
@@ -1327,6 +1364,7 @@ static int optee_probe(struct platform_device *pdev)
 	struct tee_device *teedev;
 	struct tee_context *ctx;
 	u32 max_notif_value;
+	u32 arg_cache_flags;
 	u32 sec_caps;
 	int rc;
 
@@ -1356,14 +1394,48 @@ static int optee_probe(struct platform_device *pdev)
 	/*
 	 * Try to use dynamic shared memory if possible
 	 */
-	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
+	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM) {
+		/*
+		 * If we have OPTEE_SMC_SEC_CAP_RPC_ARG we can ask
+		 * optee_get_msg_arg() to pre-register (by having
+		 * OPTEE_SHM_ARG_ALLOC_PRIV cleared) the page used to pass
+		 * an argument struct.
+		 *
+		 * With the page is pre-registered we can use a non-zero
+		 * offset for argument struct, this is indicated with
+		 * OPTEE_SHM_ARG_SHARED.
+		 *
+		 * This means that optee_smc_do_call_with_arg() will use
+		 * OPTEE_SMC_CALL_WITH_REGD_ARG for pre-registered pages.
+		 */
+		if (sec_caps & OPTEE_SMC_SEC_CAP_RPC_ARG)
+			arg_cache_flags = OPTEE_SHM_ARG_SHARED;
+		else
+			arg_cache_flags = OPTEE_SHM_ARG_ALLOC_PRIV;
+
 		pool = optee_shm_pool_alloc_pages();
+	}
 
 	/*
 	 * If dynamic shared memory is not available or failed - try static one
 	 */
-	if (IS_ERR(pool) && (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM))
+	if (IS_ERR(pool) && (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM)) {
+		/*
+		 * The static memory pool can use non-zero page offsets so
+		 * let optee_get_msg_arg() know that with OPTEE_SHM_ARG_SHARED.
+		 *
+		 * optee_get_msg_arg() should not pre-register the
+		 * allocated page used to pass an argument struct, this is
+		 * indicated with OPTEE_SHM_ARG_ALLOC_PRIV.
+		 *
+		 * This means that optee_smc_do_call_with_arg() will use
+		 * OPTEE_SMC_CALL_WITH_ARG if rpc_param_count is 0, else
+		 * OPTEE_SMC_CALL_WITH_RPC_ARG.
+		 */
+		arg_cache_flags = OPTEE_SHM_ARG_SHARED |
+				  OPTEE_SHM_ARG_ALLOC_PRIV;
 		pool = optee_config_shm_memremap(invoke_fn, &memremaped_shm);
+	}
 
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
@@ -1406,6 +1478,7 @@ static int optee_probe(struct platform_device *pdev)
 	optee_supp_init(&optee->supp);
 	optee->smc.memremaped_shm = memremaped_shm;
 	optee->pool = pool;
+	optee_shm_arg_cache_init(optee, arg_cache_flags);
 
 	platform_set_drvdata(pdev, optee);
 	ctx = teedev_open(optee->teedev);
@@ -1473,6 +1546,7 @@ err_notif_uninit:
 err_close_ctx:
 	teedev_close_context(ctx);
 err_supp_uninit:
+	optee_shm_arg_cache_uninit(optee);
 	optee_supp_uninit(&optee->supp);
 	mutex_destroy(&optee->call_queue.mutex);
 err_unreg_supp_teedev:
