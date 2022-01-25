@@ -1113,6 +1113,19 @@ __extend_last_switch(struct intel_guc *guc, u64 *prev_start, u32 new_start)
 	if (new_start == lower_32_bits(*prev_start))
 		return;
 
+	/*
+	 * When gt is unparked, we update the gt timestamp and start the ping
+	 * worker that updates the gt_stamp every POLL_TIME_CLKS. As long as gt
+	 * is unparked, all switched in contexts will have a start time that is
+	 * within +/- POLL_TIME_CLKS of the most recent gt_stamp.
+	 *
+	 * If neither gt_stamp nor new_start has rolled over, then the
+	 * gt_stamp_hi does not need to be adjusted, however if one of them has
+	 * rolled over, we need to adjust gt_stamp_hi accordingly.
+	 *
+	 * The below conditions address the cases of new_start rollover and
+	 * gt_stamp_last rollover respectively.
+	 */
 	if (new_start < gt_stamp_last &&
 	    (new_start - gt_stamp_last) <= POLL_TIME_CLKS)
 		gt_stamp_hi++;
@@ -1124,16 +1137,44 @@ __extend_last_switch(struct intel_guc *guc, u64 *prev_start, u32 new_start)
 	*prev_start = ((u64)gt_stamp_hi << 32) | new_start;
 }
 
-static void guc_update_engine_gt_clks(struct intel_engine_cs *engine)
+/*
+ * GuC updates shared memory and KMD reads it. Since this is not synchronized,
+ * we run into a race where the value read is inconsistent. Sometimes the
+ * inconsistency is in reading the upper MSB bytes of the last_in value when
+ * this race occurs. 2 types of cases are seen - upper 8 bits are zero and upper
+ * 24 bits are zero. Since these are non-zero values, it is non-trivial to
+ * determine validity of these values. Instead we read the values multiple times
+ * until they are consistent. In test runs, 3 attempts results in consistent
+ * values. The upper bound is set to 6 attempts and may need to be tuned as per
+ * any new occurences.
+ */
+static void __get_engine_usage_record(struct intel_engine_cs *engine,
+				      u32 *last_in, u32 *id, u32 *total)
 {
 	struct guc_engine_usage_record *rec = intel_guc_engine_usage(engine);
+	int i = 0;
+
+	do {
+		*last_in = READ_ONCE(rec->last_switch_in_stamp);
+		*id = READ_ONCE(rec->current_context_index);
+		*total = READ_ONCE(rec->total_runtime);
+
+		if (READ_ONCE(rec->last_switch_in_stamp) == *last_in &&
+		    READ_ONCE(rec->current_context_index) == *id &&
+		    READ_ONCE(rec->total_runtime) == *total)
+			break;
+	} while (++i < 6);
+}
+
+static void guc_update_engine_gt_clks(struct intel_engine_cs *engine)
+{
 	struct intel_engine_guc_stats *stats = &engine->stats.guc;
 	struct intel_guc *guc = &engine->gt->uc.guc;
-	u32 last_switch = rec->last_switch_in_stamp;
-	u32 ctx_id = rec->current_context_index;
-	u32 total = rec->total_runtime;
+	u32 last_switch, ctx_id, total;
 
 	lockdep_assert_held(&guc->timestamp.lock);
+
+	__get_engine_usage_record(engine, &last_switch, &ctx_id, &total);
 
 	stats->running = ctx_id != ~0U && last_switch;
 	if (stats->running)
@@ -1236,6 +1277,10 @@ static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
 	if (!in_reset && intel_gt_pm_get_if_awake(gt)) {
 		stats_saved = *stats;
 		gt_stamp_saved = guc->timestamp.gt_stamp;
+		/*
+		 * Update gt_clks, then gt timestamp to simplify the 'gt_stamp -
+		 * start_gt_clk' calculation below for active engines.
+		 */
 		guc_update_engine_gt_clks(engine);
 		guc_update_pm_timestamp(guc, now);
 		intel_gt_pm_put_async(gt);
@@ -1364,10 +1409,15 @@ void intel_guc_busyness_park(struct intel_gt *gt)
 void intel_guc_busyness_unpark(struct intel_gt *gt)
 {
 	struct intel_guc *guc = &gt->uc.guc;
+	unsigned long flags;
+	ktime_t unused;
 
 	if (!guc_submission_initialized(guc))
 		return;
 
+	spin_lock_irqsave(&guc->timestamp.lock, flags);
+	guc_update_pm_timestamp(guc, &unused);
+	spin_unlock_irqrestore(&guc->timestamp.lock, flags);
 	mod_delayed_work(system_highpri_wq, &guc->timestamp.work,
 			 guc->timestamp.ping_delay);
 }
