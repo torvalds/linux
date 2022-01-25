@@ -54,7 +54,6 @@ struct nested_vmx_msrs {
 
 struct vmcs_config {
 	int size;
-	int order;
 	u32 basic_cap;
 	u32 revision_id;
 	u32 pin_based_exec_ctrl;
