@@ -1946,19 +1946,25 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static const struct drm_driver amdgpu_kms_driver;
 
-static void amdgpu_get_audio_func(struct amdgpu_device *adev)
+static void amdgpu_get_secondary_funcs(struct amdgpu_device *adev)
 {
 	struct pci_dev *p = NULL;
+	int i;
 
-	p = pci_get_domain_bus_and_slot(pci_domain_nr(adev->pdev->bus),
-			adev->pdev->bus->number, 1);
-	if (p) {
-		pm_runtime_get_sync(&p->dev);
-
-		pm_runtime_mark_last_busy(&p->dev);
-		pm_runtime_put_autosuspend(&p->dev);
-
-		pci_dev_put(p);
+	/* 0 - GPU
+	 * 1 - audio
+	 * 2 - USB
+	 * 3 - UCSI
+	 */
+	for (i = 1; i < 4; i++) {
+		p = pci_get_domain_bus_and_slot(pci_domain_nr(adev->pdev->bus),
+						adev->pdev->bus->number, i);
+		if (p) {
+			pm_runtime_get_sync(&p->dev);
+			pm_runtime_mark_last_busy(&p->dev);
+			pm_runtime_put_autosuspend(&p->dev);
+			pci_dev_put(p);
+		}
 	}
 }
 
@@ -2119,14 +2125,14 @@ retry_init:
 		 * be no PMFW-aware D-state transition(D0->D3) on runpm
 		 * suspend. Thus the BACO will be not correctly kicked in.
 		 *
-		 * Via amdgpu_get_audio_func(), the audio dev is put
+		 * Via amdgpu_get_secondary_funcs(), the audio dev is put
 		 * into D0 state. Then there will be a PMFW-aware D-state
 		 * transition(D0->D3) on runpm suspend.
 		 */
 		if (amdgpu_device_supports_baco(ddev) &&
 		    !(adev->flags & AMD_IS_APU) &&
 		    (adev->asic_type >= CHIP_NAVI10))
-			amdgpu_get_audio_func(adev);
+			amdgpu_get_secondary_funcs(adev);
 	}
 
 	return 0;
