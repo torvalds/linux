@@ -1452,7 +1452,7 @@ static int string_to_context_struct(struct policydb *pol,
 	/* Parse the security context. */
 
 	rc = -EINVAL;
-	scontextp = (char *) scontext;
+	scontextp = scontext;
 
 	/* Extract the user. */
 	p = scontextp;
