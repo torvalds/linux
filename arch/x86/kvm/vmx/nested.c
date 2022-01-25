@@ -4851,18 +4851,20 @@ static struct vmcs *alloc_shadow_vmcs(struct kvm_vcpu *vcpu)
 	struct loaded_vmcs *loaded_vmcs = vmx->loaded_vmcs;
 
 	/*
-	 * We should allocate a shadow vmcs for vmcs01 only when L1
-	 * executes VMXON and free it when L1 executes VMXOFF.
-	 * As it is invalid to execute VMXON twice, we shouldn't reach
-	 * here when vmcs01 already have an allocated shadow vmcs.
+	 * KVM allocates a shadow VMCS only when L1 executes VMXON and frees it
+	 * when L1 executes VMXOFF or the vCPU is forced out of nested
+	 * operation.  VMXON faults if the CPU is already post-VMXON, so it
+	 * should be impossible to already have an allocated shadow VMCS.  KVM
+	 * doesn't support virtualization of VMCS shadowing, so vmcs01 should
+	 * always be the loaded VMCS.
 	 */
-	WARN_ON(loaded_vmcs == &vmx->vmcs01 && loaded_vmcs->shadow_vmcs);
+	if (WARN_ON(loaded_vmcs != &vmx->vmcs01 || loaded_vmcs->shadow_vmcs))
+		return loaded_vmcs->shadow_vmcs;
 
-	if (!loaded_vmcs->shadow_vmcs) {
-		loaded_vmcs->shadow_vmcs = alloc_vmcs(true);
-		if (loaded_vmcs->shadow_vmcs)
-			vmcs_clear(loaded_vmcs->shadow_vmcs);
-	}
+	loaded_vmcs->shadow_vmcs = alloc_vmcs(true);
+	if (loaded_vmcs->shadow_vmcs)
+		vmcs_clear(loaded_vmcs->shadow_vmcs);
+
 	return loaded_vmcs->shadow_vmcs;
 }
 
