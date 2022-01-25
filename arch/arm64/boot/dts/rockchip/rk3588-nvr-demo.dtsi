@@ -490,6 +490,10 @@
 	};
 };
 
+&route_hdmi0 {
+	status = "okay";
+};
+
 &sata0 {
 	status = "okay";
 };
