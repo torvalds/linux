@@ -111,7 +111,7 @@ static void accel_rule_handle_work(struct work_struct *work)
 	if (unlikely(test_bit(MLX5E_PRIV_RX_FLAG_DELETING, priv_rx->flags)))
 		goto out;
 
-	rule = mlx5e_accel_fs_add_sk(accel_rule->priv, priv_rx->sk,
+	rule = mlx5e_accel_fs_add_sk(accel_rule->priv->fs, priv_rx->sk,
 				     mlx5e_tir_get_tirn(&priv_rx->tir),
 				     MLX5_FS_DEFAULT_FLOW_TAG);
 	if (!IS_ERR_OR_NULL(rule))
