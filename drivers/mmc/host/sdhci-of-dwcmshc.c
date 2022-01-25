@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/sizes.h>
 
 #include "sdhci-pltfm.h"
@@ -80,6 +81,7 @@ struct dwcmshc_priv {
 
 	/* Rockchip specified optional clocks */
 	struct clk_bulk_data rockchip_clks[ROCKCHIP_MAX_CLKS];
+	struct reset_control *reset;
 	int txclk_tapnum;
 	unsigned int actual_clk;
 	u32 flags;
@@ -293,6 +295,24 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
 }
 
+static void rockchip_sdhci_reset(struct sdhci_host *host, u8 mask)
+{
+	struct sdhci_pltfm_host *pltfm_host;
+	struct dwcmshc_priv *priv;
+
+	if (mask & SDHCI_RESET_ALL) {
+		pltfm_host = sdhci_priv(host);
+		priv = sdhci_pltfm_priv(pltfm_host);
+		if (!IS_ERR_OR_NULL(priv->reset)) {
+			reset_control_assert(priv->reset);
+			udelay(1);
+			reset_control_deassert(priv->reset);
+		}
+	}
+
+	sdhci_reset(host, mask);
+}
+
 static const struct sdhci_ops sdhci_dwcmshc_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
@@ -307,7 +327,7 @@ static const struct sdhci_ops sdhci_dwcmshc_rk_ops = {
 	.set_bus_width		= sdhci_set_bus_width,
 	.set_uhs_signaling	= dwcmshc_set_uhs_signaling,
 	.get_max_clock		= sdhci_pltfm_clk_get_max_clock,
-	.reset			= sdhci_reset,
+	.reset			= rockchip_sdhci_reset,
 	.adma_write_desc	= dwcmshc_adma_write_desc,
 };
 
@@ -428,6 +448,8 @@ static int dwcmshc_probe(struct platform_device *pdev)
 
 	pltfm_host = sdhci_priv(host);
 	priv = sdhci_pltfm_priv(pltfm_host);
+
+	priv->reset = devm_reset_control_array_get_exclusive(&pdev->dev);
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(pltfm_host->clk)) {
