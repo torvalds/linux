@@ -93,12 +93,14 @@ struct trbe_buf {
 #define TRBE_WORKAROUND_WRITE_OUT_OF_RANGE	1
 #define TRBE_NEEDS_DRAIN_AFTER_DISABLE		2
 #define TRBE_NEEDS_CTXT_SYNC_AFTER_ENABLE	3
+#define TRBE_IS_BROKEN				4
 
 static int trbe_errata_cpucaps[] = {
 	[TRBE_WORKAROUND_OVERWRITE_FILL_MODE] = ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE,
 	[TRBE_WORKAROUND_WRITE_OUT_OF_RANGE] = ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE,
 	[TRBE_NEEDS_DRAIN_AFTER_DISABLE] = ARM64_WORKAROUND_2064142,
 	[TRBE_NEEDS_CTXT_SYNC_AFTER_ENABLE] = ARM64_WORKAROUND_2038923,
+	[TRBE_IS_BROKEN] = ARM64_WORKAROUND_1902691,
 	-1,		/* Sentinel, must be the last entry */
 };
 
@@ -190,6 +192,11 @@ static inline bool trbe_needs_ctxt_sync_after_enable(struct trbe_cpudata *cpudat
 	 * corrupt the TRBE buffer or the TRBE state.
 	 */
 	return trbe_has_erratum(cpudata, TRBE_NEEDS_CTXT_SYNC_AFTER_ENABLE);
+}
+
+static inline bool trbe_is_broken(struct trbe_cpudata *cpudata)
+{
+	return trbe_has_erratum(cpudata, TRBE_IS_BROKEN);
 }
 
 static int trbe_alloc_node(struct perf_event *event)
@@ -1287,6 +1294,11 @@ static void arm_trbe_probe_cpu(void *info)
 	 * this instance is about to be registered.
 	 */
 	trbe_check_errata(cpudata);
+
+	if (trbe_is_broken(cpudata)) {
+		pr_err("Disabling TRBE on cpu%d due to erratum\n", cpu);
+		goto cpu_clear;
+	}
 
 	/*
 	 * If the TRBE is affected by erratum TRBE_WORKAROUND_OVERWRITE_FILL_MODE,
