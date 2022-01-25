@@ -12,8 +12,13 @@ struct mlx5e_selq_params {
 	unsigned int num_regular_queues;
 	unsigned int num_channels;
 	unsigned int num_tcs;
-	bool is_htb;
-	bool is_ptp;
+	union {
+		u8 is_special_queues;
+		struct {
+			bool is_htb : 1;
+			bool is_ptp : 1;
+		};
+	};
 };
 
 int mlx5e_selq_init(struct mlx5e_selq *selq, struct mutex *state_lock)
@@ -164,7 +169,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	if (unlikely(!selq))
 		return 0;
 
-	if (likely(!selq->is_ptp && !selq->is_htb)) {
+	if (likely(!selq->is_special_queues)) {
 		/* No special queues, netdev_pick_tx returns one of the regular ones. */
 
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
