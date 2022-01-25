@@ -961,7 +961,7 @@ static const struct comedi_lrange *das16_ai_range(struct comedi_device *dev,
 
 		/* allocate single-range range table */
 		lrange = comedi_alloc_spriv(s,
-					    sizeof(*lrange) + sizeof(*krange));
+					    struct_size(lrange, range, 1));
 		if (!lrange)
 			return &range_unknown;
 
@@ -995,7 +995,7 @@ static const struct comedi_lrange *das16_ao_range(struct comedi_device *dev,
 
 		/* allocate single-range range table */
 		lrange = comedi_alloc_spriv(s,
-					    sizeof(*lrange) + sizeof(*krange));
+					    struct_size(lrange, range, 1));
 		if (!lrange)
 			return &range_unknown;
 
