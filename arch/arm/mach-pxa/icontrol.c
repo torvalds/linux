@@ -13,7 +13,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -42,7 +42,6 @@ static struct pxa2xx_spi_chip mcp251x_chip_info1 = {
 	.rx_threshold   = 128,
 	.dma_burst_size = 8,
 	.timeout        = 235,
-	.gpio_cs        = ICONTROL_MCP251x_nCS1
 };
 
 static struct pxa2xx_spi_chip mcp251x_chip_info2 = {
@@ -50,7 +49,6 @@ static struct pxa2xx_spi_chip mcp251x_chip_info2 = {
 	.rx_threshold   = 128,
 	.dma_burst_size = 8,
 	.timeout        = 235,
-	.gpio_cs        = ICONTROL_MCP251x_nCS2
 };
 
 static struct pxa2xx_spi_chip mcp251x_chip_info3 = {
@@ -58,7 +56,6 @@ static struct pxa2xx_spi_chip mcp251x_chip_info3 = {
 	.rx_threshold   = 128,
 	.dma_burst_size = 8,
 	.timeout        = 235,
-	.gpio_cs        = ICONTROL_MCP251x_nCS3
 };
 
 static struct pxa2xx_spi_chip mcp251x_chip_info4 = {
@@ -66,7 +63,6 @@ static struct pxa2xx_spi_chip mcp251x_chip_info4 = {
 	.rx_threshold   = 128,
 	.dma_burst_size = 8,
 	.timeout        = 235,
-	.gpio_cs        = ICONTROL_MCP251x_nCS4
 };
 
 static const struct property_entry mcp251x_properties[] = {
@@ -143,6 +139,24 @@ struct platform_device pxa_spi_ssp4 = {
 	}
 };
 
+static struct gpiod_lookup_table pxa_ssp3_gpio_table = {
+	.dev_id = "pxa2xx-spi.3",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", ICONTROL_MCP251x_nCS1, "cs", 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-pxa", ICONTROL_MCP251x_nCS2, "cs", 1, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table pxa_ssp4_gpio_table = {
+	.dev_id = "pxa2xx-spi.4",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", ICONTROL_MCP251x_nCS3, "cs", 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-pxa", ICONTROL_MCP251x_nCS4, "cs", 1, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct platform_device *icontrol_spi_devices[] __initdata = {
 	&pxa_spi_ssp3,
 	&pxa_spi_ssp4,
@@ -175,6 +189,8 @@ static mfp_cfg_t mfp_can_cfg[] __initdata = {
 static void __init icontrol_can_init(void)
 {
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(mfp_can_cfg));
+	gpiod_add_lookup_table(&pxa_ssp3_gpio_table);
+	gpiod_add_lookup_table(&pxa_ssp4_gpio_table);
 	platform_add_devices(ARRAY_AND_SIZE(icontrol_spi_devices));
 	spi_register_board_info(ARRAY_AND_SIZE(mcp251x_board_info));
 }

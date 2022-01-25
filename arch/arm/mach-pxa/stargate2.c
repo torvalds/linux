@@ -346,6 +346,22 @@ static struct pxa2xx_spi_controller pxa_ssp_master_2_info = {
 	.num_chipselect = 1,
 };
 
+static struct gpiod_lookup_table pxa_ssp1_gpio_table = {
+	.dev_id = "pxa2xx-spi.1",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", 24, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table pxa_ssp3_gpio_table = {
+	.dev_id = "pxa2xx-spi.3",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", 39, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 /* An upcoming kernel change will scrap SFRM usage so these
  * drivers have been moved to use GPIOs */
 static struct pxa2xx_spi_chip staccel_chip_info = {
@@ -353,7 +369,6 @@ static struct pxa2xx_spi_chip staccel_chip_info = {
 	.rx_threshold = 8,
 	.dma_burst_size = 8,
 	.timeout = 235,
-	.gpio_cs = 24,
 };
 
 static struct pxa2xx_spi_chip cc2420_info = {
@@ -361,7 +376,6 @@ static struct pxa2xx_spi_chip cc2420_info = {
 	.rx_threshold = 8,
 	.dma_burst_size = 8,
 	.timeout = 235,
-	.gpio_cs = 39,
 };
 
 static struct spi_board_info spi_board_info[] __initdata = {
@@ -410,6 +424,8 @@ static void __init imote2_stargate2_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
+	gpiod_add_lookup_table(&pxa_ssp1_gpio_table);
+	gpiod_add_lookup_table(&pxa_ssp3_gpio_table);
 	pxa2xx_set_spi_info(1, &pxa_ssp_master_0_info);
 	pxa2xx_set_spi_info(2, &pxa_ssp_master_1_info);
 	pxa2xx_set_spi_info(3, &pxa_ssp_master_2_info);
