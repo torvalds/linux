@@ -1568,8 +1568,7 @@ static int axienet_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	int ret;
 
 	if (lp->switch_x_sgmii) {
-		ret = mdiobus_write(pcs_phy->bus, pcs_phy->addr,
-				    XLNX_MII_STD_SELECT_REG,
+		ret = mdiodev_write(pcs_phy, XLNX_MII_STD_SELECT_REG,
 				    interface == PHY_INTERFACE_MODE_SGMII ?
 					XLNX_MII_STD_SELECT_SGMII : 0);
 		if (ret < 0) {
