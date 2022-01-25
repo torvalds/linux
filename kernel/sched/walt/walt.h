@@ -207,6 +207,7 @@ extern unsigned int sysctl_sched_boost_on_input;
 extern unsigned int sysctl_sched_user_hint;
 extern unsigned int sysctl_sched_conservative_pl;
 extern unsigned int sysctl_sched_hyst_min_coloc_ns;
+extern unsigned int sysctl_sched_long_running_rt_task_ms;
 
 #define WALT_MANY_WAKEUP_DEFAULT 1000
 extern unsigned int sysctl_sched_many_wakeup_threshold;
@@ -877,6 +878,15 @@ static inline bool walt_fair_task(struct task_struct *p)
 {
 	return p->prio >= MAX_RT_PRIO && !is_idle_task(p);
 }
+
+extern void rt_task_arrival_marker(void *unused, bool preempt,
+	struct task_struct *prev, struct task_struct *next);
+
+extern void long_running_rt_task_notifier(void *unused, struct rq *rq);
+
+extern int sched_long_running_rt_task_ms_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp,
+		loff_t *ppos);
 
 #define WALT_MVP_SLICE		3000000U
 #define WALT_MVP_LIMIT		(4 * WALT_MVP_SLICE)
