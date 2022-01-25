@@ -122,18 +122,18 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
 
 	string_stream_add(stream,
 			  KUNIT_SUBTEST_INDENT "Expected %s %s %s, but\n",
-			  binary_assert->left_text,
-			  binary_assert->operation,
-			  binary_assert->right_text);
-	if (!is_literal(stream->test, binary_assert->left_text,
+			  binary_assert->text->left_text,
+			  binary_assert->text->operation,
+			  binary_assert->text->right_text);
+	if (!is_literal(stream->test, binary_assert->text->left_text,
 			binary_assert->left_value, stream->gfp))
 		string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s == %lld\n",
-				  binary_assert->left_text,
+				  binary_assert->text->left_text,
 				  binary_assert->left_value);
-	if (!is_literal(stream->test, binary_assert->right_text,
+	if (!is_literal(stream->test, binary_assert->text->right_text,
 			binary_assert->right_value, stream->gfp))
 		string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s == %lld",
-				  binary_assert->right_text,
+				  binary_assert->text->right_text,
 				  binary_assert->right_value);
 	kunit_assert_print_msg(message, stream);
 }
@@ -150,14 +150,14 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
 
 	string_stream_add(stream,
 			  KUNIT_SUBTEST_INDENT "Expected %s %s %s, but\n",
-			  binary_assert->left_text,
-			  binary_assert->operation,
-			  binary_assert->right_text);
+			  binary_assert->text->left_text,
+			  binary_assert->text->operation,
+			  binary_assert->text->right_text);
 	string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s == %px\n",
-			  binary_assert->left_text,
+			  binary_assert->text->left_text,
 			  binary_assert->left_value);
 	string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s == %px",
-			  binary_assert->right_text,
+			  binary_assert->text->right_text,
 			  binary_assert->right_value);
 	kunit_assert_print_msg(message, stream);
 }
@@ -190,16 +190,16 @@ void kunit_binary_str_assert_format(const struct kunit_assert *assert,
 
 	string_stream_add(stream,
 			  KUNIT_SUBTEST_INDENT "Expected %s %s %s, but\n",
-			  binary_assert->left_text,
-			  binary_assert->operation,
-			  binary_assert->right_text);
-	if (!is_str_literal(binary_assert->left_text, binary_assert->left_value))
+			  binary_assert->text->left_text,
+			  binary_assert->text->operation,
+			  binary_assert->text->right_text);
+	if (!is_str_literal(binary_assert->text->left_text, binary_assert->left_value))
 		string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s == \"%s\"\n",
-				  binary_assert->left_text,
+				  binary_assert->text->left_text,
 				  binary_assert->left_value);
-	if (!is_str_literal(binary_assert->right_text, binary_assert->right_value))
+	if (!is_str_literal(binary_assert->text->right_text, binary_assert->right_value))
 		string_stream_add(stream, KUNIT_SUBSUBTEST_INDENT "%s == \"%s\"",
-				  binary_assert->right_text,
+				  binary_assert->text->right_text,
 				  binary_assert->right_value);
 	kunit_assert_print_msg(message, stream);
 }

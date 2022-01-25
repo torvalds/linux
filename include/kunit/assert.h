@@ -151,13 +151,24 @@ void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
 }
 
 /**
+ * struct kunit_binary_assert_text - holds strings for &struct
+ *	kunit_binary_assert and friends to try and make the structs smaller.
+ * @operation: A string representation of the comparison operator (e.g. "==").
+ * @left_text: A string representation of the left expression (e.g. "2+2").
+ * @right_text: A string representation of the right expression (e.g. "2+2").
+ */
+struct kunit_binary_assert_text {
+	const char *operation;
+	const char *left_text;
+	const char *right_text;
+};
+
+/**
  * struct kunit_binary_assert - An expectation/assertion that compares two
  *	non-pointer values (for example, KUNIT_EXPECT_EQ(test, 1 + 1, 2)).
  * @assert: The parent of this type.
- * @operation: A string representation of the comparison operator (e.g. "==").
- * @left_text: A string representation of the expression in the left slot.
+ * @text: Holds the textual representations of the operands and op (e.g.  "==").
  * @left_value: The actual evaluated value of the expression in the left slot.
- * @right_text: A string representation of the expression in the right slot.
  * @right_value: The actual evaluated value of the expression in the right slot.
  *
  * Represents an expectation/assertion that compares two non-pointer values. For
@@ -166,10 +177,8 @@ void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
  */
 struct kunit_binary_assert {
 	struct kunit_assert assert;
-	const char *operation;
-	const char *left_text;
+	const struct kunit_binary_assert_text *text;
 	long long left_value;
-	const char *right_text;
 	long long right_value;
 };
 
@@ -182,10 +191,8 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
  *	kunit_binary_assert, kunit_binary_ptr_assert, etc.
  *
  * @format_func: a function which formats the assert to a string.
- * @op_str: A string representation of the comparison operator (e.g. "==").
- * @left_str: A string representation of the expression in the left slot.
+ * @text_: Pointer to a kunit_binary_assert_text.
  * @left_val: The actual evaluated value of the expression in the left slot.
- * @right_str: A string representation of the expression in the right slot.
  * @right_val: The actual evaluated value of the expression in the right slot.
  *
  * Initializes a binary assert like kunit_binary_assert,
@@ -194,16 +201,12 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
  * This is ultimately used by binary assertion macros like KUNIT_EXPECT_EQ, etc.
  */
 #define KUNIT_INIT_BINARY_ASSERT_STRUCT(format_func,			       \
-					op_str,				       \
-					left_str,			       \
+					text_,				       \
 					left_val,			       \
-					right_str,			       \
 					right_val) {			       \
 	.assert = { .format = format_func },				       \
-	.operation = op_str,						       \
-	.left_text = left_str,						       \
+	.text = text_,							       \
 	.left_value = left_val,						       \
-	.right_text = right_str,					       \
 	.right_value = right_val					       \
 }
 
@@ -211,10 +214,8 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
  * struct kunit_binary_ptr_assert - An expectation/assertion that compares two
  *	pointer values (for example, KUNIT_EXPECT_PTR_EQ(test, foo, bar)).
  * @assert: The parent of this type.
- * @operation: A string representation of the comparison operator (e.g. "==").
- * @left_text: A string representation of the expression in the left slot.
+ * @text: Holds the textual representations of the operands and op (e.g.  "==").
  * @left_value: The actual evaluated value of the expression in the left slot.
- * @right_text: A string representation of the expression in the right slot.
  * @right_value: The actual evaluated value of the expression in the right slot.
  *
  * Represents an expectation/assertion that compares two pointer values. For
@@ -223,10 +224,8 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
  */
 struct kunit_binary_ptr_assert {
 	struct kunit_assert assert;
-	const char *operation;
-	const char *left_text;
+	const struct kunit_binary_assert_text *text;
 	const void *left_value;
-	const char *right_text;
 	const void *right_value;
 };
 
@@ -238,10 +237,8 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
  * struct kunit_binary_str_assert - An expectation/assertion that compares two
  *	string values (for example, KUNIT_EXPECT_STREQ(test, foo, "bar")).
  * @assert: The parent of this type.
- * @operation: A string representation of the comparison operator (e.g. "==").
- * @left_text: A string representation of the expression in the left slot.
+ * @text: Holds the textual representations of the operands and comparator.
  * @left_value: The actual evaluated value of the expression in the left slot.
- * @right_text: A string representation of the expression in the right slot.
  * @right_value: The actual evaluated value of the expression in the right slot.
  *
  * Represents an expectation/assertion that compares two string values. For
@@ -250,10 +247,8 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
  */
 struct kunit_binary_str_assert {
 	struct kunit_assert assert;
-	const char *operation;
-	const char *left_text;
+	const struct kunit_binary_assert_text *text;
 	const char *left_value;
-	const char *right_text;
 	const char *right_value;
 };
 

@@ -874,16 +874,19 @@ void kunit_do_failed_assertion(struct kunit *test,
 do {									       \
 	typeof(left) __left = (left);					       \
 	typeof(right) __right = (right);				       \
+	static const struct kunit_binary_assert_text __text = {		       \
+		.operation = #op,					       \
+		.left_text = #left,					       \
+		.right_text = #right,					       \
+	};								       \
 									       \
 	KUNIT_ASSERTION(test,						       \
 			assert_type,					       \
 			__left op __right,				       \
 			assert_class,					       \
 			KUNIT_INIT_BINARY_ASSERT_STRUCT(format_func,	       \
-							#op,		       \
-							#left,		       \
+							&__text,	       \
 							__left,		       \
-							#right,		       \
 							__right),	       \
 			fmt,						       \
 			##__VA_ARGS__);					       \
@@ -928,17 +931,20 @@ do {									       \
 				   ...)					       \
 do {									       \
 	const char *__left = (left);					       \
-	const char *__right = (right);				       \
+	const char *__right = (right);					       \
+	static const struct kunit_binary_assert_text __text = {		       \
+		.operation = #op,					       \
+		.left_text = #left,					       \
+		.right_text = #right,					       \
+	};								       \
 									       \
 	KUNIT_ASSERTION(test,						       \
 			assert_type,					       \
 			strcmp(__left, __right) op 0,			       \
 			kunit_binary_str_assert,			       \
 			KUNIT_INIT_BINARY_ASSERT_STRUCT(kunit_binary_str_assert_format,\
-							#op,		       \
-							#left,		       \
+							&__text,	       \
 							__left,		       \
-							#right,		       \
 							__right),	       \
 			fmt,						       \
 			##__VA_ARGS__);					       \
