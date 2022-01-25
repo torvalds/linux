@@ -29,7 +29,7 @@ $(obj)/simpleImage.$(DTB).ub: $(obj)/simpleImage.$(DTB) FORCE
 	$(call if_changed,uimage)
 
 $(obj)/simpleImage.$(DTB).unstrip: vmlinux FORCE
-	$(call if_changed,shipped)
+	$(call if_changed,copy)
 
 $(obj)/simpleImage.$(DTB).strip: vmlinux FORCE
 	$(call if_changed,strip)

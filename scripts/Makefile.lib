@@ -246,20 +246,16 @@ $(foreach m, $(notdir $1), \
 	$(addprefix $(obj)/, $(foreach s, $3, $($(m:%$(strip $2)=%$(s)))))))
 endef
 
-quiet_cmd_copy = COPY    $@
-      cmd_copy = cp $< $@
-
-# Shipped files
+# Copy a file
 # ===========================================================================
 # 'cp' preserves permissions. If you use it to copy a file in read-only srctree,
 # the copy would be read-only as well, leading to an error when executing the
 # rule next time. Use 'cat' instead in order to generate a writable file.
-
-quiet_cmd_shipped = SHIPPED $@
-cmd_shipped = cat $< > $@
+quiet_cmd_copy = COPY    $@
+      cmd_copy = cat $< > $@
 
 $(obj)/%: $(src)/%_shipped
-	$(call cmd,shipped)
+	$(call cmd,copy)
 
 # Commands useful for building a boot image
 # ===========================================================================
