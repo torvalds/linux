@@ -1407,15 +1407,33 @@ void srcutorture_get_gp_data(enum rcutorture_type test_type,
 }
 EXPORT_SYMBOL_GPL(srcutorture_get_gp_data);
 
+static const char * const srcu_size_state_name[] = {
+	"SRCU_SIZE_SMALL",
+	"SRCU_SIZE_ALLOC",
+	"SRCU_SIZE_WAIT_BARRIER",
+	"SRCU_SIZE_WAIT_CALL",
+	"SRCU_SIZE_WAIT_CBS1",
+	"SRCU_SIZE_WAIT_CBS2",
+	"SRCU_SIZE_WAIT_CBS3",
+	"SRCU_SIZE_WAIT_CBS4",
+	"SRCU_SIZE_BIG",
+	"SRCU_SIZE_???",
+};
+
 void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 {
 	int cpu;
 	int idx;
 	unsigned long s0 = 0, s1 = 0;
+	int ss_state = READ_ONCE(ssp->srcu_size_state);
+	int ss_state_idx = ss_state;
 
 	idx = ssp->srcu_idx & 0x1;
-	pr_alert("%s%s Tree SRCU g%ld per-CPU(idx=%d):",
-		 tt, tf, rcu_seq_current(&ssp->srcu_gp_seq), idx);
+	if (ss_state < 0 || ss_state >= ARRAY_SIZE(srcu_size_state_name))
+		ss_state_idx = ARRAY_SIZE(srcu_size_state_name) - 1;
+	pr_alert("%s%s Tree SRCU g%ld state %d (%s) per-CPU(idx=%d):",
+		 tt, tf, rcu_seq_current(&ssp->srcu_gp_seq), ss_state,
+		 srcu_size_state_name[ss_state_idx], idx);
 	for_each_possible_cpu(cpu) {
 		unsigned long l0, l1;
 		unsigned long u0, u1;
