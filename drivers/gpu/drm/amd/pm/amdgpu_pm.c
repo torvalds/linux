@@ -837,8 +837,17 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	ssize_t size;
+	int size = 0;
 	int ret;
+	enum pp_clock_type od_clocks[6] = {
+		OD_SCLK,
+		OD_MCLK,
+		OD_VDDC_CURVE,
+		OD_RANGE,
+		OD_VDDGFX_OFFSET,
+		OD_CCLK,
+	};
+	uint clk_index;
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
@@ -851,16 +860,25 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 		return ret;
 	}
 
-	size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
-	if (size > 0) {
-		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf+size);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf+size);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDGFX_OFFSET, buf+size);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf+size);
-		size += amdgpu_dpm_print_clock_levels(adev, OD_CCLK, buf+size);
-	} else {
-		size = sysfs_emit(buf, "\n");
+	for (clk_index = 0 ; clk_index < 6 ; clk_index++) {
+		ret = amdgpu_dpm_emit_clock_levels(adev, od_clocks[clk_index], buf, &size);
+		if (ret)
+			break;
 	}
+	if (ret == -ENOENT) {
+		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
+		if (size > 0) {
+			size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf + size);
+			size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf + size);
+			size += amdgpu_dpm_print_clock_levels(adev, OD_VDDGFX_OFFSET, buf + size);
+			size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf + size);
+			size += amdgpu_dpm_print_clock_levels(adev, OD_CCLK, buf + size);
+		}
+	}
+
+	if (size == 0)
+		size = sysfs_emit(buf, "\n");
+
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
@@ -985,8 +1003,8 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	ssize_t size;
-	int ret;
+	int size = 0;
+	int ret = 0;
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
@@ -999,8 +1017,11 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
 		return ret;
 	}
 
-	size = amdgpu_dpm_print_clock_levels(adev, type, buf);
-	if (size <= 0)
+	ret = amdgpu_dpm_emit_clock_levels(adev, type, buf, &size);
+	if (ret == -ENOENT)
+		size = amdgpu_dpm_print_clock_levels(adev, type, buf);
+
+	if (size == 0)
 		size = sysfs_emit(buf, "\n");
 
 	pm_runtime_mark_last_busy(ddev->dev);
