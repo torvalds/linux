@@ -249,6 +249,7 @@ out_err:
 		printk(KERN_WARNING
 			"lockd_up: makesock failed, error=%d\n", err);
 	svc_shutdown_net(serv, net);
+	svc_rpcb_cleanup(serv, net);
 	return err;
 }
 
@@ -287,8 +288,7 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 			cancel_delayed_work_sync(&ln->grace_period_end);
 			locks_end_grace(&ln->lockd_manager);
 			svc_shutdown_net(serv, net);
-			dprintk("%s: per-net data destroyed; net=%x\n",
-				__func__, net->ns.inum);
+			svc_rpcb_cleanup(serv, net);
 		}
 	} else {
 		pr_err("%s: no users! net=%x\n",
@@ -351,7 +351,6 @@ static struct notifier_block lockd_inet6addr_notifier = {
 #endif
 
 static const struct svc_serv_ops lockd_sv_ops = {
-	.svo_shutdown		= svc_rpcb_cleanup,
 	.svo_function		= lockd,
 	.svo_module		= THIS_MODULE,
 };

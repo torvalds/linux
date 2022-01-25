@@ -55,9 +55,6 @@ struct svc_pool {
 struct svc_serv;
 
 struct svc_serv_ops {
-	/* Callback to use when last thread exits. */
-	void		(*svo_shutdown)(struct svc_serv *, struct net *);
-
 	/* function for service threads to run */
 	int		(*svo_function)(void *);
 
