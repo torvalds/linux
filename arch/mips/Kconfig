@@ -3202,6 +3202,10 @@ config MIPS32_N32
 
 	  If unsure, say N.
 
+config CC_HAS_MNO_BRANCH_LIKELY
+	def_bool y
+	depends on $(cc-option,-mno-branch-likely)
+
 menu "Power management options"
 
 config ARCH_HIBERNATION_POSSIBLE
