@@ -16,6 +16,8 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
 #define STK1160_VERSION		"0.9.5"
 #define STK1160_VERSION_NUM	0x000905
@@ -87,6 +89,9 @@ struct stk1160_buffer {
 struct stk1160_urb {
 	struct urb *urb;
 	char *transfer_buffer;
+	struct sg_table *sgt;
+	struct stk1160 *dev;
+	dma_addr_t dma;
 };
 
 struct stk1160_isoc_ctl {
@@ -190,3 +195,8 @@ void stk1160_select_input(struct stk1160 *dev);
 
 /* Provided by stk1160-ac97.c */
 void stk1160_ac97_setup(struct stk1160 *dev);
+
+static inline struct device *stk1160_get_dmadev(struct stk1160 *dev)
+{
+	return bus_to_hcd(dev->udev->bus)->self.sysdev;
+}
