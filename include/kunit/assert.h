@@ -42,43 +42,20 @@ struct kunit_loc {
 
 /**
  * struct kunit_assert - Data for printing a failed assertion or expectation.
- * @message: an optional message to provide additional context.
  * @format: a function which formats the data in this kunit_assert to a string.
  *
  * Represents a failed expectation/assertion. Contains all the data necessary to
  * format a string to a user reporting the failure.
  */
 struct kunit_assert {
-	struct va_format message;
 	void (*format)(const struct kunit_assert *assert,
+		       const struct va_format *message,
 		       struct string_stream *stream);
 };
-
-/**
- * KUNIT_INIT_VA_FMT_NULL - Default initializer for struct va_format.
- *
- * Used inside a struct initialization block to initialize struct va_format to
- * default values where fmt and va are null.
- */
-#define KUNIT_INIT_VA_FMT_NULL { .fmt = NULL, .va = NULL }
-
-/**
- * KUNIT_INIT_ASSERT_STRUCT() - Initializer for a &struct kunit_assert.
- * @fmt: The formatting function which builds a string out of this kunit_assert.
- *
- * The base initializer for a &struct kunit_assert.
- */
-#define KUNIT_INIT_ASSERT_STRUCT(fmt) {					       \
-	.message = KUNIT_INIT_VA_FMT_NULL,				       \
-	.format = fmt							       \
-}
 
 void kunit_assert_prologue(const struct kunit_loc *loc,
 			   enum kunit_assert_type type,
 			   struct string_stream *stream);
-
-void kunit_assert_print_msg(const struct kunit_assert *assert,
-			    struct string_stream *stream);
 
 /**
  * struct kunit_fail_assert - Represents a plain fail expectation/assertion.
@@ -91,6 +68,7 @@ struct kunit_fail_assert {
 };
 
 void kunit_fail_assert_format(const struct kunit_assert *assert,
+			      const struct va_format *message,
 			      struct string_stream *stream);
 
 /**
@@ -100,7 +78,7 @@ void kunit_fail_assert_format(const struct kunit_assert *assert,
  * KUNIT_EXPECT_* and KUNIT_ASSERT_* macros.
  */
 #define KUNIT_INIT_FAIL_ASSERT_STRUCT {					\
-	.assert = KUNIT_INIT_ASSERT_STRUCT(kunit_fail_assert_format)	\
+	.assert = { .format = kunit_fail_assert_format },		\
 }
 
 /**
@@ -120,6 +98,7 @@ struct kunit_unary_assert {
 };
 
 void kunit_unary_assert_format(const struct kunit_assert *assert,
+			       const struct va_format *message,
 			       struct string_stream *stream);
 
 /**
@@ -131,7 +110,7 @@ void kunit_unary_assert_format(const struct kunit_assert *assert,
  * KUNIT_EXPECT_* and KUNIT_ASSERT_* macros.
  */
 #define KUNIT_INIT_UNARY_ASSERT_STRUCT(cond, expect_true) {		       \
-	.assert = KUNIT_INIT_ASSERT_STRUCT(kunit_unary_assert_format),	       \
+	.assert = { .format = kunit_unary_assert_format },		       \
 	.condition = cond,						       \
 	.expected_true = expect_true					       \
 }
@@ -153,6 +132,7 @@ struct kunit_ptr_not_err_assert {
 };
 
 void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
+				     const struct va_format *message,
 				     struct string_stream *stream);
 
 /**
@@ -165,7 +145,7 @@ void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
  * KUNIT_EXPECT_* and KUNIT_ASSERT_* macros.
  */
 #define KUNIT_INIT_PTR_NOT_ERR_STRUCT(txt, val) {			       \
-	.assert = KUNIT_INIT_ASSERT_STRUCT(kunit_ptr_not_err_assert_format),   \
+	.assert = { .format = kunit_ptr_not_err_assert_format },	       \
 	.text = txt,							       \
 	.value = val							       \
 }
@@ -194,6 +174,7 @@ struct kunit_binary_assert {
 };
 
 void kunit_binary_assert_format(const struct kunit_assert *assert,
+				const struct va_format *message,
 				struct string_stream *stream);
 
 /**
@@ -213,7 +194,7 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
 					left_val,			       \
 					right_str,			       \
 					right_val) {			       \
-	.assert = KUNIT_INIT_ASSERT_STRUCT(kunit_binary_assert_format),	       \
+	.assert = { .format = kunit_binary_assert_format },		       \
 	.operation = op_str,						       \
 	.left_text = left_str,						       \
 	.left_value = left_val,						       \
@@ -245,6 +226,7 @@ struct kunit_binary_ptr_assert {
 };
 
 void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
+				    const struct va_format *message,
 				    struct string_stream *stream);
 
 /**
@@ -265,7 +247,7 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
 					    left_val,			       \
 					    right_str,			       \
 					    right_val) {		       \
-	.assert = KUNIT_INIT_ASSERT_STRUCT(kunit_binary_ptr_assert_format),    \
+	.assert = { .format = kunit_binary_ptr_assert_format },		       \
 	.operation = op_str,						       \
 	.left_text = left_str,						       \
 	.left_value = left_val,						       \
@@ -297,6 +279,7 @@ struct kunit_binary_str_assert {
 };
 
 void kunit_binary_str_assert_format(const struct kunit_assert *assert,
+				    const struct va_format *message,
 				    struct string_stream *stream);
 
 /**
@@ -316,7 +299,7 @@ void kunit_binary_str_assert_format(const struct kunit_assert *assert,
 					    left_val,			       \
 					    right_str,			       \
 					    right_val) {		       \
-	.assert = KUNIT_INIT_ASSERT_STRUCT(kunit_binary_str_assert_format),    \
+	.assert = { .format = kunit_binary_str_assert_format },		       \
 	.operation = op_str,						       \
 	.left_text = left_str,						       \
 	.left_value = left_val,						       \

@@ -241,7 +241,8 @@ static void kunit_print_string_stream(struct kunit *test,
 }
 
 static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
-		       enum kunit_assert_type type, struct kunit_assert *assert)
+		       enum kunit_assert_type type, struct kunit_assert *assert,
+		       const struct va_format *message)
 {
 	struct string_stream *stream;
 
@@ -257,7 +258,7 @@ static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
 	}
 
 	kunit_assert_prologue(loc, type, stream);
-	assert->format(assert, stream);
+	assert->format(assert, message, stream);
 
 	kunit_print_string_stream(test, stream);
 
@@ -284,12 +285,13 @@ void kunit_do_failed_assertion(struct kunit *test,
 			       const char *fmt, ...)
 {
 	va_list args;
+	struct va_format message;
 	va_start(args, fmt);
 
-	assert->message.fmt = fmt;
-	assert->message.va = &args;
+	message.fmt = fmt;
+	message.va = &args;
 
-	kunit_fail(test, loc, type, assert);
+	kunit_fail(test, loc, type, assert, &message);
 
 	va_end(args);
 
