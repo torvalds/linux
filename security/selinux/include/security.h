@@ -386,11 +386,11 @@ int security_get_allow_unknown(struct selinux_state *state);
 int security_fs_use(struct selinux_state *state, struct super_block *sb);
 
 int security_genfs_sid(struct selinux_state *state,
-		       const char *fstype, char *name, u16 sclass,
+		       const char *fstype, const char *path, u16 sclass,
 		       u32 *sid);
 
 int selinux_policy_genfs_sid(struct selinux_policy *policy,
-		       const char *fstype, char *name, u16 sclass,
+		       const char *fstype, const char *path, u16 sclass,
 		       u32 *sid);
 
 #ifdef CONFIG_NETLABEL

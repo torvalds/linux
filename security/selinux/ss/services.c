@@ -2875,7 +2875,7 @@ out_unlock:
  */
 static inline int __security_genfs_sid(struct selinux_policy *policy,
 				       const char *fstype,
-				       char *path,
+				       const char *path,
 				       u16 orig_sclass,
 				       u32 *sid)
 {
@@ -2928,7 +2928,7 @@ static inline int __security_genfs_sid(struct selinux_policy *policy,
  */
 int security_genfs_sid(struct selinux_state *state,
 		       const char *fstype,
-		       char *path,
+		       const char *path,
 		       u16 orig_sclass,
 		       u32 *sid)
 {
@@ -2952,7 +2952,7 @@ int security_genfs_sid(struct selinux_state *state,
 
 int selinux_policy_genfs_sid(struct selinux_policy *policy,
 			const char *fstype,
-			char *path,
+			const char *path,
 			u16 orig_sclass,
 			u32 *sid)
 {
