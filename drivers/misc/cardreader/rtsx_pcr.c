@@ -152,20 +152,12 @@ void rtsx_pci_start_run(struct rtsx_pcr *pcr)
 	if (pcr->remove_pci)
 		return;
 
-	if (pcr->rtd3_en)
-		if (pcr->is_runtime_suspended) {
-			pm_runtime_get(&(pcr->pci->dev));
-			pcr->is_runtime_suspended = false;
-		}
-
 	if (pcr->state != PDEV_STAT_RUN) {
 		pcr->state = PDEV_STAT_RUN;
 		if (pcr->ops->enable_auto_blink)
 			pcr->ops->enable_auto_blink(pcr);
 		rtsx_pm_full_on(pcr);
 	}
-
-	mod_delayed_work(system_wq, &pcr->idle_work, msecs_to_jiffies(200));
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_start_run);
 
@@ -1094,40 +1086,6 @@ static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
 	rtsx_comm_pm_power_saving(pcr);
 }
 
-static void rtsx_pci_rtd3_work(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct rtsx_pcr *pcr = container_of(dwork, struct rtsx_pcr, rtd3_work);
-
-	pcr_dbg(pcr, "--> %s\n", __func__);
-	if (!pcr->is_runtime_suspended)
-		pm_runtime_put(&(pcr->pci->dev));
-}
-
-static void rtsx_pci_idle_work(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct rtsx_pcr *pcr = container_of(dwork, struct rtsx_pcr, idle_work);
-
-	pcr_dbg(pcr, "--> %s\n", __func__);
-
-	mutex_lock(&pcr->pcr_mutex);
-
-	pcr->state = PDEV_STAT_IDLE;
-
-	if (pcr->ops->disable_auto_blink)
-		pcr->ops->disable_auto_blink(pcr);
-	if (pcr->ops->turn_off_led)
-		pcr->ops->turn_off_led(pcr);
-
-	rtsx_pm_power_saving(pcr);
-
-	mutex_unlock(&pcr->pcr_mutex);
-
-	if (pcr->rtd3_en)
-		mod_delayed_work(system_wq, &pcr->rtd3_work, msecs_to_jiffies(10000));
-}
-
 static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 {
 	/* Set relink_time to 0 */
@@ -1598,7 +1556,6 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 	pcr->card_inserted = 0;
 	pcr->card_removed = 0;
 	INIT_DELAYED_WORK(&pcr->carddet_work, rtsx_pci_card_detect);
-	INIT_DELAYED_WORK(&pcr->idle_work, rtsx_pci_idle_work);
 
 	pcr->msi_en = msi_en;
 	if (pcr->msi_en) {
@@ -1623,20 +1580,14 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 		rtsx_pcr_cells[i].pdata_size = sizeof(*handle);
 	}
 
-	if (pcr->rtd3_en) {
-		INIT_DELAYED_WORK(&pcr->rtd3_work, rtsx_pci_rtd3_work);
-		pm_runtime_allow(&pcidev->dev);
-		pm_runtime_enable(&pcidev->dev);
-		pcr->is_runtime_suspended = false;
-	}
-
 
 	ret = mfd_add_devices(&pcidev->dev, pcr->id, rtsx_pcr_cells,
 			ARRAY_SIZE(rtsx_pcr_cells), NULL, 0, NULL);
 	if (ret < 0)
 		goto free_slots;
 
-	schedule_delayed_work(&pcr->idle_work, msecs_to_jiffies(200));
+	pm_runtime_allow(&pcidev->dev);
+	pm_runtime_put(&pcidev->dev);
 
 	return 0;
 
@@ -1668,10 +1619,10 @@ static void rtsx_pci_remove(struct pci_dev *pcidev)
 	struct pcr_handle *handle = pci_get_drvdata(pcidev);
 	struct rtsx_pcr *pcr = handle->pcr;
 
-	if (pcr->rtd3_en)
-		pm_runtime_get_noresume(&pcr->pci->dev);
-
 	pcr->remove_pci = true;
+
+	pm_runtime_get_sync(&pcidev->dev);
+	pm_runtime_forbid(&pcidev->dev);
 
 	/* Disable interrupts at the pcr level */
 	spin_lock_irq(&pcr->lock);
@@ -1680,9 +1631,6 @@ static void rtsx_pci_remove(struct pci_dev *pcidev)
 	spin_unlock_irq(&pcr->lock);
 
 	cancel_delayed_work_sync(&pcr->carddet_work);
-	cancel_delayed_work_sync(&pcr->idle_work);
-	if (pcr->rtd3_en)
-		cancel_delayed_work_sync(&pcr->rtd3_work);
 
 	mfd_remove_devices(&pcidev->dev);
 
@@ -1699,11 +1647,6 @@ static void rtsx_pci_remove(struct pci_dev *pcidev)
 	spin_lock(&rtsx_pci_lock);
 	idr_remove(&rtsx_pci_idr, pcr->id);
 	spin_unlock(&rtsx_pci_lock);
-
-	if (pcr->rtd3_en) {
-		pm_runtime_disable(&pcr->pci->dev);
-		pm_runtime_put_noidle(&pcr->pci->dev);
-	}
 
 	kfree(pcr->slots);
 	kfree(pcr);
@@ -1726,7 +1669,6 @@ static int __maybe_unused rtsx_pci_suspend(struct device *dev_d)
 	pcr = handle->pcr;
 
 	cancel_delayed_work(&pcr->carddet_work);
-	cancel_delayed_work(&pcr->idle_work);
 
 	mutex_lock(&pcr->pcr_mutex);
 
@@ -1760,8 +1702,6 @@ static int __maybe_unused rtsx_pci_resume(struct device *dev_d)
 	if (ret)
 		goto out;
 
-	schedule_delayed_work(&pcr->idle_work, msecs_to_jiffies(200));
-
 out:
 	mutex_unlock(&pcr->pcr_mutex);
 	return ret;
@@ -1786,6 +1726,33 @@ static void rtsx_pci_shutdown(struct pci_dev *pcidev)
 		pci_disable_msi(pcr->pci);
 }
 
+static int rtsx_pci_runtime_idle(struct device *device)
+{
+	struct pci_dev *pcidev = to_pci_dev(device);
+	struct pcr_handle *handle = pci_get_drvdata(pcidev);
+	struct rtsx_pcr *pcr = handle->pcr;
+
+	dev_dbg(device, "--> %s\n", __func__);
+
+	mutex_lock(&pcr->pcr_mutex);
+
+	pcr->state = PDEV_STAT_IDLE;
+
+	if (pcr->ops->disable_auto_blink)
+		pcr->ops->disable_auto_blink(pcr);
+	if (pcr->ops->turn_off_led)
+		pcr->ops->turn_off_led(pcr);
+
+	rtsx_pm_power_saving(pcr);
+
+	mutex_unlock(&pcr->pcr_mutex);
+
+	if (pcr->rtd3_en)
+		pm_schedule_suspend(device, 10000);
+
+	return -EBUSY;
+}
+
 static int rtsx_pci_runtime_suspend(struct device *device)
 {
 	struct pci_dev *pcidev = to_pci_dev(device);
@@ -1794,18 +1761,15 @@ static int rtsx_pci_runtime_suspend(struct device *device)
 
 	handle = pci_get_drvdata(pcidev);
 	pcr = handle->pcr;
-	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
 
-	cancel_delayed_work(&pcr->carddet_work);
-	cancel_delayed_work(&pcr->rtd3_work);
-	cancel_delayed_work(&pcr->idle_work);
+	dev_dbg(device, "--> %s\n", __func__);
+
+	cancel_delayed_work_sync(&pcr->carddet_work);
 
 	mutex_lock(&pcr->pcr_mutex);
 	rtsx_pci_power_off(pcr, HOST_ENTER_S3);
 
 	mutex_unlock(&pcr->pcr_mutex);
-
-	pcr->is_runtime_suspended = true;
 
 	return 0;
 }
@@ -1813,12 +1777,10 @@ static int rtsx_pci_runtime_suspend(struct device *device)
 static int rtsx_pci_runtime_resume(struct device *device)
 {
 	struct pci_dev *pcidev = to_pci_dev(device);
-	struct pcr_handle *handle;
-	struct rtsx_pcr *pcr;
+	struct pcr_handle *handle = pci_get_drvdata(pcidev);
+	struct rtsx_pcr *pcr = handle->pcr;
 
-	handle = pci_get_drvdata(pcidev);
-	pcr = handle->pcr;
-	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
+	dev_dbg(device, "--> %s\n", __func__);
 
 	mutex_lock(&pcr->pcr_mutex);
 
@@ -1834,8 +1796,6 @@ static int rtsx_pci_runtime_resume(struct device *device)
 				pcr->slots[RTSX_SD_CARD].p_dev);
 	}
 
-	schedule_delayed_work(&pcr->idle_work, msecs_to_jiffies(200));
-
 	mutex_unlock(&pcr->pcr_mutex);
 	return 0;
 }
@@ -1850,7 +1810,7 @@ static int rtsx_pci_runtime_resume(struct device *device)
 
 static const struct dev_pm_ops rtsx_pci_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(rtsx_pci_suspend, rtsx_pci_resume)
-	SET_RUNTIME_PM_OPS(rtsx_pci_runtime_suspend, rtsx_pci_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(rtsx_pci_runtime_suspend, rtsx_pci_runtime_resume, rtsx_pci_runtime_idle)
 };
 
 static struct pci_driver rtsx_pci_driver = {
