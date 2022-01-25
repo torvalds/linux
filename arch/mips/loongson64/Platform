@@ -5,24 +5,9 @@
 
 cflags-$(CONFIG_CPU_LOONGSON64)	+= -Wa,--trap
 
-#
-# binutils from v2.25 on and gcc starting from v4.9.0 treat -march=loongson3a
-# as MIPS64 R2; older versions as just R1.  This leaves the possibility open
-# that GCC might generate R2 code for -march=loongson3a which then is rejected
-# by GAS.  The cc-option can't probe for this behaviour so -march=loongson3a
-# can't easily be used safely within the kbuild framework.
-#
-ifeq ($(call cc-ifversion, -ge, 0409, y), y)
-  ifeq ($(call ld-ifversion, -ge, 22500, y), y)
-    cflags-$(CONFIG_CPU_LOONGSON64)  += \
-      $(call cc-option,-march=loongson3a -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64)
-  else
-    cflags-$(CONFIG_CPU_LOONGSON64)  += \
-      $(call cc-option,-march=mips64r2,-mips64r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64)
-  endif
-else
-    cflags-$(CONFIG_CPU_LOONGSON64)  += \
-      $(call cc-option,-march=mips64r2,-mips64r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64)
+ifdef CONFIG_CPU_LOONGSON64
+cflags-$(CONFIG_CC_IS_GCC) += -march=loongson3a
+cflags-$(CONFIG_CC_IS_CLANG) += -march=mips64r2
 endif
 
 # Some -march= flags enable MMI instructions, and GCC complains about that
