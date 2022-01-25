@@ -113,25 +113,14 @@ static int dsa_switch_bridge_join(struct dsa_switch *ds,
 	return dsa_tag_8021q_bridge_join(ds, info);
 }
 
-static int dsa_switch_bridge_leave(struct dsa_switch *ds,
-				   struct dsa_notifier_bridge_info *info)
+static int dsa_switch_sync_vlan_filtering(struct dsa_switch *ds,
+					  struct dsa_notifier_bridge_info *info)
 {
-	struct dsa_switch_tree *dst = ds->dst;
 	struct netlink_ext_ack extack = {0};
 	bool change_vlan_filtering = false;
 	bool vlan_filtering;
 	struct dsa_port *dp;
 	int err;
-
-	if (dst->index == info->tree_index && ds->index == info->sw_index &&
-	    ds->ops->port_bridge_leave)
-		ds->ops->port_bridge_leave(ds, info->port, info->bridge);
-
-	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
-	    ds->ops->crosschip_bridge_leave)
-		ds->ops->crosschip_bridge_leave(ds, info->tree_index,
-						info->sw_index, info->port,
-						info->bridge);
 
 	if (ds->needs_standalone_vlan_filtering &&
 	    !br_vlan_enabled(info->bridge.dev)) {
@@ -169,6 +158,31 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 			dev_err(ds->dev, "port %d: %s\n", info->port,
 				extack._msg);
 		if (err && err != -EOPNOTSUPP)
+			return err;
+	}
+
+	return 0;
+}
+
+static int dsa_switch_bridge_leave(struct dsa_switch *ds,
+				   struct dsa_notifier_bridge_info *info)
+{
+	struct dsa_switch_tree *dst = ds->dst;
+	int err;
+
+	if (dst->index == info->tree_index && ds->index == info->sw_index &&
+	    ds->ops->port_bridge_leave)
+		ds->ops->port_bridge_leave(ds, info->port, info->bridge);
+
+	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
+	    ds->ops->crosschip_bridge_leave)
+		ds->ops->crosschip_bridge_leave(ds, info->tree_index,
+						info->sw_index, info->port,
+						info->bridge);
+
+	if (ds->dst->index == info->tree_index && ds->index == info->sw_index) {
+		err = dsa_switch_sync_vlan_filtering(ds, info);
+		if (err)
 			return err;
 	}
 
