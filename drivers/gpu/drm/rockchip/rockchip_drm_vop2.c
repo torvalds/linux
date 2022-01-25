@@ -7162,6 +7162,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 	} else {
 		vop2_calc_bg_ovl_and_port_mux(vp);
 		vop2_setup_dly_for_vp(vp);
+		if (vcstate->splice_mode)
+			vop2_setup_dly_for_vp(splice_vp);
 	}
 
 	/* The pre alpha overlay of Cluster still need process in one win mode. */
