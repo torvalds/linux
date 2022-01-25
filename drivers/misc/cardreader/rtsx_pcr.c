@@ -1086,7 +1086,7 @@ static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
 	rtsx_comm_pm_power_saving(pcr);
 }
 
-static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
+static void rtsx_base_force_power_down(struct rtsx_pcr *pcr)
 {
 	/* Set relink_time to 0 */
 	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, MASK_8_BIT_DEF, 0);
@@ -1100,7 +1100,7 @@ static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 	rtsx_pci_write_register(pcr, FPDCTL, ALL_POWER_DOWN, ALL_POWER_DOWN);
 }
 
-static void __maybe_unused rtsx_pci_power_off(struct rtsx_pcr *pcr, u8 pm_state)
+static void __maybe_unused rtsx_pci_power_off(struct rtsx_pcr *pcr, u8 pm_state, bool runtime)
 {
 	if (pcr->ops->turn_off_led)
 		pcr->ops->turn_off_led(pcr);
@@ -1112,9 +1112,9 @@ static void __maybe_unused rtsx_pci_power_off(struct rtsx_pcr *pcr, u8 pm_state)
 	rtsx_pci_write_register(pcr, HOST_SLEEP_STATE, 0x03, pm_state);
 
 	if (pcr->ops->force_power_down)
-		pcr->ops->force_power_down(pcr, pm_state);
+		pcr->ops->force_power_down(pcr, pm_state, runtime);
 	else
-		rtsx_base_force_power_down(pcr, pm_state);
+		rtsx_base_force_power_down(pcr);
 }
 
 void rtsx_pci_enable_ocp(struct rtsx_pcr *pcr)
@@ -1669,7 +1669,7 @@ static int __maybe_unused rtsx_pci_suspend(struct device *dev_d)
 
 	mutex_lock(&pcr->pcr_mutex);
 
-	rtsx_pci_power_off(pcr, HOST_ENTER_S3);
+	rtsx_pci_power_off(pcr, HOST_ENTER_S3, false);
 
 	mutex_unlock(&pcr->pcr_mutex);
 	return 0;
@@ -1708,7 +1708,7 @@ static void rtsx_pci_shutdown(struct pci_dev *pcidev)
 
 	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
 
-	rtsx_pci_power_off(pcr, HOST_ENTER_S1);
+	rtsx_pci_power_off(pcr, HOST_ENTER_S1, false);
 
 	pci_disable_device(pcidev);
 	free_irq(pcr->irq, (void *)pcr);
@@ -1754,7 +1754,7 @@ static int rtsx_pci_runtime_suspend(struct device *device)
 	cancel_delayed_work_sync(&pcr->carddet_work);
 
 	mutex_lock(&pcr->pcr_mutex);
-	rtsx_pci_power_off(pcr, HOST_ENTER_S3);
+	rtsx_pci_power_off(pcr, HOST_ENTER_S3, true);
 
 	mutex_unlock(&pcr->pcr_mutex);
 
