@@ -692,25 +692,16 @@ void amdgpu_dpm_set_power_state(struct amdgpu_device *adev,
 		amdgpu_dpm_compute_clocks(adev);
 }
 
-static enum amd_dpm_forced_level amdgpu_dpm_get_performance_level_locked(struct amdgpu_device *adev)
+enum amd_dpm_forced_level amdgpu_dpm_get_performance_level(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	enum amd_dpm_forced_level level;
 
+	mutex_lock(&adev->pm.mutex);
 	if (pp_funcs->get_performance_level)
 		level = pp_funcs->get_performance_level(adev->powerplay.pp_handle);
 	else
 		level = adev->pm.dpm.forced_level;
-
-	return level;
-}
-
-enum amd_dpm_forced_level amdgpu_dpm_get_performance_level(struct amdgpu_device *adev)
-{
-	enum amd_dpm_forced_level level;
-
-	mutex_lock(&adev->pm.mutex);
-	level = amdgpu_dpm_get_performance_level_locked(adev);
 	mutex_unlock(&adev->pm.mutex);
 
 	return level;
@@ -725,23 +716,16 @@ int amdgpu_dpm_force_performance_level(struct amdgpu_device *adev,
 					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
 					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
 					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
-	int ret = 0;
 
 	if (!pp_funcs->force_performance_level)
 		return 0;
 
-	mutex_lock(&adev->pm.mutex);
+	if (adev->pm.dpm.thermal_active)
+		return -EINVAL;
 
-	if (adev->pm.dpm.thermal_active) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	current_level = amdgpu_dpm_get_performance_level_locked(adev);
-	if (current_level == level) {
-		ret = 0;
-		goto out;
-	}
+	current_level = amdgpu_dpm_get_performance_level(adev);
+	if (current_level == level)
+		return 0;
 
 	if (adev->asic_type == CHIP_RAVEN) {
 		if (!(adev->apu_flags & AMD_APU_IS_RAVEN2)) {
@@ -755,10 +739,8 @@ int amdgpu_dpm_force_performance_level(struct amdgpu_device *adev,
 	}
 
 	if (!(current_level & profile_mode_mask) &&
-	    (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	    (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT))
+		return -EINVAL;
 
 	if (!(current_level & profile_mode_mask) &&
 	      (level & profile_mode_mask)) {
@@ -780,17 +762,19 @@ int amdgpu_dpm_force_performance_level(struct amdgpu_device *adev,
 						       AMD_PG_STATE_GATE);
 	}
 
+	mutex_lock(&adev->pm.mutex);
+
 	if (pp_funcs->force_performance_level(adev->powerplay.pp_handle,
-					      level))
-		ret = -EINVAL;
+					      level)) {
+		mutex_unlock(&adev->pm.mutex);
+		return -EINVAL;
+	}
 
-	if (!ret)
-		adev->pm.dpm.forced_level = level;
+	adev->pm.dpm.forced_level = level;
 
-out:
 	mutex_unlock(&adev->pm.mutex);
 
-	return ret;
+	return 0;
 }
 
 int amdgpu_dpm_get_pp_num_states(struct amdgpu_device *adev,
