@@ -406,7 +406,8 @@ static struct visorinput_devdata *devdata_create(struct visor_device *dev,
 	if (dtype == visorinput_keyboard)
 		/* allocate room for devdata->keycode_table, filled in below */
 		extra_bytes = KEYCODE_TABLE_BYTES * 2;
-	devdata = kzalloc(sizeof(*devdata) + extra_bytes, GFP_KERNEL);
+	devdata = kzalloc(struct_size(devdata, keycode_table, extra_bytes),
+			  GFP_KERNEL);
 	if (!devdata)
 		return NULL;
 	mutex_init(&devdata->lock_visor_dev);
