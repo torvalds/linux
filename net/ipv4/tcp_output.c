@@ -1960,7 +1960,7 @@ static u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
 
 	bytes = min_t(unsigned long,
 		      sk->sk_pacing_rate >> READ_ONCE(sk->sk_pacing_shift),
-		      sk->sk_gso_max_size - 1 - MAX_TCP_HEADER);
+		      sk->sk_gso_max_size);
 
 	/* Goal is to send at least one packet per ms,
 	 * not one big TSO packet every 100 ms.
