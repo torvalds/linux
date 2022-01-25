@@ -624,35 +624,39 @@ static int mlx5e_ptp_set_state(struct mlx5e_ptp *c, struct mlx5e_params *params)
 
 static void mlx5e_ptp_rx_unset_fs(struct mlx5e_priv *priv)
 {
-	struct mlx5e_ptp_fs *ptp_fs = mlx5e_fs_get_ptp(priv->fs);
+	struct mlx5e_flow_steering *fs = priv->fs;
+	struct mlx5e_ptp_fs *ptp_fs;
 
+	ptp_fs = mlx5e_fs_get_ptp(fs);
 	if (!ptp_fs->valid)
 		return;
 
 	mlx5e_fs_tt_redirect_del_rule(ptp_fs->l2_rule);
-	mlx5e_fs_tt_redirect_any_destroy(priv);
+	mlx5e_fs_tt_redirect_any_destroy(fs);
 
 	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v6_rule);
 	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v4_rule);
-	mlx5e_fs_tt_redirect_udp_destroy(priv);
+	mlx5e_fs_tt_redirect_udp_destroy(fs);
 	ptp_fs->valid = false;
 }
 
 static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
 {
-	struct mlx5e_ptp_fs *ptp_fs = mlx5e_fs_get_ptp(priv->fs);
 	u32 tirn = mlx5e_rx_res_get_tirn_ptp(priv->rx_res);
+	struct mlx5e_flow_steering *fs = priv->fs;
 	struct mlx5_flow_handle *rule;
+	struct mlx5e_ptp_fs *ptp_fs;
 	int err;
 
+	ptp_fs = mlx5e_fs_get_ptp(fs);
 	if (ptp_fs->valid)
 		return 0;
 
-	err = mlx5e_fs_tt_redirect_udp_create(priv);
+	err = mlx5e_fs_tt_redirect_udp_create(fs);
 	if (err)
 		goto out_free;
 
-	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5_TT_IPV4_UDP,
+	rule = mlx5e_fs_tt_redirect_udp_add_rule(fs, MLX5_TT_IPV4_UDP,
 						 tirn, PTP_EV_PORT);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -660,7 +664,7 @@ static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
 	}
 	ptp_fs->udp_v4_rule = rule;
 
-	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5_TT_IPV6_UDP,
+	rule = mlx5e_fs_tt_redirect_udp_add_rule(fs, MLX5_TT_IPV6_UDP,
 						 tirn, PTP_EV_PORT);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -668,11 +672,11 @@ static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
 	}
 	ptp_fs->udp_v6_rule = rule;
 
-	err = mlx5e_fs_tt_redirect_any_create(priv);
+	err = mlx5e_fs_tt_redirect_any_create(fs);
 	if (err)
 		goto out_destroy_udp_v6_rule;
 
-	rule = mlx5e_fs_tt_redirect_any_add_rule(priv, tirn, ETH_P_1588);
+	rule = mlx5e_fs_tt_redirect_any_add_rule(fs, tirn, ETH_P_1588);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		goto out_destroy_fs_any;
@@ -683,13 +687,13 @@ static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
 	return 0;
 
 out_destroy_fs_any:
-	mlx5e_fs_tt_redirect_any_destroy(priv);
+	mlx5e_fs_tt_redirect_any_destroy(fs);
 out_destroy_udp_v6_rule:
 	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v6_rule);
 out_destroy_udp_v4_rule:
 	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v4_rule);
 out_destroy_fs_udp:
-	mlx5e_fs_tt_redirect_udp_destroy(priv);
+	mlx5e_fs_tt_redirect_udp_destroy(fs);
 out_free:
 	return err;
 }

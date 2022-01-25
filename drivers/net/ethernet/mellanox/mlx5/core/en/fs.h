@@ -16,6 +16,11 @@ enum {
 	MLX5E_TC_MISS_LEVEL,
 };
 
+enum {
+	MLX5E_TC_PRIO = 0,
+	MLX5E_NIC_PRIO
+};
+
 struct mlx5e_flow_table {
 	int num_groups;
 	struct mlx5_flow_table *t;
