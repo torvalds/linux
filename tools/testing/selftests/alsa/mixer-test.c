@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <string.h>
 #include <getopt.h>
 #include <stdarg.h>
@@ -26,7 +27,7 @@
 
 #include "../kselftest.h"
 
-#define TESTS_PER_CONTROL 3
+#define TESTS_PER_CONTROL 4
 
 struct card_data {
 	snd_ctl_t *handle;
@@ -679,6 +680,224 @@ void test_ctl_write_valid(struct ctl_data *ctl)
 			 ctl->card->card, ctl->elem);
 }
 
+bool test_ctl_write_invalid_value(struct ctl_data *ctl,
+				  snd_ctl_elem_value_t *val)
+{
+	int err;
+	long val_read;
+
+	/* Ideally this will fail... */
+	err = snd_ctl_elem_write(ctl->card->handle, val);
+	if (err < 0)
+		return false;
+
+	/* ...but some devices will clamp to an in range value */
+	err = snd_ctl_elem_read(ctl->card->handle, val);
+	if (err < 0) {
+		ksft_print_msg("%s failed to read: %s\n",
+			       ctl->name, snd_strerror(err));
+		return true;
+	}
+
+	return !ctl_value_valid(ctl, val);
+}
+
+bool test_ctl_write_invalid_boolean(struct ctl_data *ctl)
+{
+	int err, i;
+	long val_read;
+	bool fail = false;
+	snd_ctl_elem_value_t *val;
+	snd_ctl_elem_value_alloca(&val);
+
+	for (i = 0; i < snd_ctl_elem_info_get_count(ctl->info); i++) {
+		snd_ctl_elem_value_copy(val, ctl->def_val);
+		snd_ctl_elem_value_set_boolean(val, i, 2);
+
+		if (test_ctl_write_invalid_value(ctl, val))
+			fail = true;
+	}
+
+	return !fail;
+}
+
+bool test_ctl_write_invalid_integer(struct ctl_data *ctl)
+{
+	int i;
+	bool fail = false;
+	snd_ctl_elem_value_t *val;
+	snd_ctl_elem_value_alloca(&val);
+
+	for (i = 0; i < snd_ctl_elem_info_get_count(ctl->info); i++) {
+		if (snd_ctl_elem_info_get_min(ctl->info) != LONG_MIN) {
+			/* Just under range */
+			snd_ctl_elem_value_copy(val, ctl->def_val);
+			snd_ctl_elem_value_set_integer(val, i,
+			       snd_ctl_elem_info_get_min(ctl->info) - 1);
+
+			if (test_ctl_write_invalid_value(ctl, val))
+				fail = true;
+
+			/* Minimum representable value */
+			snd_ctl_elem_value_copy(val, ctl->def_val);
+			snd_ctl_elem_value_set_integer(val, i, LONG_MIN);
+
+			if (test_ctl_write_invalid_value(ctl, val))
+				fail = true;
+		}
+
+		if (snd_ctl_elem_info_get_max(ctl->info) != LONG_MAX) {
+			/* Just over range */
+			snd_ctl_elem_value_copy(val, ctl->def_val);
+			snd_ctl_elem_value_set_integer(val, i,
+			       snd_ctl_elem_info_get_max(ctl->info) + 1);
+
+			if (test_ctl_write_invalid_value(ctl, val))
+				fail = true;
+
+			/* Maximum representable value */
+			snd_ctl_elem_value_copy(val, ctl->def_val);
+			snd_ctl_elem_value_set_integer(val, i, LONG_MAX);
+
+			if (test_ctl_write_invalid_value(ctl, val))
+				fail = true;
+		}
+	}
+
+	return !fail;
+}
+
+bool test_ctl_write_invalid_integer64(struct ctl_data *ctl)
+{
+	int i;
+	bool fail = false;
+	snd_ctl_elem_value_t *val;
+	snd_ctl_elem_value_alloca(&val);
+
+	for (i = 0; i < snd_ctl_elem_info_get_count(ctl->info); i++) {
+		if (snd_ctl_elem_info_get_min64(ctl->info) != LLONG_MIN) {
+			/* Just under range */
+			snd_ctl_elem_value_copy(val, ctl->def_val);
+			snd_ctl_elem_value_set_integer64(val, i,
+				snd_ctl_elem_info_get_min64(ctl->info) - 1);
+
+			if (test_ctl_write_invalid_value(ctl, val))
+				fail = true;
+
+			/* Minimum representable value */
+			snd_ctl_elem_value_copy(val, ctl->def_val);
+			snd_ctl_elem_value_set_integer64(val, i, LLONG_MIN);
+
+			if (test_ctl_write_invalid_value(ctl, val))
+				fail = true;
+		}
+
+		if (snd_ctl_elem_info_get_max64(ctl->info) != LLONG_MAX) {
+			/* Just over range */
+			snd_ctl_elem_value_copy(val, ctl->def_val);
+			snd_ctl_elem_value_set_integer64(val, i,
+				snd_ctl_elem_info_get_max64(ctl->info) + 1);
+
+			if (test_ctl_write_invalid_value(ctl, val))
+				fail = true;
+
+			/* Maximum representable value */
+			snd_ctl_elem_value_copy(val, ctl->def_val);
+			snd_ctl_elem_value_set_integer64(val, i, LLONG_MAX);
+
+			if (test_ctl_write_invalid_value(ctl, val))
+				fail = true;
+		}
+	}
+
+	return !fail;
+}
+
+bool test_ctl_write_invalid_enumerated(struct ctl_data *ctl)
+{
+	int err, i;
+	unsigned int val_read;
+	bool fail = false;
+	snd_ctl_elem_value_t *val;
+	snd_ctl_elem_value_alloca(&val);
+
+	snd_ctl_elem_value_set_id(val, ctl->id);
+
+	for (i = 0; i < snd_ctl_elem_info_get_count(ctl->info); i++) {
+		/* One beyond maximum */
+		snd_ctl_elem_value_copy(val, ctl->def_val);
+		snd_ctl_elem_value_set_enumerated(val, i,
+				  snd_ctl_elem_info_get_items(ctl->info));
+
+		if (test_ctl_write_invalid_value(ctl, val))
+			fail = true;
+
+		/* Maximum representable value */
+		snd_ctl_elem_value_copy(val, ctl->def_val);
+		snd_ctl_elem_value_set_enumerated(val, i, UINT_MAX);
+
+		if (test_ctl_write_invalid_value(ctl, val))
+			fail = true;
+
+	}
+
+	return !fail;
+}
+
+
+void test_ctl_write_invalid(struct ctl_data *ctl)
+{
+	bool pass;
+	int err;
+
+	/* If the control is turned off let's be polite */
+	if (snd_ctl_elem_info_is_inactive(ctl->info)) {
+		ksft_print_msg("%s is inactive\n", ctl->name);
+		ksft_test_result_skip("write_invalid.%d.%d\n",
+				      ctl->card->card, ctl->elem);
+		return;
+	}
+
+	if (!snd_ctl_elem_info_is_writable(ctl->info)) {
+		ksft_print_msg("%s is not writeable\n", ctl->name);
+		ksft_test_result_skip("write_invalid.%d.%d\n",
+				      ctl->card->card, ctl->elem);
+		return;
+	}
+
+	switch (snd_ctl_elem_info_get_type(ctl->info)) {
+	case SND_CTL_ELEM_TYPE_BOOLEAN:
+		pass = test_ctl_write_invalid_boolean(ctl);
+		break;
+
+	case SND_CTL_ELEM_TYPE_INTEGER:
+		pass = test_ctl_write_invalid_integer(ctl);
+		break;
+
+	case SND_CTL_ELEM_TYPE_INTEGER64:
+		pass = test_ctl_write_invalid_integer64(ctl);
+		break;
+
+	case SND_CTL_ELEM_TYPE_ENUMERATED:
+		pass = test_ctl_write_invalid_enumerated(ctl);
+		break;
+
+	default:
+		/* No tests for this yet */
+		ksft_test_result_skip("write_invalid.%d.%d\n",
+				      ctl->card->card, ctl->elem);
+		return;
+	}
+
+	/* Restore the default value to minimise disruption */
+	err = write_and_verify(ctl, ctl->def_val, NULL);
+	if (err < 0)
+		pass = false;
+
+	ksft_test_result(pass, "write_invalid.%d.%d\n",
+			 ctl->card->card, ctl->elem);
+}
+
 int main(void)
 {
 	struct ctl_data *ctl;
@@ -697,6 +916,7 @@ int main(void)
 		test_ctl_get_value(ctl);
 		test_ctl_write_default(ctl);
 		test_ctl_write_valid(ctl);
+		test_ctl_write_invalid(ctl);
 	}
 
 	ksft_exit_pass();
