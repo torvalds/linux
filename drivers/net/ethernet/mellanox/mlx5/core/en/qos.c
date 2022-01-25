@@ -50,7 +50,6 @@ static int mlx5e_find_unused_qos_qid(struct mlx5e_priv *priv)
 
 struct mlx5e_qos_node {
 	struct hlist_node hnode;
-	struct rcu_head rcu;
 	struct mlx5e_qos_node *parent;
 	u64 rate;
 	u32 bw_share;
@@ -132,7 +131,11 @@ static void mlx5e_sw_node_delete(struct mlx5e_priv *priv, struct mlx5e_qos_node 
 		__clear_bit(node->qid, priv->htb.qos_used_qids);
 		mlx5e_update_tx_netdev_queues(priv);
 	}
-	kfree_rcu(node, rcu);
+	/* Make sure this qid is no longer selected by mlx5e_select_queue, so
+	 * that mlx5e_reactivate_qos_sq can safely restart the netdev TX queue.
+	 */
+	synchronize_net();
+	kfree(node);
 }
 
 /* TX datapath API */
@@ -273,10 +276,18 @@ err_free_sq:
 static void mlx5e_activate_qos_sq(struct mlx5e_priv *priv, struct mlx5e_qos_node *node)
 {
 	struct mlx5e_txqsq *sq;
+	u16 qid;
 
 	sq = mlx5e_get_qos_sq(priv, node->qid);
 
-	WRITE_ONCE(priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, node->qid)], sq);
+	qid = mlx5e_qid_from_qos(&priv->channels, node->qid);
+
+	/* If it's a new queue, it will be marked as started at this point.
+	 * Stop it before updating txq2sq.
+	 */
+	mlx5e_tx_disable_queue(netdev_get_tx_queue(priv->netdev, qid));
+
+	priv->txq2sq[qid] = sq;
 
 	/* Make the change to txq2sq visible before the queue is started.
 	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
@@ -299,8 +310,13 @@ static void mlx5e_deactivate_qos_sq(struct mlx5e_priv *priv, u16 qid)
 	qos_dbg(priv->mdev, "Deactivate QoS SQ qid %u\n", qid);
 	mlx5e_deactivate_txqsq(sq);
 
-	/* The queue is disabled, no synchronization with datapath is needed. */
 	priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, qid)] = NULL;
+
+	/* Make the change to txq2sq visible before the queue is started again.
+	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
+	 * which pairs with this barrier.
+	 */
+	smp_wmb();
 }
 
 static void mlx5e_close_qos_sq(struct mlx5e_priv *priv, u16 qid)

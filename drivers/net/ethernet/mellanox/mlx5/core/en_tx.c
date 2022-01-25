@@ -691,8 +691,21 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx5e_txqsq *sq;
 	u16 pi;
 
+	/* All changes to txq2sq are performed in sync with mlx5e_xmit, when the
+	 * queue being changed is disabled, and smp_wmb guarantees that the
+	 * changes are visible before mlx5e_xmit tries to read from txq2sq. It
+	 * guarantees that the value of txq2sq[qid] doesn't change while
+	 * mlx5e_xmit is running on queue number qid. smb_wmb is paired with
+	 * HARD_TX_LOCK around ndo_start_xmit, which serves as an ACQUIRE.
+	 */
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
 	if (unlikely(!sq)) {
+		/* Two cases when sq can be NULL:
+		 * 1. The HTB node is registered, and mlx5e_select_queue
+		 * selected its queue ID, but the SQ itself is not yet created.
+		 * 2. HTB SQ creation failed. Similar to the previous case, but
+		 * the SQ won't be created.
+		 */
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
