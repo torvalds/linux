@@ -28,8 +28,6 @@
 /* SSI REGISTER BITS */
 #define SSICR_DWL(x)		(((x) & 0x7) << 19)
 #define SSICR_SWL(x)		(((x) & 0x7) << 16)
-#define SSICR_MST		BIT(14)
-#define SSICR_CKDV(x)		(((x) & 0xf) << 4)
 
 #define SSICR_CKS		BIT(30)
 #define SSICR_TUIEN		BIT(29)
