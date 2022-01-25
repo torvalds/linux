@@ -497,7 +497,8 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 	unsigned long size;
 	unsigned long start_addr;
 	unsigned int count;
-	int order = 0;
+	int pages_order = 0;
+	int page_table_order = 0;
 
 	uint32_t *page_table = NULL;
 	struct page **pages = NULL;
@@ -543,18 +544,20 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 	count = rga_buf_size_cal(channel_info->yrgb_addr, channel_info->uv_addr,
 				 channel_info->v_addr, format,
 				 channel_info->vir_w, channel_info->vir_h,
-				 &start_addr, &size);
+				 &start_addr, NULL);
+	size = count * PAGE_SIZE;
 
 	/* alloc pages and page_table */
-	order = get_order(size / 4096 * sizeof(struct page *));
-	pages = (struct page **)__get_free_pages(GFP_KERNEL, order);
+	pages_order = get_order(count * sizeof(struct page *));
+	pages = (struct page **)__get_free_pages(GFP_KERNEL, pages_order);
 	if (pages == NULL) {
 		pr_err("Can not alloc pages for pages\n");
 		ret = -ENOMEM;
 		goto out_free_buffer;
 	}
 
-	page_table = (uint32_t *)__get_free_pages(GFP_KERNEL, order);
+	page_table_order = get_order(count * sizeof(uint32_t *));
+	page_table = (uint32_t *)__get_free_pages(GFP_KERNEL, page_table_order);
 	if (page_table == NULL) {
 		pr_err("Can not alloc pages for page_table\n");
 		ret = -ENOMEM;
@@ -604,7 +607,12 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 		goto out_free_sg;
 	}
 
-	channel_info->yrgb_addr = iova;
+	/*
+	 * When the virtual address has an in-page offset, it needs to be offset to
+	 * the corresponding starting point.
+	 */
+	channel_info->yrgb_addr = iova + (channel_info->yrgb_addr & (~PAGE_MASK));
+
 	alloc_buffer->iova = iova;
 	alloc_buffer->size = size;
 	alloc_buffer->cookie = cookie;
@@ -613,8 +621,8 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 
 	sg_free_table(&sgt);
 
-	free_pages((unsigned long)pages, order);
-	free_pages((unsigned long)page_table, order);
+	free_pages((unsigned long)pages, pages_order);
+	free_pages((unsigned long)page_table, page_table_order);
 
 	*rga_dma_buffer = alloc_buffer;
 
@@ -625,10 +633,10 @@ out_free_sg:
 	rga_iommu_dma_free_iova(cookie, iova, size);
 
 out_free_pages_table:
-	free_pages((unsigned long)page_table, order);
+	free_pages((unsigned long)page_table, page_table_order);
 
 out_free_pages:
-	free_pages((unsigned long)pages, order);
+	free_pages((unsigned long)pages, pages_order);
 
 out_free_buffer:
 	kfree(alloc_buffer);

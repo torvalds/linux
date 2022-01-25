@@ -216,6 +216,7 @@ static int rga_alloc_sgt(struct rga_virt_addr *virt_addr,
 
 	virt_dma_buf->sgt = sgt;
 	virt_dma_buf->size = virt_addr->size;
+	virt_dma_buf->offset = virt_addr->offset;
 
 	return 0;
 
@@ -267,10 +268,11 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	/* Calculate page size. */
 	count = rga_buf_size_cal(viraddr, viraddr, viraddr, format,
 				 memory_parm->width, memory_parm->height,
-				 &start_addr, &size);
+				 &start_addr, NULL);
+	size = count * PAGE_SIZE;
 
 	/* alloc pages and page_table */
-	order = get_order(size / 4096 * sizeof(struct page *));
+	order = get_order(count * sizeof(struct page *));
 	pages = (struct page **)__get_free_pages(GFP_KERNEL, order);
 	if (pages == NULL) {
 		pr_err("%s can not alloc pages for pages\n", __func__);
@@ -301,6 +303,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	virt_addr->pages_order = order;
 	virt_addr->page_count = count;
 	virt_addr->size = size;
+	virt_addr->offset = viraddr & (~PAGE_MASK);
 	virt_addr->result = result;
 
 	return 0;
@@ -702,7 +705,7 @@ dma_addr_t rga_mm_lookup_iova(struct rga_internal_buffer *buffer, int core)
 
 	for (i = 0; i < buffer->dma_buffer_size; i++)
 		if (buffer->dma_buffer[i].core == core)
-			return buffer->dma_buffer[i].iova;
+			return buffer->dma_buffer[i].iova + buffer->dma_buffer[i].offset;
 
 	return 0;
 }

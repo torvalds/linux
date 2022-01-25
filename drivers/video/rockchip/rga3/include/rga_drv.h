@@ -75,7 +75,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		2
-#define DRIVER_REVISION_VERSION		0
+#define DRIVER_REVISION_VERSION		1
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
 			"." STR(DRIVER_REVISION_VERSION))
@@ -181,6 +181,12 @@ struct rga_dma_buffer {
 
 	dma_addr_t iova;
 	unsigned long size;
+	/*
+	 * The offset of the first page of the sgt.
+	 * Since alloc iova must be page aligned, the offset of the first page is
+	 * identified separately.
+	 */
+	size_t offset;
 
 	/* The core of the mapping */
 	int core;
@@ -193,6 +199,9 @@ struct rga_virt_addr {
 	int pages_order;
 	int page_count;
 	unsigned long size;
+
+	/* The offset of the first page of the virtual address */
+	size_t offset;
 
 	int result;
 };
