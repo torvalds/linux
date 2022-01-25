@@ -70,11 +70,9 @@ struct netns_ipv4 {
 	struct hlist_head	*fib_table_hash;
 	struct sock		*fibnl;
 
-	struct sock  * __percpu	*icmp_sk;
 	struct sock		*mc_autojoin_sk;
 
 	struct inet_peer_base	*peers;
-	struct sock  * __percpu	*tcp_sk;
 	struct fqdir		*fqdir;
 
 	u8 sysctl_icmp_echo_ignore_all;
