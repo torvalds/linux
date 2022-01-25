@@ -178,7 +178,8 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		 * So we can return a txq_ix that matches the channel and
 		 * packet UP.
 		 */
-		return txq_ix % selq->num_channels + up * selq->num_channels;
+		return mlx5e_txq_to_ch_ix(txq_ix, selq->num_channels) +
+			up * selq->num_channels;
 	}
 
 	if (unlikely(selq->is_htb)) {
@@ -198,7 +199,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		 * Driver to select these queues only at mlx5e_select_ptpsq()
 		 * and mlx5e_select_htb_queue().
 		 */
-		return txq_ix % selq->num_channels;
+		return mlx5e_txq_to_ch_ix_htb(txq_ix, selq->num_channels);
 	}
 
 	/* PTP is enabled */
@@ -214,7 +215,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	 * If netdev_pick_tx() picks ptp_channel, switch to a regular queue,
 	 * because driver should select the PTP only at mlx5e_select_ptpsq().
 	 */
-	txq_ix %= selq->num_channels;
+	txq_ix = mlx5e_txq_to_ch_ix(txq_ix, selq->num_channels);
 
 	if (selq->num_tcs <= 1)
 		return txq_ix;

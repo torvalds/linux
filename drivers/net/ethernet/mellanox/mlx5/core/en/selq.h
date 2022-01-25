@@ -25,6 +25,26 @@ void mlx5e_selq_prepare(struct mlx5e_selq *selq, struct mlx5e_params *params, bo
 void mlx5e_selq_apply(struct mlx5e_selq *selq);
 void mlx5e_selq_cancel(struct mlx5e_selq *selq);
 
+static inline u16 mlx5e_txq_to_ch_ix(u16 txq, u16 num_channels)
+{
+	while (unlikely(txq >= num_channels))
+		txq -= num_channels;
+	return txq;
+}
+
+static inline u16 mlx5e_txq_to_ch_ix_htb(u16 txq, u16 num_channels)
+{
+	if (unlikely(txq >= num_channels)) {
+		if (unlikely(txq >= num_channels << 3))
+			txq %= num_channels;
+		else
+			do
+				txq -= num_channels;
+			while (txq >= num_channels);
+	}
+	return txq;
+}
+
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev);
 
