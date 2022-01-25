@@ -113,7 +113,7 @@ static int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb)
 static int mlx5e_get_up(struct mlx5e_priv *priv, struct sk_buff *skb)
 {
 #ifdef CONFIG_MLX5_CORE_EN_DCB
-	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
+	if (READ_ONCE(priv->dcbx_dp.trust_state) == MLX5_QPTS_TRUST_DSCP)
 		return mlx5e_get_dscp_up(priv, skb);
 #endif
 	if (skb_vlan_tag_present(skb))
