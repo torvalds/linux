@@ -3134,7 +3134,7 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	       "excp_to:", save->last_excp_to);
 }
 
-static bool svm_check_exit_valid(struct kvm_vcpu *vcpu, u64 exit_code)
+static bool svm_check_exit_valid(u64 exit_code)
 {
 	return (exit_code < ARRAY_SIZE(svm_exit_handlers) &&
 		svm_exit_handlers[exit_code]);
@@ -3154,7 +3154,7 @@ static int svm_handle_invalid_exit(struct kvm_vcpu *vcpu, u64 exit_code)
 
 int svm_invoke_exit_handler(struct kvm_vcpu *vcpu, u64 exit_code)
 {
-	if (!svm_check_exit_valid(vcpu, exit_code))
+	if (!svm_check_exit_valid(exit_code))
 		return svm_handle_invalid_exit(vcpu, exit_code);
 
 #ifdef CONFIG_RETPOLINE
