@@ -347,7 +347,7 @@ void stk1160_cancel_isoc(struct stk1160 *dev)
 		 * We don't care for NULL pointer since
 		 * usb_kill_urb allows it.
 		 */
-		usb_kill_urb(dev->isoc_ctl.urb[i]);
+		usb_kill_urb(dev->isoc_ctl.urb_ctl[i].urb);
 	}
 
 	stk1160_dbg("all urbs killed\n");
@@ -366,30 +366,25 @@ void stk1160_free_isoc(struct stk1160 *dev)
 
 	for (i = 0; i < num_bufs; i++) {
 
-		urb = dev->isoc_ctl.urb[i];
+		urb = dev->isoc_ctl.urb_ctl[i].urb;
 		if (urb) {
 
-			if (dev->isoc_ctl.transfer_buffer[i]) {
+			if (dev->isoc_ctl.urb_ctl[i].transfer_buffer) {
 #ifndef CONFIG_DMA_NONCOHERENT
 				usb_free_coherent(dev->udev,
 					urb->transfer_buffer_length,
-					dev->isoc_ctl.transfer_buffer[i],
+					dev->isoc_ctl.urb_ctl[i].transfer_buffer,
 					urb->transfer_dma);
 #else
-				kfree(dev->isoc_ctl.transfer_buffer[i]);
+				kfree(dev->isoc_ctl.urb_ctl[i].transfer_buffer);
 #endif
 			}
 			usb_free_urb(urb);
-			dev->isoc_ctl.urb[i] = NULL;
+			dev->isoc_ctl.urb_ctl[i].urb = NULL;
 		}
-		dev->isoc_ctl.transfer_buffer[i] = NULL;
+		dev->isoc_ctl.urb_ctl[i].transfer_buffer = NULL;
 	}
 
-	kfree(dev->isoc_ctl.urb);
-	kfree(dev->isoc_ctl.transfer_buffer);
-
-	dev->isoc_ctl.urb = NULL;
-	dev->isoc_ctl.transfer_buffer = NULL;
 	dev->isoc_ctl.num_bufs = 0;
 
 	stk1160_dbg("all urb buffers freed\n");
@@ -429,19 +424,6 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 
 	dev->isoc_ctl.buf = NULL;
 	dev->isoc_ctl.max_pkt_size = dev->max_pkt_size;
-	dev->isoc_ctl.urb = kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
-	if (!dev->isoc_ctl.urb) {
-		stk1160_err("out of memory for urb array\n");
-		return -ENOMEM;
-	}
-
-	dev->isoc_ctl.transfer_buffer = kcalloc(num_bufs, sizeof(void *),
-						GFP_KERNEL);
-	if (!dev->isoc_ctl.transfer_buffer) {
-		stk1160_err("out of memory for usb transfers\n");
-		kfree(dev->isoc_ctl.urb);
-		return -ENOMEM;
-	}
 
 	/* allocate urbs and transfer buffers */
 	for (i = 0; i < num_bufs; i++) {
@@ -449,15 +431,17 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb)
 			goto free_i_bufs;
-		dev->isoc_ctl.urb[i] = urb;
+		dev->isoc_ctl.urb_ctl[i].urb = urb;
 
 #ifndef CONFIG_DMA_NONCOHERENT
-		dev->isoc_ctl.transfer_buffer[i] = usb_alloc_coherent(dev->udev,
-			sb_size, GFP_KERNEL, &urb->transfer_dma);
+		dev->isoc_ctl.urb_ctl[i].transfer_buffer =
+			usb_alloc_coherent(dev->udev, sb_size, GFP_KERNEL,
+					   &urb->transfer_dma);
 #else
-		dev->isoc_ctl.transfer_buffer[i] = kmalloc(sb_size, GFP_KERNEL);
+		dev->isoc_ctl.urb_ctl[i].transfer_buffer =
+			kmalloc(sb_size, GFP_KERNEL);
 #endif
-		if (!dev->isoc_ctl.transfer_buffer[i]) {
+		if (!dev->isoc_ctl.urb_ctl[i].transfer_buffer) {
 			stk1160_err("cannot alloc %d bytes for tx[%d] buffer\n",
 				sb_size, i);
 
@@ -466,14 +450,14 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 				goto free_i_bufs;
 			goto nomore_tx_bufs;
 		}
-		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
+		memset(dev->isoc_ctl.urb_ctl[i].transfer_buffer, 0, sb_size);
 
 		/*
 		 * FIXME: Where can I get the endpoint?
 		 */
 		urb->dev = dev->udev;
 		urb->pipe = usb_rcvisocpipe(dev->udev, STK1160_EP_VIDEO);
-		urb->transfer_buffer = dev->isoc_ctl.transfer_buffer[i];
+		urb->transfer_buffer = dev->isoc_ctl.urb_ctl[i].transfer_buffer;
 		urb->transfer_buffer_length = sb_size;
 		urb->complete = stk1160_isoc_irq;
 		urb->context = dev;
@@ -508,8 +492,8 @@ nomore_tx_bufs:
 	 * enough to work fine, so we just free the extra urb,
 	 * store the allocated count and keep going, fingers crossed!
 	 */
-	usb_free_urb(dev->isoc_ctl.urb[i]);
-	dev->isoc_ctl.urb[i] = NULL;
+	usb_free_urb(dev->isoc_ctl.urb_ctl[i].urb);
+	dev->isoc_ctl.urb_ctl[i].urb = NULL;
 
 	stk1160_warn("%d urbs allocated. Trying to continue...\n", i);
 

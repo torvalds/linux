@@ -84,6 +84,11 @@ struct stk1160_buffer {
 	unsigned int pos;		/* current pos inside buffer */
 };
 
+struct stk1160_urb {
+	struct urb *urb;
+	char *transfer_buffer;
+};
+
 struct stk1160_isoc_ctl {
 	/* max packet size of isoc transaction */
 	int max_pkt_size;
@@ -91,11 +96,7 @@ struct stk1160_isoc_ctl {
 	/* number of allocated urbs */
 	int num_bufs;
 
-	/* urb for isoc transfers */
-	struct urb **urb;
-
-	/* transfer buffers for isoc transfer */
-	char **transfer_buffer;
+	struct stk1160_urb urb_ctl[STK1160_NUM_BUFS];
 
 	/* current buffer */
 	struct stk1160_buffer *buf;
