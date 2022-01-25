@@ -899,13 +899,14 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		}
 		break;
 	case 0xd: {
-		u64 guest_perm = xstate_get_guest_group_perm();
+		u64 permitted_xcr0 = supported_xcr0 & xstate_get_guest_group_perm();
+		u64 permitted_xss = supported_xss;
 
-		entry->eax &= supported_xcr0 & guest_perm;
-		entry->ebx = xstate_required_size(supported_xcr0, false);
+		entry->eax &= permitted_xcr0;
+		entry->ebx = xstate_required_size(permitted_xcr0, false);
 		entry->ecx = entry->ebx;
-		entry->edx &= (supported_xcr0 & guest_perm) >> 32;
-		if (!supported_xcr0)
+		entry->edx &= permitted_xcr0 >> 32;
+		if (!permitted_xcr0)
 			break;
 
 		entry = do_host_cpuid(array, function, 1);
@@ -914,20 +915,20 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 
 		cpuid_entry_override(entry, CPUID_D_1_EAX);
 		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
-			entry->ebx = xstate_required_size(supported_xcr0 | supported_xss,
+			entry->ebx = xstate_required_size(permitted_xcr0 | permitted_xss,
 							  true);
 		else {
-			WARN_ON_ONCE(supported_xss != 0);
+			WARN_ON_ONCE(permitted_xss != 0);
 			entry->ebx = 0;
 		}
-		entry->ecx &= supported_xss;
-		entry->edx &= supported_xss >> 32;
+		entry->ecx &= permitted_xss;
+		entry->edx &= permitted_xss >> 32;
 
 		for (i = 2; i < 64; ++i) {
 			bool s_state;
-			if (supported_xcr0 & BIT_ULL(i))
+			if (permitted_xcr0 & BIT_ULL(i))
 				s_state = false;
-			else if (supported_xss & BIT_ULL(i))
+			else if (permitted_xss & BIT_ULL(i))
 				s_state = true;
 			else
 				continue;
@@ -941,7 +942,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			 * invalid sub-leafs.  Only valid sub-leafs should
 			 * reach this point, and they should have a non-zero
 			 * save state size.  Furthermore, check whether the
-			 * processor agrees with supported_xcr0/supported_xss
+			 * processor agrees with permitted_xcr0/permitted_xss
 			 * on whether this is an XCR0- or IA32_XSS-managed area.
 			 */
 			if (WARN_ON_ONCE(!entry->eax || (entry->ecx & 0x1) != s_state)) {
