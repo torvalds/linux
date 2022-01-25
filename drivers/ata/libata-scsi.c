@@ -3933,7 +3933,6 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case MODE_SELECT:
 	case MODE_SELECT_10:
 		return ata_scsi_mode_select_xlat;
-		break;
 
 	case ZBC_IN:
 		return ata_scsi_zbc_in_xlat;
