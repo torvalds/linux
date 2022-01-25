@@ -1233,8 +1233,6 @@ static void gen11_dsi_pre_enable(struct intel_atomic_state *state,
 
 	intel_dsc_dsi_pps_write(encoder, pipe_config);
 
-	intel_dsc_enable(pipe_config);
-
 	/* step6c: configure transcoder timings */
 	gen11_dsi_set_transcoder_timings(encoder, pipe_config);
 }

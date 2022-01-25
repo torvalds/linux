@@ -1973,7 +1973,6 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 					 const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *master_crtc_state;
 	struct intel_crtc *master_crtc;
 	struct drm_connector_state *conn_state;
@@ -2003,12 +2002,6 @@ static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 
 	if (crtc_state->bigjoiner_slave)
 		intel_encoders_pre_enable(state, master_crtc);
-
-	/* need to enable VDSC, which we skipped in pre-enable */
-	intel_dsc_enable(crtc_state);
-
-	if (DISPLAY_VER(dev_priv) >= 13)
-		intel_uncompressed_joiner_enable(crtc_state);
 }
 
 static void hsw_configure_cpu_transcoder(const struct intel_crtc_state *crtc_state)
@@ -2055,6 +2048,11 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	} else {
 		icl_ddi_bigjoiner_pre_enable(state, new_crtc_state);
 	}
+
+	intel_dsc_enable(new_crtc_state);
+
+	if (DISPLAY_VER(dev_priv) >= 13)
+		intel_uncompressed_joiner_enable(new_crtc_state);
 
 	intel_set_pipe_src_size(new_crtc_state);
 	if (DISPLAY_VER(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
