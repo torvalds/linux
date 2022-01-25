@@ -339,15 +339,21 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
 	       __is_rsvd_bits_set(rsvd_check, spte, level);
 }
 
+static inline void check_spte_writable_invariants(u64 spte)
+{
+	if (spte & shadow_mmu_writable_mask)
+		WARN_ONCE(!(spte & shadow_host_writable_mask),
+			  "kvm: MMU-writable SPTE is not Host-writable: %llx",
+			  spte);
+	else
+		WARN_ONCE(spte & PT_WRITABLE_MASK,
+			  "kvm: Writable SPTE is not MMU-writable: %llx", spte);
+}
+
 static inline bool spte_can_locklessly_be_made_writable(u64 spte)
 {
-	if (spte & shadow_mmu_writable_mask) {
-		WARN_ON_ONCE(!(spte & shadow_host_writable_mask));
-		return true;
-	}
-
-	WARN_ON_ONCE(spte & PT_WRITABLE_MASK);
-	return false;
+	check_spte_writable_invariants(spte);
+	return spte & shadow_mmu_writable_mask;
 }
 
 static inline u64 get_mmio_spte_generation(u64 spte)
