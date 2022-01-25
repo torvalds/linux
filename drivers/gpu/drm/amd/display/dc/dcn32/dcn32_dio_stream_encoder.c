@@ -388,7 +388,7 @@ static void enc32_dp_set_dsc_config(struct stream_encoder *enc,
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	REG_UPDATE(DP_DSC_CNTL,	DP_DSC_MODE, dsc_mode);
+	REG_UPDATE(DP_DSC_CNTL,	DP_DSC_MODE, dsc_mode == OPTC_DSC_DISABLED ? 0 : 1);
 }
 
 /* this function read dsc related register fields to be logged later in dcn10_log_hw_state
