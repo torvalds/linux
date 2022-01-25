@@ -58,7 +58,7 @@ static u32 brcmnand_bcma_read_reg(struct brcmnand_soc *soc, u32 offset)
 
 	/* Swap if necessary */
 	if (brcmnand_bcma_needs_swapping(offset))
-		val = be32_to_cpu(val);
+		val = be32_to_cpu((__force __be32)val);
 	return val;
 }
 
@@ -75,7 +75,7 @@ static void brcmnand_bcma_write_reg(struct brcmnand_soc *soc, u32 val,
 
 	/* Swap if necessary */
 	if (brcmnand_bcma_needs_swapping(offset))
-		val = cpu_to_be32(val);
+		val = (__force u32)cpu_to_be32(val);
 
 	bcma_cc_write32(sc->cc, offset, val);
 }
