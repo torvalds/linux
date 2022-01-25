@@ -453,22 +453,29 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				dev_dbg(&spi->dev, "%d bits per word\n", tmp);
 		}
 		break;
-	case SPI_IOC_WR_MAX_SPEED_HZ:
+	case SPI_IOC_WR_MAX_SPEED_HZ: {
+		u32 save;
+
 		retval = get_user(tmp, (__u32 __user *)arg);
-		if (retval == 0) {
-			u32	save = spi->max_speed_hz;
-
-			spi->max_speed_hz = tmp;
-			retval = spi_setup(spi);
-			if (retval == 0) {
-				spidev->speed_hz = tmp;
-				dev_dbg(&spi->dev, "%d Hz (max)\n",
-					spidev->speed_hz);
-			}
-			spi->max_speed_hz = save;
+		if (retval)
+			break;
+		if (tmp == 0) {
+			retval = -EINVAL;
+			break;
 		}
-		break;
 
+		save = spi->max_speed_hz;
+
+		spi->max_speed_hz = tmp;
+		retval = spi_setup(spi);
+		if (retval == 0) {
+			spidev->speed_hz = tmp;
+			dev_dbg(&spi->dev, "%d Hz (max)\n", spidev->speed_hz);
+		}
+
+		spi->max_speed_hz = save;
+		break;
+	}
 	default:
 		/* segmented and/or full-duplex I/O request */
 		/* Check message and copy into scratch area */
