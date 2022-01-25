@@ -165,12 +165,15 @@ int asoc_simple_parse_clk(struct device *dev,
 	 *  or device's module clock.
 	 */
 	clk = devm_get_clk_from_child(dev, node, NULL);
+	simple_dai->clk_fixed = of_property_read_bool(
+		node, "system-clock-fixed");
 	if (!IS_ERR(clk)) {
 		simple_dai->sysclk = clk_get_rate(clk);
 
 		simple_dai->clk = clk;
 	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
+		simple_dai->clk_fixed = true;
 	} else {
 		clk = devm_get_clk_from_child(dev, dlc->of_node, NULL);
 		if (!IS_ERR(clk))
@@ -184,12 +187,29 @@ int asoc_simple_parse_clk(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_parse_clk);
 
+static int asoc_simple_check_fixed_sysclk(struct device *dev,
+					  struct asoc_simple_dai *dai,
+					  unsigned int *fixed_sysclk)
+{
+	if (dai->clk_fixed) {
+		if (*fixed_sysclk && *fixed_sysclk != dai->sysclk) {
+			dev_err(dev, "inconsistent fixed sysclk rates (%u vs %u)\n",
+				*fixed_sysclk, dai->sysclk);
+			return -EINVAL;
+		}
+		*fixed_sysclk = dai->sysclk;
+	}
+
+	return 0;
+}
+
 int asoc_simple_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
 	struct asoc_simple_dai *dai;
+	unsigned int fixed_sysclk = 0;
 	int i1, i2, i;
 	int ret;
 
@@ -197,10 +217,30 @@ int asoc_simple_startup(struct snd_pcm_substream *substream)
 		ret = asoc_simple_clk_enable(dai);
 		if (ret)
 			goto cpu_err;
+		ret = asoc_simple_check_fixed_sysclk(rtd->dev, dai, &fixed_sysclk);
+		if (ret)
+			goto cpu_err;
 	}
 
 	for_each_prop_dai_codec(props, i2, dai) {
 		ret = asoc_simple_clk_enable(dai);
+		if (ret)
+			goto codec_err;
+		ret = asoc_simple_check_fixed_sysclk(rtd->dev, dai, &fixed_sysclk);
+		if (ret)
+			goto codec_err;
+	}
+
+	if (fixed_sysclk && props->mclk_fs) {
+		unsigned int fixed_rate = fixed_sysclk / props->mclk_fs;
+
+		if (fixed_sysclk % props->mclk_fs) {
+			dev_err(rtd->dev, "fixed sysclk %u not divisible by mclk_fs %u\n",
+				fixed_sysclk, props->mclk_fs);
+			return -EINVAL;
+		}
+		ret = snd_pcm_hw_constraint_minmax(substream->runtime, SNDRV_PCM_HW_PARAM_RATE,
+			fixed_rate, fixed_rate);
 		if (ret)
 			goto codec_err;
 	}
@@ -226,30 +266,39 @@ EXPORT_SYMBOL_GPL(asoc_simple_startup);
 void asoc_simple_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
 	struct asoc_simple_dai *dai;
 	int i;
 
-	if (props->mclk_fs) {
-		snd_soc_dai_set_sysclk(codec_dai, 0, 0, SND_SOC_CLOCK_IN);
-		snd_soc_dai_set_sysclk(cpu_dai, 0, 0, SND_SOC_CLOCK_OUT);
-	}
+	for_each_prop_dai_cpu(props, i, dai) {
+		if (props->mclk_fs && !dai->clk_fixed)
+			snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, i),
+					       0, 0, SND_SOC_CLOCK_IN);
 
-	for_each_prop_dai_cpu(props, i, dai)
 		asoc_simple_clk_disable(dai);
-	for_each_prop_dai_codec(props, i, dai)
+	}
+	for_each_prop_dai_codec(props, i, dai) {
+		if (props->mclk_fs && !dai->clk_fixed)
+			snd_soc_dai_set_sysclk(asoc_rtd_to_codec(rtd, i),
+					       0, 0, SND_SOC_CLOCK_IN);
+
 		asoc_simple_clk_disable(dai);
+	}
 }
 EXPORT_SYMBOL_GPL(asoc_simple_shutdown);
 
-static int asoc_simple_set_clk_rate(struct asoc_simple_dai *simple_dai,
+static int asoc_simple_set_clk_rate(struct device *dev,
+				    struct asoc_simple_dai *simple_dai,
 				    unsigned long rate)
 {
 	if (!simple_dai)
 		return 0;
+
+	if (simple_dai->clk_fixed && rate != simple_dai->sysclk) {
+		dev_err(dev, "dai %s invalid clock rate %lu\n", simple_dai->name, rate);
+		return -EINVAL;
+	}
 
 	if (!simple_dai->clk)
 		return 0;
@@ -275,23 +324,38 @@ int asoc_simple_hw_params(struct snd_pcm_substream *substream,
 		mclk_fs = props->mclk_fs;
 
 	if (mclk_fs) {
+		struct snd_soc_component *component;
 		mclk = params_rate(params) * mclk_fs;
 
 		for_each_prop_dai_codec(props, i, pdai) {
-			ret = asoc_simple_set_clk_rate(pdai, mclk);
+			ret = asoc_simple_set_clk_rate(rtd->dev, pdai, mclk);
 			if (ret < 0)
 				return ret;
 		}
+
 		for_each_prop_dai_cpu(props, i, pdai) {
-			ret = asoc_simple_set_clk_rate(pdai, mclk);
+			ret = asoc_simple_set_clk_rate(rtd->dev, pdai, mclk);
 			if (ret < 0)
 				return ret;
 		}
+
+		/* Ensure sysclk is set on all components in case any
+		 * (such as platform components) are missed by calls to
+		 * snd_soc_dai_set_sysclk.
+		 */
+		for_each_rtd_components(rtd, i, component) {
+			ret = snd_soc_component_set_sysclk(component, 0, 0,
+							   mclk, SND_SOC_CLOCK_IN);
+			if (ret && ret != -ENOTSUPP)
+				return ret;
+		}
+
 		for_each_rtd_codec_dais(rtd, i, sdai) {
 			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, SND_SOC_CLOCK_IN);
 			if (ret && ret != -ENOTSUPP)
 				return ret;
 		}
+
 		for_each_rtd_cpu_dais(rtd, i, sdai) {
 			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, SND_SOC_CLOCK_OUT);
 			if (ret && ret != -ENOTSUPP)

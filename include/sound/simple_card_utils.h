@@ -25,6 +25,7 @@ struct asoc_simple_dai {
 	unsigned int tx_slot_mask;
 	unsigned int rx_slot_mask;
 	struct clk *clk;
+	bool clk_fixed;
 };
 
 struct asoc_simple_data {

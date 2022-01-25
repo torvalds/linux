@@ -48,6 +48,15 @@ definitions:
       It is useful for some aCPUs with fixed clocks.
     $ref: /schemas/types.yaml#/definitions/flag
 
+  system-clock-fixed:
+    description: |
+      Specifies that the clock frequency should not be modified.
+      Implied when system-clock-frequency is specified, but can be used when
+      a clock is mapped to the device whose frequency cannot or should not be
+      changed. When mclk-fs is also specified, this restricts the device to a
+      single fixed sampling rate.
+    $ref: /schemas/types.yaml#/definitions/flag
+
   mclk-fs:
     description: |
       Multiplication factor between stream rate and codec mclk.
@@ -134,6 +143,8 @@ definitions:
         $ref: "#/definitions/system-clock-frequency"
       system-clock-direction-out:
         $ref: "#/definitions/system-clock-direction-out"
+      system-clock-fixed:
+        $ref: "#/definitions/system-clock-fixed"
     required:
       - sound-dai
 
