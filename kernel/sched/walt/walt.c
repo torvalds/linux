@@ -167,8 +167,6 @@ static inline u64 walt_rq_clock(struct rq *rq)
 
 static unsigned int walt_cpu_high_irqload;
 
-static __read_mostly unsigned int sched_ravg_hist_size = RAVG_HIST_SIZE_MAX;
-
 static __read_mostly unsigned int sched_io_is_busy = 1;
 
 /* Window size (in ns) */
@@ -1935,10 +1933,10 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	/* Push new 'runtime' value onto stack */
 	for (; samples > 0; samples--) {
 		hist[wts->cidx] = runtime;
-		wts->cidx = ++(wts->cidx) % sched_ravg_hist_size;
+		wts->cidx = ++(wts->cidx) & RAVG_HIST_MASK;
 	}
 
-	for (i = 0; i < sched_ravg_hist_size; i++) {
+	for (i = 0; i < RAVG_HIST_SIZE; i++) {
 		sum += hist[i];
 		if (hist[i] > max)
 			max = hist[i];
@@ -1951,7 +1949,7 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	} else if (sysctl_sched_window_stats_policy == WINDOW_STATS_MAX) {
 		demand = max;
 	} else {
-		avg = div64_u64(sum, sched_ravg_hist_size);
+		avg = sum >> RAVG_HIST_SHIFT;
 		if (sysctl_sched_window_stats_policy == WINDOW_STATS_AVG)
 			demand = avg;
 		else
@@ -1980,7 +1978,7 @@ static void update_history(struct rq *rq, struct task_struct *p,
 
 	wts->demand = demand;
 	wts->demand_scaled = demand_scaled;
-	wts->coloc_demand = div64_u64(sum, sched_ravg_hist_size);
+	wts->coloc_demand = sum >> RAVG_HIST_SHIFT;
 	wts->pred_demand_scaled = pred_demand_scaled;
 
 	if (demand_scaled > sysctl_sched_min_task_util_for_colocation)
@@ -2307,7 +2305,7 @@ static void init_new_task_load(struct task_struct *p)
 	wts->demand_scaled = init_load_windows_scaled;
 	wts->coloc_demand = init_load_windows;
 	wts->pred_demand_scaled = 0;
-	for (i = 0; i < RAVG_HIST_SIZE_MAX; ++i)
+	for (i = 0; i < RAVG_HIST_SIZE; ++i)
 		wts->sum_history[i] = init_load_windows;
 	wts->misfit = false;
 	wts->rtg_high_prio = false;
@@ -2850,7 +2848,7 @@ static void _set_preferred_cluster(struct walt_related_thread_group *grp)
 		}
 
 		if (wts->mark_start < wallclock -
-		    (sched_ravg_window * sched_ravg_hist_size))
+		    (sched_ravg_window * RAVG_HIST_SIZE))
 			continue;
 
 		combined_demand += wts->coloc_demand;
@@ -3726,7 +3724,7 @@ void walt_fill_ta_data(struct core_ctl_notif_data *data)
 
 	list_for_each_entry(wts, &grp->tasks, grp_list) {
 		if (wts->mark_start < wallclock -
-		    (sched_ravg_window * sched_ravg_hist_size))
+		    (sched_ravg_window * RAVG_HIST_SIZE))
 			continue;
 
 		total_demand += wts->coloc_demand;

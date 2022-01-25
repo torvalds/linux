@@ -83,7 +83,7 @@ TRACE_EVENT(sched_update_history,
 		__field(unsigned int,		demand)
 		__field(unsigned int,		coloc_demand)
 		__field(unsigned int,		pred_demand_scaled)
-		__array(u32,			hist, RAVG_HIST_SIZE_MAX)
+		__array(u32,			hist, RAVG_HIST_SIZE)
 		__field(unsigned int,		nr_big_tasks)
 		__field(int,			cpu)
 	),
@@ -98,7 +98,7 @@ TRACE_EVENT(sched_update_history,
 		__entry->coloc_demand	= wts->coloc_demand;
 		__entry->pred_demand_scaled	= wts->pred_demand_scaled;
 		memcpy(__entry->hist, wts->sum_history,
-					RAVG_HIST_SIZE_MAX * sizeof(u32));
+					RAVG_HIST_SIZE * sizeof(u32));
 		__entry->nr_big_tasks	= wrq->walt_stats.nr_big_tasks;
 		__entry->cpu		= rq->cpu;
 	),
