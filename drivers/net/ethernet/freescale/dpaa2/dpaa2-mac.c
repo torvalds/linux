@@ -100,6 +100,14 @@ static int dpaa2_mac_get_if_mode(struct fwnode_handle *dpmac_node,
 	return err;
 }
 
+static struct phylink_pcs *dpaa2_mac_select_pcs(struct phylink_config *config,
+						phy_interface_t interface)
+{
+	struct dpaa2_mac *mac = phylink_to_dpaa2_mac(config);
+
+	return mac->pcs;
+}
+
 static void dpaa2_mac_config(struct phylink_config *config, unsigned int mode,
 			     const struct phylink_link_state *state)
 {
@@ -172,6 +180,7 @@ static void dpaa2_mac_link_down(struct phylink_config *config,
 
 static const struct phylink_mac_ops dpaa2_mac_phylink_ops = {
 	.validate = phylink_generic_validate,
+	.mac_select_pcs = dpaa2_mac_select_pcs,
 	.mac_config = dpaa2_mac_config,
 	.mac_link_up = dpaa2_mac_link_up,
 	.mac_link_down = dpaa2_mac_link_down,
@@ -302,9 +311,6 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 		goto err_pcs_destroy;
 	}
 	mac->phylink = phylink;
-
-	if (mac->pcs)
-		phylink_set_pcs(mac->phylink, mac->pcs);
 
 	err = phylink_fwnode_phy_connect(mac->phylink, dpmac_node, 0);
 	if (err) {
