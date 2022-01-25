@@ -386,6 +386,7 @@ struct axidma_bd {
  * @phylink:	Pointer to phylink instance
  * @phylink_config: phylink configuration settings
  * @pcs_phy:	Reference to PCS/PMA PHY if used
+ * @pcs:	phylink pcs structure for PCS PHY
  * @switch_x_sgmii: Whether switchable 1000BaseX/SGMII mode is enabled in the core
  * @axi_clk:	AXI4-Lite bus clock
  * @misc_clks:	Misc ethernet clocks (AXI4-Stream, Ref, MGT clocks)
@@ -434,6 +435,7 @@ struct axienet_local {
 	struct phylink_config phylink_config;
 
 	struct mdio_device *pcs_phy;
+	struct phylink_pcs pcs;
 
 	bool switch_x_sgmii;
 
