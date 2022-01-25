@@ -796,6 +796,29 @@ config ARM64_ERRATUM_2064142
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_2038923
+	bool "Cortex-A510: 2038923: workaround TRBE corruption with enable"
+	depends on COMPILE_TEST # Until the CoreSight TRBE driver changes are in
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2038923.
+
+	  Affected Cortex-A510 core might cause an inconsistent view on whether trace is
+	  prohibited within the CPU. As a result, the trace buffer or trace buffer state
+	  might be corrupted. This happens after TRBE buffer has been enabled by setting
+	  TRBLIMITR_EL1.E, followed by just a single context synchronization event before
+	  execution changes from a context, in which trace is prohibited to one where it
+	  isn't, or vice versa. In these mentioned conditions, the view of whether trace
+	  is prohibited is inconsistent between parts of the CPU, and the trace buffer or
+	  the trace buffer state might be corrupted.
+
+	  Work around this in the driver by preventing an inconsistent view of whether the
+	  trace is prohibited or not based on TRBLIMITR_EL1.E by immediately following a
+	  change to TRBLIMITR_EL1.E with at least one ISB instruction before an ERET, or
+	  two ISB instructions if no ERET is to take place.
+
+	  If unsure, say Y.
+
 config CAVIUM_ERRATUM_22375
 	bool "Cavium erratum 22375, 24313"
 	default y
