@@ -356,7 +356,7 @@ __nfp_tun_add_route_to_cache(struct list_head *route_list,
 			return 0;
 		}
 
-	entry = kmalloc(sizeof(*entry) + add_len, GFP_ATOMIC);
+	entry = kmalloc(struct_size(entry, ip_add, add_len), GFP_ATOMIC);
 	if (!entry) {
 		spin_unlock_bh(list_lock);
 		return -ENOMEM;
