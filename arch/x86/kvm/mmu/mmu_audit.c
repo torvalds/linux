@@ -163,7 +163,7 @@ static void audit_sptes_have_rmaps(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 		inspect_spte_has_rmap(vcpu->kvm, sptep);
 }
 
-static void audit_spte_after_sync(struct kvm_vcpu *vcpu, u64 *sptep, int level)
+static void audit_spte_after_sync(struct kvm_vcpu *vcpu, u64 *sptep)
 {
 	struct kvm_mmu_page *sp = sptep_to_sp(sptep);
 
@@ -225,7 +225,7 @@ static void audit_spte(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 {
 	audit_sptes_have_rmaps(vcpu, sptep, level);
 	audit_mappings(vcpu, sptep, level);
-	audit_spte_after_sync(vcpu, sptep, level);
+	audit_spte_after_sync(vcpu, sptep);
 }
 
 static void audit_vcpu_spte(struct kvm_vcpu *vcpu)
