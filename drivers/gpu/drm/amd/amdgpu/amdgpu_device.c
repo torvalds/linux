@@ -4825,16 +4825,8 @@ end:
 	return r;
 }
 
-static void amdgpu_device_lock_adev(struct amdgpu_device *adev,
-				struct amdgpu_hive_info *hive)
+static void amdgpu_device_set_mp1_state(struct amdgpu_device *adev)
 {
-	atomic_set(&adev->reset_domain->in_gpu_reset, 1);
-
-	if (hive) {
-		down_write_nest_lock(&adev->reset_domain->sem, &hive->hive_lock);
-	} else {
-		down_write(&adev->reset_domain->sem);
-	}
 
 	switch (amdgpu_asic_reset_method(adev)) {
 	case AMD_RESET_METHOD_MODE1:
@@ -4849,12 +4841,10 @@ static void amdgpu_device_lock_adev(struct amdgpu_device *adev,
 	}
 }
 
-static void amdgpu_device_unlock_adev(struct amdgpu_device *adev)
+static void amdgpu_device_unset_mp1_state(struct amdgpu_device *adev)
 {
 	amdgpu_vf_error_trans_all(adev);
 	adev->mp1_state = PP_MP1_STATE_NONE;
-	atomic_set(&adev->reset_domain->in_gpu_reset, 0);
-	up_write(&adev->reset_domain->sem);
 }
 
 static void amdgpu_device_resume_display_audio(struct amdgpu_device *adev)
@@ -5060,10 +5050,15 @@ int amdgpu_device_gpu_recover_imp(struct amdgpu_device *adev,
 		device_list_handle = &device_list;
 	}
 
+	/* We need to lock reset domain only once both for XGMI and single device */
+	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
+				    reset_list);
+	amdgpu_device_lock_reset_domain(tmp_adev->reset_domain, hive);
+
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 
-		amdgpu_device_lock_adev(tmp_adev, hive);
+		amdgpu_device_set_mp1_state(tmp_adev);
 
 		/*
 		 * Try to put the audio codec into suspend state
@@ -5213,8 +5208,13 @@ skip_sched_resume:
 
 		if (audio_suspended)
 			amdgpu_device_resume_display_audio(tmp_adev);
-		amdgpu_device_unlock_adev(tmp_adev);
+
+		amdgpu_device_unset_mp1_state(tmp_adev);
 	}
+
+	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
+					    reset_list);
+	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
 
 	if (hive) {
 		mutex_unlock(&hive->hive_lock);
@@ -5477,7 +5477,8 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 		 * Locking adev->reset_domain->sem will prevent any external access
 		 * to GPU during PCI error recovery
 		 */
-		amdgpu_device_lock_adev(adev, NULL);
+		amdgpu_device_lock_reset_domain(adev->reset_domain, NULL);
+		amdgpu_device_set_mp1_state(adev);
 
 		/*
 		 * Block any work scheduling as we do for regular GPU reset
@@ -5584,7 +5585,8 @@ out:
 		DRM_INFO("PCIe error recovery succeeded\n");
 	} else {
 		DRM_ERROR("PCIe error recovery failed, err:%d", r);
-		amdgpu_device_unlock_adev(adev);
+		amdgpu_device_unset_mp1_state(adev);
+		amdgpu_device_unlock_reset_domain(adev->reset_domain);
 	}
 
 	return r ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
@@ -5621,7 +5623,8 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 		drm_sched_start(&ring->sched, true);
 	}
 
-	amdgpu_device_unlock_adev(adev);
+	amdgpu_device_unset_mp1_state(adev);
+	amdgpu_device_unlock_reset_domain(adev->reset_domain);
 }
 
 bool amdgpu_device_cache_pci_state(struct pci_dev *pdev)
