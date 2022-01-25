@@ -511,15 +511,15 @@ nomore_tx_bufs:
 	usb_free_urb(dev->isoc_ctl.urb[i]);
 	dev->isoc_ctl.urb[i] = NULL;
 
-	stk1160_warn("%d urbs allocated. Trying to continue...\n", i - 1);
+	stk1160_warn("%d urbs allocated. Trying to continue...\n", i);
 
-	dev->isoc_ctl.num_bufs = i - 1;
+	dev->isoc_ctl.num_bufs = i;
 
 	return 0;
 
 free_i_bufs:
 	/* Save the allocated buffers so far, so we can properly free them */
-	dev->isoc_ctl.num_bufs = i+1;
+	dev->isoc_ctl.num_bufs = i;
 	stk1160_free_isoc(dev);
 	return -ENOMEM;
 }
