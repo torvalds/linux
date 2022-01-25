@@ -22,6 +22,12 @@
 #include "pm8350c.dtsi"
 #include "pmk8350.dtsi"
 
+/ {
+	model = "Google Herobrine (rev0)";
+	compatible = "google,herobrine",
+		     "qcom,sc7280";
+};
+
 /*
  * Reserved memory changes
  *
