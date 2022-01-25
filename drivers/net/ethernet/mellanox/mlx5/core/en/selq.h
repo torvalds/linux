@@ -16,11 +16,16 @@ struct mlx5e_selq {
 };
 
 struct mlx5e_params;
+struct net_device;
+struct sk_buff;
 
 int mlx5e_selq_init(struct mlx5e_selq *selq, struct mutex *state_lock);
 void mlx5e_selq_cleanup(struct mlx5e_selq *selq);
 void mlx5e_selq_prepare(struct mlx5e_selq *selq, struct mlx5e_params *params, bool htb);
 void mlx5e_selq_apply(struct mlx5e_selq *selq);
 void mlx5e_selq_cancel(struct mlx5e_selq *selq);
+
+u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
+		       struct net_device *sb_dev);
 
 #endif /* __MLX5_EN_SELQ_H__ */
