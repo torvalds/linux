@@ -2688,10 +2688,10 @@ static void mlx5e_build_txq_maps(struct mlx5e_priv *priv)
 	}
 
 	if (!priv->channels.ptp)
-		return;
+		goto out;
 
 	if (!test_bit(MLX5E_PTP_STATE_TX, priv->channels.ptp->state))
-		return;
+		goto out;
 
 	for (tc = 0; tc < num_tc; tc++) {
 		struct mlx5e_ptp *c = priv->channels.ptp;
@@ -2700,6 +2700,13 @@ static void mlx5e_build_txq_maps(struct mlx5e_priv *priv)
 		priv->txq2sq[sq->txq_ix] = sq;
 		priv->port_ptp_tc2realtxq[tc] = priv->num_tc_x_num_ch + tc;
 	}
+
+out:
+	/* Make the change to txq2sq visible before the queue is started.
+	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
+	 * which pairs with this barrier.
+	 */
+	smp_wmb();
 }
 
 static void mlx5e_update_num_tc_x_num_ch(struct mlx5e_priv *priv)
