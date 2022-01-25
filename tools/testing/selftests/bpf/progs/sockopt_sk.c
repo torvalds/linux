@@ -72,7 +72,8 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		 * reasons.
 		 */
 
-		if (optval + sizeof(struct tcp_zerocopy_receive) > optval_end)
+		/* Check that optval contains address (__u64) */
+		if (optval + sizeof(__u64) > optval_end)
 			return 0; /* bounds check */
 
 		if (((struct tcp_zerocopy_receive *)optval)->address != 0)
