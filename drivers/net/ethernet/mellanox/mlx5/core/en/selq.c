@@ -4,6 +4,7 @@
 #include "selq.h"
 #include <linux/slab.h>
 #include <linux/netdevice.h>
+#include <linux/rcupdate.h>
 #include "en.h"
 #include "en/ptp.h"
 
@@ -109,12 +110,13 @@ static int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb)
 }
 #endif
 
-static u16 mlx5e_select_ptpsq(struct net_device *dev, struct sk_buff *skb)
+static u16 mlx5e_select_ptpsq(struct net_device *dev, struct sk_buff *skb,
+			      struct mlx5e_selq_params *selq)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	int up = 0;
 
-	if (!netdev_get_num_tc(dev))
+	if (selq->num_tcs <= 1)
 		goto return_txq;
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
@@ -126,15 +128,15 @@ static u16 mlx5e_select_ptpsq(struct net_device *dev, struct sk_buff *skb)
 			up = skb_vlan_tag_get_prio(skb);
 
 return_txq:
-	return priv->port_ptp_tc2realtxq[up];
+	return selq->num_regular_queues + up;
 }
 
-static int mlx5e_select_htb_queue(struct mlx5e_priv *priv, struct sk_buff *skb,
-				  u16 htb_maj_id)
+static int mlx5e_select_htb_queue(struct mlx5e_priv *priv, struct sk_buff *skb)
 {
 	u16 classid;
 
-	if ((TC_H_MAJ(skb->priority) >> 16) == htb_maj_id)
+	/* Order maj_id before defcls - pairs with mlx5e_htb_root_add. */
+	if ((TC_H_MAJ(skb->priority) >> 16) == smp_load_acquire(&priv->htb.maj_id))
 		classid = TC_H_MIN(skb->priority);
 	else
 		classid = READ_ONCE(priv->htb.defcls);
@@ -149,30 +151,28 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int num_tc_x_num_ch;
+	struct mlx5e_selq_params *selq;
 	int txq_ix;
 	int up = 0;
-	int ch_ix;
 
-	/* Sync with mlx5e_update_num_tc_x_num_ch - avoid refetching. */
-	num_tc_x_num_ch = READ_ONCE(priv->num_tc_x_num_ch);
-	if (unlikely(dev->real_num_tx_queues > num_tc_x_num_ch)) {
-		struct mlx5e_ptp *ptp_channel;
+	selq = rcu_dereference_bh(priv->selq.active);
 
-		/* Order maj_id before defcls - pairs with mlx5e_htb_root_add. */
-		u16 htb_maj_id = smp_load_acquire(&priv->htb.maj_id);
+	/* This is a workaround needed only for the mlx5e_netdev_change_profile
+	 * flow that zeroes out the whole priv without unregistering the netdev
+	 * and without preventing ndo_select_queue from being called.
+	 */
+	if (unlikely(!selq))
+		return 0;
 
-		if (unlikely(htb_maj_id)) {
-			txq_ix = mlx5e_select_htb_queue(priv, skb, htb_maj_id);
+	if (unlikely(selq->is_ptp || selq->is_htb)) {
+		if (unlikely(selq->is_htb)) {
+			txq_ix = mlx5e_select_htb_queue(priv, skb);
 			if (txq_ix > 0)
 				return txq_ix;
 		}
 
-		ptp_channel = READ_ONCE(priv->channels.ptp);
-		if (unlikely(ptp_channel &&
-			     test_bit(MLX5E_PTP_STATE_TX, ptp_channel->state) &&
-			     mlx5e_use_ptpsq(skb)))
-			return mlx5e_select_ptpsq(dev, skb);
+		if (unlikely(selq->is_ptp && mlx5e_use_ptpsq(skb)))
+			return mlx5e_select_ptpsq(dev, skb, selq);
 
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
 		/* Fix netdev_pick_tx() not to choose ptp_channel and HTB txqs.
@@ -180,13 +180,13 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		 * Driver to select these queues only at mlx5e_select_ptpsq()
 		 * and mlx5e_select_htb_queue().
 		 */
-		if (unlikely(txq_ix >= num_tc_x_num_ch))
-			txq_ix %= num_tc_x_num_ch;
+		if (unlikely(txq_ix >= selq->num_regular_queues))
+			txq_ix %= selq->num_regular_queues;
 	} else {
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
 	}
 
-	if (!netdev_get_num_tc(dev))
+	if (selq->num_tcs <= 1)
 		return txq_ix;
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
@@ -201,7 +201,5 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	 * So we can return a txq_ix that matches the channel and
 	 * packet UP.
 	 */
-	ch_ix = priv->txq2sq[txq_ix]->ch_ix;
-
-	return priv->channel_tc2realtxq[ch_ix][up];
+	return txq_ix % selq->num_channels + up * selq->num_channels;
 }

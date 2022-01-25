@@ -549,11 +549,15 @@ int mlx5e_htb_root_del(struct mlx5e_priv *priv)
 
 	qos_dbg(priv->mdev, "TC_HTB_DESTROY\n");
 
+	/* Wait until real_num_tx_queues is updated for mlx5e_select_queue,
+	 * so that we can safely switch to its non-HTB non-PTP fastpath.
+	 */
+	synchronize_net();
+
 	mlx5e_selq_prepare(&priv->selq, &priv->channels.params, false);
 	mlx5e_selq_apply(&priv->selq);
 
 	WRITE_ONCE(priv->htb.maj_id, 0);
-	synchronize_rcu(); /* Sync with mlx5e_select_htb_queue and TX data path. */
 
 	root = mlx5e_sw_node_find(priv, MLX5E_HTB_CLASSID_ROOT);
 	if (!root) {
