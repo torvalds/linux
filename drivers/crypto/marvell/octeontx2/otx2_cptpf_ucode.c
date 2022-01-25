@@ -1144,6 +1144,7 @@ int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 	struct otx2_cpt_engines engs[OTX2_CPT_MAX_ETYPES_PER_GRP] = { {0} };
 	struct pci_dev *pdev = cptpf->pdev;
 	struct fw_info_t fw_info;
+	u64 reg_val;
 	int ret = 0;
 
 	mutex_lock(&eng_grps->lock);
@@ -1244,6 +1245,18 @@ int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 	 */
 	otx2_cpt_write_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_CTX_FLUSH_TIMER,
 			      CTX_FLUSH_TIMER_CNT, BLKADDR_CPT0);
+
+	/*
+	 * Set CPT_AF_DIAG[FLT_DIS], as a workaround for HW errata, when
+	 * CPT_AF_DIAG[FLT_DIS] = 0 and a CPT engine access to LLC/DRAM
+	 * encounters a fault/poison, a rare case may result in
+	 * unpredictable data being delivered to a CPT engine.
+	 */
+	otx2_cpt_read_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_DIAG, &reg_val,
+			     BLKADDR_CPT0);
+	otx2_cpt_write_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_DIAG,
+			      reg_val | BIT_ULL(24), BLKADDR_CPT0);
+
 	mutex_unlock(&eng_grps->lock);
 	return 0;
 
