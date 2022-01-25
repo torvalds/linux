@@ -1513,7 +1513,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	/* Exit the polling mode, but don't re-enable interrupts if stack might
 	 * poll us due to busy-polling
 	 */
-	if (likely(napi_complete_done(napi, work_done))) {
+	if (napi_complete_done(napi, work_done)) {
 		ice_net_dim(q_vector);
 		ice_enable_interrupt(q_vector);
 	} else {
