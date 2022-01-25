@@ -261,7 +261,7 @@ unsigned int sched_get_cpu_util_pct(int cpu)
 	capacity = capacity_orig_of(cpu);
 
 	util = wrq->prev_runnable_sum + wrq->grp_time.prev_runnable_sum;
-	util = div64_u64(util, sched_ravg_window >> SCHED_CAPACITY_SHIFT);
+	util = scale_time_to_util(util);
 	raw_spin_unlock_irqrestore(&rq->__lock, flags);
 
 	util = (util >= capacity) ? capacity : util;

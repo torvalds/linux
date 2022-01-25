@@ -650,8 +650,7 @@ __cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *rea
 	unsigned long capacity = capacity_orig_of(cpu);
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
-	util = div64_u64(freq_policy_load(rq, reason),
-			sched_ravg_window >> SCHED_CAPACITY_SHIFT);
+	util = scale_time_to_util(freq_policy_load(rq, reason));
 
 	if (walt_load) {
 		u64 nl = wrq->nt_prev_runnable_sum +
@@ -661,7 +660,7 @@ __cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *rea
 		wrq->old_busy_time = util;
 		wrq->old_estimated_time = pl;
 
-		nl = div64_u64(nl, sched_ravg_window >> SCHED_CAPACITY_SHIFT);
+		nl = scale_time_to_util(nl);
 		walt_load->nl = nl;
 		walt_load->pl = pl;
 		walt_load->ws = walt_load_reported_window;
@@ -1290,7 +1289,7 @@ static void update_task_pred_demand(struct rq *rq, struct task_struct *p, int ev
 			return;
 	}
 
-	curr_window_scaled = scale_demand(wts->curr_window);
+	curr_window_scaled = scale_time_to_util(wts->curr_window);
 	if (wts->pred_demand_scaled >= curr_window_scaled)
 		return;
 
@@ -1515,7 +1514,7 @@ static inline u64 scale_exec_time(u64 delta, struct rq *rq)
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
-	return (delta * wrq->task_exec_scale) >> 10;
+	return (delta * wrq->task_exec_scale) >> SCHED_CAPACITY_SHIFT;
 }
 
 /* Convert busy time to frequency equivalent
@@ -1955,8 +1954,8 @@ static void update_history(struct rq *rq, struct task_struct *p,
 		else
 			demand = max(avg, runtime);
 	}
-	pred_demand_scaled = predict_and_update_buckets(p, scale_demand(runtime));
-	demand_scaled = scale_demand(demand);
+	pred_demand_scaled = predict_and_update_buckets(p, scale_time_to_util(runtime));
+	demand_scaled = scale_time_to_util(demand);
 
 	/*
 	 * A throttled deadline sched class task gets dequeued without
@@ -2298,7 +2297,7 @@ static void init_new_task_load(struct task_struct *p)
 	if (init_load_pct) {
 		init_load_windows = div64_u64((u64)init_load_pct *
 			  (u64)sched_ravg_window, 100);
-		init_load_windows_scaled = scale_demand(init_load_windows);
+		init_load_windows_scaled = scale_time_to_util(init_load_windows);
 	}
 
 	wts->demand = init_load_windows;
@@ -3771,7 +3770,7 @@ static void walt_init_window_dep(void)
 		div64_u64((u64)sysctl_sched_init_task_load_pct *
 			  (u64)sched_ravg_window, 100);
 	sched_init_task_load_windows_scaled =
-		scale_demand(sched_init_task_load_windows);
+		scale_time_to_util(sched_init_task_load_windows);
 
 	walt_cpu_high_irqload = div64_u64((u64)sched_ravg_window * 95, (u64) 100);
 }

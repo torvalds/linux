@@ -681,7 +681,7 @@ walt_pd_compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *p
 		max_util = max(max_util, cpu_util);
 	}
 
-	max_util = scale_demand(max_util);
+	max_util = scale_time_to_util(max_util);
 
 	if (output)
 		output->cluster_first_cpu[x] = cpumask_first(pd_mask);

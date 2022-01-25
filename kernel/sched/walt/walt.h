@@ -906,7 +906,16 @@ void walt_cfs_tick(struct rq *rq);
 void walt_lb_tick(struct rq *rq);
 
 extern __read_mostly unsigned int walt_scale_demand_divisor;
-#define scale_demand(d) ((d)/walt_scale_demand_divisor)
+
+static inline u64 scale_time_to_util(u64 d)
+{
+	/*
+	 * The denominator at most could be (8 * tick_size) >> SCHED_CAPACITY_SHIFT,
+	 * a value that easily fits a 32bit integer.
+	 */
+	do_div(d, walt_scale_demand_divisor);
+	return d;
+}
 
 #define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && !is_min_cluster_cpu(cpu))
 
