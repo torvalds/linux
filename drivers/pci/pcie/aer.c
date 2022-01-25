@@ -393,6 +393,9 @@ void pci_aer_init(struct pci_dev *dev)
 
 	pci_aer_clear_status(dev);
 
+	if (pci_aer_available())
+		pci_enable_pcie_error_reporting(dev);
+
 	pcie_set_ecrc_checking(dev);
 }
 
