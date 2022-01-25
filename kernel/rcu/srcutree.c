@@ -39,6 +39,15 @@ module_param(exp_holdoff, ulong, 0444);
 static ulong counter_wrap_check = (ULONG_MAX >> 2);
 module_param(counter_wrap_check, ulong, 0444);
 
+/*
+ * Control conversion to SRCU_SIZE_BIG:
+ * 0: Don't convert at all (default).
+ * 1: Convert at init_srcu_struct() time.
+ * 2: Convert when rcutorture invokes srcu_torture_stats_print().
+ */
+static int convert_to_big;
+module_param(convert_to_big, int, 0444);
+
 /* Early-boot callback-management, so early that no lock is required! */
 static LIST_HEAD(srcu_boot_list);
 static bool __read_mostly srcu_init_done;
@@ -123,7 +132,7 @@ static inline bool srcu_invl_snp_seq(unsigned long s)
  * Allocated and initialize SRCU combining tree.  Returns @true if
  * allocation succeeded and @false otherwise.
  */
-static bool init_srcu_struct_nodes(struct srcu_struct *ssp)
+static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 {
 	int cpu;
 	int i;
@@ -135,7 +144,7 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp)
 
 	/* Initialize geometry if it has not already been initialized. */
 	rcu_init_geometry();
-	ssp->node = kcalloc(rcu_num_nodes, sizeof(*ssp->node), GFP_ATOMIC);
+	ssp->node = kcalloc(rcu_num_nodes, sizeof(*ssp->node), gfp_flags);
 	if (!ssp->node)
 		return false;
 
@@ -213,17 +222,19 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	if (!ssp->sda)
 		return -ENOMEM;
 	init_srcu_struct_data(ssp);
-	if (!init_srcu_struct_nodes(ssp)) {
-		if (!is_static) {
-			free_percpu(ssp->sda);
-			ssp->sda = NULL;
-			return -ENOMEM;
-		}
-	} else {
-		ssp->srcu_size_state = SRCU_SIZE_BIG;
-	}
 	ssp->srcu_gp_seq_needed_exp = 0;
 	ssp->srcu_last_gp_end = ktime_get_mono_fast_ns();
+	if (READ_ONCE(ssp->srcu_size_state) == SRCU_SIZE_SMALL && convert_to_big == 1) {
+		if (!init_srcu_struct_nodes(ssp, GFP_ATOMIC)) {
+			if (!is_static) {
+				free_percpu(ssp->sda);
+				ssp->sda = NULL;
+				return -ENOMEM;
+			}
+		} else {
+			WRITE_ONCE(ssp->srcu_size_state, SRCU_SIZE_BIG);
+		}
+	}
 	smp_store_release(&ssp->srcu_gp_seq_needed, 0); /* Init done. */
 	return 0;
 }
@@ -594,7 +605,8 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	/* A new grace period can start at this point.  But only one. */
 
 	/* Initiate callback invocation as needed. */
-	if (smp_load_acquire(&ssp->srcu_size_state) < SRCU_SIZE_WAIT_BARRIER) {
+	ss_state = smp_load_acquire(&ssp->srcu_size_state);
+	if (ss_state < SRCU_SIZE_WAIT_BARRIER) {
 		srcu_schedule_cbs_sdp(per_cpu_ptr(ssp->sda, 0), cbdelay);
 	} else {
 		idx = rcu_seq_ctr(gpseq) % ARRAY_SIZE(snp->srcu_have_cbs);
@@ -603,13 +615,16 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 			cbs = false;
 			last_lvl = snp >= ssp->level[rcu_num_lvls - 1];
 			if (last_lvl)
-				cbs = snp->srcu_have_cbs[idx] == gpseq;
+				cbs = ss_state < SRCU_SIZE_BIG || snp->srcu_have_cbs[idx] == gpseq;
 			snp->srcu_have_cbs[idx] = gpseq;
 			rcu_seq_set_state(&snp->srcu_have_cbs[idx], 1);
 			sgsne = snp->srcu_gp_seq_needed_exp;
 			if (srcu_invl_snp_seq(sgsne) || ULONG_CMP_LT(sgsne, gpseq))
 				WRITE_ONCE(snp->srcu_gp_seq_needed_exp, gpseq);
-			mask = snp->srcu_data_have_cbs[idx];
+			if (ss_state < SRCU_SIZE_BIG)
+				mask = ~0;
+			else
+				mask = snp->srcu_data_have_cbs[idx];
 			snp->srcu_data_have_cbs[idx] = 0;
 			spin_unlock_irq_rcu_node(snp);
 			if (cbs)
@@ -645,10 +660,9 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	}
 
 	/* Transition to big if needed. */
-	ss_state = smp_load_acquire(&ssp->srcu_size_state);
 	if (ss_state != SRCU_SIZE_SMALL && ss_state != SRCU_SIZE_BIG) {
 		if (ss_state == SRCU_SIZE_ALLOC)
-			init_srcu_struct_nodes(ssp);
+			init_srcu_struct_nodes(ssp, GFP_KERNEL);
 		else
 			smp_store_release(&ssp->srcu_size_state, ss_state + 1);
 	}
@@ -1494,6 +1508,8 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 		s1 += c1;
 	}
 	pr_cont(" T(%ld,%ld)\n", s0, s1);
+	if (READ_ONCE(ssp->srcu_size_state) == SRCU_SIZE_SMALL && convert_to_big == 2)
+		WRITE_ONCE(ssp->srcu_size_state, SRCU_SIZE_ALLOC);
 }
 EXPORT_SYMBOL_GPL(srcu_torture_stats_print);
 
