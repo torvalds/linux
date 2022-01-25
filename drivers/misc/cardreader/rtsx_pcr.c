@@ -1660,21 +1660,16 @@ static void rtsx_pci_remove(struct pci_dev *pcidev)
 static int __maybe_unused rtsx_pci_suspend(struct device *dev_d)
 {
 	struct pci_dev *pcidev = to_pci_dev(dev_d);
-	struct pcr_handle *handle;
-	struct rtsx_pcr *pcr;
+	struct pcr_handle *handle = pci_get_drvdata(pcidev);
+	struct rtsx_pcr *pcr = handle->pcr;
 
 	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
 
-	handle = pci_get_drvdata(pcidev);
-	pcr = handle->pcr;
-
-	cancel_delayed_work(&pcr->carddet_work);
+	cancel_delayed_work_sync(&pcr->carddet_work);
 
 	mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_power_off(pcr, HOST_ENTER_S3);
-
-	device_wakeup_disable(dev_d);
 
 	mutex_unlock(&pcr->pcr_mutex);
 	return 0;
@@ -1683,14 +1678,11 @@ static int __maybe_unused rtsx_pci_suspend(struct device *dev_d)
 static int __maybe_unused rtsx_pci_resume(struct device *dev_d)
 {
 	struct pci_dev *pcidev = to_pci_dev(dev_d);
-	struct pcr_handle *handle;
-	struct rtsx_pcr *pcr;
+	struct pcr_handle *handle = pci_get_drvdata(pcidev);
+	struct rtsx_pcr *pcr = handle->pcr;
 	int ret = 0;
 
 	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
-
-	handle = pci_get_drvdata(pcidev);
-	pcr = handle->pcr;
 
 	mutex_lock(&pcr->pcr_mutex);
 
@@ -1711,13 +1703,11 @@ out:
 
 static void rtsx_pci_shutdown(struct pci_dev *pcidev)
 {
-	struct pcr_handle *handle;
-	struct rtsx_pcr *pcr;
+	struct pcr_handle *handle = pci_get_drvdata(pcidev);
+	struct rtsx_pcr *pcr = handle->pcr;
 
 	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
 
-	handle = pci_get_drvdata(pcidev);
-	pcr = handle->pcr;
 	rtsx_pci_power_off(pcr, HOST_ENTER_S1);
 
 	pci_disable_device(pcidev);
@@ -1756,11 +1746,8 @@ static int rtsx_pci_runtime_idle(struct device *device)
 static int rtsx_pci_runtime_suspend(struct device *device)
 {
 	struct pci_dev *pcidev = to_pci_dev(device);
-	struct pcr_handle *handle;
-	struct rtsx_pcr *pcr;
-
-	handle = pci_get_drvdata(pcidev);
-	pcr = handle->pcr;
+	struct pcr_handle *handle = pci_get_drvdata(pcidev);
+	struct rtsx_pcr *pcr = handle->pcr;
 
 	dev_dbg(device, "--> %s\n", __func__);
 
@@ -1785,9 +1772,6 @@ static int rtsx_pci_runtime_resume(struct device *device)
 	mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_write_register(pcr, HOST_SLEEP_STATE, 0x03, 0x00);
-
-	if (pcr->ops->fetch_vendor_settings)
-		pcr->ops->fetch_vendor_settings(pcr);
 
 	rtsx_pci_init_hw(pcr);
 
