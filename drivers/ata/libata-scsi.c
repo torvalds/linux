@@ -3672,7 +3672,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 			goto invalid_fld;
 		}
 
-		len = (cdb[7] << 8) + cdb[8];
+		len = get_unaligned_be16(&cdb[7]);
 		hdr_len = 8;
 	}
 
@@ -3698,7 +3698,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	if (six_byte)
 		bd_len = p[3];
 	else
-		bd_len = (p[6] << 8) + p[7];
+		bd_len = get_unaligned_be16(&p[6]);
 
 	len -= hdr_len;
 	p += hdr_len;
@@ -3722,7 +3722,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 			goto invalid_param_len;
 
 		spg = p[1];
-		pg_len = (p[2] << 8) | p[3];
+		pg_len = get_unaligned_be16(&p[2]);
 		p += 4;
 		len -= 4;
 	} else {
