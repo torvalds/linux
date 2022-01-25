@@ -1112,12 +1112,17 @@ static bool ionic_notifyq_service(struct ionic_cq *cq,
 		ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
 		break;
 	case IONIC_EVENT_RESET:
-		work = kzalloc(sizeof(*work), GFP_ATOMIC);
-		if (!work) {
-			netdev_err(lif->netdev, "Reset event dropped\n");
-		} else {
-			work->type = IONIC_DW_TYPE_LIF_RESET;
-			ionic_lif_deferred_enqueue(&lif->deferred, work);
+		if (lif->ionic->idev.fw_status_ready &&
+		    !test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
+		    !test_and_set_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
+			work = kzalloc(sizeof(*work), GFP_ATOMIC);
+			if (!work) {
+				netdev_err(lif->netdev, "Reset event dropped\n");
+				clear_bit(IONIC_LIF_F_FW_STOPPING, lif->state);
+			} else {
+				work->type = IONIC_DW_TYPE_LIF_RESET;
+				ionic_lif_deferred_enqueue(&lif->deferred, work);
+			}
 		}
 		break;
 	default:
@@ -1782,7 +1787,7 @@ static void ionic_lif_quiesce(struct ionic_lif *lif)
 
 	err = ionic_adminq_post_wait(lif, &ctx);
 	if (err)
-		netdev_err(lif->netdev, "lif quiesce failed %d\n", err);
+		netdev_dbg(lif->netdev, "lif quiesce failed %d\n", err);
 }
 
 static void ionic_txrx_disable(struct ionic_lif *lif)
@@ -2152,6 +2157,76 @@ static int ionic_eth_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd
 	}
 }
 
+static int ionic_update_cached_vf_config(struct ionic *ionic, int vf)
+{
+	struct ionic_vf_getattr_comp comp = { 0 };
+	int err;
+	u8 attr;
+
+	attr = IONIC_VF_ATTR_VLAN;
+	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
+	if (err && comp.status != IONIC_RC_ENOSUPP)
+		goto err_out;
+	if (!err)
+		ionic->vfs[vf].vlanid = comp.vlanid;
+
+	attr = IONIC_VF_ATTR_SPOOFCHK;
+	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
+	if (err && comp.status != IONIC_RC_ENOSUPP)
+		goto err_out;
+	if (!err)
+		ionic->vfs[vf].spoofchk = comp.spoofchk;
+
+	attr = IONIC_VF_ATTR_LINKSTATE;
+	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
+	if (err && comp.status != IONIC_RC_ENOSUPP)
+		goto err_out;
+	if (!err) {
+		switch (comp.linkstate) {
+		case IONIC_VF_LINK_STATUS_UP:
+			ionic->vfs[vf].linkstate = IFLA_VF_LINK_STATE_ENABLE;
+			break;
+		case IONIC_VF_LINK_STATUS_DOWN:
+			ionic->vfs[vf].linkstate = IFLA_VF_LINK_STATE_DISABLE;
+			break;
+		case IONIC_VF_LINK_STATUS_AUTO:
+			ionic->vfs[vf].linkstate = IFLA_VF_LINK_STATE_AUTO;
+			break;
+		default:
+			dev_warn(ionic->dev, "Unexpected link state %u\n", comp.linkstate);
+			break;
+		}
+	}
+
+	attr = IONIC_VF_ATTR_RATE;
+	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
+	if (err && comp.status != IONIC_RC_ENOSUPP)
+		goto err_out;
+	if (!err)
+		ionic->vfs[vf].maxrate = comp.maxrate;
+
+	attr = IONIC_VF_ATTR_TRUST;
+	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
+	if (err && comp.status != IONIC_RC_ENOSUPP)
+		goto err_out;
+	if (!err)
+		ionic->vfs[vf].trusted = comp.trust;
+
+	attr = IONIC_VF_ATTR_MAC;
+	err = ionic_dev_cmd_vf_getattr(ionic, vf, attr, &comp);
+	if (err && comp.status != IONIC_RC_ENOSUPP)
+		goto err_out;
+	if (!err)
+		ether_addr_copy(ionic->vfs[vf].macaddr, comp.macaddr);
+
+err_out:
+	if (err)
+		dev_err(ionic->dev, "Failed to get %s for VF %d\n",
+			ionic_vf_attr_to_str(attr), vf);
+
+	return err;
+}
+
 static int ionic_get_vf_config(struct net_device *netdev,
 			       int vf, struct ifla_vf_info *ivf)
 {
@@ -2167,14 +2242,18 @@ static int ionic_get_vf_config(struct net_device *netdev,
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
 	} else {
-		ivf->vf           = vf;
-		ivf->vlan         = le16_to_cpu(ionic->vfs[vf].vlanid);
-		ivf->qos	  = 0;
-		ivf->spoofchk     = ionic->vfs[vf].spoofchk;
-		ivf->linkstate    = ionic->vfs[vf].linkstate;
-		ivf->max_tx_rate  = le32_to_cpu(ionic->vfs[vf].maxrate);
-		ivf->trusted      = ionic->vfs[vf].trusted;
-		ether_addr_copy(ivf->mac, ionic->vfs[vf].macaddr);
+		ivf->vf = vf;
+		ivf->qos = 0;
+
+		ret = ionic_update_cached_vf_config(ionic, vf);
+		if (!ret) {
+			ivf->vlan         = le16_to_cpu(ionic->vfs[vf].vlanid);
+			ivf->spoofchk     = ionic->vfs[vf].spoofchk;
+			ivf->linkstate    = ionic->vfs[vf].linkstate;
+			ivf->max_tx_rate  = le32_to_cpu(ionic->vfs[vf].maxrate);
+			ivf->trusted      = ionic->vfs[vf].trusted;
+			ether_addr_copy(ivf->mac, ionic->vfs[vf].macaddr);
+		}
 	}
 
 	up_read(&ionic->vf_op_lock);
@@ -2220,6 +2299,7 @@ static int ionic_get_vf_stats(struct net_device *netdev, int vf,
 
 static int ionic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 {
+	struct ionic_vf_setattr_cmd vfc = { .attr = IONIC_VF_ATTR_MAC };
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
 	int ret;
@@ -2235,7 +2315,11 @@ static int ionic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
 	} else {
-		ret = ionic_set_vf_config(ionic, vf, IONIC_VF_ATTR_MAC, mac);
+		ether_addr_copy(vfc.macaddr, mac);
+		dev_dbg(ionic->dev, "%s: vf %d macaddr %pM\n",
+			__func__, vf, vfc.macaddr);
+
+		ret = ionic_set_vf_config(ionic, vf, &vfc);
 		if (!ret)
 			ether_addr_copy(ionic->vfs[vf].macaddr, mac);
 	}
@@ -2247,6 +2331,7 @@ static int ionic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 static int ionic_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 			     u8 qos, __be16 proto)
 {
+	struct ionic_vf_setattr_cmd vfc = { .attr = IONIC_VF_ATTR_VLAN };
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
 	int ret;
@@ -2269,8 +2354,11 @@ static int ionic_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
 	} else {
-		ret = ionic_set_vf_config(ionic, vf,
-					  IONIC_VF_ATTR_VLAN, (u8 *)&vlan);
+		vfc.vlanid = cpu_to_le16(vlan);
+		dev_dbg(ionic->dev, "%s: vf %d vlan %d\n",
+			__func__, vf, le16_to_cpu(vfc.vlanid));
+
+		ret = ionic_set_vf_config(ionic, vf, &vfc);
 		if (!ret)
 			ionic->vfs[vf].vlanid = cpu_to_le16(vlan);
 	}
@@ -2282,6 +2370,7 @@ static int ionic_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 static int ionic_set_vf_rate(struct net_device *netdev, int vf,
 			     int tx_min, int tx_max)
 {
+	struct ionic_vf_setattr_cmd vfc = { .attr = IONIC_VF_ATTR_RATE };
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
 	int ret;
@@ -2298,8 +2387,11 @@ static int ionic_set_vf_rate(struct net_device *netdev, int vf,
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
 	} else {
-		ret = ionic_set_vf_config(ionic, vf,
-					  IONIC_VF_ATTR_RATE, (u8 *)&tx_max);
+		vfc.maxrate = cpu_to_le32(tx_max);
+		dev_dbg(ionic->dev, "%s: vf %d maxrate %d\n",
+			__func__, vf, le32_to_cpu(vfc.maxrate));
+
+		ret = ionic_set_vf_config(ionic, vf, &vfc);
 		if (!ret)
 			lif->ionic->vfs[vf].maxrate = cpu_to_le32(tx_max);
 	}
@@ -2310,9 +2402,9 @@ static int ionic_set_vf_rate(struct net_device *netdev, int vf,
 
 static int ionic_set_vf_spoofchk(struct net_device *netdev, int vf, bool set)
 {
+	struct ionic_vf_setattr_cmd vfc = { .attr = IONIC_VF_ATTR_SPOOFCHK };
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
-	u8 data = set;  /* convert to u8 for config */
 	int ret;
 
 	if (!netif_device_present(netdev))
@@ -2323,10 +2415,13 @@ static int ionic_set_vf_spoofchk(struct net_device *netdev, int vf, bool set)
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
 	} else {
-		ret = ionic_set_vf_config(ionic, vf,
-					  IONIC_VF_ATTR_SPOOFCHK, &data);
+		vfc.spoofchk = set;
+		dev_dbg(ionic->dev, "%s: vf %d spoof %d\n",
+			__func__, vf, vfc.spoofchk);
+
+		ret = ionic_set_vf_config(ionic, vf, &vfc);
 		if (!ret)
-			ionic->vfs[vf].spoofchk = data;
+			ionic->vfs[vf].spoofchk = set;
 	}
 
 	up_write(&ionic->vf_op_lock);
@@ -2335,9 +2430,9 @@ static int ionic_set_vf_spoofchk(struct net_device *netdev, int vf, bool set)
 
 static int ionic_set_vf_trust(struct net_device *netdev, int vf, bool set)
 {
+	struct ionic_vf_setattr_cmd vfc = { .attr = IONIC_VF_ATTR_TRUST };
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
-	u8 data = set;  /* convert to u8 for config */
 	int ret;
 
 	if (!netif_device_present(netdev))
@@ -2348,10 +2443,13 @@ static int ionic_set_vf_trust(struct net_device *netdev, int vf, bool set)
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
 	} else {
-		ret = ionic_set_vf_config(ionic, vf,
-					  IONIC_VF_ATTR_TRUST, &data);
+		vfc.trust = set;
+		dev_dbg(ionic->dev, "%s: vf %d trust %d\n",
+			__func__, vf, vfc.trust);
+
+		ret = ionic_set_vf_config(ionic, vf, &vfc);
 		if (!ret)
-			ionic->vfs[vf].trusted = data;
+			ionic->vfs[vf].trusted = set;
 	}
 
 	up_write(&ionic->vf_op_lock);
@@ -2360,20 +2458,21 @@ static int ionic_set_vf_trust(struct net_device *netdev, int vf, bool set)
 
 static int ionic_set_vf_link_state(struct net_device *netdev, int vf, int set)
 {
+	struct ionic_vf_setattr_cmd vfc = { .attr = IONIC_VF_ATTR_LINKSTATE };
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;
-	u8 data;
+	u8 vfls;
 	int ret;
 
 	switch (set) {
 	case IFLA_VF_LINK_STATE_ENABLE:
-		data = IONIC_VF_LINK_STATUS_UP;
+		vfls = IONIC_VF_LINK_STATUS_UP;
 		break;
 	case IFLA_VF_LINK_STATE_DISABLE:
-		data = IONIC_VF_LINK_STATUS_DOWN;
+		vfls = IONIC_VF_LINK_STATUS_DOWN;
 		break;
 	case IFLA_VF_LINK_STATE_AUTO:
-		data = IONIC_VF_LINK_STATUS_AUTO;
+		vfls = IONIC_VF_LINK_STATUS_AUTO;
 		break;
 	default:
 		return -EINVAL;
@@ -2387,8 +2486,11 @@ static int ionic_set_vf_link_state(struct net_device *netdev, int vf, int set)
 	if (vf >= pci_num_vf(ionic->pdev) || !ionic->vfs) {
 		ret = -EINVAL;
 	} else {
-		ret = ionic_set_vf_config(ionic, vf,
-					  IONIC_VF_ATTR_LINKSTATE, &data);
+		vfc.linkstate = vfls;
+		dev_dbg(ionic->dev, "%s: vf %d linkstate %d\n",
+			__func__, vf, vfc.linkstate);
+
+		ret = ionic_set_vf_config(ionic, vf, &vfc);
 		if (!ret)
 			ionic->vfs[vf].linkstate = set;
 	}
@@ -2835,6 +2937,7 @@ static void ionic_lif_handle_fw_down(struct ionic_lif *lif)
 
 	mutex_unlock(&lif->queue_lock);
 
+	clear_bit(IONIC_LIF_F_FW_STOPPING, lif->state);
 	dev_info(ionic->dev, "FW Down: LIFs stopped\n");
 }
 
@@ -2934,8 +3037,6 @@ void ionic_lif_free(struct ionic_lif *lif)
 	/* unmap doorbell page */
 	ionic_bus_unmap_dbpage(lif->ionic, lif->kern_dbpage);
 	lif->kern_dbpage = NULL;
-	kfree(lif->dbid_inuse);
-	lif->dbid_inuse = NULL;
 
 	mutex_destroy(&lif->config_lock);
 	mutex_destroy(&lif->queue_lock);
@@ -3135,22 +3236,12 @@ int ionic_lif_init(struct ionic_lif *lif)
 		return -EINVAL;
 	}
 
-	lif->dbid_inuse = bitmap_zalloc(lif->dbid_count, GFP_KERNEL);
-	if (!lif->dbid_inuse) {
-		dev_err(dev, "Failed alloc doorbell id bitmap, aborting\n");
-		return -ENOMEM;
-	}
-
-	/* first doorbell id reserved for kernel (dbid aka pid == zero) */
-	set_bit(0, lif->dbid_inuse);
 	lif->kern_pid = 0;
-
 	dbpage_num = ionic_db_page_num(lif, lif->kern_pid);
 	lif->kern_dbpage = ionic_bus_map_dbpage(lif->ionic, dbpage_num);
 	if (!lif->kern_dbpage) {
 		dev_err(dev, "Cannot map dbpage, aborting\n");
-		err = -ENOMEM;
-		goto err_out_free_dbid;
+		return -ENOMEM;
 	}
 
 	err = ionic_lif_adminq_init(lif);
@@ -3186,15 +3277,13 @@ int ionic_lif_init(struct ionic_lif *lif)
 	return 0;
 
 err_out_notifyq_deinit:
+	napi_disable(&lif->adminqcq->napi);
 	ionic_lif_qcq_deinit(lif, lif->notifyqcq);
 err_out_adminq_deinit:
 	ionic_lif_qcq_deinit(lif, lif->adminqcq);
 	ionic_lif_reset(lif);
 	ionic_bus_unmap_dbpage(lif->ionic, lif->kern_dbpage);
 	lif->kern_dbpage = NULL;
-err_out_free_dbid:
-	kfree(lif->dbid_inuse);
-	lif->dbid_inuse = NULL;
 
 	return err;
 }

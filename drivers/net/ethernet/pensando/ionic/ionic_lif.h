@@ -135,6 +135,7 @@ enum ionic_lif_state_flags {
 	IONIC_LIF_F_LINK_CHECK_REQUESTED,
 	IONIC_LIF_F_FILTER_SYNC_NEEDED,
 	IONIC_LIF_F_FW_RESET,
+	IONIC_LIF_F_FW_STOPPING,
 	IONIC_LIF_F_SPLIT_INTR,
 	IONIC_LIF_F_BROKEN,
 	IONIC_LIF_F_TX_DIM_INTR,
@@ -213,7 +214,6 @@ struct ionic_lif {
 	u32 rx_coalesce_hw;		/* what the hw is using */
 	u32 tx_coalesce_usecs;		/* what the user asked for */
 	u32 tx_coalesce_hw;		/* what the hw is using */
-	unsigned long *dbid_inuse;
 	unsigned int dbid_count;
 
 	struct ionic_phc *phc;
