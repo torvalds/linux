@@ -1873,7 +1873,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpp = &dec->mpp;
-	platform_set_drvdata(pdev, dec);
+	platform_set_drvdata(pdev, mpp);
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_rkvdec_dt_match,
@@ -1919,28 +1919,10 @@ static int rkvdec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void rkvdec_shutdown(struct platform_device *pdev)
-{
-	int ret;
-	int val;
-	struct device *dev = &pdev->dev;
-	struct rkvdec_dev *dec = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &dec->mpp;
-
-	dev_info(dev, "shutdown device\n");
-
-	atomic_inc(&mpp->srv->shutdown_request);
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 20000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
-}
-
 struct platform_driver rockchip_rkvdec_driver = {
 	.probe = rkvdec_probe,
 	.remove = rkvdec_remove,
-	.shutdown = rkvdec_shutdown,
+	.shutdown = mpp_dev_shutdown,
 	.driver = {
 		.name = RKVDEC_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_rkvdec_dt_match),

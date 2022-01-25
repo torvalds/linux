@@ -22,6 +22,7 @@
 #include <linux/reset.h>
 #include <linux/irqreturn.h>
 #include <linux/poll.h>
+#include <linux/platform_device.h>
 #include <soc/rockchip/pm_domains.h>
 
 #define MHZ			(1000 * 1000)
@@ -321,7 +322,6 @@ struct mpp_dev {
 	struct mpp_taskqueue *queue;
 	struct mpp_reset_group *reset_group;
 	/* point to MPP Service */
-	struct platform_device *pdev_srv;
 	struct mpp_service *srv;
 
 	/* multi-core data */
@@ -606,6 +606,7 @@ int mpp_session_deinit(struct mpp_session *session);
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev);
 int mpp_dev_remove(struct mpp_dev *mpp);
+void mpp_dev_shutdown(struct platform_device *pdev);
 int mpp_dev_register_srv(struct mpp_dev *mpp, struct mpp_service *srv);
 
 int mpp_power_on(struct mpp_dev *mpp);

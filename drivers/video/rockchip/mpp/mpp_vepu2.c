@@ -994,7 +994,7 @@ static int vepu_core_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpp = &enc->mpp;
-	platform_set_drvdata(pdev, enc);
+	platform_set_drvdata(pdev, mpp);
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_vepu2_dt_match, pdev->dev.of_node);
@@ -1047,7 +1047,7 @@ static int vepu_probe_default(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpp = &enc->mpp;
-	platform_set_drvdata(pdev, enc);
+	platform_set_drvdata(pdev, mpp);
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_vepu2_dt_match, pdev->dev.of_node);
@@ -1107,7 +1107,8 @@ static int vepu_remove(struct platform_device *pdev)
 	if (strstr(np->name, "ccu")) {
 		dev_info(dev, "remove ccu device\n");
 	} else if (strstr(np->name, "core")) {
-		struct vepu_dev *enc = platform_get_drvdata(pdev);
+		struct mpp_dev *mpp = dev_get_drvdata(dev);
+		struct vepu_dev *enc = to_vepu_dev(mpp);
 
 		dev_info(dev, "remove core\n");
 		if (enc->ccu) {
@@ -1119,11 +1120,11 @@ static int vepu_remove(struct platform_device *pdev)
 		mpp_dev_remove(&enc->mpp);
 		vepu_procfs_remove(&enc->mpp);
 	} else {
-		struct vepu_dev *enc = platform_get_drvdata(pdev);
+		struct mpp_dev *mpp = dev_get_drvdata(dev);
 
 		dev_info(dev, "remove device\n");
-		mpp_dev_remove(&enc->mpp);
-		vepu_procfs_remove(&enc->mpp);
+		mpp_dev_remove(mpp);
+		vepu_procfs_remove(mpp);
 	}
 
 	return 0;
@@ -1133,24 +1134,8 @@ static void vepu_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	if (!strstr(dev_name(dev), "ccu")) {
-		int ret;
-		int val;
-		struct vepu_dev *enc = platform_get_drvdata(pdev);
-		struct mpp_dev *mpp = &enc->mpp;
-
-		dev_info(dev, "shutdown device\n");
-
-		if (mpp->srv)
-			atomic_inc(&mpp->srv->shutdown_request);
-
-		ret = readx_poll_timeout(atomic_read,
-					 &mpp->task_count,
-					 val, val == 0, 20000, 200000);
-		if (ret == -ETIMEDOUT)
-			dev_err(dev, "wait total running time out\n");
-	}
-	dev_info(dev, "shutdown success\n");
+	if (!strstr(dev_name(dev), "ccu"))
+		mpp_dev_shutdown(pdev);
 }
 
 struct platform_driver rockchip_vepu2_driver = {

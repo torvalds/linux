@@ -941,7 +941,7 @@ static int iep2_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpp = &iep->mpp;
-	platform_set_drvdata(pdev, iep);
+	platform_set_drvdata(pdev, mpp);
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_iep2_match, pdev->dev.of_node);
@@ -977,39 +977,22 @@ static int iep2_probe(struct platform_device *pdev)
 static int iep2_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct iep2_dev *iep = platform_get_drvdata(pdev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct iep2_dev *iep = to_iep2_dev(mpp);
 
 	dma_free_coherent(dev, iep->roi.size, iep->roi.vaddr, iep->roi.iova);
 
 	dev_info(dev, "remove device\n");
-	mpp_dev_remove(&iep->mpp);
-	iep2_procfs_remove(&iep->mpp);
+	mpp_dev_remove(mpp);
+	iep2_procfs_remove(mpp);
 
 	return 0;
-}
-
-static void iep2_shutdown(struct platform_device *pdev)
-{
-	int ret;
-	int val;
-	struct device *dev = &pdev->dev;
-	struct iep2_dev *iep = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &iep->mpp;
-
-	dev_info(dev, "shutdown device\n");
-
-	atomic_inc(&mpp->srv->shutdown_request);
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 20000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
 }
 
 struct platform_driver rockchip_iep2_driver = {
 	.probe = iep2_probe,
 	.remove = iep2_remove,
-	.shutdown = iep2_shutdown,
+	.shutdown = mpp_dev_shutdown,
 	.driver = {
 		.name = IEP2_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_iep2_match),

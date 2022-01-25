@@ -795,9 +795,9 @@ static int vdpu_probe(struct platform_device *pdev)
 	dec = devm_kzalloc(dev, sizeof(struct vdpu_dev), GFP_KERNEL);
 	if (!dec)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, dec);
-
 	mpp = &dec->mpp;
+	platform_set_drvdata(pdev, mpp);
+
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_vdpu1_dt_match, pdev->dev.of_node);
 		if (match)
@@ -837,37 +837,19 @@ static int vdpu_probe(struct platform_device *pdev)
 static int vdpu_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct vdpu_dev *dec = platform_get_drvdata(pdev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
 
 	dev_info(dev, "remove device\n");
-	mpp_dev_remove(&dec->mpp);
-	vdpu_procfs_remove(&dec->mpp);
+	mpp_dev_remove(mpp);
+	vdpu_procfs_remove(mpp);
 
 	return 0;
-}
-
-static void vdpu_shutdown(struct platform_device *pdev)
-{
-	int ret;
-	int val;
-	struct device *dev = &pdev->dev;
-	struct vdpu_dev *dec = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &dec->mpp;
-
-	dev_info(dev, "shutdown device\n");
-
-	atomic_inc(&mpp->srv->shutdown_request);
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 20000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
 }
 
 struct platform_driver rockchip_vdpu1_driver = {
 	.probe = vdpu_probe,
 	.remove = vdpu_remove,
-	.shutdown = vdpu_shutdown,
+	.shutdown = mpp_dev_shutdown,
 	.driver = {
 		.name = VDPU1_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_vdpu1_dt_match),

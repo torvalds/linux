@@ -1433,7 +1433,7 @@ static int rkvenc_probe(struct platform_device *pdev)
 	if (!enc)
 		return -ENOMEM;
 	mpp = &enc->mpp;
-	platform_set_drvdata(pdev, enc);
+	platform_set_drvdata(pdev, mpp);
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_rkvenc_dt_match, pdev->dev.of_node);
@@ -1472,39 +1472,19 @@ failed_get_irq:
 static int rkvenc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct rkvenc_dev *enc = platform_get_drvdata(pdev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
 
 	dev_info(dev, "remove device\n");
-	mpp_dev_remove(&enc->mpp);
-	rkvenc_procfs_remove(&enc->mpp);
+	mpp_dev_remove(mpp);
+	rkvenc_procfs_remove(mpp);
 
 	return 0;
-}
-
-static void rkvenc_shutdown(struct platform_device *pdev)
-{
-	int ret;
-	int val;
-	struct device *dev = &pdev->dev;
-	struct rkvenc_dev *enc = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &enc->mpp;
-
-	dev_info(dev, "shutdown device\n");
-
-	atomic_inc(&mpp->srv->shutdown_request);
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 1000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
-
-	dev_info(dev, "shutdown success\n");
 }
 
 struct platform_driver rockchip_rkvenc_driver = {
 	.probe = rkvenc_probe,
 	.remove = rkvenc_remove,
-	.shutdown = rkvenc_shutdown,
+	.shutdown = mpp_dev_shutdown,
 	.driver = {
 		.name = RKVENC_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_rkvenc_dt_match),

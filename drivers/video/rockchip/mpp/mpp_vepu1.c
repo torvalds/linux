@@ -722,7 +722,7 @@ static int vepu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpp = &enc->mpp;
-	platform_set_drvdata(pdev, enc);
+	platform_set_drvdata(pdev, mpp);
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_vepu1_dt_match, pdev->dev.of_node);
@@ -758,37 +758,19 @@ static int vepu_probe(struct platform_device *pdev)
 static int vepu_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct vepu_dev *enc = platform_get_drvdata(pdev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
 
 	dev_info(dev, "remove device\n");
-	mpp_dev_remove(&enc->mpp);
-	vepu_procfs_remove(&enc->mpp);
+	mpp_dev_remove(mpp);
+	vepu_procfs_remove(mpp);
 
 	return 0;
-}
-
-static void vepu_shutdown(struct platform_device *pdev)
-{
-	int ret;
-	int val;
-	struct device *dev = &pdev->dev;
-	struct vepu_dev *enc = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &enc->mpp;
-
-	dev_info(dev, "shutdown device\n");
-
-	atomic_inc(&mpp->srv->shutdown_request);
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 20000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
 }
 
 struct platform_driver rockchip_vepu1_driver = {
 	.probe = vepu_probe,
 	.remove = vepu_remove,
-	.shutdown = vepu_shutdown,
+	.shutdown = mpp_dev_shutdown,
 	.driver = {
 		.name = VEPU1_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_vepu1_dt_match),

@@ -1077,7 +1077,7 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpp = &dec->mpp;
-	platform_set_drvdata(pdev, dec);
+	platform_set_drvdata(pdev, mpp);
 
 	if (dev->of_node) {
 		struct device_node *np = pdev->dev.of_node;
@@ -1141,7 +1141,7 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpp = &dec->mpp;
-	platform_set_drvdata(pdev, dec);
+	platform_set_drvdata(pdev, mpp);
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_rkvdec2_dt_match, pdev->dev.of_node);
@@ -1231,14 +1231,15 @@ static int rkvdec2_remove(struct platform_device *pdev)
 		dev_info(dev, "remove ccu device\n");
 		rkvdec2_ccu_remove(dev);
 	} else {
-		struct rkvdec2_dev *dec = platform_get_drvdata(pdev);
+		struct mpp_dev *mpp = dev_get_drvdata(dev);
+		struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
 		dev_info(dev, "remove device\n");
 
 		rkvdec2_free_rcbbuf(pdev, dec);
-		mpp_dev_remove(&dec->mpp);
-		rkvdec2_procfs_remove(&dec->mpp);
-		rkvdec2_link_remove(&dec->mpp, dec->link_dec);
+		mpp_dev_remove(mpp);
+		rkvdec2_procfs_remove(mpp);
+		rkvdec2_link_remove(mpp, dec->link_dec);
 	}
 
 	return 0;
@@ -1248,21 +1249,8 @@ static void rkvdec2_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	if (!strstr(dev_name(dev), "ccu")) {
-		int ret;
-		int val;
-		struct rkvdec2_dev *dec = platform_get_drvdata(pdev);
-		struct mpp_dev *mpp = &dec->mpp;
-
-		dev_info(dev, "shutdown device\n");
-
-		atomic_inc(&mpp->srv->shutdown_request);
-		ret = readx_poll_timeout(atomic_read,
-					&mpp->task_count,
-					val, val == 0, 20000, 200000);
-		if (ret == -ETIMEDOUT)
-			dev_err(dev, "wait total running time out\n");
-	}
+	if (!strstr(dev_name(dev), "ccu"))
+		mpp_dev_shutdown(pdev);
 }
 
 struct platform_driver rockchip_rkvdec2_driver = {

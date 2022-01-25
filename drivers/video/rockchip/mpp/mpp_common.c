@@ -403,7 +403,7 @@ void mpp_free_task(struct kref *ref)
 		       session->index, task->task_index, task->state,
 		       atomic_read(&task->abort_request));
 
-	mpp = mpp_get_task_used_device(task, session);
+	mpp = session->mpp;
 	if (!mpp) {
 		mpp_err("task %d:%d mpp is null.\n",
 			session->index, task->task_index);
@@ -789,7 +789,6 @@ static int mpp_attach_service(struct mpp_dev *mpp, struct device *dev)
 		goto err_put_pdev;
 	}
 
-	mpp->pdev_srv = pdev;
 	mpp->srv = platform_get_drvdata(pdev);
 	if (!mpp->srv) {
 		dev_err(&pdev->dev, "failed attach service\n");
@@ -1864,12 +1863,32 @@ int mpp_dev_remove(struct mpp_dev *mpp)
 		mpp->hw_ops->exit(mpp);
 
 	mpp_iommu_remove(mpp->iommu_info);
-	platform_device_put(mpp->pdev_srv);
+	platform_device_put(to_platform_device(mpp->dev));
 	mpp_detach_workqueue(mpp);
 	device_init_wakeup(mpp->dev, false);
 	pm_runtime_disable(mpp->dev);
 
 	return 0;
+}
+
+void mpp_dev_shutdown(struct platform_device *pdev)
+{
+	int ret;
+	int val;
+	struct device *dev = &pdev->dev;
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+
+	dev_info(dev, "shutdown device\n");
+
+	atomic_inc(&mpp->srv->shutdown_request);
+	ret = readx_poll_timeout(atomic_read,
+				 &mpp->task_count,
+				 val, val == 0, 20000, 200000);
+	if (ret == -ETIMEDOUT)
+		dev_err(dev, "wait total %d running time out\n",
+			atomic_read(&mpp->task_count));
+	else
+		dev_info(dev, "shutdown success\n");
 }
 
 int mpp_dev_register_srv(struct mpp_dev *mpp, struct mpp_service *srv)
