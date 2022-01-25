@@ -22,6 +22,7 @@
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 #include <asm/set_memory.h>
+#include <asm/stacktrace.h>
 #include <asm/patch.h>
 
 /*
@@ -224,8 +225,10 @@ int ftrace_make_nop(struct module *mod,
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+asmlinkage
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
-			   unsigned long frame_pointer)
+			   unsigned long frame_pointer,
+			   unsigned long stack_pointer)
 {
 	unsigned long return_hooker = (unsigned long) &return_to_handler;
 	unsigned long old;
@@ -236,6 +239,18 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	if (IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER)) {
 		/* FP points one word below parent's top of stack */
 		frame_pointer += 4;
+	} else {
+		struct stackframe frame = {
+			.fp = frame_pointer,
+			.sp = stack_pointer,
+			.lr = self_addr,
+			.pc = self_addr,
+		};
+		if (unwind_frame(&frame) < 0)
+			return;
+		if (frame.lr != self_addr)
+			parent = frame.lr_addr;
+		frame_pointer = frame.sp;
 	}
 
 	old = *parent;
@@ -258,7 +273,7 @@ static int __ftrace_modify_caller(unsigned long *callsite,
 	unsigned long caller_fn = (unsigned long) func;
 	unsigned long pc = (unsigned long) callsite;
 	unsigned long branch = arm_gen_branch(pc, caller_fn);
-	unsigned long nop = 0xe1a00000;	/* mov r0, r0 */
+	unsigned long nop = arm_gen_nop();
 	unsigned long old = enable ? nop : branch;
 	unsigned long new = enable ? branch : nop;
 

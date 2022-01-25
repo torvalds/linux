@@ -100,7 +100,8 @@ ftrace_regs_call:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.globl ftrace_graph_regs_call
 ftrace_graph_regs_call:
-	mov	r0, r0
+ARM(	mov	r0, r0	)
+THUMB(	nop.w		)
 #endif
 
 	@ pop saved regs
@@ -112,13 +113,18 @@ ftrace_graph_regs_call:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .macro __ftrace_graph_regs_caller
 
-	sub     r0, fp, #4              @ lr of instrumented routine (parent)
+#ifdef CONFIG_UNWINDER_FRAME_POINTER
+	sub	r0, fp, #4		@ lr of instrumented routine (parent)
+#else
+	add	r0, sp, #S_LR
+#endif
 
 	@ called from __ftrace_regs_caller
-	ldr     r1, [sp, #S_PC]		@ instrumented routine (func)
+	ldr	r1, [sp, #S_PC]		@ instrumented routine (func)
 	mcount_adjust_addr	r1, r1
 
-	mov	r2, fp			@ frame pointer
+	mov	r2, fpreg		@ frame pointer
+	add	r3, sp, #PT_REGS_SIZE
 	bl	prepare_ftrace_return
 
 	@ pop registers saved in ftrace_regs_caller
@@ -149,14 +155,19 @@ ftrace_call\suffix:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.globl ftrace_graph_call\suffix
 ftrace_graph_call\suffix:
-	mov	r0, r0
+ARM(	mov	r0, r0	)
+THUMB(	nop.w		)
 #endif
 
 	mcount_exit
 .endm
 
 .macro __ftrace_graph_caller
+#ifdef CONFIG_UNWINDER_FRAME_POINTER
 	sub	r0, fp, #4		@ &lr of instrumented routine (&parent)
+#else
+	add	r0, sp, #20
+#endif
 #ifdef CONFIG_DYNAMIC_FTRACE
 	@ called from __ftrace_caller, saved in mcount_enter
 	ldr	r1, [sp, #16]		@ instrumented routine (func)
@@ -165,7 +176,8 @@ ftrace_graph_call\suffix:
 	@ called from __mcount, untouched in lr
 	mcount_adjust_addr	r1, lr	@ instrumented routine (func)
 #endif
-	mov	r2, fp			@ frame pointer
+	mov	r2, fpreg		@ frame pointer
+	add	r3, sp, #24
 	bl	prepare_ftrace_return
 	mcount_exit
 .endm
@@ -244,14 +256,14 @@ ENDPROC(ftrace_graph_regs_caller)
 .purgem mcount_exit
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	.globl return_to_handler
-return_to_handler:
+ENTRY(return_to_handler)
 	stmdb	sp!, {r0-r3}
 	add	r0, sp, #16		@ sp at exit of instrumented routine
 	bl	ftrace_return_to_handler
 	mov	lr, r0			@ r0 has real ret addr
 	ldmia	sp!, {r0-r3}
 	ret	lr
+ENDPROC(return_to_handler)
 #endif
 
 ENTRY(ftrace_stub)

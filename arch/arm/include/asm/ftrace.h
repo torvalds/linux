@@ -35,25 +35,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 
 #ifndef __ASSEMBLY__
 
-#if defined(CONFIG_FRAME_POINTER) && !defined(CONFIG_ARM_UNWIND)
-/*
- * return_address uses walk_stackframe to do it's work.  If both
- * CONFIG_FRAME_POINTER=y and CONFIG_ARM_UNWIND=y walk_stackframe uses unwind
- * information.  For this to work in the function tracer many functions would
- * have to be marked with __notrace.  So for now just depend on
- * !CONFIG_ARM_UNWIND.
- */
-
 void *return_address(unsigned int);
-
-#else
-
-static inline void *return_address(unsigned int level)
-{
-	return NULL;
-}
-
-#endif
 
 #define ftrace_return_address(n) return_address(n)
 
