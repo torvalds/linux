@@ -5365,26 +5365,62 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	dev->irq = irq_of_parse_and_map(dn, 0);
-	if (dev->irq == 0)
-		return -EINVAL;
+	dev->tx_queue_len = MVNETA_MAX_TXD;
+	dev->watchdog_timeo = 5 * HZ;
+	dev->netdev_ops = &mvneta_netdev_ops;
+	dev->ethtool_ops = &mvneta_eth_tool_ops;
+
+	pp = netdev_priv(dev);
+	spin_lock_init(&pp->lock);
+	pp->dn = dn;
+
+	pp->rxq_def = rxq_def;
+	pp->indir[0] = rxq_def;
 
 	err = of_get_phy_mode(dn, &phy_mode);
 	if (err) {
 		dev_err(&pdev->dev, "incorrect phy-mode\n");
-		goto err_free_irq;
+		return err;
 	}
+
+	pp->phy_interface = phy_mode;
 
 	comphy = devm_of_phy_get(&pdev->dev, dn, NULL);
-	if (comphy == ERR_PTR(-EPROBE_DEFER)) {
-		err = -EPROBE_DEFER;
-		goto err_free_irq;
-	} else if (IS_ERR(comphy)) {
+	if (comphy == ERR_PTR(-EPROBE_DEFER))
+		return -EPROBE_DEFER;
+
+	if (IS_ERR(comphy))
 		comphy = NULL;
+
+	pp->comphy = comphy;
+
+	pp->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(pp->base))
+		return PTR_ERR(pp->base);
+
+	/* Get special SoC configurations */
+	if (of_device_is_compatible(dn, "marvell,armada-3700-neta"))
+		pp->neta_armada3700 = true;
+
+	dev->irq = irq_of_parse_and_map(dn, 0);
+	if (dev->irq == 0)
+		return -EINVAL;
+
+	pp->clk = devm_clk_get(&pdev->dev, "core");
+	if (IS_ERR(pp->clk))
+		pp->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pp->clk)) {
+		err = PTR_ERR(pp->clk);
+		goto err_free_irq;
 	}
 
-	pp = netdev_priv(dev);
-	spin_lock_init(&pp->lock);
+	clk_prepare_enable(pp->clk);
+
+	pp->clk_bus = devm_clk_get(&pdev->dev, "bus");
+	if (!IS_ERR(pp->clk_bus))
+		clk_prepare_enable(pp->clk_bus);
+
+	pp->phylink_pcs.ops = &mvneta_phylink_pcs_ops;
 
 	pp->phylink_config.dev = &dev->dev;
 	pp->phylink_config.type = PHYLINK_NETDEV;
@@ -5421,55 +5457,18 @@ static int mvneta_probe(struct platform_device *pdev)
 				 phy_mode, &mvneta_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
-		goto err_free_irq;
-	}
-
-	dev->tx_queue_len = MVNETA_MAX_TXD;
-	dev->watchdog_timeo = 5 * HZ;
-	dev->netdev_ops = &mvneta_netdev_ops;
-
-	dev->ethtool_ops = &mvneta_eth_tool_ops;
-
-	pp->phylink = phylink;
-	pp->comphy = comphy;
-	pp->phy_interface = phy_mode;
-	pp->dn = dn;
-
-	pp->rxq_def = rxq_def;
-	pp->indir[0] = rxq_def;
-
-	/* Get special SoC configurations */
-	if (of_device_is_compatible(dn, "marvell,armada-3700-neta"))
-		pp->neta_armada3700 = true;
-
-	pp->clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(pp->clk))
-		pp->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pp->clk)) {
-		err = PTR_ERR(pp->clk);
-		goto err_free_phylink;
-	}
-
-	clk_prepare_enable(pp->clk);
-
-	pp->clk_bus = devm_clk_get(&pdev->dev, "bus");
-	if (!IS_ERR(pp->clk_bus))
-		clk_prepare_enable(pp->clk_bus);
-
-	pp->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(pp->base)) {
-		err = PTR_ERR(pp->base);
 		goto err_clk;
 	}
 
-	pp->phylink_pcs.ops = &mvneta_phylink_pcs_ops;
+	pp->phylink = phylink;
+
 	phylink_set_pcs(phylink, &pp->phylink_pcs);
 
 	/* Alloc per-cpu port structure */
 	pp->ports = alloc_percpu(struct mvneta_pcpu_port);
 	if (!pp->ports) {
 		err = -ENOMEM;
-		goto err_clk;
+		goto err_free_phylink;
 	}
 
 	/* Alloc per-cpu stats */
@@ -5613,12 +5612,12 @@ err_netdev:
 	free_percpu(pp->stats);
 err_free_ports:
 	free_percpu(pp->ports);
-err_clk:
-	clk_disable_unprepare(pp->clk_bus);
-	clk_disable_unprepare(pp->clk);
 err_free_phylink:
 	if (pp->phylink)
 		phylink_destroy(pp->phylink);
+err_clk:
+	clk_disable_unprepare(pp->clk_bus);
+	clk_disable_unprepare(pp->clk);
 err_free_irq:
 	irq_dispose_mapping(dev->irq);
 	return err;
