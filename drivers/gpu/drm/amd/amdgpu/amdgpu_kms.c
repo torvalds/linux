@@ -87,11 +87,6 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 	if (adev->rmmio == NULL)
 		return;
 
-	if (adev->runpm) {
-		pm_runtime_get_sync(dev->dev);
-		pm_runtime_forbid(dev->dev);
-	}
-
 	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DRV_UNLOAD))
 		DRM_WARN("smart shift update failed\n");
 
@@ -122,22 +117,6 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 		mgpu_info.num_dgpu++;
 
 	mutex_unlock(&mgpu_info.mutex);
-}
-
-static void amdgpu_get_audio_func(struct amdgpu_device *adev)
-{
-	struct pci_dev *p = NULL;
-
-	p = pci_get_domain_bus_and_slot(pci_domain_nr(adev->pdev->bus),
-			adev->pdev->bus->number, 1);
-	if (p) {
-		pm_runtime_get_sync(&p->dev);
-
-		pm_runtime_mark_last_busy(&p->dev);
-		pm_runtime_put_autosuspend(&p->dev);
-
-		pci_dev_put(p);
-	}
 }
 
 /**
@@ -207,58 +186,12 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 	if (acpi_status)
 		dev_dbg(dev->dev, "Error during ACPI methods call\n");
 
-	if (adev->runpm) {
-		/* only need to skip on ATPX */
-		if (amdgpu_device_supports_px(dev))
-			dev_pm_set_driver_flags(dev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
-		/* we want direct complete for BOCO */
-		if (amdgpu_device_supports_boco(dev))
-			dev_pm_set_driver_flags(dev->dev, DPM_FLAG_SMART_PREPARE |
-						DPM_FLAG_SMART_SUSPEND |
-						DPM_FLAG_MAY_SKIP_RESUME);
-		pm_runtime_use_autosuspend(dev->dev);
-		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
-
-		pm_runtime_allow(dev->dev);
-
-		pm_runtime_mark_last_busy(dev->dev);
-		pm_runtime_put_autosuspend(dev->dev);
-
-		/*
-		 * For runpm implemented via BACO, PMFW will handle the
-		 * timing for BACO in and out:
-		 *   - put ASIC into BACO state only when both video and
-		 *     audio functions are in D3 state.
-		 *   - pull ASIC out of BACO state when either video or
-		 *     audio function is in D0 state.
-		 * Also, at startup, PMFW assumes both functions are in
-		 * D0 state.
-		 *
-		 * So if snd driver was loaded prior to amdgpu driver
-		 * and audio function was put into D3 state, there will
-		 * be no PMFW-aware D-state transition(D0->D3) on runpm
-		 * suspend. Thus the BACO will be not correctly kicked in.
-		 *
-		 * Via amdgpu_get_audio_func(), the audio dev is put
-		 * into D0 state. Then there will be a PMFW-aware D-state
-		 * transition(D0->D3) on runpm suspend.
-		 */
-		if (amdgpu_device_supports_baco(dev) &&
-		    !(adev->flags & AMD_IS_APU) &&
-		    (adev->asic_type >= CHIP_NAVI10))
-			amdgpu_get_audio_func(adev);
-	}
-
 	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DRV_LOAD))
 		DRM_WARN("smart shift update failed\n");
 
 out:
-	if (r) {
-		/* balance pm_runtime_get_sync in amdgpu_driver_unload_kms */
-		if (adev->rmmio && adev->runpm)
-			pm_runtime_put_noidle(dev->dev);
+	if (r)
 		amdgpu_driver_unload_kms(dev);
-	}
 
 	return r;
 }
