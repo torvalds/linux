@@ -59,6 +59,7 @@
 #include "lib/hv_vhca.h"
 #include "lib/clock.h"
 #include "en/rx_res.h"
+#include "en/selq.h"
 
 extern const struct net_device_ops mlx5e_netdev_ops;
 struct page_pool;
@@ -908,6 +909,7 @@ struct mlx5e_trap;
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
+	struct mlx5e_selq selq;
 	struct mlx5e_txqsq **txq2sq;
 	int **channel_tc2realtxq;
 	int port_ptp_tc2realtxq[MLX5E_MAX_NUM_TC];

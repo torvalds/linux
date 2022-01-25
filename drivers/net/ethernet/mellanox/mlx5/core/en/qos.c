@@ -501,9 +501,11 @@ int mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 
 	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (opened) {
+		mlx5e_selq_prepare(&priv->selq, &priv->channels.params, true);
+
 		err = mlx5e_qos_alloc_queues(priv, &priv->channels);
 		if (err)
-			return err;
+			goto err_cancel_selq;
 	}
 
 	root = mlx5e_sw_node_create_root(priv);
@@ -524,6 +526,9 @@ int mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 	 */
 	smp_store_release(&priv->htb.maj_id, htb_maj_id);
 
+	if (opened)
+		mlx5e_selq_apply(&priv->selq);
+
 	return 0;
 
 err_sw_node_delete:
@@ -532,6 +537,8 @@ err_sw_node_delete:
 err_free_queues:
 	if (opened)
 		mlx5e_qos_close_all_queues(&priv->channels);
+err_cancel_selq:
+	mlx5e_selq_cancel(&priv->selq);
 	return err;
 }
 
@@ -541,6 +548,9 @@ int mlx5e_htb_root_del(struct mlx5e_priv *priv)
 	int err;
 
 	qos_dbg(priv->mdev, "TC_HTB_DESTROY\n");
+
+	mlx5e_selq_prepare(&priv->selq, &priv->channels.params, false);
+	mlx5e_selq_apply(&priv->selq);
 
 	WRITE_ONCE(priv->htb.maj_id, 0);
 	synchronize_rcu(); /* Sync with mlx5e_select_htb_queue and TX data path. */
