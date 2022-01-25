@@ -1392,6 +1392,10 @@ static int rkvenc_attach_ccu(struct device *dev, struct rkvenc_dev *enc)
 		cur_info->domain = ccu_info->domain;
 		cur_info->rw_sem = ccu_info->rw_sem;
 		mpp_iommu_attach(cur_info);
+
+		/* increase main core message capacity */
+		ccu->main_core->msgs_cap++;
+		enc->mpp.msgs_cap = 0;
 	}
 	enc->ccu = ccu;
 

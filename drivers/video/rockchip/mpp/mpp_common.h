@@ -108,6 +108,7 @@ enum MPP_DEV_COMMAND_TYPE {
 	MPP_CMD_SET_REG_READ		= MPP_CMD_SEND_BASE + 1,
 	MPP_CMD_SET_REG_ADDR_OFFSET	= MPP_CMD_SEND_BASE + 2,
 	MPP_CMD_SET_RCB_INFO		= MPP_CMD_SEND_BASE + 3,
+	MPP_CMD_SET_SESSION_FD		= MPP_CMD_SEND_BASE + 4,
 	MPP_CMD_SEND_BUTT,
 
 	MPP_CMD_POLL_BASE		= 0x300,
@@ -181,6 +182,11 @@ enum CODEC_INFO_FLAGS {
 	CODEC_INFO_FLAG_BUTT,
 };
 
+struct mpp_task;
+struct mpp_session;
+struct mpp_dma_session;
+struct mpp_taskqueue;
+
 /* data common struct for parse out */
 struct mpp_request {
 	__u32 cmd;
@@ -192,11 +198,23 @@ struct mpp_request {
 
 /* struct use to collect task set and poll message */
 struct mpp_task_msgs {
+	/* for ioctl msgs bat process */
+	struct list_head list;
+	struct mpp_session *session;
+	struct mpp_taskqueue *queue;
+	struct mpp_task *task;
+	struct mpp_dev *mpp;
+
+	/* for fd reference */
+	int ext_fd;
+	struct fd f;
+
 	u32 flags;
 	u32 req_cnt;
-	struct mpp_request reqs[MPP_MAX_MSG_NUM];
 	u32 set_cnt;
 	u32 poll_cnt;
+
+	struct mpp_request reqs[MPP_MAX_MSG_NUM];
 };
 
 struct mpp_grf_info {
@@ -281,9 +299,6 @@ struct mpp_mem_region {
 	bool is_dup;
 };
 
-struct mpp_dma_session;
-
-struct mpp_taskqueue;
 
 struct mpp_dev {
 	struct device *dev;
@@ -303,6 +318,13 @@ struct mpp_dev {
 	 * Default 1 means normal hardware can only accept one task at once.
 	 */
 	u32 task_capacity;
+	/*
+	 * The message capacity is the max message parallel process capacity.
+	 * Default 1 means normal hardware can only accept one message at one
+	 * shot ioctl.
+	 * Multi-core hardware can accept more message at one shot ioctl.
+	 */
+	u32 msgs_cap;
 
 	int irq;
 	u32 irq_status;
@@ -328,8 +350,6 @@ struct mpp_dev {
 	struct list_head queue_link;
 	s32 core_id;
 };
-
-struct mpp_task;
 
 struct mpp_session {
 	enum MPP_DEVICE_TYPE device_type;
@@ -369,6 +389,11 @@ struct mpp_session {
 	int (*wait_result)(struct mpp_session *session,
 			   struct mpp_task_msgs *msgs);
 	void (*deinit)(struct mpp_session *session);
+
+	/* max message count */
+	int msgs_cap;
+	int msgs_cnt;
+	struct mpp_task_msgs *msgs;
 };
 
 /* task state in work thread */
