@@ -234,7 +234,6 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct pwm_state cstate;
 	u32 ctrl, duty = 0, period = 0, val;
 	int ret;
-	unsigned int delay_jiffies;
 	unsigned int delay_us, prescaler = 0;
 	bool bypass;
 
@@ -302,8 +301,7 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 
 	/* We need a full period to elapse before disabling the channel. */
-	delay_jiffies = nsecs_to_jiffies(cstate.period + 1000);
-	delay_us = jiffies_to_usecs(delay_jiffies);
+	delay_us = DIV_ROUND_UP_ULL(cstate.period, NSEC_PER_USEC);
 	if ((delay_us / 500) > MAX_UDELAY_MS)
 		msleep(delay_us / 1000 + 1);
 	else
