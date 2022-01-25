@@ -110,24 +110,25 @@ static int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb)
 }
 #endif
 
+static int mlx5e_get_up(struct mlx5e_priv *priv, struct sk_buff *skb)
+{
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
+		return mlx5e_get_dscp_up(priv, skb);
+#endif
+	if (skb_vlan_tag_present(skb))
+		return skb_vlan_tag_get_prio(skb);
+	return 0;
+}
+
 static u16 mlx5e_select_ptpsq(struct net_device *dev, struct sk_buff *skb,
 			      struct mlx5e_selq_params *selq)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int up = 0;
+	int up;
 
-	if (selq->num_tcs <= 1)
-		goto return_txq;
+	up = selq->num_tcs > 1 ? mlx5e_get_up(priv, skb) : 0;
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
-		up = mlx5e_get_dscp_up(priv, skb);
-	else
-#endif
-		if (skb_vlan_tag_present(skb))
-			up = skb_vlan_tag_get_prio(skb);
-
-return_txq:
 	return selq->num_regular_queues + up;
 }
 
@@ -152,8 +153,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_selq_params *selq;
-	int txq_ix;
-	int up = 0;
+	int txq_ix, up;
 
 	selq = rcu_dereference_bh(priv->selq.active);
 
@@ -189,13 +189,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	if (selq->num_tcs <= 1)
 		return txq_ix;
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
-		up = mlx5e_get_dscp_up(priv, skb);
-	else
-#endif
-		if (skb_vlan_tag_present(skb))
-			up = skb_vlan_tag_get_prio(skb);
+	up = mlx5e_get_up(priv, skb);
 
 	/* Normalize any picked txq_ix to [0, num_channels),
 	 * So we can return a txq_ix that matches the channel and
