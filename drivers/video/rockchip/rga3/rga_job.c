@@ -620,10 +620,10 @@ int rga_job_commit(struct rga_req *rga_command_base, int flags)
 			/* ret = 1: fence has been signaled */
 			if (ret == 1) {
 				scheduler = rga_job_schedule(job);
-
 				if (scheduler == NULL) {
 					pr_err("failed to get scheduler, %s(%d)\n",
 						 __func__, __LINE__);
+					ret = -EINVAL;
 					goto invalid_job;
 				}
 				/* if input fence is valid */
@@ -643,10 +643,10 @@ int rga_job_commit(struct rga_req *rga_command_base, int flags)
 			}
 		} else {
 			scheduler = rga_job_schedule(job);
-
 			if (scheduler == NULL) {
 				pr_err("failed to get scheduler, %s(%d)\n",
 					 __func__, __LINE__);
+				ret = -EINVAL;
 				goto invalid_job;
 			}
 		}
@@ -655,10 +655,10 @@ int rga_job_commit(struct rga_req *rga_command_base, int flags)
 		/* sync mode: wait utill job finish */
 	} else if (flags == RGA_BLIT_SYNC) {
 		scheduler = rga_job_schedule(job);
-
 		if (scheduler == NULL) {
 			pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				 __LINE__);
+			ret = -EINVAL;
 			goto invalid_job;
 		}
 
@@ -712,10 +712,10 @@ int rga_job_mpi_commit(struct rga_req *rga_command_base,
 		pr_err("rk-debug TODO\n");
 	} else if (flags == RGA_BLIT_SYNC) {
 		scheduler = rga_job_schedule(job);
-
 		if (scheduler == NULL) {
 			pr_err("failed to get scheduler, %s(%d)\n", __func__,
 				 __LINE__);
+			ret = -EINVAL;
 			goto invalid_job;
 		}
 
