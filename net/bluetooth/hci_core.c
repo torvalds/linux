@@ -3667,8 +3667,8 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		sco_recv_scodata(conn, skb);
 		return;
 	} else {
-		bt_dev_err(hdev, "SCO packet for unknown connection handle %d",
-			   handle);
+		bt_dev_err_ratelimited(hdev, "SCO packet for unknown connection handle %d",
+				       handle);
 	}
 
 	kfree_skb(skb);
