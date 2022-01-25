@@ -4012,6 +4012,15 @@ static const struct phylink_pcs_ops mvneta_phylink_pcs_ops = {
 	.pcs_an_restart = mvneta_pcs_an_restart,
 };
 
+static struct phylink_pcs *mvneta_mac_select_pcs(struct phylink_config *config,
+						 phy_interface_t interface)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct mvneta_port *pp = netdev_priv(ndev);
+
+	return &pp->phylink_pcs;
+}
+
 static int mvneta_mac_prepare(struct phylink_config *config, unsigned int mode,
 			      phy_interface_t interface)
 {
@@ -4219,6 +4228,7 @@ static void mvneta_mac_link_up(struct phylink_config *config,
 
 static const struct phylink_mac_ops mvneta_phylink_ops = {
 	.validate = phylink_generic_validate,
+	.mac_select_pcs = mvneta_mac_select_pcs,
 	.mac_prepare = mvneta_mac_prepare,
 	.mac_config = mvneta_mac_config,
 	.mac_finish = mvneta_mac_finish,
@@ -5461,8 +5471,6 @@ static int mvneta_probe(struct platform_device *pdev)
 	}
 
 	pp->phylink = phylink;
-
-	phylink_set_pcs(phylink, &pp->phylink_pcs);
 
 	/* Alloc per-cpu port structure */
 	pp->ports = alloc_percpu(struct mvneta_pcpu_port);
