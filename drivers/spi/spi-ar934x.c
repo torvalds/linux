@@ -82,7 +82,7 @@ static int ar934x_spi_transfer_one_message(struct spi_controller *master,
 	struct spi_device *spi = m->spi;
 	unsigned long trx_done, trx_cur;
 	int stat = 0;
-	u8 term = 0;
+	u8 bpw, term = 0;
 	int div, i;
 	u32 reg;
 	const u8 *tx_buf;
@@ -90,6 +90,11 @@ static int ar934x_spi_transfer_one_message(struct spi_controller *master,
 
 	m->actual_length = 0;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
+		if (t->bits_per_word >= 8 && t->bits_per_word < 32)
+			bpw = t->bits_per_word >> 3;
+		else
+			bpw = 4;
+
 		if (t->speed_hz)
 			div = ar934x_spi_clk_div(sp, t->speed_hz);
 		else
@@ -105,10 +110,10 @@ static int ar934x_spi_transfer_one_message(struct spi_controller *master,
 		iowrite32(reg, sp->base + AR934X_SPI_REG_CTRL);
 		iowrite32(0, sp->base + AR934X_SPI_DATAOUT);
 
-		for (trx_done = 0; trx_done < t->len; trx_done += 4) {
+		for (trx_done = 0; trx_done < t->len; trx_done += bpw) {
 			trx_cur = t->len - trx_done;
-			if (trx_cur > 4)
-				trx_cur = 4;
+			if (trx_cur > bpw)
+				trx_cur = bpw;
 			else if (list_is_last(&t->transfer_list, &m->transfers))
 				term = 1;
 
@@ -137,8 +142,10 @@ static int ar934x_spi_transfer_one_message(struct spi_controller *master,
 					reg >>= 8;
 				}
 			}
+			spi_delay_exec(&t->word_delay, t);
 		}
 		m->actual_length += t->len;
+		spi_transfer_delay_exec(t);
 	}
 
 msg_done:
@@ -191,7 +198,8 @@ static int ar934x_spi_probe(struct platform_device *pdev)
 	ctlr->mode_bits = SPI_LSB_FIRST;
 	ctlr->setup = ar934x_spi_setup;
 	ctlr->transfer_one_message = ar934x_spi_transfer_one_message;
-	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
+	ctlr->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(24) |
+				   SPI_BPW_MASK(16) | SPI_BPW_MASK(8);
 	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->num_chipselect = 3;
 

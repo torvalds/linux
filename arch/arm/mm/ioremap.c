@@ -459,16 +459,20 @@ void pci_ioremap_set_mem_type(int mem_type)
 	pci_ioremap_mem_type = mem_type;
 }
 
-int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr)
+int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr)
 {
-	BUG_ON(offset + SZ_64K - 1 > IO_SPACE_LIMIT);
+	unsigned long vaddr = (unsigned long)PCI_IOBASE + res->start;
 
-	return ioremap_page_range(PCI_IO_VIRT_BASE + offset,
-				  PCI_IO_VIRT_BASE + offset + SZ_64K,
-				  phys_addr,
+	if (!(res->flags & IORESOURCE_IO))
+		return -EINVAL;
+
+	if (res->end > IO_SPACE_LIMIT)
+		return -EINVAL;
+
+	return ioremap_page_range(vaddr, vaddr + resource_size(res), phys_addr,
 				  __pgprot(get_mem_type(pci_ioremap_mem_type)->prot_pte));
 }
-EXPORT_SYMBOL_GPL(pci_ioremap_io);
+EXPORT_SYMBOL(pci_remap_iospace);
 
 void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size)
 {

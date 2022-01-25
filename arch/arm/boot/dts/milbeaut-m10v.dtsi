@@ -65,10 +65,18 @@
 			      <0x1d002000 0x1000>; /* CPU I/f base and size */
 		};
 
+		clk: clock-ctrl@1d021000 {
+			compatible = "socionext,milbeaut-m10v-ccu";
+			#clock-cells = <1>;
+			reg = <0x1d021000 0x1000>;
+			clocks = <&uclk40xi>;
+		};
+
 		timer@1e000050 { /* 32-bit Reload Timers */
 			compatible = "socionext,milbeaut-timer";
 			reg = <0x1e000050 0x20>;
 			interrupts = <0 91 4>;
+			clocks = <&clk 4>;
 		};
 
 		uart1: serial@1e700010 { /* PE4, PE5 */
@@ -77,6 +85,7 @@
 			reg = <0x1e700010 0x10>;
 			interrupts = <0 141 0x4>, <0 149 0x4>;
 			interrupt-names = "rx", "tx";
+			clocks = <&clk 2>;
 		};
 
 	};

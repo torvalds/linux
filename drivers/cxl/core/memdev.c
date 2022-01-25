@@ -37,9 +37,9 @@ static ssize_t firmware_version_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_mem *cxlm = cxlmd->cxlm;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
-	return sysfs_emit(buf, "%.16s\n", cxlm->firmware_version);
+	return sysfs_emit(buf, "%.16s\n", cxlds->firmware_version);
 }
 static DEVICE_ATTR_RO(firmware_version);
 
@@ -47,9 +47,9 @@ static ssize_t payload_max_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_mem *cxlm = cxlmd->cxlm;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
-	return sysfs_emit(buf, "%zu\n", cxlm->payload_size);
+	return sysfs_emit(buf, "%zu\n", cxlds->payload_size);
 }
 static DEVICE_ATTR_RO(payload_max);
 
@@ -57,9 +57,9 @@ static ssize_t label_storage_size_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_mem *cxlm = cxlmd->cxlm;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
-	return sysfs_emit(buf, "%zu\n", cxlm->lsa_size);
+	return sysfs_emit(buf, "%zu\n", cxlds->lsa_size);
 }
 static DEVICE_ATTR_RO(label_storage_size);
 
@@ -67,8 +67,8 @@ static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_mem *cxlm = cxlmd->cxlm;
-	unsigned long long len = range_len(&cxlm->ram_range);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	unsigned long long len = range_len(&cxlds->ram_range);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -80,8 +80,8 @@ static ssize_t pmem_size_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_mem *cxlm = cxlmd->cxlm;
-	unsigned long long len = range_len(&cxlm->pmem_range);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	unsigned long long len = range_len(&cxlds->pmem_range);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -136,42 +136,42 @@ static const struct device_type cxl_memdev_type = {
 
 /**
  * set_exclusive_cxl_commands() - atomically disable user cxl commands
- * @cxlm: cxl_mem instance to modify
+ * @cxlds: The device state to operate on
  * @cmds: bitmap of commands to mark exclusive
  *
  * Grab the cxl_memdev_rwsem in write mode to flush in-flight
  * invocations of the ioctl path and then disable future execution of
  * commands with the command ids set in @cmds.
  */
-void set_exclusive_cxl_commands(struct cxl_mem *cxlm, unsigned long *cmds)
+void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds)
 {
 	down_write(&cxl_memdev_rwsem);
-	bitmap_or(cxlm->exclusive_cmds, cxlm->exclusive_cmds, cmds,
+	bitmap_or(cxlds->exclusive_cmds, cxlds->exclusive_cmds, cmds,
 		  CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
-EXPORT_SYMBOL_GPL(set_exclusive_cxl_commands);
+EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, CXL);
 
 /**
  * clear_exclusive_cxl_commands() - atomically enable user cxl commands
- * @cxlm: cxl_mem instance to modify
+ * @cxlds: The device state to modify
  * @cmds: bitmap of commands to mark available for userspace
  */
-void clear_exclusive_cxl_commands(struct cxl_mem *cxlm, unsigned long *cmds)
+void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds)
 {
 	down_write(&cxl_memdev_rwsem);
-	bitmap_andnot(cxlm->exclusive_cmds, cxlm->exclusive_cmds, cmds,
+	bitmap_andnot(cxlds->exclusive_cmds, cxlds->exclusive_cmds, cmds,
 		      CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
-EXPORT_SYMBOL_GPL(clear_exclusive_cxl_commands);
+EXPORT_SYMBOL_NS_GPL(clear_exclusive_cxl_commands, CXL);
 
 static void cxl_memdev_shutdown(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 
 	down_write(&cxl_memdev_rwsem);
-	cxlmd->cxlm = NULL;
+	cxlmd->cxlds = NULL;
 	up_write(&cxl_memdev_rwsem);
 }
 
@@ -185,7 +185,7 @@ static void cxl_memdev_unregister(void *_cxlmd)
 	put_device(dev);
 }
 
-static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm,
+static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 					   const struct file_operations *fops)
 {
 	struct cxl_memdev *cxlmd;
@@ -204,7 +204,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_mem *cxlm,
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);
-	dev->parent = cxlm->dev;
+	dev->parent = cxlds->dev;
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);
 	dev->type = &cxl_memdev_type;
@@ -239,7 +239,7 @@ static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
 	int rc = -ENXIO;
 
 	down_read(&cxl_memdev_rwsem);
-	if (cxlmd->cxlm)
+	if (cxlmd->cxlds)
 		rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
 	up_read(&cxl_memdev_rwsem);
 
@@ -276,15 +276,14 @@ static const struct file_operations cxl_memdev_fops = {
 	.llseek = noop_llseek,
 };
 
-struct cxl_memdev *
-devm_cxl_add_memdev(struct cxl_mem *cxlm)
+struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds)
 {
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
 	struct cdev *cdev;
 	int rc;
 
-	cxlmd = cxl_memdev_alloc(cxlm, &cxl_memdev_fops);
+	cxlmd = cxl_memdev_alloc(cxlds, &cxl_memdev_fops);
 	if (IS_ERR(cxlmd))
 		return cxlmd;
 
@@ -297,14 +296,14 @@ devm_cxl_add_memdev(struct cxl_mem *cxlm)
 	 * Activate ioctl operations, no cxl_memdev_rwsem manipulation
 	 * needed as this is ordered with cdev_add() publishing the device.
 	 */
-	cxlmd->cxlm = cxlm;
+	cxlmd->cxlds = cxlds;
 
 	cdev = &cxlmd->cdev;
 	rc = cdev_device_add(cdev, dev);
 	if (rc)
 		goto err;
 
-	rc = devm_add_action_or_reset(cxlm->dev, cxl_memdev_unregister, cxlmd);
+	rc = devm_add_action_or_reset(cxlds->dev, cxl_memdev_unregister, cxlmd);
 	if (rc)
 		return ERR_PTR(rc);
 	return cxlmd;
@@ -318,7 +317,7 @@ err:
 	put_device(dev);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_GPL(devm_cxl_add_memdev);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_memdev, CXL);
 
 __init int cxl_memdev_init(void)
 {

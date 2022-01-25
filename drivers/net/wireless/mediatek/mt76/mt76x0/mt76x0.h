@@ -49,6 +49,8 @@ void mt76x0_chip_onoff(struct mt76x02_dev *dev, bool enable, bool reset);
 void mt76x0_mac_stop(struct mt76x02_dev *dev);
 
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed);
+int mt76x0_set_sar_specs(struct ieee80211_hw *hw,
+			 const struct cfg80211_sar_specs *sar);
 
 /* PHY */
 void mt76x0_phy_init(struct mt76x02_dev *dev);

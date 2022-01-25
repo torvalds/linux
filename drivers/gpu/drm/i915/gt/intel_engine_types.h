@@ -257,6 +257,55 @@ struct intel_engine_execlists {
 
 #define INTEL_ENGINE_CS_MAX_NAME 8
 
+struct intel_engine_execlists_stats {
+	/**
+	 * @active: Number of contexts currently scheduled in.
+	 */
+	unsigned int active;
+
+	/**
+	 * @lock: Lock protecting the below fields.
+	 */
+	seqcount_t lock;
+
+	/**
+	 * @total: Total time this engine was busy.
+	 *
+	 * Accumulated time not counting the most recent block in cases where
+	 * engine is currently busy (active > 0).
+	 */
+	ktime_t total;
+
+	/**
+	 * @start: Timestamp of the last idle to active transition.
+	 *
+	 * Idle is defined as active == 0, active is active > 0.
+	 */
+	ktime_t start;
+};
+
+struct intel_engine_guc_stats {
+	/**
+	 * @running: Active state of the engine when busyness was last sampled.
+	 */
+	bool running;
+
+	/**
+	 * @prev_total: Previous value of total runtime clock cycles.
+	 */
+	u32 prev_total;
+
+	/**
+	 * @total_gt_clks: Total gt clock cycles this engine was busy.
+	 */
+	u64 total_gt_clks;
+
+	/**
+	 * @start_gt_clk: GT clock time of last idle to active transition.
+	 */
+	u64 start_gt_clk;
+};
+
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
 	struct intel_gt *gt;
@@ -269,6 +318,7 @@ struct intel_engine_cs {
 	unsigned int guc_id;
 
 	intel_engine_mask_t mask;
+	u32 reset_domain;
 	/**
 	 * @logical_mask: logical mask of engine, reported to user space via
 	 * query IOCTL and used to communicate with the GuC in logical space.
@@ -439,6 +489,12 @@ struct intel_engine_cs {
 	void		(*add_active_request)(struct i915_request *rq);
 	void		(*remove_active_request)(struct i915_request *rq);
 
+	/*
+	 * Get engine busyness and the time at which the busyness was sampled.
+	 */
+	ktime_t		(*busyness)(struct intel_engine_cs *engine,
+				    ktime_t *now);
+
 	struct intel_engine_execlists execlists;
 
 	/*
@@ -488,30 +544,10 @@ struct intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 
 	struct {
-		/**
-		 * @active: Number of contexts currently scheduled in.
-		 */
-		unsigned int active;
-
-		/**
-		 * @lock: Lock protecting the below fields.
-		 */
-		seqcount_t lock;
-
-		/**
-		 * @total: Total time this engine was busy.
-		 *
-		 * Accumulated time not counting the most recent block in cases
-		 * where engine is currently busy (active > 0).
-		 */
-		ktime_t total;
-
-		/**
-		 * @start: Timestamp of the last idle to active transition.
-		 *
-		 * Idle is defined as active == 0, active is active > 0.
-		 */
-		ktime_t start;
+		union {
+			struct intel_engine_execlists_stats execlists;
+			struct intel_engine_guc_stats guc;
+		};
 
 		/**
 		 * @rps: Utilisation at last RPS sampling.

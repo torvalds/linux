@@ -55,7 +55,7 @@
 
 	clocks {
 		clk32 {
-			compatible = "fsl,imx-clk32", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32000>;
 		};

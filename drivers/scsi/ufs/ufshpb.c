@@ -10,7 +10,6 @@
  */
 
 #include <asm/unaligned.h>
-#include <linux/async.h>
 
 #include "ufshcd.h"
 #include "ufshpb.h"
@@ -331,7 +330,7 @@ ufshpb_set_hpb_read_to_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 	cdb[0] = UFSHPB_READ;
 
 	if (hba->dev_quirks & UFS_DEVICE_QUIRK_SWAP_L2P_ENTRY_FOR_HPB_READ)
-		ppn_tmp = swab64(ppn);
+		ppn_tmp = (__force __be64)swab64((__force u64)ppn);
 
 	/* ppn value is stored as big-endian in the host memory */
 	memcpy(&cdb[6], &ppn_tmp, sizeof(__be64));
@@ -677,7 +676,7 @@ static void ufshpb_execute_umap_req(struct ufshpb_lu *hpb,
 	ufshpb_set_unmap_cmd(rq->cmd, rgn);
 	rq->cmd_len = HPB_WRITE_BUFFER_CMD_LENGTH;
 
-	blk_execute_rq_nowait(NULL, req, 1, ufshpb_umap_req_compl_fn);
+	blk_execute_rq_nowait(req, true, ufshpb_umap_req_compl_fn);
 
 	hpb->stats.umap_req_cnt++;
 }
@@ -719,7 +718,7 @@ static int ufshpb_execute_map_req(struct ufshpb_lu *hpb,
 				map_req->rb.srgn_idx, mem_size);
 	rq->cmd_len = HPB_READ_BUFFER_CMD_LENGTH;
 
-	blk_execute_rq_nowait(NULL, req, 1, ufshpb_map_req_compl_fn);
+	blk_execute_rq_nowait(req, true, ufshpb_map_req_compl_fn);
 
 	hpb->stats.map_req_cnt++;
 	return 0;

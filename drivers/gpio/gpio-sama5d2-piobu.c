@@ -192,7 +192,6 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, piobu);
 	piobu->chip.label = pdev->name;
 	piobu->chip.parent = &pdev->dev;
-	piobu->chip.of_node = pdev->dev.of_node;
 	piobu->chip.owner = THIS_MODULE,
 	piobu->chip.get_direction = sama5d2_piobu_get_direction,
 	piobu->chip.direction_input = sama5d2_piobu_direction_input,

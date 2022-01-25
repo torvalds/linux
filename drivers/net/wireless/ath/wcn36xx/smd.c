@@ -722,6 +722,7 @@ int wcn36xx_smd_init_scan(struct wcn36xx *wcn, enum wcn36xx_hal_sys_mode mode,
 		wcn36xx_err("hal_init_scan response failed err=%d\n", ret);
 		goto out;
 	}
+	wcn->sw_scan_init = true;
 out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
@@ -752,6 +753,7 @@ int wcn36xx_smd_start_scan(struct wcn36xx *wcn, u8 scan_channel)
 		wcn36xx_err("hal_start_scan response failed err=%d\n", ret);
 		goto out;
 	}
+	wcn->sw_scan_channel = scan_channel;
 out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
@@ -782,6 +784,7 @@ int wcn36xx_smd_end_scan(struct wcn36xx *wcn, u8 scan_channel)
 		wcn36xx_err("hal_end_scan response failed err=%d\n", ret);
 		goto out;
 	}
+	wcn->sw_scan_channel = 0;
 out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
@@ -823,6 +826,7 @@ int wcn36xx_smd_finish_scan(struct wcn36xx *wcn,
 		wcn36xx_err("hal_finish_scan response failed err=%d\n", ret);
 		goto out;
 	}
+	wcn->sw_scan_init = false;
 out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
@@ -940,7 +944,7 @@ int wcn36xx_smd_update_channel_list(struct wcn36xx *wcn, struct cfg80211_scan_re
 
 	INIT_HAL_MSG((*msg_body), WCN36XX_HAL_UPDATE_CHANNEL_LIST_REQ);
 
-	msg_body->num_channel = min_t(u8, req->n_channels, sizeof(msg_body->channels));
+	msg_body->num_channel = min_t(u8, req->n_channels, ARRAY_SIZE(msg_body->channels));
 	for (i = 0; i < msg_body->num_channel; i++) {
 		struct wcn36xx_hal_channel_param *param = &msg_body->channels[i];
 		u32 min_power = WCN36XX_HAL_DEFAULT_MIN_POWER;
@@ -2557,6 +2561,7 @@ int wcn36xx_smd_add_ba_session(struct wcn36xx *wcn,
 					     &session_id);
 	if (ret) {
 		wcn36xx_err("hal_add_ba_session response failed err=%d\n", ret);
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -2622,27 +2627,43 @@ out:
 	return ret;
 }
 
-static int wcn36xx_smd_trigger_ba_rsp(void *buf, int len)
+static int wcn36xx_smd_trigger_ba_rsp(void *buf, int len, struct add_ba_info *ba_info)
 {
+	struct wcn36xx_hal_trigger_ba_rsp_candidate *candidate;
 	struct wcn36xx_hal_trigger_ba_rsp_msg *rsp;
+	int i;
 
 	if (len < sizeof(*rsp))
 		return -EINVAL;
 
 	rsp = (struct wcn36xx_hal_trigger_ba_rsp_msg *) buf;
+
+	if (rsp->candidate_cnt < 1)
+		return rsp->status ? rsp->status : -EINVAL;
+
+	candidate = (struct wcn36xx_hal_trigger_ba_rsp_candidate *)(buf + sizeof(*rsp));
+
+	for (i = 0; i < STACFG_MAX_TC; i++) {
+		ba_info[i] = candidate->ba_info[i];
+	}
+
 	return rsp->status;
 }
 
-int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index, u16 tid, u8 session_id)
+int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index, u16 tid, u16 *ssn)
 {
 	struct wcn36xx_hal_trigger_ba_req_msg msg_body;
 	struct wcn36xx_hal_trigger_ba_req_candidate *candidate;
+	struct add_ba_info ba_info[STACFG_MAX_TC];
 	int ret;
+
+	if (tid >= STACFG_MAX_TC)
+		return -EINVAL;
 
 	mutex_lock(&wcn->hal_mutex);
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_TRIGGER_BA_REQ);
 
-	msg_body.session_id = session_id;
+	msg_body.session_id = 0; /* not really used */
 	msg_body.candidate_cnt = 1;
 	msg_body.header.len += sizeof(*candidate);
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
@@ -2657,13 +2678,17 @@ int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index, u16 tid, u8 sessio
 		wcn36xx_err("Sending hal_trigger_ba failed\n");
 		goto out;
 	}
-	ret = wcn36xx_smd_trigger_ba_rsp(wcn->hal_buf, wcn->hal_rsp_len);
+	ret = wcn36xx_smd_trigger_ba_rsp(wcn->hal_buf, wcn->hal_rsp_len, ba_info);
 	if (ret) {
 		wcn36xx_err("hal_trigger_ba response failed err=%d\n", ret);
 		goto out;
 	}
 out:
 	mutex_unlock(&wcn->hal_mutex);
+
+	if (ssn)
+		*ssn = ba_info[tid].starting_seq_num;
+
 	return ret;
 }
 
@@ -2732,7 +2757,7 @@ static int wcn36xx_smd_missed_beacon_ind(struct wcn36xx *wcn,
 			wcn36xx_dbg(WCN36XX_DBG_HAL, "beacon missed bss_index %d\n",
 				    tmp->bss_index);
 			vif = wcn36xx_priv_to_vif(tmp);
-			ieee80211_connection_loss(vif);
+			ieee80211_beacon_loss(vif);
 		}
 		return 0;
 	}
@@ -2747,7 +2772,7 @@ static int wcn36xx_smd_missed_beacon_ind(struct wcn36xx *wcn,
 			wcn36xx_dbg(WCN36XX_DBG_HAL, "beacon missed bss_index %d\n",
 				    rsp->bss_index);
 			vif = wcn36xx_priv_to_vif(tmp);
-			ieee80211_connection_loss(vif);
+			ieee80211_beacon_loss(vif);
 			return 0;
 		}
 	}
@@ -3168,6 +3193,91 @@ out:
 	return ret;
 }
 
+#define BEACON_FILTER(eid, presence, offs, val, mask, ref_val) \
+	{					\
+		.element_id = eid,		\
+		.check_ie_presence = presence,	\
+		.offset = offs,			\
+		.value = val,			\
+		.bitmask = mask,		\
+		.ref = ref_val,			\
+	}
+
+static const struct beacon_filter_ie bcn_filter_ies[] = {
+	BEACON_FILTER(WLAN_EID_DS_PARAMS, 0, 0, 0,
+		      WCN36XX_FILTER_IE_DS_CHANNEL_MASK, 0),
+	BEACON_FILTER(WLAN_EID_ERP_INFO, 0, 0, 0,
+		      WCN36XX_FILTER_IE_ERP_FILTER_MASK, 0),
+	BEACON_FILTER(WLAN_EID_EDCA_PARAM_SET, 0, 0, 0,
+		      WCN36XX_FILTER_IE_EDCA_FILTER_MASK, 0),
+	BEACON_FILTER(WLAN_EID_QOS_CAPA, 0, 0, 0,
+		      WCN36XX_FILTER_IE_QOS_FILTER_MASK, 0),
+	BEACON_FILTER(WLAN_EID_CHANNEL_SWITCH, 1, 0, 0,
+		      WCN36XX_FILTER_IE_CHANNEL_SWITCH_MASK, 0),
+	BEACON_FILTER(WLAN_EID_HT_OPERATION, 0, 0, 0,
+		      WCN36XX_FILTER_IE_HT_BYTE0_FILTER_MASK, 0),
+	BEACON_FILTER(WLAN_EID_HT_OPERATION, 0, 2, 0,
+		      WCN36XX_FILTER_IE_HT_BYTE2_FILTER_MASK, 0),
+	BEACON_FILTER(WLAN_EID_HT_OPERATION, 0, 5, 0,
+		      WCN36XX_FILTER_IE_HT_BYTE5_FILTER_MASK, 0),
+	BEACON_FILTER(WLAN_EID_PWR_CONSTRAINT, 0, 0, 0,
+		      WCN36XX_FILTER_IE_PWR_CONSTRAINT_MASK, 0),
+	BEACON_FILTER(WLAN_EID_OPMODE_NOTIF, 0, 0, 0,
+		      WCN36XX_FILTER_IE_OPMODE_NOTIF_MASK, 0),
+	BEACON_FILTER(WLAN_EID_VHT_OPERATION, 0, 0, 0,
+		      WCN36XX_FILTER_IE_VHTOP_CHWIDTH_MASK, 0),
+	BEACON_FILTER(WLAN_EID_RSN, 1, 0, 0,
+		      WCN36XX_FILTER_IE_RSN_MASK, 0),
+	BEACON_FILTER(WLAN_EID_VENDOR_SPECIFIC, 1, 0, 0,
+		      WCN36XX_FILTER_IE_VENDOR_MASK, 0),
+};
+
+int wcn36xx_smd_add_beacon_filter(struct wcn36xx *wcn,
+				  struct ieee80211_vif *vif)
+{
+	struct wcn36xx_hal_add_bcn_filter_req_msg msg_body, *body;
+	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
+	u8 *payload;
+	size_t payload_size;
+	int ret;
+
+	if (!get_feat_caps(wcn->fw_feat_caps, BCN_FILTER))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&wcn->hal_mutex);
+	INIT_HAL_MSG(msg_body, WCN36XX_HAL_ADD_BCN_FILTER_REQ);
+
+	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
+
+	body = (struct wcn36xx_hal_add_bcn_filter_req_msg *)wcn->hal_buf;
+	body->capability_info = vif->bss_conf.assoc_capability;
+	body->capability_mask = WCN36XX_FILTER_CAPABILITY_MASK;
+	body->beacon_interval = vif->bss_conf.beacon_int;
+	body->ie_num = ARRAY_SIZE(bcn_filter_ies);
+	body->bss_index = vif_priv->bss_index;
+
+	payload = ((u8 *)body) + body->header.len;
+	payload_size = sizeof(bcn_filter_ies);
+	memcpy(payload, &bcn_filter_ies, payload_size);
+
+	body->header.len += payload_size;
+
+	ret = wcn36xx_smd_send_and_wait(wcn, body->header.len);
+	if (ret) {
+		wcn36xx_err("Sending add bcn_filter failed\n");
+		goto out;
+	}
+
+	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
+	if (ret) {
+		wcn36xx_err("add bcn filter response failed err=%d\n", ret);
+		goto out;
+	}
+out:
+	mutex_unlock(&wcn->hal_mutex);
+	return ret;
+}
+
 int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 			    void *buf, int len, void *priv, u32 addr)
 {
@@ -3223,6 +3333,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 	case WCN36XX_HAL_ENTER_IMPS_RSP:
 	case WCN36XX_HAL_EXIT_IMPS_RSP:
 	case WCN36XX_HAL_UPDATE_CHANNEL_LIST_RSP:
+	case WCN36XX_HAL_ADD_BCN_FILTER_RSP:
 		memcpy(wcn->hal_buf, buf, len);
 		wcn->hal_rsp_len = len;
 		complete(&wcn->hal_rsp_compl);

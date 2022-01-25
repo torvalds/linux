@@ -66,7 +66,19 @@ properties:
 
       - items:
           - enum:
+              - renesas,scif-r8a779f0     # R-Car S4-8
+          - const: renesas,rcar-gen4-scif # R-Car Gen4
+          - const: renesas,scif           # generic SCIF compatible UART
+
+      - items:
+          - enum:
               - renesas,scif-r9a07g044      # RZ/G2{L,LC}
+              - renesas,scif-r9a07g054      # RZ/V2L
+
+      - items:
+          - enum:
+              - renesas,scif-r9a07g054      # RZ/V2L
+          - const: renesas,scif-r9a07g044   # RZ/G2{L,LC} fallback for RZ/V2L
 
   reg:
     maxItems: 1
@@ -153,6 +165,9 @@ if:
         enum:
           - renesas,rcar-gen2-scif
           - renesas,rcar-gen3-scif
+          - renesas,rcar-gen4-scif
+          - renesas,scif-r9a07g044
+          - renesas,scif-r9a07g054
 then:
   required:
     - resets

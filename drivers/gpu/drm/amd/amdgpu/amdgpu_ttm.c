@@ -43,6 +43,7 @@
 #include <linux/sizes.h>
 #include <linux/module.h>
 
+#include <drm/drm_drv.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -116,17 +117,8 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 
 	abo = ttm_to_amdgpu_bo(bo);
 	if (abo->flags & AMDGPU_AMDKFD_CREATE_SVM_BO) {
-		struct dma_fence *fence;
-		struct dma_resv *resv = &bo->base._resv;
-
-		rcu_read_lock();
-		fence = rcu_dereference(resv->fence_excl);
-		if (fence && !fence->ops->signaled)
-			dma_fence_enable_sw_signaling(fence);
-
 		placement->num_placement = 0;
 		placement->num_busy_placement = 0;
-		rcu_read_unlock();
 		return;
 	}
 
@@ -922,11 +914,6 @@ static int amdgpu_ttm_backend_bind(struct ttm_device *bdev,
 		     ttm->num_pages, bo_mem, ttm);
 	}
 
-	if (bo_mem->mem_type == AMDGPU_PL_GDS ||
-	    bo_mem->mem_type == AMDGPU_PL_GWS ||
-	    bo_mem->mem_type == AMDGPU_PL_OA)
-		return -EINVAL;
-
 	if (bo_mem->mem_type != TTM_PL_TT ||
 	    !amdgpu_gtt_mgr_has_gart_addr(bo_mem)) {
 		gtt->offset = AMDGPU_BO_INVALID_OFFSET;
@@ -1353,10 +1340,9 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 					    const struct ttm_place *place)
 {
 	unsigned long num_pages = bo->resource->num_pages;
+	struct dma_resv_iter resv_cursor;
 	struct amdgpu_res_cursor cursor;
-	struct dma_resv_list *flist;
 	struct dma_fence *f;
-	int i;
 
 	/* Swapout? */
 	if (bo->resource->mem_type == TTM_PL_SYSTEM)
@@ -1370,14 +1356,9 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	 * If true, then return false as any KFD process needs all its BOs to
 	 * be resident to run successfully
 	 */
-	flist = dma_resv_shared_list(bo->base.resv);
-	if (flist) {
-		for (i = 0; i < flist->shared_count; ++i) {
-			f = rcu_dereference_protected(flist->shared[i],
-				dma_resv_held(bo->base.resv));
-			if (amdkfd_fence_check_mm(f, current->mm))
-				return false;
-		}
+	dma_resv_for_each_fence(&resv_cursor, bo->base.resv, true, f) {
+		if (amdkfd_fence_check_mm(f, current->mm))
+			return false;
 	}
 
 	switch (bo->resource->mem_type) {
@@ -1824,6 +1805,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
  */
 void amdgpu_ttm_fini(struct amdgpu_device *adev)
 {
+	int idx;
 	if (!adev->mman.initialized)
 		return;
 
@@ -1837,6 +1819,15 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 		amdgpu_bo_free_kernel(&adev->mman.stolen_reserved_memory,
 				      NULL, NULL);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
+
+	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
+
+		if (adev->mman.aper_base_kaddr)
+			iounmap(adev->mman.aper_base_kaddr);
+		adev->mman.aper_base_kaddr = NULL;
+
+		drm_dev_exit(idx);
+	}
 
 	amdgpu_vram_mgr_fini(adev);
 	amdgpu_gtt_mgr_fini(adev);

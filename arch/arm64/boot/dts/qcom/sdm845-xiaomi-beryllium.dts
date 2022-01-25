@@ -514,6 +514,7 @@
 
 &venus {
 	status = "okay";
+	firmware-name = "qcom/sdm845/beryllium/venus.mbn";
 };
 
 &wcd9340{

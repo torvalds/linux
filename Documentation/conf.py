@@ -208,16 +208,86 @@ highlight_language = 'none'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 
-# The Read the Docs theme is available from
-# - https://github.com/snide/sphinx_rtd_theme
-# - https://pypi.python.org/pypi/sphinx_rtd_theme
-# - python-sphinx-rtd-theme package (on Debian)
-try:
-    import sphinx_rtd_theme
-    html_theme = 'sphinx_rtd_theme'
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-except ImportError:
-    sys.stderr.write('Warning: The Sphinx \'sphinx_rtd_theme\' HTML theme was not found. Make sure you have the theme installed to produce pretty HTML output. Falling back to the default theme.\n')
+# Default theme
+html_theme = 'sphinx_rtd_theme'
+html_css_files = []
+
+if "DOCS_THEME" in os.environ:
+    html_theme = os.environ["DOCS_THEME"]
+
+if html_theme == 'sphinx_rtd_theme' or html_theme == 'sphinx_rtd_dark_mode':
+    # Read the Docs theme
+    try:
+        import sphinx_rtd_theme
+        html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+        # Add any paths that contain custom static files (such as style sheets) here,
+        # relative to this directory. They are copied after the builtin static files,
+        # so a file named "default.css" will overwrite the builtin "default.css".
+        html_css_files = [
+            'theme_overrides.css',
+        ]
+
+        # Read the Docs dark mode override theme
+        if html_theme == 'sphinx_rtd_dark_mode':
+            try:
+                import sphinx_rtd_dark_mode
+                extensions.append('sphinx_rtd_dark_mode')
+            except ImportError:
+                html_theme == 'sphinx_rtd_theme'
+
+        if html_theme == 'sphinx_rtd_theme':
+                # Add color-specific RTD normal mode
+                html_css_files.append('theme_rtd_colors.css')
+
+    except ImportError:
+        html_theme = 'classic'
+
+if "DOCS_CSS" in os.environ:
+    css = os.environ["DOCS_CSS"].split(" ")
+
+    for l in css:
+        html_css_files.append(l)
+
+if major <= 1 and minor < 8:
+    html_context = {
+        'css_files': [],
+    }
+
+    for l in html_css_files:
+        html_context['css_files'].append('_static/' + l)
+
+if  html_theme == 'classic':
+    html_theme_options = {
+        'rightsidebar':        False,
+        'stickysidebar':       True,
+        'collapsiblesidebar':  True,
+        'externalrefs':        False,
+
+        'footerbgcolor':       "white",
+        'footertextcolor':     "white",
+        'sidebarbgcolor':      "white",
+        'sidebarbtncolor':     "black",
+        'sidebartextcolor':    "black",
+        'sidebarlinkcolor':    "#686bff",
+        'relbarbgcolor':       "#133f52",
+        'relbartextcolor':     "white",
+        'relbarlinkcolor':     "white",
+        'bgcolor':             "white",
+        'textcolor':           "black",
+        'headbgcolor':         "#f2f2f2",
+        'headtextcolor':       "#20435c",
+        'headlinkcolor':       "#c60f0f",
+        'linkcolor':           "#355f7c",
+        'visitedlinkcolor':    "#355f7c",
+        'codebgcolor':         "#3f3f3f",
+        'codetextcolor':       "white",
+
+        'bodyfont':            "serif",
+        'headfont':            "sans-serif",
+    }
+
+sys.stderr.write("Using %s theme\n" % html_theme)
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -246,14 +316,7 @@ except ImportError:
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-
 html_static_path = ['sphinx-static']
-
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',
-    ],
-}
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied

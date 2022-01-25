@@ -486,6 +486,23 @@
 
 #define MSR_AMD64_VIRT_SPEC_CTRL	0xc001011f
 
+/* AMD Collaborative Processor Performance Control MSRs */
+#define MSR_AMD_CPPC_CAP1		0xc00102b0
+#define MSR_AMD_CPPC_ENABLE		0xc00102b1
+#define MSR_AMD_CPPC_CAP2		0xc00102b2
+#define MSR_AMD_CPPC_REQ		0xc00102b3
+#define MSR_AMD_CPPC_STATUS		0xc00102b4
+
+#define AMD_CPPC_LOWEST_PERF(x)		(((x) >> 0) & 0xff)
+#define AMD_CPPC_LOWNONLIN_PERF(x)	(((x) >> 8) & 0xff)
+#define AMD_CPPC_NOMINAL_PERF(x)	(((x) >> 16) & 0xff)
+#define AMD_CPPC_HIGHEST_PERF(x)	(((x) >> 24) & 0xff)
+
+#define AMD_CPPC_MAX_PERF(x)		(((x) & 0xff) << 0)
+#define AMD_CPPC_MIN_PERF(x)		(((x) & 0xff) << 8)
+#define AMD_CPPC_DES_PERF(x)		(((x) & 0xff) << 16)
+#define AMD_CPPC_ENERGY_PERF_PREF(x)	(((x) & 0xff) << 24)
+
 /* Fam 17h MSRs */
 #define MSR_F17H_IRPERF			0xc00000e9
 

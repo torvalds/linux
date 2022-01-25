@@ -5,7 +5,6 @@
 
 #include <linux/bug.h>
 #include <linux/types.h>
-#include <linux/kernel.h>
 #include <linux/string.h>
 
 enum blake2b_lengths {

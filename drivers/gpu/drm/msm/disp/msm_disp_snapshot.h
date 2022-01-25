@@ -39,7 +39,7 @@
  * @dev: device pointer
  * @drm_dev: drm device pointer
  * @atomic_state: atomic state duplicated at the time of the error
- * @timestamp: timestamp at which the coredump was captured
+ * @time: timestamp at which the coredump was captured
  */
 struct msm_disp_state {
 	struct device *dev;
@@ -49,7 +49,7 @@ struct msm_disp_state {
 
 	struct drm_atomic_state *atomic_state;
 
-	ktime_t timestamp;
+	struct timespec64 time;
 };
 
 /**
@@ -83,6 +83,16 @@ int msm_disp_snapshot_init(struct drm_device *drm_dev);
  * Returns:	none
  */
 void msm_disp_snapshot_destroy(struct drm_device *drm_dev);
+
+/**
+ * msm_disp_snapshot_state_sync - synchronously snapshot display state
+ * @kms:  the kms object
+ *
+ * Returns state or error
+ *
+ * Must be called with &kms->dump_mutex held
+ */
+struct msm_disp_state *msm_disp_snapshot_state_sync(struct msm_kms *kms);
 
 /**
  * msm_disp_snapshot_state - trigger to dump the display snapshot

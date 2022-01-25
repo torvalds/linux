@@ -32,42 +32,9 @@ extern cpumask_t threads_core_mask;
 #define threads_core_mask	(*get_cpu_mask(0))
 #endif
 
-/* cpu_thread_mask_to_cores - Return a cpumask of one per cores
- *                            hit by the argument
- *
- * @threads:	a cpumask of online threads
- *
- * This function returns a cpumask which will have one online cpu's
- * bit set for each core that has at least one thread set in the argument.
- *
- * This can typically be used for things like IPI for tlb invalidations
- * since those need to be done only once per core/TLB
- */
-static inline cpumask_t cpu_thread_mask_to_cores(const struct cpumask *threads)
-{
-	cpumask_t	tmp, res;
-	int		i, cpu;
-
-	cpumask_clear(&res);
-	for (i = 0; i < NR_CPUS; i += threads_per_core) {
-		cpumask_shift_left(&tmp, &threads_core_mask, i);
-		if (cpumask_intersects(threads, &tmp)) {
-			cpu = cpumask_next_and(-1, &tmp, cpu_online_mask);
-			if (cpu < nr_cpu_ids)
-				cpumask_set_cpu(cpu, &res);
-		}
-	}
-	return res;
-}
-
 static inline int cpu_nr_cores(void)
 {
 	return nr_cpu_ids >> threads_shift;
-}
-
-static inline cpumask_t cpu_online_cores_map(void)
-{
-	return cpu_thread_mask_to_cores(cpu_online_mask);
 }
 
 #ifdef CONFIG_SMP

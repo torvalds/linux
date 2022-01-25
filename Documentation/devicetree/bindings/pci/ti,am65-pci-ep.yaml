@@ -32,8 +32,12 @@ properties:
     maxItems: 1
 
   ti,syscon-pcie-mode:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to the SYSCON entry
+          - description: pcie_ctrl register offset within SYSCON
     description: Phandle to the SYSCON entry required for configuring PCIe in RC or EP mode.
-    $ref: /schemas/types.yaml#/definitions/phandle
 
   interrupts:
     minItems: 1
@@ -65,9 +69,7 @@ examples:
                <0x5506000 0x1000>;
         reg-names = "app", "dbics", "addr_space", "atu";
         power-domains = <&k3_pds 120 TI_SCI_PD_EXCLUSIVE>;
-        ti,syscon-pcie-mode = <&pcie0_mode>;
-        num-ib-windows = <16>;
-        num-ob-windows = <16>;
+        ti,syscon-pcie-mode = <&scm_conf 0x4060>;
         max-link-speed = <2>;
         dma-coherent;
         interrupts = <GIC_SPI 340 IRQ_TYPE_EDGE_RISING>;

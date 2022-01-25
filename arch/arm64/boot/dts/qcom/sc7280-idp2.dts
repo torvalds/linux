@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "sc7280-idp.dtsi"
+#include "sc7280-idp-ec-h1.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. sc7280 IDP SKU2 platform";

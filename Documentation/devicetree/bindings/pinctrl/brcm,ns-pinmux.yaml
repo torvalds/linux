@@ -53,6 +53,7 @@ patternProperties:
     additionalProperties: false
 
 allOf:
+  - $ref: "pinctrl.yaml#"
   - if:
       properties:
         compatible:
@@ -77,7 +78,7 @@ additionalProperties: false
 
 examples:
   - |
-    pin-controller@1800c1c0 {
+    pinctrl@1800c1c0 {
         compatible = "brcm,bcm4708-pinmux";
         reg = <0x1800c1c0 0x24>;
         reg-names = "cru_gpio_control";

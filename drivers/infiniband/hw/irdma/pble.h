@@ -69,7 +69,7 @@ struct irdma_add_page_info {
 struct irdma_chunk {
 	struct list_head list;
 	struct irdma_dma_info dmainfo;
-	void *bitmapbuf;
+	unsigned long *bitmapbuf;
 
 	u32 sizeofbitmap;
 	u64 size;
@@ -78,7 +78,6 @@ struct irdma_chunk {
 	u32 pg_cnt;
 	enum irdma_alloc_type type;
 	struct irdma_sc_dev *dev;
-	struct irdma_virt_mem bitmapmem;
 	struct irdma_virt_mem chunkmem;
 };
 

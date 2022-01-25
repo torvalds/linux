@@ -21,6 +21,11 @@ properties:
     enum:
       - qcom,rpmh-stats
       - qcom,rpm-stats
+      # For older RPM firmware versions with fixed offset for the sleep stats
+      - qcom,apq8084-rpm-stats
+      - qcom,msm8226-rpm-stats
+      - qcom,msm8916-rpm-stats
+      - qcom,msm8974-rpm-stats
 
   reg:
     maxItems: 1

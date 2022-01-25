@@ -34,7 +34,7 @@
 void __iomem *ioremap(phys_addr_t offset, size_t size);
 
 #define iounmap iounmap
-void iounmap(void __iomem *addr);
+void iounmap(void volatile __iomem *addr);
 
 #define __raw_readb __raw_readb
 u8 __raw_readb(const volatile void __iomem *addr);

@@ -9,6 +9,8 @@
 #include <linux/pci.h>
 #include "processor_thermal_device.h"
 
+MODULE_IMPORT_NS(INT340X_THERMAL);
+
 struct mmio_reg {
 	int read_only;
 	u32 offset;
@@ -29,7 +31,7 @@ static const char * const fivr_strings[] = {
 };
 
 static const struct mmio_reg tgl_fivr_mmio_regs[] = {
-	{ 0, 0x5A18, 3, 0x7, 12}, /* vco_ref_code_lo */
+	{ 0, 0x5A18, 3, 0x7, 11}, /* vco_ref_code_lo */
 	{ 0, 0x5A18, 8, 0xFF, 16}, /* vco_ref_code_hi */
 	{ 0, 0x5A08, 8, 0xFF, 0}, /* spread_spectrum_pct */
 	{ 0, 0x5A08, 1, 0x1, 8}, /* spread_spectrum_clk_enable */
@@ -194,8 +196,7 @@ static ssize_t rfi_restriction_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	u16 cmd_id = 0x0008;
-	u64 cmd_resp;
+	u16 id = 0x0008;
 	u32 input;
 	int ret;
 
@@ -203,7 +204,7 @@ static ssize_t rfi_restriction_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = processor_thermal_send_mbox_cmd(to_pci_dev(dev), cmd_id, input, &cmd_resp);
+	ret = processor_thermal_send_mbox_write_cmd(to_pci_dev(dev), id, input);
 	if (ret)
 		return ret;
 
@@ -214,30 +215,30 @@ static ssize_t rfi_restriction_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	u16 cmd_id = 0x0007;
-	u64 cmd_resp;
+	u16 id = 0x0007;
+	u64 resp;
 	int ret;
 
-	ret = processor_thermal_send_mbox_cmd(to_pci_dev(dev), cmd_id, 0, &cmd_resp);
+	ret = processor_thermal_send_mbox_read_cmd(to_pci_dev(dev), id, &resp);
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%llu\n", cmd_resp);
+	return sprintf(buf, "%llu\n", resp);
 }
 
 static ssize_t ddr_data_rate_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	u16 cmd_id = 0x0107;
-	u64 cmd_resp;
+	u16 id = 0x0107;
+	u64 resp;
 	int ret;
 
-	ret = processor_thermal_send_mbox_cmd(to_pci_dev(dev), cmd_id, 0, &cmd_resp);
+	ret = processor_thermal_send_mbox_read_cmd(to_pci_dev(dev), id, &resp);
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%llu\n", cmd_resp);
+	return sprintf(buf, "%llu\n", resp);
 }
 
 static DEVICE_ATTR_RW(rfi_restriction);

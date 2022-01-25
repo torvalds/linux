@@ -20,7 +20,7 @@
 		};
 	};
 
-	vdd_3v3_sd: regulator@0 {
+	vdd_3v3_sd: regulator-vdd-3v3-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_3V3_SD";
 		regulator-min-microvolt = <3300000>;

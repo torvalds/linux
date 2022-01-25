@@ -421,7 +421,7 @@ static int at803x_set_wol(struct phy_device *phydev,
 	const u8 *mac;
 	int ret, irq_enabled;
 	unsigned int i;
-	const unsigned int offsets[] = {
+	static const unsigned int offsets[] = {
 		AT803X_LOC_MAC_ADDR_32_47_OFFSET,
 		AT803X_LOC_MAC_ADDR_16_31_OFFSET,
 		AT803X_LOC_MAC_ADDR_0_15_OFFSET,

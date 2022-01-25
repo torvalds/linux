@@ -21,6 +21,8 @@
 #include <net/snmp.h>
 #include <net/netns/hash.h>
 
+struct ip_tunnel_info;
+
 #define SIN6_LEN_RFC2133	24
 
 #define IPV6_MAXPLEN		65535
@@ -345,9 +347,9 @@ struct ipcm6_cookie {
 	struct sockcm_cookie sockc;
 	__s16 hlimit;
 	__s16 tclass;
+	__u16 gso_size;
 	__s8  dontfrag;
 	struct ipv6_txoptions *opt;
-	__u16 gso_size;
 };
 
 static inline void ipcm6_init(struct ipcm6_cookie *ipc6)

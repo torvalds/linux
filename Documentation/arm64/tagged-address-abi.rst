@@ -49,7 +49,7 @@ how the user addresses are used by the kernel:
 
    - ``brk()``, ``mmap()`` and the ``new_address`` argument to
      ``mremap()`` as these have the potential to alias with existing
-      user addresses.
+     user addresses.
 
      NOTE: This behaviour changed in v5.6 and so some earlier kernels may
      incorrectly accept valid tagged pointers for the ``brk()``,

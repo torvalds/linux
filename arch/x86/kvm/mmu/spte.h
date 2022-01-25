@@ -60,10 +60,6 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 	(((address) >> PT64_LEVEL_SHIFT(level)) & ((1 << PT64_LEVEL_BITS) - 1))
 #define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 
-/* Bits 9 and 10 are ignored by all non-EPT PTEs. */
-#define DEFAULT_SPTE_HOST_WRITEABLE	BIT_ULL(9)
-#define DEFAULT_SPTE_MMU_WRITEABLE	BIT_ULL(10)
-
 /*
  * The mask/shift to use for saving the original R/X bits when marking the PTE
  * as not-present for access tracking purposes. We do not save the W bit as the
@@ -77,6 +73,35 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 #define SHADOW_ACC_TRACK_SAVED_MASK	(SHADOW_ACC_TRACK_SAVED_BITS_MASK << \
 					 SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)
 static_assert(!(SPTE_TDP_AD_MASK & SHADOW_ACC_TRACK_SAVED_MASK));
+
+/*
+ * *_SPTE_HOST_WRITEABLE (aka Host-writable) indicates whether the host permits
+ * writes to the guest page mapped by the SPTE. This bit is cleared on SPTEs
+ * that map guest pages in read-only memslots and read-only VMAs.
+ *
+ * Invariants:
+ *  - If Host-writable is clear, PT_WRITABLE_MASK must be clear.
+ *
+ *
+ * *_SPTE_MMU_WRITEABLE (aka MMU-writable) indicates whether the shadow MMU
+ * allows writes to the guest page mapped by the SPTE. This bit is cleared when
+ * the guest page mapped by the SPTE contains a page table that is being
+ * monitored for shadow paging. In this case the SPTE can only be made writable
+ * by unsyncing the shadow page under the mmu_lock.
+ *
+ * Invariants:
+ *  - If MMU-writable is clear, PT_WRITABLE_MASK must be clear.
+ *  - If MMU-writable is set, Host-writable must be set.
+ *
+ * If MMU-writable is set, PT_WRITABLE_MASK is normally set but can be cleared
+ * to track writes for dirty logging. For such SPTEs, KVM will locklessly set
+ * PT_WRITABLE_MASK upon the next write from the guest and record the write in
+ * the dirty log (see fast_page_fault()).
+ */
+
+/* Bits 9 and 10 are ignored by all non-EPT PTEs. */
+#define DEFAULT_SPTE_HOST_WRITEABLE	BIT_ULL(9)
+#define DEFAULT_SPTE_MMU_WRITEABLE	BIT_ULL(10)
 
 /*
  * Low ignored bits are at a premium for EPT, use high ignored bits, taking care
@@ -316,8 +341,13 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
 
 static inline bool spte_can_locklessly_be_made_writable(u64 spte)
 {
-	return (spte & shadow_host_writable_mask) &&
-	       (spte & shadow_mmu_writable_mask);
+	if (spte & shadow_mmu_writable_mask) {
+		WARN_ON_ONCE(!(spte & shadow_host_writable_mask));
+		return true;
+	}
+
+	WARN_ON_ONCE(spte & PT_WRITABLE_MASK);
+	return false;
 }
 
 static inline u64 get_mmio_spte_generation(u64 spte)
@@ -330,7 +360,7 @@ static inline u64 get_mmio_spte_generation(u64 spte)
 }
 
 bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-	       struct kvm_memory_slot *slot,
+	       const struct kvm_memory_slot *slot,
 	       unsigned int pte_access, gfn_t gfn, kvm_pfn_t pfn,
 	       u64 old_spte, bool prefetch, bool can_unsync,
 	       bool host_writable, u64 *new_spte);

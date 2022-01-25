@@ -824,6 +824,48 @@ static int dmub_fw_state_show(struct seq_file *m, void *data)
 	return seq_write(m, state_base, state_size);
 }
 
+/* psr_capability_show() - show eDP panel PSR capability
+ *
+ * The read function: sink_psr_capability_show
+ * Shows if sink has PSR capability or not.
+ * If yes - the PSR version is appended
+ *
+ *	cat /sys/kernel/debug/dri/0/eDP-X/psr_capability
+ *
+ * Expected output:
+ * "Sink support: no\n" - if panel doesn't support PSR
+ * "Sink support: yes [0x01]\n" - if panel supports PSR1
+ * "Driver support: no\n" - if driver doesn't support PSR
+ * "Driver support: yes [0x01]\n" - if driver supports PSR1
+ */
+static int psr_capability_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dc_link *link = aconnector->dc_link;
+
+	if (!link)
+		return -ENODEV;
+
+	if (link->type == dc_connection_none)
+		return -ENODEV;
+
+	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
+		return -ENODEV;
+
+	seq_printf(m, "Sink support: %s", yesno(link->dpcd_caps.psr_caps.psr_version != 0));
+	if (link->dpcd_caps.psr_caps.psr_version)
+		seq_printf(m, " [0x%02x]", link->dpcd_caps.psr_caps.psr_version);
+	seq_puts(m, "\n");
+
+	seq_printf(m, "Driver support: %s", yesno(link->psr_settings.psr_feature_enabled));
+	if (link->psr_settings.psr_version)
+		seq_printf(m, " [0x%02x]", link->psr_settings.psr_version);
+	seq_puts(m, "\n");
+
+	return 0;
+}
+
 /*
  * Returns the current and maximum output bpc for the connector.
  * Example usage: cat /sys/kernel/debug/dri/0/DP-1/output_bpc
@@ -1243,7 +1285,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 		dm_restore_drm_connector_state(dev, connector);
 		drm_modeset_unlock_all(dev);
 
-		drm_kms_helper_hotplug_event(dev);
+		drm_kms_helper_connector_hotplug_event(connector);
 	} else if (param[0] == 0) {
 		if (!aconnector->dc_link)
 			goto unlock;
@@ -1265,7 +1307,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 		dm_restore_drm_connector_state(dev, connector);
 		drm_modeset_unlock_all(dev);
 
-		drm_kms_helper_hotplug_event(dev);
+		drm_kms_helper_connector_hotplug_event(connector);
 	}
 
 unlock:
@@ -2467,6 +2509,7 @@ DEFINE_SHOW_ATTRIBUTE(dp_lttpr_status);
 DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
 #endif
 DEFINE_SHOW_ATTRIBUTE(internal_display);
+DEFINE_SHOW_ATTRIBUTE(psr_capability);
 
 static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -2712,6 +2755,138 @@ static const struct {
 		{"internal_display", &internal_display_fops}
 };
 
+/*
+ * Returns supported customized link rates by this eDP panel.
+ * Example usage: cat /sys/kernel/debug/dri/0/eDP-x/ilr_setting
+ */
+static int edp_ilr_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(m->private);
+	struct dc_link *link = aconnector->dc_link;
+	uint8_t supported_link_rates[16];
+	uint32_t link_rate_in_khz;
+	uint32_t entry = 0;
+	uint8_t dpcd_rev;
+
+	memset(supported_link_rates, 0, sizeof(supported_link_rates));
+	dm_helpers_dp_read_dpcd(link->ctx, link, DP_SUPPORTED_LINK_RATES,
+		supported_link_rates, sizeof(supported_link_rates));
+
+	dpcd_rev = link->dpcd_caps.dpcd_rev.raw;
+
+	if (dpcd_rev >= DP_DPCD_REV_13 &&
+		(supported_link_rates[entry+1] != 0 || supported_link_rates[entry] != 0)) {
+
+		for (entry = 0; entry < 16; entry += 2) {
+			link_rate_in_khz = (supported_link_rates[entry+1] * 0x100 +
+										supported_link_rates[entry]) * 200;
+			seq_printf(m, "[%d] %d kHz\n", entry/2, link_rate_in_khz);
+		}
+	} else {
+		seq_printf(m, "ILR is not supported by this eDP panel.\n");
+	}
+
+	return 0;
+}
+
+/*
+ * Set supported customized link rate to eDP panel.
+ *
+ * echo <lane_count>  <link_rate option> > ilr_setting
+ *
+ * for example, supported ILR : [0] 1620000 kHz [1] 2160000 kHz [2] 2430000 kHz ...
+ * echo 4 1 > /sys/kernel/debug/dri/0/eDP-x/ilr_setting
+ * to set 4 lanes and 2.16 GHz
+ */
+static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dc_link *link = connector->dc_link;
+	struct amdgpu_device *adev = drm_to_adev(connector->base.dev);
+	struct dc *dc = (struct dc *)link->dc;
+	struct dc_link_settings prefer_link_settings;
+	char *wr_buf = NULL;
+	const uint32_t wr_buf_size = 40;
+	/* 0: lane_count; 1: link_rate */
+	int max_param_num = 2;
+	uint8_t param_nums = 0;
+	long param[2];
+	bool valid_input = true;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+	if (!wr_buf)
+		return -ENOMEM;
+
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	switch (param[0]) {
+	case LANE_COUNT_ONE:
+	case LANE_COUNT_TWO:
+	case LANE_COUNT_FOUR:
+		break;
+	default:
+		valid_input = false;
+		break;
+	}
+
+	if (param[1] >= link->dpcd_caps.edp_supported_link_rates_count)
+		valid_input = false;
+
+	if (!valid_input) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("Invalid Input value. No HW will be programmed\n");
+		prefer_link_settings.use_link_rate_set = false;
+		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, true);
+		return size;
+	}
+
+	/* save user force lane_count, link_rate to preferred settings
+	 * spread spectrum will not be changed
+	 */
+	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
+	prefer_link_settings.lane_count = param[0];
+	prefer_link_settings.use_link_rate_set = true;
+	prefer_link_settings.link_rate_set = param[1];
+	prefer_link_settings.link_rate = link->dpcd_caps.edp_supported_link_rates[param[1]];
+
+	mutex_lock(&adev->dm.dc_lock);
+	dc_link_set_preferred_training_settings(dc, &prefer_link_settings,
+						NULL, link, false);
+	mutex_unlock(&adev->dm.dc_lock);
+
+	kfree(wr_buf);
+	return size;
+}
+
+static int edp_ilr_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, edp_ilr_show, inode->i_private);
+}
+
+static const struct file_operations edp_ilr_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = edp_ilr_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = edp_ilr_write
+};
+
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
@@ -2726,11 +2901,14 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 		}
 	}
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
+		debugfs_create_file_unsafe("psr_capability", 0444, dir, connector, &psr_capability_fops);
 		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
 		debugfs_create_file("amdgpu_current_backlight_pwm", 0444, dir, connector,
 				    &current_backlight_fops);
 		debugfs_create_file("amdgpu_target_backlight_pwm", 0444, dir, connector,
 				    &target_backlight_fops);
+		debugfs_create_file("ilr_setting", 0644, dir, connector,
+					&edp_ilr_debugfs_fops);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(connector_debugfs_entries); i++) {
@@ -2909,10 +3087,13 @@ static int crc_win_update_set(void *data, u64 val)
 	struct amdgpu_device *adev = drm_to_adev(new_crtc->dev);
 	struct crc_rd_work *crc_rd_wrk = adev->dm.crc_rd_wrk;
 
+	if (!crc_rd_wrk)
+		return 0;
+
 	if (val) {
 		spin_lock_irq(&adev_to_drm(adev)->event_lock);
 		spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
-		if (crc_rd_wrk && crc_rd_wrk->crtc) {
+		if (crc_rd_wrk->crtc) {
 			old_crtc = crc_rd_wrk->crtc;
 			old_acrtc = to_amdgpu_crtc(old_crtc);
 		}
@@ -3190,6 +3371,32 @@ static int disable_hpd_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(disable_hpd_ops, disable_hpd_get,
 			 disable_hpd_set, "%llu\n");
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+/*
+ * Temporary w/a to force sst sequence in M42D DP2 mst receiver
+ * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dp_set_mst_en_for_sst
+ */
+static int dp_force_sst_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	adev->dm.dc->debug.set_mst_en_for_sst = val;
+
+	return 0;
+}
+
+static int dp_force_sst_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.dc->debug.set_mst_en_for_sst;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(dp_set_mst_en_for_sst_ops, dp_force_sst_get,
+			 dp_force_sst_set, "%llu\n");
+#endif
+
 /*
  * Sets the DC visual confirm debug option from the given string.
  * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_visual_confirm
@@ -3299,6 +3506,10 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 			    adev, &mst_topo_fops);
 	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
 			    &dtn_log_fops);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	debugfs_create_file("amdgpu_dm_dp_set_mst_en_for_sst", 0644, root, adev,
+				&dp_set_mst_en_for_sst_ops);
+#endif
 
 	debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root, adev,
 				   &visual_confirm_fops);

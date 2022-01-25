@@ -7,6 +7,7 @@
 
 #include <linux/pagemap.h>
 #include <linux/vfs.h>
+#include <uapi/linux/magic.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
@@ -163,7 +164,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 {
 	__u64 mid = 0;
 	__u16 last_mid, cur_mid;
-	bool collision;
+	bool collision, reconnect = false;
 
 	spin_lock(&GlobalMid_Lock);
 
@@ -215,7 +216,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 		 * an eventual reconnect to clean out the pending_mid_q.
 		 */
 		if (num_mids > 32768)
-			server->tcpStatus = CifsNeedReconnect;
+			reconnect = true;
 
 		if (!collision) {
 			mid = (__u64)cur_mid;
@@ -225,6 +226,13 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 		cur_mid++;
 	}
 	spin_unlock(&GlobalMid_Lock);
+
+	if (reconnect) {
+		spin_lock(&cifs_tcp_ses_lock);
+		server->tcpStatus = CifsNeedReconnect;
+		spin_unlock(&cifs_tcp_ses_lock);
+	}
+
 	return mid;
 }
 
@@ -414,14 +422,16 @@ cifs_need_neg(struct TCP_Server_Info *server)
 }
 
 static int
-cifs_negotiate(const unsigned int xid, struct cifs_ses *ses)
+cifs_negotiate(const unsigned int xid,
+	       struct cifs_ses *ses,
+	       struct TCP_Server_Info *server)
 {
 	int rc;
-	rc = CIFSSMBNegotiate(xid, ses);
+	rc = CIFSSMBNegotiate(xid, ses, server);
 	if (rc == -EAGAIN) {
 		/* retry only once on 1st time connection */
-		set_credits(ses->server, 1);
-		rc = CIFSSMBNegotiate(xid, ses);
+		set_credits(server, 1);
+		rc = CIFSSMBNegotiate(xid, ses, server);
 		if (rc == -EAGAIN)
 			rc = -EHOSTDOWN;
 	}
@@ -878,7 +888,7 @@ cifs_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc = -EOPNOTSUPP;
 
-	buf->f_type = CIFS_MAGIC_NUMBER;
+	buf->f_type = CIFS_SUPER_MAGIC;
 
 	/*
 	 * We could add a second check for a QFS Unix capability bit

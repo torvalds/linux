@@ -369,6 +369,7 @@ struct x86_emulate_ctxt {
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;
+	bool is_branch;
 };
 
 /* Repeat String Operation Prefix */

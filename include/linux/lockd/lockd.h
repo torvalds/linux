@@ -303,10 +303,15 @@ void		  nlmsvc_invalidate_all(void);
 int           nlmsvc_unlock_all_by_sb(struct super_block *sb);
 int           nlmsvc_unlock_all_by_ip(struct sockaddr *server_addr);
 
+static inline struct file *nlmsvc_file_file(struct nlm_file *file)
+{
+	return file->f_file[O_RDONLY] ?
+	       file->f_file[O_RDONLY] : file->f_file[O_WRONLY];
+}
+
 static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 {
-	return locks_inode(file->f_file[O_RDONLY] ?
-			   file->f_file[O_RDONLY] : file->f_file[O_WRONLY]);
+	return locks_inode(nlmsvc_file_file(file));
 }
 
 static inline int __nlm_privileged_request4(const struct sockaddr *sap)

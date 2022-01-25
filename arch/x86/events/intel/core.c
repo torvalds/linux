@@ -2211,7 +2211,6 @@ intel_pmu_snapshot_branch_stack(struct perf_branch_entry *entries, unsigned int 
 	/* must not have branches... */
 	local_irq_save(flags);
 	__intel_pmu_disable_all(false); /* we don't care about BTS */
-	__intel_pmu_pebs_disable_all();
 	__intel_pmu_lbr_disable();
 	/*            ... until here */
 	return __intel_pmu_snapshot_branch_stack(entries, cnt, flags);
@@ -2225,7 +2224,6 @@ intel_pmu_snapshot_arch_branch_stack(struct perf_branch_entry *entries, unsigned
 	/* must not have branches... */
 	local_irq_save(flags);
 	__intel_pmu_disable_all(false); /* we don't care about BTS */
-	__intel_pmu_pebs_disable_all();
 	__intel_pmu_arch_lbr_disable();
 	/*            ... until here */
 	return __intel_pmu_snapshot_branch_stack(entries, cnt, flags);
@@ -2903,10 +2901,7 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	 */
 	if (__test_and_clear_bit(GLOBAL_STATUS_TRACE_TOPAPMI_BIT, (unsigned long *)&status)) {
 		handled++;
-		if (unlikely(perf_guest_cbs && perf_guest_cbs->is_in_guest() &&
-			perf_guest_cbs->handle_intel_pt_intr))
-			perf_guest_cbs->handle_intel_pt_intr();
-		else
+		if (!perf_guest_handle_intel_pt_intr())
 			intel_pt_interrupt();
 	}
 

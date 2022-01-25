@@ -71,10 +71,6 @@
 #define GSI_CPHA		BIT(4)
 #define GSI_CPOL		BIT(5)
 
-#define MAX_TX_SG		3
-#define NUM_SPI_XFER		8
-#define SPI_XFER_TIMEOUT_MS	250
-
 struct spi_geni_master {
 	struct geni_se se;
 	struct device *dev;
@@ -165,6 +161,30 @@ static void handle_fifo_timeout(struct spi_master *spi,
 		 * access this from an interrupt.
 		 */
 		mas->abort_failed = true;
+	}
+}
+
+static void handle_gpi_timeout(struct spi_master *spi, struct spi_message *msg)
+{
+	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+
+	dmaengine_terminate_sync(mas->tx);
+	dmaengine_terminate_sync(mas->rx);
+}
+
+static void spi_geni_handle_err(struct spi_master *spi, struct spi_message *msg)
+{
+	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+
+	switch (mas->cur_xfer_mode) {
+	case GENI_SE_FIFO:
+		handle_fifo_timeout(spi, msg);
+		break;
+	case GENI_GPI_DMA:
+		handle_gpi_timeout(spi, msg);
+		break;
+	default:
+		dev_err(mas->dev, "Abort on Mode:%d not supported", mas->cur_xfer_mode);
 	}
 }
 
@@ -350,17 +370,21 @@ spi_gsi_callback_result(void *cb, const struct dmaengine_result *result)
 {
 	struct spi_master *spi = cb;
 
+	spi->cur_msg->status = -EIO;
 	if (result->result != DMA_TRANS_NOERROR) {
 		dev_err(&spi->dev, "DMA txn failed: %d\n", result->result);
+		spi_finalize_current_transfer(spi);
 		return;
 	}
 
 	if (!result->residue) {
+		spi->cur_msg->status = 0;
 		dev_dbg(&spi->dev, "DMA txn completed\n");
-		spi_finalize_current_transfer(spi);
 	} else {
 		dev_err(&spi->dev, "DMA xfer has pending: %d\n", result->residue);
 	}
+
+	spi_finalize_current_transfer(spi);
 }
 
 static int setup_gsi_xfer(struct spi_transfer *xfer, struct spi_geni_master *mas,
@@ -491,22 +515,26 @@ static int spi_geni_grab_gpi_chan(struct spi_geni_master *mas)
 	int ret;
 
 	mas->tx = dma_request_chan(mas->dev, "tx");
-	ret = dev_err_probe(mas->dev, IS_ERR(mas->tx), "Failed to get tx DMA ch\n");
-	if (ret < 0)
+	if (IS_ERR(mas->tx)) {
+		ret = dev_err_probe(mas->dev, PTR_ERR(mas->tx),
+				    "Failed to get tx DMA ch\n");
 		goto err_tx;
+	}
 
 	mas->rx = dma_request_chan(mas->dev, "rx");
-	ret = dev_err_probe(mas->dev, IS_ERR(mas->rx), "Failed to get rx DMA ch\n");
-	if (ret < 0)
+	if (IS_ERR(mas->rx)) {
+		ret = dev_err_probe(mas->dev, PTR_ERR(mas->rx),
+				    "Failed to get rx DMA ch\n");
 		goto err_rx;
+	}
 
 	return 0;
 
 err_rx:
-	dma_release_channel(mas->tx);
-	mas->tx = NULL;
-err_tx:
 	mas->rx = NULL;
+	dma_release_channel(mas->tx);
+err_tx:
+	mas->tx = NULL;
 	return ret;
 }
 
@@ -918,7 +946,7 @@ static int spi_geni_probe(struct platform_device *pdev)
 	spi->can_dma = geni_can_dma;
 	spi->dma_map_dev = dev->parent;
 	spi->auto_runtime_pm = true;
-	spi->handle_err = handle_fifo_timeout;
+	spi->handle_err = spi_geni_handle_err;
 	spi->use_gpio_descriptors = true;
 
 	init_completion(&mas->cs_done);

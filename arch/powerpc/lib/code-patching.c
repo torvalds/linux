@@ -3,22 +3,18 @@
  *  Copyright 2008 Michael Ellerman, IBM Corporation.
  */
 
-#include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <linux/mm.h>
 #include <linux/cpuhotplug.h>
-#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <asm/code-patching.h>
-#include <asm/setup.h>
 #include <asm/inst.h>
 
-static int __patch_instruction(u32 *exec_addr, struct ppc_inst instr, u32 *patch_addr)
+static int __patch_instruction(u32 *exec_addr, ppc_inst_t instr, u32 *patch_addr)
 {
 	if (!ppc_inst_prefixed(instr)) {
 		u32 val = ppc_inst_val(instr);
@@ -39,7 +35,7 @@ failed:
 	return -EFAULT;
 }
 
-int raw_patch_instruction(u32 *addr, struct ppc_inst instr)
+int raw_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	return __patch_instruction(addr, instr, addr);
 }
@@ -86,23 +82,16 @@ void __init poking_init(void)
 static int map_patch_area(void *addr, unsigned long text_poke_addr)
 {
 	unsigned long pfn;
-	int err;
 
 	if (is_vmalloc_or_module_addr(addr))
 		pfn = vmalloc_to_pfn(addr);
 	else
 		pfn = __pa_symbol(addr) >> PAGE_SHIFT;
 
-	err = map_kernel_page(text_poke_addr, (pfn << PAGE_SHIFT), PAGE_KERNEL);
-
-	pr_devel("Mapped addr %lx with pfn %lx:%d\n", text_poke_addr, pfn, err);
-	if (err)
-		return -1;
-
-	return 0;
+	return map_kernel_page(text_poke_addr, (pfn << PAGE_SHIFT), PAGE_KERNEL);
 }
 
-static inline int unmap_patch_area(unsigned long addr)
+static void unmap_patch_area(unsigned long addr)
 {
 	pte_t *ptep;
 	pmd_t *pmdp;
@@ -111,43 +100,56 @@ static inline int unmap_patch_area(unsigned long addr)
 	pgd_t *pgdp;
 
 	pgdp = pgd_offset_k(addr);
-	if (unlikely(!pgdp))
-		return -EINVAL;
+	if (WARN_ON(pgd_none(*pgdp)))
+		return;
 
 	p4dp = p4d_offset(pgdp, addr);
-	if (unlikely(!p4dp))
-		return -EINVAL;
+	if (WARN_ON(p4d_none(*p4dp)))
+		return;
 
 	pudp = pud_offset(p4dp, addr);
-	if (unlikely(!pudp))
-		return -EINVAL;
+	if (WARN_ON(pud_none(*pudp)))
+		return;
 
 	pmdp = pmd_offset(pudp, addr);
-	if (unlikely(!pmdp))
-		return -EINVAL;
+	if (WARN_ON(pmd_none(*pmdp)))
+		return;
 
 	ptep = pte_offset_kernel(pmdp, addr);
-	if (unlikely(!ptep))
-		return -EINVAL;
-
-	pr_devel("clearing mm %p, pte %p, addr %lx\n", &init_mm, ptep, addr);
+	if (WARN_ON(pte_none(*ptep)))
+		return;
 
 	/*
 	 * In hash, pte_clear flushes the tlb, in radix, we have to
 	 */
 	pte_clear(&init_mm, addr, ptep);
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-
-	return 0;
 }
 
-static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
+static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	int err;
-	u32 *patch_addr = NULL;
-	unsigned long flags;
+	u32 *patch_addr;
 	unsigned long text_poke_addr;
-	unsigned long kaddr = (unsigned long)addr;
+
+	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr;
+	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
+
+	err = map_patch_area(addr, text_poke_addr);
+	if (err)
+		return err;
+
+	err = __patch_instruction(addr, instr, patch_addr);
+
+	unmap_patch_area(text_poke_addr);
+
+	return err;
+}
+
+static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
+{
+	int err;
+	unsigned long flags;
 
 	/*
 	 * During early early boot patch_instruction is called
@@ -158,51 +160,37 @@ static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
 		return raw_patch_instruction(addr, instr);
 
 	local_irq_save(flags);
-
-	text_poke_addr = (unsigned long)__this_cpu_read(text_poke_area)->addr;
-	if (map_patch_area(addr, text_poke_addr)) {
-		err = -1;
-		goto out;
-	}
-
-	patch_addr = (u32 *)(text_poke_addr + (kaddr & ~PAGE_MASK));
-
-	__patch_instruction(addr, instr, patch_addr);
-
-	err = unmap_patch_area(text_poke_addr);
-	if (err)
-		pr_warn("failed to unmap %lx\n", text_poke_addr);
-
-out:
+	err = __do_patch_instruction(addr, instr);
 	local_irq_restore(flags);
 
 	return err;
 }
 #else /* !CONFIG_STRICT_KERNEL_RWX */
 
-static int do_patch_instruction(u32 *addr, struct ppc_inst instr)
+static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	return raw_patch_instruction(addr, instr);
 }
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
-int patch_instruction(u32 *addr, struct ppc_inst instr)
+int patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	/* Make sure we aren't patching a freed init section */
-	if (init_mem_is_free && init_section_contains(addr, 4)) {
-		pr_debug("Skipping init section patching addr: 0x%px\n", addr);
+	if (system_state >= SYSTEM_FREEING_INITMEM && init_section_contains(addr, 4))
 		return 0;
-	}
+
 	return do_patch_instruction(addr, instr);
 }
 NOKPROBE_SYMBOL(patch_instruction);
 
 int patch_branch(u32 *addr, unsigned long target, int flags)
 {
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 
-	create_branch(&instr, addr, target, flags);
+	if (create_branch(&instr, addr, target, flags))
+		return -ERANGE;
+
 	return patch_instruction(addr, instr);
 }
 
@@ -237,7 +225,7 @@ bool is_offset_in_cond_branch_range(long offset)
  * Helper to check if a given instruction is a conditional branch
  * Derived from the conditional checks in analyse_instr()
  */
-bool is_conditional_branch(struct ppc_inst instr)
+bool is_conditional_branch(ppc_inst_t instr)
 {
 	unsigned int opcode = ppc_inst_primary_opcode(instr);
 
@@ -255,7 +243,7 @@ bool is_conditional_branch(struct ppc_inst instr)
 }
 NOKPROBE_SYMBOL(is_conditional_branch);
 
-int create_branch(struct ppc_inst *instr, const u32 *addr,
+int create_branch(ppc_inst_t *instr, const u32 *addr,
 		  unsigned long target, int flags)
 {
 	long offset;
@@ -275,7 +263,7 @@ int create_branch(struct ppc_inst *instr, const u32 *addr,
 	return 0;
 }
 
-int create_cond_branch(struct ppc_inst *instr, const u32 *addr,
+int create_cond_branch(ppc_inst_t *instr, const u32 *addr,
 		       unsigned long target, int flags)
 {
 	long offset;
@@ -294,22 +282,7 @@ int create_cond_branch(struct ppc_inst *instr, const u32 *addr,
 	return 0;
 }
 
-static unsigned int branch_opcode(struct ppc_inst instr)
-{
-	return ppc_inst_primary_opcode(instr) & 0x3F;
-}
-
-static int instr_is_branch_iform(struct ppc_inst instr)
-{
-	return branch_opcode(instr) == 18;
-}
-
-static int instr_is_branch_bform(struct ppc_inst instr)
-{
-	return branch_opcode(instr) == 16;
-}
-
-int instr_is_relative_branch(struct ppc_inst instr)
+int instr_is_relative_branch(ppc_inst_t instr)
 {
 	if (ppc_inst_val(instr) & BRANCH_ABSOLUTE)
 		return 0;
@@ -317,7 +290,7 @@ int instr_is_relative_branch(struct ppc_inst instr)
 	return instr_is_branch_iform(instr) || instr_is_branch_bform(instr);
 }
 
-int instr_is_relative_link_branch(struct ppc_inst instr)
+int instr_is_relative_link_branch(ppc_inst_t instr)
 {
 	return instr_is_relative_branch(instr) && (ppc_inst_val(instr) & BRANCH_SET_LINK);
 }
@@ -364,7 +337,7 @@ unsigned long branch_target(const u32 *instr)
 	return 0;
 }
 
-int translate_branch(struct ppc_inst *instr, const u32 *dest, const u32 *src)
+int translate_branch(ppc_inst_t *instr, const u32 *dest, const u32 *src)
 {
 	unsigned long target;
 	target = branch_target(src);
@@ -378,375 +351,3 @@ int translate_branch(struct ppc_inst *instr, const u32 *dest, const u32 *src)
 
 	return 1;
 }
-
-#ifdef CONFIG_PPC_BOOK3E_64
-void __patch_exception(int exc, unsigned long addr)
-{
-	extern unsigned int interrupt_base_book3e;
-	unsigned int *ibase = &interrupt_base_book3e;
-
-	/* Our exceptions vectors start with a NOP and -then- a branch
-	 * to deal with single stepping from userspace which stops on
-	 * the second instruction. Thus we need to patch the second
-	 * instruction of the exception, not the first one
-	 */
-
-	patch_branch(ibase + (exc / 4) + 1, addr, 0);
-}
-#endif
-
-#ifdef CONFIG_CODE_PATCHING_SELFTEST
-
-static int instr_is_branch_to_addr(const u32 *instr, unsigned long addr)
-{
-	if (instr_is_branch_iform(ppc_inst_read(instr)) ||
-	    instr_is_branch_bform(ppc_inst_read(instr)))
-		return branch_target(instr) == addr;
-
-	return 0;
-}
-
-static void __init test_trampoline(void)
-{
-	asm ("nop;\n");
-}
-
-#define check(x)	\
-	if (!(x)) printk("code-patching: test failed at line %d\n", __LINE__);
-
-static void __init test_branch_iform(void)
-{
-	int err;
-	struct ppc_inst instr;
-	u32 tmp[2];
-	u32 *iptr = tmp;
-	unsigned long addr = (unsigned long)tmp;
-
-	/* The simplest case, branch to self, no flags */
-	check(instr_is_branch_iform(ppc_inst(0x48000000)));
-	/* All bits of target set, and flags */
-	check(instr_is_branch_iform(ppc_inst(0x4bffffff)));
-	/* High bit of opcode set, which is wrong */
-	check(!instr_is_branch_iform(ppc_inst(0xcbffffff)));
-	/* Middle bits of opcode set, which is wrong */
-	check(!instr_is_branch_iform(ppc_inst(0x7bffffff)));
-
-	/* Simplest case, branch to self with link */
-	check(instr_is_branch_iform(ppc_inst(0x48000001)));
-	/* All bits of targets set */
-	check(instr_is_branch_iform(ppc_inst(0x4bfffffd)));
-	/* Some bits of targets set */
-	check(instr_is_branch_iform(ppc_inst(0x4bff00fd)));
-	/* Must be a valid branch to start with */
-	check(!instr_is_branch_iform(ppc_inst(0x7bfffffd)));
-
-	/* Absolute branch to 0x100 */
-	patch_instruction(iptr, ppc_inst(0x48000103));
-	check(instr_is_branch_to_addr(iptr, 0x100));
-	/* Absolute branch to 0x420fc */
-	patch_instruction(iptr, ppc_inst(0x480420ff));
-	check(instr_is_branch_to_addr(iptr, 0x420fc));
-	/* Maximum positive relative branch, + 20MB - 4B */
-	patch_instruction(iptr, ppc_inst(0x49fffffc));
-	check(instr_is_branch_to_addr(iptr, addr + 0x1FFFFFC));
-	/* Smallest negative relative branch, - 4B */
-	patch_instruction(iptr, ppc_inst(0x4bfffffc));
-	check(instr_is_branch_to_addr(iptr, addr - 4));
-	/* Largest negative relative branch, - 32 MB */
-	patch_instruction(iptr, ppc_inst(0x4a000000));
-	check(instr_is_branch_to_addr(iptr, addr - 0x2000000));
-
-	/* Branch to self, with link */
-	err = create_branch(&instr, iptr, addr, BRANCH_SET_LINK);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr));
-
-	/* Branch to self - 0x100, with link */
-	err = create_branch(&instr, iptr, addr - 0x100, BRANCH_SET_LINK);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr - 0x100));
-
-	/* Branch to self + 0x100, no link */
-	err = create_branch(&instr, iptr, addr + 0x100, 0);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr + 0x100));
-
-	/* Maximum relative negative offset, - 32 MB */
-	err = create_branch(&instr, iptr, addr - 0x2000000, BRANCH_SET_LINK);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr - 0x2000000));
-
-	/* Out of range relative negative offset, - 32 MB + 4*/
-	err = create_branch(&instr, iptr, addr - 0x2000004, BRANCH_SET_LINK);
-	check(err);
-
-	/* Out of range relative positive offset, + 32 MB */
-	err = create_branch(&instr, iptr, addr + 0x2000000, BRANCH_SET_LINK);
-	check(err);
-
-	/* Unaligned target */
-	err = create_branch(&instr, iptr, addr + 3, BRANCH_SET_LINK);
-	check(err);
-
-	/* Check flags are masked correctly */
-	err = create_branch(&instr, iptr, addr, 0xFFFFFFFC);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr));
-	check(ppc_inst_equal(instr, ppc_inst(0x48000000)));
-}
-
-static void __init test_create_function_call(void)
-{
-	u32 *iptr;
-	unsigned long dest;
-	struct ppc_inst instr;
-
-	/* Check we can create a function call */
-	iptr = (u32 *)ppc_function_entry(test_trampoline);
-	dest = ppc_function_entry(test_create_function_call);
-	create_branch(&instr, iptr, dest, BRANCH_SET_LINK);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, dest));
-}
-
-static void __init test_branch_bform(void)
-{
-	int err;
-	unsigned long addr;
-	struct ppc_inst instr;
-	u32 tmp[2];
-	u32 *iptr = tmp;
-	unsigned int flags;
-
-	addr = (unsigned long)iptr;
-
-	/* The simplest case, branch to self, no flags */
-	check(instr_is_branch_bform(ppc_inst(0x40000000)));
-	/* All bits of target set, and flags */
-	check(instr_is_branch_bform(ppc_inst(0x43ffffff)));
-	/* High bit of opcode set, which is wrong */
-	check(!instr_is_branch_bform(ppc_inst(0xc3ffffff)));
-	/* Middle bits of opcode set, which is wrong */
-	check(!instr_is_branch_bform(ppc_inst(0x7bffffff)));
-
-	/* Absolute conditional branch to 0x100 */
-	patch_instruction(iptr, ppc_inst(0x43ff0103));
-	check(instr_is_branch_to_addr(iptr, 0x100));
-	/* Absolute conditional branch to 0x20fc */
-	patch_instruction(iptr, ppc_inst(0x43ff20ff));
-	check(instr_is_branch_to_addr(iptr, 0x20fc));
-	/* Maximum positive relative conditional branch, + 32 KB - 4B */
-	patch_instruction(iptr, ppc_inst(0x43ff7ffc));
-	check(instr_is_branch_to_addr(iptr, addr + 0x7FFC));
-	/* Smallest negative relative conditional branch, - 4B */
-	patch_instruction(iptr, ppc_inst(0x43fffffc));
-	check(instr_is_branch_to_addr(iptr, addr - 4));
-	/* Largest negative relative conditional branch, - 32 KB */
-	patch_instruction(iptr, ppc_inst(0x43ff8000));
-	check(instr_is_branch_to_addr(iptr, addr - 0x8000));
-
-	/* All condition code bits set & link */
-	flags = 0x3ff000 | BRANCH_SET_LINK;
-
-	/* Branch to self */
-	err = create_cond_branch(&instr, iptr, addr, flags);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr));
-
-	/* Branch to self - 0x100 */
-	err = create_cond_branch(&instr, iptr, addr - 0x100, flags);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr - 0x100));
-
-	/* Branch to self + 0x100 */
-	err = create_cond_branch(&instr, iptr, addr + 0x100, flags);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr + 0x100));
-
-	/* Maximum relative negative offset, - 32 KB */
-	err = create_cond_branch(&instr, iptr, addr - 0x8000, flags);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr - 0x8000));
-
-	/* Out of range relative negative offset, - 32 KB + 4*/
-	err = create_cond_branch(&instr, iptr, addr - 0x8004, flags);
-	check(err);
-
-	/* Out of range relative positive offset, + 32 KB */
-	err = create_cond_branch(&instr, iptr, addr + 0x8000, flags);
-	check(err);
-
-	/* Unaligned target */
-	err = create_cond_branch(&instr, iptr, addr + 3, flags);
-	check(err);
-
-	/* Check flags are masked correctly */
-	err = create_cond_branch(&instr, iptr, addr, 0xFFFFFFFC);
-	patch_instruction(iptr, instr);
-	check(instr_is_branch_to_addr(iptr, addr));
-	check(ppc_inst_equal(instr, ppc_inst(0x43FF0000)));
-}
-
-static void __init test_translate_branch(void)
-{
-	unsigned long addr;
-	void *p, *q;
-	struct ppc_inst instr;
-	void *buf;
-
-	buf = vmalloc(PAGE_ALIGN(0x2000000 + 1));
-	check(buf);
-	if (!buf)
-		return;
-
-	/* Simple case, branch to self moved a little */
-	p = buf;
-	addr = (unsigned long)p;
-	patch_branch(p, addr, 0);
-	check(instr_is_branch_to_addr(p, addr));
-	q = p + 4;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(q, addr));
-
-	/* Maximum negative case, move b . to addr + 32 MB */
-	p = buf;
-	addr = (unsigned long)p;
-	patch_branch(p, addr, 0);
-	q = buf + 0x2000000;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	check(instr_is_branch_to_addr(q, addr));
-	check(ppc_inst_equal(ppc_inst_read(q), ppc_inst(0x4a000000)));
-
-	/* Maximum positive case, move x to x - 32 MB + 4 */
-	p = buf + 0x2000000;
-	addr = (unsigned long)p;
-	patch_branch(p, addr, 0);
-	q = buf + 4;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	check(instr_is_branch_to_addr(q, addr));
-	check(ppc_inst_equal(ppc_inst_read(q), ppc_inst(0x49fffffc)));
-
-	/* Jump to x + 16 MB moved to x + 20 MB */
-	p = buf;
-	addr = 0x1000000 + (unsigned long)buf;
-	patch_branch(p, addr, BRANCH_SET_LINK);
-	q = buf + 0x1400000;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	check(instr_is_branch_to_addr(q, addr));
-
-	/* Jump to x + 16 MB moved to x - 16 MB + 4 */
-	p = buf + 0x1000000;
-	addr = 0x2000000 + (unsigned long)buf;
-	patch_branch(p, addr, 0);
-	q = buf + 4;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	check(instr_is_branch_to_addr(q, addr));
-
-
-	/* Conditional branch tests */
-
-	/* Simple case, branch to self moved a little */
-	p = buf;
-	addr = (unsigned long)p;
-	create_cond_branch(&instr, p, addr, 0);
-	patch_instruction(p, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	q = buf + 4;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(q, addr));
-
-	/* Maximum negative case, move b . to addr + 32 KB */
-	p = buf;
-	addr = (unsigned long)p;
-	create_cond_branch(&instr, p, addr, 0xFFFFFFFC);
-	patch_instruction(p, instr);
-	q = buf + 0x8000;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	check(instr_is_branch_to_addr(q, addr));
-	check(ppc_inst_equal(ppc_inst_read(q), ppc_inst(0x43ff8000)));
-
-	/* Maximum positive case, move x to x - 32 KB + 4 */
-	p = buf + 0x8000;
-	addr = (unsigned long)p;
-	create_cond_branch(&instr, p, addr, 0xFFFFFFFC);
-	patch_instruction(p, instr);
-	q = buf + 4;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	check(instr_is_branch_to_addr(q, addr));
-	check(ppc_inst_equal(ppc_inst_read(q), ppc_inst(0x43ff7ffc)));
-
-	/* Jump to x + 12 KB moved to x + 20 KB */
-	p = buf;
-	addr = 0x3000 + (unsigned long)buf;
-	create_cond_branch(&instr, p, addr, BRANCH_SET_LINK);
-	patch_instruction(p, instr);
-	q = buf + 0x5000;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	check(instr_is_branch_to_addr(q, addr));
-
-	/* Jump to x + 8 KB moved to x - 8 KB + 4 */
-	p = buf + 0x2000;
-	addr = 0x4000 + (unsigned long)buf;
-	create_cond_branch(&instr, p, addr, 0);
-	patch_instruction(p, instr);
-	q = buf + 4;
-	translate_branch(&instr, q, p);
-	patch_instruction(q, instr);
-	check(instr_is_branch_to_addr(p, addr));
-	check(instr_is_branch_to_addr(q, addr));
-
-	/* Free the buffer we were using */
-	vfree(buf);
-}
-
-#ifdef CONFIG_PPC64
-static void __init test_prefixed_patching(void)
-{
-	extern unsigned int code_patching_test1[];
-	extern unsigned int code_patching_test1_expected[];
-	extern unsigned int end_code_patching_test1[];
-
-	__patch_instruction(code_patching_test1,
-			    ppc_inst_prefix(OP_PREFIX << 26, 0x00000000),
-			    code_patching_test1);
-
-	check(!memcmp(code_patching_test1,
-		      code_patching_test1_expected,
-		      sizeof(unsigned int) *
-		      (end_code_patching_test1 - code_patching_test1)));
-}
-#else
-static inline void test_prefixed_patching(void) {}
-#endif
-
-static int __init test_code_patching(void)
-{
-	printk(KERN_DEBUG "Running code patching self-tests ...\n");
-
-	test_branch_iform();
-	test_branch_bform();
-	test_create_function_call();
-	test_translate_branch();
-	test_prefixed_patching();
-
-	return 0;
-}
-late_initcall(test_code_patching);
-
-#endif /* CONFIG_CODE_PATCHING_SELFTEST */

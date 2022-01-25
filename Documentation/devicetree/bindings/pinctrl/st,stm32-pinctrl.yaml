@@ -183,6 +183,9 @@ patternProperties:
         required:
           - pinmux
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - '#address-cells'

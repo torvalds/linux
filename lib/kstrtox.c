@@ -22,6 +22,7 @@
 
 #include "kstrtox.h"
 
+noinline
 const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
 {
 	if (*base == 0) {
@@ -47,6 +48,7 @@ const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
  *
  * Don't you dare use this function.
  */
+noinline
 unsigned int _parse_integer_limit(const char *s, unsigned int base, unsigned long long *p,
 				  size_t max_chars)
 {
@@ -85,6 +87,7 @@ unsigned int _parse_integer_limit(const char *s, unsigned int base, unsigned lon
 	return rv;
 }
 
+noinline
 unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long *p)
 {
 	return _parse_integer_limit(s, base, p, INT_MAX);
@@ -125,6 +128,7 @@ static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
  * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
  * Preferred over simple_strtoull(). Return code must be checked.
  */
+noinline
 int kstrtoull(const char *s, unsigned int base, unsigned long long *res)
 {
 	if (s[0] == '+')
@@ -148,6 +152,7 @@ EXPORT_SYMBOL(kstrtoull);
  * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
  * Preferred over simple_strtoll(). Return code must be checked.
  */
+noinline
 int kstrtoll(const char *s, unsigned int base, long long *res)
 {
 	unsigned long long tmp;
@@ -219,6 +224,7 @@ EXPORT_SYMBOL(_kstrtol);
  * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
  * Preferred over simple_strtoul(). Return code must be checked.
  */
+noinline
 int kstrtouint(const char *s, unsigned int base, unsigned int *res)
 {
 	unsigned long long tmp;
@@ -249,6 +255,7 @@ EXPORT_SYMBOL(kstrtouint);
  * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
  * Preferred over simple_strtol(). Return code must be checked.
  */
+noinline
 int kstrtoint(const char *s, unsigned int base, int *res)
 {
 	long long tmp;
@@ -264,6 +271,7 @@ int kstrtoint(const char *s, unsigned int base, int *res)
 }
 EXPORT_SYMBOL(kstrtoint);
 
+noinline
 int kstrtou16(const char *s, unsigned int base, u16 *res)
 {
 	unsigned long long tmp;
@@ -279,6 +287,7 @@ int kstrtou16(const char *s, unsigned int base, u16 *res)
 }
 EXPORT_SYMBOL(kstrtou16);
 
+noinline
 int kstrtos16(const char *s, unsigned int base, s16 *res)
 {
 	long long tmp;
@@ -294,6 +303,7 @@ int kstrtos16(const char *s, unsigned int base, s16 *res)
 }
 EXPORT_SYMBOL(kstrtos16);
 
+noinline
 int kstrtou8(const char *s, unsigned int base, u8 *res)
 {
 	unsigned long long tmp;
@@ -309,6 +319,7 @@ int kstrtou8(const char *s, unsigned int base, u8 *res)
 }
 EXPORT_SYMBOL(kstrtou8);
 
+noinline
 int kstrtos8(const char *s, unsigned int base, s8 *res)
 {
 	long long tmp;
@@ -333,6 +344,7 @@ EXPORT_SYMBOL(kstrtos8);
  * [oO][NnFf] for "on" and "off". Otherwise it will return -EINVAL.  Value
  * pointed to by res is updated upon finding a match.
  */
+noinline
 int kstrtobool(const char *s, bool *res)
 {
 	if (!s)

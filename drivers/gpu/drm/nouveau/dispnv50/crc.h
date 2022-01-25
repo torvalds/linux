@@ -45,13 +45,11 @@ struct nv50_crc_notifier_ctx {
 
 struct nv50_crc_atom {
 	enum nv50_crc_source src;
-	/* Only used for gv100+ */
-	u8 wndw : 4;
 };
 
 struct nv50_crc_func {
-	int (*set_src)(struct nv50_head *, int or, enum nv50_crc_source_type,
-		       struct nv50_crc_notifier_ctx *, u32 wndw);
+	int (*set_src)(struct nv50_head *, int or, enum nv50_crc_source_type type,
+		       struct nv50_crc_notifier_ctx *ctx);
 	int (*set_ctx)(struct nv50_head *, struct nv50_crc_notifier_ctx *);
 	u32 (*get_entry)(struct nv50_head *, struct nv50_crc_notifier_ctx *,
 			 enum nv50_crc_source, int idx);
@@ -95,6 +93,7 @@ void nv50_crc_atomic_clr(struct nv50_head *);
 
 extern const struct nv50_crc_func crc907d;
 extern const struct nv50_crc_func crcc37d;
+extern const struct nv50_crc_func crcc57d;
 
 #else /* IS_ENABLED(CONFIG_DEBUG_FS) */
 struct nv50_crc {};

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Portions of this file
- * Copyright (C) 2018, 2020 Intel Corporation
+ * Copyright (C) 2018, 2020-2021 Intel Corporation
  */
 #ifndef __NET_WIRELESS_NL80211_H
 #define __NET_WIRELESS_NL80211_H
@@ -21,10 +21,6 @@ static inline u64 wdev_id(struct wireless_dev *wdev)
 	return (u64)wdev->identifier |
 	       ((u64)wiphy_to_rdev(wdev->wiphy)->wiphy_idx << 32);
 }
-
-int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
-			      struct cfg80211_registered_device **rdev,
-			      struct wireless_dev **wdev);
 
 int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 			  struct genl_info *info,

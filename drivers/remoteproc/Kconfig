@@ -283,6 +283,17 @@ config QCOM_WCNSS_PIL
 	  verified and booted with the help of the Peripheral Authentication
 	  System (PAS) in TrustZone.
 
+config RCAR_REMOTEPROC
+	tristate "Renesas R-Car Gen3 remoteproc support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  Say y here to support R-Car realtime processor via the
+	  remote processor framework. An ELF firmware can be loaded
+	  thanks to sysfs remoteproc entries. The remote processor
+	  can be started and stopped.
+	  This can be either built-in or a loadable module.
+	  If compiled as module (M), the module name is rcar_rproc.
+
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"
 	depends on ARCH_STI

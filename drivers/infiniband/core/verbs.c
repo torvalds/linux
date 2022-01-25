@@ -1232,6 +1232,9 @@ static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 	INIT_LIST_HEAD(&qp->rdma_mrs);
 	INIT_LIST_HEAD(&qp->sig_mrs);
 
+	qp->send_cq = attr->send_cq;
+	qp->recv_cq = attr->recv_cq;
+
 	rdma_restrack_new(&qp->res, RDMA_RESTRACK_QP);
 	WARN_ONCE(!udata && !caller, "Missing kernel QP owner");
 	rdma_restrack_set_name(&qp->res, udata ? NULL : caller);

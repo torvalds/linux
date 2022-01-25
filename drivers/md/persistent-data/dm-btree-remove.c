@@ -9,6 +9,9 @@
 #include "dm-transaction-manager.h"
 
 #include <linux/export.h>
+#include <linux/device-mapper.h>
+
+#define DM_MSG_PREFIX "btree"
 
 /*
  * Removing an entry from a btree
@@ -79,15 +82,23 @@ static void node_shift(struct btree_node *n, int shift)
 	}
 }
 
-static void node_copy(struct btree_node *left, struct btree_node *right, int shift)
+static int node_copy(struct btree_node *left, struct btree_node *right, int shift)
 {
 	uint32_t nr_left = le32_to_cpu(left->header.nr_entries);
 	uint32_t value_size = le32_to_cpu(left->header.value_size);
-	BUG_ON(value_size != le32_to_cpu(right->header.value_size));
+	if (value_size != le32_to_cpu(right->header.value_size)) {
+		DMERR("mismatched value size");
+		return -EILSEQ;
+	}
 
 	if (shift < 0) {
 		shift = -shift;
-		BUG_ON(nr_left + shift > le32_to_cpu(left->header.max_entries));
+
+		if (nr_left + shift > le32_to_cpu(left->header.max_entries)) {
+			DMERR("bad shift");
+			return -EINVAL;
+		}
+
 		memcpy(key_ptr(left, nr_left),
 		       key_ptr(right, 0),
 		       shift * sizeof(__le64));
@@ -95,7 +106,11 @@ static void node_copy(struct btree_node *left, struct btree_node *right, int shi
 		       value_ptr(right, 0),
 		       shift * value_size);
 	} else {
-		BUG_ON(shift > le32_to_cpu(right->header.max_entries));
+		if (shift > le32_to_cpu(right->header.max_entries)) {
+			DMERR("bad shift");
+			return -EINVAL;
+		}
+
 		memcpy(key_ptr(right, 0),
 		       key_ptr(left, nr_left - shift),
 		       shift * sizeof(__le64));
@@ -103,6 +118,7 @@ static void node_copy(struct btree_node *left, struct btree_node *right, int shi
 		       value_ptr(left, nr_left - shift),
 		       shift * value_size);
 	}
+	return 0;
 }
 
 /*
@@ -170,35 +186,54 @@ static void exit_child(struct dm_btree_info *info, struct child *c)
 	dm_tm_unlock(info->tm, c->block);
 }
 
-static void shift(struct btree_node *left, struct btree_node *right, int count)
+static int shift(struct btree_node *left, struct btree_node *right, int count)
 {
+	int r;
 	uint32_t nr_left = le32_to_cpu(left->header.nr_entries);
 	uint32_t nr_right = le32_to_cpu(right->header.nr_entries);
 	uint32_t max_entries = le32_to_cpu(left->header.max_entries);
 	uint32_t r_max_entries = le32_to_cpu(right->header.max_entries);
 
-	BUG_ON(max_entries != r_max_entries);
-	BUG_ON(nr_left - count > max_entries);
-	BUG_ON(nr_right + count > max_entries);
+	if (max_entries != r_max_entries) {
+		DMERR("node max_entries mismatch");
+		return -EILSEQ;
+	}
+
+	if (nr_left - count > max_entries) {
+		DMERR("node shift out of bounds");
+		return -EINVAL;
+	}
+
+	if (nr_right + count > max_entries) {
+		DMERR("node shift out of bounds");
+		return -EINVAL;
+	}
 
 	if (!count)
-		return;
+		return 0;
 
 	if (count > 0) {
 		node_shift(right, count);
-		node_copy(left, right, count);
+		r = node_copy(left, right, count);
+		if (r)
+			return r;
 	} else {
-		node_copy(left, right, count);
+		r = node_copy(left, right, count);
+		if (r)
+			return r;
 		node_shift(right, count);
 	}
 
 	left->header.nr_entries = cpu_to_le32(nr_left - count);
 	right->header.nr_entries = cpu_to_le32(nr_right + count);
+
+	return 0;
 }
 
-static void __rebalance2(struct dm_btree_info *info, struct btree_node *parent,
-			 struct child *l, struct child *r)
+static int __rebalance2(struct dm_btree_info *info, struct btree_node *parent,
+			struct child *l, struct child *r)
 {
+	int ret;
 	struct btree_node *left = l->n;
 	struct btree_node *right = r->n;
 	uint32_t nr_left = le32_to_cpu(left->header.nr_entries);
@@ -229,9 +264,12 @@ static void __rebalance2(struct dm_btree_info *info, struct btree_node *parent,
 		 * Rebalance.
 		 */
 		unsigned target_left = (nr_left + nr_right) / 2;
-		shift(left, right, nr_left - target_left);
+		ret = shift(left, right, nr_left - target_left);
+		if (ret)
+			return ret;
 		*key_ptr(parent, r->index) = right->keys[0];
 	}
+	return 0;
 }
 
 static int rebalance2(struct shadow_spine *s, struct dm_btree_info *info,
@@ -253,12 +291,12 @@ static int rebalance2(struct shadow_spine *s, struct dm_btree_info *info,
 		return r;
 	}
 
-	__rebalance2(info, parent, &left, &right);
+	r = __rebalance2(info, parent, &left, &right);
 
 	exit_child(info, &left);
 	exit_child(info, &right);
 
-	return 0;
+	return r;
 }
 
 /*
@@ -266,21 +304,30 @@ static int rebalance2(struct shadow_spine *s, struct dm_btree_info *info,
  * in right, then rebalance2.  This wastes some cpu, but I want something
  * simple atm.
  */
-static void delete_center_node(struct dm_btree_info *info, struct btree_node *parent,
-			       struct child *l, struct child *c, struct child *r,
-			       struct btree_node *left, struct btree_node *center, struct btree_node *right,
-			       uint32_t nr_left, uint32_t nr_center, uint32_t nr_right)
+static int delete_center_node(struct dm_btree_info *info, struct btree_node *parent,
+			      struct child *l, struct child *c, struct child *r,
+			      struct btree_node *left, struct btree_node *center, struct btree_node *right,
+			      uint32_t nr_left, uint32_t nr_center, uint32_t nr_right)
 {
 	uint32_t max_entries = le32_to_cpu(left->header.max_entries);
 	unsigned shift = min(max_entries - nr_left, nr_center);
 
-	BUG_ON(nr_left + shift > max_entries);
+	if (nr_left + shift > max_entries) {
+		DMERR("node shift out of bounds");
+		return -EINVAL;
+	}
+
 	node_copy(left, center, -shift);
 	left->header.nr_entries = cpu_to_le32(nr_left + shift);
 
 	if (shift != nr_center) {
 		shift = nr_center - shift;
-		BUG_ON((nr_right + shift) > max_entries);
+
+		if ((nr_right + shift) > max_entries) {
+			DMERR("node shift out of bounds");
+			return -EINVAL;
+		}
+
 		node_shift(right, shift);
 		node_copy(center, right, shift);
 		right->header.nr_entries = cpu_to_le32(nr_right + shift);
@@ -291,18 +338,18 @@ static void delete_center_node(struct dm_btree_info *info, struct btree_node *pa
 	r->index--;
 
 	dm_tm_dec(info->tm, dm_block_location(c->block));
-	__rebalance2(info, parent, l, r);
+	return __rebalance2(info, parent, l, r);
 }
 
 /*
  * Redistributes entries among 3 sibling nodes.
  */
-static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
-			  struct child *l, struct child *c, struct child *r,
-			  struct btree_node *left, struct btree_node *center, struct btree_node *right,
-			  uint32_t nr_left, uint32_t nr_center, uint32_t nr_right)
+static int redistribute3(struct dm_btree_info *info, struct btree_node *parent,
+			 struct child *l, struct child *c, struct child *r,
+			 struct btree_node *left, struct btree_node *center, struct btree_node *right,
+			 uint32_t nr_left, uint32_t nr_center, uint32_t nr_right)
 {
-	int s;
+	int s, ret;
 	uint32_t max_entries = le32_to_cpu(left->header.max_entries);
 	unsigned total = nr_left + nr_center + nr_right;
 	unsigned target_right = total / 3;
@@ -317,35 +364,55 @@ static void redistribute3(struct dm_btree_info *info, struct btree_node *parent,
 
 		if (s < 0 && nr_center < -s) {
 			/* not enough in central node */
-			shift(left, center, -nr_center);
+			ret = shift(left, center, -nr_center);
+			if (ret)
+				return ret;
+
 			s += nr_center;
-			shift(left, right, s);
+			ret = shift(left, right, s);
+			if (ret)
+				return ret;
+
 			nr_right += s;
-		} else
-			shift(left, center, s);
+		} else {
+			ret = shift(left, center, s);
+			if (ret)
+				return ret;
+		}
 
-		shift(center, right, target_right - nr_right);
-
+		ret = shift(center, right, target_right - nr_right);
+		if (ret)
+			return ret;
 	} else {
 		s = target_right - nr_right;
 		if (s > 0 && nr_center < s) {
 			/* not enough in central node */
-			shift(center, right, nr_center);
+			ret = shift(center, right, nr_center);
+			if (ret)
+				return ret;
 			s -= nr_center;
-			shift(left, right, s);
+			ret = shift(left, right, s);
+			if (ret)
+				return ret;
 			nr_left -= s;
-		} else
-			shift(center, right, s);
+		} else {
+			ret = shift(center, right, s);
+			if (ret)
+				return ret;
+		}
 
-		shift(left, center, nr_left - target_left);
+		ret = shift(left, center, nr_left - target_left);
+		if (ret)
+			return ret;
 	}
 
 	*key_ptr(parent, c->index) = center->keys[0];
 	*key_ptr(parent, r->index) = right->keys[0];
+	return 0;
 }
 
-static void __rebalance3(struct dm_btree_info *info, struct btree_node *parent,
-			 struct child *l, struct child *c, struct child *r)
+static int __rebalance3(struct dm_btree_info *info, struct btree_node *parent,
+			struct child *l, struct child *c, struct child *r)
 {
 	struct btree_node *left = l->n;
 	struct btree_node *center = c->n;
@@ -357,15 +424,19 @@ static void __rebalance3(struct dm_btree_info *info, struct btree_node *parent,
 
 	unsigned threshold = merge_threshold(left) * 4 + 1;
 
-	BUG_ON(left->header.max_entries != center->header.max_entries);
-	BUG_ON(center->header.max_entries != right->header.max_entries);
+	if ((left->header.max_entries != center->header.max_entries) ||
+	    (center->header.max_entries != right->header.max_entries)) {
+		DMERR("bad btree metadata, max_entries differ");
+		return -EILSEQ;
+	}
 
-	if ((nr_left + nr_center + nr_right) < threshold)
-		delete_center_node(info, parent, l, c, r, left, center, right,
-				   nr_left, nr_center, nr_right);
-	else
-		redistribute3(info, parent, l, c, r, left, center, right,
-			      nr_left, nr_center, nr_right);
+	if ((nr_left + nr_center + nr_right) < threshold) {
+		return delete_center_node(info, parent, l, c, r, left, center, right,
+					  nr_left, nr_center, nr_right);
+	}
+
+	return redistribute3(info, parent, l, c, r, left, center, right,
+			     nr_left, nr_center, nr_right);
 }
 
 static int rebalance3(struct shadow_spine *s, struct dm_btree_info *info,
@@ -395,13 +466,13 @@ static int rebalance3(struct shadow_spine *s, struct dm_btree_info *info,
 		return r;
 	}
 
-	__rebalance3(info, parent, &left, &center, &right);
+	r = __rebalance3(info, parent, &left, &center, &right);
 
 	exit_child(info, &left);
 	exit_child(info, &center);
 	exit_child(info, &right);
 
-	return 0;
+	return r;
 }
 
 static int rebalance_children(struct shadow_spine *s,
@@ -423,9 +494,9 @@ static int rebalance_children(struct shadow_spine *s,
 
 		memcpy(n, dm_block_data(child),
 		       dm_bm_block_size(dm_tm_get_bm(info->tm)));
-		dm_tm_unlock(info->tm, child);
 
 		dm_tm_dec(info->tm, dm_block_location(child));
+		dm_tm_unlock(info->tm, child);
 		return 0;
 	}
 

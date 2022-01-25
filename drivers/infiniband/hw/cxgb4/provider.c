@@ -41,6 +41,7 @@
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/inetdevice.h>
+#include <net/addrconf.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
@@ -264,7 +265,8 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 		return -EINVAL;
 
 	dev = to_c4iw_dev(ibdev);
-	memcpy(&props->sys_image_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
+	addrconf_addr_eui48((u8 *)&props->sys_image_guid,
+			    dev->rdev.lldi.ports[0]->dev_addr);
 	props->hw_ver = CHELSIO_CHIP_RELEASE(dev->rdev.lldi.adapter_type);
 	props->fw_ver = dev->rdev.lldi.fw_vers;
 	props->device_cap_flags = dev->device_cap_flags;
@@ -525,8 +527,8 @@ void c4iw_register_device(struct work_struct *work)
 	struct c4iw_dev *dev = ctx->dev;
 
 	pr_debug("c4iw_dev %p\n", dev);
-	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
-	memcpy(&dev->ibdev.node_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
+	addrconf_addr_eui48((u8 *)&dev->ibdev.node_guid,
+			    dev->rdev.lldi.ports[0]->dev_addr);
 	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
 	if (fastreg_support)
 		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;

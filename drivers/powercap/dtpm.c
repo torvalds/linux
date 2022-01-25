@@ -382,7 +382,7 @@ void dtpm_unregister(struct dtpm *dtpm)
 {
 	powercap_unregister_zone(pct, &dtpm->zone);
 
-	pr_info("Unregistered dtpm node '%s'\n", dtpm->zone.name);
+	pr_debug("Unregistered dtpm node '%s'\n", dtpm->zone.name);
 }
 
 /**
@@ -453,8 +453,8 @@ int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent)
 		dtpm->power_limit = dtpm->power_max;
 	}
 
-	pr_info("Registered dtpm node '%s' / %llu-%llu uW, \n",
-		dtpm->zone.name, dtpm->power_min, dtpm->power_max);
+	pr_debug("Registered dtpm node '%s' / %llu-%llu uW, \n",
+		 dtpm->zone.name, dtpm->power_min, dtpm->power_max);
 
 	mutex_unlock(&dtpm_lock);
 
@@ -463,16 +463,11 @@ int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent)
 
 static int __init init_dtpm(void)
 {
-	struct dtpm_descr *dtpm_descr;
-
 	pct = powercap_register_control_type(NULL, "dtpm", NULL);
 	if (IS_ERR(pct)) {
 		pr_err("Failed to register control type\n");
 		return PTR_ERR(pct);
 	}
-
-	for_each_dtpm_table(dtpm_descr)
-		dtpm_descr->init();
 
 	return 0;
 }

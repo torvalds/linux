@@ -2,7 +2,7 @@
 /*
  * Device Tree file for NXP LS1028A RDB Board.
  *
- * Copyright 2018 NXP
+ * Copyright 2018-2021 NXP
  *
  * Harninder Rai <harninder.rai@nxp.com>
  *
@@ -21,7 +21,14 @@
 		serial1 = &duart1;
 		mmc0 = &esdhc;
 		mmc1 = &esdhc1;
-		rtc1 = &ftm_alarm0;
+		rtc1 = &ftm_alarm1;
+		spi0 = &fspi;
+		ethernet0 = &enetc_port0;
+		ethernet1 = &enetc_port2;
+		ethernet2 = &mscc_felix_port0;
+		ethernet3 = &mscc_felix_port1;
+		ethernet4 = &mscc_felix_port2;
+		ethernet5 = &mscc_felix_port3;
 	};
 
 	chosen {
@@ -102,6 +109,48 @@
 	};
 };
 
+&duart0 {
+	status = "okay";
+};
+
+&duart1 {
+	status = "okay";
+};
+
+&enetc_mdio_pf3 {
+	sgmii_phy0: ethernet-phy@2 {
+		reg = <0x2>;
+	};
+
+	/* VSC8514 QSGMII quad PHY */
+	qsgmii_phy0: ethernet-phy@10 {
+		reg = <0x10>;
+	};
+
+	qsgmii_phy1: ethernet-phy@11 {
+		reg = <0x11>;
+	};
+
+	qsgmii_phy2: ethernet-phy@12 {
+		reg = <0x12>;
+	};
+
+	qsgmii_phy3: ethernet-phy@13 {
+		reg = <0x13>;
+	};
+};
+
+&enetc_port0 {
+	phy-handle = <&sgmii_phy0>;
+	phy-mode = "sgmii";
+	managed = "in-band-status";
+	status = "okay";
+};
+
+&enetc_port2 {
+	status = "okay";
+};
+
 &esdhc {
 	sd-uhs-sdr104;
 	sd-uhs-sdr50;
@@ -130,6 +179,10 @@
 		spi-tx-bus-width = <1>; /* 1 SPI Tx line */
 		reg = <0>;
 	};
+};
+
+&ftm_alarm1 {
+	status = "okay";
 };
 
 &i2c0 {
@@ -188,48 +241,6 @@
 	};
 };
 
-&duart0 {
-	status = "okay";
-};
-
-&duart1 {
-	status = "okay";
-};
-
-&enetc_mdio_pf3 {
-	sgmii_phy0: ethernet-phy@2 {
-		reg = <0x2>;
-	};
-
-	/* VSC8514 QSGMII quad PHY */
-	qsgmii_phy0: ethernet-phy@10 {
-		reg = <0x10>;
-	};
-
-	qsgmii_phy1: ethernet-phy@11 {
-		reg = <0x11>;
-	};
-
-	qsgmii_phy2: ethernet-phy@12 {
-		reg = <0x12>;
-	};
-
-	qsgmii_phy3: ethernet-phy@13 {
-		reg = <0x13>;
-	};
-};
-
-&enetc_port0 {
-	phy-handle = <&sgmii_phy0>;
-	phy-mode = "sgmii";
-	managed = "in-band-status";
-	status = "okay";
-};
-
-&enetc_port2 {
-	status = "okay";
-};
-
 &mscc_felix {
 	status = "okay";
 };
@@ -272,6 +283,10 @@
 };
 
 &optee {
+	status = "okay";
+};
+
+&pwm0 {
 	status = "okay";
 };
 

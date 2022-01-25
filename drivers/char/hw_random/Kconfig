@@ -226,19 +226,6 @@ config HW_RANDOM_VIRTIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called virtio-rng.  If unsure, say N.
 
-config HW_RANDOM_TX4939
-	tristate "TX4939 Random Number Generator support"
-	depends on SOC_TX4939
-	default HW_RANDOM
-	help
-	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on TX4939 SoC.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tx4939-rng.
-
-	  If unsure, say Y.
-
 config HW_RANDOM_MXC_RNGA
 	tristate "Freescale i.MX RNGA Random Number Generator"
 	depends on SOC_IMX31
@@ -414,7 +401,7 @@ config HW_RANDOM_MESON
 
 config HW_RANDOM_CAVIUM
 	tristate "Cavium ThunderX Random Number Generator support"
-	depends on HW_RANDOM && PCI && (ARM64 || (COMPILE_TEST && 64BIT))
+	depends on HW_RANDOM && PCI && ARM64
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number
@@ -537,6 +524,17 @@ config HW_RANDOM_ARM_SMCCC_TRNG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called arm_smccc_trng.
+
+config HW_RANDOM_CN10K
+       tristate "Marvell CN10K Random Number Generator support"
+       depends on HW_RANDOM && PCI && ARM64
+       default HW_RANDOM
+       help
+	 This driver provides support for the True Random Number
+	 generator available in Marvell CN10K SoCs.
+
+	 To compile this driver as a module, choose M here.
+	 The module will be called cn10k_rng. If unsure, say Y.
 
 endif # HW_RANDOM
 

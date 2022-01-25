@@ -38,11 +38,18 @@ enum dw_pci_ctl_id_t {
 	navi_amd,
 };
 
+/*
+ * This is a legacy structure to describe the hardware counters
+ * to configure signal timings on the bus. For Device Tree platforms
+ * one should use the respective properties and for ACPI there is
+ * a set of ACPI methods that provide these counters. No new
+ * platform should use this structure.
+ */
 struct dw_scl_sda_cfg {
-	u32 ss_hcnt;
-	u32 fs_hcnt;
-	u32 ss_lcnt;
-	u32 fs_lcnt;
+	u16 ss_hcnt;
+	u16 fs_hcnt;
+	u16 ss_lcnt;
+	u16 fs_lcnt;
 	u32 sda_hold;
 };
 
@@ -206,8 +213,7 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 	},
 };
 
-#ifdef CONFIG_PM
-static int i2c_dw_pci_suspend(struct device *dev)
+static int __maybe_unused i2c_dw_pci_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
@@ -217,7 +223,7 @@ static int i2c_dw_pci_suspend(struct device *dev)
 	return 0;
 }
 
-static int i2c_dw_pci_resume(struct device *dev)
+static int __maybe_unused i2c_dw_pci_resume(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 	int ret;
@@ -227,7 +233,6 @@ static int i2c_dw_pci_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
 static UNIVERSAL_DEV_PM_OPS(i2c_dw_pm_ops, i2c_dw_pci_suspend,
 			    i2c_dw_pci_resume, NULL);
@@ -241,28 +246,24 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	struct dw_pci_controller *controller;
 	struct dw_scl_sda_cfg *cfg;
 
-	if (id->driver_data >= ARRAY_SIZE(dw_pci_controllers)) {
-		dev_err(&pdev->dev, "%s: invalid driver data %ld\n", __func__,
-			id->driver_data);
-		return -EINVAL;
-	}
+	if (id->driver_data >= ARRAY_SIZE(dw_pci_controllers))
+		return dev_err_probe(&pdev->dev, -EINVAL,
+				     "Invalid driver data %ld\n",
+				     id->driver_data);
 
 	controller = &dw_pci_controllers[id->driver_data];
 
 	r = pcim_enable_device(pdev);
-	if (r) {
-		dev_err(&pdev->dev, "Failed to enable I2C PCI device (%d)\n",
-			r);
-		return r;
-	}
+	if (r)
+		return dev_err_probe(&pdev->dev, r,
+				     "Failed to enable I2C PCI device\n");
 
 	pci_set_master(pdev);
 
 	r = pcim_iomap_regions(pdev, 1 << 0, pci_name(pdev));
-	if (r) {
-		dev_err(&pdev->dev, "I/O memory remapping failed\n");
-		return r;
-	}
+	if (r)
+		return dev_err_probe(&pdev->dev, r,
+				     "I/O memory remapping failed\n");
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct dw_i2c_dev), GFP_KERNEL);
 	if (!dev)
@@ -352,9 +353,6 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 	pci_free_irq_vectors(pdev);
 }
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("i2c_designware-pci");
-
 static const struct pci_device_id i2_designware_pci_ids[] = {
 	/* Medfield */
 	{ PCI_VDEVICE(INTEL, 0x0817), medfield },
@@ -411,9 +409,10 @@ static struct pci_driver dw_i2c_driver = {
 		.pm     = &i2c_dw_pm_ops,
 	},
 };
-
 module_pci_driver(dw_i2c_driver);
 
+/* Work with hotplug and coldplug */
+MODULE_ALIAS("i2c_designware-pci");
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
 MODULE_DESCRIPTION("Synopsys DesignWare PCI I2C bus adapter");
 MODULE_LICENSE("GPL");

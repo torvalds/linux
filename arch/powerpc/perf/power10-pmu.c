@@ -592,7 +592,7 @@ static struct power_pmu power10_pmu = {
 	.check_attr_config	= power10_check_attr_config,
 };
 
-int init_power10_pmu(void)
+int __init init_power10_pmu(void)
 {
 	unsigned int pvr;
 	int rc;

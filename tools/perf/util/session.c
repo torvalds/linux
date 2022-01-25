@@ -15,6 +15,7 @@
 #include "map_symbol.h"
 #include "branch.h"
 #include "debug.h"
+#include "env.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "memswap.h"
@@ -1168,7 +1169,7 @@ static void branch_stack__printf(struct perf_sample *sample, bool callstack)
 	}
 }
 
-static void regs_dump__printf(u64 mask, u64 *regs)
+static void regs_dump__printf(u64 mask, u64 *regs, const char *arch)
 {
 	unsigned rid, i = 0;
 
@@ -1176,7 +1177,7 @@ static void regs_dump__printf(u64 mask, u64 *regs)
 		u64 val = regs[i++];
 
 		printf(".... %-5s 0x%016" PRIx64 "\n",
-		       perf_reg_name(rid), val);
+		       perf_reg_name(rid, arch), val);
 	}
 }
 
@@ -1194,7 +1195,7 @@ static inline const char *regs_dump_abi(struct regs_dump *d)
 	return regs_abi[d->abi];
 }
 
-static void regs__printf(const char *type, struct regs_dump *regs)
+static void regs__printf(const char *type, struct regs_dump *regs, const char *arch)
 {
 	u64 mask = regs->mask;
 
@@ -1203,23 +1204,23 @@ static void regs__printf(const char *type, struct regs_dump *regs)
 	       mask,
 	       regs_dump_abi(regs));
 
-	regs_dump__printf(mask, regs->regs);
+	regs_dump__printf(mask, regs->regs, arch);
 }
 
-static void regs_user__printf(struct perf_sample *sample)
+static void regs_user__printf(struct perf_sample *sample, const char *arch)
 {
 	struct regs_dump *user_regs = &sample->user_regs;
 
 	if (user_regs->regs)
-		regs__printf("user", user_regs);
+		regs__printf("user", user_regs, arch);
 }
 
-static void regs_intr__printf(struct perf_sample *sample)
+static void regs_intr__printf(struct perf_sample *sample, const char *arch)
 {
 	struct regs_dump *intr_regs = &sample->intr_regs;
 
 	if (intr_regs->regs)
-		regs__printf("intr", intr_regs);
+		regs__printf("intr", intr_regs, arch);
 }
 
 static void stack_user__printf(struct stack_dump *dump)
@@ -1304,7 +1305,7 @@ char *get_page_size_name(u64 size, char *str)
 }
 
 static void dump_sample(struct evsel *evsel, union perf_event *event,
-			struct perf_sample *sample)
+			struct perf_sample *sample, const char *arch)
 {
 	u64 sample_type;
 	char str[PAGE_SIZE_NAME_LEN];
@@ -1325,10 +1326,10 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 		branch_stack__printf(sample, evsel__has_branch_callstack(evsel));
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)
-		regs_user__printf(sample);
+		regs_user__printf(sample, arch);
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR)
-		regs_intr__printf(sample);
+		regs_intr__printf(sample, arch);
 
 	if (sample_type & PERF_SAMPLE_STACK_USER)
 		stack_user__printf(&sample->user_stack);
@@ -1502,7 +1503,7 @@ static int machines__deliver_event(struct machines *machines,
 			++evlist->stats.nr_unknown_id;
 			return 0;
 		}
-		dump_sample(evsel, event, sample);
+		dump_sample(evsel, event, sample, perf_env__arch(machine->env));
 		if (machine == NULL) {
 			++evlist->stats.nr_unprocessable_samples;
 			return 0;
@@ -2536,16 +2537,16 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 		return -1;
 	}
 
-	for (i = 0; i < map->nr; i++) {
-		int cpu = map->map[i];
+	for (i = 0; i < perf_cpu_map__nr(map); i++) {
+		struct perf_cpu cpu = perf_cpu_map__cpu(map, i);
 
-		if (cpu >= nr_cpus) {
+		if (cpu.cpu >= nr_cpus) {
 			pr_err("Requested CPU %d too large. "
-			       "Consider raising MAX_NR_CPUS\n", cpu);
+			       "Consider raising MAX_NR_CPUS\n", cpu.cpu);
 			goto out_delete_map;
 		}
 
-		set_bit(cpu, cpu_bitmap);
+		set_bit(cpu.cpu, cpu_bitmap);
 	}
 
 	err = 0;
@@ -2597,7 +2598,7 @@ int perf_event__process_id_index(struct perf_session *session,
 		if (!sid)
 			return -ENOENT;
 		sid->idx = e->idx;
-		sid->cpu = e->cpu;
+		sid->cpu.cpu = e->cpu;
 		sid->tid = e->tid;
 	}
 	return 0;

@@ -10,6 +10,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/dma.h>
+#include <asm/code-patching.h>
 
 #include <mm/mmu_decl.h>
 
@@ -114,4 +115,18 @@ int __ref map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 
 	smp_wmb();
 	return 0;
+}
+
+void __patch_exception(int exc, unsigned long addr)
+{
+	unsigned int *ibase = &interrupt_base_book3e;
+
+	/*
+	 * Our exceptions vectors start with a NOP and -then- a branch
+	 * to deal with single stepping from userspace which stops on
+	 * the second instruction. Thus we need to patch the second
+	 * instruction of the exception, not the first one.
+	 */
+
+	patch_branch(ibase + (exc / 4) + 1, addr, 0);
 }

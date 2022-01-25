@@ -530,7 +530,7 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 				       bool large)
 {
 	u64 mask = 0xFFFFFFFFFULL;
-	long i;
+	unsigned long i;
 	struct kvm_vcpu *v;
 
 	dprintk("KVM MMU: tlbie(0x%lx)\n", va);

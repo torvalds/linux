@@ -277,6 +277,7 @@ enum vmscan_throttle_state {
 	VMSCAN_THROTTLE_WRITEBACK,
 	VMSCAN_THROTTLE_ISOLATED,
 	VMSCAN_THROTTLE_NOPROGRESS,
+	VMSCAN_THROTTLE_CONGESTED,
 	NR_VMSCAN_THROTTLE,
 };
 
@@ -1045,6 +1046,15 @@ static inline int is_highmem_idx(enum zone_type idx)
 	return 0;
 #endif
 }
+
+#ifdef CONFIG_ZONE_DMA
+bool has_managed_dma(void);
+#else
+static inline bool has_managed_dma(void)
+{
+	return false;
+}
+#endif
 
 /**
  * is_highmem - helper function to quickly check if a struct zone is a

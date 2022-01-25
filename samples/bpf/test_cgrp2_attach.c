@@ -71,10 +71,13 @@ static int prog_load(int map_fd, int verdict)
 		BPF_EXIT_INSN(),
 	};
 	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.log_buf = bpf_log_buf,
+		.log_size = BPF_LOG_BUF_SIZE,
+	);
 
-	return bpf_load_program(BPF_PROG_TYPE_CGROUP_SKB,
-				prog, insns_cnt, "GPL", 0,
-				bpf_log_buf, BPF_LOG_BUF_SIZE);
+	return bpf_prog_load(BPF_PROG_TYPE_CGROUP_SKB, NULL, "GPL",
+			     prog, insns_cnt, &opts);
 }
 
 static int usage(const char *argv0)
@@ -90,9 +93,9 @@ static int attach_filter(int cg_fd, int type, int verdict)
 	int prog_fd, map_fd, ret, key;
 	long long pkt_cnt, byte_cnt;
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY,
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL,
 				sizeof(key), sizeof(byte_cnt),
-				256, 0);
+				256, NULL);
 	if (map_fd < 0) {
 		printf("Failed to create map: '%s'\n", strerror(errno));
 		return EXIT_FAILURE;

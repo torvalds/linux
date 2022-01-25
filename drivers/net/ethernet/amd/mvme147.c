@@ -74,6 +74,7 @@ static struct net_device * __init mvme147lance_probe(void)
 	static int called;
 	static const char name[] = "MVME147 LANCE";
 	struct m147lance_private *lp;
+	u8 macaddr[ETH_ALEN];
 	u_long *addr;
 	u_long address;
 	int err;
@@ -93,15 +94,16 @@ static struct net_device * __init mvme147lance_probe(void)
 
 	addr = (u_long *)ETHERNET_ADDRESS;
 	address = *addr;
-	dev->dev_addr[0] = 0x08;
-	dev->dev_addr[1] = 0x00;
-	dev->dev_addr[2] = 0x3e;
+	macaddr[0] = 0x08;
+	macaddr[1] = 0x00;
+	macaddr[2] = 0x3e;
 	address = address >> 8;
-	dev->dev_addr[5] = address&0xff;
+	macaddr[5] = address&0xff;
 	address = address >> 8;
-	dev->dev_addr[4] = address&0xff;
+	macaddr[4] = address&0xff;
 	address = address >> 8;
-	dev->dev_addr[3] = address&0xff;
+	macaddr[3] = address&0xff;
+	eth_hw_addr_set(dev, macaddr);
 
 	printk("%s: MVME147 at 0x%08lx, irq %d, Hardware Address %pM\n",
 	       dev->name, dev->base_addr, MVME147_LANCE_IRQ,

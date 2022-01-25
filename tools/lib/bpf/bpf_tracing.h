@@ -66,277 +66,204 @@
 
 #if defined(__KERNEL__) || defined(__VMLINUX_H__)
 
-#define PT_REGS_PARM1(x) ((x)->di)
-#define PT_REGS_PARM2(x) ((x)->si)
-#define PT_REGS_PARM3(x) ((x)->dx)
-#define PT_REGS_PARM4(x) ((x)->cx)
-#define PT_REGS_PARM5(x) ((x)->r8)
-#define PT_REGS_RET(x) ((x)->sp)
-#define PT_REGS_FP(x) ((x)->bp)
-#define PT_REGS_RC(x) ((x)->ax)
-#define PT_REGS_SP(x) ((x)->sp)
-#define PT_REGS_IP(x) ((x)->ip)
-
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((x), di)
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((x), si)
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((x), dx)
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((x), cx)
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((x), r8)
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((x), sp)
-#define PT_REGS_FP_CORE(x) BPF_CORE_READ((x), bp)
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((x), ax)
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((x), sp)
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((x), ip)
+#define __PT_PARM1_REG di
+#define __PT_PARM2_REG si
+#define __PT_PARM3_REG dx
+#define __PT_PARM4_REG cx
+#define __PT_PARM5_REG r8
+#define __PT_RET_REG sp
+#define __PT_FP_REG bp
+#define __PT_RC_REG ax
+#define __PT_SP_REG sp
+#define __PT_IP_REG ip
 
 #else
 
 #ifdef __i386__
+
+#define __PT_PARM1_REG eax
+#define __PT_PARM2_REG edx
+#define __PT_PARM3_REG ecx
 /* i386 kernel is built with -mregparm=3 */
-#define PT_REGS_PARM1(x) ((x)->eax)
-#define PT_REGS_PARM2(x) ((x)->edx)
-#define PT_REGS_PARM3(x) ((x)->ecx)
-#define PT_REGS_PARM4(x) 0
-#define PT_REGS_PARM5(x) 0
-#define PT_REGS_RET(x) ((x)->esp)
-#define PT_REGS_FP(x) ((x)->ebp)
-#define PT_REGS_RC(x) ((x)->eax)
-#define PT_REGS_SP(x) ((x)->esp)
-#define PT_REGS_IP(x) ((x)->eip)
+#define __PT_PARM4_REG __unsupported__
+#define __PT_PARM5_REG __unsupported__
+#define __PT_RET_REG esp
+#define __PT_FP_REG ebp
+#define __PT_RC_REG eax
+#define __PT_SP_REG esp
+#define __PT_IP_REG eip
 
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((x), eax)
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((x), edx)
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((x), ecx)
-#define PT_REGS_PARM4_CORE(x) 0
-#define PT_REGS_PARM5_CORE(x) 0
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((x), esp)
-#define PT_REGS_FP_CORE(x) BPF_CORE_READ((x), ebp)
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((x), eax)
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((x), esp)
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((x), eip)
+#else /* __i386__ */
 
-#else
+#define __PT_PARM1_REG rdi
+#define __PT_PARM2_REG rsi
+#define __PT_PARM3_REG rdx
+#define __PT_PARM4_REG rcx
+#define __PT_PARM5_REG r8
+#define __PT_RET_REG rsp
+#define __PT_FP_REG rbp
+#define __PT_RC_REG rax
+#define __PT_SP_REG rsp
+#define __PT_IP_REG rip
 
-#define PT_REGS_PARM1(x) ((x)->rdi)
-#define PT_REGS_PARM2(x) ((x)->rsi)
-#define PT_REGS_PARM3(x) ((x)->rdx)
-#define PT_REGS_PARM4(x) ((x)->rcx)
-#define PT_REGS_PARM5(x) ((x)->r8)
-#define PT_REGS_RET(x) ((x)->rsp)
-#define PT_REGS_FP(x) ((x)->rbp)
-#define PT_REGS_RC(x) ((x)->rax)
-#define PT_REGS_SP(x) ((x)->rsp)
-#define PT_REGS_IP(x) ((x)->rip)
+#endif /* __i386__ */
 
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((x), rdi)
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((x), rsi)
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((x), rdx)
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((x), rcx)
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((x), r8)
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((x), rsp)
-#define PT_REGS_FP_CORE(x) BPF_CORE_READ((x), rbp)
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((x), rax)
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((x), rsp)
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((x), rip)
-
-#endif
-#endif
+#endif /* __KERNEL__ || __VMLINUX_H__ */
 
 #elif defined(bpf_target_s390)
 
 /* s390 provides user_pt_regs instead of struct pt_regs to userspace */
-struct pt_regs;
-#define PT_REGS_S390 const volatile user_pt_regs
-#define PT_REGS_PARM1(x) (((PT_REGS_S390 *)(x))->gprs[2])
-#define PT_REGS_PARM2(x) (((PT_REGS_S390 *)(x))->gprs[3])
-#define PT_REGS_PARM3(x) (((PT_REGS_S390 *)(x))->gprs[4])
-#define PT_REGS_PARM4(x) (((PT_REGS_S390 *)(x))->gprs[5])
-#define PT_REGS_PARM5(x) (((PT_REGS_S390 *)(x))->gprs[6])
-#define PT_REGS_RET(x) (((PT_REGS_S390 *)(x))->gprs[14])
-/* Works only with CONFIG_FRAME_POINTER */
-#define PT_REGS_FP(x) (((PT_REGS_S390 *)(x))->gprs[11])
-#define PT_REGS_RC(x) (((PT_REGS_S390 *)(x))->gprs[2])
-#define PT_REGS_SP(x) (((PT_REGS_S390 *)(x))->gprs[15])
-#define PT_REGS_IP(x) (((PT_REGS_S390 *)(x))->psw.addr)
-
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[2])
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[3])
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[4])
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[5])
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[6])
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[14])
-#define PT_REGS_FP_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[11])
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[2])
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), gprs[15])
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((PT_REGS_S390 *)(x), psw.addr)
+#define __PT_REGS_CAST(x) ((const user_pt_regs *)(x))
+#define __PT_PARM1_REG gprs[2]
+#define __PT_PARM2_REG gprs[3]
+#define __PT_PARM3_REG gprs[4]
+#define __PT_PARM4_REG gprs[5]
+#define __PT_PARM5_REG gprs[6]
+#define __PT_RET_REG grps[14]
+#define __PT_FP_REG gprs[11]	/* Works only with CONFIG_FRAME_POINTER */
+#define __PT_RC_REG gprs[2]
+#define __PT_SP_REG gprs[15]
+#define __PT_IP_REG psw.addr
 
 #elif defined(bpf_target_arm)
 
-#define PT_REGS_PARM1(x) ((x)->uregs[0])
-#define PT_REGS_PARM2(x) ((x)->uregs[1])
-#define PT_REGS_PARM3(x) ((x)->uregs[2])
-#define PT_REGS_PARM4(x) ((x)->uregs[3])
-#define PT_REGS_PARM5(x) ((x)->uregs[4])
-#define PT_REGS_RET(x) ((x)->uregs[14])
-#define PT_REGS_FP(x) ((x)->uregs[11]) /* Works only with CONFIG_FRAME_POINTER */
-#define PT_REGS_RC(x) ((x)->uregs[0])
-#define PT_REGS_SP(x) ((x)->uregs[13])
-#define PT_REGS_IP(x) ((x)->uregs[12])
-
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((x), uregs[0])
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((x), uregs[1])
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((x), uregs[2])
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((x), uregs[3])
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((x), uregs[4])
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((x), uregs[14])
-#define PT_REGS_FP_CORE(x) BPF_CORE_READ((x), uregs[11])
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((x), uregs[0])
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((x), uregs[13])
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((x), uregs[12])
+#define __PT_PARM1_REG uregs[0]
+#define __PT_PARM2_REG uregs[1]
+#define __PT_PARM3_REG uregs[2]
+#define __PT_PARM4_REG uregs[3]
+#define __PT_PARM5_REG uregs[4]
+#define __PT_RET_REG uregs[14]
+#define __PT_FP_REG uregs[11]	/* Works only with CONFIG_FRAME_POINTER */
+#define __PT_RC_REG uregs[0]
+#define __PT_SP_REG uregs[13]
+#define __PT_IP_REG uregs[12]
 
 #elif defined(bpf_target_arm64)
 
 /* arm64 provides struct user_pt_regs instead of struct pt_regs to userspace */
-struct pt_regs;
-#define PT_REGS_ARM64 const volatile struct user_pt_regs
-#define PT_REGS_PARM1(x) (((PT_REGS_ARM64 *)(x))->regs[0])
-#define PT_REGS_PARM2(x) (((PT_REGS_ARM64 *)(x))->regs[1])
-#define PT_REGS_PARM3(x) (((PT_REGS_ARM64 *)(x))->regs[2])
-#define PT_REGS_PARM4(x) (((PT_REGS_ARM64 *)(x))->regs[3])
-#define PT_REGS_PARM5(x) (((PT_REGS_ARM64 *)(x))->regs[4])
-#define PT_REGS_RET(x) (((PT_REGS_ARM64 *)(x))->regs[30])
-/* Works only with CONFIG_FRAME_POINTER */
-#define PT_REGS_FP(x) (((PT_REGS_ARM64 *)(x))->regs[29])
-#define PT_REGS_RC(x) (((PT_REGS_ARM64 *)(x))->regs[0])
-#define PT_REGS_SP(x) (((PT_REGS_ARM64 *)(x))->sp)
-#define PT_REGS_IP(x) (((PT_REGS_ARM64 *)(x))->pc)
-
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), regs[0])
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), regs[1])
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), regs[2])
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), regs[3])
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), regs[4])
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), regs[30])
-#define PT_REGS_FP_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), regs[29])
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), regs[0])
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), sp)
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((PT_REGS_ARM64 *)(x), pc)
+#define __PT_REGS_CAST(x) ((const struct user_pt_regs *)(x))
+#define __PT_PARM1_REG regs[0]
+#define __PT_PARM2_REG regs[1]
+#define __PT_PARM3_REG regs[2]
+#define __PT_PARM4_REG regs[3]
+#define __PT_PARM5_REG regs[4]
+#define __PT_RET_REG regs[30]
+#define __PT_FP_REG regs[29]	/* Works only with CONFIG_FRAME_POINTER */
+#define __PT_RC_REG regs[0]
+#define __PT_SP_REG sp
+#define __PT_IP_REG pc
 
 #elif defined(bpf_target_mips)
 
-#define PT_REGS_PARM1(x) ((x)->regs[4])
-#define PT_REGS_PARM2(x) ((x)->regs[5])
-#define PT_REGS_PARM3(x) ((x)->regs[6])
-#define PT_REGS_PARM4(x) ((x)->regs[7])
-#define PT_REGS_PARM5(x) ((x)->regs[8])
-#define PT_REGS_RET(x) ((x)->regs[31])
-#define PT_REGS_FP(x) ((x)->regs[30]) /* Works only with CONFIG_FRAME_POINTER */
-#define PT_REGS_RC(x) ((x)->regs[2])
-#define PT_REGS_SP(x) ((x)->regs[29])
-#define PT_REGS_IP(x) ((x)->cp0_epc)
-
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((x), regs[4])
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((x), regs[5])
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((x), regs[6])
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((x), regs[7])
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((x), regs[8])
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((x), regs[31])
-#define PT_REGS_FP_CORE(x) BPF_CORE_READ((x), regs[30])
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((x), regs[2])
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((x), regs[29])
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((x), cp0_epc)
+#define __PT_PARM1_REG regs[4]
+#define __PT_PARM2_REG regs[5]
+#define __PT_PARM3_REG regs[6]
+#define __PT_PARM4_REG regs[7]
+#define __PT_PARM5_REG regs[8]
+#define __PT_RET_REG regs[31]
+#define __PT_FP_REG regs[30]	/* Works only with CONFIG_FRAME_POINTER */
+#define __PT_RC_REG regs[2]
+#define __PT_SP_REG regs[29]
+#define __PT_IP_REG cp0_epc
 
 #elif defined(bpf_target_powerpc)
 
-#define PT_REGS_PARM1(x) ((x)->gpr[3])
-#define PT_REGS_PARM2(x) ((x)->gpr[4])
-#define PT_REGS_PARM3(x) ((x)->gpr[5])
-#define PT_REGS_PARM4(x) ((x)->gpr[6])
-#define PT_REGS_PARM5(x) ((x)->gpr[7])
-#define PT_REGS_RC(x) ((x)->gpr[3])
-#define PT_REGS_SP(x) ((x)->sp)
-#define PT_REGS_IP(x) ((x)->nip)
-
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((x), gpr[3])
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((x), gpr[4])
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((x), gpr[5])
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((x), gpr[6])
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((x), gpr[7])
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((x), gpr[3])
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((x), sp)
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((x), nip)
+#define __PT_PARM1_REG gpr[3]
+#define __PT_PARM2_REG gpr[4]
+#define __PT_PARM3_REG gpr[5]
+#define __PT_PARM4_REG gpr[6]
+#define __PT_PARM5_REG gpr[7]
+#define __PT_RET_REG regs[31]
+#define __PT_FP_REG __unsupported__
+#define __PT_RC_REG gpr[3]
+#define __PT_SP_REG sp
+#define __PT_IP_REG nip
 
 #elif defined(bpf_target_sparc)
 
-#define PT_REGS_PARM1(x) ((x)->u_regs[UREG_I0])
-#define PT_REGS_PARM2(x) ((x)->u_regs[UREG_I1])
-#define PT_REGS_PARM3(x) ((x)->u_regs[UREG_I2])
-#define PT_REGS_PARM4(x) ((x)->u_regs[UREG_I3])
-#define PT_REGS_PARM5(x) ((x)->u_regs[UREG_I4])
-#define PT_REGS_RET(x) ((x)->u_regs[UREG_I7])
-#define PT_REGS_RC(x) ((x)->u_regs[UREG_I0])
-#define PT_REGS_SP(x) ((x)->u_regs[UREG_FP])
-
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((x), u_regs[UREG_I0])
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((x), u_regs[UREG_I1])
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((x), u_regs[UREG_I2])
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((x), u_regs[UREG_I3])
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((x), u_regs[UREG_I4])
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((x), u_regs[UREG_I7])
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((x), u_regs[UREG_I0])
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((x), u_regs[UREG_FP])
-
+#define __PT_PARM1_REG u_regs[UREG_I0]
+#define __PT_PARM2_REG u_regs[UREG_I1]
+#define __PT_PARM3_REG u_regs[UREG_I2]
+#define __PT_PARM4_REG u_regs[UREG_I3]
+#define __PT_PARM5_REG u_regs[UREG_I4]
+#define __PT_RET_REG u_regs[UREG_I7]
+#define __PT_FP_REG __unsupported__
+#define __PT_RC_REG u_regs[UREG_I0]
+#define __PT_SP_REG u_regs[UREG_FP]
 /* Should this also be a bpf_target check for the sparc case? */
 #if defined(__arch64__)
-#define PT_REGS_IP(x) ((x)->tpc)
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((x), tpc)
+#define __PT_IP_REG tpc
 #else
-#define PT_REGS_IP(x) ((x)->pc)
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((x), pc)
+#define __PT_IP_REG pc
 #endif
 
 #elif defined(bpf_target_riscv)
 
-struct pt_regs;
-#define PT_REGS_RV const volatile struct user_regs_struct
-#define PT_REGS_PARM1(x) (((PT_REGS_RV *)(x))->a0)
-#define PT_REGS_PARM2(x) (((PT_REGS_RV *)(x))->a1)
-#define PT_REGS_PARM3(x) (((PT_REGS_RV *)(x))->a2)
-#define PT_REGS_PARM4(x) (((PT_REGS_RV *)(x))->a3)
-#define PT_REGS_PARM5(x) (((PT_REGS_RV *)(x))->a4)
-#define PT_REGS_RET(x) (((PT_REGS_RV *)(x))->ra)
-#define PT_REGS_FP(x) (((PT_REGS_RV *)(x))->s5)
-#define PT_REGS_RC(x) (((PT_REGS_RV *)(x))->a5)
-#define PT_REGS_SP(x) (((PT_REGS_RV *)(x))->sp)
-#define PT_REGS_IP(x) (((PT_REGS_RV *)(x))->epc)
-
-#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), a0)
-#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), a1)
-#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), a2)
-#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), a3)
-#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), a4)
-#define PT_REGS_RET_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), ra)
-#define PT_REGS_FP_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), fp)
-#define PT_REGS_RC_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), a5)
-#define PT_REGS_SP_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), sp)
-#define PT_REGS_IP_CORE(x) BPF_CORE_READ((PT_REGS_RV *)(x), epc)
+#define __PT_REGS_CAST(x) ((const struct user_regs_struct *)(x))
+#define __PT_PARM1_REG a0
+#define __PT_PARM2_REG a1
+#define __PT_PARM3_REG a2
+#define __PT_PARM4_REG a3
+#define __PT_PARM5_REG a4
+#define __PT_RET_REG ra
+#define __PT_FP_REG fp
+#define __PT_RC_REG a5
+#define __PT_SP_REG sp
+#define __PT_IP_REG epc
 
 #endif
 
+#if defined(bpf_target_defined)
+
+struct pt_regs;
+
+/* allow some architecutres to override `struct pt_regs` */
+#ifndef __PT_REGS_CAST
+#define __PT_REGS_CAST(x) (x)
+#endif
+
+#define PT_REGS_PARM1(x) (__PT_REGS_CAST(x)->__PT_PARM1_REG)
+#define PT_REGS_PARM2(x) (__PT_REGS_CAST(x)->__PT_PARM2_REG)
+#define PT_REGS_PARM3(x) (__PT_REGS_CAST(x)->__PT_PARM3_REG)
+#define PT_REGS_PARM4(x) (__PT_REGS_CAST(x)->__PT_PARM4_REG)
+#define PT_REGS_PARM5(x) (__PT_REGS_CAST(x)->__PT_PARM5_REG)
+#define PT_REGS_RET(x) (__PT_REGS_CAST(x)->__PT_RET_REG)
+#define PT_REGS_FP(x) (__PT_REGS_CAST(x)->__PT_FP_REG)
+#define PT_REGS_RC(x) (__PT_REGS_CAST(x)->__PT_RC_REG)
+#define PT_REGS_SP(x) (__PT_REGS_CAST(x)->__PT_SP_REG)
+#define PT_REGS_IP(x) (__PT_REGS_CAST(x)->__PT_IP_REG)
+
+#define PT_REGS_PARM1_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM1_REG)
+#define PT_REGS_PARM2_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM2_REG)
+#define PT_REGS_PARM3_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM3_REG)
+#define PT_REGS_PARM4_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM4_REG)
+#define PT_REGS_PARM5_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM5_REG)
+#define PT_REGS_RET_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_RET_REG)
+#define PT_REGS_FP_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_FP_REG)
+#define PT_REGS_RC_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_RC_REG)
+#define PT_REGS_SP_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_SP_REG)
+#define PT_REGS_IP_CORE(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_IP_REG)
+
 #if defined(bpf_target_powerpc)
+
 #define BPF_KPROBE_READ_RET_IP(ip, ctx)		({ (ip) = (ctx)->link; })
 #define BPF_KRETPROBE_READ_RET_IP		BPF_KPROBE_READ_RET_IP
+
 #elif defined(bpf_target_sparc)
+
 #define BPF_KPROBE_READ_RET_IP(ip, ctx)		({ (ip) = PT_REGS_RET(ctx); })
 #define BPF_KRETPROBE_READ_RET_IP		BPF_KPROBE_READ_RET_IP
-#elif defined(bpf_target_defined)
+
+#else
+
 #define BPF_KPROBE_READ_RET_IP(ip, ctx)					    \
 	({ bpf_probe_read_kernel(&(ip), sizeof(ip), (void *)PT_REGS_RET(ctx)); })
 #define BPF_KRETPROBE_READ_RET_IP(ip, ctx)				    \
-	({ bpf_probe_read_kernel(&(ip), sizeof(ip),			    \
-			  (void *)(PT_REGS_FP(ctx) + sizeof(ip))); })
+	({ bpf_probe_read_kernel(&(ip), sizeof(ip), (void *)(PT_REGS_FP(ctx) + sizeof(ip))); })
+
 #endif
 
-#if !defined(bpf_target_defined)
+#else /* defined(bpf_target_defined) */
 
 #define PT_REGS_PARM1(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define PT_REGS_PARM2(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
@@ -363,7 +290,7 @@ struct pt_regs;
 #define BPF_KPROBE_READ_RET_IP(ip, ctx) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 #define BPF_KRETPROBE_READ_RET_IP(ip, ctx) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 
-#endif /* !defined(bpf_target_defined) */
+#endif /* defined(bpf_target_defined) */
 
 #ifndef ___bpf_concat
 #define ___bpf_concat(a, b) a ## b
@@ -375,25 +302,23 @@ struct pt_regs;
 #define ___bpf_nth(_, _1, _2, _3, _4, _5, _6, _7, _8, _9, _a, _b, _c, N, ...) N
 #endif
 #ifndef ___bpf_narg
-#define ___bpf_narg(...) \
-	___bpf_nth(_, ##__VA_ARGS__, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define ___bpf_narg(...) ___bpf_nth(_, ##__VA_ARGS__, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 #endif
 
-#define ___bpf_ctx_cast0() ctx
-#define ___bpf_ctx_cast1(x) ___bpf_ctx_cast0(), (void *)ctx[0]
-#define ___bpf_ctx_cast2(x, args...) ___bpf_ctx_cast1(args), (void *)ctx[1]
-#define ___bpf_ctx_cast3(x, args...) ___bpf_ctx_cast2(args), (void *)ctx[2]
-#define ___bpf_ctx_cast4(x, args...) ___bpf_ctx_cast3(args), (void *)ctx[3]
-#define ___bpf_ctx_cast5(x, args...) ___bpf_ctx_cast4(args), (void *)ctx[4]
-#define ___bpf_ctx_cast6(x, args...) ___bpf_ctx_cast5(args), (void *)ctx[5]
-#define ___bpf_ctx_cast7(x, args...) ___bpf_ctx_cast6(args), (void *)ctx[6]
-#define ___bpf_ctx_cast8(x, args...) ___bpf_ctx_cast7(args), (void *)ctx[7]
-#define ___bpf_ctx_cast9(x, args...) ___bpf_ctx_cast8(args), (void *)ctx[8]
+#define ___bpf_ctx_cast0()            ctx
+#define ___bpf_ctx_cast1(x)           ___bpf_ctx_cast0(), (void *)ctx[0]
+#define ___bpf_ctx_cast2(x, args...)  ___bpf_ctx_cast1(args), (void *)ctx[1]
+#define ___bpf_ctx_cast3(x, args...)  ___bpf_ctx_cast2(args), (void *)ctx[2]
+#define ___bpf_ctx_cast4(x, args...)  ___bpf_ctx_cast3(args), (void *)ctx[3]
+#define ___bpf_ctx_cast5(x, args...)  ___bpf_ctx_cast4(args), (void *)ctx[4]
+#define ___bpf_ctx_cast6(x, args...)  ___bpf_ctx_cast5(args), (void *)ctx[5]
+#define ___bpf_ctx_cast7(x, args...)  ___bpf_ctx_cast6(args), (void *)ctx[6]
+#define ___bpf_ctx_cast8(x, args...)  ___bpf_ctx_cast7(args), (void *)ctx[7]
+#define ___bpf_ctx_cast9(x, args...)  ___bpf_ctx_cast8(args), (void *)ctx[8]
 #define ___bpf_ctx_cast10(x, args...) ___bpf_ctx_cast9(args), (void *)ctx[9]
 #define ___bpf_ctx_cast11(x, args...) ___bpf_ctx_cast10(args), (void *)ctx[10]
 #define ___bpf_ctx_cast12(x, args...) ___bpf_ctx_cast11(args), (void *)ctx[11]
-#define ___bpf_ctx_cast(args...) \
-	___bpf_apply(___bpf_ctx_cast, ___bpf_narg(args))(args)
+#define ___bpf_ctx_cast(args...)      ___bpf_apply(___bpf_ctx_cast, ___bpf_narg(args))(args)
 
 /*
  * BPF_PROG is a convenience wrapper for generic tp_btf/fentry/fexit and
@@ -426,19 +351,13 @@ ____##name(unsigned long long *ctx, ##args)
 
 struct pt_regs;
 
-#define ___bpf_kprobe_args0() ctx
-#define ___bpf_kprobe_args1(x) \
-	___bpf_kprobe_args0(), (void *)PT_REGS_PARM1(ctx)
-#define ___bpf_kprobe_args2(x, args...) \
-	___bpf_kprobe_args1(args), (void *)PT_REGS_PARM2(ctx)
-#define ___bpf_kprobe_args3(x, args...) \
-	___bpf_kprobe_args2(args), (void *)PT_REGS_PARM3(ctx)
-#define ___bpf_kprobe_args4(x, args...) \
-	___bpf_kprobe_args3(args), (void *)PT_REGS_PARM4(ctx)
-#define ___bpf_kprobe_args5(x, args...) \
-	___bpf_kprobe_args4(args), (void *)PT_REGS_PARM5(ctx)
-#define ___bpf_kprobe_args(args...) \
-	___bpf_apply(___bpf_kprobe_args, ___bpf_narg(args))(args)
+#define ___bpf_kprobe_args0()           ctx
+#define ___bpf_kprobe_args1(x)          ___bpf_kprobe_args0(), (void *)PT_REGS_PARM1(ctx)
+#define ___bpf_kprobe_args2(x, args...) ___bpf_kprobe_args1(args), (void *)PT_REGS_PARM2(ctx)
+#define ___bpf_kprobe_args3(x, args...) ___bpf_kprobe_args2(args), (void *)PT_REGS_PARM3(ctx)
+#define ___bpf_kprobe_args4(x, args...) ___bpf_kprobe_args3(args), (void *)PT_REGS_PARM4(ctx)
+#define ___bpf_kprobe_args5(x, args...) ___bpf_kprobe_args4(args), (void *)PT_REGS_PARM5(ctx)
+#define ___bpf_kprobe_args(args...)     ___bpf_apply(___bpf_kprobe_args, ___bpf_narg(args))(args)
 
 /*
  * BPF_KPROBE serves the same purpose for kprobes as BPF_PROG for
@@ -464,11 +383,9 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 static __attribute__((always_inline)) typeof(name(0))			    \
 ____##name(struct pt_regs *ctx, ##args)
 
-#define ___bpf_kretprobe_args0() ctx
-#define ___bpf_kretprobe_args1(x) \
-	___bpf_kretprobe_args0(), (void *)PT_REGS_RC(ctx)
-#define ___bpf_kretprobe_args(args...) \
-	___bpf_apply(___bpf_kretprobe_args, ___bpf_narg(args))(args)
+#define ___bpf_kretprobe_args0()       ctx
+#define ___bpf_kretprobe_args1(x)      ___bpf_kretprobe_args0(), (void *)PT_REGS_RC(ctx)
+#define ___bpf_kretprobe_args(args...) ___bpf_apply(___bpf_kretprobe_args, ___bpf_narg(args))(args)
 
 /*
  * BPF_KRETPROBE is similar to BPF_KPROBE, except, it only provides optional

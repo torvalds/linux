@@ -1,295 +1,272 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* CacheFiles path walking and related routines
  *
- * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2021 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  */
 
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/fsnotify.h>
-#include <linux/quotaops.h>
-#include <linux/xattr.h>
-#include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/security.h>
-#include <linux/slab.h>
 #include "internal.h"
 
-#define CACHEFILES_KEYBUF_SIZE 512
-
 /*
- * dump debugging info about an object
+ * Mark the backing file as being a cache file if it's not already in use.  The
+ * mark tells the culling request command that it's not allowed to cull the
+ * file or directory.  The caller must hold the inode lock.
  */
-static noinline
-void __cachefiles_printk_object(struct cachefiles_object *object,
-				const char *prefix)
+static bool __cachefiles_mark_inode_in_use(struct cachefiles_object *object,
+					   struct dentry *dentry)
 {
-	struct fscache_cookie *cookie;
-	const u8 *k;
-	unsigned loop;
+	struct inode *inode = d_backing_inode(dentry);
+	bool can_use = false;
 
-	pr_err("%sobject: OBJ%x\n", prefix, object->fscache.debug_id);
-	pr_err("%sobjstate=%s fl=%lx wbusy=%x ev=%lx[%lx]\n",
-	       prefix, object->fscache.state->name,
-	       object->fscache.flags, work_busy(&object->fscache.work),
-	       object->fscache.events, object->fscache.event_mask);
-	pr_err("%sops=%u inp=%u exc=%u\n",
-	       prefix, object->fscache.n_ops, object->fscache.n_in_progress,
-	       object->fscache.n_exclusive);
-	pr_err("%sparent=%x\n",
-	       prefix, object->fscache.parent ? object->fscache.parent->debug_id : 0);
-
-	spin_lock(&object->fscache.lock);
-	cookie = object->fscache.cookie;
-	if (cookie) {
-		pr_err("%scookie=%x [pr=%x nd=%p fl=%lx]\n",
-		       prefix,
-		       cookie->debug_id,
-		       cookie->parent ? cookie->parent->debug_id : 0,
-		       cookie->netfs_data,
-		       cookie->flags);
-		pr_err("%skey=[%u] '", prefix, cookie->key_len);
-		k = (cookie->key_len <= sizeof(cookie->inline_key)) ?
-			cookie->inline_key : cookie->key;
-		for (loop = 0; loop < cookie->key_len; loop++)
-			pr_cont("%02x", k[loop]);
-		pr_cont("'\n");
+	if (!(inode->i_flags & S_KERNEL_FILE)) {
+		inode->i_flags |= S_KERNEL_FILE;
+		trace_cachefiles_mark_active(object, inode);
+		can_use = true;
 	} else {
-		pr_err("%scookie=NULL\n", prefix);
+		trace_cachefiles_mark_failed(object, inode);
+		pr_notice("cachefiles: Inode already in use: %pd (B=%lx)\n",
+			  dentry, inode->i_ino);
 	}
-	spin_unlock(&object->fscache.lock);
+
+	return can_use;
+}
+
+static bool cachefiles_mark_inode_in_use(struct cachefiles_object *object,
+					 struct dentry *dentry)
+{
+	struct inode *inode = d_backing_inode(dentry);
+	bool can_use;
+
+	inode_lock(inode);
+	can_use = __cachefiles_mark_inode_in_use(object, dentry);
+	inode_unlock(inode);
+	return can_use;
 }
 
 /*
- * dump debugging info about a pair of objects
+ * Unmark a backing inode.  The caller must hold the inode lock.
  */
-static noinline void cachefiles_printk_object(struct cachefiles_object *object,
-					      struct cachefiles_object *xobject)
+static void __cachefiles_unmark_inode_in_use(struct cachefiles_object *object,
+					     struct dentry *dentry)
 {
-	if (object)
-		__cachefiles_printk_object(object, "");
-	if (xobject)
-		__cachefiles_printk_object(xobject, "x");
-}
-
-/*
- * mark the owner of a dentry, if there is one, to indicate that that dentry
- * has been preemptively deleted
- * - the caller must hold the i_mutex on the dentry's parent as required to
- *   call vfs_unlink(), vfs_rmdir() or vfs_rename()
- */
-static void cachefiles_mark_object_buried(struct cachefiles_cache *cache,
-					  struct dentry *dentry,
-					  enum fscache_why_object_killed why)
-{
-	struct cachefiles_object *object;
-	struct rb_node *p;
-
-	_enter(",'%pd'", dentry);
-
-	write_lock(&cache->active_lock);
-
-	p = cache->active_nodes.rb_node;
-	while (p) {
-		object = rb_entry(p, struct cachefiles_object, active_node);
-		if (object->dentry > dentry)
-			p = p->rb_left;
-		else if (object->dentry < dentry)
-			p = p->rb_right;
-		else
-			goto found_dentry;
-	}
-
-	write_unlock(&cache->active_lock);
-	trace_cachefiles_mark_buried(NULL, dentry, why);
-	_leave(" [no owner]");
-	return;
-
-	/* found the dentry for  */
-found_dentry:
-	kdebug("preemptive burial: OBJ%x [%s] %pd",
-	       object->fscache.debug_id,
-	       object->fscache.state->name,
-	       dentry);
-
-	trace_cachefiles_mark_buried(object, dentry, why);
-
-	if (fscache_object_is_live(&object->fscache)) {
-		pr_err("\n");
-		pr_err("Error: Can't preemptively bury live object\n");
-		cachefiles_printk_object(object, NULL);
-	} else {
-		if (why != FSCACHE_OBJECT_IS_STALE)
-			fscache_object_mark_killed(&object->fscache, why);
-	}
-
-	write_unlock(&cache->active_lock);
-	_leave(" [owner marked]");
-}
-
-/*
- * record the fact that an object is now active
- */
-static int cachefiles_mark_object_active(struct cachefiles_cache *cache,
-					 struct cachefiles_object *object)
-{
-	struct cachefiles_object *xobject;
-	struct rb_node **_p, *_parent = NULL;
-	struct dentry *dentry;
-
-	_enter(",%x", object->fscache.debug_id);
-
-try_again:
-	write_lock(&cache->active_lock);
-
-	dentry = object->dentry;
-	trace_cachefiles_mark_active(object, dentry);
-
-	if (test_and_set_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags)) {
-		pr_err("Error: Object already active\n");
-		cachefiles_printk_object(object, NULL);
-		BUG();
-	}
-
-	_p = &cache->active_nodes.rb_node;
-	while (*_p) {
-		_parent = *_p;
-		xobject = rb_entry(_parent,
-				   struct cachefiles_object, active_node);
-
-		ASSERT(xobject != object);
-
-		if (xobject->dentry > dentry)
-			_p = &(*_p)->rb_left;
-		else if (xobject->dentry < dentry)
-			_p = &(*_p)->rb_right;
-		else
-			goto wait_for_old_object;
-	}
-
-	rb_link_node(&object->active_node, _parent, _p);
-	rb_insert_color(&object->active_node, &cache->active_nodes);
-
-	write_unlock(&cache->active_lock);
-	_leave(" = 0");
-	return 0;
-
-	/* an old object from a previous incarnation is hogging the slot - we
-	 * need to wait for it to be destroyed */
-wait_for_old_object:
-	trace_cachefiles_wait_active(object, dentry, xobject);
-	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
-
-	if (fscache_object_is_live(&xobject->fscache)) {
-		pr_err("\n");
-		pr_err("Error: Unexpected object collision\n");
-		cachefiles_printk_object(object, xobject);
-	}
-	atomic_inc(&xobject->usage);
-	write_unlock(&cache->active_lock);
-
-	if (test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags)) {
-		wait_queue_head_t *wq;
-
-		signed long timeout = 60 * HZ;
-		wait_queue_entry_t wait;
-		bool requeue;
-
-		/* if the object we're waiting for is queued for processing,
-		 * then just put ourselves on the queue behind it */
-		if (work_pending(&xobject->fscache.work)) {
-			_debug("queue OBJ%x behind OBJ%x immediately",
-			       object->fscache.debug_id,
-			       xobject->fscache.debug_id);
-			goto requeue;
-		}
-
-		/* otherwise we sleep until either the object we're waiting for
-		 * is done, or the fscache_object is congested */
-		wq = bit_waitqueue(&xobject->flags, CACHEFILES_OBJECT_ACTIVE);
-		init_wait(&wait);
-		requeue = false;
-		do {
-			prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
-			if (!test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags))
-				break;
-
-			requeue = fscache_object_sleep_till_congested(&timeout);
-		} while (timeout > 0 && !requeue);
-		finish_wait(wq, &wait);
-
-		if (requeue &&
-		    test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags)) {
-			_debug("queue OBJ%x behind OBJ%x after wait",
-			       object->fscache.debug_id,
-			       xobject->fscache.debug_id);
-			goto requeue;
-		}
-
-		if (timeout <= 0) {
-			pr_err("\n");
-			pr_err("Error: Overlong wait for old active object to go away\n");
-			cachefiles_printk_object(object, xobject);
-			goto requeue;
-		}
-	}
-
-	ASSERT(!test_bit(CACHEFILES_OBJECT_ACTIVE, &xobject->flags));
-
-	cache->cache.ops->put_object(&xobject->fscache,
-		(enum fscache_obj_ref_trace)cachefiles_obj_put_wait_retry);
-	goto try_again;
-
-requeue:
-	cache->cache.ops->put_object(&xobject->fscache,
-		(enum fscache_obj_ref_trace)cachefiles_obj_put_wait_timeo);
-	_leave(" = -ETIMEDOUT");
-	return -ETIMEDOUT;
-}
-
-/*
- * Mark an object as being inactive.
- */
-void cachefiles_mark_object_inactive(struct cachefiles_cache *cache,
-				     struct cachefiles_object *object,
-				     blkcnt_t i_blocks)
-{
-	struct dentry *dentry = object->dentry;
 	struct inode *inode = d_backing_inode(dentry);
 
-	trace_cachefiles_mark_inactive(object, dentry, inode);
-
-	write_lock(&cache->active_lock);
-	rb_erase(&object->active_node, &cache->active_nodes);
-	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
-	write_unlock(&cache->active_lock);
-
-	wake_up_bit(&object->flags, CACHEFILES_OBJECT_ACTIVE);
-
-	/* This object can now be culled, so we need to let the daemon know
-	 * that there is something it can remove if it needs to.
-	 */
-	atomic_long_add(i_blocks, &cache->b_released);
-	if (atomic_inc_return(&cache->f_released))
-		cachefiles_state_changed(cache);
+	inode->i_flags &= ~S_KERNEL_FILE;
+	trace_cachefiles_mark_inactive(object, inode);
 }
 
 /*
- * delete an object representation from the cache
- * - file backed objects are unlinked
- * - directory backed objects are stuffed into the graveyard for userspace to
- *   delete
- * - unlocks the directory mutex
+ * Unmark a backing inode and tell cachefilesd that there's something that can
+ * be culled.
  */
-static int cachefiles_bury_object(struct cachefiles_cache *cache,
-				  struct cachefiles_object *object,
-				  struct dentry *dir,
-				  struct dentry *rep,
-				  bool preemptive,
-				  enum fscache_why_object_killed why)
+void cachefiles_unmark_inode_in_use(struct cachefiles_object *object,
+				    struct file *file)
+{
+	struct cachefiles_cache *cache = object->volume->cache;
+	struct inode *inode = file_inode(file);
+
+	if (inode) {
+		inode_lock(inode);
+		__cachefiles_unmark_inode_in_use(object, file->f_path.dentry);
+		inode_unlock(inode);
+
+		if (!test_bit(CACHEFILES_OBJECT_USING_TMPFILE, &object->flags)) {
+			atomic_long_add(inode->i_blocks, &cache->b_released);
+			if (atomic_inc_return(&cache->f_released))
+				cachefiles_state_changed(cache);
+		}
+	}
+}
+
+/*
+ * get a subdirectory
+ */
+struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
+					struct dentry *dir,
+					const char *dirname,
+					bool *_is_new)
+{
+	struct dentry *subdir;
+	struct path path;
+	int ret;
+
+	_enter(",,%s", dirname);
+
+	/* search the current directory for the element name */
+	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
+
+retry:
+	ret = cachefiles_inject_read_error();
+	if (ret == 0)
+		subdir = lookup_one_len(dirname, dir, strlen(dirname));
+	else
+		subdir = ERR_PTR(ret);
+	trace_cachefiles_lookup(NULL, dir, subdir);
+	if (IS_ERR(subdir)) {
+		trace_cachefiles_vfs_error(NULL, d_backing_inode(dir),
+					   PTR_ERR(subdir),
+					   cachefiles_trace_lookup_error);
+		if (PTR_ERR(subdir) == -ENOMEM)
+			goto nomem_d_alloc;
+		goto lookup_error;
+	}
+
+	_debug("subdir -> %pd %s",
+	       subdir, d_backing_inode(subdir) ? "positive" : "negative");
+
+	/* we need to create the subdir if it doesn't exist yet */
+	if (d_is_negative(subdir)) {
+		ret = cachefiles_has_space(cache, 1, 0,
+					   cachefiles_has_space_for_create);
+		if (ret < 0)
+			goto mkdir_error;
+
+		_debug("attempt mkdir");
+
+		path.mnt = cache->mnt;
+		path.dentry = dir;
+		ret = security_path_mkdir(&path, subdir, 0700);
+		if (ret < 0)
+			goto mkdir_error;
+		ret = cachefiles_inject_write_error();
+		if (ret == 0)
+			ret = vfs_mkdir(&init_user_ns, d_inode(dir), subdir, 0700);
+		if (ret < 0) {
+			trace_cachefiles_vfs_error(NULL, d_inode(dir), ret,
+						   cachefiles_trace_mkdir_error);
+			goto mkdir_error;
+		}
+		trace_cachefiles_mkdir(dir, subdir);
+
+		if (unlikely(d_unhashed(subdir))) {
+			cachefiles_put_directory(subdir);
+			goto retry;
+		}
+		ASSERT(d_backing_inode(subdir));
+
+		_debug("mkdir -> %pd{ino=%lu}",
+		       subdir, d_backing_inode(subdir)->i_ino);
+		if (_is_new)
+			*_is_new = true;
+	}
+
+	/* Tell rmdir() it's not allowed to delete the subdir */
+	inode_lock(d_inode(subdir));
+	inode_unlock(d_inode(dir));
+
+	if (!__cachefiles_mark_inode_in_use(NULL, subdir))
+		goto mark_error;
+
+	inode_unlock(d_inode(subdir));
+
+	/* we need to make sure the subdir is a directory */
+	ASSERT(d_backing_inode(subdir));
+
+	if (!d_can_lookup(subdir)) {
+		pr_err("%s is not a directory\n", dirname);
+		ret = -EIO;
+		goto check_error;
+	}
+
+	ret = -EPERM;
+	if (!(d_backing_inode(subdir)->i_opflags & IOP_XATTR) ||
+	    !d_backing_inode(subdir)->i_op->lookup ||
+	    !d_backing_inode(subdir)->i_op->mkdir ||
+	    !d_backing_inode(subdir)->i_op->rename ||
+	    !d_backing_inode(subdir)->i_op->rmdir ||
+	    !d_backing_inode(subdir)->i_op->unlink)
+		goto check_error;
+
+	_leave(" = [%lu]", d_backing_inode(subdir)->i_ino);
+	return subdir;
+
+check_error:
+	cachefiles_put_directory(subdir);
+	_leave(" = %d [check]", ret);
+	return ERR_PTR(ret);
+
+mark_error:
+	inode_unlock(d_inode(subdir));
+	dput(subdir);
+	return ERR_PTR(-EBUSY);
+
+mkdir_error:
+	inode_unlock(d_inode(dir));
+	dput(subdir);
+	pr_err("mkdir %s failed with error %d\n", dirname, ret);
+	return ERR_PTR(ret);
+
+lookup_error:
+	inode_unlock(d_inode(dir));
+	ret = PTR_ERR(subdir);
+	pr_err("Lookup %s failed with error %d\n", dirname, ret);
+	return ERR_PTR(ret);
+
+nomem_d_alloc:
+	inode_unlock(d_inode(dir));
+	_leave(" = -ENOMEM");
+	return ERR_PTR(-ENOMEM);
+}
+
+/*
+ * Put a subdirectory.
+ */
+void cachefiles_put_directory(struct dentry *dir)
+{
+	if (dir) {
+		inode_lock(dir->d_inode);
+		__cachefiles_unmark_inode_in_use(NULL, dir);
+		inode_unlock(dir->d_inode);
+		dput(dir);
+	}
+}
+
+/*
+ * Remove a regular file from the cache.
+ */
+static int cachefiles_unlink(struct cachefiles_cache *cache,
+			     struct cachefiles_object *object,
+			     struct dentry *dir, struct dentry *dentry,
+			     enum fscache_why_object_killed why)
+{
+	struct path path = {
+		.mnt	= cache->mnt,
+		.dentry	= dir,
+	};
+	int ret;
+
+	trace_cachefiles_unlink(object, d_inode(dentry)->i_ino, why);
+	ret = security_path_unlink(&path, dentry);
+	if (ret < 0) {
+		cachefiles_io_error(cache, "Unlink security error");
+		return ret;
+	}
+
+	ret = cachefiles_inject_remove_error();
+	if (ret == 0) {
+		ret = vfs_unlink(&init_user_ns, d_backing_inode(dir), dentry, NULL);
+		if (ret == -EIO)
+			cachefiles_io_error(cache, "Unlink failed");
+	}
+	if (ret != 0)
+		trace_cachefiles_vfs_error(object, d_backing_inode(dir), ret,
+					   cachefiles_trace_unlink_error);
+	return ret;
+}
+
+/*
+ * Delete an object representation from the cache
+ * - File backed objects are unlinked
+ * - Directory backed objects are stuffed into the graveyard for userspace to
+ *   delete
+ */
+int cachefiles_bury_object(struct cachefiles_cache *cache,
+			   struct cachefiles_object *object,
+			   struct dentry *dir,
+			   struct dentry *rep,
+			   enum fscache_why_object_killed why)
 {
 	struct dentry *grave, *trap;
 	struct path path, path_to_graveyard;
@@ -298,29 +275,21 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 
 	_enter(",'%pd','%pd'", dir, rep);
 
+	if (rep->d_parent != dir) {
+		inode_unlock(d_inode(dir));
+		_leave(" = -ESTALE");
+		return -ESTALE;
+	}
+
 	/* non-directories can just be unlinked */
 	if (!d_is_dir(rep)) {
-		_debug("unlink stale object");
-
-		path.mnt = cache->mnt;
-		path.dentry = dir;
-		ret = security_path_unlink(&path, rep);
-		if (ret < 0) {
-			cachefiles_io_error(cache, "Unlink security error");
-		} else {
-			trace_cachefiles_unlink(object, rep, why);
-			ret = vfs_unlink(&init_user_ns, d_inode(dir), rep,
-					 NULL);
-
-			if (preemptive)
-				cachefiles_mark_object_buried(cache, rep, why);
-		}
+		dget(rep); /* Stop the dentry being negated if it's only pinned
+			    * by a file struct.
+			    */
+		ret = cachefiles_unlink(cache, object, dir, rep, why);
+		dput(rep);
 
 		inode_unlock(d_inode(dir));
-
-		if (ret == -EIO)
-			cachefiles_io_error(cache, "Unlink failed");
-
 		_leave(" = %d", ret);
 		return ret;
 	}
@@ -368,14 +337,16 @@ try_again:
 	grave = lookup_one_len(nbuffer, cache->graveyard, strlen(nbuffer));
 	if (IS_ERR(grave)) {
 		unlock_rename(cache->graveyard, dir);
+		trace_cachefiles_vfs_error(object, d_inode(cache->graveyard),
+					   PTR_ERR(grave),
+					   cachefiles_trace_lookup_error);
 
 		if (PTR_ERR(grave) == -ENOMEM) {
 			_leave(" = -ENOMEM");
 			return -ENOMEM;
 		}
 
-		cachefiles_io_error(cache, "Lookup error %ld",
-				    PTR_ERR(grave));
+		cachefiles_io_error(cache, "Lookup error %ld", PTR_ERR(grave));
 		return -EIO;
 	}
 
@@ -419,16 +390,19 @@ try_again:
 			.new_dir	= d_inode(cache->graveyard),
 			.new_dentry	= grave,
 		};
-		trace_cachefiles_rename(object, rep, grave, why);
-		ret = vfs_rename(&rd);
+		trace_cachefiles_rename(object, d_inode(rep)->i_ino, why);
+		ret = cachefiles_inject_read_error();
+		if (ret == 0)
+			ret = vfs_rename(&rd);
+		if (ret != 0)
+			trace_cachefiles_vfs_error(object, d_inode(dir), ret,
+						   cachefiles_trace_rename_error);
 		if (ret != 0 && ret != -ENOMEM)
 			cachefiles_io_error(cache,
 					    "Rename failed with error %d", ret);
-
-		if (preemptive)
-			cachefiles_mark_object_buried(cache, rep, why);
 	}
 
+	__cachefiles_unmark_inode_in_use(object, rep);
 	unlock_rename(cache->graveyard, dir);
 	dput(grave);
 	_leave(" = 0");
@@ -436,493 +410,358 @@ try_again:
 }
 
 /*
- * delete an object representation from the cache
+ * Delete a cache file.
  */
-int cachefiles_delete_object(struct cachefiles_cache *cache,
-			     struct cachefiles_object *object)
+int cachefiles_delete_object(struct cachefiles_object *object,
+			     enum fscache_why_object_killed why)
 {
-	struct dentry *dir;
+	struct cachefiles_volume *volume = object->volume;
+	struct dentry *dentry = object->file->f_path.dentry;
+	struct dentry *fan = volume->fanout[(u8)object->cookie->key_hash];
 	int ret;
 
-	_enter(",OBJ%x{%pd}", object->fscache.debug_id, object->dentry);
+	_enter(",OBJ%x{%pD}", object->debug_id, object->file);
 
-	ASSERT(object->dentry);
-	ASSERT(d_backing_inode(object->dentry));
-	ASSERT(object->dentry->d_parent);
+	/* Stop the dentry being negated if it's only pinned by a file struct. */
+	dget(dentry);
 
-	dir = dget_parent(object->dentry);
+	inode_lock_nested(d_backing_inode(fan), I_MUTEX_PARENT);
+	ret = cachefiles_unlink(volume->cache, object, fan, dentry, why);
+	inode_unlock(d_backing_inode(fan));
+	dput(dentry);
+	return ret;
+}
 
-	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
+/*
+ * Create a temporary file and leave it unattached and un-xattr'd until the
+ * time comes to discard the object from memory.
+ */
+struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
+{
+	struct cachefiles_volume *volume = object->volume;
+	struct cachefiles_cache *cache = volume->cache;
+	const struct cred *saved_cred;
+	struct dentry *fan = volume->fanout[(u8)object->cookie->key_hash];
+	struct file *file;
+	struct path path;
+	uint64_t ni_size = object->cookie->object_size;
+	long ret;
 
-	if (test_bit(FSCACHE_OBJECT_KILLED_BY_CACHE, &object->fscache.flags)) {
-		/* object allocation for the same key preemptively deleted this
-		 * object's file so that it could create its own file */
-		_debug("object preemptively buried");
-		inode_unlock(d_inode(dir));
-		ret = 0;
-	} else {
-		/* we need to check that our parent is _still_ our parent - it
-		 * may have been renamed */
-		if (dir == object->dentry->d_parent) {
-			ret = cachefiles_bury_object(cache, object, dir,
-						     object->dentry, false,
-						     FSCACHE_OBJECT_WAS_RETIRED);
-		} else {
-			/* it got moved, presumably by cachefilesd culling it,
-			 * so it's no longer in the key path and we can ignore
-			 * it */
-			inode_unlock(d_inode(dir));
-			ret = 0;
+	ni_size = round_up(ni_size, CACHEFILES_DIO_BLOCK_SIZE);
+
+	cachefiles_begin_secure(cache, &saved_cred);
+
+	path.mnt = cache->mnt;
+	ret = cachefiles_inject_write_error();
+	if (ret == 0)
+		path.dentry = vfs_tmpfile(&init_user_ns, fan, S_IFREG, O_RDWR);
+	else
+		path.dentry = ERR_PTR(ret);
+	if (IS_ERR(path.dentry)) {
+		trace_cachefiles_vfs_error(object, d_inode(fan), PTR_ERR(path.dentry),
+					   cachefiles_trace_tmpfile_error);
+		if (PTR_ERR(path.dentry) == -EIO)
+			cachefiles_io_error_obj(object, "Failed to create tmpfile");
+		file = ERR_CAST(path.dentry);
+		goto out;
+	}
+
+	trace_cachefiles_tmpfile(object, d_backing_inode(path.dentry));
+
+	if (!cachefiles_mark_inode_in_use(object, path.dentry)) {
+		file = ERR_PTR(-EBUSY);
+		goto out_dput;
+	}
+
+	if (ni_size > 0) {
+		trace_cachefiles_trunc(object, d_backing_inode(path.dentry), 0, ni_size,
+				       cachefiles_trunc_expand_tmpfile);
+		ret = cachefiles_inject_write_error();
+		if (ret == 0)
+			ret = vfs_truncate(&path, ni_size);
+		if (ret < 0) {
+			trace_cachefiles_vfs_error(
+				object, d_backing_inode(path.dentry), ret,
+				cachefiles_trace_trunc_error);
+			file = ERR_PTR(ret);
+			goto out_dput;
 		}
 	}
 
-	dput(dir);
-	_leave(" = %d", ret);
-	return ret;
+	file = open_with_fake_path(&path, O_RDWR | O_LARGEFILE | O_DIRECT,
+				   d_backing_inode(path.dentry), cache->cache_cred);
+	if (IS_ERR(file)) {
+		trace_cachefiles_vfs_error(object, d_backing_inode(path.dentry),
+					   PTR_ERR(file),
+					   cachefiles_trace_open_error);
+		goto out_dput;
+	}
+	if (unlikely(!file->f_op->read_iter) ||
+	    unlikely(!file->f_op->write_iter)) {
+		fput(file);
+		pr_notice("Cache does not support read_iter and write_iter\n");
+		file = ERR_PTR(-EINVAL);
+	}
+
+out_dput:
+	dput(path.dentry);
+out:
+	cachefiles_end_secure(cache, saved_cred);
+	return file;
+}
+
+/*
+ * Create a new file.
+ */
+static bool cachefiles_create_file(struct cachefiles_object *object)
+{
+	struct file *file;
+	int ret;
+
+	ret = cachefiles_has_space(object->volume->cache, 1, 0,
+				   cachefiles_has_space_for_create);
+	if (ret < 0)
+		return false;
+
+	file = cachefiles_create_tmpfile(object);
+	if (IS_ERR(file))
+		return false;
+
+	set_bit(FSCACHE_COOKIE_NEEDS_UPDATE, &object->cookie->flags);
+	set_bit(CACHEFILES_OBJECT_USING_TMPFILE, &object->flags);
+	_debug("create -> %pD{ino=%lu}", file, file_inode(file)->i_ino);
+	object->file = file;
+	return true;
+}
+
+/*
+ * Open an existing file, checking its attributes and replacing it if it is
+ * stale.
+ */
+static bool cachefiles_open_file(struct cachefiles_object *object,
+				 struct dentry *dentry)
+{
+	struct cachefiles_cache *cache = object->volume->cache;
+	struct file *file;
+	struct path path;
+	int ret;
+
+	_enter("%pd", dentry);
+
+	if (!cachefiles_mark_inode_in_use(object, dentry))
+		return false;
+
+	/* We need to open a file interface onto a data file now as we can't do
+	 * it on demand because writeback called from do_exit() sees
+	 * current->fs == NULL - which breaks d_path() called from ext4 open.
+	 */
+	path.mnt = cache->mnt;
+	path.dentry = dentry;
+	file = open_with_fake_path(&path, O_RDWR | O_LARGEFILE | O_DIRECT,
+				   d_backing_inode(dentry), cache->cache_cred);
+	if (IS_ERR(file)) {
+		trace_cachefiles_vfs_error(object, d_backing_inode(dentry),
+					   PTR_ERR(file),
+					   cachefiles_trace_open_error);
+		goto error;
+	}
+
+	if (unlikely(!file->f_op->read_iter) ||
+	    unlikely(!file->f_op->write_iter)) {
+		pr_notice("Cache does not support read_iter and write_iter\n");
+		goto error_fput;
+	}
+	_debug("file -> %pd positive", dentry);
+
+	ret = cachefiles_check_auxdata(object, file);
+	if (ret < 0)
+		goto check_failed;
+
+	object->file = file;
+
+	/* Always update the atime on an object we've just looked up (this is
+	 * used to keep track of culling, and atimes are only updated by read,
+	 * write and readdir but not lookup or open).
+	 */
+	touch_atime(&file->f_path);
+	dput(dentry);
+	return true;
+
+check_failed:
+	fscache_cookie_lookup_negative(object->cookie);
+	cachefiles_unmark_inode_in_use(object, file);
+	if (ret == -ESTALE) {
+		fput(file);
+		dput(dentry);
+		return cachefiles_create_file(object);
+	}
+error_fput:
+	fput(file);
+error:
+	dput(dentry);
+	return false;
 }
 
 /*
  * walk from the parent object to the child object through the backing
  * filesystem, creating directories as we go
  */
-int cachefiles_walk_to_object(struct cachefiles_object *parent,
-			      struct cachefiles_object *object,
-			      const char *key,
-			      struct cachefiles_xattr *auxdata)
+bool cachefiles_look_up_object(struct cachefiles_object *object)
 {
-	struct cachefiles_cache *cache;
-	struct dentry *dir, *next = NULL;
-	struct inode *inode;
-	struct path path;
-	const char *name;
-	int ret, nlen;
-
-	_enter("OBJ%x{%pd},OBJ%x,%s,",
-	       parent->fscache.debug_id, parent->dentry,
-	       object->fscache.debug_id, key);
-
-	cache = container_of(parent->fscache.cache,
-			     struct cachefiles_cache, cache);
-	path.mnt = cache->mnt;
-
-	ASSERT(parent->dentry);
-	ASSERT(d_backing_inode(parent->dentry));
-
-	if (!(d_is_dir(parent->dentry))) {
-		// TODO: convert file to dir
-		_leave("looking up in none directory");
-		return -ENOBUFS;
-	}
-
-	dir = dget(parent->dentry);
-
-advance:
-	/* attempt to transit the first directory component */
-	name = key;
-	nlen = strlen(key);
-
-	/* key ends in a double NUL */
-	key = key + nlen + 1;
-	if (!*key)
-		key = NULL;
-
-lookup_again:
-	/* search the current directory for the element name */
-	_debug("lookup '%s'", name);
-
-	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
-
-	next = lookup_one_len(name, dir, nlen);
-	if (IS_ERR(next)) {
-		trace_cachefiles_lookup(object, next, NULL);
-		goto lookup_error;
-	}
-
-	inode = d_backing_inode(next);
-	trace_cachefiles_lookup(object, next, inode);
-	_debug("next -> %pd %s", next, inode ? "positive" : "negative");
-
-	if (!key)
-		object->new = !inode;
-
-	/* if this element of the path doesn't exist, then the lookup phase
-	 * failed, and we can release any readers in the certain knowledge that
-	 * there's nothing for them to actually read */
-	if (d_is_negative(next))
-		fscache_object_lookup_negative(&object->fscache);
-
-	/* we need to create the object if it's negative */
-	if (key || object->type == FSCACHE_COOKIE_TYPE_INDEX) {
-		/* index objects and intervening tree levels must be subdirs */
-		if (d_is_negative(next)) {
-			ret = cachefiles_has_space(cache, 1, 0);
-			if (ret < 0)
-				goto no_space_error;
-
-			path.dentry = dir;
-			ret = security_path_mkdir(&path, next, 0);
-			if (ret < 0)
-				goto create_error;
-			ret = vfs_mkdir(&init_user_ns, d_inode(dir), next, 0);
-			if (!key)
-				trace_cachefiles_mkdir(object, next, ret);
-			if (ret < 0)
-				goto create_error;
-
-			if (unlikely(d_unhashed(next))) {
-				dput(next);
-				inode_unlock(d_inode(dir));
-				goto lookup_again;
-			}
-			ASSERT(d_backing_inode(next));
-
-			_debug("mkdir -> %pd{ino=%lu}",
-			       next, d_backing_inode(next)->i_ino);
-
-		} else if (!d_can_lookup(next)) {
-			pr_err("inode %lu is not a directory\n",
-			       d_backing_inode(next)->i_ino);
-			ret = -ENOBUFS;
-			goto error;
-		}
-
-	} else {
-		/* non-index objects start out life as files */
-		if (d_is_negative(next)) {
-			ret = cachefiles_has_space(cache, 1, 0);
-			if (ret < 0)
-				goto no_space_error;
-
-			path.dentry = dir;
-			ret = security_path_mknod(&path, next, S_IFREG, 0);
-			if (ret < 0)
-				goto create_error;
-			ret = vfs_create(&init_user_ns, d_inode(dir), next,
-					 S_IFREG, true);
-			trace_cachefiles_create(object, next, ret);
-			if (ret < 0)
-				goto create_error;
-
-			ASSERT(d_backing_inode(next));
-
-			_debug("create -> %pd{ino=%lu}",
-			       next, d_backing_inode(next)->i_ino);
-
-		} else if (!d_can_lookup(next) &&
-			   !d_is_reg(next)
-			   ) {
-			pr_err("inode %lu is not a file or directory\n",
-			       d_backing_inode(next)->i_ino);
-			ret = -ENOBUFS;
-			goto error;
-		}
-	}
-
-	/* process the next component */
-	if (key) {
-		_debug("advance");
-		inode_unlock(d_inode(dir));
-		dput(dir);
-		dir = next;
-		next = NULL;
-		goto advance;
-	}
-
-	/* we've found the object we were looking for */
-	object->dentry = next;
-
-	/* if we've found that the terminal object exists, then we need to
-	 * check its attributes and delete it if it's out of date */
-	if (!object->new) {
-		_debug("validate '%pd'", next);
-
-		ret = cachefiles_check_object_xattr(object, auxdata);
-		if (ret == -ESTALE) {
-			/* delete the object (the deleter drops the directory
-			 * mutex) */
-			object->dentry = NULL;
-
-			ret = cachefiles_bury_object(cache, object, dir, next,
-						     true,
-						     FSCACHE_OBJECT_IS_STALE);
-			dput(next);
-			next = NULL;
-
-			if (ret < 0)
-				goto delete_error;
-
-			_debug("redo lookup");
-			fscache_object_retrying_stale(&object->fscache);
-			goto lookup_again;
-		}
-	}
-
-	/* note that we're now using this object */
-	ret = cachefiles_mark_object_active(cache, object);
-
-	inode_unlock(d_inode(dir));
-	dput(dir);
-	dir = NULL;
-
-	if (ret == -ETIMEDOUT)
-		goto mark_active_timed_out;
-
-	_debug("=== OBTAINED_OBJECT ===");
-
-	if (object->new) {
-		/* attach data to a newly constructed terminal object */
-		ret = cachefiles_set_object_xattr(object, auxdata);
-		if (ret < 0)
-			goto check_error;
-	} else {
-		/* always update the atime on an object we've just looked up
-		 * (this is used to keep track of culling, and atimes are only
-		 * updated by read, write and readdir but not lookup or
-		 * open) */
-		path.dentry = next;
-		touch_atime(&path);
-	}
-
-	/* open a file interface onto a data file */
-	if (object->type != FSCACHE_COOKIE_TYPE_INDEX) {
-		if (d_is_reg(object->dentry)) {
-			const struct address_space_operations *aops;
-
-			ret = -EPERM;
-			aops = d_backing_inode(object->dentry)->i_mapping->a_ops;
-			if (!aops->bmap)
-				goto check_error;
-			if (object->dentry->d_sb->s_blocksize > PAGE_SIZE)
-				goto check_error;
-
-			object->backer = object->dentry;
-		} else {
-			BUG(); // TODO: open file in data-class subdir
-		}
-	}
-
-	object->new = 0;
-	fscache_obtained_object(&object->fscache);
-
-	_leave(" = 0 [%lu]", d_backing_inode(object->dentry)->i_ino);
-	return 0;
-
-no_space_error:
-	fscache_object_mark_killed(&object->fscache, FSCACHE_OBJECT_NO_SPACE);
-create_error:
-	_debug("create error %d", ret);
-	if (ret == -EIO)
-		cachefiles_io_error(cache, "Create/mkdir failed");
-	goto error;
-
-mark_active_timed_out:
-	_debug("mark active timed out");
-	goto release_dentry;
-
-check_error:
-	_debug("check error %d", ret);
-	cachefiles_mark_object_inactive(
-		cache, object, d_backing_inode(object->dentry)->i_blocks);
-release_dentry:
-	dput(object->dentry);
-	object->dentry = NULL;
-	goto error_out;
-
-delete_error:
-	_debug("delete error %d", ret);
-	goto error_out2;
-
-lookup_error:
-	_debug("lookup error %ld", PTR_ERR(next));
-	ret = PTR_ERR(next);
-	if (ret == -EIO)
-		cachefiles_io_error(cache, "Lookup failed");
-	next = NULL;
-error:
-	inode_unlock(d_inode(dir));
-	dput(next);
-error_out2:
-	dput(dir);
-error_out:
-	_leave(" = error %d", -ret);
-	return ret;
-}
-
-/*
- * get a subdirectory
- */
-struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
-					struct dentry *dir,
-					const char *dirname)
-{
-	struct dentry *subdir;
-	struct path path;
+	struct cachefiles_volume *volume = object->volume;
+	struct dentry *dentry, *fan = volume->fanout[(u8)object->cookie->key_hash];
 	int ret;
 
-	_enter(",,%s", dirname);
+	_enter("OBJ%x,%s,", object->debug_id, object->d_name);
 
-	/* search the current directory for the element name */
-	inode_lock(d_inode(dir));
-
-retry:
-	subdir = lookup_one_len(dirname, dir, strlen(dirname));
-	if (IS_ERR(subdir)) {
-		if (PTR_ERR(subdir) == -ENOMEM)
-			goto nomem_d_alloc;
-		goto lookup_error;
+	/* Look up path "cache/vol/fanout/file". */
+	ret = cachefiles_inject_read_error();
+	if (ret == 0)
+		dentry = lookup_positive_unlocked(object->d_name, fan,
+						  object->d_name_len);
+	else
+		dentry = ERR_PTR(ret);
+	trace_cachefiles_lookup(object, fan, dentry);
+	if (IS_ERR(dentry)) {
+		if (dentry == ERR_PTR(-ENOENT))
+			goto new_file;
+		if (dentry == ERR_PTR(-EIO))
+			cachefiles_io_error_obj(object, "Lookup failed");
+		return false;
 	}
 
-	_debug("subdir -> %pd %s",
-	       subdir, d_backing_inode(subdir) ? "positive" : "negative");
-
-	/* we need to create the subdir if it doesn't exist yet */
-	if (d_is_negative(subdir)) {
-		ret = cachefiles_has_space(cache, 1, 0);
+	if (!d_is_reg(dentry)) {
+		pr_err("%pd is not a file\n", dentry);
+		inode_lock_nested(d_inode(fan), I_MUTEX_PARENT);
+		ret = cachefiles_bury_object(volume->cache, object, fan, dentry,
+					     FSCACHE_OBJECT_IS_WEIRD);
+		dput(dentry);
 		if (ret < 0)
-			goto mkdir_error;
-
-		_debug("attempt mkdir");
-
-		path.mnt = cache->mnt;
-		path.dentry = dir;
-		ret = security_path_mkdir(&path, subdir, 0700);
-		if (ret < 0)
-			goto mkdir_error;
-		ret = vfs_mkdir(&init_user_ns, d_inode(dir), subdir, 0700);
-		if (ret < 0)
-			goto mkdir_error;
-
-		if (unlikely(d_unhashed(subdir))) {
-			dput(subdir);
-			goto retry;
-		}
-		ASSERT(d_backing_inode(subdir));
-
-		_debug("mkdir -> %pd{ino=%lu}",
-		       subdir, d_backing_inode(subdir)->i_ino);
+			return false;
+		goto new_file;
 	}
 
-	inode_unlock(d_inode(dir));
+	if (!cachefiles_open_file(object, dentry))
+		return false;
 
-	/* we need to make sure the subdir is a directory */
-	ASSERT(d_backing_inode(subdir));
+	_leave(" = t [%lu]", file_inode(object->file)->i_ino);
+	return true;
 
-	if (!d_can_lookup(subdir)) {
-		pr_err("%s is not a directory\n", dirname);
-		ret = -EIO;
-		goto check_error;
-	}
-
-	ret = -EPERM;
-	if (!(d_backing_inode(subdir)->i_opflags & IOP_XATTR) ||
-	    !d_backing_inode(subdir)->i_op->lookup ||
-	    !d_backing_inode(subdir)->i_op->mkdir ||
-	    !d_backing_inode(subdir)->i_op->create ||
-	    !d_backing_inode(subdir)->i_op->rename ||
-	    !d_backing_inode(subdir)->i_op->rmdir ||
-	    !d_backing_inode(subdir)->i_op->unlink)
-		goto check_error;
-
-	_leave(" = [%lu]", d_backing_inode(subdir)->i_ino);
-	return subdir;
-
-check_error:
-	dput(subdir);
-	_leave(" = %d [check]", ret);
-	return ERR_PTR(ret);
-
-mkdir_error:
-	inode_unlock(d_inode(dir));
-	dput(subdir);
-	pr_err("mkdir %s failed with error %d\n", dirname, ret);
-	return ERR_PTR(ret);
-
-lookup_error:
-	inode_unlock(d_inode(dir));
-	ret = PTR_ERR(subdir);
-	pr_err("Lookup %s failed with error %d\n", dirname, ret);
-	return ERR_PTR(ret);
-
-nomem_d_alloc:
-	inode_unlock(d_inode(dir));
-	_leave(" = -ENOMEM");
-	return ERR_PTR(-ENOMEM);
+new_file:
+	fscache_cookie_lookup_negative(object->cookie);
+	return cachefiles_create_file(object);
 }
 
 /*
- * find out if an object is in use or not
- * - if finds object and it's not in use:
- *   - returns a pointer to the object and a reference on it
- *   - returns with the directory locked
+ * Attempt to link a temporary file into its rightful place in the cache.
  */
-static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
-					      struct dentry *dir,
-					      char *filename)
+bool cachefiles_commit_tmpfile(struct cachefiles_cache *cache,
+			       struct cachefiles_object *object)
 {
-	struct cachefiles_object *object;
-	struct rb_node *_n;
+	struct cachefiles_volume *volume = object->volume;
+	struct dentry *dentry, *fan = volume->fanout[(u8)object->cookie->key_hash];
+	bool success = false;
+	int ret;
+
+	_enter(",%pD", object->file);
+
+	inode_lock_nested(d_inode(fan), I_MUTEX_PARENT);
+	ret = cachefiles_inject_read_error();
+	if (ret == 0)
+		dentry = lookup_one_len(object->d_name, fan, object->d_name_len);
+	else
+		dentry = ERR_PTR(ret);
+	if (IS_ERR(dentry)) {
+		trace_cachefiles_vfs_error(object, d_inode(fan), PTR_ERR(dentry),
+					   cachefiles_trace_lookup_error);
+		_debug("lookup fail %ld", PTR_ERR(dentry));
+		goto out_unlock;
+	}
+
+	if (!d_is_negative(dentry)) {
+		if (d_backing_inode(dentry) == file_inode(object->file)) {
+			success = true;
+			goto out_dput;
+		}
+
+		ret = cachefiles_unlink(volume->cache, object, fan, dentry,
+					FSCACHE_OBJECT_IS_STALE);
+		if (ret < 0)
+			goto out_dput;
+
+		dput(dentry);
+		ret = cachefiles_inject_read_error();
+		if (ret == 0)
+			dentry = lookup_one_len(object->d_name, fan, object->d_name_len);
+		else
+			dentry = ERR_PTR(ret);
+		if (IS_ERR(dentry)) {
+			trace_cachefiles_vfs_error(object, d_inode(fan), PTR_ERR(dentry),
+						   cachefiles_trace_lookup_error);
+			_debug("lookup fail %ld", PTR_ERR(dentry));
+			goto out_unlock;
+		}
+	}
+
+	ret = cachefiles_inject_read_error();
+	if (ret == 0)
+		ret = vfs_link(object->file->f_path.dentry, &init_user_ns,
+			       d_inode(fan), dentry, NULL);
+	if (ret < 0) {
+		trace_cachefiles_vfs_error(object, d_inode(fan), ret,
+					   cachefiles_trace_link_error);
+		_debug("link fail %d", ret);
+	} else {
+		trace_cachefiles_link(object, file_inode(object->file));
+		spin_lock(&object->lock);
+		/* TODO: Do we want to switch the file pointer to the new dentry? */
+		clear_bit(CACHEFILES_OBJECT_USING_TMPFILE, &object->flags);
+		spin_unlock(&object->lock);
+		success = true;
+	}
+
+out_dput:
+	dput(dentry);
+out_unlock:
+	inode_unlock(d_inode(fan));
+	_leave(" = %u", success);
+	return success;
+}
+
+/*
+ * Look up an inode to be checked or culled.  Return -EBUSY if the inode is
+ * marked in use.
+ */
+static struct dentry *cachefiles_lookup_for_cull(struct cachefiles_cache *cache,
+						 struct dentry *dir,
+						 char *filename)
+{
 	struct dentry *victim;
-	int ret;
+	int ret = -ENOENT;
 
-	//_enter(",%pd/,%s",
-	//       dir, filename);
-
-	/* look up the victim */
 	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
 
 	victim = lookup_one_len(filename, dir, strlen(filename));
 	if (IS_ERR(victim))
 		goto lookup_error;
-
-	//_debug("victim -> %pd %s",
-	//       victim, d_backing_inode(victim) ? "positive" : "negative");
-
-	/* if the object is no longer there then we probably retired the object
-	 * at the netfs's request whilst the cull was in progress
-	 */
-	if (d_is_negative(victim)) {
-		inode_unlock(d_inode(dir));
-		dput(victim);
-		_leave(" = -ENOENT [absent]");
-		return ERR_PTR(-ENOENT);
-	}
-
-	/* check to see if we're using this object */
-	read_lock(&cache->active_lock);
-
-	_n = cache->active_nodes.rb_node;
-
-	while (_n) {
-		object = rb_entry(_n, struct cachefiles_object, active_node);
-
-		if (object->dentry > victim)
-			_n = _n->rb_left;
-		else if (object->dentry < victim)
-			_n = _n->rb_right;
-		else
-			goto object_in_use;
-	}
-
-	read_unlock(&cache->active_lock);
-
-	//_leave(" = %pd", victim);
+	if (d_is_negative(victim))
+		goto lookup_put;
+	if (d_inode(victim)->i_flags & S_KERNEL_FILE)
+		goto lookup_busy;
 	return victim;
 
-object_in_use:
-	read_unlock(&cache->active_lock);
+lookup_busy:
+	ret = -EBUSY;
+lookup_put:
 	inode_unlock(d_inode(dir));
 	dput(victim);
-	//_leave(" = -EBUSY [in use]");
-	return ERR_PTR(-EBUSY);
+	return ERR_PTR(ret);
 
 lookup_error:
 	inode_unlock(d_inode(dir));
 	ret = PTR_ERR(victim);
-	if (ret == -ENOENT) {
-		/* file or dir now absent - probably retired by netfs */
-		_leave(" = -ESTALE [absent]");
-		return ERR_PTR(-ESTALE);
-	}
+	if (ret == -ENOENT)
+		return ERR_PTR(-ESTALE); /* Probably got retired by the netfs */
 
 	if (ret == -EIO) {
 		cachefiles_io_error(cache, "Lookup failed");
@@ -931,46 +770,46 @@ lookup_error:
 		ret = -EIO;
 	}
 
-	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }
 
 /*
- * cull an object if it's not in use
+ * Cull an object if it's not in use
  * - called only by cache manager daemon
  */
 int cachefiles_cull(struct cachefiles_cache *cache, struct dentry *dir,
 		    char *filename)
 {
 	struct dentry *victim;
+	struct inode *inode;
 	int ret;
 
 	_enter(",%pd/,%s", dir, filename);
 
-	victim = cachefiles_check_active(cache, dir, filename);
+	victim = cachefiles_lookup_for_cull(cache, dir, filename);
 	if (IS_ERR(victim))
 		return PTR_ERR(victim);
 
-	_debug("victim -> %pd %s",
-	       victim, d_backing_inode(victim) ? "positive" : "negative");
-
-	/* okay... the victim is not being used so we can cull it
-	 * - start by marking it as stale
-	 */
-	_debug("victim is cullable");
-
-	ret = cachefiles_remove_object_xattr(cache, victim);
+	/* check to see if someone is using this object */
+	inode = d_inode(victim);
+	inode_lock(inode);
+	if (inode->i_flags & S_KERNEL_FILE) {
+		ret = -EBUSY;
+	} else {
+		/* Stop the cache from picking it back up */
+		inode->i_flags |= S_KERNEL_FILE;
+		ret = 0;
+	}
+	inode_unlock(inode);
 	if (ret < 0)
 		goto error_unlock;
 
-	/*  actually remove the victim (drops the dir mutex) */
-	_debug("bury");
-
-	ret = cachefiles_bury_object(cache, NULL, dir, victim, false,
+	ret = cachefiles_bury_object(cache, NULL, dir, victim,
 				     FSCACHE_OBJECT_WAS_CULLED);
 	if (ret < 0)
 		goto error;
 
+	fscache_count_culled();
 	dput(victim);
 	_leave(" = 0");
 	return 0;
@@ -979,11 +818,8 @@ error_unlock:
 	inode_unlock(d_inode(dir));
 error:
 	dput(victim);
-	if (ret == -ENOENT) {
-		/* file or dir now absent - probably retired by netfs */
-		_leave(" = -ESTALE [absent]");
-		return -ESTALE;
-	}
+	if (ret == -ENOENT)
+		return -ESTALE; /* Probably got retired by the netfs */
 
 	if (ret != -ENOMEM) {
 		pr_err("Internal error: %d\n", ret);
@@ -995,7 +831,7 @@ error:
 }
 
 /*
- * find out if an object is in use or not
+ * Find out if an object is in use or not
  * - called only by cache manager daemon
  * - returns -EBUSY or 0 to indicate whether an object is in use or not
  */
@@ -1003,16 +839,13 @@ int cachefiles_check_in_use(struct cachefiles_cache *cache, struct dentry *dir,
 			    char *filename)
 {
 	struct dentry *victim;
+	int ret = 0;
 
-	//_enter(",%pd/,%s",
-	//       dir, filename);
-
-	victim = cachefiles_check_active(cache, dir, filename);
+	victim = cachefiles_lookup_for_cull(cache, dir, filename);
 	if (IS_ERR(victim))
 		return PTR_ERR(victim);
 
 	inode_unlock(d_inode(dir));
 	dput(victim);
-	//_leave(" = 0");
-	return 0;
+	return ret;
 }

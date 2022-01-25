@@ -43,8 +43,7 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
+#include <linux/comedi/comedidev.h>
 #include <linux/delay.h>
 
 #define DT2815_DATA 0

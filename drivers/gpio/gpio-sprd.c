@@ -237,7 +237,6 @@ static int sprd_gpio_probe(struct platform_device *pdev)
 	sprd_gpio->chip.ngpio = SPRD_GPIO_NR;
 	sprd_gpio->chip.base = -1;
 	sprd_gpio->chip.parent = &pdev->dev;
-	sprd_gpio->chip.of_node = pdev->dev.of_node;
 	sprd_gpio->chip.request = sprd_gpio_request;
 	sprd_gpio->chip.free = sprd_gpio_free;
 	sprd_gpio->chip.get = sprd_gpio_get;

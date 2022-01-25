@@ -182,7 +182,7 @@ static int rxe_create_ah(struct ib_ah *ibah,
 
 	/* create index > 0 */
 	rxe_add_index(ah);
-	ah->ah_num = ah->pelem.index;
+	ah->ah_num = ah->elem.index;
 
 	if (uresp) {
 		/* only if new user provider */
@@ -383,10 +383,9 @@ static int rxe_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			     const struct ib_recv_wr **bad_wr)
 {
 	int err = 0;
-	unsigned long flags;
 	struct rxe_srq *srq = to_rsrq(ibsrq);
 
-	spin_lock_irqsave(&srq->rq.producer_lock, flags);
+	spin_lock_bh(&srq->rq.producer_lock);
 
 	while (wr) {
 		err = post_one_recv(&srq->rq, wr);
@@ -395,7 +394,7 @@ static int rxe_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		wr = wr->next;
 	}
 
-	spin_unlock_irqrestore(&srq->rq.producer_lock, flags);
+	spin_unlock_bh(&srq->rq.producer_lock);
 
 	if (err)
 		*bad_wr = wr;
@@ -468,6 +467,11 @@ static int rxe_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	err = rxe_qp_from_attr(qp, attr, mask, udata);
 	if (err)
 		goto err1;
+
+	if ((mask & IB_QP_AV) && (attr->ah_attr.ah_flags & IB_AH_GRH))
+		qp->src_port = rdma_get_udp_sport(attr->ah_attr.grh.flow_label,
+						  qp->ibqp.qp_num,
+						  qp->attr.dest_qp_num);
 
 	return 0;
 
@@ -634,19 +638,18 @@ static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	int err;
 	struct rxe_sq *sq = &qp->sq;
 	struct rxe_send_wqe *send_wqe;
-	unsigned long flags;
 	int full;
 
 	err = validate_send_wr(qp, ibwr, mask, length);
 	if (err)
 		return err;
 
-	spin_lock_irqsave(&qp->sq.sq_lock, flags);
+	spin_lock_bh(&qp->sq.sq_lock);
 
 	full = queue_full(sq->queue, QUEUE_TYPE_TO_DRIVER);
 
 	if (unlikely(full)) {
-		spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
+		spin_unlock_bh(&qp->sq.sq_lock);
 		return -ENOMEM;
 	}
 
@@ -655,7 +658,7 @@ static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 
 	queue_advance_producer(sq->queue, QUEUE_TYPE_TO_DRIVER);
 
-	spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
+	spin_unlock_bh(&qp->sq.sq_lock);
 
 	return 0;
 }
@@ -735,7 +738,6 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	int err = 0;
 	struct rxe_qp *qp = to_rqp(ibqp);
 	struct rxe_rq *rq = &qp->rq;
-	unsigned long flags;
 
 	if (unlikely((qp_state(qp) < IB_QPS_INIT) || !qp->valid)) {
 		*bad_wr = wr;
@@ -749,7 +751,7 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		goto err1;
 	}
 
-	spin_lock_irqsave(&rq->producer_lock, flags);
+	spin_lock_bh(&rq->producer_lock);
 
 	while (wr) {
 		err = post_one_recv(rq, wr);
@@ -760,7 +762,7 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		wr = wr->next;
 	}
 
-	spin_unlock_irqrestore(&rq->producer_lock, flags);
+	spin_unlock_bh(&rq->producer_lock);
 
 	if (qp->resp.state == QP_STATE_ERROR)
 		rxe_run_task(&qp->resp.task, 1);
@@ -841,9 +843,8 @@ static int rxe_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	int i;
 	struct rxe_cq *cq = to_rcq(ibcq);
 	struct rxe_cqe *cqe;
-	unsigned long flags;
 
-	spin_lock_irqsave(&cq->cq_lock, flags);
+	spin_lock_bh(&cq->cq_lock);
 	for (i = 0; i < num_entries; i++) {
 		cqe = queue_head(cq->queue, QUEUE_TYPE_FROM_DRIVER);
 		if (!cqe)
@@ -852,7 +853,7 @@ static int rxe_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 		memcpy(wc++, &cqe->ibwc, sizeof(*wc));
 		queue_advance_consumer(cq->queue, QUEUE_TYPE_FROM_DRIVER);
 	}
-	spin_unlock_irqrestore(&cq->cq_lock, flags);
+	spin_unlock_bh(&cq->cq_lock);
 
 	return i;
 }
@@ -870,11 +871,10 @@ static int rxe_peek_cq(struct ib_cq *ibcq, int wc_cnt)
 static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
-	unsigned long irq_flags;
 	int ret = 0;
 	int empty;
 
-	spin_lock_irqsave(&cq->cq_lock, irq_flags);
+	spin_lock_bh(&cq->cq_lock);
 	if (cq->notify != IB_CQ_NEXT_COMP)
 		cq->notify = flags & IB_CQ_SOLICITED_MASK;
 
@@ -883,7 +883,7 @@ static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !empty)
 		ret = 1;
 
-	spin_unlock_irqrestore(&cq->cq_lock, irq_flags);
+	spin_unlock_bh(&cq->cq_lock);
 
 	return ret;
 }

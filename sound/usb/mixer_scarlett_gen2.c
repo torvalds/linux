@@ -1061,9 +1061,9 @@ static int scarlett2_usb(
 {
 	struct scarlett2_data *private = mixer->private_data;
 	struct usb_device *dev = mixer->chip->dev;
-	u16 req_buf_size = sizeof(struct scarlett2_usb_packet) + req_size;
-	u16 resp_buf_size = sizeof(struct scarlett2_usb_packet) + resp_size;
 	struct scarlett2_usb_packet *req, *resp = NULL;
+	size_t req_buf_size = struct_size(req, data, req_size);
+	size_t resp_buf_size = struct_size(resp, data, resp_size);
 	int err;
 
 	req = kmalloc(req_buf_size, GFP_KERNEL);
@@ -1111,7 +1111,7 @@ static int scarlett2_usb(
 		usb_audio_err(
 			mixer->chip,
 			"Scarlett Gen 2/3 USB response result cmd %x was %d "
-			"expected %d\n",
+			"expected %zu\n",
 			cmd, err, resp_buf_size);
 		err = -EINVAL;
 		goto unlock;

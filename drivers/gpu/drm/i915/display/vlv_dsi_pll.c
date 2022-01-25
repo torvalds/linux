@@ -31,6 +31,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
+#include "vlv_dsi_pll.h"
 #include "vlv_sideband.h"
 
 static const u16 lfsr_converts[] = {

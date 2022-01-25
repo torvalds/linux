@@ -478,7 +478,7 @@ static void stm32_usbphyc_phy_tuning(struct stm32_usbphyc *usbphyc,
 	if (!of_property_read_bool(np, "st,no-lsfs-fb-cap"))
 		usbphyc_phy->tune |= LFSCAPEN;
 
-	if (of_property_read_bool(np, "st,slow-hs-slew-rate"))
+	if (of_property_read_bool(np, "st,decrease-hs-slew-rate"))
 		usbphyc_phy->tune |= HSDRVSLEW;
 
 	ret = of_property_read_u32(np, "st,tune-hs-dc-level", &val);
@@ -672,17 +672,15 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 
 	usbphyc->vdda1v1 = devm_regulator_get(dev, "vdda1v1");
 	if (IS_ERR(usbphyc->vdda1v1)) {
-		ret = PTR_ERR(usbphyc->vdda1v1);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get vdda1v1 supply: %d\n", ret);
+		ret = dev_err_probe(dev, PTR_ERR(usbphyc->vdda1v1),
+				    "failed to get vdda1v1 supply\n");
 		goto clk_disable;
 	}
 
 	usbphyc->vdda1v8 = devm_regulator_get(dev, "vdda1v8");
 	if (IS_ERR(usbphyc->vdda1v8)) {
-		ret = PTR_ERR(usbphyc->vdda1v8);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get vdda1v8 supply: %d\n", ret);
+		ret = dev_err_probe(dev, PTR_ERR(usbphyc->vdda1v8),
+				    "failed to get vdda1v8 supply\n");
 		goto clk_disable;
 	}
 

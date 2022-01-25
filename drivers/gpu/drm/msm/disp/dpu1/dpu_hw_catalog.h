@@ -179,13 +179,16 @@ enum {
 
 /**
  * CTL sub-blocks
- * @DPU_CTL_SPLIT_DISPLAY       CTL supports video mode split display
+ * @DPU_CTL_SPLIT_DISPLAY:	CTL supports video mode split display
+ * @DPU_CTL_FETCH_ACTIVE:	Active CTL for fetch HW (SSPPs)
+ * @DPU_CTL_VM_CFG:		CTL config to support multiple VMs
  * @DPU_CTL_MAX
  */
 enum {
 	DPU_CTL_SPLIT_DISPLAY = 0x1,
 	DPU_CTL_ACTIVE_CFG,
 	DPU_CTL_FETCH_ACTIVE,
+	DPU_CTL_VM_CFG,
 	DPU_CTL_MAX
 };
 

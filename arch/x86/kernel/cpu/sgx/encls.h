@@ -11,26 +11,8 @@
 #include <asm/traps.h>
 #include "sgx.h"
 
-/**
- * ENCLS_FAULT_FLAG - flag signifying an ENCLS return code is a trapnr
- *
- * ENCLS has its own (positive value) error codes and also generates
- * ENCLS specific #GP and #PF faults.  And the ENCLS values get munged
- * with system error codes as everything percolates back up the stack.
- * Unfortunately (for us), we need to precisely identify each unique
- * error code, e.g. the action taken if EWB fails varies based on the
- * type of fault and on the exact SGX error code, i.e. we can't simply
- * convert all faults to -EFAULT.
- *
- * To make all three error types coexist, we set bit 30 to identify an
- * ENCLS fault.  Bit 31 (technically bits N:31) is used to differentiate
- * between positive (faults and SGX error codes) and negative (system
- * error codes) values.
- */
-#define ENCLS_FAULT_FLAG 0x40000000
-
 /* Retrieve the encoded trapnr from the specified return code. */
-#define ENCLS_TRAPNR(r) ((r) & ~ENCLS_FAULT_FLAG)
+#define ENCLS_TRAPNR(r) ((r) & ~SGX_ENCLS_FAULT_FLAG)
 
 /* Issue a WARN() about an ENCLS function. */
 #define ENCLS_WARN(r, name) {						  \
@@ -50,7 +32,7 @@
  */
 static inline bool encls_faulted(int ret)
 {
-	return ret & ENCLS_FAULT_FLAG;
+	return ret & SGX_ENCLS_FAULT_FLAG;
 }
 
 /**
@@ -88,11 +70,7 @@ static inline bool encls_failed(int ret)
 	asm volatile(						\
 	"1: .byte 0x0f, 0x01, 0xcf;\n\t"			\
 	"2:\n"							\
-	".section .fixup,\"ax\"\n"				\
-	"3: orl $"__stringify(ENCLS_FAULT_FLAG)",%%eax\n"	\
-	"   jmp 2b\n"						\
-	".previous\n"						\
-	_ASM_EXTABLE_FAULT(1b, 3b)				\
+	_ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_FAULT_SGX)		\
 	: "=a"(ret)						\
 	: "a"(rax), inputs					\
 	: "memory", "cc");					\
@@ -127,7 +105,7 @@ static inline bool encls_failed(int ret)
  *
  * Return:
  *   0 on success,
- *   trapnr with ENCLS_FAULT_FLAG set on fault
+ *   trapnr with SGX_ENCLS_FAULT_FLAG set on fault
  */
 #define __encls_N(rax, rbx_out, inputs...)			\
 	({							\
@@ -136,11 +114,7 @@ static inline bool encls_failed(int ret)
 	"1: .byte 0x0f, 0x01, 0xcf;\n\t"			\
 	"   xor %%eax,%%eax;\n"					\
 	"2:\n"							\
-	".section .fixup,\"ax\"\n"				\
-	"3: orl $"__stringify(ENCLS_FAULT_FLAG)",%%eax\n"	\
-	"   jmp 2b\n"						\
-	".previous\n"						\
-	_ASM_EXTABLE_FAULT(1b, 3b)				\
+	_ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_FAULT_SGX)		\
 	: "=a"(ret), "=b"(rbx_out)				\
 	: "a"(rax), inputs					\
 	: "memory");						\

@@ -665,11 +665,13 @@ static int ets_qdisc_change(struct Qdisc *sch, struct nlattr *opt,
 			q->classes[i].deficit = quanta[i];
 		}
 	}
+	for (i = q->nbands; i < oldbands; i++) {
+		if (i >= q->nstrict && q->classes[i].qdisc->q.qlen)
+			list_del(&q->classes[i].alist);
+		qdisc_tree_flush_backlog(q->classes[i].qdisc);
+	}
 	q->nstrict = nstrict;
 	memcpy(q->prio2band, priomap, sizeof(priomap));
-
-	for (i = q->nbands; i < oldbands; i++)
-		qdisc_tree_flush_backlog(q->classes[i].qdisc);
 
 	for (i = 0; i < q->nbands; i++)
 		q->classes[i].quantum = quanta[i];

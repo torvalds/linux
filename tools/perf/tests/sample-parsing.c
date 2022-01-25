@@ -36,7 +36,7 @@
  * These are based on the input value (213) specified
  * in branch_stack variable.
  */
-#define BS_EXPECTED_BE	0xa00d000000000000
+#define BS_EXPECTED_BE	0xa000d00000000000
 #define BS_EXPECTED_LE	0xd5000000
 #define FLAG(s)	s->branch_stack->entries[i].flags
 

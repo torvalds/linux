@@ -17,7 +17,6 @@ config PPC_PSERIES
 	select PPC_RTAS_DAEMON
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
-	select PPC_NATIVE
 	select PPC_DOORBELL
 	select HOTPLUG_CPU
 	select ARCH_RANDOM
@@ -60,10 +59,6 @@ config PSERIES_ENERGY
 	  on supported PSERIES platforms.
 	  Provides: /sys/devices/system/cpu/pseries_(de)activation_hint_list
 	  and /sys/devices/system/cpu/cpuN/pseries_(de)activation_hint
-
-config SCANLOG
-	tristate "Scanlog dump interface"
-	depends on RTAS_PROC && PPC_PSERIES
 
 config IO_EVENT_IRQ
 	bool "IO Event Interrupt support"

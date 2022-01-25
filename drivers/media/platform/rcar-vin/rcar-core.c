@@ -349,12 +349,10 @@ out:
 
 static void rvin_group_notifier_cleanup(struct rvin_dev *vin)
 {
-	mutex_lock(&vin->group->lock);
 	if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
 		v4l2_async_nf_unregister(&vin->group->notifier);
 		v4l2_async_nf_cleanup(&vin->group->notifier);
 	}
-	mutex_unlock(&vin->group->lock);
 }
 
 static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
@@ -1620,6 +1618,7 @@ static SIMPLE_DEV_PM_OPS(rvin_pm_ops, rvin_suspend, rvin_resume);
 static struct platform_driver rcar_vin_driver = {
 	.driver = {
 		.name = "rcar-vin",
+		.suppress_bind_attrs = true,
 		.pm = &rvin_pm_ops,
 		.of_match_table = rvin_of_id_table,
 	},

@@ -3,7 +3,7 @@
 
 void test_stacktrace_map_raw_tp(void)
 {
-	const char *prog_name = "tracepoint/sched/sched_switch";
+	const char *prog_name = "oncpu";
 	int control_map_fd, stackid_hmap_fd, stackmap_fd;
 	const char *file = "./test_stacktrace_map.o";
 	__u32 key, val, duration = 0;
@@ -12,11 +12,11 @@ void test_stacktrace_map_raw_tp(void)
 	struct bpf_object *obj;
 	struct bpf_link *link = NULL;
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
 		return;
 
-	prog = bpf_object__find_program_by_title(obj, prog_name);
+	prog = bpf_object__find_program_by_name(obj, prog_name);
 	if (CHECK(!prog, "find_prog", "prog '%s' not found\n", prog_name))
 		goto close_prog;
 

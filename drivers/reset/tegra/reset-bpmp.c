@@ -20,7 +20,6 @@ static int tegra_bpmp_reset_common(struct reset_controller_dev *rstc,
 	struct tegra_bpmp *bpmp = to_tegra_bpmp(rstc);
 	struct mrq_reset_request request;
 	struct tegra_bpmp_message msg;
-	int err;
 
 	memset(&request, 0, sizeof(request));
 	request.cmd = command;
@@ -31,13 +30,7 @@ static int tegra_bpmp_reset_common(struct reset_controller_dev *rstc,
 	msg.tx.data = &request;
 	msg.tx.size = sizeof(request);
 
-	err = tegra_bpmp_transfer(bpmp, &msg);
-	if (err)
-		return err;
-	if (msg.rx.ret)
-		return -EINVAL;
-
-	return 0;
+	return tegra_bpmp_transfer(bpmp, &msg);
 }
 
 static int tegra_bpmp_reset_module(struct reset_controller_dev *rstc,

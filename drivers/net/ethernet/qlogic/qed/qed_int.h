@@ -186,6 +186,19 @@ void qed_int_disable_post_isr_release(struct qed_dev *cdev);
 void qed_int_attn_clr_enable(struct qed_dev *cdev, bool clr_enable);
 
 /**
+ * qed_int_get_sb_dbg: Read debug information regarding a given SB
+ *
+ * @p_hwfn: hw function pointer
+ * @p_ptt: ptt resource
+ * @p_sb: pointer to status block for which we want to get info
+ * @p_info: pointer to struct to fill with information regarding SB
+ *
+ * Return: 0 with status block info filled on success, otherwise return error
+ */
+int qed_int_get_sb_dbg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       struct qed_sb_info *p_sb, struct qed_sb_info_dbg *p_info);
+
+/**
  * qed_db_rec_handler(): Doorbell Recovery handler.
  *          Run doorbell recovery in case of PF overflow (and flush DORQ if
  *          needed).

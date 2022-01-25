@@ -143,9 +143,8 @@ int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx)
 
 	rockchip_vpu2_set_src_img_ctrl(vpu, ctx);
 	rockchip_vpu2_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
-	rockchip_vpu2_jpeg_enc_set_qtable(vpu,
-					  hantro_jpeg_get_qtable(0),
-					  hantro_jpeg_get_qtable(1));
+	rockchip_vpu2_jpeg_enc_set_qtable(vpu, jpeg_ctx.hw_luma_qtable,
+					  jpeg_ctx.hw_chroma_qtable);
 
 	reg = VEPU_REG_OUTPUT_SWAP32
 		| VEPU_REG_OUTPUT_SWAP16
@@ -170,4 +169,21 @@ int rockchip_vpu2_jpeg_enc_run(struct hantro_ctx *ctx)
 	vepu_write(vpu, reg, VEPU_REG_ENCODE_START);
 
 	return 0;
+}
+
+void rockchip_vpu2_jpeg_enc_done(struct hantro_ctx *ctx)
+{
+	struct hantro_dev *vpu = ctx->dev;
+	u32 bytesused = vepu_read(vpu, VEPU_REG_STR_BUF_LIMIT) / 8;
+	struct vb2_v4l2_buffer *dst_buf = hantro_get_dst_buf(ctx);
+
+	/*
+	 * TODO: Rework the JPEG encoder to eliminate the need
+	 * for a bounce buffer.
+	 */
+	memcpy(vb2_plane_vaddr(&dst_buf->vb2_buf, 0) +
+	       ctx->vpu_dst_fmt->header_size,
+	       ctx->jpeg_enc.bounce_buffer.cpu, bytesused);
+	vb2_set_plane_payload(&dst_buf->vb2_buf, 0,
+			      ctx->vpu_dst_fmt->header_size + bytesused);
 }

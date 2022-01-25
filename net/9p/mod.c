@@ -83,7 +83,7 @@ void v9fs_unregister_trans(struct p9_trans_module *m)
 }
 EXPORT_SYMBOL(v9fs_unregister_trans);
 
-static struct p9_trans_module *_p9_get_trans_by_name(char *s)
+static struct p9_trans_module *_p9_get_trans_by_name(const char *s)
 {
 	struct p9_trans_module *t, *found = NULL;
 
@@ -106,7 +106,7 @@ static struct p9_trans_module *_p9_get_trans_by_name(char *s)
  * @s: string identifying transport
  *
  */
-struct p9_trans_module *v9fs_get_trans_by_name(char *s)
+struct p9_trans_module *v9fs_get_trans_by_name(const char *s)
 {
 	struct p9_trans_module *found = NULL;
 
@@ -123,6 +123,10 @@ struct p9_trans_module *v9fs_get_trans_by_name(char *s)
 }
 EXPORT_SYMBOL(v9fs_get_trans_by_name);
 
+static const char * const v9fs_default_transports[] = {
+	"virtio", "tcp", "fd", "unix", "xen", "rdma",
+};
+
 /**
  * v9fs_get_default_trans - get the default transport
  *
@@ -131,6 +135,7 @@ EXPORT_SYMBOL(v9fs_get_trans_by_name);
 struct p9_trans_module *v9fs_get_default_trans(void)
 {
 	struct p9_trans_module *t, *found = NULL;
+	int i;
 
 	spin_lock(&v9fs_trans_lock);
 
@@ -148,6 +153,10 @@ struct p9_trans_module *v9fs_get_default_trans(void)
 			}
 
 	spin_unlock(&v9fs_trans_lock);
+
+	for (i = 0; !found && i < ARRAY_SIZE(v9fs_default_transports); i++)
+		found = v9fs_get_trans_by_name(v9fs_default_transports[i]);
+
 	return found;
 }
 EXPORT_SYMBOL(v9fs_get_default_trans);
@@ -177,7 +186,6 @@ static int __init init_p9(void)
 
 	p9_error_init();
 	pr_info("Installing 9P2000 support\n");
-	p9_trans_fd_init();
 
 	return ret;
 }
@@ -191,7 +199,6 @@ static void __exit exit_p9(void)
 {
 	pr_info("Unloading 9P2000 support\n");
 
-	p9_trans_fd_exit();
 	p9_client_exit();
 }
 

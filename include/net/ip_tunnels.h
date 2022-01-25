@@ -104,7 +104,10 @@ struct metadata_dst;
 struct ip_tunnel {
 	struct ip_tunnel __rcu	*next;
 	struct hlist_node hash_node;
+
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
+
 	struct net		*net;	/* netns for packet i/o */
 
 	unsigned long	err_time;	/* Time when the last ICMP error

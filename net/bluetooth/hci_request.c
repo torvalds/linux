@@ -32,10 +32,6 @@
 #include "msft.h"
 #include "eir.h"
 
-#define HCI_REQ_DONE	  0
-#define HCI_REQ_PEND	  1
-#define HCI_REQ_CANCELED  2
-
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
 {
 	skb_queue_head_init(&req->cmd_q);
@@ -101,8 +97,8 @@ int hci_req_run_skb(struct hci_request *req, hci_req_complete_skb_t complete)
 	return req_run(req, NULL, complete);
 }
 
-static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
-				  struct sk_buff *skb)
+void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
+			   struct sk_buff *skb)
 {
 	bt_dev_dbg(hdev, "result 0x%2.2x", result);
 
@@ -114,81 +110,6 @@ static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
 		wake_up_interruptible(&hdev->req_wait_q);
 	}
 }
-
-void hci_req_sync_cancel(struct hci_dev *hdev, int err)
-{
-	bt_dev_dbg(hdev, "err 0x%2.2x", err);
-
-	if (hdev->req_status == HCI_REQ_PEND) {
-		hdev->req_result = err;
-		hdev->req_status = HCI_REQ_CANCELED;
-		wake_up_interruptible(&hdev->req_wait_q);
-	}
-}
-
-struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
-				  const void *param, u8 event, u32 timeout)
-{
-	struct hci_request req;
-	struct sk_buff *skb;
-	int err = 0;
-
-	bt_dev_dbg(hdev, "");
-
-	hci_req_init(&req, hdev);
-
-	hci_req_add_ev(&req, opcode, plen, param, event);
-
-	hdev->req_status = HCI_REQ_PEND;
-
-	err = hci_req_run_skb(&req, hci_req_sync_complete);
-	if (err < 0)
-		return ERR_PTR(err);
-
-	err = wait_event_interruptible_timeout(hdev->req_wait_q,
-			hdev->req_status != HCI_REQ_PEND, timeout);
-
-	if (err == -ERESTARTSYS)
-		return ERR_PTR(-EINTR);
-
-	switch (hdev->req_status) {
-	case HCI_REQ_DONE:
-		err = -bt_to_errno(hdev->req_result);
-		break;
-
-	case HCI_REQ_CANCELED:
-		err = -hdev->req_result;
-		break;
-
-	default:
-		err = -ETIMEDOUT;
-		break;
-	}
-
-	hdev->req_status = hdev->req_result = 0;
-	skb = hdev->req_skb;
-	hdev->req_skb = NULL;
-
-	bt_dev_dbg(hdev, "end: err %d", err);
-
-	if (err < 0) {
-		kfree_skb(skb);
-		return ERR_PTR(err);
-	}
-
-	if (!skb)
-		return ERR_PTR(-ENODATA);
-
-	return skb;
-}
-EXPORT_SYMBOL(__hci_cmd_sync_ev);
-
-struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
-			       const void *param, u32 timeout)
-{
-	return __hci_cmd_sync_ev(hdev, opcode, plen, param, 0, timeout);
-}
-EXPORT_SYMBOL(__hci_cmd_sync);
 
 /* Execute request and wait for completion. */
 int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
@@ -436,82 +357,6 @@ static bool __hci_update_interleaved_scan(struct hci_dev *hdev)
 	return false;
 }
 
-/* This function controls the background scanning based on hdev->pend_le_conns
- * list. If there are pending LE connection we start the background scanning,
- * otherwise we stop it.
- *
- * This function requires the caller holds hdev->lock.
- */
-static void __hci_update_background_scan(struct hci_request *req)
-{
-	struct hci_dev *hdev = req->hdev;
-
-	if (!test_bit(HCI_UP, &hdev->flags) ||
-	    test_bit(HCI_INIT, &hdev->flags) ||
-	    hci_dev_test_flag(hdev, HCI_SETUP) ||
-	    hci_dev_test_flag(hdev, HCI_CONFIG) ||
-	    hci_dev_test_flag(hdev, HCI_AUTO_OFF) ||
-	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
-		return;
-
-	/* No point in doing scanning if LE support hasn't been enabled */
-	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
-		return;
-
-	/* If discovery is active don't interfere with it */
-	if (hdev->discovery.state != DISCOVERY_STOPPED)
-		return;
-
-	/* Reset RSSI and UUID filters when starting background scanning
-	 * since these filters are meant for service discovery only.
-	 *
-	 * The Start Discovery and Start Service Discovery operations
-	 * ensure to set proper values for RSSI threshold and UUID
-	 * filter list. So it is safe to just reset them here.
-	 */
-	hci_discovery_filter_clear(hdev);
-
-	bt_dev_dbg(hdev, "ADV monitoring is %s",
-		   hci_is_adv_monitoring(hdev) ? "on" : "off");
-
-	if (list_empty(&hdev->pend_le_conns) &&
-	    list_empty(&hdev->pend_le_reports) &&
-	    !hci_is_adv_monitoring(hdev)) {
-		/* If there is no pending LE connections or devices
-		 * to be scanned for or no ADV monitors, we should stop the
-		 * background scanning.
-		 */
-
-		/* If controller is not scanning we are done. */
-		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
-			return;
-
-		hci_req_add_le_scan_disable(req, false);
-
-		bt_dev_dbg(hdev, "stopping background scanning");
-	} else {
-		/* If there is at least one pending LE connection, we should
-		 * keep the background scan running.
-		 */
-
-		/* If controller is connecting, we should not start scanning
-		 * since some controllers are not able to scan and connect at
-		 * the same time.
-		 */
-		if (hci_lookup_le_connect(hdev))
-			return;
-
-		/* If controller is currently scanning, we stop it to ensure we
-		 * don't miss any advertising (due to duplicates filter).
-		 */
-		if (hci_dev_test_flag(hdev, HCI_LE_SCAN))
-			hci_req_add_le_scan_disable(req, false);
-
-		hci_req_add_le_passive_scan(req);
-		bt_dev_dbg(hdev, "starting background scanning");
-	}
-}
-
 void __hci_req_update_name(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
@@ -560,9 +405,6 @@ void hci_req_add_le_scan_disable(struct hci_request *req, bool rpa_le_conn)
 		return;
 	}
 
-	if (hdev->suspended)
-		set_bit(SUSPEND_SCAN_DISABLE, hdev->suspend_tasks);
-
 	if (use_ext_scan(hdev)) {
 		struct hci_cp_le_set_ext_scan_enable cp;
 
@@ -579,9 +421,7 @@ void hci_req_add_le_scan_disable(struct hci_request *req, bool rpa_le_conn)
 	}
 
 	/* Disable address resolution */
-	if (use_ll_privacy(hdev) &&
-	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
-	    hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION) && !rpa_le_conn) {
+	if (hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION) && !rpa_le_conn) {
 		__u8 enable = 0x00;
 
 		hci_req_add(req, HCI_OP_LE_SET_ADDR_RESOLV_ENABLE, 1, &enable);
@@ -600,8 +440,7 @@ static void del_from_accept_list(struct hci_request *req, bdaddr_t *bdaddr,
 		   cp.bdaddr_type);
 	hci_req_add(req, HCI_OP_LE_DEL_FROM_ACCEPT_LIST, sizeof(cp), &cp);
 
-	if (use_ll_privacy(req->hdev) &&
-	    hci_dev_test_flag(req->hdev, HCI_ENABLE_LL_PRIVACY)) {
+	if (use_ll_privacy(req->hdev)) {
 		struct smp_irk *irk;
 
 		irk = hci_find_irk_by_addr(req->hdev, bdaddr, bdaddr_type);
@@ -642,8 +481,8 @@ static int add_to_accept_list(struct hci_request *req,
 	}
 
 	/* During suspend, only wakeable devices can be in accept list */
-	if (hdev->suspended && !hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
-						   params->current_flags))
+	if (hdev->suspended &&
+	    !test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, params->flags))
 		return 0;
 
 	*num_entries += 1;
@@ -654,8 +493,7 @@ static int add_to_accept_list(struct hci_request *req,
 		   cp.bdaddr_type);
 	hci_req_add(req, HCI_OP_LE_ADD_TO_ACCEPT_LIST, sizeof(cp), &cp);
 
-	if (use_ll_privacy(hdev) &&
-	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY)) {
+	if (use_ll_privacy(hdev)) {
 		struct smp_irk *irk;
 
 		irk = hci_find_irk_by_addr(hdev, &params->addr,
@@ -694,8 +532,7 @@ static u8 update_accept_list(struct hci_request *req)
 	 */
 	bool allow_rpa = hdev->suspended;
 
-	if (use_ll_privacy(hdev) &&
-	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY))
+	if (use_ll_privacy(hdev))
 		allow_rpa = true;
 
 	/* Go through the current accept list programmed into the
@@ -784,9 +621,7 @@ static void hci_req_start_scan(struct hci_request *req, u8 type, u16 interval,
 		return;
 	}
 
-	if (use_ll_privacy(hdev) &&
-	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
-	    addr_resolv) {
+	if (use_ll_privacy(hdev) && addr_resolv) {
 		u8 enable = 0x01;
 
 		hci_req_add(req, HCI_OP_LE_SET_ADDR_RESOLV_ENABLE, 1, &enable);
@@ -943,8 +778,6 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	if (hdev->suspended) {
 		window = hdev->le_scan_window_suspend;
 		interval = hdev->le_scan_int_suspend;
-
-		set_bit(SUSPEND_SCAN_ENABLE, hdev->suspend_tasks);
 	} else if (hci_is_le_conn_scanning(hdev)) {
 		window = hdev->le_scan_window_connect;
 		interval = hdev->le_scan_int_connect;
@@ -977,294 +810,12 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 			   addr_resolv);
 }
 
-static void hci_req_clear_event_filter(struct hci_request *req)
-{
-	struct hci_cp_set_event_filter f;
-
-	if (!hci_dev_test_flag(req->hdev, HCI_BREDR_ENABLED))
-		return;
-
-	if (hci_dev_test_flag(req->hdev, HCI_EVENT_FILTER_CONFIGURED)) {
-		memset(&f, 0, sizeof(f));
-		f.flt_type = HCI_FLT_CLEAR_ALL;
-		hci_req_add(req, HCI_OP_SET_EVENT_FLT, 1, &f);
-	}
-}
-
-static void hci_req_set_event_filter(struct hci_request *req)
-{
-	struct bdaddr_list_with_flags *b;
-	struct hci_cp_set_event_filter f;
-	struct hci_dev *hdev = req->hdev;
-	u8 scan = SCAN_DISABLED;
-	bool scanning = test_bit(HCI_PSCAN, &hdev->flags);
-
-	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-		return;
-
-	/* Always clear event filter when starting */
-	hci_req_clear_event_filter(req);
-
-	list_for_each_entry(b, &hdev->accept_list, list) {
-		if (!hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
-					b->current_flags))
-			continue;
-
-		memset(&f, 0, sizeof(f));
-		bacpy(&f.addr_conn_flt.bdaddr, &b->bdaddr);
-		f.flt_type = HCI_FLT_CONN_SETUP;
-		f.cond_type = HCI_CONN_SETUP_ALLOW_BDADDR;
-		f.addr_conn_flt.auto_accept = HCI_CONN_SETUP_AUTO_ON;
-
-		bt_dev_dbg(hdev, "Adding event filters for %pMR", &b->bdaddr);
-		hci_req_add(req, HCI_OP_SET_EVENT_FLT, sizeof(f), &f);
-		scan = SCAN_PAGE;
-	}
-
-	if (scan && !scanning) {
-		set_bit(SUSPEND_SCAN_ENABLE, hdev->suspend_tasks);
-		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
-	} else if (!scan && scanning) {
-		set_bit(SUSPEND_SCAN_DISABLE, hdev->suspend_tasks);
-		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
-	}
-}
-
 static void cancel_adv_timeout(struct hci_dev *hdev)
 {
 	if (hdev->adv_instance_timeout) {
 		hdev->adv_instance_timeout = 0;
 		cancel_delayed_work(&hdev->adv_instance_expire);
 	}
-}
-
-/* This function requires the caller holds hdev->lock */
-void __hci_req_pause_adv_instances(struct hci_request *req)
-{
-	bt_dev_dbg(req->hdev, "Pausing advertising instances");
-
-	/* Call to disable any advertisements active on the controller.
-	 * This will succeed even if no advertisements are configured.
-	 */
-	__hci_req_disable_advertising(req);
-
-	/* If we are using software rotation, pause the loop */
-	if (!ext_adv_capable(req->hdev))
-		cancel_adv_timeout(req->hdev);
-}
-
-/* This function requires the caller holds hdev->lock */
-static void __hci_req_resume_adv_instances(struct hci_request *req)
-{
-	struct adv_info *adv;
-
-	bt_dev_dbg(req->hdev, "Resuming advertising instances");
-
-	if (ext_adv_capable(req->hdev)) {
-		/* Call for each tracked instance to be re-enabled */
-		list_for_each_entry(adv, &req->hdev->adv_instances, list) {
-			__hci_req_enable_ext_advertising(req,
-							 adv->instance);
-		}
-
-	} else {
-		/* Schedule for most recent instance to be restarted and begin
-		 * the software rotation loop
-		 */
-		__hci_req_schedule_adv_instance(req,
-						req->hdev->cur_adv_instance,
-						true);
-	}
-}
-
-/* This function requires the caller holds hdev->lock */
-int hci_req_resume_adv_instances(struct hci_dev *hdev)
-{
-	struct hci_request req;
-
-	hci_req_init(&req, hdev);
-	__hci_req_resume_adv_instances(&req);
-
-	return hci_req_run(&req, NULL);
-}
-
-static void suspend_req_complete(struct hci_dev *hdev, u8 status, u16 opcode)
-{
-	bt_dev_dbg(hdev, "Request complete opcode=0x%x, status=0x%x", opcode,
-		   status);
-	if (test_bit(SUSPEND_SCAN_ENABLE, hdev->suspend_tasks) ||
-	    test_bit(SUSPEND_SCAN_DISABLE, hdev->suspend_tasks)) {
-		clear_bit(SUSPEND_SCAN_ENABLE, hdev->suspend_tasks);
-		clear_bit(SUSPEND_SCAN_DISABLE, hdev->suspend_tasks);
-		wake_up(&hdev->suspend_wait_q);
-	}
-
-	if (test_bit(SUSPEND_SET_ADV_FILTER, hdev->suspend_tasks)) {
-		clear_bit(SUSPEND_SET_ADV_FILTER, hdev->suspend_tasks);
-		wake_up(&hdev->suspend_wait_q);
-	}
-}
-
-static void hci_req_prepare_adv_monitor_suspend(struct hci_request *req,
-						bool suspending)
-{
-	struct hci_dev *hdev = req->hdev;
-
-	switch (hci_get_adv_monitor_offload_ext(hdev)) {
-	case HCI_ADV_MONITOR_EXT_MSFT:
-		if (suspending)
-			msft_suspend(hdev);
-		else
-			msft_resume(hdev);
-		break;
-	default:
-		return;
-	}
-
-	/* No need to block when enabling since it's on resume path */
-	if (hdev->suspended && suspending)
-		set_bit(SUSPEND_SET_ADV_FILTER, hdev->suspend_tasks);
-}
-
-/* Call with hci_dev_lock */
-void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
-{
-	int old_state;
-	struct hci_conn *conn;
-	struct hci_request req;
-	u8 page_scan;
-	int disconnect_counter;
-
-	if (next == hdev->suspend_state) {
-		bt_dev_dbg(hdev, "Same state before and after: %d", next);
-		goto done;
-	}
-
-	hdev->suspend_state = next;
-	hci_req_init(&req, hdev);
-
-	if (next == BT_SUSPEND_DISCONNECT) {
-		/* Mark device as suspended */
-		hdev->suspended = true;
-
-		/* Pause discovery if not already stopped */
-		old_state = hdev->discovery.state;
-		if (old_state != DISCOVERY_STOPPED) {
-			set_bit(SUSPEND_PAUSE_DISCOVERY, hdev->suspend_tasks);
-			hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
-			queue_work(hdev->req_workqueue, &hdev->discov_update);
-		}
-
-		hdev->discovery_paused = true;
-		hdev->discovery_old_state = old_state;
-
-		/* Stop directed advertising */
-		old_state = hci_dev_test_flag(hdev, HCI_ADVERTISING);
-		if (old_state) {
-			set_bit(SUSPEND_PAUSE_ADVERTISING, hdev->suspend_tasks);
-			cancel_delayed_work(&hdev->discov_off);
-			queue_delayed_work(hdev->req_workqueue,
-					   &hdev->discov_off, 0);
-		}
-
-		/* Pause other advertisements */
-		if (hdev->adv_instance_cnt)
-			__hci_req_pause_adv_instances(&req);
-
-		hdev->advertising_paused = true;
-		hdev->advertising_old_state = old_state;
-
-		/* Disable page scan if enabled */
-		if (test_bit(HCI_PSCAN, &hdev->flags)) {
-			page_scan = SCAN_DISABLED;
-			hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1,
-				    &page_scan);
-			set_bit(SUSPEND_SCAN_DISABLE, hdev->suspend_tasks);
-		}
-
-		/* Disable LE passive scan if enabled */
-		if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
-			cancel_interleave_scan(hdev);
-			hci_req_add_le_scan_disable(&req, false);
-		}
-
-		/* Disable advertisement filters */
-		hci_req_prepare_adv_monitor_suspend(&req, true);
-
-		/* Prevent disconnects from causing scanning to be re-enabled */
-		hdev->scanning_paused = true;
-
-		/* Run commands before disconnecting */
-		hci_req_run(&req, suspend_req_complete);
-
-		disconnect_counter = 0;
-		/* Soft disconnect everything (power off) */
-		list_for_each_entry(conn, &hdev->conn_hash.list, list) {
-			hci_disconnect(conn, HCI_ERROR_REMOTE_POWER_OFF);
-			disconnect_counter++;
-		}
-
-		if (disconnect_counter > 0) {
-			bt_dev_dbg(hdev,
-				   "Had %d disconnects. Will wait on them",
-				   disconnect_counter);
-			set_bit(SUSPEND_DISCONNECTING, hdev->suspend_tasks);
-		}
-	} else if (next == BT_SUSPEND_CONFIGURE_WAKE) {
-		/* Unpause to take care of updating scanning params */
-		hdev->scanning_paused = false;
-		/* Enable event filter for paired devices */
-		hci_req_set_event_filter(&req);
-		/* Enable passive scan at lower duty cycle */
-		__hci_update_background_scan(&req);
-		/* Pause scan changes again. */
-		hdev->scanning_paused = true;
-		hci_req_run(&req, suspend_req_complete);
-	} else {
-		hdev->suspended = false;
-		hdev->scanning_paused = false;
-
-		/* Clear any event filters and restore scan state */
-		hci_req_clear_event_filter(&req);
-		__hci_req_update_scan(&req);
-
-		/* Reset passive/background scanning to normal */
-		__hci_update_background_scan(&req);
-		/* Enable all of the advertisement filters */
-		hci_req_prepare_adv_monitor_suspend(&req, false);
-
-		/* Unpause directed advertising */
-		hdev->advertising_paused = false;
-		if (hdev->advertising_old_state) {
-			set_bit(SUSPEND_UNPAUSE_ADVERTISING,
-				hdev->suspend_tasks);
-			hci_dev_set_flag(hdev, HCI_ADVERTISING);
-			queue_work(hdev->req_workqueue,
-				   &hdev->discoverable_update);
-			hdev->advertising_old_state = 0;
-		}
-
-		/* Resume other advertisements */
-		if (hdev->adv_instance_cnt)
-			__hci_req_resume_adv_instances(&req);
-
-		/* Unpause discovery */
-		hdev->discovery_paused = false;
-		if (hdev->discovery_old_state != DISCOVERY_STOPPED &&
-		    hdev->discovery_old_state != DISCOVERY_STOPPING) {
-			set_bit(SUSPEND_UNPAUSE_DISCOVERY, hdev->suspend_tasks);
-			hci_discovery_set_state(hdev, DISCOVERY_STARTING);
-			queue_work(hdev->req_workqueue, &hdev->discov_update);
-		}
-
-		hci_req_run(&req, suspend_req_complete);
-	}
-
-	hdev->suspend_state = next;
-
-done:
-	clear_bit(SUSPEND_PREPARE_NOTIFIER, hdev->suspend_tasks);
-	wake_up(&hdev->suspend_wait_q);
 }
 
 static bool adv_cur_instance_is_scannable(struct hci_dev *hdev)
@@ -1548,8 +1099,7 @@ void hci_req_disable_address_resolution(struct hci_dev *hdev)
 	struct hci_request req;
 	__u8 enable = 0x00;
 
-	if (!use_ll_privacy(hdev) &&
-	    !hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION))
+	if (!hci_dev_test_flag(hdev, HCI_LL_RPA_RESOLUTION))
 		return;
 
 	hci_req_init(&req, hdev);
@@ -1692,8 +1242,7 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 		/* If Controller supports LL Privacy use own address type is
 		 * 0x03
 		 */
-		if (use_ll_privacy(hdev) &&
-		    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY))
+		if (use_ll_privacy(hdev))
 			*own_addr_type = ADDR_LE_DEV_RANDOM_RESOLVED;
 		else
 			*own_addr_type = ADDR_LE_DEV_RANDOM;
@@ -1871,7 +1420,8 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 
 	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(cp), &cp);
 
-	if (own_addr_type == ADDR_LE_DEV_RANDOM &&
+	if ((own_addr_type == ADDR_LE_DEV_RANDOM ||
+	     own_addr_type == ADDR_LE_DEV_RANDOM_RESOLVED) &&
 	    bacmp(&random_addr, BDADDR_ANY)) {
 		struct hci_cp_le_set_adv_set_rand_addr cp;
 
@@ -2160,8 +1710,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 		/* If Controller supports LL Privacy use own address type is
 		 * 0x03
 		 */
-		if (use_ll_privacy(hdev) &&
-		    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY))
+		if (use_ll_privacy(hdev))
 			*own_addr_type = ADDR_LE_DEV_RANDOM_RESOLVED;
 		else
 			*own_addr_type = ADDR_LE_DEV_RANDOM;
@@ -2301,47 +1850,6 @@ static void scan_update_work(struct work_struct *work)
 	hci_req_sync(hdev, update_scan, 0, HCI_CMD_TIMEOUT, NULL);
 }
 
-static int connectable_update(struct hci_request *req, unsigned long opt)
-{
-	struct hci_dev *hdev = req->hdev;
-
-	hci_dev_lock(hdev);
-
-	__hci_req_update_scan(req);
-
-	/* If BR/EDR is not enabled and we disable advertising as a
-	 * by-product of disabling connectable, we need to update the
-	 * advertising flags.
-	 */
-	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-		__hci_req_update_adv_data(req, hdev->cur_adv_instance);
-
-	/* Update the advertising parameters if necessary */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-	    !list_empty(&hdev->adv_instances)) {
-		if (ext_adv_capable(hdev))
-			__hci_req_start_ext_adv(req, hdev->cur_adv_instance);
-		else
-			__hci_req_enable_advertising(req);
-	}
-
-	__hci_update_background_scan(req);
-
-	hci_dev_unlock(hdev);
-
-	return 0;
-}
-
-static void connectable_update_work(struct work_struct *work)
-{
-	struct hci_dev *hdev = container_of(work, struct hci_dev,
-					    connectable_update);
-	u8 status;
-
-	hci_req_sync(hdev, connectable_update, 0, HCI_CMD_TIMEOUT, &status);
-	mgmt_set_connectable_complete(hdev, status);
-}
-
 static u8 get_service_classes(struct hci_dev *hdev)
 {
 	struct bt_uuid *uuid;
@@ -2445,16 +1953,6 @@ static int discoverable_update(struct hci_request *req, unsigned long opt)
 	return 0;
 }
 
-static void discoverable_update_work(struct work_struct *work)
-{
-	struct hci_dev *hdev = container_of(work, struct hci_dev,
-					    discoverable_update);
-	u8 status;
-
-	hci_req_sync(hdev, discoverable_update, 0, HCI_CMD_TIMEOUT, &status);
-	mgmt_set_discoverable_complete(hdev, status);
-}
-
 void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
 		      u8 reason)
 {
@@ -2546,35 +2044,6 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
 	}
 
 	return 0;
-}
-
-static int update_bg_scan(struct hci_request *req, unsigned long opt)
-{
-	hci_dev_lock(req->hdev);
-	__hci_update_background_scan(req);
-	hci_dev_unlock(req->hdev);
-	return 0;
-}
-
-static void bg_scan_update(struct work_struct *work)
-{
-	struct hci_dev *hdev = container_of(work, struct hci_dev,
-					    bg_scan_update);
-	struct hci_conn *conn;
-	u8 status;
-	int err;
-
-	err = hci_req_sync(hdev, update_bg_scan, 0, HCI_CMD_TIMEOUT, &status);
-	if (!err)
-		return;
-
-	hci_dev_lock(hdev);
-
-	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
-	if (conn)
-		hci_le_conn_failed(conn, status);
-
-	hci_dev_unlock(hdev);
 }
 
 static int le_scan_disable(struct hci_request *req, unsigned long opt)
@@ -3163,10 +2632,7 @@ int __hci_req_hci_power_on(struct hci_dev *hdev)
 void hci_request_setup(struct hci_dev *hdev)
 {
 	INIT_WORK(&hdev->discov_update, discov_update);
-	INIT_WORK(&hdev->bg_scan_update, bg_scan_update);
 	INIT_WORK(&hdev->scan_update, scan_update_work);
-	INIT_WORK(&hdev->connectable_update, connectable_update_work);
-	INIT_WORK(&hdev->discoverable_update, discoverable_update_work);
 	INIT_DELAYED_WORK(&hdev->discov_off, discov_off);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
@@ -3176,13 +2642,10 @@ void hci_request_setup(struct hci_dev *hdev)
 
 void hci_request_cancel_all(struct hci_dev *hdev)
 {
-	hci_req_sync_cancel(hdev, ENODEV);
+	__hci_cmd_sync_cancel(hdev, ENODEV);
 
 	cancel_work_sync(&hdev->discov_update);
-	cancel_work_sync(&hdev->bg_scan_update);
 	cancel_work_sync(&hdev->scan_update);
-	cancel_work_sync(&hdev->connectable_update);
-	cancel_work_sync(&hdev->discoverable_update);
 	cancel_delayed_work_sync(&hdev->discov_off);
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
 	cancel_delayed_work_sync(&hdev->le_scan_restart);

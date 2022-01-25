@@ -22,8 +22,12 @@ static int adf_ae_fw_load_images(struct adf_accel_dev *accel_dev, void *fw_addr,
 	num_objs = hw_device->uof_get_num_objs();
 
 	for (i = 0; i < num_objs; i++) {
-		obj_name = hw_device->uof_get_name(i);
-		ae_mask = hw_device->uof_get_ae_mask(i);
+		obj_name = hw_device->uof_get_name(accel_dev, i);
+		ae_mask = hw_device->uof_get_ae_mask(accel_dev, i);
+		if (!obj_name || !ae_mask) {
+			dev_err(&GET_DEV(accel_dev), "Invalid UOF image\n");
+			goto out_err;
+		}
 
 		if (qat_uclo_set_cfg_ae_mask(loader, ae_mask)) {
 			dev_err(&GET_DEV(accel_dev),

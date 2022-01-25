@@ -19,11 +19,13 @@ static int read_iter(char *file)
 	fd = open(file, 0);
 	if (fd < 0)
 		return -1;
-	while ((len = read(fd, buf, sizeof(buf))) > 0)
+	while ((len = read(fd, buf, sizeof(buf))) > 0) {
+		buf[sizeof(buf) - 1] = '\0';
 		if (strstr(buf, "iter")) {
 			close(fd);
 			return 0;
 		}
+	}
 	close(fd);
 	return -1;
 }
@@ -80,7 +82,7 @@ static int fn(void)
 	if (!ASSERT_OK(err, "creating " TDIR "/fs1/b"))
 		goto out;
 
-	map = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 4, 1, 0);
+	map = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, 4, 4, 1, NULL);
 	if (!ASSERT_GT(map, 0, "create_map(ARRAY)"))
 		goto out;
 	err = bpf_obj_pin(map, TDIR "/fs1/c");

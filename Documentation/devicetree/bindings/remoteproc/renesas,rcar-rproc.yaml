@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/remoteproc/renesas,rcar-rproc.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Renesas R-Car remote processor controller bindings
+
+maintainers:
+  - Julien Massot <julien.massot@iot.bzh>
+
+description: |
+  This document defines the bindings for the remoteproc component that loads and
+  boots firmwares on the Renesas R-Car family chipset.
+  R-Car gen3 family may have a realtime processor, this processor shares peripheral
+  and RAM with the host processor with the same address map.
+
+properties:
+  compatible:
+    const: renesas,rcar-cr7
+
+  resets:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  memory-region:
+    description:
+      List of phandles to the reserved memory regions associated with the
+      remoteproc device. This is variable and describes the memories shared with
+      the remote processor (e.g. remoteproc firmware and carveouts, rpmsg
+      vrings, ...).
+      (see ../reserved-memory/reserved-memory.yaml)
+
+required:
+  - compatible
+  - resets
+  - memory-region
+  - power-domains
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7795-cpg-mssr.h>
+    #include <dt-bindings/power/r8a7795-sysc.h>
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        cr7_ram: cr7_ram@40040000 {
+            no-map;
+            reg = <0x0 0x40040000 0x0 0x1fc0000>;
+        };
+    };
+
+    cr7_rproc: cr7 {
+        compatible = "renesas,rcar-cr7";
+        memory-region = <&cr7_ram>;
+        power-domains = <&sysc R8A7795_PD_CR7>;
+        resets = <&cpg 222>;
+    };
+
+...

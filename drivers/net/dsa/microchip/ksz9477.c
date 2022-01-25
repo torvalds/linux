@@ -391,7 +391,6 @@ static void ksz9477_cfg_port_member(struct ksz_device *dev, int port,
 				    u8 member)
 {
 	ksz_pwrite32(dev, port, REG_PORT_VLAN_MEMBERSHIP__4, member);
-	dev->ports[port].member = member;
 }
 
 static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
@@ -400,8 +399,6 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p = &dev->ports[port];
 	u8 data;
-	int member = -1;
-	int forward = dev->member;
 
 	ksz_pread8(dev, port, P_STP_CTRL, &data);
 	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
@@ -409,40 +406,18 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 	switch (state) {
 	case BR_STATE_DISABLED:
 		data |= PORT_LEARN_DISABLE;
-		if (port != dev->cpu_port)
-			member = 0;
 		break;
 	case BR_STATE_LISTENING:
 		data |= (PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-		if (port != dev->cpu_port &&
-		    p->stp_state == BR_STATE_DISABLED)
-			member = dev->host_mask | p->vid_member;
 		break;
 	case BR_STATE_LEARNING:
 		data |= PORT_RX_ENABLE;
 		break;
 	case BR_STATE_FORWARDING:
 		data |= (PORT_TX_ENABLE | PORT_RX_ENABLE);
-
-		/* This function is also used internally. */
-		if (port == dev->cpu_port)
-			break;
-
-		member = dev->host_mask | p->vid_member;
-		mutex_lock(&dev->dev_mutex);
-
-		/* Port is a member of a bridge. */
-		if (dev->br_member & (1 << port)) {
-			dev->member |= (1 << port);
-			member = dev->member;
-		}
-		mutex_unlock(&dev->dev_mutex);
 		break;
 	case BR_STATE_BLOCKING:
 		data |= PORT_LEARN_DISABLE;
-		if (port != dev->cpu_port &&
-		    p->stp_state == BR_STATE_DISABLED)
-			member = dev->host_mask | p->vid_member;
 		break;
 	default:
 		dev_err(ds->dev, "invalid STP state: %d\n", state);
@@ -451,23 +426,8 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 
 	ksz_pwrite8(dev, port, P_STP_CTRL, data);
 	p->stp_state = state;
-	mutex_lock(&dev->dev_mutex);
-	/* Port membership may share register with STP state. */
-	if (member >= 0 && member != p->member)
-		ksz9477_cfg_port_member(dev, port, (u8)member);
 
-	/* Check if forwarding needs to be updated. */
-	if (state != BR_STATE_FORWARDING) {
-		if (dev->br_member & (1 << port))
-			dev->member &= ~(1 << port);
-	}
-
-	/* When topology has changed the function ksz_update_port_member
-	 * should be called to modify port forwarding behavior.
-	 */
-	if (forward != dev->member)
-		ksz_update_port_member(dev, port);
-	mutex_unlock(&dev->dev_mutex);
+	ksz_update_port_member(dev, port);
 }
 
 static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
@@ -1168,10 +1128,10 @@ static void ksz9477_phy_errata_setup(struct ksz_device *dev, int port)
 
 static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
-	u8 data8;
-	u8 member;
-	u16 data16;
 	struct ksz_port *p = &dev->ports[port];
+	struct dsa_switch *ds = dev->ds;
+	u8 data8, member;
+	u16 data16;
 
 	/* enable tag tail for host port */
 	if (cpu_port)
@@ -1250,12 +1210,12 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
 		p->phydev.duplex = 1;
 	}
-	mutex_lock(&dev->dev_mutex);
+
 	if (cpu_port)
-		member = dev->port_mask;
+		member = dsa_user_ports(ds);
 	else
-		member = dev->host_mask | p->vid_member;
-	mutex_unlock(&dev->dev_mutex);
+		member = BIT(dsa_upstream_port(ds, port));
+
 	ksz9477_cfg_port_member(dev, port, member);
 
 	/* clear pending interrupts */
@@ -1276,8 +1236,6 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 			const char *prev_mode;
 
 			dev->cpu_port = i;
-			dev->host_mask = (1 << dev->cpu_port);
-			dev->port_mask |= dev->host_mask;
 			p = &dev->ports[i];
 
 			/* Read from XMII register to determine host port
@@ -1312,23 +1270,15 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 			/* enable cpu port */
 			ksz9477_port_setup(dev, i, true);
-			p->vid_member = dev->port_mask;
 			p->on = 1;
 		}
 	}
-
-	dev->member = dev->host_mask;
 
 	for (i = 0; i < dev->port_cnt; i++) {
 		if (i == dev->cpu_port)
 			continue;
 		p = &dev->ports[i];
 
-		/* Initialize to non-zero so that ksz_cfg_port_member() will
-		 * be called.
-		 */
-		p->vid_member = (1 << i);
-		p->member = dev->port_mask;
 		ksz9477_port_stp_state_set(ds, i, BR_STATE_DISABLED);
 		p->on = 1;
 		if (i < dev->phy_port_cnt)

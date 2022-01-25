@@ -26,10 +26,9 @@ struct dnotify_struct {
 			    FS_MODIFY | FS_MODIFY_CHILD |\
 			    FS_ACCESS | FS_ACCESS_CHILD |\
 			    FS_ATTRIB | FS_ATTRIB_CHILD |\
-			    FS_CREATE | FS_DN_RENAME |\
+			    FS_CREATE | FS_RENAME |\
 			    FS_MOVED_FROM | FS_MOVED_TO)
 
-extern int dir_notify_enable;
 extern void dnotify_flush(struct file *, fl_owner_t);
 extern int fcntl_dirnotify(int, struct file *, unsigned long);
 
