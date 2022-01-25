@@ -1280,10 +1280,12 @@ static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 	 * Save additional host state that will be restored on VMEXIT (sev-es)
 	 * or subsequent vmload of host save area.
 	 */
+	vmsave(__sme_page_pa(sd->save_area));
 	if (sev_es_guest(vcpu->kvm)) {
-		sev_es_prepare_guest_switch(svm, vcpu->cpu);
-	} else {
-		vmsave(__sme_page_pa(sd->save_area));
+		struct vmcb_save_area *hostsa;
+		hostsa = (struct vmcb_save_area *)(page_address(sd->save_area) + 0x400);
+
+		sev_es_prepare_guest_switch(hostsa);
 	}
 
 	if (tsc_scaling) {
