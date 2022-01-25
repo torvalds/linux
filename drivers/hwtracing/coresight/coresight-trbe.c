@@ -92,11 +92,13 @@ struct trbe_buf {
 #define TRBE_WORKAROUND_OVERWRITE_FILL_MODE	0
 #define TRBE_WORKAROUND_WRITE_OUT_OF_RANGE	1
 #define TRBE_NEEDS_DRAIN_AFTER_DISABLE		2
+#define TRBE_NEEDS_CTXT_SYNC_AFTER_ENABLE	3
 
 static int trbe_errata_cpucaps[] = {
 	[TRBE_WORKAROUND_OVERWRITE_FILL_MODE] = ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE,
 	[TRBE_WORKAROUND_WRITE_OUT_OF_RANGE] = ARM64_WORKAROUND_TRBE_WRITE_OUT_OF_RANGE,
 	[TRBE_NEEDS_DRAIN_AFTER_DISABLE] = ARM64_WORKAROUND_2064142,
+	[TRBE_NEEDS_CTXT_SYNC_AFTER_ENABLE] = ARM64_WORKAROUND_2038923,
 	-1,		/* Sentinel, must be the last entry */
 };
 
@@ -179,6 +181,17 @@ static inline bool trbe_needs_drain_after_disable(struct trbe_cpudata *cpudata)
 	return trbe_has_erratum(cpudata, TRBE_NEEDS_DRAIN_AFTER_DISABLE);
 }
 
+static inline bool trbe_needs_ctxt_sync_after_enable(struct trbe_cpudata *cpudata)
+{
+	/*
+	 * Errata affected TRBE implementation will need an additional
+	 * context synchronization in order to prevent an inconsistent
+	 * TRBE prohibited region view on the CPU which could possibly
+	 * corrupt the TRBE buffer or the TRBE state.
+	 */
+	return trbe_has_erratum(cpudata, TRBE_NEEDS_CTXT_SYNC_AFTER_ENABLE);
+}
+
 static int trbe_alloc_node(struct perf_event *event)
 {
 	if (event->cpu == -1)
@@ -190,6 +203,22 @@ static inline void trbe_drain_buffer(void)
 {
 	tsb_csync();
 	dsb(nsh);
+}
+
+static inline void set_trbe_enabled(struct trbe_cpudata *cpudata, u64 trblimitr)
+{
+	/*
+	 * Enable the TRBE without clearing LIMITPTR which
+	 * might be required for fetching the buffer limits.
+	 */
+	trblimitr |= TRBLIMITR_ENABLE;
+	write_sysreg_s(trblimitr, SYS_TRBLIMITR_EL1);
+
+	/* Synchronize the TRBE enable event */
+	isb();
+
+	if (trbe_needs_ctxt_sync_after_enable(cpudata))
+		isb();
 }
 
 static inline void set_trbe_disabled(struct trbe_cpudata *cpudata)
@@ -555,9 +584,10 @@ static void clr_trbe_status(void)
 	write_sysreg_s(trbsr, SYS_TRBSR_EL1);
 }
 
-static void set_trbe_limit_pointer_enabled(unsigned long addr)
+static void set_trbe_limit_pointer_enabled(struct trbe_buf *buf)
 {
 	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
+	unsigned long addr = buf->trbe_limit;
 
 	WARN_ON(!IS_ALIGNED(addr, (1UL << TRBLIMITR_LIMIT_SHIFT)));
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
@@ -585,12 +615,7 @@ static void set_trbe_limit_pointer_enabled(unsigned long addr)
 	trblimitr |= (TRBE_TRIG_MODE_IGNORE & TRBLIMITR_TRIG_MODE_MASK) <<
 		      TRBLIMITR_TRIG_MODE_SHIFT;
 	trblimitr |= (addr & PAGE_MASK);
-
-	trblimitr |= TRBLIMITR_ENABLE;
-	write_sysreg_s(trblimitr, SYS_TRBLIMITR_EL1);
-
-	/* Synchronize the TRBE enable event */
-	isb();
+	set_trbe_enabled(buf->cpudata, trblimitr);
 }
 
 static void trbe_enable_hw(struct trbe_buf *buf)
@@ -608,7 +633,7 @@ static void trbe_enable_hw(struct trbe_buf *buf)
 	 * till now before enabling the TRBE.
 	 */
 	isb();
-	set_trbe_limit_pointer_enabled(buf->trbe_limit);
+	set_trbe_limit_pointer_enabled(buf);
 }
 
 static enum trbe_fault_action trbe_get_fault_act(struct perf_output_handle *handle,
@@ -1013,16 +1038,15 @@ static int arm_trbe_disable(struct coresight_device *csdev)
 
 static void trbe_handle_spurious(struct perf_output_handle *handle)
 {
-	u64 limitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
+	struct trbe_buf *buf = etm_perf_sink_config(handle);
+	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
 
 	/*
 	 * If the IRQ was spurious, simply re-enable the TRBE
 	 * back without modifying the buffer parameters to
 	 * retain the trace collected so far.
 	 */
-	limitr |= TRBLIMITR_ENABLE;
-	write_sysreg_s(limitr, SYS_TRBLIMITR_EL1);
-	isb();
+	set_trbe_enabled(buf->cpudata, trblimitr);
 }
 
 static int trbe_handle_overflow(struct perf_output_handle *handle)
