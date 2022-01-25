@@ -158,11 +158,6 @@
 	status = "disabled";
 };
 
-/* Unusable as clocksource because of unreliable oscillator */
-&counter32k {
-	status = "disabled";
-};
-
 /* Unusable as clockevent because if unreliable oscillator, allow to idle */
 &timer1_target {
 	/delete-property/ti,no-reset-on-init;
@@ -172,22 +167,12 @@
 	};
 };
 
-/* Preferred always-on timer for clocksource */
+/* Preferred timer for clockevent */
 &timer12_target {
 	ti,no-reset-on-init;
 	ti,no-idle;
 	timer@0 {
 		/* Always clocked by secure_32k_fck */
-	};
-};
-
-/* Preferred timer for clockevent */
-&timer2_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
-	timer@0 {
-		assigned-clocks = <&gpt2_fck>;
-		assigned-clock-parents = <&sys_ck>;
 	};
 };
 
