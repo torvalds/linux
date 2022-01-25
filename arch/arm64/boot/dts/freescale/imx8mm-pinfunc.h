@@ -248,6 +248,7 @@
 #define MX8MM_IOMUXC_NAND_RE_B_GPIO3_IO15                                   0x130 0x398 0x000 0x5 0x0
 #define MX8MM_IOMUXC_NAND_RE_B_SIM_M_HADDR11                                0x130 0x398 0x000 0x7 0x0
 #define MX8MM_IOMUXC_NAND_READY_B_RAWNAND_READY_B                           0x134 0x39C 0x000 0x0 0x0
+#define MX8MM_IOMUXC_NAND_READY_B_SD3_RESET_B                               0x134 0x39C 0x000 0x2 0x0
 #define MX8MM_IOMUXC_NAND_READY_B_GPIO3_IO16                                0x134 0x39C 0x000 0x5 0x0
 #define MX8MM_IOMUXC_NAND_READY_B_SIM_M_HADDR12                             0x134 0x39C 0x000 0x7 0x0
 #define MX8MM_IOMUXC_NAND_WE_B_RAWNAND_WE_B                                 0x138 0x3A0 0x000 0x0 0x0
