@@ -52,6 +52,7 @@
 #define FRACNSRC_DYNAMIC	(1 << 0)
 
 /* GLOBAL_CFG */
+#define FREEZE		(1 << 7)
 #define ENDEV2		(0x1)
 
 /* FUNC_CFG1 */
@@ -335,6 +336,10 @@ static int __cs2000_set_rate(struct cs2000_priv *priv, int ch,
 {
 	int ret;
 
+	ret = cs2000_bset(priv, GLOBAL_CFG, FREEZE, FREEZE);
+	if (ret < 0)
+		return ret;
+
 	ret = cs2000_select_ratio_mode(priv, rate, parent_rate);
 	if (ret < 0)
 		return ret;
@@ -344,6 +349,10 @@ static int __cs2000_set_rate(struct cs2000_priv *priv, int ch,
 		return ret;
 
 	ret = cs2000_ratio_select(priv, ch);
+	if (ret < 0)
+		return ret;
+
+	ret = cs2000_bset(priv, GLOBAL_CFG, FREEZE, 0);
 	if (ret < 0)
 		return ret;
 
