@@ -178,23 +178,28 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
 				struct string_stream *stream);
 
 /**
- * KUNIT_INIT_BINARY_ASSERT_STRUCT() - Initializes a
- *	&struct kunit_binary_assert.
+ * KUNIT_INIT_BINARY_ASSERT_STRUCT() - Initializes a binary assert like
+ *	kunit_binary_assert, kunit_binary_ptr_assert, etc.
+ *
+ * @format_func: a function which formats the assert to a string.
  * @op_str: A string representation of the comparison operator (e.g. "==").
  * @left_str: A string representation of the expression in the left slot.
  * @left_val: The actual evaluated value of the expression in the left slot.
  * @right_str: A string representation of the expression in the right slot.
  * @right_val: The actual evaluated value of the expression in the right slot.
  *
- * Initializes a &struct kunit_binary_assert. Intended to be used in
- * KUNIT_EXPECT_* and KUNIT_ASSERT_* macros.
+ * Initializes a binary assert like kunit_binary_assert,
+ * kunit_binary_ptr_assert, etc. This relies on these structs having the same
+ * fields but with different types for left_val/right_val.
+ * This is ultimately used by binary assertion macros like KUNIT_EXPECT_EQ, etc.
  */
-#define KUNIT_INIT_BINARY_ASSERT_STRUCT(op_str,				       \
+#define KUNIT_INIT_BINARY_ASSERT_STRUCT(format_func,			       \
+					op_str,				       \
 					left_str,			       \
 					left_val,			       \
 					right_str,			       \
 					right_val) {			       \
-	.assert = { .format = kunit_binary_assert_format },		       \
+	.assert = { .format = format_func },				       \
 	.operation = op_str,						       \
 	.left_text = left_str,						       \
 	.left_value = left_val,						       \
@@ -230,32 +235,6 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
 				    struct string_stream *stream);
 
 /**
- * KUNIT_INIT_BINARY_PTR_ASSERT_STRUCT() - Initializes a
- *	&struct kunit_binary_ptr_assert.
- * @type: The type (assertion or expectation) of this kunit_assert.
- * @op_str: A string representation of the comparison operator (e.g. "==").
- * @left_str: A string representation of the expression in the left slot.
- * @left_val: The actual evaluated value of the expression in the left slot.
- * @right_str: A string representation of the expression in the right slot.
- * @right_val: The actual evaluated value of the expression in the right slot.
- *
- * Initializes a &struct kunit_binary_ptr_assert. Intended to be used in
- * KUNIT_EXPECT_* and KUNIT_ASSERT_* macros.
- */
-#define KUNIT_INIT_BINARY_PTR_ASSERT_STRUCT(op_str,			       \
-					    left_str,			       \
-					    left_val,			       \
-					    right_str,			       \
-					    right_val) {		       \
-	.assert = { .format = kunit_binary_ptr_assert_format },		       \
-	.operation = op_str,						       \
-	.left_text = left_str,						       \
-	.left_value = left_val,						       \
-	.right_text = right_str,					       \
-	.right_value = right_val					       \
-}
-
-/**
  * struct kunit_binary_str_assert - An expectation/assertion that compares two
  *	string values (for example, KUNIT_EXPECT_STREQ(test, foo, "bar")).
  * @assert: The parent of this type.
@@ -281,30 +260,5 @@ struct kunit_binary_str_assert {
 void kunit_binary_str_assert_format(const struct kunit_assert *assert,
 				    const struct va_format *message,
 				    struct string_stream *stream);
-
-/**
- * KUNIT_INIT_BINARY_STR_ASSERT_STRUCT() - Initializes a
- *	&struct kunit_binary_str_assert.
- * @op_str: A string representation of the comparison operator (e.g. "==").
- * @left_str: A string representation of the expression in the left slot.
- * @left_val: The actual evaluated value of the expression in the left slot.
- * @right_str: A string representation of the expression in the right slot.
- * @right_val: The actual evaluated value of the expression in the right slot.
- *
- * Initializes a &struct kunit_binary_str_assert. Intended to be used in
- * KUNIT_EXPECT_* and KUNIT_ASSERT_* macros.
- */
-#define KUNIT_INIT_BINARY_STR_ASSERT_STRUCT(op_str,			       \
-					    left_str,			       \
-					    left_val,			       \
-					    right_str,			       \
-					    right_val) {		       \
-	.assert = { .format = kunit_binary_str_assert_format },		       \
-	.operation = op_str,						       \
-	.left_text = left_str,						       \
-	.left_value = left_val,						       \
-	.right_text = right_str,					       \
-	.right_value = right_val					       \
-}
 
 #endif /*  _KUNIT_ASSERT_H */
