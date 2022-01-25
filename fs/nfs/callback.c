@@ -234,13 +234,11 @@ err_bind:
 
 static const struct svc_serv_ops nfs40_cb_sv_ops = {
 	.svo_function		= nfs4_callback_svc,
-	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 	.svo_module		= THIS_MODULE,
 };
 #if defined(CONFIG_NFS_V4_1)
 static const struct svc_serv_ops nfs41_cb_sv_ops = {
 	.svo_function		= nfs41_callback_svc,
-	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 	.svo_module		= THIS_MODULE,
 };
 

@@ -353,7 +353,6 @@ static struct notifier_block lockd_inet6addr_notifier = {
 static const struct svc_serv_ops lockd_sv_ops = {
 	.svo_shutdown		= svc_rpcb_cleanup,
 	.svo_function		= lockd,
-	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 	.svo_module		= THIS_MODULE,
 };
 
