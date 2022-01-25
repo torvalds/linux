@@ -268,9 +268,9 @@ static int hpet_open(struct inode *inode, struct file *file)
 
 	for (devp = NULL, hpetp = hpets; hpetp && !devp; hpetp = hpetp->hp_next)
 		for (i = 0; i < hpetp->hp_ntimer; i++)
-			if (hpetp->hp_dev[i].hd_flags & HPET_OPEN)
+			if (hpetp->hp_dev[i].hd_flags & HPET_OPEN) {
 				continue;
-			else {
+			} else {
 				devp = &hpetp->hp_dev[i];
 				break;
 			}
@@ -317,9 +317,9 @@ hpet_read(struct file *file, char __user *buf, size_t count, loff_t * ppos)
 		devp->hd_irqdata = 0;
 		spin_unlock_irq(&hpet_lock);
 
-		if (data)
+		if (data) {
 			break;
-		else if (file->f_flags & O_NONBLOCK) {
+		} else if (file->f_flags & O_NONBLOCK) {
 			retval = -EAGAIN;
 			goto out;
 		} else if (signal_pending(current)) {
@@ -982,7 +982,8 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 				break;
 
 			irq = acpi_register_gsi(NULL, irqp->interrupts[i],
-				      irqp->triggering, irqp->polarity);
+						irqp->triggering,
+						irqp->polarity);
 			if (irq < 0)
 				return AE_ERROR;
 
