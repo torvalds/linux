@@ -209,6 +209,8 @@ struct rkvdec2_dev {
 	dma_addr_t rcb_iova;
 	struct page *rcb_page;
 	u32 rcb_min_width;
+	u32 rcb_info_count;
+	u32 rcb_infos[RKVDEC_MAX_RCB_NUM * 2];
 
 	/* for link mode */
 	struct rkvdec_link_dev *link_dec;
@@ -218,6 +220,14 @@ struct rkvdec2_dev {
 	struct rkvdec2_ccu *ccu;
 	u32 core_mask;
 	u32 task_index;
+	/* mmu info */
+	void __iomem *mmu_base;
+	u32 fault_iova;
+	u32 mmu_fault;
+	u32 mmu0_st;
+	u32 mmu1_st;
+	u32 mmu0_pta;
+	u32 mmu1_pta;
 };
 
 int mpp_set_rcbbuf(struct mpp_dev *mpp, struct mpp_session *session,

@@ -307,7 +307,7 @@ void *rkvdec2_alloc_task(struct mpp_session *session,
 }
 
 static void *rkvdec2_rk3568_alloc_task(struct mpp_session *session,
-				struct mpp_task_msgs *msgs)
+				       struct mpp_task_msgs *msgs)
 {
 	u32 fmt;
 	struct mpp_task *mpp_task = NULL;
@@ -1349,14 +1349,25 @@ static int rkvdec2_ccu_probe(struct platform_device *pdev)
 	struct rkvdec2_ccu *ccu;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
+	u32 ccu_mode;
 
 	ccu = devm_kzalloc(dev, sizeof(*ccu), GFP_KERNEL);
 	if (!ccu)
 		return -ENOMEM;
 
 	ccu->dev = dev;
+	/* use task-level soft ccu default */
+	ccu->ccu_mode = RKVDEC2_CCU_TASK_SOFT;
 	atomic_set(&ccu->power_enabled, 0);
+	INIT_LIST_HEAD(&ccu->unused_list);
+	INIT_LIST_HEAD(&ccu->used_list);
 	platform_set_drvdata(pdev, ccu);
+
+	if (!of_property_read_u32(dev->of_node, "rockchip,ccu-mode", &ccu_mode)) {
+		if (ccu_mode <= RKVDEC2_CCU_MODE_NULL || ccu_mode >= RKVDEC2_CCU_MODE_BUTT)
+			ccu_mode = RKVDEC2_CCU_TASK_SOFT;
+		ccu->ccu_mode = (enum RKVDEC2_CCU_MODE)ccu_mode;
+	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ccu");
 	if (!res) {
@@ -1370,12 +1381,6 @@ static int rkvdec2_ccu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	device_init_wakeup(dev, true);
-	pm_runtime_enable(dev);
-	/* power domain autosuspend delay 2s */
-	pm_runtime_set_autosuspend_delay(dev, 2000);
-	pm_runtime_use_autosuspend(dev);
-
 	ccu->aclk_info.clk = devm_clk_get(dev, "aclk_ccu");
 	if (!ccu->aclk_info.clk)
 		mpp_err("failed on clk_get ccu aclk\n");
@@ -1386,6 +1391,13 @@ static int rkvdec2_ccu_probe(struct platform_device *pdev)
 	else
 		mpp_err("failed on clk_get ccu reset\n");
 
+	/* power domain autosuspend delay 2s */
+	pm_runtime_set_autosuspend_delay(dev, 2000);
+	pm_runtime_use_autosuspend(dev);
+	device_init_wakeup(dev, true);
+	pm_runtime_enable(dev);
+
+	dev_info(dev, "ccu-mode: %d\n", ccu->ccu_mode);
 	return 0;
 }
 
@@ -1482,6 +1494,22 @@ static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev
 	if (!ret && dec->rcb_min_width)
 		dev_info(dev, "min_width %u\n", dec->rcb_min_width);
 
+	/* if have, read rcb_info */
+	dec->rcb_info_count = device_property_count_u32(dev, "rockchip,rcb-info");
+	if (dec->rcb_info_count > 0 &&
+	    dec->rcb_info_count <= (sizeof(dec->rcb_infos) / sizeof(u32))) {
+		int i;
+
+		ret = device_property_read_u32_array(dev, "rockchip,rcb-info",
+						     dec->rcb_infos, dec->rcb_info_count);
+		if (!ret) {
+			dev_info(dev, "rcb_info_count %u\n", dec->rcb_info_count);
+			for (i = 0; i < dec->rcb_info_count; i += 2)
+				dev_info(dev, "[%u, %u]\n",
+					 dec->rcb_infos[i], dec->rcb_infos[i+1]);
+		}
+	}
+
 	return 0;
 
 err_sram_map:
@@ -1496,6 +1524,7 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 	struct rkvdec2_dev *dec;
 	struct mpp_dev *mpp;
 	struct device *dev = &pdev->dev;
+	irq_handler_t irq_proc = NULL;
 
 	dec = devm_kzalloc(dev, sizeof(*dec), GFP_KERNEL);
 	if (!dec)
@@ -1519,29 +1548,44 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 		dev_err(dev, "probe sub driver failed\n");
 		return ret;
 	}
+	dec->mmu_base = ioremap(dec->mpp.io_base + 0x600, 0x80);
+	if (!dec->mmu_base)
+		dev_err(dev, "mmu base map failed!\n");
+
 	/* attach core to ccu */
 	ret = rkvdec2_attach_ccu(dev, dec);
 	if (ret) {
 		dev_err(dev, "attach ccu failed\n");
 		return ret;
 	}
-	/* power domain autosuspend delay 2s */
-	pm_runtime_set_autosuspend_delay(dev, 2000);
-	pm_runtime_use_autosuspend(dev);
 
 	/* alloc rcb buffer */
 	rkvdec2_alloc_rcbbuf(pdev, dec);
 
 	/* set device for link */
-	rkvdec2_ccu_link_init(pdev, dec);
+	ret = rkvdec2_ccu_link_init(pdev, dec);
+	if (ret)
+		return ret;
 
 	mpp->dev_ops->alloc_task = rkvdec2_ccu_alloc_task;
-	mpp->dev_ops->task_worker = rkvdec2_soft_ccu_worker;
-	kthread_init_work(&mpp->work, rkvdec2_soft_ccu_worker);
+	if (dec->ccu->ccu_mode == RKVDEC2_CCU_TASK_SOFT) {
+		mpp->dev_ops->task_worker = rkvdec2_soft_ccu_worker;
+		irq_proc = rkvdec2_soft_ccu_irq;
+	} else if (dec->ccu->ccu_mode == RKVDEC2_CCU_TASK_HARD) {
+		if (mpp->core_id == 0 && mpp->task_capacity > 1) {
+			dec->link_dec->task_capacity = mpp->task_capacity;
+			ret = rkvdec2_ccu_alloc_table(dec, dec->link_dec);
+			if (ret)
+				return ret;
+		}
+		mpp->dev_ops->task_worker = rkvdec2_hard_ccu_worker;
+		irq_proc = rkvdec2_hard_ccu_irq;
+	}
+	mpp->iommu_info->hdl = rkvdec2_ccu_iommu_fault_handle;
+	kthread_init_work(&mpp->work, mpp->dev_ops->task_worker);
 
-	mpp->fault_handler = rkvdec2_ccu_iommu_fault_handle;
 	/* get irq request */
-	ret = devm_request_threaded_irq(dev, mpp->irq, rkvdec2_soft_ccu_irq, NULL,
+	ret = devm_request_threaded_irq(dev, mpp->irq, irq_proc, NULL,
 					IRQF_SHARED, dev_name(dev), mpp);
 	if (ret) {
 		dev_err(dev, "register interrupter runtime failed\n");
@@ -1667,7 +1711,10 @@ static int rkvdec2_remove(struct platform_device *pdev)
 		struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
 		dev_info(dev, "remove device\n");
-
+		if (dec->mmu_base) {
+			iounmap(dec->mmu_base);
+			dec->mmu_base = NULL;
+		}
 		rkvdec2_free_rcbbuf(pdev, dec);
 		mpp_dev_remove(mpp);
 		rkvdec2_procfs_remove(mpp);

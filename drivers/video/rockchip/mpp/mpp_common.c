@@ -2131,15 +2131,9 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		return -ENODEV;
 	}
 
-	if (mpp->task_capacity == 1) {
-		/* power domain autosuspend delay 2s */
-		pm_runtime_set_autosuspend_delay(dev, 2000);
-		pm_runtime_use_autosuspend(dev);
-	} else {
-		dev_info(dev, "link mode task capacity %d\n",
-			 mpp->task_capacity);
-		/* do not setup autosuspend on multi task device */
-	}
+	/* power domain autosuspend delay 2s */
+	pm_runtime_set_autosuspend_delay(dev, 2000);
+	pm_runtime_use_autosuspend(dev);
 
 	kthread_init_work(&mpp->work, mpp_task_worker_default);
 
@@ -2150,7 +2144,6 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 
 	device_init_wakeup(dev, true);
 	pm_runtime_enable(dev);
-
 	mpp->irq = platform_get_irq(pdev, 0);
 	if (mpp->irq < 0) {
 		dev_err(dev, "No interrupt resource found\n");
@@ -2177,6 +2170,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		ret = -ENOMEM;
 		goto failed;
 	}
+	mpp->io_base = res->start;
 
 	/*
 	 * TODO: here or at the device itself, some device does not

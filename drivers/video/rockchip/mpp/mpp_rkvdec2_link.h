@@ -18,9 +18,13 @@
 #define RKVDEC_REG_SECOND_EN_INDEX	12
 #define RKVDEC_WAIT_RESET_EN		BIT(7)
 
+#define RKVDEC_REG_EN_MODE_SET		13
+
 #define RKVDEC_REG_DEBUG_INT_BASE	0x440
 #define RKVDEC_REG_DEBUG_INT_INDEX	272
 #define RKVDEC_BIT_BUS_IDLE		BIT(0)
+
+#define RKVDEC_REG_TIMEOUT_THRESHOLD	32
 
 /* define for link hardware */
 #define RKVDEC_LINK_ADD_CFG_NUM		1
@@ -181,6 +185,13 @@ struct rkvdec_link_dev {
 	u32 stuff_cnt;
 };
 
+enum RKVDEC2_CCU_MODE {
+	RKVDEC2_CCU_MODE_NULL		= 0,
+	RKVDEC2_CCU_TASK_SOFT		= 1,
+	RKVDEC2_CCU_TASK_HARD		= 2,
+	RKVDEC2_CCU_MODE_BUTT,
+};
+
 struct rkvdec2_ccu {
 	struct device *dev;
 	/* register base */
@@ -192,6 +203,13 @@ struct rkvdec2_ccu {
 	struct proc_dir_entry *procfs;
 #endif
 	struct reset_control *rst_a;
+	enum RKVDEC2_CCU_MODE ccu_mode;
+	u32 ccu_core_work_mode;
+
+	struct mpp_dma_buffer *table_array;
+	struct list_head unused_list;
+	struct list_head used_list;
+	u32 timeout_flag;
 };
 
 extern struct rkvdec_link_info rkvdec_link_rk356x_hw_info;
@@ -221,5 +239,10 @@ int rkvdec2_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 				   unsigned long iova, int status, void *arg);
 irqreturn_t rkvdec2_soft_ccu_irq(int irq, void *param);
 void rkvdec2_soft_ccu_worker(struct kthread_work *work_s);
+
+int rkvdec2_ccu_alloc_table(struct rkvdec2_dev *dec,
+			    struct rkvdec_link_dev *link_dec);
+irqreturn_t rkvdec2_hard_ccu_irq(int irq, void *param);
+void rkvdec2_hard_ccu_worker(struct kthread_work *work_s);
 
 #endif

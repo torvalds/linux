@@ -348,6 +348,7 @@ struct mpp_dev {
 	struct mpp_iommu_info *iommu_info;
 	int (*fault_handler)(struct iommu_domain *iommu, struct device *iommu_dev,
 			     unsigned long iova, int status, void *arg);
+	resource_size_t io_base;
 
 	atomic_t reset_request;
 	atomic_t session_index;
@@ -543,6 +544,7 @@ struct mpp_taskqueue {
 	u32 core_id_max;
 	u32 core_count;
 	unsigned long dev_active_flags;
+	u32 iommu_fault;
 };
 
 struct mpp_reset_group {
