@@ -661,13 +661,12 @@ static int mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core,
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtmp), mtmp_pl);
 }
 
-static int mlxsw_env_module_temp_event_enable(struct mlxsw_core *mlxsw_core,
-					      u8 module_count)
+static int mlxsw_env_module_temp_event_enable(struct mlxsw_core *mlxsw_core)
 {
 	int i, err, sensor_index;
 	bool has_temp_sensor;
 
-	for (i = 0; i < module_count; i++) {
+	for (i = 0; i < mlxsw_core_env(mlxsw_core)->module_count; i++) {
 		err = mlxsw_env_module_has_temp_sensor(mlxsw_core, i,
 						       &has_temp_sensor);
 		if (err)
@@ -876,12 +875,11 @@ mlxsw_env_module_plug_event_unregister(struct mlxsw_env *mlxsw_env)
 }
 
 static int
-mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core,
-					 u8 module_count)
+mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core)
 {
 	int i, err;
 
-	for (i = 0; i < module_count; i++) {
+	for (i = 0; i < mlxsw_core_env(mlxsw_core)->module_count; i++) {
 		char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
 		mlxsw_reg_pmaos_pack(pmaos_pl, i);
@@ -1037,12 +1035,11 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	if (err)
 		goto err_module_plug_event_register;
 
-	err = mlxsw_env_module_oper_state_event_enable(mlxsw_core,
-						       env->module_count);
+	err = mlxsw_env_module_oper_state_event_enable(mlxsw_core);
 	if (err)
 		goto err_oper_state_event_enable;
 
-	err = mlxsw_env_module_temp_event_enable(mlxsw_core, env->module_count);
+	err = mlxsw_env_module_temp_event_enable(mlxsw_core);
 	if (err)
 		goto err_temp_event_enable;
 
