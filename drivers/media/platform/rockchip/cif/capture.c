@@ -7056,10 +7056,10 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream)
 						 stream->id);
 		rkcif_write_register(cif_dev, get_reg_index_of_frm0_y_vlw(stream->id),
 				     channel->virtual_width);
-		if (stream->is_compact)
-			val |= LVDS_COMPACT;
+		if (!stream->is_compact)
+			val |= CSI_WRDDR_TYPE_RAW_UNCOMPACT;
 		else
-			val &= ~LVDS_COMPACT;
+			val &= ~CSI_WRDDR_TYPE_RAW_UNCOMPACT;
 	} else if (stream->to_en_dma == RKCIF_DMAEN_BY_ISP) {
 		rkcif_assign_new_buffer_pingpong_toisp(stream,
 						       RKCIF_YUV_ADDR_STATE_INIT,
