@@ -49,8 +49,8 @@ fi
 mkdir $resdir/$ds
 echo Results directory: $resdir/$ds
 
-KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
-PATH=${KVM}/bin:$PATH; export PATH
+RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
+PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 echo Using all `identify_qemu_vcpus` CPUs.
 

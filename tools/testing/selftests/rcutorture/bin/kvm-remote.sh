@@ -19,8 +19,8 @@ then
 	exit 1
 fi
 
-KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
-PATH=${KVM}/bin:$PATH; export PATH
+RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
+PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 
 starttime="`get_starttime`"
@@ -108,8 +108,8 @@ else
 		cat $T/kvm-again.sh.out | tee -a "$oldrun/remote-log"
 		exit 2
 	fi
-	cp -a "$rundir" "$KVM/res/"
-	oldrun="$KVM/res/$ds"
+	cp -a "$rundir" "$RCUTORTURE/res/"
+	oldrun="$RCUTORTURE/res/$ds"
 fi
 echo | tee -a "$oldrun/remote-log"
 echo " ----" kvm-again.sh output: "(`date`)" | tee -a "$oldrun/remote-log"
