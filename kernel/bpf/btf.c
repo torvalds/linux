@@ -6740,8 +6740,19 @@ int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 	int ret;
 
 	btf = btf_get_module_btf(kset->owner);
-	if (IS_ERR_OR_NULL(btf))
-		return btf ? PTR_ERR(btf) : -ENOENT;
+	if (!btf) {
+		if (!kset->owner && IS_ENABLED(CONFIG_DEBUG_INFO_BTF)) {
+			pr_err("missing vmlinux BTF, cannot register kfuncs\n");
+			return -ENOENT;
+		}
+		if (kset->owner && IS_ENABLED(CONFIG_DEBUG_INFO_BTF_MODULES)) {
+			pr_err("missing module BTF, cannot register kfuncs\n");
+			return -ENOENT;
+		}
+		return 0;
+	}
+	if (IS_ERR(btf))
+		return PTR_ERR(btf);
 
 	hook = bpf_prog_type_to_kfunc_hook(prog_type);
 	ret = btf_populate_kfunc_set(btf, hook, kset);
