@@ -88,6 +88,8 @@ MODULE_FIRMWARE("amdgpu/vangogh_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
+#define AMDGPU_MAX_RETRY_LIMIT		2
+#define AMDGPU_RETRY_SRIOV_RESET(r) ((r) == -EBUSY || (r) == -ETIMEDOUT || (r) == -EINVAL)
 
 const char *amdgpu_asic_name[] = {
 	"TAHITI",
@@ -4366,7 +4368,9 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 {
 	int r;
 	struct amdgpu_hive_info *hive = NULL;
+	int retry_limit = 0;
 
+retry:
 	amdgpu_amdkfd_pre_reset(adev);
 
 	amdgpu_amdkfd_pre_reset(adev);
@@ -4414,6 +4418,14 @@ error:
 		r = amdgpu_device_recover_vram(adev);
 	}
 	amdgpu_virt_release_full_gpu(adev, true);
+
+	if (AMDGPU_RETRY_SRIOV_RESET(r)) {
+		if (retry_limit < AMDGPU_MAX_RETRY_LIMIT) {
+			retry_limit++;
+			goto retry;
+		} else
+			DRM_ERROR("GPU reset retry is beyond the retry limit\n");
+	}
 
 	return r;
 }
@@ -5205,6 +5217,9 @@ skip_hw_reset:
 		if (!drm_drv_uses_atomic_modeset(adev_to_drm(tmp_adev)) && !job_signaled) {
 			drm_helper_resume_force_mode(adev_to_drm(tmp_adev));
 		}
+
+		if (tmp_adev->asic_reset_res)
+			r = tmp_adev->asic_reset_res;
 
 		tmp_adev->asic_reset_res = 0;
 
