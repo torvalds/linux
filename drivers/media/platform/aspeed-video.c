@@ -155,9 +155,14 @@
 
 #define VE_MODE_DETECT_STATUS		0x098
 #define  VE_MODE_DETECT_H_PERIOD	GENMASK(11, 0)
+#define  VE_MODE_DETECT_EXTSRC_ADC	BIT(12)
+#define  VE_MODE_DETECT_H_STABLE	BIT(13)
+#define  VE_MODE_DETECT_V_STABLE	BIT(14)
 #define  VE_MODE_DETECT_V_LINES		GENMASK(27, 16)
 #define  VE_MODE_DETECT_STATUS_VSYNC	BIT(28)
 #define  VE_MODE_DETECT_STATUS_HSYNC	BIT(29)
+#define  VE_MODE_DETECT_VSYNC_RDY	BIT(30)
+#define  VE_MODE_DETECT_HSYNC_RDY	BIT(31)
 
 #define VE_SYNC_STATUS			0x09c
 #define  VE_SYNC_STATUS_HSYNC		GENMASK(11, 0)
@@ -939,6 +944,7 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 	bool invalid_resolution = true;
 	int rc;
 	int tries = 0;
+	u32 mds;
 	u32 src_lr_edge;
 	u32 src_tb_edge;
 	struct v4l2_bt_timings *det = &video->detected_timings;
@@ -968,6 +974,13 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 			clear_bit(VIDEO_RES_DETECT, &video->flags);
 			return;
 		}
+
+		mds = aspeed_video_read(video, VE_MODE_DETECT_STATUS);
+		// try detection again if current signal isn't stable
+		if (!(mds & VE_MODE_DETECT_H_STABLE) ||
+		    !(mds & VE_MODE_DETECT_V_STABLE) ||
+		    (mds & VE_MODE_DETECT_EXTSRC_ADC))
+			continue;
 
 		aspeed_video_check_and_set_polarity(video);
 
