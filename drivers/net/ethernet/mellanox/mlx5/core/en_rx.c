@@ -1560,42 +1560,44 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			     struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt)
 {
 	struct mlx5e_rq_frag_info *frag_info = &rq->wqe.info.arr[0];
-	struct mlx5e_wqe_frag_info *head_wi = wi;
-	u16 headlen      = min_t(u32, MLX5E_RX_MAX_HEAD, cqe_bcnt);
-	u16 frag_headlen = headlen;
-	u16 byte_cnt     = cqe_bcnt - headlen;
+	u16 rx_headroom = rq->buff.headroom;
+	struct mlx5e_dma_info *di = wi->di;
+	u32 frag_consumed_bytes;
+	u32 first_frag_size;
 	struct sk_buff *skb;
+	void *va;
+
+	va = page_address(di->page) + wi->offset;
+	frag_consumed_bytes = min_t(u32, frag_info->frag_size, cqe_bcnt);
+	first_frag_size = MLX5_SKB_FRAG_SZ(rx_headroom + frag_consumed_bytes);
+
+	dma_sync_single_range_for_cpu(rq->pdev, di->addr, wi->offset,
+				      first_frag_size, DMA_FROM_DEVICE);
+	net_prefetch(va + rx_headroom);
 
 	/* XDP is not supported in this configuration, as incoming packets
 	 * might spread among multiple pages.
 	 */
-	skb = napi_alloc_skb(rq->cq.napi,
-			     ALIGN(MLX5E_RX_MAX_HEAD, sizeof(long)));
-	if (unlikely(!skb)) {
-		rq->stats->buff_alloc_err++;
+	skb = mlx5e_build_linear_skb(rq, va, first_frag_size, rx_headroom,
+				     frag_consumed_bytes, 0);
+	if (unlikely(!skb))
 		return NULL;
-	}
 
-	net_prefetchw(skb->data);
+	page_ref_inc(di->page);
 
-	while (byte_cnt) {
-		u16 frag_consumed_bytes =
-			min_t(u16, frag_info->frag_size - frag_headlen, byte_cnt);
+	cqe_bcnt -= frag_consumed_bytes;
+	frag_info++;
+	wi++;
 
-		mlx5e_add_skb_frag(rq, skb, wi->di, wi->offset + frag_headlen,
+	while (cqe_bcnt) {
+		frag_consumed_bytes = min_t(u32, frag_info->frag_size, cqe_bcnt);
+
+		mlx5e_add_skb_frag(rq, skb, wi->di, wi->offset,
 				   frag_consumed_bytes, frag_info->frag_stride);
-		byte_cnt -= frag_consumed_bytes;
-		frag_headlen = 0;
+		cqe_bcnt -= frag_consumed_bytes;
 		frag_info++;
 		wi++;
 	}
-
-	/* copy header */
-	mlx5e_copy_skb_header(rq->pdev, skb, head_wi->di, head_wi->offset, head_wi->offset,
-			      headlen);
-	/* skb linear part was allocated with headlen and aligned to long */
-	skb->tail += headlen;
-	skb->len  += headlen;
 
 	return skb;
 }

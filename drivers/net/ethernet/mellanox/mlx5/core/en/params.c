@@ -188,12 +188,18 @@ u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 			  struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk)
 {
-	bool is_linear_skb = (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC) ?
-		mlx5e_rx_is_linear_skb(params, xsk) :
-		mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk);
+	u16 linear_headroom = mlx5e_get_linear_rq_headroom(params, xsk);
 
-	return is_linear_skb || params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO ?
-		mlx5e_get_linear_rq_headroom(params, xsk) : 0;
+	if (params->rq_wq_type == MLX5_WQ_TYPE_CYCLIC)
+		return linear_headroom;
+
+	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk))
+		return linear_headroom;
+
+	if (params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO)
+		return linear_headroom;
+
+	return 0;
 }
 
 u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
@@ -392,10 +398,10 @@ void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e
 	};
 }
 
-static int mlx5e_max_nonlinear_mtu(int frag_size)
+static int mlx5e_max_nonlinear_mtu(int first_frag_size, int frag_size)
 {
 	/* Optimization for small packets: the last fragment is bigger than the others. */
-	return (MLX5E_MAX_RX_FRAGS - 1) * frag_size + PAGE_SIZE;
+	return first_frag_size + (MLX5E_MAX_RX_FRAGS - 2) * frag_size + PAGE_SIZE;
 }
 
 #define DEFAULT_FRAG_SIZE (2048)
@@ -407,7 +413,9 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 {
 	u32 byte_count = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	int frag_size_max = DEFAULT_FRAG_SIZE;
+	int first_frag_size_max;
 	u32 buf_size = 0;
+	u16 headroom;
 	int max_mtu;
 	int i;
 
@@ -427,11 +435,15 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 		goto out;
 	}
 
-	max_mtu = mlx5e_max_nonlinear_mtu(frag_size_max);
+	headroom = mlx5e_get_linear_rq_headroom(params, xsk);
+	first_frag_size_max = SKB_WITH_OVERHEAD(frag_size_max - headroom);
+
+	max_mtu = mlx5e_max_nonlinear_mtu(first_frag_size_max, frag_size_max);
 	if (byte_count > max_mtu) {
 		frag_size_max = PAGE_SIZE;
+		first_frag_size_max = SKB_WITH_OVERHEAD(frag_size_max - headroom);
 
-		max_mtu = mlx5e_max_nonlinear_mtu(frag_size_max);
+		max_mtu = mlx5e_max_nonlinear_mtu(first_frag_size_max, frag_size_max);
 		if (byte_count > max_mtu) {
 			mlx5_core_err(mdev, "MTU %u is too big for non-linear legacy RQ (max %d)\n",
 				      params->sw_mtu, max_mtu);
@@ -443,13 +455,22 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	while (buf_size < byte_count) {
 		int frag_size = byte_count - buf_size;
 
-		if (i < MLX5E_MAX_RX_FRAGS - 1)
+		if (i == 0)
+			frag_size = min(frag_size, first_frag_size_max);
+		else if (i < MLX5E_MAX_RX_FRAGS - 1)
 			frag_size = min(frag_size, frag_size_max);
 
 		info->arr[i].frag_size = frag_size;
+		buf_size += frag_size;
+
+		if (i == 0) {
+			/* Ensure that headroom and tailroom are included. */
+			frag_size += headroom;
+			frag_size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+		}
+
 		info->arr[i].frag_stride = roundup_pow_of_two(frag_size);
 
-		buf_size += frag_size;
 		i++;
 	}
 	info->num_frags = i;
