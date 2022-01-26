@@ -149,8 +149,8 @@ static int to_interleave_ways(u32 ctrl)
 	}
 }
 
-static void init_hdm_decoder(struct cxl_decoder *cxld, int *target_map,
-			     void __iomem *hdm, int which)
+static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
+			    int *target_map, void __iomem *hdm, int which)
 {
 	u64 size, base;
 	u32 ctrl;
@@ -166,6 +166,11 @@ static void init_hdm_decoder(struct cxl_decoder *cxld, int *target_map,
 
 	if (!(ctrl & CXL_HDM_DECODER0_CTRL_COMMITTED))
 		size = 0;
+	if (base == U64_MAX || size == U64_MAX) {
+		dev_warn(&port->dev, "decoder%d.%d: Invalid resource range\n",
+			 port->id, cxld->id);
+		return -ENXIO;
+	}
 
 	cxld->decoder_range = (struct range) {
 		.start = base,
@@ -179,6 +184,12 @@ static void init_hdm_decoder(struct cxl_decoder *cxld, int *target_map,
 			cxld->flags |= CXL_DECODER_F_LOCK;
 	}
 	cxld->interleave_ways = to_interleave_ways(ctrl);
+	if (!cxld->interleave_ways) {
+		dev_warn(&port->dev,
+			 "decoder%d.%d: Invalid interleave ways (ctrl: %#x)\n",
+			 port->id, cxld->id, ctrl);
+		return -ENXIO;
+	}
 	cxld->interleave_granularity = to_interleave_granularity(ctrl);
 
 	if (FIELD_GET(CXL_HDM_DECODER0_CTRL_TYPE, ctrl))
@@ -187,12 +198,14 @@ static void init_hdm_decoder(struct cxl_decoder *cxld, int *target_map,
 		cxld->target_type = CXL_DECODER_ACCELERATOR;
 
 	if (is_cxl_endpoint(to_cxl_port(cxld->dev.parent)))
-		return;
+		return 0;
 
 	target_list.value =
 		ioread64_hi_lo(hdm + CXL_HDM_DECODER0_TL_LOW(which));
 	for (i = 0; i < cxld->interleave_ways; i++)
 		target_map[i] = target_list.target_id[i];
+
+	return 0;
 }
 
 /**
@@ -203,7 +216,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 {
 	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
 	struct cxl_port *port = cxlhdm->port;
-	int i, committed;
+	int i, committed, failed;
 	u32 ctrl;
 
 	/*
@@ -223,7 +236,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 	if (committed != cxlhdm->decoder_count)
 		msleep(20);
 
-	for (i = 0; i < cxlhdm->decoder_count; i++) {
+	for (i = 0, failed = 0; i < cxlhdm->decoder_count; i++) {
 		int target_map[CXL_DECODER_MAX_INTERLEAVE] = { 0 };
 		int rc, target_count = cxlhdm->target_count;
 		struct cxl_decoder *cxld;
@@ -238,13 +251,24 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			return PTR_ERR(cxld);
 		}
 
-		init_hdm_decoder(cxld, target_map, cxlhdm->regs.hdm_decoder, i);
+		rc = init_hdm_decoder(port, cxld, target_map,
+				      cxlhdm->regs.hdm_decoder, i);
+		if (rc) {
+			put_device(&cxld->dev);
+			failed++;
+			continue;
+		}
 		rc = add_hdm_decoder(port, cxld, target_map);
 		if (rc) {
 			dev_warn(&port->dev,
 				 "Failed to add decoder to port\n");
 			return rc;
 		}
+	}
+
+	if (failed == cxlhdm->decoder_count) {
+		dev_err(&port->dev, "No valid decoders found\n");
+		return -ENXIO;
 	}
 
 	return 0;
