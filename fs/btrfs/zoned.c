@@ -1215,12 +1215,12 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	struct btrfs_device *device;
 	u64 logical = cache->start;
 	u64 length = cache->length;
-	u64 physical = 0;
 	int ret;
 	int i;
 	unsigned int nofs_flag;
 	u64 *alloc_offsets = NULL;
 	u64 *caps = NULL;
+	u64 *physical = NULL;
 	unsigned long *active = NULL;
 	u64 last_alloc = 0;
 	u32 num_sequential = 0, num_conventional = 0;
@@ -1264,6 +1264,12 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		goto out;
 	}
 
+	physical = kcalloc(map->num_stripes, sizeof(*physical), GFP_NOFS);
+	if (!physical) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	active = bitmap_zalloc(map->num_stripes, GFP_NOFS);
 	if (!active) {
 		ret = -ENOMEM;
@@ -1277,14 +1283,14 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		int dev_replace_is_ongoing = 0;
 
 		device = map->stripes[i].dev;
-		physical = map->stripes[i].physical;
+		physical[i] = map->stripes[i].physical;
 
 		if (device->bdev == NULL) {
 			alloc_offsets[i] = WP_MISSING_DEV;
 			continue;
 		}
 
-		is_sequential = btrfs_dev_is_sequential(device, physical);
+		is_sequential = btrfs_dev_is_sequential(device, physical[i]);
 		if (is_sequential)
 			num_sequential++;
 		else
@@ -1299,21 +1305,21 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		 * This zone will be used for allocation, so mark this zone
 		 * non-empty.
 		 */
-		btrfs_dev_clear_zone_empty(device, physical);
+		btrfs_dev_clear_zone_empty(device, physical[i]);
 
 		down_read(&dev_replace->rwsem);
 		dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(dev_replace);
 		if (dev_replace_is_ongoing && dev_replace->tgtdev != NULL)
-			btrfs_dev_clear_zone_empty(dev_replace->tgtdev, physical);
+			btrfs_dev_clear_zone_empty(dev_replace->tgtdev, physical[i]);
 		up_read(&dev_replace->rwsem);
 
 		/*
 		 * The group is mapped to a sequential zone. Get the zone write
 		 * pointer to determine the allocation offset within the zone.
 		 */
-		WARN_ON(!IS_ALIGNED(physical, fs_info->zone_size));
+		WARN_ON(!IS_ALIGNED(physical[i], fs_info->zone_size));
 		nofs_flag = memalloc_nofs_save();
-		ret = btrfs_get_dev_zone(device, physical, &zone);
+		ret = btrfs_get_dev_zone(device, physical[i], &zone);
 		memalloc_nofs_restore(nofs_flag);
 		if (ret == -EIO || ret == -EOPNOTSUPP) {
 			ret = 0;
@@ -1339,7 +1345,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		case BLK_ZONE_COND_READONLY:
 			btrfs_err(fs_info,
 		"zoned: offline/readonly zone %llu on device %s (devid %llu)",
-				  physical >> device->zone_info->zone_size_shift,
+				  physical[i] >> device->zone_info->zone_size_shift,
 				  rcu_str_deref(device->name), device->devid);
 			alloc_offsets[i] = WP_MISSING_DEV;
 			break;
@@ -1404,7 +1410,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		if (alloc_offsets[0] == WP_MISSING_DEV) {
 			btrfs_err(fs_info,
 			"zoned: cannot recover write pointer for zone %llu",
-				physical);
+				physical[0]);
 			ret = -EIO;
 			goto out;
 		}
@@ -1465,6 +1471,7 @@ out:
 		cache->physical_map = NULL;
 	}
 	bitmap_free(active);
+	kfree(physical);
 	kfree(caps);
 	kfree(alloc_offsets);
 	free_extent_map(em);
