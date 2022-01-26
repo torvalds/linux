@@ -77,9 +77,6 @@ track_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm)
 	depot_stack_handle_t stack, *stacks;
 	unsigned long flags;
 
-	if (!rpm->available)
-		return -1;
-
 	stack = __save_depot_stack();
 	if (!stack)
 		return -1;
