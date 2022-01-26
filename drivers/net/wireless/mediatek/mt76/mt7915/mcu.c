@@ -86,24 +86,12 @@ mt7915_mcu_get_sta_nss(u16 mcs_map)
 
 static void
 mt7915_mcu_set_sta_he_mcs(struct ieee80211_sta *sta, __le16 *he_mcs,
-			  const u16 *mask)
+			  u16 mcs_map)
 {
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
-	struct cfg80211_chan_def *chandef = &msta->vif->phy->mt76->chandef;
+	enum nl80211_band band = msta->vif->phy->mt76->chandef.chan->band;
+	const u16 *mask = msta->vif->bitrate_mask.control[band].he_mcs;
 	int nss, max_nss = sta->rx_nss > 3 ? 4 : sta->rx_nss;
-	u16 mcs_map;
-
-	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_80P80:
-		mcs_map = le16_to_cpu(sta->he_cap.he_mcs_nss_supp.rx_mcs_80p80);
-		break;
-	case NL80211_CHAN_WIDTH_160:
-		mcs_map = le16_to_cpu(sta->he_cap.he_mcs_nss_supp.rx_mcs_160);
-		break;
-	default:
-		mcs_map = le16_to_cpu(sta->he_cap.he_mcs_nss_supp.rx_mcs_80);
-		break;
-	}
 
 	for (nss = 0; nss < max_nss; nss++) {
 		int mcs;
@@ -765,11 +753,9 @@ static void
 mt7915_mcu_sta_he_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 		      struct ieee80211_vif *vif)
 {
-	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 	struct ieee80211_he_cap_elem *elem = &sta->he_cap.he_cap_elem;
-	enum nl80211_band band = msta->vif->phy->mt76->chandef.chan->band;
-	const u16 *mcs_mask = msta->vif->bitrate_mask.control[band].he_mcs;
+	struct ieee80211_he_mcs_nss_supp mcs_map;
 	struct sta_rec_he *he;
 	struct tlv *tlv;
 	u32 cap = 0;
@@ -859,22 +845,23 @@ mt7915_mcu_sta_he_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
 
 	he->he_cap = cpu_to_le32(cap);
 
+	mcs_map = sta->he_cap.he_mcs_nss_supp;
 	switch (sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
 		if (elem->phy_cap_info[0] &
 		    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)
 			mt7915_mcu_set_sta_he_mcs(sta,
 						  &he->max_nss_mcs[CMD_HE_MCS_BW8080],
-						  mcs_mask);
+						  le16_to_cpu(mcs_map.rx_mcs_80p80));
 
 		mt7915_mcu_set_sta_he_mcs(sta,
 					  &he->max_nss_mcs[CMD_HE_MCS_BW160],
-					  mcs_mask);
+					  le16_to_cpu(mcs_map.rx_mcs_160));
 		fallthrough;
 	default:
 		mt7915_mcu_set_sta_he_mcs(sta,
 					  &he->max_nss_mcs[CMD_HE_MCS_BW80],
-					  mcs_mask);
+					  le16_to_cpu(mcs_map.rx_mcs_80));
 		break;
 	}
 
