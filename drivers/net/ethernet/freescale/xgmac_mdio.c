@@ -273,7 +273,7 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bus = mdiobus_alloc_size(sizeof(struct mdio_fsl_priv));
+	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(struct mdio_fsl_priv));
 	if (!bus)
 		return -ENOMEM;
 
@@ -284,13 +284,11 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 	bus->probe_capabilities = MDIOBUS_C22_C45;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%pa", &res->start);
 
-	/* Set the PHY base address */
 	priv = bus->priv;
-	priv->mdio_base = ioremap(res->start, resource_size(res));
-	if (!priv->mdio_base) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
+	priv->mdio_base = devm_ioremap(&pdev->dev, res->start,
+				       resource_size(res));
+	if (IS_ERR(priv->mdio_base))
+		return PTR_ERR(priv->mdio_base);
 
 	/* For both ACPI and DT cases, endianness of MDIO controller
 	 * needs to be specified using "little-endian" property.
@@ -312,30 +310,10 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 	if (ret) {
 		dev_err(&pdev->dev, "cannot register MDIO bus\n");
-		goto err_registration;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, bus);
-
-	return 0;
-
-err_registration:
-	iounmap(priv->mdio_base);
-
-err_ioremap:
-	mdiobus_free(bus);
-
-	return ret;
-}
-
-static int xgmac_mdio_remove(struct platform_device *pdev)
-{
-	struct mii_bus *bus = platform_get_drvdata(pdev);
-	struct mdio_fsl_priv *priv = bus->priv;
-
-	mdiobus_unregister(bus);
-	iounmap(priv->mdio_base);
-	mdiobus_free(bus);
 
 	return 0;
 }
@@ -364,7 +342,6 @@ static struct platform_driver xgmac_mdio_driver = {
 		.acpi_match_table = xgmac_acpi_match,
 	},
 	.probe = xgmac_mdio_probe,
-	.remove = xgmac_mdio_remove,
 };
 
 module_platform_driver(xgmac_mdio_driver);
