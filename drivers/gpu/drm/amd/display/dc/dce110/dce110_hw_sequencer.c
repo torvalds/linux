@@ -1761,7 +1761,8 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 			    edp_link->link_status.link_active) {
 				struct dc_stream_state *edp_stream = edp_streams[0];
 
-				can_apply_edp_fast_boot = !is_edp_ilr_optimization_required(edp_stream->link, &edp_stream->timing);
+				can_apply_edp_fast_boot = dc_validate_boot_timing(dc,
+					edp_stream->sink, &edp_stream->timing);
 				edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
 				if (can_apply_edp_fast_boot)
 					DC_LOG_EVENT_LINK_TRAINING("eDP fast boot disabled to optimize link rate\n");
