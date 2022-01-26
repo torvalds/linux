@@ -1313,10 +1313,32 @@ isp_rawae3_enable(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static void
+isp_rawawb_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
+		    const struct isp21_rawawb_meas_cfg *arg, bool is_check)
+{
+	u32 i, val = ISP2X_RAWAWB_ENA;
+
+	if (is_check &&
+	    !(rkisp_ioread32(params_vdev, ISP21_RAWAWB_CTRL) & val))
+		return;
+
+	for (i = 0; i < ISP21_RAWAWB_WEIGHT_NUM / 5; i++) {
+		val = (arg->sw_rawawb_wp_blk_wei_w[5 * i] & 0x3f) << 0 |
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
+		      (arg->sw_rawawb_wp_blk_wei_w[5 * i + 4] & 0x3f) << 24,
+		rkisp_iowrite32(params_vdev, val, ISP21_RAWAWB_WRAM_DATA_BASE);
+	}
+}
+
+static void
 isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 		  const struct isp21_rawawb_meas_cfg *arg)
 {
-	u32 i, value;
+	struct isp21_isp_params_cfg *params_rec = params_vdev->isp21_params;
+	struct isp21_rawawb_meas_cfg *arg_rec = &params_rec->meas.rawawb;
+	u32 value;
 
 	rkisp_iowrite32(params_vdev,
 			(arg->sw_rawawb_blk_measure_enable & 0x1) |
@@ -2119,15 +2141,12 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 					  arg->sw_rawawb_exc_wp_region6_yv1),
 			ISP21_RAWAWB_EXC_WP_REGION6_YV);
 
-	for (i = 0; i < ISP21_RAWAWB_WEIGHT_NUM / 5; i++) {
-		rkisp_iowrite32(params_vdev,
-			(arg->sw_rawawb_wp_blk_wei_w[5 * i] & 0x3f) << 0 |
-			(arg->sw_rawawb_wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
-			(arg->sw_rawawb_wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
-			(arg->sw_rawawb_wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
-			(arg->sw_rawawb_wp_blk_wei_w[5 * i + 4] & 0x3f) << 24,
-			ISP21_RAWAWB_WRAM_DATA_BASE);
-	}
+	if (params_vdev->dev->hw_dev->is_single)
+		isp_rawawb_cfg_sram(params_vdev, arg, false);
+	else
+		memcpy(arg_rec->sw_rawawb_wp_blk_wei_w,
+		       arg->sw_rawawb_wp_blk_wei_w,
+		       ISP21_RAWAWB_WEIGHT_NUM);
 
 	/* avoid to override the old enable value */
 	value = rkisp_ioread32(params_vdev, ISP21_RAWAWB_CTRL);
@@ -3723,6 +3742,7 @@ void rkisp_params_cfgsram_v21(struct rkisp_isp_params_vdev *params_vdev)
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist1, 1, true);
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist2, 2, true);
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist3, 0, true);
+	isp_rawawb_cfg_sram(params_vdev, &params->meas.rawawb, true);
 }
 
 static int

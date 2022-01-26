@@ -1420,10 +1420,34 @@ isp_rawae3_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 }
 
 static void
+isp_rawawb_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
+		    const struct isp3x_rawawb_meas_cfg *arg,
+		    bool is_check, u32 id)
+{
+	u32 i, val = ISP3X_MODULE_EN;
+
+	if (is_check &&
+	    !(isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL, id) & val))
+		return;
+
+	for (i = 0; i < ISP3X_RAWAWB_WEIGHT_NUM / 5; i++) {
+		isp3_param_write(params_vdev,
+				 (arg->sw_rawawb_wp_blk_wei_w[5 * i] & 0x3f) << 0 |
+				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
+				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
+				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
+				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 4] & 0x3f) << 24,
+				 ISP3X_RAWAWB_WRAM_DATA_BASE, id);
+	}
+}
+
+static void
 isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 		  const struct isp3x_rawawb_meas_cfg *arg, u32 id)
 {
-	u32 i, value;
+	struct isp3x_isp_params_cfg *params_rec = params_vdev->isp3x_params + id;
+	struct isp3x_rawawb_meas_cfg *arg_rec = &params_rec->meas.rawawb;
+	u32 value;
 
 	isp3_param_write(params_vdev,
 			 (arg->sw_rawawb_blk_measure_enable & 0x1) |
@@ -2263,15 +2287,12 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 					 arg->sw_rawawb_exc_wp_region6_yv1),
 			 ISP3X_RAWAWB_EXC_WP_REGION6_YV, id);
 
-	for (i = 0; i < ISP3X_RAWAWB_WEIGHT_NUM / 5; i++) {
-		isp3_param_write(params_vdev,
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i] & 0x3f) << 0 |
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 1] & 0x3f) << 6 |
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 2] & 0x3f) << 12 |
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 3] & 0x3f) << 18 |
-				 (arg->sw_rawawb_wp_blk_wei_w[5 * i + 4] & 0x3f) << 24,
-				 ISP3X_RAWAWB_WRAM_DATA_BASE, id);
-	}
+	if (params_vdev->dev->hw_dev->is_single)
+		isp_rawawb_cfg_sram(params_vdev, arg, false, id);
+	else
+		memcpy(arg_rec->sw_rawawb_wp_blk_wei_w,
+		       arg->sw_rawawb_wp_blk_wei_w,
+		       ISP3X_RAWAWB_WEIGHT_NUM);
 
 	/* avoid to override the old enable value */
 	value = isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL, id);
@@ -4049,12 +4070,14 @@ void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist1, 1, true, 0);
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist2, 2, true, 0);
 	isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist3, 0, true, 0);
+	isp_rawawb_cfg_sram(params_vdev, &params->meas.rawawb, true, 0);
 	if (params_vdev->dev->hw_dev->is_unite) {
 		params++;
 		isp_lsc_matrix_cfg_sram(params_vdev, &params->others.lsc_cfg, true, 1);
 		isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist1, 1, true, 1);
 		isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist2, 2, true, 1);
 		isp_rawhstbig_cfg_sram(params_vdev, &params->meas.rawhist3, 0, true, 1);
+		isp_rawawb_cfg_sram(params_vdev, &params->meas.rawawb, true, 1);
 	}
 }
 
