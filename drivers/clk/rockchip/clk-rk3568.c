@@ -1568,7 +1568,7 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 			RK3568_PMU_CLKGATE_CON(2), 14, GFLAGS),
 	GATE(XIN_OSC0_EDPPHY_G, "xin_osc0_edpphy_g", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 15, GFLAGS),
-	MUX(CLK_HDMI_REF, "clk_hdmi_ref", clk_hdmi_ref_p, 0,
+	MUX(CLK_HDMI_REF, "clk_hdmi_ref", clk_hdmi_ref_p, CLK_SET_RATE_PARENT,
 			RK3568_PMU_CLKSEL_CON(8), 7, 1, MFLAGS),
 };
 
