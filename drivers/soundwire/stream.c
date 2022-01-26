@@ -865,6 +865,39 @@ msg_unlock:
 	return ret;
 }
 
+static struct sdw_port_runtime *sdw_port_alloc(struct list_head *port_list)
+{
+	struct sdw_port_runtime *p_rt;
+
+	p_rt = kzalloc(sizeof(*p_rt), GFP_KERNEL);
+	if (!p_rt)
+		return NULL;
+
+	list_add_tail(&p_rt->port_node, port_list);
+
+	return p_rt;
+}
+
+static int sdw_port_config(struct sdw_port_runtime *p_rt,
+			   struct sdw_port_config *port_config,
+			   int port_index)
+{
+	p_rt->ch_mask = port_config[port_index].ch_mask;
+	p_rt->num = port_config[port_index].num;
+
+	/*
+	 * TODO: Check port capabilities for requested configuration
+	 */
+
+	return 0;
+}
+
+static void sdw_port_free(struct sdw_port_runtime *p_rt)
+{
+	list_del(&p_rt->port_node);
+	kfree(p_rt);
+}
+
 /**
  * sdw_release_stream() - Free the assigned stream runtime
  *
@@ -995,8 +1028,7 @@ static void sdw_master_port_release(struct sdw_bus *bus,
 	struct sdw_port_runtime *p_rt, *_p_rt;
 
 	list_for_each_entry_safe(p_rt, _p_rt, &m_rt->port_list, port_node) {
-		list_del(&p_rt->port_node);
-		kfree(p_rt);
+		sdw_port_free(p_rt);
 	}
 }
 
@@ -1015,8 +1047,7 @@ static void sdw_slave_port_release(struct sdw_bus *bus,
 
 			list_for_each_entry_safe(p_rt, _p_rt,
 						 &s_rt->port_list, port_node) {
-				list_del(&p_rt->port_node);
-				kfree(p_rt);
+				sdw_port_free(p_rt);
 			}
 		}
 	}
@@ -1187,43 +1218,24 @@ static int sdw_is_valid_port_range(struct device *dev, int num)
 	return 0;
 }
 
-static struct sdw_port_runtime
-*sdw_port_alloc(struct device *dev,
-		struct sdw_port_config *port_config,
-		int port_index)
-{
-	struct sdw_port_runtime *p_rt;
-
-	p_rt = kzalloc(sizeof(*p_rt), GFP_KERNEL);
-	if (!p_rt)
-		return NULL;
-
-	p_rt->ch_mask = port_config[port_index].ch_mask;
-	p_rt->num = port_config[port_index].num;
-
-	return p_rt;
-}
-
 static int sdw_master_port_config(struct sdw_bus *bus,
 				  struct sdw_master_runtime *m_rt,
 				  struct sdw_port_config *port_config,
 				  unsigned int num_ports)
 {
 	struct sdw_port_runtime *p_rt;
+	int ret;
 	int i;
 
 	/* Iterate for number of ports to perform initialization */
 	for (i = 0; i < num_ports; i++) {
-		p_rt = sdw_port_alloc(bus->dev, port_config, i);
+		p_rt = sdw_port_alloc(&m_rt->port_list);
 		if (!p_rt)
 			return -ENOMEM;
 
-		/*
-		 * TODO: Check port capabilities for requested
-		 * configuration (audio mode support)
-		 */
-
-		list_add_tail(&p_rt->port_node, &m_rt->port_list);
+		ret = sdw_port_config(p_rt, port_config, i);
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
@@ -1239,7 +1251,7 @@ static int sdw_slave_port_config(struct sdw_slave *slave,
 
 	/* Iterate for number of ports to perform initialization */
 	for (i = 0; i < num_config; i++) {
-		p_rt = sdw_port_alloc(&slave->dev, port_config, i);
+		p_rt = sdw_port_alloc(&s_rt->port_list);
 		if (!p_rt)
 			return -ENOMEM;
 
@@ -1248,17 +1260,12 @@ static int sdw_slave_port_config(struct sdw_slave *slave,
 		 * slave
 		 */
 		ret = sdw_is_valid_port_range(&slave->dev, port_config[i].num);
-		if (ret < 0) {
-			kfree(p_rt);
+		if (ret < 0)
 			return ret;
-		}
 
-		/*
-		 * TODO: Check port capabilities for requested
-		 * configuration (audio mode support)
-		 */
-
-		list_add_tail(&p_rt->port_node, &s_rt->port_list);
+		ret = sdw_port_config(p_rt, port_config, i);
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
