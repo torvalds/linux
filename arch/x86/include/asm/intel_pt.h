@@ -13,6 +13,7 @@ enum pt_capabilities {
 	PT_CAP_mtc,
 	PT_CAP_ptwrite,
 	PT_CAP_power_event_trace,
+	PT_CAP_event_trace,
 	PT_CAP_topa_output,
 	PT_CAP_topa_multiple_entries,
 	PT_CAP_single_range_output,
