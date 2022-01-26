@@ -148,10 +148,46 @@ static int bnxt_ptp_gettimex(struct ptp_clock_info *ptp_info,
 	return 0;
 }
 
+/* Caller holds ptp_lock */
+void bnxt_ptp_update_current_time(struct bnxt *bp)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	bnxt_refclk_read(ptp->bp, NULL, &ptp->current_time);
+	WRITE_ONCE(ptp->old_time, ptp->current_time);
+}
+
+static int bnxt_ptp_adjphc(struct bnxt_ptp_cfg *ptp, s64 delta)
+{
+	struct hwrm_port_mac_cfg_input *req;
+	int rc;
+
+	rc = hwrm_req_init(ptp->bp, req, HWRM_PORT_MAC_CFG);
+	if (rc)
+		return rc;
+
+	req->enables = cpu_to_le32(PORT_MAC_CFG_REQ_ENABLES_PTP_ADJ_PHASE);
+	req->ptp_adj_phase = cpu_to_le64(delta);
+
+	rc = hwrm_req_send(ptp->bp, req);
+	if (rc) {
+		netdev_err(ptp->bp->dev, "ptp adjphc failed. rc = %x\n", rc);
+	} else {
+		spin_lock_bh(&ptp->ptp_lock);
+		bnxt_ptp_update_current_time(ptp->bp);
+		spin_unlock_bh(&ptp->ptp_lock);
+	}
+
+	return rc;
+}
+
 static int bnxt_ptp_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
 {
 	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
 						ptp_info);
+
+	if (ptp->bp->fw_cap & BNXT_FW_CAP_PTP_RTC)
+		return bnxt_ptp_adjphc(ptp, delta);
 
 	spin_lock_bh(&ptp->ptp_lock);
 	timecounter_adjtime(&ptp->tc, delta);
