@@ -31,18 +31,16 @@ struct ping_group_range {
 struct inet_hashinfo;
 
 struct inet_timewait_death_row {
-	atomic_t		tw_count;
-	char			tw_pad[L1_CACHE_BYTES - sizeof(atomic_t)];
+	refcount_t		tw_refcount;
 
-	struct inet_hashinfo 	*hashinfo;
+	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
 	int			sysctl_max_tw_buckets;
 };
 
 struct tcp_fastopen_context;
 
 struct netns_ipv4 {
-	/* Please keep tcp_death_row at first field in netns_ipv4 */
-	struct inet_timewait_death_row tcp_death_row ____cacheline_aligned_in_smp;
+	struct inet_timewait_death_row *tcp_death_row;
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
