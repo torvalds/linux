@@ -388,15 +388,6 @@ PROPERTIES
 		Value type: <prop-encoded-array>
 		Definition: A standard property.
 
-- bus-frequency
-		Usage: optional
-		Value type: <u32>
-		Definition: Specifies the external MDIO bus clock speed to
-		be used, if different from the standard 2.5 MHz.
-		This may be due to the standard speed being unsupported (e.g.
-		due to a hardware problem), or to advertise that all relevant
-		components in the system support a faster speed.
-
 - interrupts
 		Usage: required for external MDIO
 		Value type: <prop-encoded-array>
