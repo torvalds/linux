@@ -2211,6 +2211,39 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_IMU_D:
 		*type = GFX_FW_TYPE_IMU_D;
 		break;
+	case AMDGPU_UCODE_ID_CP_RS64_PFP:
+		*type = GFX_FW_TYPE_RS64_PFP;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_ME:
+		*type = GFX_FW_TYPE_RS64_ME;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC:
+		*type = GFX_FW_TYPE_RS64_MEC;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_PFP_P0_STACK:
+		*type = GFX_FW_TYPE_RS64_PFP_P0_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_PFP_P1_STACK:
+		*type = GFX_FW_TYPE_RS64_PFP_P1_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_ME_P0_STACK:
+		*type = GFX_FW_TYPE_RS64_ME_P0_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_ME_P1_STACK:
+		*type = GFX_FW_TYPE_RS64_ME_P1_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P0_STACK:
+		*type = GFX_FW_TYPE_RS64_MEC_P0_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P1_STACK:
+		*type = GFX_FW_TYPE_RS64_MEC_P1_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P2_STACK:
+		*type = GFX_FW_TYPE_RS64_MEC_P2_STACK;
+		break;
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P3_STACK:
+		*type = GFX_FW_TYPE_RS64_MEC_P3_STACK;
+		break;
 	case AMDGPU_UCODE_ID_MAXIMUM:
 	default:
 		return -EINVAL;
