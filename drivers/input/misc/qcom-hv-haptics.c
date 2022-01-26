@@ -381,6 +381,8 @@ enum wa_flags {
 	TOGGLE_CAL_RC_CLK = BIT(0),
 	SW_CTRL_HBST = BIT(1),
 	SLEEP_CLK_32K_SCALE = BIT(2),
+	TOGGLE_EN_TO_FLUSH_FIFO = BIT(3),
+	RECOVER_SWR_SLAVE = BIT(4),
 };
 
 static const char * const src_str[] = {
@@ -1956,7 +1958,7 @@ static int haptics_load_predefined_effect(struct haptics_chip *chip,
 		return -EINVAL;
 	}
 
-	if (play->pattern_src == FIFO) {
+	if ((play->pattern_src == FIFO) && (chip->wa_flags & TOGGLE_EN_TO_FLUSH_FIFO)) {
 		/* Toggle HAPTICS_EN for a clear start point of FIFO playing */
 		rc = haptics_toggle_module_enable(chip);
 		if (rc < 0)
@@ -2154,9 +2156,11 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 		goto cleanup;
 
 	/* Toggle HAPTICS_EN for a clear start point of FIFO playing */
-	rc = haptics_toggle_module_enable(chip);
-	if (rc < 0)
-		goto cleanup;
+	if (chip->wa_flags & TOGGLE_EN_TO_FLUSH_FIFO) {
+		rc = haptics_toggle_module_enable(chip);
+		if (rc < 0)
+			goto cleanup;
+	}
 
 	rc = haptics_enable_autores(chip, !play->effect->auto_res_disable);
 	if (rc < 0)
@@ -2856,7 +2860,8 @@ static int haptics_config_wa(struct haptics_chip *chip)
 {
 	switch (chip->hw_type) {
 	case HAP520:
-		chip->wa_flags |= TOGGLE_CAL_RC_CLK | SW_CTRL_HBST | SLEEP_CLK_32K_SCALE;
+		chip->wa_flags |= TOGGLE_CAL_RC_CLK | SW_CTRL_HBST | SLEEP_CLK_32K_SCALE |
+			TOGGLE_EN_TO_FLUSH_FIFO | RECOVER_SWR_SLAVE;
 		break;
 	case HAP520_MV:
 	case HAP525_HV:
@@ -4263,6 +4268,9 @@ static int swr_slave_reg_enable(struct regulator_dev *rdev)
 		return rc;
 	}
 
+	if (!(chip->wa_flags & RECOVER_SWR_SLAVE))
+		goto done;
+
 	/*
 	 * If haptics has already been in SWR mode when enabling the SWR
 	 * slave, it means that the haptics module was stuck in prevous
@@ -4290,7 +4298,7 @@ static int swr_slave_reg_enable(struct regulator_dev *rdev)
 			return rc;
 		}
 	}
-
+done:
 	chip->swr_slave_enabled = true;
 	return 0;
 }
