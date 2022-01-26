@@ -360,7 +360,8 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		/* If the physical address is greater than 4G, there is no need to map RGA2. */
 		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
-		    (~internal_buffer->mm_flag & RGA_MM_UNDER_4G))
+		    (~internal_buffer->mm_flag & RGA_MM_UNDER_4G) &&
+		    i != 0)
 			continue;
 
 		ret = rga_dma_map_fd((int)external_buffer->memory,

@@ -1044,7 +1044,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 
 		if (DstMemSize) {
 			if (job->dst_buffer) {
-				switch (job->src_buffer->type) {
+				switch (job->dst_buffer->type) {
 				case RGA_DMA_BUFFER:
 					sgt = rga_mm_lookup_sgt(job->dst_buffer, scheduler->core);
 					if (sgt == NULL) {
