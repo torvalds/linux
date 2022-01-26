@@ -39,6 +39,7 @@ struct tgec_mdio_controller {
 #define MDIO_STAT_CLKDIV(x)	(((x>>1) & 0xff) << 8)
 #define MDIO_STAT_BSY		BIT(0)
 #define MDIO_STAT_RD_ER		BIT(1)
+#define MDIO_STAT_PRE_DIS	BIT(5)
 #define MDIO_CTL_DEV_ADDR(x) 	(x & 0x1f)
 #define MDIO_CTL_PORT_ADDR(x)	((x & 0x1f) << 5)
 #define MDIO_CTL_PRE_DIS	BIT(10)
@@ -254,6 +255,21 @@ irq_restore:
 	return ret;
 }
 
+static void xgmac_mdio_set_suppress_preamble(struct mii_bus *bus)
+{
+	struct mdio_fsl_priv *priv = (struct mdio_fsl_priv *)bus->priv;
+	struct tgec_mdio_controller __iomem *regs = priv->mdio_base;
+	struct device *dev = bus->parent;
+	u32 mdio_stat;
+
+	if (!device_property_read_bool(dev, "suppress-preamble"))
+		return;
+
+	mdio_stat = xgmac_read32(&regs->mdio_stat, priv->is_little_endian);
+	mdio_stat |= MDIO_STAT_PRE_DIS;
+	xgmac_write32(mdio_stat, &regs->mdio_stat, priv->is_little_endian);
+}
+
 static int xgmac_mdio_probe(struct platform_device *pdev)
 {
 	struct fwnode_handle *fwnode;
@@ -300,6 +316,8 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 						      "fsl,erratum-a009885");
 	priv->has_a011043 = device_property_read_bool(&pdev->dev,
 						      "fsl,erratum-a011043");
+
+	xgmac_mdio_set_suppress_preamble(bus);
 
 	fwnode = pdev->dev.fwnode;
 	if (is_of_node(fwnode))
