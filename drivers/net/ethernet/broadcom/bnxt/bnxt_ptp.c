@@ -714,6 +714,34 @@ static bool bnxt_pps_config_ok(struct bnxt *bp)
 	return !(bp->fw_cap & BNXT_FW_CAP_PTP_PPS) == !ptp->ptp_info.pin_config;
 }
 
+static void bnxt_ptp_timecounter_init(struct bnxt *bp, bool init_tc)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	if (!ptp->ptp_clock) {
+		memset(&ptp->cc, 0, sizeof(ptp->cc));
+		ptp->cc.read = bnxt_cc_read;
+		ptp->cc.mask = CYCLECOUNTER_MASK(48);
+		ptp->cc.shift = 0;
+		ptp->cc.mult = 1;
+		ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
+	}
+	if (init_tc)
+		timecounter_init(&ptp->tc, &ptp->cc, ktime_to_ns(ktime_get_real()));
+}
+
+static void bnxt_ptp_free(struct bnxt *bp)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+
+	if (ptp->ptp_clock) {
+		ptp_clock_unregister(ptp->ptp_clock);
+		ptp->ptp_clock = NULL;
+		kfree(ptp->ptp_info.pin_config);
+		ptp->ptp_info.pin_config = NULL;
+	}
+}
+
 int bnxt_ptp_init(struct bnxt *bp)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
@@ -729,23 +757,12 @@ int bnxt_ptp_init(struct bnxt *bp)
 	if (ptp->ptp_clock && bnxt_pps_config_ok(bp))
 		return 0;
 
-	if (ptp->ptp_clock) {
-		ptp_clock_unregister(ptp->ptp_clock);
-		ptp->ptp_clock = NULL;
-		kfree(ptp->ptp_info.pin_config);
-		ptp->ptp_info.pin_config = NULL;
-	}
+	bnxt_ptp_free(bp);
+
 	atomic_set(&ptp->tx_avail, BNXT_MAX_TX_TS);
 	spin_lock_init(&ptp->ptp_lock);
 
-	memset(&ptp->cc, 0, sizeof(ptp->cc));
-	ptp->cc.read = bnxt_cc_read;
-	ptp->cc.mask = CYCLECOUNTER_MASK(48);
-	ptp->cc.shift = 0;
-	ptp->cc.mult = 1;
-
-	ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
-	timecounter_init(&ptp->tc, &ptp->cc, ktime_to_ns(ktime_get_real()));
+	bnxt_ptp_timecounter_init(bp, true);
 
 	ptp->ptp_info = bnxt_ptp_caps;
 	if ((bp->fw_cap & BNXT_FW_CAP_PTP_PPS)) {
