@@ -667,8 +667,23 @@ static bool is_xfd_supported(void)
 
 void vm_xsave_req_perm(int bit)
 {
+	int kvm_fd;
 	u64 bitmask;
 	long rc;
+	struct kvm_device_attr attr = {
+		.group = 0,
+		.attr = KVM_X86_XCOMP_GUEST_SUPP,
+		.addr = (unsigned long) &bitmask
+	};
+
+	kvm_fd = open_kvm_dev_path_or_exit();
+	rc = ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
+	close(kvm_fd);
+	if (rc == -1 && (errno == ENXIO || errno == EINVAL))
+		exit(KSFT_SKIP);
+	TEST_ASSERT(rc == 0, "KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) error: %ld", rc);
+	if (!(bitmask & (1ULL << bit)))
+		exit(KSFT_SKIP);
 
 	if (!is_xfd_supported())
 		exit(KSFT_SKIP);
