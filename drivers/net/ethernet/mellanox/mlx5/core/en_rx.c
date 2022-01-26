@@ -373,12 +373,15 @@ static int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe_cyc *wqe,
 	int i;
 
 	for (i = 0; i < rq->wqe.info.num_frags; i++, frag++) {
+		u16 headroom;
+
 		err = mlx5e_get_rx_frag(rq, frag);
 		if (unlikely(err))
 			goto free_frags;
 
+		headroom = i == 0 ? rq->buff.headroom : 0;
 		wqe->data[i].addr = cpu_to_be64(frag->di->addr +
-						frag->offset + rq->buff.headroom);
+						frag->offset + headroom);
 	}
 
 	return 0;
