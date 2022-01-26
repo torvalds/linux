@@ -1419,6 +1419,42 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		cache->zone_is_active = test_bit(0, active);
 		break;
 	case BTRFS_BLOCK_GROUP_DUP:
+		if (map->type & BTRFS_BLOCK_GROUP_DATA) {
+			btrfs_err(fs_info, "zoned: profile DUP not yet supported on data bg");
+			ret = -EINVAL;
+			goto out;
+		}
+		if (alloc_offsets[0] == WP_MISSING_DEV) {
+			btrfs_err(fs_info,
+			"zoned: cannot recover write pointer for zone %llu",
+				physical[0]);
+			ret = -EIO;
+			goto out;
+		}
+		if (alloc_offsets[1] == WP_MISSING_DEV) {
+			btrfs_err(fs_info,
+			"zoned: cannot recover write pointer for zone %llu",
+				physical[1]);
+			ret = -EIO;
+			goto out;
+		}
+		if (alloc_offsets[0] != alloc_offsets[1]) {
+			btrfs_err(fs_info,
+			"zoned: write pointer offset mismatch of zones in DUP profile");
+			ret = -EIO;
+			goto out;
+		}
+		if (test_bit(0, active) != test_bit(1, active)) {
+			if (!btrfs_zone_activate(cache)) {
+				ret = -EIO;
+				goto out;
+			}
+		} else {
+			cache->zone_is_active = test_bit(0, active);
+		}
+		cache->alloc_offset = alloc_offsets[0];
+		cache->zone_capacity = min(caps[0], caps[1]);
+		break;
 	case BTRFS_BLOCK_GROUP_RAID1:
 	case BTRFS_BLOCK_GROUP_RAID0:
 	case BTRFS_BLOCK_GROUP_RAID10:
