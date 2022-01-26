@@ -968,14 +968,12 @@ stream_config:
  *
  * @slave: Slave handle
  * @stream_config: Stream configuration
- * @stream: Stream runtime handle
  *
  * This function is to be called with bus_lock held.
  */
 static struct sdw_slave_runtime
 *sdw_alloc_slave_rt(struct sdw_slave *slave,
-		    struct sdw_stream_config *stream_config,
-		    struct sdw_stream_runtime *stream)
+		    struct sdw_stream_config *stream_config)
 {
 	struct sdw_slave_runtime *s_rt;
 
@@ -1367,7 +1365,7 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 		goto error;
 	}
 
-	s_rt = sdw_alloc_slave_rt(slave, stream_config, stream);
+	s_rt = sdw_alloc_slave_rt(slave, stream_config);
 	if (!s_rt) {
 		dev_err(&slave->dev,
 			"Slave runtime config failed for stream:%s\n",
