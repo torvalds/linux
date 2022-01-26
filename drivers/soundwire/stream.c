@@ -1054,6 +1054,33 @@ static int sdw_slave_rt_config(struct sdw_slave_runtime *s_rt,
 	return 0;
 }
 
+/**
+ * sdw_slave_rt_free() - Free Slave(s) runtime handle
+ *
+ * @slave: Slave handle.
+ * @stream: Stream runtime handle.
+ *
+ * This function is to be called with bus_lock held.
+ */
+static void sdw_slave_rt_free(struct sdw_slave *slave,
+			      struct sdw_stream_runtime *stream)
+{
+	struct sdw_slave_runtime *s_rt, *_s_rt;
+	struct sdw_master_runtime *m_rt;
+
+	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+		/* Retrieve Slave runtime handle */
+		list_for_each_entry_safe(s_rt, _s_rt,
+					 &m_rt->slave_rt_list, m_rt_node) {
+			if (s_rt->slave == slave) {
+				list_del(&s_rt->m_rt_node);
+				kfree(s_rt);
+				return;
+			}
+		}
+	}
+}
+
 static struct sdw_master_runtime
 *sdw_master_rt_find(struct sdw_bus *bus,
 		    struct sdw_stream_runtime *stream)
@@ -1119,51 +1146,24 @@ static int sdw_master_rt_config(struct sdw_master_runtime *m_rt,
 }
 
 /**
- * sdw_release_slave_stream() - Free Slave(s) runtime handle
- *
- * @slave: Slave handle.
- * @stream: Stream runtime handle.
- *
- * This function is to be called with bus_lock held.
- */
-static void sdw_release_slave_stream(struct sdw_slave *slave,
-				     struct sdw_stream_runtime *stream)
-{
-	struct sdw_slave_runtime *s_rt, *_s_rt;
-	struct sdw_master_runtime *m_rt;
-
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
-		/* Retrieve Slave runtime handle */
-		list_for_each_entry_safe(s_rt, _s_rt,
-					 &m_rt->slave_rt_list, m_rt_node) {
-			if (s_rt->slave == slave) {
-				list_del(&s_rt->m_rt_node);
-				kfree(s_rt);
-				return;
-			}
-		}
-	}
-}
-
-/**
- * sdw_release_master_stream() - Free Master runtime handle
+ * sdw_master_rt_free() - Free Master runtime handle
  *
  * @m_rt: Master runtime node
  * @stream: Stream runtime handle.
  *
  * This function is to be called with bus_lock held
  * It frees the Master runtime handle and associated Slave(s) runtime
- * handle. If this is called first then sdw_release_slave_stream() will have
+ * handle. If this is called first then sdw_slave_rt_free() will have
  * no effect as Slave(s) runtime handle would already be freed up.
  */
-static void sdw_release_master_stream(struct sdw_master_runtime *m_rt,
-				      struct sdw_stream_runtime *stream)
+static void sdw_master_rt_free(struct sdw_master_runtime *m_rt,
+			       struct sdw_stream_runtime *stream)
 {
 	struct sdw_slave_runtime *s_rt, *_s_rt;
 
 	list_for_each_entry_safe(s_rt, _s_rt, &m_rt->slave_rt_list, m_rt_node) {
 		sdw_slave_port_free(s_rt->slave, stream);
-		sdw_release_slave_stream(s_rt->slave, stream);
+		sdw_slave_rt_free(s_rt->slave, stream);
 	}
 
 	list_del(&m_rt->stream_node);
@@ -1860,7 +1860,7 @@ skip_alloc_master_rt:
 	goto unlock;
 
 stream_error:
-	sdw_release_master_stream(m_rt, stream);
+	sdw_master_rt_free(m_rt, stream);
 unlock:
 	mutex_unlock(&bus->bus_lock);
 	return ret;
@@ -1888,7 +1888,7 @@ int sdw_stream_remove_master(struct sdw_bus *bus,
 			continue;
 
 		sdw_master_port_free(m_rt);
-		sdw_release_master_stream(m_rt, stream);
+		sdw_master_rt_free(m_rt, stream);
 		stream->m_rt_count--;
 	}
 
@@ -1987,7 +1987,7 @@ stream_error:
 	 * we hit error so cleanup the stream, release all Slave(s) and
 	 * Master runtime
 	 */
-	sdw_release_master_stream(m_rt, stream);
+	sdw_master_rt_free(m_rt, stream);
 error:
 	mutex_unlock(&slave->bus->bus_lock);
 	return ret;
@@ -2008,7 +2008,7 @@ int sdw_stream_remove_slave(struct sdw_slave *slave,
 	mutex_lock(&slave->bus->bus_lock);
 
 	sdw_slave_port_free(slave, stream);
-	sdw_release_slave_stream(slave, stream);
+	sdw_slave_rt_free(slave, stream);
 
 	mutex_unlock(&slave->bus->bus_lock);
 
