@@ -18,6 +18,7 @@ struct mlxsw_env_module_info {
 	int num_ports_mapped;
 	int num_ports_up;
 	enum ethtool_module_power_mode_policy power_mode_policy;
+	enum mlxsw_reg_pmtm_module_type type;
 };
 
 struct mlxsw_env {
@@ -998,6 +999,28 @@ out_unlock:
 }
 EXPORT_SYMBOL(mlxsw_env_module_port_down);
 
+static int
+mlxsw_env_module_type_set(struct mlxsw_core *mlxsw_core)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+	int i;
+
+	for (i = 0; i < mlxsw_env->module_count; i++) {
+		char pmtm_pl[MLXSW_REG_PMTM_LEN];
+		int err;
+
+		mlxsw_reg_pmtm_pack(pmtm_pl, 0, i);
+		err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(pmtm), pmtm_pl);
+		if (err)
+			return err;
+
+		mlxsw_env->module_info[i].type =
+			mlxsw_reg_pmtm_module_type_get(pmtm_pl);
+	}
+
+	return 0;
+}
+
 int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 {
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
@@ -1044,8 +1067,13 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	if (err)
 		goto err_temp_event_enable;
 
+	err = mlxsw_env_module_type_set(mlxsw_core);
+	if (err)
+		goto err_type_set;
+
 	return 0;
 
+err_type_set:
 err_temp_event_enable:
 err_oper_state_event_enable:
 	mlxsw_env_module_plug_event_unregister(env);
