@@ -86,6 +86,23 @@ LIBBPF_API int libbpf_set_strict_mode(enum libbpf_strict_mode mode);
 
 #define DECLARE_LIBBPF_OPTS LIBBPF_OPTS
 
+/* "Discouraged" APIs which don't follow consistent libbpf naming patterns.
+ * They are normally a trivial aliases or wrappers for proper APIs and are
+ * left to minimize unnecessary disruption for users of libbpf. But they
+ * shouldn't be used going forward.
+ */
+
+struct bpf_program;
+struct bpf_map;
+struct btf;
+struct btf_ext;
+
+LIBBPF_API enum bpf_prog_type bpf_program__get_type(const struct bpf_program *prog);
+LIBBPF_API enum bpf_attach_type bpf_program__get_expected_attach_type(const struct bpf_program *prog);
+LIBBPF_API const char *bpf_map__get_pin_path(const struct bpf_map *map);
+LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
+LIBBPF_API const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext, __u32 *size);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

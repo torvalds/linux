@@ -378,7 +378,7 @@ static void codegen_attach_detach(struct bpf_object *obj, const char *obj_name)
 				int prog_fd = skel->progs.%2$s.prog_fd;		    \n\
 			", obj_name, bpf_program__name(prog));
 
-		switch (bpf_program__get_type(prog)) {
+		switch (bpf_program__type(prog)) {
 		case BPF_PROG_TYPE_RAW_TRACEPOINT:
 			tp_name = strchr(bpf_program__section_name(prog), '/') + 1;
 			printf("\tint fd = bpf_raw_tracepoint_open(\"%s\", prog_fd);\n", tp_name);

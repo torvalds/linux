@@ -1218,7 +1218,7 @@ int sample_setup_maps(struct bpf_map **maps)
 		default:
 			return -EINVAL;
 		}
-		if (bpf_map__resize(sample_map[i], sample_map_count[i]) < 0)
+		if (bpf_map__set_max_entries(sample_map[i], sample_map_count[i]) < 0)
 			return -errno;
 	}
 	sample_map[MAP_DEVMAP_XMIT_MULTI] = maps[MAP_DEVMAP_XMIT_MULTI];
