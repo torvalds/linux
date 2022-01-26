@@ -662,6 +662,20 @@ void xpcs_validate(struct dw_xpcs *xpcs, unsigned long *supported,
 }
 EXPORT_SYMBOL_GPL(xpcs_validate);
 
+void xpcs_get_interfaces(struct dw_xpcs *xpcs, unsigned long *interfaces)
+{
+	int i, j;
+
+	for (i = 0; i < DW_XPCS_INTERFACE_MAX; i++) {
+		const struct xpcs_compat *compat = &xpcs->id->compat[i];
+
+		for (j = 0; j < compat->num_interfaces; j++)
+			if (compat->interface[j] < PHY_INTERFACE_MODE_MAX)
+				__set_bit(compat->interface[j], interfaces);
+	}
+}
+EXPORT_SYMBOL_GPL(xpcs_get_interfaces);
+
 int xpcs_config_eee(struct dw_xpcs *xpcs, int mult_fact_100ns, int enable)
 {
 	int ret;
