@@ -32,6 +32,13 @@
 #define JH7100_CLK_MUX_MASK	GENMASK(27, 24)
 #define JH7100_CLK_MUX_SHIFT	24
 #define JH7100_CLK_DIV_MASK	GENMASK(23, 0)
+#define JH7100_CLK_FRAC_MASK	GENMASK(15, 8)
+#define JH7100_CLK_FRAC_SHIFT	8
+#define JH7100_CLK_INT_MASK	GENMASK(7, 0)
+
+/* fractional divider min/max */
+#define JH7100_CLK_FRAC_MIN	100UL
+#define JH7100_CLK_FRAC_MAX	25599UL
 
 /* clock data */
 #define JH7100_GATE(_idx, _name, _flags, _parent) [_idx] = {		\
@@ -52,6 +59,13 @@
 	.name = _name,							\
 	.flags = _flags,						\
 	.max = JH7100_CLK_ENABLE | (_max),				\
+	.parents = { [0] = _parent },					\
+}
+
+#define JH7100_FDIV(_idx, _name, _parent) [_idx] = {			\
+	.name = _name,							\
+	.flags = 0,							\
+	.max = JH7100_CLK_FRAC_MAX,					\
 	.parents = { [0] = _parent },					\
 }
 
@@ -225,7 +239,7 @@ static const struct {
 	JH7100__MUX(JH7100_CLK_USBPHY_25M, "usbphy_25m", 2,
 		    JH7100_CLK_OSC_SYS,
 		    JH7100_CLK_USBPHY_PLLDIV25M),
-	JH7100__DIV(JH7100_CLK_AUDIO_DIV, "audio_div", 131072, JH7100_CLK_AUDIO_ROOT),
+	JH7100_FDIV(JH7100_CLK_AUDIO_DIV, "audio_div", JH7100_CLK_AUDIO_ROOT),
 	JH7100_GATE(JH7100_CLK_AUDIO_SRC, "audio_src", 0, JH7100_CLK_AUDIO_DIV),
 	JH7100_GATE(JH7100_CLK_AUDIO_12288, "audio_12288", 0, JH7100_CLK_OSC_AUD),
 	JH7100_GDIV(JH7100_CLK_VIN_SRC, "vin_src", 0, 4, JH7100_CLK_VIN_ROOT),
@@ -440,6 +454,49 @@ static int jh7100_clk_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
+static unsigned long jh7100_clk_frac_recalc_rate(struct clk_hw *hw,
+						 unsigned long parent_rate)
+{
+	struct jh7100_clk *clk = jh7100_clk_from(hw);
+	u32 reg = jh7100_clk_reg_get(clk);
+	unsigned long div100 = 100 * (reg & JH7100_CLK_INT_MASK) +
+			       ((reg & JH7100_CLK_FRAC_MASK) >> JH7100_CLK_FRAC_SHIFT);
+
+	return (div100 >= JH7100_CLK_FRAC_MIN) ? 100 * parent_rate / div100 : 0;
+}
+
+static int jh7100_clk_frac_determine_rate(struct clk_hw *hw,
+					  struct clk_rate_request *req)
+{
+	unsigned long parent100 = 100 * req->best_parent_rate;
+	unsigned long rate = clamp(req->rate, req->min_rate, req->max_rate);
+	unsigned long div100 = clamp(DIV_ROUND_CLOSEST(parent100, rate),
+				     JH7100_CLK_FRAC_MIN, JH7100_CLK_FRAC_MAX);
+	unsigned long result = parent100 / div100;
+
+	/* clamp the result as in jh7100_clk_determine_rate() above */
+	if (result > req->max_rate && div100 < JH7100_CLK_FRAC_MAX)
+		result = parent100 / (div100 + 1);
+	if (result < req->min_rate && div100 > JH7100_CLK_FRAC_MIN)
+		result = parent100 / (div100 - 1);
+
+	req->rate = result;
+	return 0;
+}
+
+static int jh7100_clk_frac_set_rate(struct clk_hw *hw,
+				    unsigned long rate,
+				    unsigned long parent_rate)
+{
+	struct jh7100_clk *clk = jh7100_clk_from(hw);
+	unsigned long div100 = clamp(DIV_ROUND_CLOSEST(100 * parent_rate, rate),
+				     JH7100_CLK_FRAC_MIN, JH7100_CLK_FRAC_MAX);
+	u32 value = ((div100 % 100) << JH7100_CLK_FRAC_SHIFT) | (div100 / 100);
+
+	jh7100_clk_reg_rmw(clk, JH7100_CLK_DIV_MASK, value);
+	return 0;
+}
+
 static u8 jh7100_clk_get_parent(struct clk_hw *hw)
 {
 	struct jh7100_clk *clk = jh7100_clk_from(hw);
@@ -526,6 +583,13 @@ static const struct clk_ops jh7100_clk_div_ops = {
 	.debug_init = jh7100_clk_debug_init,
 };
 
+static const struct clk_ops jh7100_clk_fdiv_ops = {
+	.recalc_rate = jh7100_clk_frac_recalc_rate,
+	.determine_rate = jh7100_clk_frac_determine_rate,
+	.set_rate = jh7100_clk_frac_set_rate,
+	.debug_init = jh7100_clk_debug_init,
+};
+
 static const struct clk_ops jh7100_clk_gdiv_ops = {
 	.enable = jh7100_clk_enable,
 	.disable = jh7100_clk_disable,
@@ -564,6 +628,8 @@ static const struct clk_ops *__init jh7100_clk_ops(u32 max)
 	if (max & JH7100_CLK_DIV_MASK) {
 		if (max & JH7100_CLK_ENABLE)
 			return &jh7100_clk_gdiv_ops;
+		if (max == JH7100_CLK_FRAC_MAX)
+			return &jh7100_clk_fdiv_ops;
 		return &jh7100_clk_div_ops;
 	}
 
