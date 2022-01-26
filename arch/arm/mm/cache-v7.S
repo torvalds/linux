@@ -90,7 +90,7 @@ ENDPROC(v7_flush_icache_all)
  *
  *     Flush the D-cache up to the Level of Unification Inner Shareable
  *
- *     Corrupted registers: r0-r7, r9-r11 (r6 only in Thumb mode)
+ *     Corrupted registers: r0-r6, r9-r10
  */
 
 ENTRY(v7_flush_dcache_louis)
@@ -117,7 +117,7 @@ ENDPROC(v7_flush_dcache_louis)
  *
  *	Flush the whole D-cache.
  *
- *	Corrupted registers: r0-r7, r9-r11 (r6 only in Thumb mode)
+ *	Corrupted registers: r0-r6, r9-r10
  *
  *	- mm    - mm_struct describing address space
  */
@@ -149,22 +149,22 @@ flush_levels:
 	movw	r4, #0x3ff
 	ands	r4, r4, r1, lsr #3		@ find maximum number on the way size
 	clz	r5, r4				@ find bit position of way size increment
-	movw	r7, #0x7fff
-	ands	r7, r7, r1, lsr #13		@ extract max number of the index size
+	movw	r6, #0x7fff
+	and	r1, r6, r1, lsr #13		@ extract max number of the index size
+	mov	r6, #1
+	movne	r4, r4, lsl r5			@ # of ways shifted into bits [31:...]
+	movne	r6, r6, lsl r5			@ 1 shifted left by same amount
 loop1:
-	mov	r9, r7				@ create working copy of max index
+	mov	r9, r1				@ create working copy of max index
 loop2:
- ARM(	orr	r11, r10, r4, lsl r5	)	@ factor way and cache number into r11
- THUMB(	lsl	r6, r4, r5		)
- THUMB(	orr	r11, r10, r6		)	@ factor way and cache number into r11
- ARM(	orr	r11, r11, r9, lsl r2	)	@ factor index number into r11
- THUMB(	lsl	r6, r9, r2		)
- THUMB(	orr	r11, r11, r6		)	@ factor index number into r11
-	mcr	p15, 0, r11, c7, c14, 2		@ clean & invalidate by set/way
+	mov	r5, r9, lsl r2			@ factor set number into r5
+	orr	r5, r5, r4			@ factor way number into r5
+	orr	r5, r5, r10			@ factor cache level into r5
+	mcr	p15, 0, r5, c7, c14, 2		@ clean & invalidate by set/way
 	subs	r9, r9, #1			@ decrement the index
 	bge	loop2
-	subs	r4, r4, #1			@ decrement the way
-	bge	loop1
+	subs	r4, r4, r6			@ decrement the way
+	bcs	loop1
 skip:
 	add	r10, r10, #2			@ increment cache number
 	cmp	r3, r10
@@ -192,14 +192,12 @@ ENDPROC(v7_flush_dcache_all)
  *
  */
 ENTRY(v7_flush_kern_cache_all)
- ARM(	stmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
- THUMB(	stmfd	sp!, {r4-r7, r9-r11, lr}	)
+	stmfd	sp!, {r4-r6, r9-r10, lr}
 	bl	v7_flush_dcache_all
 	mov	r0, #0
 	ALT_SMP(mcr	p15, 0, r0, c7, c1, 0)	@ invalidate I-cache inner shareable
 	ALT_UP(mcr	p15, 0, r0, c7, c5, 0)	@ I+BTB cache invalidate
- ARM(	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
- THUMB(	ldmfd	sp!, {r4-r7, r9-r11, lr}	)
+	ldmfd	sp!, {r4-r6, r9-r10, lr}
 	ret	lr
 ENDPROC(v7_flush_kern_cache_all)
 
@@ -210,14 +208,12 @@ ENDPROC(v7_flush_kern_cache_all)
  *     Invalidate the I-cache to the point of unification.
  */
 ENTRY(v7_flush_kern_cache_louis)
- ARM(	stmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
- THUMB(	stmfd	sp!, {r4-r7, r9-r11, lr}	)
+	stmfd	sp!, {r4-r6, r9-r10, lr}
 	bl	v7_flush_dcache_louis
 	mov	r0, #0
 	ALT_SMP(mcr	p15, 0, r0, c7, c1, 0)	@ invalidate I-cache inner shareable
 	ALT_UP(mcr	p15, 0, r0, c7, c5, 0)	@ I+BTB cache invalidate
- ARM(	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
- THUMB(	ldmfd	sp!, {r4-r7, r9-r11, lr}	)
+	ldmfd	sp!, {r4-r6, r9-r10, lr}
 	ret	lr
 ENDPROC(v7_flush_kern_cache_louis)
 
