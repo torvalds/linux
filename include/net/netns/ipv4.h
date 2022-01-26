@@ -83,6 +83,7 @@ struct netns_ipv4 {
 
 	u32 ip_rt_min_pmtu;
 	int ip_rt_mtu_expires;
+	int ip_rt_min_advmss;
 
 	struct local_ports ip_local_ports;
 
