@@ -1055,7 +1055,7 @@ struct sdw_stream_runtime *sdw_alloc_stream(const char *stream_name)
 EXPORT_SYMBOL(sdw_alloc_stream);
 
 static struct sdw_master_runtime
-*sdw_find_master_rt(struct sdw_bus *bus,
+*sdw_master_rt_find(struct sdw_bus *bus,
 		    struct sdw_stream_runtime *stream)
 {
 	struct sdw_master_runtime *m_rt;
@@ -1070,17 +1070,15 @@ static struct sdw_master_runtime
 }
 
 /**
- * sdw_alloc_master_rt() - Allocates and initialize Master runtime handle
+ * sdw_master_rt_alloc() - Allocates a Master runtime handle
  *
  * @bus: SDW bus instance
- * @stream_config: Stream configuration
  * @stream: Stream runtime handle.
  *
  * This function is to be called with bus_lock held.
  */
 static struct sdw_master_runtime
-*sdw_alloc_master_rt(struct sdw_bus *bus,
-		     struct sdw_stream_config *stream_config,
+*sdw_master_rt_alloc(struct sdw_bus *bus,
 		     struct sdw_stream_runtime *stream)
 {
 	struct sdw_master_runtime *m_rt;
@@ -1096,12 +1094,28 @@ static struct sdw_master_runtime
 
 	list_add_tail(&m_rt->bus_node, &bus->m_rt_list);
 
-	m_rt->ch_count = stream_config->ch_count;
 	m_rt->bus = bus;
 	m_rt->stream = stream;
-	m_rt->direction = stream_config->direction;
 
 	return m_rt;
+}
+
+/**
+ * sdw_master_rt_config() - Configure Master runtime handle
+ *
+ * @m_rt: Master runtime handle
+ * @stream_config: Stream configuration
+ *
+ * This function is to be called with bus_lock held.
+ */
+
+static int sdw_master_rt_config(struct sdw_master_runtime *m_rt,
+				struct sdw_stream_config *stream_config)
+{
+	m_rt->ch_count = stream_config->ch_count;
+	m_rt->direction = stream_config->direction;
+
+	return 0;
 }
 
 /**
@@ -1321,18 +1335,20 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 	 * check if Master is already allocated (e.g. as a result of Slave adding
 	 * it first), if so skip allocation and go to configuration
 	 */
-	m_rt = sdw_find_master_rt(bus, stream);
+	m_rt = sdw_master_rt_find(bus, stream);
 	if (m_rt)
 		goto skip_alloc_master_rt;
 
-	m_rt = sdw_alloc_master_rt(bus, stream_config, stream);
+	m_rt = sdw_master_rt_alloc(bus, stream);
 	if (!m_rt) {
-		dev_err(bus->dev,
-			"Master runtime config failed for stream:%s\n",
-			stream->name);
+		dev_err(bus->dev, "Master runtime alloc failed for stream:%s\n", stream->name);
 		ret = -ENOMEM;
 		goto unlock;
 	}
+
+	ret = sdw_master_rt_config(m_rt, stream_config);
+	if (ret < 0)
+		goto unlock;
 
 skip_alloc_master_rt:
 	ret = sdw_config_stream(bus->dev, stream, stream_config, false);
@@ -1388,7 +1404,7 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	 * check if Master is already allocated, if so skip allocation
 	 * and go to configuration
 	 */
-	m_rt = sdw_find_master_rt(slave->bus, stream);
+	m_rt = sdw_master_rt_find(slave->bus, stream);
 	if (m_rt)
 		goto skip_alloc_master_rt;
 
@@ -1396,14 +1412,15 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	 * If this API is invoked by Slave first then m_rt is not valid.
 	 * So, allocate m_rt and add Slave to it.
 	 */
-	m_rt = sdw_alloc_master_rt(slave->bus, stream_config, stream);
+	m_rt = sdw_master_rt_alloc(slave->bus, stream);
 	if (!m_rt) {
-		dev_err(&slave->dev,
-			"alloc master runtime failed for stream:%s\n",
-			stream->name);
+		dev_err(&slave->dev, "Master runtime alloc failed for stream:%s\n", stream->name);
 		ret = -ENOMEM;
 		goto error;
 	}
+	ret =  sdw_master_rt_config(m_rt, stream_config);
+	if (ret < 0)
+		goto stream_error;
 
 skip_alloc_master_rt:
 	s_rt = sdw_alloc_slave_rt(slave, stream_config);
