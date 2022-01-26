@@ -1373,20 +1373,11 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 		ret = -ENOMEM;
 		goto stream_error;
 	}
+	list_add_tail(&s_rt->m_rt_node, &m_rt->slave_rt_list);
 
 	ret = sdw_config_stream(&slave->dev, stream, stream_config, true);
-	if (ret) {
-		/*
-		 * sdw_release_master_stream will release s_rt in slave_rt_list in
-		 * stream_error case, but s_rt is only added to slave_rt_list
-		 * when sdw_config_stream is successful, so free s_rt explicitly
-		 * when sdw_config_stream is failed.
-		 */
-		kfree(s_rt);
+	if (ret)
 		goto stream_error;
-	}
-
-	list_add_tail(&s_rt->m_rt_node, &m_rt->slave_rt_list);
 
 	ret = sdw_slave_port_config(slave, s_rt, port_config, num_ports);
 	if (ret)
