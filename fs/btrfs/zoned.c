@@ -1845,19 +1845,12 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group)
 	struct btrfs_device *device;
 	u64 physical;
 	int ret = 0;
+	int i;
 
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
 
 	map = block_group->physical_map;
-	/* Currently support SINGLE profile only */
-	ASSERT(map->num_stripes == 1);
-
-	device = map->stripes[0].dev;
-	physical = map->stripes[0].physical;
-
-	if (device->zone_info->max_active_zones == 0)
-		return 0;
 
 	spin_lock(&block_group->lock);
 	if (!block_group->zone_is_active) {
@@ -1909,25 +1902,34 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group)
 	btrfs_clear_data_reloc_bg(block_group);
 	spin_unlock(&block_group->lock);
 
-	ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
-			       physical >> SECTOR_SHIFT,
-			       device->zone_info->zone_size >> SECTOR_SHIFT,
-			       GFP_NOFS);
+	for (i = 0; i < map->num_stripes; i++) {
+		device = map->stripes[i].dev;
+		physical = map->stripes[i].physical;
+
+		if (device->zone_info->max_active_zones == 0)
+			continue;
+
+		ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
+				       physical >> SECTOR_SHIFT,
+				       device->zone_info->zone_size >> SECTOR_SHIFT,
+				       GFP_NOFS);
+
+		if (ret)
+			return ret;
+
+		btrfs_dev_clear_active_zone(device, physical);
+	}
 	btrfs_dec_block_group_ro(block_group);
 
-	if (!ret) {
-		btrfs_dev_clear_active_zone(device, physical);
+	spin_lock(&fs_info->zone_active_bgs_lock);
+	ASSERT(!list_empty(&block_group->active_bg_list));
+	list_del_init(&block_group->active_bg_list);
+	spin_unlock(&fs_info->zone_active_bgs_lock);
 
-		spin_lock(&fs_info->zone_active_bgs_lock);
-		ASSERT(!list_empty(&block_group->active_bg_list));
-		list_del_init(&block_group->active_bg_list);
-		spin_unlock(&fs_info->zone_active_bgs_lock);
+	/* For active_bg_list */
+	btrfs_put_block_group(block_group);
 
-		/* For active_bg_list */
-		btrfs_put_block_group(block_group);
-	}
-
-	return ret;
+	return 0;
 }
 
 bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags)
