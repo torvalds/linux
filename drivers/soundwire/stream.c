@@ -898,6 +898,11 @@ static void sdw_port_free(struct sdw_port_runtime *p_rt)
 	kfree(p_rt);
 }
 
+static bool sdw_slave_port_allocated(struct sdw_slave_runtime *s_rt)
+{
+	return !list_empty(&s_rt->port_list);
+}
+
 static void sdw_slave_port_free(struct sdw_slave *slave,
 				struct sdw_stream_runtime *stream)
 {
@@ -970,6 +975,11 @@ static int sdw_slave_port_config(struct sdw_slave *slave,
 	}
 
 	return 0;
+}
+
+static bool sdw_master_port_allocated(struct sdw_master_runtime *m_rt)
+{
+	return !list_empty(&m_rt->port_list);
 }
 
 static void sdw_master_port_free(struct sdw_master_runtime *m_rt)
@@ -1856,11 +1866,16 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 	}
 skip_alloc_master_rt:
 
+	if (sdw_master_port_allocated(m_rt))
+		goto skip_alloc_master_port;
+
 	ret = sdw_master_port_alloc(m_rt, num_ports);
 	if (ret)
 		goto alloc_error;
 
 	stream->m_rt_count++;
+
+skip_alloc_master_port:
 
 	ret = sdw_master_rt_config(m_rt, stream_config);
 	if (ret < 0)
@@ -1970,6 +1985,10 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	}
 
 skip_alloc_master_rt:
+	s_rt = sdw_slave_rt_find(slave, stream);
+	if (s_rt)
+		goto skip_alloc_slave_rt;
+
 	s_rt = sdw_slave_rt_alloc(slave, m_rt);
 	if (!s_rt) {
 		dev_err(&slave->dev, "Slave runtime alloc failed for stream:%s\n", stream->name);
@@ -1978,10 +1997,15 @@ skip_alloc_master_rt:
 		goto alloc_error;
 	}
 
+skip_alloc_slave_rt:
+	if (sdw_slave_port_allocated(s_rt))
+		goto skip_port_alloc;
+
 	ret = sdw_slave_port_alloc(slave, s_rt, num_ports);
 	if (ret)
 		goto alloc_error;
 
+skip_port_alloc:
 	ret =  sdw_master_rt_config(m_rt, stream_config);
 	if (ret)
 		goto unlock;
