@@ -8329,8 +8329,6 @@ static int gaudi_cpucp_info_get(struct hl_device *hdev)
 
 	set_default_power_values(hdev);
 
-	hdev->max_power = prop->max_power_default;
-
 	return 0;
 }
 
