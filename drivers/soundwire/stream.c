@@ -1232,10 +1232,14 @@ static int sdw_master_port_config(struct sdw_bus *bus,
 		p_rt = sdw_port_alloc(&m_rt->port_list);
 		if (!p_rt)
 			return -ENOMEM;
+	}
 
+	i = 0;
+	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
 		ret = sdw_port_config(p_rt, port_config, i);
 		if (ret < 0)
 			return ret;
+		i++;
 	}
 
 	return 0;
@@ -1254,7 +1258,10 @@ static int sdw_slave_port_config(struct sdw_slave *slave,
 		p_rt = sdw_port_alloc(&s_rt->port_list);
 		if (!p_rt)
 			return -ENOMEM;
+	}
 
+	i = 0;
+	list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
 		/*
 		 * TODO: Check valid port range as defined by DisCo/
 		 * slave
@@ -1266,6 +1273,7 @@ static int sdw_slave_port_config(struct sdw_slave *slave,
 		ret = sdw_port_config(p_rt, port_config, i);
 		if (ret < 0)
 			return ret;
+		i++;
 	}
 
 	return 0;
