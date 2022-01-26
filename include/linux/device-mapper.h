@@ -358,7 +358,7 @@ struct dm_target {
 	bool limit_swap_bios:1;
 
 	/*
-	 * Set if this target implements a a zoned device and needs emulation of
+	 * Set if this target implements a zoned device and needs emulation of
 	 * zone append operations using regular writes.
 	 */
 	bool emulate_zone_append:1;
