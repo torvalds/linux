@@ -324,7 +324,7 @@ static int rga_mm_check_range_sgt(struct sg_table *sgt)
 	struct scatterlist *sg;
 	phys_addr_t s_phys = 0;
 
-	for_each_sgtable_sg(sgt, sg, i) {
+	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i) {
 		s_phys = sg_phys(sg);
 		if ((s_phys > 0xffffffff) || (s_phys + sg->length > 0xffffffff))
 			return 0;

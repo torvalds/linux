@@ -21,17 +21,9 @@
  *
  * Return: corresponding IOMMU API page protection flags
  */
-static int rga_dma_info_to_prot(enum dma_data_direction dir, bool coherent,
-				 unsigned long attrs)
+static int rga_dma_info_to_prot(enum dma_data_direction dir, bool coherent)
 {
 	int prot = coherent ? IOMMU_CACHE : 0;
-
-	if (attrs & DMA_ATTR_PRIVILEGED)
-		prot |= IOMMU_PRIV;
-	if (attrs & DMA_ATTR_SYS_CACHE_ONLY)
-		prot |= IOMMU_SYS_CACHE;
-	if (attrs & DMA_ATTR_SYS_CACHE_ONLY_NWA)
-		prot |= IOMMU_SYS_CACHE_NWA;
 
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
@@ -367,6 +359,9 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	struct rga_iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long shift, iova_len, iova = 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	dma_addr_t limit;
+#endif
 
 	shift = iova_shift(iovad);
 	iova_len = size >> shift;
@@ -379,12 +374,23 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	if (iova_len < (1 << (IOVA_RANGE_CACHE_MAX_SIZE - 1)))
 		iova_len = roundup_pow_of_two(iova_len);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 	dma_limit = min_not_zero(dma_limit, dev->bus_dma_limit);
+#else
+	if (dev->bus_dma_mask)
+		dma_limit &= dev->bus_dma_mask;
+#endif
 
 	if (domain->geometry.force_aperture)
 		dma_limit = min(dma_limit, (u64)domain->geometry.aperture_end);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 	iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift, true);
+#else
+	limit = min_t(dma_addr_t, dma_limit >> shift, iovad->end_pfn);
+
+	iova = alloc_iova_fast(iovad, iova_len, limit, true);
+#endif
 
 	return (dma_addr_t)iova << shift;
 }
@@ -396,6 +402,49 @@ static void rga_iommu_dma_free_iova(struct rga_iommu_dma_cookie *cookie,
 
 	free_iova_fast(iovad, iova_pfn(iovad, iova),
 		size >> iova_shift(iovad));
+}
+
+static inline size_t rga_iommu_map_sg(struct iommu_domain *domain,
+				      unsigned long iova, struct scatterlist *sg,
+				      unsigned int nents, int prot)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+	return iommu_map_sg_atomic(domain, iova, sg, nents, prot);
+#else
+	return iommu_map_sg(domain, iova, sg, nents, prot);
+#endif
+}
+
+static inline bool rga_dev_is_dma_coherent(struct device *dev)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+	return dev_is_dma_coherent(dev);
+#else
+	return dev->archdata.dma_coherent;
+#endif
+}
+
+static inline struct iommu_domain *rga_iommu_get_dma_domain(struct device *dev)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+	return iommu_get_dma_domain(dev);
+#else
+	return iommu_get_domain_for_dev(dev);
+#endif
+}
+
+static inline void rga_dma_flush_cache_by_sgt(struct sg_table *sgt)
+{
+	struct scatterlist *sg;
+	int i;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
+		arch_dma_prep_coherent(sg_page(sg), sg->length);
+#else
+	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
+		__dma_flush_area(sg_page(sg), sg->length);
+#endif
 }
 
 static void rga_viraddr_put_channel_info(struct rga_dma_buffer_t **rga_dma_buffer)
@@ -443,10 +492,10 @@ int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 	dma_addr_t iova;
 	struct sg_table *sgt = NULL;
 
+	coherent = rga_dev_is_dma_coherent(rga_dev);
+	domain = rga_iommu_get_dma_domain(rga_dev);
+	ioprot = rga_dma_info_to_prot(DMA_BIDIRECTIONAL, coherent);
 
-	coherent = dev_is_dma_coherent(rga_dev);
-	ioprot = rga_dma_info_to_prot(DMA_BIDIRECTIONAL, coherent, 0);
-	domain = iommu_get_dma_domain(rga_dev);
 	cookie = domain->iova_cookie;
 	iovad = &cookie->iovad;
 	size = iova_align(iovad, virt_dma_buf->size);
@@ -465,15 +514,10 @@ int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 		return -ENOMEM;
 	}
 
-	if (!(ioprot & IOMMU_CACHE)) {
-		struct scatterlist *sg;
-		int i;
+	if (!(ioprot & IOMMU_CACHE))
+		rga_dma_flush_cache_by_sgt(sgt);
 
-		for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
-			arch_dma_prep_coherent(sg_page(sg), sg->length);
-	}
-
-	map_size = iommu_map_sg_atomic(domain, iova, sgt->sgl, sgt->orig_nents, ioprot);
+	map_size = rga_iommu_map_sg(domain, iova, sgt->sgl, sgt->orig_nents, ioprot);
 	if (map_size < size) {
 		pr_err("iommu can not map sgt to iova");
 		return -EINVAL;
@@ -534,9 +578,9 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 		goto out_free_buffer;
 	}
 
-	coherent = dev_is_dma_coherent(scheduler->dev);
-	ioprot = rga_dma_info_to_prot(DMA_BIDIRECTIONAL, coherent, 0);
-	domain = iommu_get_dma_domain(scheduler->dev);
+	coherent = rga_dev_is_dma_coherent(scheduler->dev);
+	domain = rga_iommu_get_dma_domain(scheduler->dev);
+	ioprot = rga_dma_info_to_prot(DMA_BIDIRECTIONAL, coherent);
 	cookie = domain->iova_cookie;
 	iovad = &cookie->iovad;
 
@@ -592,15 +636,10 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 		goto out_free_sg;
 	}
 
-	if (!(ioprot & IOMMU_CACHE)) {
-		struct scatterlist *sg;
-		int i;
+	if (!(ioprot & IOMMU_CACHE))
+		rga_dma_flush_cache_by_sgt(&sgt);
 
-		for_each_sg(sgt.sgl, sg, sgt.orig_nents, i)
-			arch_dma_prep_coherent(sg_page(sg), sg->length);
-	}
-
-	map_size = iommu_map_sg_atomic(domain, iova, sgt.sgl, sgt.orig_nents, ioprot);
+	map_size = rga_iommu_map_sg(domain, iova, sgt.sgl, sgt.orig_nents, ioprot);
 	if (map_size < size) {
 		pr_err("iommu can not map sgt to iova");
 		ret = -EINVAL;

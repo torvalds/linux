@@ -50,7 +50,11 @@
 #include <linux/iommu.h>
 #include <linux/iova.h>
 #include <linux/dma-iommu.h>
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 #include <linux/dma-map-ops.h>
+#endif
+
 #include <linux/hrtimer.h>
 
 #include "rga.h"
