@@ -13461,7 +13461,11 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 F:	arch/x86/net/*
+F:	include/linux/ip.h
+F:	include/linux/ipv6*
+F:	include/net/fib*
 F:	include/net/ip*
+F:	include/net/route.h
 F:	net/ipv4/
 F:	net/ipv6/
 
