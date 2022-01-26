@@ -898,6 +898,123 @@ static void sdw_port_free(struct sdw_port_runtime *p_rt)
 	kfree(p_rt);
 }
 
+static void sdw_slave_port_free(struct sdw_slave *slave,
+				struct sdw_stream_runtime *stream)
+{
+	struct sdw_port_runtime *p_rt, *_p_rt;
+	struct sdw_master_runtime *m_rt;
+	struct sdw_slave_runtime *s_rt;
+
+	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+			if (s_rt->slave != slave)
+				continue;
+
+			list_for_each_entry_safe(p_rt, _p_rt,
+						 &s_rt->port_list, port_node) {
+				sdw_port_free(p_rt);
+			}
+		}
+	}
+}
+
+static int sdw_slave_port_alloc(struct sdw_slave *slave,
+				struct sdw_slave_runtime *s_rt,
+				unsigned int num_config)
+{
+	struct sdw_port_runtime *p_rt;
+	int i;
+
+	/* Iterate for number of ports to perform initialization */
+	for (i = 0; i < num_config; i++) {
+		p_rt = sdw_port_alloc(&s_rt->port_list);
+		if (!p_rt)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int sdw_slave_port_is_valid_range(struct device *dev, int num)
+{
+	if (!SDW_VALID_PORT_RANGE(num)) {
+		dev_err(dev, "SoundWire: Invalid port number :%d\n", num);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int sdw_slave_port_config(struct sdw_slave *slave,
+				 struct sdw_slave_runtime *s_rt,
+				 struct sdw_port_config *port_config)
+{
+	struct sdw_port_runtime *p_rt;
+	int ret;
+	int i;
+
+	i = 0;
+	list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+		/*
+		 * TODO: Check valid port range as defined by DisCo/
+		 * slave
+		 */
+		ret = sdw_slave_port_is_valid_range(&slave->dev, port_config[i].num);
+		if (ret < 0)
+			return ret;
+
+		ret = sdw_port_config(p_rt, port_config, i);
+		if (ret < 0)
+			return ret;
+		i++;
+	}
+
+	return 0;
+}
+
+static void sdw_master_port_free(struct sdw_master_runtime *m_rt)
+{
+	struct sdw_port_runtime *p_rt, *_p_rt;
+
+	list_for_each_entry_safe(p_rt, _p_rt, &m_rt->port_list, port_node) {
+		sdw_port_free(p_rt);
+	}
+}
+
+static int sdw_master_port_alloc(struct sdw_master_runtime *m_rt,
+				 unsigned int num_ports)
+{
+	struct sdw_port_runtime *p_rt;
+	int i;
+
+	/* Iterate for number of ports to perform initialization */
+	for (i = 0; i < num_ports; i++) {
+		p_rt = sdw_port_alloc(&m_rt->port_list);
+		if (!p_rt)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int sdw_master_port_config(struct sdw_master_runtime *m_rt,
+				  struct sdw_port_config *port_config)
+{
+	struct sdw_port_runtime *p_rt;
+	int ret;
+	int i;
+
+	i = 0;
+	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+		ret = sdw_port_config(p_rt, port_config, i);
+		if (ret < 0)
+			return ret;
+		i++;
+	}
+
+	return 0;
+}
+
 /**
  * sdw_release_stream() - Free the assigned stream runtime
  *
@@ -1022,37 +1139,6 @@ static struct sdw_slave_runtime
 	return s_rt;
 }
 
-static void sdw_master_port_release(struct sdw_bus *bus,
-				    struct sdw_master_runtime *m_rt)
-{
-	struct sdw_port_runtime *p_rt, *_p_rt;
-
-	list_for_each_entry_safe(p_rt, _p_rt, &m_rt->port_list, port_node) {
-		sdw_port_free(p_rt);
-	}
-}
-
-static void sdw_slave_port_release(struct sdw_bus *bus,
-				   struct sdw_slave *slave,
-				   struct sdw_stream_runtime *stream)
-{
-	struct sdw_port_runtime *p_rt, *_p_rt;
-	struct sdw_master_runtime *m_rt;
-	struct sdw_slave_runtime *s_rt;
-
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
-		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
-			if (s_rt->slave != slave)
-				continue;
-
-			list_for_each_entry_safe(p_rt, _p_rt,
-						 &s_rt->port_list, port_node) {
-				sdw_port_free(p_rt);
-			}
-		}
-	}
-}
-
 /**
  * sdw_release_slave_stream() - Free Slave(s) runtime handle
  *
@@ -1097,7 +1183,7 @@ static void sdw_release_master_stream(struct sdw_master_runtime *m_rt,
 	struct sdw_slave_runtime *s_rt, *_s_rt;
 
 	list_for_each_entry_safe(s_rt, _s_rt, &m_rt->slave_rt_list, m_rt_node) {
-		sdw_slave_port_release(s_rt->slave->bus, s_rt->slave, stream);
+		sdw_slave_port_free(s_rt->slave, stream);
 		sdw_release_slave_stream(s_rt->slave, stream);
 	}
 
@@ -1126,7 +1212,7 @@ int sdw_stream_remove_master(struct sdw_bus *bus,
 		if (m_rt->bus != bus)
 			continue;
 
-		sdw_master_port_release(bus, m_rt);
+		sdw_master_port_free(m_rt);
 		sdw_release_master_stream(m_rt, stream);
 		stream->m_rt_count--;
 	}
@@ -1153,7 +1239,7 @@ int sdw_stream_remove_slave(struct sdw_slave *slave,
 {
 	mutex_lock(&slave->bus->bus_lock);
 
-	sdw_slave_port_release(slave->bus, slave, stream);
+	sdw_slave_port_free(slave, stream);
 	sdw_release_slave_stream(slave, stream);
 
 	mutex_unlock(&slave->bus->bus_lock);
@@ -1204,94 +1290,6 @@ static int sdw_config_stream(struct device *dev,
 	/* TODO: Update this check during Device-device support */
 	if (is_slave)
 		stream->params.ch_count += stream_config->ch_count;
-
-	return 0;
-}
-
-static int sdw_master_port_alloc(struct sdw_master_runtime *m_rt,
-				 unsigned int num_ports)
-{
-	struct sdw_port_runtime *p_rt;
-	int i;
-
-	/* Iterate for number of ports to perform initialization */
-	for (i = 0; i < num_ports; i++) {
-		p_rt = sdw_port_alloc(&m_rt->port_list);
-		if (!p_rt)
-			return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static int sdw_master_port_config(struct sdw_master_runtime *m_rt,
-				  struct sdw_port_config *port_config)
-{
-	struct sdw_port_runtime *p_rt;
-	int ret;
-	int i;
-
-	i = 0;
-	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
-		ret = sdw_port_config(p_rt, port_config, i);
-		if (ret < 0)
-			return ret;
-		i++;
-	}
-
-	return 0;
-}
-
-static int sdw_slave_port_alloc(struct sdw_slave *slave,
-				struct sdw_slave_runtime *s_rt,
-				unsigned int num_config)
-{
-	struct sdw_port_runtime *p_rt;
-	int i;
-
-	/* Iterate for number of ports to perform initialization */
-	for (i = 0; i < num_config; i++) {
-		p_rt = sdw_port_alloc(&s_rt->port_list);
-		if (!p_rt)
-			return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static int sdw_slave_port_is_valid_range(struct device *dev, int num)
-{
-	if (!SDW_VALID_PORT_RANGE(num)) {
-		dev_err(dev, "SoundWire: Invalid port number :%d\n", num);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int sdw_slave_port_config(struct sdw_slave *slave,
-				 struct sdw_slave_runtime *s_rt,
-				 struct sdw_port_config *port_config)
-{
-	struct sdw_port_runtime *p_rt;
-	int ret;
-	int i;
-
-	i = 0;
-	list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
-		/*
-		 * TODO: Check valid port range as defined by DisCo/
-		 * slave
-		 */
-		ret = sdw_slave_port_is_valid_range(&slave->dev, port_config[i].num);
-		if (ret < 0)
-			return ret;
-
-		ret = sdw_port_config(p_rt, port_config, i);
-		if (ret < 0)
-			return ret;
-		i++;
-	}
 
 	return 0;
 }
