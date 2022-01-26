@@ -116,15 +116,11 @@ static acpi_status s3_wmi_attach_spi_device(acpi_handle handle,
 					    void *data,
 					    void **return_value)
 {
-	struct acpi_device *adev, **ts_adev;
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
+	struct acpi_device **ts_adev = data;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	ts_adev = data;
-
-	if (strncmp(acpi_device_bid(adev), SPI_TS_OBJ_NAME,
-	    strlen(SPI_TS_OBJ_NAME)))
+	if (!adev || strncmp(acpi_device_bid(adev), SPI_TS_OBJ_NAME,
+			     strlen(SPI_TS_OBJ_NAME)))
 		return AE_OK;
 
 	if (*ts_adev) {
