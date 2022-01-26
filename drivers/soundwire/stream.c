@@ -1058,6 +1058,23 @@ static int sdw_slave_rt_config(struct sdw_slave_runtime *s_rt,
 	return 0;
 }
 
+static struct sdw_slave_runtime *sdw_slave_rt_find(struct sdw_slave *slave,
+						   struct sdw_stream_runtime *stream)
+{
+	struct sdw_slave_runtime *s_rt, *_s_rt;
+	struct sdw_master_runtime *m_rt;
+
+	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+		/* Retrieve Slave runtime handle */
+		list_for_each_entry_safe(s_rt, _s_rt,
+					 &m_rt->slave_rt_list, m_rt_node) {
+			if (s_rt->slave == slave)
+				return s_rt;
+		}
+	}
+	return NULL;
+}
+
 /**
  * sdw_slave_rt_free() - Free Slave(s) runtime handle
  *
@@ -1069,19 +1086,12 @@ static int sdw_slave_rt_config(struct sdw_slave_runtime *s_rt,
 static void sdw_slave_rt_free(struct sdw_slave *slave,
 			      struct sdw_stream_runtime *stream)
 {
-	struct sdw_slave_runtime *s_rt, *_s_rt;
-	struct sdw_master_runtime *m_rt;
+	struct sdw_slave_runtime *s_rt;
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
-		/* Retrieve Slave runtime handle */
-		list_for_each_entry_safe(s_rt, _s_rt,
-					 &m_rt->slave_rt_list, m_rt_node) {
-			if (s_rt->slave == slave) {
-				list_del(&s_rt->m_rt_node);
-				kfree(s_rt);
-				return;
-			}
-		}
+	s_rt = sdw_slave_rt_find(slave, stream);
+	if (s_rt) {
+		list_del(&s_rt->m_rt_node);
+		kfree(s_rt);
 	}
 }
 
