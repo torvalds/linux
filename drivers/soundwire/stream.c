@@ -1177,12 +1177,10 @@ static int sdw_config_stream(struct device *dev,
 	return 0;
 }
 
-static int sdw_is_valid_port_range(struct device *dev,
-				   struct sdw_port_runtime *p_rt)
+static int sdw_is_valid_port_range(struct device *dev, int num)
 {
-	if (!SDW_VALID_PORT_RANGE(p_rt->num)) {
-		dev_err(dev,
-			"SoundWire: Invalid port number :%d\n", p_rt->num);
+	if (!SDW_VALID_PORT_RANGE(num)) {
+		dev_err(dev, "SoundWire: Invalid port number :%d\n", num);
 		return -EINVAL;
 	}
 
@@ -1249,7 +1247,7 @@ static int sdw_slave_port_config(struct sdw_slave *slave,
 		 * TODO: Check valid port range as defined by DisCo/
 		 * slave
 		 */
-		ret = sdw_is_valid_port_range(&slave->dev, p_rt);
+		ret = sdw_is_valid_port_range(&slave->dev, port_config[i].num);
 		if (ret < 0) {
 			kfree(p_rt);
 			return ret;
