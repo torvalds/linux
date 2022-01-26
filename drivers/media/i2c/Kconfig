@@ -1688,6 +1688,15 @@ config VIDEO_RJ54N1
 	  To compile this driver as a module, choose M here: the
 	  module will be called rj54n1.
 
+config VIDEO_S5K3L6XX
+	tristate "Samsung S5K3L6XX sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Samsung
+	  S5K3L6XX camera.
+
 config VIDEO_S5K6AA
 	tristate "Samsung S5K6AAFX sensor support"
 	depends on I2C && VIDEO_V4L2

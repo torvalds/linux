@@ -116,6 +116,7 @@ obj-$(CONFIG_VIDEO_SENSOR_ADAPTER)	+= sensor_adapter.o
 obj-$(CONFIG_VIDEO_SR030PC30)	+= sr030pc30.o
 obj-$(CONFIG_VIDEO_NOON010PC30)	+= noon010pc30.o
 obj-$(CONFIG_VIDEO_RJ54N1)	+= rj54n1cb0c.o
+obj-$(CONFIG_VIDEO_S5K3L6XX)	+= s5k3l6xx.o
 obj-$(CONFIG_VIDEO_S5K6AA)	+= s5k6aa.o
 obj-$(CONFIG_VIDEO_S5K6A3)	+= s5k6a3.o
 obj-$(CONFIG_VIDEO_S5K4ECGX)	+= s5k4ecgx.o
