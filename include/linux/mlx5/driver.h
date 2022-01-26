@@ -863,19 +863,9 @@ struct mlx5_hca_vport_context {
 	bool			grh_required;
 };
 
-static inline void *mlx5_buf_offset(struct mlx5_frag_buf *buf, int offset)
-{
-		return buf->frags->buf + offset;
-}
-
 #define STRUCT_FIELD(header, field) \
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \
 	.struct_size_bytes   = sizeof((struct ib_unpacked_ ## header *)0)->field
-
-static inline struct mlx5_core_dev *pci2mlx5_core_dev(struct pci_dev *pdev)
-{
-	return pci_get_drvdata(pdev);
-}
 
 extern struct dentry *mlx5_debugfs_root;
 
