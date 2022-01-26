@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/string_helpers.h>
 #include <linux/uaccess.h>
 
 #include "dc.h"
@@ -48,11 +49,6 @@ struct dmub_debugfs_trace_entry {
 	uint32_t param0;
 	uint32_t param1;
 };
-
-static inline const char *yesno(bool v)
-{
-	return v ? "yes" : "no";
-}
 
 /* parse_write_buffer_into_params - Helper function to parse debugfs write buffer into an array
  *
@@ -853,12 +849,12 @@ static int psr_capability_show(struct seq_file *m, void *data)
 	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
 		return -ENODEV;
 
-	seq_printf(m, "Sink support: %s", yesno(link->dpcd_caps.psr_caps.psr_version != 0));
+	seq_printf(m, "Sink support: %s", str_yes_no(link->dpcd_caps.psr_caps.psr_version != 0));
 	if (link->dpcd_caps.psr_caps.psr_version)
 		seq_printf(m, " [0x%02x]", link->dpcd_caps.psr_caps.psr_version);
 	seq_puts(m, "\n");
 
-	seq_printf(m, "Driver support: %s", yesno(link->psr_settings.psr_feature_enabled));
+	seq_printf(m, "Driver support: %s", str_yes_no(link->psr_settings.psr_feature_enabled));
 	if (link->psr_settings.psr_version)
 		seq_printf(m, " [0x%02x]", link->psr_settings.psr_version);
 	seq_puts(m, "\n");
@@ -1207,8 +1203,8 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	seq_printf(m, "FEC_Sink_Support: %s\n", yesno(is_fec_supported));
-	seq_printf(m, "DSC_Sink_Support: %s\n", yesno(is_dsc_supported));
+	seq_printf(m, "FEC_Sink_Support: %s\n", str_yes_no(is_fec_supported));
+	seq_printf(m, "DSC_Sink_Support: %s\n", str_yes_no(is_dsc_supported));
 
 	return ret;
 }
