@@ -1296,7 +1296,7 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 			RK3588_CLKSEL_CON(165), 4, 2, MFLAGS,
 			RK3588_CLKGATE_CON(69), 2, GFLAGS),
 	COMPOSITE_NODIV(PCLK_CENTER_ROOT, "pclk_center_root", mux_200m_100m_50m_24m_p, CLK_IS_CRITICAL,
-			RK3588_CLKSEL_CON(165), 6, 2, MFLAGS,
+			RK3588_CLKSEL_CON(165), 6, 2, MFLAGS | CLK_MUX_READ_ONLY,
 			RK3588_CLKGATE_CON(69), 3, GFLAGS),
 	GATE(ACLK_DMA2DDR, "aclk_dma2ddr", "aclk_center_root", CLK_IS_CRITICAL,
 			RK3588_CLKGATE_CON(69), 5, GFLAGS),
