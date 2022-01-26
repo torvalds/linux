@@ -104,7 +104,9 @@ static const struct stmmac_hwif_entry {
 #endif
 	const void *mode;
 	const void *tc;
+#ifdef CONFIG_STMMAC_MMC
 	const void *mmc;
+#endif
 	int (*setup)(struct stmmac_priv *priv);
 	int (*quirks)(struct stmmac_priv *priv);
 } stmmac_hw[] = {
@@ -127,7 +129,9 @@ static const struct stmmac_hwif_entry {
 #endif
 		.mode = NULL,
 		.tc = NULL,
+#ifdef CONFIG_STMMAC_MMC
 		.mmc = &dwmac_mmc_ops,
+#endif
 		.setup = dwmac100_setup,
 		.quirks = stmmac_dwmac1_quirks,
 	}, {
@@ -147,7 +151,9 @@ static const struct stmmac_hwif_entry {
 #endif
 		.mode = NULL,
 		.tc = NULL,
+#ifdef CONFIG_STMMAC_MMC
 		.mmc = &dwmac_mmc_ops,
+#endif
 		.setup = dwmac1000_setup,
 		.quirks = stmmac_dwmac1_quirks,
 	}, {
@@ -167,7 +173,9 @@ static const struct stmmac_hwif_entry {
 #endif
 		.mode = NULL,
 		.tc = &dwmac510_tc_ops,
+#ifdef CONFIG_STMMAC_MMC
 		.mmc = &dwmac_mmc_ops,
+#endif
 		.setup = dwmac4_setup,
 		.quirks = stmmac_dwmac4_quirks,
 	}, {
@@ -187,7 +195,9 @@ static const struct stmmac_hwif_entry {
 #endif
 		.mode = &dwmac4_ring_mode_ops,
 		.tc = &dwmac510_tc_ops,
+#ifdef CONFIG_STMMAC_MMC
 		.mmc = &dwmac_mmc_ops,
+#endif
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	},
@@ -211,7 +221,10 @@ static const struct stmmac_hwif_entry {
 #ifdef CONFIG_STMMAC_FULL
 		.tc = &dwmac510_tc_ops,
 #endif
+
+#ifdef CONFIG_STMMAC_MMC
 		.mmc = &dwmac_mmc_ops,
+#endif
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	},
@@ -233,7 +246,9 @@ static const struct stmmac_hwif_entry {
 #endif
 		.mode = &dwmac4_ring_mode_ops,
 		.tc = &dwmac510_tc_ops,
+#ifdef CONFIG_STMMAC_MMC
 		.mmc = &dwmac_mmc_ops,
+#endif
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}, {
@@ -254,7 +269,9 @@ static const struct stmmac_hwif_entry {
 #endif
 		.mode = NULL,
 		.tc = &dwmac510_tc_ops,
+#ifdef CONFIG_STMMAC_MMC
 		.mmc = &dwxgmac_mmc_ops,
+#endif
 		.setup = dwxgmac2_setup,
 		.quirks = NULL,
 	}, {
@@ -275,7 +292,9 @@ static const struct stmmac_hwif_entry {
 #endif
 		.mode = NULL,
 		.tc = &dwmac510_tc_ops,
+#ifdef CONFIG_STMMAC_MMC
 		.mmc = &dwxgmac_mmc_ops,
+#endif
 		.setup = dwxlgmac2_setup,
 		.quirks = stmmac_dwxlgmac_quirks,
 	},
@@ -348,7 +367,9 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 #endif
 		mac->mode = mac->mode ? : entry->mode;
 		mac->tc = mac->tc ? : entry->tc;
+#ifdef CONFIG_STMMAC_MMC
 		mac->mmc = mac->mmc ? : entry->mmc;
+#endif
 
 		priv->hw = mac;
 		priv->ptpaddr = priv->ioaddr + entry->regs.ptp_off;
