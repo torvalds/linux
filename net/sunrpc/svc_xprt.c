@@ -285,7 +285,7 @@ void svc_add_new_perm_xprt(struct svc_serv *serv, struct svc_xprt *new)
 	svc_xprt_received(new);
 }
 
-static int _svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
+static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 			    struct net *net, const int family,
 			    const unsigned short port, int flags,
 			    const struct cred *cred)
@@ -321,21 +321,35 @@ static int _svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
 	return -EPROTONOSUPPORT;
 }
 
-int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
+/**
+ * svc_xprt_create - Add a new listener to @serv
+ * @serv: target RPC service
+ * @xprt_name: transport class name
+ * @net: network namespace
+ * @family: network address family
+ * @port: listener port
+ * @flags: SVC_SOCK flags
+ * @cred: credential to bind to this transport
+ *
+ * Return values:
+ *   %0: New listener added successfully
+ *   %-EPROTONOSUPPORT: Requested transport type not supported
+ */
+int svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 		    struct net *net, const int family,
 		    const unsigned short port, int flags,
 		    const struct cred *cred)
 {
 	int err;
 
-	err = _svc_create_xprt(serv, xprt_name, net, family, port, flags, cred);
+	err = _svc_xprt_create(serv, xprt_name, net, family, port, flags, cred);
 	if (err == -EPROTONOSUPPORT) {
 		request_module("svc%s", xprt_name);
-		err = _svc_create_xprt(serv, xprt_name, net, family, port, flags, cred);
+		err = _svc_xprt_create(serv, xprt_name, net, family, port, flags, cred);
 	}
 	return err;
 }
-EXPORT_SYMBOL_GPL(svc_create_xprt);
+EXPORT_SYMBOL_GPL(svc_xprt_create);
 
 /*
  * Copy the local and remote xprt addresses to the rqstp structure

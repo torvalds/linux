@@ -45,18 +45,18 @@ static int nfs4_callback_up_net(struct svc_serv *serv, struct net *net)
 	int ret;
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
-	ret = svc_create_xprt(serv, "tcp", net, PF_INET,
-				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS,
-				cred);
+	ret = svc_xprt_create(serv, "tcp", net, PF_INET,
+			      nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS,
+			      cred);
 	if (ret <= 0)
 		goto out_err;
 	nn->nfs_callback_tcpport = ret;
 	dprintk("NFS: Callback listener port = %u (af %u, net %x)\n",
 		nn->nfs_callback_tcpport, PF_INET, net->ns.inum);
 
-	ret = svc_create_xprt(serv, "tcp", net, PF_INET6,
-				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS,
-				cred);
+	ret = svc_xprt_create(serv, "tcp", net, PF_INET6,
+			      nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS,
+			      cred);
 	if (ret > 0) {
 		nn->nfs_callback_tcpport6 = ret;
 		dprintk("NFS: Callback listener port = %u (af %u, net %x)\n",

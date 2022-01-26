@@ -127,9 +127,10 @@ int	svc_reg_xprt_class(struct svc_xprt_class *);
 void	svc_unreg_xprt_class(struct svc_xprt_class *);
 void	svc_xprt_init(struct net *, struct svc_xprt_class *, struct svc_xprt *,
 		      struct svc_serv *);
-int	svc_create_xprt(struct svc_serv *, const char *, struct net *,
-			const int, const unsigned short, int,
-			const struct cred *);
+int	svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
+			struct net *net, const int family,
+			const unsigned short port, int flags,
+			const struct cred *cred);
 void	svc_xprt_received(struct svc_xprt *xprt);
 void	svc_xprt_enqueue(struct svc_xprt *xprt);
 void	svc_xprt_put(struct svc_xprt *xprt);
