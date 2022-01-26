@@ -1875,11 +1875,6 @@ static inline int bpf_obj_get_user(const char __user *pathname, int flags)
 	return -EOPNOTSUPP;
 }
 
-static inline bool dev_map_can_have_prog(struct bpf_map *map)
-{
-	return false;
-}
-
 static inline void __dev_flush(void)
 {
 }
@@ -1941,11 +1936,6 @@ static inline int cpu_map_generic_redirect(struct bpf_cpu_map_entry *rcpu,
 					   struct sk_buff *skb)
 {
 	return -EOPNOTSUPP;
-}
-
-static inline bool cpu_map_prog_allowed(struct bpf_map *map)
-{
-	return false;
 }
 
 static inline struct bpf_prog *bpf_prog_get_type_path(const char *name,

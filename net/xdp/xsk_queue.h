@@ -304,13 +304,6 @@ static inline void xskq_cons_release_n(struct xsk_queue *q, u32 cnt)
 	q->cached_cons += cnt;
 }
 
-static inline bool xskq_cons_is_full(struct xsk_queue *q)
-{
-	/* No barriers needed since data is not accessed */
-	return READ_ONCE(q->ring->producer) - READ_ONCE(q->ring->consumer) ==
-		q->nentries;
-}
-
 static inline u32 xskq_cons_present_entries(struct xsk_queue *q)
 {
 	/* No barriers needed since data is not accessed */
