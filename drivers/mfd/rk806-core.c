@@ -568,6 +568,8 @@ static int rk806_init(struct rk806 *rk806)
 
 	/* When the slave chip goes through a shutdown process, it will automatically trigger a restart */
 	rk806_field_write(rk806, SLAVE_RESTART_FUN, 0x01);
+	/* Digital output 2MHz clock force enable */
+	rk806_field_write(rk806, ENB2_2M, 0x01);
 
 	rk806_low_power_irqs(rk806);
 
