@@ -2269,8 +2269,7 @@ static int amdgpu_pmops_prepare(struct device *dev)
 	 * DPM_FLAG_SMART_SUSPEND works properly
 	 */
 	if (amdgpu_device_supports_boco(drm_dev))
-		return pm_runtime_suspended(dev) &&
-			pm_suspend_via_firmware();
+		return pm_runtime_suspended(dev);
 
 	/* if we will not support s3 or s2i for the device
 	 *  then skip suspend
