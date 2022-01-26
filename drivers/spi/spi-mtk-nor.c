@@ -770,17 +770,17 @@ static const struct spi_controller_mem_ops mtk_nor_mem_ops = {
 	.exec_op = mtk_nor_exec_op
 };
 
-const struct mtk_nor_caps mtk_nor_caps_mt8173 = {
+static const struct mtk_nor_caps mtk_nor_caps_mt8173 = {
 	.dma_bits = 32,
 	.extra_dummy_bit = 0,
 };
 
-const struct mtk_nor_caps mtk_nor_caps_mt8186 = {
+static const struct mtk_nor_caps mtk_nor_caps_mt8186 = {
 	.dma_bits = 32,
 	.extra_dummy_bit = 1,
 };
 
-const struct mtk_nor_caps mtk_nor_caps_mt8192 = {
+static const struct mtk_nor_caps mtk_nor_caps_mt8192 = {
 	.dma_bits = 36,
 	.extra_dummy_bit = 0,
 };
