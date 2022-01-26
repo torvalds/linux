@@ -20,83 +20,15 @@
 
 #include <dt-bindings/clock/starfive-jh7100.h>
 
+#include "clk-starfive-jh7100.h"
+
 /* external clocks */
 #define JH7100_CLK_OSC_SYS		(JH7100_CLK_END + 0)
 #define JH7100_CLK_OSC_AUD		(JH7100_CLK_END + 1)
 #define JH7100_CLK_GMAC_RMII_REF	(JH7100_CLK_END + 2)
 #define JH7100_CLK_GMAC_GR_MII_RX	(JH7100_CLK_END + 3)
 
-/* register fields */
-#define JH7100_CLK_ENABLE	BIT(31)
-#define JH7100_CLK_INVERT	BIT(30)
-#define JH7100_CLK_MUX_MASK	GENMASK(27, 24)
-#define JH7100_CLK_MUX_SHIFT	24
-#define JH7100_CLK_DIV_MASK	GENMASK(23, 0)
-#define JH7100_CLK_FRAC_MASK	GENMASK(15, 8)
-#define JH7100_CLK_FRAC_SHIFT	8
-#define JH7100_CLK_INT_MASK	GENMASK(7, 0)
-
-/* fractional divider min/max */
-#define JH7100_CLK_FRAC_MIN	100UL
-#define JH7100_CLK_FRAC_MAX	25599UL
-
-/* clock data */
-#define JH7100_GATE(_idx, _name, _flags, _parent) [_idx] = {		\
-	.name = _name,							\
-	.flags = CLK_SET_RATE_PARENT | (_flags),			\
-	.max = JH7100_CLK_ENABLE,					\
-	.parents = { [0] = _parent },					\
-}
-
-#define JH7100__DIV(_idx, _name, _max, _parent) [_idx] = {		\
-	.name = _name,							\
-	.flags = 0,							\
-	.max = _max,							\
-	.parents = { [0] = _parent },					\
-}
-
-#define JH7100_GDIV(_idx, _name, _flags, _max, _parent) [_idx] = {	\
-	.name = _name,							\
-	.flags = _flags,						\
-	.max = JH7100_CLK_ENABLE | (_max),				\
-	.parents = { [0] = _parent },					\
-}
-
-#define JH7100_FDIV(_idx, _name, _parent) [_idx] = {			\
-	.name = _name,							\
-	.flags = 0,							\
-	.max = JH7100_CLK_FRAC_MAX,					\
-	.parents = { [0] = _parent },					\
-}
-
-#define JH7100__MUX(_idx, _name, _nparents, ...) [_idx] = {		\
-	.name = _name,							\
-	.flags = 0,							\
-	.max = ((_nparents) - 1) << JH7100_CLK_MUX_SHIFT,		\
-	.parents = { __VA_ARGS__ },					\
-}
-
-#define JH7100_GMUX(_idx, _name, _flags, _nparents, ...) [_idx] = {	\
-	.name = _name,							\
-	.flags = _flags,						\
-	.max = JH7100_CLK_ENABLE |					\
-		(((_nparents) - 1) << JH7100_CLK_MUX_SHIFT),		\
-	.parents = { __VA_ARGS__ },					\
-}
-
-#define JH7100__INV(_idx, _name, _parent) [_idx] = {			\
-	.name = _name,							\
-	.flags = CLK_SET_RATE_PARENT,					\
-	.max = JH7100_CLK_INVERT,					\
-	.parents = { [0] = _parent },					\
-}
-
-static const struct {
-	const char *name;
-	unsigned long flags;
-	u32 max;
-	u8 parents[4];
-} jh7100_clk_data[] __initconst = {
+static const struct jh7100_clk_data jh7100_clk_data[] __initconst = {
 	JH7100__MUX(JH7100_CLK_CPUNDBUS_ROOT, "cpundbus_root", 4,
 		    JH7100_CLK_OSC_SYS,
 		    JH7100_CLK_PLL0_OUT,
@@ -335,21 +267,6 @@ static const struct {
 	JH7100_GATE(JH7100_CLK_TEMP_APB, "temp_apb", 0, JH7100_CLK_APB2_BUS),
 	JH7100_GDIV(JH7100_CLK_TEMP_SENSE, "temp_sense", 0, 31, JH7100_CLK_OSC_SYS),
 	JH7100_GATE(JH7100_CLK_SYSERR_APB, "syserr_apb", 0, JH7100_CLK_APB2_BUS),
-};
-
-struct jh7100_clk {
-	struct clk_hw hw;
-	unsigned int idx;
-	unsigned int max_div;
-};
-
-struct jh7100_clk_priv {
-	/* protect clk enable and set rate/parent from happening at the same time */
-	spinlock_t rmw_lock;
-	struct device *dev;
-	void __iomem *base;
-	struct clk_hw *pll[3];
-	struct jh7100_clk reg[JH7100_CLK_PLL0_OUT];
 };
 
 static struct jh7100_clk *jh7100_clk_from(struct clk_hw *hw)
@@ -623,7 +540,7 @@ static const struct clk_ops jh7100_clk_inv_ops = {
 	.debug_init = jh7100_clk_debug_init,
 };
 
-static const struct clk_ops *__init jh7100_clk_ops(u32 max)
+const struct clk_ops *starfive_jh7100_clk_ops(u32 max)
 {
 	if (max & JH7100_CLK_DIV_MASK) {
 		if (max & JH7100_CLK_ENABLE)
@@ -644,6 +561,7 @@ static const struct clk_ops *__init jh7100_clk_ops(u32 max)
 
 	return &jh7100_clk_inv_ops;
 }
+EXPORT_SYMBOL_GPL(starfive_jh7100_clk_ops);
 
 static struct clk_hw *jh7100_clk_get(struct of_phandle_args *clkspec, void *data)
 {
@@ -665,7 +583,7 @@ static int __init clk_starfive_jh7100_probe(struct platform_device *pdev)
 	unsigned int idx;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, struct_size(priv, reg, JH7100_CLK_PLL0_OUT), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -695,7 +613,7 @@ static int __init clk_starfive_jh7100_probe(struct platform_device *pdev)
 		struct clk_parent_data parents[4] = {};
 		struct clk_init_data init = {
 			.name = jh7100_clk_data[idx].name,
-			.ops = jh7100_clk_ops(max),
+			.ops = starfive_jh7100_clk_ops(max),
 			.parent_data = parents,
 			.num_parents = ((max & JH7100_CLK_MUX_MASK) >> JH7100_CLK_MUX_SHIFT) + 1,
 			.flags = jh7100_clk_data[idx].flags,
