@@ -7838,6 +7838,38 @@ static inline bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq,
 }
 
 /**
+ * struct cfg80211_tx_status - TX status for management frame information
+ *
+ * @cookie: Cookie returned by cfg80211_ops::mgmt_tx()
+ * @tx_tstamp: hardware TX timestamp in nanoseconds
+ * @ack_tstamp: hardware ack RX timestamp in nanoseconds
+ * @buf: Management frame (header + body)
+ * @len: length of the frame data
+ * @ack: Whether frame was acknowledged
+ */
+struct cfg80211_tx_status {
+	u64 cookie;
+	u64 tx_tstamp;
+	u64 ack_tstamp;
+	const u8 *buf;
+	size_t len;
+	bool ack;
+};
+
+/**
+ * cfg80211_mgmt_tx_status_ext - TX status notification with extended info
+ * @wdev: wireless device receiving the frame
+ * @status: TX status data
+ * @gfp: context flags
+ *
+ * This function is called whenever a management frame was requested to be
+ * transmitted with cfg80211_ops::mgmt_tx() to report the TX status of the
+ * transmission attempt with extended info.
+ */
+void cfg80211_mgmt_tx_status_ext(struct wireless_dev *wdev,
+				 struct cfg80211_tx_status *status, gfp_t gfp);
+
+/**
  * cfg80211_mgmt_tx_status - notification of TX status for management frame
  * @wdev: wireless device receiving the frame
  * @cookie: Cookie returned by cfg80211_ops::mgmt_tx()
@@ -7850,8 +7882,19 @@ static inline bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq,
  * transmitted with cfg80211_ops::mgmt_tx() to report the TX status of the
  * transmission attempt.
  */
-void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
-			     const u8 *buf, size_t len, bool ack, gfp_t gfp);
+static inline void cfg80211_mgmt_tx_status(struct wireless_dev *wdev,
+					   u64 cookie, const u8 *buf,
+					   size_t len, bool ack, gfp_t gfp)
+{
+	struct cfg80211_tx_status status = {
+		.cookie = cookie,
+		.buf = buf,
+		.len = len,
+		.ack = ack
+	};
+
+	cfg80211_mgmt_tx_status_ext(wdev, &status, gfp);
+}
 
 /**
  * cfg80211_control_port_tx_status - notification of TX status for control
