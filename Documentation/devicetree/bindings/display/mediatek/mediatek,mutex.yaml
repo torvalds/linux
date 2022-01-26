@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/mediatek/mediatek,mutex.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mediatek display mutex
+title: Mediatek mutex
 
 maintainers:
   - Chun-Kuang Hu <chunkuang.hu@kernel.org>
@@ -36,7 +36,8 @@ properties:
           - const: mediatek,mt8183-disp-mutex
       - items:
           - const: mediatek,mt8192-disp-mutex
-
+      - items:
+          - const: mediatek,mt8195-disp-mutex
   reg:
     maxItems: 1
 
