@@ -28,13 +28,46 @@ struct mlxsw_env {
 	struct mlxsw_env_module_info module_info[];
 };
 
-static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
-					  bool *qsfp, bool *cmis)
+static int __mlxsw_env_validate_module_type(struct mlxsw_core *core, u8 module)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(core);
+	int err;
+
+	switch (mlxsw_env->module_info[module].type) {
+	case MLXSW_REG_PMTM_MODULE_TYPE_TWISTED_PAIR:
+		err = -EINVAL;
+		break;
+	default:
+		err = 0;
+	}
+
+	return err;
+}
+
+static int mlxsw_env_validate_module_type(struct mlxsw_core *core, u8 module)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(core);
+	int err;
+
+	mutex_lock(&mlxsw_env->module_info_lock);
+	err = __mlxsw_env_validate_module_type(core, module);
+	mutex_unlock(&mlxsw_env->module_info_lock);
+
+	return err;
+}
+
+static int
+mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id, bool *qsfp,
+			       bool *cmis)
 {
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
 	char *eeprom_tmp;
 	u8 ident;
 	int err;
+
+	err = mlxsw_env_validate_module_type(core, id);
+	if (err)
+		return err;
 
 	mlxsw_reg_mcia_pack(mcia_pl, id, 0, MLXSW_REG_MCIA_PAGE0_LO_OFF, 0, 1,
 			    MLXSW_REG_MCIA_I2C_ADDR_LOW);
@@ -217,6 +250,13 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 	unsigned int read_size;
 	int err;
 
+	err = mlxsw_env_validate_module_type(mlxsw_core, module);
+	if (err) {
+		netdev_err(netdev,
+			   "EEPROM is not equipped on port module type");
+		return err;
+	}
+
 	err = mlxsw_env_query_module_eeprom(mlxsw_core, module, 0, offset,
 					    module_info, false, &read_size);
 	if (err)
@@ -358,6 +398,13 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
 {
 	u32 bytes_read = 0;
 	u16 device_addr;
+	int err;
+
+	err = mlxsw_env_validate_module_type(mlxsw_core, module);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "EEPROM is not equipped on port module type");
+		return err;
+	}
 
 	/* Offset cannot be larger than 2 * ETH_MODULE_EEPROM_PAGE_LEN */
 	device_addr = page->offset;
@@ -366,7 +413,6 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
 		char mcia_pl[MLXSW_REG_MCIA_LEN];
 		char *eeprom_tmp;
 		u8 size;
-		int err;
 
 		size = min_t(u8, page->length - bytes_read,
 			     MLXSW_REG_MCIA_EEPROM_SIZE);
