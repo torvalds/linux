@@ -1054,6 +1054,32 @@ struct sdw_stream_runtime *sdw_alloc_stream(const char *stream_name)
 }
 EXPORT_SYMBOL(sdw_alloc_stream);
 
+/**
+ * sdw_alloc_slave_rt() - Allocate and initialize Slave runtime handle.
+ *
+ * @slave: Slave handle
+ * @stream_config: Stream configuration
+ *
+ * This function is to be called with bus_lock held.
+ */
+static struct sdw_slave_runtime
+*sdw_alloc_slave_rt(struct sdw_slave *slave,
+		    struct sdw_stream_config *stream_config)
+{
+	struct sdw_slave_runtime *s_rt;
+
+	s_rt = kzalloc(sizeof(*s_rt), GFP_KERNEL);
+	if (!s_rt)
+		return NULL;
+
+	INIT_LIST_HEAD(&s_rt->port_list);
+	s_rt->ch_count = stream_config->ch_count;
+	s_rt->direction = stream_config->direction;
+	s_rt->slave = slave;
+
+	return s_rt;
+}
+
 static struct sdw_master_runtime
 *sdw_master_rt_find(struct sdw_bus *bus,
 		    struct sdw_stream_runtime *stream)
@@ -1116,32 +1142,6 @@ static int sdw_master_rt_config(struct sdw_master_runtime *m_rt,
 	m_rt->direction = stream_config->direction;
 
 	return 0;
-}
-
-/**
- * sdw_alloc_slave_rt() - Allocate and initialize Slave runtime handle.
- *
- * @slave: Slave handle
- * @stream_config: Stream configuration
- *
- * This function is to be called with bus_lock held.
- */
-static struct sdw_slave_runtime
-*sdw_alloc_slave_rt(struct sdw_slave *slave,
-		    struct sdw_stream_config *stream_config)
-{
-	struct sdw_slave_runtime *s_rt;
-
-	s_rt = kzalloc(sizeof(*s_rt), GFP_KERNEL);
-	if (!s_rt)
-		return NULL;
-
-	INIT_LIST_HEAD(&s_rt->port_list);
-	s_rt->ch_count = stream_config->ch_count;
-	s_rt->direction = stream_config->direction;
-	s_rt->slave = slave;
-
-	return s_rt;
 }
 
 /**
