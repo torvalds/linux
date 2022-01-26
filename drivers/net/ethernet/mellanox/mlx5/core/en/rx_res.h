@@ -37,9 +37,6 @@ u32 mlx5e_rx_res_get_tirn_rss(struct mlx5e_rx_res *res, enum mlx5_traffic_types 
 u32 mlx5e_rx_res_get_tirn_rss_inner(struct mlx5e_rx_res *res, enum mlx5_traffic_types tt);
 u32 mlx5e_rx_res_get_tirn_ptp(struct mlx5e_rx_res *res);
 
-/* RQTN getters for modules that create their own TIRs */
-u32 mlx5e_rx_res_get_rqtn_direct(struct mlx5e_rx_res *res, unsigned int ix);
-
 /* Activate/deactivate API */
 void mlx5e_rx_res_channels_activate(struct mlx5e_rx_res *res, struct mlx5e_channels *chs);
 void mlx5e_rx_res_channels_deactivate(struct mlx5e_rx_res *res);
@@ -69,4 +66,7 @@ struct mlx5e_rss *mlx5e_rx_res_rss_get(struct mlx5e_rx_res *res, u32 rss_idx);
 /* Workaround for hairpin */
 struct mlx5e_rss_params_hash mlx5e_rx_res_get_current_hash(struct mlx5e_rx_res *res);
 
+/* Accel TIRs */
+int mlx5e_rx_res_tls_tir_create(struct mlx5e_rx_res *res, unsigned int rxq,
+				struct mlx5e_tir *tir);
 #endif /* __MLX5_EN_RX_RES_H__ */

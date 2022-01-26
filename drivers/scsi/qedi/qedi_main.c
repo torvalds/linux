@@ -1538,7 +1538,6 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 	int i;
 	struct scsi_bd *pbl;
 	u64 *list;
-	dma_addr_t page;
 
 	/* Alloc dma memory for BDQ buffers */
 	for (i = 0; i < QEDI_BDQ_NUM; i++) {
@@ -1608,11 +1607,9 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 	qedi->bdq_pbl_list_num_entries = qedi->bdq_pbl_mem_size /
 					 QEDI_PAGE_SIZE;
 	list = (u64 *)qedi->bdq_pbl_list;
-	page = qedi->bdq_pbl_list_dma;
 	for (i = 0; i < qedi->bdq_pbl_list_num_entries; i++) {
 		*list = qedi->bdq_pbl_dma;
 		list++;
-		page += QEDI_PAGE_SIZE;
 	}
 
 	return 0;
@@ -2089,8 +2086,7 @@ static ssize_t qedi_show_boot_eth_info(void *data, int type, char *buf)
 		rc = snprintf(buf, ip_len, fmt, gw);
 		break;
 	case ISCSI_BOOT_ETH_FLAGS:
-		rc = snprintf(buf, 3, "%hhd\n",
-			      SYSFS_FLAG_FW_SEL_BOOT);
+		rc = snprintf(buf, 3, "%d\n", (char)SYSFS_FLAG_FW_SEL_BOOT);
 		break;
 	case ISCSI_BOOT_ETH_INDEX:
 		rc = snprintf(buf, 3, "0\n");
@@ -2257,7 +2253,7 @@ qedi_show_boot_tgt_info(struct qedi_ctx *qedi, int type,
 			     mchap_secret);
 		break;
 	case ISCSI_BOOT_TGT_FLAGS:
-		rc = snprintf(buf, 3, "%hhd\n", SYSFS_FLAG_FW_SEL_BOOT);
+		rc = snprintf(buf, 3, "%d\n", (char)SYSFS_FLAG_FW_SEL_BOOT);
 		break;
 	case ISCSI_BOOT_TGT_NIC_ASSOC:
 		rc = snprintf(buf, 3, "0\n");

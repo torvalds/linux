@@ -74,15 +74,13 @@ static int dsi_mgr_setup_components(int id)
 	int ret;
 
 	if (!IS_BONDED_DSI()) {
-		ret = msm_dsi_host_register(msm_dsi->host, true);
+		ret = msm_dsi_host_register(msm_dsi->host);
 		if (ret)
 			return ret;
 
 		msm_dsi_phy_set_usecase(msm_dsi->phy, MSM_DSI_PHY_STANDALONE);
-		ret = msm_dsi_host_set_src_pll(msm_dsi->host, msm_dsi->phy);
-	} else if (!other_dsi) {
-		ret = 0;
-	} else {
+		msm_dsi_host_set_phy_mode(msm_dsi->host, msm_dsi->phy);
+	} else if (other_dsi) {
 		struct msm_dsi *master_link_dsi = IS_MASTER_DSI_LINK(id) ?
 							msm_dsi : other_dsi;
 		struct msm_dsi *slave_link_dsi = IS_MASTER_DSI_LINK(id) ?
@@ -94,10 +92,10 @@ static int dsi_mgr_setup_components(int id)
 		 * because only master DSI device adds the panel to global
 		 * panel list. The panel's device is the master DSI device.
 		 */
-		ret = msm_dsi_host_register(slave_link_dsi->host, false);
+		ret = msm_dsi_host_register(slave_link_dsi->host);
 		if (ret)
 			return ret;
-		ret = msm_dsi_host_register(master_link_dsi->host, true);
+		ret = msm_dsi_host_register(master_link_dsi->host);
 		if (ret)
 			return ret;
 
@@ -106,13 +104,11 @@ static int dsi_mgr_setup_components(int id)
 					MSM_DSI_PHY_MASTER);
 		msm_dsi_phy_set_usecase(clk_slave_dsi->phy,
 					MSM_DSI_PHY_SLAVE);
-		ret = msm_dsi_host_set_src_pll(msm_dsi->host, clk_master_dsi->phy);
-		if (ret)
-			return ret;
-		ret = msm_dsi_host_set_src_pll(other_dsi->host, clk_master_dsi->phy);
+		msm_dsi_host_set_phy_mode(msm_dsi->host, msm_dsi->phy);
+		msm_dsi_host_set_phy_mode(other_dsi->host, other_dsi->phy);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int enable_phy(struct msm_dsi *msm_dsi,
@@ -647,23 +643,6 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 fail:
 	connector->funcs->destroy(msm_dsi->connector);
 	return ERR_PTR(ret);
-}
-
-bool msm_dsi_manager_validate_current_config(u8 id)
-{
-	bool is_bonded_dsi = IS_BONDED_DSI();
-
-	/*
-	 * For bonded DSI, we only have one drm panel. For this
-	 * use case, we register only one bridge/connector.
-	 * Skip bridge/connector initialisation if it is
-	 * slave-DSI for bonded DSI configuration.
-	 */
-	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id)) {
-		DBG("Skip bridge registration for slave DSI->id: %d\n", id);
-		return false;
-	}
-	return true;
 }
 
 /* initialize bridge */

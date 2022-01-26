@@ -946,7 +946,6 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
  * layer, invoke 'done' on completion
  *
  * @cmd: pointer to scsi command object
- * @done: function pointer to be invoked on completion
  *
  * Returns 1 if the adapter (host) is busy, else returns 0. One
  * reason for an adapter to be busy is that the number
@@ -959,7 +958,7 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
  * Locks: struct Scsi_Host::host_lock held on entry (with "irqsave")
  *        and is expected to be held on return.
  *
- **/
+ */
 static int dc395x_queue_command_lck(struct scsi_cmnd *cmd)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;

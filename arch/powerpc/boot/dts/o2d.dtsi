@@ -34,12 +34,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			cell-index = <0>;
-
-			spidev@0 {
-				compatible = "spidev";
-				spi-max-frequency = <250000>;
-				reg = <0>;
-			};
 		};
 
 		psc@2200 {		// PSC2

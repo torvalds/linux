@@ -23,7 +23,7 @@
 #include <linux/poll.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include "comedidev.h"
+#include <linux/comedi/comedidev.h>
 #include <linux/cdev.h>
 
 #include <linux/io.h>

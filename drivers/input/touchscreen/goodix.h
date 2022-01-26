@@ -76,6 +76,7 @@ struct goodix_chip_data {
 struct goodix_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
+	struct input_dev *input_pen;
 	const struct goodix_chip_data *chip;
 	const char *firmware_name;
 	struct touchscreen_properties prop;
@@ -87,6 +88,7 @@ struct goodix_ts_data {
 	struct gpio_desc *gpiod_rst;
 	int gpio_count;
 	int gpio_int_idx;
+	enum gpiod_flags gpiod_rst_flags;
 	char id[GOODIX_ID_MAX_LEN + 1];
 	char cfg_name[64];
 	u16 version;

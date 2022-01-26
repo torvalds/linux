@@ -126,85 +126,9 @@ void ath11k_debugfs_sta_add_tx_stats(struct ath11k_sta *arsta,
 }
 
 void ath11k_debugfs_sta_update_txcompl(struct ath11k *ar,
-				       struct sk_buff *msdu,
 				       struct hal_tx_status *ts)
 {
-	struct ath11k_base *ab = ar->ab;
-	struct ath11k_per_peer_tx_stats *peer_stats = &ar->cached_stats;
-	enum hal_tx_rate_stats_pkt_type pkt_type;
-	enum hal_tx_rate_stats_sgi sgi;
-	enum hal_tx_rate_stats_bw bw;
-	struct ath11k_peer *peer;
-	struct ath11k_sta *arsta;
-	struct ieee80211_sta *sta;
-	u16 rate;
-	u8 rate_idx = 0;
-	int ret;
-	u8 mcs;
-
-	rcu_read_lock();
-	spin_lock_bh(&ab->base_lock);
-	peer = ath11k_peer_find_by_id(ab, ts->peer_id);
-	if (!peer || !peer->sta) {
-		ath11k_warn(ab, "failed to find the peer\n");
-		spin_unlock_bh(&ab->base_lock);
-		rcu_read_unlock();
-		return;
-	}
-
-	sta = peer->sta;
-	arsta = (struct ath11k_sta *)sta->drv_priv;
-
-	memset(&arsta->txrate, 0, sizeof(arsta->txrate));
-	pkt_type = FIELD_GET(HAL_TX_RATE_STATS_INFO0_PKT_TYPE,
-			     ts->rate_stats);
-	mcs = FIELD_GET(HAL_TX_RATE_STATS_INFO0_MCS,
-			ts->rate_stats);
-	sgi = FIELD_GET(HAL_TX_RATE_STATS_INFO0_SGI,
-			ts->rate_stats);
-	bw = FIELD_GET(HAL_TX_RATE_STATS_INFO0_BW, ts->rate_stats);
-
-	if (pkt_type == HAL_TX_RATE_STATS_PKT_TYPE_11A ||
-	    pkt_type == HAL_TX_RATE_STATS_PKT_TYPE_11B) {
-		ret = ath11k_mac_hw_ratecode_to_legacy_rate(mcs,
-							    pkt_type,
-							    &rate_idx,
-							    &rate);
-		if (ret < 0)
-			goto err_out;
-		arsta->txrate.legacy = rate;
-	} else if (pkt_type == HAL_TX_RATE_STATS_PKT_TYPE_11N) {
-		if (mcs > 7) {
-			ath11k_warn(ab, "Invalid HT mcs index %d\n", mcs);
-			goto err_out;
-		}
-
-		arsta->txrate.mcs = mcs + 8 * (arsta->last_txrate.nss - 1);
-		arsta->txrate.flags = RATE_INFO_FLAGS_MCS;
-		if (sgi)
-			arsta->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (pkt_type == HAL_TX_RATE_STATS_PKT_TYPE_11AC) {
-		if (mcs > 9) {
-			ath11k_warn(ab, "Invalid VHT mcs index %d\n", mcs);
-			goto err_out;
-		}
-
-		arsta->txrate.mcs = mcs;
-		arsta->txrate.flags = RATE_INFO_FLAGS_VHT_MCS;
-		if (sgi)
-			arsta->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (pkt_type == HAL_TX_RATE_STATS_PKT_TYPE_11AX) {
-		/* TODO */
-	}
-
-	arsta->txrate.nss = arsta->last_txrate.nss;
-	arsta->txrate.bw = ath11k_mac_bw_to_mac80211_bw(bw);
-
-	ath11k_debugfs_sta_add_tx_stats(arsta, peer_stats, rate_idx);
-
-err_out:
-	spin_unlock_bh(&ab->base_lock);
-	rcu_read_unlock();
+	ath11k_dp_tx_update_txcompl(ar, ts);
 }
 
 static ssize_t ath11k_dbg_sta_dump_tx_stats(struct file *file,

@@ -1895,6 +1895,44 @@ static const struct spmi_regulator_data pm8941_regulators[] = {
 	{ }
 };
 
+static const struct spmi_regulator_data pm8226_regulators[] = {
+	{ "s1", 0x1400, "vdd_s1", },
+	{ "s2", 0x1700, "vdd_s2", },
+	{ "s3", 0x1a00, "vdd_s3", },
+	{ "s4", 0x1d00, "vdd_s4", },
+	{ "s5", 0x2000, "vdd_s5", },
+	{ "l1", 0x4000, "vdd_l1_l2_l4_l5", },
+	{ "l2", 0x4100, "vdd_l1_l2_l4_l5", },
+	{ "l3", 0x4200, "vdd_l3_l24_l26", },
+	{ "l4", 0x4300, "vdd_l1_l2_l4_l5", },
+	{ "l5", 0x4400, "vdd_l1_l2_l4_l5", },
+	{ "l6", 0x4500, "vdd_l6_l7_l8_l9_l27", },
+	{ "l7", 0x4600, "vdd_l6_l7_l8_l9_l27", },
+	{ "l8", 0x4700, "vdd_l6_l7_l8_l9_l27", },
+	{ "l9", 0x4800, "vdd_l6_l7_l8_l9_l27", },
+	{ "l10", 0x4900, "vdd_l10_l11_l13", },
+	{ "l11", 0x4a00, "vdd_l10_l11_l13", },
+	{ "l12", 0x4b00, "vdd_l12_l14", },
+	{ "l13", 0x4c00, "vdd_l10_l11_l13", },
+	{ "l14", 0x4d00, "vdd_l12_l14", },
+	{ "l15", 0x4e00, "vdd_l15_l16_l17_l18", },
+	{ "l16", 0x4f00, "vdd_l15_l16_l17_l18", },
+	{ "l17", 0x5000, "vdd_l15_l16_l17_l18", },
+	{ "l18", 0x5100, "vdd_l15_l16_l17_l18", },
+	{ "l19", 0x5200, "vdd_l19_l20_l21_l22_l23_l28", },
+	{ "l20", 0x5300, "vdd_l19_l20_l21_l22_l23_l28", },
+	{ "l21", 0x5400, "vdd_l19_l20_l21_l22_l23_l28", },
+	{ "l22", 0x5500, "vdd_l19_l20_l21_l22_l23_l28", },
+	{ "l23", 0x5600, "vdd_l19_l20_l21_l22_l23_l28", },
+	{ "l24", 0x5700, "vdd_l3_l24_l26", },
+	{ "l25", 0x5800, "vdd_l25", },
+	{ "l26", 0x5900, "vdd_l3_l24_l26", },
+	{ "l27", 0x5a00, "vdd_l6_l7_l8_l9_l27", },
+	{ "l28", 0x5b00, "vdd_l19_l20_l21_l22_l23_l28", },
+	{ "lvs1", 0x8000, "vdd_lvs1", },
+	{ }
+};
+
 static const struct spmi_regulator_data pm8841_regulators[] = {
 	{ "s1", 0x1400, "vdd_s1", },
 	{ "s2", 0x1700, "vdd_s2", NULL, 0x1c08 },
@@ -2095,6 +2133,7 @@ static const struct spmi_regulator_data pms405_regulators[] = {
 static const struct of_device_id qcom_spmi_regulator_match[] = {
 	{ .compatible = "qcom,pm8004-regulators", .data = &pm8004_regulators },
 	{ .compatible = "qcom,pm8005-regulators", .data = &pm8005_regulators },
+	{ .compatible = "qcom,pm8226-regulators", .data = &pm8226_regulators },
 	{ .compatible = "qcom,pm8841-regulators", .data = &pm8841_regulators },
 	{ .compatible = "qcom,pm8916-regulators", .data = &pm8916_regulators },
 	{ .compatible = "qcom,pm8941-regulators", .data = &pm8941_regulators },

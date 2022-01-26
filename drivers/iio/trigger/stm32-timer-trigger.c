@@ -696,9 +696,9 @@ static const struct iio_chan_spec_ext_info stm32_trigger_count_info[] = {
 		.write = stm32_count_set_preset
 	},
 	IIO_ENUM("enable_mode", IIO_SEPARATE, &stm32_enable_mode_enum),
-	IIO_ENUM_AVAILABLE("enable_mode", &stm32_enable_mode_enum),
+	IIO_ENUM_AVAILABLE("enable_mode", IIO_SHARED_BY_TYPE, &stm32_enable_mode_enum),
 	IIO_ENUM("trigger_mode", IIO_SEPARATE, &stm32_trigger_mode_enum),
-	IIO_ENUM_AVAILABLE("trigger_mode", &stm32_trigger_mode_enum),
+	IIO_ENUM_AVAILABLE("trigger_mode", IIO_SHARED_BY_TYPE, &stm32_trigger_mode_enum),
 	{}
 };
 
@@ -912,6 +912,6 @@ static struct platform_driver stm32_timer_trigger_driver = {
 };
 module_platform_driver(stm32_timer_trigger_driver);
 
-MODULE_ALIAS("platform: stm32-timer-trigger");
+MODULE_ALIAS("platform:stm32-timer-trigger");
 MODULE_DESCRIPTION("STMicroelectronics STM32 Timer Trigger driver");
 MODULE_LICENSE("GPL v2");

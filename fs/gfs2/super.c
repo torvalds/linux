@@ -1244,11 +1244,9 @@ static enum dinode_demise evict_should_delete(struct inode *inode,
 	if (ret)
 		return SHOULD_NOT_DELETE_DINODE;
 
-	if (test_bit(GLF_INSTANTIATE_NEEDED, &ip->i_gl->gl_flags)) {
-		ret = gfs2_instantiate(gh);
-		if (ret)
-			return SHOULD_NOT_DELETE_DINODE;
-	}
+	ret = gfs2_instantiate(gh);
+	if (ret)
+		return SHOULD_NOT_DELETE_DINODE;
 
 	/*
 	 * The inode may have been recreated in the meantime.
@@ -1402,13 +1400,6 @@ out:
 	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);
-	if (ip->i_gl) {
-		glock_clear_object(ip->i_gl, ip);
-		wait_on_bit_io(&ip->i_flags, GIF_GLOP_PENDING, TASK_UNINTERRUPTIBLE);
-		gfs2_glock_add_to_lru(ip->i_gl);
-		gfs2_glock_put_eventually(ip->i_gl);
-		ip->i_gl = NULL;
-	}
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 
@@ -1420,6 +1411,13 @@ out:
 		gfs2_glock_hold(gl);
 		gfs2_holder_uninit(&ip->i_iopen_gh);
 		gfs2_glock_put_eventually(gl);
+	}
+	if (ip->i_gl) {
+		glock_clear_object(ip->i_gl, ip);
+		wait_on_bit_io(&ip->i_flags, GIF_GLOP_PENDING, TASK_UNINTERRUPTIBLE);
+		gfs2_glock_add_to_lru(ip->i_gl);
+		gfs2_glock_put_eventually(ip->i_gl);
+		ip->i_gl = NULL;
 	}
 }
 

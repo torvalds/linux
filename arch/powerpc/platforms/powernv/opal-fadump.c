@@ -112,7 +112,7 @@ static void opal_fadump_update_config(struct fw_dump *fadump_conf,
  * This function is called in the capture kernel to get configuration details
  * from metadata setup by the first kernel.
  */
-static void opal_fadump_get_config(struct fw_dump *fadump_conf,
+static void __init opal_fadump_get_config(struct fw_dump *fadump_conf,
 				   const struct opal_fadump_mem_struct *fdm)
 {
 	unsigned long base, size, last_end, hole_size;

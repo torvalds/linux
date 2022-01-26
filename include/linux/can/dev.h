@@ -64,12 +64,14 @@ struct can_priv {
 	struct gpio_desc *termination_gpio;
 	u16 termination_gpio_ohms[CAN_TERMINATION_GPIO_MAX];
 
+	unsigned int echo_skb_max;
+	struct sk_buff **echo_skb;
+
 	enum can_state state;
 
 	/* CAN controller features - see include/uapi/linux/can/netlink.h */
 	u32 ctrlmode;		/* current options setting */
 	u32 ctrlmode_supported;	/* options that can be modified by netlink */
-	u32 ctrlmode_static;	/* static enabled options for driver/hardware */
 
 	int restart_ms;
 	struct delayed_work restart_work;
@@ -83,9 +85,6 @@ struct can_priv {
 	int (*do_get_berr_counter)(const struct net_device *dev,
 				   struct can_berr_counter *bec);
 	int (*do_get_auto_tdcv)(const struct net_device *dev, u32 *tdcv);
-
-	unsigned int echo_skb_max;
-	struct sk_buff **echo_skb;
 
 #ifdef CONFIG_CAN_LEDS
 	struct led_trigger *tx_led_trig;
@@ -132,18 +131,29 @@ static inline s32 can_get_relative_tdco(const struct can_priv *priv)
 }
 
 /* helper to define static CAN controller features at device creation time */
-static inline void can_set_static_ctrlmode(struct net_device *dev,
-					   u32 static_mode)
+static inline int __must_check can_set_static_ctrlmode(struct net_device *dev,
+						       u32 static_mode)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
 	/* alloc_candev() succeeded => netdev_priv() is valid at this point */
+	if (priv->ctrlmode_supported & static_mode) {
+		netdev_warn(dev,
+			    "Controller features can not be supported and static at the same time\n");
+		return -EINVAL;
+	}
 	priv->ctrlmode = static_mode;
-	priv->ctrlmode_static = static_mode;
 
 	/* override MTU which was set by default in can_setup()? */
 	if (static_mode & CAN_CTRLMODE_FD)
 		dev->mtu = CANFD_MTU;
+
+	return 0;
+}
+
+static inline u32 can_get_static_ctrlmode(struct can_priv *priv)
+{
+	return priv->ctrlmode & ~priv->ctrlmode_supported;
 }
 
 void can_setup(struct net_device *dev);

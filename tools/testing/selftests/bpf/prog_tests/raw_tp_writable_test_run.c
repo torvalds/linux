@@ -17,15 +17,15 @@ void serial_test_raw_tp_writable_test_run(void)
 		BPF_EXIT_INSN(),
 	};
 
-	struct bpf_load_program_attr load_attr = {
-		.prog_type = BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE,
-		.license = "GPL v2",
-		.insns = trace_program,
-		.insns_cnt = sizeof(trace_program) / sizeof(struct bpf_insn),
+	LIBBPF_OPTS(bpf_prog_load_opts, trace_opts,
 		.log_level = 2,
-	};
+		.log_buf = error,
+		.log_size = sizeof(error),
+	);
 
-	int bpf_fd = bpf_load_program_xattr(&load_attr, error, sizeof(error));
+	int bpf_fd = bpf_prog_load(BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE, NULL, "GPL v2",
+				   trace_program, sizeof(trace_program) / sizeof(struct bpf_insn),
+				   &trace_opts);
 	if (CHECK(bpf_fd < 0, "bpf_raw_tracepoint_writable loaded",
 		  "failed: %d errno %d\n", bpf_fd, errno))
 		return;
@@ -35,15 +35,14 @@ void serial_test_raw_tp_writable_test_run(void)
 		BPF_EXIT_INSN(),
 	};
 
-	struct bpf_load_program_attr skb_load_attr = {
-		.prog_type = BPF_PROG_TYPE_SOCKET_FILTER,
-		.license = "GPL v2",
-		.insns = skb_program,
-		.insns_cnt = sizeof(skb_program) / sizeof(struct bpf_insn),
-	};
+	LIBBPF_OPTS(bpf_prog_load_opts, skb_opts,
+		.log_buf = error,
+		.log_size = sizeof(error),
+	);
 
-	int filter_fd =
-		bpf_load_program_xattr(&skb_load_attr, error, sizeof(error));
+	int filter_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL v2",
+				      skb_program, sizeof(skb_program) / sizeof(struct bpf_insn),
+				      &skb_opts);
 	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d errno %d\n",
 		  filter_fd, errno))
 		goto out_bpffd;

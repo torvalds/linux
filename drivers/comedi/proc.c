@@ -13,7 +13,7 @@
  * was cool.
  */
 
-#include "comedidev.h"
+#include <linux/comedi/comedidev.h>
 #include "comedi_internal.h"
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

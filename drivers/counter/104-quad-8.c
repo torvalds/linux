@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/isa.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -44,7 +45,6 @@ MODULE_PARM_DESC(irq, "ACCES 104-QUAD-8 interrupt line numbers");
  * @ab_enable:		array of A and B inputs enable configurations
  * @preset_enable:	array of set_to_preset_on_index attribute configurations
  * @irq_trigger:	array of current IRQ trigger function configurations
- * @next_irq_trigger:	array of next IRQ trigger function configurations
  * @synchronous_mode:	array of index function synchronous mode configurations
  * @index_polarity:	array of index function polarity configurations
  * @cable_fault_enable:	differential encoder cable status enable configurations
@@ -52,7 +52,6 @@ MODULE_PARM_DESC(irq, "ACCES 104-QUAD-8 interrupt line numbers");
  */
 struct quad8 {
 	spinlock_t lock;
-	struct counter_device counter;
 	unsigned int fck_prescaler[QUAD8_NUM_COUNTERS];
 	unsigned int preset[QUAD8_NUM_COUNTERS];
 	unsigned int count_mode[QUAD8_NUM_COUNTERS];
@@ -61,7 +60,6 @@ struct quad8 {
 	unsigned int ab_enable[QUAD8_NUM_COUNTERS];
 	unsigned int preset_enable[QUAD8_NUM_COUNTERS];
 	unsigned int irq_trigger[QUAD8_NUM_COUNTERS];
-	unsigned int next_irq_trigger[QUAD8_NUM_COUNTERS];
 	unsigned int synchronous_mode[QUAD8_NUM_COUNTERS];
 	unsigned int index_polarity[QUAD8_NUM_COUNTERS];
 	unsigned int cable_fault_enable;
@@ -113,7 +111,7 @@ static int quad8_signal_read(struct counter_device *counter,
 			     struct counter_signal *signal,
 			     enum counter_signal_level *level)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 	unsigned int state;
 
 	/* Only Index signal levels can be read */
@@ -131,7 +129,7 @@ static int quad8_signal_read(struct counter_device *counter,
 static int quad8_count_read(struct counter_device *counter,
 			    struct counter_count *count, u64 *val)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const int base_offset = priv->base + 2 * count->id;
 	unsigned int flags;
 	unsigned int borrow;
@@ -163,7 +161,7 @@ static int quad8_count_read(struct counter_device *counter,
 static int quad8_count_write(struct counter_device *counter,
 			     struct counter_count *count, u64 val)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const int base_offset = priv->base + 2 * count->id;
 	unsigned long irqflags;
 	int i;
@@ -213,7 +211,7 @@ static int quad8_function_read(struct counter_device *counter,
 			       struct counter_count *count,
 			       enum counter_function *function)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const int id = count->id;
 	unsigned long irqflags;
 
@@ -243,7 +241,7 @@ static int quad8_function_write(struct counter_device *counter,
 				struct counter_count *count,
 				enum counter_function function)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const int id = count->id;
 	unsigned int *const quadrature_mode = priv->quadrature_mode + id;
 	unsigned int *const scale = priv->quadrature_scale + id;
@@ -305,7 +303,7 @@ static int quad8_direction_read(struct counter_device *counter,
 				struct counter_count *count,
 				enum counter_count_direction *direction)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 	unsigned int ud_flag;
 	const unsigned int flag_addr = priv->base + 2 * count->id + 1;
 
@@ -335,7 +333,7 @@ static int quad8_action_read(struct counter_device *counter,
 			     struct counter_synapse *synapse,
 			     enum counter_synapse_action *action)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	int err;
 	enum counter_function function;
 	const size_t signal_a_id = count->synapses[0].signal->id;
@@ -390,7 +388,6 @@ static int quad8_action_read(struct counter_device *counter,
 }
 
 enum {
-	QUAD8_EVENT_NONE = -1,
 	QUAD8_EVENT_CARRY = 0,
 	QUAD8_EVENT_COMPARE = 1,
 	QUAD8_EVENT_CARRY_BORROW = 2,
@@ -399,37 +396,52 @@ enum {
 
 static int quad8_events_configure(struct counter_device *counter)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	unsigned long irq_enabled = 0;
 	unsigned long irqflags;
-	size_t channel;
+	struct counter_event_node *event_node;
+	unsigned int next_irq_trigger;
 	unsigned long ior_cfg;
 	unsigned long base_offset;
 
 	spin_lock_irqsave(&priv->lock, irqflags);
 
-	/* Enable interrupts for the requested channels, disable for the rest */
-	for (channel = 0; channel < QUAD8_NUM_COUNTERS; channel++) {
-		if (priv->next_irq_trigger[channel] == QUAD8_EVENT_NONE)
-			continue;
-
-		if (priv->irq_trigger[channel] != priv->next_irq_trigger[channel]) {
-			/* Save new IRQ function configuration */
-			priv->irq_trigger[channel] = priv->next_irq_trigger[channel];
-
-			/* Load configuration to I/O Control Register */
-			ior_cfg = priv->ab_enable[channel] |
-				  priv->preset_enable[channel] << 1 |
-				  priv->irq_trigger[channel] << 3;
-			base_offset = priv->base + 2 * channel + 1;
-			outb(QUAD8_CTR_IOR | ior_cfg, base_offset);
+	list_for_each_entry(event_node, &counter->events_list, l) {
+		switch (event_node->event) {
+		case COUNTER_EVENT_OVERFLOW:
+			next_irq_trigger = QUAD8_EVENT_CARRY;
+			break;
+		case COUNTER_EVENT_THRESHOLD:
+			next_irq_trigger = QUAD8_EVENT_COMPARE;
+			break;
+		case COUNTER_EVENT_OVERFLOW_UNDERFLOW:
+			next_irq_trigger = QUAD8_EVENT_CARRY_BORROW;
+			break;
+		case COUNTER_EVENT_INDEX:
+			next_irq_trigger = QUAD8_EVENT_INDEX;
+			break;
+		default:
+			/* should never reach this path */
+			spin_unlock_irqrestore(&priv->lock, irqflags);
+			return -EINVAL;
 		}
 
-		/* Reset next IRQ trigger function configuration */
-		priv->next_irq_trigger[channel] = QUAD8_EVENT_NONE;
+		/* Skip configuration if it is the same as previously set */
+		if (priv->irq_trigger[event_node->channel] == next_irq_trigger)
+			continue;
+
+		/* Save new IRQ function configuration */
+		priv->irq_trigger[event_node->channel] = next_irq_trigger;
+
+		/* Load configuration to I/O Control Register */
+		ior_cfg = priv->ab_enable[event_node->channel] |
+			  priv->preset_enable[event_node->channel] << 1 |
+			  priv->irq_trigger[event_node->channel] << 3;
+		base_offset = priv->base + 2 * event_node->channel + 1;
+		outb(QUAD8_CTR_IOR | ior_cfg, base_offset);
 
 		/* Enable IRQ line */
-		irq_enabled |= BIT(channel);
+		irq_enabled |= BIT(event_node->channel);
 	}
 
 	outb(irq_enabled, priv->base + QUAD8_REG_INDEX_INTERRUPT);
@@ -442,35 +454,20 @@ static int quad8_events_configure(struct counter_device *counter)
 static int quad8_watch_validate(struct counter_device *counter,
 				const struct counter_watch *watch)
 {
-	struct quad8 *const priv = counter->priv;
+	struct counter_event_node *event_node;
 
 	if (watch->channel > QUAD8_NUM_COUNTERS - 1)
 		return -EINVAL;
 
 	switch (watch->event) {
 	case COUNTER_EVENT_OVERFLOW:
-		if (priv->next_irq_trigger[watch->channel] == QUAD8_EVENT_NONE)
-			priv->next_irq_trigger[watch->channel] = QUAD8_EVENT_CARRY;
-		else if (priv->next_irq_trigger[watch->channel] != QUAD8_EVENT_CARRY)
-			return -EINVAL;
-		return 0;
 	case COUNTER_EVENT_THRESHOLD:
-		if (priv->next_irq_trigger[watch->channel] == QUAD8_EVENT_NONE)
-			priv->next_irq_trigger[watch->channel] = QUAD8_EVENT_COMPARE;
-		else if (priv->next_irq_trigger[watch->channel] != QUAD8_EVENT_COMPARE)
-			return -EINVAL;
-		return 0;
 	case COUNTER_EVENT_OVERFLOW_UNDERFLOW:
-		if (priv->next_irq_trigger[watch->channel] == QUAD8_EVENT_NONE)
-			priv->next_irq_trigger[watch->channel] = QUAD8_EVENT_CARRY_BORROW;
-		else if (priv->next_irq_trigger[watch->channel] != QUAD8_EVENT_CARRY_BORROW)
-			return -EINVAL;
-		return 0;
 	case COUNTER_EVENT_INDEX:
-		if (priv->next_irq_trigger[watch->channel] == QUAD8_EVENT_NONE)
-			priv->next_irq_trigger[watch->channel] = QUAD8_EVENT_INDEX;
-		else if (priv->next_irq_trigger[watch->channel] != QUAD8_EVENT_INDEX)
-			return -EINVAL;
+		list_for_each_entry(event_node, &counter->next_events_list, l)
+			if (watch->channel == event_node->channel &&
+				watch->event != event_node->event)
+				return -EINVAL;
 		return 0;
 	default:
 		return -EINVAL;
@@ -497,7 +494,7 @@ static int quad8_index_polarity_get(struct counter_device *counter,
 				    struct counter_signal *signal,
 				    u32 *index_polarity)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id - 16;
 
 	*index_polarity = priv->index_polarity[channel_id];
@@ -509,7 +506,7 @@ static int quad8_index_polarity_set(struct counter_device *counter,
 				    struct counter_signal *signal,
 				    u32 index_polarity)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id - 16;
 	const int base_offset = priv->base + 2 * channel_id + 1;
 	unsigned long irqflags;
@@ -538,7 +535,7 @@ static int quad8_synchronous_mode_get(struct counter_device *counter,
 				      struct counter_signal *signal,
 				      u32 *synchronous_mode)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id - 16;
 
 	*synchronous_mode = priv->synchronous_mode[channel_id];
@@ -550,7 +547,7 @@ static int quad8_synchronous_mode_set(struct counter_device *counter,
 				      struct counter_signal *signal,
 				      u32 synchronous_mode)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id - 16;
 	const int base_offset = priv->base + 2 * channel_id + 1;
 	unsigned long irqflags;
@@ -589,7 +586,7 @@ static int quad8_count_mode_read(struct counter_device *counter,
 				 struct counter_count *count,
 				 enum counter_count_mode *cnt_mode)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 
 	/* Map 104-QUAD-8 count mode to Generic Counter count mode */
 	switch (priv->count_mode[count->id]) {
@@ -614,7 +611,7 @@ static int quad8_count_mode_write(struct counter_device *counter,
 				  struct counter_count *count,
 				  enum counter_count_mode cnt_mode)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	unsigned int count_mode;
 	unsigned int mode_cfg;
 	const int base_offset = priv->base + 2 * count->id + 1;
@@ -661,7 +658,7 @@ static int quad8_count_mode_write(struct counter_device *counter,
 static int quad8_count_enable_read(struct counter_device *counter,
 				   struct counter_count *count, u8 *enable)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 
 	*enable = priv->ab_enable[count->id];
 
@@ -671,7 +668,7 @@ static int quad8_count_enable_read(struct counter_device *counter,
 static int quad8_count_enable_write(struct counter_device *counter,
 				    struct counter_count *count, u8 enable)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const int base_offset = priv->base + 2 * count->id;
 	unsigned long irqflags;
 	unsigned int ior_cfg;
@@ -699,7 +696,7 @@ static const char *const quad8_noise_error_states[] = {
 static int quad8_error_noise_get(struct counter_device *counter,
 				 struct counter_count *count, u32 *noise_error)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 	const int base_offset = priv->base + 2 * count->id + 1;
 
 	*noise_error = !!(inb(base_offset) & QUAD8_FLAG_E);
@@ -710,7 +707,7 @@ static int quad8_error_noise_get(struct counter_device *counter,
 static int quad8_count_preset_read(struct counter_device *counter,
 				   struct counter_count *count, u64 *preset)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 
 	*preset = priv->preset[count->id];
 
@@ -736,7 +733,7 @@ static void quad8_preset_register_set(struct quad8 *const priv, const int id,
 static int quad8_count_preset_write(struct counter_device *counter,
 				    struct counter_count *count, u64 preset)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	unsigned long irqflags;
 
 	/* Only 24-bit values are supported */
@@ -755,7 +752,7 @@ static int quad8_count_preset_write(struct counter_device *counter,
 static int quad8_count_ceiling_read(struct counter_device *counter,
 				    struct counter_count *count, u64 *ceiling)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&priv->lock, irqflags);
@@ -780,7 +777,7 @@ static int quad8_count_ceiling_read(struct counter_device *counter,
 static int quad8_count_ceiling_write(struct counter_device *counter,
 				     struct counter_count *count, u64 ceiling)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	unsigned long irqflags;
 
 	/* Only 24-bit values are supported */
@@ -807,7 +804,7 @@ static int quad8_count_preset_enable_read(struct counter_device *counter,
 					  struct counter_count *count,
 					  u8 *preset_enable)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 
 	*preset_enable = !priv->preset_enable[count->id];
 
@@ -818,7 +815,7 @@ static int quad8_count_preset_enable_write(struct counter_device *counter,
 					   struct counter_count *count,
 					   u8 preset_enable)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const int base_offset = priv->base + 2 * count->id + 1;
 	unsigned long irqflags;
 	unsigned int ior_cfg;
@@ -845,7 +842,7 @@ static int quad8_signal_cable_fault_read(struct counter_device *counter,
 					 struct counter_signal *signal,
 					 u8 *cable_fault)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id / 2;
 	unsigned long irqflags;
 	bool disabled;
@@ -875,7 +872,7 @@ static int quad8_signal_cable_fault_enable_read(struct counter_device *counter,
 						struct counter_signal *signal,
 						u8 *enable)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id / 2;
 
 	*enable = !!(priv->cable_fault_enable & BIT(channel_id));
@@ -887,7 +884,7 @@ static int quad8_signal_cable_fault_enable_write(struct counter_device *counter,
 						 struct counter_signal *signal,
 						 u8 enable)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id / 2;
 	unsigned long irqflags;
 	unsigned int cable_fault_enable;
@@ -913,7 +910,7 @@ static int quad8_signal_fck_prescaler_read(struct counter_device *counter,
 					   struct counter_signal *signal,
 					   u8 *prescaler)
 {
-	const struct quad8 *const priv = counter->priv;
+	const struct quad8 *const priv = counter_priv(counter);
 
 	*prescaler = priv->fck_prescaler[signal->id / 2];
 
@@ -924,7 +921,7 @@ static int quad8_signal_fck_prescaler_write(struct counter_device *counter,
 					    struct counter_signal *signal,
 					    u8 prescaler)
 {
-	struct quad8 *const priv = counter->priv;
+	struct quad8 *const priv = counter_priv(counter);
 	const size_t channel_id = signal->id / 2;
 	const int base_offset = priv->base + 2 * channel_id;
 	unsigned long irqflags;
@@ -1085,7 +1082,8 @@ static struct counter_count quad8_counts[] = {
 
 static irqreturn_t quad8_irq_handler(int irq, void *private)
 {
-	struct quad8 *const priv = private;
+	struct counter_device *counter = private;
+	struct quad8 *const priv = counter_priv(counter);
 	const unsigned long base = priv->base;
 	unsigned long irq_status;
 	unsigned long channel;
@@ -1116,7 +1114,7 @@ static irqreturn_t quad8_irq_handler(int irq, void *private)
 			continue;
 		}
 
-		counter_push_event(&priv->counter, event, channel);
+		counter_push_event(counter, event, channel);
 	}
 
 	/* Clear pending interrupts on device */
@@ -1127,6 +1125,7 @@ static irqreturn_t quad8_irq_handler(int irq, void *private)
 
 static int quad8_probe(struct device *dev, unsigned int id)
 {
+	struct counter_device *counter;
 	struct quad8 *priv;
 	int i, j;
 	unsigned int base_offset;
@@ -1138,19 +1137,19 @@ static int quad8_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
+	counter = devm_counter_alloc(dev, sizeof(*priv));
+	if (!counter)
 		return -ENOMEM;
+	priv = counter_priv(counter);
 
 	/* Initialize Counter device and driver data */
-	priv->counter.name = dev_name(dev);
-	priv->counter.parent = dev;
-	priv->counter.ops = &quad8_ops;
-	priv->counter.counts = quad8_counts;
-	priv->counter.num_counts = ARRAY_SIZE(quad8_counts);
-	priv->counter.signals = quad8_signals;
-	priv->counter.num_signals = ARRAY_SIZE(quad8_signals);
-	priv->counter.priv = priv;
+	counter->name = dev_name(dev);
+	counter->parent = dev;
+	counter->ops = &quad8_ops;
+	counter->counts = quad8_counts;
+	counter->num_counts = ARRAY_SIZE(quad8_counts);
+	counter->signals = quad8_signals;
+	counter->num_signals = ARRAY_SIZE(quad8_signals);
 	priv->base = base[id];
 
 	spin_lock_init(&priv->lock);
@@ -1183,20 +1182,22 @@ static int quad8_probe(struct device *dev, unsigned int id)
 		outb(QUAD8_CTR_IOR, base_offset + 1);
 		/* Disable index function; negative index polarity */
 		outb(QUAD8_CTR_IDR, base_offset + 1);
-		/* Initialize next IRQ trigger function configuration */
-		priv->next_irq_trigger[i] = QUAD8_EVENT_NONE;
 	}
 	/* Disable Differential Encoder Cable Status for all channels */
 	outb(0xFF, base[id] + QUAD8_DIFF_ENCODER_CABLE_STATUS);
 	/* Enable all counters and enable interrupt function */
 	outb(QUAD8_CHAN_OP_ENABLE_INTERRUPT_FUNC, base[id] + QUAD8_REG_CHAN_OP);
 
-	err = devm_request_irq(dev, irq[id], quad8_irq_handler, IRQF_SHARED,
-			       priv->counter.name, priv);
+	err = devm_request_irq(&counter->dev, irq[id], quad8_irq_handler,
+			       IRQF_SHARED, counter->name, counter);
 	if (err)
 		return err;
 
-	return devm_counter_register(dev, &priv->counter);
+	err = devm_counter_add(dev, counter);
+	if (err < 0)
+		return dev_err_probe(dev, err, "Failed to add counter\n");
+
+	return 0;
 }
 
 static struct isa_driver quad8_driver = {

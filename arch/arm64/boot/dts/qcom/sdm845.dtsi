@@ -1078,7 +1078,7 @@
 		};
 
 		qfprom@784000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,sdm845-qfprom", "qcom,qfprom";
 			reg = <0 0x00784000 0 0x8ff>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -4415,7 +4415,6 @@
 
 		gpu: gpu@5000000 {
 			compatible = "qcom,adreno-630.2", "qcom,adreno";
-			#stream-id-cells = <16>;
 
 			reg = <0 0x5000000 0 0x40000>, <0 0x509e000 0 0x10>;
 			reg-names = "kgsl_3d0_reg_memory", "cx_mem";

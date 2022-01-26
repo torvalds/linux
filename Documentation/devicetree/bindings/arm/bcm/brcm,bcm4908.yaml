@@ -29,6 +29,7 @@ properties:
         items:
           - enum:
               - asus,gt-ac5300
+              - netgear,raxe500
           - const: brcm,bcm4908
 
       - description: BCM49408 based boards

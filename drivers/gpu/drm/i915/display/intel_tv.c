@@ -36,6 +36,7 @@
 
 #include "i915_drv.h"
 #include "intel_connector.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_hotplug.h"
@@ -924,8 +925,7 @@ intel_enable_tv(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
-	intel_wait_for_vblank(dev_priv,
-			      to_intel_crtc(pipe_config->uapi.crtc)->pipe);
+	intel_crtc_wait_for_next_vblank(to_intel_crtc(pipe_config->uapi.crtc));
 
 	intel_de_write(dev_priv, TV_CTL,
 		       intel_de_read(dev_priv, TV_CTL) | TV_ENC_ENABLE);
@@ -1618,7 +1618,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	intel_de_write(dev_priv, TV_DAC, tv_dac);
 	intel_de_posting_read(dev_priv, TV_DAC);
 
-	intel_wait_for_vblank(dev_priv, crtc->pipe);
+	intel_crtc_wait_for_next_vblank(crtc);
 
 	type = -1;
 	tv_dac = intel_de_read(dev_priv, TV_DAC);
@@ -1651,7 +1651,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	intel_de_posting_read(dev_priv, TV_CTL);
 
 	/* For unknown reasons the hw barfs if we don't do this vblank wait. */
-	intel_wait_for_vblank(dev_priv, crtc->pipe);
+	intel_crtc_wait_for_next_vblank(crtc);
 
 	/* Restore interrupt config */
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {

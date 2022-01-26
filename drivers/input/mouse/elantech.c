@@ -1588,7 +1588,13 @@ static const struct dmi_system_id no_hw_res_dmi_table[] = {
  */
 static int elantech_change_report_id(struct psmouse *psmouse)
 {
-	unsigned char param[2] = { 0x10, 0x03 };
+	/*
+	 * NOTE: the code is expecting to receive param[] as an array of 3
+	 * items (see __ps2_command()), even if in this case only 2 are
+	 * actually needed. Make sure the array size is 3 to avoid potential
+	 * stack out-of-bound accesses.
+	 */
+	unsigned char param[3] = { 0x10, 0x03 };
 
 	if (elantech_write_reg_params(psmouse, 0x7, param) ||
 	    elantech_read_reg_params(psmouse, 0x7, param) ||

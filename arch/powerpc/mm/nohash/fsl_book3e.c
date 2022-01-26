@@ -60,11 +60,6 @@ struct tlbcamrange {
 	phys_addr_t phys;
 } tlbcam_addrs[NUM_TLBCAMS];
 
-unsigned long tlbcam_sz(int idx)
-{
-	return tlbcam_addrs[idx].limit - tlbcam_addrs[idx].start + 1;
-}
-
 #ifdef CONFIG_FSL_BOOKE
 /*
  * Return PA for this VA if it is mapped by a CAM, or 0
@@ -262,6 +257,11 @@ void flush_instruction_cache(void)
 void __init MMU_init_hw(void)
 {
 	flush_instruction_cache();
+}
+
+static unsigned long __init tlbcam_sz(int idx)
+{
+	return tlbcam_addrs[idx].limit - tlbcam_addrs[idx].start + 1;
 }
 
 void __init adjust_total_lowmem(void)

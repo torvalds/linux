@@ -110,14 +110,14 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 	can_transceiver_phy->generic_phy = phy;
 
 	if (drvdata->flags & CAN_TRANSCEIVER_STB_PRESENT) {
-		standby_gpio = devm_gpiod_get(dev, "standby", GPIOD_OUT_HIGH);
+		standby_gpio = devm_gpiod_get_optional(dev, "standby", GPIOD_OUT_HIGH);
 		if (IS_ERR(standby_gpio))
 			return PTR_ERR(standby_gpio);
 		can_transceiver_phy->standby_gpio = standby_gpio;
 	}
 
 	if (drvdata->flags & CAN_TRANSCEIVER_EN_PRESENT) {
-		enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
+		enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_LOW);
 		if (IS_ERR(enable_gpio))
 			return PTR_ERR(enable_gpio);
 		can_transceiver_phy->enable_gpio = enable_gpio;

@@ -73,7 +73,7 @@ properties:
       does not specify it, the driver autodetects it.
     deprecated: true
 
-unevaluatedProperties: false
+additionalProperties: true
 
 required:
   - reg

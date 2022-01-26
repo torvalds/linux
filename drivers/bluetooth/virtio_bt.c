@@ -202,6 +202,9 @@ static void virtbt_rx_handle(struct virtio_bluetooth *vbt, struct sk_buff *skb)
 		hci_skb_pkt_type(skb) = pkt_type;
 		hci_recv_frame(vbt->hdev, skb);
 		break;
+	default:
+		kfree_skb(skb);
+		break;
 	}
 }
 
@@ -364,7 +367,7 @@ static void virtbt_remove(struct virtio_device *vdev)
 	struct hci_dev *hdev = vbt->hdev;
 
 	hci_unregister_dev(hdev);
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 
 	hci_free_dev(hdev);
 	vbt->hdev = NULL;

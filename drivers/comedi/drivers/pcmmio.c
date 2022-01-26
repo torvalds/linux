@@ -66,8 +66,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 /*
  * Register I/O map

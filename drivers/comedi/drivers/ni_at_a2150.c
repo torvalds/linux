@@ -39,11 +39,9 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-
-#include "../comedidev.h"
-
-#include "comedi_isadma.h"
-#include "comedi_8254.h"
+#include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8254.h>
+#include <linux/comedi/comedi_isadma.h>
 
 #define A2150_DMA_BUFFER_SIZE	0xff00	/*  size in bytes of dma buffer */
 

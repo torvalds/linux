@@ -41,7 +41,7 @@ enum {
 	PAGE_SHIFT_16M = 24U,
 };
 
-static unsigned long make_page_sizes(unsigned long a, unsigned long b)
+static unsigned long __init make_page_sizes(unsigned long a, unsigned long b)
 {
 	return (a << 56) | (b << 48);
 }
@@ -215,7 +215,7 @@ notrace void ps3_mm_vas_destroy(void)
 	}
 }
 
-static int ps3_mm_get_repository_highmem(struct mem_region *r)
+static int __init ps3_mm_get_repository_highmem(struct mem_region *r)
 {
 	int result;
 

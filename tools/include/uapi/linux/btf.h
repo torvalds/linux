@@ -43,7 +43,7 @@ struct btf_type {
 	 * "size" tells the size of the type it is describing.
 	 *
 	 * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
-	 * FUNC, FUNC_PROTO, VAR and DECL_TAG.
+	 * FUNC, FUNC_PROTO, VAR, DECL_TAG and TYPE_TAG.
 	 * "type" is a type_id referring to another type.
 	 */
 	union {
@@ -75,6 +75,7 @@ enum {
 	BTF_KIND_DATASEC	= 15,	/* Section	*/
 	BTF_KIND_FLOAT		= 16,	/* Floating point	*/
 	BTF_KIND_DECL_TAG	= 17,	/* Decl Tag */
+	BTF_KIND_TYPE_TAG	= 18,	/* Type Tag */
 
 	NR_BTF_KINDS,
 	BTF_KIND_MAX		= NR_BTF_KINDS - 1,

@@ -382,13 +382,17 @@ static int csi2_start(struct csi2_dev *csi2)
 	csi2_enable(csi2, true);
 
 	/* Step 5 */
+	ret = v4l2_subdev_call(csi2->src_sd, video, pre_streamon,
+			       V4L2_SUBDEV_PRE_STREAMON_FL_MANUAL_LP);
+	if (ret && ret != -ENOIOCTLCMD)
+		goto err_assert_reset;
 	csi2_dphy_wait_stopstate(csi2, lanes);
 
 	/* Step 6 */
 	ret = v4l2_subdev_call(csi2->src_sd, video, s_stream, 1);
 	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
 	if (ret)
-		goto err_assert_reset;
+		goto err_stop_lp11;
 
 	/* Step 7 */
 	ret = csi2_dphy_wait_clock_lane(csi2);
@@ -399,6 +403,8 @@ static int csi2_start(struct csi2_dev *csi2)
 
 err_stop_upstream:
 	v4l2_subdev_call(csi2->src_sd, video, s_stream, 0);
+err_stop_lp11:
+	v4l2_subdev_call(csi2->src_sd, video, post_streamoff);
 err_assert_reset:
 	csi2_enable(csi2, false);
 err_disable_clk:
@@ -410,6 +416,7 @@ static void csi2_stop(struct csi2_dev *csi2)
 {
 	/* stop upstream */
 	v4l2_subdev_call(csi2->src_sd, video, s_stream, 0);
+	v4l2_subdev_call(csi2->src_sd, video, post_streamoff);
 
 	csi2_enable(csi2, false);
 	clk_disable_unprepare(csi2->pix_clk);

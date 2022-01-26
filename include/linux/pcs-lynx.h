@@ -9,13 +9,10 @@
 #include <linux/mdio.h>
 #include <linux/phylink.h>
 
-struct lynx_pcs {
-	struct phylink_pcs pcs;
-	struct mdio_device *mdio;
-};
+struct mdio_device *lynx_get_mdio_device(struct phylink_pcs *pcs);
 
-struct lynx_pcs *lynx_pcs_create(struct mdio_device *mdio);
+struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio);
 
-void lynx_pcs_destroy(struct lynx_pcs *pcs);
+void lynx_pcs_destroy(struct phylink_pcs *pcs);
 
 #endif /* __LINUX_PCS_LYNX_H */

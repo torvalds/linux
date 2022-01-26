@@ -22,45 +22,13 @@
  */
 #include <linux/gfp.h>
 #include <linux/kernel.h>
-#include <linux/export.h>
 #include <linux/ioprio.h>
 #include <linux/cred.h>
 #include <linux/blkdev.h>
 #include <linux/capability.h>
-#include <linux/sched/user.h>
-#include <linux/sched/task.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
 #include <linux/pid_namespace.h>
-
-int set_task_ioprio(struct task_struct *task, int ioprio)
-{
-	int err;
-	struct io_context *ioc;
-	const struct cred *cred = current_cred(), *tcred;
-
-	rcu_read_lock();
-	tcred = __task_cred(task);
-	if (!uid_eq(tcred->uid, cred->euid) &&
-	    !uid_eq(tcred->uid, cred->uid) && !capable(CAP_SYS_NICE)) {
-		rcu_read_unlock();
-		return -EPERM;
-	}
-	rcu_read_unlock();
-
-	err = security_task_setioprio(task, ioprio);
-	if (err)
-		return err;
-
-	ioc = get_task_io_context(task, GFP_ATOMIC, NUMA_NO_NODE);
-	if (ioc) {
-		ioc->ioprio = ioprio;
-		put_io_context(ioc);
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(set_task_ioprio);
 
 int ioprio_check_cap(int ioprio)
 {
@@ -69,7 +37,14 @@ int ioprio_check_cap(int ioprio)
 
 	switch (class) {
 		case IOPRIO_CLASS_RT:
-			if (!capable(CAP_SYS_NICE) && !capable(CAP_SYS_ADMIN))
+			/*
+			 * Originally this only checked for CAP_SYS_ADMIN,
+			 * which was implicitly allowed for pid 0 by security
+			 * modules such as SELinux. Make sure we check
+			 * CAP_SYS_ADMIN first to avoid a denial/avc for
+			 * possibly missing CAP_SYS_NICE permission.
+			 */
+			if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_NICE))
 				return -EPERM;
 			fallthrough;
 			/* rt has prio field too */
@@ -213,6 +188,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
 				pgrp = task_pgrp(current);
 			else
 				pgrp = find_vpid(who);
+			read_lock(&tasklist_lock);
 			do_each_pid_thread(pgrp, PIDTYPE_PGID, p) {
 				tmpio = get_task_ioprio(p);
 				if (tmpio < 0)
@@ -222,6 +198,8 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
 				else
 					ret = ioprio_best(ret, tmpio);
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
+			read_unlock(&tasklist_lock);
+
 			break;
 		case IOPRIO_WHO_USER:
 			uid = make_kuid(current_user_ns(), who);

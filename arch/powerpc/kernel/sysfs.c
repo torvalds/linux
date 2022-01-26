@@ -214,7 +214,7 @@ static ssize_t __used store_dscr_default(struct device *dev,
 static DEVICE_ATTR(dscr_default, 0600,
 		show_dscr_default, store_dscr_default);
 
-static void sysfs_create_dscr_default(void)
+static void __init sysfs_create_dscr_default(void)
 {
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
 		int cpu;
@@ -744,12 +744,12 @@ static ssize_t show_svm(struct device *dev, struct device_attribute *attr, char 
 }
 static DEVICE_ATTR(svm, 0444, show_svm, NULL);
 
-static void create_svm_file(void)
+static void __init create_svm_file(void)
 {
 	device_create_file(cpu_subsys.dev_root, &dev_attr_svm);
 }
 #else
-static void create_svm_file(void)
+static void __init create_svm_file(void)
 {
 }
 #endif /* CONFIG_PPC_SVM */
@@ -1110,7 +1110,7 @@ EXPORT_SYMBOL_GPL(cpu_remove_dev_attr_group);
 /* NUMA stuff */
 
 #ifdef CONFIG_NUMA
-static void register_nodes(void)
+static void __init register_nodes(void)
 {
 	int i;
 
@@ -1134,7 +1134,7 @@ void sysfs_remove_device_from_node(struct device *dev, int nid)
 EXPORT_SYMBOL_GPL(sysfs_remove_device_from_node);
 
 #else
-static void register_nodes(void)
+static void __init register_nodes(void)
 {
 	return;
 }

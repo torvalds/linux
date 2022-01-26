@@ -48,8 +48,9 @@ struct stack_info {
  *               value of STACK_TYPE_UNKNOWN. This is used to detect a
  *               transition from one stack to another.
  *
- * @graph:       When FUNCTION_GRAPH_TRACER is selected, holds the index of a
- *               replacement lr value in the ftrace graph stack.
+ * @kr_cur:      When KRETPROBES is selected, holds the kretprobe instance
+ *               associated with the most recently encountered replacement lr
+ *               value.
  */
 struct stackframe {
 	unsigned long fp;
@@ -57,17 +58,11 @@ struct stackframe {
 	DECLARE_BITMAP(stacks_done, __NR_STACK_TYPES);
 	unsigned long prev_fp;
 	enum stack_type prev_type;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	int graph;
-#endif
 #ifdef CONFIG_KRETPROBES
 	struct llist_node *kr_cur;
 #endif
 };
 
-extern int unwind_frame(struct task_struct *tsk, struct stackframe *frame);
-extern void walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
-			    bool (*fn)(void *, unsigned long), void *data);
 extern void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 			   const char *loglvl);
 
@@ -151,8 +146,5 @@ static inline bool on_accessible_stack(const struct task_struct *tsk,
 
 	return false;
 }
-
-void start_backtrace(struct stackframe *frame, unsigned long fp,
-		     unsigned long pc);
 
 #endif	/* __ASM_STACKTRACE_H */

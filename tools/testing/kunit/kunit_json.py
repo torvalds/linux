@@ -11,7 +11,7 @@ import os
 
 import kunit_parser
 
-from kunit_parser import Test, TestResult, TestStatus
+from kunit_parser import Test, TestStatus
 from typing import Any, Dict, Optional
 
 JsonObj = Dict[str, Any]
@@ -30,6 +30,8 @@ def _get_group_json(test: Test, def_config: str,
 			test_case = {"name": subtest.name, "status": "FAIL"}
 			if subtest.status == TestStatus.SUCCESS:
 				test_case["status"] = "PASS"
+			elif subtest.status == TestStatus.SKIPPED:
+				test_case["status"] = "SKIP"
 			elif subtest.status == TestStatus.TEST_CRASHED:
 				test_case["status"] = "ERROR"
 			test_cases.append(test_case)
@@ -48,9 +50,9 @@ def _get_group_json(test: Test, def_config: str,
 	}
 	return test_group
 
-def get_json_result(test_result: TestResult, def_config: str,
+def get_json_result(test: Test, def_config: str,
 		build_dir: Optional[str], json_path: str) -> str:
-	test_group = _get_group_json(test_result.test, def_config, build_dir)
+	test_group = _get_group_json(test, def_config, build_dir)
 	test_group["name"] = "KUnit Test Group"
 	json_obj = json.dumps(test_group, indent=4)
 	if json_path != 'stdout':

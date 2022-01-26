@@ -41,6 +41,8 @@ void kvm_inject_vabt(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
 
+void kvm_vcpu_wfi(struct kvm_vcpu *vcpu);
+
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 {
 	return !(vcpu->arch.hcr_el2 & HCR_RW);
@@ -386,7 +388,7 @@ static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
 		*vcpu_cpsr(vcpu) |= PSR_AA32_E_BIT;
 	} else {
 		u64 sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
-		sctlr |= (1 << 25);
+		sctlr |= SCTLR_ELx_EE;
 		vcpu_write_sys_reg(vcpu, sctlr, SCTLR_EL1);
 	}
 }

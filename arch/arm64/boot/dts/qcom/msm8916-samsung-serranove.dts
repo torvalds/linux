@@ -23,6 +23,7 @@
 / {
 	model = "Samsung Galaxy S4 Mini Value Edition";
 	compatible = "samsung,serranove", "qcom,msm8916";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart2;

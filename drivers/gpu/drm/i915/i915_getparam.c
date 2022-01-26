@@ -13,7 +13,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_private *i915 = to_i915(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	const struct sseu_dev_info *sseu = &i915->gt.info.sseu;
+	const struct sseu_dev_info *sseu = &to_gt(i915)->info.sseu;
 	drm_i915_getparam_t *param = data;
 	int value = 0;
 
@@ -82,8 +82,8 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
 		value = i915->params.enable_hangcheck &&
-			intel_has_gpu_reset(&i915->gt);
-		if (value && intel_has_reset_engine(&i915->gt))
+			intel_has_gpu_reset(to_gt(i915));
+		if (value && intel_has_reset_engine(to_gt(i915)))
 			value = 2;
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:
@@ -96,7 +96,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = sseu->min_eu_in_pool;
 		break;
 	case I915_PARAM_HUC_STATUS:
-		value = intel_huc_check_status(&i915->gt.uc.huc);
+		value = intel_huc_check_status(&to_gt(i915)->uc.huc);
 		if (value < 0)
 			return value;
 		break;
@@ -158,7 +158,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			return -ENODEV;
 		break;
 	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
-		value = i915->gt.clock_frequency;
+		value = to_gt(i915)->clock_frequency;
 		break;
 	case I915_PARAM_MMAP_GTT_COHERENT:
 		value = INTEL_INFO(i915)->has_coherent_ggtt;

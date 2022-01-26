@@ -65,9 +65,6 @@ config GENERIC_STRNLEN_USER
 config GENERIC_NET_UTILS
 	bool
 
-config GENERIC_FIND_FIRST_BIT
-	bool
-
 source "lib/math/Kconfig"
 
 config NO_GENERIC_PCI_IOPORT_MAP
@@ -121,6 +118,8 @@ config INDIRECT_IOMEM_FALLBACK
 	  If INDIRECT_IOMEM is selected, this enables falling back to plain
 	  mmio accesses when the IO memory address is not a registered
 	  emulated region.
+
+source "lib/crypto/Kconfig"
 
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
@@ -671,6 +670,10 @@ config STACKDEPOT
 	bool
 	select STACKTRACE
 
+config STACKDEPOT_ALWAYS_INIT
+	bool
+	select STACKDEPOT
+
 config STACK_HASH_ORDER
 	int "stack depot hash size (12 => 4KB, 20 => 1024KB)"
 	range 12 20
@@ -679,6 +682,11 @@ config STACK_HASH_ORDER
 	help
 	 Select the hash size as a power of 2 for the stackdepot hash table.
 	 Choose a lower value to reduce the memory impact.
+
+config REF_TRACKER
+	bool
+	depends on STACKTRACE_SUPPORT
+	select STACKDEPOT
 
 config SBITMAP
 	bool

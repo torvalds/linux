@@ -540,7 +540,7 @@ static struct pstore_info nvram_pstore_info = {
 	.write = nvram_pstore_write,
 };
 
-static int nvram_pstore_init(void)
+static int __init nvram_pstore_init(void)
 {
 	int rc = 0;
 
@@ -562,7 +562,7 @@ static int nvram_pstore_init(void)
 	return rc;
 }
 #else
-static int nvram_pstore_init(void)
+static int __init nvram_pstore_init(void)
 {
 	return -1;
 }
@@ -755,7 +755,7 @@ static unsigned char __init nvram_checksum(struct nvram_header *p)
  * Per the criteria passed via nvram_remove_partition(), should this
  * partition be removed?  1=remove, 0=keep
  */
-static int nvram_can_remove_partition(struct nvram_partition *part,
+static int __init nvram_can_remove_partition(struct nvram_partition *part,
 		const char *name, int sig, const char *exceptions[])
 {
 	if (part->header.signature != sig)

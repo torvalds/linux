@@ -180,4 +180,8 @@ static inline void remcsum_unadjust(__sum16 *psum, __wsum delta)
 	*psum = csum_fold(csum_sub(delta, (__force __wsum)*psum));
 }
 
+static inline __wsum wsum_negate(__wsum val)
+{
+	return (__force __wsum)-((__force u32)val);
+}
 #endif

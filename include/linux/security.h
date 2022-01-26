@@ -313,8 +313,6 @@ int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb,
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
-int security_add_mnt_opt(const char *option, const char *val,
-				int len, void **mnt_opts);
 int security_move_mount(const struct path *from_path, const struct path *to_path);
 int security_dentry_init_security(struct dentry *dentry, int mode,
 				  const struct qstr *name,
@@ -418,7 +416,7 @@ int security_task_fix_setgid(struct cred *new, const struct cred *old,
 int security_task_setpgid(struct task_struct *p, pid_t pgid);
 int security_task_getpgid(struct task_struct *p);
 int security_task_getsid(struct task_struct *p);
-void security_task_getsecid_subj(struct task_struct *p, u32 *secid);
+void security_current_getsecid_subj(u32 *secid);
 void security_task_getsecid_obj(struct task_struct *p, u32 *secid);
 int security_task_setnice(struct task_struct *p, int nice);
 int security_task_setioprio(struct task_struct *p, int ioprio);
@@ -707,12 +705,6 @@ static inline int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 					      struct super_block *newsb,
 					      unsigned long kern_flags,
 					      unsigned long *set_kern_flags)
-{
-	return 0;
-}
-
-static inline int security_add_mnt_opt(const char *option, const char *val,
-					int len, void **mnt_opts)
 {
 	return 0;
 }
@@ -1119,7 +1111,7 @@ static inline int security_task_getsid(struct task_struct *p)
 	return 0;
 }
 
-static inline void security_task_getsecid_subj(struct task_struct *p, u32 *secid)
+static inline void security_current_getsecid_subj(u32 *secid)
 {
 	*secid = 0;
 }

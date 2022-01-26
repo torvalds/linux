@@ -165,10 +165,10 @@ static void hv_set_cpuid(struct kvm_vm *vm, struct kvm_cpuid2 *cpuid,
 	vcpu_set_cpuid(vm, VCPU_ID, cpuid);
 }
 
-static void guest_test_msrs_access(struct kvm_vm *vm, struct msr_data *msr,
-				   struct kvm_cpuid2 *best)
+static void guest_test_msrs_access(void)
 {
 	struct kvm_run *run;
+	struct kvm_vm *vm;
 	struct ucall uc;
 	int stage = 0, r;
 	struct kvm_cpuid_entry2 feat = {
@@ -180,11 +180,34 @@ static void guest_test_msrs_access(struct kvm_vm *vm, struct msr_data *msr,
 	struct kvm_cpuid_entry2 dbg = {
 		.function = HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES
 	};
-	struct kvm_enable_cap cap = {0};
-
-	run = vcpu_state(vm, VCPU_ID);
+	struct kvm_cpuid2 *best;
+	vm_vaddr_t msr_gva;
+	struct kvm_enable_cap cap = {
+		.cap = KVM_CAP_HYPERV_ENFORCE_CPUID,
+		.args = {1}
+	};
+	struct msr_data *msr;
 
 	while (true) {
+		vm = vm_create_default(VCPU_ID, 0, guest_msr);
+
+		msr_gva = vm_vaddr_alloc_page(vm);
+		memset(addr_gva2hva(vm, msr_gva), 0x0, getpagesize());
+		msr = addr_gva2hva(vm, msr_gva);
+
+		vcpu_args_set(vm, VCPU_ID, 1, msr_gva);
+		vcpu_enable_cap(vm, VCPU_ID, &cap);
+
+		vcpu_set_hv_cpuid(vm, VCPU_ID);
+
+		best = kvm_get_supported_hv_cpuid();
+
+		vm_init_descriptor_tables(vm);
+		vcpu_init_descriptor_tables(vm, VCPU_ID);
+		vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
+
+		run = vcpu_state(vm, VCPU_ID);
+
 		switch (stage) {
 		case 0:
 			/*
@@ -315,6 +338,7 @@ static void guest_test_msrs_access(struct kvm_vm *vm, struct msr_data *msr,
 			 * capability enabled and guest visible CPUID bit unset.
 			 */
 			cap.cap = KVM_CAP_HYPERV_SYNIC2;
+			cap.args[0] = 0;
 			vcpu_enable_cap(vm, VCPU_ID, &cap);
 			break;
 		case 22:
@@ -461,9 +485,9 @@ static void guest_test_msrs_access(struct kvm_vm *vm, struct msr_data *msr,
 
 		switch (get_ucall(vm, VCPU_ID, &uc)) {
 		case UCALL_SYNC:
-			TEST_ASSERT(uc.args[1] == stage,
-				    "Unexpected stage: %ld (%d expected)\n",
-				    uc.args[1], stage);
+			TEST_ASSERT(uc.args[1] == 0,
+				    "Unexpected stage: %ld (0 expected)\n",
+				    uc.args[1]);
 			break;
 		case UCALL_ABORT:
 			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
@@ -474,13 +498,14 @@ static void guest_test_msrs_access(struct kvm_vm *vm, struct msr_data *msr,
 		}
 
 		stage++;
+		kvm_vm_free(vm);
 	}
 }
 
-static void guest_test_hcalls_access(struct kvm_vm *vm, struct hcall_data *hcall,
-				     void *input, void *output, struct kvm_cpuid2 *best)
+static void guest_test_hcalls_access(void)
 {
 	struct kvm_run *run;
+	struct kvm_vm *vm;
 	struct ucall uc;
 	int stage = 0, r;
 	struct kvm_cpuid_entry2 feat = {
@@ -493,10 +518,38 @@ static void guest_test_hcalls_access(struct kvm_vm *vm, struct hcall_data *hcall
 	struct kvm_cpuid_entry2 dbg = {
 		.function = HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES
 	};
-
-	run = vcpu_state(vm, VCPU_ID);
+	struct kvm_enable_cap cap = {
+		.cap = KVM_CAP_HYPERV_ENFORCE_CPUID,
+		.args = {1}
+	};
+	vm_vaddr_t hcall_page, hcall_params;
+	struct hcall_data *hcall;
+	struct kvm_cpuid2 *best;
 
 	while (true) {
+		vm = vm_create_default(VCPU_ID, 0, guest_hcall);
+
+		vm_init_descriptor_tables(vm);
+		vcpu_init_descriptor_tables(vm, VCPU_ID);
+		vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
+
+		/* Hypercall input/output */
+		hcall_page = vm_vaddr_alloc_pages(vm, 2);
+		hcall = addr_gva2hva(vm, hcall_page);
+		memset(addr_gva2hva(vm, hcall_page), 0x0, 2 * getpagesize());
+
+		hcall_params = vm_vaddr_alloc_page(vm);
+		memset(addr_gva2hva(vm, hcall_params), 0x0, getpagesize());
+
+		vcpu_args_set(vm, VCPU_ID, 2, addr_gva2gpa(vm, hcall_page), hcall_params);
+		vcpu_enable_cap(vm, VCPU_ID, &cap);
+
+		vcpu_set_hv_cpuid(vm, VCPU_ID);
+
+		best = kvm_get_supported_hv_cpuid();
+
+		run = vcpu_state(vm, VCPU_ID);
+
 		switch (stage) {
 		case 0:
 			hcall->control = 0xdeadbeef;
@@ -606,9 +659,9 @@ static void guest_test_hcalls_access(struct kvm_vm *vm, struct hcall_data *hcall
 
 		switch (get_ucall(vm, VCPU_ID, &uc)) {
 		case UCALL_SYNC:
-			TEST_ASSERT(uc.args[1] == stage,
-				    "Unexpected stage: %ld (%d expected)\n",
-				    uc.args[1], stage);
+			TEST_ASSERT(uc.args[1] == 0,
+				    "Unexpected stage: %ld (0 expected)\n",
+				    uc.args[1]);
 			break;
 		case UCALL_ABORT:
 			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
@@ -619,66 +672,15 @@ static void guest_test_hcalls_access(struct kvm_vm *vm, struct hcall_data *hcall
 		}
 
 		stage++;
+		kvm_vm_free(vm);
 	}
 }
 
 int main(void)
 {
-	struct kvm_cpuid2 *best;
-	struct kvm_vm *vm;
-	vm_vaddr_t msr_gva, hcall_page, hcall_params;
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_HYPERV_ENFORCE_CPUID,
-		.args = {1}
-	};
-
-	/* Test MSRs */
-	vm = vm_create_default(VCPU_ID, 0, guest_msr);
-
-	msr_gva = vm_vaddr_alloc_page(vm);
-	memset(addr_gva2hva(vm, msr_gva), 0x0, getpagesize());
-	vcpu_args_set(vm, VCPU_ID, 1, msr_gva);
-	vcpu_enable_cap(vm, VCPU_ID, &cap);
-
-	vcpu_set_hv_cpuid(vm, VCPU_ID);
-
-	best = kvm_get_supported_hv_cpuid();
-
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
-	vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
-
 	pr_info("Testing access to Hyper-V specific MSRs\n");
-	guest_test_msrs_access(vm, addr_gva2hva(vm, msr_gva),
-			       best);
-	kvm_vm_free(vm);
-
-	/* Test hypercalls */
-	vm = vm_create_default(VCPU_ID, 0, guest_hcall);
-
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
-	vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
-
-	/* Hypercall input/output */
-	hcall_page = vm_vaddr_alloc_pages(vm, 2);
-	memset(addr_gva2hva(vm, hcall_page), 0x0, 2 * getpagesize());
-
-	hcall_params = vm_vaddr_alloc_page(vm);
-	memset(addr_gva2hva(vm, hcall_params), 0x0, getpagesize());
-
-	vcpu_args_set(vm, VCPU_ID, 2, addr_gva2gpa(vm, hcall_page), hcall_params);
-	vcpu_enable_cap(vm, VCPU_ID, &cap);
-
-	vcpu_set_hv_cpuid(vm, VCPU_ID);
-
-	best = kvm_get_supported_hv_cpuid();
+	guest_test_msrs_access();
 
 	pr_info("Testing access to Hyper-V hypercalls\n");
-	guest_test_hcalls_access(vm, addr_gva2hva(vm, hcall_params),
-				 addr_gva2hva(vm, hcall_page),
-				 addr_gva2hva(vm, hcall_page) + getpagesize(),
-				 best);
-
-	kvm_vm_free(vm);
+	guest_test_hcalls_access();
 }

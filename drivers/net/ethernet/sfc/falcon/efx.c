@@ -2267,7 +2267,7 @@ static int ef4_register_netdev(struct ef4_nic *efx)
 	net_dev->irq = efx->pci_dev->irq;
 	net_dev->netdev_ops = &ef4_netdev_ops;
 	net_dev->ethtool_ops = &ef4_ethtool_ops;
-	net_dev->gso_max_segs = EF4_TSO_MAX_SEGS;
+	netif_set_gso_max_segs(net_dev, EF4_TSO_MAX_SEGS);
 	net_dev->min_mtu = EF4_MIN_MTU;
 	net_dev->max_mtu = EF4_MAX_MTU;
 

@@ -11,6 +11,11 @@
 #ifndef __CS_DSP_H
 #define __CS_DSP_H
 
+#include <linux/device.h>
+#include <linux/firmware.h>
+#include <linux/list.h>
+#include <linux/regmap.h>
+
 #define CS_ADSP2_REGION_0 BIT(0)
 #define CS_ADSP2_REGION_1 BIT(1)
 #define CS_ADSP2_REGION_2 BIT(2)
@@ -49,12 +54,14 @@ struct cs_dsp_region {
  * struct cs_dsp_alg_region - Describes a logical algorithm region in DSP address space
  * @list:	List node for internal use
  * @alg:	Algorithm id
+ * @ver:	Expected algorithm version
  * @type:	Memory region type
  * @base:	Address of region
  */
 struct cs_dsp_alg_region {
 	struct list_head list;
 	unsigned int alg;
+	unsigned int ver;
 	int type;
 	unsigned int base;
 };
@@ -69,8 +76,8 @@ struct cs_dsp_alg_region {
  * @enabled:		Flag indicating whether control is enabled
  * @list:		List node for internal use
  * @cache:		Cached value of the control
- * @offset:		Offset of control within alg_region
- * @len:		Length of the cached value
+ * @offset:		Offset of control within alg_region in words
+ * @len:		Length of the cached value in bytes
  * @set:		Flag indicating the value has been written by the user
  * @flags:		Bitfield of WMFW_CTL_FLAG_ control flags defined in wmfw.h
  * @type:		One of the WMFW_CTL_TYPE_ control types defined in wmfw.h
@@ -180,7 +187,8 @@ struct cs_dsp {
  * struct cs_dsp_client_ops - client callbacks
  * @control_add:	Called under the pwr_lock when a control is created
  * @control_remove:	Called under the pwr_lock when a control is destroyed
- * @post_run:		Called under the pwr_lock by cs_dsp_run()
+ * @pre_run:		Called under the pwr_lock by cs_dsp_run() before the core is started
+ * @post_run:		Called under the pwr_lock by cs_dsp_run() after the core is started
  * @post_stop:		Called under the pwr_lock by cs_dsp_stop()
  * @watchdog_expired:	Called when a watchdog expiry is detected
  *
@@ -190,6 +198,7 @@ struct cs_dsp {
 struct cs_dsp_client_ops {
 	int (*control_add)(struct cs_dsp_coeff_ctl *ctl);
 	void (*control_remove)(struct cs_dsp_coeff_ctl *ctl);
+	int (*pre_run)(struct cs_dsp *dsp);
 	int (*post_run)(struct cs_dsp *dsp);
 	void (*post_stop)(struct cs_dsp *dsp);
 	void (*watchdog_expired)(struct cs_dsp *dsp);
@@ -223,8 +232,10 @@ void cs_dsp_init_debugfs(struct cs_dsp *dsp, struct dentry *debugfs_root);
 void cs_dsp_cleanup_debugfs(struct cs_dsp *dsp);
 
 int cs_dsp_coeff_write_acked_control(struct cs_dsp_coeff_ctl *ctl, unsigned int event_id);
-int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl, const void *buf, size_t len);
-int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl, void *buf, size_t len);
+int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl, unsigned int off,
+			    const void *buf, size_t len);
+int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl, unsigned int off,
+			   void *buf, size_t len);
 struct cs_dsp_coeff_ctl *cs_dsp_get_ctl(struct cs_dsp *dsp, const char *name, int type,
 					unsigned int alg);
 

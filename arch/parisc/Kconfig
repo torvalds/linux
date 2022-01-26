@@ -85,11 +85,6 @@ config MMU
 config STACK_GROWSUP
 	def_bool y
 
-config ARCH_DEFCONFIG
-	string
-	default "arch/parisc/configs/generic-32bit_defconfig" if !64BIT
-	default "arch/parisc/configs/generic-64bit_defconfig" if 64BIT
-
 config GENERIC_LOCKBREAK
 	bool
 	default y
@@ -292,20 +287,6 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config TOC
-	bool "Support TOC switch"
-	default y if 64BIT || !SMP
-	help
-	  Most PA-RISC machines have either a switch at the back of the machine
-	  or a command in BMC to trigger a TOC interrupt. If you say Y here a
-	  handler will be installed which will either show a backtrace on all
-	  CPUs, or enter a possible configured debugger like kgdb/kdb.
-
-	  Note that with this option enabled, the kernel will use an additional 16KB
-	  per possible CPU as a special stack for the TOC handler.
-
-	  If you don't want to debug the Kernel, say N.
-
 config PARISC_CPU_TOPOLOGY
 	bool "Support cpu topology definition"
 	depends on SMP
@@ -375,7 +356,8 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "4"
+	default "4" if 64BIT
+	default "16"
 
 config KEXEC
 	bool "Kexec system call"

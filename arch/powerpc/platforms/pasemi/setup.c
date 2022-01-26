@@ -212,7 +212,7 @@ static void sb600_8259_cascade(struct irq_desc *desc)
 	chip->irq_eoi(&desc->irq_data);
 }
 
-static void nemo_init_IRQ(struct mpic *mpic)
+static void __init nemo_init_IRQ(struct mpic *mpic)
 {
 	struct device_node *np;
 	int gpio_virq;

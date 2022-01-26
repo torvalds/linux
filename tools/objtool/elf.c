@@ -375,6 +375,7 @@ static int read_symbols(struct elf *elf)
 			return -1;
 		}
 		memset(sym, 0, sizeof(*sym));
+		INIT_LIST_HEAD(&sym->pv_target);
 		sym->alias = sym;
 
 		sym->idx = i;

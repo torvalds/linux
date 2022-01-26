@@ -76,9 +76,12 @@ enum ish_loader_commands {
 #define LOADER_XFER_MODE_ISHTP			BIT(1)
 
 /* ISH Transport Loader client unique GUID */
-static const guid_t loader_ishtp_guid =
-	GUID_INIT(0xc804d06a, 0x55bd, 0x4ea7,
-		  0xad, 0xed, 0x1e, 0x31, 0x22, 0x8c, 0x76, 0xdc);
+static const struct ishtp_device_id loader_ishtp_id_table[] = {
+	{ .guid = GUID_INIT(0xc804d06a, 0x55bd, 0x4ea7,
+		  0xad, 0xed, 0x1e, 0x31, 0x22, 0x8c, 0x76, 0xdc) },
+	{ }
+};
+MODULE_DEVICE_TABLE(ishtp, loader_ishtp_id_table);
 
 #define FILENAME_SIZE				256
 
@@ -265,7 +268,8 @@ static int get_firmware_variant(struct ishtp_cl_data *client_data,
 }
 
 /**
- * loader_cl_send()	Send message from host to firmware
+ * loader_cl_send() - Send message from host to firmware
+ *
  * @client_data:	Client data instance
  * @out_msg:		Message buffer to be sent to firmware
  * @out_size:		Size of out going message
@@ -880,7 +884,7 @@ static int loader_init(struct ishtp_cl *loader_ishtp_cl, int reset)
 
 	fw_client =
 		ishtp_fw_cl_get_client(ishtp_get_ishtp_device(loader_ishtp_cl),
-				       &loader_ishtp_guid);
+				       &loader_ishtp_id_table[0].guid);
 	if (!fw_client) {
 		dev_err(cl_data_to_dev(client_data),
 			"ISH client uuid not found\n");
@@ -1057,7 +1061,7 @@ static int loader_ishtp_cl_reset(struct ishtp_cl_device *cl_device)
 
 static struct ishtp_cl_driver	loader_ishtp_cl_driver = {
 	.name = "ish-loader",
-	.guid = &loader_ishtp_guid,
+	.id = loader_ishtp_id_table,
 	.probe = loader_ishtp_cl_probe,
 	.remove = loader_ishtp_cl_remove,
 	.reset = loader_ishtp_cl_reset,
@@ -1083,4 +1087,3 @@ MODULE_DESCRIPTION("ISH ISH-TP Host firmware Loader Client Driver");
 MODULE_AUTHOR("Rushikesh S Kadam <rushikesh.s.kadam@intel.com>");
 
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("ishtp:*");

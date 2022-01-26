@@ -24,7 +24,7 @@ void mpic_msi_reserve_hwirq(struct mpic *mpic, irq_hw_number_t hwirq)
 }
 
 #ifdef CONFIG_MPIC_U3_HT_IRQS
-static int mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
+static int __init mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 {
 	irq_hw_number_t hwirq;
 	const struct irq_domain_ops *ops = mpic->irqhost->ops;
@@ -68,13 +68,13 @@ static int mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 	return 0;
 }
 #else
-static int mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
+static int __init mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 {
 	return -1;
 }
 #endif
 
-int mpic_msi_init_allocator(struct mpic *mpic)
+int __init mpic_msi_init_allocator(struct mpic *mpic)
 {
 	int rc;
 

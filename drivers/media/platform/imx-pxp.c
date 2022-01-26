@@ -211,6 +211,7 @@ struct pxp_ctx {
 	/* Processing mode */
 	int			mode;
 	u8			alpha_component;
+	u8			rotation;
 
 	enum v4l2_colorspace	colorspace;
 	enum v4l2_xfer_func	xfer_func;
@@ -767,14 +768,20 @@ static int pxp_start(struct pxp_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 		 V4L2_BUF_FLAG_BFRAME |
 		 V4L2_BUF_FLAG_TSTAMP_SRC_MASK);
 
-	/* Rotation disabled, 8x8 block size */
+	/* 8x8 block size */
 	ctrl = BF_PXP_CTRL_VFLIP0(!!(ctx->mode & MEM2MEM_VFLIP)) |
-	       BF_PXP_CTRL_HFLIP0(!!(ctx->mode & MEM2MEM_HFLIP));
+	       BF_PXP_CTRL_HFLIP0(!!(ctx->mode & MEM2MEM_HFLIP)) |
+	       BF_PXP_CTRL_ROTATE0(ctx->rotation);
 	/* Always write alpha value as V4L2_CID_ALPHA_COMPONENT */
 	out_ctrl = BF_PXP_OUT_CTRL_ALPHA(ctx->alpha_component) |
 		   BF_PXP_OUT_CTRL_ALPHA_OUTPUT(1) |
 		   pxp_v4l2_pix_fmt_to_out_format(dst_fourcc);
 	out_buf = p_out;
+
+	if (ctx->rotation == BV_PXP_CTRL_ROTATE0__ROT_90 ||
+	    ctx->rotation == BV_PXP_CTRL_ROTATE0__ROT_270)
+		swap(dst_width, dst_height);
+
 	switch (dst_fourcc) {
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
@@ -1297,6 +1304,21 @@ static int pxp_s_fmt_vid_out(struct file *file, void *priv,
 	return 0;
 }
 
+static u8 pxp_degrees_to_rot_mode(u32 degrees)
+{
+	switch (degrees) {
+	case 90:
+		return BV_PXP_CTRL_ROTATE0__ROT_90;
+	case 180:
+		return BV_PXP_CTRL_ROTATE0__ROT_180;
+	case 270:
+		return BV_PXP_CTRL_ROTATE0__ROT_270;
+	case 0:
+	default:
+		return BV_PXP_CTRL_ROTATE0__ROT_0;
+	}
+}
+
 static int pxp_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct pxp_ctx *ctx =
@@ -1315,6 +1337,10 @@ static int pxp_s_ctrl(struct v4l2_ctrl *ctrl)
 			ctx->mode |= MEM2MEM_VFLIP;
 		else
 			ctx->mode &= ~MEM2MEM_VFLIP;
+		break;
+
+	case V4L2_CID_ROTATE:
+		ctx->rotation = pxp_degrees_to_rot_mode(ctrl->val);
 		break;
 
 	case V4L2_CID_ALPHA_COMPONENT:
@@ -1524,6 +1550,7 @@ static int pxp_open(struct file *file)
 	v4l2_ctrl_handler_init(hdl, 4);
 	v4l2_ctrl_new_std(hdl, &pxp_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(hdl, &pxp_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(hdl, &pxp_ctrl_ops, V4L2_CID_ROTATE, 0, 270, 90, 0);
 	v4l2_ctrl_new_std(hdl, &pxp_ctrl_ops, V4L2_CID_ALPHA_COMPONENT,
 			  0, 255, 1, 255);
 	if (hdl->error) {
@@ -1659,6 +1686,8 @@ static int pxp_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
+	spin_lock_init(&dev->irqlock);
+
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL, pxp_irq_handler,
 			IRQF_ONESHOT, dev_name(&pdev->dev), dev);
 	if (ret < 0) {
@@ -1675,8 +1704,6 @@ static int pxp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "PXP reset timeout: %d\n", ret);
 		goto err_clk;
 	}
-
-	spin_lock_init(&dev->irqlock);
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)

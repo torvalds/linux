@@ -467,6 +467,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 		    (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
 		   (SND_SOC_SOF_BAYTRAIL && (X86_INTEL_LPSS || COMPILE_TEST))
 	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98390
 	select SND_SOC_RT1011
 	select SND_SOC_RT1015
 	select SND_SOC_RT1015P
@@ -524,6 +525,25 @@ config SND_SOC_INTEL_SOF_ES8336_MACH
 	help
 	   This adds support for ASoC machine driver for SOF platforms
 	   with es8336 codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
+
+config SND_SOC_INTEL_SOF_NAU8825_MACH
+	tristate "SOF with nau8825 codec in I2S Mode"
+	depends on I2C && ACPI && GPIOLIB
+	depends on ((SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC) &&\
+		    (MFD_INTEL_LPSS || COMPILE_TEST))
+	select SND_SOC_NAU8825
+	select SND_SOC_RT1015P
+	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98357A
+	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	select SND_SOC_INTEL_SOF_MAXIM_COMMON
+	help
+	   This adds support for ASoC machine driver for SOF platforms
+	   with nau8825 codec.
 	   Say Y if you have such a device.
 	   If unsure select "N".
 

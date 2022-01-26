@@ -9,6 +9,9 @@ title: LiteON LTR501 I2C Proximity and Light sensor
 maintainers:
   - Nikita Travkin <nikita@trvn.ru>
 
+allOf:
+  - $ref: ../common.yaml#
+
 properties:
   compatible:
     enum:
@@ -24,6 +27,8 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  proximity-near-level: true
 
 additionalProperties: false
 
@@ -42,6 +47,8 @@ examples:
         light-sensor@23 {
             compatible = "liteon,ltr559";
             reg = <0x23>;
+            proximity-near-level = <75>;
+
             vdd-supply = <&pm8916_l17>;
             vddio-supply = <&pm8916_l6>;
 

@@ -8,6 +8,7 @@
 #include <linux/if_link.h>
 #include <linux/rtnetlink.h>
 #include <linux/wwan.h>
+#include <net/pkt_sched.h>
 
 #include "iosm_ipc_chnl_cfg.h"
 #include "iosm_ipc_imem_ops.h"
@@ -159,7 +160,7 @@ static void ipc_wwan_setup(struct net_device *iosm_dev)
 {
 	iosm_dev->header_ops = NULL;
 	iosm_dev->hard_header_len = 0;
-	iosm_dev->priv_flags |= IFF_NO_QUEUE;
+	iosm_dev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
 
 	iosm_dev->type = ARPHRD_NONE;
 	iosm_dev->mtu = ETH_DATA_LEN;

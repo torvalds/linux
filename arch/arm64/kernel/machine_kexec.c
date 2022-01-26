@@ -104,13 +104,15 @@ static void *kexec_page_alloc(void *arg)
 {
 	struct kimage *kimage = (struct kimage *)arg;
 	struct page *page = kimage_alloc_control_pages(kimage, 0);
+	void *vaddr = NULL;
 
 	if (!page)
 		return NULL;
 
-	memset(page_address(page), 0, PAGE_SIZE);
+	vaddr = page_address(page);
+	memset(vaddr, 0, PAGE_SIZE);
 
-	return page_address(page);
+	return vaddr;
 }
 
 int machine_kexec_post_load(struct kimage *kimage)
@@ -147,7 +149,7 @@ int machine_kexec_post_load(struct kimage *kimage)
 	if (rc)
 		return rc;
 	kimage->arch.ttbr1 = __pa(trans_pgd);
-	kimage->arch.zero_page = __pa(empty_zero_page);
+	kimage->arch.zero_page = __pa_symbol(empty_zero_page);
 
 	reloc_size = __relocate_new_kernel_end - __relocate_new_kernel_start;
 	memcpy(reloc_code, __relocate_new_kernel_start, reloc_size);

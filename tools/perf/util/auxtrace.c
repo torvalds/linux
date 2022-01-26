@@ -123,7 +123,7 @@ int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 	mm->prev = 0;
 	mm->idx = mp->idx;
 	mm->tid = mp->tid;
-	mm->cpu = mp->cpu;
+	mm->cpu = mp->cpu.cpu;
 
 	if (!mp->len) {
 		mm->base = NULL;
@@ -174,13 +174,13 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 	mp->idx = idx;
 
 	if (per_cpu) {
-		mp->cpu = evlist->core.cpus->map[idx];
+		mp->cpu = perf_cpu_map__cpu(evlist->core.cpus, idx);
 		if (evlist->core.threads)
 			mp->tid = perf_thread_map__pid(evlist->core.threads, 0);
 		else
 			mp->tid = -1;
 	} else {
-		mp->cpu = -1;
+		mp->cpu.cpu = -1;
 		mp->tid = perf_thread_map__pid(evlist->core.threads, idx);
 	}
 }
@@ -292,7 +292,7 @@ static int auxtrace_queues__queue_buffer(struct auxtrace_queues *queues,
 	if (!queue->set) {
 		queue->set = true;
 		queue->tid = buffer->tid;
-		queue->cpu = buffer->cpu;
+		queue->cpu = buffer->cpu.cpu;
 	}
 
 	buffer->buffer_nr = queues->next_buffer_nr++;
@@ -339,11 +339,11 @@ static int auxtrace_queues__split_buffer(struct auxtrace_queues *queues,
 	return 0;
 }
 
-static bool filter_cpu(struct perf_session *session, int cpu)
+static bool filter_cpu(struct perf_session *session, struct perf_cpu cpu)
 {
 	unsigned long *cpu_bitmap = session->itrace_synth_opts->cpu_bitmap;
 
-	return cpu_bitmap && cpu != -1 && !test_bit(cpu, cpu_bitmap);
+	return cpu_bitmap && cpu.cpu != -1 && !test_bit(cpu.cpu, cpu_bitmap);
 }
 
 static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
@@ -399,7 +399,7 @@ int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 	struct auxtrace_buffer buffer = {
 		.pid = -1,
 		.tid = event->auxtrace.tid,
-		.cpu = event->auxtrace.cpu,
+		.cpu = { event->auxtrace.cpu },
 		.data_offset = data_offset,
 		.offset = event->auxtrace.offset,
 		.reference = event->auxtrace.reference,

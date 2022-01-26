@@ -16,6 +16,7 @@
 *********************************************************/
 /* force inlining */
 
+#if !defined(ZSTD_NO_INLINE)
 #if (defined(__GNUC__) && !defined(__STRICT_ANSI__)) || defined(__cplusplus) || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
 #  define INLINE_KEYWORD inline
 #else
@@ -24,6 +25,12 @@
 
 #define FORCE_INLINE_ATTR __attribute__((always_inline))
 
+#else
+
+#define INLINE_KEYWORD
+#define FORCE_INLINE_ATTR
+
+#endif
 
 /*
   On MSVC qsort requires that functions passed into it use the __cdecl calling conversion(CC).

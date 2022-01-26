@@ -42,6 +42,7 @@ static const struct exynos_soc_id {
 	unsigned int id;
 } soc_ids[] = {
 	/* List ordered by SoC name */
+	/* Compatible with: samsung,exynos4210-chipid */
 	{ "EXYNOS3250", 0xE3472000 },
 	{ "EXYNOS4210", 0x43200000 },	/* EVT0 revision */
 	{ "EXYNOS4210", 0x43210000 },
@@ -55,6 +56,8 @@ static const struct exynos_soc_id {
 	{ "EXYNOS5440", 0xE5440000 },
 	{ "EXYNOS5800", 0xE5422000 },
 	{ "EXYNOS7420", 0xE7420000 },
+	/* Compatible with: samsung,exynos850-chipid */
+	{ "EXYNOS7885", 0xE7885000 },
 	{ "EXYNOS850", 0xE3830000 },
 	{ "EXYNOSAUTOV9", 0xAAA80000 },
 };

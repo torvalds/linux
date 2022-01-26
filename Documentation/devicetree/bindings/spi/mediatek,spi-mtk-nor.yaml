@@ -43,14 +43,19 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 2
     items:
       - description: clock used for spi bus
       - description: clock used for controller
+      - description: clock used for nor dma bus. this depends on hardware
+                     design, so this is optional.
 
   clock-names:
+    minItems: 2
     items:
       - const: spi
       - const: sf
+      - const: axi
 
 required:
   - compatible
@@ -72,7 +77,7 @@ examples:
       nor_flash: spi@1100d000 {
         compatible = "mediatek,mt8173-nor";
         reg = <0 0x1100d000 0 0xe0>;
-        interrupts = <&spi_flash_irq>;
+        interrupts = <1>;
         clocks = <&pericfg CLK_PERI_SPI>, <&topckgen CLK_TOP_SPINFI_IFR_SEL>;
         clock-names = "spi", "sf";
         #address-cells = <1>;
@@ -84,4 +89,3 @@ examples:
         };
       };
     };
-

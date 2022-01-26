@@ -62,20 +62,6 @@ MODULE_DESCRIPTION(OCRDMA_ROCE_DRV_DESC " " OCRDMA_ROCE_DRV_VERSION);
 MODULE_AUTHOR("Emulex Corporation");
 MODULE_LICENSE("Dual BSD/GPL");
 
-void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
-{
-	u8 mac_addr[6];
-
-	memcpy(&mac_addr[0], &dev->nic_info.mac_addr[0], ETH_ALEN);
-	guid[0] = mac_addr[0] ^ 2;
-	guid[1] = mac_addr[1];
-	guid[2] = mac_addr[2];
-	guid[3] = 0xff;
-	guid[4] = 0xfe;
-	guid[5] = mac_addr[3];
-	guid[6] = mac_addr[4];
-	guid[7] = mac_addr[5];
-}
 static enum rdma_link_layer ocrdma_link_layer(struct ib_device *device,
 					      u32 port_num)
 {
@@ -203,7 +189,8 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
 	int ret;
 
-	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.node_guid);
+	addrconf_addr_eui48((u8 *)&dev->ibdev.node_guid,
+			    dev->nic_info.mac_addr);
 	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));

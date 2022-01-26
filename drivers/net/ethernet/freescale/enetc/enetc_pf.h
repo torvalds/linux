@@ -2,7 +2,7 @@
 /* Copyright 2017-2019 NXP */
 
 #include "enetc.h"
-#include <linux/pcs-lynx.h>
+#include <linux/phylink.h>
 
 #define ENETC_PF_NUM_RINGS	8
 
@@ -46,7 +46,7 @@ struct enetc_pf {
 
 	struct mii_bus *mdio; /* saved for cleanup */
 	struct mii_bus *imdio;
-	struct lynx_pcs *pcs;
+	struct phylink_pcs *pcs;
 
 	phy_interface_t if_mode;
 	struct phylink_config phylink_config;

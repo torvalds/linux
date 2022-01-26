@@ -1081,8 +1081,9 @@ static void hns3_dump_page_pool_info(struct hns3_enet_ring *ring,
 	u32 j = 0;
 
 	sprintf(result[j++], "%u", index);
-	sprintf(result[j++], "%u", ring->page_pool->pages_state_hold_cnt);
 	sprintf(result[j++], "%u",
+		READ_ONCE(ring->page_pool->pages_state_hold_cnt));
+	sprintf(result[j++], "%d",
 		atomic_read(&ring->page_pool->pages_state_release_cnt));
 	sprintf(result[j++], "%u", ring->page_pool->p.pool_size);
 	sprintf(result[j++], "%u", ring->page_pool->p.order);
@@ -1103,6 +1104,11 @@ hns3_dbg_page_pool_info(struct hnae3_handle *h, char *buf, int len)
 
 	if (!priv->ring) {
 		dev_err(&h->pdev->dev, "priv->ring is NULL\n");
+		return -EFAULT;
+	}
+
+	if (!priv->ring[h->kinfo.num_tqps].page_pool) {
+		dev_err(&h->pdev->dev, "page pool is not initialized\n");
 		return -EFAULT;
 	}
 
@@ -1220,6 +1226,7 @@ static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
 	if (ret)
 		return ret;
 
+	mutex_lock(&handle->dbgfs_lock);
 	save_buf = &hns3_dbg_cmd[index].buf;
 
 	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
@@ -1232,15 +1239,15 @@ static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
 		read_buf = *save_buf;
 	} else {
 		read_buf = kvzalloc(hns3_dbg_cmd[index].buf_len, GFP_KERNEL);
-		if (!read_buf)
-			return -ENOMEM;
+		if (!read_buf) {
+			ret = -ENOMEM;
+			goto out;
+		}
 
 		/* save the buffer addr until the last read operation */
 		*save_buf = read_buf;
-	}
 
-	/* get data ready for the first time to read */
-	if (!*ppos) {
+		/* get data ready for the first time to read */
 		ret = hns3_dbg_read_cmd(dbg_data, hns3_dbg_cmd[index].cmd,
 					read_buf, hns3_dbg_cmd[index].buf_len);
 		if (ret)
@@ -1249,8 +1256,10 @@ static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
 
 	size = simple_read_from_buffer(buffer, count, ppos, read_buf,
 				       strlen(read_buf));
-	if (size > 0)
+	if (size > 0) {
+		mutex_unlock(&handle->dbgfs_lock);
 		return size;
+	}
 
 out:
 	/* free the buffer for the last read operation */
@@ -1259,6 +1268,7 @@ out:
 		*save_buf = NULL;
 	}
 
+	mutex_unlock(&handle->dbgfs_lock);
 	return ret;
 }
 
@@ -1331,6 +1341,8 @@ int hns3_dbg_init(struct hnae3_handle *handle)
 			debugfs_create_dir(hns3_dbg_dentry[i].name,
 					   handle->hnae3_dbgfs);
 
+	mutex_init(&handle->dbgfs_lock);
+
 	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++) {
 		if ((hns3_dbg_cmd[i].cmd == HNAE3_DBG_CMD_TM_NODES &&
 		     ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2) ||
@@ -1357,6 +1369,7 @@ int hns3_dbg_init(struct hnae3_handle *handle)
 	return 0;
 
 out:
+	mutex_destroy(&handle->dbgfs_lock);
 	debugfs_remove_recursive(handle->hnae3_dbgfs);
 	handle->hnae3_dbgfs = NULL;
 	return ret;
@@ -1372,6 +1385,7 @@ void hns3_dbg_uninit(struct hnae3_handle *handle)
 			hns3_dbg_cmd[i].buf = NULL;
 		}
 
+	mutex_destroy(&handle->dbgfs_lock);
 	debugfs_remove_recursive(handle->hnae3_dbgfs);
 	handle->hnae3_dbgfs = NULL;
 }

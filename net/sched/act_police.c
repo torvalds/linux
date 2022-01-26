@@ -90,7 +90,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, NULL, a,
-				     &act_police_ops, bind, true, 0);
+				     &act_police_ops, bind, true, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -405,6 +405,30 @@ static int tcf_police_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_police_offload_act_setup(struct tc_action *act, void *entry_data,
+					u32 *index_inc, bool bind)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		entry->id = FLOW_ACTION_POLICE;
+		entry->police.burst = tcf_police_burst(act);
+		entry->police.rate_bytes_ps =
+			tcf_police_rate_bytes_ps(act);
+		entry->police.burst_pkt = tcf_police_burst_pkt(act);
+		entry->police.rate_pkt_ps =
+			tcf_police_rate_pkt_ps(act);
+		entry->police.mtu = tcf_police_tcfp_mtu(act);
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		fl_action->id = FLOW_ACTION_POLICE;
+	}
+
+	return 0;
+}
+
 MODULE_AUTHOR("Alexey Kuznetsov");
 MODULE_DESCRIPTION("Policing actions");
 MODULE_LICENSE("GPL");
@@ -420,6 +444,7 @@ static struct tc_action_ops act_police_ops = {
 	.walk		=	tcf_police_walker,
 	.lookup		=	tcf_police_search,
 	.cleanup	=	tcf_police_cleanup,
+	.offload_act_setup =	tcf_police_offload_act_setup,
 	.size		=	sizeof(struct tcf_police),
 };
 

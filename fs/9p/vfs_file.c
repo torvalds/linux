@@ -93,7 +93,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	}
 	mutex_unlock(&v9inode->v_mutex);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
-		v9fs_cache_inode_set_cookie(inode, file);
+		fscache_use_cookie(v9fs_inode_cookie(v9inode),
+				   file->f_mode & FMODE_WRITE);
 	v9fs_open_fid_add(inode, fid);
 	return 0;
 out_error:
@@ -114,7 +115,6 @@ out_error:
 
 static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	int res = 0;
 	struct inode *inode = file_inode(filp);
 
 	p9_debug(P9_DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
@@ -124,7 +124,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 		invalidate_mapping_pages(&inode->i_data, 0, -1);
 	}
 
-	return res;
+	return 0;
 }
 
 static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
@@ -139,8 +139,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	fid = filp->private_data;
 	BUG_ON(fid == NULL);
 
-	if ((fl->fl_flags & FL_POSIX) != FL_POSIX)
-		BUG();
+	BUG_ON((fl->fl_flags & FL_POSIX) != FL_POSIX);
 
 	res = locks_lock_file_wait(filp, fl);
 	if (res < 0)

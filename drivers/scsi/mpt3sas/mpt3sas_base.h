@@ -77,8 +77,8 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"39.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		39
+#define MPT3SAS_DRIVER_VERSION		"40.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		40
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
@@ -141,6 +141,8 @@
 #define REPLY_FREE_POOL_SIZE		512 /*(32 maxcredix *4)*(4 times)*/
 
 #define MPT_MAX_CALLBACKS		32
+
+#define MPT_MAX_HBA_NUM_PHYS		32
 
 #define INTERNAL_CMDS_COUNT		10	/* reserved cmds */
 /* reserved for issuing internally framed scsi io cmds */
@@ -798,6 +800,7 @@ struct _sas_phy {
  * @enclosure_handle: handle for this a member of an enclosure
  * @device_info: bitwise defining capabilities of this sas_host/expander
  * @responding: used in _scsih_expander_device_mark_responding
+ * @nr_phys_allocated: Allocated memory for this many count phys
  * @phy: a list of phys that make up this sas_host/expander
  * @sas_port_list: list of ports attached to this sas_host/expander
  * @port: hba port entry containing node's port number info
@@ -813,6 +816,7 @@ struct _sas_node {
 	u16	enclosure_handle;
 	u64	enclosure_logical_id;
 	u8	responding;
+	u8	nr_phys_allocated;
 	struct hba_port *port;
 	struct	_sas_phy *phy;
 	struct list_head sas_port_list;

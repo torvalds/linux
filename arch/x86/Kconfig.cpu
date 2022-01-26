@@ -342,10 +342,6 @@ config X86_USE_PPRO_CHECKSUM
 	def_bool y
 	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MVIAC7 || MEFFICEON || MGEODE_LX || MCORE2 || MATOM
 
-config X86_USE_3DNOW
-	def_bool y
-	depends on (MCYRIXIII || MK7 || MGEODE_LX) && !UML
-
 #
 # P6_NOPs are a relatively minor optimization that require a family >=
 # 6 processor, except that it is broken on certain VIA chips.

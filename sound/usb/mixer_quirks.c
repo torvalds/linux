@@ -3016,11 +3016,11 @@ static const struct snd_djm_ctl snd_djm_ctls_750mk2[] = {
 
 
 static const struct snd_djm_device snd_djm_devices[] = {
-	SND_DJM_DEVICE(250mk2),
-	SND_DJM_DEVICE(750),
-	SND_DJM_DEVICE(750mk2),
-	SND_DJM_DEVICE(850),
-	SND_DJM_DEVICE(900nxs2)
+	[SND_DJM_250MK2_IDX] = SND_DJM_DEVICE(250mk2),
+	[SND_DJM_750_IDX] = SND_DJM_DEVICE(750),
+	[SND_DJM_850_IDX] = SND_DJM_DEVICE(850),
+	[SND_DJM_900NXS2_IDX] = SND_DJM_DEVICE(900nxs2),
+	[SND_DJM_750MK2_IDX] = SND_DJM_DEVICE(750mk2),
 };
 
 
@@ -3254,7 +3254,7 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		err = snd_rme_controls_create(mixer);
 		break;
 
-	case USB_ID(0x0194f, 0x010c): /* Presonus Studio 1810c */
+	case USB_ID(0x194f, 0x010c): /* Presonus Studio 1810c */
 		err = snd_sc1810_init_mixer(mixer);
 		break;
 	case USB_ID(0x2a39, 0x3fb0): /* RME Babyface Pro FS */
@@ -3280,7 +3280,6 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 	return err;
 }
 
-#ifdef CONFIG_PM
 void snd_usb_mixer_resume_quirk(struct usb_mixer_interface *mixer)
 {
 	switch (mixer->chip->usb_id) {
@@ -3289,7 +3288,6 @@ void snd_usb_mixer_resume_quirk(struct usb_mixer_interface *mixer)
 		break;
 	}
 }
-#endif
 
 void snd_usb_mixer_rc_memory_change(struct usb_mixer_interface *mixer,
 				    int unitid)

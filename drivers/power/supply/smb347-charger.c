@@ -1281,7 +1281,7 @@ static void smb347_dt_parse_dev_info(struct smb347_charger *smb)
 
 static int smb347_get_battery_info(struct smb347_charger *smb)
 {
-	struct power_supply_battery_info info = {};
+	struct power_supply_battery_info *info;
 	struct power_supply *supply;
 	int err;
 
@@ -1296,29 +1296,29 @@ static int smb347_get_battery_info(struct smb347_charger *smb)
 	if (err)
 		return err;
 
-	if (info.constant_charge_current_max_ua != -EINVAL)
-		smb->max_charge_current = info.constant_charge_current_max_ua;
+	if (info->constant_charge_current_max_ua != -EINVAL)
+		smb->max_charge_current = info->constant_charge_current_max_ua;
 
-	if (info.constant_charge_voltage_max_uv != -EINVAL)
-		smb->max_charge_voltage = info.constant_charge_voltage_max_uv;
+	if (info->constant_charge_voltage_max_uv != -EINVAL)
+		smb->max_charge_voltage = info->constant_charge_voltage_max_uv;
 
-	if (info.precharge_current_ua != -EINVAL)
-		smb->pre_charge_current = info.precharge_current_ua;
+	if (info->precharge_current_ua != -EINVAL)
+		smb->pre_charge_current = info->precharge_current_ua;
 
-	if (info.charge_term_current_ua != -EINVAL)
-		smb->termination_current = info.charge_term_current_ua;
+	if (info->charge_term_current_ua != -EINVAL)
+		smb->termination_current = info->charge_term_current_ua;
 
-	if (info.temp_alert_min != INT_MIN)
-		smb->soft_cold_temp_limit = info.temp_alert_min;
+	if (info->temp_alert_min != INT_MIN)
+		smb->soft_cold_temp_limit = info->temp_alert_min;
 
-	if (info.temp_alert_max != INT_MAX)
-		smb->soft_hot_temp_limit = info.temp_alert_max;
+	if (info->temp_alert_max != INT_MAX)
+		smb->soft_hot_temp_limit = info->temp_alert_max;
 
-	if (info.temp_min != INT_MIN)
-		smb->hard_cold_temp_limit = info.temp_min;
+	if (info->temp_min != INT_MIN)
+		smb->hard_cold_temp_limit = info->temp_min;
 
-	if (info.temp_max != INT_MAX)
-		smb->hard_hot_temp_limit = info.temp_max;
+	if (info->temp_max != INT_MAX)
+		smb->hard_hot_temp_limit = info->temp_max;
 
 	/* Suspend when battery temperature is outside hard limits */
 	if (smb->hard_cold_temp_limit != SMB3XX_TEMP_USE_DEFAULT ||

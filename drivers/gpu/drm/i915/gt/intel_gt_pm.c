@@ -86,6 +86,7 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	intel_rc6_unpark(&gt->rc6);
 	intel_rps_unpark(&gt->rps);
 	i915_pmu_gt_unparked(i915);
+	intel_guc_busyness_unpark(gt);
 
 	intel_gt_unpark_requests(gt);
 	runtime_begin(gt);
@@ -104,6 +105,7 @@ static int __gt_park(struct intel_wakeref *wf)
 	runtime_end(gt);
 	intel_gt_park_requests(gt);
 
+	intel_guc_busyness_park(gt);
 	i915_vma_parked(gt);
 	i915_pmu_gt_parked(i915);
 	intel_rps_park(&gt->rps);
@@ -301,7 +303,7 @@ void intel_gt_suspend_prepare(struct intel_gt *gt)
 	user_forcewake(gt, true);
 	wait_for_suspend(gt);
 
-	intel_pxp_suspend(&gt->pxp, false);
+	intel_pxp_suspend_prepare(&gt->pxp);
 }
 
 static suspend_state_t pm_suspend_target(void)
@@ -326,6 +328,7 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 	GEM_BUG_ON(gt->awake);
 
 	intel_uc_suspend(&gt->uc);
+	intel_pxp_suspend(&gt->pxp);
 
 	/*
 	 * On disabling the device, we want to turn off HW access to memory
@@ -353,7 +356,7 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 
 void intel_gt_runtime_suspend(struct intel_gt *gt)
 {
-	intel_pxp_suspend(&gt->pxp, true);
+	intel_pxp_runtime_suspend(&gt->pxp);
 	intel_uc_runtime_suspend(&gt->uc);
 
 	GT_TRACE(gt, "\n");
@@ -371,7 +374,7 @@ int intel_gt_runtime_resume(struct intel_gt *gt)
 	if (ret)
 		return ret;
 
-	intel_pxp_resume(&gt->pxp);
+	intel_pxp_runtime_resume(&gt->pxp);
 
 	return 0;
 }

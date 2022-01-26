@@ -550,6 +550,10 @@ struct audio_hw_clk_cfg {
 	uint32_t clock_root;
 } __packed;
 
+struct audio_hw_clk_rel_cfg {
+	uint32_t clock_id;
+} __packed;
+
 #define PARAM_ID_HW_EP_POWER_MODE_CFG	0x8001176
 #define AR_HW_EP_POWER_MODE_0	0 /* default */
 #define AR_HW_EP_POWER_MODE_1	1 /* XO Shutdown allowed */

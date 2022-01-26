@@ -78,36 +78,35 @@ struct hdac_ext_stream {
 	container_of(s, struct hdac_ext_stream, hstream)
 
 void snd_hdac_ext_stream_init(struct hdac_bus *bus,
-				struct hdac_ext_stream *stream, int idx,
-				int direction, int tag);
+			      struct hdac_ext_stream *hext_stream, int idx,
+			      int direction, int tag);
 int snd_hdac_ext_stream_init_all(struct hdac_bus *bus, int start_idx,
-		int num_stream, int dir);
+				 int num_stream, int dir);
 void snd_hdac_stream_free_all(struct hdac_bus *bus);
 void snd_hdac_link_free_all(struct hdac_bus *bus);
 struct hdac_ext_stream *snd_hdac_ext_stream_assign(struct hdac_bus *bus,
 					   struct snd_pcm_substream *substream,
 					   int type);
-void snd_hdac_ext_stream_release(struct hdac_ext_stream *azx_dev, int type);
+void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type);
 void snd_hdac_ext_stream_decouple_locked(struct hdac_bus *bus,
-				  struct hdac_ext_stream *azx_dev, bool decouple);
+					 struct hdac_ext_stream *hext_stream, bool decouple);
 void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
 				struct hdac_ext_stream *azx_dev, bool decouple);
-void snd_hdac_ext_stop_streams(struct hdac_bus *bus);
 
 int snd_hdac_ext_stream_set_spib(struct hdac_bus *bus,
-				 struct hdac_ext_stream *stream, u32 value);
+				 struct hdac_ext_stream *hext_stream, u32 value);
 int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_bus *bus,
-				 struct hdac_ext_stream *stream);
+				       struct hdac_ext_stream *hext_stream);
 void snd_hdac_ext_stream_drsm_enable(struct hdac_bus *bus,
 				bool enable, int index);
 int snd_hdac_ext_stream_set_dpibr(struct hdac_bus *bus,
-				struct hdac_ext_stream *stream, u32 value);
-int snd_hdac_ext_stream_set_lpib(struct hdac_ext_stream *stream, u32 value);
+				struct hdac_ext_stream *hext_stream, u32 value);
+int snd_hdac_ext_stream_set_lpib(struct hdac_ext_stream *hext_stream, u32 value);
 
-void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hstream);
-void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hstream);
-void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *hstream);
-int snd_hdac_ext_link_stream_setup(struct hdac_ext_stream *stream, int fmt);
+void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hext_stream);
+void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hext_stream);
+void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *hext_stream);
+int snd_hdac_ext_link_stream_setup(struct hdac_ext_stream *hext_stream, int fmt);
 
 struct hdac_ext_link {
 	struct hdac_bus *bus;

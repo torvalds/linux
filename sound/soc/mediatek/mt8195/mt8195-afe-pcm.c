@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
 #include "mt8195-afe-common.h"
 #include "mt8195-afe-clk.h"
@@ -3028,7 +3029,7 @@ static const struct reg_sequence mt8195_afe_reg_defaults[] = {
 
 static const struct reg_sequence mt8195_cg_patch[] = {
 	{ AUDIO_TOP_CON0, 0xfffffffb },
-	{ AUDIO_TOP_CON1, 0xfffffffa },
+	{ AUDIO_TOP_CON1, 0xfffffff8 },
 };
 
 static int mt8195_afe_init_registers(struct mtk_base_afe *afe)
@@ -3060,6 +3061,12 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i, irq_id, ret;
 	struct snd_soc_component *component;
+
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
+		dev_err(dev, "failed to assign memory region: %d\n", ret);
+		return ret;
+	}
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(33));
 	if (ret)

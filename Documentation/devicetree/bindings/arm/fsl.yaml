@@ -240,6 +240,7 @@ properties:
               - uniwest,imx6q-evi         # Uniwest Evi
               - variscite,dt6customboard
               - wand,imx6q-wandboard      # Wandboard i.MX6 Quad Board
+              - ysoft,imx6q-yapp4-crux    # i.MX6 Quad Y Soft IOTA Crux board
               - zealz,imx6q-gk802         # Zealz GK802
               - zii,imx6q-zii-rdu2        # ZII RDU2 Board
           - const: fsl,imx6q
@@ -323,6 +324,20 @@ properties:
           - const: toradex,apalis_imx6q
           - const: fsl,imx6q
 
+      - description: TQ-Systems TQMa6Q SoM (variant A) on MBa6x
+        items:
+          - const: tq,imx6q-mba6x-a
+          - const: tq,mba6a               # Expected by bootloader, to be removed in the future
+          - const: tq,imx6q-tqma6q-a
+          - const: fsl,imx6q
+
+      - description: TQ-Systems TQMa6Q SoM (variant B) on MBa6x
+        items:
+          - const: tq,imx6q-mba6x-b
+          - const: tq,mba6b               # Expected by bootloader, to be removed in the future
+          - const: tq,imx6q-tqma6q-b
+          - const: fsl,imx6q
+
       - description: i.MX6QP based Boards
         items:
           - enum:
@@ -334,6 +349,7 @@ properties:
               - kvg,vicutp                # Kverneland UT1P board
               - prt,prtwd3                # Protonic WD3 board
               - wand,imx6qp-wandboard     # Wandboard i.MX6 QuadPlus Board
+              - ysoft,imx6qp-yapp4-crux-plus  # i.MX6 Quad Plus Y Soft IOTA Crux+ board
               - zii,imx6qp-zii-rdu2       # ZII RDU2+ Board
           - const: fsl,imx6qp
 
@@ -342,6 +358,13 @@ properties:
           - const: phytec,imx6qp-pbac06-nand
           - const: phytec,imx6qp-pbac06   # PHYTEC phyBOARD-Mira
           - const: phytec,imx6qdl-pcm058  # PHYTEC phyCORE-i.MX6
+          - const: fsl,imx6qp
+
+      - description: TQ-Systems TQMa6QP SoM on MBa6x
+        items:
+          - const: tq,imx6qp-mba6x-b
+          - const: tq,mba6b               # Expected by bootloader, to be removed in the future
+          - const: tq,imx6qp-tqma6qp-b
           - const: fsl,imx6qp
 
       - description: i.MX6DL based Boards
@@ -482,6 +505,20 @@ properties:
           - const: dh,imx6s-dhcom-som
           - const: fsl,imx6dl
 
+      - description: TQ-Systems TQMa6DL SoM (variant A) on MBa6x
+        items:
+          - const: tq,imx6dl-mba6x-a
+          - const: tq,mba6a               # Expected by bootloader, to be removed in the future
+          - const: tq,imx6dl-tqma6dl-a
+          - const: fsl,imx6dl
+
+      - description: TQ-Systems TQMa6DL SoM (variant B) on MBa6x
+        items:
+          - const: tq,imx6dl-mba6x-b
+          - const: tq,mba6b               # Expected by bootloader, to be removed in the future
+          - const: tq,imx6dl-tqma6dl-b
+          - const: fsl,imx6dl
+
       - description: i.MX6SL based Boards
         items:
           - enum:
@@ -580,6 +617,7 @@ properties:
         items:
           - enum:
               - fsl,imx6ull-14x14-evk     # i.MX6 UltraLiteLite 14x14 EVK Board
+              - joz,jozacp                # JOZ Access Point
               - kontron,imx6ull-n6411-som # Kontron N6411 SOM
               - myir,imx6ull-mys-6ulx-eval # MYiR Tech iMX6ULL Evaluation Board
               - toradex,colibri-imx6ull      # Colibri iMX6ULL Modules
@@ -632,6 +670,7 @@ properties:
       - description: i.MX6ULZ based Boards
         items:
           - enum:
+              - bsh,imx6ulz-bsh-smm-m2    # i.MX6 ULZ BSH SystemMaster
               - fsl,imx6ulz-14x14-evk     # i.MX6 ULZ 14x14 EVK Board
           - const: fsl,imx6ull # This seems odd. Should be last?
           - const: fsl,imx6ulz
@@ -754,10 +793,23 @@ properties:
           - const: variscite,var-som-mx8mm
           - const: fsl,imx8mm
 
+      - description:
+          TQMa8MxML is a series of SOM featuring NXP i.MX8MM system-on-chip
+          variants. It is designed to be soldered on different carrier boards.
+          All variants (TQMa8M[Q,D,S][L]ML) use the same device tree, hence only
+          one compatible is needed.
+        items:
+          - enum:
+              - tq,imx8mm-tqma8mqml-mba8mx # TQ-Systems GmbH i.MX8MM TQMa8MQML SOM on MBa8Mx
+          - const: tq,imx8mm-tqma8mqml     # TQ-Systems GmbH i.MX8MM TQMa8MQML SOM
+          - const: fsl,imx8mm
+
       - description: i.MX8MN based Boards
         items:
           - enum:
               - beacon,imx8mn-beacon-kit  # i.MX8MN Beacon Development Kit
+              - bsh,imx8mn-bsh-smm-s2     # i.MX8MN BSH SystemMaster S2
+              - bsh,imx8mn-bsh-smm-s2pro  # i.MX8MN BSH SystemMaster S2 PRO
               - fsl,imx8mn-ddr4-evk       # i.MX8MN DDR4 EVK Board
               - fsl,imx8mn-evk            # i.MX8MN LPDDR4 EVK Board
               - gw,imx8mn-gw7902          # i.MX8MM Gateworks Board
@@ -767,6 +819,17 @@ properties:
         items:
           - const: variscite,var-som-mx8mn-symphony
           - const: variscite,var-som-mx8mn
+          - const: fsl,imx8mn
+
+      - description:
+          TQMa8MxNL is a series of SOM featuring NXP i.MX8MN system-on-chip
+          variants. It is designed to be soldered on different carrier boards.
+          All variants (TQMa8M[Q,D,S][L]NL) use the same device tree, hence only
+          one compatible is needed.
+        items:
+          - enum:
+              - tq,imx8mn-tqma8mqnl-mba8mx # TQ-Systems GmbH i.MX8MN TQMa8MQNL SOM on MBa8Mx
+          - const: tq,imx8mn-tqma8mqnl     # TQ-Systems GmbH i.MX8MN TQMa8MQNL SOM
           - const: fsl,imx8mn
 
       - description: i.MX8MP based Boards
@@ -805,6 +868,15 @@ properties:
           - const: purism,librem5
           - const: fsl,imx8mq
 
+      - description:
+          TQMa8Mx is a series of SOM featuring NXP i.MX8MQ system-on-chip
+          variants. It is designed to be clicked on different carrier boards.
+        items:
+          - enum:
+              - tq,imx8mq-tqma8mq-mba8mx # TQ-Systems GmbH i.MX8MQ TQMa8Mx SOM on MBa8Mx
+          - const: tq,imx8mq-tqma8mq     # TQ-Systems GmbH i.MX8MQ TQMa8Mx SOM
+          - const: fsl,imx8mq
+
       - description: Zodiac Inflight Innovations Ultra Boards
         items:
           - enum:
@@ -833,6 +905,12 @@ properties:
               - toradex,colibri-imx8x-eval-v3 # Colibri iMX8X Module on Colibri Evaluation Board V3
           - const: toradex,colibri-imx8x
           - const: fsl,imx8qxp
+
+      - description: i.MX8ULP based Boards
+        items:
+          - enum:
+              - fsl,imx8ulp-evk           # i.MX8ULP EVK Board
+          - const: fsl,imx8ulp
 
       - description:
           Freescale Vybrid Platform Device Tree Bindings

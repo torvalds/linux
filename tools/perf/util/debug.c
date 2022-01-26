@@ -24,16 +24,6 @@
 #include "util/parse-sublevel-options.h"
 
 #include <linux/ctype.h>
-#include <traceevent/event-parse.h>
-
-#define MAKE_LIBTRACEEVENT_VERSION(a, b, c) ((a)*255*255+(b)*255+(c))
-#ifndef LIBTRACEEVENT_VERSION
-/*
- * If LIBTRACEEVENT_VERSION wasn't computed then set to version 1.1.0 that ships
- * with the Linux kernel tools.
- */
-#define LIBTRACEEVENT_VERSION MAKE_LIBTRACEEVENT_VERSION(1, 1, 0)
-#endif
 
 int verbose;
 int debug_peo_args;
@@ -189,7 +179,7 @@ static int trace_event_printer(enum binary_printer_ops op,
 		break;
 	case BINARY_PRINT_CHAR_DATA:
 		printed += color_fprintf(fp, color, "%c",
-			      isprint(ch) ? ch : '.');
+			      isprint(ch) && isascii(ch) ? ch : '.');
 		break;
 	case BINARY_PRINT_CHAR_PAD:
 		printed += color_fprintf(fp, color, " ");
@@ -237,15 +227,6 @@ int perf_debug_option(const char *str)
 
 	/* Allow only verbose value in range (0, 10), otherwise set 0. */
 	verbose = (verbose < 0) || (verbose > 10) ? 0 : verbose;
-
-#if MAKE_LIBTRACEEVENT_VERSION(1, 3, 0) <= LIBTRACEEVENT_VERSION
-	if (verbose == 1)
-		tep_set_loglevel(TEP_LOG_INFO);
-	else if (verbose == 2)
-		tep_set_loglevel(TEP_LOG_DEBUG);
-	else if (verbose >= 3)
-		tep_set_loglevel(TEP_LOG_ALL);
-#endif
 
 	return 0;
 }

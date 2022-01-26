@@ -62,6 +62,7 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 	atomic_set(&conn->req_running, 0);
 	atomic_set(&conn->r_count, 0);
 	conn->total_credits = 1;
+	conn->outstanding_credits = 1;
 
 	init_waitqueue_head(&conn->req_running_q);
 	INIT_LIST_HEAD(&conn->conns_list);
@@ -386,17 +387,24 @@ out:
 static void stop_sessions(void)
 {
 	struct ksmbd_conn *conn;
+	struct ksmbd_transport *t;
 
 again:
 	read_lock(&conn_list_lock);
 	list_for_each_entry(conn, &conn_list, conns_list) {
 		struct task_struct *task;
 
-		task = conn->transport->handler;
+		t = conn->transport;
+		task = t->handler;
 		if (task)
 			ksmbd_debug(CONN, "Stop session handler %s/%d\n",
 				    task->comm, task_pid_nr(task));
 		conn->status = KSMBD_SESS_EXITING;
+		if (t->ops->shutdown) {
+			read_unlock(&conn_list_lock);
+			t->ops->shutdown(t);
+			read_lock(&conn_list_lock);
+		}
 	}
 	read_unlock(&conn_list_lock);
 

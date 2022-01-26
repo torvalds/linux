@@ -491,27 +491,6 @@ static void gpio_mockup_unregister_pdevs(void)
 	}
 }
 
-static __init char **gpio_mockup_make_line_names(const char *label,
-						 unsigned int num_lines)
-{
-	unsigned int i;
-	char **names;
-
-	names = kcalloc(num_lines + 1, sizeof(char *), GFP_KERNEL);
-	if (!names)
-		return NULL;
-
-	for (i = 0; i < num_lines; i++) {
-		names[i] = kasprintf(GFP_KERNEL, "%s-%u", label, i);
-		if (!names[i]) {
-			kfree_strarray(names, i);
-			return NULL;
-		}
-	}
-
-	return names;
-}
-
 static int __init gpio_mockup_register_chip(int idx)
 {
 	struct property_entry properties[GPIO_MOCKUP_MAX_PROP];
@@ -538,7 +517,7 @@ static int __init gpio_mockup_register_chip(int idx)
 	properties[prop++] = PROPERTY_ENTRY_U16("nr-gpios", ngpio);
 
 	if (gpio_mockup_named_lines) {
-		line_names = gpio_mockup_make_line_names(chip_label, ngpio);
+		line_names = kasprintf_strarray(GFP_KERNEL, chip_label, ngpio);
 		if (!line_names)
 			return -ENOMEM;
 

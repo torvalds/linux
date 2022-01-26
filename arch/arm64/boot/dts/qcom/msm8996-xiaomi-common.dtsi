@@ -207,8 +207,8 @@
 	status = "okay";
 	label = "TYPEC_I2C";
 
-	typec: tusb320@47 {
-		compatible = "ti,tusb320";
+	typec: tusb320l@47 {
+		compatible = "ti,tusb320l";
 		reg = <0x47>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <63 IRQ_TYPE_EDGE_RISING>;

@@ -14,12 +14,6 @@
 #include <asm/cpu_ops.h>
 #include <asm/sbi.h>
 
-void cpu_stop(void);
-void arch_cpu_idle_dead(void)
-{
-	cpu_stop();
-}
-
 bool cpu_has_hotplug(unsigned int cpu)
 {
 	if (cpu_ops[cpu]->cpu_stop)
@@ -75,7 +69,7 @@ void __cpu_die(unsigned int cpu)
 /*
  * Called from the idle thread for the CPU which has been shutdown.
  */
-void cpu_stop(void)
+void arch_cpu_idle_dead(void)
 {
 	idle_task_exit();
 

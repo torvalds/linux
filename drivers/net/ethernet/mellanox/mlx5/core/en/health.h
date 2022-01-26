@@ -30,6 +30,8 @@ void mlx5e_reporter_rx_destroy(struct mlx5e_priv *priv);
 void mlx5e_reporter_icosq_cqe_err(struct mlx5e_icosq *icosq);
 void mlx5e_reporter_rq_cqe_err(struct mlx5e_rq *rq);
 void mlx5e_reporter_rx_timeout(struct mlx5e_rq *rq);
+void mlx5e_reporter_icosq_suspend_recovery(struct mlx5e_channel *c);
+void mlx5e_reporter_icosq_resume_recovery(struct mlx5e_channel *c);
 
 #define MLX5E_REPORTER_PER_Q_MAX_LEN 256
 

@@ -13,6 +13,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
+#include "intel_fbc.h"
 #include "intel_sprite.h"
 #include "i9xx_plane.h"
 
@@ -60,22 +61,11 @@ static const u32 vlv_primary_formats[] = {
 	DRM_FORMAT_XBGR16161616F,
 };
 
-static const u64 i9xx_format_modifiers[] = {
-	I915_FORMAT_MOD_X_TILED,
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
-};
-
 static bool i8xx_plane_format_mod_supported(struct drm_plane *_plane,
 					    u32 format, u64 modifier)
 {
-	switch (modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-		break;
-	default:
+	if (!intel_fb_plane_supports_modifier(to_intel_plane(_plane), modifier))
 		return false;
-	}
 
 	switch (format) {
 	case DRM_FORMAT_C8:
@@ -92,13 +82,8 @@ static bool i8xx_plane_format_mod_supported(struct drm_plane *_plane,
 static bool i965_plane_format_mod_supported(struct drm_plane *_plane,
 					    u32 format, u64 modifier)
 {
-	switch (modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-		break;
-	default:
+	if (!intel_fb_plane_supports_modifier(to_intel_plane(_plane), modifier))
 		return false;
-	}
 
 	switch (format) {
 	case DRM_FORMAT_C8:
@@ -134,6 +119,15 @@ static bool i9xx_plane_has_fbc(struct drm_i915_private *dev_priv,
 		return i9xx_plane == PLANE_A || i9xx_plane == PLANE_B;
 	else
 		return i9xx_plane == PLANE_A;
+}
+
+static struct intel_fbc *i9xx_plane_fbc(struct drm_i915_private *dev_priv,
+					enum i9xx_plane_id i9xx_plane)
+{
+	if (i9xx_plane_has_fbc(dev_priv, i9xx_plane))
+		return dev_priv->fbc;
+	else
+		return NULL;
 }
 
 static bool i9xx_plane_has_windowing(struct intel_plane *plane)
@@ -272,7 +266,7 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		u32 alignment = intel_surf_alignment(fb, 0);
 		int cpp = fb->format->cpp[0];
 
-		while ((src_x + src_w) * cpp > plane_state->view.color_plane[0].stride) {
+		while ((src_x + src_w) * cpp > plane_state->view.color_plane[0].mapping_stride) {
 			if (offset == 0) {
 				drm_dbg_kms(&dev_priv->drm,
 					    "Unable to find suitable display surface offset due to X-tiling\n");
@@ -418,22 +412,49 @@ static int i9xx_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
-static void i9xx_update_plane(struct intel_plane *plane,
-			      const struct intel_crtc_state *crtc_state,
-			      const struct intel_plane_state *plane_state)
+static void i9xx_plane_update_noarm(struct intel_plane *plane,
+				    const struct intel_crtc_state *crtc_state,
+				    const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	u32 linear_offset;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
+			  plane_state->view.color_plane[0].mapping_stride);
+
+	if (DISPLAY_VER(dev_priv) < 4) {
+		int crtc_x = plane_state->uapi.dst.x1;
+		int crtc_y = plane_state->uapi.dst.y1;
+		int crtc_w = drm_rect_width(&plane_state->uapi.dst);
+		int crtc_h = drm_rect_height(&plane_state->uapi.dst);
+
+		/*
+		 * PLANE_A doesn't actually have a full window
+		 * generator but let's assume we still need to
+		 * program whatever is there.
+		 */
+		intel_de_write_fw(dev_priv, DSPPOS(i9xx_plane),
+				  (crtc_y << 16) | crtc_x);
+		intel_de_write_fw(dev_priv, DSPSIZE(i9xx_plane),
+				  ((crtc_h - 1) << 16) | (crtc_w - 1));
+	}
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void i9xx_plane_update_arm(struct intel_plane *plane,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	int x = plane_state->view.color_plane[0].x;
 	int y = plane_state->view.color_plane[0].y;
-	int crtc_x = plane_state->uapi.dst.x1;
-	int crtc_y = plane_state->uapi.dst.y1;
-	int crtc_w = drm_rect_width(&plane_state->uapi.dst);
-	int crtc_h = drm_rect_height(&plane_state->uapi.dst);
+	u32 dspcntr, dspaddr_offset, linear_offset;
 	unsigned long irqflags;
-	u32 dspaddr_offset;
-	u32 dspcntr;
 
 	dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 
@@ -446,20 +467,12 @@ static void i9xx_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
-			  plane_state->view.color_plane[0].stride);
+	if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
+		int crtc_x = plane_state->uapi.dst.x1;
+		int crtc_y = plane_state->uapi.dst.y1;
+		int crtc_w = drm_rect_width(&plane_state->uapi.dst);
+		int crtc_h = drm_rect_height(&plane_state->uapi.dst);
 
-	if (DISPLAY_VER(dev_priv) < 4) {
-		/*
-		 * PLANE_A doesn't actually have a full window
-		 * generator but let's assume we still need to
-		 * program whatever is there.
-		 */
-		intel_de_write_fw(dev_priv, DSPPOS(i9xx_plane),
-				  (crtc_y << 16) | crtc_x);
-		intel_de_write_fw(dev_priv, DSPSIZE(i9xx_plane),
-				  ((crtc_h - 1) << 16) | (crtc_w - 1));
-	} else if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
 		intel_de_write_fw(dev_priv, PRIMPOS(i9xx_plane),
 				  (crtc_y << 16) | crtc_x);
 		intel_de_write_fw(dev_priv, PRIMSIZE(i9xx_plane),
@@ -493,8 +506,22 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void i9xx_disable_plane(struct intel_plane *plane,
-			       const struct intel_crtc_state *crtc_state)
+static void i830_plane_update_arm(struct intel_plane *plane,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct intel_plane_state *plane_state)
+{
+	/*
+	 * On i830/i845 all registers are self-arming [ALM040].
+	 *
+	 * Additional breakage on i830 causes register reads to return
+	 * the last latched value instead of the last written value [ALM026].
+	 */
+	i9xx_plane_update_noarm(plane, crtc_state, plane_state);
+	i9xx_plane_update_arm(plane, crtc_state, plane_state);
+}
+
+static void i9xx_plane_disable_arm(struct intel_plane *plane,
+				   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
@@ -768,6 +795,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	struct intel_plane *plane;
 	const struct drm_plane_funcs *plane_funcs;
 	unsigned int supported_rotations;
+	const u64 *modifiers;
 	const u32 *formats;
 	int num_formats;
 	int ret, zpos;
@@ -789,12 +817,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	plane->id = PLANE_PRIMARY;
 	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane->id);
 
-	plane->has_fbc = i9xx_plane_has_fbc(dev_priv, plane->i9xx_plane);
-	if (plane->has_fbc) {
-		struct intel_fbc *fbc = &dev_priv->fbc;
-
-		fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
-	}
+	intel_fbc_add_plane(i9xx_plane_fbc(dev_priv, plane->i9xx_plane), plane);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		formats = vlv_primary_formats;
@@ -851,8 +874,13 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 			plane->max_stride = ilk_primary_max_stride;
 	}
 
-	plane->update_plane = i9xx_update_plane;
-	plane->disable_plane = i9xx_disable_plane;
+	if (IS_I830(dev_priv) || IS_I845G(dev_priv)) {
+		plane->update_arm = i830_plane_update_arm;
+	} else {
+		plane->update_noarm = i9xx_plane_update_noarm;
+		plane->update_arm = i9xx_plane_update_arm;
+	}
+	plane->disable_arm = i9xx_plane_disable_arm;
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
 
@@ -875,21 +903,26 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->disable_flip_done = ilk_primary_disable_flip_done;
 	}
 
+	modifiers = intel_fb_plane_get_modifiers(dev_priv, INTEL_PLANE_CAP_TILING_X);
+
 	if (DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 					       0, plane_funcs,
 					       formats, num_formats,
-					       i9xx_format_modifiers,
+					       modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "primary %c", pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 					       0, plane_funcs,
 					       formats, num_formats,
-					       i9xx_format_modifiers,
+					       modifiers,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane %c",
 					       plane_name(plane->i9xx_plane));
+
+	kfree(modifiers);
+
 	if (ret)
 		goto fail;
 

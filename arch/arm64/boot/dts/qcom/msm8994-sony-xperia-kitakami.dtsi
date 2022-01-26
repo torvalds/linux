@@ -29,7 +29,6 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		input-name = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		autorepeat;
@@ -223,7 +222,7 @@
 		vdd_l17_l29-supply = <&pmi8994_bby>;
 		vdd_l20_l21-supply = <&pmi8994_bby>;
 		vdd_l25-supply = <&pm8994_s3>;
-		vdd_lvs1_lvs2-supply = <&pm8994_s4>;
+		vdd_lvs1_2-supply = <&pm8994_s4>;
 
 		/* S1, S2, S6 and S12 are managed by RPMPD */
 

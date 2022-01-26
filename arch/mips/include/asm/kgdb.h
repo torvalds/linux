@@ -18,7 +18,7 @@
 #ifdef CONFIG_32BIT
 #define KGDB_GDB_REG_SIZE	32
 #define GDB_SIZEOF_REG		sizeof(u32)
-#else /* CONFIG_CPU_32BIT */
+#else /* CONFIG_32BIT */
 #define KGDB_GDB_REG_SIZE	64
 #define GDB_SIZEOF_REG		sizeof(u64)
 #endif

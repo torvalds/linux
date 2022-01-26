@@ -35,7 +35,7 @@ void __init ps3_register_ipi_irq(unsigned int cpu, unsigned int virq);
 
 /* smp */
 
-void smp_init_ps3(void);
+void __init smp_init_ps3(void);
 #ifdef CONFIG_SMP
 void ps3_smp_cleanup_cpu(int cpu);
 #else
@@ -134,9 +134,9 @@ struct ps3_repository_device {
 int ps3_repository_find_device(struct ps3_repository_device *repo);
 int ps3_repository_find_device_by_id(struct ps3_repository_device *repo,
 				     u64 bus_id, u64 dev_id);
-int ps3_repository_find_devices(enum ps3_bus_type bus_type,
+int __init ps3_repository_find_devices(enum ps3_bus_type bus_type,
 	int (*callback)(const struct ps3_repository_device *repo));
-int ps3_repository_find_bus(enum ps3_bus_type bus_type, unsigned int from,
+int __init ps3_repository_find_bus(enum ps3_bus_type bus_type, unsigned int from,
 	unsigned int *bus_index);
 int ps3_repository_find_interrupt(const struct ps3_repository_device *repo,
 	enum ps3_interrupt_type intr_type, unsigned int *interrupt_id);
@@ -211,8 +211,8 @@ static inline int ps3_repository_delete_highmem_info(unsigned int region_index)
 int ps3_repository_read_num_be(unsigned int *num_be);
 int ps3_repository_read_be_node_id(unsigned int be_index, u64 *node_id);
 int ps3_repository_read_be_id(u64 node_id, u64 *be_id);
-int ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq);
-int ps3_repository_read_be_tb_freq(unsigned int be_index, u64 *tb_freq);
+int __init ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq);
+int __init ps3_repository_read_be_tb_freq(unsigned int be_index, u64 *tb_freq);
 
 /* repository performance monitor info */
 
@@ -247,7 +247,7 @@ int ps3_repository_read_spu_resource_id(unsigned int res_index,
 
 /* repository vuart info */
 
-int ps3_repository_read_vuart_av_port(unsigned int *port);
-int ps3_repository_read_vuart_sysmgr_port(unsigned int *port);
+int __init ps3_repository_read_vuart_av_port(unsigned int *port);
+int __init ps3_repository_read_vuart_sysmgr_port(unsigned int *port);
 
 #endif

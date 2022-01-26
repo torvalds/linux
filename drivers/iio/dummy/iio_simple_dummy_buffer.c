@@ -45,7 +45,6 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	int len = 0;
 	u16 *data;
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
@@ -79,7 +78,6 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 					  indio_dev->masklength, j);
 			/* random access read from the 'device' */
 			data[i] = fakedata[j];
-			len += 2;
 		}
 	}
 

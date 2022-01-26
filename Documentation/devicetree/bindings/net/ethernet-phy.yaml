@@ -91,6 +91,14 @@ properties:
       compensate for the board being designed with the lanes
       swapped.
 
+  enet-phy-lane-no-swap:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If set, indicates that PHY will disable swap of the
+      TX/RX lanes. This property allows the PHY to work correcly after
+      e.g. wrong bootstrap configuration caused by issues in PCB
+      layout design.
+
   eee-broken-100tx:
     $ref: /schemas/types.yaml#/definitions/flag
     description:

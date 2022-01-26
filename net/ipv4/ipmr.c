@@ -195,10 +195,6 @@ static int ipmr_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	return 1;
 }
 
-static const struct nla_policy ipmr_rule_policy[FRA_MAX + 1] = {
-	FRA_GENERIC_POLICY,
-};
-
 static int ipmr_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			       struct fib_rule_hdr *frh, struct nlattr **tb,
 			       struct netlink_ext_ack *extack)
@@ -231,7 +227,6 @@ static const struct fib_rules_ops __net_initconst ipmr_rules_ops_template = {
 	.compare	= ipmr_rule_compare,
 	.fill		= ipmr_rule_fill,
 	.nlgroup	= RTNLGRP_IPV4_RULE,
-	.policy		= ipmr_rule_policy,
 	.owner		= THIS_MODULE,
 };
 
@@ -696,7 +691,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 	if (v->flags & (VIFF_TUNNEL | VIFF_REGISTER) && !notify)
 		unregister_netdevice_queue(dev, head);
 
-	dev_put(dev);
+	dev_put_track(dev, &v->dev_tracker);
 	return 0;
 }
 
@@ -896,6 +891,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
 	v->dev = dev;
+	netdev_tracker_alloc(dev, &v->dev_tracker, GFP_ATOMIC);
 	if (v->flags & VIFF_REGISTER)
 		mrt->mroute_reg_vif_num = vifi;
 	if (vifi+1 > mrt->maxvif)

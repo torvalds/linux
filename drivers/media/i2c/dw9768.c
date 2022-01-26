@@ -469,6 +469,11 @@ static int dw9768_probe(struct i2c_client *client)
 
 	dw9768->sd.entity.function = MEDIA_ENT_F_LENS;
 
+	/*
+	 * Device is already turned on by i2c-core with ACPI domain PM.
+	 * Attempt to turn off the device to satisfy the privacy LED concerns.
+	 */
+	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	if (!pm_runtime_enabled(dev)) {
 		ret = dw9768_runtime_resume(dev);
@@ -483,6 +488,7 @@ static int dw9768_probe(struct i2c_client *client)
 		dev_err(dev, "failed to register V4L2 subdev: %d", ret);
 		goto err_power_off;
 	}
+	pm_runtime_idle(dev);
 
 	return 0;
 

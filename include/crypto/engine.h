@@ -9,14 +9,18 @@
 
 #include <linux/crypto.h>
 #include <linux/list.h>
-#include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+
 #include <crypto/algapi.h>
 #include <crypto/aead.h>
 #include <crypto/akcipher.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <crypto/kpp.h>
+
+struct device;
 
 #define ENGINE_NAME_LEN	30
 /*

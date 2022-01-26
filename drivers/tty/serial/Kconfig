@@ -263,7 +263,7 @@ config SERIAL_SAMSUNG_UARTS
 
 config SERIAL_SAMSUNG_CONSOLE
 	bool "Support for console on Samsung SoC serial port"
-	depends on SERIAL_SAMSUNG=y
+	depends on SERIAL_SAMSUNG
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
@@ -1533,7 +1533,7 @@ config SERIAL_LITEUART
 	tristate "LiteUART serial port support"
 	depends on HAS_IOMEM
 	depends on OF || COMPILE_TEST
-	depends on LITEX
+	depends on LITEX || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  This driver is for the FPGA-based LiteUART serial controller from LiteX

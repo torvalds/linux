@@ -22,21 +22,40 @@
 
 void ksz_update_port_member(struct ksz_device *dev, int port)
 {
-	struct ksz_port *p;
+	struct ksz_port *p = &dev->ports[port];
+	struct dsa_switch *ds = dev->ds;
+	u8 port_member = 0, cpu_port;
+	const struct dsa_port *dp;
 	int i;
 
-	for (i = 0; i < dev->port_cnt; i++) {
-		if (i == port || i == dev->cpu_port)
+	if (!dsa_is_user_port(ds, port))
+		return;
+
+	dp = dsa_to_port(ds, port);
+	cpu_port = BIT(dsa_upstream_port(ds, port));
+
+	for (i = 0; i < ds->num_ports; i++) {
+		const struct dsa_port *other_dp = dsa_to_port(ds, i);
+		struct ksz_port *other_p = &dev->ports[i];
+		u8 val = 0;
+
+		if (!dsa_is_user_port(ds, i))
 			continue;
-		p = &dev->ports[i];
-		if (!(dev->member & (1 << i)))
+		if (port == i)
+			continue;
+		if (!dsa_port_bridge_same(dp, other_dp))
 			continue;
 
-		/* Port is a member of the bridge and is forwarding. */
-		if (p->stp_state == BR_STATE_FORWARDING &&
-		    p->member != dev->member)
-			dev->dev_ops->cfg_port_member(dev, i, dev->member);
+		if (other_p->stp_state == BR_STATE_FORWARDING &&
+		    p->stp_state == BR_STATE_FORWARDING) {
+			val |= BIT(port);
+			port_member |= BIT(i);
+		}
+
+		dev->dev_ops->cfg_port_member(dev, i, val | cpu_port);
 	}
+
+	dev->dev_ops->cfg_port_member(dev, port, port_member | cpu_port);
 }
 EXPORT_SYMBOL_GPL(ksz_update_port_member);
 
@@ -173,14 +192,9 @@ void ksz_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *buf)
 EXPORT_SYMBOL_GPL(ksz_get_ethtool_stats);
 
 int ksz_port_bridge_join(struct dsa_switch *ds, int port,
-			 struct net_device *br)
+			 struct dsa_bridge bridge,
+			 bool *tx_fwd_offload)
 {
-	struct ksz_device *dev = ds->priv;
-
-	mutex_lock(&dev->dev_mutex);
-	dev->br_member |= (1 << port);
-	mutex_unlock(&dev->dev_mutex);
-
 	/* port_stp_state_set() will be called after to put the port in
 	 * appropriate state so there is no need to do anything.
 	 */
@@ -190,15 +204,8 @@ int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL_GPL(ksz_port_bridge_join);
 
 void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
-			   struct net_device *br)
+			   struct dsa_bridge bridge)
 {
-	struct ksz_device *dev = ds->priv;
-
-	mutex_lock(&dev->dev_mutex);
-	dev->br_member &= ~(1 << port);
-	dev->member &= ~(1 << port);
-	mutex_unlock(&dev->dev_mutex);
-
 	/* port_stp_state_set() will be called after to put the port in
 	 * forwarding state so there is no need to do anything.
 	 */
@@ -295,7 +302,6 @@ int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 	struct alu_struct alu;
 	int index;
-	int ret = 0;
 
 	for (index = 0; index < dev->num_statics; index++) {
 		if (!dev->dev_ops->r_sta_mac_table(dev, index, &alu)) {
@@ -317,7 +323,7 @@ int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 	dev->dev_ops->w_sta_mac_table(dev, index, &alu);
 
 exit:
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ksz_port_mdb_del);
 

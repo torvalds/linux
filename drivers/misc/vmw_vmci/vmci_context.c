@@ -687,10 +687,8 @@ int vmci_ctx_remove_notification(u32 context_id, u32 remote_cid)
 	}
 	spin_unlock(&context->lock);
 
-	if (found) {
-		synchronize_rcu();
-		kfree(notifier);
-	}
+	if (found)
+		kvfree_rcu(notifier);
 
 	vmci_ctx_put(context);
 

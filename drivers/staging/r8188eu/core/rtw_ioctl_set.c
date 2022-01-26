@@ -110,7 +110,7 @@ u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid)
 	u32 cur_time = 0;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	DBG_88E_LEVEL(_drv_info_, "set bssid:%pM\n", bssid);
+	netdev_dbg(padapter->pnetdev, "set bssid:%pM\n", bssid);
 
 	if ((bssid[0] == 0x00 && bssid[1] == 0x00 && bssid[2] == 0x00 &&
 	     bssid[3] == 0x00 && bssid[4] == 0x00 && bssid[5] == 0x00) ||
@@ -185,8 +185,8 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
 
-	DBG_88E_LEVEL(_drv_info_, "set ssid [%s] fw_state=0x%08x\n",
-		      ssid->Ssid, get_fwstate(pmlmepriv));
+	netdev_dbg(padapter->pnetdev, "set ssid [%s] fw_state=0x%08x\n",
+		   ssid->Ssid, get_fwstate(pmlmepriv));
 
 	if (!padapter->hw_init_completed) {
 		status = _FAIL;
@@ -458,7 +458,6 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
 	struct wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
 	struct ieee80211_ht_cap *pht_capie;
-	u8	rf_type = 0;
 	u8	bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
 	u16	mcs_rate = 0;
 	u32	ht_ielen = 0;
@@ -480,14 +479,10 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 			short_GI_20 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_20) ? 1 : 0;
 			short_GI_40 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_40) ? 1 : 0;
 
-			GetHwReg8188EU(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-			max_rate = rtw_mcs_rate(
-				rf_type,
-				bw_40MHz & (pregistrypriv->cbw40_enable),
-				short_GI_20,
-				short_GI_40,
-				pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate
-			);
+			max_rate = rtw_mcs_rate(bw_40MHz & (pregistrypriv->cbw40_enable),
+						short_GI_20,
+						short_GI_40,
+						pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate);
 		}
 	} else {
 		while ((pcur_bss->SupportedRates[i] != 0) && (pcur_bss->SupportedRates[i] != 0xFF)) {

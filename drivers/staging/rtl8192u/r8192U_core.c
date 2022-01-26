@@ -2531,13 +2531,13 @@ static short rtl8192_init(struct net_device *dev)
 #ifdef PIPE12
 	{
 		int i = 0;
-		u8 queuetopipe[] = {3, 2, 1, 0, 4, 8, 7, 6, 5};
+		static const u8 queuetopipe[] = {3, 2, 1, 0, 4, 8, 7, 6, 5};
 
 		memcpy(priv->txqueue_to_outpipemap, queuetopipe, 9);
 	}
 #else
 	{
-		u8 queuetopipe[] = {3, 2, 1, 0, 4, 4, 0, 4, 4};
+		const u8 queuetopipe[] = {3, 2, 1, 0, 4, 4, 0, 4, 4};
 
 		memcpy(priv->txqueue_to_outpipemap, queuetopipe, 9);
 	}
@@ -2666,14 +2666,7 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 	/* config CPUReset Register */
 	/* Firmware Reset or not? */
 	read_nic_dword(dev, CPU_GEN, &dwRegRead);
-	if (priv->pFirmware->firmware_status == FW_STATUS_0_INIT)
-		dwRegRead |= CPU_GEN_SYSTEM_RESET; /* do nothing here? */
-	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
-		dwRegRead |= CPU_GEN_FIRMWARE_RESET;
-	else
-		RT_TRACE(COMP_ERR,
-			 "ERROR in %s(): undefined firmware state(%d)\n",
-			 __func__,   priv->pFirmware->firmware_status);
+	dwRegRead |= CPU_GEN_SYSTEM_RESET; /* do nothing here? */
 
 	write_nic_dword(dev, CPU_GEN, dwRegRead);
 	/* config BB. */

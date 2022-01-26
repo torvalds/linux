@@ -62,7 +62,7 @@ EXPORT_SYMBOL(isa_mem_base);
 
 static const struct dma_map_ops *pci_dma_ops;
 
-void set_pci_dma_ops(const struct dma_map_ops *dma_ops)
+void __init set_pci_dma_ops(const struct dma_map_ops *dma_ops)
 {
 	pci_dma_ops = dma_ops;
 }

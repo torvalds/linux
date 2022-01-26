@@ -73,10 +73,9 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/comedi/comedi_pci.h>
+#include <linux/comedi/comedi_8255.h>
 
-#include "../comedi_pci.h"
-
-#include "8255.h"
 #include "plx9080.h"
 
 #define TIMER_BASE 25		/*  40MHz master clock */

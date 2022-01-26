@@ -429,12 +429,14 @@ static const struct of_device_id orion_mdio_match[] = {
 };
 MODULE_DEVICE_TABLE(of, orion_mdio_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id orion_mdio_acpi_match[] = {
 	{ "MRVL0100", BUS_TYPE_SMI },
 	{ "MRVL0101", BUS_TYPE_XSMI },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, orion_mdio_acpi_match);
+#endif
 
 static struct platform_driver orion_mdio_driver = {
 	.probe = orion_mdio_probe,

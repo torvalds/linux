@@ -1382,7 +1382,7 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	if (!HAS_OVERLAY(dev_priv))
 		return;
 
-	engine = dev_priv->gt.engine[RCS0];
+	engine = to_gt(dev_priv)->engine[RCS0];
 	if (!engine || !engine->kernel_context)
 		return;
 

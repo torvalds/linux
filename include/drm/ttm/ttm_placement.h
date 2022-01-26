@@ -35,6 +35,17 @@
 
 /*
  * Memory regions for data placement.
+ *
+ * Buffers placed in TTM_PL_SYSTEM are considered under TTMs control and can
+ * be swapped out whenever TTMs thinks it is a good idea.
+ * In cases where drivers would like to use TTM_PL_SYSTEM as a valid
+ * placement they need to be able to handle the issues that arise due to the
+ * above manually.
+ *
+ * For BO's which reside in system memory but for which the accelerator
+ * requires direct access (i.e. their usage needs to be synchronized
+ * between the CPU and accelerator via fences) a new, driver private
+ * placement that can handle such scenarios is a good idea.
  */
 
 #define TTM_PL_SYSTEM           0
