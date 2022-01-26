@@ -70,6 +70,21 @@ struct jh7100_clk_data {
 	.parents = { __VA_ARGS__ },						\
 }
 
+#define JH7100_MDIV(_idx, _name, _max, _nparents, ...) [_idx] = {		\
+	.name = _name,								\
+	.flags = 0,								\
+	.max = (((_nparents) - 1) << JH7100_CLK_MUX_SHIFT) | (_max),		\
+	.parents = { __VA_ARGS__ },						\
+}
+
+#define JH7100__GMD(_idx, _name, _flags, _max, _nparents, ...) [_idx] = {	\
+	.name = _name,								\
+	.flags = _flags,							\
+	.max = JH7100_CLK_ENABLE |						\
+		(((_nparents) - 1) << JH7100_CLK_MUX_SHIFT) | (_max),		\
+	.parents = { __VA_ARGS__ },						\
+}
+
 #define JH7100__INV(_idx, _name, _parent) [_idx] = {				\
 	.name = _name,								\
 	.flags = CLK_SET_RATE_PARENT,						\

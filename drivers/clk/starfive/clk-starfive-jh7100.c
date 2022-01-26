@@ -534,6 +534,27 @@ static const struct clk_ops jh7100_clk_gmux_ops = {
 	.debug_init = jh7100_clk_debug_init,
 };
 
+static const struct clk_ops jh7100_clk_mdiv_ops = {
+	.recalc_rate = jh7100_clk_recalc_rate,
+	.determine_rate = jh7100_clk_determine_rate,
+	.get_parent = jh7100_clk_get_parent,
+	.set_parent = jh7100_clk_set_parent,
+	.set_rate = jh7100_clk_set_rate,
+	.debug_init = jh7100_clk_debug_init,
+};
+
+static const struct clk_ops jh7100_clk_gmd_ops = {
+	.enable = jh7100_clk_enable,
+	.disable = jh7100_clk_disable,
+	.is_enabled = jh7100_clk_is_enabled,
+	.recalc_rate = jh7100_clk_recalc_rate,
+	.determine_rate = jh7100_clk_determine_rate,
+	.get_parent = jh7100_clk_get_parent,
+	.set_parent = jh7100_clk_set_parent,
+	.set_rate = jh7100_clk_set_rate,
+	.debug_init = jh7100_clk_debug_init,
+};
+
 static const struct clk_ops jh7100_clk_inv_ops = {
 	.get_phase = jh7100_clk_get_phase,
 	.set_phase = jh7100_clk_set_phase,
@@ -543,6 +564,11 @@ static const struct clk_ops jh7100_clk_inv_ops = {
 const struct clk_ops *starfive_jh7100_clk_ops(u32 max)
 {
 	if (max & JH7100_CLK_DIV_MASK) {
+		if (max & JH7100_CLK_MUX_MASK) {
+			if (max & JH7100_CLK_ENABLE)
+				return &jh7100_clk_gmd_ops;
+			return &jh7100_clk_mdiv_ops;
+		}
 		if (max & JH7100_CLK_ENABLE)
 			return &jh7100_clk_gdiv_ops;
 		if (max == JH7100_CLK_FRAC_MAX)
