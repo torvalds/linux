@@ -133,6 +133,7 @@ static int kvm_cpuid_check_equal(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 
 		orig = &vcpu->arch.cpuid_entries[i];
 		if (e2[i].function != orig->function ||
 		    e2[i].index != orig->index ||
+		    e2[i].flags != orig->flags ||
 		    e2[i].eax != orig->eax || e2[i].ebx != orig->ebx ||
 		    e2[i].ecx != orig->ecx || e2[i].edx != orig->edx)
 			return -EINVAL;
