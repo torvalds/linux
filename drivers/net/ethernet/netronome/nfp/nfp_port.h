@@ -132,8 +132,7 @@ void nfp_devlink_port_unregister(struct nfp_port *port);
 void nfp_devlink_port_type_eth_set(struct nfp_port *port);
 void nfp_devlink_port_type_clear(struct nfp_port *port);
 
-/**
- * Mac stats (0x0000 - 0x0200)
+/* Mac stats (0x0000 - 0x0200)
  * all counters are 64bit.
  */
 #define NFP_MAC_STATS_BASE                0x0000
