@@ -836,6 +836,24 @@ static int rk_pci_find_resbar_capability(struct rk_pcie *rk_pcie)
 	return 0;
 }
 
+static int rk_pcie_ep_set_bar_flag(struct rk_pcie *rk_pcie, enum pci_barno barno, int flags)
+{
+	enum pci_barno bar = barno;
+	u32 reg;
+
+	reg = PCI_BASE_ADDRESS_0 + (4 * bar);
+
+	/* Disabled the upper 32bits BAR to make a 64bits bar pair */
+	if (flags & PCI_BASE_ADDRESS_MEM_TYPE_64)
+		dw_pcie_writel_dbi2(rk_pcie->pci, reg + 4, 0);
+
+	dw_pcie_writel_dbi(rk_pcie->pci, reg, flags);
+	if (flags & PCI_BASE_ADDRESS_MEM_TYPE_64)
+		dw_pcie_writel_dbi(rk_pcie->pci, reg + 4, 0);
+
+	return 0;
+}
+
 static void rk_pcie_ep_setup(struct rk_pcie *rk_pcie)
 {
 	int ret;
@@ -912,17 +930,21 @@ static void rk_pcie_ep_setup(struct rk_pcie *rk_pcie)
 	if (!resbar_base) {
 		dev_warn(dev, "failed to find resbar_base\n");
 	} else {
-		/* Resize BAR0 to support 512GB */
+		/* Resize BAR0 to support 512GB, BAR1 to support 8M, BAR2~5 to support 64M */
 		dw_pcie_writel_dbi(rk_pcie->pci, resbar_base + 0x4, 0xfffff0);
-		/* Bit13-8 set to 19 means 2^19MB (512GB) */
 		dw_pcie_writel_dbi(rk_pcie->pci, resbar_base + 0x8, 0x13c0);
-		/* Resize bar1 - bar6 to 64M */
-		for (bar = 1; bar < 6; bar++) {
-			dw_pcie_writel_dbi(rk_pcie->pci, resbar_base +
-					   0x4 + bar * 0x8, 0xfffff0);
-			dw_pcie_writel_dbi(rk_pcie->pci, resbar_base +
-					   0x8 + bar * 0x8, 0x6c0);
+		dw_pcie_writel_dbi(rk_pcie->pci, resbar_base + 0xc, 0xfffff0);
+		dw_pcie_writel_dbi(rk_pcie->pci, resbar_base + 0x10, 0x3c0);
+		for (bar = 2; bar < 6; bar++) {
+			dw_pcie_writel_dbi(rk_pcie->pci, resbar_base + 0x4 + bar * 0x8, 0xfffff0);
+			dw_pcie_writel_dbi(rk_pcie->pci, resbar_base + 0x8 + bar * 0x8, 0x6c0);
 		}
+
+		/* Set flags */
+		rk_pcie_ep_set_bar_flag(rk_pcie, BAR_0, PCI_BASE_ADDRESS_MEM_TYPE_32);
+		rk_pcie_ep_set_bar_flag(rk_pcie, BAR_1, PCI_BASE_ADDRESS_MEM_TYPE_32);
+		rk_pcie_ep_set_bar_flag(rk_pcie, BAR_2, PCI_BASE_ADDRESS_MEM_PREFETCH | PCI_BASE_ADDRESS_MEM_TYPE_64);
+		rk_pcie_ep_set_bar_flag(rk_pcie, BAR_4, PCI_BASE_ADDRESS_MEM_PREFETCH | PCI_BASE_ADDRESS_MEM_TYPE_64);
 	}
 
 	/* Device id and class id needed for request bar address */
