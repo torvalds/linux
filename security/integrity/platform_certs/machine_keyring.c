@@ -8,6 +8,8 @@
 #include <linux/efi.h>
 #include "../integrity.h"
 
+static bool trust_mok;
+
 static __init int machine_keyring_init(void)
 {
 	int rc;
@@ -58,4 +60,18 @@ static __init bool uefi_check_trust_mok_keys(void)
 		return true;
 
 	return false;
+}
+
+bool __init trust_moklist(void)
+{
+	static bool initialized;
+
+	if (!initialized) {
+		initialized = true;
+
+		if (uefi_check_trust_mok_keys())
+			trust_mok = true;
+	}
+
+	return trust_mok;
 }
