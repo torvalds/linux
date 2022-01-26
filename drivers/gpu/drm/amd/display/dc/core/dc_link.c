@@ -3092,6 +3092,10 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 			psr->funcs->psr_set_power_opt(psr, link->psr_settings.psr_power_opt, panel_inst);
 	}
 
+	if (psr != NULL && link->psr_settings.psr_feature_enabled &&
+			force_static && psr->funcs->psr_force_static)
+		psr->funcs->psr_force_static(psr, panel_inst);
+
 	/* Enable or Disable PSR */
 	if (allow_active && link->psr_settings.psr_allow_active != *allow_active) {
 		link->psr_settings.psr_allow_active = *allow_active;
@@ -3102,8 +3106,6 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 #endif
 
 		if (psr != NULL && link->psr_settings.psr_feature_enabled) {
-			if (force_static && psr->funcs->psr_force_static)
-				psr->funcs->psr_force_static(psr, panel_inst);
 			psr->funcs->psr_enable(psr, link->psr_settings.psr_allow_active, wait, panel_inst);
 		} else if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) &&
 			link->psr_settings.psr_feature_enabled)
