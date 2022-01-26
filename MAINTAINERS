@@ -7216,8 +7216,10 @@ F:	drivers/net/mdio/of_mdio.c
 F:	drivers/net/pcs/
 F:	drivers/net/phy/
 F:	include/dt-bindings/net/qca-ar803x.h
+F:	include/linux/linkmode.h
 F:	include/linux/*mdio*.h
 F:	include/linux/mdio/*.h
+F:	include/linux/mii.h
 F:	include/linux/of_net.h
 F:	include/linux/phy.h
 F:	include/linux/phy_fixed.h
