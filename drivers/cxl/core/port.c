@@ -1307,8 +1307,11 @@ int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map)
 	port = to_cxl_port(cxld->dev.parent);
 	if (!is_endpoint_decoder(dev)) {
 		rc = decoder_populate_targets(cxld, port, target_map);
-		if (rc)
+		if (rc && (cxld->flags & CXL_DECODER_F_ENABLE)) {
+			dev_err(&port->dev,
+				"Failed to populate active decoder targets\n");
 			return rc;
+		}
 	}
 
 	rc = dev_set_name(dev, "decoder%d.%d", port->id, cxld->id);

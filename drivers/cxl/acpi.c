@@ -15,7 +15,7 @@
 
 static unsigned long cfmws_to_decoder_flags(int restrictions)
 {
-	unsigned long flags = 0;
+	unsigned long flags = CXL_DECODER_F_ENABLE;
 
 	if (restrictions & ACPI_CEDT_CFMWS_RESTRICT_TYPE2)
 		flags |= CXL_DECODER_F_TYPE2;
