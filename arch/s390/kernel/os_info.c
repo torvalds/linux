@@ -45,7 +45,7 @@ void os_info_crashkernel_add(unsigned long base, unsigned long size)
  */
 void os_info_entry_add(int nr, void *ptr, u64 size)
 {
-	os_info.entry[nr].addr = (u64)(unsigned long)ptr;
+	os_info.entry[nr].addr = __pa(ptr);
 	os_info.entry[nr].size = size;
 	os_info.entry[nr].csum = (__force u32)csum_partial(ptr, size, 0);
 	os_info.csum = os_info_csum(&os_info);
@@ -62,7 +62,7 @@ void __init os_info_init(void)
 	os_info.version_minor = OS_INFO_VERSION_MINOR;
 	os_info.magic = OS_INFO_MAGIC;
 	os_info.csum = os_info_csum(&os_info);
-	mem_assign_absolute(S390_lowcore.os_info, (unsigned long) ptr);
+	mem_assign_absolute(S390_lowcore.os_info, __pa(ptr));
 }
 
 #ifdef CONFIG_CRASH_DUMP
