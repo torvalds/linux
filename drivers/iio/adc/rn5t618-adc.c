@@ -42,11 +42,6 @@ struct rn5t618_adc_data {
 	int irq;
 };
 
-struct rn5t618_channel_ratios {
-	u16 numerator;
-	u16 denominator;
-};
-
 enum rn5t618_channels {
 	LIMMON = 0,
 	VBAT,
@@ -58,7 +53,7 @@ enum rn5t618_channels {
 	AIN0
 };
 
-static const struct rn5t618_channel_ratios rn5t618_ratios[8] = {
+static const struct u16_fract rn5t618_ratios[8] = {
 	[LIMMON] = {50, 32}, /* measured across 20mOhm, amplified by 32 */
 	[VBAT] = {2, 1},
 	[VADP] = {3, 1},
