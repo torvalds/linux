@@ -43,6 +43,7 @@
 #include <sound/hdmi-codec.h>
 #include "rk_hdmirx.h"
 #include "rk_hdmirx_cec.h"
+#include "rk_hdmirx_hdcp.h"
 
 static struct class *hdmirx_class;
 static int debug;
@@ -190,6 +191,7 @@ struct rk_hdmirx_dev {
 	struct clk_bulk_data *clks;
 	struct regmap *grf;
 	struct regmap *vo1_grf;
+	struct rk_hdmirx_hdcp *hdcp;
 	void __iomem *regs;
 	int audio_present;
 	int hdmi_irq;
@@ -205,6 +207,7 @@ struct rk_hdmirx_dev {
 	bool power_on;
 	bool initialized;
 	bool freq_qos_add;
+	bool hdcp1x_enable;
 	u32 num_clks;
 	u32 edid_blocks_written;
 	u32 hpd_trigger_level;
@@ -913,6 +916,21 @@ static int hdmirx_enum_dv_timings(struct file *file, void *_fh,
 	return v4l2_enum_dv_timings_cap(timings, &hdmirx_timings_cap, NULL, NULL);
 }
 
+static void hdmirx_register_hdcp(struct device *dev,
+				 struct rk_hdmirx_dev *hdmirx_dev,
+				 bool hdcp1x_enable)
+{
+	struct rk_hdmirx_hdcp hdmirx_hdcp = {
+		.hdmirx = hdmirx_dev,
+		.write = hdmirx_writel,
+		.read = hdmirx_readl,
+		.enable = hdcp1x_enable,
+		.dev = hdmirx_dev->dev,
+	};
+
+	hdmirx_dev->hdcp = rk_hdmirx_hdcp_register(&hdmirx_hdcp);
+}
+
 static void hdmirx_scdc_init(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	hdmirx_update_bits(hdmirx_dev, I2C_SLAVE_CONFIG1,
@@ -1280,7 +1298,10 @@ static void hdmirx_dma_config(struct rk_hdmirx_dev *hdmirx_dev)
 static void hdmirx_submodule_init(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	/* Note: if not config HDCP2_CONFIG, there will be some errors; */
-	hdmirx_writel(hdmirx_dev, HDCP2_CONFIG, 0x2);
+	hdmirx_update_bits(hdmirx_dev, HDCP2_CONFIG,
+			   HDCP2_SWITCH_OVR_VALUE |
+			   HDCP2_SWITCH_OVR_EN,
+			   HDCP2_SWITCH_OVR_EN);
 	hdmirx_scdc_init(hdmirx_dev);
 	hdmirx_controller_init(hdmirx_dev);
 }
@@ -2281,6 +2302,8 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 		hdmirx_dma_config(hdmirx_dev);
 		hdmirx_interrupts_setup(hdmirx_dev, true);
 		hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
+		if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_start)
+			hdmirx_dev->hdcp->hdcp_start(hdmirx_dev->hdcp);
 	} else {
 		hdmirx_audio_handle_plugged_change(hdmirx_dev, 0);
 		hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED, 0);
@@ -2732,6 +2755,9 @@ static int hdmirx_parse_dt(struct rk_hdmirx_dev *hdmirx_dev)
 		hdmirx_dev->hpd_trigger_level = 1;
 		dev_warn(dev, "failed to get hpd-trigger-level, set high as default\n");
 	}
+
+	if (of_property_read_bool(np, "hdcp1x-enable"))
+		hdmirx_dev->hdcp1x_enable = true;
 
 	ret = of_reserved_mem_device_init(dev);
 	if (ret)
@@ -3537,6 +3563,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	cec_data.irq = irq;
 	cec_data.edid = edid_init_data;
 	hdmirx_dev->cec = rk_hdmirx_cec_register(&cec_data);
+	hdmirx_register_hdcp(dev, hdmirx_dev, hdmirx_dev->hdcp1x_enable);
 
 	hdmirx_register_debugfs(hdmirx_dev->dev, hdmirx_dev);
 
@@ -3585,6 +3612,9 @@ static int hdmirx_remove(struct platform_device *pdev)
 		rk_hdmirx_cec_unregister(hdmirx_dev->cec);
 	if (hdmirx_dev->cec_notifier)
 		cec_notifier_conn_unregister(hdmirx_dev->cec_notifier);
+
+	if (hdmirx_dev->hdcp)
+		rk_hdmirx_hdcp_unregister(hdmirx_dev->hdcp);
 
 	video_unregister_device(&hdmirx_dev->stream.vdev);
 	v4l2_ctrl_handler_free(&hdmirx_dev->hdl);
