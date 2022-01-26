@@ -3899,11 +3899,6 @@ static inline ktime_t net_timedelta(ktime_t t)
 	return ktime_sub(ktime_get_real(), t);
 }
 
-static inline ktime_t net_invalid_timestamp(void)
-{
-	return 0;
-}
-
 static inline u8 skb_metadata_len(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->meta_len;
