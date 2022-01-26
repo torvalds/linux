@@ -399,22 +399,13 @@ static unsigned long jh7100_clk_recalc_rate(struct clk_hw *hw,
 	return div ? parent_rate / div : 0;
 }
 
-static unsigned long jh7100_clk_bestdiv(struct jh7100_clk *clk,
-					unsigned long rate, unsigned long parent)
-{
-	unsigned long max = clk->max_div;
-	unsigned long div = DIV_ROUND_UP(parent, rate);
-
-	return min(div, max);
-}
-
 static int jh7100_clk_determine_rate(struct clk_hw *hw,
 				     struct clk_rate_request *req)
 {
 	struct jh7100_clk *clk = jh7100_clk_from(hw);
 	unsigned long parent = req->best_parent_rate;
 	unsigned long rate = clamp(req->rate, req->min_rate, req->max_rate);
-	unsigned long div = jh7100_clk_bestdiv(clk, rate, parent);
+	unsigned long div = min_t(unsigned long, DIV_ROUND_UP(parent, rate), clk->max_div);
 	unsigned long result = parent / div;
 
 	/*
@@ -442,7 +433,8 @@ static int jh7100_clk_set_rate(struct clk_hw *hw,
 			       unsigned long parent_rate)
 {
 	struct jh7100_clk *clk = jh7100_clk_from(hw);
-	unsigned long div = jh7100_clk_bestdiv(clk, rate, parent_rate);
+	unsigned long div = clamp(DIV_ROUND_CLOSEST(parent_rate, rate),
+				  1UL, (unsigned long)clk->max_div);
 
 	jh7100_clk_reg_rmw(clk, JH7100_CLK_DIV_MASK, div);
 	return 0;
