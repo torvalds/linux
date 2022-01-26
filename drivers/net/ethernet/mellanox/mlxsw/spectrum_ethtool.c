@@ -1035,7 +1035,7 @@ static int mlxsw_sp_get_module_info(struct net_device *netdev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
-	return mlxsw_env_get_module_info(mlxsw_sp->core,
+	return mlxsw_env_get_module_info(netdev, mlxsw_sp->core,
 					 mlxsw_sp_port->mapping.module,
 					 modinfo);
 }
