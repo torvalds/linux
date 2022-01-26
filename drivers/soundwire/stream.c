@@ -1085,14 +1085,6 @@ static struct sdw_master_runtime
 {
 	struct sdw_master_runtime *m_rt;
 
-	/*
-	 * check if Master is already allocated (as a result of Slave adding
-	 * it first), if so skip allocation and go to configure
-	 */
-	m_rt = sdw_find_master_rt(bus, stream);
-	if (m_rt)
-		goto stream_config;
-
 	m_rt = kzalloc(sizeof(*m_rt), GFP_KERNEL);
 	if (!m_rt)
 		return NULL;
@@ -1104,7 +1096,6 @@ static struct sdw_master_runtime
 
 	list_add_tail(&m_rt->bus_node, &bus->m_rt_list);
 
-stream_config:
 	m_rt->ch_count = stream_config->ch_count;
 	m_rt->bus = bus;
 	m_rt->stream = stream;
@@ -1326,6 +1317,14 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 		goto unlock;
 	}
 
+	/*
+	 * check if Master is already allocated (e.g. as a result of Slave adding
+	 * it first), if so skip allocation and go to configuration
+	 */
+	m_rt = sdw_find_master_rt(bus, stream);
+	if (m_rt)
+		goto skip_alloc_master_rt;
+
 	m_rt = sdw_alloc_master_rt(bus, stream_config, stream);
 	if (!m_rt) {
 		dev_err(bus->dev,
@@ -1335,6 +1334,7 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 		goto unlock;
 	}
 
+skip_alloc_master_rt:
 	ret = sdw_config_stream(bus->dev, stream, stream_config, false);
 	if (ret)
 		goto stream_error;
@@ -1385,6 +1385,14 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	mutex_lock(&slave->bus->bus_lock);
 
 	/*
+	 * check if Master is already allocated, if so skip allocation
+	 * and go to configuration
+	 */
+	m_rt = sdw_find_master_rt(slave->bus, stream);
+	if (m_rt)
+		goto skip_alloc_master_rt;
+
+	/*
 	 * If this API is invoked by Slave first then m_rt is not valid.
 	 * So, allocate m_rt and add Slave to it.
 	 */
@@ -1397,6 +1405,7 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 		goto error;
 	}
 
+skip_alloc_master_rt:
 	s_rt = sdw_alloc_slave_rt(slave, stream_config);
 	if (!s_rt) {
 		dev_err(&slave->dev,
