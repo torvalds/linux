@@ -125,6 +125,7 @@ struct reset_bulk_data	{
 #define PCIE_PHY_LINKUP			BIT(0)
 #define PCIE_DATA_LINKUP		BIT(1)
 
+#define PCIE_TYPE0_HDR_DBI2_OFFSET	0x100000
 #define PCIE_SB_BAR0_MASK_REG		0x100010
 
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
@@ -1062,6 +1063,7 @@ static int rk_pcie_add_ep(struct rk_pcie *rk_pcie)
 		return ret;
 	}
 
+	rk_pcie->pci->dbi_base2 = rk_pcie->pci->dbi_base + PCIE_TYPE0_HDR_DBI2_OFFSET;
 	rk_pcie->pci->atu_base = rk_pcie->pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
 	rk_pcie->pci->iatu_unroll_enabled = rk_pcie_iatu_unroll_enabled(rk_pcie->pci);
 
