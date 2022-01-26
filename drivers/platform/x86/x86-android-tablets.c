@@ -105,7 +105,7 @@ static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 			return -ENODEV;
 		}
 
-		acpi_bus_get_device(handle, &adev);
+		adev = acpi_fetch_acpi_dev(handle);
 		if (!adev) {
 			pr_err("error could not get %s adev\n", data->chip);
 			return -ENODEV;

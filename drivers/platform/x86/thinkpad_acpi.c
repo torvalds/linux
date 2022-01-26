@@ -728,11 +728,10 @@ static void __init drv_acpi_handle_init(const char *name,
 static acpi_status __init tpacpi_acpi_handle_locate_callback(acpi_handle handle,
 			u32 level, void *context, void **return_value)
 {
-	struct acpi_device *dev;
 	if (!strcmp(context, "video")) {
-		if (acpi_bus_get_device(handle, &dev))
-			return AE_OK;
-		if (strcmp(ACPI_VIDEO_HID, acpi_device_hid(dev)))
+		struct acpi_device *dev = acpi_fetch_acpi_dev(handle);
+
+		if (!dev || strcmp(ACPI_VIDEO_HID, acpi_device_hid(dev)))
 			return AE_OK;
 	}
 
@@ -786,7 +785,6 @@ static void dispatch_acpi_notify(acpi_handle handle, u32 event, void *data)
 static int __init setup_acpi_notify(struct ibm_struct *ibm)
 {
 	acpi_status status;
-	int rc;
 
 	BUG_ON(!ibm->acpi);
 
@@ -796,9 +794,9 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 	vdbg_printk(TPACPI_DBG_INIT,
 		"setting up ACPI notify for %s\n", ibm->name);
 
-	rc = acpi_bus_get_device(*ibm->acpi->handle, &ibm->acpi->device);
-	if (rc < 0) {
-		pr_err("acpi_bus_get_device(%s) failed: %d\n", ibm->name, rc);
+	ibm->acpi->device = acpi_fetch_acpi_dev(*ibm->acpi->handle);
+	if (!ibm->acpi->device) {
+		pr_err("acpi_fetch_acpi_dev(%s) failed\n", ibm->name);
 		return -ENODEV;
 	}
 
@@ -6723,7 +6721,8 @@ static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 	struct acpi_device *device, *child;
 	int rc;
 
-	if (acpi_bus_get_device(handle, &device))
+	device = acpi_fetch_acpi_dev(handle);
+	if (!device)
 		return 0;
 
 	rc = 0;
