@@ -977,7 +977,13 @@ static ssize_t set_game_start_pid(struct kobject *kobj,
 	struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	long usr_val = 0;
-	kstrtol(buf, 0, &usr_val);
+	int ret;
+
+	ret = kstrtol(buf, 0, &usr_val);
+	if (ret) {
+		pr_err("msm_perf: kstrtol failed, ret=%d\n", ret);
+		return ret;
+	}
 	atomic_set(&game_status_pid, usr_val);
 	return count;
 }
