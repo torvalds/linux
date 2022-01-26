@@ -233,6 +233,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST,
 	ASYNC_EVENT_CMPL_EVENT_ID_PPS_TIMESTAMP,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT,
+	ASYNC_EVENT_CMPL_EVENT_ID_PHC_UPDATE,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -2079,6 +2080,16 @@ static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 	(BNXT_EVENT_RING_TYPE(data2) ==	\
 	 ASYNC_EVENT_CMPL_RING_MONITOR_MSG_EVENT_DATA2_DISABLE_RING_TYPE_RX)
 
+#define BNXT_EVENT_PHC_EVENT_TYPE(data1)	\
+	(((data1) & ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_FLAGS_MASK) >>\
+	 ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_FLAGS_SFT)
+
+#define BNXT_EVENT_PHC_RTC_UPDATE(data1)	\
+	(((data1) & ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_PHC_TIME_MSB_MASK) >>\
+	 ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_PHC_TIME_MSB_SFT)
+
+#define BNXT_PHC_BITS	48
+
 static int bnxt_async_event_process(struct bnxt *bp,
 				    struct hwrm_async_event_cmpl *cmpl)
 {
@@ -2256,6 +2267,24 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT: {
 		bnxt_event_error_report(bp, data1, data2);
+		goto async_event_process_exit;
+	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_PHC_UPDATE: {
+		switch (BNXT_EVENT_PHC_EVENT_TYPE(data1)) {
+		case ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_FLAGS_PHC_RTC_UPDATE:
+			if (bp->fw_cap & BNXT_FW_CAP_PTP_RTC) {
+				struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+				u64 ns;
+
+				spin_lock_bh(&ptp->ptp_lock);
+				bnxt_ptp_update_current_time(bp);
+				ns = (((u64)BNXT_EVENT_PHC_RTC_UPDATE(data1) <<
+				       BNXT_PHC_BITS) | ptp->current_time);
+				bnxt_ptp_rtc_timecounter_init(ptp, ns);
+				spin_unlock_bh(&ptp->ptp_lock);
+			}
+			break;
+		}
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_DEFERRED_RESPONSE: {
@@ -7414,6 +7443,7 @@ static int __bnxt_hwrm_ptp_qcfg(struct bnxt *bp)
 	struct hwrm_port_mac_ptp_qcfg_output *resp;
 	struct hwrm_port_mac_ptp_qcfg_input *req;
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	bool phc_cfg;
 	u8 flags;
 	int rc;
 
@@ -7456,7 +7486,8 @@ static int __bnxt_hwrm_ptp_qcfg(struct bnxt *bp)
 		rc = -ENODEV;
 		goto exit;
 	}
-	rc = bnxt_ptp_init(bp);
+	phc_cfg = (flags & PORT_MAC_PTP_QCFG_RESP_FLAGS_RTC_CONFIGURED) != 0;
+	rc = bnxt_ptp_init(bp, phc_cfg);
 	if (rc)
 		netdev_warn(bp->dev, "PTP initialization failed.\n");
 exit:
@@ -7514,6 +7545,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED;
 	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_PTP_PPS_SUPPORTED))
 		bp->fw_cap |= BNXT_FW_CAP_PTP_PPS;
+	if (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_PTP_64BIT_RTC_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_PTP_RTC;
 	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_HOT_RESET_IF_SUPPORT))
 		bp->fw_cap |= BNXT_FW_CAP_HOT_RESET_IF;
 	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_FW_LIVEPATCH_SUPPORTED))
@@ -10288,6 +10321,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* VF-reps may need to be re-opened after the PF is re-opened */
 	if (BNXT_PF(bp))
 		bnxt_vf_reps_open(bp);
+	bnxt_ptp_init_rtc(bp, true);
 	return 0;
 
 open_err_irq:
