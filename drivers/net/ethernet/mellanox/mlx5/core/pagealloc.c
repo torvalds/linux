@@ -465,7 +465,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 	u32 i = 0;
 
 	if (!mlx5_cmd_is_down(dev))
-		return mlx5_cmd_exec(dev, in, in_size, out, out_size);
+		return mlx5_cmd_do(dev, in, in_size, out, out_size);
 
 	/* No hard feelings, we want our pages back! */
 	npages = MLX5_GET(manage_pages_in, in, input_num_entries);
@@ -489,7 +489,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 }
 
 static int reclaim_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
-			 int *nclaimed, bool ec_function)
+			 int *nclaimed, bool event, bool ec_function)
 {
 	u32 function = get_function(func_id, ec_function);
 	int outlen = MLX5_ST_SZ_BYTES(manage_pages_out);
@@ -516,7 +516,11 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 	mlx5_core_dbg(dev, "func 0x%x, npages %d, outlen %d\n",
 		      func_id, npages, outlen);
 	err = reclaim_pages_cmd(dev, in, sizeof(in), out, outlen);
+	/* if triggered by FW event and failed by FW then ignore */
+	if (event && err == -EREMOTEIO)
+		err = 0;
 	if (err) {
+		err = mlx5_cmd_check(dev, err, in, out);
 		mlx5_core_err(dev, "failed reclaiming pages: err %d\n", err);
 		goto out_free;
 	}
@@ -556,7 +560,7 @@ static void pages_work_handler(struct work_struct *work)
 		release_all_pages(dev, req->func_id, req->ec_function);
 	else if (req->npages < 0)
 		err = reclaim_pages(dev, req->func_id, -1 * req->npages, NULL,
-				    req->ec_function);
+				    true, req->ec_function);
 	else if (req->npages > 0)
 		err = give_pages(dev, req->func_id, req->npages, 1, req->ec_function);
 
@@ -655,7 +659,7 @@ static int mlx5_reclaim_root_pages(struct mlx5_core_dev *dev,
 		int err;
 
 		err = reclaim_pages(dev, func_id, optimal_reclaimed_pages(),
-				    &nclaimed, mlx5_core_is_ecpf(dev));
+				    &nclaimed, false, mlx5_core_is_ecpf(dev));
 		if (err) {
 			mlx5_core_warn(dev, "failed reclaiming pages (%d) for func id 0x%x\n",
 				       err, func_id);
