@@ -229,6 +229,8 @@ enum audio_format {
 
 struct dw_dp_audio {
 	struct platform_device *pdev;
+	hdmi_codec_plugged_cb plugged_cb;
+	struct device *codec_dev;
 	enum audio_format format;
 	u8 channels;
 };
@@ -505,14 +507,23 @@ dw_dp_connector_detect(struct drm_connector *connector, bool force)
 	return drm_bridge_detect(&dp->bridge);
 }
 
+static void dw_dp_audio_handle_plugged_change(struct dw_dp_audio *audio, bool plugged)
+{
+	if (audio->plugged_cb && audio->codec_dev)
+		audio->plugged_cb(audio->codec_dev, plugged);
+}
+
 static void dw_dp_connector_force(struct drm_connector *connector)
 {
 	struct dw_dp *dp = connector_to_dp(connector);
 
-	if (connector->status == connector_status_connected)
+	if (connector->status == connector_status_connected) {
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
-	else
+		dw_dp_audio_handle_plugged_change(&dp->audio, true);
+	} else {
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
+		dw_dp_audio_handle_plugged_change(&dp->audio, false);
+	}
 }
 
 static void dw_dp_atomic_connector_reset(struct drm_connector *connector)
@@ -2099,10 +2110,13 @@ static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 	else
 		status = connector_status_disconnected;
 
-	if (status == connector_status_connected)
+	if (status == connector_status_connected) {
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
-	else
+		dw_dp_audio_handle_plugged_change(&dp->audio, true);
+	} else {
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
+		dw_dp_audio_handle_plugged_change(&dp->audio, false);
+	}
 
 	return status;
 }
@@ -2462,6 +2476,19 @@ static void dw_dp_audio_shutdown(struct device *dev, void *data)
 	audio->format = AFMT_UNUSED;
 }
 
+static int dw_dp_audio_hook_plugged_cb(struct device *dev, void *data,
+				       hdmi_codec_plugged_cb fn,
+				       struct device *codec_dev)
+{
+	struct dw_dp *dp = dev_get_drvdata(dev);
+	struct dw_dp_audio *audio = &dp->audio;
+
+	audio->plugged_cb = fn;
+	audio->codec_dev = codec_dev;
+	dw_dp_audio_handle_plugged_change(audio, dw_dp_detect(dp));
+	return 0;
+}
+
 static int dw_dp_audio_get_eld(struct device *dev, void *data, uint8_t *buf,
 			       size_t len)
 {
@@ -2478,6 +2505,7 @@ static const struct hdmi_codec_ops dw_dp_audio_codec_ops = {
 	.audio_startup = dw_dp_audio_startup,
 	.audio_shutdown = dw_dp_audio_shutdown,
 	.get_eld = dw_dp_audio_get_eld,
+	.hook_plugged_cb = dw_dp_audio_hook_plugged_cb
 };
 
 static int dw_dp_register_audio_driver(struct dw_dp *dp)
