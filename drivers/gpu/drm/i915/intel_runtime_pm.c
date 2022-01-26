@@ -68,9 +68,7 @@ static noinline depot_stack_handle_t __save_depot_stack(void)
 static void init_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm)
 {
 	spin_lock_init(&rpm->debug.lock);
-
-	if (rpm->available)
-		stack_depot_init();
+	stack_depot_init();
 }
 
 static noinline depot_stack_handle_t
