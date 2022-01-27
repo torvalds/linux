@@ -3,7 +3,7 @@
 #define __LINUX_ENTRYCOMMON_H
 
 #include <linux/static_call_types.h>
-#include <linux/tracehook.h>
+#include <linux/ptrace.h>
 #include <linux/syscalls.h>
 #include <linux/seccomp.h>
 #include <linux/sched.h>
@@ -95,7 +95,7 @@ static inline __must_check int arch_syscall_enter_tracehook(struct pt_regs *regs
 #ifndef arch_syscall_enter_tracehook
 static inline __must_check int arch_syscall_enter_tracehook(struct pt_regs *regs)
 {
-	return tracehook_report_syscall_entry(regs);
+	return ptrace_report_syscall_entry(regs);
 }
 #endif
 
@@ -294,7 +294,7 @@ static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step);
 #ifndef arch_syscall_exit_tracehook
 static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step)
 {
-	tracehook_report_syscall_exit(regs, step);
+	ptrace_report_syscall_exit(regs, step);
 }
 #endif
 

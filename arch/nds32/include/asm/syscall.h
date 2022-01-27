@@ -39,7 +39,7 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
  *
  * It's only valid to call this when @task is stopped for system
  * call exit tracing (due to TIF_SYSCALL_TRACE or TIF_SYSCALL_AUDIT),
- * after tracehook_report_syscall_entry() returned nonzero to prevent
+ * after ptrace_report_syscall_entry() returned nonzero to prevent
  * the system call from taking place.
  *
  * This rolls back the register state in @regs so it's as if the

@@ -3,7 +3,6 @@
 
 #include <linux/ptrace.h>
 #include <linux/regset.h>
-#include <linux/tracehook.h>
 #include <linux/elf.h>
 #include <linux/sched/task_stack.h>
 
@@ -103,7 +102,7 @@ void user_disable_single_step(struct task_struct *child)
 asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
-		if (tracehook_report_syscall_entry(regs))
+		if (ptrace_report_syscall_entry(regs))
 			forget_syscall(regs);
 	}
 	return regs->syscallno;
@@ -113,6 +112,6 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
 	int step = test_thread_flag(TIF_SINGLESTEP);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, step);
+		ptrace_report_syscall_exit(regs, step);
 
 }

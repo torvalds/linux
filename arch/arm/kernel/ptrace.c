@@ -22,7 +22,6 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/regset.h>
 #include <linux/audit.h>
-#include <linux/tracehook.h>
 #include <linux/unistd.h>
 
 #include <asm/syscall.h>
@@ -843,8 +842,8 @@ static void report_syscall(struct pt_regs *regs, enum ptrace_syscall_dir dir)
 	regs->ARM_ip = dir;
 
 	if (dir == PTRACE_SYSCALL_EXIT)
-		tracehook_report_syscall_exit(regs, 0);
-	else if (tracehook_report_syscall_entry(regs))
+		ptrace_report_syscall_exit(regs, 0);
+	else if (ptrace_report_syscall_entry(regs))
 		current_thread_info()->abi_syscall = -1;
 
 	regs->ARM_ip = ip;

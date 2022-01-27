@@ -53,57 +53,6 @@ struct linux_binprm;
 
 
 /**
- * tracehook_report_syscall_entry - task is about to attempt a system call
- * @regs:		user register state of current task
- *
- * This will be called if %SYSCALL_WORK_SYSCALL_TRACE or
- * %SYSCALL_WORK_SYSCALL_EMU have been set, when the current task has just
- * entered the kernel for a system call.  Full user register state is
- * available here.  Changing the values in @regs can affect the system
- * call number and arguments to be tried.  It is safe to block here,
- * preventing the system call from beginning.
- *
- * Returns zero normally, or nonzero if the calling arch code should abort
- * the system call.  That must prevent normal entry so no system call is
- * made.  If @task ever returns to user mode after this, its register state
- * is unspecified, but should be something harmless like an %ENOSYS error
- * return.  It should preserve enough information so that syscall_rollback()
- * can work (see asm-generic/syscall.h).
- *
- * Called without locks, just after entering kernel mode.
- */
-static inline __must_check int tracehook_report_syscall_entry(
-	struct pt_regs *regs)
-{
-	return ptrace_report_syscall(PTRACE_EVENTMSG_SYSCALL_ENTRY);
-}
-
-/**
- * tracehook_report_syscall_exit - task has just finished a system call
- * @regs:		user register state of current task
- * @step:		nonzero if simulating single-step or block-step
- *
- * This will be called if %SYSCALL_WORK_SYSCALL_TRACE has been set, when
- * the current task has just finished an attempted system call.  Full
- * user register state is available here.  It is safe to block here,
- * preventing signals from being processed.
- *
- * If @step is nonzero, this report is also in lieu of the normal
- * trap that would follow the system call instruction because
- * user_enable_block_step() or user_enable_single_step() was used.
- * In this case, %SYSCALL_WORK_SYSCALL_TRACE might not be set.
- *
- * Called without locks, just before checking for pending signals.
- */
-static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
-{
-	if (step)
-		user_single_step_report(regs);
-	else
-		ptrace_report_syscall(PTRACE_EVENTMSG_SYSCALL_EXIT);
-}
-
-/**
  * tracehook_signal_handler - signal handler setup is complete
  * @stepping:		nonzero if debugger single-step or block-step in use
  *

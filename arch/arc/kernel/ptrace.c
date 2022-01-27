@@ -4,7 +4,6 @@
  */
 
 #include <linux/ptrace.h>
-#include <linux/tracehook.h>
 #include <linux/sched/task_stack.h>
 #include <linux/regset.h>
 #include <linux/unistd.h>
@@ -258,7 +257,7 @@ long arch_ptrace(struct task_struct *child, long request,
 
 asmlinkage int syscall_trace_entry(struct pt_regs *regs)
 {
-	if (tracehook_report_syscall_entry(regs))
+	if (ptrace_report_syscall_entry(regs))
 		return ULONG_MAX;
 
 	return regs->r8;
@@ -266,5 +265,5 @@ asmlinkage int syscall_trace_entry(struct pt_regs *regs)
 
 asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 {
-	tracehook_report_syscall_exit(regs, 0);
+	ptrace_report_syscall_exit(regs, 0);
 }

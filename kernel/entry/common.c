@@ -2,6 +2,7 @@
 
 #include <linux/context_tracking.h>
 #include <linux/entry-common.h>
+#include <linux/tracehook.h>
 #include <linux/highmem.h>
 #include <linux/livepatch.h>
 #include <linux/audit.h>

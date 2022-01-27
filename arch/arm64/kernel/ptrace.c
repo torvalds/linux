@@ -27,7 +27,6 @@
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/regset.h>
-#include <linux/tracehook.h>
 #include <linux/elf.h>
 
 #include <asm/compat.h>
@@ -1818,11 +1817,11 @@ static void report_syscall(struct pt_regs *regs, enum ptrace_syscall_dir dir)
 	regs->regs[regno] = dir;
 
 	if (dir == PTRACE_SYSCALL_ENTER) {
-		if (tracehook_report_syscall_entry(regs))
+		if (ptrace_report_syscall_entry(regs))
 			forget_syscall(regs);
 		regs->regs[regno] = saved_reg;
 	} else if (!test_thread_flag(TIF_SINGLESTEP)) {
-		tracehook_report_syscall_exit(regs, 0);
+		ptrace_report_syscall_exit(regs, 0);
 		regs->regs[regno] = saved_reg;
 	} else {
 		regs->regs[regno] = saved_reg;
@@ -1832,7 +1831,7 @@ static void report_syscall(struct pt_regs *regs, enum ptrace_syscall_dir dir)
 		 * tracer modifications to the registers may have rewound the
 		 * state machine.
 		 */
-		tracehook_report_syscall_exit(regs, 1);
+		ptrace_report_syscall_exit(regs, 1);
 	}
 }
 
