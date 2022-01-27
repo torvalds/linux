@@ -1018,30 +1018,15 @@ static void vc4_hdmi_recenter_fifo(struct vc4_hdmi *vc4_hdmi)
 		  "VC4_HDMI_FIFO_CTL_RECENTER_DONE");
 }
 
-static struct drm_connector_state *
-vc4_hdmi_encoder_get_connector_state(struct drm_encoder *encoder,
-				     struct drm_atomic_state *state)
-{
-	struct drm_connector_state *conn_state;
-	struct drm_connector *connector;
-	unsigned int i;
-
-	for_each_new_connector_in_state(state, connector, conn_state, i) {
-		if (conn_state->best_encoder == encoder)
-			return conn_state;
-	}
-
-	return NULL;
-}
-
 static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 						struct drm_atomic_state *state)
 {
+	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
+	struct drm_connector *connector = &vc4_hdmi->connector;
 	struct drm_connector_state *conn_state =
-		vc4_hdmi_encoder_get_connector_state(encoder, state);
+		drm_atomic_get_new_connector_state(state, connector);
 	struct vc4_hdmi_connector_state *vc4_conn_state =
 		conn_state_to_vc4_hdmi_conn_state(conn_state);
-	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_display_mode *mode = &vc4_hdmi->saved_adjusted_mode;
 	unsigned long pixel_rate = vc4_conn_state->pixel_rate;
 	unsigned long bvb_rate, hsm_rate;
