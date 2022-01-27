@@ -295,6 +295,9 @@ static void combine_lock_stats(struct lock_stat *st)
 			ret = !!st->name - !!p->name;
 
 		if (ret == 0) {
+			if (st->discard)
+				goto out;
+
 			p->nr_acquired += st->nr_acquired;
 			p->nr_contended += st->nr_contended;
 			p->wait_time_total += st->wait_time_total;
@@ -307,6 +310,10 @@ static void combine_lock_stats(struct lock_stat *st)
 			if (p->wait_time_max < st->wait_time_max)
 				p->wait_time_max = st->wait_time_max;
 
+			/* now it got a new !discard record */
+			p->discard = 0;
+
+out:
 			st->combined = 1;
 			return;
 		}
@@ -319,6 +326,15 @@ static void combine_lock_stats(struct lock_stat *st)
 
 	rb_link_node(&st->rb, parent, rb);
 	rb_insert_color(&st->rb, &sorted);
+
+	if (st->discard) {
+		st->nr_acquired = 0;
+		st->nr_contended = 0;
+		st->wait_time_total = 0;
+		st->avg_wait_time = 0;
+		st->wait_time_min = ULLONG_MAX;
+		st->wait_time_max = 0;
+	}
 }
 
 static void insert_to_result(struct lock_stat *st,
