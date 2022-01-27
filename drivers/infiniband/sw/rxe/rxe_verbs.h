@@ -235,6 +235,7 @@ struct rxe_qp {
 	/* list of mcast groups qp has joined (for cleanup) */
 	struct list_head	grp_list;
 	spinlock_t		grp_lock; /* guard grp_list */
+	atomic_t		mcg_num;
 
 	struct sk_buff_head	req_pkts;
 	struct sk_buff_head	resp_pkts;

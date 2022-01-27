@@ -101,26 +101,19 @@ const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num);
 
 /* rxe_qp.c */
 int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init);
-
 int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 		     struct ib_qp_init_attr *init,
 		     struct rxe_create_qp_resp __user *uresp,
 		     struct ib_pd *ibpd, struct ib_udata *udata);
-
 int rxe_qp_to_init(struct rxe_qp *qp, struct ib_qp_init_attr *init);
-
 int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 		    struct ib_qp_attr *attr, int mask);
-
 int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr,
 		     int mask, struct ib_udata *udata);
-
 int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask);
-
 void rxe_qp_error(struct rxe_qp *qp);
-
+int rxe_qp_chk_destroy(struct rxe_qp *qp);
 void rxe_qp_destroy(struct rxe_qp *qp);
-
 void rxe_qp_cleanup(struct rxe_pool_elem *elem);
 
 static inline int qp_num(struct rxe_qp *qp)
