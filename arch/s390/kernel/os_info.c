@@ -43,13 +43,24 @@ void os_info_crashkernel_add(unsigned long base, unsigned long size)
 }
 
 /*
- * Add OS info entry and update checksum
+ * Add OS info data entry and update checksum
  */
-void os_info_entry_add(int nr, void *ptr, u64 size)
+void os_info_entry_add_data(int nr, void *ptr, u64 size)
 {
 	os_info.entry[nr].addr = __pa(ptr);
 	os_info.entry[nr].size = size;
 	os_info.entry[nr].csum = (__force u32)cksm(ptr, size, 0);
+	os_info.csum = os_info_csum(&os_info);
+}
+
+/*
+ * Add OS info value entry and update checksum
+ */
+void os_info_entry_add_val(int nr, u64 value)
+{
+	os_info.entry[nr].val = value;
+	os_info.entry[nr].size = 0;
+	os_info.entry[nr].csum = 0;
 	os_info.csum = os_info_csum(&os_info);
 }
 
