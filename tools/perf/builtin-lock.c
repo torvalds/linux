@@ -710,7 +710,7 @@ static void print_result(void)
 		}
 		bzero(cut_name, 20);
 
-		if (strlen(st->name) < 16) {
+		if (strlen(st->name) < 20) {
 			/* output raw name */
 			pr_info("%20s ", st->name);
 		} else {
