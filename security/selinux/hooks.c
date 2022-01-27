@@ -213,7 +213,7 @@ static void cred_init_security(void)
 {
 	struct task_security_struct *tsec;
 
-	tsec = selinux_cred(current->real_cred);
+	tsec = selinux_cred(unrcu_pointer(current->real_cred));
 	tsec->osid = tsec->sid = SECINITSID_KERNEL;
 }
 
