@@ -180,6 +180,13 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 			debugfs_create_file("average", 0400, stats->root, stats,
 					    &stats_fops);
 			debugfs_create_u64("n", 0400, stats->root, &stats->n);
+			debugfs_create_u64("failed", 0400, stats->root, &stats->failed);
+			debugfs_create_u64("failed_mbox_status", 0400, stats->root,
+					   &stats->failed_mbox_status);
+			debugfs_create_u32("last_failed_errno", 0400, stats->root,
+					   &stats->last_failed_errno);
+			debugfs_create_u8("last_failed_mbox_status", 0400, stats->root,
+					  &stats->last_failed_mbox_status);
 		}
 	}
 }

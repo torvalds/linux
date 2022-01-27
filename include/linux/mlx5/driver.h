@@ -264,6 +264,14 @@ enum {
 struct mlx5_cmd_stats {
 	u64		sum;
 	u64		n;
+	/* number of times command failed */
+	u64		failed;
+	/* number of times command failed on bad status returned by FW */
+	u64		failed_mbox_status;
+	/* last command failed returned errno */
+	u32		last_failed_errno;
+	/* last bad status returned by FW */
+	u8		last_failed_mbox_status;
 	struct dentry  *root;
 	/* protect command average calculations */
 	spinlock_t	lock;
@@ -955,6 +963,7 @@ typedef void (*mlx5_async_cbk_t)(int status, struct mlx5_async_work *context);
 struct mlx5_async_work {
 	struct mlx5_async_ctx *ctx;
 	mlx5_async_cbk_t user_callback;
+	u16 opcode; /* cmd opcode */
 	void *out; /* pointer to the cmd output buffer */
 };
 

@@ -1877,16 +1877,38 @@ out_in:
 	return err;
 }
 
-/* preserve -EREMOTEIO for outbox.status != OK, otherwise return err as is */
-static int cmd_status_err(int err, void *out)
+static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status, int err)
 {
-	if (err) /* -EREMOTEIO is preserved */
-		return err == -EREMOTEIO ? -EIO : err;
+	struct mlx5_cmd_stats *stats;
 
-	if (MLX5_GET(mbox_out, out, status) != MLX5_CMD_STAT_OK)
-		return -EREMOTEIO;
+	if (!err)
+		return;
 
-	return 0;
+	stats = &dev->cmd.stats[opcode];
+	spin_lock_irq(&stats->lock);
+	stats->failed++;
+	if (err < 0)
+		stats->last_failed_errno = -err;
+	if (err == -EREMOTEIO) {
+		stats->failed_mbox_status++;
+		stats->last_failed_mbox_status = status;
+	}
+	spin_unlock_irq(&stats->lock);
+}
+
+/* preserve -EREMOTEIO for outbox.status != OK, otherwise return err as is */
+static int cmd_status_err(struct mlx5_core_dev *dev, int err, u16 opcode, void *out)
+{
+	u8 status = MLX5_GET(mbox_out, out, status);
+
+	if (err == -EREMOTEIO) /* -EREMOTEIO is preserved */
+		err = -EIO;
+
+	if (!err && status != MLX5_CMD_STAT_OK)
+		err = -EREMOTEIO;
+
+	cmd_status_log(dev, opcode, status, err);
+	return err;
 }
 
 /**
@@ -1910,8 +1932,10 @@ static int cmd_status_err(int err, void *out)
 int mlx5_cmd_do(struct mlx5_core_dev *dev, void *in, int in_size, void *out, int out_size)
 {
 	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, false);
+	u16 opcode = MLX5_GET(mbox_in, in, opcode);
 
-	return cmd_status_err(err, out);
+	err = cmd_status_err(dev, err, opcode, out);
+	return err;
 }
 EXPORT_SYMBOL(mlx5_cmd_do);
 
@@ -1954,8 +1978,9 @@ int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
 			  void *out, int out_size)
 {
 	int err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, true);
+	u16 opcode = MLX5_GET(mbox_in, in, opcode);
 
-	err = cmd_status_err(err, out);
+	err = cmd_status_err(dev, err, opcode, out);
 	return mlx5_cmd_check(dev, err, in, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec_polling);
@@ -1991,7 +2016,7 @@ static void mlx5_cmd_exec_cb_handler(int status, void *_work)
 	struct mlx5_async_ctx *ctx;
 
 	ctx = work->ctx;
-	status = cmd_status_err(status, work->out);
+	status = cmd_status_err(ctx->dev, status, work->opcode, work->out);
 	work->user_callback(status, work);
 	if (atomic_dec_and_test(&ctx->num_inflight))
 		wake_up(&ctx->wait);
@@ -2005,6 +2030,7 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 
 	work->ctx = ctx;
 	work->user_callback = callback;
+	work->opcode = MLX5_GET(mbox_in, in, opcode);
 	work->out = out;
 	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
 		return -EIO;
