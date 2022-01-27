@@ -1697,6 +1697,15 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			}
 		}
 	}
+
+	if (parse_state->fake_pmu) {
+		if (!parse_events_add_pmu(parse_state, list, str, head,
+					  true, true)) {
+			pr_debug("%s -> %s/%s/\n", str, "fake_pmu", str);
+			ok++;
+		}
+	}
+
 out_err:
 	if (ok)
 		*listp = list;
@@ -2098,8 +2107,17 @@ static void perf_pmu__parse_init(void)
 	pmu = NULL;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 		list_for_each_entry(alias, &pmu->aliases, list) {
-			if (strchr(alias->name, '-'))
+			char *tmp = strchr(alias->name, '-');
+
+			if (tmp) {
+				char *tmp2 = NULL;
+
+				tmp2 = strchr(tmp + 1, '-');
 				len++;
+				if (tmp2)
+					len++;
+			}
+
 			len++;
 		}
 	}
@@ -2119,8 +2137,20 @@ static void perf_pmu__parse_init(void)
 		list_for_each_entry(alias, &pmu->aliases, list) {
 			struct perf_pmu_event_symbol *p = perf_pmu_events_list + len;
 			char *tmp = strchr(alias->name, '-');
+			char *tmp2 = NULL;
 
-			if (tmp != NULL) {
+			if (tmp)
+				tmp2 = strchr(tmp + 1, '-');
+			if (tmp2) {
+				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
+						PMU_EVENT_SYMBOL_PREFIX);
+				p++;
+				tmp++;
+				SET_SYMBOL(strndup(tmp, tmp2 - tmp), PMU_EVENT_SYMBOL_SUFFIX);
+				p++;
+				SET_SYMBOL(strdup(++tmp2), PMU_EVENT_SYMBOL_SUFFIX2);
+				len += 3;
+			} else if (tmp) {
 				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
 						PMU_EVENT_SYMBOL_PREFIX);
 				p++;
@@ -2147,23 +2177,38 @@ err:
  */
 int perf_pmu__test_parse_init(void)
 {
-	struct perf_pmu_event_symbol *list;
+	struct perf_pmu_event_symbol *list, *tmp, symbols[] = {
+		{(char *)"read", PMU_EVENT_SYMBOL},
+		{(char *)"event", PMU_EVENT_SYMBOL_PREFIX},
+		{(char *)"two", PMU_EVENT_SYMBOL_SUFFIX},
+		{(char *)"hyphen", PMU_EVENT_SYMBOL_SUFFIX},
+		{(char *)"hyph", PMU_EVENT_SYMBOL_SUFFIX2},
+	};
+	unsigned long i, j;
 
-	list = malloc(sizeof(*list) * 1);
+	tmp = list = malloc(sizeof(*list) * ARRAY_SIZE(symbols));
 	if (!list)
 		return -ENOMEM;
 
-	list->type   = PMU_EVENT_SYMBOL;
-	list->symbol = strdup("read");
-
-	if (!list->symbol) {
-		free(list);
-		return -ENOMEM;
+	for (i = 0; i < ARRAY_SIZE(symbols); i++, tmp++) {
+		tmp->type = symbols[i].type;
+		tmp->symbol = strdup(symbols[i].symbol);
+		if (!list->symbol)
+			goto err_free;
 	}
 
 	perf_pmu_events_list = list;
-	perf_pmu_events_list_num = 1;
+	perf_pmu_events_list_num = ARRAY_SIZE(symbols);
+
+	qsort(perf_pmu_events_list, ARRAY_SIZE(symbols),
+	      sizeof(struct perf_pmu_event_symbol), comp_pmu);
 	return 0;
+
+err_free:
+	for (j = 0, tmp = list; j < i; j++, tmp++)
+		free(tmp->symbol);
+	free(list);
+	return -ENOMEM;
 }
 
 enum perf_pmu_event_symbol_type

@@ -475,12 +475,14 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 	da9063_data_to_tm(data, &rtc->alarm_time, rtc);
 	rtc->rtc_sync = false;
 
-	/*
-	 * TODO: some models have alarms on a minute boundary but still support
-	 * real hardware interrupts. Add this once the core supports it.
-	 */
-	if (config->rtc_data_start != RTC_SEC)
-		rtc->rtc_dev->uie_unsupported = 1;
+	if (config->rtc_data_start != RTC_SEC) {
+		set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rtc->rtc_dev->features);
+		/*
+		 * TODO: some models have alarms on a minute boundary but still
+		 * support real hardware interrupts.
+		 */
+		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->rtc_dev->features);
+	}
 
 	irq_alarm = platform_get_irq_byname(pdev, "ALARM");
 	if (irq_alarm < 0)
@@ -493,6 +495,8 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
 			irq_alarm, ret);
+
+	device_init_wakeup(&pdev->dev, true);
 
 	return devm_rtc_register_device(rtc->rtc_dev);
 }

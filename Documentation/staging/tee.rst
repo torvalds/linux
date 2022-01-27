@@ -255,7 +255,7 @@ The following picture shows a high level overview of AMD-TEE::
  +--------------------------+      +---------+--------------------+
 
 At the lowest level (in x86), the AMD Secure Processor (ASP) driver uses the
-CPU to PSP mailbox regsister to submit commands to the PSP. The format of the
+CPU to PSP mailbox register to submit commands to the PSP. The format of the
 command buffer is opaque to the ASP driver. It's role is to submit commands to
 the secure processor and return results to AMD-TEE driver. The interface
 between AMD-TEE driver and AMD Secure Processor driver can be found in [6].
@@ -290,7 +290,7 @@ cancel_req driver callback is not supported by AMD-TEE.
 
 The GlobalPlatform TEE Client API [5] can be used by the user space (client) to
 talk to AMD's TEE. AMD's TEE provides a secure environment for loading, opening
-a session, invoking commands and clossing session with TA.
+a session, invoking commands and closing session with TA.
 
 References
 ==========

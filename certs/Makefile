@@ -68,14 +68,14 @@ $(obj)/x509.genkey:
 endif # CONFIG_MODULE_SIG_KEY
 
 # If CONFIG_MODULE_SIG_KEY isn't a PKCS#11 URI, depend on it
-ifneq ($(filter-out pkcs11:%, %(CONFIG_MODULE_SIG_KEY)),)
+ifneq ($(filter-out pkcs11:%, $(CONFIG_MODULE_SIG_KEY)),)
 X509_DEP := $(CONFIG_MODULE_SIG_KEY)
 endif
 
 $(obj)/system_certificates.o: $(obj)/signing_key.x509
 
 $(obj)/signing_key.x509: $(X509_DEP) $(obj)/extract-cert FORCE
-	$(call if_changed,extract_certs,$(if $(X509_DEP),$<,$(CONFIG_MODULE_SIG_KEY)))
+	$(call if_changed,extract_certs,$(if $(CONFIG_MODULE_SIG_KEY),$(if $(X509_DEP),$<,$(CONFIG_MODULE_SIG_KEY)),""))
 endif # CONFIG_MODULE_SIG
 
 targets += signing_key.x509

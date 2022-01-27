@@ -49,11 +49,19 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 		goto error_unsupported;
 	}
 
-	/* check parameters */
+	/* Check features of the backing filesystem:
+	 * - Directories must support looking up and directory creation
+	 * - We create tmpfiles to handle invalidation
+	 * - We use xattrs to store metadata
+	 * - We need to be able to query the amount of space available
+	 * - We want to be able to sync the filesystem when stopping the cache
+	 * - We use DIO to/from pages, so the blocksize mustn't be too big.
+	 */
 	ret = -EOPNOTSUPP;
 	if (d_is_negative(root) ||
 	    !d_backing_inode(root)->i_op->lookup ||
 	    !d_backing_inode(root)->i_op->mkdir ||
+	    !d_backing_inode(root)->i_op->tmpfile ||
 	    !(d_backing_inode(root)->i_opflags & IOP_XATTR) ||
 	    !root->d_sb->s_op->statfs ||
 	    !root->d_sb->s_op->sync_fs ||
@@ -84,9 +92,7 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 		goto error_unsupported;
 
 	cache->bsize = stats.f_bsize;
-	cache->bshift = 0;
-	if (stats.f_bsize < PAGE_SIZE)
-		cache->bshift = PAGE_SHIFT - ilog2(stats.f_bsize);
+	cache->bshift = ilog2(stats.f_bsize);
 
 	_debug("blksize %u (shift %u)",
 	       cache->bsize, cache->bshift);
@@ -106,7 +112,6 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 	       (unsigned long long) cache->fcull,
 	       (unsigned long long) cache->fstop);
 
-	stats.f_blocks >>= cache->bshift;
 	do_div(stats.f_blocks, 100);
 	cache->bstop = stats.f_blocks * cache->bstop_percent;
 	cache->bcull = stats.f_blocks * cache->bcull_percent;
@@ -209,7 +214,7 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 		return ret;
 	}
 
-	b_avail = stats.f_bavail >> cache->bshift;
+	b_avail = stats.f_bavail;
 	b_writing = atomic_long_read(&cache->b_writing);
 	if (b_avail > b_writing)
 		b_avail -= b_writing;

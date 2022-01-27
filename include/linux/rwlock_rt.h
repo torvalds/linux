@@ -28,6 +28,7 @@ extern void rt_read_lock(rwlock_t *rwlock);
 extern int rt_read_trylock(rwlock_t *rwlock);
 extern void rt_read_unlock(rwlock_t *rwlock);
 extern void rt_write_lock(rwlock_t *rwlock);
+extern void rt_write_lock_nested(rwlock_t *rwlock, int subclass);
 extern int rt_write_trylock(rwlock_t *rwlock);
 extern void rt_write_unlock(rwlock_t *rwlock);
 
@@ -82,6 +83,15 @@ static __always_inline void write_lock(rwlock_t *rwlock)
 {
 	rt_write_lock(rwlock);
 }
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static __always_inline void write_lock_nested(rwlock_t *rwlock, int subclass)
+{
+	rt_write_lock_nested(rwlock, subclass);
+}
+#else
+#define write_lock_nested(lock, subclass)	rt_write_lock(((void)(subclass), (lock)))
+#endif
 
 static __always_inline void write_lock_bh(rwlock_t *rwlock)
 {

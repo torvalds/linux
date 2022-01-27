@@ -665,6 +665,11 @@ static inline void fscache_clear_inode_writeback(struct fscache_cookie *cookie,
 static inline
 void fscache_note_page_release(struct fscache_cookie *cookie)
 {
+	/* If we've written data to the cache (HAVE_DATA) and there wasn't any
+	 * data in the cache when we started (NO_DATA_TO_READ), it may no
+	 * longer be true that we can skip reading from the cache - so clear
+	 * the flag that causes reads to be skipped.
+	 */
 	if (cookie &&
 	    test_bit(FSCACHE_COOKIE_HAVE_DATA, &cookie->flags) &&
 	    test_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags))

@@ -4,7 +4,6 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
 
@@ -57,7 +56,7 @@ struct perf_cpu cpu__max_present_cpu(void);
  */
 static inline bool cpu_map__is_dummy(struct perf_cpu_map *cpus)
 {
-	return cpus->nr == 1 && cpus->map[0].cpu == -1;
+	return perf_cpu_map__nr(cpus) == 1 && perf_cpu_map__cpu(cpus, 0).cpu == -1;
 }
 
 /**
