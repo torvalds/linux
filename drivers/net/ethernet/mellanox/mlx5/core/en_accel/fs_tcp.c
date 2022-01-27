@@ -92,11 +92,11 @@ struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_flow_steering *fs,
 	case AF_INET:
 		accel_fs_tcp_set_ipv4_flow(spec, sk);
 		ft = &fs_tcp->tables[ACCEL_FS_IPV4_TCP];
-		mlx5_core_dbg(mlx5e_fs_get_mdev(fs), "%s flow is %pI4:%d -> %pI4:%d\n", __func__,
-			      &inet_sk(sk)->inet_rcv_saddr,
-			      inet_sk(sk)->inet_sport,
-			      &inet_sk(sk)->inet_daddr,
-			      inet_sk(sk)->inet_dport);
+		fs_dbg(fs, "%s flow is %pI4:%d -> %pI4:%d\n", __func__,
+		       &inet_sk(sk)->inet_rcv_saddr,
+		       inet_sk(sk)->inet_sport,
+		       &inet_sk(sk)->inet_daddr,
+		       inet_sk(sk)->inet_dport);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
@@ -138,8 +138,7 @@ struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_flow_steering *fs,
 	flow = mlx5_add_flow_rules(ft->t, spec, &flow_act, &dest, 1);
 
 	if (IS_ERR(flow))
-		mlx5_core_err(mlx5e_fs_get_mdev(fs), "mlx5_add_flow_rules() failed, flow is %ld\n",
-			      PTR_ERR(flow));
+		fs_err(fs, "mlx5_add_flow_rules() failed, flow is %ld\n", PTR_ERR(flow));
 
 out:
 	kvfree(spec);
@@ -163,9 +162,8 @@ static int accel_fs_tcp_add_default_rule(struct mlx5e_flow_steering *fs,
 	rule = mlx5_add_flow_rules(accel_fs_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		mlx5_core_err(mlx5e_fs_get_mdev(fs),
-			      "%s: add default rule failed, accel_fs type=%d, err %d\n",
-			      __func__, type, err);
+		fs_err(fs, "%s: add default rule failed, accel_fs type=%d, err %d\n",
+		       __func__, type, err);
 		return err;
 	}
 
@@ -284,8 +282,8 @@ static int accel_fs_tcp_create_table(struct mlx5e_flow_steering *fs, enum accel_
 		return err;
 	}
 
-	mlx5_core_dbg(mlx5e_fs_get_mdev(fs), "Created fs accel table id %u level %u\n",
-		      ft->t->id, ft->t->level);
+	fs_dbg(fs, "Created fs accel table id %u level %u\n",
+	       ft->t->id, ft->t->level);
 
 	err = accel_fs_tcp_create_groups(ft, type);
 	if (err)
@@ -310,9 +308,9 @@ static int accel_fs_tcp_disable(struct mlx5e_flow_steering *fs)
 		/* Modify ttc rules destination to point back to the indir TIRs */
 		err = mlx5_ttc_fwd_default_dest(ttc, fs_accel2tt(i));
 		if (err) {
-			mlx5_core_err(mlx5e_fs_get_mdev(fs),
-				      "%s: modify ttc[%d] default destination failed, err(%d)\n",
-				      __func__, fs_accel2tt(i), err);
+			fs_err(fs,
+			       "%s: modify ttc[%d] default destination failed, err(%d)\n",
+			       __func__, fs_accel2tt(i), err);
 			return err;
 		}
 	}
@@ -334,9 +332,8 @@ static int accel_fs_tcp_enable(struct mlx5e_flow_steering *fs)
 		/* Modify ttc rules destination to point on the accel_fs FTs */
 		err = mlx5_ttc_fwd_dest(ttc, fs_accel2tt(i), &dest);
 		if (err) {
-			mlx5_core_err(mlx5e_fs_get_mdev(fs),
-				      "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
-				      __func__, fs_accel2tt(i), err);
+			fs_err(fs, "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
+			       __func__, fs_accel2tt(i), err);
 			return err;
 		}
 	}

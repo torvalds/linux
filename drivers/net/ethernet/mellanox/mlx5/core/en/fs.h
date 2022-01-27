@@ -176,5 +176,18 @@ int mlx5e_fs_vlan_rx_kill_vid(struct mlx5e_flow_steering *fs,
 			      struct net_device *netdev,
 			      __be16 proto, u16 vid);
 void mlx5e_fs_init_l2_addr(struct mlx5e_flow_steering *fs, struct net_device *netdev);
+
+#define fs_err(fs, fmt, ...) \
+	mlx5_core_err(mlx5e_fs_get_mdev(fs), fmt, ##__VA_ARGS__)
+
+#define fs_dbg(fs, fmt, ...) \
+	mlx5_core_dbg(mlx5e_fs_get_mdev(fs), fmt, ##__VA_ARGS__)
+
+#define fs_warn(fs, fmt, ...) \
+	mlx5_core_warn(mlx5e_fs_get_mdev(fs), fmt, ##__VA_ARGS__)
+
+#define fs_warn_once(fs, fmt, ...) \
+	mlx5_core_warn_once(mlx5e_fs_get_mdev(fs), fmt, ##__VA_ARGS__)
+
 #endif /* __MLX5E_FLOW_STEER_H__ */
 

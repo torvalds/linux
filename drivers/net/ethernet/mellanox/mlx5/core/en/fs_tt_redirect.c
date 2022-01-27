@@ -105,8 +105,8 @@ mlx5e_fs_tt_redirect_udp_add_rule(struct mlx5e_flow_steering *fs,
 
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		mlx5_core_err(mlx5e_fs_get_mdev(fs), "%s: add %s rule failed, err %d\n",
-			      __func__, fs_udp_type2str(type), err);
+		fs_err(fs, "%s: add %s rule failed, err %d\n",
+		       __func__, fs_udp_type2str(type), err);
 	}
 	return rule;
 }
@@ -127,9 +127,8 @@ static int fs_udp_add_default_rule(struct mlx5e_flow_steering *fs, enum fs_udp_t
 	rule = mlx5_add_flow_rules(fs_udp_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		mlx5_core_err(mlx5e_fs_get_mdev(fs),
-			      "%s: add default rule failed, fs type=%d, err %d\n",
-			      __func__, type, err);
+		fs_err(fs, "%s: add default rule failed, fs type=%d, err %d\n",
+		       __func__, type, err);
 		return err;
 	}
 
@@ -264,9 +263,8 @@ static int fs_udp_disable(struct mlx5e_flow_steering *fs)
 		/* Modify ttc rules destination to point back to the indir TIRs */
 		err = mlx5_ttc_fwd_default_dest(ttc, fs_udp2tt(i));
 		if (err) {
-			mlx5_core_err(mlx5e_fs_get_mdev(fs),
-				      "%s: modify ttc[%d] default destination failed, err(%d)\n",
-				      __func__, fs_udp2tt(i), err);
+			fs_err(fs, "%s: modify ttc[%d] default destination failed, err(%d)\n",
+			       __func__, fs_udp2tt(i), err);
 			return err;
 		}
 	}
@@ -288,9 +286,8 @@ static int fs_udp_enable(struct mlx5e_flow_steering *fs)
 		/* Modify ttc rules destination to point on the accel_fs FTs */
 		err = mlx5_ttc_fwd_dest(ttc, fs_udp2tt(i), &dest);
 		if (err) {
-			mlx5_core_err(mlx5e_fs_get_mdev(fs),
-				      "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
-				      __func__, fs_udp2tt(i), err);
+			fs_err(fs, "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
+			       __func__, fs_udp2tt(i), err);
 			return err;
 		}
 	}
@@ -389,8 +386,8 @@ mlx5e_fs_tt_redirect_any_add_rule(struct mlx5e_flow_steering *fs,
 
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		mlx5_core_err(mlx5e_fs_get_mdev(fs), "%s: add ANY rule failed, err %d\n",
-			      __func__, err);
+		fs_err(fs, "%s: add ANY rule failed, err %d\n",
+		       __func__, err);
 	}
 	return rule;
 }
@@ -410,9 +407,8 @@ static int fs_any_add_default_rule(struct mlx5e_flow_steering *fs)
 	rule = mlx5_add_flow_rules(fs_any_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		mlx5_core_err(mlx5e_fs_get_mdev(fs),
-			      "%s: add default rule failed, fs type=ANY, err %d\n",
-			      __func__, err);
+		fs_err(fs, "%s: add default rule failed, fs type=ANY, err %d\n",
+		       __func__, err);
 		return err;
 	}
 
@@ -524,9 +520,9 @@ static int fs_any_disable(struct mlx5e_flow_steering *fs)
 	/* Modify ttc rules destination to point back to the indir TIRs */
 	err = mlx5_ttc_fwd_default_dest(ttc, MLX5_TT_ANY);
 	if (err) {
-		mlx5_core_err(mlx5e_fs_get_mdev(fs),
-			      "%s: modify ttc[%d] default destination failed, err(%d)\n",
-			      __func__, MLX5_TT_ANY, err);
+		fs_err(fs,
+		       "%s: modify ttc[%d] default destination failed, err(%d)\n",
+		       __func__, MLX5_TT_ANY, err);
 		return err;
 	}
 	return 0;
@@ -545,9 +541,9 @@ static int fs_any_enable(struct mlx5e_flow_steering *fs)
 	/* Modify ttc rules destination to point on the accel_fs FTs */
 	err = mlx5_ttc_fwd_dest(ttc, MLX5_TT_ANY, &dest);
 	if (err) {
-		mlx5_core_err(mlx5e_fs_get_mdev(fs),
-			      "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
-			      __func__, MLX5_TT_ANY, err);
+		fs_err(fs,
+		       "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
+		       __func__, MLX5_TT_ANY, err);
 		return err;
 	}
 	return 0;
