@@ -3530,11 +3530,7 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
-	/* Link encoder may have been dynamically assigned to non-physical display endpoint. */
-	if (link->ep_type == DISPLAY_ENDPOINT_PHY)
-		link_encoder = link->link_enc;
-	else if (link->dc->res_pool->funcs->link_encs_assign)
-		link_encoder = link_enc_cfg_get_link_enc_used_by_stream(pipe_ctx->stream->ctx->dc, stream);
+	link_encoder = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_encoder);
 
 	/* enable_link_dp_mst already check link->enabled_stream_count
@@ -3823,11 +3819,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	const struct dc_link_settings empty_link_settings = {0};
 	DC_LOGGER_INIT(link->ctx->logger);
 
-	/* Link encoder may have been dynamically assigned to non-physical display endpoint. */
-	if (link->ep_type == DISPLAY_ENDPOINT_PHY)
-		link_encoder = link->link_enc;
-	else if (link->dc->res_pool->funcs->link_encs_assign)
-		link_encoder = link_enc_cfg_get_link_enc_used_by_stream(pipe_ctx->stream->ctx->dc, stream);
+	link_encoder = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_encoder);
 
 	/* deallocate_mst_payload is called before disable link. When mode or
@@ -3944,13 +3936,7 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 	if (cp_psp == NULL || cp_psp->funcs.update_stream_config == NULL)
 		return;
 
-	if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_PHY)
-		link_enc = pipe_ctx->stream->link->link_enc;
-	else if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
-			pipe_ctx->stream->link->dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_stream(
-				pipe_ctx->stream->ctx->dc,
-				pipe_ctx->stream);
+	link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
 	ASSERT(link_enc);
 	if (link_enc == NULL)
 		return;
@@ -4100,10 +4086,7 @@ void core_link_enable_stream(
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
 
-	if (dc->res_pool->funcs->link_encs_assign && stream->link->ep_type != DISPLAY_ENDPOINT_PHY)
-		link_enc = link_enc_cfg_get_link_enc_used_by_stream(dc, stream);
-	else
-		link_enc = stream->link->link_enc;
+	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 
 	if (!dc_is_virtual_signal(pipe_ctx->stream->signal)
