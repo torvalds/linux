@@ -349,6 +349,23 @@ exit:
 	return ret;
 }
 
+static bool check_from_dmafd(struct skcipher_request *req)
+{
+	if (!req || !req->src || !req->dst)
+		return false;
+
+	if (sg_nents_for_len(req->src, req->cryptlen) == 1 &&
+	    sg_virt(req->src) &&
+	    sg_dma_address(req->src) &&
+	    sg_nents_for_len(req->dst, req->cryptlen) == 1 &&
+	    sg_virt(req->dst) &&
+	    sg_dma_address(req->dst) &&
+	    sg_dma_len(req->src) == sg_dma_len(req->dst))
+		return true;
+
+	return false;
+}
+
 static int rk_cipher_crypt(struct skcipher_request *req, bool encrypt)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -376,7 +393,8 @@ static int rk_cipher_crypt(struct skcipher_request *req, bool encrypt)
 
 	if (is_force_fallback(algt, ctx->keylen) ||
 	    req->cryptlen > ctx->rk_dev->vir_max) {
-		return rk_cipher_fallback(req, ctx, encrypt);
+		if (!check_from_dmafd(req))
+			return rk_cipher_fallback(req, ctx, encrypt);
 	}
 
 	ctx->mode = cipher_algo2bc[algt->algo] |
