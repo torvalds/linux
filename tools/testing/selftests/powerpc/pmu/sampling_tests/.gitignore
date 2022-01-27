@@ -6,3 +6,4 @@ mmcr0_fc56_pmc1ce_test
 mmcr0_fc56_pmc56_test
 mmcr1_comb_test
 mmcr2_l2l3_test
+mmcr2_fcs_fch_test
