@@ -812,8 +812,6 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 {
 	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
 
-	rxe_drop_all_mcast_groups(qp);
-
 	if (qp->sq.queue)
 		rxe_queue_cleanup(qp->sq.queue);
 

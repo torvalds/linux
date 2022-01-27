@@ -162,32 +162,6 @@ err1:
 	return -EINVAL;
 }
 
-void rxe_drop_all_mcast_groups(struct rxe_qp *qp)
-{
-	struct rxe_mcg *grp;
-	struct rxe_mca *elem;
-
-	while (1) {
-		spin_lock_bh(&qp->grp_lock);
-		if (list_empty(&qp->grp_list)) {
-			spin_unlock_bh(&qp->grp_lock);
-			break;
-		}
-		elem = list_first_entry(&qp->grp_list, struct rxe_mca,
-					grp_list);
-		list_del(&elem->grp_list);
-		spin_unlock_bh(&qp->grp_lock);
-
-		grp = elem->grp;
-		spin_lock_bh(&grp->mcg_lock);
-		list_del(&elem->qp_list);
-		grp->num_qp--;
-		spin_unlock_bh(&grp->mcg_lock);
-		rxe_drop_ref(grp);
-		rxe_drop_ref(elem);
-	}
-}
-
 void rxe_mc_cleanup(struct rxe_pool_elem *elem)
 {
 	struct rxe_mcg *grp = container_of(elem, typeof(*grp), elem);
