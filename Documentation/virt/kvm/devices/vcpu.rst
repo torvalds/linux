@@ -70,7 +70,7 @@ irqchip.
 	 -ENODEV  PMUv3 not supported or GIC not initialized
 	 -ENXIO   PMUv3 not properly configured or in-kernel irqchip not
 	 	  configured as required prior to calling this attribute
-	 -EBUSY   PMUv3 already initialized
+	 -EBUSY   PMUv3 already initialized or a VCPU has already run
 	 -EINVAL  Invalid filter range
 	 =======  ======================================================
 

@@ -136,6 +136,7 @@ struct kvm_arch {
 
 	/* Memory Tagging Extension enabled for the guest */
 	bool mte_enabled;
+	bool ran_once;
 };
 
 struct kvm_vcpu_fault_info {
