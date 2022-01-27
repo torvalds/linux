@@ -125,8 +125,6 @@ static enum spectre_v2_state get_sysfs_state(void)
 #define PM_BR_PRED_PCACHE	0x048a0	// P9 only
 #define PM_BR_MPRED_PCACHE	0x048b0	// P9 only
 
-#define SPRN_PVR 287
-
 int spectre_v2_test(void)
 {
 	enum spectre_v2_state state;
