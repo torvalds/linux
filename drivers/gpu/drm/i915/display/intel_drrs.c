@@ -87,6 +87,38 @@ intel_drrs_compute_config(struct intel_dp *intel_dp,
 		pipe_config->dp_m2_n2.data_m *= pipe_config->splitter.link_count;
 }
 
+static void
+intel_drrs_set_refresh_rate_pipeconf(const struct intel_crtc_state *crtc_state,
+				     enum drrs_refresh_rate_type refresh_type)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	u32 val, bit;
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		bit = PIPECONF_EDP_RR_MODE_SWITCH_VLV;
+	else
+		bit = PIPECONF_EDP_RR_MODE_SWITCH;
+
+	val = intel_de_read(dev_priv, PIPECONF(cpu_transcoder));
+
+	if (refresh_type == DRRS_LOW_RR)
+		val |= bit;
+	else
+		val &= ~bit;
+
+	intel_de_write(dev_priv, PIPECONF(cpu_transcoder), val);
+}
+
+static void
+intel_drrs_set_refresh_rate_m_n(const struct intel_crtc_state *crtc_state,
+				enum drrs_refresh_rate_type refresh_type)
+{
+	intel_dp_set_m_n(crtc_state,
+			 refresh_type == DRRS_LOW_RR ? M2_N2 : M1_N1);
+}
+
 static void intel_drrs_set_state(struct drm_i915_private *dev_priv,
 				 const struct intel_crtc_state *crtc_state,
 				 enum drrs_refresh_rate_type refresh_type)
@@ -120,37 +152,10 @@ static void intel_drrs_set_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 8 && !IS_CHERRYVIEW(dev_priv)) {
-		switch (refresh_type) {
-		case DRRS_HIGH_RR:
-			intel_dp_set_m_n(crtc_state, M1_N1);
-			break;
-		case DRRS_LOW_RR:
-			intel_dp_set_m_n(crtc_state, M2_N2);
-			break;
-		case DRRS_MAX_RR:
-		default:
-			drm_err(&dev_priv->drm,
-				"Unsupported refreshrate type\n");
-		}
-	} else if (DISPLAY_VER(dev_priv) > 6) {
-		i915_reg_t reg = PIPECONF(crtc_state->cpu_transcoder);
-		u32 val;
-
-		val = intel_de_read(dev_priv, reg);
-		if (refresh_type == DRRS_LOW_RR) {
-			if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-				val |= PIPECONF_EDP_RR_MODE_SWITCH_VLV;
-			else
-				val |= PIPECONF_EDP_RR_MODE_SWITCH;
-		} else {
-			if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-				val &= ~PIPECONF_EDP_RR_MODE_SWITCH_VLV;
-			else
-				val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
-		}
-		intel_de_write(dev_priv, reg, val);
-	}
+	if (DISPLAY_VER(dev_priv) >= 8 && !IS_CHERRYVIEW(dev_priv))
+		intel_drrs_set_refresh_rate_m_n(crtc_state, refresh_type);
+	else if (DISPLAY_VER(dev_priv) > 6)
+		intel_drrs_set_refresh_rate_pipeconf(crtc_state, refresh_type);
 
 	dev_priv->drrs.refresh_rate_type = refresh_type;
 
