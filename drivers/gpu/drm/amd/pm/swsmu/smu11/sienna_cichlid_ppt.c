@@ -3449,6 +3449,9 @@ static int sienna_cichlid_i2c_xfer(struct i2c_adapter *i2c_adap,
 	int i, j, r, c;
 	u16 dir;
 
+	if (!adev->pm.dpm_enabled)
+		return -EBUSY;
+
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
