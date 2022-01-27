@@ -1363,9 +1363,6 @@ do_udp_sendmsg:
 		}
 	}
 
-	if (up->pending == AF_INET)
-		return udp_sendmsg(sk, msg, len);
-
 	/* Rough check on arithmetic overflow,
 	   better check is made in ip6_append_data().
 	   */
@@ -1374,6 +1371,8 @@ do_udp_sendmsg:
 
 	getfrag  =  is_udplite ?  udplite_getfrag : ip_generic_getfrag;
 	if (up->pending) {
+		if (up->pending == AF_INET)
+			return udp_sendmsg(sk, msg, len);
 		/*
 		 * There are pending frames.
 		 * The socket lock must be held while it's corked.
