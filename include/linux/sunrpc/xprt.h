@@ -284,6 +284,7 @@ struct rpc_xprt {
 	} stat;
 
 	struct net		*xprt_net;
+	netns_tracker		ns_tracker;
 	const char		*servername;
 	const char		*address_strings[RPC_DISPLAY_MAX];
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
