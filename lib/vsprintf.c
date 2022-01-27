@@ -1790,7 +1790,8 @@ char *fourcc_string(char *buf, char *end, const u32 *fourcc,
 		*p++ = isascii(c) && isprint(c) ? c : '.';
 	}
 
-	strcpy(p, orig & BIT(31) ? " big-endian" : " little-endian");
+	*p++ = ' ';
+	strcpy(p, orig & BIT(31) ? "big-endian" : "little-endian");
 	p += strlen(p);
 
 	*p++ = ' ';
