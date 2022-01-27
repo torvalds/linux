@@ -779,10 +779,10 @@ void kunit_do_failed_assertion(struct kunit *test,
 
 #define KUNIT_ASSERTION(test, assert_type, pass, assert_class, INITIALIZER, fmt, ...) do { \
 	if (unlikely(!(pass))) {					       \
-		static const struct kunit_loc loc = KUNIT_CURRENT_LOC;	       \
+		static const struct kunit_loc __loc = KUNIT_CURRENT_LOC;       \
 		struct assert_class __assertion = INITIALIZER;		       \
 		kunit_do_failed_assertion(test,				       \
-					  &loc,				       \
+					  &__loc,			       \
 					  assert_type,			       \
 					  &__assertion.assert,		       \
 					  fmt,				       \
@@ -872,8 +872,8 @@ void kunit_do_failed_assertion(struct kunit *test,
 				    fmt,				       \
 				    ...)				       \
 do {									       \
-	typeof(left) __left = (left);					       \
-	typeof(right) __right = (right);				       \
+	const typeof(left) __left = (left);				       \
+	const typeof(right) __right = (right);				       \
 	static const struct kunit_binary_assert_text __text = {		       \
 		.operation = #op,					       \
 		.left_text = #left,					       \
@@ -956,7 +956,7 @@ do {									       \
 						fmt,			       \
 						...)			       \
 do {									       \
-	typeof(ptr) __ptr = (ptr);					       \
+	const typeof(ptr) __ptr = (ptr);				       \
 									       \
 	KUNIT_ASSERTION(test,						       \
 			assert_type,					       \
