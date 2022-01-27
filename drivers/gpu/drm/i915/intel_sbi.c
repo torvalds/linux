@@ -7,6 +7,7 @@
 
 #include "i915_drv.h"
 #include "intel_sbi.h"
+#include "i915_reg.h"
 
 /* SBI access */
 static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,

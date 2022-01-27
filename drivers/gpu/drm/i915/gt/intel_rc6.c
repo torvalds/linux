@@ -6,6 +6,7 @@
 #include <linux/pm_runtime.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_vgpu.h"
 #include "intel_engine_regs.h"
 #include "intel_gt.h"

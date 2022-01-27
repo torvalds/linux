@@ -13,6 +13,7 @@
 #include "i915_gem_mman.h"
 #include "i915_gem_object.h"
 #include "i915_gem_tiling.h"
+#include "i915_reg.h"
 
 /**
  * DOC: buffer object tiling

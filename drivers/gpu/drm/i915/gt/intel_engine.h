@@ -11,7 +11,6 @@
 #include <linux/seqlock.h>
 
 #include "i915_pmu.h"
-#include "i915_reg.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
 #include "intel_engine_types.h"

@@ -7,6 +7,7 @@
 #include <linux/seq_file.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_debugfs.h"

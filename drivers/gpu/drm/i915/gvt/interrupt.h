@@ -35,7 +35,7 @@
 #include <linux/hrtimer.h>
 #include <linux/kernel.h>
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
 enum intel_gvt_event_type {
 	RCS_MI_USER_INTERRUPT = 0,

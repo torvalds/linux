@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_pcode.h"
 
 static int gen6_check_mailbox_status(u32 mbox)

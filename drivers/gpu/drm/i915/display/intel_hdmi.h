@@ -9,8 +9,6 @@
 #include <linux/hdmi.h>
 #include <linux/types.h>
 
-#include "i915_reg.h"
-
 struct drm_connector;
 struct drm_encoder;
 struct drm_i915_private;

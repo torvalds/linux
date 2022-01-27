@@ -28,6 +28,7 @@
 #include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_pci.h"
+#include "i915_reg.h"
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \

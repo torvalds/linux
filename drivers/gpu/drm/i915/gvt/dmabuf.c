@@ -32,6 +32,7 @@
 #include <linux/vfio.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "gvt.h"
 
 #define GEN8_DECODE_PTE(pte) (pte & GENMASK_ULL(63, 12))

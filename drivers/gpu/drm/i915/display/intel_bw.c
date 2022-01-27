@@ -5,6 +5,7 @@
 
 #include <drm/drm_atomic_state_helper.h>
 
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"

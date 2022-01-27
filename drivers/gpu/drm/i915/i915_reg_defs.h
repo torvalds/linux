@@ -94,4 +94,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 	return !i915_mmio_reg_equal(reg, INVALID_MMIO_REG);
 }
 
+#define VLV_DISPLAY_BASE		0x180000
+
+#define GEN12_SFC_DONE_MAX		4
+
 #endif /* __I915_REG_DEFS__ */

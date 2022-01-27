@@ -5,6 +5,7 @@
 
 #include "gen2_engine_cs.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_engine.h"
 #include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
