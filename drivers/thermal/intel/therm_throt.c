@@ -32,6 +32,7 @@
 #include <asm/irq.h>
 #include <asm/msr.h>
 
+#include "intel_hfi.h"
 #include "thermal_interrupt.h"
 
 /* How long to wait between reporting thermal events */
@@ -508,6 +509,8 @@ static __init int thermal_throttle_init_device(void)
 
 	if (!atomic_read(&therm_throt_en))
 		return 0;
+
+	intel_hfi_init();
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/therm:online",
 				thermal_throttle_online,
