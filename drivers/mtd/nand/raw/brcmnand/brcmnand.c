@@ -2914,7 +2914,7 @@ const struct dev_pm_ops brcmnand_pm_ops = {
 };
 EXPORT_SYMBOL_GPL(brcmnand_pm_ops);
 
-static const struct of_device_id brcmnand_of_match[] = {
+static const struct of_device_id __maybe_unused brcmnand_of_match[] = {
 	{ .compatible = "brcm,brcmnand-v2.1" },
 	{ .compatible = "brcm,brcmnand-v2.2" },
 	{ .compatible = "brcm,brcmnand-v4.0" },

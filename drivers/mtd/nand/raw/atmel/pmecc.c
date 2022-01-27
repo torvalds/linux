@@ -920,7 +920,7 @@ static struct atmel_pmecc_caps sama5d2_caps = {
 	.correct_erased_chunks = true,
 };
 
-static const struct of_device_id atmel_pmecc_legacy_match[] = {
+static const struct of_device_id __maybe_unused atmel_pmecc_legacy_match[] = {
 	{ .compatible = "atmel,sama5d4-nand", &sama5d4_caps },
 	{ .compatible = "atmel,sama5d2-nand", &sama5d2_caps },
 	{ /* sentinel */ }
