@@ -83,7 +83,7 @@
 
 	soc {
 		pinctrl@800000 {
-			/* eMMMC pins, all 8 data lines connected */
+			/* eMMC pins, all 8 data lines connected */
 			dragon_sdcc1_pins: sdcc1 {
 				mux {
 					pins = "gpio159", "gpio160", "gpio161",
