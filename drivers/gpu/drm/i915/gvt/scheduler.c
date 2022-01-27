@@ -43,6 +43,7 @@
 
 #include "i915_drv.h"
 #include "i915_gem_gtt.h"
+#include "i915_perf_oa_regs.h"
 #include "gvt.h"
 
 #define RING_CTX_OFF(x) \
