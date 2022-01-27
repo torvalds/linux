@@ -196,14 +196,8 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 		if (gpiod_get_value_cansleep(vc4_hdmi->hpd_gpio))
 			connected = true;
 	} else {
-		unsigned long flags;
-		u32 hotplug;
-
-		spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
-		hotplug = HDMI_READ(HDMI_HOTPLUG);
-		spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
-
-		if (hotplug & VC4_HDMI_HOTPLUG_CONNECTED)
+		if (vc4_hdmi->variant->hp_detect &&
+		    vc4_hdmi->variant->hp_detect(vc4_hdmi))
 			connected = true;
 	}
 
@@ -1341,6 +1335,18 @@ static u32 vc5_hdmi_channel_map(struct vc4_hdmi *vc4_hdmi, u32 channel_mask)
 			channel_map |= i << (4 * i);
 	}
 	return channel_map;
+}
+
+static bool vc5_hdmi_hp_detect(struct vc4_hdmi *vc4_hdmi)
+{
+	unsigned long flags;
+	u32 hotplug;
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
+	hotplug = HDMI_READ(HDMI_HOTPLUG);
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
+
+	return !!(hotplug & VC4_HDMI_HOTPLUG_CONNECTED);
 }
 
 /* HDMI audio codec callbacks */
@@ -2723,6 +2729,7 @@ static const struct vc4_hdmi_variant bcm2711_hdmi0_variant = {
 	.phy_rng_disable	= vc5_hdmi_phy_rng_disable,
 	.channel_map		= vc5_hdmi_channel_map,
 	.supports_hdr		= true,
+	.hp_detect		= vc5_hdmi_hp_detect,
 };
 
 static const struct vc4_hdmi_variant bcm2711_hdmi1_variant = {
@@ -2751,6 +2758,7 @@ static const struct vc4_hdmi_variant bcm2711_hdmi1_variant = {
 	.phy_rng_disable	= vc5_hdmi_phy_rng_disable,
 	.channel_map		= vc5_hdmi_channel_map,
 	.supports_hdr		= true,
+	.hp_detect		= vc5_hdmi_hp_detect,
 };
 
 static const struct of_device_id vc4_hdmi_dt_match[] = {
