@@ -40,6 +40,7 @@
 
 #include <asm/msr.h>
 
+#include "../thermal_core.h"
 #include "intel_hfi.h"
 
 #define THERM_STATUS_CLEAR_PKG_MASK (BIT(1) | BIT(3) | BIT(5) | BIT(7) | \
@@ -163,6 +164,78 @@ static DEFINE_MUTEX(hfi_instance_lock);
 
 static struct workqueue_struct *hfi_updates_wq;
 #define HFI_UPDATE_INTERVAL		HZ
+#define HFI_MAX_THERM_NOTIFY_COUNT	16
+
+static void get_hfi_caps(struct hfi_instance *hfi_instance,
+			 struct thermal_genl_cpu_caps *cpu_caps)
+{
+	int cpu, i = 0;
+
+	raw_spin_lock_irq(&hfi_instance->table_lock);
+	for_each_cpu(cpu, hfi_instance->cpus) {
+		struct hfi_cpu_data *caps;
+		s16 index;
+
+		index = per_cpu(hfi_cpu_info, cpu).index;
+		caps = hfi_instance->data + index * hfi_features.cpu_stride;
+		cpu_caps[i].cpu = cpu;
+
+		/*
+		 * Scale performance and energy efficiency to
+		 * the [0, 1023] interval that thermal netlink uses.
+		 */
+		cpu_caps[i].performance = caps->perf_cap << 2;
+		cpu_caps[i].efficiency = caps->ee_cap << 2;
+
+		++i;
+	}
+	raw_spin_unlock_irq(&hfi_instance->table_lock);
+}
+
+/*
+ * Call update_capabilities() when there are changes in the HFI table.
+ */
+static void update_capabilities(struct hfi_instance *hfi_instance)
+{
+	struct thermal_genl_cpu_caps *cpu_caps;
+	int i = 0, cpu_count;
+
+	/* CPUs may come online/offline while processing an HFI update. */
+	mutex_lock(&hfi_instance_lock);
+
+	cpu_count = cpumask_weight(hfi_instance->cpus);
+
+	/* No CPUs to report in this hfi_instance. */
+	if (!cpu_count)
+		goto out;
+
+	cpu_caps = kcalloc(cpu_count, sizeof(*cpu_caps), GFP_KERNEL);
+	if (!cpu_caps)
+		goto out;
+
+	get_hfi_caps(hfi_instance, cpu_caps);
+
+	if (cpu_count < HFI_MAX_THERM_NOTIFY_COUNT)
+		goto last_cmd;
+
+	/* Process complete chunks of HFI_MAX_THERM_NOTIFY_COUNT capabilities. */
+	for (i = 0;
+	     (i + HFI_MAX_THERM_NOTIFY_COUNT) <= cpu_count;
+	     i += HFI_MAX_THERM_NOTIFY_COUNT)
+		thermal_genl_cpu_capability_event(HFI_MAX_THERM_NOTIFY_COUNT,
+						  &cpu_caps[i]);
+
+	cpu_count = cpu_count - i;
+
+last_cmd:
+	/* Process the remaining capabilities if any. */
+	if (cpu_count)
+		thermal_genl_cpu_capability_event(cpu_count, &cpu_caps[i]);
+
+	kfree(cpu_caps);
+out:
+	mutex_unlock(&hfi_instance_lock);
+}
 
 static void hfi_update_work_fn(struct work_struct *work)
 {
@@ -173,7 +246,7 @@ static void hfi_update_work_fn(struct work_struct *work)
 	if (!hfi_instance)
 		return;
 
-	/* TODO: Consume update here. */
+	update_capabilities(hfi_instance);
 }
 
 void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
