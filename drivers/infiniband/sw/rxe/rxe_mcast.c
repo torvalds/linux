@@ -26,12 +26,12 @@ static int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid)
 }
 
 /* caller should hold mc_grp_pool->pool_lock */
-static struct rxe_mc_grp *create_grp(struct rxe_dev *rxe,
+static struct rxe_mcg *create_grp(struct rxe_dev *rxe,
 				     struct rxe_pool *pool,
 				     union ib_gid *mgid)
 {
 	int err;
-	struct rxe_mc_grp *grp;
+	struct rxe_mcg *grp;
 
 	grp = rxe_alloc_locked(&rxe->mc_grp_pool);
 	if (!grp)
@@ -53,10 +53,10 @@ static struct rxe_mc_grp *create_grp(struct rxe_dev *rxe,
 }
 
 static int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
-			     struct rxe_mc_grp **grp_p)
+			     struct rxe_mcg **grp_p)
 {
 	int err;
-	struct rxe_mc_grp *grp;
+	struct rxe_mcg *grp;
 	struct rxe_pool *pool = &rxe->mc_grp_pool;
 
 	if (rxe->attr.max_mcast_qp_attach == 0)
@@ -82,10 +82,10 @@ done:
 }
 
 static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
-			   struct rxe_mc_grp *grp)
+			   struct rxe_mcg *grp)
 {
 	int err;
-	struct rxe_mc_elem *elem;
+	struct rxe_mca *elem;
 
 	/* check to see of the qp is already a member of the group */
 	spin_lock_bh(&qp->grp_lock);
@@ -128,8 +128,8 @@ out:
 static int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 				   union ib_gid *mgid)
 {
-	struct rxe_mc_grp *grp;
-	struct rxe_mc_elem *elem, *tmp;
+	struct rxe_mcg *grp;
+	struct rxe_mca *elem, *tmp;
 
 	grp = rxe_pool_get_key(&rxe->mc_grp_pool, mgid);
 	if (!grp)
@@ -162,8 +162,8 @@ err1:
 
 void rxe_drop_all_mcast_groups(struct rxe_qp *qp)
 {
-	struct rxe_mc_grp *grp;
-	struct rxe_mc_elem *elem;
+	struct rxe_mcg *grp;
+	struct rxe_mca *elem;
 
 	while (1) {
 		spin_lock_bh(&qp->grp_lock);
@@ -171,7 +171,7 @@ void rxe_drop_all_mcast_groups(struct rxe_qp *qp)
 			spin_unlock_bh(&qp->grp_lock);
 			break;
 		}
-		elem = list_first_entry(&qp->grp_list, struct rxe_mc_elem,
+		elem = list_first_entry(&qp->grp_list, struct rxe_mca,
 					grp_list);
 		list_del(&elem->grp_list);
 		spin_unlock_bh(&qp->grp_lock);
@@ -188,7 +188,7 @@ void rxe_drop_all_mcast_groups(struct rxe_qp *qp)
 
 void rxe_mc_cleanup(struct rxe_pool_elem *elem)
 {
-	struct rxe_mc_grp *grp = container_of(elem, typeof(*grp), elem);
+	struct rxe_mcg *grp = container_of(elem, typeof(*grp), elem);
 	struct rxe_dev *rxe = grp->rxe;
 
 	rxe_drop_key(grp);
@@ -200,7 +200,7 @@ int rxe_attach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibqp->device);
 	struct rxe_qp *qp = to_rqp(ibqp);
-	struct rxe_mc_grp *grp;
+	struct rxe_mcg *grp;
 
 	/* takes a ref on grp if successful */
 	err = rxe_mcast_get_grp(rxe, mgid, &grp);

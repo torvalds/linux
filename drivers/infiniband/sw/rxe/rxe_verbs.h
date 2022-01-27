@@ -353,7 +353,7 @@ struct rxe_mw {
 	u64			length;
 };
 
-struct rxe_mc_grp {
+struct rxe_mcg {
 	struct rxe_pool_elem	elem;
 	spinlock_t		mcg_lock; /* guard group */
 	struct rxe_dev		*rxe;
@@ -364,12 +364,12 @@ struct rxe_mc_grp {
 	u16			pkey;
 };
 
-struct rxe_mc_elem {
+struct rxe_mca {
 	struct rxe_pool_elem	elem;
 	struct list_head	qp_list;
 	struct list_head	grp_list;
 	struct rxe_qp		*qp;
-	struct rxe_mc_grp	*grp;
+	struct rxe_mcg		*grp;
 };
 
 struct rxe_port {
