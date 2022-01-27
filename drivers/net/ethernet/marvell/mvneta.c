@@ -2083,7 +2083,7 @@ mvneta_xdp_submit_frame(struct mvneta_port *pp, struct mvneta_tx_queue *txq,
 {
 	struct skb_shared_info *sinfo = xdp_get_shared_info_from_frame(xdpf);
 	struct device *dev = pp->dev->dev.parent;
-	struct mvneta_tx_desc *tx_desc = NULL;
+	struct mvneta_tx_desc *tx_desc;
 	int i, num_frames = 1;
 	struct page *page;
 
@@ -2140,10 +2140,8 @@ mvneta_xdp_submit_frame(struct mvneta_port *pp, struct mvneta_tx_queue *txq,
 
 		mvneta_txq_inc_put(txq);
 	}
-
 	/*last descriptor */
-	if (likely(tx_desc))
-		tx_desc->command |= MVNETA_TXD_L_DESC | MVNETA_TXD_Z_PAD;
+	tx_desc->command |= MVNETA_TXD_L_DESC | MVNETA_TXD_Z_PAD;
 
 	txq->pending += num_frames;
 	txq->count += num_frames;
