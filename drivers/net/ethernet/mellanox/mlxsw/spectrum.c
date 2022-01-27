@@ -2528,31 +2528,6 @@ static void mlxsw_sp_lag_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->lags);
 }
 
-static const u8 mlxsw_sp_basic_trap_groups[] = {
-	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
-	MLXSW_REG_HTGT_TRAP_GROUP_MFDE,
-	MLXSW_REG_HTGT_TRAP_GROUP_MTWE,
-	MLXSW_REG_HTGT_TRAP_GROUP_PMPE,
-};
-
-static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
-{
-	char htgt_pl[MLXSW_REG_HTGT_LEN];
-	int err;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_basic_trap_groups); i++) {
-		mlxsw_reg_htgt_pack(htgt_pl, mlxsw_sp_basic_trap_groups[i],
-				    MLXSW_REG_HTGT_INVALID_POLICER,
-				    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
-				    MLXSW_REG_HTGT_DEFAULT_TC);
-		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
-		if (err)
-			return err;
-	}
-	return 0;
-}
-
 static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
 	.clock_init	= mlxsw_sp1_ptp_clock_init,
 	.clock_fini	= mlxsw_sp1_ptp_clock_fini,
@@ -3666,7 +3641,6 @@ static struct mlxsw_driver mlxsw_sp1_driver = {
 	.fw_filename			= MLXSW_SP1_FW_FILENAME,
 	.init				= mlxsw_sp1_init,
 	.fini				= mlxsw_sp_fini,
-	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
 	.port_unsplit			= mlxsw_sp_port_unsplit,
 	.sb_pool_get			= mlxsw_sp_sb_pool_get,
@@ -3706,7 +3680,6 @@ static struct mlxsw_driver mlxsw_sp2_driver = {
 	.fw_filename			= MLXSW_SP2_FW_FILENAME,
 	.init				= mlxsw_sp2_init,
 	.fini				= mlxsw_sp_fini,
-	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
 	.port_unsplit			= mlxsw_sp_port_unsplit,
 	.sb_pool_get			= mlxsw_sp_sb_pool_get,
@@ -3747,7 +3720,6 @@ static struct mlxsw_driver mlxsw_sp3_driver = {
 	.fw_filename			= MLXSW_SP3_FW_FILENAME,
 	.init				= mlxsw_sp3_init,
 	.fini				= mlxsw_sp_fini,
-	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
 	.port_unsplit			= mlxsw_sp_port_unsplit,
 	.sb_pool_get			= mlxsw_sp_sb_pool_get,
@@ -3786,7 +3758,6 @@ static struct mlxsw_driver mlxsw_sp4_driver = {
 	.priv_size			= sizeof(struct mlxsw_sp),
 	.init				= mlxsw_sp4_init,
 	.fini				= mlxsw_sp_fini,
-	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
 	.port_unsplit			= mlxsw_sp_port_unsplit,
 	.sb_pool_get			= mlxsw_sp_sb_pool_get,

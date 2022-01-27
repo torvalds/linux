@@ -212,9 +212,29 @@ struct mlxsw_event_listener_item {
 	void *priv;
 };
 
+static const u8 mlxsw_core_trap_groups[] = {
+	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
+	MLXSW_REG_HTGT_TRAP_GROUP_MFDE,
+	MLXSW_REG_HTGT_TRAP_GROUP_MTWE,
+	MLXSW_REG_HTGT_TRAP_GROUP_PMPE,
+};
+
 static int mlxsw_core_trap_groups_set(struct mlxsw_core *mlxsw_core)
 {
-	return mlxsw_core->driver->basic_trap_groups_set(mlxsw_core);
+	char htgt_pl[MLXSW_REG_HTGT_LEN];
+	int err;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mlxsw_core_trap_groups); i++) {
+		mlxsw_reg_htgt_pack(htgt_pl, mlxsw_core_trap_groups[i],
+				    MLXSW_REG_HTGT_INVALID_POLICER,
+				    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
+				    MLXSW_REG_HTGT_DEFAULT_TC);
+		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
+		if (err)
+			return err;
+	}
+	return 0;
 }
 
 /******************
