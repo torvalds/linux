@@ -73,6 +73,7 @@ struct srcu_struct {
 	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
 	unsigned long srcu_last_gp_end;		/* Last GP end timestamp (ns) */
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
+	bool sda_is_static;			/* May ->sda be passed to free_percpu()? */
 	unsigned long srcu_barrier_seq;		/* srcu_barrier seq #. */
 	struct mutex srcu_barrier_mutex;	/* Serialize barrier ops. */
 	struct completion srcu_barrier_completion;

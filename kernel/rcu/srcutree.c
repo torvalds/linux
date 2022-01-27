@@ -217,6 +217,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	mutex_init(&ssp->srcu_barrier_mutex);
 	atomic_set(&ssp->srcu_barrier_cpu_cnt, 0);
 	INIT_DELAYED_WORK(&ssp->work, process_srcu);
+	ssp->sda_is_static = is_static;
 	if (!is_static)
 		ssp->sda = alloc_percpu(struct srcu_data);
 	if (!ssp->sda)
@@ -226,7 +227,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	ssp->srcu_last_gp_end = ktime_get_mono_fast_ns();
 	if (READ_ONCE(ssp->srcu_size_state) == SRCU_SIZE_SMALL && convert_to_big == 1) {
 		if (!init_srcu_struct_nodes(ssp, GFP_ATOMIC)) {
-			if (!is_static) {
+			if (!ssp->sda_is_static) {
 				free_percpu(ssp->sda);
 				ssp->sda = NULL;
 				return -ENOMEM;
@@ -446,8 +447,10 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 			rcu_seq_current(&ssp->srcu_gp_seq), ssp->srcu_gp_seq_needed);
 		return; /* Caller forgot to stop doing call_srcu()? */
 	}
-	free_percpu(ssp->sda);
-	ssp->sda = NULL;
+	if (!ssp->sda_is_static) {
+		free_percpu(ssp->sda);
+		ssp->sda = NULL;
+	}
 	kfree(ssp->node);
 	ssp->node = NULL;
 	ssp->srcu_size_state = SRCU_SIZE_SMALL;
