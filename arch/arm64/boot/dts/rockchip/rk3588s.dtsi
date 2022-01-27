@@ -2689,6 +2689,7 @@
 		rockchip,disable-mmu-reset;
 		rockchip,enable-cmd-retry;
 		rockchip,shootdown-entire;
+		rockchip,master-handle-irq;
 		#iommu-cells = <0>;
 		power-domains = <&power RK3588_PD_RKVDEC0>;
 		status = "disabled";
@@ -2738,6 +2739,7 @@
 		rockchip,disable-mmu-reset;
 		rockchip,enable-cmd-retry;
 		rockchip,shootdown-entire;
+		rockchip,master-handle-irq;
 		#iommu-cells = <0>;
 		power-domains = <&power RK3588_PD_RKVDEC1>;
 		status = "disabled";
