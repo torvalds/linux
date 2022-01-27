@@ -3504,6 +3504,7 @@ static bool decide_fallback_link_setting(
 			current_link_setting->link_rate =
 				reduce_link_rate(
 					current_link_setting->link_rate);
+			current_link_setting->lane_count = initial_link_settings.lane_count;
 		} else {
 			return false;
 		}
@@ -3516,6 +3517,7 @@ static bool decide_fallback_link_setting(
 			current_link_setting->link_rate =
 				reduce_link_rate(
 					current_link_setting->link_rate);
+			current_link_setting->lane_count = initial_link_settings.lane_count;
 		} else {
 			return false;
 		}
