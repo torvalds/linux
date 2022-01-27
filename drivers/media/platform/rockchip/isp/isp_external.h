@@ -11,8 +11,12 @@
 #define RKISP_VICAP_CMD_INIT_BUF \
 	 _IOW('V', BASE_VIDIOC_PRIVATE + 1, int)
 
+#define RKISP_VICAP_CMD_RX_BUFFER_FREE \
+	 _IOW('V', BASE_VIDIOC_PRIVATE + 2, struct rkisp_rx_buf)
+
 #define RKISP_VICAP_BUF_CNT 1
-#define RKISP_RX_BUF_POOL_MAX (RKISP_VICAP_BUF_CNT * 3)
+#define RKISP_VICAP_BUF_CNT_MAX 8
+#define RKISP_RX_BUF_POOL_MAX (RKISP_VICAP_BUF_CNT_MAX * 3)
 
 struct rkisp_vicap_input {
 	u8 merge_num;
@@ -42,10 +46,11 @@ struct rkisp_rx_buf_pool {
 struct rkisp_rx_buf {
 	struct list_head list;
 	struct dma_buf *dbuf;
-	enum rx_buf_type type;
 	u64 timestamp;
 	u32 sequence;
+	u32 type;
 	bool is_init;
+	bool is_first;
 };
 
 #endif

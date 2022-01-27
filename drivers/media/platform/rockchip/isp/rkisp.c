@@ -2658,6 +2658,70 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	return 0;
 }
 
+static void rkisp_rx_buf_free(struct rkisp_device *dev, struct rkisp_rx_buf *dbufs)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+	struct rkisp_rx_buf_pool *pool;
+	int i = 0;
+
+	if (!dbufs)
+		return;
+
+	for (i = 0; i < RKISP_RX_BUF_POOL_MAX; i++) {
+		pool = &dev->pv_pool[i];
+		if (dbufs == pool->dbufs) {
+			if (pool->mem_priv) {
+				g_ops->unmap_dmabuf(pool->mem_priv);
+				g_ops->detach_dmabuf(pool->mem_priv);
+				dma_buf_put(pool->dbufs->dbuf);
+				pool->mem_priv = NULL;
+			}
+			pool->dbufs = NULL;
+			break;
+		}
+	}
+}
+
+static int rkisp_rx_buf_update(struct rkisp_device *dev,
+				  struct rkisp_rx_buf *dbufs)
+{
+	struct rkisp_stream *stream;
+	struct rkisp_rx_buf_pool *pool;
+	int i;
+	u32 val;
+
+	for (i = 0; i < RKISP_RX_BUF_POOL_MAX; i++) {
+		pool = &dev->pv_pool[i];
+		if (dbufs == pool->dbufs)
+			break;
+	}
+
+	if (pool->dbufs == NULL || pool->dbufs != dbufs)
+		return -EINVAL;
+	switch (dbufs->type) {
+	case BUF_SHORT:
+		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
+		break;
+	case BUF_MIDDLE:
+		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0];
+		break;
+	case BUF_LONG:
+	default:
+		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1];
+
+	}
+	val = pool->dma;
+	rkisp_write(dev, stream->config->mi.y_base_ad_init, val, false);
+	if (dev->hw_dev->is_unite) {
+		val += (stream->out_fmt.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL) *
+			stream->out_isp_fmt.bpp[0] / 8;
+		rkisp_next_write(dev, stream->config->mi.y_base_ad_init, val, false);
+	}
+	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
+		 "%s dma:0x%x vaddr:%p", __func__, (u32)pool->dma, pool->vaddr);
+	return 0;
+}
+
 void rkisp_rx_buf_pool_free(struct rkisp_device *dev)
 {
 	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
@@ -2731,7 +2795,10 @@ static int rkisp_rx_buf_pool_init(struct rkisp_device *dev,
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1];
 
 	}
-	stream->ops->config_mi(stream);
+	if (dbufs->is_first) {
+		stream->ops->config_mi(stream);
+		dbufs->is_first = false;
+	}
 	val = pool->dma;
 	rkisp_write(dev, stream->config->mi.y_base_ad_init, val, false);
 	if (dev->hw_dev->is_unite) {
@@ -2760,6 +2827,8 @@ static int rkisp_sd_s_rx_buffer(struct v4l2_subdev *sd,
 	dbufs = buf;
 	if (!dbufs->is_init)
 		ret = rkisp_rx_buf_pool_init(dev, dbufs);
+	else
+		ret = rkisp_rx_buf_update(dev, dbufs);
 
 	/* TODO qbuf/debuf for more buffer */
 
@@ -3055,6 +3124,7 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkisp_thunderboot_resmem_head *head;
 	struct rkisp_thunderboot_shmem *shmem;
 	struct isp2x_buf_idxfd *idxfd;
+	struct rkisp_rx_buf *dbufs;
 	void *resmem_va;
 	long ret = 0;
 
@@ -3155,6 +3225,10 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKISP_CMD_MESHBUF_FREE:
 		rkisp_params_meshbuf_free(&isp_dev->params_vdev, *(u64 *)arg);
+		break;
+	case RKISP_VICAP_CMD_RX_BUFFER_FREE:
+		dbufs = (struct rkisp_rx_buf *)arg;
+		rkisp_rx_buf_free(isp_dev, dbufs);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
