@@ -532,6 +532,9 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->ndirty_meta, si->meta_pages);
 		seq_printf(s, "  - imeta: %4d\n",
 			   si->ndirty_imeta);
+		seq_printf(s, "  - fsync mark: %4lld\n",
+			   percpu_counter_sum_positive(
+					&si->sbi->rf_node_block_count));
 		seq_printf(s, "  - NATs: %9d/%9d\n  - SITs: %9d/%9d\n",
 			   si->dirty_nats, si->nats, si->dirty_sits, si->sits);
 		seq_printf(s, "  - free_nids: %9d/%9d\n  - alloc_nids: %9d\n",

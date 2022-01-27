@@ -568,3 +568,9 @@ Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	You can set the trial count limit for GC urgent high mode with this value.
 		If GC thread gets to the limit, the mode will turn back to GC normal mode.
 		By default, the value is zero, which means there is no limit like before.
+
+What:		/sys/fs/f2fs/<disk>/max_roll_forward_node_blocks
+Date:		January 2022
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Controls max # of node block writes to be used for roll forward
+		recovery. This can limit the roll forward recovery time.
