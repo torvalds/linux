@@ -384,6 +384,16 @@ config RTC_DRV_RK808
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
 
+config RTC_DRV_ROCKCHIP
+	tristate "Rockchip RTC"
+	depends on ARCH_ROCKCHIP
+	help
+	  If you say yes here you will get support for the
+	  RTC of Rockchip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rockchip.
+
 config RTC_DRV_RS5C372
 	tristate "Ricoh R2025S/D, RS5C372A/B, RV5C386, RV5C387A"
 	help
