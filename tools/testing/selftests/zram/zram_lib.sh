@@ -11,6 +11,9 @@ dev_mounted=-1
 
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
+kernel_version=`uname -r | cut -d'.' -f1,2`
+kernel_major=${kernel_version%.*}
+kernel_minor=${kernel_version#*.}
 
 trap INT
 
@@ -23,6 +26,20 @@ check_prereqs()
 		echo $msg must be run as root >&2
 		exit $ksft_skip
 	fi
+}
+
+kernel_gte()
+{
+	major=${1%.*}
+	minor=${1#*.}
+
+	if [ $kernel_major -gt $major ]; then
+		return 0
+	elif [[ $kernel_major -eq $major && $kernel_minor -ge $minor ]]; then
+		return 0
+	fi
+
+	return 1
 }
 
 zram_cleanup()
@@ -85,6 +102,13 @@ zram_load()
 zram_max_streams()
 {
 	echo "set max_comp_streams to zram device(s)"
+
+	kernel_gte 4.7
+	if [ $? -eq 0 ]; then
+		echo "The device attribute max_comp_streams was"\
+		               "deprecated in 4.7"
+		return 0
+	fi
 
 	local i=0
 	for max_s in $zram_max_streams; do
