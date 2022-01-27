@@ -653,20 +653,6 @@
 	status = "okay";
 };
 
-&u2phy1_host {
-	phy-supply = <&vcc5v0_usb20_host>;
-	status = "okay";
-};
-
-&u2phy1_otg {
-	phy-supply = <&vcc5v0_usb20_host>;
-	status = "okay";
-};
-
-&u2phy1 {
-	status = "okay";
-};
-
 &usb_host0_ehci {
 	status = "okay";
 };
@@ -680,5 +666,19 @@
 };
 
 &usb_host1_ohci {
+	status = "okay";
+};
+
+&usb2phy1 {
+	status = "okay";
+};
+
+&usb2phy1_host {
+	phy-supply = <&vcc5v0_usb20_host>;
+	status = "okay";
+};
+
+&usb2phy1_otg {
+	phy-supply = <&vcc5v0_usb20_host>;
 	status = "okay";
 };

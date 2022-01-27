@@ -214,7 +214,7 @@
 		interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_USB2HOST0>, <&cru HCLK_USB2HOST0_ARB>,
 			 <&cru PCLK_USB>;
-		phys = <&u2phy1_otg>;
+		phys = <&usb2phy1_otg>;
 		phy-names = "usb";
 		status = "disabled";
 	};
@@ -225,7 +225,7 @@
 		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_USB2HOST0>, <&cru HCLK_USB2HOST0_ARB>,
 			 <&cru PCLK_USB>;
-		phys = <&u2phy1_otg>;
+		phys = <&usb2phy1_otg>;
 		phy-names = "usb";
 		status = "disabled";
 	};
@@ -236,7 +236,7 @@
 		interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_USB2HOST1>, <&cru HCLK_USB2HOST1_ARB>,
 			 <&cru PCLK_USB>;
-		phys = <&u2phy1_host>;
+		phys = <&usb2phy1_host>;
 		phy-names = "usb";
 		status = "disabled";
 	};
@@ -247,7 +247,7 @@
 		interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_USB2HOST1>, <&cru HCLK_USB2HOST1_ARB>,
 			 <&cru PCLK_USB>;
-		phys = <&u2phy1_host>;
+		phys = <&usb2phy1_host>;
 		phy-names = "usb";
 		status = "disabled";
 	};
@@ -1211,7 +1211,7 @@
 		status = "disabled";
 	};
 
-	u2phy0: usb2phy@fe8a0000 {
+	usb2phy0: usb2phy@fe8a0000 {
 		compatible = "rockchip,rk3568-usb2phy";
 		reg = <0x0 0xfe8a0000 0x0 0x10000>;
 		clocks = <&pmucru CLK_USBPHY0_REF>;
@@ -1222,18 +1222,18 @@
 		#clock-cells = <0>;
 		status = "disabled";
 
-		u2phy0_host: host-port {
+		usb2phy0_host: host-port {
 			#phy-cells = <0>;
 			status = "disabled";
 		};
 
-		u2phy0_otg: otg-port {
+		usb2phy0_otg: otg-port {
 			#phy-cells = <0>;
 			status = "disabled";
 		};
 	};
 
-	u2phy1: usb2phy@fe8b0000 {
+	usb2phy1: usb2phy@fe8b0000 {
 		compatible = "rockchip,rk3568-usb2phy";
 		reg = <0x0 0xfe8b0000 0x0 0x10000>;
 		clocks = <&pmucru CLK_USBPHY1_REF>;
@@ -1244,12 +1244,12 @@
 		#clock-cells = <0>;
 		status = "disabled";
 
-		u2phy1_host: host-port {
+		usb2phy1_host: host-port {
 			#phy-cells = <0>;
 			status = "disabled";
 		};
 
-		u2phy1_otg: otg-port {
+		usb2phy1_otg: otg-port {
 			#phy-cells = <0>;
 			status = "disabled";
 		};
