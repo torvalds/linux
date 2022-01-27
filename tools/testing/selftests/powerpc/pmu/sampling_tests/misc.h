@@ -47,3 +47,55 @@ void *__event_read_samples(void *sample_buff, size_t *size, u64 *sample_count);
 int collect_samples(void *sample_buff);
 u64 *get_intr_regs(struct event *event, void *sample_buff);
 u64 get_reg_value(u64 *intr_regs, char *register_name);
+
+static inline int get_mmcr2_fcs(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (63 - (((pmc) - 1) * 9)))) >> (63 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_fcp(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (62 - (((pmc) - 1) * 9)))) >> (62 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_fcpc(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (61 - (((pmc) - 1) * 9)))) >> (61 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_fcm1(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (60 - (((pmc) - 1) * 9)))) >> (60 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_fcm0(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (59 - (((pmc) - 1) * 9)))) >> (59 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_fcwait(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (58 - (((pmc) - 1) * 9)))) >> (58 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_fch(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (57 - (((pmc) - 1) * 9)))) >> (57 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_fcti(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (56 - (((pmc) - 1) * 9)))) >> (56 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_fcta(u64 mmcr2, int pmc)
+{
+	return ((mmcr2 & (1ull << (55 - (((pmc) - 1) * 9)))) >> (55 - (((pmc) - 1) * 9)));
+}
+
+static inline int get_mmcr2_l2l3(u64 mmcr2, int pmc)
+{
+	if (pvr == POWER10)
+		return ((mmcr2 & 0xf8) >> 3);
+	return 0;
+}
