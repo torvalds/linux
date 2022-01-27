@@ -94,6 +94,7 @@ static const char *dio_getname(int id)
 {
 	/* return pointer to a constant string describing the board with given ID */
 	unsigned int i;
+
 	for (i = 0; i < ARRAY_SIZE(names); i++)
 		if (names[i].id == id)
 			return names[i].name;
