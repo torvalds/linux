@@ -2,27 +2,27 @@
 /* Code to support devices on the DIO and DIO-II bus
  * Copyright (C) 05/1998 Peter Maydell <pmaydell@chiark.greenend.org.uk>
  * Copyright (C) 2004 Jochen Friedrich <jochen@scram.de>
- * 
+ *
  * This code has basically these routines at the moment:
  * int dio_find(u_int deviceid)
  *    Search the list of DIO devices and return the select code
  *    of the next unconfigured device found that matches the given device ID.
  *    Note that the deviceid parameter should be the encoded ID.
- *    This means that framebuffers should pass it as 
+ *    This means that framebuffers should pass it as
  *    DIO_ENCODE_ID(DIO_ID_FBUFFER,DIO_ID2_TOPCAT)
  *    (or whatever); everybody else just uses DIO_ID_FOOBAR.
  * unsigned long dio_scodetophysaddr(int scode)
  *    Return the physical address corresponding to the given select code.
  * int dio_scodetoipl(int scode)
- *    Every DIO card has a fixed interrupt priority level. This function 
+ *    Every DIO card has a fixed interrupt priority level. This function
  *    returns it, whatever it is.
  * const char *dio_scodetoname(int scode)
- *    Return a character string describing this board [might be "" if 
+ *    Return a character string describing this board [might be "" if
  *    not CONFIG_DIO_CONSTANTS]
  * void dio_config_board(int scode)     mark board as configured in the list
  * void dio_unconfig_board(int scode)   mark board as no longer configured
  *
- * This file is based on the way the Amiga port handles Zorro II cards, 
+ * This file is based on the way the Amiga port handles Zorro II cards,
  * although we aren't so complicated...
  */
 #include <linux/module.h>
@@ -52,9 +52,9 @@ struct dio_bus dio_bus = {
 /* We associate each numeric ID with an appropriate descriptive string
  * using a constant array of these structs.
  * FIXME: we should be able to arrange to throw away most of the strings
- * using the initdata stuff. Then we wouldn't need to worry about 
+ * using the initdata stuff. Then we wouldn't need to worry about
  * carrying them around...
- * I think we do this by copying them into newly kmalloc()ed memory and 
+ * I think we do this by copying them into newly kmalloc()ed memory and
  * marking the names[] array as .initdata ?
  */
 struct dioname {
@@ -76,12 +76,12 @@ static struct dioname names[] = {
         DIONAME(PARALLEL), DIONAME(VME), DIONAME(DCL), DIONAME(DCLREM),
         DIONAME(MISC0), DIONAME(MISC1), DIONAME(MISC2), DIONAME(MISC3),
         DIONAME(MISC4), DIONAME(MISC5), DIONAME(MISC6), DIONAME(MISC7),
-        DIONAME(MISC8), DIONAME(MISC9), DIONAME(MISC10), DIONAME(MISC11), 
+	DIONAME(MISC8), DIONAME(MISC9), DIONAME(MISC10), DIONAME(MISC11),
         DIONAME(MISC12), DIONAME(MISC13),
         DIOFBNAME(GATORBOX), DIOFBNAME(TOPCAT), DIOFBNAME(RENAISSANCE),
         DIOFBNAME(LRCATSEYE), DIOFBNAME(HRCCATSEYE), DIOFBNAME(HRMCATSEYE),
         DIOFBNAME(DAVINCI), DIOFBNAME(XXXCATSEYE), DIOFBNAME(HYPERION),
-        DIOFBNAME(XGENESIS), DIOFBNAME(TIGER), DIOFBNAME(YGENESIS)   
+	DIOFBNAME(XGENESIS), DIOFBNAME(TIGER), DIOFBNAME(YGENESIS)
 };
 
 #undef DIONAME
@@ -95,7 +95,7 @@ static const char *dio_getname(int id)
         /* return pointer to a constant string describing the board with given ID */
 	unsigned int i;
 	for (i = 0; i < ARRAY_SIZE(names); i++)
-                if (names[i].id == id) 
+		if (names[i].id == id)
                         return names[i].name;
 
         return unknowndioname;
@@ -173,7 +173,7 @@ static int __init dio_init(void)
 
         printk(KERN_INFO "Scanning for DIO devices...\n");
 
-	/* Initialize the DIO bus */ 
+	/* Initialize the DIO bus */
 	INIT_LIST_HEAD(&dio_bus.devices);
 	dev_set_name(&dio_bus.dev, "dio");
 	error = device_register(&dio_bus.dev);
@@ -192,7 +192,7 @@ static int __init dio_init(void)
                 u_char prid, secid = 0;        /* primary, secondary ID bytes */
                 u_char *va;
 		unsigned long pa;
-                
+
                 if (DIO_SCINHOLE(scode))
                         continue;
 
