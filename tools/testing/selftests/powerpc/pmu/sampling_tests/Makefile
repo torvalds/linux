@@ -3,7 +3,7 @@ CFLAGS += -m64
 
 TEST_GEN_PROGS := mmcr0_exceptionbits_test mmcr0_cc56run_test mmcr0_pmccext_test \
 		   mmcr0_pmcjce_test mmcr0_fc56_pmc1ce_test mmcr0_fc56_pmc56_test \
-		   mmcr1_comb_test
+		   mmcr1_comb_test mmcr2_l2l3_test
 
 top_srcdir = ../../../../../..
 include ../../../lib.mk
