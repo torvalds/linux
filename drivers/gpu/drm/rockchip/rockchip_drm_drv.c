@@ -1371,7 +1371,8 @@ static void rockchip_drm_lastclose(struct drm_device *dev)
 }
 
 static struct drm_pending_vblank_event *
-rockchip_drm_add_vcnt_event(struct drm_crtc *crtc, struct drm_file *file_priv)
+rockchip_drm_add_vcnt_event(struct drm_crtc *crtc, union drm_wait_vblank *vblwait,
+			    struct drm_file *file_priv)
 {
 	struct drm_pending_vblank_event *e;
 	struct drm_device *dev = crtc->dev;
@@ -1385,8 +1386,7 @@ rockchip_drm_add_vcnt_event(struct drm_crtc *crtc, struct drm_file *file_priv)
 	e->event.base.type = DRM_EVENT_ROCKCHIP_CRTC_VCNT;
 	e->event.base.length = sizeof(e->event.vbl);
 	e->event.vbl.crtc_id = crtc->base.id;
-	/* store crtc pipe id */
-	e->event.vbl.user_data = e->pipe;
+	e->event.vbl.user_data = vblwait->request.signal;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	drm_event_reserve_init_locked(dev, file_priv, &e->base, &e->event.base);
@@ -1414,7 +1414,7 @@ static int rockchip_drm_get_vcnt_event_ioctl(struct drm_device *dev, void *data,
 	crtc = drm_crtc_from_index(dev, pipe);
 
 	if (flags & _DRM_ROCKCHIP_VCNT_EVENT) {
-		e = rockchip_drm_add_vcnt_event(crtc, file_priv);
+		e = rockchip_drm_add_vcnt_event(crtc, vblwait, file_priv);
 		priv->vcnt[pipe].event = e;
 	}
 
