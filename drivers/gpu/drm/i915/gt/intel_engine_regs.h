@@ -77,6 +77,21 @@
 #define RING_INSTPM(base)			_MMIO((base) + 0xc0)
 #define RING_CMD_CCTL(base)			_MMIO((base) + 0xc4)
 #define ACTHD(base)				_MMIO((base) + 0xc8)
+#define GEN8_R_PWR_CLK_STATE(base)		_MMIO((base) + 0xc8)
+#define   GEN8_RPCS_ENABLE			(1 << 31)
+#define   GEN8_RPCS_S_CNT_ENABLE		(1 << 18)
+#define   GEN8_RPCS_S_CNT_SHIFT			15
+#define   GEN8_RPCS_S_CNT_MASK			(0x7 << GEN8_RPCS_S_CNT_SHIFT)
+#define   GEN11_RPCS_S_CNT_SHIFT		12
+#define   GEN11_RPCS_S_CNT_MASK			(0x3f << GEN11_RPCS_S_CNT_SHIFT)
+#define   GEN8_RPCS_SS_CNT_ENABLE		(1 << 11)
+#define   GEN8_RPCS_SS_CNT_SHIFT		8
+#define   GEN8_RPCS_SS_CNT_MASK			(0x7 << GEN8_RPCS_SS_CNT_SHIFT)
+#define   GEN8_RPCS_EU_MAX_SHIFT		4
+#define   GEN8_RPCS_EU_MAX_MASK			(0xf << GEN8_RPCS_EU_MAX_SHIFT)
+#define   GEN8_RPCS_EU_MIN_SHIFT		0
+#define   GEN8_RPCS_EU_MIN_MASK			(0xf << GEN8_RPCS_EU_MIN_SHIFT)
+
 #define RING_RESET_CTL(base)			_MMIO((base) + 0xd0)
 #define   RESET_CTL_CAT_ERROR			REG_BIT(2)
 #define   RESET_CTL_READY_TO_RESET		REG_BIT(1)
