@@ -47,12 +47,7 @@ struct lock_stat {
 	struct hlist_node	hash_entry;
 	struct rb_node		rb;		/* used for sorting */
 
-	/*
-	 * FIXME: evsel__intval() returns u64,
-	 * so address of lockdep_map should be treated as 64bit.
-	 * Is there more better solution?
-	 */
-	void			*addr;		/* address of lockdep_map, used as ID */
+	u64			addr;		/* address of lockdep_map, used as ID */
 	char			*name;		/* for strcpy(), we cannot use const */
 
 	unsigned int		nr_acquire;
@@ -106,7 +101,7 @@ struct lock_seq_stat {
 	struct list_head        list;
 	int			state;
 	u64			prev_event_time;
-	void                    *addr;
+	u64                     addr;
 
 	int                     read_count;
 };
@@ -315,7 +310,7 @@ static struct lock_stat *pop_from_result(void)
 	return container_of(node, struct lock_stat, rb);
 }
 
-static struct lock_stat *lock_stat_findnew(void *addr, const char *name)
+static struct lock_stat *lock_stat_findnew(u64 addr, const char *name)
 {
 	struct hlist_head *entry = lockhashentry(addr);
 	struct lock_stat *ret, *new;
@@ -361,7 +356,7 @@ struct trace_lock_handler {
 			     struct perf_sample *sample);
 };
 
-static struct lock_seq_stat *get_seq(struct thread_stat *ts, void *addr)
+static struct lock_seq_stat *get_seq(struct thread_stat *ts, u64 addr)
 {
 	struct lock_seq_stat *seq;
 
@@ -400,15 +395,12 @@ enum acquire_flags {
 static int report_lock_acquire_event(struct evsel *evsel,
 				     struct perf_sample *sample)
 {
-	void *addr;
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	const char *name = evsel__strval(evsel, sample, "name");
-	u64 tmp	 = evsel__intval(evsel, sample, "lockdep_addr");
+	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 	int flag = evsel__intval(evsel, sample, "flags");
-
-	memcpy(&addr, &tmp, sizeof(void *));
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
@@ -472,15 +464,12 @@ end:
 static int report_lock_acquired_event(struct evsel *evsel,
 				      struct perf_sample *sample)
 {
-	void *addr;
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	u64 contended_term;
 	const char *name = evsel__strval(evsel, sample, "name");
-	u64 tmp = evsel__intval(evsel, sample, "lockdep_addr");
-
-	memcpy(&addr, &tmp, sizeof(void *));
+	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
@@ -535,14 +524,11 @@ end:
 static int report_lock_contended_event(struct evsel *evsel,
 				       struct perf_sample *sample)
 {
-	void *addr;
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	const char *name = evsel__strval(evsel, sample, "name");
-	u64 tmp = evsel__intval(evsel, sample, "lockdep_addr");
-
-	memcpy(&addr, &tmp, sizeof(void *));
+	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
@@ -590,14 +576,11 @@ end:
 static int report_lock_release_event(struct evsel *evsel,
 				     struct perf_sample *sample)
 {
-	void *addr;
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	const char *name = evsel__strval(evsel, sample, "name");
-	u64 tmp = evsel__intval(evsel, sample, "lockdep_addr");
-
-	memcpy(&addr, &tmp, sizeof(void *));
+	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
@@ -782,7 +765,7 @@ static void dump_map(void)
 	pr_info("Address of instance: name of class\n");
 	for (i = 0; i < LOCKHASH_SIZE; i++) {
 		hlist_for_each_entry(st, &lockhash_table[i], hash_entry) {
-			pr_info(" %p: %s\n", st->addr, st->name);
+			pr_info(" %#llx: %s\n", (unsigned long long)st->addr, st->name);
 		}
 	}
 }
