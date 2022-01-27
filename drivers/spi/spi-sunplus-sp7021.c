@@ -351,6 +351,7 @@ static int sp7021_spi_master_transfer_one(struct spi_controller *ctlr, struct sp
 
 		if (!wait_for_completion_interruptible_timeout(&pspim->isr_done, timeout)) {
 			dev_err(&spi->dev, "wait_for_completion err\n");
+			mutex_unlock(&pspim->buf_lock);
 			return -ETIMEDOUT;
 		}
 
