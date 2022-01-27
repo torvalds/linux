@@ -2301,7 +2301,7 @@ void wakeup_flusher_threads(enum wb_reason reason)
 	/*
 	 * If we are expecting writeback progress we must submit plugged IO.
 	 */
-	if (blk_needs_flush_plug(current))
+	if (current->plug)
 		blk_flush_plug(current->plug, true);
 
 	rcu_read_lock();
