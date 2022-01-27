@@ -6199,7 +6199,7 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
 			continue;
 		}
 		break;
-	} while (p);
+	} while (1);
 
 	if (!p)
 		param = NULL;
