@@ -120,8 +120,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 
 /* returns true if packet was consumed by xdp */
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
-		      struct bpf_prog *prog,
-		      u32 *len, struct xdp_buff *xdp)
+		      struct bpf_prog *prog, struct xdp_buff *xdp)
 {
 	u32 act;
 	int err;
@@ -129,7 +128,6 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 	act = bpf_prog_run_xdp(prog, xdp);
 	switch (act) {
 	case XDP_PASS:
-		*len = xdp->data_end - xdp->data;
 		return false;
 	case XDP_TX:
 		if (unlikely(!mlx5e_xmit_xdp_buff(rq->xdpsq, rq, di, xdp)))
