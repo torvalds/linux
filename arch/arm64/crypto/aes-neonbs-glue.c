@@ -302,23 +302,18 @@ static int __xts_crypt(struct skcipher_request *req, bool encrypt,
 		return err;
 
 	while (walk.nbytes >= AES_BLOCK_SIZE) {
-		unsigned int blocks = walk.nbytes / AES_BLOCK_SIZE;
-
-		if (walk.nbytes < walk.total || walk.nbytes % AES_BLOCK_SIZE)
-			blocks = round_down(blocks,
-					    walk.stride / AES_BLOCK_SIZE);
-
+		int blocks = (walk.nbytes / AES_BLOCK_SIZE) & ~7;
 		out = walk.dst.virt.addr;
 		in = walk.src.virt.addr;
 		nbytes = walk.nbytes;
 
 		kernel_neon_begin();
-		if (likely(blocks > 6)) { /* plain NEON is faster otherwise */
-			if (first)
+		if (blocks >= 8) {
+			if (first == 1)
 				neon_aes_ecb_encrypt(walk.iv, walk.iv,
 						     ctx->twkey,
 						     ctx->key.rounds, 1);
-			first = 0;
+			first = 2;
 
 			fn(out, in, ctx->key.rk, ctx->key.rounds, blocks,
 			   walk.iv);
@@ -327,10 +322,17 @@ static int __xts_crypt(struct skcipher_request *req, bool encrypt,
 			in += blocks * AES_BLOCK_SIZE;
 			nbytes -= blocks * AES_BLOCK_SIZE;
 		}
-
-		if (walk.nbytes == walk.total && nbytes > 0)
-			goto xts_tail;
-
+		if (walk.nbytes == walk.total && nbytes > 0) {
+			if (encrypt)
+				neon_aes_xts_encrypt(out, in, ctx->cts.key_enc,
+						     ctx->key.rounds, nbytes,
+						     ctx->twkey, walk.iv, first);
+			else
+				neon_aes_xts_decrypt(out, in, ctx->cts.key_dec,
+						     ctx->key.rounds, nbytes,
+						     ctx->twkey, walk.iv, first);
+			nbytes = first = 0;
+		}
 		kernel_neon_end();
 		err = skcipher_walk_done(&walk, nbytes);
 	}
@@ -355,13 +357,12 @@ static int __xts_crypt(struct skcipher_request *req, bool encrypt,
 	nbytes = walk.nbytes;
 
 	kernel_neon_begin();
-xts_tail:
 	if (encrypt)
 		neon_aes_xts_encrypt(out, in, ctx->cts.key_enc, ctx->key.rounds,
-				     nbytes, ctx->twkey, walk.iv, first ?: 2);
+				     nbytes, ctx->twkey, walk.iv, first);
 	else
 		neon_aes_xts_decrypt(out, in, ctx->cts.key_dec, ctx->key.rounds,
-				     nbytes, ctx->twkey, walk.iv, first ?: 2);
+				     nbytes, ctx->twkey, walk.iv, first);
 	kernel_neon_end();
 
 	return skcipher_walk_done(&walk, 0);
