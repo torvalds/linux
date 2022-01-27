@@ -142,6 +142,17 @@
 		(REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, (write) << 1) | \
 		 REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, (read) << 1))
 
+#define MI_PREDICATE_RESULT_2(base)		_MMIO((base) + 0x3bc)
+#define   LOWER_SLICE_ENABLED			(1 << 0)
+#define   LOWER_SLICE_DISABLED			(0 << 0)
+#define MI_PREDICATE_SRC0(base)			_MMIO((base) + 0x400)
+#define MI_PREDICATE_SRC0_UDW(base)		_MMIO((base) + 0x400 + 4)
+#define MI_PREDICATE_SRC1(base)			_MMIO((base) + 0x408)
+#define MI_PREDICATE_SRC1_UDW(base)		_MMIO((base) + 0x408 + 4)
+#define MI_PREDICATE_DATA(base)			_MMIO((base) + 0x410)
+#define MI_PREDICATE_RESULT(base)		_MMIO((base) + 0x418)
+#define MI_PREDICATE_RESULT_1(base)		_MMIO((base) + 0x41c)
+
 #define RING_PP_DIR_DCLV(base)			_MMIO((base) + 0x220)
 #define   PP_DIR_DCLV_2G			0xffffffff
 #define RING_PP_DIR_BASE(base)			_MMIO((base) + 0x228)

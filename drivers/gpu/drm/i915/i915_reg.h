@@ -353,16 +353,7 @@
 
 #define _VGA_MSR_WRITE _MMIO(0x3c2)
 
-#define MI_PREDICATE_SRC0	_MMIO(0x2400)
-#define MI_PREDICATE_SRC0_UDW	_MMIO(0x2400 + 4)
-#define MI_PREDICATE_SRC1	_MMIO(0x2408)
-#define MI_PREDICATE_SRC1_UDW	_MMIO(0x2408 + 4)
-#define MI_PREDICATE_DATA       _MMIO(0x2410)
-#define MI_PREDICATE_RESULT     _MMIO(0x2418)
-#define MI_PREDICATE_RESULT_1   _MMIO(0x241c)
-#define MI_PREDICATE_RESULT_2	_MMIO(0x2214)
-#define  LOWER_SLICE_ENABLED	(1 << 0)
-#define  LOWER_SLICE_DISABLED	(0 << 0)
+#define HSW_MI_PREDICATE_RESULT_2	_MMIO(0x2214)
 
 /*
  * Registers used only by the command parser
