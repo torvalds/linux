@@ -776,6 +776,12 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 	    rcu_seq_state(ssp->srcu_gp_seq) == SRCU_STATE_IDLE) {
 		WARN_ON_ONCE(ULONG_CMP_GE(ssp->srcu_gp_seq, ssp->srcu_gp_seq_needed));
 		srcu_gp_start(ssp);
+
+		// And how can that list_add() in the "else" clause
+		// possibly be safe for concurrent execution?  Well,
+		// it isn't.  And it does not have to be.  After all, it
+		// can only be executed during early boot when there is only
+		// the one boot CPU running with interrupts still disabled.
 		if (likely(srcu_init_done))
 			queue_delayed_work(rcu_gp_wq, &ssp->work,
 					   srcu_get_delay(ssp));
