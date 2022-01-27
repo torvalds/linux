@@ -388,23 +388,6 @@ mii_lpa_mod_linkmode_lpa_sgmii(unsigned long *lp_advertising, u32 lpa)
 }
 
 /**
- * mii_lpa_to_linkmode_adv_sgmii
- * @advertising: pointer to destination link mode.
- * @lpa: value of the MII_LPA register
- *
- * A small helper function that translates MII_ADVERTISE bits
- * to linkmode advertisement settings when in SGMII mode.
- * Clears the old value of advertising.
- */
-static inline void mii_lpa_to_linkmode_lpa_sgmii(unsigned long *lp_advertising,
-						 u32 lpa)
-{
-	linkmode_zero(lp_advertising);
-
-	mii_lpa_mod_linkmode_lpa_sgmii(lp_advertising, lpa);
-}
-
-/**
  * mii_adv_mod_linkmode_adv_t
  * @advertising:pointer to destination link mode.
  * @adv: value of the MII_ADVERTISE register
