@@ -163,6 +163,9 @@ struct mlxsw_listener {
 		.enabled_on_register = true,					\
 	}
 
+#define MLXSW_CORE_EVENTL(_func, _trap_id)		\
+	MLXSW_EVENTL(_func, _trap_id, CORE_EVENT)
+
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
 				    void *priv, bool enabled);

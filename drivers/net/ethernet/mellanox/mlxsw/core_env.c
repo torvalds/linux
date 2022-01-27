@@ -825,7 +825,7 @@ mlxsw_env_mtwe_listener_func(const struct mlxsw_reg_info *reg, char *mtwe_pl,
 }
 
 static const struct mlxsw_listener mlxsw_env_temp_warn_listener =
-	MLXSW_EVENTL(mlxsw_env_mtwe_listener_func, MTWE, MTWE);
+	MLXSW_CORE_EVENTL(mlxsw_env_mtwe_listener_func, MTWE);
 
 static int mlxsw_env_temp_warn_event_register(struct mlxsw_core *mlxsw_core)
 {
@@ -915,7 +915,7 @@ mlxsw_env_pmpe_listener_func(const struct mlxsw_reg_info *reg, char *pmpe_pl,
 }
 
 static const struct mlxsw_listener mlxsw_env_module_plug_listener =
-	MLXSW_EVENTL(mlxsw_env_pmpe_listener_func, PMPE, PMPE);
+	MLXSW_CORE_EVENTL(mlxsw_env_pmpe_listener_func, PMPE);
 
 static int
 mlxsw_env_module_plug_event_register(struct mlxsw_core *mlxsw_core)

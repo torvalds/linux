@@ -214,9 +214,7 @@ struct mlxsw_event_listener_item {
 
 static const u8 mlxsw_core_trap_groups[] = {
 	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
-	MLXSW_REG_HTGT_TRAP_GROUP_MFDE,
-	MLXSW_REG_HTGT_TRAP_GROUP_MTWE,
-	MLXSW_REG_HTGT_TRAP_GROUP_PMPE,
+	MLXSW_REG_HTGT_TRAP_GROUP_CORE_EVENT,
 };
 
 static int mlxsw_core_trap_groups_set(struct mlxsw_core *mlxsw_core)
@@ -1725,7 +1723,7 @@ static void mlxsw_core_health_listener_func(const struct mlxsw_reg_info *reg,
 }
 
 static const struct mlxsw_listener mlxsw_core_health_listener =
-	MLXSW_EVENTL(mlxsw_core_health_listener_func, MFDE, MFDE);
+	MLXSW_CORE_EVENTL(mlxsw_core_health_listener_func, MFDE);
 
 static int
 mlxsw_core_health_fw_fatal_dump_fatal_cause(const char *mfde_pl,
