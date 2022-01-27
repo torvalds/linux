@@ -1477,37 +1477,43 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 	idx = ssp->srcu_idx & 0x1;
 	if (ss_state < 0 || ss_state >= ARRAY_SIZE(srcu_size_state_name))
 		ss_state_idx = ARRAY_SIZE(srcu_size_state_name) - 1;
-	pr_alert("%s%s Tree SRCU g%ld state %d (%s) per-CPU(idx=%d):",
+	pr_alert("%s%s Tree SRCU g%ld state %d (%s)",
 		 tt, tf, rcu_seq_current(&ssp->srcu_gp_seq), ss_state,
-		 srcu_size_state_name[ss_state_idx], idx);
-	for_each_possible_cpu(cpu) {
-		unsigned long l0, l1;
-		unsigned long u0, u1;
-		long c0, c1;
-		struct srcu_data *sdp;
+		 srcu_size_state_name[ss_state_idx]);
+	if (!ssp->sda) {
+		// Called after cleanup_srcu_struct(), perhaps.
+		pr_cont(" No per-CPU srcu_data structures (->sda == NULL).\n");
+	} else {
+		pr_cont(" per-CPU(idx=%d):", idx);
+		for_each_possible_cpu(cpu) {
+			unsigned long l0, l1;
+			unsigned long u0, u1;
+			long c0, c1;
+			struct srcu_data *sdp;
 
-		sdp = per_cpu_ptr(ssp->sda, cpu);
-		u0 = data_race(sdp->srcu_unlock_count[!idx]);
-		u1 = data_race(sdp->srcu_unlock_count[idx]);
+			sdp = per_cpu_ptr(ssp->sda, cpu);
+			u0 = data_race(sdp->srcu_unlock_count[!idx]);
+			u1 = data_race(sdp->srcu_unlock_count[idx]);
 
-		/*
-		 * Make sure that a lock is always counted if the corresponding
-		 * unlock is counted.
-		 */
-		smp_rmb();
+			/*
+			 * Make sure that a lock is always counted if the corresponding
+			 * unlock is counted.
+			 */
+			smp_rmb();
 
-		l0 = data_race(sdp->srcu_lock_count[!idx]);
-		l1 = data_race(sdp->srcu_lock_count[idx]);
+			l0 = data_race(sdp->srcu_lock_count[!idx]);
+			l1 = data_race(sdp->srcu_lock_count[idx]);
 
-		c0 = l0 - u0;
-		c1 = l1 - u1;
-		pr_cont(" %d(%ld,%ld %c)",
-			cpu, c0, c1,
-			"C."[rcu_segcblist_empty(&sdp->srcu_cblist)]);
-		s0 += c0;
-		s1 += c1;
+			c0 = l0 - u0;
+			c1 = l1 - u1;
+			pr_cont(" %d(%ld,%ld %c)",
+				cpu, c0, c1,
+				"C."[rcu_segcblist_empty(&sdp->srcu_cblist)]);
+			s0 += c0;
+			s1 += c1;
+		}
+		pr_cont(" T(%ld,%ld)\n", s0, s1);
 	}
-	pr_cont(" T(%ld,%ld)\n", s0, s1);
 	if (READ_ONCE(ssp->srcu_size_state) == SRCU_SIZE_SMALL && convert_to_big == 2)
 		WRITE_ONCE(ssp->srcu_size_state, SRCU_SIZE_ALLOC);
 }
