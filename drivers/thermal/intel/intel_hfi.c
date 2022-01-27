@@ -26,20 +26,28 @@
 #include <linux/cpumask.h>
 #include <linux/gfp.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/math.h>
 #include <linux/mutex.h>
 #include <linux/percpu-defs.h>
 #include <linux/printk.h>
 #include <linux/processor.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/topology.h>
+#include <linux/workqueue.h>
 
 #include <asm/msr.h>
 
 #include "intel_hfi.h"
 
+#define THERM_STATUS_CLEAR_PKG_MASK (BIT(1) | BIT(3) | BIT(5) | BIT(7) | \
+				     BIT(9) | BIT(11) | BIT(26))
+
 /* Hardware Feedback Interface MSR configuration bits */
 #define HW_FEEDBACK_PTR_VALID_BIT		BIT(0)
+#define HW_FEEDBACK_CONFIG_HFI_ENABLE_BIT	BIT(0)
 
 /* CPUID detection and enumeration definitions for HFI */
 
@@ -98,6 +106,9 @@ struct hfi_hdr {
  * @data:		Base address of the data of the local table
  * @cpus:		CPUs represented in this HFI table instance
  * @hw_table:		Pointer to the HFI table of this instance
+ * @update_work:	Delayed work to process HFI updates
+ * @table_lock:		Lock to protect acceses to the table of this instance
+ * @event_lock:		Lock to process HFI interrupts
  *
  * A set of parameters to parse and navigate a specific HFI table.
  */
@@ -110,6 +121,9 @@ struct hfi_instance {
 	void			*data;
 	cpumask_var_t		cpus;
 	void			*hw_table;
+	struct delayed_work	update_work;
+	raw_spinlock_t		table_lock;
+	raw_spinlock_t		event_lock;
 };
 
 /**
@@ -146,6 +160,86 @@ static struct hfi_instance *hfi_instances;
 
 static struct hfi_features hfi_features;
 static DEFINE_MUTEX(hfi_instance_lock);
+
+static struct workqueue_struct *hfi_updates_wq;
+#define HFI_UPDATE_INTERVAL		HZ
+
+static void hfi_update_work_fn(struct work_struct *work)
+{
+	struct hfi_instance *hfi_instance;
+
+	hfi_instance = container_of(to_delayed_work(work), struct hfi_instance,
+				    update_work);
+	if (!hfi_instance)
+		return;
+
+	/* TODO: Consume update here. */
+}
+
+void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
+{
+	struct hfi_instance *hfi_instance;
+	int cpu = smp_processor_id();
+	struct hfi_cpu_info *info;
+	u64 new_timestamp;
+
+	if (!pkg_therm_status_msr_val)
+		return;
+
+	info = &per_cpu(hfi_cpu_info, cpu);
+	if (!info)
+		return;
+
+	/*
+	 * A CPU is linked to its HFI instance before the thermal vector in the
+	 * local APIC is unmasked. Hence, info->hfi_instance cannot be NULL
+	 * when receiving an HFI event.
+	 */
+	hfi_instance = info->hfi_instance;
+	if (unlikely(!hfi_instance)) {
+		pr_debug("Received event on CPU %d but instance was null", cpu);
+		return;
+	}
+
+	/*
+	 * On most systems, all CPUs in the package receive a package-level
+	 * thermal interrupt when there is an HFI update. It is sufficient to
+	 * let a single CPU to acknowledge the update and queue work to
+	 * process it. The remaining CPUs can resume their work.
+	 */
+	if (!raw_spin_trylock(&hfi_instance->event_lock))
+		return;
+
+	/* Skip duplicated updates. */
+	new_timestamp = *(u64 *)hfi_instance->hw_table;
+	if (*hfi_instance->timestamp == new_timestamp) {
+		raw_spin_unlock(&hfi_instance->event_lock);
+		return;
+	}
+
+	raw_spin_lock(&hfi_instance->table_lock);
+
+	/*
+	 * Copy the updated table into our local copy. This includes the new
+	 * timestamp.
+	 */
+	memcpy(hfi_instance->local_table, hfi_instance->hw_table,
+	       hfi_features.nr_table_pages << PAGE_SHIFT);
+
+	raw_spin_unlock(&hfi_instance->table_lock);
+	raw_spin_unlock(&hfi_instance->event_lock);
+
+	/*
+	 * Let hardware know that we are done reading the HFI table and it is
+	 * free to update it again.
+	 */
+	pkg_therm_status_msr_val &= THERM_STATUS_CLEAR_PKG_MASK &
+				    ~PACKAGE_THERM_STATUS_HFI_UPDATED;
+	wrmsrl(MSR_IA32_PACKAGE_THERM_STATUS, pkg_therm_status_msr_val);
+
+	queue_delayed_work(hfi_updates_wq, &hfi_instance->update_work,
+			   HFI_UPDATE_INTERVAL);
+}
 
 static void init_hfi_cpu_index(struct hfi_cpu_info *info)
 {
@@ -258,7 +352,19 @@ void intel_hfi_online(unsigned int cpu)
 
 	init_hfi_instance(hfi_instance);
 
+	INIT_DELAYED_WORK(&hfi_instance->update_work, hfi_update_work_fn);
+	raw_spin_lock_init(&hfi_instance->table_lock);
+	raw_spin_lock_init(&hfi_instance->event_lock);
+
 	cpumask_set_cpu(cpu, hfi_instance->cpus);
+
+	/*
+	 * Enable the hardware feedback interface and never disable it. See
+	 * comment on programming the address of the table.
+	 */
+	rdmsrl(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
+	msr_val |= HW_FEEDBACK_CONFIG_HFI_ENABLE_BIT;
+	wrmsrl(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
 
 unlock:
 	mutex_unlock(&hfi_instance_lock);
@@ -372,6 +478,10 @@ void __init intel_hfi_init(void)
 		if (!zalloc_cpumask_var(&hfi_instance->cpus, GFP_KERNEL))
 			goto err_nomem;
 	}
+
+	hfi_updates_wq = create_singlethread_workqueue("hfi-updates");
+	if (!hfi_updates_wq)
+		goto err_nomem;
 
 	return;
 
