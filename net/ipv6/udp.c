@@ -1541,7 +1541,8 @@ back_from_confirm:
 		err = PTR_ERR(skb);
 		if (!IS_ERR_OR_NULL(skb))
 			err = udp_v6_send_skb(skb, fl6, &cork.base);
-		goto out;
+		/* ip6_make_skb steals dst reference */
+		goto out_no_dst;
 	}
 
 	lock_sock(sk);

@@ -1356,6 +1356,11 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 	unsigned int mtu;
 	struct ipv6_txoptions *nopt, *opt = ipc6->opt;
 
+	/* callers pass dst together with a reference, set it first so
+	 * ip6_cork_release() can put it down even in case of an error.
+	 */
+	cork->base.dst = &rt->dst;
+
 	/*
 	 * setup for corking
 	 */
@@ -1389,8 +1394,6 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 
 		/* need source address above miyazawa*/
 	}
-	dst_hold(&rt->dst);
-	cork->base.dst = &rt->dst;
 	v6_cork->hop_limit = ipc6->hlimit;
 	v6_cork->tclass = ipc6->tclass;
 	if (rt->dst.flags & DST_XFRM_TUNNEL)
@@ -1784,6 +1787,7 @@ int ip6_append_data(struct sock *sk,
 		/*
 		 * setup for corking
 		 */
+		dst_hold(&rt->dst);
 		err = ip6_setup_cork(sk, &inet->cork, &np->cork,
 				     ipc6, rt);
 		if (err)
@@ -1974,15 +1978,16 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 	int exthdrlen = (ipc6->opt ? ipc6->opt->opt_flen : 0);
 	int err;
 
-	if (flags & MSG_PROBE)
+	if (flags & MSG_PROBE) {
+		dst_release(&rt->dst);
 		return NULL;
+	}
 
 	__skb_queue_head_init(&queue);
 
 	cork->base.flags = 0;
 	cork->base.addr = 0;
 	cork->base.opt = NULL;
-	cork->base.dst = NULL;
 	v6_cork.opt = NULL;
 	err = ip6_setup_cork(sk, cork, &v6_cork, ipc6, rt);
 	if (err) {
