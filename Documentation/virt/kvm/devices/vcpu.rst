@@ -104,6 +104,34 @@ hardware event. Filtering event 0x1E (CHAIN) has no effect either, as it
 isn't strictly speaking an event. Filtering the cycle counter is possible
 using event 0x11 (CPU_CYCLES).
 
+1.4 ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_SET_PMU
+------------------------------------------
+
+:Parameters: in kvm_device_attr.addr the address to an int representing the PMU
+             identifier.
+
+:Returns:
+
+	 =======  ====================================================
+	 -EBUSY   PMUv3 already initialized, a VCPU has already run or
+                  an event filter has already been set
+	 -EFAULT  Error accessing the PMU identifier
+	 -ENXIO   PMU not found
+	 -ENODEV  PMUv3 not supported or GIC not initialized
+	 -ENOMEM  Could not allocate memory
+	 =======  ====================================================
+
+Request that the VCPU uses the specified hardware PMU when creating guest events
+for the purpose of PMU emulation. The PMU identifier can be read from the "type"
+file for the desired PMU instance under /sys/devices (or, equivalent,
+/sys/bus/even_source). This attribute is particularly useful on heterogeneous
+systems where there are at least two CPU PMUs on the system. The PMU that is set
+for one VCPU will be used by all the other VCPUs. It isn't possible to set a PMU
+if a PMU event filter is already present.
+
+Note that KVM will not make any attempts to run the VCPU on the physical CPUs
+associated with the PMU specified by this attribute. This is entirely left to
+userspace.
 
 2. GROUP: KVM_ARM_VCPU_TIMER_CTRL
 =================================
