@@ -53,7 +53,8 @@ static int rings_reply_size(const struct ethnl_req_info *req_base,
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_MINI */
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_JUMBO */
 	       nla_total_size(sizeof(u32)) +	/* _RINGS_TX */
-	       nla_total_size(sizeof(u32));     /* _RINGS_RX_BUF_LEN */
+	       nla_total_size(sizeof(u32)) +	/* _RINGS_RX_BUF_LEN */
+	       nla_total_size(sizeof(u8));	/* _RINGS_TCP_DATA_SPLIT */
 }
 
 static int rings_fill_reply(struct sk_buff *skb,
@@ -61,8 +62,10 @@ static int rings_fill_reply(struct sk_buff *skb,
 			    const struct ethnl_reply_data *reply_base)
 {
 	const struct rings_reply_data *data = RINGS_REPDATA(reply_base);
-	const struct kernel_ethtool_ringparam *kernel_ringparam = &data->kernel_ringparam;
+	const struct kernel_ethtool_ringparam *kr = &data->kernel_ringparam;
 	const struct ethtool_ringparam *ringparam = &data->ringparam;
+
+	WARN_ON(kr->tcp_data_split > ETHTOOL_TCP_DATA_SPLIT_ENABLED);
 
 	if ((ringparam->rx_max_pending &&
 	     (nla_put_u32(skb, ETHTOOL_A_RINGS_RX_MAX,
@@ -84,9 +87,11 @@ static int rings_fill_reply(struct sk_buff *skb,
 			  ringparam->tx_max_pending) ||
 	      nla_put_u32(skb, ETHTOOL_A_RINGS_TX,
 			  ringparam->tx_pending)))  ||
-	    (kernel_ringparam->rx_buf_len &&
-	     (nla_put_u32(skb, ETHTOOL_A_RINGS_RX_BUF_LEN,
-			  kernel_ringparam->rx_buf_len))))
+	    (kr->rx_buf_len &&
+	     (nla_put_u32(skb, ETHTOOL_A_RINGS_RX_BUF_LEN, kr->rx_buf_len))) ||
+	    (kr->tcp_data_split &&
+	     (nla_put_u8(skb, ETHTOOL_A_RINGS_TCP_DATA_SPLIT,
+			 kr->tcp_data_split))))
 		return -EMSGSIZE;
 
 	return 0;

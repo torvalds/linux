@@ -860,7 +860,15 @@ Kernel response contents:
   ``ETHTOOL_A_RINGS_RX_JUMBO``          u32     size of RX jumbo ring
   ``ETHTOOL_A_RINGS_TX``                u32     size of TX ring
   ``ETHTOOL_A_RINGS_RX_BUF_LEN``        u32     size of buffers on the ring
+  ``ETHTOOL_A_RINGS_TCP_DATA_SPLIT``    u8      TCP header / data split
   ====================================  ======  ===========================
+
+``ETHTOOL_A_RINGS_TCP_DATA_SPLIT`` indicates whether the device is usable with
+page-flipping TCP zero-copy receive (``getsockopt(TCP_ZEROCOPY_RECEIVE)``).
+If enabled the device is configured to place frame headers and data into
+separate buffers. The device configuration must make it possible to receive
+full memory pages of data, for example because MTU is high enough or through
+HW-GRO.
 
 
 RINGS_SET
