@@ -503,6 +503,19 @@ valid index (starting from 0) pointing to a member or an argument.
  * ``info.vlen``: 0
  * ``type``: the type with ``btf_type_tag`` attribute
 
+Currently, ``BTF_KIND_TYPE_TAG`` is only emitted for pointer types.
+It has the following btf type chain:
+::
+
+  ptr -> [type_tag]*
+      -> [const | volatile | restrict | typedef]*
+      -> base_type
+
+Basically, a pointer type points to zero or more
+type_tag, then zero or more const/volatile/restrict/typedef
+and finally the base type. The base type is one of
+int, ptr, array, struct, union, enum, func_proto and float types.
+
 3. BTF Kernel API
 =================
 
