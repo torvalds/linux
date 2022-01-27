@@ -15,6 +15,7 @@
 #include "gem/i915_gem_lmem.h"
 
 #include "intel_gt.h"
+#include "intel_gt_regs.h"
 #include "i915_drv.h"
 #include "i915_scatterlist.h"
 #include "i915_vgpu.h"

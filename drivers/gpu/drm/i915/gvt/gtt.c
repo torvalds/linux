@@ -38,6 +38,8 @@
 #include "i915_pvinfo.h"
 #include "trace.h"
 
+#include "gt/intel_gt_regs.h"
+
 #if defined(VERBOSE_DEBUG)
 #define gvt_vdbg_mm(fmt, args...) gvt_dbg_mm(fmt, ##args)
 #else

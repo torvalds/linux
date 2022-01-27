@@ -10,6 +10,7 @@
 #include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
+#include "intel_gt_regs.h"
 #include "intel_pcode.h"
 #include "intel_rc6.h"
 

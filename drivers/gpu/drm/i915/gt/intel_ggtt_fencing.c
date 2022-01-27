@@ -7,6 +7,7 @@
 #include "i915_scatterlist.h"
 #include "i915_pvinfo.h"
 #include "i915_vgpu.h"
+#include "intel_gt_regs.h"
 
 /**
  * DOC: fence register handling

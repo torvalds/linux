@@ -7,6 +7,7 @@
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_irq.h"
 #include "gt/intel_gt_pm_irq.h"
+#include "gt/intel_gt_regs.h"
 #include "intel_guc.h"
 #include "intel_guc_slpc.h"
 #include "intel_guc_ads.h"

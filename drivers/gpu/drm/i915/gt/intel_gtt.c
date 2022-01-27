@@ -13,6 +13,7 @@
 #include "gem/i915_gem_lmem.h"
 #include "i915_trace.h"
 #include "intel_gt.h"
+#include "intel_gt_regs.h"
 #include "intel_gtt.h"
 
 struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)

@@ -17,6 +17,7 @@
 #include "gt/intel_gt_clock_utils.h"
 #include "gt/intel_gt_irq.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_gt_requests.h"
 #include "gt/intel_lrc.h"
 #include "gt/intel_lrc_reg.h"

@@ -36,6 +36,8 @@
 #include "i915_drv.h"
 #include "gvt.h"
 
+#include "gt/intel_gt_regs.h"
+
 /**
  * intel_vgpu_gpa_to_mmio_offset - translate a GPA to MMIO offset
  * @vgpu: a vGPU

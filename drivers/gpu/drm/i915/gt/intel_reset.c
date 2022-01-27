@@ -11,6 +11,8 @@
 
 #include "gem/i915_gem_context.h"
 
+#include "gt/intel_gt_regs.h"
+
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
 #include "i915_irq.h"

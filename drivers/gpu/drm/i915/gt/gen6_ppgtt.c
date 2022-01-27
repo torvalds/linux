@@ -9,6 +9,7 @@
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "intel_gt_regs.h"
 #include "intel_engine_regs.h"
 #include "intel_gt.h"
 

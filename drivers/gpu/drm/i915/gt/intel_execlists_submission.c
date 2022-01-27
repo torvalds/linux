@@ -122,6 +122,7 @@
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
 #include "intel_gt_pm.h"
+#include "intel_gt_regs.h"
 #include "intel_gt_requests.h"
 #include "intel_lrc.h"
 #include "intel_lrc_reg.h"

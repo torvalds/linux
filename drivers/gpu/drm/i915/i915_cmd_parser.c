@@ -28,6 +28,7 @@
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
+#include "gt/intel_gt_regs.h"
 
 #include "i915_cmd_parser.h"
 #include "i915_drv.h"

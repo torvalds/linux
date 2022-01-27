@@ -10,6 +10,7 @@
  */
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_regs.h"
 #include "intel_guc_fw.h"
 #include "i915_drv.h"
 
