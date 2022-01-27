@@ -219,7 +219,6 @@ config TRACE_IRQFLAGS_SUPPORT
 #	CORE_DUMP_USE_REGSET	#define'd in linux/elf.h
 #	TIF_SYSCALL_TRACE	calls ptrace_report_syscall_{entry,exit}
 #	TIF_NOTIFY_RESUME	calls tracehook_notify_resume()
-#	signal delivery		calls tracehook_signal_handler()
 #
 config HAVE_ARCH_TRACEHOOK
 	bool

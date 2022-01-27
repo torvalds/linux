@@ -53,23 +53,6 @@ struct linux_binprm;
 
 
 /**
- * tracehook_signal_handler - signal handler setup is complete
- * @stepping:		nonzero if debugger single-step or block-step in use
- *
- * Called by the arch code after a signal handler has been set up.
- * Register and stack state reflects the user handler about to run.
- * Signal mask changes have already been made.
- *
- * Called without locks, shortly before returning to user mode
- * (or handling more signals).
- */
-static inline void tracehook_signal_handler(int stepping)
-{
-	if (stepping)
-		ptrace_notify(SIGTRAP);
-}
-
-/**
  * set_notify_resume - cause tracehook_notify_resume() to be called
  * @task:		task that will call tracehook_notify_resume()
  *
