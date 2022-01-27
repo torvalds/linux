@@ -787,7 +787,6 @@ static int emit_atomic(u8 **pprog, u8 atomic_op,
 	/* emit opcode */
 	switch (atomic_op) {
 	case BPF_ADD:
-	case BPF_SUB:
 	case BPF_AND:
 	case BPF_OR:
 	case BPF_XOR:
