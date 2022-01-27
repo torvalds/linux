@@ -319,7 +319,15 @@ int i3c_device_do_priv_xfers(struct i3c_device *dev,
 
 int i3c_device_do_setdasa(struct i3c_device *dev);
 
+<<<<<<< HEAD
 void i3c_device_get_info(const struct i3c_device *dev, struct i3c_device_info *info);
+=======
+int i3c_device_getstatus_ccc(struct i3c_device *dev, struct i3c_device_info *info);
+
+int i3c_device_generate_ibi(struct i3c_device *dev, const u8 *data, int len);
+
+void i3c_device_get_info(struct i3c_device *dev, struct i3c_device_info *info);
+>>>>>>> i3c: master: Implement CCC GETSTATUS function
 
 int i3c_device_generate_ibi(struct i3c_device *dev, const u8 *data, int len);
 
