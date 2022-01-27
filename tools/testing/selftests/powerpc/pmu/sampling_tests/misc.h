@@ -12,6 +12,10 @@
 #define PERF_POWER9_MASK        0x7f8ffffffffffff
 #define PERF_POWER10_MASK       0x7ffffffffffffff
 
+#define MMCR0_FC56      0x00000010UL /* freeze counters 5 and 6 */
+#define MMCR0_PMCCEXT   0x00000200UL /* PMCCEXT control */
+#define MMCR1_RSQ       0x200000000000ULL /* radix scope qual field */
+
 extern int ev_mask_pmcxsel, ev_shift_pmcxsel;
 extern int ev_mask_marked, ev_shift_marked;
 extern int ev_mask_comb, ev_shift_comb;
@@ -47,6 +51,66 @@ void *__event_read_samples(void *sample_buff, size_t *size, u64 *sample_count);
 int collect_samples(void *sample_buff);
 u64 *get_intr_regs(struct event *event, void *sample_buff);
 u64 get_reg_value(u64 *intr_regs, char *register_name);
+
+static inline int get_mmcr0_fc56(u64 mmcr0, int pmc)
+{
+	return (mmcr0 & MMCR0_FC56);
+}
+
+static inline int get_mmcr0_pmccext(u64 mmcr0, int pmc)
+{
+	return (mmcr0 & MMCR0_PMCCEXT);
+}
+
+static inline int get_mmcr0_pmao(u64 mmcr0, int pmc)
+{
+	return ((mmcr0 >> 7) & 0x1);
+}
+
+static inline int get_mmcr0_cc56run(u64 mmcr0, int pmc)
+{
+	return ((mmcr0 >> 8) & 0x1);
+}
+
+static inline int get_mmcr0_pmcjce(u64 mmcr0, int pmc)
+{
+	return ((mmcr0 >> 14) & 0x1);
+}
+
+static inline int get_mmcr0_pmc1ce(u64 mmcr0, int pmc)
+{
+	return ((mmcr0 >> 15) & 0x1);
+}
+
+static inline int get_mmcr0_pmae(u64 mmcr0, int pmc)
+{
+	return ((mmcr0 >> 27) & 0x1);
+}
+
+static inline int get_mmcr1_pmcxsel(u64 mmcr1, int pmc)
+{
+	return ((mmcr1 >> ((24 - (((pmc) - 1) * 8))) & 0xff));
+}
+
+static inline int get_mmcr1_unit(u64 mmcr1, int pmc)
+{
+	return ((mmcr1 >> ((60 - (4 * ((pmc) - 1))))) & 0xf);
+}
+
+static inline int get_mmcr1_comb(u64 mmcr1, int pmc)
+{
+	return ((mmcr1 >> (38 - ((pmc - 1) * 2))) & 0x3);
+}
+
+static inline int get_mmcr1_cache(u64 mmcr1, int pmc)
+{
+	return ((mmcr1 >> 46) & 0x3);
+}
+
+static inline int get_mmcr1_rsq(u64 mmcr1, int pmc)
+{
+	return mmcr1 & MMCR1_RSQ;
+}
 
 static inline int get_mmcr2_fcs(u64 mmcr2, int pmc)
 {
