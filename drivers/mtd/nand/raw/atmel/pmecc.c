@@ -1003,7 +1003,7 @@ static int atmel_pmecc_probe(struct platform_device *pdev)
 static struct platform_driver atmel_pmecc_driver = {
 	.driver = {
 		.name = "atmel-pmecc",
-		.of_match_table = of_match_ptr(atmel_pmecc_match),
+		.of_match_table = atmel_pmecc_match,
 	},
 	.probe = atmel_pmecc_probe,
 };

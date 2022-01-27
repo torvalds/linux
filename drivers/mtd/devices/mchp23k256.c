@@ -234,7 +234,7 @@ MODULE_DEVICE_TABLE(of, mchp23k256_of_table);
 static struct spi_driver mchp23k256_driver = {
 	.driver = {
 		.name	= "mchp23k256",
-		.of_match_table = of_match_ptr(mchp23k256_of_table),
+		.of_match_table = mchp23k256_of_table,
 	},
 	.probe		= mchp23k256_probe,
 	.remove		= mchp23k256_remove,

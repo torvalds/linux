@@ -1220,7 +1220,7 @@ static struct platform_driver flctl_driver = {
 	.remove		= flctl_remove,
 	.driver = {
 		.name	= "sh_flctl",
-		.of_match_table = of_match_ptr(of_flctl_match),
+		.of_match_table = of_flctl_match,
 	},
 };
 

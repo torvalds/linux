@@ -2648,7 +2648,7 @@ static SIMPLE_DEV_PM_OPS(atmel_nand_controller_pm_ops, NULL,
 static struct platform_driver atmel_nand_controller_driver = {
 	.driver = {
 		.name = "atmel-nand-controller",
-		.of_match_table = of_match_ptr(atmel_nand_controller_of_ids),
+		.of_match_table = atmel_nand_controller_of_ids,
 		.pm = &atmel_nand_controller_pm_ops,
 	},
 	.probe = atmel_nand_controller_probe,

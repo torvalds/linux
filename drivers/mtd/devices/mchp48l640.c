@@ -362,7 +362,7 @@ MODULE_DEVICE_TABLE(of, mchp48l640_of_table);
 static struct spi_driver mchp48l640_driver = {
 	.driver = {
 		.name	= "mchp48l640",
-		.of_match_table = of_match_ptr(mchp48l640_of_table),
+		.of_match_table = mchp48l640_of_table,
 	},
 	.probe		= mchp48l640_probe,
 	.remove		= mchp48l640_remove,
