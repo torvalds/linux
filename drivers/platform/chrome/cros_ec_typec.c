@@ -115,16 +115,17 @@ static int cros_typec_parse_port_props(struct typec_capability *cap,
 		return ret;
 	cap->data = ret;
 
+	/* Try-power-role is optional. */
 	ret = fwnode_property_read_string(fwnode, "try-power-role", &buf);
 	if (ret) {
-		dev_err(dev, "try-power-role not found: %d\n", ret);
-		return ret;
+		dev_warn(dev, "try-power-role not found: %d\n", ret);
+		cap->prefer_role = TYPEC_NO_PREFERRED_ROLE;
+	} else {
+		ret = typec_find_power_role(buf);
+		if (ret < 0)
+			return ret;
+		cap->prefer_role = ret;
 	}
-
-	ret = typec_find_power_role(buf);
-	if (ret < 0)
-		return ret;
-	cap->prefer_role = ret;
 
 	cap->fwnode = fwnode;
 
