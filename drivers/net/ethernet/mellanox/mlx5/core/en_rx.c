@@ -1572,6 +1572,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	struct mlx5e_dma_info *di = wi->di;
 	struct skb_shared_info *sinfo;
 	u32 frag_consumed_bytes;
+	struct bpf_prog *prog;
 	struct xdp_buff xdp;
 	struct sk_buff *skb;
 	u32 truesize;
@@ -1582,6 +1583,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 
 	dma_sync_single_range_for_cpu(rq->pdev, di->addr, wi->offset,
 				      rq->buff.frame0_sz, DMA_FROM_DEVICE);
+	net_prefetchw(va); /* xdp_frame data area */
 	net_prefetch(va + rx_headroom);
 
 	mlx5e_fill_xdp_buff(rq, va, rx_headroom, frag_consumed_bytes, &xdp);
@@ -1628,6 +1630,17 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	}
 
 	di = head_wi->di;
+
+	prog = rcu_dereference(rq->xdp_prog);
+	if (prog && mlx5e_xdp_handle(rq, di, prog, &xdp)) {
+		if (test_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
+			int i;
+
+			for (i = wi - head_wi; i < rq->wqe.info.num_frags; i++)
+				mlx5e_put_rx_frag(rq, &head_wi[i], true);
+		}
+		return NULL; /* page/packet was consumed by XDP */
+	}
 
 	skb = mlx5e_build_linear_skb(rq, xdp.data_hard_start, rq->buff.frame0_sz,
 				     xdp.data - xdp.data_hard_start,

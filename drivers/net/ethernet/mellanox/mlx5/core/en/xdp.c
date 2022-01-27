@@ -68,6 +68,11 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	if (unlikely(!xdpf))
 		return false;
 
+	if (unlikely(xdp_frame_has_frags(xdpf))) {
+		xdp_return_frame(xdpf);
+		return false;
+	}
+
 	xdptxd.data = xdpf->data;
 	xdptxd.len  = xdpf->len;
 
