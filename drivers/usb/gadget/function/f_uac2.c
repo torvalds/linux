@@ -124,6 +124,16 @@ static struct usb_string strings_fn[] = {
 	{ },
 };
 
+static const char *const speed_names[] = {
+	[USB_SPEED_UNKNOWN] = "UNKNOWN",
+	[USB_SPEED_LOW] = "LS",
+	[USB_SPEED_FULL] = "FS",
+	[USB_SPEED_HIGH] = "HS",
+	[USB_SPEED_WIRELESS] = "W",
+	[USB_SPEED_SUPER] = "SS",
+	[USB_SPEED_SUPER_PLUS] = "SS+",
+};
+
 static struct usb_gadget_strings str_fn = {
 	.language = 0x0409,	/* en-us */
 	.strings = strings_fn,
@@ -745,12 +755,12 @@ static int set_ep_max_packet_size_bint(struct device *dev, const struct f_uac2_o
 
 	if (max_size_bw <= max_size_ep)
 		dev_dbg(dev,
-			"%s: Will use maxpctksize %d and bInterval %d\n",
-			dir, max_size_bw, bint);
+			"%s %s: Would use maxpctksize %d and bInterval %d\n",
+			speed_names[speed], dir, max_size_bw, bint);
 	else {
 		dev_warn(dev,
-			"%s: Req. maxpcktsize %d at bInterval %d > max ISOC %d, may drop data!\n",
-			dir, max_size_bw, bint, max_size_ep);
+			"%s %s: Req. maxpcktsize %d at bInterval %d > max ISOC %d, may drop data!\n",
+			speed_names[speed], dir, max_size_bw, bint, max_size_ep);
 		max_size_bw = max_size_ep;
 	}
 
