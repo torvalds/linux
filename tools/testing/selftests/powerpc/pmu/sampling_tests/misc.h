@@ -2,6 +2,7 @@
 /*
  * Copyright 2022, Athira Rajeev, IBM Corp.
  * Copyright 2022, Madhavan Srinivasan, IBM Corp.
+ * Copyright 2022, Kajol Jain, IBM Corp.
  */
 
 #include "../event.h"
@@ -43,3 +44,6 @@ extern int check_pvr_for_sampling_tests(void);
 
 void *event_sample_buf_mmap(int fd, int mmap_pages);
 void *__event_read_samples(void *sample_buff, size_t *size, u64 *sample_count);
+int collect_samples(void *sample_buff);
+u64 *get_intr_regs(struct event *event, void *sample_buff);
+u64 get_reg_value(u64 *intr_regs, char *register_name);

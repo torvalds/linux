@@ -2,6 +2,7 @@
 /*
  * Copyright 2022, Athira Rajeev, IBM Corp.
  * Copyright 2022, Madhavan Srinivasan, IBM Corp.
+ * Copyright 2022, Kajol Jain, IBM Corp.
  */
 
 #include <unistd.h>
@@ -234,4 +235,178 @@ void *__event_read_samples(void *sample_buff, size_t *size, u64 *sample_count)
 		header = (struct perf_event_header *)((void *)header + header->size);
 	}
 	return NULL;
+}
+
+int collect_samples(void *sample_buff)
+{
+	u64 sample_count;
+	size_t size = 0;
+
+	__event_read_samples(sample_buff, &size, &sample_count);
+	return sample_count;
+}
+
+static void *perf_read_first_sample(void *sample_buff, size_t *size)
+{
+	return __event_read_samples(sample_buff, size, NULL);
+}
+
+u64 *get_intr_regs(struct event *event, void *sample_buff)
+{
+	u64 type = event->attr.sample_type;
+	u64 *intr_regs;
+	size_t size = 0;
+
+	if ((type ^ PERF_SAMPLE_REGS_INTR))
+		return NULL;
+
+	intr_regs = (u64 *)perf_read_first_sample(sample_buff, &size);
+	if (!intr_regs)
+		return NULL;
+
+	/*
+	 * First entry in the sample buffer used to specify
+	 * PERF_SAMPLE_REGS_ABI_64, skip perf regs abi to access
+	 * interrupt registers.
+	 */
+	++intr_regs;
+
+	return intr_regs;
+}
+
+static const unsigned int __perf_reg_mask(const char *register_name)
+{
+	if (!strcmp(register_name, "R0"))
+		return 0;
+	else if (!strcmp(register_name, "R1"))
+		return 1;
+	else if (!strcmp(register_name, "R2"))
+		return 2;
+	else if (!strcmp(register_name, "R3"))
+		return 3;
+	else if (!strcmp(register_name, "R4"))
+		return 4;
+	else if (!strcmp(register_name, "R5"))
+		return 5;
+	else if (!strcmp(register_name, "R6"))
+		return 6;
+	else if (!strcmp(register_name, "R7"))
+		return 7;
+	else if (!strcmp(register_name, "R8"))
+		return 8;
+	else if (!strcmp(register_name, "R9"))
+		return 9;
+	else if (!strcmp(register_name, "R10"))
+		return 10;
+	else if (!strcmp(register_name, "R11"))
+		return 11;
+	else if (!strcmp(register_name, "R12"))
+		return 12;
+	else if (!strcmp(register_name, "R13"))
+		return 13;
+	else if (!strcmp(register_name, "R14"))
+		return 14;
+	else if (!strcmp(register_name, "R15"))
+		return 15;
+	else if (!strcmp(register_name, "R16"))
+		return 16;
+	else if (!strcmp(register_name, "R17"))
+		return 17;
+	else if (!strcmp(register_name, "R18"))
+		return 18;
+	else if (!strcmp(register_name, "R19"))
+		return 19;
+	else if (!strcmp(register_name, "R20"))
+		return 20;
+	else if (!strcmp(register_name, "R21"))
+		return 21;
+	else if (!strcmp(register_name, "R22"))
+		return 22;
+	else if (!strcmp(register_name, "R23"))
+		return 23;
+	else if (!strcmp(register_name, "R24"))
+		return 24;
+	else if (!strcmp(register_name, "R25"))
+		return 25;
+	else if (!strcmp(register_name, "R26"))
+		return 26;
+	else if (!strcmp(register_name, "R27"))
+		return 27;
+	else if (!strcmp(register_name, "R28"))
+		return 28;
+	else if (!strcmp(register_name, "R29"))
+		return 29;
+	else if (!strcmp(register_name, "R30"))
+		return 30;
+	else if (!strcmp(register_name, "R31"))
+		return 31;
+	else if (!strcmp(register_name, "NIP"))
+		return 32;
+	else if (!strcmp(register_name, "MSR"))
+		return 33;
+	else if (!strcmp(register_name, "ORIG_R3"))
+		return 34;
+	else if (!strcmp(register_name, "CTR"))
+		return 35;
+	else if (!strcmp(register_name, "LINK"))
+		return 36;
+	else if (!strcmp(register_name, "XER"))
+		return 37;
+	else if (!strcmp(register_name, "CCR"))
+		return 38;
+	else if (!strcmp(register_name, "SOFTE"))
+		return 39;
+	else if (!strcmp(register_name, "TRAP"))
+		return 40;
+	else if (!strcmp(register_name, "DAR"))
+		return 41;
+	else if (!strcmp(register_name, "DSISR"))
+		return 42;
+	else if (!strcmp(register_name, "SIER"))
+		return 43;
+	else if (!strcmp(register_name, "MMCRA"))
+		return 44;
+	else if (!strcmp(register_name, "MMCR0"))
+		return 45;
+	else if (!strcmp(register_name, "MMCR1"))
+		return 46;
+	else if (!strcmp(register_name, "MMCR2"))
+		return 47;
+	else if (!strcmp(register_name, "MMCR3"))
+		return 48;
+	else if (!strcmp(register_name, "SIER2"))
+		return 49;
+	else if (!strcmp(register_name, "SIER3"))
+		return 50;
+	else if (!strcmp(register_name, "PMC1"))
+		return 51;
+	else if (!strcmp(register_name, "PMC2"))
+		return 52;
+	else if (!strcmp(register_name, "PMC3"))
+		return 53;
+	else if (!strcmp(register_name, "PMC4"))
+		return 54;
+	else if (!strcmp(register_name, "PMC5"))
+		return 55;
+	else if (!strcmp(register_name, "PMC6"))
+		return 56;
+	else if (!strcmp(register_name, "SDAR"))
+		return 57;
+	else if (!strcmp(register_name, "SIAR"))
+		return 58;
+	else
+		return -1;
+}
+
+u64 get_reg_value(u64 *intr_regs, char *register_name)
+{
+	int register_bit_position;
+
+	register_bit_position = __perf_reg_mask(register_name);
+
+	if (register_bit_position < 0 || (!((platform_extended_mask >>
+			(register_bit_position - 1)) & 1)))
+		return -1;
+
+	return *(intr_regs + register_bit_position);
 }
