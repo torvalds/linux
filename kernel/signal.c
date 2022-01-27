@@ -2188,15 +2188,17 @@ static void do_notify_parent_cldstop(struct task_struct *tsk,
  * That makes it a way to test a stopped process for
  * being ptrace-stopped vs being job-control-stopped.
  *
- * If we actually decide not to stop at all because the tracer
- * is gone, we keep current->exit_code unless clear_code.
+ * Returns the signal the ptracer requested the code resume
+ * with.  If the code did not stop because the tracer is gone,
+ * the stop signal remains unchanged unless clear_code.
  */
-static void ptrace_stop(int exit_code, int why, int clear_code,
+static int ptrace_stop(int exit_code, int why, int clear_code,
 			unsigned long message, kernel_siginfo_t *info)
 	__releases(&current->sighand->siglock)
 	__acquires(&current->sighand->siglock)
 {
 	bool gstop_done = false;
+	bool read_code = true;
 
 	if (arch_ptrace_stop_needed()) {
 		/*
@@ -2305,8 +2307,9 @@ static void ptrace_stop(int exit_code, int why, int clear_code,
 
 		/* tasklist protects us from ptrace_freeze_traced() */
 		__set_current_state(TASK_RUNNING);
+		read_code = false;
 		if (clear_code)
-			current->exit_code = 0;
+			exit_code = 0;
 		read_unlock(&tasklist_lock);
 	}
 
@@ -2316,8 +2319,11 @@ static void ptrace_stop(int exit_code, int why, int clear_code,
 	 * any signal-sending on another CPU that wants to examine it.
 	 */
 	spin_lock_irq(&current->sighand->siglock);
+	if (read_code)
+		exit_code = current->exit_code;
 	current->last_siginfo = NULL;
 	current->ptrace_message = 0;
+	current->exit_code = 0;
 
 	/* LISTENING can be set only during STOP traps, clear it */
 	current->jobctl &= ~JOBCTL_LISTENING;
@@ -2328,9 +2334,10 @@ static void ptrace_stop(int exit_code, int why, int clear_code,
 	 * This sets TIF_SIGPENDING, but never clears it.
 	 */
 	recalc_sigpending_tsk(current);
+	return exit_code;
 }
 
-static void ptrace_do_notify(int signr, int exit_code, int why, unsigned long message)
+static int ptrace_do_notify(int signr, int exit_code, int why, unsigned long message)
 {
 	kernel_siginfo_t info;
 
@@ -2341,18 +2348,21 @@ static void ptrace_do_notify(int signr, int exit_code, int why, unsigned long me
 	info.si_uid = from_kuid_munged(current_user_ns(), current_uid());
 
 	/* Let the debugger run.  */
-	ptrace_stop(exit_code, why, 1, message, &info);
+	return ptrace_stop(exit_code, why, 1, message, &info);
 }
 
-void ptrace_notify(int exit_code, unsigned long message)
+int ptrace_notify(int exit_code, unsigned long message)
 {
+	int signr;
+
 	BUG_ON((exit_code & (0x7f | ~0xffff)) != SIGTRAP);
 	if (unlikely(task_work_pending(current)))
 		task_work_run();
 
 	spin_lock_irq(&current->sighand->siglock);
-	ptrace_do_notify(SIGTRAP, exit_code, CLD_TRAPPED, message);
+	signr = ptrace_do_notify(SIGTRAP, exit_code, CLD_TRAPPED, message);
 	spin_unlock_irq(&current->sighand->siglock);
+	return signr;
 }
 
 /**
@@ -2511,7 +2521,6 @@ static void do_jobctl_trap(void)
 	} else {
 		WARN_ON_ONCE(!signr);
 		ptrace_stop(signr, CLD_STOPPED, 0, 0, NULL);
-		current->exit_code = 0;
 	}
 }
 
@@ -2564,14 +2573,11 @@ static int ptrace_signal(int signr, kernel_siginfo_t *info, enum pid_type type)
 	 * comment in dequeue_signal().
 	 */
 	current->jobctl |= JOBCTL_STOP_DEQUEUED;
-	ptrace_stop(signr, CLD_TRAPPED, 0, 0, info);
+	signr = ptrace_stop(signr, CLD_TRAPPED, 0, 0, info);
 
 	/* We're back.  Did the debugger cancel the sig?  */
-	signr = current->exit_code;
 	if (signr == 0)
 		return signr;
-
-	current->exit_code = 0;
 
 	/*
 	 * Update the siginfo structure if the signal has
