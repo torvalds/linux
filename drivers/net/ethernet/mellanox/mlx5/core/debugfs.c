@@ -212,6 +212,23 @@ void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev)
 	debugfs_remove_recursive(dev->priv.dbg.cq_debugfs);
 }
 
+void mlx5_pages_debugfs_init(struct mlx5_core_dev *dev)
+{
+	struct dentry *pages;
+
+	dev->priv.dbg.pages_debugfs = debugfs_create_dir("pages", dev->priv.dbg.dbg_root);
+	pages = dev->priv.dbg.pages_debugfs;
+
+	debugfs_create_u32("fw_pages_total", 0400, pages, &dev->priv.fw_pages);
+	debugfs_create_u32("fw_pages_vfs", 0400, pages, &dev->priv.vfs_pages);
+	debugfs_create_u32("fw_pages_host_pf", 0400, pages, &dev->priv.host_pf_pages);
+}
+
+void mlx5_pages_debugfs_cleanup(struct mlx5_core_dev *dev)
+{
+	debugfs_remove_recursive(dev->priv.dbg.pages_debugfs);
+}
+
 static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 			 int index, int *is_str)
 {

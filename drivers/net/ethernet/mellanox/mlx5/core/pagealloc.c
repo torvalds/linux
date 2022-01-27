@@ -714,12 +714,14 @@ int mlx5_pagealloc_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 
 	xa_init(&dev->priv.page_root_xa);
+	mlx5_pages_debugfs_init(dev);
 
 	return 0;
 }
 
 void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev)
 {
+	mlx5_pages_debugfs_cleanup(dev);
 	xa_destroy(&dev->priv.page_root_xa);
 	destroy_workqueue(dev->priv.pg_wq);
 }

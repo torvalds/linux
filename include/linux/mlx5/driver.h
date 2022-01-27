@@ -557,6 +557,7 @@ struct mlx5_debugfs_entries {
 	struct dentry *eq_debugfs;
 	struct dentry *cq_debugfs;
 	struct dentry *cmdif_debugfs;
+	struct dentry *pages_debugfs;
 };
 
 struct mlx5_ft_pool;
@@ -569,11 +570,11 @@ struct mlx5_priv {
 	struct mlx5_nb          pg_nb;
 	struct workqueue_struct *pg_wq;
 	struct xarray           page_root_xa;
-	int			fw_pages;
+	u32			fw_pages;
 	atomic_t		reg_pages;
 	struct list_head	free_list;
-	int			vfs_pages;
-	int			host_pf_pages;
+	u32			vfs_pages;
+	u32			host_pf_pages;
 
 	struct mlx5_core_health health;
 	struct list_head	traps;
@@ -1026,6 +1027,8 @@ int mlx5_pagealloc_init(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_start(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev);
+void mlx5_pages_debugfs_init(struct mlx5_core_dev *dev);
+void mlx5_pages_debugfs_cleanup(struct mlx5_core_dev *dev);
 void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
 				 s32 npages, bool ec_function);
 int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
