@@ -49,13 +49,15 @@ struct visconti_eth {
 	void __iomem *reg;
 	u32 phy_intf_sel;
 	struct clk *phy_ref_clk;
+	struct device *dev;
 	spinlock_t lock; /* lock to protect register update */
 };
 
 static void visconti_eth_fix_mac_speed(void *priv, unsigned int speed)
 {
 	struct visconti_eth *dwmac = priv;
-	unsigned int val, clk_sel_val;
+	struct net_device *netdev = dev_get_drvdata(dwmac->dev);
+	unsigned int val, clk_sel_val = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dwmac->lock, flags);
@@ -85,7 +87,9 @@ static void visconti_eth_fix_mac_speed(void *priv, unsigned int speed)
 		break;
 	default:
 		/* No bit control */
-		break;
+		netdev_err(netdev, "Unsupported speed request (%d)", speed);
+		spin_unlock_irqrestore(&dwmac->lock, flags);
+		return;
 	}
 
 	writel(val, dwmac->reg + MAC_CTRL_REG);
@@ -230,6 +234,7 @@ static int visconti_eth_dwmac_probe(struct platform_device *pdev)
 
 	spin_lock_init(&dwmac->lock);
 	dwmac->reg = stmmac_res.addr;
+	dwmac->dev = &pdev->dev;
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->fix_mac_speed = visconti_eth_fix_mac_speed;
 
