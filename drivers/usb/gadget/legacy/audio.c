@@ -36,6 +36,12 @@ static int p_ssize = UAC2_DEF_PSSIZE;
 module_param(p_ssize, uint, 0444);
 MODULE_PARM_DESC(p_ssize, "Playback Sample Size(bytes)");
 
+/* Playback bInterval for HS/SS (1-4: fixed, 0: auto) */
+static u8 p_hs_bint = UAC2_DEF_PHSBINT;
+module_param(p_hs_bint, byte, 0444);
+MODULE_PARM_DESC(p_hs_bint,
+		"Playback bInterval for HS/SS (1-4: fixed, 0: auto)");
+
 /* Capture(USB-OUT) Default Stereo - Fl/Fr */
 static int c_chmask = UAC2_DEF_CCHMASK;
 module_param(c_chmask, uint, 0444);
@@ -51,6 +57,13 @@ MODULE_PARM_DESC(c_srate, "Capture Sampling Rates (array)");
 static int c_ssize = UAC2_DEF_CSSIZE;
 module_param(c_ssize, uint, 0444);
 MODULE_PARM_DESC(c_ssize, "Capture Sample Size(bytes)");
+
+/* capture bInterval for HS/SS (1-4: fixed, 0: auto) */
+static u8 c_hs_bint = UAC2_DEF_CHSBINT;
+module_param(c_hs_bint, byte, 0444);
+MODULE_PARM_DESC(c_hs_bint,
+		"Capture bInterval for HS/SS (1-4: fixed, 0: auto)");
+
 #else
 #ifndef CONFIG_GADGET_UAC1_LEGACY
 #include "u_uac1.h"
@@ -274,12 +287,14 @@ static int audio_bind(struct usb_composite_dev *cdev)
 		uac2_opts->p_srates[i] = p_srates[i];
 
 	uac2_opts->p_ssize = p_ssize;
+	uac2_opts->p_hs_bint = p_hs_bint;
 	uac2_opts->c_chmask = c_chmask;
 
 	for (i = 0; i < c_srates_cnt; ++i)
 		uac2_opts->c_srates[i] = c_srates[i];
 
 	uac2_opts->c_ssize = c_ssize;
+	uac2_opts->c_hs_bint = c_hs_bint;
 	uac2_opts->req_number = UAC2_DEF_REQ_NUM;
 #else
 #ifndef CONFIG_GADGET_UAC1_LEGACY
