@@ -757,6 +757,21 @@ static void dump_threads(void)
 	}
 }
 
+static int compare_maps(struct lock_stat *a, struct lock_stat *b)
+{
+	int ret;
+
+	if (a->name && b->name)
+		ret = strcmp(a->name, b->name);
+	else
+		ret = !!a->name - !!b->name;
+
+	if (!ret)
+		return a->addr < b->addr;
+	else
+		return ret < 0;
+}
+
 static void dump_map(void)
 {
 	unsigned int i;
@@ -765,9 +780,12 @@ static void dump_map(void)
 	pr_info("Address of instance: name of class\n");
 	for (i = 0; i < LOCKHASH_SIZE; i++) {
 		hlist_for_each_entry(st, &lockhash_table[i], hash_entry) {
-			pr_info(" %#llx: %s\n", (unsigned long long)st->addr, st->name);
+			insert_to_result(st, compare_maps);
 		}
 	}
+
+	while ((st = pop_from_result()))
+		pr_info(" %#llx: %s\n", (unsigned long long)st->addr, st->name);
 }
 
 static int dump_info(void)
