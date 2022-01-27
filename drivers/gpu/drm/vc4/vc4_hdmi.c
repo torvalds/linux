@@ -2510,7 +2510,8 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	 * vc4_hdmi_disable_scrambling() will thus run at boot, make
 	 * sure it's disabled, and avoid any inconsistency.
 	 */
-	vc4_hdmi->scdc_enabled = true;
+	if (variant->max_pixel_clock > HDMI_14_MAX_TMDS_CLK)
+		vc4_hdmi->scdc_enabled = true;
 
 	ret = variant->init_resources(vc4_hdmi);
 	if (ret)
