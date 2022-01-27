@@ -35,7 +35,6 @@ void xen_entry_INT80_compat(void);
 #endif
 
 void x86_configure_nx(void);
-void x86_report_nx(void);
 
 extern int reboot_force;
 
