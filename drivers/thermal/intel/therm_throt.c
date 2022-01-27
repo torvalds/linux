@@ -476,6 +476,13 @@ static int thermal_throttle_online(unsigned int cpu)
 	INIT_DELAYED_WORK(&state->package_throttle.therm_work, throttle_active_work);
 	INIT_DELAYED_WORK(&state->core_throttle.therm_work, throttle_active_work);
 
+	/*
+	 * The first CPU coming online will enable the HFI. Usually this causes
+	 * hardware to issue an HFI thermal interrupt. Such interrupt will reach
+	 * the CPU once we enable the thermal vector in the local APIC.
+	 */
+	intel_hfi_online(cpu);
+
 	/* Unmask the thermal vector after the above workqueues are initialized. */
 	l = apic_read(APIC_LVTTHMR);
 	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
@@ -492,6 +499,8 @@ static int thermal_throttle_offline(unsigned int cpu)
 	/* Mask the thermal vector before draining evtl. pending work */
 	l = apic_read(APIC_LVTTHMR);
 	apic_write(APIC_LVTTHMR, l | APIC_LVT_MASKED);
+
+	intel_hfi_offline(cpu);
 
 	cancel_delayed_work_sync(&state->package_throttle.therm_work);
 	cancel_delayed_work_sync(&state->core_throttle.therm_work);

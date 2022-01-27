@@ -4,8 +4,12 @@
 
 #if defined(CONFIG_INTEL_HFI_THERMAL)
 void __init intel_hfi_init(void);
+void intel_hfi_online(unsigned int cpu);
+void intel_hfi_offline(unsigned int cpu);
 #else
 static inline void intel_hfi_init(void) { }
+static inline void intel_hfi_online(unsigned int cpu) { }
+static inline void intel_hfi_offline(unsigned int cpu) { }
 #endif /* CONFIG_INTEL_HFI_THERMAL */
 
 #endif /* _INTEL_HFI_H */
