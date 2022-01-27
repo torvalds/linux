@@ -608,11 +608,6 @@ static void __media_device_unregister_entity(struct media_entity *entity)
 	entity->graph_obj.mdev = NULL;
 }
 
-/**
- * media_device_register_entity - Register an entity with a media device
- * @mdev:	The media device
- * @entity:	The entity
- */
 int __must_check media_device_register_entity(struct media_device *mdev,
 					      struct media_entity *entity)
 {
@@ -691,16 +686,6 @@ void media_device_unregister_entity(struct media_entity *entity)
 }
 EXPORT_SYMBOL_GPL(media_device_unregister_entity);
 
-/**
- * media_device_init() - initialize a media device
- * @mdev:	The media device
- *
- * The caller is responsible for initializing the media device before
- * registration. The following fields must be set:
- *
- * - dev must point to the parent device
- * - model must be filled with the device model name
- */
 void media_device_init(struct media_device *mdev)
 {
 	INIT_LIST_HEAD(&mdev->entities);

@@ -219,6 +219,12 @@ static inline __must_check int media_entity_enum_init(
  * So drivers need to first initialize the media device, register any entity
  * within the media device, create pad to pad links and then finally register
  * the media device by calling media_device_register() as a final step.
+ *
+ * The caller is responsible for initializing the media device before
+ * registration. The following fields must be set:
+ *
+ * - dev must point to the parent device
+ * - model must be filled with the device model name
  */
 void media_device_init(struct media_device *mdev);
 
