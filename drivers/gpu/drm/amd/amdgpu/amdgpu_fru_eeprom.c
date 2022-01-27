@@ -46,7 +46,7 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return false;
 
-	/* VBIOS is of the format ###-DXXXYY-##. For SKU identification,
+	/* VBIOS is of the format ###-DXXXYYYY-##. For SKU identification,
 	 * we can use just the "DXXX" portion. If there were more models, we
 	 * could convert the 3 characters to a hex integer and use a switch
 	 * for ease/speed/readability. For now, 2 string comparisons are
@@ -65,6 +65,12 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 	case CHIP_ALDEBARAN:
 		/* All Aldebaran SKUs have the FRU */
 		return true;
+	case CHIP_SIENNA_CICHLID:
+		if (strnstr(atom_ctx->vbios_version, "D603",
+			    sizeof(atom_ctx->vbios_version)))
+			return true;
+		else
+			return false;
 	default:
 		return false;
 	}
