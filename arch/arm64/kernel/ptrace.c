@@ -1792,8 +1792,7 @@ enum ptrace_syscall_dir {
 	PTRACE_SYSCALL_EXIT,
 };
 
-static void tracehook_report_syscall(struct pt_regs *regs,
-				     enum ptrace_syscall_dir dir)
+static void report_syscall(struct pt_regs *regs, enum ptrace_syscall_dir dir)
 {
 	int regno;
 	unsigned long saved_reg;
@@ -1842,7 +1841,7 @@ int syscall_trace_enter(struct pt_regs *regs)
 	unsigned long flags = read_thread_flags();
 
 	if (flags & (_TIF_SYSCALL_EMU | _TIF_SYSCALL_TRACE)) {
-		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
+		report_syscall(regs, PTRACE_SYSCALL_ENTER);
 		if (flags & _TIF_SYSCALL_EMU)
 			return NO_SYSCALL;
 	}
@@ -1870,7 +1869,7 @@ void syscall_trace_exit(struct pt_regs *regs)
 		trace_sys_exit(regs, syscall_get_return_value(current, regs));
 
 	if (flags & (_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP))
-		tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);
+		report_syscall(regs, PTRACE_SYSCALL_EXIT);
 
 	rseq_syscall(regs);
 }

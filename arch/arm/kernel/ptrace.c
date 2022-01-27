@@ -831,8 +831,7 @@ enum ptrace_syscall_dir {
 	PTRACE_SYSCALL_EXIT,
 };
 
-static void tracehook_report_syscall(struct pt_regs *regs,
-				    enum ptrace_syscall_dir dir)
+static void report_syscall(struct pt_regs *regs, enum ptrace_syscall_dir dir)
 {
 	unsigned long ip;
 
@@ -856,7 +855,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 	int scno;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
+		report_syscall(regs, PTRACE_SYSCALL_ENTER);
 
 	/* Do seccomp after ptrace; syscall may have changed. */
 #ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
@@ -897,5 +896,5 @@ asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 		trace_sys_exit(regs, regs_return_value(regs));
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);
+		report_syscall(regs, PTRACE_SYSCALL_EXIT);
 }
