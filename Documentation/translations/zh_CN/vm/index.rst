@@ -24,6 +24,7 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    active_mm
    balance
    damon/index
+   free_page_reporting
 
 TODOLIST:
 * arch_pgtable_helpers
@@ -33,7 +34,6 @@ TODOLIST:
 * hmm
 * hwpoison
 * hugetlbfs_reserv
-* ksm
 * memory-model
 * mmu_notifier
 * numa
