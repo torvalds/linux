@@ -286,6 +286,17 @@ struct spi_controller_mem_ops {
 };
 
 /**
+ * struct spi_controller_mem_caps - SPI memory controller capabilities
+ * @dtr: Supports DTR operations
+ */
+struct spi_controller_mem_caps {
+	bool dtr;
+};
+
+#define spi_mem_controller_is_capable(ctlr, cap)	\
+	((ctlr)->mem_caps && (ctlr)->mem_caps->cap)
+
+/**
  * struct spi_mem_driver - SPI memory driver
  * @spidrv: inherit from a SPI driver
  * @probe: probe a SPI memory. Usually where detection/initialization takes
