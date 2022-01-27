@@ -1665,7 +1665,8 @@ int ath11k_wmi_vdev_install_key(struct ath11k *ar,
 	tlv = (struct wmi_tlv *)(skb->data + sizeof(*cmd));
 	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_BYTE) |
 		      FIELD_PREP(WMI_TLV_LEN, key_len_aligned);
-	memcpy(tlv->value, (u8 *)arg->key_data, key_len_aligned);
+	if (arg->key_data)
+		memcpy(tlv->value, (u8 *)arg->key_data, key_len_aligned);
 
 	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_VDEV_INSTALL_KEY_CMDID);
 	if (ret) {
@@ -5421,7 +5422,7 @@ static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *sk
 		ar = ab->pdevs[pdev_idx].ar;
 		kfree(ab->new_regd[pdev_idx]);
 		ab->new_regd[pdev_idx] = regd;
-		ieee80211_queue_work(ar->hw, &ar->regd_update_work);
+		queue_work(ab->workqueue, &ar->regd_update_work);
 	} else {
 		/* This regd would be applied during mac registration and is
 		 * held constant throughout for regd intersection purpose

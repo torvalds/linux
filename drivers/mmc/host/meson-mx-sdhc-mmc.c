@@ -854,6 +854,11 @@ static int meson_mx_sdhc_probe(struct platform_device *pdev)
 		goto err_disable_pclk;
 
 	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		goto err_disable_pclk;
+	}
+
 	ret = devm_request_threaded_irq(dev, irq, meson_mx_sdhc_irq,
 					meson_mx_sdhc_irq_thread, IRQF_ONESHOT,
 					NULL, host);

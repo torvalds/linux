@@ -7725,15 +7725,15 @@ static void mark_ptr_or_null_reg(struct bpf_func_state *state,
 {
 	if (reg_type_may_be_null(reg->type) && reg->id == id &&
 	    !WARN_ON_ONCE(!reg->id)) {
-		/* Old offset (both fixed and variable parts) should
-		 * have been known-zero, because we don't allow pointer
-		 * arithmetic on pointers that might be NULL.
-		 */
 		if (WARN_ON_ONCE(reg->smin_value || reg->smax_value ||
 				 !tnum_equals_const(reg->var_off, 0) ||
 				 reg->off)) {
-			__mark_reg_known_zero(reg);
-			reg->off = 0;
+			/* Old offset (both fixed and variable parts) should
+			 * have been known-zero, because we don't allow pointer
+			 * arithmetic on pointers that might be NULL. If we
+			 * see this happening, don't convert the register.
+			 */
+			return;
 		}
 		if (is_null) {
 			reg->type = SCALAR_VALUE;
@@ -12367,11 +12367,11 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 		log->ubuf = (char __user *) (unsigned long) attr->log_buf;
 		log->len_total = attr->log_size;
 
-		ret = -EINVAL;
 		/* log attributes have to be sane */
-		if (log->len_total < 128 || log->len_total > UINT_MAX >> 2 ||
-		    !log->level || !log->ubuf || log->level & ~BPF_LOG_MASK)
+		if (!bpf_verifier_log_attr_valid(log)) {
+			ret = -EINVAL;
 			goto err_unlock;
+		}
 	}
 
 	if (IS_ERR(btf_vmlinux)) {
