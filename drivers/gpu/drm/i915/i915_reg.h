@@ -5130,16 +5130,14 @@ enum {
 #define _PIPEB_DATA_M_G4X	0x71050
 
 /* Transfer unit size for display port - 1, default is 0x3f (for TU size 64) */
-#define  TU_SIZE(x)             (((x) - 1) << 25) /* default size 64 */
-#define  TU_SIZE_SHIFT		25
-#define  TU_SIZE_MASK           (0x3f << 25)
+#define  TU_SIZE_MASK		REG_GENMASK(30, 25)
+#define  TU_SIZE(x)		REG_FIELD_PREP(TU_SIZE_MASK, (x) - 1) /* default size 64 */
 
-#define  DATA_LINK_M_N_MASK	(0xffffff)
+#define  DATA_LINK_M_N_MASK	REG_GENMASK(23, 0)
 #define  DATA_LINK_N_MAX	(0x800000)
 
 #define _PIPEA_DATA_N_G4X	0x70054
 #define _PIPEB_DATA_N_G4X	0x71054
-#define   PIPE_GMCH_DATA_N_MASK			(0xffffff)
 
 /*
  * Computing Link M and N values for the Display Port link
@@ -5154,11 +5152,8 @@ enum {
 
 #define _PIPEA_LINK_M_G4X	0x70060
 #define _PIPEB_LINK_M_G4X	0x71060
-#define   PIPEA_DP_LINK_M_MASK			(0xffffff)
-
 #define _PIPEA_LINK_N_G4X	0x70064
 #define _PIPEB_LINK_N_G4X	0x71064
-#define   PIPEA_DP_LINK_N_MASK			(0xffffff)
 
 #define PIPE_DATA_M_G4X(pipe) _MMIO_PIPE(pipe, _PIPEA_DATA_M_G4X, _PIPEB_DATA_M_G4X)
 #define PIPE_DATA_N_G4X(pipe) _MMIO_PIPE(pipe, _PIPEA_DATA_N_G4X, _PIPEB_DATA_N_G4X)
@@ -6761,24 +6756,13 @@ enum {
 
 
 #define _PIPEA_DATA_M1		0x60030
-#define  PIPE_DATA_M1_OFFSET    0
 #define _PIPEA_DATA_N1		0x60034
-#define  PIPE_DATA_N1_OFFSET    0
-
 #define _PIPEA_DATA_M2		0x60038
-#define  PIPE_DATA_M2_OFFSET    0
 #define _PIPEA_DATA_N2		0x6003c
-#define  PIPE_DATA_N2_OFFSET    0
-
 #define _PIPEA_LINK_M1		0x60040
-#define  PIPE_LINK_M1_OFFSET    0
 #define _PIPEA_LINK_N1		0x60044
-#define  PIPE_LINK_N1_OFFSET    0
-
 #define _PIPEA_LINK_M2		0x60048
-#define  PIPE_LINK_M2_OFFSET    0
 #define _PIPEA_LINK_N2		0x6004c
-#define  PIPE_LINK_N2_OFFSET    0
 
 /* PIPEB timing regs are same start from 0x61000 */
 

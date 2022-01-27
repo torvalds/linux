@@ -3865,11 +3865,11 @@ static void intel_get_m_n(struct drm_i915_private *i915,
 			  i915_reg_t data_m_reg, i915_reg_t data_n_reg,
 			  i915_reg_t link_m_reg, i915_reg_t link_n_reg)
 {
-	m_n->link_m = intel_de_read(i915, link_m_reg);
-	m_n->link_n = intel_de_read(i915, link_n_reg);
-	m_n->gmch_m = intel_de_read(i915, data_m_reg) & ~TU_SIZE_MASK;
-	m_n->gmch_n = intel_de_read(i915, data_n_reg);
-	m_n->tu = ((intel_de_read(i915, data_m_reg) & TU_SIZE_MASK) >> TU_SIZE_SHIFT) + 1;
+	m_n->link_m = intel_de_read(i915, link_m_reg) & DATA_LINK_M_N_MASK;
+	m_n->link_n = intel_de_read(i915, link_n_reg) & DATA_LINK_M_N_MASK;
+	m_n->gmch_m = intel_de_read(i915, data_m_reg) & DATA_LINK_M_N_MASK;
+	m_n->gmch_n = intel_de_read(i915, data_n_reg) & DATA_LINK_M_N_MASK;
+	m_n->tu = REG_FIELD_GET(TU_SIZE_MASK, intel_de_read(i915, data_m_reg)) + 1;
 }
 
 static void intel_pch_transcoder_get_m_n(struct intel_crtc *crtc,
