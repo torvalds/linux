@@ -869,133 +869,51 @@ SYM_FUNC_END(aesbs_xts_decrypt)
 
 	/*
 	 * aesbs_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[],
-	 *		     int rounds, int blocks, u8 iv[], u8 final[])
+	 *		     int rounds, int blocks, u8 iv[])
 	 */
 SYM_FUNC_START(aesbs_ctr_encrypt)
-	frame_push	8
+	stp		x29, x30, [sp, #-16]!
+	mov		x29, sp
 
-	mov		x19, x0
-	mov		x20, x1
-	mov		x21, x2
-	mov		x22, x3
-	mov		x23, x4
-	mov		x24, x5
-	mov		x25, x6
-
-	cmp		x25, #0
-	cset		x26, ne
-	add		x23, x23, x26		// do one extra block if final
-
-	ldp		x7, x8, [x24]
-	ld1		{v0.16b}, [x24]
+	ldp		x7, x8, [x5]
+	ld1		{v0.16b}, [x5]
 CPU_LE(	rev		x7, x7		)
 CPU_LE(	rev		x8, x8		)
 	adds		x8, x8, #1
 	adc		x7, x7, xzr
 
-99:	mov		x9, #1
-	lsl		x9, x9, x23
-	subs		w23, w23, #8
-	csel		x23, x23, xzr, pl
-	csel		x9, x9, xzr, le
-
-	tbnz		x9, #1, 0f
-	next_ctr	v1
-	tbnz		x9, #2, 0f
+0:	next_ctr	v1
 	next_ctr	v2
-	tbnz		x9, #3, 0f
 	next_ctr	v3
-	tbnz		x9, #4, 0f
 	next_ctr	v4
-	tbnz		x9, #5, 0f
 	next_ctr	v5
-	tbnz		x9, #6, 0f
 	next_ctr	v6
-	tbnz		x9, #7, 0f
 	next_ctr	v7
 
-0:	mov		bskey, x21
-	mov		rounds, x22
+	mov		bskey, x2
+	mov		rounds, x3
 	bl		aesbs_encrypt8
 
-	lsr		x9, x9, x26		// disregard the extra block
-	tbnz		x9, #0, 0f
+	ld1		{ v8.16b-v11.16b}, [x1], #64
+	ld1		{v12.16b-v15.16b}, [x1], #64
 
-	ld1		{v8.16b}, [x20], #16
-	eor		v0.16b, v0.16b, v8.16b
-	st1		{v0.16b}, [x19], #16
-	tbnz		x9, #1, 1f
+	eor		v8.16b, v0.16b, v8.16b
+	eor		v9.16b, v1.16b, v9.16b
+	eor		v10.16b, v4.16b, v10.16b
+	eor		v11.16b, v6.16b, v11.16b
+	eor		v12.16b, v3.16b, v12.16b
+	eor		v13.16b, v7.16b, v13.16b
+	eor		v14.16b, v2.16b, v14.16b
+	eor		v15.16b, v5.16b, v15.16b
 
-	ld1		{v9.16b}, [x20], #16
-	eor		v1.16b, v1.16b, v9.16b
-	st1		{v1.16b}, [x19], #16
-	tbnz		x9, #2, 2f
+	st1		{ v8.16b-v11.16b}, [x0], #64
+	st1		{v12.16b-v15.16b}, [x0], #64
 
-	ld1		{v10.16b}, [x20], #16
-	eor		v4.16b, v4.16b, v10.16b
-	st1		{v4.16b}, [x19], #16
-	tbnz		x9, #3, 3f
+	next_ctr	v0
+	subs		x4, x4, #8
+	b.gt		0b
 
-	ld1		{v11.16b}, [x20], #16
-	eor		v6.16b, v6.16b, v11.16b
-	st1		{v6.16b}, [x19], #16
-	tbnz		x9, #4, 4f
-
-	ld1		{v12.16b}, [x20], #16
-	eor		v3.16b, v3.16b, v12.16b
-	st1		{v3.16b}, [x19], #16
-	tbnz		x9, #5, 5f
-
-	ld1		{v13.16b}, [x20], #16
-	eor		v7.16b, v7.16b, v13.16b
-	st1		{v7.16b}, [x19], #16
-	tbnz		x9, #6, 6f
-
-	ld1		{v14.16b}, [x20], #16
-	eor		v2.16b, v2.16b, v14.16b
-	st1		{v2.16b}, [x19], #16
-	tbnz		x9, #7, 7f
-
-	ld1		{v15.16b}, [x20], #16
-	eor		v5.16b, v5.16b, v15.16b
-	st1		{v5.16b}, [x19], #16
-
-8:	next_ctr	v0
-	st1		{v0.16b}, [x24]
-	cbz		x23, .Lctr_done
-
-	b		99b
-
-.Lctr_done:
-	frame_pop
+	st1		{v0.16b}, [x5]
+	ldp		x29, x30, [sp], #16
 	ret
-
-	/*
-	 * If we are handling the tail of the input (x6 != NULL), return the
-	 * final keystream block back to the caller.
-	 */
-0:	cbz		x25, 8b
-	st1		{v0.16b}, [x25]
-	b		8b
-1:	cbz		x25, 8b
-	st1		{v1.16b}, [x25]
-	b		8b
-2:	cbz		x25, 8b
-	st1		{v4.16b}, [x25]
-	b		8b
-3:	cbz		x25, 8b
-	st1		{v6.16b}, [x25]
-	b		8b
-4:	cbz		x25, 8b
-	st1		{v3.16b}, [x25]
-	b		8b
-5:	cbz		x25, 8b
-	st1		{v7.16b}, [x25]
-	b		8b
-6:	cbz		x25, 8b
-	st1		{v2.16b}, [x25]
-	b		8b
-7:	cbz		x25, 8b
-	st1		{v5.16b}, [x25]
-	b		8b
 SYM_FUNC_END(aesbs_ctr_encrypt)
