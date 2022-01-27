@@ -993,117 +993,6 @@
 #define GEN7_MEDIA_MAX_REQ_COUNT	_MMIO(0x4070)
 #define GEN7_GFX_MAX_REQ_COUNT		_MMIO(0x4074)
 
-#define GAMTARBMODE		_MMIO(0x04a08)
-#define   ARB_MODE_BWGTLB_DISABLE (1 << 9)
-#define   ARB_MODE_SWIZZLE_BDW	(1 << 1)
-#define RENDER_HWS_PGA_GEN7	_MMIO(0x04080)
-
-#define _RING_FAULT_REG_RCS        0x4094
-#define _RING_FAULT_REG_VCS        0x4194
-#define _RING_FAULT_REG_BCS        0x4294
-#define _RING_FAULT_REG_VECS       0x4394
-#define RING_FAULT_REG(engine)     _MMIO(_PICK((engine)->class, \
-					       _RING_FAULT_REG_RCS, \
-					       _RING_FAULT_REG_VCS, \
-					       _RING_FAULT_REG_VECS, \
-					       _RING_FAULT_REG_BCS))
-#define GEN8_RING_FAULT_REG	_MMIO(0x4094)
-#define GEN12_RING_FAULT_REG	_MMIO(0xcec4)
-#define   GEN8_RING_FAULT_ENGINE_ID(x)	(((x) >> 12) & 0x7)
-#define   RING_FAULT_GTTSEL_MASK (1 << 11)
-#define   RING_FAULT_SRCID(x)	(((x) >> 3) & 0xff)
-#define   RING_FAULT_FAULT_TYPE(x) (((x) >> 1) & 0x3)
-#define   RING_FAULT_VALID	(1 << 0)
-#define DONE_REG		_MMIO(0x40b0)
-#define GEN12_GAM_DONE		_MMIO(0xcf68)
-#define GEN8_PRIVATE_PAT_LO	_MMIO(0x40e0)
-#define GEN8_PRIVATE_PAT_HI	_MMIO(0x40e0 + 4)
-#define GEN10_PAT_INDEX(index)	_MMIO(0x40e0 + (index) * 4)
-#define GEN12_PAT_INDEX(index)	_MMIO(0x4800 + (index) * 4)
-#define BSD_HWS_PGA_GEN7	_MMIO(0x04180)
-#define GEN12_GFX_CCS_AUX_NV	_MMIO(0x4208)
-#define GEN12_VD0_AUX_NV	_MMIO(0x4218)
-#define GEN12_VD1_AUX_NV	_MMIO(0x4228)
-#define GEN12_VD2_AUX_NV	_MMIO(0x4298)
-#define GEN12_VD3_AUX_NV	_MMIO(0x42A8)
-#define GEN12_VE0_AUX_NV	_MMIO(0x4238)
-#define GEN12_VE1_AUX_NV	_MMIO(0x42B8)
-#define   AUX_INV		REG_BIT(0)
-#define BLT_HWS_PGA_GEN7	_MMIO(0x04280)
-#define VEBOX_HWS_PGA_GEN7	_MMIO(0x04380)
-
-#define GUCPMTIMESTAMP          _MMIO(0xC3E8)
-
-#define GEN7_TLB_RD_ADDR	_MMIO(0x4700)
-
-#define GEN9_GAMT_ECO_REG_RW_IA _MMIO(0x4ab0)
-#define   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS	(1 << 18)
-
-#define GEN8_GAMW_ECO_DEV_RW_IA _MMIO(0x4080)
-#define   GAMW_ECO_ENABLE_64K_IPS_FIELD 0xF
-#define   GAMW_ECO_DEV_CTX_RELOAD_DISABLE	(1 << 7)
-
-#define GAMT_CHKN_BIT_REG	_MMIO(0x4ab8)
-#define   GAMT_CHKN_DISABLE_L3_COH_PIPE			(1 << 31)
-#define   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING	(1 << 28)
-#define   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT	(1 << 24)
-
-#define GEN8_RTCR	_MMIO(0x4260)
-#define GEN8_M1TCR	_MMIO(0x4264)
-#define GEN8_M2TCR	_MMIO(0x4268)
-#define GEN8_BTCR	_MMIO(0x426c)
-#define GEN8_VTCR	_MMIO(0x4270)
-
-#if 0
-#define PRB0_TAIL	_MMIO(0x2030)
-#define PRB0_HEAD	_MMIO(0x2034)
-#define PRB0_START	_MMIO(0x2038)
-#define PRB0_CTL	_MMIO(0x203c)
-#define PRB1_TAIL	_MMIO(0x2040) /* 915+ only */
-#define PRB1_HEAD	_MMIO(0x2044) /* 915+ only */
-#define PRB1_START	_MMIO(0x2048) /* 915+ only */
-#define PRB1_CTL	_MMIO(0x204c) /* 915+ only */
-#endif
-#define IPEIR_I965	_MMIO(0x2064)
-#define IPEHR_I965	_MMIO(0x2068)
-#define GEN7_SC_INSTDONE	_MMIO(0x7100)
-#define GEN12_SC_INSTDONE_EXTRA		_MMIO(0x7104)
-#define GEN12_SC_INSTDONE_EXTRA2	_MMIO(0x7108)
-#define GEN7_SAMPLER_INSTDONE	_MMIO(0xe160)
-#define GEN7_ROW_INSTDONE	_MMIO(0xe164)
-#define XEHPG_INSTDONE_GEOM_SVG		_MMIO(0x666c)
-#define MCFG_MCR_SELECTOR		_MMIO(0xfd0)
-#define SF_MCR_SELECTOR			_MMIO(0xfd8)
-#define GEN8_MCR_SELECTOR		_MMIO(0xfdc)
-#define   GEN8_MCR_SLICE(slice)		(((slice) & 3) << 26)
-#define   GEN8_MCR_SLICE_MASK		GEN8_MCR_SLICE(3)
-#define   GEN8_MCR_SUBSLICE(subslice)	(((subslice) & 3) << 24)
-#define   GEN8_MCR_SUBSLICE_MASK	GEN8_MCR_SUBSLICE(3)
-#define   GEN11_MCR_SLICE(slice)	(((slice) & 0xf) << 27)
-#define   GEN11_MCR_SLICE_MASK		GEN11_MCR_SLICE(0xf)
-#define   GEN11_MCR_SUBSLICE(subslice)	(((subslice) & 0x7) << 24)
-#define   GEN11_MCR_SUBSLICE_MASK	GEN11_MCR_SUBSLICE(0x7)
-/*
- * On GEN4, only the render ring INSTDONE exists and has a different
- * layout than the GEN7+ version.
- * The GEN2 counterpart of this register is GEN2_INSTDONE.
- */
-#define INSTPS		_MMIO(0x2070) /* 965+ only */
-#define GEN4_INSTDONE1	_MMIO(0x207c) /* 965+ only, aka INSTDONE_2 on SNB */
-#define ACTHD_I965	_MMIO(0x2074)
-#define HWS_PGA		_MMIO(0x2080)
-#define HWS_ADDRESS_MASK	0xfffff000
-#define HWS_START_ADDRESS_SHIFT	4
-#define PWRCTXA		_MMIO(0x2088) /* 965GM+ only */
-#define   PWRCTX_EN	(1 << 0)
-#define GEN2_INSTDONE	_MMIO(0x2090)
-#define NOPID		_MMIO(0x2094)
-#define HWSTAM		_MMIO(0x2098)
-
-#define VDBOX_CGCTL3F18(base)		_MMIO((base) + 0x3f18)
-#define   ALNUNIT_CLKGATE_DIS		REG_BIT(13)
-
-#define ERROR_GEN6	_MMIO(0x40a0)
 #define GEN7_ERR_INT	_MMIO(0x44040)
 #define   ERR_INT_POISON		(1 << 31)
 #define   ERR_INT_MMIO_UNCLAIMED	(1 << 13)
@@ -1115,20 +1004,6 @@
 #define   ERR_INT_PIPE_CRC_DONE(pipe)	(1 << (2 + (pipe) * 3))
 #define   ERR_INT_FIFO_UNDERRUN_A	(1 << 0)
 #define   ERR_INT_FIFO_UNDERRUN(pipe)	(1 << ((pipe) * 3))
-
-#define GEN8_FAULT_TLB_DATA0		_MMIO(0x4b10)
-#define GEN8_FAULT_TLB_DATA1		_MMIO(0x4b14)
-#define GEN12_FAULT_TLB_DATA0		_MMIO(0xceb8)
-#define GEN12_FAULT_TLB_DATA1		_MMIO(0xcebc)
-#define   FAULT_VA_HIGH_BITS		(0xf << 0)
-#define   FAULT_GTT_SEL			(1 << 4)
-
-#define GEN12_GFX_TLB_INV_CR	_MMIO(0xced8)
-#define GEN12_VD_TLB_INV_CR	_MMIO(0xcedc)
-#define GEN12_VE_TLB_INV_CR	_MMIO(0xcee0)
-#define GEN12_BLT_TLB_INV_CR	_MMIO(0xcee4)
-
-#define GEN12_AUX_ERR_DBG		_MMIO(0x43f4)
 
 #define FPGA_DBG		_MMIO(0x42300)
 #define   FPGA_DBG_RM_NOCLAIM	REG_BIT(31)
