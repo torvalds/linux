@@ -222,9 +222,12 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 			   (BROADCAST_STORM_VALUE *
 			   BROADCAST_STORM_PROT_RATE) / 100);
 
-	if (dev->synclko_125)
-		ksz_write8(dev, REG_SW_GLOBAL_OUTPUT_CTRL__1,
-			   SW_ENABLE_REFCLKO | SW_REFCLKO_IS_125MHZ);
+	data8 = SW_ENABLE_REFCLKO;
+	if (dev->synclko_disable)
+		data8 = 0;
+	else if (dev->synclko_125)
+		data8 = SW_ENABLE_REFCLKO | SW_REFCLKO_IS_125MHZ;
+	ksz_write8(dev, REG_SW_GLOBAL_OUTPUT_CTRL__1, data8);
 
 	return 0;
 }
