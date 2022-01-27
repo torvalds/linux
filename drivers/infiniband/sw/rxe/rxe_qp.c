@@ -188,9 +188,6 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 		break;
 	}
 
-	INIT_LIST_HEAD(&qp->grp_list);
-
-	spin_lock_init(&qp->grp_lock);
 	spin_lock_init(&qp->state_lock);
 
 	atomic_set(&qp->ssn, 0);

@@ -232,9 +232,6 @@ struct rxe_qp {
 	struct rxe_av		pri_av;
 	struct rxe_av		alt_av;
 
-	/* list of mcast groups qp has joined (for cleanup) */
-	struct list_head	grp_list;
-	spinlock_t		grp_lock; /* guard grp_list */
 	atomic_t		mcg_num;
 
 	struct sk_buff_head	req_pkts;
@@ -368,9 +365,7 @@ struct rxe_mcg {
 struct rxe_mca {
 	struct rxe_pool_elem	elem;
 	struct list_head	qp_list;
-	struct list_head	grp_list;
 	struct rxe_qp		*qp;
-	struct rxe_mcg		*grp;
 };
 
 struct rxe_port {
