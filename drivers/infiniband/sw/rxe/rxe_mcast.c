@@ -52,8 +52,8 @@ static struct rxe_mc_grp *create_grp(struct rxe_dev *rxe,
 	return grp;
 }
 
-int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
-		      struct rxe_mc_grp **grp_p)
+static int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
+			     struct rxe_mc_grp **grp_p)
 {
 	int err;
 	struct rxe_mc_grp *grp;
@@ -81,7 +81,7 @@ done:
 	return 0;
 }
 
-int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
+static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 			   struct rxe_mc_grp *grp)
 {
 	int err;
@@ -125,8 +125,8 @@ out:
 	return err;
 }
 
-int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
-			    union ib_gid *mgid)
+static int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
+				   union ib_gid *mgid)
 {
 	struct rxe_mc_grp *grp;
 	struct rxe_mc_elem *elem, *tmp;
@@ -193,4 +193,30 @@ void rxe_mc_cleanup(struct rxe_pool_elem *elem)
 
 	rxe_drop_key(grp);
 	rxe_mcast_delete(rxe, &grp->mgid);
+}
+
+int rxe_attach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
+{
+	int err;
+	struct rxe_dev *rxe = to_rdev(ibqp->device);
+	struct rxe_qp *qp = to_rqp(ibqp);
+	struct rxe_mc_grp *grp;
+
+	/* takes a ref on grp if successful */
+	err = rxe_mcast_get_grp(rxe, mgid, &grp);
+	if (err)
+		return err;
+
+	err = rxe_mcast_add_grp_elem(rxe, qp, grp);
+
+	rxe_drop_ref(grp);
+	return err;
+}
+
+int rxe_detach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
+{
+	struct rxe_dev *rxe = to_rdev(ibqp->device);
+	struct rxe_qp *qp = to_rqp(ibqp);
+
+	return rxe_mcast_drop_grp_elem(rxe, qp, mgid);
 }
