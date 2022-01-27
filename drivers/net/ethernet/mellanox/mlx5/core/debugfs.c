@@ -222,6 +222,10 @@ void mlx5_pages_debugfs_init(struct mlx5_core_dev *dev)
 	debugfs_create_u32("fw_pages_total", 0400, pages, &dev->priv.fw_pages);
 	debugfs_create_u32("fw_pages_vfs", 0400, pages, &dev->priv.vfs_pages);
 	debugfs_create_u32("fw_pages_host_pf", 0400, pages, &dev->priv.host_pf_pages);
+	debugfs_create_u32("fw_pages_alloc_failed", 0400, pages, &dev->priv.fw_pages_alloc_failed);
+	debugfs_create_u32("fw_pages_give_dropped", 0400, pages, &dev->priv.give_pages_dropped);
+	debugfs_create_u32("fw_pages_reclaim_discard", 0400, pages,
+			   &dev->priv.reclaim_pages_discard);
 }
 
 void mlx5_pages_debugfs_cleanup(struct mlx5_core_dev *dev)

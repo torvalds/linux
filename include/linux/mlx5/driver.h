@@ -575,6 +575,9 @@ struct mlx5_priv {
 	struct list_head	free_list;
 	u32			vfs_pages;
 	u32			host_pf_pages;
+	u32			fw_pages_alloc_failed;
+	u32			give_pages_dropped;
+	u32			reclaim_pages_discard;
 
 	struct mlx5_core_health health;
 	struct list_head	traps;

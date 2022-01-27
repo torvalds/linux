@@ -352,8 +352,10 @@ retry:
 		if (err) {
 			if (err == -ENOMEM)
 				err = alloc_system_page(dev, function);
-			if (err)
+			if (err) {
+				dev->priv.fw_pages_alloc_failed += (npages - i);
 				goto out_4k;
+			}
 
 			goto retry;
 		}
@@ -372,14 +374,14 @@ retry:
 		/* if triggered by FW and failed by FW ignore */
 		if (event) {
 			err = 0;
-			goto out_4k;
+			goto out_dropped;
 		}
 	}
 	if (err) {
 		err = mlx5_cmd_check(dev, err, in, out);
 		mlx5_core_warn(dev, "func_id 0x%x, npages %d, err %d\n",
 			       func_id, npages, err);
-		goto out_4k;
+		goto out_dropped;
 	}
 
 	dev->priv.fw_pages += npages;
@@ -394,6 +396,8 @@ retry:
 	kvfree(in);
 	return 0;
 
+out_dropped:
+	dev->priv.give_pages_dropped += npages;
 out_4k:
 	for (i--; i >= 0; i--)
 		free_4k(dev, MLX5_GET64(manage_pages_in, in, pas[i]), function);
@@ -516,6 +520,10 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 	mlx5_core_dbg(dev, "func 0x%x, npages %d, outlen %d\n",
 		      func_id, npages, outlen);
 	err = reclaim_pages_cmd(dev, in, sizeof(in), out, outlen);
+	if (err) {
+		npages = MLX5_GET(manage_pages_in, in, input_num_entries);
+		dev->priv.reclaim_pages_discard += npages;
+	}
 	/* if triggered by FW event and failed by FW then ignore */
 	if (event && err == -EREMOTEIO)
 		err = 0;
