@@ -191,7 +191,6 @@ struct rockchip_hdmi {
 	bool unsupported_yuv_input;
 	bool unsupported_deep_color;
 	bool skip_check_420_mode;
-	bool mode_changed;
 	u8 force_output;
 	u8 id;
 	bool hpd_stat;
@@ -1502,7 +1501,7 @@ static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 	struct drm_crtc *crtc = encoder->crtc;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 
-	if (!hdmi->mode_changed) {
+	if (crtc->state->active_changed) {
 		if (!hdmi->id)
 			s->output_if &= ~VOP_OUTPUT_IF_HDMI0;
 		else
@@ -1962,8 +1961,6 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = output_mode;
 	hdmi->bus_format = s->bus_format;
-
-	hdmi->mode_changed = crtc_state->mode_changed;
 
 	if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_BT2020)
 		s->color_space = V4L2_COLORSPACE_BT2020;
