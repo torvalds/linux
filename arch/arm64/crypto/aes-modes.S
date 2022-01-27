@@ -321,7 +321,7 @@ AES_FUNC_END(aes_cbc_cts_decrypt)
 
 	/*
 	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int bytes, u8 ctr[], u8 finalbuf[])
+	 *		   int bytes, u8 ctr[])
 	 */
 
 AES_FUNC_START(aes_ctr_encrypt)
@@ -414,8 +414,8 @@ ST5(	st1		{v4.16b}, [x0], #16		)
 .Lctrtail:
 	/* XOR up to MAX_STRIDE * 16 - 1 bytes of in/output with v0 ... v3/v4 */
 	mov		x16, #16
-	ands		x13, x4, #0xf
-	csel		x13, x13, x16, ne
+	ands		x6, x4, #0xf
+	csel		x13, x6, x16, ne
 
 ST5(	cmp		w4, #64 - (MAX_STRIDE << 4)	)
 ST5(	csel		x14, x16, xzr, gt		)
@@ -424,10 +424,10 @@ ST5(	csel		x14, x16, xzr, gt		)
 	cmp		w4, #32 - (MAX_STRIDE << 4)
 	csel		x16, x16, xzr, gt
 	cmp		w4, #16 - (MAX_STRIDE << 4)
-	ble		.Lctrtail1x
 
 	adr_l		x12, .Lcts_permute_table
 	add		x12, x12, x13
+	ble		.Lctrtail1x
 
 ST5(	ld1		{v5.16b}, [x1], x14		)
 	ld1		{v6.16b}, [x1], x15
@@ -462,11 +462,19 @@ ST5(	st1		{v5.16b}, [x0], x14		)
 	b		.Lctrout
 
 .Lctrtail1x:
-	csel		x0, x0, x6, eq		// use finalbuf if less than a full block
+	sub		x7, x6, #16
+	csel		x6, x6, x7, eq
+	add		x1, x1, x6
+	add		x0, x0, x6
 	ld1		{v5.16b}, [x1]
+	ld1		{v6.16b}, [x0]
 ST5(	mov		v3.16b, v4.16b			)
 	encrypt_block	v3, w3, x2, x8, w7
+	ld1		{v10.16b-v11.16b}, [x12]
+	tbl		v3.16b, {v3.16b}, v10.16b
+	sshr		v11.16b, v11.16b, #7
 	eor		v5.16b, v5.16b, v3.16b
+	bif		v5.16b, v6.16b, v11.16b
 	st1		{v5.16b}, [x0]
 	b		.Lctrout
 AES_FUNC_END(aes_ctr_encrypt)
