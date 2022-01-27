@@ -129,7 +129,7 @@ struct kvm_arch {
 	 * up to 2^10 events (ARMv8.0) or 2^16 events (ARMv8.1+).
 	 */
 	unsigned long *pmu_filter;
-	unsigned int pmuver;
+	struct arm_pmu *arm_pmu;
 
 	u8 pfr0_csv2;
 	u8 pfr0_csv3;
