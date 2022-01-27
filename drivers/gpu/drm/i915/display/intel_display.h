@@ -317,8 +317,8 @@ enum aux_ch {
 /* Used by dp and fdi links */
 struct intel_link_m_n {
 	u32 tu;
-	u32 gmch_m;
-	u32 gmch_n;
+	u32 data_m;
+	u32 data_n;
 	u32 link_m;
 	u32 link_n;
 };

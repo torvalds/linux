@@ -84,7 +84,7 @@ intel_drrs_compute_config(struct intel_dp *intel_dp,
 
 	/* FIXME: abstract this better */
 	if (pipe_config->splitter.enable)
-		pipe_config->dp_m2_n2.gmch_m *= pipe_config->splitter.link_count;
+		pipe_config->dp_m2_n2.data_m *= pipe_config->splitter.link_count;
 }
 
 static void intel_drrs_set_state(struct drm_i915_private *dev_priv,
