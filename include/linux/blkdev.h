@@ -1520,7 +1520,7 @@ void bio_end_io_acct_remapped(struct bio *bio, unsigned long start_time,
 /**
  * bio_end_io_acct - end I/O accounting for bio based drivers
  * @bio:	bio to end account for
- * @start:	start time returned by bio_start_io_acct()
+ * @start_time:	start time returned by bio_start_io_acct()
  */
 static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 {
