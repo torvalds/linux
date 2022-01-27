@@ -38,14 +38,14 @@ EXPORT_SYMBOL(kernel_map);
 #endif
 
 #ifdef CONFIG_64BIT
-u64 satp_mode = !IS_ENABLED(CONFIG_XIP_KERNEL) ? SATP_MODE_48 : SATP_MODE_39;
+u64 satp_mode = !IS_ENABLED(CONFIG_XIP_KERNEL) ? SATP_MODE_57 : SATP_MODE_39;
 #else
 u64 satp_mode = SATP_MODE_32;
 #endif
 EXPORT_SYMBOL(satp_mode);
 
 bool pgtable_l4_enabled = IS_ENABLED(CONFIG_64BIT) && !IS_ENABLED(CONFIG_XIP_KERNEL);
-bool pgtable_l5_enabled = false;
+bool pgtable_l5_enabled = IS_ENABLED(CONFIG_64BIT) && !IS_ENABLED(CONFIG_XIP_KERNEL);
 EXPORT_SYMBOL(pgtable_l4_enabled);
 EXPORT_SYMBOL(pgtable_l5_enabled);
 
@@ -659,6 +659,13 @@ static __init pgprot_t pgprot_from_va(uintptr_t va)
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
 #ifdef CONFIG_64BIT
+static void __init disable_pgtable_l5(void)
+{
+	pgtable_l5_enabled = false;
+	kernel_map.page_offset = PAGE_OFFSET_L4;
+	satp_mode = SATP_MODE_48;
+}
+
 static void __init disable_pgtable_l4(void)
 {
 	pgtable_l4_enabled = false;
@@ -675,12 +682,12 @@ static void __init disable_pgtable_l4(void)
 static __init void set_satp_mode(void)
 {
 	u64 identity_satp, hw_satp;
-	uintptr_t set_satp_mode_pmd;
+	uintptr_t set_satp_mode_pmd = ((unsigned long)set_satp_mode) & PMD_MASK;
+	bool check_l4 = false;
 
-	set_satp_mode_pmd = ((unsigned long)set_satp_mode) & PMD_MASK;
-	create_pgd_mapping(early_pg_dir,
-			   set_satp_mode_pmd, (uintptr_t)early_pud,
-			   PGDIR_SIZE, PAGE_TABLE);
+	create_p4d_mapping(early_p4d,
+			set_satp_mode_pmd, (uintptr_t)early_pud,
+			P4D_SIZE, PAGE_TABLE);
 	create_pud_mapping(early_pud,
 			   set_satp_mode_pmd, (uintptr_t)early_pmd,
 			   PUD_SIZE, PAGE_TABLE);
@@ -692,6 +699,11 @@ static __init void set_satp_mode(void)
 			   set_satp_mode_pmd + PMD_SIZE,
 			   set_satp_mode_pmd + PMD_SIZE,
 			   PMD_SIZE, PAGE_KERNEL_EXEC);
+retry:
+	create_pgd_mapping(early_pg_dir,
+			   set_satp_mode_pmd,
+			   check_l4 ? (uintptr_t)early_pud : (uintptr_t)early_p4d,
+			   PGDIR_SIZE, PAGE_TABLE);
 
 	identity_satp = PFN_DOWN((uintptr_t)&early_pg_dir) | satp_mode;
 
@@ -700,10 +712,17 @@ static __init void set_satp_mode(void)
 	hw_satp = csr_swap(CSR_SATP, 0ULL);
 	local_flush_tlb_all();
 
-	if (hw_satp != identity_satp)
+	if (hw_satp != identity_satp) {
+		if (!check_l4) {
+			disable_pgtable_l5();
+			check_l4 = true;
+			goto retry;
+		}
 		disable_pgtable_l4();
+	}
 
 	memset(early_pg_dir, 0, PAGE_SIZE);
+	memset(early_p4d, 0, PAGE_SIZE);
 	memset(early_pud, 0, PAGE_SIZE);
 	memset(early_pmd, 0, PAGE_SIZE);
 }

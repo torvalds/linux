@@ -151,7 +151,7 @@ config PAGE_OFFSET
 	hex
 	default 0xC0000000 if 32BIT
 	default 0x80000000 if 64BIT && !MMU
-	default 0xffffaf8000000000 if 64BIT
+	default 0xff60000000000000 if 64BIT
 
 config KASAN_SHADOW_OFFSET
 	hex
@@ -202,7 +202,7 @@ config FIX_EARLYCON_MEM
 
 config PGTABLE_LEVELS
 	int
-	default 4 if 64BIT
+	default 5 if 64BIT
 	default 2
 
 config LOCKDEP_SUPPORT
