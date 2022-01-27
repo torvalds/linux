@@ -212,6 +212,11 @@ struct mlxsw_event_listener_item {
 	void *priv;
 };
 
+static int mlxsw_core_trap_groups_set(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->driver->basic_trap_groups_set(mlxsw_core);
+}
+
 /******************
  * EMAD processing
  ******************/
@@ -777,16 +782,10 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 	if (err)
 		goto err_trap_register;
 
-	err = mlxsw_core->driver->basic_trap_groups_set(mlxsw_core);
-	if (err)
-		goto err_emad_trap_set;
 	mlxsw_core->emad.use_emad = true;
 
 	return 0;
 
-err_emad_trap_set:
-	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_emad_rx_listener,
-				   mlxsw_core);
 err_trap_register:
 	destroy_workqueue(mlxsw_core->emad_wq);
 	return err;
@@ -2122,6 +2121,10 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 		}
 	}
 
+	err = mlxsw_core_trap_groups_set(mlxsw_core);
+	if (err)
+		goto err_trap_groups_set;
+
 	err = mlxsw_emad_init(mlxsw_core);
 	if (err)
 		goto err_emad_init;
@@ -2181,6 +2184,7 @@ err_fw_rev_validate:
 err_register_params:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
+err_trap_groups_set:
 	kfree(mlxsw_core->lag.mapping);
 err_alloc_lag_mapping:
 	mlxsw_ports_fini(mlxsw_core, reload);
