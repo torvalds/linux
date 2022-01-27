@@ -7,6 +7,24 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 
+static int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid)
+{
+	unsigned char ll_addr[ETH_ALEN];
+
+	ipv6_eth_mc_map((struct in6_addr *)mgid->raw, ll_addr);
+
+	return dev_mc_add(rxe->ndev, ll_addr);
+}
+
+static int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid)
+{
+	unsigned char ll_addr[ETH_ALEN];
+
+	ipv6_eth_mc_map((struct in6_addr *)mgid->raw, ll_addr);
+
+	return dev_mc_del(rxe->ndev, ll_addr);
+}
+
 /* caller should hold mc_grp_pool->pool_lock */
 static struct rxe_mc_grp *create_grp(struct rxe_dev *rxe,
 				     struct rxe_pool *pool,
