@@ -1115,7 +1115,7 @@
 		otg-mode-en-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
 		ti,usb-charger-detection = <&usbc0>;
 
-		ti,battery-regulation-voltage = <4192000>; /* 4.192V */
+		ti,battery-regulation-voltage = <4400000>; /* 4.4V */
 		ti,charge-current = <1600000>; /* 1.6A */
 		ti,termination-current = <66000>;  /* 66mA */
 		ti,precharge-current = <130000>; /* 130mA */
