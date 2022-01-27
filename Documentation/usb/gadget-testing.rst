@@ -734,6 +734,7 @@ The uac2 function provides these attributes in its function directory:
 	c_volume_min     capture volume control min value (in 1/256 dB)
 	c_volume_max     capture volume control max value (in 1/256 dB)
 	c_volume_res     capture volume control resolution (in 1/256 dB)
+	c_hs_bint        capture bInterval for HS/SS (1-4)
 	fb_max           maximum extra bandwidth in async mode
 	p_chmask         playback channel mask
 	p_srate          list of playback sampling rates (comma-separated)
@@ -743,6 +744,7 @@ The uac2 function provides these attributes in its function directory:
 	p_volume_min     playback volume control min value (in 1/256 dB)
 	p_volume_max     playback volume control max value (in 1/256 dB)
 	p_volume_res     playback volume control resolution (in 1/256 dB)
+	p_hs_bint        playback bInterval for HS/SS (1-4)
 	req_number       the number of pre-allocated request for both capture
 	                 and playback
 	function_name    name of the interface

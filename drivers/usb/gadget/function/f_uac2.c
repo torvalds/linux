@@ -343,7 +343,7 @@ static struct usb_endpoint_descriptor hs_epout_desc = {
 
 	/* .bmAttributes = DYNAMIC */
 	/* .wMaxPacketSize = DYNAMIC */
-	.bInterval = 4,
+	/* .bInterval = DYNAMIC */
 };
 
 static struct usb_endpoint_descriptor ss_epout_desc = {
@@ -353,7 +353,7 @@ static struct usb_endpoint_descriptor ss_epout_desc = {
 	.bEndpointAddress = USB_DIR_OUT,
 	/* .bmAttributes = DYNAMIC */
 	/* .wMaxPacketSize = DYNAMIC */
-	.bInterval = 4,
+	/* .bInterval = DYNAMIC */
 };
 
 static struct usb_ss_ep_comp_descriptor ss_epout_desc_comp = {
@@ -477,7 +477,7 @@ static struct usb_endpoint_descriptor hs_epin_desc = {
 
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
 	/* .wMaxPacketSize = DYNAMIC */
-	.bInterval = 4,
+	/* .bInterval = DYNAMIC */
 };
 
 static struct usb_endpoint_descriptor ss_epin_desc = {
@@ -487,7 +487,7 @@ static struct usb_endpoint_descriptor ss_epin_desc = {
 	.bEndpointAddress = USB_DIR_IN,
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
 	/* .wMaxPacketSize = DYNAMIC */
-	.bInterval = 4,
+	/* .bInterval = DYNAMIC */
 };
 
 static struct usb_ss_ep_comp_descriptor ss_epin_desc_comp = {
@@ -965,6 +965,16 @@ static int afunc_validate_opts(struct g_audio *agdev, struct device *dev)
 			return -EINVAL;
 	}
 
+	if ((opts->p_hs_bint < 1) || (opts->p_hs_bint > 4)) {
+		dev_err(dev, "Error: incorrect playback HS/SS bInterval (1-4)\n");
+		return -EINVAL;
+	}
+
+	if ((opts->c_hs_bint < 1) || (opts->c_hs_bint > 4)) {
+		dev_err(dev, "Error: incorrect capture HS/SS bInterval (1-4)\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -1124,6 +1134,11 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 
 		std_ac_if_desc.bNumEndpoints = 1;
 	}
+
+	hs_epin_desc.bInterval = uac2_opts->p_hs_bint;
+	ss_epin_desc.bInterval = uac2_opts->p_hs_bint;
+	hs_epout_desc.bInterval = uac2_opts->c_hs_bint;
+	ss_epout_desc.bInterval = uac2_opts->c_hs_bint;
 
 	/* Calculate wMaxPacketSize according to audio bandwidth */
 	ret = set_ep_max_packet_size(uac2_opts, &fs_epin_desc, USB_SPEED_FULL,
@@ -1801,10 +1816,12 @@ static struct configfs_item_operations f_uac2_item_ops = {
 	.release	= f_uac2_attr_release,
 };
 
+#define uac2_kstrtou8 kstrtou8
 #define uac2_kstrtou32 kstrtou32
 #define uac2_kstrtos16 kstrtos16
 #define uac2_kstrtobool(s, base, res) kstrtobool((s), (res))
 
+static const char *u8_fmt = "%u\n";
 static const char *u32_fmt = "%u\n";
 static const char *s16_fmt = "%hd\n";
 static const char *bool_fmt = "%u\n";
@@ -2004,10 +2021,12 @@ CONFIGFS_ATTR(f_uac2_opts_, name)
 UAC2_ATTRIBUTE(u32, p_chmask);
 UAC2_RATE_ATTRIBUTE(p_srate);
 UAC2_ATTRIBUTE(u32, p_ssize);
+UAC2_ATTRIBUTE(u8, p_hs_bint);
 UAC2_ATTRIBUTE(u32, c_chmask);
 UAC2_RATE_ATTRIBUTE(c_srate);
 UAC2_ATTRIBUTE_SYNC(c_sync);
 UAC2_ATTRIBUTE(u32, c_ssize);
+UAC2_ATTRIBUTE(u8, c_hs_bint);
 UAC2_ATTRIBUTE(u32, req_number);
 
 UAC2_ATTRIBUTE(bool, p_mute_present);
@@ -2028,9 +2047,11 @@ static struct configfs_attribute *f_uac2_attrs[] = {
 	&f_uac2_opts_attr_p_chmask,
 	&f_uac2_opts_attr_p_srate,
 	&f_uac2_opts_attr_p_ssize,
+	&f_uac2_opts_attr_p_hs_bint,
 	&f_uac2_opts_attr_c_chmask,
 	&f_uac2_opts_attr_c_srate,
 	&f_uac2_opts_attr_c_ssize,
+	&f_uac2_opts_attr_c_hs_bint,
 	&f_uac2_opts_attr_c_sync,
 	&f_uac2_opts_attr_req_number,
 	&f_uac2_opts_attr_fb_max,
@@ -2083,9 +2104,11 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 	opts->p_chmask = UAC2_DEF_PCHMASK;
 	opts->p_srates[0] = UAC2_DEF_PSRATE;
 	opts->p_ssize = UAC2_DEF_PSSIZE;
+	opts->p_hs_bint = UAC2_DEF_PHSBINT;
 	opts->c_chmask = UAC2_DEF_CCHMASK;
 	opts->c_srates[0] = UAC2_DEF_CSRATE;
 	opts->c_ssize = UAC2_DEF_CSSIZE;
+	opts->c_hs_bint = UAC2_DEF_CHSBINT;
 	opts->c_sync = UAC2_DEF_CSYNC;
 
 	opts->p_mute_present = UAC2_DEF_MUTE_PRESENT;
