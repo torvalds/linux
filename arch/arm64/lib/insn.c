@@ -1379,7 +1379,7 @@ static u32 aarch64_encode_immediate(u64 imm,
 		 * Compute the rotation to get a continuous set of
 		 * ones, with the first bit set at position 0
 		 */
-		ror = fls(~imm);
+		ror = fls64(~imm);
 	}
 
 	/*
