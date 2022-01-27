@@ -58,8 +58,8 @@ struct dio_bus dio_bus = {
  * marking the names[] array as .initdata ?
  */
 struct dioname {
-        int id;
-        const char *name;
+	int id;
+	const char *name;
 };
 
 /* useful macro */
@@ -67,20 +67,20 @@ struct dioname {
 #define DIOFBNAME(x) { DIO_ENCODE_ID(DIO_ID_FBUFFER, DIO_ID2_##x), DIO_DESC2_##x }
 
 static struct dioname names[] = {
-        DIONAME(DCA0), DIONAME(DCA0REM), DIONAME(DCA1), DIONAME(DCA1REM),
-        DIONAME(DCM), DIONAME(DCMREM),
-        DIONAME(LAN),
-        DIONAME(FHPIB), DIONAME(NHPIB),
-        DIONAME(SCSI0), DIONAME(SCSI1), DIONAME(SCSI2), DIONAME(SCSI3),
-        DIONAME(FBUFFER),
-        DIONAME(PARALLEL), DIONAME(VME), DIONAME(DCL), DIONAME(DCLREM),
-        DIONAME(MISC0), DIONAME(MISC1), DIONAME(MISC2), DIONAME(MISC3),
-        DIONAME(MISC4), DIONAME(MISC5), DIONAME(MISC6), DIONAME(MISC7),
+	DIONAME(DCA0), DIONAME(DCA0REM), DIONAME(DCA1), DIONAME(DCA1REM),
+	DIONAME(DCM), DIONAME(DCMREM),
+	DIONAME(LAN),
+	DIONAME(FHPIB), DIONAME(NHPIB),
+	DIONAME(SCSI0), DIONAME(SCSI1), DIONAME(SCSI2), DIONAME(SCSI3),
+	DIONAME(FBUFFER),
+	DIONAME(PARALLEL), DIONAME(VME), DIONAME(DCL), DIONAME(DCLREM),
+	DIONAME(MISC0), DIONAME(MISC1), DIONAME(MISC2), DIONAME(MISC3),
+	DIONAME(MISC4), DIONAME(MISC5), DIONAME(MISC6), DIONAME(MISC7),
 	DIONAME(MISC8), DIONAME(MISC9), DIONAME(MISC10), DIONAME(MISC11),
-        DIONAME(MISC12), DIONAME(MISC13),
-        DIOFBNAME(GATORBOX), DIOFBNAME(TOPCAT), DIOFBNAME(RENAISSANCE),
-        DIOFBNAME(LRCATSEYE), DIOFBNAME(HRCCATSEYE), DIOFBNAME(HRMCATSEYE),
-        DIOFBNAME(DAVINCI), DIOFBNAME(XXXCATSEYE), DIOFBNAME(HYPERION),
+	DIONAME(MISC12), DIONAME(MISC13),
+	DIOFBNAME(GATORBOX), DIOFBNAME(TOPCAT), DIOFBNAME(RENAISSANCE),
+	DIOFBNAME(LRCATSEYE), DIOFBNAME(HRCCATSEYE), DIOFBNAME(HRMCATSEYE),
+	DIOFBNAME(DAVINCI), DIOFBNAME(XXXCATSEYE), DIOFBNAME(HYPERION),
 	DIOFBNAME(XGENESIS), DIOFBNAME(TIGER), DIOFBNAME(YGENESIS)
 };
 
@@ -92,13 +92,13 @@ static const char unknowndioname[]
 
 static const char *dio_getname(int id)
 {
-        /* return pointer to a constant string describing the board with given ID */
+	/* return pointer to a constant string describing the board with given ID */
 	unsigned int i;
 	for (i = 0; i < ARRAY_SIZE(names); i++)
 		if (names[i].id == id)
-                        return names[i].name;
+			return names[i].name;
 
-        return unknowndioname;
+	return unknowndioname;
 }
 
 #else
@@ -120,10 +120,10 @@ int __init dio_find(int deviceid)
 		void *va;
 		unsigned long pa;
 
-                if (DIO_SCINHOLE(scode))
-                        continue;
+		if (DIO_SCINHOLE(scode))
+			continue;
 
-                pa = dio_scodetophysaddr(scode);
+		pa = dio_scodetophysaddr(scode);
 
 		if (!pa)
 			continue;
@@ -137,15 +137,15 @@ int __init dio_find(int deviceid)
 				(unsigned char *)va + DIO_IDOFF, 1)) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
-                        continue;             /* no board present at that select code */
+			continue;	     /* no board present at that select code */
 		}
 
 		prid = DIO_ID(va);
 
-                if (DIO_NEEDSSECID(prid)) {
-                        secid = DIO_SECID(va);
-                        id = DIO_ENCODE_ID(prid, secid);
-                } else
+		if (DIO_NEEDSSECID(prid)) {
+			secid = DIO_SECID(va);
+			id = DIO_ENCODE_ID(prid, secid);
+		} else
 			id = prid;
 
 		if (id == deviceid) {
@@ -189,12 +189,12 @@ static int __init dio_init(void)
 
 	/* Register all devices */
 	for (scode = 0; scode < DIO_SCMAX; ++scode) {
-                u_char prid, secid = 0;        /* primary, secondary ID bytes */
-                u_char *va;
+		u_char prid, secid = 0;	/* primary, secondary ID bytes */
+		u_char *va;
 		unsigned long pa;
 
-                if (DIO_SCINHOLE(scode))
-                        continue;
+		if (DIO_SCINHOLE(scode))
+			continue;
 
 		pa = dio_scodetophysaddr(scode);
 
@@ -210,10 +210,10 @@ static int __init dio_init(void)
 				(unsigned char *)va + DIO_IDOFF, 1)) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);
-                        continue;              /* no board present at that select code */
+			continue;	      /* no board present at that select code */
 		}
 
-                /* Found a board, allocate it an entry in the list */
+		/* Found a board, allocate it an entry in the list */
 		dev = kzalloc(sizeof(struct dio_dev), GFP_KERNEL);
 		if (!dev)
 			return -ENOMEM;
@@ -226,19 +226,19 @@ static int __init dio_init(void)
 		dev->resource.end = pa + DIO_SIZE(scode, va);
 		dev_set_name(&dev->dev, "%02x", scode);
 
-                /* read the ID byte(s) and encode if necessary. */
+		/* read the ID byte(s) and encode if necessary. */
 		prid = DIO_ID(va);
 
-                if (DIO_NEEDSSECID(prid)) {
-                        secid = DIO_SECID(va);
-                        dev->id = DIO_ENCODE_ID(prid, secid);
-                } else
-                        dev->id = prid;
+		if (DIO_NEEDSSECID(prid)) {
+			secid = DIO_SECID(va);
+			dev->id = DIO_ENCODE_ID(prid, secid);
+		} else
+			dev->id = prid;
 
-                dev->ipl = DIO_IPL(va);
+		dev->ipl = DIO_IPL(va);
 		strcpy(dev->name, dio_getname(dev->id));
                 printk(KERN_INFO "select code %3d: ipl %d: ID %02X", dev->scode, dev->ipl, prid);
-                if (DIO_NEEDSSECID(prid))
+		if (DIO_NEEDSSECID(prid))
                         printk(":%02X", secid);
                 printk(": %s\n", dev->name);
 
@@ -253,7 +253,7 @@ static int __init dio_init(void)
 		error = dio_create_sysfs_dev_files(dev);
 		if (error)
 			dev_err(&dev->dev, "Error creating sysfs files\n");
-        }
+	}
 	return 0;
 }
 
@@ -265,11 +265,11 @@ subsys_initcall(dio_init);
 unsigned long dio_scodetophysaddr(int scode)
 {
 	if (scode >= DIOII_SCBASE)
-                return (DIOII_BASE + (scode - 132) * DIOII_DEVSIZE);
+		return (DIOII_BASE + (scode - 132) * DIOII_DEVSIZE);
 	else if (scode > DIO_SCMAX || scode < 0)
-                return 0;
-        else if (DIO_SCINHOLE(scode))
-                return 0;
+		return 0;
+	else if (DIO_SCINHOLE(scode))
+		return 0;
 
-        return (DIO_BASE + scode * DIO_DEVSIZE);
+	return (DIO_BASE + scode * DIO_DEVSIZE);
 }
