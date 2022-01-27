@@ -310,3 +310,27 @@ void i3c_driver_unregister(struct i3c_driver *drv)
 	driver_unregister(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(i3c_driver_unregister);
+
+/**
+ * i3c_device_getstatus_ccc() - receive device status
+ *
+ * @dev: I3C device to get the status for
+ * @info: I3C device info to fill the status in
+ *
+ * Receive I3C device status from I3C master device via corresponding CCC
+ * command
+ *
+ * Return: 0 in case of success, a negative error code otherwise.
+ */
+int i3c_device_getstatus_ccc(struct i3c_device *dev, struct i3c_device_info *info)
+{
+	int ret = -EINVAL;
+
+	i3c_bus_normaluse_lock(dev->bus);
+	if (dev->desc)
+		ret = i3c_dev_getstatus_locked(dev->desc, info);
+	i3c_bus_normaluse_unlock(dev->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_getstatus_ccc);
