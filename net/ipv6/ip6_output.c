@@ -1807,6 +1807,15 @@ int ip6_append_data(struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(ip6_append_data);
 
+static void ip6_cork_steal_dst(struct sk_buff *skb, struct inet_cork_full *cork)
+{
+	struct dst_entry *dst = cork->base.dst;
+
+	cork->base.dst = NULL;
+	cork->base.flags &= ~IPCORK_ALLFRAG;
+	skb_dst_set(skb, dst);
+}
+
 static void ip6_cork_release(struct inet_cork_full *cork,
 			     struct inet6_cork *v6_cork)
 {
@@ -1889,7 +1898,7 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 
 	skb->tstamp = cork->base.transmit_time;
 
-	skb_dst_set(skb, dst_clone(&rt->dst));
+	ip6_cork_steal_dst(skb, cork);
 	IP6_UPD_PO_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
 	if (proto == IPPROTO_ICMPV6) {
 		struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
