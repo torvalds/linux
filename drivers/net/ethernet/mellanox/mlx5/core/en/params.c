@@ -398,8 +398,12 @@ void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e
 	};
 }
 
-static int mlx5e_max_nonlinear_mtu(int first_frag_size, int frag_size)
+static int mlx5e_max_nonlinear_mtu(int first_frag_size, int frag_size, bool xdp)
 {
+	if (xdp)
+		/* XDP requires all fragments to be of the same size. */
+		return first_frag_size + (MLX5E_MAX_RX_FRAGS - 1) * frag_size;
+
 	/* Optimization for small packets: the last fragment is bigger than the others. */
 	return first_frag_size + (MLX5E_MAX_RX_FRAGS - 2) * frag_size + PAGE_SIZE;
 }
@@ -438,12 +442,14 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	headroom = mlx5e_get_linear_rq_headroom(params, xsk);
 	first_frag_size_max = SKB_WITH_OVERHEAD(frag_size_max - headroom);
 
-	max_mtu = mlx5e_max_nonlinear_mtu(first_frag_size_max, frag_size_max);
+	max_mtu = mlx5e_max_nonlinear_mtu(first_frag_size_max, frag_size_max,
+					  params->xdp_prog);
 	if (byte_count > max_mtu) {
 		frag_size_max = PAGE_SIZE;
 		first_frag_size_max = SKB_WITH_OVERHEAD(frag_size_max - headroom);
 
-		max_mtu = mlx5e_max_nonlinear_mtu(first_frag_size_max, frag_size_max);
+		max_mtu = mlx5e_max_nonlinear_mtu(first_frag_size_max, frag_size_max,
+						  params->xdp_prog);
 		if (byte_count > max_mtu) {
 			mlx5_core_err(mdev, "MTU %u is too big for non-linear legacy RQ (max %d)\n",
 				      params->sw_mtu, max_mtu);
@@ -463,13 +469,17 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 		info->arr[i].frag_size = frag_size;
 		buf_size += frag_size;
 
-		if (i == 0) {
-			/* Ensure that headroom and tailroom are included. */
-			frag_size += headroom;
-			frag_size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+		if (params->xdp_prog) {
+			/* XDP multi buffer expects fragments of the same size. */
+			info->arr[i].frag_stride = frag_size_max;
+		} else {
+			if (i == 0) {
+				/* Ensure that headroom and tailroom are included. */
+				frag_size += headroom;
+				frag_size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+			}
+			info->arr[i].frag_stride = roundup_pow_of_two(frag_size);
 		}
-
-		info->arr[i].frag_stride = roundup_pow_of_two(frag_size);
 
 		i++;
 	}
