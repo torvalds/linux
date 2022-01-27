@@ -1533,9 +1533,11 @@ back_from_confirm:
 		struct inet_cork_full cork;
 		struct sk_buff *skb;
 
+		cork.fl.u.ip6 = fl6;
+
 		skb = ip6_make_skb(sk, getfrag, msg, ulen,
 				   sizeof(struct udphdr), &ipc6,
-				   &fl6, (struct rt6_info *)dst,
+				   (struct rt6_info *)dst,
 				   msg->msg_flags, &cork);
 		err = PTR_ERR(skb);
 		if (!IS_ERR_OR_NULL(skb))
