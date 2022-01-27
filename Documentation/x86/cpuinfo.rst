@@ -140,8 +140,8 @@ from #define X86_FEATURE_UMIP (16*32 + 2).
 
 In addition, there exists a variety of custom command-line parameters that
 disable specific features. The list of parameters includes, but is not limited
-to, nofsgsbase, and nosmep. 5-level paging can also be disabled using
-"no5lvl". SMEP is disabled with the aforementioned parameter.
+to, nofsgsbase, nosgx, noxsave, etc. 5-level paging can also be disabled using
+"no5lvl".
 
 e: The feature was known to be non-functional.
 ----------------------------------------------
