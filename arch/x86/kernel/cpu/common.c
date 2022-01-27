@@ -1870,14 +1870,6 @@ void identify_secondary_cpu(struct cpuinfo_x86 *c)
 	update_srbds_msr();
 }
 
-static __init int setup_noclflush(char *arg)
-{
-	setup_clear_cpu_cap(X86_FEATURE_CLFLUSH);
-	setup_clear_cpu_cap(X86_FEATURE_CLFLUSHOPT);
-	return 1;
-}
-__setup("noclflush", setup_noclflush);
-
 void print_cpu_info(struct cpuinfo_x86 *c)
 {
 	const char *vendor = NULL;
