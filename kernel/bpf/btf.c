@@ -4886,6 +4886,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	const char *tname = prog->aux->attach_func_name;
 	struct bpf_verifier_log *log = info->log;
 	const struct btf_param *args;
+	const char *tag_value;
 	u32 nr_args, arg;
 	int i, ret;
 
@@ -5038,6 +5039,13 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	info->btf = btf;
 	info->btf_id = t->type;
 	t = btf_type_by_id(btf, t->type);
+
+	if (btf_type_is_type_tag(t)) {
+		tag_value = __btf_name_by_offset(btf, t->name_off);
+		if (strcmp(tag_value, "user") == 0)
+			info->reg_type |= MEM_USER;
+	}
+
 	/* skip modifiers */
 	while (btf_type_is_modifier(t)) {
 		info->btf_id = t->type;
@@ -5064,12 +5072,12 @@ enum bpf_struct_walk_result {
 
 static int btf_struct_walk(struct bpf_verifier_log *log, const struct btf *btf,
 			   const struct btf_type *t, int off, int size,
-			   u32 *next_btf_id)
+			   u32 *next_btf_id, enum bpf_type_flag *flag)
 {
 	u32 i, moff, mtrue_end, msize = 0, total_nelems = 0;
 	const struct btf_type *mtype, *elem_type = NULL;
 	const struct btf_member *member;
-	const char *tname, *mname;
+	const char *tname, *mname, *tag_value;
 	u32 vlen, elem_id, mid;
 
 again:
@@ -5253,7 +5261,8 @@ error:
 		}
 
 		if (btf_type_is_ptr(mtype)) {
-			const struct btf_type *stype;
+			const struct btf_type *stype, *t;
+			enum bpf_type_flag tmp_flag = 0;
 			u32 id;
 
 			if (msize != size || off != moff) {
@@ -5262,9 +5271,19 @@ error:
 					mname, moff, tname, off, size);
 				return -EACCES;
 			}
+
+			/* check __user tag */
+			t = btf_type_by_id(btf, mtype->type);
+			if (btf_type_is_type_tag(t)) {
+				tag_value = __btf_name_by_offset(btf, t->name_off);
+				if (strcmp(tag_value, "user") == 0)
+					tmp_flag = MEM_USER;
+			}
+
 			stype = btf_type_skip_modifiers(btf, mtype->type, &id);
 			if (btf_type_is_struct(stype)) {
 				*next_btf_id = id;
+				*flag = tmp_flag;
 				return WALK_PTR;
 			}
 		}
@@ -5291,13 +5310,14 @@ error:
 int btf_struct_access(struct bpf_verifier_log *log, const struct btf *btf,
 		      const struct btf_type *t, int off, int size,
 		      enum bpf_access_type atype __maybe_unused,
-		      u32 *next_btf_id)
+		      u32 *next_btf_id, enum bpf_type_flag *flag)
 {
+	enum bpf_type_flag tmp_flag = 0;
 	int err;
 	u32 id;
 
 	do {
-		err = btf_struct_walk(log, btf, t, off, size, &id);
+		err = btf_struct_walk(log, btf, t, off, size, &id, &tmp_flag);
 
 		switch (err) {
 		case WALK_PTR:
@@ -5305,6 +5325,7 @@ int btf_struct_access(struct bpf_verifier_log *log, const struct btf *btf,
 			 * we're done.
 			 */
 			*next_btf_id = id;
+			*flag = tmp_flag;
 			return PTR_TO_BTF_ID;
 		case WALK_SCALAR:
 			return SCALAR_VALUE;
@@ -5349,6 +5370,7 @@ bool btf_struct_ids_match(struct bpf_verifier_log *log,
 			  const struct btf *need_btf, u32 need_type_id)
 {
 	const struct btf_type *type;
+	enum bpf_type_flag flag;
 	int err;
 
 	/* Are we already done? */
@@ -5359,7 +5381,7 @@ again:
 	type = btf_type_by_id(btf, id);
 	if (!type)
 		return false;
-	err = btf_struct_walk(log, btf, type, off, 1, &id);
+	err = btf_struct_walk(log, btf, type, off, 1, &id, &flag);
 	if (err != WALK_STRUCT)
 		return false;
 
