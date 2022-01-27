@@ -328,7 +328,6 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 		return PTR_ERR(phylink);
 
 	spx5_port->phylink = phylink;
-	phylink_set_pcs(phylink, &spx5_port->phylink_pcs);
 
 	return 0;
 }
