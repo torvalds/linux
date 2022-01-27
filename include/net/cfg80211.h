@@ -7800,6 +7800,8 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @flags: flags, as defined in enum nl80211_rxmgmt_flags
+ * @rx_tstamp: Hardware timestamp of frame RX in nanoseconds
+ * @ack_tstamp: Hardware timestamp of ack TX in nanoseconds
  */
 struct cfg80211_rx_info {
 	int freq;
@@ -7807,6 +7809,8 @@ struct cfg80211_rx_info {
 	const u8 *buf;
 	size_t len;
 	u32 flags;
+	u64 rx_tstamp;
+	u64 ack_tstamp;
 };
 
 /**

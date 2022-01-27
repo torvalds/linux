@@ -18383,7 +18383,15 @@ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 	     nla_put_u32(msg, NL80211_ATTR_RX_SIGNAL_DBM, info->sig_dbm)) ||
 	    nla_put(msg, NL80211_ATTR_FRAME, info->len, info->buf) ||
 	    (info->flags &&
-	     nla_put_u32(msg, NL80211_ATTR_RXMGMT_FLAGS, info->flags)))
+	     nla_put_u32(msg, NL80211_ATTR_RXMGMT_FLAGS, info->flags)) ||
+	    (info->rx_tstamp && nla_put_u64_64bit(msg,
+						  NL80211_ATTR_RX_HW_TIMESTAMP,
+						  info->rx_tstamp,
+						  NL80211_ATTR_PAD)) ||
+	    (info->ack_tstamp && nla_put_u64_64bit(msg,
+						   NL80211_ATTR_TX_HW_TIMESTAMP,
+						   info->ack_tstamp,
+						   NL80211_ATTR_PAD)))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
