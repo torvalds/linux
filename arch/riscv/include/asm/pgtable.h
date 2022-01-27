@@ -133,6 +133,8 @@ struct pt_alloc_ops {
 	phys_addr_t (*alloc_pmd)(uintptr_t va);
 	pud_t *(*get_pud_virt)(phys_addr_t pa);
 	phys_addr_t (*alloc_pud)(uintptr_t va);
+	p4d_t *(*get_p4d_virt)(phys_addr_t pa);
+	phys_addr_t (*alloc_p4d)(uintptr_t va);
 #endif
 };
 
