@@ -25,12 +25,12 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    balance
    damon/index
    free_page_reporting
+   highmem
 
 TODOLIST:
 * arch_pgtable_helpers
 * free_page_reporting
 * frontswap
-* highmem
 * hmm
 * hwpoison
 * hugetlbfs_reserv
