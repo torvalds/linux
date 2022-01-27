@@ -142,7 +142,7 @@ ssize_t get_uprobe_offset(const void *addr)
 {
 	size_t start, end, base;
 	char buf[256];
-	bool found;
+	bool found = false;
 	FILE *f;
 
 	f = fopen("/proc/self/maps", "r");
