@@ -22,6 +22,11 @@ struct event {
 		u64 running;
 		u64 enabled;
 	} result;
+	/*
+	 * mmap buffer used while recording sample.
+	 * Accessed as "struct perf_event_mmap_page"
+	 */
+	void *mmap_buffer;
 };
 
 void event_init(struct event *e, u64 config);
