@@ -10119,6 +10119,9 @@ static struct ibm_struct proxsensor_driver_data = {
 #define DYTC_CMD_MMC_GET      8 /* To get current MMC function and mode */
 #define DYTC_CMD_RESET    0x1ff /* To reset back to default */
 
+#define DYTC_CMD_FUNC_CAP     3 /* To get DYTC capabilities */
+#define DYTC_FC_MMC           27 /* MMC Mode supported */
+
 #define DYTC_GET_FUNCTION_BIT 8  /* Bits  8-11 - function setting */
 #define DYTC_GET_MODE_BIT     12 /* Bits 12-15 - mode setting */
 
@@ -10330,6 +10333,15 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	/* Check DYTC is enabled and supports mode setting */
 	if (dytc_version < 5)
 		return -ENODEV;
+
+	/* Check what capabilities are supported. Currently MMC is needed */
+	err = dytc_command(DYTC_CMD_FUNC_CAP, &output);
+	if (err)
+		return err;
+	if (!(output & BIT(DYTC_FC_MMC))) {
+		dbg_printk(TPACPI_DBG_INIT, " DYTC MMC mode not supported\n");
+		return -ENODEV;
+	}
 
 	dbg_printk(TPACPI_DBG_INIT,
 			"DYTC version %d: thermal mode available\n", dytc_version);
