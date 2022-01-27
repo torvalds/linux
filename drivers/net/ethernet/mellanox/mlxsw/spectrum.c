@@ -2393,45 +2393,6 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return 0;
 }
 
-static int mlxsw_sp_traps_register(struct mlxsw_sp *mlxsw_sp,
-				   const struct mlxsw_listener listeners[],
-				   size_t listeners_count)
-{
-	int i;
-	int err;
-
-	for (i = 0; i < listeners_count; i++) {
-		err = mlxsw_core_trap_register(mlxsw_sp->core,
-					       &listeners[i],
-					       mlxsw_sp);
-		if (err)
-			goto err_listener_register;
-
-	}
-	return 0;
-
-err_listener_register:
-	for (i--; i >= 0; i--) {
-		mlxsw_core_trap_unregister(mlxsw_sp->core,
-					   &listeners[i],
-					   mlxsw_sp);
-	}
-	return err;
-}
-
-static void mlxsw_sp_traps_unregister(struct mlxsw_sp *mlxsw_sp,
-				      const struct mlxsw_listener listeners[],
-				      size_t listeners_count)
-{
-	int i;
-
-	for (i = 0; i < listeners_count; i++) {
-		mlxsw_core_trap_unregister(mlxsw_sp->core,
-					   &listeners[i],
-					   mlxsw_sp);
-	}
-}
-
 static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_trap *trap;
@@ -2456,21 +2417,23 @@ static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_trap_groups_set;
 
-	err = mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp_listener,
-				      ARRAY_SIZE(mlxsw_sp_listener));
+	err = mlxsw_core_traps_register(mlxsw_sp->core, mlxsw_sp_listener,
+					ARRAY_SIZE(mlxsw_sp_listener),
+					mlxsw_sp);
 	if (err)
 		goto err_traps_register;
 
-	err = mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp->listeners,
-				      mlxsw_sp->listeners_count);
+	err = mlxsw_core_traps_register(mlxsw_sp->core, mlxsw_sp->listeners,
+					mlxsw_sp->listeners_count, mlxsw_sp);
 	if (err)
 		goto err_extra_traps_init;
 
 	return 0;
 
 err_extra_traps_init:
-	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
-				  ARRAY_SIZE(mlxsw_sp_listener));
+	mlxsw_core_traps_unregister(mlxsw_sp->core, mlxsw_sp_listener,
+				    ARRAY_SIZE(mlxsw_sp_listener),
+				    mlxsw_sp);
 err_traps_register:
 err_trap_groups_set:
 err_cpu_policers_set:
@@ -2480,10 +2443,11 @@ err_cpu_policers_set:
 
 static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp->listeners,
-				  mlxsw_sp->listeners_count);
-	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
-				  ARRAY_SIZE(mlxsw_sp_listener));
+	mlxsw_core_traps_unregister(mlxsw_sp->core, mlxsw_sp->listeners,
+				    mlxsw_sp->listeners_count,
+				    mlxsw_sp);
+	mlxsw_core_traps_unregister(mlxsw_sp->core, mlxsw_sp_listener,
+				    ARRAY_SIZE(mlxsw_sp_listener), mlxsw_sp);
 	kfree(mlxsw_sp->trap);
 }
 

@@ -2564,6 +2564,45 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_trap_unregister);
 
+int mlxsw_core_traps_register(struct mlxsw_core *mlxsw_core,
+			      const struct mlxsw_listener *listeners,
+			      size_t listeners_count, void *priv)
+{
+	int i, err;
+
+	for (i = 0; i < listeners_count; i++) {
+		err = mlxsw_core_trap_register(mlxsw_core,
+					       &listeners[i],
+					       priv);
+		if (err)
+			goto err_listener_register;
+	}
+	return 0;
+
+err_listener_register:
+	for (i--; i >= 0; i--) {
+		mlxsw_core_trap_unregister(mlxsw_core,
+					   &listeners[i],
+					   priv);
+	}
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_core_traps_register);
+
+void mlxsw_core_traps_unregister(struct mlxsw_core *mlxsw_core,
+				 const struct mlxsw_listener *listeners,
+				 size_t listeners_count, void *priv)
+{
+	int i;
+
+	for (i = 0; i < listeners_count; i++) {
+		mlxsw_core_trap_unregister(mlxsw_core,
+					   &listeners[i],
+					   priv);
+	}
+}
+EXPORT_SYMBOL(mlxsw_core_traps_unregister);
+
 int mlxsw_core_trap_state_set(struct mlxsw_core *mlxsw_core,
 			      const struct mlxsw_listener *listener,
 			      bool enabled)
