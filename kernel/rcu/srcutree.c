@@ -697,15 +697,13 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 			if (rcu_seq_done(&ssp->srcu_gp_seq, s) && snp != snp_leaf)
 				return; /* GP already done and CBs recorded. */
 			spin_lock_irqsave_rcu_node(snp, flags);
-			if (ULONG_CMP_GE(snp->srcu_have_cbs[idx], s)) {
-				snp_seq = snp->srcu_have_cbs[idx];
+			snp_seq = snp->srcu_have_cbs[idx];
+			if (ULONG_CMP_GE(snp_seq, s)) {
 				if (snp == snp_leaf && snp_seq == s)
 					snp->srcu_data_have_cbs[idx] |= sdp->grpmask;
 				spin_unlock_irqrestore_rcu_node(snp, flags);
 				if (snp == snp_leaf && snp_seq != s) {
-					srcu_schedule_cbs_sdp(sdp, do_norm
-								   ? SRCU_INTERVAL
-								   : 0);
+					srcu_schedule_cbs_sdp(sdp, do_norm ? SRCU_INTERVAL : 0);
 					return;
 				}
 				if (!do_norm)
