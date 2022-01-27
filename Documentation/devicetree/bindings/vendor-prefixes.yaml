@@ -514,7 +514,7 @@ patternProperties:
   "^hoperun,.*":
     description: Jiangsu HopeRun Software Co., Ltd.
   "^hp,.*":
-    description: Hewlett Packard
+    description: Hewlett Packard Inc.
   "^hsg,.*":
     description: HannStar Display Co.
   "^holtek,.*":
