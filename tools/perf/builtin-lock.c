@@ -65,6 +65,7 @@ struct lock_stat {
 	u64			wait_time_max;
 
 	int			discard; /* flag of blacklist */
+	int			combined;
 };
 
 /*
@@ -114,6 +115,8 @@ struct thread_stat {
 };
 
 static struct rb_root		thread_stats;
+
+static bool combine_locks;
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
@@ -241,6 +244,7 @@ static const char		*sort_key = "acquired";
 
 static int			(*compare)(struct lock_stat *, struct lock_stat *);
 
+static struct rb_root		sorted; /* place to store intermediate data */
 static struct rb_root		result;	/* place to store sorted data */
 
 #define DEF_KEY_LOCK(name, fn_suffix)	\
@@ -274,12 +278,58 @@ static int select_key(void)
 	return -1;
 }
 
+static void combine_lock_stats(struct lock_stat *st)
+{
+	struct rb_node **rb = &sorted.rb_node;
+	struct rb_node *parent = NULL;
+	struct lock_stat *p;
+	int ret;
+
+	while (*rb) {
+		p = container_of(*rb, struct lock_stat, rb);
+		parent = *rb;
+
+		if (st->name && p->name)
+			ret = strcmp(st->name, p->name);
+		else
+			ret = !!st->name - !!p->name;
+
+		if (ret == 0) {
+			p->nr_acquired += st->nr_acquired;
+			p->nr_contended += st->nr_contended;
+			p->wait_time_total += st->wait_time_total;
+
+			if (p->nr_contended)
+				p->avg_wait_time = p->wait_time_total / p->nr_contended;
+
+			if (p->wait_time_min > st->wait_time_min)
+				p->wait_time_min = st->wait_time_min;
+			if (p->wait_time_max < st->wait_time_max)
+				p->wait_time_max = st->wait_time_max;
+
+			st->combined = 1;
+			return;
+		}
+
+		if (ret < 0)
+			rb = &(*rb)->rb_left;
+		else
+			rb = &(*rb)->rb_right;
+	}
+
+	rb_link_node(&st->rb, parent, rb);
+	rb_insert_color(&st->rb, &sorted);
+}
+
 static void insert_to_result(struct lock_stat *st,
 			     int (*bigger)(struct lock_stat *, struct lock_stat *))
 {
 	struct rb_node **rb = &result.rb_node;
 	struct rb_node *parent = NULL;
 	struct lock_stat *p;
+
+	if (combine_locks && st->combined)
+		return;
 
 	while (*rb) {
 		p = container_of(*rb, struct lock_stat, rb);
@@ -833,6 +883,21 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	return err;
 }
 
+static void combine_result(void)
+{
+	unsigned int i;
+	struct lock_stat *st;
+
+	if (!combine_locks)
+		return;
+
+	for (i = 0; i < LOCKHASH_SIZE; i++) {
+		hlist_for_each_entry(st, &lockhash_table[i], hash_entry) {
+			combine_lock_stats(st);
+		}
+	}
+}
+
 static void sort_result(void)
 {
 	unsigned int i;
@@ -896,6 +961,7 @@ static int __cmd_report(bool display_info)
 	if (display_info) /* used for info subcommand */
 		err = dump_info();
 	else {
+		combine_result();
 		sort_result();
 		print_result();
 	}
@@ -970,6 +1036,8 @@ int cmd_lock(int argc, const char **argv)
 	OPT_STRING('k', "key", &sort_key, "acquired",
 		    "key for sorting (acquired / contended / avg_wait / wait_total / wait_max / wait_min)"),
 	/* TODO: type */
+	OPT_BOOLEAN('c', "combine-locks", &combine_locks,
+		    "combine locks in the same class"),
 	OPT_PARENT(lock_options)
 	};
 

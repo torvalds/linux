@@ -54,6 +54,10 @@ REPORT OPTIONS
         Sorting key. Possible values: acquired (default), contended,
 	avg_wait, wait_total, wait_max, wait_min.
 
+-c::
+--combine-locks::
+	Merge lock instances in the same class (based on name).
+
 INFO OPTIONS
 ------------
 
