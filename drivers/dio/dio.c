@@ -57,8 +57,7 @@ struct dio_bus dio_bus = {
  * I think we do this by copying them into newly kmalloc()ed memory and 
  * marking the names[] array as .initdata ?
  */
-struct dioname
-{
+struct dioname {
         int id;
         const char *name;
 };
@@ -67,8 +66,7 @@ struct dioname
 #define DIONAME(x) { DIO_ID_##x, DIO_DESC_##x }
 #define DIOFBNAME(x) { DIO_ENCODE_ID( DIO_ID_FBUFFER, DIO_ID2_##x), DIO_DESC2_##x }
 
-static struct dioname names[] = 
-{
+static struct dioname names[] = {
         DIONAME(DCA0), DIONAME(DCA0REM), DIONAME(DCA1), DIONAME(DCA1REM),
         DIONAME(DCM), DIONAME(DCMREM),
         DIONAME(LAN),
@@ -190,8 +188,7 @@ static int __init dio_init(void)
 		request_resource(&iomem_resource, &dio_bus.resources[i]);
 
 	/* Register all devices */
-        for (scode = 0; scode < DIO_SCMAX; ++scode)
-        {
+	for (scode = 0; scode < DIO_SCMAX; ++scode) {
                 u_char prid, secid = 0;        /* primary, secondary ID bytes */
                 u_char *va;
 		unsigned long pa;
@@ -267,9 +264,9 @@ subsys_initcall(dio_init);
  */
 unsigned long dio_scodetophysaddr(int scode)
 {
-        if (scode >= DIOII_SCBASE) {
+	if (scode >= DIOII_SCBASE)
                 return (DIOII_BASE + (scode - 132) * DIOII_DEVSIZE);
-        } else if (scode > DIO_SCMAX || scode < 0)
+	else if (scode > DIO_SCMAX || scode < 0)
                 return 0;
         else if (DIO_SCINHOLE(scode))
                 return 0;
