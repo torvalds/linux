@@ -131,7 +131,11 @@ if a PMU event filter is already present.
 
 Note that KVM will not make any attempts to run the VCPU on the physical CPUs
 associated with the PMU specified by this attribute. This is entirely left to
-userspace.
+userspace. However, attempting to run the VCPU on a physical CPU not supported
+by the PMU will fail and KVM_RUN will return with
+exit_reason = KVM_EXIT_FAIL_ENTRY and populate the fail_entry struct by setting
+hardare_entry_failure_reason field to KVM_EXIT_FAIL_ENTRY_CPU_UNSUPPORTED and
+the cpu field to the processor id.
 
 2. GROUP: KVM_ARM_VCPU_TIMER_CTRL
 =================================
