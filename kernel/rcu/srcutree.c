@@ -273,6 +273,25 @@ EXPORT_SYMBOL_GPL(init_srcu_struct);
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /*
+ * Initiate an idempotent transition to SRCU_SIZE_BIG.
+ */
+static void srcu_transition_to_big(struct srcu_struct *ssp)
+{
+	unsigned long flags;
+
+	/* Double-checked locking on ->srcu_size-state. */
+	if (smp_load_acquire(&ssp->srcu_size_state) != SRCU_SIZE_SMALL)
+		return;
+	spin_lock_irqsave_rcu_node(ssp, flags);
+	if (smp_load_acquire(&ssp->srcu_size_state) != SRCU_SIZE_SMALL) {
+		spin_unlock_irqrestore_rcu_node(ssp, flags);
+		return;
+	}
+	smp_store_release(&ssp->srcu_size_state, SRCU_SIZE_ALLOC);
+	spin_unlock_irqrestore_rcu_node(ssp, flags);
+}
+
+/*
  * First-use initialization of statically allocated srcu_struct
  * structure.  Wiring up the combining tree is more than can be
  * done with compile-time initialization, so this check is added
@@ -1523,8 +1542,8 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 		}
 		pr_cont(" T(%ld,%ld)\n", s0, s1);
 	}
-	if (READ_ONCE(ssp->srcu_size_state) == SRCU_SIZE_SMALL && convert_to_big == 2)
-		WRITE_ONCE(ssp->srcu_size_state, SRCU_SIZE_ALLOC);
+	if (convert_to_big == 2)
+		srcu_transition_to_big(ssp);
 }
 EXPORT_SYMBOL_GPL(srcu_torture_stats_print);
 
