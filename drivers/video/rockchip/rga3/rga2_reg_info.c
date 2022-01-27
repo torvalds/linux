@@ -186,6 +186,9 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 		((reg & (~m_RGA2_MODE_CTRL_SW_INTR_CF_E)) |
 		 (s_RGA2_MODE_CTRL_SW_INTR_CF_E(msg->CMD_fin_int_enable)));
 
+	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_MOSAIC_EN)) |
+	       (s_RGA2_MODE_CTRL_SW_MOSAIC_EN(msg->mosaic_info.enable)));
+
 	*bRGA_MODE_CTL = reg;
 }
 
@@ -1377,6 +1380,15 @@ static void RGA2_set_reg_rop_info(u8 *base, struct rga2_req *msg)
 
 }
 
+static void RGA_set_reg_mosaic(u8 *base, struct rga2_req *msg)
+{
+	u32 *bRGA_MOSAIC_MODE;
+
+	bRGA_MOSAIC_MODE = (u32 *)(base + RGA2_MOSAIC_MODE_OFFSET);
+
+	*bRGA_MOSAIC_MODE = (u32)(msg->mosaic_info.mode & 0x7);
+}
+
 static void RGA2_set_reg_full_csc(u8 *base, struct rga2_req *msg)
 {
 	u32 *bRGA2_DST_CSC_00;
@@ -1649,6 +1661,9 @@ int rga2_gen_reg_info(u8 *base, u8 *csc_base, struct rga2_req *msg)
 			if (msg->full_csc.flag)
 				RGA2_set_reg_full_csc(csc_base, msg);
 		}
+		if (msg->mosaic_info.enable)
+			RGA_set_reg_mosaic(base, msg);
+
 		break;
 	case COLOR_FILL_MODE:
 		RGA2_set_reg_color_fill(base, msg);
@@ -1807,6 +1822,9 @@ void rga_cmd_to_rga2_cmd(struct rga_req *req_rga, struct rga2_req *req)
 	/* RGA_NN_QUANTIZE */
 	req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 8) & 1) << 8);
 	req->dither_mode = req_rga->dither_mode;
+
+	/* RGA2 1106 add */
+	memcpy(&req->mosaic_info, &req_rga->mosaic_info, sizeof(req_rga->mosaic_info));
 
 	if (((req_rga->alpha_rop_flag) & 1)) {
 		if ((req_rga->alpha_rop_flag >> 3) & 1) {

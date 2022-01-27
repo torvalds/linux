@@ -306,6 +306,11 @@ struct rga_full_csc_t {
 	struct rga_csc_coe_t coe_v;
 };
 
+struct rga_mosaic_info {
+	uint8_t enable;
+	uint8_t mode;
+};
+
 struct rga_win_info_t {
 	/* yrgb	mem addr */
 	unsigned long yrgb_addr;
@@ -481,7 +486,10 @@ struct rga_req {
 
 	uint8_t handle_flag;
 
-	uint8_t reservr[127];
+	/* RGA2 1106 add */
+	struct rga_mosaic_info mosaic_info;
+
+	uint8_t reservr[125];
 };
 
 struct rga2_req {
@@ -613,6 +621,9 @@ struct rga2_req {
 	u8 dither_mode;
 
 	u8 rgb2yuv_mode;
+
+	/* RGA2 1106 add */
+	struct rga_mosaic_info mosaic_info;
 };
 
 struct rga3_req {
