@@ -46,7 +46,6 @@
 #include <linux/pci.h>
 #include "amdgpu_ras.h"
 #include "smu_cmn.h"
-#include "amdgpu_dpm.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
