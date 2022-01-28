@@ -1706,7 +1706,7 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 {
 	struct folio *folio = page_folio(page);
 	struct mm_struct *mm = vma->vm_mm;
-	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
+	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	pte_t pteval;
 	struct page *subpage;
 	bool ret = true;
@@ -1740,7 +1740,7 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 	range.end = vma_address_end(&pvmw);
 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, vma->vm_mm,
 				address, range.end);
-	if (PageHuge(page)) {
+	if (folio_test_hugetlb(folio)) {
 		/*
 		 * If sharing is possible, start and end will be adjusted
 		 * accordingly.
@@ -1754,21 +1754,24 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
 		/* PMD-mapped THP migration entry */
 		if (!pvmw.pte) {
-			VM_BUG_ON_PAGE(PageHuge(page) ||
-				       !PageTransCompound(page), page);
+			subpage = folio_page(folio,
+				pmd_pfn(*pvmw.pmd) - folio_pfn(folio));
+			VM_BUG_ON_FOLIO(folio_test_hugetlb(folio) ||
+					!folio_test_pmd_mappable(folio), folio);
 
-			set_pmd_migration_entry(&pvmw, page);
+			set_pmd_migration_entry(&pvmw, subpage);
 			continue;
 		}
 #endif
 
 		/* Unexpected PMD-mapped THP? */
-		VM_BUG_ON_PAGE(!pvmw.pte, page);
+		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
 
-		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+		subpage = folio_page(folio,
+				pte_pfn(*pvmw.pte) - folio_pfn(folio));
 		address = pvmw.address;
 
-		if (PageHuge(page) && !PageAnon(page)) {
+		if (folio_test_hugetlb(folio) && !folio_test_anon(folio)) {
 			/*
 			 * To call huge_pmd_unshare, i_mmap_rwsem must be
 			 * held in write mode.  Caller needs to explicitly
@@ -1806,15 +1809,15 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
 		pteval = ptep_clear_flush(vma, address, pvmw.pte);
 
-		/* Move the dirty bit to the page. Now the pte is gone. */
+		/* Set the dirty flag on the folio now the pte is gone. */
 		if (pte_dirty(pteval))
-			set_page_dirty(page);
+			folio_mark_dirty(folio);
 
 		/* Update high watermark before we lower rss */
 		update_hiwater_rss(mm);
 
-		if (is_zone_device_page(page)) {
-			unsigned long pfn = page_to_pfn(page);
+		if (folio_is_zone_device(folio)) {
+			unsigned long pfn = folio_pfn(folio);
 			swp_entry_t entry;
 			pte_t swp_pte;
 
@@ -1850,16 +1853,16 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 			 * changed when hugepage migrations to device private
 			 * memory are supported.
 			 */
-			subpage = page;
-		} else if (PageHWPoison(page)) {
+			subpage = &folio->page;
+		} else if (PageHWPoison(subpage)) {
 			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
-			if (PageHuge(page)) {
-				hugetlb_count_sub(compound_nr(page), mm);
+			if (folio_test_hugetlb(folio)) {
+				hugetlb_count_sub(folio_nr_pages(folio), mm);
 				set_huge_swap_pte_at(mm, address,
 						     pvmw.pte, pteval,
 						     vma_mmu_pagesize(vma));
 			} else {
-				dec_mm_counter(mm, mm_counter(page));
+				dec_mm_counter(mm, mm_counter(&folio->page));
 				set_pte_at(mm, address, pvmw.pte, pteval);
 			}
 
@@ -1874,7 +1877,7 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 			 * migration) will not expect userfaults on already
 			 * copied pages.
 			 */
-			dec_mm_counter(mm, mm_counter(page));
+			dec_mm_counter(mm, mm_counter(&folio->page));
 			/* We have to invalidate as we cleared the pte */
 			mmu_notifier_invalidate_range(mm, address,
 						      address + PAGE_SIZE);
@@ -1920,10 +1923,10 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 		 *
 		 * See Documentation/vm/mmu_notifier.rst
 		 */
-		page_remove_rmap(subpage, vma, PageHuge(page));
+		page_remove_rmap(subpage, vma, folio_test_hugetlb(folio));
 		if (vma->vm_flags & VM_LOCKED)
 			mlock_page_drain(smp_processor_id());
-		put_page(page);
+		folio_put(folio);
 	}
 
 	mmu_notifier_invalidate_range_end(&range);
@@ -1933,13 +1936,13 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 
 /**
  * try_to_migrate - try to replace all page table mappings with swap entries
- * @page: the page to replace page table entries for
+ * @folio: the folio to replace page table entries for
  * @flags: action and flags
  *
- * Tries to remove all the page table entries which are mapping this page and
- * replace them with special swap entries. Caller must hold the page lock.
+ * Tries to remove all the page table entries which are mapping this folio and
+ * replace them with special swap entries. Caller must hold the folio lock.
  */
-void try_to_migrate(struct page *page, enum ttu_flags flags)
+void try_to_migrate(struct folio *folio, enum ttu_flags flags)
 {
 	struct rmap_walk_control rwc = {
 		.rmap_one = try_to_migrate_one,
@@ -1956,7 +1959,7 @@ void try_to_migrate(struct page *page, enum ttu_flags flags)
 					TTU_SYNC)))
 		return;
 
-	if (is_zone_device_page(page) && !is_device_private_page(page))
+	if (folio_is_zone_device(folio) && !folio_is_device_private(folio))
 		return;
 
 	/*
@@ -1967,13 +1970,13 @@ void try_to_migrate(struct page *page, enum ttu_flags flags)
 	 * locking requirements of exec(), migration skips
 	 * temporary VMAs until after exec() completes.
 	 */
-	if (!PageKsm(page) && PageAnon(page))
+	if (!folio_test_ksm(folio) && folio_test_anon(folio))
 		rwc.invalid_vma = invalid_migration_vma;
 
 	if (flags & TTU_RMAP_LOCKED)
-		rmap_walk_locked(page, &rwc);
+		rmap_walk_locked(&folio->page, &rwc);
 	else
-		rmap_walk(page, &rwc);
+		rmap_walk(&folio->page, &rwc);
 }
 
 #ifdef CONFIG_DEVICE_PRIVATE

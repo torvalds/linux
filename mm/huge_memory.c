@@ -2262,8 +2262,8 @@ static void unmap_page(struct page *page)
 	 * pages can simply be left unmapped, then faulted back on demand.
 	 * If that is ever changed (perhaps for mlock), update remap_page().
 	 */
-	if (PageAnon(page))
-		try_to_migrate(page, ttu_flags);
+	if (folio_test_anon(folio))
+		try_to_migrate(folio, ttu_flags);
 	else
 		try_to_unmap(folio, ttu_flags | TTU_IGNORE_MLOCK);
 

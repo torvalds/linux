@@ -333,6 +333,7 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
 
 	for (i = 0; i < npages; i++) {
 		struct page *page = migrate_pfn_to_page(migrate->src[i]);
+		struct folio *folio;
 
 		if (!page)
 			continue;
@@ -356,8 +357,9 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
 			put_page(page);
 		}
 
-		if (page_mapped(page))
-			try_to_migrate(page, 0);
+		folio = page_folio(page);
+		if (folio_mapped(folio))
+			try_to_migrate(folio, 0);
 
 		if (page_mapped(page) || !migrate_vma_check_page(page)) {
 			if (!is_zone_device_page(page)) {
