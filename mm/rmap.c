@@ -1990,8 +1990,9 @@ struct make_exclusive_args {
 static bool page_make_device_exclusive_one(struct page *page,
 		struct vm_area_struct *vma, unsigned long address, void *priv)
 {
+	struct folio *folio = page_folio(page);
 	struct mm_struct *mm = vma->vm_mm;
-	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
+	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	struct make_exclusive_args *args = priv;
 	pte_t pteval;
 	struct page *subpage;
@@ -2002,12 +2003,13 @@ static bool page_make_device_exclusive_one(struct page *page,
 
 	mmu_notifier_range_init_owner(&range, MMU_NOTIFY_EXCLUSIVE, 0, vma,
 				      vma->vm_mm, address, min(vma->vm_end,
-				      address + page_size(page)), args->owner);
+				      address + folio_size(folio)),
+				      args->owner);
 	mmu_notifier_invalidate_range_start(&range);
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		/* Unexpected PMD-mapped THP? */
-		VM_BUG_ON_PAGE(!pvmw.pte, page);
+		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
 
 		if (!pte_present(*pvmw.pte)) {
 			ret = false;
@@ -2015,16 +2017,17 @@ static bool page_make_device_exclusive_one(struct page *page,
 			break;
 		}
 
-		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+		subpage = folio_page(folio,
+				pte_pfn(*pvmw.pte) - folio_pfn(folio));
 		address = pvmw.address;
 
 		/* Nuke the page table entry. */
 		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
 		pteval = ptep_clear_flush(vma, address, pvmw.pte);
 
-		/* Move the dirty bit to the page. Now the pte is gone. */
+		/* Set the dirty flag on the folio now the pte is gone. */
 		if (pte_dirty(pteval))
-			set_page_dirty(page);
+			folio_mark_dirty(folio);
 
 		/*
 		 * Check that our target page is still mapped at the expected
@@ -2066,21 +2069,22 @@ static bool page_make_device_exclusive_one(struct page *page,
 }
 
 /**
- * page_make_device_exclusive - mark the page exclusively owned by a device
- * @page: the page to replace page table entries for
- * @mm: the mm_struct where the page is expected to be mapped
- * @address: address where the page is expected to be mapped
+ * folio_make_device_exclusive - Mark the folio exclusively owned by a device.
+ * @folio: The folio to replace page table entries for.
+ * @mm: The mm_struct where the folio is expected to be mapped.
+ * @address: Address where the folio is expected to be mapped.
  * @owner: passed to MMU_NOTIFY_EXCLUSIVE range notifier callbacks
  *
- * Tries to remove all the page table entries which are mapping this page and
- * replace them with special device exclusive swap entries to grant a device
- * exclusive access to the page. Caller must hold the page lock.
+ * Tries to remove all the page table entries which are mapping this
+ * folio and replace them with special device exclusive swap entries to
+ * grant a device exclusive access to the folio.
  *
- * Returns false if the page is still mapped, or if it could not be unmapped
+ * Context: Caller must hold the folio lock.
+ * Return: false if the page is still mapped, or if it could not be unmapped
  * from the expected address. Otherwise returns true (success).
  */
-static bool page_make_device_exclusive(struct page *page, struct mm_struct *mm,
-				unsigned long address, void *owner)
+static bool folio_make_device_exclusive(struct folio *folio,
+		struct mm_struct *mm, unsigned long address, void *owner)
 {
 	struct make_exclusive_args args = {
 		.mm = mm,
@@ -2096,16 +2100,15 @@ static bool page_make_device_exclusive(struct page *page, struct mm_struct *mm,
 	};
 
 	/*
-	 * Restrict to anonymous pages for now to avoid potential writeback
-	 * issues. Also tail pages shouldn't be passed to rmap_walk so skip
-	 * those.
+	 * Restrict to anonymous folios for now to avoid potential writeback
+	 * issues.
 	 */
-	if (!PageAnon(page) || PageTail(page))
+	if (!folio_test_anon(folio))
 		return false;
 
-	rmap_walk(page, &rwc);
+	rmap_walk(&folio->page, &rwc);
 
-	return args.valid && !page_mapcount(page);
+	return args.valid && !folio_mapcount(folio);
 }
 
 /**
@@ -2143,15 +2146,16 @@ int make_device_exclusive_range(struct mm_struct *mm, unsigned long start,
 		return npages;
 
 	for (i = 0; i < npages; i++, start += PAGE_SIZE) {
-		if (!trylock_page(pages[i])) {
-			put_page(pages[i]);
+		struct folio *folio = page_folio(pages[i]);
+		if (PageTail(pages[i]) || !folio_trylock(folio)) {
+			folio_put(folio);
 			pages[i] = NULL;
 			continue;
 		}
 
-		if (!page_make_device_exclusive(pages[i], mm, start, owner)) {
-			unlock_page(pages[i]);
-			put_page(pages[i]);
+		if (!folio_make_device_exclusive(folio, mm, start, owner)) {
+			folio_unlock(folio);
+			folio_put(folio);
 			pages[i] = NULL;
 		}
 	}
