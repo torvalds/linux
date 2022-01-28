@@ -32,6 +32,7 @@ struct qcom_icc_noc_ops {
 struct qos_config {
 	u32 prio;
 	u32 urg_fwd;
+	bool prio_fwd_disable;
 };
 
 struct qcom_icc_qosbox {
