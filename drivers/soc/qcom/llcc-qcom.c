@@ -29,8 +29,8 @@
 #define ATTR1_FIXED_SIZE_SHIFT        0x03
 #define ATTR1_PRIORITY_SHIFT          0x04
 #define ATTR1_MAX_CAP_SHIFT           0x10
-#define ATTR0_RES_WAYS_MASK           GENMASK(11, 0)
-#define ATTR0_BONUS_WAYS_MASK         GENMASK(27, 16)
+#define ATTR0_RES_WAYS_MASK           GENMASK(15, 0)
+#define ATTR0_BONUS_WAYS_MASK         GENMASK(31, 16)
 #define ATTR0_BONUS_WAYS_SHIFT        0x10
 #define LLCC_STATUS_READ_DELAY        100
 
