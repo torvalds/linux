@@ -467,6 +467,14 @@
 	};
 };
 
+/* i2c3 is exposed on con40
+ * pin 3 - i2c3_sda_m0, pullup to vcc_3v3
+ * pin 5 - i2c3_scl_m0, pullup to vcc_3v3
+ */
+&i2c3 {
+	status = "okay";
+};
+
 &i2s1_8ch {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s1m0_sclktx
@@ -583,10 +591,17 @@
 	status = "okay";
 };
 
+/* spdif is exposed on con40 pin 18 */
 &spdif {
 	status = "okay";
 };
 
+/* spi1 is exposed on con40
+ * pin 11 - spi1_mosi_m1
+ * pin 13 - spi1_miso_m1
+ * pin 15 - spi1_clk_m1
+ * pin 17 - spi1_cs0_m1
+ */
 &spi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1m1_cs0 &spi1m1_pins>;
@@ -600,6 +615,10 @@
 	status = "okay";
 };
 
+/* uart0 is exposed on con40
+ * pin 12 - uart0_tx
+ * pin 14 - uart0_rx
+ */
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer>;
@@ -626,6 +645,10 @@
 	};
 };
 
+/* uart2 is exposed on con40
+ * pin 8 - uart2_tx_m0_debug
+ * pin 10 - uart2_rx_m0_debug
+ */
 &uart2 {
 	status = "okay";
 };
