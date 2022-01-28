@@ -353,7 +353,7 @@ static void svm_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
 
 }
 
-static int skip_emulated_instruction(struct kvm_vcpu *vcpu)
+static int svm_skip_emulated_instruction(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -401,7 +401,7 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu)
 		 * raises a fault that is not intercepted. Still better than
 		 * failing in all cases.
 		 */
-		(void)skip_emulated_instruction(vcpu);
+		(void)svm_skip_emulated_instruction(vcpu);
 		rip = kvm_rip_read(vcpu);
 		svm->int3_rip = rip + svm->vmcb->save.cs.base;
 		svm->int3_injected = rip - old_rip;
@@ -873,11 +873,11 @@ static void shrink_ple_window(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void svm_hardware_teardown(void)
+static void svm_hardware_unsetup(void)
 {
 	int cpu;
 
-	sev_hardware_teardown();
+	sev_hardware_unsetup();
 
 	for_each_possible_cpu(cpu)
 		svm_cpu_uninit(cpu);
@@ -1175,7 +1175,7 @@ void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb)
 	svm->vmcb = target_vmcb->ptr;
 }
 
-static int svm_create_vcpu(struct kvm_vcpu *vcpu)
+static int svm_vcpu_create(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm;
 	struct page *vmcb01_page;
@@ -1246,7 +1246,7 @@ static void svm_clear_current_vmcb(struct vmcb *vmcb)
 		cmpxchg(&per_cpu(svm_data, i)->current_vmcb, vmcb, NULL);
 }
 
-static void svm_free_vcpu(struct kvm_vcpu *vcpu)
+static void svm_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -1265,7 +1265,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	__free_pages(virt_to_page(svm->msrpm), get_order(MSRPM_SIZE));
 }
 
-static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
+static void svm_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
@@ -1285,7 +1285,7 @@ static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 		struct vmcb_save_area *hostsa;
 		hostsa = (struct vmcb_save_area *)(page_address(sd->save_area) + 0x400);
 
-		sev_es_prepare_guest_switch(hostsa);
+		sev_es_prepare_switch_to_guest(hostsa);
 	}
 
 	if (tsc_scaling) {
@@ -2280,7 +2280,7 @@ static int task_switch_interception(struct kvm_vcpu *vcpu)
 	    int_type == SVM_EXITINTINFO_TYPE_SOFT ||
 	    (int_type == SVM_EXITINTINFO_TYPE_EXEPT &&
 	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR))) {
-		if (!skip_emulated_instruction(vcpu))
+		if (!svm_skip_emulated_instruction(vcpu))
 			return 0;
 	}
 
@@ -3200,7 +3200,7 @@ static void svm_get_exit_info(struct kvm_vcpu *vcpu, u32 *reason,
 		*error_code = 0;
 }
 
-static int handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
+static int svm_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_run *kvm_run = vcpu->run;
@@ -3297,7 +3297,7 @@ static void svm_inject_nmi(struct kvm_vcpu *vcpu)
 	++vcpu->stat.nmi_injections;
 }
 
-static void svm_set_irq(struct kvm_vcpu *vcpu)
+static void svm_inject_irq(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -4216,7 +4216,7 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 	 * by 0x400 (matches the offset of 'struct vmcb_save_area'
 	 * within 'struct vmcb'). Note: HSAVE area may also be used by
 	 * L1 hypervisor to save additional host context (e.g. KVM does
-	 * that, see svm_prepare_guest_switch()) which must be
+	 * that, see svm_prepare_switch_to_guest()) which must be
 	 * preserved.
 	 */
 	if (kvm_vcpu_map(vcpu, gpa_to_gfn(svm->nested.hsave_msr),
@@ -4491,21 +4491,21 @@ static int svm_vm_init(struct kvm *kvm)
 static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.name = "kvm_amd",
 
-	.hardware_unsetup = svm_hardware_teardown,
+	.hardware_unsetup = svm_hardware_unsetup,
 	.hardware_enable = svm_hardware_enable,
 	.hardware_disable = svm_hardware_disable,
 	.cpu_has_accelerated_tpr = svm_cpu_has_accelerated_tpr,
 	.has_emulated_msr = svm_has_emulated_msr,
 
-	.vcpu_create = svm_create_vcpu,
-	.vcpu_free = svm_free_vcpu,
+	.vcpu_create = svm_vcpu_create,
+	.vcpu_free = svm_vcpu_free,
 	.vcpu_reset = svm_vcpu_reset,
 
 	.vm_size = sizeof(struct kvm_svm),
 	.vm_init = svm_vm_init,
 	.vm_destroy = svm_vm_destroy,
 
-	.prepare_switch_to_guest = svm_prepare_guest_switch,
+	.prepare_switch_to_guest = svm_prepare_switch_to_guest,
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
 	.vcpu_blocking = avic_vcpu_blocking,
@@ -4543,13 +4543,13 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 
 	.vcpu_pre_run = svm_vcpu_pre_run,
 	.vcpu_run = svm_vcpu_run,
-	.handle_exit = handle_exit,
-	.skip_emulated_instruction = skip_emulated_instruction,
+	.handle_exit = svm_handle_exit,
+	.skip_emulated_instruction = svm_skip_emulated_instruction,
 	.update_emulated_instruction = NULL,
 	.set_interrupt_shadow = svm_set_interrupt_shadow,
 	.get_interrupt_shadow = svm_get_interrupt_shadow,
 	.patch_hypercall = svm_patch_hypercall,
-	.inject_irq = svm_set_irq,
+	.inject_irq = svm_inject_irq,
 	.inject_nmi = svm_inject_nmi,
 	.queue_exception = svm_queue_exception,
 	.cancel_injection = svm_cancel_injection,
@@ -4855,7 +4855,7 @@ static __init int svm_hardware_setup(void)
 	return 0;
 
 err:
-	svm_hardware_teardown();
+	svm_hardware_unsetup();
 	return r;
 }
 

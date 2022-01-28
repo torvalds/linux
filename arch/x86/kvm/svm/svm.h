@@ -321,7 +321,7 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 
 /*
  * Only the PDPTRs are loaded on demand into the shadow MMU.  All other
- * fields are synchronized in handle_exit, because accessing the VMCB is cheap.
+ * fields are synchronized on VM-Exit, because accessing the VMCB is cheap.
  *
  * CR3 might be out of date in the VMCB but it is not marked dirty; instead,
  * KVM_REQ_LOAD_MMU_PGD is always requested when the cached vcpu->arch.cr3
@@ -597,7 +597,7 @@ int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd);
 void pre_sev_run(struct vcpu_svm *svm, int cpu);
 void __init sev_set_cpu_caps(void);
 void __init sev_hardware_setup(void);
-void sev_hardware_teardown(void);
+void sev_hardware_unsetup(void);
 int sev_cpu_init(struct svm_cpu_data *sd);
 void sev_free_vcpu(struct kvm_vcpu *vcpu);
 int sev_handle_vmgexit(struct kvm_vcpu *vcpu);
@@ -605,7 +605,7 @@ int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
 void sev_es_init_vmcb(struct vcpu_svm *svm);
 void sev_es_vcpu_reset(struct vcpu_svm *svm);
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
-void sev_es_prepare_guest_switch(struct vmcb_save_area *hostsa);
+void sev_es_prepare_switch_to_guest(struct vmcb_save_area *hostsa);
 void sev_es_unmap_ghcb(struct vcpu_svm *svm);
 
 /* vmenter.S */
