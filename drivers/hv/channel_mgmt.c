@@ -762,8 +762,7 @@ static void init_vp_index(struct vmbus_channel *channel)
 		}
 		allocated_mask = &hv_context.hv_numa_map[numa_node];
 
-		if (cpumask_weight(allocated_mask) ==
-		    cpumask_weight(cpumask_of_node(numa_node))) {
+		if (cpumask_equal(allocated_mask, cpumask_of_node(numa_node))) {
 			/*
 			 * We have cycled through all the CPUs in the node;
 			 * reset the allocated map.
