@@ -39,6 +39,17 @@
 #include "i915_vma.h"
 #include "i915_vma_resource.h"
 
+static inline void assert_vma_held_evict(const struct i915_vma *vma)
+{
+	/*
+	 * We may be forced to unbind when the vm is dead, to clean it up.
+	 * This is the only exception to the requirement of the object lock
+	 * being held.
+	 */
+	if (atomic_read(&vma->vm->open))
+		assert_object_held_shared(vma->obj);
+}
+
 static struct kmem_cache *slab_vmas;
 
 static struct i915_vma *i915_vma_alloc(void)
@@ -1721,7 +1732,7 @@ struct dma_fence *__i915_vma_evict(struct i915_vma *vma, bool async)
 	struct dma_fence *unbind_fence;
 
 	GEM_BUG_ON(i915_vma_is_pinned(vma));
-	assert_object_held_shared(vma->obj);
+	assert_vma_held_evict(vma);
 
 	if (i915_vma_is_map_and_fenceable(vma)) {
 		/* Force a pagefault for domain tracking on next user access */
@@ -1788,7 +1799,7 @@ int __i915_vma_unbind(struct i915_vma *vma)
 	int ret;
 
 	lockdep_assert_held(&vma->vm->mutex);
-	assert_object_held_shared(vma->obj);
+	assert_vma_held_evict(vma);
 
 	if (!drm_mm_node_allocated(&vma->node))
 		return 0;
