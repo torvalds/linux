@@ -126,9 +126,11 @@ void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len,
 {
 	const struct elf32_phdr *phdrs;
 	const struct elf32_hdr *ehdr;
+	unsigned int hash_segment = 0;
 	size_t hash_offset;
 	size_t hash_size;
 	size_t ehdr_size;
+	unsigned int i;
 	ssize_t ret;
 	void *data;
 
@@ -141,11 +143,20 @@ void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len,
 	if (phdrs[0].p_type == PT_LOAD)
 		return ERR_PTR(-EINVAL);
 
-	if ((phdrs[1].p_flags & QCOM_MDT_TYPE_MASK) != QCOM_MDT_TYPE_HASH)
+	for (i = 1; i < ehdr->e_phnum; i++) {
+		if ((phdrs[i].p_flags & QCOM_MDT_TYPE_MASK) == QCOM_MDT_TYPE_HASH) {
+			hash_segment = i;
+			break;
+		}
+	}
+
+	if (!hash_segment) {
+		dev_err(dev, "no hash segment found in %s\n", fw_name);
 		return ERR_PTR(-EINVAL);
+	}
 
 	ehdr_size = phdrs[0].p_filesz;
-	hash_size = phdrs[1].p_filesz;
+	hash_size = phdrs[hash_segment].p_filesz;
 
 	data = kmalloc(ehdr_size + hash_size, GFP_KERNEL);
 	if (!data)
@@ -158,13 +169,13 @@ void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len,
 		/* Firmware is split and hash is packed following the ELF header */
 		hash_offset = phdrs[0].p_filesz;
 		memcpy(data + ehdr_size, fw->data + hash_offset, hash_size);
-	} else if (phdrs[1].p_offset + hash_size <= fw->size) {
+	} else if (phdrs[hash_segment].p_offset + hash_size <= fw->size) {
 		/* Hash is in its own segment, but within the loaded file */
-		hash_offset = phdrs[1].p_offset;
+		hash_offset = phdrs[hash_segment].p_offset;
 		memcpy(data + ehdr_size, fw->data + hash_offset, hash_size);
 	} else {
 		/* Hash is in its own segment, beyond the loaded file */
-		ret = mdt_load_split_segment(data + ehdr_size, phdrs, 1, fw_name, dev);
+		ret = mdt_load_split_segment(data + ehdr_size, phdrs, hash_segment, fw_name, dev);
 		if (ret) {
 			kfree(data);
 			return ERR_PTR(ret);
