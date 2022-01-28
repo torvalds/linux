@@ -63,10 +63,8 @@ struct linux_binprm;
  */
 static inline void set_notify_resume(struct task_struct *task)
 {
-#ifdef TIF_NOTIFY_RESUME
 	if (!test_and_set_tsk_thread_flag(task, TIF_NOTIFY_RESUME))
 		kick_process(task);
-#endif
 }
 
 /**
