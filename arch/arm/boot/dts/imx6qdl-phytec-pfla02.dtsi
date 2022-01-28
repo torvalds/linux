@@ -213,6 +213,11 @@
 		da9063_wdog: watchdog {
 			compatible = "dlg,da9063-watchdog";
 		};
+
+		onkey {
+			compatible = "dlg,da9063-onkey";
+			status = "disabled";
+		};
 	};
 };
 
