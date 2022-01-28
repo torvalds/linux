@@ -316,10 +316,7 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 				     "\tnotq %0\n"
 				     "\t" LOCK_PREFIX "andq %0, %2\n"
 				     "2:\n"
-				     "\t.section .fixup,\"ax\"\n"
-				     "3:\tjmp\t2b\n"
-				     "\t.previous\n"
-				     _ASM_EXTABLE_UA(1b, 3b)
+				     _ASM_EXTABLE_UA(1b, 2b)
 				     : "=r" (evtchn_pending_sel),
 				       "+m" (vi->evtchn_pending_sel),
 				       "+m" (v->arch.xen.evtchn_pending_sel)
@@ -335,10 +332,7 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 				     "\tnotl %0\n"
 				     "\t" LOCK_PREFIX "andl %0, %2\n"
 				     "2:\n"
-				     "\t.section .fixup,\"ax\"\n"
-				     "3:\tjmp\t2b\n"
-				     "\t.previous\n"
-				     _ASM_EXTABLE_UA(1b, 3b)
+				     _ASM_EXTABLE_UA(1b, 2b)
 				     : "=r" (evtchn_pending_sel32),
 				       "+m" (vi->evtchn_pending_sel),
 				       "+m" (v->arch.xen.evtchn_pending_sel)
