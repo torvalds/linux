@@ -1600,10 +1600,9 @@ void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 }
 
 /* Query setting of specified variable. */
-u8 GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue)
+void GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
-	u8 bResult = _SUCCESS;
 
 	switch (eVariable) {
 	case HAL_DEF_UNDERCORATEDSMOOTHEDPWDB:
@@ -1647,11 +1646,8 @@ u8 GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariable
 		*((u8 *)pValue) = haldata->bDumpTxPkt;
 		break;
 	default:
-		bResult = _FAIL;
 		break;
 	}
-
-	return bResult;
 }
 
 /* Change default setting of specified variable. */
