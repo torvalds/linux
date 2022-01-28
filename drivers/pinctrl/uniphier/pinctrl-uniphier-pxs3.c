@@ -855,8 +855,12 @@ static const unsigned int uart3_pins[] = {98, 99};
 static const int uart3_muxvals[] = {0, 0};
 static const unsigned int usb0_pins[] = {84, 85};
 static const int usb0_muxvals[] = {0, 0};
+static const unsigned int usb0_device_pins[] = {110};
+static const int usb0_device_muxvals[] = {2};
 static const unsigned int usb1_pins[] = {86, 87};
 static const int usb1_muxvals[] = {0, 0};
+static const unsigned int usb1_device_pins[] = {111};
+static const int usb1_device_muxvals[] = {2};
 static const unsigned int usb2_pins[] = {88, 89};
 static const int usb2_muxvals[] = {0, 0};
 static const unsigned int usb3_pins[] = {90, 91};
@@ -942,7 +946,9 @@ static const struct uniphier_pinctrl_group uniphier_pxs3_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(uart2),
 	UNIPHIER_PINCTRL_GROUP(uart3),
 	UNIPHIER_PINCTRL_GROUP(usb0),
+	UNIPHIER_PINCTRL_GROUP(usb0_device),
 	UNIPHIER_PINCTRL_GROUP(usb1),
+	UNIPHIER_PINCTRL_GROUP(usb1_device),
 	UNIPHIER_PINCTRL_GROUP(usb2),
 	UNIPHIER_PINCTRL_GROUP(usb3),
 	UNIPHIER_PINCTRL_GROUP_GPIO(gpio_range0),
@@ -982,8 +988,8 @@ static const char * const uart0_groups[] = {"uart0", "uart0_ctsrts",
 static const char * const uart1_groups[] = {"uart1"};
 static const char * const uart2_groups[] = {"uart2"};
 static const char * const uart3_groups[] = {"uart3"};
-static const char * const usb0_groups[] = {"usb0"};
-static const char * const usb1_groups[] = {"usb1"};
+static const char * const usb0_groups[] = {"usb0", "usb0_device"};
+static const char * const usb1_groups[] = {"usb1", "usb1_device"};
 static const char * const usb2_groups[] = {"usb2"};
 static const char * const usb3_groups[] = {"usb3"};
 
