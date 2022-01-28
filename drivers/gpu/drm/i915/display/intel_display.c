@@ -3877,29 +3877,35 @@ void intel_pch_transcoder_get_m_n(struct intel_crtc *crtc,
 		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
 }
 
-void intel_cpu_transcoder_get_m_n(struct intel_crtc *crtc,
-				  enum transcoder transcoder,
-				  struct intel_link_m_n *m_n,
-				  struct intel_link_m_n *m2_n2)
+void intel_cpu_transcoder_get_m1_n1(struct intel_crtc *crtc,
+				    enum transcoder transcoder,
+				    struct intel_link_m_n *m_n)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	if (DISPLAY_VER(dev_priv) >= 5) {
+	if (DISPLAY_VER(dev_priv) >= 5)
 		intel_get_m_n(dev_priv, m_n,
 			      PIPE_DATA_M1(transcoder), PIPE_DATA_N1(transcoder),
 			      PIPE_LINK_M1(transcoder), PIPE_LINK_N1(transcoder));
-
-		if (m2_n2 && transcoder_has_m2_n2(dev_priv, transcoder)) {
-			intel_get_m_n(dev_priv, m2_n2,
-				      PIPE_DATA_M2(transcoder), PIPE_DATA_N2(transcoder),
-				      PIPE_LINK_M2(transcoder), PIPE_LINK_N2(transcoder));
-		}
-	} else {
+	else
 		intel_get_m_n(dev_priv, m_n,
 			      PIPE_DATA_M_G4X(pipe), PIPE_DATA_N_G4X(pipe),
 			      PIPE_LINK_M_G4X(pipe), PIPE_LINK_N_G4X(pipe));
-	}
+}
+
+void intel_cpu_transcoder_get_m2_n2(struct intel_crtc *crtc,
+				    enum transcoder transcoder,
+				    struct intel_link_m_n *m_n)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	if (!transcoder_has_m2_n2(dev_priv, transcoder))
+		return;
+
+	intel_get_m_n(dev_priv, m_n,
+		      PIPE_DATA_M2(transcoder), PIPE_DATA_N2(transcoder),
+		      PIPE_LINK_M2(transcoder), PIPE_LINK_N2(transcoder));
 }
 
 static void ilk_get_pfit_pos_size(struct intel_crtc_state *crtc_state,

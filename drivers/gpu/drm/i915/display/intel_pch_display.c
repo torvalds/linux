@@ -386,8 +386,8 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 	crtc_state->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 				 FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
-	intel_cpu_transcoder_get_m_n(crtc, crtc_state->cpu_transcoder,
-				     &crtc_state->fdi_m_n, NULL);
+	intel_cpu_transcoder_get_m1_n1(crtc, crtc_state->cpu_transcoder,
+				       &crtc_state->fdi_m_n);
 
 	if (HAS_PCH_IBX(dev_priv)) {
 		/*
@@ -510,8 +510,8 @@ void lpt_pch_get_config(struct intel_crtc_state *crtc_state)
 	crtc_state->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 				 FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
-	intel_cpu_transcoder_get_m_n(crtc, crtc_state->cpu_transcoder,
-				     &crtc_state->fdi_m_n, NULL);
+	intel_cpu_transcoder_get_m1_n1(crtc, crtc_state->cpu_transcoder,
+				       &crtc_state->fdi_m_n);
 
 	crtc_state->hw.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
 }
