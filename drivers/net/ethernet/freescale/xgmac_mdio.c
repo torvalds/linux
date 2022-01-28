@@ -276,7 +276,7 @@ static int xgmac_mdio_set_mdc_freq(struct mii_bus *bus)
 
 	div = ((clk_get_rate(priv->enet_clk) / priv->mdc_freq) - 1) / 2;
 	if (div < 5 || div > 0x1ff) {
-		dev_err(dev, "Requested MDC frequecy is out of range, ignoring");
+		dev_err(dev, "Requested MDC frequency is out of range, ignoring");
 		return -EINVAL;
 	}
 
