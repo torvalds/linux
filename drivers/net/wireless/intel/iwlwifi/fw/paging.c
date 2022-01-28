@@ -197,7 +197,7 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 		}
 
 		memcpy(page_address(block->fw_paging_block),
-		       image->sec[sec_idx].data + offset, len);
+		       (const u8 *)image->sec[sec_idx].data + offset, len);
 		block->fw_offs = image->sec[sec_idx].offset + offset;
 		dma_sync_single_for_device(fwrt->trans->dev,
 					   block->fw_paging_phys,

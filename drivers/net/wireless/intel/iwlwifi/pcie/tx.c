@@ -154,7 +154,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 	void *tfd;
 	u32 num_tbs;
 
-	tfd = txq->tfds + trans->txqs.tfd.size * txq->write_ptr;
+	tfd = (u8 *)txq->tfds + trans->txqs.tfd.size * txq->write_ptr;
 
 	if (reset)
 		memset(tfd, 0, trans->txqs.tfd.size);

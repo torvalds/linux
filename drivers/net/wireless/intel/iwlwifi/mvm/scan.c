@@ -2158,7 +2158,7 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_scan_req_umac *cmd = mvm->scan_cmd;
 	struct iwl_scan_umac_chan_param *chan_param;
 	void *cmd_data = iwl_mvm_get_scan_req_umac_data(mvm);
-	void *sec_part = cmd_data + sizeof(struct iwl_scan_channel_cfg_umac) *
+	void *sec_part = (u8 *)cmd_data + sizeof(struct iwl_scan_channel_cfg_umac) *
 		mvm->fw->ucode_capa.n_scan_channels;
 	struct iwl_scan_req_umac_tail_v2 *tail_v2 =
 		(struct iwl_scan_req_umac_tail_v2 *)sec_part;

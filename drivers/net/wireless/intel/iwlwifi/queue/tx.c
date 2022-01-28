@@ -189,7 +189,7 @@ static struct page *get_workaround_page(struct iwl_trans *trans,
 		return NULL;
 
 	/* set the chaining pointer to the previous page if there */
-	*(void **)(page_address(ret) + PAGE_SIZE - sizeof(void *)) = *page_ptr;
+	*(void **)((u8 *)page_address(ret) + PAGE_SIZE - sizeof(void *)) = *page_ptr;
 	*page_ptr = ret;
 
 	return ret;
@@ -314,7 +314,7 @@ alloc:
 		return NULL;
 	p->pos = page_address(p->page);
 	/* set the chaining pointer to NULL */
-	*(void **)(page_address(p->page) + PAGE_SIZE - sizeof(void *)) = NULL;
+	*(void **)((u8 *)page_address(p->page) + PAGE_SIZE - sizeof(void *)) = NULL;
 out:
 	*page_ptr = p->page;
 	get_page(p->page);
@@ -963,7 +963,7 @@ void iwl_txq_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb)
 	while (next) {
 		struct page *tmp = next;
 
-		next = *(void **)(page_address(next) + PAGE_SIZE -
+		next = *(void **)((u8 *)page_address(next) + PAGE_SIZE -
 				  sizeof(void *));
 		__free_page(tmp);
 	}

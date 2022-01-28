@@ -1945,7 +1945,7 @@ static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
 		goto out;
 	}
 
-	ret = len - copy_to_user(user_buf, (void *)rsp->data + delta, len);
+	ret = len - copy_to_user(user_buf, (u8 *)rsp->data + delta, len);
 	*ppos += ret;
 
 out:

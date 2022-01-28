@@ -363,7 +363,7 @@ struct iwl_trans_pcie {
 
 	/* PCI bus related data */
 	struct pci_dev *pci_dev;
-	void __iomem *hw_base;
+	u8 __iomem *hw_base;
 
 	bool ucode_write_complete;
 	bool sx_complete;
