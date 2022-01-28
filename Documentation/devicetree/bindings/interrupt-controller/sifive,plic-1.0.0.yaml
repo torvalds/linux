@@ -61,6 +61,7 @@ properties:
 
   interrupts-extended:
     minItems: 1
+    maxItems: 15872
     description:
       Specifies which contexts are connected to the PLIC, with "-1" specifying
       that a context is not present. Each node pointed to should be a
