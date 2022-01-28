@@ -323,33 +323,16 @@ void dp_set_hw_test_pattern(
 	uint8_t *custom_pattern,
 	uint32_t custom_pattern_size)
 {
+	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 	struct encoder_set_dp_phy_pattern_param pattern_param = {0};
-	struct link_encoder *encoder;
-	enum dp_link_encoding link_encoding_format = dp_get_link_encoding_format(&link->cur_link_settings);
-
-	encoder = link_enc_cfg_get_link_enc(link);
-	ASSERT(encoder);
 
 	pattern_param.dp_phy_pattern = test_pattern;
 	pattern_param.custom_pattern = custom_pattern;
 	pattern_param.custom_pattern_size = custom_pattern_size;
 	pattern_param.dp_panel_mode = dp_get_panel_mode(link);
 
-	switch (link_encoding_format) {
-	case DP_128b_132b_ENCODING:
-		link_res->hpo_dp_link_enc->funcs->set_link_test_pattern(
-				link_res->hpo_dp_link_enc, &pattern_param);
-		break;
-	case DP_8b_10b_ENCODING:
-		ASSERT(encoder);
-		encoder->funcs->dp_set_phy_pattern(encoder, &pattern_param);
-		break;
-	default:
-		DC_LOG_ERROR("%s: Unknown link encoding format.", __func__);
-		break;
-	}
-
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
+	if (link_hwss->ext.set_dp_link_test_pattern)
+		link_hwss->ext.set_dp_link_test_pattern(link, link_res, &pattern_param);
 }
 #undef DC_LOGGER
 
@@ -754,6 +737,17 @@ static void disable_dio_dp_link_output(struct dc_link *link,
 	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }
 
+static void set_dio_dp_link_test_pattern(struct dc_link *link,
+		const struct link_resource *link_res,
+		struct encoder_set_dp_phy_pattern_param *tp_params)
+{
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	ASSERT(link_enc);
+	link_enc->funcs->dp_set_phy_pattern(link_enc, tp_params);
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
+}
+
 static const struct link_hwss dio_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
@@ -761,6 +755,7 @@ static const struct link_hwss dio_link_hwss = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
 		.enable_dp_link_output = enable_dio_dp_link_output,
 		.disable_dp_link_output = disable_dio_dp_link_output,
+		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
 	},
 };
 
@@ -927,6 +922,15 @@ static void disable_hpo_dp_link_output(struct dc_link *link,
 	}
 }
 
+static void set_hpo_dp_link_test_pattern(struct dc_link *link,
+		const struct link_resource *link_res,
+		struct encoder_set_dp_phy_pattern_param *tp_params)
+{
+	link_res->hpo_dp_link_enc->funcs->set_link_test_pattern(
+			link_res->hpo_dp_link_enc, tp_params);
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
+}
+
 static const struct link_hwss hpo_dp_link_hwss = {
 	.setup_stream_encoder = setup_hpo_dp_stream_encoder,
 	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
@@ -935,6 +939,7 @@ static const struct link_hwss hpo_dp_link_hwss = {
 		.set_hblank_min_symbol_width = set_dp_hpo_hblank_min_symbol_width,
 		.enable_dp_link_output = enable_hpo_dp_link_output,
 		.disable_dp_link_output = disable_hpo_dp_link_output,
+		.set_dp_link_test_pattern  = set_hpo_dp_link_test_pattern,
 	},
 };
 /*********************** below goes to dpia_link_hwss *************************/
@@ -952,6 +957,7 @@ static const struct link_hwss dpia_link_hwss = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
 		.enable_dp_link_output = enable_dio_dp_link_output,
 		.disable_dp_link_output = disable_dio_dp_link_output,
+		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
 	},
 };
 
