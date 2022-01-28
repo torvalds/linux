@@ -3360,7 +3360,10 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 			pipe_config->output_types |= BIT(INTEL_OUTPUT_DP);
 		pipe_config->lane_count =
 			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
-		intel_dp_get_m_n(crtc, pipe_config);
+
+		intel_cpu_transcoder_get_m_n(crtc, cpu_transcoder,
+					     &pipe_config->dp_m_n,
+					     &pipe_config->dp_m2_n2);
 
 		if (DISPLAY_VER(dev_priv) >= 11) {
 			i915_reg_t dp_tp_ctl = dp_tp_ctl_reg(encoder, pipe_config);
@@ -3397,7 +3400,9 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 			pipe_config->mst_master_transcoder =
 					REG_FIELD_GET(TRANS_DDI_MST_TRANSPORT_SELECT_MASK, temp);
 
-		intel_dp_get_m_n(crtc, pipe_config);
+		intel_cpu_transcoder_get_m_n(crtc, cpu_transcoder,
+					     &pipe_config->dp_m_n,
+					     &pipe_config->dp_m2_n2);
 
 		pipe_config->infoframes.enable |=
 			intel_hdmi_infoframes_enabled(encoder, pipe_config);
