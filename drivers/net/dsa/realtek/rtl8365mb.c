@@ -730,6 +730,17 @@ static int rtl8365mb_phy_write(struct realtek_priv *priv, int phy, int regnum,
 	return 0;
 }
 
+static int rtl8365mb_dsa_phy_read(struct dsa_switch *ds, int phy, int regnum)
+{
+	return rtl8365mb_phy_read(ds->priv, phy, regnum);
+}
+
+static int rtl8365mb_dsa_phy_write(struct dsa_switch *ds, int phy, int regnum,
+				   u16 val)
+{
+	return rtl8365mb_phy_write(ds->priv, phy, regnum, val);
+}
+
 static enum dsa_tag_protocol
 rtl8365mb_get_tag_protocol(struct dsa_switch *ds, int port,
 			   enum dsa_tag_protocol mp)
@@ -1953,7 +1964,7 @@ static int rtl8365mb_detect(struct realtek_priv *priv)
 	return 0;
 }
 
-static const struct dsa_switch_ops rtl8365mb_switch_ops = {
+static const struct dsa_switch_ops rtl8365mb_switch_ops_smi = {
 	.get_tag_protocol = rtl8365mb_get_tag_protocol,
 	.setup = rtl8365mb_setup,
 	.teardown = rtl8365mb_teardown,
@@ -1971,6 +1982,26 @@ static const struct dsa_switch_ops rtl8365mb_switch_ops = {
 	.get_stats64 = rtl8365mb_get_stats64,
 };
 
+static const struct dsa_switch_ops rtl8365mb_switch_ops_mdio = {
+	.get_tag_protocol = rtl8365mb_get_tag_protocol,
+	.setup = rtl8365mb_setup,
+	.teardown = rtl8365mb_teardown,
+	.phylink_validate = rtl8365mb_phylink_validate,
+	.phylink_mac_config = rtl8365mb_phylink_mac_config,
+	.phylink_mac_link_down = rtl8365mb_phylink_mac_link_down,
+	.phylink_mac_link_up = rtl8365mb_phylink_mac_link_up,
+	.phy_read = rtl8365mb_dsa_phy_read,
+	.phy_write = rtl8365mb_dsa_phy_write,
+	.port_stp_state_set = rtl8365mb_port_stp_state_set,
+	.get_strings = rtl8365mb_get_strings,
+	.get_ethtool_stats = rtl8365mb_get_ethtool_stats,
+	.get_sset_count = rtl8365mb_get_sset_count,
+	.get_eth_phy_stats = rtl8365mb_get_phy_stats,
+	.get_eth_mac_stats = rtl8365mb_get_mac_stats,
+	.get_eth_ctrl_stats = rtl8365mb_get_ctrl_stats,
+	.get_stats64 = rtl8365mb_get_stats64,
+};
+
 static const struct realtek_ops rtl8365mb_ops = {
 	.detect = rtl8365mb_detect,
 	.phy_read = rtl8365mb_phy_read,
@@ -1978,7 +2009,8 @@ static const struct realtek_ops rtl8365mb_ops = {
 };
 
 const struct realtek_variant rtl8365mb_variant = {
-	.ds_ops = &rtl8365mb_switch_ops,
+	.ds_ops_smi = &rtl8365mb_switch_ops_smi,
+	.ds_ops_mdio = &rtl8365mb_switch_ops_mdio,
 	.ops = &rtl8365mb_ops,
 	.clk_delay = 10,
 	.cmd_read = 0xb9,

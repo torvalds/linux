@@ -1703,6 +1703,17 @@ static int rtl8366rb_phy_write(struct realtek_priv *priv, int phy, int regnum,
 	return 0;
 }
 
+static int rtl8366rb_dsa_phy_read(struct dsa_switch *ds, int phy, int regnum)
+{
+	return rtl8366rb_phy_read(ds->priv, phy, regnum);
+}
+
+static int rtl8366rb_dsa_phy_write(struct dsa_switch *ds, int phy, int regnum,
+				   u16 val)
+{
+	return rtl8366rb_phy_write(ds->priv, phy, regnum, val);
+}
+
 static int rtl8366rb_reset_chip(struct realtek_priv *priv)
 {
 	int timeout = 10;
@@ -1768,9 +1779,34 @@ static int rtl8366rb_detect(struct realtek_priv *priv)
 	return 0;
 }
 
-static const struct dsa_switch_ops rtl8366rb_switch_ops = {
+static const struct dsa_switch_ops rtl8366rb_switch_ops_smi = {
 	.get_tag_protocol = rtl8366_get_tag_protocol,
 	.setup = rtl8366rb_setup,
+	.phylink_mac_link_up = rtl8366rb_mac_link_up,
+	.phylink_mac_link_down = rtl8366rb_mac_link_down,
+	.get_strings = rtl8366_get_strings,
+	.get_ethtool_stats = rtl8366_get_ethtool_stats,
+	.get_sset_count = rtl8366_get_sset_count,
+	.port_bridge_join = rtl8366rb_port_bridge_join,
+	.port_bridge_leave = rtl8366rb_port_bridge_leave,
+	.port_vlan_filtering = rtl8366rb_vlan_filtering,
+	.port_vlan_add = rtl8366_vlan_add,
+	.port_vlan_del = rtl8366_vlan_del,
+	.port_enable = rtl8366rb_port_enable,
+	.port_disable = rtl8366rb_port_disable,
+	.port_pre_bridge_flags = rtl8366rb_port_pre_bridge_flags,
+	.port_bridge_flags = rtl8366rb_port_bridge_flags,
+	.port_stp_state_set = rtl8366rb_port_stp_state_set,
+	.port_fast_age = rtl8366rb_port_fast_age,
+	.port_change_mtu = rtl8366rb_change_mtu,
+	.port_max_mtu = rtl8366rb_max_mtu,
+};
+
+static const struct dsa_switch_ops rtl8366rb_switch_ops_mdio = {
+	.get_tag_protocol = rtl8366_get_tag_protocol,
+	.setup = rtl8366rb_setup,
+	.phy_read = rtl8366rb_dsa_phy_read,
+	.phy_write = rtl8366rb_dsa_phy_write,
 	.phylink_mac_link_up = rtl8366rb_mac_link_up,
 	.phylink_mac_link_down = rtl8366rb_mac_link_down,
 	.get_strings = rtl8366_get_strings,
@@ -1808,7 +1844,8 @@ static const struct realtek_ops rtl8366rb_ops = {
 };
 
 const struct realtek_variant rtl8366rb_variant = {
-	.ds_ops = &rtl8366rb_switch_ops,
+	.ds_ops_smi = &rtl8366rb_switch_ops_smi,
+	.ds_ops_mdio = &rtl8366rb_switch_ops_mdio,
 	.ops = &rtl8366rb_ops,
 	.clk_delay = 10,
 	.cmd_read = 0xa9,

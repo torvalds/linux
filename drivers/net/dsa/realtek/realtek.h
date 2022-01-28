@@ -50,6 +50,8 @@ struct realtek_priv {
 	struct gpio_desc	*mdio;
 	struct regmap		*map;
 	struct mii_bus		*slave_mii_bus;
+	struct mii_bus		*bus;
+	int			mdio_addr;
 
 	unsigned int		clk_delay;
 	u8			cmd_read;
@@ -109,7 +111,8 @@ struct realtek_ops {
 };
 
 struct realtek_variant {
-	const struct dsa_switch_ops *ds_ops;
+	const struct dsa_switch_ops *ds_ops_smi;
+	const struct dsa_switch_ops *ds_ops_mdio;
 	const struct realtek_ops *ops;
 	unsigned int clk_delay;
 	u8 cmd_read;

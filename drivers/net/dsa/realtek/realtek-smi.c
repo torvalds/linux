@@ -455,7 +455,7 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	priv->ds->num_ports = priv->num_ports;
 	priv->ds->priv = priv;
 
-	priv->ds->ops = var->ds_ops;
+	priv->ds->ops = var->ds_ops_smi;
 	ret = dsa_register_switch(priv->ds);
 	if (ret) {
 		dev_err_probe(dev, ret, "unable to register switch\n");
