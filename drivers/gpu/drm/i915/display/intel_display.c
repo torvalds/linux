@@ -3152,6 +3152,10 @@ void intel_set_m_n(struct drm_i915_private *i915,
 	intel_de_write(i915, data_m_reg, TU_SIZE(m_n->tu) | m_n->data_m);
 	intel_de_write(i915, data_n_reg, m_n->data_n);
 	intel_de_write(i915, link_m_reg, m_n->link_m);
+	/*
+	 * On BDW+ writing LINK_N arms the double buffered update
+	 * of all the M/N registers, so it must be written last.
+	 */
 	intel_de_write(i915, link_n_reg, m_n->link_n);
 }
 
