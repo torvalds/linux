@@ -88,6 +88,28 @@ static void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 			pipe_name(pipe));
 }
 
+static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
+					 const struct intel_link_m_n *m_n)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	intel_set_m_n(dev_priv, m_n,
+		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
+		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
+}
+
+void intel_pch_transcoder_get_m_n(struct intel_crtc *crtc,
+				  struct intel_link_m_n *m_n)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	intel_get_m_n(dev_priv, m_n,
+		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
+		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
+}
+
 static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_state,
 					   enum pipe pch_transcoder)
 {
@@ -278,6 +300,8 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 
 	/* set transcoder timing, panel must allow it */
 	assert_pps_unlocked(dev_priv, pipe);
+	if (intel_crtc_has_dp_encoder(crtc_state))
+		intel_pch_transcoder_set_m_n(crtc, &crtc_state->dp_m_n);
 	ilk_pch_transcoder_set_timings(crtc_state, pipe);
 
 	intel_fdi_normal_train(crtc);

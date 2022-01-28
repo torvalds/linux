@@ -118,8 +118,6 @@
 
 static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state);
 static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state);
-static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
-					 const struct intel_link_m_n *m_n);
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void hsw_set_transconf(const struct intel_crtc_state *crtc_state);
@@ -1835,23 +1833,18 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	if (intel_crtc_has_dp_encoder(new_crtc_state)) {
-		if (new_crtc_state->has_pch_encoder) {
-			intel_pch_transcoder_set_m_n(crtc, &new_crtc_state->dp_m_n);
-		} else {
-			intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
-						       &new_crtc_state->dp_m_n);
-			intel_cpu_transcoder_set_m2_n2(crtc, cpu_transcoder,
-						       &new_crtc_state->dp_m2_n2);
-		}
+	if (new_crtc_state->has_pch_encoder) {
+		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
+					       &new_crtc_state->fdi_m_n);
+	} else if (intel_crtc_has_dp_encoder(new_crtc_state)) {
+		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
+					       &new_crtc_state->dp_m_n);
+		intel_cpu_transcoder_set_m2_n2(crtc, cpu_transcoder,
+					       &new_crtc_state->dp_m2_n2);
 	}
 
 	intel_set_transcoder_timings(new_crtc_state);
 	intel_set_pipe_src_size(new_crtc_state);
-
-	if (new_crtc_state->has_pch_encoder)
-		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
-					       &new_crtc_state->fdi_m_n);
 
 	ilk_set_pipeconf(new_crtc_state);
 
@@ -3131,26 +3124,15 @@ static void intel_panel_sanitize_ssc(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void intel_set_m_n(struct drm_i915_private *i915,
-			  const struct intel_link_m_n *m_n,
-			  i915_reg_t data_m_reg, i915_reg_t data_n_reg,
-			  i915_reg_t link_m_reg, i915_reg_t link_n_reg)
+void intel_set_m_n(struct drm_i915_private *i915,
+		   const struct intel_link_m_n *m_n,
+		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
+		   i915_reg_t link_m_reg, i915_reg_t link_n_reg)
 {
 	intel_de_write(i915, data_m_reg, TU_SIZE(m_n->tu) | m_n->data_m);
 	intel_de_write(i915, data_n_reg, m_n->data_n);
 	intel_de_write(i915, link_m_reg, m_n->link_m);
 	intel_de_write(i915, link_n_reg, m_n->link_n);
-}
-
-static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
-					 const struct intel_link_m_n *m_n)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-
-	intel_set_m_n(dev_priv, m_n,
-		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
-		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
 }
 
 static bool transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
@@ -3852,28 +3834,16 @@ int ilk_get_lanes_required(int target_clock, int link_bw, int bpp)
 	return DIV_ROUND_UP(bps, link_bw * 8);
 }
 
-static void intel_get_m_n(struct drm_i915_private *i915,
-			  struct intel_link_m_n *m_n,
-			  i915_reg_t data_m_reg, i915_reg_t data_n_reg,
-			  i915_reg_t link_m_reg, i915_reg_t link_n_reg)
+void intel_get_m_n(struct drm_i915_private *i915,
+		   struct intel_link_m_n *m_n,
+		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
+		   i915_reg_t link_m_reg, i915_reg_t link_n_reg)
 {
 	m_n->link_m = intel_de_read(i915, link_m_reg) & DATA_LINK_M_N_MASK;
 	m_n->link_n = intel_de_read(i915, link_n_reg) & DATA_LINK_M_N_MASK;
 	m_n->data_m = intel_de_read(i915, data_m_reg) & DATA_LINK_M_N_MASK;
 	m_n->data_n = intel_de_read(i915, data_n_reg) & DATA_LINK_M_N_MASK;
 	m_n->tu = REG_FIELD_GET(TU_SIZE_MASK, intel_de_read(i915, data_m_reg)) + 1;
-}
-
-void intel_pch_transcoder_get_m_n(struct intel_crtc *crtc,
-				  struct intel_link_m_n *m_n)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum pipe pipe = crtc->pipe;
-
-	intel_get_m_n(dev_priv, m_n,
-		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
-		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
 }
 
 void intel_cpu_transcoder_get_m1_n1(struct intel_crtc *crtc,

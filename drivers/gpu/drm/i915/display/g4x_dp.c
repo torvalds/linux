@@ -18,6 +18,7 @@
 #include "intel_fifo_underrun.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
+#include "intel_pch_display.h"
 #include "intel_pps.h"
 #include "vlv_sideband.h"
 
