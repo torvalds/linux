@@ -149,7 +149,6 @@ struct rk_pcie {
 	struct reset_bulk_data		*rsts;
 	struct gpio_desc		*rst_gpio;
 	struct gpio_desc		*prsnt_gpio;
-	int				prsnt_active_stat;
 	phys_addr_t			mem_start;
 	size_t				mem_size;
 	struct pcie_port		pp;
@@ -1209,9 +1208,6 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 	if (IS_ERR_OR_NULL(rk_pcie->prsnt_gpio))
 		dev_info(&pdev->dev, "invalid prsnt-gpios property in node\n");
 
-	if (device_property_read_bool(&pdev->dev, "rockchip,prsnt-active-high"))
-		rk_pcie->prsnt_active_stat = 1;
-
 	return 0;
 }
 
@@ -1786,7 +1782,7 @@ static int rk_pcie_really_probe(void *p)
 	}
 
 	if (!IS_ERR_OR_NULL(rk_pcie->prsnt_gpio)) {
-		if (gpiod_get_value(rk_pcie->prsnt_gpio) != rk_pcie->prsnt_active_stat) {
+		if (!gpiod_get_value(rk_pcie->prsnt_gpio)) {
 			ret = -ENODEV;
 			goto release_driver;
 		}
