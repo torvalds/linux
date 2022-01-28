@@ -655,7 +655,7 @@ static u64 get_va_block(struct hl_device *hdev,
 			continue;
 
 		/*
-		 * In case hint address is 0, and arc_hints_range_reservation
+		 * In case hint address is 0, and hints_range_reservation
 		 * property enabled, then avoid allocating va blocks from the
 		 * range reserved for hint addresses
 		 */
