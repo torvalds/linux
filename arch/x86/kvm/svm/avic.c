@@ -578,7 +578,7 @@ int avic_init_vcpu(struct vcpu_svm *svm)
 	return ret;
 }
 
-void avic_post_state_restore(struct kvm_vcpu *vcpu)
+void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu)
 {
 	if (avic_handle_apic_id_update(vcpu) != 0)
 		return;
@@ -586,20 +586,20 @@ void avic_post_state_restore(struct kvm_vcpu *vcpu)
 	avic_handle_ldr_update(vcpu);
 }
 
-void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
+void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 {
 	return;
 }
 
-void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
+void avic_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
 {
 }
 
-void svm_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
+void avic_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
 {
 }
 
-static int svm_set_pi_irte_mode(struct kvm_vcpu *vcpu, bool activate)
+static int avic_set_pi_irte_mode(struct kvm_vcpu *vcpu, bool activate)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -631,7 +631,7 @@ out:
 	return ret;
 }
 
-void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
+void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb01.ptr;
@@ -648,7 +648,7 @@ void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 		 * we need to check and update the AVIC logical APIC ID table
 		 * accordingly before re-activating.
 		 */
-		avic_post_state_restore(vcpu);
+		avic_apicv_post_state_restore(vcpu);
 		vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
 	} else {
 		vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
@@ -660,15 +660,15 @@ void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 	else
 		avic_vcpu_put(vcpu);
 
-	svm_set_pi_irte_mode(vcpu, activated);
+	avic_set_pi_irte_mode(vcpu, activated);
 }
 
-void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
+void avic_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
 {
 	return;
 }
 
-bool svm_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu)
+bool avic_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu)
 {
 	return false;
 }
@@ -770,7 +770,7 @@ get_pi_vcpu_info(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 }
 
 /*
- * svm_update_pi_irte - set IRTE for Posted-Interrupts
+ * avic_pi_update_irte - set IRTE for Posted-Interrupts
  *
  * @kvm: kvm
  * @host_irq: host irq of the interrupt
@@ -778,8 +778,8 @@ get_pi_vcpu_info(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
  * @set: set or unset PI
  * returns 0 on success, < 0 on failure
  */
-int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
-		       uint32_t guest_irq, bool set)
+int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
+			uint32_t guest_irq, bool set)
 {
 	struct kvm_kernel_irq_routing_entry *e;
 	struct kvm_irq_routing_table *irq_rt;
@@ -879,7 +879,7 @@ out:
 	return ret;
 }
 
-bool svm_check_apicv_inhibit_reasons(ulong bit)
+bool avic_check_apicv_inhibit_reasons(ulong bit)
 {
 	ulong supported = BIT(APICV_INHIBIT_REASON_DISABLE) |
 			  BIT(APICV_INHIBIT_REASON_ABSENT) |

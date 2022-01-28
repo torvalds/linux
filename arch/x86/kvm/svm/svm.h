@@ -577,16 +577,16 @@ int avic_unaccelerated_access_interception(struct kvm_vcpu *vcpu);
 int avic_init_vcpu(struct vcpu_svm *svm);
 void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void avic_vcpu_put(struct kvm_vcpu *vcpu);
-void avic_post_state_restore(struct kvm_vcpu *vcpu);
-void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
-void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
-bool svm_check_apicv_inhibit_reasons(ulong bit);
-void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
-void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr);
-void svm_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr);
-bool svm_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
-int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
-		       uint32_t guest_irq, bool set);
+void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu);
+void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
+void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
+bool avic_check_apicv_inhibit_reasons(ulong bit);
+void avic_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
+void avic_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr);
+void avic_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr);
+bool avic_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
+int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
+			uint32_t guest_irq, bool set);
 void avic_vcpu_blocking(struct kvm_vcpu *vcpu);
 void avic_vcpu_unblocking(struct kvm_vcpu *vcpu);
 void avic_ring_doorbell(struct kvm_vcpu *vcpu);
