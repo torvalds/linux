@@ -80,6 +80,7 @@ properties:
               - mediatek,mt2712-tphy
               - mediatek,mt7629-tphy
               - mediatek,mt8183-tphy
+              - mediatek,mt8186-tphy
           - const: mediatek,generic-tphy-v2
       - items:
           - enum:
