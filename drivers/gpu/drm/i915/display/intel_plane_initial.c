@@ -46,17 +46,18 @@ static struct i915_vma *
 initial_plane_vma(struct drm_i915_private *i915,
 		  struct intel_initial_plane_config *plane_config)
 {
+	struct intel_memory_region *mem = i915->mm.stolen_region;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	u32 base, size;
 
-	if (plane_config->size == 0)
+	if (!mem || plane_config->size == 0)
 		return NULL;
 
 	base = round_down(plane_config->base,
 			  I915_GTT_MIN_ALIGNMENT);
 	size = round_up(plane_config->base + plane_config->size,
-			I915_GTT_MIN_ALIGNMENT);
+			mem->min_page_size);
 	size -= base;
 
 	/*
