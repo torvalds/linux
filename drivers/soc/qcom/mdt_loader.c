@@ -188,6 +188,74 @@ void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len,
 }
 EXPORT_SYMBOL_GPL(qcom_mdt_read_metadata);
 
+/**
+ * qcom_mdt_pas_init() - initialize PAS region for firmware loading
+ * @dev:	device handle to associate resources with
+ * @fw:		firmware object for the mdt file
+ * @firmware:	name of the firmware, for construction of segment file names
+ * @pas_id:	PAS identifier
+ * @mem_phys:	physical address of allocated memory region
+ * @ctx:	PAS metadata context, to be released by caller
+ *
+ * Returns 0 on success, negative errno otherwise.
+ */
+int qcom_mdt_pas_init(struct device *dev, const struct firmware *fw,
+		      const char *fw_name, int pas_id, phys_addr_t mem_phys,
+		      struct qcom_scm_pas_metadata *ctx)
+{
+	const struct elf32_phdr *phdrs;
+	const struct elf32_phdr *phdr;
+	const struct elf32_hdr *ehdr;
+	phys_addr_t min_addr = PHYS_ADDR_MAX;
+	phys_addr_t max_addr = 0;
+	size_t metadata_len;
+	void *metadata;
+	int ret;
+	int i;
+
+	ehdr = (struct elf32_hdr *)fw->data;
+	phdrs = (struct elf32_phdr *)(ehdr + 1);
+
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		phdr = &phdrs[i];
+
+		if (!mdt_phdr_valid(phdr))
+			continue;
+
+		if (phdr->p_paddr < min_addr)
+			min_addr = phdr->p_paddr;
+
+		if (phdr->p_paddr + phdr->p_memsz > max_addr)
+			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
+	}
+
+	metadata = qcom_mdt_read_metadata(fw, &metadata_len, fw_name, dev);
+	if (IS_ERR(metadata)) {
+		ret = PTR_ERR(metadata);
+		dev_err(dev, "error %d reading firmware %s metadata\n", ret, fw_name);
+		goto out;
+	}
+
+	ret = qcom_scm_pas_init_image(pas_id, metadata, metadata_len, ctx);
+	kfree(metadata);
+	if (ret) {
+		/* Invalid firmware metadata */
+		dev_err(dev, "error %d initializing firmware %s\n", ret, fw_name);
+		goto out;
+	}
+
+	ret = qcom_scm_pas_mem_setup(pas_id, mem_phys, max_addr - min_addr);
+	if (ret) {
+		/* Unable to set up relocation */
+		dev_err(dev, "error %d setting up firmware %s\n", ret, fw_name);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(qcom_mdt_pas_init);
+
 static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 			   const char *fw_name, int pas_id, void *mem_region,
 			   phys_addr_t mem_phys, size_t mem_size,
@@ -198,10 +266,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	const struct elf32_hdr *ehdr;
 	phys_addr_t mem_reloc;
 	phys_addr_t min_addr = PHYS_ADDR_MAX;
-	phys_addr_t max_addr = 0;
-	size_t metadata_len;
 	ssize_t offset;
-	void *metadata;
 	bool relocate = false;
 	void *ptr;
 	int ret = 0;
@@ -224,37 +289,6 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 
 		if (phdr->p_paddr < min_addr)
 			min_addr = phdr->p_paddr;
-
-		if (phdr->p_paddr + phdr->p_memsz > max_addr)
-			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
-	}
-
-	if (pas_init) {
-		metadata = qcom_mdt_read_metadata(fw, &metadata_len, fw_name, dev);
-		if (IS_ERR(metadata)) {
-			ret = PTR_ERR(metadata);
-			dev_err(dev, "error %d reading firmware %s metadata\n",
-				ret, fw_name);
-			goto out;
-		}
-
-		ret = qcom_scm_pas_init_image(pas_id, metadata, metadata_len, NULL);
-
-		kfree(metadata);
-		if (ret) {
-			/* Invalid firmware metadata */
-			dev_err(dev, "error %d initializing firmware %s\n",
-				ret, fw_name);
-			goto out;
-		}
-
-		ret = qcom_scm_pas_mem_setup(pas_id, mem_phys, max_addr - min_addr);
-		if (ret) {
-			/* Unable to set up relocation */
-			dev_err(dev, "error %d setting up firmware %s\n",
-				ret, fw_name);
-			goto out;
-		}
 	}
 
 	if (relocate) {
@@ -319,8 +353,6 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	if (reloc_base)
 		*reloc_base = mem_reloc;
 
-out:
-
 	return ret;
 }
 
@@ -342,6 +374,12 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		  phys_addr_t mem_phys, size_t mem_size,
 		  phys_addr_t *reloc_base)
 {
+	int ret;
+
+	ret = qcom_mdt_pas_init(dev, fw, firmware, pas_id, mem_phys, NULL);
+	if (ret)
+		return ret;
+
 	return __qcom_mdt_load(dev, fw, firmware, pas_id, mem_region, mem_phys,
 			       mem_size, reloc_base, true);
 }
