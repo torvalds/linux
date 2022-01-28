@@ -161,11 +161,9 @@ static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev)
 static bool cnl_compact_ipc_compress(struct snd_sof_ipc_msg *msg,
 				     u32 *dr, u32 *dd)
 {
-	struct sof_ipc_pm_gate *pm_gate;
+	struct sof_ipc_pm_gate *pm_gate = msg->msg_data;
 
-	if (msg->header == (SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_GATE)) {
-		pm_gate = msg->msg_data;
-
+	if (pm_gate->hdr.cmd == (SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_GATE)) {
 		/* send the compact message via the primary register */
 		*dr = HDA_IPC_MSG_COMPACT | HDA_IPC_PM_GATE;
 
