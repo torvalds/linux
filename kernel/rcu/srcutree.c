@@ -41,12 +41,28 @@ module_param(counter_wrap_check, ulong, 0444);
 
 /*
  * Control conversion to SRCU_SIZE_BIG:
- * 0: Don't convert at all (default).
- * 1: Convert at init_srcu_struct() time.
- * 2: Convert when rcutorture invokes srcu_torture_stats_print().
+ *    0: Don't convert at all (default).
+ *    1: Convert at init_srcu_struct() time.
+ *    2: Convert when rcutorture invokes srcu_torture_stats_print().
+ *    3: Decide at boot time based on system shape.
+ * 0x1x: Convert when excessive contention encountered.
  */
-static int convert_to_big;
+#define SRCU_SIZING_NONE	0
+#define SRCU_SIZING_INIT	1
+#define SRCU_SIZING_TORTURE	2
+#define SRCU_SIZING_AUTO	3
+#define SRCU_SIZING_CONTEND	0x10
+#define SRCU_SIZING_IS(x) ((convert_to_big & ~SRCU_SIZING_CONTEND) == x)
+#define SRCU_SIZING_IS_NONE() (SRCU_SIZING_IS(SRCU_SIZING_NONE))
+#define SRCU_SIZING_IS_INIT() (SRCU_SIZING_IS(SRCU_SIZING_INIT))
+#define SRCU_SIZING_IS_TORTURE() (SRCU_SIZING_IS(SRCU_SIZING_TORTURE))
+#define SRCU_SIZING_IS_CONTEND() (convert_to_big & SRCU_SIZING_CONTEND)
+static int convert_to_big = SRCU_SIZING_NONE;
 module_param(convert_to_big, int, 0444);
+
+/* Contention events per jiffy to initiate transition to big. */
+static int small_contention_lim __read_mostly = 100;
+module_param(small_contention_lim, int, 0444);
 
 /* Early-boot callback-management, so early that no lock is required! */
 static LIST_HEAD(srcu_boot_list);
@@ -58,31 +74,40 @@ static void process_srcu(struct work_struct *work);
 static void srcu_delay_timer(struct timer_list *t);
 
 /* Wrappers for lock acquisition and release, see raw_spin_lock_rcu_node(). */
-#define spin_lock_rcu_node(p)					\
-do {									\
-	spin_lock(&ACCESS_PRIVATE(p, lock));			\
-	smp_mb__after_unlock_lock();					\
+#define spin_lock_rcu_node(p)							\
+do {										\
+	spin_lock(&ACCESS_PRIVATE(p, lock));					\
+	smp_mb__after_unlock_lock();						\
 } while (0)
 
 #define spin_unlock_rcu_node(p) spin_unlock(&ACCESS_PRIVATE(p, lock))
 
-#define spin_lock_irq_rcu_node(p)					\
-do {									\
-	spin_lock_irq(&ACCESS_PRIVATE(p, lock));			\
-	smp_mb__after_unlock_lock();					\
+#define spin_lock_irq_rcu_node(p)						\
+do {										\
+	spin_lock_irq(&ACCESS_PRIVATE(p, lock));				\
+	smp_mb__after_unlock_lock();						\
 } while (0)
 
-#define spin_unlock_irq_rcu_node(p)					\
+#define spin_unlock_irq_rcu_node(p)						\
 	spin_unlock_irq(&ACCESS_PRIVATE(p, lock))
 
-#define spin_lock_irqsave_rcu_node(p, flags)			\
-do {									\
-	spin_lock_irqsave(&ACCESS_PRIVATE(p, lock), flags);	\
-	smp_mb__after_unlock_lock();					\
+#define spin_lock_irqsave_rcu_node(p, flags)					\
+do {										\
+	spin_lock_irqsave(&ACCESS_PRIVATE(p, lock), flags);			\
+	smp_mb__after_unlock_lock();						\
 } while (0)
 
-#define spin_unlock_irqrestore_rcu_node(p, flags)			\
-	spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)	\
+#define spin_trylock_irqsave_rcu_node(p, flags)					\
+({										\
+	bool ___locked = spin_trylock_irqsave(&ACCESS_PRIVATE(p, lock), flags);	\
+										\
+	if (___locked)								\
+		smp_mb__after_unlock_lock();					\
+	___locked;								\
+})
+
+#define spin_unlock_irqrestore_rcu_node(p, flags)				\
+	spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)			\
 
 /*
  * Initialize SRCU per-CPU data.  Note that statically allocated
@@ -225,7 +250,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	init_srcu_struct_data(ssp);
 	ssp->srcu_gp_seq_needed_exp = 0;
 	ssp->srcu_last_gp_end = ktime_get_mono_fast_ns();
-	if (READ_ONCE(ssp->srcu_size_state) == SRCU_SIZE_SMALL && convert_to_big == 1) {
+	if (READ_ONCE(ssp->srcu_size_state) == SRCU_SIZE_SMALL && SRCU_SIZING_IS_INIT()) {
 		if (!init_srcu_struct_nodes(ssp, GFP_ATOMIC)) {
 			if (!ssp->sda_is_static) {
 				free_percpu(ssp->sda);
@@ -273,6 +298,15 @@ EXPORT_SYMBOL_GPL(init_srcu_struct);
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /*
+ * Initiate a transition to SRCU_SIZE_BIG with lock held.
+ */
+static void __srcu_transition_to_big(struct srcu_struct *ssp)
+{
+	lockdep_assert_held(&ACCESS_PRIVATE(ssp, lock));
+	smp_store_release(&ssp->srcu_size_state, SRCU_SIZE_ALLOC);
+}
+
+/*
  * Initiate an idempotent transition to SRCU_SIZE_BIG.
  */
 static void srcu_transition_to_big(struct srcu_struct *ssp)
@@ -287,8 +321,33 @@ static void srcu_transition_to_big(struct srcu_struct *ssp)
 		spin_unlock_irqrestore_rcu_node(ssp, flags);
 		return;
 	}
-	smp_store_release(&ssp->srcu_size_state, SRCU_SIZE_ALLOC);
+	__srcu_transition_to_big(ssp);
 	spin_unlock_irqrestore_rcu_node(ssp, flags);
+}
+
+/*
+ * Acquire the specified srcu_struct structure's ->lock, but check for
+ * excessive contention, which results in initiation of a transition
+ * to SRCU_SIZE_BIG.  But only if the srcutree.convert_to_big module
+ * parameter permits this.
+ */
+static void spin_lock_irqsave_ssp_contention(struct srcu_struct *ssp, unsigned long *flags)
+{
+	unsigned long j;
+
+	if (spin_trylock_irqsave_rcu_node(ssp, *flags))
+		return;
+	spin_lock_irqsave_rcu_node(ssp, *flags);
+	if (!SRCU_SIZING_IS_CONTEND() || ssp->srcu_size_state)
+		return;
+	j = jiffies;
+	if (ssp->srcu_size_jiffies != j) {
+		ssp->srcu_size_jiffies = j;
+		ssp->srcu_n_lock_retries = 0;
+	}
+	if (++ssp->srcu_n_lock_retries <= small_contention_lim)
+		return;
+	__srcu_transition_to_big(ssp);
 }
 
 /*
@@ -718,7 +777,7 @@ static void srcu_funnel_exp_start(struct srcu_struct *ssp, struct srcu_node *snp
 			WRITE_ONCE(snp->srcu_gp_seq_needed_exp, s);
 			spin_unlock_irqrestore_rcu_node(snp, flags);
 		}
-	spin_lock_irqsave_rcu_node(ssp, flags);
+	spin_lock_irqsave_ssp_contention(ssp, &flags);
 	if (ULONG_CMP_LT(ssp->srcu_gp_seq_needed_exp, s))
 		WRITE_ONCE(ssp->srcu_gp_seq_needed_exp, s);
 	spin_unlock_irqrestore_rcu_node(ssp, flags);
@@ -779,7 +838,7 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 		}
 
 	/* Top of tree, must ensure the grace period will be started. */
-	spin_lock_irqsave_rcu_node(ssp, flags);
+	spin_lock_irqsave_ssp_contention(ssp, &flags);
 	if (ULONG_CMP_LT(ssp->srcu_gp_seq_needed, s)) {
 		/*
 		 * Record need for grace period s.  Pair with load
@@ -1542,7 +1601,7 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 		}
 		pr_cont(" T(%ld,%ld)\n", s0, s1);
 	}
-	if (convert_to_big == 2)
+	if (SRCU_SIZING_IS_TORTURE())
 		srcu_transition_to_big(ssp);
 }
 EXPORT_SYMBOL_GPL(srcu_torture_stats_print);

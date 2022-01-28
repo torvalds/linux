@@ -5616,6 +5616,7 @@
 				   0:  Never.
 				   1:  At init_srcu_struct() time.
 				   2:  When rcutorture decides to.
+				0x1X:  Above plus if high contention.
 
 			Either way, the srcu_node tree will be sized based
 			on the actual runtime number of CPUs (nr_cpu_ids)
@@ -5637,6 +5638,14 @@
 			grace period will be considered for automatic
 			expediting.  Set to zero to disable automatic
 			expediting.
+
+	srcutree.small_contention_lim [KNL]
+			Specifies the number of update-side contention
+			events per jiffy will be tolerated before
+			initiating a conversion of an srcu_struct
+			structure to big form.	Note that the value of
+			srcutree.convert_to_big must have the 0x10 bit
+			set for contention-based conversions to occur.
 
 	ssbd=		[ARM64,HW]
 			Speculative Store Bypass Disable control
