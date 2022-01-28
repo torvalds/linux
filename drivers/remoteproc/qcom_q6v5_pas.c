@@ -79,6 +79,8 @@ struct qcom_adsp {
 	struct qcom_rproc_subdev smd_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
 	struct qcom_sysmon *sysmon;
+
+	struct qcom_scm_pas_metadata pas_metadata;
 };
 
 static void adsp_minidump(struct rproc *rproc)
@@ -126,14 +128,34 @@ static void adsp_pds_disable(struct qcom_adsp *adsp, struct device **pds,
 	}
 }
 
+static int adsp_unprepare(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+
+	/*
+	 * adsp_load() did pass pas_metadata to the SCM driver for storing
+	 * metadata context. It might have been released already if
+	 * auth_and_reset() was successful, but in other cases clean it up
+	 * here.
+	 */
+	qcom_scm_pas_metadata_release(&adsp->pas_metadata);
+
+	return 0;
+}
+
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 	int ret;
 
-	ret = qcom_mdt_load(adsp->dev, fw, rproc->firmware, adsp->pas_id,
-			    adsp->mem_region, adsp->mem_phys, adsp->mem_size,
-			    &adsp->mem_reloc);
+	ret = qcom_mdt_pas_init(adsp->dev, fw, rproc->firmware, adsp->pas_id,
+				adsp->mem_phys, &adsp->pas_metadata);
+	if (ret)
+		return ret;
+
+	ret = qcom_mdt_load_no_init(adsp->dev, fw, rproc->firmware, adsp->pas_id,
+				    adsp->mem_region, adsp->mem_phys, adsp->mem_size,
+				    &adsp->mem_reloc);
 	if (ret)
 		return ret;
 
@@ -184,6 +206,8 @@ static int adsp_start(struct rproc *rproc)
 		qcom_scm_pas_shutdown(adsp->pas_id);
 		goto disable_px_supply;
 	}
+
+	qcom_scm_pas_metadata_release(&adsp->pas_metadata);
 
 	return 0;
 
@@ -255,6 +279,7 @@ static unsigned long adsp_panic(struct rproc *rproc)
 }
 
 static const struct rproc_ops adsp_ops = {
+	.unprepare = adsp_unprepare,
 	.start = adsp_start,
 	.stop = adsp_stop,
 	.da_to_va = adsp_da_to_va,
@@ -264,6 +289,7 @@ static const struct rproc_ops adsp_ops = {
 };
 
 static const struct rproc_ops adsp_minidump_ops = {
+	.unprepare = adsp_unprepare,
 	.start = adsp_start,
 	.stop = adsp_stop,
 	.da_to_va = adsp_da_to_va,
