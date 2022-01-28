@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fh_h__
@@ -590,7 +590,8 @@ struct iwl_rb_status {
 #define TFD_QUEUE_CB_SIZE(x)	(ilog2(x) - 3)
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
-#define TFD_QUEUE_BC_SIZE_GEN3	1024
+#define TFD_QUEUE_BC_SIZE_GEN3_AX210	1024
+#define TFD_QUEUE_BC_SIZE_GEN3_BZ	(1024 * 4)
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
 #define IWL_TFH_NUM_TBS		25
@@ -707,14 +708,14 @@ struct iwlagn_scd_bc_tbl {
 } __packed;
 
 /**
- * struct iwl_gen3_bc_tbl scheduler byte count table gen3
+ * struct iwl_gen3_bc_tbl_entry scheduler byte count table entry gen3
  * For AX210 and on:
  * @tfd_offset: 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved
  */
-struct iwl_gen3_bc_tbl {
-	__le16 tfd_offset[TFD_QUEUE_BC_SIZE_GEN3];
+struct iwl_gen3_bc_tbl_entry {
+	__le16 tfd_offset;
 } __packed;
 
 #endif /* !__iwl_fh_h__ */

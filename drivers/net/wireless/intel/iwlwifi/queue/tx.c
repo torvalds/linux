@@ -41,13 +41,13 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans *trans,
 	num_fetch_chunks = DIV_ROUND_UP(filled_tfd_size, 64) - 1;
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		struct iwl_gen3_bc_tbl *scd_bc_tbl_gen3 = txq->bc_tbl.addr;
+		struct iwl_gen3_bc_tbl_entry *scd_bc_tbl_gen3 = txq->bc_tbl.addr;
 
 		/* Starting from AX210, the HW expects bytes */
 		WARN_ON(trans->txqs.bc_table_dword);
 		WARN_ON(len > 0x3FFF);
 		bc_ent = cpu_to_le16(len | (num_fetch_chunks << 14));
-		scd_bc_tbl_gen3->tfd_offset[idx] = bc_ent;
+		scd_bc_tbl_gen3[idx].tfd_offset = bc_ent;
 	} else {
 		struct iwlagn_scd_bc_tbl *scd_bc_tbl = txq->bc_tbl.addr;
 

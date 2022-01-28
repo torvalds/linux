@@ -343,8 +343,8 @@ struct iwl_fw_mon_regs {
  * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @min_txq_size: minimum number of slots required in a TX queue
  * @uhb_supported: ultra high band channels supported
- * @min_256_ba_txq_size: minimum number of slots required in a TX queue which
- *	supports 256 BA aggregation
+ * @min_ba_txq_size: minimum number of slots required in a TX queue which
+ *	based on hardware support (HE - 256, EHT - 1K).
  * @num_rbds: number of receive buffer descriptors to use
  *	(only used for multi-queue capable devices)
  * @mac_addr_csr_base: CSR base register for MAC address access, if not set
@@ -405,7 +405,7 @@ struct iwl_cfg {
 	u32 d3_debug_data_length;
 	u32 min_txq_size;
 	u32 gp2_reg_addr;
-	u32 min_256_ba_txq_size;
+	u32 min_ba_txq_size;
 	const struct iwl_fw_mon_regs mon_dram_regs;
 	const struct iwl_fw_mon_regs mon_smem_regs;
 };

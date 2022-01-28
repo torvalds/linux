@@ -717,14 +717,36 @@ static int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id,
 static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 				   u8 sta_id, u8 tid, unsigned int timeout)
 {
-	int queue, size = max_t(u32, IWL_DEFAULT_QUEUE_SIZE,
-				mvm->trans->cfg->min_256_ba_txq_size);
+	int queue, size;
 
 	if (tid == IWL_MAX_TID_COUNT) {
 		tid = IWL_MGMT_TID;
 		size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
 			     mvm->trans->cfg->min_txq_size);
+	} else {
+		struct ieee80211_sta *sta;
+
+		rcu_read_lock();
+		sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+
+		/* this queue isn't used for traffic (cab_queue) */
+		if (IS_ERR_OR_NULL(sta)) {
+			size = IWL_MGMT_QUEUE_SIZE;
+		} else if (sta->he_cap.has_he) {
+			/* support for 256 ba size */
+			size = IWL_DEFAULT_QUEUE_SIZE_HE;
+		} else {
+			size = IWL_DEFAULT_QUEUE_SIZE;
+		}
+
+		rcu_read_unlock();
 	}
+
+	/* take the min with bc tbl entries allowed */
+	size = min_t(u32, size, mvm->trans->txqs.bc_tbl_size / sizeof(u16));
+
+	/* size needs to be power of 2 values for calculating read/write pointers */
+	size = rounddown_pow_of_two(size);
 
 	do {
 		__le16 enable = cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE);

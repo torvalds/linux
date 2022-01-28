@@ -7,6 +7,7 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-prph.h"
+#include "fw/api/txq.h"
 
 /* Highest firmware API version supported */
 #define IWL_22000_UCODE_API_MAX	69
@@ -224,7 +225,7 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.trans.base_params = &iwl_ax210_base_params,			\
 	.min_txq_size = 128,						\
 	.gp2_reg_addr = 0xd02c68,					\
-	.min_256_ba_txq_size = 1024,					\
+	.min_ba_txq_size = IWL_DEFAULT_QUEUE_SIZE_HE,		\
 	.mon_dram_regs = {						\
 		.write_ptr = {						\
 			.addr = DBGC_CUR_DBGBUF_STATUS,			\
@@ -285,7 +286,7 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.trans.base_params = &iwl_ax210_base_params,			\
 	.min_txq_size = 128,						\
 	.gp2_reg_addr = 0xd02c68,					\
-	.min_256_ba_txq_size = 1024,					\
+	.min_ba_txq_size = IWL_DEFAULT_QUEUE_SIZE_EHT,		\
 	.mon_dram_regs = {						\
 		.write_ptr = {						\
 			.addr = DBGC_CUR_DBGBUF_STATUS,			\
