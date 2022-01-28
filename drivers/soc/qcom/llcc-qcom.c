@@ -36,9 +36,6 @@
 
 #define CACHE_LINE_SIZE_SHIFT         6
 
-#define LLCC_COMMON_HW_INFO           0x00030000
-
-#define LLCC_COMMON_STATUS0           0x0003000c
 #define LLCC_LB_CNT_MASK              GENMASK(31, 28)
 #define LLCC_LB_CNT_SHIFT             28
 
@@ -106,6 +103,12 @@ struct qcom_llcc_config {
 	const struct llcc_slice_config *sct_data;
 	int size;
 	bool need_llcc_cfg;
+	const u32 *reg_offset;
+};
+
+enum llcc_reg_offset {
+	LLCC_COMMON_HW_INFO,
+	LLCC_COMMON_STATUS0,
 };
 
 static const struct llcc_slice_config sc7180_data[] =  {
@@ -223,46 +226,63 @@ static const struct llcc_slice_config sm8350_data[] =  {
 	{ LLCC_CPUHWT,   5, 512,   1, 1, 0xfff, 0x0, 0, 0, 0, 0, 0, 1 },
 };
 
+static const u32 llcc_v1_2_reg_offset[] = {
+	[LLCC_COMMON_HW_INFO]	= 0x00030000,
+	[LLCC_COMMON_STATUS0]	= 0x0003000c,
+};
+
+static const u32 llcc_v21_reg_offset[] = {
+	[LLCC_COMMON_HW_INFO]	= 0x00034000,
+	[LLCC_COMMON_STATUS0]	= 0x0003400c,
+};
+
 static const struct qcom_llcc_config sc7180_cfg = {
 	.sct_data	= sc7180_data,
 	.size		= ARRAY_SIZE(sc7180_data),
 	.need_llcc_cfg	= true,
+	.reg_offset	= llcc_v1_2_reg_offset,
 };
 
 static const struct qcom_llcc_config sc7280_cfg = {
 	.sct_data	= sc7280_data,
 	.size		= ARRAY_SIZE(sc7280_data),
 	.need_llcc_cfg	= true,
+	.reg_offset	= llcc_v1_2_reg_offset,
 };
 
 static const struct qcom_llcc_config sdm845_cfg = {
 	.sct_data	= sdm845_data,
 	.size		= ARRAY_SIZE(sdm845_data),
 	.need_llcc_cfg	= false,
+	.reg_offset	= llcc_v1_2_reg_offset,
 };
 
 static const struct qcom_llcc_config sm6350_cfg = {
 	.sct_data	= sm6350_data,
 	.size		= ARRAY_SIZE(sm6350_data),
 	.need_llcc_cfg	= true,
+	.reg_offset	= llcc_v1_2_reg_offset,
 };
 
 static const struct qcom_llcc_config sm8150_cfg = {
 	.sct_data       = sm8150_data,
 	.size           = ARRAY_SIZE(sm8150_data),
 	.need_llcc_cfg	= true,
+	.reg_offset	= llcc_v1_2_reg_offset,
 };
 
 static const struct qcom_llcc_config sm8250_cfg = {
 	.sct_data       = sm8250_data,
 	.size           = ARRAY_SIZE(sm8250_data),
 	.need_llcc_cfg	= true,
+	.reg_offset	= llcc_v1_2_reg_offset,
 };
 
 static const struct qcom_llcc_config sm8350_cfg = {
 	.sct_data       = sm8350_data,
 	.size           = ARRAY_SIZE(sm8350_data),
 	.need_llcc_cfg	= true,
+	.reg_offset	= llcc_v1_2_reg_offset,
 };
 
 static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
@@ -618,15 +638,18 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	cfg = of_device_get_match_data(&pdev->dev);
+
 	/* Extract version of the IP */
-	ret = regmap_read(drv_data->bcast_regmap, LLCC_COMMON_HW_INFO, &version);
+	ret = regmap_read(drv_data->bcast_regmap, cfg->reg_offset[LLCC_COMMON_HW_INFO],
+			  &version);
 	if (ret)
 		goto err;
 
 	drv_data->version = version;
 
-	ret = regmap_read(drv_data->regmap, LLCC_COMMON_STATUS0,
-						&num_banks);
+	ret = regmap_read(drv_data->regmap, cfg->reg_offset[LLCC_COMMON_STATUS0],
+			  &num_banks);
 	if (ret)
 		goto err;
 
@@ -634,7 +657,6 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	num_banks >>= LLCC_LB_CNT_SHIFT;
 	drv_data->num_banks = num_banks;
 
-	cfg = of_device_get_match_data(&pdev->dev);
 	llcc_cfg = cfg->sct_data;
 	sz = cfg->size;
 
