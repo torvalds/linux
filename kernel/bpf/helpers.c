@@ -695,7 +695,7 @@ BPF_CALL_5(bpf_copy_from_user_task, void *, dst, u32, size,
 
 const struct bpf_func_proto bpf_copy_from_user_task_proto = {
 	.func		= bpf_copy_from_user_task,
-	.gpl_only	= false,
+	.gpl_only	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
