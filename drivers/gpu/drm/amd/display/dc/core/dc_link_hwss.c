@@ -29,12 +29,6 @@ static void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx);
 static void virtual_reset_stream_encoder(struct pipe_ctx *pipe_ctx);
 
 /************************* below goes to dio_link_hwss ************************/
-static bool can_use_dio_link_hwss(const struct dc_link *link,
-		const struct link_resource *link_res)
-{
-	return link->link_enc != NULL;
-}
-
 static void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size)
 {
@@ -135,14 +129,19 @@ static const struct link_hwss dio_link_hwss = {
 	},
 };
 
-/*********************** below goes to hpo_dp_link_hwss ***********************/
-static bool can_use_dp_hpo_link_hwss(const struct dc_link *link,
+bool can_use_dio_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res)
 {
-	return link_res->hpo_dp_link_enc != NULL;
+	return link->link_enc != NULL;
 }
 
-static void set_dp_hpo_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
+const struct link_hwss *get_dio_link_hwss(void)
+{
+	return &dio_link_hwss;
+}
+
+/*********************** below goes to hpo_dp_link_hwss ***********************/
+static void set_hpo_dp_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size)
 {
 	struct hpo_dp_stream_encoder *hpo_dp_stream_encoder =
@@ -155,7 +154,7 @@ static void set_dp_hpo_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 			throttled_vcp_size);
 }
 
-static void set_dp_hpo_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
+static void set_hpo_dp_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
 		const struct dc_link_settings *link_settings,
 		struct fixed31_32 throttled_vcp_size)
 {
@@ -328,22 +327,27 @@ static const struct link_hwss hpo_dp_link_hwss = {
 	.setup_stream_encoder = setup_hpo_dp_stream_encoder,
 	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
 	.ext = {
-		.set_throttled_vcp_size = set_dp_hpo_throttled_vcp_size,
-		.set_hblank_min_symbol_width = set_dp_hpo_hblank_min_symbol_width,
+		.set_throttled_vcp_size = set_hpo_dp_throttled_vcp_size,
+		.set_hblank_min_symbol_width = set_hpo_dp_hblank_min_symbol_width,
 		.enable_dp_link_output = enable_hpo_dp_link_output,
 		.disable_dp_link_output = disable_hpo_dp_link_output,
 		.set_dp_link_test_pattern  = set_hpo_dp_link_test_pattern,
 		.set_dp_lane_settings = set_hpo_dp_lane_settings,
 	},
 };
-/*********************** below goes to dpia_link_hwss *************************/
-static bool can_use_dpia_link_hwss(const struct dc_link *link,
+
+bool can_use_hpo_dp_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res)
 {
-	return link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign;
+	return link_res->hpo_dp_link_enc != NULL;
 }
 
+const struct link_hwss *get_hpo_dp_link_hwss(void)
+{
+	return &hpo_dp_link_hwss;
+}
+
+/*********************** below goes to dpia_link_hwss *************************/
 static const struct link_hwss dpia_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
@@ -356,7 +360,18 @@ static const struct link_hwss dpia_link_hwss = {
 	},
 };
 
-/*********************** below goes to link_hwss ******************************/
+bool can_use_dpia_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res)
+{
+	return link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign;
+}
+
+const struct link_hwss *get_dpia_link_hwss(void)
+{
+	return &dpia_link_hwss;
+}
+/*********************** below goes to virtual_link_hwss ******************************/
 static void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
 }

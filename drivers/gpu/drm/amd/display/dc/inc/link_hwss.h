@@ -75,6 +75,21 @@ struct link_hwss {
 	void (*reset_stream_encoder)(struct pipe_ctx *pipe_ctx);
 };
 
-const struct link_hwss *get_link_hwss(const struct dc_link *link, const struct link_resource *link_res);
+
+/*********************** below goes to virtual_link_hwss **********************/
+const struct link_hwss *get_virtual_link_hwss(void);
+/*********************** below goes to dpia_link_hwss *************************/
+bool can_use_dpia_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res);
+const struct link_hwss *get_dpia_link_hwss(void);
+/*********************** below goes to hpo_dp_link_hwss ***********************/
+bool can_use_hpo_dp_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res);
+const struct link_hwss *get_hpo_dp_link_hwss(void);
+/************************* below goes to dio_link_hwss ************************/
+bool can_use_dio_link_hwss(const struct dc_link *link,
+		const struct link_resource *link_res);
+const struct link_hwss *get_dio_link_hwss(void);
 
 #endif /* __DC_LINK_HWSS_H__ */
+
