@@ -53,6 +53,8 @@
 #include "regs.h"
 #include "rkisp_tb_helper.h"
 
+#define ISP_V4L2_EVENT_ELEMS 4
+
 #define ISP_SUBDEV_NAME DRIVER_NAME "-isp-subdev"
 /*
  * NOTE: MIPI controller and input MUX are also configured in this file,
@@ -2872,7 +2874,7 @@ static int rkisp_isp_sd_subs_evt(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	if (sub->id != 0)
 		return -EINVAL;
 
-	return v4l2_event_subscribe(fh, sub, 0, NULL);
+	return v4l2_event_subscribe(fh, sub, ISP_V4L2_EVENT_ELEMS, NULL);
 }
 
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
