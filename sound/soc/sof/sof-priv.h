@@ -281,7 +281,7 @@ struct snd_sof_dsp_ops {
 
 	/* host DMA trace initialization */
 	int (*trace_init)(struct snd_sof_dev *sdev,
-			  u32 *stream_tag); /* optional */
+			  struct sof_ipc_dma_trace_params_ext *dtrace_params); /* optional */
 	int (*trace_release)(struct snd_sof_dev *sdev); /* optional */
 	int (*trace_trigger)(struct snd_sof_dev *sdev,
 			     int cmd); /* optional */
