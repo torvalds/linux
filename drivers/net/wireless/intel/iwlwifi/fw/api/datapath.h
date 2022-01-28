@@ -264,6 +264,9 @@ struct iwl_rlc_config_cmd {
 	u8 reserved[3];
 } __packed; /* RLC_CONFIG_CMD_API_S_VER_2 */
 
+#define IWL_MAX_BAID_OLD	16 /* MAX_IMMEDIATE_BA_API_D_VER_2 */
+#define IWL_MAX_BAID		32 /* MAX_IMMEDIATE_BA_API_D_VER_3 */
+
 /**
  * enum iwl_rx_baid_action - BAID allocation/config action
  * @IWL_RX_BAID_ACTION_ADD: add a new BAID session

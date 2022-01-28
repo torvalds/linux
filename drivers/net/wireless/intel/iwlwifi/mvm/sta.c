@@ -2465,8 +2465,6 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	return ret;
 }
 
-#define IWL_MAX_RX_BA_SESSIONS 16
-
 static void iwl_mvm_sync_rxq_del_ba(struct iwl_mvm *mvm, u8 baid)
 {
 	struct iwl_mvm_delba_data notif = {
@@ -2658,10 +2656,12 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_baid_data *baid_data = NULL;
 	int ret, baid;
+	u32 max_ba_id_sessions = iwl_mvm_has_new_tx_api(mvm) ? IWL_MAX_BAID :
+							       IWL_MAX_BAID_OLD;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (start && mvm->rx_ba_sessions >= IWL_MAX_RX_BA_SESSIONS) {
+	if (start && mvm->rx_ba_sessions >= max_ba_id_sessions) {
 		IWL_WARN(mvm, "Not enough RX BA SESSIONS\n");
 		return -ENOSPC;
 	}

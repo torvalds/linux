@@ -1097,7 +1097,6 @@ struct iwl_mvm {
 	} cmd_ver;
 
 	struct ieee80211_vif *nan_vif;
-#define IWL_MAX_BAID	32
 	struct iwl_mvm_baid_data __rcu *baid_map[IWL_MAX_BAID];
 
 	/*
