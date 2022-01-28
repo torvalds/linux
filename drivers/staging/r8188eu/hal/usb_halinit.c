@@ -1625,12 +1625,6 @@ u8 GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariable
 	case HAL_DEF_DRVINFO_SZ:
 		*((u32 *)pValue) = DRVINFO_SZ;
 		break;
-	case HAL_DEF_MAX_RECVBUF_SZ:
-		*((u32 *)pValue) = MAX_RECVBUF_SZ;
-		break;
-	case HAL_DEF_RX_PACKET_OFFSET:
-		*((u32 *)pValue) = RXDESC_SIZE + DRVINFO_SZ;
-		break;
 	case HAL_DEF_DBG_DM_FUNC:
 		*((u32 *)pValue) = haldata->odmpriv.SupportAbility;
 		break;
