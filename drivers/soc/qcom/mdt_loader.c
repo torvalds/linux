@@ -247,20 +247,17 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 				ret, fw_name);
 			goto out;
 		}
+
+		ret = qcom_scm_pas_mem_setup(pas_id, mem_phys, max_addr - min_addr);
+		if (ret) {
+			/* Unable to set up relocation */
+			dev_err(dev, "error %d setting up firmware %s\n",
+				ret, fw_name);
+			goto out;
+		}
 	}
 
 	if (relocate) {
-		if (pas_init) {
-			ret = qcom_scm_pas_mem_setup(pas_id, mem_phys,
-						     max_addr - min_addr);
-			if (ret) {
-				/* Unable to set up relocation */
-				dev_err(dev, "error %d setting up firmware %s\n",
-					ret, fw_name);
-				goto out;
-			}
-		}
-
 		/*
 		 * The image is relocatable, so offset each segment based on
 		 * the lowest segment address.
