@@ -37,7 +37,6 @@
 #define CACHE_LINE_SIZE_SHIFT         6
 
 #define LLCC_COMMON_HW_INFO           0x00030000
-#define LLCC_MAJOR_VERSION_MASK       GENMASK(31, 24)
 
 #define LLCC_COMMON_STATUS0           0x0003000c
 #define LLCC_LB_CNT_MASK              GENMASK(31, 28)
@@ -54,6 +53,8 @@
 #define LLCC_TRP_WRSC_EN              0x21f20
 
 #define BANK_OFFSET_STRIDE	      0x80000
+
+#define LLCC_VERSION_2_0_0_0          0x02000000
 
 /**
  * struct llcc_slice_config - Data associated with the llcc slice
@@ -504,7 +505,7 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 			return ret;
 	}
 
-	if (drv_data->major_version == 2) {
+	if (drv_data->version >= LLCC_VERSION_2_0_0_0) {
 		u32 wren;
 
 		wren = config->write_scid_en << config->slice_id;
@@ -598,12 +599,12 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	/* Extract major version of the IP */
+	/* Extract version of the IP */
 	ret = regmap_read(drv_data->bcast_regmap, LLCC_COMMON_HW_INFO, &version);
 	if (ret)
 		goto err;
 
-	drv_data->major_version = FIELD_GET(LLCC_MAJOR_VERSION_MASK, version);
+	drv_data->version = version;
 
 	ret = regmap_read(drv_data->regmap, LLCC_COMMON_STATUS0,
 						&num_banks);
