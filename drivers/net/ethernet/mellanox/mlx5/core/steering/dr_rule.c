@@ -450,7 +450,7 @@ dr_rule_rehash_htbl(struct mlx5dr_rule *rule,
 		mlx5dr_ste_set_hit_addr(dmn->ste_ctx,
 					prev_htbl->ste_arr[0].hw_ste,
 					mlx5dr_icm_pool_get_chunk_icm_addr(new_htbl->chunk),
-					new_htbl->chunk->num_of_entries);
+					mlx5dr_icm_pool_get_chunk_num_of_entries(new_htbl->chunk));
 
 		ste_to_update = &prev_htbl->ste_arr[0];
 	} else {

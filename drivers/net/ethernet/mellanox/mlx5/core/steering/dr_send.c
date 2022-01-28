@@ -407,17 +407,17 @@ static int dr_get_tbl_copy_details(struct mlx5dr_domain *dmn,
 				   int *iterations,
 				   int *num_stes)
 {
+	u32 chunk_byte_size = mlx5dr_icm_pool_get_chunk_byte_size(htbl->chunk);
 	int alloc_size;
 
-	if (htbl->chunk->byte_size > dmn->send_ring->max_post_send_size) {
-		*iterations = htbl->chunk->byte_size /
-			dmn->send_ring->max_post_send_size;
+	if (chunk_byte_size > dmn->send_ring->max_post_send_size) {
+		*iterations = chunk_byte_size / dmn->send_ring->max_post_send_size;
 		*byte_size = dmn->send_ring->max_post_send_size;
 		alloc_size = *byte_size;
 		*num_stes = *byte_size / DR_STE_SIZE;
 	} else {
 		*iterations = 1;
-		*num_stes = htbl->chunk->num_of_entries;
+		*num_stes = mlx5dr_icm_pool_get_chunk_num_of_entries(htbl->chunk);
 		alloc_size = *num_stes * DR_STE_SIZE;
 	}
 
@@ -462,7 +462,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 			      struct mlx5dr_ste_htbl *htbl,
 			      u8 *formatted_ste, u8 *mask)
 {
-	u32 byte_size = htbl->chunk->byte_size;
+	u32 byte_size = mlx5dr_icm_pool_get_chunk_byte_size(htbl->chunk);
 	int num_stes_per_iter;
 	int iterations;
 	u8 *data;
@@ -530,7 +530,7 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 					u8 *ste_init_data,
 					bool update_hw_ste)
 {
-	u32 byte_size = htbl->chunk->byte_size;
+	u32 byte_size = mlx5dr_icm_pool_get_chunk_byte_size(htbl->chunk);
 	int iterations;
 	int num_stes;
 	u8 *copy_dst;

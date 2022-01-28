@@ -25,6 +25,7 @@ bool mlx5dr_ste_supp_ttl_cs_recalc(struct mlx5dr_cmd_caps *caps)
 
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 {
+	u32 num_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(htbl->chunk);
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
 	u8 masked[DR_STE_SIZE_TAG] = {};
 	u32 crc32, index;
@@ -32,7 +33,7 @@ u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 	int i;
 
 	/* Don't calculate CRC if the result is predicted */
-	if (htbl->chunk->num_of_entries == 1 || htbl->byte_mask == 0)
+	if (num_entries == 1 || htbl->byte_mask == 0)
 		return 0;
 
 	/* Mask tag using byte mask, bit per byte */
@@ -45,7 +46,7 @@ u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 	}
 
 	crc32 = dr_ste_crc32_calc(masked, DR_STE_SIZE_TAG);
-	index = crc32 & (htbl->chunk->num_of_entries - 1);
+	index = crc32 & (num_entries - 1);
 
 	return index;
 }
@@ -143,7 +144,7 @@ static void dr_ste_always_hit_htbl(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->set_byte_mask(hw_ste, next_htbl->byte_mask);
 	ste_ctx->set_next_lu_type(hw_ste, next_htbl->lu_type);
 	ste_ctx->set_hit_addr(hw_ste, mlx5dr_icm_pool_get_chunk_icm_addr(chunk),
-			      chunk->num_of_entries);
+			      mlx5dr_icm_pool_get_chunk_num_of_entries(chunk));
 
 	dr_ste_set_always_hit((struct dr_hw_ste_format *)ste->hw_ste);
 }
@@ -367,9 +368,10 @@ void mlx5dr_ste_set_hit_addr_by_next_htbl(struct mlx5dr_ste_ctx *ste_ctx,
 					  struct mlx5dr_ste_htbl *next_htbl)
 {
 	u64 icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(next_htbl->chunk);
-	struct mlx5dr_icm_chunk *chunk = next_htbl->chunk;
+	u32 num_entries =
+		mlx5dr_icm_pool_get_chunk_num_of_entries(next_htbl->chunk);
 
-	ste_ctx->set_hit_addr(hw_ste, icm_addr, chunk->num_of_entries);
+	ste_ctx->set_hit_addr(hw_ste, icm_addr, num_entries);
 }
 
 void mlx5dr_ste_prepare_for_postsend(struct mlx5dr_ste_ctx *ste_ctx,
@@ -474,6 +476,7 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 {
 	struct mlx5dr_icm_chunk *chunk;
 	struct mlx5dr_ste_htbl *htbl;
+	u32 num_entries;
 	int i;
 
 	htbl = kzalloc(sizeof(*htbl), GFP_KERNEL);
@@ -491,8 +494,9 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	htbl->hw_ste_arr = chunk->hw_ste_arr;
 	htbl->miss_list = chunk->miss_list;
 	htbl->refcount = 0;
+	num_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(chunk);
 
-	for (i = 0; i < chunk->num_of_entries; i++) {
+	for (i = 0; i < num_entries; i++) {
 		struct mlx5dr_ste *ste = &htbl->ste_arr[i];
 
 		ste->hw_ste = htbl->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
