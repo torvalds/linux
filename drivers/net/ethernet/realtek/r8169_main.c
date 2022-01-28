@@ -2667,11 +2667,22 @@ static void rtl_enable_exit_l1(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_37 ... RTL_GIGA_MAC_VER_38:
 		rtl_eri_set_bits(tp, 0xd4, 0x0c00);
 		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_53:
-		rtl_eri_set_bits(tp, 0xd4, 0x1f80);
-		break;
-	case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_63:
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_63:
 		r8168_mac_ocp_modify(tp, 0xc0ac, 0, 0x1f80);
+		break;
+	default:
+		break;
+	}
+}
+
+static void rtl_disable_exit_l1(struct rtl8169_private *tp)
+{
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_34 ... RTL_GIGA_MAC_VER_38:
+		rtl_eri_clear_bits(tp, 0xd4, 0x1f00);
+		break;
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_63:
+		r8168_mac_ocp_modify(tp, 0xc0ac, 0x1f80, 0);
 		break;
 	default:
 		break;
@@ -4702,7 +4713,7 @@ static void rtl8169_down(struct rtl8169_private *tp)
 	rtl_pci_commit(tp);
 
 	rtl8169_cleanup(tp, true);
-
+	rtl_disable_exit_l1(tp);
 	rtl_prepare_power_down(tp);
 }
 
