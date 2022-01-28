@@ -486,7 +486,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 		 * need to add the bit_mask
 		 */
 		for (j = 0; j < num_stes_per_iter; j++) {
-			struct mlx5dr_ste *ste = &htbl->ste_arr[ste_index + j];
+			struct mlx5dr_ste *ste = &htbl->chunk->ste_arr[ste_index + j];
 			u32 ste_off = j * DR_STE_SIZE;
 
 			if (mlx5dr_ste_is_not_used(ste)) {
@@ -495,7 +495,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 			} else {
 				/* Copy data */
 				memcpy(data + ste_off,
-				       htbl->ste_arr[ste_index + j].hw_ste,
+				       htbl->chunk->ste_arr[ste_index + j].hw_ste,
 				       DR_STE_SIZE_REDUCED);
 				/* Copy bit_mask */
 				memcpy(data + ste_off + DR_STE_SIZE_REDUCED,
@@ -511,7 +511,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 		send_info.write.length = byte_size;
 		send_info.write.lkey = 0;
 		send_info.remote_addr =
-			mlx5dr_ste_get_mr_addr(htbl->ste_arr + ste_index);
+			mlx5dr_ste_get_mr_addr(htbl->chunk->ste_arr + ste_index);
 		send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(htbl->chunk);
 
 		ret = dr_postsend_icm_data(dmn, &send_info);
@@ -546,7 +546,7 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 	if (update_hw_ste) {
 		/* Copy the reduced STE to hash table ste_arr */
 		for (i = 0; i < num_stes; i++) {
-			copy_dst = htbl->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
+			copy_dst = htbl->chunk->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
 			memcpy(copy_dst, ste_init_data, DR_STE_SIZE_REDUCED);
 		}
 	}
@@ -568,7 +568,7 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 		send_info.write.length = byte_size;
 		send_info.write.lkey = 0;
 		send_info.remote_addr =
-			mlx5dr_ste_get_mr_addr(htbl->ste_arr + ste_index);
+			mlx5dr_ste_get_mr_addr(htbl->chunk->ste_arr + ste_index);
 		send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(htbl->chunk);
 
 		ret = dr_postsend_icm_data(dmn, &send_info);

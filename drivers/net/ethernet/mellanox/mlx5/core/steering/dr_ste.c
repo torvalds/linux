@@ -115,23 +115,23 @@ void mlx5dr_ste_set_hit_addr(struct mlx5dr_ste_ctx *ste_ctx,
 u64 mlx5dr_ste_get_icm_addr(struct mlx5dr_ste *ste)
 {
 	u64 base_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(ste->htbl->chunk);
-	u32 index = ste - ste->htbl->ste_arr;
+	u32 index = ste - ste->htbl->chunk->ste_arr;
 
 	return base_icm_addr + DR_STE_SIZE * index;
 }
 
 u64 mlx5dr_ste_get_mr_addr(struct mlx5dr_ste *ste)
 {
-	u32 index = ste - ste->htbl->ste_arr;
+	u32 index = ste - ste->htbl->chunk->ste_arr;
 
 	return mlx5dr_icm_pool_get_chunk_mr_addr(ste->htbl->chunk) + DR_STE_SIZE * index;
 }
 
 struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste)
 {
-	u32 index = ste - ste->htbl->ste_arr;
+	u32 index = ste - ste->htbl->chunk->ste_arr;
 
-	return &ste->htbl->miss_list[index];
+	return &ste->htbl->chunk->miss_list[index];
 }
 
 static void dr_ste_always_hit_htbl(struct mlx5dr_ste_ctx *ste_ctx,
@@ -490,23 +490,19 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	htbl->chunk = chunk;
 	htbl->lu_type = lu_type;
 	htbl->byte_mask = byte_mask;
-	htbl->ste_arr = chunk->ste_arr;
-	htbl->hw_ste_arr = chunk->hw_ste_arr;
-	htbl->miss_list = chunk->miss_list;
 	htbl->refcount = 0;
 	num_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(chunk);
 
 	for (i = 0; i < num_entries; i++) {
-		struct mlx5dr_ste *ste = &htbl->ste_arr[i];
+		struct mlx5dr_ste *ste = &chunk->ste_arr[i];
 
-		ste->hw_ste = htbl->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
+		ste->hw_ste = chunk->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
 		ste->htbl = htbl;
 		ste->refcount = 0;
 		INIT_LIST_HEAD(&ste->miss_list_node);
-		INIT_LIST_HEAD(&htbl->miss_list[i]);
+		INIT_LIST_HEAD(&chunk->miss_list[i]);
 	}
 
-	htbl->chunk_size = chunk_size;
 	return htbl;
 
 out_free_htbl:

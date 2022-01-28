@@ -54,7 +54,7 @@ dr_rule_create_collision_htbl(struct mlx5dr_matcher *matcher,
 	}
 
 	/* One and only entry, never grows */
-	ste = new_htbl->ste_arr;
+	ste = new_htbl->chunk->ste_arr;
 	icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 	mlx5dr_ste_set_miss_addr(ste_ctx, hw_ste, icm_addr);
 	mlx5dr_htbl_get(new_htbl);
@@ -80,7 +80,7 @@ dr_rule_create_collision_entry(struct mlx5dr_matcher *matcher,
 	ste->htbl->pointing_ste = orig_ste->htbl->pointing_ste;
 
 	/* In collision entry, all members share the same miss_list_head */
-	ste->htbl->miss_list = mlx5dr_ste_get_miss_list(orig_ste);
+	ste->htbl->chunk->miss_list = mlx5dr_ste_get_miss_list(orig_ste);
 
 	/* Next table */
 	if (mlx5dr_ste_create_next_htbl(matcher, nic_matcher, ste, hw_ste,
@@ -186,7 +186,7 @@ dr_rule_rehash_handle_collision(struct mlx5dr_matcher *matcher,
 	new_ste->htbl->pointing_ste = col_ste->htbl->pointing_ste;
 
 	/* In collision entry, all members share the same miss_list_head */
-	new_ste->htbl->miss_list = mlx5dr_ste_get_miss_list(col_ste);
+	new_ste->htbl->chunk->miss_list = mlx5dr_ste_get_miss_list(col_ste);
 
 	/* Update the previous from the list */
 	ret = dr_rule_append_to_miss_list(dmn->ste_ctx, new_ste,
@@ -250,7 +250,7 @@ dr_rule_rehash_copy_ste(struct mlx5dr_matcher *matcher,
 	mlx5dr_ste_set_miss_addr(dmn->ste_ctx, hw_ste, icm_addr);
 
 	new_idx = mlx5dr_ste_calc_hash_index(hw_ste, new_htbl);
-	new_ste = &new_htbl->ste_arr[new_idx];
+	new_ste = &new_htbl->chunk->ste_arr[new_idx];
 
 	if (mlx5dr_ste_is_not_used(new_ste)) {
 		mlx5dr_htbl_get(new_htbl);
@@ -336,7 +336,7 @@ static int dr_rule_rehash_copy_htbl(struct mlx5dr_matcher *matcher,
 	int err = 0;
 	int i;
 
-	cur_entries = mlx5dr_icm_pool_chunk_size_to_entries(cur_htbl->chunk_size);
+	cur_entries = mlx5dr_icm_pool_chunk_size_to_entries(cur_htbl->chunk->size);
 
 	if (cur_entries < 1) {
 		mlx5dr_dbg(matcher->tbl->dmn, "Invalid number of entries\n");
@@ -344,7 +344,7 @@ static int dr_rule_rehash_copy_htbl(struct mlx5dr_matcher *matcher,
 	}
 
 	for (i = 0; i < cur_entries; i++) {
-		cur_ste = &cur_htbl->ste_arr[i];
+		cur_ste = &cur_htbl->chunk->ste_arr[i];
 		if (mlx5dr_ste_is_not_used(cur_ste)) /* Empty, nothing to copy */
 			continue;
 
@@ -448,11 +448,11 @@ dr_rule_rehash_htbl(struct mlx5dr_rule *rule,
 		 * (48B len) which works only on first 32B
 		 */
 		mlx5dr_ste_set_hit_addr(dmn->ste_ctx,
-					prev_htbl->ste_arr[0].hw_ste,
+					prev_htbl->chunk->ste_arr[0].hw_ste,
 					mlx5dr_icm_pool_get_chunk_icm_addr(new_htbl->chunk),
 					mlx5dr_icm_pool_get_chunk_num_of_entries(new_htbl->chunk));
 
-		ste_to_update = &prev_htbl->ste_arr[0];
+		ste_to_update = &prev_htbl->chunk->ste_arr[0];
 	} else {
 		mlx5dr_ste_set_hit_addr_by_next_htbl(dmn->ste_ctx,
 						     cur_htbl->pointing_ste->hw_ste,
@@ -491,10 +491,10 @@ static struct mlx5dr_ste_htbl *dr_rule_rehash(struct mlx5dr_rule *rule,
 	struct mlx5dr_domain *dmn = rule->matcher->tbl->dmn;
 	enum mlx5dr_icm_chunk_size new_size;
 
-	new_size = mlx5dr_icm_next_higher_chunk(cur_htbl->chunk_size);
+	new_size = mlx5dr_icm_next_higher_chunk(cur_htbl->chunk->size);
 	new_size = min_t(u32, new_size, dmn->info.max_log_sw_icm_sz);
 
-	if (new_size == cur_htbl->chunk_size)
+	if (new_size == cur_htbl->chunk->size)
 		return NULL; /* Skip rehash, we already at the max size */
 
 	return dr_rule_rehash_htbl(rule, nic_rule, cur_htbl, ste_location,
@@ -661,13 +661,13 @@ static bool dr_rule_need_enlarge_hash(struct mlx5dr_ste_htbl *htbl,
 	struct mlx5dr_ste_htbl_ctrl *ctrl = &htbl->ctrl;
 	int threshold;
 
-	if (dmn->info.max_log_sw_icm_sz <= htbl->chunk_size)
+	if (dmn->info.max_log_sw_icm_sz <= htbl->chunk->size)
 		return false;
 
 	if (!mlx5dr_ste_htbl_may_grow(htbl))
 		return false;
 
-	if (dr_get_bits_per_mask(htbl->byte_mask) * BITS_PER_BYTE <= htbl->chunk_size)
+	if (dr_get_bits_per_mask(htbl->byte_mask) * BITS_PER_BYTE <= htbl->chunk->size)
 		return false;
 
 	threshold = mlx5dr_ste_htbl_increase_threshold(htbl);
@@ -825,7 +825,7 @@ dr_rule_handle_ste_branch(struct mlx5dr_rule *rule,
 again:
 	index = mlx5dr_ste_calc_hash_index(hw_ste, cur_htbl);
 	miss_list = &cur_htbl->chunk->miss_list[index];
-	ste = &cur_htbl->ste_arr[index];
+	ste = &cur_htbl->chunk->ste_arr[index];
 
 	if (mlx5dr_ste_is_not_used(ste)) {
 		if (dr_rule_handle_empty_entry(matcher, nic_matcher, cur_htbl,
@@ -861,7 +861,7 @@ again:
 						  ste_location, send_ste_list);
 			if (!new_htbl) {
 				mlx5dr_err(dmn, "Failed creating rehash table, htbl-log_size: %d\n",
-					   cur_htbl->chunk_size);
+					   cur_htbl->chunk->size);
 				mlx5dr_htbl_put(cur_htbl);
 			} else {
 				cur_htbl = new_htbl;

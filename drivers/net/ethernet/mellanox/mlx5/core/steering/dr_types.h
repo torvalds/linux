@@ -181,14 +181,7 @@ struct mlx5dr_ste_htbl {
 	u16 byte_mask;
 	u32 refcount;
 	struct mlx5dr_icm_chunk *chunk;
-	struct mlx5dr_ste *ste_arr;
-	u8 *hw_ste_arr;
-
-	struct list_head *miss_list;
-
-	enum mlx5dr_icm_chunk_size chunk_size;
 	struct mlx5dr_ste *pointing_ste;
-
 	struct mlx5dr_ste_htbl_ctrl ctrl;
 };
 
@@ -1180,7 +1173,7 @@ static inline int
 mlx5dr_ste_htbl_increase_threshold(struct mlx5dr_ste_htbl *htbl)
 {
 	int num_of_entries =
-		mlx5dr_icm_pool_chunk_size_to_entries(htbl->chunk_size);
+		mlx5dr_icm_pool_chunk_size_to_entries(htbl->chunk->size);
 
 	/* Threshold is 50%, one is added to table of size 1 */
 	return (num_of_entries + 1) / 2;
@@ -1189,7 +1182,7 @@ mlx5dr_ste_htbl_increase_threshold(struct mlx5dr_ste_htbl *htbl)
 static inline bool
 mlx5dr_ste_htbl_may_grow(struct mlx5dr_ste_htbl *htbl)
 {
-	if (htbl->chunk_size == DR_CHUNK_SIZE_MAX - 1 || !htbl->byte_mask)
+	if (htbl->chunk->size == DR_CHUNK_SIZE_MAX - 1 || !htbl->byte_mask)
 		return false;
 
 	return true;

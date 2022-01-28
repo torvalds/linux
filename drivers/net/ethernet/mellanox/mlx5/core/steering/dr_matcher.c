@@ -726,12 +726,14 @@ static int dr_nic_matcher_connect(struct mlx5dr_domain *dmn,
 		return ret;
 
 	/* Update the pointing ste and next hash table */
-	curr_nic_matcher->s_htbl->pointing_ste = prev_htbl->ste_arr;
-	prev_htbl->ste_arr[0].next_htbl = curr_nic_matcher->s_htbl;
+	curr_nic_matcher->s_htbl->pointing_ste = prev_htbl->chunk->ste_arr;
+	prev_htbl->chunk->ste_arr[0].next_htbl = curr_nic_matcher->s_htbl;
 
 	if (next_nic_matcher) {
-		next_nic_matcher->s_htbl->pointing_ste = curr_nic_matcher->e_anchor->ste_arr;
-		curr_nic_matcher->e_anchor->ste_arr[0].next_htbl = next_nic_matcher->s_htbl;
+		next_nic_matcher->s_htbl->pointing_ste =
+			curr_nic_matcher->e_anchor->chunk->ste_arr;
+		curr_nic_matcher->e_anchor->chunk->ste_arr[0].next_htbl =
+			next_nic_matcher->s_htbl;
 	}
 
 	return 0;
@@ -1043,12 +1045,12 @@ static int dr_matcher_disconnect_nic(struct mlx5dr_domain *dmn,
 	if (next_nic_matcher) {
 		info.type = CONNECT_HIT;
 		info.hit_next_htbl = next_nic_matcher->s_htbl;
-		next_nic_matcher->s_htbl->pointing_ste = prev_anchor->ste_arr;
-		prev_anchor->ste_arr[0].next_htbl = next_nic_matcher->s_htbl;
+		next_nic_matcher->s_htbl->pointing_ste = prev_anchor->chunk->ste_arr;
+		prev_anchor->chunk->ste_arr[0].next_htbl = next_nic_matcher->s_htbl;
 	} else {
 		info.type = CONNECT_MISS;
 		info.miss_icm_addr = nic_tbl->default_icm_addr;
-		prev_anchor->ste_arr[0].next_htbl = NULL;
+		prev_anchor->chunk->ste_arr[0].next_htbl = NULL;
 	}
 
 	return mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn, prev_anchor,
