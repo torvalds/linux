@@ -12,6 +12,8 @@
 #define CSI2_ERR_FSFE_MASK	(0xff << 8)
 #define CSI2_ERR_COUNT_ALL_MASK	(0xff)
 
+#define RKCIF_V4L2_EVENT_ELEMS 4
+
 /*
  * there must be 5 pads: 1 input pad from sensor, and
  * the 4 virtual channel output pads

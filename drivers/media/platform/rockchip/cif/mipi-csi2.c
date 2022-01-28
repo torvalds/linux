@@ -499,7 +499,7 @@ static int rkcif_csi2_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh
 	if (sub->type != V4L2_EVENT_FRAME_SYNC)
 		return -EINVAL;
 
-	return v4l2_event_subscribe(fh, sub, 0, NULL);
+	return v4l2_event_subscribe(fh, sub, RKCIF_V4L2_EVENT_ELEMS, NULL);
 }
 
 static int rkcif_csi2_s_power(struct v4l2_subdev *sd, int on)

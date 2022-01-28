@@ -5279,7 +5279,7 @@ static int rkcif_sof_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	if (sub->type != V4L2_EVENT_FRAME_SYNC)
 		return -EINVAL;
 
-	return v4l2_event_subscribe(fh, sub, 0, NULL);
+	return v4l2_event_subscribe(fh, sub, RKCIF_V4L2_EVENT_ELEMS, NULL);
 }
 
 static const struct media_entity_operations rkcif_lvds_sd_media_ops = {
