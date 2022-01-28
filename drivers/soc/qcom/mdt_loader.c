@@ -171,7 +171,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 			goto out;
 		}
 
-		ret = qcom_scm_pas_init_image(pas_id, metadata, metadata_len);
+		ret = qcom_scm_pas_init_image(pas_id, metadata, metadata_len, NULL);
 
 		kfree(metadata);
 		if (ret) {
