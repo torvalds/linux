@@ -604,9 +604,11 @@ bool intel_fuzzy_clock_check(int clock1, int clock2);
 
 void intel_display_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_display_finish_reset(struct drm_i915_private *dev_priv);
-void intel_cpu_transcoder_set_m1_n1(const struct intel_crtc_state *crtc_state,
+void intel_cpu_transcoder_set_m1_n1(struct intel_crtc *crtc,
+				    enum transcoder cpu_transcoder,
 				    const struct intel_link_m_n *m_n);
-void intel_cpu_transcoder_set_m2_n2(const struct intel_crtc_state *crtc_state,
+void intel_cpu_transcoder_set_m2_n2(struct intel_crtc *crtc,
+				    enum transcoder cpu_transcoder,
 				    const struct intel_link_m_n *m_n);
 void intel_cpu_transcoder_get_m1_n1(struct intel_crtc *crtc,
 				    enum transcoder cpu_transcoder,

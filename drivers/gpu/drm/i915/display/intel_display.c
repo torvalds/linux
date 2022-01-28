@@ -118,7 +118,7 @@
 
 static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state);
 static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state);
-static void intel_pch_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
+static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
 					 const struct intel_link_m_n *m_n);
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state);
@@ -1816,6 +1816,7 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
 
 	if (drm_WARN_ON(&dev_priv->drm, crtc->active))
@@ -1836,12 +1837,11 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 
 	if (intel_crtc_has_dp_encoder(new_crtc_state)) {
 		if (new_crtc_state->has_pch_encoder) {
-			intel_pch_transcoder_set_m_n(new_crtc_state,
-						     &new_crtc_state->dp_m_n);
+			intel_pch_transcoder_set_m_n(crtc, &new_crtc_state->dp_m_n);
 		} else {
-			intel_cpu_transcoder_set_m1_n1(new_crtc_state,
+			intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
 						       &new_crtc_state->dp_m_n);
-			intel_cpu_transcoder_set_m2_n2(new_crtc_state,
+			intel_cpu_transcoder_set_m2_n2(crtc, cpu_transcoder,
 						       &new_crtc_state->dp_m2_n2);
 		}
 	}
@@ -1850,7 +1850,7 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	intel_set_pipe_src_size(new_crtc_state);
 
 	if (new_crtc_state->has_pch_encoder)
-		intel_cpu_transcoder_set_m1_n1(new_crtc_state,
+		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
 					       &new_crtc_state->fdi_m_n);
 
 	ilk_set_pipeconf(new_crtc_state);
@@ -2017,7 +2017,7 @@ static void hsw_configure_cpu_transcoder(const struct intel_crtc_state *crtc_sta
 			       crtc_state->pixel_multiplier - 1);
 
 	if (crtc_state->has_pch_encoder)
-		intel_cpu_transcoder_set_m1_n1(crtc_state,
+		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
 					       &crtc_state->fdi_m_n);
 
 	hsw_set_frame_start_delay(crtc_state);
@@ -2452,15 +2452,16 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
 
 	if (drm_WARN_ON(&dev_priv->drm, crtc->active))
 		return;
 
 	if (intel_crtc_has_dp_encoder(new_crtc_state)) {
-		intel_cpu_transcoder_set_m1_n1(new_crtc_state,
+		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
 					       &new_crtc_state->dp_m_n);
-		intel_cpu_transcoder_set_m2_n2(new_crtc_state,
+		intel_cpu_transcoder_set_m2_n2(crtc, cpu_transcoder,
 					       &new_crtc_state->dp_m2_n2);
 	}
 
@@ -2508,15 +2509,16 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
 
 	if (drm_WARN_ON(&dev_priv->drm, crtc->active))
 		return;
 
 	if (intel_crtc_has_dp_encoder(new_crtc_state)) {
-		intel_cpu_transcoder_set_m1_n1(new_crtc_state,
+		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
 					       &new_crtc_state->dp_m_n);
-		intel_cpu_transcoder_set_m2_n2(new_crtc_state,
+		intel_cpu_transcoder_set_m2_n2(crtc, cpu_transcoder,
 					       &new_crtc_state->dp_m2_n2);
 	}
 
@@ -3140,10 +3142,9 @@ static void intel_set_m_n(struct drm_i915_private *i915,
 	intel_de_write(i915, link_n_reg, m_n->link_n);
 }
 
-static void intel_pch_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
+static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
 					 const struct intel_link_m_n *m_n)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
@@ -3165,13 +3166,12 @@ static bool transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
 	return DISPLAY_VER(dev_priv) == 7 || IS_CHERRYVIEW(dev_priv);
 }
 
-void intel_cpu_transcoder_set_m1_n1(const struct intel_crtc_state *crtc_state,
+void intel_cpu_transcoder_set_m1_n1(struct intel_crtc *crtc,
+				    enum transcoder transcoder,
 				    const struct intel_link_m_n *m_n)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
-	enum transcoder transcoder = crtc_state->cpu_transcoder;
 
 	if (DISPLAY_VER(dev_priv) >= 5)
 		intel_set_m_n(dev_priv, m_n,
@@ -3183,12 +3183,11 @@ void intel_cpu_transcoder_set_m1_n1(const struct intel_crtc_state *crtc_state,
 			      PIPE_LINK_M_G4X(pipe), PIPE_LINK_N_G4X(pipe));
 }
 
-void intel_cpu_transcoder_set_m2_n2(const struct intel_crtc_state *crtc_state,
+void intel_cpu_transcoder_set_m2_n2(struct intel_crtc *crtc,
+				    enum transcoder transcoder,
 				    const struct intel_link_m_n *m_n)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum transcoder transcoder = crtc_state->cpu_transcoder;
 
 	if (!transcoder_has_m2_n2(dev_priv, transcoder))
 		return;
