@@ -5747,7 +5747,6 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 	u16 BA_timeout_value;
 	__le16	le_tmp;
 	u16 BA_starting_seqctrl = 0;
-	enum ht_cap_ampdu_factor max_rx_ampdu_factor;
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
 	u8 *pframe;
@@ -5830,24 +5829,7 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 			pframe = rtw_set_fixed_ie(pframe, 1, &pmlmeinfo->ADDBA_req.dialog_token, &pattrib->pktlen);
 			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&status, &pattrib->pktlen);
 			BA_para_set = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
-			GetHalDefVar8188EUsb(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR, &max_rx_ampdu_factor);
-			switch (max_rx_ampdu_factor) {
-			case MAX_AMPDU_FACTOR_64K:
-				BA_para_set |= 0x1000; /* 64 buffer size */
-				break;
-			case MAX_AMPDU_FACTOR_32K:
-				BA_para_set |= 0x0800; /* 32 buffer size */
-				break;
-			case MAX_AMPDU_FACTOR_16K:
-				BA_para_set |= 0x0400; /* 16 buffer size */
-				break;
-			case MAX_AMPDU_FACTOR_8K:
-				BA_para_set |= 0x0200; /* 8 buffer size */
-				break;
-			default:
-				BA_para_set |= 0x1000; /* 64 buffer size */
-				break;
-			}
+			BA_para_set |= 0x1000; /* 64 buffer size */
 
 			if (pregpriv->ampdu_amsdu == 0)/* disabled */
 				BA_para_set = BA_para_set & ~BIT(0);

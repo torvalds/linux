@@ -569,12 +569,7 @@ struct ADDBA_request {
 	__le16	BA_starting_seqctrl;
 } __packed;
 
-enum ht_cap_ampdu_factor {
-	MAX_AMPDU_FACTOR_8K	= 0,
-	MAX_AMPDU_FACTOR_16K	= 1,
-	MAX_AMPDU_FACTOR_32K	= 2,
-	MAX_AMPDU_FACTOR_64K	= 3,
-};
+#define MAX_AMPDU_FACTOR_64K	3
 
 /* Spatial Multiplexing Power Save Modes */
 #define WLAN_HT_CAP_SM_PS_STATIC	0
