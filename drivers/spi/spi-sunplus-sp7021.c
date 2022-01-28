@@ -124,7 +124,7 @@ static int sp7021_spi_slave_abort(struct spi_controller *ctlr)
 	return 0;
 }
 
-int sp7021_spi_slave_tx(struct spi_device *spi, struct spi_transfer *xfer)
+static int sp7021_spi_slave_tx(struct spi_device *spi, struct spi_transfer *xfer)
 {
 	struct sp7021_spi_ctlr *pspim = spi_controller_get_devdata(spi->controller);
 
@@ -142,7 +142,7 @@ int sp7021_spi_slave_tx(struct spi_device *spi, struct spi_transfer *xfer)
 	return 0;
 }
 
-int sp7021_spi_slave_rx(struct spi_device *spi, struct spi_transfer *xfer)
+static int sp7021_spi_slave_rx(struct spi_device *spi, struct spi_transfer *xfer)
 {
 	struct sp7021_spi_ctlr *pspim = spi_controller_get_devdata(spi->controller);
 	int ret = 0;
@@ -160,7 +160,7 @@ int sp7021_spi_slave_rx(struct spi_device *spi, struct spi_transfer *xfer)
 	return ret;
 }
 
-void sp7021_spi_master_rb(struct sp7021_spi_ctlr *pspim, unsigned int len)
+static void sp7021_spi_master_rb(struct sp7021_spi_ctlr *pspim, unsigned int len)
 {
 	int i;
 
@@ -171,7 +171,7 @@ void sp7021_spi_master_rb(struct sp7021_spi_ctlr *pspim, unsigned int len)
 	}
 }
 
-void sp7021_spi_master_wb(struct sp7021_spi_ctlr *pspim, unsigned int len)
+static void sp7021_spi_master_wb(struct sp7021_spi_ctlr *pspim, unsigned int len)
 {
 	int i;
 
@@ -558,6 +558,7 @@ static int __maybe_unused sp7021_spi_controller_resume(struct device *dev)
 	return clk_prepare_enable(pspim->spi_clk);
 }
 
+#ifdef CONFIG_PM
 static int sp7021_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
@@ -573,6 +574,7 @@ static int sp7021_spi_runtime_resume(struct device *dev)
 
 	return reset_control_deassert(pspim->rstc);
 }
+#endif
 
 static const struct dev_pm_ops sp7021_spi_pm_ops = {
 	SET_RUNTIME_PM_OPS(sp7021_spi_runtime_suspend,
