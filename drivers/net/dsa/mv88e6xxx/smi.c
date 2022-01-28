@@ -55,11 +55,15 @@ static int mv88e6xxx_smi_direct_write(struct mv88e6xxx_chip *chip,
 static int mv88e6xxx_smi_direct_wait(struct mv88e6xxx_chip *chip,
 				     int dev, int reg, int bit, int val)
 {
+	const unsigned long timeout = jiffies + msecs_to_jiffies(50);
 	u16 data;
 	int err;
 	int i;
 
-	for (i = 0; i < 16; i++) {
+	/* Even if the initial poll takes longer than 50ms, always do
+	 * at least one more attempt.
+	 */
+	for (i = 0; time_before(jiffies, timeout) || (i < 2); i++) {
 		err = mv88e6xxx_smi_direct_read(chip, dev, reg, &data);
 		if (err)
 			return err;
@@ -67,7 +71,10 @@ static int mv88e6xxx_smi_direct_wait(struct mv88e6xxx_chip *chip,
 		if (!!(data & BIT(bit)) == !!val)
 			return 0;
 
-		usleep_range(1000, 2000);
+		if (i < 2)
+			cpu_relax();
+		else
+			usleep_range(1000, 2000);
 	}
 
 	return -ETIMEDOUT;
