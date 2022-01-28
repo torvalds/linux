@@ -1531,6 +1531,15 @@ static int svm_get_cpl(struct kvm_vcpu *vcpu)
 	return save->cpl;
 }
 
+static void svm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
+{
+	struct kvm_segment cs;
+
+	svm_get_segment(vcpu, &cs, VCPU_SREG_CS);
+	*db = cs.db;
+	*l = cs.l;
+}
+
 static void svm_get_idt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -4510,7 +4519,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.get_segment = svm_get_segment,
 	.set_segment = svm_set_segment,
 	.get_cpl = svm_get_cpl,
-	.get_cs_db_l_bits = kvm_get_cs_db_l_bits,
+	.get_cs_db_l_bits = svm_get_cs_db_l_bits,
 	.set_cr0 = svm_set_cr0,
 	.post_set_cr3 = svm_post_set_cr3,
 	.is_valid_cr4 = svm_is_valid_cr4,

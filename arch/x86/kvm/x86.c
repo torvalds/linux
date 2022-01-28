@@ -10542,16 +10542,6 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	return 0;
 }
 
-void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
-{
-	struct kvm_segment cs;
-
-	kvm_get_segment(vcpu, &cs, VCPU_SREG_CS);
-	*db = cs.db;
-	*l = cs.l;
-}
-EXPORT_SYMBOL_GPL(kvm_get_cs_db_l_bits);
-
 static void __get_sregs_common(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 {
 	struct desc_ptr dt;
