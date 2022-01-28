@@ -6,7 +6,6 @@
 #include <linux/list.h>
 #include <linux/alarmtimer.h>
 #include <linux/timerqueue.h>
-#include <linux/task_work.h>
 
 struct kernel_siginfo;
 struct task_struct;
