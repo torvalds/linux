@@ -6,6 +6,7 @@ Required properties:
    - "rockchip,codec-digital-v1"
    - "rockchip,rk3568-codec-digital"
    - "rockchip,rk3588-codec-digital"
+   - "rockchip,rv1106-codec-digital"
    - "rockchip,rv1126-codec-digital"
 - reg: physical base address of the controller and length of memory mapped
   region.
