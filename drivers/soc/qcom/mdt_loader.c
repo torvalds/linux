@@ -121,13 +121,15 @@ EXPORT_SYMBOL_GPL(qcom_mdt_get_size);
  *
  * Return: pointer to data, or ERR_PTR()
  */
-void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len)
+void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len,
+			     const char *fw_name, struct device *dev)
 {
 	const struct elf32_phdr *phdrs;
 	const struct elf32_hdr *ehdr;
 	size_t hash_offset;
 	size_t hash_size;
 	size_t ehdr_size;
+	ssize_t ret;
 	void *data;
 
 	ehdr = (struct elf32_hdr *)fw->data;
@@ -149,14 +151,25 @@ void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len)
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
-	/* Is the header and hash already packed */
-	if (ehdr_size + hash_size == fw->size)
-		hash_offset = phdrs[0].p_filesz;
-	else
-		hash_offset = phdrs[1].p_offset;
-
+	/* Copy ELF header */
 	memcpy(data, fw->data, ehdr_size);
-	memcpy(data + ehdr_size, fw->data + hash_offset, hash_size);
+
+	if (ehdr_size + hash_size == fw->size) {
+		/* Firmware is split and hash is packed following the ELF header */
+		hash_offset = phdrs[0].p_filesz;
+		memcpy(data + ehdr_size, fw->data + hash_offset, hash_size);
+	} else if (phdrs[1].p_offset + hash_size <= fw->size) {
+		/* Hash is in its own segment, but within the loaded file */
+		hash_offset = phdrs[1].p_offset;
+		memcpy(data + ehdr_size, fw->data + hash_offset, hash_size);
+	} else {
+		/* Hash is in its own segment, beyond the loaded file */
+		ret = mdt_load_split_segment(data + ehdr_size, phdrs, 1, fw_name, dev);
+		if (ret) {
+			kfree(data);
+			return ERR_PTR(ret);
+		}
+	}
 
 	*data_len = ehdr_size + hash_size;
 
@@ -190,7 +203,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	phdrs = (struct elf32_phdr *)(ehdr + 1);
 
 	if (pas_init) {
-		metadata = qcom_mdt_read_metadata(fw, &metadata_len);
+		metadata = qcom_mdt_read_metadata(fw, &metadata_len, fw_name, dev);
 		if (IS_ERR(metadata)) {
 			ret = PTR_ERR(metadata);
 			dev_err(dev, "error %d reading firmware %s metadata\n",
