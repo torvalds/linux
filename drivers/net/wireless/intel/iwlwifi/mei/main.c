@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  */
 
 #include <linux/etherdevice.h>
@@ -146,6 +146,7 @@ struct iwl_mei_filters {
  * @csme_taking_ownership: true when CSME is taking ownership. Used to remember
  *	to send CSME_OWNERSHIP_CONFIRMED when the driver completes its down
  *	flow.
+ * @link_prot_state: true when we are in link protection PASSIVE
  * @csa_throttle_end_wk: used when &csa_throttled is true
  * @data_q_lock: protects the access to the data queues which are
  *	accessed without the mutex.
@@ -165,6 +166,7 @@ struct iwl_mei {
 	bool amt_enabled;
 	bool csa_throttled;
 	bool csme_taking_ownership;
+	bool link_prot_state;
 	struct delayed_work csa_throttle_end_wk;
 	spinlock_t data_q_lock;
 
@@ -666,6 +668,8 @@ iwl_mei_handle_conn_status(struct mei_cl_device *cldev,
 	ether_addr_copy(conn_info.bssid, status->conn_info.bssid);
 
 	iwl_mei_cache.ops->me_conn_status(iwl_mei_cache.priv, &conn_info);
+
+	mei->link_prot_state = status->link_prot_state;
 
 	/*
 	 * Update the Rfkill state in case the host does not own the device:
@@ -1661,9 +1665,11 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 			mei_cldev_get_drvdata(iwl_mei_global_cldev);
 
 		/* we have already a SAP connection */
-		if (iwl_mei_is_connected())
+		if (iwl_mei_is_connected()) {
 			iwl_mei_send_sap_msg(mei->cldev,
 					     SAP_MSG_NOTIF_WIFIDR_UP);
+			ops->rfkill(priv, mei->link_prot_state);
+		}
 	}
 	ret = 0;
 
