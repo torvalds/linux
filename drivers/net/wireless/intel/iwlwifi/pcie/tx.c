@@ -1114,7 +1114,7 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 
 	/* map the remaining (adjusted) nocopy/dup fragments */
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
-		const void *data = cmddata[i];
+		void *data = (void *)(uintptr_t)cmddata[i];
 
 		if (!cmdlen[i])
 			continue;
@@ -1123,7 +1123,7 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 			continue;
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP)
 			data = dup_buf;
-		phys_addr = dma_map_single(trans->dev, (void *)data,
+		phys_addr = dma_map_single(trans->dev, data,
 					   cmdlen[i], DMA_TO_DEVICE);
 		if (dma_mapping_error(trans->dev, phys_addr)) {
 			iwl_txq_gen1_tfd_unmap(trans, out_meta, txq,
