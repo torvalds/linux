@@ -515,7 +515,7 @@ struct mlx5e_xdp_info {
 		} frame;
 		struct {
 			struct mlx5e_rq *rq;
-			struct mlx5e_dma_info di;
+			struct page *page;
 		} page;
 	};
 };

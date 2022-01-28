@@ -780,7 +780,7 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 		 * entered, and it's safe to call mlx5e_page_release_dynamic
 		 * directly.
 		 */
-		mlx5e_page_release_dynamic(rq, dma_info, false);
+		mlx5e_page_release_dynamic(rq, dma_info->page, false);
 	}
 
 	xdp_rxq_info_unreg(&rq->xdp_rxq);
