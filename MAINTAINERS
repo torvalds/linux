@@ -16290,8 +16290,9 @@ F:	drivers/misc/fastrpc.c
 F:	include/uapi/misc/fastrpc.h
 
 QUALCOMM HEXAGON ARCHITECTURE
-M:	Brian Cain <bcain@codeaurora.org>
+M:	Brian Cain <bcain@quicinc.com>
 L:	linux-hexagon@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bcain/linux.git
 S:	Supported
 F:	arch/hexagon/
 
