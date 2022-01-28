@@ -1078,7 +1078,7 @@ bool bio_add_folio(struct bio *bio, struct folio *folio, size_t len,
 		   size_t off)
 {
 	if (len > UINT_MAX || off > UINT_MAX)
-		return 0;
+		return false;
 	return bio_add_page(bio, &folio->page, len, off) > 0;
 }
 
