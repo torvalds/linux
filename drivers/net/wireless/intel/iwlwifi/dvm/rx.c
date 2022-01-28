@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
- * Copyright(c) 2018, 2020 Intel Corporation
+ * Copyright(c) 2018, 2020-2021 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portionhelp of the ieee80211 subsystem header files.
@@ -1015,8 +1015,7 @@ void iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 		/* No handling needed */
 		IWL_DEBUG_RX(priv, "No handler needed for %s, 0x%02x\n",
 			     iwl_get_cmd_string(priv->trans,
-						iwl_cmd_id(pkt->hdr.cmd,
-							   0, 0)),
+						WIDE_ID(0, pkt->hdr.cmd)),
 			     pkt->hdr.cmd);
 	}
 }

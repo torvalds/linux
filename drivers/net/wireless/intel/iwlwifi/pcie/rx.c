@@ -1307,9 +1307,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			     "Q %d: cmd at offset %d: %s (%.2x.%2x, seq 0x%x)\n",
 			     rxq->id, offset,
 			     iwl_get_cmd_string(trans,
-						iwl_cmd_id(pkt->hdr.cmd,
-							   pkt->hdr.group_id,
-							   0)),
+						WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd)),
 			     pkt->hdr.group_id, pkt->hdr.cmd,
 			     le16_to_cpu(pkt->hdr.sequence));
 

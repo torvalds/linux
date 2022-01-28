@@ -4010,7 +4010,7 @@ void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
 	int ret;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
-				   iwl_cmd_id(CANCEL_CHANNEL_SWITCH_CMD, MAC_CONF_GROUP, 0),
+				   WIDE_ID(MAC_CONF_GROUP, CANCEL_CHANNEL_SWITCH_CMD),
 				   CMD_ASYNC,
 				   sizeof(cancel_channel_switch_cmd),
 				   &cancel_channel_switch_cmd);

@@ -58,7 +58,7 @@ int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt)
 {
 	struct iwl_soc_configuration_cmd cmd = {};
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(SOC_CONFIGURATION_CMD, SYSTEM_GROUP, 0),
+		.id = WIDE_ID(SYSTEM_GROUP, SOC_CONFIGURATION_CMD),
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
 	};

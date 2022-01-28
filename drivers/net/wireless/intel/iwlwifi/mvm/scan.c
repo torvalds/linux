@@ -1156,7 +1156,7 @@ static int iwl_mvm_legacy_config_scan(struct iwl_mvm *mvm)
 	void *cfg;
 	int ret, cmd_size;
 	struct iwl_host_cmd cmd = {
-		.id = iwl_cmd_id(SCAN_CFG_CMD, IWL_ALWAYS_LONG_GROUP, 0),
+		.id = WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_CFG_CMD),
 	};
 	enum iwl_mvm_scan_type type;
 	enum iwl_mvm_scan_type hb_type = IWL_SCAN_TYPE_NOT_SET;
@@ -1247,7 +1247,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 {
 	struct iwl_scan_config cfg;
 	struct iwl_host_cmd cmd = {
-		.id = iwl_cmd_id(SCAN_CFG_CMD, IWL_ALWAYS_LONG_GROUP, 0),
+		.id = WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_CFG_CMD),
 		.len[0] = sizeof(cfg),
 		.data[0] = &cfg,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
@@ -2588,7 +2588,7 @@ static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
 	if (uid < 0)
 		return uid;
 
-	hcmd->id = iwl_cmd_id(SCAN_REQ_UMAC, IWL_ALWAYS_LONG_GROUP, 0);
+	hcmd->id = WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_REQ_UMAC);
 
 	scan_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
 					 SCAN_REQ_UMAC,
@@ -2922,8 +2922,7 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 	IWL_DEBUG_SCAN(mvm, "Sending scan abort, uid %u\n", uid);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
-				   iwl_cmd_id(SCAN_ABORT_UMAC,
-					      IWL_ALWAYS_LONG_GROUP, 0),
+				   WIDE_ID(IWL_ALWAYS_LONG_GROUP, SCAN_ABORT_UMAC),
 				   0, sizeof(cmd), &cmd);
 	if (!ret)
 		mvm->scan_uid_status[uid] = type << IWL_MVM_SCAN_STOPPING_SHIFT;

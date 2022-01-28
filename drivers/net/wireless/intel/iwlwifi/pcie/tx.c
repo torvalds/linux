@@ -1201,7 +1201,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	cmd = txq->entries[cmd_index].cmd;
 	meta = &txq->entries[cmd_index].meta;
 	group_id = cmd->hdr.group_id;
-	cmd_id = iwl_cmd_id(cmd->hdr.cmd, group_id, 0);
+	cmd_id = WIDE_ID(group_id, cmd->hdr.cmd);
 
 	iwl_txq_gen1_tfd_unmap(trans, meta, txq, index);
 

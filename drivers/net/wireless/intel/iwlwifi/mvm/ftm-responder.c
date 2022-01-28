@@ -161,8 +161,8 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 
 	memcpy(cmd.bssid, vif->addr, ETH_ALEN);
 
-	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_RESPONDER_CONFIG_CMD,
-						    LOCATION_GROUP, 0),
+	return iwl_mvm_send_cmd_pdu(mvm,
+				    WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_CONFIG_CMD),
 				    0, cmd_size, &cmd);
 }
 
@@ -177,8 +177,7 @@ iwl_mvm_ftm_responder_dyn_cfg_v2(struct iwl_mvm *mvm,
 	};
 	u8 data[IWL_LCI_CIVIC_IE_MAX_SIZE] = {0};
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RESPONDER_DYN_CONFIG_CMD,
-				 LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
 		.data[1] = &data,
@@ -220,8 +219,7 @@ iwl_mvm_ftm_responder_dyn_cfg_v3(struct iwl_mvm *mvm,
 {
 	struct iwl_tof_responder_dyn_config_cmd cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RESPONDER_DYN_CONFIG_CMD,
-				 LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
 		/* may not be able to DMA from stack */

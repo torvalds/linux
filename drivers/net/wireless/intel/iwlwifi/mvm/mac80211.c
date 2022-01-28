@@ -2328,8 +2328,7 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 	sta_ctxt_cmd.flags = cpu_to_le32(flags);
 
-	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(STA_HE_CTXT_CMD,
-						 DATA_PATH_GROUP, 0),
+	if (iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(DATA_PATH_GROUP, STA_HE_CTXT_CMD),
 				 0, size, &sta_ctxt_cmd))
 		IWL_ERR(mvm, "Failed to config FW to work HE!\n");
 }
