@@ -2548,14 +2548,58 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 	}
 }
 
+static int iwl_mvm_fw_baid_op(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvm_sta,
+			      bool start, int tid, u16 ssn, u16 buf_size)
+{
+	struct iwl_mvm_add_sta_cmd cmd = {
+		.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color),
+		.sta_id = mvm_sta->sta_id,
+		.add_modify = STA_MODE_MODIFY,
+	};
+	u32 status;
+	int ret;
+
+	if (start) {
+		cmd.add_immediate_ba_tid = tid;
+		cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
+		cmd.rx_ba_window = cpu_to_le16(buf_size);
+		cmd.modify_mask = STA_MODIFY_ADD_BA_TID;
+	} else {
+		cmd.remove_immediate_ba_tid = tid;
+		cmd.modify_mask = STA_MODIFY_REMOVE_BA_TID;
+	}
+
+	status = ADD_STA_SUCCESS;
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
+					  iwl_mvm_add_sta_cmd_size(mvm),
+					  &cmd, &status);
+	if (ret)
+		return ret;
+
+	switch (status & IWL_ADD_STA_STATUS_MASK) {
+	case ADD_STA_SUCCESS:
+		IWL_DEBUG_HT(mvm, "RX BA Session %sed in fw\n",
+			     start ? "start" : "stopp");
+		if (WARN_ON(start && iwl_mvm_has_new_rx_api(mvm) &&
+			    !(status & IWL_ADD_STA_BAID_VALID_MASK)))
+			return -EINVAL;
+		return u32_get_bits(status, IWL_ADD_STA_BAID_MASK);
+	case ADD_STA_IMMEDIATE_BA_FAILURE:
+		IWL_WARN(mvm, "RX BA Session refused by fw\n");
+		return -ENOSPC;
+	default:
+		IWL_ERR(mvm, "RX BA Session failed %sing, status 0x%x\n",
+			start ? "start" : "stopp", status);
+		return -EIO;
+	}
+}
+
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       int tid, u16 ssn, bool start, u16 buf_size, u16 timeout)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_mvm_add_sta_cmd cmd = {};
 	struct iwl_mvm_baid_data *baid_data = NULL;
-	int ret;
-	u32 status;
+	int ret, baid;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -2605,59 +2649,18 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			reorder_buf_size / sizeof(baid_data->entries[0]);
 	}
 
-	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
-	cmd.sta_id = mvm_sta->sta_id;
-	cmd.add_modify = STA_MODE_MODIFY;
-	if (start) {
-		cmd.add_immediate_ba_tid = (u8) tid;
-		cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
-		cmd.rx_ba_window = cpu_to_le16(buf_size);
-	} else {
-		cmd.remove_immediate_ba_tid = (u8) tid;
-	}
-	cmd.modify_mask = start ? STA_MODIFY_ADD_BA_TID :
-				  STA_MODIFY_REMOVE_BA_TID;
-
-	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
-					  iwl_mvm_add_sta_cmd_size(mvm),
-					  &cmd, &status);
-	if (ret)
+	baid = iwl_mvm_fw_baid_op(mvm, mvm_sta, start, tid, ssn, buf_size);
+	if (baid < 0) {
+		ret = baid;
 		goto out_free;
-
-	switch (status & IWL_ADD_STA_STATUS_MASK) {
-	case ADD_STA_SUCCESS:
-		IWL_DEBUG_HT(mvm, "RX BA Session %sed in fw\n",
-			     start ? "start" : "stopp");
-		break;
-	case ADD_STA_IMMEDIATE_BA_FAILURE:
-		IWL_WARN(mvm, "RX BA Session refused by fw\n");
-		ret = -ENOSPC;
-		break;
-	default:
-		ret = -EIO;
-		IWL_ERR(mvm, "RX BA Session failed %sing, status 0x%x\n",
-			start ? "start" : "stopp", status);
-		break;
 	}
 
-	if (ret)
-		goto out_free;
-
 	if (start) {
-		u8 baid;
-
 		mvm->rx_ba_sessions++;
 
 		if (!iwl_mvm_has_new_rx_api(mvm))
 			return 0;
 
-		if (WARN_ON(!(status & IWL_ADD_STA_BAID_VALID_MASK))) {
-			ret = -EINVAL;
-			goto out_free;
-		}
-		baid = (u8)((status & IWL_ADD_STA_BAID_MASK) >>
-			    IWL_ADD_STA_BAID_SHIFT);
 		baid_data->baid = baid;
 		baid_data->timeout = timeout;
 		baid_data->last_rx = jiffies;
@@ -2685,7 +2688,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		WARN_ON(rcu_access_pointer(mvm->baid_map[baid]));
 		rcu_assign_pointer(mvm->baid_map[baid], baid_data);
 	} else  {
-		u8 baid = mvm_sta->tid_to_baid[tid];
+		baid = mvm_sta->tid_to_baid[tid];
 
 		if (mvm->rx_ba_sessions > 0)
 			/* check that restart flow didn't zero the counter */
