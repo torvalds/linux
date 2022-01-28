@@ -339,7 +339,8 @@ static void g4x_dp_get_m_n(struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	if (crtc_state->has_pch_encoder) {
-		intel_pch_transcoder_get_m_n(crtc, &crtc_state->dp_m_n);
+		intel_pch_transcoder_get_m1_n1(crtc, &crtc_state->dp_m_n);
+		intel_pch_transcoder_get_m2_n2(crtc, &crtc_state->dp_m2_n2);
 	} else {
 		intel_cpu_transcoder_get_m1_n1(crtc, crtc_state->cpu_transcoder,
 					       &crtc_state->dp_m_n);
