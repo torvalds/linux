@@ -51,10 +51,12 @@
 #define LLCC_TRP_SCID_DIS_CAP_ALLOC   0x21f00
 #define LLCC_TRP_PCB_ACT              0x21f04
 #define LLCC_TRP_WRSC_EN              0x21f20
+#define LLCC_TRP_WRSC_CACHEABLE_EN    0x21f2c
 
 #define BANK_OFFSET_STRIDE	      0x80000
 
 #define LLCC_VERSION_2_0_0_0          0x02000000
+#define LLCC_VERSION_2_1_0_0          0x02010000
 
 /**
  * struct llcc_slice_config - Data associated with the llcc slice
@@ -80,6 +82,8 @@
  *               collapse.
  * @activate_on_init: Activate the slice immediately after it is programmed
  * @write_scid_en: Bit enables write cache support for a given scid.
+ * @write_scid_cacheable_en: Enables write cache cacheable support for a
+ *			     given scid (not supported on v2 or older hardware).
  */
 struct llcc_slice_config {
 	u32 usecase_id;
@@ -95,6 +99,7 @@ struct llcc_slice_config {
 	bool retain_on_pc;
 	bool activate_on_init;
 	bool write_scid_en;
+	bool write_scid_cacheable_en;
 };
 
 struct qcom_llcc_config {
@@ -511,6 +516,16 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 		wren = config->write_scid_en << config->slice_id;
 		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_WRSC_EN,
 					 BIT(config->slice_id), wren);
+		if (ret)
+			return ret;
+	}
+
+	if (drv_data->version >= LLCC_VERSION_2_1_0_0) {
+		u32 wr_cache_en;
+
+		wr_cache_en = config->write_scid_cacheable_en << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_WRSC_CACHEABLE_EN,
+					 BIT(config->slice_id), wr_cache_en);
 		if (ret)
 			return ret;
 	}
