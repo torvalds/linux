@@ -239,6 +239,10 @@
 	status = "okay";
 };
 
+&uhci {
+	status = "okay";
+};
+
 &gpio0 {
 	gpio-line-names =
 	/*A0-A7*/	"","","","","","","","",
