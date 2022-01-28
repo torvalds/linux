@@ -8,6 +8,7 @@ Required properties:
    - "rockchip,rk3308-i2s-tdm": for rk3308
    - "rockchip,rk3568-i2s-tdm": for rk3568
    - "rockchip,rk3588-i2s-tdm": for rk3588
+   - "rockchip,rv1106-i2s-tdm": for rv1106
    - "rockchip,rv1126-i2s-tdm": for rv1126
 - reg: physical base address of the controller and length of memory mapped
   region.
