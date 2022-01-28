@@ -97,6 +97,10 @@ struct link_hwss_ext {
 	void (*set_dp_link_test_pattern)(struct dc_link *link,
 			const struct link_resource *link_res,
 			struct encoder_set_dp_phy_pattern_param *tp_params);
+	void (*set_dp_lane_settings)(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct dc_link_settings *link_settings,
+		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
 };
 
 struct link_hwss {

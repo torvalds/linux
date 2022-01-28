@@ -295,22 +295,16 @@ void dp_set_hw_lane_settings(
 	const struct link_training_settings *link_settings,
 	uint32_t offset)
 {
-	struct link_encoder *encoder = link->link_enc;
+	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 
 	if ((link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && !is_immediate_downstream(link, offset))
 		return;
 
-	/* call Encoder to set lane settings */
-	if (dp_get_link_encoding_format(&link_settings->link_settings) ==
-			DP_128b_132b_ENCODING) {
-		link_res->hpo_dp_link_enc->funcs->set_ffe(
-				link_res->hpo_dp_link_enc,
+	if (link_hwss->ext.set_dp_lane_settings)
+		link_hwss->ext.set_dp_lane_settings(link, link_res,
 				&link_settings->link_settings,
-				link_settings->lane_settings[0].FFE_PRESET.raw);
-	} else if (dp_get_link_encoding_format(&link_settings->link_settings)
-			== DP_8b_10b_ENCODING) {
-		encoder->funcs->dp_set_lane_settings(encoder, link_settings);
-	}
+				link_settings->hw_lane_settings);
+
 	memmove(link->cur_lane_setting,
 			link_settings->lane_settings,
 			sizeof(link->cur_lane_setting));
@@ -748,6 +742,16 @@ static void set_dio_dp_link_test_pattern(struct dc_link *link,
 	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
 }
 
+static void set_dio_dp_lane_settings(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct dc_link_settings *link_settings,
+		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
+{
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	link_enc->funcs->dp_set_lane_settings(link_enc, link_settings, lane_settings);
+}
+
 static const struct link_hwss dio_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
@@ -756,6 +760,7 @@ static const struct link_hwss dio_link_hwss = {
 		.enable_dp_link_output = enable_dio_dp_link_output,
 		.disable_dp_link_output = disable_dio_dp_link_output,
 		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
+		.set_dp_lane_settings = set_dio_dp_lane_settings,
 	},
 };
 
@@ -931,6 +936,17 @@ static void set_hpo_dp_link_test_pattern(struct dc_link *link,
 	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
 }
 
+static void set_hpo_dp_lane_settings(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct dc_link_settings *link_settings,
+		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
+{
+	link_res->hpo_dp_link_enc->funcs->set_ffe(
+			link_res->hpo_dp_link_enc,
+			link_settings,
+			lane_settings[0].FFE_PRESET.raw);
+}
+
 static const struct link_hwss hpo_dp_link_hwss = {
 	.setup_stream_encoder = setup_hpo_dp_stream_encoder,
 	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
@@ -940,6 +956,7 @@ static const struct link_hwss hpo_dp_link_hwss = {
 		.enable_dp_link_output = enable_hpo_dp_link_output,
 		.disable_dp_link_output = disable_hpo_dp_link_output,
 		.set_dp_link_test_pattern  = set_hpo_dp_link_test_pattern,
+		.set_dp_lane_settings = set_hpo_dp_lane_settings,
 	},
 };
 /*********************** below goes to dpia_link_hwss *************************/
@@ -958,6 +975,7 @@ static const struct link_hwss dpia_link_hwss = {
 		.enable_dp_link_output = enable_dio_dp_link_output,
 		.disable_dp_link_output = disable_dio_dp_link_output,
 		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
+		.set_dp_lane_settings = set_dio_dp_lane_settings,
 	},
 };
 

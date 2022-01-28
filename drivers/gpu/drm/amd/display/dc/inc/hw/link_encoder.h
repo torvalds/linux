@@ -162,7 +162,8 @@ struct link_encoder_funcs {
 	void (*disable_output)(struct link_encoder *link_enc,
 		enum signal_type signal);
 	void (*dp_set_lane_settings)(struct link_encoder *enc,
-		const struct link_training_settings *link_settings);
+		const struct dc_link_settings *link_settings,
+		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
 	void (*dp_set_phy_pattern)(struct link_encoder *enc,
 		const struct encoder_set_dp_phy_pattern_param *para);
 	void (*update_mst_stream_allocation_table)(
