@@ -893,6 +893,7 @@ static void set_all_streams_dpms_off_for_link(struct dc_link *link)
 	struct pipe_ctx *pipe_ctx;
 	struct dc_stream_update stream_update;
 	bool dpms_off = true;
+	struct link_resource link_res = {0};
 
 	memset(&stream_update, 0, sizeof(stream_update));
 	stream_update.dpms_off = &dpms_off;
@@ -907,33 +908,29 @@ static void set_all_streams_dpms_off_for_link(struct dc_link *link)
 					link->ctx->dc->current_state);
 		}
 	}
+
+	/* link can be also enabled by vbios. In this case it is not recorded
+	 * in pipe_ctx. Disable link phy here to make sure it is completely off
+	 */
+	dp_disable_link_phy(link, &link_res, link->connector_signal);
 }
 
 static void verify_link_capability_destructive(struct dc_link *link,
 		struct dc_sink *sink,
 		enum dc_detect_reason reason)
 {
-	struct link_resource link_res = { 0 };
 	bool should_prepare_phy_clocks =
 			should_prepare_phy_clocks_for_link_verification(link->dc, reason);
 
 	if (should_prepare_phy_clocks)
 		prepare_phy_clocks_for_destructive_link_verification(link->dc);
 
-
 	if (dc_is_dp_signal(link->local_sink->sink_signal)) {
 		struct dc_link_settings known_limit_link_setting =
 				dp_get_max_link_cap(link);
-
 		set_all_streams_dpms_off_for_link(link);
-		if (dp_get_link_encoding_format(&known_limit_link_setting) ==
-				DP_128b_132b_ENCODING)
-			link_res.hpo_dp_link_enc = resource_get_hpo_dp_link_enc_for_det_lt(
-					&link->dc->current_state->res_ctx,
-					link->dc->res_pool,
-					link);
 		dp_verify_link_cap_with_retries(
-				link, &link_res, &known_limit_link_setting,
+				link, &known_limit_link_setting,
 				LINK_TRAINING_MAX_VERIFY_RETRY);
 	} else {
 		ASSERT(0);

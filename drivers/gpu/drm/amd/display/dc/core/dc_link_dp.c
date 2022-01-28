@@ -97,6 +97,12 @@ static const struct dp_lt_fallback_entry dp_lt_fallbacks[] = {
 		{LANE_COUNT_ONE, LINK_RATE_LOW},
 };
 
+static const struct dc_link_settings fail_safe_link_settings = {
+		.lane_count = LANE_COUNT_ONE,
+		.link_rate = LINK_RATE_LOW,
+		.link_spread = LINK_SPREAD_DISABLED,
+};
+
 static bool decide_fallback_link_setting(
 		struct dc_link *link,
 		struct dc_link_settings initial_link_settings,
@@ -3182,25 +3188,22 @@ bool hpd_rx_irq_check_link_loss_status(
 	return return_code;
 }
 
-bool dp_verify_link_cap(
+static bool dp_verify_link_cap(
 	struct dc_link *link,
-	const struct link_resource *link_res,
 	struct dc_link_settings *known_limit_link_setting,
 	int *fail_count)
 {
-	struct dc_link_settings cur_link_setting = {0};
-	struct dc_link_settings *cur = &cur_link_setting;
+	struct dc_link_settings cur_link_settings = {0};
 	struct dc_link_settings initial_link_settings = *known_limit_link_setting;
-	bool success;
-	bool skip_link_training;
+	bool success = false;
 	bool skip_video_pattern;
-	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
+	enum clock_source_id dp_cs_id = get_clock_source_id(link);
 	enum link_training_result status;
 	union hpd_irq_data irq_data;
+	struct link_resource link_res;
 
 	memset(&irq_data, 0, sizeof(irq_data));
-	success = false;
-	skip_link_training = false;
+	cur_link_settings = initial_link_settings;
 
 	/* Grant extended timeout request */
 	if ((link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && (link->dpcd_caps.lttpr_caps.max_ext_timeout > 0)) {
@@ -3209,99 +3212,71 @@ bool dp_verify_link_cap(
 		core_link_write_dpcd(link, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT, &grant, sizeof(grant));
 	}
 
-	/* TODO implement override and monitor patch later */
-
-	/* try to train the link from high to low to
-	 * find the physical link capability
-	 */
-	/* disable PHY done possible by BIOS, will be done by driver itself */
-	dp_disable_link_phy(link, link_res, link->connector_signal);
-
-	dp_cs_id = get_clock_source_id(link);
-
-	cur_link_setting = initial_link_settings;
-
-	/* Temporary Renoir-specific workaround for SWDEV-215184;
-	 * PHY will sometimes be in bad state on hotplugging display from certain USB-C dongle,
-	 * so add extra cycle of enabling and disabling the PHY before first link training.
-	 */
-	if (link->link_enc && link->link_enc->features.flags.bits.DP_IS_USB_C &&
-			link->dc->debug.usbc_combo_phy_reset_wa) {
-		dp_enable_link_phy(link, link_res, link->connector_signal, dp_cs_id, cur);
-		dp_disable_link_phy(link, link_res, link->connector_signal);
-	}
-
 	do {
-		skip_video_pattern = true;
+		if (!get_temp_dp_link_res(link, &link_res, &cur_link_settings))
+			continue;
 
-		if (cur->link_rate == LINK_RATE_LOW)
-			skip_video_pattern = false;
-
+		skip_video_pattern = cur_link_settings.link_rate != LINK_RATE_LOW;
 		dp_enable_link_phy(
 				link,
-				link_res,
+				&link_res,
 				link->connector_signal,
 				dp_cs_id,
-				cur);
+				&cur_link_settings);
 
+		status = dc_link_dp_perform_link_training(
+				link,
+				&link_res,
+				&cur_link_settings,
+				skip_video_pattern);
 
-		if (skip_link_training)
+		if (status == LINK_TRAINING_SUCCESS) {
 			success = true;
-		else {
-			status = dc_link_dp_perform_link_training(
-							link,
-							link_res,
-							cur,
-							skip_video_pattern);
-			if (status == LINK_TRAINING_SUCCESS)
-				success = true;
-			else
-				(*fail_count)++;
-		}
-
-		if (success) {
-			link->verified_link_cap = *cur;
 			udelay(1000);
-			if (read_hpd_rx_irq_data(link, &irq_data) == DC_OK)
-				if (hpd_rx_irq_check_link_loss_status(
-						link,
-						&irq_data))
-					(*fail_count)++;
+			if (read_hpd_rx_irq_data(link, &irq_data) == DC_OK &&
+					hpd_rx_irq_check_link_loss_status(
+							link,
+							&irq_data))
+				(*fail_count)++;
+
+		} else {
+			(*fail_count)++;
 		}
-		/* always disable the link before trying another
-		 * setting or before returning we'll enable it later
-		 * based on the actual mode we're driving
-		 */
-		dp_disable_link_phy(link, link_res, link->connector_signal);
+		dp_disable_link_phy(link, &link_res, link->connector_signal);
 	} while (!success && decide_fallback_link_setting(link,
-			initial_link_settings, cur, status));
+			initial_link_settings, &cur_link_settings, status));
 
-	/* Link Training failed for all Link Settings
-	 *  (Lane Count is still unknown)
-	 */
-	if (!success) {
-		/* If all LT fails for all settings,
-		 * set verified = failed safe (1 lane low)
-		 */
-		link->verified_link_cap.lane_count = LANE_COUNT_ONE;
-		link->verified_link_cap.link_rate = LINK_RATE_LOW;
-
-		link->verified_link_cap.link_spread =
-		LINK_SPREAD_DISABLED;
-	}
-
-
+	link->verified_link_cap = success ?
+			cur_link_settings : fail_safe_link_settings;
 	return success;
+}
+
+static void apply_usbc_combo_phy_reset_wa(struct dc_link *link,
+		struct dc_link_settings *link_settings)
+{
+	/* Temporary Renoir-specific workaround PHY will sometimes be in bad
+	 * state on hotplugging display from certain USB-C dongle, so add extra
+	 * cycle of enabling and disabling the PHY before first link training.
+	 */
+	struct link_resource link_res = {0};
+	enum clock_source_id dp_cs_id = get_clock_source_id(link);
+
+	dp_enable_link_phy(link, &link_res, link->connector_signal,
+			dp_cs_id, link_settings);
+	dp_disable_link_phy(link, &link_res, link->connector_signal);
 }
 
 bool dp_verify_link_cap_with_retries(
 	struct dc_link *link,
-	const struct link_resource *link_res,
 	struct dc_link_settings *known_limit_link_setting,
 	int attempts)
 {
 	int i = 0;
 	bool success = false;
+
+	if (link->link_enc && link->link_enc->features.flags.bits.DP_IS_USB_C &&
+			link->dc->debug.usbc_combo_phy_reset_wa)
+		apply_usbc_combo_phy_reset_wa(link, known_limit_link_setting);
 
 	for (i = 0; i < attempts; i++) {
 		int fail_count = 0;
@@ -3310,12 +3285,9 @@ bool dp_verify_link_cap_with_retries(
 		memset(&link->verified_link_cap, 0,
 				sizeof(struct dc_link_settings));
 		if (!dc_link_detect_sink(link, &type) || type == dc_connection_none) {
-			link->verified_link_cap.lane_count = LANE_COUNT_ONE;
-			link->verified_link_cap.link_rate = LINK_RATE_LOW;
-			link->verified_link_cap.link_spread = LINK_SPREAD_DISABLED;
+			link->verified_link_cap = fail_safe_link_settings;
 			break;
-		} else if (dp_verify_link_cap(link, link_res,
-				known_limit_link_setting,
+		} else if (dp_verify_link_cap(link, known_limit_link_setting,
 				&fail_count) && fail_count == 0) {
 			success = true;
 			break;

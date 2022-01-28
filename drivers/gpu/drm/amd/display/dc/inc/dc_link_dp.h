@@ -56,15 +56,8 @@ enum {
 
 struct dc_link_settings dp_get_max_link_cap(struct dc_link *link);
 
-bool dp_verify_link_cap(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	struct dc_link_settings *known_limit_link_setting,
-	int *fail_count);
-
 bool dp_verify_link_cap_with_retries(
 	struct dc_link *link,
-	const struct link_resource *link_res,
 	struct dc_link_settings *known_limit_link_setting,
 	int attempts);
 

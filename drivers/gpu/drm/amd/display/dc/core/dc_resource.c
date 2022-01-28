@@ -3187,9 +3187,9 @@ void get_audio_check(struct audio_info *aud_modes,
 	}
 }
 
-struct hpo_dp_link_encoder *resource_get_hpo_dp_link_enc_for_det_lt(
+static struct hpo_dp_link_encoder *get_temp_hpo_dp_link_enc(
 		const struct resource_context *res_ctx,
-		const struct resource_pool *pool,
+		const struct resource_pool *const pool,
 		const struct dc_link *link)
 {
 	struct hpo_dp_link_encoder *hpo_dp_link_enc = NULL;
@@ -3204,6 +3204,24 @@ struct hpo_dp_link_encoder *resource_get_hpo_dp_link_enc_for_det_lt(
 		hpo_dp_link_enc = pool->hpo_dp_link_enc[enc_index];
 
 	return hpo_dp_link_enc;
+}
+
+bool get_temp_dp_link_res(struct dc_link *link,
+		struct link_resource *link_res,
+		struct dc_link_settings *link_settings)
+{
+	const struct dc *dc  = link->dc;
+	const struct resource_context *res_ctx = &dc->current_state->res_ctx;
+
+	memset(link_res, 0, sizeof(*link_res));
+
+	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
+		link_res->hpo_dp_link_enc = get_temp_hpo_dp_link_enc(res_ctx,
+				dc->res_pool, link);
+		if (!link_res->hpo_dp_link_enc)
+			return false;
+	}
+	return true;
 }
 
 void reset_syncd_pipes_from_disabled_pipes(struct dc *dc,
