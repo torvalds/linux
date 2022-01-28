@@ -178,6 +178,9 @@ struct otx2_hw {
 	u16			rqpool_cnt;
 	u16			sqpool_cnt;
 
+#define OTX2_DEFAULT_RBUF_LEN	2048
+	u16			rbuf_len;
+
 	/* NPA */
 	u32			stack_pg_ptrs;  /* No of ptrs per stack page */
 	u32			stack_pg_bytes; /* Size of stack page */
