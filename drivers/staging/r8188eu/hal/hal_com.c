@@ -20,19 +20,27 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 		       "Normal_Chip" : "Test_Chip");
 	cnt += sprintf((buf + cnt), "%s_", IS_CHIP_VENDOR_TSMC(chip_vers) ?
 		       "TSMC" : "UMC");
-	if (IS_A_CUT(chip_vers))
+
+	switch (chip_vers.CUTVersion) {
+	case A_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "A_CUT_");
-	else if (IS_B_CUT(chip_vers))
+		break;
+	case B_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "B_CUT_");
-	else if (IS_C_CUT(chip_vers))
+		break;
+	case C_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "C_CUT_");
-	else if (IS_D_CUT(chip_vers))
+		break;
+	case D_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "D_CUT_");
-	else if (IS_E_CUT(chip_vers))
+		break;
+	case E_CUT_VERSION:
 		cnt += sprintf((buf + cnt), "E_CUT_");
-	else
-		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_",
-			       chip_vers.CUTVersion);
+		break;
+	default:
+		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_", chip_vers.CUTVersion);
+		break;
+	}
 
 	cnt += sprintf((buf + cnt), "1T1R_");
 
