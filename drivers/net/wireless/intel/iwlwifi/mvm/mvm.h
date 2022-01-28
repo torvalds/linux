@@ -2225,7 +2225,7 @@ static inline void iwl_mvm_mei_device_down(struct iwl_mvm *mvm)
 static inline void iwl_mvm_mei_set_sw_rfkill_state(struct iwl_mvm *mvm)
 {
 	bool sw_rfkill =
-		mvm->hw_registered ? rfkill_blocked(mvm->hw->wiphy->rfkill) : false;
+		mvm->hw_registered ? rfkill_soft_blocked(mvm->hw->wiphy->rfkill) : false;
 
 	if (mvm->mei_registered)
 		iwl_mei_set_rfkill_state(iwl_mvm_is_radio_killed(mvm),
