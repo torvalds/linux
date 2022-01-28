@@ -814,7 +814,11 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 	struct iwl_geo_tx_power_profiles_resp *resp;
 	u16 len;
 	int ret;
-	struct iwl_host_cmd cmd;
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(PHY_OPS_GROUP, PER_CHAIN_LIMIT_OFFSET_CMD),
+		.flags = CMD_WANT_SKB,
+		.data = { &geo_tx_cmd },
+	};
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
 					   PER_CHAIN_LIMIT_OFFSET_CMD,
 					   IWL_FW_CMD_VER_UNKNOWN);
@@ -838,12 +842,7 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 	if (!iwl_sar_geo_support(&mvm->fwrt))
 		return -EOPNOTSUPP;
 
-	cmd = (struct iwl_host_cmd){
-		.id =  WIDE_ID(PHY_OPS_GROUP, PER_CHAIN_LIMIT_OFFSET_CMD),
-		.len = { len, },
-		.flags = CMD_WANT_SKB,
-		.data = { &geo_tx_cmd },
-	};
+	cmd.len[0] = len;
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret) {
