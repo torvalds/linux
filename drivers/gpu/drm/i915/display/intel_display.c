@@ -3893,13 +3893,6 @@ void intel_cpu_transcoder_get_m_n(struct intel_crtc *crtc,
 	}
 }
 
-void ilk_get_fdi_m_n_config(struct intel_crtc *crtc,
-			    struct intel_crtc_state *pipe_config)
-{
-	intel_cpu_transcoder_get_m_n(crtc, pipe_config->cpu_transcoder,
-				     &pipe_config->fdi_m_n, NULL);
-}
-
 static void ilk_get_pfit_pos_size(struct intel_crtc_state *crtc_state,
 				  u32 pos, u32 size)
 {

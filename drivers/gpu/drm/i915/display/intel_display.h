@@ -613,8 +613,6 @@ void intel_cpu_transcoder_get_m_n(struct intel_crtc *crtc,
 				  struct intel_link_m_n *m2_n2);
 void intel_pch_transcoder_get_m_n(struct intel_crtc *crtc,
 				  struct intel_link_m_n *m_n);
-void ilk_get_fdi_m_n_config(struct intel_crtc *crtc,
-			    struct intel_crtc_state *pipe_config);
 void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 			 struct intel_crtc_state *pipe_config);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
