@@ -35,7 +35,12 @@
 #define LLCC_WRCACHE     31
 #define LLCC_CVPFW       32
 #define LLCC_CPUSS1      33
+#define LLCC_CAMEXP0     34
+#define LLCC_CPUMTE      35
 #define LLCC_CPUHWT      36
+#define LLCC_MDMCLAD2    37
+#define LLCC_CAMEXP1     38
+#define LLCC_AENPU       45
 
 /**
  * struct llcc_slice_desc - Cache slice descriptor
