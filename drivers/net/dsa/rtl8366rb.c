@@ -1252,6 +1252,8 @@ rtl8366rb_port_bridge_leave(struct dsa_switch *ds, int port,
  * @smi: SMI state container
  * @port: the port to drop untagged and C-tagged frames on
  * @drop: whether to drop or pass untagged and C-tagged frames
+ *
+ * Return: zero for success, a negative number on error.
  */
 static int rtl8366rb_drop_untagged(struct realtek_smi *smi, int port, bool drop)
 {

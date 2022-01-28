@@ -25,7 +25,7 @@ struct rtl8366_mib_counter {
 	const char	*name;
 };
 
-/**
+/*
  * struct rtl8366_vlan_mc - Virtual LAN member configuration
  */
 struct rtl8366_vlan_mc {
@@ -74,7 +74,7 @@ struct realtek_smi {
 	void			*chip_data; /* Per-chip extra variant data */
 };
 
-/**
+/*
  * struct realtek_smi_ops - vtable for the per-SMI-chiptype operations
  * @detect: detects the chiptype
  */
