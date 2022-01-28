@@ -2548,8 +2548,10 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 	}
 }
 
-static int iwl_mvm_fw_baid_op(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvm_sta,
-			      bool start, int tid, u16 ssn, u16 buf_size)
+static int iwl_mvm_fw_baid_op_sta(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvm_sta,
+				  bool start, int tid, u16 ssn,
+				  u16 buf_size)
 {
 	struct iwl_mvm_add_sta_cmd cmd = {
 		.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color),
@@ -2592,6 +2594,62 @@ static int iwl_mvm_fw_baid_op(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvm_sta,
 			start ? "start" : "stopp", status);
 		return -EIO;
 	}
+}
+
+static int iwl_mvm_fw_baid_op_cmd(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvm_sta,
+				  bool start, int tid, u16 ssn,
+				  u16 buf_size, int baid)
+{
+	struct iwl_rx_baid_cfg_cmd cmd = {
+		.action = start ? cpu_to_le32(IWL_RX_BAID_ACTION_ADD) :
+				  cpu_to_le32(IWL_RX_BAID_ACTION_REMOVE),
+	};
+	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, RX_BAID_ALLOCATION_CONFIG_CMD);
+	int ret;
+
+	BUILD_BUG_ON(sizeof(struct iwl_rx_baid_cfg_resp) != sizeof(baid));
+
+	if (start) {
+		cmd.alloc.sta_id_mask = cpu_to_le32(BIT(mvm_sta->sta_id));
+		cmd.alloc.tid = tid;
+		cmd.alloc.ssn = cpu_to_le16(ssn);
+		cmd.alloc.win_size = cpu_to_le16(buf_size);
+		baid = -EIO;
+	} else {
+		cmd.remove.baid = cpu_to_le32(baid);
+	}
+
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, cmd_id, sizeof(cmd),
+					  &cmd, &baid);
+	if (ret)
+		return ret;
+
+	if (!start) {
+		/* ignore firmware baid on remove */
+		baid = 0;
+	}
+
+	IWL_DEBUG_HT(mvm, "RX BA Session %sed in fw\n",
+		     start ? "start" : "stopp");
+
+	if (baid < 0 || baid >= ARRAY_SIZE(mvm->baid_map))
+		return -EINVAL;
+
+	return baid;
+}
+
+static int iwl_mvm_fw_baid_op(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvm_sta,
+			      bool start, int tid, u16 ssn, u16 buf_size,
+			      int baid)
+{
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_BAID_ML_SUPPORT))
+		return iwl_mvm_fw_baid_op_cmd(mvm, mvm_sta, start,
+					      tid, ssn, buf_size, baid);
+
+	return iwl_mvm_fw_baid_op_sta(mvm, mvm_sta, start,
+				      tid, ssn, buf_size);
 }
 
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
@@ -2649,7 +2707,15 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			reorder_buf_size / sizeof(baid_data->entries[0]);
 	}
 
-	baid = iwl_mvm_fw_baid_op(mvm, mvm_sta, start, tid, ssn, buf_size);
+	if (iwl_mvm_has_new_rx_api(mvm) && !start) {
+		baid = mvm_sta->tid_to_baid[tid];
+	} else {
+		/* we don't really need it in this case */
+		baid = -1;
+	}
+
+	baid = iwl_mvm_fw_baid_op(mvm, mvm_sta, start, tid, ssn, buf_size,
+				  baid);
 	if (baid < 0) {
 		ret = baid;
 		goto out_free;
