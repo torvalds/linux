@@ -1432,11 +1432,7 @@ static int ravb_phy_init(struct net_device *ndev)
 	 * at this time.
 	 */
 	if (soc_device_match(r8a7795es10)) {
-		err = phy_set_max_speed(phydev, SPEED_100);
-		if (err) {
-			netdev_err(ndev, "failed to limit PHY to 100Mbit/s\n");
-			goto err_phy_disconnect;
-		}
+		phy_set_max_speed(phydev, SPEED_100);
 
 		netdev_info(ndev, "limited PHY to 100Mbit/s\n");
 	}
@@ -1457,8 +1453,6 @@ static int ravb_phy_init(struct net_device *ndev)
 
 	return 0;
 
-err_phy_disconnect:
-	phy_disconnect(phydev);
 err_deregister_fixed_link:
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
