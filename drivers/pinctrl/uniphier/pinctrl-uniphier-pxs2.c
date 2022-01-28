@@ -719,12 +719,16 @@ static const struct pinctrl_pin_desc uniphier_pxs2_pins[] = {
 			     234, UNIPHIER_PIN_PULL_DOWN),
 };
 
-static const unsigned ain1_pins[] = {161, 162, 173, 174};
-static const int ain1_muxvals[] = {8, 8, 8, 8};
+static const unsigned ain1_pins[] = {161, 162, 173, 174, 127, 128, 129};
+static const int ain1_muxvals[] = {8, 8, 8, 8, 3, 3, 3};
 static const unsigned ain2_pins[] = {98, 99, 100, 101, 102, 103, 104};
 static const int ain2_muxvals[] = {8, 8, 8, 8, 8, 8, 8};
+static const unsigned ain3_pins[] = {132, 133, 134, 131};
+static const int ain3_muxvals[] = {5, 5, 5, 5};
 static const unsigned ainiec1_pins[] = {91};
 static const int ainiec1_muxvals[] = {11};
+static const unsigned aout1_pins[] = {87, 88, 89, 90, 92, 93, 94};
+static const int aout1_muxvals[] = {11, 11, 11, 11, 11, 11, 11};
 static const unsigned aout2_pins[] = {175, 176, 177, 178, 183, 184, 185};
 static const int aout2_muxvals[] = {8, 8, 8, 8, 9, 9, 9};
 static const unsigned aout3_pins[] = {105, 106, 107, 108};
@@ -839,7 +843,9 @@ static const unsigned int gpio_range1_pins[] = {
 static const struct uniphier_pinctrl_group uniphier_pxs2_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(ain1),
 	UNIPHIER_PINCTRL_GROUP(ain2),
+	UNIPHIER_PINCTRL_GROUP(ain3),
 	UNIPHIER_PINCTRL_GROUP(ainiec1),
+	UNIPHIER_PINCTRL_GROUP(aout1),
 	UNIPHIER_PINCTRL_GROUP(aout2),
 	UNIPHIER_PINCTRL_GROUP(aout3),
 	UNIPHIER_PINCTRL_GROUP(aoutiec1),
@@ -880,7 +886,9 @@ static const struct uniphier_pinctrl_group uniphier_pxs2_groups[] = {
 
 static const char * const ain1_groups[] = {"ain1"};
 static const char * const ain2_groups[] = {"ain2"};
+static const char * const ain3_groups[] = {"ain3"};
 static const char * const ainiec1_groups[] = {"ainiec1"};
+static const char * const aout1_groups[] = {"aout1"};
 static const char * const aout2_groups[] = {"aout2"};
 static const char * const aout3_groups[] = {"aout3"};
 static const char * const aoutiec1_groups[] = {"aoutiec1"};
