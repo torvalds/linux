@@ -244,21 +244,25 @@ static const struct qcom_llcc_config sdm845_cfg = {
 static const struct qcom_llcc_config sm6350_cfg = {
 	.sct_data	= sm6350_data,
 	.size		= ARRAY_SIZE(sm6350_data),
+	.need_llcc_cfg	= true,
 };
 
 static const struct qcom_llcc_config sm8150_cfg = {
 	.sct_data       = sm8150_data,
 	.size           = ARRAY_SIZE(sm8150_data),
+	.need_llcc_cfg	= true,
 };
 
 static const struct qcom_llcc_config sm8250_cfg = {
 	.sct_data       = sm8250_data,
 	.size           = ARRAY_SIZE(sm8250_data),
+	.need_llcc_cfg	= true,
 };
 
 static const struct qcom_llcc_config sm8350_cfg = {
 	.sct_data       = sm8350_data,
 	.size           = ARRAY_SIZE(sm8350_data),
+	.need_llcc_cfg	= true,
 };
 
 static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
