@@ -47,17 +47,13 @@
  * requested by userspace.
  */
 
-void
-intel_drrs_compute_config(struct intel_dp *intel_dp,
-			  struct intel_crtc_state *pipe_config,
-			  int output_bpp, bool constant_n)
+static bool can_enable_drrs(struct intel_connector *connector,
+			    const struct intel_crtc_state *pipe_config)
 {
-	struct intel_connector *intel_connector = intel_dp->attached_connector;
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	int pixel_clock;
+	const struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
 	if (pipe_config->vrr.enable)
-		return;
+		return false;
 
 	/*
 	 * DRRS and PSR can't be enable together, so giving preference to PSR
@@ -66,15 +62,26 @@ intel_drrs_compute_config(struct intel_dp *intel_dp,
 	 * after intel_psr_compute_config().
 	 */
 	if (pipe_config->has_psr)
-		return;
+		return false;
 
-	if (!intel_connector->panel.downclock_mode ||
-	    dev_priv->drrs.type != SEAMLESS_DRRS_SUPPORT)
+	return connector->panel.downclock_mode &&
+		i915->drrs.type == SEAMLESS_DRRS_SUPPORT;
+}
+
+void
+intel_drrs_compute_config(struct intel_dp *intel_dp,
+			  struct intel_crtc_state *pipe_config,
+			  int output_bpp, bool constant_n)
+{
+	struct intel_connector *connector = intel_dp->attached_connector;
+	int pixel_clock;
+
+	if (!can_enable_drrs(connector, pipe_config))
 		return;
 
 	pipe_config->has_drrs = true;
 
-	pixel_clock = intel_connector->panel.downclock_mode->clock;
+	pixel_clock = connector->panel.downclock_mode->clock;
 	if (pipe_config->splitter.enable)
 		pixel_clock /= pipe_config->splitter.link_count;
 
