@@ -1,10 +1,31 @@
-/* Copyright 2015 Advanced Micro Devices, Inc. */
-
-#include "link_hwss.h"
+/*
+ * Copyright 2022 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: AMD
+ *
+ */
+#include "link_hwss_hpo_dp.h"
 #include "dm_helpers.h"
 #include "core_types.h"
 #include "dccg.h"
-#include "link_enc_cfg.h"
 #include "dc_link_dp.h"
 
 static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)
@@ -25,122 +46,6 @@ static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)
 	}
 }
 
-static void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx);
-static void virtual_reset_stream_encoder(struct pipe_ctx *pipe_ctx);
-
-/************************* below goes to dio_link_hwss ************************/
-static void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
-		struct fixed31_32 throttled_vcp_size)
-{
-	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
-
-	stream_encoder->funcs->set_throttled_vcp_size(
-				stream_encoder,
-				throttled_vcp_size);
-}
-
-static void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
-{
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
-
-	link_enc->funcs->connect_dig_be_to_fe(link_enc,
-			pipe_ctx->stream_res.stream_enc->id, true);
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(pipe_ctx->stream->link,
-				DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
-}
-
-static void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
-{
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
-
-	link_enc->funcs->connect_dig_be_to_fe(
-			link_enc,
-			pipe_ctx->stream_res.stream_enc->id,
-			false);
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(pipe_ctx->stream->link,
-				DPCD_SOURCE_SEQ_AFTER_DISCONNECT_DIG_FE_BE);
-
-}
-
-static void enable_dio_dp_link_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal,
-		enum clock_source_id clock_source,
-		const struct dc_link_settings *link_settings)
-{
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
-
-	if (dc_is_dp_sst_signal(signal))
-		link_enc->funcs->enable_dp_output(
-				link_enc,
-				link_settings,
-				clock_source);
-	else
-		link_enc->funcs->enable_dp_mst_output(
-				link_enc,
-				link_settings,
-				clock_source);
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
-}
-
-
-static void disable_dio_dp_link_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal)
-{
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
-
-	link_enc->funcs->disable_output(link_enc, signal);
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
-}
-
-static void set_dio_dp_link_test_pattern(struct dc_link *link,
-		const struct link_resource *link_res,
-		struct encoder_set_dp_phy_pattern_param *tp_params)
-{
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
-
-	ASSERT(link_enc);
-	link_enc->funcs->dp_set_phy_pattern(link_enc, tp_params);
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
-}
-
-static void set_dio_dp_lane_settings(struct dc_link *link,
-		const struct link_resource *link_res,
-		const struct dc_link_settings *link_settings,
-		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
-{
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
-
-	link_enc->funcs->dp_set_lane_settings(link_enc, link_settings, lane_settings);
-}
-
-static const struct link_hwss dio_link_hwss = {
-	.setup_stream_encoder = setup_dio_stream_encoder,
-	.reset_stream_encoder = reset_dio_stream_encoder,
-	.ext = {
-		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
-		.enable_dp_link_output = enable_dio_dp_link_output,
-		.disable_dp_link_output = disable_dio_dp_link_output,
-		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
-		.set_dp_lane_settings = set_dio_dp_lane_settings,
-	},
-};
-
-bool can_use_dio_link_hwss(const struct dc_link *link,
-		const struct link_resource *link_res)
-{
-	return link->link_enc != NULL;
-}
-
-const struct link_hwss *get_dio_link_hwss(void)
-{
-	return &dio_link_hwss;
-}
-
-/*********************** below goes to hpo_dp_link_hwss ***********************/
 static void set_hpo_dp_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size)
 {
@@ -347,71 +252,3 @@ const struct link_hwss *get_hpo_dp_link_hwss(void)
 	return &hpo_dp_link_hwss;
 }
 
-/*********************** below goes to dpia_link_hwss *************************/
-static const struct link_hwss dpia_link_hwss = {
-	.setup_stream_encoder = setup_dio_stream_encoder,
-	.reset_stream_encoder = reset_dio_stream_encoder,
-	.ext = {
-		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
-		.enable_dp_link_output = enable_dio_dp_link_output,
-		.disable_dp_link_output = disable_dio_dp_link_output,
-		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
-		.set_dp_lane_settings = set_dio_dp_lane_settings,
-	},
-};
-
-bool can_use_dpia_link_hwss(const struct dc_link *link,
-		const struct link_resource *link_res)
-{
-	return link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign;
-}
-
-const struct link_hwss *get_dpia_link_hwss(void)
-{
-	return &dpia_link_hwss;
-}
-/*********************** below goes to virtual_link_hwss ******************************/
-static void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx)
-{
-}
-
-static void virtual_reset_stream_encoder(struct pipe_ctx *pipe_ctx)
-{
-}
-static const struct link_hwss virtual_link_hwss = {
-	.setup_stream_encoder = virtual_setup_stream_encoder,
-	.reset_stream_encoder = virtual_reset_stream_encoder,
-};
-
-const struct link_hwss *get_link_hwss(const struct dc_link *link,
-		const struct link_resource *link_res)
-{
-	if (can_use_dp_hpo_link_hwss(link, link_res))
-		/* TODO: some assumes that if decided link settings is 128b/132b
-		 * channel coding format hpo_dp_link_enc should be used.
-		 * Others believe that if hpo_dp_link_enc is available in link
-		 * resource then hpo_dp_link_enc must be used. This bound between
-		 * hpo_dp_link_enc != NULL and decided link settings is loosely coupled
-		 * with a premise that both hpo_dp_link_enc pointer and decided link
-		 * settings are determined based on single policy function like
-		 * "decide_link_settings" from upper layer. This "convention"
-		 * cannot be maintained and enforced at current level.
-		 * Therefore a refactor is due so we can enforce a strong bound
-		 * between those two parameters at this level.
-		 *
-		 * To put it simple, we want to make enforcement at low level so that
-		 * we will not return link hwss if caller plans to do 8b/10b
-		 * with an hpo encoder. Or we can return a very dummy one that doesn't
-		 * do work for all functions
-		 */
-		return &hpo_dp_link_hwss;
-	else if (can_use_dpia_link_hwss(link, link_res))
-		return &dpia_link_hwss;
-	else if (can_use_dio_link_hwss(link, link_res))
-		return &dio_link_hwss;
-	else
-		return &virtual_link_hwss;
-}
-
-#undef DC_LOGGER

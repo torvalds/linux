@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2022 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -19,12 +19,12 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
-#
-# Makefile for the virtual sub-component of DAL.
-# It provides the control and status of HW CRTC block.
+# Makefile for the link sub-component of DAL.
+# It abstracts the control and status of back end pipe such as DIO, HPO, DPIA,
+# PHY, HPD, DDC and etc).
 
-VIRTUAL = virtual_link_encoder.o virtual_stream_encoder.o virtual_link_hwss.o
+LINK = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o
 
-AMD_DAL_VIRTUAL = $(addprefix $(AMDDALPATH)/dc/virtual/,$(VIRTUAL))
+AMD_DAL_LINK = $(addprefix $(AMDDALPATH)/dc/link/,$(LINK))
 
-AMD_DISPLAY_FILES += $(AMD_DAL_VIRTUAL)
+AMD_DISPLAY_FILES += $(AMD_DAL_LINK)

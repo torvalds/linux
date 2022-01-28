@@ -6842,6 +6842,7 @@ bool edp_receiver_ready_T9(struct dc_link *link)
 	unsigned char sinkstatus = 0;
 	unsigned char edpRev = 0;
 	enum dc_status result = DC_OK;
+
 	result = core_link_read_dpcd(link, DP_EDP_DPCD_REV, &edpRev, sizeof(edpRev));
 
 	/* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/

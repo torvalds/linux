@@ -54,6 +54,7 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 #include "dm_cp_psp.h"
 #endif
+#include "link_hwss.h"
 
 /************ link *****************/
 struct link_init_data {
