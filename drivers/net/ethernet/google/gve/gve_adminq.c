@@ -281,7 +281,7 @@ static int gve_adminq_parse_err(struct gve_priv *priv, u32 status)
  */
 static int gve_adminq_kick_and_wait(struct gve_priv *priv)
 {
-	u32 tail, head;
+	int tail, head;
 	int i;
 
 	tail = ioread32be(&priv->reg_bar0->adminq_event_counter);
