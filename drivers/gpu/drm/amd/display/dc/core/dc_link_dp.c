@@ -2700,26 +2700,15 @@ bool perform_link_training_with_retries(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
-	struct link_encoder *link_enc;
 	enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
 	struct dc_link_settings current_setting = *link_setting;
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 
-	/* Dynamically assigned link encoders associated with stream rather than
-	 * link.
-	 */
-	if (link->is_dig_mapping_flexible && link->dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_stream(link->ctx->dc, pipe_ctx->stream);
-	else
-		link_enc = link->link_enc;
-
-	/* We need to do this before the link training to ensure the idle pattern in SST
-	 * mode will be sent right after the link training
-	 */
-	if (dp_get_link_encoding_format(&current_setting) == DP_8b_10b_ENCODING) {
-		link_enc->funcs->connect_dig_be_to_fe(link_enc,
-							pipe_ctx->stream_res.stream_enc->id, true);
-		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
-	}
+	if (dp_get_link_encoding_format(&current_setting) == DP_8b_10b_ENCODING)
+		/* We need to do this before the link training to ensure the idle
+		 * pattern in SST mode will be sent right after the link training
+		 */
+		link_hwss->setup_stream_encoder(pipe_ctx);
 
 	for (j = 0; j < attempts; ++j) {
 

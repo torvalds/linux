@@ -667,17 +667,12 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct dc_link *link = pipe_ctx->stream->link;
 	const struct dc *dc = link->dc;
-
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	uint32_t active_total_with_borders;
 	uint32_t early_control = 0;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
-	/* For MST, there are multiply stream go to only one link.
-	 * connect DIG back_end to front_end while enable_stream and
-	 * disconnect them during disable_stream
-	 * BY this, it is logic clean to separate stream and link */
-	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-						    pipe_ctx->stream_res.stream_enc->id, true);
+	link_hwss->setup_stream_encoder(pipe_ctx);
 
 	dc->hwss.update_info_frame(pipe_ctx);
 
@@ -1178,7 +1173,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
-	struct link_encoder *link_enc = NULL;
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 
 	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
@@ -1196,34 +1191,17 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 
 	dc->hwss.disable_audio_stream(pipe_ctx);
 
-	/* Link encoder may have been dynamically assigned to non-physical display endpoint. */
-	if (link->ep_type == DISPLAY_ENDPOINT_PHY)
-		link_enc = link->link_enc;
-	else if (dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-	ASSERT(link_enc);
+	link_hwss->reset_stream_encoder(pipe_ctx);
 
 	if (is_dp_128b_132b_signal(pipe_ctx)) {
-		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->disable(
-				pipe_ctx->stream_res.hpo_dp_stream_enc);
-		setup_dp_hpo_stream(pipe_ctx, false);
-	/* TODO - DP2.0 HW: unmap stream from link encoder here */
-	} else {
-		if (link_enc)
-			link_enc->funcs->connect_dig_be_to_fe(
-				link_enc,
-				pipe_ctx->stream_res.stream_enc->id,
-				false);
+		/* TODO: This looks like a bug to me as we are disabling HPO IO when
+		 * we are just disabling a single HPO stream. Shouldn't we disable HPO
+		 * HW control only when HPOs for all streams are disabled?
+		 */
+		if (pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control)
+			pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control(
+					pipe_ctx->stream->ctx->dc->hwseq, false);
 	}
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISCONNECT_DIG_FE_BE);
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	if (dc->hwseq->funcs.setup_hpo_hw_control && is_dp_128b_132b_signal(pipe_ctx))
-		dc->hwseq->funcs.setup_hpo_hw_control(dc->hwseq, false);
-#endif
-
 }
 
 void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,

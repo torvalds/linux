@@ -3441,7 +3441,7 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 	struct link_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp;
 	const struct dc_link_settings empty_link_settings = {0};
-	const struct link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* slot X.Y for SST payload deallocate */
@@ -3450,9 +3450,11 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 
 		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
 
-		link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
-		if (link_hwss->set_hblank_min_symbol_width)
-			link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+		if (link_hwss->ext.set_throttled_vcp_size)
+			link_hwss->ext.set_throttled_vcp_size(pipe_ctx,
+					avg_time_slots_per_mtp);
+		if (link_hwss->ext.set_hblank_min_symbol_width)
+			link_hwss->ext.set_hblank_min_symbol_width(pipe_ctx,
 					&empty_link_settings,
 					avg_time_slots_per_mtp);
 	}
@@ -3498,9 +3500,11 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 
 		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
 
-		link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
-		if (link_hwss->set_hblank_min_symbol_width)
-			link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+		if (link_hwss->ext.set_throttled_vcp_size)
+			link_hwss->ext.set_throttled_vcp_size(pipe_ctx,
+					avg_time_slots_per_mtp);
+		if (link_hwss->ext.set_hblank_min_symbol_width)
+			link_hwss->ext.set_hblank_min_symbol_width(pipe_ctx,
 					&link->cur_link_settings,
 					avg_time_slots_per_mtp);
 	}
@@ -3526,7 +3530,7 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 pbn_per_slot;
 	int i;
 	enum act_return_status ret;
-	const struct link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* Link encoder may have been dynamically assigned to non-physical display endpoint. */
@@ -3634,9 +3638,10 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
 
-	link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
-	if (link_hwss->set_hblank_min_symbol_width)
-		link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+	if (link_hwss->ext.set_throttled_vcp_size)
+		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+	if (link_hwss->ext.set_hblank_min_symbol_width)
+		link_hwss->ext.set_hblank_min_symbol_width(pipe_ctx,
 				&link->cur_link_settings,
 				avg_time_slots_per_mtp);
 
@@ -3655,7 +3660,7 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	uint8_t i;
 	enum act_return_status ret;
-	const struct link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* decrease throttled vcp size */
@@ -3663,9 +3668,10 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 	pbn = get_pbn_from_bw_in_kbps(bw_in_kbps);
 	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
-	link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
-	if (link_hwss->set_hblank_min_symbol_width)
-		link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+	if (link_hwss->ext.set_throttled_vcp_size)
+		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+	if (link_hwss->ext.set_hblank_min_symbol_width)
+		link_hwss->ext.set_hblank_min_symbol_width(pipe_ctx,
 				&link->cur_link_settings,
 				avg_time_slots_per_mtp);
 
@@ -3737,7 +3743,7 @@ enum dc_status dc_link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t 
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	uint8_t i;
 	enum act_return_status ret;
-	const struct link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* notify immediate branch device table update */
@@ -3796,9 +3802,10 @@ enum dc_status dc_link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t 
 	pbn_per_slot = get_pbn_per_slot(stream);
 	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
-	link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
-	if (link_hwss->set_hblank_min_symbol_width)
-		link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+	if (link_hwss->ext.set_throttled_vcp_size)
+		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+	if (link_hwss->ext.set_hblank_min_symbol_width)
+		link_hwss->ext.set_hblank_min_symbol_width(pipe_ctx,
 				&link->cur_link_settings,
 				avg_time_slots_per_mtp);
 
@@ -3815,7 +3822,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 avg_time_slots_per_mtp = dc_fixpt_from_int(0);
 	int i;
 	bool mst_mode = (link->type == dc_connection_mst_branch);
-	const struct link_hwss *link_hwss = dc_link_hwss_get(link, &pipe_ctx->link_res);
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	const struct dc_link_settings empty_link_settings = {0};
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -3834,9 +3841,10 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	 */
 
 	/* slot X.Y */
-	link_hwss->set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
-	if (link_hwss->set_hblank_min_symbol_width)
-		link_hwss->set_hblank_min_symbol_width(pipe_ctx,
+	if (link_hwss->ext.set_throttled_vcp_size)
+		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
+	if (link_hwss->ext.set_hblank_min_symbol_width)
+		link_hwss->ext.set_hblank_min_symbol_width(pipe_ctx,
 				&empty_link_settings,
 				avg_time_slots_per_mtp);
 
@@ -4004,8 +4012,8 @@ static void fpga_dp_hpo_enable_link_and_stream(struct dc_state *state, struct pi
 	struct fixed31_32 avg_time_slots_per_mtp;
 	uint8_t req_slot_count = 0;
 	uint8_t vc_id = 1; /// VC ID always 1 for SST
-
 	struct dc_link_settings link_settings = {0};
+	const struct link_hwss *link_hwss = get_link_hwss(stream->link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
 	decide_link_settings(stream, &link_settings);
@@ -4066,12 +4074,8 @@ static void fpga_dp_hpo_enable_link_and_stream(struct dc_state *state, struct pi
 			pipe_ctx->link_res.hpo_dp_link_enc,
 			&proposed_table);
 
-	pipe_ctx->link_res.hpo_dp_link_enc->funcs->set_throttled_vcp_size(
-			pipe_ctx->link_res.hpo_dp_link_enc,
-			pipe_ctx->stream_res.hpo_dp_stream_enc->inst,
-			avg_time_slots_per_mtp);
-
-
+	if (link_hwss->ext.set_throttled_vcp_size)
+		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
 
 	dc->hwss.unblank_stream(pipe_ctx, &stream->link->cur_link_settings);
 }

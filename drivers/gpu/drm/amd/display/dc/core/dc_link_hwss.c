@@ -784,54 +784,8 @@ void disable_dp_hpo_output(struct dc_link *link,
 	}
 }
 
-void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable)
-{
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc *dc = pipe_ctx->stream->ctx->dc;
-	struct pipe_ctx *odm_pipe;
-	int odm_combine_num_segments = 1;
-	enum phyd32clk_clock_source phyd32clk;
-
-	if (enable) {
-		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
-				odm_combine_num_segments++;
-
-		dc->res_pool->dccg->funcs->set_dpstreamclk(
-				dc->res_pool->dccg,
-				DTBCLK0,
-				pipe_ctx->stream_res.tg->inst);
-
-		phyd32clk = get_phyd32clk_src(stream->link);
-		dc->res_pool->dccg->funcs->enable_symclk32_se(
-				dc->res_pool->dccg,
-				pipe_ctx->stream_res.hpo_dp_stream_enc->inst,
-				phyd32clk);
-
-		dc->res_pool->dccg->funcs->set_dtbclk_dto(
-				dc->res_pool->dccg,
-				pipe_ctx->stream_res.tg->inst,
-				stream->phy_pix_clk,
-				odm_combine_num_segments,
-				&stream->timing);
-	} else {
-		dc->res_pool->dccg->funcs->set_dtbclk_dto(
-				dc->res_pool->dccg,
-				pipe_ctx->stream_res.tg->inst,
-				0,
-				0,
-				&stream->timing);
-		dc->res_pool->dccg->funcs->disable_symclk32_se(
-				dc->res_pool->dccg,
-				pipe_ctx->stream_res.hpo_dp_stream_enc->inst);
-		dc->res_pool->dccg->funcs->set_dpstreamclk(
-				dc->res_pool->dccg,
-				REFCLK,
-				pipe_ctx->stream_res.tg->inst);
-	}
-}
-
-static void set_dummy_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
-		struct fixed31_32 throttled_vcp_size);
+static void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx);
+static void virtual_reset_stream_encoder(struct pipe_ctx *pipe_ctx);
 
 /************************* below goes to dio_link_hwss ************************/
 static bool can_use_dio_link_hwss(const struct dc_link *link,
@@ -850,8 +804,48 @@ static void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 				throttled_vcp_size);
 }
 
+static struct link_encoder *get_dio_link_encoder(const struct dc_link *link)
+{
+	/* Link encoder may have been dynamically assigned to non-physical display endpoint. */
+	if (link->is_dig_mapping_flexible &&
+			link->dc->res_pool->funcs->link_encs_assign)
+		return link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
+	else
+		return link->link_enc;
+}
+
+static void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
+{
+	struct link_encoder *link_enc = get_dio_link_encoder(pipe_ctx->stream->link);
+
+	ASSERT(link_enc);
+	link_enc->funcs->connect_dig_be_to_fe(link_enc,
+			pipe_ctx->stream_res.stream_enc->id, true);
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		dp_source_sequence_trace(pipe_ctx->stream->link,
+				DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
+}
+
+static void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
+{
+	struct link_encoder *link_enc = get_dio_link_encoder(pipe_ctx->stream->link);
+
+	link_enc->funcs->connect_dig_be_to_fe(
+			link_enc,
+			pipe_ctx->stream_res.stream_enc->id,
+			false);
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		dp_source_sequence_trace(pipe_ctx->stream->link,
+				DPCD_SOURCE_SEQ_AFTER_DISCONNECT_DIG_FE_BE);
+
+}
+
 static const struct link_hwss dio_link_hwss = {
-	.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+	.setup_stream_encoder = setup_dio_stream_encoder,
+	.reset_stream_encoder = reset_dio_stream_encoder,
+	.ext = {
+		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+	},
 };
 
 /*********************** below goes to hpo_dp_link_hwss ***********************/
@@ -895,13 +889,57 @@ static void set_dp_hpo_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
 			hblank_min_symbol_width);
 }
 
-static const struct link_hwss hpo_dp_link_hwss = {
-	.set_throttled_vcp_size = set_dp_hpo_throttled_vcp_size,
+static int get_odm_segment_count(struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
+	int count = 1;
 
-	/* function pointers below this point require check for NULL
-	 * *********************************************************************
-	 */
-	.set_hblank_min_symbol_width = set_dp_hpo_hblank_min_symbol_width,
+	while (odm_pipe != NULL) {
+		count++;
+		odm_pipe = odm_pipe->next_odm_pipe;
+	}
+
+	return count;
+}
+
+static void setup_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct hpo_dp_stream_encoder *stream_enc = pipe_ctx->stream_res.hpo_dp_stream_enc;
+	struct hpo_dp_link_encoder *link_enc = pipe_ctx->link_res.hpo_dp_link_enc;
+	struct dccg *dccg = dc->res_pool->dccg;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	int odm_segment_count = get_odm_segment_count(pipe_ctx);
+	enum phyd32clk_clock_source phyd32clk = get_phyd32clk_src(pipe_ctx->stream->link);
+
+	dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst);
+	dccg->funcs->enable_symclk32_se(dccg, stream_enc->inst, phyd32clk);
+	dccg->funcs->set_dtbclk_dto(dccg, tg->inst, pipe_ctx->stream->phy_pix_clk,
+			odm_segment_count,
+			&pipe_ctx->stream->timing);
+	stream_enc->funcs->enable_stream(stream_enc);
+	stream_enc->funcs->map_stream_to_link(stream_enc, stream_enc->inst, link_enc->inst);
+}
+
+static void reset_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct hpo_dp_stream_encoder *stream_enc = pipe_ctx->stream_res.hpo_dp_stream_enc;
+	struct dccg *dccg = dc->res_pool->dccg;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+
+	stream_enc->funcs->disable(stream_enc);
+	dccg->funcs->set_dtbclk_dto(dccg, tg->inst, 0, 0, &pipe_ctx->stream->timing);
+	dccg->funcs->disable_symclk32_se(dccg, stream_enc->inst);
+	dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst);
+}
+static const struct link_hwss hpo_dp_link_hwss = {
+	.setup_stream_encoder = setup_hpo_dp_stream_encoder,
+	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
+	.ext = {
+		.set_throttled_vcp_size = set_dp_hpo_throttled_vcp_size,
+		.set_hblank_min_symbol_width = set_dp_hpo_hblank_min_symbol_width,
+	},
 };
 /*********************** below goes to dpia_link_hwss *************************/
 static bool can_use_dpia_link_hwss(const struct dc_link *link,
@@ -912,21 +950,27 @@ static bool can_use_dpia_link_hwss(const struct dc_link *link,
 }
 
 static const struct link_hwss dpia_link_hwss = {
-	.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+	.setup_stream_encoder = setup_dio_stream_encoder,
+	.reset_stream_encoder = reset_dio_stream_encoder,
+	.ext = {
+		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+	},
 };
 
 /*********************** below goes to link_hwss ******************************/
-static void set_dummy_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
-		struct fixed31_32 throttled_vcp_size)
+static void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
-	return;
 }
 
-static const struct link_hwss dummy_link_hwss = {
-	.set_throttled_vcp_size = set_dummy_throttled_vcp_size,
+static void virtual_reset_stream_encoder(struct pipe_ctx *pipe_ctx)
+{
+}
+static const struct link_hwss virtual_link_hwss = {
+	.setup_stream_encoder = virtual_setup_stream_encoder,
+	.reset_stream_encoder = virtual_reset_stream_encoder,
 };
 
-const struct link_hwss *dc_link_hwss_get(const struct dc_link *link,
+const struct link_hwss *get_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res)
 {
 	if (can_use_dp_hpo_link_hwss(link, link_res))
@@ -953,7 +997,7 @@ const struct link_hwss *dc_link_hwss_get(const struct dc_link *link,
 	else if (can_use_dio_link_hwss(link, link_res))
 		return &dio_link_hwss;
 	else
-		return &dummy_link_hwss;
+		return &virtual_link_hwss;
 }
 
 #undef DC_LOGGER
