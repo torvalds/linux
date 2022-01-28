@@ -1761,7 +1761,7 @@ out_fput:
 	return ret;
 }
 
-int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
+int svm_mem_enc_ioctl(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_sev_cmd sev_cmd;
 	int r;
