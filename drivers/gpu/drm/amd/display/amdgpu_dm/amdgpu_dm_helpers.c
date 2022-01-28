@@ -539,7 +539,7 @@ bool dm_helpers_submit_i2c(
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-static bool execute_synatpics_rc_command(struct drm_dp_aux *aux,
+static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 		bool is_write_cmd,
 		unsigned char cmd,
 		unsigned int length,
@@ -578,7 +578,7 @@ static bool execute_synatpics_rc_command(struct drm_dp_aux *aux,
 	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_COMMAND, &rc_cmd, sizeof(rc_cmd));
 
 	if (ret < 0) {
-		DRM_ERROR("	execute_synatpics_rc_command - write cmd ..., err = %d\n", ret);
+		DRM_ERROR("	execute_synaptics_rc_command - write cmd ..., err = %d\n", ret);
 		return false;
 	}
 
@@ -600,7 +600,7 @@ static bool execute_synatpics_rc_command(struct drm_dp_aux *aux,
 		drm_dp_dpcd_read(aux, SYNAPTICS_RC_DATA, data, length);
 	}
 
-	DC_LOG_DC("	execute_synatpics_rc_command - success = %d\n", success);
+	DC_LOG_DC("	execute_synaptics_rc_command - success = %d\n", success);
 
 	return success;
 }
@@ -618,54 +618,54 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 	data[3] = 'U';
 	data[4] = 'S';
 
-	if (!execute_synatpics_rc_command(aux, true, 0x01, 5, 0, data))
+	if (!execute_synaptics_rc_command(aux, true, 0x01, 5, 0, data))
 		return;
 
 	// Step 3 and 4
-	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x220998, data))
+	if (!execute_synaptics_rc_command(aux, false, 0x31, 4, 0x220998, data))
 		return;
 
 	data[0] &= (~(1 << 1)); // set bit 1 to 0
-	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x220998, data))
+	if (!execute_synaptics_rc_command(aux, true, 0x21, 4, 0x220998, data))
 		return;
 
-	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x220D98, data))
-		return;
-
-	data[0] &= (~(1 << 1)); // set bit 1 to 0
-	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x220D98, data))
-		return;
-
-	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x221198, data))
+	if (!execute_synaptics_rc_command(aux, false, 0x31, 4, 0x220D98, data))
 		return;
 
 	data[0] &= (~(1 << 1)); // set bit 1 to 0
-	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x221198, data))
+	if (!execute_synaptics_rc_command(aux, true, 0x21, 4, 0x220D98, data))
+		return;
+
+	if (!execute_synaptics_rc_command(aux, false, 0x31, 4, 0x221198, data))
+		return;
+
+	data[0] &= (~(1 << 1)); // set bit 1 to 0
+	if (!execute_synaptics_rc_command(aux, true, 0x21, 4, 0x221198, data))
 		return;
 
 	// Step 3 and 5
-	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x220998, data))
+	if (!execute_synaptics_rc_command(aux, false, 0x31, 4, 0x220998, data))
 		return;
 
 	data[0] |= (1 << 1); // set bit 1 to 1
-	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x220998, data))
+	if (!execute_synaptics_rc_command(aux, true, 0x21, 4, 0x220998, data))
 		return;
 
-	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x220D98, data))
-		return;
-
-	data[0] |= (1 << 1); // set bit 1 to 1
-		return;
-
-	if (!execute_synatpics_rc_command(aux, false, 0x31, 4, 0x221198, data))
+	if (!execute_synaptics_rc_command(aux, false, 0x31, 4, 0x220D98, data))
 		return;
 
 	data[0] |= (1 << 1); // set bit 1 to 1
-	if (!execute_synatpics_rc_command(aux, true, 0x21, 4, 0x221198, data))
+		return;
+
+	if (!execute_synaptics_rc_command(aux, false, 0x31, 4, 0x221198, data))
+		return;
+
+	data[0] |= (1 << 1); // set bit 1 to 1
+	if (!execute_synaptics_rc_command(aux, true, 0x21, 4, 0x221198, data))
 		return;
 
 	// Step 6
-	if (!execute_synatpics_rc_command(aux, true, 0x02, 0, 0, NULL))
+	if (!execute_synaptics_rc_command(aux, true, 0x02, 0, 0, NULL))
 		return;
 
 	DC_LOG_DC("Done apply_synaptics_fifo_reset_wa\n");
