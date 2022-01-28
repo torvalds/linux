@@ -6327,7 +6327,12 @@ void dpcd_set_source_specific_data(struct dc_link *link)
 
 void dpcd_update_cable_id(struct dc_link *link)
 {
-	if (!link->link_enc->features.flags.bits.IS_UHBR10_CAPABLE ||
+	struct link_encoder *link_enc = NULL;
+
+	link_enc = link_enc_cfg_get_link_enc(link);
+
+	if (!link_enc ||
+			!link_enc->features.flags.bits.IS_UHBR10_CAPABLE ||
 			link->dprx_status.cable_id_updated)
 		return;
 
