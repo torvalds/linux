@@ -93,8 +93,6 @@ retry:
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto map_err;
-	if (vma->vm_flags & VM_IO)
-		goto acc_err;
 	if (vma->vm_start <= address)
 		goto good_area;
 	if (!(vma->vm_flags & VM_GROWSDOWN))
