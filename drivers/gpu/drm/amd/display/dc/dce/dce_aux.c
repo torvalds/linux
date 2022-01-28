@@ -878,7 +878,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			default:
 				DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_ERROR,
 							LOG_FLAG_Error_I2cAux,
-							"dce_aux_transfer_with_retries: AUX_RET_SUCCESS: FAILURE: AUX_TRANSACTION_REPLY_* unknown, default case.");
+							"dce_aux_transfer_with_retries: AUX_RET_SUCCESS: FAILURE: AUX_TRANSACTION_REPLY_* unknown, default case. Reply: %d", *payload->reply);
 				goto fail;
 			}
 			break;
