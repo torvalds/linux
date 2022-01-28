@@ -321,7 +321,7 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc,
 	msg = &ipc->msg;
 
 	/* attach message data */
-	memcpy(msg->msg_data, msg_data, msg_bytes);
+	msg->msg_data = msg_data;
 	msg->msg_size = msg_bytes;
 
 	msg->reply_size = reply_bytes;
@@ -1003,9 +1003,6 @@ int sof_ipc_init_msg_memory(struct snd_sof_dev *sdev)
 	struct snd_sof_ipc_msg *msg;
 
 	msg = &sdev->ipc->msg;
-	msg->msg_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
-	if (!msg->msg_data)
-		return -ENOMEM;
 
 	msg->reply_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
 	if (!msg->reply_data)
