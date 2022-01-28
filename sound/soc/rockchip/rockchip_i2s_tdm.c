@@ -1496,6 +1496,9 @@ static const struct of_device_id rockchip_i2s_tdm_match[] = {
 #ifdef CONFIG_CPU_RK3588
 	{ .compatible = "rockchip,rk3588-i2s-tdm", },
 #endif
+#ifdef CONFIG_CPU_RV1106
+	{ .compatible = "rockchip,rv1106-i2s-tdm", },
+#endif
 #ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-i2s-tdm", .data = &rv1126_i2s_soc_data },
 #endif
