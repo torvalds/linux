@@ -21,7 +21,7 @@
  */
 bool nanddev_isbad(struct nand_device *nand, const struct nand_pos *pos)
 {
-	if (WARN_ONCE(mtd_expert_analysis_mode, mtd_expert_analysis_warning))
+	if (mtd_check_expert_analysis_mode())
 		return false;
 
 	if (nanddev_bbt_is_initialized(nand)) {
