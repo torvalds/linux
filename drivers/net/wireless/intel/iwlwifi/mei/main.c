@@ -229,8 +229,6 @@ static int iwl_mei_alloc_shared_mem(struct mei_cl_device *cldev)
 	if (IS_ERR(mem->ctrl)) {
 		int ret = PTR_ERR(mem->ctrl);
 
-		dev_err(&cldev->dev, "Couldn't allocate the shared memory: %d\n",
-			ret);
 		mem->ctrl = NULL;
 
 		return ret;
@@ -1784,6 +1782,8 @@ static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei) {}
 
 #endif /* CONFIG_DEBUG_FS */
 
+#define ALLOC_SHARED_MEM_RETRY_MAX_NUM	3
+
 /*
  * iwl_mei_probe - the probe function called by the mei bus enumeration
  *
@@ -1795,6 +1795,7 @@ static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei) {}
 static int iwl_mei_probe(struct mei_cl_device *cldev,
 			 const struct mei_cl_device_id *id)
 {
+	int alloc_retry = ALLOC_SHARED_MEM_RETRY_MAX_NUM;
 	struct iwl_mei *mei;
 	int ret;
 
@@ -1812,15 +1813,31 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 	mei_cldev_set_drvdata(cldev, mei);
 	mei->cldev = cldev;
 
-	/*
-	 * The CSME firmware needs to boot the internal WLAN client. Wait here
-	 * so that the DMA map request will succeed.
-	 */
-	msleep(20);
+	do {
+		ret = iwl_mei_alloc_shared_mem(cldev);
+		if (!ret)
+			break;
+		/*
+		 * The CSME firmware needs to boot the internal WLAN client.
+		 * This can take time in certain configurations (usually
+		 * upon resume and when the whole CSME firmware is shut down
+		 * during suspend).
+		 *
+		 * Wait a bit before retrying and hope we'll succeed next time.
+		 */
 
-	ret = iwl_mei_alloc_shared_mem(cldev);
-	if (ret)
+		dev_dbg(&cldev->dev,
+			"Couldn't allocate the shared memory: %d, attempt %d / %d\n",
+			ret, alloc_retry, ALLOC_SHARED_MEM_RETRY_MAX_NUM);
+		msleep(100);
+		alloc_retry--;
+	} while (alloc_retry);
+
+	if (ret) {
+		dev_err(&cldev->dev, "Couldn't allocate the shared memory: %d\n",
+			ret);
 		goto free;
+	}
 
 	iwl_mei_init_shared_mem(mei);
 
