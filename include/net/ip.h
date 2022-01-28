@@ -517,7 +517,6 @@ void ip_dst_metrics_put(struct dst_entry *dst)
 		kfree(p);
 }
 
-u32 ip_idents_reserve(u32 hash, int segs);
 void __ip_select_ident(struct net *net, struct iphdr *iph, int segs);
 
 static inline void ip_select_ident_segs(struct net *net, struct sk_buff *skb,
