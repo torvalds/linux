@@ -2510,7 +2510,9 @@ static void intel_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
 		intel_ddi_set_dp_msa(crtc_state, conn_state);
 
-		intel_dp_set_m_n(crtc_state, M1_N1);
+		intel_cpu_transcoder_set_m_n(crtc_state,
+					     &crtc_state->dp_m_n,
+					     &crtc_state->dp_m2_n2);
 	}
 }
 

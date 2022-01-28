@@ -27,7 +27,6 @@
 
 #include <drm/drm_util.h>
 
-enum link_m_n_set;
 enum drm_scaling_filter;
 struct dpll;
 struct drm_connector;
@@ -607,8 +606,9 @@ void intel_display_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_display_finish_reset(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
-void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state,
-		      enum link_m_n_set m_n);
+void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
+				  const struct intel_link_m_n *m_n,
+				  const struct intel_link_m_n *m2_n2);
 void ilk_get_fdi_m_n_config(struct intel_crtc *crtc,
 			    struct intel_crtc_state *pipe_config);
 void i9xx_crtc_clock_get(struct intel_crtc *crtc,
