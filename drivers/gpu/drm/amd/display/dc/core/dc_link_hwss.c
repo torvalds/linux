@@ -76,18 +76,14 @@ void dp_enable_link_phy(
 	enum clock_source_id clock_source,
 	const struct dc_link_settings *link_settings)
 {
-	struct link_encoder *link_enc;
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
-
 	struct pipe_ctx *pipes =
 			link->dc->current_state->res_ctx.pipe_ctx;
 	struct clock_source *dp_cs =
 			link->dc->res_pool->dp_clock_source;
+	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 	unsigned int i;
-
-	link_enc = link_enc_cfg_get_link_enc(link);
-	ASSERT(link_enc);
 
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
 		link->dc->hwss.edp_power_control(link, true);
@@ -126,21 +122,9 @@ void dp_enable_link_phy(
 	if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->lock_phy(dmcu);
 
-	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
-		enable_dp_hpo_output(link, link_res, link_settings);
-	} else if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
-		if (dc_is_dp_sst_signal(signal)) {
-			link_enc->funcs->enable_dp_output(
-					link_enc,
-					link_settings,
-					clock_source);
-		} else {
-			link_enc->funcs->enable_dp_mst_output(
-					link_enc,
-					link_settings,
-					clock_source);
-		}
-	}
+	if (link_hwss->ext.enable_dp_link_output)
+		link_hwss->ext.enable_dp_link_output(link, link_res, signal,
+				clock_source, link_settings);
 
 	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
@@ -221,11 +205,7 @@ void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
-	struct hpo_dp_link_encoder *hpo_link_enc = link_res->hpo_dp_link_enc;
-	struct link_encoder *link_enc;
-
-	link_enc = link_enc_cfg_get_link_enc(link);
-	ASSERT(link_enc);
+	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 
 	if (!link->wa_flags.dp_keep_receiver_powered)
 		dp_receiver_power_ctrl(link, false);
@@ -234,20 +214,15 @@ void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_
 		if (link->dc->hwss.edp_backlight_control)
 			link->dc->hwss.edp_backlight_control(link, false);
 
-		if (dp_get_link_encoding_format(&link->cur_link_settings) == DP_128b_132b_ENCODING)
-			disable_dp_hpo_output(link, link_res, signal);
-		else
-			link_enc->funcs->disable_output(link_enc, signal);
+		if (link_hwss->ext.disable_dp_link_output)
+			link_hwss->ext.disable_dp_link_output(link, link_res, signal);
 		link->dc->hwss.edp_power_control(link, false);
 	} else {
 		if (dmcu != NULL && dmcu->funcs->lock_phy)
 			dmcu->funcs->lock_phy(dmcu);
 
-		if (dp_get_link_encoding_format(&link->cur_link_settings) == DP_128b_132b_ENCODING &&
-				hpo_link_enc)
-			disable_dp_hpo_output(link, link_res, signal);
-		else
-			link_enc->funcs->disable_output(link_enc, signal);
+		if (link_hwss->ext.disable_dp_link_output)
+			link_hwss->ext.disable_dp_link_output(link, link_res, signal);
 
 		if (dmcu != NULL && dmcu->funcs->unlock_phy)
 			dmcu->funcs->unlock_phy(dmcu);
@@ -702,88 +677,6 @@ static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)
 	}
 }
 
-void enable_dp_hpo_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		const struct dc_link_settings *link_settings)
-{
-	const struct dc *dc = link->dc;
-	enum phyd32clk_clock_source phyd32clk;
-
-	/* Enable PHY PLL at target bit rate
-	 *   UHBR10 = 10Gbps (SYMCLK32 = 312.5MHz)
-	 *   UBR13.5 = 13.5Gbps (SYMCLK32 = 421.875MHz)
-	 *   UHBR20 = 20Gbps (SYMCLK32 = 625MHz)
-	 */
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		switch (link_settings->link_rate) {
-		case LINK_RATE_UHBR10:
-			dm_set_phyd32clk(dc->ctx, 312500);
-			break;
-		case LINK_RATE_UHBR13_5:
-			dm_set_phyd32clk(dc->ctx, 412875);
-			break;
-		case LINK_RATE_UHBR20:
-			dm_set_phyd32clk(dc->ctx, 625000);
-			break;
-		default:
-			return;
-		}
-	} else {
-		/* DP2.0 HW: call transmitter control to enable PHY */
-		link_res->hpo_dp_link_enc->funcs->enable_link_phy(
-				link_res->hpo_dp_link_enc,
-				link_settings,
-				link->link_enc->transmitter,
-				link->link_enc->hpd_source);
-	}
-
-	/* DCCG muxing and DTBCLK DTO */
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->res_pool->dccg->funcs->set_physymclk(
-				dc->res_pool->dccg,
-				link->link_enc_hw_inst,
-				PHYSYMCLK_FORCE_SRC_PHYD32CLK,
-				true);
-
-		phyd32clk = get_phyd32clk_src(link);
-		dc->res_pool->dccg->funcs->enable_symclk32_le(
-				dc->res_pool->dccg,
-				link_res->hpo_dp_link_enc->inst,
-				phyd32clk);
-		link_res->hpo_dp_link_enc->funcs->link_enable(
-				link_res->hpo_dp_link_enc,
-				link_settings->lane_count);
-	}
-}
-
-void disable_dp_hpo_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal)
-{
-	const struct dc *dc = link->dc;
-
-	link_res->hpo_dp_link_enc->funcs->link_disable(link_res->hpo_dp_link_enc);
-
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->res_pool->dccg->funcs->disable_symclk32_le(
-					dc->res_pool->dccg,
-					link_res->hpo_dp_link_enc->inst);
-
-		dc->res_pool->dccg->funcs->set_physymclk(
-					dc->res_pool->dccg,
-					link->link_enc_hw_inst,
-					PHYSYMCLK_FORCE_SRC_SYMCLK,
-					false);
-
-		dm_set_phyd32clk(dc->ctx, 0);
-	} else {
-		/* DP2.0 HW: call transmitter control to disable PHY */
-		link_res->hpo_dp_link_enc->funcs->disable_link_phy(
-				link_res->hpo_dp_link_enc,
-				signal);
-	}
-}
-
 static void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx);
 static void virtual_reset_stream_encoder(struct pipe_ctx *pipe_ctx);
 
@@ -804,21 +697,10 @@ static void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 				throttled_vcp_size);
 }
 
-static struct link_encoder *get_dio_link_encoder(const struct dc_link *link)
-{
-	/* Link encoder may have been dynamically assigned to non-physical display endpoint. */
-	if (link->is_dig_mapping_flexible &&
-			link->dc->res_pool->funcs->link_encs_assign)
-		return link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
-	else
-		return link->link_enc;
-}
-
 static void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
-	struct link_encoder *link_enc = get_dio_link_encoder(pipe_ctx->stream->link);
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
 
-	ASSERT(link_enc);
 	link_enc->funcs->connect_dig_be_to_fe(link_enc,
 			pipe_ctx->stream_res.stream_enc->id, true);
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -828,7 +710,7 @@ static void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 
 static void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
-	struct link_encoder *link_enc = get_dio_link_encoder(pipe_ctx->stream->link);
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
 
 	link_enc->funcs->connect_dig_be_to_fe(
 			link_enc,
@@ -840,11 +722,45 @@ static void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 
 }
 
+static void enable_dio_dp_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		const struct dc_link_settings *link_settings)
+{
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	if (dc_is_dp_sst_signal(signal))
+		link_enc->funcs->enable_dp_output(
+				link_enc,
+				link_settings,
+				clock_source);
+	else
+		link_enc->funcs->enable_dp_mst_output(
+				link_enc,
+				link_settings,
+				clock_source);
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
+}
+
+
+static void disable_dio_dp_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal)
+{
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	link_enc->funcs->disable_output(link_enc, signal);
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
+}
+
 static const struct link_hwss dio_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
 	.ext = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+		.enable_dp_link_output = enable_dio_dp_link_output,
+		.disable_dp_link_output = disable_dio_dp_link_output,
 	},
 };
 
@@ -933,12 +849,92 @@ static void reset_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	dccg->funcs->disable_symclk32_se(dccg, stream_enc->inst);
 	dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst);
 }
+
+static void enable_hpo_dp_fpga_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		const struct dc_link_settings *link_settings)
+{
+	const struct dc *dc = link->dc;
+	enum phyd32clk_clock_source phyd32clk = get_phyd32clk_src(link);
+	int phyd32clk_freq_khz = link_settings->link_rate == LINK_RATE_UHBR10 ? 312500 :
+			link_settings->link_rate == LINK_RATE_UHBR13_5 ? 412875 :
+			link_settings->link_rate == LINK_RATE_UHBR20 ? 625000 : 0;
+
+	dm_set_phyd32clk(dc->ctx, phyd32clk_freq_khz);
+	dc->res_pool->dccg->funcs->set_physymclk(
+			dc->res_pool->dccg,
+			link->link_enc_hw_inst,
+			PHYSYMCLK_FORCE_SRC_PHYD32CLK,
+			true);
+	dc->res_pool->dccg->funcs->enable_symclk32_le(
+			dc->res_pool->dccg,
+			link_res->hpo_dp_link_enc->inst,
+			phyd32clk);
+	link_res->hpo_dp_link_enc->funcs->link_enable(
+			link_res->hpo_dp_link_enc,
+			link_settings->lane_count);
+
+}
+
+static void enable_hpo_dp_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		const struct dc_link_settings *link_settings)
+{
+	if (IS_FPGA_MAXIMUS_DC(link->dc->ctx->dce_environment))
+		enable_hpo_dp_fpga_link_output(link, link_res, signal,
+				clock_source, link_settings);
+	else
+		link_res->hpo_dp_link_enc->funcs->enable_link_phy(
+				link_res->hpo_dp_link_enc,
+				link_settings,
+				link->link_enc->transmitter,
+				link->link_enc->hpd_source);
+}
+
+
+static void disable_hpo_dp_fpga_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal)
+{
+	const struct dc *dc = link->dc;
+
+	link_res->hpo_dp_link_enc->funcs->link_disable(link_res->hpo_dp_link_enc);
+	dc->res_pool->dccg->funcs->disable_symclk32_le(
+			dc->res_pool->dccg,
+			link_res->hpo_dp_link_enc->inst);
+	dc->res_pool->dccg->funcs->set_physymclk(
+			dc->res_pool->dccg,
+			link->link_enc_hw_inst,
+			PHYSYMCLK_FORCE_SRC_SYMCLK,
+			false);
+	dm_set_phyd32clk(dc->ctx, 0);
+}
+
+static void disable_hpo_dp_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal)
+{
+	if (IS_FPGA_MAXIMUS_DC(link->dc->ctx->dce_environment)) {
+		disable_hpo_dp_fpga_link_output(link, link_res, signal);
+	} else {
+		link_res->hpo_dp_link_enc->funcs->link_disable(link_res->hpo_dp_link_enc);
+		link_res->hpo_dp_link_enc->funcs->disable_link_phy(
+				link_res->hpo_dp_link_enc, signal);
+	}
+}
+
 static const struct link_hwss hpo_dp_link_hwss = {
 	.setup_stream_encoder = setup_hpo_dp_stream_encoder,
 	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
 	.ext = {
 		.set_throttled_vcp_size = set_dp_hpo_throttled_vcp_size,
 		.set_hblank_min_symbol_width = set_dp_hpo_hblank_min_symbol_width,
+		.enable_dp_link_output = enable_hpo_dp_link_output,
+		.disable_dp_link_output = disable_hpo_dp_link_output,
 	},
 };
 /*********************** below goes to dpia_link_hwss *************************/
@@ -954,6 +950,8 @@ static const struct link_hwss dpia_link_hwss = {
 	.reset_stream_encoder = reset_dio_stream_encoder,
 	.ext = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
+		.enable_dp_link_output = enable_dio_dp_link_output,
+		.disable_dp_link_output = disable_dio_dp_link_output,
 	},
 };
 

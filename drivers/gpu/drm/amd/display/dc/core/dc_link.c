@@ -4016,8 +4016,10 @@ static void fpga_dp_hpo_enable_link_and_stream(struct dc_state *state, struct pi
 	decide_link_settings(stream, &link_settings);
 	stream->link->cur_link_settings = link_settings;
 
-	/*  Enable clock, Configure lane count, and Enable Link Encoder*/
-	enable_dp_hpo_output(stream->link, &pipe_ctx->link_res, &stream->link->cur_link_settings);
+	if (link_hwss->ext.enable_dp_link_output)
+		link_hwss->ext.enable_dp_link_output(stream->link, &pipe_ctx->link_res,
+				stream->signal, pipe_ctx->clock_source->id,
+				&link_settings);
 
 #ifdef DIAGS_BUILD
 	/* Workaround for FPGA HPO capture DP link data:
