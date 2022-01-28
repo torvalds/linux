@@ -217,7 +217,8 @@ dr_dump_rule_mem(struct seq_file *file, struct mlx5dr_ste *ste,
 				       DR_DUMP_REC_TYPE_RULE_TX_ENTRY_V1;
 	}
 
-	dr_dump_hex_print(hw_ste_dump, (char *)ste->hw_ste, DR_STE_SIZE_REDUCED);
+	dr_dump_hex_print(hw_ste_dump, (char *)mlx5dr_ste_get_hw_ste(ste),
+			  DR_STE_SIZE_REDUCED);
 
 	seq_printf(file, "%d,0x%llx,0x%llx,%s\n", mem_rec_type,
 		   dr_dump_icm_to_idx(mlx5dr_ste_get_icm_addr(ste)), rule_id,

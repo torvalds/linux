@@ -97,13 +97,11 @@ void mlx5dr_ste_set_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
 }
 
 static void dr_ste_always_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
-				    struct mlx5dr_ste *ste, u64 miss_addr)
+				    u8 *hw_ste, u64 miss_addr)
 {
-	u8 *hw_ste_p = ste->hw_ste;
-
-	ste_ctx->set_next_lu_type(hw_ste_p, MLX5DR_STE_LU_TYPE_DONT_CARE);
-	ste_ctx->set_miss_addr(hw_ste_p, miss_addr);
-	dr_ste_set_always_miss((struct dr_hw_ste_format *)ste->hw_ste);
+	ste_ctx->set_next_lu_type(hw_ste, MLX5DR_STE_LU_TYPE_DONT_CARE);
+	ste_ctx->set_miss_addr(hw_ste, miss_addr);
+	dr_ste_set_always_miss((struct dr_hw_ste_format *)hw_ste);
 }
 
 void mlx5dr_ste_set_hit_addr(struct mlx5dr_ste_ctx *ste_ctx,
@@ -127,6 +125,13 @@ u64 mlx5dr_ste_get_mr_addr(struct mlx5dr_ste *ste)
 	return mlx5dr_icm_pool_get_chunk_mr_addr(ste->htbl->chunk) + DR_STE_SIZE * index;
 }
 
+u8 *mlx5dr_ste_get_hw_ste(struct mlx5dr_ste *ste)
+{
+	u64 index = ste - ste->htbl->chunk->ste_arr;
+
+	return ste->htbl->chunk->hw_ste_arr + DR_STE_SIZE_REDUCED * index;
+}
+
 struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste)
 {
 	u32 index = ste - ste->htbl->chunk->ste_arr;
@@ -135,18 +140,17 @@ struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste)
 }
 
 static void dr_ste_always_hit_htbl(struct mlx5dr_ste_ctx *ste_ctx,
-				   struct mlx5dr_ste *ste,
+				   u8 *hw_ste,
 				   struct mlx5dr_ste_htbl *next_htbl)
 {
 	struct mlx5dr_icm_chunk *chunk = next_htbl->chunk;
-	u8 *hw_ste = ste->hw_ste;
 
 	ste_ctx->set_byte_mask(hw_ste, next_htbl->byte_mask);
 	ste_ctx->set_next_lu_type(hw_ste, next_htbl->lu_type);
 	ste_ctx->set_hit_addr(hw_ste, mlx5dr_icm_pool_get_chunk_icm_addr(chunk),
 			      mlx5dr_icm_pool_get_chunk_num_of_entries(chunk));
 
-	dr_ste_set_always_hit((struct dr_hw_ste_format *)ste->hw_ste);
+	dr_ste_set_always_hit((struct dr_hw_ste_format *)hw_ste);
 }
 
 bool mlx5dr_ste_is_last_in_rule(struct mlx5dr_matcher_rx_tx *nic_matcher,
@@ -169,7 +173,8 @@ bool mlx5dr_ste_is_last_in_rule(struct mlx5dr_matcher_rx_tx *nic_matcher,
  */
 static void dr_ste_replace(struct mlx5dr_ste *dst, struct mlx5dr_ste *src)
 {
-	memcpy(dst->hw_ste, src->hw_ste, DR_STE_SIZE_REDUCED);
+	memcpy(mlx5dr_ste_get_hw_ste(dst), mlx5dr_ste_get_hw_ste(src),
+	       DR_STE_SIZE_REDUCED);
 	dst->next_htbl = src->next_htbl;
 	if (dst->next_htbl)
 		dst->next_htbl->pointing_ste = dst;
@@ -187,18 +192,17 @@ dr_ste_remove_head_ste(struct mlx5dr_ste_ctx *ste_ctx,
 		       struct mlx5dr_ste_htbl *stats_tbl)
 {
 	u8 tmp_data_ste[DR_STE_SIZE] = {};
-	struct mlx5dr_ste tmp_ste = {};
 	u64 miss_addr;
 
-	tmp_ste.hw_ste = tmp_data_ste;
+	miss_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 
 	/* Use temp ste because dr_ste_always_miss_addr
 	 * touches bit_mask area which doesn't exist at ste->hw_ste.
+	 * Need to use a full-sized (DR_STE_SIZE) hw_ste.
 	 */
-	memcpy(tmp_ste.hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
-	miss_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
-	dr_ste_always_miss_addr(ste_ctx, &tmp_ste, miss_addr);
-	memcpy(ste->hw_ste, tmp_ste.hw_ste, DR_STE_SIZE_REDUCED);
+	memcpy(tmp_data_ste, mlx5dr_ste_get_hw_ste(ste), DR_STE_SIZE_REDUCED);
+	dr_ste_always_miss_addr(ste_ctx, tmp_data_ste, miss_addr);
+	memcpy(mlx5dr_ste_get_hw_ste(ste), tmp_data_ste, DR_STE_SIZE_REDUCED);
 
 	list_del_init(&ste->miss_list_node);
 
@@ -240,7 +244,7 @@ dr_ste_replace_head_ste(struct mlx5dr_matcher_rx_tx *nic_matcher,
 	mlx5dr_rule_set_last_member(next_ste->rule_rx_tx, ste, false);
 
 	/* Copy all 64 hw_ste bytes */
-	memcpy(hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
+	memcpy(hw_ste, mlx5dr_ste_get_hw_ste(ste), DR_STE_SIZE_REDUCED);
 	sb_idx = ste->ste_chain_location - 1;
 	mlx5dr_ste_set_bit_mask(hw_ste,
 				nic_matcher->ste_builder[sb_idx].bit_mask);
@@ -276,12 +280,13 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste_ctx *ste_ctx,
 	if (WARN_ON(!prev_ste))
 		return;
 
-	miss_addr = ste_ctx->get_miss_addr(ste->hw_ste);
-	ste_ctx->set_miss_addr(prev_ste->hw_ste, miss_addr);
+	miss_addr = ste_ctx->get_miss_addr(mlx5dr_ste_get_hw_ste(ste));
+	ste_ctx->set_miss_addr(mlx5dr_ste_get_hw_ste(prev_ste), miss_addr);
 
 	mlx5dr_send_fill_and_append_ste_send_info(prev_ste, DR_STE_SIZE_CTRL, 0,
-						  prev_ste->hw_ste, ste_info,
-						  send_ste_list, true /* Copy data*/);
+						  mlx5dr_ste_get_hw_ste(prev_ste),
+						  ste_info, send_ste_list,
+						  true /* Copy data*/);
 
 	list_del_init(&ste->miss_list_node);
 
@@ -390,15 +395,22 @@ void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
 				  struct mlx5dr_htbl_connect_info *connect_info)
 {
 	bool is_rx = nic_type == DR_DOMAIN_NIC_TYPE_RX;
-	struct mlx5dr_ste ste = {};
+	u8 tmp_hw_ste[DR_STE_SIZE] = {0};
 
 	ste_ctx->ste_init(formatted_ste, htbl->lu_type, is_rx, gvmi);
-	ste.hw_ste = formatted_ste;
 
+	/* Use temp ste because dr_ste_always_miss_addr/hit_htbl
+	 * touches bit_mask area which doesn't exist at ste->hw_ste.
+	 * Need to use a full-sized (DR_STE_SIZE) hw_ste.
+	 */
+	memcpy(tmp_hw_ste, formatted_ste, DR_STE_SIZE_REDUCED);
 	if (connect_info->type == CONNECT_HIT)
-		dr_ste_always_hit_htbl(ste_ctx, &ste, connect_info->hit_next_htbl);
+		dr_ste_always_hit_htbl(ste_ctx, tmp_hw_ste,
+				       connect_info->hit_next_htbl);
 	else
-		dr_ste_always_miss_addr(ste_ctx, &ste, connect_info->miss_icm_addr);
+		dr_ste_always_miss_addr(ste_ctx, tmp_hw_ste,
+					connect_info->miss_icm_addr);
+	memcpy(formatted_ste, tmp_hw_ste, DR_STE_SIZE_REDUCED);
 }
 
 int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
@@ -496,7 +508,6 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	for (i = 0; i < num_entries; i++) {
 		struct mlx5dr_ste *ste = &chunk->ste_arr[i];
 
-		ste->hw_ste = chunk->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
 		ste->htbl = htbl;
 		ste->refcount = 0;
 		INIT_LIST_HEAD(&ste->miss_list_node);

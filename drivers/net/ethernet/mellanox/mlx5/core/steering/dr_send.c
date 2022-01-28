@@ -495,7 +495,8 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 			} else {
 				/* Copy data */
 				memcpy(data + ste_off,
-				       htbl->chunk->ste_arr[ste_index + j].hw_ste,
+				       htbl->chunk->hw_ste_arr +
+				       DR_STE_SIZE_REDUCED * (ste_index + j),
 				       DR_STE_SIZE_REDUCED);
 				/* Copy bit_mask */
 				memcpy(data + ste_off + DR_STE_SIZE_REDUCED,

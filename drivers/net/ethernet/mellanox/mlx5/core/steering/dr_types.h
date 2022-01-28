@@ -147,7 +147,6 @@ struct mlx5dr_matcher_rx_tx;
 struct mlx5dr_ste_ctx;
 
 struct mlx5dr_ste {
-	u8 *hw_ste;
 	/* refcount: indicates the num of rules that using this ste */
 	u32 refcount;
 
@@ -1140,6 +1139,7 @@ u32 mlx5dr_icm_pool_get_chunk_rkey(struct mlx5dr_icm_chunk *chunk);
 u64 mlx5dr_icm_pool_get_chunk_icm_addr(struct mlx5dr_icm_chunk *chunk);
 u32 mlx5dr_icm_pool_get_chunk_num_of_entries(struct mlx5dr_icm_chunk *chunk);
 u32 mlx5dr_icm_pool_get_chunk_byte_size(struct mlx5dr_icm_chunk *chunk);
+u8 *mlx5dr_ste_get_hw_ste(struct mlx5dr_ste *ste);
 
 static inline int
 mlx5dr_icm_pool_dm_type_to_entry_size(enum mlx5dr_icm_type icm_type)

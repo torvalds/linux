@@ -21,12 +21,12 @@ static int dr_rule_append_to_miss_list(struct mlx5dr_ste_ctx *ste_ctx,
 	if (!ste_info_last)
 		return -ENOMEM;
 
-	mlx5dr_ste_set_miss_addr(ste_ctx, last_ste->hw_ste,
+	mlx5dr_ste_set_miss_addr(ste_ctx, mlx5dr_ste_get_hw_ste(last_ste),
 				 mlx5dr_ste_get_icm_addr(new_last_ste));
 	list_add_tail(&new_last_ste->miss_list_node, miss_list);
 
 	mlx5dr_send_fill_and_append_ste_send_info(last_ste, DR_STE_SIZE_CTRL,
-						  0, last_ste->hw_ste,
+						  0, mlx5dr_ste_get_hw_ste(last_ste),
 						  ste_info_last, send_list, true);
 
 	return 0;
@@ -108,9 +108,11 @@ dr_rule_handle_one_ste_in_update_list(struct mlx5dr_ste_send_info *ste_info,
 	 * is already written to the hw.
 	 */
 	if (ste_info->size == DR_STE_SIZE_CTRL)
-		memcpy(ste_info->ste->hw_ste, ste_info->data, DR_STE_SIZE_CTRL);
+		memcpy(mlx5dr_ste_get_hw_ste(ste_info->ste),
+		       ste_info->data, DR_STE_SIZE_CTRL);
 	else
-		memcpy(ste_info->ste->hw_ste, ste_info->data, DR_STE_SIZE_REDUCED);
+		memcpy(mlx5dr_ste_get_hw_ste(ste_info->ste),
+		       ste_info->data, DR_STE_SIZE_REDUCED);
 
 	ret = mlx5dr_send_postsend_ste(dmn, ste_info->ste, ste_info->data,
 				       ste_info->size, ste_info->offset);
@@ -160,7 +162,7 @@ dr_rule_find_ste_in_miss_list(struct list_head *miss_list, u8 *hw_ste)
 
 	/* Check if hw_ste is present in the list */
 	list_for_each_entry(ste, miss_list, miss_list_node) {
-		if (mlx5dr_ste_equal_tag(ste->hw_ste, hw_ste))
+		if (mlx5dr_ste_equal_tag(mlx5dr_ste_get_hw_ste(ste), hw_ste))
 			return ste;
 	}
 
@@ -246,7 +248,7 @@ dr_rule_rehash_copy_ste(struct mlx5dr_matcher *matcher,
 
 	/* Copy STE control and tag */
 	icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
-	memcpy(hw_ste, cur_ste->hw_ste, DR_STE_SIZE_REDUCED);
+	memcpy(hw_ste, mlx5dr_ste_get_hw_ste(cur_ste), DR_STE_SIZE_REDUCED);
 	mlx5dr_ste_set_miss_addr(dmn->ste_ctx, hw_ste, icm_addr);
 
 	new_idx = mlx5dr_ste_calc_hash_index(hw_ste, new_htbl);
@@ -271,7 +273,7 @@ dr_rule_rehash_copy_ste(struct mlx5dr_matcher *matcher,
 		use_update_list = true;
 	}
 
-	memcpy(new_ste->hw_ste, hw_ste, DR_STE_SIZE_REDUCED);
+	memcpy(mlx5dr_ste_get_hw_ste(new_ste), hw_ste, DR_STE_SIZE_REDUCED);
 
 	new_htbl->ctrl.num_of_valid_entries++;
 
@@ -448,21 +450,21 @@ dr_rule_rehash_htbl(struct mlx5dr_rule *rule,
 		 * (48B len) which works only on first 32B
 		 */
 		mlx5dr_ste_set_hit_addr(dmn->ste_ctx,
-					prev_htbl->chunk->ste_arr[0].hw_ste,
+					prev_htbl->chunk->hw_ste_arr,
 					mlx5dr_icm_pool_get_chunk_icm_addr(new_htbl->chunk),
 					mlx5dr_icm_pool_get_chunk_num_of_entries(new_htbl->chunk));
 
 		ste_to_update = &prev_htbl->chunk->ste_arr[0];
 	} else {
 		mlx5dr_ste_set_hit_addr_by_next_htbl(dmn->ste_ctx,
-						     cur_htbl->pointing_ste->hw_ste,
+						     mlx5dr_ste_get_hw_ste(cur_htbl->pointing_ste),
 						     new_htbl);
 		ste_to_update = cur_htbl->pointing_ste;
 	}
 
 	mlx5dr_send_fill_and_append_ste_send_info(ste_to_update, DR_STE_SIZE_CTRL,
-						  0, ste_to_update->hw_ste, ste_info,
-						  update_list, false);
+						  0, mlx5dr_ste_get_hw_ste(ste_to_update),
+						  ste_info, update_list, false);
 
 	return new_htbl;
 
