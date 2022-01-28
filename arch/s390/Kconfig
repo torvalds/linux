@@ -155,7 +155,7 @@ config S390
 	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
-	select HAVE_EBPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
+	select HAVE_EBPF_JIT if HAVE_MARCH_Z196_FEATURES
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_FAST_GUP
 	select HAVE_FENTRY
@@ -655,20 +655,6 @@ config MAX_PHYSMEM_BITS
 	  in bits. Supported is any size between 2^42 (4TB) and 2^53 (8PB).
 	  Increasing the number of bits also increases the kernel image size.
 	  By default 46 bits (64TB) are supported.
-
-config PACK_STACK
-	def_bool y
-	prompt "Pack kernel stack"
-	help
-	  This option enables the compiler option -mkernel-backchain if it
-	  is available. If the option is available the compiler supports
-	  the new stack layout which dramatically reduces the minimum stack
-	  frame size. With an old compiler a non-leaf function needs a
-	  minimum of 96 bytes on 31 bit and 160 bytes on 64 bit. With
-	  -mkernel-backchain the minimum size drops to 16 byte on 31 bit
-	  and 24 byte on 64 bit.
-
-	  Say Y if you are unsure.
 
 config CHECK_STACK
 	def_bool y

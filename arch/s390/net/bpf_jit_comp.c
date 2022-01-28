@@ -7,7 +7,6 @@
  *  - HAVE_MARCH_Z196_FEATURES: laal, laalg
  *  - HAVE_MARCH_Z10_FEATURES: msfi, cgrj, clgrj
  *  - HAVE_MARCH_Z9_109_FEATURES: alfi, llilf, clfi, oilf, nilf
- *  - PACK_STACK
  *  - 64BIT
  *
  * Copyright IBM Corp. 2012,2015
