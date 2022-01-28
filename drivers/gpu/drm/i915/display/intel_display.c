@@ -3154,11 +3154,7 @@ static bool transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
 	if (IS_HASWELL(dev_priv))
 		return transcoder == TRANSCODER_EDP;
 
-	/*
-	 * Strictly speaking some registers are available before
-	 * gen7, but we only support DRRS on gen7+
-	 */
-	return DISPLAY_VER(dev_priv) == 7 || IS_CHERRYVIEW(dev_priv);
+	return IS_DISPLAY_VER(dev_priv, 5, 7) || IS_CHERRYVIEW(dev_priv);
 }
 
 void intel_cpu_transcoder_set_m1_n1(struct intel_crtc *crtc,
