@@ -13,7 +13,7 @@
 #include <linux/gpio/consumer.h>
 #include <net/dsa.h>
 
-struct realtek_smi_ops;
+struct realtek_ops;
 struct dentry;
 struct inode;
 struct file;
@@ -25,7 +25,7 @@ struct rtl8366_mib_counter {
 	const char	*name;
 };
 
-/**
+/*
  * struct rtl8366_vlan_mc - Virtual LAN member configuration
  */
 struct rtl8366_vlan_mc {
@@ -43,13 +43,15 @@ struct rtl8366_vlan_4k {
 	u8	fid;
 };
 
-struct realtek_smi {
+struct realtek_priv {
 	struct device		*dev;
 	struct gpio_desc	*reset;
 	struct gpio_desc	*mdc;
 	struct gpio_desc	*mdio;
 	struct regmap		*map;
 	struct mii_bus		*slave_mii_bus;
+	struct mii_bus		*bus;
+	int			mdio_addr;
 
 	unsigned int		clk_delay;
 	u8			cmd_read;
@@ -65,7 +67,9 @@ struct realtek_smi {
 	unsigned int		num_mib_counters;
 	struct rtl8366_mib_counter *mib_counters;
 
-	const struct realtek_smi_ops *ops;
+	const struct realtek_ops *ops;
+	int			(*setup_interface)(struct dsa_switch *ds);
+	int			(*write_reg_noack)(void *ctx, u32 addr, u32 data);
 
 	int			vlan_enabled;
 	int			vlan4k_enabled;
@@ -74,61 +78,57 @@ struct realtek_smi {
 	void			*chip_data; /* Per-chip extra variant data */
 };
 
-/**
- * struct realtek_smi_ops - vtable for the per-SMI-chiptype operations
+/*
+ * struct realtek_ops - vtable for the per-SMI-chiptype operations
  * @detect: detects the chiptype
  */
-struct realtek_smi_ops {
-	int	(*detect)(struct realtek_smi *smi);
-	int	(*reset_chip)(struct realtek_smi *smi);
-	int	(*setup)(struct realtek_smi *smi);
-	void	(*cleanup)(struct realtek_smi *smi);
-	int	(*get_mib_counter)(struct realtek_smi *smi,
+struct realtek_ops {
+	int	(*detect)(struct realtek_priv *priv);
+	int	(*reset_chip)(struct realtek_priv *priv);
+	int	(*setup)(struct realtek_priv *priv);
+	void	(*cleanup)(struct realtek_priv *priv);
+	int	(*get_mib_counter)(struct realtek_priv *priv,
 				   int port,
 				   struct rtl8366_mib_counter *mib,
 				   u64 *mibvalue);
-	int	(*get_vlan_mc)(struct realtek_smi *smi, u32 index,
+	int	(*get_vlan_mc)(struct realtek_priv *priv, u32 index,
 			       struct rtl8366_vlan_mc *vlanmc);
-	int	(*set_vlan_mc)(struct realtek_smi *smi, u32 index,
+	int	(*set_vlan_mc)(struct realtek_priv *priv, u32 index,
 			       const struct rtl8366_vlan_mc *vlanmc);
-	int	(*get_vlan_4k)(struct realtek_smi *smi, u32 vid,
+	int	(*get_vlan_4k)(struct realtek_priv *priv, u32 vid,
 			       struct rtl8366_vlan_4k *vlan4k);
-	int	(*set_vlan_4k)(struct realtek_smi *smi,
+	int	(*set_vlan_4k)(struct realtek_priv *priv,
 			       const struct rtl8366_vlan_4k *vlan4k);
-	int	(*get_mc_index)(struct realtek_smi *smi, int port, int *val);
-	int	(*set_mc_index)(struct realtek_smi *smi, int port, int index);
-	bool	(*is_vlan_valid)(struct realtek_smi *smi, unsigned int vlan);
-	int	(*enable_vlan)(struct realtek_smi *smi, bool enable);
-	int	(*enable_vlan4k)(struct realtek_smi *smi, bool enable);
-	int	(*enable_port)(struct realtek_smi *smi, int port, bool enable);
-	int	(*phy_read)(struct realtek_smi *smi, int phy, int regnum);
-	int	(*phy_write)(struct realtek_smi *smi, int phy, int regnum,
+	int	(*get_mc_index)(struct realtek_priv *priv, int port, int *val);
+	int	(*set_mc_index)(struct realtek_priv *priv, int port, int index);
+	bool	(*is_vlan_valid)(struct realtek_priv *priv, unsigned int vlan);
+	int	(*enable_vlan)(struct realtek_priv *priv, bool enable);
+	int	(*enable_vlan4k)(struct realtek_priv *priv, bool enable);
+	int	(*enable_port)(struct realtek_priv *priv, int port, bool enable);
+	int	(*phy_read)(struct realtek_priv *priv, int phy, int regnum);
+	int	(*phy_write)(struct realtek_priv *priv, int phy, int regnum,
 			     u16 val);
 };
 
-struct realtek_smi_variant {
-	const struct dsa_switch_ops *ds_ops;
-	const struct realtek_smi_ops *ops;
+struct realtek_variant {
+	const struct dsa_switch_ops *ds_ops_smi;
+	const struct dsa_switch_ops *ds_ops_mdio;
+	const struct realtek_ops *ops;
 	unsigned int clk_delay;
 	u8 cmd_read;
 	u8 cmd_write;
 	size_t chip_data_sz;
 };
 
-/* SMI core calls */
-int realtek_smi_write_reg_noack(struct realtek_smi *smi, u32 addr,
-				u32 data);
-int realtek_smi_setup_mdio(struct realtek_smi *smi);
-
 /* RTL8366 library helpers */
-int rtl8366_mc_is_used(struct realtek_smi *smi, int mc_index, int *used);
-int rtl8366_set_vlan(struct realtek_smi *smi, int vid, u32 member,
+int rtl8366_mc_is_used(struct realtek_priv *priv, int mc_index, int *used);
+int rtl8366_set_vlan(struct realtek_priv *priv, int vid, u32 member,
 		     u32 untag, u32 fid);
-int rtl8366_set_pvid(struct realtek_smi *smi, unsigned int port,
+int rtl8366_set_pvid(struct realtek_priv *priv, unsigned int port,
 		     unsigned int vid);
-int rtl8366_enable_vlan4k(struct realtek_smi *smi, bool enable);
-int rtl8366_enable_vlan(struct realtek_smi *smi, bool enable);
-int rtl8366_reset_vlan(struct realtek_smi *smi);
+int rtl8366_enable_vlan4k(struct realtek_priv *priv, bool enable);
+int rtl8366_enable_vlan(struct realtek_priv *priv, bool enable);
+int rtl8366_reset_vlan(struct realtek_priv *priv);
 int rtl8366_vlan_add(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan,
 		     struct netlink_ext_ack *extack);
@@ -139,7 +139,7 @@ void rtl8366_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 int rtl8366_get_sset_count(struct dsa_switch *ds, int port, int sset);
 void rtl8366_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *data);
 
-extern const struct realtek_smi_variant rtl8366rb_variant;
-extern const struct realtek_smi_variant rtl8365mb_variant;
+extern const struct realtek_variant rtl8366rb_variant;
+extern const struct realtek_variant rtl8365mb_variant;
 
 #endif /*  _REALTEK_SMI_H */
