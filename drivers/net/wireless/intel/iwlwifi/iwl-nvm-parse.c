@@ -375,10 +375,10 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 		if (v4)
 			ch_flags =
-				__le32_to_cpup((__le32 *)nvm_ch_flags + ch_idx);
+				__le32_to_cpup((const __le32 *)nvm_ch_flags + ch_idx);
 		else
 			ch_flags =
-				__le16_to_cpup((__le16 *)nvm_ch_flags + ch_idx);
+				__le16_to_cpup((const __le16 *)nvm_ch_flags + ch_idx);
 
 		if (band == NL80211_BAND_5GHZ &&
 		    !data->sku_cap_band_52ghz_enable)
@@ -912,7 +912,7 @@ static int iwl_get_sku(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
 	if (cfg->nvm_type != IWL_NVM_EXT)
 		return le16_to_cpup(nvm_sw + SKU);
 
-	return le32_to_cpup((__le32 *)(phy_sku + SKU_FAMILY_8000));
+	return le32_to_cpup((const __le32 *)(phy_sku + SKU_FAMILY_8000));
 }
 
 static int iwl_get_nvm_version(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
@@ -920,8 +920,8 @@ static int iwl_get_nvm_version(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
 	if (cfg->nvm_type != IWL_NVM_EXT)
 		return le16_to_cpup(nvm_sw + NVM_VERSION);
 	else
-		return le32_to_cpup((__le32 *)(nvm_sw +
-					       NVM_VERSION_EXT_NVM));
+		return le32_to_cpup((const __le32 *)(nvm_sw +
+						     NVM_VERSION_EXT_NVM));
 }
 
 static int iwl_get_radio_cfg(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
@@ -930,7 +930,7 @@ static int iwl_get_radio_cfg(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
 	if (cfg->nvm_type != IWL_NVM_EXT)
 		return le16_to_cpup(nvm_sw + RADIO_CFG);
 
-	return le32_to_cpup((__le32 *)(phy_sku + RADIO_CFG_FAMILY_EXT_NVM));
+	return le32_to_cpup((const __le32 *)(phy_sku + RADIO_CFG_FAMILY_EXT_NVM));
 
 }
 
@@ -941,7 +941,7 @@ static int iwl_get_n_hw_addrs(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
 	if (cfg->nvm_type != IWL_NVM_EXT)
 		return le16_to_cpup(nvm_sw + N_HW_ADDRS);
 
-	n_hw_addr = le32_to_cpup((__le32 *)(nvm_sw + N_HW_ADDRS_FAMILY_8000));
+	n_hw_addr = le32_to_cpup((const __le32 *)(nvm_sw + N_HW_ADDRS_FAMILY_8000));
 
 	return n_hw_addr & N_HW_ADDR_MASK;
 }
@@ -1592,7 +1592,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 	}
 
 	eof = fw_entry->data + fw_entry->size;
-	dword_buff = (__le32 *)fw_entry->data;
+	dword_buff = (const __le32 *)fw_entry->data;
 
 	/* some NVM file will contain a header.
 	 * The header is identified by 2 dwords header as follow:
@@ -1604,7 +1604,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 	if (fw_entry->size > NVM_HEADER_SIZE &&
 	    dword_buff[0] == cpu_to_le32(NVM_HEADER_0) &&
 	    dword_buff[1] == cpu_to_le32(NVM_HEADER_1)) {
-		file_sec = (void *)(fw_entry->data + NVM_HEADER_SIZE);
+		file_sec = (const void *)(fw_entry->data + NVM_HEADER_SIZE);
 		IWL_INFO(trans, "NVM Version %08X\n", le32_to_cpu(dword_buff[2]));
 		IWL_INFO(trans, "NVM Manufacturing date %08X\n",
 			 le32_to_cpu(dword_buff[3]));
@@ -1617,7 +1617,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 			goto out;
 		}
 	} else {
-		file_sec = (void *)fw_entry->data;
+		file_sec = (const void *)fw_entry->data;
 	}
 
 	while (true) {
@@ -1685,7 +1685,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 		nvm_sections[section_id].length = section_size;
 
 		/* advance to the next section */
-		file_sec = (void *)(file_sec->data + section_size);
+		file_sec = (const void *)(file_sec->data + section_size);
 	}
 out:
 	release_firmware(fw_entry);

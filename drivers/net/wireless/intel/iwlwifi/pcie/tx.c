@@ -877,7 +877,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	if (configure_scd) {
 		iwl_scd_txq_set_inactive(trans, txq_id);
 
-		iwl_trans_write_mem(trans, stts_addr, (void *)zero_val,
+		iwl_trans_write_mem(trans, stts_addr, (const void *)zero_val,
 				    ARRAY_SIZE(zero_val));
 	}
 

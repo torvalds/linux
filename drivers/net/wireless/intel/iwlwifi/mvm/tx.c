@@ -653,7 +653,8 @@ static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	int base_len = (u8 *)mgmt->u.probe_resp.variable - (u8 *)mgmt;
 	struct iwl_probe_resp_data *resp_data;
-	u8 *ie, *pos;
+	const u8 *ie;
+	u8 *pos;
 	u8 match[] = {
 		(WLAN_OUI_WFA >> 16) & 0xff,
 		(WLAN_OUI_WFA >> 8) & 0xff,
@@ -670,10 +671,10 @@ static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
 	if (!resp_data->notif.noa_active)
 		goto out;
 
-	ie = (u8 *)cfg80211_find_ie_match(WLAN_EID_VENDOR_SPECIFIC,
-					  mgmt->u.probe_resp.variable,
-					  skb->len - base_len,
-					  match, 4, 2);
+	ie = cfg80211_find_ie_match(WLAN_EID_VENDOR_SPECIFIC,
+				    mgmt->u.probe_resp.variable,
+				    skb->len - base_len,
+				    match, 4, 2);
 	if (!ie) {
 		IWL_DEBUG_TX(mvm, "probe resp doesn't have P2P IE\n");
 		goto out;
