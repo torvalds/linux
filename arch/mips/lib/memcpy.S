@@ -116,7 +116,7 @@
 	.if \mode == LEGACY_MODE;				\
 9:		insn reg, addr;					\
 		.section __ex_table,"a";			\
-		PTR	9b, handler;				\
+		PTR_WD	9b, handler;				\
 		.previous;					\
 	/* This is assembled in EVA mode */			\
 	.else;							\
@@ -125,7 +125,7 @@
 		    ((\to == USEROP) && (type == ST_INSN));	\
 9:			__BUILD_EVA_INSN(insn##e, reg, addr);	\
 			.section __ex_table,"a";		\
-			PTR	9b, handler;			\
+			PTR_WD	9b, handler;			\
 			.previous;				\
 		.else;						\
 			/*					\
