@@ -131,23 +131,23 @@ peci_client_read_package_config(struct peci_client_manager *priv,
  * @priv: driver private data structure
  * @index: encoding index for the requested service
  * @param: parameter to specify the exact data being requested
- * @data: data buffer with values to write
+ * @data: data to write
  * Context: can sleep
  *
  * Return: zero on success, else a negative error code.
  */
 static inline int
 peci_client_write_package_config(struct peci_client_manager *priv,
-				 u8 index, u16 param, u8 *data)
+				 u8 index, u16 param, u32 data)
 {
-	struct peci_rd_pkg_cfg_msg msg;
+	struct peci_wr_pkg_cfg_msg msg;
 	int ret;
 
 	msg.addr = priv->client->addr;
 	msg.index = index;
 	msg.param = param;
-	msg.rx_len = 4u;
-	memcpy(msg.pkg_config, data, msg.rx_len);
+	msg.tx_len = 4u;
+	msg.value = data;
 
 	ret = peci_command(priv->client->adapter, PECI_CMD_WR_PKG_CFG, &msg);
 	if (!ret) {

@@ -428,13 +428,9 @@ static inline int peci_pcs_read(struct peci_client_manager *peci_mgr, u8 index,
 static inline int peci_pcs_write(struct peci_client_manager *peci_mgr, u8 index,
 				 u16 parameter, u32 reg)
 {
-	u32 pcs_reg;
 	int ret;
 
-	pcs_reg = cpu_to_le32p(&reg);
-
-	ret = peci_client_write_package_config(peci_mgr, index, parameter,
-					       (u8 *)&pcs_reg);
+	ret = peci_client_write_package_config(peci_mgr, index, parameter, reg);
 
 	return ret;
 }
