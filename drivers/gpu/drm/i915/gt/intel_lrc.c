@@ -1164,12 +1164,40 @@ gen12_emit_cmd_buf_wa(const struct intel_context *ce, u32 *cs)
 	return cs;
 }
 
+/*
+ * On DG2 during context restore of a preempted context in GPGPU mode,
+ * RCS restore hang is detected. This is extremely timing dependent.
+ * To address this below sw wabb is implemented for DG2 A steppings.
+ */
+static u32 *
+dg2_emit_rcs_hang_wabb(const struct intel_context *ce, u32 *cs)
+{
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(GEN12_STATE_ACK_DEBUG);
+	*cs++ = 0x21;
+
+	*cs++ = MI_LOAD_REGISTER_REG;
+	*cs++ = i915_mmio_reg_offset(RING_NOPID(ce->engine->mmio_base));
+	*cs++ = i915_mmio_reg_offset(GEN12_CULLBIT1);
+
+	*cs++ = MI_LOAD_REGISTER_REG;
+	*cs++ = i915_mmio_reg_offset(RING_NOPID(ce->engine->mmio_base));
+	*cs++ = i915_mmio_reg_offset(GEN12_CULLBIT2);
+
+	return cs;
+}
+
 static u32 *
 gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 {
 	cs = gen12_emit_timestamp_wa(ce, cs);
 	cs = gen12_emit_cmd_buf_wa(ce, cs);
 	cs = gen12_emit_restore_scratch(ce, cs);
+
+	/* Wa_22011450934:dg2 */
+	if (IS_DG2_GRAPHICS_STEP(ce->engine->i915, G10, STEP_A0, STEP_B0) ||
+	    IS_DG2_GRAPHICS_STEP(ce->engine->i915, G11, STEP_A0, STEP_B0))
+		cs = dg2_emit_rcs_hang_wabb(ce, cs);
 
 	/* Wa_16013000631:dg2 */
 	if (IS_DG2_GRAPHICS_STEP(ce->engine->i915, G10, STEP_B0, STEP_C0) ||
