@@ -1097,11 +1097,9 @@ int mlx5dr_rule_get_reverse_rule_members(struct mlx5dr_ste **ste_arr,
 struct mlx5dr_icm_chunk {
 	struct mlx5dr_icm_buddy_mem *buddy_mem;
 	struct list_head chunk_list;
-	u32 rkey;
 	u32 num_of_entries;
 	u32 byte_size;
 	u64 icm_addr;
-	u64 mr_addr;
 
 	/* indicates the index of this chunk in the whole memory,
 	 * used for deleting the chunk from the buddy
@@ -1145,6 +1143,9 @@ int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 				   struct mlx5dr_matcher_rx_tx *nic_matcher,
 				   enum mlx5dr_ipv outer_ipv,
 				   enum mlx5dr_ipv inner_ipv);
+
+u64 mlx5dr_icm_pool_get_chunk_mr_addr(struct mlx5dr_icm_chunk *chunk);
+u32 mlx5dr_icm_pool_get_chunk_rkey(struct mlx5dr_icm_chunk *chunk);
 
 static inline int
 mlx5dr_icm_pool_dm_type_to_entry_size(enum mlx5dr_icm_type icm_type)

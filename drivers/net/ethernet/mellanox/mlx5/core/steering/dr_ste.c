@@ -122,7 +122,7 @@ u64 mlx5dr_ste_get_mr_addr(struct mlx5dr_ste *ste)
 {
 	u32 index = ste - ste->htbl->ste_arr;
 
-	return ste->htbl->chunk->mr_addr + DR_STE_SIZE * index;
+	return mlx5dr_icm_pool_get_chunk_mr_addr(ste->htbl->chunk) + DR_STE_SIZE * index;
 }
 
 struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste)

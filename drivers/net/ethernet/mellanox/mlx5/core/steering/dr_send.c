@@ -453,7 +453,7 @@ int mlx5dr_send_postsend_ste(struct mlx5dr_domain *dmn, struct mlx5dr_ste *ste,
 	send_info.write.length = size;
 	send_info.write.lkey = 0;
 	send_info.remote_addr = mlx5dr_ste_get_mr_addr(ste) + offset;
-	send_info.rkey = ste->htbl->chunk->rkey;
+	send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(ste->htbl->chunk);
 
 	return dr_postsend_icm_data(dmn, &send_info);
 }
@@ -512,7 +512,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 		send_info.write.lkey = 0;
 		send_info.remote_addr =
 			mlx5dr_ste_get_mr_addr(htbl->ste_arr + ste_index);
-		send_info.rkey = htbl->chunk->rkey;
+		send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(htbl->chunk);
 
 		ret = dr_postsend_icm_data(dmn, &send_info);
 		if (ret)
@@ -569,7 +569,7 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 		send_info.write.lkey = 0;
 		send_info.remote_addr =
 			mlx5dr_ste_get_mr_addr(htbl->ste_arr + ste_index);
-		send_info.rkey = htbl->chunk->rkey;
+		send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(htbl->chunk);
 
 		ret = dr_postsend_icm_data(dmn, &send_info);
 		if (ret)
@@ -591,8 +591,9 @@ int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 	send_info.write.length = action->rewrite->num_of_actions *
 				 DR_MODIFY_ACTION_SIZE;
 	send_info.write.lkey = 0;
-	send_info.remote_addr = action->rewrite->chunk->mr_addr;
-	send_info.rkey = action->rewrite->chunk->rkey;
+	send_info.remote_addr =
+		mlx5dr_icm_pool_get_chunk_mr_addr(action->rewrite->chunk);
+	send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(action->rewrite->chunk);
 
 	ret = dr_postsend_icm_data(dmn, &send_info);
 
