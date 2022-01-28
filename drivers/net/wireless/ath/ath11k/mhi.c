@@ -332,6 +332,7 @@ static int ath11k_mhi_read_addr_from_dt(struct mhi_controller *mhi_ctrl)
 		return -ENOENT;
 
 	ret = of_address_to_resource(np, 0, &res);
+	of_node_put(np);
 	if (ret)
 		return ret;
 
