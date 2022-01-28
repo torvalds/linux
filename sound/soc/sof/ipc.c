@@ -294,13 +294,19 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 }
 
 /* send IPC message from host to DSP */
-static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
+static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc,
 				       void *msg_data, size_t msg_bytes,
 				       void *reply_data, size_t reply_bytes)
 {
+	struct sof_ipc_cmd_hdr *hdr = msg_data;
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct snd_sof_ipc_msg *msg;
 	int ret;
+
+	if (!msg_data || msg_bytes < sizeof(*hdr)) {
+		dev_err_ratelimited(sdev->dev, "No IPC message to send\n");
+		return -EINVAL;
+	}
 
 	if (ipc->disable_ipc_tx || sdev->fw_state != SOF_FW_BOOT_COMPLETE)
 		return -ENODEV;
@@ -314,14 +320,12 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 	/* initialise the message */
 	msg = &ipc->msg;
 
-	msg->header = header;
+	/* attach message data */
+	memcpy(msg->msg_data, msg_data, msg_bytes);
 	msg->msg_size = msg_bytes;
+
 	msg->reply_size = reply_bytes;
 	msg->reply_error = 0;
-
-	/* attach any data */
-	if (msg_bytes)
-		memcpy(msg->msg_data, msg_data, msg_bytes);
 
 	sdev->msg = msg;
 
@@ -339,7 +343,7 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 		return ret;
 	}
 
-	ipc_log_header(sdev->dev, "ipc tx", msg->header);
+	ipc_log_header(sdev->dev, "ipc tx", hdr->cmd);
 
 	/* now wait for completion */
 	return tx_wait_done(ipc, msg, reply_data);
@@ -385,7 +389,7 @@ int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
 	/* Serialise IPC TX */
 	mutex_lock(&ipc->tx_mutex);
 
-	ret = sof_ipc_tx_message_unlocked(ipc, header, msg_data, msg_bytes,
+	ret = sof_ipc_tx_message_unlocked(ipc, msg_data, msg_bytes,
 					  reply_data, reply_bytes);
 
 	mutex_unlock(&ipc->tx_mutex);
@@ -789,7 +793,6 @@ static int sof_set_get_large_ctrl_data(struct snd_sof_dev *sdev,
 			memcpy(sparams->dst, sparams->src + offset, send_bytes);
 
 		err = sof_ipc_tx_message_unlocked(sdev->ipc,
-						  partdata->rhdr.hdr.cmd,
 						  partdata,
 						  partdata->rhdr.hdr.size,
 						  partdata,
