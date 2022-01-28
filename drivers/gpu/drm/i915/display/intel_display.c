@@ -2003,15 +2003,21 @@ static void hsw_configure_cpu_transcoder(const struct intel_crtc_state *crtc_sta
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
+	if (crtc_state->has_pch_encoder) {
+		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
+					       &crtc_state->fdi_m_n);
+	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
+		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
+					       &crtc_state->dp_m_n);
+		intel_cpu_transcoder_set_m2_n2(crtc, cpu_transcoder,
+					       &crtc_state->dp_m2_n2);
+	}
+
 	intel_set_transcoder_timings(crtc_state);
 
 	if (cpu_transcoder != TRANSCODER_EDP)
 		intel_de_write(dev_priv, PIPE_MULT(cpu_transcoder),
 			       crtc_state->pixel_multiplier - 1);
-
-	if (crtc_state->has_pch_encoder)
-		intel_cpu_transcoder_set_m1_n1(crtc, cpu_transcoder,
-					       &crtc_state->fdi_m_n);
 
 	hsw_set_frame_start_delay(crtc_state);
 
