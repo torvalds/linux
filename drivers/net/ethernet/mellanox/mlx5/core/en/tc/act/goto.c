@@ -8,6 +8,7 @@
 static int
 validate_goto_chain(struct mlx5e_priv *priv,
 		    struct mlx5e_tc_flow *flow,
+		    struct mlx5_flow_attr *attr,
 		    const struct flow_action_entry *act,
 		    struct netlink_ext_ack *extack)
 {
@@ -32,7 +33,7 @@ validate_goto_chain(struct mlx5e_priv *priv,
 	}
 
 	if (!mlx5_chains_backwards_supported(chains) &&
-	    dest_chain <= flow->attr->chain) {
+	    dest_chain <= attr->chain) {
 		NL_SET_ERR_MSG_MOD(extack, "Goto lower numbered chain isn't supported");
 		return -EOPNOTSUPP;
 	}
@@ -43,8 +44,8 @@ validate_goto_chain(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	if (flow->attr->action & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
-				  MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
+	if (attr->action & (MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
+			    MLX5_FLOW_CONTEXT_ACTION_DECAP) &&
 	    !reformat_and_fwd) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Goto chain is not allowed if action has reformat or decap");
@@ -57,12 +58,13 @@ validate_goto_chain(struct mlx5e_priv *priv,
 static bool
 tc_act_can_offload_goto(struct mlx5e_tc_act_parse_state *parse_state,
 			const struct flow_action_entry *act,
-			int act_index)
+			int act_index,
+			struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
 	struct mlx5e_tc_flow *flow = parse_state->flow;
 
-	if (validate_goto_chain(flow->priv, flow, act, extack))
+	if (validate_goto_chain(flow->priv, flow, attr, act, extack))
 		return false;
 
 	return true;

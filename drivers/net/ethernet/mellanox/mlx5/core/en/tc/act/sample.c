@@ -8,7 +8,8 @@
 static bool
 tc_act_can_offload_sample(struct mlx5e_tc_act_parse_state *parse_state,
 			  const struct flow_action_entry *act,
-			  int act_index)
+			  int act_index,
+			  struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
 
@@ -27,11 +28,7 @@ tc_act_parse_sample(struct mlx5e_tc_act_parse_state *parse_state,
 		    struct mlx5e_priv *priv,
 		    struct mlx5_flow_attr *attr)
 {
-	struct mlx5e_sample_attr *sample_attr;
-
-	sample_attr = kzalloc(sizeof(*attr->sample_attr), GFP_KERNEL);
-	if (!sample_attr)
-		return -ENOMEM;
+	struct mlx5e_sample_attr *sample_attr = &attr->sample_attr;
 
 	sample_attr->rate = act->sample.rate;
 	sample_attr->group_num = act->sample.psample_group->group_num;
@@ -39,7 +36,7 @@ tc_act_parse_sample(struct mlx5e_tc_act_parse_state *parse_state,
 	if (act->sample.truncate)
 		sample_attr->trunc_size = act->sample.trunc_size;
 
-	attr->sample_attr = sample_attr;
+	attr->flags |= MLX5_ATTR_FLAG_SAMPLE;
 	flow_flag_set(parse_state->flow, SAMPLE);
 
 	return 0;

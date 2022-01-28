@@ -99,7 +99,8 @@ get_fdb_out_dev(struct net_device *uplink_dev, struct net_device *out_dev)
 static bool
 tc_act_can_offload_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 			  const struct flow_action_entry *act,
-			  int act_index)
+			  int act_index,
+			  struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
 	struct mlx5e_tc_flow *flow = parse_state->flow;
@@ -108,8 +109,8 @@ tc_act_can_offload_mirred(struct mlx5e_tc_act_parse_state *parse_state,
 	struct mlx5e_priv *priv = flow->priv;
 	struct mlx5_esw_flow_attr *esw_attr;
 
-	parse_attr = flow->attr->parse_attr;
-	esw_attr = flow->attr->esw_attr;
+	parse_attr = attr->parse_attr;
+	esw_attr = attr->esw_attr;
 
 	if (!out_dev) {
 		/* out_dev is NULL when filters with

@@ -488,12 +488,14 @@ static void mlx5e_detach_encap_route(struct mlx5e_priv *priv,
 				     int out_index);
 
 void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			struct mlx5e_tc_flow *flow, int out_index)
+			struct mlx5e_tc_flow *flow,
+			struct mlx5_flow_attr *attr,
+			int out_index)
 {
 	struct mlx5e_encap_entry *e = flow->encaps[out_index].e;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 
-	if (flow->attr->esw_attr->dests[out_index].flags &
+	if (attr->esw_attr->dests[out_index].flags &
 	    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE)
 		mlx5e_detach_encap_route(priv, flow, out_index);
 
@@ -733,6 +735,7 @@ static unsigned int mlx5e_route_tbl_get_last_update(struct mlx5e_priv *priv)
 
 static int mlx5e_attach_encap_route(struct mlx5e_priv *priv,
 				    struct mlx5e_tc_flow *flow,
+				    struct mlx5_flow_attr *attr,
 				    struct mlx5e_encap_entry *e,
 				    bool new_encap_entry,
 				    unsigned long tbl_time_before,
@@ -740,6 +743,7 @@ static int mlx5e_attach_encap_route(struct mlx5e_priv *priv,
 
 int mlx5e_attach_encap(struct mlx5e_priv *priv,
 		       struct mlx5e_tc_flow *flow,
+		       struct mlx5_flow_attr *attr,
 		       struct net_device *mirred_dev,
 		       int out_index,
 		       struct netlink_ext_ack *extack,
@@ -748,7 +752,6 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct mlx5_flow_attr *attr = flow->attr;
 	const struct ip_tunnel_info *tun_info;
 	unsigned long tbl_time_before = 0;
 	struct mlx5e_encap_entry *e;
@@ -834,8 +837,8 @@ int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	e->compl_result = 1;
 
 attach_flow:
-	err = mlx5e_attach_encap_route(priv, flow, e, entry_created, tbl_time_before,
-				       out_index);
+	err = mlx5e_attach_encap_route(priv, flow, attr, e, entry_created,
+				       tbl_time_before, out_index);
 	if (err)
 		goto out_err;
 
@@ -1198,6 +1201,7 @@ out:
 
 static int mlx5e_attach_encap_route(struct mlx5e_priv *priv,
 				    struct mlx5e_tc_flow *flow,
+				    struct mlx5_flow_attr *attr,
 				    struct mlx5e_encap_entry *e,
 				    bool new_encap_entry,
 				    unsigned long tbl_time_before,
@@ -1206,7 +1210,6 @@ static int mlx5e_attach_encap_route(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	unsigned long tbl_time_after = tbl_time_before;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct mlx5_flow_attr *attr = flow->attr;
 	const struct ip_tunnel_info *tun_info;
 	struct mlx5_esw_flow_attr *esw_attr;
 	struct mlx5e_route_entry *r;
@@ -1377,7 +1380,7 @@ static void mlx5e_reoffload_encap(struct mlx5e_priv *priv,
 			continue;
 		}
 
-		err = mlx5e_tc_add_flow_mod_hdr(priv, parse_attr, flow);
+		err = mlx5e_tc_add_flow_mod_hdr(priv, flow, attr);
 		if (err) {
 			mlx5_core_warn(priv->mdev, "Failed to update flow mod_hdr err=%d",
 				       err);

@@ -403,7 +403,7 @@ add_post_rule(struct mlx5_eswitch *esw, struct mlx5e_sample_flow *sample_flow,
 	post_attr->chain = 0;
 	post_attr->prio = 0;
 	post_attr->ft = default_tbl;
-	post_attr->flags = MLX5_ESW_ATTR_FLAG_NO_IN_PORT;
+	post_attr->flags = MLX5_ATTR_FLAG_NO_IN_PORT;
 
 	/* When offloading sample and encap action, if there is no valid
 	 * neigh data struct, a slow path rule is offloaded first. Source
@@ -492,8 +492,7 @@ del_post_rule(struct mlx5_eswitch *esw, struct mlx5e_sample_flow *sample_flow,
 struct mlx5_flow_handle *
 mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_flow_attr *attr,
-			u32 tunnel_id)
+			struct mlx5_flow_attr *attr)
 {
 	struct mlx5e_post_act_handle *post_act_handle = NULL;
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
@@ -502,6 +501,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	struct mlx5e_sample_flow *sample_flow;
 	struct mlx5e_sample_attr *sample_attr;
 	struct mlx5_flow_attr *pre_attr;
+	u32 tunnel_id = attr->tunnel_id;
 	struct mlx5_eswitch *esw;
 	u32 default_tbl_id;
 	u32 obj_id;
@@ -513,7 +513,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	sample_flow = kzalloc(sizeof(*sample_flow), GFP_KERNEL);
 	if (!sample_flow)
 		return ERR_PTR(-ENOMEM);
-	sample_attr = attr->sample_attr;
+	sample_attr = &attr->sample_attr;
 	sample_attr->sample_flow = sample_flow;
 
 	/* For NICs with reg_c_preserve support or decap action, use
@@ -546,6 +546,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 		err = PTR_ERR(sample_flow->sampler);
 		goto err_sampler;
 	}
+	sample_attr->sampler_id = sample_flow->sampler->sampler_id;
 
 	/* Create an id mapping reg_c0 value to sample object. */
 	restore_obj.type = MLX5_MAPPED_OBJ_SAMPLE;
@@ -580,13 +581,12 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	if (tunnel_id)
 		pre_attr->action |= MLX5_FLOW_CONTEXT_ACTION_DECAP;
 	pre_attr->modify_hdr = sample_flow->restore->modify_hdr;
-	pre_attr->flags = MLX5_ESW_ATTR_FLAG_SAMPLE;
+	pre_attr->flags = MLX5_ATTR_FLAG_SAMPLE;
 	pre_attr->inner_match_level = attr->inner_match_level;
 	pre_attr->outer_match_level = attr->outer_match_level;
 	pre_attr->chain = attr->chain;
 	pre_attr->prio = attr->prio;
-	pre_attr->sample_attr = attr->sample_attr;
-	sample_attr->sampler_id = sample_flow->sampler->sampler_id;
+	pre_attr->sample_attr = *sample_attr;
 	pre_esw_attr = pre_attr->esw_attr;
 	pre_esw_attr->in_mdev = esw_attr->in_mdev;
 	pre_esw_attr->in_rep = esw_attr->in_rep;
@@ -633,11 +633,11 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 	 * will hit fw syndromes.
 	 */
 	esw = tc_psample->esw;
-	sample_flow = attr->sample_attr->sample_flow;
+	sample_flow = attr->sample_attr.sample_flow;
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->pre_rule, sample_flow->pre_attr);
 
 	sample_restore_put(tc_psample, sample_flow->restore);
-	mapping_remove(esw->offloads.reg_c0_obj_pool, attr->sample_attr->restore_obj_id);
+	mapping_remove(esw->offloads.reg_c0_obj_pool, attr->sample_attr.restore_obj_id);
 	sampler_put(tc_psample, sample_flow->sampler);
 	if (sample_flow->post_act_handle)
 		mlx5e_tc_post_act_del(tc_psample->post_act, sample_flow->post_act_handle);

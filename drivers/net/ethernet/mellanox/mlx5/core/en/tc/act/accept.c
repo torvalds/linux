@@ -7,7 +7,8 @@
 static bool
 tc_act_can_offload_accept(struct mlx5e_tc_act_parse_state *parse_state,
 			  const struct flow_action_entry *act,
-			  int act_index)
+			  int act_index,
+			  struct mlx5_flow_attr *attr)
 {
 	return true;
 }
@@ -20,7 +21,7 @@ tc_act_parse_accept(struct mlx5e_tc_act_parse_state *parse_state,
 {
 	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 			MLX5_FLOW_CONTEXT_ACTION_COUNT;
-	attr->flags |= MLX5_ESW_ATTR_FLAG_ACCEPT;
+	attr->flags |= MLX5_ATTR_FLAG_ACCEPT;
 
 	return 0;
 }

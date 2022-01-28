@@ -7,16 +7,16 @@
 static bool
 tc_act_can_offload_redirect_ingress(struct mlx5e_tc_act_parse_state *parse_state,
 				    const struct flow_action_entry *act,
-				    int act_index)
+				    int act_index,
+				    struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
-	struct mlx5e_tc_flow *flow = parse_state->flow;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct net_device *out_dev = act->dev;
 	struct mlx5_esw_flow_attr *esw_attr;
 
-	parse_attr = flow->attr->parse_attr;
-	esw_attr = flow->attr->esw_attr;
+	parse_attr = attr->parse_attr;
+	esw_attr = attr->esw_attr;
 
 	if (!out_dev)
 		return false;

@@ -46,9 +46,9 @@ static int
 parse_pedit_to_modify_hdr(struct mlx5e_priv *priv,
 			  const struct flow_action_entry *act, int namespace,
 			  struct mlx5e_tc_flow_parse_attr *parse_attr,
-			  struct pedit_headers_action *hdrs,
 			  struct netlink_ext_ack *extack)
 {
+	struct pedit_headers_action *hdrs = parse_attr->hdrs;
 	u8 cmd = (act->id == FLOW_ACTION_MANGLE) ? 0 : 1;
 	u8 htype = act->mangle.htype;
 	int err = -EOPNOTSUPP;
@@ -110,20 +110,20 @@ int
 mlx5e_tc_act_pedit_parse_action(struct mlx5e_priv *priv,
 				const struct flow_action_entry *act, int namespace,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
-				struct pedit_headers_action *hdrs,
 				struct mlx5e_tc_flow *flow,
 				struct netlink_ext_ack *extack)
 {
 	if (flow && flow_flag_test(flow, L3_TO_L2_DECAP))
 		return parse_pedit_to_reformat(act, parse_attr, extack);
 
-	return parse_pedit_to_modify_hdr(priv, act, namespace, parse_attr, hdrs, extack);
+	return parse_pedit_to_modify_hdr(priv, act, namespace, parse_attr, extack);
 }
 
 static bool
 tc_act_can_offload_pedit(struct mlx5e_tc_act_parse_state *parse_state,
 			 const struct flow_action_entry *act,
-			 int act_index)
+			 int act_index,
+			 struct mlx5_flow_attr *attr)
 {
 	return true;
 }
@@ -141,8 +141,7 @@ tc_act_parse_pedit(struct mlx5e_tc_act_parse_state *parse_state,
 
 	ns_type = mlx5e_get_flow_namespace(flow);
 
-	err = mlx5e_tc_act_pedit_parse_action(flow->priv, act, ns_type,
-					      attr->parse_attr, parse_state->hdrs,
+	err = mlx5e_tc_act_pedit_parse_action(flow->priv, act, ns_type, attr->parse_attr,
 					      flow, parse_state->extack);
 	if (err)
 		return err;

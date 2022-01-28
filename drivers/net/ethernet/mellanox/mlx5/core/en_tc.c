@@ -295,11 +295,60 @@ mlx5_tc_rule_delete(struct mlx5e_priv *priv,
 
 	if (is_mdev_switchdev_mode(priv->mdev)) {
 		mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
-
 		return;
 	}
 
 	mlx5e_del_offloaded_nic_rule(priv, rule, attr);
+}
+
+struct mlx5_flow_handle *
+mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
+		      struct mlx5_flow_spec *spec,
+		      struct mlx5_flow_attr *attr)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	if (attr->flags & MLX5_ATTR_FLAG_CT) {
+		struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts =
+			&attr->parse_attr->mod_hdr_acts;
+
+		return mlx5_tc_ct_flow_offload(get_ct_priv(priv),
+					       spec, attr,
+					       mod_hdr_acts);
+	}
+
+	if (!is_mdev_switchdev_mode(priv->mdev))
+		return mlx5e_add_offloaded_nic_rule(priv, spec, attr);
+
+	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE)
+		return mlx5e_tc_sample_offload(get_sample_priv(priv), spec, attr);
+
+	return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
+}
+
+void
+mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
+			struct mlx5_flow_handle *rule,
+			struct mlx5_flow_attr *attr)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	if (attr->flags & MLX5_ATTR_FLAG_CT) {
+		mlx5_tc_ct_delete_flow(get_ct_priv(priv), attr);
+		return;
+	}
+
+	if (!is_mdev_switchdev_mode(priv->mdev)) {
+		mlx5e_del_offloaded_nic_rule(priv, rule, attr);
+		return;
+	}
+
+	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE) {
+		mlx5e_tc_sample_unoffload(get_sample_priv(priv), rule, attr);
+		return;
+	}
+
+	mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
 }
 
 int
@@ -1039,6 +1088,21 @@ err_ft_get:
 }
 
 static int
+alloc_flow_attr_counter(struct mlx5_core_dev *counter_dev,
+			struct mlx5_flow_attr *attr)
+
+{
+	struct mlx5_fc *counter;
+
+	counter = mlx5_fc_create(counter_dev, true);
+	if (IS_ERR(counter))
+		return PTR_ERR(counter);
+
+	attr->counter = counter;
+	return 0;
+}
+
+static int
 mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow *flow,
 		      struct netlink_ext_ack *extack)
@@ -1046,7 +1110,6 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_core_dev *dev = priv->mdev;
-	struct mlx5_fc *counter;
 	int err;
 
 	parse_attr = attr->parse_attr;
@@ -1058,11 +1121,9 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		counter = mlx5_fc_create(dev, true);
-		if (IS_ERR(counter))
-			return PTR_ERR(counter);
-
-		attr->counter = counter;
+		err = alloc_flow_attr_counter(dev, attr);
+		if (err)
+			return err;
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
@@ -1072,8 +1133,8 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 			return err;
 	}
 
-	if (flow_flag_test(flow, CT))
-		flow->rule[0] = mlx5_tc_ct_flow_offload(get_ct_priv(priv), flow, &parse_attr->spec,
+	if (attr->flags & MLX5_ATTR_FLAG_CT)
+		flow->rule[0] = mlx5_tc_ct_flow_offload(get_ct_priv(priv), &parse_attr->spec,
 							attr, &parse_attr->mod_hdr_acts);
 	else
 		flow->rule[0] = mlx5e_add_offloaded_nic_rule(priv, &parse_attr->spec,
@@ -1107,8 +1168,8 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 
 	flow_flag_clear(flow, OFFLOADED);
 
-	if (flow_flag_test(flow, CT))
-		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
+	if (attr->flags & MLX5_ATTR_FLAG_CT)
+		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), attr);
 	else if (!IS_ERR_OR_NULL(flow->rule[0]))
 		mlx5e_del_offloaded_nic_rule(priv, flow->rule[0], attr);
 
@@ -1142,40 +1203,27 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 			   struct mlx5_flow_spec *spec,
 			   struct mlx5_flow_attr *attr)
 {
-	struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts;
 	struct mlx5_flow_handle *rule;
 
-	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
+	if (attr->flags & MLX5_ATTR_FLAG_SLOW_PATH)
 		return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 
-	if (flow_flag_test(flow, CT)) {
-		mod_hdr_acts = &attr->parse_attr->mod_hdr_acts;
-
-		rule = mlx5_tc_ct_flow_offload(get_ct_priv(flow->priv),
-					       flow, spec, attr,
-					       mod_hdr_acts);
-	} else if (flow_flag_test(flow, SAMPLE)) {
-		rule = mlx5e_tc_sample_offload(get_sample_priv(flow->priv), spec, attr,
-					       mlx5e_tc_get_flow_tun_id(flow));
-	} else {
-		rule = mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
-	}
+	rule = mlx5e_tc_rule_offload(flow->priv, spec, attr);
 
 	if (IS_ERR(rule))
 		return rule;
 
 	if (attr->esw_attr->split_count) {
 		flow->rule[1] = mlx5_eswitch_add_fwd_rule(esw, spec, attr);
-		if (IS_ERR(flow->rule[1])) {
-			if (flow_flag_test(flow, CT))
-				mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
-			else
-				mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
-			return flow->rule[1];
-		}
+		if (IS_ERR(flow->rule[1]))
+			goto err_rule1;
 	}
 
 	return rule;
+
+err_rule1:
+	mlx5e_tc_rule_unoffload(flow->priv, rule, attr);
+	return flow->rule[1];
 }
 
 void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
@@ -1184,19 +1232,13 @@ void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 {
 	flow_flag_clear(flow, OFFLOADED);
 
-	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
-		goto offload_rule_0;
+	if (attr->flags & MLX5_ATTR_FLAG_SLOW_PATH)
+		return mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
 
 	if (attr->esw_attr->split_count)
 		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 
-	if (flow_flag_test(flow, CT))
-		mlx5_tc_ct_delete_flow(get_ct_priv(flow->priv), flow, attr);
-	else if (flow_flag_test(flow, SAMPLE))
-		mlx5e_tc_sample_unoffload(get_sample_priv(flow->priv), flow->rule[0], attr);
-	else
-offload_rule_0:
-		mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
+	mlx5e_tc_rule_unoffload(flow->priv, flow->rule[0], attr);
 }
 
 struct mlx5_flow_handle *
@@ -1214,7 +1256,7 @@ mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 	memcpy(slow_attr, flow->attr, ESW_FLOW_ATTR_SZ);
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	slow_attr->esw_attr->split_count = 0;
-	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
+	slow_attr->flags |= MLX5_ATTR_FLAG_SLOW_PATH;
 
 	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, slow_attr);
 	if (!IS_ERR(rule))
@@ -1239,7 +1281,7 @@ void mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 	memcpy(slow_attr, flow->attr, ESW_FLOW_ATTR_SZ);
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	slow_attr->esw_attr->split_count = 0;
-	slow_attr->flags |= MLX5_ESW_ATTR_FLAG_SLOW_PATH;
+	slow_attr->flags |= MLX5_ATTR_FLAG_SLOW_PATH;
 	mlx5e_tc_unoffload_fdb_rules(esw, flow, slow_attr);
 	flow_flag_clear(flow, SLOW);
 	kfree(slow_attr);
@@ -1348,10 +1390,10 @@ int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *ro
 }
 
 int mlx5e_tc_add_flow_mod_hdr(struct mlx5e_priv *priv,
-			      struct mlx5e_tc_flow_parse_attr *parse_attr,
-			      struct mlx5e_tc_flow *flow)
+			      struct mlx5e_tc_flow *flow,
+			      struct mlx5_flow_attr *attr)
 {
-	struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts = &parse_attr->mod_hdr_acts;
+	struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts = &attr->parse_attr->mod_hdr_acts;
 	struct mlx5_modify_hdr *mod_hdr;
 
 	mod_hdr = mlx5_modify_header_alloc(priv->mdev,
@@ -1361,10 +1403,98 @@ int mlx5e_tc_add_flow_mod_hdr(struct mlx5e_priv *priv,
 	if (IS_ERR(mod_hdr))
 		return PTR_ERR(mod_hdr);
 
-	WARN_ON(flow->attr->modify_hdr);
-	flow->attr->modify_hdr = mod_hdr;
+	WARN_ON(attr->modify_hdr);
+	attr->modify_hdr = mod_hdr;
 
 	return 0;
+}
+
+static int
+set_encap_dests(struct mlx5e_priv *priv,
+		struct mlx5e_tc_flow *flow,
+		struct mlx5_flow_attr *attr,
+		struct netlink_ext_ack *extack,
+		bool *encap_valid,
+		bool *vf_tun)
+{
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct mlx5_esw_flow_attr *esw_attr;
+	struct net_device *encap_dev = NULL;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5e_priv *out_priv;
+	int out_index;
+	int err = 0;
+
+	parse_attr = attr->parse_attr;
+	esw_attr = attr->esw_attr;
+	*vf_tun = false;
+	*encap_valid = true;
+
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		struct net_device *out_dev;
+		int mirred_ifindex;
+
+		if (!(esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
+			continue;
+
+		mirred_ifindex = parse_attr->mirred_ifindex[out_index];
+		out_dev = dev_get_by_index(dev_net(priv->netdev), mirred_ifindex);
+		if (!out_dev) {
+			NL_SET_ERR_MSG_MOD(extack, "Requested mirred device not found");
+			err = -ENODEV;
+			goto out;
+		}
+		err = mlx5e_attach_encap(priv, flow, attr, out_dev, out_index,
+					 extack, &encap_dev, encap_valid);
+		dev_put(out_dev);
+		if (err)
+			goto out;
+
+		if (esw_attr->dests[out_index].flags &
+		    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE &&
+		    !esw_attr->dest_int_port)
+			*vf_tun = true;
+
+		out_priv = netdev_priv(encap_dev);
+		rpriv = out_priv->ppriv;
+		esw_attr->dests[out_index].rep = rpriv->rep;
+		esw_attr->dests[out_index].mdev = out_priv->mdev;
+	}
+
+	if (*vf_tun && esw_attr->out_count > 1) {
+		NL_SET_ERR_MSG_MOD(extack, "VF tunnel encap with mirroring is not supported");
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+out:
+	return err;
+}
+
+static void
+clean_encap_dests(struct mlx5e_priv *priv,
+		  struct mlx5e_tc_flow *flow,
+		  struct mlx5_flow_attr *attr,
+		  bool *vf_tun)
+{
+	struct mlx5_esw_flow_attr *esw_attr;
+	int out_index;
+
+	esw_attr = attr->esw_attr;
+	*vf_tun = false;
+
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		if (!(esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
+			continue;
+
+		if (esw_attr->dests[out_index].flags &
+		    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE &&
+		    !esw_attr->dest_int_port)
+			*vf_tun = true;
+
+		mlx5e_detach_encap(priv, flow, attr, out_index);
+		kfree(attr->parse_attr->tun_info[out_index]);
+	}
 }
 
 static int
@@ -1375,15 +1505,10 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
-	bool vf_tun = false, encap_valid = true;
-	struct net_device *encap_dev = NULL;
 	struct mlx5_esw_flow_attr *esw_attr;
-	struct mlx5e_rep_priv *rpriv;
-	struct mlx5e_priv *out_priv;
-	struct mlx5_fc *counter;
+	bool vf_tun, encap_valid;
 	u32 max_prio, max_chain;
 	int err = 0;
-	int out_index;
 
 	parse_attr = attr->parse_attr;
 	esw_attr = attr->esw_attr;
@@ -1471,50 +1596,17 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		esw_attr->int_port = int_port;
 	}
 
-	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
-		struct net_device *out_dev;
-		int mirred_ifindex;
-
-		if (!(esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
-			continue;
-
-		mirred_ifindex = parse_attr->mirred_ifindex[out_index];
-		out_dev = dev_get_by_index(dev_net(priv->netdev), mirred_ifindex);
-		if (!out_dev) {
-			NL_SET_ERR_MSG_MOD(extack, "Requested mirred device not found");
-			err = -ENODEV;
-			goto err_out;
-		}
-		err = mlx5e_attach_encap(priv, flow, out_dev, out_index,
-					 extack, &encap_dev, &encap_valid);
-		dev_put(out_dev);
-		if (err)
-			goto err_out;
-
-		if (esw_attr->dests[out_index].flags &
-		    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE &&
-		    !esw_attr->dest_int_port)
-			vf_tun = true;
-		out_priv = netdev_priv(encap_dev);
-		rpriv = out_priv->ppriv;
-		esw_attr->dests[out_index].rep = rpriv->rep;
-		esw_attr->dests[out_index].mdev = out_priv->mdev;
-	}
-
-	if (vf_tun && esw_attr->out_count > 1) {
-		NL_SET_ERR_MSG_MOD(extack, "VF tunnel encap with mirroring is not supported");
-		err = -EOPNOTSUPP;
+	err = set_encap_dests(priv, flow, attr, extack, &encap_valid, &vf_tun);
+	if (err)
 		goto err_out;
-	}
 
 	err = mlx5_eswitch_add_vlan_action(esw, attr);
 	if (err)
 		goto err_out;
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
-	    !(attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR)) {
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
 		if (vf_tun) {
-			err = mlx5e_tc_add_flow_mod_hdr(priv, parse_attr, flow);
+			err = mlx5e_tc_add_flow_mod_hdr(priv, flow, attr);
 			if (err)
 				goto err_out;
 		} else {
@@ -1525,13 +1617,9 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		counter = mlx5_fc_create(esw_attr->counter_dev, true);
-		if (IS_ERR(counter)) {
-			err = PTR_ERR(counter);
+		err = alloc_flow_attr_counter(esw_attr->counter_dev, attr);
+		if (err)
 			goto err_out;
-		}
-
-		attr->counter = counter;
 	}
 
 	/* we get here if one of the following takes place:
@@ -1575,8 +1663,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_esw_flow_attr *esw_attr;
-	bool vf_tun = false;
-	int out_index;
+	bool vf_tun;
 
 	esw_attr = attr->esw_attr;
 	mlx5e_put_flow_tunnel_id(flow);
@@ -1600,16 +1687,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	if (flow->decap_route)
 		mlx5e_detach_decap_route(priv, flow);
 
-	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
-		if (esw_attr->dests[out_index].flags &
-		    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE &&
-		    !esw_attr->dest_int_port)
-			vf_tun = true;
-		if (esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
-			mlx5e_detach_encap(priv, flow, out_index);
-			kfree(attr->parse_attr->tun_info[out_index]);
-		}
-	}
+	clean_encap_dests(priv, flow, attr, &vf_tun);
 
 	mlx5_tc_ct_match_del(get_ct_priv(priv), &flow->attr->ct_attr);
 
@@ -1633,7 +1711,6 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	if (flow_flag_test(flow, L3_TO_L2_DECAP))
 		mlx5e_detach_decap(priv, flow);
 
-	kfree(attr->sample_attr);
 	kvfree(attr->esw_attr->rx_tun_attr);
 	kvfree(attr->parse_attr);
 	kfree(flow->attr);
@@ -1853,7 +1930,7 @@ static int mlx5e_get_flow_tunnel_id(struct mlx5e_priv *priv,
 		attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	}
 
-	flow->tunnel_id = value;
+	flow->attr->tunnel_id = value;
 	return 0;
 
 err_set:
@@ -1867,8 +1944,8 @@ err_enc_opts:
 
 static void mlx5e_put_flow_tunnel_id(struct mlx5e_tc_flow *flow)
 {
-	u32 enc_opts_id = flow->tunnel_id & ENC_OPTS_BITS_MASK;
-	u32 tun_id = flow->tunnel_id >> ENC_OPTS_BITS;
+	u32 enc_opts_id = flow->attr->tunnel_id & ENC_OPTS_BITS_MASK;
+	u32 tun_id = flow->attr->tunnel_id >> ENC_OPTS_BITS;
 	struct mlx5_rep_uplink_priv *uplink_priv;
 	struct mlx5e_rep_priv *uplink_rpriv;
 	struct mlx5_eswitch *esw;
@@ -1882,11 +1959,6 @@ static void mlx5e_put_flow_tunnel_id(struct mlx5e_tc_flow *flow)
 	if (enc_opts_id)
 		mapping_remove(uplink_priv->tunnel_enc_opts_mapping,
 			       enc_opts_id);
-}
-
-u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow)
-{
-	return flow->tunnel_id;
 }
 
 void mlx5e_tc_set_ethertype(struct mlx5_core_dev *mdev,
@@ -2810,14 +2882,15 @@ static unsigned long mask_to_le(unsigned long mask, int size)
 
 	return mask;
 }
+
 static int offload_pedit_fields(struct mlx5e_priv *priv,
 				int namespace,
-				struct pedit_headers_action *hdrs,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
 				u32 *action_flags,
 				struct netlink_ext_ack *extack)
 {
 	struct pedit_headers *set_masks, *add_masks, *set_vals, *add_vals;
+	struct pedit_headers_action *hdrs = parse_attr->hdrs;
 	void *headers_c, *headers_v, *action, *vals_p;
 	u32 *s_masks_p, *a_masks_p, s_mask, a_mask;
 	struct mlx5e_tc_mod_hdr_acts *mod_acts;
@@ -2943,33 +3016,41 @@ static int offload_pedit_fields(struct mlx5e_priv *priv,
 
 static const struct pedit_headers zero_masks = {};
 
-static int alloc_tc_pedit_action(struct mlx5e_priv *priv, int namespace,
-				 struct mlx5e_tc_flow_parse_attr *parse_attr,
-				 struct pedit_headers_action *hdrs,
-				 u32 *action_flags,
-				 struct netlink_ext_ack *extack)
+static int verify_offload_pedit_fields(struct mlx5e_priv *priv,
+				       struct mlx5e_tc_flow_parse_attr *parse_attr,
+				       struct netlink_ext_ack *extack)
 {
 	struct pedit_headers *cmd_masks;
-	int err;
 	u8 cmd;
 
-	err = offload_pedit_fields(priv, namespace, hdrs, parse_attr,
-				   action_flags, extack);
-	if (err < 0)
-		goto out_dealloc_parsed_actions;
-
 	for (cmd = 0; cmd < __PEDIT_CMD_MAX; cmd++) {
-		cmd_masks = &hdrs[cmd].masks;
+		cmd_masks = &parse_attr->hdrs[cmd].masks;
 		if (memcmp(cmd_masks, &zero_masks, sizeof(zero_masks))) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "attempt to offload an unsupported field");
+			NL_SET_ERR_MSG_MOD(extack, "attempt to offload an unsupported field");
 			netdev_warn(priv->netdev, "attempt to offload an unsupported field (cmd %d)\n", cmd);
 			print_hex_dump(KERN_WARNING, "mask: ", DUMP_PREFIX_ADDRESS,
 				       16, 1, cmd_masks, sizeof(zero_masks), true);
-			err = -EOPNOTSUPP;
-			goto out_dealloc_parsed_actions;
+			return -EOPNOTSUPP;
 		}
 	}
+
+	return 0;
+}
+
+static int alloc_tc_pedit_action(struct mlx5e_priv *priv, int namespace,
+				 struct mlx5e_tc_flow_parse_attr *parse_attr,
+				 u32 *action_flags,
+				 struct netlink_ext_ack *extack)
+{
+	int err;
+
+	err = offload_pedit_fields(priv, namespace, parse_attr, action_flags, extack);
+	if (err)
+		goto out_dealloc_parsed_actions;
+
+	err = verify_offload_pedit_fields(priv, parse_attr, extack);
+	if (err)
+		goto out_dealloc_parsed_actions;
 
 	return 0;
 
@@ -3244,7 +3325,7 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 			return -EOPNOTSUPP;
 		}
 
-		if (!tc_act->can_offload(parse_state, act, i))
+		if (!tc_act->can_offload(parse_state, act, i, attr))
 			return -EOPNOTSUPP;
 
 		err = tc_act->parse_action(parse_state, act, priv, attr);
@@ -3255,7 +3336,7 @@ parse_tc_actions(struct mlx5e_tc_act_parse_state *parse_state,
 	flow_action_for_each(i, act, flow_action) {
 		tc_act = mlx5e_tc_act_get(act->id, ns_type);
 		if (!tc_act || !tc_act->post_parse ||
-		    !tc_act->can_offload(parse_state, act, i))
+		    !tc_act->can_offload(parse_state, act, i, attr))
 			continue;
 
 		err = tc_act->post_parse(parse_state, priv, attr);
@@ -3270,10 +3351,10 @@ static int
 actions_prepare_mod_hdr_actions(struct mlx5e_priv *priv,
 				struct mlx5e_tc_flow *flow,
 				struct mlx5_flow_attr *attr,
-				struct pedit_headers_action *hdrs,
 				struct netlink_ext_ack *extack)
 {
 	struct mlx5e_tc_flow_parse_attr *parse_attr = attr->parse_attr;
+	struct pedit_headers_action *hdrs = parse_attr->hdrs;
 	enum mlx5_flow_namespace_type ns_type;
 	int err;
 
@@ -3283,8 +3364,7 @@ actions_prepare_mod_hdr_actions(struct mlx5e_priv *priv,
 
 	ns_type = mlx5e_get_flow_namespace(flow);
 
-	err = alloc_tc_pedit_action(priv, ns_type, parse_attr, hdrs,
-				    &attr->action, extack);
+	err = alloc_tc_pedit_action(priv, ns_type, parse_attr, &attr->action, extack);
 	if (err)
 		return err;
 
@@ -3332,7 +3412,6 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 	struct mlx5e_tc_act_parse_state *parse_state;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
-	struct pedit_headers_action *hdrs;
 	int err;
 
 	err = flow_action_supported(flow_action, extack);
@@ -3344,13 +3423,12 @@ parse_tc_nic_actions(struct mlx5e_priv *priv,
 	parse_state = &parse_attr->parse_state;
 	mlx5e_tc_act_init_parse_state(parse_state, flow, flow_action, extack);
 	parse_state->ct_priv = get_ct_priv(priv);
-	hdrs = parse_state->hdrs;
 
 	err = parse_tc_actions(parse_state, flow_action);
 	if (err)
 		return err;
 
-	err = actions_prepare_mod_hdr_actions(priv, flow, attr, hdrs, extack);
+	err = actions_prepare_mod_hdr_actions(priv, flow, attr, extack);
 	if (err)
 		return err;
 
@@ -3455,7 +3533,6 @@ parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_esw_flow_attr *esw_attr;
-	struct pedit_headers_action *hdrs;
 	int err;
 
 	err = flow_action_supported(flow_action, extack);
@@ -3467,7 +3544,6 @@ parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	parse_state = &parse_attr->parse_state;
 	mlx5e_tc_act_init_parse_state(parse_state, flow, flow_action, extack);
 	parse_state->ct_priv = get_ct_priv(priv);
-	hdrs = parse_state->hdrs;
 
 	err = parse_tc_actions(parse_state, flow_action);
 	if (err)
@@ -3481,7 +3557,7 @@ parse_tc_fdb_actions(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	err = actions_prepare_mod_hdr_actions(priv, flow, attr, hdrs, extack);
+	err = actions_prepare_mod_hdr_actions(priv, flow, attr, extack);
 	if (err)
 		return err;
 
