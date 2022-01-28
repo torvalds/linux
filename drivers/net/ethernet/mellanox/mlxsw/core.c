@@ -212,6 +212,29 @@ struct mlxsw_event_listener_item {
 	void *priv;
 };
 
+static const u8 mlxsw_core_trap_groups[] = {
+	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
+	MLXSW_REG_HTGT_TRAP_GROUP_CORE_EVENT,
+};
+
+static int mlxsw_core_trap_groups_set(struct mlxsw_core *mlxsw_core)
+{
+	char htgt_pl[MLXSW_REG_HTGT_LEN];
+	int err;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mlxsw_core_trap_groups); i++) {
+		mlxsw_reg_htgt_pack(htgt_pl, mlxsw_core_trap_groups[i],
+				    MLXSW_REG_HTGT_INVALID_POLICER,
+				    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
+				    MLXSW_REG_HTGT_DEFAULT_TC);
+		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 /******************
  * EMAD processing
  ******************/
@@ -777,16 +800,10 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 	if (err)
 		goto err_trap_register;
 
-	err = mlxsw_core->driver->basic_trap_groups_set(mlxsw_core);
-	if (err)
-		goto err_emad_trap_set;
 	mlxsw_core->emad.use_emad = true;
 
 	return 0;
 
-err_emad_trap_set:
-	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_emad_rx_listener,
-				   mlxsw_core);
 err_trap_register:
 	destroy_workqueue(mlxsw_core->emad_wq);
 	return err;
@@ -1706,7 +1723,7 @@ static void mlxsw_core_health_listener_func(const struct mlxsw_reg_info *reg,
 }
 
 static const struct mlxsw_listener mlxsw_core_health_listener =
-	MLXSW_EVENTL(mlxsw_core_health_listener_func, MFDE, MFDE);
+	MLXSW_CORE_EVENTL(mlxsw_core_health_listener_func, MFDE);
 
 static int
 mlxsw_core_health_fw_fatal_dump_fatal_cause(const char *mfde_pl,
@@ -2122,6 +2139,10 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 		}
 	}
 
+	err = mlxsw_core_trap_groups_set(mlxsw_core);
+	if (err)
+		goto err_trap_groups_set;
+
 	err = mlxsw_emad_init(mlxsw_core);
 	if (err)
 		goto err_emad_init;
@@ -2181,6 +2202,7 @@ err_fw_rev_validate:
 err_register_params:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
+err_trap_groups_set:
 	kfree(mlxsw_core->lag.mapping);
 err_alloc_lag_mapping:
 	mlxsw_ports_fini(mlxsw_core, reload);
@@ -2539,6 +2561,45 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 	mlxsw_core_listener_unregister(mlxsw_core, listener, priv);
 }
 EXPORT_SYMBOL(mlxsw_core_trap_unregister);
+
+int mlxsw_core_traps_register(struct mlxsw_core *mlxsw_core,
+			      const struct mlxsw_listener *listeners,
+			      size_t listeners_count, void *priv)
+{
+	int i, err;
+
+	for (i = 0; i < listeners_count; i++) {
+		err = mlxsw_core_trap_register(mlxsw_core,
+					       &listeners[i],
+					       priv);
+		if (err)
+			goto err_listener_register;
+	}
+	return 0;
+
+err_listener_register:
+	for (i--; i >= 0; i--) {
+		mlxsw_core_trap_unregister(mlxsw_core,
+					   &listeners[i],
+					   priv);
+	}
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_core_traps_register);
+
+void mlxsw_core_traps_unregister(struct mlxsw_core *mlxsw_core,
+				 const struct mlxsw_listener *listeners,
+				 size_t listeners_count, void *priv)
+{
+	int i;
+
+	for (i = 0; i < listeners_count; i++) {
+		mlxsw_core_trap_unregister(mlxsw_core,
+					   &listeners[i],
+					   priv);
+	}
+}
+EXPORT_SYMBOL(mlxsw_core_traps_unregister);
 
 int mlxsw_core_trap_state_set(struct mlxsw_core *mlxsw_core,
 			      const struct mlxsw_listener *listener,

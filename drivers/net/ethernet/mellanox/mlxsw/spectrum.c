@@ -2148,13 +2148,11 @@ static void mlxsw_sp_pude_event_func(const struct mlxsw_reg_info *reg,
 	struct mlxsw_sp *mlxsw_sp = priv;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	enum mlxsw_reg_pude_oper_status status;
-	unsigned int max_ports;
 	u16 local_port;
 
-	max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 	local_port = mlxsw_reg_pude_local_port_get(pude_pl);
 
-	if (WARN_ON_ONCE(!local_port || local_port >= max_ports))
+	if (WARN_ON_ONCE(!mlxsw_sp_local_port_is_valid(mlxsw_sp, local_port)))
 		return;
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	if (!mlxsw_sp_port)
@@ -2393,45 +2391,6 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return 0;
 }
 
-static int mlxsw_sp_traps_register(struct mlxsw_sp *mlxsw_sp,
-				   const struct mlxsw_listener listeners[],
-				   size_t listeners_count)
-{
-	int i;
-	int err;
-
-	for (i = 0; i < listeners_count; i++) {
-		err = mlxsw_core_trap_register(mlxsw_sp->core,
-					       &listeners[i],
-					       mlxsw_sp);
-		if (err)
-			goto err_listener_register;
-
-	}
-	return 0;
-
-err_listener_register:
-	for (i--; i >= 0; i--) {
-		mlxsw_core_trap_unregister(mlxsw_sp->core,
-					   &listeners[i],
-					   mlxsw_sp);
-	}
-	return err;
-}
-
-static void mlxsw_sp_traps_unregister(struct mlxsw_sp *mlxsw_sp,
-				      const struct mlxsw_listener listeners[],
-				      size_t listeners_count)
-{
-	int i;
-
-	for (i = 0; i < listeners_count; i++) {
-		mlxsw_core_trap_unregister(mlxsw_sp->core,
-					   &listeners[i],
-					   mlxsw_sp);
-	}
-}
-
 static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_trap *trap;
@@ -2456,21 +2415,23 @@ static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_trap_groups_set;
 
-	err = mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp_listener,
-				      ARRAY_SIZE(mlxsw_sp_listener));
+	err = mlxsw_core_traps_register(mlxsw_sp->core, mlxsw_sp_listener,
+					ARRAY_SIZE(mlxsw_sp_listener),
+					mlxsw_sp);
 	if (err)
 		goto err_traps_register;
 
-	err = mlxsw_sp_traps_register(mlxsw_sp, mlxsw_sp->listeners,
-				      mlxsw_sp->listeners_count);
+	err = mlxsw_core_traps_register(mlxsw_sp->core, mlxsw_sp->listeners,
+					mlxsw_sp->listeners_count, mlxsw_sp);
 	if (err)
 		goto err_extra_traps_init;
 
 	return 0;
 
 err_extra_traps_init:
-	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
-				  ARRAY_SIZE(mlxsw_sp_listener));
+	mlxsw_core_traps_unregister(mlxsw_sp->core, mlxsw_sp_listener,
+				    ARRAY_SIZE(mlxsw_sp_listener),
+				    mlxsw_sp);
 err_traps_register:
 err_trap_groups_set:
 err_cpu_policers_set:
@@ -2480,10 +2441,11 @@ err_cpu_policers_set:
 
 static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp->listeners,
-				  mlxsw_sp->listeners_count);
-	mlxsw_sp_traps_unregister(mlxsw_sp, mlxsw_sp_listener,
-				  ARRAY_SIZE(mlxsw_sp_listener));
+	mlxsw_core_traps_unregister(mlxsw_sp->core, mlxsw_sp->listeners,
+				    mlxsw_sp->listeners_count,
+				    mlxsw_sp);
+	mlxsw_core_traps_unregister(mlxsw_sp->core, mlxsw_sp_listener,
+				    ARRAY_SIZE(mlxsw_sp_listener), mlxsw_sp);
 	kfree(mlxsw_sp->trap);
 }
 
@@ -2526,42 +2488,6 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 static void mlxsw_sp_lag_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	kfree(mlxsw_sp->lags);
-}
-
-static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
-{
-	char htgt_pl[MLXSW_REG_HTGT_LEN];
-	int err;
-
-	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
-			    MLXSW_REG_HTGT_INVALID_POLICER,
-			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
-			    MLXSW_REG_HTGT_DEFAULT_TC);
-	err =  mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
-	if (err)
-		return err;
-
-	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_MFDE,
-			    MLXSW_REG_HTGT_INVALID_POLICER,
-			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
-			    MLXSW_REG_HTGT_DEFAULT_TC);
-	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
-	if (err)
-		return err;
-
-	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_MTWE,
-			    MLXSW_REG_HTGT_INVALID_POLICER,
-			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
-			    MLXSW_REG_HTGT_DEFAULT_TC);
-	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
-	if (err)
-		return err;
-
-	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_PMPE,
-			    MLXSW_REG_HTGT_INVALID_POLICER,
-			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
-			    MLXSW_REG_HTGT_DEFAULT_TC);
-	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
 static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
@@ -3677,7 +3603,6 @@ static struct mlxsw_driver mlxsw_sp1_driver = {
 	.fw_filename			= MLXSW_SP1_FW_FILENAME,
 	.init				= mlxsw_sp1_init,
 	.fini				= mlxsw_sp_fini,
-	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
 	.port_unsplit			= mlxsw_sp_port_unsplit,
 	.sb_pool_get			= mlxsw_sp_sb_pool_get,
@@ -3717,7 +3642,6 @@ static struct mlxsw_driver mlxsw_sp2_driver = {
 	.fw_filename			= MLXSW_SP2_FW_FILENAME,
 	.init				= mlxsw_sp2_init,
 	.fini				= mlxsw_sp_fini,
-	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
 	.port_unsplit			= mlxsw_sp_port_unsplit,
 	.sb_pool_get			= mlxsw_sp_sb_pool_get,
@@ -3758,7 +3682,6 @@ static struct mlxsw_driver mlxsw_sp3_driver = {
 	.fw_filename			= MLXSW_SP3_FW_FILENAME,
 	.init				= mlxsw_sp3_init,
 	.fini				= mlxsw_sp_fini,
-	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
 	.port_unsplit			= mlxsw_sp_port_unsplit,
 	.sb_pool_get			= mlxsw_sp_sb_pool_get,
@@ -3797,7 +3720,6 @@ static struct mlxsw_driver mlxsw_sp4_driver = {
 	.priv_size			= sizeof(struct mlxsw_sp),
 	.init				= mlxsw_sp4_init,
 	.fini				= mlxsw_sp_fini,
-	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
 	.port_unsplit			= mlxsw_sp_port_unsplit,
 	.sb_pool_get			= mlxsw_sp_sb_pool_get,

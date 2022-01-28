@@ -163,6 +163,9 @@ struct mlxsw_listener {
 		.enabled_on_register = true,					\
 	}
 
+#define MLXSW_CORE_EVENTL(_func, _trap_id)		\
+	MLXSW_EVENTL(_func, _trap_id, CORE_EVENT)
+
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
 				    void *priv, bool enabled);
@@ -181,6 +184,12 @@ int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 				const struct mlxsw_listener *listener,
 				void *priv);
+int mlxsw_core_traps_register(struct mlxsw_core *mlxsw_core,
+			      const struct mlxsw_listener *listeners,
+			      size_t listeners_count, void *priv);
+void mlxsw_core_traps_unregister(struct mlxsw_core *mlxsw_core,
+				 const struct mlxsw_listener *listeners,
+				 size_t listeners_count, void *priv);
 int mlxsw_core_trap_state_set(struct mlxsw_core *mlxsw_core,
 			      const struct mlxsw_listener *listener,
 			      bool enabled);
@@ -315,7 +324,6 @@ struct mlxsw_driver {
 		    const struct mlxsw_bus_info *mlxsw_bus_info,
 		    struct netlink_ext_ack *extack);
 	void (*fini)(struct mlxsw_core *mlxsw_core);
-	int (*basic_trap_groups_set)(struct mlxsw_core *mlxsw_core);
 	int (*port_type_set)(struct mlxsw_core *mlxsw_core, u16 local_port,
 			     enum devlink_port_type new_type);
 	int (*port_split)(struct mlxsw_core *mlxsw_core, u16 local_port,
