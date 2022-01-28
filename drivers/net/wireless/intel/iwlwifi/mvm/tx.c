@@ -350,7 +350,7 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 	is_cck = (rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE);
 
 	/* Set CCK or OFDM flag */
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 8) {
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, TX_CMD, 0) > 8) {
 		if (!is_cck)
 			rate_flags |= RATE_MCS_LEGACY_OFDM_MSK;
 		else

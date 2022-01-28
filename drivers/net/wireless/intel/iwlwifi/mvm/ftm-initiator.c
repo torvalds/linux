@@ -346,8 +346,8 @@ iwl_mvm_ftm_target_chandef_v2(struct iwl_mvm *mvm,
 		*format_bw |= IWL_LOCATION_BW_80MHZ << LOCATION_BW_POS;
 		break;
 	case NL80211_CHAN_WIDTH_160:
-		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-						TOF_RANGE_REQ_CMD,
+		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 						IWL_FW_CMD_VER_UNKNOWN);
 
 		if (cmd_ver >= 13) {
@@ -877,8 +877,8 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EBUSY;
 
 	if (new_api) {
-		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-						   TOF_RANGE_REQ_CMD,
+		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						   WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {

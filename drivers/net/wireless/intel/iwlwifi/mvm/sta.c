@@ -1517,8 +1517,7 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.sta_id = sta->sta_id;
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP, ADD_STA,
-				  0) >= 12 &&
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) >= 12 &&
 	    sta->type == IWL_STA_AUX_ACTIVITY)
 		cmd.mac_id_n_color = cpu_to_le32(mac_id);
 	else
@@ -3239,8 +3238,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	int i, size;
 	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
 				  IWL_UCODE_TLV_API_TKIP_MIC_KEYS);
-	int api_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					    ADD_STA_KEY,
+	int api_ver = iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA_KEY,
 					    new_api ? 2 : 1);
 
 	if (sta_id == IWL_MVM_INVALID_STA)

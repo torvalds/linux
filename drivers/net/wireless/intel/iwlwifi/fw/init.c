@@ -87,8 +87,7 @@ int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt)
 		cmd.flags |= le32_encode_bits(fwrt->trans->trans_cfg->ltr_delay,
 					      SOC_FLAGS_LTR_APPLY_DELAY_MASK);
 
-	if (iwl_fw_lookup_cmd_ver(fwrt->fw, IWL_ALWAYS_LONG_GROUP,
-				  SCAN_REQ_UMAC,
+	if (iwl_fw_lookup_cmd_ver(fwrt->fw, SCAN_REQ_UMAC,
 				  IWL_FW_CMD_VER_UNKNOWN) >= 2 &&
 	    fwrt->trans->trans_cfg->low_latency_xtal)
 		cmd.flags |= cpu_to_le32(SOC_CONFIG_CMD_FLAGS_LOW_LATENCY);
