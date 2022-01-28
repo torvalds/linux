@@ -1414,6 +1414,15 @@ static void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 	};
 
+	/*
+	 * In the new flow since FW is in charge of the timing,
+	 * if driver has canceled the channel switch he will receive the
+	 * CHANNEL_SWITCH_START_NOTIF notification from FW and then cancel it
+	 */
+	if (iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+				    CHANNEL_SWITCH_ERROR_NOTIF, 0))
+		return;
+
 	IWL_DEBUG_MAC80211(mvm, "Abort CSA on mac %d\n", mvmvif->id);
 
 	mutex_lock(&mvm->mutex);
@@ -4847,6 +4856,15 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_STATION:
 		/*
+		 * In the new flow FW is in charge of timing the switch so there
+		 * is no need for all of this
+		 */
+		if (iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+					    CHANNEL_SWITCH_ERROR_NOTIF,
+					    0))
+			break;
+
+		/*
 		 * We haven't configured the firmware to be associated yet since
 		 * we don't know the dtim period. In this case, the firmware can't
 		 * track the beacons.
@@ -4916,6 +4934,14 @@ static void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 		.cs_count = chsw->count,
 		.cs_mode = chsw->block_tx,
 	};
+
+	/*
+	 * In the new flow FW is in charge of timing the switch so there is no
+	 * need for all of this
+	 */
+	if (iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+				    CHANNEL_SWITCH_ERROR_NOTIF, 0))
+		return;
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_CS_MODIFY))
 		return;
