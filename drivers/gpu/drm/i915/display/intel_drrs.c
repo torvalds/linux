@@ -115,9 +115,8 @@ static void
 intel_drrs_set_refresh_rate_m_n(const struct intel_crtc_state *crtc_state,
 				enum drrs_refresh_rate_type refresh_type)
 {
-	intel_cpu_transcoder_set_m_n(crtc_state, refresh_type == DRRS_LOW_RR ?
-				     &crtc_state->dp_m2_n2 : &crtc_state->dp_m_n,
-				     NULL);
+	intel_cpu_transcoder_set_m1_n1(crtc_state, refresh_type == DRRS_LOW_RR ?
+				       &crtc_state->dp_m2_n2 : &crtc_state->dp_m_n);
 }
 
 static void intel_drrs_set_state(struct drm_i915_private *dev_priv,

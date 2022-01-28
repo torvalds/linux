@@ -523,9 +523,8 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 
 	intel_ddi_set_dp_msa(pipe_config, conn_state);
 
-	intel_cpu_transcoder_set_m_n(pipe_config,
-				     &pipe_config->dp_m_n,
-				     &pipe_config->dp_m2_n2);
+	intel_cpu_transcoder_set_m1_n1(pipe_config,
+				       &pipe_config->dp_m_n);
 }
 
 static void intel_mst_enable_dp(struct intel_atomic_state *state,
