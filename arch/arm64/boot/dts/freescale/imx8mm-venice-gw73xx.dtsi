@@ -108,6 +108,22 @@
 	status = "okay";
 };
 
+&gpio1 {
+	gpio-line-names = "rs485_term", "mipi_gpio4", "", "",
+		"", "", "pci_usb_sel", "dio0",
+		"", "dio1", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names = "rs485_en", "mipi_gpio3", "rs485_hd", "mipi_gpio2",
+		"mipi_gpio1", "", "", "pci_wdis#",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
 &i2c2 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
