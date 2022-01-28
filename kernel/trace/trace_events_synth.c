@@ -42,10 +42,13 @@ enum { ERRORS };
 
 static const char *err_text[] = { ERRORS };
 
-static char last_cmd[MAX_FILTER_STR_VAL];
+static char *last_cmd;
 
 static int errpos(const char *str)
 {
+	if (!str || !last_cmd)
+		return 0;
+
 	return err_pos(last_cmd, str);
 }
 
@@ -54,11 +57,19 @@ static void last_cmd_set(const char *str)
 	if (!str)
 		return;
 
-	strncpy(last_cmd, str, MAX_FILTER_STR_VAL - 1);
+	kfree(last_cmd);
+	last_cmd = kzalloc(strlen(str) + 1, GFP_KERNEL);
+	if (!last_cmd)
+		return;
+
+	strncpy(last_cmd, str, strlen(str) + 1);
 }
 
-static void synth_err(u8 err_type, u8 err_pos)
+static void synth_err(u8 err_type, u16 err_pos)
 {
+	if (!last_cmd)
+		return;
+
 	tracing_log_err(NULL, "synthetic_events", last_cmd, err_text,
 			err_type, err_pos);
 }
