@@ -420,6 +420,30 @@ struct iwl_tas_config_cmd_v3 {
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
 
 /**
+ * struct iwl_tas_config_cmd_v3 - configures the TAS
+ * @block_list_size: size of relevant field in block_list_array
+ * @block_list_array: list of countries where TAS must be disabled
+ * @override_tas_iec: indicates whether to override default value of IEC regulatory
+ * @enable_tas_iec: in case override_tas_iec is set -
+ *	indicates whether IEC regulatory is enabled or disabled
+ * @usa_tas_uhb_allowed: if set, allow TAS UHB in the USA
+ * @reserved: reserved
+*/
+struct iwl_tas_config_cmd_v4 {
+	__le32 block_list_size;
+	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	u8 override_tas_iec;
+	u8 enable_tas_iec;
+	u8 usa_tas_uhb_allowed;
+	u8 reserved;
+} __packed; /* TAS_CONFIG_CMD_API_S_VER_4 */
+
+union iwl_tas_config_cmd {
+	struct iwl_tas_config_cmd_v2 v2;
+	struct iwl_tas_config_cmd_v3 v3;
+	struct iwl_tas_config_cmd_v4 v4;
+};
+/**
  * enum iwl_lari_configs - bit masks for the various LARI config operations
  * @LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK: disable 11ac in ukraine
  * @LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK: ETSI 5.8GHz SRD passive scan

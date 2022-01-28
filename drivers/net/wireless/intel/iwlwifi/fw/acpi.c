@@ -242,7 +242,7 @@ found:
 IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg_range);
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     struct iwl_tas_config_cmd_v3 *cmd)
+		     union iwl_tas_config_cmd *cmd, int fw_ver)
 {
 	union acpi_object *wifi_pkg, *data;
 	int ret, tbl_rev, i, block_list_size, enabled;
@@ -268,10 +268,18 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 			(tas_selection & ACPI_WTAS_OVERRIDE_IEC_MSK) >> ACPI_WTAS_OVERRIDE_IEC_POS;
 		u16 enabled_iec = (tas_selection & ACPI_WTAS_ENABLE_IEC_MSK) >>
 			ACPI_WTAS_ENABLE_IEC_POS;
+		u8 usa_tas_uhb = (tas_selection & ACPI_WTAS_USA_UHB_MSK) >> ACPI_WTAS_USA_UHB_POS;
+
 
 		enabled = tas_selection & ACPI_WTAS_ENABLED_MSK;
-		cmd->override_tas_iec = cpu_to_le16(override_iec);
-		cmd->enable_tas_iec = cpu_to_le16(enabled_iec);
+		if (fw_ver <= 3) {
+			cmd->v3.override_tas_iec = cpu_to_le16(override_iec);
+			cmd->v3.enable_tas_iec = cpu_to_le16(enabled_iec);
+		} else {
+			cmd->v4.usa_tas_uhb_allowed = usa_tas_uhb;
+			cmd->v4.override_tas_iec = (u8)override_iec;
+			cmd->v4.enable_tas_iec = (u8)enabled_iec;
+		}
 
 	} else if (tbl_rev == 0 &&
 		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
@@ -297,7 +305,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 	block_list_size = wifi_pkg->package.elements[2].integer.value;
-	cmd->block_list_size = cpu_to_le32(block_list_size);
+	cmd->v4.block_list_size = cpu_to_le32(block_list_size);
 
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
 	if (block_list_size > APCI_WTAS_BLACK_LIST_MAX) {
@@ -319,7 +327,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[3 + i].integer.value;
-		cmd->block_list_array[i] = cpu_to_le32(country);
+		cmd->v4.block_list_array[i] = cpu_to_le32(country);
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 
