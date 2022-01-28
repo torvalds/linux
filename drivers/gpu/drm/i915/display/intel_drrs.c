@@ -445,6 +445,7 @@ intel_dp_drrs_init(struct intel_connector *connector,
 		   struct drm_display_mode *fixed_mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_encoder *encoder = connector->encoder;
 	struct drm_display_mode *downclock_mode = NULL;
 
 	INIT_DELAYED_WORK(&dev_priv->drrs.work, intel_edp_drrs_downclock_work);
@@ -453,6 +454,13 @@ intel_dp_drrs_init(struct intel_connector *connector,
 	if (DISPLAY_VER(dev_priv) <= 6) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "DRRS supported for Gen7 and above\n");
+		return NULL;
+	}
+
+	if ((DISPLAY_VER(dev_priv) < 8 && !HAS_GMCH(dev_priv)) &&
+	    encoder->port != PORT_A) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "DRRS only supported on eDP port A\n");
 		return NULL;
 	}
 
