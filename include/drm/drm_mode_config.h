@@ -934,6 +934,16 @@ struct drm_mode_config {
 	bool allow_fb_modifiers;
 
 	/**
+	 * @fb_modifiers_not_supported:
+	 *
+	 * When this flag is set, the DRM device will not expose modifier
+	 * support to userspace. This is only used by legacy drivers that infer
+	 * the buffer layout through heuristics without using modifiers. New
+	 * drivers shall not set fhis flag.
+	 */
+	bool fb_modifiers_not_supported;
+
+	/**
 	 * @normalize_zpos:
 	 *
 	 * If true the drm core will call drm_atomic_normalize_zpos() as part of
