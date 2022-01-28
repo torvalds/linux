@@ -1240,6 +1240,8 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 
 	tqspi->phys = r->start;
 	qspi_irq = platform_get_irq(pdev, 0);
+	if (qspi_irq < 0)
+		return qspi_irq;
 	tqspi->irq = qspi_irq;
 
 	tqspi->clk = devm_clk_get(&pdev->dev, "qspi");
