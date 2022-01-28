@@ -2394,6 +2394,10 @@
 	status = "okay";
 };
 
+&uhci {
+	status = "okay";
+};
+
 &emmc_controller {
 	status = "okay";
 };
