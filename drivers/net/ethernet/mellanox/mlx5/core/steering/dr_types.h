@@ -151,6 +151,9 @@ struct mlx5dr_ste {
 	/* refcount: indicates the num of rules that using this ste */
 	u32 refcount;
 
+	/* this ste is part of a rule, located in ste's chain */
+	u8 ste_chain_location;
+
 	/* attached to the miss_list head at each htbl entry */
 	struct list_head miss_list_node;
 
@@ -161,9 +164,6 @@ struct mlx5dr_ste {
 
 	/* The rule this STE belongs to */
 	struct mlx5dr_rule_rx_tx *rule_rx_tx;
-
-	/* this ste is part of a rule, located in ste's chain */
-	u8 ste_chain_location;
 };
 
 struct mlx5dr_ste_htbl_ctrl {
