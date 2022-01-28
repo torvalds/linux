@@ -271,7 +271,7 @@ static int iwl_dbg_tlv_alloc_trigger(struct iwl_trans *trans,
 static int iwl_dbg_tlv_config_set(struct iwl_trans *trans,
 				  const struct iwl_ucode_tlv *tlv)
 {
-	struct iwl_fw_ini_conf_set_tlv *conf_set = (void *)tlv->data;
+	const struct iwl_fw_ini_conf_set_tlv *conf_set = (const void *)tlv->data;
 	u32 tp = le32_to_cpu(conf_set->time_point);
 	u32 type = le32_to_cpu(conf_set->set_type);
 

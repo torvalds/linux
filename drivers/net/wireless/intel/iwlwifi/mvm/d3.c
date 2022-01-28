@@ -31,7 +31,7 @@ void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 	memcpy(mvmvif->rekey_data.kck, data->kck, data->kck_len);
 	mvmvif->rekey_data.akm = data->akm & 0xFF;
 	mvmvif->rekey_data.replay_ctr =
-		cpu_to_le64(be64_to_cpup((__be64 *)data->replay_ctr));
+		cpu_to_le64(be64_to_cpup((const __be64 *)data->replay_ctr));
 	mvmvif->rekey_data.valid = true;
 
 	mutex_unlock(&mvm->mutex);
@@ -1484,7 +1484,7 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 		int pktsize = status->wake_packet_bufsize;
 		int pktlen = status->wake_packet_length;
 		const u8 *pktdata = status->wake_packet;
-		struct ieee80211_hdr *hdr = (void *)pktdata;
+		const struct ieee80211_hdr *hdr = (const void *)pktdata;
 		int truncated = pktlen - pktsize;
 
 		/* this would be a firmware bug */
