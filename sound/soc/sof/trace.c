@@ -308,9 +308,6 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	lpos_64 = lpos;
 	lpos = do_div(lpos_64, buffer_size);
 
-	if (count > buffer_size - lpos) /* min() not used to avoid sparse warnings */
-		count = buffer_size - lpos;
-
 	/* get available count based on current host offset */
 	avail = sof_wait_trace_avail(sdev, lpos, buffer_size);
 	if (sdev->dtrace_error) {
@@ -319,7 +316,8 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	}
 
 	/* make sure count is <= avail */
-	count = avail > count ? count : avail;
+	if (count > avail)
+		count = avail;
 
 	/* copy available trace data to debugfs */
 	rem = copy_to_user(buffer, ((u8 *)(dfse->buf) + lpos), count);
