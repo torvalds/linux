@@ -101,6 +101,7 @@ properties:
       - description: Tx Buffers 0-32 elements / 0-576 words
         minimum: 0
         maximum: 32
+    minItems: 1
 
   power-domains:
     description:
