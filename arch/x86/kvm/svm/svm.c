@@ -1574,7 +1574,7 @@ static void svm_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 	vmcb_mark_dirty(svm->vmcb, VMCB_DT);
 }
 
-static void svm_post_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+static void sev_post_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -4521,7 +4521,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.get_cpl = svm_get_cpl,
 	.get_cs_db_l_bits = svm_get_cs_db_l_bits,
 	.set_cr0 = svm_set_cr0,
-	.post_set_cr3 = svm_post_set_cr3,
+	.post_set_cr3 = sev_post_set_cr3,
 	.is_valid_cr4 = svm_is_valid_cr4,
 	.set_cr4 = svm_set_cr4,
 	.set_efer = svm_set_efer,
@@ -4605,12 +4605,12 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.leave_smm = svm_leave_smm,
 	.enable_smi_window = svm_enable_smi_window,
 
-	.mem_enc_ioctl = svm_mem_enc_ioctl,
-	.mem_enc_register_region = svm_register_enc_region,
-	.mem_enc_unregister_region = svm_unregister_enc_region,
+	.mem_enc_ioctl = sev_mem_enc_ioctl,
+	.mem_enc_register_region = sev_mem_enc_register_region,
+	.mem_enc_unregister_region = sev_mem_enc_unregister_region,
 
-	.vm_copy_enc_context_from = svm_vm_copy_asid_from,
-	.vm_move_enc_context_from = svm_vm_migrate_from,
+	.vm_copy_enc_context_from = sev_vm_copy_enc_context_from,
+	.vm_move_enc_context_from = sev_vm_move_enc_context_from,
 
 	.can_emulate_instruction = svm_can_emulate_instruction,
 
