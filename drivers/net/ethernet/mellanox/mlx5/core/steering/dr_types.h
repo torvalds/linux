@@ -1099,7 +1099,6 @@ struct mlx5dr_icm_chunk {
 	struct list_head chunk_list;
 	u32 num_of_entries;
 	u32 byte_size;
-	u64 icm_addr;
 
 	/* indicates the index of this chunk in the whole memory,
 	 * used for deleting the chunk from the buddy
@@ -1146,6 +1145,7 @@ int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 
 u64 mlx5dr_icm_pool_get_chunk_mr_addr(struct mlx5dr_icm_chunk *chunk);
 u32 mlx5dr_icm_pool_get_chunk_rkey(struct mlx5dr_icm_chunk *chunk);
+u64 mlx5dr_icm_pool_get_chunk_icm_addr(struct mlx5dr_icm_chunk *chunk);
 
 static inline int
 mlx5dr_icm_pool_dm_type_to_entry_size(enum mlx5dr_icm_type icm_type)

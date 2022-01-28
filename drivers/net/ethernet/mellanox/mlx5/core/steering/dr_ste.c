@@ -113,9 +113,10 @@ void mlx5dr_ste_set_hit_addr(struct mlx5dr_ste_ctx *ste_ctx,
 
 u64 mlx5dr_ste_get_icm_addr(struct mlx5dr_ste *ste)
 {
+	u64 base_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(ste->htbl->chunk);
 	u32 index = ste - ste->htbl->ste_arr;
 
-	return ste->htbl->chunk->icm_addr + DR_STE_SIZE * index;
+	return base_icm_addr + DR_STE_SIZE * index;
 }
 
 u64 mlx5dr_ste_get_mr_addr(struct mlx5dr_ste *ste)
@@ -141,7 +142,8 @@ static void dr_ste_always_hit_htbl(struct mlx5dr_ste_ctx *ste_ctx,
 
 	ste_ctx->set_byte_mask(hw_ste, next_htbl->byte_mask);
 	ste_ctx->set_next_lu_type(hw_ste, next_htbl->lu_type);
-	ste_ctx->set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
+	ste_ctx->set_hit_addr(hw_ste, mlx5dr_icm_pool_get_chunk_icm_addr(chunk),
+			      chunk->num_of_entries);
 
 	dr_ste_set_always_hit((struct dr_hw_ste_format *)ste->hw_ste);
 }
@@ -193,7 +195,7 @@ dr_ste_remove_head_ste(struct mlx5dr_ste_ctx *ste_ctx,
 	 * touches bit_mask area which doesn't exist at ste->hw_ste.
 	 */
 	memcpy(tmp_ste.hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
-	miss_addr = nic_matcher->e_anchor->chunk->icm_addr;
+	miss_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 	dr_ste_always_miss_addr(ste_ctx, &tmp_ste, miss_addr);
 	memcpy(ste->hw_ste, tmp_ste.hw_ste, DR_STE_SIZE_REDUCED);
 
@@ -364,9 +366,10 @@ void mlx5dr_ste_set_hit_addr_by_next_htbl(struct mlx5dr_ste_ctx *ste_ctx,
 					  u8 *hw_ste,
 					  struct mlx5dr_ste_htbl *next_htbl)
 {
+	u64 icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(next_htbl->chunk);
 	struct mlx5dr_icm_chunk *chunk = next_htbl->chunk;
 
-	ste_ctx->set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
+	ste_ctx->set_hit_addr(hw_ste, icm_addr, chunk->num_of_entries);
 }
 
 void mlx5dr_ste_prepare_for_postsend(struct mlx5dr_ste_ctx *ste_ctx,
@@ -444,7 +447,8 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 
 		/* Write new table to HW */
 		info.type = CONNECT_MISS;
-		info.miss_icm_addr = nic_matcher->e_anchor->chunk->icm_addr;
+		info.miss_icm_addr =
+			mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 		if (mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn, next_htbl,
 						      &info, false)) {
 			mlx5dr_info(dmn, "Failed writing table to HW\n");

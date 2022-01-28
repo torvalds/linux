@@ -41,6 +41,7 @@ dr_rule_create_collision_htbl(struct mlx5dr_matcher *matcher,
 	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	struct mlx5dr_ste_htbl *new_htbl;
 	struct mlx5dr_ste *ste;
+	u64 icm_addr;
 
 	/* Create new table for miss entry */
 	new_htbl = mlx5dr_ste_htbl_alloc(dmn->ste_icm_pool,
@@ -54,8 +55,8 @@ dr_rule_create_collision_htbl(struct mlx5dr_matcher *matcher,
 
 	/* One and only entry, never grows */
 	ste = new_htbl->ste_arr;
-	mlx5dr_ste_set_miss_addr(ste_ctx, hw_ste,
-				 nic_matcher->e_anchor->chunk->icm_addr);
+	icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
+	mlx5dr_ste_set_miss_addr(ste_ctx, hw_ste, icm_addr);
 	mlx5dr_htbl_get(new_htbl);
 
 	return ste;
@@ -235,6 +236,7 @@ dr_rule_rehash_copy_ste(struct mlx5dr_matcher *matcher,
 	bool use_update_list = false;
 	u8 hw_ste[DR_STE_SIZE] = {};
 	struct mlx5dr_ste *new_ste;
+	u64 icm_addr;
 	int new_idx;
 	u8 sb_idx;
 
@@ -243,9 +245,9 @@ dr_rule_rehash_copy_ste(struct mlx5dr_matcher *matcher,
 	mlx5dr_ste_set_bit_mask(hw_ste, nic_matcher->ste_builder[sb_idx].bit_mask);
 
 	/* Copy STE control and tag */
+	icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 	memcpy(hw_ste, cur_ste->hw_ste, DR_STE_SIZE_REDUCED);
-	mlx5dr_ste_set_miss_addr(dmn->ste_ctx, hw_ste,
-				 nic_matcher->e_anchor->chunk->icm_addr);
+	mlx5dr_ste_set_miss_addr(dmn->ste_ctx, hw_ste, icm_addr);
 
 	new_idx = mlx5dr_ste_calc_hash_index(hw_ste, new_htbl);
 	new_ste = &new_htbl->ste_arr[new_idx];
@@ -398,7 +400,7 @@ dr_rule_rehash_htbl(struct mlx5dr_rule *rule,
 
 	/* Write new table to HW */
 	info.type = CONNECT_MISS;
-	info.miss_icm_addr = nic_matcher->e_anchor->chunk->icm_addr;
+	info.miss_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 	mlx5dr_ste_set_formatted_ste(dmn->ste_ctx,
 				     dmn->info.caps.gvmi,
 				     nic_dmn->type,
@@ -447,7 +449,7 @@ dr_rule_rehash_htbl(struct mlx5dr_rule *rule,
 		 */
 		mlx5dr_ste_set_hit_addr(dmn->ste_ctx,
 					prev_htbl->ste_arr[0].hw_ste,
-					new_htbl->chunk->icm_addr,
+					mlx5dr_icm_pool_get_chunk_icm_addr(new_htbl->chunk),
 					new_htbl->chunk->num_of_entries);
 
 		ste_to_update = &prev_htbl->ste_arr[0];
@@ -755,6 +757,7 @@ static int dr_rule_handle_empty_entry(struct mlx5dr_matcher *matcher,
 {
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	struct mlx5dr_ste_send_info *ste_info;
+	u64 icm_addr;
 
 	/* Take ref on table, only on first time this ste is used */
 	mlx5dr_htbl_get(cur_htbl);
@@ -762,8 +765,8 @@ static int dr_rule_handle_empty_entry(struct mlx5dr_matcher *matcher,
 	/* new entry -> new branch */
 	list_add_tail(&ste->miss_list_node, miss_list);
 
-	mlx5dr_ste_set_miss_addr(dmn->ste_ctx, hw_ste,
-				 nic_matcher->e_anchor->chunk->icm_addr);
+	icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
+	mlx5dr_ste_set_miss_addr(dmn->ste_ctx, hw_ste, icm_addr);
 
 	ste->ste_chain_location = ste_location;
 

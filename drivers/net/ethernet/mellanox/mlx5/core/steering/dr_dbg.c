@@ -346,16 +346,19 @@ dr_dump_matcher_rx_tx(struct seq_file *file, bool is_rx,
 		      const u64 matcher_id)
 {
 	enum dr_dump_rec_type rec_type;
+	u64 s_icm_addr, e_icm_addr;
 	int i, ret;
 
 	rec_type = is_rx ? DR_DUMP_REC_TYPE_MATCHER_RX :
 			   DR_DUMP_REC_TYPE_MATCHER_TX;
 
+	s_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(matcher_rx_tx->s_htbl->chunk);
+	e_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(matcher_rx_tx->e_anchor->chunk);
 	seq_printf(file, "%d,0x%llx,0x%llx,%d,0x%llx,0x%llx\n",
 		   rec_type, DR_DBG_PTR_TO_ID(matcher_rx_tx),
 		   matcher_id, matcher_rx_tx->num_of_builders,
-		   dr_dump_icm_to_idx(matcher_rx_tx->s_htbl->chunk->icm_addr),
-		   dr_dump_icm_to_idx(matcher_rx_tx->e_anchor->chunk->icm_addr));
+		   dr_dump_icm_to_idx(s_icm_addr),
+		   dr_dump_icm_to_idx(e_icm_addr));
 
 	for (i = 0; i < matcher_rx_tx->num_of_builders; i++) {
 		ret = dr_dump_matcher_builder(file,
@@ -426,12 +429,14 @@ dr_dump_table_rx_tx(struct seq_file *file, bool is_rx,
 		    const u64 table_id)
 {
 	enum dr_dump_rec_type rec_type;
+	u64 s_icm_addr;
 
 	rec_type = is_rx ? DR_DUMP_REC_TYPE_TABLE_RX :
 			   DR_DUMP_REC_TYPE_TABLE_TX;
 
+	s_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(table_rx_tx->s_anchor->chunk);
 	seq_printf(file, "%d,0x%llx,0x%llx\n", rec_type, table_id,
-		   dr_dump_icm_to_idx(table_rx_tx->s_anchor->chunk->icm_addr));
+		   dr_dump_icm_to_idx(s_icm_addr));
 
 	return 0;
 }

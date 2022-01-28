@@ -705,7 +705,7 @@ static int dr_nic_matcher_connect(struct mlx5dr_domain *dmn,
 
 	/* Connect start hash table to end anchor */
 	info.type = CONNECT_MISS;
-	info.miss_icm_addr = curr_nic_matcher->e_anchor->chunk->icm_addr;
+	info.miss_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(curr_nic_matcher->e_anchor->chunk);
 	ret = mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn,
 						curr_nic_matcher->s_htbl,
 						&info, false);

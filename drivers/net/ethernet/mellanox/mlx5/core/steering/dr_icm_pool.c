@@ -69,6 +69,13 @@ u32 mlx5dr_icm_pool_get_chunk_rkey(struct mlx5dr_icm_chunk *chunk)
 	return chunk->buddy_mem->icm_mr->mkey;
 }
 
+u64 mlx5dr_icm_pool_get_chunk_icm_addr(struct mlx5dr_icm_chunk *chunk)
+{
+	u32 size = mlx5dr_icm_pool_dm_type_to_entry_size(chunk->buddy_mem->pool->icm_type);
+
+	return (u64)chunk->buddy_mem->icm_mr->icm_start_addr + size * chunk->seg;
+}
+
 static struct mlx5dr_icm_mr *
 dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool)
 {
@@ -310,8 +317,6 @@ dr_icm_chunk_create(struct mlx5dr_icm_pool *pool,
 
 	offset = mlx5dr_icm_pool_dm_type_to_entry_size(pool->icm_type) * seg;
 
-	chunk->icm_addr =
-		(uintptr_t)buddy_mem_pool->icm_mr->icm_start_addr + offset;
 	chunk->num_of_entries =
 		mlx5dr_icm_pool_chunk_size_to_entries(chunk_size);
 	chunk->byte_size =
