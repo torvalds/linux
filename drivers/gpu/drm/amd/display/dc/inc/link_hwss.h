@@ -26,56 +26,18 @@
 #ifndef __DC_LINK_HWSS_H__
 #define __DC_LINK_HWSS_H__
 
-struct gpio *get_hpd_gpio(struct dc_bios *dcb,
-		struct graphics_object_id link_id,
-		struct gpio_service *gpio_service);
+/* include basic type headers only */
+#include "os_types.h"
+#include "dc_dp_types.h"
+#include "signal_types.h"
+#include "grph_object_id.h"
+#include "fixed31_32.h"
 
-void dp_enable_link_phy(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	enum signal_type signal,
-	enum clock_source_id clock_source,
-	const struct dc_link_settings *link_settings);
-
-void dp_receiver_power_ctrl(struct dc_link *link, bool on);
-void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
-void edp_add_delay_for_T9(struct dc_link *link);
-bool edp_receiver_ready_T9(struct dc_link *link);
-bool edp_receiver_ready_T7(struct dc_link *link);
-
-void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_res,
-		enum signal_type signal);
-
-void dp_disable_link_phy_mst(struct dc_link *link, const struct link_resource *link_res,
-		enum signal_type signal);
-
-bool dp_set_hw_training_pattern(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	enum dc_dp_training_pattern pattern,
-	uint32_t offset);
-
-void dp_set_hw_lane_settings(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	const struct link_training_settings *link_settings,
-	uint32_t offset);
-
-void dp_set_hw_test_pattern(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	enum dp_test_pattern test_pattern,
-	uint8_t *custom_pattern,
-	uint32_t custom_pattern_size);
-
-void dp_retrain_link_dp_test(struct dc_link *link,
-		struct dc_link_settings *link_setting,
-		bool skip_video_pattern);
-
+/* forward declare dc core types */
 struct dc_link;
 struct link_resource;
-struct fixed31_32;
 struct pipe_ctx;
+struct encoder_set_dp_phy_pattern_param;
 
 struct link_hwss_ext {
 	/* function pointers below require check for NULL at all time
