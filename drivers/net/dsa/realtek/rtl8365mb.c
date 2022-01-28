@@ -1764,9 +1764,9 @@ static int rtl8365mb_cpu_config(struct realtek_priv *priv, const struct rtl8365m
 	      FIELD_PREP(RTL8365MB_CPU_CTRL_TAG_POSITION_MASK, cpu->position) |
 	      FIELD_PREP(RTL8365MB_CPU_CTRL_RXBYTECOUNT_MASK, cpu->rx_length) |
 	      FIELD_PREP(RTL8365MB_CPU_CTRL_TAG_FORMAT_MASK, cpu->format) |
-	      FIELD_PREP(RTL8365MB_CPU_CTRL_TRAP_PORT_MASK, cpu->trap_port) |
+	      FIELD_PREP(RTL8365MB_CPU_CTRL_TRAP_PORT_MASK, cpu->trap_port & 0x7) |
 	      FIELD_PREP(RTL8365MB_CPU_CTRL_TRAP_PORT_EXT_MASK,
-			 cpu->trap_port >> 3);
+			 cpu->trap_port >> 3 & 0x1);
 	ret = regmap_write(priv->map, RTL8365MB_CPU_CTRL_REG, val);
 	if (ret)
 		return ret;
