@@ -1603,11 +1603,10 @@ new_bio:
 		}
 	} while (run_get_entry(run, ++run_idx, NULL, &lcn, &clen));
 
-	if (bio) {
-		if (!err)
-			err = submit_bio_wait(bio);
-		bio_put(bio);
-	}
+	if (!err)
+		err = submit_bio_wait(bio);
+	bio_put(bio);
+
 	blk_finish_plug(&plug);
 out:
 	unlock_page(fill);
