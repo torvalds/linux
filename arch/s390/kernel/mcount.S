@@ -2,8 +2,6 @@
 /*
  * Copyright IBM Corp. 2008, 2009
  *
- *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
- *
  */
 
 #include <linux/linkage.h>

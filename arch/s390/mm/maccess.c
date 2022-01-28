@@ -4,8 +4,6 @@
  *
  * Copyright IBM Corp. 2009, 2015
  *
- *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
- *
  */
 
 #include <linux/uaccess.h>

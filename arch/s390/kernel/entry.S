@@ -6,7 +6,6 @@
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Hartmut Penner (hp@de.ibm.com),
  *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/init.h>

@@ -5,7 +5,6 @@
  *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Denis Joseph Barrow,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  *
  *  based on other smp stuff by
  *    (c) 1995 Alan Cox, CymruNET Ltd  <alan@cymru.net>

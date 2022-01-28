@@ -3,7 +3,6 @@
  * Extract CPU cache information and expose them via sysfs.
  *
  *    Copyright IBM Corp. 2012
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/seq_file.h>

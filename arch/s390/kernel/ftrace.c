@@ -4,8 +4,7 @@
  *
  * Copyright IBM Corp. 2009,2014
  *
- *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
- *		Martin Schwidefsky <schwidefsky@de.ibm.com>
+ *   Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #include <linux/moduleloader.h>
