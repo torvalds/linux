@@ -849,9 +849,6 @@ static bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
 		}
 		break;
 	default:
-		dev_err(adev->dev,
-			"indirect registers access through rlcg is not supported\n");
-		ret = false;
 		break;
 	}
 	return ret;
