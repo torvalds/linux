@@ -3137,6 +3137,13 @@ static void intel_panel_sanitize_ssc(struct drm_i915_private *dev_priv)
 	}
 }
 
+void intel_zero_m_n(struct intel_link_m_n *m_n)
+{
+	/* corresponds to 0 register value */
+	memset(m_n, 0, sizeof(*m_n));
+	m_n->tu = 1;
+}
+
 void intel_set_m_n(struct drm_i915_private *i915,
 		   const struct intel_link_m_n *m_n,
 		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
@@ -3148,8 +3155,8 @@ void intel_set_m_n(struct drm_i915_private *i915,
 	intel_de_write(i915, link_n_reg, m_n->link_n);
 }
 
-static bool transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
-				 enum transcoder transcoder)
+bool intel_cpu_transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
+				    enum transcoder transcoder)
 {
 	if (IS_HASWELL(dev_priv))
 		return transcoder == TRANSCODER_EDP;
@@ -3180,7 +3187,7 @@ void intel_cpu_transcoder_set_m2_n2(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	if (!transcoder_has_m2_n2(dev_priv, transcoder))
+	if (!intel_cpu_transcoder_has_m2_n2(dev_priv, transcoder))
 		return;
 
 	intel_set_m_n(dev_priv, m_n,
@@ -3878,7 +3885,7 @@ void intel_cpu_transcoder_get_m2_n2(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	if (!transcoder_has_m2_n2(dev_priv, transcoder))
+	if (!intel_cpu_transcoder_has_m2_n2(dev_priv, transcoder))
 		return;
 
 	intel_get_m_n(dev_priv, m_n,

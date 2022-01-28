@@ -74,10 +74,14 @@ intel_drrs_compute_config(struct intel_dp *intel_dp,
 			  int output_bpp, bool constant_n)
 {
 	struct intel_connector *connector = intel_dp->attached_connector;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int pixel_clock;
 
-	if (!can_enable_drrs(connector, pipe_config))
+	if (!can_enable_drrs(connector, pipe_config)) {
+		if (intel_cpu_transcoder_has_m2_n2(i915, pipe_config->cpu_transcoder))
+			intel_zero_m_n(&pipe_config->dp_m2_n2);
 		return;
+	}
 
 	pipe_config->has_drrs = true;
 
