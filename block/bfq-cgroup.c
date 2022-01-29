@@ -655,6 +655,12 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		return;
 
 	/*
+	 * oom_bfqq is not allowed to move, oom_bfqq will hold ref to root_group
+	 * until elevator exit.
+	 */
+	if (bfqq == &bfqd->oom_bfqq)
+		return;
+	/*
 	 * Get extra reference to prevent bfqq from being freed in
 	 * next possible expire or deactivate.
 	 */
