@@ -165,7 +165,7 @@ retry:
 		if (sync)
 			return -EOPNOTSUPP;
 		cn_resp = kzalloc(sizeof(struct nfs42_copy_notify_res),
-				GFP_NOFS);
+				  GFP_KERNEL);
 		if (unlikely(cn_resp == NULL))
 			return -ENOMEM;
 
@@ -339,7 +339,7 @@ static struct file *__nfs42_ssc_open(struct vfsmount *ss_mnt,
 
 	res = ERR_PTR(-ENOMEM);
 	len = strlen(SSC_READ_NAME_BODY) + 16;
-	read_name = kzalloc(len, GFP_NOFS);
+	read_name = kzalloc(len, GFP_KERNEL);
 	if (read_name == NULL)
 		goto out;
 	snprintf(read_name, len, SSC_READ_NAME_BODY, read_name_gen++);

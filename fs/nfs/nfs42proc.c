@@ -181,7 +181,7 @@ static int handle_async_copy(struct nfs42_copy_res *res,
 	struct nfs_open_context *dst_ctx = nfs_file_open_context(dst);
 	struct nfs_open_context *src_ctx = nfs_file_open_context(src);
 
-	copy = kzalloc(sizeof(struct nfs4_copy_state), GFP_NOFS);
+	copy = kzalloc(sizeof(struct nfs4_copy_state), GFP_KERNEL);
 	if (!copy)
 		return -ENOMEM;
 
@@ -254,7 +254,7 @@ static int process_copy_commit(struct file *dst, loff_t pos_dst,
 	struct nfs_commitres cres;
 	int status = -ENOMEM;
 
-	cres.verf = kzalloc(sizeof(struct nfs_writeverf), GFP_NOFS);
+	cres.verf = kzalloc(sizeof(struct nfs_writeverf), GFP_KERNEL);
 	if (!cres.verf)
 		goto out;
 
@@ -357,7 +357,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 	res->commit_res.verf = NULL;
 	if (args->sync) {
 		res->commit_res.verf =
-			kzalloc(sizeof(struct nfs_writeverf), GFP_NOFS);
+			kzalloc(sizeof(struct nfs_writeverf), GFP_KERNEL);
 		if (!res->commit_res.verf)
 			return -ENOMEM;
 	}
@@ -552,7 +552,7 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 	if (!(dst_server->caps & NFS_CAP_OFFLOAD_CANCEL))
 		return -EOPNOTSUPP;
 
-	data = kzalloc(sizeof(struct nfs42_offloadcancel_data), GFP_NOFS);
+	data = kzalloc(sizeof(struct nfs42_offloadcancel_data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -629,7 +629,7 @@ int nfs42_proc_copy_notify(struct file *src, struct file *dst,
 	if (!(src_server->caps & NFS_CAP_COPY_NOTIFY))
 		return -EOPNOTSUPP;
 
-	args = kzalloc(sizeof(struct nfs42_copy_notify_args), GFP_NOFS);
+	args = kzalloc(sizeof(struct nfs42_copy_notify_args), GFP_KERNEL);
 	if (args == NULL)
 		return -ENOMEM;
 
