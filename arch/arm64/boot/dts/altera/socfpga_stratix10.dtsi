@@ -333,7 +333,7 @@
 			reg = <0xffe00000 0x100000>;
 		};
 
-		pdma: pdma@ffda0000 {
+		pdma: dma-controller@ffda0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xffda0000 0x1000>;
 			interrupts = <0 81 4>,
