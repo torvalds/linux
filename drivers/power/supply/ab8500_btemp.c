@@ -135,8 +135,6 @@ static LIST_HEAD(ab8500_btemp_list);
 static int ab8500_btemp_batctrl_volt_to_res(struct ab8500_btemp *di,
 	int v_batctrl, int inst_curr)
 {
-	int rbs;
-
 	if (is_ab8500_1p1_or_earlier(di->parent)) {
 		/*
 		 * For ABB cut1.0 and 1.1 BAT_CTRL is internally
@@ -145,23 +143,11 @@ static int ab8500_btemp_batctrl_volt_to_res(struct ab8500_btemp *di,
 		return (450000 * (v_batctrl)) / (1800 - v_batctrl);
 	}
 
-	if (di->bm->adc_therm == AB8500_ADC_THERM_BATCTRL) {
-		/*
-		 * If the battery has internal NTC, we use the current
-		 * source to calculate the resistance.
-		 */
-		rbs = (v_batctrl * 1000
-		       - di->bm->gnd_lift_resistance * inst_curr)
-		      / di->curr_source;
-	} else {
-		/*
-		 * BAT_CTRL is internally
-		 * connected to 1.8V through a 80k resistor
-		 */
-		rbs = (80000 * (v_batctrl)) / (1800 - v_batctrl);
-	}
-
-	return rbs;
+	/*
+	 * BAT_CTRL is internally
+	 * connected to 1.8V through a 80k resistor
+	 */
+	return (80000 * (v_batctrl)) / (1800 - v_batctrl);
 }
 
 /**
@@ -187,155 +173,6 @@ static int ab8500_btemp_read_batctrl_voltage(struct ab8500_btemp *di)
 }
 
 /**
- * ab8500_btemp_curr_source_enable() - enable/disable batctrl current source
- * @di:		pointer to the ab8500_btemp structure
- * @enable:	enable or disable the current source
- *
- * Enable or disable the current sources for the BatCtrl AD channel
- */
-static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
-	bool enable)
-{
-	int curr;
-	int ret = 0;
-
-	/*
-	 * BATCTRL current sources are included on AB8500 cut2.0
-	 * and future versions
-	 */
-	if (is_ab8500_1p1_or_earlier(di->parent))
-		return 0;
-
-	/* Only do this for batteries with internal NTC */
-	if (di->bm->adc_therm == AB8500_ADC_THERM_BATCTRL && enable) {
-
-		if (di->curr_source == BTEMP_BATCTRL_CURR_SRC_7UA)
-			curr = BAT_CTRL_7U_ENA;
-		else
-			curr = BAT_CTRL_20U_ENA;
-
-		dev_dbg(di->dev, "Set BATCTRL %duA\n", di->curr_source);
-
-		ret = abx500_mask_and_set_register_interruptible(di->dev,
-			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-			FORCE_BAT_CTRL_CMP_HIGH, FORCE_BAT_CTRL_CMP_HIGH);
-		if (ret) {
-			dev_err(di->dev, "%s failed setting cmp_force\n",
-				__func__);
-			return ret;
-		}
-
-		/*
-		 * We have to wait one 32kHz cycle before enabling
-		 * the current source, since ForceBatCtrlCmpHigh needs
-		 * to be written in a separate cycle
-		 */
-		udelay(32);
-
-		ret = abx500_set_register_interruptible(di->dev,
-			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-			FORCE_BAT_CTRL_CMP_HIGH | curr);
-		if (ret) {
-			dev_err(di->dev, "%s failed enabling current source\n",
-				__func__);
-			goto disable_curr_source;
-		}
-	} else if (di->bm->adc_therm == AB8500_ADC_THERM_BATCTRL && !enable) {
-		dev_dbg(di->dev, "Disable BATCTRL curr source\n");
-
-		/* Write 0 to the curr bits */
-		ret = abx500_mask_and_set_register_interruptible(
-			di->dev,
-			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-			BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA,
-			~(BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA));
-
-		if (ret) {
-			dev_err(di->dev, "%s failed disabling current source\n",
-				__func__);
-			goto disable_curr_source;
-		}
-
-		/* Enable Pull-Up and comparator */
-		ret = abx500_mask_and_set_register_interruptible(di->dev,
-			AB8500_CHARGER,	AB8500_BAT_CTRL_CURRENT_SOURCE,
-			BAT_CTRL_PULL_UP_ENA | BAT_CTRL_CMP_ENA,
-			BAT_CTRL_PULL_UP_ENA | BAT_CTRL_CMP_ENA);
-		if (ret) {
-			dev_err(di->dev, "%s failed enabling PU and comp\n",
-				__func__);
-			goto enable_pu_comp;
-		}
-
-		/*
-		 * We have to wait one 32kHz cycle before disabling
-		 * ForceBatCtrlCmpHigh since this needs to be written
-		 * in a separate cycle
-		 */
-		udelay(32);
-
-		/* Disable 'force comparator' */
-		ret = abx500_mask_and_set_register_interruptible(di->dev,
-			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-			FORCE_BAT_CTRL_CMP_HIGH, ~FORCE_BAT_CTRL_CMP_HIGH);
-		if (ret) {
-			dev_err(di->dev, "%s failed disabling force comp\n",
-				__func__);
-			goto disable_force_comp;
-		}
-	}
-	return ret;
-
-	/*
-	 * We have to try unsetting FORCE_BAT_CTRL_CMP_HIGH one more time
-	 * if we got an error above
-	 */
-disable_curr_source:
-	/* Write 0 to the curr bits */
-	ret = abx500_mask_and_set_register_interruptible(di->dev,
-		AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-		BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA,
-		~(BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA));
-
-	if (ret) {
-		dev_err(di->dev, "%s failed disabling current source\n",
-			__func__);
-		return ret;
-	}
-enable_pu_comp:
-	/* Enable Pull-Up and comparator */
-	ret = abx500_mask_and_set_register_interruptible(di->dev,
-		AB8500_CHARGER,	AB8500_BAT_CTRL_CURRENT_SOURCE,
-		BAT_CTRL_PULL_UP_ENA | BAT_CTRL_CMP_ENA,
-		BAT_CTRL_PULL_UP_ENA | BAT_CTRL_CMP_ENA);
-	if (ret) {
-		dev_err(di->dev, "%s failed enabling PU and comp\n",
-			__func__);
-		return ret;
-	}
-
-disable_force_comp:
-	/*
-	 * We have to wait one 32kHz cycle before disabling
-	 * ForceBatCtrlCmpHigh since this needs to be written
-	 * in a separate cycle
-	 */
-	udelay(32);
-
-	/* Disable 'force comparator' */
-	ret = abx500_mask_and_set_register_interruptible(di->dev,
-		AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-		FORCE_BAT_CTRL_CMP_HIGH, ~FORCE_BAT_CTRL_CMP_HIGH);
-	if (ret) {
-		dev_err(di->dev, "%s failed disabling force comp\n",
-			__func__);
-		return ret;
-	}
-
-	return ret;
-}
-
-/**
  * ab8500_btemp_get_batctrl_res() - get battery resistance
  * @di:		pointer to the ab8500_btemp structure
  *
@@ -349,16 +186,6 @@ static int ab8500_btemp_get_batctrl_res(struct ab8500_btemp *di)
 	int res;
 	int inst_curr;
 	int i;
-
-	/*
-	 * BATCTRL current sources are included on AB8500 cut2.0
-	 * and future versions
-	 */
-	ret = ab8500_btemp_curr_source_enable(di, true);
-	if (ret) {
-		dev_err(di->dev, "%s curr source enabled failed\n", __func__);
-		return ret;
-	}
 
 	if (!di->fg)
 		di->fg = ab8500_fg_get();
@@ -394,12 +221,6 @@ static int ab8500_btemp_get_batctrl_res(struct ab8500_btemp *di)
 	}
 
 	res = ab8500_btemp_batctrl_volt_to_res(di, batctrl, inst_curr);
-
-	ret = ab8500_btemp_curr_source_enable(di, false);
-	if (ret) {
-		dev_err(di->dev, "%s curr source disable failed\n", __func__);
-		return ret;
-	}
 
 	dev_dbg(di->dev, "%s batctrl: %d res: %d inst_curr: %d samples: %d\n",
 		__func__, batctrl, res, inst_curr, i);
@@ -451,47 +272,28 @@ static int ab8500_btemp_res_to_temp(struct ab8500_btemp *di,
  */
 static int ab8500_btemp_measure_temp(struct ab8500_btemp *di)
 {
-	struct power_supply_battery_info *bi = di->bm->bi;
 	int temp, ret;
 	static int prev;
-	int rbat, rntc, vntc;
+	int rntc, vntc;
 
-	if ((di->bm->adc_therm == AB8500_ADC_THERM_BATCTRL) &&
-	    (bi && (bi->technology == POWER_SUPPLY_TECHNOLOGY_UNKNOWN))) {
-
-		rbat = ab8500_btemp_get_batctrl_res(di);
-		if (rbat < 0) {
-			dev_err(di->dev, "%s get batctrl res failed\n",
-				__func__);
-			/*
-			 * Return out-of-range temperature so that
-			 * charging is stopped
-			 */
-			return BTEMP_THERMAL_LOW_LIMIT;
-		}
-
-		temp = ab8500_btemp_res_to_temp(di,
-			di->bm->bat_type->r_to_t_tbl,
-			di->bm->bat_type->n_temp_tbl_elements, rbat);
-	} else {
-		ret = iio_read_channel_processed(di->btemp_ball, &vntc);
-		if (ret < 0) {
-			dev_err(di->dev,
-				"%s ADC conversion failed,"
-				" using previous value\n", __func__);
-			return prev;
-		}
-		/*
-		 * The PCB NTC is sourced from VTVOUT via a 230kOhm
-		 * resistor.
-		 */
-		rntc = 230000 * vntc / (VTVOUT_V - vntc);
-
-		temp = ab8500_btemp_res_to_temp(di,
-			di->bm->bat_type->r_to_t_tbl,
-			di->bm->bat_type->n_temp_tbl_elements, rntc);
-		prev = temp;
+	ret = iio_read_channel_processed(di->btemp_ball, &vntc);
+	if (ret < 0) {
+		dev_err(di->dev,
+			"%s ADC conversion failed,"
+			" using previous value\n", __func__);
+		return prev;
 	}
+	/*
+	 * The PCB NTC is sourced from VTVOUT via a 230kOhm
+	 * resistor.
+	 */
+	rntc = 230000 * vntc / (VTVOUT_V - vntc);
+
+	temp = ab8500_btemp_res_to_temp(di,
+		di->bm->bat_type->r_to_t_tbl,
+		di->bm->bat_type->n_temp_tbl_elements, rntc);
+	prev = temp;
+
 	dev_dbg(di->dev, "Battery temperature is %d\n", temp);
 	return temp;
 }
@@ -519,32 +321,15 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 
 	if ((res <= di->bm->bat_type->resis_high) &&
 	    (res >= di->bm->bat_type->resis_low)) {
-		dev_info(di->dev, "Battery detected on %s"
+		dev_info(di->dev, "Battery detected on BATTEMP"
 			 " low %d < res %d < high: %d"
 			 " index: %d\n",
-			 di->bm->adc_therm == AB8500_ADC_THERM_BATCTRL ?
-			 "BATCTRL" : "BATTEMP",
 			 di->bm->bat_type->resis_low, res,
 			 di->bm->bat_type->resis_high, i);
 	} else {
 		dev_warn(di->dev, "Battery identified as unknown"
 			 ", resistance %d Ohm\n", res);
 		return -ENXIO;
-	}
-
-	/*
-	 * We only have to change current source if the
-	 * detected type is Type 1 (LIPO) resis_high = 53407, resis_low = 12500
-	 * if someone hacks this in.
-	 *
-	 * FIXME: make sure this is done automatically for the batteries
-	 * that need it.
-	 */
-	if ((di->bm->adc_therm == AB8500_ADC_THERM_BATCTRL) &&
-	    (di->bm->bi && (di->bm->bi->technology == POWER_SUPPLY_TECHNOLOGY_LIPO)) &&
-	    (res <= 53407) && (res >= 12500)) {
-		dev_dbg(di->dev, "Set BATCTRL current source to 20uA\n");
-		di->curr_source = BTEMP_BATCTRL_CURR_SRC_20UA;
 	}
 
 	return 0;
