@@ -98,7 +98,7 @@ static struct rawdata_f_data *rawdata_f_data_alloc(size_t size)
 #endif
 
 /**
- * aa_mangle_name - mangle a profile name to std profile layout form
+ * mangle_name - mangle a profile name to std profile layout form
  * @name: profile name to mangle  (NOT NULL)
  * @target: buffer to store mangled name, same length as @name (MAYBE NULL)
  *
@@ -1499,7 +1499,7 @@ fail:
 
 /** fns to setup dynamic per profile/namespace files **/
 
-/**
+/*
  *
  * Requires: @profile->ns->lock held
  */
@@ -1526,7 +1526,7 @@ void __aafs_profile_rmdir(struct aa_profile *profile)
 	}
 }
 
-/**
+/*
  *
  * Requires: @old->ns->lock held
  */
@@ -1888,7 +1888,7 @@ static void __aa_fs_list_remove_rawdata(struct aa_ns *ns)
 		__aa_fs_remove_rawdata(ent);
 }
 
-/**
+/*
  *
  * Requires: @ns->lock held
  */
