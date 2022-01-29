@@ -1035,6 +1035,14 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 			skb_set_hash(skb, hash_value, PKT_HASH_TYPE_L3);
 	}
 
+	u64_stats_update_begin(&rx_stats->syncp);
+	rx_stats->packets++;
+	rx_stats->bytes += pkt_len;
+
+	if (act == XDP_TX)
+		rx_stats->xdp_tx++;
+	u64_stats_update_end(&rx_stats->syncp);
+
 	if (act == XDP_TX) {
 		skb_set_queue_mapping(skb, rxq_idx);
 		mana_xdp_tx(skb, ndev);
@@ -1043,10 +1051,6 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 
 	napi_gro_receive(napi, skb);
 
-	u64_stats_update_begin(&rx_stats->syncp);
-	rx_stats->packets++;
-	rx_stats->bytes += pkt_len;
-	u64_stats_update_end(&rx_stats->syncp);
 	return;
 
 drop_xdp:

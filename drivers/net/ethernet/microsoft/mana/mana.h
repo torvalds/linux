@@ -52,6 +52,7 @@ struct mana_stats_rx {
 	u64 packets;
 	u64 bytes;
 	u64 xdp_drop;
+	u64 xdp_tx;
 	struct u64_stats_sync syncp;
 };
 

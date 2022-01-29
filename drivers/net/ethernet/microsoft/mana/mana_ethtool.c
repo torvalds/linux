@@ -23,7 +23,7 @@ static int mana_get_sset_count(struct net_device *ndev, int stringset)
 	if (stringset != ETH_SS_STATS)
 		return -EINVAL;
 
-	return ARRAY_SIZE(mana_eth_stats) + num_queues * 5;
+	return ARRAY_SIZE(mana_eth_stats) + num_queues * 6;
 }
 
 static void mana_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
@@ -48,6 +48,8 @@ static void mana_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 		p += ETH_GSTRING_LEN;
 		sprintf(p, "rx_%d_xdp_drop", i);
 		p += ETH_GSTRING_LEN;
+		sprintf(p, "rx_%d_xdp_tx", i);
+		p += ETH_GSTRING_LEN;
 	}
 
 	for (i = 0; i < num_queues; i++) {
@@ -69,6 +71,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 	unsigned int start;
 	u64 packets, bytes;
 	u64 xdp_drop;
+	u64 xdp_tx;
 	int q, i = 0;
 
 	if (!apc->port_is_up)
@@ -85,11 +88,13 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 			packets = rx_stats->packets;
 			bytes = rx_stats->bytes;
 			xdp_drop = rx_stats->xdp_drop;
+			xdp_tx = rx_stats->xdp_tx;
 		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
 
 		data[i++] = packets;
 		data[i++] = bytes;
 		data[i++] = xdp_drop;
+		data[i++] = xdp_tx;
 	}
 
 	for (q = 0; q < num_queues; q++) {
