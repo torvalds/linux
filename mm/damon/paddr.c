@@ -90,8 +90,9 @@ struct damon_pa_access_chk_result {
 static bool __damon_pa_young(struct page *page, struct vm_area_struct *vma,
 		unsigned long addr, void *arg)
 {
+	struct folio *folio = page_folio(page);
 	struct damon_pa_access_chk_result *result = arg;
-	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, addr, 0);
+	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, addr, 0);
 
 	result->accessed = false;
 	result->page_sz = PAGE_SIZE;
@@ -99,12 +100,12 @@ static bool __damon_pa_young(struct page *page, struct vm_area_struct *vma,
 		addr = pvmw.address;
 		if (pvmw.pte) {
 			result->accessed = pte_young(*pvmw.pte) ||
-				!page_is_idle(page) ||
+				!folio_test_idle(folio) ||
 				mmu_notifier_test_young(vma->vm_mm, addr);
 		} else {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 			result->accessed = pmd_young(*pvmw.pmd) ||
-				!page_is_idle(page) ||
+				!folio_test_idle(folio) ||
 				mmu_notifier_test_young(vma->vm_mm, addr);
 			result->page_sz = ((1UL) << HPAGE_PMD_SHIFT);
 #else
@@ -123,6 +124,7 @@ static bool __damon_pa_young(struct page *page, struct vm_area_struct *vma,
 
 static bool damon_pa_young(unsigned long paddr, unsigned long *page_sz)
 {
+	struct folio *folio;
 	struct page *page = damon_get_page(PHYS_PFN(paddr));
 	struct damon_pa_access_chk_result result = {
 		.page_sz = PAGE_SIZE,
@@ -137,27 +139,28 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *page_sz)
 
 	if (!page)
 		return false;
+	folio = page_folio(page);
 
-	if (!page_mapped(page) || !page_rmapping(page)) {
-		if (page_is_idle(page))
+	if (!folio_mapped(folio) || !folio_raw_mapping(folio)) {
+		if (folio_test_idle(folio))
 			result.accessed = false;
 		else
 			result.accessed = true;
-		put_page(page);
+		folio_put(folio);
 		goto out;
 	}
 
-	need_lock = !PageAnon(page) || PageKsm(page);
-	if (need_lock && !trylock_page(page)) {
-		put_page(page);
+	need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
+	if (need_lock && !folio_trylock(folio)) {
+		folio_put(folio);
 		return NULL;
 	}
 
-	rmap_walk(page, &rwc);
+	rmap_walk(&folio->page, &rwc);
 
 	if (need_lock)
-		unlock_page(page);
-	put_page(page);
+		folio_unlock(folio);
+	folio_put(folio);
 
 out:
 	*page_sz = result.page_sz;
