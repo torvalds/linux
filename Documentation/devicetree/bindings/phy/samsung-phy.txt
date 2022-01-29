@@ -1,17 +1,3 @@
-Device-Tree bindings for sataphy i2c client driver
---------------------------------------------------
-
-Required properties:
-compatible: Should be "samsung,exynos-sataphy-i2c"
-- reg: I2C address of the sataphy i2c device.
-
-Example:
-
-	sata_phy_i2c:sata-phy@38 {
-		compatible = "samsung,exynos-sataphy-i2c";
-		reg = <0x38>;
-	};
-
 Samsung Exynos5 SoC series USB DRD PHY controller
 --------------------------------------------------
 
