@@ -1059,7 +1059,9 @@ drop_xdp:
 	u64_stats_update_end(&rx_stats->syncp);
 
 drop:
-	free_page((unsigned long)buf_va);
+	WARN_ON_ONCE(rxq->xdp_save_page);
+	rxq->xdp_save_page = virt_to_page(buf_va);
+
 	++ndev->stats.rx_dropped;
 
 	return;
@@ -1116,7 +1118,13 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 	rxbuf_oob = &rxq->rx_oobs[curr];
 	WARN_ON_ONCE(rxbuf_oob->wqe_inf.wqe_size_in_bu != 1);
 
-	new_page = alloc_page(GFP_ATOMIC);
+	/* Reuse XDP dropped page if available */
+	if (rxq->xdp_save_page) {
+		new_page = rxq->xdp_save_page;
+		rxq->xdp_save_page = NULL;
+	} else {
+		new_page = alloc_page(GFP_ATOMIC);
+	}
 
 	if (new_page) {
 		da = dma_map_page(dev, new_page, XDP_PACKET_HEADROOM, rxq->datasize,
@@ -1402,6 +1410,9 @@ static void mana_destroy_rxq(struct mana_port_context *apc,
 	mana_destroy_wq_obj(apc, GDMA_RQ, rxq->rxobj);
 
 	mana_deinit_cq(apc, &rxq->rx_cq);
+
+	if (rxq->xdp_save_page)
+		__free_page(rxq->xdp_save_page);
 
 	for (i = 0; i < rxq->num_rx_buf; i++) {
 		rx_oob = &rxq->rx_oobs[i];
