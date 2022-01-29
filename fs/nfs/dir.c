@@ -73,7 +73,7 @@ static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct inode *dir
 {
 	struct nfs_inode *nfsi = NFS_I(dir);
 	struct nfs_open_dir_context *ctx;
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL_ACCOUNT);
 	if (ctx != NULL) {
 		ctx->duped = 0;
 		ctx->attr_gencount = nfsi->attr_gencount;
