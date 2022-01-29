@@ -186,13 +186,11 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	 * fall back to safe defaults.
 	 */
 	if ((bi->voltage_min_design_uv < 0) ||
-	    (bi->voltage_max_design_uv < 0) ||
-	    (bi->overvoltage_limit_uv < 0)) {
+	    (bi->voltage_max_design_uv < 0)) {
 		/* Nominal voltage is 3.7V for unknown batteries */
 		bi->voltage_min_design_uv = 3700000;
-		bi->voltage_max_design_uv = 3700000;
-		/* Termination voltage (overcharge limit) 4.05V */
-		bi->overvoltage_limit_uv = 4050000;
+		/* Termination voltage 4.05V */
+		bi->voltage_max_design_uv = 4050000;
 	}
 
 	if (bi->constant_charge_current_max_ua < 0)

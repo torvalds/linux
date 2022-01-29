@@ -2263,7 +2263,13 @@ static int ab8500_fg_init_hw_registers(struct ab8500_fg *di)
 {
 	int ret;
 
-	/* Set VBAT OVV threshold */
+	/*
+	 * Set VBAT OVV (overvoltage) threshold to 4.75V (typ) this is what
+	 * the hardware supports, nothing else can be configured in hardware.
+	 * See this as an "outer limit" where the charger will certainly
+	 * shut down. Other (lower) overvoltage levels need to be implemented
+	 * in software.
+	 */
 	ret = abx500_mask_and_set_register_interruptible(di->dev,
 		AB8500_CHARGER,
 		AB8500_BATT_OVV,
