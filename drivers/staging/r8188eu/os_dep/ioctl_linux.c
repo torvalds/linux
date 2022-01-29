@@ -3301,11 +3301,10 @@ static void rtw_p2p_prov_disc(struct net_device *dev,
 /*	This function is used to inform the driver the user had specified the pin code value or pbc */
 /*	to application. */
 
-static int rtw_p2p_got_wpsinfo(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+static void rtw_p2p_got_wpsinfo(struct net_device *dev,
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
 {
-	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 
@@ -3326,7 +3325,6 @@ static int rtw_p2p_got_wpsinfo(struct net_device *dev,
 		pwdinfo->ui_got_wps_info = P2P_GOT_WPSINFO_PBC;
 	else
 		pwdinfo->ui_got_wps_info = P2P_NO_WPSINFO;
-	return ret;
 }
 
 static int rtw_p2p_set(struct net_device *dev,
