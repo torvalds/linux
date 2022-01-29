@@ -55,6 +55,8 @@
 			reg-shift = <2>;
 			interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk24m>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&bsp_pins>;
 			status = "disabled";
 		};
 
