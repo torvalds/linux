@@ -100,8 +100,9 @@ static int jpeg_v4_0_3_sw_init(void *handle)
 
 	for (i = 0; i < adev->jpeg.num_jpeg_rings; ++i) {
 		ring = &adev->jpeg.inst->ring_dec[i];
-		ring->use_doorbell = false;
+		ring->use_doorbell = true;
 		ring->vm_hub = AMDGPU_MMHUB0(0);
+		ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + (i?8:1) + i;
 		sprintf(ring->name, "jpeg_dec_%d", i);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->jpeg.inst->irq, 0,
 					AMDGPU_RING_PRIO_DEFAULT, NULL);
@@ -148,11 +149,19 @@ static int jpeg_v4_0_3_sw_fini(void *handle)
 static int jpeg_v4_0_3_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring;
+	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
 	int i, r;
+
+	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+			(adev->doorbell_index.vcn.vcn_ring0_1 << 1), 0);
 
 	for (i = 0; i < adev->jpeg.num_jpeg_rings; ++i) {
 		ring = &adev->jpeg.inst->ring_dec[i];
+		if (ring->use_doorbell)
+			WREG32_SOC15_OFFSET(VCN, 0, regVCN_JPEG_DB_CTRL,
+				(ring->pipe?(ring->pipe - 0x15):0),
+				ring->doorbell_index << VCN_JPEG_DB_CTRL__OFFSET__SHIFT |
+				VCN_JPEG_DB_CTRL__EN_MASK);
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
 			return r;
