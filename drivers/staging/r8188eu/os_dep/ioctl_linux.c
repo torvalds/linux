@@ -3452,19 +3452,19 @@ static int rtw_p2p_get2(struct net_device *dev,
 	DBG_88E("[%s] extra = %s\n", __func__, (char *)wrqu->data.pointer);
 	if (!memcmp(extra, "wpsCM =", 6)) {
 		wrqu->data.length -= 6;
-		rtw_p2p_get_wps_configmethod(dev, info, wrqu,  &extra[6]);
+		ret = rtw_p2p_get_wps_configmethod(dev, info, wrqu,  &extra[6]);
 	} else if (!memcmp(extra, "devN =", 5)) {
 		wrqu->data.length -= 5;
-		rtw_p2p_get_device_name(dev, info, wrqu, &extra[5]);
+		ret = rtw_p2p_get_device_name(dev, info, wrqu, &extra[5]);
 	} else if (!memcmp(extra, "dev_type =", 9)) {
 		wrqu->data.length -= 9;
-		rtw_p2p_get_device_type(dev, info, wrqu, &extra[9]);
+		ret = rtw_p2p_get_device_type(dev, info, wrqu, &extra[9]);
 	} else if (!memcmp(extra, "go_devadd =", 10)) {
 		wrqu->data.length -= 10;
-		rtw_p2p_get_go_device_address(dev, info, wrqu, &extra[10]);
+		ret = rtw_p2p_get_go_device_address(dev, info, wrqu, &extra[10]);
 	} else if (!memcmp(extra, "InvProc =", 8)) {
 		wrqu->data.length -= 8;
-		rtw_p2p_get_invitation_procedure(dev, info, wrqu, &extra[8]);
+		ret = rtw_p2p_get_invitation_procedure(dev, info, wrqu, &extra[8]);
 	}
 
 	return ret;
