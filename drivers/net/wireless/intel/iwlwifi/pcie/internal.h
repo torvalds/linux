@@ -262,6 +262,20 @@ enum iwl_pcie_fw_reset_state {
 };
 
 /**
+ * enum wl_pcie_imr_status - imr dma transfer state
+ * @IMR_D2S_IDLE: default value of the dma transfer
+ * @IMR_D2S_REQUESTED: dma transfer requested
+ * @IMR_D2S_COMPLETED: dma transfer completed
+ * @IMR_D2S_ERROR: dma transfer error
+ */
+enum iwl_pcie_imr_status {
+	IMR_D2S_IDLE,
+	IMR_D2S_REQUESTED,
+	IMR_D2S_COMPLETED,
+	IMR_D2S_ERROR,
+};
+
+/**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
  * @rx_pool: initial pool of iwl_rx_mem_buffer for all the queues
@@ -319,6 +333,8 @@ enum iwl_pcie_fw_reset_state {
  * @alloc_page_lock: spinlock for the page allocator
  * @alloc_page: allocated page to still use parts of
  * @alloc_page_used: how much of the allocated page was already used (bytes)
+ * @imr_status: imr dma state machine
+ * @wait_queue_head_t: imr wait queue for dma completion
  * @rf_name: name/version of the CRF, if any
  */
 struct iwl_trans_pcie {
@@ -414,7 +430,8 @@ struct iwl_trans_pcie {
 	bool fw_reset_handshake;
 	enum iwl_pcie_fw_reset_state fw_reset_state;
 	wait_queue_head_t fw_reset_waitq;
-
+	enum iwl_pcie_imr_status imr_status;
+	wait_queue_head_t imr_waitq;
 	char rf_name[32];
 };
 
@@ -809,4 +826,9 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 			       struct iwl_host_cmd *cmd);
 int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 			  struct iwl_host_cmd *cmd);
+void iwl_trans_pcie_copy_imr_fh(struct iwl_trans *trans,
+				u32 dst_addr, u64 src_addr, u32 byte_cnt);
+int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
+			    u32 dst_addr, u64 src_addr, u32 byte_cnt);
+
 #endif /* __iwl_trans_int_pcie_h__ */

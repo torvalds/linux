@@ -12,7 +12,7 @@
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
-
+#include "iwl-fh.h"
 /**
  * struct iwl_fw_dump_ptrs - set of pointers needed for the fw-error-dump
  *
@@ -1598,6 +1598,33 @@ static int iwl_dump_ini_fw_pkt_iter(struct iwl_fw_runtime *fwrt,
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
+static int iwl_dump_ini_imr_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_dump_ini_region_data *reg_data,
+				 void *range_ptr, u32 range_len, int idx)
+{
+	/* read the IMR memory and DMA it to SRAM */
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	u64 imr_curr_addr = fwrt->trans->dbg.imr_data.imr_curr_addr;
+	u32 imr_rem_bytes = fwrt->trans->dbg.imr_data.imr2sram_remainbyte;
+	u32 sram_addr = fwrt->trans->dbg.imr_data.sram_addr;
+	u32 sram_size = fwrt->trans->dbg.imr_data.sram_size;
+	u32 size_to_dump = (imr_rem_bytes > sram_size) ? sram_size : imr_rem_bytes;
+
+	range->range_data_size = cpu_to_le32(size_to_dump);
+	if (iwl_trans_write_imr_mem(fwrt->trans, sram_addr,
+				    imr_curr_addr, size_to_dump)) {
+		IWL_ERR(fwrt, "WRT_DEBUG: IMR Memory transfer failed\n");
+		return -1;
+	}
+
+	fwrt->trans->dbg.imr_data.imr_curr_addr = imr_curr_addr + size_to_dump;
+	fwrt->trans->dbg.imr_data.imr2sram_remainbyte -= size_to_dump;
+
+	iwl_trans_read_mem_bytes(fwrt->trans, sram_addr, range->data,
+				 size_to_dump);
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
 static void *
 iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 			     struct iwl_dump_ini_region_data *reg_data,
@@ -1736,6 +1763,18 @@ iwl_dump_ini_special_mem_fill_header(struct iwl_fw_runtime *fwrt,
 	return dump->data;
 }
 
+static void *
+iwl_dump_ini_imr_fill_header(struct iwl_fw_runtime *fwrt,
+			     struct iwl_dump_ini_region_data *reg_data,
+			     void *data, u32 data_len)
+{
+	struct iwl_fw_ini_error_dump *dump = data;
+
+	dump->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
+
+	return dump->data;
+}
+
 static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
 				   struct iwl_dump_ini_region_data *reg_data)
 {
@@ -1793,6 +1832,26 @@ static u32 iwl_dump_ini_single_range(struct iwl_fw_runtime *fwrt,
 				     struct iwl_dump_ini_region_data *reg_data)
 {
 	return 1;
+}
+
+static u32 iwl_dump_ini_imr_ranges(struct iwl_fw_runtime *fwrt,
+				   struct iwl_dump_ini_region_data *reg_data)
+{
+	/* range is total number of pages need to copied from
+	 *IMR memory to SRAM and later from SRAM to DRAM
+	 */
+	u32 imr_enable = fwrt->trans->dbg.imr_data.imr_enable;
+	u32 imr_size = fwrt->trans->dbg.imr_data.imr_size;
+	u32 sram_size = fwrt->trans->dbg.imr_data.sram_size;
+
+	if (imr_enable == 0 || imr_size == 0 || sram_size == 0) {
+		IWL_DEBUG_INFO(fwrt,
+			       "WRT: Invalid imr data enable: %d, imr_size: %d, sram_size: %d\n",
+			       imr_enable, imr_size, sram_size);
+		return 0;
+	}
+
+	return((imr_size % sram_size) ? (imr_size / sram_size + 1) : (imr_size / sram_size));
 }
 
 static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
@@ -1973,6 +2032,33 @@ iwl_dump_ini_fw_pkt_get_size(struct iwl_fw_runtime *fwrt,
 	return size;
 }
 
+static u32
+iwl_dump_ini_imr_get_size(struct iwl_fw_runtime *fwrt,
+			  struct iwl_dump_ini_region_data *reg_data)
+{
+	u32 size = 0;
+	u32 ranges = 0;
+	u32 imr_enable = fwrt->trans->dbg.imr_data.imr_enable;
+	u32 imr_size = fwrt->trans->dbg.imr_data.imr_size;
+	u32 sram_size = fwrt->trans->dbg.imr_data.sram_size;
+
+	if (imr_enable == 0 || imr_size == 0 || sram_size == 0) {
+		IWL_DEBUG_INFO(fwrt,
+			       "WRT: Invalid imr data enable: %d, imr_size: %d, sram_size: %d\n",
+			       imr_enable, imr_size, sram_size);
+		return size;
+	}
+	size = imr_size;
+	ranges = iwl_dump_ini_imr_ranges(fwrt, reg_data);
+	if (!size && !ranges) {
+		IWL_ERR(fwrt, "WRT: imr_size :=%d, ranges :=%d\n", size, ranges);
+		return 0;
+	}
+	size += sizeof(struct iwl_fw_ini_error_dump) +
+		ranges * sizeof(struct iwl_fw_ini_error_dump_range);
+	return size;
+}
+
 /**
  * struct iwl_dump_ini_mem_ops - ini memory dump operations
  * @get_num_of_ranges: returns the number of memory ranges in the region.
@@ -2040,7 +2126,7 @@ static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 	size = ops->get_size(fwrt, reg_data);
 
 	if (size < sizeof(*header)) {
-		IWL_DEBUG_FW(fwrt, "WRT: size didn't include space for haeder\n");
+		IWL_DEBUG_FW(fwrt, "WRT: size didn't include space for header\n");
 		return 0;
 	}
 
@@ -2295,7 +2381,12 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
 		.fill_range = iwl_dump_ini_csr_iter,
 	},
-	[IWL_FW_INI_REGION_DRAM_IMR] = {},
+	[IWL_FW_INI_REGION_DRAM_IMR] = {
+		.get_num_of_ranges = iwl_dump_ini_imr_ranges,
+		.get_size = iwl_dump_ini_imr_get_size,
+		.fill_mem_hdr = iwl_dump_ini_imr_fill_header,
+		.fill_range = iwl_dump_ini_imr_iter,
+	},
 	[IWL_FW_INI_REGION_PCI_IOSF_CONFIG] = {
 		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
 		.get_size = iwl_dump_ini_mem_get_size,

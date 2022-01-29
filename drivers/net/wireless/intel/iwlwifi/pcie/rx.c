@@ -1996,6 +1996,11 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		/* Wake up uCode load routine, now that load is complete */
 		trans_pcie->ucode_write_complete = true;
 		wake_up(&trans_pcie->ucode_write_waitq);
+		/* Wake up IMR write routine, now that write to SRAM is complete */
+		if (trans_pcie->imr_status == IMR_D2S_REQUESTED) {
+			trans_pcie->imr_status = IMR_D2S_COMPLETED;
+			wake_up(&trans_pcie->ucode_write_waitq);
+		}
 	}
 
 	if (inta & ~handled) {
@@ -2209,7 +2214,17 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	}
 
 	/* This "Tx" DMA channel is used only for loading uCode */
-	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
+	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM &&
+	    trans_pcie->imr_status == IMR_D2S_REQUESTED) {
+		IWL_DEBUG_ISR(trans, "IMR Complete interrupt\n");
+		isr_stats->tx++;
+
+		/* Wake up IMR routine once write to SRAM is complete */
+		if (trans_pcie->imr_status == IMR_D2S_REQUESTED) {
+			trans_pcie->imr_status = IMR_D2S_COMPLETED;
+			wake_up(&trans_pcie->ucode_write_waitq);
+		}
+	} else if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
 		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
 		isr_stats->tx++;
 		/*
@@ -2218,6 +2233,12 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		 */
 		trans_pcie->ucode_write_complete = true;
 		wake_up(&trans_pcie->ucode_write_waitq);
+
+		/* Wake up IMR routine once write to SRAM is complete */
+		if (trans_pcie->imr_status == IMR_D2S_REQUESTED) {
+			trans_pcie->imr_status = IMR_D2S_COMPLETED;
+			wake_up(&trans_pcie->ucode_write_waitq);
+		}
 	}
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
@@ -2232,7 +2253,10 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 			inta_fh);
 		isr_stats->sw++;
 		/* during FW reset flow report errors from there */
-		if (trans_pcie->fw_reset_state == FW_RESET_REQUESTED) {
+		if (trans_pcie->imr_status == IMR_D2S_REQUESTED) {
+			trans_pcie->imr_status = IMR_D2S_ERROR;
+			wake_up(&trans_pcie->imr_waitq);
+		} else if (trans_pcie->fw_reset_state == FW_RESET_REQUESTED) {
 			trans_pcie->fw_reset_state = FW_RESET_ERROR;
 			wake_up(&trans_pcie->fw_reset_waitq);
 		} else {

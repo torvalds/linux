@@ -127,12 +127,30 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u32 version = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 					      UCODE_ALIVE_NTFY, 0);
 
-	/*
-	 * For v5 and above, we can check the version, for older
-	 * versions we need to check the size.
-	 */
-	if (version == 5 || version == 6) {
-		/* v5 and v6 are compatible (only IMR addition) */
+	if (version == 6) {
+		struct iwl_alive_ntf_v6 *palive;
+
+		if (pkt_len < sizeof(*palive))
+			return false;
+
+		palive = (void *)pkt->data;
+		mvm->trans->dbg.imr_data.imr_enable =
+			le32_to_cpu(palive->imr.enabled);
+		mvm->trans->dbg.imr_data.imr_size =
+			le32_to_cpu(palive->imr.size);
+		mvm->trans->dbg.imr_data.imr2sram_remainbyte =
+			mvm->trans->dbg.imr_data.imr_size;
+		mvm->trans->dbg.imr_data.imr_base_addr =
+			palive->imr.base_addr;
+		mvm->trans->dbg.imr_data.imr_curr_addr =
+			le64_to_cpu(mvm->trans->dbg.imr_data.imr_base_addr);
+		IWL_DEBUG_FW(mvm, "IMR Enabled: 0x0%x  size 0x0%x Address 0x%016llx\n",
+			     mvm->trans->dbg.imr_data.imr_enable,
+			     mvm->trans->dbg.imr_data.imr_size,
+			     le64_to_cpu(mvm->trans->dbg.imr_data.imr_base_addr));
+	}
+
+	if (version >= 5) {
 		struct iwl_alive_ntf_v5 *palive;
 
 		if (pkt_len < sizeof(*palive))

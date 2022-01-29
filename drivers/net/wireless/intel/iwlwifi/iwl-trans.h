@@ -615,6 +615,10 @@ struct iwl_trans_ops {
 	int (*set_reduce_power)(struct iwl_trans *trans,
 				const void *data, u32 len);
 	void (*interrupts)(struct iwl_trans *trans, bool enable);
+	int (*imr_dma_data)(struct iwl_trans *trans,
+			    u32 dst_addr, u64 src_addr,
+			    u32 byte_cnt);
+
 };
 
 /**
@@ -722,6 +726,26 @@ struct iwl_self_init_dram {
 };
 
 /**
+ * struct iwl_imr_data - imr dram data used during debug process
+ * @imr_enable: imr enable status received from fw
+ * @imr_size: imr dram size received from fw
+ * @sram_addr: sram address from debug tlv
+ * @sram_size: sram size from debug tlv
+ * @imr2sram_remainbyte`: size remained after each dma transfer
+ * @imr_curr_addr: current dst address used during dma transfer
+ * @imr_base_addr: imr address received from fw
+ */
+struct iwl_imr_data {
+	u32 imr_enable;
+	u32 imr_size;
+	u32 sram_addr;
+	u32 sram_size;
+	u32 imr2sram_remainbyte;
+	u64 imr_curr_addr;
+	__le64 imr_base_addr;
+};
+
+/**
  * struct iwl_trans_debug - transport debug related data
  *
  * @n_dest_reg: num of reg_ops in %dbg_dest_tlv
@@ -785,6 +809,7 @@ struct iwl_trans_debug {
 	u32 ucode_preset;
 	bool restart_required;
 	u32 last_tp_resetfw;
+	struct iwl_imr_data imr_data;
 };
 
 struct iwl_dma_ptr {
@@ -1367,6 +1392,15 @@ static inline int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
 			BUILD_BUG_ON((bufsize) % sizeof(u32));		      \
 		iwl_trans_read_mem(trans, addr, buf, (bufsize) / sizeof(u32));\
 	} while (0)
+
+static inline int iwl_trans_write_imr_mem(struct iwl_trans *trans,
+					  u32 dst_addr, u64 src_addr,
+					  u32 byte_cnt)
+{
+	if (trans->ops->imr_dma_data)
+		return trans->ops->imr_dma_data(trans, dst_addr, src_addr, byte_cnt);
+	return 0;
+}
 
 static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
 {

@@ -596,6 +596,25 @@ struct iwl_rb_status {
 #define IWL_NUM_OF_TBS		20
 #define IWL_TFH_NUM_TBS		25
 
+/* IMR DMA registers */
+#define IMR_TFH_SRV_DMA_CHNL0_CTRL           0x00a0a51c
+#define IMR_TFH_SRV_DMA_CHNL0_SRAM_ADDR      0x00a0a520
+#define IMR_TFH_SRV_DMA_CHNL0_DRAM_ADDR_LSB  0x00a0a524
+#define IMR_TFH_SRV_DMA_CHNL0_DRAM_ADDR_MSB  0x00a0a528
+#define IMR_TFH_SRV_DMA_CHNL0_BC             0x00a0a52c
+#define TFH_SRV_DMA_CHNL0_LEFT_BC	     0x00a0a530
+
+/* RFH S2D DMA registers */
+#define IMR_RFH_GEN_CFG_SERVICE_DMA_RS_MSK	0x0000000c
+#define IMR_RFH_GEN_CFG_SERVICE_DMA_SNOOP_MSK	0x00000002
+
+/* TFH D2S DMA registers */
+#define IMR_UREG_CHICK_HALT_UMAC_PERMANENTLY_MSK	0x80000000
+#define IMR_UREG_CHICK					0x00d05c00
+#define IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_IRQ_TARGET_POS	0x00800000
+#define IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_RS_MSK		0x00000030
+#define IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_DMA_EN_POS	0x80000000
+
 static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
 {
 	return (sizeof(addr) > sizeof(u32) ? upper_32_bits(addr) : 0) & 0xF;

@@ -211,6 +211,14 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 		return -EOPNOTSUPP;
 	}
 
+	if (type == IWL_FW_INI_REGION_INTERNAL_BUFFER) {
+		trans->dbg.imr_data.sram_addr =
+			le32_to_cpu(reg->internal_buffer.base_addr);
+		trans->dbg.imr_data.sram_size =
+			le32_to_cpu(reg->internal_buffer.size);
+	}
+
+
 	active_reg = &trans->dbg.active_regions[id];
 	if (*active_reg) {
 		IWL_WARN(trans, "WRT: Overriding region id %u\n", id);
