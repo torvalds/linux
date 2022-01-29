@@ -33,6 +33,7 @@ static bool __damon_pa_mkold(struct page *page, struct vm_area_struct *vma,
 
 static void damon_pa_mkold(unsigned long paddr)
 {
+	struct folio *folio;
 	struct page *page = damon_get_page(PHYS_PFN(paddr));
 	struct rmap_walk_control rwc = {
 		.rmap_one = __damon_pa_mkold,
@@ -42,23 +43,24 @@ static void damon_pa_mkold(unsigned long paddr)
 
 	if (!page)
 		return;
+	folio = page_folio(page);
 
-	if (!page_mapped(page) || !page_rmapping(page)) {
-		set_page_idle(page);
+	if (!folio_mapped(folio) || !folio_raw_mapping(folio)) {
+		folio_set_idle(folio);
 		goto out;
 	}
 
-	need_lock = !PageAnon(page) || PageKsm(page);
-	if (need_lock && !trylock_page(page))
+	need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
+	if (need_lock && !folio_trylock(folio))
 		goto out;
 
-	rmap_walk(page, &rwc);
+	rmap_walk(&folio->page, &rwc);
 
 	if (need_lock)
-		unlock_page(page);
+		folio_unlock(folio);
 
 out:
-	put_page(page);
+	folio_put(folio);
 }
 
 static void __damon_pa_prepare_access_check(struct damon_ctx *ctx,
