@@ -1639,7 +1639,7 @@ static int __xstate_request_perm(u64 permitted, u64 requested, bool guest)
 
 	perm = guest ? &fpu->guest_perm : &fpu->perm;
 	/* Pairs with the READ_ONCE() in xstate_get_group_perm() */
-	WRITE_ONCE(perm->__state_perm, requested);
+	WRITE_ONCE(perm->__state_perm, mask);
 	/* Protected by sighand lock */
 	perm->__state_size = ksize;
 	perm->__user_state_size = usize;
