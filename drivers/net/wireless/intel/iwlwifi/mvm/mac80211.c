@@ -2090,7 +2090,7 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif, u8 sta_id)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_he_sta_context_cmd sta_ctxt_cmd = {
+	struct iwl_he_sta_context_cmd_v3 sta_ctxt_cmd = {
 		.sta_id = sta_id,
 		.tid_limit = IWL_MAX_TID_COUNT,
 		.bss_color = vif->bss_conf.he_bss_color.color,
@@ -2098,16 +2098,39 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 		.frame_time_rts_th =
 			cpu_to_le16(vif->bss_conf.frame_time_rts_th),
 	};
-	int size = fw_has_api(&mvm->fw->ucode_capa,
-			      IWL_UCODE_TLV_API_MBSSID_HE) ?
-		   sizeof(sta_ctxt_cmd) :
-		   sizeof(struct iwl_he_sta_context_cmd_v1);
+	struct iwl_he_sta_context_cmd_v2 sta_ctxt_cmd_v2 = {};
+	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, STA_HE_CTXT_CMD);
+	u8 ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 2);
+	int size;
 	struct ieee80211_sta *sta;
 	u32 flags;
 	int i;
 	const struct ieee80211_sta_he_cap *own_he_cap = NULL;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	const struct ieee80211_supported_band *sband;
+	void *cmd;
+
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_MBSSID_HE))
+		ver = 1;
+
+	switch (ver) {
+	case 1:
+		/* same layout as v2 except some data at the end */
+		cmd = &sta_ctxt_cmd_v2;
+		size = sizeof(struct iwl_he_sta_context_cmd_v1);
+		break;
+	case 2:
+		cmd = &sta_ctxt_cmd_v2;
+		size = sizeof(struct iwl_he_sta_context_cmd_v2);
+		break;
+	case 3:
+		cmd = &sta_ctxt_cmd;
+		size = sizeof(struct iwl_he_sta_context_cmd_v3);
+		break;
+	default:
+		IWL_ERR(mvm, "bad STA_HE_CTXT_CMD version %d\n", ver);
+		return;
+	}
 
 	rcu_read_lock();
 
@@ -2202,7 +2225,9 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 			u8 ru_index_tmp = ru_index_bitmap << 1;
 			u8 bw;
 
-			for (bw = 0; bw < MAX_HE_CHANNEL_BW_INDX; bw++) {
+			for (bw = 0;
+			     bw < ARRAY_SIZE(sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i]);
+			     bw++) {
 				ru_index_tmp >>= 1;
 				if (!(ru_index_tmp & 1))
 					continue;
@@ -2246,13 +2271,14 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 		/* Set the PPE thresholds accordingly */
 		if (low_th >= 0 && high_th >= 0) {
-			struct iwl_he_pkt_ext *pkt_ext =
-				(struct iwl_he_pkt_ext *)&sta_ctxt_cmd.pkt_ext;
+			struct iwl_he_pkt_ext_v2 *pkt_ext =
+				&sta_ctxt_cmd.pkt_ext;
 
 			for (i = 0; i < MAX_HE_SUPP_NSS; i++) {
 				u8 bw;
 
-				for (bw = 0; bw < MAX_HE_CHANNEL_BW_INDX;
+				for (bw = 0;
+				     bw < ARRAY_SIZE(pkt_ext->pkt_ext_qam_th[i]);
 				     bw++) {
 					pkt_ext->pkt_ext_qam_th[i][bw][0] =
 						low_th;
@@ -2325,8 +2351,46 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 	sta_ctxt_cmd.flags = cpu_to_le32(flags);
 
-	if (iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(DATA_PATH_GROUP, STA_HE_CTXT_CMD),
-				 0, size, &sta_ctxt_cmd))
+	if (ver < 3) {
+		/* fields before pkt_ext */
+		BUILD_BUG_ON(offsetof(typeof(sta_ctxt_cmd), pkt_ext) !=
+			     offsetof(typeof(sta_ctxt_cmd_v2), pkt_ext));
+		memcpy(&sta_ctxt_cmd_v2, &sta_ctxt_cmd,
+		       offsetof(typeof(sta_ctxt_cmd), pkt_ext));
+
+		/* pkt_ext */
+		for (i = 0;
+		     i < ARRAY_SIZE(sta_ctxt_cmd_v2.pkt_ext.pkt_ext_qam_th);
+		     i++) {
+			u8 bw;
+
+			for (bw = 0;
+			     bw < ARRAY_SIZE(sta_ctxt_cmd_v2.pkt_ext.pkt_ext_qam_th[i]);
+			     bw++) {
+				BUILD_BUG_ON(sizeof(sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i][bw]) !=
+					     sizeof(sta_ctxt_cmd_v2.pkt_ext.pkt_ext_qam_th[i][bw]));
+
+				memcpy(&sta_ctxt_cmd_v2.pkt_ext.pkt_ext_qam_th[i][bw],
+				       &sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i][bw],
+				       sizeof(sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th[i][bw]));
+			}
+		}
+
+		/* fields after pkt_ext */
+		BUILD_BUG_ON(sizeof(sta_ctxt_cmd) -
+			     offsetofend(typeof(sta_ctxt_cmd), pkt_ext) !=
+			     sizeof(sta_ctxt_cmd_v2) -
+			     offsetofend(typeof(sta_ctxt_cmd_v2), pkt_ext));
+		memcpy((u8 *)&sta_ctxt_cmd_v2 +
+				offsetofend(typeof(sta_ctxt_cmd_v2), pkt_ext),
+		       (u8 *)&sta_ctxt_cmd +
+				offsetofend(typeof(sta_ctxt_cmd), pkt_ext),
+		       sizeof(sta_ctxt_cmd) -
+				offsetofend(typeof(sta_ctxt_cmd), pkt_ext));
+		sta_ctxt_cmd_v2.reserved3 = 0;
+	}
+
+	if (iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, size, cmd))
 		IWL_ERR(mvm, "Failed to config FW to work HE!\n");
 }
 
