@@ -1858,7 +1858,7 @@
 			status = "disabled";
 		};
 
-		pdma0: pdma@15610000 {
+		pdma0: dma-controller@15610000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x15610000 0x1000>;
 			interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
@@ -1869,7 +1869,7 @@
 			#dma-requests = <32>;
 		};
 
-		pdma1: pdma@15600000 {
+		pdma1: dma-controller@15600000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x15600000 0x1000>;
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
@@ -1891,7 +1891,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			adma: adma@11420000 {
+			adma: dma-controller@11420000 {
 				compatible = "arm,pl330", "arm,primecell";
 				reg = <0x11420000 0x1000>;
 				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
