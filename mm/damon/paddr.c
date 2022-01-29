@@ -16,10 +16,10 @@
 #include "../internal.h"
 #include "prmtv-common.h"
 
-static bool __damon_pa_mkold(struct page *page, struct vm_area_struct *vma,
+static bool __damon_pa_mkold(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long addr, void *arg)
 {
-	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, addr, 0);
+	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, addr, 0);
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		addr = pvmw.address;
@@ -37,7 +37,7 @@ static void damon_pa_mkold(unsigned long paddr)
 	struct page *page = damon_get_page(PHYS_PFN(paddr));
 	struct rmap_walk_control rwc = {
 		.rmap_one = __damon_pa_mkold,
-		.anon_lock = page_lock_anon_vma_read,
+		.anon_lock = folio_lock_anon_vma_read,
 	};
 	bool need_lock;
 
@@ -54,7 +54,7 @@ static void damon_pa_mkold(unsigned long paddr)
 	if (need_lock && !folio_trylock(folio))
 		goto out;
 
-	rmap_walk(&folio->page, &rwc);
+	rmap_walk(folio, &rwc);
 
 	if (need_lock)
 		folio_unlock(folio);
@@ -87,10 +87,9 @@ struct damon_pa_access_chk_result {
 	bool accessed;
 };
 
-static bool __damon_pa_young(struct page *page, struct vm_area_struct *vma,
+static bool __damon_pa_young(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long addr, void *arg)
 {
-	struct folio *folio = page_folio(page);
 	struct damon_pa_access_chk_result *result = arg;
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, addr, 0);
 
@@ -133,7 +132,7 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *page_sz)
 	struct rmap_walk_control rwc = {
 		.arg = &result,
 		.rmap_one = __damon_pa_young,
-		.anon_lock = page_lock_anon_vma_read,
+		.anon_lock = folio_lock_anon_vma_read,
 	};
 	bool need_lock;
 
@@ -156,7 +155,7 @@ static bool damon_pa_young(unsigned long paddr, unsigned long *page_sz)
 		return NULL;
 	}
 
-	rmap_walk(&folio->page, &rwc);
+	rmap_walk(folio, &rwc);
 
 	if (need_lock)
 		folio_unlock(folio);

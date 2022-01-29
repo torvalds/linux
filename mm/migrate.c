@@ -171,13 +171,11 @@ void putback_movable_pages(struct list_head *l)
 /*
  * Restore a potential migration pte to a working pte entry
  */
-static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
-				 unsigned long addr, void *old)
+static bool remove_migration_pte(struct folio *folio,
+		struct vm_area_struct *vma, unsigned long addr, void *old)
 {
-	struct folio *folio = page_folio(page);
 	DEFINE_FOLIO_VMA_WALK(pvmw, old, vma, addr, PVMW_SYNC | PVMW_MIGRATION);
 
-	VM_BUG_ON_PAGE(PageTail(page), page);
 	while (page_vma_mapped_walk(&pvmw)) {
 		pte_t pte;
 		swp_entry_t entry;
@@ -269,9 +267,9 @@ void remove_migration_ptes(struct folio *src, struct folio *dst, bool locked)
 	};
 
 	if (locked)
-		rmap_walk_locked(&dst->page, &rwc);
+		rmap_walk_locked(dst, &rwc);
 	else
-		rmap_walk(&dst->page, &rwc);
+		rmap_walk(dst, &rwc);
 }
 
 /*

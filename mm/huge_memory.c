@@ -2572,7 +2572,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		 * The caller does not necessarily hold an mmap_lock that would
 		 * prevent the anon_vma disappearing so we first we take a
 		 * reference to it and then lock the anon_vma for write. This
-		 * is similar to page_lock_anon_vma_read except the write lock
+		 * is similar to folio_lock_anon_vma_read except the write lock
 		 * is taken to serialise against parallel split or collapse
 		 * operations.
 		 */

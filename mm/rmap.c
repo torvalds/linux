@@ -107,15 +107,15 @@ static inline void anon_vma_free(struct anon_vma *anon_vma)
 	VM_BUG_ON(atomic_read(&anon_vma->refcount));
 
 	/*
-	 * Synchronize against page_lock_anon_vma_read() such that
+	 * Synchronize against folio_lock_anon_vma_read() such that
 	 * we can safely hold the lock without the anon_vma getting
 	 * freed.
 	 *
 	 * Relies on the full mb implied by the atomic_dec_and_test() from
 	 * put_anon_vma() against the acquire barrier implied by
-	 * down_read_trylock() from page_lock_anon_vma_read(). This orders:
+	 * down_read_trylock() from folio_lock_anon_vma_read(). This orders:
 	 *
-	 * page_lock_anon_vma_read()	VS	put_anon_vma()
+	 * folio_lock_anon_vma_read()	VS	put_anon_vma()
 	 *   down_read_trylock()		  atomic_dec_and_test()
 	 *   LOCK				  MB
 	 *   atomic_read()			  rwsem_is_locked()
@@ -168,7 +168,7 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
  * allocate a new one.
  *
  * Anon-vma allocations are very subtle, because we may have
- * optimistically looked up an anon_vma in page_lock_anon_vma_read()
+ * optimistically looked up an anon_vma in folio_lock_anon_vma_read()
  * and that may actually touch the rwsem even in the newly
  * allocated vma (it depends on RCU to make sure that the
  * anon_vma isn't actually destroyed).
@@ -799,10 +799,9 @@ struct folio_referenced_arg {
 /*
  * arg: folio_referenced_arg will be passed
  */
-static bool folio_referenced_one(struct page *page, struct vm_area_struct *vma,
-			unsigned long address, void *arg)
+static bool folio_referenced_one(struct folio *folio,
+		struct vm_area_struct *vma, unsigned long address, void *arg)
 {
-	struct folio *folio = page_folio(page);
 	struct folio_referenced_arg *pra = arg;
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	int referenced = 0;
@@ -894,7 +893,7 @@ int folio_referenced(struct folio *folio, int is_locked,
 	struct rmap_walk_control rwc = {
 		.rmap_one = folio_referenced_one,
 		.arg = (void *)&pra,
-		.anon_lock = page_lock_anon_vma_read,
+		.anon_lock = folio_lock_anon_vma_read,
 	};
 
 	*vm_flags = 0;
@@ -919,7 +918,7 @@ int folio_referenced(struct folio *folio, int is_locked,
 		rwc.invalid_vma = invalid_folio_referenced_vma;
 	}
 
-	rmap_walk(&folio->page, &rwc);
+	rmap_walk(folio, &rwc);
 	*vm_flags = pra.vm_flags;
 
 	if (we_locked)
@@ -928,10 +927,9 @@ int folio_referenced(struct folio *folio, int is_locked,
 	return pra.referenced;
 }
 
-static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+static bool page_mkclean_one(struct folio *folio, struct vm_area_struct *vma,
 			    unsigned long address, void *arg)
 {
-	struct folio *folio = page_folio(page);
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, PVMW_SYNC);
 	struct mmu_notifier_range range;
 	int *cleaned = arg;
@@ -1025,7 +1023,7 @@ int folio_mkclean(struct folio *folio)
 	if (!mapping)
 		return 0;
 
-	rmap_walk(&folio->page, &rwc);
+	rmap_walk(folio, &rwc);
 
 	return cleaned;
 }
@@ -1410,10 +1408,9 @@ out:
 /*
  * @arg: enum ttu_flags will be passed to this argument
  */
-static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 		     unsigned long address, void *arg)
 {
-	struct folio *folio = page_folio(page);
 	struct mm_struct *mm = vma->vm_mm;
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	pte_t pteval;
@@ -1667,9 +1664,9 @@ static bool invalid_migration_vma(struct vm_area_struct *vma, void *arg)
 	return vma_is_temporary_stack(vma);
 }
 
-static int page_not_mapped(struct page *page)
+static int page_not_mapped(struct folio *folio)
 {
-	return !page_mapped(page);
+	return !folio_mapped(folio);
 }
 
 /**
@@ -1689,13 +1686,13 @@ void try_to_unmap(struct folio *folio, enum ttu_flags flags)
 		.rmap_one = try_to_unmap_one,
 		.arg = (void *)flags,
 		.done = page_not_mapped,
-		.anon_lock = page_lock_anon_vma_read,
+		.anon_lock = folio_lock_anon_vma_read,
 	};
 
 	if (flags & TTU_RMAP_LOCKED)
-		rmap_walk_locked(&folio->page, &rwc);
+		rmap_walk_locked(folio, &rwc);
 	else
-		rmap_walk(&folio->page, &rwc);
+		rmap_walk(folio, &rwc);
 }
 
 /*
@@ -1704,10 +1701,9 @@ void try_to_unmap(struct folio *folio, enum ttu_flags flags)
  * If TTU_SPLIT_HUGE_PMD is specified any PMD mappings will be split into PTEs
  * containing migration entries.
  */
-static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
+static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 		     unsigned long address, void *arg)
 {
-	struct folio *folio = page_folio(page);
 	struct mm_struct *mm = vma->vm_mm;
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	pte_t pteval;
@@ -1951,7 +1947,7 @@ void try_to_migrate(struct folio *folio, enum ttu_flags flags)
 		.rmap_one = try_to_migrate_one,
 		.arg = (void *)flags,
 		.done = page_not_mapped,
-		.anon_lock = page_lock_anon_vma_read,
+		.anon_lock = folio_lock_anon_vma_read,
 	};
 
 	/*
@@ -1977,9 +1973,9 @@ void try_to_migrate(struct folio *folio, enum ttu_flags flags)
 		rwc.invalid_vma = invalid_migration_vma;
 
 	if (flags & TTU_RMAP_LOCKED)
-		rmap_walk_locked(&folio->page, &rwc);
+		rmap_walk_locked(folio, &rwc);
 	else
-		rmap_walk(&folio->page, &rwc);
+		rmap_walk(folio, &rwc);
 }
 
 #ifdef CONFIG_DEVICE_PRIVATE
@@ -1990,10 +1986,9 @@ struct make_exclusive_args {
 	bool valid;
 };
 
-static bool page_make_device_exclusive_one(struct page *page,
+static bool page_make_device_exclusive_one(struct folio *folio,
 		struct vm_area_struct *vma, unsigned long address, void *priv)
 {
-	struct folio *folio = page_folio(page);
 	struct mm_struct *mm = vma->vm_mm;
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	struct make_exclusive_args *args = priv;
@@ -2098,7 +2093,7 @@ static bool folio_make_device_exclusive(struct folio *folio,
 	struct rmap_walk_control rwc = {
 		.rmap_one = page_make_device_exclusive_one,
 		.done = page_not_mapped,
-		.anon_lock = page_lock_anon_vma_read,
+		.anon_lock = folio_lock_anon_vma_read,
 		.arg = &args,
 	};
 
@@ -2109,7 +2104,7 @@ static bool folio_make_device_exclusive(struct folio *folio,
 	if (!folio_test_anon(folio))
 		return false;
 
-	rmap_walk(&folio->page, &rwc);
+	rmap_walk(folio, &rwc);
 
 	return args.valid && !folio_mapcount(folio);
 }
@@ -2177,17 +2172,16 @@ void __put_anon_vma(struct anon_vma *anon_vma)
 		anon_vma_free(root);
 }
 
-static struct anon_vma *rmap_walk_anon_lock(struct page *page,
+static struct anon_vma *rmap_walk_anon_lock(struct folio *folio,
 					struct rmap_walk_control *rwc)
 {
-	struct folio *folio = page_folio(page);
 	struct anon_vma *anon_vma;
 
 	if (rwc->anon_lock)
-		return rwc->anon_lock(page);
+		return rwc->anon_lock(folio);
 
 	/*
-	 * Note: remove_migration_ptes() cannot use page_lock_anon_vma_read()
+	 * Note: remove_migration_ptes() cannot use folio_lock_anon_vma_read()
 	 * because that depends on page_mapped(); but not all its usages
 	 * are holding mmap_lock. Users without mmap_lock are required to
 	 * take a reference count to prevent the anon_vma disappearing
@@ -2209,10 +2203,9 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the anon_vma struct it points to.
  */
-static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
+static void rmap_walk_anon(struct folio *folio, struct rmap_walk_control *rwc,
 		bool locked)
 {
-	struct folio *folio = page_folio(page);
 	struct anon_vma *anon_vma;
 	pgoff_t pgoff_start, pgoff_end;
 	struct anon_vma_chain *avc;
@@ -2222,17 +2215,17 @@ static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 		/* anon_vma disappear under us? */
 		VM_BUG_ON_FOLIO(!anon_vma, folio);
 	} else {
-		anon_vma = rmap_walk_anon_lock(page, rwc);
+		anon_vma = rmap_walk_anon_lock(folio, rwc);
 	}
 	if (!anon_vma)
 		return;
 
-	pgoff_start = page_to_pgoff(page);
-	pgoff_end = pgoff_start + thp_nr_pages(page) - 1;
+	pgoff_start = folio_pgoff(folio);
+	pgoff_end = pgoff_start + folio_nr_pages(folio) - 1;
 	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
 			pgoff_start, pgoff_end) {
 		struct vm_area_struct *vma = avc->vma;
-		unsigned long address = vma_address(page, vma);
+		unsigned long address = vma_address(&folio->page, vma);
 
 		VM_BUG_ON_VMA(address == -EFAULT, vma);
 		cond_resched();
@@ -2240,9 +2233,9 @@ static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
 			continue;
 
-		if (!rwc->rmap_one(page, vma, address, rwc->arg))
+		if (!rwc->rmap_one(folio, vma, address, rwc->arg))
 			break;
-		if (rwc->done && rwc->done(page))
+		if (rwc->done && rwc->done(folio))
 			break;
 	}
 
@@ -2258,10 +2251,10 @@ static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the address_space struct it points to.
  */
-static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
+static void rmap_walk_file(struct folio *folio, struct rmap_walk_control *rwc,
 		bool locked)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping = folio_mapping(folio);
 	pgoff_t pgoff_start, pgoff_end;
 	struct vm_area_struct *vma;
 
@@ -2271,18 +2264,18 @@ static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 	 * structure at mapping cannot be freed and reused yet,
 	 * so we can safely take mapping->i_mmap_rwsem.
 	 */
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 
 	if (!mapping)
 		return;
 
-	pgoff_start = page_to_pgoff(page);
-	pgoff_end = pgoff_start + thp_nr_pages(page) - 1;
+	pgoff_start = folio_pgoff(folio);
+	pgoff_end = pgoff_start + folio_nr_pages(folio) - 1;
 	if (!locked)
 		i_mmap_lock_read(mapping);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap,
 			pgoff_start, pgoff_end) {
-		unsigned long address = vma_address(page, vma);
+		unsigned long address = vma_address(&folio->page, vma);
 
 		VM_BUG_ON_VMA(address == -EFAULT, vma);
 		cond_resched();
@@ -2290,9 +2283,9 @@ static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
 			continue;
 
-		if (!rwc->rmap_one(page, vma, address, rwc->arg))
+		if (!rwc->rmap_one(folio, vma, address, rwc->arg))
 			goto done;
-		if (rwc->done && rwc->done(page))
+		if (rwc->done && rwc->done(folio))
 			goto done;
 	}
 
@@ -2301,25 +2294,25 @@ done:
 		i_mmap_unlock_read(mapping);
 }
 
-void rmap_walk(struct page *page, struct rmap_walk_control *rwc)
+void rmap_walk(struct folio *folio, struct rmap_walk_control *rwc)
 {
-	if (unlikely(PageKsm(page)))
-		rmap_walk_ksm(page, rwc);
-	else if (PageAnon(page))
-		rmap_walk_anon(page, rwc, false);
+	if (unlikely(folio_test_ksm(folio)))
+		rmap_walk_ksm(folio, rwc);
+	else if (folio_test_anon(folio))
+		rmap_walk_anon(folio, rwc, false);
 	else
-		rmap_walk_file(page, rwc, false);
+		rmap_walk_file(folio, rwc, false);
 }
 
 /* Like rmap_walk, but caller holds relevant rmap lock */
-void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
+void rmap_walk_locked(struct folio *folio, struct rmap_walk_control *rwc)
 {
 	/* no ksm support for now */
-	VM_BUG_ON_PAGE(PageKsm(page), page);
-	if (PageAnon(page))
-		rmap_walk_anon(page, rwc, true);
+	VM_BUG_ON_FOLIO(folio_test_ksm(folio), folio);
+	if (folio_test_anon(folio))
+		rmap_walk_anon(folio, rwc, true);
 	else
-		rmap_walk_file(page, rwc, true);
+		rmap_walk_file(folio, rwc, true);
 }
 
 #ifdef CONFIG_HUGETLB_PAGE

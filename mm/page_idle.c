@@ -46,11 +46,10 @@ static struct page *page_idle_get_page(unsigned long pfn)
 	return page;
 }
 
-static bool page_idle_clear_pte_refs_one(struct page *page,
+static bool page_idle_clear_pte_refs_one(struct folio *folio,
 					struct vm_area_struct *vma,
 					unsigned long addr, void *arg)
 {
-	struct folio *folio = page_folio(page);
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, addr, 0);
 	bool referenced = false;
 
@@ -93,7 +92,7 @@ static void page_idle_clear_pte_refs(struct page *page)
 	 */
 	static const struct rmap_walk_control rwc = {
 		.rmap_one = page_idle_clear_pte_refs_one,
-		.anon_lock = page_lock_anon_vma_read,
+		.anon_lock = folio_lock_anon_vma_read,
 	};
 	bool need_lock;
 
@@ -104,7 +103,7 @@ static void page_idle_clear_pte_refs(struct page *page)
 	if (need_lock && !folio_trylock(folio))
 		return;
 
-	rmap_walk(&folio->page, (struct rmap_walk_control *)&rwc);
+	rmap_walk(folio, (struct rmap_walk_control *)&rwc);
 
 	if (need_lock)
 		folio_unlock(folio);

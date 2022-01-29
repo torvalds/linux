@@ -2588,21 +2588,21 @@ struct page *ksm_might_need_to_copy(struct page *page,
 	return new_page;
 }
 
-void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
+void rmap_walk_ksm(struct folio *folio, struct rmap_walk_control *rwc)
 {
 	struct stable_node *stable_node;
 	struct rmap_item *rmap_item;
 	int search_new_forks = 0;
 
-	VM_BUG_ON_PAGE(!PageKsm(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_ksm(folio), folio);
 
 	/*
 	 * Rely on the page lock to protect against concurrent modifications
 	 * to that page's node of the stable tree.
 	 */
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 
-	stable_node = page_stable_node(page);
+	stable_node = folio_stable_node(folio);
 	if (!stable_node)
 		return;
 again:
@@ -2637,11 +2637,11 @@ again:
 			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
 				continue;
 
-			if (!rwc->rmap_one(page, vma, addr, rwc->arg)) {
+			if (!rwc->rmap_one(folio, vma, addr, rwc->arg)) {
 				anon_vma_unlock_read(anon_vma);
 				return;
 			}
-			if (rwc->done && rwc->done(page)) {
+			if (rwc->done && rwc->done(folio)) {
 				anon_vma_unlock_read(anon_vma);
 				return;
 			}

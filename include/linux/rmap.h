@@ -266,7 +266,6 @@ void remove_migration_ptes(struct folio *src, struct folio *dst, bool locked);
 /*
  * Called by memory-failure.c to kill processes.
  */
-struct anon_vma *page_lock_anon_vma_read(struct page *page);
 struct anon_vma *folio_lock_anon_vma_read(struct folio *folio);
 void page_unlock_anon_vma_read(struct anon_vma *anon_vma);
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
@@ -286,15 +285,15 @@ struct rmap_walk_control {
 	 * Return false if page table scanning in rmap_walk should be stopped.
 	 * Otherwise, return true.
 	 */
-	bool (*rmap_one)(struct page *page, struct vm_area_struct *vma,
+	bool (*rmap_one)(struct folio *folio, struct vm_area_struct *vma,
 					unsigned long addr, void *arg);
-	int (*done)(struct page *page);
-	struct anon_vma *(*anon_lock)(struct page *page);
+	int (*done)(struct folio *folio);
+	struct anon_vma *(*anon_lock)(struct folio *folio);
 	bool (*invalid_vma)(struct vm_area_struct *vma, void *arg);
 };
 
-void rmap_walk(struct page *page, struct rmap_walk_control *rwc);
-void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc);
+void rmap_walk(struct folio *folio, struct rmap_walk_control *rwc);
+void rmap_walk_locked(struct folio *folio, struct rmap_walk_control *rwc);
 
 #else	/* !CONFIG_MMU */
 
