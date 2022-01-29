@@ -8,6 +8,17 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
+		gpio5 = &gpio5;
+		gpio6 = &gpio6;
+		gpio7 = &gpio7;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -76,6 +87,67 @@
 			reg = <0xb8002000 0x1000>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+		};
+
+		pinctrl: pinctrl@b8003000 {
+			compatible = "nuvoton,wpcm450-pinctrl";
+			reg = <0xb8003000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gpio0: gpio@0 {
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
+					     <3 IRQ_TYPE_LEVEL_HIGH>,
+					     <4 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+
+			gpio1: gpio@1 {
+				reg = <1>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+
+			gpio2: gpio@2 {
+				reg = <2>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio3: gpio@3 {
+				reg = <3>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio4: gpio@4 {
+				reg = <4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio5: gpio@5 {
+				reg = <5>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio6: gpio@6 {
+				reg = <6>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio7: gpio@7 {
+				reg = <7>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
 		};
 	};
 };
