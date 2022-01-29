@@ -44,28 +44,6 @@ static struct power_supply_battery_ocv_table ocv_cap_tbl[] = {
 };
 
 /*
- * Note that the res_to_temp table must be strictly sorted by falling
- * resistance values to work.
- */
-static const struct ab8500_res_to_temp temp_tbl[] = {
-	{-5, 214834},
-	{ 0, 162943},
-	{ 5, 124820},
-	{10,  96520},
-	{15,  75306},
-	{20,  59254},
-	{25,  47000},
-	{30,  37566},
-	{35,  30245},
-	{40,  24520},
-	{45,  20010},
-	{50,  16432},
-	{55,  13576},
-	{60,  11280},
-	{65,   9425},
-};
-
-/*
  * Note that the batres_vs_temp table must be strictly sorted by falling
  * temperature values to work. Factory resistance is 300 mOhm and the
  * resistance values to the right are percentages of 300 mOhm.
@@ -92,8 +70,6 @@ static struct ab8500_battery_type bat_type_thermistor_unknown = {
 	.maint_b_chg_timer_h = 200,
 	.low_high_cur_lvl = 300,
 	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-	.r_to_t_tbl = temp_tbl,
 };
 
 static const struct ab8500_bm_capacity_levels cap_levels = {

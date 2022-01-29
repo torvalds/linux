@@ -260,18 +260,6 @@ enum bup_vch_sel {
 #define BUS_PP_PRECHG_CURRENT_MASK		0x0E
 #define BUS_POWER_PATH_PRECHG_ENA		0x01
 
-/**
- * struct ab8500_res_to_temp - defines one point in a temp to res curve. To
- * be used in battery packs that combines the identification resistor with a
- * NTC resistor.
- * @temp:			battery pack temperature in Celsius
- * @resist:			NTC resistor net total resistance
- */
-struct ab8500_res_to_temp {
-	int temp;
-	int resist;
-};
-
 /* Forward declaration */
 struct ab8500_fg;
 
@@ -351,8 +339,6 @@ struct ab8500_maxim_parameters {
  * @maint_b_chg_timer_h:	charge time in maintenance B state
  * @low_high_cur_lvl:		charger current in temp low/high state in mA
  * @low_high_vol_lvl:		charger voltage in temp low/high state in mV'
- * @n_r_t_tbl_elements:		number of elements in r_to_t_tbl
- * @r_to_t_tbl:			table containing resistance to temp points
  */
 struct ab8500_battery_type {
 	int resis_high;
@@ -365,8 +351,6 @@ struct ab8500_battery_type {
 	int maint_b_chg_timer_h;
 	int low_high_cur_lvl;
 	int low_high_vol_lvl;
-	int n_temp_tbl_elements;
-	const struct ab8500_res_to_temp *r_to_t_tbl;
 };
 
 /**
@@ -447,23 +431,6 @@ struct ab8500_bm_data {
 	struct ab8500_battery_type *bat_type;
 	const struct ab8500_bm_charger_parameters *chg_params;
 	const struct ab8500_fg_parameters *fg_params;
-};
-
-enum {
-	NTC_EXTERNAL = 0,
-	NTC_INTERNAL,
-};
-
-/**
- * struct res_to_temp - defines one point in a temp to res curve. To
- * be used in battery packs that combines the identification resistor with a
- * NTC resistor.
- * @temp:			battery pack temperature in Celsius
- * @resist:			NTC resistor net total resistance
- */
-struct res_to_temp {
-	int temp;
-	int resist;
 };
 
 /* Forward declaration */
