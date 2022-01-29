@@ -821,7 +821,7 @@ static void __nfs4_close(struct nfs4_state *state,
 
 void nfs4_close_state(struct nfs4_state *state, fmode_t fmode)
 {
-	__nfs4_close(state, fmode, GFP_NOFS, 0);
+	__nfs4_close(state, fmode, GFP_KERNEL, 0);
 }
 
 void nfs4_close_sync(struct nfs4_state *state, fmode_t fmode)
