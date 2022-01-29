@@ -163,7 +163,7 @@ enum ab8500_usb_state {
 #define USB_CH_IP_CUR_LVL_1P4		1400000
 #define USB_CH_IP_CUR_LVL_1P5		1500000
 
-#define VBAT_TRESH_IP_CUR_RED		3800
+#define VBAT_TRESH_IP_CUR_RED		3800000
 
 #define to_ab8500_charger_usb_device_info(x) container_of((x), \
 	struct ab8500_charger, usb_chg)
@@ -1920,7 +1920,11 @@ static int ab8500_charger_get_ext_psy_data(struct device *dev, void *data)
 
 	di = to_ab8500_charger_usb_device_info(usb_chg);
 
-	/* For all psy where the driver name appears in any supplied_to */
+	/*
+	 * For all psy where the driver name appears in any supplied_to
+	 * in practice what we will find will always be "ab8500_fg" as
+	 * the fuel gauge is responsible of keeping track of VBAT.
+	 */
 	j = match_string(supplicants, ext->num_supplicants, psy->desc->name);
 	if (j < 0)
 		return 0;
@@ -1937,7 +1941,10 @@ static int ab8500_charger_get_ext_psy_data(struct device *dev, void *data)
 		case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
-				di->vbat = ret.intval / 1000;
+				/* This will always be "ab8500_fg" */
+				dev_dbg(di->dev, "get VBAT from %s\n",
+					dev_name(&ext->dev));
+				di->vbat = ret.intval;
 				break;
 			default:
 				break;
@@ -1966,7 +1973,7 @@ static void ab8500_charger_check_vbat_work(struct work_struct *work)
 		struct ab8500_charger, check_vbat_work.work);
 
 	class_for_each_device(power_supply_class, NULL,
-		di->usb_chg.psy, ab8500_charger_get_ext_psy_data);
+			      &di->usb_chg, ab8500_charger_get_ext_psy_data);
 
 	/* First run old_vbat is 0. */
 	if (di->old_vbat == 0)
@@ -1991,8 +1998,8 @@ static void ab8500_charger_check_vbat_work(struct work_struct *work)
 	 * No need to check the battery voltage every second when not close to
 	 * the threshold.
 	 */
-	if (di->vbat < (VBAT_TRESH_IP_CUR_RED + 100) &&
-		(di->vbat > (VBAT_TRESH_IP_CUR_RED - 100)))
+	if (di->vbat < (VBAT_TRESH_IP_CUR_RED + 100000) &&
+		(di->vbat > (VBAT_TRESH_IP_CUR_RED - 100000)))
 			t = 1;
 
 	queue_delayed_work(di->charger_wq, &di->check_vbat_work, t * HZ);
