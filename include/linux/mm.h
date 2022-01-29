@@ -1730,7 +1730,6 @@ static inline void *folio_address(const struct folio *folio)
 }
 
 extern void *page_rmapping(struct page *page);
-extern struct anon_vma *page_anon_vma(struct page *page);
 extern pgoff_t __page_file_index(struct page *page);
 
 /*

@@ -679,9 +679,8 @@ bool folio_mapped(struct folio *folio)
 }
 EXPORT_SYMBOL(folio_mapped);
 
-struct anon_vma *page_anon_vma(struct page *page)
+struct anon_vma *folio_anon_vma(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	unsigned long mapping = (unsigned long)folio->mapping;
 
 	if ((mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)

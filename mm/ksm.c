@@ -2554,7 +2554,8 @@ void __ksm_exit(struct mm_struct *mm)
 struct page *ksm_might_need_to_copy(struct page *page,
 			struct vm_area_struct *vma, unsigned long address)
 {
-	struct anon_vma *anon_vma = page_anon_vma(page);
+	struct folio *folio = page_folio(page);
+	struct anon_vma *anon_vma = folio_anon_vma(folio);
 	struct page *new_page;
 
 	if (PageKsm(page)) {

@@ -737,8 +737,9 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
  */
 unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 {
-	if (PageAnon(page)) {
-		struct anon_vma *page__anon_vma = page_anon_vma(page);
+	struct folio *folio = page_folio(page);
+	if (folio_test_anon(folio)) {
+		struct anon_vma *page__anon_vma = folio_anon_vma(folio);
 		/*
 		 * Note: swapoff's unuse_vma() is more efficient with this
 		 * check, and needs it to match anon_vma when KSM is active.
@@ -748,7 +749,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 			return -EFAULT;
 	} else if (!vma->vm_file) {
 		return -EFAULT;
-	} else if (vma->vm_file->f_mapping != compound_head(page)->mapping) {
+	} else if (vma->vm_file->f_mapping != folio->mapping) {
 		return -EFAULT;
 	}
 
@@ -1103,6 +1104,7 @@ static void __page_set_anon_rmap(struct page *page,
 static void __page_check_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
+	struct folio *folio = page_folio(page);
 	/*
 	 * The page's anon-rmap details (mapping and index) are guaranteed to
 	 * be set up correctly at this point.
@@ -1114,7 +1116,8 @@ static void __page_check_anon_rmap(struct page *page,
 	 * are initially only visible via the pagetables, and the pte is locked
 	 * over the call to page_add_new_anon_rmap.
 	 */
-	VM_BUG_ON_PAGE(page_anon_vma(page)->root != vma->anon_vma->root, page);
+	VM_BUG_ON_FOLIO(folio_anon_vma(folio)->root != vma->anon_vma->root,
+			folio);
 	VM_BUG_ON_PAGE(page_to_pgoff(page) != linear_page_index(vma, address),
 		       page);
 }
@@ -2177,6 +2180,7 @@ void __put_anon_vma(struct anon_vma *anon_vma)
 static struct anon_vma *rmap_walk_anon_lock(struct page *page,
 					struct rmap_walk_control *rwc)
 {
+	struct folio *folio = page_folio(page);
 	struct anon_vma *anon_vma;
 
 	if (rwc->anon_lock)
@@ -2188,7 +2192,7 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
 	 * are holding mmap_lock. Users without mmap_lock are required to
 	 * take a reference count to prevent the anon_vma disappearing
 	 */
-	anon_vma = page_anon_vma(page);
+	anon_vma = folio_anon_vma(folio);
 	if (!anon_vma)
 		return NULL;
 
@@ -2208,14 +2212,15 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
 static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 		bool locked)
 {
+	struct folio *folio = page_folio(page);
 	struct anon_vma *anon_vma;
 	pgoff_t pgoff_start, pgoff_end;
 	struct anon_vma_chain *avc;
 
 	if (locked) {
-		anon_vma = page_anon_vma(page);
+		anon_vma = folio_anon_vma(folio);
 		/* anon_vma disappear under us? */
-		VM_BUG_ON_PAGE(!anon_vma, page);
+		VM_BUG_ON_FOLIO(!anon_vma, folio);
 	} else {
 		anon_vma = rmap_walk_anon_lock(page, rwc);
 	}
