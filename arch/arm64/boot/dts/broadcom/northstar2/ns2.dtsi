@@ -276,7 +276,7 @@
 			mboxes = <&pdc3 0>;
 		};
 
-		dma0: dma@61360000 {
+		dma0: dma-controller@61360000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x61360000 0x1000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>,
