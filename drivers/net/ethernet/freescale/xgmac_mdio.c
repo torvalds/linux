@@ -335,8 +335,8 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 	priv = bus->priv;
 	priv->mdio_base = devm_ioremap(&pdev->dev, res->start,
 				       resource_size(res));
-	if (IS_ERR(priv->mdio_base))
-		return PTR_ERR(priv->mdio_base);
+	if (!priv->mdio_base)
+		return -ENOMEM;
 
 	/* For both ACPI and DT cases, endianness of MDIO controller
 	 * needs to be specified using "little-endian" property.
