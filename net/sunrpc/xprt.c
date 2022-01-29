@@ -1692,7 +1692,7 @@ static struct rpc_rqst *xprt_dynamic_alloc_slot(struct rpc_xprt *xprt)
 		goto out;
 	++xprt->num_reqs;
 	spin_unlock(&xprt->reserve_lock);
-	req = kzalloc(sizeof(struct rpc_rqst), GFP_NOFS);
+	req = kzalloc(sizeof(struct rpc_rqst), GFP_KERNEL);
 	spin_lock(&xprt->reserve_lock);
 	if (req != NULL)
 		goto out;
