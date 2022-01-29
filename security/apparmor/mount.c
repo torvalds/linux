@@ -304,7 +304,7 @@ static int path_flags(struct aa_profile *profile, const struct path *path)
  * @profile: the confining profile
  * @mntpath: for the mntpnt (NOT NULL)
  * @buffer: buffer to be used to lookup mntpath
- * @devnme: string for the devname/src_name (MAY BE NULL OR ERRPTR)
+ * @devname: string for the devname/src_name (MAY BE NULL OR ERRPTR)
  * @type: string for the dev type (MAYBE NULL)
  * @flags: mount flags to match
  * @data: fs mount data (MAYBE NULL)
@@ -359,7 +359,7 @@ audit:
 /**
  * match_mnt - handle path matching for mount
  * @profile: the confining profile
- * @mntpath: for the mntpnt (NOT NULL)
+ * @path: for the mntpnt (NOT NULL)
  * @buffer: buffer to be used to lookup mntpath
  * @devpath: path devname/src_name (MAYBE NULL)
  * @devbuffer: buffer to be used to lookup devname/src_name
