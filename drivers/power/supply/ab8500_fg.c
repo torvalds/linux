@@ -909,18 +909,20 @@ static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 }
 
 /**
- * ab8500_fg_load_comp_volt_to_capacity() - Load compensated voltage based capacity
+ * ab8500_load_comp_fg_bat_voltage() - get load compensated battery voltage
  * @di:		pointer to the ab8500_fg structure
  *
- * Returns battery capacity based on battery voltage that is load compensated
- * for the voltage drop
+ * Returns compensated battery voltage (on success) else error code.
+ * If always is specified, we always return a voltage but it may be
+ * uncompensated.
  */
-static int ab8500_fg_load_comp_volt_to_capacity(struct ab8500_fg *di)
+static int ab8500_load_comp_fg_bat_voltage(struct ab8500_fg *di)
 {
-	int vbat_comp_uv, res;
 	int i = 0;
 	int vbat_uv = 0;
+	int rcomp;
 
+	/* Average the instant current to get a stable current measurement */
 	ab8500_fg_inst_curr_start(di);
 
 	do {
@@ -932,25 +934,37 @@ static int ab8500_fg_load_comp_volt_to_capacity(struct ab8500_fg *di)
 
 	if (i > WAIT_FOR_INST_CURRENT_MAX) {
 		dev_err(di->dev,
-			"TIMEOUT: return capacity based on uncompensated measurement of VBAT\n");
-		goto calc_cap;
+			"TIMEOUT: return uncompensated measurement of VBAT\n");
+		di->vbat_uv = vbat_uv / i;
+		return di->vbat_uv;
 	}
 
 	ab8500_fg_inst_curr_finalize(di, &di->inst_curr_ua);
 
-calc_cap:
-	di->vbat_uv = vbat_uv / i;
-	res = ab8500_fg_battery_resistance(di);
+	vbat_uv = vbat_uv / i;
 
-	/*
-	 * Use Ohms law to get the load compensated voltage.
-	 * Divide by 1000 to get from milliohms to ohms.
-	 */
-	vbat_comp_uv = di->vbat_uv - (di->inst_curr_ua * res) / 1000;
+	/* Next we apply voltage compensation from internal resistance */
+	rcomp = ab8500_fg_battery_resistance(di);
+	vbat_uv = vbat_uv - (di->inst_curr_ua * rcomp) / 1000;
 
-	dev_dbg(di->dev, "%s Measured Vbat: %d uV,Compensated Vbat %d uV, "
-		"R: %d mOhm, Current: %d uA Vbat Samples: %d\n",
-		__func__, di->vbat_uv, vbat_comp_uv, res, di->inst_curr_ua, i);
+	/* Always keep this state at latest measurement */
+	di->vbat_uv = vbat_uv;
+
+	return vbat_uv;
+}
+
+/**
+ * ab8500_fg_load_comp_volt_to_capacity() - Load compensated voltage based capacity
+ * @di:		pointer to the ab8500_fg structure
+ *
+ * Returns battery capacity based on battery voltage that is load compensated
+ * for the voltage drop
+ */
+static int ab8500_fg_load_comp_volt_to_capacity(struct ab8500_fg *di)
+{
+	int vbat_comp_uv;
+
+	vbat_comp_uv = ab8500_load_comp_fg_bat_voltage(di);
 
 	return ab8500_fg_volt_to_capacity(di, vbat_comp_uv);
 }
