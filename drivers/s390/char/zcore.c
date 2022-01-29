@@ -229,8 +229,7 @@ static int __init zcore_reipl_init(void)
 		rc = memcpy_hsa_kernel(zcore_ipl_block, ipib_info.ipib,
 				       PAGE_SIZE);
 	else
-		rc = memcpy_real(zcore_ipl_block, (void *) ipib_info.ipib,
-				 PAGE_SIZE);
+		rc = memcpy_real(zcore_ipl_block, ipib_info.ipib, PAGE_SIZE);
 	if (rc || (__force u32)csum_partial(zcore_ipl_block, zcore_ipl_block->hdr.len, 0) !=
 	    ipib_info.checksum) {
 		TRACE("Checksum does not match\n");
