@@ -131,6 +131,8 @@ int main(void)
 	OFFSET(__LC_LAST_BREAK, lowcore, last_break);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);
+	OFFSET(__LC_VMCORE_INFO, lowcore, vmcore_info);
+	OFFSET(__LC_OS_INFO, lowcore, os_info);
 	/* hardware defined lowcore locations 0x1000 - 0x18ff */
 	OFFSET(__LC_MCESAD, lowcore, mcesad);
 	OFFSET(__LC_EXT_PARAMS2, lowcore, ext_params2);

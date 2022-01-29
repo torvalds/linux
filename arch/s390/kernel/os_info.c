@@ -15,6 +15,7 @@
 #include <asm/checksum.h>
 #include <asm/lowcore.h>
 #include <asm/os_info.h>
+#include <asm/asm-offsets.h>
 
 /*
  * OS info structure has to be page aligned
@@ -123,7 +124,7 @@ static void os_info_old_init(void)
 		return;
 	if (!oldmem_data.start)
 		goto fail;
-	if (copy_oldmem_kernel(&addr, &S390_lowcore.os_info, sizeof(addr)))
+	if (copy_oldmem_kernel(&addr, (void *)__LC_OS_INFO, sizeof(addr)))
 		goto fail;
 	if (addr == 0 || addr % PAGE_SIZE)
 		goto fail;
