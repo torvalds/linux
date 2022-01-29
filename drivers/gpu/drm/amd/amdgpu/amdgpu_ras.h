@@ -493,9 +493,6 @@ struct amdgpu_ras_block_object {
 
 	uint32_t sub_block_index;
 
-	/* ras block link */
-	struct list_head node;
-
 	int (*ras_block_match)(struct amdgpu_ras_block_object *block_obj,
 				enum amdgpu_ras_block block, uint32_t sub_block_index);
 	int (*ras_late_init)(struct amdgpu_device *adev, void *ras_info);

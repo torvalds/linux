@@ -75,6 +75,13 @@ const char *ras_mca_block_string[] = {
 	"mca_iohc",
 };
 
+struct amdgpu_ras_block_list {
+	/* ras block link */
+	struct list_head node;
+
+	struct amdgpu_ras_block_object *ras_obj;
+};
+
 const char *get_ras_block_str(struct ras_common_if *ras_block)
 {
 	if (!ras_block)
@@ -880,7 +887,8 @@ static struct amdgpu_ras_block_object *amdgpu_ras_get_ras_block(struct amdgpu_de
 					enum amdgpu_ras_block block, uint32_t sub_block_index)
 {
 	int loop_cnt = 0;
-	struct amdgpu_ras_block_object *obj, *tmp;
+	struct amdgpu_ras_block_list *node, *tmp;
+	struct amdgpu_ras_block_object *obj;
 
 	if (block >= AMDGPU_RAS_BLOCK__LAST)
 		return NULL;
@@ -888,7 +896,13 @@ static struct amdgpu_ras_block_object *amdgpu_ras_get_ras_block(struct amdgpu_de
 	if (!amdgpu_ras_is_supported(adev, block))
 		return NULL;
 
-	list_for_each_entry_safe(obj, tmp, &adev->ras_list, node) {
+	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
+		if (!node->ras_obj) {
+			dev_warn(adev->dev, "Warning: abnormal ras list node.\n");
+			continue;
+		}
+
+		obj = node->ras_obj;
 		if (obj->ras_block_match) {
 			if (obj->ras_block_match(obj, block, sub_block_index) == 0)
 				return obj;
@@ -2527,6 +2541,7 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 
 int amdgpu_ras_fini(struct amdgpu_device *adev)
 {
+	struct amdgpu_ras_block_list *ras_node, *tmp;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
 	if (!adev->ras_enabled || !con)
@@ -2544,6 +2559,12 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 	amdgpu_ras_set_context(adev, NULL);
 	kfree(con);
+
+	/* Clear ras blocks from ras_list and free ras block list node */
+	list_for_each_entry_safe(ras_node, tmp, &adev->ras_list, node) {
+		list_del(&ras_node->node);
+		kfree(ras_node);
+	}
 
 	return 0;
 }
@@ -2754,14 +2775,20 @@ int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 		struct amdgpu_ras_block_object *ras_block_obj)
 {
+	struct amdgpu_ras_block_list *ras_node;
 	if (!adev || !ras_block_obj)
 		return -EINVAL;
 
 	if (!amdgpu_ras_asic_supported(adev))
 		return 0;
 
-	INIT_LIST_HEAD(&ras_block_obj->node);
-	list_add_tail(&ras_block_obj->node, &adev->ras_list);
+	ras_node = kzalloc(sizeof(*ras_node), GFP_KERNEL);
+	if (!ras_node)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ras_node->node);
+	ras_node->ras_obj = ras_block_obj;
+	list_add_tail(&ras_node->node, &adev->ras_list);
 
 	return 0;
 }
