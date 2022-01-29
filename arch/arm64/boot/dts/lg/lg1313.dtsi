@@ -188,6 +188,7 @@
 			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_bus>;
 			clock-names = "apb_pclk";
+			#dma-cells = <1>;
 		};
 		gpio0: gpio@fd400000 {
 			#gpio-cells = <2>;
