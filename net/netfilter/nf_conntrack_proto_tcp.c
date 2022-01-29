@@ -571,6 +571,18 @@ static bool tcp_in_window(struct nf_conn *ct,
 		sender->td_maxwin = (win == 0 ? 1 : win);
 
 		tcp_options(skb, dataoff, tcph, sender);
+	} else if (tcph->syn && dir == IP_CT_DIR_REPLY &&
+		   state->state == TCP_CONNTRACK_SYN_SENT) {
+		/* Retransmitted syn-ack, or syn (simultaneous open).
+		 *
+		 * Re-init state for this direction, just like for the first
+		 * syn(-ack) reply, it might differ in seq, ack or tcp options.
+		 */
+		tcp_init_sender(sender, receiver,
+				skb, dataoff, tcph,
+				end, win);
+		if (!tcph->ack)
+			return true;
 	}
 
 	if (!(tcph->ack)) {
