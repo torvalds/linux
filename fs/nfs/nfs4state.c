@@ -667,7 +667,7 @@ nfs4_alloc_open_state(void)
 {
 	struct nfs4_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_NOFS);
+	state = kzalloc(sizeof(*state), GFP_KERNEL_ACCOUNT);
 	if (!state)
 		return NULL;
 	refcount_set(&state->count, 1);
@@ -870,14 +870,15 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	struct nfs4_lock_state *lsp;
 	struct nfs_server *server = state->owner->so_server;
 
-	lsp = kzalloc(sizeof(*lsp), GFP_NOFS);
+	lsp = kzalloc(sizeof(*lsp), GFP_KERNEL_ACCOUNT);
 	if (lsp == NULL)
 		return NULL;
 	nfs4_init_seqid_counter(&lsp->ls_seqid);
 	refcount_set(&lsp->ls_count, 1);
 	lsp->ls_state = state;
 	lsp->ls_owner = fl_owner;
-	lsp->ls_seqid.owner_id = ida_simple_get(&server->lockowner_id, 0, 0, GFP_NOFS);
+	lsp->ls_seqid.owner_id = ida_simple_get(&server->lockowner_id,
+						0, 0, GFP_KERNEL_ACCOUNT);
 	if (lsp->ls_seqid.owner_id < 0)
 		goto out_free;
 	INIT_LIST_HEAD(&lsp->ls_locks);
