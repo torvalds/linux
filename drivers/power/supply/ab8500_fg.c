@@ -1073,20 +1073,16 @@ static int ab8500_fg_calc_cap_charging(struct ab8500_fg *di)
 /**
  * ab8500_fg_calc_cap_discharge_voltage() - Capacity in discharge with voltage
  * @di:		pointer to the ab8500_fg structure
- * @comp:	if voltage should be load compensated before capacity calc
  *
- * Return the capacity in mAh based on the battery voltage. The voltage can
- * either be load compensated or not. This value is added to the filter and a
- * new mean value is calculated and returned.
+ * Return the capacity in mAh based on the load compensated battery voltage.
+ * This value is added to the filter and a new mean value is calculated and
+ * returned.
  */
-static int ab8500_fg_calc_cap_discharge_voltage(struct ab8500_fg *di, bool comp)
+static int ab8500_fg_calc_cap_discharge_voltage(struct ab8500_fg *di)
 {
 	int permille, mah;
 
-	if (comp)
-		permille = ab8500_fg_load_comp_volt_to_capacity(di);
-	else
-		permille = ab8500_fg_uncomp_volt_to_capacity(di);
+	permille = ab8500_fg_load_comp_volt_to_capacity(di);
 
 	mah = ab8500_fg_convert_permille_to_mah(di, permille);
 
@@ -1563,7 +1559,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 
 		/* Discard the first [x] seconds */
 		if (di->init_cnt > di->bm->fg_params->init_discard_time) {
-			ab8500_fg_calc_cap_discharge_voltage(di, true);
+			ab8500_fg_calc_cap_discharge_voltage(di);
 
 			ab8500_fg_check_capacity_limits(di, true);
 		}
@@ -1646,7 +1642,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 				break;
 			}
 
-			ab8500_fg_calc_cap_discharge_voltage(di, true);
+			ab8500_fg_calc_cap_discharge_voltage(di);
 		} else {
 			mutex_lock(&di->cc_lock);
 			if (!di->flags.conv_done) {
@@ -1680,7 +1676,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		break;
 
 	case AB8500_FG_DISCHARGE_WAKEUP:
-		ab8500_fg_calc_cap_discharge_voltage(di, true);
+		ab8500_fg_calc_cap_discharge_voltage(di);
 
 		di->fg_samples = SEC_TO_SAMPLE(
 			di->bm->fg_params->accu_high_curr);
@@ -1799,7 +1795,7 @@ static void ab8500_fg_periodic_work(struct work_struct *work)
 
 	if (di->init_capacity) {
 		/* Get an initial capacity calculation */
-		ab8500_fg_calc_cap_discharge_voltage(di, true);
+		ab8500_fg_calc_cap_discharge_voltage(di);
 		ab8500_fg_check_capacity_limits(di, true);
 		di->init_capacity = false;
 
@@ -2422,7 +2418,7 @@ static void ab8500_fg_reinit_work(struct work_struct *work)
 	if (!di->flags.calibrate) {
 		dev_dbg(di->dev, "Resetting FG state machine to init.\n");
 		ab8500_fg_clear_cap_samples(di);
-		ab8500_fg_calc_cap_discharge_voltage(di, true);
+		ab8500_fg_calc_cap_discharge_voltage(di);
 		ab8500_fg_charge_state_to(di, AB8500_FG_CHARGE_INIT);
 		ab8500_fg_discharge_state_to(di, AB8500_FG_DISCHARGE_INIT);
 		queue_delayed_work(di->fg_wq, &di->fg_periodic_work, 0);
