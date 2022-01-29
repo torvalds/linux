@@ -45,6 +45,7 @@
 #define SEC_TO_SAMPLE(S)		(S * 4)
 
 #define NBR_AVG_SAMPLES			20
+#define WAIT_FOR_INST_CURRENT_MAX	70
 
 #define LOW_BAT_CHECK_INTERVAL		(HZ / 16) /* 62.5 ms */
 
@@ -926,10 +927,18 @@ static int ab8500_fg_load_comp_volt_to_capacity(struct ab8500_fg *di)
 		vbat_uv += ab8500_fg_bat_voltage(di);
 		i++;
 		usleep_range(5000, 6000);
-	} while (!ab8500_fg_inst_curr_done(di));
+	} while (!ab8500_fg_inst_curr_done(di) &&
+		 i <= WAIT_FOR_INST_CURRENT_MAX);
+
+	if (i > WAIT_FOR_INST_CURRENT_MAX) {
+		dev_err(di->dev,
+			"TIMEOUT: return capacity based on uncompensated measurement of VBAT\n");
+		goto calc_cap;
+	}
 
 	ab8500_fg_inst_curr_finalize(di, &di->inst_curr_ua);
 
+calc_cap:
 	di->vbat_uv = vbat_uv / i;
 	res = ab8500_fg_battery_resistance(di);
 
