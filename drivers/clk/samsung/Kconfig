@@ -129,6 +129,7 @@ config S3C2443_COMMON_CLK
 config TESLA_FSD_COMMON_CLK
 	bool "Tesla FSD clock controller support" if COMPILE_TEST
 	depends on COMMON_CLK_SAMSUNG
+	depends on EXYNOS_ARM64_COMMON_CLK
 	help
 	  Support for the clock controller present on the Tesla FSD SoC.
 	  Choose Y here only if you build for this SoC.
