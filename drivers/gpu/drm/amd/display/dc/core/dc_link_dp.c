@@ -2250,11 +2250,11 @@ static enum link_training_result dp_perform_8b_10b_link_training(
 
 	if (status == LINK_TRAINING_SUCCESS) {
 		status = perform_clock_recovery_sequence(link, link_res, lt_settings, DPRX);
-	if (status == LINK_TRAINING_SUCCESS) {
-		status = perform_channel_equalization_sequence(link,
-					link_res,
-					lt_settings,
-					DPRX);
+		if (status == LINK_TRAINING_SUCCESS) {
+			status = perform_channel_equalization_sequence(link,
+								       link_res,
+								       lt_settings,
+								       DPRX);
 		}
 	}
 
