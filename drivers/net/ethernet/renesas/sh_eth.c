@@ -3456,7 +3456,7 @@ static int sh_eth_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ret = 0;
+	int ret;
 
 	if (!netif_running(ndev))
 		return 0;
@@ -3475,7 +3475,7 @@ static int sh_eth_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ret = 0;
+	int ret;
 
 	if (!netif_running(ndev))
 		return 0;
