@@ -376,15 +376,17 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
 
 	for (i = 0; i < npages && restore; i++) {
 		struct page *page = migrate_pfn_to_page(migrate->src[i]);
+		struct folio *folio;
 
 		if (!page || (migrate->src[i] & MIGRATE_PFN_MIGRATE))
 			continue;
 
-		remove_migration_ptes(page, page, false);
+		folio = page_folio(page);
+		remove_migration_ptes(folio, folio, false);
 
 		migrate->src[i] = 0;
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		restore--;
 	}
 }
@@ -729,6 +731,7 @@ void migrate_vma_finalize(struct migrate_vma *migrate)
 	unsigned long i;
 
 	for (i = 0; i < npages; i++) {
+		struct folio *dst, *src;
 		struct page *newpage = migrate_pfn_to_page(migrate->dst[i]);
 		struct page *page = migrate_pfn_to_page(migrate->src[i]);
 
@@ -748,8 +751,10 @@ void migrate_vma_finalize(struct migrate_vma *migrate)
 			newpage = page;
 		}
 
-		remove_migration_ptes(page, newpage, false);
-		unlock_page(page);
+		src = page_folio(page);
+		dst = page_folio(newpage);
+		remove_migration_ptes(src, dst, false);
+		folio_unlock(src);
 
 		if (is_zone_device_page(page))
 			put_page(page);

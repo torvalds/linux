@@ -261,7 +261,7 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
  */
 int folio_mkclean(struct folio *);
 
-void remove_migration_ptes(struct page *old, struct page *new, bool locked);
+void remove_migration_ptes(struct folio *src, struct folio *dst, bool locked);
 
 /*
  * Called by memory-failure.c to kill processes.

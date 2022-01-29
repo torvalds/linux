@@ -2270,18 +2270,19 @@ static void unmap_page(struct page *page)
 	VM_WARN_ON_ONCE_PAGE(page_mapped(page), page);
 }
 
-static void remap_page(struct page *page, unsigned int nr)
+static void remap_page(struct folio *folio, unsigned long nr)
 {
-	int i;
+	int i = 0;
 
 	/* If unmap_page() uses try_to_migrate() on file, remove this check */
-	if (!PageAnon(page))
+	if (!folio_test_anon(folio))
 		return;
-	if (PageTransHuge(page)) {
-		remove_migration_ptes(page, page, true);
-	} else {
-		for (i = 0; i < nr; i++)
-			remove_migration_ptes(page + i, page + i, true);
+	for (;;) {
+		remove_migration_ptes(folio, folio, true);
+		i += folio_nr_pages(folio);
+		if (i >= nr)
+			break;
+		folio = folio_next(folio);
 	}
 }
 
@@ -2441,7 +2442,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	}
 	local_irq_enable();
 
-	remap_page(head, nr);
+	remap_page(folio, nr);
 
 	if (PageSwapCache(head)) {
 		swp_entry_t entry = { .val = page_private(head) };
@@ -2550,7 +2551,8 @@ bool can_split_huge_page(struct page *page, int *pextra_pins)
  */
 int split_huge_page_to_list(struct page *page, struct list_head *list)
 {
-	struct page *head = compound_head(page);
+	struct folio *folio = page_folio(page);
+	struct page *head = &folio->page;
 	struct deferred_split *ds_queue = get_deferred_split_queue(head);
 	XA_STATE(xas, &head->mapping->i_pages, head->index);
 	struct anon_vma *anon_vma = NULL;
@@ -2667,7 +2669,7 @@ fail:
 		if (mapping)
 			xas_unlock(&xas);
 		local_irq_enable();
-		remap_page(head, thp_nr_pages(head));
+		remap_page(folio, folio_nr_pages(folio));
 		ret = -EBUSY;
 	}
 
