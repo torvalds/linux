@@ -214,7 +214,7 @@ static void *kvmemdup(const void *src, size_t len)
 }
 
 /**
- * aa_u16_chunck - test and do bounds checking for a u16 size based chunk
+ * unpack_u16_chunk - test and do bounds checking for a u16 size based chunk
  * @e: serialized data read head (NOT NULL)
  * @chunk: start address for chunk of data (NOT NULL)
  *
@@ -671,6 +671,7 @@ static int datacmp(struct rhashtable_compare_arg *arg, const void *obj)
 /**
  * unpack_profile - unpack a serialized profile
  * @e: serialized data extent information (NOT NULL)
+ * @ns_name: pointer of newly allocated copy of %NULL in case of error
  *
  * NOTE: unpack profile sets audit struct if there is a failure
  */
@@ -939,7 +940,7 @@ fail:
 }
 
 /**
- * verify_head - unpack serialized stream header
+ * verify_header - unpack serialized stream header
  * @e: serialized data read head (NOT NULL)
  * @required: whether the header is required or optional
  * @ns: Returns - namespace if one is specified else NULL (NOT NULL)
