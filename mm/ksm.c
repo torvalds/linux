@@ -2588,7 +2588,7 @@ struct page *ksm_might_need_to_copy(struct page *page,
 	return new_page;
 }
 
-void rmap_walk_ksm(struct folio *folio, struct rmap_walk_control *rwc)
+void rmap_walk_ksm(struct folio *folio, const struct rmap_walk_control *rwc)
 {
 	struct stable_node *stable_node;
 	struct rmap_item *rmap_item;

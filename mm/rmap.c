@@ -2173,7 +2173,7 @@ void __put_anon_vma(struct anon_vma *anon_vma)
 }
 
 static struct anon_vma *rmap_walk_anon_lock(struct folio *folio,
-					struct rmap_walk_control *rwc)
+					const struct rmap_walk_control *rwc)
 {
 	struct anon_vma *anon_vma;
 
@@ -2203,8 +2203,8 @@ static struct anon_vma *rmap_walk_anon_lock(struct folio *folio,
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the anon_vma struct it points to.
  */
-static void rmap_walk_anon(struct folio *folio, struct rmap_walk_control *rwc,
-		bool locked)
+static void rmap_walk_anon(struct folio *folio,
+		const struct rmap_walk_control *rwc, bool locked)
 {
 	struct anon_vma *anon_vma;
 	pgoff_t pgoff_start, pgoff_end;
@@ -2251,8 +2251,8 @@ static void rmap_walk_anon(struct folio *folio, struct rmap_walk_control *rwc,
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the address_space struct it points to.
  */
-static void rmap_walk_file(struct folio *folio, struct rmap_walk_control *rwc,
-		bool locked)
+static void rmap_walk_file(struct folio *folio,
+		const struct rmap_walk_control *rwc, bool locked)
 {
 	struct address_space *mapping = folio_mapping(folio);
 	pgoff_t pgoff_start, pgoff_end;
@@ -2294,7 +2294,7 @@ done:
 		i_mmap_unlock_read(mapping);
 }
 
-void rmap_walk(struct folio *folio, struct rmap_walk_control *rwc)
+void rmap_walk(struct folio *folio, const struct rmap_walk_control *rwc)
 {
 	if (unlikely(folio_test_ksm(folio)))
 		rmap_walk_ksm(folio, rwc);
@@ -2305,7 +2305,7 @@ void rmap_walk(struct folio *folio, struct rmap_walk_control *rwc)
 }
 
 /* Like rmap_walk, but caller holds relevant rmap lock */
-void rmap_walk_locked(struct folio *folio, struct rmap_walk_control *rwc)
+void rmap_walk_locked(struct folio *folio, const struct rmap_walk_control *rwc)
 {
 	/* no ksm support for now */
 	VM_BUG_ON_FOLIO(folio_test_ksm(folio), folio);

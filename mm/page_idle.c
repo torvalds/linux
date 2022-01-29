@@ -103,7 +103,7 @@ static void page_idle_clear_pte_refs(struct page *page)
 	if (need_lock && !folio_trylock(folio))
 		return;
 
-	rmap_walk(folio, (struct rmap_walk_control *)&rwc);
+	rmap_walk(folio, &rwc);
 
 	if (need_lock)
 		folio_unlock(folio);
