@@ -670,7 +670,7 @@ static __init void smp_save_cpu_regs(struct save_area *sa, u16 addr,
 				     bool is_boot_cpu, void *regs)
 {
 	if (is_boot_cpu)
-		copy_oldmem_kernel(regs, (void *) __LC_FPREGS_SAVE_AREA, 512);
+		copy_oldmem_kernel(regs, __LC_FPREGS_SAVE_AREA, 512);
 	else
 		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, __pa(regs));
 	save_area_add_regs(sa, regs);

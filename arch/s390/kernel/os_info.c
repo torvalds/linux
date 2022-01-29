@@ -91,7 +91,7 @@ static void os_info_old_alloc(int nr, int align)
 		goto fail;
 	}
 	buf_align = PTR_ALIGN(buf, align);
-	if (copy_oldmem_kernel(buf_align, (void *) addr, size)) {
+	if (copy_oldmem_kernel(buf_align, addr, size)) {
 		msg = "copy failed";
 		goto fail_free;
 	}
@@ -124,15 +124,14 @@ static void os_info_old_init(void)
 		return;
 	if (!oldmem_data.start)
 		goto fail;
-	if (copy_oldmem_kernel(&addr, (void *)__LC_OS_INFO, sizeof(addr)))
+	if (copy_oldmem_kernel(&addr, __LC_OS_INFO, sizeof(addr)))
 		goto fail;
 	if (addr == 0 || addr % PAGE_SIZE)
 		goto fail;
 	os_info_old = kzalloc(sizeof(*os_info_old), GFP_KERNEL);
 	if (!os_info_old)
 		goto fail;
-	if (copy_oldmem_kernel(os_info_old, (void *) addr,
-			       sizeof(*os_info_old)))
+	if (copy_oldmem_kernel(os_info_old, addr, sizeof(*os_info_old)))
 		goto fail_free;
 	if (os_info_old->magic != OS_INFO_MAGIC)
 		goto fail_free;

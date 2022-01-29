@@ -317,7 +317,7 @@ extern void (*s390_base_pgm_handler_fn)(void);
 
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
 
-extern int memcpy_real(void *, void *, size_t);
+extern int memcpy_real(void *, unsigned long, size_t);
 extern void memcpy_absolute(void *, void *, size_t);
 
 #define mem_assign_absolute(dest, val) do {			\

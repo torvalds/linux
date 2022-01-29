@@ -132,28 +132,27 @@ static inline void *load_real_addr(void *addr)
 /*
  * Copy memory of the old, dumped system to a kernel space virtual address
  */
-int copy_oldmem_kernel(void *dst, void *src, size_t count)
+int copy_oldmem_kernel(void *dst, unsigned long src, size_t count)
 {
-	unsigned long from, len;
+	unsigned long len;
 	void *ra;
 	int rc;
 
 	while (count) {
-		from = __pa(src);
-		if (!oldmem_data.start && from < sclp.hsa_size) {
+		if (!oldmem_data.start && src < sclp.hsa_size) {
 			/* Copy from zfcp/nvme dump HSA area */
-			len = min(count, sclp.hsa_size - from);
-			rc = memcpy_hsa_kernel(dst, from, len);
+			len = min(count, sclp.hsa_size - src);
+			rc = memcpy_hsa_kernel(dst, src, len);
 			if (rc)
 				return rc;
 		} else {
 			/* Check for swapped kdump oldmem areas */
-			if (oldmem_data.start && from - oldmem_data.start < oldmem_data.size) {
-				from -= oldmem_data.start;
-				len = min(count, oldmem_data.size - from);
-			} else if (oldmem_data.start && from < oldmem_data.size) {
-				len = min(count, oldmem_data.size - from);
-				from += oldmem_data.start;
+			if (oldmem_data.start && src - oldmem_data.start < oldmem_data.size) {
+				src -= oldmem_data.start;
+				len = min(count, oldmem_data.size - src);
+			} else if (oldmem_data.start && src < oldmem_data.size) {
+				len = min(count, oldmem_data.size - src);
+				src += oldmem_data.start;
 			} else {
 				len = count;
 			}
@@ -163,7 +162,7 @@ int copy_oldmem_kernel(void *dst, void *src, size_t count)
 			} else {
 				ra = dst;
 			}
-			if (memcpy_real(ra, (void *) from, len))
+			if (memcpy_real(ra, src, len))
 				return -EFAULT;
 		}
 		dst += len;
@@ -176,31 +175,30 @@ int copy_oldmem_kernel(void *dst, void *src, size_t count)
 /*
  * Copy memory of the old, dumped system to a user space virtual address
  */
-static int copy_oldmem_user(void __user *dst, void *src, size_t count)
+static int copy_oldmem_user(void __user *dst, unsigned long src, size_t count)
 {
-	unsigned long from, len;
+	unsigned long len;
 	int rc;
 
 	while (count) {
-		from = __pa(src);
-		if (!oldmem_data.start && from < sclp.hsa_size) {
+		if (!oldmem_data.start && src < sclp.hsa_size) {
 			/* Copy from zfcp/nvme dump HSA area */
-			len = min(count, sclp.hsa_size - from);
-			rc = memcpy_hsa_user(dst, from, len);
+			len = min(count, sclp.hsa_size - src);
+			rc = memcpy_hsa_user(dst, src, len);
 			if (rc)
 				return rc;
 		} else {
 			/* Check for swapped kdump oldmem areas */
-			if (oldmem_data.start && from - oldmem_data.start < oldmem_data.size) {
-				from -= oldmem_data.start;
-				len = min(count, oldmem_data.size - from);
-			} else if (oldmem_data.start && from < oldmem_data.size) {
-				len = min(count, oldmem_data.size - from);
-				from += oldmem_data.start;
+			if (oldmem_data.start && src - oldmem_data.start < oldmem_data.size) {
+				src -= oldmem_data.start;
+				len = min(count, oldmem_data.size - src);
+			} else if (oldmem_data.start && src < oldmem_data.size) {
+				len = min(count, oldmem_data.size - src);
+				src += oldmem_data.start;
 			} else {
 				len = count;
 			}
-			rc = copy_to_user_real(dst, (void *) from, count);
+			rc = copy_to_user_real(dst, src, count);
 			if (rc)
 				return rc;
 		}
@@ -217,12 +215,12 @@ static int copy_oldmem_user(void __user *dst, void *src, size_t count)
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
 			 unsigned long offset, int userbuf)
 {
-	void *src;
+	unsigned long src;
 	int rc;
 
 	if (!csize)
 		return 0;
-	src = (void *) (pfn << PAGE_SHIFT) + offset;
+	src = pfn_to_phys(pfn) + offset;
 	if (userbuf)
 		rc = copy_oldmem_user((void __force __user *) buf, src, csize);
 	else
@@ -429,10 +427,10 @@ static void *nt_prpsinfo(void *ptr)
 static void *get_vmcoreinfo_old(unsigned long *size)
 {
 	char nt_name[11], *vmcoreinfo;
+	unsigned long addr;
 	Elf64_Nhdr note;
-	void *addr;
 
-	if (copy_oldmem_kernel(&addr, (void *)__LC_VMCORE_INFO, sizeof(addr)))
+	if (copy_oldmem_kernel(&addr, __LC_VMCORE_INFO, sizeof(addr)))
 		return NULL;
 	memset(nt_name, 0, sizeof(nt_name));
 	if (copy_oldmem_kernel(&note, addr, sizeof(note)))
