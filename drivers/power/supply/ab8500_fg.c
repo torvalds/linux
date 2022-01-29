@@ -46,6 +46,8 @@
 
 #define NBR_AVG_SAMPLES			20
 #define WAIT_FOR_INST_CURRENT_MAX	70
+/* Currents higher than -500mA (dissipating) will make compensation unstable */
+#define IGNORE_VBAT_HIGHCUR		-500000
 
 #define LOW_BAT_CHECK_INTERVAL		(HZ / 16) /* 62.5 ms */
 
@@ -911,12 +913,13 @@ static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 /**
  * ab8500_load_comp_fg_bat_voltage() - get load compensated battery voltage
  * @di:		pointer to the ab8500_fg structure
+ * @always:	always return a voltage, also uncompensated
  *
  * Returns compensated battery voltage (on success) else error code.
  * If always is specified, we always return a voltage but it may be
  * uncompensated.
  */
-static int ab8500_load_comp_fg_bat_voltage(struct ab8500_fg *di)
+static int ab8500_load_comp_fg_bat_voltage(struct ab8500_fg *di, bool always)
 {
 	int i = 0;
 	int vbat_uv = 0;
@@ -941,6 +944,14 @@ static int ab8500_load_comp_fg_bat_voltage(struct ab8500_fg *di)
 
 	ab8500_fg_inst_curr_finalize(di, &di->inst_curr_ua);
 
+	/*
+	 * If there is too high current dissipation, the compensation cannot be
+	 * trusted so return an error unless we must return something here, as
+	 * enforced by the "always" parameter.
+	 */
+	if (!always && di->inst_curr_ua < IGNORE_VBAT_HIGHCUR)
+		return -EINVAL;
+
 	vbat_uv = vbat_uv / i;
 
 	/* Next we apply voltage compensation from internal resistance */
@@ -964,7 +975,7 @@ static int ab8500_fg_load_comp_volt_to_capacity(struct ab8500_fg *di)
 {
 	int vbat_comp_uv;
 
-	vbat_comp_uv = ab8500_load_comp_fg_bat_voltage(di);
+	vbat_comp_uv = ab8500_load_comp_fg_bat_voltage(di, true);
 
 	return ab8500_fg_volt_to_capacity(di, vbat_comp_uv);
 }
