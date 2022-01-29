@@ -160,6 +160,11 @@ void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	notif = (struct ct_kill_notif *)pkt->data;
 	IWL_DEBUG_TEMP(mvm, "CT Kill notification temperature = %d\n",
 		       notif->temperature);
+	if (iwl_fw_lookup_notif_ver(mvm->fw, PHY_OPS_GROUP,
+				    CT_KILL_NOTIFICATION, 0) > 1)
+		IWL_DEBUG_TEMP(mvm,
+			       "CT kill notification DTS bitmap = 0x%x, Scheme = %d\n",
+			       notif->dts, notif->scheme);
 
 	iwl_mvm_enter_ctkill(mvm);
 }
