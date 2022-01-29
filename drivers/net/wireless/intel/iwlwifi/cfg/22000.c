@@ -300,6 +300,12 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 			.addr = DBGC_CUR_DBGBUF_STATUS,			\
 			.mask = DBGC_CUR_DBGBUF_STATUS_IDX_MSK,		\
 		},							\
+	},								\
+	.mon_dbgi_regs = {						\
+		.write_ptr = {						\
+			.addr = DBGI_SRAM_FIFO_POINTERS,		\
+			.mask = DBGI_SRAM_FIFO_POINTERS_WR_PTR_MSK,	\
+		},							\
 	}
 
 const struct iwl_cfg_trans_params iwl_qnj_trans_cfg = {
