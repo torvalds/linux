@@ -23,7 +23,7 @@ static int mana_get_sset_count(struct net_device *ndev, int stringset)
 	if (stringset != ETH_SS_STATS)
 		return -EINVAL;
 
-	return ARRAY_SIZE(mana_eth_stats) + num_queues * 4;
+	return ARRAY_SIZE(mana_eth_stats) + num_queues * 5;
 }
 
 static void mana_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
@@ -46,6 +46,8 @@ static void mana_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 		p += ETH_GSTRING_LEN;
 		sprintf(p, "rx_%d_bytes", i);
 		p += ETH_GSTRING_LEN;
+		sprintf(p, "rx_%d_xdp_drop", i);
+		p += ETH_GSTRING_LEN;
 	}
 
 	for (i = 0; i < num_queues; i++) {
@@ -62,9 +64,11 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 	struct mana_port_context *apc = netdev_priv(ndev);
 	unsigned int num_queues = apc->num_queues;
 	void *eth_stats = &apc->eth_stats;
-	struct mana_stats *stats;
+	struct mana_stats_rx *rx_stats;
+	struct mana_stats_tx *tx_stats;
 	unsigned int start;
 	u64 packets, bytes;
+	u64 xdp_drop;
 	int q, i = 0;
 
 	if (!apc->port_is_up)
@@ -74,26 +78,28 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 		data[i++] = *(u64 *)(eth_stats + mana_eth_stats[q].offset);
 
 	for (q = 0; q < num_queues; q++) {
-		stats = &apc->rxqs[q]->stats;
+		rx_stats = &apc->rxqs[q]->stats;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->packets;
-			bytes = stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&rx_stats->syncp);
+			packets = rx_stats->packets;
+			bytes = rx_stats->bytes;
+			xdp_drop = rx_stats->xdp_drop;
+		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
 
 		data[i++] = packets;
 		data[i++] = bytes;
+		data[i++] = xdp_drop;
 	}
 
 	for (q = 0; q < num_queues; q++) {
-		stats = &apc->tx_qp[q].txq.stats;
+		tx_stats = &apc->tx_qp[q].txq.stats;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->packets;
-			bytes = stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&tx_stats->syncp);
+			packets = tx_stats->packets;
+			bytes = tx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_stats->syncp, start));
 
 		data[i++] = packets;
 		data[i++] = bytes;
