@@ -33,6 +33,11 @@
 		interrupt-parent = <&aic>;
 		ranges;
 
+		gcr: syscon@b0000000 {
+			compatible = "nuvoton,wpcm450-gcr", "syscon", "simple-mfd";
+			reg = <0xb0000000 0x200>;
+		};
+
 		serial0: serial@b8000000 {
 			compatible = "nuvoton,wpcm450-uart";
 			reg = <0xb8000000 0x20>;
