@@ -1317,7 +1317,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		offset += ALIGN(len, FH_RSCSR_FRAME_ALIGN);
 
 		/* check that what the device tells us made sense */
-		if (offset > max_len)
+		if (len < sizeof(*pkt) || offset > max_len)
 			break;
 
 		trace_iwlwifi_dev_rx(trans->dev, trans, pkt, len);
