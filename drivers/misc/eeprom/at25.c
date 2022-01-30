@@ -440,6 +440,10 @@ static int at25_probe(struct spi_device *spi)
 		return -ENXIO;
 	}
 
+	at25 = devm_kzalloc(&spi->dev, sizeof(*at25), GFP_KERNEL);
+	if (!at25)
+		return -ENOMEM;
+
 	mutex_init(&at25->lock);
 	at25->spi = spi;
 	spi_set_drvdata(spi, at25);

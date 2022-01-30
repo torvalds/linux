@@ -47,8 +47,6 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 int __put_user_bad(void) __attribute__((noreturn));
 int __get_user_bad(void) __attribute__((noreturn));
 
-#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
-
 union oac {
 	unsigned int val;
 	struct {
@@ -70,6 +68,8 @@ union oac {
 		} oac2;
 	};
 };
+
+#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 
 #define __put_get_user_asm(to, from, size, oac_spec)			\
 ({									\

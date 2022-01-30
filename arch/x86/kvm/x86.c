@@ -3535,6 +3535,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (data & ~supported_xss)
 			return 1;
 		vcpu->arch.ia32_xss = data;
+		kvm_update_cpuid_runtime(vcpu);
 		break;
 	case MSR_SMI_COUNT:
 		if (!msr_info->host_initiated)
@@ -4229,6 +4230,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_SREGS2:
 	case KVM_CAP_EXIT_ON_EMULATION_FAILURE:
 	case KVM_CAP_VCPU_ATTRIBUTES:
+	case KVM_CAP_SYS_ATTRIBUTES:
 		r = 1;
 		break;
 	case KVM_CAP_EXIT_HYPERCALL:
@@ -4331,7 +4333,49 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	}
 	return r;
+}
 
+static inline void __user *kvm_get_attr_addr(struct kvm_device_attr *attr)
+{
+	void __user *uaddr = (void __user*)(unsigned long)attr->addr;
+
+	if ((u64)(unsigned long)uaddr != attr->addr)
+		return ERR_PTR(-EFAULT);
+	return uaddr;
+}
+
+static int kvm_x86_dev_get_attr(struct kvm_device_attr *attr)
+{
+	u64 __user *uaddr = kvm_get_attr_addr(attr);
+
+	if (attr->group)
+		return -ENXIO;
+
+	if (IS_ERR(uaddr))
+		return PTR_ERR(uaddr);
+
+	switch (attr->attr) {
+	case KVM_X86_XCOMP_GUEST_SUPP:
+		if (put_user(supported_xcr0, uaddr))
+			return -EFAULT;
+		return 0;
+	default:
+		return -ENXIO;
+		break;
+	}
+}
+
+static int kvm_x86_dev_has_attr(struct kvm_device_attr *attr)
+{
+	if (attr->group)
+		return -ENXIO;
+
+	switch (attr->attr) {
+	case KVM_X86_XCOMP_GUEST_SUPP:
+		return 0;
+	default:
+		return -ENXIO;
+	}
 }
 
 long kvm_arch_dev_ioctl(struct file *filp,
@@ -4422,6 +4466,22 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	case KVM_GET_SUPPORTED_HV_CPUID:
 		r = kvm_ioctl_get_supported_hv_cpuid(NULL, argp);
 		break;
+	case KVM_GET_DEVICE_ATTR: {
+		struct kvm_device_attr attr;
+		r = -EFAULT;
+		if (copy_from_user(&attr, (void __user *)arg, sizeof(attr)))
+			break;
+		r = kvm_x86_dev_get_attr(&attr);
+		break;
+	}
+	case KVM_HAS_DEVICE_ATTR: {
+		struct kvm_device_attr attr;
+		r = -EFAULT;
+		if (copy_from_user(&attr, (void __user *)arg, sizeof(attr)))
+			break;
+		r = kvm_x86_dev_has_attr(&attr);
+		break;
+	}
 	default:
 		r = -EINVAL;
 		break;
@@ -4860,8 +4920,10 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 		vcpu->arch.apic->sipi_vector = events->sipi_vector;
 
 	if (events->flags & KVM_VCPUEVENT_VALID_SMM) {
-		if (!!(vcpu->arch.hflags & HF_SMM_MASK) != events->smi.smm)
+		if (!!(vcpu->arch.hflags & HF_SMM_MASK) != events->smi.smm) {
+			kvm_x86_ops.nested_ops->leave_nested(vcpu);
 			kvm_smm_changed(vcpu, events->smi.smm);
+		}
 
 		vcpu->arch.smi_pending = events->smi.pending;
 
@@ -5022,11 +5084,11 @@ static int kvm_arch_tsc_has_attr(struct kvm_vcpu *vcpu,
 static int kvm_arch_tsc_get_attr(struct kvm_vcpu *vcpu,
 				 struct kvm_device_attr *attr)
 {
-	u64 __user *uaddr = (u64 __user *)(unsigned long)attr->addr;
+	u64 __user *uaddr = kvm_get_attr_addr(attr);
 	int r;
 
-	if ((u64)(unsigned long)uaddr != attr->addr)
-		return -EFAULT;
+	if (IS_ERR(uaddr))
+		return PTR_ERR(uaddr);
 
 	switch (attr->attr) {
 	case KVM_VCPU_TSC_OFFSET:
@@ -5045,12 +5107,12 @@ static int kvm_arch_tsc_get_attr(struct kvm_vcpu *vcpu,
 static int kvm_arch_tsc_set_attr(struct kvm_vcpu *vcpu,
 				 struct kvm_device_attr *attr)
 {
-	u64 __user *uaddr = (u64 __user *)(unsigned long)attr->addr;
+	u64 __user *uaddr = kvm_get_attr_addr(attr);
 	struct kvm *kvm = vcpu->kvm;
 	int r;
 
-	if ((u64)(unsigned long)uaddr != attr->addr)
-		return -EFAULT;
+	if (IS_ERR(uaddr))
+		return PTR_ERR(uaddr);
 
 	switch (attr->attr) {
 	case KVM_VCPU_TSC_OFFSET: {
@@ -6810,6 +6872,13 @@ int kvm_write_guest_virt_system(struct kvm_vcpu *vcpu, gva_t addr, void *val,
 }
 EXPORT_SYMBOL_GPL(kvm_write_guest_virt_system);
 
+static int kvm_can_emulate_insn(struct kvm_vcpu *vcpu, int emul_type,
+				void *insn, int insn_len)
+{
+	return static_call(kvm_x86_can_emulate_instruction)(vcpu, emul_type,
+							    insn, insn_len);
+}
+
 int handle_ud(struct kvm_vcpu *vcpu)
 {
 	static const char kvm_emulate_prefix[] = { __KVM_EMULATE_PREFIX };
@@ -6817,7 +6886,7 @@ int handle_ud(struct kvm_vcpu *vcpu)
 	char sig[5]; /* ud2; .ascii "kvm" */
 	struct x86_exception e;
 
-	if (unlikely(!static_call(kvm_x86_can_emulate_instruction)(vcpu, NULL, 0)))
+	if (unlikely(!kvm_can_emulate_insn(vcpu, emul_type, NULL, 0)))
 		return 1;
 
 	if (force_emulation_prefix &&
@@ -8193,7 +8262,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	bool writeback = true;
 	bool write_fault_to_spt;
 
-	if (unlikely(!static_call(kvm_x86_can_emulate_instruction)(vcpu, insn, insn_len)))
+	if (unlikely(!kvm_can_emulate_insn(vcpu, emulation_type, insn, insn_len)))
 		return 1;
 
 	vcpu->arch.l1tf_flush_l1d = true;
@@ -9706,7 +9775,7 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
 		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
 }
 
-void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
 {
 	if (!lapic_in_kernel(vcpu))
 		return;
@@ -11209,7 +11278,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 		vcpu->arch.msr_misc_features_enables = 0;
 
-		vcpu->arch.xcr0 = XFEATURE_MASK_FP;
+		__kvm_set_xcr(vcpu, 0, XFEATURE_MASK_FP);
+		__kvm_set_msr(vcpu, MSR_IA32_XSS, 0, true);
 	}
 
 	/* All GPRs except RDX (handled below) are zeroed on RESET/INIT. */
@@ -11225,8 +11295,6 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	 */
 	cpuid_0x1 = kvm_find_cpuid_entry(vcpu, 1, 0);
 	kvm_rdx_write(vcpu, cpuid_0x1 ? cpuid_0x1->eax : 0x600);
-
-	vcpu->arch.ia32_xss = 0;
 
 	static_call(kvm_x86_vcpu_reset)(vcpu, init_event);
 
