@@ -58,7 +58,7 @@ int ms_sensors_reset(void *cli, u8 cmd, unsigned int delay)
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_reset);
+EXPORT_SYMBOL_NS(ms_sensors_reset, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_read_prom_word() - PROM word read function
@@ -84,7 +84,7 @@ int ms_sensors_read_prom_word(void *cli, int cmd, u16 *word)
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_read_prom_word);
+EXPORT_SYMBOL_NS(ms_sensors_read_prom_word, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_convert_and_read() - ADC conversion & read function
@@ -130,7 +130,7 @@ err:
 	dev_err(&client->dev, "Unable to make sensor adc conversion\n");
 	return ret;
 }
-EXPORT_SYMBOL(ms_sensors_convert_and_read);
+EXPORT_SYMBOL_NS(ms_sensors_convert_and_read, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_crc_valid() - CRC check function
@@ -248,7 +248,7 @@ int ms_sensors_read_serial(struct i2c_client *client, u64 *sn)
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_read_serial);
+EXPORT_SYMBOL_NS(ms_sensors_read_serial, IIO_MEAS_SPEC_SENSORS);
 
 static int ms_sensors_read_config_reg(struct i2c_client *client,
 				      u8 *config_reg)
@@ -299,7 +299,7 @@ ssize_t ms_sensors_write_resolution(struct ms_ht_dev *dev_data,
 					 MS_SENSORS_CONFIG_REG_WRITE,
 					 config_reg);
 }
-EXPORT_SYMBOL(ms_sensors_write_resolution);
+EXPORT_SYMBOL_NS(ms_sensors_write_resolution, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_show_battery_low() - Show device battery low indicator
@@ -326,7 +326,7 @@ ssize_t ms_sensors_show_battery_low(struct ms_ht_dev *dev_data,
 
 	return sysfs_emit(buf, "%d\n", (config_reg & 0x40) >> 6);
 }
-EXPORT_SYMBOL(ms_sensors_show_battery_low);
+EXPORT_SYMBOL_NS(ms_sensors_show_battery_low, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_show_heater() - Show device heater
@@ -353,7 +353,7 @@ ssize_t ms_sensors_show_heater(struct ms_ht_dev *dev_data,
 
 	return sysfs_emit(buf, "%d\n", (config_reg & 0x4) >> 2);
 }
-EXPORT_SYMBOL(ms_sensors_show_heater);
+EXPORT_SYMBOL_NS(ms_sensors_show_heater, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_write_heater() - Write device heater
@@ -401,7 +401,7 @@ ssize_t ms_sensors_write_heater(struct ms_ht_dev *dev_data,
 
 	return len;
 }
-EXPORT_SYMBOL(ms_sensors_write_heater);
+EXPORT_SYMBOL_NS(ms_sensors_write_heater, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_ht_read_temperature() - Read temperature
@@ -442,7 +442,7 @@ int ms_sensors_ht_read_temperature(struct ms_ht_dev *dev_data,
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_ht_read_temperature);
+EXPORT_SYMBOL_NS(ms_sensors_ht_read_temperature, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_ht_read_humidity() - Read humidity
@@ -485,7 +485,7 @@ int ms_sensors_ht_read_humidity(struct ms_ht_dev *dev_data,
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_ht_read_humidity);
+EXPORT_SYMBOL_NS(ms_sensors_ht_read_humidity, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_tp_crc4() - Calculate PROM CRC for
@@ -602,7 +602,7 @@ int ms_sensors_tp_read_prom(struct ms_tp_dev *dev_data)
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_tp_read_prom);
+EXPORT_SYMBOL_NS(ms_sensors_tp_read_prom, IIO_MEAS_SPEC_SENSORS);
 
 /**
  * ms_sensors_read_temp_and_pressure() - read temp and pressure
@@ -688,7 +688,7 @@ int ms_sensors_read_temp_and_pressure(struct ms_tp_dev *dev_data,
 
 	return 0;
 }
-EXPORT_SYMBOL(ms_sensors_read_temp_and_pressure);
+EXPORT_SYMBOL_NS(ms_sensors_read_temp_and_pressure, IIO_MEAS_SPEC_SENSORS);
 
 MODULE_DESCRIPTION("Measurement-Specialties common i2c driver");
 MODULE_AUTHOR("William Markezana <william.markezana@meas-spec.com>");
