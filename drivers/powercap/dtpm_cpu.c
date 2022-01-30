@@ -299,8 +299,15 @@ static int dtpm_cpu_init(void)
 	return 0;
 }
 
+static void dtpm_cpu_exit(void)
+{
+	cpuhp_remove_state_nocalls(CPUHP_AP_ONLINE_DYN);
+	cpuhp_remove_state_nocalls(CPUHP_AP_DTPM_CPU_DEAD);
+}
+
 struct dtpm_subsys_ops dtpm_cpu_ops = {
 	.name = KBUILD_MODNAME,
 	.init = dtpm_cpu_init,
+	.exit = dtpm_cpu_exit,
 	.setup = dtpm_cpu_setup,
 };
