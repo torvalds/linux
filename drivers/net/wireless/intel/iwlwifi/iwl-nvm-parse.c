@@ -1387,8 +1387,12 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		nvm_chan = iwl_nvm_channels;
 	}
 
-	if (WARN_ON(num_of_ch > max_num_ch))
+	if (num_of_ch > max_num_ch) {
+		IWL_DEBUG_DEV(dev, IWL_DL_LAR,
+			      "Num of channels (%d) is greater than expected. Truncating to %d\n",
+			      num_of_ch, max_num_ch);
 		num_of_ch = max_num_ch;
+	}
 
 	if (WARN_ON_ONCE(num_of_ch > NL80211_MAX_SUPP_REG_RULES))
 		return ERR_PTR(-EINVAL);
