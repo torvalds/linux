@@ -659,7 +659,7 @@
 };
 
 &soc {
-	mdma0: mdma@12840000 {
+	mdma0: dma-controller@12840000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x12840000 0x1000>;
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
