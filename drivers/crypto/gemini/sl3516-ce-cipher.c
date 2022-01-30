@@ -23,8 +23,8 @@ static bool sl3516_ce_need_fallback(struct skcipher_request *areq)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
 	struct sl3516_ce_cipher_tfm_ctx *op = crypto_skcipher_ctx(tfm);
 	struct sl3516_ce_dev *ce = op->ce;
-	struct scatterlist *in_sg = areq->src;
-	struct scatterlist *out_sg = areq->dst;
+	struct scatterlist *in_sg;
+	struct scatterlist *out_sg;
 	struct scatterlist *sg;
 
 	if (areq->cryptlen == 0 || areq->cryptlen % 16) {
