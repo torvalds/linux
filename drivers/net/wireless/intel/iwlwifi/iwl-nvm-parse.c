@@ -1080,7 +1080,9 @@ static int iwl_set_hw_address(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
-	IWL_INFO(trans, "base HW address: %pM\n", data->hw_addr);
+	if (!trans->csme_own)
+		IWL_INFO(trans, "base HW address: %pM, OTP minor version: 0x%x\n",
+			 data->hw_addr, iwl_read_prph(trans, REG_OTP_MINOR));
 
 	return 0;
 }

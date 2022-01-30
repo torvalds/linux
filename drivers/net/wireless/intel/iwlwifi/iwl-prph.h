@@ -491,4 +491,6 @@ enum {
 #define HBUS_TIMEOUT 0xA5A5A5A1
 #define WFPM_DPHY_OFF 0xDF10FF
 
+#define REG_OTP_MINOR 0xA0333C
+
 #endif				/* __iwl_prph_h__ */
