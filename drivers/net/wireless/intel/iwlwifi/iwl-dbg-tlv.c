@@ -769,33 +769,40 @@ static int iwl_dbg_tlv_update_dram(struct iwl_fw_runtime *fwrt,
 
 static void iwl_dbg_tlv_update_drams(struct iwl_fw_runtime *fwrt)
 {
-	int ret, i, dram_alloc = 0;
-	struct iwl_dram_info dram_info;
+	int ret, i;
+	bool dram_alloc = false;
 	struct iwl_dram_data *frags =
 		&fwrt->trans->dbg.fw_mon_ini[IWL_FW_INI_ALLOCATION_ID_DBGC1].frags[0];
+	struct iwl_dram_info *dram_info;
+
+	if (!frags || !frags->block)
+		return;
+
+	dram_info = frags->block;
 
 	if (!fw_has_capa(&fwrt->fw->ucode_capa,
 			 IWL_UCODE_TLV_CAPA_DRAM_FRAG_SUPPORT))
 		return;
 
-	dram_info.first_word = cpu_to_le32(DRAM_INFO_FIRST_MAGIC_WORD);
-	dram_info.second_word = cpu_to_le32(DRAM_INFO_SECOND_MAGIC_WORD);
+	dram_info->first_word = cpu_to_le32(DRAM_INFO_FIRST_MAGIC_WORD);
+	dram_info->second_word = cpu_to_le32(DRAM_INFO_SECOND_MAGIC_WORD);
 
 	for (i = IWL_FW_INI_ALLOCATION_ID_DBGC1;
 	     i <= IWL_FW_INI_ALLOCATION_ID_DBGC3; i++) {
-		ret = iwl_dbg_tlv_update_dram(fwrt, i, &dram_info);
+		ret = iwl_dbg_tlv_update_dram(fwrt, i, dram_info);
 		if (!ret)
-			dram_alloc++;
+			dram_alloc = true;
 		else
 			IWL_WARN(fwrt,
 				 "WRT: Failed to set DRAM buffer for alloc id %d, ret=%d\n",
 				 i, ret);
 	}
-	if (dram_alloc) {
-		memcpy(frags->block, &dram_info, sizeof(dram_info));
-		IWL_DEBUG_FW(fwrt, "block data after  %016x\n",
-			     *((int *)fwrt->trans->dbg.fw_mon_ini[1].frags[0].block));
-	}
+
+	if (dram_alloc)
+		IWL_DEBUG_FW(fwrt, "block data after  %08x\n",
+			     dram_info->first_word);
+	else
+		memset(frags->block, 0, sizeof(*dram_info));
 }
 
 static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
