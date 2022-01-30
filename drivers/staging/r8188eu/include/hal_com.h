@@ -150,7 +150,6 @@ bool Hal_MappingOutPipe(struct adapter *pAdapter, u8 NumOutPipe);
 
 void hal_init_macaddr(struct adapter *adapter);
 
-void c2h_evt_clear(struct adapter *adapter);
 s32 c2h_evt_read(struct adapter *adapter, u8 *buf);
 
 #endif /* __HAL_COMMON_H__ */

@@ -1331,7 +1331,7 @@ static void c2h_wk_callback(struct work_struct *work)
 	while (!rtw_cbuf_empty(evtpriv->c2h_queue)) {
 		if ((c2h_evt = (struct c2h_evt_hdr *)rtw_cbuf_pop(evtpriv->c2h_queue)) != NULL) {
 			/* This C2H event is read, clear it */
-			c2h_evt_clear(adapter);
+			rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
 		} else {
 			c2h_evt = kmalloc(16, GFP_KERNEL);
 			if (c2h_evt) {

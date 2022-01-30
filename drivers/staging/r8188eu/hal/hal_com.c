@@ -298,11 +298,6 @@ void hal_init_macaddr(struct adapter *adapter)
 * BITS	 [127:120]	[119:16]      [15:8]		  [7:4]		   [3:0]
 */
 
-void c2h_evt_clear(struct adapter *adapter)
-{
-	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
-}
-
 s32 c2h_evt_read(struct adapter *adapter, u8 *buf)
 {
 	s32 ret = _FAIL;
@@ -340,7 +335,7 @@ clear_evt:
 	* If this field isn't clear, the FW won't update the next
 	* command message.
 	*/
-	c2h_evt_clear(adapter);
+	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
 exit:
 	return ret;
 }
