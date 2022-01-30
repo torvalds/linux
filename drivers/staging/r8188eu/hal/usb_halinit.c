@@ -1272,29 +1272,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_DM_FUNC_CLR:
 		podmpriv->SupportAbility &= *((u32 *)val);
 		break;
-	case HW_VAR_CAM_EMPTY_ENTRY:
-		{
-			u8 ucIndex = *((u8 *)val);
-			u8 i;
-			u32 ulCommand = 0;
-			u32 ulContent = 0;
-			u32 ulEncAlgo = CAM_AES;
-
-			for (i = 0; i < CAM_CONTENT_COUNT; i++) {
-				/*  filled id in CAM config 2 byte */
-				if (i == 0)
-					ulContent |= (ucIndex & 0x03) | ((u16)(ulEncAlgo) << 2);
-				else
-					ulContent = 0;
-				/*  polling bit, and No Write enable, and address */
-				ulCommand = CAM_CONTENT_COUNT * ucIndex + i;
-				ulCommand = ulCommand | CAM_POLLINIG | CAM_WRITE;
-				/*  write content 0 is equall to mark invalid */
-				rtw_write32(Adapter, WCAMI, ulContent);  /* delay_ms(40); */
-				rtw_write32(Adapter, RWCAM, ulCommand);  /* delay_ms(40); */
-			}
-		}
-		break;
 	case HW_VAR_AC_PARAM_BE:
 		haldata->AcParam_BE = ((u32 *)(val))[0];
 		rtw_write32(Adapter, REG_EDCA_BE_PARAM, ((u32 *)(val))[0]);
