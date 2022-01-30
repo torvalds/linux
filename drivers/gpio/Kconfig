@@ -247,6 +247,16 @@ config GPIO_EM
 	help
 	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
 
+config GPIO_EN7523
+	tristate "Airoha GPIO support"
+	depends on ARCH_AIROHA
+	default ARCH_AIROHA
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to support the GPIO controller block on the
+	  Airoha EN7523 SoC. It supports two banks of 32 GPIOs.
+
 config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
