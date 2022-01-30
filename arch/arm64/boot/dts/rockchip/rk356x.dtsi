@@ -770,6 +770,27 @@
 		status = "disabled";
 	};
 
+	pdm: pdm@fe440000 {
+		compatible = "rockchip,rk3568-pdm";
+		reg = <0x0 0xfe440000 0x0 0x1000>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru MCLK_PDM>, <&cru HCLK_PDM>;
+		clock-names = "pdm_clk", "pdm_hclk";
+		dmas = <&dmac1 9>;
+		dma-names = "rx";
+		pinctrl-0 = <&pdmm0_clk
+			     &pdmm0_clk1
+			     &pdmm0_sdi0
+			     &pdmm0_sdi1
+			     &pdmm0_sdi2
+			     &pdmm0_sdi3>;
+		pinctrl-names = "default";
+		resets = <&cru SRST_M_PDM>;
+		reset-names = "pdm-m";
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
 	dmac0: dmac@fe530000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x0 0xfe530000 0x0 0x4000>;
