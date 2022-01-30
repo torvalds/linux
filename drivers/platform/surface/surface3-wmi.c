@@ -186,14 +186,11 @@ static int s3_wmi_create_and_register_input(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error)
-		goto out_err;
+		return error;
 
 	s3_wmi.input = input;
 
 	return 0;
- out_err:
-	input_free_device(s3_wmi.input);
-	return error;
 }
 
 static int __init s3_wmi_probe(struct platform_device *pdev)
