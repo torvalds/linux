@@ -429,7 +429,7 @@ unsigned int decide_wait_for_beacon_timeout(unsigned int bcn_interval)
 
 void invalidate_cam_all(struct adapter *padapter)
 {
-	SetHwReg8188EU(padapter, HW_VAR_CAM_INVALID_ALL, NULL);
+	rtw_write32(padapter, RWCAM, BIT(31) | BIT(30));
 }
 
 void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
@@ -492,7 +492,7 @@ void flush_all_cam_entry(struct adapter *padapter)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
-	SetHwReg8188EU(padapter, HW_VAR_CAM_INVALID_ALL, NULL);
+	rtw_write32(padapter, RWCAM, BIT(31) | BIT(30));
 
 	memset((u8 *)(pmlmeinfo->FW_sta_info), 0, sizeof(pmlmeinfo->FW_sta_info));
 }

@@ -1332,9 +1332,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			}
 		}
 		break;
-	case HW_VAR_CAM_INVALID_ALL:
-		rtw_write32(Adapter, RWCAM, BIT(31) | BIT(30));
-		break;
 	case HW_VAR_CAM_WRITE:
 		{
 			u32 cmd;
