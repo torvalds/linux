@@ -297,8 +297,7 @@ EXPORT_SYMBOL(d_path);
 /*
  * Helper function for dentry_operations.d_dname() members
  */
-char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
-			const char *fmt, ...)
+char *dynamic_dname(char *buffer, int buflen, const char *fmt, ...)
 {
 	va_list args;
 	char temp[64];
