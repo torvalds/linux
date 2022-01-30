@@ -1049,18 +1049,6 @@ static void hw_var_set_bssid(struct adapter *Adapter, u8 *val)
 		rtw_write8(Adapter, (reg_bssid + idx), val[idx]);
 }
 
-static void hw_var_set_bcn_func(struct adapter *Adapter, u8 *val)
-{
-	u32 bcn_ctrl_reg;
-
-	bcn_ctrl_reg = REG_BCN_CTRL;
-
-	if (*((u8 *)val))
-		rtw_write8(Adapter, bcn_ctrl_reg, (EN_BCN_FUNCTION | EN_TXBCN_RPT));
-	else
-		rtw_write8(Adapter, bcn_ctrl_reg, rtw_read8(Adapter, bcn_ctrl_reg) & (~(EN_BCN_FUNCTION | EN_TXBCN_RPT)));
-}
-
 void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
@@ -1108,9 +1096,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			/*  Ziv - Check */
 			rtw_write8(Adapter, REG_INIRTS_RATE_SEL, RateIndex);
 		}
-		break;
-	case HW_VAR_BCN_FUNC:
-		hw_var_set_bcn_func(Adapter, val);
 		break;
 	case HW_VAR_CORRECT_TSF:
 		{

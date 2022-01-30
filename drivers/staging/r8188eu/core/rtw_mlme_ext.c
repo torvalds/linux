@@ -7626,8 +7626,8 @@ u8 disconnect_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) || ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
 		/* Stop BCN */
-		val8 = 0;
-		SetHwReg8188EU(padapter, HW_VAR_BCN_FUNC, (u8 *)(&val8));
+		val8 = rtw_read8(padapter, REG_BCN_CTRL);
+		rtw_write8(padapter, REG_BCN_CTRL, val8 & (~(EN_BCN_FUNCTION | EN_TXBCN_RPT)));
 	}
 
 	/* set MSR to no link state -> infra. mode */
