@@ -537,7 +537,6 @@ static int tmp007_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int tmp007_suspend(struct device *dev)
 {
 	struct tmp007_data *data = iio_priv(i2c_get_clientdata(
@@ -554,9 +553,8 @@ static int tmp007_resume(struct device *dev)
 	return i2c_smbus_write_word_swapped(data->client, TMP007_CONFIG,
 			data->config | TMP007_CONFIG_CONV_EN);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(tmp007_pm_ops, tmp007_suspend, tmp007_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tmp007_pm_ops, tmp007_suspend, tmp007_resume);
 
 static const struct of_device_id tmp007_of_match[] = {
 	{ .compatible = "ti,tmp007", },
@@ -574,7 +572,7 @@ static struct i2c_driver tmp007_driver = {
 	.driver = {
 		.name	= "tmp007",
 		.of_match_table = tmp007_of_match,
-		.pm	= &tmp007_pm_ops,
+		.pm	= pm_sleep_ptr(&tmp007_pm_ops),
 	},
 	.probe		= tmp007_probe,
 	.id_table	= tmp007_id,
