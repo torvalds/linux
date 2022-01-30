@@ -1042,12 +1042,12 @@ static bool iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 	 * Remove the ones that did.
 	 */
 	for_each_set_bit(tid, &tid_bitmap, IWL_MAX_TID_COUNT + 1) {
-		u16 tid_bitmap;
+		u16 q_tid_bitmap;
 
 		mvmsta->tid_data[tid].txq_id = IWL_MVM_INVALID_QUEUE;
 		mvm->queue_info[queue].tid_bitmap &= ~BIT(tid);
 
-		tid_bitmap = mvm->queue_info[queue].tid_bitmap;
+		q_tid_bitmap = mvm->queue_info[queue].tid_bitmap;
 
 		/*
 		 * We need to take into account a situation in which a TXQ was
@@ -1060,7 +1060,7 @@ static bool iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 		 * Mark this queue in the right bitmap, we'll send the command
 		 * to the firmware later.
 		 */
-		if (!(tid_bitmap & BIT(mvm->queue_info[queue].txq_tid)))
+		if (!(q_tid_bitmap & BIT(mvm->queue_info[queue].txq_tid)))
 			set_bit(queue, changetid_queues);
 
 		IWL_DEBUG_TX_QUEUES(mvm,

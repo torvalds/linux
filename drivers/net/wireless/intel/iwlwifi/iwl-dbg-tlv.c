@@ -825,11 +825,11 @@ static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
 }
 
 static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
-				     struct list_head *config_list)
+				     struct list_head *conf_list)
 {
 	struct iwl_dbg_tlv_node *node;
 
-	list_for_each_entry(node, config_list, list) {
+	list_for_each_entry(node, conf_list, list) {
 		struct iwl_fw_ini_conf_set_tlv *config_list = (void *)node->tlv.data;
 		u32 count, address, value;
 		u32 len = (le32_to_cpu(node->tlv.length) - sizeof(*config_list)) / 8;

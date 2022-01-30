@@ -137,9 +137,9 @@ static inline u8 iwl_txq_gen1_tfd_get_num_tbs(struct iwl_trans *trans,
 	struct iwl_tfd *tfd;
 
 	if (trans->trans_cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd = _tfd;
+		struct iwl_tfh_tfd *tfh_tfd = _tfd;
 
-		return le16_to_cpu(tfd->num_tbs) & 0x1f;
+		return le16_to_cpu(tfh_tfd->num_tbs) & 0x1f;
 	}
 
 	tfd = (struct iwl_tfd *)_tfd;
@@ -153,10 +153,10 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	struct iwl_tfd_tb *tb;
 
 	if (trans->trans_cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd = _tfd;
-		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
+		struct iwl_tfh_tfd *tfh_tfd = _tfd;
+		struct iwl_tfh_tb *tfh_tb = &tfh_tfd->tbs[idx];
 
-		return le16_to_cpu(tb->tb_len);
+		return le16_to_cpu(tfh_tb->tb_len);
 	}
 
 	tfd = (struct iwl_tfd *)_tfd;

@@ -1307,10 +1307,10 @@ static inline dma_addr_t iwl_txq_gen1_tfd_tb_get_addr(struct iwl_trans *trans,
 	dma_addr_t hi_len;
 
 	if (trans->trans_cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd = _tfd;
-		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
+		struct iwl_tfh_tfd *tfh_tfd = _tfd;
+		struct iwl_tfh_tb *tfh_tb = &tfh_tfd->tbs[idx];
 
-		return (dma_addr_t)(le64_to_cpu(tb->addr));
+		return (dma_addr_t)(le64_to_cpu(tfh_tb->addr));
 	}
 
 	tfd = _tfd;

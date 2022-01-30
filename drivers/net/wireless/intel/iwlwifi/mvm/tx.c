@@ -1602,8 +1602,6 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
 
 		if (unlikely(!seq_ctl)) {
-			struct ieee80211_hdr *hdr = (void *)skb->data;
-
 			/*
 			 * If it is an NDP, we can't update next_reclaim since
 			 * its sequence control is 0. Note that for that same
