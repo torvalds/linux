@@ -51,9 +51,7 @@ static int get_max_power_range_uw(struct powercap_zone *pcz, u64 *max_power_uw)
 {
 	struct dtpm *dtpm = to_dtpm(pcz);
 
-	mutex_lock(&dtpm_lock);
 	*max_power_uw = dtpm->power_max - dtpm->power_min;
-	mutex_unlock(&dtpm_lock);
 
 	return 0;
 }
@@ -83,14 +81,7 @@ static int __get_power_uw(struct dtpm *dtpm, u64 *power_uw)
 
 static int get_power_uw(struct powercap_zone *pcz, u64 *power_uw)
 {
-	struct dtpm *dtpm = to_dtpm(pcz);
-	int ret;
-
-	mutex_lock(&dtpm_lock);
-	ret = __get_power_uw(dtpm, power_uw);
-	mutex_unlock(&dtpm_lock);
-
-	return ret;
+	return __get_power_uw(to_dtpm(pcz), power_uw);
 }
 
 static void __dtpm_rebalance_weight(struct dtpm *dtpm)
@@ -133,7 +124,16 @@ static void __dtpm_add_power(struct dtpm *dtpm)
 	}
 }
 
-static int __dtpm_update_power(struct dtpm *dtpm)
+/**
+ * dtpm_update_power - Update the power on the dtpm
+ * @dtpm: a pointer to a dtpm structure to update
+ *
+ * Function to update the power values of the dtpm node specified in
+ * parameter. These new values will be propagated to the tree.
+ *
+ * Return: zero on success, -EINVAL if the values are inconsistent
+ */
+int dtpm_update_power(struct dtpm *dtpm)
 {
 	int ret;
 
@@ -156,26 +156,6 @@ static int __dtpm_update_power(struct dtpm *dtpm)
 }
 
 /**
- * dtpm_update_power - Update the power on the dtpm
- * @dtpm: a pointer to a dtpm structure to update
- *
- * Function to update the power values of the dtpm node specified in
- * parameter. These new values will be propagated to the tree.
- *
- * Return: zero on success, -EINVAL if the values are inconsistent
- */
-int dtpm_update_power(struct dtpm *dtpm)
-{
-	int ret;
-
-	mutex_lock(&dtpm_lock);
-	ret = __dtpm_update_power(dtpm);
-	mutex_unlock(&dtpm_lock);
-
-	return ret;
-}
-
-/**
  * dtpm_release_zone - Cleanup when the node is released
  * @pcz: a pointer to a powercap_zone structure
  *
@@ -191,19 +171,13 @@ int dtpm_release_zone(struct powercap_zone *pcz)
 	struct dtpm *dtpm = to_dtpm(pcz);
 	struct dtpm *parent = dtpm->parent;
 
-	mutex_lock(&dtpm_lock);
-
-	if (!list_empty(&dtpm->children)) {
-		mutex_unlock(&dtpm_lock);
+	if (!list_empty(&dtpm->children))
 		return -EBUSY;
-	}
 
 	if (parent)
 		list_del(&dtpm->sibling);
 
 	__dtpm_sub_power(dtpm);
-
-	mutex_unlock(&dtpm_lock);
 
 	if (dtpm->ops)
 		dtpm->ops->release(dtpm);
@@ -216,23 +190,12 @@ int dtpm_release_zone(struct powercap_zone *pcz)
 	return 0;
 }
 
-static int __get_power_limit_uw(struct dtpm *dtpm, int cid, u64 *power_limit)
-{
-	*power_limit = dtpm->power_limit;
-	return 0;
-}
-
 static int get_power_limit_uw(struct powercap_zone *pcz,
 			      int cid, u64 *power_limit)
 {
-	struct dtpm *dtpm = to_dtpm(pcz);
-	int ret;
-
-	mutex_lock(&dtpm_lock);
-	ret = __get_power_limit_uw(dtpm, cid, power_limit);
-	mutex_unlock(&dtpm_lock);
-
-	return ret;
+	*power_limit = to_dtpm(pcz)->power_limit;
+	
+	return 0;
 }
 
 /*
@@ -292,7 +255,7 @@ static int __set_power_limit_uw(struct dtpm *dtpm, int cid, u64 power_limit)
 
 			ret = __set_power_limit_uw(child, cid, power);
 			if (!ret)
-				ret = __get_power_limit_uw(child, cid, &power);
+				ret = get_power_limit_uw(&child->zone, cid, &power);
 
 			if (ret)
 				break;
@@ -310,8 +273,6 @@ static int set_power_limit_uw(struct powercap_zone *pcz,
 	struct dtpm *dtpm = to_dtpm(pcz);
 	int ret;
 
-	mutex_lock(&dtpm_lock);
-
 	/*
 	 * Don't allow values outside of the power range previously
 	 * set when initializing the power numbers.
@@ -323,8 +284,6 @@ static int set_power_limit_uw(struct powercap_zone *pcz,
 	pr_debug("%s: power limit: %llu uW, power max: %llu uW\n",
 		 dtpm->zone.name, dtpm->power_limit, dtpm->power_max);
 
-	mutex_unlock(&dtpm_lock);
-
 	return ret;
 }
 
@@ -335,11 +294,7 @@ static const char *get_constraint_name(struct powercap_zone *pcz, int cid)
 
 static int get_max_power_uw(struct powercap_zone *pcz, int id, u64 *max_power)
 {
-	struct dtpm *dtpm = to_dtpm(pcz);
-
-	mutex_lock(&dtpm_lock);
-	*max_power = dtpm->power_max;
-	mutex_unlock(&dtpm_lock);
+	*max_power = to_dtpm(pcz)->power_max;
 
 	return 0;
 }
@@ -442,8 +397,6 @@ int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent)
 	if (IS_ERR(pcz))
 		return PTR_ERR(pcz);
 
-	mutex_lock(&dtpm_lock);
-
 	if (parent) {
 		list_add_tail(&dtpm->sibling, &parent->children);
 		dtpm->parent = parent;
@@ -458,8 +411,6 @@ int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent)
 
 	pr_debug("Registered dtpm node '%s' / %llu-%llu uW, \n",
 		 dtpm->zone.name, dtpm->power_min, dtpm->power_max);
-
-	mutex_unlock(&dtpm_lock);
 
 	return 0;
 }
@@ -605,8 +556,12 @@ int dtpm_create_hierarchy(struct of_device_id *dtpm_match_table)
 	struct device_node *np;
 	int i, ret;
 
-	if (pct)
-		return -EBUSY;
+	mutex_lock(&dtpm_lock);
+
+	if (pct) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
 
 	pct = powercap_register_control_type(NULL, "dtpm", NULL);
 	if (IS_ERR(pct)) {
@@ -648,12 +603,16 @@ int dtpm_create_hierarchy(struct of_device_id *dtpm_match_table)
 				dtpm_subsys[i]->name, ret);
 	}
 
+	mutex_unlock(&dtpm_lock);
+
 	return 0;
 
 out_err:
 	powercap_unregister_control_type(pct);
 out_pct:
 	pct = NULL;
+out_unlock:
+	mutex_unlock(&dtpm_lock);
 	
 	return ret;
 }
