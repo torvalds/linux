@@ -148,8 +148,10 @@ static struct clk_hw *ep93xx_clk_register_gate(const char *name,
 	psc->lock = &clk_lock;
 
 	clk = clk_register(NULL, &psc->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
 		kfree(psc);
+		return ERR_CAST(clk);
+	}
 
 	return &psc->hw;
 }
