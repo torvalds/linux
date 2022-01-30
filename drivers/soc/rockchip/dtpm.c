@@ -52,6 +52,12 @@ static int __init rockchip_dtpm_init(void)
 }
 module_init(rockchip_dtpm_init);
 
+static void __exit rockchip_dtpm_exit(void)
+{
+	return dtpm_destroy_hierarchy();
+}
+module_exit(rockchip_dtpm_exit);
+
 MODULE_SOFTDEP("pre: panfrost cpufreq-dt");
 MODULE_DESCRIPTION("Rockchip DTPM driver");
 MODULE_LICENSE("GPL");
