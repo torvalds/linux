@@ -31,7 +31,6 @@
 #include "smc_tracepoint.h"
 
 #define SMC_TX_WORK_DELAY	0
-#define SMC_TX_CORK_DELAY	(HZ >> 2)	/* 250 ms */
 
 /***************************** sndbuf producer *******************************/
 
@@ -237,15 +236,13 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		if ((msg->msg_flags & MSG_OOB) && !send_remaining)
 			conn->urg_tx_pend = true;
 		if ((msg->msg_flags & MSG_MORE || smc_tx_is_corked(smc)) &&
-		    (atomic_read(&conn->sndbuf_space) >
-						(conn->sndbuf_desc->len >> 1)))
-			/* for a corked socket defer the RDMA writes if there
-			 * is still sufficient sndbuf_space available
+		    (atomic_read(&conn->sndbuf_space)))
+			/* for a corked socket defer the RDMA writes if
+			 * sndbuf_space is still available. The applications
+			 * should known how/when to uncork it.
 			 */
-			queue_delayed_work(conn->lgr->tx_wq, &conn->tx_work,
-					   SMC_TX_CORK_DELAY);
-		else
-			smc_tx_sndbuf_nonempty(conn);
+			continue;
+		smc_tx_sndbuf_nonempty(conn);
 
 		trace_smc_tx_sendmsg(smc, copylen);
 	} /* while (msg_data_left(msg)) */
