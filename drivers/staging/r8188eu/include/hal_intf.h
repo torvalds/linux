@@ -9,7 +9,6 @@
 #include "Hal8188EPhyCfg.h"
 
 enum hw_variables {
-	HW_VAR_MEDIA_STATUS,
 	HW_VAR_SET_OPMODE,
 	HW_VAR_BSSID,
 	HW_VAR_INIT_RTS_RATE,

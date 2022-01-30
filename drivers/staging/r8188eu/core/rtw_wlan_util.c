@@ -286,7 +286,11 @@ void Switch_DM_Func(struct adapter *padapter, u32 mode, u8 enable)
 
 static void Set_NETYPE0_MSR(struct adapter *padapter, u8 type)
 {
-	SetHwReg8188EU(padapter, HW_VAR_MEDIA_STATUS, (u8 *)(&type));
+	u8 val8;
+
+	val8 = rtw_read8(padapter, MSR) & 0x0c;
+	val8 |= type;
+	rtw_write8(padapter, MSR, val8);
 }
 
 void Set_MSR(struct adapter *padapter, u8 type)
