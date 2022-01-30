@@ -828,7 +828,7 @@ static int stm32_timer_trigger_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused stm32_timer_trigger_suspend(struct device *dev)
+static int stm32_timer_trigger_suspend(struct device *dev)
 {
 	struct stm32_timer_trigger *priv = dev_get_drvdata(dev);
 
@@ -850,7 +850,7 @@ static int __maybe_unused stm32_timer_trigger_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stm32_timer_trigger_resume(struct device *dev)
+static int stm32_timer_trigger_resume(struct device *dev)
 {
 	struct stm32_timer_trigger *priv = dev_get_drvdata(dev);
 	int ret;
@@ -876,9 +876,9 @@ static int __maybe_unused stm32_timer_trigger_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(stm32_timer_trigger_pm_ops,
-			 stm32_timer_trigger_suspend,
-			 stm32_timer_trigger_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_timer_trigger_pm_ops,
+				stm32_timer_trigger_suspend,
+				stm32_timer_trigger_resume);
 
 static const struct stm32_timer_trigger_cfg stm32_timer_trg_cfg = {
 	.valids_table = valids_table,
@@ -908,7 +908,7 @@ static struct platform_driver stm32_timer_trigger_driver = {
 	.driver = {
 		.name = "stm32-timer-trigger",
 		.of_match_table = stm32_trig_of_match,
-		.pm = &stm32_timer_trigger_pm_ops,
+		.pm = pm_sleep_ptr(&stm32_timer_trigger_pm_ops),
 	},
 };
 module_platform_driver(stm32_timer_trigger_driver);
