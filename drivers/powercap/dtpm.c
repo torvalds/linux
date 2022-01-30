@@ -617,3 +617,46 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dtpm_create_hierarchy);
+
+static void __dtpm_destroy_hierarchy(struct dtpm *dtpm)
+{
+	struct dtpm *child, *aux;
+
+	list_for_each_entry_safe(child, aux, &dtpm->children, sibling)
+		__dtpm_destroy_hierarchy(child);
+
+	/*
+	 * At this point, we know all children were removed from the
+	 * recursive call before
+	 */
+	dtpm_unregister(dtpm);
+}
+
+void dtpm_destroy_hierarchy(void)
+{
+	int i;
+
+	mutex_lock(&dtpm_lock);
+
+	if (!pct)
+		goto out_unlock;
+
+	__dtpm_destroy_hierarchy(root);
+	
+
+	for (i = 0; i < ARRAY_SIZE(dtpm_subsys); i++) {
+
+		if (!dtpm_subsys[i]->exit)
+			continue;
+
+		dtpm_subsys[i]->exit();
+	}
+
+	powercap_unregister_control_type(pct);
+
+	pct = NULL;
+
+out_unlock:
+	mutex_unlock(&dtpm_lock);
+}
+EXPORT_SYMBOL_GPL(dtpm_destroy_hierarchy);

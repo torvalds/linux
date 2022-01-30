@@ -37,6 +37,7 @@ struct device_node;
 struct dtpm_subsys_ops {
 	const char *name;
 	int (*init)(void);
+	void (*exit)(void);
 	int (*setup)(struct dtpm *, struct device_node *);
 };
 
@@ -67,4 +68,6 @@ void dtpm_unregister(struct dtpm *dtpm);
 int dtpm_register(const char *name, struct dtpm *dtpm, struct dtpm *parent);
 
 int dtpm_create_hierarchy(struct of_device_id *dtpm_match_table);
+
+void dtpm_destroy_hierarchy(void);
 #endif
