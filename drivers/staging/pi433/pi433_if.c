@@ -362,8 +362,7 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 
 /*-------------------------------------------------------------------------*/
 
-static int
-pi433_start_rx(struct pi433_device *dev)
+static int pi433_start_rx(struct pi433_device *dev)
 {
 	int retval;
 
@@ -403,8 +402,7 @@ pi433_start_rx(struct pi433_device *dev)
 
 /*-------------------------------------------------------------------------*/
 
-static int
-pi433_receive(void *data)
+static int pi433_receive(void *data)
 {
 	struct pi433_device *dev = data;
 	struct spi_device *spi = dev->spi;
@@ -555,8 +553,7 @@ abort:
 		return bytes_total;
 }
 
-static int
-pi433_tx_thread(void *data)
+static int pi433_tx_thread(void *data)
 {
 	struct pi433_device *device = data;
 	struct spi_device *spi = device->spi;
@@ -881,8 +878,7 @@ abort:
 	return -EAGAIN;
 }
 
-static long
-pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct pi433_instance	*instance;
 	struct pi433_device	*device;
