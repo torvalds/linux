@@ -1342,9 +1342,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			rtw_write32(Adapter, RWCAM, cmd);
 		}
 		break;
-	case HW_VAR_AC_PARAM_VO:
-		rtw_write32(Adapter, REG_EDCA_VO_PARAM, ((u32 *)(val))[0]);
-		break;
 	case HW_VAR_AC_PARAM_VI:
 		rtw_write32(Adapter, REG_EDCA_VI_PARAM, ((u32 *)(val))[0]);
 		break;

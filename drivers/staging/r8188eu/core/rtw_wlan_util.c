@@ -567,7 +567,7 @@ void WMMOnAssocRsp(struct adapter *padapter)
 			edca[XMIT_VI_QUEUE] = acParm;
 			break;
 		case 0x3:
-			SetHwReg8188EU(padapter, HW_VAR_AC_PARAM_VO, (u8 *)(&acParm));
+			rtw_write32(padapter, REG_EDCA_VO_PARAM, acParm);
 			acm_mask |= (ACM ? BIT(3) : 0);
 			edca[XMIT_VO_QUEUE] = acParm;
 			break;
