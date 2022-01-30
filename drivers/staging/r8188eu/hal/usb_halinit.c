@@ -970,7 +970,7 @@ static void StopTxBeacon(struct adapter *adapt)
 	 /* todo: CheckFwRsvdPageContent(Adapter);  2010.06.23. Added by tynli. */
 }
 
-static void hw_var_set_opmode(struct adapter *Adapter, u8 variable, u8 *val)
+static void hw_var_set_opmode(struct adapter *Adapter, u8 *val)
 {
 	u8 val8;
 	u8 mode = *((u8 *)val);
@@ -1027,7 +1027,7 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 variable, u8 *val)
 	}
 }
 
-static void hw_var_set_macaddr(struct adapter *Adapter, u8 variable, u8 *val)
+static void hw_var_set_macaddr(struct adapter *Adapter, u8 *val)
 {
 	u8 idx = 0;
 	u32 reg_macid;
@@ -1038,7 +1038,7 @@ static void hw_var_set_macaddr(struct adapter *Adapter, u8 variable, u8 *val)
 		rtw_write8(Adapter, (reg_macid + idx), val[idx]);
 }
 
-static void hw_var_set_bssid(struct adapter *Adapter, u8 variable, u8 *val)
+static void hw_var_set_bssid(struct adapter *Adapter, u8 *val)
 {
 	u8 idx = 0;
 	u32 reg_bssid;
@@ -1049,7 +1049,7 @@ static void hw_var_set_bssid(struct adapter *Adapter, u8 variable, u8 *val)
 		rtw_write8(Adapter, (reg_bssid + idx), val[idx]);
 }
 
-static void hw_var_set_bcn_func(struct adapter *Adapter, u8 variable, u8 *val)
+static void hw_var_set_bcn_func(struct adapter *Adapter, u8 *val)
 {
 	u32 bcn_ctrl_reg;
 
@@ -1078,13 +1078,13 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		}
 		break;
 	case HW_VAR_SET_OPMODE:
-		hw_var_set_opmode(Adapter, variable, val);
+		hw_var_set_opmode(Adapter, val);
 		break;
 	case HW_VAR_MAC_ADDR:
-		hw_var_set_macaddr(Adapter, variable, val);
+		hw_var_set_macaddr(Adapter, val);
 		break;
 	case HW_VAR_BSSID:
-		hw_var_set_bssid(Adapter, variable, val);
+		hw_var_set_bssid(Adapter, val);
 		break;
 	case HW_VAR_BASIC_RATE:
 		{
@@ -1122,7 +1122,7 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		}
 		break;
 	case HW_VAR_BCN_FUNC:
-		hw_var_set_bcn_func(Adapter, variable, val);
+		hw_var_set_bcn_func(Adapter, val);
 		break;
 	case HW_VAR_CORRECT_TSF:
 		{
