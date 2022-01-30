@@ -184,9 +184,6 @@ int dtpm_release_zone(struct powercap_zone *pcz)
 	else
 		kfree(dtpm);
 
-	if (root == dtpm)
-		root = NULL;
-
 	return 0;
 }
 
@@ -655,6 +652,8 @@ void dtpm_destroy_hierarchy(void)
 	powercap_unregister_control_type(pct);
 
 	pct = NULL;
+
+	root = NULL;
 
 out_unlock:
 	mutex_unlock(&dtpm_lock);
