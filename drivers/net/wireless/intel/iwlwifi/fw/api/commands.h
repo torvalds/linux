@@ -323,14 +323,6 @@ enum iwl_legacy_cmds {
 	REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
 	/**
-	 * @DC2DC_CONFIG_CMD:
-	 * Set/Get DC2DC frequency tune
-	 * Command is &struct iwl_dc2dc_config_cmd,
-	 * response is &struct iwl_dc2dc_config_resp
-	 */
-	DC2DC_CONFIG_CMD = 0x83,
-
-	/**
 	 * @NVM_ACCESS_CMD: using &struct iwl_nvm_access_cmd
 	 */
 	NVM_ACCESS_CMD = 0x88,
