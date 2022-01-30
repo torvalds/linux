@@ -157,8 +157,10 @@ struct amdgpu_ras_block_hw_ops hdp_v4_0_ras_hw_ops = {
 
 struct amdgpu_hdp_ras hdp_v4_0_ras = {
 	.ras_block = {
-		.name = "hdp",
-		.block = AMDGPU_RAS_BLOCK__HDP,
+		.ras_comm = {
+			.name = "hdp",
+			.block = AMDGPU_RAS_BLOCK__HDP,
+		},
 		.hw_ops = &hdp_v4_0_ras_hw_ops,
 		.ras_late_init = amdgpu_hdp_ras_late_init,
 		.ras_fini = amdgpu_hdp_ras_fini,

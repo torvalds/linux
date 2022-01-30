@@ -981,8 +981,10 @@ struct amdgpu_ras_block_hw_ops  xgmi_ras_hw_ops = {
 
 struct amdgpu_xgmi_ras xgmi_ras = {
 	.ras_block = {
-		.name = "xgmi",
-		.block = AMDGPU_RAS_BLOCK__XGMI_WAFL,
+		.ras_comm = {
+			.name = "xgmi",
+			.block = AMDGPU_RAS_BLOCK__XGMI_WAFL,
+		},
 		.hw_ops = &xgmi_ras_hw_ops,
 		.ras_late_init = amdgpu_xgmi_ras_late_init,
 		.ras_fini = amdgpu_xgmi_ras_fini,

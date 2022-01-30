@@ -2822,8 +2822,8 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 	if (adev->sdma.ras) {
 		amdgpu_ras_register_ras_block(adev, &adev->sdma.ras->ras_block);
 
-		strcpy(adev->sdma.ras->ras_block.name, "sdma");
-		adev->sdma.ras->ras_block.block = AMDGPU_RAS_BLOCK__SDMA;
+		strcpy(adev->sdma.ras->ras_block.ras_comm.name, "sdma");
+		adev->sdma.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__SDMA;
 
 		/* If don't define special ras_late_init function, use default ras_late_init */
 		if (!adev->sdma.ras->ras_block.ras_late_init)

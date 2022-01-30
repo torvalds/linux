@@ -53,8 +53,8 @@ static int mca_v3_0_ras_block_match(struct amdgpu_ras_block_object *block_obj,
 	if (!block_obj)
 		return -EINVAL;
 
-	if ((block_obj->block == block) &&
-		(block_obj->sub_block_index == sub_block_index)) {
+	if ((block_obj->ras_comm.block == block) &&
+		(block_obj->ras_comm.sub_block_index == sub_block_index)) {
 		return 0;
 	}
 
@@ -68,9 +68,11 @@ const struct amdgpu_ras_block_hw_ops mca_v3_0_mp0_hw_ops = {
 
 struct amdgpu_mca_ras_block mca_v3_0_mp0_ras = {
 	.ras_block = {
-		.block = AMDGPU_RAS_BLOCK__MCA,
-		.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MP0,
-		.name = "mp0",
+		.ras_comm = {
+			.block = AMDGPU_RAS_BLOCK__MCA,
+			.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MP0,
+			.name = "mp0",
+		},
 		.hw_ops = &mca_v3_0_mp0_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
 		.ras_late_init = mca_v3_0_mp0_ras_late_init,
@@ -103,9 +105,11 @@ const struct amdgpu_ras_block_hw_ops mca_v3_0_mp1_hw_ops = {
 
 struct amdgpu_mca_ras_block mca_v3_0_mp1_ras = {
 	.ras_block = {
-		.block = AMDGPU_RAS_BLOCK__MCA,
-		.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MP1,
-		.name = "mp1",
+		.ras_comm = {
+			.block = AMDGPU_RAS_BLOCK__MCA,
+			.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MP1,
+			.name = "mp1",
+		},
 		.hw_ops = &mca_v3_0_mp1_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
 		.ras_late_init = mca_v3_0_mp1_ras_late_init,
@@ -138,9 +142,11 @@ const struct amdgpu_ras_block_hw_ops mca_v3_0_mpio_hw_ops = {
 
 struct amdgpu_mca_ras_block mca_v3_0_mpio_ras = {
 	.ras_block = {
-		.block = AMDGPU_RAS_BLOCK__MCA,
-		.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MPIO,
-		.name = "mpio",
+		.ras_comm = {
+			.block = AMDGPU_RAS_BLOCK__MCA,
+			.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MPIO,
+			.name = "mpio",
+		},
 		.hw_ops = &mca_v3_0_mpio_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
 		.ras_late_init = mca_v3_0_mpio_ras_late_init,

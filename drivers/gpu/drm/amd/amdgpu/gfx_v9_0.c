@@ -2195,8 +2195,8 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 			return err;
 		}
 
-		strcpy(adev->gfx.ras->ras_block.name,"gfx");
-		adev->gfx.ras->ras_block.block = AMDGPU_RAS_BLOCK__GFX;
+		strcpy(adev->gfx.ras->ras_block.ras_comm.name, "gfx");
+		adev->gfx.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__GFX;
 
 		/* If not define special ras_late_init function, use gfx default ras_late_init */
 		if (!adev->gfx.ras->ras_block.ras_late_init)

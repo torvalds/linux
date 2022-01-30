@@ -877,7 +877,7 @@ static int amdgpu_ras_block_match_default(struct amdgpu_ras_block_object *block_
 	if (!block_obj)
 		return -EINVAL;
 
-	if (block_obj->block == block)
+	if (block_obj->ras_comm.block == block)
 		return 0;
 
 	return -EINVAL;
@@ -2457,6 +2457,23 @@ interrupt:
 	return r;
 }
 
+int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
+			struct ras_common_if *ras_block)
+{
+	char sysfs_name[32];
+	struct ras_ih_if ih_info;
+	struct ras_fs_if fs_info;
+	struct amdgpu_ras_block_object *obj;
+
+	obj = container_of(ras_block, struct amdgpu_ras_block_object, ras_comm);
+	ih_info.cb = obj->ras_cb;
+	ih_info.head = *ras_block;
+	snprintf(sysfs_name, sizeof(sysfs_name), "%s_err_count", ras_block->name);
+	fs_info.sysfs_name = (const char *)sysfs_name;
+	fs_info.head = *ras_block;
+	return amdgpu_ras_late_init(adev, ras_block, &fs_info, &ih_info);
+}
+
 /* helper function to remove ras fs node and interrupt handler */
 void amdgpu_ras_late_fini(struct amdgpu_device *adev,
 			  struct ras_common_if *ras_block,
@@ -2468,6 +2485,22 @@ void amdgpu_ras_late_fini(struct amdgpu_device *adev,
 	amdgpu_ras_sysfs_remove(adev, ras_block);
 	if (ih_info->cb)
 		amdgpu_ras_interrupt_remove_handler(adev, ih_info);
+}
+
+void amdgpu_ras_block_late_fini(struct amdgpu_device *adev,
+			  struct ras_common_if *ras_block)
+{
+	struct ras_ih_if ih_info;
+	struct amdgpu_ras_block_object *obj;
+
+	if (!ras_block)
+		return;
+
+	obj = container_of(ras_block, struct amdgpu_ras_block_object, ras_comm);
+	ih_info.head = *ras_block;
+	ih_info.cb = obj->ras_cb;
+
+	amdgpu_ras_late_fini(adev, ras_block, &ih_info);
 }
 
 /* do some init work after IP late init as dependence.

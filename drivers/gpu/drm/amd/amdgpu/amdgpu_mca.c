@@ -83,14 +83,15 @@ int amdgpu_mca_ras_late_init(struct amdgpu_device *adev,
 		.sysfs_name = sysfs_name,
 	};
 
-	snprintf(sysfs_name, sizeof(sysfs_name), "%s_err_count", mca_dev->ras->ras_block.name);
+	snprintf(sysfs_name, sizeof(sysfs_name), "%s_err_count",
+		mca_dev->ras->ras_block.ras_comm.name);
 
 	if (!mca_dev->ras_if) {
 		mca_dev->ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
 		if (!mca_dev->ras_if)
 			return -ENOMEM;
-		mca_dev->ras_if->block = mca_dev->ras->ras_block.block;
-		mca_dev->ras_if->sub_block_index = mca_dev->ras->ras_block.sub_block_index;
+		mca_dev->ras_if->block = mca_dev->ras->ras_block.ras_comm.block;
+		mca_dev->ras_if->sub_block_index = mca_dev->ras->ras_block.ras_comm.sub_block_index;
 		mca_dev->ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 	}
 	ih_info.head = fs_info.head = *mca_dev->ras_if;

@@ -664,8 +664,10 @@ const struct amdgpu_ras_block_hw_ops nbio_v7_4_ras_hw_ops = {
 
 struct amdgpu_nbio_ras nbio_v7_4_ras = {
 	.ras_block = {
-		.name = "pcie_bif",
-		.block = AMDGPU_RAS_BLOCK__PCIE_BIF,
+		.ras_comm = {
+			.name = "pcie_bif",
+			.block = AMDGPU_RAS_BLOCK__PCIE_BIF,
+		},
 		.hw_ops = &nbio_v7_4_ras_hw_ops,
 		.ras_late_init = amdgpu_nbio_ras_late_init,
 		.ras_fini = amdgpu_nbio_ras_fini,
