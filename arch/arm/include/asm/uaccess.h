@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <asm/memory.h>
 #include <asm/domain.h>
+#include <asm/unaligned.h>
 #include <asm/unified.h>
 #include <asm/compiler.h>
 
@@ -497,7 +498,10 @@ do {									\
 	}								\
 	default: __err = __get_user_bad(); break;			\
 	}								\
-	*(type *)(dst) = __val;						\
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))		\
+		put_unaligned(__val, (type *)(dst));			\
+	else								\
+		*(type *)(dst) = __val; /* aligned by caller */		\
 	if (__err)							\
 		goto err_label;						\
 } while (0)
@@ -507,7 +511,9 @@ do {									\
 	const type *__pk_ptr = (dst);					\
 	unsigned long __dst = (unsigned long)__pk_ptr;			\
 	int __err = 0;							\
-	type __val = *(type *)src;					\
+	type __val = IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)	\
+		     ? get_unaligned((type *)(src))			\
+		     : *(type *)(src);	/* aligned by caller */		\
 	switch (sizeof(type)) {						\
 	case 1: __put_user_asm_byte(__val, __dst, __err, ""); break;	\
 	case 2:	__put_user_asm_half(__val, __dst, __err, ""); break;	\

@@ -261,6 +261,7 @@ static_assert(sizeof(struct page) == sizeof(struct folio));
 	static_assert(offsetof(struct page, pg) == offsetof(struct folio, fl))
 FOLIO_MATCH(flags, flags);
 FOLIO_MATCH(lru, lru);
+FOLIO_MATCH(mapping, mapping);
 FOLIO_MATCH(compound_head, lru);
 FOLIO_MATCH(index, index);
 FOLIO_MATCH(private, private);

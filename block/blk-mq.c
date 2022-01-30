@@ -2922,6 +2922,8 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 	 */
 	blk_mq_run_dispatch_ops(rq->q,
 			ret = blk_mq_request_issue_directly(rq, true));
+	if (ret)
+		blk_account_io_done(rq, ktime_get_ns());
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
