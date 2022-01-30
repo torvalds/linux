@@ -123,11 +123,13 @@ struct mlx5e_fs_udp;
 struct mlx5e_fs_any;
 struct mlx5e_ptp_fs;
 
-void mlx5e_set_ttc_params(struct mlx5e_priv *priv,
+void mlx5e_set_ttc_params(struct mlx5e_flow_steering *fs,
+			  struct mlx5e_rx_res *rx_res,
 			  struct ttc_params *ttc_params, bool tunnel);
 
-void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv);
-int mlx5e_create_ttc_table(struct mlx5e_priv *priv);
+void mlx5e_destroy_ttc_table(struct mlx5e_flow_steering *fs);
+int mlx5e_create_ttc_table(struct mlx5e_flow_steering  *fs,
+			   struct mlx5e_rx_res *rx_res);
 
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
 
