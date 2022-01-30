@@ -2860,7 +2860,7 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
  */
 void hl_vm_ctx_fini(struct hl_ctx *ctx)
 {
-	struct hl_vm_phys_pg_pack *phys_pg_list;
+	struct hl_vm_phys_pg_pack *phys_pg_list, *tmp_phys_node;
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_vm_hash_node *hnode;
 	struct hl_vm *vm = &hdev->vm;
@@ -2913,7 +2913,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 		}
 	spin_unlock(&vm->idr_lock);
 
-	list_for_each_entry(phys_pg_list, &free_list, node)
+	list_for_each_entry_safe(phys_pg_list, tmp_phys_node, &free_list, node)
 		free_phys_pg_pack(hdev, phys_pg_list);
 
 	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_DRAM]);
