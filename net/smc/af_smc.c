@@ -2662,8 +2662,10 @@ static ssize_t smc_sendpage(struct socket *sock, struct page *page,
 		rc = kernel_sendpage(smc->clcsock, page, offset,
 				     size, flags);
 	} else {
+		lock_sock(sk);
+		rc = smc_tx_sendpage(smc, page, offset, size, flags);
+		release_sock(sk);
 		SMC_STAT_INC(smc, sendpage_cnt);
-		rc = sock_no_sendpage(sock, page, offset, size, flags);
 	}
 
 out:

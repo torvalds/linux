@@ -235,7 +235,8 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		 */
 		if ((msg->msg_flags & MSG_OOB) && !send_remaining)
 			conn->urg_tx_pend = true;
-		if ((msg->msg_flags & MSG_MORE || smc_tx_is_corked(smc)) &&
+		if ((msg->msg_flags & MSG_MORE || smc_tx_is_corked(smc) ||
+		     msg->msg_flags & MSG_SENDPAGE_NOTLAST) &&
 		    (atomic_read(&conn->sndbuf_space)))
 			/* for a corked socket defer the RDMA writes if
 			 * sndbuf_space is still available. The applications
@@ -254,6 +255,22 @@ out_err:
 	/* make sure we wake any epoll edge trigger waiter */
 	if (unlikely(rc == -EAGAIN))
 		sk->sk_write_space(sk);
+	return rc;
+}
+
+int smc_tx_sendpage(struct smc_sock *smc, struct page *page, int offset,
+		    size_t size, int flags)
+{
+	struct msghdr msg = {.msg_flags = flags};
+	char *kaddr = kmap(page);
+	struct kvec iov;
+	int rc;
+
+	iov.iov_base = kaddr + offset;
+	iov.iov_len = size;
+	iov_iter_kvec(&msg.msg_iter, WRITE, &iov, 1, size);
+	rc = smc_tx_sendmsg(smc, &msg, size);
+	kunmap(page);
 	return rc;
 }
 
