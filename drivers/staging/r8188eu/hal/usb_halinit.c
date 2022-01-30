@@ -1122,19 +1122,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				ResumeTxBeacon(Adapter);
 		}
 		break;
-	case HW_VAR_CHECK_BSSID:
-		if (*((u8 *)val)) {
-			rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_DATA | RCR_CBSSID_BCN);
-		} else {
-			u32 val32;
-
-			val32 = rtw_read32(Adapter, REG_RCR);
-
-			val32 &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);
-
-			rtw_write32(Adapter, REG_RCR, val32);
-		}
-		break;
 	case HW_VAR_MLME_DISCONNECT:
 		/* Set RCR to not to receive data frame when NO LINK state */
 		/* reject all data frames */
