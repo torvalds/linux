@@ -6382,7 +6382,6 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 void start_create_ibss(struct adapter *padapter)
 {
 	unsigned short	caps;
-	u8 val8;
 	u8 join_type;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
@@ -6397,8 +6396,7 @@ void start_create_ibss(struct adapter *padapter)
 	caps = rtw_get_capability((struct wlan_bssid_ex *)pnetwork);
 	update_capinfo(padapter, caps);
 	if (caps & cap_IBSS) {/* adhoc master */
-		val8 = 0xcf;
-		SetHwReg8188EU(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
+		rtw_write8(padapter, REG_SECCFG, 0xcf);
 
 		/* switch channel */
 		/* SelectChannel(padapter, pmlmeext->cur_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE); */
@@ -6454,7 +6452,7 @@ void start_clnt_join(struct adapter *padapter)
 
 		val8 = (pmlmeinfo->auth_algo == dot11AuthAlgrthm_8021X) ? 0xcc : 0xcf;
 
-		SetHwReg8188EU(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
+		rtw_write8(padapter, REG_SECCFG, val8);
 
 		/* switch channel */
 		set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
@@ -6470,8 +6468,7 @@ void start_clnt_join(struct adapter *padapter)
 	} else if (caps & cap_IBSS) { /* adhoc client */
 		Set_MSR(padapter, WIFI_FW_ADHOC_STATE);
 
-		val8 = 0xcf;
-		SetHwReg8188EU(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
+		rtw_write8(padapter, REG_SECCFG, 0xcf);
 
 		/* switch channel */
 		set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
