@@ -456,7 +456,8 @@ void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
 		cam_val[0] = val;
 		cam_val[1] = addr + (unsigned int)j;
 
-		SetHwReg8188EU(padapter, HW_VAR_CAM_WRITE, (u8 *)cam_val);
+		rtw_write32(padapter, WCAMI, cam_val[0]);
+		rtw_write32(padapter, RWCAM, CAM_POLLINIG | CAM_WRITE | cam_val[1]);
 	}
 }
 
