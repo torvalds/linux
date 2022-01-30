@@ -567,6 +567,17 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
 	DBG_88E("%s,Cur_ant:(%x)%s\n", __func__, haldata->CurAntenna, (haldata->CurAntenna == Antenna_A) ? "Antenna_A" : "Antenna_B");
 }
 
+static void hw_var_set_macaddr(struct adapter *Adapter, u8 *val)
+{
+	u8 idx = 0;
+	u32 reg_macid;
+
+	reg_macid = REG_MACID;
+
+	for (idx = 0; idx < 6; idx++)
+		rtw_write8(Adapter, (reg_macid + idx), val[idx]);
+}
+
 u32 rtl8188eu_hal_init(struct adapter *Adapter)
 {
 	u8 value8 = 0;
@@ -673,7 +684,7 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	_InitDriverInfoSize(Adapter, DRVINFO_SZ);
 
 	_InitInterrupt(Adapter);
-	hal_init_macaddr(Adapter);/* set mac_address */
+	hw_var_set_macaddr(Adapter, Adapter->eeprompriv.mac_addr);
 	_InitNetworkType(Adapter);/* set msr */
 	_InitWMACSetting(Adapter);
 	_InitAdaptiveCtrl(Adapter);
@@ -1027,17 +1038,6 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 *val)
 	}
 }
 
-static void hw_var_set_macaddr(struct adapter *Adapter, u8 *val)
-{
-	u8 idx = 0;
-	u32 reg_macid;
-
-	reg_macid = REG_MACID;
-
-	for (idx = 0; idx < 6; idx++)
-		rtw_write8(Adapter, (reg_macid + idx), val[idx]);
-}
-
 static void hw_var_set_bssid(struct adapter *Adapter, u8 *val)
 {
 	u8 idx = 0;
@@ -1079,9 +1079,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		break;
 	case HW_VAR_SET_OPMODE:
 		hw_var_set_opmode(Adapter, val);
-		break;
-	case HW_VAR_MAC_ADDR:
-		hw_var_set_macaddr(Adapter, val);
 		break;
 	case HW_VAR_BSSID:
 		hw_var_set_bssid(Adapter, val);

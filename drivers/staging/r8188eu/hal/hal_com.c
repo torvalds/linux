@@ -287,11 +287,6 @@ bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
 	return result;
 }
 
-void hal_init_macaddr(struct adapter *adapter)
-{
-	SetHwReg8188EU(adapter, HW_VAR_MAC_ADDR, adapter->eeprompriv.mac_addr);
-}
-
 /*
 * C2H event format:
 * Field	 TRIGGER		CONTENT	   CMD_SEQ	CMD_LEN		 CMD_ID
