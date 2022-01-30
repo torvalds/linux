@@ -298,28 +298,35 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 				     unsigned long clr, unsigned long set, int huge)
 {
 	pte_basic_t old;
-	unsigned long tmp;
 
-	__asm__ __volatile__(
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
+		unsigned long tmp;
+
+		asm volatile(
 #ifndef CONFIG_PTE_64BIT
-"1:	lwarx	%0, 0, %3\n"
-"	andc	%1, %0, %4\n"
+	"1:	lwarx	%0, 0, %3\n"
+	"	andc	%1, %0, %4\n"
 #else
-"1:	lwarx	%L0, 0, %3\n"
-"	lwz	%0, -4(%3)\n"
-"	andc	%1, %L0, %4\n"
+	"1:	lwarx	%L0, 0, %3\n"
+	"	lwz	%0, -4(%3)\n"
+	"	andc	%1, %L0, %4\n"
 #endif
-"	or	%1, %1, %5\n"
-"	stwcx.	%1, 0, %3\n"
-"	bne-	1b"
-	: "=&r" (old), "=&r" (tmp), "=m" (*p)
+	"	or	%1, %1, %5\n"
+	"	stwcx.	%1, 0, %3\n"
+	"	bne-	1b"
+		: "=&r" (old), "=&r" (tmp), "=m" (*p)
 #ifndef CONFIG_PTE_64BIT
-	: "r" (p),
+		: "r" (p),
 #else
-	: "b" ((unsigned long)(p) + 4),
+		: "b" ((unsigned long)(p) + 4),
 #endif
-	  "r" (clr), "r" (set), "m" (*p)
-	: "cc" );
+		  "r" (clr), "r" (set), "m" (*p)
+		: "cc" );
+	} else {
+		old = pte_val(*p);
+
+		*p = __pte((old & ~(pte_basic_t)clr) | set);
+	}
 
 	return old;
 }
