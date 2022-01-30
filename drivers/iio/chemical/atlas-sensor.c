@@ -737,7 +737,6 @@ static int atlas_remove(struct i2c_client *client)
 	return atlas_set_powermode(data, 0);
 }
 
-#ifdef CONFIG_PM
 static int atlas_runtime_suspend(struct device *dev)
 {
 	struct atlas_data *data =
@@ -753,18 +752,16 @@ static int atlas_runtime_resume(struct device *dev)
 
 	return atlas_set_powermode(data, 1);
 }
-#endif
 
 static const struct dev_pm_ops atlas_pm_ops = {
-	SET_RUNTIME_PM_OPS(atlas_runtime_suspend,
-			   atlas_runtime_resume, NULL)
+	RUNTIME_PM_OPS(atlas_runtime_suspend, atlas_runtime_resume, NULL)
 };
 
 static struct i2c_driver atlas_driver = {
 	.driver = {
 		.name	= ATLAS_DRV_NAME,
 		.of_match_table	= atlas_dt_ids,
-		.pm	= &atlas_pm_ops,
+		.pm	= pm_ptr(&atlas_pm_ops),
 	},
 	.probe		= atlas_probe,
 	.remove		= atlas_remove,
