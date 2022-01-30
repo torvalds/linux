@@ -7035,7 +7035,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 	SetHwReg8188EU(padapter, HW_VAR_BASIC_RATE, cur_network->SupportedRates);
 
 	/* BCN interval */
-	SetHwReg8188EU(padapter, HW_VAR_BEACON_INTERVAL, (u8 *)(&pmlmeinfo->bcn_interval));
+	rtw_write16(padapter, REG_BCN_INTERVAL, pmlmeinfo->bcn_interval);
 
 	/* udpate capability */
 	update_capinfo(padapter, pmlmeinfo->capability);
