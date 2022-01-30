@@ -7793,6 +7793,39 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
 			  gfp_t gfp);
 
 /**
+ * struct cfg80211_rx_info - received management frame info
+ *
+ * @freq: Frequency on which the frame was received in kHz
+ * @sig_dbm: signal strength in dBm, or 0 if unknown
+ * @buf: Management frame (header + body)
+ * @len: length of the frame data
+ * @flags: flags, as defined in enum nl80211_rxmgmt_flags
+ */
+struct cfg80211_rx_info {
+	int freq;
+	int sig_dbm;
+	const u8 *buf;
+	size_t len;
+	u32 flags;
+};
+
+/**
+ * cfg80211_rx_mgmt_ext - management frame notification with extended info
+ * @wdev: wireless device receiving the frame
+ * @info: RX info as defined in struct cfg80211_rx_info
+ *
+ * This function is called whenever an Action frame is received for a station
+ * mode interface, but is not processed in kernel.
+ *
+ * Return: %true if a user space application has registered for this frame.
+ * For action frames, that makes it responsible for rejecting unrecognized
+ * action frames; %false otherwise, in which case for action frames the
+ * driver is responsible for rejecting the frame.
+ */
+bool cfg80211_rx_mgmt_ext(struct wireless_dev *wdev,
+			  struct cfg80211_rx_info *info);
+
+/**
  * cfg80211_rx_mgmt_khz - notification of received, unprocessed management frame
  * @wdev: wireless device receiving the frame
  * @freq: Frequency on which the frame was received in KHz
@@ -7809,8 +7842,20 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  * action frames; %false otherwise, in which case for action frames the
  * driver is responsible for rejecting the frame.
  */
-bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
-			  const u8 *buf, size_t len, u32 flags);
+static inline bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq,
+					int sig_dbm, const u8 *buf, size_t len,
+					u32 flags)
+{
+	struct cfg80211_rx_info info = {
+		.freq = freq,
+		.sig_dbm = sig_dbm,
+		.buf = buf,
+		.len = len,
+		.flags = flags
+	};
+
+	return cfg80211_rx_mgmt_ext(wdev, &info);
+}
 
 /**
  * cfg80211_rx_mgmt - notification of received, unprocessed management frame
@@ -7833,8 +7878,15 @@ static inline bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq,
 				    int sig_dbm, const u8 *buf, size_t len,
 				    u32 flags)
 {
-	return cfg80211_rx_mgmt_khz(wdev, MHZ_TO_KHZ(freq), sig_dbm, buf, len,
-				    flags);
+	struct cfg80211_rx_info info = {
+		.freq = MHZ_TO_KHZ(freq),
+		.sig_dbm = sig_dbm,
+		.buf = buf,
+		.len = len,
+		.flags = flags
+	};
+
+	return cfg80211_rx_mgmt_ext(wdev, &info);
 }
 
 /**

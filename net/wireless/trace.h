@@ -3096,8 +3096,8 @@ DEFINE_EVENT(cfg80211_netdev_mac_evt, cfg80211_del_sta,
 );
 
 TRACE_EVENT(cfg80211_rx_mgmt,
-	TP_PROTO(struct wireless_dev *wdev, int freq, int sig_dbm),
-	TP_ARGS(wdev, freq, sig_dbm),
+	TP_PROTO(struct wireless_dev *wdev, struct cfg80211_rx_info *info),
+	TP_ARGS(wdev, info),
 	TP_STRUCT__entry(
 		WDEV_ENTRY
 		__field(int, freq)
@@ -3105,8 +3105,8 @@ TRACE_EVENT(cfg80211_rx_mgmt,
 	),
 	TP_fast_assign(
 		WDEV_ASSIGN;
-		__entry->freq = freq;
-		__entry->sig_dbm = sig_dbm;
+		__entry->freq = info->freq;
+		__entry->sig_dbm = info->sig_dbm;
 	),
 	TP_printk(WDEV_PR_FMT ", freq: "KHZ_F", sig dbm: %d",
 		  WDEV_PR_ARG, PR_KHZ(__entry->freq), __entry->sig_dbm)

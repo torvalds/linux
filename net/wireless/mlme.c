@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2015		Intel Deutschland GmbH
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2020, 2022 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -791,15 +791,15 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	return rdev_mgmt_tx(rdev, wdev, params, cookie);
 }
 
-bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
-			  const u8 *buf, size_t len, u32 flags)
+bool cfg80211_rx_mgmt_ext(struct wireless_dev *wdev,
+			  struct cfg80211_rx_info *info)
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_mgmt_registration *reg;
 	const struct ieee80211_txrx_stypes *stypes =
 		&wiphy->mgmt_stypes[wdev->iftype];
-	struct ieee80211_mgmt *mgmt = (void *)buf;
+	struct ieee80211_mgmt *mgmt = (void *)info->buf;
 	const u8 *data;
 	int data_len;
 	bool result = false;
@@ -807,7 +807,7 @@ bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
 		cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE);
 	u16 stype;
 
-	trace_cfg80211_rx_mgmt(wdev, freq, sig_dbm);
+	trace_cfg80211_rx_mgmt(wdev, info);
 	stype = (le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE) >> 4;
 
 	if (!(stypes->rx & BIT(stype))) {
@@ -815,8 +815,8 @@ bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
 		return false;
 	}
 
-	data = buf + ieee80211_hdrlen(mgmt->frame_control);
-	data_len = len - ieee80211_hdrlen(mgmt->frame_control);
+	data = info->buf + ieee80211_hdrlen(mgmt->frame_control);
+	data_len = info->len - ieee80211_hdrlen(mgmt->frame_control);
 
 	spin_lock_bh(&rdev->mgmt_registrations_lock);
 
@@ -833,9 +833,8 @@ bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
 		/* found match! */
 
 		/* Indicate the received Action frame to user space */
-		if (nl80211_send_mgmt(rdev, wdev, reg->nlportid,
-				      freq, sig_dbm,
-				      buf, len, flags, GFP_ATOMIC))
+		if (nl80211_send_mgmt(rdev, wdev, reg->nlportid, info,
+				      GFP_ATOMIC))
 			continue;
 
 		result = true;
@@ -847,7 +846,7 @@ bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
 	trace_cfg80211_return_bool(result);
 	return result;
 }
-EXPORT_SYMBOL(cfg80211_rx_mgmt_khz);
+EXPORT_SYMBOL(cfg80211_rx_mgmt_ext);
 
 void cfg80211_sched_dfs_chan_update(struct cfg80211_registered_device *rdev)
 {

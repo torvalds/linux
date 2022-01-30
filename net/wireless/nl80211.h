@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Portions of this file
- * Copyright (C) 2018, 2020-2021 Intel Corporation
+ * Copyright (C) 2018, 2020-2022 Intel Corporation
  */
 #ifndef __NET_WIRELESS_NL80211_H
 #define __NET_WIRELESS_NL80211_H
@@ -105,8 +105,7 @@ void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
 
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 		      struct wireless_dev *wdev, u32 nlpid,
-		      int freq, int sig_dbm,
-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
+		      struct cfg80211_rx_info *info, gfp_t gfp);
 
 void
 nl80211_radar_notify(struct cfg80211_registered_device *rdev,
