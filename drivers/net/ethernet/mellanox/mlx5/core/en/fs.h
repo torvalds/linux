@@ -90,22 +90,28 @@ enum {
 };
 
 struct mlx5e_flow_steering;
+struct mlx5e_rx_res;
 struct mlx5e_priv;
 
 #ifdef CONFIG_MLX5_EN_ARFS
 struct mlx5e_arfs_tables;
 
-int mlx5e_arfs_create_tables(struct mlx5e_priv *priv);
-void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv);
-int mlx5e_arfs_enable(struct mlx5e_priv *priv);
-int mlx5e_arfs_disable(struct mlx5e_priv *priv);
+int mlx5e_arfs_create_tables(struct mlx5e_flow_steering *fs,
+			     struct mlx5e_rx_res *rx_res, bool ntuple);
+void mlx5e_arfs_destroy_tables(struct mlx5e_flow_steering *fs, bool ntuple);
+int mlx5e_arfs_enable(struct mlx5e_flow_steering *fs);
+int mlx5e_arfs_disable(struct mlx5e_flow_steering *fs);
 int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 			u16 rxq_index, u32 flow_id);
 #else
-static inline int mlx5e_arfs_create_tables(struct mlx5e_priv *priv) { return 0; }
-static inline void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv) {}
-static inline int mlx5e_arfs_enable(struct mlx5e_priv *priv) { return -EOPNOTSUPP; }
-static inline int mlx5e_arfs_disable(struct mlx5e_priv *priv) {	return -EOPNOTSUPP; }
+static inline int mlx5e_arfs_create_tables(struct mlx5e_flow_steering *fs,
+					   struct mlx5e_rx_res *rx_res, bool ntuple)
+{ return 0; }
+static inline void mlx5e_arfs_destroy_tables(struct mlx5e_flow_steering *fs, bool ntuple) {}
+static inline int mlx5e_arfs_enable(struct mlx5e_flow_steering *fs)
+{ return -EOPNOTSUPP; }
+static inline int mlx5e_arfs_disable(struct mlx5e_flow_steering *fs)
+{ return -EOPNOTSUPP; }
 #endif
 
 #ifdef CONFIG_MLX5_EN_TLS
