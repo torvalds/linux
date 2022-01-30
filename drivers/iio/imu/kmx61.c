@@ -1440,7 +1440,6 @@ static int kmx61_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int kmx61_suspend(struct device *dev)
 {
 	int ret;
@@ -1466,9 +1465,7 @@ static int kmx61_resume(struct device *dev)
 
 	return kmx61_set_mode(data, stby, KMX61_ACC | KMX61_MAG, true);
 }
-#endif
 
-#ifdef CONFIG_PM
 static int kmx61_runtime_suspend(struct device *dev)
 {
 	struct kmx61_data *data = i2c_get_clientdata(to_i2c_client(dev));
@@ -1493,11 +1490,10 @@ static int kmx61_runtime_resume(struct device *dev)
 
 	return kmx61_set_mode(data, stby, KMX61_ACC | KMX61_MAG, true);
 }
-#endif
 
 static const struct dev_pm_ops kmx61_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(kmx61_suspend, kmx61_resume)
-	SET_RUNTIME_PM_OPS(kmx61_runtime_suspend, kmx61_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(kmx61_suspend, kmx61_resume)
+	RUNTIME_PM_OPS(kmx61_runtime_suspend, kmx61_runtime_resume, NULL)
 };
 
 static const struct acpi_device_id kmx61_acpi_match[] = {
@@ -1518,7 +1514,7 @@ static struct i2c_driver kmx61_driver = {
 	.driver = {
 		.name = KMX61_DRV_NAME,
 		.acpi_match_table = ACPI_PTR(kmx61_acpi_match),
-		.pm = &kmx61_pm_ops,
+		.pm = pm_ptr(&kmx61_pm_ops),
 	},
 	.probe		= kmx61_probe,
 	.remove		= kmx61_remove,
