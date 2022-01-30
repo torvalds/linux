@@ -2939,9 +2939,8 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 	/* assumes the op mode mutex is locked in dump_start since
 	 * iwl_fw_dbg_collect_sync can't run in parallel
 	 */
-	if (fwrt->ops && fwrt->ops->dump_start &&
-	    fwrt->ops->dump_start(fwrt->ops_ctx))
-		return;
+	if (fwrt->ops && fwrt->ops->dump_start)
+		fwrt->ops->dump_start(fwrt->ops_ctx);
 
 	iwl_fw_dbg_collect_sync(fwrt, wks->idx);
 

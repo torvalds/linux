@@ -16,7 +16,7 @@
 #include "fw/acpi.h"
 
 struct iwl_fw_runtime_ops {
-	int (*dump_start)(void *ctx);
+	void (*dump_start)(void *ctx);
 	void (*dump_end)(void *ctx);
 	bool (*fw_running)(void *ctx);
 	int (*send_hcmd)(void *ctx, struct iwl_host_cmd *host_cmd);

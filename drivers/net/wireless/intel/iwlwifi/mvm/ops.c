@@ -639,13 +639,11 @@ unlock:
 	mutex_unlock(&mvm->mutex);
 }
 
-static int iwl_mvm_fwrt_dump_start(void *ctx)
+static void iwl_mvm_fwrt_dump_start(void *ctx)
 {
 	struct iwl_mvm *mvm = ctx;
 
 	mutex_lock(&mvm->mutex);
-
-	return 0;
 }
 
 static void iwl_mvm_fwrt_dump_end(void *ctx)
