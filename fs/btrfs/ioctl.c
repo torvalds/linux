@@ -855,7 +855,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	pending_snapshot->dentry = dentry;
 	pending_snapshot->root = root;
 	pending_snapshot->readonly = readonly;
-	pending_snapshot->dir = dir;
+	pending_snapshot->dir = BTRFS_I(dir);
 	pending_snapshot->inherit = inherit;
 
 	trans = btrfs_start_transaction(root, 0);
