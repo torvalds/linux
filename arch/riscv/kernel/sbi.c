@@ -5,6 +5,7 @@
  * Copyright (c) 2020 Western Digital Corporation or its affiliates.
  */
 
+#include <linux/bits.h>
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/reboot.h>
@@ -85,7 +86,7 @@ static unsigned long __sbi_v01_cpumask_to_hartmask(const struct cpumask *cpu_mas
 			pr_warn("Unable to send any request to hartid > BITS_PER_LONG for SBI v0.1\n");
 			break;
 		}
-		hmask |= 1 << hartid;
+		hmask |= BIT(hartid);
 	}
 
 	return hmask;
@@ -268,7 +269,7 @@ static int __sbi_send_ipi_v02(const struct cpumask *cpu_mask)
 		}
 		if (!hmask)
 			hbase = hartid;
-		hmask |= 1UL << (hartid - hbase);
+		hmask |= BIT(hartid - hbase);
 	}
 
 	if (hmask) {
@@ -362,7 +363,7 @@ static int __sbi_rfence_v02(int fid, const struct cpumask *cpu_mask,
 		}
 		if (!hmask)
 			hbase = hartid;
-		hmask |= 1UL << (hartid - hbase);
+		hmask |= BIT(hartid - hbase);
 	}
 
 	if (hmask) {
