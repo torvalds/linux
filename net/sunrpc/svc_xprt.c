@@ -1068,7 +1068,12 @@ static void svc_delete_xprt(struct svc_xprt *xprt)
 	svc_xprt_put(xprt);
 }
 
-void svc_close_xprt(struct svc_xprt *xprt)
+/**
+ * svc_xprt_close - Close a client connection
+ * @xprt: transport to disconnect
+ *
+ */
+void svc_xprt_close(struct svc_xprt *xprt)
 {
 	trace_svc_xprt_close(xprt);
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
@@ -1083,7 +1088,7 @@ void svc_close_xprt(struct svc_xprt *xprt)
 	 */
 	svc_delete_xprt(xprt);
 }
-EXPORT_SYMBOL_GPL(svc_close_xprt);
+EXPORT_SYMBOL_GPL(svc_xprt_close);
 
 static int svc_close_list(struct svc_serv *serv, struct list_head *xprt_list, struct net *net)
 {
