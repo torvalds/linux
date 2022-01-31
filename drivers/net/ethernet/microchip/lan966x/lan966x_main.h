@@ -86,6 +86,16 @@ struct lan966x_phc {
 	u8 index;
 };
 
+struct lan966x_skb_cb {
+	u8 rew_op;
+	u16 ts_id;
+	unsigned long jiffies;
+};
+
+#define LAN966X_PTP_TIMEOUT		msecs_to_jiffies(10)
+#define LAN966X_SKB_CB(skb) \
+	((struct lan966x_skb_cb *)((skb)->cb))
+
 struct lan966x {
 	struct device *dev;
 
@@ -134,7 +144,9 @@ struct lan966x {
 	bool ptp;
 	struct lan966x_phc phc[LAN966X_PHC_COUNT];
 	spinlock_t ptp_clock_lock; /* lock for phc */
+	spinlock_t ptp_ts_id_lock; /* lock for ts_id */
 	struct mutex ptp_lock; /* lock for ptp interface state */
+	u16 ptp_skbs;
 };
 
 struct lan966x_port_config {
@@ -166,6 +178,8 @@ struct lan966x_port {
 	struct fwnode_handle *fwnode;
 
 	u8 ptp_cmd;
+	u16 ts_id;
+	struct sk_buff_head tx_skbs;
 };
 
 extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
@@ -256,6 +270,12 @@ int lan966x_ptp_init(struct lan966x *lan966x);
 void lan966x_ptp_deinit(struct lan966x *lan966x);
 int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr);
 int lan966x_ptp_hwtstamp_get(struct lan966x_port *port, struct ifreq *ifr);
+void lan966x_ptp_rxtstamp(struct lan966x *lan966x, struct sk_buff *skb,
+			  u64 timestamp);
+int lan966x_ptp_txtstamp_request(struct lan966x_port *port,
+				 struct sk_buff *skb);
+void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
+				  struct sk_buff *skb);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

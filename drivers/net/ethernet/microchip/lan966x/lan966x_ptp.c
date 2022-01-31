@@ -107,6 +107,103 @@ int lan966x_ptp_hwtstamp_get(struct lan966x_port *port, struct ifreq *ifr)
 			    sizeof(phc->hwtstamp_config)) ? -EFAULT : 0;
 }
 
+static int lan966x_ptp_classify(struct lan966x_port *port, struct sk_buff *skb)
+{
+	struct ptp_header *header;
+	u8 msgtype;
+	int type;
+
+	if (port->ptp_cmd == IFH_REW_OP_NOOP)
+		return IFH_REW_OP_NOOP;
+
+	type = ptp_classify_raw(skb);
+	if (type == PTP_CLASS_NONE)
+		return IFH_REW_OP_NOOP;
+
+	header = ptp_parse_header(skb, type);
+	if (!header)
+		return IFH_REW_OP_NOOP;
+
+	if (port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
+		return IFH_REW_OP_TWO_STEP_PTP;
+
+	/* If it is sync and run 1 step then set the correct operation,
+	 * otherwise run as 2 step
+	 */
+	msgtype = ptp_get_msgtype(header, type);
+	if ((msgtype & 0xf) == 0)
+		return IFH_REW_OP_ONE_STEP_PTP;
+
+	return IFH_REW_OP_TWO_STEP_PTP;
+}
+
+static void lan966x_ptp_txtstamp_old_release(struct lan966x_port *port)
+{
+	struct sk_buff *skb, *skb_tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->tx_skbs.lock, flags);
+	skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
+		if time_after(LAN966X_SKB_CB(skb)->jiffies + LAN966X_PTP_TIMEOUT,
+			      jiffies)
+			break;
+
+		__skb_unlink(skb, &port->tx_skbs);
+		dev_kfree_skb_any(skb);
+	}
+	spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
+}
+
+int lan966x_ptp_txtstamp_request(struct lan966x_port *port,
+				 struct sk_buff *skb)
+{
+	struct lan966x *lan966x = port->lan966x;
+	unsigned long flags;
+	u8 rew_op;
+
+	rew_op = lan966x_ptp_classify(port, skb);
+	LAN966X_SKB_CB(skb)->rew_op = rew_op;
+
+	if (rew_op != IFH_REW_OP_TWO_STEP_PTP)
+		return 0;
+
+	lan966x_ptp_txtstamp_old_release(port);
+
+	spin_lock_irqsave(&lan966x->ptp_ts_id_lock, flags);
+	if (lan966x->ptp_skbs == LAN966X_MAX_PTP_ID) {
+		spin_unlock_irqrestore(&lan966x->ptp_ts_id_lock, flags);
+		return -EBUSY;
+	}
+
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
+	skb_queue_tail(&port->tx_skbs, skb);
+	LAN966X_SKB_CB(skb)->ts_id = port->ts_id;
+	LAN966X_SKB_CB(skb)->jiffies = jiffies;
+
+	lan966x->ptp_skbs++;
+	port->ts_id++;
+	if (port->ts_id == LAN966X_MAX_PTP_ID)
+		port->ts_id = 0;
+
+	spin_unlock_irqrestore(&lan966x->ptp_ts_id_lock, flags);
+
+	return 0;
+}
+
+void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
+				  struct sk_buff *skb)
+{
+	struct lan966x *lan966x = port->lan966x;
+	unsigned long flags;
+
+	spin_lock_irqsave(&lan966x->ptp_ts_id_lock, flags);
+	port->ts_id--;
+	lan966x->ptp_skbs--;
+	skb_unlink(skb, &port->tx_skbs);
+	spin_unlock_irqrestore(&lan966x->ptp_ts_id_lock, flags);
+}
+
 static int lan966x_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct lan966x_phc *phc = container_of(ptp, struct lan966x_phc, info);
@@ -312,6 +409,7 @@ static int lan966x_ptp_phc_init(struct lan966x *lan966x,
 int lan966x_ptp_init(struct lan966x *lan966x)
 {
 	u64 tod_adj = lan966x_ptp_get_nominal_value();
+	struct lan966x_port *port;
 	int err, i;
 
 	if (!lan966x->ptp)
@@ -324,6 +422,7 @@ int lan966x_ptp_init(struct lan966x *lan966x)
 	}
 
 	spin_lock_init(&lan966x->ptp_clock_lock);
+	spin_lock_init(&lan966x->ptp_ts_id_lock);
 	mutex_init(&lan966x->ptp_lock);
 
 	/* Disable master counters */
@@ -348,13 +447,55 @@ int lan966x_ptp_init(struct lan966x *lan966x)
 	/* Enable master counters */
 	lan_wr(PTP_DOM_CFG_ENA_SET(0x7), lan966x, PTP_DOM_CFG);
 
+	for (i = 0; i < lan966x->num_phys_ports; i++) {
+		port = lan966x->ports[i];
+		if (!port)
+			continue;
+
+		skb_queue_head_init(&port->tx_skbs);
+	}
+
 	return 0;
 }
 
 void lan966x_ptp_deinit(struct lan966x *lan966x)
 {
+	struct lan966x_port *port;
 	int i;
+
+	for (i = 0; i < lan966x->num_phys_ports; i++) {
+		port = lan966x->ports[i];
+		if (!port)
+			continue;
+
+		skb_queue_purge(&port->tx_skbs);
+	}
 
 	for (i = 0; i < LAN966X_PHC_COUNT; ++i)
 		ptp_clock_unregister(lan966x->phc[i].clock);
+}
+
+void lan966x_ptp_rxtstamp(struct lan966x *lan966x, struct sk_buff *skb,
+			  u64 timestamp)
+{
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct lan966x_phc *phc;
+	struct timespec64 ts;
+	u64 full_ts_in_ns;
+
+	if (!lan966x->ptp)
+		return;
+
+	phc = &lan966x->phc[LAN966X_PHC_PORT];
+	lan966x_ptp_gettime64(&phc->info, &ts);
+
+	/* Drop the sub-ns precision */
+	timestamp = timestamp >> 2;
+	if (ts.tv_nsec < timestamp)
+		ts.tv_sec--;
+	ts.tv_nsec = timestamp;
+	full_ts_in_ns = ktime_set(ts.tv_sec, ts.tv_nsec);
+
+	shhwtstamps = skb_hwtstamps(skb);
+	shhwtstamps->hwtstamp = full_ts_in_ns;
 }
