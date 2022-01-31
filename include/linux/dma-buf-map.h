@@ -52,13 +52,13 @@
  *
  *	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(0xdeadbeaf);
  *
- *	dma_buf_map_set_vaddr(&map. 0xdeadbeaf);
+ *	dma_buf_map_set_vaddr(&map, 0xdeadbeaf);
  *
  * To set an address in I/O memory, use dma_buf_map_set_vaddr_iomem().
  *
  * .. code-block:: c
  *
- *	dma_buf_map_set_vaddr_iomem(&map. 0xdeadbeaf);
+ *	dma_buf_map_set_vaddr_iomem(&map, 0xdeadbeaf);
  *
  * Instances of struct dma_buf_map do not have to be cleaned up, but
  * can be cleared to NULL with dma_buf_map_clear(). Cleared mappings

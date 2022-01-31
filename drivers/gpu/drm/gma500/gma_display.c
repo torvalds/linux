@@ -335,7 +335,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	struct psb_gem_object *pobj;
 	struct psb_gem_object *cursor_pobj = gma_crtc->cursor_pobj;
 	struct drm_gem_object *obj;
-	void *tmp_dst, *tmp_src;
+	void *tmp_dst;
 	int ret = 0, i, cursor_pages;
 
 	/* If we didn't get a handle then turn the cursor off */
@@ -400,9 +400,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 		/* Copy the cursor to cursor mem */
 		tmp_dst = dev_priv->vram_addr + cursor_pobj->offset;
 		for (i = 0; i < cursor_pages; i++) {
-			tmp_src = kmap(pobj->pages[i]);
-			memcpy(tmp_dst, tmp_src, PAGE_SIZE);
-			kunmap(pobj->pages[i]);
+			memcpy_from_page(tmp_dst, pobj->pages[i], 0, PAGE_SIZE);
 			tmp_dst += PAGE_SIZE;
 		}
 

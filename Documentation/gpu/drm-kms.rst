@@ -423,11 +423,11 @@ Connector Functions Reference
 Writeback Connectors
 --------------------
 
-.. kernel-doc:: include/drm/drm_writeback.h
-  :internal:
-
 .. kernel-doc:: drivers/gpu/drm/drm_writeback.c
   :doc: overview
+
+.. kernel-doc:: include/drm/drm_writeback.h
+  :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_writeback.c
   :export:

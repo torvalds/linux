@@ -489,7 +489,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 	struct s3c_fb_win *win = info->par;
 	struct s3c_fb *sfb = win->parent;
 	void __iomem *regs = sfb->regs;
-	void __iomem *buf = regs;
+	void __iomem *buf;
 	int win_no = win->index;
 	u32 alpha = 0;
 	u32 data;

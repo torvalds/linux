@@ -19,8 +19,8 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drm_dp_aux_bus.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_aux_bus.h>
+#include <drm/dp/drm_dp_helper.h>
 
 /**
  * dp_aux_ep_match() - The match function for the dp_aux_bus.

@@ -7,7 +7,7 @@
 #ifndef _CDN_DP_CORE_H
 #define _CDN_DP_CORE_H
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 

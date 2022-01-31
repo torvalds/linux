@@ -6,6 +6,8 @@
 #include <linux/prime_numbers.h>
 #include <linux/sort.h>
 
+#include <drm/drm_buddy.h>
+
 #include "../i915_selftest.h"
 
 #include "mock_drm.h"
@@ -20,7 +22,6 @@
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
-#include "i915_buddy.h"
 #include "gt/intel_migrate.h"
 #include "i915_memcpy.h"
 #include "i915_ttm_buddy_manager.h"
@@ -369,7 +370,7 @@ static int igt_mock_splintered_region(void *arg)
 	struct drm_i915_private *i915 = mem->i915;
 	struct i915_ttm_buddy_resource *res;
 	struct drm_i915_gem_object *obj;
-	struct i915_buddy_mm *mm;
+	struct drm_buddy *mm;
 	unsigned int expected_order;
 	LIST_HEAD(objects);
 	u64 size;
@@ -454,8 +455,8 @@ static int igt_mock_max_segment(void *arg)
 	struct drm_i915_private *i915 = mem->i915;
 	struct i915_ttm_buddy_resource *res;
 	struct drm_i915_gem_object *obj;
-	struct i915_buddy_block *block;
-	struct i915_buddy_mm *mm;
+	struct drm_buddy_block *block;
+	struct drm_buddy *mm;
 	struct list_head *blocks;
 	struct scatterlist *sg;
 	LIST_HEAD(objects);
@@ -485,8 +486,8 @@ static int igt_mock_max_segment(void *arg)
 	mm = res->mm;
 	size = 0;
 	list_for_each_entry(block, blocks, link) {
-		if (i915_buddy_block_size(mm, block) > size)
-			size = i915_buddy_block_size(mm, block);
+		if (drm_buddy_block_size(mm, block) > size)
+			size = drm_buddy_block_size(mm, block);
 	}
 	if (size < max_segment) {
 		pr_err("%s: Failed to create a huge contiguous block [> %u], largest block %lld\n",

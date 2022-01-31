@@ -4,7 +4,12 @@
 $id: http://devicetree.org/schemas/display/panel/sony,acx424akp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Sony ACX424AKP 4" 480x864 AMOLED panel
+title: Sony ACX424AKP/ACX424AKM 4" 480x864/480x854 AMOLED panel
+
+description: The Sony ACX424AKP and ACX424AKM are panels built around
+  the Novatek NT35560 display controller. The only difference is that
+  the AKM is configured to use 10 pixels less in the Y axis than the
+  AKP.
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
@@ -14,7 +19,9 @@ allOf:
 
 properties:
   compatible:
-    const: sony,acx424akp
+    enum:
+      - sony,acx424akp
+      - sony,acx424akm
   reg: true
   reset-gpios: true
   vddi-supply:

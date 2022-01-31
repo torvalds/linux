@@ -12,6 +12,7 @@ config DRM_MSM
 	select IOMMU_IO_PGTABLE
 	select QCOM_MDT_LOADER if ARCH_QCOM
 	select REGULATOR
+	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select DRM_BRIDGE

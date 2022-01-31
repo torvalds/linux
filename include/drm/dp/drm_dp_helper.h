@@ -1038,11 +1038,8 @@ struct drm_panel;
 #define DP_SIDEBAND_MSG_UP_REQ_BASE	    0x1600   /* 1.2 MST */
 
 /* DPRX Event Status Indicator */
-#define DP_SINK_COUNT_ESI		    0x2002   /* 1.2 */
-/* 0-5 sink count */
-# define DP_SINK_COUNT_CP_READY             (1 << 6)
-
-#define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0   0x2003   /* 1.2 */
+#define DP_SINK_COUNT_ESI                   0x2002   /* same as 0x200 */
+#define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0   0x2003   /* same as 0x201 */
 
 #define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI1   0x2004   /* 1.2 */
 # define DP_RX_GTC_MSTR_REQ_STATUS_CHANGE    (1 << 0)

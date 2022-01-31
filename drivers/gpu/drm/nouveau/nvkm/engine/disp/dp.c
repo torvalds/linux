@@ -41,6 +41,10 @@
 
 struct lt_state {
 	struct nvkm_dp *dp;
+
+	int repeaters;
+	int repeater;
+
 	u8  stat[6];
 	u8  conf[4];
 	bool pc2;
@@ -52,14 +56,26 @@ static int
 nvkm_dp_train_sense(struct lt_state *lt, bool pc, u32 delay)
 {
 	struct nvkm_dp *dp = lt->dp;
+	u32 addr;
 	int ret;
 
-	if (dp->dpcd[DPCD_RC0E_AUX_RD_INTERVAL])
-		mdelay(dp->dpcd[DPCD_RC0E_AUX_RD_INTERVAL] * 4);
-	else
-		udelay(delay);
+	usleep_range(delay, delay * 2);
 
-	ret = nvkm_rdaux(dp->aux, DPCD_LS02, lt->stat, 6);
+	if (lt->repeater)
+		addr = DPCD_LTTPR_LANE0_1_STATUS(lt->repeater);
+	else
+		addr = DPCD_LS02;
+
+	ret = nvkm_rdaux(dp->aux, addr, &lt->stat[0], 3);
+	if (ret)
+		return ret;
+
+	if (lt->repeater)
+		addr = DPCD_LTTPR_LANE0_1_ADJUST(lt->repeater);
+	else
+		addr = DPCD_LS06;
+
+	ret = nvkm_rdaux(dp->aux, addr, &lt->stat[4], 2);
 	if (ret)
 		return ret;
 
@@ -85,6 +101,7 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 	struct nvbios_dpout info;
 	struct nvbios_dpcfg ocfg;
 	u8  ver, hdr, cnt, len;
+	u32 addr;
 	u32 data;
 	int ret, i;
 
@@ -113,6 +130,9 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 		OUTP_TRACE(&dp->outp, "config lane %d %02x %02x",
 			   i, lt->conf[i], lpc2);
 
+		if (lt->repeater != lt->repeaters)
+			continue;
+
 		data = nvbios_dpout_match(bios, dp->outp.info.hasht,
 						dp->outp.info.hashm,
 					  &ver, &hdr, &cnt, &len, &info);
@@ -129,7 +149,12 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 					    ocfg.pe, ocfg.tx_pu);
 	}
 
-	ret = nvkm_wraux(dp->aux, DPCD_LC03(0), lt->conf, 4);
+	if (lt->repeater)
+		addr = DPCD_LTTPR_LANE0_SET(lt->repeater);
+	else
+		addr = DPCD_LC03(0);
+
+	ret = nvkm_wraux(dp->aux, addr, lt->conf, 4);
 	if (ret)
 		return ret;
 
@@ -146,32 +171,59 @@ static void
 nvkm_dp_train_pattern(struct lt_state *lt, u8 pattern)
 {
 	struct nvkm_dp *dp = lt->dp;
+	u32 addr;
 	u8 sink_tp;
 
 	OUTP_TRACE(&dp->outp, "training pattern %d", pattern);
 	dp->outp.ior->func->dp.pattern(dp->outp.ior, pattern);
 
-	nvkm_rdaux(dp->aux, DPCD_LC02, &sink_tp, 1);
+	if (lt->repeater)
+		addr = DPCD_LTTPR_PATTERN_SET(lt->repeater);
+	else
+		addr = DPCD_LC02;
+
+	nvkm_rdaux(dp->aux, addr, &sink_tp, 1);
 	sink_tp &= ~DPCD_LC02_TRAINING_PATTERN_SET;
-	sink_tp |= pattern;
-	nvkm_wraux(dp->aux, DPCD_LC02, &sink_tp, 1);
+	sink_tp |= (pattern != 4) ? pattern : 7;
+
+	if (pattern != 0)
+		sink_tp |=  DPCD_LC02_SCRAMBLING_DISABLE;
+	else
+		sink_tp &= ~DPCD_LC02_SCRAMBLING_DISABLE;
+	nvkm_wraux(dp->aux, addr, &sink_tp, 1);
 }
 
 static int
 nvkm_dp_train_eq(struct lt_state *lt)
 {
+	struct nvkm_i2c_aux *aux = lt->dp->aux;
 	bool eq_done = false, cr_done = true;
-	int tries = 0, i;
+	int tries = 0, usec = 0, i;
+	u8 data;
 
-	if (lt->dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED)
-		nvkm_dp_train_pattern(lt, 3);
-	else
-		nvkm_dp_train_pattern(lt, 2);
+	if (lt->repeater) {
+		if (!nvkm_rdaux(aux, DPCD_LTTPR_AUX_RD_INTERVAL(lt->repeater), &data, sizeof(data)))
+			usec = (data & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
+
+		nvkm_dp_train_pattern(lt, 4);
+	} else {
+		if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] >= 0x14 &&
+		    lt->dp->dpcd[DPCD_RC03] & DPCD_RC03_TPS4_SUPPORTED)
+			nvkm_dp_train_pattern(lt, 4);
+		else
+		if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] >= 0x12 &&
+		    lt->dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED)
+			nvkm_dp_train_pattern(lt, 3);
+		else
+			nvkm_dp_train_pattern(lt, 2);
+
+		usec = (lt->dp->dpcd[DPCD_RC0E] & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
+	}
 
 	do {
 		if ((tries &&
 		    nvkm_dp_train_drive(lt, lt->pc2)) ||
-		    nvkm_dp_train_sense(lt, lt->pc2, 400))
+		    nvkm_dp_train_sense(lt, lt->pc2, usec ? usec : 400))
 			break;
 
 		eq_done = !!(lt->stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE);
@@ -193,13 +245,16 @@ nvkm_dp_train_cr(struct lt_state *lt)
 {
 	bool cr_done = false, abort = false;
 	int voltage = lt->conf[0] & DPCD_LC03_VOLTAGE_SWING_SET;
-	int tries = 0, i;
+	int tries = 0, usec = 0, i;
 
 	nvkm_dp_train_pattern(lt, 1);
 
+	if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] < 0x14 && !lt->repeater)
+		usec = (lt->dp->dpcd[DPCD_RC0E] & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
+
 	do {
 		if (nvkm_dp_train_drive(lt, false) ||
-		    nvkm_dp_train_sense(lt, false, 100))
+		    nvkm_dp_train_sense(lt, false, usec ? usec : 100))
 			break;
 
 		cr_done = true;
@@ -223,7 +278,7 @@ nvkm_dp_train_cr(struct lt_state *lt)
 }
 
 static int
-nvkm_dp_train_links(struct nvkm_dp *dp)
+nvkm_dp_train_links(struct nvkm_dp *dp, int rate)
 {
 	struct nvkm_ior *ior = dp->outp.ior;
 	struct nvkm_disp *disp = dp->outp.disp;
@@ -233,13 +288,15 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 		.dp = dp,
 	};
 	u32 lnkcmp;
-	u8 sink[2];
+	u8 sink[2], data;
 	int ret;
 
 	OUTP_DBG(&dp->outp, "training %d x %d MB/s",
 		 ior->dp.nr, ior->dp.bw * 27);
 
 	/* Intersect misc. capabilities of the OR and sink. */
+	if (disp->engine.subdev.device->chipset < 0x110)
+		dp->dpcd[DPCD_RC03] &= ~DPCD_RC03_TPS4_SUPPORTED;
 	if (disp->engine.subdev.device->chipset < 0xd0)
 		dp->dpcd[DPCD_RC02] &= ~DPCD_RC02_TPS3_SUPPORTED;
 	lt.pc2 = dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED;
@@ -287,8 +344,22 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 
 	ior->func->dp.power(ior, ior->dp.nr);
 
+	/* Select LTTPR non-transparent mode if we have a valid configuration,
+	 * use transparent mode otherwise.
+	 */
+	if (dp->lttpr[0] >= 0x14) {
+		data = DPCD_LTTPR_MODE_TRANSPARENT;
+		nvkm_wraux(dp->aux, DPCD_LTTPR_MODE, &data, sizeof(data));
+
+		if (dp->lttprs) {
+			data = DPCD_LTTPR_MODE_NON_TRANSPARENT;
+			nvkm_wraux(dp->aux, DPCD_LTTPR_MODE, &data, sizeof(data));
+			lt.repeaters = dp->lttprs;
+		}
+	}
+
 	/* Set desired link configuration on the sink. */
-	sink[0] = ior->dp.bw;
+	sink[0] = (dp->rate[rate].dpcd < 0) ? ior->dp.bw : 0;
 	sink[1] = ior->dp.nr;
 	if (ior->dp.ef)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
@@ -297,12 +368,33 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 	if (ret)
 		return ret;
 
+	if (dp->rate[rate].dpcd >= 0) {
+		ret = nvkm_rdaux(dp->aux, DPCD_LC15_LINK_RATE_SET, &sink[0], sizeof(sink[0]));
+		if (ret)
+			return ret;
+
+		sink[0] &= ~DPCD_LC15_LINK_RATE_SET_MASK;
+		sink[0] |= dp->rate[rate].dpcd;
+
+		ret = nvkm_wraux(dp->aux, DPCD_LC15_LINK_RATE_SET, &sink[0], sizeof(sink[0]));
+		if (ret)
+			return ret;
+	}
+
 	/* Attempt to train the link in this configuration. */
-	memset(lt.stat, 0x00, sizeof(lt.stat));
-	ret = nvkm_dp_train_cr(&lt);
-	if (ret == 0)
-		ret = nvkm_dp_train_eq(&lt);
-	nvkm_dp_train_pattern(&lt, 0);
+	for (lt.repeater = lt.repeaters; lt.repeater >= 0; lt.repeater--) {
+		if (lt.repeater)
+			OUTP_DBG(&dp->outp, "training LTTPR%d", lt.repeater);
+		else
+			OUTP_DBG(&dp->outp, "training sink");
+
+		memset(lt.stat, 0x00, sizeof(lt.stat));
+		ret = nvkm_dp_train_cr(&lt);
+		if (ret == 0)
+			ret = nvkm_dp_train_eq(&lt);
+		nvkm_dp_train_pattern(&lt, 0);
+	}
+
 	return ret;
 }
 
@@ -345,62 +437,12 @@ nvkm_dp_train_init(struct nvkm_dp *dp)
 	}
 }
 
-static const struct dp_rates {
-	u32 rate;
-	u8  bw;
-	u8  nr;
-} nvkm_dp_rates[] = {
-	{ 2160000, 0x14, 4 },
-	{ 1080000, 0x0a, 4 },
-	{ 1080000, 0x14, 2 },
-	{  648000, 0x06, 4 },
-	{  540000, 0x0a, 2 },
-	{  540000, 0x14, 1 },
-	{  324000, 0x06, 2 },
-	{  270000, 0x0a, 1 },
-	{  162000, 0x06, 1 },
-	{}
-};
-
 static int
 nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 {
 	struct nvkm_ior *ior = dp->outp.ior;
-	const u8 sink_nr = dp->dpcd[DPCD_RC02] & DPCD_RC02_MAX_LANE_COUNT;
-	const u8 sink_bw = dp->dpcd[DPCD_RC01_MAX_LINK_RATE];
-	const u8 outp_nr = dp->outp.info.dpconf.link_nr;
-	const u8 outp_bw = dp->outp.info.dpconf.link_bw;
-	const struct dp_rates *failsafe = NULL, *cfg;
-	int ret = -EINVAL;
+	int ret = -EINVAL, nr, rate;
 	u8  pwr;
-
-	/* Find the lowest configuration of the OR that can support
-	 * the required link rate.
-	 *
-	 * We will refuse to program the OR to lower rates, even if
-	 * link training fails at higher rates (or even if the sink
-	 * can't support the rate at all, though the DD is supposed
-	 * to prevent such situations from happening).
-	 *
-	 * Attempting to do so can cause the entire display to hang,
-	 * and it's better to have a failed modeset than that.
-	 */
-	for (cfg = nvkm_dp_rates; cfg->rate; cfg++) {
-		if (cfg->nr <= outp_nr && cfg->bw <= outp_bw) {
-			/* Try to respect sink limits too when selecting
-			 * lowest link configuration.
-			 */
-			if (!failsafe ||
-			    (cfg->nr <= sink_nr && cfg->bw <= sink_bw))
-				failsafe = cfg;
-		}
-
-		if (failsafe && cfg[1].rate < dataKBps)
-			break;
-	}
-
-	if (WARN_ON(!failsafe))
-		return ret;
 
 	/* Ensure sink is not in a low-power state. */
 	if (!nvkm_rdaux(dp->aux, DPCD_SC00, &pwr, 1)) {
@@ -411,25 +453,22 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 		}
 	}
 
-	/* Link training. */
-	OUTP_DBG(&dp->outp, "training (min: %d x %d MB/s)",
-		 failsafe->nr, failsafe->bw * 27);
-	nvkm_dp_train_init(dp);
-	for (cfg = nvkm_dp_rates; ret < 0 && cfg <= failsafe; cfg++) {
-		/* Skip configurations not supported by both OR and sink. */
-		if ((cfg->nr > outp_nr || cfg->bw > outp_bw ||
-		     cfg->nr > sink_nr || cfg->bw > sink_bw)) {
-			if (cfg != failsafe)
-				continue;
-			OUTP_ERR(&dp->outp, "link rate unsupported by sink");
-		}
-		ior->dp.mst = dp->lt.mst;
-		ior->dp.ef = dp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP;
-		ior->dp.bw = cfg->bw;
-		ior->dp.nr = cfg->nr;
+	ior->dp.mst = dp->lt.mst;
+	ior->dp.ef = dp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP;
+	ior->dp.nr = 0;
 
-		/* Program selected link configuration. */
-		ret = nvkm_dp_train_links(dp);
+	/* Link training. */
+	OUTP_DBG(&dp->outp, "training");
+	nvkm_dp_train_init(dp);
+	for (nr = dp->links; ret < 0 && nr; nr >>= 1) {
+		for (rate = 0; ret < 0 && rate < dp->rates; rate++) {
+			if (dp->rate[rate].rate * nr >= dataKBps || WARN_ON(!ior->dp.nr)) {
+				/* Program selected link configuration. */
+				ior->dp.bw = dp->rate[rate].rate / 27000;
+				ior->dp.nr = nr;
+				ret = nvkm_dp_train_links(dp, rate);
+			}
+		}
 	}
 	nvkm_dp_train_fini(dp);
 	if (ret < 0)
@@ -527,6 +566,47 @@ done:
 }
 
 static bool
+nvkm_dp_enable_supported_link_rates(struct nvkm_dp *dp)
+{
+	u8 sink_rates[DPCD_RC10_SUPPORTED_LINK_RATES__SIZE];
+	int i, j, k;
+
+	if (dp->outp.conn->info.type != DCB_CONNECTOR_eDP ||
+	    dp->dpcd[DPCD_RC00_DPCD_REV] < 0x13 ||
+	    nvkm_rdaux(dp->aux, DPCD_RC10_SUPPORTED_LINK_RATES(0), sink_rates, sizeof(sink_rates)))
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(sink_rates); i += 2) {
+		const u32 rate = ((sink_rates[i + 1] << 8) | sink_rates[i]) * 200 / 10;
+
+		if (!rate || WARN_ON(dp->rates == ARRAY_SIZE(dp->rate)))
+			break;
+
+		if (rate > dp->outp.info.dpconf.link_bw * 27000) {
+			OUTP_DBG(&dp->outp, "rate %d !outp", rate);
+			continue;
+		}
+
+		for (j = 0; j < dp->rates; j++) {
+			if (rate > dp->rate[j].rate) {
+				for (k = dp->rates; k > j; k--)
+					dp->rate[k] = dp->rate[k - 1];
+				break;
+			}
+		}
+
+		dp->rate[j].dpcd = i / 2;
+		dp->rate[j].rate = rate;
+		dp->rates++;
+	}
+
+	for (i = 0; i < dp->rates; i++)
+		OUTP_DBG(&dp->outp, "link_rate[%d] = %d", dp->rate[i].dpcd, dp->rate[i].rate);
+
+	return dp->rates != 0;
+}
+
+static bool
 nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 {
 	struct nvkm_i2c_aux *aux = dp->aux;
@@ -538,9 +618,60 @@ nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 			dp->present = true;
 		}
 
-		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, dp->dpcd,
-				sizeof(dp->dpcd)))
+		/* Detect any LTTPRs before reading DPCD receiver caps. */
+		if (!nvkm_rdaux(aux, DPCD_LTTPR_REV, dp->lttpr, sizeof(dp->lttpr)) &&
+		    dp->lttpr[0] >= 0x14 && dp->lttpr[2]) {
+			switch (dp->lttpr[2]) {
+			case 0x80: dp->lttprs = 1; break;
+			case 0x40: dp->lttprs = 2; break;
+			case 0x20: dp->lttprs = 3; break;
+			case 0x10: dp->lttprs = 4; break;
+			case 0x08: dp->lttprs = 5; break;
+			case 0x04: dp->lttprs = 6; break;
+			case 0x02: dp->lttprs = 7; break;
+			case 0x01: dp->lttprs = 8; break;
+			default:
+				/* Unknown LTTPR count, we'll switch to transparent mode. */
+				WARN_ON(1);
+				dp->lttprs = 0;
+				break;
+			}
+		} else {
+			/* No LTTPR support, or zero LTTPR count - don't touch it at all. */
+			memset(dp->lttpr, 0x00, sizeof(dp->lttpr));
+		}
+
+		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, dp->dpcd, sizeof(dp->dpcd))) {
+			const u8 rates[] = { 0x1e, 0x14, 0x0a, 0x06, 0 };
+			const u8 *rate;
+			int rate_max;
+
+			dp->rates = 0;
+			dp->links = dp->dpcd[DPCD_RC02] & DPCD_RC02_MAX_LANE_COUNT;
+			dp->links = min(dp->links, dp->outp.info.dpconf.link_nr);
+			if (dp->lttprs && dp->lttpr[4])
+				dp->links = min_t(int, dp->links, dp->lttpr[4]);
+
+			rate_max = dp->dpcd[DPCD_RC01_MAX_LINK_RATE];
+			rate_max = min(rate_max, dp->outp.info.dpconf.link_bw);
+			if (dp->lttprs && dp->lttpr[1])
+				rate_max = min_t(int, rate_max, dp->lttpr[1]);
+
+			if (!nvkm_dp_enable_supported_link_rates(dp)) {
+				for (rate = rates; *rate; rate++) {
+					if (*rate <= rate_max) {
+						if (WARN_ON(dp->rates == ARRAY_SIZE(dp->rate)))
+							break;
+
+						dp->rate[dp->rates].dpcd = -1;
+						dp->rate[dp->rates].rate = *rate * 27000;
+						dp->rates++;
+					}
+				}
+			}
+
 			return true;
+		}
 	}
 
 	if (dp->present) {

@@ -13,7 +13,7 @@
 
 #include <drm/drm_connector.h>
 #include <drm/drm_device.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 
 /*
  * Unfortunately it turns out that we have a chicken-and-egg situation

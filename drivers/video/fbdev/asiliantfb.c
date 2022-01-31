@@ -110,7 +110,7 @@ static const struct fb_ops asiliantfb_ops = {
 static void asiliant_calc_dclk2(u32 *ppixclock, u8 *dclk2_m, u8 *dclk2_n, u8 *dclk2_div)
 {
 	unsigned pixclock = *ppixclock;
-	unsigned Ftarget = 1000000 * (1000000 / pixclock);
+	unsigned Ftarget;
 	unsigned n;
 	unsigned best_error = 0xffffffff;
 	unsigned best_m = 0xffffffff,

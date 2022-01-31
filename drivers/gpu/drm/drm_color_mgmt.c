@@ -82,6 +82,10 @@
  *	driver boot-up state too. Drivers can access this blob through
  *	&drm_crtc_state.gamma_lut.
  *
+ *	Note that for mostly historical reasons stemming from Xorg heritage,
+ *	this is also used to store the color map (also sometimes color lut, CLUT
+ *	or color palette) for indexed formats like DRM_FORMAT_C8.
+ *
  * “GAMMA_LUT_SIZE”:
  *	Unsigned range property to give the size of the lookup table to be set
  *	on the GAMMA_LUT property (the size depends on the underlying hardware).

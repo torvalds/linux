@@ -374,10 +374,18 @@ static int mxsfb_remove(struct platform_device *pdev)
 	struct drm_device *drm = platform_get_drvdata(pdev);
 
 	drm_dev_unregister(drm);
+	drm_atomic_helper_shutdown(drm);
 	mxsfb_unload(drm);
 	drm_dev_put(drm);
 
 	return 0;
+}
+
+static void mxsfb_shutdown(struct platform_device *pdev)
+{
+	struct drm_device *drm = platform_get_drvdata(pdev);
+
+	drm_atomic_helper_shutdown(drm);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -403,6 +411,7 @@ static const struct dev_pm_ops mxsfb_pm_ops = {
 static struct platform_driver mxsfb_platform_driver = {
 	.probe		= mxsfb_probe,
 	.remove		= mxsfb_remove,
+	.shutdown	= mxsfb_shutdown,
 	.driver	= {
 		.name		= "mxsfb",
 		.of_match_table	= mxsfb_dt_ids,

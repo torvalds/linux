@@ -12,7 +12,7 @@
 #include <linux/phy/phy-dp.h>
 #include <linux/pm_opp.h>
 #include <drm/drm_fixed.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_print.h>
 
 #include "dp_reg.h"
