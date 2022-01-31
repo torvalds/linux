@@ -8,6 +8,7 @@
  */
 
 #include <linux/compat.h>
+#include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/capability.h>
@@ -733,6 +734,9 @@ ethtool_get_drvinfo(struct net_device *dev, struct ethtool_devlink_compat *rsp)
 		strlcpy(rsp->info.bus_info, dev_name(dev->dev.parent),
 			sizeof(rsp->info.bus_info));
 		strlcpy(rsp->info.driver, dev->dev.parent->driver->name,
+			sizeof(rsp->info.driver));
+	} else if (dev->rtnl_link_ops) {
+		strlcpy(rsp->info.driver, dev->rtnl_link_ops->kind,
 			sizeof(rsp->info.driver));
 	} else {
 		return -EOPNOTSUPP;
@@ -1719,7 +1723,7 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 	struct ethtool_coalesce coalesce;
 	int ret;
 
-	if (!dev->ethtool_ops->set_coalesce && !dev->ethtool_ops->get_coalesce)
+	if (!dev->ethtool_ops->set_coalesce || !dev->ethtool_ops->get_coalesce)
 		return -EOPNOTSUPP;
 
 	ret = dev->ethtool_ops->get_coalesce(dev, &coalesce, &kernel_coalesce,
@@ -1743,11 +1747,13 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_ringparam ringparam = { .cmd = ETHTOOL_GRINGPARAM };
+	struct kernel_ethtool_ringparam kernel_ringparam = {};
 
 	if (!dev->ethtool_ops->get_ringparam)
 		return -EOPNOTSUPP;
 
-	dev->ethtool_ops->get_ringparam(dev, &ringparam);
+	dev->ethtool_ops->get_ringparam(dev, &ringparam,
+					&kernel_ringparam, NULL);
 
 	if (copy_to_user(useraddr, &ringparam, sizeof(ringparam)))
 		return -EFAULT;
@@ -1757,6 +1763,7 @@ static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
 static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_ringparam ringparam, max = { .cmd = ETHTOOL_GRINGPARAM };
+	struct kernel_ethtool_ringparam kernel_ringparam;
 	int ret;
 
 	if (!dev->ethtool_ops->set_ringparam || !dev->ethtool_ops->get_ringparam)
@@ -1765,7 +1772,7 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	if (copy_from_user(&ringparam, useraddr, sizeof(ringparam)))
 		return -EFAULT;
 
-	dev->ethtool_ops->get_ringparam(dev, &max);
+	dev->ethtool_ops->get_ringparam(dev, &max, &kernel_ringparam, NULL);
 
 	/* ensure new ring parameters are within the maximums */
 	if (ringparam.rx_pending > max.rx_max_pending ||
@@ -1774,7 +1781,8 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	    ringparam.tx_pending > max.tx_max_pending)
 		return -EINVAL;
 
-	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam);
+	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
+					      &kernel_ringparam, NULL);
 	if (!ret)
 		ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF, NULL);
 	return ret;
@@ -1982,6 +1990,7 @@ static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 	struct ethtool_value id;
 	static bool busy;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
+	netdevice_tracker dev_tracker;
 	int rc;
 
 	if (!ops->set_phys_id)
@@ -2001,7 +2010,7 @@ static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 	 * removal of the device.
 	 */
 	busy = true;
-	dev_hold(dev);
+	dev_hold_track(dev, &dev_tracker, GFP_KERNEL);
 	rtnl_unlock();
 
 	if (rc == 0) {
@@ -2025,7 +2034,7 @@ static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 	}
 
 	rtnl_lock();
-	dev_put(dev);
+	dev_put_track(dev, &dev_tracker);
 	busy = false;
 
 	(void) ops->set_phys_id(dev, ETHTOOL_ID_INACTIVE);
@@ -2087,9 +2096,9 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 	if (!phydev && (!ops->get_ethtool_phy_stats || !ops->get_sset_count))
 		return -EOPNOTSUPP;
 
-	if (dev->phydev && !ops->get_ethtool_phy_stats &&
+	if (phydev && !ops->get_ethtool_phy_stats &&
 	    phy_ops && phy_ops->get_sset_count)
-		n_stats = phy_ops->get_sset_count(dev->phydev);
+		n_stats = phy_ops->get_sset_count(phydev);
 	else
 		n_stats = ops->get_sset_count(dev, ETH_SS_PHY_STATS);
 	if (n_stats < 0)
@@ -2108,9 +2117,9 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 		if (!data)
 			return -ENOMEM;
 
-		if (dev->phydev && !ops->get_ethtool_phy_stats &&
+		if (phydev && !ops->get_ethtool_phy_stats &&
 		    phy_ops && phy_ops->get_stats) {
-			ret = phy_ops->get_stats(dev->phydev, &stats, data);
+			ret = phy_ops->get_stats(phydev, &stats, data);
 			if (ret < 0)
 				goto out;
 		} else {
@@ -2396,6 +2405,7 @@ static int ethtool_tunable_valid(const struct ethtool_tunable *tuna)
 	switch (tuna->id) {
 	case ETHTOOL_RX_COPYBREAK:
 	case ETHTOOL_TX_COPYBREAK:
+	case ETHTOOL_TX_COPYBREAK_BUF_SIZE:
 		if (tuna->len != sizeof(u32) ||
 		    tuna->type_id != ETHTOOL_TUNABLE_U32)
 			return -EINVAL;

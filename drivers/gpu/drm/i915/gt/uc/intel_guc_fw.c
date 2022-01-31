@@ -40,9 +40,8 @@ static void guc_prepare_xfer(struct intel_uncore *uncore)
 	}
 }
 
-/* Copy RSA signature from the fw image to HW for verification */
-static int guc_xfer_rsa(struct intel_uc_fw *guc_fw,
-			struct intel_uncore *uncore)
+static int guc_xfer_rsa_mmio(struct intel_uc_fw *guc_fw,
+			     struct intel_uncore *uncore)
 {
 	u32 rsa[UOS_RSA_SCRATCH_COUNT];
 	size_t copied;
@@ -56,6 +55,27 @@ static int guc_xfer_rsa(struct intel_uc_fw *guc_fw,
 		intel_uncore_write(uncore, UOS_RSA_SCRATCH(i), rsa[i]);
 
 	return 0;
+}
+
+static int guc_xfer_rsa_vma(struct intel_uc_fw *guc_fw,
+			    struct intel_uncore *uncore)
+{
+	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
+
+	intel_uncore_write(uncore, UOS_RSA_SCRATCH(0),
+			   intel_guc_ggtt_offset(guc, guc_fw->rsa_data));
+
+	return 0;
+}
+
+/* Copy RSA signature from the fw image to HW for verification */
+static int guc_xfer_rsa(struct intel_uc_fw *guc_fw,
+			struct intel_uncore *uncore)
+{
+	if (guc_fw->rsa_data)
+		return guc_xfer_rsa_vma(guc_fw, uncore);
+	else
+		return guc_xfer_rsa_mmio(guc_fw, uncore);
 }
 
 /*
@@ -142,7 +162,10 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	/*
 	 * Note that GuC needs the CSS header plus uKernel code to be copied
 	 * by the DMA engine in one operation, whereas the RSA signature is
-	 * loaded via MMIO.
+	 * loaded separately, either by copying it to the UOS_RSA_SCRATCH
+	 * register (if key size <= 256) or through a ggtt-pinned vma (if key
+	 * size > 256). The RSA size and therefore the way we provide it to the
+	 * HW is fixed for each platform and hard-coded in the bootrom.
 	 */
 	ret = guc_xfer_rsa(&guc->fw, uncore);
 	if (ret)
@@ -164,6 +187,6 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	return 0;
 
 out:
-	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_FAIL);
+	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 	return ret;
 }

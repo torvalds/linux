@@ -33,14 +33,11 @@
  */
 
 
-void start_backtrace(struct stackframe *frame, unsigned long fp,
-		     unsigned long pc)
+static notrace void start_backtrace(struct stackframe *frame, unsigned long fp,
+				    unsigned long pc)
 {
 	frame->fp = fp;
 	frame->pc = pc;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame->graph = 0;
-#endif
 #ifdef CONFIG_KRETPROBES
 	frame->kr_cur = NULL;
 #endif
@@ -58,6 +55,7 @@ void start_backtrace(struct stackframe *frame, unsigned long fp,
 	frame->prev_fp = 0;
 	frame->prev_type = STACK_TYPE_UNKNOWN;
 }
+NOKPROBE_SYMBOL(start_backtrace);
 
 /*
  * Unwind from one frame record (A) to the next frame record (B).
@@ -66,7 +64,8 @@ void start_backtrace(struct stackframe *frame, unsigned long fp,
  * records (e.g. a cycle), determined based on the location and fp value of A
  * and the location (but not the fp value) of B.
  */
-int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
+static int notrace unwind_frame(struct task_struct *tsk,
+				struct stackframe *frame)
 {
 	unsigned long fp = frame->fp;
 	struct stack_info info;
@@ -116,20 +115,23 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	frame->prev_fp = fp;
 	frame->prev_type = info.type;
 
+	frame->pc = ptrauth_strip_insn_pac(frame->pc);
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (tsk->ret_stack &&
-		(ptrauth_strip_insn_pac(frame->pc) == (unsigned long)return_to_handler)) {
-		struct ftrace_ret_stack *ret_stack;
+		(frame->pc == (unsigned long)return_to_handler)) {
+		unsigned long orig_pc;
 		/*
 		 * This is a case where function graph tracer has
 		 * modified a return address (LR) in a stack frame
 		 * to hook a function return.
 		 * So replace it to an original value.
 		 */
-		ret_stack = ftrace_graph_get_ret_stack(tsk, frame->graph++);
-		if (WARN_ON_ONCE(!ret_stack))
+		orig_pc = ftrace_graph_ret_addr(tsk, NULL, frame->pc,
+						(void *)frame->fp);
+		if (WARN_ON_ONCE(frame->pc == orig_pc))
 			return -EINVAL;
-		frame->pc = ret_stack->ret;
+		frame->pc = orig_pc;
 	}
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 #ifdef CONFIG_KRETPROBES
@@ -137,14 +139,13 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 		frame->pc = kretprobe_find_ret_addr(tsk, (void *)frame->fp, &frame->kr_cur);
 #endif
 
-	frame->pc = ptrauth_strip_insn_pac(frame->pc);
-
 	return 0;
 }
 NOKPROBE_SYMBOL(unwind_frame);
 
-void notrace walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
-			     bool (*fn)(void *, unsigned long), void *data)
+static void notrace walk_stackframe(struct task_struct *tsk,
+				    struct stackframe *frame,
+				    bool (*fn)(void *, unsigned long), void *data)
 {
 	while (1) {
 		int ret;
@@ -158,24 +159,20 @@ void notrace walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
 }
 NOKPROBE_SYMBOL(walk_stackframe);
 
-static void dump_backtrace_entry(unsigned long where, const char *loglvl)
+static bool dump_backtrace_entry(void *arg, unsigned long where)
 {
+	char *loglvl = arg;
 	printk("%s %pSb\n", loglvl, (void *)where);
+	return true;
 }
 
 void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 		    const char *loglvl)
 {
-	struct stackframe frame;
-	int skip = 0;
-
 	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
 
-	if (regs) {
-		if (user_mode(regs))
-			return;
-		skip = 1;
-	}
+	if (regs && user_mode(regs))
+		return;
 
 	if (!tsk)
 		tsk = current;
@@ -183,36 +180,8 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 	if (!try_get_task_stack(tsk))
 		return;
 
-	if (tsk == current) {
-		start_backtrace(&frame,
-				(unsigned long)__builtin_frame_address(0),
-				(unsigned long)dump_backtrace);
-	} else {
-		/*
-		 * task blocked in __switch_to
-		 */
-		start_backtrace(&frame,
-				thread_saved_fp(tsk),
-				thread_saved_pc(tsk));
-	}
-
 	printk("%sCall trace:\n", loglvl);
-	do {
-		/* skip until specified stack frame */
-		if (!skip) {
-			dump_backtrace_entry(frame.pc, loglvl);
-		} else if (frame.fp == regs->regs[29]) {
-			skip = 0;
-			/*
-			 * Mostly, this is the case where this function is
-			 * called in panic/abort. As exception handler's
-			 * stack frame does not contain the corresponding pc
-			 * at which an exception has taken place, use regs->pc
-			 * instead.
-			 */
-			dump_backtrace_entry(regs->pc, loglvl);
-		}
-	} while (!unwind_frame(tsk, &frame));
+	arch_stack_walk(dump_backtrace_entry, (void *)loglvl, tsk, regs);
 
 	put_task_stack(tsk);
 }
@@ -222,8 +191,6 @@ void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 	dump_backtrace(NULL, tsk, loglvl);
 	barrier();
 }
-
-#ifdef CONFIG_STACKTRACE
 
 noinline notrace void arch_stack_walk(stack_trace_consume_fn consume_entry,
 			      void *cookie, struct task_struct *task,
@@ -243,5 +210,3 @@ noinline notrace void arch_stack_walk(stack_trace_consume_fn consume_entry,
 
 	walk_stackframe(task, &frame, consume_entry, cookie);
 }
-
-#endif

@@ -974,14 +974,13 @@ config SPI_XILINX
 	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
 
 config SPI_XLP
-	tristate "Netlogic XLP SPI controller driver"
-	depends on CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST
+	tristate "Cavium ThunderX2 SPI controller driver"
+	depends on ARCH_THUNDER2 || COMPILE_TEST
 	help
-	  Enable support for the SPI controller on the Netlogic XLP SoCs.
-	  Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX, XLP9XX
-	  and XLP5XX.
+	  Enable support for the SPI controller on the Cavium ThunderX2.
+	  (Originally on Netlogic XLP SoCs.)
 
-	  If you have a Netlogic XLP platform say Y here.
+	  If you have a Cavium ThunderX2 platform say Y here.
 	  If unsure, say N.
 
 config SPI_XTENSA_XTFPGA

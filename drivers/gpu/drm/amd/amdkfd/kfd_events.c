@@ -935,8 +935,10 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, u32 pasid,
 	/* Workaround on Raven to not kill the process when memory is freed
 	 * before IOMMU is able to finish processing all the excessive PPRs
 	 */
-	if (dev->device_info->asic_family != CHIP_RAVEN &&
-	    dev->device_info->asic_family != CHIP_RENOIR) {
+
+	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 1, 0) &&
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 2, 2) &&
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 3, 0)) {
 		mutex_lock(&p->event_mutex);
 
 		/* Lookup events by type and signal them */

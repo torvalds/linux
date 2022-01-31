@@ -215,6 +215,31 @@ static int live_engine_timestamps(void *arg)
 	return 0;
 }
 
+static int __spin_until_busier(struct intel_engine_cs *engine, ktime_t busyness)
+{
+	ktime_t start, unused, dt;
+
+	if (!intel_engine_uses_guc(engine))
+		return 0;
+
+	/*
+	 * In GuC mode of submission, the busyness stats may get updated after
+	 * the batch starts running. Poll for a change in busyness and timeout
+	 * after 500 us.
+	 */
+	start = ktime_get();
+	while (intel_engine_get_busy_time(engine, &unused) == busyness) {
+		dt = ktime_get() - start;
+		if (dt > 10000000) {
+			pr_err("active wait timed out %lld\n", dt);
+			ENGINE_TRACE(engine, "active wait time out %lld\n", dt);
+			return -ETIME;
+		}
+	}
+
+	return 0;
+}
+
 static int live_engine_busy_stats(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -233,6 +258,7 @@ static int live_engine_busy_stats(void *arg)
 	GEM_BUG_ON(intel_gt_pm_is_awake(gt));
 	for_each_engine(engine, gt, id) {
 		struct i915_request *rq;
+		ktime_t busyness, dummy;
 		ktime_t de, dt;
 		ktime_t t[2];
 
@@ -275,16 +301,23 @@ static int live_engine_busy_stats(void *arg)
 		}
 		i915_request_add(rq);
 
+		busyness = intel_engine_get_busy_time(engine, &dummy);
 		if (!igt_wait_for_spinner(&spin, rq)) {
 			intel_gt_set_wedged(engine->gt);
 			err = -ETIME;
 			goto end;
 		}
 
+		err = __spin_until_busier(engine, busyness);
+		if (err) {
+			GEM_TRACE_DUMP();
+			goto end;
+		}
+
 		ENGINE_TRACE(engine, "measuring busy time\n");
 		preempt_disable();
 		de = intel_engine_get_busy_time(engine, &t[0]);
-		udelay(100);
+		mdelay(10);
 		de = ktime_sub(intel_engine_get_busy_time(engine, &t[1]), de);
 		preempt_enable();
 		dt = ktime_sub(t[1], t[0]);

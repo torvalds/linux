@@ -108,22 +108,138 @@ static void tegra210_mvc_conv_vol(struct tegra210_mvc *mvc, u8 chan, s32 val)
 	}
 }
 
-static int tegra210_mvc_get_mute(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
+static u32 tegra210_mvc_get_ctrl_reg(struct snd_kcontrol *kcontrol)
 {
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
-	u8 mute_mask;
 	u32 val;
 
 	pm_runtime_get_sync(cmpnt->dev);
 	regmap_read(mvc->regmap, TEGRA210_MVC_CTRL, &val);
 	pm_runtime_put(cmpnt->dev);
 
-	mute_mask = (val >>  TEGRA210_MVC_MUTE_SHIFT) &
-		TEGRA210_MUTE_MASK_EN;
+	return val;
+}
 
-	ucontrol->value.integer.value[0] = mute_mask;
+static int tegra210_mvc_get_mute(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	u32 val = tegra210_mvc_get_ctrl_reg(kcontrol);
+	u8 mute_mask = TEGRA210_GET_MUTE_VAL(val);
+
+	/*
+	 * If per channel control is enabled, then return
+	 * exact mute/unmute setting of all channels.
+	 *
+	 * Else report setting based on CH0 bit to reflect
+	 * the correct HW state.
+	 */
+	if (val & TEGRA210_MVC_PER_CHAN_CTRL_EN) {
+		ucontrol->value.integer.value[0] = mute_mask;
+	} else {
+		if (mute_mask & TEGRA210_MVC_CH0_MUTE_EN)
+			ucontrol->value.integer.value[0] =
+				TEGRA210_MUTE_MASK_EN;
+		else
+			ucontrol->value.integer.value[0] = 0;
+	}
+
+	return 0;
+}
+
+static int tegra210_mvc_get_master_mute(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	u32 val = tegra210_mvc_get_ctrl_reg(kcontrol);
+	u8 mute_mask = TEGRA210_GET_MUTE_VAL(val);
+
+	/*
+	 * If per channel control is disabled, then return
+	 * master mute/unmute setting based on CH0 bit.
+	 *
+	 * Else report settings based on state of all
+	 * channels.
+	 */
+	if (!(val & TEGRA210_MVC_PER_CHAN_CTRL_EN)) {
+		ucontrol->value.integer.value[0] =
+			mute_mask & TEGRA210_MVC_CH0_MUTE_EN;
+	} else {
+		if (mute_mask == TEGRA210_MUTE_MASK_EN)
+			ucontrol->value.integer.value[0] =
+				TEGRA210_MVC_CH0_MUTE_EN;
+		else
+			ucontrol->value.integer.value[0] = 0;
+	}
+
+	return 0;
+}
+
+static int tegra210_mvc_volume_switch_timeout(struct snd_soc_component *cmpnt)
+{
+	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
+	u32 value;
+	int err;
+
+	err = regmap_read_poll_timeout(mvc->regmap, TEGRA210_MVC_SWITCH,
+			value, !(value & TEGRA210_MVC_VOLUME_SWITCH_MASK),
+			10, 10000);
+	if (err < 0)
+		dev_err(cmpnt->dev,
+			"Volume switch trigger is still active, err = %d\n",
+			err);
+
+	return err;
+}
+
+static int tegra210_mvc_update_mute(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol,
+				    bool per_chan_ctrl)
+{
+	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
+	u32 mute_val = ucontrol->value.integer.value[0];
+	u32 per_ch_ctrl_val;
+	bool change = false;
+	int err;
+
+	pm_runtime_get_sync(cmpnt->dev);
+
+	err = tegra210_mvc_volume_switch_timeout(cmpnt);
+	if (err < 0)
+		goto end;
+
+	if (per_chan_ctrl) {
+		per_ch_ctrl_val = TEGRA210_MVC_PER_CHAN_CTRL_EN;
+	} else {
+		per_ch_ctrl_val = 0;
+
+		if (mute_val)
+			mute_val = TEGRA210_MUTE_MASK_EN;
+	}
+
+	regmap_update_bits_check(mvc->regmap, TEGRA210_MVC_CTRL,
+				 TEGRA210_MVC_MUTE_MASK,
+				 mute_val << TEGRA210_MVC_MUTE_SHIFT,
+				 &change);
+
+	if (change) {
+		regmap_update_bits(mvc->regmap, TEGRA210_MVC_CTRL,
+				   TEGRA210_MVC_PER_CHAN_CTRL_EN_MASK,
+				   per_ch_ctrl_val);
+
+		regmap_update_bits(mvc->regmap, TEGRA210_MVC_SWITCH,
+				   TEGRA210_MVC_VOLUME_SWITCH_MASK,
+				   TEGRA210_MVC_VOLUME_SWITCH_TRIGGER);
+	}
+
+end:
+	pm_runtime_put(cmpnt->dev);
+
+	if (err < 0)
+		return err;
+
+	if (change)
+		return 1;
 
 	return 0;
 }
@@ -131,36 +247,13 @@ static int tegra210_mvc_get_mute(struct snd_kcontrol *kcontrol,
 static int tegra210_mvc_put_mute(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
-	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
-	unsigned int value;
-	u8 mute_mask;
-	int err;
+	return tegra210_mvc_update_mute(kcontrol, ucontrol, true);
+}
 
-	pm_runtime_get_sync(cmpnt->dev);
-
-	/* Check if VOLUME_SWITCH is triggered */
-	err = regmap_read_poll_timeout(mvc->regmap, TEGRA210_MVC_SWITCH,
-			value, !(value & TEGRA210_MVC_VOLUME_SWITCH_MASK),
-			10, 10000);
-	if (err < 0)
-		goto end;
-
-	mute_mask = ucontrol->value.integer.value[0];
-
-	err = regmap_update_bits(mvc->regmap, mc->reg,
-				 TEGRA210_MVC_MUTE_MASK,
-				 mute_mask << TEGRA210_MVC_MUTE_SHIFT);
-	if (err < 0)
-		goto end;
-
-	return 1;
-
-end:
-	pm_runtime_put(cmpnt->dev);
-	return err;
+static int tegra210_mvc_put_master_mute(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	return tegra210_mvc_update_mute(kcontrol, ucontrol, false);
 }
 
 static int tegra210_mvc_get_vol(struct snd_kcontrol *kcontrol,
@@ -170,7 +263,7 @@ static int tegra210_mvc_get_vol(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
-	u8 chan = (mc->reg - TEGRA210_MVC_TARGET_VOL) / REG_SIZE;
+	u8 chan = TEGRA210_MVC_GET_CHAN(mc->reg, TEGRA210_MVC_TARGET_VOL);
 	s32 val = mvc->volume[chan];
 
 	if (mvc->curve_type == CURVE_POLY) {
@@ -185,48 +278,78 @@ static int tegra210_mvc_get_vol(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int tegra210_mvc_put_vol(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+static int tegra210_mvc_get_master_vol(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	return tegra210_mvc_get_vol(kcontrol, ucontrol);
+}
+
+static int tegra210_mvc_update_vol(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol,
+				   bool per_ch_enable)
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
-	unsigned int reg = mc->reg;
-	unsigned int value;
-	u8 chan;
-	int err;
+	u8 chan = TEGRA210_MVC_GET_CHAN(mc->reg, TEGRA210_MVC_TARGET_VOL);
+	int old_volume = mvc->volume[chan];
+	int err, i;
 
 	pm_runtime_get_sync(cmpnt->dev);
 
-	/* Check if VOLUME_SWITCH is triggered */
-	err = regmap_read_poll_timeout(mvc->regmap, TEGRA210_MVC_SWITCH,
-			value, !(value & TEGRA210_MVC_VOLUME_SWITCH_MASK),
-			10, 10000);
+	err = tegra210_mvc_volume_switch_timeout(cmpnt);
 	if (err < 0)
 		goto end;
 
-	chan = (reg - TEGRA210_MVC_TARGET_VOL) / REG_SIZE;
+	tegra210_mvc_conv_vol(mvc, chan, ucontrol->value.integer.value[0]);
 
-	tegra210_mvc_conv_vol(mvc, chan,
-			      ucontrol->value.integer.value[0]);
+	if (mvc->volume[chan] == old_volume) {
+		err = 0;
+		goto end;
+	}
+
+	if (per_ch_enable) {
+		regmap_update_bits(mvc->regmap, TEGRA210_MVC_CTRL,
+				   TEGRA210_MVC_PER_CHAN_CTRL_EN_MASK,
+				   TEGRA210_MVC_PER_CHAN_CTRL_EN);
+	} else {
+		regmap_update_bits(mvc->regmap, TEGRA210_MVC_CTRL,
+				   TEGRA210_MVC_PER_CHAN_CTRL_EN_MASK, 0);
+
+		for (i = 1; i < TEGRA210_MVC_MAX_CHAN_COUNT; i++)
+			mvc->volume[i] = mvc->volume[chan];
+	}
 
 	/* Configure init volume same as target volume */
 	regmap_write(mvc->regmap,
 		TEGRA210_MVC_REG_OFFSET(TEGRA210_MVC_INIT_VOL, chan),
 		mvc->volume[chan]);
 
-	regmap_write(mvc->regmap, reg, mvc->volume[chan]);
+	regmap_write(mvc->regmap, mc->reg, mvc->volume[chan]);
 
 	regmap_update_bits(mvc->regmap, TEGRA210_MVC_SWITCH,
 			   TEGRA210_MVC_VOLUME_SWITCH_MASK,
 			   TEGRA210_MVC_VOLUME_SWITCH_TRIGGER);
 
-	return 1;
+	err = 1;
 
 end:
 	pm_runtime_put(cmpnt->dev);
+
 	return err;
+}
+
+static int tegra210_mvc_put_vol(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	return tegra210_mvc_update_vol(kcontrol, ucontrol, true);
+}
+
+static int tegra210_mvc_put_master_vol(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
+{
+	return tegra210_mvc_update_vol(kcontrol, ucontrol, false);
 }
 
 static void tegra210_mvc_reset_vol_settings(struct tegra210_mvc *mvc,
@@ -275,7 +398,7 @@ static int tegra210_mvc_get_curve_type(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 
-	ucontrol->value.integer.value[0] = mvc->curve_type;
+	ucontrol->value.enumerated.item[0] = mvc->curve_type;
 
 	return 0;
 }
@@ -285,7 +408,7 @@ static int tegra210_mvc_put_curve_type(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
-	int value;
+	unsigned int value;
 
 	regmap_read(mvc->regmap, TEGRA210_MVC_ENABLE, &value);
 	if (value & TEGRA210_MVC_EN) {
@@ -294,10 +417,10 @@ static int tegra210_mvc_put_curve_type(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	if (mvc->curve_type == ucontrol->value.integer.value[0])
+	if (mvc->curve_type == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	mvc->curve_type = ucontrol->value.integer.value[0];
+	mvc->curve_type = ucontrol->value.enumerated.item[0];
 
 	tegra210_mvc_reset_vol_settings(mvc, cmpnt->dev);
 
@@ -421,6 +544,16 @@ static const struct snd_kcontrol_new tegra210_mvc_vol_ctrl[] = {
 	SOC_SINGLE_EXT("Per Chan Mute Mask",
 		       TEGRA210_MVC_CTRL, 0, TEGRA210_MUTE_MASK_EN, 0,
 		       tegra210_mvc_get_mute, tegra210_mvc_put_mute),
+
+	/* Master volume */
+	SOC_SINGLE_EXT("Volume", TEGRA210_MVC_TARGET_VOL, 0, 16000, 0,
+		       tegra210_mvc_get_master_vol,
+		       tegra210_mvc_put_master_vol),
+
+	/* Master mute */
+	SOC_SINGLE_EXT("Mute", TEGRA210_MVC_CTRL, 0, 1, 0,
+		       tegra210_mvc_get_master_mute,
+		       tegra210_mvc_put_master_mute),
 
 	SOC_ENUM_EXT("Curve Type", tegra210_mvc_curve_type_ctrl,
 		     tegra210_mvc_get_curve_type, tegra210_mvc_put_curve_type),
@@ -625,8 +758,8 @@ static int tegra210_mvc_platform_remove(struct platform_device *pdev)
 static const struct dev_pm_ops tegra210_mvc_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra210_mvc_runtime_suspend,
 			   tegra210_mvc_runtime_resume, NULL)
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				     pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra210_mvc_driver = {

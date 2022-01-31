@@ -265,7 +265,7 @@ u32 svm_msrpm_offset(u32 msr)
 
 #define MAX_INST_SIZE 15
 
-static int get_max_npt_level(void)
+static int get_npt_level(void)
 {
 #ifdef CONFIG_X86_64
 	return pgtable_l5_enabled() ? PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
@@ -290,7 +290,7 @@ int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 	if ((old_efer & EFER_SVME) != (efer & EFER_SVME)) {
 		if (!(efer & EFER_SVME)) {
-			svm_leave_nested(svm);
+			svm_leave_nested(vcpu);
 			svm_set_gif(svm, true);
 			/* #GP intercept is still needed for vmware backdoor */
 			if (!enable_vmware_backdoor)
@@ -312,7 +312,11 @@ int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 				return ret;
 			}
 
-			if (svm_gp_erratum_intercept)
+			/*
+			 * Never intercept #GP for SEV guests, KVM can't
+			 * decrypt guest memory to workaround the erratum.
+			 */
+			if (svm_gp_erratum_intercept && !sev_guest(vcpu->kvm))
 				set_exception_intercept(svm, GP_VECTOR);
 		}
 	}
@@ -585,11 +589,9 @@ static int svm_cpu_init(int cpu)
 	if (!sd)
 		return ret;
 	sd->cpu = cpu;
-	sd->save_area = alloc_page(GFP_KERNEL);
+	sd->save_area = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!sd->save_area)
 		goto free_cpu_data;
-
-	clear_page(page_address(sd->save_area));
 
 	ret = sev_cpu_init(sd);
 	if (ret)
@@ -871,47 +873,6 @@ static void shrink_ple_window(struct kvm_vcpu *vcpu)
 	}
 }
 
-/*
- * The default MMIO mask is a single bit (excluding the present bit),
- * which could conflict with the memory encryption bit. Check for
- * memory encryption support and override the default MMIO mask if
- * memory encryption is enabled.
- */
-static __init void svm_adjust_mmio_mask(void)
-{
-	unsigned int enc_bit, mask_bit;
-	u64 msr, mask;
-
-	/* If there is no memory encryption support, use existing mask */
-	if (cpuid_eax(0x80000000) < 0x8000001f)
-		return;
-
-	/* If memory encryption is not enabled, use existing mask */
-	rdmsrl(MSR_AMD64_SYSCFG, msr);
-	if (!(msr & MSR_AMD64_SYSCFG_MEM_ENCRYPT))
-		return;
-
-	enc_bit = cpuid_ebx(0x8000001f) & 0x3f;
-	mask_bit = boot_cpu_data.x86_phys_bits;
-
-	/* Increment the mask bit if it is the same as the encryption bit */
-	if (enc_bit == mask_bit)
-		mask_bit++;
-
-	/*
-	 * If the mask bit location is below 52, then some bits above the
-	 * physical addressing limit will always be reserved, so use the
-	 * rsvd_bits() function to generate the mask. This mask, along with
-	 * the present bit, will be used to generate a page fault with
-	 * PFER.RSV = 1.
-	 *
-	 * If the mask bit location is 52 (or above), then clear the mask.
-	 */
-	mask = (mask_bit < 52) ? rsvd_bits(mask_bit, 51) | PT_PRESENT_MASK : 0;
-
-	kvm_mmu_set_mmio_spte_mask(mask, mask, PT_WRITABLE_MASK | PT_USER_MASK);
-}
-
 static void svm_hardware_teardown(void)
 {
 	int cpu;
@@ -924,191 +885,6 @@ static void svm_hardware_teardown(void)
 	__free_pages(pfn_to_page(iopm_base >> PAGE_SHIFT),
 	get_order(IOPM_SIZE));
 	iopm_base = 0;
-}
-
-static __init void svm_set_cpu_caps(void)
-{
-	kvm_set_cpu_caps();
-
-	supported_xss = 0;
-
-	/* CPUID 0x80000001 and 0x8000000A (SVM features) */
-	if (nested) {
-		kvm_cpu_cap_set(X86_FEATURE_SVM);
-
-		if (nrips)
-			kvm_cpu_cap_set(X86_FEATURE_NRIPS);
-
-		if (npt_enabled)
-			kvm_cpu_cap_set(X86_FEATURE_NPT);
-
-		if (tsc_scaling)
-			kvm_cpu_cap_set(X86_FEATURE_TSCRATEMSR);
-
-		/* Nested VM can receive #VMEXIT instead of triggering #GP */
-		kvm_cpu_cap_set(X86_FEATURE_SVME_ADDR_CHK);
-	}
-
-	/* CPUID 0x80000008 */
-	if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
-	    boot_cpu_has(X86_FEATURE_AMD_SSBD))
-		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
-
-	/* CPUID 0x8000001F (SME/SEV features) */
-	sev_set_cpu_caps();
-}
-
-static __init int svm_hardware_setup(void)
-{
-	int cpu;
-	struct page *iopm_pages;
-	void *iopm_va;
-	int r;
-	unsigned int order = get_order(IOPM_SIZE);
-
-	/*
-	 * NX is required for shadow paging and for NPT if the NX huge pages
-	 * mitigation is enabled.
-	 */
-	if (!boot_cpu_has(X86_FEATURE_NX)) {
-		pr_err_ratelimited("NX (Execute Disable) not supported\n");
-		return -EOPNOTSUPP;
-	}
-	kvm_enable_efer_bits(EFER_NX);
-
-	iopm_pages = alloc_pages(GFP_KERNEL, order);
-
-	if (!iopm_pages)
-		return -ENOMEM;
-
-	iopm_va = page_address(iopm_pages);
-	memset(iopm_va, 0xff, PAGE_SIZE * (1 << order));
-	iopm_base = page_to_pfn(iopm_pages) << PAGE_SHIFT;
-
-	init_msrpm_offsets();
-
-	supported_xcr0 &= ~(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
-
-	if (boot_cpu_has(X86_FEATURE_FXSR_OPT))
-		kvm_enable_efer_bits(EFER_FFXSR);
-
-	if (tsc_scaling) {
-		if (!boot_cpu_has(X86_FEATURE_TSCRATEMSR)) {
-			tsc_scaling = false;
-		} else {
-			pr_info("TSC scaling supported\n");
-			kvm_has_tsc_control = true;
-			kvm_max_tsc_scaling_ratio = TSC_RATIO_MAX;
-			kvm_tsc_scaling_ratio_frac_bits = 32;
-		}
-	}
-
-	tsc_aux_uret_slot = kvm_add_user_return_msr(MSR_TSC_AUX);
-
-	/* Check for pause filtering support */
-	if (!boot_cpu_has(X86_FEATURE_PAUSEFILTER)) {
-		pause_filter_count = 0;
-		pause_filter_thresh = 0;
-	} else if (!boot_cpu_has(X86_FEATURE_PFTHRESHOLD)) {
-		pause_filter_thresh = 0;
-	}
-
-	if (nested) {
-		printk(KERN_INFO "kvm: Nested Virtualization enabled\n");
-		kvm_enable_efer_bits(EFER_SVME | EFER_LMSLE);
-	}
-
-	/*
-	 * KVM's MMU doesn't support using 2-level paging for itself, and thus
-	 * NPT isn't supported if the host is using 2-level paging since host
-	 * CR4 is unchanged on VMRUN.
-	 */
-	if (!IS_ENABLED(CONFIG_X86_64) && !IS_ENABLED(CONFIG_X86_PAE))
-		npt_enabled = false;
-
-	if (!boot_cpu_has(X86_FEATURE_NPT))
-		npt_enabled = false;
-
-	/* Force VM NPT level equal to the host's max NPT level */
-	kvm_configure_mmu(npt_enabled, get_max_npt_level(),
-			  get_max_npt_level(), PG_LEVEL_1G);
-	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
-
-	/* Note, SEV setup consumes npt_enabled. */
-	sev_hardware_setup();
-
-	svm_hv_hardware_setup();
-
-	svm_adjust_mmio_mask();
-
-	for_each_possible_cpu(cpu) {
-		r = svm_cpu_init(cpu);
-		if (r)
-			goto err;
-	}
-
-	if (nrips) {
-		if (!boot_cpu_has(X86_FEATURE_NRIPS))
-			nrips = false;
-	}
-
-	enable_apicv = avic = avic && npt_enabled && boot_cpu_has(X86_FEATURE_AVIC);
-
-	if (enable_apicv) {
-		pr_info("AVIC enabled\n");
-
-		amd_iommu_register_ga_log_notifier(&avic_ga_log_notifier);
-	}
-
-	if (vls) {
-		if (!npt_enabled ||
-		    !boot_cpu_has(X86_FEATURE_V_VMSAVE_VMLOAD) ||
-		    !IS_ENABLED(CONFIG_X86_64)) {
-			vls = false;
-		} else {
-			pr_info("Virtual VMLOAD VMSAVE supported\n");
-		}
-	}
-
-	if (boot_cpu_has(X86_FEATURE_SVME_ADDR_CHK))
-		svm_gp_erratum_intercept = false;
-
-	if (vgif) {
-		if (!boot_cpu_has(X86_FEATURE_VGIF))
-			vgif = false;
-		else
-			pr_info("Virtual GIF supported\n");
-	}
-
-	if (lbrv) {
-		if (!boot_cpu_has(X86_FEATURE_LBRV))
-			lbrv = false;
-		else
-			pr_info("LBR virtualization supported\n");
-	}
-
-	svm_set_cpu_caps();
-
-	/*
-	 * It seems that on AMD processors PTE's accessed bit is
-	 * being set by the CPU hardware before the NPF vmexit.
-	 * This is not expected behaviour and our tests fail because
-	 * of it.
-	 * A workaround here is to disable support for
-	 * GUEST_MAXPHYADDR < HOST_MAXPHYADDR if NPT is enabled.
-	 * In this case userspace can know if there is support using
-	 * KVM_CAP_SMALLER_MAXPHYADDR extension and decide how to handle
-	 * it
-	 * If future AMD CPU models change the behaviour described above,
-	 * this variable can be changed accordingly
-	 */
-	allow_smaller_maxphyaddr = !npt_enabled;
-
-	return 0;
-
-err:
-	svm_hardware_teardown();
-	return r;
 }
 
 static void init_seg(struct vmcb_seg *seg)
@@ -1238,9 +1014,10 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	 * Guest access to VMware backdoor ports could legitimately
 	 * trigger #GP because of TSS I/O permission bitmap.
 	 * We intercept those #GP and allow access to them anyway
-	 * as VMware does.
+	 * as VMware does.  Don't intercept #GP for SEV guests as KVM can't
+	 * decrypt guest memory to decode the faulting instruction.
 	 */
-	if (enable_vmware_backdoor)
+	if (enable_vmware_backdoor && !sev_guest(vcpu->kvm))
 		set_exception_intercept(svm, GP_VECTOR);
 
 	svm_set_intercept(svm, INTERCEPT_INTR);
@@ -1435,12 +1212,6 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	if (err)
 		goto error_free_vmsa_page;
 
-	/* We initialize this flag to true to make sure that the is_running
-	 * bit would be set the first time the vcpu is loaded.
-	 */
-	if (irqchip_in_kernel(vcpu->kvm) && kvm_apicv_activated(vcpu->kvm))
-		svm->avic_is_running = true;
-
 	svm->msrpm = svm_vcpu_alloc_msrpm();
 	if (!svm->msrpm) {
 		err = -ENOMEM;
@@ -1585,12 +1356,27 @@ static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 	to_svm(vcpu)->vmcb->save.rflags = rflags;
 }
 
+static bool svm_get_if_flag(struct kvm_vcpu *vcpu)
+{
+	struct vmcb *vmcb = to_svm(vcpu)->vmcb;
+
+	return sev_es_guest(vcpu->kvm)
+		? vmcb->control.int_state & SVM_GUEST_INTERRUPT_MASK
+		: kvm_get_rflags(vcpu) & X86_EFLAGS_IF;
+}
+
 static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 {
+	kvm_register_mark_available(vcpu, reg);
+
 	switch (reg) {
 	case VCPU_EXREG_PDPTR:
-		BUG_ON(!npt_enabled);
-		load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
+		/*
+		 * When !npt_enabled, mmu->pdptrs[] is already available since
+		 * it is always updated per SDM when moving to CRs.
+		 */
+		if (npt_enabled)
+			load_pdptrs(vcpu, kvm_read_cr3(vcpu));
 		break;
 	default:
 		KVM_BUG_ON(1, vcpu->kvm);
@@ -1775,6 +1561,24 @@ static void svm_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 	svm->vmcb->save.gdtr.limit = dt->size;
 	svm->vmcb->save.gdtr.base = dt->address ;
 	vmcb_mark_dirty(svm->vmcb, VMCB_DT);
+}
+
+static void svm_post_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/*
+	 * For guests that don't set guest_state_protected, the cr3 update is
+	 * handled via kvm_mmu_load() while entering the guest. For guests
+	 * that do (SEV-ES/SEV-SNP), the cr3 update needs to be written to
+	 * VMCB save area now, since the save area will become the initial
+	 * contents of the VMSA, and future VMCB save area updates won't be
+	 * seen.
+	 */
+	if (sev_es_guest(vcpu->kvm)) {
+		svm->vmcb->save.cr3 = cr3;
+		vmcb_mark_dirty(svm->vmcb, VMCB_CR);
+	}
 }
 
 void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
@@ -2292,10 +2096,6 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 	if (error_code)
 		goto reinject;
 
-	/* All SVM instructions expect page aligned RAX */
-	if (svm->vmcb->save.rax & ~PAGE_MASK)
-		goto reinject;
-
 	/* Decode the instruction for usage later */
 	if (x86_decode_emulated_instruction(vcpu, 0, NULL, 0) != EMULATION_OK)
 		goto reinject;
@@ -2313,8 +2113,13 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 		if (!is_guest_mode(vcpu))
 			return kvm_emulate_instruction(vcpu,
 				EMULTYPE_VMWARE_GP | EMULTYPE_NO_DECODE);
-	} else
+	} else {
+		/* All SVM instructions expect page aligned RAX */
+		if (svm->vmcb->save.rax & ~PAGE_MASK)
+			goto reinject;
+
 		return emulate_svm_instr(vcpu, opcode);
+	}
 
 reinject:
 	kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
@@ -2508,7 +2313,7 @@ static bool check_selective_cr0_intercepted(struct kvm_vcpu *vcpu,
 	bool ret = false;
 
 	if (!is_guest_mode(vcpu) ||
-	    (!(vmcb_is_intercept(&svm->nested.ctl, INTERCEPT_SELECTIVE_CR0))))
+	    (!(vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_SELECTIVE_CR0))))
 		return false;
 
 	cr0 &= ~SVM_CR0_SELECTIVE_MASK;
@@ -3568,14 +3373,7 @@ bool svm_interrupt_blocked(struct kvm_vcpu *vcpu)
 	if (!gif_set(svm))
 		return true;
 
-	if (sev_es_guest(vcpu->kvm)) {
-		/*
-		 * SEV-ES guests to not expose RFLAGS. Use the VMCB interrupt mask
-		 * bit to determine the state of the IF flag.
-		 */
-		if (!(vmcb->control.int_state & SVM_GUEST_INTERRUPT_MASK))
-			return true;
-	} else if (is_guest_mode(vcpu)) {
+	if (is_guest_mode(vcpu)) {
 		/* As long as interrupts are being delivered...  */
 		if ((svm->nested.ctl.int_ctl & V_INTR_MASKING_MASK)
 		    ? !(svm->vmcb01.ptr->save.rflags & X86_EFLAGS_IF)
@@ -3586,7 +3384,7 @@ bool svm_interrupt_blocked(struct kvm_vcpu *vcpu)
 		if (nested_exit_on_intr(svm))
 			return false;
 	} else {
-		if (!(kvm_get_rflags(vcpu) & X86_EFLAGS_IF))
+		if (!svm_get_if_flag(vcpu))
 			return true;
 	}
 
@@ -3798,6 +3596,11 @@ static void svm_cancel_injection(struct kvm_vcpu *vcpu)
 	svm_complete_interrupts(vcpu);
 }
 
+static int svm_vcpu_pre_run(struct kvm_vcpu *vcpu)
+{
+	return 1;
+}
+
 static fastpath_t svm_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
 {
 	if (to_svm(vcpu)->vmcb->control.exit_code == SVM_EXIT_MSR &&
@@ -3929,9 +3732,10 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
 		vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
 	}
+	vcpu->arch.regs_dirty = 0;
 
 	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
-		kvm_before_interrupt(vcpu);
+		kvm_before_interrupt(vcpu, KVM_HANDLING_NMI);
 
 	kvm_load_host_xsave_state(vcpu);
 	stgi();
@@ -3963,8 +3767,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->arch.apf.host_apf_flags =
 			kvm_read_and_reset_apf_flags();
 
-	if (npt_enabled)
-		kvm_register_clear_available(vcpu, VCPU_EXREG_PDPTR);
+	vcpu->arch.regs_avail &= ~SVM_REGS_LAZY_LOAD_SET;
 
 	/*
 	 * We need to handle MC intercepts here before the vcpu has a chance to
@@ -3994,9 +3797,6 @@ static void svm_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 
 		hv_track_root_tdp(vcpu, root_hpa);
 
-		/* Loading L2's CR3 is handled by enter_svm_guest_mode.  */
-		if (!test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
-			return;
 		cr3 = vcpu->arch.cr3;
 	} else if (vcpu->arch.mmu->shadow_root_level >= PT64_ROOT_4LEVEL) {
 		cr3 = __sme_set(root_hpa) | kvm_get_active_pcid(vcpu);
@@ -4215,7 +4015,7 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		    info->intercept == x86_intercept_clts)
 			break;
 
-		if (!(vmcb_is_intercept(&svm->nested.ctl,
+		if (!(vmcb12_is_intercept(&svm->nested.ctl,
 					INTERCEPT_SELECTIVE_CR0)))
 			break;
 
@@ -4434,7 +4234,8 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 	 */
 
 	vmcb12 = map.hva;
-	nested_load_control_from_vmcb12(svm, &vmcb12->control);
+	nested_copy_vmcb_control_to_cache(svm, &vmcb12->control);
+	nested_copy_vmcb_save_to_cache(svm, &vmcb12->save);
 	ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12, false);
 
 unmap_save:
@@ -4457,79 +4258,140 @@ static void svm_enable_smi_window(struct kvm_vcpu *vcpu)
 	}
 }
 
-static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, void *insn, int insn_len)
+static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
+					void *insn, int insn_len)
 {
 	bool smep, smap, is_user;
 	unsigned long cr4;
+	u64 error_code;
+
+	/* Emulation is always possible when KVM has access to all guest state. */
+	if (!sev_guest(vcpu->kvm))
+		return true;
+
+	/* #UD and #GP should never be intercepted for SEV guests. */
+	WARN_ON_ONCE(emul_type & (EMULTYPE_TRAP_UD |
+				  EMULTYPE_TRAP_UD_FORCED |
+				  EMULTYPE_VMWARE_GP));
 
 	/*
-	 * When the guest is an SEV-ES guest, emulation is not possible.
+	 * Emulation is impossible for SEV-ES guests as KVM doesn't have access
+	 * to guest register state.
 	 */
 	if (sev_es_guest(vcpu->kvm))
 		return false;
 
 	/*
-	 * Detect and workaround Errata 1096 Fam_17h_00_0Fh.
-	 *
-	 * Errata:
-	 * When CPU raise #NPF on guest data access and vCPU CR4.SMAP=1, it is
-	 * possible that CPU microcode implementing DecodeAssist will fail
-	 * to read bytes of instruction which caused #NPF. In this case,
-	 * GuestIntrBytes field of the VMCB on a VMEXIT will incorrectly
-	 * return 0 instead of the correct guest instruction bytes.
-	 *
-	 * This happens because CPU microcode reading instruction bytes
-	 * uses a special opcode which attempts to read data using CPL=0
-	 * privileges. The microcode reads CS:RIP and if it hits a SMAP
-	 * fault, it gives up and returns no instruction bytes.
-	 *
-	 * Detection:
-	 * We reach here in case CPU supports DecodeAssist, raised #NPF and
-	 * returned 0 in GuestIntrBytes field of the VMCB.
-	 * First, errata can only be triggered in case vCPU CR4.SMAP=1.
-	 * Second, if vCPU CR4.SMEP=1, errata could only be triggered
-	 * in case vCPU CPL==3 (Because otherwise guest would have triggered
-	 * a SMEP fault instead of #NPF).
-	 * Otherwise, vCPU CR4.SMEP=0, errata could be triggered by any vCPU CPL.
-	 * As most guests enable SMAP if they have also enabled SMEP, use above
-	 * logic in order to attempt minimize false-positive of detecting errata
-	 * while still preserving all cases semantic correctness.
-	 *
-	 * Workaround:
-	 * To determine what instruction the guest was executing, the hypervisor
-	 * will have to decode the instruction at the instruction pointer.
-	 *
-	 * In non SEV guest, hypervisor will be able to read the guest
-	 * memory to decode the instruction pointer when insn_len is zero
-	 * so we return true to indicate that decoding is possible.
-	 *
-	 * But in the SEV guest, the guest memory is encrypted with the
-	 * guest specific key and hypervisor will not be able to decode the
-	 * instruction pointer so we will not able to workaround it. Lets
-	 * print the error and request to kill the guest.
+	 * Emulation is possible if the instruction is already decoded, e.g.
+	 * when completing I/O after returning from userspace.
 	 */
-	if (likely(!insn || insn_len))
+	if (emul_type & EMULTYPE_NO_DECODE)
 		return true;
 
 	/*
-	 * If RIP is invalid, go ahead with emulation which will cause an
-	 * internal error exit.
+	 * Emulation is possible for SEV guests if and only if a prefilled
+	 * buffer containing the bytes of the intercepted instruction is
+	 * available. SEV guest memory is encrypted with a guest specific key
+	 * and cannot be decrypted by KVM, i.e. KVM would read cyphertext and
+	 * decode garbage.
+	 *
+	 * Inject #UD if KVM reached this point without an instruction buffer.
+	 * In practice, this path should never be hit by a well-behaved guest,
+	 * e.g. KVM doesn't intercept #UD or #GP for SEV guests, but this path
+	 * is still theoretically reachable, e.g. via unaccelerated fault-like
+	 * AVIC access, and needs to be handled by KVM to avoid putting the
+	 * guest into an infinite loop.   Injecting #UD is somewhat arbitrary,
+	 * but its the least awful option given lack of insight into the guest.
 	 */
-	if (!kvm_vcpu_gfn_to_memslot(vcpu, kvm_rip_read(vcpu) >> PAGE_SHIFT))
+	if (unlikely(!insn)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return false;
+	}
+
+	/*
+	 * Emulate for SEV guests if the insn buffer is not empty.  The buffer
+	 * will be empty if the DecodeAssist microcode cannot fetch bytes for
+	 * the faulting instruction because the code fetch itself faulted, e.g.
+	 * the guest attempted to fetch from emulated MMIO or a guest page
+	 * table used to translate CS:RIP resides in emulated MMIO.
+	 */
+	if (likely(insn_len))
 		return true;
+
+	/*
+	 * Detect and workaround Errata 1096 Fam_17h_00_0Fh.
+	 *
+	 * Errata:
+	 * When CPU raises #NPF on guest data access and vCPU CR4.SMAP=1, it is
+	 * possible that CPU microcode implementing DecodeAssist will fail to
+	 * read guest memory at CS:RIP and vmcb.GuestIntrBytes will incorrectly
+	 * be '0'.  This happens because microcode reads CS:RIP using a _data_
+	 * loap uop with CPL=0 privileges.  If the load hits a SMAP #PF, ucode
+	 * gives up and does not fill the instruction bytes buffer.
+	 *
+	 * As above, KVM reaches this point iff the VM is an SEV guest, the CPU
+	 * supports DecodeAssist, a #NPF was raised, KVM's page fault handler
+	 * triggered emulation (e.g. for MMIO), and the CPU returned 0 in the
+	 * GuestIntrBytes field of the VMCB.
+	 *
+	 * This does _not_ mean that the erratum has been encountered, as the
+	 * DecodeAssist will also fail if the load for CS:RIP hits a legitimate
+	 * #PF, e.g. if the guest attempt to execute from emulated MMIO and
+	 * encountered a reserved/not-present #PF.
+	 *
+	 * To hit the erratum, the following conditions must be true:
+	 *    1. CR4.SMAP=1 (obviously).
+	 *    2. CR4.SMEP=0 || CPL=3.  If SMEP=1 and CPL<3, the erratum cannot
+	 *       have been hit as the guest would have encountered a SMEP
+	 *       violation #PF, not a #NPF.
+	 *    3. The #NPF is not due to a code fetch, in which case failure to
+	 *       retrieve the instruction bytes is legitimate (see abvoe).
+	 *
+	 * In addition, don't apply the erratum workaround if the #NPF occurred
+	 * while translating guest page tables (see below).
+	 */
+	error_code = to_svm(vcpu)->vmcb->control.exit_info_1;
+	if (error_code & (PFERR_GUEST_PAGE_MASK | PFERR_FETCH_MASK))
+		goto resume_guest;
 
 	cr4 = kvm_read_cr4(vcpu);
 	smep = cr4 & X86_CR4_SMEP;
 	smap = cr4 & X86_CR4_SMAP;
 	is_user = svm_get_cpl(vcpu) == 3;
 	if (smap && (!smep || is_user)) {
-		if (!sev_guest(vcpu->kvm))
-			return true;
-
 		pr_err_ratelimited("KVM: SEV Guest triggered AMD Erratum 1096\n");
-		kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
+
+		/*
+		 * If the fault occurred in userspace, arbitrarily inject #GP
+		 * to avoid killing the guest and to hopefully avoid confusing
+		 * the guest kernel too much, e.g. injecting #PF would not be
+		 * coherent with respect to the guest's page tables.  Request
+		 * triple fault if the fault occurred in the kernel as there's
+		 * no fault that KVM can inject without confusing the guest.
+		 * In practice, the triple fault is moot as no sane SEV kernel
+		 * will execute from user memory while also running with SMAP=1.
+		 */
+		if (is_user)
+			kvm_inject_gp(vcpu, 0);
+		else
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 	}
 
+resume_guest:
+	/*
+	 * If the erratum was not hit, simply resume the guest and let it fault
+	 * again.  While awful, e.g. the vCPU may get stuck in an infinite loop
+	 * if the fault is at CPL=0, it's the lesser of all evils.  Exiting to
+	 * userspace will kill the guest, and letting the emulator read garbage
+	 * will yield random behavior and potentially corrupt the guest.
+	 *
+	 * Simply resuming the guest is technically not a violation of the SEV
+	 * architecture.  AMD's APM states that all code fetches and page table
+	 * accesses for SEV guest are encrypted, regardless of the C-Bit.  The
+	 * APM also states that encrypted accesses to MMIO are "ignored", but
+	 * doesn't explicitly define "ignored", i.e. doing nothing and letting
+	 * the guest spin is technically "ignoring" the access.
+	 */
 	return false;
 }
 
@@ -4596,8 +4458,8 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.prepare_guest_switch = svm_prepare_guest_switch,
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
-	.vcpu_blocking = svm_vcpu_blocking,
-	.vcpu_unblocking = svm_vcpu_unblocking,
+	.vcpu_blocking = avic_vcpu_blocking,
+	.vcpu_unblocking = avic_vcpu_unblocking,
 
 	.update_exception_bitmap = svm_update_exception_bitmap,
 	.get_msr_feature = svm_get_msr_feature,
@@ -4609,6 +4471,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.get_cpl = svm_get_cpl,
 	.get_cs_db_l_bits = kvm_get_cs_db_l_bits,
 	.set_cr0 = svm_set_cr0,
+	.post_set_cr3 = svm_post_set_cr3,
 	.is_valid_cr4 = svm_is_valid_cr4,
 	.set_cr4 = svm_set_cr4,
 	.set_efer = svm_set_efer,
@@ -4621,12 +4484,14 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
+	.get_if_flag = svm_get_if_flag,
 
 	.tlb_flush_all = svm_flush_tlb,
 	.tlb_flush_current = svm_flush_tlb,
 	.tlb_flush_gva = svm_flush_tlb_gva,
 	.tlb_flush_guest = svm_flush_tlb,
 
+	.vcpu_pre_run = svm_vcpu_pre_run,
 	.run = svm_vcpu_run,
 	.handle_exit = handle_exit,
 	.skip_emulated_instruction = skip_emulated_instruction,
@@ -4651,7 +4516,6 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.hwapic_irr_update = svm_hwapic_irr_update,
 	.hwapic_isr_update = svm_hwapic_isr_update,
-	.sync_pir_to_irr = kvm_lapic_find_highest_irr,
 	.apicv_post_state_restore = avic_post_state_restore,
 
 	.set_tss_addr = svm_set_tss_addr,
@@ -4707,6 +4571,243 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 
 	.vcpu_deliver_sipi_vector = svm_vcpu_deliver_sipi_vector,
 };
+
+/*
+ * The default MMIO mask is a single bit (excluding the present bit),
+ * which could conflict with the memory encryption bit. Check for
+ * memory encryption support and override the default MMIO mask if
+ * memory encryption is enabled.
+ */
+static __init void svm_adjust_mmio_mask(void)
+{
+	unsigned int enc_bit, mask_bit;
+	u64 msr, mask;
+
+	/* If there is no memory encryption support, use existing mask */
+	if (cpuid_eax(0x80000000) < 0x8000001f)
+		return;
+
+	/* If memory encryption is not enabled, use existing mask */
+	rdmsrl(MSR_AMD64_SYSCFG, msr);
+	if (!(msr & MSR_AMD64_SYSCFG_MEM_ENCRYPT))
+		return;
+
+	enc_bit = cpuid_ebx(0x8000001f) & 0x3f;
+	mask_bit = boot_cpu_data.x86_phys_bits;
+
+	/* Increment the mask bit if it is the same as the encryption bit */
+	if (enc_bit == mask_bit)
+		mask_bit++;
+
+	/*
+	 * If the mask bit location is below 52, then some bits above the
+	 * physical addressing limit will always be reserved, so use the
+	 * rsvd_bits() function to generate the mask. This mask, along with
+	 * the present bit, will be used to generate a page fault with
+	 * PFER.RSV = 1.
+	 *
+	 * If the mask bit location is 52 (or above), then clear the mask.
+	 */
+	mask = (mask_bit < 52) ? rsvd_bits(mask_bit, 51) | PT_PRESENT_MASK : 0;
+
+	kvm_mmu_set_mmio_spte_mask(mask, mask, PT_WRITABLE_MASK | PT_USER_MASK);
+}
+
+static __init void svm_set_cpu_caps(void)
+{
+	kvm_set_cpu_caps();
+
+	supported_xss = 0;
+
+	/* CPUID 0x80000001 and 0x8000000A (SVM features) */
+	if (nested) {
+		kvm_cpu_cap_set(X86_FEATURE_SVM);
+
+		if (nrips)
+			kvm_cpu_cap_set(X86_FEATURE_NRIPS);
+
+		if (npt_enabled)
+			kvm_cpu_cap_set(X86_FEATURE_NPT);
+
+		if (tsc_scaling)
+			kvm_cpu_cap_set(X86_FEATURE_TSCRATEMSR);
+
+		/* Nested VM can receive #VMEXIT instead of triggering #GP */
+		kvm_cpu_cap_set(X86_FEATURE_SVME_ADDR_CHK);
+	}
+
+	/* CPUID 0x80000008 */
+	if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||
+	    boot_cpu_has(X86_FEATURE_AMD_SSBD))
+		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
+
+	/* AMD PMU PERFCTR_CORE CPUID */
+	if (enable_pmu && boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
+		kvm_cpu_cap_set(X86_FEATURE_PERFCTR_CORE);
+
+	/* CPUID 0x8000001F (SME/SEV features) */
+	sev_set_cpu_caps();
+}
+
+static __init int svm_hardware_setup(void)
+{
+	int cpu;
+	struct page *iopm_pages;
+	void *iopm_va;
+	int r;
+	unsigned int order = get_order(IOPM_SIZE);
+
+	/*
+	 * NX is required for shadow paging and for NPT if the NX huge pages
+	 * mitigation is enabled.
+	 */
+	if (!boot_cpu_has(X86_FEATURE_NX)) {
+		pr_err_ratelimited("NX (Execute Disable) not supported\n");
+		return -EOPNOTSUPP;
+	}
+	kvm_enable_efer_bits(EFER_NX);
+
+	iopm_pages = alloc_pages(GFP_KERNEL, order);
+
+	if (!iopm_pages)
+		return -ENOMEM;
+
+	iopm_va = page_address(iopm_pages);
+	memset(iopm_va, 0xff, PAGE_SIZE * (1 << order));
+	iopm_base = page_to_pfn(iopm_pages) << PAGE_SHIFT;
+
+	init_msrpm_offsets();
+
+	supported_xcr0 &= ~(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
+
+	if (boot_cpu_has(X86_FEATURE_FXSR_OPT))
+		kvm_enable_efer_bits(EFER_FFXSR);
+
+	if (tsc_scaling) {
+		if (!boot_cpu_has(X86_FEATURE_TSCRATEMSR)) {
+			tsc_scaling = false;
+		} else {
+			pr_info("TSC scaling supported\n");
+			kvm_has_tsc_control = true;
+			kvm_max_tsc_scaling_ratio = TSC_RATIO_MAX;
+			kvm_tsc_scaling_ratio_frac_bits = 32;
+		}
+	}
+
+	tsc_aux_uret_slot = kvm_add_user_return_msr(MSR_TSC_AUX);
+
+	/* Check for pause filtering support */
+	if (!boot_cpu_has(X86_FEATURE_PAUSEFILTER)) {
+		pause_filter_count = 0;
+		pause_filter_thresh = 0;
+	} else if (!boot_cpu_has(X86_FEATURE_PFTHRESHOLD)) {
+		pause_filter_thresh = 0;
+	}
+
+	if (nested) {
+		printk(KERN_INFO "kvm: Nested Virtualization enabled\n");
+		kvm_enable_efer_bits(EFER_SVME | EFER_LMSLE);
+	}
+
+	/*
+	 * KVM's MMU doesn't support using 2-level paging for itself, and thus
+	 * NPT isn't supported if the host is using 2-level paging since host
+	 * CR4 is unchanged on VMRUN.
+	 */
+	if (!IS_ENABLED(CONFIG_X86_64) && !IS_ENABLED(CONFIG_X86_PAE))
+		npt_enabled = false;
+
+	if (!boot_cpu_has(X86_FEATURE_NPT))
+		npt_enabled = false;
+
+	/* Force VM NPT level equal to the host's paging level */
+	kvm_configure_mmu(npt_enabled, get_npt_level(),
+			  get_npt_level(), PG_LEVEL_1G);
+	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
+
+	/* Note, SEV setup consumes npt_enabled. */
+	sev_hardware_setup();
+
+	svm_hv_hardware_setup();
+
+	svm_adjust_mmio_mask();
+
+	for_each_possible_cpu(cpu) {
+		r = svm_cpu_init(cpu);
+		if (r)
+			goto err;
+	}
+
+	if (nrips) {
+		if (!boot_cpu_has(X86_FEATURE_NRIPS))
+			nrips = false;
+	}
+
+	enable_apicv = avic = avic && npt_enabled && boot_cpu_has(X86_FEATURE_AVIC);
+
+	if (enable_apicv) {
+		pr_info("AVIC enabled\n");
+
+		amd_iommu_register_ga_log_notifier(&avic_ga_log_notifier);
+	} else {
+		svm_x86_ops.vcpu_blocking = NULL;
+		svm_x86_ops.vcpu_unblocking = NULL;
+	}
+
+	if (vls) {
+		if (!npt_enabled ||
+		    !boot_cpu_has(X86_FEATURE_V_VMSAVE_VMLOAD) ||
+		    !IS_ENABLED(CONFIG_X86_64)) {
+			vls = false;
+		} else {
+			pr_info("Virtual VMLOAD VMSAVE supported\n");
+		}
+	}
+
+	if (boot_cpu_has(X86_FEATURE_SVME_ADDR_CHK))
+		svm_gp_erratum_intercept = false;
+
+	if (vgif) {
+		if (!boot_cpu_has(X86_FEATURE_VGIF))
+			vgif = false;
+		else
+			pr_info("Virtual GIF supported\n");
+	}
+
+	if (lbrv) {
+		if (!boot_cpu_has(X86_FEATURE_LBRV))
+			lbrv = false;
+		else
+			pr_info("LBR virtualization supported\n");
+	}
+
+	if (!enable_pmu)
+		pr_info("PMU virtualization is disabled\n");
+
+	svm_set_cpu_caps();
+
+	/*
+	 * It seems that on AMD processors PTE's accessed bit is
+	 * being set by the CPU hardware before the NPF vmexit.
+	 * This is not expected behaviour and our tests fail because
+	 * of it.
+	 * A workaround here is to disable support for
+	 * GUEST_MAXPHYADDR < HOST_MAXPHYADDR if NPT is enabled.
+	 * In this case userspace can know if there is support using
+	 * KVM_CAP_SMALLER_MAXPHYADDR extension and decide how to handle
+	 * it
+	 * If future AMD CPU models change the behaviour described above,
+	 * this variable can be changed accordingly
+	 */
+	allow_smaller_maxphyaddr = !npt_enabled;
+
+	return 0;
+
+err:
+	svm_hardware_teardown();
+	return r;
+}
+
 
 static struct kvm_x86_init_ops svm_init_ops __initdata = {
 	.cpu_has_kvm_support = has_svm,

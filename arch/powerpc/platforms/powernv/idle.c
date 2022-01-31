@@ -62,7 +62,7 @@ static bool deepest_stop_found;
 
 static unsigned long power7_offline_type;
 
-static int pnv_save_sprs_for_deep_states(void)
+static int __init pnv_save_sprs_for_deep_states(void)
 {
 	int cpu;
 	int rc;
@@ -146,8 +146,12 @@ EXPORT_SYMBOL_GPL(pnv_get_supported_cpuidle_states);
 static void pnv_fastsleep_workaround_apply(void *info)
 
 {
+	int cpu = smp_processor_id();
 	int rc;
 	int *err = info;
+
+	if (cpu_first_thread_sibling(cpu) != cpu)
+		return;
 
 	rc = opal_config_cpu_idle_state(OPAL_CONFIG_IDLE_FASTSLEEP,
 					OPAL_CONFIG_IDLE_APPLY);
@@ -175,7 +179,6 @@ static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
 		struct device_attribute *attr, const char *buf,
 		size_t count)
 {
-	cpumask_t primary_thread_mask;
 	int err;
 	u8 val;
 
@@ -200,10 +203,7 @@ static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
 	power7_fastsleep_workaround_exit = false;
 
 	cpus_read_lock();
-	primary_thread_mask = cpu_online_cores_map();
-	on_each_cpu_mask(&primary_thread_mask,
-				pnv_fastsleep_workaround_apply,
-				&err, 1);
+	on_each_cpu(pnv_fastsleep_workaround_apply, &err, 1);
 	cpus_read_unlock();
 	if (err) {
 		pr_err("fastsleep_workaround_applyonce change failed while running pnv_fastsleep_workaround_apply");
@@ -306,8 +306,8 @@ struct p7_sprs {
 	/* per thread SPRs that get lost in shallow states */
 	u64 amr;
 	u64 iamr;
-	u64 amor;
 	u64 uamor;
+	/* amor is restored to constant ~0 */
 };
 
 static unsigned long power7_idle_insn(unsigned long type)
@@ -378,7 +378,6 @@ static unsigned long power7_idle_insn(unsigned long type)
 	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
 		sprs.amr	= mfspr(SPRN_AMR);
 		sprs.iamr	= mfspr(SPRN_IAMR);
-		sprs.amor	= mfspr(SPRN_AMOR);
 		sprs.uamor	= mfspr(SPRN_UAMOR);
 	}
 
@@ -397,7 +396,7 @@ static unsigned long power7_idle_insn(unsigned long type)
 			 */
 			mtspr(SPRN_AMR,		sprs.amr);
 			mtspr(SPRN_IAMR,	sprs.iamr);
-			mtspr(SPRN_AMOR,	sprs.amor);
+			mtspr(SPRN_AMOR,	~0);
 			mtspr(SPRN_UAMOR,	sprs.uamor);
 		}
 	}
@@ -492,12 +491,14 @@ subcore_woken:
 
 	mtspr(SPRN_SPRG3,	local_paca->sprg_vdso);
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	/*
 	 * The SLB has to be restored here, but it sometimes still
 	 * contains entries, so the __ variant must be used to prevent
 	 * multi hits.
 	 */
 	__slb_restore_bolted_realmode();
+#endif
 
 	return srr1;
 }
@@ -589,7 +590,6 @@ struct p9_sprs {
 	u64 purr;
 	u64 spurr;
 	u64 dscr;
-	u64 wort;
 	u64 ciabr;
 
 	u64 mmcra;
@@ -687,7 +687,6 @@ static unsigned long power9_idle_stop(unsigned long psscr)
 
 	sprs.amr	= mfspr(SPRN_AMR);
 	sprs.iamr	= mfspr(SPRN_IAMR);
-	sprs.amor	= mfspr(SPRN_AMOR);
 	sprs.uamor	= mfspr(SPRN_UAMOR);
 
 	srr1 = isa300_idle_stop_mayloss(psscr);		/* go idle */
@@ -708,7 +707,7 @@ static unsigned long power9_idle_stop(unsigned long psscr)
 		 */
 		mtspr(SPRN_AMR,		sprs.amr);
 		mtspr(SPRN_IAMR,	sprs.iamr);
-		mtspr(SPRN_AMOR,	sprs.amor);
+		mtspr(SPRN_AMOR,	~0);
 		mtspr(SPRN_UAMOR,	sprs.uamor);
 
 		/*
@@ -1124,7 +1123,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
  *	stop instruction
  */
 
-int validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags)
+int __init validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags)
 {
 	int err = 0;
 
@@ -1318,7 +1317,7 @@ static void __init pnv_probe_idle_states(void)
  * which is the number of cpuidle states discovered through device-tree.
  */
 
-static int pnv_parse_cpuidle_dt(void)
+static int __init pnv_parse_cpuidle_dt(void)
 {
 	struct device_node *np;
 	int nr_idle_states, i;

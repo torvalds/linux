@@ -29,7 +29,7 @@ properties:
           - PHY_TYPE_PCIE
           - PHY_TYPE_SATA
           - PHY_TYPE_SGMII
-          - PHY_TYPE_USB
+          - PHY_TYPE_USB3
       - description: The PHY instance
         minimum: 0
         maximum: 1 # for DP, SATA or USB

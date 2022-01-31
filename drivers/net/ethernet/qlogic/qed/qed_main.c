@@ -255,27 +255,6 @@ static void __exit qed_exit(void)
 }
 module_exit(qed_exit);
 
-/* Check if the DMA controller on the machine can properly handle the DMA
- * addressing required by the device.
- */
-static int qed_set_coherency_mask(struct qed_dev *cdev)
-{
-	struct device *dev = &cdev->pdev->dev;
-
-	if (dma_set_mask(dev, DMA_BIT_MASK(64)) == 0) {
-		if (dma_set_coherent_mask(dev, DMA_BIT_MASK(64)) != 0) {
-			DP_NOTICE(cdev,
-				  "Can't request 64-bit consistent allocations\n");
-			return -EIO;
-		}
-	} else if (dma_set_mask(dev, DMA_BIT_MASK(32)) != 0) {
-		DP_NOTICE(cdev, "Can't request 64b/32b DMA addresses\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static void qed_free_pci(struct qed_dev *cdev)
 {
 	struct pci_dev *pdev = cdev->pdev;
@@ -351,9 +330,12 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 	if (IS_PF(cdev) && !cdev->pci_params.pm_cap)
 		DP_NOTICE(cdev, "Cannot find power management capability\n");
 
-	rc = qed_set_coherency_mask(cdev);
-	if (rc)
+	rc = dma_set_mask_and_coherent(&cdev->pdev->dev, DMA_BIT_MASK(64));
+	if (rc) {
+		DP_NOTICE(cdev, "Can't request DMA addresses\n");
+		rc = -EIO;
 		goto err2;
+	}
 
 	cdev->pci_params.mem_start = pci_resource_start(pdev, 0);
 	cdev->pci_params.mem_end = pci_resource_end(pdev, 0);
@@ -447,7 +429,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 			dev_info->wol_support = true;
 
 		dev_info->smart_an = qed_mcp_is_smart_an_supported(p_hwfn);
-
+		dev_info->esl = qed_mcp_is_esl_supported(p_hwfn);
 		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
@@ -2936,6 +2918,30 @@ out:
 	return status;
 }
 
+static int
+qed_get_sb_info(struct qed_dev *cdev, struct qed_sb_info *sb,
+		u16 qid, struct qed_sb_info_dbg *sb_dbg)
+{
+	struct qed_hwfn *hwfn = &cdev->hwfns[qid % cdev->num_hwfns];
+	struct qed_ptt *ptt;
+	int rc;
+
+	if (IS_VF(cdev))
+		return -EINVAL;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt) {
+		DP_NOTICE(hwfn, "Can't acquire PTT\n");
+		return -EAGAIN;
+	}
+
+	memset(sb_dbg, 0, sizeof(*sb_dbg));
+	rc = qed_int_get_sb_dbg(hwfn, ptt, sb, sb_dbg);
+
+	qed_ptt_release(hwfn, ptt);
+	return rc;
+}
+
 static int qed_read_module_eeprom(struct qed_dev *cdev, char *buf,
 				  u8 dev_addr, u32 offset, u32 len)
 {
@@ -2978,9 +2984,52 @@ static int qed_set_grc_config(struct qed_dev *cdev, u32 cfg_id, u32 val)
 	return rc;
 }
 
+static __printf(2, 3) void qed_mfw_report(struct qed_dev *cdev, char *fmt, ...)
+{
+	char buf[QED_MFW_REPORT_STR_SIZE];
+	struct qed_hwfn *p_hwfn;
+	struct qed_ptt *p_ptt;
+	va_list vl;
+
+	va_start(vl, fmt);
+	vsnprintf(buf, QED_MFW_REPORT_STR_SIZE, fmt, vl);
+	va_end(vl);
+
+	if (IS_PF(cdev)) {
+		p_hwfn = QED_LEADING_HWFN(cdev);
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (p_ptt) {
+			qed_mcp_send_raw_debug_data(p_hwfn, p_ptt, buf, strlen(buf));
+			qed_ptt_release(p_hwfn, p_ptt);
+		}
+	}
+}
+
 static u8 qed_get_affin_hwfn_idx(struct qed_dev *cdev)
 {
 	return QED_AFFIN_HWFN_IDX(cdev);
+}
+
+static int qed_get_esl_status(struct qed_dev *cdev, bool *esl_active)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int rc = 0;
+
+	*esl_active = false;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_mcp_get_esl_status(hwfn, ptt, esl_active);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return rc;
 }
 
 static struct qed_selftest_ops qed_selftest_ops_pass = {
@@ -3038,6 +3087,9 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.read_nvm_cfg = &qed_nvm_flash_cfg_read,
 	.read_nvm_cfg_len = &qed_nvm_flash_cfg_len,
 	.set_grc_config = &qed_set_grc_config,
+	.mfw_report = &qed_mfw_report,
+	.get_sb_info = &qed_get_sb_info,
+	.get_esl_status = &qed_get_esl_status,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,

@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include "../include/odm_precomp.h"
+#include "../include/drv_types.h"
 
-void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
-			   u32 Data, enum rf_radio_path RF_PATH,
-			   u32 RegAddr)
+static void odm_ConfigRFReg_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
+				  u32 Data, enum rf_radio_path RF_PATH,
+				  u32 RegAddr)
 {
-    if (Addr == 0xffe) {
-		ODM_sleep_ms(50);
+	if (Addr == 0xffe) {
+		msleep(50);
 	} else if (Addr == 0xfd) {
-		ODM_delay_ms(5);
+		mdelay(5);
 	} else if (Addr == 0xfc) {
-		ODM_delay_ms(1);
+		mdelay(1);
 	} else if (Addr == 0xfb) {
-		ODM_delay_us(50);
+		udelay(50);
 	} else if (Addr == 0xfa) {
-		ODM_delay_us(5);
+		udelay(5);
 	} else if (Addr == 0xf9) {
-		ODM_delay_us(1);
+		udelay(1);
 	} else {
-		ODM_SetRFReg(pDM_Odm, RF_PATH, RegAddr, bRFRegOffsetMask, Data);
+		rtl8188e_PHY_SetRFReg(pDM_Odm->Adapter, RF_PATH, RegAddr, bRFRegOffsetMask, Data);
 		/*  Add 1us delay between BB/RF register setting. */
-		ODM_delay_us(1);
+		udelay(1);
 	}
 }
 
@@ -36,31 +36,31 @@ void odm_ConfigRF_RadioA_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Data
 
 void odm_ConfigMAC_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u8 Data)
 {
-	ODM_Write1Byte(pDM_Odm, Addr, Data);
+	rtw_write8(pDM_Odm->Adapter, Addr, Data);
 }
 
 void odm_ConfigBB_AGC_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask, u32 Data)
 {
-	ODM_SetBBReg(pDM_Odm, Addr, Bitmask, Data);
+	rtl8188e_PHY_SetBBReg(pDM_Odm->Adapter, Addr, Bitmask, Data);
 	/*  Add 1us delay between BB/RF register setting. */
-	ODM_delay_us(1);
+	udelay(1);
 }
 
 void odm_ConfigBB_PHY_REG_PG_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 				   u32 Bitmask, u32 Data)
 {
 	if (Addr == 0xfe)
-		ODM_sleep_ms(50);
+		msleep(50);
 	else if (Addr == 0xfd)
-		ODM_delay_ms(5);
+		mdelay(5);
 	else if (Addr == 0xfc)
-		ODM_delay_ms(1);
+		mdelay(1);
 	else if (Addr == 0xfb)
-		ODM_delay_us(50);
+		udelay(50);
 	else if (Addr == 0xfa)
-		ODM_delay_us(5);
+		udelay(5);
 	else if (Addr == 0xf9)
-		ODM_delay_us(1);
+		udelay(1);
 	else
 		storePwrIndexDiffRateOffset(pDM_Odm->Adapter, Addr, Bitmask, Data);
 }
@@ -68,23 +68,23 @@ void odm_ConfigBB_PHY_REG_PG_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr,
 void odm_ConfigBB_PHY_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask, u32 Data)
 {
 	if (Addr == 0xfe) {
-		ODM_sleep_ms(50);
+		msleep(50);
 	} else if (Addr == 0xfd) {
-		ODM_delay_ms(5);
+		mdelay(5);
 	} else if (Addr == 0xfc) {
-		ODM_delay_ms(1);
+		mdelay(1);
 	} else if (Addr == 0xfb) {
-		ODM_delay_us(50);
+		udelay(50);
 	} else if (Addr == 0xfa) {
-		ODM_delay_us(5);
+		udelay(5);
 	} else if (Addr == 0xf9) {
-		ODM_delay_us(1);
+		udelay(1);
 	} else {
 		if (Addr == 0xa24)
 			pDM_Odm->RFCalibrateInfo.RegA24 = Data;
-		ODM_SetBBReg(pDM_Odm, Addr, Bitmask, Data);
+		rtl8188e_PHY_SetBBReg(pDM_Odm->Adapter, Addr, Bitmask, Data);
 
 		/*  Add 1us delay between BB/RF register setting. */
-		ODM_delay_us(1);
+		udelay(1);
 	}
 }

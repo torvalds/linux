@@ -15,11 +15,11 @@
 .. toctree::
    :maxdepth: 1
 
+   delay-accounting
    psi
+   taskstats
 
 Todolist:
 
    cgroupstats
-   delay-accounting
-   taskstats
    taskstats-struct

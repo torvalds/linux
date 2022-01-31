@@ -186,7 +186,6 @@ static void gen6_alloc_va_range(struct i915_address_space *vm,
 
 			pt = stash->pt[0];
 			__i915_gem_object_pin_pages(pt->base);
-			i915_gem_object_make_unshrinkable(pt->base);
 
 			fill32_px(pt, vm->scratch[0]->encode);
 
@@ -263,28 +262,12 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
 
-	__i915_vma_put(ppgtt->vma);
-
 	gen6_ppgtt_free_pd(ppgtt);
 	free_scratch(vm);
 
 	mutex_destroy(&ppgtt->flush);
-	mutex_destroy(&ppgtt->pin_mutex);
 
 	free_pd(&ppgtt->base.vm, ppgtt->base.pd);
-}
-
-static int pd_vma_set_pages(struct i915_vma *vma)
-{
-	vma->pages = ERR_PTR(-ENODEV);
-	return 0;
-}
-
-static void pd_vma_clear_pages(struct i915_vma *vma)
-{
-	GEM_BUG_ON(!vma->pages);
-
-	vma->pages = NULL;
 }
 
 static void pd_vma_bind(struct i915_address_space *vm,
@@ -326,42 +309,9 @@ static void pd_vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
 }
 
 static const struct i915_vma_ops pd_vma_ops = {
-	.set_pages = pd_vma_set_pages,
-	.clear_pages = pd_vma_clear_pages,
 	.bind_vma = pd_vma_bind,
 	.unbind_vma = pd_vma_unbind,
 };
-
-static struct i915_vma *pd_vma_create(struct gen6_ppgtt *ppgtt, int size)
-{
-	struct i915_ggtt *ggtt = ppgtt->base.vm.gt->ggtt;
-	struct i915_vma *vma;
-
-	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
-	GEM_BUG_ON(size > ggtt->vm.total);
-
-	vma = i915_vma_alloc();
-	if (!vma)
-		return ERR_PTR(-ENOMEM);
-
-	i915_active_init(&vma->active, NULL, NULL, 0);
-
-	kref_init(&vma->ref);
-	mutex_init(&vma->pages_mutex);
-	vma->vm = i915_vm_get(&ggtt->vm);
-	vma->ops = &pd_vma_ops;
-	vma->private = ppgtt;
-
-	vma->size = size;
-	vma->fence_size = size;
-	atomic_set(&vma->flags, I915_VMA_GGTT);
-	vma->ggtt_view.type = I915_GGTT_VIEW_ROTATED; /* prevent fencing */
-
-	INIT_LIST_HEAD(&vma->obj_link);
-	INIT_LIST_HEAD(&vma->closed_link);
-
-	return vma;
-}
 
 int gen6_ppgtt_pin(struct i915_ppgtt *base, struct i915_gem_ww_ctx *ww)
 {
@@ -379,22 +329,83 @@ int gen6_ppgtt_pin(struct i915_ppgtt *base, struct i915_gem_ww_ctx *ww)
 	if (atomic_add_unless(&ppgtt->pin_count, 1, 0))
 		return 0;
 
-	if (mutex_lock_interruptible(&ppgtt->pin_mutex))
-		return -EINTR;
+	/* grab the ppgtt resv to pin the object */
+	err = i915_vm_lock_objects(&ppgtt->base.vm, ww);
+	if (err)
+		return err;
 
 	/*
 	 * PPGTT PDEs reside in the GGTT and consists of 512 entries. The
 	 * allocator works in address space sizes, so it's multiplied by page
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
-	err = 0;
-	if (!atomic_read(&ppgtt->pin_count))
+	if (!atomic_read(&ppgtt->pin_count)) {
 		err = i915_ggtt_pin(ppgtt->vma, ww, GEN6_PD_ALIGN, PIN_HIGH);
+
+		GEM_BUG_ON(ppgtt->vma->fence);
+		clear_bit(I915_VMA_CAN_FENCE_BIT, __i915_vma_flags(ppgtt->vma));
+	}
 	if (!err)
 		atomic_inc(&ppgtt->pin_count);
-	mutex_unlock(&ppgtt->pin_mutex);
 
 	return err;
+}
+
+static int pd_dummy_obj_get_pages(struct drm_i915_gem_object *obj)
+{
+	obj->mm.pages = ZERO_SIZE_PTR;
+	return 0;
+}
+
+static void pd_dummy_obj_put_pages(struct drm_i915_gem_object *obj,
+				   struct sg_table *pages)
+{
+}
+
+static const struct drm_i915_gem_object_ops pd_dummy_obj_ops = {
+	.name = "pd_dummy_obj",
+	.get_pages = pd_dummy_obj_get_pages,
+	.put_pages = pd_dummy_obj_put_pages,
+};
+
+static struct i915_page_directory *
+gen6_alloc_top_pd(struct gen6_ppgtt *ppgtt)
+{
+	struct i915_ggtt * const ggtt = ppgtt->base.vm.gt->ggtt;
+	struct i915_page_directory *pd;
+	int err;
+
+	pd = __alloc_pd(I915_PDES);
+	if (unlikely(!pd))
+		return ERR_PTR(-ENOMEM);
+
+	pd->pt.base = __i915_gem_object_create_internal(ppgtt->base.vm.gt->i915,
+							&pd_dummy_obj_ops,
+							I915_PDES * SZ_4K);
+	if (IS_ERR(pd->pt.base)) {
+		err = PTR_ERR(pd->pt.base);
+		pd->pt.base = NULL;
+		goto err_pd;
+	}
+
+	pd->pt.base->base.resv = i915_vm_resv_get(&ppgtt->base.vm);
+	pd->pt.base->shares_resv_from = &ppgtt->base.vm;
+
+	ppgtt->vma = i915_vma_instance(pd->pt.base, &ggtt->vm, NULL);
+	if (IS_ERR(ppgtt->vma)) {
+		err = PTR_ERR(ppgtt->vma);
+		ppgtt->vma = NULL;
+		goto err_pd;
+	}
+
+	/* The dummy object we create is special, override ops.. */
+	ppgtt->vma->ops = &pd_vma_ops;
+	ppgtt->vma->private = ppgtt;
+	return pd;
+
+err_pd:
+	free_pd(&ppgtt->base.vm, pd);
+	return ERR_PTR(err);
 }
 
 void gen6_ppgtt_unpin(struct i915_ppgtt *base)
@@ -404,17 +415,6 @@ void gen6_ppgtt_unpin(struct i915_ppgtt *base)
 	GEM_BUG_ON(!atomic_read(&ppgtt->pin_count));
 	if (atomic_dec_and_test(&ppgtt->pin_count))
 		i915_vma_unpin(ppgtt->vma);
-}
-
-void gen6_ppgtt_unpin_all(struct i915_ppgtt *base)
-{
-	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(base);
-
-	if (!atomic_read(&ppgtt->pin_count))
-		return;
-
-	i915_vma_unpin(ppgtt->vma);
-	atomic_set(&ppgtt->pin_count, 0);
 }
 
 struct i915_ppgtt *gen6_ppgtt_create(struct intel_gt *gt)
@@ -428,7 +428,6 @@ struct i915_ppgtt *gen6_ppgtt_create(struct intel_gt *gt)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&ppgtt->flush);
-	mutex_init(&ppgtt->pin_mutex);
 
 	ppgtt_init(&ppgtt->base, gt, 0);
 	ppgtt->base.vm.pd_shift = ilog2(SZ_4K * SZ_4K / sizeof(gen6_pte_t));
@@ -441,21 +440,16 @@ struct i915_ppgtt *gen6_ppgtt_create(struct intel_gt *gt)
 	ppgtt->base.vm.cleanup = gen6_ppgtt_cleanup;
 
 	ppgtt->base.vm.alloc_pt_dma = alloc_pt_dma;
+	ppgtt->base.vm.alloc_scratch_dma = alloc_pt_dma;
 	ppgtt->base.vm.pte_encode = ggtt->vm.pte_encode;
-
-	ppgtt->base.pd = __alloc_pd(I915_PDES);
-	if (!ppgtt->base.pd) {
-		err = -ENOMEM;
-		goto err_free;
-	}
 
 	err = gen6_ppgtt_init_scratch(ppgtt);
 	if (err)
-		goto err_pd;
+		goto err_free;
 
-	ppgtt->vma = pd_vma_create(ppgtt, GEN6_PD_SIZE);
-	if (IS_ERR(ppgtt->vma)) {
-		err = PTR_ERR(ppgtt->vma);
+	ppgtt->base.pd = gen6_alloc_top_pd(ppgtt);
+	if (IS_ERR(ppgtt->base.pd)) {
+		err = PTR_ERR(ppgtt->base.pd);
 		goto err_scratch;
 	}
 
@@ -463,10 +457,7 @@ struct i915_ppgtt *gen6_ppgtt_create(struct intel_gt *gt)
 
 err_scratch:
 	free_scratch(&ppgtt->base.vm);
-err_pd:
-	free_pd(&ppgtt->base.vm, ppgtt->base.pd);
 err_free:
-	mutex_destroy(&ppgtt->pin_mutex);
 	kfree(ppgtt);
 	return ERR_PTR(err);
 }

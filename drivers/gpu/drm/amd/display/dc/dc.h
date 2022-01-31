@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.160"
+#define DC_VER "3.2.167"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -74,6 +74,16 @@ enum dc_plane_type {
 	DC_PLANE_TYPE_DCE_UNDERLAY,
 	DC_PLANE_TYPE_DCN_UNIVERSAL,
 };
+
+// Sizes defined as multiples of 64KB
+enum det_size {
+	DET_SIZE_DEFAULT = 0,
+	DET_SIZE_192KB = 3,
+	DET_SIZE_256KB = 4,
+	DET_SIZE_320KB = 5,
+	DET_SIZE_384KB = 6
+};
+
 
 struct dc_plane_cap {
 	enum dc_plane_type type;
@@ -187,7 +197,9 @@ struct dc_caps {
 	struct dc_color_caps color;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool dp_hpo;
+	bool hdmi_frl_pcon_support;
 #endif
+	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
 };
@@ -332,6 +344,7 @@ struct dc_config {
 	uint8_t  vblank_alignment_max_frame_time_diff;
 	bool is_asymmetric_memory;
 	bool is_single_rank_dimm;
+	bool use_pipe_ctx_sync_logic;
 };
 
 enum visual_confirm {
@@ -508,7 +521,9 @@ union dpia_debug_options {
 		uint32_t disable_dpia:1;
 		uint32_t force_non_lttpr:1;
 		uint32_t extend_aux_rd_interval:1;
-		uint32_t reserved:29;
+		uint32_t disable_mst_dsc_work_around:1;
+		uint32_t hpd_delay_in_ms:12;
+		uint32_t reserved:16;
 	} bits;
 	uint32_t raw;
 };
@@ -573,6 +588,8 @@ struct dc_debug_options {
 	bool native422_support;
 	bool disable_dsc;
 	enum visual_confirm visual_confirm;
+	int visual_confirm_rect_height;
+
 	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
@@ -667,11 +684,15 @@ struct dc_debug_options {
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
+	bool disable_dsc_edp;
+	unsigned int  force_dsc_edp_policy;
 	bool enable_dram_clock_change_one_display_vactive;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* TODO - remove once tested */
 	bool legacy_dp2_lt;
 	bool set_mst_en_for_sst;
+	bool disable_uhbr;
+	bool force_dp2_lt_fallback_method;
 #endif
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
@@ -684,11 +705,14 @@ struct dc_debug_options {
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
+	enum det_size crb_alloc_policy;
+	int crb_alloc_policy_min_disp_count;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_z10;
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
 #endif
+	bool apply_vendor_specific_lttpr_wa;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1289,6 +1313,11 @@ struct dc_sink_dsc_caps {
 	// 'true' if these are virtual DPCD's DSC caps (immediately upstream of sink in MST topology),
 	// 'false' if they are sink's DSC caps
 	bool is_virtual_dpcd_dsc;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	// 'true' if MST topology supports DSC passthrough for sink
+	// 'false' if MST topology does not support DSC passthrough
+	bool is_dsc_passthrough_supported;
+#endif
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
@@ -1403,6 +1432,9 @@ void dc_unlock_memory_clock_frequency(struct dc *dc);
  * max to maxDPM, and unblank streams
  */
 void dc_lock_memory_clock_frequency(struct dc *dc);
+
+/* set soft max for memclk, to be used for AC/DC switching clock limitations */
+void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable);
 
 /* cleanup on driver unload */
 void dc_hardware_release(struct dc *dc);

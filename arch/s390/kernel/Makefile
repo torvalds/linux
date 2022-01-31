@@ -40,7 +40,7 @@ obj-y	+= sysinfo.o lgr.o os_info.o machine_kexec.o
 obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o sthyi.o
 obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o alternative.o
 obj-y	+= nospec-branch.o ipl_vmparm.o machine_kexec_reloc.o unwind_bc.o
-obj-y	+= smp.o text_amode31.o
+obj-y	+= smp.o text_amode31.o stacktrace.o
 
 extra-y				+= head64.o vmlinux.lds
 
@@ -55,7 +55,6 @@ compat-obj-$(CONFIG_AUDIT)	+= compat_audit.o
 obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o
 obj-$(CONFIG_COMPAT)		+= $(compat-obj-y)
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
-obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_KPROBES)		+= kprobes_insn_page.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o ftrace.o

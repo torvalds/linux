@@ -225,7 +225,7 @@ static void eql_kill_one_slave(slave_queue_t *queue, slave_t *slave)
 	list_del(&slave->list);
 	queue->num_slaves--;
 	slave->dev->flags &= ~IFF_SLAVE;
-	dev_put(slave->dev);
+	dev_put_track(slave->dev, &slave->dev_tracker);
 	kfree(slave);
 }
 
@@ -399,7 +399,7 @@ static int __eql_insert_slave(slave_queue_t *queue, slave_t *slave)
 		if (duplicate_slave)
 			eql_kill_one_slave(queue, duplicate_slave);
 
-		dev_hold(slave->dev);
+		dev_hold_track(slave->dev, &slave->dev_tracker, GFP_ATOMIC);
 		list_add(&slave->list, &queue->all_slaves);
 		queue->num_slaves++;
 		slave->dev->flags |= IFF_SLAVE;

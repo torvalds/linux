@@ -564,7 +564,7 @@ static void intel_pdi_init(struct sdw_intel *sdw,
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
-	int pcm_cap, pdm_cap;
+	int pcm_cap;
 
 	/* PCM Stream Capability */
 	pcm_cap = intel_readw(shim, SDW_SHIM_PCMSCAP(link_id));
@@ -575,41 +575,25 @@ static void intel_pdi_init(struct sdw_intel *sdw,
 
 	dev_dbg(sdw->cdns.dev, "PCM cap bd:%d in:%d out:%d\n",
 		config->pcm_bd, config->pcm_in, config->pcm_out);
-
-	/* PDM Stream Capability */
-	pdm_cap = intel_readw(shim, SDW_SHIM_PDMSCAP(link_id));
-
-	config->pdm_bd = FIELD_GET(SDW_SHIM_PDMSCAP_BSS, pdm_cap);
-	config->pdm_in = FIELD_GET(SDW_SHIM_PDMSCAP_ISS, pdm_cap);
-	config->pdm_out = FIELD_GET(SDW_SHIM_PDMSCAP_OSS, pdm_cap);
-
-	dev_dbg(sdw->cdns.dev, "PDM cap bd:%d in:%d out:%d\n",
-		config->pdm_bd, config->pdm_in, config->pdm_out);
 }
 
 static int
-intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num, bool pcm)
+intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num)
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
 	int count;
 
-	if (pcm) {
-		count = intel_readw(shim, SDW_SHIM_PCMSYCHC(link_id, pdi_num));
+	count = intel_readw(shim, SDW_SHIM_PCMSYCHC(link_id, pdi_num));
 
-		/*
-		 * WORKAROUND: on all existing Intel controllers, pdi
-		 * number 2 reports channel count as 1 even though it
-		 * supports 8 channels. Performing hardcoding for pdi
-		 * number 2.
-		 */
-		if (pdi_num == 2)
-			count = 7;
-
-	} else {
-		count = intel_readw(shim, SDW_SHIM_PDMSCAP(link_id));
-		count = FIELD_GET(SDW_SHIM_PDMSCAP_CPSS, count);
-	}
+	/*
+	 * WORKAROUND: on all existing Intel controllers, pdi
+	 * number 2 reports channel count as 1 even though it
+	 * supports 8 channels. Performing hardcoding for pdi
+	 * number 2.
+	 */
+	if (pdi_num == 2)
+		count = 7;
 
 	/* zero based values for channel count in register */
 	count++;
@@ -620,12 +604,12 @@ intel_pdi_get_ch_cap(struct sdw_intel *sdw, unsigned int pdi_num, bool pcm)
 static int intel_pdi_get_ch_update(struct sdw_intel *sdw,
 				   struct sdw_cdns_pdi *pdi,
 				   unsigned int num_pdi,
-				   unsigned int *num_ch, bool pcm)
+				   unsigned int *num_ch)
 {
 	int i, ch_count = 0;
 
 	for (i = 0; i < num_pdi; i++) {
-		pdi->ch_count = intel_pdi_get_ch_cap(sdw, pdi->num, pcm);
+		pdi->ch_count = intel_pdi_get_ch_cap(sdw, pdi->num);
 		ch_count += pdi->ch_count;
 		pdi++;
 	}
@@ -635,25 +619,23 @@ static int intel_pdi_get_ch_update(struct sdw_intel *sdw,
 }
 
 static int intel_pdi_stream_ch_update(struct sdw_intel *sdw,
-				      struct sdw_cdns_streams *stream, bool pcm)
+				      struct sdw_cdns_streams *stream)
 {
 	intel_pdi_get_ch_update(sdw, stream->bd, stream->num_bd,
-				&stream->num_ch_bd, pcm);
+				&stream->num_ch_bd);
 
 	intel_pdi_get_ch_update(sdw, stream->in, stream->num_in,
-				&stream->num_ch_in, pcm);
+				&stream->num_ch_in);
 
 	intel_pdi_get_ch_update(sdw, stream->out, stream->num_out,
-				&stream->num_ch_out, pcm);
+				&stream->num_ch_out);
 
 	return 0;
 }
 
 static int intel_pdi_ch_update(struct sdw_intel *sdw)
 {
-	/* First update PCM streams followed by PDM streams */
-	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pcm, true);
-	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pdm, false);
+	intel_pdi_stream_ch_update(sdw, &sdw->cdns.pcm);
 
 	return 0;
 }
@@ -711,7 +693,7 @@ intel_pdi_alh_configure(struct sdw_intel *sdw, struct sdw_cdns_pdi *pdi)
 }
 
 static int intel_params_stream(struct sdw_intel *sdw,
-			       struct snd_pcm_substream *substream,
+			       int stream,
 			       struct snd_soc_dai *dai,
 			       struct snd_pcm_hw_params *hw_params,
 			       int link_id, int alh_stream_id)
@@ -719,7 +701,7 @@ static int intel_params_stream(struct sdw_intel *sdw,
 	struct sdw_intel_link_res *res = sdw->link_res;
 	struct sdw_intel_stream_params_data params_data;
 
-	params_data.substream = substream;
+	params_data.stream = stream; /* direction */
 	params_data.dai = dai;
 	params_data.hw_params = hw_params;
 	params_data.link_id = link_id;
@@ -732,14 +714,14 @@ static int intel_params_stream(struct sdw_intel *sdw,
 }
 
 static int intel_free_stream(struct sdw_intel *sdw,
-			     struct snd_pcm_substream *substream,
+			     int stream,
 			     struct snd_soc_dai *dai,
 			     int link_id)
 {
 	struct sdw_intel_link_res *res = sdw->link_res;
 	struct sdw_intel_stream_free_data free_data;
 
-	free_data.substream = substream;
+	free_data.stream = stream; /* direction */
 	free_data.dai = dai;
 	free_data.link_id = link_id;
 
@@ -840,7 +822,6 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_port_config *pconfig;
 	int ch, dir;
 	int ret;
-	bool pcm = true;
 
 	dma = snd_soc_dai_get_dma_data(dai, substream);
 	if (!dma)
@@ -852,13 +833,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	else
 		dir = SDW_DATA_DIR_TX;
 
-	if (dma->stream_type == SDW_STREAM_PDM)
-		pcm = false;
-
-	if (pcm)
-		pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pcm, ch, dir, dai->id);
-	else
-		pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pdm, ch, dir, dai->id);
+	pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pcm, ch, dir, dai->id);
 
 	if (!pdi) {
 		ret = -EINVAL;
@@ -871,12 +846,13 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	sdw_cdns_config_stream(cdns, ch, dir, pdi);
 
 	/* store pdi and hw_params, may be needed in prepare step */
+	dma->paused = false;
 	dma->suspended = false;
 	dma->pdi = pdi;
 	dma->hw_params = params;
 
 	/* Inform DSP about PDI stream number */
-	ret = intel_params_stream(sdw, substream, dai, params,
+	ret = intel_params_stream(sdw, substream->stream, dai, params,
 				  sdw->instance,
 				  pdi->intel_alh_id);
 	if (ret)
@@ -887,12 +863,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	sconfig.frame_rate = params_rate(params);
 	sconfig.type = dma->stream_type;
 
-	if (dma->stream_type == SDW_STREAM_PDM) {
-		sconfig.frame_rate *= 50;
-		sconfig.bps = 1;
-	} else {
-		sconfig.bps = snd_pcm_format_width(params_format(params));
-	}
+	sconfig.bps = snd_pcm_format_width(params_format(params));
 
 	/* Port configuration */
 	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
@@ -953,7 +924,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 		sdw_cdns_config_stream(cdns, ch, dir, dma->pdi);
 
 		/* Inform DSP about PDI stream number */
-		ret = intel_params_stream(sdw, substream, dai,
+		ret = intel_params_stream(sdw, substream->stream, dai,
 					  dma->hw_params,
 					  sdw->instance,
 					  dma->pdi->intel_alh_id);
@@ -987,7 +958,7 @@ intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 		return ret;
 	}
 
-	ret = intel_free_stream(sdw, substream, dai, sdw->instance);
+	ret = intel_free_stream(sdw, substream->stream, dai, sdw->instance);
 	if (ret < 0) {
 		dev_err(dai->dev, "intel_free_stream: failed %d\n", ret);
 		return ret;
@@ -1008,39 +979,10 @@ static void intel_shutdown(struct snd_pcm_substream *substream,
 	pm_runtime_put_autosuspend(cdns->dev);
 }
 
-static int intel_component_dais_suspend(struct snd_soc_component *component)
-{
-	struct sdw_cdns_dma_data *dma;
-	struct snd_soc_dai *dai;
-
-	for_each_component_dais(component, dai) {
-		/*
-		 * we don't have a .suspend dai_ops, and we don't have access
-		 * to the substream, so let's mark both capture and playback
-		 * DMA contexts as suspended
-		 */
-		dma = dai->playback_dma_data;
-		if (dma)
-			dma->suspended = true;
-
-		dma = dai->capture_dma_data;
-		if (dma)
-			dma->suspended = true;
-	}
-
-	return 0;
-}
-
 static int intel_pcm_set_sdw_stream(struct snd_soc_dai *dai,
 				    void *stream, int direction)
 {
-	return cdns_set_sdw_stream(dai, stream, true, direction);
-}
-
-static int intel_pdm_set_sdw_stream(struct snd_soc_dai *dai,
-				    void *stream, int direction)
-{
-	return cdns_set_sdw_stream(dai, stream, false, direction);
+	return cdns_set_sdw_stream(dai, stream, direction);
 }
 
 static void *intel_get_sdw_stream(struct snd_soc_dai *dai,
@@ -1059,24 +1001,100 @@ static void *intel_get_sdw_stream(struct snd_soc_dai *dai,
 	return dma->stream;
 }
 
+static int intel_trigger(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *dai)
+{
+	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_cdns_dma_data *dma;
+	int ret = 0;
+
+	dma = snd_soc_dai_get_dma_data(dai, substream);
+	if (!dma) {
+		dev_err(dai->dev, "failed to get dma data in %s\n",
+			__func__);
+		return -EIO;
+	}
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+
+		/*
+		 * The .prepare callback is used to deal with xruns and resume operations.
+		 * In the case of xruns, the DMAs and SHIM registers cannot be touched,
+		 * but for resume operations the DMAs and SHIM registers need to be initialized.
+		 * the .trigger callback is used to track the suspend case only.
+		 */
+
+		dma->suspended = true;
+
+		ret = intel_free_stream(sdw, substream->stream, dai, sdw->instance);
+		break;
+
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		dma->paused = true;
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		dma->paused = false;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int intel_component_dais_suspend(struct snd_soc_component *component)
+{
+	struct snd_soc_dai *dai;
+
+	/*
+	 * In the corner case where a SUSPEND happens during a PAUSE, the ALSA core
+	 * does not throw the TRIGGER_SUSPEND. This leaves the DAIs in an unbalanced state.
+	 * Since the component suspend is called last, we can trap this corner case
+	 * and force the DAIs to release their resources.
+	 */
+	for_each_component_dais(component, dai) {
+		struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
+		struct sdw_intel *sdw = cdns_to_intel(cdns);
+		struct sdw_cdns_dma_data *dma;
+		int stream;
+		int ret;
+
+		dma = dai->playback_dma_data;
+		stream = SNDRV_PCM_STREAM_PLAYBACK;
+		if (!dma) {
+			dma = dai->capture_dma_data;
+			stream = SNDRV_PCM_STREAM_CAPTURE;
+		}
+
+		if (!dma)
+			continue;
+
+		if (dma->suspended)
+			continue;
+
+		if (dma->paused) {
+			dma->suspended = true;
+
+			ret = intel_free_stream(sdw, stream, dai, sdw->instance);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops intel_pcm_dai_ops = {
 	.startup = intel_startup,
 	.hw_params = intel_hw_params,
 	.prepare = intel_prepare,
 	.hw_free = intel_hw_free,
+	.trigger = intel_trigger,
 	.shutdown = intel_shutdown,
-	.set_sdw_stream = intel_pcm_set_sdw_stream,
-	.get_sdw_stream = intel_get_sdw_stream,
-};
-
-static const struct snd_soc_dai_ops intel_pdm_dai_ops = {
-	.startup = intel_startup,
-	.hw_params = intel_hw_params,
-	.prepare = intel_prepare,
-	.hw_free = intel_hw_free,
-	.shutdown = intel_shutdown,
-	.set_sdw_stream = intel_pdm_set_sdw_stream,
-	.get_sdw_stream = intel_get_sdw_stream,
+	.set_stream = intel_pcm_set_sdw_stream,
+	.get_stream = intel_get_sdw_stream,
 };
 
 static const struct snd_soc_component_driver dai_component = {
@@ -1087,7 +1105,7 @@ static const struct snd_soc_component_driver dai_component = {
 static int intel_create_dai(struct sdw_cdns *cdns,
 			    struct snd_soc_dai_driver *dais,
 			    enum intel_pdi_type type,
-			    u32 num, u32 off, u32 max_ch, bool pcm)
+			    u32 num, u32 off, u32 max_ch)
 {
 	int i;
 
@@ -1116,10 +1134,7 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 			dais[i].capture.formats = SNDRV_PCM_FMTBIT_S16_LE;
 		}
 
-		if (pcm)
-			dais[i].ops = &intel_pcm_dai_ops;
-		else
-			dais[i].ops = &intel_pdm_dai_ops;
+		dais[i].ops = &intel_pcm_dai_ops;
 	}
 
 	return 0;
@@ -1133,7 +1148,7 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	int num_dai, ret, off = 0;
 
 	/* DAIs are created based on total number of PDIs supported */
-	num_dai = cdns->pcm.num_pdi + cdns->pdm.num_pdi;
+	num_dai = cdns->pcm.num_pdi;
 
 	dais = devm_kcalloc(cdns->dev, num_dai, sizeof(*dais), GFP_KERNEL);
 	if (!dais)
@@ -1143,39 +1158,19 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	stream = &cdns->pcm;
 
 	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, cdns->pcm.num_in,
-			       off, stream->num_ch_in, true);
+			       off, stream->num_ch_in);
 	if (ret)
 		return ret;
 
 	off += cdns->pcm.num_in;
 	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT, cdns->pcm.num_out,
-			       off, stream->num_ch_out, true);
+			       off, stream->num_ch_out);
 	if (ret)
 		return ret;
 
 	off += cdns->pcm.num_out;
 	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD, cdns->pcm.num_bd,
-			       off, stream->num_ch_bd, true);
-	if (ret)
-		return ret;
-
-	/* Create PDM DAIs */
-	stream = &cdns->pdm;
-	off += cdns->pcm.num_bd;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, cdns->pdm.num_in,
-			       off, stream->num_ch_in, false);
-	if (ret)
-		return ret;
-
-	off += cdns->pdm.num_in;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_OUT, cdns->pdm.num_out,
-			       off, stream->num_ch_out, false);
-	if (ret)
-		return ret;
-
-	off += cdns->pdm.num_out;
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD, cdns->pdm.num_bd,
-			       off, stream->num_ch_bd, false);
+			       off, stream->num_ch_bd);
 	if (ret)
 		return ret;
 
@@ -1293,7 +1288,7 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	bus->ops = &sdw_intel_ops;
 
 	/* set driver data, accessed by snd_soc_dai_get_drvdata() */
-	dev_set_drvdata(dev, cdns);
+	auxiliary_set_drvdata(auxdev, cdns);
 
 	/* use generic bandwidth allocation algorithm */
 	sdw->cdns.bus.compute_params = sdw_compute_params;
@@ -1321,7 +1316,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 {
 	struct sdw_cdns_stream_config config;
 	struct device *dev = &auxdev->dev;
-	struct sdw_cdns *cdns = dev_get_drvdata(dev);
+	struct sdw_cdns *cdns = auxiliary_get_drvdata(auxdev);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_bus *bus = &cdns->bus;
 	int link_flags;
@@ -1463,7 +1458,7 @@ err_init:
 static void intel_link_remove(struct auxiliary_device *auxdev)
 {
 	struct device *dev = &auxdev->dev;
-	struct sdw_cdns *cdns = dev_get_drvdata(dev);
+	struct sdw_cdns *cdns = auxiliary_get_drvdata(auxdev);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_bus *bus = &cdns->bus;
 
@@ -1488,7 +1483,7 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
 	void __iomem *shim;
 	u16 wake_sts;
 
-	sdw = dev_get_drvdata(dev);
+	sdw = auxiliary_get_drvdata(auxdev);
 	bus = &sdw->cdns.bus;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
@@ -1549,7 +1544,7 @@ static int __maybe_unused intel_pm_prepare(struct device *dev)
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_bus *bus = &cdns->bus;
 	u32 clock_stop_quirks;
-	int ret = 0;
+	int ret;
 
 	if (bus->prop.hw_disabled || !sdw->startup_done) {
 		dev_dbg(dev, "SoundWire master %d is disabled or not-started, ignoring\n",

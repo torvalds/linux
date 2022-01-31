@@ -129,6 +129,7 @@ static void hplance_init(struct net_device *dev, struct dio_dev *d)
 {
 	unsigned long va = (d->resource.start + DIO_VIRADDRBASE);
 	struct hplance_private *lp;
+	u8 addr[ETH_ALEN];
 	int i;
 
 	/* reset the board */
@@ -144,9 +145,10 @@ static void hplance_init(struct net_device *dev, struct dio_dev *d)
 		/* The NVRAM holds our ethernet address, one nibble per byte,
 		 * at bytes NVRAMOFF+1,3,5,7,9...
 		 */
-		dev->dev_addr[i] = ((in_8(va + HPLANCE_NVRAMOFF + i*4 + 1) & 0xF) << 4)
+		addr[i] = ((in_8(va + HPLANCE_NVRAMOFF + i*4 + 1) & 0xF) << 4)
 			| (in_8(va + HPLANCE_NVRAMOFF + i*4 + 3) & 0xF);
 	}
+	eth_hw_addr_set(dev, addr);
 
 	lp = netdev_priv(dev);
 	lp->lance.name = d->name;

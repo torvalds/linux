@@ -685,10 +685,6 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 	if (retval)
 		goto error_get_interface;
 
-	/*
-	 * FIXME: Why do we need this? Allocating 64K of physically contiguous
-	 * memory is really nasty...
-	 */
 	set_bit(TTY_NO_WRITE_SPLIT, &tty->flags);
 	acm->control->needs_remote_wakeup = 1;
 

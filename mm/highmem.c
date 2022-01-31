@@ -359,7 +359,6 @@ void kunmap_high(struct page *page)
 }
 EXPORT_SYMBOL(kunmap_high);
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void zero_user_segments(struct page *page, unsigned start1, unsigned end1,
 		unsigned start2, unsigned end2)
 {
@@ -416,7 +415,6 @@ void zero_user_segments(struct page *page, unsigned start1, unsigned end1,
 	BUG_ON((start1 | start2 | end1 | end2) != 0);
 }
 EXPORT_SYMBOL(zero_user_segments);
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif /* CONFIG_HIGHMEM */
 
 #ifdef CONFIG_KMAP_LOCAL

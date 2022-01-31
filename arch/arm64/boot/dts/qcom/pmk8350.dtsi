@@ -19,16 +19,17 @@
 			compatible = "qcom,pm8998-pon";
 			reg = <0x1300>;
 
-			pwrkey {
+			pon_pwrkey: pwrkey {
 				compatible = "qcom,pmk8350-pwrkey";
 				interrupts = <0x0 0x13 0x7 IRQ_TYPE_EDGE_BOTH>;
 				linux,code = <KEY_POWER>;
+				status = "disabled";
 			};
 
-			resin {
+			pon_resin: resin {
 				compatible = "qcom,pmk8350-resin";
 				interrupts = <0x0 0x13 0x6 IRQ_TYPE_EDGE_BOTH>;
-				linux,code = <KEY_VOLUMEDOWN>;
+				status = "disabled";
 			};
 		};
 

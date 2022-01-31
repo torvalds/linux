@@ -127,6 +127,7 @@ examples:
       st,syscfg = <&pwrcfg 0x00 0x100>;
     };
 
+  - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/stm32mp1-clks.h>
     rtc@5c004000 {

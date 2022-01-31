@@ -25,6 +25,6 @@ Sub graphs of DRBD's state transitions
     :alt:   disk-states-8.dot
     :align: center
 
-.. kernel-figure:: node-states-8.dot
-    :alt:   node-states-8.dot
+.. kernel-figure:: peer-states-8.dot
+    :alt:   peer-states-8.dot
     :align: center

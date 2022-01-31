@@ -1175,7 +1175,7 @@ static inline u8 in_to_reg(u32 val, u8 nr)
 
 struct nct6775_data {
 	int addr;	/* IO base of hw monitor block */
-	int sioreg;	/* SIO register address */
+	struct nct6775_sio_data *sio_data;
 	enum kinds kind;
 	const char *name;
 
@@ -1527,7 +1527,7 @@ static u16 nct6775_wmi_read_value(struct nct6775_data *data, u16 reg)
 
 	nct6775_wmi_set_bank(data, reg);
 
-	err = nct6775_asuswmi_read(data->bank, reg, &tmp);
+	err = nct6775_asuswmi_read(data->bank, reg & 0xff, &tmp);
 	if (err)
 		return 0;
 
@@ -3154,10 +3154,8 @@ store_speed_tolerance(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	high = fan_from_reg16(data->target_speed[nr],
-			      data->fan_div[nr]) + val;
-	low = fan_from_reg16(data->target_speed[nr],
-			     data->fan_div[nr]) - val;
+	high = fan_from_reg16(data->target_speed[nr], data->fan_div[nr]) + val;
+	low = fan_from_reg16(data->target_speed[nr], data->fan_div[nr]) - val;
 	if (low <= 0)
 		low = 1;
 	if (high < low)
@@ -3561,7 +3559,7 @@ clear_caseopen(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
-	struct nct6775_sio_data *sio_data = dev_get_platdata(dev);
+	struct nct6775_sio_data *sio_data = data->sio_data;
 	int nr = to_sensor_dev_attr(attr)->index - INTRUSION_ALARM_BASE;
 	unsigned long val;
 	u8 reg;
@@ -3969,7 +3967,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->kind = sio_data->kind;
-	data->sioreg = sio_data->sioreg;
+	data->sio_data = sio_data;
 
 	if (sio_data->access == access_direct) {
 		data->addr = res->start;
@@ -4995,11 +4993,13 @@ static const char * const asus_wmi_boards[] = {
 	"ROG CROSSHAIR VIII FORMULA",
 	"ROG CROSSHAIR VIII HERO",
 	"ROG CROSSHAIR VIII IMPACT",
+	"ROG STRIX B550-A GAMING",
 	"ROG STRIX B550-E GAMING",
 	"ROG STRIX B550-F GAMING",
 	"ROG STRIX B550-F GAMING (WI-FI)",
 	"ROG STRIX B550-I GAMING",
 	"ROG STRIX X570-F GAMING",
+	"ROG STRIX X570-I GAMING",
 	"ROG STRIX Z390-E GAMING",
 	"ROG STRIX Z490-I GAMING",
 	"TUF GAMING B550M-PLUS",
@@ -5038,7 +5038,7 @@ static int __init sensors_nct6775_init(void)
 				   board_name);
 		if (err >= 0) {
 			/* if reading chip id via WMI succeeds, use WMI */
-			if (!nct6775_asuswmi_read(0, NCT6775_PORT_CHIPID, &tmp)) {
+			if (!nct6775_asuswmi_read(0, NCT6775_PORT_CHIPID, &tmp) && tmp) {
 				pr_info("Using Asus WMI to access %#x chip.\n", tmp);
 				access = access_asuswmi;
 			} else {

@@ -144,6 +144,7 @@ static inline u8 exca_readb(struct yenta_socket *socket, unsigned reg)
 	return val;
 }
 
+/*
 static inline u8 exca_readw(struct yenta_socket *socket, unsigned reg)
 {
 	u16 val;
@@ -152,6 +153,7 @@ static inline u8 exca_readw(struct yenta_socket *socket, unsigned reg)
 	debug("%04x %04x\n", socket, reg, val);
 	return val;
 }
+*/
 
 static inline void exca_writeb(struct yenta_socket *socket, unsigned reg, u8 val)
 {
@@ -176,16 +178,16 @@ static ssize_t show_yenta_registers(struct device *yentadev, struct device_attri
 	struct yenta_socket *socket = dev_get_drvdata(yentadev);
 	int offset = 0, i;
 
-	offset = snprintf(buf, PAGE_SIZE, "CB registers:");
+	offset = sysfs_emit(buf, "CB registers:");
 	for (i = 0; i < 0x24; i += 4) {
 		unsigned val;
 		if (!(i & 15))
-			offset += scnprintf(buf + offset, PAGE_SIZE - offset, "\n%02x:", i);
+			offset += sysfs_emit_at(buf, offset, "\n%02x:", i);
 		val = cb_readl(socket, i);
-		offset += scnprintf(buf + offset, PAGE_SIZE - offset, " %08x", val);
+		offset += sysfs_emit_at(buf, offset, " %08x", val);
 	}
 
-	offset += scnprintf(buf + offset, PAGE_SIZE - offset, "\n\nExCA registers:");
+	offset += sysfs_emit_at(buf, offset, "\n\nExCA registers:");
 	for (i = 0; i < 0x45; i++) {
 		unsigned char val;
 		if (!(i & 7)) {
@@ -193,12 +195,12 @@ static ssize_t show_yenta_registers(struct device *yentadev, struct device_attri
 				memcpy(buf + offset, " -", 2);
 				offset += 2;
 			} else
-				offset += scnprintf(buf + offset, PAGE_SIZE - offset, "\n%02x:", i);
+				offset += sysfs_emit_at(buf, offset, "\n%02x:", i);
 		}
 		val = exca_readb(socket, i);
-		offset += scnprintf(buf + offset, PAGE_SIZE - offset, " %02x", val);
+		offset += sysfs_emit_at(buf, offset, " %02x", val);
 	}
-	buf[offset++] = '\n';
+	sysfs_emit_at(buf, offset, "\n");
 	return offset;
 }
 
@@ -1297,7 +1299,7 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return ret;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int yenta_dev_suspend_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -1342,12 +1344,7 @@ static int yenta_dev_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops yenta_pm_ops = {
-	.suspend_noirq = yenta_dev_suspend_noirq,
-	.resume_noirq = yenta_dev_resume_noirq,
-	.freeze_noirq = yenta_dev_suspend_noirq,
-	.thaw_noirq = yenta_dev_resume_noirq,
-	.poweroff_noirq = yenta_dev_suspend_noirq,
-	.restore_noirq = yenta_dev_resume_noirq,
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(yenta_dev_suspend_noirq, yenta_dev_resume_noirq)
 };
 
 #define YENTA_PM_OPS	(&yenta_pm_ops)

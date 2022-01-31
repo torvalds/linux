@@ -1123,7 +1123,7 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 		}
 
 		if (!vps->surf) {
-			ret = vmw_gb_surface_define(dev_priv, 0, &metadata,
+			ret = vmw_gb_surface_define(dev_priv, &metadata,
 						    &vps->surf);
 			if (ret != 0) {
 				DRM_ERROR("Couldn't allocate STDU surface.\n");
@@ -1872,8 +1872,8 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 	int i, ret;
 
 
-	/* Do nothing if Screen Target support is turned off */
-	if (!VMWGFX_ENABLE_SCREEN_TARGET_OTABLE || !dev_priv->has_mob)
+	/* Do nothing if there's no support for MOBs */
+	if (!dev_priv->has_mob)
 		return -ENOSYS;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_GBOBJECTS))

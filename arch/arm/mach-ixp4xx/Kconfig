@@ -39,19 +39,6 @@ config ARCH_PRPMC1100
 	  PrPCM1100 Processor Mezanine Module. For more information on
 	  this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
-#
-# Certain registers and IRQs are only enabled if supporting IXP465 CPUs
-#
-config CPU_IXP46X
-	bool
-	depends on MACH_IXDP465
-	default y
-
-config CPU_IXP43X
-	bool
-	depends on MACH_KIXRP435
-	default y
-
 comment "IXP4xx Options"
 
 config IXP4XX_PCI_LEGACY

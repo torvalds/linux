@@ -82,31 +82,6 @@ static int compat_blkpg_ioctl(struct block_device *bdev,
 }
 #endif
 
-static int blkdev_reread_part(struct block_device *bdev, fmode_t mode)
-{
-	struct block_device *tmp;
-
-	if (!disk_part_scan_enabled(bdev->bd_disk) || bdev_is_partition(bdev))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
-	if (bdev->bd_disk->open_partitions)
-		return -EBUSY;
-
-	/*
-	 * Reopen the device to revalidate the driver state and force a
-	 * partition rescan.
-	 */
-	mode &= ~FMODE_EXCL;
-	set_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
-
-	tmp = blkdev_get_by_dev(bdev->bd_dev, mode, NULL);
-	if (IS_ERR(tmp))
-		return PTR_ERR(tmp);
-	blkdev_put(tmp, mode);
-	return 0;
-}
-
 static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
 		unsigned long arg, unsigned long flags)
 {
@@ -522,7 +497,11 @@ static int blkdev_common_ioctl(struct block_device *bdev, fmode_t mode,
 		bdev->bd_disk->bdi->ra_pages = (arg * 512) / PAGE_SIZE;
 		return 0;
 	case BLKRRPART:
-		return blkdev_reread_part(bdev, mode);
+		if (!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+		if (bdev_is_partition(bdev))
+			return -EINVAL;
+		return disk_scan_partitions(bdev->bd_disk, mode & ~FMODE_EXCL);
 	case BLKTRACESTART:
 	case BLKTRACESTOP:
 	case BLKTRACETEARDOWN:

@@ -1765,9 +1765,6 @@ static int efx_ptp_ts_init(struct efx_nic *efx, struct hwtstamp_config *init)
 {
 	int rc;
 
-	if (init->flags)
-		return -EINVAL;
-
 	if ((init->tx_type != HWTSTAMP_TX_OFF) &&
 	    (init->tx_type != HWTSTAMP_TX_ON))
 		return -ERANGE;

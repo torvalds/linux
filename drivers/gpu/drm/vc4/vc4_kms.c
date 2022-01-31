@@ -340,19 +340,19 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hvs *hvs = vc4->hvs;
-	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc_state *new_crtc_state;
 	struct vc4_hvs_state *new_hvs_state;
 	struct drm_crtc *crtc;
 	struct vc4_hvs_state *old_hvs_state;
+	unsigned int channel;
 	int i;
 
 	old_hvs_state = vc4_hvs_get_old_global_state(state);
-	if (WARN_ON(!old_hvs_state))
+	if (WARN_ON(IS_ERR(old_hvs_state)))
 		return;
 
 	new_hvs_state = vc4_hvs_get_new_global_state(state);
-	if (WARN_ON(!new_hvs_state))
+	if (WARN_ON(IS_ERR(new_hvs_state)))
 		return;
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
@@ -365,6 +365,25 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		vc4_hvs_mask_underrun(dev, vc4_crtc_state->assigned_channel);
 	}
 
+	for (channel = 0; channel < HVS_NUM_CHANNELS; channel++) {
+		struct drm_crtc_commit *commit;
+		int ret;
+
+		if (!old_hvs_state->fifo_state[channel].in_use)
+			continue;
+
+		commit = old_hvs_state->fifo_state[channel].pending_commit;
+		if (!commit)
+			continue;
+
+		ret = drm_crtc_commit_wait(commit);
+		if (ret)
+			drm_err(dev, "Timed out waiting for commit\n");
+
+		drm_crtc_commit_put(commit);
+		old_hvs_state->fifo_state[channel].pending_commit = NULL;
+	}
+
 	if (vc4->hvs->hvs5) {
 		unsigned long core_rate = max_t(unsigned long,
 						500000000,
@@ -372,24 +391,6 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 
 		clk_set_min_rate(hvs->core_clk, core_rate);
 	}
-
-	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
-		struct vc4_crtc_state *vc4_crtc_state =
-			to_vc4_crtc_state(old_crtc_state);
-		unsigned int channel = vc4_crtc_state->assigned_channel;
-		int ret;
-
-		if (channel == VC4_HVS_CHANNEL_DISABLED)
-			continue;
-
-		if (!old_hvs_state->fifo_state[channel].in_use)
-			continue;
-
-		ret = drm_crtc_commit_wait(old_hvs_state->fifo_state[channel].pending_commit);
-		if (ret)
-			drm_err(dev, "Timed out waiting for commit\n");
-	}
-
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	vc4_ctm_commit(vc4, state);
@@ -427,8 +428,8 @@ static int vc4_atomic_commit_setup(struct drm_atomic_state *state)
 	unsigned int i;
 
 	hvs_state = vc4_hvs_get_new_global_state(state);
-	if (!hvs_state)
-		return -EINVAL;
+	if (WARN_ON(IS_ERR(hvs_state)))
+		return PTR_ERR(hvs_state);
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		struct vc4_crtc_state *vc4_crtc_state =
@@ -676,12 +677,6 @@ vc4_hvs_channels_duplicate_state(struct drm_private_obj *obj)
 	for (i = 0; i < HVS_NUM_CHANNELS; i++) {
 		state->fifo_state[i].in_use = old_state->fifo_state[i].in_use;
 		state->fifo_state[i].fifo_load = old_state->fifo_state[i].fifo_load;
-
-		if (!old_state->fifo_state[i].pending_commit)
-			continue;
-
-		state->fifo_state[i].pending_commit =
-			drm_crtc_commit_get(old_state->fifo_state[i].pending_commit);
 	}
 
 	state->core_clock_rate = old_state->core_clock_rate;
@@ -772,8 +767,8 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 	unsigned int i;
 
 	hvs_new_state = vc4_hvs_get_global_state(state);
-	if (!hvs_new_state)
-		return -EINVAL;
+	if (IS_ERR(hvs_new_state))
+		return PTR_ERR(hvs_new_state);
 
 	for (i = 0; i < ARRAY_SIZE(hvs_new_state->fifo_state); i++)
 		if (!hvs_new_state->fifo_state[i].in_use)
@@ -862,8 +857,8 @@ vc4_core_clock_atomic_check(struct drm_atomic_state *state)
 	load_state = to_vc4_load_tracker_state(priv_state);
 
 	hvs_new_state = vc4_hvs_get_global_state(state);
-	if (!hvs_new_state)
-		return -EINVAL;
+	if (IS_ERR(hvs_new_state))
+		return PTR_ERR(hvs_new_state);
 
 	for_each_oldnew_crtc_in_state(state, crtc,
 				      old_crtc_state,

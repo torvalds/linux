@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef DW_SPI_HEADER_H
-#define DW_SPI_HEADER_H
+#ifndef __SPI_DW_H__
+#define __SPI_DW_H__
 
 #include <linux/bits.h>
 #include <linux/completion.h>
@@ -11,7 +11,30 @@
 #include <linux/spi/spi-mem.h>
 #include <linux/bitfield.h>
 
-/* Register offsets */
+/* Synopsys DW SSI IP-core virtual IDs */
+#define DW_PSSI_ID			0
+#define DW_HSSI_ID			1
+
+/* Synopsys DW SSI component versions (FourCC sequence) */
+#define DW_HSSI_102A			0x3130322a
+
+/* DW SSI IP-core ID and version check helpers */
+#define dw_spi_ip_is(_dws, _ip) \
+	((_dws)->ip == DW_ ## _ip ## _ID)
+
+#define __dw_spi_ver_cmp(_dws, _ip, _ver, _op) \
+	(dw_spi_ip_is(_dws, _ip) && (_dws)->ver _op DW_ ## _ip ## _ver)
+
+#define dw_spi_ver_is(_dws, _ip, _ver) __dw_spi_ver_cmp(_dws, _ip, _ver, ==)
+
+#define dw_spi_ver_is_ge(_dws, _ip, _ver) __dw_spi_ver_cmp(_dws, _ip, _ver, >=)
+
+/* DW SPI controller capabilities */
+#define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
+#define DW_SPI_CAP_KEEMBAY_MST		BIT(1)
+#define DW_SPI_CAP_DFS32		BIT(2)
+
+/* Register offsets (Generic for both DWC APB SSI and DWC SSI IP-cores) */
 #define DW_SPI_CTRLR0			0x00
 #define DW_SPI_CTRLR1			0x04
 #define DW_SPI_SSIENR			0x08
@@ -40,91 +63,78 @@
 #define DW_SPI_RX_SAMPLE_DLY		0xf0
 #define DW_SPI_CS_OVERRIDE		0xf4
 
-/* Bit fields in CTRLR0 */
-#define SPI_DFS_OFFSET			0
-#define SPI_DFS_MASK			GENMASK(3, 0)
-#define SPI_DFS32_OFFSET		16
+/* Bit fields in CTRLR0 (DWC APB SSI) */
+#define DW_PSSI_CTRLR0_DFS_MASK			GENMASK(3, 0)
+#define DW_PSSI_CTRLR0_DFS32_MASK		GENMASK(20, 16)
 
-#define SPI_FRF_OFFSET			4
-#define SPI_FRF_SPI			0x0
-#define SPI_FRF_SSP			0x1
-#define SPI_FRF_MICROWIRE		0x2
-#define SPI_FRF_RESV			0x3
+#define DW_PSSI_CTRLR0_FRF_MASK			GENMASK(5, 4)
+#define DW_SPI_CTRLR0_FRF_MOTO_SPI		0x0
+#define DW_SPI_CTRLR0_FRF_TI_SSP		0x1
+#define DW_SPI_CTRLR0_FRF_NS_MICROWIRE		0x2
+#define DW_SPI_CTRLR0_FRF_RESV			0x3
 
-#define SPI_MODE_OFFSET			6
-#define SPI_SCPH_OFFSET			6
-#define SPI_SCOL_OFFSET			7
+#define DW_PSSI_CTRLR0_MODE_MASK		GENMASK(7, 6)
+#define DW_PSSI_CTRLR0_SCPHA			BIT(6)
+#define DW_PSSI_CTRLR0_SCPOL			BIT(7)
 
-#define SPI_TMOD_OFFSET			8
-#define SPI_TMOD_MASK			(0x3 << SPI_TMOD_OFFSET)
-#define	SPI_TMOD_TR			0x0		/* xmit & recv */
-#define SPI_TMOD_TO			0x1		/* xmit only */
-#define SPI_TMOD_RO			0x2		/* recv only */
-#define SPI_TMOD_EPROMREAD		0x3		/* eeprom read mode */
+#define DW_PSSI_CTRLR0_TMOD_MASK		GENMASK(9, 8)
+#define DW_SPI_CTRLR0_TMOD_TR			0x0	/* xmit & recv */
+#define DW_SPI_CTRLR0_TMOD_TO			0x1	/* xmit only */
+#define DW_SPI_CTRLR0_TMOD_RO			0x2	/* recv only */
+#define DW_SPI_CTRLR0_TMOD_EPROMREAD		0x3	/* eeprom read mode */
 
-#define SPI_SLVOE_OFFSET		10
-#define SPI_SRL_OFFSET			11
-#define SPI_CFS_OFFSET			12
+#define DW_PSSI_CTRLR0_SLV_OE			BIT(10)
+#define DW_PSSI_CTRLR0_SRL			BIT(11)
+#define DW_PSSI_CTRLR0_CFS			BIT(12)
 
-/* Bit fields in CTRLR0 based on DWC_ssi_databook.pdf v1.01a */
-#define DWC_SSI_CTRLR0_SRL_OFFSET	13
-#define DWC_SSI_CTRLR0_TMOD_OFFSET	10
-#define DWC_SSI_CTRLR0_TMOD_MASK	GENMASK(11, 10)
-#define DWC_SSI_CTRLR0_SCPOL_OFFSET	9
-#define DWC_SSI_CTRLR0_SCPH_OFFSET	8
-#define DWC_SSI_CTRLR0_FRF_OFFSET	6
-#define DWC_SSI_CTRLR0_DFS_OFFSET	0
+/* Bit fields in CTRLR0 (DWC SSI with AHB interface) */
+#define DW_HSSI_CTRLR0_DFS_MASK			GENMASK(4, 0)
+#define DW_HSSI_CTRLR0_FRF_MASK			GENMASK(7, 6)
+#define DW_HSSI_CTRLR0_SCPHA			BIT(8)
+#define DW_HSSI_CTRLR0_SCPOL			BIT(9)
+#define DW_HSSI_CTRLR0_TMOD_MASK		GENMASK(11, 10)
+#define DW_HSSI_CTRLR0_SRL			BIT(13)
 
 /*
  * For Keem Bay, CTRLR0[31] is used to select controller mode.
  * 0: SSI is slave
  * 1: SSI is master
  */
-#define DWC_SSI_CTRLR0_KEEMBAY_MST	BIT(31)
+#define DW_HSSI_CTRLR0_KEEMBAY_MST		BIT(31)
 
 /* Bit fields in CTRLR1 */
-#define SPI_NDF_MASK			GENMASK(15, 0)
+#define DW_SPI_NDF_MASK				GENMASK(15, 0)
 
 /* Bit fields in SR, 7 bits */
-#define SR_MASK				0x7f		/* cover 7 bits */
-#define SR_BUSY				(1 << 0)
-#define SR_TF_NOT_FULL			(1 << 1)
-#define SR_TF_EMPT			(1 << 2)
-#define SR_RF_NOT_EMPT			(1 << 3)
-#define SR_RF_FULL			(1 << 4)
-#define SR_TX_ERR			(1 << 5)
-#define SR_DCOL				(1 << 6)
+#define DW_SPI_SR_MASK				GENMASK(6, 0)
+#define DW_SPI_SR_BUSY				BIT(0)
+#define DW_SPI_SR_TF_NOT_FULL			BIT(1)
+#define DW_SPI_SR_TF_EMPT			BIT(2)
+#define DW_SPI_SR_RF_NOT_EMPT			BIT(3)
+#define DW_SPI_SR_RF_FULL			BIT(4)
+#define DW_SPI_SR_TX_ERR			BIT(5)
+#define DW_SPI_SR_DCOL				BIT(6)
 
 /* Bit fields in ISR, IMR, RISR, 7 bits */
-#define SPI_INT_TXEI			(1 << 0)
-#define SPI_INT_TXOI			(1 << 1)
-#define SPI_INT_RXUI			(1 << 2)
-#define SPI_INT_RXOI			(1 << 3)
-#define SPI_INT_RXFI			(1 << 4)
-#define SPI_INT_MSTI			(1 << 5)
+#define DW_SPI_INT_MASK				GENMASK(5, 0)
+#define DW_SPI_INT_TXEI				BIT(0)
+#define DW_SPI_INT_TXOI				BIT(1)
+#define DW_SPI_INT_RXUI				BIT(2)
+#define DW_SPI_INT_RXOI				BIT(3)
+#define DW_SPI_INT_RXFI				BIT(4)
+#define DW_SPI_INT_MSTI				BIT(5)
 
 /* Bit fields in DMACR */
-#define SPI_DMA_RDMAE			(1 << 0)
-#define SPI_DMA_TDMAE			(1 << 1)
+#define DW_SPI_DMACR_RDMAE			BIT(0)
+#define DW_SPI_DMACR_TDMAE			BIT(1)
 
-#define SPI_WAIT_RETRIES		5
-#define SPI_BUF_SIZE \
+/* Mem/DMA operations helpers */
+#define DW_SPI_WAIT_RETRIES			5
+#define DW_SPI_BUF_SIZE \
 	(sizeof_field(struct spi_mem_op, cmd.opcode) + \
 	 sizeof_field(struct spi_mem_op, addr.val) + 256)
-#define SPI_GET_BYTE(_val, _idx) \
+#define DW_SPI_GET_BYTE(_val, _idx) \
 	((_val) >> (BITS_PER_BYTE * (_idx)) & 0xff)
-
-enum dw_ssi_type {
-	SSI_MOTO_SPI = 0,
-	SSI_TI_SSP,
-	SSI_NS_MICROWIRE,
-};
-
-/* DW SPI capabilities */
-#define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
-#define DW_SPI_CAP_KEEMBAY_MST		BIT(1)
-#define DW_SPI_CAP_DWC_SSI		BIT(2)
-#define DW_SPI_CAP_DFS32		BIT(3)
 
 /* Slave spi_transfer/spi_mem_op related */
 struct dw_spi_cfg {
@@ -148,6 +158,10 @@ struct dw_spi_dma_ops {
 struct dw_spi {
 	struct spi_controller	*master;
 
+	u32			ip;		/* Synopsys DW SSI IP-core ID */
+	u32			ver;		/* Synopsys component version */
+	u32			caps;		/* DW SPI capabilities */
+
 	void __iomem		*regs;
 	unsigned long		paddr;
 	int			irq;
@@ -155,8 +169,6 @@ struct dw_spi {
 	unsigned int		dfs_offset;     /* CTRLR0 DFS field offset */
 	u32			max_mem_freq;	/* max mem-ops bus freq */
 	u32			max_freq;	/* max bus freq supported */
-
-	u32			caps;		/* DW SPI capabilities */
 
 	u32			reg_io_width;	/* DR I/O width in bytes */
 	u16			bus_num;
@@ -168,7 +180,7 @@ struct dw_spi {
 	unsigned int		tx_len;
 	void			*rx;
 	unsigned int		rx_len;
-	u8			buf[SPI_BUF_SIZE];
+	u8			buf[DW_SPI_BUF_SIZE];
 	int			dma_mapped;
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
@@ -230,18 +242,18 @@ static inline void dw_write_io_reg(struct dw_spi *dws, u32 offset, u32 val)
 	}
 }
 
-static inline void spi_enable_chip(struct dw_spi *dws, int enable)
+static inline void dw_spi_enable_chip(struct dw_spi *dws, int enable)
 {
 	dw_writel(dws, DW_SPI_SSIENR, (enable ? 1 : 0));
 }
 
-static inline void spi_set_clk(struct dw_spi *dws, u16 div)
+static inline void dw_spi_set_clk(struct dw_spi *dws, u16 div)
 {
 	dw_writel(dws, DW_SPI_BAUDR, div);
 }
 
 /* Disable IRQ bits */
-static inline void spi_mask_intr(struct dw_spi *dws, u32 mask)
+static inline void dw_spi_mask_intr(struct dw_spi *dws, u32 mask)
 {
 	u32 new_mask;
 
@@ -250,7 +262,7 @@ static inline void spi_mask_intr(struct dw_spi *dws, u32 mask)
 }
 
 /* Enable IRQ bits */
-static inline void spi_umask_intr(struct dw_spi *dws, u32 mask)
+static inline void dw_spi_umask_intr(struct dw_spi *dws, u32 mask)
 {
 	u32 new_mask;
 
@@ -263,19 +275,19 @@ static inline void spi_umask_intr(struct dw_spi *dws, u32 mask)
  * and CS, then re-enables the controller back. Transmit and receive FIFO
  * buffers are cleared when the device is disabled.
  */
-static inline void spi_reset_chip(struct dw_spi *dws)
+static inline void dw_spi_reset_chip(struct dw_spi *dws)
 {
-	spi_enable_chip(dws, 0);
-	spi_mask_intr(dws, 0xff);
+	dw_spi_enable_chip(dws, 0);
+	dw_spi_mask_intr(dws, 0xff);
 	dw_readl(dws, DW_SPI_ICR);
 	dw_writel(dws, DW_SPI_SER, 0);
-	spi_enable_chip(dws, 1);
+	dw_spi_enable_chip(dws, 1);
 }
 
-static inline void spi_shutdown_chip(struct dw_spi *dws)
+static inline void dw_spi_shutdown_chip(struct dw_spi *dws)
 {
-	spi_enable_chip(dws, 0);
-	spi_set_clk(dws, 0);
+	dw_spi_enable_chip(dws, 0);
+	dw_spi_set_clk(dws, 0);
 }
 
 extern void dw_spi_set_cs(struct spi_device *spi, bool enable);
@@ -299,4 +311,4 @@ static inline void dw_spi_dma_setup_generic(struct dw_spi *dws) {}
 
 #endif /* !CONFIG_SPI_DW_DMA */
 
-#endif /* DW_SPI_HEADER_H */
+#endif /* __SPI_DW_H__ */

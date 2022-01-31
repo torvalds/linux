@@ -56,7 +56,7 @@ struct soc_tplg {
 	const struct firmware *fw;
 
 	/* runtime FW parsing */
-	const u8 *pos;		/* read postion */
+	const u8 *pos;		/* read position */
 	const u8 *hdr_pos;	/* header position */
 	unsigned int pass;	/* pass number */
 
@@ -2700,6 +2700,7 @@ EXPORT_SYMBOL_GPL(snd_soc_tplg_component_load);
 /* remove dynamic controls from the component driver */
 int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 {
+	struct snd_card *card = comp->card->snd_card;
 	struct snd_soc_dobj *dobj, *next_dobj;
 	int pass = SOC_TPLG_PASS_END;
 
@@ -2707,6 +2708,7 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 	while (pass >= SOC_TPLG_PASS_START) {
 
 		/* remove mixer controls */
+		down_write(&card->controls_rwsem);
 		list_for_each_entry_safe(dobj, next_dobj, &comp->dobj_list,
 			list) {
 
@@ -2745,6 +2747,7 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 				break;
 			}
 		}
+		up_write(&card->controls_rwsem);
 		pass--;
 	}
 

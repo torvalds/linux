@@ -156,36 +156,6 @@ static void virtio_gpu_config_changed(struct virtio_device *vdev)
 	schedule_work(&vgdev->config_changed_work);
 }
 
-static __poll_t virtio_gpu_poll(struct file *filp,
-				struct poll_table_struct *wait)
-{
-	struct drm_file *drm_file = filp->private_data;
-	struct virtio_gpu_fpriv *vfpriv = drm_file->driver_priv;
-	struct drm_device *dev = drm_file->minor->dev;
-	struct virtio_gpu_device *vgdev = dev->dev_private;
-	struct drm_pending_event *e = NULL;
-	__poll_t mask = 0;
-
-	if (!vgdev->has_virgl_3d || !vfpriv || !vfpriv->ring_idx_mask)
-		return drm_poll(filp, wait);
-
-	poll_wait(filp, &drm_file->event_wait, wait);
-
-	if (!list_empty(&drm_file->event_list)) {
-		spin_lock_irq(&dev->event_lock);
-		e = list_first_entry(&drm_file->event_list,
-				     struct drm_pending_event, link);
-		drm_file->event_space += e->event->length;
-		list_del(&e->link);
-		spin_unlock_irq(&dev->event_lock);
-
-		kfree(e);
-		mask |= EPOLLIN | EPOLLRDNORM;
-	}
-
-	return mask;
-}
-
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_GPU, VIRTIO_DEV_ANY_ID },
 	{ 0 },
@@ -225,17 +195,7 @@ MODULE_AUTHOR("Dave Airlie <airlied@redhat.com>");
 MODULE_AUTHOR("Gerd Hoffmann <kraxel@redhat.com>");
 MODULE_AUTHOR("Alon Levy");
 
-static const struct file_operations virtio_gpu_driver_fops = {
-	.owner          = THIS_MODULE,
-	.open           = drm_open,
-	.release        = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-	.compat_ioctl   = drm_compat_ioctl,
-	.poll           = virtio_gpu_poll,
-	.read           = drm_read,
-	.llseek         = noop_llseek,
-	.mmap           = drm_gem_mmap
-};
+DEFINE_DRM_GEM_FOPS(virtio_gpu_driver_fops);
 
 static const struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_RENDER | DRIVER_ATOMIC,

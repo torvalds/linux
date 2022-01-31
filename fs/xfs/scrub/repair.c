@@ -25,6 +25,7 @@
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_quota.h"
+#include "xfs_qm.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -912,11 +913,13 @@ xrep_force_quotacheck(
 	if (!(flag & sc->mp->m_qflags))
 		return;
 
+	mutex_lock(&sc->mp->m_quotainfo->qi_quotaofflock);
 	sc->mp->m_qflags &= ~flag;
 	spin_lock(&sc->mp->m_sb_lock);
 	sc->mp->m_sb.sb_qflags &= ~flag;
 	spin_unlock(&sc->mp->m_sb_lock);
 	xfs_log_sb(sc->tp);
+	mutex_unlock(&sc->mp->m_quotainfo->qi_quotaofflock);
 }
 
 /*

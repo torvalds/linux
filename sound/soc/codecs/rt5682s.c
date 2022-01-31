@@ -1367,6 +1367,31 @@ static int rt5682s_hp_amp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rt5682s_stereo1_adc_mixl_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5682s_priv *rt5682s = snd_soc_component_get_drvdata(component);
+	unsigned int delay = 0;
+
+	if (rt5682s->pdata.amic_delay)
+		delay = rt5682s->pdata.amic_delay;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		msleep(delay);
+		snd_soc_component_update_bits(component, RT5682S_STO1_ADC_DIG_VOL,
+			RT5682S_L_MUTE, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_component_update_bits(component, RT5682S_STO1_ADC_DIG_VOL,
+			RT5682S_L_MUTE, RT5682S_L_MUTE);
+		break;
+	}
+
+	return 0;
+}
+
 static int sar_power_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
@@ -1680,9 +1705,10 @@ static const struct snd_soc_dapm_widget rt5682s_dapm_widgets[] = {
 	/* ADC Mixer */
 	SND_SOC_DAPM_SUPPLY("ADC Stereo1 Filter", RT5682S_PWR_DIG_2,
 		RT5682S_PWR_ADC_S1F_BIT, 0, set_filter_clk, SND_SOC_DAPM_PRE_PMU),
-	SND_SOC_DAPM_MIXER("Stereo1 ADC MIXL", RT5682S_STO1_ADC_DIG_VOL,
-		RT5682S_L_MUTE_SFT, 1, rt5682s_sto1_adc_l_mix,
-		ARRAY_SIZE(rt5682s_sto1_adc_l_mix)),
+	SND_SOC_DAPM_MIXER_E("Stereo1 ADC MIXL", SND_SOC_NOPM, 0, 0,
+		rt5682s_sto1_adc_l_mix, ARRAY_SIZE(rt5682s_sto1_adc_l_mix),
+		rt5682s_stereo1_adc_mixl_event,
+		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_MIXER("Stereo1 ADC MIXR", RT5682S_STO1_ADC_DIG_VOL,
 		RT5682S_R_MUTE_SFT, 1, rt5682s_sto1_adc_r_mix,
 		ARRAY_SIZE(rt5682s_sto1_adc_r_mix)),
@@ -2693,6 +2719,8 @@ static int rt5682s_register_dai_clks(struct snd_soc_component *component)
 
 	for (i = 0; i < RT5682S_DAI_NUM_CLKS; ++i) {
 		struct clk_init_data init = { };
+		struct clk_parent_data parent_data;
+		const struct clk_hw *parent;
 
 		dai_clk_hw = &rt5682s->dai_clks_hw[i];
 
@@ -2700,17 +2728,17 @@ static int rt5682s_register_dai_clks(struct snd_soc_component *component)
 		case RT5682S_DAI_WCLK_IDX:
 			/* Make MCLK the parent of WCLK */
 			if (rt5682s->mclk) {
-				init.parent_data = &(struct clk_parent_data){
+				parent_data = (struct clk_parent_data){
 					.fw_name = "mclk",
 				};
+				init.parent_data = &parent_data;
 				init.num_parents = 1;
 			}
 			break;
 		case RT5682S_DAI_BCLK_IDX:
 			/* Make WCLK the parent of BCLK */
-			init.parent_hws = &(const struct clk_hw *){
-				&rt5682s->dai_clks_hw[RT5682S_DAI_WCLK_IDX]
-			};
+			parent = &rt5682s->dai_clks_hw[RT5682S_DAI_WCLK_IDX];
+			init.parent_hws = &parent;
 			init.num_parents = 1;
 			break;
 		default:
@@ -2883,6 +2911,8 @@ static int rt5682s_parse_dt(struct rt5682s_priv *rt5682s, struct device *dev)
 		&rt5682s->pdata.dmic_clk_rate);
 	device_property_read_u32(dev, "realtek,dmic-delay-ms",
 		&rt5682s->pdata.dmic_delay);
+	device_property_read_u32(dev, "realtek,amic-delay-ms",
+		&rt5682s->pdata.amic_delay);
 
 	rt5682s->pdata.ldo1_en = of_get_named_gpio(dev->of_node,
 		"realtek,ldo1-en-gpios", 0);

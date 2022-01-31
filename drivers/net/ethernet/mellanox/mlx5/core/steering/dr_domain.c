@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 Mellanox Technologies. */
 
 #include <linux/mlx5/eswitch.h>
+#include <linux/err.h>
 #include "dr_types.h"
 
 #define DR_DOMAIN_SW_STEERING_SUPPORTED(dmn, dmn_type)	\
@@ -72,9 +73,9 @@ static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 	}
 
 	dmn->uar = mlx5_get_uars_page(dmn->mdev);
-	if (!dmn->uar) {
+	if (IS_ERR(dmn->uar)) {
 		mlx5dr_err(dmn, "Couldn't allocate UAR\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(dmn->uar);
 		goto clean_pd;
 	}
 
@@ -163,9 +164,7 @@ static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 
 static int dr_domain_query_esw_mngr(struct mlx5dr_domain *dmn)
 {
-	return dr_domain_query_vport(dmn,
-				     dmn->info.caps.is_ecpf ? MLX5_VPORT_ECPF : 0,
-				     false,
+	return dr_domain_query_vport(dmn, 0, false,
 				     &dmn->info.caps.vports.esw_manager_caps);
 }
 
@@ -396,7 +395,7 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 	}
 
 	dr_domain_init_csum_recalc_fts(dmn);
-
+	mlx5dr_dbg_init_dump(dmn);
 	return dmn;
 
 uninit_caps:
@@ -432,11 +431,12 @@ int mlx5dr_domain_sync(struct mlx5dr_domain *dmn, u32 flags)
 
 int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 {
-	if (refcount_read(&dmn->refcount) > 1)
+	if (WARN_ON_ONCE(refcount_read(&dmn->refcount) > 1))
 		return -EBUSY;
 
 	/* make sure resources are not used by the hardware */
 	mlx5dr_cmd_sync_steering(dmn->mdev);
+	mlx5dr_dbg_uninit_dump(dmn);
 	dr_domain_uninit_csum_recalc_fts(dmn);
 	dr_domain_uninit_resources(dmn);
 	dr_domain_caps_uninit(dmn);

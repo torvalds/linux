@@ -25,6 +25,7 @@
 
 #include "test_tcpnotify.h"
 #include "trace_helpers.h"
+#include "testing_helpers.h"
 
 #define SOCKET_BUFFER_SIZE (getpagesize() < 8192L ? getpagesize() : 8192L)
 
@@ -71,7 +72,6 @@ int main(int argc, char **argv)
 {
 	const char *file = "test_tcpnotify_kern.o";
 	struct bpf_map *perf_map, *global_map;
-	struct perf_buffer_opts pb_opts = {};
 	struct tcpnotify_globals g = {0};
 	struct perf_buffer *pb = NULL;
 	const char *cg_path = "/foo";
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 	if (cg_fd < 0)
 		goto err;
 
-	if (bpf_prog_load(file, BPF_PROG_TYPE_SOCK_OPS, &obj, &prog_fd)) {
+	if (bpf_prog_test_load(file, BPF_PROG_TYPE_SOCK_OPS, &obj, &prog_fd)) {
 		printf("FAILED: load_bpf_file failed for: %s\n", file);
 		goto err;
 	}
@@ -116,8 +116,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	pb_opts.sample_cb = dummyfn;
-	pb = perf_buffer__new(bpf_map__fd(perf_map), 8, &pb_opts);
+	pb = perf_buffer__new(bpf_map__fd(perf_map), 8, dummyfn, NULL, NULL, NULL);
 	if (!pb)
 		goto err;
 

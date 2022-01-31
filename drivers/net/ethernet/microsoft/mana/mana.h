@@ -289,6 +289,8 @@ struct mana_rxq {
 
 	struct mana_cq rx_cq;
 
+	struct completion fence_event;
+
 	struct net_device *ndev;
 
 	/* Total number of receive buffers to be allocated */
@@ -297,6 +299,9 @@ struct mana_rxq {
 	u32 buf_index;
 
 	struct mana_stats stats;
+
+	struct bpf_prog __rcu *bpf_prog;
+	struct xdp_rxq_info xdp_rxq;
 
 	/* MUST BE THE LAST MEMBER:
 	 * Each receive buffer has an associated mana_recv_buf_oob.
@@ -353,6 +358,8 @@ struct mana_port_context {
 	/* This points to an array of num_queues of RQ pointers. */
 	struct mana_rxq **rxqs;
 
+	struct bpf_prog *bpf_prog;
+
 	/* Create num_queues EQs, SQs, SQ-CQs, RQs and RQ-CQs, respectively. */
 	unsigned int max_queues;
 	unsigned int num_queues;
@@ -367,6 +374,7 @@ struct mana_port_context {
 	struct mana_ethtool_stats eth_stats;
 };
 
+int mana_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int mana_config_rss(struct mana_port_context *ac, enum TRI_STATE rx,
 		    bool update_hash, bool update_tab);
 
@@ -376,6 +384,13 @@ int mana_detach(struct net_device *ndev, bool from_close);
 
 int mana_probe(struct gdma_dev *gd, bool resuming);
 void mana_remove(struct gdma_dev *gd, bool suspending);
+
+void mana_xdp_tx(struct sk_buff *skb, struct net_device *ndev);
+u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
+		 struct xdp_buff *xdp, void *buf_va, uint pkt_len);
+struct bpf_prog *mana_xdp_get(struct mana_port_context *apc);
+void mana_chn_setxdp(struct mana_port_context *apc, struct bpf_prog *prog);
+int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 

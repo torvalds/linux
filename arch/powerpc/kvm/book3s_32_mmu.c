@@ -337,7 +337,7 @@ static void kvmppc_mmu_book3s_32_mtsrin(struct kvm_vcpu *vcpu, u32 srnum,
 
 static void kvmppc_mmu_book3s_32_tlbie(struct kvm_vcpu *vcpu, ulong ea, bool large)
 {
-	int i;
+	unsigned long i;
 	struct kvm_vcpu *v;
 
 	/* flush this VA on all cpus */

@@ -26,6 +26,9 @@ enum dpu_hw_intr_reg {
 	MDP_AD4_1_INTR,
 	MDP_INTF0_7xxx_INTR,
 	MDP_INTF1_7xxx_INTR,
+	MDP_INTF2_7xxx_INTR,
+	MDP_INTF3_7xxx_INTR,
+	MDP_INTF4_7xxx_INTR,
 	MDP_INTF5_7xxx_INTR,
 	MDP_INTR_MAX,
 };

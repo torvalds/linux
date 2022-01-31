@@ -30,8 +30,6 @@ config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	imply PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
-	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
 	select HAVE_ARCH_VMAP_STACK
 
 config PPC_85xx
@@ -42,8 +40,7 @@ config PPC_8xx
 	bool "Freescale 8xx"
 	select ARCH_SUPPORTS_HUGETLBFS
 	select FSL_SOC
-	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
+	select PPC_KUEP
 	select HAVE_ARCH_VMAP_STACK
 	select HUGETLBFS
 
@@ -53,6 +50,7 @@ config 40x
 	select PPC_UDBG_16550
 	select 4xx_SOC
 	select HAVE_PCI
+	select PPC_KUEP if PPC_KUAP
 
 config 44x
 	bool "AMCC 44x, 46x or 47x"
@@ -61,7 +59,7 @@ config 44x
 	select 4xx_SOC
 	select HAVE_PCI
 	select PHYS_64BIT
-	select PPC_HAVE_KUEP
+	select PPC_KUEP
 
 endchoice
 
@@ -105,9 +103,7 @@ config PPC_BOOK3S_64
 	select HAVE_MOVE_PMD
 	select HAVE_MOVE_PUD
 	select IRQ_WORK
-	select PPC_MM_SLICES
-	select PPC_HAVE_KUEP
-	select PPC_HAVE_KUAP
+	select PPC_64S_HASH_MMU if !PPC_RADIX_MMU
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -130,11 +126,13 @@ choice
 config GENERIC_CPU
 	bool "Generic (POWER4 and above)"
 	depends on PPC64 && !CPU_LITTLE_ENDIAN
+	select PPC_64S_HASH_MMU if PPC_BOOK3S_64
 
 config GENERIC_CPU
 	bool "Generic (POWER8 and above)"
 	depends on PPC64 && CPU_LITTLE_ENDIAN
 	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_64S_HASH_MMU
 
 config GENERIC_CPU
 	bool "Generic 32 bits powerpc"
@@ -143,24 +141,29 @@ config GENERIC_CPU
 config CELL_CPU
 	bool "Cell Broadband Engine"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+	select PPC_64S_HASH_MMU
 
 config POWER5_CPU
 	bool "POWER5"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+	select PPC_64S_HASH_MMU
 
 config POWER6_CPU
 	bool "POWER6"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+	select PPC_64S_HASH_MMU
 
 config POWER7_CPU
 	bool "POWER7"
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_64S_HASH_MMU
 
 config POWER8_CPU
 	bool "POWER8"
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_64S_HASH_MMU
 
 config POWER9_CPU
 	bool "POWER9"
@@ -278,6 +281,11 @@ config BOOKE
 	depends on E500 || 44x || PPC_BOOK3E
 	default y
 
+config BOOKE_OR_40x
+	bool
+	depends on BOOKE || 40x
+	default y
+
 config FSL_BOOKE
 	bool
 	depends on E500 && PPC32
@@ -290,6 +298,7 @@ config PPC_FSL_BOOK3E
 	select FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
+	select PPC_KUEP
 	default y if FSL_BOOKE
 
 config PTE_64BIT
@@ -364,6 +373,22 @@ config SPE
 
 	  If in doubt, say Y here.
 
+config PPC_64S_HASH_MMU
+	bool "Hash MMU Support"
+	depends on PPC_BOOK3S_64
+	select PPC_MM_SLICES
+	default y
+	help
+	  Enable support for the Power ISA Hash style MMU. This is implemented
+	  by all IBM Power and other 64-bit Book3S CPUs before ISA v3.0. The
+	  OpenPOWER ISA does not mandate the hash MMU and some CPUs do not
+	  implement it (e.g., Microwatt).
+
+	  Note that POWER9 PowerVM platforms only support the hash
+	  MMU. From POWER10 radix is also supported by PowerVM.
+
+	  If you're unsure, say Y.
+
 config PPC_RADIX_MMU
 	bool "Radix MMU Support"
 	depends on PPC_BOOK3S_64
@@ -375,7 +400,8 @@ config PPC_RADIX_MMU
 	  you can probably disable this.
 
 config PPC_RADIX_MMU_DEFAULT
-	bool "Default to using the Radix MMU when possible"
+	bool "Default to using the Radix MMU when possible" if PPC_64S_HASH_MMU
+	depends on PPC_BOOK3S_64
 	depends on PPC_RADIX_MMU
 	default y
 	help
@@ -387,24 +413,16 @@ config PPC_RADIX_MMU_DEFAULT
 
 	  If you're unsure, say Y.
 
-config PPC_HAVE_KUEP
-	bool
-
 config PPC_KUEP
-	bool "Kernel Userspace Execution Prevention"
-	depends on PPC_HAVE_KUEP
-	default y
+	bool "Kernel Userspace Execution Prevention" if !40x
+	default y if !40x
 	help
 	  Enable support for Kernel Userspace Execution Prevention (KUEP)
 
 	  If you're unsure, say Y.
 
-config PPC_HAVE_KUAP
-	bool
-
 config PPC_KUAP
 	bool "Kernel Userspace Access Protection"
-	depends on PPC_HAVE_KUAP
 	default y
 	help
 	  Enable support for Kernel Userspace Access Protection (KUAP)
@@ -413,7 +431,7 @@ config PPC_KUAP
 
 config PPC_KUAP_DEBUG
 	bool "Extra debugging for Kernel Userspace Access Protection"
-	depends on PPC_KUAP && (PPC_RADIX_MMU || PPC32)
+	depends on PPC_KUAP
 	help
 	  Add extra debugging for Kernel Userspace Access Protection (KUAP)
 	  If you're unsure, say N.

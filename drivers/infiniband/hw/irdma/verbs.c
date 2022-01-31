@@ -21,7 +21,8 @@ static int irdma_query_device(struct ib_device *ibdev,
 		return -EINVAL;
 
 	memset(props, 0, sizeof(*props));
-	ether_addr_copy((u8 *)&props->sys_image_guid, iwdev->netdev->dev_addr);
+	addrconf_addr_eui48((u8 *)&props->sys_image_guid,
+			    iwdev->netdev->dev_addr);
 	props->fw_ver = (u64)irdma_fw_major_ver(&rf->sc_dev) << 32 |
 			irdma_fw_minor_ver(&rf->sc_dev);
 	props->device_cap_flags = iwdev->device_cap_flags;
@@ -1170,6 +1171,10 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			udp_info->ttl = attr->ah_attr.grh.hop_limit;
 			udp_info->flow_label = attr->ah_attr.grh.flow_label;
 			udp_info->tos = attr->ah_attr.grh.traffic_class;
+			udp_info->src_port =
+				rdma_get_udp_sport(udp_info->flow_label,
+						   ibqp->qp_num,
+						   roce_info->dest_qp);
 			irdma_qp_rem_qos(&iwqp->sc_qp);
 			dev->ws_remove(iwqp->sc_qp.vsi, ctx_info->user_pri);
 			ctx_info->user_pri = rt_tos2priority(udp_info->tos);
@@ -3584,18 +3589,31 @@ static int irdma_req_notify_cq(struct ib_cq *ibcq,
 	struct irdma_cq *iwcq;
 	struct irdma_cq_uk *ukcq;
 	unsigned long flags;
-	enum irdma_cmpl_notify cq_notify = IRDMA_CQ_COMPL_EVENT;
+	enum irdma_cmpl_notify cq_notify;
+	bool promo_event = false;
+	int ret = 0;
 
+	cq_notify = notify_flags == IB_CQ_SOLICITED ?
+		    IRDMA_CQ_COMPL_SOLICITED : IRDMA_CQ_COMPL_EVENT;
 	iwcq = to_iwcq(ibcq);
 	ukcq = &iwcq->sc_cq.cq_uk;
-	if (notify_flags == IB_CQ_SOLICITED)
-		cq_notify = IRDMA_CQ_COMPL_SOLICITED;
 
 	spin_lock_irqsave(&iwcq->lock, flags);
-	irdma_uk_cq_request_notification(ukcq, cq_notify);
+	/* Only promote to arm the CQ for any event if the last arm event was solicited. */
+	if (iwcq->last_notify == IRDMA_CQ_COMPL_SOLICITED && notify_flags != IB_CQ_SOLICITED)
+		promo_event = true;
+
+	if (!iwcq->armed || promo_event) {
+		iwcq->armed = true;
+		iwcq->last_notify = cq_notify;
+		irdma_uk_cq_request_notification(ukcq, cq_notify);
+	}
+
+	if ((notify_flags & IB_CQ_REPORT_MISSED_EVENTS) && !irdma_cq_empty(iwcq))
+		ret = 1;
 	spin_unlock_irqrestore(&iwcq->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int irdma_roce_port_immutable(struct ib_device *ibdev, u32 port_num,
@@ -4308,24 +4326,6 @@ static enum rdma_link_layer irdma_get_link_layer(struct ib_device *ibdev,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-static __be64 irdma_mac_to_guid(struct net_device *ndev)
-{
-	const unsigned char *mac = ndev->dev_addr;
-	__be64 guid;
-	unsigned char *dst = (unsigned char *)&guid;
-
-	dst[0] = mac[0] ^ 2;
-	dst[1] = mac[1];
-	dst[2] = mac[2];
-	dst[3] = 0xff;
-	dst[4] = 0xfe;
-	dst[5] = mac[3];
-	dst[6] = mac[4];
-	dst[7] = mac[5];
-
-	return guid;
-}
-
 static const struct ib_device_ops irdma_roce_dev_ops = {
 	.attach_mcast = irdma_attach_mcast,
 	.create_ah = irdma_create_ah,
@@ -4395,7 +4395,8 @@ static const struct ib_device_ops irdma_dev_ops = {
 static void irdma_init_roce_device(struct irdma_device *iwdev)
 {
 	iwdev->ibdev.node_type = RDMA_NODE_IB_CA;
-	iwdev->ibdev.node_guid = irdma_mac_to_guid(iwdev->netdev);
+	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
+			    iwdev->netdev->dev_addr);
 	ib_set_device_ops(&iwdev->ibdev, &irdma_roce_dev_ops);
 }
 
@@ -4408,7 +4409,8 @@ static int irdma_init_iw_device(struct irdma_device *iwdev)
 	struct net_device *netdev = iwdev->netdev;
 
 	iwdev->ibdev.node_type = RDMA_NODE_RNIC;
-	ether_addr_copy((u8 *)&iwdev->ibdev.node_guid, netdev->dev_addr);
+	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
+			    netdev->dev_addr);
 	iwdev->ibdev.ops.iw_add_ref = irdma_qp_add_ref;
 	iwdev->ibdev.ops.iw_rem_ref = irdma_qp_rem_ref;
 	iwdev->ibdev.ops.iw_get_qp = irdma_get_qp;

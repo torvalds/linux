@@ -711,4 +711,7 @@ static inline int mtd_is_bitflip_or_eccerr(int err) {
 
 unsigned mtd_mmap_capabilities(struct mtd_info *mtd);
 
+extern char *mtd_expert_analysis_warning;
+extern bool mtd_expert_analysis_mode;
+
 #endif /* __MTD_MTD_H__ */

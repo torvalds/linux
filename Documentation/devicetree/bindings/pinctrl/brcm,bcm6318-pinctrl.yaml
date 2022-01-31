@@ -37,6 +37,9 @@ patternProperties:
         enum: [ gpio0, gpio1, gpio2, gpio3, gpio4, gpio5, gpio6, gpio7,
                 gpio8, gpio9, gpio10, gpio11, gpio12, gpio13, gpio40 ]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg

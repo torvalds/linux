@@ -389,22 +389,6 @@ static inline struct smack_known *smk_of_task(const struct task_smack *tsp)
 	return tsp->smk_task;
 }
 
-static inline struct smack_known *smk_of_task_struct_subj(
-						const struct task_struct *t)
-{
-	struct smack_known *skp;
-	const struct cred *cred;
-
-	rcu_read_lock();
-
-	cred = rcu_dereference(t->cred);
-	skp = smk_of_task(smack_cred(cred));
-
-	rcu_read_unlock();
-
-	return skp;
-}
-
 static inline struct smack_known *smk_of_task_struct_obj(
 						const struct task_struct *t)
 {

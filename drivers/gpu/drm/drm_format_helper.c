@@ -409,6 +409,61 @@ void drm_fb_xrgb8888_to_rgb888_toio(void __iomem *dst, unsigned int dst_pitch,
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888_toio);
 
+static void drm_fb_xrgb8888_to_xrgb2101010_line(u32 *dbuf, const u32 *sbuf,
+						unsigned int pixels)
+{
+	unsigned int x;
+	u32 val32;
+
+	for (x = 0; x < pixels; x++) {
+		val32 = ((sbuf[x] & 0x000000FF) << 2) |
+			((sbuf[x] & 0x0000FF00) << 4) |
+			((sbuf[x] & 0x00FF0000) << 6);
+		*dbuf++ = val32 | ((val32 >> 8) & 0x00300C03);
+	}
+}
+
+/**
+ * drm_fb_xrgb8888_to_xrgb2101010_toio - Convert XRGB8888 to XRGB2101010 clip
+ * buffer
+ * @dst: XRGB2101010 destination buffer (iomem)
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
+ * @vaddr: XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * Drivers can use this function for XRGB2101010 devices that don't natively
+ * support XRGB8888.
+ */
+void drm_fb_xrgb8888_to_xrgb2101010_toio(void __iomem *dst,
+					 unsigned int dst_pitch, const void *vaddr,
+					 const struct drm_framebuffer *fb,
+					 const struct drm_rect *clip)
+{
+	size_t linepixels = clip->x2 - clip->x1;
+	size_t dst_len = linepixels * sizeof(u32);
+	unsigned int y, lines = clip->y2 - clip->y1;
+	void *dbuf;
+
+	if (!dst_pitch)
+		dst_pitch = dst_len;
+
+	dbuf = kmalloc(dst_len, GFP_KERNEL);
+	if (!dbuf)
+		return;
+
+	vaddr += clip_offset(clip, fb->pitches[0], sizeof(u32));
+	for (y = 0; y < lines; y++) {
+		drm_fb_xrgb8888_to_xrgb2101010_line(dbuf, vaddr, linepixels);
+		memcpy_toio(dst, dbuf, dst_len);
+		vaddr += fb->pitches[0];
+		dst += dst_pitch;
+	}
+
+	kfree(dbuf);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_xrgb2101010_toio);
+
 /**
  * drm_fb_xrgb8888_to_gray8 - Convert XRGB8888 to grayscale
  * @dst: 8-bit grayscale destination buffer
@@ -500,6 +555,10 @@ int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_for
 		fb_format = DRM_FORMAT_XRGB8888;
 	if (dst_format == DRM_FORMAT_ARGB8888)
 		dst_format = DRM_FORMAT_XRGB8888;
+	if (fb_format == DRM_FORMAT_ARGB2101010)
+		fb_format = DRM_FORMAT_XRGB2101010;
+	if (dst_format == DRM_FORMAT_ARGB2101010)
+		dst_format = DRM_FORMAT_XRGB2101010;
 
 	if (dst_format == fb_format) {
 		drm_fb_memcpy_toio(dst, dst_pitch, vmap, fb, clip);
@@ -513,6 +572,11 @@ int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_for
 	} else if (dst_format == DRM_FORMAT_RGB888) {
 		if (fb_format == DRM_FORMAT_XRGB8888) {
 			drm_fb_xrgb8888_to_rgb888_toio(dst, dst_pitch, vmap, fb, clip);
+			return 0;
+		}
+	} else if (dst_format == DRM_FORMAT_XRGB2101010) {
+		if (fb_format == DRM_FORMAT_XRGB8888) {
+			drm_fb_xrgb8888_to_xrgb2101010_toio(dst, dst_pitch, vmap, fb, clip);
 			return 0;
 		}
 	}

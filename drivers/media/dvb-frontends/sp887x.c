@@ -140,15 +140,13 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 	u8 buf [BLOCKSIZE + 2];
 	int i;
 	int fw_size = fw->size;
-	const unsigned char *mem = fw->data;
+	const unsigned char *mem = fw->data + 10;
 
 	dprintk("%s\n", __func__);
 
 	/* ignore the first 10 bytes, then we expect 0x4000 bytes of firmware */
 	if (fw_size < FW_SIZE + 10)
 		return -ENODEV;
-
-	mem = fw->data + 10;
 
 	/* soft reset */
 	sp887x_writereg(state, 0xf1a, 0x000);

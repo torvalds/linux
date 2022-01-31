@@ -178,7 +178,6 @@ struct aic_irq_chip {
 	struct irq_domain *hw_domain;
 	struct irq_domain *ipi_domain;
 	int nr_hw;
-	int ipi_hwirq;
 };
 
 static DEFINE_PER_CPU(uint32_t, aic_fiq_unmasked);
@@ -707,7 +706,7 @@ static const struct irq_domain_ops aic_ipi_domain_ops = {
 	.free = aic_ipi_free,
 };
 
-static int aic_init_smp(struct aic_irq_chip *irqc, struct device_node *node)
+static int __init aic_init_smp(struct aic_irq_chip *irqc, struct device_node *node)
 {
 	struct irq_domain *ipi_domain;
 	int base_ipi;

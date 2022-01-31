@@ -231,9 +231,7 @@ static void __mctp_key_unlock_drop(struct mctp_sk_key *key, struct net *net,
 	/* and one for the local reference */
 	mctp_key_unref(key);
 
-	if (skb)
-		kfree_skb(skb);
-
+	kfree_skb(skb);
 }
 
 #ifdef CONFIG_MCTP_FLOWS
@@ -892,8 +890,7 @@ out_release:
 	if (!ext_rt)
 		mctp_route_release(rt);
 
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 
 	return rc;
 
@@ -952,7 +949,7 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 }
 
 static int mctp_route_remove(struct mctp_dev *mdev, mctp_eid_t daddr_start,
-			     unsigned int daddr_extent)
+			     unsigned int daddr_extent, unsigned char type)
 {
 	struct net *net = dev_net(mdev->dev);
 	struct mctp_route *rt, *tmp;
@@ -969,7 +966,8 @@ static int mctp_route_remove(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 
 	list_for_each_entry_safe(rt, tmp, &net->mctp.routes, list) {
 		if (rt->dev == mdev &&
-		    rt->min == daddr_start && rt->max == daddr_end) {
+		    rt->min == daddr_start && rt->max == daddr_end &&
+		    rt->type == type) {
 			list_del_rcu(&rt->list);
 			/* TODO: immediate RTM_DELROUTE */
 			mctp_route_release(rt);
@@ -987,7 +985,7 @@ int mctp_route_add_local(struct mctp_dev *mdev, mctp_eid_t addr)
 
 int mctp_route_remove_local(struct mctp_dev *mdev, mctp_eid_t addr)
 {
-	return mctp_route_remove(mdev, addr, 0);
+	return mctp_route_remove(mdev, addr, 0, RTN_LOCAL);
 }
 
 /* removes all entries for a given device */
@@ -1195,7 +1193,7 @@ static int mctp_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rtm->rtm_type != RTN_UNICAST)
 		return -EINVAL;
 
-	rc = mctp_route_remove(mdev, daddr_start, rtm->rtm_dst_len);
+	rc = mctp_route_remove(mdev, daddr_start, rtm->rtm_dst_len, RTN_UNICAST);
 	return rc;
 }
 

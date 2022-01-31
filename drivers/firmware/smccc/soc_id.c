@@ -50,7 +50,7 @@ static int __init smccc_soc_init(void)
 	arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,
 			     ARM_SMCCC_ARCH_SOC_ID, &res);
 
-	if (res.a0 == SMCCC_RET_NOT_SUPPORTED) {
+	if ((int)res.a0 == SMCCC_RET_NOT_SUPPORTED) {
 		pr_info("ARCH_SOC_ID not implemented, skipping ....\n");
 		return 0;
 	}

@@ -43,7 +43,7 @@ struct tegra_plane_legacy_blending_state {
 struct tegra_plane_state {
 	struct drm_plane_state base;
 
-	struct sg_table *sgt[3];
+	struct host1x_bo_mapping *map[3];
 	dma_addr_t iova[3];
 
 	struct tegra_bo_tiling tiling;

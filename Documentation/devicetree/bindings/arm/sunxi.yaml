@@ -808,6 +808,11 @@ properties:
           - const: oranth,tanix-tx6
           - const: allwinner,sun50i-h6
 
+      - description: Tanix TX6 mini
+        items:
+          - const: oranth,tanix-tx6-mini
+          - const: allwinner,sun50i-h6
+
       - description: TBS A711 Tablet
         items:
           - const: tbs-biometrics,a711

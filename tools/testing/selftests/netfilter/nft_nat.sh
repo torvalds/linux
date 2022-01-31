@@ -759,19 +759,21 @@ test_port_shadow()
 	local result=""
 	local logmsg=""
 
-	echo ROUTER | ip netns exec "$ns0" nc -w 5 -u -l -p 1405 >/dev/null 2>&1 &
-	nc_r=$!
-
-	echo CLIENT | ip netns exec "$ns2" nc -w 5 -u -l -p 1405 >/dev/null 2>&1 &
-	nc_c=$!
-
 	# make shadow entry, from client (ns2), going to (ns1), port 41404, sport 1405.
-	echo "fake-entry" | ip netns exec "$ns2" nc -w 1 -p 1405 -u "$daddrc" 41404 > /dev/null
+	echo "fake-entry" | ip netns exec "$ns2" timeout 1 socat -u STDIN UDP:"$daddrc":41404,sourceport=1405
+
+	echo ROUTER | ip netns exec "$ns0" timeout 5 socat -u STDIN UDP4-LISTEN:1405 &
+	sc_r=$!
+
+	echo CLIENT | ip netns exec "$ns2" timeout 5 socat -u STDIN UDP4-LISTEN:1405,reuseport &
+	sc_c=$!
+
+	sleep 0.3
 
 	# ns1 tries to connect to ns0:1405.  With default settings this should connect
 	# to client, it matches the conntrack entry created above.
 
-	result=$(echo "" | ip netns exec "$ns1" nc -w 1 -p 41404 -u "$daddrs" 1405)
+	result=$(echo "data" | ip netns exec "$ns1" timeout 1 socat - UDP:"$daddrs":1405,sourceport=41404)
 
 	if [ "$result" = "$expect" ] ;then
 		echo "PASS: portshadow test $test: got reply from ${expect}${logmsg}"
@@ -780,7 +782,7 @@ test_port_shadow()
 		ret=1
 	fi
 
-	kill $nc_r $nc_c 2>/dev/null
+	kill $sc_r $sc_c 2>/dev/null
 
 	# flush udp entries for next test round, if any
 	ip netns exec "$ns0" conntrack -F >/dev/null 2>&1
@@ -816,11 +818,10 @@ table $family raw {
 	chain prerouting {
 		type filter hook prerouting priority -300; policy accept;
 		meta iif veth0 udp dport 1405 notrack
-		udp dport 1405 notrack
 	}
 	chain output {
 		type filter hook output priority -300; policy accept;
-		udp sport 1405 notrack
+		meta oif veth0 udp sport 1405 notrack
 	}
 }
 EOF
@@ -851,6 +852,18 @@ test_port_shadowing()
 {
 	local family="ip"
 
+	conntrack -h >/dev/null 2>&1
+	if [ $? -ne 0 ];then
+		echo "SKIP: Could not run nat port shadowing test without conntrack tool"
+		return
+	fi
+
+	socat -h > /dev/null 2>&1
+	if [ $? -ne 0 ];then
+		echo "SKIP: Could not run nat port shadowing test without socat tool"
+		return
+	fi
+
 	ip netns exec "$ns0" sysctl net.ipv4.conf.veth0.forwarding=1 > /dev/null
 	ip netns exec "$ns0" sysctl net.ipv4.conf.veth1.forwarding=1 > /dev/null
 
@@ -867,8 +880,9 @@ EOF
 		return $ksft_skip
 	fi
 
-	# test default behaviour. Packet from ns1 to ns0 is redirected to ns2.
-	test_port_shadow "default" "CLIENT"
+	# test default behaviour. Packet from ns1 to ns0 is not redirected
+	# due to automatic port translation.
+	test_port_shadow "default" "ROUTER"
 
 	# test packet filter based mitigation: prevent forwarding of
 	# packets claiming to come from the service port.

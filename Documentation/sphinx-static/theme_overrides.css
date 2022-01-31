@@ -1,14 +1,14 @@
 /* -*- coding: utf-8; mode: css -*-
  *
  * Sphinx HTML theme customization: read the doc
- *
+ * Please don't add any color definition here, as the theme should
+ * work for both normal and dark modes.
  */
 
 /* Improve contrast and increase size for easier reading. */
 
 body {
 	font-family: serif;
-	color: black;
 	font-size: 100%;
 }
 
@@ -16,17 +16,8 @@ h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend {
 	font-family: sans-serif;
 }
 
-.wy-menu-vertical li.current a {
-	color: #505050;
-}
-
-.wy-menu-vertical li.on a, .wy-menu-vertical li.current > a {
-	color: #303030;
-}
-
 div[class^="highlight"] pre {
 	font-family: monospace;
-	color: black;
 	font-size: 100%;
 }
 
@@ -104,13 +95,10 @@ div[class^="highlight"] pre {
     /* Menu selection and keystrokes */
 
     span.menuselection {
-	color: blue;
 	font-family: "Courier New", Courier, monospace
     }
 
     code.kbd, code.kbd span {
-	color: white;
-	background-color: darkblue;
 	font-weight: bold;
 	font-family: "Courier New", Courier, monospace
     }

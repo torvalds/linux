@@ -237,7 +237,8 @@ static struct gsi_trans *ipa_endpoint_trans_alloc(struct ipa_endpoint *endpoint,
 }
 
 /* suspend_delay represents suspend for RX, delay for TX endpoints.
- * Note that suspend is not supported starting with IPA v4.0.
+ * Note that suspend is not supported starting with IPA v4.0, and
+ * delay mode should not be used starting with IPA v4.2.
  */
 static bool
 ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
@@ -248,11 +249,8 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 	u32 mask;
 	u32 val;
 
-	/* Suspend is not supported for IPA v4.0+.  Delay doesn't work
-	 * correctly on IPA v4.2.
-	 */
 	if (endpoint->toward_ipa)
-		WARN_ON(ipa->version == IPA_VERSION_4_2);
+		WARN_ON(ipa->version >= IPA_VERSION_4_2);
 	else
 		WARN_ON(ipa->version >= IPA_VERSION_4_0);
 
@@ -270,15 +268,15 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 	return state;
 }
 
-/* We currently don't care what the previous state was for delay mode */
+/* We don't care what the previous state was for delay mode */
 static void
 ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
 {
+	/* Delay mode should not be used for IPA v4.2+ */
+	WARN_ON(endpoint->ipa->version >= IPA_VERSION_4_2);
 	WARN_ON(!endpoint->toward_ipa);
 
-	/* Delay mode doesn't work properly for IPA v4.2 */
-	if (endpoint->ipa->version != IPA_VERSION_4_2)
-		(void)ipa_endpoint_init_ctrl(endpoint, enable);
+	(void)ipa_endpoint_init_ctrl(endpoint, enable);
 }
 
 static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
@@ -355,14 +353,14 @@ ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
 	return suspended;
 }
 
-/* Enable or disable delay or suspend mode on all modem endpoints */
+/* Put all modem RX endpoints into suspend mode, and stop transmission
+ * on all modem TX endpoints.  Prior to IPA v4.2, endpoint DELAY mode is
+ * used for TX endpoints; starting with IPA v4.2 we use GSI channel flow
+ * control instead.
+ */
 void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 {
 	u32 endpoint_id;
-
-	/* DELAY mode doesn't work correctly on IPA v4.2 */
-	if (ipa->version == IPA_VERSION_4_2)
-		return;
 
 	for (endpoint_id = 0; endpoint_id < IPA_ENDPOINT_MAX; endpoint_id++) {
 		struct ipa_endpoint *endpoint = &ipa->endpoint[endpoint_id];
@@ -370,11 +368,14 @@ void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 		if (endpoint->ee_id != GSI_EE_MODEM)
 			continue;
 
-		/* Set TX delay mode or RX suspend mode */
-		if (endpoint->toward_ipa)
+		if (!endpoint->toward_ipa)
+			(void)ipa_endpoint_program_suspend(endpoint, enable);
+		else if (ipa->version < IPA_VERSION_4_2)
 			ipa_endpoint_program_delay(endpoint, enable);
 		else
-			(void)ipa_endpoint_program_suspend(endpoint, enable);
+			gsi_modem_channel_flow_control(&ipa->gsi,
+						       endpoint->channel_id,
+						       enable);
 	}
 }
 
@@ -860,7 +861,7 @@ static void ipa_endpoint_init_hol_block_timer(struct ipa_endpoint *endpoint,
 }
 
 static void
-ipa_endpoint_init_hol_block_enable(struct ipa_endpoint *endpoint, bool enable)
+ipa_endpoint_init_hol_block_en(struct ipa_endpoint *endpoint, bool enable)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	u32 offset;
@@ -874,6 +875,19 @@ ipa_endpoint_init_hol_block_enable(struct ipa_endpoint *endpoint, bool enable)
 		iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
+/* Assumes HOL_BLOCK is in disabled state */
+static void ipa_endpoint_init_hol_block_enable(struct ipa_endpoint *endpoint,
+					       u32 microseconds)
+{
+	ipa_endpoint_init_hol_block_timer(endpoint, microseconds);
+	ipa_endpoint_init_hol_block_en(endpoint, true);
+}
+
+static void ipa_endpoint_init_hol_block_disable(struct ipa_endpoint *endpoint)
+{
+	ipa_endpoint_init_hol_block_en(endpoint, false);
+}
+
 void ipa_endpoint_modem_hol_block_clear_all(struct ipa *ipa)
 {
 	u32 i;
@@ -884,9 +898,8 @@ void ipa_endpoint_modem_hol_block_clear_all(struct ipa *ipa)
 		if (endpoint->toward_ipa || endpoint->ee_id != GSI_EE_MODEM)
 			continue;
 
-		ipa_endpoint_init_hol_block_enable(endpoint, false);
-		ipa_endpoint_init_hol_block_timer(endpoint, 0);
-		ipa_endpoint_init_hol_block_enable(endpoint, true);
+		ipa_endpoint_init_hol_block_disable(endpoint);
+		ipa_endpoint_init_hol_block_enable(endpoint, 0);
 	}
 }
 
@@ -1067,27 +1080,38 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint, bool add_one)
 {
 	struct gsi *gsi;
 	u32 backlog;
+	int delta;
 
-	if (!endpoint->replenish_enabled) {
+	if (!test_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags)) {
 		if (add_one)
 			atomic_inc(&endpoint->replenish_saved);
+		return;
+	}
+
+	/* If already active, just update the backlog */
+	if (test_and_set_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags)) {
+		if (add_one)
+			atomic_inc(&endpoint->replenish_backlog);
 		return;
 	}
 
 	while (atomic_dec_not_zero(&endpoint->replenish_backlog))
 		if (ipa_endpoint_replenish_one(endpoint))
 			goto try_again_later;
+
+	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
+
 	if (add_one)
 		atomic_inc(&endpoint->replenish_backlog);
 
 	return;
 
 try_again_later:
-	/* The last one didn't succeed, so fix the backlog */
-	backlog = atomic_inc_return(&endpoint->replenish_backlog);
+	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
 
-	if (add_one)
-		atomic_inc(&endpoint->replenish_backlog);
+	/* The last one didn't succeed, so fix the backlog */
+	delta = add_one ? 2 : 1;
+	backlog = atomic_add_return(delta, &endpoint->replenish_backlog);
 
 	/* Whenever a receive buffer transaction completes we'll try to
 	 * replenish again.  It's unlikely, but if we fail to supply even
@@ -1107,7 +1131,7 @@ static void ipa_endpoint_replenish_enable(struct ipa_endpoint *endpoint)
 	u32 max_backlog;
 	u32 saved;
 
-	endpoint->replenish_enabled = true;
+	set_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags);
 	while ((saved = atomic_xchg(&endpoint->replenish_saved, 0)))
 		atomic_add(saved, &endpoint->replenish_backlog);
 
@@ -1121,7 +1145,7 @@ static void ipa_endpoint_replenish_disable(struct ipa_endpoint *endpoint)
 {
 	u32 backlog;
 
-	endpoint->replenish_enabled = false;
+	clear_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags);
 	while ((backlog = atomic_xchg(&endpoint->replenish_backlog, 0)))
 		atomic_add(backlog, &endpoint->replenish_saved);
 }
@@ -1141,18 +1165,19 @@ static void ipa_endpoint_skb_copy(struct ipa_endpoint *endpoint,
 {
 	struct sk_buff *skb;
 
-	skb = __dev_alloc_skb(len, GFP_ATOMIC);
-	if (skb) {
-		skb_put(skb, len);
-		memcpy(skb->data, data, len);
-		skb->truesize += extra;
-	}
+	if (!endpoint->netdev)
+		return;
 
-	/* Now receive it, or drop it if there's no netdev */
-	if (endpoint->netdev)
-		ipa_modem_skb_rx(endpoint->netdev, skb);
-	else if (skb)
-		dev_kfree_skb_any(skb);
+	skb = __dev_alloc_skb(len, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	/* Copy the data into the socket buffer and receive it */
+	skb_put(skb, len);
+	memcpy(skb->data, data, len);
+	skb->truesize += extra;
+
+	ipa_modem_skb_rx(endpoint->netdev, skb);
 }
 
 static bool ipa_endpoint_skb_build(struct ipa_endpoint *endpoint,
@@ -1519,10 +1544,19 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 
 static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 {
-	if (endpoint->toward_ipa)
-		ipa_endpoint_program_delay(endpoint, false);
-	else
+	if (endpoint->toward_ipa) {
+		/* Newer versions of IPA use GSI channel flow control
+		 * instead of endpoint DELAY mode to prevent sending data.
+		 * Flow control is disabled for newly-allocated channels,
+		 * and we can assume flow control is not (ever) enabled
+		 * for AP TX channels.
+		 */
+		if (endpoint->ipa->version < IPA_VERSION_4_2)
+			ipa_endpoint_program_delay(endpoint, false);
+	} else {
+		/* Ensure suspend mode is off on all AP RX endpoints */
 		(void)ipa_endpoint_program_suspend(endpoint, false);
+	}
 	ipa_endpoint_init_cfg(endpoint);
 	ipa_endpoint_init_nat(endpoint);
 	ipa_endpoint_init_hdr(endpoint);
@@ -1530,6 +1564,8 @@ static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 	ipa_endpoint_init_hdr_metadata_mask(endpoint);
 	ipa_endpoint_init_mode(endpoint);
 	ipa_endpoint_init_aggr(endpoint);
+	if (!endpoint->toward_ipa)
+		ipa_endpoint_init_hol_block_disable(endpoint);
 	ipa_endpoint_init_deaggr(endpoint);
 	ipa_endpoint_init_rsrc_grp(endpoint);
 	ipa_endpoint_init_seq(endpoint);
@@ -1636,8 +1672,6 @@ void ipa_endpoint_suspend(struct ipa *ipa)
 	if (ipa->modem_netdev)
 		ipa_modem_suspend(ipa->modem_netdev);
 
-	ipa_cmd_pipeline_clear(ipa);
-
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_LAN_RX]);
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX]);
 }
@@ -1668,7 +1702,8 @@ static void ipa_endpoint_setup_one(struct ipa_endpoint *endpoint)
 		/* RX transactions require a single TRE, so the maximum
 		 * backlog is the same as the maximum outstanding TREs.
 		 */
-		endpoint->replenish_enabled = false;
+		clear_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags);
+		clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
 		atomic_set(&endpoint->replenish_saved,
 			   gsi_channel_tre_max(gsi, endpoint->channel_id));
 		atomic_set(&endpoint->replenish_backlog, 0);

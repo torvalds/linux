@@ -73,6 +73,7 @@ struct display_mode_lib {
 	struct vba_vars_st vba;
 	struct dal_logger *logger;
 	struct dml_funcs funcs;
+	struct _vcs_dpi_display_e2e_pipe_params_st dml_pipe_state[6];
 };
 
 void dml_init_instance(struct display_mode_lib *lib,

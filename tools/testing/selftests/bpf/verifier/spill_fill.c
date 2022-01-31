@@ -59,6 +59,34 @@
 	.result_unpriv = ACCEPT,
 },
 {
+	"check with invalid reg offset 0",
+	.insns = {
+	/* reserve 8 byte ringbuf memory */
+	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+	BPF_LD_MAP_FD(BPF_REG_1, 0),
+	BPF_MOV64_IMM(BPF_REG_2, 8),
+	BPF_MOV64_IMM(BPF_REG_3, 0),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_ringbuf_reserve),
+	/* store a pointer to the reserved memory in R6 */
+	BPF_MOV64_REG(BPF_REG_6, BPF_REG_0),
+	/* add invalid offset to memory or NULL */
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+	/* check whether the reservation was successful */
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 4),
+	/* should not be able to access *(R7) = 0 */
+	BPF_ST_MEM(BPF_W, BPF_REG_6, 0, 0),
+	/* submit the reserved ringbuf memory */
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
+	BPF_MOV64_IMM(BPF_REG_2, 0),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_ringbuf_submit),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.fixup_map_ringbuf = { 1 },
+	.result = REJECT,
+	.errstr = "R0 pointer arithmetic on alloc_mem_or_null prohibited",
+},
+{
 	"check corrupted spill/fill",
 	.insns = {
 	/* spill R1(ctx) into stack */
@@ -159,6 +187,38 @@
 	/* *(u32 *)(r10 -8) = r4 */
 	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_4, -8),
 	/* r4 = *(u16 *)(r10 -8) */
+	BPF_LDX_MEM(BPF_H, BPF_REG_4, BPF_REG_10, -8),
+	/* r0 = r2 */
+	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
+	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv,umax=65535 */
+	BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=inv20 */
+	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_2, 0),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = REJECT,
+	.errstr = "invalid access to packet",
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+},
+{
+	"Spill u32 const scalars.  Refill as u64.  Offset to skb->data",
+	.insns = {
+	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+		    offsetof(struct __sk_buff, data)),
+	BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+		    offsetof(struct __sk_buff, data_end)),
+	/* r6 = 0 */
+	BPF_MOV32_IMM(BPF_REG_6, 0),
+	/* r7 = 20 */
+	BPF_MOV32_IMM(BPF_REG_7, 20),
+	/* *(u32 *)(r10 -4) = r6 */
+	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_6, -4),
+	/* *(u32 *)(r10 -8) = r7 */
+	BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_7, -8),
+	/* r4 = *(u64 *)(r10 -8) */
 	BPF_LDX_MEM(BPF_H, BPF_REG_4, BPF_REG_10, -8),
 	/* r0 = r2 */
 	BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),

@@ -144,8 +144,6 @@
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
 
-static void sock_inuse_add(struct net *net, int val);
-
 /**
  * sk_ns_capable - General socket capability test
  * @sk: Socket to use a capability on or through
@@ -327,7 +325,10 @@ int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 	BUG_ON(!sock_flag(sk, SOCK_MEMALLOC));
 
 	noreclaim_flag = memalloc_noreclaim_save();
-	ret = sk->sk_backlog_rcv(sk, skb);
+	ret = INDIRECT_CALL_INET(sk->sk_backlog_rcv,
+				 tcp_v6_do_rcv,
+				 tcp_v4_do_rcv,
+				 sk, skb);
 	memalloc_noreclaim_restore(noreclaim_flag);
 
 	return ret;
@@ -843,6 +844,8 @@ static int sock_timestamping_bind_phc(struct sock *sk, int phc_index)
 	}
 
 	num = ethtool_get_phc_vclocks(dev, &vclock_index);
+	dev_put(dev);
+
 	for (i = 0; i < num; i++) {
 		if (*(vclock_index + i) == phc_index) {
 			match = true;
@@ -872,8 +875,7 @@ int sock_set_timestamping(struct sock *sk, int optname,
 
 	if (val & SOF_TIMESTAMPING_OPT_ID &&
 	    !(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)) {
-		if (sk->sk_protocol == IPPROTO_TCP &&
-		    sk->sk_type == SOCK_STREAM) {
+		if (sk_is_tcp(sk)) {
 			if ((1 << sk->sk_state) &
 			    (TCPF_CLOSE | TCPF_LISTEN))
 				return -EINVAL;
@@ -1135,6 +1137,7 @@ set_sndbuf:
 
 	case SO_PRIORITY:
 		if ((val >= 0 && val <= 6) ||
+		    ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) ||
 		    ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 			sk->sk_priority = val;
 		else
@@ -1280,7 +1283,8 @@ set_sndbuf:
 			clear_bit(SOCK_PASSSEC, &sock->flags);
 		break;
 	case SO_MARK:
-		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
+		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
+		    !ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
 			ret = -EPERM;
 			break;
 		}
@@ -1370,8 +1374,7 @@ set_sndbuf:
 
 	case SO_ZEROCOPY:
 		if (sk->sk_family == PF_INET || sk->sk_family == PF_INET6) {
-			if (!((sk->sk_type == SOCK_STREAM &&
-			       sk->sk_protocol == IPPROTO_TCP) ||
+			if (!(sk_is_tcp(sk) ||
 			      (sk->sk_type == SOCK_DGRAM &&
 			       sk->sk_protocol == IPPROTO_UDP)))
 				ret = -ENOTSUPP;
@@ -1982,7 +1985,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		sock_lock_init(sk);
 		sk->sk_net_refcnt = kern ? 0 : 1;
 		if (likely(sk->sk_net_refcnt)) {
-			get_net(net);
+			get_net_track(net, &sk->ns_tracker, priority);
 			sock_inuse_add(net, 1);
 		}
 
@@ -2038,13 +2041,16 @@ static void __sk_destruct(struct rcu_head *head)
 	put_pid(sk->sk_peer_pid);
 
 	if (likely(sk->sk_net_refcnt))
-		put_net(sock_net(sk));
+		put_net_track(sock_net(sk), &sk->ns_tracker);
 	sk_prot_free(sk->sk_prot_creator, sk);
 }
 
 void sk_destruct(struct sock *sk)
 {
 	bool use_call_rcu = sock_flag(sk, SOCK_RCU_FREE);
+
+	WARN_ON_ONCE(!llist_empty(&sk->defer_list));
+	sk_defer_free_flush(sk);
 
 	if (rcu_access_pointer(sk->sk_reuseport_cb)) {
 		reuseport_detach_sock(sk);
@@ -2125,7 +2131,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 	/* SANITY */
 	if (likely(newsk->sk_net_refcnt)) {
-		get_net(sock_net(newsk));
+		get_net_track(sock_net(newsk), &newsk->ns_tracker, priority);
 		sock_inuse_add(sock_net(newsk), 1);
 	}
 	sk_node_init(&newsk->sk_node);
@@ -2246,17 +2252,22 @@ void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 	u32 max_segs = 1;
 
 	sk_dst_set(sk, dst);
-	sk->sk_route_caps = dst->dev->features | sk->sk_route_forced_caps;
+	sk->sk_route_caps = dst->dev->features;
+	if (sk_is_tcp(sk))
+		sk->sk_route_caps |= NETIF_F_GSO;
 	if (sk->sk_route_caps & NETIF_F_GSO)
 		sk->sk_route_caps |= NETIF_F_GSO_SOFTWARE;
-	sk->sk_route_caps &= ~sk->sk_route_nocaps;
+	if (unlikely(sk->sk_gso_disabled))
+		sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
 	if (sk_can_gso(sk)) {
 		if (dst->header_len && !xfrm_dst_offload_ok(dst)) {
 			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
 		} else {
 			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
-			sk->sk_gso_max_size = dst->dev->gso_max_size;
-			max_segs = max_t(u32, dst->dev->gso_max_segs, 1);
+			/* pairs with the WRITE_ONCE() in netif_set_gso_max_size() */
+			sk->sk_gso_max_size = READ_ONCE(dst->dev->gso_max_size);
+			/* pairs with the WRITE_ONCE() in netif_set_gso_max_segs() */
+			max_segs = max_t(u32, READ_ONCE(dst->dev->gso_max_segs), 1);
 		}
 	}
 	sk->sk_gso_max_segs = max_segs;
@@ -3286,7 +3297,7 @@ void lock_sock_nested(struct sock *sk, int subclass)
 
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
-	if (sk->sk_lock.owned)
+	if (sock_owned_by_user_nocheck(sk))
 		__lock_sock(sk);
 	sk->sk_lock.owned = 1;
 	spin_unlock_bh(&sk->sk_lock.slock);
@@ -3317,7 +3328,7 @@ bool __lock_sock_fast(struct sock *sk) __acquires(&sk->sk_lock.slock)
 	might_sleep();
 	spin_lock_bh(&sk->sk_lock.slock);
 
-	if (!sk->sk_lock.owned) {
+	if (!sock_owned_by_user_nocheck(sk)) {
 		/*
 		 * Fast path return with bottom halves disabled and
 		 * sock::sk_lock.slock held.
@@ -3532,18 +3543,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *mem)
 }
 
 #ifdef CONFIG_PROC_FS
-#define PROTO_INUSE_NR	64	/* should be enough for the first time */
-struct prot_inuse {
-	int val[PROTO_INUSE_NR];
-};
-
 static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
-
-void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
-{
-	__this_cpu_add(net->core.prot_inuse->val[prot->inuse_idx], val);
-}
-EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
 
 int sock_prot_inuse_get(struct net *net, struct proto *prot)
 {
@@ -3557,17 +3557,12 @@ int sock_prot_inuse_get(struct net *net, struct proto *prot)
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
 
-static void sock_inuse_add(struct net *net, int val)
-{
-	this_cpu_add(*net->core.sock_inuse, val);
-}
-
 int sock_inuse_get(struct net *net)
 {
 	int cpu, res = 0;
 
 	for_each_possible_cpu(cpu)
-		res += *per_cpu_ptr(net->core.sock_inuse, cpu);
+		res += per_cpu_ptr(net->core.prot_inuse, cpu)->all;
 
 	return res;
 }
@@ -3579,22 +3574,12 @@ static int __net_init sock_inuse_init_net(struct net *net)
 	net->core.prot_inuse = alloc_percpu(struct prot_inuse);
 	if (net->core.prot_inuse == NULL)
 		return -ENOMEM;
-
-	net->core.sock_inuse = alloc_percpu(int);
-	if (net->core.sock_inuse == NULL)
-		goto out;
-
 	return 0;
-
-out:
-	free_percpu(net->core.prot_inuse);
-	return -ENOMEM;
 }
 
 static void __net_exit sock_inuse_exit_net(struct net *net)
 {
 	free_percpu(net->core.prot_inuse);
-	free_percpu(net->core.sock_inuse);
 }
 
 static struct pernet_operations net_inuse_ops = {
@@ -3640,9 +3625,6 @@ static inline void release_proto_idx(struct proto *prot)
 {
 }
 
-static void sock_inuse_add(struct net *net, int val)
-{
-}
 #endif
 
 static void tw_prot_cleanup(struct timewait_sock_ops *twsk_prot)

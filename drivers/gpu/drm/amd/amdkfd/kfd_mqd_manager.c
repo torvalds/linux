@@ -71,7 +71,7 @@ struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
 		return NULL;
 
 	offset = (q->sdma_engine_id *
-		dev->device_info->num_sdma_queues_per_engine +
+		dev->device_info.num_sdma_queues_per_engine +
 		q->sdma_queue_id) *
 		dev->dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size;
 
@@ -100,7 +100,7 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	struct kfd_cu_info cu_info;
 	uint32_t cu_per_sh[KFD_MAX_NUM_SE][KFD_MAX_NUM_SH_PER_SE] = {0};
 	int i, se, sh, cu;
-	amdgpu_amdkfd_get_cu_info(mm->dev->kgd, &cu_info);
+	amdgpu_amdkfd_get_cu_info(mm->dev->adev, &cu_info);
 
 	if (cu_mask_count > cu_info.cu_active_number)
 		cu_mask_count = cu_info.cu_active_number;

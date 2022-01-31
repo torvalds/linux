@@ -405,8 +405,7 @@ static void mctp_sk_unhash(struct sock *sk)
 		trace_mctp_key_release(key, MCTP_TRACE_KEY_CLOSED);
 
 		spin_lock(&key->lock);
-		if (key->reasm_head)
-			kfree_skb(key->reasm_head);
+		kfree_skb(key->reasm_head);
 		key->reasm_head = NULL;
 		key->reasm_dead = true;
 		key->valid = false;

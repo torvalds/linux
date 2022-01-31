@@ -73,7 +73,7 @@ asm(							\
 __BTF_ID_LIST(name, local)				\
 extern u32 name[];
 
-#define BTF_ID_LIST_GLOBAL(name)			\
+#define BTF_ID_LIST_GLOBAL(name, n)			\
 __BTF_ID_LIST(name, globl)
 
 /* The BTF_ID_LIST_SINGLE macro defines a BTF_ID_LIST with
@@ -83,7 +83,7 @@ __BTF_ID_LIST(name, globl)
 	BTF_ID_LIST(name) \
 	BTF_ID(prefix, typename)
 #define BTF_ID_LIST_GLOBAL_SINGLE(name, prefix, typename) \
-	BTF_ID_LIST_GLOBAL(name) \
+	BTF_ID_LIST_GLOBAL(name, 1)			  \
 	BTF_ID(prefix, typename)
 
 /*
@@ -149,7 +149,7 @@ extern struct btf_id_set name;
 #define BTF_ID_LIST(name) static u32 name[5];
 #define BTF_ID(prefix, name)
 #define BTF_ID_UNUSED
-#define BTF_ID_LIST_GLOBAL(name) u32 name[1];
+#define BTF_ID_LIST_GLOBAL(name, n) u32 name[n];
 #define BTF_ID_LIST_SINGLE(name, prefix, typename) static u32 name[1];
 #define BTF_ID_LIST_GLOBAL_SINGLE(name, prefix, typename) u32 name[1];
 #define BTF_SET_START(name) static struct btf_id_set name = { 0 };
@@ -189,6 +189,18 @@ MAX_BTF_SOCK_TYPE,
 extern u32 btf_sock_ids[];
 #endif
 
-extern u32 btf_task_struct_ids[];
+#define BTF_TRACING_TYPE_xxx	\
+	BTF_TRACING_TYPE(BTF_TRACING_TYPE_TASK, task_struct)	\
+	BTF_TRACING_TYPE(BTF_TRACING_TYPE_FILE, file)		\
+	BTF_TRACING_TYPE(BTF_TRACING_TYPE_VMA, vm_area_struct)
+
+enum {
+#define BTF_TRACING_TYPE(name, type) name,
+BTF_TRACING_TYPE_xxx
+#undef BTF_TRACING_TYPE
+MAX_BTF_TRACING_TYPE,
+};
+
+extern u32 btf_tracing_ids[];
 
 #endif

@@ -9,145 +9,347 @@
 
 #define RTW89_SEC_CAM_LEN	20
 
-#define FWCMD_SET_ADDR_IDX(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 1, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_OFFSET(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 1, value, GENMASK(15, 8))
-#define FWCMD_SET_ADDR_LEN(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 1, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_VALID(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, BIT(0))
-#define FWCMD_SET_ADDR_NET_TYPE(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(2, 1))
-#define FWCMD_SET_ADDR_BCN_HIT_COND(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(4, 3))
-#define FWCMD_SET_ADDR_HIT_RULE(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(6, 5))
-#define FWCMD_SET_ADDR_BB_SEL(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, BIT(7))
-#define FWCMD_SET_ADDR_ADDR_MASK(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(13, 8))
-#define FWCMD_SET_ADDR_MASK_SEL(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(15, 14))
-#define FWCMD_SET_ADDR_SMA_HASH(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_TMA_HASH(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(31, 24))
-#define FWCMD_SET_ADDR_BSSID_CAM_IDX(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 3, value, GENMASK(5, 0))
-#define FWCMD_SET_ADDR_SMA0(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 4, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_SMA1(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 4, value, GENMASK(15, 8))
-#define FWCMD_SET_ADDR_SMA2(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 4, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_SMA3(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 4, value, GENMASK(31, 24))
-#define FWCMD_SET_ADDR_SMA4(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 5, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_SMA5(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 5, value, GENMASK(15, 8))
-#define FWCMD_SET_ADDR_TMA0(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 5, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_TMA1(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 5, value, GENMASK(31, 24))
-#define FWCMD_SET_ADDR_TMA2(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 6, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_TMA3(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 6, value, GENMASK(15, 8))
-#define FWCMD_SET_ADDR_TMA4(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 6, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_TMA5(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 6, value, GENMASK(31, 24))
-#define FWCMD_SET_ADDR_MACID(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_PORT_INT(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(10, 8))
-#define FWCMD_SET_ADDR_TSF_SYNC(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(13, 11))
-#define FWCMD_SET_ADDR_TF_TRS(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 8, value, BIT(14))
-#define FWCMD_SET_ADDR_LSIG_TXOP(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 8, value, BIT(15))
-#define FWCMD_SET_ADDR_TGT_IND(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(26, 24))
-#define FWCMD_SET_ADDR_FRM_TGT_IND(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(29, 27))
-#define FWCMD_SET_ADDR_AID12(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(11, 0))
-#define FWCMD_SET_ADDR_AID12_0(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_AID12_1(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(11, 8))
-#define FWCMD_SET_ADDR_WOL_PATTERN(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, BIT(12))
-#define FWCMD_SET_ADDR_WOL_UC(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, BIT(13))
-#define FWCMD_SET_ADDR_WOL_MAGIC(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, BIT(14))
-#define FWCMD_SET_ADDR_WAPI(cmd, value)					\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, BIT(15))
-#define FWCMD_SET_ADDR_SEC_ENT_MODE(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(17, 16))
-#define FWCMD_SET_ADDR_SEC_ENT0_KEYID(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(19, 18))
-#define FWCMD_SET_ADDR_SEC_ENT1_KEYID(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(21, 20))
-#define FWCMD_SET_ADDR_SEC_ENT2_KEYID(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(23, 22))
-#define FWCMD_SET_ADDR_SEC_ENT3_KEYID(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(25, 24))
-#define FWCMD_SET_ADDR_SEC_ENT4_KEYID(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(27, 26))
-#define FWCMD_SET_ADDR_SEC_ENT5_KEYID(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(29, 28))
-#define FWCMD_SET_ADDR_SEC_ENT6_KEYID(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(31, 30))
-#define FWCMD_SET_ADDR_SEC_ENT_VALID(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 10, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_SEC_ENT0(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 10, value, GENMASK(15, 8))
-#define FWCMD_SET_ADDR_SEC_ENT1(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 10, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_SEC_ENT2(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 10, value, GENMASK(31, 24))
-#define FWCMD_SET_ADDR_SEC_ENT3(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 11, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_SEC_ENT4(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 11, value, GENMASK(15, 8))
-#define FWCMD_SET_ADDR_SEC_ENT5(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 11, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_SEC_ENT6(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 11, value, GENMASK(31, 24))
-#define FWCMD_SET_ADDR_BSSID_IDX(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 12, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_BSSID_OFFSET(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 12, value, GENMASK(15, 8))
-#define FWCMD_SET_ADDR_BSSID_LEN(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 12, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_BSSID_VALID(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 13, value, BIT(0))
-#define FWCMD_SET_ADDR_BSSID_BB_SEL(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 13, value, BIT(1))
-#define FWCMD_SET_ADDR_BSSID_BSS_COLOR(cmd, value)			\
-	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(13, 8))
-#define FWCMD_SET_ADDR_BSSID_BSSID0(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_BSSID_BSSID1(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(31, 24))
-#define FWCMD_SET_ADDR_BSSID_BSSID2(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(7, 0))
-#define FWCMD_SET_ADDR_BSSID_BSSID3(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(15, 8))
-#define FWCMD_SET_ADDR_BSSID_BSSID4(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(23, 16))
-#define FWCMD_SET_ADDR_BSSID_BSSID5(cmd, value)				\
-	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(31, 24))
+static inline void FWCMD_SET_ADDR_IDX(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 1, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_OFFSET(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 1, value, GENMASK(15, 8));
+}
+
+static inline void FWCMD_SET_ADDR_LEN(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 1, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_VALID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, BIT(0));
+}
+
+static inline void FWCMD_SET_ADDR_NET_TYPE(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(2, 1));
+}
+
+static inline void FWCMD_SET_ADDR_BCN_HIT_COND(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(4, 3));
+}
+
+static inline void FWCMD_SET_ADDR_HIT_RULE(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(6, 5));
+}
+
+static inline void FWCMD_SET_ADDR_BB_SEL(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, BIT(7));
+}
+
+static inline void FWCMD_SET_ADDR_ADDR_MASK(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(13, 8));
+}
+
+static inline void FWCMD_SET_ADDR_MASK_SEL(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(15, 14));
+}
+
+static inline void FWCMD_SET_ADDR_SMA_HASH(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_TMA_HASH(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 2, value, GENMASK(31, 24));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_CAM_IDX(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 3, value, GENMASK(5, 0));
+}
+
+static inline void FWCMD_SET_ADDR_SMA0(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 4, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_SMA1(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 4, value, GENMASK(15, 8));
+}
+
+static inline void FWCMD_SET_ADDR_SMA2(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 4, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_SMA3(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 4, value, GENMASK(31, 24));
+}
+
+static inline void FWCMD_SET_ADDR_SMA4(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 5, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_SMA5(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 5, value, GENMASK(15, 8));
+}
+
+static inline void FWCMD_SET_ADDR_TMA0(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 5, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_TMA1(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 5, value, GENMASK(31, 24));
+}
+
+static inline void FWCMD_SET_ADDR_TMA2(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 6, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_TMA3(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 6, value, GENMASK(15, 8));
+}
+
+static inline void FWCMD_SET_ADDR_TMA4(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 6, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_TMA5(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 6, value, GENMASK(31, 24));
+}
+
+static inline void FWCMD_SET_ADDR_MACID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_PORT_INT(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(10, 8));
+}
+
+static inline void FWCMD_SET_ADDR_TSF_SYNC(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(13, 11));
+}
+
+static inline void FWCMD_SET_ADDR_TF_TRS(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 8, value, BIT(14));
+}
+
+static inline void FWCMD_SET_ADDR_LSIG_TXOP(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 8, value, BIT(15));
+}
+
+static inline void FWCMD_SET_ADDR_TGT_IND(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(26, 24));
+}
+
+static inline void FWCMD_SET_ADDR_FRM_TGT_IND(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 8, value, GENMASK(29, 27));
+}
+
+static inline void FWCMD_SET_ADDR_AID12(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(11, 0));
+}
+
+static inline void FWCMD_SET_ADDR_AID12_0(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_AID12_1(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(11, 8));
+}
+
+static inline void FWCMD_SET_ADDR_WOL_PATTERN(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, BIT(12));
+}
+
+static inline void FWCMD_SET_ADDR_WOL_UC(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, BIT(13));
+}
+
+static inline void FWCMD_SET_ADDR_WOL_MAGIC(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, BIT(14));
+}
+
+static inline void FWCMD_SET_ADDR_WAPI(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, BIT(15));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT_MODE(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(17, 16));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT0_KEYID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(19, 18));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT1_KEYID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(21, 20));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT2_KEYID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(23, 22));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT3_KEYID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(25, 24));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT4_KEYID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(27, 26));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT5_KEYID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(29, 28));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT6_KEYID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 9, value, GENMASK(31, 30));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT_VALID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 10, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT0(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 10, value, GENMASK(15, 8));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT1(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 10, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT2(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 10, value, GENMASK(31, 24));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT3(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 11, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT4(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 11, value, GENMASK(15, 8));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT5(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 11, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_SEC_ENT6(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 11, value, GENMASK(31, 24));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_IDX(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 12, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_OFFSET(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 12, value, GENMASK(15, 8));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_LEN(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 12, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_VALID(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 13, value, BIT(0));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_BB_SEL(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 13, value, BIT(1));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_BSS_COLOR(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(13, 8));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_BSSID0(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_BSSID1(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(31, 24));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_BSSID2(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(7, 0));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_BSSID3(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(15, 8));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_BSSID4(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(23, 16));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_BSSID5(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(31, 24));
+}
 
 int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *vif, u8 *cmd);
+				  struct rtw89_vif *vif,
+				  struct rtw89_sta *rtwsta,
+				  const u8 *scan_mac_addr, u8 *cmd);
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *vif, u8 *cmd);
 int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,

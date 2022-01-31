@@ -138,7 +138,6 @@ struct virtio_gpu_fence_driver {
 	spinlock_t       lock;
 };
 
-#define VIRTGPU_EVENT_FENCE_SIGNALED_INTERNAL 0x10000000
 struct virtio_gpu_fence_event {
 	struct drm_pending_event base;
 	struct drm_event event;

@@ -646,6 +646,17 @@ See drivers/gpu/drm/amd/display/TODO for tasks.
 
 Contact: Harry Wentland, Alex Deucher
 
+vmwgfx: Replace hashtable with Linux' implementation
+----------------------------------------------------
+
+The vmwgfx driver uses its own hashtable implementation. Replace the
+code with Linux' implementation and update the callers. It's mostly a
+refactoring task, but the interfaces are different.
+
+Contact: Zack Rusin, Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Intermediate
+
 Bootsplash
 ==========
 

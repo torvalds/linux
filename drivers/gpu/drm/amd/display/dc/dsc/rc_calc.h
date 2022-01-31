@@ -30,7 +30,6 @@
 #include "dml/dsc/rc_calc_fpu.h"
 
 void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps);
-u32 calc_dsc_bytes_per_pixel(const struct drm_dsc_config *pps);
 
 #endif
 

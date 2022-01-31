@@ -61,9 +61,6 @@ static int amdgpu_dma_buf_attach(struct dma_buf *dmabuf,
 	if (pci_p2pdma_distance_many(adev->pdev, &attach->dev, 1, true) < 0)
 		attach->peer2peer = false;
 
-	if (attach->dev->driver == adev->dev->driver)
-		return 0;
-
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0)
 		goto out;
@@ -384,7 +381,7 @@ amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 	struct amdgpu_vm_bo_base *bo_base;
 	int r;
 
-	if (bo->tbo.resource->mem_type == TTM_PL_SYSTEM)
+	if (!bo->tbo.resource || bo->tbo.resource->mem_type == TTM_PL_SYSTEM)
 		return;
 
 	r = ttm_bo_validate(&bo->tbo, &placement, &ctx);

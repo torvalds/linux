@@ -227,7 +227,8 @@ static int stk8ba50_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&data->lock);
 			return -EINVAL;
 		}
-		*val = sign_extend32(ret >> STK8BA50_DATA_SHIFT, 9);
+		*val = sign_extend32(ret >> chan->scan_type.shift,
+				     chan->scan_type.realbits - 1);
 		stk8ba50_set_power(data, STK8BA50_MODE_SUSPEND);
 		mutex_unlock(&data->lock);
 		return IIO_VAL_INT;

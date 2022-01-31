@@ -133,12 +133,16 @@ union acpi_subtable_headers {
 	struct acpi_subtable_header common;
 	struct acpi_hmat_structure hmat;
 	struct acpi_prmt_module_header prmt;
+	struct acpi_cedt_header cedt;
 };
 
 typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
 
 typedef int (*acpi_tbl_entry_handler)(union acpi_subtable_headers *header,
 				      const unsigned long end);
+
+typedef int (*acpi_tbl_entry_handler_arg)(union acpi_subtable_headers *header,
+					  void *arg, const unsigned long end);
 
 /* Debugger support */
 
@@ -216,6 +220,8 @@ static inline int acpi_debugger_notify_command_complete(void)
 struct acpi_subtable_proc {
 	int id;
 	acpi_tbl_entry_handler handler;
+	acpi_tbl_entry_handler_arg handler_arg;
+	void *arg;
 	int count;
 };
 
@@ -232,17 +238,31 @@ int acpi_locate_initial_tables (void);
 void acpi_reserve_initial_tables (void);
 void acpi_table_init_complete (void);
 int acpi_table_init (void);
+
+#ifdef CONFIG_ACPI_TABLE_LIB
+#define EXPORT_SYMBOL_ACPI_LIB(x) EXPORT_SYMBOL_NS_GPL(x, ACPI)
+#define __init_or_acpilib
+#define __initdata_or_acpilib
+#else
+#define EXPORT_SYMBOL_ACPI_LIB(x)
+#define __init_or_acpilib __init
+#define __initdata_or_acpilib __initdata
+#endif
+
 int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
-int __init acpi_table_parse_entries(char *id, unsigned long table_size,
-			      int entry_id,
-			      acpi_tbl_entry_handler handler,
-			      unsigned int max_entries);
-int __init acpi_table_parse_entries_array(char *id, unsigned long table_size,
-			      struct acpi_subtable_proc *proc, int proc_num,
-			      unsigned int max_entries);
+int __init_or_acpilib acpi_table_parse_entries(char *id,
+		unsigned long table_size, int entry_id,
+		acpi_tbl_entry_handler handler, unsigned int max_entries);
+int __init_or_acpilib acpi_table_parse_entries_array(char *id,
+		unsigned long table_size, struct acpi_subtable_proc *proc,
+		int proc_num, unsigned int max_entries);
 int acpi_table_parse_madt(enum acpi_madt_type id,
 			  acpi_tbl_entry_handler handler,
 			  unsigned int max_entries);
+int __init_or_acpilib
+acpi_table_parse_cedt(enum acpi_cedt_type id,
+		      acpi_tbl_entry_handler_arg handler_arg, void *arg);
+
 int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 
@@ -506,7 +526,7 @@ acpi_status acpi_release_memory(acpi_handle handle, struct resource *res,
 int acpi_resources_are_enforced(void);
 
 #ifdef CONFIG_HIBERNATION
-void __init acpi_no_s4_hw_signature(void);
+void __init acpi_check_s4_hw_signature(int check);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
@@ -1182,7 +1202,6 @@ int acpi_node_prop_get(const struct fwnode_handle *fwnode, const char *propname,
 
 struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child);
-struct fwnode_handle *acpi_node_get_parent(const struct fwnode_handle *fwnode);
 
 struct acpi_probe_entry;
 typedef bool (*acpi_probe_entry_validate_subtbl)(struct acpi_subtable_header *,
@@ -1288,12 +1307,6 @@ acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 }
 
 static inline struct fwnode_handle *
-acpi_node_get_parent(const struct fwnode_handle *fwnode)
-{
-	return NULL;
-}
-
-static inline struct fwnode_handle *
 acpi_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
 			     struct fwnode_handle *prev)
 {
@@ -1394,6 +1407,12 @@ static inline int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 {
 	return -EINVAL;
 }
+#endif
+
+#ifdef CONFIG_ACPI_PCC
+void acpi_init_pcc(void);
+#else
+static inline void acpi_init_pcc(void) { }
 #endif
 
 #ifdef CONFIG_ACPI

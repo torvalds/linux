@@ -40,14 +40,16 @@ config SND_SOC_SOF_ACPI_DEV
 config SND_SOC_SOF_OF
 	tristate "SOF OF enumeration support"
 	depends on OF || COMPILE_TEST
-	select SND_SOC_SOF
 	help
 	  This adds support for Device Tree enumeration. This option is
-	  required to enable i.MX8 devices.
+	  required to enable i.MX8 or Mediatek devices.
 	  Say Y if you need this option. If unsure select "N".
 
-config SND_SOC_SOF_COMPRESS
+config SND_SOC_SOF_OF_DEV
 	tristate
+
+config SND_SOC_SOF_COMPRESS
+	bool
 	select SND_SOC_COMPRESS
 
 config SND_SOC_SOF_DEBUG_PROBES
@@ -61,7 +63,7 @@ config SND_SOC_SOF_DEBUG_PROBES
 
 config SND_SOC_SOF_DEVELOPER_SUPPORT
 	bool "SOF developer options support"
-	depends on EXPERT
+	depends on EXPERT && SND_SOC_SOF
 	help
 	  This option unlocks SOF developer options for debug/performance/
 	  code hardening.
@@ -192,6 +194,14 @@ config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
 	  Say Y if you want to enable IPC flood test.
 	  If unsure, select "N".
 
+config SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR
+	bool "SOF enable IPC message injector"
+	help
+	  This option enables the IPC message injector which can be used to send
+	  crafted IPC messages to the DSP to test its robustness.
+	  Say Y if you want to enable the IPC message injector.
+	  If unsure, select "N".
+
 config SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT
 	bool "SOF retain DSP context on any FW exceptions"
 	help
@@ -223,8 +233,10 @@ config SND_SOC_SOF_PROBE_WORK_QUEUE
 	  When selected, the probe is handled in two steps, for example to
 	  avoid lockdeps if request_module is used in the probe.
 
+source "sound/soc/sof/amd/Kconfig"
 source "sound/soc/sof/imx/Kconfig"
 source "sound/soc/sof/intel/Kconfig"
+source "sound/soc/sof/mediatek/Kconfig"
 source "sound/soc/sof/xtensa/Kconfig"
 
 endif

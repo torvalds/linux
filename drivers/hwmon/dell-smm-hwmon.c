@@ -113,12 +113,12 @@ MODULE_PARM_DESC(fan_max, "Maximum configurable fan speed (default: autodetect)"
 
 struct smm_regs {
 	unsigned int eax;
-	unsigned int ebx __packed;
-	unsigned int ecx __packed;
-	unsigned int edx __packed;
-	unsigned int esi __packed;
-	unsigned int edi __packed;
-};
+	unsigned int ebx;
+	unsigned int ecx;
+	unsigned int edx;
+	unsigned int esi;
+	unsigned int edi;
+} __packed;
 
 static const char * const temp_labels[] = {
 	"CPU",
@@ -449,13 +449,12 @@ static int i8k_get_power_status(void)
  * Procfs interface
  */
 
-static int
-i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd, unsigned long arg)
+static long i8k_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
-	int val = 0;
-	int speed, err;
-	unsigned char buff[16];
+	struct dell_smm_data *data = pde_data(file_inode(fp));
 	int __user *argp = (int __user *)arg;
+	int speed, err;
+	int val = 0;
 
 	if (!argp)
 		return -EINVAL;
@@ -468,15 +467,19 @@ i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd
 
 		val = (data->bios_version[0] << 16) |
 				(data->bios_version[1] << 8) | data->bios_version[2];
-		break;
 
+		if (copy_to_user(argp, &val, sizeof(val)))
+			return -EFAULT;
+
+		return 0;
 	case I8K_MACHINE_ID:
 		if (restricted && !capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		strscpy_pad(buff, data->bios_machineid, sizeof(buff));
-		break;
+		if (copy_to_user(argp, data->bios_machineid, sizeof(data->bios_machineid)))
+			return -EFAULT;
 
+		return 0;
 	case I8K_FN_STATUS:
 		val = i8k_get_fn_status();
 		break;
@@ -513,11 +516,13 @@ i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd
 		if (copy_from_user(&speed, argp + 1, sizeof(int)))
 			return -EFAULT;
 
+		mutex_lock(&data->i8k_mutex);
 		err = i8k_set_fan(data, val, speed);
 		if (err < 0)
-			return err;
-
-		val = i8k_get_fan_status(data, val);
+			val = err;
+		else
+			val = i8k_get_fan_status(data, val);
+		mutex_unlock(&data->i8k_mutex);
 		break;
 
 	default:
@@ -527,37 +532,10 @@ i8k_ioctl_unlocked(struct file *fp, struct dell_smm_data *data, unsigned int cmd
 	if (val < 0)
 		return val;
 
-	switch (cmd) {
-	case I8K_BIOS_VERSION:
-		if (copy_to_user(argp, &val, 4))
-			return -EFAULT;
-
-		break;
-	case I8K_MACHINE_ID:
-		if (copy_to_user(argp, buff, 16))
-			return -EFAULT;
-
-		break;
-	default:
-		if (copy_to_user(argp, &val, sizeof(int)))
-			return -EFAULT;
-
-		break;
-	}
+	if (copy_to_user(argp, &val, sizeof(int)))
+		return -EFAULT;
 
 	return 0;
-}
-
-static long i8k_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
-{
-	struct dell_smm_data *data = PDE_DATA(file_inode(fp));
-	long ret;
-
-	mutex_lock(&data->i8k_mutex);
-	ret = i8k_ioctl_unlocked(fp, data, cmd, arg);
-	mutex_unlock(&data->i8k_mutex);
-
-	return ret;
 }
 
 /*
@@ -607,7 +585,7 @@ static int i8k_proc_show(struct seq_file *seq, void *offset)
 
 static int i8k_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, i8k_proc_show, PDE_DATA(inode));
+	return single_open(file, i8k_proc_show, pde_data(inode));
 }
 
 static const struct proc_ops i8k_proc_ops = {
@@ -627,10 +605,9 @@ static void __init i8k_init_procfs(struct device *dev)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
 
-	/* Register the proc entry */
-	proc_create_data("i8k", 0, NULL, &i8k_proc_ops, data);
-
-	devm_add_action_or_reset(dev, i8k_exit_procfs, NULL);
+	/* Only register exit function if creation was successful */
+	if (proc_create_data("i8k", 0, NULL, &i8k_proc_ops, data))
+		devm_add_action_or_reset(dev, i8k_exit_procfs, NULL);
 }
 
 #else

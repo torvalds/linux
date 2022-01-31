@@ -74,7 +74,6 @@ Quota, period and burst are managed within the cpu subsystem via cgroupfs.
    to cgroup v1. For cgroup v2, see
    :ref:`Documentation/admin-guide/cgroup-v2.rst <cgroup-v2-cpu>`.
 
-- cpu.cfs_quota_us: the total available run-time within a period (in
 - cpu.cfs_quota_us: run-time replenished within a period (in microseconds)
 - cpu.cfs_period_us: the length of a period (in microseconds)
 - cpu.stat: exports throttling statistics [explained further below]
@@ -135,7 +134,7 @@ cpu.stat:
   of the group have been throttled.
 - nr_bursts: Number of periods burst occurs.
 - burst_time: Cumulative wall-time (in nanoseconds) that any CPUs has used
-  above quota in respective periods
+  above quota in respective periods.
 
 This interface is read-only.
 
@@ -238,7 +237,7 @@ Examples
    additionally, in case accumulation has been done.
 
    With 50ms period, 20ms quota will be equivalent to 40% of 1 CPU.
-   And 10ms burst will be equivalent to 20% of 1 CPU.
+   And 10ms burst will be equivalent to 20% of 1 CPU::
 
 	# echo 20000 > cpu.cfs_quota_us /* quota = 20ms */
 	# echo 50000 > cpu.cfs_period_us /* period = 50ms */

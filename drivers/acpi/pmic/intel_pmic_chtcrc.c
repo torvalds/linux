@@ -23,7 +23,8 @@
  * intel_soc_pmic_exec_mipi_pmic_seq_element work on devices with a
  * CHT Crystal Cove PMIC.
  */
-static struct intel_pmic_opregion_data intel_chtcrc_pmic_opregion_data = {
+static const struct intel_pmic_opregion_data intel_chtcrc_pmic_opregion_data = {
+	.lpat_raw_to_temp = acpi_lpat_raw_to_temp,
 	.pmic_i2c_address = 0x6e,
 };
 

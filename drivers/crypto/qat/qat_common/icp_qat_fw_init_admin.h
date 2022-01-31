@@ -14,7 +14,8 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_COUNTERS_GET = 5,
 	ICP_QAT_FW_LOOPBACK = 6,
 	ICP_QAT_FW_HEARTBEAT_SYNC = 7,
-	ICP_QAT_FW_HEARTBEAT_GET = 8
+	ICP_QAT_FW_HEARTBEAT_GET = 8,
+	ICP_QAT_FW_COMP_CAPABILITY_GET = 9,
 };
 
 enum icp_qat_fw_init_admin_resp_status {
@@ -52,6 +53,7 @@ struct icp_qat_fw_init_admin_resp {
 			__u16 version_minor_num;
 			__u16 version_major_num;
 		};
+		__u32 extended_features;
 	};
 	__u64 opaque_data;
 	union {

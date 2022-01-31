@@ -721,7 +721,7 @@ static struct request_sock *inet_reqsk_clone(struct request_sock *req,
 
 	sk_node_init(&nreq_sk->sk_node);
 	nreq_sk->sk_tx_queue_mapping = req_sk->sk_tx_queue_mapping;
-#ifdef CONFIG_XPS
+#ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
 	nreq_sk->sk_rx_queue_mapping = req_sk->sk_rx_queue_mapping;
 #endif
 	nreq_sk->sk_incoming_cpu = req_sk->sk_incoming_cpu;
@@ -1035,7 +1035,7 @@ void inet_csk_prepare_forced_close(struct sock *sk)
 }
 EXPORT_SYMBOL(inet_csk_prepare_forced_close);
 
-int inet_csk_listen_start(struct sock *sk, int backlog)
+int inet_csk_listen_start(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_sock *inet = inet_sk(sk);

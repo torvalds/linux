@@ -60,7 +60,7 @@ static int scsi_bsg_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
 		goto out_free_cmd;
 
 	bio = rq->bio;
-	blk_execute_rq(NULL, rq, !(hdr->flags & BSG_FLAG_Q_AT_TAIL));
+	blk_execute_rq(rq, !(hdr->flags & BSG_FLAG_Q_AT_TAIL));
 
 	/*
 	 * fill in all the output members

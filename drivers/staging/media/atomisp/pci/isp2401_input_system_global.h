@@ -44,11 +44,6 @@ typedef enum {
 	N_INPUT_SYSTEM_SOURCE_TYPE
 } input_system_source_type_t;
 
-typedef enum {
-	INPUT_SYSTEM_POLL_ON_WAIT_FOR_FRAME,
-	INPUT_SYSTEM_POLL_ON_CAPTURE_REQUEST,
-} input_system_polling_mode_t;
-
 typedef struct input_system_channel_s input_system_channel_t;
 struct input_system_channel_s {
 	stream2mmio_ID_t	stream2mmio_id;
@@ -111,9 +106,6 @@ struct isp2401_input_system_cfg_s {
 
 	input_system_source_type_t	mode;
 
-	/* ISP2401 */
-	input_system_polling_mode_t	polling_mode;
-
 	bool online;
 	bool raw_packed;
 	s8 linked_isys_stream_id;
@@ -165,10 +157,6 @@ struct virtual_input_system_stream_s {
 	u8 online;
 	s8 linked_isys_stream_id;
 	u8 valid;
-
-	/* ISP2401 */
-	input_system_polling_mode_t	polling_mode;
-	s32 subscr_index;
 };
 
 typedef struct virtual_input_system_stream_cfg_s

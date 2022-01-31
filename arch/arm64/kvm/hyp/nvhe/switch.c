@@ -25,7 +25,6 @@
 #include <asm/fpsimd.h>
 #include <asm/debug-monitors.h>
 #include <asm/processor.h>
-#include <asm/thread_info.h>
 
 #include <nvhe/fixed_config.h>
 #include <nvhe/mem_protect.h>
@@ -233,7 +232,7 @@ static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm_vcpu *vcpu)
  * Returns false if the guest ran in AArch32 when it shouldn't have, and
  * thus should exit to the host, or true if a the guest run loop can continue.
  */
-static bool handle_aarch32_guest(struct kvm_vcpu *vcpu, u64 *exit_code)
+static void early_exit_filter(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	struct kvm *kvm = kern_hyp_va(vcpu->kvm);
 
@@ -248,10 +247,7 @@ static bool handle_aarch32_guest(struct kvm_vcpu *vcpu, u64 *exit_code)
 		vcpu->arch.target = -1;
 		*exit_code &= BIT(ARM_EXIT_WITH_SERROR_BIT);
 		*exit_code |= ARM_EXCEPTION_IL;
-		return false;
 	}
-
-	return true;
 }
 
 /* Switch to the guest for legacy non-VHE systems */
@@ -315,9 +311,6 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	do {
 		/* Jump in the fire! */
 		exit_code = __guest_enter(vcpu);
-
-		if (unlikely(!handle_aarch32_guest(vcpu, &exit_code)))
-			break;
 
 		/* And we're baaack! */
 	} while (fixup_guest_exit(vcpu, &exit_code));

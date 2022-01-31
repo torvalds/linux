@@ -110,8 +110,8 @@ static int pm_runlist_vi(struct packet_manager *pm, uint32_t *buffer,
 	return 0;
 }
 
-int pm_set_resources_vi(struct packet_manager *pm, uint32_t *buffer,
-				struct scheduling_resources *res)
+static int pm_set_resources_vi(struct packet_manager *pm, uint32_t *buffer,
+			       struct scheduling_resources *res)
 {
 	struct pm4_mes_set_resources *packet;
 

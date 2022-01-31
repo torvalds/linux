@@ -213,6 +213,7 @@ static const struct regmap_config ti_sn65dsi86_regmap_config = {
 	.val_bits = 8,
 	.volatile_table = &ti_sn_bridge_volatile_table,
 	.cache_type = REGCACHE_NONE,
+	.max_register = 0xFF,
 };
 
 static int __maybe_unused ti_sn65dsi86_read_u16(struct ti_sn65dsi86 *pdata,
@@ -704,7 +705,7 @@ static struct ti_sn65dsi86 *bridge_to_ti_sn65dsi86(struct drm_bridge *bridge)
 
 static int ti_sn_attach_host(struct ti_sn65dsi86 *pdata)
 {
-	int ret, val;
+	int val;
 	struct mipi_dsi_host *host;
 	struct mipi_dsi_device *dsi;
 	struct device *dev = pdata->dev;
@@ -714,16 +715,12 @@ static int ti_sn_attach_host(struct ti_sn65dsi86 *pdata)
 	};
 
 	host = of_find_mipi_dsi_host_by_node(pdata->host_node);
-	if (!host) {
-		DRM_ERROR("failed to find dsi host\n");
-		return -ENODEV;
-	}
+	if (!host)
+		return -EPROBE_DEFER;
 
 	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
-	if (IS_ERR(dsi)) {
-		DRM_ERROR("failed to create dsi device\n");
+	if (IS_ERR(dsi))
 		return PTR_ERR(dsi);
-	}
 
 	/* TODO: setting to 4 MIPI lanes always for now */
 	dsi->lanes = 4;
@@ -739,13 +736,7 @@ static int ti_sn_attach_host(struct ti_sn65dsi86 *pdata)
 
 	pdata->dsi = dsi;
 
-	ret = devm_mipi_dsi_attach(dev, dsi);
-	if (ret < 0) {
-		DRM_ERROR("failed to attach dsi to host\n");
-		return ret;
-	}
-
-	return 0;
+	return devm_mipi_dsi_attach(dev, dsi);
 }
 
 static int ti_sn_bridge_attach(struct drm_bridge *bridge,
@@ -1267,8 +1258,10 @@ static int ti_sn_bridge_probe(struct auxiliary_device *adev,
 	drm_bridge_add(&pdata->bridge);
 
 	ret = ti_sn_attach_host(pdata);
-	if (ret)
+	if (ret) {
+		dev_err_probe(pdata->dev, ret, "failed to attach dsi host\n");
 		goto err_remove_bridge;
+	}
 
 	return 0;
 

@@ -477,7 +477,7 @@ find_first_strong_holder(struct gfs2_glock *gl)
 
 /*
  * gfs2_instantiate - Call the glops instantiate function
- * @gl: The glock
+ * @gh: The glock holder
  *
  * Returns: 0 if instantiate was successful, 2 if type specific operation is
  * underway, or error.
@@ -1245,7 +1245,7 @@ out:
 }
 
 /**
- * gfs2_holder_init - initialize a struct gfs2_holder in the default way
+ * __gfs2_holder_init - initialize a struct gfs2_holder in the default way
  * @gl: the glock
  * @state: the state we're requesting
  * @flags: the modifier flags
@@ -1857,7 +1857,6 @@ void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs)
 
 void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 {
-	struct gfs2_holder mock_gh = { .gh_gl = gl, .gh_state = state, };
 	unsigned long delay = 0;
 	unsigned long holdtime;
 	unsigned long now = jiffies;
@@ -1890,8 +1889,13 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 	 * keep the glock until the last strong holder is done with it.
 	 */
 	if (!find_first_strong_holder(gl)) {
-		if (state == LM_ST_UNLOCKED)
-			mock_gh.gh_state = LM_ST_EXCLUSIVE;
+		struct gfs2_holder mock_gh = {
+			.gh_gl = gl,
+			.gh_state = (state == LM_ST_UNLOCKED) ?
+				    LM_ST_EXCLUSIVE : state,
+			.gh_iflags = BIT(HIF_HOLDER)
+		};
+
 		demote_incompat_holders(gl, &mock_gh);
 	}
 	handle_callback(gl, state, delay, true);

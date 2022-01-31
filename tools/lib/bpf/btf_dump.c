@@ -77,9 +77,8 @@ struct btf_dump_data {
 
 struct btf_dump {
 	const struct btf *btf;
-	const struct btf_ext *btf_ext;
 	btf_dump_printf_fn_t printf_fn;
-	struct btf_dump_opts opts;
+	void *cb_ctx;
 	int ptr_sz;
 	bool strip_mods;
 	bool skip_anon_defs;
@@ -138,29 +137,32 @@ static void btf_dump_printf(const struct btf_dump *d, const char *fmt, ...)
 	va_list args;
 
 	va_start(args, fmt);
-	d->printf_fn(d->opts.ctx, fmt, args);
+	d->printf_fn(d->cb_ctx, fmt, args);
 	va_end(args);
 }
 
 static int btf_dump_mark_referenced(struct btf_dump *d);
 static int btf_dump_resize(struct btf_dump *d);
 
-struct btf_dump *btf_dump__new(const struct btf *btf,
-			       const struct btf_ext *btf_ext,
-			       const struct btf_dump_opts *opts,
-			       btf_dump_printf_fn_t printf_fn)
+DEFAULT_VERSION(btf_dump__new_v0_6_0, btf_dump__new, LIBBPF_0.6.0)
+struct btf_dump *btf_dump__new_v0_6_0(const struct btf *btf,
+				      btf_dump_printf_fn_t printf_fn,
+				      void *ctx,
+				      const struct btf_dump_opts *opts)
 {
 	struct btf_dump *d;
 	int err;
+
+	if (!printf_fn)
+		return libbpf_err_ptr(-EINVAL);
 
 	d = calloc(1, sizeof(struct btf_dump));
 	if (!d)
 		return libbpf_err_ptr(-ENOMEM);
 
 	d->btf = btf;
-	d->btf_ext = btf_ext;
 	d->printf_fn = printf_fn;
-	d->opts.ctx = opts ? opts->ctx : NULL;
+	d->cb_ctx = ctx;
 	d->ptr_sz = btf__pointer_size(btf) ? : sizeof(void *);
 
 	d->type_names = hashmap__new(str_hash_fn, str_equal_fn, NULL);
@@ -184,6 +186,17 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 err:
 	btf_dump__free(d);
 	return libbpf_err_ptr(err);
+}
+
+COMPAT_VERSION(btf_dump__new_deprecated, btf_dump__new, LIBBPF_0.0.4)
+struct btf_dump *btf_dump__new_deprecated(const struct btf *btf,
+					  const struct btf_ext *btf_ext,
+					  const struct btf_dump_opts *opts,
+					  btf_dump_printf_fn_t printf_fn)
+{
+	if (!printf_fn)
+		return libbpf_err_ptr(-EINVAL);
+	return btf_dump__new_v0_6_0(btf, printf_fn, opts ? opts->ctx : NULL, opts);
 }
 
 static int btf_dump_resize(struct btf_dump *d)
@@ -317,6 +330,7 @@ static int btf_dump_mark_referenced(struct btf_dump *d)
 		case BTF_KIND_FUNC:
 		case BTF_KIND_VAR:
 		case BTF_KIND_DECL_TAG:
+		case BTF_KIND_TYPE_TAG:
 			d->type_states[t->type].referenced = 1;
 			break;
 
@@ -560,6 +574,7 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPE_TAG:
 		return btf_dump_order_type(d, t->type, through_ptr);
 
 	case BTF_KIND_FUNC_PROTO: {
@@ -734,6 +749,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPE_TAG:
 		btf_dump_emit_type(d, t->type, cont_id);
 		break;
 	case BTF_KIND_ARRAY:
@@ -1154,6 +1170,7 @@ skip_mod:
 		case BTF_KIND_CONST:
 		case BTF_KIND_RESTRICT:
 		case BTF_KIND_FUNC_PROTO:
+		case BTF_KIND_TYPE_TAG:
 			id = t->type;
 			break;
 		case BTF_KIND_ARRAY:
@@ -1321,6 +1338,11 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			break;
 		case BTF_KIND_RESTRICT:
 			btf_dump_printf(d, " restrict");
+			break;
+		case BTF_KIND_TYPE_TAG:
+			btf_dump_emit_mods(d, decls);
+			name = btf_name_of(d, t->name_off);
+			btf_dump_printf(d, " __attribute__((btf_type_tag(\"%s\")))", name);
 			break;
 		case BTF_KIND_ARRAY: {
 			const struct btf_array *a = btf_array(t);
@@ -2194,7 +2216,7 @@ static int btf_dump_dump_type_data(struct btf_dump *d,
 				   __u8 bits_offset,
 				   __u8 bit_sz)
 {
-	int size, err;
+	int size, err = 0;
 
 	size = btf_dump_type_data_check_overflow(d, t, id, data, bits_offset);
 	if (size < 0)
@@ -2299,8 +2321,8 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 	if (!opts->indent_str)
 		d->typed_dump->indent_str[0] = '\t';
 	else
-		strncat(d->typed_dump->indent_str, opts->indent_str,
-			sizeof(d->typed_dump->indent_str) - 1);
+		libbpf_strlcpy(d->typed_dump->indent_str, opts->indent_str,
+			       sizeof(d->typed_dump->indent_str));
 
 	d->typed_dump->compact = OPTS_GET(opts, compact, false);
 	d->typed_dump->skip_names = OPTS_GET(opts, skip_names, false);

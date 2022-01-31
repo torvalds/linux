@@ -459,7 +459,7 @@ static struct drm_display_mode simpledrm_mode(unsigned int width,
 {
 	struct drm_display_mode mode = { SIMPLEDRM_MODE(width, height) };
 
-	mode.clock = 60 /* Hz */ * mode.hdisplay * mode.vdisplay;
+	mode.clock = mode.hdisplay * mode.vdisplay * 60 / 1000 /* kHz */;
 	drm_mode_set_name(&mode);
 
 	return mode;
@@ -571,8 +571,8 @@ static const uint32_t simpledrm_default_formats[] = {
 	//DRM_FORMAT_XRGB1555,
 	//DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_RGB888,
-	//DRM_FORMAT_XRGB2101010,
-	//DRM_FORMAT_ARGB2101010,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_ARGB2101010,
 };
 
 static const uint64_t simpledrm_format_modifiers[] = {

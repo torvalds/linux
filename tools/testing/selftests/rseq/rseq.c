@@ -27,9 +27,8 @@
 #include <signal.h>
 #include <limits.h>
 
+#include "../kselftest.h"
 #include "rseq.h"
-
-#define ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
 
 __thread volatile struct rseq __rseq_abi = {
 	.cpu_id = RSEQ_CPU_ID_UNINITIALIZED,

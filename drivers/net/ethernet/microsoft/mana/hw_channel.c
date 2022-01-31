@@ -480,15 +480,15 @@ static int mana_hwc_create_wq(struct hw_channel_context *hwc,
 	if (err)
 		goto out;
 
-	err = mana_hwc_alloc_dma_buf(hwc, q_depth, max_msg_size,
-				     &hwc_wq->msg_buf);
-	if (err)
-		goto out;
-
 	hwc_wq->hwc = hwc;
 	hwc_wq->gdma_wq = queue;
 	hwc_wq->queue_depth = q_depth;
 	hwc_wq->hwc_cq = hwc_cq;
+
+	err = mana_hwc_alloc_dma_buf(hwc, q_depth, max_msg_size,
+				     &hwc_wq->msg_buf);
+	if (err)
+		goto out;
 
 	*hwc_wq_ptr = hwc_wq;
 	return 0;

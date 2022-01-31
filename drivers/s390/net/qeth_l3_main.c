@@ -1822,17 +1822,6 @@ static u16 qeth_l3_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
 				     qeth_l3_get_cast_type(skb, proto), sb_dev);
 }
 
-static u16 qeth_l3_osa_select_queue(struct net_device *dev, struct sk_buff *skb,
-				    struct net_device *sb_dev)
-{
-	struct qeth_card *card = dev->ml_priv;
-
-	if (qeth_uses_tx_prio_queueing(card))
-		return qeth_get_priority_queue(card, skb);
-
-	return netdev_pick_tx(dev, skb, sb_dev);
-}
-
 static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
@@ -1854,7 +1843,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
 	.ndo_features_check	= qeth_l3_osa_features_check,
-	.ndo_select_queue	= qeth_l3_osa_select_queue,
+	.ndo_select_queue	= qeth_osa_select_queue,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
 	.ndo_eth_ioctl		= qeth_do_ioctl,

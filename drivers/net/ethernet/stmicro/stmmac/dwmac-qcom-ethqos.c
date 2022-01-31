@@ -113,8 +113,10 @@ static void rgmii_updatel(struct qcom_ethqos *ethqos,
 	rgmii_writel(ethqos, temp, offset);
 }
 
-static void rgmii_dump(struct qcom_ethqos *ethqos)
+static void rgmii_dump(void *priv)
 {
+	struct qcom_ethqos *ethqos = priv;
+
 	dev_dbg(&ethqos->pdev->dev, "Rgmii register dump\n");
 	dev_dbg(&ethqos->pdev->dev, "RGMII_IO_MACRO_CONFIG: %x\n",
 		rgmii_readl(ethqos, RGMII_IO_MACRO_CONFIG));
@@ -447,6 +449,24 @@ static void ethqos_fix_mac_speed(void *priv, unsigned int speed)
 	ethqos_configure(ethqos);
 }
 
+static int ethqos_clks_config(void *priv, bool enabled)
+{
+	struct qcom_ethqos *ethqos = priv;
+	int ret = 0;
+
+	if (enabled) {
+		ret = clk_prepare_enable(ethqos->rgmii_clk);
+		if (ret) {
+			dev_err(&ethqos->pdev->dev, "rgmii_clk enable failed\n");
+			return ret;
+		}
+	} else {
+		clk_disable_unprepare(ethqos->rgmii_clk);
+	}
+
+	return ret;
+}
+
 static int qcom_ethqos_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -465,6 +485,8 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "dt configuration failed\n");
 		return PTR_ERR(plat_dat);
 	}
+
+	plat_dat->clks_config = ethqos_clks_config;
 
 	ethqos = devm_kzalloc(&pdev->dev, sizeof(*ethqos), GFP_KERNEL);
 	if (!ethqos) {
@@ -489,7 +511,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		goto err_mem;
 	}
 
-	ret = clk_prepare_enable(ethqos->rgmii_clk);
+	ret = ethqos_clks_config(ethqos, true);
 	if (ret)
 		goto err_mem;
 
@@ -499,6 +521,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	plat_dat->bsp_priv = ethqos;
 	plat_dat->fix_mac_speed = ethqos_fix_mac_speed;
+	plat_dat->dump_debug_regs = rgmii_dump;
 	plat_dat->has_gmac4 = 1;
 	plat_dat->pmt = 1;
 	plat_dat->tso_en = of_property_read_bool(np, "snps,tso");
@@ -507,12 +530,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	rgmii_dump(ethqos);
-
 	return ret;
 
 err_clk:
-	clk_disable_unprepare(ethqos->rgmii_clk);
+	ethqos_clks_config(ethqos, false);
 
 err_mem:
 	stmmac_remove_config_dt(pdev, plat_dat);
@@ -530,7 +551,7 @@ static int qcom_ethqos_remove(struct platform_device *pdev)
 		return -ENODEV;
 
 	ret = stmmac_pltfr_remove(pdev);
-	clk_disable_unprepare(ethqos->rgmii_clk);
+	ethqos_clks_config(ethqos, false);
 
 	return ret;
 }

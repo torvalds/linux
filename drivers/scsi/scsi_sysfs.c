@@ -424,8 +424,13 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	NULL
 };
 
-const struct attribute_group scsi_shost_attr_group = {
+static const struct attribute_group scsi_shost_attr_group = {
 	.attrs =	scsi_sysfs_shost_attrs,
+};
+
+const struct attribute_group *scsi_shost_groups[] = {
+	&scsi_shost_attr_group,
+	NULL
 };
 
 static void scsi_device_cls_release(struct device *class_dev)
@@ -812,7 +817,7 @@ store_state_field(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&sdev->state_mutex);
 	if (sdev->sdev_state == SDEV_RUNNING && state == SDEV_RUNNING) {
-		ret = count;
+		ret = 0;
 	} else {
 		ret = scsi_device_set_state(sdev, state);
 		if (ret == 0 && state == SDEV_RUNNING)

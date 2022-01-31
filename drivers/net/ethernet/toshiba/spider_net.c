@@ -595,24 +595,24 @@ spider_net_set_multi(struct net_device *netdev)
 	int i;
 	u32 reg;
 	struct spider_net_card *card = netdev_priv(netdev);
-	DECLARE_BITMAP(bitmask, SPIDER_NET_MULTICAST_HASHES) = {};
+	DECLARE_BITMAP(bitmask, SPIDER_NET_MULTICAST_HASHES);
 
 	spider_net_set_promisc(card);
 
 	if (netdev->flags & IFF_ALLMULTI) {
-		for (i = 0; i < SPIDER_NET_MULTICAST_HASHES; i++) {
-			set_bit(i, bitmask);
-		}
+		bitmap_fill(bitmask, SPIDER_NET_MULTICAST_HASHES);
 		goto write_hash;
 	}
 
+	bitmap_zero(bitmask, SPIDER_NET_MULTICAST_HASHES);
+
 	/* well, we know, what the broadcast hash value is: it's xfd
 	hash = spider_net_get_multicast_hash(netdev, netdev->broadcast); */
-	set_bit(0xfd, bitmask);
+	__set_bit(0xfd, bitmask);
 
 	netdev_for_each_mc_addr(ha, netdev) {
 		hash = spider_net_get_multicast_hash(netdev, ha->addr);
-		set_bit(hash, bitmask);
+		__set_bit(hash, bitmask);
 	}
 
 write_hash:

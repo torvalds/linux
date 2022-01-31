@@ -168,8 +168,6 @@ struct i915_hotplug {
 	 I915_GEM_DOMAIN_VERTEX)
 
 struct drm_i915_private;
-struct i915_mm_struct;
-struct i915_mmu_object;
 
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;
@@ -466,7 +464,7 @@ struct i915_gem_mm {
 	 * List of objects which are pending destruction.
 	 */
 	struct llist_head free_list;
-	struct work_struct free_work;
+	struct delayed_work free_work;
 	/**
 	 * Count of objects pending destructions. Used to skip needlessly
 	 * waiting on an RCU barrier if no objects are waiting to be freed.
@@ -985,7 +983,7 @@ struct drm_i915_private {
 	struct i915_perf perf;
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
-	struct intel_gt gt;
+	struct intel_gt gt0;
 
 	struct {
 		struct i915_gem_contexts {
@@ -1057,6 +1055,11 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 	return pci_get_drvdata(pdev);
 }
 
+static inline struct intel_gt *to_gt(struct drm_i915_private *i915)
+{
+	return &i915->gt0;
+}
+
 /* Simple iterator over all initialised engines */
 #define for_each_engine(engine__, dev_priv__, id__) \
 	for ((id__) = 0; \
@@ -1114,15 +1117,15 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 
 #define IP_VER(ver, rel)		((ver) << 8 | (rel))
 
-#define GRAPHICS_VER(i915)		(INTEL_INFO(i915)->graphics_ver)
-#define GRAPHICS_VER_FULL(i915)		IP_VER(INTEL_INFO(i915)->graphics_ver, \
-					       INTEL_INFO(i915)->graphics_rel)
+#define GRAPHICS_VER(i915)		(INTEL_INFO(i915)->graphics.ver)
+#define GRAPHICS_VER_FULL(i915)		IP_VER(INTEL_INFO(i915)->graphics.ver, \
+					       INTEL_INFO(i915)->graphics.rel)
 #define IS_GRAPHICS_VER(i915, from, until) \
 	(GRAPHICS_VER(i915) >= (from) && GRAPHICS_VER(i915) <= (until))
 
-#define MEDIA_VER(i915)			(INTEL_INFO(i915)->media_ver)
-#define MEDIA_VER_FULL(i915)		IP_VER(INTEL_INFO(i915)->media_ver, \
-					       INTEL_INFO(i915)->media_rel)
+#define MEDIA_VER(i915)			(INTEL_INFO(i915)->media.ver)
+#define MEDIA_VER_FULL(i915)		IP_VER(INTEL_INFO(i915)->media.arch, \
+					       INTEL_INFO(i915)->media.rel)
 #define IS_MEDIA_VER(i915, from, until) \
 	(MEDIA_VER(i915) >= (from) && MEDIA_VER(i915) <= (until))
 
@@ -1135,15 +1138,20 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 #define HAS_DSB(dev_priv)	(INTEL_INFO(dev_priv)->display.has_dsb)
 
 #define INTEL_DISPLAY_STEP(__i915) (RUNTIME_INFO(__i915)->step.display_step)
-#define INTEL_GT_STEP(__i915) (RUNTIME_INFO(__i915)->step.gt_step)
+#define INTEL_GRAPHICS_STEP(__i915) (RUNTIME_INFO(__i915)->step.graphics_step)
+#define INTEL_MEDIA_STEP(__i915) (RUNTIME_INFO(__i915)->step.media_step)
 
 #define IS_DISPLAY_STEP(__i915, since, until) \
 	(drm_WARN_ON(&(__i915)->drm, INTEL_DISPLAY_STEP(__i915) == STEP_NONE), \
 	 INTEL_DISPLAY_STEP(__i915) >= (since) && INTEL_DISPLAY_STEP(__i915) < (until))
 
-#define IS_GT_STEP(__i915, since, until) \
-	(drm_WARN_ON(&(__i915)->drm, INTEL_GT_STEP(__i915) == STEP_NONE), \
-	 INTEL_GT_STEP(__i915) >= (since) && INTEL_GT_STEP(__i915) < (until))
+#define IS_GRAPHICS_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_GRAPHICS_STEP(__i915) == STEP_NONE), \
+	 INTEL_GRAPHICS_STEP(__i915) >= (since) && INTEL_GRAPHICS_STEP(__i915) < (until))
+
+#define IS_MEDIA_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_MEDIA_STEP(__i915) == STEP_NONE), \
+	 INTEL_MEDIA_STEP(__i915) >= (since) && INTEL_MEDIA_STEP(__i915) < (until))
 
 static __always_inline unsigned int
 __platform_mask_index(const struct intel_runtime_info *info,
@@ -1320,15 +1328,15 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_TGL_Y(dev_priv) \
 	IS_SUBPLATFORM(dev_priv, INTEL_TIGERLAKE, INTEL_SUBPLATFORM_ULX)
 
-#define IS_SKL_GT_STEP(p, since, until) (IS_SKYLAKE(p) && IS_GT_STEP(p, since, until))
+#define IS_SKL_GRAPHICS_STEP(p, since, until) (IS_SKYLAKE(p) && IS_GRAPHICS_STEP(p, since, until))
 
-#define IS_KBL_GT_STEP(dev_priv, since, until) \
-	(IS_KABYLAKE(dev_priv) && IS_GT_STEP(dev_priv, since, until))
+#define IS_KBL_GRAPHICS_STEP(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && IS_GRAPHICS_STEP(dev_priv, since, until))
 #define IS_KBL_DISPLAY_STEP(dev_priv, since, until) \
 	(IS_KABYLAKE(dev_priv) && IS_DISPLAY_STEP(dev_priv, since, until))
 
-#define IS_JSL_EHL_GT_STEP(p, since, until) \
-	(IS_JSL_EHL(p) && IS_GT_STEP(p, since, until))
+#define IS_JSL_EHL_GRAPHICS_STEP(p, since, until) \
+	(IS_JSL_EHL(p) && IS_GRAPHICS_STEP(p, since, until))
 #define IS_JSL_EHL_DISPLAY_STEP(p, since, until) \
 	(IS_JSL_EHL(p) && IS_DISPLAY_STEP(p, since, until))
 
@@ -1336,19 +1344,19 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_TIGERLAKE(__i915) && \
 	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define IS_TGL_UY_GT_STEP(__i915, since, until) \
+#define IS_TGL_UY_GRAPHICS_STEP(__i915, since, until) \
 	((IS_TGL_U(__i915) || IS_TGL_Y(__i915)) && \
-	 IS_GT_STEP(__i915, since, until))
+	 IS_GRAPHICS_STEP(__i915, since, until))
 
-#define IS_TGL_GT_STEP(__i915, since, until) \
+#define IS_TGL_GRAPHICS_STEP(__i915, since, until) \
 	(IS_TIGERLAKE(__i915) && !(IS_TGL_U(__i915) || IS_TGL_Y(__i915)) && \
-	 IS_GT_STEP(__i915, since, until))
+	 IS_GRAPHICS_STEP(__i915, since, until))
 
 #define IS_RKL_DISPLAY_STEP(p, since, until) \
 	(IS_ROCKETLAKE(p) && IS_DISPLAY_STEP(p, since, until))
 
-#define IS_DG1_GT_STEP(p, since, until) \
-	(IS_DG1(p) && IS_GT_STEP(p, since, until))
+#define IS_DG1_GRAPHICS_STEP(p, since, until) \
+	(IS_DG1(p) && IS_GRAPHICS_STEP(p, since, until))
 #define IS_DG1_DISPLAY_STEP(p, since, until) \
 	(IS_DG1(p) && IS_DISPLAY_STEP(p, since, until))
 
@@ -1356,20 +1364,20 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_ALDERLAKE_S(__i915) && \
 	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define IS_ADLS_GT_STEP(__i915, since, until) \
+#define IS_ADLS_GRAPHICS_STEP(__i915, since, until) \
 	(IS_ALDERLAKE_S(__i915) && \
-	 IS_GT_STEP(__i915, since, until))
+	 IS_GRAPHICS_STEP(__i915, since, until))
 
 #define IS_ADLP_DISPLAY_STEP(__i915, since, until) \
 	(IS_ALDERLAKE_P(__i915) && \
 	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define IS_ADLP_GT_STEP(__i915, since, until) \
+#define IS_ADLP_GRAPHICS_STEP(__i915, since, until) \
 	(IS_ALDERLAKE_P(__i915) && \
-	 IS_GT_STEP(__i915, since, until))
+	 IS_GRAPHICS_STEP(__i915, since, until))
 
-#define IS_XEHPSDV_GT_STEP(__i915, since, until) \
-	(IS_XEHPSDV(__i915) && IS_GT_STEP(__i915, since, until))
+#define IS_XEHPSDV_GRAPHICS_STEP(__i915, since, until) \
+	(IS_XEHPSDV(__i915) && IS_GRAPHICS_STEP(__i915, since, until))
 
 /*
  * DG2 hardware steppings are a bit unusual.  The hardware design was forked
@@ -1385,9 +1393,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
  * and stepping-specific logic will be applied with a general DG2-wide stepping
  * number.
  */
-#define IS_DG2_GT_STEP(__i915, variant, since, until) \
+#define IS_DG2_GRAPHICS_STEP(__i915, variant, since, until) \
 	(IS_SUBPLATFORM(__i915, INTEL_DG2, INTEL_SUBPLATFORM_##variant) && \
-	 IS_GT_STEP(__i915, since, until))
+	 IS_GRAPHICS_STEP(__i915, since, until))
 
 #define IS_DG2_DISPLAY_STEP(__i915, since, until) \
 	(IS_DG2(__i915) && \
@@ -1504,6 +1512,14 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_MSLICES(dev_priv) \
 	(INTEL_INFO(dev_priv)->has_mslices)
 
+/*
+ * Set this flag, when platform requires 64K GTT page sizes or larger for
+ * device local memory access. Also this flag implies that we require or
+ * at least support the compact PT layout for the ppGTT when using the 64K
+ * GTT pages.
+ */
+#define HAS_64K_PAGES(dev_priv) (INTEL_INFO(dev_priv)->has_64k_pages)
+
 #define HAS_IPC(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ipc)
 
 #define HAS_REGION(i915, i) (INTEL_INFO(i915)->memory_regions & (i))
@@ -1517,7 +1533,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_PXP(dev_priv)  ((IS_ENABLED(CONFIG_DRM_I915_PXP) && \
 			    INTEL_INFO(dev_priv)->has_pxp) && \
-			    VDBOX_MASK(&dev_priv->gt))
+			    VDBOX_MASK(to_gt(dev_priv)))
 
 #define HAS_GMCH(dev_priv) (INTEL_INFO(dev_priv)->display.has_gmch)
 
@@ -1551,26 +1567,27 @@ static inline bool run_as_guest(void)
 #define HAS_D12_PLANE_MINIMIZATION(dev_priv) (IS_ROCKETLAKE(dev_priv) || \
 					      IS_ALDERLAKE_S(dev_priv))
 
-static inline bool intel_vtd_active(void)
+static inline bool intel_vtd_active(struct drm_i915_private *i915)
 {
-#ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_gfx_mapped)
+	if (device_iommu_mapped(i915->drm.dev))
 		return true;
-#endif
 
 	/* Running as a guest, we assume the host is enforcing VT'd */
 	return run_as_guest();
 }
 
+void
+i915_print_iommu_status(struct drm_i915_private *i915, struct drm_printer *p);
+
 static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
 {
-	return GRAPHICS_VER(dev_priv) >= 6 && intel_vtd_active();
+	return GRAPHICS_VER(dev_priv) >= 6 && intel_vtd_active(dev_priv);
 }
 
 static inline bool
 intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *i915)
 {
-	return IS_BROXTON(i915) && intel_vtd_active();
+	return IS_BROXTON(i915) && intel_vtd_active(i915);
 }
 
 static inline bool
@@ -1593,7 +1610,8 @@ static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 	 * armed the work again.
 	 */
 	while (atomic_read(&i915->mm.free_count)) {
-		flush_work(&i915->mm.free_work);
+		flush_delayed_work(&i915->mm.free_work);
+		flush_delayed_work(&i915->bdev.wq);
 		rcu_barrier();
 	}
 }
@@ -1626,13 +1644,10 @@ i915_gem_object_ggtt_pin_ww(struct drm_i915_gem_object *obj,
 			    const struct i915_ggtt_view *view,
 			    u64 size, u64 alignment, u64 flags);
 
-static inline struct i915_vma * __must_check
+struct i915_vma * __must_check
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
-			 u64 size, u64 alignment, u64 flags)
-{
-	return i915_gem_object_ggtt_pin_ww(obj, NULL, view, size, alignment, flags);
-}
+			 u64 size, u64 alignment, u64 flags);
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 			   unsigned long flags);
@@ -1697,6 +1712,10 @@ i915_gem_vm_lookup(struct drm_i915_file_private *file_priv, u32 id)
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
 				phys_addr_t size);
+struct drm_i915_gem_object *
+__i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
+				  const struct drm_i915_gem_object_ops *ops,
+				  phys_addr_t size);
 
 /* i915_gem_tiling.c */
 static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)

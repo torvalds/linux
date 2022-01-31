@@ -16,6 +16,7 @@
 #include <trace/events/kvm.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
+#include <xen/interface/event_channel.h>
 
 #include "trace.h"
 
@@ -23,38 +24,77 @@ DEFINE_STATIC_KEY_DEFERRED_FALSE(kvm_xen_enabled, HZ);
 
 static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 {
+	struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
+	struct pvclock_wall_clock *wc;
 	gpa_t gpa = gfn_to_gpa(gfn);
-	int wc_ofs, sec_hi_ofs;
+	u32 *wc_sec_hi;
+	u32 wc_version;
+	u64 wall_nsec;
 	int ret = 0;
 	int idx = srcu_read_lock(&kvm->srcu);
 
-	if (kvm_is_error_hva(gfn_to_hva(kvm, gfn))) {
-		ret = -EFAULT;
+	if (gfn == GPA_INVALID) {
+		kvm_gfn_to_pfn_cache_destroy(kvm, gpc);
 		goto out;
 	}
-	kvm->arch.xen.shinfo_gfn = gfn;
+
+	do {
+		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, false, true,
+						gpa, PAGE_SIZE, false);
+		if (ret)
+			goto out;
+
+		/*
+		 * This code mirrors kvm_write_wall_clock() except that it writes
+		 * directly through the pfn cache and doesn't mark the page dirty.
+		 */
+		wall_nsec = ktime_get_real_ns() - get_kvmclock_ns(kvm);
+
+		/* It could be invalid again already, so we need to check */
+		read_lock_irq(&gpc->lock);
+
+		if (gpc->valid)
+			break;
+
+		read_unlock_irq(&gpc->lock);
+	} while (1);
 
 	/* Paranoia checks on the 32-bit struct layout */
 	BUILD_BUG_ON(offsetof(struct compat_shared_info, wc) != 0x900);
 	BUILD_BUG_ON(offsetof(struct compat_shared_info, arch.wc_sec_hi) != 0x924);
 	BUILD_BUG_ON(offsetof(struct pvclock_vcpu_time_info, version) != 0);
 
-	/* 32-bit location by default */
-	wc_ofs = offsetof(struct compat_shared_info, wc);
-	sec_hi_ofs = offsetof(struct compat_shared_info, arch.wc_sec_hi);
-
 #ifdef CONFIG_X86_64
 	/* Paranoia checks on the 64-bit struct layout */
 	BUILD_BUG_ON(offsetof(struct shared_info, wc) != 0xc00);
 	BUILD_BUG_ON(offsetof(struct shared_info, wc_sec_hi) != 0xc0c);
 
-	if (kvm->arch.xen.long_mode) {
-		wc_ofs = offsetof(struct shared_info, wc);
-		sec_hi_ofs = offsetof(struct shared_info, wc_sec_hi);
-	}
-#endif
+	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode) {
+		struct shared_info *shinfo = gpc->khva;
 
-	kvm_write_wall_clock(kvm, gpa + wc_ofs, sec_hi_ofs - wc_ofs);
+		wc_sec_hi = &shinfo->wc_sec_hi;
+		wc = &shinfo->wc;
+	} else
+#endif
+	{
+		struct compat_shared_info *shinfo = gpc->khva;
+
+		wc_sec_hi = &shinfo->arch.wc_sec_hi;
+		wc = &shinfo->wc;
+	}
+
+	/* Increment and ensure an odd value */
+	wc_version = wc->version = (wc->version + 1) | 1;
+	smp_wmb();
+
+	wc->nsec = do_div(wall_nsec,  1000000000);
+	wc->sec = (u32)wall_nsec;
+	*wc_sec_hi = wall_nsec >> 32;
+	smp_wmb();
+
+	wc->version = wc_version + 1;
+	read_unlock_irq(&gpc->lock);
+
 	kvm_make_all_cpus_request(kvm, KVM_REQ_MASTERCLOCK_UPDATE);
 
 out:
@@ -190,6 +230,8 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 
 int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 {
+	unsigned long evtchn_pending_sel = READ_ONCE(v->arch.xen.evtchn_pending_sel);
+	bool atomic = in_atomic() || !task_is_running(current);
 	int err;
 	u8 rc = 0;
 
@@ -199,6 +241,9 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 	 */
 	struct gfn_to_hva_cache *ghc = &v->arch.xen.vcpu_info_cache;
 	struct kvm_memslots *slots = kvm_memslots(v->kvm);
+	bool ghc_valid = slots->generation == ghc->generation &&
+		!kvm_is_error_hva(ghc->hva) && ghc->memslot;
+
 	unsigned int offset = offsetof(struct vcpu_info, evtchn_upcall_pending);
 
 	/* No need for compat handling here */
@@ -214,8 +259,7 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 	 * cache in kvm_read_guest_offset_cached(), but just uses
 	 * __get_user() instead. And falls back to the slow path.
 	 */
-	if (likely(slots->generation == ghc->generation &&
-		   !kvm_is_error_hva(ghc->hva) && ghc->memslot)) {
+	if (!evtchn_pending_sel && ghc_valid) {
 		/* Fast path */
 		pagefault_disable();
 		err = __get_user(rc, (u8 __user *)ghc->hva + offset);
@@ -234,11 +278,76 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 	 * and we'll end up getting called again from a context where we *can*
 	 * fault in the page and wait for it.
 	 */
-	if (in_atomic() || !task_is_running(current))
+	if (atomic)
 		return 1;
 
-	kvm_read_guest_offset_cached(v->kvm, ghc, &rc, offset,
-				     sizeof(rc));
+	if (!ghc_valid) {
+		err = kvm_gfn_to_hva_cache_init(v->kvm, ghc, ghc->gpa, ghc->len);
+		if (err || !ghc->memslot) {
+			/*
+			 * If this failed, userspace has screwed up the
+			 * vcpu_info mapping. No interrupts for you.
+			 */
+			return 0;
+		}
+	}
+
+	/*
+	 * Now we have a valid (protected by srcu) userspace HVA in
+	 * ghc->hva which points to the struct vcpu_info. If there
+	 * are any bits in the in-kernel evtchn_pending_sel then
+	 * we need to write those to the guest vcpu_info and set
+	 * its evtchn_upcall_pending flag. If there aren't any bits
+	 * to add, we only want to *check* evtchn_upcall_pending.
+	 */
+	if (evtchn_pending_sel) {
+		bool long_mode = v->kvm->arch.xen.long_mode;
+
+		if (!user_access_begin((void __user *)ghc->hva, sizeof(struct vcpu_info)))
+			return 0;
+
+		if (IS_ENABLED(CONFIG_64BIT) && long_mode) {
+			struct vcpu_info __user *vi = (void __user *)ghc->hva;
+
+			/* Attempt to set the evtchn_pending_sel bits in the
+			 * guest, and if that succeeds then clear the same
+			 * bits in the in-kernel version. */
+			asm volatile("1:\t" LOCK_PREFIX "orq %0, %1\n"
+				     "\tnotq %0\n"
+				     "\t" LOCK_PREFIX "andq %0, %2\n"
+				     "2:\n"
+				     _ASM_EXTABLE_UA(1b, 2b)
+				     : "=r" (evtchn_pending_sel),
+				       "+m" (vi->evtchn_pending_sel),
+				       "+m" (v->arch.xen.evtchn_pending_sel)
+				     : "0" (evtchn_pending_sel));
+		} else {
+			struct compat_vcpu_info __user *vi = (void __user *)ghc->hva;
+			u32 evtchn_pending_sel32 = evtchn_pending_sel;
+
+			/* Attempt to set the evtchn_pending_sel bits in the
+			 * guest, and if that succeeds then clear the same
+			 * bits in the in-kernel version. */
+			asm volatile("1:\t" LOCK_PREFIX "orl %0, %1\n"
+				     "\tnotl %0\n"
+				     "\t" LOCK_PREFIX "andl %0, %2\n"
+				     "2:\n"
+				     _ASM_EXTABLE_UA(1b, 2b)
+				     : "=r" (evtchn_pending_sel32),
+				       "+m" (vi->evtchn_pending_sel),
+				       "+m" (v->arch.xen.evtchn_pending_sel)
+				     : "0" (evtchn_pending_sel32));
+		}
+		rc = 1;
+		unsafe_put_user(rc, (u8 __user *)ghc->hva + offset, err);
+
+	err:
+		user_access_end();
+
+		mark_page_dirty_in_slot(v->kvm, ghc->memslot, ghc->gpa >> PAGE_SHIFT);
+	} else {
+		__get_user(rc, (u8 __user *)ghc->hva + offset);
+	}
 
 	return rc;
 }
@@ -260,14 +369,8 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
-		if (data->u.shared_info.gfn == GPA_INVALID) {
-			kvm->arch.xen.shinfo_gfn = GPA_INVALID;
-			r = 0;
-			break;
-		}
 		r = kvm_xen_shared_info_init(kvm, data->u.shared_info.gfn);
 		break;
-
 
 	case KVM_XEN_ATTR_TYPE_UPCALL_VECTOR:
 		if (data->u.vector && data->u.vector < 0x10)
@@ -299,7 +402,10 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
-		data->u.shared_info.gfn = kvm->arch.xen.shinfo_gfn;
+		if (kvm->arch.xen.shinfo_cache.active)
+			data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_cache.gpa);
+		else
+			data->u.shared_info.gfn = GPA_INVALID;
 		r = 0;
 		break;
 
@@ -661,11 +767,12 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 
 void kvm_xen_init_vm(struct kvm *kvm)
 {
-	kvm->arch.xen.shinfo_gfn = GPA_INVALID;
 }
 
 void kvm_xen_destroy_vm(struct kvm *kvm)
 {
+	kvm_gfn_to_pfn_cache_destroy(kvm, &kvm->arch.xen.shinfo_cache);
+
 	if (kvm->arch.xen_hvm_config.msr)
 		static_branch_slow_dec_deferred(&kvm_xen_enabled);
 }
@@ -734,6 +841,182 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	vcpu->arch.xen.hypercall_rip = kvm_get_linear_rip(vcpu);
 	vcpu->arch.complete_userspace_io =
 		kvm_xen_hypercall_complete_userspace;
+
+	return 0;
+}
+
+static inline int max_evtchn_port(struct kvm *kvm)
+{
+	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode)
+		return EVTCHN_2L_NR_CHANNELS;
+	else
+		return COMPAT_EVTCHN_2L_NR_CHANNELS;
+}
+
+/*
+ * This follows the kvm_set_irq() API, so it returns:
+ *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
+ *  = 0   Interrupt was coalesced (previous irq is still pending)
+ *  > 0   Number of CPUs interrupt was delivered to
+ */
+int kvm_xen_set_evtchn_fast(struct kvm_kernel_irq_routing_entry *e,
+			    struct kvm *kvm)
+{
+	struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
+	struct kvm_vcpu *vcpu;
+	unsigned long *pending_bits, *mask_bits;
+	unsigned long flags;
+	int port_word_bit;
+	bool kick_vcpu = false;
+	int idx;
+	int rc;
+
+	vcpu = kvm_get_vcpu_by_id(kvm, e->xen_evtchn.vcpu);
+	if (!vcpu)
+		return -1;
+
+	if (!vcpu->arch.xen.vcpu_info_set)
+		return -1;
+
+	if (e->xen_evtchn.port >= max_evtchn_port(kvm))
+		return -1;
+
+	rc = -EWOULDBLOCK;
+	read_lock_irqsave(&gpc->lock, flags);
+
+	idx = srcu_read_lock(&kvm->srcu);
+	if (!kvm_gfn_to_pfn_cache_check(kvm, gpc, gpc->gpa, PAGE_SIZE))
+		goto out_rcu;
+
+	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode) {
+		struct shared_info *shinfo = gpc->khva;
+		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
+		mask_bits = (unsigned long *)&shinfo->evtchn_mask;
+		port_word_bit = e->xen_evtchn.port / 64;
+	} else {
+		struct compat_shared_info *shinfo = gpc->khva;
+		pending_bits = (unsigned long *)&shinfo->evtchn_pending;
+		mask_bits = (unsigned long *)&shinfo->evtchn_mask;
+		port_word_bit = e->xen_evtchn.port / 32;
+	}
+
+	/*
+	 * If this port wasn't already set, and if it isn't masked, then
+	 * we try to set the corresponding bit in the in-kernel shadow of
+	 * evtchn_pending_sel for the target vCPU. And if *that* wasn't
+	 * already set, then we kick the vCPU in question to write to the
+	 * *real* evtchn_pending_sel in its own guest vcpu_info struct.
+	 */
+	if (test_and_set_bit(e->xen_evtchn.port, pending_bits)) {
+		rc = 0; /* It was already raised */
+	} else if (test_bit(e->xen_evtchn.port, mask_bits)) {
+		rc = -1; /* Masked */
+	} else {
+		rc = 1; /* Delivered. But was the vCPU waking already? */
+		if (!test_and_set_bit(port_word_bit, &vcpu->arch.xen.evtchn_pending_sel))
+			kick_vcpu = true;
+	}
+
+ out_rcu:
+	srcu_read_unlock(&kvm->srcu, idx);
+	read_unlock_irqrestore(&gpc->lock, flags);
+
+	if (kick_vcpu) {
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		kvm_vcpu_kick(vcpu);
+	}
+
+	return rc;
+}
+
+/* This is the version called from kvm_set_irq() as the .set function */
+static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
+			 int irq_source_id, int level, bool line_status)
+{
+	bool mm_borrowed = false;
+	int rc;
+
+	if (!level)
+		return -1;
+
+	rc = kvm_xen_set_evtchn_fast(e, kvm);
+	if (rc != -EWOULDBLOCK)
+		return rc;
+
+	if (current->mm != kvm->mm) {
+		/*
+		 * If not on a thread which already belongs to this KVM,
+		 * we'd better be in the irqfd workqueue.
+		 */
+		if (WARN_ON_ONCE(current->mm))
+			return -EINVAL;
+
+		kthread_use_mm(kvm->mm);
+		mm_borrowed = true;
+	}
+
+	/*
+	 * For the irqfd workqueue, using the main kvm->lock mutex is
+	 * fine since this function is invoked from kvm_set_irq() with
+	 * no other lock held, no srcu. In future if it will be called
+	 * directly from a vCPU thread (e.g. on hypercall for an IPI)
+	 * then it may need to switch to using a leaf-node mutex for
+	 * serializing the shared_info mapping.
+	 */
+	mutex_lock(&kvm->lock);
+
+	/*
+	 * It is theoretically possible for the page to be unmapped
+	 * and the MMU notifier to invalidate the shared_info before
+	 * we even get to use it. In that case, this looks like an
+	 * infinite loop. It was tempting to do it via the userspace
+	 * HVA instead... but that just *hides* the fact that it's
+	 * an infinite loop, because if a fault occurs and it waits
+	 * for the page to come back, it can *still* immediately
+	 * fault and have to wait again, repeatedly.
+	 *
+	 * Conversely, the page could also have been reinstated by
+	 * another thread before we even obtain the mutex above, so
+	 * check again *first* before remapping it.
+	 */
+	do {
+		struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
+		int idx;
+
+		rc = kvm_xen_set_evtchn_fast(e, kvm);
+		if (rc != -EWOULDBLOCK)
+			break;
+
+		idx = srcu_read_lock(&kvm->srcu);
+		rc = kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpc->gpa,
+						  PAGE_SIZE, false);
+		srcu_read_unlock(&kvm->srcu, idx);
+	} while(!rc);
+
+	mutex_unlock(&kvm->lock);
+
+	if (mm_borrowed)
+		kthread_unuse_mm(kvm->mm);
+
+	return rc;
+}
+
+int kvm_xen_setup_evtchn(struct kvm *kvm,
+			 struct kvm_kernel_irq_routing_entry *e,
+			 const struct kvm_irq_routing_entry *ue)
+
+{
+	if (ue->u.xen_evtchn.port >= max_evtchn_port(kvm))
+		return -EINVAL;
+
+	/* We only support 2 level event channels for now */
+	if (ue->u.xen_evtchn.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL)
+		return -EINVAL;
+
+	e->xen_evtchn.port = ue->u.xen_evtchn.port;
+	e->xen_evtchn.vcpu = ue->u.xen_evtchn.vcpu;
+	e->xen_evtchn.priority = ue->u.xen_evtchn.priority;
+	e->set = evtchn_set_fn;
 
 	return 0;
 }

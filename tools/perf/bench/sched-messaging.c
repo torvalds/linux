@@ -223,8 +223,6 @@ static unsigned int group(pthread_t *pth,
 		snd_ctx->out_fds[i] = fds[1];
 		if (!thread_mode)
 			close(fds[0]);
-
-		free(ctx);
 	}
 
 	/* Now we have all the fds, fork the senders */
@@ -240,8 +238,6 @@ static unsigned int group(pthread_t *pth,
 	if (!thread_mode)
 		for (i = 0; i < num_fds; i++)
 			close(snd_ctx->out_fds[i]);
-
-	free(snd_ctx);
 
 	/* Return number of children to reap */
 	return num_fds * 2;

@@ -48,6 +48,7 @@ properties:
       - renesas,r8a77990-rst      # R-Car E3
       - renesas,r8a77995-rst      # R-Car D3
       - renesas,r8a779a0-rst      # R-Car V3U
+      - renesas,r8a779f0-rst      # R-Car S4-8
 
   reg:
     maxItems: 1

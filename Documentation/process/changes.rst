@@ -30,11 +30,12 @@ you probably needn't concern yourself with pcmciautils.
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
 GNU C                  5.1              gcc --version
-Clang/LLVM (optional)  10.0.1           clang --version
+Clang/LLVM (optional)  11.0.0           clang --version
 GNU make               3.81             make --version
 binutils               2.23             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
+pahole                 1.16             pahole --version
 util-linux             2.10o            fdformat --version
 kmod                   13               depmod -V
 e2fsprogs              1.41.4           e2fsck -V
@@ -107,6 +108,16 @@ Bison
 
 Since Linux 4.16, the build system generates parsers
 during build.  This requires bison 2.0 or later.
+
+pahole:
+-------
+
+Since Linux 5.2, if CONFIG_DEBUG_INFO_BTF is selected, the build system
+generates BTF (BPF Type Format) from DWARF in vmlinux, a bit later from kernel
+modules as well.  This requires pahole v1.16 or later.
+
+It is found in the 'dwarves' or 'pahole' distro packages or from
+https://fedorapeople.org/~acme/dwarves/.
 
 Perl
 ----

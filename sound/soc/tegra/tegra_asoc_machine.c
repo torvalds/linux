@@ -116,16 +116,24 @@ static const struct snd_kcontrol_new tegra_machine_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Internal Mic 1"),
 	SOC_DAPM_PIN_SWITCH("Internal Mic 2"),
+	SOC_DAPM_PIN_SWITCH("Headphones"),
+	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 };
 
 int tegra_asoc_machine_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct tegra_machine *machine = snd_soc_card_get_drvdata(card);
+	const char *jack_name;
 	int err;
 
 	if (machine->gpiod_hp_det && machine->asoc->add_hp_jack) {
-		err = snd_soc_card_jack_new(card, "Headphones Jack",
+		if (machine->asoc->hp_jack_name)
+			jack_name = machine->asoc->hp_jack_name;
+		else
+			jack_name = "Headphones Jack";
+
+		err = snd_soc_card_jack_new(card, jack_name,
 					    SND_JACK_HEADPHONE,
 					    &tegra_machine_hp_jack,
 					    tegra_machine_hp_jack_pins,
@@ -658,6 +666,7 @@ static struct snd_soc_card snd_soc_tegra_max98090 = {
 static const struct tegra_asoc_data tegra_max98090_data = {
 	.mclk_rate = tegra_machine_mclk_rate_12mhz,
 	.card = &snd_soc_tegra_max98090,
+	.hp_jack_name = "Headphones",
 	.add_common_dapm_widgets = true,
 	.add_common_controls = true,
 	.add_common_snd_ops = true,

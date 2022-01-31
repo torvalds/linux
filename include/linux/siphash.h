@@ -21,15 +21,15 @@ typedef struct {
 	u64 key[2];
 } siphash_key_t;
 
+#define siphash_aligned_key_t siphash_key_t __aligned(16)
+
 static inline bool siphash_key_is_zero(const siphash_key_t *key)
 {
 	return !(key->key[0] | key->key[1]);
 }
 
 u64 __siphash_aligned(const void *data, size_t len, const siphash_key_t *key);
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 u64 __siphash_unaligned(const void *data, size_t len, const siphash_key_t *key);
-#endif
 
 u64 siphash_1u64(const u64 a, const siphash_key_t *key);
 u64 siphash_2u64(const u64 a, const u64 b, const siphash_key_t *key);
@@ -82,10 +82,9 @@ static inline u64 ___siphash_aligned(const __le64 *data, size_t len,
 static inline u64 siphash(const void *data, size_t len,
 			  const siphash_key_t *key)
 {
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-	if (!IS_ALIGNED((unsigned long)data, SIPHASH_ALIGNMENT))
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
+	    !IS_ALIGNED((unsigned long)data, SIPHASH_ALIGNMENT))
 		return __siphash_unaligned(data, len, key);
-#endif
 	return ___siphash_aligned(data, len, key);
 }
 
@@ -96,10 +95,8 @@ typedef struct {
 
 u32 __hsiphash_aligned(const void *data, size_t len,
 		       const hsiphash_key_t *key);
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 u32 __hsiphash_unaligned(const void *data, size_t len,
 			 const hsiphash_key_t *key);
-#endif
 
 u32 hsiphash_1u32(const u32 a, const hsiphash_key_t *key);
 u32 hsiphash_2u32(const u32 a, const u32 b, const hsiphash_key_t *key);
@@ -135,10 +132,9 @@ static inline u32 ___hsiphash_aligned(const __le32 *data, size_t len,
 static inline u32 hsiphash(const void *data, size_t len,
 			   const hsiphash_key_t *key)
 {
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-	if (!IS_ALIGNED((unsigned long)data, HSIPHASH_ALIGNMENT))
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
+	    !IS_ALIGNED((unsigned long)data, HSIPHASH_ALIGNMENT))
 		return __hsiphash_unaligned(data, len, key);
-#endif
 	return ___hsiphash_aligned(data, len, key);
 }
 

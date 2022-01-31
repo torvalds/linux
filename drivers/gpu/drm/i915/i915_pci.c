@@ -31,8 +31,8 @@
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
-	.graphics_ver = (x), \
-	.media_ver = (x), \
+	.graphics.ver = (x), \
+	.media.ver = (x), \
 	.display.ver = (x)
 
 #define I845_PIPE_OFFSETS \
@@ -904,7 +904,7 @@ static const struct intel_device_info rkl_info = {
 static const struct intel_device_info dg1_info = {
 	GEN12_FEATURES,
 	DGFX_FEATURES,
-	.graphics_rel = 10,
+	.graphics.rel = 10,
 	PLATFORM(INTEL_DG1),
 	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.require_force_probe = 1,
@@ -998,8 +998,8 @@ static const struct intel_device_info adl_p_info = {
 		      I915_GTT_PAGE_SIZE_2M
 
 #define XE_HP_FEATURES \
-	.graphics_ver = 12, \
-	.graphics_rel = 50, \
+	.graphics.ver = 12, \
+	.graphics.rel = 50, \
 	XE_HP_PAGE_SIZES, \
 	.dma_mask_size = 46, \
 	.has_64bit_reloc = 1, \
@@ -1017,8 +1017,8 @@ static const struct intel_device_info adl_p_info = {
 	.ppgtt_type = INTEL_PPGTT_FULL
 
 #define XE_HPM_FEATURES \
-	.media_ver = 12, \
-	.media_rel = 50
+	.media.ver = 12, \
+	.media.rel = 50
 
 __maybe_unused
 static const struct intel_device_info xehpsdv_info = {
@@ -1027,6 +1027,7 @@ static const struct intel_device_info xehpsdv_info = {
 	DGFX_FEATURES,
 	PLATFORM(INTEL_XEHPSDV),
 	.display = { },
+	.has_64k_pages = 1,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) |
 		BIT(VECS0) | BIT(VECS1) | BIT(VECS2) | BIT(VECS3) |
@@ -1041,9 +1042,10 @@ static const struct intel_device_info dg2_info = {
 	XE_HPM_FEATURES,
 	XE_LPD_FEATURES,
 	DGFX_FEATURES,
-	.graphics_rel = 55,
-	.media_rel = 55,
+	.graphics.rel = 55,
+	.media.rel = 55,
 	PLATFORM(INTEL_DG2),
+	.has_64k_pages = 1,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) |
 		BIT(VECS0) | BIT(VECS1) |

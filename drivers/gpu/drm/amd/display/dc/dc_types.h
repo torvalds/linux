@@ -430,6 +430,7 @@ struct dc_dongle_caps {
 	uint32_t dp_hdmi_max_bpc;
 	uint32_t dp_hdmi_max_pixel_clk_in_khz;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+	uint32_t dp_hdmi_frl_max_link_bw_in_kbps;
 	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
 #endif
 };
@@ -950,6 +951,7 @@ enum dc_gpu_mem_alloc_type {
 
 enum dc_psr_version {
 	DC_PSR_VERSION_1			= 0,
+	DC_PSR_VERSION_SU_1			= 1,
 	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
 };
 

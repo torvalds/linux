@@ -48,6 +48,7 @@ properties:
       - renesas,r8a77990-cpg-mssr # R-Car E3
       - renesas,r8a77995-cpg-mssr # R-Car D3
       - renesas,r8a779a0-cpg-mssr # R-Car V3U
+      - renesas,r8a779f0-cpg-mssr # R-Car S4-8
 
   reg:
     maxItems: 1

@@ -97,6 +97,11 @@
 #define VEND1_TX_IPG_LENGTH		0xAFD1
 #define COUNTER_EN			BIT(15)
 
+#define VEND1_PTP_CONFIG		0x1102
+#define EXT_TRG_EDGE			BIT(1)
+#define PPS_OUT_POL			BIT(2)
+#define PPS_OUT_EN			BIT(3)
+
 #define VEND1_LTC_LOAD_CTRL		0x1105
 #define READ_LTC			BIT(2)
 #define LOAD_LTC			BIT(0)
@@ -132,6 +137,13 @@
 #define VEND1_EGR_RING_DATA_3		0x1151
 #define VEND1_EGR_RING_CTRL		0x1154
 
+#define VEND1_EXT_TRG_TS_DATA_0		0x1121
+#define VEND1_EXT_TRG_TS_DATA_1		0x1122
+#define VEND1_EXT_TRG_TS_DATA_2		0x1123
+#define VEND1_EXT_TRG_TS_DATA_3		0x1124
+#define VEND1_EXT_TRG_TS_DATA_4		0x1125
+#define VEND1_EXT_TRG_TS_CTRL		0x1126
+
 #define RING_DATA_0_DOMAIN_NUMBER	GENMASK(7, 0)
 #define RING_DATA_0_MSG_TYPE		GENMASK(11, 8)
 #define RING_DATA_0_SEC_4_2		GENMASK(14, 2)
@@ -161,6 +173,17 @@
 #define VEND1_TX_PIPEDLY_SUBNS		0x114A
 #define VEND1_RX_PIPE_DLY_NS		0x114B
 #define VEND1_RX_PIPEDLY_SUBNS		0x114C
+
+#define VEND1_GPIO_FUNC_CONFIG_BASE	0x2C40
+#define GPIO_FUNC_EN			BIT(15)
+#define GPIO_FUNC_PTP			BIT(6)
+#define GPIO_SIGNAL_PTP_TRIGGER		0x01
+#define GPIO_SIGNAL_PPS_OUT		0x12
+#define GPIO_DISABLE			0
+#define GPIO_PPS_OUT_CFG		(GPIO_FUNC_EN | GPIO_FUNC_PTP | \
+	GPIO_SIGNAL_PPS_OUT)
+#define GPIO_EXTTS_OUT_CFG		(GPIO_FUNC_EN | GPIO_FUNC_PTP | \
+	GPIO_SIGNAL_PTP_TRIGGER)
 
 #define RGMII_PERIOD_PS			8000U
 #define PS_PER_DEGREE			div_u64(RGMII_PERIOD_PS, 360)
@@ -199,6 +222,9 @@ struct nxp_c45_phy {
 	int hwts_rx;
 	u32 tx_delay;
 	u32 rx_delay;
+	struct timespec64 extts_ts;
+	int extts_index;
+	bool extts;
 };
 
 struct nxp_c45_phy_stats {
@@ -339,6 +365,21 @@ static bool nxp_c45_match_ts(struct ptp_header *header,
 	       header->domain_number  == hwts->domain_number;
 }
 
+static void nxp_c45_get_extts(struct nxp_c45_phy *priv,
+			      struct timespec64 *extts)
+{
+	extts->tv_nsec = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
+				      VEND1_EXT_TRG_TS_DATA_0);
+	extts->tv_nsec |= phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
+				       VEND1_EXT_TRG_TS_DATA_1) << 16;
+	extts->tv_sec = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
+				     VEND1_EXT_TRG_TS_DATA_2);
+	extts->tv_sec |= phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
+				      VEND1_EXT_TRG_TS_DATA_3) << 16;
+	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_EXT_TRG_TS_CTRL,
+		      RING_DONE);
+}
+
 static bool nxp_c45_get_hwtxts(struct nxp_c45_phy *priv,
 			       struct nxp_c45_hwts *hwts)
 {
@@ -409,6 +450,7 @@ static long nxp_c45_do_aux_work(struct ptp_clock_info *ptp)
 	struct nxp_c45_phy *priv = container_of(ptp, struct nxp_c45_phy, caps);
 	bool poll_txts = nxp_c45_poll_txts(priv->phydev);
 	struct skb_shared_hwtstamps *shhwtstamps_rx;
+	struct ptp_clock_event event;
 	struct nxp_c45_hwts hwts;
 	bool reschedule = false;
 	struct timespec64 ts;
@@ -439,7 +481,179 @@ static long nxp_c45_do_aux_work(struct ptp_clock_info *ptp)
 		netif_rx_ni(skb);
 	}
 
+	if (priv->extts) {
+		nxp_c45_get_extts(priv, &ts);
+		if (timespec64_compare(&ts, &priv->extts_ts) != 0) {
+			priv->extts_ts = ts;
+			event.index = priv->extts_index;
+			event.type = PTP_CLOCK_EXTTS;
+			event.timestamp = ns_to_ktime(timespec64_to_ns(&ts));
+			ptp_clock_event(priv->ptp_clock, &event);
+		}
+		reschedule = true;
+	}
+
 	return reschedule ? 1 : -1;
+}
+
+static void nxp_c45_gpio_config(struct nxp_c45_phy *priv,
+				int pin, u16 pin_cfg)
+{
+	struct phy_device *phydev = priv->phydev;
+
+	phy_write_mmd(phydev, MDIO_MMD_VEND1,
+		      VEND1_GPIO_FUNC_CONFIG_BASE + pin, pin_cfg);
+}
+
+static int nxp_c45_perout_enable(struct nxp_c45_phy *priv,
+				 struct ptp_perout_request *perout, int on)
+{
+	struct phy_device *phydev = priv->phydev;
+	int pin;
+
+	if (perout->flags & ~PTP_PEROUT_PHASE)
+		return -EOPNOTSUPP;
+
+	pin = ptp_find_pin(priv->ptp_clock, PTP_PF_PEROUT, perout->index);
+	if (pin < 0)
+		return pin;
+
+	if (!on) {
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_CONFIG,
+				   PPS_OUT_EN);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_CONFIG,
+				   PPS_OUT_POL);
+
+		nxp_c45_gpio_config(priv, pin, GPIO_DISABLE);
+
+		return 0;
+	}
+
+	/* The PPS signal is fixed to 1 second and is always generated when the
+	 * seconds counter is incremented. The start time is not configurable.
+	 * If the clock is adjusted, the PPS signal is automatically readjusted.
+	 */
+	if (perout->period.sec != 1 || perout->period.nsec != 0) {
+		phydev_warn(phydev, "The period can be set only to 1 second.");
+		return -EINVAL;
+	}
+
+	if (!(perout->flags & PTP_PEROUT_PHASE)) {
+		if (perout->start.sec != 0 || perout->start.nsec != 0) {
+			phydev_warn(phydev, "The start time is not configurable. Should be set to 0 seconds and 0 nanoseconds.");
+			return -EINVAL;
+		}
+	} else {
+		if (perout->phase.nsec != 0 &&
+		    perout->phase.nsec != (NSEC_PER_SEC >> 1)) {
+			phydev_warn(phydev, "The phase can be set only to 0 or 500000000 nanoseconds.");
+			return -EINVAL;
+		}
+
+		if (perout->phase.nsec == 0)
+			phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+					   VEND1_PTP_CONFIG, PPS_OUT_POL);
+		else
+			phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+					 VEND1_PTP_CONFIG, PPS_OUT_POL);
+	}
+
+	nxp_c45_gpio_config(priv, pin, GPIO_PPS_OUT_CFG);
+
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_CONFIG, PPS_OUT_EN);
+
+	return 0;
+}
+
+static int nxp_c45_extts_enable(struct nxp_c45_phy *priv,
+				struct ptp_extts_request *extts, int on)
+{
+	int pin;
+
+	if (extts->flags & ~(PTP_ENABLE_FEATURE |
+			      PTP_RISING_EDGE |
+			      PTP_FALLING_EDGE |
+			      PTP_STRICT_FLAGS))
+		return -EOPNOTSUPP;
+
+	/* Sampling on both edges is not supported */
+	if ((extts->flags & PTP_RISING_EDGE) &&
+	    (extts->flags & PTP_FALLING_EDGE))
+		return -EOPNOTSUPP;
+
+	pin = ptp_find_pin(priv->ptp_clock, PTP_PF_EXTTS, extts->index);
+	if (pin < 0)
+		return pin;
+
+	if (!on) {
+		nxp_c45_gpio_config(priv, pin, GPIO_DISABLE);
+		priv->extts = false;
+
+		return 0;
+	}
+
+	if (extts->flags & PTP_RISING_EDGE)
+		phy_clear_bits_mmd(priv->phydev, MDIO_MMD_VEND1,
+				   VEND1_PTP_CONFIG, EXT_TRG_EDGE);
+
+	if (extts->flags & PTP_FALLING_EDGE)
+		phy_set_bits_mmd(priv->phydev, MDIO_MMD_VEND1,
+				 VEND1_PTP_CONFIG, EXT_TRG_EDGE);
+
+	nxp_c45_gpio_config(priv, pin, GPIO_EXTTS_OUT_CFG);
+	priv->extts = true;
+	priv->extts_index = extts->index;
+	ptp_schedule_worker(priv->ptp_clock, 0);
+
+	return 0;
+}
+
+static int nxp_c45_ptp_enable(struct ptp_clock_info *ptp,
+			      struct ptp_clock_request *req, int on)
+{
+	struct nxp_c45_phy *priv = container_of(ptp, struct nxp_c45_phy, caps);
+
+	switch (req->type) {
+	case PTP_CLK_REQ_EXTTS:
+		return nxp_c45_extts_enable(priv, &req->extts, on);
+	case PTP_CLK_REQ_PEROUT:
+		return nxp_c45_perout_enable(priv, &req->perout, on);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static struct ptp_pin_desc nxp_c45_ptp_pins[] = {
+	{ "nxp_c45_gpio0", 0, PTP_PF_NONE},
+	{ "nxp_c45_gpio1", 1, PTP_PF_NONE},
+	{ "nxp_c45_gpio2", 2, PTP_PF_NONE},
+	{ "nxp_c45_gpio3", 3, PTP_PF_NONE},
+	{ "nxp_c45_gpio4", 4, PTP_PF_NONE},
+	{ "nxp_c45_gpio5", 5, PTP_PF_NONE},
+	{ "nxp_c45_gpio6", 6, PTP_PF_NONE},
+	{ "nxp_c45_gpio7", 7, PTP_PF_NONE},
+	{ "nxp_c45_gpio8", 8, PTP_PF_NONE},
+	{ "nxp_c45_gpio9", 9, PTP_PF_NONE},
+	{ "nxp_c45_gpio10", 10, PTP_PF_NONE},
+	{ "nxp_c45_gpio11", 11, PTP_PF_NONE},
+};
+
+static int nxp_c45_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
+				  enum ptp_pin_function func, unsigned int chan)
+{
+	if (pin >= ARRAY_SIZE(nxp_c45_ptp_pins))
+		return -EINVAL;
+
+	switch (func) {
+	case PTP_PF_NONE:
+	case PTP_PF_PEROUT:
+	case PTP_PF_EXTTS:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
 }
 
 static int nxp_c45_init_ptp_clock(struct nxp_c45_phy *priv)
@@ -452,7 +666,13 @@ static int nxp_c45_init_ptp_clock(struct nxp_c45_phy *priv)
 		.adjtime	= nxp_c45_ptp_adjtime,
 		.gettimex64	= nxp_c45_ptp_gettimex64,
 		.settime64	= nxp_c45_ptp_settime64,
+		.enable		= nxp_c45_ptp_enable,
+		.verify		= nxp_c45_ptp_verify_pin,
 		.do_aux_work	= nxp_c45_do_aux_work,
+		.pin_config	= nxp_c45_ptp_pins,
+		.n_pins		= ARRAY_SIZE(nxp_c45_ptp_pins),
+		.n_ext_ts	= 1,
+		.n_per_out	= 1,
 	};
 
 	priv->ptp_clock = ptp_clock_register(&priv->caps,

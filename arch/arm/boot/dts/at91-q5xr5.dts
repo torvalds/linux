@@ -147,12 +147,6 @@
 			reg = <0x8000 0x3E000>;
 		};
 	};
-
-	spidev@1 {
-		compatible = "spidev";
-		spi-max-frequency = <2000000>;
-		reg = <1>;
-	};
 };
 
 &spi1 {
@@ -160,18 +154,6 @@
 	pinctrl-0 = <&pinctrl_spi1 &pinctrl_spi1_npcs0 &pinctrl_spi1_npcs1>;
 	cs-gpios = <&pioB 3 GPIO_ACTIVE_HIGH>, <&pioC 5 GPIO_ACTIVE_LOW>, <0>, <0>;
 	status = "okay";
-
-	spidev@0 {
-		compatible = "spidev";
-		spi-max-frequency = <2000000>;
-		reg = <0>;
-	};
-
-	spidev@1 {
-		compatible = "spidev";
-		spi-max-frequency = <2000000>;
-		reg = <1>;
-	};
 };
 
 &usart0 {

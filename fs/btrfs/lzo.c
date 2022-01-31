@@ -290,6 +290,8 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 	*total_out = cur_out;
 	*total_in = cur_in - start;
 out:
+	if (page_in)
+		put_page(page_in);
 	*out_pages = DIV_ROUND_UP(cur_out, PAGE_SIZE);
 	return ret;
 }

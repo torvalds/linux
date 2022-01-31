@@ -22,7 +22,6 @@
 #include <linux/buffer_head.h>	/* grr. try_to_release_page,
 				   do_invalidatepage */
 #include <linux/shmem_fs.h>
-#include <linux/cleancache.h>
 #include <linux/rmap.h>
 #include "internal.h"
 
@@ -56,11 +55,11 @@ static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
 
 /*
  * Unconditionally remove exceptional entries. Usually called from truncate
- * path. Note that the pagevec may be altered by this function by removing
- * exceptional entries similar to what pagevec_remove_exceptionals does.
+ * path. Note that the folio_batch may be altered by this function by removing
+ * exceptional entries similar to what folio_batch_remove_exceptionals() does.
  */
-static void truncate_exceptional_pvec_entries(struct address_space *mapping,
-				struct pagevec *pvec, pgoff_t *indices)
+static void truncate_folio_batch_exceptionals(struct address_space *mapping,
+				struct folio_batch *fbatch, pgoff_t *indices)
 {
 	int i, j;
 	bool dax;
@@ -69,11 +68,11 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 	if (shmem_mapping(mapping))
 		return;
 
-	for (j = 0; j < pagevec_count(pvec); j++)
-		if (xa_is_value(pvec->pages[j]))
+	for (j = 0; j < folio_batch_count(fbatch); j++)
+		if (xa_is_value(fbatch->folios[j]))
 			break;
 
-	if (j == pagevec_count(pvec))
+	if (j == folio_batch_count(fbatch))
 		return;
 
 	dax = dax_mapping(mapping);
@@ -82,12 +81,12 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 		xa_lock_irq(&mapping->i_pages);
 	}
 
-	for (i = j; i < pagevec_count(pvec); i++) {
-		struct page *page = pvec->pages[i];
+	for (i = j; i < folio_batch_count(fbatch); i++) {
+		struct folio *folio = fbatch->folios[i];
 		pgoff_t index = indices[i];
 
-		if (!xa_is_value(page)) {
-			pvec->pages[j++] = page;
+		if (!xa_is_value(folio)) {
+			fbatch->folios[j++] = folio;
 			continue;
 		}
 
@@ -96,7 +95,7 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 			continue;
 		}
 
-		__clear_shadow_entry(mapping, index, page);
+		__clear_shadow_entry(mapping, index, folio);
 	}
 
 	if (!dax) {
@@ -105,7 +104,7 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 			inode_add_lru(mapping->host);
 		spin_unlock(&mapping->host->i_lock);
 	}
-	pvec->nr = j;
+	fbatch->nr = j;
 }
 
 /*
@@ -177,21 +176,21 @@ void do_invalidatepage(struct page *page, unsigned int offset,
  * its lock, b) when a concurrent invalidate_mapping_pages got there first and
  * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
  */
-static void truncate_cleanup_page(struct page *page)
+static void truncate_cleanup_folio(struct folio *folio)
 {
-	if (page_mapped(page))
-		unmap_mapping_page(page);
+	if (folio_mapped(folio))
+		unmap_mapping_folio(folio);
 
-	if (page_has_private(page))
-		do_invalidatepage(page, 0, thp_size(page));
+	if (folio_has_private(folio))
+		do_invalidatepage(&folio->page, 0, folio_size(folio));
 
 	/*
 	 * Some filesystems seem to re-dirty the page even after
 	 * the VM has canceled the dirty bit (eg ext3 journaling).
 	 * Hence dirty accounting check is placed after invalidation.
 	 */
-	cancel_dirty_page(page);
-	ClearPageMappedToDisk(page);
+	folio_cancel_dirty(folio);
+	folio_clear_mappedtodisk(folio);
 }
 
 /*
@@ -205,7 +204,6 @@ static void truncate_cleanup_page(struct page *page)
 static int
 invalidate_complete_page(struct address_space *mapping, struct page *page)
 {
-	int ret;
 
 	if (page->mapping != mapping)
 		return 0;
@@ -213,21 +211,68 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 	if (page_has_private(page) && !try_to_release_page(page, 0))
 		return 0;
 
-	ret = remove_mapping(mapping, page);
-
-	return ret;
+	return remove_mapping(mapping, page);
 }
 
-int truncate_inode_page(struct address_space *mapping, struct page *page)
+int truncate_inode_folio(struct address_space *mapping, struct folio *folio)
 {
-	VM_BUG_ON_PAGE(PageTail(page), page);
-
-	if (page->mapping != mapping)
+	if (folio->mapping != mapping)
 		return -EIO;
 
-	truncate_cleanup_page(page);
-	delete_from_page_cache(page);
+	truncate_cleanup_folio(folio);
+	filemap_remove_folio(folio);
 	return 0;
+}
+
+/*
+ * Handle partial folios.  The folio may be entirely within the
+ * range if a split has raced with us.  If not, we zero the part of the
+ * folio that's within the [start, end] range, and then split the folio if
+ * it's large.  split_page_range() will discard pages which now lie beyond
+ * i_size, and we rely on the caller to discard pages which lie within a
+ * newly created hole.
+ *
+ * Returns false if splitting failed so the caller can avoid
+ * discarding the entire folio which is stubbornly unsplit.
+ */
+bool truncate_inode_partial_folio(struct folio *folio, loff_t start, loff_t end)
+{
+	loff_t pos = folio_pos(folio);
+	unsigned int offset, length;
+
+	if (pos < start)
+		offset = start - pos;
+	else
+		offset = 0;
+	length = folio_size(folio);
+	if (pos + length <= (u64)end)
+		length = length - offset;
+	else
+		length = end + 1 - pos - offset;
+
+	folio_wait_writeback(folio);
+	if (length == folio_size(folio)) {
+		truncate_inode_folio(folio->mapping, folio);
+		return true;
+	}
+
+	/*
+	 * We may be zeroing pages we're about to discard, but it avoids
+	 * doing a complex calculation here, and then doing the zeroing
+	 * anyway if the page split fails.
+	 */
+	folio_zero_range(folio, offset, length);
+
+	if (folio_has_private(folio))
+		do_invalidatepage(&folio->page, offset, length);
+	if (!folio_test_large(folio))
+		return true;
+	if (split_huge_page(&folio->page) == 0)
+		return true;
+	if (folio_test_dirty(folio))
+		return false;
+	truncate_inode_folio(folio->mapping, folio);
+	return true;
 }
 
 /*
@@ -235,6 +280,8 @@ int truncate_inode_page(struct address_space *mapping, struct page *page)
  */
 int generic_error_remove_page(struct address_space *mapping, struct page *page)
 {
+	VM_BUG_ON_PAGE(PageTail(page), page);
+
 	if (!mapping)
 		return -EINVAL;
 	/*
@@ -243,7 +290,7 @@ int generic_error_remove_page(struct address_space *mapping, struct page *page)
 	 */
 	if (!S_ISREG(mapping->host->i_mode))
 		return -EIO;
-	return truncate_inode_page(mapping, page);
+	return truncate_inode_folio(mapping, page_folio(page));
 }
 EXPORT_SYMBOL(generic_error_remove_page);
 
@@ -294,19 +341,15 @@ void truncate_inode_pages_range(struct address_space *mapping,
 {
 	pgoff_t		start;		/* inclusive */
 	pgoff_t		end;		/* exclusive */
-	unsigned int	partial_start;	/* inclusive */
-	unsigned int	partial_end;	/* exclusive */
-	struct pagevec	pvec;
+	struct folio_batch fbatch;
 	pgoff_t		indices[PAGEVEC_SIZE];
 	pgoff_t		index;
 	int		i;
+	struct folio	*folio;
+	bool		same_folio;
 
 	if (mapping_empty(mapping))
-		goto out;
-
-	/* Offsets within partial pages */
-	partial_start = lstart & (PAGE_SIZE - 1);
-	partial_end = (lend + 1) & (PAGE_SIZE - 1);
+		return;
 
 	/*
 	 * 'start' and 'end' always covers the range of pages to be fully
@@ -325,64 +368,49 @@ void truncate_inode_pages_range(struct address_space *mapping,
 	else
 		end = (lend + 1) >> PAGE_SHIFT;
 
-	pagevec_init(&pvec);
+	folio_batch_init(&fbatch);
 	index = start;
 	while (index < end && find_lock_entries(mapping, index, end - 1,
-			&pvec, indices)) {
-		index = indices[pagevec_count(&pvec) - 1] + 1;
-		truncate_exceptional_pvec_entries(mapping, &pvec, indices);
-		for (i = 0; i < pagevec_count(&pvec); i++)
-			truncate_cleanup_page(pvec.pages[i]);
-		delete_from_page_cache_batch(mapping, &pvec);
-		for (i = 0; i < pagevec_count(&pvec); i++)
-			unlock_page(pvec.pages[i]);
-		pagevec_release(&pvec);
+			&fbatch, indices)) {
+		index = indices[folio_batch_count(&fbatch) - 1] + 1;
+		truncate_folio_batch_exceptionals(mapping, &fbatch, indices);
+		for (i = 0; i < folio_batch_count(&fbatch); i++)
+			truncate_cleanup_folio(fbatch.folios[i]);
+		delete_from_page_cache_batch(mapping, &fbatch);
+		for (i = 0; i < folio_batch_count(&fbatch); i++)
+			folio_unlock(fbatch.folios[i]);
+		folio_batch_release(&fbatch);
 		cond_resched();
 	}
 
-	if (partial_start) {
-		struct page *page = find_lock_page(mapping, start - 1);
-		if (page) {
-			unsigned int top = PAGE_SIZE;
-			if (start > end) {
-				/* Truncation within a single page */
-				top = partial_end;
-				partial_end = 0;
-			}
-			wait_on_page_writeback(page);
-			zero_user_segment(page, partial_start, top);
-			cleancache_invalidate_page(mapping, page);
-			if (page_has_private(page))
-				do_invalidatepage(page, partial_start,
-						  top - partial_start);
-			unlock_page(page);
-			put_page(page);
+	same_folio = (lstart >> PAGE_SHIFT) == (lend >> PAGE_SHIFT);
+	folio = __filemap_get_folio(mapping, lstart >> PAGE_SHIFT, FGP_LOCK, 0);
+	if (folio) {
+		same_folio = lend < folio_pos(folio) + folio_size(folio);
+		if (!truncate_inode_partial_folio(folio, lstart, lend)) {
+			start = folio->index + folio_nr_pages(folio);
+			if (same_folio)
+				end = folio->index;
 		}
+		folio_unlock(folio);
+		folio_put(folio);
+		folio = NULL;
 	}
-	if (partial_end) {
-		struct page *page = find_lock_page(mapping, end);
-		if (page) {
-			wait_on_page_writeback(page);
-			zero_user_segment(page, 0, partial_end);
-			cleancache_invalidate_page(mapping, page);
-			if (page_has_private(page))
-				do_invalidatepage(page, 0,
-						  partial_end);
-			unlock_page(page);
-			put_page(page);
-		}
+
+	if (!same_folio)
+		folio = __filemap_get_folio(mapping, lend >> PAGE_SHIFT,
+						FGP_LOCK, 0);
+	if (folio) {
+		if (!truncate_inode_partial_folio(folio, lstart, lend))
+			end = folio->index;
+		folio_unlock(folio);
+		folio_put(folio);
 	}
-	/*
-	 * If the truncation happened within a single page no pages
-	 * will be released, just zeroed, so we can bail out now.
-	 */
-	if (start >= end)
-		goto out;
 
 	index = start;
-	for ( ; ; ) {
+	while (index < end) {
 		cond_resched();
-		if (!find_get_entries(mapping, index, end - 1, &pvec,
+		if (!find_get_entries(mapping, index, end - 1, &fbatch,
 				indices)) {
 			/* If all gone from start onwards, we're done */
 			if (index == start)
@@ -392,28 +420,26 @@ void truncate_inode_pages_range(struct address_space *mapping,
 			continue;
 		}
 
-		for (i = 0; i < pagevec_count(&pvec); i++) {
-			struct page *page = pvec.pages[i];
+		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+			struct folio *folio = fbatch.folios[i];
 
 			/* We rely upon deletion not changing page->index */
 			index = indices[i];
 
-			if (xa_is_value(page))
+			if (xa_is_value(folio))
 				continue;
 
-			lock_page(page);
-			WARN_ON(page_to_index(page) != index);
-			wait_on_page_writeback(page);
-			truncate_inode_page(mapping, page);
-			unlock_page(page);
+			folio_lock(folio);
+			VM_BUG_ON_FOLIO(!folio_contains(folio, index), folio);
+			folio_wait_writeback(folio);
+			truncate_inode_folio(mapping, folio);
+			folio_unlock(folio);
+			index = folio_index(folio) + folio_nr_pages(folio) - 1;
 		}
-		truncate_exceptional_pvec_entries(mapping, &pvec, indices);
-		pagevec_release(&pvec);
+		truncate_folio_batch_exceptionals(mapping, &fbatch, indices);
+		folio_batch_release(&fbatch);
 		index++;
 	}
-
-out:
-	cleancache_invalidate_inode(mapping);
 }
 EXPORT_SYMBOL(truncate_inode_pages_range);
 
@@ -467,10 +493,6 @@ void truncate_inode_pages_final(struct address_space *mapping)
 		xa_unlock_irq(&mapping->i_pages);
 	}
 
-	/*
-	 * Cleancache needs notification even if there are no pages or shadow
-	 * entries.
-	 */
 	truncate_inode_pages(mapping, 0);
 }
 EXPORT_SYMBOL(truncate_inode_pages_final);
@@ -479,16 +501,16 @@ static unsigned long __invalidate_mapping_pages(struct address_space *mapping,
 		pgoff_t start, pgoff_t end, unsigned long *nr_pagevec)
 {
 	pgoff_t indices[PAGEVEC_SIZE];
-	struct pagevec pvec;
+	struct folio_batch fbatch;
 	pgoff_t index = start;
 	unsigned long ret;
 	unsigned long count = 0;
 	int i;
 
-	pagevec_init(&pvec);
-	while (find_lock_entries(mapping, index, end, &pvec, indices)) {
-		for (i = 0; i < pagevec_count(&pvec); i++) {
-			struct page *page = pvec.pages[i];
+	folio_batch_init(&fbatch);
+	while (find_lock_entries(mapping, index, end, &fbatch, indices)) {
+		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+			struct page *page = &fbatch.folios[i]->page;
 
 			/* We rely upon deletion not changing page->index */
 			index = indices[i];
@@ -515,8 +537,8 @@ static unsigned long __invalidate_mapping_pages(struct address_space *mapping,
 			}
 			count += ret;
 		}
-		pagevec_remove_exceptionals(&pvec);
-		pagevec_release(&pvec);
+		folio_batch_remove_exceptionals(&fbatch);
+		folio_batch_release(&fbatch);
 		cond_resched();
 		index++;
 	}
@@ -568,31 +590,29 @@ void invalidate_mapping_pagevec(struct address_space *mapping,
  * shrink_page_list() has a temp ref on them, or because they're transiently
  * sitting in the lru_cache_add() pagevecs.
  */
-static int
-invalidate_complete_page2(struct address_space *mapping, struct page *page)
+static int invalidate_complete_folio2(struct address_space *mapping,
+					struct folio *folio)
 {
-	if (page->mapping != mapping)
+	if (folio->mapping != mapping)
 		return 0;
 
-	if (page_has_private(page) && !try_to_release_page(page, GFP_KERNEL))
+	if (folio_has_private(folio) &&
+	    !filemap_release_folio(folio, GFP_KERNEL))
 		return 0;
 
 	spin_lock(&mapping->host->i_lock);
 	xa_lock_irq(&mapping->i_pages);
-	if (PageDirty(page))
+	if (folio_test_dirty(folio))
 		goto failed;
 
-	BUG_ON(page_has_private(page));
-	__delete_from_page_cache(page, NULL);
+	BUG_ON(folio_has_private(folio));
+	__filemap_remove_folio(folio, NULL);
 	xa_unlock_irq(&mapping->i_pages);
 	if (mapping_shrinkable(mapping))
 		inode_add_lru(mapping->host);
 	spin_unlock(&mapping->host->i_lock);
 
-	if (mapping->a_ops->freepage)
-		mapping->a_ops->freepage(page);
-
-	put_page(page);	/* pagecache ref */
+	filemap_free_folio(mapping, folio);
 	return 1;
 failed:
 	xa_unlock_irq(&mapping->i_pages);
@@ -600,13 +620,13 @@ failed:
 	return 0;
 }
 
-static int do_launder_page(struct address_space *mapping, struct page *page)
+static int do_launder_folio(struct address_space *mapping, struct folio *folio)
 {
-	if (!PageDirty(page))
+	if (!folio_test_dirty(folio))
 		return 0;
-	if (page->mapping != mapping || mapping->a_ops->launder_page == NULL)
+	if (folio->mapping != mapping || mapping->a_ops->launder_page == NULL)
 		return 0;
-	return mapping->a_ops->launder_page(page);
+	return mapping->a_ops->launder_page(&folio->page);
 }
 
 /**
@@ -624,7 +644,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				  pgoff_t start, pgoff_t end)
 {
 	pgoff_t indices[PAGEVEC_SIZE];
-	struct pagevec pvec;
+	struct folio_batch fbatch;
 	pgoff_t index;
 	int i;
 	int ret = 0;
@@ -632,27 +652,27 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 	int did_range_unmap = 0;
 
 	if (mapping_empty(mapping))
-		goto out;
+		return 0;
 
-	pagevec_init(&pvec);
+	folio_batch_init(&fbatch);
 	index = start;
-	while (find_get_entries(mapping, index, end, &pvec, indices)) {
-		for (i = 0; i < pagevec_count(&pvec); i++) {
-			struct page *page = pvec.pages[i];
+	while (find_get_entries(mapping, index, end, &fbatch, indices)) {
+		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+			struct folio *folio = fbatch.folios[i];
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion not changing folio->index */
 			index = indices[i];
 
-			if (xa_is_value(page)) {
+			if (xa_is_value(folio)) {
 				if (!invalidate_exceptional_entry2(mapping,
-								   index, page))
+						index, folio))
 					ret = -EBUSY;
 				continue;
 			}
 
-			if (!did_range_unmap && page_mapped(page)) {
+			if (!did_range_unmap && folio_mapped(folio)) {
 				/*
-				 * If page is mapped, before taking its lock,
+				 * If folio is mapped, before taking its lock,
 				 * zap the rest of the file in one hit.
 				 */
 				unmap_mapping_pages(mapping, index,
@@ -660,29 +680,29 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				did_range_unmap = 1;
 			}
 
-			lock_page(page);
-			WARN_ON(page_to_index(page) != index);
-			if (page->mapping != mapping) {
-				unlock_page(page);
+			folio_lock(folio);
+			VM_BUG_ON_FOLIO(!folio_contains(folio, index), folio);
+			if (folio->mapping != mapping) {
+				folio_unlock(folio);
 				continue;
 			}
-			wait_on_page_writeback(page);
+			folio_wait_writeback(folio);
 
-			if (page_mapped(page))
-				unmap_mapping_page(page);
-			BUG_ON(page_mapped(page));
+			if (folio_mapped(folio))
+				unmap_mapping_folio(folio);
+			BUG_ON(folio_mapped(folio));
 
-			ret2 = do_launder_page(mapping, page);
+			ret2 = do_launder_folio(mapping, folio);
 			if (ret2 == 0) {
-				if (!invalidate_complete_page2(mapping, page))
+				if (!invalidate_complete_folio2(mapping, folio))
 					ret2 = -EBUSY;
 			}
 			if (ret2 < 0)
 				ret = ret2;
-			unlock_page(page);
+			folio_unlock(folio);
 		}
-		pagevec_remove_exceptionals(&pvec);
-		pagevec_release(&pvec);
+		folio_batch_remove_exceptionals(&fbatch);
+		folio_batch_release(&fbatch);
 		cond_resched();
 		index++;
 	}
@@ -696,8 +716,6 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 	if (dax_mapping(mapping)) {
 		unmap_mapping_pages(mapping, start, end - start + 1, false);
 	}
-out:
-	cleancache_invalidate_inode(mapping);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);

@@ -205,8 +205,7 @@ mediatek_gpio_xlate(struct gpio_chip *chip,
 }
 
 static int
-mediatek_gpio_bank_probe(struct device *dev,
-			 struct device_node *node, int bank)
+mediatek_gpio_bank_probe(struct device *dev, int bank)
 {
 	struct mtk *mtk = dev_get_drvdata(dev);
 	struct mtk_gc *rg;
@@ -217,7 +216,6 @@ mediatek_gpio_bank_probe(struct device *dev,
 	memset(rg, 0, sizeof(*rg));
 
 	spin_lock_init(&rg->lock);
-	rg->chip.of_node = node;
 	rg->bank = bank;
 
 	dat = mtk->base + GPIO_REG_DATA + (rg->bank * GPIO_BANK_STRIDE);
@@ -311,7 +309,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mtk);
 
 	for (i = 0; i < MTK_BANK_CNT; i++) {
-		ret = mediatek_gpio_bank_probe(dev, np, i);
+		ret = mediatek_gpio_bank_probe(dev, i);
 		if (ret)
 			return ret;
 	}

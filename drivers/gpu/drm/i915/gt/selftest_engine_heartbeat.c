@@ -378,13 +378,13 @@ int intel_heartbeat_live_selftests(struct drm_i915_private *i915)
 	int saved_hangcheck;
 	int err;
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	saved_hangcheck = i915->params.enable_hangcheck;
 	i915->params.enable_hangcheck = INT_MAX;
 
-	err = intel_gt_live_subtests(tests, &i915->gt);
+	err = intel_gt_live_subtests(tests, to_gt(i915));
 
 	i915->params.enable_hangcheck = saved_hangcheck;
 	return err;

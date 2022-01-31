@@ -105,7 +105,7 @@ static void virtio_pmem_remove(struct virtio_device *vdev)
 
 	nvdimm_bus_unregister(nvdimm_bus);
 	vdev->config->del_vqs(vdev);
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 }
 
 static struct virtio_driver virtio_pmem_driver = {

@@ -99,7 +99,7 @@ extern const int phy_10gbit_features_array[1];
  * @PHY_INTERFACE_MODE_RGMII_RXID: RGMII with Internal RX delay
  * @PHY_INTERFACE_MODE_RGMII_TXID: RGMII with Internal RX delay
  * @PHY_INTERFACE_MODE_RTBI: Reduced TBI
- * @PHY_INTERFACE_MODE_SMII: ??? MII
+ * @PHY_INTERFACE_MODE_SMII: Serial MII
  * @PHY_INTERFACE_MODE_XGMII: 10 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_XLGMII:40 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_MOCA: Multimedia over Coax
@@ -538,11 +538,12 @@ struct macsec_ops;
  * @mac_managed_pm: Set true if MAC driver takes of suspending/resuming PHY
  * @state: State of the PHY for management purposes
  * @dev_flags: Device-specific flags used by the PHY driver.
- *		Bits [15:0] are free to use by the PHY driver to communicate
- *			    driver specific behavior.
- *		Bits [23:16] are currently reserved for future use.
- *		Bits [31:24] are reserved for defining generic
- *			     PHY driver behavior.
+ *
+ *      - Bits [15:0] are free to use by the PHY driver to communicate
+ *        driver specific behavior.
+ *      - Bits [23:16] are currently reserved for future use.
+ *      - Bits [31:24] are reserved for defining generic
+ *        PHY driver behavior.
  * @irq: IRQ number of the PHY's interrupt (-1 if none)
  * @phy_timer: The timer for handling the state machine
  * @phylink: Pointer to phylink instance for this PHY

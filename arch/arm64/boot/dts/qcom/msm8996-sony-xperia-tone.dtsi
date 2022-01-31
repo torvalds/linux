@@ -184,6 +184,7 @@
 &hsusb_phy1 {
 	status = "okay";
 
+	vdd-supply = <&pm8994_l28>;
 	vdda-pll-supply = <&pm8994_l12>;
 	vdda-phy-dpdm-supply = <&pm8994_l24>;
 };
@@ -589,9 +590,27 @@
 	};
 };
 
-&pmi8994_spmi_regulators {
+&pm8994_spmi_regulators {
 	qcom,saw-reg = <&saw3>;
 
+	pm8994_s9: s9 {
+		qcom,saw-slave;
+	};
+
+	pm8994_s10: s10 {
+		qcom,saw-slave;
+	};
+
+	pm8994_s11: s11 {
+		qcom,saw-leader;
+		regulator-name = "vdd_apcc";
+		regulator-always-on;
+		regulator-min-microvolt = <470000>;
+		regulator-max-microvolt = <1140000>;
+	};
+};
+
+&pmi8994_spmi_regulators {
 	vdd_gfx:
 	pmi8994_s2: s2 {
 		/* Pinned to a high value for now to avoid random crashes. */
@@ -599,21 +618,6 @@
 		regulator-max-microvolt = <1015000>;
 		regulator-name = "vdd_gfx";
 		regulator-always-on;
-	};
-
-	pmi8994_s9: s9 {
-		qcom,saw-slave;
-	};
-
-	pmi8994_s10: s10 {
-		qcom,saw-slave;
-	};
-
-	pmi8994_s11: s11 {
-		qcom,saw-leader;
-		regulator-always-on;
-		regulator-min-microvolt = <470000>;
-		regulator-max-microvolt = <1140000>;
 	};
 };
 

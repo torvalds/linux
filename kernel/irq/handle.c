@@ -136,7 +136,7 @@ void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 	wake_up_process(action->thread);
 }
 
-irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags)
+irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 {
 	irqreturn_t retval = IRQ_NONE;
 	unsigned int irq = desc->irq_data.irq;
@@ -174,10 +174,6 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags
 			}
 
 			__irq_wake_thread(desc, action);
-
-			fallthrough;	/* to add to randomness */
-		case IRQ_HANDLED:
-			*flags |= action->flags;
 			break;
 
 		default:
@@ -193,11 +189,10 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags
 irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 {
 	irqreturn_t retval;
-	unsigned int flags = 0;
 
-	retval = __handle_irq_event_percpu(desc, &flags);
+	retval = __handle_irq_event_percpu(desc);
 
-	add_interrupt_randomness(desc->irq_data.irq, flags);
+	add_interrupt_randomness(desc->irq_data.irq);
 
 	if (!irq_settings_no_debug(desc))
 		note_interrupt(desc, retval);

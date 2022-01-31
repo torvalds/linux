@@ -178,6 +178,8 @@
 				label = "cpu";
 				ethernet = <&fec>;
 				phy-mode = "rgmii-id";
+				rx-internal-delay-ps = <2000>;
+				tx-internal-delay-ps = <2000>;
 
 				fixed-link {
 					speed = <100>;

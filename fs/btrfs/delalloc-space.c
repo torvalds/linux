@@ -143,10 +143,13 @@ int btrfs_check_data_free_space(struct btrfs_inode *inode,
 
 	/* Use new btrfs_qgroup_reserve_data to reserve precious data space. */
 	ret = btrfs_qgroup_reserve_data(inode, reserved, start, len);
-	if (ret < 0)
+	if (ret < 0) {
 		btrfs_free_reserved_data_space_noquota(fs_info, len);
-	else
+		extent_changeset_free(*reserved);
+		*reserved = NULL;
+	} else {
 		ret = 0;
+	}
 	return ret;
 }
 
@@ -331,7 +334,7 @@ int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes)
 	ret = btrfs_qgroup_reserve_meta_prealloc(root, qgroup_reserve, true);
 	if (ret)
 		return ret;
-	ret = btrfs_reserve_metadata_bytes(root, block_rsv, meta_reserve, flush);
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, meta_reserve, flush);
 	if (ret) {
 		btrfs_qgroup_free_meta_prealloc(root, qgroup_reserve);
 		return ret;
@@ -452,8 +455,11 @@ int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
 	if (ret < 0)
 		return ret;
 	ret = btrfs_delalloc_reserve_metadata(inode, len);
-	if (ret < 0)
+	if (ret < 0) {
 		btrfs_free_reserved_data_space(inode, *reserved, start, len);
+		extent_changeset_free(*reserved);
+		*reserved = NULL;
+	}
 	return ret;
 }
 

@@ -238,6 +238,7 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 	}
 
 	data->num_parent_irqs = platform_irq_count(pdev);
+	put_device(&pdev->dev);
 	if (data->num_parent_irqs <= 0) {
 		pr_err("invalid number of parent interrupts\n");
 		ret = -ENOMEM;

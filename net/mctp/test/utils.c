@@ -12,7 +12,7 @@
 static netdev_tx_t mctp_test_dev_tx(struct sk_buff *skb,
 				    struct net_device *ndev)
 {
-	kfree(skb);
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 

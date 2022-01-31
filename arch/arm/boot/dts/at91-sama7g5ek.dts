@@ -13,6 +13,7 @@
 #include "sama7g5.dtsi"
 #include <dt-bindings/mfd/atmel-flexcom.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/at91.h>
 
 / {
 	model = "Microchip SAMA7G5-EK";
@@ -132,6 +133,59 @@
 
 &cpu0 {
 	cpu-supply = <&vddcpu>;
+};
+
+&qspi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_qspi>;
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <133000000>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
+		m25p,fast-read;
+
+		at91bootstrap@0 {
+			label = "ospi: at91bootstrap";
+			reg = <0x0 0x40000>;
+		};
+
+		bootloader@40000 {
+			label = "ospi: bootloader";
+			reg = <0x40000 0xc0000>;
+		};
+
+		bootloaderenvred@100000 {
+			label = "ospi: bootloader env redundant";
+			reg = <0x100000 0x40000>;
+		};
+
+		bootloaderenv@140000 {
+			label = "ospi: bootloader env";
+			reg = <0x140000 0x40000>;
+		};
+
+		dtb@180000 {
+			label = "ospi: device tree";
+			reg = <0x180000 0x80000>;
+		};
+
+		kernel@200000 {
+			label = "ospi: kernel";
+			reg = <0x200000 0x600000>;
+		};
+
+		rootfs@800000 {
+			label = "ospi: rootfs";
+			reg = <0x800000 0x7800000>;
+		};
+
+	};
 };
 
 &dma0 {
@@ -553,6 +607,25 @@
 			 <PIN_PB4__FLEXCOM11_IO1>,
 			 <PIN_PB5__FLEXCOM11_IO2>;
 		bias-disable;
+	};
+
+	pinctrl_qspi: qspi {
+		pinmux = <PIN_PB12__QSPI0_IO0>,
+			 <PIN_PB11__QSPI0_IO1>,
+			 <PIN_PB10__QSPI0_IO2>,
+			 <PIN_PB9__QSPI0_IO3>,
+			 <PIN_PB16__QSPI0_IO4>,
+			 <PIN_PB17__QSPI0_IO5>,
+			 <PIN_PB18__QSPI0_IO6>,
+			 <PIN_PB19__QSPI0_IO7>,
+			 <PIN_PB13__QSPI0_CS>,
+			 <PIN_PB14__QSPI0_SCK>,
+			 <PIN_PB15__QSPI0_SCKN>,
+			 <PIN_PB20__QSPI0_DQS>,
+			 <PIN_PB21__QSPI0_INT>;
+		bias-disable;
+		slew-rate = <0>;
+		atmel,drive-strength = <ATMEL_PIO_DRVSTR_HI>;
 	};
 
 	pinctrl_sdmmc0_default: sdmmc0_default {

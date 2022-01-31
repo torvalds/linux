@@ -31,7 +31,7 @@ properties:
       - enum:
             # SMBus/I2C Digital Temperature Sensor in 6-Pin SOT with SMBus Alert and Over Temperature Pin
           - ad,ad7414
-            # ADM9240:  Complete System Hardware Monitor for uProcessor-Based Systems
+            # ADM9240: Complete System Hardware Monitor for uProcessor-Based Systems
           - ad,adm9240
             # AD5110 - Nonvolatile Digital Potentiometer
           - adi,ad5110
@@ -43,7 +43,7 @@ properties:
           - adi,adp5589
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
-            # i2c serial eeprom  (24cxx)
+            # i2c serial eeprom (24cxx)
           - at,24c08
             # i2c trusted platform module (TPM)
           - atmel,at97sc3204t
@@ -73,6 +73,8 @@ properties:
           - dallas,ds4510
             # Digital Thermometer and Thermostat
           - dallas,ds75
+            # Delta AHE-50DC Open19 power shelf fan control module
+          - delta,ahe50dc-fan
             # Delta Electronics DPS-650-AB power supply
           - delta,dps650ab
           # Delta Electronics DPS920AB 920W 54V Power Supply
@@ -121,8 +123,14 @@ properties:
           - ibm,cffps2
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
+          # Infineon IR38060 Voltage Regulator
+          - infineon,ir38060
             # Infineon IR38064 Voltage Regulator
           - infineon,ir38064
+          # Infineon IR38164 Voltage Regulator
+          - infineon,ir38164
+          # Infineon IR38263 Voltage Regulator
+          - infineon,ir38263
             # Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
           - infineon,slb9635tt
             # Infineon SLB9645 I2C TPM (new protocol, max 400khz)
@@ -281,6 +289,8 @@ properties:
           - sensirion,sgp30
             # Sensirion gas sensor with I2C interface
           - sensirion,sgp40
+            # Sensirion temperature & humidity sensor with I2C interface
+          - sensirion,sht4x
             # Sensortek 3 axis accelerometer
           - sensortek,stk8312
             # Sensortek 3 axis accelerometer
@@ -293,9 +303,9 @@ properties:
           - skyworks,sky81452
             # Socionext SynQuacer TPM MMIO module
           - socionext,synquacer-tpm-mmio
-            # i2c serial eeprom  (24cxx)
-          - sparkfun,qwiic-joystick
             # SparkFun Qwiic Joystick (COM-15168) with i2c interface
+          - sparkfun,qwiic-joystick
+            # i2c serial eeprom (24cxx)
           - st,24c256
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
@@ -329,12 +339,19 @@ properties:
           - ti,tmp122
             # Digital Temperature Sensor
           - ti,tmp275
+            # TI DC-DC converter on PMBus
+          - ti,tps40400
             # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus
           - ti,tps53676
             # TI Dual channel DCAP+ multiphase controller TPS53679
           - ti,tps53679
             # TI Dual channel DCAP+ multiphase controller TPS53688
           - ti,tps53688
+            # TI DC-DC converters on PMBus
+          - ti,tps544b20
+          - ti,tps544b25
+          - ti,tps544c20
+          - ti,tps544c25
             # Winbond/Nuvoton H/W Monitor
           - winbond,w83793
             # i2c trusted platform module (TPM)

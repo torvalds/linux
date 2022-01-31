@@ -11,11 +11,10 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8255.h>
 
 #include "amplc_pc236.h"
-#include "8255.h"
 
 static void pc236_intr_update(struct comedi_device *dev, bool enable)
 {

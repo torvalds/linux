@@ -26,9 +26,11 @@ Required properties:
  * "qcom,scm-sc7280"
  * "qcom,scm-sdm845"
  * "qcom,scm-sdx55"
+ * "qcom,scm-sm6350"
  * "qcom,scm-sm8150"
  * "qcom,scm-sm8250"
  * "qcom,scm-sm8350"
+ * "qcom,scm-sm8450"
  and:
  * "qcom,scm"
 - clocks: Specifies clocks needed by the SCM interface, if any:

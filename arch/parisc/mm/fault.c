@@ -148,11 +148,11 @@ int fixup_exception(struct pt_regs *regs)
 		 * Fix up get_user() and put_user().
 		 * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() sets the least-significant
 		 * bit in the relative address of the fixup routine to indicate
-		 * that %r8 should be loaded with -EFAULT to report a userspace
-		 * access error.
+		 * that gr[ASM_EXCEPTIONTABLE_REG] should be loaded with
+		 * -EFAULT to report a userspace access error.
 		 */
 		if (fix->fixup & 1) {
-			regs->gr[8] = -EFAULT;
+			regs->gr[ASM_EXCEPTIONTABLE_REG] = -EFAULT;
 
 			/* zero target register for get_user() */
 			if (parisc_acctyp(0, regs->iir) == VM_READ) {
@@ -266,14 +266,14 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	unsigned long acc_type;
 	vm_fault_t fault = 0;
 	unsigned int flags;
-
-	if (faulthandler_disabled())
-		goto no_context;
+	char *msg;
 
 	tsk = current;
 	mm = tsk->mm;
-	if (!mm)
+	if (!mm) {
+		msg = "Page fault: no context";
 		goto no_context;
+	}
 
 	flags = FAULT_FLAG_DEFAULT;
 	if (user_mode(regs))
@@ -324,16 +324,14 @@ good_area:
 			goto bad_area;
 		BUG();
 	}
-	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_RETRY) {
-			/*
-			 * No need to mmap_read_unlock(mm) as we would
-			 * have already released it in __lock_page_or_retry
-			 * in mm/filemap.c.
-			 */
-			flags |= FAULT_FLAG_TRIED;
-			goto retry;
-		}
+	if (fault & VM_FAULT_RETRY) {
+		/*
+		 * No need to mmap_read_unlock(mm) as we would
+		 * have already released it in __lock_page_or_retry
+		 * in mm/filemap.c.
+		 */
+		flags |= FAULT_FLAG_TRIED;
+		goto retry;
 	}
 	mmap_read_unlock(mm);
 	return;
@@ -409,6 +407,7 @@ bad_area:
 		force_sig_fault(signo, si_code, (void __user *) address);
 		return;
 	}
+	msg = "Page fault: bad address";
 
 no_context:
 
@@ -416,11 +415,13 @@ no_context:
 		return;
 	}
 
-	parisc_terminate("Bad Address (null pointer deref?)", regs, code, address);
+	parisc_terminate(msg, regs, code, address);
 
-  out_of_memory:
+out_of_memory:
 	mmap_read_unlock(mm);
-	if (!user_mode(regs))
+	if (!user_mode(regs)) {
+		msg = "Page fault: out of memory";
 		goto no_context;
+	}
 	pagefault_out_of_memory();
 }

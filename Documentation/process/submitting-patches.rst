@@ -14,7 +14,8 @@ works, see Documentation/process/development-process.rst. Also, read
 Documentation/process/submit-checklist.rst
 for a list of items to check before submitting code.  If you are submitting
 a driver, also read Documentation/process/submitting-drivers.rst; for device
-tree binding patches, read Documentation/process/submitting-patches.rst.
+tree binding patches, read
+Documentation/devicetree/bindings/submitting-patches.rst.
 
 This documentation assumes that you're using ``git`` to prepare your patches.
 If you're unfamiliar with ``git``, you would be well-advised to learn how to
@@ -269,25 +270,6 @@ maintainer (as listed in the MAINTAINERS file) a man-pages patch, or at
 least a notification of the change, so that some information makes its way
 into the manual pages.  User-space API changes should also be copied to
 linux-api@vger.kernel.org.
-
-For small patches you may want to CC the Trivial Patch Monkey
-trivial@kernel.org which collects "trivial" patches. Have a look
-into the MAINTAINERS file for its current manager.
-
-Trivial patches must qualify for one of the following rules:
-
-- Spelling fixes in documentation
-- Spelling fixes for errors which could break :manpage:`grep(1)`
-- Warning fixes (cluttering with useless warnings is bad)
-- Compilation fixes (only if they are actually correct)
-- Runtime fixes (only if they actually fix things)
-- Removing use of deprecated functions/macros
-- Contact detail and documentation fixes
-- Non-portable code replaced by portable code (even in arch-specific,
-  since people copy, as long as it's trivial)
-- Any fix by the author/maintainer of the file (ie. patch monkey
-  in re-transmission mode)
-
 
 
 No MIME, no links, no compression, no attachments.  Just plain text

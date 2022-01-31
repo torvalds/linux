@@ -211,8 +211,8 @@ static void init_rc6(struct i915_pmu *pmu)
 	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
 	intel_wakeref_t wakeref;
 
-	with_intel_runtime_pm(i915->gt.uncore->rpm, wakeref) {
-		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
+	with_intel_runtime_pm(to_gt(i915)->uncore->rpm, wakeref) {
+		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(to_gt(i915));
 		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur =
 					pmu->sample[__I915_SAMPLE_RC6].cur;
 		pmu->sleep_last = ktime_get_raw();
@@ -223,7 +223,7 @@ static void park_rc6(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
 
-	pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
+	pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(to_gt(i915));
 	pmu->sleep_last = ktime_get_raw();
 }
 
@@ -420,7 +420,7 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	struct drm_i915_private *i915 =
 		container_of(hrtimer, struct drm_i915_private, pmu.timer);
 	struct i915_pmu *pmu = &i915->pmu;
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	unsigned int period_ns;
 	ktime_t now;
 
@@ -477,7 +477,7 @@ engine_event_status(struct intel_engine_cs *engine,
 static int
 config_status(struct drm_i915_private *i915, u64 config)
 {
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 
 	switch (config) {
 	case I915_PMU_ACTUAL_FREQUENCY:
@@ -602,10 +602,10 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 			val = READ_ONCE(pmu->irq_count);
 			break;
 		case I915_PMU_RC6_RESIDENCY:
-			val = get_rc6(&i915->gt);
+			val = get_rc6(to_gt(i915));
 			break;
 		case I915_PMU_SOFTWARE_GT_AWAKE_TIME:
-			val = ktime_to_ns(intel_gt_get_awake_time(&i915->gt));
+			val = ktime_to_ns(intel_gt_get_awake_time(to_gt(i915)));
 			break;
 		}
 	}

@@ -11,7 +11,7 @@
 
 typedef void (*setup_probe_fn_t)(struct evsel *evsel);
 
-static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
+static int perf_do_probe_api(setup_probe_fn_t fn, struct perf_cpu cpu, const char *str)
 {
 	struct evlist *evlist;
 	struct evsel *evsel;
@@ -29,7 +29,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 	evsel = evlist__first(evlist);
 
 	while (1) {
-		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1, flags);
+		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu.cpu, -1, flags);
 		if (fd < 0) {
 			if (pid == -1 && errno == EACCES) {
 				pid = 0;
@@ -43,7 +43,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 
 	fn(evsel);
 
-	fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1, flags);
+	fd = sys_perf_event_open(&evsel->core.attr, pid, cpu.cpu, -1, flags);
 	if (fd < 0) {
 		if (errno == EINVAL)
 			err = -EINVAL;
@@ -61,12 +61,13 @@ static bool perf_probe_api(setup_probe_fn_t fn)
 {
 	const char *try[] = {"cycles:u", "instructions:u", "cpu-clock:u", NULL};
 	struct perf_cpu_map *cpus;
-	int cpu, ret, i = 0;
+	struct perf_cpu cpu;
+	int ret, i = 0;
 
 	cpus = perf_cpu_map__new(NULL);
 	if (!cpus)
 		return false;
-	cpu = cpus->map[0];
+	cpu = perf_cpu_map__cpu(cpus, 0);
 	perf_cpu_map__put(cpus);
 
 	do {
@@ -136,15 +137,17 @@ bool perf_can_record_cpu_wide(void)
 		.exclude_kernel = 1,
 	};
 	struct perf_cpu_map *cpus;
-	int cpu, fd;
+	struct perf_cpu cpu;
+	int fd;
 
 	cpus = perf_cpu_map__new(NULL);
 	if (!cpus)
 		return false;
-	cpu = cpus->map[0];
+
+	cpu = perf_cpu_map__cpu(cpus, 0);
 	perf_cpu_map__put(cpus);
 
-	fd = sys_perf_event_open(&attr, -1, cpu, -1, 0);
+	fd = sys_perf_event_open(&attr, -1, cpu.cpu, -1, 0);
 	if (fd < 0)
 		return false;
 	close(fd);

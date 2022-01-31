@@ -1005,24 +1005,20 @@ static void __ar955x_tx_iq_cal_sort(struct ath_hw *ah,
 				    int i, int nmeasurement)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	int im, ix, iy, temp;
+	int im, ix, iy;
 
 	for (im = 0; im < nmeasurement; im++) {
 		for (ix = 0; ix < MAXIQCAL - 1; ix++) {
 			for (iy = ix + 1; iy <= MAXIQCAL - 1; iy++) {
 				if (coeff->mag_coeff[i][im][iy] <
 				    coeff->mag_coeff[i][im][ix]) {
-					temp = coeff->mag_coeff[i][im][ix];
-					coeff->mag_coeff[i][im][ix] =
-						coeff->mag_coeff[i][im][iy];
-					coeff->mag_coeff[i][im][iy] = temp;
+					swap(coeff->mag_coeff[i][im][ix],
+					     coeff->mag_coeff[i][im][iy]);
 				}
 				if (coeff->phs_coeff[i][im][iy] <
 				    coeff->phs_coeff[i][im][ix]) {
-					temp = coeff->phs_coeff[i][im][ix];
-					coeff->phs_coeff[i][im][ix] =
-						coeff->phs_coeff[i][im][iy];
-					coeff->phs_coeff[i][im][iy] = temp;
+					swap(coeff->phs_coeff[i][im][ix],
+					     coeff->phs_coeff[i][im][iy]);
 				}
 			}
 		}

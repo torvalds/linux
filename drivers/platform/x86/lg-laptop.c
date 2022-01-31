@@ -657,6 +657,18 @@ static int acpi_add(struct acpi_device *device)
 	if (product && strlen(product) > 4)
 		switch (product[4]) {
 		case '5':
+			if (strlen(product) > 5)
+				switch (product[5]) {
+				case 'N':
+					year = 2021;
+					break;
+				case '0':
+					year = 2016;
+					break;
+				default:
+					year = 2022;
+				}
+			break;
 		case '6':
 			year = 2016;
 			break;

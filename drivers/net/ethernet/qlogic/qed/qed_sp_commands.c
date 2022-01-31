@@ -85,10 +85,12 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 		goto err;
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
-		   "Initialized: CID %08x cmd %02x protocol %02x data_addr %lu comp_mode [%s]\n",
-		   opaque_cid, cmd, protocol,
-		   (unsigned long)&p_ent->ramrod,
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SPQ,
+		   "Initialized: CID %08x %s:[%02x] %s:%02x data_addr %llx comp_mode [%s]\n",
+		   opaque_cid, qed_get_ramrod_cmd_id_str(protocol, cmd),
+		   cmd, qed_get_protocol_type_str(protocol), protocol,
+		   (unsigned long long)(uintptr_t)&p_ent->ramrod,
 		   D_TRINE(p_ent->comp_mode, QED_SPQ_MODE_EBLOCK,
 			   QED_SPQ_MODE_BLOCK, "MODE_EBLOCK", "MODE_BLOCK",
 			   "MODE_CB"));

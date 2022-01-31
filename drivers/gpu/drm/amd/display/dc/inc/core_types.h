@@ -334,6 +334,20 @@ struct plane_resource {
 	struct dcn_fe_bandwidth bw;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#define LINK_RES_HPO_DP_REC_MAP__MASK 0xFFFF
+#define LINK_RES_HPO_DP_REC_MAP__SHIFT 0
+#endif
+
+/* all mappable hardware resources used to enable a link */
+struct link_resource {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct hpo_dp_link_encoder *hpo_dp_link_enc;
+#else
+	void *dummy;
+#endif
+};
+
 union pipe_update_flags {
 	struct {
 		uint32_t enable : 1;
@@ -361,12 +375,14 @@ struct pipe_ctx {
 
 	struct plane_resource plane_res;
 	struct stream_resource stream_res;
+	struct link_resource link_res;
 
 	struct clock_source *clock_source;
 
 	struct pll_settings pll_settings;
 
 	uint8_t pipe_idx;
+	uint8_t pipe_idx_syncd;
 
 	struct pipe_ctx *top_pipe;
 	struct pipe_ctx *bottom_pipe;
@@ -411,6 +427,8 @@ struct resource_context {
 	struct link_enc_cfg_context link_enc_cfg_ctx;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool is_hpo_dp_stream_enc_acquired[MAX_HPO_DP2_ENCODERS];
+	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
+	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
 #endif
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool is_mpc_3dlut_acquired[MAX_PIPES];

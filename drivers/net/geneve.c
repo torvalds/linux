@@ -17,6 +17,7 @@
 #include <net/gro_cells.h>
 #include <net/rtnetlink.h>
 #include <net/geneve.h>
+#include <net/gro.h>
 #include <net/protocol.h>
 
 #define GENEVE_NETDEV_VER	"0.6"
@@ -516,18 +517,15 @@ static struct sk_buff *geneve_gro_receive(struct sock *sk,
 
 	type = gh->proto_type;
 
-	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
 	if (!ptype)
-		goto out_unlock;
+		goto out;
 
 	skb_gro_pull(skb, gh_len);
 	skb_gro_postpull_rcsum(skb, gh, gh_len);
 	pp = call_gro_receive(ptype->callbacks.gro_receive, head, skb);
 	flush = 0;
 
-out_unlock:
-	rcu_read_unlock();
 out:
 	skb_gro_flush_final(skb, pp, flush);
 
@@ -547,12 +545,9 @@ static int geneve_gro_complete(struct sock *sk, struct sk_buff *skb,
 	gh_len = geneve_hlen(gh);
 	type = gh->proto_type;
 
-	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
 	if (ptype)
 		err = ptype->callbacks.gro_complete(skb, nhoff + gh_len);
-
-	rcu_read_unlock();
 
 	skb_set_inner_mac_header(skb, nhoff + gh_len);
 

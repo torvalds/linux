@@ -3538,11 +3538,6 @@ lpfc_issue_els_rscn(struct lpfc_vport *vport, uint8_t retry)
 		return 1;
 	}
 
-	/* This will cause the callback-function lpfc_cmpl_els_cmd to
-	 * trigger the release of node.
-	 */
-	if (!(vport->fc_flag & FC_PT2PT))
-		lpfc_nlp_put(ndlp);
 	return 0;
 }
 
@@ -5095,14 +5090,9 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* NPort Recovery mode or node is just allocated */
 		if (!lpfc_nlp_not_used(ndlp)) {
 			/* A LOGO is completing and the node is in NPR state.
-			 * If this a fabric node that cleared its transport
-			 * registration, release the rpi.
+			 * Just unregister the RPI because the node is still
+			 * required.
 			 */
-			spin_lock_irq(&ndlp->lock);
-			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
-			if (phba->sli_rev == LPFC_SLI_REV4)
-				ndlp->nlp_flag |= NLP_RELEASE_RPI;
-			spin_unlock_irq(&ndlp->lock);
 			lpfc_unreg_rpi(vport, ndlp);
 		} else {
 			/* Indicate the node has already released, should
@@ -6904,6 +6894,7 @@ static int
 lpfc_get_rdp_info(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context)
 {
 	LPFC_MBOXQ_t *mbox = NULL;
+	struct lpfc_dmabuf *mp;
 	int rc;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -6919,8 +6910,11 @@ lpfc_get_rdp_info(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context)
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a0;
 	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED)
+	if (rc == MBX_NOT_FINISHED) {
+		mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		goto issue_mbox_fail;
+	}
 
 	return 0;
 
@@ -10979,10 +10973,19 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_can_disctmo(vport);
 	}
 
+	if (ndlp->save_flags & NLP_WAIT_FOR_LOGO) {
+		/* Wake up lpfc_vport_delete if waiting...*/
+		if (ndlp->logo_waitq)
+			wake_up(ndlp->logo_waitq);
+		spin_lock_irq(&ndlp->lock);
+		ndlp->nlp_flag &= ~(NLP_ISSUE_LOGO | NLP_LOGO_SND);
+		ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
+		spin_unlock_irq(&ndlp->lock);
+	}
+
 	/* Safe to release resources now. */
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
-	vport->unreg_vpi_cmpl = VPORT_ERROR;
 }
 
 /**

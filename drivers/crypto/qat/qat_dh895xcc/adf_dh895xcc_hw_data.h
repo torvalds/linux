@@ -25,6 +25,8 @@
 #define ADF_DH895XCC_SMIA1_MASK 0x1
 
 /* Masks for VF2PF interrupts */
+#define ADF_DH895XCC_ERR_REG_VF2PF_L(vf_src)	(((vf_src) & 0x01FFFE00) >> 9)
+#define ADF_DH895XCC_ERR_MSK_VF2PF_L(vf_mask)	(((vf_mask) & 0xFFFF) << 9)
 #define ADF_DH895XCC_ERR_REG_VF2PF_U(vf_src)	(((vf_src) & 0x0000FFFF) << 16)
 #define ADF_DH895XCC_ERR_MSK_VF2PF_U(vf_mask)	((vf_mask) >> 16)
 

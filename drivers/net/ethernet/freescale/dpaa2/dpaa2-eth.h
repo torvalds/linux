@@ -388,6 +388,8 @@ struct dpaa2_eth_ch_stats {
 	__u64 bytes_per_cdan;
 };
 
+#define DPAA2_ETH_CH_STATS	7
+
 /* Maximum number of queues associated with a DPNI */
 #define DPAA2_ETH_MAX_TCS		8
 #define DPAA2_ETH_MAX_RX_QUEUES_PER_TC	16

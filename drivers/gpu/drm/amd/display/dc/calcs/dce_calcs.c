@@ -2033,10 +2033,10 @@ static void calculate_bandwidth(
 	kfree(surface_type);
 free_tiling_mode:
 	kfree(tiling_mode);
-free_yclk:
-	kfree(yclk);
 free_sclk:
 	kfree(sclk);
+free_yclk:
+	kfree(yclk);
 }
 
 /*******************************************************************************

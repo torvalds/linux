@@ -28,6 +28,7 @@ struct ath11k_peer {
 	u8 ucast_keyidx;
 	u16 sec_type;
 	u16 sec_type_grp;
+	bool is_authorized;
 };
 
 void ath11k_peer_unmap_event(struct ath11k_base *ab, u16 peer_id);

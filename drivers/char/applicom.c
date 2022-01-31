@@ -89,8 +89,8 @@ static struct applicom_board {
 	spinlock_t mutex;
 } apbs[MAX_BOARD];
 
-static unsigned int irq = 0;	/* interrupt number IRQ       */
-static unsigned long mem = 0;	/* physical segment of board  */
+static unsigned int irq;	/* interrupt number IRQ       */
+static unsigned long mem;	/* physical segment of board  */
 
 module_param_hw(irq, uint, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ of the Applicom board");

@@ -41,7 +41,6 @@ void ipc_imem_sys_wwan_close(struct iosm_imem *ipc_imem, int if_id,
 static int ipc_imem_tq_cdev_write(struct iosm_imem *ipc_imem, int arg,
 				  void *msg, size_t size)
 {
-	ipc_imem->ev_cdev_write_pending = false;
 	ipc_imem_ul_send(ipc_imem);
 
 	return 0;
@@ -50,11 +49,6 @@ static int ipc_imem_tq_cdev_write(struct iosm_imem *ipc_imem, int arg,
 /* Through tasklet to do sio write. */
 static int ipc_imem_call_cdev_write(struct iosm_imem *ipc_imem)
 {
-	if (ipc_imem->ev_cdev_write_pending)
-		return -1;
-
-	ipc_imem->ev_cdev_write_pending = true;
-
 	return ipc_task_queue_send_task(ipc_imem, ipc_imem_tq_cdev_write, 0,
 					NULL, 0, false);
 }
@@ -182,11 +176,14 @@ channel_unavailable:
 	return false;
 }
 
-/* Release a sio link to CP. */
-void ipc_imem_sys_cdev_close(struct iosm_cdev *ipc_cdev)
+/**
+ * ipc_imem_sys_port_close - Release a sio link to CP.
+ * @ipc_imem:          Imem instance.
+ * @channel:           Channel instance.
+ */
+void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
+			     struct ipc_mem_channel *channel)
 {
-	struct iosm_imem *ipc_imem = ipc_cdev->ipc_imem;
-	struct ipc_mem_channel *channel = ipc_cdev->channel;
 	enum ipc_phase curr_phase;
 	int status = 0;
 	u32 tail = 0;
@@ -450,6 +447,7 @@ void ipc_imem_sys_devlink_close(struct iosm_devlink *ipc_devlink)
 	/* Release the pipe resources */
 	ipc_imem_pipe_cleanup(ipc_imem, &channel->ul_pipe);
 	ipc_imem_pipe_cleanup(ipc_imem, &channel->dl_pipe);
+	ipc_imem->nr_of_channels--;
 }
 
 void ipc_imem_sys_devlink_notify_rx(struct iosm_devlink *ipc_devlink,
@@ -643,6 +641,6 @@ int ipc_imem_sys_devlink_read(struct iosm_devlink *devlink, u8 *data,
 	memcpy(data, skb->data, skb->len);
 
 devlink_read_fail:
-	ipc_pcie_kfree_skb(devlink->pcie, skb);
+	dev_kfree_skb(skb);
 	return rc;
 }

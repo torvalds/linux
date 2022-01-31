@@ -100,25 +100,6 @@ mlx5e_ktls_rx_resync_create_resp_list(void)
 	return resp_list;
 }
 
-static int mlx5e_ktls_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir, u32 rqtn)
-{
-	struct mlx5e_tir_builder *builder;
-	int err;
-
-	builder = mlx5e_tir_builder_alloc(false);
-	if (!builder)
-		return -ENOMEM;
-
-	mlx5e_tir_builder_build_rqt(builder, mdev->mlx5e_res.hw_objs.td.tdn, rqtn, false);
-	mlx5e_tir_builder_build_direct(builder);
-	mlx5e_tir_builder_build_tls(builder);
-	err = mlx5e_tir_init(tir, builder, mdev, false);
-
-	mlx5e_tir_builder_free(builder);
-
-	return err;
-}
-
 static void accel_rule_handle_work(struct work_struct *work)
 {
 	struct mlx5e_ktls_offload_context_rx *priv_rx;
@@ -609,7 +590,6 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_priv *priv;
 	int rxq, err;
-	u32 rqtn;
 
 	tls_ctx = tls_get_ctx(sk);
 	priv = netdev_priv(netdev);
@@ -631,13 +611,11 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	priv_rx->rxq = rxq;
 	priv_rx->sk = sk;
 
-	priv_rx->rq_stats = &priv->channel_stats[rxq].rq;
+	priv_rx->rq_stats = &priv->channel_stats[rxq]->rq;
 	priv_rx->sw_stats = &priv->tls->sw_stats;
 	mlx5e_set_ktls_rx_priv_ctx(tls_ctx, priv_rx);
 
-	rqtn = mlx5e_rx_res_get_rqtn_direct(priv->rx_res, rxq);
-
-	err = mlx5e_ktls_create_tir(mdev, &priv_rx->tir, rqtn);
+	err = mlx5e_rx_res_tls_tir_create(priv->rx_res, rxq, &priv_rx->tir);
 	if (err)
 		goto err_create_tir;
 

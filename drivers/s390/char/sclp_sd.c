@@ -438,11 +438,12 @@ static struct attribute *sclp_sd_file_default_attrs[] = {
 	&reload_attr.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(sclp_sd_file_default);
 
 static struct kobj_type sclp_sd_file_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = sclp_sd_file_release,
-	.default_attrs = sclp_sd_file_default_attrs,
+	.default_groups = sclp_sd_file_default_groups,
 };
 
 /**

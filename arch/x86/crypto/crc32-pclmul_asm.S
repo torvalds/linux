@@ -236,5 +236,5 @@ fold_64:
 	pxor    %xmm2, %xmm1
 	pextrd  $0x01, %xmm1, %eax
 
-	ret
+	RET
 SYM_FUNC_END(crc32_pclmul_le_16)

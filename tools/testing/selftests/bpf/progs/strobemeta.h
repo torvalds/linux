@@ -445,6 +445,48 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 	return payload;
 }
 
+#ifdef USE_BPF_LOOP
+enum read_type {
+	READ_INT_VAR,
+	READ_MAP_VAR,
+	READ_STR_VAR,
+};
+
+struct read_var_ctx {
+	struct strobemeta_payload *data;
+	void *tls_base;
+	struct strobemeta_cfg *cfg;
+	void *payload;
+	/* value gets mutated */
+	struct strobe_value_generic *value;
+	enum read_type type;
+};
+
+static int read_var_callback(__u32 index, struct read_var_ctx *ctx)
+{
+	switch (ctx->type) {
+	case READ_INT_VAR:
+		if (index >= STROBE_MAX_INTS)
+			return 1;
+		read_int_var(ctx->cfg, index, ctx->tls_base, ctx->value, ctx->data);
+		break;
+	case READ_MAP_VAR:
+		if (index >= STROBE_MAX_MAPS)
+			return 1;
+		ctx->payload = read_map_var(ctx->cfg, index, ctx->tls_base,
+					    ctx->value, ctx->data, ctx->payload);
+		break;
+	case READ_STR_VAR:
+		if (index >= STROBE_MAX_STRS)
+			return 1;
+		ctx->payload += read_str_var(ctx->cfg, index, ctx->tls_base,
+					     ctx->value, ctx->data, ctx->payload);
+		break;
+	}
+	return 0;
+}
+#endif /* USE_BPF_LOOP */
+
 /*
  * read_strobe_meta returns NULL, if no metadata was read; otherwise returns
  * pointer to *right after* payload ends
@@ -475,11 +517,36 @@ static void *read_strobe_meta(struct task_struct *task,
 	 */
 	tls_base = (void *)task;
 
+#ifdef USE_BPF_LOOP
+	struct read_var_ctx ctx = {
+		.cfg = cfg,
+		.tls_base = tls_base,
+		.value = &value,
+		.data = data,
+		.payload = payload,
+	};
+	int err;
+
+	ctx.type = READ_INT_VAR;
+	err = bpf_loop(STROBE_MAX_INTS, read_var_callback, &ctx, 0);
+	if (err != STROBE_MAX_INTS)
+		return NULL;
+
+	ctx.type = READ_STR_VAR;
+	err = bpf_loop(STROBE_MAX_STRS, read_var_callback, &ctx, 0);
+	if (err != STROBE_MAX_STRS)
+		return NULL;
+
+	ctx.type = READ_MAP_VAR;
+	err = bpf_loop(STROBE_MAX_MAPS, read_var_callback, &ctx, 0);
+	if (err != STROBE_MAX_MAPS)
+		return NULL;
+#else
 #ifdef NO_UNROLL
 #pragma clang loop unroll(disable)
 #else
 #pragma unroll
-#endif
+#endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_INTS; ++i) {
 		read_int_var(cfg, i, tls_base, &value, data);
 	}
@@ -487,7 +554,7 @@ static void *read_strobe_meta(struct task_struct *task,
 #pragma clang loop unroll(disable)
 #else
 #pragma unroll
-#endif
+#endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_STRS; ++i) {
 		payload += read_str_var(cfg, i, tls_base, &value, data, payload);
 	}
@@ -495,10 +562,12 @@ static void *read_strobe_meta(struct task_struct *task,
 #pragma clang loop unroll(disable)
 #else
 #pragma unroll
-#endif
+#endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_MAPS; ++i) {
 		payload = read_map_var(cfg, i, tls_base, &value, data, payload);
 	}
+#endif /* USE_BPF_LOOP */
+
 	/*
 	 * return pointer right after end of payload, so it's possible to
 	 * calculate exact amount of useful data that needs to be sent

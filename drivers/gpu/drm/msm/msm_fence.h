@@ -60,4 +60,16 @@ void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence);
 
 struct dma_fence * msm_fence_alloc(struct msm_fence_context *fctx);
 
+static inline bool
+fence_before(uint32_t a, uint32_t b)
+{
+   return (int32_t)(a - b) < 0;
+}
+
+static inline bool
+fence_after(uint32_t a, uint32_t b)
+{
+   return (int32_t)(a - b) > 0;
+}
+
 #endif

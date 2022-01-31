@@ -751,10 +751,6 @@ static int put_v4l2_ext_controls32(struct v4l2_ext_controls *p64,
 /*
  * x86 is the only compat architecture with different struct alignment
  * between 32-bit and 64-bit tasks.
- *
- * On all other architectures, v4l2_event32 and v4l2_event32_time32 are
- * the same as v4l2_event and v4l2_event_time32, so we can use the native
- * handlers, converting v4l2_event to v4l2_event_time32 if necessary.
  */
 struct v4l2_event32 {
 	__u32				type;
@@ -772,21 +768,6 @@ struct v4l2_event32 {
 	__u32				reserved[8];
 };
 
-#ifdef CONFIG_COMPAT_32BIT_TIME
-struct v4l2_event32_time32 {
-	__u32				type;
-	union {
-		compat_s64		value64;
-		__u8			data[64];
-	} u;
-	__u32				pending;
-	__u32				sequence;
-	struct old_timespec32		timestamp;
-	__u32				id;
-	__u32				reserved[8];
-};
-#endif
-
 static int put_v4l2_event32(struct v4l2_event *p64,
 			    struct v4l2_event32 __user *p32)
 {
@@ -802,7 +783,22 @@ static int put_v4l2_event32(struct v4l2_event *p64,
 	return 0;
 }
 
+#endif
+
 #ifdef CONFIG_COMPAT_32BIT_TIME
+struct v4l2_event32_time32 {
+	__u32				type;
+	union {
+		compat_s64		value64;
+		__u8			data[64];
+	} u;
+	__u32				pending;
+	__u32				sequence;
+	struct old_timespec32		timestamp;
+	__u32				id;
+	__u32				reserved[8];
+};
+
 static int put_v4l2_event32_time32(struct v4l2_event *p64,
 				   struct v4l2_event32_time32 __user *p32)
 {
@@ -817,7 +813,6 @@ static int put_v4l2_event32_time32(struct v4l2_event *p64,
 		return -EFAULT;
 	return 0;
 }
-#endif
 #endif
 
 struct v4l2_edid32 {
@@ -880,9 +875,7 @@ static int put_v4l2_edid32(struct v4l2_edid *p64,
 #define VIDIOC_QUERYBUF32_TIME32	_IOWR('V',  9, struct v4l2_buffer32_time32)
 #define VIDIOC_QBUF32_TIME32		_IOWR('V', 15, struct v4l2_buffer32_time32)
 #define VIDIOC_DQBUF32_TIME32		_IOWR('V', 17, struct v4l2_buffer32_time32)
-#ifdef CONFIG_X86_64
 #define	VIDIOC_DQEVENT32_TIME32		_IOR ('V', 89, struct v4l2_event32_time32)
-#endif
 #define VIDIOC_PREPARE_BUF32_TIME32	_IOWR('V', 93, struct v4l2_buffer32_time32)
 #endif
 
@@ -936,10 +929,10 @@ unsigned int v4l2_compat_translate_cmd(unsigned int cmd)
 #ifdef CONFIG_X86_64
 	case VIDIOC_DQEVENT32:
 		return VIDIOC_DQEVENT;
+#endif
 #ifdef CONFIG_COMPAT_32BIT_TIME
 	case VIDIOC_DQEVENT32_TIME32:
 		return VIDIOC_DQEVENT;
-#endif
 #endif
 	}
 	return cmd;
@@ -1032,10 +1025,10 @@ int v4l2_compat_put_user(void __user *arg, void *parg, unsigned int cmd)
 #ifdef CONFIG_X86_64
 	case VIDIOC_DQEVENT32:
 		return put_v4l2_event32(parg, arg);
+#endif
 #ifdef CONFIG_COMPAT_32BIT_TIME
 	case VIDIOC_DQEVENT32_TIME32:
 		return put_v4l2_event32_time32(parg, arg);
-#endif
 #endif
 	}
 	return 0;

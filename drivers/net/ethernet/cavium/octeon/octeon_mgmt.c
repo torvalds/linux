@@ -548,7 +548,7 @@ struct octeon_mgmt_cam_state {
 };
 
 static void octeon_mgmt_cam_state_add(struct octeon_mgmt_cam_state *cs,
-				      unsigned char *addr)
+				      const unsigned char *addr)
 {
 	int i;
 
@@ -701,9 +701,6 @@ static int octeon_mgmt_ioctl_hwtstamp(struct net_device *netdev,
 
 	if (copy_from_user(&config, rq->ifr_data, sizeof(config)))
 		return -EFAULT;
-
-	if (config.flags) /* reserved for future extensions */
-		return -EINVAL;
 
 	/* Check the status of hardware for tiemstamps */
 	if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {

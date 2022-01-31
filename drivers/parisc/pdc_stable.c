@@ -482,11 +482,12 @@ static struct attribute *paths_subsys_attrs[] = {
 	&paths_attr_layer.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(paths_subsys);
 
 /* Specific kobject type for our PDC paths */
 static struct kobj_type ktype_pdcspath = {
 	.sysfs_ops = &pdcspath_attr_ops,
-	.default_attrs = paths_subsys_attrs,
+	.default_groups = paths_subsys_groups,
 };
 
 /* We hard define the 4 types of path we expect to find */
@@ -979,8 +980,10 @@ pdcs_register_pathentries(void)
 		entry->kobj.kset = paths_kset;
 		err = kobject_init_and_add(&entry->kobj, &ktype_pdcspath, NULL,
 					   "%s", entry->name);
-		if (err)
+		if (err) {
+			kobject_put(&entry->kobj);
 			return err;
+		}
 
 		/* kobject is now registered */
 		write_lock(&entry->rw_lock);

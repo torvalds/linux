@@ -43,6 +43,7 @@ description: |
       For PM8150L, smps1 - smps8, ldo1 - ldo11, bob, flash, rgb
       For PM8350, smps1 - smps12, ldo1 - ldo10
       For PM8350C, smps1 - smps10, ldo1 - ldo13, bob
+      For PM8450, smps1 - smps6, ldo1 - ldo4
       For PM8998, smps1 - smps13, ldo1 - ldo28, lvs1 - lvs2
       For PMI8998, bob
       For PMR735A, smps1 - smps3, ldo1 - ldo7
@@ -62,7 +63,9 @@ properties:
       - qcom,pm8150l-rpmh-regulators
       - qcom,pm8350-rpmh-regulators
       - qcom,pm8350c-rpmh-regulators
+      - qcom,pm8450-rpmh-regulators
       - qcom,pm8998-rpmh-regulators
+      - qcom,pmg1110-rpmh-regulators
       - qcom,pmi8998-rpmh-regulators
       - qcom,pmm8155au-rpmh-regulators
       - qcom,pmr735a-rpmh-regulators

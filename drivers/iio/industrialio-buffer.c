@@ -1727,8 +1727,7 @@ int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	const struct iio_chan_spec *channels;
 	struct iio_buffer *buffer;
-	int unwind_idx;
-	int ret, i;
+	int ret, i, idx;
 	size_t sz;
 
 	channels = indio_dev->channels;
@@ -1743,15 +1742,12 @@ int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	if (!iio_dev_opaque->attached_buffers_cnt)
 		return 0;
 
-	for (i = 0; i < iio_dev_opaque->attached_buffers_cnt; i++) {
-		buffer = iio_dev_opaque->attached_buffers[i];
-		ret = __iio_buffer_alloc_sysfs_and_mask(buffer, indio_dev, i);
-		if (ret) {
-			unwind_idx = i - 1;
+	for (idx = 0; idx < iio_dev_opaque->attached_buffers_cnt; idx++) {
+		buffer = iio_dev_opaque->attached_buffers[idx];
+		ret = __iio_buffer_alloc_sysfs_and_mask(buffer, indio_dev, idx);
+		if (ret)
 			goto error_unwind_sysfs_and_mask;
-		}
 	}
-	unwind_idx = iio_dev_opaque->attached_buffers_cnt - 1;
 
 	sz = sizeof(*(iio_dev_opaque->buffer_ioctl_handler));
 	iio_dev_opaque->buffer_ioctl_handler = kzalloc(sz, GFP_KERNEL);
@@ -1767,9 +1763,9 @@ int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	return 0;
 
 error_unwind_sysfs_and_mask:
-	for (; unwind_idx >= 0; unwind_idx--) {
-		buffer = iio_dev_opaque->attached_buffers[unwind_idx];
-		__iio_buffer_free_sysfs_and_mask(buffer, indio_dev, unwind_idx);
+	while (idx--) {
+		buffer = iio_dev_opaque->attached_buffers[idx];
+		__iio_buffer_free_sysfs_and_mask(buffer, indio_dev, idx);
 	}
 	return ret;
 }

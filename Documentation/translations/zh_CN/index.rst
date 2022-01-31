@@ -23,6 +23,11 @@
 另外，随时欢迎您对内核文档进行改进；如果您想提供帮助，请加入vger.kernel.org
 上的linux-doc邮件列表。
 
+顺便说下，中文文档也需要遵守内核编码风格，风格中中文和英文的主要不同就是中文
+的字符标点占用两个英文字符宽度， 所以，当英文要求不要超过每行100个字符时，
+中文就不要超过50个字符。另外，也要注意'-'，'=' 等符号与相关标题的对齐。在将
+补丁提交到社区之前，一定要进行必要的checkpatch.pl检查和编译测试。
+
 许可证文档
 ----------
 
@@ -106,6 +111,7 @@ TODOList:
    virt/index
    infiniband/index
    accounting/index
+   scheduler/index
 
 TODOList:
 
@@ -140,7 +146,6 @@ TODOList:
 * PCI/index
 * scsi/index
 * misc-devices/index
-* scheduler/index
 * mhi/index
 
 体系结构无关文档

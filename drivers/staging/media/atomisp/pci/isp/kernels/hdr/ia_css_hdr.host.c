@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Release Version: irci_stable_candrpv_0415_20150521_0458 */
-/* Release Version: irci_ecr-master_20150911_0724 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.

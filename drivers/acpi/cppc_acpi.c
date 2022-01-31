@@ -118,6 +118,8 @@ static DEFINE_PER_CPU(struct cpc_desc *, cpc_desc_ptr);
  */
 #define NUM_RETRIES 500ULL
 
+#define OVER_16BTS_MASK ~0xFFFFULL
+
 #define define_one_cppc_ro(_name)		\
 static struct kobj_attribute _name =		\
 __ATTR(_name, 0444, show_##_name, NULL)
@@ -179,10 +181,11 @@ static struct attribute *cppc_attrs[] = {
 	&lowest_freq.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(cppc);
 
 static struct kobj_type cppc_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = cppc_attrs,
+	.default_groups = cppc_groups,
 };
 
 static int check_pcc_chan(int pcc_ss_id, bool chk_err_bit)
@@ -411,7 +414,7 @@ bool acpi_cpc_valid(void)
 	struct cpc_desc *cpc_ptr;
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
+	for_each_present_cpu(cpu) {
 		cpc_ptr = per_cpu(cpc_desc_ptr, cpu);
 		if (!cpc_ptr)
 			return false;
@@ -604,47 +607,30 @@ static bool is_cppc_supported(int revision, int num_ent)
 /*
  * An example CPC table looks like the following.
  *
- *	Name(_CPC, Package()
- *			{
- *			17,
- *			NumEntries
- *			1,
- *			// Revision
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x120, 2)},
- *			// Highest Performance
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x124, 2)},
- *			// Nominal Performance
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x128, 2)},
- *			// Lowest Nonlinear Performance
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x12C, 2)},
- *			// Lowest Performance
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x130, 2)},
- *			// Guaranteed Performance Register
- *			ResourceTemplate(){Register(PCC, 32, 0, 0x110, 2)},
- *			// Desired Performance Register
- *			ResourceTemplate(){Register(SystemMemory, 0, 0, 0, 0)},
- *			..
- *			..
- *			..
- *
- *		}
+ *  Name (_CPC, Package() {
+ *      17,							// NumEntries
+ *      1,							// Revision
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x120, 2)},	// Highest Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x124, 2)},	// Nominal Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x128, 2)},	// Lowest Nonlinear Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x12C, 2)},	// Lowest Performance
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x130, 2)},	// Guaranteed Performance Register
+ *      ResourceTemplate() {Register(PCC, 32, 0, 0x110, 2)},	// Desired Performance Register
+ *      ResourceTemplate() {Register(SystemMemory, 0, 0, 0, 0)},
+ *      ...
+ *      ...
+ *      ...
+ *  }
  * Each Register() encodes how to access that specific register.
  * e.g. a sample PCC entry has the following encoding:
  *
- *	Register (
- *		PCC,
- *		AddressSpaceKeyword
- *		8,
- *		//RegisterBitWidth
- *		8,
- *		//RegisterBitOffset
- *		0x30,
- *		//RegisterAddress
- *		9
- *		//AccessSize (subspace ID)
- *		0
- *		)
- *	}
+ *  Register (
+ *      PCC,	// AddressSpaceKeyword
+ *      8,	// RegisterBitWidth
+ *      8,	// RegisterBitOffset
+ *      0x30,	// RegisterAddress
+ *      9,	// AccessSize (subspace ID)
+ *  )
  */
 
 #ifndef init_freq_invariance_cppc
@@ -746,9 +732,26 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 						goto out_free;
 					cpc_ptr->cpc_regs[i-2].sys_mem_vaddr = addr;
 				}
+			} else if (gas_t->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+				if (gas_t->access_width < 1 || gas_t->access_width > 3) {
+					/*
+					 * 1 = 8-bit, 2 = 16-bit, and 3 = 32-bit.
+					 * SystemIO doesn't implement 64-bit
+					 * registers.
+					 */
+					pr_debug("Invalid access width %d for SystemIO register\n",
+						gas_t->access_width);
+					goto out_free;
+				}
+				if (gas_t->address & OVER_16BTS_MASK) {
+					/* SystemIO registers use 16-bit integer addresses */
+					pr_debug("Invalid IO port %llu for SystemIO register\n",
+						gas_t->address);
+					goto out_free;
+				}
 			} else {
 				if (gas_t->space_id != ACPI_ADR_SPACE_FIXED_HARDWARE || !cpc_ffh_supported()) {
-					/* Support only PCC ,SYS MEM and FFH type regs */
+					/* Support only PCC, SystemMemory, SystemIO, and FFH type regs. */
 					pr_debug("Unsupported register type: %d\n", gas_t->space_id);
 					goto out_free;
 				}
@@ -912,18 +915,33 @@ int __weak cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 
 static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 {
-	int ret_val = 0;
 	void __iomem *vaddr = NULL;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu);
 	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
 
 	if (reg_res->type == ACPI_TYPE_INTEGER) {
 		*val = reg_res->cpc_entry.int_value;
-		return ret_val;
+		return 0;
 	}
 
 	*val = 0;
-	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM && pcc_ss_id >= 0)
+
+	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+		u32 width = 8 << (reg->access_width - 1);
+		u32 val_u32;
+		acpi_status status;
+
+		status = acpi_os_read_port((acpi_io_address)reg->address,
+					   &val_u32, width);
+		if (ACPI_FAILURE(status)) {
+			pr_debug("Error: Failed to read SystemIO port %llx\n",
+				 reg->address);
+			return -EFAULT;
+		}
+
+		*val = val_u32;
+		return 0;
+	} else if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM && pcc_ss_id >= 0)
 		vaddr = GET_PCC_VADDR(reg->address, pcc_ss_id);
 	else if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		vaddr = reg_res->sys_mem_vaddr;
@@ -949,10 +967,10 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 	default:
 		pr_debug("Error: Cannot read %u bit width from PCC for ss: %d\n",
 			 reg->bit_width, pcc_ss_id);
-		ret_val = -EFAULT;
+		return -EFAULT;
 	}
 
-	return ret_val;
+	return 0;
 }
 
 static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
@@ -962,7 +980,20 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu);
 	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
 
-	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM && pcc_ss_id >= 0)
+	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+		u32 width = 8 << (reg->access_width - 1);
+		acpi_status status;
+
+		status = acpi_os_write_port((acpi_io_address)reg->address,
+					    (u32)val, width);
+		if (ACPI_FAILURE(status)) {
+			pr_debug("Error: Failed to write SystemIO port %llx\n",
+				 reg->address);
+			return -EFAULT;
+		}
+
+		return 0;
+	} else if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM && pcc_ss_id >= 0)
 		vaddr = GET_PCC_VADDR(reg->address, pcc_ss_id);
 	else if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		vaddr = reg_res->sys_mem_vaddr;
@@ -998,7 +1029,14 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 static int cppc_get_perf(int cpunum, enum cppc_regs reg_idx, u64 *perf)
 {
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpunum);
-	struct cpc_register_resource *reg = &cpc_desc->cpc_regs[reg_idx];
+	struct cpc_register_resource *reg;
+
+	if (!cpc_desc) {
+		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
+		return -ENODEV;
+	}
+
+	reg = &cpc_desc->cpc_regs[reg_idx];
 
 	if (CPC_IN_PCC(reg)) {
 		int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
@@ -1221,6 +1259,51 @@ out_err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cppc_get_perf_ctrs);
+
+/**
+ * cppc_set_enable - Set to enable CPPC on the processor by writing the
+ * Continuous Performance Control package EnableRegister field.
+ * @cpu: CPU for which to enable CPPC register.
+ * @enable: 0 - disable, 1 - enable CPPC feature on the processor.
+ *
+ * Return: 0 for success, -ERRNO or -EIO otherwise.
+ */
+int cppc_set_enable(int cpu, bool enable)
+{
+	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu);
+	struct cpc_register_resource *enable_reg;
+	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpu);
+	struct cppc_pcc_data *pcc_ss_data = NULL;
+	int ret = -EINVAL;
+
+	if (!cpc_desc) {
+		pr_debug("No CPC descriptor for CPU:%d\n", cpu);
+		return -EINVAL;
+	}
+
+	enable_reg = &cpc_desc->cpc_regs[ENABLE];
+
+	if (CPC_IN_PCC(enable_reg)) {
+
+		if (pcc_ss_id < 0)
+			return -EIO;
+
+		ret = cpc_write(cpu, enable_reg, enable);
+		if (ret)
+			return ret;
+
+		pcc_ss_data = pcc_data[pcc_ss_id];
+
+		down_write(&pcc_ss_data->pcc_lock);
+		/* after writing CPC, transfer the ownership of PCC to platfrom */
+		ret = send_pcc_cmd(pcc_ss_id, CMD_WRITE);
+		up_write(&pcc_ss_data->pcc_lock);
+		return ret;
+	}
+
+	return cpc_write(cpu, enable_reg, enable);
+}
+EXPORT_SYMBOL_GPL(cppc_set_enable);
 
 /**
  * cppc_set_perf - Set a CPU's performance controls.

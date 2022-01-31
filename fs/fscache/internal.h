@@ -1,21 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Internal definitions for FS-Cache
  *
- * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2021 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- */
-
-/*
- * Lock order, in the order in which multiple locks should be obtained:
- * - fscache_addremove_sem
- * - cookie->lock
- * - cookie->parent->lock
- * - cache->object_list_lock
- * - object->lock
- * - object->parent->lock
- * - cookie->stores_lock
- * - fscache_thread_lock
- *
  */
 
 #ifdef pr_fmt
@@ -24,42 +11,59 @@
 
 #define pr_fmt(fmt) "FS-Cache: " fmt
 
+#include <linux/slab.h>
 #include <linux/fscache-cache.h>
 #include <trace/events/fscache.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 
-#define FSCACHE_MIN_THREADS	4
-#define FSCACHE_MAX_THREADS	32
-
 /*
  * cache.c
  */
-extern struct list_head fscache_cache_list;
-extern struct rw_semaphore fscache_addremove_sem;
+#ifdef CONFIG_PROC_FS
+extern const struct seq_operations fscache_caches_seq_ops;
+#endif
+bool fscache_begin_cache_access(struct fscache_cache *cache, enum fscache_access_trace why);
+void fscache_end_cache_access(struct fscache_cache *cache, enum fscache_access_trace why);
+struct fscache_cache *fscache_lookup_cache(const char *name, bool is_cache);
+void fscache_put_cache(struct fscache_cache *cache, enum fscache_cache_trace where);
 
-extern struct fscache_cache *fscache_select_cache_for_object(
-	struct fscache_cookie *);
+static inline enum fscache_cache_state fscache_cache_state(const struct fscache_cache *cache)
+{
+	return smp_load_acquire(&cache->state);
+}
+
+static inline bool fscache_cache_is_live(const struct fscache_cache *cache)
+{
+	return fscache_cache_state(cache) == FSCACHE_CACHE_IS_ACTIVE;
+}
+
+static inline void fscache_set_cache_state(struct fscache_cache *cache,
+					   enum fscache_cache_state new_state)
+{
+	smp_store_release(&cache->state, new_state);
+
+}
+
+static inline bool fscache_set_cache_state_maybe(struct fscache_cache *cache,
+						 enum fscache_cache_state old_state,
+						 enum fscache_cache_state new_state)
+{
+	return try_cmpxchg_release(&cache->state, &old_state, new_state);
+}
 
 /*
  * cookie.c
  */
 extern struct kmem_cache *fscache_cookie_jar;
 extern const struct seq_operations fscache_cookies_seq_ops;
+extern struct timer_list fscache_cookie_lru_timer;
 
-extern void fscache_free_cookie(struct fscache_cookie *);
-extern struct fscache_cookie *fscache_alloc_cookie(struct fscache_cookie *,
-						   const struct fscache_cookie_def *,
-						   const void *, size_t,
-						   const void *, size_t,
-						   void *, loff_t);
-extern struct fscache_cookie *fscache_hash_cookie(struct fscache_cookie *);
-extern struct fscache_cookie *fscache_cookie_get(struct fscache_cookie *,
-						 enum fscache_cookie_trace);
-extern void fscache_cookie_put(struct fscache_cookie *,
-			       enum fscache_cookie_trace);
+extern void fscache_print_cookie(struct fscache_cookie *cookie, char prefix);
+extern bool fscache_begin_cookie_access(struct fscache_cookie *cookie,
+					enum fscache_access_trace why);
 
-static inline void fscache_cookie_see(struct fscache_cookie *cookie,
+static inline void fscache_see_cookie(struct fscache_cookie *cookie,
 				      enum fscache_cookie_trace where)
 {
 	trace_fscache_cookie(cookie->debug_id, refcount_read(&cookie->ref),
@@ -67,60 +71,22 @@ static inline void fscache_cookie_see(struct fscache_cookie *cookie,
 }
 
 /*
- * fsdef.c
+ * io.c
  */
-extern struct fscache_cookie fscache_fsdef_index;
-extern struct fscache_cookie_def fscache_fsdef_netfs_def;
+static inline void fscache_end_operation(struct netfs_cache_resources *cres)
+{
+	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
+
+	if (ops)
+		ops->end_operation(cres);
+}
 
 /*
  * main.c
  */
-extern unsigned fscache_defer_lookup;
-extern unsigned fscache_defer_create;
 extern unsigned fscache_debug;
-extern struct kobject *fscache_root;
-extern struct workqueue_struct *fscache_object_wq;
-extern struct workqueue_struct *fscache_op_wq;
-DECLARE_PER_CPU(wait_queue_head_t, fscache_object_cong_wait);
 
-extern unsigned int fscache_hash(unsigned int salt, unsigned int *data, unsigned int n);
-
-static inline bool fscache_object_congested(void)
-{
-	return workqueue_congested(WORK_CPU_UNBOUND, fscache_object_wq);
-}
-
-/*
- * object.c
- */
-extern void fscache_enqueue_object(struct fscache_object *);
-
-/*
- * operation.c
- */
-extern int fscache_submit_exclusive_op(struct fscache_object *,
-				       struct fscache_operation *);
-extern int fscache_submit_op(struct fscache_object *,
-			     struct fscache_operation *);
-extern int fscache_cancel_op(struct fscache_operation *, bool);
-extern void fscache_cancel_all_ops(struct fscache_object *);
-extern void fscache_abort_object(struct fscache_object *);
-extern void fscache_start_operations(struct fscache_object *);
-extern void fscache_operation_gc(struct work_struct *);
-
-/*
- * page.c
- */
-extern int fscache_wait_for_deferred_lookup(struct fscache_cookie *);
-extern int fscache_wait_for_operation_activation(struct fscache_object *,
-						 struct fscache_operation *,
-						 atomic_t *,
-						 atomic_t *);
-extern void fscache_invalidate_writes(struct fscache_cookie *);
-struct fscache_retrieval *fscache_alloc_retrieval(struct fscache_cookie *cookie,
-						  struct address_space *mapping,
-						  fscache_rw_complete_t end_io_func,
-						  void *context);
+extern unsigned int fscache_hash(unsigned int salt, const void *data, size_t len);
 
 /*
  * proc.c
@@ -137,125 +103,27 @@ extern void fscache_proc_cleanup(void);
  * stats.c
  */
 #ifdef CONFIG_FSCACHE_STATS
-extern atomic_t fscache_n_ops_processed[FSCACHE_MAX_THREADS];
-extern atomic_t fscache_n_objs_processed[FSCACHE_MAX_THREADS];
-
-extern atomic_t fscache_n_op_pend;
-extern atomic_t fscache_n_op_run;
-extern atomic_t fscache_n_op_enqueue;
-extern atomic_t fscache_n_op_deferred_release;
-extern atomic_t fscache_n_op_initialised;
-extern atomic_t fscache_n_op_release;
-extern atomic_t fscache_n_op_gc;
-extern atomic_t fscache_n_op_cancelled;
-extern atomic_t fscache_n_op_rejected;
-
-extern atomic_t fscache_n_attr_changed;
-extern atomic_t fscache_n_attr_changed_ok;
-extern atomic_t fscache_n_attr_changed_nobufs;
-extern atomic_t fscache_n_attr_changed_nomem;
-extern atomic_t fscache_n_attr_changed_calls;
-
-extern atomic_t fscache_n_allocs;
-extern atomic_t fscache_n_allocs_ok;
-extern atomic_t fscache_n_allocs_wait;
-extern atomic_t fscache_n_allocs_nobufs;
-extern atomic_t fscache_n_allocs_intr;
-extern atomic_t fscache_n_allocs_object_dead;
-extern atomic_t fscache_n_alloc_ops;
-extern atomic_t fscache_n_alloc_op_waits;
-
-extern atomic_t fscache_n_retrievals;
-extern atomic_t fscache_n_retrievals_ok;
-extern atomic_t fscache_n_retrievals_wait;
-extern atomic_t fscache_n_retrievals_nodata;
-extern atomic_t fscache_n_retrievals_nobufs;
-extern atomic_t fscache_n_retrievals_intr;
-extern atomic_t fscache_n_retrievals_nomem;
-extern atomic_t fscache_n_retrievals_object_dead;
-extern atomic_t fscache_n_retrieval_ops;
-extern atomic_t fscache_n_retrieval_op_waits;
-
-extern atomic_t fscache_n_stores;
-extern atomic_t fscache_n_stores_ok;
-extern atomic_t fscache_n_stores_again;
-extern atomic_t fscache_n_stores_nobufs;
-extern atomic_t fscache_n_stores_oom;
-extern atomic_t fscache_n_store_ops;
-extern atomic_t fscache_n_store_calls;
-extern atomic_t fscache_n_store_pages;
-extern atomic_t fscache_n_store_radix_deletes;
-extern atomic_t fscache_n_store_pages_over_limit;
-
-extern atomic_t fscache_n_store_vmscan_not_storing;
-extern atomic_t fscache_n_store_vmscan_gone;
-extern atomic_t fscache_n_store_vmscan_busy;
-extern atomic_t fscache_n_store_vmscan_cancelled;
-extern atomic_t fscache_n_store_vmscan_wait;
-
-extern atomic_t fscache_n_marks;
-extern atomic_t fscache_n_uncaches;
+extern atomic_t fscache_n_volumes;
+extern atomic_t fscache_n_volumes_collision;
+extern atomic_t fscache_n_volumes_nomem;
+extern atomic_t fscache_n_cookies;
+extern atomic_t fscache_n_cookies_lru;
+extern atomic_t fscache_n_cookies_lru_expired;
+extern atomic_t fscache_n_cookies_lru_removed;
+extern atomic_t fscache_n_cookies_lru_dropped;
 
 extern atomic_t fscache_n_acquires;
-extern atomic_t fscache_n_acquires_null;
-extern atomic_t fscache_n_acquires_no_cache;
 extern atomic_t fscache_n_acquires_ok;
-extern atomic_t fscache_n_acquires_nobufs;
 extern atomic_t fscache_n_acquires_oom;
 
 extern atomic_t fscache_n_invalidates;
-extern atomic_t fscache_n_invalidates_run;
-
-extern atomic_t fscache_n_updates;
-extern atomic_t fscache_n_updates_null;
-extern atomic_t fscache_n_updates_run;
 
 extern atomic_t fscache_n_relinquishes;
-extern atomic_t fscache_n_relinquishes_null;
-extern atomic_t fscache_n_relinquishes_waitcrt;
 extern atomic_t fscache_n_relinquishes_retire;
+extern atomic_t fscache_n_relinquishes_dropped;
 
-extern atomic_t fscache_n_cookie_index;
-extern atomic_t fscache_n_cookie_data;
-extern atomic_t fscache_n_cookie_special;
-
-extern atomic_t fscache_n_object_alloc;
-extern atomic_t fscache_n_object_no_alloc;
-extern atomic_t fscache_n_object_lookups;
-extern atomic_t fscache_n_object_lookups_negative;
-extern atomic_t fscache_n_object_lookups_positive;
-extern atomic_t fscache_n_object_lookups_timed_out;
-extern atomic_t fscache_n_object_created;
-extern atomic_t fscache_n_object_avail;
-extern atomic_t fscache_n_object_dead;
-
-extern atomic_t fscache_n_checkaux_none;
-extern atomic_t fscache_n_checkaux_okay;
-extern atomic_t fscache_n_checkaux_update;
-extern atomic_t fscache_n_checkaux_obsolete;
-
-extern atomic_t fscache_n_cop_alloc_object;
-extern atomic_t fscache_n_cop_lookup_object;
-extern atomic_t fscache_n_cop_lookup_complete;
-extern atomic_t fscache_n_cop_grab_object;
-extern atomic_t fscache_n_cop_invalidate_object;
-extern atomic_t fscache_n_cop_update_object;
-extern atomic_t fscache_n_cop_drop_object;
-extern atomic_t fscache_n_cop_put_object;
-extern atomic_t fscache_n_cop_sync_cache;
-extern atomic_t fscache_n_cop_attr_changed;
-extern atomic_t fscache_n_cop_read_or_alloc_page;
-extern atomic_t fscache_n_cop_read_or_alloc_pages;
-extern atomic_t fscache_n_cop_allocate_page;
-extern atomic_t fscache_n_cop_allocate_pages;
-extern atomic_t fscache_n_cop_write_page;
-extern atomic_t fscache_n_cop_uncache_page;
-extern atomic_t fscache_n_cop_dissociate_pages;
-
-extern atomic_t fscache_n_cache_no_space_reject;
-extern atomic_t fscache_n_cache_stale_objects;
-extern atomic_t fscache_n_cache_retired_objects;
-extern atomic_t fscache_n_cache_culled_objects;
+extern atomic_t fscache_n_resizes;
+extern atomic_t fscache_n_resizes_null;
 
 static inline void fscache_stat(atomic_t *stat)
 {
@@ -278,71 +146,26 @@ int fscache_stats_show(struct seq_file *m, void *v);
 #endif
 
 /*
- * raise an event on an object
- * - if the event is not masked for that object, then the object is
- *   queued for attention by the thread pool.
+ * volume.c
  */
-static inline void fscache_raise_event(struct fscache_object *object,
-				       unsigned event)
-{
-	BUG_ON(event >= NR_FSCACHE_OBJECT_EVENTS);
-#if 0
-	printk("*** fscache_raise_event(OBJ%d{%lx},%x)\n",
-	       object->debug_id, object->event_mask, (1 << event));
-#endif
-	if (!test_and_set_bit(event, &object->events) &&
-	    test_bit(event, &object->event_mask))
-		fscache_enqueue_object(object);
-}
+extern const struct seq_operations fscache_volumes_seq_ops;
 
-/*
- * get an extra reference to a netfs retrieval context
- */
-static inline
-void *fscache_get_context(struct fscache_cookie *cookie, void *context)
-{
-	if (cookie->def->get_context)
-		cookie->def->get_context(cookie->netfs_data, context);
-	return context;
-}
+struct fscache_volume *fscache_get_volume(struct fscache_volume *volume,
+					  enum fscache_volume_trace where);
+void fscache_put_volume(struct fscache_volume *volume,
+			enum fscache_volume_trace where);
+bool fscache_begin_volume_access(struct fscache_volume *volume,
+				 struct fscache_cookie *cookie,
+				 enum fscache_access_trace why);
+void fscache_create_volume(struct fscache_volume *volume, bool wait);
 
-/*
- * release a reference to a netfs retrieval context
- */
-static inline
-void fscache_put_context(struct fscache_cookie *cookie, void *context)
-{
-	if (cookie->def->put_context)
-		cookie->def->put_context(cookie->netfs_data, context);
-}
-
-/*
- * Update the auxiliary data on a cookie.
- */
-static inline
-void fscache_update_aux(struct fscache_cookie *cookie, const void *aux_data)
-{
-	void *p;
-
-	if (!aux_data)
-		return;
-	if (cookie->aux_len <= sizeof(cookie->inline_aux))
-		p = cookie->inline_aux;
-	else
-		p = cookie->aux;
-
-	if (memcmp(p, aux_data, cookie->aux_len) != 0) {
-		memcpy(p, aux_data, cookie->aux_len);
-		set_bit(FSCACHE_COOKIE_AUX_UPDATED, &cookie->flags);
-	}
-}
 
 /*****************************************************************************/
 /*
  * debug tracing
  */
 #define dbgprintk(FMT, ...) \
-	printk(KERN_DEBUG "[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
+	printk("[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
 
 #define kenter(FMT, ...) dbgprintk("==> %s("FMT")", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) dbgprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
@@ -395,7 +218,7 @@ do {						\
 
 #define FSCACHE_DEBUG_CACHE	0
 #define FSCACHE_DEBUG_COOKIE	1
-#define FSCACHE_DEBUG_PAGE	2
+#define FSCACHE_DEBUG_OBJECT	2
 #define FSCACHE_DEBUG_OPERATION	3
 
 #define FSCACHE_POINT_ENTER	1

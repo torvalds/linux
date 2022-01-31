@@ -362,9 +362,6 @@ unsigned int aq_vec_get_sw_stats(struct aq_vec_s *self, const unsigned int tc, u
 {
 	unsigned int count;
 
-	WARN_ONCE(!aq_vec_is_valid_tc(self, tc),
-		  "Invalid tc %u (#rx=%u, #tx=%u)\n",
-		  tc, self->rx_rings, self->tx_rings);
 	if (!aq_vec_is_valid_tc(self, tc))
 		return 0;
 

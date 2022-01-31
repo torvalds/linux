@@ -376,6 +376,10 @@ static const struct sof_dai_types sof_dais[] = {
 	{"ALH", SOF_DAI_INTEL_ALH},
 	{"SAI", SOF_DAI_IMX_SAI},
 	{"ESAI", SOF_DAI_IMX_ESAI},
+	{"ACP", SOF_DAI_AMD_BT},
+	{"ACPSP", SOF_DAI_AMD_SP},
+	{"ACPDMIC", SOF_DAI_AMD_DMIC},
+	{"AFE", SOF_DAI_MEDIATEK_AFE},
 };
 
 static enum sof_ipc_dai_type find_dai(const char *name)
@@ -803,6 +807,19 @@ static const struct sof_topology_token led_tokens[] = {
 	 get_token_u32, offsetof(struct snd_sof_led_control, direction), 0},
 };
 
+/* AFE */
+static const struct sof_topology_token afe_tokens[] = {
+	{SOF_TKN_MEDIATEK_AFE_RATE,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_mtk_afe_params, rate), 0},
+	{SOF_TKN_MEDIATEK_AFE_CH,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_mtk_afe_params, channels), 0},
+	{SOF_TKN_MEDIATEK_AFE_FORMAT,
+		SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_comp_format,
+		offsetof(struct sof_ipc_dai_mtk_afe_params, format), 0},
+};
+
 static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
 				 void *object,
 				 const struct sof_topology_token *tokens,
@@ -1073,11 +1090,11 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 
 	/* set cmd for mixer control */
 	if (le32_to_cpu(mc->max) == 1) {
-		scontrol->cmd = SOF_CTRL_CMD_SWITCH;
+		scontrol->control_data->cmd = SOF_CTRL_CMD_SWITCH;
 		goto skip;
 	}
 
-	scontrol->cmd = SOF_CTRL_CMD_VOLUME;
+	scontrol->control_data->cmd = SOF_CTRL_CMD_VOLUME;
 
 	/* extract tlv data */
 	if (!kc->tlv.p || get_tlv_data(kc->tlv.p, tlv) < 0) {
@@ -1148,7 +1165,7 @@ static int sof_control_load_enum(struct snd_soc_component *scomp,
 	scontrol->comp_id = sdev->next_comp_id;
 	scontrol->num_channels = le32_to_cpu(ec->num_channels);
 	scontrol->control_data->index = kc->index;
-	scontrol->cmd = SOF_CTRL_CMD_ENUM;
+	scontrol->control_data->cmd = SOF_CTRL_CMD_ENUM;
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d comp_id %d\n",
 		scontrol->comp_id, scontrol->num_channels, scontrol->comp_id);
@@ -1194,7 +1211,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	}
 
 	scontrol->comp_id = sdev->next_comp_id;
-	scontrol->cmd = SOF_CTRL_CMD_BINARY;
+	scontrol->control_data->cmd = SOF_CTRL_CMD_BINARY;
 	scontrol->control_data->index = kc->index;
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
@@ -1328,69 +1345,6 @@ static int sof_control_unload(struct snd_soc_component *scomp,
 /*
  * DAI Topology
  */
-
-/* Static DSP core power management so far, should be extended in the future */
-static int sof_core_enable(struct snd_sof_dev *sdev, int core)
-{
-	struct sof_ipc_pm_core_config pm_core_config = {
-		.hdr = {
-			.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
-			.size = sizeof(pm_core_config),
-		},
-		.enable_mask = sdev->enabled_cores_mask | BIT(core),
-	};
-	int ret;
-
-	if (sdev->enabled_cores_mask & BIT(core))
-		return 0;
-
-	/* power up the core if it is host managed */
-	ret = snd_sof_dsp_core_power_up(sdev, BIT(core));
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: %d powering up core %d\n",
-			ret, core);
-		return ret;
-	}
-
-	/* Now notify DSP */
-	ret = sof_ipc_tx_message(sdev->ipc, pm_core_config.hdr.cmd,
-				 &pm_core_config, sizeof(pm_core_config),
-				 &pm_core_config, sizeof(pm_core_config));
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: core %d enable ipc failure %d\n",
-			core, ret);
-		goto err;
-	}
-	return ret;
-err:
-	/* power down core if it is host managed and return the original error if this fails too */
-	if (snd_sof_dsp_core_power_down(sdev, BIT(core)) < 0)
-		dev_err(sdev->dev, "error: powering down core %d\n", core);
-
-	return ret;
-}
-
-int sof_pipeline_core_enable(struct snd_sof_dev *sdev,
-			     const struct snd_sof_widget *swidget)
-{
-	const struct sof_ipc_pipe_new *pipeline;
-	int ret;
-
-	if (swidget->id == snd_soc_dapm_scheduler) {
-		pipeline = swidget->private;
-	} else {
-		pipeline = snd_sof_pipeline_find(sdev, swidget->pipeline_id);
-		if (!pipeline)
-			return -ENOENT;
-	}
-
-	/* First enable the pipeline core */
-	ret = sof_core_enable(sdev, pipeline->core);
-	if (ret < 0)
-		return ret;
-
-	return sof_core_enable(sdev, swidget->core);
-}
 
 static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 				  struct snd_soc_dapm_widget *w,
@@ -1690,23 +1644,6 @@ err:
 /*
  * Pipeline Topology
  */
-int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
-			  struct sof_ipc_pipe_new *pipeline,
-			  struct sof_ipc_comp_reply *r)
-{
-	int ret = sof_core_enable(sdev, pipeline->core);
-
-	if (ret < 0)
-		return ret;
-
-	ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
-				 sizeof(*pipeline), r, sizeof(*r));
-	if (ret < 0)
-		dev_err(sdev->dev, "error: load pipeline ipc failure\n");
-
-	return ret;
-}
-
 static int sof_widget_load_pipeline(struct snd_soc_component *scomp, int index,
 				    struct snd_sof_widget *swidget,
 				    struct snd_soc_tplg_dapm_widget *tw)
@@ -1758,12 +1695,12 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp, int index,
 		goto err;
 	}
 
-	if (sof_core_debug & SOF_DBG_DISABLE_MULTICORE)
+	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE))
 		pipeline->core = SOF_DSP_PRIMARY_CORE;
 
-	if (sof_core_debug & SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE)
-		swidget->dynamic_pipeline_widget = sof_core_debug &
-			SOF_DBG_DYNAMIC_PIPELINES_ENABLE;
+	if (sof_debug_check_flag(SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE))
+		swidget->dynamic_pipeline_widget =
+			sof_debug_check_flag(SOF_DBG_DYNAMIC_PIPELINES_ENABLE);
 
 	dev_dbg(scomp->dev, "pipeline %s: period %d pri %d mips %d core %d frames %d dynamic %d\n",
 		swidget->widget->name, pipeline->period, pipeline->priority,
@@ -2139,7 +2076,7 @@ static int sof_get_control_data(struct snd_soc_component *scomp,
 		*size += wdata[i].pdata->size;
 
 		/* get data type */
-		switch (wdata[i].control->cmd) {
+		switch (wdata[i].control->control_data->cmd) {
 		case SOF_CTRL_CMD_VOLUME:
 		case SOF_CTRL_CMD_ENUM:
 		case SOF_CTRL_CMD_SWITCH:
@@ -2358,7 +2295,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
-	if (sof_core_debug & SOF_DBG_DISABLE_MULTICORE)
+	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE))
 		comp.core = SOF_DSP_PRIMARY_CORE;
 
 	swidget->core = comp.core;
@@ -2485,10 +2422,8 @@ static int sof_route_unload(struct snd_soc_component *scomp,
 static int sof_widget_unload(struct snd_soc_component *scomp,
 			     struct snd_soc_dobj *dobj)
 {
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct snd_kcontrol_new *kc;
 	struct snd_soc_dapm_widget *widget;
-	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_control *scontrol;
 	struct snd_sof_widget *swidget;
 	struct soc_mixer_control *sm;
@@ -2514,24 +2449,6 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 			kfree(dai->dai_config);
 			list_del(&dai->list);
 		}
-		break;
-	case snd_soc_dapm_scheduler:
-
-		/* power down the pipeline schedule core */
-		pipeline = swidget->private;
-
-		/*
-		 * Runtime PM should still function normally if topology loading fails and
-		 * it's components are unloaded. Do not power down the primary core so that the
-		 * CTX_SAVE IPC can succeed during runtime suspend.
-		 */
-		if (pipeline->core == SOF_DSP_PRIMARY_CORE)
-			break;
-
-		ret = snd_sof_dsp_core_power_down(sdev, 1 << pipeline->core);
-		if (ret < 0)
-			dev_err(scomp->dev, "error: powering down pipeline schedule core %d\n",
-				pipeline->core);
 		break;
 	default:
 		break;
@@ -2992,6 +2909,144 @@ static int sof_link_esai_load(struct snd_soc_component *scomp, int index,
 	return ret;
 }
 
+static int sof_link_acp_dmic_load(struct snd_soc_component *scomp, int index,
+				  struct snd_soc_dai_link *link,
+				  struct snd_soc_tplg_link_config *cfg,
+				  struct snd_soc_tplg_hw_config *hw_config,
+				  struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	u32 size = sizeof(*config);
+	int ret;
+
+       /* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->acpdmic, 0, sizeof(struct sof_ipc_dai_acp_params));
+	config->hdr.size = size;
+
+	config->acpdmic.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
+	config->acpdmic.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+
+	dev_info(scomp->dev, "ACP_DMIC config ACP%d channel %d rate %d\n",
+		 config->dai_index, config->acpdmic.tdm_slots,
+		 config->acpdmic.fsync_rate);
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "ACP_DMIC failed to save DAI config for ACP%d\n",
+			config->dai_index);
+	return ret;
+}
+
+static int sof_link_acp_bt_load(struct snd_soc_component *scomp, int index,
+				struct snd_soc_dai_link *link,
+				struct snd_soc_tplg_link_config *cfg,
+				struct snd_soc_tplg_hw_config *hw_config,
+				struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	u32 size = sizeof(*config);
+	int ret;
+
+	/* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->acpbt, 0, sizeof(struct sof_ipc_dai_acp_params));
+	config->hdr.size = size;
+
+	config->acpbt.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
+	config->acpbt.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+
+	dev_info(scomp->dev, "ACP_BT config ACP%d channel %d rate %d\n",
+		 config->dai_index, config->acpbt.tdm_slots,
+		 config->acpbt.fsync_rate);
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "ACP_BT failed to save DAI config for ACP%d\n",
+			config->dai_index);
+	return ret;
+}
+
+static int sof_link_acp_sp_load(struct snd_soc_component *scomp, int index,
+				struct snd_soc_dai_link *link,
+				struct snd_soc_tplg_link_config *cfg,
+				struct snd_soc_tplg_hw_config *hw_config,
+				struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	u32 size = sizeof(*config);
+	int ret;
+
+	/* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	/* init IPC */
+	memset(&config->acpsp, 0, sizeof(struct sof_ipc_dai_acp_params));
+	config->hdr.size = size;
+
+	config->acpsp.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
+	config->acpsp.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+
+	dev_info(scomp->dev, "ACP_SP config ACP%d channel %d rate %d\n",
+		 config->dai_index, config->acpsp.tdm_slots,
+		 config->acpsp.fsync_rate);
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "ACP_SP failed to save DAI config for ACP%d\n",
+			config->dai_index);
+	return ret;
+}
+
+static int sof_link_afe_load(struct snd_soc_component *scomp, int index,
+			     struct snd_soc_dai_link *link,
+			     struct snd_soc_tplg_link_config *cfg,
+			     struct snd_soc_tplg_hw_config *hw_config,
+			     struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &cfg->priv;
+	struct snd_soc_dai *dai;
+	u32 size = sizeof(*config);
+	int ret;
+
+	config->hdr.size = size;
+
+	/* get any bespoke DAI tokens */
+	ret = sof_parse_tokens(scomp, &config->afe, afe_tokens,
+			       ARRAY_SIZE(afe_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(scomp->dev, "parse afe tokens failed %d\n",
+			le32_to_cpu(private->size));
+		return ret;
+	}
+
+	dev_dbg(scomp->dev, "AFE config rate %d channels %d format:%d\n",
+		config->afe.rate, config->afe.channels, config->afe.format);
+
+	dai = snd_soc_find_dai(link->cpus);
+	if (!dai) {
+		dev_err(scomp->dev, "%s: failed to find dai %s", __func__, link->cpus->dai_name);
+		return -EINVAL;
+	}
+
+	config->afe.stream_id = DMA_CHAN_INVALID;
+
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(scomp->dev, "failed to process afe dai link %s", link->name);
+
+	return ret;
+}
+
 static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			      struct snd_soc_dai_link *link,
 			      struct snd_soc_tplg_link_config *cfg,
@@ -3277,6 +3332,19 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	case SOF_DAI_IMX_ESAI:
 		ret = sof_link_esai_load(scomp, index, link, cfg, hw_config + curr_conf, config);
 		break;
+	case SOF_DAI_AMD_BT:
+		ret = sof_link_acp_bt_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		break;
+	case SOF_DAI_AMD_SP:
+		ret = sof_link_acp_sp_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		break;
+	case SOF_DAI_AMD_DMIC:
+		ret = sof_link_acp_dmic_load(scomp, index, link, cfg, hw_config + curr_conf,
+					     config);
+		break;
+	case SOF_DAI_MEDIATEK_AFE:
+		ret = sof_link_afe_load(scomp, index, link, cfg, hw_config + curr_conf, config);
+		break;
 	default:
 		dev_err(scomp->dev, "error: invalid DAI type %d\n", common_config.type);
 		ret = -EINVAL;
@@ -3461,7 +3529,7 @@ static int sof_complete(struct snd_soc_component *scomp)
 			 * Apply the dynamic_pipeline_widget flag and set the pipe_widget field
 			 * for all widgets that have the same pipeline ID as the scheduler widget
 			 */
-			list_for_each_entry_reverse(comp_swidget, &sdev->widget_list, list)
+			list_for_each_entry(comp_swidget, &sdev->widget_list, list)
 				if (comp_swidget->pipeline_id == swidget->pipeline_id) {
 					ret = sof_set_pipe_widget(sdev, swidget, comp_swidget);
 					if (ret < 0)
@@ -3474,7 +3542,7 @@ static int sof_complete(struct snd_soc_component *scomp)
 	}
 
 	/* verify topology components loading including dynamic pipelines */
-	if (sof_core_debug & SOF_DBG_VERIFY_TPLG) {
+	if (sof_debug_check_flag(SOF_DBG_VERIFY_TPLG)) {
 		ret = sof_set_up_pipelines(sdev, true);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: topology verification failed %d\n", ret);

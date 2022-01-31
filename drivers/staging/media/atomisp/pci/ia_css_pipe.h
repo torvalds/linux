@@ -33,7 +33,7 @@ struct ia_css_preview_settings {
 
 	/* 2401 only for these two - do we in fact use them for anything real */
 	struct ia_css_frame *delay_frames[MAX_NUM_VIDEO_DELAY_FRAMES];
-	struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];
+	struct ia_css_frame *tnr_frames[NUM_VIDEO_TNR_FRAMES];
 
 	struct ia_css_pipe *copy_pipe;
 	struct ia_css_pipe *capture_pipe;
@@ -81,7 +81,7 @@ struct ia_css_video_settings {
 	struct ia_css_binary vf_pp_binary;
 	struct ia_css_binary *yuv_scaler_binary;
 	struct ia_css_frame *delay_frames[MAX_NUM_VIDEO_DELAY_FRAMES];
-	struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];
+	struct ia_css_frame *tnr_frames[NUM_VIDEO_TNR_FRAMES];
 	struct ia_css_frame *vf_pp_in_frame;
 	struct ia_css_pipe *copy_pipe;
 	struct ia_css_pipe *capture_pipe;

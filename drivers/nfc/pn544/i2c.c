@@ -188,7 +188,7 @@ do {								\
 static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 {
 	int polarity, retry, ret;
-	char rset_cmd[] = { 0x05, 0xF9, 0x04, 0x00, 0xC3, 0xE5 };
+	static const char rset_cmd[] = { 0x05, 0xF9, 0x04, 0x00, 0xC3, 0xE5 };
 	int count = sizeof(rset_cmd);
 
 	nfc_info(&phy->i2c_dev->dev, "Detecting nfc_en polarity\n");

@@ -73,21 +73,6 @@ bool optc2_enable_crtc(struct timing_generator *optc)
 }
 
 /**
- * DRR double buffering control to select buffer point
- * for V_TOTAL, H_TOTAL, VTOTAL_MIN, VTOTAL_MAX, VTOTAL_MIN_SEL and VTOTAL_MAX_SEL registers
- * Options: anytime, start of frame, dp start of frame (range timing)
- */
-void optc2_set_timing_db_mode(struct timing_generator *optc, bool enable)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	uint32_t blank_data_double_buffer_enable = enable ? 1 : 0;
-
-	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
-		OTG_RANGE_TIMING_DBUF_UPDATE_MODE, blank_data_double_buffer_enable);
-}
-
-/**
  *For the below, I'm not sure how your GSL parameters are stored in your env,
  * so I will assume a gsl_params struct for now
  */
@@ -109,30 +94,6 @@ void optc2_set_gsl(struct timing_generator *optc,
 		OTG_GSL_MASTER_MODE, params->gsl_master_mode);
 }
 
-
-/* Use the gsl allow flip as the master update lock */
-void optc2_use_gsl_as_master_update_lock(struct timing_generator *optc,
-		   const struct gsl_params *params)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	REG_UPDATE(OTG_GSL_CONTROL,
-		OTG_MASTER_UPDATE_LOCK_GSL_EN, params->master_update_lock_gsl_en);
-}
-
-/* You can control the GSL timing by limiting GSL to a window (X,Y) */
-void optc2_set_gsl_window(struct timing_generator *optc,
-		   const struct gsl_params *params)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	REG_SET_2(OTG_GSL_WINDOW_X, 0,
-		OTG_GSL_WINDOW_START_X, params->gsl_window_start_x,
-		OTG_GSL_WINDOW_END_X, params->gsl_window_end_x);
-	REG_SET_2(OTG_GSL_WINDOW_Y, 0,
-		OTG_GSL_WINDOW_START_Y, params->gsl_window_start_y,
-		OTG_GSL_WINDOW_END_Y, params->gsl_window_end_y);
-}
 
 void optc2_set_gsl_source_select(
 		struct timing_generator *optc,
@@ -156,18 +117,6 @@ void optc2_set_gsl_source_select(
 	}
 }
 
-/* DSC encoder frame start controls: x = h position, line_num = # of lines from vstartup */
-void optc2_set_dsc_encoder_frame_start(struct timing_generator *optc,
-					int x_position,
-					int line_num)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	REG_SET_2(OTG_DSC_START_POSITION, 0,
-			OTG_DSC_START_POSITION_X, x_position,
-			OTG_DSC_START_POSITION_LINE_NUM, line_num);
-}
-
 /* Set DSC-related configuration.
  *   dsc_mode: 0 disables DSC, other values enable DSC in specified format
  *   sc_bytes_per_pixel: Bytes per pixel in u3.28 format
@@ -189,6 +138,19 @@ void optc2_set_dsc_config(struct timing_generator *optc,
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
 		OPTC_DSC_SLICE_WIDTH, dsc_slice_width);
 }
+
+/* Get DSC-related configuration.
+ *   dsc_mode: 0 disables DSC, other values enable DSC in specified format
+ */
+void optc2_get_dsc_status(struct timing_generator *optc,
+					uint32_t *dsc_mode)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_GET(OPTC_DATA_FORMAT_CONTROL,
+		OPTC_DSC_MODE, dsc_mode);
+}
+
 
 /*TEMP: Need to figure out inheritance model here.*/
 bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
@@ -280,8 +242,8 @@ void optc2_get_optc_source(struct timing_generator *optc,
 		*num_of_src_opp = 1;
 }
 
-void optc2_set_dwb_source(struct timing_generator *optc,
-		uint32_t dwb_pipe_inst)
+static void optc2_set_dwb_source(struct timing_generator *optc,
+				 uint32_t dwb_pipe_inst)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -293,7 +255,7 @@ void optc2_set_dwb_source(struct timing_generator *optc,
 				OPTC_DWB1_SOURCE_SELECT, optc->inst);
 }
 
-void optc2_align_vblanks(
+static void optc2_align_vblanks(
 	struct timing_generator *optc_master,
 	struct timing_generator *optc_slave,
 	uint32_t master_pixel_clock_100Hz,
@@ -579,6 +541,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.get_crc = optc1_get_crc,
 		.configure_crc = optc2_configure_crc,
 		.set_dsc_config = optc2_set_dsc_config,
+		.get_dsc_status = optc2_get_dsc_status,
 		.set_dwb_source = optc2_set_dwb_source,
 		.set_odm_bypass = optc2_set_odm_bypass,
 		.set_odm_combine = optc2_set_odm_combine,

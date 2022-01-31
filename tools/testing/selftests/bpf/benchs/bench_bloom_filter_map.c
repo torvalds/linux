@@ -63,29 +63,34 @@ static const struct argp_option opts[] = {
 
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
+	long ret;
+
 	switch (key) {
 	case ARG_NR_ENTRIES:
-		args.nr_entries = strtol(arg, NULL, 10);
-		if (args.nr_entries == 0) {
+		ret = strtol(arg, NULL, 10);
+		if (ret < 1 || ret > UINT_MAX) {
 			fprintf(stderr, "Invalid nr_entries count.");
 			argp_usage(state);
 		}
+		args.nr_entries = ret;
 		break;
 	case ARG_NR_HASH_FUNCS:
-		args.nr_hash_funcs = strtol(arg, NULL, 10);
-		if (args.nr_hash_funcs == 0 || args.nr_hash_funcs > 15) {
+		ret = strtol(arg, NULL, 10);
+		if (ret < 1 || ret > 15) {
 			fprintf(stderr,
 				"The bloom filter must use 1 to 15 hash functions.");
 			argp_usage(state);
 		}
+		args.nr_hash_funcs = ret;
 		break;
 	case ARG_VALUE_SIZE:
-		args.value_size = strtol(arg, NULL, 10);
-		if (args.value_size < 2 || args.value_size > 256) {
+		ret = strtol(arg, NULL, 10);
+		if (ret < 2 || ret > 256) {
 			fprintf(stderr,
 				"Invalid value size. Must be between 2 and 256 bytes");
 			argp_usage(state);
 		}
+		args.value_size = ret;
 		break;
 	default:
 		return ARGP_ERR_UNKNOWN;

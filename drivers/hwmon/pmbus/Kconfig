@@ -66,6 +66,16 @@ config SENSORS_BPA_RS600
 	  This driver can also be built as a module. If so, the module will
 	  be called bpa-rs600.
 
+config SENSORS_DELTA_AHE50DC_FAN
+	tristate "Delta AHE-50DC fan control module"
+	help
+	  If you say yes here you get hardware monitoring support for
+	  the integrated fan control module of the Delta AHE-50DC
+	  Open19 power shelf.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called delta-ahe50dc-fan.
+
 config SENSORS_FSP_3Y
 	tristate "FSP/3Y-Power power supplies"
 	help
@@ -123,13 +133,19 @@ config SENSORS_IR36021
 	  be called ir36021.
 
 config SENSORS_IR38064
-	tristate "Infineon IR38064"
+	tristate "Infineon IR38064 and compatibles"
 	help
 	  If you say yes here you get hardware monitoring support for Infineon
-	  IR38064.
+	  IR38060, IR38064, IR38164 and IR38263.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ir38064.
+
+config SENSORS_IR38064_REGULATOR
+	bool "Regulator support for IR38064 and compatibles"
+	depends on SENSORS_IR38064 && REGULATOR
+	help
+	  Uses the IR38064 or compatible as regulator.
 
 config SENSORS_IRPS5401
 	tristate "Infineon IRPS5401"
@@ -275,6 +291,15 @@ config SENSORS_MP2975
 
 	  This driver can also be built as a module. If so, the module will
 	  be called mp2975.
+
+config SENSORS_MP5023
+	tristate "MPS MP5023"
+	help
+	  If you say yes here you get hardware monitoring support for MPS
+	  MP5023.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called mp5023.
 
 config SENSORS_PIM4328
 	tristate "Flex PIM4328 and compatibles"

@@ -43,13 +43,12 @@
 #include <linux/pci-ecam.h>
 #include <linux/delay.h>
 #include <linux/semaphore.h>
-#include <linux/irqdomain.h>
-#include <asm/irqdomain.h>
-#include <asm/apic.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/hyperv.h>
 #include <linux/refcount.h>
+#include <linux/irqdomain.h>
+#include <linux/acpi.h>
 #include <asm/mshyperv.h>
 
 /*
@@ -582,6 +581,265 @@ struct hv_pci_compl {
 };
 
 static void hv_pci_onchannelcallback(void *context);
+
+#ifdef CONFIG_X86
+#define DELIVERY_MODE	APIC_DELIVERY_MODE_FIXED
+#define FLOW_HANDLER	handle_edge_irq
+#define FLOW_NAME	"edge"
+
+static int hv_pci_irqchip_init(void)
+{
+	return 0;
+}
+
+static struct irq_domain *hv_pci_get_root_domain(void)
+{
+	return x86_vector_domain;
+}
+
+static unsigned int hv_msi_get_int_vector(struct irq_data *data)
+{
+	struct irq_cfg *cfg = irqd_cfg(data);
+
+	return cfg->vector;
+}
+
+static void hv_set_msi_entry_from_desc(union hv_msi_entry *msi_entry,
+				       struct msi_desc *msi_desc)
+{
+	msi_entry->address.as_uint32 = msi_desc->msg.address_lo;
+	msi_entry->data.as_uint32 = msi_desc->msg.data;
+}
+
+static int hv_msi_prepare(struct irq_domain *domain, struct device *dev,
+			  int nvec, msi_alloc_info_t *info)
+{
+	return pci_msi_prepare(domain, dev, nvec, info);
+}
+#elif defined(CONFIG_ARM64)
+/*
+ * SPI vectors to use for vPCI; arch SPIs range is [32, 1019], but leaving a bit
+ * of room at the start to allow for SPIs to be specified through ACPI and
+ * starting with a power of two to satisfy power of 2 multi-MSI requirement.
+ */
+#define HV_PCI_MSI_SPI_START	64
+#define HV_PCI_MSI_SPI_NR	(1020 - HV_PCI_MSI_SPI_START)
+#define DELIVERY_MODE		0
+#define FLOW_HANDLER		NULL
+#define FLOW_NAME		NULL
+#define hv_msi_prepare		NULL
+
+struct hv_pci_chip_data {
+	DECLARE_BITMAP(spi_map, HV_PCI_MSI_SPI_NR);
+	struct mutex	map_lock;
+};
+
+/* Hyper-V vPCI MSI GIC IRQ domain */
+static struct irq_domain *hv_msi_gic_irq_domain;
+
+/* Hyper-V PCI MSI IRQ chip */
+static struct irq_chip hv_arm64_msi_irq_chip = {
+	.name = "MSI",
+	.irq_set_affinity = irq_chip_set_affinity_parent,
+	.irq_eoi = irq_chip_eoi_parent,
+	.irq_mask = irq_chip_mask_parent,
+	.irq_unmask = irq_chip_unmask_parent
+};
+
+static unsigned int hv_msi_get_int_vector(struct irq_data *irqd)
+{
+	return irqd->parent_data->hwirq;
+}
+
+static void hv_set_msi_entry_from_desc(union hv_msi_entry *msi_entry,
+				       struct msi_desc *msi_desc)
+{
+	msi_entry->address = ((u64)msi_desc->msg.address_hi << 32) |
+			      msi_desc->msg.address_lo;
+	msi_entry->data = msi_desc->msg.data;
+}
+
+/*
+ * @nr_bm_irqs:		Indicates the number of IRQs that were allocated from
+ *			the bitmap.
+ * @nr_dom_irqs:	Indicates the number of IRQs that were allocated from
+ *			the parent domain.
+ */
+static void hv_pci_vec_irq_free(struct irq_domain *domain,
+				unsigned int virq,
+				unsigned int nr_bm_irqs,
+				unsigned int nr_dom_irqs)
+{
+	struct hv_pci_chip_data *chip_data = domain->host_data;
+	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
+	int first = d->hwirq - HV_PCI_MSI_SPI_START;
+	int i;
+
+	mutex_lock(&chip_data->map_lock);
+	bitmap_release_region(chip_data->spi_map,
+			      first,
+			      get_count_order(nr_bm_irqs));
+	mutex_unlock(&chip_data->map_lock);
+	for (i = 0; i < nr_dom_irqs; i++) {
+		if (i)
+			d = irq_domain_get_irq_data(domain, virq + i);
+		irq_domain_reset_irq_data(d);
+	}
+
+	irq_domain_free_irqs_parent(domain, virq, nr_dom_irqs);
+}
+
+static void hv_pci_vec_irq_domain_free(struct irq_domain *domain,
+				       unsigned int virq,
+				       unsigned int nr_irqs)
+{
+	hv_pci_vec_irq_free(domain, virq, nr_irqs, nr_irqs);
+}
+
+static int hv_pci_vec_alloc_device_irq(struct irq_domain *domain,
+				       unsigned int nr_irqs,
+				       irq_hw_number_t *hwirq)
+{
+	struct hv_pci_chip_data *chip_data = domain->host_data;
+	int index;
+
+	/* Find and allocate region from the SPI bitmap */
+	mutex_lock(&chip_data->map_lock);
+	index = bitmap_find_free_region(chip_data->spi_map,
+					HV_PCI_MSI_SPI_NR,
+					get_count_order(nr_irqs));
+	mutex_unlock(&chip_data->map_lock);
+	if (index < 0)
+		return -ENOSPC;
+
+	*hwirq = index + HV_PCI_MSI_SPI_START;
+
+	return 0;
+}
+
+static int hv_pci_vec_irq_gic_domain_alloc(struct irq_domain *domain,
+					   unsigned int virq,
+					   irq_hw_number_t hwirq)
+{
+	struct irq_fwspec fwspec;
+	struct irq_data *d;
+	int ret;
+
+	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.param_count = 2;
+	fwspec.param[0] = hwirq;
+	fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
+
+	ret = irq_domain_alloc_irqs_parent(domain, virq, 1, &fwspec);
+	if (ret)
+		return ret;
+
+	/*
+	 * Since the interrupt specifier is not coming from ACPI or DT, the
+	 * trigger type will need to be set explicitly. Otherwise, it will be
+	 * set to whatever is in the GIC configuration.
+	 */
+	d = irq_domain_get_irq_data(domain->parent, virq);
+
+	return d->chip->irq_set_type(d, IRQ_TYPE_EDGE_RISING);
+}
+
+static int hv_pci_vec_irq_domain_alloc(struct irq_domain *domain,
+				       unsigned int virq, unsigned int nr_irqs,
+				       void *args)
+{
+	irq_hw_number_t hwirq;
+	unsigned int i;
+	int ret;
+
+	ret = hv_pci_vec_alloc_device_irq(domain, nr_irqs, &hwirq);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < nr_irqs; i++) {
+		ret = hv_pci_vec_irq_gic_domain_alloc(domain, virq + i,
+						      hwirq + i);
+		if (ret) {
+			hv_pci_vec_irq_free(domain, virq, nr_irqs, i);
+			return ret;
+		}
+
+		irq_domain_set_hwirq_and_chip(domain, virq + i,
+					      hwirq + i,
+					      &hv_arm64_msi_irq_chip,
+					      domain->host_data);
+		pr_debug("pID:%d vID:%u\n", (int)(hwirq + i), virq + i);
+	}
+
+	return 0;
+}
+
+/*
+ * Pick the first cpu as the irq affinity that can be temporarily used for
+ * composing MSI from the hypervisor. GIC will eventually set the right
+ * affinity for the irq and the 'unmask' will retarget the interrupt to that
+ * cpu.
+ */
+static int hv_pci_vec_irq_domain_activate(struct irq_domain *domain,
+					  struct irq_data *irqd, bool reserve)
+{
+	int cpu = cpumask_first(cpu_present_mask);
+
+	irq_data_update_effective_affinity(irqd, cpumask_of(cpu));
+
+	return 0;
+}
+
+static const struct irq_domain_ops hv_pci_domain_ops = {
+	.alloc	= hv_pci_vec_irq_domain_alloc,
+	.free	= hv_pci_vec_irq_domain_free,
+	.activate = hv_pci_vec_irq_domain_activate,
+};
+
+static int hv_pci_irqchip_init(void)
+{
+	static struct hv_pci_chip_data *chip_data;
+	struct fwnode_handle *fn = NULL;
+	int ret = -ENOMEM;
+
+	chip_data = kzalloc(sizeof(*chip_data), GFP_KERNEL);
+	if (!chip_data)
+		return ret;
+
+	mutex_init(&chip_data->map_lock);
+	fn = irq_domain_alloc_named_fwnode("hv_vpci_arm64");
+	if (!fn)
+		goto free_chip;
+
+	/*
+	 * IRQ domain once enabled, should not be removed since there is no
+	 * way to ensure that all the corresponding devices are also gone and
+	 * no interrupts will be generated.
+	 */
+	hv_msi_gic_irq_domain = acpi_irq_create_hierarchy(0, HV_PCI_MSI_SPI_NR,
+							  fn, &hv_pci_domain_ops,
+							  chip_data);
+
+	if (!hv_msi_gic_irq_domain) {
+		pr_err("Failed to create Hyper-V arm64 vPCI MSI IRQ domain\n");
+		goto free_chip;
+	}
+
+	return 0;
+
+free_chip:
+	kfree(chip_data);
+	if (fn)
+		irq_domain_free_fwnode(fn);
+
+	return ret;
+}
+
+static struct irq_domain *hv_pci_get_root_domain(void)
+{
+	return hv_msi_gic_irq_domain;
+}
+#endif /* CONFIG_ARM64 */
 
 /**
  * hv_pci_generic_compl() - Invoked for a completion packet
@@ -1191,17 +1449,11 @@ static void hv_msi_free(struct irq_domain *domain, struct msi_domain_info *info,
 	put_pcichild(hpdev);
 }
 
-static int hv_set_affinity(struct irq_data *data, const struct cpumask *dest,
-			   bool force)
-{
-	struct irq_data *parent = data->parent_data;
-
-	return parent->chip->irq_set_affinity(parent, dest, force);
-}
-
 static void hv_irq_mask(struct irq_data *data)
 {
 	pci_msi_mask_irq(data);
+	if (data->parent_data->chip->irq_mask)
+		irq_chip_mask_parent(data);
 }
 
 /**
@@ -1217,7 +1469,6 @@ static void hv_irq_mask(struct irq_data *data)
 static void hv_irq_unmask(struct irq_data *data)
 {
 	struct msi_desc *msi_desc = irq_data_get_msi_desc(data);
-	struct irq_cfg *cfg = irqd_cfg(data);
 	struct hv_retarget_device_interrupt *params;
 	struct hv_pcibus_device *hbus;
 	struct cpumask *dest;
@@ -1246,7 +1497,7 @@ static void hv_irq_unmask(struct irq_data *data)
 			   (hbus->hdev->dev_instance.b[7] << 8) |
 			   (hbus->hdev->dev_instance.b[6] & 0xf8) |
 			   PCI_FUNC(pdev->devfn);
-	params->int_target.vector = cfg->vector;
+	params->int_target.vector = hv_msi_get_int_vector(data);
 
 	/*
 	 * Honoring apic->delivery_mode set to APIC_DELIVERY_MODE_FIXED by
@@ -1319,6 +1570,8 @@ exit_unlock:
 		dev_err(&hbus->hdev->device,
 			"%s() failed: %#llx", __func__, res);
 
+	if (data->parent_data->chip->irq_unmask)
+		irq_chip_unmask_parent(data);
 	pci_msi_unmask_irq(data);
 }
 
@@ -1347,7 +1600,7 @@ static u32 hv_compose_msi_req_v1(
 	int_pkt->wslot.slot = slot;
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode = APIC_DELIVERY_MODE_FIXED;
+	int_pkt->int_desc.delivery_mode = DELIVERY_MODE;
 
 	/*
 	 * Create MSI w/ dummy vCPU set, overwritten by subsequent retarget in
@@ -1377,7 +1630,7 @@ static u32 hv_compose_msi_req_v2(
 	int_pkt->wslot.slot = slot;
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode = APIC_DELIVERY_MODE_FIXED;
+	int_pkt->int_desc.delivery_mode = DELIVERY_MODE;
 	cpu = hv_compose_msi_req_get_cpu(affinity);
 	int_pkt->int_desc.processor_array[0] =
 		hv_cpu_number_to_vp_number(cpu);
@@ -1397,7 +1650,7 @@ static u32 hv_compose_msi_req_v3(
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.reserved = 0;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode = APIC_DELIVERY_MODE_FIXED;
+	int_pkt->int_desc.delivery_mode = DELIVERY_MODE;
 	cpu = hv_compose_msi_req_get_cpu(affinity);
 	int_pkt->int_desc.processor_array[0] =
 		hv_cpu_number_to_vp_number(cpu);
@@ -1419,7 +1672,6 @@ static u32 hv_compose_msi_req_v3(
  */
 static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
-	struct irq_cfg *cfg = irqd_cfg(data);
 	struct hv_pcibus_device *hbus;
 	struct vmbus_channel *channel;
 	struct hv_pci_dev *hpdev;
@@ -1470,7 +1722,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		size = hv_compose_msi_req_v1(&ctxt.int_pkts.v1,
 					dest,
 					hpdev->desc.win_slot.slot,
-					cfg->vector);
+					hv_msi_get_int_vector(data));
 		break;
 
 	case PCI_PROTOCOL_VERSION_1_2:
@@ -1478,14 +1730,14 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		size = hv_compose_msi_req_v2(&ctxt.int_pkts.v2,
 					dest,
 					hpdev->desc.win_slot.slot,
-					cfg->vector);
+					hv_msi_get_int_vector(data));
 		break;
 
 	case PCI_PROTOCOL_VERSION_1_4:
 		size = hv_compose_msi_req_v3(&ctxt.int_pkts.v3,
 					dest,
 					hpdev->desc.win_slot.slot,
-					cfg->vector);
+					hv_msi_get_int_vector(data));
 		break;
 
 	default:
@@ -1594,14 +1846,18 @@ return_null_message:
 static struct irq_chip hv_msi_irq_chip = {
 	.name			= "Hyper-V PCIe MSI",
 	.irq_compose_msi_msg	= hv_compose_msi_msg,
-	.irq_set_affinity	= hv_set_affinity,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+#ifdef CONFIG_X86
 	.irq_ack		= irq_chip_ack_parent,
+#elif defined(CONFIG_ARM64)
+	.irq_eoi		= irq_chip_eoi_parent,
+#endif
 	.irq_mask		= hv_irq_mask,
 	.irq_unmask		= hv_irq_unmask,
 };
 
 static struct msi_domain_ops hv_msi_ops = {
-	.msi_prepare	= pci_msi_prepare,
+	.msi_prepare	= hv_msi_prepare,
 	.msi_free	= hv_msi_free,
 };
 
@@ -1625,12 +1881,12 @@ static int hv_pcie_init_irq_domain(struct hv_pcibus_device *hbus)
 	hbus->msi_info.flags = (MSI_FLAG_USE_DEF_DOM_OPS |
 		MSI_FLAG_USE_DEF_CHIP_OPS | MSI_FLAG_MULTI_PCI_MSI |
 		MSI_FLAG_PCI_MSIX);
-	hbus->msi_info.handler = handle_edge_irq;
-	hbus->msi_info.handler_name = "edge";
+	hbus->msi_info.handler = FLOW_HANDLER;
+	hbus->msi_info.handler_name = FLOW_NAME;
 	hbus->msi_info.data = hbus;
 	hbus->irq_domain = pci_msi_create_irq_domain(hbus->fwnode,
 						     &hbus->msi_info,
-						     x86_vector_domain);
+						     hv_pci_get_root_domain());
 	if (!hbus->irq_domain) {
 		dev_err(&hbus->hdev->device,
 			"Failed to build an MSI IRQ domain\n");
@@ -1774,7 +2030,7 @@ static void prepopulate_bars(struct hv_pcibus_device *hbus)
 	 * If the memory enable bit is already set, Hyper-V silently ignores
 	 * the below BAR updates, and the related PCI device driver can not
 	 * work, because reading from the device register(s) always returns
-	 * 0xFFFFFFFF.
+	 * 0xFFFFFFFF (PCI_ERROR_RESPONSE).
 	 */
 	list_for_each_entry(hpdev, &hbus->children, list_entry) {
 		_hv_pcifront_read_config(hpdev, PCI_COMMAND, 2, &command);
@@ -3445,18 +3701,23 @@ static int hv_pci_suspend(struct hv_device *hdev)
 
 static int hv_pci_restore_msi_msg(struct pci_dev *pdev, void *arg)
 {
-	struct msi_desc *entry;
 	struct irq_data *irq_data;
+	struct msi_desc *entry;
+	int ret = 0;
 
-	for_each_pci_msi_entry(entry, pdev) {
+	msi_lock_descs(&pdev->dev);
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {
 		irq_data = irq_get_irq_data(entry->irq);
-		if (WARN_ON_ONCE(!irq_data))
-			return -EINVAL;
+		if (WARN_ON_ONCE(!irq_data)) {
+			ret = -EINVAL;
+			break;
+		}
 
 		hv_compose_msi_msg(irq_data, &entry->msg);
 	}
+	msi_unlock_descs(&pdev->dev);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -3542,8 +3803,14 @@ static void __exit exit_hv_pci_drv(void)
 
 static int __init init_hv_pci_drv(void)
 {
+	int ret;
+
 	if (!hv_is_hyperv_initialized())
 		return -ENODEV;
+
+	ret = hv_pci_irqchip_init();
+	if (ret)
+		return ret;
 
 	/* Set the invalid domain number's bit, so it will not be used */
 	set_bit(HVPCI_DOM_INVALID, hvpci_dom_map);

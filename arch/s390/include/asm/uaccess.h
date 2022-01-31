@@ -47,28 +47,62 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 int __put_user_bad(void) __attribute__((noreturn));
 int __get_user_bad(void) __attribute__((noreturn));
 
+union oac {
+	unsigned int val;
+	struct {
+		struct {
+			unsigned short key : 4;
+			unsigned short	   : 4;
+			unsigned short as  : 2;
+			unsigned short	   : 4;
+			unsigned short k   : 1;
+			unsigned short a   : 1;
+		} oac1;
+		struct {
+			unsigned short key : 4;
+			unsigned short	   : 4;
+			unsigned short as  : 2;
+			unsigned short	   : 4;
+			unsigned short k   : 1;
+			unsigned short a   : 1;
+		} oac2;
+	};
+};
+
 #ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 
-#define __put_get_user_asm(to, from, size, insn)		\
-({								\
-	int __rc;						\
-								\
-	asm volatile(						\
-		insn "		0,%[spec]\n"			\
-		"0:	mvcos	%[_to],%[_from],%[_size]\n"	\
-		"1:	xr	%[rc],%[rc]\n"			\
-		"2:\n"						\
-		".pushsection .fixup, \"ax\"\n"			\
-		"3:	lhi	%[rc],%[retval]\n"		\
-		"	jg	2b\n"				\
-		".popsection\n"					\
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b)			\
-		: [rc] "=&d" (__rc), [_to] "+Q" (*(to))		\
-		: [_size] "d" (size), [_from] "Q" (*(from)),	\
-		  [retval] "K" (-EFAULT), [spec] "K" (0x81UL)	\
-		: "cc", "0");					\
-	__rc;							\
+#define __put_get_user_asm(to, from, size, oac_spec)			\
+({									\
+	int __rc;							\
+									\
+	asm volatile(							\
+		"	lr	0,%[spec]\n"				\
+		"0:	mvcos	%[_to],%[_from],%[_size]\n"		\
+		"1:	xr	%[rc],%[rc]\n"				\
+		"2:\n"							\
+		".pushsection .fixup, \"ax\"\n"				\
+		"3:	lhi	%[rc],%[retval]\n"			\
+		"	jg	2b\n"					\
+		".popsection\n"						\
+		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		: [rc] "=&d" (__rc), [_to] "+Q" (*(to))			\
+		: [_size] "d" (size), [_from] "Q" (*(from)),		\
+		  [retval] "K" (-EFAULT), [spec] "d" (oac_spec.val)	\
+		: "cc", "0");						\
+	__rc;								\
 })
+
+#define __put_user_asm(to, from, size)				\
+	__put_get_user_asm(to, from, size, ((union oac) {	\
+		.oac1.as = PSW_BITS_AS_SECONDARY,		\
+		.oac1.a = 1					\
+	}))
+
+#define __get_user_asm(to, from, size)				\
+	__put_get_user_asm(to, from, size, ((union oac) {	\
+		.oac2.as = PSW_BITS_AS_SECONDARY,		\
+		.oac2.a = 1					\
+	}))							\
 
 static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 {
@@ -76,24 +110,24 @@ static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned lon
 
 	switch (size) {
 	case 1:
-		rc = __put_get_user_asm((unsigned char __user *)ptr,
-					(unsigned char *)x,
-					size, "llilh");
+		rc = __put_user_asm((unsigned char __user *)ptr,
+				    (unsigned char *)x,
+				    size);
 		break;
 	case 2:
-		rc = __put_get_user_asm((unsigned short __user *)ptr,
-					(unsigned short *)x,
-					size, "llilh");
+		rc = __put_user_asm((unsigned short __user *)ptr,
+				    (unsigned short *)x,
+				    size);
 		break;
 	case 4:
-		rc = __put_get_user_asm((unsigned int __user *)ptr,
-					(unsigned int *)x,
-					size, "llilh");
+		rc = __put_user_asm((unsigned int __user *)ptr,
+				    (unsigned int *)x,
+				    size);
 		break;
 	case 8:
-		rc = __put_get_user_asm((unsigned long __user *)ptr,
-					(unsigned long *)x,
-					size, "llilh");
+		rc = __put_user_asm((unsigned long __user *)ptr,
+				    (unsigned long *)x,
+				    size);
 		break;
 	default:
 		__put_user_bad();
@@ -108,24 +142,24 @@ static __always_inline int __get_user_fn(void *x, const void __user *ptr, unsign
 
 	switch (size) {
 	case 1:
-		rc = __put_get_user_asm((unsigned char *)x,
-					(unsigned char __user *)ptr,
-					size, "lghi");
+		rc = __get_user_asm((unsigned char *)x,
+				    (unsigned char __user *)ptr,
+				    size);
 		break;
 	case 2:
-		rc = __put_get_user_asm((unsigned short *)x,
-					(unsigned short __user *)ptr,
-					size, "lghi");
+		rc = __get_user_asm((unsigned short *)x,
+				    (unsigned short __user *)ptr,
+				    size);
 		break;
 	case 4:
-		rc = __put_get_user_asm((unsigned int *)x,
-					(unsigned int __user *)ptr,
-					size, "lghi");
+		rc = __get_user_asm((unsigned int *)x,
+				    (unsigned int __user *)ptr,
+				    size);
 		break;
 	case 8:
-		rc = __put_get_user_asm((unsigned long *)x,
-					(unsigned long __user *)ptr,
-					size, "lghi");
+		rc = __get_user_asm((unsigned long *)x,
+				    (unsigned long __user *)ptr,
+				    size);
 		break;
 	default:
 		__get_user_bad();

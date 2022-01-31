@@ -153,6 +153,10 @@ void objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 	    !strcmp(func->name, "_paravirt_ident_64"))
 		return;
 
+	/* already added this function */
+	if (!list_empty(&func->pv_target))
+		return;
+
 	list_add(&func->pv_target, &f->pv_ops[idx].targets);
 	f->pv_ops[idx].clean = false;
 }

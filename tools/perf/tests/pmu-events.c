@@ -143,6 +143,34 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 	.matching_pmu = "uncore_cbox_0",
 };
 
+static const struct perf_pmu_test_event uncore_hyphen = {
+	.event = {
+		.name = "event-hyphen",
+		.event = "umask=0x00,event=0xe0",
+		.desc = "Unit: uncore_cbox UNC_CBO_HYPHEN",
+		.topic = "uncore",
+		.long_desc = "UNC_CBO_HYPHEN",
+		.pmu = "uncore_cbox",
+	},
+	.alias_str = "umask=0,event=0xe0",
+	.alias_long_desc = "UNC_CBO_HYPHEN",
+	.matching_pmu = "uncore_cbox_0",
+};
+
+static const struct perf_pmu_test_event uncore_two_hyph = {
+	.event = {
+		.name = "event-two-hyph",
+		.event = "umask=0x00,event=0xc0",
+		.desc = "Unit: uncore_cbox UNC_CBO_TWO_HYPH",
+		.topic = "uncore",
+		.long_desc = "UNC_CBO_TWO_HYPH",
+		.pmu = "uncore_cbox",
+	},
+	.alias_str = "umask=0,event=0xc0",
+	.alias_long_desc = "UNC_CBO_TWO_HYPH",
+	.matching_pmu = "uncore_cbox_0",
+};
+
 static const struct perf_pmu_test_event uncore_hisi_l3c_rd_hit_cpipe = {
 	.event = {
 		.name = "uncore_hisi_l3c.rd_hit_cpipe",
@@ -188,6 +216,8 @@ static const struct perf_pmu_test_event uncore_imc_cache_hits = {
 static const struct perf_pmu_test_event *uncore_events[] = {
 	&uncore_hisi_ddrc_flux_wcmd,
 	&unc_cbo_xsnp_response_miss_eviction,
+	&uncore_hyphen,
+	&uncore_two_hyph,
 	&uncore_hisi_l3c_rd_hit_cpipe,
 	&uncore_imc_free_running_cache_miss,
 	&uncore_imc_cache_hits,
@@ -654,6 +684,8 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 		},
 		.aliases = {
 			&unc_cbo_xsnp_response_miss_eviction,
+			&uncore_hyphen,
+			&uncore_two_hyph,
 		},
 	},
 	{

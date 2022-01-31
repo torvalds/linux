@@ -23,6 +23,8 @@
 void
 mipi_init(void);
 
+bool mipi_is_free(void);
+
 int
 allocate_mipi_frames(struct ia_css_pipe *pipe, struct ia_css_stream_info *info);
 
@@ -31,20 +33,5 @@ free_mipi_frames(struct ia_css_pipe *pipe);
 
 int
 send_mipi_frames(struct ia_css_pipe *pipe);
-
-/**
- * @brief Calculate the required MIPI buffer sizes.
- * Based on the stream configuration, calculate the
- * required MIPI buffer sizes (in DDR words).
- *
- * @param[in]	stream_cfg		Point to the target stream configuration
- * @param[out]	size_mem_words	MIPI buffer size in DDR words.
- *
- * @return
- */
-int
-calculate_mipi_buff_size(
-    struct ia_css_stream_config *stream_cfg,
-    unsigned int *size_mem_words);
 
 #endif /* __SH_CSS_MIPI_H */

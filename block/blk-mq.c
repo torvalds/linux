@@ -28,6 +28,7 @@
 #include <linux/crash_dump.h>
 #include <linux/prefetch.h>
 #include <linux/blk-crypto.h>
+#include <linux/part_stat.h>
 
 #include <trace/events/block.h>
 
@@ -126,8 +127,7 @@ struct mq_inflight {
 	unsigned int inflight[2];
 };
 
-static bool blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
-				  struct request *rq, void *priv,
+static bool blk_mq_check_inflight(struct request *rq, void *priv,
 				  bool reserved)
 {
 	struct mq_inflight *mi = priv;
@@ -259,17 +259,9 @@ EXPORT_SYMBOL_GPL(blk_mq_quiesce_queue_nowait);
  */
 void blk_mq_wait_quiesce_done(struct request_queue *q)
 {
-	struct blk_mq_hw_ctx *hctx;
-	unsigned int i;
-	bool rcu = false;
-
-	queue_for_each_hw_ctx(q, hctx, i) {
-		if (hctx->flags & BLK_MQ_F_BLOCKING)
-			synchronize_srcu(hctx->srcu);
-		else
-			rcu = true;
-	}
-	if (rcu)
+	if (blk_queue_has_srcu(q))
+		synchronize_srcu(q->srcu);
+	else
 		synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(blk_mq_wait_quiesce_done);
@@ -327,6 +319,23 @@ void blk_mq_wake_waiters(struct request_queue *q)
 			blk_mq_tag_wakeup_all(hctx->tags, true);
 }
 
+void blk_rq_init(struct request_queue *q, struct request *rq)
+{
+	memset(rq, 0, sizeof(*rq));
+
+	INIT_LIST_HEAD(&rq->queuelist);
+	rq->q = q;
+	rq->__sector = (sector_t) -1;
+	INIT_HLIST_NODE(&rq->hash);
+	RB_CLEAR_NODE(&rq->rb_node);
+	rq->tag = BLK_MQ_NO_TAG;
+	rq->internal_tag = BLK_MQ_NO_TAG;
+	rq->start_time_ns = ktime_get_ns();
+	rq->part = NULL;
+	blk_crypto_rq_set_defaults(rq);
+}
+EXPORT_SYMBOL(blk_rq_init);
+
 static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		struct blk_mq_tags *tags, unsigned int tag, u64 alloc_time_ns)
 {
@@ -359,7 +368,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 		rq->start_time_ns = ktime_get_ns();
 	else
 		rq->start_time_ns = 0;
-	rq->rq_disk = NULL;
 	rq->part = NULL;
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
 	rq->alloc_time_ns = alloc_time_ns;
@@ -377,20 +385,16 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	INIT_LIST_HEAD(&rq->queuelist);
 	/* tag was already set */
 	WRITE_ONCE(rq->deadline, 0);
-	refcount_set(&rq->ref, 1);
+	req_ref_set(rq, 1);
 
 	if (rq->rq_flags & RQF_ELV) {
 		struct elevator_queue *e = data->q->elevator;
 
-		rq->elv.icq = NULL;
 		INIT_HLIST_NODE(&rq->hash);
 		RB_CLEAR_NODE(&rq->rb_node);
 
 		if (!op_is_flush(data->cmd_flags) &&
 		    e->type->ops.prepare_request) {
-			if (e->type->icq_cache)
-				blk_mq_sched_assign_ioc(rq);
-
 			e->type->ops.prepare_request(rq);
 			rq->rq_flags |= RQF_ELVPRIV;
 		}
@@ -616,16 +620,9 @@ void blk_mq_free_request(struct request *rq)
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
-	if (rq->rq_flags & RQF_ELVPRIV) {
-		struct elevator_queue *e = q->elevator;
-
-		if (e->type->ops.finish_request)
-			e->type->ops.finish_request(rq);
-		if (rq->elv.icq) {
-			put_io_context(rq->elv.icq->ioc);
-			rq->elv.icq = NULL;
-		}
-	}
+	if ((rq->rq_flags & RQF_ELVPRIV) &&
+	    q->elevator->type->ops.finish_request)
+		q->elevator->type->ops.finish_request(rq);
 
 	if (rq->rq_flags & RQF_MQ_INFLIGHT)
 		__blk_mq_dec_active_requests(hctx);
@@ -636,7 +633,7 @@ void blk_mq_free_request(struct request *rq)
 	rq_qos_done(q, rq);
 
 	WRITE_ONCE(rq->state, MQ_RQ_IDLE);
-	if (refcount_dec_and_test(&rq->ref))
+	if (req_ref_put_and_test(rq))
 		__blk_mq_free_request(rq);
 }
 EXPORT_SYMBOL_GPL(blk_mq_free_request);
@@ -648,6 +645,20 @@ void blk_mq_free_plug_rqs(struct blk_plug *plug)
 	while ((rq = rq_list_pop(&plug->cached_rq)) != NULL)
 		blk_mq_free_request(rq);
 }
+
+void blk_dump_rq_flags(struct request *rq, char *msg)
+{
+	printk(KERN_INFO "%s: dev %s: flags=%llx\n", msg,
+		rq->q->disk ? rq->q->disk->disk_name : "?",
+		(unsigned long long) rq->cmd_flags);
+
+	printk(KERN_INFO "  sector %llu, nr/cnr %u/%u\n",
+	       (unsigned long long)blk_rq_pos(rq),
+	       blk_rq_sectors(rq), blk_rq_cur_sectors(rq));
+	printk(KERN_INFO "  bio %p, biotail %p, len %u\n",
+	       rq->bio, rq->biotail, blk_rq_bytes(rq));
+}
+EXPORT_SYMBOL(blk_dump_rq_flags);
 
 static void req_bio_endio(struct request *rq, struct bio *bio,
 			  unsigned int nbytes, blk_status_t error)
@@ -683,6 +694,60 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 		part_stat_add(req->part, sectors[sgrp], bytes >> 9);
 		part_stat_unlock();
 	}
+}
+
+static void blk_print_req_error(struct request *req, blk_status_t status)
+{
+	printk_ratelimited(KERN_ERR
+		"%s error, dev %s, sector %llu op 0x%x:(%s) flags 0x%x "
+		"phys_seg %u prio class %u\n",
+		blk_status_to_str(status),
+		req->q->disk ? req->q->disk->disk_name : "?",
+		blk_rq_pos(req), req_op(req), blk_op_str(req_op(req)),
+		req->cmd_flags & ~REQ_OP_MASK,
+		req->nr_phys_segments,
+		IOPRIO_PRIO_CLASS(req->ioprio));
+}
+
+/*
+ * Fully end IO on a request. Does not support partial completions, or
+ * errors.
+ */
+static void blk_complete_request(struct request *req)
+{
+	const bool is_flush = (req->rq_flags & RQF_FLUSH_SEQ) != 0;
+	int total_bytes = blk_rq_bytes(req);
+	struct bio *bio = req->bio;
+
+	trace_block_rq_complete(req, BLK_STS_OK, total_bytes);
+
+	if (!bio)
+		return;
+
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+	if (blk_integrity_rq(req) && req_op(req) == REQ_OP_READ)
+		req->q->integrity.profile->complete_fn(req, total_bytes);
+#endif
+
+	blk_account_io_completion(req, total_bytes);
+
+	do {
+		struct bio *next = bio->bi_next;
+
+		/* Completion has already been traced */
+		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
+		if (!is_flush)
+			bio_endio(bio);
+		bio = next;
+	} while (bio);
+
+	/*
+	 * Reset counters so that the request stacking driver
+	 * can find how many bytes remain in the request
+	 * later.
+	 */
+	req->bio = NULL;
+	req->__data_len = 0;
 }
 
 /**
@@ -791,6 +856,48 @@ bool blk_update_request(struct request *req, blk_status_t error,
 }
 EXPORT_SYMBOL_GPL(blk_update_request);
 
+static void __blk_account_io_done(struct request *req, u64 now)
+{
+	const int sgrp = op_stat_group(req_op(req));
+
+	part_stat_lock();
+	update_io_ticks(req->part, jiffies, true);
+	part_stat_inc(req->part, ios[sgrp]);
+	part_stat_add(req->part, nsecs[sgrp], now - req->start_time_ns);
+	part_stat_unlock();
+}
+
+static inline void blk_account_io_done(struct request *req, u64 now)
+{
+	/*
+	 * Account IO completion.  flush_rq isn't accounted as a
+	 * normal IO on queueing nor completion.  Accounting the
+	 * containing request is enough.
+	 */
+	if (blk_do_io_stat(req) && req->part &&
+	    !(req->rq_flags & RQF_FLUSH_SEQ))
+		__blk_account_io_done(req, now);
+}
+
+static void __blk_account_io_start(struct request *rq)
+{
+	/* passthrough requests can hold bios that do not have ->bi_bdev set */
+	if (rq->bio && rq->bio->bi_bdev)
+		rq->part = rq->bio->bi_bdev;
+	else if (rq->q->disk)
+		rq->part = rq->q->disk->part0;
+
+	part_stat_lock();
+	update_io_ticks(rq->part, jiffies, false);
+	part_stat_unlock();
+}
+
+static inline void blk_account_io_start(struct request *req)
+{
+	if (blk_do_io_stat(req))
+		__blk_account_io_start(req);
+}
+
 static inline void __blk_mq_end_request_acct(struct request *rq, u64 now)
 {
 	if (rq->rq_flags & RQF_STATS) {
@@ -856,17 +963,18 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		prefetch(rq->bio);
 		prefetch(rq->rq_next);
 
-		blk_update_request(rq, BLK_STS_OK, blk_rq_bytes(rq));
+		blk_complete_request(rq);
 		if (iob->need_ts)
 			__blk_mq_end_request_acct(rq, now);
 
+		rq_qos_done(rq->q, rq);
+
 		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
-		if (!refcount_dec_and_test(&rq->ref))
+		if (!req_ref_put_and_test(rq))
 			continue;
 
 		blk_crypto_free_request(rq);
 		blk_pm_mark_last_busy(rq);
-		rq_qos_done(rq->q, rq);
 
 		if (nr_tags == TAG_COMP_BATCH || cur_hctx != rq->mq_hctx) {
 			if (cur_hctx)
@@ -995,26 +1103,6 @@ void blk_mq_complete_request(struct request *rq)
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
-static void hctx_unlock(struct blk_mq_hw_ctx *hctx, int srcu_idx)
-	__releases(hctx->srcu)
-{
-	if (!(hctx->flags & BLK_MQ_F_BLOCKING))
-		rcu_read_unlock();
-	else
-		srcu_read_unlock(hctx->srcu, srcu_idx);
-}
-
-static void hctx_lock(struct blk_mq_hw_ctx *hctx, int *srcu_idx)
-	__acquires(hctx->srcu)
-{
-	if (!(hctx->flags & BLK_MQ_F_BLOCKING)) {
-		/* shut up gcc false positive */
-		*srcu_idx = 0;
-		rcu_read_lock();
-	} else
-		*srcu_idx = srcu_read_lock(hctx->srcu);
-}
-
 /**
  * blk_mq_start_request - Start processing a request
  * @rq: Pointer to request to be started
@@ -1056,6 +1144,107 @@ void blk_mq_start_request(struct request *rq)
 	        WRITE_ONCE(rq->bio->bi_cookie, blk_rq_to_qc(rq));
 }
 EXPORT_SYMBOL(blk_mq_start_request);
+
+/**
+ * blk_end_sync_rq - executes a completion event on a request
+ * @rq: request to complete
+ * @error: end I/O status of the request
+ */
+static void blk_end_sync_rq(struct request *rq, blk_status_t error)
+{
+	struct completion *waiting = rq->end_io_data;
+
+	rq->end_io_data = (void *)(uintptr_t)error;
+
+	/*
+	 * complete last, if this is a stack request the process (and thus
+	 * the rq pointer) could be invalid right after this complete()
+	 */
+	complete(waiting);
+}
+
+/**
+ * blk_execute_rq_nowait - insert a request to I/O scheduler for execution
+ * @rq:		request to insert
+ * @at_head:    insert request at head or tail of queue
+ * @done:	I/O completion handler
+ *
+ * Description:
+ *    Insert a fully prepared request at the back of the I/O scheduler queue
+ *    for execution.  Don't wait for completion.
+ *
+ * Note:
+ *    This function will invoke @done directly if the queue is dead.
+ */
+void blk_execute_rq_nowait(struct request *rq, bool at_head, rq_end_io_fn *done)
+{
+	WARN_ON(irqs_disabled());
+	WARN_ON(!blk_rq_is_passthrough(rq));
+
+	rq->end_io = done;
+
+	blk_account_io_start(rq);
+
+	/*
+	 * don't check dying flag for MQ because the request won't
+	 * be reused after dying flag is set
+	 */
+	blk_mq_sched_insert_request(rq, at_head, true, false);
+}
+EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
+
+static bool blk_rq_is_poll(struct request *rq)
+{
+	if (!rq->mq_hctx)
+		return false;
+	if (rq->mq_hctx->type != HCTX_TYPE_POLL)
+		return false;
+	if (WARN_ON_ONCE(!rq->bio))
+		return false;
+	return true;
+}
+
+static void blk_rq_poll_completion(struct request *rq, struct completion *wait)
+{
+	do {
+		bio_poll(rq->bio, NULL, 0);
+		cond_resched();
+	} while (!completion_done(wait));
+}
+
+/**
+ * blk_execute_rq - insert a request into queue for execution
+ * @rq:		request to insert
+ * @at_head:    insert request at head or tail of queue
+ *
+ * Description:
+ *    Insert a fully prepared request at the back of the I/O scheduler queue
+ *    for execution and wait for completion.
+ * Return: The blk_status_t result provided to blk_mq_end_request().
+ */
+blk_status_t blk_execute_rq(struct request *rq, bool at_head)
+{
+	DECLARE_COMPLETION_ONSTACK(wait);
+	unsigned long hang_check;
+
+	rq->end_io_data = &wait;
+	blk_execute_rq_nowait(rq, at_head, blk_end_sync_rq);
+
+	/* Prevent hang_check timer from firing at us during very long I/O */
+	hang_check = sysctl_hung_task_timeout_secs;
+
+	if (blk_rq_is_poll(rq))
+		blk_rq_poll_completion(rq, &wait);
+	else if (hang_check)
+		while (!wait_for_completion_io_timeout(&wait,
+				hang_check * (HZ/2)))
+			;
+	else
+		wait_for_completion_io(&wait);
+
+	return (blk_status_t)(uintptr_t)rq->end_io_data;
+}
+EXPORT_SYMBOL(blk_execute_rq);
 
 static void __blk_mq_requeue_request(struct request *rq)
 {
@@ -1159,14 +1348,15 @@ void blk_mq_delay_kick_requeue_list(struct request_queue *q,
 }
 EXPORT_SYMBOL(blk_mq_delay_kick_requeue_list);
 
-static bool blk_mq_rq_inflight(struct blk_mq_hw_ctx *hctx, struct request *rq,
-			       void *priv, bool reserved)
+static bool blk_mq_rq_inflight(struct request *rq, void *priv,
+			       bool reserved)
 {
 	/*
-	 * If we find a request that isn't idle and the queue matches,
-	 * we know the queue is busy. Return false to stop the iteration.
+	 * If we find a request that isn't idle we know the queue is busy
+	 * as it's checked in the iter.
+	 * Return false to stop the iteration.
 	 */
-	if (blk_mq_request_started(rq) && rq->q == hctx->queue) {
+	if (blk_mq_request_started(rq)) {
 		bool *busy = priv;
 
 		*busy = true;
@@ -1224,12 +1414,11 @@ void blk_mq_put_rq_ref(struct request *rq)
 {
 	if (is_flush_rq(rq))
 		rq->end_io(rq, 0);
-	else if (refcount_dec_and_test(&rq->ref))
+	else if (req_ref_put_and_test(rq))
 		__blk_mq_free_request(rq);
 }
 
-static bool blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
-		struct request *rq, void *priv, bool reserved)
+static bool blk_mq_check_expired(struct request *rq, void *priv, bool reserved)
 {
 	unsigned long *next = priv;
 
@@ -1770,19 +1959,14 @@ out:
  */
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
-	int srcu_idx;
-
 	/*
 	 * We can't run the queue inline with ints disabled. Ensure that
 	 * we catch bad users of this early.
 	 */
 	WARN_ON_ONCE(in_interrupt());
 
-	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
-
-	hctx_lock(hctx, &srcu_idx);
-	blk_mq_sched_dispatch_requests(hctx);
-	hctx_unlock(hctx, srcu_idx);
+	blk_mq_run_dispatch_ops(hctx->queue,
+			blk_mq_sched_dispatch_requests(hctx));
 }
 
 static inline int blk_mq_first_mapped_cpu(struct blk_mq_hw_ctx *hctx)
@@ -1894,7 +2078,6 @@ EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
  */
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
-	int srcu_idx;
 	bool need_run;
 
 	/*
@@ -1905,10 +2088,9 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 	 * And queue will be rerun in blk_mq_unquiesce_queue() if it is
 	 * quiesced.
 	 */
-	hctx_lock(hctx, &srcu_idx);
-	need_run = !blk_queue_quiesced(hctx->queue) &&
-		blk_mq_hctx_has_pending(hctx);
-	hctx_unlock(hctx, srcu_idx);
+	__blk_mq_run_dispatch_ops(hctx->queue, false,
+		need_run = !blk_queue_quiesced(hctx->queue) &&
+		blk_mq_hctx_has_pending(hctx));
 
 	if (need_run)
 		__blk_mq_delay_run_hw_queue(hctx, async, 0);
@@ -2201,98 +2383,6 @@ static void blk_mq_commit_rqs(struct blk_mq_hw_ctx *hctx, int *queued,
 	*queued = 0;
 }
 
-static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
-{
-	struct blk_mq_hw_ctx *hctx = NULL;
-	struct request *rq;
-	int queued = 0;
-	int errors = 0;
-
-	while ((rq = rq_list_pop(&plug->mq_list))) {
-		bool last = rq_list_empty(plug->mq_list);
-		blk_status_t ret;
-
-		if (hctx != rq->mq_hctx) {
-			if (hctx)
-				blk_mq_commit_rqs(hctx, &queued, from_schedule);
-			hctx = rq->mq_hctx;
-		}
-
-		ret = blk_mq_request_issue_directly(rq, last);
-		switch (ret) {
-		case BLK_STS_OK:
-			queued++;
-			break;
-		case BLK_STS_RESOURCE:
-		case BLK_STS_DEV_RESOURCE:
-			blk_mq_request_bypass_insert(rq, false, last);
-			blk_mq_commit_rqs(hctx, &queued, from_schedule);
-			return;
-		default:
-			blk_mq_end_request(rq, ret);
-			errors++;
-			break;
-		}
-	}
-
-	/*
-	 * If we didn't flush the entire list, we could have told the driver
-	 * there was more coming, but that turned out to be a lie.
-	 */
-	if (errors)
-		blk_mq_commit_rqs(hctx, &queued, from_schedule);
-}
-
-void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
-{
-	struct blk_mq_hw_ctx *this_hctx;
-	struct blk_mq_ctx *this_ctx;
-	unsigned int depth;
-	LIST_HEAD(list);
-
-	if (rq_list_empty(plug->mq_list))
-		return;
-	plug->rq_count = 0;
-
-	if (!plug->multiple_queues && !plug->has_elevator && !from_schedule) {
-		blk_mq_plug_issue_direct(plug, false);
-		if (rq_list_empty(plug->mq_list))
-			return;
-	}
-
-	this_hctx = NULL;
-	this_ctx = NULL;
-	depth = 0;
-	do {
-		struct request *rq;
-
-		rq = rq_list_pop(&plug->mq_list);
-
-		if (!this_hctx) {
-			this_hctx = rq->mq_hctx;
-			this_ctx = rq->mq_ctx;
-		} else if (this_hctx != rq->mq_hctx || this_ctx != rq->mq_ctx) {
-			trace_block_unplug(this_hctx->queue, depth,
-						!from_schedule);
-			blk_mq_sched_insert_requests(this_hctx, this_ctx,
-						&list, from_schedule);
-			depth = 0;
-			this_hctx = rq->mq_hctx;
-			this_ctx = rq->mq_ctx;
-
-		}
-
-		list_add(&rq->queuelist, &list);
-		depth++;
-	} while (!rq_list_empty(plug->mq_list));
-
-	if (!list_empty(&list)) {
-		trace_block_unplug(this_hctx->queue, depth, !from_schedule);
-		blk_mq_sched_insert_requests(this_hctx, this_ctx, &list,
-						from_schedule);
-	}
-}
-
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
 		unsigned int nr_segs)
 {
@@ -2403,33 +2493,141 @@ insert:
 static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		struct request *rq)
 {
-	blk_status_t ret;
-	int srcu_idx;
+	blk_status_t ret =
+		__blk_mq_try_issue_directly(hctx, rq, false, true);
 
-	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
-
-	hctx_lock(hctx, &srcu_idx);
-
-	ret = __blk_mq_try_issue_directly(hctx, rq, false, true);
 	if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE)
 		blk_mq_request_bypass_insert(rq, false, true);
 	else if (ret != BLK_STS_OK)
 		blk_mq_end_request(rq, ret);
-
-	hctx_unlock(hctx, srcu_idx);
 }
 
-blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
+static blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
 {
-	blk_status_t ret;
-	int srcu_idx;
-	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
+	return __blk_mq_try_issue_directly(rq->mq_hctx, rq, true, last);
+}
 
-	hctx_lock(hctx, &srcu_idx);
-	ret = __blk_mq_try_issue_directly(hctx, rq, true, last);
-	hctx_unlock(hctx, srcu_idx);
+static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
+{
+	struct blk_mq_hw_ctx *hctx = NULL;
+	struct request *rq;
+	int queued = 0;
+	int errors = 0;
 
-	return ret;
+	while ((rq = rq_list_pop(&plug->mq_list))) {
+		bool last = rq_list_empty(plug->mq_list);
+		blk_status_t ret;
+
+		if (hctx != rq->mq_hctx) {
+			if (hctx)
+				blk_mq_commit_rqs(hctx, &queued, from_schedule);
+			hctx = rq->mq_hctx;
+		}
+
+		ret = blk_mq_request_issue_directly(rq, last);
+		switch (ret) {
+		case BLK_STS_OK:
+			queued++;
+			break;
+		case BLK_STS_RESOURCE:
+		case BLK_STS_DEV_RESOURCE:
+			blk_mq_request_bypass_insert(rq, false, last);
+			blk_mq_commit_rqs(hctx, &queued, from_schedule);
+			return;
+		default:
+			blk_mq_end_request(rq, ret);
+			errors++;
+			break;
+		}
+	}
+
+	/*
+	 * If we didn't flush the entire list, we could have told the driver
+	 * there was more coming, but that turned out to be a lie.
+	 */
+	if (errors)
+		blk_mq_commit_rqs(hctx, &queued, from_schedule);
+}
+
+static void __blk_mq_flush_plug_list(struct request_queue *q,
+				     struct blk_plug *plug)
+{
+	if (blk_queue_quiesced(q))
+		return;
+	q->mq_ops->queue_rqs(&plug->mq_list);
+}
+
+void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
+{
+	struct blk_mq_hw_ctx *this_hctx;
+	struct blk_mq_ctx *this_ctx;
+	struct request *rq;
+	unsigned int depth;
+	LIST_HEAD(list);
+
+	if (rq_list_empty(plug->mq_list))
+		return;
+	plug->rq_count = 0;
+
+	if (!plug->multiple_queues && !plug->has_elevator && !from_schedule) {
+		struct request_queue *q;
+
+		rq = rq_list_peek(&plug->mq_list);
+		q = rq->q;
+
+		/*
+		 * Peek first request and see if we have a ->queue_rqs() hook.
+		 * If we do, we can dispatch the whole plug list in one go. We
+		 * already know at this point that all requests belong to the
+		 * same queue, caller must ensure that's the case.
+		 *
+		 * Since we pass off the full list to the driver at this point,
+		 * we do not increment the active request count for the queue.
+		 * Bypass shared tags for now because of that.
+		 */
+		if (q->mq_ops->queue_rqs &&
+		    !(rq->mq_hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED)) {
+			blk_mq_run_dispatch_ops(q,
+				__blk_mq_flush_plug_list(q, plug));
+			if (rq_list_empty(plug->mq_list))
+				return;
+		}
+
+		blk_mq_run_dispatch_ops(q,
+				blk_mq_plug_issue_direct(plug, false));
+		if (rq_list_empty(plug->mq_list))
+			return;
+	}
+
+	this_hctx = NULL;
+	this_ctx = NULL;
+	depth = 0;
+	do {
+		rq = rq_list_pop(&plug->mq_list);
+
+		if (!this_hctx) {
+			this_hctx = rq->mq_hctx;
+			this_ctx = rq->mq_ctx;
+		} else if (this_hctx != rq->mq_hctx || this_ctx != rq->mq_ctx) {
+			trace_block_unplug(this_hctx->queue, depth,
+						!from_schedule);
+			blk_mq_sched_insert_requests(this_hctx, this_ctx,
+						&list, from_schedule);
+			depth = 0;
+			this_hctx = rq->mq_hctx;
+			this_ctx = rq->mq_ctx;
+
+		}
+
+		list_add(&rq->queuelist, &list);
+		depth++;
+	} while (!rq_list_empty(plug->mq_list));
+
+	if (!list_empty(&list)) {
+		trace_block_unplug(this_hctx->queue, depth, !from_schedule);
+		blk_mq_sched_insert_requests(this_hctx, this_ctx, &list,
+						from_schedule);
+	}
 }
 
 void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
@@ -2468,21 +2666,6 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		hctx->queue->mq_ops->commit_rqs(hctx);
 }
 
-static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
-{
-	if (!plug->multiple_queues) {
-		struct request *nxt = rq_list_peek(&plug->mq_list);
-
-		if (nxt && nxt->q != rq->q)
-			plug->multiple_queues = true;
-	}
-	if (!plug->has_elevator && (rq->rq_flags & RQF_ELV))
-		plug->has_elevator = true;
-	rq->rq_next = NULL;
-	rq_list_add(&plug->mq_list, rq);
-	plug->rq_count++;
-}
-
 /*
  * Allow 2x BLK_MAX_REQUEST_COUNT requests on plug queue for multiple
  * queues. This is important for md arrays to benefit from merging
@@ -2495,12 +2678,33 @@ static inline unsigned short blk_plug_max_rq_count(struct blk_plug *plug)
 	return BLK_MAX_REQUEST_COUNT;
 }
 
+static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
+{
+	struct request *last = rq_list_peek(&plug->mq_list);
+
+	if (!plug->rq_count) {
+		trace_block_plug(rq->q);
+	} else if (plug->rq_count >= blk_plug_max_rq_count(plug) ||
+		   (!blk_queue_nomerges(rq->q) &&
+		    blk_rq_bytes(last) >= BLK_PLUG_FLUSH_SIZE)) {
+		blk_mq_flush_plug_list(plug, false);
+		trace_block_plug(rq->q);
+	}
+
+	if (!plug->multiple_queues && last && last->q != rq->q)
+		plug->multiple_queues = true;
+	if (!plug->has_elevator && (rq->rq_flags & RQF_ELV))
+		plug->has_elevator = true;
+	rq->rq_next = NULL;
+	rq_list_add(&plug->mq_list, rq);
+	plug->rq_count++;
+}
+
 static bool blk_mq_attempt_bio_merge(struct request_queue *q,
-				     struct bio *bio, unsigned int nr_segs,
-				     bool *same_queue_rq)
+				     struct bio *bio, unsigned int nr_segs)
 {
 	if (!blk_queue_nomerges(q) && bio_mergeable(bio)) {
-		if (blk_attempt_plug_merge(q, bio, nr_segs, same_queue_rq))
+		if (blk_attempt_plug_merge(q, bio, nr_segs))
 			return true;
 		if (blk_mq_sched_bio_merge(q, bio, nr_segs))
 			return true;
@@ -2510,9 +2714,7 @@ static bool blk_mq_attempt_bio_merge(struct request_queue *q,
 
 static struct request *blk_mq_get_new_requests(struct request_queue *q,
 					       struct blk_plug *plug,
-					       struct bio *bio,
-					       unsigned int nsegs,
-					       bool *same_queue_rq)
+					       struct bio *bio)
 {
 	struct blk_mq_alloc_data data = {
 		.q		= q,
@@ -2521,10 +2723,8 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	};
 	struct request *rq;
 
-	if (blk_mq_attempt_bio_merge(q, bio, nsegs, same_queue_rq))
+	if (unlikely(bio_queue_enter(bio)))
 		return NULL;
-
-	rq_qos_throttle(q, bio);
 
 	if (plug) {
 		data.nr_tags = plug->nr_ios;
@@ -2535,64 +2735,33 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	rq = __blk_mq_alloc_requests(&data);
 	if (rq)
 		return rq;
-
 	rq_qos_cleanup(q, bio);
 	if (bio->bi_opf & REQ_NOWAIT)
 		bio_wouldblock_error(bio);
-
-	return NULL;
-}
-
-static inline bool blk_mq_can_use_cached_rq(struct request *rq, struct bio *bio)
-{
-	if (blk_mq_get_hctx_type(bio->bi_opf) != rq->mq_hctx->type)
-		return false;
-
-	if (op_is_flush(rq->cmd_flags) != op_is_flush(bio->bi_opf))
-		return false;
-
-	return true;
-}
-
-static inline struct request *blk_mq_get_request(struct request_queue *q,
-						 struct blk_plug *plug,
-						 struct bio *bio,
-						 unsigned int nsegs,
-						 bool *same_queue_rq)
-{
-	struct request *rq;
-	bool checked = false;
-
-	if (plug) {
-		rq = rq_list_peek(&plug->cached_rq);
-		if (rq && rq->q == q) {
-			if (unlikely(!submit_bio_checks(bio)))
-				return NULL;
-			if (blk_mq_attempt_bio_merge(q, bio, nsegs,
-						same_queue_rq))
-				return NULL;
-			checked = true;
-			if (!blk_mq_can_use_cached_rq(rq, bio))
-				goto fallback;
-			rq->cmd_flags = bio->bi_opf;
-			plug->cached_rq = rq_list_next(rq);
-			INIT_LIST_HEAD(&rq->queuelist);
-			rq_qos_throttle(q, bio);
-			return rq;
-		}
-	}
-
-fallback:
-	if (unlikely(bio_queue_enter(bio)))
-		return NULL;
-	if (unlikely(!checked && !submit_bio_checks(bio)))
-		goto out_put;
-	rq = blk_mq_get_new_requests(q, plug, bio, nsegs, same_queue_rq);
-	if (rq)
-		return rq;
-out_put:
 	blk_queue_exit(q);
 	return NULL;
+}
+
+static inline struct request *blk_mq_get_cached_request(struct request_queue *q,
+		struct blk_plug *plug, struct bio *bio)
+{
+	struct request *rq;
+
+	if (!plug)
+		return NULL;
+	rq = rq_list_peek(&plug->cached_rq);
+	if (!rq || rq->q != q)
+		return NULL;
+
+	if (blk_mq_get_hctx_type(bio->bi_opf) != rq->mq_hctx->type)
+		return NULL;
+	if (op_is_flush(rq->cmd_flags) != op_is_flush(bio->bi_opf))
+		return NULL;
+
+	rq->cmd_flags = bio->bi_opf;
+	plug->cached_rq = rq_list_next(rq);
+	INIT_LIST_HEAD(&rq->queuelist);
+	return rq;
 }
 
 /**
@@ -2611,10 +2780,9 @@ out_put:
 void blk_mq_submit_bio(struct bio *bio)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+	struct blk_plug *plug = blk_mq_plug(q, bio);
 	const int is_sync = op_is_sync(bio->bi_opf);
 	struct request *rq;
-	struct blk_plug *plug;
-	bool same_queue_rq = false;
 	unsigned int nr_segs = 1;
 	blk_status_t ret;
 
@@ -2628,10 +2796,17 @@ void blk_mq_submit_bio(struct bio *bio)
 	if (!bio_integrity_prep(bio))
 		return;
 
-	plug = blk_mq_plug(q, bio);
-	rq = blk_mq_get_request(q, plug, bio, nr_segs, &same_queue_rq);
-	if (unlikely(!rq))
+	if (blk_mq_attempt_bio_merge(q, bio, nr_segs))
 		return;
+
+	rq_qos_throttle(q, bio);
+
+	rq = blk_mq_get_cached_request(q, plug, bio);
+	if (!rq) {
+		rq = blk_mq_get_new_requests(q, plug, bio);
+		if (unlikely(!rq))
+			return;
+	}
 
 	trace_block_getrq(bio);
 
@@ -2652,69 +2827,215 @@ void blk_mq_submit_bio(struct bio *bio)
 		return;
 	}
 
-	if (plug && (q->nr_hw_queues == 1 ||
-	    blk_mq_is_shared_tags(rq->mq_hctx->flags) ||
-	    q->mq_ops->commit_rqs || !blk_queue_nonrot(q))) {
-		/*
-		 * Use plugging if we have a ->commit_rqs() hook as well, as
-		 * we know the driver uses bd->last in a smart fashion.
-		 *
-		 * Use normal plugging if this disk is slow HDD, as sequential
-		 * IO may benefit a lot from plug merging.
-		 */
-		unsigned int request_count = plug->rq_count;
-		struct request *last = NULL;
-
-		if (!request_count) {
-			trace_block_plug(q);
-		} else if (!blk_queue_nomerges(q)) {
-			last = rq_list_peek(&plug->mq_list);
-			if (blk_rq_bytes(last) < BLK_PLUG_FLUSH_SIZE)
-				last = NULL;
-		}
-
-		if (request_count >= blk_plug_max_rq_count(plug) || last) {
-			blk_mq_flush_plug_list(plug, false);
-			trace_block_plug(q);
-		}
-
+	if (plug)
 		blk_add_rq_to_plug(plug, rq);
-	} else if (rq->rq_flags & RQF_ELV) {
-		/* Insert the request at the IO scheduler queue */
+	else if ((rq->rq_flags & RQF_ELV) ||
+		 (rq->mq_hctx->dispatch_busy &&
+		  (q->nr_hw_queues == 1 || !is_sync)))
 		blk_mq_sched_insert_request(rq, false, true, true);
-	} else if (plug && !blk_queue_nomerges(q)) {
-		struct request *next_rq = NULL;
+	else
+		blk_mq_run_dispatch_ops(rq->q,
+				blk_mq_try_issue_directly(rq->mq_hctx, rq));
+}
 
-		/*
-		 * We do limited plugging. If the bio can be merged, do that.
-		 * Otherwise the existing request in the plug list will be
-		 * issued. So the plug list will have one request at most
-		 * The plug list might get flushed before this. If that happens,
-		 * the plug list is empty, and same_queue_rq is invalid.
-		 */
-		if (same_queue_rq) {
-			next_rq = rq_list_pop(&plug->mq_list);
-			plug->rq_count--;
-		}
-		blk_add_rq_to_plug(plug, rq);
-		trace_block_plug(q);
+/**
+ * blk_cloned_rq_check_limits - Helper function to check a cloned request
+ *                              for the new queue limits
+ * @q:  the queue
+ * @rq: the request being checked
+ *
+ * Description:
+ *    @rq may have been made based on weaker limitations of upper-level queues
+ *    in request stacking drivers, and it may violate the limitation of @q.
+ *    Since the block layer and the underlying device driver trust @rq
+ *    after it is inserted to @q, it should be checked against @q before
+ *    the insertion using this generic function.
+ *
+ *    Request stacking drivers like request-based dm may change the queue
+ *    limits when retrying requests on other queues. Those requests need
+ *    to be checked against the new queue limits again during dispatch.
+ */
+static blk_status_t blk_cloned_rq_check_limits(struct request_queue *q,
+				      struct request *rq)
+{
+	unsigned int max_sectors = blk_queue_get_max_sectors(q, req_op(rq));
 
-		if (next_rq) {
-			trace_block_unplug(q, 1, true);
-			blk_mq_try_issue_directly(next_rq->mq_hctx, next_rq);
-		}
-	} else if ((q->nr_hw_queues > 1 && is_sync) ||
-		   !rq->mq_hctx->dispatch_busy) {
+	if (blk_rq_sectors(rq) > max_sectors) {
 		/*
-		 * There is no scheduler and we can try to send directly
-		 * to the hardware.
+		 * SCSI device does not have a good way to return if
+		 * Write Same/Zero is actually supported. If a device rejects
+		 * a non-read/write command (discard, write same,etc.) the
+		 * low-level device driver will set the relevant queue limit to
+		 * 0 to prevent blk-lib from issuing more of the offending
+		 * operations. Commands queued prior to the queue limit being
+		 * reset need to be completed with BLK_STS_NOTSUPP to avoid I/O
+		 * errors being propagated to upper layers.
 		 */
-		blk_mq_try_issue_directly(rq->mq_hctx, rq);
-	} else {
-		/* Default case. */
-		blk_mq_sched_insert_request(rq, false, true, true);
+		if (max_sectors == 0)
+			return BLK_STS_NOTSUPP;
+
+		printk(KERN_ERR "%s: over max size limit. (%u > %u)\n",
+			__func__, blk_rq_sectors(rq), max_sectors);
+		return BLK_STS_IOERR;
+	}
+
+	/*
+	 * The queue settings related to segment counting may differ from the
+	 * original queue.
+	 */
+	rq->nr_phys_segments = blk_recalc_rq_segments(rq);
+	if (rq->nr_phys_segments > queue_max_segments(q)) {
+		printk(KERN_ERR "%s: over max segments limit. (%hu > %hu)\n",
+			__func__, rq->nr_phys_segments, queue_max_segments(q));
+		return BLK_STS_IOERR;
+	}
+
+	return BLK_STS_OK;
+}
+
+/**
+ * blk_insert_cloned_request - Helper for stacking drivers to submit a request
+ * @q:  the queue to submit the request
+ * @rq: the request being queued
+ */
+blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *rq)
+{
+	blk_status_t ret;
+
+	ret = blk_cloned_rq_check_limits(q, rq);
+	if (ret != BLK_STS_OK)
+		return ret;
+
+	if (rq->q->disk &&
+	    should_fail_request(rq->q->disk->part0, blk_rq_bytes(rq)))
+		return BLK_STS_IOERR;
+
+	if (blk_crypto_insert_cloned_request(rq))
+		return BLK_STS_IOERR;
+
+	blk_account_io_start(rq);
+
+	/*
+	 * Since we have a scheduler attached on the top device,
+	 * bypass a potential scheduler on the bottom device for
+	 * insert.
+	 */
+	blk_mq_run_dispatch_ops(rq->q,
+			ret = blk_mq_request_issue_directly(rq, true));
+	if (ret)
+		blk_account_io_done(rq, ktime_get_ns());
+	return ret;
+}
+EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
+
+/**
+ * blk_rq_unprep_clone - Helper function to free all bios in a cloned request
+ * @rq: the clone request to be cleaned up
+ *
+ * Description:
+ *     Free all bios in @rq for a cloned request.
+ */
+void blk_rq_unprep_clone(struct request *rq)
+{
+	struct bio *bio;
+
+	while ((bio = rq->bio) != NULL) {
+		rq->bio = bio->bi_next;
+
+		bio_put(bio);
 	}
 }
+EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
+
+/**
+ * blk_rq_prep_clone - Helper function to setup clone request
+ * @rq: the request to be setup
+ * @rq_src: original request to be cloned
+ * @bs: bio_set that bios for clone are allocated from
+ * @gfp_mask: memory allocation mask for bio
+ * @bio_ctr: setup function to be called for each clone bio.
+ *           Returns %0 for success, non %0 for failure.
+ * @data: private data to be passed to @bio_ctr
+ *
+ * Description:
+ *     Clones bios in @rq_src to @rq, and copies attributes of @rq_src to @rq.
+ *     Also, pages which the original bios are pointing to are not copied
+ *     and the cloned bios just point same pages.
+ *     So cloned bios must be completed before original bios, which means
+ *     the caller must complete @rq before @rq_src.
+ */
+int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
+		      struct bio_set *bs, gfp_t gfp_mask,
+		      int (*bio_ctr)(struct bio *, struct bio *, void *),
+		      void *data)
+{
+	struct bio *bio, *bio_src;
+
+	if (!bs)
+		bs = &fs_bio_set;
+
+	__rq_for_each_bio(bio_src, rq_src) {
+		bio = bio_clone_fast(bio_src, gfp_mask, bs);
+		if (!bio)
+			goto free_and_out;
+		bio->bi_bdev = rq->q->disk->part0;
+
+		if (bio_ctr && bio_ctr(bio, bio_src, data))
+			goto free_and_out;
+
+		if (rq->bio) {
+			rq->biotail->bi_next = bio;
+			rq->biotail = bio;
+		} else {
+			rq->bio = rq->biotail = bio;
+		}
+		bio = NULL;
+	}
+
+	/* Copy attributes of the original request to the clone request. */
+	rq->__sector = blk_rq_pos(rq_src);
+	rq->__data_len = blk_rq_bytes(rq_src);
+	if (rq_src->rq_flags & RQF_SPECIAL_PAYLOAD) {
+		rq->rq_flags |= RQF_SPECIAL_PAYLOAD;
+		rq->special_vec = rq_src->special_vec;
+	}
+	rq->nr_phys_segments = rq_src->nr_phys_segments;
+	rq->ioprio = rq_src->ioprio;
+
+	if (rq->bio && blk_crypto_rq_bio_prep(rq, rq->bio, gfp_mask) < 0)
+		goto free_and_out;
+
+	return 0;
+
+free_and_out:
+	if (bio)
+		bio_put(bio);
+	blk_rq_unprep_clone(rq);
+
+	return -ENOMEM;
+}
+EXPORT_SYMBOL_GPL(blk_rq_prep_clone);
+
+/*
+ * Steal bios from a request and add them to a bio list.
+ * The request must not have been partially completed before.
+ */
+void blk_steal_bios(struct bio_list *list, struct request *rq)
+{
+	if (rq->bio) {
+		if (list->tail)
+			list->tail->bi_next = rq->bio;
+		else
+			list->head = rq->bio;
+		list->tail = rq->biotail;
+
+		rq->bio = NULL;
+		rq->biotail = NULL;
+	}
+
+	rq->__data_len = 0;
+}
+EXPORT_SYMBOL_GPL(blk_steal_bios);
 
 static size_t order_to_size(unsigned int order)
 {
@@ -2742,7 +3063,7 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tags *drv_tags,
 			unsigned long rq_addr = (unsigned long)rq;
 
 			if (rq_addr >= start && rq_addr < end) {
-				WARN_ON_ONCE(refcount_read(&rq->ref) != 0);
+				WARN_ON_ONCE(req_ref_read(rq) != 0);
 				cmpxchg(&drv_tags->rqs[i], rq, NULL);
 			}
 		}
@@ -2966,7 +3287,7 @@ static bool blk_mq_hctx_has_requests(struct blk_mq_hw_ctx *hctx)
 static inline bool blk_mq_last_cpu_in_hctx(unsigned int cpu,
 		struct blk_mq_hw_ctx *hctx)
 {
-	if (cpumask_next_and(-1, hctx->cpumask, cpu_online_mask) != cpu)
+	if (cpumask_first_and(hctx->cpumask, cpu_online_mask) != cpu)
 		return false;
 	if (cpumask_next_and(cpu, hctx->cpumask, cpu_online_mask) < nr_cpu_ids)
 		return false;
@@ -3076,7 +3397,7 @@ static void blk_mq_clear_flush_rq_mapping(struct blk_mq_tags *tags,
 	if (!tags)
 		return;
 
-	WARN_ON_ONCE(refcount_read(&flush_rq->ref) != 0);
+	WARN_ON_ONCE(req_ref_read(flush_rq) != 0);
 
 	for (i = 0; i < queue_depth; i++)
 		cmpxchg(&tags->rqs[i], flush_rq, NULL);
@@ -3130,20 +3451,6 @@ static void blk_mq_exit_hw_queues(struct request_queue *q,
 	}
 }
 
-static int blk_mq_hw_ctx_size(struct blk_mq_tag_set *tag_set)
-{
-	int hw_ctx_size = sizeof(struct blk_mq_hw_ctx);
-
-	BUILD_BUG_ON(ALIGN(offsetof(struct blk_mq_hw_ctx, srcu),
-			   __alignof__(struct blk_mq_hw_ctx)) !=
-		     sizeof(struct blk_mq_hw_ctx));
-
-	if (tag_set->flags & BLK_MQ_F_BLOCKING)
-		hw_ctx_size += sizeof(struct srcu_struct);
-
-	return hw_ctx_size;
-}
-
 static int blk_mq_init_hctx(struct request_queue *q,
 		struct blk_mq_tag_set *set,
 		struct blk_mq_hw_ctx *hctx, unsigned hctx_idx)
@@ -3181,7 +3488,7 @@ blk_mq_alloc_hctx(struct request_queue *q, struct blk_mq_tag_set *set,
 	struct blk_mq_hw_ctx *hctx;
 	gfp_t gfp = GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY;
 
-	hctx = kzalloc_node(blk_mq_hw_ctx_size(set), gfp, node);
+	hctx = kzalloc_node(sizeof(struct blk_mq_hw_ctx), gfp, node);
 	if (!hctx)
 		goto fail_alloc_hctx;
 
@@ -3223,8 +3530,6 @@ blk_mq_alloc_hctx(struct request_queue *q, struct blk_mq_tag_set *set,
 	if (!hctx->fq)
 		goto free_bitmap;
 
-	if (hctx->flags & BLK_MQ_F_BLOCKING)
-		init_srcu_struct(hctx->srcu);
 	blk_mq_hctx_kobj_init(hctx);
 
 	return hctx;
@@ -3560,7 +3865,7 @@ static struct request_queue *blk_mq_init_queue_data(struct blk_mq_tag_set *set,
 	struct request_queue *q;
 	int ret;
 
-	q = blk_alloc_queue(set->numa_node);
+	q = blk_alloc_queue(set->numa_node, set->flags & BLK_MQ_F_BLOCKING);
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 	q->queuedata = queuedata;
@@ -3709,6 +4014,9 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 		struct request_queue *q)
 {
+	WARN_ON_ONCE(blk_queue_has_srcu(q) !=
+			!!(set->flags & BLK_MQ_F_BLOCKING));
+
 	/* mark the queue as mq asap */
 	q->mq_ops = set->ops;
 
@@ -4245,11 +4553,10 @@ EXPORT_SYMBOL_GPL(blk_mq_update_nr_hw_queues);
 /* Enable polling stats and return whether they were already enabled. */
 static bool blk_poll_stats_enable(struct request_queue *q)
 {
-	if (test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags) ||
-	    blk_queue_flag_test_and_set(QUEUE_FLAG_POLL_STATS, q))
+	if (q->poll_stat)
 		return true;
-	blk_stat_add_callback(q, q->poll_cb);
-	return false;
+
+	return blk_stats_alloc_enable(q);
 }
 
 static void blk_mq_poll_stats_start(struct request_queue *q)
@@ -4258,8 +4565,7 @@ static void blk_mq_poll_stats_start(struct request_queue *q)
 	 * We don't arm the callback if polling stats are not enabled or the
 	 * callback is already active.
 	 */
-	if (!test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags) ||
-	    blk_stat_is_active(q->poll_cb))
+	if (!q->poll_stat || blk_stat_is_active(q->poll_cb))
 		return;
 
 	blk_stat_activate_msecs(q->poll_cb, 100);
