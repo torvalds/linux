@@ -384,7 +384,10 @@ static void codegen_attach_detach(struct bpf_object *obj, const char *obj_name)
 			printf("\tint fd = bpf_raw_tracepoint_open(\"%s\", prog_fd);\n", tp_name);
 			break;
 		case BPF_PROG_TYPE_TRACING:
-			printf("\tint fd = bpf_raw_tracepoint_open(NULL, prog_fd);\n");
+			if (bpf_program__expected_attach_type(prog) == BPF_TRACE_ITER)
+				printf("\tint fd = bpf_link_create(prog_fd, 0, BPF_TRACE_ITER, NULL);\n");
+			else
+				printf("\tint fd = bpf_raw_tracepoint_open(NULL, prog_fd);\n");
 			break;
 		default:
 			printf("\tint fd = ((void)prog_fd, 0); /* auto-attach not supported */\n");
