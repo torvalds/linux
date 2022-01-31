@@ -66,38 +66,6 @@ xfs_is_falloc_aligned(
 	return !((pos | len) & mask);
 }
 
-int
-xfs_update_prealloc_flags(
-	struct xfs_inode	*ip,
-	enum xfs_prealloc_flags	flags)
-{
-	struct xfs_trans	*tp;
-	int			error;
-
-	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_writeid,
-			0, 0, 0, &tp);
-	if (error)
-		return error;
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-
-	if (!(flags & XFS_PREALLOC_INVISIBLE)) {
-		VFS_I(ip)->i_mode &= ~S_ISUID;
-		if (VFS_I(ip)->i_mode & S_IXGRP)
-			VFS_I(ip)->i_mode &= ~S_ISGID;
-		xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-	}
-
-	if (flags & XFS_PREALLOC_SET)
-		ip->i_diflags |= XFS_DIFLAG_PREALLOC;
-	if (flags & XFS_PREALLOC_CLEAR)
-		ip->i_diflags &= ~XFS_DIFLAG_PREALLOC;
-
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	return xfs_trans_commit(tp);
-}
-
 /*
  * Fsync operations on directories are much simpler than on regular files,
  * as there is no file data to flush, and thus also no need for explicit
