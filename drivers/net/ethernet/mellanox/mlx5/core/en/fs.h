@@ -91,7 +91,6 @@ enum {
 
 struct mlx5e_flow_steering;
 struct mlx5e_rx_res;
-struct mlx5e_priv;
 
 #ifdef CONFIG_MLX5_EN_ARFS
 struct mlx5e_arfs_tables;
@@ -133,11 +132,15 @@ int mlx5e_create_ttc_table(struct mlx5e_flow_steering  *fs,
 
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
 
-void mlx5e_enable_cvlan_filter(struct mlx5e_priv *priv);
-void mlx5e_disable_cvlan_filter(struct mlx5e_priv *priv);
+void mlx5e_enable_cvlan_filter(struct mlx5e_flow_steering *fs, bool promisc);
+void mlx5e_disable_cvlan_filter(struct mlx5e_flow_steering *fs, bool promisc);
 
-int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
-void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
+int mlx5e_create_flow_steering(struct mlx5e_flow_steering *fs,
+			       struct mlx5e_rx_res *rx_res,
+			       const struct mlx5e_profile *profile,
+			       struct net_device *netdev);
+void mlx5e_destroy_flow_steering(struct mlx5e_flow_steering *fs, bool ntuple,
+				 const struct mlx5e_profile *profile);
 
 struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 					  struct mlx5_core_dev *mdev,
@@ -172,10 +175,10 @@ void mlx5e_fs_set_state_destroy(struct mlx5e_flow_steering *fs, bool state_destr
 void mlx5e_fs_set_vlan_strip_disable(struct mlx5e_flow_steering *fs, bool vlan_strip_disable);
 
 struct mlx5_core_dev *mlx5e_fs_get_mdev(struct mlx5e_flow_steering *fs);
-int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
-void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
-int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
-void mlx5e_remove_mac_trap(struct mlx5e_priv *priv);
+int mlx5e_add_vlan_trap(struct mlx5e_flow_steering *fs, int  trap_id, int tir_num);
+void mlx5e_remove_vlan_trap(struct mlx5e_flow_steering *fs);
+int mlx5e_add_mac_trap(struct mlx5e_flow_steering *fs, int  trap_id, int tir_num);
+void mlx5e_remove_mac_trap(struct mlx5e_flow_steering *fs);
 void mlx5e_fs_set_rx_mode_work(struct mlx5e_flow_steering *fs, struct net_device *netdev);
 int mlx5e_fs_vlan_rx_add_vid(struct mlx5e_flow_steering *fs,
 			     struct net_device *netdev,

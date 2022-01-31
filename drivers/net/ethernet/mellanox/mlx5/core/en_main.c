@@ -3669,9 +3669,11 @@ static int set_feature_cvlan_filter(struct net_device *netdev, bool enable)
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
 	if (enable)
-		mlx5e_enable_cvlan_filter(priv);
+		mlx5e_enable_cvlan_filter(priv->fs,
+					  !!(priv->netdev->flags & IFF_PROMISC));
 	else
-		mlx5e_disable_cvlan_filter(priv);
+		mlx5e_disable_cvlan_filter(priv->fs,
+					   !!(priv->netdev->flags & IFF_PROMISC));
 
 	return 0;
 }
@@ -5105,7 +5107,8 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_close_drop_rq;
 
-	err = mlx5e_create_flow_steering(priv);
+	err = mlx5e_create_flow_steering(priv->fs, priv->rx_res, priv->profile,
+					 priv->netdev);
 	if (err) {
 		mlx5_core_warn(mdev, "create flow steering failed, %d\n", err);
 		goto err_destroy_rx_res;
@@ -5128,7 +5131,8 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 err_tc_nic_cleanup:
 	mlx5e_tc_nic_cleanup(priv);
 err_destroy_flow_steering:
-	mlx5e_destroy_flow_steering(priv);
+	mlx5e_destroy_flow_steering(priv->fs, !!(priv->netdev->hw_features & NETIF_F_NTUPLE),
+				    priv->profile);
 err_destroy_rx_res:
 	mlx5e_rx_res_destroy(priv->rx_res);
 err_close_drop_rq:
@@ -5144,7 +5148,8 @@ static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 {
 	mlx5e_accel_cleanup_rx(priv);
 	mlx5e_tc_nic_cleanup(priv);
-	mlx5e_destroy_flow_steering(priv);
+	mlx5e_destroy_flow_steering(priv->fs, !!(priv->netdev->hw_features & NETIF_F_NTUPLE),
+				    priv->profile);
 	mlx5e_rx_res_destroy(priv->rx_res);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_destroy_q_counters(priv);
