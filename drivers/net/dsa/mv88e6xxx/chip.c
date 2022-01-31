@@ -86,12 +86,16 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val)
 int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
 			u16 mask, u16 val)
 {
+	const unsigned long timeout = jiffies + msecs_to_jiffies(50);
 	u16 data;
 	int err;
 	int i;
 
-	/* There's no bus specific operation to wait for a mask */
-	for (i = 0; i < 16; i++) {
+	/* There's no bus specific operation to wait for a mask. Even
+	 * if the initial poll takes longer than 50ms, always do at
+	 * least one more attempt.
+	 */
+	for (i = 0; time_before(jiffies, timeout) || (i < 2); i++) {
 		err = mv88e6xxx_read(chip, addr, reg, &data);
 		if (err)
 			return err;
@@ -99,7 +103,10 @@ int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
 		if ((data & mask) == val)
 			return 0;
 
-		usleep_range(1000, 2000);
+		if (i < 2)
+			cpu_relax();
+		else
+			usleep_range(1000, 2000);
 	}
 
 	dev_err(chip->dev, "Timeout while waiting for switch\n");
