@@ -96,7 +96,7 @@ fib_rule6_del()
 
 fib_rule6_del_by_pref()
 {
-	pref=$($IP -6 rule show | grep "$1 lookup $TABLE" | cut -d ":" -f 1)
+	pref=$($IP -6 rule show $1 table $RTABLE | cut -d ":" -f 1)
 	$IP -6 rule del pref $pref
 }
 
@@ -168,7 +168,7 @@ fib_rule4_del()
 
 fib_rule4_del_by_pref()
 {
-	pref=$($IP rule show | grep "$1 lookup $TABLE" | cut -d ":" -f 1)
+	pref=$($IP rule show $1 table $RTABLE | cut -d ":" -f 1)
 	$IP rule del pref $pref
 }
 
