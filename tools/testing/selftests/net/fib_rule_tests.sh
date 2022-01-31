@@ -115,6 +115,9 @@ fib_rule6_test_match_n_redirect()
 
 fib_rule6_test()
 {
+	local getmatch
+	local match
+
 	# setup the fib rule redirect route
 	$IP -6 route add table $RTABLE default via $GW_IP6 dev $DEV onlink
 
@@ -184,6 +187,9 @@ fib_rule4_test_match_n_redirect()
 
 fib_rule4_test()
 {
+	local getmatch
+	local match
+
 	# setup the fib rule redirect route
 	$IP route add table $RTABLE default via $GW_IP4 dev $DEV onlink
 
