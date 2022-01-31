@@ -4356,13 +4356,13 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 		spin_lock(&block_group->lock);
 		if (test_and_clear_bit(BLOCK_GROUP_FLAG_IREF,
 				       &block_group->runtime_flags)) {
-			struct inode *inode = block_group->inode;
+			struct btrfs_inode *inode = block_group->inode;
 
 			block_group->inode = NULL;
 			spin_unlock(&block_group->lock);
 
 			ASSERT(block_group->io_ctl.inode == NULL);
-			iput(inode);
+			iput(&inode->vfs_inode);
 		} else {
 			spin_unlock(&block_group->lock);
 		}

@@ -137,7 +137,7 @@ struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,
 
 	spin_lock(&block_group->lock);
 	if (block_group->inode)
-		inode = igrab(block_group->inode);
+		inode = igrab(&block_group->inode->vfs_inode);
 	spin_unlock(&block_group->lock);
 	if (inode)
 		return inode;
@@ -156,7 +156,7 @@ struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,
 	}
 
 	if (!test_and_set_bit(BLOCK_GROUP_FLAG_IREF, &block_group->runtime_flags))
-		block_group->inode = igrab(inode);
+		block_group->inode = BTRFS_I(igrab(inode));
 	spin_unlock(&block_group->lock);
 
 	return inode;

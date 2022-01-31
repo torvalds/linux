@@ -115,7 +115,7 @@ struct btrfs_caching_control {
 
 struct btrfs_block_group {
 	struct btrfs_fs_info *fs_info;
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	spinlock_t lock;
 	u64 start;
 	u64 length;
