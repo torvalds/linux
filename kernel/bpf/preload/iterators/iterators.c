@@ -37,7 +37,6 @@ static int send_link_to_kernel(struct bpf_link *link, const char *link_name)
 
 int main(int argc, char **argv)
 {
-	struct rlimit rlim = { RLIM_INFINITY, RLIM_INFINITY };
 	struct iterators_bpf *skel;
 	int err, magic;
 	int debug_fd;
@@ -55,7 +54,6 @@ int main(int argc, char **argv)
 		printf("bad start magic %d\n", magic);
 		return 1;
 	}
-	setrlimit(RLIMIT_MEMLOCK, &rlim);
 	/* libbpf opens BPF object and loads it into the kernel */
 	skel = iterators_bpf__open_and_load();
 	if (!skel) {
