@@ -131,6 +131,7 @@ struct lan966x {
 	/* interrupts */
 	int xtr_irq;
 	int ana_irq;
+	int ptp_irq;
 
 	/* worqueue for fdb */
 	struct workqueue_struct *fdb_work;
@@ -276,6 +277,7 @@ int lan966x_ptp_txtstamp_request(struct lan966x_port *port,
 				 struct sk_buff *skb);
 void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
 				  struct sk_buff *skb);
+irqreturn_t lan966x_ptp_irq_handler(int irq, void *args);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

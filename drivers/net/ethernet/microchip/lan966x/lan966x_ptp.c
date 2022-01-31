@@ -204,6 +204,123 @@ void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
 	spin_unlock_irqrestore(&lan966x->ptp_ts_id_lock, flags);
 }
 
+static void lan966x_get_hwtimestamp(struct lan966x *lan966x,
+				    struct timespec64 *ts,
+				    u32 nsec)
+{
+	/* Read current PTP time to get seconds */
+	unsigned long flags;
+	u32 curr_nsec;
+
+	spin_lock_irqsave(&lan966x->ptp_clock_lock, flags);
+
+	lan_rmw(PTP_PIN_CFG_PIN_ACTION_SET(PTP_PIN_ACTION_SAVE) |
+		PTP_PIN_CFG_PIN_DOM_SET(LAN966X_PHC_PORT) |
+		PTP_PIN_CFG_PIN_SYNC_SET(0),
+		PTP_PIN_CFG_PIN_ACTION |
+		PTP_PIN_CFG_PIN_DOM |
+		PTP_PIN_CFG_PIN_SYNC,
+		lan966x, PTP_PIN_CFG(TOD_ACC_PIN));
+
+	ts->tv_sec = lan_rd(lan966x, PTP_TOD_SEC_LSB(TOD_ACC_PIN));
+	curr_nsec = lan_rd(lan966x, PTP_TOD_NSEC(TOD_ACC_PIN));
+
+	ts->tv_nsec = nsec;
+
+	/* Sec has incremented since the ts was registered */
+	if (curr_nsec < nsec)
+		ts->tv_sec--;
+
+	spin_unlock_irqrestore(&lan966x->ptp_clock_lock, flags);
+}
+
+irqreturn_t lan966x_ptp_irq_handler(int irq, void *args)
+{
+	int budget = LAN966X_MAX_PTP_ID;
+	struct lan966x *lan966x = args;
+
+	while (budget--) {
+		struct sk_buff *skb, *skb_tmp, *skb_match = NULL;
+		struct skb_shared_hwtstamps shhwtstamps;
+		struct lan966x_port *port;
+		struct timespec64 ts;
+		unsigned long flags;
+		u32 val, id, txport;
+		u32 delay;
+
+		val = lan_rd(lan966x, PTP_TWOSTEP_CTRL);
+
+		/* Check if a timestamp can be retrieved */
+		if (!(val & PTP_TWOSTEP_CTRL_VLD))
+			break;
+
+		WARN_ON(val & PTP_TWOSTEP_CTRL_OVFL);
+
+		if (!(val & PTP_TWOSTEP_CTRL_STAMP_TX))
+			continue;
+
+		/* Retrieve the ts Tx port */
+		txport = PTP_TWOSTEP_CTRL_STAMP_PORT_GET(val);
+
+		/* Retrieve its associated skb */
+		port = lan966x->ports[txport];
+
+		/* Retrieve the delay */
+		delay = lan_rd(lan966x, PTP_TWOSTEP_STAMP);
+		delay = PTP_TWOSTEP_STAMP_STAMP_NSEC_GET(delay);
+
+		/* Get next timestamp from fifo, which needs to be the
+		 * rx timestamp which represents the id of the frame
+		 */
+		lan_rmw(PTP_TWOSTEP_CTRL_NXT_SET(1),
+			PTP_TWOSTEP_CTRL_NXT,
+			lan966x, PTP_TWOSTEP_CTRL);
+
+		val = lan_rd(lan966x, PTP_TWOSTEP_CTRL);
+
+		/* Check if a timestamp can be retried */
+		if (!(val & PTP_TWOSTEP_CTRL_VLD))
+			break;
+
+		/* Read RX timestamping to get the ID */
+		id = lan_rd(lan966x, PTP_TWOSTEP_STAMP);
+
+		spin_lock_irqsave(&port->tx_skbs.lock, flags);
+		skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
+			if (LAN966X_SKB_CB(skb)->ts_id != id)
+				continue;
+
+			__skb_unlink(skb, &port->tx_skbs);
+			skb_match = skb;
+			break;
+		}
+		spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
+
+		/* Next ts */
+		lan_rmw(PTP_TWOSTEP_CTRL_NXT_SET(1),
+			PTP_TWOSTEP_CTRL_NXT,
+			lan966x, PTP_TWOSTEP_CTRL);
+
+		if (WARN_ON(!skb_match))
+			continue;
+
+		spin_lock(&lan966x->ptp_ts_id_lock);
+		lan966x->ptp_skbs--;
+		spin_unlock(&lan966x->ptp_ts_id_lock);
+
+		/* Get the h/w timestamp */
+		lan966x_get_hwtimestamp(lan966x, &ts, delay);
+
+		/* Set the timestamp into the skb */
+		shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
+		skb_tstamp_tx(skb_match, &shhwtstamps);
+
+		dev_kfree_skb_any(skb_match);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int lan966x_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct lan966x_phc *phc = container_of(ptp, struct lan966x_phc, info);

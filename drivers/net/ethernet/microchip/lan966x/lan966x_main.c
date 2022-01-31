@@ -957,6 +957,17 @@ static int lan966x_probe(struct platform_device *pdev)
 			return dev_err_probe(&pdev->dev, err, "Unable to use ana irq");
 	}
 
+	lan966x->ptp_irq = platform_get_irq_byname(pdev, "ptp");
+	if (lan966x->ptp_irq > 0) {
+		err = devm_request_threaded_irq(&pdev->dev, lan966x->ptp_irq, NULL,
+						lan966x_ptp_irq_handler, IRQF_ONESHOT,
+						"ptp irq", lan966x);
+		if (err)
+			return dev_err_probe(&pdev->dev, err, "Unable to use ptp irq");
+
+		lan966x->ptp = 1;
+	}
+
 	/* init switch */
 	lan966x_init(lan966x);
 	lan966x_stats_init(lan966x);
