@@ -199,7 +199,9 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 
 	BUG_ON(adev->mman.buffer_funcs->copy_max_bytes <
 	       AMDGPU_GTT_MAX_TRANSFER_SIZE * 8);
-	BUG_ON(mem->mem_type == AMDGPU_PL_PREEMPT);
+
+	if (WARN_ON(mem->mem_type == AMDGPU_PL_PREEMPT))
+		return -EINVAL;
 
 	/* Map only what can't be accessed directly */
 	if (!tmz && mem->start != AMDGPU_BO_INVALID_OFFSET) {
