@@ -21,7 +21,7 @@ tc_act_can_offload_ct(struct mlx5e_tc_act_parse_state *parse_state,
 	}
 
 	if (parse_state->ct && !clear_action) {
-		NL_SET_ERR_MSG_MOD(extack, "Multiple CT actions are not supoported");
+		NL_SET_ERR_MSG_MOD(extack, "Multiple CT actions are not supported");
 		return false;
 	}
 
