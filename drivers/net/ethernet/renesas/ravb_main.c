@@ -2848,7 +2848,6 @@ static int ravb_wol_restore(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	const struct ravb_hw_info *info = priv->info;
-	int ret;
 
 	if (info->nc_queues)
 		napi_enable(&priv->napi[RAVB_NC]);
@@ -2857,9 +2856,7 @@ static int ravb_wol_restore(struct net_device *ndev)
 	/* Disable MagicPacket */
 	ravb_modify(ndev, ECMR, ECMR_MPDE, 0);
 
-	ret = ravb_close(ndev);
-	if (ret < 0)
-		return ret;
+	ravb_close(ndev);
 
 	return disable_irq_wake(priv->emac_irq);
 }
