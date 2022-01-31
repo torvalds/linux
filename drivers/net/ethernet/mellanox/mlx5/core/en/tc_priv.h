@@ -11,7 +11,6 @@
 
 #define MLX5E_TC_MAX_SPLITS 1
 
-#define mlx5e_nic_chains(priv) ((priv)->fs.tc->chains)
 
 enum {
 	MLX5E_TC_FLOW_FLAG_INGRESS               = MLX5E_TC_FLAG_INGRESS_BIT,
@@ -43,6 +42,8 @@ struct mlx5e_tc_flow_parse_attr {
 	int mirred_ifindex[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5e_tc_act_parse_state parse_state;
 };
+
+struct mlx5_fs_chains *mlx5e_nic_chains(struct mlx5e_tc_table *tc);
 
 /* Helper struct for accessing a struct containing list_head array.
  * Containing struct

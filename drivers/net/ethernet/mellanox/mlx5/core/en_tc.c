@@ -71,6 +71,30 @@
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
 #define MLX5E_TC_TABLE_MAX_GROUP_SIZE BIT(18)
 
+struct mlx5e_tc_table {
+	/* Protects the dynamic assignment of the t parameter
+	 * which is the nic tc root table.
+	 */
+	struct mutex			t_lock;
+	struct mlx5e_priv		*priv;
+	struct mlx5_flow_table		*t;
+	struct mlx5_flow_table		*miss_t;
+	struct mlx5_fs_chains           *chains;
+	struct mlx5e_post_act		*post_act;
+
+	struct rhashtable               ht;
+
+	struct mod_hdr_tbl mod_hdr;
+	struct mutex hairpin_tbl_lock; /* protects hairpin_tbl */
+	DECLARE_HASHTABLE(hairpin_tbl, 8);
+
+	struct notifier_block     netdevice_nb;
+	struct netdev_net_notifier	netdevice_nn;
+
+	struct mlx5_tc_ct_priv         *ct;
+	struct mapping_ctx             *mapping;
+};
+
 struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
 	[CHAIN_TO_REG] = {
 		.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_0,
@@ -107,6 +131,24 @@ struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
 	[NIC_ZONE_RESTORE_TO_REG] = nic_zone_restore_to_reg_ct,
 	[PACKET_COLOR_TO_REG] = packet_color_to_reg,
 };
+
+struct mlx5e_tc_table *mlx5e_tc_table_alloc(void)
+{
+	struct mlx5e_tc_table *tc;
+
+	tc = kvzalloc(sizeof(*tc), GFP_KERNEL);
+	return tc ? tc : ERR_PTR(-ENOMEM);
+}
+
+void mlx5e_tc_table_free(struct mlx5e_tc_table *tc)
+{
+	kvfree(tc);
+}
+
+struct mlx5_fs_chains *mlx5e_nic_chains(struct mlx5e_tc_table *tc)
+{
+	return tc->chains;
+}
 
 /* To avoid false lock dependency warning set the tc_ht lock
  * class different than the lock class of the ht being used when deleting
@@ -1084,10 +1126,10 @@ mlx5e_add_offloaded_nic_rule(struct mlx5e_priv *priv,
 			     struct mlx5_flow_attr *attr)
 {
 	struct mlx5_flow_context *flow_context = &spec->flow_context;
-	struct mlx5_fs_chains *nic_chains = mlx5e_nic_chains(priv);
 	struct mlx5_nic_flow_attr *nic_attr = attr->nic_attr;
 	struct mlx5e_tc_table *tc = priv->fs.tc;
 	struct mlx5_flow_destination dest[2] = {};
+	struct mlx5_fs_chains *nic_chains;
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
 		.flags    = FLOW_ACT_NO_APPEND,
@@ -1096,6 +1138,7 @@ mlx5e_add_offloaded_nic_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_table *ft;
 	int dest_ix = 0;
 
+	nic_chains = mlx5e_nic_chains(tc);
 	flow_context->flags |= FLOW_CONTEXT_HAS_TAG;
 	flow_context->flow_tag = nic_attr->flow_tag;
 
@@ -1250,7 +1293,7 @@ void mlx5e_del_offloaded_nic_rule(struct mlx5e_priv *priv,
 				  struct mlx5_flow_handle *rule,
 				  struct mlx5_flow_attr *attr)
 {
-	struct mlx5_fs_chains *nic_chains = mlx5e_nic_chains(priv);
+	struct mlx5_fs_chains *nic_chains = mlx5e_nic_chains(priv->fs.tc);
 
 	mlx5_del_flow_rules(rule);
 
@@ -1282,7 +1325,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	mutex_lock(&priv->fs.tc->t_lock);
 	if (!mlx5e_tc_num_filters(priv, MLX5_TC_FLAG(NIC_OFFLOAD)) &&
 	    !IS_ERR_OR_NULL(tc->t)) {
-		mlx5_chains_put_table(mlx5e_nic_chains(priv), 0, 1, MLX5E_TC_FT_LEVEL);
+		mlx5_chains_put_table(mlx5e_nic_chains(tc), 0, 1, MLX5E_TC_FT_LEVEL);
 		priv->fs.tc->t = NULL;
 	}
 	mutex_unlock(&priv->fs.tc->t_lock);

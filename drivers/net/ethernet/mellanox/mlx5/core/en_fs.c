@@ -38,6 +38,7 @@
 #include <linux/mlx5/mpfs.h>
 #include "en.h"
 #include "en_rep.h"
+#include "en_tc.h"
 #include "lib/mpfs.h"
 #include "en/ptp.h"
 
@@ -1347,9 +1348,11 @@ int mlx5e_fs_init(struct mlx5e_priv *priv)
 	priv->fs.vlan = kvzalloc(sizeof(*priv->fs.vlan), GFP_KERNEL);
 	if (!priv->fs.vlan)
 		goto err;
-	priv->fs.tc = kvzalloc(sizeof(*priv->fs.tc), GFP_KERNEL);
-	if (!priv->fs.tc)
+
+	priv->fs.tc = mlx5e_tc_table_alloc();
+	if (IS_ERR(priv->fs.tc))
 		goto err_free_vlan;
+
 	return 0;
 err_free_vlan:
 	kvfree(priv->fs.vlan);
@@ -1360,7 +1363,7 @@ err:
 
 void mlx5e_fs_cleanup(struct mlx5e_priv *priv)
 {
-	kvfree(priv->fs.tc);
+	mlx5e_tc_table_free(priv->fs.tc);
 	kvfree(priv->fs.vlan);
 	priv->fs.vlan = NULL;
 }

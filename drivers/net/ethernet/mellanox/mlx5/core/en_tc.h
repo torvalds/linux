@@ -356,6 +356,8 @@ mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
 #endif
 
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+struct mlx5e_tc_table *mlx5e_tc_table_alloc(void);
+void mlx5e_tc_table_free(struct mlx5e_tc_table *tc);
 static inline bool mlx5e_cqe_regb_chain(struct mlx5_cqe64 *cqe)
 {
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
@@ -376,6 +378,8 @@ static inline bool mlx5e_cqe_regb_chain(struct mlx5_cqe64 *cqe)
 
 bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe, struct sk_buff *skb);
 #else /* CONFIG_MLX5_CLS_ACT */
+static inline struct mlx5e_tc_table *mlx5e_tc_table_alloc(void) { return NULL; }
+static inline void mlx5e_tc_table_free(struct mlx5e_tc_table *tc) {}
 static inline bool mlx5e_cqe_regb_chain(struct mlx5_cqe64 *cqe)
 { return false; }
 static inline bool
