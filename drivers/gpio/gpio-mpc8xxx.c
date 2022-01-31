@@ -388,8 +388,8 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	}
 
 	mpc8xxx_gc->irqn = platform_get_irq(pdev, 0);
-	if (!mpc8xxx_gc->irqn)
-		return 0;
+	if (mpc8xxx_gc->irqn < 0)
+		return mpc8xxx_gc->irqn;
 
 	mpc8xxx_gc->irq = irq_domain_create_linear(fwnode,
 						   MPC8XXX_GPIO_PINS,

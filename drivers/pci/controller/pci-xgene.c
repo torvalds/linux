@@ -466,7 +466,7 @@ static int xgene_pcie_select_ib_reg(u8 *ib_reg_mask, u64 size)
 		return 1;
 	}
 
-	if ((size > SZ_1K) && (size < SZ_1T) && !(*ib_reg_mask & (1 << 0))) {
+	if ((size > SZ_1K) && (size < SZ_4G) && !(*ib_reg_mask & (1 << 0))) {
 		*ib_reg_mask |= (1 << 0);
 		return 0;
 	}

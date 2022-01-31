@@ -161,10 +161,10 @@ static void cec_queue_event(struct cec_adapter *adap,
 	u64 ts = ktime_get_ns();
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock);
+	mutex_lock(&adap->devnode.lock_fhs);
 	list_for_each_entry(fh, &adap->devnode.fhs, list)
 		cec_queue_event_fh(fh, ev, ts);
-	mutex_unlock(&adap->devnode.lock);
+	mutex_unlock(&adap->devnode.lock_fhs);
 }
 
 /* Notify userspace that the CEC pin changed state at the given time. */
@@ -178,11 +178,12 @@ void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high,
 	};
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock);
-	list_for_each_entry(fh, &adap->devnode.fhs, list)
+	mutex_lock(&adap->devnode.lock_fhs);
+	list_for_each_entry(fh, &adap->devnode.fhs, list) {
 		if (fh->mode_follower == CEC_MODE_MONITOR_PIN)
 			cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
-	mutex_unlock(&adap->devnode.lock);
+	}
+	mutex_unlock(&adap->devnode.lock_fhs);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_cec_event);
 
@@ -195,10 +196,10 @@ void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	};
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock);
+	mutex_lock(&adap->devnode.lock_fhs);
 	list_for_each_entry(fh, &adap->devnode.fhs, list)
 		cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
-	mutex_unlock(&adap->devnode.lock);
+	mutex_unlock(&adap->devnode.lock_fhs);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_hpd_event);
 
@@ -211,10 +212,10 @@ void cec_queue_pin_5v_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	};
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock);
+	mutex_lock(&adap->devnode.lock_fhs);
 	list_for_each_entry(fh, &adap->devnode.fhs, list)
 		cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
-	mutex_unlock(&adap->devnode.lock);
+	mutex_unlock(&adap->devnode.lock_fhs);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_5v_event);
 
@@ -286,12 +287,12 @@ static void cec_queue_msg_monitor(struct cec_adapter *adap,
 	u32 monitor_mode = valid_la ? CEC_MODE_MONITOR :
 				      CEC_MODE_MONITOR_ALL;
 
-	mutex_lock(&adap->devnode.lock);
+	mutex_lock(&adap->devnode.lock_fhs);
 	list_for_each_entry(fh, &adap->devnode.fhs, list) {
 		if (fh->mode_follower >= monitor_mode)
 			cec_queue_msg_fh(fh, msg);
 	}
-	mutex_unlock(&adap->devnode.lock);
+	mutex_unlock(&adap->devnode.lock_fhs);
 }
 
 /*
@@ -302,12 +303,12 @@ static void cec_queue_msg_followers(struct cec_adapter *adap,
 {
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.lock);
+	mutex_lock(&adap->devnode.lock_fhs);
 	list_for_each_entry(fh, &adap->devnode.fhs, list) {
 		if (fh->mode_follower == CEC_MODE_FOLLOWER)
 			cec_queue_msg_fh(fh, msg);
 	}
-	mutex_unlock(&adap->devnode.lock);
+	mutex_unlock(&adap->devnode.lock_fhs);
 }
 
 /* Notify userspace of an adapter state change. */
@@ -1573,6 +1574,7 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 		/* Disabling monitor all mode should always succeed */
 		if (adap->monitor_all_cnt)
 			WARN_ON(call_op(adap, adap_monitor_all_enable, false));
+		/* serialize adap_enable */
 		mutex_lock(&adap->devnode.lock);
 		if (adap->needs_hpd || list_empty(&adap->devnode.fhs)) {
 			WARN_ON(adap->ops->adap_enable(adap, false));
@@ -1584,14 +1586,16 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 			return;
 	}
 
+	/* serialize adap_enable */
 	mutex_lock(&adap->devnode.lock);
 	adap->last_initiator = 0xff;
 	adap->transmit_in_progress = false;
 
-	if ((adap->needs_hpd || list_empty(&adap->devnode.fhs)) &&
-	    adap->ops->adap_enable(adap, true)) {
-		mutex_unlock(&adap->devnode.lock);
-		return;
+	if (adap->needs_hpd || list_empty(&adap->devnode.fhs)) {
+		if (adap->ops->adap_enable(adap, true)) {
+			mutex_unlock(&adap->devnode.lock);
+			return;
+		}
 	}
 
 	if (adap->monitor_all_cnt &&

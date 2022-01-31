@@ -496,7 +496,7 @@ static int __hwrm_send(struct bnxt *bp, struct bnxt_hwrm_ctx *ctx)
 	}
 
 	/* Limit timeout to an upper limit */
-	timeout = min_t(uint, ctx->timeout, HWRM_CMD_MAX_TIMEOUT);
+	timeout = min(ctx->timeout, bp->hwrm_cmd_max_timeout ?: HWRM_CMD_MAX_TIMEOUT);
 	/* convert timeout to usec */
 	timeout *= 1000;
 

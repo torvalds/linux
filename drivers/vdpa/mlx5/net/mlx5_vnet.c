@@ -873,8 +873,6 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtque
 	MLX5_SET(virtio_q, vq_ctx, umem_3_id, mvq->umem3.id);
 	MLX5_SET(virtio_q, vq_ctx, umem_3_size, mvq->umem3.size);
 	MLX5_SET(virtio_q, vq_ctx, pd, ndev->mvdev.res.pdn);
-	if (MLX5_CAP_DEV_VDPA_EMULATION(ndev->mvdev.mdev, eth_frame_offload_type))
-		MLX5_SET(virtio_q, vq_ctx, virtio_version_1_0, 1);
 
 	err = mlx5_cmd_exec(ndev->mvdev.mdev, in, inlen, out, sizeof(out));
 	if (err)
@@ -1512,8 +1510,10 @@ static int change_num_qps(struct mlx5_vdpa_dev *mvdev, int newqps)
 	return 0;
 
 clean_added:
-	for (--i; i >= cur_qps; --i)
+	for (--i; i >= 2 * cur_qps; --i)
 		teardown_vq(ndev, &ndev->vqs[i]);
+
+	ndev->cur_num_vqs = 2 * cur_qps;
 
 	return err;
 }

@@ -1090,6 +1090,8 @@ static void virtio_uml_release_dev(struct device *d)
 			container_of(d, struct virtio_device, dev);
 	struct virtio_uml_device *vu_dev = to_virtio_uml_device(vdev);
 
+	time_travel_propagate_time();
+
 	/* might not have been opened due to not negotiating the feature */
 	if (vu_dev->req_fd >= 0) {
 		um_free_irq(vu_dev->irq, vu_dev);
@@ -1135,6 +1137,8 @@ static int virtio_uml_probe(struct platform_device *pdev)
 	vu_dev->vdev.id.vendor = VIRTIO_DEV_ANY_ID;
 	vu_dev->pdev = pdev;
 	vu_dev->req_fd = -1;
+
+	time_travel_propagate_time();
 
 	do {
 		rc = os_connect_socket(pdata->socket_path);

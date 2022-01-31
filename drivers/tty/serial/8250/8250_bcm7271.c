@@ -1076,14 +1076,18 @@ static int brcmuart_probe(struct platform_device *pdev)
 		priv->rx_bufs = dma_alloc_coherent(dev,
 						   priv->rx_size,
 						   &priv->rx_addr, GFP_KERNEL);
-		if (!priv->rx_bufs)
+		if (!priv->rx_bufs) {
+			ret = -EINVAL;
 			goto err;
+		}
 		priv->tx_size = UART_XMIT_SIZE;
 		priv->tx_buf = dma_alloc_coherent(dev,
 						  priv->tx_size,
 						  &priv->tx_addr, GFP_KERNEL);
-		if (!priv->tx_buf)
+		if (!priv->tx_buf) {
+			ret = -EINVAL;
 			goto err;
+		}
 	}
 
 	ret = serial8250_register_8250_port(&up);
@@ -1097,6 +1101,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 	if (priv->dma_enabled) {
 		dma_irq = platform_get_irq_byname(pdev,  "dma");
 		if (dma_irq < 0) {
+			ret = dma_irq;
 			dev_err(dev, "no IRQ resource info\n");
 			goto err1;
 		}
@@ -1116,7 +1121,7 @@ err1:
 err:
 	brcmuart_free_bufs(dev, priv);
 	brcmuart_arbitration(priv, 0);
-	return -ENODEV;
+	return ret;
 }
 
 static int brcmuart_remove(struct platform_device *pdev)

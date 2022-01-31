@@ -59,11 +59,8 @@
 #define VMWGFX_DRIVER_MINOR 19
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
-#define VMWGFX_MAX_RELOCATIONS 2048
-#define VMWGFX_MAX_VALIDATIONS 2048
 #define VMWGFX_MAX_DISPLAYS 16
 #define VMWGFX_CMD_BOUNCE_INIT_SIZE 32768
-#define VMWGFX_ENABLE_SCREEN_TARGET_OTABLE 1
 
 #define VMWGFX_PCI_ID_SVGA2              0x0405
 #define VMWGFX_PCI_ID_SVGA3              0x0406
@@ -82,8 +79,9 @@
 			VMWGFX_NUM_GB_SURFACE +\
 			VMWGFX_NUM_GB_SCREEN_TARGET)
 
-#define VMW_PL_GMR (TTM_PL_PRIV + 0)
-#define VMW_PL_MOB (TTM_PL_PRIV + 1)
+#define VMW_PL_GMR      (TTM_PL_PRIV + 0)
+#define VMW_PL_MOB      (TTM_PL_PRIV + 1)
+#define VMW_PL_SYSTEM   (TTM_PL_PRIV + 2)
 
 #define VMW_RES_CONTEXT ttm_driver_type0
 #define VMW_RES_SURFACE ttm_driver_type1
@@ -1039,7 +1037,6 @@ extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_vram_gmr_placement;
 extern struct ttm_placement vmw_sys_placement;
-extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_placement vmw_nonfixed_placement;
@@ -1115,15 +1112,14 @@ extern int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 				      struct vmw_private *dev_priv,
 				      struct vmw_fence_obj **p_fence,
 				      uint32_t *p_handle);
-extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
+extern int vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 					struct vmw_fpriv *vmw_fp,
 					int ret,
 					struct drm_vmw_fence_rep __user
 					*user_fence_rep,
 					struct vmw_fence_obj *fence,
 					uint32_t fence_handle,
-					int32_t out_fence_fd,
-					struct sync_file *sync_file);
+					int32_t out_fence_fd);
 bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
 
 /**
@@ -1250,6 +1246,12 @@ int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv);
 
 int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type);
 void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type);
+
+/**
+ * System memory manager
+ */
+int vmw_sys_man_init(struct vmw_private *dev_priv);
+void vmw_sys_man_fini(struct vmw_private *dev_priv);
 
 /**
  * Prime - vmwgfx_prime.c
@@ -1551,11 +1553,6 @@ void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf);
 vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf);
 
-/* Transparent hugepage support - vmwgfx_thp.c */
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-extern int vmw_thp_init(struct vmw_private *dev_priv);
-void vmw_thp_fini(struct vmw_private *dev_priv);
-#endif
 
 /**
  * VMW_DEBUG_KMS - Debug output for kernel mode-setting

@@ -262,7 +262,7 @@ static int sdev_runtime_resume(struct device *dev)
 	blk_pre_runtime_resume(sdev->request_queue);
 	if (pm && pm->runtime_resume)
 		err = pm->runtime_resume(dev);
-	blk_post_runtime_resume(sdev->request_queue, err);
+	blk_post_runtime_resume(sdev->request_queue);
 
 	return err;
 }

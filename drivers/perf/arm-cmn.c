@@ -1561,7 +1561,8 @@ static int arm_cmn_probe(struct platform_device *pdev)
 
 	err = perf_pmu_register(&cmn->pmu, name, -1);
 	if (err)
-		cpuhp_state_remove_instance(arm_cmn_hp_state, &cmn->cpuhp_node);
+		cpuhp_state_remove_instance_nocalls(arm_cmn_hp_state, &cmn->cpuhp_node);
+
 	return err;
 }
 
@@ -1572,7 +1573,7 @@ static int arm_cmn_remove(struct platform_device *pdev)
 	writel_relaxed(0, cmn->dtc[0].base + CMN_DT_DTC_CTL);
 
 	perf_pmu_unregister(&cmn->pmu);
-	cpuhp_state_remove_instance(arm_cmn_hp_state, &cmn->cpuhp_node);
+	cpuhp_state_remove_instance_nocalls(arm_cmn_hp_state, &cmn->cpuhp_node);
 	return 0;
 }
 

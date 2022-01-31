@@ -1932,6 +1932,13 @@ out_unhook_irq:
 	return -EINVAL;
 }
 
+static void osnoise_unhook_events(void)
+{
+	unhook_thread_events();
+	unhook_softirq_events();
+	unhook_irq_events();
+}
+
 static int __osnoise_tracer_start(struct trace_array *tr)
 {
 	int retval;
@@ -1949,7 +1956,14 @@ static int __osnoise_tracer_start(struct trace_array *tr)
 
 	retval = start_per_cpu_kthreads(tr);
 	if (retval) {
-		unhook_irq_events();
+		trace_osnoise_callback_enabled = false;
+		/*
+		 * Make sure that ftrace_nmi_enter/exit() see
+		 * trace_osnoise_callback_enabled as false before continuing.
+		 */
+		barrier();
+
+		osnoise_unhook_events();
 		return retval;
 	}
 
@@ -1981,9 +1995,7 @@ static void osnoise_tracer_stop(struct trace_array *tr)
 
 	stop_per_cpu_kthreads();
 
-	unhook_irq_events();
-	unhook_softirq_events();
-	unhook_thread_events();
+	osnoise_unhook_events();
 
 	osnoise_busy = false;
 }

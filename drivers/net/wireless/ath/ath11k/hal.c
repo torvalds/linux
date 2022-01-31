@@ -947,6 +947,7 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 	srng->msi_data = params->msi_data;
 	srng->initialized = 1;
 	spin_lock_init(&srng->lock);
+	lockdep_set_class(&srng->lock, hal->srng_key + ring_id);
 
 	for (i = 0; i < HAL_SRNG_NUM_REG_GRP; i++) {
 		srng->hwreg_base[i] = srng_config->reg_start[i] +
@@ -1233,6 +1234,24 @@ static int ath11k_hal_srng_create_config(struct ath11k_base *ab)
 	return 0;
 }
 
+static void ath11k_hal_register_srng_key(struct ath11k_base *ab)
+{
+	struct ath11k_hal *hal = &ab->hal;
+	u32 ring_id;
+
+	for (ring_id = 0; ring_id < HAL_SRNG_RING_ID_MAX; ring_id++)
+		lockdep_register_key(hal->srng_key + ring_id);
+}
+
+static void ath11k_hal_unregister_srng_key(struct ath11k_base *ab)
+{
+	struct ath11k_hal *hal = &ab->hal;
+	u32 ring_id;
+
+	for (ring_id = 0; ring_id < HAL_SRNG_RING_ID_MAX; ring_id++)
+		lockdep_unregister_key(hal->srng_key + ring_id);
+}
+
 int ath11k_hal_srng_init(struct ath11k_base *ab)
 {
 	struct ath11k_hal *hal = &ab->hal;
@@ -1252,6 +1271,8 @@ int ath11k_hal_srng_init(struct ath11k_base *ab)
 	if (ret)
 		goto err_free_cont_rdp;
 
+	ath11k_hal_register_srng_key(ab);
+
 	return 0;
 
 err_free_cont_rdp:
@@ -1266,6 +1287,7 @@ void ath11k_hal_srng_deinit(struct ath11k_base *ab)
 {
 	struct ath11k_hal *hal = &ab->hal;
 
+	ath11k_hal_unregister_srng_key(ab);
 	ath11k_hal_free_cont_rdp(ab);
 	ath11k_hal_free_cont_wrp(ab);
 	kfree(hal->srng_config);

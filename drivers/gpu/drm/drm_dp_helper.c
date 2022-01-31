@@ -3214,27 +3214,13 @@ int drm_edp_backlight_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
 			     const u16 level)
 {
 	int ret;
-	u8 dpcd_buf, new_dpcd_buf;
+	u8 dpcd_buf = DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
 
-	ret = drm_dp_dpcd_readb(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &dpcd_buf);
-	if (ret != 1) {
-		drm_dbg_kms(aux->drm_dev,
-			    "%s: Failed to read backlight mode: %d\n", aux->name, ret);
-		return ret < 0 ? ret : -EIO;
-	}
-
-	new_dpcd_buf = dpcd_buf;
-
-	if ((dpcd_buf & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK) != DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD) {
-		new_dpcd_buf &= ~DP_EDP_BACKLIGHT_CONTROL_MODE_MASK;
-		new_dpcd_buf |= DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
-
-		if (bl->pwmgen_bit_count) {
-			ret = drm_dp_dpcd_writeb(aux, DP_EDP_PWMGEN_BIT_COUNT, bl->pwmgen_bit_count);
-			if (ret != 1)
-				drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux pwmgen bit count: %d\n",
-					    aux->name, ret);
-		}
+	if (bl->pwmgen_bit_count) {
+		ret = drm_dp_dpcd_writeb(aux, DP_EDP_PWMGEN_BIT_COUNT, bl->pwmgen_bit_count);
+		if (ret != 1)
+			drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux pwmgen bit count: %d\n",
+				    aux->name, ret);
 	}
 
 	if (bl->pwm_freq_pre_divider) {
@@ -3244,16 +3230,14 @@ int drm_edp_backlight_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
 				    "%s: Failed to write aux backlight frequency: %d\n",
 				    aux->name, ret);
 		else
-			new_dpcd_buf |= DP_EDP_BACKLIGHT_FREQ_AUX_SET_ENABLE;
+			dpcd_buf |= DP_EDP_BACKLIGHT_FREQ_AUX_SET_ENABLE;
 	}
 
-	if (new_dpcd_buf != dpcd_buf) {
-		ret = drm_dp_dpcd_writeb(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, new_dpcd_buf);
-		if (ret != 1) {
-			drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux backlight mode: %d\n",
-				    aux->name, ret);
-			return ret < 0 ? ret : -EIO;
-		}
+	ret = drm_dp_dpcd_writeb(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, dpcd_buf);
+	if (ret != 1) {
+		drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux backlight mode: %d\n",
+			    aux->name, ret);
+		return ret < 0 ? ret : -EIO;
 	}
 
 	ret = drm_edp_backlight_set_level(aux, bl, level);

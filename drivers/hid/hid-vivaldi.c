@@ -74,10 +74,11 @@ static void vivaldi_feature_mapping(struct hid_device *hdev,
 				    struct hid_usage *usage)
 {
 	struct vivaldi_data *drvdata = hid_get_drvdata(hdev);
+	struct hid_report *report = field->report;
 	int fn_key;
 	int ret;
 	u32 report_len;
-	u8 *buf;
+	u8 *report_data, *buf;
 
 	if (field->logical != HID_USAGE_FN_ROW_PHYSMAP ||
 	    (usage->hid & HID_USAGE_PAGE) != HID_UP_ORDINAL)
@@ -89,12 +90,24 @@ static void vivaldi_feature_mapping(struct hid_device *hdev,
 	if (fn_key > drvdata->max_function_row_key)
 		drvdata->max_function_row_key = fn_key;
 
-	buf = hid_alloc_report_buf(field->report, GFP_KERNEL);
-	if (!buf)
+	report_data = buf = hid_alloc_report_buf(report, GFP_KERNEL);
+	if (!report_data)
 		return;
 
-	report_len = hid_report_len(field->report);
-	ret = hid_hw_raw_request(hdev, field->report->id, buf,
+	report_len = hid_report_len(report);
+	if (!report->id) {
+		/*
+		 * hid_hw_raw_request() will stuff report ID (which will be 0)
+		 * into the first byte of the buffer even for unnumbered
+		 * reports, so we need to account for this to avoid getting
+		 * -EOVERFLOW in return.
+		 * Note that hid_alloc_report_buf() adds 7 bytes to the size
+		 * so we can safely say that we have space for an extra byte.
+		 */
+		report_len++;
+	}
+
+	ret = hid_hw_raw_request(hdev, report->id, report_data,
 				 report_len, HID_FEATURE_REPORT,
 				 HID_REQ_GET_REPORT);
 	if (ret < 0) {
@@ -103,7 +116,16 @@ static void vivaldi_feature_mapping(struct hid_device *hdev,
 		goto out;
 	}
 
-	ret = hid_report_raw_event(hdev, HID_FEATURE_REPORT, buf,
+	if (!report->id) {
+		/*
+		 * Undo the damage from hid_hw_raw_request() for unnumbered
+		 * reports.
+		 */
+		report_data++;
+		report_len--;
+	}
+
+	ret = hid_report_raw_event(hdev, HID_FEATURE_REPORT, report_data,
 				   report_len, 0);
 	if (ret) {
 		dev_warn(&hdev->dev, "failed to report feature %d\n",

@@ -691,6 +691,11 @@ static void stm32_usart_shutdown(struct uart_port *port)
 	u32 val, isr;
 	int ret;
 
+	if (stm32_port->tx_dma_busy) {
+		dmaengine_terminate_async(stm32_port->tx_ch);
+		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAT);
+	}
+
 	/* Disable modem control interrupts */
 	stm32_usart_disable_ms(port);
 
@@ -1385,7 +1390,6 @@ static int stm32_usart_serial_remove(struct platform_device *pdev)
 	stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
 
 	if (stm32_port->tx_ch) {
-		dmaengine_terminate_async(stm32_port->tx_ch);
 		stm32_usart_of_dma_tx_remove(stm32_port, pdev);
 		dma_release_channel(stm32_port->tx_ch);
 	}

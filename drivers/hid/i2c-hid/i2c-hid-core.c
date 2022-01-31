@@ -912,7 +912,7 @@ static void i2c_hid_core_shutdown_tail(struct i2c_hid *ihid)
 }
 
 int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
-		       u16 hid_descriptor_address)
+		       u16 hid_descriptor_address, u32 quirks)
 {
 	int ret;
 	struct i2c_hid *ihid;
@@ -1008,6 +1008,8 @@ int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
 			hid_err(client, "can't add hid device: %d\n", ret);
 		goto err_mem_free;
 	}
+
+	hid->quirks |= quirks;
 
 	return 0;
 

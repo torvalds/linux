@@ -2330,27 +2330,27 @@ static int ov8865_sensor_power(struct ov8865_sensor *sensor, bool on)
 		if (ret) {
 			dev_err(sensor->dev,
 				"failed to enable DOVDD regulator\n");
-			goto disable;
+			return ret;
 		}
 
 		ret = regulator_enable(sensor->avdd);
 		if (ret) {
 			dev_err(sensor->dev,
 				"failed to enable AVDD regulator\n");
-			goto disable;
+			goto disable_dovdd;
 		}
 
 		ret = regulator_enable(sensor->dvdd);
 		if (ret) {
 			dev_err(sensor->dev,
 				"failed to enable DVDD regulator\n");
-			goto disable;
+			goto disable_avdd;
 		}
 
 		ret = clk_prepare_enable(sensor->extclk);
 		if (ret) {
 			dev_err(sensor->dev, "failed to enable EXTCLK clock\n");
-			goto disable;
+			goto disable_dvdd;
 		}
 
 		gpiod_set_value_cansleep(sensor->reset, 0);
@@ -2359,14 +2359,16 @@ static int ov8865_sensor_power(struct ov8865_sensor *sensor, bool on)
 		/* Time to enter streaming mode according to power timings. */
 		usleep_range(10000, 12000);
 	} else {
-disable:
 		gpiod_set_value_cansleep(sensor->powerdown, 1);
 		gpiod_set_value_cansleep(sensor->reset, 1);
 
 		clk_disable_unprepare(sensor->extclk);
 
+disable_dvdd:
 		regulator_disable(sensor->dvdd);
+disable_avdd:
 		regulator_disable(sensor->avdd);
+disable_dovdd:
 		regulator_disable(sensor->dovdd);
 	}
 
@@ -2891,14 +2893,16 @@ static int ov8865_probe(struct i2c_client *client)
 	if (ret)
 		goto error_mutex;
 
+	mutex_lock(&sensor->mutex);
 	ret = ov8865_state_init(sensor);
+	mutex_unlock(&sensor->mutex);
 	if (ret)
 		goto error_ctrls;
 
 	/* Runtime PM */
 
-	pm_runtime_enable(sensor->dev);
 	pm_runtime_set_suspended(sensor->dev);
+	pm_runtime_enable(sensor->dev);
 
 	/* V4L2 subdev register */
 

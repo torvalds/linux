@@ -85,6 +85,8 @@ struct ptp *ptp_get(void)
 	/* Check driver is bound to PTP block */
 	if (!ptp)
 		ptp = ERR_PTR(-EPROBE_DEFER);
+	else
+		pci_dev_get(ptp->pdev);
 
 	return ptp;
 }

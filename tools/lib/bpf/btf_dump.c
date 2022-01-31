@@ -2186,7 +2186,7 @@ static int btf_dump_dump_type_data(struct btf_dump *d,
 				   __u8 bits_offset,
 				   __u8 bit_sz)
 {
-	int size, err;
+	int size, err = 0;
 
 	size = btf_dump_type_data_check_overflow(d, t, id, data, bits_offset);
 	if (size < 0)

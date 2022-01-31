@@ -67,7 +67,8 @@ ip6frag_expire_frag_queue(struct net *net, struct frag_queue *fq)
 	struct sk_buff *head;
 
 	rcu_read_lock();
-	if (fq->q.fqdir->dead)
+	/* Paired with the WRITE_ONCE() in fqdir_pre_exit(). */
+	if (READ_ONCE(fq->q.fqdir->dead))
 		goto out_rcu_unlock;
 	spin_lock(&fq->q.lock);
 

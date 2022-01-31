@@ -965,9 +965,6 @@
 			nvmem-cells = <&speedbin_efuse>;
 			nvmem-cell-names = "speed_bin";
 
-			qcom,gpu-quirk-two-pass-use-wfi;
-			qcom,gpu-quirk-fault-detect-mask;
-
 			operating-points-v2 = <&gpu_opp_table>;
 
 			status = "disabled";
