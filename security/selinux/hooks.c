@@ -675,36 +675,48 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	 */
 	if (opts) {
 		if (opts->fscontext) {
-			rc = parse_sid(sb, opts->fscontext, &fscontext_sid);
-			if (rc)
-				goto out;
+			if (opts->fscontext_sid == SECSID_NULL) {
+				rc = parse_sid(sb, opts->fscontext, &fscontext_sid);
+				if (rc)
+					goto out;
+			} else
+				fscontext_sid = opts->fscontext_sid;
 			if (bad_option(sbsec, FSCONTEXT_MNT, sbsec->sid,
 					fscontext_sid))
 				goto out_double_mount;
 			sbsec->flags |= FSCONTEXT_MNT;
 		}
 		if (opts->context) {
-			rc = parse_sid(sb, opts->context, &context_sid);
-			if (rc)
-				goto out;
+			if (opts->context_sid == SECSID_NULL) {
+				rc = parse_sid(sb, opts->context, &context_sid);
+				if (rc)
+					goto out;
+			} else
+				context_sid = opts->context_sid;
 			if (bad_option(sbsec, CONTEXT_MNT, sbsec->mntpoint_sid,
 					context_sid))
 				goto out_double_mount;
 			sbsec->flags |= CONTEXT_MNT;
 		}
 		if (opts->rootcontext) {
-			rc = parse_sid(sb, opts->rootcontext, &rootcontext_sid);
-			if (rc)
-				goto out;
+			if (opts->rootcontext_sid == SECSID_NULL) {
+				rc = parse_sid(sb, opts->rootcontext, &rootcontext_sid);
+				if (rc)
+					goto out;
+			} else
+				rootcontext_sid = opts->rootcontext_sid;
 			if (bad_option(sbsec, ROOTCONTEXT_MNT, root_isec->sid,
 					rootcontext_sid))
 				goto out_double_mount;
 			sbsec->flags |= ROOTCONTEXT_MNT;
 		}
 		if (opts->defcontext) {
-			rc = parse_sid(sb, opts->defcontext, &defcontext_sid);
-			if (rc)
-				goto out;
+			if (opts->defcontext_sid == SECSID_NULL) {
+				rc = parse_sid(sb, opts->defcontext, &defcontext_sid);
+				if (rc)
+					goto out;
+			} else
+				defcontext_sid = opts->defcontext_sid;
 			if (bad_option(sbsec, DEFCONTEXT_MNT, sbsec->def_sid,
 					defcontext_sid))
 				goto out_double_mount;
@@ -2709,7 +2721,6 @@ static int selinux_sb_remount(struct super_block *sb, void *mnt_opts)
 {
 	struct selinux_mnt_opts *opts = mnt_opts;
 	struct superblock_security_struct *sbsec = selinux_superblock(sb);
-	u32 sid;
 	int rc;
 
 	if (!(sbsec->flags & SE_SBINITIALIZED))
@@ -2719,33 +2730,48 @@ static int selinux_sb_remount(struct super_block *sb, void *mnt_opts)
 		return 0;
 
 	if (opts->fscontext) {
-		rc = parse_sid(sb, opts->fscontext, &sid);
-		if (rc)
-			return rc;
-		if (bad_option(sbsec, FSCONTEXT_MNT, sbsec->sid, sid))
+		if (opts->fscontext_sid == SECSID_NULL) {
+			rc = parse_sid(sb, opts->fscontext,
+				       &opts->fscontext_sid);
+			if (rc)
+				return rc;
+		}
+		if (bad_option(sbsec, FSCONTEXT_MNT, sbsec->sid,
+			       opts->fscontext_sid))
 			goto out_bad_option;
 	}
 	if (opts->context) {
-		rc = parse_sid(sb, opts->context, &sid);
-		if (rc)
-			return rc;
-		if (bad_option(sbsec, CONTEXT_MNT, sbsec->mntpoint_sid, sid))
+		if (opts->context_sid == SECSID_NULL) {
+			rc = parse_sid(sb, opts->context, &opts->context_sid);
+			if (rc)
+				return rc;
+		}
+		if (bad_option(sbsec, CONTEXT_MNT, sbsec->mntpoint_sid,
+			       opts->context_sid))
 			goto out_bad_option;
 	}
 	if (opts->rootcontext) {
 		struct inode_security_struct *root_isec;
 		root_isec = backing_inode_security(sb->s_root);
-		rc = parse_sid(sb, opts->rootcontext, &sid);
-		if (rc)
-			return rc;
-		if (bad_option(sbsec, ROOTCONTEXT_MNT, root_isec->sid, sid))
+		if (opts->rootcontext_sid == SECSID_NULL) {
+			rc = parse_sid(sb, opts->rootcontext,
+				       &opts->rootcontext_sid);
+			if (rc)
+				return rc;
+		}
+		if (bad_option(sbsec, ROOTCONTEXT_MNT, root_isec->sid,
+			       opts->rootcontext_sid))
 			goto out_bad_option;
 	}
 	if (opts->defcontext) {
-		rc = parse_sid(sb, opts->defcontext, &sid);
-		if (rc)
-			return rc;
-		if (bad_option(sbsec, DEFCONTEXT_MNT, sbsec->def_sid, sid))
+		if (opts->defcontext_sid == SECSID_NULL) {
+			rc = parse_sid(sb, opts->defcontext,
+				       &opts->defcontext_sid);
+			if (rc)
+				return rc;
+		}
+		if (bad_option(sbsec, DEFCONTEXT_MNT, sbsec->def_sid,
+			       opts->defcontext_sid))
 			goto out_bad_option;
 	}
 	return 0;
@@ -2843,6 +2869,10 @@ static int selinux_fs_context_dup(struct fs_context *fc,
 		if (!opts->defcontext)
 			return -ENOMEM;
 	}
+	opts->fscontext_sid = src->fscontext_sid;
+	opts->context_sid = src->context_sid;
+	opts->rootcontext_sid = src->rootcontext_sid;
+	opts->defcontext_sid = src->defcontext_sid;
 	return 0;
 }
 
