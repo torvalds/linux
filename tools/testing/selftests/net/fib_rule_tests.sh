@@ -200,11 +200,11 @@ fib_rule4_test()
 
 	# need enable forwarding and disable rp_filter temporarily as all the
 	# addresses are in the same subnet and egress device == ingress device.
-	ip netns exec testns sysctl -w net.ipv4.ip_forward=1
-	ip netns exec testns sysctl -w net.ipv4.conf.$DEV.rp_filter=0
+	ip netns exec testns sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec testns sysctl -qw net.ipv4.conf.$DEV.rp_filter=0
 	match="from $SRC_IP iif $DEV"
 	fib_rule4_test_match_n_redirect "$match" "$match" "iif redirect to table"
-	ip netns exec testns sysctl -w net.ipv4.ip_forward=0
+	ip netns exec testns sysctl -qw net.ipv4.ip_forward=0
 
 	match="tos 0x10"
 	fib_rule4_test_match_n_redirect "$match" "$match" "tos redirect to table"
