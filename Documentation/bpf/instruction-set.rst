@@ -22,7 +22,13 @@ necessary across calls.
 Instruction encoding
 ====================
 
-eBPF uses 64-bit instructions with the following encoding:
+eBPF has two instruction encodings:
+
+ * the basic instruction encoding, which uses 64 bits to encode an instruction
+ * the wide instruction encoding, which appends a second 64-bit immediate value
+   (imm64) after the basic instruction for a total of 128 bits.
+
+The basic instruction encoding looks as follows:
 
  =============  =======  ===============  ====================  ============
  32 bits (MSB)  16 bits  4 bits           4 bits                8 bits (LSB)
@@ -212,7 +218,7 @@ The mode modifier is one of:
   =============  =====  ====================================
   mode modifier  value  description
   =============  =====  ====================================
-  BPF_IMM        0x00   used for 64-bit mov
+  BPF_IMM        0x00   64-bit immediate instructions
   BPF_ABS        0x20   legacy BPF packet access (absolute)
   BPF_IND        0x40   legacy BPF packet access (indirect)
   BPF_MEM        0x60   regular load and store operations
@@ -287,12 +293,18 @@ You may encounter ``BPF_XADD`` - this is a legacy name for ``BPF_ATOMIC``,
 referring to the exclusive-add operation encoded when the immediate field is
 zero.
 
-16-byte instructions
---------------------
+64-bit immediate instructions
+-----------------------------
 
-eBPF has one 16-byte instruction: ``BPF_LD | BPF_DW | BPF_IMM`` which consists
-of two consecutive ``struct bpf_insn`` 8-byte blocks and interpreted as single
-instruction that loads 64-bit immediate value into a dst_reg.
+Instructions with the ``BPF_IMM`` mode modifier use the wide instruction
+encoding for an extra imm64 value.
+
+There is currently only one such instruction.
+
+``BPF_LD | BPF_DW | BPF_IMM`` means::
+
+  dst_reg = imm64
+
 
 Legacy BPF Packet access instructions
 -------------------------------------
