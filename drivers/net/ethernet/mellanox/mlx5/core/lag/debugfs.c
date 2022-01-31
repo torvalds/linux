@@ -5,12 +5,13 @@
 
 static char *get_str_mode_type(struct mlx5_lag *ldev)
 {
-	if (ldev->mode == MLX5_LAG_MODE_ROCE)
-		return "roce";
-	if (ldev->mode == MLX5_LAG_MODE_SRIOV)
-		return "switchdev";
-	if (ldev->mode == MLX5_LAG_MODE_MULTIPATH)
-		return "multipath";
+	switch (ldev->mode) {
+	case MLX5_LAG_MODE_ROCE: return "roce";
+	case MLX5_LAG_MODE_SRIOV: return "switchdev";
+	case MLX5_LAG_MODE_MULTIPATH: return "multipath";
+	case MLX5_LAG_MODE_MPESW: return "multiport_eswitch";
+	default: return "invalid";
+	}
 
 	return NULL;
 }
@@ -43,11 +44,11 @@ static int port_sel_mode_show(struct seq_file *file, void *priv)
 	ldev = dev->priv.lag;
 	mutex_lock(&ldev->lock);
 	if (__mlx5_lag_is_active(ldev))
-		mode = get_str_port_sel_mode(ldev->mode_flags);
+		mode = mlx5_get_str_port_sel_mode(ldev);
 	else
 		ret = -EINVAL;
 	mutex_unlock(&ldev->lock);
-	if (ret || !mode)
+	if (ret)
 		return ret;
 
 	seq_printf(file, "%s\n", mode);
