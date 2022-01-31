@@ -136,7 +136,7 @@ int mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	bool ipv4 = false, ipv6 = false;
 	struct mana_tx_package pkg = {};
 	struct netdev_queue *net_txq;
-	struct mana_stats *tx_stats;
+	struct mana_stats_tx *tx_stats;
 	struct gdma_queue *gdma_sq;
 	unsigned int csum_type;
 	struct mana_txq *txq;
@@ -299,7 +299,8 @@ static void mana_get_stats64(struct net_device *ndev,
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
 	unsigned int num_queues = apc->num_queues;
-	struct mana_stats *stats;
+	struct mana_stats_rx *rx_stats;
+	struct mana_stats_tx *tx_stats;
 	unsigned int start;
 	u64 packets, bytes;
 	int q;
@@ -310,26 +311,26 @@ static void mana_get_stats64(struct net_device *ndev,
 	netdev_stats_to_stats64(st, &ndev->stats);
 
 	for (q = 0; q < num_queues; q++) {
-		stats = &apc->rxqs[q]->stats;
+		rx_stats = &apc->rxqs[q]->stats;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->packets;
-			bytes = stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&rx_stats->syncp);
+			packets = rx_stats->packets;
+			bytes = rx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
 
 		st->rx_packets += packets;
 		st->rx_bytes += bytes;
 	}
 
 	for (q = 0; q < num_queues; q++) {
-		stats = &apc->tx_qp[q].txq.stats;
+		tx_stats = &apc->tx_qp[q].txq.stats;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->packets;
-			bytes = stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&tx_stats->syncp);
+			packets = tx_stats->packets;
+			bytes = tx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_stats->syncp, start));
 
 		st->tx_packets += packets;
 		st->tx_bytes += bytes;
@@ -986,7 +987,7 @@ static struct sk_buff *mana_build_skb(void *buf_va, uint pkt_len,
 static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 			struct mana_rxq *rxq)
 {
-	struct mana_stats *rx_stats = &rxq->stats;
+	struct mana_stats_rx *rx_stats = &rxq->stats;
 	struct net_device *ndev = rxq->ndev;
 	uint pkt_len = cqe->ppi[0].pkt_len;
 	u16 rxq_idx = rxq->rxq_idx;
@@ -1007,7 +1008,7 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 	act = mana_run_xdp(ndev, rxq, &xdp, buf_va, pkt_len);
 
 	if (act != XDP_PASS && act != XDP_TX)
-		goto drop;
+		goto drop_xdp;
 
 	skb = mana_build_skb(buf_va, pkt_len, &xdp);
 
@@ -1034,6 +1035,14 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 			skb_set_hash(skb, hash_value, PKT_HASH_TYPE_L3);
 	}
 
+	u64_stats_update_begin(&rx_stats->syncp);
+	rx_stats->packets++;
+	rx_stats->bytes += pkt_len;
+
+	if (act == XDP_TX)
+		rx_stats->xdp_tx++;
+	u64_stats_update_end(&rx_stats->syncp);
+
 	if (act == XDP_TX) {
 		skb_set_queue_mapping(skb, rxq_idx);
 		mana_xdp_tx(skb, ndev);
@@ -1042,15 +1051,19 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 
 	napi_gro_receive(napi, skb);
 
-	u64_stats_update_begin(&rx_stats->syncp);
-	rx_stats->packets++;
-	rx_stats->bytes += pkt_len;
-	u64_stats_update_end(&rx_stats->syncp);
 	return;
 
+drop_xdp:
+	u64_stats_update_begin(&rx_stats->syncp);
+	rx_stats->xdp_drop++;
+	u64_stats_update_end(&rx_stats->syncp);
+
 drop:
-	free_page((unsigned long)buf_va);
+	WARN_ON_ONCE(rxq->xdp_save_page);
+	rxq->xdp_save_page = virt_to_page(buf_va);
+
 	++ndev->stats.rx_dropped;
+
 	return;
 }
 
@@ -1105,7 +1118,13 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 	rxbuf_oob = &rxq->rx_oobs[curr];
 	WARN_ON_ONCE(rxbuf_oob->wqe_inf.wqe_size_in_bu != 1);
 
-	new_page = alloc_page(GFP_ATOMIC);
+	/* Reuse XDP dropped page if available */
+	if (rxq->xdp_save_page) {
+		new_page = rxq->xdp_save_page;
+		rxq->xdp_save_page = NULL;
+	} else {
+		new_page = alloc_page(GFP_ATOMIC);
+	}
 
 	if (new_page) {
 		da = dma_map_page(dev, new_page, XDP_PACKET_HEADROOM, rxq->datasize,
@@ -1391,6 +1410,9 @@ static void mana_destroy_rxq(struct mana_port_context *apc,
 	mana_destroy_wq_obj(apc, GDMA_RQ, rxq->rxobj);
 
 	mana_deinit_cq(apc, &rxq->rx_cq);
+
+	if (rxq->xdp_save_page)
+		__free_page(rxq->xdp_save_page);
 
 	for (i = 0; i < rxq->num_rx_buf; i++) {
 		rx_oob = &rxq->rx_oobs[i];
