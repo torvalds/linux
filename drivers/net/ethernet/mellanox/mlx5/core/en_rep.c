@@ -849,7 +849,7 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 		goto err_free_fs;
 	}
 
-	mlx5e_init_l2_addr(priv);
+	mlx5e_fs_init_l2_addr(priv->fs, priv->netdev);
 
 	err = mlx5e_open_drop_rq(priv, &priv->drop_rq);
 	if (err) {

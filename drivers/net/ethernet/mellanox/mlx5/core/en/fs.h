@@ -197,5 +197,6 @@ int mlx5e_fs_vlan_rx_add_vid(struct mlx5e_flow_steering *fs,
 int mlx5e_fs_vlan_rx_kill_vid(struct mlx5e_flow_steering *fs,
 			      struct net_device *netdev,
 			      __be16 proto, u16 vid);
+void mlx5e_fs_init_l2_addr(struct mlx5e_flow_steering *fs, struct net_device *netdev);
 #endif /* __MLX5E_FLOW_STEER_H__ */
 

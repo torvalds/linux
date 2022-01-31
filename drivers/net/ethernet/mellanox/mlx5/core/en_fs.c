@@ -843,9 +843,9 @@ static void mlx5e_destroy_groups(struct mlx5e_flow_table *ft)
 	ft->num_groups = 0;
 }
 
-void mlx5e_init_l2_addr(struct mlx5e_priv *priv)
+void mlx5e_fs_init_l2_addr(struct mlx5e_flow_steering *fs, struct net_device *netdev)
 {
-	ether_addr_copy(priv->fs->l2.broadcast.addr, priv->netdev->broadcast);
+	ether_addr_copy(fs->l2.broadcast.addr, netdev->broadcast);
 }
 
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft)

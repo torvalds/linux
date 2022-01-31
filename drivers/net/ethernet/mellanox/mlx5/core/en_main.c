@@ -5186,7 +5186,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
-	mlx5e_init_l2_addr(priv);
+	mlx5e_fs_init_l2_addr(priv->fs, netdev);
 
 	/* Marking the link as currently not needed by the Driver */
 	if (!netif_running(netdev))
