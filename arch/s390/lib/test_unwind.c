@@ -16,7 +16,7 @@
 #include <linux/wait.h>
 #include <asm/irq.h>
 
-struct kunit *current_test;
+static struct kunit *current_test;
 
 #define BT_BUF_SIZE (PAGE_SIZE * 4)
 
@@ -254,7 +254,7 @@ static int test_unwind_irq(struct unwindme *u)
 }
 
 /* Spawns a task and passes it to test_unwind(). */
-static int test_unwind_task(struct kunit *test, struct unwindme *u)
+static int test_unwind_task(struct unwindme *u)
 {
 	struct task_struct *task;
 	int ret;
@@ -269,7 +269,7 @@ static int test_unwind_task(struct kunit *test, struct unwindme *u)
 	 */
 	task = kthread_run(unwindme_func1, u, "%s", __func__);
 	if (IS_ERR(task)) {
-		kunit_err(test, "kthread_run() failed\n");
+		kunit_err(current_test, "kthread_run() failed\n");
 		return PTR_ERR(task);
 	}
 	/*
@@ -292,47 +292,31 @@ struct test_params {
 /*
  * Create required parameter list for tests
  */
+#define TEST_WITH_FLAGS(f) { .flags = f, .name = #f }
 static const struct test_params param_list[] = {
-	{.flags = UWM_DEFAULT, .name = "UWM_DEFAULT"},
-	{.flags = UWM_SP, .name = "UWM_SP"},
-	{.flags = UWM_REGS, .name = "UWM_REGS"},
-	{.flags = UWM_SWITCH_STACK,
-		.name = "UWM_SWITCH_STACK"},
-	{.flags = UWM_SP | UWM_REGS,
-		.name = "UWM_SP | UWM_REGS"},
-	{.flags = UWM_CALLER | UWM_SP,
-		.name = "WM_CALLER | UWM_SP"},
-	{.flags = UWM_CALLER | UWM_SP | UWM_REGS,
-		.name = "UWM_CALLER | UWM_SP | UWM_REGS"},
-	{.flags = UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK,
-		.name = "UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK"},
-	{.flags = UWM_THREAD, .name = "UWM_THREAD"},
-	{.flags = UWM_THREAD | UWM_SP,
-		.name = "UWM_THREAD | UWM_SP"},
-	{.flags = UWM_THREAD | UWM_CALLER | UWM_SP,
-		.name = "UWM_THREAD | UWM_CALLER | UWM_SP"},
-	{.flags = UWM_IRQ, .name = "UWM_IRQ"},
-	{.flags = UWM_IRQ | UWM_SWITCH_STACK,
-		.name = "UWM_IRQ | UWM_SWITCH_STACK"},
-	{.flags = UWM_IRQ | UWM_SP,
-		.name = "UWM_IRQ | UWM_SP"},
-	{.flags = UWM_IRQ | UWM_REGS,
-		.name = "UWM_IRQ | UWM_REGS"},
-	{.flags = UWM_IRQ | UWM_SP | UWM_REGS,
-		.name = "UWM_IRQ | UWM_SP | UWM_REGS"},
-	{.flags = UWM_IRQ | UWM_CALLER | UWM_SP,
-		.name = "UWM_IRQ | UWM_CALLER | UWM_SP"},
-	{.flags = UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS,
-		.name = "UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS"},
-	{.flags = UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK,
-		.name = "UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK"},
-	{.flags = UWM_PGM, .name = "UWM_PGM"},
-	{.flags = UWM_PGM | UWM_SP,
-		.name = "UWM_PGM | UWM_SP"},
-	{.flags = UWM_PGM | UWM_REGS,
-		.name = "UWM_PGM | UWM_REGS"},
-	{.flags = UWM_PGM | UWM_SP | UWM_REGS,
-		.name = "UWM_PGM | UWM_SP | UWM_REGS"},
+	TEST_WITH_FLAGS(UWM_DEFAULT),
+	TEST_WITH_FLAGS(UWM_SP),
+	TEST_WITH_FLAGS(UWM_REGS),
+	TEST_WITH_FLAGS(UWM_SWITCH_STACK),
+	TEST_WITH_FLAGS(UWM_SP | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_CALLER | UWM_SP),
+	TEST_WITH_FLAGS(UWM_CALLER | UWM_SP | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK),
+	TEST_WITH_FLAGS(UWM_THREAD),
+	TEST_WITH_FLAGS(UWM_THREAD | UWM_SP),
+	TEST_WITH_FLAGS(UWM_THREAD | UWM_CALLER | UWM_SP),
+	TEST_WITH_FLAGS(UWM_IRQ),
+	TEST_WITH_FLAGS(UWM_IRQ | UWM_SWITCH_STACK),
+	TEST_WITH_FLAGS(UWM_IRQ | UWM_SP),
+	TEST_WITH_FLAGS(UWM_IRQ | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_IRQ | UWM_SP | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_IRQ | UWM_CALLER | UWM_SP),
+	TEST_WITH_FLAGS(UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK),
+	TEST_WITH_FLAGS(UWM_PGM),
+	TEST_WITH_FLAGS(UWM_PGM | UWM_SP),
+	TEST_WITH_FLAGS(UWM_PGM | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_PGM | UWM_SP | UWM_REGS),
 };
 
 /*
@@ -357,7 +341,7 @@ static void test_unwind_flags(struct kunit *test)
 	params = (const struct test_params *)test->param_value;
 	u.flags = params->flags;
 	if (u.flags & UWM_THREAD)
-		KUNIT_EXPECT_EQ(test, 0, test_unwind_task(test, &u));
+		KUNIT_EXPECT_EQ(test, 0, test_unwind_task(&u));
 	else if (u.flags & UWM_IRQ)
 		KUNIT_EXPECT_EQ(test, 0, test_unwind_irq(&u));
 	else
