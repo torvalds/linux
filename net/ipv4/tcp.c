@@ -842,6 +842,7 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 	}
 
 	release_sock(sk);
+	sk_defer_free_flush(sk);
 
 	if (spliced)
 		return spliced;

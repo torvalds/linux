@@ -4133,9 +4133,7 @@ static int bond_eth_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cm
 
 		fallthrough;
 	case SIOCGHWTSTAMP:
-		rcu_read_lock();
 		real_dev = bond_option_active_slave_get_rcu(bond);
-		rcu_read_unlock();
 		if (!real_dev)
 			return -EOPNOTSUPP;
 
@@ -5382,9 +5380,7 @@ static int bond_ethtool_get_ts_info(struct net_device *bond_dev,
 	struct net_device *real_dev;
 	struct phy_device *phydev;
 
-	rcu_read_lock();
 	real_dev = bond_option_active_slave_get_rcu(bond);
-	rcu_read_unlock();
 	if (real_dev) {
 		ops = real_dev->ethtool_ops;
 		phydev = real_dev->phydev;
