@@ -451,7 +451,7 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = btrfs_set_prop(trans, inode, name, value, size, flags);
+	ret = btrfs_set_prop(trans, BTRFS_I(inode), name, value, size, flags);
 	if (!ret) {
 		inode_inc_iversion(inode);
 		inode_set_ctime_current(inode);

@@ -104,7 +104,7 @@ bool btrfs_ignore_prop(const struct btrfs_inode *inode, const char *name)
 	return handler->ignore(inode);
 }
 
-int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
+int btrfs_set_prop(struct btrfs_trans_handle *trans, struct btrfs_inode *inode,
 		   const char *name, const char *value, size_t value_len,
 		   int flags)
 {
@@ -116,29 +116,29 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 		return -EINVAL;
 
 	if (value_len == 0) {
-		ret = btrfs_setxattr(trans, inode, handler->xattr_name,
+		ret = btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name,
 				     NULL, 0, flags);
 		if (ret)
 			return ret;
 
-		ret = handler->apply(inode, NULL, 0);
+		ret = handler->apply(&inode->vfs_inode, NULL, 0);
 		ASSERT(ret == 0);
 
 		return ret;
 	}
 
-	ret = btrfs_setxattr(trans, inode, handler->xattr_name, value,
+	ret = btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name, value,
 			     value_len, flags);
 	if (ret)
 		return ret;
-	ret = handler->apply(inode, value, value_len);
+	ret = handler->apply(&inode->vfs_inode, value, value_len);
 	if (ret) {
-		btrfs_setxattr(trans, inode, handler->xattr_name, NULL,
+		btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name, NULL,
 			       0, flags);
 		return ret;
 	}
 
-	set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
+	set_bit(BTRFS_INODE_HAS_PROPS, &inode->runtime_flags);
 
 	return 0;
 }
