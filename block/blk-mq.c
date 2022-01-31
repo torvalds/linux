@@ -2180,6 +2180,14 @@ void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long msecs)
 		if (blk_mq_hctx_stopped(hctx))
 			continue;
 		/*
+		 * If there is already a run_work pending, leave the
+		 * pending delay untouched. Otherwise, a hctx can stall
+		 * if another hctx is re-delaying the other's work
+		 * before the work executes.
+		 */
+		if (delayed_work_pending(&hctx->run_work))
+			continue;
+		/*
 		 * Dispatch from this hctx either if there's no hctx preferred
 		 * by IO scheduler or if it has requests that bypass the
 		 * scheduler.
