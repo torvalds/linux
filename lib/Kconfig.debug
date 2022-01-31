@@ -1516,6 +1516,29 @@ config CSD_LOCK_WAIT_DEBUG
 	  include the IPI handler function currently executing (if any)
 	  and relevant stack traces.
 
+choice
+	prompt "Lock debugging: prove subsystem device_lock() correctness"
+	depends on PROVE_LOCKING
+	help
+	  For subsystems that have instrumented their usage of the device_lock()
+	  with nested annotations, enable lock dependency checking. The locking
+	  hierarchy 'subclass' identifiers are not compatible across
+	  sub-systems, so only one can be enabled at a time.
+
+config PROVE_NVDIMM_LOCKING
+	bool "NVDIMM"
+	depends on LIBNVDIMM
+	help
+	  Enable lockdep to validate nd_device_lock() usage.
+
+config PROVE_CXL_LOCKING
+	bool "CXL"
+	depends on CXL_BUS
+	help
+	  Enable lockdep to validate cxl_device_lock() usage.
+
+endchoice
+
 endmenu # lock debugging
 
 config TRACE_IRQFLAGS

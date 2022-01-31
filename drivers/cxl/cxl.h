@@ -291,6 +291,7 @@ static inline bool is_cxl_root(struct cxl_port *port)
 	return port->uport == port->dev.parent;
 }
 
+bool is_cxl_port(struct device *dev);
 struct cxl_port *to_cxl_port(struct device *dev);
 struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   resource_size_t component_reg_phys,
@@ -301,6 +302,7 @@ int cxl_add_dport(struct cxl_port *port, struct device *dport, int port_id,
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
+bool is_cxl_decoder(struct device *dev);
 struct cxl_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 					   unsigned int nr_targets);
 struct cxl_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
@@ -352,5 +354,84 @@ struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_nvdimm *cxl_nvd);
  */
 #ifndef __mock
 #define __mock static
+#endif
+
+#ifdef CONFIG_PROVE_CXL_LOCKING
+enum cxl_lock_class {
+	CXL_ANON_LOCK,
+	CXL_NVDIMM_LOCK,
+	CXL_NVDIMM_BRIDGE_LOCK,
+	CXL_PORT_LOCK,
+	/*
+	 * Be careful to add new lock classes here, CXL_PORT_LOCK is
+	 * extended by the port depth, so a maximum CXL port topology
+	 * depth would need to be defined first.
+	 */
+};
+
+static inline void cxl_nested_lock(struct device *dev)
+{
+	if (is_cxl_port(dev)) {
+		struct cxl_port *port = to_cxl_port(dev);
+
+		mutex_lock_nested(&dev->lockdep_mutex,
+				  CXL_PORT_LOCK + port->depth);
+	} else if (is_cxl_decoder(dev)) {
+		struct cxl_port *port = to_cxl_port(dev->parent);
+
+		/*
+		 * A decoder is the immediate child of a port, so set
+		 * its lock class equal to other child device siblings.
+		 */
+		mutex_lock_nested(&dev->lockdep_mutex,
+				  CXL_PORT_LOCK + port->depth + 1);
+	} else if (is_cxl_nvdimm_bridge(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, CXL_NVDIMM_BRIDGE_LOCK);
+	else if (is_cxl_nvdimm(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, CXL_NVDIMM_LOCK);
+	else
+		mutex_lock_nested(&dev->lockdep_mutex, CXL_ANON_LOCK);
+}
+
+static inline void cxl_nested_unlock(struct device *dev)
+{
+	mutex_unlock(&dev->lockdep_mutex);
+}
+
+static inline void cxl_device_lock(struct device *dev)
+{
+	/*
+	 * For double lock errors the lockup will happen before lockdep
+	 * warns at cxl_nested_lock(), so assert explicitly.
+	 */
+	lockdep_assert_not_held(&dev->lockdep_mutex);
+
+	device_lock(dev);
+	cxl_nested_lock(dev);
+}
+
+static inline void cxl_device_unlock(struct device *dev)
+{
+	cxl_nested_unlock(dev);
+	device_unlock(dev);
+}
+#else
+static inline void cxl_nested_lock(struct device *dev)
+{
+}
+
+static inline void cxl_nested_unlock(struct device *dev)
+{
+}
+
+static inline void cxl_device_lock(struct device *dev)
+{
+	device_lock(dev);
+}
+
+static inline void cxl_device_unlock(struct device *dev)
+{
+	device_unlock(dev);
+}
 #endif
 #endif /* __CXL_H__ */

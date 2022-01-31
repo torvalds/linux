@@ -111,7 +111,7 @@ static ssize_t target_list_show(struct device *dev,
 	ssize_t offset = 0;
 	int i, rc = 0;
 
-	device_lock(dev);
+	cxl_device_lock(dev);
 	for (i = 0; i < cxld->interleave_ways; i++) {
 		struct cxl_dport *dport = cxld->target[i];
 		struct cxl_dport *next = NULL;
@@ -127,7 +127,7 @@ static ssize_t target_list_show(struct device *dev,
 			break;
 		offset += rc;
 	}
-	device_unlock(dev);
+	cxl_device_unlock(dev);
 
 	if (rc < 0)
 		return rc;
@@ -214,6 +214,12 @@ bool is_root_decoder(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(is_root_decoder, CXL);
 
+bool is_cxl_decoder(struct device *dev)
+{
+	return dev->type->release == cxl_decoder_release;
+}
+EXPORT_SYMBOL_NS_GPL(is_cxl_decoder, CXL);
+
 struct cxl_decoder *to_cxl_decoder(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, dev->type->release != cxl_decoder_release,
@@ -235,10 +241,10 @@ static void cxl_port_release(struct device *dev)
 	struct cxl_port *port = to_cxl_port(dev);
 	struct cxl_dport *dport, *_d;
 
-	device_lock(dev);
+	cxl_device_lock(dev);
 	list_for_each_entry_safe(dport, _d, &port->dports, list)
 		cxl_dport_release(dport);
-	device_unlock(dev);
+	cxl_device_unlock(dev);
 	ida_free(&cxl_port_ida, port->id);
 	kfree(port);
 }
@@ -254,6 +260,12 @@ static const struct device_type cxl_port_type = {
 	.groups = cxl_port_attribute_groups,
 };
 
+bool is_cxl_port(struct device *dev)
+{
+	return dev->type == &cxl_port_type;
+}
+EXPORT_SYMBOL_NS_GPL(is_cxl_port, CXL);
+
 struct cxl_port *to_cxl_port(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, dev->type != &cxl_port_type,
@@ -261,13 +273,14 @@ struct cxl_port *to_cxl_port(struct device *dev)
 		return NULL;
 	return container_of(dev, struct cxl_port, dev);
 }
+EXPORT_SYMBOL_NS_GPL(to_cxl_port, CXL);
 
 static void unregister_port(void *_port)
 {
 	struct cxl_port *port = _port;
 	struct cxl_dport *dport;
 
-	device_lock(&port->dev);
+	cxl_device_lock(&port->dev);
 	list_for_each_entry(dport, &port->dports, list) {
 		char link_name[CXL_TARGET_STRLEN];
 
@@ -276,7 +289,7 @@ static void unregister_port(void *_port)
 			continue;
 		sysfs_remove_link(&port->dev.kobj, link_name);
 	}
-	device_unlock(&port->dev);
+	cxl_device_unlock(&port->dev);
 	device_unregister(&port->dev);
 }
 
@@ -407,7 +420,7 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 {
 	struct cxl_dport *dup;
 
-	device_lock(&port->dev);
+	cxl_device_lock(&port->dev);
 	dup = find_dport(port, new->port_id);
 	if (dup)
 		dev_err(&port->dev,
@@ -416,7 +429,7 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 			dev_name(dup->dport));
 	else
 		list_add_tail(&new->list, &port->dports);
-	device_unlock(&port->dev);
+	cxl_device_unlock(&port->dev);
 
 	return dup ? -EEXIST : 0;
 }
@@ -475,7 +488,7 @@ static int decoder_populate_targets(struct cxl_decoder *cxld,
 	if (!target_map)
 		return 0;
 
-	device_lock(&port->dev);
+	cxl_device_lock(&port->dev);
 	if (list_empty(&port->dports)) {
 		rc = -EINVAL;
 		goto out_unlock;
@@ -492,7 +505,7 @@ static int decoder_populate_targets(struct cxl_decoder *cxld,
 	}
 
 out_unlock:
-	device_unlock(&port->dev);
+	cxl_device_unlock(&port->dev);
 
 	return rc;
 }
@@ -717,15 +730,27 @@ static int cxl_bus_match(struct device *dev, struct device_driver *drv)
 
 static int cxl_bus_probe(struct device *dev)
 {
-	return to_cxl_drv(dev->driver)->probe(dev);
+	int rc;
+
+	/*
+	 * Take the CXL nested lock since the driver core only holds
+	 * @dev->mutex and not @dev->lockdep_mutex.
+	 */
+	cxl_nested_lock(dev);
+	rc = to_cxl_drv(dev->driver)->probe(dev);
+	cxl_nested_unlock(dev);
+
+	return rc;
 }
 
 static void cxl_bus_remove(struct device *dev)
 {
 	struct cxl_driver *cxl_drv = to_cxl_drv(dev->driver);
 
+	cxl_nested_lock(dev);
 	if (cxl_drv->remove)
 		cxl_drv->remove(dev);
+	cxl_nested_unlock(dev);
 }
 
 struct bus_type cxl_bus_type = {

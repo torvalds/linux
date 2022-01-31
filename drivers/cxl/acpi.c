@@ -176,14 +176,14 @@ static struct cxl_dport *find_dport_by_dev(struct cxl_port *port, struct device 
 {
 	struct cxl_dport *dport;
 
-	device_lock(&port->dev);
+	cxl_device_lock(&port->dev);
 	list_for_each_entry(dport, &port->dports, list)
 		if (dport->dport == dev) {
-			device_unlock(&port->dev);
+			cxl_device_unlock(&port->dev);
 			return dport;
 		}
 
-	device_unlock(&port->dev);
+	cxl_device_unlock(&port->dev);
 	return NULL;
 }
 
@@ -264,9 +264,9 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	if (IS_ERR(cxld))
 		return PTR_ERR(cxld);
 
-	device_lock(&port->dev);
+	cxl_device_lock(&port->dev);
 	dport = list_first_entry(&port->dports, typeof(*dport), list);
-	device_unlock(&port->dev);
+	cxl_device_unlock(&port->dev);
 
 	single_port_map[0] = dport->port_id;
 
