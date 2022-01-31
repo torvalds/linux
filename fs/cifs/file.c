@@ -4446,7 +4446,7 @@ static void cifs_readahead(struct readahead_control *ractl)
 				 * by the cache.
 				 */
 				page = readahead_page(ractl);
-
+				last_batch_size = 1 << thp_order(page);
 				if (cifs_readpage_from_fscache(ractl->mapping->host,
 							       page) < 0) {
 					/*
