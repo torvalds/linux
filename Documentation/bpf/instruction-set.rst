@@ -215,23 +215,30 @@ The mode modifier is one of:
   BPF_IMM        0x00   used for 64-bit mov
   BPF_ABS        0x20   legacy BPF packet access
   BPF_IND        0x40   legacy BPF packet access
-  BPF_MEM        0x60   all normal load and store operations
+  BPF_MEM        0x60   regular load and store operations
   BPF_ATOMIC     0xc0   atomic operations
   =============  =====  ====================================
 
-BPF_MEM | <size> | BPF_STX means::
+
+Regular load and store operations
+---------------------------------
+
+The ``BPF_MEM`` mode modifier is used to encode regular load and store
+instructions that transfer data between a register and memory.
+
+``BPF_MEM | <size> | BPF_STX`` means::
 
   *(size *) (dst_reg + off) = src_reg
 
-BPF_MEM | <size> | BPF_ST means::
+``BPF_MEM | <size> | BPF_ST`` means::
 
   *(size *) (dst_reg + off) = imm32
 
-BPF_MEM | <size> | BPF_LDX means::
+``BPF_MEM | <size> | BPF_LDX`` means::
 
   dst_reg = *(size *) (src_reg + off)
 
-Where size is one of: BPF_B or BPF_H or BPF_W or BPF_DW.
+Where size is one of: ``BPF_B``, ``BPF_H``, ``BPF_W``, or ``BPF_DW``.
 
 Atomic operations
 -----------------
