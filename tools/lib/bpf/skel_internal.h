@@ -70,19 +70,59 @@ static inline int skel_closenz(int fd)
 	return -EINVAL;
 }
 
+#ifndef offsetofend
+#define offsetofend(TYPE, MEMBER) \
+	(offsetof(TYPE, MEMBER)	+ sizeof((((TYPE *)0)->MEMBER)))
+#endif
+
+static inline int skel_map_create(enum bpf_map_type map_type,
+				  const char *map_name,
+				  __u32 key_size,
+				  __u32 value_size,
+				  __u32 max_entries)
+{
+	const size_t attr_sz = offsetofend(union bpf_attr, map_extra);
+	union bpf_attr attr;
+
+	memset(&attr, 0, attr_sz);
+
+	attr.map_type = map_type;
+	strncpy(attr.map_name, map_name, sizeof(attr.map_name));
+	attr.key_size = key_size;
+	attr.value_size = value_size;
+	attr.max_entries = max_entries;
+
+	return skel_sys_bpf(BPF_MAP_CREATE, &attr, attr_sz);
+}
+
+static inline int skel_map_update_elem(int fd, const void *key,
+				       const void *value, __u64 flags)
+{
+	const size_t attr_sz = offsetofend(union bpf_attr, flags);
+	union bpf_attr attr;
+
+	memset(&attr, 0, attr_sz);
+	attr.map_fd = fd;
+	attr.key = (long) key;
+	attr.value = (long) value;
+	attr.flags = flags;
+
+	return skel_sys_bpf(BPF_MAP_UPDATE_ELEM, &attr, attr_sz);
+}
+
 static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 {
 	int map_fd = -1, prog_fd = -1, key = 0, err;
 	union bpf_attr attr;
 
-	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "__loader.map", 4, opts->data_sz, 1, NULL);
+	map_fd = skel_map_create(BPF_MAP_TYPE_ARRAY, "__loader.map", 4, opts->data_sz, 1);
 	if (map_fd < 0) {
 		opts->errstr = "failed to create loader map";
 		err = -errno;
 		goto out;
 	}
 
-	err = bpf_map_update_elem(map_fd, &key, opts->data, 0);
+	err = skel_map_update_elem(map_fd, &key, opts->data, 0);
 	if (err < 0) {
 		opts->errstr = "failed to update loader map";
 		err = -errno;
