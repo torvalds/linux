@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_DISP_CC_SM8250_H
@@ -64,6 +65,10 @@
 #define DISP_CC_MDSS_EDP_LINK_INTF_CLK		54
 #define DISP_CC_MDSS_EDP_PIXEL_CLK		55
 #define DISP_CC_MDSS_EDP_PIXEL_CLK_SRC		56
+#define DISP_CC_MDSS_DP_CRYPTO1_CLK		57
+#define DISP_CC_MDSS_DP_CRYPTO1_CLK_SRC		58
+#define DISP_CC_MDSS_DP_CRYPTO_CLK		59
+#define DISP_CC_MDSS_DP_CRYPTO_CLK_SRC		60
 
 /* DISP_CC Reset */
 #define DISP_CC_MDSS_CORE_BCR			0
