@@ -5608,6 +5608,15 @@
 			off:    Disable mitigation and remove
 				performance impact to RDRAND and RDSEED
 
+	srcutree.big_cpu_lim [KNL]
+			Specifies the number of CPUs constituting a
+			large system, such that srcu_struct structures
+			should immediately allocate an srcu_node array.
+			This kernel-boot parameter defaults to 128,
+			but takes effect only when the low-order four
+			bits of srcutree.convert_to_big is equal to 3
+			(decide at boot).
+
 	srcutree.convert_to_big [KNL]
 			Specifies under what conditions an SRCU tree
 			srcu_struct structure will be converted to big
@@ -5616,6 +5625,7 @@
 				   0:  Never.
 				   1:  At init_srcu_struct() time.
 				   2:  When rcutorture decides to.
+				   3:  Decide at boot time (default).
 				0x1X:  Above plus if high contention.
 
 			Either way, the srcu_node tree will be sized based
