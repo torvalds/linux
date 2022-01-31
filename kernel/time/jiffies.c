@@ -49,14 +49,13 @@ static u64 jiffies_read(struct clocksource *cs)
  * for "tick-less" systems.
  */
 static struct clocksource clocksource_jiffies = {
-	.name			= "jiffies",
-	.rating			= 1, /* lowest valid rating*/
-	.uncertainty_margin	= 32 * NSEC_PER_MSEC,
-	.read			= jiffies_read,
-	.mask			= CLOCKSOURCE_MASK(32),
-	.mult			= TICK_NSEC << JIFFIES_SHIFT, /* details above */
-	.shift			= JIFFIES_SHIFT,
-	.max_cycles		= 10,
+	.name		= "jiffies",
+	.rating		= 1, /* lowest valid rating*/
+	.read		= jiffies_read,
+	.mask		= CLOCKSOURCE_MASK(32),
+	.mult		= TICK_NSEC << JIFFIES_SHIFT, /* details above */
+	.shift		= JIFFIES_SHIFT,
+	.max_cycles	= 10,
 };
 
 __cacheline_aligned_in_smp DEFINE_RAW_SPINLOCK(jiffies_lock);

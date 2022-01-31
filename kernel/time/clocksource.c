@@ -93,20 +93,6 @@ static char override_name[CS_NAME_LEN];
 static int finished_booting;
 static u64 suspend_start;
 
-/*
- * Threshold: 0.0312s, when doubled: 0.0625s.
- * Also a default for cs->uncertainty_margin when registering clocks.
- */
-#define WATCHDOG_THRESHOLD (NSEC_PER_SEC >> 5)
-
-/*
- * Maximum permissible delay between two readouts of the watchdog
- * clocksource surrounding a read of the clocksource being validated.
- * This delay could be due to SMIs, NMIs, or to VCPU preemptions.  Used as
- * a lower bound for cs->uncertainty_margin values when registering clocks.
- */
-#define WATCHDOG_MAX_SKEW (50 * NSEC_PER_USEC)
-
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG
 static void clocksource_watchdog_work(struct work_struct *work);
 static void clocksource_select(void);
@@ -133,9 +119,17 @@ static int clocksource_watchdog_kthread(void *data);
 static void __clocksource_change_rating(struct clocksource *cs, int rating);
 
 /*
- * Interval: 0.5sec.
+ * Interval: 0.5sec Threshold: 0.0625s
  */
 #define WATCHDOG_INTERVAL (HZ >> 1)
+#define WATCHDOG_THRESHOLD (NSEC_PER_SEC >> 4)
+
+/*
+ * Maximum permissible delay between two readouts of the watchdog
+ * clocksource surrounding a read of the clocksource being validated.
+ * This delay could be due to SMIs, NMIs, or to VCPU preemptions.
+ */
+#define WATCHDOG_MAX_SKEW (100 * NSEC_PER_USEC)
 
 static void clocksource_watchdog_work(struct work_struct *work)
 {
@@ -290,7 +284,6 @@ static void clocksource_watchdog(struct timer_list *unused)
 	int next_cpu, reset_pending;
 	int64_t wd_nsec, cs_nsec;
 	struct clocksource *cs;
-	u32 md;
 
 	spin_lock(&watchdog_lock);
 	if (!watchdog_running)
@@ -337,8 +330,7 @@ static void clocksource_watchdog(struct timer_list *unused)
 			continue;
 
 		/* Check the deviation from the watchdog clocksource. */
-		md = cs->uncertainty_margin + watchdog->uncertainty_margin;
-		if (abs(cs_nsec - wd_nsec) > md) {
+		if (abs(cs_nsec - wd_nsec) > WATCHDOG_THRESHOLD) {
 			pr_warn("timekeeping watchdog on CPU%d: Marking clocksource '%s' as unstable because the skew is too large:\n",
 				smp_processor_id(), cs->name);
 			pr_warn("                      '%s' wd_now: %llx wd_last: %llx mask: %llx\n",
@@ -993,26 +985,6 @@ void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq
 		clocks_calc_mult_shift(&cs->mult, &cs->shift, freq,
 				       NSEC_PER_SEC / scale, sec * scale);
 	}
-
-	/*
-	 * If the uncertainty margin is not specified, calculate it.
-	 * If both scale and freq are non-zero, calculate the clock
-	 * period, but bound below at 2*WATCHDOG_MAX_SKEW.  However,
-	 * if either of scale or freq is zero, be very conservative and
-	 * take the tens-of-milliseconds WATCHDOG_THRESHOLD value for the
-	 * uncertainty margin.  Allow stupidly small uncertainty margins
-	 * to be specified by the caller for testing purposes, but warn
-	 * to discourage production use of this capability.
-	 */
-	if (scale && freq && !cs->uncertainty_margin) {
-		cs->uncertainty_margin = NSEC_PER_SEC / (scale * freq);
-		if (cs->uncertainty_margin < 2 * WATCHDOG_MAX_SKEW)
-			cs->uncertainty_margin = 2 * WATCHDOG_MAX_SKEW;
-	} else if (!cs->uncertainty_margin) {
-		cs->uncertainty_margin = WATCHDOG_THRESHOLD;
-	}
-	WARN_ON_ONCE(cs->uncertainty_margin < 2 * WATCHDOG_MAX_SKEW);
-
 	/*
 	 * Ensure clocksources that have large 'mult' values don't overflow
 	 * when adjusted.
