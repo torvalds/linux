@@ -97,6 +97,7 @@ struct alc_spec {
 	unsigned int gpio_mic_led_mask;
 	struct alc_coef_led mute_led_coef;
 	struct alc_coef_led mic_led_coef;
+	struct mutex coef_mutex;
 
 	hda_nid_t headset_mic_pin;
 	hda_nid_t headphone_mic_pin;
@@ -132,8 +133,8 @@ struct alc_spec {
  * COEF access helper functions
  */
 
-static int alc_read_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
-			       unsigned int coef_idx)
+static int __alc_read_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
+				 unsigned int coef_idx)
 {
 	unsigned int val;
 
@@ -142,28 +143,61 @@ static int alc_read_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
 	return val;
 }
 
+static int alc_read_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
+			       unsigned int coef_idx)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int val;
+
+	mutex_lock(&spec->coef_mutex);
+	val = __alc_read_coefex_idx(codec, nid, coef_idx);
+	mutex_unlock(&spec->coef_mutex);
+	return val;
+}
+
 #define alc_read_coef_idx(codec, coef_idx) \
 	alc_read_coefex_idx(codec, 0x20, coef_idx)
 
-static void alc_write_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
-				 unsigned int coef_idx, unsigned int coef_val)
+static void __alc_write_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
+				   unsigned int coef_idx, unsigned int coef_val)
 {
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_COEF_INDEX, coef_idx);
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PROC_COEF, coef_val);
 }
 
+static void alc_write_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
+				 unsigned int coef_idx, unsigned int coef_val)
+{
+	struct alc_spec *spec = codec->spec;
+
+	mutex_lock(&spec->coef_mutex);
+	__alc_write_coefex_idx(codec, nid, coef_idx, coef_val);
+	mutex_unlock(&spec->coef_mutex);
+}
+
 #define alc_write_coef_idx(codec, coef_idx, coef_val) \
 	alc_write_coefex_idx(codec, 0x20, coef_idx, coef_val)
+
+static void __alc_update_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
+				    unsigned int coef_idx, unsigned int mask,
+				    unsigned int bits_set)
+{
+	unsigned int val = __alc_read_coefex_idx(codec, nid, coef_idx);
+
+	if (val != -1)
+		__alc_write_coefex_idx(codec, nid, coef_idx,
+				       (val & ~mask) | bits_set);
+}
 
 static void alc_update_coefex_idx(struct hda_codec *codec, hda_nid_t nid,
 				  unsigned int coef_idx, unsigned int mask,
 				  unsigned int bits_set)
 {
-	unsigned int val = alc_read_coefex_idx(codec, nid, coef_idx);
+	struct alc_spec *spec = codec->spec;
 
-	if (val != -1)
-		alc_write_coefex_idx(codec, nid, coef_idx,
-				     (val & ~mask) | bits_set);
+	mutex_lock(&spec->coef_mutex);
+	__alc_update_coefex_idx(codec, nid, coef_idx, mask, bits_set);
+	mutex_unlock(&spec->coef_mutex);
 }
 
 #define alc_update_coef_idx(codec, coef_idx, mask, bits_set)	\
@@ -196,13 +230,17 @@ struct coef_fw {
 static void alc_process_coef_fw(struct hda_codec *codec,
 				const struct coef_fw *fw)
 {
+	struct alc_spec *spec = codec->spec;
+
+	mutex_lock(&spec->coef_mutex);
 	for (; fw->nid; fw++) {
 		if (fw->mask == (unsigned short)-1)
-			alc_write_coefex_idx(codec, fw->nid, fw->idx, fw->val);
+			__alc_write_coefex_idx(codec, fw->nid, fw->idx, fw->val);
 		else
-			alc_update_coefex_idx(codec, fw->nid, fw->idx,
-					      fw->mask, fw->val);
+			__alc_update_coefex_idx(codec, fw->nid, fw->idx,
+						fw->mask, fw->val);
 	}
+	mutex_unlock(&spec->coef_mutex);
 }
 
 /*
@@ -1148,6 +1186,7 @@ static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 	codec->spdif_status_reset = 1;
 	codec->forced_resume = 1;
 	codec->patch_ops = alc_patch_ops;
+	mutex_init(&spec->coef_mutex);
 
 	err = alc_codec_rename_from_preset(codec);
 	if (err < 0) {
