@@ -171,10 +171,10 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
  * @bo: buffer object to map
  * @mem: memory object to map
  * @mm_cur: range to map
- * @num_pages: number of pages to map
  * @window: which GART window to use
  * @ring: DMA ring to use for the copy
  * @tmz: if we should setup a TMZ enabled mapping
+ * @size: in number of bytes to map, out number of bytes mapped
  * @addr: resulting address inside the MC address space
  *
  * Setup one of the GART windows to access a specific piece of memory or return
@@ -183,15 +183,14 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 				 struct ttm_resource *mem,
 				 struct amdgpu_res_cursor *mm_cur,
-				 unsigned num_pages, unsigned window,
-				 struct amdgpu_ring *ring, bool tmz,
-				 uint64_t *addr)
+				 unsigned window, struct amdgpu_ring *ring,
+				 bool tmz, uint64_t *size, uint64_t *addr)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_job *job;
-	unsigned num_dw, num_bytes;
-	struct dma_fence *fence;
+	unsigned offset, num_pages, num_dw, num_bytes;
 	uint64_t src_addr, dst_addr;
+	struct dma_fence *fence;
+	struct amdgpu_job *job;
 	void *cpu_addr;
 	uint64_t flags;
 	unsigned int i;
@@ -210,10 +209,22 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 		return 0;
 	}
 
+
+	/*
+	 * If start begins at an offset inside the page, then adjust the size
+	 * and addr accordingly
+	 */
+	offset = mm_cur->start & ~PAGE_MASK;
+
+	num_pages = PFN_UP(*size + offset);
+	num_pages = min_t(uint32_t, num_pages, AMDGPU_GTT_MAX_TRANSFER_SIZE);
+
+	*size = min(*size, (uint64_t)num_pages * PAGE_SIZE - offset);
+
 	*addr = adev->gmc.gart_start;
 	*addr += (u64)window * AMDGPU_GTT_MAX_TRANSFER_SIZE *
 		AMDGPU_GPU_PAGE_SIZE;
-	*addr += mm_cur->start & ~PAGE_MASK;
+	*addr += offset;
 
 	num_dw = ALIGN(adev->mman.buffer_funcs->copy_num_dw, 8);
 	num_bytes = num_pages * 8 * AMDGPU_GPU_PAGES_IN_CPU_PAGE;
@@ -294,9 +305,6 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			       struct dma_resv *resv,
 			       struct dma_fence **f)
 {
-	const uint32_t GTT_MAX_BYTES = (AMDGPU_GTT_MAX_TRANSFER_SIZE *
-					AMDGPU_GPU_PAGE_SIZE);
-
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 	struct amdgpu_res_cursor src_mm, dst_mm;
 	struct dma_fence *fence = NULL;
@@ -312,29 +320,20 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 	while (src_mm.remaining) {
-		uint32_t src_page_offset = src_mm.start & ~PAGE_MASK;
-		uint32_t dst_page_offset = dst_mm.start & ~PAGE_MASK;
+		uint64_t from, to, cur_size;
 		struct dma_fence *next;
-		uint32_t cur_size;
-		uint64_t from, to;
 
-		/* Copy size cannot exceed GTT_MAX_BYTES. So if src or dst
-		 * begins at an offset, then adjust the size accordingly
-		 */
-		cur_size = max(src_page_offset, dst_page_offset);
-		cur_size = min(min3(src_mm.size, dst_mm.size, size),
-			       (uint64_t)(GTT_MAX_BYTES - cur_size));
+		/* Never copy more than 256MiB at once to avoid a timeout */
+		cur_size = min3(src_mm.size, dst_mm.size, 256ULL << 20);
 
 		/* Map src to window 0 and dst to window 1. */
 		r = amdgpu_ttm_map_buffer(src->bo, src->mem, &src_mm,
-					  PFN_UP(cur_size + src_page_offset),
-					  0, ring, tmz, &from);
+					  0, ring, tmz, &cur_size, &from);
 		if (r)
 			goto error;
 
 		r = amdgpu_ttm_map_buffer(dst->bo, dst->mem, &dst_mm,
-					  PFN_UP(cur_size + dst_page_offset),
-					  1, ring, tmz, &to);
+					  1, ring, tmz, &cur_size, &to);
 		if (r)
 			goto error;
 
