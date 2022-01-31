@@ -31,10 +31,14 @@
 #include <linux/if_tunnel.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#ifndef __GENKSYMS__
 #include <net/inet_ecn.h>
+#endif
 #include <net/xfrm.h>
 #include <net/ip.h>
+#ifndef __GENKSYMS__
 #include <net/gre.h>
+#endif
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 #include <net/mip6.h>
 #endif
