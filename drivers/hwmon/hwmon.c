@@ -809,7 +809,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 		hdev->groups = groups;
 	}
 
-	if (device_property_present(dev, "label")) {
+	if (dev && device_property_present(dev, "label")) {
 		err = device_property_read_string(dev, "label", &label);
 		if (err < 0)
 			goto free_hwmon;
