@@ -3,6 +3,7 @@
 #define __ASM_ARM_SWITCH_TO_H
 
 #include <linux/thread_info.h>
+#include <asm/smp_plat.h>
 
 /*
  * For v7 SMP cores running a preemptible kernel we may be pre-empted
@@ -40,8 +41,7 @@ static inline void set_ti_cpu(struct task_struct *p)
 do {									\
 	__complete_pending_tlbi();					\
 	set_ti_cpu(next);						\
-	if (IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO) ||		\
-	    IS_ENABLED(CONFIG_SMP))					\
+	if (IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || is_smp())	\
 		__this_cpu_write(__entry_task, next);			\
 	last = __switch_to(prev,task_thread_info(prev), task_thread_info(next));	\
 } while (0)

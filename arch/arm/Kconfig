@@ -128,7 +128,7 @@ config ARM
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
 	select THREAD_INFO_IN_TASK
-	select HAVE_ARCH_VMAP_STACK if MMU && (!LD_IS_LLD || LLD_VERSION >= 140000) && !PM_SLEEP_SMP
+	select HAVE_ARCH_VMAP_STACK if MMU && ARM_HAS_GROUP_RELOCS
 	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
@@ -139,6 +139,17 @@ config ARM
 	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
+
+config ARM_HAS_GROUP_RELOCS
+	def_bool y
+	depends on !LD_IS_LLD || LLD_VERSION >= 140000
+	depends on !COMPILE_TEST
+	help
+	  Whether or not to use R_ARM_ALU_PC_Gn or R_ARM_LDR_PC_Gn group
+	  relocations, which have been around for a long time, but were not
+	  supported in LLD until version 14. The combined range is -/+ 256 MiB,
+	  which is usually sufficient, but not for allyesconfig, so we disable
+	  this feature when doing compile testing.
 
 config ARM_HAS_SG_CHAIN
 	bool

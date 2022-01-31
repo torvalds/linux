@@ -25,7 +25,7 @@ static inline void set_my_cpu_offset(unsigned long off)
 	asm volatile("mcr p15, 0, %0, c13, c0, 4" : : "r" (off) : "memory");
 }
 
-static inline unsigned long __my_cpu_offset(void)
+static __always_inline unsigned long __my_cpu_offset(void)
 {
 	unsigned long off;
 
@@ -38,8 +38,8 @@ static inline unsigned long __my_cpu_offset(void)
 #ifdef CONFIG_CPU_V6
 	    "1:							\n\t"
 	    "	.subsection 1					\n\t"
-#if !(defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) && \
-    !(defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
+#if defined(CONFIG_ARM_HAS_GROUP_RELOCS) && \
+    !(defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
 	    "2: " LOAD_SYM_ARMV6(%0, __per_cpu_offset) "	\n\t"
 	    "	b	1b					\n\t"
 #else

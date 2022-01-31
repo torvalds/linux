@@ -38,11 +38,10 @@
 #ifdef CONFIG_UNWINDER_ARM
 	mov	fpreg, sp		@ Preserve original SP
 #else
-	mov	r8, fp			@ Preserve original FP
-	mov	r9, sp			@ Preserve original SP
+	mov	r7, fp			@ Preserve original FP
+	mov	r8, sp			@ Preserve original SP
 #endif
 	ldr_this_cpu sp, irq_stack_ptr, r2, r3
-
 	.if	\from_user == 0
 UNWIND(	.setfp	fpreg, sp		)
 	@
@@ -82,8 +81,8 @@ UNWIND(	.setfp	fpreg, sp		)
 #ifdef CONFIG_UNWINDER_ARM
 	mov	sp, fpreg		@ Restore original SP
 #else
-	mov	fp, r8			@ Restore original FP
-	mov	sp, r9			@ Restore original SP
+	mov	fp, r7			@ Restore original FP
+	mov	sp, r8			@ Restore original SP
 #endif // CONFIG_UNWINDER_ARM
 #endif // CONFIG_IRQSTACKS
 	.endm

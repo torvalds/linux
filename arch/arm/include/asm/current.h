@@ -14,7 +14,7 @@ struct task_struct;
 
 extern struct task_struct *__current;
 
-static inline __attribute_const__ struct task_struct *get_current(void)
+static __always_inline __attribute_const__ struct task_struct *get_current(void)
 {
 	struct task_struct *cur;
 
@@ -37,8 +37,8 @@ static inline __attribute_const__ struct task_struct *get_current(void)
 #ifdef CONFIG_CPU_V6
 	    "1:							\n\t"
 	    "	.subsection 1					\n\t"
-#if !(defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) && \
-    !(defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
+#if defined(CONFIG_ARM_HAS_GROUP_RELOCS) && \
+    !(defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
 	    "2: " LOAD_SYM_ARMV6(%0, __current) "		\n\t"
 	    "	b	1b					\n\t"
 #else
@@ -55,8 +55,8 @@ static inline __attribute_const__ struct task_struct *get_current(void)
 #endif
 	    : "=r"(cur));
 #elif __LINUX_ARM_ARCH__>= 7 || \
-      (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) || \
-      (defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
+      !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
+      (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
 	cur = __current;
 #else
 	asm(LOAD_SYM_ARMV6(%0, __current) : "=r"(cur));

@@ -885,6 +885,7 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 	die("kernel stack overflow", regs, 0);
 }
 
+#ifndef CONFIG_ARM_LPAE
 /*
  * Normally, we rely on the logic in do_translation_fault() to update stale PMD
  * entries covering the vmalloc space in a task's page tables when it first
@@ -895,26 +896,14 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
  * So we need to ensure that these PMD entries are up to date *before* the MM
  * switch. As we already have some logic in the MM switch path that takes care
  * of this, let's trigger it by bumping the counter every time the core vmalloc
- * code modifies a PMD entry in the vmalloc region.
+ * code modifies a PMD entry in the vmalloc region. Use release semantics on
+ * the store so that other CPUs observing the counter's new value are
+ * guaranteed to see the updated page table entries as well.
  */
 void arch_sync_kernel_mappings(unsigned long start, unsigned long end)
 {
-	if (start > VMALLOC_END || end < VMALLOC_START)
-		return;
-
-	/*
-	 * This hooks into the core vmalloc code to receive notifications of
-	 * any PMD level changes that have been made to the kernel page tables.
-	 * This means it should only be triggered once for every MiB worth of
-	 * vmalloc space, given that we don't support huge vmalloc/vmap on ARM,
-	 * and that kernel PMD level table entries are rarely (if ever)
-	 * updated.
-	 *
-	 * This means that the counter is going to max out at ~250 for the
-	 * typical case. If it overflows, something entirely unexpected has
-	 * occurred so let's throw a warning if that happens.
-	 */
-	WARN_ON(++init_mm.context.vmalloc_seq == UINT_MAX);
+	if (start < VMALLOC_END && end > VMALLOC_START)
+		atomic_inc_return_release(&init_mm.context.vmalloc_seq);
 }
-
+#endif
 #endif

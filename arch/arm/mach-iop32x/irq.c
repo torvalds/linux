@@ -59,7 +59,7 @@ struct irq_chip ext_chip = {
 	.irq_unmask	= iop32x_irq_unmask,
 };
 
-void iop_handle_irq(struct pt_regs *regs)
+static void iop_handle_irq(struct pt_regs *regs)
 {
 	u32 mask;
 

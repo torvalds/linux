@@ -656,8 +656,8 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 
 	.macro		__ldst_va, op, reg, tmp, sym, cond
 #if __LINUX_ARM_ARCH__ >= 7 || \
-    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) || \
-    (defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
+    !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
+    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
 	mov_l		\tmp, \sym, \cond
 	\op\cond	\reg, [\tmp]
 #else
@@ -716,8 +716,8 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	 */
 	.macro		ldr_this_cpu, rd:req, sym:req, t1:req, t2:req
 #if __LINUX_ARM_ARCH__ >= 7 || \
-    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS)) || \
-    (defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 140000)
+    !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
+    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
 	this_cpu_offset	\t1
 	mov_l		\t2, \sym
 	ldr		\rd, [\t1, \t2]
