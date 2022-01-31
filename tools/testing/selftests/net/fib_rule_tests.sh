@@ -104,13 +104,14 @@ fib_rule6_test_match_n_redirect()
 {
 	local match="$1"
 	local getmatch="$2"
+	local description="$3"
 
 	$IP -6 rule add $match table $RTABLE
 	$IP -6 route get $GW_IP6 $getmatch | grep -q "table $RTABLE"
-	log_test $? 0 "rule6 check: $1"
+	log_test $? 0 "rule6 check: $description"
 
 	fib_rule6_del_by_pref "$match"
-	log_test $? 0 "rule6 del by pref: $match"
+	log_test $? 0 "rule6 del by pref: $description"
 }
 
 fib_rule6_test()
@@ -176,13 +177,14 @@ fib_rule4_test_match_n_redirect()
 {
 	local match="$1"
 	local getmatch="$2"
+	local description="$3"
 
 	$IP rule add $match table $RTABLE
 	$IP route get $GW_IP4 $getmatch | grep -q "table $RTABLE"
-	log_test $? 0 "rule4 check: $1"
+	log_test $? 0 "rule4 check: $description"
 
 	fib_rule4_del_by_pref "$match"
-	log_test $? 0 "rule4 del by pref: $match"
+	log_test $? 0 "rule4 del by pref: $description"
 }
 
 fib_rule4_test()
