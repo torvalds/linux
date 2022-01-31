@@ -37,6 +37,7 @@
 #include <linux/flat.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/coredump.h>
 
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>

@@ -14,11 +14,21 @@ struct core_vma_metadata {
 	unsigned long dump_size;
 };
 
+struct coredump_params {
+	const kernel_siginfo_t *siginfo;
+	struct pt_regs *regs;
+	struct file *file;
+	unsigned long limit;
+	unsigned long mm_flags;
+	loff_t written;
+	loff_t pos;
+	loff_t to_skip;
+};
+
 /*
  * These are the only things you should do on a core-file: use only these
  * functions to write out all the necessary info.
  */
-struct coredump_params;
 extern void dump_skip_to(struct coredump_params *cprm, unsigned long to);
 extern void dump_skip(struct coredump_params *cprm, size_t nr);
 extern int dump_emit(struct coredump_params *cprm, const void *addr, int nr);
