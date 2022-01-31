@@ -59,19 +59,16 @@ static inline bool
 mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		    struct page *page, struct xdp_buff *xdp)
 {
+	struct skb_shared_info *sinfo = NULL;
 	struct mlx5e_xmit_data xdptxd;
 	struct mlx5e_xdp_info xdpi;
 	struct xdp_frame *xdpf;
 	dma_addr_t dma_addr;
+	int i;
 
 	xdpf = xdp_convert_buff_to_frame(xdp);
 	if (unlikely(!xdpf))
 		return false;
-
-	if (unlikely(xdp_frame_has_frags(xdpf))) {
-		xdp_return_frame(xdpf);
-		return false;
-	}
 
 	xdptxd.data = xdpf->data;
 	xdptxd.len  = xdpf->len;
@@ -117,19 +114,45 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	 */
 
 	xdpi.mode = MLX5E_XDP_XMIT_MODE_PAGE;
+	xdpi.page.rq = rq;
 
 	dma_addr = page_pool_get_dma_addr(page) + (xdpf->data - (void *)xdpf);
 	dma_sync_single_for_device(sq->pdev, dma_addr, xdptxd.len, DMA_TO_DEVICE);
 
+	if (unlikely(xdp_frame_has_frags(xdpf))) {
+		sinfo = xdp_get_shared_info_from_frame(xdpf);
+
+		for (i = 0; i < sinfo->nr_frags; i++) {
+			skb_frag_t *frag = &sinfo->frags[i];
+			dma_addr_t addr;
+			u32 len;
+
+			addr = page_pool_get_dma_addr(skb_frag_page(frag)) +
+				skb_frag_off(frag);
+			len = skb_frag_size(frag);
+			dma_sync_single_for_device(sq->pdev, addr, len,
+						   DMA_TO_DEVICE);
+		}
+	}
+
 	xdptxd.dma_addr = dma_addr;
-	xdpi.page.rq = rq;
-	xdpi.page.page = page;
 
 	if (unlikely(!INDIRECT_CALL_2(sq->xmit_xdp_frame, mlx5e_xmit_xdp_frame_mpwqe,
-				      mlx5e_xmit_xdp_frame, sq, &xdptxd, NULL, 0)))
+				      mlx5e_xmit_xdp_frame, sq, &xdptxd, sinfo, 0)))
 		return false;
 
+	xdpi.page.page = page;
 	mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
+
+	if (unlikely(xdp_frame_has_frags(xdpf))) {
+		for (i = 0; i < sinfo->nr_frags; i++) {
+			skb_frag_t *frag = &sinfo->frags[i];
+
+			xdpi.page.page = skb_frag_page(frag);
+			mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, &xdpi);
+		}
+	}
+
 	return true;
 }
 
