@@ -351,6 +351,23 @@ static int lan966x_port_get_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static int lan966x_port_ioctl(struct net_device *dev, struct ifreq *ifr,
+			      int cmd)
+{
+	struct lan966x_port *port = netdev_priv(dev);
+
+	if (!phy_has_hwtstamp(dev->phydev) && port->lan966x->ptp) {
+		switch (cmd) {
+		case SIOCSHWTSTAMP:
+			return lan966x_ptp_hwtstamp_set(port, ifr);
+		case SIOCGHWTSTAMP:
+			return lan966x_ptp_hwtstamp_get(port, ifr);
+		}
+	}
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+
 static const struct net_device_ops lan966x_port_netdev_ops = {
 	.ndo_open			= lan966x_port_open,
 	.ndo_stop			= lan966x_port_stop,
@@ -361,6 +378,7 @@ static const struct net_device_ops lan966x_port_netdev_ops = {
 	.ndo_get_stats64		= lan966x_stats_get,
 	.ndo_set_mac_address		= lan966x_port_set_mac_address,
 	.ndo_get_port_parent_id		= lan966x_port_get_parent_id,
+	.ndo_eth_ioctl			= lan966x_port_ioctl,
 };
 
 bool lan966x_netdevice_check(const struct net_device *dev)

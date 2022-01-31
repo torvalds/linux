@@ -54,6 +54,10 @@
 #define LAN966X_PHC_COUNT		3
 #define LAN966X_PHC_PORT		0
 
+#define IFH_REW_OP_NOOP			0x0
+#define IFH_REW_OP_ONE_STEP_PTP		0x3
+#define IFH_REW_OP_TWO_STEP_PTP		0x4
+
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
  * ENTRYTYPE_LOCKED is not subject to aging.
@@ -130,6 +134,7 @@ struct lan966x {
 	bool ptp;
 	struct lan966x_phc phc[LAN966X_PHC_COUNT];
 	spinlock_t ptp_clock_lock; /* lock for phc */
+	struct mutex ptp_lock; /* lock for ptp interface state */
 };
 
 struct lan966x_port_config {
@@ -159,6 +164,8 @@ struct lan966x_port {
 	struct phylink *phylink;
 	struct phy *serdes;
 	struct fwnode_handle *fwnode;
+
+	u8 ptp_cmd;
 };
 
 extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
@@ -247,6 +254,8 @@ void lan966x_mdb_write_entries(struct lan966x *lan966x, u16 vid);
 
 int lan966x_ptp_init(struct lan966x *lan966x);
 void lan966x_ptp_deinit(struct lan966x *lan966x);
+int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr);
+int lan966x_ptp_hwtstamp_get(struct lan966x_port *port, struct ifreq *ifr);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

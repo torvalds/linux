@@ -35,6 +35,78 @@ static u64 lan966x_ptp_get_nominal_value(void)
 	return res;
 }
 
+int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr)
+{
+	struct lan966x *lan966x = port->lan966x;
+	struct hwtstamp_config cfg;
+	struct lan966x_phc *phc;
+
+	/* For now don't allow to run ptp on ports that are part of a bridge,
+	 * because in case of transparent clock the HW will still forward the
+	 * frames, so there would be duplicate frames
+	 */
+	if (lan966x->bridge_mask & BIT(port->chip_port))
+		return -EINVAL;
+
+	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
+		return -EFAULT;
+
+	switch (cfg.tx_type) {
+	case HWTSTAMP_TX_ON:
+		port->ptp_cmd = IFH_REW_OP_TWO_STEP_PTP;
+		break;
+	case HWTSTAMP_TX_ONESTEP_SYNC:
+		port->ptp_cmd = IFH_REW_OP_ONE_STEP_PTP;
+		break;
+	case HWTSTAMP_TX_OFF:
+		port->ptp_cmd = IFH_REW_OP_NOOP;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (cfg.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		break;
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
+		cfg.rx_filter = HWTSTAMP_FILTER_ALL;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	/* Commit back the result & save it */
+	mutex_lock(&lan966x->ptp_lock);
+	phc = &lan966x->phc[LAN966X_PHC_PORT];
+	memcpy(&phc->hwtstamp_config, &cfg, sizeof(cfg));
+	mutex_unlock(&lan966x->ptp_lock);
+
+	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+}
+
+int lan966x_ptp_hwtstamp_get(struct lan966x_port *port, struct ifreq *ifr)
+{
+	struct lan966x *lan966x = port->lan966x;
+	struct lan966x_phc *phc;
+
+	phc = &lan966x->phc[LAN966X_PHC_PORT];
+	return copy_to_user(ifr->ifr_data, &phc->hwtstamp_config,
+			    sizeof(phc->hwtstamp_config)) ? -EFAULT : 0;
+}
+
 static int lan966x_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct lan966x_phc *phc = container_of(ptp, struct lan966x_phc, info);
@@ -252,6 +324,7 @@ int lan966x_ptp_init(struct lan966x *lan966x)
 	}
 
 	spin_lock_init(&lan966x->ptp_clock_lock);
+	mutex_init(&lan966x->ptp_lock);
 
 	/* Disable master counters */
 	lan_wr(PTP_DOM_CFG_ENA_SET(0), lan966x, PTP_DOM_CFG);
