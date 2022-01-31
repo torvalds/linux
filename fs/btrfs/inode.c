@@ -3037,7 +3037,7 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
 			     test_bit(BTRFS_ORDERED_ENCODED, &oe->flags) ||
 			     test_bit(BTRFS_ORDERED_TRUNCATED, &oe->flags);
 
-	return insert_reserved_file_extent(trans, BTRFS_I(oe->inode),
+	return insert_reserved_file_extent(trans, oe->inode,
 					   oe->file_offset, &stack_fi,
 					   update_inode_bytes, oe->qgroup_rsv);
 }
@@ -3049,7 +3049,7 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
  */
 int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 {
-	struct btrfs_inode *inode = BTRFS_I(ordered_extent->inode);
+	struct btrfs_inode *inode = ordered_extent->inode;
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans = NULL;
@@ -3283,7 +3283,7 @@ out:
 
 int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered)
 {
-	if (btrfs_is_zoned(inode_to_fs_info(ordered->inode)) &&
+	if (btrfs_is_zoned(ordered->inode->root->fs_info) &&
 	    !test_bit(BTRFS_ORDERED_IOERR, &ordered->flags) &&
 	    list_empty(&ordered->bioc_list))
 		btrfs_finish_ordered_zoned(ordered);

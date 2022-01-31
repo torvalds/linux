@@ -374,7 +374,7 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 				   blk_opf_t write_flags,
 				   bool writeback)
 {
-	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_inode *inode = ordered->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct compressed_bio *cb;
 

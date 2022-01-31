@@ -130,7 +130,7 @@ struct btrfs_ordered_extent {
 	refcount_t refs;
 
 	/* the inode we belong to */
-	struct inode *inode;
+	struct btrfs_inode *inode;
 
 	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;

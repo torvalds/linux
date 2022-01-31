@@ -180,7 +180,7 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 	entry->disk_num_bytes = disk_num_bytes;
 	entry->offset = offset;
 	entry->bytes_left = num_bytes;
-	entry->inode = igrab(&inode->vfs_inode);
+	entry->inode = BTRFS_I(igrab(&inode->vfs_inode));
 	entry->compress_type = compress_type;
 	entry->truncated_len = (u64)-1;
 	entry->qgroup_rsv = qgroup_rsv;
@@ -208,7 +208,7 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 
 static void insert_ordered_extent(struct btrfs_ordered_extent *entry)
 {
-	struct btrfs_inode *inode = BTRFS_I(entry->inode);
+	struct btrfs_inode *inode = entry->inode;
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct rb_node *node;
@@ -310,7 +310,7 @@ struct btrfs_ordered_extent *btrfs_alloc_ordered_extent(
 void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 			   struct btrfs_ordered_sum *sum)
 {
-	struct btrfs_inode *inode = BTRFS_I(entry->inode);
+	struct btrfs_inode *inode = entry->inode;
 
 	spin_lock_irq(&inode->ordered_tree_lock);
 	list_add_tail(&sum->list, &entry->list);
@@ -320,7 +320,7 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 void btrfs_mark_ordered_extent_error(struct btrfs_ordered_extent *ordered)
 {
 	if (!test_and_set_bit(BTRFS_ORDERED_IOERR, &ordered->flags))
-		mapping_set_error(ordered->inode->i_mapping, -EIO);
+		mapping_set_error(ordered->inode->vfs_inode.i_mapping, -EIO);
 }
 
 static void finish_ordered_fn(struct btrfs_work *work)
@@ -335,7 +335,7 @@ static bool can_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 				      struct page *page, u64 file_offset,
 				      u64 len, bool uptodate)
 {
-	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_inode *inode = ordered->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
 	lockdep_assert_held(&inode->ordered_tree_lock);
@@ -388,7 +388,7 @@ static bool can_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 
 static void btrfs_queue_ordered_fn(struct btrfs_ordered_extent *ordered)
 {
-	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_inode *inode = ordered->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_workqueue *wq = btrfs_is_free_space_inode(inode) ?
 		fs_info->endio_freespace_worker : fs_info->endio_write_workers;
@@ -401,7 +401,7 @@ void btrfs_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 				 struct page *page, u64 file_offset, u64 len,
 				 bool uptodate)
 {
-	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_inode *inode = ordered->inode;
 	unsigned long flags;
 	bool ret;
 
@@ -610,14 +610,14 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 	struct list_head *cur;
 	struct btrfs_ordered_sum *sum;
 
-	trace_btrfs_ordered_extent_put(BTRFS_I(entry->inode), entry);
+	trace_btrfs_ordered_extent_put(entry->inode, entry);
 
 	if (refcount_dec_and_test(&entry->refs)) {
 		ASSERT(list_empty(&entry->root_extent_list));
 		ASSERT(list_empty(&entry->log_list));
 		ASSERT(RB_EMPTY_NODE(&entry->rb_node));
 		if (entry->inode)
-			btrfs_add_delayed_iput(BTRFS_I(entry->inode));
+			btrfs_add_delayed_iput(entry->inode);
 		while (!list_empty(&entry->list)) {
 			cur = entry->list.next;
 			sum = list_entry(cur, struct btrfs_ordered_sum, list);
@@ -849,7 +849,7 @@ void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry)
 {
 	u64 start = entry->file_offset;
 	u64 end = start + entry->num_bytes - 1;
-	struct btrfs_inode *inode = BTRFS_I(entry->inode);
+	struct btrfs_inode *inode = entry->inode;
 	bool freespace_inode;
 
 	trace_btrfs_ordered_extent_start(inode, entry);
@@ -1208,7 +1208,7 @@ bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end,
 struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 			struct btrfs_ordered_extent *ordered, u64 len)
 {
-	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_inode *inode = ordered->inode;
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 file_offset = ordered->file_offset;

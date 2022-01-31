@@ -4388,7 +4388,7 @@ out:
  */
 int btrfs_reloc_clone_csums(struct btrfs_ordered_extent *ordered)
 {
-	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
+	struct btrfs_inode *inode = ordered->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 disk_bytenr = ordered->file_offset + inode->reloc_block_group_start;
 	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, disk_bytenr);
