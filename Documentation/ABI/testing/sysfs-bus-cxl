@@ -25,6 +25,15 @@ Description:
 		identically named field in the Identify Memory Device Output
 		Payload in the CXL-2.0 specification.
 
+What:		/sys/bus/cxl/devices/memX/serial
+Date:		January, 2022
+KernelVersion:	v5.18
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) 64-bit serial number per the PCIe Device Serial Number
+		capability. Mandatory for CXL devices, see CXL 2.0 8.1.12.2
+		Memory Device PCIe Capabilities and Extended Capabilities.
+
 What:		/sys/bus/cxl/devices/*/devtype
 Date:		June, 2021
 KernelVersion:	v5.14

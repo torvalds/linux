@@ -131,6 +131,7 @@ struct cxl_endpoint_dvsec_info {
  * @next_persistent_bytes: persistent capacity change pending device reset
  * @component_reg_phys: register base of component registers
  * @info: Cached DVSEC information about the device.
+ * @serial: PCIe Device Serial Number
  * @mbox_send: @dev specific transport for transmitting mailbox commands
  * @wait_media_ready: @dev specific method to await media ready
  *
@@ -164,6 +165,7 @@ struct cxl_dev_state {
 
 	resource_size_t component_reg_phys;
 	struct cxl_endpoint_dvsec_info info;
+	u64 serial;
 
 	int (*mbox_send)(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd);
 	int (*wait_media_ready)(struct cxl_dev_state *cxlds);
