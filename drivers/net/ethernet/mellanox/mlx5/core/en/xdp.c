@@ -323,6 +323,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 
 	dma_addr_t dma_addr = xdptxd->dma_addr;
 	u32 dma_len = xdptxd->len;
+	u16 ds_cnt, inline_hdr_sz;
 
 	struct mlx5e_xdpsq_stats *stats = sq->stats;
 
@@ -338,7 +339,8 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	if (unlikely(check_result < 0))
 		return false;
 
-	cseg->fm_ce_se = 0;
+	ds_cnt = MLX5E_TX_WQE_EMPTY_DS_COUNT + 1;
+	inline_hdr_sz = 0;
 
 	/* copy the inline part if required */
 	if (sq->min_inline_mode != MLX5_INLINE_MODE_NONE) {
@@ -347,7 +349,9 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 		       MLX5E_XDP_MIN_INLINE - sizeof(eseg->inline_hdr.start));
 		dma_len  -= MLX5E_XDP_MIN_INLINE;
 		dma_addr += MLX5E_XDP_MIN_INLINE;
+		inline_hdr_sz = MLX5E_XDP_MIN_INLINE;
 		dseg++;
+		ds_cnt++;
 	}
 
 	/* write the dma part */
@@ -356,7 +360,31 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_SEND);
 
-	sq->pc++;
+	if (unlikely(test_bit(MLX5E_SQ_STATE_XDP_MULTIBUF, &sq->state))) {
+		u8 num_pkts = 1;
+		u8 num_wqebbs;
+
+		memset(&cseg->signature, 0, sizeof(*cseg) -
+		       sizeof(cseg->opmod_idx_opcode) - sizeof(cseg->qpn_ds));
+		memset(eseg, 0, sizeof(*eseg) - sizeof(eseg->trailer));
+
+		eseg->inline_hdr.sz = cpu_to_be16(inline_hdr_sz);
+		dseg->lkey = sq->mkey_be;
+
+		cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
+
+		num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
+		sq->db.wqe_info[pi] = (struct mlx5e_xdp_wqe_info) {
+			.num_wqebbs = num_wqebbs,
+			.num_pkts = num_pkts,
+		};
+
+		sq->pc += num_wqebbs;
+	} else {
+		cseg->fm_ce_se = 0;
+
+		sq->pc++;
+	}
 
 	sq->doorbell_cseg = cseg;
 
