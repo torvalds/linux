@@ -281,9 +281,6 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 	flush_tlb_page(vma, address);
 }
 
-#define __HAVE_ARCH_PTE_SAME
-#define pte_same(A,B)	((pte_val(A) ^ pte_val(B)) == 0)
-
 #define pte_ERROR(e) \
 	pr_err("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
 #define pmd_ERROR(e) \

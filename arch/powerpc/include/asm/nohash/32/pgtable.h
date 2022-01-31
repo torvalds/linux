@@ -338,9 +338,6 @@ static inline int pte_young(pte_t pte)
 	return pte_val(pte) & _PAGE_ACCESSED;
 }
 
-#define __HAVE_ARCH_PTE_SAME
-#define pte_same(A,B)	((pte_val(A) ^ pte_val(B)) == 0)
-
 /*
  * Note that on Book E processors, the pmd contains the kernel virtual
  * (lowmem) address of the pte page.  The physical address is less useful
