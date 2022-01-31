@@ -45,6 +45,8 @@
  *  VERSION     : 01-00-08
  *  09 Sep 2021 : Reverted changes related to usage of Port-0 pci_dev for all DMA allocation/mapping for IPA path
  *  VERSION     : 01-00-12
+ *  31 Jan 2022 : 1. Common used macro moved to common.h file.
+ *  VERSION     : 01-00-39
  */
 
 #include <linux/dma-mapping.h>
@@ -58,12 +60,6 @@
 
 #define IPA_INTF_MAJOR_VERSION 0
 #define IPA_INTF_MINOR_VERSION 1
-
-/* 0x20004000 to 0x2000401C is for Port0, 0x20004020 to 0x2000403C is for Port1 */
-#define SRAM_TX_PCIE_ADDR_LOC	0x44000
-
-/* 0x20004040 to 0x2000405C is for Port0, 0x20004060 to 0x2000407C is for Port1 */
-#define SRAM_RX_PCIE_ADDR_LOC	0x44040
 
 #define CM3_PCIE_REGION_LOW_BOUND	0x60000000
 #define CM3_PCIE_REGION_UP_BOUND	0xC0000000

@@ -101,6 +101,8 @@
  *  VERSION     : 01-00-36
  *  20 Jan 2022 : 1. Reset eMAC if port unavailable (PHY not connected) during suspend-resume.
  *  VERSION     : 01-00-37
+ *  31 Jan 2022 : 1. Debug dump API supported to dump registers during crash.
+ *  VERSION     : 01-00-39
 */
 
 #include <linux/clk.h>
@@ -262,6 +264,560 @@ static u8 phy_sa_addr[2][6] = {
 };
 extern unsigned int mac0_en_lp_pause_frame_cnt;
 extern unsigned int mac1_en_lp_pause_frame_cnt;
+
+
+static int dwxgmac2_rx_parser_read_entry(struct tc956xmac_priv *priv,
+		struct tc956xmac_rx_parser_entry *entry, int entry_pos)
+{
+	void __iomem *ioaddr = priv->ioaddr;
+	int limit;
+	int i;
+	u32 reg_val;
+
+	for (i = 0; i < (sizeof(*entry) / sizeof(u32)); i++) {
+		int real_pos = entry_pos * (sizeof(*entry) / sizeof(u32)) + i;
+
+		/* Set Entry Position */
+		reg_val = readl(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+		reg_val = reg_val & (~XGMAC_ADDR);
+		reg_val |= (real_pos & XGMAC_ADDR);
+		writel(reg_val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+		
+		/* Set Read op */
+		reg_val = readl(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+		reg_val &= ~XGMAC_WRRDN;
+		writel(reg_val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+		/* Start read */
+		reg_val = readl(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+		reg_val |= XGMAC_STARTBUSY;
+		writel(reg_val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+
+		limit = 10000;
+		while (limit--) {
+			if (!(readl(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST) &
+			      XGMAC_STARTBUSY))
+				break;
+			udelay(1);
+		}
+		if (limit < 0)
+			return -EBUSY;
+
+		/* Read Data Reg */
+		*((unsigned int  *)entry + i) = readl(ioaddr  + XGMAC_MTL_RXP_IACC_DATA);
+	}
+
+	return 0;
+}
+
+
+int tc956x_dump_regs(struct net_device *net_device, struct tc956x_regs *regs)
+{
+	struct tc956xmac_priv *priv = netdev_priv(net_device);
+	u32 rx_queues_cnt = priv->plat->rx_queues_to_use;
+	u32 tx_queues_cnt = priv->plat->tx_queues_to_use;
+	u32 maxq = max(rx_queues_cnt, tx_queues_cnt);
+	u32 ch, queue, table_entry, reg = 0;
+	struct tc956xmac_tx_queue *tx_q;
+	struct tc956xmac_rx_queue *rx_q;
+	u8 fw_version_str[32];
+	struct tc956x_version *fw_version;
+
+	DBGPR_FUNC(priv->device, "-->%s\n", __func__);
+
+	/* PCIe register dump */
+	regs->pcie_reg.rsc_mng_id = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + RSCMNG_ID_REG);
+
+	/* Configuration register dump */
+	regs->config_reg.ncid = readl(priv->ioaddr + NCID_OFFSET);
+	regs->config_reg.nclkctrl0 = readl(priv->ioaddr + NCLKCTRL0_OFFSET);
+	regs->config_reg.nrstctrl0 = readl(priv->ioaddr + NRSTCTRL0_OFFSET);
+	regs->config_reg.nclkctrl1 = readl(priv->ioaddr + NCLKCTRL1_OFFSET);
+	regs->config_reg.nemac0ctl = readl(priv->ioaddr + NEMAC0CTL_OFFSET);
+	regs->config_reg.nemac1ctl = readl(priv->ioaddr + NEMAC1CTL_OFFSET);
+	regs->config_reg.nemacsts = readl(priv->ioaddr + NEMACSTS_OFFSET);
+	regs->config_reg.gpioi0 = readl(priv->ioaddr + GPIOI0_OFFSET);
+	regs->config_reg.gpioi1 = readl(priv->ioaddr + GPIOI1_OFFSET);
+	regs->config_reg.gpioe0 = readl(priv->ioaddr + GPIOE0_OFFSET);
+	regs->config_reg.gpioe1 = readl(priv->ioaddr + GPIOE1_OFFSET);
+
+	/* MSI register dump */
+	regs->msi_reg.msi_out_en = readl(priv->ioaddr + TC956X_MSI_OUT_EN_OFFSET(priv->port_num));
+	regs->msi_reg.msi_mask_set = readl(priv->ioaddr + TC956X_MSI_MASK_SET_OFFSET(priv->port_num));
+	regs->msi_reg.msi_mask_clr = readl(priv->ioaddr + TC956X_MSI_MASK_CLR_OFFSET(priv->port_num));
+	regs->msi_reg.int_sts = readl(priv->ioaddr + TC956X_MSI_INT_STS_OFFSET(priv->port_num));
+	regs->msi_reg.int_raw_sts = readl(priv->ioaddr + TC956X_MSI_INT_RAW_STS_OFFSET(priv->port_num));
+	regs->msi_reg.msi_sts = readl(priv->ioaddr + TC956X_MSI_STS_OFFSET(priv->port_num));
+	regs->msi_reg.cnt_int0 = readl(priv->ioaddr + TC956X_MSI_CNT0(priv->port_num));	
+	regs->msi_reg.cnt_int1 = readl(priv->ioaddr + TC956X_MSI_CNT1(priv->port_num));	
+	regs->msi_reg.cnt_int2 = readl(priv->ioaddr + TC956X_MSI_CNT2(priv->port_num));	
+	regs->msi_reg.cnt_int3 = readl(priv->ioaddr + TC956X_MSI_CNT3(priv->port_num));	
+	regs->msi_reg.cnt_int4 = readl(priv->ioaddr + TC956X_MSI_CNT4(priv->port_num));	
+	regs->msi_reg.cnt_int11 = readl(priv->ioaddr + TC956X_MSI_CNT11(priv->port_num));
+	regs->msi_reg.cnt_int12 = readl(priv->ioaddr + TC956X_MSI_CNT12(priv->port_num));
+	regs->msi_reg.cnt_int20 = readl(priv->ioaddr + TC956X_MSI_CNT20(priv->port_num));
+	regs->msi_reg.cnt_int24 = readl(priv->ioaddr + TC956X_MSI_CNT24(priv->port_num));
+
+	/* INTC register dump */
+	regs->intc_reg.intmcumask0 = readl(priv->ioaddr + INTMCUMASK0);	
+	regs->intc_reg.intmcumask1 = readl(priv->ioaddr + INTMCUMASK1);	
+	regs->intc_reg.intmcumask2 = readl(priv->ioaddr + INTMCUMASK2);	
+
+	/* DMA channel register dump */
+	regs->dma_reg.debug_sts0 = readl(priv->ioaddr + XGMAC_DMA_DEBUG_STATUS0); 
+
+	for (ch = 0; ch < maxq; ch++) {
+		regs->dma_reg.ch_control[ch] = readl(priv->ioaddr + XGMAC_DMA_CH_CONTROL(ch));
+		regs->dma_reg.interrupt_enable[ch] = readl(priv->ioaddr + XGMAC_DMA_CH_INT_EN(ch));
+		regs->dma_reg.ch_status[ch] = readl(priv->ioaddr + XGMAC_DMA_CH_STATUS(ch));
+		regs->dma_reg.debug_status[ch] = readl(priv->ioaddr + XGMAC_DMA_CH_DBG_STATUS(ch));
+		regs->dma_reg.rxch_watchdog_timer[ch] = readl(priv->ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(ch));
+	}
+
+	for (ch = 0; ch < tx_queues_cnt; ch++) {
+		regs->dma_reg.tx_ch[ch].control = readl(priv->ioaddr + XGMAC_DMA_CH_TX_CONTROL(ch));
+		regs->dma_reg.tx_ch[ch].list_haddr = readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_HADDR(ch));
+		regs->dma_reg.tx_ch[ch].list_laddr = readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_LADDR(ch));
+		regs->dma_reg.tx_ch[ch].ring_len = readl(priv->ioaddr + XGMAC_DMA_CH_TX_CONTROL2(ch));
+		regs->dma_reg.tx_ch[ch].curr_haddr = readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxDESC_HADDR(ch));
+		regs->dma_reg.tx_ch[ch].curr_laddr = readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxDESC_LADDR(ch));
+		regs->dma_reg.tx_ch[ch].tail_ptr = readl(priv->ioaddr + XGMAC_DMA_CH_TxDESC_TAIL_LPTR(ch));
+		regs->dma_reg.tx_ch[ch].buf_haddr = readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxBuff_HADDR(ch));
+		regs->dma_reg.tx_ch[ch].buf_laddr = readl(priv->ioaddr + XGMAC_DMA_CH_Cur_TxBuff_LADDR(ch));
+	}
+
+	for (ch = 0; ch < rx_queues_cnt; ch++) {
+		regs->dma_reg.rx_ch[ch].control = readl(priv->ioaddr + XGMAC_DMA_CH_RX_CONTROL(ch));
+		regs->dma_reg.rx_ch[ch].list_haddr = readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_HADDR(ch));
+		regs->dma_reg.rx_ch[ch].list_laddr = readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_LADDR(ch));
+		regs->dma_reg.rx_ch[ch].ring_len = readl(priv->ioaddr + XGMAC_DMA_CH_RX_CONTROL2(ch));
+		regs->dma_reg.rx_ch[ch].curr_haddr = readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxDESC_HADDR(ch));
+		regs->dma_reg.rx_ch[ch].curr_laddr = readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxDESC_LADDR(ch));
+		regs->dma_reg.rx_ch[ch].tail_ptr = readl(priv->ioaddr + XGMAC_DMA_CH_RxDESC_TAIL_LPTR(ch));
+		regs->dma_reg.rx_ch[ch].buf_haddr = readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxBuff_HADDR(ch));
+		regs->dma_reg.rx_ch[ch].buf_laddr = readl(priv->ioaddr + XGMAC_DMA_CH_Cur_RxBuff_LADDR(ch));
+	}
+
+	for (ch = 0; ch < tx_queues_cnt; ch++) {
+		tx_q = &priv->tx_queue[ch];
+		regs->dma_reg.tx_queue[ch].desc_phy_addr = tx_q->dma_tx_phy;
+		regs->dma_reg.tx_queue[ch].desc_va_addr = tx_q->dma_tx;
+		#ifdef DMA_OFFLOAD_ENABLE
+		regs->dma_reg.tx_queue[ch].buff_phy_addr = tx_q->buff_tx_phy;
+		regs->dma_reg.tx_queue[ch].buff_va_addr = (void *)tx_q->buffer_tx_va_addr;
+		#endif
+		regs->dma_reg.tx_queue[ch].tx_skbuff = tx_q->tx_skbuff;
+		regs->dma_reg.tx_queue[ch].tx_skbuff_dma = tx_q->tx_skbuff_dma;
+	}
+
+	for (ch = 0; ch < rx_queues_cnt; ch++) {
+		rx_q = &priv->rx_queue[ch];
+		regs->dma_reg.rx_queue[ch].desc_phy_addr = rx_q->dma_rx_phy;
+		regs->dma_reg.rx_queue[ch].desc_va_addr = rx_q->dma_rx;
+		#ifdef DMA_OFFLOAD_ENABLE
+		regs->dma_reg.rx_queue[ch].buff_phy_addr = rx_q->buff_rx_phy;
+		regs->dma_reg.rx_queue[ch].buff_va_addr = (void *)rx_q->buffer_rx_va_addr;
+		#endif
+		regs->dma_reg.rx_queue[ch].buf_pool = rx_q->buf_pool;
+	}
+
+	/* MAC register dump */
+	regs->mac_reg.mac_tx_config = readl(priv->ioaddr + XGMAC_TX_CONFIG);
+	regs->mac_reg.mac_rx_config = readl(priv->ioaddr + XGMAC_RX_CONFIG);
+	regs->mac_reg.mac_pkt_filter = readl(priv->ioaddr + XGMAC_PACKET_FILTER);
+	regs->mac_reg.mac_tx_rx_status = readl(priv->ioaddr + XGMAC_RX_TX_STS);
+	regs->mac_reg.mac_debug = readl(priv->ioaddr + XGMAC_DEBUG);
+
+	/* MTL register dump */
+	regs->mtl_reg.op_mode = readl(priv->ioaddr + XGMAC_MTL_OPMODE);
+	regs->mtl_reg.mtl_rxq_dma_map0 = readl(priv->ioaddr + XGMAC_MTL_RXQ_DMA_MAP0);
+	regs->mtl_reg.mtl_rxq_dma_map1 = readl(priv->ioaddr + XGMAC_MTL_RXQ_DMA_MAP1);
+
+	for (queue = 0; queue < MTL_MAX_TX_QUEUES; queue++) {
+		regs->mtl_reg.tx_info[queue].op_mode = readl(priv->ioaddr + XGMAC_MTL_TXQ_OPMODE(queue));
+		regs->mtl_reg.tx_info[queue].underflow = readl(priv->ioaddr + XGMAC_MTL_TXQ_UF_OFFSET(queue));		
+		regs->mtl_reg.tx_info[queue].debug = readl(priv->ioaddr + XGMAC_MTL_TXQ_Debug(queue));				
+	}
+
+	for (queue = 0; queue < MTL_MAX_RX_QUEUES; queue++) {
+		regs->mtl_reg.rx_info[queue].op_mode = readl(priv->ioaddr + XGMAC_MTL_RXQ_OPMODE(queue));
+		regs->mtl_reg.rx_info[queue].miss_pkt_overflow = readl(priv->ioaddr + XGMAC_MTL_RXQ_MISS_PKT_OF_CNT_OFFSET(queue));		
+		regs->mtl_reg.rx_info[queue].debug = readl(priv->ioaddr + XGMAC_MTL_RXQ_Debug(queue));				
+		regs->mtl_reg.rx_info[queue].flow_control = readl(priv->ioaddr + XGMAC_MTL_RXQ_FLOW_CONTROL(queue));						
+	}
+
+	/* M3 SRAM dump */
+	for (ch = 0; ch < maxq; ch++) {
+		regs->m3_reg.sram_tx_pcie_addr[ch] = readl(priv->tc956x_SRAM_pci_base_addr + SRAM_TX_PCIE_ADDR_LOC + 
+							(priv->port_num * TC956XMAC_CH_MAX * 4) + (ch * 4));
+		regs->m3_reg.sram_rx_pcie_addr[ch] = readl(priv->tc956x_SRAM_pci_base_addr + SRAM_RX_PCIE_ADDR_LOC + 
+							(priv->port_num * TC956XMAC_CH_MAX * 4) + (ch * 4));	
+	}	
+
+	regs->m3_reg.m3_fw_init_done = readl(priv->tc956x_SRAM_pci_base_addr + TC956X_M3_INIT_DONE);
+	regs->m3_reg.m3_fw_exit	= readl(priv->tc956x_SRAM_pci_base_addr + TC956X_M3_FW_EXIT);
+
+	regs->m3_reg.m3_debug_cnt0 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT0 )));
+	regs->m3_reg.m3_debug_cnt1 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT1 )));
+	regs->m3_reg.m3_debug_cnt2 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT2 )));
+	regs->m3_reg.m3_debug_cnt3 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT3 )));
+	regs->m3_reg.m3_debug_cnt4 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT4 )));
+	regs->m3_reg.m3_debug_cnt5 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT5 )));
+	regs->m3_reg.m3_debug_cnt6 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT6 )));
+	regs->m3_reg.m3_debug_cnt7 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT7 )));
+	regs->m3_reg.m3_debug_cnt8 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT8 )));
+	regs->m3_reg.m3_debug_cnt9 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT9 )));
+	regs->m3_reg.m3_debug_cnt10 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT10 )));
+	regs->m3_reg.m3_watchdog_exp_cnt = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT11 )));
+	regs->m3_reg.m3_watchdog_monitor_cnt = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT12 )));
+	regs->m3_reg.m3_debug_cnt13 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT13 )));
+	regs->m3_reg.m3_debug_cnt14 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT14 )));
+	regs->m3_reg.m3_systick_cnt_upper_value = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT16 )));
+	regs->m3_reg.m3_systick_cnt_lower_value = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT15 )));
+	regs->m3_reg.m3_tx_timeout_port0 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT17 )));
+	regs->m3_reg.m3_tx_timeout_port1 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT18 )));
+	regs->m3_reg.m3_debug_cnt19 = readl(priv->tc956x_SRAM_pci_base_addr + 
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT19 )));
+
+	regs->rxp_cfg = (struct tc956xmac_rx_parser_cfg *)&priv->plat->rxp_cfg;
+
+	/* TAMAP Information */
+	for(table_entry = 0; table_entry <= MAX_CM3_TAMAP_ENTRIES; table_entry++) {
+		regs->tamap[table_entry].trsl_addr_hi =	readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + 
+						TC956X_AXI4_SLV_TRSL_ADDR_HI(0, table_entry));
+		regs->tamap[table_entry].trsl_addr_low = readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + 
+						TC956X_AXI4_SLV_TRSL_ADDR_LO(0, table_entry));
+		regs->tamap[table_entry].src_addr_hi =	readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + 
+						TC956X_AXI4_SLV_SRC_ADDR_HI(0, table_entry));
+		regs->tamap[table_entry].src_addr_low = (readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + 
+						TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry)) & TC956X_SRC_LO_MASK);
+		regs->tamap[table_entry].atr_size = ((readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + 
+						TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry)) & TC956X_ATR_SIZE_MASK) >> 1);
+		regs->tamap[table_entry].atr_impl = (readl(priv->tc956x_BRIDGE_CFG_pci_base_addr + 
+						TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry)) & TC956X_ATR_IMPL);
+	}
+
+	/* Driver & FW Information */
+	strlcpy(regs->info.driver, TC956X_RESOURCE_NAME, sizeof(regs->info.driver));
+	strlcpy(regs->info.version, DRV_MODULE_VERSION, sizeof(regs->info.version));
+
+	reg = readl(priv->tc956x_SRAM_pci_base_addr + TC956X_M3_DBG_VER_START);
+	fw_version = (struct tc956x_version *)(&reg);
+	scnprintf(fw_version_str, sizeof(fw_version_str), "FW Version %s_%d.%d-%d", (fw_version->rel_dbg == 'D')?"DBG":"REL",
+					fw_version->major, fw_version->minor, fw_version->sub_minor);
+	strlcpy(regs->info.fw_version, fw_version_str, sizeof(regs->info.fw_version));
+
+	/* Updating statistics */
+	tc956xmac_mmc_read(priv, priv->mmcaddr, &priv->mmc);
+	for (ch = 0; ch < tx_queues_cnt; ch++) {
+		regs->stats.rx_buf_unav_irq[ch] = priv->xstats.rx_buf_unav_irq[ch];
+		regs->stats.tx_pkt_n[ch] = priv->xstats.tx_pkt_n[ch];
+		regs->stats.tx_pkt_errors_n[ch] = priv->xstats.tx_pkt_errors_n[ch];
+		regs->stats.rx_pkt_n[ch] = priv->xstats.rx_pkt_n[ch];
+	}
+	regs->stats.mmc_tx_broadcastframe_g = priv->mmc.mmc_tx_broadcastframe_g;
+	regs->stats.mmc_tx_multicastframe_g = priv->mmc.mmc_tx_multicastframe_g;
+	regs->stats.mmc_tx_64_octets_gb = priv->mmc.mmc_tx_64_octets_gb;
+	regs->stats.mmc_tx_framecount_gb = priv->mmc.mmc_tx_framecount_gb;
+	regs->stats.mmc_tx_65_to_127_octets_gb = priv->mmc.mmc_tx_65_to_127_octets_gb;
+	regs->stats.mmc_tx_128_to_255_octets_gb = priv->mmc.mmc_tx_128_to_255_octets_gb;
+	regs->stats.mmc_tx_256_to_511_octets_gb = priv->mmc.mmc_tx_256_to_511_octets_gb;
+	regs->stats.mmc_tx_512_to_1023_octets_gb = priv->mmc.mmc_tx_512_to_1023_octets_gb;
+	regs->stats.mmc_tx_1024_to_max_octets_gb = priv->mmc.mmc_tx_1024_to_max_octets_gb;
+	regs->stats.mmc_tx_unicast_gb = priv->mmc.mmc_tx_unicast_gb;
+	regs->stats.mmc_tx_underflow_error = priv->mmc.mmc_tx_underflow_error;
+	regs->stats.mmc_tx_framecount_g = priv->mmc.mmc_tx_framecount_g;
+	regs->stats.mmc_tx_pause_frame = priv->mmc.mmc_tx_pause_frame;
+	regs->stats.mmc_tx_vlan_frame_g = priv->mmc.mmc_tx_vlan_frame_g;
+	regs->stats.mmc_tx_lpi_us_cntr = priv->mmc.mmc_tx_lpi_us_cntr;
+	regs->stats.mmc_tx_lpi_tran_cntr = priv->mmc.mmc_tx_lpi_tran_cntr;
+
+	regs->stats.mmc_rx_framecount_gb = priv->mmc.mmc_rx_framecount_gb;
+	regs->stats.mmc_rx_broadcastframe_g = priv->mmc.mmc_rx_broadcastframe_g;
+	regs->stats.mmc_rx_multicastframe_g = priv->mmc.mmc_rx_multicastframe_g;
+	regs->stats.mmc_rx_crc_error = priv->mmc.mmc_rx_crc_error;
+	regs->stats.mmc_rx_jabber_error = priv->mmc.mmc_rx_jabber_error;
+	regs->stats.mmc_rx_undersize_g = priv->mmc.mmc_rx_undersize_g;
+	regs->stats.mmc_rx_oversize_g = priv->mmc.mmc_rx_oversize_g;
+	regs->stats.mmc_rx_64_octets_gb = priv->mmc.mmc_rx_64_octets_gb;
+	regs->stats.mmc_rx_65_to_127_octets_gb = priv->mmc.mmc_rx_65_to_127_octets_gb;
+	regs->stats.mmc_rx_128_to_255_octets_gb = priv->mmc.mmc_rx_128_to_255_octets_gb;
+	regs->stats.mmc_rx_256_to_511_octets_gb = priv->mmc.mmc_rx_256_to_511_octets_gb;
+	regs->stats.mmc_rx_512_to_1023_octets_gb = priv->mmc.mmc_rx_512_to_1023_octets_gb;
+	regs->stats.mmc_rx_1024_to_max_octets_gb = priv->mmc.mmc_rx_1024_to_max_octets_gb;
+	regs->stats.mmc_rx_unicast_g = priv->mmc.mmc_rx_unicast_g;
+	regs->stats.mmc_rx_length_error = priv->mmc.mmc_rx_length_error;
+	regs->stats.mmc_rx_pause_frames = priv->mmc.mmc_rx_pause_frames;
+	regs->stats.mmc_rx_fifo_overflow = priv->mmc.mmc_rx_fifo_overflow;
+	regs->stats.mmc_rx_lpi_us_cntr = priv->mmc.mmc_rx_lpi_us_cntr;
+	regs->stats.mmc_rx_lpi_tran_cntr = priv->mmc.mmc_rx_lpi_tran_cntr;
+
+	/* Reading FRP Table information from Registers */
+	regs->rxp_cfg->nve = (readl(priv->ioaddr + XGMAC_MTL_RXP_CONTROL_STATUS) & 0xFF);
+	regs->rxp_cfg->npe = ((readl(priv->ioaddr + XGMAC_MTL_RXP_CONTROL_STATUS) >> 16) & 0xFF);
+	for(table_entry = 0; table_entry <= (regs->rxp_cfg->nve); table_entry++) {
+		dwxgmac2_rx_parser_read_entry(priv,
+		&(regs->rxp_cfg->entries[table_entry]), table_entry);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tc956x_dump_regs);
+
+int tc956x_print_debug_regs(struct net_device *net_device, struct tc956x_regs *regs)
+{
+
+	struct tc956xmac_priv *priv = netdev_priv(net_device);
+	u32 rx_queues_cnt = priv->plat->rx_queues_to_use;
+	u32 tx_queues_cnt = priv->plat->tx_queues_to_use;
+	u32 maxq = max(rx_queues_cnt, tx_queues_cnt);
+	u32 ch, queue, index;
+
+	DBGPR_FUNC(priv->device, "-->%s\n", __func__);
+
+	printk("regs->pcie_reg.rsc_mng_id = 0x%x\n",regs->pcie_reg.rsc_mng_id);
+
+	/* Configuration register dump */
+	printk("regs->config_reg.ncid = 0x%x\n", regs->config_reg.ncid);
+	printk("regs->config_reg.nclkctrl0 = 0x%x\n", regs->config_reg.nclkctrl0);
+	printk("regs->config_reg.nrstctrl0 = 0x%x\n", regs->config_reg.nrstctrl0);
+	printk("regs->config_reg.nclkctrl1 = 0x%x\n", regs->config_reg.nclkctrl1);
+	printk("regs->config_reg.nemac0ctl = 0x%x\n", regs->config_reg.nemac0ctl);
+	printk("regs->config_reg.nemac1ctl = 0x%x\n", regs->config_reg.nemac1ctl);
+	printk("regs->config_reg.nemacsts = 0x%x\n", regs->config_reg.nemacsts);
+	printk("regs->config_reg.gpioi0 = 0x%x\n", regs->config_reg.gpioi0);
+	printk("regs->config_reg.gpioi1 = 0x%x\n", regs->config_reg.gpioi1);
+	printk("regs->config_reg.gpioe0 = 0x%x\n", regs->config_reg.gpioe0);
+	printk("regs->config_reg.gpioe1 = 0x%x\n", regs->config_reg.gpioe1);
+
+	/* MSI register dump */
+	printk("regs->msi_reg.msi_out_en = 0x%x\n", regs->msi_reg.msi_out_en);
+	printk("regs->msi_reg.msi_mask_set = 0x%x\n", regs->msi_reg.msi_mask_set);
+	printk("regs->msi_reg.msi_mask_clr = 0x%x\n", regs->msi_reg.msi_mask_clr);
+	printk("regs->msi_reg.int_sts = 0x%x\n", regs->msi_reg.int_sts);
+	printk("regs->msi_reg.int_raw_sts = 0x%x\n", regs->msi_reg.int_raw_sts);
+	printk("regs->msi_reg.msi_sts = 0x%x\n", regs->msi_reg.msi_sts);
+	printk("regs->msi_reg.cnt_int0 = 0x%x\n", regs->msi_reg.cnt_int0);
+	printk("regs->msi_reg.cnt_int1 = 0x%x\n", regs->msi_reg.cnt_int1);
+	printk("regs->msi_reg.cnt_int2 = 0x%x\n", regs->msi_reg.cnt_int2);
+	printk("regs->msi_reg.cnt_int3 = 0x%x\n", regs->msi_reg.cnt_int3);
+	printk("regs->msi_reg.cnt_int4 = 0x%x\n", regs->msi_reg.cnt_int4);
+	printk("regs->msi_reg.cnt_int11 = 0x%x\n", regs->msi_reg.cnt_int11);
+	printk("regs->msi_reg.cnt_int12 = 0x%x\n", regs->msi_reg.cnt_int12);
+	printk("regs->msi_reg.cnt_int20 = 0x%x\n", regs->msi_reg.cnt_int20);
+	printk("regs->msi_reg.cnt_int24 = 0x%x\n", regs->msi_reg.cnt_int24);
+
+	/* INTC register dump */
+	printk("regs->intc_reg.intmcumask0 = 0x%x\n", regs->intc_reg.intmcumask0);
+	printk("regs->intc_reg.intmcumask1 = 0x%x\n", regs->intc_reg.intmcumask1);
+	printk("regs->intc_reg.intmcumask2 = 0x%x\n", regs->intc_reg.intmcumask2);
+
+	/* DMA channel register dump */
+	printk("regs->dma_reg.debug_sts0 = 0x%x\n", regs->dma_reg.debug_sts0);
+
+	for (ch = 0; ch < maxq; ch++) {
+		printk("regs->dma_reg.ch_control[%d] = 0x%x\n", ch, regs->dma_reg.ch_control[ch]);
+		printk("regs->dma_reg.interrupt_enable[%d] = 0x%x\n", ch, regs->dma_reg.interrupt_enable[ch]);
+		printk("regs->dma_reg.ch_status[%d] = 0x%x\n", ch, regs->dma_reg.ch_status[ch]);
+		printk("regs->dma_reg.debug_status[%d] = 0x%x\n", ch, regs->dma_reg.debug_status[ch]);
+		printk("regs->dma_reg.rxch_watchdog_timer[%d] = 0x%x\n", ch, regs->dma_reg.rxch_watchdog_timer[ch]);
+	}
+
+	for (ch = 0; ch < tx_queues_cnt; ch++) {
+		printk("regs->dma_reg.tx_ch[%d].control = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].control);
+		printk("regs->dma_reg.tx_ch[%d].list_haddr = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].list_haddr);
+		printk("regs->dma_reg.tx_ch[%d].list_laddr = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].list_laddr);
+		printk("regs->dma_reg.tx_ch[%d].ring_len = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].ring_len);
+		printk("regs->dma_reg.tx_ch[%d].curr_haddr = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].curr_haddr);
+		printk("regs->dma_reg.tx_ch[%d].curr_laddr = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].curr_laddr);
+		printk("regs->dma_reg.tx_ch[%d].tail_ptr = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].tail_ptr);
+		printk("regs->dma_reg.tx_ch[%d].buf_haddr = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].buf_haddr);
+		printk("regs->dma_reg.tx_ch[%d].buf_laddr = 0x%x\n", ch, regs->dma_reg.tx_ch[ch].buf_laddr);
+	}
+
+	for (ch = 0; ch < rx_queues_cnt; ch++) {
+		printk("regs->dma_reg.rx_ch[%d].control = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].control);
+		printk("regs->dma_reg.rx_ch[%d].list_haddr = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].list_haddr);
+		printk("regs->dma_reg.rx_ch[%d].list_laddr = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].list_laddr);
+		printk("regs->dma_reg.rx_ch[%d].ring_len = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].ring_len);
+		printk("regs->dma_reg.rx_ch[%d].curr_haddr = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].ring_len);
+		printk("regs->dma_reg.rx_ch[%d].curr_laddr = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].curr_laddr);
+		printk("regs->dma_reg.rx_ch[%d].tail_ptr = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].tail_ptr);
+		printk("regs->dma_reg.rx_ch[%d].buf_haddr = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].buf_haddr);
+		printk("regs->dma_reg.rx_ch[%d].buf_laddr = 0x%x\n", ch, regs->dma_reg.rx_ch[ch].buf_laddr);
+	}
+
+	for (ch = 0; ch < tx_queues_cnt; ch++) {
+		printk("regs->dma_reg.tx_queue[%d].desc_phy_addr = 0x%x\n", ch, regs->dma_reg.tx_queue[ch].desc_phy_addr);
+		printk("regs->dma_reg.tx_queue[%d].desc_va_addr = 0x%x\n", ch, (u32)(regs->dma_reg.tx_queue[ch].desc_va_addr));
+		#ifdef DMA_OFFLOAD_ENABLE
+		printk("regs->dma_reg.tx_queue[%d].buff_phy_addr = 0x%x\n", ch, regs->dma_reg.tx_queue[ch].buff_phy_addr);
+		printk("regs->dma_reg.tx_queue[%d].buff_va_addr = 0x%x\n", ch, (u32)(regs->dma_reg.tx_queue[ch].buff_va_addr));
+		#endif
+		printk("regs->dma_reg.tx_queue[%d].tx_skbuff = 0x%x\n", ch, (u32)(regs->dma_reg.tx_queue[ch].tx_skbuff));
+		printk("regs->dma_reg.tx_queue[%d].tx_skbuff_dma = 0x%x\n", ch, (u32)(regs->dma_reg.tx_queue[ch].tx_skbuff_dma));
+	}
+
+	for (ch = 0; ch < rx_queues_cnt; ch++) {
+		printk("regs->dma_reg.rx_queue[%d].desc_phy_addr = 0x%x\n", ch, regs->dma_reg.rx_queue[ch].desc_phy_addr);
+		printk("regs->dma_reg.rx_queue[%d].desc_va_addr = 0x%x\n", ch, (u32)(regs->dma_reg.rx_queue[ch].desc_va_addr));
+		#ifdef DMA_OFFLOAD_ENABLE
+		printk("regs->dma_reg.rx_queue[%d].buff_phy_addr = 0x%x\n", ch, regs->dma_reg.rx_queue[ch].buff_phy_addr);
+		printk("regs->dma_reg.rx_queue[%d].buff_va_addr = 0x%x\n", ch, (u32)(regs->dma_reg.rx_queue[ch].buff_va_addr));
+		#endif
+		printk("regs->dma_reg.rx_queue[%d].buf_pool = 0x%x\n", ch, (u32)(regs->dma_reg.rx_queue[ch].buf_pool));
+	}
+
+	/* MAC register dump */
+	printk("regs->mac_reg.mac_tx_config = 0x%x\n", regs->mac_reg.mac_tx_config);
+	printk("regs->mac_reg.mac_rx_config = 0x%x\n", regs->mac_reg.mac_rx_config);
+	printk("regs->mac_reg.mac_pkt_filter = 0x%x\n", regs->mac_reg.mac_pkt_filter);
+	printk("regs->mac_reg.mac_tx_rx_status = 0x%x\n", regs->mac_reg.mac_tx_rx_status);
+	printk("regs->mac_reg.mac_debug = 0x%x\n", regs->mac_reg.mac_debug);
+
+	/* MTL register dump */
+	printk("regs->mtl_reg.op_mode = 0x%x\n", regs->mtl_reg.op_mode);
+	printk("regs->mtl_reg.mtl_rxq_dma_map0 = 0x%x\n",  regs->mtl_reg.mtl_rxq_dma_map0 );
+	printk("regs->mtl_reg.mtl_rxq_dma_map1 = 0x%x\n", regs->mtl_reg.mtl_rxq_dma_map1);
+
+	for (queue = 0; queue < MTL_MAX_TX_QUEUES; queue++) {
+		printk("regs->mtl_reg.tx_info[%d].op_mode = 0x%x\n", queue, regs->mtl_reg.tx_info[queue].op_mode);
+		printk("regs->mtl_reg.tx_info[%d].underflow = 0x%x\n", queue, regs->mtl_reg.tx_info[queue].underflow);
+		printk("regs->mtl_reg.tx_info[%d].debug = 0x%x\n", queue, regs->mtl_reg.tx_info[queue].debug);
+	}
+
+	for (queue = 0; queue < MTL_MAX_RX_QUEUES; queue++) {
+		printk("regs->mtl_reg.rx_info[%d].op_mode = 0x%x\n", queue, regs->mtl_reg.rx_info[queue].op_mode);
+		printk("regs->mtl_reg.rx_info[%d].miss_pkt_overflow = 0x%x\n", queue, regs->mtl_reg.rx_info[queue].miss_pkt_overflow);
+		printk("regs->mtl_reg.rx_info[%d].debug = 0x%x\n", queue, regs->mtl_reg.rx_info[queue].debug);
+		printk("regs->mtl_reg.rx_info[%d].flow_control = 0x%x\n",  queue, regs->mtl_reg.rx_info[queue].flow_control );
+	}
+
+	/* M3 SRAM dump */
+	for (ch = 0; ch < maxq; ch++) {
+		printk("regs->m3_reg.sram_tx_pcie_addr[%d] = 0x%x\n", ch, regs->m3_reg.sram_tx_pcie_addr[ch]);
+		printk("regs->m3_reg.sram_rx_pcie_addr[%d] = 0x%x\n", ch, regs->m3_reg.sram_rx_pcie_addr[ch]);
+	}
+
+	printk("regs->m3_reg.m3_fw_init_done = 0x%x\n", regs->m3_reg.m3_fw_init_done);
+	printk("regs->m3_reg.m3_fw_exit	= 0x%x\n", regs->m3_reg.m3_fw_exit);
+	printk("regs->m3_reg.m3_debug_cnt0 = 0x%x\n", regs->m3_reg.m3_debug_cnt0);
+	printk("regs->m3_reg.m3_debug_cnt1 = 0x%x\n", regs->m3_reg.m3_debug_cnt1);
+	printk("regs->m3_reg.m3_debug_cnt2 = 0x%x\n", regs->m3_reg.m3_debug_cnt2);
+	printk("regs->m3_reg.m3_debug_cnt3 = 0x%x\n", regs->m3_reg.m3_debug_cnt3);
+	printk("regs->m3_reg.m3_debug_cnt4 = 0x%x\n", regs->m3_reg.m3_debug_cnt4);
+	printk("regs->m3_reg.m3_debug_cnt5 = 0x%x\n", regs->m3_reg.m3_debug_cnt5);
+	printk("regs->m3_reg.m3_debug_cnt6 = 0x%x\n", regs->m3_reg.m3_debug_cnt6);
+	printk("regs->m3_reg.m3_debug_cnt7 = 0x%x\n", regs->m3_reg.m3_debug_cnt7);
+	printk("regs->m3_reg.m3_debug_cnt8 = 0x%x\n", regs->m3_reg.m3_debug_cnt8);
+	printk("regs->m3_reg.m3_debug_cnt9 = 0x%x\n", regs->m3_reg.m3_debug_cnt9);
+	printk("regs->m3_reg.m3_debug_cnt10 = 0x%x\n", regs->m3_reg.m3_debug_cnt10);
+	printk("regs->m3_reg.m3_watchdog_exp_cnt = 0x%x\n", regs->m3_reg.m3_watchdog_exp_cnt);
+	printk("regs->m3_reg.m3_watchdog_monitor_cnt = 0x%x\n", regs->m3_reg.m3_watchdog_monitor_cnt);
+	printk("regs->m3_reg.m3_debug_cnt13 = 0x%x\n", regs->m3_reg.m3_debug_cnt13);
+	printk("regs->m3_reg.m3_debug_cnt14 = 0x%x\n", regs->m3_reg.m3_debug_cnt14);
+	printk("regs->m3_reg.m3_systick_cnt_upper_value = 0x%x\n", regs->m3_reg.m3_systick_cnt_upper_value);
+	printk("regs->m3_reg.m3_systick_cnt_lower_value = 0x%x\n", regs->m3_reg.m3_systick_cnt_lower_value);
+	printk("regs->m3_reg.m3_tx_timeout_port0 = 0x%x\n", regs->m3_reg.m3_tx_timeout_port0);
+	printk("regs->m3_reg.m3_tx_timeout_port1 = 0x%x\n", regs->m3_reg.m3_tx_timeout_port1);
+	printk("regs->m3_reg.m3_debug_cnt19 = 0x%x\n", regs->m3_reg.m3_debug_cnt19);
+	
+	/* FRP Table Dump */
+	printk("regs->rxp_cfg->npe = %d\n", regs->rxp_cfg->npe);
+	printk("regs->rxp_cfg->nve = %d\n", regs->rxp_cfg->nve);
+	for (index = 0; index <= (regs->rxp_cfg->nve); index++) {
+		printk("regs->rxp_cfg->entries[%d].match_data = 0x%x\n", index, regs->rxp_cfg->entries[index].match_data);
+		printk("regs->rxp_cfg->entries[%d].match_en = 0x%x\n", index, regs->rxp_cfg->entries[index].match_en);
+		printk("regs->rxp_cfg->entries[%d].af = 0x%x\n", index, regs->rxp_cfg->entries[index].af);
+		printk("regs->rxp_cfg->entries[%d].rf = 0x%x\n", index, regs->rxp_cfg->entries[index].rf);
+		printk("regs->rxp_cfg->entries[%d].im = 0x%x\n", index, regs->rxp_cfg->entries[index].im);
+		printk("regs->rxp_cfg->entries[%d].nc = 0x%x\n", index, regs->rxp_cfg->entries[index].nc);
+		printk("regs->rxp_cfg->entries[%d].frame_offset = 0x%x\n", index, regs->rxp_cfg->entries[index].frame_offset);
+		printk("regs->rxp_cfg->entries[%d].ok_index = 0x%x\n", index, regs->rxp_cfg->entries[index].ok_index);
+		printk("regs->rxp_cfg->entries[%d].dma_ch_no = 0x%x\n", index, regs->rxp_cfg->entries[index].dma_ch_no);
+	}
+
+	/* TAMAP entries */
+	for(index = 0; index <= MAX_CM3_TAMAP_ENTRIES; index++) {
+		printk("regs->tamap[%d].trsl_addr_hi = 0x%x\n", index, regs->tamap[index].trsl_addr_hi);
+		printk("regs->tamap[%d].trsl_addr_low = 0x%x\n", index, regs->tamap[index].trsl_addr_low);
+		printk("regs->tamap[%d].src_addr_hi = 0x%x\n", index, regs->tamap[index].src_addr_hi);
+		printk("regs->tamap[%d].src_addr_low = 0x%x\n", index, regs->tamap[index].src_addr_low);
+		printk("regs->tamap[%d].atr_size = 0x%x\n", index, regs->tamap[index].atr_size);
+		printk("regs->tamap[%d].atr_impl = 0x%x\n", index, regs->tamap[index].atr_impl);
+	}
+	
+	/* Driver & FW Information */
+	printk("regs->info.driver = %s\n", regs->info.driver);
+	printk("regs->info.version = %s\n", regs->info.version);
+	printk("regs->info.fw_version = %s\n", regs->info.fw_version);
+
+	/* statistics */
+	for (ch = 0; ch < tx_queues_cnt; ch++) {
+		printk("regs->stats.rx_buf_unav_irq[%d] = 0x%llx\n", ch, regs->stats.rx_buf_unav_irq[ch]);
+		printk("regs->stats.tx_pkt_n[%d] = 0x%llx\n", ch, regs->stats.tx_pkt_n[ch]);
+		printk("regs->stats.tx_pkt_errors_n[%d] = 0x%llx\n", ch, regs->stats.tx_pkt_errors_n[ch]);
+		printk("regs->stats.rx_pkt_n[%d] = 0x%llx\n", ch, regs->stats.rx_pkt_n[ch]);
+	}
+	printk("regs->stats.mmc_tx_broadcastframe_g = 0x%llx\n", regs->stats.mmc_tx_broadcastframe_g);
+	printk("regs->stats.mmc_tx_multicastframe_g = 0x%llx\n", regs->stats.mmc_tx_multicastframe_g);
+	printk("regs->stats.mmc_tx_64_octets_gb = 0x%llx\n", regs->stats.mmc_tx_64_octets_gb);
+	printk("regs->stats.mmc_tx_framecount_gb = 0x%llx\n", regs->stats.mmc_tx_framecount_gb);
+	printk("regs->stats.mmc_tx_65_to_127_octets_gb = 0x%llx\n", regs->stats.mmc_tx_65_to_127_octets_gb);
+	printk("regs->stats.mmc_tx_128_to_255_octets_gb = 0x%llx\n", regs->stats.mmc_tx_128_to_255_octets_gb);
+	printk("regs->stats.mmc_tx_256_to_511_octets_gb = 0x%llx\n", regs->stats.mmc_tx_256_to_511_octets_gb);
+	printk("regs->stats.mmc_tx_512_to_1023_octets_gb = 0x%llx\n", regs->stats.mmc_tx_512_to_1023_octets_gb);
+	printk("regs->stats.mmc_tx_1024_to_max_octets_gb = 0x%llx\n", regs->stats.mmc_tx_1024_to_max_octets_gb);
+	printk("regs->stats.mmc_tx_unicast_gb = 0x%llx\n", regs->stats.mmc_tx_unicast_gb);
+	printk("regs->stats.mmc_tx_underflow_error = 0x%llx\n", regs->stats.mmc_tx_underflow_error);
+	printk("regs->stats.mmc_tx_framecount_g = 0x%llx\n", regs->stats.mmc_tx_framecount_g);
+	printk("regs->stats.mmc_tx_pause_frame = 0x%llx\n", regs->stats.mmc_tx_pause_frame);
+	printk("regs->stats.mmc_tx_vlan_frame_g = 0x%llx\n", regs->stats.mmc_tx_vlan_frame_g);
+	printk("regs->stats.mmc_tx_lpi_us_cntr = 0x%llx\n", regs->stats.mmc_tx_lpi_us_cntr);
+	printk("regs->stats.mmc_tx_lpi_tran_cntr = 0x%llx\n", regs->stats.mmc_tx_lpi_tran_cntr);
+
+	printk("regs->stats.mmc_rx_framecount_gb = 0x%llx\n", regs->stats.mmc_rx_framecount_gb);
+	printk("regs->stats.mmc_rx_broadcastframe_g = 0x%llx\n", regs->stats.mmc_rx_broadcastframe_g);
+	printk("regs->stats.mmc_rx_multicastframe_g = 0x%llx\n", regs->stats.mmc_rx_multicastframe_g);
+	printk("regs->stats.mmc_rx_crc_error = 0x%llx\n", regs->stats.mmc_rx_crc_error);
+	printk("regs->stats.mmc_rx_jabber_error = 0x%llx\n", regs->stats.mmc_rx_jabber_error);
+	printk("regs->stats.mmc_rx_undersize_g = 0x%llx\n", regs->stats.mmc_rx_undersize_g);
+	printk("regs->stats.mmc_rx_oversize_g = 0x%llx\n", regs->stats.mmc_rx_oversize_g);
+	printk("regs->stats.mmc_rx_64_octets_gb = 0x%llx\n", regs->stats.mmc_rx_64_octets_gb);
+	printk("regs->stats.mmc_rx_65_to_127_octets_gb = 0x%llx\n", regs->stats.mmc_rx_65_to_127_octets_gb);
+	printk("regs->stats.mmc_rx_128_to_255_octets_gb = 0x%llx\n", regs->stats.mmc_rx_128_to_255_octets_gb);
+	printk("regs->stats.mmc_rx_256_to_511_octets_gb = 0x%llx\n", regs->stats.mmc_rx_256_to_511_octets_gb);
+	printk("regs->stats.mmc_rx_512_to_1023_octets_gb = 0x%llx\n", regs->stats.mmc_rx_512_to_1023_octets_gb);
+	printk("regs->stats.mmc_rx_1024_to_max_octets_gb = 0x%llx\n", regs->stats.mmc_rx_1024_to_max_octets_gb);
+	printk("regs->stats.mmc_rx_unicast_g = 0x%llx\n", regs->stats.mmc_rx_unicast_g);
+	printk("regs->stats.mmc_rx_length_error = 0x%llx\n", regs->stats.mmc_rx_length_error);
+	printk("regs->stats.mmc_rx_pause_frames = 0x%llx\n", regs->stats.mmc_rx_pause_frames);
+	printk("regs->stats.mmc_rx_fifo_overflow = 0x%llx\n", regs->stats.mmc_rx_fifo_overflow);
+	printk("regs->stats.mmc_rx_lpi_us_cntr = 0x%llx\n", regs->stats.mmc_rx_lpi_us_cntr);
+	printk("regs->stats.mmc_rx_lpi_tran_cntr = 0x%llx\n", regs->stats.mmc_rx_lpi_tran_cntr);
+
+	return 0;
+}
 
 extern unsigned int mac0_force_speed_mode;
 extern unsigned int mac1_force_speed_mode;

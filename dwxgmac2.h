@@ -44,6 +44,8 @@
  *  VERSION     : 01-00-17
  *  25 Oct 2021 : 1. Added EEE macros for MAC controlled EEE.
  *  VERSION     : 01-00-19
+ *  31 Jan 2022 : 1. Additional macros defined for debug dump API usage.
+ *  VERSION     : 01-00-39
  */
 
 
@@ -168,6 +170,8 @@
 #else
 #define XGMAC_INT_DEFAULT_EN		(XGMAC_LPIIE)
 #endif
+
+#define XGMAC_RX_TX_STS			(MAC_OFFSET + 0x000000b8)
 #define XGMAC_Qx_TX_FLOW_CTRL(x)	(MAC_OFFSET + (0x00000070 + (x) * 4))
 #define XGMAC_PT			GENMASK(31, 16)
 #define XGMAC_PT_SHIFT			16
@@ -639,6 +643,9 @@
 #define XGMAC_DMA_CH_Rx_WATCHDOG(x)	(MAC_OFFSET + (0x0000313c + (0x80 * (x))))
 #define XGMAC_RWT			GENMASK(7, 0)
 #define XGMAC_DMA_CH_STATUS(x)		(MAC_OFFSET + (0x00003160 + (0x80 * (x))))
+
+#define XGMAC_DMA_CH_DBG_STATUS(x)	(MAC_OFFSET + (0x00003164 + (0x80 * (x))))
+
 #define XGMAC_NIS			BIT(15)
 #define XGMAC_AIS			BIT(14)
 #define XGMAC_FBE			BIT(12)
@@ -655,6 +662,9 @@
 #define XGMAC_DMA_CH_Cur_TxBuff_LADDR(x)	(MAC_OFFSET + (0x00003154 + (0x80 * (x))))
 #define XGMAC_DMA_CH_Cur_RxBuff_HADDR(x)	(MAC_OFFSET + (0x00003158 + (0x80 * (x))))
 #define XGMAC_DMA_CH_Cur_RxBuff_LADDR(x)	(MAC_OFFSET + (0x0000315c + (0x80 * (x))))
+
+#define XGMAC_DMA_DEBUG_STATUS0			(MAC_OFFSET + 0x3020)
+
 #ifdef TC956X
 #define XGMAC_REGSIZE			(0x000034FC / 4)
 #else

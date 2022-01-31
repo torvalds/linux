@@ -122,6 +122,9 @@
  *  VERSION     : 01-00-37
  *  24 Jan 2022 : 1. Version update
  *  VERSION     : 01-00-38
+ *  31 Jan 2022 : 1. Debug dump API and structures added to dump registers during crash.
+ *		  2. Version update.
+ *  VERSION     : 01-00-39
  */
 
 #ifndef __TC956XMAC_H__
@@ -177,7 +180,7 @@
 #define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
 #define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
 
-#define DRV_MODULE_VERSION	"V_01-00-38"
+#define DRV_MODULE_VERSION	"V_01-00-39"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -673,6 +676,260 @@ enum tc956xmac_state {
 	TC956XMAC_RESETING,
 	TC956XMAC_SERVICE_SCHED,
 };
+
+struct tc956x_regs_config {
+	u32 ncid;
+	u32 nclkctrl0;
+	u32 nrstctrl0;
+	u32 nclkctrl1;
+	u32 nrstctrl1;
+	u32 nemac0ctl;
+	u32 nemac1ctl;
+	u32 nemacsts;
+	u32 gpioi0;
+	u32 gpioi1;
+	u32 gpioe0;
+	u32 gpioe1;
+};
+
+struct tc956x_regs_pcie {
+	u32 rsc_mng_id;
+};
+
+struct tc956x_regs_msi {
+	u32 msi_out_en;
+	u32 msi_mask_set;
+	u32 msi_mask_clr;
+	u32 int_sts;
+	u32 int_raw_sts;
+	u32 msi_sts;
+	u32 cnt_int0;
+	u32 cnt_int1;
+	u32 cnt_int2;
+	u32 cnt_int3;
+	u32 cnt_int4;
+	u32 cnt_int11;
+	u32 cnt_int12;
+	u32 cnt_int20;
+	u32 cnt_int24;
+};
+
+struct tc956x_regs_intc {
+	u32 intmcumask0;
+	u32 intmcumask1;
+	u32 intmcumask2;
+};
+
+struct tc956x_regs_dma_ch {
+	u32 control;
+	u32 list_haddr;
+	u32 list_laddr;
+	u32 ring_len;
+	u32 curr_haddr;
+	u32 curr_laddr;
+	u32 tail_ptr;
+	u32 buf_haddr;
+	u32 buf_laddr;
+};
+
+struct tx956x_tx_desc_buf_addrs
+{
+	dma_addr_t desc_phy_addr;
+	struct dma_desc *desc_va_addr;
+#ifdef DMA_OFFLOAD_ENABLE
+	dma_addr_t buff_phy_addr;
+	void *buff_va_addr;
+#endif
+	struct sk_buff **tx_skbuff;
+	struct tc956xmac_tx_info *tx_skbuff_dma;
+};
+
+struct tx956x_rx_desc_buf_addrs
+{
+	dma_addr_t desc_phy_addr;
+	struct dma_desc *desc_va_addr;
+#ifdef DMA_OFFLOAD_ENABLE
+	dma_addr_t buff_phy_addr;
+	void *buff_va_addr;
+#endif
+	struct tc956xmac_rx_buffer *buf_pool;
+};
+
+struct tc956x_regs_dma {
+	u32 debug_sts0;
+	u32 ch_control[TC956XMAC_CH_MAX];
+	u32 interrupt_enable[TC956XMAC_CH_MAX];
+	u32 ch_status[TC956XMAC_CH_MAX];
+	u32 debug_status[TC956XMAC_CH_MAX];
+	u32 rxch_watchdog_timer[TC956XMAC_CH_MAX];
+	struct tc956x_regs_dma_ch tx_ch[TC956XMAC_CH_MAX];
+	struct tc956x_regs_dma_ch rx_ch[TC956XMAC_CH_MAX];
+	/* RX Channels */
+	struct tx956x_rx_desc_buf_addrs rx_queue[MTL_MAX_RX_QUEUES];
+	/* TX Channels */
+	struct tx956x_tx_desc_buf_addrs tx_queue[MTL_MAX_TX_QUEUES];
+};
+
+struct tc956x_regs_mac {
+	u32 mac_tx_config;
+	u32 mac_rx_config;
+	u32 mac_pkt_filter;
+	u32 mac_tx_rx_status;
+	u32 mac_debug;
+};
+
+struct tc956x_regs_mtl_tx {
+	u32 op_mode;
+	u32 underflow;
+	u32 debug;
+};
+
+struct tc956x_regs_mtl_rx {
+	u32 op_mode;
+	u32 miss_pkt_overflow;
+	u32 debug;
+	u32 flow_control;
+};
+
+struct tc956x_regs_mtl {
+	u32 op_mode;
+	u32 mtl_rxq_dma_map0;
+	u32 mtl_rxq_dma_map1;
+	struct tc956x_regs_mtl_tx tx_info[MTL_MAX_TX_QUEUES];
+	struct tc956x_regs_mtl_rx rx_info[MTL_MAX_RX_QUEUES];
+};
+
+struct tc956x_regs_m3 {
+	u32 sram_tx_pcie_addr[TC956XMAC_CH_MAX];
+	u32 sram_rx_pcie_addr[TC956XMAC_CH_MAX];
+
+	u32 m3_fw_init_done;
+	u32 m3_fw_exit;
+
+	u32 m3_debug_cnt0;
+	u32 m3_debug_cnt1;
+	u32 m3_debug_cnt2;
+	u32 m3_debug_cnt3;
+	u32 m3_debug_cnt4;
+	u32 m3_debug_cnt5;
+	u32 m3_debug_cnt6;
+	u32 m3_debug_cnt7;
+	u32 m3_debug_cnt8;
+	u32 m3_debug_cnt9;
+	u32 m3_debug_cnt10;
+	u32 m3_watchdog_exp_cnt;
+	u32 m3_watchdog_monitor_cnt;
+	u32 m3_debug_cnt13;
+	u32 m3_debug_cnt14;
+	u32 m3_systick_cnt_upper_value;
+	u32 m3_systick_cnt_lower_value;
+	u32 m3_tx_timeout_port0;
+	u32 m3_tx_timeout_port1;
+	u32 m3_debug_cnt19;
+};
+
+struct tc956x_tamap {
+	u32 trsl_addr_hi;
+	u32 trsl_addr_low;
+	u32 src_addr_hi;
+	u32 src_addr_low;	/* Only [31:12] bits will be considered */
+	u32 atr_size;
+	u32 atr_impl;
+};
+
+struct tx956x_driver_info {
+	u8 driver[32];
+	u8 version[32];
+	u8 fw_version[32];
+};
+
+struct tc956x_statistics {
+	u64 rx_buf_unav_irq[TC956XMAC_CH_MAX];
+	u64 tx_pkt_n[TC956XMAC_CH_MAX];
+	u64 tx_pkt_errors_n[TC956XMAC_CH_MAX];
+	u64 rx_pkt_n[TC956XMAC_CH_MAX];
+
+	u64 mmc_tx_broadcastframe_g;
+	u64 mmc_tx_multicastframe_g;
+	u64 mmc_tx_64_octets_gb;
+	u64 mmc_tx_framecount_gb;
+	u64 mmc_tx_65_to_127_octets_gb;
+	u64 mmc_tx_128_to_255_octets_gb;
+	u64 mmc_tx_256_to_511_octets_gb;
+	u64 mmc_tx_512_to_1023_octets_gb;
+	u64 mmc_tx_1024_to_max_octets_gb;
+	u64 mmc_tx_unicast_gb;
+	u64 mmc_tx_underflow_error;
+	u64 mmc_tx_framecount_g;
+	u64 mmc_tx_pause_frame;
+	u64 mmc_tx_vlan_frame_g;
+	u64 mmc_tx_lpi_us_cntr;
+	u64 mmc_tx_lpi_tran_cntr;
+
+	/* MMC RX counter registers */
+	u64 mmc_rx_framecount_gb;
+	u64 mmc_rx_broadcastframe_g;
+	u64 mmc_rx_multicastframe_g;
+	u64 mmc_rx_crc_error;
+	u64 mmc_rx_jabber_error;
+	u64 mmc_rx_undersize_g;
+	u64 mmc_rx_oversize_g;
+	u64 mmc_rx_64_octets_gb;
+	u64 mmc_rx_65_to_127_octets_gb;
+	u64 mmc_rx_128_to_255_octets_gb;
+	u64 mmc_rx_256_to_511_octets_gb;
+	u64 mmc_rx_512_to_1023_octets_gb;
+	u64 mmc_rx_1024_to_max_octets_gb;
+	u64 mmc_rx_unicast_g;
+	u64 mmc_rx_length_error;
+	u64 mmc_rx_pause_frames;
+	u64 mmc_rx_fifo_overflow;
+	u64 mmc_rx_lpi_us_cntr;
+	u64 mmc_rx_lpi_tran_cntr;
+};
+
+struct tc956x_regs {
+
+	/*PCIe register*/
+	struct tc956x_regs_pcie pcie_reg;
+
+	/*Configuration register*/
+	struct tc956x_regs_config config_reg;
+
+	/*MSI register*/
+	struct tc956x_regs_msi msi_reg;
+
+	/*INTC register*/
+	struct tc956x_regs_intc intc_reg;
+
+	/*DMA Descriptor stats*/
+	struct tc956x_regs_dma dma_reg;
+
+	/*MAC debug stats*/
+	struct tc956x_regs_mac mac_reg;
+
+	/*MTL debug stats*/
+	struct tc956x_regs_mtl mtl_reg;
+
+	/*M3 stats*/
+	struct tc956x_regs_m3 m3_reg;
+
+	/*FRP Table*/
+	struct tc956xmac_rx_parser_cfg *rxp_cfg;
+
+	/* TAMAP */
+	struct tc956x_tamap tamap[MAX_CM3_TAMAP_ENTRIES + 1]; /*0th for PCIe-eMAC 1,2,3 for IPA*/
+
+	/*Driver & FW Information */
+	struct tx956x_driver_info info;
+
+	/* Statistics counters*/
+	struct tc956x_statistics stats;
+
+};
+
+int tc956x_dump_regs(struct net_device *net_device, struct tc956x_regs *regs);
+int tc956x_print_debug_regs(struct net_device *net_device, struct tc956x_regs *regs);
 
 /* for PTP offloading configuration */
 #define TC956X_PTP_OFFLOADING_DISABLE			0
