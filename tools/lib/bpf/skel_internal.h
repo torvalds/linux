@@ -110,6 +110,32 @@ static inline int skel_map_update_elem(int fd, const void *key,
 	return skel_sys_bpf(BPF_MAP_UPDATE_ELEM, &attr, attr_sz);
 }
 
+static inline int skel_raw_tracepoint_open(const char *name, int prog_fd)
+{
+	const size_t attr_sz = offsetofend(union bpf_attr, raw_tracepoint.prog_fd);
+	union bpf_attr attr;
+
+	memset(&attr, 0, attr_sz);
+	attr.raw_tracepoint.name = (long) name;
+	attr.raw_tracepoint.prog_fd = prog_fd;
+
+	return skel_sys_bpf(BPF_RAW_TRACEPOINT_OPEN, &attr, attr_sz);
+}
+
+static inline int skel_link_create(int prog_fd, int target_fd,
+				   enum bpf_attach_type attach_type)
+{
+	const size_t attr_sz = offsetofend(union bpf_attr, link_create.iter_info_len);
+	union bpf_attr attr;
+
+	memset(&attr, 0, attr_sz);
+	attr.link_create.prog_fd = prog_fd;
+	attr.link_create.target_fd = target_fd;
+	attr.link_create.attach_type = attach_type;
+
+	return skel_sys_bpf(BPF_LINK_CREATE, &attr, attr_sz);
+}
+
 static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 {
 	int map_fd = -1, prog_fd = -1, key = 0, err;
