@@ -622,12 +622,10 @@ static int mlx5e_ptp_set_state(struct mlx5e_ptp *c, struct mlx5e_params *params)
 	return bitmap_empty(c->state, MLX5E_PTP_STATE_NUM_STATES) ? -EINVAL : 0;
 }
 
-static void mlx5e_ptp_rx_unset_fs(struct mlx5e_priv *priv)
+static void mlx5e_ptp_rx_unset_fs(struct mlx5e_flow_steering *fs)
 {
-	struct mlx5e_flow_steering *fs = priv->fs;
-	struct mlx5e_ptp_fs *ptp_fs;
+	struct mlx5e_ptp_fs *ptp_fs = mlx5e_fs_get_ptp(fs);
 
-	ptp_fs = mlx5e_fs_get_ptp(fs);
 	if (!ptp_fs->valid)
 		return;
 
@@ -801,29 +799,31 @@ int mlx5e_ptp_get_rqn(struct mlx5e_ptp *c, u32 *rqn)
 	return 0;
 }
 
-int mlx5e_ptp_alloc_rx_fs(struct mlx5e_priv *priv)
+int mlx5e_ptp_alloc_rx_fs(struct mlx5e_flow_steering *fs,
+			  const struct mlx5e_profile *profile)
 {
 	struct mlx5e_ptp_fs *ptp_fs;
 
-	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
+	if (!mlx5e_profile_feature_cap(profile, PTP_RX))
 		return 0;
 
 	ptp_fs = kzalloc(sizeof(*ptp_fs), GFP_KERNEL);
 	if (!ptp_fs)
 		return -ENOMEM;
-	mlx5e_fs_set_ptp(priv->fs, ptp_fs);
+	mlx5e_fs_set_ptp(fs, ptp_fs);
 
 	return 0;
 }
 
-void mlx5e_ptp_free_rx_fs(struct mlx5e_priv *priv)
+void mlx5e_ptp_free_rx_fs(struct mlx5e_flow_steering *fs,
+			  const struct mlx5e_profile *profile)
 {
-	struct mlx5e_ptp_fs *ptp_fs = mlx5e_fs_get_ptp(priv->fs);
+	struct mlx5e_ptp_fs *ptp_fs = mlx5e_fs_get_ptp(fs);
 
-	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
+	if (!mlx5e_profile_feature_cap(profile, PTP_RX))
 		return;
 
-	mlx5e_ptp_rx_unset_fs(priv);
+	mlx5e_ptp_rx_unset_fs(fs);
 	kfree(ptp_fs);
 }
 
@@ -849,6 +849,6 @@ int mlx5e_ptp_rx_manage_fs(struct mlx5e_priv *priv, bool set)
 		netdev_WARN_ONCE(priv->netdev, "Don't try to remove PTP RX-FS rules");
 		return -EINVAL;
 	}
-	mlx5e_ptp_rx_unset_fs(priv);
+	mlx5e_ptp_rx_unset_fs(priv->fs);
 	return 0;
 }

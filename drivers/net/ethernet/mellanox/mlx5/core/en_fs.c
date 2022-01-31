@@ -1338,7 +1338,7 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 		goto err_destroy_l2_table;
 	}
 
-	err = mlx5e_ptp_alloc_rx_fs(priv);
+	err = mlx5e_ptp_alloc_rx_fs(priv->fs, priv->profile);
 	if (err)
 		goto err_destory_vlan_table;
 
@@ -1362,7 +1362,7 @@ err_destroy_arfs_tables:
 
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv)
 {
-	mlx5e_ptp_free_rx_fs(priv);
+	mlx5e_ptp_free_rx_fs(priv->fs, priv->profile);
 	mlx5e_destroy_vlan_table(priv);
 	mlx5e_destroy_l2_table(priv);
 	mlx5e_destroy_ttc_table(priv);
