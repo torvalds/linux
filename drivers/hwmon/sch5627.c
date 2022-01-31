@@ -7,6 +7,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -456,11 +457,20 @@ static int sch5627_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id sch5627_device_id[] = {
+	{
+		.name = "sch5627",
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, sch5627_device_id);
+
 static struct platform_driver sch5627_driver = {
 	.driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= sch5627_probe,
+	.id_table	= sch5627_device_id,
 };
 
 module_platform_driver(sch5627_driver);
