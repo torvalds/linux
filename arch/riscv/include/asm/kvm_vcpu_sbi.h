@@ -12,7 +12,7 @@
 #define KVM_SBI_IMPID 3
 
 #define KVM_SBI_VERSION_MAJOR 0
-#define KVM_SBI_VERSION_MINOR 2
+#define KVM_SBI_VERSION_MINOR 3
 
 struct kvm_vcpu_sbi_extension {
 	unsigned long extid_start;
