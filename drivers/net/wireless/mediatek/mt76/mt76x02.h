@@ -104,6 +104,7 @@ struct mt76x02_dev {
 
 	u32 tx_hang_reset;
 	u8 tx_hang_check;
+	u8 beacon_hang_check;
 	u8 mcu_timeout;
 
 	struct mt76x02_calibration cal;
