@@ -213,6 +213,29 @@ address ABI control and MTE configuration of a process as per the
 Documentation/arm64/tagged-address-abi.rst and above. The corresponding
 ``regset`` is 1 element of 8 bytes (``sizeof(long))``).
 
+Core dump support
+-----------------
+
+The allocation tags for user memory mapped with ``PROT_MTE`` are dumped
+in the core file as additional ``PT_ARM_MEMTAG_MTE`` segments. The
+program header for such segment is defined as:
+
+:``p_type``: ``PT_ARM_MEMTAG_MTE``
+:``p_flags``: 0
+:``p_offset``: segment file offset
+:``p_vaddr``: segment virtual address, same as the corresponding
+  ``PT_LOAD`` segment
+:``p_paddr``: 0
+:``p_filesz``: segment size in file, calculated as ``p_mem_sz / 32``
+  (two 4-bit tags cover 32 bytes of memory)
+:``p_memsz``: segment size in memory, same as the corresponding
+  ``PT_LOAD`` segment
+:``p_align``: 0
+
+The tags are stored in the core file at ``p_offset`` as two 4-bit tags
+in a byte. With the tag granule of 16 bytes, a 4K page requires 128
+bytes in the core file.
+
 Example of correct usage
 ========================
 
