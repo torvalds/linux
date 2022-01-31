@@ -8,6 +8,7 @@
 #include <linux/completion.h>
 #include <linux/kallsyms.h>
 #include <linux/kthread.h>
+#include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
@@ -129,6 +130,7 @@ static struct unwindme *unwindme;
 #define UWM_SWITCH_STACK	0x10	/* Use call_on_stack. */
 #define UWM_IRQ			0x20	/* Unwind from irq context. */
 #define UWM_PGM			0x40	/* Unwind from program check handler. */
+#define UWM_FTRACE		0x80	/* Unwind from ftrace handler. */
 
 static __always_inline unsigned long get_psw_addr(void)
 {
@@ -147,6 +149,57 @@ static int pgm_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	u->ret = test_unwind(NULL, (u->flags & UWM_REGS) ? regs : NULL,
 			     (u->flags & UWM_SP) ? u->sp : 0);
 	return 0;
+}
+
+static void notrace __used test_unwind_ftrace_handler(unsigned long ip,
+						      unsigned long parent_ip,
+						      struct ftrace_ops *fops,
+						      struct ftrace_regs *fregs)
+{
+	struct unwindme *u = (struct unwindme *)fregs->regs.gprs[2];
+
+	u->ret = test_unwind(NULL, (u->flags & UWM_REGS) ? &fregs->regs : NULL,
+			     (u->flags & UWM_SP) ? u->sp : 0);
+}
+
+static noinline int test_unwind_ftraced_func(struct unwindme *u)
+{
+	return READ_ONCE(u)->ret;
+}
+
+static int test_unwind_ftrace(struct unwindme *u)
+{
+	struct ftrace_ops *fops;
+	int ret;
+
+#ifndef CONFIG_DYNAMIC_FTRACE
+	kunit_skip(current_test, "requires CONFIG_DYNAMIC_FTRACE");
+	fops = NULL; /* used */
+#else
+	fops = kunit_kzalloc(current_test, sizeof(*fops), GFP_KERNEL);
+	fops->func = test_unwind_ftrace_handler;
+	fops->flags = FTRACE_OPS_FL_DYNAMIC |
+		     FTRACE_OPS_FL_RECURSION |
+		     FTRACE_OPS_FL_SAVE_REGS |
+		     FTRACE_OPS_FL_PERMANENT;
+#endif
+
+	ret = ftrace_set_filter_ip(fops, (unsigned long)test_unwind_ftraced_func, 0, 0);
+	if (ret) {
+		kunit_err(current_test, "failed to set ftrace filter (%d)\n", ret);
+		return -1;
+	}
+
+	ret = register_ftrace_function(fops);
+	if (!ret) {
+		ret = test_unwind_ftraced_func(u);
+		unregister_ftrace_function(fops);
+	} else {
+		kunit_err(current_test, "failed to register ftrace handler (%d)\n", ret);
+	}
+
+	ftrace_set_filter_ip(fops, (unsigned long)test_unwind_ftraced_func, 1, 0);
+	return ret;
 }
 
 /* This function may or may not appear in the backtrace. */
@@ -189,6 +242,8 @@ static noinline int unwindme_func4(struct unwindme *u)
 		unregister_kprobe(&kp);
 		unwindme = NULL;
 		return u->ret;
+	} else if (u->flags & UWM_FTRACE) {
+		return test_unwind_ftrace(u);
 	} else {
 		struct pt_regs regs;
 
@@ -321,6 +376,10 @@ static const struct test_params param_list[] = {
 	TEST_WITH_FLAGS(UWM_PGM | UWM_SP),
 	TEST_WITH_FLAGS(UWM_PGM | UWM_REGS),
 	TEST_WITH_FLAGS(UWM_PGM | UWM_SP | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_FTRACE),
+	TEST_WITH_FLAGS(UWM_FTRACE | UWM_SP),
+	TEST_WITH_FLAGS(UWM_FTRACE | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_FTRACE | UWM_SP | UWM_REGS),
 };
 
 /*
