@@ -495,13 +495,26 @@ out_unlock:
 	return rc;
 }
 
-struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port, int nr_targets)
+/**
+ * cxl_decoder_alloc - Allocate a new CXL decoder
+ * @port: owning port of this decoder
+ * @nr_targets: downstream targets accessible by this decoder. All upstream
+ *		ports and root ports must have at least 1 target.
+ *
+ * A port should contain one or more decoders. Each of those decoders enable
+ * some address space for CXL.mem utilization. A decoder is expected to be
+ * configured by the caller before registering.
+ *
+ * Return: A new cxl decoder to be registered by cxl_decoder_add()
+ */
+static struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port,
+					     unsigned int nr_targets)
 {
 	struct cxl_decoder *cxld;
 	struct device *dev;
 	int rc = 0;
 
-	if (nr_targets > CXL_DECODER_MAX_INTERLEAVE || nr_targets < 1)
+	if (nr_targets > CXL_DECODER_MAX_INTERLEAVE || nr_targets == 0)
 		return ERR_PTR(-EINVAL);
 
 	cxld = kzalloc(struct_size(cxld, target, nr_targets), GFP_KERNEL);
@@ -519,20 +532,74 @@ struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port, int nr_targets)
 	device_set_pm_not_required(dev);
 	dev->parent = &port->dev;
 	dev->bus = &cxl_bus_type;
-
-	/* root ports do not have a cxl_port_type parent */
-	if (port->dev.parent->type == &cxl_port_type)
-		dev->type = &cxl_decoder_switch_type;
+	if (is_cxl_root(port))
+		cxld->dev.type = &cxl_decoder_root_type;
 	else
-		dev->type = &cxl_decoder_root_type;
+		cxld->dev.type = &cxl_decoder_switch_type;
 
 	return cxld;
 err:
 	kfree(cxld);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_decoder_alloc, CXL);
 
+/**
+ * cxl_root_decoder_alloc - Allocate a root level decoder
+ * @port: owning CXL root of this decoder
+ * @nr_targets: static number of downstream targets
+ *
+ * Return: A new cxl decoder to be registered by cxl_decoder_add(). A
+ * 'CXL root' decoder is one that decodes from a top-level / static platform
+ * firmware description of CXL resources into a CXL standard decode
+ * topology.
+ */
+struct cxl_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
+					   unsigned int nr_targets)
+{
+	if (!is_cxl_root(port))
+		return ERR_PTR(-EINVAL);
+
+	return cxl_decoder_alloc(port, nr_targets);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_root_decoder_alloc, CXL);
+
+/**
+ * cxl_switch_decoder_alloc - Allocate a switch level decoder
+ * @port: owning CXL switch port of this decoder
+ * @nr_targets: max number of dynamically addressable downstream targets
+ *
+ * Return: A new cxl decoder to be registered by cxl_decoder_add(). A
+ * 'switch' decoder is any decoder that can be enumerated by PCIe
+ * topology and the HDM Decoder Capability. This includes the decoders
+ * that sit between Switch Upstream Ports / Switch Downstream Ports and
+ * Host Bridges / Root Ports.
+ */
+struct cxl_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
+					     unsigned int nr_targets)
+{
+	if (is_cxl_root(port))
+		return ERR_PTR(-EINVAL);
+
+	return cxl_decoder_alloc(port, nr_targets);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_switch_decoder_alloc, CXL);
+
+/**
+ * cxl_decoder_add - Add a decoder with targets
+ * @cxld: The cxl decoder allocated by cxl_decoder_alloc()
+ * @target_map: A list of downstream ports that this decoder can direct memory
+ *              traffic to. These numbers should correspond with the port number
+ *              in the PCIe Link Capabilities structure.
+ *
+ * Certain types of decoders may not have any targets. The main example of this
+ * is an endpoint device. A more awkward example is a hostbridge whose root
+ * ports get hot added (technically possible, though unlikely).
+ *
+ * Context: Process context. Takes and releases the cxld's device lock.
+ *
+ * Return: Negative error code if the decoder wasn't properly configured; else
+ *	   returns 0.
+ */
 int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map)
 {
 	struct cxl_port *port;

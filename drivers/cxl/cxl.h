@@ -278,6 +278,17 @@ struct cxl_dport {
 	struct list_head list;
 };
 
+/*
+ * The platform firmware device hosting the root is also the top of the
+ * CXL port topology. All other CXL ports have another CXL port as their
+ * parent and their ->uport / host device is out-of-line of the port
+ * ancestry.
+ */
+static inline bool is_cxl_root(struct cxl_port *port)
+{
+	return port->uport == port->dev.parent;
+}
+
 struct cxl_port *to_cxl_port(struct device *dev);
 struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   resource_size_t component_reg_phys,
@@ -288,7 +299,10 @@ int cxl_add_dport(struct cxl_port *port, struct device *dport, int port_id,
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
-struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port, int nr_targets);
+struct cxl_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
+					   unsigned int nr_targets);
+struct cxl_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
+					     unsigned int nr_targets);
 int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
 int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld);
 

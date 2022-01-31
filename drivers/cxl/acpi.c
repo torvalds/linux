@@ -102,7 +102,7 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	for (i = 0; i < CFMWS_INTERLEAVE_WAYS(cfmws); i++)
 		target_map[i] = cfmws->interleave_targets[i];
 
-	cxld = cxl_decoder_alloc(root_port, CFMWS_INTERLEAVE_WAYS(cfmws));
+	cxld = cxl_root_decoder_alloc(root_port, CFMWS_INTERLEAVE_WAYS(cfmws));
 	if (IS_ERR(cxld))
 		return 0;
 
@@ -260,7 +260,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	 * dport. Disable the range until the first CXL region is enumerated /
 	 * activated.
 	 */
-	cxld = cxl_decoder_alloc(port, 1);
+	cxld = cxl_switch_decoder_alloc(port, 1);
 	if (IS_ERR(cxld))
 		return PTR_ERR(cxld);
 
