@@ -409,6 +409,37 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     'preamble': '''
+	% Custom width parameters for TOC --- Redefine low-level commands
+	% defined in report.cls
+	\\makeatletter
+	%% Redefine \\@pnumwidth (page number width)
+	\\renewcommand*\\@pnumwidth{2.7em}
+	%% Redefine \\l@chapter (chapter list entry)
+	\\renewcommand*\\l@chapter[2]{%
+	  \\ifnum \\c@tocdepth >\\m@ne
+	    \\addpenalty{-\\@highpenalty}%
+	    \\vskip 1.0em \\@plus\\p@
+	    \\setlength\\@tempdima{1.8em}%
+	    \\begingroup
+	      \\parindent \\z@ \\rightskip \\@pnumwidth
+	      \\parfillskip -\\@pnumwidth
+	      \\leavevmode \\bfseries
+	      \\advance\\leftskip\\@tempdima
+	      \\hskip -\\leftskip
+	      #1\\nobreak\\hfil
+	      \\nobreak\\hb@xt@\\@pnumwidth{\\hss #2%
+	                                 \\kern-\\p@\\kern\\p@}\\par
+	      \\penalty\\@highpenalty
+	    \\endgroup
+	  \\fi}
+	%% Redefine \\l@section and \\l@subsection
+	\\renewcommand*\\l@section{\\@dottedtocline{1}{1.8em}{3.2em}}
+	\\renewcommand*\\l@subsection{\\@dottedtocline{2}{5em}{4.3em}}
+	\\makeatother
+	%% Sphinx < 1.8 doesn't have \\sphinxtableofcontentshook
+	\\providecommand{\\sphinxtableofcontentshook}{}
+	%% Undefine it for compatibility with Sphinx 1.7.9
+	\\renewcommand{\\sphinxtableofcontentshook}{} % Empty the hook
 	% Prevent column squeezing of tabulary.
 	\\setlength{\\tymin}{20em}
         % Use some font with UTF-8 support with XeLaTeX
