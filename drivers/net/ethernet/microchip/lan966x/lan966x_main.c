@@ -932,7 +932,14 @@ static int lan966x_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_ports;
 
+	err = lan966x_ptp_init(lan966x);
+	if (err)
+		goto cleanup_fdb;
+
 	return 0;
+
+cleanup_fdb:
+	lan966x_fdb_deinit(lan966x);
 
 cleanup_ports:
 	fwnode_handle_put(portnp);
@@ -959,6 +966,7 @@ static int lan966x_remove(struct platform_device *pdev)
 	lan966x_mac_purge_entries(lan966x);
 	lan966x_mdb_deinit(lan966x);
 	lan966x_fdb_deinit(lan966x);
+	lan966x_ptp_deinit(lan966x);
 
 	return 0;
 }
