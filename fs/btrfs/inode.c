@@ -876,7 +876,7 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 	if (btrfs_test_opt(fs_info, COMPRESS) ||
 	    inode->flags & BTRFS_INODE_COMPRESS ||
 	    inode->prop_compress)
-		return btrfs_compress_heuristic(&inode->vfs_inode, start, end);
+		return btrfs_compress_heuristic(inode, start, end);
 	return 0;
 }
 
