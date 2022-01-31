@@ -25,6 +25,7 @@
  */
 
 static DEFINE_IDA(cxl_port_ida);
+static DEFINE_XARRAY(cxl_root_buses);
 
 static ssize_t devtype_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -417,6 +418,42 @@ err:
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_port, CXL);
+
+struct pci_bus *cxl_port_to_pci_bus(struct cxl_port *port)
+{
+	/* There is no pci_bus associated with a CXL platform-root port */
+	if (is_cxl_root(port))
+		return NULL;
+
+	if (dev_is_pci(port->uport)) {
+		struct pci_dev *pdev = to_pci_dev(port->uport);
+
+		return pdev->subordinate;
+	}
+
+	return xa_load(&cxl_root_buses, (unsigned long)port->uport);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_port_to_pci_bus, CXL);
+
+static void unregister_pci_bus(void *uport)
+{
+	xa_erase(&cxl_root_buses, (unsigned long)uport);
+}
+
+int devm_cxl_register_pci_bus(struct device *host, struct device *uport,
+			      struct pci_bus *bus)
+{
+	int rc;
+
+	if (dev_is_pci(uport))
+		return -EINVAL;
+
+	rc = xa_insert(&cxl_root_buses, (unsigned long)uport, bus, GFP_KERNEL);
+	if (rc)
+		return rc;
+	return devm_add_action_or_reset(host, unregister_pci_bus, uport);
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_register_pci_bus, CXL);
 
 static struct cxl_dport *find_dport(struct cxl_port *port, int id)
 {
