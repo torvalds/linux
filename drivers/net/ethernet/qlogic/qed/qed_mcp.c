@@ -614,12 +614,13 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 				      usecs);
 }
 
-int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
-		struct qed_ptt *p_ptt,
-		u32 cmd,
-		u32 param,
-		u32 *o_mcp_resp,
-		u32 *o_mcp_param)
+static int _qed_mcp_cmd(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt,
+			u32 cmd,
+			u32 param,
+			u32 *o_mcp_resp,
+			u32 *o_mcp_param,
+			bool can_sleep)
 {
 	struct qed_mcp_mb_params mb_params;
 	int rc;
@@ -627,6 +628,7 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = cmd;
 	mb_params.param = param;
+	mb_params.flags = can_sleep ? QED_MB_FLAG_CAN_SLEEP : 0;
 
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
@@ -636,6 +638,28 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 	*o_mcp_param = mb_params.mcp_param;
 
 	return 0;
+}
+
+int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
+		struct qed_ptt *p_ptt,
+		u32 cmd,
+		u32 param,
+		u32 *o_mcp_resp,
+		u32 *o_mcp_param)
+{
+	return (_qed_mcp_cmd(p_hwfn, p_ptt, cmd, param,
+			     o_mcp_resp, o_mcp_param, true));
+}
+
+int qed_mcp_cmd_nosleep(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt,
+			u32 cmd,
+			u32 param,
+			u32 *o_mcp_resp,
+			u32 *o_mcp_param)
+{
+	return (_qed_mcp_cmd(p_hwfn, p_ptt, cmd, param,
+			     o_mcp_resp, o_mcp_param, false));
 }
 
 static int
@@ -1728,8 +1752,8 @@ static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_configure_pf_max_bandwidth(p_hwfn->cdev, p_info->bandwidth_max);
 
 	/* Acknowledge the MFW */
-	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_BW_UPDATE_ACK, 0, &resp,
-		    &param);
+	qed_mcp_cmd_nosleep(p_hwfn, p_ptt, DRV_MSG_CODE_BW_UPDATE_ACK, 0, &resp,
+			    &param);
 }
 
 static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -1766,8 +1790,8 @@ static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		   p_hwfn->mcp_info->func_info.ovlan, p_hwfn->hw_info.hw_mode);
 
 	/* Acknowledge the MFW */
-	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_S_TAG_UPDATE_ACK, 0,
-		    &resp, &param);
+	qed_mcp_cmd_nosleep(p_hwfn, p_ptt, DRV_MSG_CODE_S_TAG_UPDATE_ACK, 0,
+			    &resp, &param);
 }
 
 static void qed_mcp_handle_fan_failure(struct qed_hwfn *p_hwfn,
@@ -3675,8 +3699,8 @@ static int qed_mcp_resource_cmd(struct qed_hwfn *p_hwfn,
 {
 	int rc;
 
-	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_RESOURCE_CMD, param,
-			 p_mcp_resp, p_mcp_param);
+	rc = qed_mcp_cmd_nosleep(p_hwfn, p_ptt, DRV_MSG_CODE_RESOURCE_CMD,
+				 param, p_mcp_resp, p_mcp_param);
 	if (rc)
 		return rc;
 
