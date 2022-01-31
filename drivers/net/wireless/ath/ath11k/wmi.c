@@ -7798,6 +7798,59 @@ int ath11k_wmi_simulate_radar(struct ath11k *ar)
 	return ath11k_wmi_send_unit_test_cmd(ar, wmi_ut, dfs_args);
 }
 
+int ath11k_wmi_fw_dbglog_cfg(struct ath11k *ar, u32 *module_id_bitmap,
+			     struct ath11k_fw_dbglog *dbglog)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_debug_log_config_cmd_fixed_param *cmd;
+	struct sk_buff *skb;
+	struct wmi_tlv *tlv;
+	int ret, len;
+
+	len = sizeof(*cmd) + TLV_HDR_SIZE + (MAX_MODULE_ID_BITMAP_WORDS * sizeof(u32));
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_debug_log_config_cmd_fixed_param *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_DEBUG_LOG_CONFIG_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->dbg_log_param = dbglog->param;
+
+	tlv = (struct wmi_tlv *)((u8 *)cmd + sizeof(*cmd));
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_UINT32) |
+		      FIELD_PREP(WMI_TLV_LEN, MAX_MODULE_ID_BITMAP_WORDS * sizeof(u32));
+
+	switch (dbglog->param) {
+	case WMI_DEBUG_LOG_PARAM_LOG_LEVEL:
+	case WMI_DEBUG_LOG_PARAM_VDEV_ENABLE:
+	case WMI_DEBUG_LOG_PARAM_VDEV_DISABLE:
+	case WMI_DEBUG_LOG_PARAM_VDEV_ENABLE_BITMAP:
+		cmd->value = dbglog->value;
+		break;
+	case WMI_DEBUG_LOG_PARAM_MOD_ENABLE_BITMAP:
+	case WMI_DEBUG_LOG_PARAM_WOW_MOD_ENABLE_BITMAP:
+		cmd->value = dbglog->value;
+		memcpy(tlv->value, module_id_bitmap,
+		       MAX_MODULE_ID_BITMAP_WORDS * sizeof(u32));
+		/* clear current config to be used for next user config */
+		memset(module_id_bitmap, 0,
+		       MAX_MODULE_ID_BITMAP_WORDS * sizeof(u32));
+		break;
+	default:
+		dev_kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_DBGLOG_CFG_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send WMI_DBGLOG_CFG_CMDID\n");
+		dev_kfree_skb(skb);
+	}
+	return ret;
+}
+
 int ath11k_wmi_connect(struct ath11k_base *ab)
 {
 	u32 i;

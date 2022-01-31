@@ -876,6 +876,69 @@ static const struct file_operations fops_soc_dp_stats = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath11k_write_fw_dbglog(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath11k *ar = file->private_data;
+	char buf[128] = {0};
+	struct ath11k_fw_dbglog dbglog;
+	unsigned int param, mod_id_index, is_end;
+	u64 value;
+	int ret, num;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos,
+				     user_buf, count);
+	if (ret <= 0)
+		return ret;
+
+	num = sscanf(buf, "%u %llx %u %u", &param, &value, &mod_id_index, &is_end);
+
+	if (num < 2)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+	if (param == WMI_DEBUG_LOG_PARAM_MOD_ENABLE_BITMAP ||
+	    param == WMI_DEBUG_LOG_PARAM_WOW_MOD_ENABLE_BITMAP) {
+		if (num != 4 || mod_id_index > (MAX_MODULE_ID_BITMAP_WORDS - 1)) {
+			ret = -EINVAL;
+			goto out;
+		}
+		ar->debug.module_id_bitmap[mod_id_index] = upper_32_bits(value);
+		if (!is_end) {
+			ret = count;
+			goto out;
+		}
+	} else {
+		if (num != 2) {
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	dbglog.param = param;
+	dbglog.value = lower_32_bits(value);
+	ret = ath11k_wmi_fw_dbglog_cfg(ar, ar->debug.module_id_bitmap, &dbglog);
+	if (ret) {
+		ath11k_warn(ar->ab, "fw dbglog config failed from debugfs: %d\n",
+			    ret);
+		goto out;
+	}
+
+	ret = count;
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static const struct file_operations fops_fw_dbglog = {
+	.write = ath11k_write_fw_dbglog,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
 {
 	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
@@ -1142,6 +1205,9 @@ int ath11k_debugfs_register(struct ath11k *ar)
 	debugfs_create_file("pktlog_filter", 0644,
 			    ar->debug.debugfs_pdev, ar,
 			    &fops_pktlog_filter);
+	debugfs_create_file("fw_dbglog_config", 0600,
+			    ar->debug.debugfs_pdev, ar,
+			    &fops_fw_dbglog);
 
 	if (ar->hw->wiphy->bands[NL80211_BAND_5GHZ]) {
 		debugfs_create_file("dfs_simulate_radar", 0200,
