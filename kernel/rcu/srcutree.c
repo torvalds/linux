@@ -330,18 +330,13 @@ static void srcu_transition_to_big(struct srcu_struct *ssp)
 }
 
 /*
- * Acquire the specified srcu_struct structure's ->lock, but check for
- * excessive contention, which results in initiation of a transition
- * to SRCU_SIZE_BIG.  But only if the srcutree.convert_to_big module
- * parameter permits this.
+ * Check to see if the just-encountered contention event justifies
+ * a transition to SRCU_SIZE_BIG.
  */
-static void spin_lock_irqsave_ssp_contention(struct srcu_struct *ssp, unsigned long *flags)
+static void spin_lock_irqsave_check_contention(struct srcu_struct *ssp)
 {
 	unsigned long j;
 
-	if (spin_trylock_irqsave_rcu_node(ssp, *flags))
-		return;
-	spin_lock_irqsave_rcu_node(ssp, *flags);
 	if (!SRCU_SIZING_IS_CONTEND() || ssp->srcu_size_state)
 		return;
 	j = jiffies;
@@ -352,6 +347,38 @@ static void spin_lock_irqsave_ssp_contention(struct srcu_struct *ssp, unsigned l
 	if (++ssp->srcu_n_lock_retries <= small_contention_lim)
 		return;
 	__srcu_transition_to_big(ssp);
+}
+
+/*
+ * Acquire the specified srcu_data structure's ->lock, but check for
+ * excessive contention, which results in initiation of a transition
+ * to SRCU_SIZE_BIG.  But only if the srcutree.convert_to_big module
+ * parameter permits this.
+ */
+static void spin_lock_irqsave_sdp_contention(struct srcu_data *sdp, unsigned long *flags)
+{
+	struct srcu_struct *ssp = sdp->ssp;
+
+	if (spin_trylock_irqsave_rcu_node(sdp, *flags))
+		return;
+	spin_lock_irqsave_rcu_node(ssp, *flags);
+	spin_lock_irqsave_check_contention(ssp);
+	spin_unlock_irqrestore_rcu_node(ssp, *flags);
+	spin_lock_irqsave_rcu_node(sdp, *flags);
+}
+
+/*
+ * Acquire the specified srcu_struct structure's ->lock, but check for
+ * excessive contention, which results in initiation of a transition
+ * to SRCU_SIZE_BIG.  But only if the srcutree.convert_to_big module
+ * parameter permits this.
+ */
+static void spin_lock_irqsave_ssp_contention(struct srcu_struct *ssp, unsigned long *flags)
+{
+	if (spin_trylock_irqsave_rcu_node(ssp, *flags))
+		return;
+	spin_lock_irqsave_rcu_node(ssp, *flags);
+	spin_lock_irqsave_check_contention(ssp);
 }
 
 /*
@@ -1010,7 +1037,7 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 		sdp = per_cpu_ptr(ssp->sda, 0);
 	else
 		sdp = raw_cpu_ptr(ssp->sda);
-	spin_lock_irqsave_rcu_node(sdp, flags);
+	spin_lock_irqsave_sdp_contention(sdp, &flags);
 	if (rhp)
 		rcu_segcblist_enqueue(&sdp->srcu_cblist, rhp);
 	rcu_segcblist_advance(&sdp->srcu_cblist,
