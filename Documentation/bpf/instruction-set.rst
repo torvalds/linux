@@ -82,9 +82,9 @@ BPF_ALU uses 32-bit wide operands while BPF_ALU64 uses 64-bit wide operands for
 otherwise identical operations.
 The code field encodes the operation as below:
 
-  ========  =====  ==========================
+  ========  =====  =================================================
   code      value  description
-  ========  =====  ==========================
+  ========  =====  =================================================
   BPF_ADD   0x00   dst += src
   BPF_SUB   0x10   dst -= src
   BPF_MUL   0x20   dst \*= src
@@ -98,8 +98,8 @@ The code field encodes the operation as below:
   BPF_XOR   0xa0   dst ^= src
   BPF_MOV   0xb0   dst = src
   BPF_ARSH  0xc0   sign extending shift right
-  BPF_END   0xd0   endianness conversion
-  ========  =====  ==========================
+  BPF_END   0xd0   byte swap operations (see separate section below)
+  ========  =====  =================================================
 
 BPF_ADD | BPF_X | BPF_ALU means::
 
@@ -116,6 +116,42 @@ BPF_XOR | BPF_K | BPF_ALU means::
 BPF_XOR | BPF_K | BPF_ALU64 means::
 
   src_reg = src_reg ^ imm32
+
+
+Byte swap instructions
+----------------------
+
+The byte swap instructions use an instruction class of ``BFP_ALU`` and a 4-bit
+code field of ``BPF_END``.
+
+The byte swap instructions instructions operate on the destination register
+only and do not use a separate source register or immediate value.
+
+The 1-bit source operand field in the opcode is used to to select what byte
+order the operation convert from or to:
+
+  =========  =====  =================================================
+  source     value  description
+  =========  =====  =================================================
+  BPF_TO_LE  0x00   convert between host byte order and little endian
+  BPF_TO_BE  0x08   convert between host byte order and big endian
+  =========  =====  =================================================
+
+The imm field encodes the width of the swap operations.  The following widths
+are supported: 16, 32 and 64.
+
+Examples:
+
+``BPF_ALU | BPF_TO_LE | BPF_END`` with imm = 16 means::
+
+  dst_reg = htole16(dst_reg)
+
+``BPF_ALU | BPF_TO_BE | BPF_END`` with imm = 64 means::
+
+  dst_reg = htobe64(dst_reg)
+
+``BPF_FROM_LE`` and ``BPF_FROM_BE`` exist as aliases for ``BPF_TO_LE`` and
+``BPF_TO_LE`` respetively.
 
 
 Jump instructions
