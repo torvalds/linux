@@ -507,7 +507,9 @@ DataLoadTLBMiss:
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 	rlwinm	r1,r0,32-9,30,30	/* _PAGE_RW -> PP msb */
 	rlwimi	r0,r0,32-1,30,30	/* _PAGE_USER -> PP msb */
+	rlwimi	r1,r0,32-3,24,24	/* _PAGE_RW -> _PAGE_DIRTY */
 	rlwimi	r0,r0,32-1,31,31	/* _PAGE_USER -> PP lsb */
+	xori	r1,r1,_PAGE_DIRTY	/* clear dirty when not rw */
 	ori	r1,r1,0xe04		/* clear out reserved bits */
 	andc	r1,r0,r1		/* PP = user? rw? 1: 3: 0 */
 BEGIN_FTR_SECTION
