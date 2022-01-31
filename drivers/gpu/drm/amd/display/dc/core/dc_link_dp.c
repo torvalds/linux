@@ -2384,6 +2384,7 @@ static enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	const uint8_t vendor_lttpr_write_data_intercept_en[4] = {0x1, 0x55, 0x63, 0x0};
 	const uint8_t vendor_lttpr_write_data_intercept_dis[4] = {0x1, 0x55, 0x63, 0x68};
+	uint32_t pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa;
 	uint8_t vendor_lttpr_write_data_vs[4] = {0x1, 0x51, 0x63, 0x0};
 	uint8_t vendor_lttpr_write_data_pe[4] = {0x1, 0x52, 0x63, 0x0};
 	uint32_t vendor_lttpr_write_address = 0xF004F;
@@ -2406,6 +2407,10 @@ static enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	if (offset != 0xFF) {
 		vendor_lttpr_write_address +=
 				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+
+		/* Certain display and cable configuration require extra delay */
+		if (offset > 2)
+			pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa * 2;
 	}
 
 	/* Vendor specific: Reset lane settings */
@@ -2485,6 +2490,7 @@ static enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 
 	/* Perform Clock Recovery Sequence */
 	if (status == LINK_TRAINING_SUCCESS) {
+		const uint8_t max_vendor_dpcd_retries = 10;
 		uint32_t retries_cr;
 		uint32_t retry_count;
 		uint32_t wait_time_microsec;
@@ -2492,6 +2498,8 @@ static enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 		union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
 		union lane_align_status_updated dpcd_lane_status_updated;
 		union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
+		enum dc_status dpcd_status = DC_OK;
+		uint8_t i = 0;
 
 		retries_cr = 0;
 		retry_count = 0;
@@ -2522,11 +2530,23 @@ static enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 						lt_settings->pattern_for_cr,
 						0);
 				/* Vendor specific: Disable intercept */
-				core_link_write_dpcd(
-						link,
-						vendor_lttpr_write_address,
-						&vendor_lttpr_write_data_intercept_dis[0],
-						sizeof(vendor_lttpr_write_data_intercept_dis));
+				for (i = 0; i < max_vendor_dpcd_retries; i++) {
+					msleep(pre_disable_intercept_delay_ms);
+					dpcd_status = core_link_write_dpcd(
+							link,
+							vendor_lttpr_write_address,
+							&vendor_lttpr_write_data_intercept_dis[0],
+							sizeof(vendor_lttpr_write_data_intercept_dis));
+
+					if (dpcd_status == DC_OK)
+						break;
+
+					core_link_write_dpcd(
+							link,
+							vendor_lttpr_write_address,
+							&vendor_lttpr_write_data_intercept_en[0],
+							sizeof(vendor_lttpr_write_data_intercept_en));
+				}
 			} else {
 				vendor_lttpr_write_data_vs[3] = 0;
 				vendor_lttpr_write_data_pe[3] = 0;
@@ -5190,6 +5210,19 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 	determine_lttpr_mode(link);
 
 	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT || link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
+		if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+				!link->dc->debug.disable_fixed_vs_aux_timeout_wa) {
+			/* Fixed VS workaround for AUX timeout */
+			const uint32_t fixed_vs_address = 0xF004F;
+			const uint8_t fixed_vs_data[4] = {0x1, 0x22, 0x63, 0xc};
+
+			core_link_write_dpcd(
+					link,
+					fixed_vs_address,
+					fixed_vs_data,
+					sizeof(fixed_vs_data));
+		}
+
 		/* By reading LTTPR capability, RX assumes that we will enable
 		 * LTTPR extended aux timeout if LTTPR is present.
 		 */
