@@ -24,6 +24,7 @@ struct ltk050h3146w_cmd {
 
 struct ltk050h3146w;
 struct ltk050h3146w_desc {
+	const unsigned long mode_flags;
 	const struct drm_display_mode *mode;
 	int (*init)(struct ltk050h3146w *ctx);
 };
@@ -330,6 +331,8 @@ static const struct drm_display_mode ltk050h3146w_mode = {
 static const struct ltk050h3146w_desc ltk050h3146w_data = {
 	.mode = &ltk050h3146w_mode,
 	.init = ltk050h3146w_init_sequence,
+	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+		MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET,
 };
 
 static int ltk050h3146w_a2_select_page(struct ltk050h3146w *ctx, int page)
@@ -424,6 +427,8 @@ static const struct drm_display_mode ltk050h3146w_a2_mode = {
 static const struct ltk050h3146w_desc ltk050h3146w_a2_data = {
 	.mode = &ltk050h3146w_a2_mode,
 	.init = ltk050h3146w_a2_init_sequence,
+	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+		MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET,
 };
 
 static int ltk050h3146w_unprepare(struct drm_panel *panel)
@@ -583,8 +588,7 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
+	dsi->mode_flags = ctx->panel_desc->mode_flags;
 
 	drm_panel_init(&ctx->panel, &dsi->dev, &ltk050h3146w_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
