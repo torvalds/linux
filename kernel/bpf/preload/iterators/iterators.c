@@ -10,20 +10,20 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <sys/mount.h>
-#include "iterators.skel.h"
+#include "iterators.lskel.h"
 #include "bpf_preload_common.h"
 
 int to_kernel = -1;
 int from_kernel = 0;
 
-static int send_link_to_kernel(struct bpf_link *link, const char *link_name)
+static int send_link_to_kernel(int link_fd, const char *link_name)
 {
 	struct bpf_preload_info obj = {};
 	struct bpf_link_info info = {};
 	__u32 info_len = sizeof(info);
 	int err;
 
-	err = bpf_obj_get_info_by_fd(bpf_link__fd(link), &info, &info_len);
+	err = bpf_obj_get_info_by_fd(link_fd, &info, &info_len);
 	if (err)
 		return err;
 	obj.link_id = info.id;
@@ -70,10 +70,10 @@ int main(int argc, char **argv)
 		goto cleanup;
 
 	/* send two bpf_link IDs with names to the kernel */
-	err = send_link_to_kernel(skel->links.dump_bpf_map, "maps.debug");
+	err = send_link_to_kernel(skel->links.dump_bpf_map_fd, "maps.debug");
 	if (err)
 		goto cleanup;
-	err = send_link_to_kernel(skel->links.dump_bpf_prog, "progs.debug");
+	err = send_link_to_kernel(skel->links.dump_bpf_prog_fd, "progs.debug");
 	if (err)
 		goto cleanup;
 
