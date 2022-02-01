@@ -521,6 +521,8 @@ latex_elements['preamble']  += '''
 	    \\renewcommand{\\CJKsfdefault}{SCsans}%
 	    \\renewcommand{\\CJKttdefault}{SCmono}%
 	    \\xeCJKsetup{CJKspace = false}%
+	    % For CJK ascii-art alignment
+	    \\setmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]%
 	}
 	\\newcommand{\\kerneldocEndSC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginTC}{%
@@ -532,6 +534,8 @@ latex_elements['preamble']  += '''
 	    \\renewcommand{\\CJKsfdefault}{TCsans}%
 	    \\renewcommand{\\CJKttdefault}{TCmono}%
 	    \\xeCJKsetup{CJKspace = false}%
+	    % For CJK ascii-art alignment
+	    \\setmonofont{Noto Sans Mono CJK TC}[AutoFakeSlant]%
 	}
 	\\newcommand{\\kerneldocEndTC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginKR}{%
@@ -541,6 +545,8 @@ latex_elements['preamble']  += '''
 	    \\renewcommand{\\CJKsfdefault}{KRsans}%
 	    \\renewcommand{\\CJKttdefault}{KRmono}%
 	    % \\xeCJKsetup{CJKspace = true} % true by default
+	    % For CJK ascii-art alignment (still misaligned for Hangul)
+	    \\setmonofont{Noto Sans Mono CJK KR}[AutoFakeSlant]%
 	}
 	\\newcommand{\\kerneldocEndKR}{\\endgroup}
 	\\newcommand{\\kerneldocBeginJP}{%
@@ -550,6 +556,8 @@ latex_elements['preamble']  += '''
 	    \\renewcommand{\\CJKsfdefault}{JPsans}%
 	    \\renewcommand{\\CJKttdefault}{JPmono}%
 	    \\xeCJKsetup{CJKspace = false}%
+	    % For CJK ascii-art alignment
+	    \\setmonofont{Noto Sans Mono CJK JP}[AutoFakeSlant]%
 	}
 	\\newcommand{\\kerneldocEndJP}{\\endgroup}
 	% Single spacing in literal blocks
