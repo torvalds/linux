@@ -3,7 +3,7 @@
 	\renewcommand\thesection*
 	\renewcommand\thesubsection*
 	\kerneldocCJKon
-	\kerneldocBeginJP
+	\kerneldocBeginJP{
 
 Japanese translations
 =====================
@@ -15,4 +15,4 @@ Japanese translations
 
 .. raw:: latex
 
-	\kerneldocEndJP
+	}\kerneldocEndJP

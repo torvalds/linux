@@ -563,13 +563,18 @@ latex_elements['preamble']  += '''
 	% Custom macros to on/off CJK (Dummy)
 	\\newcommand{\\kerneldocCJKon}{}
 	\\newcommand{\\kerneldocCJKoff}{}
-	\\newcommand{\\kerneldocBeginSC}{}
+	\\newcommand{\\kerneldocBeginSC}[1]{%
+	    \\begin{sphinxadmonition}{note}{Note:}
+		``Noto Sans CJK'' fonts are not found while building this PDF\\@.
+		Translations of zh\\_CN, zh\\_TW, ko\\_KR, and ja\\_JP are
+		skipped.
+	    \\end{sphinxadmonition}}
 	\\newcommand{\\kerneldocEndSC}{}
-	\\newcommand{\\kerneldocBeginTC}{}
+	\\newcommand{\\kerneldocBeginTC}[1]{}
 	\\newcommand{\\kerneldocEndTC}{}
-	\\newcommand{\\kerneldocBeginKR}{}
+	\\newcommand{\\kerneldocBeginKR}[1]{}
 	\\newcommand{\\kerneldocEndKR}{}
-	\\newcommand{\\kerneldocBeginJP}{}
+	\\newcommand{\\kerneldocBeginJP}[1]{}
 	\\newcommand{\\kerneldocEndJP}{}
     }
 '''
