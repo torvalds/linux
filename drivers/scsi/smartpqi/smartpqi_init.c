@@ -8955,15 +8955,16 @@ static inline enum bmic_flush_cache_shutdown_event pqi_get_flush_cache_shutdown_
 {
 	if (pci_dev->subsystem_vendor == PCI_VENDOR_ID_ADAPTEC2 && pci_dev->subsystem_device == 0x1304)
 		return RESTART;
+
 	return SUSPEND;
 }
 
-static __maybe_unused int pqi_suspend(struct pci_dev *pci_dev, pm_message_t state)
+static int pqi_suspend_or_freeze(struct device *dev, bool suspend)
 {
+	struct pci_dev *pci_dev;
 	struct pqi_ctrl_info *ctrl_info;
-	enum bmic_flush_cache_shutdown_event shutdown_event;
 
-	shutdown_event = pqi_get_flush_cache_shutdown_event(pci_dev);
+	pci_dev = to_pci_dev(dev);
 	ctrl_info = pci_get_drvdata(pci_dev);
 
 	pqi_wait_until_ofa_finished(ctrl_info);
@@ -8973,16 +8974,17 @@ static __maybe_unused int pqi_suspend(struct pci_dev *pci_dev, pm_message_t stat
 	pqi_ctrl_block_device_reset(ctrl_info);
 	pqi_ctrl_block_requests(ctrl_info);
 	pqi_ctrl_wait_until_quiesced(ctrl_info);
-	pqi_flush_cache(ctrl_info, shutdown_event);
+
+	if (suspend) {
+		enum bmic_flush_cache_shutdown_event shutdown_event;
+
+		shutdown_event = pqi_get_flush_cache_shutdown_event(pci_dev);
+		pqi_flush_cache(ctrl_info, shutdown_event);
+	}
+
 	pqi_stop_heartbeat_timer(ctrl_info);
-
 	pqi_crash_if_pending_command(ctrl_info);
-
-	if (state.event == PM_EVENT_FREEZE)
-		return 0;
-
-	pci_save_state(pci_dev);
-	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
+	pqi_free_irqs(ctrl_info);
 
 	ctrl_info->controller_online = false;
 	ctrl_info->pqi_mode_enabled = false;
@@ -8990,43 +8992,86 @@ static __maybe_unused int pqi_suspend(struct pci_dev *pci_dev, pm_message_t stat
 	return 0;
 }
 
-static __maybe_unused int pqi_resume(struct pci_dev *pci_dev)
+static __maybe_unused int pqi_suspend(struct device *dev)
+{
+	return pqi_suspend_or_freeze(dev, true);
+}
+
+static int pqi_resume_or_restore(struct device *dev)
 {
 	int rc;
+	struct pci_dev *pci_dev;
 	struct pqi_ctrl_info *ctrl_info;
 
+	pci_dev = to_pci_dev(dev);
 	ctrl_info = pci_get_drvdata(pci_dev);
 
-	if (pci_dev->current_state != PCI_D0) {
-		ctrl_info->max_hw_queue_index = 0;
-		pqi_free_interrupts(ctrl_info);
-		pqi_change_irq_mode(ctrl_info, IRQ_MODE_INTX);
-		rc = request_irq(pci_irq_vector(pci_dev, 0), pqi_irq_handler,
-			IRQF_SHARED, DRIVER_NAME_SHORT,
-			&ctrl_info->queue_groups[0]);
-		if (rc) {
-			dev_err(&ctrl_info->pci_dev->dev,
-				"irq %u init failed with error %d\n",
-				pci_dev->irq, rc);
-			return rc;
-		}
-		pqi_ctrl_unblock_device_reset(ctrl_info);
-		pqi_ctrl_unblock_requests(ctrl_info);
-		pqi_scsi_unblock_requests(ctrl_info);
-		pqi_ctrl_unblock_scan(ctrl_info);
-		return 0;
-	}
-
-	pci_set_power_state(pci_dev, PCI_D0);
-	pci_restore_state(pci_dev);
+	rc = pqi_request_irqs(ctrl_info);
+	if (rc)
+		return rc;
 
 	pqi_ctrl_unblock_device_reset(ctrl_info);
 	pqi_ctrl_unblock_requests(ctrl_info);
 	pqi_scsi_unblock_requests(ctrl_info);
 	pqi_ctrl_unblock_scan(ctrl_info);
 
+	ssleep(PQI_POST_RESET_DELAY_SECS);
+
 	return pqi_ctrl_init_resume(ctrl_info);
 }
+
+static int pqi_freeze(struct device *dev)
+{
+	return pqi_suspend_or_freeze(dev, false);
+}
+
+static int pqi_thaw(struct device *dev)
+{
+	int rc;
+	struct pci_dev *pci_dev;
+	struct pqi_ctrl_info *ctrl_info;
+
+	pci_dev = to_pci_dev(dev);
+	ctrl_info = pci_get_drvdata(pci_dev);
+
+	rc = pqi_request_irqs(ctrl_info);
+	if (rc)
+		return rc;
+
+	ctrl_info->controller_online = true;
+	ctrl_info->pqi_mode_enabled = true;
+
+	pqi_ctrl_unblock_device_reset(ctrl_info);
+	pqi_ctrl_unblock_requests(ctrl_info);
+	pqi_scsi_unblock_requests(ctrl_info);
+	pqi_ctrl_unblock_scan(ctrl_info);
+
+	return 0;
+}
+
+static int pqi_poweroff(struct device *dev)
+{
+	struct pci_dev *pci_dev;
+	struct pqi_ctrl_info *ctrl_info;
+	enum bmic_flush_cache_shutdown_event shutdown_event;
+
+	pci_dev = to_pci_dev(dev);
+	ctrl_info = pci_get_drvdata(pci_dev);
+
+	shutdown_event = pqi_get_flush_cache_shutdown_event(pci_dev);
+	pqi_flush_cache(ctrl_info, shutdown_event);
+
+	return 0;
+}
+
+static const struct dev_pm_ops pqi_pm_ops = {
+	.suspend = pqi_suspend,
+	.resume = pqi_resume_or_restore,
+	.freeze = pqi_freeze,
+	.thaw = pqi_thaw,
+	.poweroff = pqi_poweroff,
+	.restore = pqi_resume_or_restore,
+};
 
 /* Define the PCI IDs for the controllers that we support. */
 static const struct pci_device_id pqi_pci_id_table[] = {
@@ -9694,8 +9739,9 @@ static struct pci_driver pqi_pci_driver = {
 	.remove = pqi_pci_remove,
 	.shutdown = pqi_shutdown,
 #if defined(CONFIG_PM)
-	.suspend = pqi_suspend,
-	.resume = pqi_resume,
+	.driver = {
+		.pm = &pqi_pm_ops
+	},
 #endif
 };
 
