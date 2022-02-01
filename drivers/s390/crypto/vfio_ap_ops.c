@@ -1787,9 +1787,11 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 
 	if (matrix_mdev) {
 		vfio_ap_mdev_link_queue(matrix_mdev, q);
-		vfio_ap_mdev_filter_matrix(matrix_mdev->matrix.apm,
-					   matrix_mdev->matrix.aqm,
-					   matrix_mdev);
+
+		if (vfio_ap_mdev_filter_matrix(matrix_mdev->matrix.apm,
+					       matrix_mdev->matrix.aqm,
+					       matrix_mdev))
+			vfio_ap_mdev_update_guest_apcb(matrix_mdev);
 	}
 	dev_set_drvdata(&apdev->device, q);
 	release_update_locks_for_mdev(matrix_mdev);
@@ -1799,7 +1801,7 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 
 void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
 {
-	unsigned long apid;
+	unsigned long apid, apqi;
 	struct vfio_ap_queue *q;
 	struct ap_matrix_mdev *matrix_mdev;
 
@@ -1812,8 +1814,17 @@ void vfio_ap_mdev_remove_queue(struct ap_device *apdev)
 		vfio_ap_unlink_queue_fr_mdev(q);
 
 		apid = AP_QID_CARD(q->apqn);
-		if (test_bit_inv(apid, q->matrix_mdev->shadow_apcb.apm))
-			clear_bit_inv(apid, q->matrix_mdev->shadow_apcb.apm);
+		apqi = AP_QID_QUEUE(q->apqn);
+
+		/*
+		 * If the queue is assigned to the guest's APCB, then remove
+		 * the adapter's APID from the APCB and hot it into the guest.
+		 */
+		if (test_bit_inv(apid, matrix_mdev->shadow_apcb.apm) &&
+		    test_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm)) {
+			clear_bit_inv(apid, matrix_mdev->shadow_apcb.apm);
+			vfio_ap_mdev_update_guest_apcb(matrix_mdev);
+		}
 	}
 
 	vfio_ap_mdev_reset_queue(q, 1);
