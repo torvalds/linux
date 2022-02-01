@@ -3931,19 +3931,18 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	 * If a connection label was passed use that, else attempt to use
 	 * the device name as label
 	 */
-	ret = gpiod_request(desc, con_id ? con_id : devname);
+	ret = gpiod_request(desc, con_id ?: devname);
 	if (ret) {
 		if (ret == -EBUSY && flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
 			/*
 			 * This happens when there are several consumers for
 			 * the same GPIO line: we just return here without
-			 * further initialization. It is a bit if a hack.
+			 * further initialization. It is a bit of a hack.
 			 * This is necessary to support fixed regulators.
 			 *
 			 * FIXME: Make this more sane and safe.
 			 */
-			dev_info(dev, "nonexclusive access to GPIO for %s\n",
-				 con_id ? con_id : devname);
+			dev_info(dev, "nonexclusive access to GPIO for %s\n", con_id ?: devname);
 			return desc;
 		} else {
 			return ERR_PTR(ret);
