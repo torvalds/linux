@@ -206,10 +206,6 @@ struct hal_data_8188e {
 
 	u32	UsbBulkOutSize;
 
-	u8	UsbRxAggBlockCount;	/*  USB Block count. Block size is
-					 * 512-byte in high speed and 64-byte
-					 * in full speed */
-	u8	UsbRxAggBlockTimeout;
 	u8	UsbRxAggPageCount;	/*  8192C DMA page count */
 	u8	UsbRxAggPageTimeout;
 };
