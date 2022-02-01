@@ -1264,8 +1264,10 @@ static int ov08d10_enum_frame_size(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	mutex_lock(&ov08d10->mutex);
-	if (fse->code != ov08d10_get_format_code(ov08d10))
+	if (fse->code != ov08d10_get_format_code(ov08d10)) {
+		mutex_unlock(&ov08d10->mutex);
 		return -EINVAL;
+	}
 	mutex_unlock(&ov08d10->mutex);
 
 	fse->min_width = ov08d10->priv_lane->sp_modes[fse->index].width;
