@@ -1966,29 +1966,22 @@ static const struct mount_opts {
 static const struct ext4_sb_encodings {
 	__u16 magic;
 	char *name;
-	char *version;
+	unsigned int version;
 } ext4_sb_encoding_map[] = {
-	{EXT4_ENC_UTF8_12_1, "utf8", "12.1.0"},
+	{EXT4_ENC_UTF8_12_1, "utf8", UNICODE_AGE(12, 1, 0)},
 };
 
-static int ext4_sb_read_encoding(const struct ext4_super_block *es,
-				 const struct ext4_sb_encodings **encoding,
-				 __u16 *flags)
+static const struct ext4_sb_encodings *
+ext4_sb_read_encoding(const struct ext4_super_block *es)
 {
 	__u16 magic = le16_to_cpu(es->s_encoding);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ext4_sb_encoding_map); i++)
 		if (magic == ext4_sb_encoding_map[i].magic)
-			break;
+			return &ext4_sb_encoding_map[i];
 
-	if (i >= ARRAY_SIZE(ext4_sb_encoding_map))
-		return -EINVAL;
-
-	*encoding = &ext4_sb_encoding_map[i];
-	*flags = le16_to_cpu(es->s_encoding_flags);
-
-	return 0;
+	return NULL;
 }
 #endif
 
@@ -4624,10 +4617,10 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	if (ext4_has_feature_casefold(sb) && !sb->s_encoding) {
 		const struct ext4_sb_encodings *encoding_info;
 		struct unicode_map *encoding;
-		__u16 encoding_flags;
+		__u16 encoding_flags = le16_to_cpu(es->s_encoding_flags);
 
-		if (ext4_sb_read_encoding(es, &encoding_info,
-					  &encoding_flags)) {
+		encoding_info = ext4_sb_read_encoding(es);
+		if (!encoding_info) {
 			ext4_msg(sb, KERN_ERR,
 				 "Encoding requested by superblock is unknown");
 			goto failed_mount;
@@ -4636,15 +4629,21 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		encoding = utf8_load(encoding_info->version);
 		if (IS_ERR(encoding)) {
 			ext4_msg(sb, KERN_ERR,
-				 "can't mount with superblock charset: %s-%s "
+				 "can't mount with superblock charset: %s-%u.%u.%u "
 				 "not supported by the kernel. flags: 0x%x.",
-				 encoding_info->name, encoding_info->version,
+				 encoding_info->name,
+				 unicode_major(encoding_info->version),
+				 unicode_minor(encoding_info->version),
+				 unicode_rev(encoding_info->version),
 				 encoding_flags);
 			goto failed_mount;
 		}
 		ext4_msg(sb, KERN_INFO,"Using encoding defined by superblock: "
-			 "%s-%s with flags 0x%hx", encoding_info->name,
-			 encoding_info->version?:"\b", encoding_flags);
+			 "%s-%u.%u.%u with flags 0x%hx", encoding_info->name,
+			 unicode_major(encoding_info->version),
+			 unicode_minor(encoding_info->version),
+			 unicode_rev(encoding_info->version),
+			 encoding_flags);
 
 		sb->s_encoding = encoding;
 		sb->s_encoding_flags = encoding_flags;

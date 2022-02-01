@@ -550,7 +550,8 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 	}
 	/* some IP discovery tables on Navy Flounder don't have this set correctly */
 	if ((adev->ip_versions[UVD_HWIP][1] == IP_VERSION(3, 0, 1)) &&
-	    (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 2)))
+	    (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 2)) &&
+	    (adev->pdev->revision != 0xFF))
 		adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
 	if (vcn_harvest_count == adev->vcn.num_vcn_inst) {
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;

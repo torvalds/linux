@@ -626,6 +626,8 @@ struct dm_crtc_state {
 	bool cm_has_degamma;
 	bool cm_is_degamma_srgb;
 
+	bool mpo_requested;
+
 	int update_type;
 	int active_planes;
 

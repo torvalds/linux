@@ -189,7 +189,7 @@ void vgic_v4_configure_vsgis(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
-	int i;
+	unsigned long i;
 
 	kvm_arm_halt_guest(kvm);
 
@@ -235,7 +235,8 @@ int vgic_v4_init(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
-	int i, nr_vcpus, ret;
+	int nr_vcpus, ret;
+	unsigned long i;
 
 	if (!kvm_vgic_global_state.has_gicv4)
 		return 0; /* Nothing to see here... move along. */

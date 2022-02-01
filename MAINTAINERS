@@ -226,6 +226,7 @@ F:	drivers/net/ethernet/8390/
 M:	Eric Van Hensbergen <ericvh@gmail.com>
 M:	Latchesar Ionkov <lucho@ionkov.net>
 M:	Dominique Martinet <asmadeus@codewreck.org>
+R:	Christian Schoenebeck <linux_oss@crudebyte.com>
 L:	v9fs-developer@lists.sourceforge.net
 S:	Maintained
 W:	http://swik.net/v9fs
@@ -7416,7 +7417,6 @@ F:	include/uapi/scsi/fc/
 
 FILE LOCKING (flock() and fcntl()/lockf())
 M:	Jeff Layton <jlayton@kernel.org>
-M:	"J. Bruce Fields" <bfields@fieldses.org>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	fs/fcntl.c
@@ -10434,12 +10434,11 @@ S:	Odd Fixes
 W:	http://kernelnewbies.org/KernelJanitors
 
 KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
-M:	"J. Bruce Fields" <bfields@fieldses.org>
 M:	Chuck Lever <chuck.lever@oracle.com>
 L:	linux-nfs@vger.kernel.org
 S:	Supported
 W:	http://nfs.sourceforge.net/
-T:	git git://linux-nfs.org/~bfields/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cel/linux.git
 F:	fs/lockd/
 F:	fs/nfs_common/
 F:	fs/nfsd/
@@ -10547,8 +10546,8 @@ F:	arch/powerpc/kernel/kvm*
 F:	arch/powerpc/kvm/
 
 KERNEL VIRTUAL MACHINE FOR RISC-V (KVM/riscv)
-M:	Anup Patel <anup.patel@wdc.com>
-R:	Atish Patra <atish.patra@wdc.com>
+M:	Anup Patel <anup@brainfault.org>
+R:	Atish Patra <atishp@atishpatra.org>
 L:	kvm@vger.kernel.org
 L:	kvm-riscv@lists.infradead.org
 L:	linux-riscv@lists.infradead.org
@@ -14897,6 +14896,19 @@ M:	Linas Vepstas <linasvepstas@gmail.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	Documentation/PCI/pci-error-recovery.rst
+
+PCI PEER-TO-PEER DMA (P2PDMA)
+M:	Bjorn Helgaas <bhelgaas@google.com>
+M:	Logan Gunthorpe <logang@deltatee.com>
+L:	linux-pci@vger.kernel.org
+S:	Supported
+Q:	https://patchwork.kernel.org/project/linux-pci/list/
+B:	https://bugzilla.kernel.org
+C:	irc://irc.oftc.net/linux-pci
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/helgaas/pci.git
+F:	Documentation/driver-api/pci/p2pdma.rst
+F:	drivers/pci/p2pdma.c
+F:	include/linux/pci-p2pdma.h
 
 PCI MSI DRIVER FOR ALTERA MSI IP
 M:	Joyce Ooi <joyce.ooi@intel.com>

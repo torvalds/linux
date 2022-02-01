@@ -672,10 +672,11 @@ void dw_pcie_iatu_detect(struct dw_pcie *pci)
 		if (!pci->atu_base) {
 			struct resource *res =
 				platform_get_resource_byname(pdev, IORESOURCE_MEM, "atu");
-			if (res)
+			if (res) {
 				pci->atu_size = resource_size(res);
-			pci->atu_base = devm_ioremap_resource(dev, res);
-			if (IS_ERR(pci->atu_base))
+				pci->atu_base = devm_ioremap_resource(dev, res);
+			}
+			if (!pci->atu_base || IS_ERR(pci->atu_base))
 				pci->atu_base = pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
 		}
 

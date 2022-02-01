@@ -915,6 +915,20 @@ config EVENT_TRACE_TEST_SYSCALLS
 	 TBD - enable a way to actually call the syscalls as we test their
 	       events
 
+config FTRACE_SORT_STARTUP_TEST
+       bool "Verify compile time sorting of ftrace functions"
+       depends on DYNAMIC_FTRACE
+       depends on BUILDTIME_TABLE_SORT
+       help
+	 Sorting of the mcount_loc sections that is used to find the
+	 where the ftrace knows where to patch functions for tracing
+	 and other callbacks is done at compile time. But if the sort
+	 is not done correctly, it will cause non-deterministic failures.
+	 When this is set, the sorted sections will be verified that they
+	 are in deed sorted and will warn if they are not.
+
+	 If unsure, say N
+
 config RING_BUFFER_STARTUP_TEST
        bool "Ring buffer startup self test"
        depends on RING_BUFFER

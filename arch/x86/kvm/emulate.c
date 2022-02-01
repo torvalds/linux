@@ -175,6 +175,7 @@
 #define No16	    ((u64)1 << 53)  /* No 16 bit operand */
 #define IncSP       ((u64)1 << 54)  /* SP is incremented before ModRM calc */
 #define TwoMemOp    ((u64)1 << 55)  /* Instruction has two memory operand */
+#define IsBranch    ((u64)1 << 56)  /* Instruction is considered a branch. */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -191,8 +192,9 @@
 #define FASTOP_SIZE 8
 
 struct opcode {
-	u64 flags : 56;
-	u64 intercept : 8;
+	u64 flags;
+	u8 intercept;
+	u8 pad[7];
 	union {
 		int (*execute)(struct x86_emulate_ctxt *ctxt);
 		const struct opcode *group;
@@ -4356,10 +4358,10 @@ static const struct opcode group4[] = {
 static const struct opcode group5[] = {
 	F(DstMem | SrcNone | Lock,		em_inc),
 	F(DstMem | SrcNone | Lock,		em_dec),
-	I(SrcMem | NearBranch,			em_call_near_abs),
-	I(SrcMemFAddr | ImplicitOps,		em_call_far),
-	I(SrcMem | NearBranch,			em_jmp_abs),
-	I(SrcMemFAddr | ImplicitOps,		em_jmp_far),
+	I(SrcMem | NearBranch | IsBranch,       em_call_near_abs),
+	I(SrcMemFAddr | ImplicitOps | IsBranch, em_call_far),
+	I(SrcMem | NearBranch | IsBranch,       em_jmp_abs),
+	I(SrcMemFAddr | ImplicitOps | IsBranch, em_jmp_far),
 	I(SrcMem | Stack | TwoMemOp,		em_push), D(Undefined),
 };
 
@@ -4569,7 +4571,7 @@ static const struct opcode opcode_table[256] = {
 	I2bvIP(DstDI | SrcDX | Mov | String | Unaligned, em_in, ins, check_perm_in), /* insb, insw/insd */
 	I2bvIP(SrcSI | DstDX | String, em_out, outs, check_perm_out), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
-	X16(D(SrcImmByte | NearBranch)),
+	X16(D(SrcImmByte | NearBranch | IsBranch)),
 	/* 0x80 - 0x87 */
 	G(ByteOp | DstMem | SrcImm, group1),
 	G(DstMem | SrcImm, group1),
@@ -4588,7 +4590,7 @@ static const struct opcode opcode_table[256] = {
 	DI(SrcAcc | DstReg, pause), X7(D(SrcAcc | DstReg)),
 	/* 0x98 - 0x9F */
 	D(DstAcc | SrcNone), I(ImplicitOps | SrcAcc, em_cwd),
-	I(SrcImmFAddr | No64, em_call_far), N,
+	I(SrcImmFAddr | No64 | IsBranch, em_call_far), N,
 	II(ImplicitOps | Stack, em_pushf, pushf),
 	II(ImplicitOps | Stack, em_popf, popf),
 	I(ImplicitOps, em_sahf), I(ImplicitOps, em_lahf),
@@ -4608,17 +4610,19 @@ static const struct opcode opcode_table[256] = {
 	X8(I(DstReg | SrcImm64 | Mov, em_mov)),
 	/* 0xC0 - 0xC7 */
 	G(ByteOp | Src2ImmByte, group2), G(Src2ImmByte, group2),
-	I(ImplicitOps | NearBranch | SrcImmU16, em_ret_near_imm),
-	I(ImplicitOps | NearBranch, em_ret),
+	I(ImplicitOps | NearBranch | SrcImmU16 | IsBranch, em_ret_near_imm),
+	I(ImplicitOps | NearBranch | IsBranch, em_ret),
 	I(DstReg | SrcMemFAddr | ModRM | No64 | Src2ES, em_lseg),
 	I(DstReg | SrcMemFAddr | ModRM | No64 | Src2DS, em_lseg),
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
-	I(Stack | SrcImmU16 | Src2ImmByte, em_enter), I(Stack, em_leave),
-	I(ImplicitOps | SrcImmU16, em_ret_far_imm),
-	I(ImplicitOps, em_ret_far),
-	D(ImplicitOps), DI(SrcImmByte, intn),
-	D(ImplicitOps | No64), II(ImplicitOps, em_iret, iret),
+	I(Stack | SrcImmU16 | Src2ImmByte | IsBranch, em_enter),
+	I(Stack | IsBranch, em_leave),
+	I(ImplicitOps | SrcImmU16 | IsBranch, em_ret_far_imm),
+	I(ImplicitOps | IsBranch, em_ret_far),
+	D(ImplicitOps | IsBranch), DI(SrcImmByte | IsBranch, intn),
+	D(ImplicitOps | No64 | IsBranch),
+	II(ImplicitOps | IsBranch, em_iret, iret),
 	/* 0xD0 - 0xD7 */
 	G(Src2One | ByteOp, group2), G(Src2One, group2),
 	G(Src2CL | ByteOp, group2), G(Src2CL, group2),
@@ -4629,14 +4633,15 @@ static const struct opcode opcode_table[256] = {
 	/* 0xD8 - 0xDF */
 	N, E(0, &escape_d9), N, E(0, &escape_db), N, E(0, &escape_dd), N, N,
 	/* 0xE0 - 0xE7 */
-	X3(I(SrcImmByte | NearBranch, em_loop)),
-	I(SrcImmByte | NearBranch, em_jcxz),
+	X3(I(SrcImmByte | NearBranch | IsBranch, em_loop)),
+	I(SrcImmByte | NearBranch | IsBranch, em_jcxz),
 	I2bvIP(SrcImmUByte | DstAcc, em_in,  in,  check_perm_in),
 	I2bvIP(SrcAcc | DstImmUByte, em_out, out, check_perm_out),
 	/* 0xE8 - 0xEF */
-	I(SrcImm | NearBranch, em_call), D(SrcImm | ImplicitOps | NearBranch),
-	I(SrcImmFAddr | No64, em_jmp_far),
-	D(SrcImmByte | ImplicitOps | NearBranch),
+	I(SrcImm | NearBranch | IsBranch, em_call),
+	D(SrcImm | ImplicitOps | NearBranch | IsBranch),
+	I(SrcImmFAddr | No64 | IsBranch, em_jmp_far),
+	D(SrcImmByte | ImplicitOps | NearBranch | IsBranch),
 	I2bvIP(SrcDX | DstAcc, em_in,  in,  check_perm_in),
 	I2bvIP(SrcAcc | DstDX, em_out, out, check_perm_out),
 	/* 0xF0 - 0xF7 */
@@ -4652,7 +4657,7 @@ static const struct opcode opcode_table[256] = {
 static const struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	G(0, group6), GD(0, &group7), N, N,
-	N, I(ImplicitOps | EmulateOnUD, em_syscall),
+	N, I(ImplicitOps | EmulateOnUD | IsBranch, em_syscall),
 	II(ImplicitOps | Priv, em_clts, clts), N,
 	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM | SrcMem | NoAccess), N, N,
@@ -4683,8 +4688,8 @@ static const struct opcode twobyte_table[256] = {
 	IIP(ImplicitOps, em_rdtsc, rdtsc, check_rdtsc),
 	II(ImplicitOps | Priv, em_rdmsr, rdmsr),
 	IIP(ImplicitOps, em_rdpmc, rdpmc, check_rdpmc),
-	I(ImplicitOps | EmulateOnUD, em_sysenter),
-	I(ImplicitOps | Priv | EmulateOnUD, em_sysexit),
+	I(ImplicitOps | EmulateOnUD | IsBranch, em_sysenter),
+	I(ImplicitOps | Priv | EmulateOnUD | IsBranch, em_sysexit),
 	N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x40 - 0x4F */
@@ -4702,7 +4707,7 @@ static const struct opcode twobyte_table[256] = {
 	N, N, N, N,
 	N, N, N, GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_6f_0f_7f),
 	/* 0x80 - 0x8F */
-	X16(D(SrcImm | NearBranch)),
+	X16(D(SrcImm | NearBranch | IsBranch)),
 	/* 0x90 - 0x9F */
 	X16(D(ByteOp | DstMem | SrcNone | ModRM| Mov)),
 	/* 0xA0 - 0xA7 */
@@ -5215,6 +5220,8 @@ done_prefixes:
 		ctxt->d &= ~(u64)GroupMask;
 		ctxt->d |= opcode.flags;
 	}
+
+	ctxt->is_branch = opcode.flags & IsBranch;
 
 	/* Unrecognised? */
 	if (ctxt->d == 0)

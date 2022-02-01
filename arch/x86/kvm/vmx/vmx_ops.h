@@ -71,6 +71,31 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+	asm_volatile_goto("1: vmread %[field], %[output]\n\t"
+			  "jna %l[do_fail]\n\t"
+
+			  _ASM_EXTABLE(1b, %l[do_exception])
+
+			  : [output] "=r" (value)
+			  : [field] "r" (field)
+			  : "cc"
+			  : do_fail, do_exception);
+
+	return value;
+
+do_fail:
+	WARN_ONCE(1, "kvm: vmread failed: field=%lx\n", field);
+	pr_warn_ratelimited("kvm: vmread failed: field=%lx\n", field);
+	return 0;
+
+do_exception:
+	kvm_spurious_fault();
+	return 0;
+
+#else /* !CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
 	asm volatile("1: vmread %2, %1\n\t"
 		     ".byte 0x3e\n\t" /* branch taken hint */
 		     "ja 3f\n\t"
@@ -99,6 +124,8 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 
 		     : ASM_CALL_CONSTRAINT, "=&r"(value) : "r"(field) : "cc");
 	return value;
+
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
 }
 
 static __always_inline u16 vmcs_read16(unsigned long field)

@@ -8,10 +8,9 @@
 #include <linux/memblock.h>
 #include <linux/sort.h>
 
-#include <asm/kvm_host.h>
+#include <asm/kvm_pkvm.h>
 
-#include <nvhe/memory.h>
-#include <nvhe/mm.h>
+#include "hyp_constants.h"
 
 static struct memblock_region *hyp_memory = kvm_nvhe_sym(hyp_memory);
 static unsigned int *hyp_memblock_nr_ptr = &kvm_nvhe_sym(hyp_memblock_nr);
@@ -82,7 +81,8 @@ void __init kvm_hyp_reserve(void)
 	do {
 		prev = nr_pages;
 		nr_pages = hyp_mem_pages + prev;
-		nr_pages = DIV_ROUND_UP(nr_pages * sizeof(struct hyp_page), PAGE_SIZE);
+		nr_pages = DIV_ROUND_UP(nr_pages * STRUCT_HYP_PAGE_SIZE,
+					PAGE_SIZE);
 		nr_pages += __hyp_pgtable_max_pages(nr_pages);
 	} while (nr_pages != prev);
 	hyp_mem_pages += nr_pages;

@@ -192,6 +192,10 @@ module_param(vgif, int, 0444);
 static int lbrv = true;
 module_param(lbrv, int, 0444);
 
+/* enable/disable PMU virtualization */
+bool pmu = true;
+module_param(pmu, bool, 0444);
+
 static int tsc_scaling = true;
 module_param(tsc_scaling, int, 0444);
 
@@ -265,7 +269,7 @@ u32 svm_msrpm_offset(u32 msr)
 
 #define MAX_INST_SIZE 15
 
-static int get_max_npt_level(void)
+static int get_npt_level(void)
 {
 #ifdef CONFIG_X86_64
 	return pgtable_l5_enabled() ? PT64_ROOT_5LEVEL : PT64_ROOT_4LEVEL;
@@ -585,11 +589,9 @@ static int svm_cpu_init(int cpu)
 	if (!sd)
 		return ret;
 	sd->cpu = cpu;
-	sd->save_area = alloc_page(GFP_KERNEL);
+	sd->save_area = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!sd->save_area)
 		goto free_cpu_data;
-
-	clear_page(page_address(sd->save_area));
 
 	ret = sev_cpu_init(sd);
 	if (ret)
@@ -954,6 +956,10 @@ static __init void svm_set_cpu_caps(void)
 	    boot_cpu_has(X86_FEATURE_AMD_SSBD))
 		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
 
+	/* AMD PMU PERFCTR_CORE CPUID */
+	if (pmu && boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
+		kvm_cpu_cap_set(X86_FEATURE_PERFCTR_CORE);
+
 	/* CPUID 0x8000001F (SME/SEV features) */
 	sev_set_cpu_caps();
 }
@@ -1029,9 +1035,9 @@ static __init int svm_hardware_setup(void)
 	if (!boot_cpu_has(X86_FEATURE_NPT))
 		npt_enabled = false;
 
-	/* Force VM NPT level equal to the host's max NPT level */
-	kvm_configure_mmu(npt_enabled, get_max_npt_level(),
-			  get_max_npt_level(), PG_LEVEL_1G);
+	/* Force VM NPT level equal to the host's paging level */
+	kvm_configure_mmu(npt_enabled, get_npt_level(),
+			  get_npt_level(), PG_LEVEL_1G);
 	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
 	/* Note, SEV setup consumes npt_enabled. */
@@ -1086,6 +1092,9 @@ static __init int svm_hardware_setup(void)
 		else
 			pr_info("LBR virtualization supported\n");
 	}
+
+	if (!pmu)
+		pr_info("PMU virtualization is disabled\n");
 
 	svm_set_cpu_caps();
 
@@ -1596,10 +1605,16 @@ static bool svm_get_if_flag(struct kvm_vcpu *vcpu)
 
 static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 {
+	kvm_register_mark_available(vcpu, reg);
+
 	switch (reg) {
 	case VCPU_EXREG_PDPTR:
-		BUG_ON(!npt_enabled);
-		load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
+		/*
+		 * When !npt_enabled, mmu->pdptrs[] is already available since
+		 * it is always updated per SDM when moving to CRs.
+		 */
+		if (npt_enabled)
+			load_pdptrs(vcpu, kvm_read_cr3(vcpu));
 		break;
 	default:
 		KVM_BUG_ON(1, vcpu->kvm);
@@ -1784,6 +1799,24 @@ static void svm_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 	svm->vmcb->save.gdtr.limit = dt->size;
 	svm->vmcb->save.gdtr.base = dt->address ;
 	vmcb_mark_dirty(svm->vmcb, VMCB_DT);
+}
+
+static void svm_post_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/*
+	 * For guests that don't set guest_state_protected, the cr3 update is
+	 * handled via kvm_mmu_load() while entering the guest. For guests
+	 * that do (SEV-ES/SEV-SNP), the cr3 update needs to be written to
+	 * VMCB save area now, since the save area will become the initial
+	 * contents of the VMSA, and future VMCB save area updates won't be
+	 * seen.
+	 */
+	if (sev_es_guest(vcpu->kvm)) {
+		svm->vmcb->save.cr3 = cr3;
+		vmcb_mark_dirty(svm->vmcb, VMCB_CR);
+	}
 }
 
 void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
@@ -2517,7 +2550,7 @@ static bool check_selective_cr0_intercepted(struct kvm_vcpu *vcpu,
 	bool ret = false;
 
 	if (!is_guest_mode(vcpu) ||
-	    (!(vmcb_is_intercept(&svm->nested.ctl, INTERCEPT_SELECTIVE_CR0))))
+	    (!(vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_SELECTIVE_CR0))))
 		return false;
 
 	cr0 &= ~SVM_CR0_SELECTIVE_MASK;
@@ -3931,6 +3964,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
 		vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
 	}
+	vcpu->arch.regs_dirty = 0;
 
 	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
 		kvm_before_interrupt(vcpu, KVM_HANDLING_NMI);
@@ -3965,8 +3999,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->arch.apf.host_apf_flags =
 			kvm_read_and_reset_apf_flags();
 
-	if (npt_enabled)
-		kvm_register_clear_available(vcpu, VCPU_EXREG_PDPTR);
+	vcpu->arch.regs_avail &= ~SVM_REGS_LAZY_LOAD_SET;
 
 	/*
 	 * We need to handle MC intercepts here before the vcpu has a chance to
@@ -3996,9 +4029,6 @@ static void svm_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 
 		hv_track_root_tdp(vcpu, root_hpa);
 
-		/* Loading L2's CR3 is handled by enter_svm_guest_mode.  */
-		if (!test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
-			return;
 		cr3 = vcpu->arch.cr3;
 	} else if (vcpu->arch.mmu->shadow_root_level >= PT64_ROOT_4LEVEL) {
 		cr3 = __sme_set(root_hpa) | kvm_get_active_pcid(vcpu);
@@ -4217,7 +4247,7 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		    info->intercept == x86_intercept_clts)
 			break;
 
-		if (!(vmcb_is_intercept(&svm->nested.ctl,
+		if (!(vmcb12_is_intercept(&svm->nested.ctl,
 					INTERCEPT_SELECTIVE_CR0)))
 			break;
 
@@ -4436,7 +4466,8 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 	 */
 
 	vmcb12 = map.hva;
-	nested_load_control_from_vmcb12(svm, &vmcb12->control);
+	nested_copy_vmcb_control_to_cache(svm, &vmcb12->control);
+	nested_copy_vmcb_save_to_cache(svm, &vmcb12->save);
 	ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12, false);
 
 unmap_save:
@@ -4611,6 +4642,7 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.get_cpl = svm_get_cpl,
 	.get_cs_db_l_bits = kvm_get_cs_db_l_bits,
 	.set_cr0 = svm_set_cr0,
+	.post_set_cr3 = svm_post_set_cr3,
 	.is_valid_cr4 = svm_is_valid_cr4,
 	.set_cr4 = svm_set_cr4,
 	.set_efer = svm_set_efer,

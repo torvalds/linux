@@ -21,7 +21,7 @@
 #define NR_LOCK_TESTING_THREADS 3
 #define NR_LOCK_TESTING_ITERATIONS 10000
 
-static void sev_ioctl(int vm_fd, int cmd_id, void *data)
+static int __sev_ioctl(int vm_fd, int cmd_id, void *data, __u32 *fw_error)
 {
 	struct kvm_sev_cmd cmd = {
 		.id = cmd_id,
@@ -31,9 +31,19 @@ static void sev_ioctl(int vm_fd, int cmd_id, void *data)
 	int ret;
 
 	ret = ioctl(vm_fd, KVM_MEMORY_ENCRYPT_OP, &cmd);
-	TEST_ASSERT((ret == 0 || cmd.error == SEV_RET_SUCCESS),
+	*fw_error = cmd.error;
+	return ret;
+}
+
+static void sev_ioctl(int vm_fd, int cmd_id, void *data)
+{
+	int ret;
+	__u32 fw_error;
+
+	ret = __sev_ioctl(vm_fd, cmd_id, data, &fw_error);
+	TEST_ASSERT(ret == 0 && fw_error == SEV_RET_SUCCESS,
 		    "%d failed: return code: %d, errno: %d, fw error: %d",
-		    cmd_id, ret, errno, cmd.error);
+		    cmd_id, ret, errno, fw_error);
 }
 
 static struct kvm_vm *sev_vm_create(bool es)
@@ -225,12 +235,45 @@ static void sev_mirror_create(int dst_fd, int src_fd)
 	TEST_ASSERT(!ret, "Copying context failed, ret: %d, errno: %d\n", ret, errno);
 }
 
+static void verify_mirror_allowed_cmds(int vm_fd)
+{
+	struct kvm_sev_guest_status status;
+
+	for (int cmd_id = KVM_SEV_INIT; cmd_id < KVM_SEV_NR_MAX; ++cmd_id) {
+		int ret;
+		__u32 fw_error;
+
+		/*
+		 * These commands are allowed for mirror VMs, all others are
+		 * not.
+		 */
+		switch (cmd_id) {
+		case KVM_SEV_LAUNCH_UPDATE_VMSA:
+		case KVM_SEV_GUEST_STATUS:
+		case KVM_SEV_DBG_DECRYPT:
+		case KVM_SEV_DBG_ENCRYPT:
+			continue;
+		default:
+			break;
+		}
+
+		/*
+		 * These commands should be disallowed before the data
+		 * parameter is examined so NULL is OK here.
+		 */
+		ret = __sev_ioctl(vm_fd, cmd_id, NULL, &fw_error);
+		TEST_ASSERT(
+			ret == -1 && errno == EINVAL,
+			"Should not be able call command: %d. ret: %d, errno: %d\n",
+			cmd_id, ret, errno);
+	}
+
+	sev_ioctl(vm_fd, KVM_SEV_GUEST_STATUS, &status);
+}
+
 static void test_sev_mirror(bool es)
 {
 	struct kvm_vm *src_vm, *dst_vm;
-	struct kvm_sev_launch_start start = {
-		.policy = es ? SEV_POLICY_ES : 0
-	};
 	int i;
 
 	src_vm = sev_vm_create(es);
@@ -241,9 +284,11 @@ static void test_sev_mirror(bool es)
 	/* Check that we can complete creation of the mirror VM.  */
 	for (i = 0; i < NR_MIGRATE_TEST_VCPUS; ++i)
 		vm_vcpu_add(dst_vm, i);
-	sev_ioctl(dst_vm->fd, KVM_SEV_LAUNCH_START, &start);
+
 	if (es)
 		sev_ioctl(dst_vm->fd, KVM_SEV_LAUNCH_UPDATE_VMSA, NULL);
+
+	verify_mirror_allowed_cmds(dst_vm->fd);
 
 	kvm_vm_free(src_vm);
 	kvm_vm_free(dst_vm);

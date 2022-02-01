@@ -196,8 +196,7 @@ static ssize_t encoding_show(struct f2fs_attr *a,
 	struct super_block *sb = sbi->sb;
 
 	if (f2fs_sb_has_casefold(sbi))
-		return sysfs_emit(buf, "%s (%d.%d.%d)\n",
-			sb->s_encoding->charset,
+		return sysfs_emit(buf, "UTF-8 (%d.%d.%d)\n",
 			(sb->s_encoding->version >> 16) & 0xff,
 			(sb->s_encoding->version >> 8) & 0xff,
 			sb->s_encoding->version & 0xff);

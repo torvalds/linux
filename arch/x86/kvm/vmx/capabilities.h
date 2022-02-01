@@ -312,6 +312,15 @@ static inline bool cpu_has_vmx_ept_1g_page(void)
 	return vmx_capability.ept & VMX_EPT_1GB_PAGE_BIT;
 }
 
+static inline int ept_caps_to_lpage_level(u32 ept_caps)
+{
+	if (ept_caps & VMX_EPT_1GB_PAGE_BIT)
+		return PG_LEVEL_1G;
+	if (ept_caps & VMX_EPT_2MB_PAGE_BIT)
+		return PG_LEVEL_2M;
+	return PG_LEVEL_4K;
+}
+
 static inline bool cpu_has_vmx_ept_ad_bits(void)
 {
 	return vmx_capability.ept & VMX_EPT_AD_BIT;
