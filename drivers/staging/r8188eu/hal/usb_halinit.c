@@ -324,15 +324,13 @@ static void _InitDriverInfoSize(struct adapter *Adapter, u8 drvInfoSize)
 
 static void _InitWMACSetting(struct adapter *Adapter)
 {
-	struct hal_data_8188e *haldata = &Adapter->haldata;
-
-	haldata->ReceiveConfig = RCR_AAP | RCR_APM | RCR_AM | RCR_AB |
-				  RCR_CBSSID_DATA | RCR_CBSSID_BCN |
-				  RCR_APP_ICV | RCR_AMF | RCR_HTC_LOC_CTRL |
-				  RCR_APP_MIC | RCR_APP_PHYSTS;
+	u32 receive_config = RCR_AAP | RCR_APM | RCR_AM | RCR_AB |
+			     RCR_CBSSID_DATA | RCR_CBSSID_BCN |
+			     RCR_APP_ICV | RCR_AMF | RCR_HTC_LOC_CTRL |
+			     RCR_APP_MIC | RCR_APP_PHYSTS;
 
 	/*  some REG_RCR will be modified later by phy_ConfigMACWithHeaderFile() */
-	rtw_write32(Adapter, REG_RCR, haldata->ReceiveConfig);
+	rtw_write32(Adapter, REG_RCR, receive_config);
 
 	/*  Accept all multicast address */
 	rtw_write32(Adapter, REG_MAR, 0xFFFFFFFF);
