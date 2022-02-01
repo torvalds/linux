@@ -323,10 +323,10 @@ config DEBUG_INFO_BTF
 	  DWARF type info into equivalent deduplicated BTF type info.
 
 config PAHOLE_HAS_SPLIT_BTF
-	def_bool $(success, test `$(PAHOLE) --version | sed -E 's/v([0-9]+)\.([0-9]+)/\1\2/'` -ge "119")
+	def_bool PAHOLE_VERSION >= 119
 
 config PAHOLE_HAS_BTF_TAG
-	def_bool $(success, test `$(PAHOLE) --version | sed -E 's/v([0-9]+)\.([0-9]+)/\1\2/'` -ge "123")
+	def_bool PAHOLE_VERSION >= 123
 	depends on CC_IS_CLANG
 	help
 	  Decide whether pahole emits btf_tag attributes (btf_type_tag and
