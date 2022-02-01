@@ -41,6 +41,21 @@ static inline u16 eir_append_le16(u8 *eir, u16 eir_len, u8 type, u16 data)
 	return eir_len;
 }
 
+static inline u16 eir_skb_put_data(struct sk_buff *skb, u8 type, u8 *data, u8 data_len)
+{
+	u8 *eir;
+	u16 eir_len;
+
+	eir_len	= eir_precalc_len(data_len);
+	eir = skb_put(skb, eir_len);
+	WARN_ON(sizeof(type) + data_len > U8_MAX);
+	eir[0] = sizeof(type) + data_len;
+	eir[1] = type;
+	memcpy(&eir[2], data, data_len);
+
+	return eir_len;
+}
+
 static inline void *eir_get_data(u8 *eir, size_t eir_len, u8 type,
 				 size_t *data_len)
 {
