@@ -1414,7 +1414,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		if (err)
 			goto err_out;
 
-		if (!attr->chain && esw_attr->int_port) {
+		if (!attr->chain && esw_attr->int_port &&
+		    attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 			/* If decap route device is internal port, change the
 			 * source vport value in reg_c0 back to uplink just in
 			 * case the rule performs goto chain > 0. If we have a miss
