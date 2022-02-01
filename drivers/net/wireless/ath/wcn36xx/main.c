@@ -1391,11 +1391,11 @@ static int wcn36xx_get_survey(struct ieee80211_hw *hw, int idx,
 
 	spin_unlock_irqrestore(&wcn->survey_lock, flags);
 
-	 wcn36xx_dbg(WCN36XX_DBG_MAC,
-		     "ch %d rssi %d snr %d noise %d filled %x freq %d\n",
-		     HW_VALUE_CHANNEL(survey->channel->hw_value),
-		     chan_survey->rssi, chan_survey->snr, survey->noise,
-		     survey->filled, survey->channel->center_freq);
+	wcn36xx_dbg(WCN36XX_DBG_MAC,
+		    "ch %d rssi %d snr %d noise %d filled %x freq %d\n",
+		    HW_VALUE_CHANNEL(survey->channel->hw_value),
+		    chan_survey->rssi, chan_survey->snr, survey->noise,
+		    survey->filled, survey->channel->center_freq);
 
 	return 0;
 }
