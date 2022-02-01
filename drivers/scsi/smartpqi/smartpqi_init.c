@@ -5641,7 +5641,7 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	io_request->raid_bypass = raid_bypass;
 
 	request = io_request->iu;
-	memset(request, 0, offsetof(struct pqi_raid_path_request, sg_descriptors));
+	memset(request, 0, offsetof(struct pqi_aio_path_request, sg_descriptors));
 
 	request->header.iu_type = PQI_REQUEST_IU_AIO_PATH_IO;
 	put_unaligned_le32(aio_handle, &request->nexus_id);
