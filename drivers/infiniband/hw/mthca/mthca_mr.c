@@ -101,13 +101,13 @@ static u32 mthca_buddy_alloc(struct mthca_buddy *buddy, int order)
 	return -1;
 
  found:
-	clear_bit(seg, buddy->bits[o]);
+	__clear_bit(seg, buddy->bits[o]);
 	--buddy->num_free[o];
 
 	while (o > order) {
 		--o;
 		seg <<= 1;
-		set_bit(seg ^ 1, buddy->bits[o]);
+		__set_bit(seg ^ 1, buddy->bits[o]);
 		++buddy->num_free[o];
 	}
 
@@ -125,13 +125,13 @@ static void mthca_buddy_free(struct mthca_buddy *buddy, u32 seg, int order)
 	spin_lock(&buddy->lock);
 
 	while (test_bit(seg ^ 1, buddy->bits[order])) {
-		clear_bit(seg ^ 1, buddy->bits[order]);
+		__clear_bit(seg ^ 1, buddy->bits[order]);
 		--buddy->num_free[order];
 		seg >>= 1;
 		++order;
 	}
 
-	set_bit(seg, buddy->bits[order]);
+	__set_bit(seg, buddy->bits[order]);
 	++buddy->num_free[order];
 
 	spin_unlock(&buddy->lock);
@@ -139,7 +139,7 @@ static void mthca_buddy_free(struct mthca_buddy *buddy, u32 seg, int order)
 
 static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 {
-	int i, s;
+	int i;
 
 	buddy->max_order = max_order;
 	spin_lock_init(&buddy->lock);
@@ -152,22 +152,20 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 		goto err_out;
 
 	for (i = 0; i <= buddy->max_order; ++i) {
-		s = BITS_TO_LONGS(1 << (buddy->max_order - i));
-		buddy->bits[i] = kmalloc_array(s, sizeof(long), GFP_KERNEL);
+		buddy->bits[i] = bitmap_zalloc(1 << (buddy->max_order - i),
+					       GFP_KERNEL);
 		if (!buddy->bits[i])
 			goto err_out_free;
-		bitmap_zero(buddy->bits[i],
-			    1 << (buddy->max_order - i));
 	}
 
-	set_bit(0, buddy->bits[buddy->max_order]);
+	__set_bit(0, buddy->bits[buddy->max_order]);
 	buddy->num_free[buddy->max_order] = 1;
 
 	return 0;
 
 err_out_free:
 	for (i = 0; i <= buddy->max_order; ++i)
-		kfree(buddy->bits[i]);
+		bitmap_free(buddy->bits[i]);
 
 err_out:
 	kfree(buddy->bits);
@@ -181,7 +179,7 @@ static void mthca_buddy_cleanup(struct mthca_buddy *buddy)
 	int i;
 
 	for (i = 0; i <= buddy->max_order; ++i)
-		kfree(buddy->bits[i]);
+		bitmap_free(buddy->bits[i]);
 
 	kfree(buddy->bits);
 	kfree(buddy->num_free);
@@ -469,8 +467,7 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 	mpt_entry->start     = cpu_to_be64(iova);
 	mpt_entry->length    = cpu_to_be64(total_size);
 
-	memset(&mpt_entry->lkey, 0,
-	       sizeof *mpt_entry - offsetof(struct mthca_mpt_entry, lkey));
+	memset_startat(mpt_entry, 0, lkey);
 
 	if (mr->mtt)
 		mpt_entry->mtt_seg =

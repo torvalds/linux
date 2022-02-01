@@ -26,9 +26,12 @@ void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
 
 void cpg_reg_modify(void __iomem *reg, u32 clear, u32 set);
 
+struct clk * __init cpg_sdh_clk_register(const char *name,
+	void __iomem *sdnckcr, const char *parent_name,
+	struct raw_notifier_head *notifiers);
+
 struct clk * __init cpg_sd_clk_register(const char *name,
-	void __iomem *base, unsigned int offset, const char *parent_name,
-	struct raw_notifier_head *notifiers, bool skip_first);
+	void __iomem *sdnckcr, const char *parent_name);
 
 struct clk * __init cpg_rpc_clk_register(const char *name,
 	void __iomem *rpcckcr, const char *parent_name,

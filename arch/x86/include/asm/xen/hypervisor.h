@@ -57,6 +57,14 @@ static inline bool __init xen_x2apic_para_available(void)
 }
 #endif
 
+struct pci_dev;
+
+#ifdef CONFIG_XEN_PV_DOM0
+bool xen_initdom_restore_msi(struct pci_dev *dev);
+#else
+static inline bool xen_initdom_restore_msi(struct pci_dev *dev) { return true; }
+#endif
+
 #ifdef CONFIG_HOTPLUG_CPU
 void xen_arch_register_cpu(int num);
 void xen_arch_unregister_cpu(int num);

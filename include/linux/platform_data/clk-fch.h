@@ -12,7 +12,7 @@
 
 struct fch_clk_data {
 	void __iomem *base;
-	u32 is_rv;
+	char *name;
 };
 
 #endif /* __CLK_FCH_H */

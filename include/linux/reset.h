@@ -455,6 +455,26 @@ static inline struct reset_control *of_reset_control_get_exclusive(
 }
 
 /**
+ * of_reset_control_get_optional_exclusive - Lookup and obtain an optional exclusive
+ *                                           reference to a reset controller.
+ * @node: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Optional variant of of_reset_control_get_exclusive(). If the requested reset
+ * is not specified in the device tree, this function returns NULL instead of
+ * an error.
+ *
+ * Returns a struct reset_control or IS_ERR() condition containing errno.
+ *
+ * Use of id names is optional.
+ */
+static inline struct reset_control *of_reset_control_get_optional_exclusive(
+				struct device_node *node, const char *id)
+{
+	return __of_reset_control_get(node, id, 0, false, true, true);
+}
+
+/**
  * of_reset_control_get_shared - Lookup and obtain a shared reference
  *                               to a reset controller.
  * @node: device to be reset by the controller

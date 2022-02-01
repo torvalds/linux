@@ -31,7 +31,6 @@
  */
 
 #include <linux/dmapool.h>
-#include <linux/platform_device.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
@@ -61,7 +60,7 @@ static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 					CMD_POLL_TOKEN, 0);
 	if (ret) {
 		dev_err_ratelimited(hr_dev->dev,
-				    "failed to post mailbox %x in poll mode, ret = %d.\n",
+				    "failed to post mailbox 0x%x in poll mode, ret = %d.\n",
 				    op, ret);
 		return ret;
 	}
@@ -91,7 +90,7 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 
 	if (unlikely(token != context->token)) {
 		dev_err_ratelimited(hr_dev->dev,
-				    "[cmd] invalid ae token %x,context token is %x!\n",
+				    "[cmd] invalid ae token 0x%x, context token is 0x%x.\n",
 				    token, context->token);
 		return;
 	}
@@ -130,14 +129,14 @@ static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 					context->token, 1);
 	if (ret) {
 		dev_err_ratelimited(dev,
-				    "failed to post mailbox %x in event mode, ret = %d.\n",
+				    "failed to post mailbox 0x%x in event mode, ret = %d.\n",
 				    op, ret);
 		goto out;
 	}
 
 	if (!wait_for_completion_timeout(&context->done,
 					 msecs_to_jiffies(timeout))) {
-		dev_err_ratelimited(dev, "[cmd] token %x mailbox %x timeout.\n",
+		dev_err_ratelimited(dev, "[cmd] token 0x%x mailbox 0x%x timeout.\n",
 				    context->token, op);
 		ret = -EBUSY;
 		goto out;
@@ -145,7 +144,7 @@ static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 
 	ret = context->result;
 	if (ret)
-		dev_err_ratelimited(dev, "[cmd] token %x mailbox %x error %d\n",
+		dev_err_ratelimited(dev, "[cmd] token 0x%x mailbox 0x%x error %d.\n",
 				    context->token, op, ret);
 
 out:
