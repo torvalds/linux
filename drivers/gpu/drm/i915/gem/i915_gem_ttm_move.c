@@ -436,11 +436,17 @@ __i915_ttm_move(struct ttm_buffer_object *bo,
 
 		if (!IS_ERR(fence))
 			goto out;
-	} else if (move_deps) {
-		int err = i915_deps_sync(move_deps, ctx);
+	} else {
+		int err = PTR_ERR(fence);
 
-		if (err)
-			return ERR_PTR(err);
+		if (err == -EINTR || err == -ERESTARTSYS || err == -EAGAIN)
+			return fence;
+
+		if (move_deps) {
+			err = i915_deps_sync(move_deps, ctx);
+			if (err)
+				return ERR_PTR(err);
+		}
 	}
 
 	/* Error intercept failed or no accelerated migration to start with */
