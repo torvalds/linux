@@ -33,6 +33,7 @@
  * @ksize:	Length of @key in bytes (0 if no key)
  * @setkey_error: Expected error from setkey()
  * @digest_error: Expected error from digest()
+ * @fips_skip:	Skip the test vector in FIPS mode
  */
 struct hash_testvec {
 	const char *key;
@@ -42,6 +43,7 @@ struct hash_testvec {
 	unsigned short ksize;
 	int setkey_error;
 	int digest_error;
+	bool fips_skip;
 };
 
 /*
