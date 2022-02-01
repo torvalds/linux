@@ -134,7 +134,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 				.qmap		= true,
 				.aggregation	= true,
 				.rx = {
-					.buffer_size	= 8192,
+					.buffer_size	= 32768,
 					.aggr_close_eof	= true,
 				},
 			},
