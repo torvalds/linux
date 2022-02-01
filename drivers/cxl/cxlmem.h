@@ -264,4 +264,12 @@ int cxl_mem_create_range_info(struct cxl_dev_state *cxlds);
 struct cxl_dev_state *cxl_dev_state_create(struct device *dev);
 void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
 void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
+
+struct cxl_hdm {
+	struct cxl_component_regs regs;
+	unsigned int decoder_count;
+	unsigned int target_count;
+	unsigned int interleave_mask;
+	struct cxl_port *port;
+};
 #endif /* __CXL_MEM_H__ */

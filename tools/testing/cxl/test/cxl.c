@@ -8,6 +8,7 @@
 #include <linux/acpi.h>
 #include <linux/pci.h>
 #include <linux/mm.h>
+#include <cxlmem.h>
 #include "mock.h"
 
 #define NR_CXL_HOST_BRIDGES 4
@@ -398,6 +399,31 @@ static struct acpi_pci_root *mock_acpi_pci_find_root(acpi_handle handle)
 	return &mock_pci_root[host_bridge_index(adev)];
 }
 
+static struct cxl_hdm *mock_cxl_setup_hdm(struct device *host,
+					  struct cxl_port *port)
+{
+	struct cxl_hdm *cxlhdm = devm_kzalloc(&port->dev, sizeof(*cxlhdm), GFP_KERNEL);
+
+	if (!cxlhdm)
+		return ERR_PTR(-ENOMEM);
+
+	cxlhdm->port = port;
+	return cxlhdm;
+}
+
+static int mock_cxl_add_passthrough_decoder(struct device *host,
+					    struct cxl_port *port)
+{
+	dev_err(&port->dev, "unexpected passthrough decoder for cxl_test\n");
+	return -EOPNOTSUPP;
+}
+
+static int mock_cxl_enumerate_decoders(struct device *host,
+				       struct cxl_hdm *cxlhdm)
+{
+	return 0;
+}
+
 static int mock_cxl_port_enumerate_dports(struct device *host,
 					  struct cxl_port *port)
 {
@@ -439,6 +465,9 @@ static struct cxl_mock_ops cxl_mock_ops = {
 	.acpi_evaluate_integer = mock_acpi_evaluate_integer,
 	.acpi_pci_find_root = mock_acpi_pci_find_root,
 	.devm_cxl_port_enumerate_dports = mock_cxl_port_enumerate_dports,
+	.devm_cxl_setup_hdm = mock_cxl_setup_hdm,
+	.devm_cxl_add_passthrough_decoder = mock_cxl_add_passthrough_decoder,
+	.devm_cxl_enumerate_decoders = mock_cxl_enumerate_decoders,
 	.list = LIST_HEAD_INIT(cxl_mock_ops.list),
 };
 

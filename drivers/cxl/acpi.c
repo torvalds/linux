@@ -168,10 +168,10 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	struct device *host = root_port->dev.parent;
 	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
 	struct acpi_pci_root *pci_root;
-	int single_port_map[1], rc;
-	struct cxl_decoder *cxld;
 	struct cxl_dport *dport;
+	struct cxl_hdm *cxlhdm;
 	struct cxl_port *port;
+	int rc;
 
 	if (!bridge)
 		return 0;
@@ -200,37 +200,24 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	rc = devm_cxl_port_enumerate_dports(host, port);
 	if (rc < 0)
 		return rc;
-	if (rc > 1)
-		return 0;
-
-	/* TODO: Scan CHBCR for HDM Decoder resources */
-
-	/*
-	 * Per the CXL specification (8.2.5.12 CXL HDM Decoder Capability
-	 * Structure) single ported host-bridges need not publish a decoder
-	 * capability when a passthrough decode can be assumed, i.e. all
-	 * transactions that the uport sees are claimed and passed to the single
-	 * dport. Disable the range until the first CXL region is enumerated /
-	 * activated.
-	 */
-	cxld = cxl_switch_decoder_alloc(port, 1);
-	if (IS_ERR(cxld))
-		return PTR_ERR(cxld);
-
 	cxl_device_lock(&port->dev);
-	dport = list_first_entry(&port->dports, typeof(*dport), list);
-	cxl_device_unlock(&port->dev);
+	if (rc == 1) {
+		rc = devm_cxl_add_passthrough_decoder(host, port);
+		goto out;
+	}
 
-	single_port_map[0] = dport->port_id;
+	cxlhdm = devm_cxl_setup_hdm(host, port);
+	if (IS_ERR(cxlhdm)) {
+		rc = PTR_ERR(cxlhdm);
+		goto out;
+	}
 
-	rc = cxl_decoder_add(cxld, single_port_map);
+	rc = devm_cxl_enumerate_decoders(host, cxlhdm);
 	if (rc)
-		put_device(&cxld->dev);
-	else
-		rc = cxl_decoder_autoremove(host, cxld);
+		dev_err(&port->dev, "Couldn't enumerate decoders (%d)\n", rc);
 
-	if (rc == 0)
-		dev_dbg(host, "add: %s\n", dev_name(&cxld->dev));
+out:
+	cxl_device_unlock(&port->dev);
 	return rc;
 }
 

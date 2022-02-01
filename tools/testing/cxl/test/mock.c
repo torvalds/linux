@@ -131,6 +131,56 @@ __wrap_nvdimm_bus_register(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__wrap_nvdimm_bus_register);
 
+struct cxl_hdm *__wrap_devm_cxl_setup_hdm(struct device *host,
+					  struct cxl_port *port)
+{
+	int index;
+	struct cxl_hdm *cxlhdm;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops && ops->is_mock_port(port->uport))
+		cxlhdm = ops->devm_cxl_setup_hdm(host, port);
+	else
+		cxlhdm = devm_cxl_setup_hdm(host, port);
+	put_cxl_mock_ops(index);
+
+	return cxlhdm;
+}
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_setup_hdm, CXL);
+
+int __wrap_devm_cxl_add_passthrough_decoder(struct device *host,
+					    struct cxl_port *port)
+{
+	int rc, index;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops && ops->is_mock_port(port->uport))
+		rc = ops->devm_cxl_add_passthrough_decoder(host, port);
+	else
+		rc = devm_cxl_add_passthrough_decoder(host, port);
+	put_cxl_mock_ops(index);
+
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_add_passthrough_decoder, CXL);
+
+int __wrap_devm_cxl_enumerate_decoders(struct device *host,
+				       struct cxl_hdm *cxlhdm)
+{
+	int rc, index;
+	struct cxl_port *port = cxlhdm->port;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops && ops->is_mock_port(port->uport))
+		rc = ops->devm_cxl_enumerate_decoders(host, cxlhdm);
+	else
+		rc = devm_cxl_enumerate_decoders(host, cxlhdm);
+	put_cxl_mock_ops(index);
+
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_enumerate_decoders, CXL);
+
 int __wrap_devm_cxl_port_enumerate_dports(struct device *host,
 					  struct cxl_port *port)
 {
