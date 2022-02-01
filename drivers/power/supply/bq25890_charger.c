@@ -27,6 +27,10 @@
 #define BQ25895_ID			7
 #define BQ25896_ID			0
 
+#define PUMP_EXPRESS_START_DELAY	(5 * HZ)
+#define PUMP_EXPRESS_MAX_TRIES		6
+#define PUMP_EXPRESS_VBUS_MARGIN_uV	1000000
+
 enum bq25890_chip_version {
 	BQ25890,
 	BQ25892,
@@ -107,6 +111,7 @@ struct bq25890_device {
 	struct usb_phy *usb_phy;
 	struct notifier_block usb_nb;
 	struct work_struct usb_work;
+	struct delayed_work pump_express_work;
 	unsigned long usb_event;
 
 	struct regmap *rmap;
@@ -114,6 +119,7 @@ struct bq25890_device {
 
 	bool skip_reset;
 	bool read_back_init_data;
+	u32 pump_express_vbus_max;
 	enum bq25890_chip_version chip_version;
 	struct bq25890_init_data init_data;
 	struct bq25890_state state;
@@ -265,6 +271,7 @@ enum bq25890_table_ids {
 	TBL_VREG,
 	TBL_BOOSTV,
 	TBL_SYSVMIN,
+	TBL_VBUSV,
 	TBL_VBATCOMP,
 	TBL_RBATCOMP,
 
@@ -325,14 +332,15 @@ static const union {
 } bq25890_tables[] = {
 	/* range tables */
 	/* TODO: BQ25896 has max ICHG 3008 mA */
-	[TBL_ICHG] =	{ .rt = {0,	  5056000, 64000} },	 /* uA */
-	[TBL_ITERM] =	{ .rt = {64000,   1024000, 64000} },	 /* uA */
-	[TBL_IINLIM] =  { .rt = {100000,  3250000, 50000} },	 /* uA */
-	[TBL_VREG] =	{ .rt = {3840000, 4608000, 16000} },	 /* uV */
-	[TBL_BOOSTV] =	{ .rt = {4550000, 5510000, 64000} },	 /* uV */
-	[TBL_SYSVMIN] = { .rt = {3000000, 3700000, 100000} },	 /* uV */
-	[TBL_VBATCOMP] ={ .rt = {0,        224000, 32000} },	 /* uV */
-	[TBL_RBATCOMP] ={ .rt = {0,        140000, 20000} },	 /* uOhm */
+	[TBL_ICHG] =	 { .rt = {0,        5056000, 64000} },	 /* uA */
+	[TBL_ITERM] =	 { .rt = {64000,    1024000, 64000} },	 /* uA */
+	[TBL_IINLIM] =   { .rt = {100000,   3250000, 50000} },	 /* uA */
+	[TBL_VREG] =	 { .rt = {3840000,  4608000, 16000} },	 /* uV */
+	[TBL_BOOSTV] =	 { .rt = {4550000,  5510000, 64000} },	 /* uV */
+	[TBL_SYSVMIN] =  { .rt = {3000000,  3700000, 100000} },	 /* uV */
+	[TBL_VBUSV] =	 { .rt = {2600000, 15300000, 100000} },	 /* uV */
+	[TBL_VBATCOMP] = { .rt = {0,         224000, 32000} },	 /* uV */
+	[TBL_RBATCOMP] = { .rt = {0,         140000, 20000} },	 /* uOhm */
 
 	/* lookup tables */
 	[TBL_TREG] =	{ .lt = {bq25890_treg_tbl, BQ25890_TREG_TBL_SIZE} },
@@ -434,6 +442,17 @@ static bool bq25890_is_adc_property(enum power_supply_property psp)
 }
 
 static irqreturn_t __bq25890_handle_irq(struct bq25890_device *bq);
+
+static int bq25890_get_vbus_voltage(struct bq25890_device *bq)
+{
+	int ret;
+
+	ret = bq25890_field_read(bq, F_VBUSV);
+	if (ret < 0)
+		return ret;
+
+	return bq25890_find_val(ret, TBL_VBUSV);
+}
 
 static int bq25890_power_supply_get_property(struct power_supply *psy,
 					     enum power_supply_property psp,
@@ -613,6 +632,11 @@ static void bq25890_charger_external_power_changed(struct power_supply *psy)
 	switch (val.intval) {
 	case POWER_SUPPLY_USB_TYPE_DCP:
 		input_current_limit = bq25890_find_idx(2000000, TBL_IINLIM);
+		if (bq->pump_express_vbus_max) {
+			queue_delayed_work(system_power_efficient_wq,
+					   &bq->pump_express_work,
+					   PUMP_EXPRESS_START_DELAY);
+		}
 		break;
 	case POWER_SUPPLY_USB_TYPE_CDP:
 	case POWER_SUPPLY_USB_TYPE_ACA:
@@ -878,6 +902,53 @@ static int bq25890_set_otg_cfg(struct bq25890_device *bq, u8 val)
 	return ret;
 }
 
+static void bq25890_pump_express_work(struct work_struct *data)
+{
+	struct bq25890_device *bq =
+		container_of(data, struct bq25890_device, pump_express_work.work);
+	int voltage, i, ret;
+
+	dev_dbg(bq->dev, "Start to request input voltage increasing\n");
+
+	/* Enable current pulse voltage control protocol */
+	ret = bq25890_field_write(bq, F_PUMPX_EN, 1);
+	if (ret < 0)
+		goto error_print;
+
+	for (i = 0; i < PUMP_EXPRESS_MAX_TRIES; i++) {
+		voltage = bq25890_get_vbus_voltage(bq);
+		if (voltage < 0)
+			goto error_print;
+		dev_dbg(bq->dev, "input voltage = %d uV\n", voltage);
+
+		if ((voltage + PUMP_EXPRESS_VBUS_MARGIN_uV) >
+					bq->pump_express_vbus_max)
+			break;
+
+		ret = bq25890_field_write(bq, F_PUMPX_UP, 1);
+		if (ret < 0)
+			goto error_print;
+
+		/* Note a single PUMPX up pulse-sequence takes 2.1s */
+		ret = regmap_field_read_poll_timeout(bq->rmap_fields[F_PUMPX_UP],
+						     ret, !ret, 100000, 3000000);
+		if (ret < 0)
+			goto error_print;
+
+		/* Make sure ADC has sampled Vbus before checking again */
+		msleep(1000);
+	}
+
+	bq25890_field_write(bq, F_PUMPX_EN, 0);
+
+	dev_info(bq->dev, "Hi-voltage charging requested, input voltage is %d mV\n",
+		 voltage);
+
+	return;
+error_print:
+	dev_err(bq->dev, "Failed to request hi-voltage charging\n");
+}
+
 static void bq25890_usb_work(struct work_struct *data)
 {
 	int ret;
@@ -1068,6 +1139,10 @@ static int bq25890_fw_probe(struct bq25890_device *bq)
 	int ret;
 	struct bq25890_init_data *init = &bq->init_data;
 
+	/* Optional, left at 0 if property is not present */
+	device_property_read_u32(bq->dev, "linux,pump-express-vbus-max",
+				 &bq->pump_express_vbus_max);
+
 	bq->skip_reset = device_property_read_bool(bq->dev, "linux,skip-reset");
 	bq->read_back_init_data = device_property_read_bool(bq->dev,
 						"linux,read-back-settings");
@@ -1100,6 +1175,7 @@ static int bq25890_probe(struct i2c_client *client,
 	bq->dev = dev;
 
 	mutex_init(&bq->lock);
+	INIT_DELAYED_WORK(&bq->pump_express_work, bq25890_pump_express_work);
 
 	bq->rmap = devm_regmap_init_i2c(client, &bq25890_regmap_config);
 	if (IS_ERR(bq->rmap))
