@@ -206,7 +206,7 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 
 	mc->vram_start = base;
 	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
-	if (limit && limit < mc->real_vram_size)
+	if (limit < mc->real_vram_size)
 		mc->real_vram_size = limit;
 
 	if (vis_limit && vis_limit < mc->visible_vram_size)
