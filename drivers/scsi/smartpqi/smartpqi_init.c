@@ -376,7 +376,7 @@ static inline void pqi_ctrl_wait_until_quiesced(struct pqi_ctrl_info *ctrl_info)
 
 	displayed_warning = false;
 	start_jiffies = jiffies;
-	warning_timeout = (PQI_QUIESCE_WARNING_TIMEOUT_SECS * PQI_HZ) + start_jiffies;
+	warning_timeout = (PQI_QUIESCE_WARNING_TIMEOUT_SECS * HZ) + start_jiffies;
 
 	while (atomic_read(&ctrl_info->num_busy_threads) >
 		atomic_read(&ctrl_info->num_blocked_threads)) {
@@ -385,7 +385,7 @@ static inline void pqi_ctrl_wait_until_quiesced(struct pqi_ctrl_info *ctrl_info)
 				"waiting %u seconds for driver activity to quiesce\n",
 				jiffies_to_msecs(jiffies - start_jiffies) / 1000);
 			displayed_warning = true;
-			warning_timeout = (PQI_QUIESCE_WARNING_TIMEOUT_SECS * PQI_HZ) + jiffies;
+			warning_timeout = (PQI_QUIESCE_WARNING_TIMEOUT_SECS * HZ) + jiffies;
 		}
 		usleep_range(1000, 2000);
 	}
@@ -462,7 +462,7 @@ static inline void pqi_schedule_rescan_worker(struct pqi_ctrl_info *ctrl_info)
 	pqi_schedule_rescan_worker_with_delay(ctrl_info, 0);
 }
 
-#define PQI_RESCAN_WORK_DELAY	(10 * PQI_HZ)
+#define PQI_RESCAN_WORK_DELAY	(10 * HZ)
 
 static inline void pqi_schedule_rescan_worker_delayed(struct pqi_ctrl_info *ctrl_info)
 {
@@ -1038,7 +1038,7 @@ static int pqi_write_current_time_to_host_wellness(
 	return rc;
 }
 
-#define PQI_UPDATE_TIME_WORK_INTERVAL	(24UL * 60 * 60 * PQI_HZ)
+#define PQI_UPDATE_TIME_WORK_INTERVAL	(24UL * 60 * 60 * HZ)
 
 static void pqi_update_time_worker(struct work_struct *work)
 {
@@ -3045,7 +3045,7 @@ static int pqi_wait_for_pqi_mode_ready(struct pqi_ctrl_info *ctrl_info)
 	u8 status;
 
 	pqi_registers = ctrl_info->pqi_registers;
-	timeout = (PQI_MODE_READY_TIMEOUT_SECS * PQI_HZ) + jiffies;
+	timeout = (PQI_MODE_READY_TIMEOUT_SECS * HZ) + jiffies;
 
 	while (1) {
 		signature = readq(&pqi_registers->signature);
@@ -3539,7 +3539,7 @@ static enum pqi_soft_reset_status pqi_poll_for_soft_reset_status(
 	u8 status;
 	unsigned long timeout;
 
-	timeout = (PQI_SOFT_RESET_STATUS_TIMEOUT_SECS * PQI_HZ) + jiffies;
+	timeout = (PQI_SOFT_RESET_STATUS_TIMEOUT_SECS * HZ) + jiffies;
 
 	while (1) {
 		status = pqi_read_soft_reset_status(ctrl_info);
@@ -3717,7 +3717,7 @@ out:
 	pqi_ctrl_unbusy(ctrl_info);
 }
 
-#define PQI_HEARTBEAT_TIMER_INTERVAL	(10 * PQI_HZ)
+#define PQI_HEARTBEAT_TIMER_INTERVAL	(10 * HZ)
 
 static void pqi_heartbeat_timer_handler(struct timer_list *t)
 {
@@ -4264,7 +4264,7 @@ static int pqi_alloc_admin_queues(struct pqi_ctrl_info *ctrl_info)
 	return 0;
 }
 
-#define PQI_ADMIN_QUEUE_CREATE_TIMEOUT_JIFFIES		PQI_HZ
+#define PQI_ADMIN_QUEUE_CREATE_TIMEOUT_JIFFIES		HZ
 #define PQI_ADMIN_QUEUE_CREATE_POLL_INTERVAL_MSECS	1
 
 static int pqi_create_admin_queues(struct pqi_ctrl_info *ctrl_info)
@@ -4358,7 +4358,7 @@ static int pqi_poll_for_admin_response(struct pqi_ctrl_info *ctrl_info,
 	admin_queues = &ctrl_info->admin_queues;
 	oq_ci = admin_queues->oq_ci_copy;
 
-	timeout = (PQI_ADMIN_REQUEST_TIMEOUT_SECS * PQI_HZ) + jiffies;
+	timeout = (PQI_ADMIN_REQUEST_TIMEOUT_SECS * HZ) + jiffies;
 
 	while (1) {
 		oq_pi = readl(admin_queues->oq_pi);
@@ -4473,7 +4473,7 @@ static int pqi_wait_for_completion_io(struct pqi_ctrl_info *ctrl_info,
 
 	while (1) {
 		if (wait_for_completion_io_timeout(wait,
-			PQI_WAIT_FOR_COMPLETION_IO_TIMEOUT_SECS * PQI_HZ)) {
+			PQI_WAIT_FOR_COMPLETION_IO_TIMEOUT_SECS * HZ)) {
 			rc = 0;
 			break;
 		}
@@ -6065,7 +6065,7 @@ static int pqi_wait_until_inbound_queues_empty(struct pqi_ctrl_info *ctrl_info)
 
 	displayed_warning = false;
 	start_jiffies = jiffies;
-	warning_timeout = (PQI_INBOUND_QUEUES_NONEMPTY_WARNING_TIMEOUT_SECS * PQI_HZ) + start_jiffies;
+	warning_timeout = (PQI_INBOUND_QUEUES_NONEMPTY_WARNING_TIMEOUT_SECS * HZ) + start_jiffies;
 
 	while (1) {
 		queued_io_count = pqi_queued_io_count(ctrl_info);
@@ -6080,7 +6080,7 @@ static int pqi_wait_until_inbound_queues_empty(struct pqi_ctrl_info *ctrl_info)
 				"waiting %u seconds for queued I/O to drain (queued I/O count: %u; non-empty inbound queue count: %u)\n",
 				jiffies_to_msecs(jiffies - start_jiffies) / 1000, queued_io_count, nonempty_inbound_queue_count);
 			displayed_warning = true;
-			warning_timeout = (PQI_INBOUND_QUEUES_NONEMPTY_WARNING_TIMEOUT_SECS * PQI_HZ) + jiffies;
+			warning_timeout = (PQI_INBOUND_QUEUES_NONEMPTY_WARNING_TIMEOUT_SECS * HZ) + jiffies;
 		}
 		usleep_range(1000, 2000);
 	}
@@ -6148,7 +6148,7 @@ static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
 	unsigned long msecs_waiting;
 
 	start_jiffies = jiffies;
-	warning_timeout = (PQI_PENDING_IO_WARNING_TIMEOUT_SECS * PQI_HZ) + start_jiffies;
+	warning_timeout = (PQI_PENDING_IO_WARNING_TIMEOUT_SECS * HZ) + start_jiffies;
 
 	while ((cmds_outstanding = atomic_read(&device->scsi_cmds_outstanding)) > 0) {
 		pqi_check_ctrl_health(ctrl_info);
@@ -6167,7 +6167,7 @@ static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
 				"scsi %d:%d:%d:%d: waiting %lu seconds for %d outstanding command(s)\n",
 				ctrl_info->scsi_host->host_no, device->bus, device->target,
 				device->lun, msecs_waiting / 1000, cmds_outstanding);
-			warning_timeout = (PQI_PENDING_IO_WARNING_TIMEOUT_SECS * PQI_HZ) + jiffies;
+			warning_timeout = (PQI_PENDING_IO_WARNING_TIMEOUT_SECS * HZ) + jiffies;
 		}
 		usleep_range(1000, 2000);
 	}
@@ -6196,7 +6196,7 @@ static int pqi_wait_for_lun_reset_completion(struct pqi_ctrl_info *ctrl_info,
 
 	while (1) {
 		if (wait_for_completion_io_timeout(wait,
-			PQI_LUN_RESET_POLL_COMPLETION_SECS * PQI_HZ)) {
+			PQI_LUN_RESET_POLL_COMPLETION_SECS * HZ)) {
 			rc = 0;
 			break;
 		}
@@ -7994,7 +7994,7 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 				return rc;
 		}
 		sis_soft_reset(ctrl_info);
-		msleep(PQI_POST_RESET_DELAY_SECS * PQI_HZ);
+		ssleep(PQI_POST_RESET_DELAY_SECS);
 	} else {
 		rc = pqi_force_sis_mode(ctrl_info);
 		if (rc)
