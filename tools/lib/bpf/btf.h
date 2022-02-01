@@ -168,8 +168,10 @@ int btf_ext__reloc_line_info(const struct btf *btf,
 			     const struct btf_ext *btf_ext,
 			     const char *sec_name, __u32 insns_cnt,
 			     void **line_info, __u32 *cnt);
-LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
-LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
+LIBBPF_API LIBBPF_DEPRECATED("btf_ext__reloc_func_info is deprecated; write custom func_info parsing to fetch rec_size")
+__u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
+LIBBPF_API LIBBPF_DEPRECATED("btf_ext__reloc_line_info is deprecated; write custom line_info parsing to fetch rec_size")
+__u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
 
 LIBBPF_API int btf__find_str(struct btf *btf, const char *s);
 LIBBPF_API int btf__add_str(struct btf *btf, const char *s);
