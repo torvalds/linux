@@ -313,7 +313,7 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   resource_size_t component_reg_phys,
 				   struct cxl_port *parent_port);
 struct cxl_port *find_cxl_root(struct device *dev);
-struct cxl_dport *devm_cxl_add_dport(struct device *host, struct cxl_port *port,
+struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 				     struct device *dport, int port_id,
 				     resource_size_t component_reg_phys);
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
@@ -327,9 +327,9 @@ int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
 int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map);
 int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld);
 struct cxl_hdm;
-struct cxl_hdm *devm_cxl_setup_hdm(struct device *host, struct cxl_port *port);
-int devm_cxl_enumerate_decoders(struct device *host, struct cxl_hdm *cxlhdm);
-int devm_cxl_add_passthrough_decoder(struct device *host, struct cxl_port *port);
+struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port);
+int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm);
+int devm_cxl_add_passthrough_decoder(struct cxl_port *port);
 
 extern struct bus_type cxl_bus_type;
 

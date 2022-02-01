@@ -31,18 +31,18 @@ static int cxl_port_probe(struct device *dev)
 	struct cxl_hdm *cxlhdm;
 	int rc;
 
-	rc = devm_cxl_port_enumerate_dports(dev, port);
+	rc = devm_cxl_port_enumerate_dports(port);
 	if (rc < 0)
 		return rc;
 
 	if (rc == 1)
-		return devm_cxl_add_passthrough_decoder(dev, port);
+		return devm_cxl_add_passthrough_decoder(port);
 
-	cxlhdm = devm_cxl_setup_hdm(dev, port);
+	cxlhdm = devm_cxl_setup_hdm(port);
 	if (IS_ERR(cxlhdm))
 		return PTR_ERR(cxlhdm);
 
-	rc = devm_cxl_enumerate_decoders(dev, cxlhdm);
+	rc = devm_cxl_enumerate_decoders(cxlhdm);
 	if (rc) {
 		dev_err(dev, "Couldn't enumerate decoders (%d)\n", rc);
 		return rc;

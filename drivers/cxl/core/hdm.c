@@ -44,7 +44,7 @@ static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
  * are claimed and passed to the single dport. Disable the range until the first
  * CXL region is enumerated / activated.
  */
-int devm_cxl_add_passthrough_decoder(struct device *host, struct cxl_port *port)
+int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 {
 	struct cxl_decoder *cxld;
 	struct cxl_dport *dport;
@@ -93,21 +93,20 @@ static void __iomem *map_hdm_decoder_regs(struct cxl_port *port,
 
 /**
  * devm_cxl_setup_hdm - map HDM decoder component registers
- * @host: devm context for allocations
  * @port: cxl_port to map
  */
-struct cxl_hdm *devm_cxl_setup_hdm(struct device *host, struct cxl_port *port)
+struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port)
 {
 	struct device *dev = &port->dev;
 	void __iomem *crb, *hdm;
 	struct cxl_hdm *cxlhdm;
 
-	cxlhdm = devm_kzalloc(host, sizeof(*cxlhdm), GFP_KERNEL);
+	cxlhdm = devm_kzalloc(dev, sizeof(*cxlhdm), GFP_KERNEL);
 	if (!cxlhdm)
 		return ERR_PTR(-ENOMEM);
 
 	cxlhdm->port = port;
-	crb = devm_cxl_iomap_block(host, port->component_reg_phys,
+	crb = devm_cxl_iomap_block(dev, port->component_reg_phys,
 				   CXL_COMPONENT_REG_BLOCK_SIZE);
 	if (!crb) {
 		dev_err(dev, "No component registers mapped\n");
@@ -195,10 +194,9 @@ static void init_hdm_decoder(struct cxl_decoder *cxld, int *target_map,
 
 /**
  * devm_cxl_enumerate_decoders - add decoder objects per HDM register set
- * @host: devm allocation context
  * @cxlhdm: Structure to populate with HDM capabilities
  */
-int devm_cxl_enumerate_decoders(struct device *host, struct cxl_hdm *cxlhdm)
+int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 {
 	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
 	struct cxl_port *port = cxlhdm->port;

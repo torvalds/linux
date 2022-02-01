@@ -576,7 +576,6 @@ static void cxl_dport_unlink(void *data)
 
 /**
  * devm_cxl_add_dport - append downstream port data to a cxl_port
- * @host: devm context for allocations
  * @port: the cxl_port that references this dport
  * @dport_dev: firmware or PCI device representing the dport
  * @port_id: identifier for this dport in a decoder's target list
@@ -586,13 +585,19 @@ static void cxl_dport_unlink(void *data)
  * either the port's host (for root ports), or the port itself (for
  * switch ports)
  */
-struct cxl_dport *devm_cxl_add_dport(struct device *host, struct cxl_port *port,
+struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 				     struct device *dport_dev, int port_id,
 				     resource_size_t component_reg_phys)
 {
 	char link_name[CXL_TARGET_STRLEN];
 	struct cxl_dport *dport;
+	struct device *host;
 	int rc;
+
+	if (is_cxl_root(port))
+		host = port->uport;
+	else
+		host = &port->dev;
 
 	if (!host->driver) {
 		dev_WARN_ONCE(&port->dev, 1, "dport:%s bad devm context\n",

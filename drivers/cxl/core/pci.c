@@ -15,7 +15,6 @@
 
 struct cxl_walk_context {
 	struct pci_bus *bus;
-	struct device *host;
 	struct cxl_port *port;
 	int type;
 	int error;
@@ -47,7 +46,7 @@ static int match_add_dports(struct pci_dev *pdev, void *data)
 		dev_dbg(&port->dev, "failed to find component registers\n");
 
 	port_num = FIELD_GET(PCI_EXP_LNKCAP_PN, lnkcap);
-	dport = devm_cxl_add_dport(ctx->host, port, &pdev->dev, port_num,
+	dport = devm_cxl_add_dport(port, &pdev->dev, port_num,
 				   cxl_regmap_to_base(pdev, &map));
 	if (IS_ERR(dport)) {
 		ctx->error = PTR_ERR(dport);
@@ -62,13 +61,12 @@ static int match_add_dports(struct pci_dev *pdev, void *data)
 
 /**
  * devm_cxl_port_enumerate_dports - enumerate downstream ports of the upstream port
- * @host: devm context
  * @port: cxl_port whose ->uport is the upstream of dports to be enumerated
  *
  * Returns a positive number of dports enumerated or a negative error
  * code.
  */
-int devm_cxl_port_enumerate_dports(struct device *host, struct cxl_port *port)
+int devm_cxl_port_enumerate_dports(struct cxl_port *port)
 {
 	struct pci_bus *bus = cxl_port_to_pci_bus(port);
 	struct cxl_walk_context ctx;
@@ -83,7 +81,6 @@ int devm_cxl_port_enumerate_dports(struct device *host, struct cxl_port *port)
 		type = PCI_EXP_TYPE_DOWNSTREAM;
 
 	ctx = (struct cxl_walk_context) {
-		.host = host,
 		.port = port,
 		.bus = bus,
 		.type = type,
