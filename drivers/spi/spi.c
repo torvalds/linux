@@ -2585,10 +2585,10 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
 				       void *data, void **return_value)
 {
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct spi_controller *ctlr = data;
-	struct acpi_device *adev;
 
-	if (acpi_bus_get_device(handle, &adev))
+	if (!adev)
 		return AE_OK;
 
 	return acpi_register_spi_device(ctlr, adev);
