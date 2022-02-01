@@ -460,13 +460,15 @@ latex_elements['preamble']  += '''
     \\IfFontExistsTF{Noto Sans CJK SC}{
 	% This is needed for translations
 	\\usepackage{xeCJK}
-	\\IfFontExistsTF{Noto Serif CJK SC}{
-	    \\setCJKmainfont{Noto Serif CJK SC}[AutoFakeSlant]
+	\\IfFontExistsTF{Noto Serif CJK KR}{
+	    \\setCJKmainfont{Noto Serif CJK KR}[AutoFakeSlant]
 	}{
-	    \\setCJKmainfont{Noto Sans CJK SC}[AutoFakeSlant]
+	    \\setCJKmainfont{Noto Sans CJK KR}[AutoFakeSlant]
 	}
-	\\setCJKsansfont{Noto Sans CJK SC}[AutoFakeSlant]
-	\\setCJKmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]
+	\\setCJKsansfont{Noto Sans CJK KR}[AutoFakeSlant]
+	\\setCJKmonofont{Noto Sans Mono CJK KR}[AutoFakeSlant]
+	\\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}
+	\\xeCJKDeclareCharClass{HalfRight}{`”,`’}
 	% CJK Language-specific font choices
 	\\IfFontExistsTF{Noto Serif CJK SC}{
 	    \\newCJKfontfamily[SCmain]\\scmain{Noto Serif CJK SC}[AutoFakeSlant]
@@ -513,11 +515,18 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocBeginSC}{%
 	    \\begingroup%
 	    \\scmain%
+	    \\xeCJKDeclareCharClass{FullLeft}{`“,`‘}%
+	    \\xeCJKDeclareCharClass{FullRight}{`”,`’}%
+	    \\renewcommand{\\CJKrmdefault}{SCserif}%
+	    \\renewcommand{\\CJKsfdefault}{SCsans}%
+	    \\renewcommand{\\CJKttdefault}{SCmono}%
 	}
 	\\newcommand{\\kerneldocEndSC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginTC}{%
 	    \\begingroup%
 	    \\tcmain%
+	    \\xeCJKDeclareCharClass{FullLeft}{`“,`‘}%
+	    \\xeCJKDeclareCharClass{FullRight}{`”,`’}%
 	    \\renewcommand{\\CJKrmdefault}{TCserif}%
 	    \\renewcommand{\\CJKsfdefault}{TCsans}%
 	    \\renewcommand{\\CJKttdefault}{TCmono}%
@@ -525,8 +534,6 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocEndTC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginKR}{%
 	    \\begingroup%
-	    \\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}%
-	    \\xeCJKDeclareCharClass{HalfRight}{`”,`’}%
 	    \\krmain%
 	    \\renewcommand{\\CJKrmdefault}{KRserif}%
 	    \\renewcommand{\\CJKsfdefault}{KRsans}%
@@ -536,8 +543,6 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocEndKR}{\\endgroup}
 	\\newcommand{\\kerneldocBeginJP}{%
 	    \\begingroup%
-	    \\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}%
-	    \\xeCJKDeclareCharClass{HalfRight}{`”,`’}%
 	    \\jpmain%
 	    \\renewcommand{\\CJKrmdefault}{JPserif}%
 	    \\renewcommand{\\CJKsfdefault}{JPsans}%
