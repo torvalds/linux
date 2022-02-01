@@ -12,7 +12,7 @@ struct {
 /* valid program on DEVMAP entry via SEC name;
  * has access to egress and ingress ifindex
  */
-SEC("xdp_devmap/map_prog")
+SEC("xdp/devmap")
 int xdp_dummy_dm(struct xdp_md *ctx)
 {
 	return XDP_PASS;
