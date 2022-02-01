@@ -1182,8 +1182,8 @@ static inline int pqi_report_phys_luns(struct pqi_ctrl_info *ctrl_info, void **b
 
 	for (i = 0; i < num_physicals; i++) {
 		memcpy(&rpl_16byte_wwid_list->lun_entries[i].lunid, &rpl_8byte_wwid_list->lun_entries[i].lunid, sizeof(rpl_8byte_wwid_list->lun_entries[i].lunid));
-		memset(&rpl_16byte_wwid_list->lun_entries[i].wwid, 0, 8);
-		memcpy(&rpl_16byte_wwid_list->lun_entries[i].wwid[8], &rpl_8byte_wwid_list->lun_entries[i].wwid, sizeof(rpl_8byte_wwid_list->lun_entries[i].wwid));
+		memcpy(&rpl_16byte_wwid_list->lun_entries[i].wwid[0], &rpl_8byte_wwid_list->lun_entries[i].wwid, sizeof(rpl_8byte_wwid_list->lun_entries[i].wwid));
+		memset(&rpl_16byte_wwid_list->lun_entries[i].wwid[8], 0, 8);
 		rpl_16byte_wwid_list->lun_entries[i].device_type = rpl_8byte_wwid_list->lun_entries[i].device_type;
 		rpl_16byte_wwid_list->lun_entries[i].device_flags = rpl_8byte_wwid_list->lun_entries[i].device_flags;
 		rpl_16byte_wwid_list->lun_entries[i].lun_count = rpl_8byte_wwid_list->lun_entries[i].lun_count;
@@ -2472,7 +2472,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 				sizeof(device->volume_id));
 		}
 
-		device->sas_address = get_unaligned_be64(&device->wwid[8]);
+		device->sas_address = get_unaligned_be64(&device->wwid[0]);
 
 		new_device_list[num_valid_devices++] = device;
 	}
