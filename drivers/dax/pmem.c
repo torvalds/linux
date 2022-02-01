@@ -3,11 +3,11 @@
 #include <linux/memremap.h>
 #include <linux/module.h>
 #include <linux/pfn_t.h>
-#include "../../nvdimm/pfn.h"
-#include "../../nvdimm/nd.h"
-#include "../bus.h"
+#include "../nvdimm/pfn.h"
+#include "../nvdimm/nd.h"
+#include "bus.h"
 
-struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
+static struct dev_dax *__dax_pmem_probe(struct device *dev)
 {
 	struct range range;
 	int rc, id, region_id;
@@ -63,7 +63,6 @@ struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
 		.dax_region = dax_region,
 		.id = id,
 		.pgmap = &pgmap,
-		.subsys = subsys,
 		.size = range_len(&range),
 	};
 	dev_dax = devm_create_dev_dax(&data);
@@ -73,7 +72,32 @@ struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
 
 	return dev_dax;
 }
-EXPORT_SYMBOL_GPL(__dax_pmem_probe);
+
+static int dax_pmem_probe(struct device *dev)
+{
+	return PTR_ERR_OR_ZERO(__dax_pmem_probe(dev));
+}
+
+static struct nd_device_driver dax_pmem_driver = {
+	.probe = dax_pmem_probe,
+	.drv = {
+		.name = "dax_pmem",
+	},
+	.type = ND_DRIVER_DAX_PMEM,
+};
+
+static int __init dax_pmem_init(void)
+{
+	return nd_driver_register(&dax_pmem_driver);
+}
+module_init(dax_pmem_init);
+
+static void __exit dax_pmem_exit(void)
+{
+	driver_unregister(&dax_pmem_driver.drv);
+}
+module_exit(dax_pmem_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
+MODULE_ALIAS_ND_DEVICE(ND_DEVICE_DAX_PMEM);
