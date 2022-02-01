@@ -800,27 +800,6 @@ static int ata_acpi_push_id(struct ata_device *dev)
 }
 
 /**
- * ata_acpi_on_suspend - ATA ACPI hook called on suspend
- * @ap: target ATA port
- *
- * This function is called when @ap is about to be suspended.  All
- * devices are already put to sleep but the port_suspend() callback
- * hasn't been executed yet.  Error return from this function aborts
- * suspend.
- *
- * LOCKING:
- * EH context.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int ata_acpi_on_suspend(struct ata_port *ap)
-{
-	/* nada */
-	return 0;
-}
-
-/**
  * ata_acpi_on_resume - ATA ACPI hook called on resume
  * @ap: target ATA port
  *
