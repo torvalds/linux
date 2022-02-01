@@ -295,7 +295,7 @@ static struct regmap *qcom_icc_rpmh_map(struct platform_device *pdev,
 	if (!res)
 		return NULL;
 
-	base = devm_ioremap_resource(dev, res);
+	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (IS_ERR(base))
 		return ERR_CAST(base);
 
