@@ -68,7 +68,7 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, u32 aio_handle, u8 *cdb,
 	unsigned int cdb_length, struct pqi_queue_group *queue_group,
-	struct pqi_encryption_info *encryption_info, bool raid_bypass);
+	struct pqi_encryption_info *encryption_info, bool raid_bypass, bool io_high_prio);
 static  int pqi_aio_submit_r1_write_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, struct pqi_queue_group *queue_group,
 	struct pqi_encryption_info *encryption_info, struct pqi_scsi_dev *device,
@@ -1549,6 +1549,7 @@ no_buffer:
 	device->volume_offline = volume_offline;
 }
 
+#define PQI_DEVICE_NCQ_PRIO_SUPPORTED	0x01
 #define PQI_DEVICE_PHY_MAP_SUPPORTED	0x10
 
 static int pqi_get_physical_device_info(struct pqi_ctrl_info *ctrl_info,
@@ -1596,6 +1597,10 @@ static int pqi_get_physical_device_info(struct pqi_ctrl_info *ctrl_info,
 			id_phys->phy_to_phy_map[device->active_path_index];
 	else
 		device->phy_id = 0xFF;
+
+	device->ncq_prio_support =
+		((get_unaligned_le32(&id_phys->misc_drive_flags) >> 16) &
+		PQI_DEVICE_NCQ_PRIO_SUPPORTED);
 
 	return 0;
 }
@@ -3007,7 +3012,7 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 
 	return pqi_aio_submit_io(ctrl_info, scmd, rmd.aio_handle,
 		rmd.cdb, rmd.cdb_length, queue_group,
-		encryption_info_ptr, true);
+		encryption_info_ptr, true, false);
 }
 
 #define PQI_STATUS_IDLE		0x0
@@ -5560,18 +5565,55 @@ static void pqi_aio_io_complete(struct pqi_io_request *io_request,
 	pqi_scsi_done(scmd);
 }
 
+static inline bool pqi_is_io_high_prioity(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev *device, struct scsi_cmnd *scmd)
+{
+	bool io_high_prio;
+	int priority_class;
+
+	io_high_prio = false;
+	if (device->ncq_prio_enable) {
+		priority_class =
+			IOPRIO_PRIO_CLASS(req_get_ioprio(scsi_cmd_to_rq(scmd)));
+		if (priority_class == IOPRIO_CLASS_RT) {
+			/* set NCQ priority for read/write command */
+			switch (scmd->cmnd[0]) {
+			case WRITE_16:
+			case READ_16:
+			case WRITE_12:
+			case READ_12:
+			case WRITE_10:
+			case READ_10:
+			case WRITE_6:
+			case READ_6:
+				io_high_prio = true;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	return io_high_prio;
+}
+
 static inline int pqi_aio_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device, struct scsi_cmnd *scmd,
 	struct pqi_queue_group *queue_group)
 {
+	bool io_high_prio;
+
+	io_high_prio = pqi_is_io_high_prioity(ctrl_info, device, scmd);
 	return pqi_aio_submit_io(ctrl_info, scmd, device->aio_handle,
-		scmd->cmnd, scmd->cmd_len, queue_group, NULL, false);
+		scmd->cmnd, scmd->cmd_len, queue_group, NULL,
+		false, io_high_prio);
 }
 
 static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, u32 aio_handle, u8 *cdb,
 	unsigned int cdb_length, struct pqi_queue_group *queue_group,
-	struct pqi_encryption_info *encryption_info, bool raid_bypass)
+	struct pqi_encryption_info *encryption_info, bool raid_bypass,
+	bool io_high_prio)
 {
 	int rc;
 	struct pqi_io_request *io_request;
@@ -5589,6 +5631,7 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	put_unaligned_le32(aio_handle, &request->nexus_id);
 	put_unaligned_le32(scsi_bufflen(scmd), &request->buffer_length);
 	request->task_attribute = SOP_TASK_ATTRIBUTE_SIMPLE;
+	request->command_priority = io_high_prio;
 	put_unaligned_le16(io_request->index, &request->request_id);
 	request->error_index = request->request_id;
 	if (cdb_length > sizeof(request->cdb))
@@ -7121,6 +7164,71 @@ static ssize_t pqi_raid_bypass_cnt_show(struct device *dev,
 	return scnprintf(buffer, PAGE_SIZE, "0x%x\n", raid_bypass_cnt);
 }
 
+static ssize_t pqi_sas_ncq_prio_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	int output_len = 0;
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+		return -ENODEV;
+	}
+
+	output_len = snprintf(buf, PAGE_SIZE, "%d\n",
+				device->ncq_prio_enable);
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return output_len;
+}
+
+static ssize_t pqi_sas_ncq_prio_enable_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	u8 ncq_prio_enable = 0;
+
+	if (kstrtou8(buf, 0, &ncq_prio_enable))
+		return -EINVAL;
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+		return -ENODEV;
+	}
+
+	if (!device->ncq_prio_support ||
+		!device->is_physical_device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+		return -EINVAL;
+	}
+
+	device->ncq_prio_enable = ncq_prio_enable;
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return  strlen(buf);
+}
+
 static DEVICE_ATTR(lunid, 0444, pqi_lunid_show, NULL);
 static DEVICE_ATTR(unique_id, 0444, pqi_unique_id_show, NULL);
 static DEVICE_ATTR(path_info, 0444, pqi_path_info_show, NULL);
@@ -7128,6 +7236,8 @@ static DEVICE_ATTR(sas_address, 0444, pqi_sas_address_show, NULL);
 static DEVICE_ATTR(ssd_smart_path_enabled, 0444, pqi_ssd_smart_path_enabled_show, NULL);
 static DEVICE_ATTR(raid_level, 0444, pqi_raid_level_show, NULL);
 static DEVICE_ATTR(raid_bypass_cnt, 0444, pqi_raid_bypass_cnt_show, NULL);
+static DEVICE_ATTR(sas_ncq_prio_enable, 0644,
+		pqi_sas_ncq_prio_enable_show, pqi_sas_ncq_prio_enable_store);
 
 static struct attribute *pqi_sdev_attrs[] = {
 	&dev_attr_lunid.attr,
@@ -7137,6 +7247,7 @@ static struct attribute *pqi_sdev_attrs[] = {
 	&dev_attr_ssd_smart_path_enabled.attr,
 	&dev_attr_raid_level.attr,
 	&dev_attr_raid_bypass_cnt.attr,
+	&dev_attr_sas_ncq_prio_enable.attr,
 	NULL
 };
 
