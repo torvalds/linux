@@ -2031,6 +2031,10 @@ static int spi_geni_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to alloc spi struct\n");
 		goto spi_geni_probe_err;
 	}
+
+	if (slave_en)
+		spi->slave_abort = spi_slv_abort;
+
 	platform_set_drvdata(pdev, spi);
 	geni_mas = spi_master_get_devdata(spi);
 	geni_mas->dev = dev;
@@ -2225,11 +2229,6 @@ static int spi_geni_probe(struct platform_device *pdev)
 
 	geni_mas->disable_dma = of_property_read_bool(pdev->dev.of_node,
 		"qcom,disable-dma");
-
-	if (slave_en) {
-		spi->slave = true;
-		spi->slave_abort = spi_slv_abort;
-	}
 
 	geni_mas->slave_cross_connected =
 		of_property_read_bool(pdev->dev.of_node, "slv-cross-connected");
