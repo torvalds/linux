@@ -10,20 +10,36 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <sys/mount.h>
-#include "iterators.skel.h"
+#include "iterators.lskel.h"
 #include "bpf_preload_common.h"
 
 int to_kernel = -1;
 int from_kernel = 0;
 
-static int send_link_to_kernel(struct bpf_link *link, const char *link_name)
+static int __bpf_obj_get_info_by_fd(int bpf_fd, void *info, __u32 *info_len)
+{
+	union bpf_attr attr;
+	int err;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.info.bpf_fd = bpf_fd;
+	attr.info.info_len = *info_len;
+	attr.info.info = (long) info;
+
+	err = skel_sys_bpf(BPF_OBJ_GET_INFO_BY_FD, &attr, sizeof(attr));
+	if (!err)
+		*info_len = attr.info.info_len;
+	return err;
+}
+
+static int send_link_to_kernel(int link_fd, const char *link_name)
 {
 	struct bpf_preload_info obj = {};
 	struct bpf_link_info info = {};
 	__u32 info_len = sizeof(info);
 	int err;
 
-	err = bpf_obj_get_info_by_fd(bpf_link__fd(link), &info, &info_len);
+	err = __bpf_obj_get_info_by_fd(link_fd, &info, &info_len);
 	if (err)
 		return err;
 	obj.link_id = info.id;
@@ -37,7 +53,6 @@ static int send_link_to_kernel(struct bpf_link *link, const char *link_name)
 
 int main(int argc, char **argv)
 {
-	struct rlimit rlim = { RLIM_INFINITY, RLIM_INFINITY };
 	struct iterators_bpf *skel;
 	int err, magic;
 	int debug_fd;
@@ -55,7 +70,6 @@ int main(int argc, char **argv)
 		printf("bad start magic %d\n", magic);
 		return 1;
 	}
-	setrlimit(RLIMIT_MEMLOCK, &rlim);
 	/* libbpf opens BPF object and loads it into the kernel */
 	skel = iterators_bpf__open_and_load();
 	if (!skel) {
@@ -72,10 +86,10 @@ int main(int argc, char **argv)
 		goto cleanup;
 
 	/* send two bpf_link IDs with names to the kernel */
-	err = send_link_to_kernel(skel->links.dump_bpf_map, "maps.debug");
+	err = send_link_to_kernel(skel->links.dump_bpf_map_fd, "maps.debug");
 	if (err)
 		goto cleanup;
-	err = send_link_to_kernel(skel->links.dump_bpf_prog, "progs.debug");
+	err = send_link_to_kernel(skel->links.dump_bpf_prog_fd, "progs.debug");
 	if (err)
 		goto cleanup;
 
