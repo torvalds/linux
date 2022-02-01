@@ -1549,14 +1549,12 @@ static const struct acpi_device_id *xgene_pmu_acpi_match_type(
 static acpi_status acpi_pmu_dev_add(acpi_handle handle, u32 level,
 				    void *data, void **return_value)
 {
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	const struct acpi_device_id *acpi_id;
 	struct xgene_pmu *xgene_pmu = data;
 	struct xgene_pmu_dev_ctx *ctx;
-	struct acpi_device *adev;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-	if (acpi_bus_get_status(adev) || !adev->status.present)
+	if (!adev || acpi_bus_get_status(adev) || !adev->status.present)
 		return AE_OK;
 
 	acpi_id = xgene_pmu_acpi_match_type(xgene_pmu_acpi_type_match, adev);
