@@ -169,7 +169,6 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
 	struct acpi_pci_root *pci_root;
 	struct cxl_dport *dport;
-	struct cxl_hdm *cxlhdm;
 	struct cxl_port *port;
 	int rc;
 
@@ -197,28 +196,7 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 		return PTR_ERR(port);
 	dev_dbg(host, "%s: add: %s\n", dev_name(match), dev_name(&port->dev));
 
-	rc = devm_cxl_port_enumerate_dports(host, port);
-	if (rc < 0)
-		return rc;
-	cxl_device_lock(&port->dev);
-	if (rc == 1) {
-		rc = devm_cxl_add_passthrough_decoder(host, port);
-		goto out;
-	}
-
-	cxlhdm = devm_cxl_setup_hdm(host, port);
-	if (IS_ERR(cxlhdm)) {
-		rc = PTR_ERR(cxlhdm);
-		goto out;
-	}
-
-	rc = devm_cxl_enumerate_decoders(host, cxlhdm);
-	if (rc)
-		dev_err(&port->dev, "Couldn't enumerate decoders (%d)\n", rc);
-
-out:
-	cxl_device_unlock(&port->dev);
-	return rc;
+	return 0;
 }
 
 struct cxl_chbs_context {
@@ -278,9 +256,7 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 		return 0;
 	}
 
-	cxl_device_lock(&root_port->dev);
 	dport = devm_cxl_add_dport(host, root_port, match, uid, ctx.chbcr);
-	cxl_device_unlock(&root_port->dev);
 	if (IS_ERR(dport)) {
 		dev_err(host, "failed to add downstream port: %s\n",
 			dev_name(match));

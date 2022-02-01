@@ -26,6 +26,11 @@ obj-m += cxl_pmem.o
 cxl_pmem-y := $(CXL_SRC)/pmem.o
 cxl_pmem-y += config_check.o
 
+obj-m += cxl_port.o
+
+cxl_port-y := $(CXL_SRC)/port.o
+cxl_port-y += config_check.o
+
 obj-m += cxl_core.o
 
 cxl_core-y := $(CXL_CORE_SRC)/port.o

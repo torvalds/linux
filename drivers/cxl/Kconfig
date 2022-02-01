@@ -77,4 +77,9 @@ config CXL_PMEM
 	  provisioning the persistent memory capacity of CXL memory expanders.
 
 	  If unsure say 'm'.
+
+config CXL_PORT
+	default CXL_BUS
+	tristate
+
 endif

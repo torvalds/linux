@@ -40,6 +40,11 @@ static int cxl_device_id(struct device *dev)
 		return CXL_DEVICE_NVDIMM_BRIDGE;
 	if (dev->type == &cxl_nvdimm_type)
 		return CXL_DEVICE_NVDIMM;
+	if (is_cxl_port(dev)) {
+		if (is_cxl_root(to_cxl_port(dev)))
+			return CXL_DEVICE_ROOT;
+		return CXL_DEVICE_PORT;
+	}
 	return 0;
 }
 
@@ -298,6 +303,9 @@ static void unregister_port(void *_port)
 {
 	struct cxl_port *port = _port;
 
+	if (!is_cxl_root(port))
+		device_lock_assert(port->dev.parent);
+
 	device_unregister(&port->dev);
 }
 
@@ -526,15 +534,34 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 	return dup ? -EEXIST : 0;
 }
 
+/*
+ * Since root-level CXL dports cannot be enumerated by PCI they are not
+ * enumerated by the common port driver that acquires the port lock over
+ * dport add/remove. Instead, root dports are manually added by a
+ * platform driver and cond_cxl_root_lock() is used to take the missing
+ * port lock in that case.
+ */
+static void cond_cxl_root_lock(struct cxl_port *port)
+{
+	if (is_cxl_root(port))
+		cxl_device_lock(&port->dev);
+}
+
+static void cond_cxl_root_unlock(struct cxl_port *port)
+{
+	if (is_cxl_root(port))
+		cxl_device_unlock(&port->dev);
+}
+
 static void cxl_dport_remove(void *data)
 {
 	struct cxl_dport *dport = data;
 	struct cxl_port *port = dport->port;
 
 	put_device(dport->dport);
-	cxl_device_lock(&port->dev);
+	cond_cxl_root_lock(port);
 	list_del(&dport->list);
-	cxl_device_unlock(&port->dev);
+	cond_cxl_root_unlock(port);
 }
 
 static void cxl_dport_unlink(void *data)
@@ -587,7 +614,9 @@ struct cxl_dport *devm_cxl_add_dport(struct device *host, struct cxl_port *port,
 	dport->component_reg_phys = component_reg_phys;
 	dport->port = port;
 
+	cond_cxl_root_lock(port);
 	rc = add_dport(port, dport);
+	cond_cxl_root_unlock(port);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -895,6 +924,7 @@ static int cxl_bus_probe(struct device *dev)
 	rc = to_cxl_drv(dev->driver)->probe(dev);
 	cxl_nested_unlock(dev);
 
+	dev_dbg(dev, "probe: %d\n", rc);
 	return rc;
 }
 

@@ -47,10 +47,8 @@ static int match_add_dports(struct pci_dev *pdev, void *data)
 		dev_dbg(&port->dev, "failed to find component registers\n");
 
 	port_num = FIELD_GET(PCI_EXP_LNKCAP_PN, lnkcap);
-	cxl_device_lock(&port->dev);
 	dport = devm_cxl_add_dport(ctx->host, port, &pdev->dev, port_num,
 				   cxl_regmap_to_base(pdev, &map));
-	cxl_device_unlock(&port->dev);
 	if (IS_ERR(dport)) {
 		ctx->error = PTR_ERR(dport);
 		return PTR_ERR(dport);

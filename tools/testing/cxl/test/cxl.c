@@ -437,10 +437,8 @@ static int mock_cxl_port_enumerate_dports(struct device *host,
 		if (pdev->dev.parent != port->uport)
 			continue;
 
-		cxl_device_lock(&port->dev);
 		dport = devm_cxl_add_dport(host, port, &pdev->dev, pdev->id,
 					   CXL_RESOURCE_NONE);
-		cxl_device_unlock(&port->dev);
 
 		if (IS_ERR(dport)) {
 			dev_err(dev, "failed to add dport: %s (%ld)\n",
