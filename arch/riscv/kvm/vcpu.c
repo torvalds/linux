@@ -699,6 +699,20 @@ static void kvm_riscv_update_hvip(struct kvm_vcpu *vcpu)
 	csr_write(CSR_HVIP, csr->hvip);
 }
 
+/*
+ * Actually run the vCPU, entering an RCU extended quiescent state (EQS) while
+ * the vCPU is running.
+ *
+ * This must be noinstr as instrumentation may make use of RCU, and this is not
+ * safe during the EQS.
+ */
+static void noinstr kvm_riscv_vcpu_enter_exit(struct kvm_vcpu *vcpu)
+{
+	guest_state_enter_irqoff();
+	__kvm_riscv_switch_to(&vcpu->arch);
+	guest_state_exit_irqoff();
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	int ret;
@@ -790,9 +804,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
-		guest_enter_irqoff();
+		guest_timing_enter_irqoff();
 
-		__kvm_riscv_switch_to(&vcpu->arch);
+		kvm_riscv_vcpu_enter_exit(vcpu);
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;
 		vcpu->stat.exits++;
@@ -812,25 +826,21 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		kvm_riscv_vcpu_sync_interrupts(vcpu);
 
 		/*
-		 * We may have taken a host interrupt in VS/VU-mode (i.e.
-		 * while executing the guest). This interrupt is still
-		 * pending, as we haven't serviced it yet!
+		 * We must ensure that any pending interrupts are taken before
+		 * we exit guest timing so that timer ticks are accounted as
+		 * guest time. Transiently unmask interrupts so that any
+		 * pending interrupts are taken.
 		 *
-		 * We're now back in HS-mode with interrupts disabled
-		 * so enabling the interrupts now will have the effect
-		 * of taking the interrupt again, in HS-mode this time.
+		 * There's no barrier which ensures that pending interrupts are
+		 * recognised, so we just hope that the CPU takes any pending
+		 * interrupts between the enable and disable.
 		 */
 		local_irq_enable();
+		local_irq_disable();
 
-		/*
-		 * We do local_irq_enable() before calling guest_exit() so
-		 * that if a timer interrupt hits while running the guest
-		 * we account that tick as being spent in the guest. We
-		 * enable preemption after calling guest_exit() so that if
-		 * we get preempted we make sure ticks after that is not
-		 * counted as guest time.
-		 */
-		guest_exit();
+		guest_timing_exit_irqoff();
+
+		local_irq_enable();
 
 		preempt_enable();
 
