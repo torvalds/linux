@@ -2022,7 +2022,6 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	for (slot = 0; slot < MXC_MAX_SLOTS; slot++) {
 		dec_irq = platform_get_irq(pdev, slot);
 		if (dec_irq < 0) {
-			dev_err(&pdev->dev, "Failed to get irq %d\n", dec_irq);
 			ret = dec_irq;
 			goto err_irq;
 		}
