@@ -20,6 +20,10 @@ static struct kunit *current_test;
 
 #define BT_BUF_SIZE (PAGE_SIZE * 4)
 
+static bool force_bt;
+module_param_named(backtrace, force_bt, bool, 0444);
+MODULE_PARM_DESC(backtrace, "print backtraces for all tests");
+
 /*
  * To avoid printk line limit split backtrace by lines
  */
@@ -98,7 +102,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 		kunit_err(current_test, "Maximum number of frames exceeded\n");
 		ret = -EINVAL;
 	}
-	if (ret)
+	if (ret || force_bt)
 		print_backtrace(bt);
 	kfree(bt);
 	return ret;
