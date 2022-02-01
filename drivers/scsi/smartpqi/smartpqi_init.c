@@ -8811,7 +8811,7 @@ static int pqi_pci_probe(struct pci_dev *pci_dev,
 	const struct pci_device_id *id)
 {
 	int rc;
-	int node, cp_node;
+	int node;
 	struct pqi_ctrl_info *ctrl_info;
 
 	pqi_print_ctrl_info(pci_dev, id);
@@ -8830,10 +8830,10 @@ static int pqi_pci_probe(struct pci_dev *pci_dev,
 
 	node = dev_to_node(&pci_dev->dev);
 	if (node == NUMA_NO_NODE) {
-		cp_node = cpu_to_node(0);
-		if (cp_node == NUMA_NO_NODE)
-			cp_node = 0;
-		set_dev_node(&pci_dev->dev, cp_node);
+		node = cpu_to_node(0);
+		if (node == NUMA_NO_NODE)
+			node = 0;
+		set_dev_node(&pci_dev->dev, node);
 	}
 
 	ctrl_info = pqi_alloc_ctrl_info(node);
