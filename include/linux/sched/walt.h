@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _LINUX_SCHED_WALT_H
@@ -119,7 +120,8 @@ struct walt_task_struct {
 	int				prev_on_rq;
 	int				prev_on_rq_cpu;
 	struct list_head		mvp_list;
-	u64				sum_exec_snapshot;
+	u64				sum_exec_snapshot_for_slice;
+	u64				sum_exec_snapshot_for_total;
 	u64				total_exec;
 	int				mvp_prio;
 	int				cidx;

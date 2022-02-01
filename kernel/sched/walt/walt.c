@@ -2243,7 +2243,8 @@ static void init_new_task_load(struct task_struct *p)
 	wts->unfilter = sysctl_sched_task_unfilter_period;
 
 	INIT_LIST_HEAD(&wts->mvp_list);
-	wts->sum_exec_snapshot = 0;
+	wts->sum_exec_snapshot_for_slice = 0;
+	wts->sum_exec_snapshot_for_total = 0;
 	wts->total_exec = 0;
 	wts->mvp_prio = WALT_NOT_MVP;
 	wts->cidx = 0;

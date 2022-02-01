@@ -1084,7 +1084,7 @@ static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) curr->android_vendor_data1;
-	s64 delta;
+	u64 slice;
 	unsigned int limit;
 
 	lockdep_assert_held(&rq->__lock);
@@ -1099,24 +1099,26 @@ static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr
 	if (!(rq->clock_update_flags & RQCF_UPDATED))
 		update_rq_clock(rq);
 
-	/* sum_exec_snapshot can be ahead. See below increment */
-	delta = curr->se.sum_exec_runtime - wts->sum_exec_snapshot;
-	if (delta < 0)
-		delta = 0;
+	if (curr->se.sum_exec_runtime > wts->sum_exec_snapshot_for_total)
+		wts->total_exec = curr->se.sum_exec_runtime - wts->sum_exec_snapshot_for_total;
 	else
-		delta += rq_clock_task(rq) - curr->se.exec_start;
+		wts->total_exec = 0;
+
+	if (curr->se.sum_exec_runtime > wts->sum_exec_snapshot_for_slice)
+		slice = curr->se.sum_exec_runtime - wts->sum_exec_snapshot_for_slice;
+	else
+		slice = 0;
 
 	/* slice is not expired */
-	if (delta < WALT_MVP_SLICE)
+	if (slice < WALT_MVP_SLICE)
 		return;
 
+	wts->sum_exec_snapshot_for_slice = curr->se.sum_exec_runtime;
 	/*
 	 * slice is expired, check if we have to deactivate the
 	 * MVP task, otherwise requeue the task in the list so
 	 * that other MVP tasks gets a chance.
 	 */
-	wts->sum_exec_snapshot += delta;
-	wts->total_exec += delta;
 
 	limit = walt_cfs_mvp_task_limit(curr);
 	if (wts->total_exec > limit) {
@@ -1165,9 +1167,10 @@ void walt_cfs_enqueue_task(struct rq *rq, struct task_struct *p)
 	 * task runtime snapshot. From now onwards we use this point as a
 	 * baseline to enforce the slice and demotion.
 	 */
-	if (!wts->total_exec) /* queue after sleep */
-		wts->sum_exec_snapshot = p->se.sum_exec_runtime;
-
+	if (!wts->total_exec) /* queue after sleep */ {
+		wts->sum_exec_snapshot_for_total = p->se.sum_exec_runtime;
+		wts->sum_exec_snapshot_for_slice = p->se.sum_exec_runtime;
+	}
 }
 
 void walt_cfs_dequeue_task(struct rq *rq, struct task_struct *p)
