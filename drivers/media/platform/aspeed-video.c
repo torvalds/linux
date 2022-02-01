@@ -33,7 +33,6 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-contig.h>
-#include <linux/videodev2.h>
 
 #define ASPEED_VIDEO_V4L2_MIN_BUF_REQ 3
 
