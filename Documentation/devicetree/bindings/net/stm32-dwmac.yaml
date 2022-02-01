@@ -44,6 +44,12 @@ properties:
               - st,stm32-dwmac
           - const: snps,dwmac-3.50a
 
+  reg: true
+
+  reg-names:
+    items:
+      - const: stmmaceth
+
   clocks:
     minItems: 3
     items:
@@ -102,7 +108,7 @@ examples:
            compatible = "st,stm32mp1-dwmac", "snps,dwmac-4.20a";
            reg = <0x5800a000 0x2000>;
            reg-names = "stmmaceth";
-           interrupts = <&intc GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+           interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
            interrupt-names = "macirq";
            clock-names = "stmmaceth",
                      "mac-clk-tx",
@@ -121,6 +127,7 @@ examples:
            phy-mode = "rgmii";
        };
 
+  - |
     //Example 2 (MCU example)
      ethernet1: ethernet@40028000 {
            compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
@@ -136,6 +143,7 @@ examples:
            phy-mode = "mii";
        };
 
+  - |
     //Example 3
      ethernet2: ethernet@40027000 {
            compatible = "st,stm32-dwmac", "snps,dwmac-4.10a";
