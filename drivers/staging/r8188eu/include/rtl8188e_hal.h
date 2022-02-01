@@ -155,8 +155,6 @@ struct hal_data_8188e {
 	u8	CurrentChannel;
 	u8	nCur40MhzPrimeSC;/*  Control channel sub-carrier */
 
-	u16	BasicRateSet;
-
 	u8	EEPROMRegulatory;
 	u8	EEPROMThermalMeter;
 

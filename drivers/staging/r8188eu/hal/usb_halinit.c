@@ -1078,7 +1078,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			/* CCK 5.5M & 11M ACK should be enabled for better performance */
 
 			BrateCfg = (BrateCfg | 0xd) & 0x15d;
-			haldata->BasicRateSet = BrateCfg;
 
 			BrateCfg |= 0x01; /*  default enable 1M ACK rate */
 			/*  Set RRSR rate table. */
