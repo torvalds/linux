@@ -181,7 +181,6 @@ struct hal_data_8188e {
 	u32	MCSTxPowerLevelOriginalOffset[MAX_PG_GROUP][16];
 
 	u8	CrystalCap;
-	u8	ExternalPA;
 
 	u32	AcParam_BE; /* Original parameter for BE, use for EDCA turbo. */
 
