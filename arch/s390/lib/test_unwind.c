@@ -136,7 +136,6 @@ static __always_inline unsigned long get_psw_addr(void)
 	return psw_addr;
 }
 
-#ifdef CONFIG_KPROBES
 static int pgm_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct unwindme *u = unwindme;
@@ -145,7 +144,6 @@ static int pgm_pre_handler(struct kprobe *p, struct pt_regs *regs)
 			     (u->flags & UWM_SP) ? u->sp : 0);
 	return 0;
 }
-#endif
 
 /* This function may or may not appear in the backtrace. */
 static noinline int unwindme_func4(struct unwindme *u)
@@ -157,10 +155,12 @@ static noinline int unwindme_func4(struct unwindme *u)
 		wait_event(u->task_wq, kthread_should_park());
 		kthread_parkme();
 		return 0;
-#ifdef CONFIG_KPROBES
 	} else if (u->flags & UWM_PGM) {
 		struct kprobe kp;
 		int ret;
+
+		if (!IS_ENABLED(CONFIG_KPROBES))
+			kunit_skip(current_test, "requires CONFIG_KPROBES");
 
 		unwindme = u;
 		memset(&kp, 0, sizeof(kp));
@@ -185,7 +185,6 @@ static noinline int unwindme_func4(struct unwindme *u)
 		unregister_kprobe(&kp);
 		unwindme = NULL;
 		return u->ret;
-#endif
 	} else {
 		struct pt_regs regs;
 
@@ -327,7 +326,6 @@ static const struct test_params param_list[] = {
 		.name = "UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS"},
 	{.flags = UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK,
 		.name = "UWM_IRQ | UWM_CALLER | UWM_SP | UWM_REGS | UWM_SWITCH_STACK"},
-	#ifdef CONFIG_KPROBES
 	{.flags = UWM_PGM, .name = "UWM_PGM"},
 	{.flags = UWM_PGM | UWM_SP,
 		.name = "UWM_PGM | UWM_SP"},
@@ -335,7 +333,6 @@ static const struct test_params param_list[] = {
 		.name = "UWM_PGM | UWM_REGS"},
 	{.flags = UWM_PGM | UWM_SP | UWM_REGS,
 		.name = "UWM_PGM | UWM_SP | UWM_REGS"},
-	#endif
 };
 
 /*
