@@ -6514,7 +6514,7 @@ static void kvm_init_msr_list(void)
 	u32 dummy[2];
 	unsigned i;
 
-	BUILD_BUG_ON_MSG(INTEL_PMC_MAX_FIXED != 4,
+	BUILD_BUG_ON_MSG(KVM_PMC_MAX_FIXED != 3,
 			 "Please update the fixed PMCs in msrs_to_saved_all[]");
 
 	perf_get_x86_pmu_capability(&x86_pmu);
