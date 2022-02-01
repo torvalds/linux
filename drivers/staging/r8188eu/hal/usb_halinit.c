@@ -1738,7 +1738,6 @@ void rtl8188eu_init_default_value(struct adapter *adapt)
 	haldata->odmpriv.RFCalibrateInfo.bIQKInitialized = false;
 	haldata->odmpriv.RFCalibrateInfo.TM_Trigger = 0;/* for IQK */
 	haldata->pwrGroupCnt = 0;
-	haldata->PGMaxGroup = 13;
 	haldata->odmpriv.RFCalibrateInfo.ThermalValue_HP_index = 0;
 	for (i = 0; i < HP_THERMAL_NUM; i++)
 		haldata->odmpriv.RFCalibrateInfo.ThermalValue_HP[i] = 0;
