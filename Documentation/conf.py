@@ -520,6 +520,7 @@ latex_elements['preamble']  += '''
 	    \\renewcommand{\\CJKrmdefault}{SCserif}%
 	    \\renewcommand{\\CJKsfdefault}{SCsans}%
 	    \\renewcommand{\\CJKttdefault}{SCmono}%
+	    \\xeCJKsetup{CJKspace = false}%
 	}
 	\\newcommand{\\kerneldocEndSC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginTC}{%
@@ -530,6 +531,7 @@ latex_elements['preamble']  += '''
 	    \\renewcommand{\\CJKrmdefault}{TCserif}%
 	    \\renewcommand{\\CJKsfdefault}{TCsans}%
 	    \\renewcommand{\\CJKttdefault}{TCmono}%
+	    \\xeCJKsetup{CJKspace = false}%
 	}
 	\\newcommand{\\kerneldocEndTC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginKR}{%
@@ -538,7 +540,7 @@ latex_elements['preamble']  += '''
 	    \\renewcommand{\\CJKrmdefault}{KRserif}%
 	    \\renewcommand{\\CJKsfdefault}{KRsans}%
 	    \\renewcommand{\\CJKttdefault}{KRmono}%
-	    \\xeCJKsetup{CJKspace = true} % For inter-phrase space
+	    % \\xeCJKsetup{CJKspace = true} % true by default
 	}
 	\\newcommand{\\kerneldocEndKR}{\\endgroup}
 	\\newcommand{\\kerneldocBeginJP}{%
@@ -547,6 +549,7 @@ latex_elements['preamble']  += '''
 	    \\renewcommand{\\CJKrmdefault}{JPserif}%
 	    \\renewcommand{\\CJKsfdefault}{JPsans}%
 	    \\renewcommand{\\CJKttdefault}{JPmono}%
+	    \\xeCJKsetup{CJKspace = false}%
 	}
 	\\newcommand{\\kerneldocEndJP}{\\endgroup}
 	% Single spacing in literal blocks
@@ -555,6 +558,7 @@ latex_elements['preamble']  += '''
 	\\usepackage{etoolbox}
 	% Inactivate CJK after tableofcontents
 	\\apptocmd{\\sphinxtableofcontents}{\\kerneldocCJKoff}{}{}
+	\\xeCJKsetup{CJKspace = true} % For inter-phrase space of Korean TOC
     }{ % No CJK font found
 	% Custom macros to on/off CJK (Dummy)
 	\\newcommand{\\kerneldocCJKon}{}
