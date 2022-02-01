@@ -5581,18 +5581,19 @@ static void pqi_aio_io_complete(struct pqi_io_request *io_request,
 	pqi_scsi_done(scmd);
 }
 
-static inline bool pqi_is_io_high_prioity(struct pqi_ctrl_info *ctrl_info,
+static inline bool pqi_is_io_high_priority(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device, struct scsi_cmnd *scmd)
 {
 	bool io_high_prio;
 	int priority_class;
 
 	io_high_prio = false;
+
 	if (device->ncq_prio_enable) {
 		priority_class =
 			IOPRIO_PRIO_CLASS(req_get_ioprio(scsi_cmd_to_rq(scmd)));
 		if (priority_class == IOPRIO_CLASS_RT) {
-			/* set NCQ priority for read/write command */
+			/* Set NCQ priority for read/write commands. */
 			switch (scmd->cmnd[0]) {
 			case WRITE_16:
 			case READ_16:
@@ -5603,8 +5604,6 @@ static inline bool pqi_is_io_high_prioity(struct pqi_ctrl_info *ctrl_info,
 			case WRITE_6:
 			case READ_6:
 				io_high_prio = true;
-				break;
-			default:
 				break;
 			}
 		}
@@ -5619,7 +5618,8 @@ static inline int pqi_aio_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 {
 	bool io_high_prio;
 
-	io_high_prio = pqi_is_io_high_prioity(ctrl_info, device, scmd);
+	io_high_prio = pqi_is_io_high_priority(ctrl_info, device, scmd);
+
 	return pqi_aio_submit_io(ctrl_info, scmd, device->aio_handle,
 		scmd->cmnd, scmd->cmd_len, queue_group, NULL,
 		false, io_high_prio);
