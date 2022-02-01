@@ -518,7 +518,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 		if (pbuf < bulkptr) {
 			desc_cnt++;
-			if (desc_cnt == haldata->UsbTxAggDescNum)
+			if (desc_cnt == USB_TXAGG_DESC_NUM)
 				break;
 		} else {
 			desc_cnt = 0;

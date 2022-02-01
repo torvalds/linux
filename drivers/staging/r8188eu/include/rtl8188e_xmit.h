@@ -93,6 +93,8 @@ enum TXDESC_SC {
 #define SGI			BIT(6)
 #define USB_TXAGG_NUM_SHT	24
 
+#define USB_TXAGG_DESC_NUM	0x6
+
 #define txdesc_set_ccx_sw_88e(txdesc, value) \
 	do { \
 		((struct txdesc_88e *)(txdesc))->sw1 = (((value)>>8) & 0x0f); \

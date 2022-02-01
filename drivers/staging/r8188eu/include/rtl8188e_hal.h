@@ -214,7 +214,6 @@ struct hal_data_8188e {
 	u32	UsbBulkOutSize;
 
 	u8	UsbTxAggMode;
-	u8	UsbTxAggDescNum;
 
 	enum usb_rx_agg_mode UsbRxAggMode;
 	u8	UsbRxAggBlockCount;	/*  USB Block count. Block size is

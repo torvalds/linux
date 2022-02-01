@@ -54,7 +54,6 @@ void rtl8188eu_interface_configure(struct adapter *adapt)
 		haldata->UsbBulkOutSize = USB_FULL_SPEED_BULK_SIZE;/* 64 bytes */
 
 	haldata->UsbTxAggMode		= 1;
-	haldata->UsbTxAggDescNum	= 0x6;	/*  only 4 bits */
 
 	haldata->UsbRxAggMode		= USB_RX_AGG_DMA;/*  USB_RX_AGG_DMA; */
 	haldata->UsbRxAggBlockCount	= 8; /* unit : 512b */
@@ -416,7 +415,7 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
 	if (haldata->UsbTxAggMode) {
 		value32 = rtw_read32(Adapter, REG_TDECTRL);
 		value32 = value32 & ~(BLK_DESC_NUM_MASK << BLK_DESC_NUM_SHIFT);
-		value32 |= ((haldata->UsbTxAggDescNum & BLK_DESC_NUM_MASK) << BLK_DESC_NUM_SHIFT);
+		value32 |= ((USB_TXAGG_DESC_NUM & BLK_DESC_NUM_MASK) << BLK_DESC_NUM_SHIFT);
 
 		rtw_write32(Adapter, REG_TDECTRL, value32);
 	}
