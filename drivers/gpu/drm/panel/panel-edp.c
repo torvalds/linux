@@ -222,8 +222,6 @@ struct panel_edp {
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *hpd_gpio;
 
-	const struct edp_panel_entry *detected_panel;
-
 	struct edid *edid;
 
 	struct drm_display_mode override_mode;
@@ -668,6 +666,7 @@ static const struct edp_panel_entry *find_edp_panel(u32 panel_id);
 
 static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 {
+	const struct edp_panel_entry *edp_panel;
 	struct panel_desc *desc;
 	u32 panel_id;
 	char vend[4];
@@ -706,14 +705,14 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	}
 	drm_edid_decode_panel_id(panel_id, vend, &product_id);
 
-	panel->detected_panel = find_edp_panel(panel_id);
+	edp_panel = find_edp_panel(panel_id);
 
 	/*
 	 * We're using non-optimized timings and want it really obvious that
 	 * someone needs to add an entry to the table, so we'll do a WARN_ON
 	 * splat.
 	 */
-	if (WARN_ON(!panel->detected_panel)) {
+	if (WARN_ON(!edp_panel)) {
 		dev_warn(dev,
 			 "Unknown panel %s %#06x, using conservative timings\n",
 			 vend, product_id);
@@ -735,14 +734,12 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 		 */
 		desc->delay.unprepare = 2000;
 		desc->delay.enable = 200;
-
-		panel->detected_panel = ERR_PTR(-EINVAL);
 	} else {
 		dev_info(dev, "Detected %s %s (%#06x)\n",
-			 vend, panel->detected_panel->name, product_id);
+			 vend, edp_panel->name, product_id);
 
 		/* Update the delay; everything else comes from EDID */
-		desc->delay = *panel->detected_panel->delay;
+		desc->delay = *edp_panel->delay;
 	}
 
 	ret = 0;
@@ -751,28 +748,6 @@ exit:
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;
-}
-
-static ssize_t detected_panel_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	struct panel_edp *p = dev_get_drvdata(dev);
-
-	if (IS_ERR(p->detected_panel))
-		return sysfs_emit(buf, "UNKNOWN\n");
-	else if (!p->detected_panel)
-		return sysfs_emit(buf, "HARDCODED\n");
-	else
-		return sysfs_emit(buf, "%s\n", p->detected_panel->name);
-}
-
-static const DEVICE_ATTR_RO(detected_panel);
-
-static void edp_panel_remove_detected_panel(void *data)
-{
-	struct panel_edp *p = data;
-
-	device_remove_file(p->base.dev, &dev_attr_detected_panel);
 }
 
 static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
@@ -873,10 +848,6 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 	}
 
 	drm_panel_add(&panel->base);
-
-	err = device_create_file(dev, &dev_attr_detected_panel);
-	if (!err)
-		devm_add_action_or_reset(dev, edp_panel_remove_detected_panel, panel);
 
 	return 0;
 
