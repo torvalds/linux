@@ -2045,8 +2045,8 @@ struct ext4_fs_context {
 	unsigned int	mask_s_mount_opt;
 	unsigned int	vals_s_mount_opt2;
 	unsigned int	mask_s_mount_opt2;
-	unsigned int	vals_s_mount_flags;
-	unsigned int	mask_s_mount_flags;
+	unsigned long	vals_s_mount_flags;
+	unsigned long	mask_s_mount_flags;
 	unsigned int	opt_flags;	/* MOPT flags */
 	unsigned int	spec;
 	u32		s_max_batch_time;
@@ -2149,23 +2149,36 @@ static inline void ctx_set_##name(struct ext4_fs_context *ctx,		\
 {									\
 	ctx->mask_s_##name |= flag;					\
 	ctx->vals_s_##name |= flag;					\
-}									\
+}
+
+#define EXT4_CLEAR_CTX(name)						\
 static inline void ctx_clear_##name(struct ext4_fs_context *ctx,	\
 				    unsigned long flag)			\
 {									\
 	ctx->mask_s_##name |= flag;					\
 	ctx->vals_s_##name &= ~flag;					\
-}									\
+}
+
+#define EXT4_TEST_CTX(name)						\
 static inline unsigned long						\
 ctx_test_##name(struct ext4_fs_context *ctx, unsigned long flag)	\
 {									\
 	return (ctx->vals_s_##name & flag);				\
-}									\
+}
 
-EXT4_SET_CTX(flags);
+EXT4_SET_CTX(flags); /* set only */
 EXT4_SET_CTX(mount_opt);
+EXT4_CLEAR_CTX(mount_opt);
+EXT4_TEST_CTX(mount_opt);
 EXT4_SET_CTX(mount_opt2);
-EXT4_SET_CTX(mount_flags);
+EXT4_CLEAR_CTX(mount_opt2);
+EXT4_TEST_CTX(mount_opt2);
+
+static inline void ctx_set_mount_flag(struct ext4_fs_context *ctx, int bit)
+{
+	set_bit(bit, &ctx->mask_s_mount_flags);
+	set_bit(bit, &ctx->vals_s_mount_flags);
+}
 
 static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
@@ -2235,7 +2248,7 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			 param->key);
 		return 0;
 	case Opt_abort:
-		ctx_set_mount_flags(ctx, EXT4_MF_FS_ABORTED);
+		ctx_set_mount_flag(ctx, EXT4_MF_FS_ABORTED);
 		return 0;
 	case Opt_i_version:
 		ext4_msg(NULL, KERN_WARNING, deprecated_msg, param->key, "5.20");
