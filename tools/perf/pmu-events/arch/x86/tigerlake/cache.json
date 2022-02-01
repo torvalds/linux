@@ -146,6 +146,17 @@
         "UMask": "0x24"
     },
     {
+        "BriefDescription": "Demand Data Read requests that hit L2 cache",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of demand Data Read requests initiated by load instructions that hit L2 cache.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xc1"
+    },
+    {
         "BriefDescription": "All requests that miss L2 cache",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
@@ -185,7 +196,7 @@
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.SWPF_HIT",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts Software prefetch requests that hit the L2 cache. This event accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions.",
+        "PublicDescription": "Counts Software prefetch requests that hit the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full.",
         "SampleAfterValue": "200003",
         "UMask": "0xc8"
     },
@@ -196,7 +207,7 @@
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.SWPF_MISS",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts Software prefetch requests that miss the L2 cache. This event accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions.",
+        "PublicDescription": "Counts Software prefetch requests that miss the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full.",
         "SampleAfterValue": "200003",
         "UMask": "0x28"
     },
@@ -221,6 +232,17 @@
         "PublicDescription": "This event counts the number of cycles when the L1D is locked. It is a superset of the 0x1 mask (BUS_LOCK_CLOCKS.BUS_LOCK_DURATION).",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Core-originated cacheable requests that missed L3  (Except hardware prefetches to the L3)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2e",
+        "EventName": "LONGEST_LAT_CACHE.MISS",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts core-originated cacheable requests that miss the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches to the L1 and L2.  It does not include hardware prefetches to the L3, and may not count other types of requests to the L3.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x41"
     },
     {
         "BriefDescription": "All retired load instructions.",
@@ -248,6 +270,20 @@
         "PublicDescription": "Counts all retired store instructions. This event account for SW prefetch instructions and PREFETCHW instruction for stores.",
         "SampleAfterValue": "1000003",
         "UMask": "0x82"
+    },
+    {
+        "BriefDescription": "All retired memory instructions.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_INST_RETIRED.ANY",
+        "L1_Hit_Indication": "1",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts all retired memory instructions - loads and stores.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x83"
     },
     {
         "BriefDescription": "Retired load instructions with locked access.",
@@ -298,7 +334,7 @@
         "EventName": "MEM_INST_RETIRED.STLB_MISS_LOADS",
         "PEBS": "1",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts retired load instructions that true miss the STLB.",
+        "PublicDescription": "Number of retired load instructions that (start a) miss in the 2nd-level TLB (STLB).",
         "SampleAfterValue": "100003",
         "UMask": "0x11"
     },
@@ -312,7 +348,7 @@
         "L1_Hit_Indication": "1",
         "PEBS": "1",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts retired store instructions that true miss the STLB.",
+        "PublicDescription": "Number of retired store instructions that (start a) miss in the 2nd-level TLB (STLB).",
         "SampleAfterValue": "100003",
         "UMask": "0x12"
     },

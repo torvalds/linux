@@ -71,14 +71,14 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "All indirect branch instructions retired (excluding RETs. TSX aborts are considered indirect branch).",
+        "BriefDescription": "Indirect near branch instructions retired (excluding returns)",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.INDIRECT",
         "PEBS": "1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
-        "PublicDescription": "Counts all indirect branch instructions retired (excluding RETs. TSX aborts is considered indirect branch).",
+        "PublicDescription": "Counts near indirect branch instructions retired excluding returns. TSX abort is an indirect branch.",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -443,6 +443,17 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Instruction decoders utilized in a cycle",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x55",
+        "EventName": "INST_DECODED.DECODERS",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Number of decoders utilized in a cycle when the MITE (legacy decode pipeline) fetches instructions.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Number of instructions retired. Fixed Counter - architectural event",
         "CollectPEBSRecord": "2",
         "Counter": "Fixed counter 0",
@@ -463,6 +474,17 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of X86 instructions retired - an Architectural PerfMon event. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Notes: INST_RETIRED.ANY is counted by a designated fixed counter freeing up programmable counters to count other events. INST_RETIRED.ANY_P is counted by a programmable counter.",
         "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Number of all retired NOP instructions.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc0",
+        "EventName": "INST_RETIRED.NOP",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
     },
     {
         "BriefDescription": "Precise instruction retired event with a reduced effect of PEBS shadow in IP distribution",
@@ -687,6 +709,17 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts end of periods where the Reservation Station (RS) was empty. Could be useful to closely sample on front-end latency issues (see the FRONTEND_RETIRED event of designated precise events)",
         "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Number of uops decoded out of instructions exclusively fetched by decoder 0",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x56",
+        "EventName": "UOPS_DECODED.DEC0",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Uops exclusively fetched by decoder 0",
+        "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
     {
