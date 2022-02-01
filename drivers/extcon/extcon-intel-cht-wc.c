@@ -16,7 +16,9 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/usb/role.h>
 
 #include "extcon-intel.h"
 
@@ -102,8 +104,11 @@ struct cht_wc_extcon_data {
 	struct device *dev;
 	struct regmap *regmap;
 	struct extcon_dev *edev;
+	struct usb_role_switch *role_sw;
+	struct regulator *vbus_boost;
 	unsigned int previous_cable;
 	bool usb_host;
+	bool vbus_boost_enabled;
 };
 
 static int cht_wc_extcon_get_id(struct cht_wc_extcon_data *ext, int pwrsrc_sts)
@@ -217,6 +222,18 @@ static void cht_wc_extcon_set_otgmode(struct cht_wc_extcon_data *ext,
 				 CHT_WC_CHGRCTRL1_OTGMODE, val);
 	if (ret)
 		dev_err(ext->dev, "Error updating CHGRCTRL1 reg: %d\n", ret);
+
+	if (ext->vbus_boost && ext->vbus_boost_enabled != enable) {
+		if (enable)
+			ret = regulator_enable(ext->vbus_boost);
+		else
+			ret = regulator_disable(ext->vbus_boost);
+
+		if (ret)
+			dev_err(ext->dev, "Error updating Vbus boost regulator: %d\n", ret);
+		else
+			ext->vbus_boost_enabled = enable;
+	}
 }
 
 static void cht_wc_extcon_enable_charging(struct cht_wc_extcon_data *ext,
@@ -246,6 +263,7 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 	unsigned int cable = EXTCON_NONE;
 	/* Ignore errors in host mode, as the 5v boost converter is on then */
 	bool ignore_get_charger_errors = ext->usb_host;
+	enum usb_role role;
 
 	ret = regmap_read(ext->regmap, CHT_WC_PWRSRC_STS, &pwrsrc_sts);
 	if (ret) {
@@ -289,6 +307,18 @@ set_state:
 
 	ext->usb_host = ((id == INTEL_USB_ID_GND) || (id == INTEL_USB_RID_A));
 	extcon_set_state_sync(ext->edev, EXTCON_USB_HOST, ext->usb_host);
+
+	if (ext->usb_host)
+		role = USB_ROLE_HOST;
+	else if (pwrsrc_sts & CHT_WC_PWRSRC_VBUS)
+		role = USB_ROLE_DEVICE;
+	else
+		role = USB_ROLE_NONE;
+
+	/* Note: this is a no-op when ext->role_sw is NULL */
+	ret = usb_role_switch_set_role(ext->role_sw, role);
+	if (ret)
+		dev_err(ext->dev, "Error setting USB-role: %d\n", ret);
 }
 
 static irqreturn_t cht_wc_extcon_isr(int irq, void *data)
@@ -334,6 +364,61 @@ static int cht_wc_extcon_sw_control(struct cht_wc_extcon_data *ext, bool enable)
 	return ret;
 }
 
+static int cht_wc_extcon_find_role_sw(struct cht_wc_extcon_data *ext)
+{
+	const struct software_node *swnode;
+	struct fwnode_handle *fwnode;
+
+	swnode = software_node_find_by_name(NULL, "intel-xhci-usb-sw");
+	if (!swnode)
+		return -EPROBE_DEFER;
+
+	fwnode = software_node_fwnode(swnode);
+	ext->role_sw = usb_role_switch_find_by_fwnode(fwnode);
+	fwnode_handle_put(fwnode);
+
+	return ext->role_sw ? 0 : -EPROBE_DEFER;
+}
+
+static void cht_wc_extcon_put_role_sw(void *data)
+{
+	struct cht_wc_extcon_data *ext = data;
+
+	usb_role_switch_put(ext->role_sw);
+}
+
+/* Some boards require controlling the role-sw and Vbus based on the id-pin */
+static int cht_wc_extcon_get_role_sw_and_regulator(struct cht_wc_extcon_data *ext)
+{
+	int ret;
+
+	ret = cht_wc_extcon_find_role_sw(ext);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(ext->dev, cht_wc_extcon_put_role_sw, ext);
+	if (ret)
+		return ret;
+
+	/*
+	 * On x86/ACPI platforms the regulator <-> consumer link is provided
+	 * by platform_data passed to the regulator driver. This means that
+	 * this info is not available before the regulator driver has bound.
+	 * Use devm_regulator_get_optional() to avoid getting a dummy
+	 * regulator and wait for the regulator to show up if necessary.
+	 */
+	ext->vbus_boost = devm_regulator_get_optional(ext->dev, "vbus");
+	if (IS_ERR(ext->vbus_boost)) {
+		ret = PTR_ERR(ext->vbus_boost);
+		if (ret == -ENODEV)
+			ret = -EPROBE_DEFER;
+
+		return dev_err_probe(ext->dev, ret, "getting Vbus regulator");
+	}
+
+	return 0;
+}
+
 static int cht_wc_extcon_probe(struct platform_device *pdev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
@@ -375,6 +460,12 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 		 * external 5v boost converter off and leave it off entirely.
 		 */
 		cht_wc_extcon_set_5v_boost(ext, false);
+		break;
+	case INTEL_CHT_WC_LENOVO_YOGABOOK1:
+	case INTEL_CHT_WC_XIAOMI_MIPAD2:
+		ret = cht_wc_extcon_get_role_sw_and_regulator(ext);
+		if (ret)
+			return ret;
 		break;
 	default:
 		break;
