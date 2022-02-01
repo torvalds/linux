@@ -1107,6 +1107,11 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 static char btrfs_unknown_feature_names[FEAT_MAX][NUM_FEATURE_BITS][BTRFS_FEATURE_NAME_MAX];
 static struct btrfs_feature_attr btrfs_feature_attrs[FEAT_MAX][NUM_FEATURE_BITS];
 
+static_assert(ARRAY_SIZE(btrfs_unknown_feature_names) ==
+	      ARRAY_SIZE(btrfs_feature_attrs));
+static_assert(ARRAY_SIZE(btrfs_unknown_feature_names[0]) ==
+	      ARRAY_SIZE(btrfs_feature_attrs[0]));
+
 static const u64 supported_feature_masks[FEAT_MAX] = {
 	[FEAT_COMPAT]    = BTRFS_FEATURE_COMPAT_SUPP,
 	[FEAT_COMPAT_RO] = BTRFS_FEATURE_COMPAT_RO_SUPP,
@@ -1274,11 +1279,6 @@ static void init_feature_attrs(void)
 {
 	struct btrfs_feature_attr *fa;
 	int set, i;
-
-	BUILD_BUG_ON(ARRAY_SIZE(btrfs_unknown_feature_names) !=
-		     ARRAY_SIZE(btrfs_feature_attrs));
-	BUILD_BUG_ON(ARRAY_SIZE(btrfs_unknown_feature_names[0]) !=
-		     ARRAY_SIZE(btrfs_feature_attrs[0]));
 
 	memset(btrfs_feature_attrs, 0, sizeof(btrfs_feature_attrs));
 	memset(btrfs_unknown_feature_names, 0,

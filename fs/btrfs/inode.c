@@ -629,7 +629,6 @@ static noinline int compress_file_range(struct async_chunk *async_chunk)
 again:
 	will_compress = 0;
 	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
-	BUILD_BUG_ON((BTRFS_MAX_COMPRESSED % PAGE_SIZE) != 0);
 	nr_pages = min_t(unsigned long, nr_pages,
 			BTRFS_MAX_COMPRESSED / PAGE_SIZE);
 
@@ -5609,21 +5608,17 @@ static struct inode *new_simple_dir(struct super_block *s,
 	return inode;
 }
 
+static_assert(BTRFS_FT_UNKNOWN == FT_UNKNOWN);
+static_assert(BTRFS_FT_REG_FILE == FT_REG_FILE);
+static_assert(BTRFS_FT_DIR == FT_DIR);
+static_assert(BTRFS_FT_CHRDEV == FT_CHRDEV);
+static_assert(BTRFS_FT_BLKDEV == FT_BLKDEV);
+static_assert(BTRFS_FT_FIFO == FT_FIFO);
+static_assert(BTRFS_FT_SOCK == FT_SOCK);
+static_assert(BTRFS_FT_SYMLINK == FT_SYMLINK);
+
 static inline u8 btrfs_inode_type(struct inode *inode)
 {
-	/*
-	 * Compile-time asserts that generic FT_* types still match
-	 * BTRFS_FT_* types
-	 */
-	BUILD_BUG_ON(BTRFS_FT_UNKNOWN != FT_UNKNOWN);
-	BUILD_BUG_ON(BTRFS_FT_REG_FILE != FT_REG_FILE);
-	BUILD_BUG_ON(BTRFS_FT_DIR != FT_DIR);
-	BUILD_BUG_ON(BTRFS_FT_CHRDEV != FT_CHRDEV);
-	BUILD_BUG_ON(BTRFS_FT_BLKDEV != FT_BLKDEV);
-	BUILD_BUG_ON(BTRFS_FT_FIFO != FT_FIFO);
-	BUILD_BUG_ON(BTRFS_FT_SOCK != FT_SOCK);
-	BUILD_BUG_ON(BTRFS_FT_SYMLINK != FT_SYMLINK);
-
 	return fs_umode_to_ftype(inode->i_mode);
 }
 
