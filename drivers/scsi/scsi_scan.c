@@ -97,7 +97,7 @@ MODULE_PARM_DESC(max_luns,
 #define SCSI_SCAN_TYPE_DEFAULT "sync"
 #endif
 
-char scsi_scan_type[7] = SCSI_SCAN_TYPE_DEFAULT;
+static char scsi_scan_type[7] = SCSI_SCAN_TYPE_DEFAULT;
 
 module_param_string(scan, scsi_scan_type, sizeof(scsi_scan_type),
 		    S_IRUGO|S_IWUSR);
@@ -122,7 +122,7 @@ struct async_scan_data {
 	struct completion prev_finished;
 };
 
-/**
+/*
  * scsi_enable_async_suspend - Enable async suspend and resume
  */
 void scsi_enable_async_suspend(struct device *dev)

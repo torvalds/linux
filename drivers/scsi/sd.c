@@ -51,7 +51,6 @@
 #include <linux/major.h>
 #include <linux/mutex.h>
 #include <linux/string_helpers.h>
-#include <linux/async.h>
 #include <linux/slab.h>
 #include <linux/sed-opal.h>
 #include <linux/pm_runtime.h>

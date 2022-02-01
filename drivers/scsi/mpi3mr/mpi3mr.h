@@ -45,6 +45,7 @@
 #include "mpi/mpi30_init.h"
 #include "mpi/mpi30_ioc.h"
 #include "mpi/mpi30_sas.h"
+#include "mpi/mpi30_pci.h"
 #include "mpi3mr_debug.h"
 
 /* Global list and lock for storing multiple adapters managed by the driver */
@@ -52,8 +53,8 @@ extern spinlock_t mrioc_list_lock;
 extern struct list_head mrioc_list;
 extern int prot_mask;
 
-#define MPI3MR_DRIVER_VERSION	"00.255.45.01"
-#define MPI3MR_DRIVER_RELDATE	"12-December-2020"
+#define MPI3MR_DRIVER_VERSION	"8.0.0.61.0"
+#define MPI3MR_DRIVER_RELDATE	"20-December-2021"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -79,7 +80,8 @@ extern int prot_mask;
 
 /* Operational queue management definitions */
 #define MPI3MR_OP_REQ_Q_QD		512
-#define MPI3MR_OP_REP_Q_QD		4096
+#define MPI3MR_OP_REP_Q_QD		1024
+#define MPI3MR_OP_REP_Q_QD4K		4096
 #define MPI3MR_OP_REQ_Q_SEG_SIZE	4096
 #define MPI3MR_OP_REP_Q_SEG_SIZE	4096
 #define MPI3MR_MAX_SEG_LIST_SIZE	4096
@@ -90,25 +92,31 @@ extern int prot_mask;
 #define MPI3MR_HOSTTAG_IOCTLCMDS	2
 #define MPI3MR_HOSTTAG_BLK_TMS		5
 
-#define MPI3MR_NUM_DEVRMCMD		1
+#define MPI3MR_NUM_DEVRMCMD		16
 #define MPI3MR_HOSTTAG_DEVRMCMD_MIN	(MPI3MR_HOSTTAG_BLK_TMS + 1)
 #define MPI3MR_HOSTTAG_DEVRMCMD_MAX	(MPI3MR_HOSTTAG_DEVRMCMD_MIN + \
 						MPI3MR_NUM_DEVRMCMD - 1)
 
-#define MPI3MR_INTERNAL_CMDS_RESVD     MPI3MR_HOSTTAG_DEVRMCMD_MAX
+#define MPI3MR_INTERNAL_CMDS_RESVD	MPI3MR_HOSTTAG_DEVRMCMD_MAX
+#define MPI3MR_NUM_EVTACKCMD		4
+#define MPI3MR_HOSTTAG_EVTACKCMD_MIN	(MPI3MR_HOSTTAG_DEVRMCMD_MAX + 1)
+#define MPI3MR_HOSTTAG_EVTACKCMD_MAX	(MPI3MR_HOSTTAG_EVTACKCMD_MIN + \
+					MPI3MR_NUM_EVTACKCMD - 1)
 
 /* Reduced resource count definition for crash kernel */
 #define MPI3MR_HOST_IOS_KDUMP		128
 
 /* command/controller interaction timeout definitions in seconds */
-#define MPI3MR_INTADMCMD_TIMEOUT		10
+#define MPI3MR_INTADMCMD_TIMEOUT		60
 #define MPI3MR_PORTENABLE_TIMEOUT		300
-#define MPI3MR_ABORTTM_TIMEOUT			30
-#define MPI3MR_RESETTM_TIMEOUT			30
+#define MPI3MR_ABORTTM_TIMEOUT			60
+#define MPI3MR_RESETTM_TIMEOUT			60
 #define MPI3MR_RESET_HOST_IOWAIT_TIMEOUT	5
 #define MPI3MR_TSUPDATE_INTERVAL		900
 #define MPI3MR_DEFAULT_SHUTDOWN_TIME		120
 #define	MPI3MR_RAID_ERRREC_RESET_TIMEOUT	180
+#define MPI3MR_PREPARE_FOR_RESET_TIMEOUT	180
+#define MPI3MR_RESET_ACK_TIMEOUT		30
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
 
@@ -121,7 +129,7 @@ extern int prot_mask;
 
 /* Definitions for Event replies and sense buffer allocated per controller */
 #define MPI3MR_NUM_EVT_REPLIES	64
-#define MPI3MR_SENSEBUF_SZ	256
+#define MPI3MR_SENSE_BUF_SZ	256
 #define MPI3MR_SENSEBUF_FACTOR	3
 #define MPI3MR_CHAINBUF_FACTOR	3
 #define MPI3MR_CHAINBUFDIX_FACTOR	2
@@ -135,17 +143,11 @@ extern int prot_mask;
 
 /* ResponseCode definitions */
 #define MPI3MR_RI_MASK_RESPCODE		(0x000000FF)
-#define MPI3MR_RSP_TM_COMPLETE		0x00
-#define MPI3MR_RSP_INVALID_FRAME	0x02
-#define MPI3MR_RSP_TM_NOT_SUPPORTED	0x04
-#define MPI3MR_RSP_TM_FAILED		0x05
-#define MPI3MR_RSP_TM_SUCCEEDED		0x08
-#define MPI3MR_RSP_TM_INVALID_LUN	0x09
-#define MPI3MR_RSP_TM_OVERLAPPED_TAG	0x0A
 #define MPI3MR_RSP_IO_QUEUED_ON_IOC \
 			MPI3_SCSITASKMGMT_RSPCODE_IO_QUEUED_ON_IOC
 
 #define MPI3MR_DEFAULT_MDTS	(128 * 1024)
+#define MPI3MR_DEFAULT_PGSZEXP         (12)
 /* Command retry count definitions */
 #define MPI3MR_DEV_RMHS_RETRY_COUNT 3
 
@@ -183,20 +185,6 @@ enum mpi3mr_iocstate {
 	MRIOC_STATE_UNRECOVERABLE,
 };
 
-/* Init type definitions */
-enum mpi3mr_init_type {
-	MPI3MR_IT_INIT = 0,
-	MPI3MR_IT_RESET,
-	MPI3MR_IT_RESUME,
-};
-
-/* Cleanup reason definitions */
-enum mpi3mr_cleanup_reason {
-	MPI3MR_COMPLETE_CLEANUP = 0,
-	MPI3MR_REINIT_FAILURE,
-	MPI3MR_SUSPEND,
-};
-
 /* Reset reason code definitions*/
 enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_BRINGUP = 1,
@@ -222,7 +210,14 @@ enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_GETPKGVER_TIMEOUT = 21,
 	MPI3MR_RESET_FROM_PELABORT_TIMEOUT = 22,
 	MPI3MR_RESET_FROM_SYSFS = 23,
-	MPI3MR_RESET_FROM_SYSFS_TIMEOUT = 24
+	MPI3MR_RESET_FROM_SYSFS_TIMEOUT = 24,
+	MPI3MR_RESET_FROM_FIRMWARE = 27,
+};
+
+/* Queue type definitions */
+enum queue_type {
+	MPI3MR_DEFAULT_QUEUE = 0,
+	MPI3MR_POLL_QUEUE,
 };
 
 /**
@@ -263,7 +258,7 @@ struct mpi3mr_ioc_facts {
 	u16 max_vds;
 	u16 max_hpds;
 	u16 max_advhpds;
-	u16 max_raidpds;
+	u16 max_raid_pds;
 	u16 min_devhandle;
 	u16 max_devhandle;
 	u16 max_op_req_q;
@@ -336,6 +331,7 @@ struct op_req_qinfo {
  * @pend_ios: Number of IOs pending in HW for this queue
  * @enable_irq_poll: Flag to indicate polling is enabled
  * @in_use: Queue is handled by poll/ISR
+ * @qtype: Type of queue (types defined in enum queue_type)
  */
 struct op_reply_qinfo {
 	u16 ci;
@@ -350,6 +346,7 @@ struct op_reply_qinfo {
 	atomic_t pend_ios;
 	bool enable_irq_poll;
 	atomic_t in_use;
+	enum queue_type qtype;
 };
 
 /**
@@ -388,6 +385,7 @@ struct tgt_dev_sas_sata {
  * @pgsz: Device page size
  * @abort_to: Timeout for abort TM
  * @reset_to: Timeout for Target/LUN reset TM
+ * @dev_info: Device information bits
  */
 struct tgt_dev_pcie {
 	u32 mdts;
@@ -395,6 +393,7 @@ struct tgt_dev_pcie {
 	u8 pgsz;
 	u8 abort_to;
 	u8 reset_to;
+	u16 dev_info;
 };
 
 /**
@@ -499,6 +498,8 @@ static inline void mpi3mr_tgtdev_put(struct mpi3mr_tgt_dev *s)
  * @dev_removedelay: Device is waiting to be removed in FW
  * @dev_type: Device type
  * @tgt_dev: Internal target device pointer
+ * @pend_count: Counter to track pending I/Os during error
+ *		handling
  */
 struct mpi3mr_stgt_priv_data {
 	struct scsi_target *starget;
@@ -510,6 +511,7 @@ struct mpi3mr_stgt_priv_data {
 	u8 dev_removedelay;
 	u8 dev_type;
 	struct mpi3mr_tgt_dev *tgt_dev;
+	u32 pend_count;
 };
 
 /**
@@ -518,11 +520,14 @@ struct mpi3mr_stgt_priv_data {
  * @tgt_priv_data: Scsi_target private data pointer
  * @lun_id: LUN ID of the device
  * @ncq_prio_enable: NCQ priority enable for SATA device
+ * @pend_count: Counter to track pending I/Os during error
+ *		handling
  */
 struct mpi3mr_sdev_priv_data {
 	struct mpi3mr_stgt_priv_data *tgt_priv_data;
 	u32 lun_id;
 	u8 ncq_prio_enable;
+	u32 pend_count;
 };
 
 /**
@@ -630,6 +635,7 @@ struct scmd_priv {
  * @ready_timeout: Controller ready timeout
  * @intr_info: Interrupt cookie pointer
  * @intr_info_count: Number of interrupt cookies
+ * @is_intr_info_set: Flag to indicate intr info is setup
  * @num_queues: Number of operational queues
  * @num_op_req_q: Number of operational request queues
  * @req_qinfo: Operational request queue info pointer
@@ -681,17 +687,23 @@ struct scmd_priv {
  * @chain_buf_lock: Chain buffer list lock
  * @host_tm_cmds: Command tracker for task management commands
  * @dev_rmhs_cmds: Command tracker for device removal commands
+ * @evtack_cmds: Command tracker for event ack commands
  * @devrem_bitmap_sz: Device removal bitmap size
  * @devrem_bitmap: Device removal bitmap
  * @dev_handle_bitmap_sz: Device handle bitmap size
  * @removepend_bitmap: Remove pending bitmap
  * @delayed_rmhs_list: Delayed device removal list
+ * @evtack_cmds_bitmap_sz: Event Ack bitmap size
+ * @evtack_cmds_bitmap: Event Ack bitmap
+ * @delayed_evtack_cmds_list: Delayed event acknowledgment list
  * @ts_update_counter: Timestamp update counter
- * @fault_dbg: Fault debug flag
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
+ * @prev_reset_result: Result of previous reset
  * @reset_mutex: Controller reset mutex
  * @reset_waitq: Controller reset  wait queue
+ * @prepare_for_reset: Prepare for reset event received
+ * @prepare_for_reset_timeout_counter: Prepare for reset timeout
  * @diagsave_timeout: Diagnostic information save timeout
  * @logging_level: Controller debug logging level
  * @flush_io_count: I/O count to flush after reset
@@ -699,6 +711,9 @@ struct scmd_priv {
  * @driver_info: Driver, Kernel, OS information to firmware
  * @change_count: Topology change count
  * @op_reply_q_offset: Operational reply queue offset with MSIx
+ * @default_qcount: Total Default queues
+ * @active_poll_qcount: Currently active poll queue count
+ * @requested_poll_qcount: User requested poll queue count
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -739,6 +754,7 @@ struct mpi3mr_ioc {
 
 	struct mpi3mr_intr_info *intr_info;
 	u16 intr_info_count;
+	bool is_intr_info_set;
 
 	u16 num_queues;
 	u16 num_op_req_q;
@@ -758,6 +774,7 @@ struct mpi3mr_ioc {
 	dma_addr_t reply_buf_dma_max_address;
 
 	u16 reply_free_qsz;
+	u16 reply_sz;
 	struct dma_pool *reply_free_q_pool;
 	__le64 *reply_free_q;
 	dma_addr_t reply_free_q_dma;
@@ -805,18 +822,25 @@ struct mpi3mr_ioc {
 
 	struct mpi3mr_drv_cmd host_tm_cmds;
 	struct mpi3mr_drv_cmd dev_rmhs_cmds[MPI3MR_NUM_DEVRMCMD];
+	struct mpi3mr_drv_cmd evtack_cmds[MPI3MR_NUM_EVTACKCMD];
 	u16 devrem_bitmap_sz;
 	void *devrem_bitmap;
 	u16 dev_handle_bitmap_sz;
 	void *removepend_bitmap;
 	struct list_head delayed_rmhs_list;
+	u16 evtack_cmds_bitmap_sz;
+	void *evtack_cmds_bitmap;
+	struct list_head delayed_evtack_cmds_list;
 
 	u32 ts_update_counter;
-	u8 fault_dbg;
 	u8 reset_in_progress;
 	u8 unrecoverable;
+	int prev_reset_result;
 	struct mutex reset_mutex;
 	wait_queue_head_t reset_waitq;
+
+	u8 prepare_for_reset;
+	u16 prepare_for_reset_timeout_counter;
 
 	u16 diagsave_timeout;
 	int logging_level;
@@ -826,6 +850,10 @@ struct mpi3mr_ioc {
 	struct mpi3_driver_info_layout driver_info;
 	u16 change_count;
 	u16 op_reply_q_offset;
+
+	u16 default_qcount;
+	u16 active_poll_qcount;
+	u16 requested_poll_qcount;
 };
 
 /**
@@ -867,10 +895,23 @@ struct delayed_dev_rmhs_node {
 	u8 iou_rc;
 };
 
+/**
+ * struct delayed_evt_ack_node - Delayed event ack node
+ * @list: list head
+ * @event: MPI3 event ID
+ * @event_ctx: event context
+ */
+struct delayed_evt_ack_node {
+	struct list_head list;
+	u8 event;
+	u32 event_ctx;
+};
+
 int mpi3mr_setup_resources(struct mpi3mr_ioc *mrioc);
 void mpi3mr_cleanup_resources(struct mpi3mr_ioc *mrioc);
-int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc, u8 init_type);
-void mpi3mr_cleanup_ioc(struct mpi3mr_ioc *mrioc, u8 reason);
+int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc);
+int mpi3mr_reinit_ioc(struct mpi3mr_ioc *mrioc, u8 is_resume);
+void mpi3mr_cleanup_ioc(struct mpi3mr_ioc *mrioc);
 int mpi3mr_issue_port_enable(struct mpi3mr_ioc *mrioc, u8 async);
 int mpi3mr_admin_request_post(struct mpi3mr_ioc *mrioc, void *admin_req,
 u16 admin_req_sz, u8 ignore_reset);
@@ -887,6 +928,7 @@ void mpi3mr_repost_sense_buf(struct mpi3mr_ioc *mrioc,
 				     u64 sense_buf_dma);
 
 void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc);
+void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc);
 void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 			     struct mpi3_event_notification_reply *event_reply);
 void mpi3mr_process_op_reply_desc(struct mpi3mr_ioc *mrioc,
@@ -897,13 +939,11 @@ void mpi3mr_stop_watchdog(struct mpi3mr_ioc *mrioc);
 
 int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 			      u32 reset_reason, u8 snapdump);
-int mpi3mr_diagfault_reset_handler(struct mpi3mr_ioc *mrioc,
-				   u32 reset_reason);
 void mpi3mr_ioc_disable_intr(struct mpi3mr_ioc *mrioc);
 void mpi3mr_ioc_enable_intr(struct mpi3mr_ioc *mrioc);
 
 enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_ioc *mrioc);
-int mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
+int mpi3mr_process_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
 			  u32 event_ctx);
 
 void mpi3mr_wait_for_host_io(struct mpi3mr_ioc *mrioc, u32 timeout);
@@ -911,6 +951,12 @@ void mpi3mr_cleanup_fwevt_list(struct mpi3mr_ioc *mrioc);
 void mpi3mr_flush_host_io(struct mpi3mr_ioc *mrioc);
 void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc);
 void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc);
-void mpi3mr_flush_delayed_rmhs_list(struct mpi3mr_ioc *mrioc);
+void mpi3mr_flush_delayed_cmd_lists(struct mpi3mr_ioc *mrioc);
+void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
+void mpi3mr_print_fault_info(struct mpi3mr_ioc *mrioc);
+void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code);
+int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
+	struct op_reply_qinfo *op_reply_q);
+int mpi3mr_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num);
 
 #endif /*MPI3MR_H_INCLUDED*/
