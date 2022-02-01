@@ -2058,7 +2058,7 @@ static void pqi_scsi_update_device(struct pqi_ctrl_info *ctrl_info,
 		sizeof(existing_device->box));
 	memcpy(existing_device->phys_connector, new_device->phys_connector,
 		sizeof(existing_device->phys_connector));
-	existing_device->next_bypass_group = 0;
+	memset(existing_device->next_bypass_group, 0, sizeof(existing_device->next_bypass_group));
 	kfree(existing_device->raid_map);
 	existing_device->raid_map = new_device->raid_map;
 	existing_device->raid_bypass_configured =
@@ -2963,11 +2963,11 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 		if (rmd.is_write) {
 			pqi_calc_aio_r1_nexus(raid_map, &rmd);
 		} else {
-			group = device->next_bypass_group;
+			group = device->next_bypass_group[rmd.map_index];
 			next_bypass_group = group + 1;
 			if (next_bypass_group >= rmd.layout_map_count)
 				next_bypass_group = 0;
-			device->next_bypass_group = next_bypass_group;
+			device->next_bypass_group[rmd.map_index] = next_bypass_group;
 			rmd.map_index += group * rmd.data_disks_per_row;
 		}
 	} else if ((device->raid_level == SA_RAID_5 ||

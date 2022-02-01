@@ -918,7 +918,8 @@ union pqi_reset_register {
 #define PQI_MAX_TRANSFER_SIZE			(1024U * 1024U)
 #define PQI_MAX_TRANSFER_SIZE_KDUMP		(512 * 1024U)
 
-#define RAID_MAP_MAX_ENTRIES		1024
+#define RAID_MAP_MAX_ENTRIES			1024
+#define RAID_MAP_MAX_DATA_DISKS_PER_ROW		128
 
 #define PQI_PHYSICAL_DEVICE_BUS		0
 #define PQI_RAID_VOLUME_BUS		1
@@ -1125,7 +1126,7 @@ struct pqi_scsi_dev {
 	u8	ncq_prio_support;
 	bool	raid_bypass_configured;	/* RAID bypass configured */
 	bool	raid_bypass_enabled;	/* RAID bypass enabled */
-	u32	next_bypass_group;
+	u32	next_bypass_group[RAID_MAP_MAX_DATA_DISKS_PER_ROW];
 	struct raid_map *raid_map;	/* RAID bypass map */
 	u32	max_transfer_encrypted;
 
