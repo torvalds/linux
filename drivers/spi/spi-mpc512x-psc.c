@@ -127,7 +127,7 @@ static void mpc512x_psc_spi_activate_cs(struct spi_device *spi)
 	out_be32(psc_addr(mps, ccr), ccr);
 	mps->bits_per_word = cs->bits_per_word;
 
-	if (cs->gpiod) {
+	if (spi->cs_gpiod) {
 		if (mps->cs_control)
 			/* boardfile override */
 			mps->cs_control(spi, (spi->mode & SPI_CS_HIGH) ? 1 : 0);
@@ -373,7 +373,6 @@ static int mpc512x_psc_spi_unprep_xfer_hw(struct spi_master *master)
 static int mpc512x_psc_spi_setup(struct spi_device *spi)
 {
 	struct mpc512x_psc_spi_cs *cs = spi->controller_state;
-	int ret;
 
 	if (spi->bits_per_word % 8)
 		return -EINVAL;
