@@ -82,6 +82,13 @@ struct gpio_array {
 };
 
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc, unsigned int hwnum);
+
+#define for_each_gpio_desc_with_flag(i, gc, desc, flag)		\
+	for (i = 0, desc = gpiochip_get_desc(gc, i);		\
+	     i < gc->ngpio;					\
+	     i++, desc = gpiochip_get_desc(gc, i))		\
+		if (!test_bit(flag, &desc->flags)) {} else
+
 int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 				  unsigned int array_size,
 				  struct gpio_desc **desc_array,
