@@ -394,7 +394,7 @@ static void wcn36xx_change_opchannel(struct wcn36xx *wcn, int ch)
 	struct ieee80211_vif *vif = NULL;
 	struct wcn36xx_vif *tmp;
 	struct ieee80211_supported_band *band;
-	struct ieee80211_channel *channel;
+	struct ieee80211_channel *channel = NULL;
 	unsigned long flags;
 	int i, j;
 
