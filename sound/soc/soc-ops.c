@@ -427,6 +427,7 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	int min = mc->min;
 	unsigned int mask = (1U << (fls(min + max) - 1)) - 1;
 	int err = 0;
+	int ret;
 	unsigned int val, val_mask;
 
 	if (ucontrol->value.integer.value[0] < 0)
@@ -443,6 +444,7 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	err = snd_soc_component_update_bits(component, reg, val_mask, val);
 	if (err < 0)
 		return err;
+	ret = err;
 
 	if (snd_soc_volsw_is_stereo(mc)) {
 		unsigned int val2;
@@ -453,6 +455,11 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 
 		err = snd_soc_component_update_bits(component, reg2, val_mask,
 			val2);
+
+		/* Don't discard any error code or drop change flag */
+		if (ret == 0 || err < 0) {
+			ret = err;
+		}
 	}
 	return err;
 }
