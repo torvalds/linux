@@ -519,7 +519,7 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 {
 	struct cxl_dport *dup;
 
-	cxl_device_lock(&port->dev);
+	device_lock_assert(&port->dev);
 	dup = find_dport(port, new->port_id);
 	if (dup)
 		dev_err(&port->dev,
@@ -528,7 +528,6 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 			dev_name(dup->dport));
 	else
 		list_add_tail(&new->list, &port->dports);
-	cxl_device_unlock(&port->dev);
 
 	return dup ? -EEXIST : 0;
 }

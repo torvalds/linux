@@ -342,7 +342,9 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 		return 0;
 	}
 
+	cxl_device_lock(&root_port->dev);
 	rc = cxl_add_dport(root_port, match, uid, ctx.chbcr);
+	cxl_device_unlock(&root_port->dev);
 	if (rc) {
 		dev_err(host, "failed to add downstream port: %s\n",
 			dev_name(match));
