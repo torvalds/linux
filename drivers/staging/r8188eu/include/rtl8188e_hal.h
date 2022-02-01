@@ -72,13 +72,6 @@ struct rt_firmware_hdr {
 #define DRIVER_EARLY_INT_TIME		0x05
 #define BCN_DMA_ATIME_INT_TIME		0x02
 
-enum usb_rx_agg_mode {
-	USB_RX_AGG_DISABLE,
-	USB_RX_AGG_DMA,
-	USB_RX_AGG_USB,
-	USB_RX_AGG_MIX
-};
-
 #define MAX_RX_DMA_BUFFER_SIZE_88E				\
       0x2400 /* 9k for 88E nornal chip , MaxRxBuff=10k-max(TxReportSize(64*8),
 	      * WOLPattern(16*24)) */
@@ -213,7 +206,6 @@ struct hal_data_8188e {
 
 	u32	UsbBulkOutSize;
 
-	enum usb_rx_agg_mode UsbRxAggMode;
 	u8	UsbRxAggBlockCount;	/*  USB Block count. Block size is
 					 * 512-byte in high speed and 64-byte
 					 * in full speed */

@@ -53,7 +53,6 @@ void rtl8188eu_interface_configure(struct adapter *adapt)
 	else
 		haldata->UsbBulkOutSize = USB_FULL_SPEED_BULK_SIZE;/* 64 bytes */
 
-	haldata->UsbRxAggMode		= USB_RX_AGG_DMA;/*  USB_RX_AGG_DMA; */
 	haldata->UsbRxAggBlockCount	= 8; /* unit : 512b */
 	haldata->UsbRxAggBlockTimeout	= 0x6;
 	haldata->UsbRxAggPageCount	= 48; /* uint :128 b 0x0A;	10 = MAX_RX_DMA_BUFFER_SIZE/2/haldata->UsbBulkOutSize */
@@ -443,50 +442,15 @@ usb_AggSettingRxUpdate(
 	valueDMA = rtw_read8(Adapter, REG_TRXDMA_CTRL);
 	valueUSB = rtw_read8(Adapter, REG_USB_SPECIAL_OPTION);
 
-	switch (haldata->UsbRxAggMode) {
-	case USB_RX_AGG_DMA:
-		valueDMA |= RXDMA_AGG_EN;
-		valueUSB &= ~USB_AGG_EN;
-		break;
-	case USB_RX_AGG_USB:
-		valueDMA &= ~RXDMA_AGG_EN;
-		valueUSB |= USB_AGG_EN;
-		break;
-	case USB_RX_AGG_MIX:
-		valueDMA |= RXDMA_AGG_EN;
-		valueUSB |= USB_AGG_EN;
-		break;
-	case USB_RX_AGG_DISABLE:
-	default:
-		valueDMA &= ~RXDMA_AGG_EN;
-		valueUSB &= ~USB_AGG_EN;
-		break;
-	}
+	valueDMA |= RXDMA_AGG_EN;
+	valueUSB &= ~USB_AGG_EN;
 
 	rtw_write8(Adapter, REG_TRXDMA_CTRL, valueDMA);
 	rtw_write8(Adapter, REG_USB_SPECIAL_OPTION, valueUSB);
 
-	switch (haldata->UsbRxAggMode) {
-	case USB_RX_AGG_DMA:
-		rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH, haldata->UsbRxAggPageCount);
-		rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH + 1, haldata->UsbRxAggPageTimeout);
-		break;
-	case USB_RX_AGG_USB:
-		rtw_write8(Adapter, REG_USB_AGG_TH, haldata->UsbRxAggBlockCount);
-		rtw_write8(Adapter, REG_USB_AGG_TO, haldata->UsbRxAggBlockTimeout);
-		break;
-	case USB_RX_AGG_MIX:
-		rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH, haldata->UsbRxAggPageCount);
-		rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH + 1, (haldata->UsbRxAggPageTimeout & 0x1F));/* 0x280[12:8] */
-		rtw_write8(Adapter, REG_USB_AGG_TH, haldata->UsbRxAggBlockCount);
-		rtw_write8(Adapter, REG_USB_AGG_TO, haldata->UsbRxAggBlockTimeout);
-		break;
-	case USB_RX_AGG_DISABLE:
-	default:
-		/*  TODO: */
-		break;
-	}
-}	/*  usb_AggSettingRxUpdate */
+	rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH, haldata->UsbRxAggPageCount);
+	rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH + 1, haldata->UsbRxAggPageTimeout);
+}
 
 static void InitUsbAggregationSetting(struct adapter *Adapter)
 {

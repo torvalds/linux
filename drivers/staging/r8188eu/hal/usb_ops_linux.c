@@ -295,18 +295,8 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 
 		recvframe_put(precvframe, skb_len);
 
-		switch (haldata->UsbRxAggMode) {
-		case USB_RX_AGG_DMA:
-		case USB_RX_AGG_MIX:
-			pkt_offset = (u16)_RND128(pkt_offset);
-			break;
-		case USB_RX_AGG_USB:
-			pkt_offset = (u16)_RND4(pkt_offset);
-			break;
-		case USB_RX_AGG_DISABLE:
-		default:
-			break;
-		}
+		pkt_offset = (u16)_RND128(pkt_offset);
+
 		if (pattrib->pkt_rpt_type == NORMAL_RX) { /* Normal rx packet */
 			if (pattrib->physt)
 				update_recvframe_phyinfo_88e(precvframe, (struct phy_stat *)pphy_status);
