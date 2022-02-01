@@ -8976,10 +8976,19 @@ static void pqi_process_module_params(void)
 	pqi_process_lockup_action_param();
 }
 
+static inline enum bmic_flush_cache_shutdown_event pqi_get_flush_cache_shutdown_event(struct pci_dev *pci_dev)
+{
+	if (pci_dev->subsystem_vendor == PCI_VENDOR_ID_ADAPTEC2 && pci_dev->subsystem_device == 0x1304)
+		return RESTART;
+	return SUSPEND;
+}
+
 static __maybe_unused int pqi_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct pqi_ctrl_info *ctrl_info;
+	enum bmic_flush_cache_shutdown_event shutdown_event;
 
+	shutdown_event = pqi_get_flush_cache_shutdown_event(pci_dev);
 	ctrl_info = pci_get_drvdata(pci_dev);
 
 	pqi_wait_until_ofa_finished(ctrl_info);
@@ -8989,7 +8998,7 @@ static __maybe_unused int pqi_suspend(struct pci_dev *pci_dev, pm_message_t stat
 	pqi_ctrl_block_device_reset(ctrl_info);
 	pqi_ctrl_block_requests(ctrl_info);
 	pqi_ctrl_wait_until_quiesced(ctrl_info);
-	pqi_flush_cache(ctrl_info, SUSPEND);
+	pqi_flush_cache(ctrl_info, shutdown_event);
 	pqi_stop_heartbeat_timer(ctrl_info);
 
 	pqi_crash_if_pending_command(ctrl_info);
