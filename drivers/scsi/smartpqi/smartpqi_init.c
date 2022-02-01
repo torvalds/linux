@@ -54,6 +54,7 @@ MODULE_DESCRIPTION("Driver for Microchip Smart Family Controller version "
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
+static void pqi_verify_structures(void);
 static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info,
 	enum pqi_ctrl_shutdown_reason ctrl_shutdown_reason);
 static void pqi_ctrl_offline_worker(struct work_struct *work);
@@ -9703,6 +9704,8 @@ static int __init pqi_init(void)
 	int rc;
 
 	pr_info(DRIVER_NAME "\n");
+	pqi_verify_structures();
+	sis_verify_structures();
 
 	pqi_sas_transport_template = sas_attach_transport(&pqi_sas_transport_functions);
 	if (!pqi_sas_transport_template)
@@ -9726,7 +9729,7 @@ static void __exit pqi_cleanup(void)
 module_init(pqi_init);
 module_exit(pqi_cleanup);
 
-static void __attribute__((unused)) verify_structures(void)
+static void pqi_verify_structures(void)
 {
 	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
 		sis_host_to_ctrl_doorbell) != 0x20);
