@@ -982,6 +982,8 @@ The syntax is quite similar. The difference is to use "userprogs" instead of
 
 	When linking bpfilter_umh, it will be passed the extra option -static.
 
+	From command line, :ref:`USERCFLAGS and USERLDFLAGS <userkbuildflags>` will also be used.
+
 5.4 When userspace programs are actually built
 ----------------------------------------------
 

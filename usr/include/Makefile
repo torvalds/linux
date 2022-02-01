@@ -12,6 +12,9 @@ UAPI_CFLAGS := -std=c90 -Wall -Werror=implicit-function-declaration
 # It is here just because CONFIG_CC_CAN_LINK is tested with -m32 or -m64.
 UAPI_CFLAGS += $(filter -m32 -m64, $(KBUILD_CFLAGS))
 
+# USERCFLAGS might contain sysroot location for CC.
+UAPI_CFLAGS += $(USERCFLAGS)
+
 override c_flags = $(UAPI_CFLAGS) -Wp,-MMD,$(depfile) -I$(objtree)/usr/include
 
 # The following are excluded for now because they fail to build.
