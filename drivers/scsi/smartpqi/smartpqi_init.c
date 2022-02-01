@@ -1588,9 +1588,6 @@ static int pqi_get_physical_device_info(struct pqi_ctrl_info *ctrl_info,
 		sizeof(device->phys_connector));
 	device->bay = id_phys->phys_bay_in_box;
 
-	memcpy(&device->page_83_identifier, &id_phys->page_83_identifier,
-		sizeof(device->page_83_identifier));
-
 	if ((id_phys->even_more_flags & PQI_DEVICE_PHY_MAP_SUPPORTED) &&
 		id_phys->phy_count)
 		device->phy_id =
@@ -2281,18 +2278,6 @@ static inline void pqi_mask_device(u8 *scsi3addr)
 	scsi3addr[3] |= 0xc0;
 }
 
-static inline bool pqi_is_device_with_sas_address(struct pqi_scsi_dev *device)
-{
-	switch (device->device_type) {
-	case SA_DEVICE_TYPE_SAS:
-	case SA_DEVICE_TYPE_EXPANDER_SMP:
-	case SA_DEVICE_TYPE_SES:
-		return true;
-	}
-
-	return false;
-}
-
 static inline bool pqi_is_multipath_device(struct pqi_scsi_dev *device)
 {
 	if (pqi_is_logical_device(device))
@@ -2304,17 +2289,6 @@ static inline bool pqi_is_multipath_device(struct pqi_scsi_dev *device)
 static inline bool pqi_expose_device(struct pqi_scsi_dev *device)
 {
 	return !device->is_physical_device || !pqi_skip_device(device->scsi3addr);
-}
-
-static inline void pqi_set_physical_device_wwid(struct pqi_ctrl_info *ctrl_info,
-	struct pqi_scsi_dev *device, struct report_phys_lun_16byte_wwid *phys_lun)
-{
-	if (ctrl_info->unique_wwid_in_report_phys_lun_supported ||
-		ctrl_info->rpl_extended_format_4_5_supported ||
-		pqi_is_device_with_sas_address(device))
-		memcpy(device->wwid, phys_lun->wwid, sizeof(device->wwid));
-	else
-		memcpy(&device->wwid[8], device->page_83_identifier, 8);
 }
 
 static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
@@ -2484,7 +2458,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		pqi_assign_bus_target_lun(device);
 
 		if (device->is_physical_device) {
-			pqi_set_physical_device_wwid(ctrl_info, device, phys_lun);
+			memcpy(device->wwid, phys_lun->wwid, sizeof(device->wwid));
 			if ((phys_lun->device_flags &
 				CISS_REPORT_PHYS_DEV_FLAG_AIO_ENABLED) &&
 				phys_lun->aio_handle) {
@@ -2497,8 +2471,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 				sizeof(device->volume_id));
 		}
 
-		if (pqi_is_device_with_sas_address(device))
-			device->sas_address = get_unaligned_be64(&device->wwid[8]);
+		device->sas_address = get_unaligned_be64(&device->wwid[8]);
 
 		new_device_list[num_valid_devices++] = device;
 	}
@@ -7087,7 +7060,7 @@ static ssize_t pqi_sas_address_show(struct device *dev,
 	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
 
 	device = sdev->hostdata;
-	if (!device || !pqi_is_device_with_sas_address(device)) {
+	if (!device) {
 		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 		return -ENODEV;
 	}
@@ -7643,10 +7616,6 @@ static void pqi_ctrl_update_feature_flags(struct pqi_ctrl_info *ctrl_info,
 	case PQI_FIRMWARE_FEATURE_TMF_IU_TIMEOUT:
 		ctrl_info->tmf_iu_timeout_supported = firmware_feature->enabled;
 		break;
-	case PQI_FIRMWARE_FEATURE_UNIQUE_WWID_IN_REPORT_PHYS_LUN:
-		ctrl_info->unique_wwid_in_report_phys_lun_supported =
-			firmware_feature->enabled;
-		break;
 	case PQI_FIRMWARE_FEATURE_FW_TRIAGE:
 		ctrl_info->firmware_triage_supported = firmware_feature->enabled;
 		pqi_save_fw_triage_setting(ctrl_info, firmware_feature->enabled);
@@ -7743,11 +7712,6 @@ static struct pqi_firmware_feature pqi_firmware_features[] = {
 		.feature_name = "RAID Bypass on encrypted logical volumes on NVMe",
 		.feature_bit = PQI_FIRMWARE_FEATURE_RAID_BYPASS_ON_ENCRYPTED_NVME,
 		.feature_status = pqi_firmware_feature_status,
-	},
-	{
-		.feature_name = "Unique WWID in Report Physical LUN",
-		.feature_bit = PQI_FIRMWARE_FEATURE_UNIQUE_WWID_IN_REPORT_PHYS_LUN,
-		.feature_status = pqi_ctrl_update_feature_flags,
 	},
 	{
 		.feature_name = "Firmware Triage",
@@ -7858,7 +7822,6 @@ static void pqi_ctrl_reset_config(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->enable_r6_writes = false;
 	ctrl_info->raid_iu_timeout_supported = false;
 	ctrl_info->tmf_iu_timeout_supported = false;
-	ctrl_info->unique_wwid_in_report_phys_lun_supported = false;
 	ctrl_info->firmware_triage_supported = false;
 	ctrl_info->rpl_extended_format_4_5_supported = false;
 }

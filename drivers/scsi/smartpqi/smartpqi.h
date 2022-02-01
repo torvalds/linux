@@ -1141,7 +1141,6 @@ struct pqi_scsi_dev {
 	struct pqi_stream_data stream_data[NUM_STREAMS_PER_LUN];
 	atomic_t scsi_cmds_outstanding;
 	atomic_t raid_bypass_cnt;
-	u8	page_83_identifier[16];
 };
 
 /* VPD inquiry pages */
@@ -1331,7 +1330,6 @@ struct pqi_ctrl_info {
 	u8		soft_reset_handshake_supported : 1;
 	u8		raid_iu_timeout_supported : 1;
 	u8		tmf_iu_timeout_supported : 1;
-	u8		unique_wwid_in_report_phys_lun_supported : 1;
 	u8		firmware_triage_supported : 1;
 	u8		rpl_extended_format_4_5_supported : 1;
 	u8		enable_r1_writes : 1;
