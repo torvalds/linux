@@ -130,48 +130,6 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	return 0;
 }
 
-__mock int match_add_root_ports(struct pci_dev *pdev, void *data)
-{
-	resource_size_t creg = CXL_RESOURCE_NONE;
-	struct cxl_walk_context *ctx = data;
-	struct pci_bus *root_bus = ctx->root;
-	struct cxl_port *port = ctx->port;
-	int type = pci_pcie_type(pdev);
-	struct device *dev = ctx->dev;
-	struct cxl_register_map map;
-	u32 lnkcap, port_num;
-	int rc;
-
-	if (pdev->bus != root_bus)
-		return 0;
-	if (!pci_is_pcie(pdev))
-		return 0;
-	if (type != PCI_EXP_TYPE_ROOT_PORT)
-		return 0;
-	if (pci_read_config_dword(pdev, pci_pcie_cap(pdev) + PCI_EXP_LNKCAP,
-				  &lnkcap) != PCIBIOS_SUCCESSFUL)
-		return 0;
-
-	/* The driver doesn't rely on component registers for Root Ports yet. */
-	rc = cxl_find_regblock(pdev, CXL_REGLOC_RBI_COMPONENT, &map);
-	if (!rc)
-		dev_info(&pdev->dev, "No component register block found\n");
-
-	creg = cxl_regmap_to_base(pdev, &map);
-
-	port_num = FIELD_GET(PCI_EXP_LNKCAP_PN, lnkcap);
-	rc = cxl_add_dport(port, &pdev->dev, port_num, creg);
-	if (rc) {
-		ctx->error = rc;
-		return rc;
-	}
-	ctx->count++;
-
-	dev_dbg(dev, "add dport%d: %s\n", port_num, dev_name(&pdev->dev));
-
-	return 0;
-}
-
 static struct cxl_dport *find_dport_by_dev(struct cxl_port *port, struct device *dev)
 {
 	struct cxl_dport *dport;
@@ -210,7 +168,6 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	struct device *host = root_port->dev.parent;
 	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
 	struct acpi_pci_root *pci_root;
-	struct cxl_walk_context ctx;
 	int single_port_map[1], rc;
 	struct cxl_decoder *cxld;
 	struct cxl_dport *dport;
@@ -240,18 +197,10 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 		return PTR_ERR(port);
 	dev_dbg(host, "%s: add: %s\n", dev_name(match), dev_name(&port->dev));
 
-	ctx = (struct cxl_walk_context){
-		.dev = host,
-		.root = pci_root->bus,
-		.port = port,
-	};
-	pci_walk_bus(pci_root->bus, match_add_root_ports, &ctx);
-
-	if (ctx.count == 0)
-		return -ENODEV;
-	if (ctx.error)
-		return ctx.error;
-	if (ctx.count > 1)
+	rc = devm_cxl_port_enumerate_dports(host, port);
+	if (rc < 0)
+		return rc;
+	if (rc > 1)
 		return 0;
 
 	/* TODO: Scan CHBCR for HDM Decoder resources */
@@ -311,9 +260,9 @@ static int cxl_get_chbcr(union acpi_subtable_headers *header, void *arg,
 
 static int add_host_bridge_dport(struct device *match, void *arg)
 {
-	int rc;
 	acpi_status status;
 	unsigned long long uid;
+	struct cxl_dport *dport;
 	struct cxl_chbs_context ctx;
 	struct cxl_port *root_port = arg;
 	struct device *host = root_port->dev.parent;
@@ -343,12 +292,12 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	}
 
 	cxl_device_lock(&root_port->dev);
-	rc = cxl_add_dport(root_port, match, uid, ctx.chbcr);
+	dport = devm_cxl_add_dport(host, root_port, match, uid, ctx.chbcr);
 	cxl_device_unlock(&root_port->dev);
-	if (rc) {
+	if (IS_ERR(dport)) {
 		dev_err(host, "failed to add downstream port: %s\n",
 			dev_name(match));
-		return rc;
+		return PTR_ERR(dport);
 	}
 	dev_dbg(host, "add dport%llu: %s\n", uid, dev_name(match));
 	return 0;

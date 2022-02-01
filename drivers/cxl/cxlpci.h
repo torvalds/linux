@@ -57,4 +57,5 @@ static inline resource_size_t cxl_regmap_to_base(struct pci_dev *pdev,
 	return pci_resource_start(pdev, map->barno) + map->block_offset;
 }
 
+int devm_cxl_port_enumerate_dports(struct device *host, struct cxl_port *port);
 #endif /* __CXL_PCI_H__ */

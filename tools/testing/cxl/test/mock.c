@@ -7,6 +7,8 @@
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include <cxlmem.h>
+#include <cxlpci.h>
 #include "mock.h"
 
 static LIST_HEAD(mock);
@@ -114,32 +116,6 @@ struct acpi_pci_root *__wrap_acpi_pci_find_root(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(__wrap_acpi_pci_find_root);
 
-void __wrap_pci_walk_bus(struct pci_bus *bus,
-			 int (*cb)(struct pci_dev *, void *), void *userdata)
-{
-	int index;
-	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
-
-	if (ops && ops->is_mock_bus(bus)) {
-		int rc, i;
-
-		/*
-		 * Simulate 2 root ports per host-bridge and no
-		 * depth recursion.
-		 */
-		for (i = 0; i < 2; i++) {
-			rc = cb((struct pci_dev *) ops->mock_port(bus, i),
-				userdata);
-			if (rc)
-				break;
-		}
-	} else
-		pci_walk_bus(bus, cb, userdata);
-
-	put_cxl_mock_ops(index);
-}
-EXPORT_SYMBOL_GPL(__wrap_pci_walk_bus);
-
 struct nvdimm_bus *
 __wrap_nvdimm_bus_register(struct device *dev,
 			   struct nvdimm_bus_descriptor *nd_desc)
@@ -155,5 +131,22 @@ __wrap_nvdimm_bus_register(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__wrap_nvdimm_bus_register);
 
+int __wrap_devm_cxl_port_enumerate_dports(struct device *host,
+					  struct cxl_port *port)
+{
+	int rc, index;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops && ops->is_mock_port(port->uport))
+		rc = ops->devm_cxl_port_enumerate_dports(host, port);
+	else
+		rc = devm_cxl_port_enumerate_dports(host, port);
+	put_cxl_mock_ops(index);
+
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_port_enumerate_dports, CXL);
+
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(ACPI);
+MODULE_IMPORT_NS(CXL);

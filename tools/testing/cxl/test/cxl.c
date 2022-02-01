@@ -317,6 +317,19 @@ static bool is_mock_bridge(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(cxl_host_bridge); i++)
 		if (dev == &cxl_host_bridge[i]->dev)
 			return true;
+	return false;
+}
+
+static bool is_mock_port(struct device *dev)
+{
+	int i;
+
+	if (is_mock_bridge(dev))
+		return true;
+
+	for (i = 0; i < ARRAY_SIZE(cxl_root_port); i++)
+		if (dev == &cxl_root_port[i]->dev)
+			return true;
 
 	return false;
 }
@@ -366,26 +379,6 @@ static struct acpi_pci_root mock_pci_root[NR_CXL_HOST_BRIDGES] = {
 	},
 };
 
-static struct platform_device *mock_cxl_root_port(struct pci_bus *bus, int index)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mock_pci_bus); i++)
-		if (bus == &mock_pci_bus[i])
-			return cxl_root_port[index + i * NR_CXL_ROOT_PORTS];
-	return NULL;
-}
-
-static bool is_mock_port(struct platform_device *pdev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(cxl_root_port); i++)
-		if (pdev == cxl_root_port[i])
-			return true;
-	return false;
-}
-
 static bool is_mock_bus(struct pci_bus *bus)
 {
 	int i;
@@ -405,16 +398,47 @@ static struct acpi_pci_root *mock_acpi_pci_find_root(acpi_handle handle)
 	return &mock_pci_root[host_bridge_index(adev)];
 }
 
+static int mock_cxl_port_enumerate_dports(struct device *host,
+					  struct cxl_port *port)
+{
+	struct device *dev = &port->dev;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cxl_root_port); i++) {
+		struct platform_device *pdev = cxl_root_port[i];
+		struct cxl_dport *dport;
+
+		if (pdev->dev.parent != port->uport)
+			continue;
+
+		cxl_device_lock(&port->dev);
+		dport = devm_cxl_add_dport(host, port, &pdev->dev, pdev->id,
+					   CXL_RESOURCE_NONE);
+		cxl_device_unlock(&port->dev);
+
+		if (IS_ERR(dport)) {
+			dev_err(dev, "failed to add dport: %s (%ld)\n",
+				dev_name(&pdev->dev), PTR_ERR(dport));
+			return PTR_ERR(dport);
+		}
+
+		dev_dbg(dev, "add dport%d: %s\n", pdev->id,
+			dev_name(&pdev->dev));
+	}
+
+	return 0;
+}
+
 static struct cxl_mock_ops cxl_mock_ops = {
 	.is_mock_adev = is_mock_adev,
 	.is_mock_bridge = is_mock_bridge,
 	.is_mock_bus = is_mock_bus,
 	.is_mock_port = is_mock_port,
 	.is_mock_dev = is_mock_dev,
-	.mock_port = mock_cxl_root_port,
 	.acpi_table_parse_cedt = mock_acpi_table_parse_cedt,
 	.acpi_evaluate_integer = mock_acpi_evaluate_integer,
 	.acpi_pci_find_root = mock_acpi_pci_find_root,
+	.devm_cxl_port_enumerate_dports = mock_cxl_port_enumerate_dports,
 	.list = LIST_HEAD_INIT(cxl_mock_ops.list),
 };
 
@@ -598,3 +622,4 @@ module_init(cxl_test_init);
 module_exit(cxl_test_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(ACPI);
+MODULE_IMPORT_NS(CXL);

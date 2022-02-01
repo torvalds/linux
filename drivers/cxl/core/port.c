@@ -243,22 +243,10 @@ struct cxl_decoder *to_cxl_decoder(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_decoder, CXL);
 
-static void cxl_dport_release(struct cxl_dport *dport)
-{
-	list_del(&dport->list);
-	put_device(dport->dport);
-	kfree(dport);
-}
-
 static void cxl_port_release(struct device *dev)
 {
 	struct cxl_port *port = to_cxl_port(dev);
-	struct cxl_dport *dport, *_d;
 
-	cxl_device_lock(dev);
-	list_for_each_entry_safe(dport, _d, &port->dports, list)
-		cxl_dport_release(dport);
-	cxl_device_unlock(dev);
 	ida_free(&cxl_port_ida, port->id);
 	kfree(port);
 }
@@ -292,18 +280,7 @@ EXPORT_SYMBOL_NS_GPL(to_cxl_port, CXL);
 static void unregister_port(void *_port)
 {
 	struct cxl_port *port = _port;
-	struct cxl_dport *dport;
 
-	cxl_device_lock(&port->dev);
-	list_for_each_entry(dport, &port->dports, list) {
-		char link_name[CXL_TARGET_STRLEN];
-
-		if (snprintf(link_name, CXL_TARGET_STRLEN, "dport%d",
-			     dport->port_id) >= CXL_TARGET_STRLEN)
-			continue;
-		sysfs_remove_link(&port->dev.kobj, link_name);
-	}
-	cxl_device_unlock(&port->dev);
 	device_unregister(&port->dev);
 }
 
@@ -532,51 +509,87 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 	return dup ? -EEXIST : 0;
 }
 
+static void cxl_dport_remove(void *data)
+{
+	struct cxl_dport *dport = data;
+	struct cxl_port *port = dport->port;
+
+	put_device(dport->dport);
+	cxl_device_lock(&port->dev);
+	list_del(&dport->list);
+	cxl_device_unlock(&port->dev);
+}
+
+static void cxl_dport_unlink(void *data)
+{
+	struct cxl_dport *dport = data;
+	struct cxl_port *port = dport->port;
+	char link_name[CXL_TARGET_STRLEN];
+
+	sprintf(link_name, "dport%d", dport->port_id);
+	sysfs_remove_link(&port->dev.kobj, link_name);
+}
+
 /**
- * cxl_add_dport - append downstream port data to a cxl_port
+ * devm_cxl_add_dport - append downstream port data to a cxl_port
+ * @host: devm context for allocations
  * @port: the cxl_port that references this dport
  * @dport_dev: firmware or PCI device representing the dport
  * @port_id: identifier for this dport in a decoder's target list
  * @component_reg_phys: optional location of CXL component registers
  *
- * Note that all allocations and links are undone by cxl_port deletion
- * and release.
+ * Note that dports are appended to the devm release action's of the
+ * either the port's host (for root ports), or the port itself (for
+ * switch ports)
  */
-int cxl_add_dport(struct cxl_port *port, struct device *dport_dev, int port_id,
-		  resource_size_t component_reg_phys)
+struct cxl_dport *devm_cxl_add_dport(struct device *host, struct cxl_port *port,
+				     struct device *dport_dev, int port_id,
+				     resource_size_t component_reg_phys)
 {
 	char link_name[CXL_TARGET_STRLEN];
 	struct cxl_dport *dport;
 	int rc;
 
+	if (!host->driver) {
+		dev_WARN_ONCE(&port->dev, 1, "dport:%s bad devm context\n",
+			      dev_name(dport_dev));
+		return ERR_PTR(-ENXIO);
+	}
+
 	if (snprintf(link_name, CXL_TARGET_STRLEN, "dport%d", port_id) >=
 	    CXL_TARGET_STRLEN)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
-	dport = kzalloc(sizeof(*dport), GFP_KERNEL);
+	dport = devm_kzalloc(host, sizeof(*dport), GFP_KERNEL);
 	if (!dport)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&dport->list);
-	dport->dport = get_device(dport_dev);
+	dport->dport = dport_dev;
 	dport->port_id = port_id;
 	dport->component_reg_phys = component_reg_phys;
 	dport->port = port;
 
 	rc = add_dport(port, dport);
 	if (rc)
-		goto err;
+		return ERR_PTR(rc);
+
+	get_device(dport_dev);
+	rc = devm_add_action_or_reset(host, cxl_dport_remove, dport);
+	if (rc)
+		return ERR_PTR(rc);
 
 	rc = sysfs_create_link(&port->dev.kobj, &dport_dev->kobj, link_name);
 	if (rc)
-		goto err;
+		return ERR_PTR(rc);
 
-	return 0;
-err:
-	cxl_dport_release(dport);
-	return rc;
+	rc = devm_add_action_or_reset(host, cxl_dport_unlink, dport);
+	if (rc)
+		return ERR_PTR(rc);
+
+	return dport;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_add_dport, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_dport, CXL);
 
 static int decoder_populate_targets(struct cxl_decoder *cxld,
 				    struct cxl_port *port, int *target_map)
