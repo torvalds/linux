@@ -141,6 +141,9 @@ struct txpowerinfo24g {
 
 #define EFUSE_PROTECT_BYTES_BANK	16
 
+#define USB_RXAGG_PAGE_COUNT	48
+#define USB_RXAGG_PAGE_TIMEOUT	0x4
+
 struct hal_data_8188e {
 	struct HAL_VERSION	VersionID;
 	/* current WIFI_PHY values */
@@ -205,9 +208,6 @@ struct hal_data_8188e {
 	u8	bMacPwrCtrlOn;
 
 	u32	UsbBulkOutSize;
-
-	u8	UsbRxAggPageCount;	/*  8192C DMA page count */
-	u8	UsbRxAggPageTimeout;
 };
 
 s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy);
