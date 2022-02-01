@@ -2291,6 +2291,14 @@ static inline bool pqi_is_device_with_sas_address(struct pqi_scsi_dev *device)
 	return false;
 }
 
+static inline bool pqi_is_multipath_device(struct pqi_scsi_dev *device)
+{
+	if (pqi_is_logical_device(device))
+		return false;
+
+	return (device->path_map & (device->path_map - 1)) != 0;
+}
+
 static inline bool pqi_expose_device(struct pqi_scsi_dev *device)
 {
 	return !device->is_physical_device || !pqi_skip_device(device->scsi3addr);
@@ -3216,12 +3224,14 @@ static void pqi_process_aio_io_error(struct pqi_io_request *io_request)
 	int residual_count;
 	int xfer_count;
 	bool device_offline;
+	struct pqi_scsi_dev *device;
 
 	scmd = io_request->scmd;
 	error_info = io_request->error_info;
 	host_byte = DID_OK;
 	sense_data_length = 0;
 	device_offline = false;
+	device = scmd->device->hostdata;
 
 	switch (error_info->service_response) {
 	case PQI_AIO_SERV_RESPONSE_COMPLETE:
@@ -3246,8 +3256,14 @@ static void pqi_process_aio_io_error(struct pqi_io_request *io_request)
 			break;
 		case PQI_AIO_STATUS_AIO_PATH_DISABLED:
 			pqi_aio_path_disabled(io_request);
-			scsi_status = SAM_STAT_GOOD;
-			io_request->status = -EAGAIN;
+			if (pqi_is_multipath_device(device)) {
+				pqi_device_remove_start(device);
+				host_byte = DID_NO_CONNECT;
+				scsi_status = SAM_STAT_CHECK_CONDITION;
+			} else {
+				scsi_status = SAM_STAT_GOOD;
+				io_request->status = -EAGAIN;
+			}
 			break;
 		case PQI_AIO_STATUS_NO_PATH_TO_DEVICE:
 		case PQI_AIO_STATUS_INVALID_DEVICE:
