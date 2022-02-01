@@ -862,6 +862,7 @@ static bool dc_construct_ctx(struct dc *dc,
 	dc_ctx->dc_sink_id_count = 0;
 	dc_ctx->dc_stream_id_count = 0;
 	dc_ctx->dce_environment = init_params->dce_environment;
+	dc_ctx->dcn_reg_offsets = init_params->dcn_reg_offsets;
 
 	/* Create logger */
 
@@ -1240,6 +1241,8 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 		if (dc->res_pool->dmcu != NULL)
 			dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
 	}
+
+	dc->dcn_reg_offsets = init_params->dcn_reg_offsets;
 
 	/* Populate versioning information */
 	dc->versions.dc_ver = DC_VER;

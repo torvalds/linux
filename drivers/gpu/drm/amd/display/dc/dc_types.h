@@ -876,7 +876,7 @@ struct dc_context {
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
 #endif
-
+	uint32_t *dcn_reg_offsets;
 };
 
 /* DSC DPCD capabilities */

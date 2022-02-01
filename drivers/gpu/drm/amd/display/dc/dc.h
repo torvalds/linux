@@ -808,6 +808,8 @@ struct dc {
 
 	const char *build_id;
 	struct vm_helper *vm_helper;
+
+	uint32_t *dcn_reg_offsets;
 };
 
 enum frame_buffer_mode {
@@ -847,6 +849,14 @@ struct dc_init_data {
 
 	struct dpcd_vendor_signature vendor_signature;
 	bool force_smu_not_present;
+	/*
+	 * IP offset for run time initializaion of register addresses
+	 *
+	 * DCN3.5+ will fail dc_create() if these fields are null for them. They are
+	 * applicable starting with DCN32/321 and are not used for ASICs upstreamed
+	 * before them.
+	 */
+	uint32_t *dcn_reg_offsets;
 };
 
 struct dc_callback_init {
