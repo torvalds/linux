@@ -256,6 +256,7 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 	struct stmpe_adc *info;
 	struct device_node *np;
 	u32 norequest_mask = 0;
+	unsigned long bits;
 	int irq_temp, irq_adc;
 	int num_chan = 0;
 	int i = 0;
@@ -309,8 +310,8 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "st,norequest-mask", &norequest_mask);
 
-	for_each_clear_bit(i, (unsigned long *) &norequest_mask,
-			   (STMPE_ADC_LAST_NR + 1)) {
+	bits = norequest_mask;
+	for_each_clear_bit(i, &bits, (STMPE_ADC_LAST_NR + 1)) {
 		stmpe_adc_voltage_chan(&info->stmpe_adc_iio_channels[num_chan], i);
 		num_chan++;
 	}

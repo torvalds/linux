@@ -80,7 +80,7 @@ static int powernv_get_random_darn(unsigned long *v)
 	return 1;
 }
 
-static int initialise_darn(void)
+static int __init initialise_darn(void)
 {
 	unsigned long val;
 	int i;

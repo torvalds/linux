@@ -65,6 +65,7 @@ static int __init ill_acc_of_setup(void)
 	}
 
 	irq = irq_of_parse_and_map(np, 0);
+	of_node_put(np);
 	if (!irq) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		put_device(&pdev->dev);

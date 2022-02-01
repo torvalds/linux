@@ -22,8 +22,7 @@
  */
 
 #include <linux/module.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
 
 /*
  * PCI-1760 Register Map

@@ -710,7 +710,7 @@ static struct kobj_attribute cache_shared_cpu_list_attr =
 	__ATTR(shared_cpu_list, 0444, shared_cpu_list_show, NULL);
 
 /* Attributes which should always be created -- the kobject/sysfs core
- * does this automatically via kobj_type->default_attrs.  This is the
+ * does this automatically via kobj_type->default_groups.  This is the
  * minimum data required to uniquely identify a cache.
  */
 static struct attribute *cache_index_default_attrs[] = {
@@ -720,6 +720,7 @@ static struct attribute *cache_index_default_attrs[] = {
 	&cache_shared_cpu_list_attr.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(cache_index_default);
 
 /* Attributes which should be created if the cache device node has the
  * right properties -- see cacheinfo_create_index_opt_attrs
@@ -738,7 +739,7 @@ static const struct sysfs_ops cache_index_ops = {
 static struct kobj_type cache_index_type = {
 	.release = cache_index_release,
 	.sysfs_ops = &cache_index_ops,
-	.default_attrs = cache_index_default_attrs,
+	.default_groups = cache_index_default_groups,
 };
 
 static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)

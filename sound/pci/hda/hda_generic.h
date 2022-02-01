@@ -183,7 +183,7 @@ struct hda_gen_spec {
 	struct automic_entry am_entry[MAX_AUTO_MIC_PINS];
 
 	/* for pin sensing */
-	/* current status; set in hda_geneic.c */
+	/* current status; set in hda_generic.c */
 	unsigned int hp_jack_present:1;
 	unsigned int line_jack_present:1;
 	unsigned int speaker_muted:1; /* current status of speaker mute */

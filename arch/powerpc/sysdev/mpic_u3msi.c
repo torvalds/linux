@@ -169,7 +169,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	return 0;
 }
 
-int mpic_u3msi_init(struct mpic *mpic)
+int __init mpic_u3msi_init(struct mpic *mpic)
 {
 	int rc;
 	struct pci_controller *phb;

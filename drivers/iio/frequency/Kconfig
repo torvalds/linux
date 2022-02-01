@@ -50,6 +50,16 @@ config ADF4371
 	  To compile this driver as a module, choose M here: the
 	  module will be called adf4371.
 
+config ADMV1013
+	tristate "Analog Devices ADMV1013 Microwave Upconverter"
+	depends on SPI && COMMON_CLK
+	help
+	  Say yes here to build support for Analog Devices ADMV1013
+	  24 GHz to 44 GHz, Wideband, Microwave Upconverter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called admv1013.
+
 config ADRF6780
         tristate "Analog Devices ADRF6780 Microwave Upconverter"
         depends on SPI

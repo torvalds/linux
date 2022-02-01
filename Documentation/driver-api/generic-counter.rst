@@ -262,11 +262,11 @@ order to communicate with the device: to read and write various Signals
 and Counts, and to set and get the "action mode" and "function mode" for
 various Synapses and Counts respectively.
 
-A defined counter_device structure may be registered to the system by
-passing it to the counter_register function, and unregistered by passing
-it to the counter_unregister function. Similarly, the
-devm_counter_register function may be used if device memory-managed
-registration is desired.
+A counter_device structure is allocated using counter_alloc() and then
+registered to the system by passing it to the counter_add() function, and
+unregistered by passing it to the counter_unregister function. There are
+device managed variants of these functions: devm_counter_alloc() and
+devm_counter_add().
 
 The struct counter_comp structure is used to define counter extensions
 for Signals, Synapses, and Counts.

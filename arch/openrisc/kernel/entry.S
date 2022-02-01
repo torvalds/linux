@@ -1001,11 +1001,10 @@ ENTRY(ret_from_fork)
 	l.lwz	r11,PT_GPR11(r1)
 
 	/* The syscall fast path return expects call-saved registers
-	 * r12-r28 to be untouched, so we restore them here as they
+	 * r14-r28 to be untouched, so we restore them here as they
 	 * will have been effectively clobbered when arriving here
 	 * via the call to switch()
 	 */
-	l.lwz	r12,PT_GPR12(r1)
 	l.lwz	r14,PT_GPR14(r1)
 	l.lwz	r16,PT_GPR16(r1)
 	l.lwz	r18,PT_GPR18(r1)
@@ -1037,10 +1036,10 @@ ENTRY(ret_from_fork)
 
 /* _switch MUST never lay on page boundry, cause it runs from
  * effective addresses and beeing interrupted by iTLB miss would kill it.
- * dTLB miss seams to never accour in the bad place since data accesses
+ * dTLB miss seems to never accour in the bad place since data accesses
  * are from task structures which are always page aligned.
  *
- * The problem happens in RESTORE_ALL_NO_R11 where we first set the EPCR
+ * The problem happens in RESTORE_ALL where we first set the EPCR
  * register, then load the previous register values and only at the end call
  * the l.rfe instruction. If get TLB miss in beetwen the EPCR register gets
  * garbled and we end up calling l.rfe with the wrong EPCR. (same probably
@@ -1068,9 +1067,8 @@ ENTRY(_switch)
 	/* No need to store r1/PT_SP as it goes into KSP below */
 	l.sw    PT_GPR2(r1),r2
 	l.sw    PT_GPR9(r1),r9
-	/* This is wrong, r12 shouldn't be here... but GCC is broken for the time being
-	 * and expects r12 to be callee-saved... */
-	l.sw    PT_GPR12(r1),r12
+
+	/* Save callee-saved registers to the new pt_regs */
 	l.sw    PT_GPR14(r1),r14
 	l.sw    PT_GPR16(r1),r16
 	l.sw    PT_GPR18(r1),r18
@@ -1111,9 +1109,7 @@ ENTRY(_switch)
 	/* No need to restore r10 */
 	/* ...and do not restore r11 */
 
-	/* This is wrong, r12 shouldn't be here... but GCC is broken for the time being
-	 * and expects r12 to be callee-saved... */
-	l.lwz   r12,PT_GPR12(r1)
+	/* Restore callee-saved registers */
 	l.lwz   r14,PT_GPR14(r1)
 	l.lwz   r16,PT_GPR16(r1)
 	l.lwz   r18,PT_GPR18(r1)
@@ -1166,15 +1162,18 @@ _fork_save_extra_regs_and_call:
 
 ENTRY(__sys_clone)
 	l.movhi	r29,hi(sys_clone)
-	l.ori	r29,r29,lo(sys_clone)
 	l.j	_fork_save_extra_regs_and_call
-	 l.nop
+	 l.ori	r29,r29,lo(sys_clone)
+
+ENTRY(__sys_clone3)
+	l.movhi	r29,hi(sys_clone3)
+	l.j	_fork_save_extra_regs_and_call
+	 l.ori	r29,r29,lo(sys_clone3)
 
 ENTRY(__sys_fork)
 	l.movhi	r29,hi(sys_fork)
-	l.ori	r29,r29,lo(sys_fork)
 	l.j	_fork_save_extra_regs_and_call
-	 l.nop
+	 l.ori	r29,r29,lo(sys_fork)
 
 ENTRY(sys_rt_sigreturn)
 	l.jal	_sys_rt_sigreturn

@@ -271,9 +271,6 @@ static int lmp91000_buffer_cb(const void *val, void *private)
 	return 0;
 }
 
-static const struct iio_trigger_ops lmp91000_trigger_ops = {
-};
-
 static int lmp91000_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct lmp91000_data *data = iio_priv(indio_dev);
@@ -330,7 +327,6 @@ static int lmp91000_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	data->trig->ops = &lmp91000_trigger_ops;
 	init_completion(&data->completion);
 
 	ret = lmp91000_read_config(data);

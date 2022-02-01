@@ -78,7 +78,7 @@ void __init ge_imp3a_pic_init(void)
 	of_node_put(cascade_node);
 }
 
-static void ge_imp3a_pci_assign_primary(void)
+static void __init ge_imp3a_pci_assign_primary(void)
 {
 #ifdef CONFIG_PCI
 	struct device_node *np;
