@@ -20,6 +20,7 @@
 #include <linux/phylink.h>
 #include <linux/gpio/consumer.h>
 #include <linux/etherdevice.h>
+#include <linux/dsa/tag_qca.h>
 
 #include "qca8k.h"
 
@@ -170,6 +171,194 @@ qca8k_rmw(struct qca8k_priv *priv, u32 reg, u32 mask, u32 write_val)
 	return regmap_update_bits(priv->regmap, reg, mask, write_val);
 }
 
+static void qca8k_rw_reg_ack_handler(struct dsa_switch *ds, struct sk_buff *skb)
+{
+	struct qca8k_mgmt_eth_data *mgmt_eth_data;
+	struct qca8k_priv *priv = ds->priv;
+	struct qca_mgmt_ethhdr *mgmt_ethhdr;
+	u8 len, cmd;
+
+	mgmt_ethhdr = (struct qca_mgmt_ethhdr *)skb_mac_header(skb);
+	mgmt_eth_data = &priv->mgmt_eth_data;
+
+	cmd = FIELD_GET(QCA_HDR_MGMT_CMD, mgmt_ethhdr->command);
+	len = FIELD_GET(QCA_HDR_MGMT_LENGTH, mgmt_ethhdr->command);
+
+	/* Make sure the seq match the requested packet */
+	if (mgmt_ethhdr->seq == mgmt_eth_data->seq)
+		mgmt_eth_data->ack = true;
+
+	if (cmd == MDIO_READ) {
+		mgmt_eth_data->data[0] = mgmt_ethhdr->mdio_data;
+
+		/* Get the rest of the 12 byte of data */
+		if (len > QCA_HDR_MGMT_DATA1_LEN)
+			memcpy(mgmt_eth_data->data + 1, skb->data,
+			       QCA_HDR_MGMT_DATA2_LEN);
+	}
+
+	complete(&mgmt_eth_data->rw_done);
+}
+
+static struct sk_buff *qca8k_alloc_mdio_header(enum mdio_cmd cmd, u32 reg, u32 *val,
+					       int priority)
+{
+	struct qca_mgmt_ethhdr *mgmt_ethhdr;
+	struct sk_buff *skb;
+	u16 hdr;
+
+	skb = dev_alloc_skb(QCA_HDR_MGMT_PKT_LEN);
+	if (!skb)
+		return NULL;
+
+	skb_reset_mac_header(skb);
+	skb_set_network_header(skb, skb->len);
+
+	mgmt_ethhdr = skb_push(skb, QCA_HDR_MGMT_HEADER_LEN + QCA_HDR_LEN);
+
+	hdr = FIELD_PREP(QCA_HDR_XMIT_VERSION, QCA_HDR_VERSION);
+	hdr |= FIELD_PREP(QCA_HDR_XMIT_PRIORITY, priority);
+	hdr |= QCA_HDR_XMIT_FROM_CPU;
+	hdr |= FIELD_PREP(QCA_HDR_XMIT_DP_BIT, BIT(0));
+	hdr |= FIELD_PREP(QCA_HDR_XMIT_CONTROL, QCA_HDR_XMIT_TYPE_RW_REG);
+
+	mgmt_ethhdr->command = FIELD_PREP(QCA_HDR_MGMT_ADDR, reg);
+	mgmt_ethhdr->command |= FIELD_PREP(QCA_HDR_MGMT_LENGTH, 4);
+	mgmt_ethhdr->command |= FIELD_PREP(QCA_HDR_MGMT_CMD, cmd);
+	mgmt_ethhdr->command |= FIELD_PREP(QCA_HDR_MGMT_CHECK_CODE,
+					   QCA_HDR_MGMT_CHECK_CODE_VAL);
+
+	if (cmd == MDIO_WRITE)
+		mgmt_ethhdr->mdio_data = *val;
+
+	mgmt_ethhdr->hdr = htons(hdr);
+
+	skb_put_zero(skb, QCA_HDR_MGMT_DATA2_LEN + QCA_HDR_MGMT_PADDING_LEN);
+
+	return skb;
+}
+
+static void qca8k_mdio_header_fill_seq_num(struct sk_buff *skb, u32 seq_num)
+{
+	struct qca_mgmt_ethhdr *mgmt_ethhdr;
+
+	mgmt_ethhdr = (struct qca_mgmt_ethhdr *)skb->data;
+	mgmt_ethhdr->seq = FIELD_PREP(QCA_HDR_MGMT_SEQ_NUM, seq_num);
+}
+
+static int qca8k_read_eth(struct qca8k_priv *priv, u32 reg, u32 *val)
+{
+	struct qca8k_mgmt_eth_data *mgmt_eth_data = &priv->mgmt_eth_data;
+	struct sk_buff *skb;
+	bool ack;
+	int ret;
+
+	skb = qca8k_alloc_mdio_header(MDIO_READ, reg, NULL,
+				      QCA8K_ETHERNET_MDIO_PRIORITY);
+	if (!skb)
+		return -ENOMEM;
+
+	mutex_lock(&mgmt_eth_data->mutex);
+
+	/* Check mgmt_master if is operational */
+	if (!priv->mgmt_master) {
+		kfree_skb(skb);
+		mutex_unlock(&mgmt_eth_data->mutex);
+		return -EINVAL;
+	}
+
+	skb->dev = priv->mgmt_master;
+
+	reinit_completion(&mgmt_eth_data->rw_done);
+
+	/* Increment seq_num and set it in the mdio pkt */
+	mgmt_eth_data->seq++;
+	qca8k_mdio_header_fill_seq_num(skb, mgmt_eth_data->seq);
+	mgmt_eth_data->ack = false;
+
+	dev_queue_xmit(skb);
+
+	ret = wait_for_completion_timeout(&mgmt_eth_data->rw_done,
+					  msecs_to_jiffies(QCA8K_ETHERNET_TIMEOUT));
+
+	*val = mgmt_eth_data->data[0];
+	ack = mgmt_eth_data->ack;
+
+	mutex_unlock(&mgmt_eth_data->mutex);
+
+	if (ret <= 0)
+		return -ETIMEDOUT;
+
+	if (!ack)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qca8k_write_eth(struct qca8k_priv *priv, u32 reg, u32 val)
+{
+	struct qca8k_mgmt_eth_data *mgmt_eth_data = &priv->mgmt_eth_data;
+	struct sk_buff *skb;
+	bool ack;
+	int ret;
+
+	skb = qca8k_alloc_mdio_header(MDIO_WRITE, reg, &val,
+				      QCA8K_ETHERNET_MDIO_PRIORITY);
+	if (!skb)
+		return -ENOMEM;
+
+	mutex_lock(&mgmt_eth_data->mutex);
+
+	/* Check mgmt_master if is operational */
+	if (!priv->mgmt_master) {
+		kfree_skb(skb);
+		mutex_unlock(&mgmt_eth_data->mutex);
+		return -EINVAL;
+	}
+
+	skb->dev = priv->mgmt_master;
+
+	reinit_completion(&mgmt_eth_data->rw_done);
+
+	/* Increment seq_num and set it in the mdio pkt */
+	mgmt_eth_data->seq++;
+	qca8k_mdio_header_fill_seq_num(skb, mgmt_eth_data->seq);
+	mgmt_eth_data->ack = false;
+
+	dev_queue_xmit(skb);
+
+	ret = wait_for_completion_timeout(&mgmt_eth_data->rw_done,
+					  msecs_to_jiffies(QCA8K_ETHERNET_TIMEOUT));
+
+	ack = mgmt_eth_data->ack;
+
+	mutex_unlock(&mgmt_eth_data->mutex);
+
+	if (ret <= 0)
+		return -ETIMEDOUT;
+
+	if (!ack)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+qca8k_regmap_update_bits_eth(struct qca8k_priv *priv, u32 reg, u32 mask, u32 write_val)
+{
+	u32 val = 0;
+	int ret;
+
+	ret = qca8k_read_eth(priv, reg, &val);
+	if (ret)
+		return ret;
+
+	val &= ~mask;
+	val |= write_val;
+
+	return qca8k_write_eth(priv, reg, val);
+}
+
 static int
 qca8k_regmap_read(void *ctx, uint32_t reg, uint32_t *val)
 {
@@ -177,6 +366,9 @@ qca8k_regmap_read(void *ctx, uint32_t reg, uint32_t *val)
 	struct mii_bus *bus = priv->bus;
 	u16 r1, r2, page;
 	int ret;
+
+	if (!qca8k_read_eth(priv, reg, val))
+		return 0;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
 
@@ -201,6 +393,9 @@ qca8k_regmap_write(void *ctx, uint32_t reg, uint32_t val)
 	u16 r1, r2, page;
 	int ret;
 
+	if (!qca8k_write_eth(priv, reg, val))
+		return 0;
+
 	qca8k_split_addr(reg, &r1, &r2, &page);
 
 	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
@@ -224,6 +419,9 @@ qca8k_regmap_update_bits(void *ctx, uint32_t reg, uint32_t mask, uint32_t write_
 	u16 r1, r2, page;
 	u32 val;
 	int ret;
+
+	if (!qca8k_regmap_update_bits_eth(priv, reg, mask, write_val))
+		return 0;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
 
@@ -2394,7 +2592,30 @@ qca8k_master_change(struct dsa_switch *ds, const struct net_device *master,
 	if (dp->index != 0)
 		return;
 
+	mutex_lock(&priv->mgmt_eth_data.mutex);
+
 	priv->mgmt_master = operational ? (struct net_device *)master : NULL;
+
+	mutex_unlock(&priv->mgmt_eth_data.mutex);
+}
+
+static int qca8k_connect_tag_protocol(struct dsa_switch *ds,
+				      enum dsa_tag_protocol proto)
+{
+	struct qca_tagger_data *tagger_data;
+
+	switch (proto) {
+	case DSA_TAG_PROTO_QCA:
+		tagger_data = ds->tagger_data;
+
+		tagger_data->rw_reg_ack_handler = qca8k_rw_reg_ack_handler;
+
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
 }
 
 static const struct dsa_switch_ops qca8k_switch_ops = {
@@ -2433,6 +2654,7 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.port_lag_join		= qca8k_port_lag_join,
 	.port_lag_leave		= qca8k_port_lag_leave,
 	.master_state_change	= qca8k_master_change,
+	.connect_tag_protocol	= qca8k_connect_tag_protocol,
 };
 
 static int qca8k_read_switch_id(struct qca8k_priv *priv)
@@ -2511,6 +2733,9 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	priv->ds = devm_kzalloc(&mdiodev->dev, sizeof(*priv->ds), GFP_KERNEL);
 	if (!priv->ds)
 		return -ENOMEM;
+
+	mutex_init(&priv->mgmt_eth_data.mutex);
+	init_completion(&priv->mgmt_eth_data.rw_done);
 
 	priv->ds->dev = &mdiodev->dev;
 	priv->ds->num_ports = QCA8K_NUM_PORTS;
