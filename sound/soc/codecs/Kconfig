@@ -1912,7 +1912,7 @@ config SND_SOC_LM4857
 
 config SND_SOC_MAX9759
 	tristate "Maxim MAX9759 speaker Amplifier"
-	select GPIOLIB
+	depends on GPIOLIB
 
 config SND_SOC_MAX9768
 	tristate
