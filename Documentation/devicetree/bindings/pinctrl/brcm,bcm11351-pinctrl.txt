@@ -85,7 +85,7 @@ Optional Properties (for I2C pins):
 - function:			String. Specifies the pin mux selection. Values
 				must be one of: "alt1", "alt2", "alt3", "alt4"
 - bias-pull-up:			Integer. Pull up strength in Ohm. There are 3
-				pull-up resisitors (1.2k, 1.8k, 2.7k) available
+				pull-up resistors (1.2k, 1.8k, 2.7k) available
 				in parallel for I2C pins, so the valid values
 				are: 568, 720, 831, 1080, 1200, 1800, 2700 Ohm.
 - bias-disable:			No arguments. Disable pin bias.
