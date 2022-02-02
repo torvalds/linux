@@ -137,6 +137,8 @@ struct vmcb_ctrl_area_cached {
 	u32 event_inj_err;
 	u64 nested_cr3;
 	u64 virt_ext;
+	u32 clean;
+	u8 reserved_sw[32];
 };
 
 struct svm_nested_state {
