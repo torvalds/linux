@@ -359,6 +359,15 @@ static const struct of_device_id mchp48l640_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, mchp48l640_of_table);
 
+static const struct spi_device_id mchp48l640_spi_ids[] = {
+	{
+		.name = "48l640",
+		.driver_data = (kernel_ulong_t)&mchp48l640_caps,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(spi, mchp48l640_spi_ids);
+
 static struct spi_driver mchp48l640_driver = {
 	.driver = {
 		.name	= "mchp48l640",
@@ -366,6 +375,7 @@ static struct spi_driver mchp48l640_driver = {
 	},
 	.probe		= mchp48l640_probe,
 	.remove		= mchp48l640_remove,
+	.id_table	= mchp48l640_spi_ids,
 };
 
 module_spi_driver(mchp48l640_driver);
