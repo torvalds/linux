@@ -179,29 +179,29 @@ static void ilk_update_pipe_csc(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write(dev_priv, PIPE_CSC_PREOFF_HI(pipe), preoff[0]);
-	intel_de_write(dev_priv, PIPE_CSC_PREOFF_ME(pipe), preoff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_PREOFF_LO(pipe), preoff[2]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_PREOFF_HI(pipe), preoff[0]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_PREOFF_ME(pipe), preoff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_PREOFF_LO(pipe), preoff[2]);
 
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_RY_GY(pipe),
-		       coeff[0] << 16 | coeff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_BY(pipe), coeff[2] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_RY_GY(pipe),
+			  coeff[0] << 16 | coeff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_BY(pipe), coeff[2] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_RU_GU(pipe),
-		       coeff[3] << 16 | coeff[4]);
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_BU(pipe), coeff[5] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_RU_GU(pipe),
+			  coeff[3] << 16 | coeff[4]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_BU(pipe), coeff[5] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_RV_GV(pipe),
-		       coeff[6] << 16 | coeff[7]);
-	intel_de_write(dev_priv, PIPE_CSC_COEFF_BV(pipe), coeff[8] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_RV_GV(pipe),
+			  coeff[6] << 16 | coeff[7]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_COEFF_BV(pipe), coeff[8] << 16);
 
 	if (DISPLAY_VER(dev_priv) >= 7) {
-		intel_de_write(dev_priv, PIPE_CSC_POSTOFF_HI(pipe),
-			       postoff[0]);
-		intel_de_write(dev_priv, PIPE_CSC_POSTOFF_ME(pipe),
-			       postoff[1]);
-		intel_de_write(dev_priv, PIPE_CSC_POSTOFF_LO(pipe),
-			       postoff[2]);
+		intel_de_write_fw(dev_priv, PIPE_CSC_POSTOFF_HI(pipe),
+				  postoff[0]);
+		intel_de_write_fw(dev_priv, PIPE_CSC_POSTOFF_ME(pipe),
+				  postoff[1]);
+		intel_de_write_fw(dev_priv, PIPE_CSC_POSTOFF_LO(pipe),
+				  postoff[2]);
 	}
 }
 
@@ -213,28 +213,28 @@ static void icl_update_output_csc(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_PREOFF_HI(pipe), preoff[0]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_PREOFF_ME(pipe), preoff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_PREOFF_LO(pipe), preoff[2]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_PREOFF_HI(pipe), preoff[0]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_PREOFF_ME(pipe), preoff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_PREOFF_LO(pipe), preoff[2]);
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
-		       coeff[0] << 16 | coeff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_BY(pipe),
-		       coeff[2] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
+			  coeff[0] << 16 | coeff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_BY(pipe),
+			  coeff[2] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
-		       coeff[3] << 16 | coeff[4]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_BU(pipe),
-		       coeff[5] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
+			  coeff[3] << 16 | coeff[4]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_BU(pipe),
+			  coeff[5] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
-		       coeff[6] << 16 | coeff[7]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_COEFF_BV(pipe),
-		       coeff[8] << 16);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
+			  coeff[6] << 16 | coeff[7]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_COEFF_BV(pipe),
+			  coeff[8] << 16);
 
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), postoff[0]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), postoff[1]);
-	intel_de_write(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), postoff[2]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), postoff[0]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), postoff[1]);
+	intel_de_write_fw(dev_priv, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), postoff[2]);
 }
 
 static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
@@ -338,8 +338,8 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 				    ilk_csc_off_zero);
 	}
 
-	intel_de_write(dev_priv, PIPE_CSC_MODE(crtc->pipe),
-		       crtc_state->csc_mode);
+	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(crtc->pipe),
+			  crtc_state->csc_mode);
 }
 
 static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
@@ -365,8 +365,8 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 				      ilk_csc_postoff_limited_range);
 	}
 
-	intel_de_write(dev_priv, PIPE_CSC_MODE(crtc->pipe),
-		       crtc_state->csc_mode);
+	intel_de_write_fw(dev_priv, PIPE_CSC_MODE(crtc->pipe),
+			  crtc_state->csc_mode);
 }
 
 static void chv_load_cgm_csc(struct intel_crtc *crtc,
