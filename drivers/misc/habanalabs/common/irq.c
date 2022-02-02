@@ -175,7 +175,7 @@ static void hl_ts_free_objects(struct work_struct *work)
  * so here we'll be filling a list with nodes of "put" jobs and then will send this
  * list to a dedicated workqueue to do the actual put.
  */
-int handle_registration_node(struct hl_device *hdev, struct hl_user_pending_interrupt *pend,
+static int handle_registration_node(struct hl_device *hdev, struct hl_user_pending_interrupt *pend,
 						struct list_head **free_list)
 {
 	struct timestamp_reg_free_node *free_node;
