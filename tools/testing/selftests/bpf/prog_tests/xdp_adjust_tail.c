@@ -78,17 +78,17 @@ static void test_xdp_adjust_tail_grow2(void)
 	int tailroom = 320; /* SKB_DATA_ALIGN(sizeof(struct skb_shared_info))*/;
 	struct bpf_object *obj;
 	int err, cnt, i;
-	int max_grow;
+	int max_grow, prog_fd;
 
-	struct bpf_prog_test_run_attr tattr = {
+	LIBBPF_OPTS(bpf_test_run_opts, tattr,
 		.repeat		= 1,
 		.data_in	= &buf,
 		.data_out	= &buf,
 		.data_size_in	= 0, /* Per test */
 		.data_size_out	= 0, /* Per test */
-	};
+	);
 
-	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &tattr.prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (ASSERT_OK(err, "test_xdp_adjust_tail_grow"))
 		return;
 
@@ -97,7 +97,7 @@ static void test_xdp_adjust_tail_grow2(void)
 	tattr.data_size_in  =  64; /* Determine test case via pkt size */
 	tattr.data_size_out = 128; /* Limit copy_size */
 	/* Kernel side alloc packet memory area that is zero init */
-	err = bpf_prog_test_run_xattr(&tattr);
+	err = bpf_prog_test_run_opts(prog_fd, &tattr);
 
 	ASSERT_EQ(errno, ENOSPC, "case-64 errno"); /* Due limit copy_size in bpf_test_finish */
 	ASSERT_EQ(tattr.retval, XDP_TX, "case-64 retval");
@@ -115,7 +115,7 @@ static void test_xdp_adjust_tail_grow2(void)
 	memset(buf, 2, sizeof(buf));
 	tattr.data_size_in  = 128; /* Determine test case via pkt size */
 	tattr.data_size_out = sizeof(buf);   /* Copy everything */
-	err = bpf_prog_test_run_xattr(&tattr);
+	err = bpf_prog_test_run_opts(prog_fd, &tattr);
 
 	max_grow = 4096 - XDP_PACKET_HEADROOM -	tailroom; /* 3520 */
 	ASSERT_OK(err, "case-128");
