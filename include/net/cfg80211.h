@@ -2604,7 +2604,7 @@ const struct element *ieee80211_bss_get_elem(struct cfg80211_bss *bss, u8 id);
  */
 static inline const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 id)
 {
-	return (void *)ieee80211_bss_get_elem(bss, id);
+	return (const void *)ieee80211_bss_get_elem(bss, id);
 }
 
 
@@ -5970,9 +5970,9 @@ cfg80211_find_ie_match(u8 eid, const u8 *ies, unsigned int len,
 		    (!match_len && match_offset)))
 		return NULL;
 
-	return (void *)cfg80211_find_elem_match(eid, ies, len,
-						match, match_len,
-						match_offset ?
+	return (const void *)cfg80211_find_elem_match(eid, ies, len,
+						      match, match_len,
+						      match_offset ?
 							match_offset - 2 : 0);
 }
 
@@ -6099,7 +6099,7 @@ static inline const u8 *
 cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 			const u8 *ies, unsigned int len)
 {
-	return (void *)cfg80211_find_vendor_elem(oui, oui_type, ies, len);
+	return (const void *)cfg80211_find_vendor_elem(oui, oui_type, ies, len);
 }
 
 /**
