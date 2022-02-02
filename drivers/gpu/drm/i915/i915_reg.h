@@ -366,48 +366,7 @@
 #define GEN6_STOLEN_RESERVED_ENABLE	(1 << 0)
 #define GEN11_STOLEN_RESERVED_ADDR_MASK	(0xFFFFFFFFFFFULL << 20)
 
-/* VGA stuff */
-
-#define VGA_ST01_MDA 0x3ba
-#define VGA_ST01_CGA 0x3da
-
 #define _VGA_MSR_WRITE _MMIO(0x3c2)
-#define VGA_MSR_WRITE 0x3c2
-#define VGA_MSR_READ 0x3cc
-#define   VGA_MSR_MEM_EN (1 << 1)
-#define   VGA_MSR_CGA_MODE (1 << 0)
-
-#define VGA_SR_INDEX 0x3c4
-#define SR01			1
-#define VGA_SR_DATA 0x3c5
-
-#define VGA_AR_INDEX 0x3c0
-#define   VGA_AR_VID_EN (1 << 5)
-#define VGA_AR_DATA_WRITE 0x3c0
-#define VGA_AR_DATA_READ 0x3c1
-
-#define VGA_GR_INDEX 0x3ce
-#define VGA_GR_DATA 0x3cf
-/* GR05 */
-#define   VGA_GR_MEM_READ_MODE_SHIFT 3
-#define     VGA_GR_MEM_READ_MODE_PLANE 1
-/* GR06 */
-#define   VGA_GR_MEM_MODE_MASK 0xc
-#define   VGA_GR_MEM_MODE_SHIFT 2
-#define   VGA_GR_MEM_A0000_AFFFF 0
-#define   VGA_GR_MEM_A0000_BFFFF 1
-#define   VGA_GR_MEM_B0000_B7FFF 2
-#define   VGA_GR_MEM_B0000_BFFFF 3
-
-#define VGA_DACMASK 0x3c6
-#define VGA_DACRX 0x3c7
-#define VGA_DACWX 0x3c8
-#define VGA_DACDATA 0x3c9
-
-#define VGA_CR_INDEX_MDA 0x3b4
-#define VGA_CR_DATA_MDA 0x3b5
-#define VGA_CR_INDEX_CGA 0x3d4
-#define VGA_CR_DATA_CGA 0x3d5
 
 #define MI_PREDICATE_SRC0	_MMIO(0x2400)
 #define MI_PREDICATE_SRC0_UDW	_MMIO(0x2400 + 4)
