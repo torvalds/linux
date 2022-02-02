@@ -72,4 +72,11 @@ struct mib_ethhdr {
 	__be16 hdr;		/* qca hdr */
 } __packed;
 
+struct qca_tagger_data {
+	void (*rw_reg_ack_handler)(struct dsa_switch *ds,
+				   struct sk_buff *skb);
+	void (*mib_autocast_handler)(struct dsa_switch *ds,
+				     struct sk_buff *skb);
+};
+
 #endif /* __TAG_QCA_H */
