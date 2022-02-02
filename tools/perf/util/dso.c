@@ -508,8 +508,19 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 					    root_dir, name, PATH_MAX))
 		goto out;
 
-	if (!is_regular_file(name))
-		goto out;
+	if (!is_regular_file(name)) {
+		char *new_name;
+
+		if (errno != ENOENT || dso->nsinfo == NULL)
+			goto out;
+
+		new_name = filename_with_chroot(dso->nsinfo->pid, name);
+		if (!new_name)
+			goto out;
+
+		free(name);
+		name = new_name;
+	}
 
 	if (dso__needs_decompress(dso)) {
 		char newpath[KMOD_DECOMP_LEN];
