@@ -59,12 +59,31 @@ static void ccw_update_attr(u8 *dst, u8 *src, int attribute,
 	}
 }
 
+
+static void ccw_bmove(struct vc_data *vc, struct fb_info *info, int sy,
+		     int sx, int dy, int dx, int height, int width)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+	struct fb_copyarea area;
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
+
+	area.sx = sy * vc->vc_font.height;
+	area.sy = vyres - ((sx + width) * vc->vc_font.width);
+	area.dx = dy * vc->vc_font.height;
+	area.dy = vyres - ((dx + width) * vc->vc_font.width);
+	area.width = height * vc->vc_font.height;
+	area.height  = width * vc->vc_font.width;
+
+	info->fbops->fb_copyarea(info, &area);
+}
+
 static void ccw_clear(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int height, int width)
 {
+	struct fbcon_ops *ops = info->fbcon_par;
 	struct fb_fillrect region;
 	int bgshift = (vc->vc_hi_font_mask) ? 13 : 12;
-	u32 vyres = info->var.yres;
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	region.color = attr_bgcol_ec(bgshift,vc,info);
 	region.dx = sy * vc->vc_font.height;
@@ -121,7 +140,7 @@ static void ccw_putcs(struct vc_data *vc, struct fb_info *info,
 	u32 cnt, pitch, size;
 	u32 attribute = get_attribute(info, scr_readw(s));
 	u8 *dst, *buf = NULL;
-	u32 vyres = info->var.yres;
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -210,7 +229,7 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	int attribute, use_sw = vc->vc_cursor_type & CUR_SW;
 	int err = 1, dx, dy;
 	char *src;
-	u32 vyres = info->var.yres;
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -368,7 +387,7 @@ static int ccw_update_start(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 	u32 yoffset;
-	u32 vyres = info->var.yres;
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 	int err;
 
 	yoffset = (vyres - info->var.yres) - ops->var.xoffset;
@@ -383,6 +402,7 @@ static int ccw_update_start(struct fb_info *info)
 
 void fbcon_rotate_ccw(struct fbcon_ops *ops)
 {
+	ops->bmove = ccw_bmove;
 	ops->clear = ccw_clear;
 	ops->putcs = ccw_putcs;
 	ops->clear_margins = ccw_clear_margins;

@@ -44,12 +44,31 @@ static void cw_update_attr(u8 *dst, u8 *src, int attribute,
 	}
 }
 
+
+static void cw_bmove(struct vc_data *vc, struct fb_info *info, int sy,
+		     int sx, int dy, int dx, int height, int width)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+	struct fb_copyarea area;
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
+
+	area.sx = vxres - ((sy + height) * vc->vc_font.height);
+	area.sy = sx * vc->vc_font.width;
+	area.dx = vxres - ((dy + height) * vc->vc_font.height);
+	area.dy = dx * vc->vc_font.width;
+	area.width = height * vc->vc_font.height;
+	area.height  = width * vc->vc_font.width;
+
+	info->fbops->fb_copyarea(info, &area);
+}
+
 static void cw_clear(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int height, int width)
 {
+	struct fbcon_ops *ops = info->fbcon_par;
 	struct fb_fillrect region;
 	int bgshift = (vc->vc_hi_font_mask) ? 13 : 12;
-	u32 vxres = info->var.xres;
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 
 	region.color = attr_bgcol_ec(bgshift,vc,info);
 	region.dx = vxres - ((sy + height) * vc->vc_font.height);
@@ -106,7 +125,7 @@ static void cw_putcs(struct vc_data *vc, struct fb_info *info,
 	u32 cnt, pitch, size;
 	u32 attribute = get_attribute(info, scr_readw(s));
 	u8 *dst, *buf = NULL;
-	u32 vxres = info->var.xres;
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -193,7 +212,7 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	int attribute, use_sw = vc->vc_cursor_type & CUR_SW;
 	int err = 1, dx, dy;
 	char *src;
-	u32 vxres = info->var.xres;
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -350,7 +369,7 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 static int cw_update_start(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
-	u32 vxres = info->var.xres;
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 	u32 xoffset;
 	int err;
 
@@ -366,6 +385,7 @@ static int cw_update_start(struct fb_info *info)
 
 void fbcon_rotate_cw(struct fbcon_ops *ops)
 {
+	ops->bmove = cw_bmove;
 	ops->clear = cw_clear;
 	ops->putcs = cw_putcs;
 	ops->clear_margins = cw_clear_margins;
