@@ -144,42 +144,6 @@ static bool FNAME(is_rsvd_bits_set)(struct kvm_mmu *mmu, u64 gpte, int level)
 	       FNAME(is_bad_mt_xwr)(&mmu->guest_rsvd_check, gpte);
 }
 
-static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-			       pt_element_t __user *ptep_user, unsigned index,
-			       pt_element_t orig_pte, pt_element_t new_pte)
-{
-	signed char r;
-
-	if (!user_access_begin(ptep_user, sizeof(pt_element_t)))
-		return -EFAULT;
-
-#ifdef CMPXCHG
-	asm volatile("1:" LOCK_PREFIX CMPXCHG " %[new], %[ptr]\n"
-		     "setnz %b[r]\n"
-		     "2:"
-		     _ASM_EXTABLE_TYPE_REG(1b, 2b, EX_TYPE_EFAULT_REG, %k[r])
-		     : [ptr] "+m" (*ptep_user),
-		       [old] "+a" (orig_pte),
-		       [r] "=q" (r)
-		     : [new] "r" (new_pte)
-		     : "memory");
-#else
-	asm volatile("1:" LOCK_PREFIX "cmpxchg8b %[ptr]\n"
-		     "setnz %b[r]\n"
-		     "2:"
-		     _ASM_EXTABLE_TYPE_REG(1b, 2b, EX_TYPE_EFAULT_REG, %k[r])
-		     : [ptr] "+m" (*ptep_user),
-		       [old] "+A" (orig_pte),
-		       [r] "=q" (r)
-		     : [new_lo] "b" ((u32)new_pte),
-		       [new_hi] "c" ((u32)(new_pte >> 32))
-		     : "memory");
-#endif
-
-	user_access_end();
-	return r;
-}
-
 static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 				  struct kvm_mmu_page *sp, u64 *spte,
 				  u64 gpte)
@@ -278,7 +242,7 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 		if (unlikely(!walker->pte_writable[level - 1]))
 			continue;
 
-		ret = FNAME(cmpxchg_gpte)(vcpu, mmu, ptep_user, index, orig_pte, pte);
+		ret = __try_cmpxchg_user(ptep_user, &orig_pte, pte, fault);
 		if (ret)
 			return ret;
 
