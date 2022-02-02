@@ -1391,7 +1391,6 @@ config SND_SOC_SIGMADSP_REGMAP
 
 config SND_SOC_SIMPLE_AMPLIFIER
 	tristate "Simple Audio Amplifier"
-	select GPIOLIB
 
 config SND_SOC_SIMPLE_MUX
 	tristate "Simple Audio Mux"
