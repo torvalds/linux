@@ -283,8 +283,7 @@ static int power_supply_check_supplies(struct power_supply *psy)
 	if (!psy->dev.parent)
 		return 0;
 
-	nval = device_property_read_string_array(psy->dev.parent,
-						 "supplied-from", NULL, 0);
+	nval = device_property_string_array_count(psy->dev.parent, "supplied-from");
 	if (nval <= 0)
 		return 0;
 
