@@ -366,6 +366,11 @@
 	};
 };
 
+&pcie1_clkreq_n {
+	bias-pull-up;
+	drive-strength = <2>;
+};
+
 &qspi_cs0 {
 	bias-disable;
 };

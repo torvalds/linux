@@ -3295,8 +3295,6 @@
 			pcie1_clkreq_n: pcie1-clkreq-n {
 				pins = "gpio79";
 				function = "pcie1_clkreqn";
-				drive-strength = <2>;
-				bias-pull-up;
 			};
 
 			qspi_clk: qspi-clk {
