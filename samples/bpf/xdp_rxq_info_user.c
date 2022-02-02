@@ -450,14 +450,12 @@ static void stats_poll(int interval, int action, __u32 cfg_opt)
 int main(int argc, char **argv)
 {
 	__u32 cfg_options= NO_TOUCH ; /* Default: Don't touch packet memory */
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type	= BPF_PROG_TYPE_XDP,
-	};
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	int prog_fd, map_fd, opt, err;
 	bool use_separators = true;
 	struct config cfg = { 0 };
+	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	char filename[256];
@@ -471,10 +469,18 @@ int main(int argc, char **argv)
 	char *action_str = NULL;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
 
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return EXIT_FAIL;
+
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_XDP);
+
+	err = bpf_object__load(obj);
+	if (err)
+		return EXIT_FAIL;
+	prog_fd = bpf_program__fd(prog);
 
 	map =  bpf_object__find_map_by_name(obj, "config_map");
 	stats_global_map = bpf_object__find_map_by_name(obj, "stats_global_map");

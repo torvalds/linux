@@ -79,13 +79,11 @@ static void usage(const char *prog)
 
 int main(int argc, char **argv)
 {
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type	= BPF_PROG_TYPE_XDP,
-	};
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	const char *optstr = "FSN";
 	int prog_fd, map_fd, opt;
+	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	char filename[256];
@@ -123,10 +121,18 @@ int main(int argc, char **argv)
 	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
-
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return 1;
+
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_XDP);
+
+	err = bpf_object__load(obj);
+	if (err)
+		return 1;
+
+	prog_fd = bpf_program__fd(prog);
 
 	map = bpf_object__next_map(obj, NULL);
 	if (!map) {

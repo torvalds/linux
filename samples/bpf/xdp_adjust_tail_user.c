@@ -82,15 +82,13 @@ static void usage(const char *cmd)
 
 int main(int argc, char **argv)
 {
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type	= BPF_PROG_TYPE_XDP,
-	};
 	unsigned char opt_flags[256] = {};
 	const char *optstr = "i:T:P:SNFh";
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	unsigned int kill_after_s = 0;
 	int i, prog_fd, map_fd, opt;
+	struct bpf_program *prog;
 	struct bpf_object *obj;
 	__u32 max_pckt_size = 0;
 	__u32 key = 0;
@@ -148,10 +146,19 @@ int main(int argc, char **argv)
 	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
 
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return 1;
+
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_XDP);
+
+	err = bpf_object__load(obj);
+	if (err)
+		return 1;
+
+	prog_fd = bpf_program__fd(prog);
 
 	/* static global var 'max_pcktsz' is accessible from .data section */
 	if (max_pckt_size) {
