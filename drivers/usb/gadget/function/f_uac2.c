@@ -755,11 +755,11 @@ static int set_ep_max_packet_size_bint(struct device *dev, const struct f_uac2_o
 
 	if (max_size_bw <= max_size_ep)
 		dev_dbg(dev,
-			"%s %s: Would use maxpctksize %d and bInterval %d\n",
+			"%s %s: Would use wMaxPacketSize %d and bInterval %d\n",
 			speed_names[speed], dir, max_size_bw, bint);
 	else {
 		dev_warn(dev,
-			"%s %s: Req. maxpcktsize %d at bInterval %d > max ISOC %d, may drop data!\n",
+			"%s %s: Req. wMaxPacketSize %d at bInterval %d > max ISOC %d, may drop data!\n",
 			speed_names[speed], dir, max_size_bw, bint, max_size_ep);
 		max_size_bw = max_size_ep;
 	}
