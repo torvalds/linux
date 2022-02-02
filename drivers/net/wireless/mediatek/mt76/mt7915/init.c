@@ -288,7 +288,6 @@ mt7915_regd_notifier(struct wiphy *wiphy,
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt76_phy *mphy = hw->priv;
 	struct mt7915_phy *phy = mphy->priv;
-	struct cfg80211_chan_def *chandef = &mphy->chandef;
 
 	memcpy(dev->mt76.alpha2, request->alpha2, sizeof(dev->mt76.alpha2));
 	dev->mt76.region = request->dfs_region;
@@ -299,9 +298,7 @@ mt7915_regd_notifier(struct wiphy *wiphy,
 	mt7915_init_txpower(dev, &mphy->sband_2g.sband);
 	mt7915_init_txpower(dev, &mphy->sband_5g.sband);
 
-	if (!(chandef->chan->flags & IEEE80211_CHAN_RADAR))
-		return;
-
+	mphy->dfs_state = MT_DFS_STATE_UNKNOWN;
 	mt7915_dfs_init_radar_detector(phy);
 }
 
@@ -975,8 +972,6 @@ int mt7915_register_device(struct mt7915_dev *dev)
 		return ret;
 
 	mt7915_init_wiphy(hw);
-
-	dev->phy.dfs_state = -1;
 
 #ifdef CONFIG_NL80211_TESTMODE
 	dev->mt76.test_ops = &mt7915_testmode_ops;

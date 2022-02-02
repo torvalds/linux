@@ -230,7 +230,6 @@ struct mt7915_phy {
 	u8 slottime;
 
 	u8 rdd_state;
-	int dfs_state;
 
 	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
