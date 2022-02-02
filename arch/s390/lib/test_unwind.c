@@ -129,8 +129,9 @@ static struct unwindme *unwindme;
 #define UWM_CALLER		0x8	/* Unwind starting from caller. */
 #define UWM_SWITCH_STACK	0x10	/* Use call_on_stack. */
 #define UWM_IRQ			0x20	/* Unwind from irq context. */
-#define UWM_PGM			0x40	/* Unwind from program check handler. */
-#define UWM_FTRACE		0x80	/* Unwind from ftrace handler. */
+#define UWM_PGM			0x40	/* Unwind from program check handler */
+#define UWM_KPROBE_ON_FTRACE	0x80	/* Unwind from kprobe handler called via ftrace. */
+#define UWM_FTRACE		0x100	/* Unwind from ftrace handler. */
 
 static __always_inline unsigned long get_psw_addr(void)
 {
@@ -142,13 +143,53 @@ static __always_inline unsigned long get_psw_addr(void)
 	return psw_addr;
 }
 
-static int pgm_pre_handler(struct kprobe *p, struct pt_regs *regs)
+static int kprobe_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct unwindme *u = unwindme;
 
 	u->ret = test_unwind(NULL, (u->flags & UWM_REGS) ? regs : NULL,
 			     (u->flags & UWM_SP) ? u->sp : 0);
 	return 0;
+}
+
+extern const char test_unwind_kprobed_insn[];
+
+static noinline void test_unwind_kprobed_func(void)
+{
+	asm volatile(
+		"	nopr	%%r7\n"
+		"test_unwind_kprobed_insn:\n"
+		"	nopr	%%r7\n"
+		:);
+}
+
+static int test_unwind_kprobe(struct unwindme *u)
+{
+	struct kprobe kp;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_KPROBES))
+		kunit_skip(current_test, "requires CONFIG_KPROBES");
+	if (!IS_ENABLED(CONFIG_KPROBES_ON_FTRACE) && u->flags & UWM_KPROBE_ON_FTRACE)
+		kunit_skip(current_test, "requires CONFIG_KPROBES_ON_FTRACE");
+
+	u->ret = -1; /* make sure kprobe is called */
+	unwindme = u;
+	memset(&kp, 0, sizeof(kp));
+	kp.pre_handler = kprobe_pre_handler;
+	kp.addr = u->flags & UWM_KPROBE_ON_FTRACE ?
+				(kprobe_opcode_t *)test_unwind_kprobed_func :
+				(kprobe_opcode_t *)test_unwind_kprobed_insn;
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
+		kunit_err(current_test, "register_kprobe failed %d\n", ret);
+		return -EINVAL;
+	}
+
+	test_unwind_kprobed_func();
+	unregister_kprobe(&kp);
+	unwindme = NULL;
+	return u->ret;
 }
 
 static void notrace __used test_unwind_ftrace_handler(unsigned long ip,
@@ -212,36 +253,8 @@ static noinline int unwindme_func4(struct unwindme *u)
 		wait_event(u->task_wq, kthread_should_park());
 		kthread_parkme();
 		return 0;
-	} else if (u->flags & UWM_PGM) {
-		struct kprobe kp;
-		int ret;
-
-		if (!IS_ENABLED(CONFIG_KPROBES))
-			kunit_skip(current_test, "requires CONFIG_KPROBES");
-
-		unwindme = u;
-		memset(&kp, 0, sizeof(kp));
-		kp.symbol_name = "do_report_trap";
-		kp.pre_handler = pgm_pre_handler;
-		ret = register_kprobe(&kp);
-		if (ret < 0) {
-			kunit_err(current_test, "register_kprobe failed %d\n", ret);
-			return -EINVAL;
-		}
-
-		/*
-		 * Trigger operation exception; use insn notation to bypass
-		 * llvm's integrated assembler sanity checks.
-		 */
-		asm volatile(
-			"	.insn	e,0x0000\n"	/* illegal opcode */
-			"0:	nopr	%%r7\n"
-			EX_TABLE(0b, 0b)
-			:);
-
-		unregister_kprobe(&kp);
-		unwindme = NULL;
-		return u->ret;
+	} else if (u->flags & (UWM_PGM | UWM_KPROBE_ON_FTRACE)) {
+		return test_unwind_kprobe(u);
 	} else if (u->flags & UWM_FTRACE) {
 		return test_unwind_ftrace(u);
 	} else {
@@ -376,6 +389,10 @@ static const struct test_params param_list[] = {
 	TEST_WITH_FLAGS(UWM_PGM | UWM_SP),
 	TEST_WITH_FLAGS(UWM_PGM | UWM_REGS),
 	TEST_WITH_FLAGS(UWM_PGM | UWM_SP | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_KPROBE_ON_FTRACE),
+	TEST_WITH_FLAGS(UWM_KPROBE_ON_FTRACE | UWM_SP),
+	TEST_WITH_FLAGS(UWM_KPROBE_ON_FTRACE | UWM_REGS),
+	TEST_WITH_FLAGS(UWM_KPROBE_ON_FTRACE | UWM_SP | UWM_REGS),
 	TEST_WITH_FLAGS(UWM_FTRACE),
 	TEST_WITH_FLAGS(UWM_FTRACE | UWM_SP),
 	TEST_WITH_FLAGS(UWM_FTRACE | UWM_REGS),
