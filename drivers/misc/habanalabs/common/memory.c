@@ -11,6 +11,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/pci-p2pdma.h>
 
 MODULE_IMPORT_NS(DMA_BUF);
