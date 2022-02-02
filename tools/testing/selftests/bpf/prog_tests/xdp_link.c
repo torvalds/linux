@@ -8,9 +8,9 @@
 
 void serial_test_xdp_link(void)
 {
-	DECLARE_LIBBPF_OPTS(bpf_xdp_set_link_opts, opts, .old_fd = -1);
 	struct test_xdp_link *skel1 = NULL, *skel2 = NULL;
 	__u32 id1, id2, id0 = 0, prog_fd1, prog_fd2;
+	LIBBPF_OPTS(bpf_xdp_attach_opts, opts);
 	struct bpf_link_info link_info;
 	struct bpf_prog_info prog_info;
 	struct bpf_link *link;
@@ -41,12 +41,12 @@ void serial_test_xdp_link(void)
 	id2 = prog_info.id;
 
 	/* set initial prog attachment */
-	err = bpf_set_link_xdp_fd_opts(IFINDEX_LO, prog_fd1, XDP_FLAGS_REPLACE, &opts);
+	err = bpf_xdp_attach(IFINDEX_LO, prog_fd1, XDP_FLAGS_REPLACE, &opts);
 	if (!ASSERT_OK(err, "fd_attach"))
 		goto cleanup;
 
 	/* validate prog ID */
-	err = bpf_get_link_xdp_id(IFINDEX_LO, &id0, 0);
+	err = bpf_xdp_query_id(IFINDEX_LO, 0, &id0);
 	if (!ASSERT_OK(err, "id1_check_err") || !ASSERT_EQ(id0, id1, "id1_check_val"))
 		goto cleanup;
 
@@ -55,14 +55,14 @@ void serial_test_xdp_link(void)
 	if (!ASSERT_ERR_PTR(link, "link_attach_should_fail")) {
 		bpf_link__destroy(link);
 		/* best-effort detach prog */
-		opts.old_fd = prog_fd1;
-		bpf_set_link_xdp_fd_opts(IFINDEX_LO, -1, XDP_FLAGS_REPLACE, &opts);
+		opts.old_prog_fd = prog_fd1;
+		bpf_xdp_detach(IFINDEX_LO, XDP_FLAGS_REPLACE, &opts);
 		goto cleanup;
 	}
 
 	/* detach BPF program */
-	opts.old_fd = prog_fd1;
-	err = bpf_set_link_xdp_fd_opts(IFINDEX_LO, -1, XDP_FLAGS_REPLACE, &opts);
+	opts.old_prog_fd = prog_fd1;
+	err = bpf_xdp_detach(IFINDEX_LO, XDP_FLAGS_REPLACE, &opts);
 	if (!ASSERT_OK(err, "prog_detach"))
 		goto cleanup;
 
@@ -73,23 +73,23 @@ void serial_test_xdp_link(void)
 	skel1->links.xdp_handler = link;
 
 	/* validate prog ID */
-	err = bpf_get_link_xdp_id(IFINDEX_LO, &id0, 0);
+	err = bpf_xdp_query_id(IFINDEX_LO, 0, &id0);
 	if (!ASSERT_OK(err, "id1_check_err") || !ASSERT_EQ(id0, id1, "id1_check_val"))
 		goto cleanup;
 
 	/* BPF prog attach is not allowed to replace BPF link */
-	opts.old_fd = prog_fd1;
-	err = bpf_set_link_xdp_fd_opts(IFINDEX_LO, prog_fd2, XDP_FLAGS_REPLACE, &opts);
+	opts.old_prog_fd = prog_fd1;
+	err = bpf_xdp_attach(IFINDEX_LO, prog_fd2, XDP_FLAGS_REPLACE, &opts);
 	if (!ASSERT_ERR(err, "prog_attach_fail"))
 		goto cleanup;
 
 	/* Can't force-update when BPF link is active */
-	err = bpf_set_link_xdp_fd(IFINDEX_LO, prog_fd2, 0);
+	err = bpf_xdp_attach(IFINDEX_LO, prog_fd2, 0, NULL);
 	if (!ASSERT_ERR(err, "prog_update_fail"))
 		goto cleanup;
 
 	/* Can't force-detach when BPF link is active */
-	err = bpf_set_link_xdp_fd(IFINDEX_LO, -1, 0);
+	err = bpf_xdp_detach(IFINDEX_LO, 0, NULL);
 	if (!ASSERT_ERR(err, "prog_detach_fail"))
 		goto cleanup;
 
@@ -109,7 +109,7 @@ void serial_test_xdp_link(void)
 		goto cleanup;
 	skel2->links.xdp_handler = link;
 
-	err = bpf_get_link_xdp_id(IFINDEX_LO, &id0, 0);
+	err = bpf_xdp_query_id(IFINDEX_LO, 0, &id0);
 	if (!ASSERT_OK(err, "id2_check_err") || !ASSERT_EQ(id0, id2, "id2_check_val"))
 		goto cleanup;
 
