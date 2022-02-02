@@ -412,6 +412,43 @@ qca8k_regmap_update_bits_eth(struct qca8k_priv *priv, u32 reg, u32 mask, u32 wri
 }
 
 static int
+qca8k_bulk_read(struct qca8k_priv *priv, u32 reg, u32 *val, int len)
+{
+	int i, count = len / sizeof(u32), ret;
+
+	if (priv->mgmt_master && !qca8k_read_eth(priv, reg, val, len))
+		return 0;
+
+	for (i = 0; i < count; i++) {
+		ret = regmap_read(priv->regmap, reg + (i * 4), val + i);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int
+qca8k_bulk_write(struct qca8k_priv *priv, u32 reg, u32 *val, int len)
+{
+	int i, count = len / sizeof(u32), ret;
+	u32 tmp;
+
+	if (priv->mgmt_master && !qca8k_write_eth(priv, reg, val, len))
+		return 0;
+
+	for (i = 0; i < count; i++) {
+		tmp = val[i];
+
+		ret = regmap_write(priv->regmap, reg + (i * 4), tmp);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int
 qca8k_regmap_read(void *ctx, uint32_t reg, uint32_t *val)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ctx;
@@ -546,17 +583,13 @@ qca8k_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask)
 static int
 qca8k_fdb_read(struct qca8k_priv *priv, struct qca8k_fdb *fdb)
 {
-	u32 reg[4], val;
-	int i, ret;
+	u32 reg[3];
+	int ret;
 
 	/* load the ARL table into an array */
-	for (i = 0; i < 4; i++) {
-		ret = qca8k_read(priv, QCA8K_REG_ATU_DATA0 + (i * 4), &val);
-		if (ret < 0)
-			return ret;
-
-		reg[i] = val;
-	}
+	ret = qca8k_bulk_read(priv, QCA8K_REG_ATU_DATA0, reg, sizeof(reg));
+	if (ret)
+		return ret;
 
 	/* vid - 83:72 */
 	fdb->vid = FIELD_GET(QCA8K_ATU_VID_MASK, reg[2]);
@@ -580,7 +613,6 @@ qca8k_fdb_write(struct qca8k_priv *priv, u16 vid, u8 port_mask, const u8 *mac,
 		u8 aging)
 {
 	u32 reg[3] = { 0 };
-	int i;
 
 	/* vid - 83:72 */
 	reg[2] = FIELD_PREP(QCA8K_ATU_VID_MASK, vid);
@@ -597,8 +629,7 @@ qca8k_fdb_write(struct qca8k_priv *priv, u16 vid, u8 port_mask, const u8 *mac,
 	reg[0] |= FIELD_PREP(QCA8K_ATU_ADDR5_MASK, mac[5]);
 
 	/* load the array into the ARL table */
-	for (i = 0; i < 3; i++)
-		qca8k_write(priv, QCA8K_REG_ATU_DATA0 + (i * 4), reg[i]);
+	qca8k_bulk_write(priv, QCA8K_REG_ATU_DATA0, reg, sizeof(reg));
 }
 
 static int
