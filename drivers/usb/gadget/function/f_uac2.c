@@ -973,59 +973,44 @@ static void setup_descriptor(struct f_uac2_opts *opts)
 static int afunc_validate_opts(struct g_audio *agdev, struct device *dev)
 {
 	struct f_uac2_opts *opts = g_audio_to_uac2_opts(agdev);
+	const char *msg = NULL;
 
-	if (!opts->p_chmask && !opts->c_chmask) {
-		dev_err(dev, "Error: no playback and capture channels\n");
-		return -EINVAL;
-	} else if (opts->p_chmask & ~UAC2_CHANNEL_MASK) {
-		dev_err(dev, "Error: unsupported playback channels mask\n");
-		return -EINVAL;
-	} else if (opts->c_chmask & ~UAC2_CHANNEL_MASK) {
-		dev_err(dev, "Error: unsupported capture channels mask\n");
-		return -EINVAL;
-	} else if ((opts->p_ssize < 1) || (opts->p_ssize > 4)) {
-		dev_err(dev, "Error: incorrect playback sample size\n");
-		return -EINVAL;
-	} else if ((opts->c_ssize < 1) || (opts->c_ssize > 4)) {
-		dev_err(dev, "Error: incorrect capture sample size\n");
-		return -EINVAL;
-	} else if (!opts->p_srates[0]) {
-		dev_err(dev, "Error: incorrect playback sampling rate\n");
-		return -EINVAL;
-	} else if (!opts->c_srates[0]) {
-		dev_err(dev, "Error: incorrect capture sampling rate\n");
-		return -EINVAL;
-	}
+	if (!opts->p_chmask && !opts->c_chmask)
+		msg = "no playback and capture channels";
+	else if (opts->p_chmask & ~UAC2_CHANNEL_MASK)
+		msg = "unsupported playback channels mask";
+	else if (opts->c_chmask & ~UAC2_CHANNEL_MASK)
+		msg = "unsupported capture channels mask";
+	else if ((opts->p_ssize < 1) || (opts->p_ssize > 4))
+		msg = "incorrect playback sample size";
+	else if ((opts->c_ssize < 1) || (opts->c_ssize > 4))
+		msg = "incorrect capture sample size";
+	else if (!opts->p_srates[0])
+		msg = "incorrect playback sampling rate";
+	else if (!opts->c_srates[0])
+		msg = "incorrect capture sampling rate";
 
-	if (opts->p_volume_max <= opts->p_volume_min) {
-		dev_err(dev, "Error: incorrect playback volume max/min\n");
-			return -EINVAL;
-	} else if (opts->c_volume_max <= opts->c_volume_min) {
-		dev_err(dev, "Error: incorrect capture volume max/min\n");
-			return -EINVAL;
-	} else if (opts->p_volume_res <= 0) {
-		dev_err(dev, "Error: negative/zero playback volume resolution\n");
-			return -EINVAL;
-	} else if (opts->c_volume_res <= 0) {
-		dev_err(dev, "Error: negative/zero capture volume resolution\n");
-			return -EINVAL;
-	}
+	else if (opts->p_volume_max <= opts->p_volume_min)
+		msg = "incorrect playback volume max/min";
+	else if (opts->c_volume_max <= opts->c_volume_min)
+		msg = "incorrect capture volume max/min";
+	else if (opts->p_volume_res <= 0)
+		msg = "negative/zero playback volume resolution";
+	else if (opts->c_volume_res <= 0)
+		msg = "negative/zero capture volume resolution";
 
-	if ((opts->p_volume_max - opts->p_volume_min) % opts->p_volume_res) {
-		dev_err(dev, "Error: incorrect playback volume resolution\n");
-			return -EINVAL;
-	} else if ((opts->c_volume_max - opts->c_volume_min) % opts->c_volume_res) {
-		dev_err(dev, "Error: incorrect capture volume resolution\n");
-			return -EINVAL;
-	}
+	else if ((opts->p_volume_max - opts->p_volume_min) % opts->p_volume_res)
+		msg = "incorrect playback volume resolution";
+	else if ((opts->c_volume_max - opts->c_volume_min) % opts->c_volume_res)
+		msg = "incorrect capture volume resolution";
 
-	if ((opts->p_hs_bint < 0) || (opts->p_hs_bint > 4)) {
-		dev_err(dev, "Error: incorrect playback HS/SS bInterval (1-4: fixed, 0: auto)\n");
-		return -EINVAL;
-	}
+	else if ((opts->p_hs_bint < 0) || (opts->p_hs_bint > 4))
+		msg = "incorrect playback HS/SS bInterval (1-4: fixed, 0: auto)";
+	else if ((opts->c_hs_bint < 0) || (opts->c_hs_bint > 4))
+		msg = "incorrect capture HS/SS bInterval (1-4: fixed, 0: auto)";
 
-	if ((opts->c_hs_bint < 0) || (opts->c_hs_bint > 4)) {
-		dev_err(dev, "Error: incorrect capture HS/SS bInterval (1-4: fixed, 0: auto)\n");
+	if (msg) {
+		dev_err(dev, "Error: %s\n", msg);
 		return -EINVAL;
 	}
 
