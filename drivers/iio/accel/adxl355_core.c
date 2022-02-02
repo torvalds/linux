@@ -20,6 +20,8 @@
 #include <linux/mod_devicetable.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
+#include <linux/units.h>
+
 #include <asm/unaligned.h>
 
 #include "adxl355.h"
@@ -59,9 +61,6 @@
 #define ADXL355_DEVID_MST_VAL		0x1D
 #define ADXL355_PARTID_VAL		0xED
 #define ADXL355_RESET_CODE		0x52
-
-#define MEGA 1000000UL
-#define TERA 1000000000000ULL
 
 static const struct regmap_range adxl355_read_reg_range[] = {
 	regmap_reg_range(ADXL355_DEVID_AD_REG, ADXL355_FIFO_DATA_REG),
