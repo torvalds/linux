@@ -11,9 +11,10 @@
 #include <linux/iio/timer/stm32-timer-trigger.h>
 #include <linux/iio/trigger.h>
 #include <linux/mfd/stm32-timers.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 
 #define MAX_TRIGGERS 7
 #define MAX_VALIDS 5
@@ -771,11 +772,11 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 	unsigned int index;
 	int ret;
 
-	if (of_property_read_u32(dev->of_node, "reg", &index))
-		return -EINVAL;
+	ret = device_property_read_u32(dev, "reg", &index);
+	if (ret)
+		return ret;
 
-	cfg = (const struct stm32_timer_trigger_cfg *)
-		of_match_device(dev->driver->of_match_table, dev)->data;
+	cfg = device_get_match_data(dev);
 
 	if (index >= ARRAY_SIZE(triggers_table) ||
 	    index >= cfg->num_valids_table)
