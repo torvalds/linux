@@ -3050,6 +3050,8 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
 	if (opendata->o_res.rflags & NFS4_OPEN_RESULT_MAY_NOTIFY_LOCK)
 		set_bit(NFS_STATE_MAY_NOTIFY_LOCK, &state->flags);
+	if (opendata->o_res.rflags & NFS4_OPEN_RESULT_PRESERVE_UNLINKED)
+		set_bit(NFS_INO_PRESERVE_UNLINKED, &NFS_I(state->inode)->flags);
 
 	dentry = opendata->dentry;
 	if (d_really_is_negative(dentry)) {

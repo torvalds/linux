@@ -1419,7 +1419,12 @@ int nfs_lookup_verify_inode(struct inode *inode, unsigned int flags)
 	if (flags & LOOKUP_REVAL)
 		goto out_force;
 out:
-	return (inode->i_nlink == 0) ? -ESTALE : 0;
+	if (inode->i_nlink > 0 ||
+	    (inode->i_nlink == 0 &&
+	     test_bit(NFS_INO_PRESERVE_UNLINKED, &NFS_I(inode)->flags)))
+		return 0;
+	else
+		return -ESTALE;
 out_force:
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -2330,7 +2335,8 @@ int nfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	trace_nfs_unlink_enter(dir, dentry);
 	spin_lock(&dentry->d_lock);
-	if (d_count(dentry) > 1) {
+	if (d_count(dentry) > 1 && !test_bit(NFS_INO_PRESERVE_UNLINKED,
+					     &NFS_I(d_inode(dentry))->flags)) {
 		spin_unlock(&dentry->d_lock);
 		/* Start asynchronous writeout of the inode */
 		write_inode_now(d_inode(dentry), 0);
