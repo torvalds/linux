@@ -369,6 +369,11 @@ struct qca8k_mdio_cache {
  * mdio writes
  */
 	u16 page;
+/* lo and hi can also be cached and from Documentation we can skip one
+ * extra mdio write if lo or hi is didn't change.
+ */
+	u16 lo;
+	u16 hi;
 };
 
 struct qca8k_priv {
