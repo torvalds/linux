@@ -3,10 +3,9 @@
 #include "misc.h"
 #include "error.h"
 #include "../string.h"
+#include "efi.h"
 
 #include <linux/numa.h>
-#include <linux/efi.h>
-#include <asm/efi.h>
 
 /*
  * Longest parameter of 'acpi=' is 'copy_dsdt', plus an extra '\0'
