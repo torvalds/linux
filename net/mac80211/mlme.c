@@ -5007,6 +5007,104 @@ static u8 ieee80211_max_rx_chains(struct ieee80211_sub_if_data *sdata,
 }
 
 static bool
+ieee80211_verify_peer_he_mcs_support(struct ieee80211_sub_if_data *sdata,
+				     const struct cfg80211_bss_ies *ies,
+				     const struct ieee80211_he_operation *he_op)
+{
+	const struct element *he_cap_elem;
+	const struct ieee80211_he_cap_elem *he_cap;
+	struct ieee80211_he_mcs_nss_supp *he_mcs_nss_supp;
+	u16 mcs_80_map_tx, mcs_80_map_rx;
+	u16 ap_min_req_set;
+	int mcs_nss_size;
+	int nss;
+
+	he_cap_elem = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY,
+					     ies->data, ies->len);
+
+	/* invalid HE IE */
+	if (!he_cap_elem || he_cap_elem->datalen < 1 + sizeof(*he_cap)) {
+		sdata_info(sdata,
+			   "Invalid HE elem, Disable HE\n");
+		return false;
+	}
+
+	/* skip one byte ext_tag_id */
+	he_cap = (void *)(he_cap_elem->data + 1);
+	mcs_nss_size = ieee80211_he_mcs_nss_size(he_cap);
+
+	/* invalid HE IE */
+	if (he_cap_elem->datalen < 1 + sizeof(*he_cap) + mcs_nss_size) {
+		sdata_info(sdata,
+			   "Invalid HE elem with nss size, Disable HE\n");
+		return false;
+	}
+
+	/* mcs_nss is right after he_cap info */
+	he_mcs_nss_supp = (void *)(he_cap + 1);
+
+	mcs_80_map_tx = le16_to_cpu(he_mcs_nss_supp->tx_mcs_80);
+	mcs_80_map_rx = le16_to_cpu(he_mcs_nss_supp->rx_mcs_80);
+
+	/* P802.11-REVme/D0.3
+	 * 27.1.1 Introduction to the HE PHY
+	 * ...
+	 * An HE STA shall support the following features:
+	 * ...
+	 * Single spatial stream HE-MCSs 0 to 7 (transmit and receive) in all
+	 * supported channel widths for HE SU PPDUs
+	 */
+	if ((mcs_80_map_tx & 0x3) == IEEE80211_HE_MCS_NOT_SUPPORTED ||
+	    (mcs_80_map_rx & 0x3) == IEEE80211_HE_MCS_NOT_SUPPORTED) {
+		sdata_info(sdata,
+			   "Missing mandatory rates for 1 Nss, rx 0x%x, tx 0x%x, disable HE\n",
+			   mcs_80_map_tx, mcs_80_map_rx);
+		return false;
+	}
+
+	if (!he_op)
+		return true;
+
+	ap_min_req_set = le16_to_cpu(he_op->he_mcs_nss_set);
+
+	/* make sure the AP is consistent with itself
+	 *
+	 * P802.11-REVme/D0.3
+	 * 26.17.1 Basic HE BSS operation
+	 *
+	 * A STA that is operating in an HE BSS shall be able to receive and
+	 * transmit at each of the <HE-MCS, NSS> tuple values indicated by the
+	 * Basic HE-MCS And NSS Set field of the HE Operation parameter of the
+	 * MLME-START.request primitive and shall be able to receive at each of
+	 * the <HE-MCS, NSS> tuple values indicated by the Supported HE-MCS and
+	 * NSS Set field in the HE Capabilities parameter of the MLMESTART.request
+	 * primitive
+	 */
+	for (nss = 8; nss > 0; nss--) {
+		u8 ap_op_val = (ap_min_req_set >> (2 * (nss - 1))) & 3;
+		u8 ap_rx_val;
+		u8 ap_tx_val;
+
+		if (ap_op_val == IEEE80211_HE_MCS_NOT_SUPPORTED)
+			continue;
+
+		ap_rx_val = (mcs_80_map_rx >> (2 * (nss - 1))) & 3;
+		ap_tx_val = (mcs_80_map_tx >> (2 * (nss - 1))) & 3;
+
+		if (ap_rx_val == IEEE80211_HE_MCS_NOT_SUPPORTED ||
+		    ap_tx_val == IEEE80211_HE_MCS_NOT_SUPPORTED ||
+		    ap_rx_val < ap_op_val || ap_tx_val < ap_op_val) {
+			sdata_info(sdata,
+				   "Invalid rates for %d Nss, rx %d, tx %d oper %d, disable HE\n",
+				   nss, ap_rx_val, ap_rx_val, ap_op_val);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
 ieee80211_verify_sta_he_mcs_support(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const struct ieee80211_he_operation *he_op)
@@ -5191,7 +5289,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 			}
 		}
 
-		if (!ieee80211_verify_sta_he_mcs_support(sdata, sband, he_oper))
+		if (!ieee80211_verify_peer_he_mcs_support(sdata, ies, he_oper) ||
+		    !ieee80211_verify_sta_he_mcs_support(sdata, sband, he_oper))
 			ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
 	}
 
