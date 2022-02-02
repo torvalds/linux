@@ -861,7 +861,7 @@ static int gb_svc_hello(struct gb_operation *op)
 	ret = gb_svc_watchdog_create(svc);
 	if (ret) {
 		dev_err(&svc->dev, "failed to create watchdog: %d\n", ret);
-		goto err_unregister_device;
+		goto err_deregister_svc;
 	}
 
 	gb_svc_debugfs_init(svc);
@@ -874,9 +874,10 @@ static int gb_svc_hello(struct gb_operation *op)
 
 err_remove_debugfs:
 	gb_svc_debugfs_exit(svc);
-err_unregister_device:
 	gb_svc_watchdog_destroy(svc);
+err_deregister_svc:
 	device_del(&svc->dev);
+
 	return ret;
 }
 
