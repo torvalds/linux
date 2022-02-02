@@ -74,6 +74,10 @@ typedef struct {
 	int counter;
 } atomic_t;
 
+typedef struct {
+	long counter;
+} atomic_long_t;
+
 #ifndef __aligned_u64
 # define __aligned_u64 __u64 __attribute__((aligned(8)))
 #endif
