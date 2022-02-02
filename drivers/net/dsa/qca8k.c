@@ -2031,67 +2031,39 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	}
 }
 
-static void
-qca8k_phylink_validate(struct dsa_switch *ds, int port,
-		       unsigned long *supported,
-		       struct phylink_link_state *state)
+static void qca8k_phylink_get_caps(struct dsa_switch *ds, int port,
+				   struct phylink_config *config)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-
 	switch (port) {
 	case 0: /* 1st CPU port */
-		if (state->interface != PHY_INTERFACE_MODE_NA &&
-		    state->interface != PHY_INTERFACE_MODE_RGMII &&
-		    state->interface != PHY_INTERFACE_MODE_RGMII_ID &&
-		    state->interface != PHY_INTERFACE_MODE_RGMII_TXID &&
-		    state->interface != PHY_INTERFACE_MODE_RGMII_RXID &&
-		    state->interface != PHY_INTERFACE_MODE_SGMII)
-			goto unsupported;
+		phy_interface_set_rgmii(config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_SGMII,
+			  config->supported_interfaces);
 		break;
+
 	case 1:
 	case 2:
 	case 3:
 	case 4:
 	case 5:
 		/* Internal PHY */
-		if (state->interface != PHY_INTERFACE_MODE_NA &&
-		    state->interface != PHY_INTERFACE_MODE_GMII &&
-		    state->interface != PHY_INTERFACE_MODE_INTERNAL)
-			goto unsupported;
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
 		break;
+
 	case 6: /* 2nd CPU port / external PHY */
-		if (state->interface != PHY_INTERFACE_MODE_NA &&
-		    state->interface != PHY_INTERFACE_MODE_RGMII &&
-		    state->interface != PHY_INTERFACE_MODE_RGMII_ID &&
-		    state->interface != PHY_INTERFACE_MODE_RGMII_TXID &&
-		    state->interface != PHY_INTERFACE_MODE_RGMII_RXID &&
-		    state->interface != PHY_INTERFACE_MODE_SGMII &&
-		    state->interface != PHY_INTERFACE_MODE_1000BASEX)
-			goto unsupported;
+		phy_interface_set_rgmii(config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_SGMII,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_1000BASEX,
+			  config->supported_interfaces);
 		break;
-	default:
-unsupported:
-		linkmode_zero(supported);
-		return;
 	}
 
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Autoneg);
-
-	phylink_set(mask, 1000baseT_Full);
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-
-	if (state->interface == PHY_INTERFACE_MODE_1000BASEX)
-		phylink_set(mask, 1000baseX_Full);
-
-	phylink_set(mask, Pause);
-	phylink_set(mask, Asym_Pause);
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
+	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+		MAC_10 | MAC_100 | MAC_1000FD;
 }
 
 static int
@@ -3045,7 +3017,7 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.port_vlan_filtering	= qca8k_port_vlan_filtering,
 	.port_vlan_add		= qca8k_port_vlan_add,
 	.port_vlan_del		= qca8k_port_vlan_del,
-	.phylink_validate	= qca8k_phylink_validate,
+	.phylink_get_caps	= qca8k_phylink_get_caps,
 	.phylink_mac_link_state	= qca8k_phylink_mac_link_state,
 	.phylink_mac_config	= qca8k_phylink_mac_config,
 	.phylink_mac_link_down	= qca8k_phylink_mac_link_down,
