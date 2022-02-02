@@ -396,16 +396,16 @@ static void chv_load_cgm_csc(struct intel_crtc *crtc,
 		coeffs[i] |= (abs_coeff >> 20) & 0xfff;
 	}
 
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF01(pipe),
-		       coeffs[1] << 16 | coeffs[0]);
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF23(pipe),
-		       coeffs[3] << 16 | coeffs[2]);
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF45(pipe),
-		       coeffs[5] << 16 | coeffs[4]);
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF67(pipe),
-		       coeffs[7] << 16 | coeffs[6]);
-	intel_de_write(dev_priv, CGM_PIPE_CSC_COEFF8(pipe),
-		       coeffs[8]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF01(pipe),
+			  coeffs[1] << 16 | coeffs[0]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF23(pipe),
+			  coeffs[3] << 16 | coeffs[2]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF45(pipe),
+			  coeffs[5] << 16 | coeffs[4]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF67(pipe),
+			  coeffs[7] << 16 | coeffs[6]);
+	intel_de_write_fw(dev_priv, CGM_PIPE_CSC_COEFF8(pipe),
+			  coeffs[8]);
 }
 
 /* convert hw value with given bit_precision to lut property val */
