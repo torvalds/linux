@@ -676,9 +676,6 @@ ap_ts_pen: &i2c13 {
 &sdhc_1 {
 	status = "okay";
 
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc1_on>;
-	pinctrl-1 = <&sdc1_off>;
 	vmmc-supply = <&pp2950_l7b>;
 	vqmmc-supply = <&pp1800_l19b>;
 };
@@ -686,9 +683,8 @@ ap_ts_pen: &i2c13 {
 &sdhc_2 {
 	status = "okay";
 
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_on>;
-	pinctrl-1 = <&sdc2_off>;
+	pinctrl-0 = <&sdc2_clk>, <&sdc2_cmd>, <&sdc2_data>, <&sd_cd>;
+	pinctrl-1 = <&sdc2_clk_sleep>, <&sdc2_cmd_sleep>, <&sdc2_data_sleep>, <&sd_cd>;
 	vmmc-supply = <&pp2950_l9c>;
 	vqmmc-supply = <&ppvar_l6c>;
 
@@ -883,47 +879,38 @@ ap_ec_spi: &spi8 {
 	bias-pull-up;
 };
 
-&sdc1_on {
-	clk {
-		bias-disable;
-		drive-strength = <16>;
-	};
-
-	cmd {
-		bias-pull-up;
-		drive-strength = <10>;
-	};
-
-	data {
-		bias-pull-up;
-		drive-strength = <10>;
-	};
-
-	rclk {
-		bias-pull-down;
-	};
+&sdc1_clk {
+	bias-disable;
+	drive-strength = <16>;
 };
 
-&sdc2_on {
-	clk {
-		bias-disable;
-		drive-strength = <16>;
-	};
+&sdc1_cmd {
+	bias-pull-up;
+	drive-strength = <10>;
+};
 
-	cmd {
-		bias-pull-up;
-		drive-strength = <10>;
-	};
+&sdc1_data {
+	bias-pull-up;
+	drive-strength = <10>;
+};
 
-	data {
-		bias-pull-up;
-		drive-strength = <10>;
-	};
+&sdc1_rclk {
+	bias-pull-down;
+};
 
-	sd-cd {
-		pins = "gpio91";
-		bias-pull-up;
-	};
+&sdc2_clk {
+	bias-disable;
+	drive-strength = <16>;
+};
+
+&sdc2_cmd {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
+&sdc2_data {
+	bias-pull-up;
+	drive-strength = <10>;
 };
 
 /* PINCTRL - board-specific pinctrl */
@@ -1308,6 +1295,12 @@ ap_ec_spi: &spi8 {
 		 * Configure pull-up on TX when it isn't actively driven
 		 * to prevent BT SoC from receiving garbage during sleep.
 		 */
+		bias-pull-up;
+	};
+
+	sd_cd: sd-cd {
+		pins = "gpio91";
+		function = "gpio";
 		bias-pull-up;
 	};
 
