@@ -99,6 +99,14 @@ patternProperties:
             enum: [2, 4, 6, 8, 10, 12, 14, 16]
 
           bias-pull-down:
+            oneOf:
+              - type: boolean
+              - enum: [100, 101, 102, 103]
+                description: mt8195 pull down PUPD/R0/R1 type define value.
+              - enum: [200, 201, 202, 203, 204, 205, 206, 207]
+                description: mt8195 pull down RSEL type define value.
+              - enum: [75000, 5000]
+                description: mt8195 pull down RSEL type si unit value(ohm).
             description: |
               For pull down type is normal, it don't need add RSEL & R1R0 define
               and resistance value.
@@ -115,13 +123,6 @@ patternProperties:
               & "MTK_PULL_SET_RSEL_110" & "MTK_PULL_SET_RSEL_111"
               define in mt8195. It can also support resistance value(ohm)
               "75000" & "5000" in mt8195.
-              oneOf:
-                - enum: [100, 101, 102, 103]
-                - description: mt8195 pull down PUPD/R0/R1 type define value.
-                - enum: [200, 201, 202, 203, 204, 205, 206, 207]
-                - description: mt8195 pull down RSEL type define value.
-                - enum: [75000, 5000]
-                - description: mt8195 pull down RSEL type si unit value(ohm).
 
               An example of using RSEL define:
               pincontroller {
@@ -146,6 +147,14 @@ patternProperties:
               };
 
           bias-pull-up:
+            oneOf:
+              - type: boolean
+              - enum: [100, 101, 102, 103]
+                description: mt8195 pull up PUPD/R0/R1 type define value.
+              - enum: [200, 201, 202, 203, 204, 205, 206, 207]
+                description: mt8195 pull up RSEL type define value.
+              - enum: [1000, 1500, 2000, 3000, 4000, 5000, 10000, 75000]
+                description: mt8195 pull up RSEL type si unit value(ohm).
             description: |
               For pull up type is normal, it don't need add RSEL & R1R0 define
               and resistance value.
@@ -163,13 +172,6 @@ patternProperties:
               define in mt8195. It can also support resistance value(ohm)
               "1000" & "1500" & "2000" & "3000" & "4000" & "5000" & "10000" &
               "75000" in mt8195.
-              oneOf:
-                - enum: [100, 101, 102, 103]
-                - description: mt8195 pull up PUPD/R0/R1 type define value.
-                - enum: [200, 201, 202, 203, 204, 205, 206, 207]
-                - description: mt8195 pull up RSEL type define value.
-                - enum: [1000, 1500, 2000, 3000, 4000, 5000, 10000, 75000]
-                - description: mt8195 pull up RSEL type si unit value(ohm).
               An example of using RSEL define:
               pincontroller {
                 i2c0-pins {
