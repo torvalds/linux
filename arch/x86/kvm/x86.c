@@ -90,6 +90,8 @@
 u64 __read_mostly kvm_mce_cap_supported = MCG_CTL_P | MCG_SER_P;
 EXPORT_SYMBOL_GPL(kvm_mce_cap_supported);
 
+#define  ERR_PTR_USR(e)  ((void __user *)ERR_PTR(e))
+
 #define emul_to_vcpu(ctxt) \
 	((struct kvm_vcpu *)(ctxt)->vcpu)
 
@@ -4340,7 +4342,7 @@ static inline void __user *kvm_get_attr_addr(struct kvm_device_attr *attr)
 	void __user *uaddr = (void __user*)(unsigned long)attr->addr;
 
 	if ((u64)(unsigned long)uaddr != attr->addr)
-		return ERR_PTR(-EFAULT);
+		return ERR_PTR_USR(-EFAULT);
 	return uaddr;
 }
 
@@ -11683,8 +11685,6 @@ void kvm_arch_sync_events(struct kvm *kvm)
 	cancel_delayed_work_sync(&kvm->arch.kvmclock_update_work);
 	kvm_free_pit(kvm);
 }
-
-#define  ERR_PTR_USR(e)  ((void __user *)ERR_PTR(e))
 
 /**
  * __x86_set_memory_region: Setup KVM internal memory slot
