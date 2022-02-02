@@ -91,7 +91,7 @@
 
 static bool no_current_sense_res;
 module_param(no_current_sense_res, bool, 0444);
-MODULE_PARM_DESC(no_current_sense_res, "No (or broken) current sense resisitor");
+MODULE_PARM_DESC(no_current_sense_res, "No (or broken) current sense resistor");
 
 enum {
 	QWBTU_IRQ = 0,
