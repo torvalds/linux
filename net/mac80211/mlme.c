@@ -5052,7 +5052,15 @@ ieee80211_verify_sta_he_mcs_support(struct ieee80211_sub_if_data *sdata,
 
 			/*
 			 * Make sure the HE AP doesn't require MCSs that aren't
-			 * supported by the client
+			 * supported by the client as required by spec
+			 *
+			 * P802.11-REVme/D0.3
+			 * 26.17.1 Basic HE BSS operation
+			 *
+			 * An HE STA shall not attempt to join * (MLME-JOIN.request primitive)
+			 * a BSS, unless it supports (i.e., is able to both transmit and
+			 * receive using) all of the <HE-MCS, NSS> tuples in the basic
+			 * HE-MCS and NSS set.
 			 */
 			if (sta_rx_val == IEEE80211_HE_MCS_NOT_SUPPORTED ||
 			    sta_tx_val == IEEE80211_HE_MCS_NOT_SUPPORTED ||
