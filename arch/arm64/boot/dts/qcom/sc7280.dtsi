@@ -3273,17 +3273,17 @@
 			gpio-ranges = <&tlmm 0 0 175>;
 			wakeup-parent = <&pdc>;
 
+			dp_hot_plug_det: dp-hot-plug-det {
+				pins = "gpio47";
+				function = "dp_hot";
+				bias-disable;
+			};
+
 			pcie1_clkreq_n: pcie1-clkreq-n {
 				pins = "gpio79";
 				function = "pcie1_clkreqn";
 				drive-strength = <2>;
 				bias-pull-up;
-			};
-
-			dp_hot_plug_det: dp-hot-plug-det {
-				pins = "gpio47";
-				function = "dp_hot";
-				bias-disable;
 			};
 
 			qspi_clk: qspi-clk {
