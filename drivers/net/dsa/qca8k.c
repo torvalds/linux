@@ -222,7 +222,9 @@ static void qca8k_rw_reg_ack_handler(struct dsa_switch *ds, struct sk_buff *skb)
 	if (cmd == MDIO_READ) {
 		mgmt_eth_data->data[0] = mgmt_ethhdr->mdio_data;
 
-		/* Get the rest of the 12 byte of data */
+		/* Get the rest of the 12 byte of data.
+		 * The read/write function will extract the requested data.
+		 */
 		if (len > QCA_HDR_MGMT_DATA1_LEN)
 			memcpy(mgmt_eth_data->data + 1, skb->data,
 			       QCA_HDR_MGMT_DATA2_LEN);
@@ -232,15 +234,29 @@ static void qca8k_rw_reg_ack_handler(struct dsa_switch *ds, struct sk_buff *skb)
 }
 
 static struct sk_buff *qca8k_alloc_mdio_header(enum mdio_cmd cmd, u32 reg, u32 *val,
-					       int priority)
+					       int priority, unsigned int len)
 {
 	struct qca_mgmt_ethhdr *mgmt_ethhdr;
+	unsigned int real_len;
 	struct sk_buff *skb;
+	u32 *data2;
 	u16 hdr;
 
 	skb = dev_alloc_skb(QCA_HDR_MGMT_PKT_LEN);
 	if (!skb)
 		return NULL;
+
+	/* Max value for len reg is 15 (0xf) but the switch actually return 16 byte
+	 * Actually for some reason the steps are:
+	 * 0: nothing
+	 * 1-4: first 4 byte
+	 * 5-6: first 12 byte
+	 * 7-15: all 16 byte
+	 */
+	if (len == 16)
+		real_len = 15;
+	else
+		real_len = len;
 
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb->len);
@@ -254,7 +270,7 @@ static struct sk_buff *qca8k_alloc_mdio_header(enum mdio_cmd cmd, u32 reg, u32 *
 	hdr |= FIELD_PREP(QCA_HDR_XMIT_CONTROL, QCA_HDR_XMIT_TYPE_RW_REG);
 
 	mgmt_ethhdr->command = FIELD_PREP(QCA_HDR_MGMT_ADDR, reg);
-	mgmt_ethhdr->command |= FIELD_PREP(QCA_HDR_MGMT_LENGTH, 4);
+	mgmt_ethhdr->command |= FIELD_PREP(QCA_HDR_MGMT_LENGTH, real_len);
 	mgmt_ethhdr->command |= FIELD_PREP(QCA_HDR_MGMT_CMD, cmd);
 	mgmt_ethhdr->command |= FIELD_PREP(QCA_HDR_MGMT_CHECK_CODE,
 					   QCA_HDR_MGMT_CHECK_CODE_VAL);
@@ -264,7 +280,9 @@ static struct sk_buff *qca8k_alloc_mdio_header(enum mdio_cmd cmd, u32 reg, u32 *
 
 	mgmt_ethhdr->hdr = htons(hdr);
 
-	skb_put_zero(skb, QCA_HDR_MGMT_DATA2_LEN + QCA_HDR_MGMT_PADDING_LEN);
+	data2 = skb_put_zero(skb, QCA_HDR_MGMT_DATA2_LEN + QCA_HDR_MGMT_PADDING_LEN);
+	if (cmd == MDIO_WRITE && len > QCA_HDR_MGMT_DATA1_LEN)
+		memcpy(data2, val + 1, len - QCA_HDR_MGMT_DATA1_LEN);
 
 	return skb;
 }
@@ -277,7 +295,7 @@ static void qca8k_mdio_header_fill_seq_num(struct sk_buff *skb, u32 seq_num)
 	mgmt_ethhdr->seq = FIELD_PREP(QCA_HDR_MGMT_SEQ_NUM, seq_num);
 }
 
-static int qca8k_read_eth(struct qca8k_priv *priv, u32 reg, u32 *val)
+static int qca8k_read_eth(struct qca8k_priv *priv, u32 reg, u32 *val, int len)
 {
 	struct qca8k_mgmt_eth_data *mgmt_eth_data = &priv->mgmt_eth_data;
 	struct sk_buff *skb;
@@ -285,7 +303,7 @@ static int qca8k_read_eth(struct qca8k_priv *priv, u32 reg, u32 *val)
 	int ret;
 
 	skb = qca8k_alloc_mdio_header(MDIO_READ, reg, NULL,
-				      QCA8K_ETHERNET_MDIO_PRIORITY);
+				      QCA8K_ETHERNET_MDIO_PRIORITY, len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -313,6 +331,9 @@ static int qca8k_read_eth(struct qca8k_priv *priv, u32 reg, u32 *val)
 					  msecs_to_jiffies(QCA8K_ETHERNET_TIMEOUT));
 
 	*val = mgmt_eth_data->data[0];
+	if (len > QCA_HDR_MGMT_DATA1_LEN)
+		memcpy(val + 1, mgmt_eth_data->data + 1, len - QCA_HDR_MGMT_DATA1_LEN);
+
 	ack = mgmt_eth_data->ack;
 
 	mutex_unlock(&mgmt_eth_data->mutex);
@@ -326,15 +347,15 @@ static int qca8k_read_eth(struct qca8k_priv *priv, u32 reg, u32 *val)
 	return 0;
 }
 
-static int qca8k_write_eth(struct qca8k_priv *priv, u32 reg, u32 val)
+static int qca8k_write_eth(struct qca8k_priv *priv, u32 reg, u32 *val, int len)
 {
 	struct qca8k_mgmt_eth_data *mgmt_eth_data = &priv->mgmt_eth_data;
 	struct sk_buff *skb;
 	bool ack;
 	int ret;
 
-	skb = qca8k_alloc_mdio_header(MDIO_WRITE, reg, &val,
-				      QCA8K_ETHERNET_MDIO_PRIORITY);
+	skb = qca8k_alloc_mdio_header(MDIO_WRITE, reg, val,
+				      QCA8K_ETHERNET_MDIO_PRIORITY, len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -380,14 +401,14 @@ qca8k_regmap_update_bits_eth(struct qca8k_priv *priv, u32 reg, u32 mask, u32 wri
 	u32 val = 0;
 	int ret;
 
-	ret = qca8k_read_eth(priv, reg, &val);
+	ret = qca8k_read_eth(priv, reg, &val, sizeof(val));
 	if (ret)
 		return ret;
 
 	val &= ~mask;
 	val |= write_val;
 
-	return qca8k_write_eth(priv, reg, val);
+	return qca8k_write_eth(priv, reg, &val, sizeof(val));
 }
 
 static int
@@ -398,7 +419,7 @@ qca8k_regmap_read(void *ctx, uint32_t reg, uint32_t *val)
 	u16 r1, r2, page;
 	int ret;
 
-	if (!qca8k_read_eth(priv, reg, val))
+	if (!qca8k_read_eth(priv, reg, val, sizeof(val)))
 		return 0;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
@@ -424,7 +445,7 @@ qca8k_regmap_write(void *ctx, uint32_t reg, uint32_t val)
 	u16 r1, r2, page;
 	int ret;
 
-	if (!qca8k_write_eth(priv, reg, val))
+	if (!qca8k_write_eth(priv, reg, &val, sizeof(val)))
 		return 0;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
@@ -959,21 +980,21 @@ qca8k_phy_eth_command(struct qca8k_priv *priv, bool read, int phy,
 	}
 
 	/* Prealloc all the needed skb before the lock */
-	write_skb = qca8k_alloc_mdio_header(MDIO_WRITE, QCA8K_MDIO_MASTER_CTRL,
-					    &write_val, QCA8K_ETHERNET_PHY_PRIORITY);
+	write_skb = qca8k_alloc_mdio_header(MDIO_WRITE, QCA8K_MDIO_MASTER_CTRL, &write_val,
+					    QCA8K_ETHERNET_PHY_PRIORITY, sizeof(write_val));
 	if (!write_skb)
 		return -ENOMEM;
 
-	clear_skb = qca8k_alloc_mdio_header(MDIO_WRITE, QCA8K_MDIO_MASTER_CTRL,
-					    &clear_val, QCA8K_ETHERNET_PHY_PRIORITY);
+	clear_skb = qca8k_alloc_mdio_header(MDIO_WRITE, QCA8K_MDIO_MASTER_CTRL, &clear_val,
+					    QCA8K_ETHERNET_PHY_PRIORITY, sizeof(clear_val));
 	if (!write_skb) {
 		ret = -ENOMEM;
 		goto err_clear_skb;
 	}
 
-	read_skb = qca8k_alloc_mdio_header(MDIO_READ, QCA8K_MDIO_MASTER_CTRL,
-					   &clear_val, QCA8K_ETHERNET_PHY_PRIORITY);
-	if (!write_skb) {
+	read_skb = qca8k_alloc_mdio_header(MDIO_READ, QCA8K_MDIO_MASTER_CTRL, &clear_val,
+					   QCA8K_ETHERNET_PHY_PRIORITY, sizeof(clear_val));
+	if (!read_skb) {
 		ret = -ENOMEM;
 		goto err_read_skb;
 	}
