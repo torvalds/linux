@@ -233,8 +233,13 @@ static void pt_issue_pending(struct dma_chan *dma_chan)
 	struct pt_dma_chan *chan = to_pt_chan(dma_chan);
 	struct pt_dma_desc *desc;
 	unsigned long flags;
+	bool engine_is_idle = true;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
+
+	desc = pt_next_dma_desc(chan);
+	if (desc)
+		engine_is_idle = false;
 
 	vchan_issue_pending(&chan->vc);
 
@@ -243,7 +248,7 @@ static void pt_issue_pending(struct dma_chan *dma_chan)
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 
 	/* If there was nothing active, start processing */
-	if (desc)
+	if (engine_is_idle)
 		pt_cmd_callback(desc, 0);
 }
 
