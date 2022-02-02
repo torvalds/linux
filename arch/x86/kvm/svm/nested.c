@@ -193,6 +193,8 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 		svm->nested.msrpm[p] = svm->msrpm[p] | value;
 	}
 
+	svm->nested.force_msr_bitmap_recalc = false;
+
 	svm->vmcb->control.msrpm_base_pa = __sme_set(__pa(svm->nested.msrpm));
 
 	return true;
@@ -494,6 +496,7 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 	if (svm->nested.vmcb12_gpa != svm->nested.last_vmcb12_gpa) {
 		new_vmcb12 = true;
 		svm->nested.last_vmcb12_gpa = svm->nested.vmcb12_gpa;
+		svm->nested.force_msr_bitmap_recalc = true;
 	}
 
 	if (unlikely(new_vmcb12 || vmcb_is_dirty(vmcb12, VMCB_SEG))) {
@@ -1495,6 +1498,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	if (WARN_ON_ONCE(ret))
 		goto out_free;
 
+	svm->nested.force_msr_bitmap_recalc = true;
 
 	kvm_make_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 	ret = 0;

@@ -163,6 +163,15 @@ struct svm_nested_state {
 	struct vmcb_save_area_cached save;
 
 	bool initialized;
+
+	/*
+	 * Indicates whether MSR bitmap for L2 needs to be rebuilt due to
+	 * changes in MSR bitmap for L1 or switching to a different L2. Note,
+	 * this flag can only be used reliably in conjunction with a paravirt L1
+	 * which informs L0 whether any changes to MSR bitmap for L2 were done
+	 * on its side.
+	 */
+	bool force_msr_bitmap_recalc;
 };
 
 struct vcpu_sev_es_state {

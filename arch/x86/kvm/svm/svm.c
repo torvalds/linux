@@ -668,6 +668,7 @@ static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
 static void set_msr_interception_bitmap(struct kvm_vcpu *vcpu, u32 *msrpm,
 					u32 msr, int read, int write)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	u8 bit_read, bit_write;
 	unsigned long tmp;
 	u32 offset;
@@ -698,7 +699,7 @@ static void set_msr_interception_bitmap(struct kvm_vcpu *vcpu, u32 *msrpm,
 	msrpm[offset] = tmp;
 
 	svm_hv_vmcb_dirty_nested_enlightenments(vcpu);
-
+	svm->nested.force_msr_bitmap_recalc = true;
 }
 
 void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
