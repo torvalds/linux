@@ -303,8 +303,23 @@ int nand_ecc_prepare_io_req(struct nand_device *nand,
 int nand_ecc_finish_io_req(struct nand_device *nand,
 			   struct nand_page_io_req *req);
 bool nand_ecc_is_strong_enough(struct nand_device *nand);
+
+#if IS_REACHABLE(CONFIG_MTD_NAND_CORE)
 int nand_ecc_register_on_host_hw_engine(struct nand_ecc_engine *engine);
 int nand_ecc_unregister_on_host_hw_engine(struct nand_ecc_engine *engine);
+#else
+static inline int
+nand_ecc_register_on_host_hw_engine(struct nand_ecc_engine *engine)
+{
+	return -ENOTSUPP;
+}
+static inline int
+nand_ecc_unregister_on_host_hw_engine(struct nand_ecc_engine *engine)
+{
+	return -ENOTSUPP;
+}
+#endif
+
 struct nand_ecc_engine *nand_ecc_get_sw_engine(struct nand_device *nand);
 struct nand_ecc_engine *nand_ecc_get_on_die_hw_engine(struct nand_device *nand);
 struct nand_ecc_engine *nand_ecc_get_on_host_hw_engine(struct nand_device *nand);

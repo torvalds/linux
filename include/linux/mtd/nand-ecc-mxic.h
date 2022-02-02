@@ -14,7 +14,7 @@
 
 struct mxic_ecc_engine;
 
-#if IS_ENABLED(CONFIG_MTD_NAND_ECC_MXIC)
+#if IS_ENABLED(CONFIG_MTD_NAND_ECC_MXIC) && IS_REACHABLE(CONFIG_MTD_NAND_CORE)
 
 struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void);
 struct nand_ecc_engine *mxic_ecc_get_pipelined_engine(struct platform_device *spi_pdev);
