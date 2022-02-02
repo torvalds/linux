@@ -267,6 +267,7 @@ void remove_migration_ptes(struct folio *src, struct folio *dst, bool locked);
  * Called by memory-failure.c to kill processes.
  */
 struct anon_vma *page_lock_anon_vma_read(struct page *page);
+struct anon_vma *folio_lock_anon_vma_read(struct folio *folio);
 void page_unlock_anon_vma_read(struct anon_vma *anon_vma);
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
 

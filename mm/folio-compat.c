@@ -164,3 +164,10 @@ void putback_lru_page(struct page *page)
 {
 	folio_putback_lru(page_folio(page));
 }
+
+#ifdef CONFIG_MMU
+struct anon_vma *page_lock_anon_vma_read(struct page *page)
+{
+	return folio_lock_anon_vma_read(page_folio(page));
+}
+#endif

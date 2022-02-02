@@ -526,28 +526,28 @@ out:
  * atomic op -- the trylock. If we fail the trylock, we fall back to getting a
  * reference like with page_get_anon_vma() and then block on the mutex.
  */
-struct anon_vma *page_lock_anon_vma_read(struct page *page)
+struct anon_vma *folio_lock_anon_vma_read(struct folio *folio)
 {
 	struct anon_vma *anon_vma = NULL;
 	struct anon_vma *root_anon_vma;
 	unsigned long anon_mapping;
 
 	rcu_read_lock();
-	anon_mapping = (unsigned long)READ_ONCE(page->mapping);
+	anon_mapping = (unsigned long)READ_ONCE(folio->mapping);
 	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
 		goto out;
-	if (!page_mapped(page))
+	if (!folio_mapped(folio))
 		goto out;
 
 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
 	root_anon_vma = READ_ONCE(anon_vma->root);
 	if (down_read_trylock(&root_anon_vma->rwsem)) {
 		/*
-		 * If the page is still mapped, then this anon_vma is still
+		 * If the folio is still mapped, then this anon_vma is still
 		 * its anon_vma, and holding the mutex ensures that it will
 		 * not go away, see anon_vma_free().
 		 */
-		if (!page_mapped(page)) {
+		if (!folio_mapped(folio)) {
 			up_read(&root_anon_vma->rwsem);
 			anon_vma = NULL;
 		}
@@ -560,7 +560,7 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
 		goto out;
 	}
 
-	if (!page_mapped(page)) {
+	if (!folio_mapped(folio)) {
 		rcu_read_unlock();
 		put_anon_vma(anon_vma);
 		return NULL;
