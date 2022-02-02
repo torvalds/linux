@@ -218,6 +218,7 @@ void intel_power_domains_disable(struct drm_i915_private *dev_priv);
 void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
 				 enum i915_drm_suspend_mode);
 void intel_power_domains_resume(struct drm_i915_private *dev_priv);
+void intel_power_domains_sanitize_state(struct drm_i915_private *dev_priv);
 
 void intel_display_power_suspend_late(struct drm_i915_private *i915);
 void intel_display_power_resume_early(struct drm_i915_private *i915);

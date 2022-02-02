@@ -10664,6 +10664,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT, wakeref);
+
+	intel_power_domains_sanitize_state(dev_priv);
 }
 
 void intel_display_resume(struct drm_device *dev)

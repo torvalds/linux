@@ -6214,6 +6214,37 @@ void intel_power_domains_driver_remove(struct drm_i915_private *i915)
 }
 
 /**
+ * intel_power_domains_sanitize_state - sanitize power domains state
+ * @i915: i915 device instance
+ *
+ * Sanitize the power domains state during driver loading and system resume.
+ * The function will disable all display power wells that BIOS has enabled
+ * without a user for it (any user for a power well has taken a reference
+ * on it by the time this function is called, after the state of all the
+ * pipe, encoder, etc. HW resources have been sanitized).
+ */
+void intel_power_domains_sanitize_state(struct drm_i915_private *i915)
+{
+	struct i915_power_domains *power_domains = &i915->power_domains;
+	struct i915_power_well *power_well;
+
+	mutex_lock(&power_domains->lock);
+
+	for_each_power_well_reverse(i915, power_well) {
+		if (power_well->desc->always_on || power_well->count ||
+		    !power_well->desc->ops->is_enabled(i915, power_well))
+			continue;
+
+		drm_dbg_kms(&i915->drm,
+			    "BIOS left unused %s power well enabled, disabling it\n",
+			    power_well->desc->name);
+		intel_power_well_disable(i915, power_well);
+	}
+
+	mutex_unlock(&power_domains->lock);
+}
+
+/**
  * intel_power_domains_enable - enable toggling of display power wells
  * @i915: i915 device instance
  *
