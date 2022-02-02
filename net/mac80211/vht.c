@@ -501,7 +501,7 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 		for (i = 7; i >= 0; i--) {
 			u8 mcs_160 = (mcs_160_map >> (2 * i)) & 3;
 
-			if (mcs_160 != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+			if (mcs_160 != IEEE80211_HE_MCS_NOT_SUPPORTED) {
 				rx_mcs_160 = i + 1;
 				break;
 			}
@@ -509,7 +509,7 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 		for (i = 7; i >= 0; i--) {
 			u8 mcs_80 = (mcs_80_map >> (2 * i)) & 3;
 
-			if (mcs_80 != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+			if (mcs_80 != IEEE80211_HE_MCS_NOT_SUPPORTED) {
 				rx_mcs_80 = i + 1;
 				break;
 			}
