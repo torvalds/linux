@@ -1136,11 +1136,13 @@ static void fbcon_init(struct vc_data *vc, int init)
 
 	ops->graphics = 0;
 
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
 	if ((cap & FBINFO_HWACCEL_COPYAREA) &&
 	    !(cap & FBINFO_HWACCEL_DISABLED))
 		p->scrollmode = SCROLL_MOVE;
 	else /* default to something safe */
 		p->scrollmode = SCROLL_REDRAW;
+#endif
 
 	/*
 	 *  ++guenther: console.c:vc_allocate() relies on initializing
@@ -1705,7 +1707,7 @@ static bool fbcon_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 			count = vc->vc_rows;
 		if (logo_shown >= 0)
 			goto redraw_up;
-		switch (p->scrollmode) {
+		switch (fb_scrollmode(p)) {
 		case SCROLL_MOVE:
 			fbcon_redraw_blit(vc, info, p, t, b - t - count,
 				     count);
@@ -1795,7 +1797,7 @@ static bool fbcon_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 			count = vc->vc_rows;
 		if (logo_shown >= 0)
 			goto redraw_down;
-		switch (p->scrollmode) {
+		switch (fb_scrollmode(p)) {
 		case SCROLL_MOVE:
 			fbcon_redraw_blit(vc, info, p, b - 1, b - t - count,
 				     -count);
@@ -1946,12 +1948,12 @@ static void fbcon_bmove_rec(struct vc_data *vc, struct fbcon_display *p, int sy,
 		   height, width);
 }
 
-static void updatescrollmode(struct fbcon_display *p,
+static void updatescrollmode_accel(struct fbcon_display *p,
 					struct fb_info *info,
 					struct vc_data *vc)
 {
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
 	struct fbcon_ops *ops = info->fbcon_par;
-	int fh = vc->vc_font.height;
 	int cap = info->flags;
 	u16 t = 0;
 	int ypan = FBCON_SWAP(ops->rotate, info->fix.ypanstep,
@@ -1972,12 +1974,6 @@ static void updatescrollmode(struct fbcon_display *p,
 	int fast_imageblit = (cap & FBINFO_HWACCEL_IMAGEBLIT) &&
 		!(cap & FBINFO_HWACCEL_DISABLED);
 
-	p->vrows = vyres/fh;
-	if (yres > (fh * (vc->vc_rows + 1)))
-		p->vrows -= (yres - (fh * vc->vc_rows)) / fh;
-	if ((yres % fh) && (vyres % fh < yres % fh))
-		p->vrows--;
-
 	if (good_wrap || good_pan) {
 		if (reading_fast || fast_copyarea)
 			p->scrollmode = good_wrap ?
@@ -1991,6 +1987,27 @@ static void updatescrollmode(struct fbcon_display *p,
 		else
 			p->scrollmode = SCROLL_REDRAW;
 	}
+#endif
+}
+
+static void updatescrollmode(struct fbcon_display *p,
+					struct fb_info *info,
+					struct vc_data *vc)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+	int fh = vc->vc_font.height;
+	int yres = FBCON_SWAP(ops->rotate, info->var.yres, info->var.xres);
+	int vyres = FBCON_SWAP(ops->rotate, info->var.yres_virtual,
+				   info->var.xres_virtual);
+
+	p->vrows = vyres/fh;
+	if (yres > (fh * (vc->vc_rows + 1)))
+		p->vrows -= (yres - (fh * vc->vc_rows)) / fh;
+	if ((yres % fh) && (vyres % fh < yres % fh))
+		p->vrows--;
+
+	/* update scrollmode in case hardware acceleration is used */
+	updatescrollmode_accel(p, info, vc);
 }
 
 #define PITCH(w) (((w) + 7) >> 3)
@@ -2148,7 +2165,7 @@ static int fbcon_switch(struct vc_data *vc)
 
 	updatescrollmode(p, info, vc);
 
-	switch (p->scrollmode) {
+	switch (fb_scrollmode(p)) {
 	case SCROLL_WRAP_MOVE:
 		scrollback_phys_max = p->vrows - vc->vc_rows;
 		break;
