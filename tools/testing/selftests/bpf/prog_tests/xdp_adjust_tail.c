@@ -5,26 +5,34 @@
 static void test_xdp_adjust_tail_shrink(void)
 {
 	const char *file = "./test_xdp_adjust_tail_shrink.o";
-	__u32 duration, retval, size, expect_sz;
+	__u32 expect_sz;
 	struct bpf_object *obj;
 	int err, prog_fd;
 	char buf[128];
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.data_out = buf,
+		.data_size_out = sizeof(buf),
+		.repeat = 1,
+	);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (ASSERT_OK(err, "test_xdp_adjust_tail_shrink"))
 		return;
 
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
-				buf, &size, &retval, &duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "ipv4");
-	ASSERT_EQ(retval, XDP_DROP, "ipv4 retval");
+	ASSERT_EQ(topts.retval, XDP_DROP, "ipv4 retval");
 
 	expect_sz = sizeof(pkt_v6) - 20;  /* Test shrink with 20 bytes */
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v6, sizeof(pkt_v6),
-				buf, &size, &retval, &duration);
+	topts.data_in = &pkt_v6;
+	topts.data_size_in = sizeof(pkt_v6);
+	topts.data_size_out = sizeof(buf);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "ipv6");
-	ASSERT_EQ(retval, XDP_TX, "ipv6 retval");
-	ASSERT_EQ(size, expect_sz, "ipv6 size");
+	ASSERT_EQ(topts.retval, XDP_TX, "ipv6 retval");
+	ASSERT_EQ(topts.data_size_out, expect_sz, "ipv6 size");
 
 	bpf_object__close(obj);
 }
@@ -34,24 +42,31 @@ static void test_xdp_adjust_tail_grow(void)
 	const char *file = "./test_xdp_adjust_tail_grow.o";
 	struct bpf_object *obj;
 	char buf[4096]; /* avoid segfault: large buf to hold grow results */
-	__u32 duration, retval, size, expect_sz;
+	__u32 expect_sz;
 	int err, prog_fd;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.data_out = buf,
+		.data_size_out = sizeof(buf),
+		.repeat = 1,
+	);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (ASSERT_OK(err, "test_xdp_adjust_tail_grow"))
 		return;
 
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
-				buf, &size, &retval, &duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "ipv4");
-	ASSERT_EQ(retval, XDP_DROP, "ipv4 retval");
+	ASSERT_EQ(topts.retval, XDP_DROP, "ipv4 retval");
 
 	expect_sz = sizeof(pkt_v6) + 40; /* Test grow with 40 bytes */
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v6, sizeof(pkt_v6) /* 74 */,
-				buf, &size, &retval, &duration);
+	topts.data_in = &pkt_v6;
+	topts.data_size_in = sizeof(pkt_v6);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "ipv6");
-	ASSERT_EQ(retval, XDP_TX, "ipv6 retval");
-	ASSERT_EQ(size, expect_sz, "ipv6 size");
+	ASSERT_EQ(topts.retval, XDP_TX, "ipv6 retval");
+	ASSERT_EQ(topts.data_size_out, expect_sz, "ipv6 size");
 
 	bpf_object__close(obj);
 }
@@ -121,11 +136,12 @@ static void test_xdp_adjust_tail_grow2(void)
 void test_xdp_adjust_frags_tail_shrink(void)
 {
 	const char *file = "./test_xdp_adjust_tail_shrink.o";
-	__u32 duration, retval, size, exp_size;
+	__u32 exp_size;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	int err, prog_fd;
 	__u8 *buf;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
 	/* For the individual test cases, the first byte in the packet
 	 * indicates which test will be run.
@@ -148,32 +164,36 @@ void test_xdp_adjust_frags_tail_shrink(void)
 
 	/* Test case removing 10 bytes from last frag, NOT freeing it */
 	exp_size = 8990; /* 9000 - 10 */
-	err = bpf_prog_test_run(prog_fd, 1, buf, 9000,
-				buf, &size, &retval, &duration);
+	topts.data_in = buf;
+	topts.data_out = buf;
+	topts.data_size_in = 9000;
+	topts.data_size_out = 9000;
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 
 	ASSERT_OK(err, "9Kb-10b");
-	ASSERT_EQ(retval, XDP_TX, "9Kb-10b retval");
-	ASSERT_EQ(size, exp_size, "9Kb-10b size");
+	ASSERT_EQ(topts.retval, XDP_TX, "9Kb-10b retval");
+	ASSERT_EQ(topts.data_size_out, exp_size, "9Kb-10b size");
 
 	/* Test case removing one of two pages, assuming 4K pages */
 	buf[0] = 1;
 	exp_size = 4900; /* 9000 - 4100 */
-	err = bpf_prog_test_run(prog_fd, 1, buf, 9000,
-				buf, &size, &retval, &duration);
+
+	topts.data_size_out = 9000; /* reset from previous invocation */
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 
 	ASSERT_OK(err, "9Kb-4Kb");
-	ASSERT_EQ(retval, XDP_TX, "9Kb-4Kb retval");
-	ASSERT_EQ(size, exp_size, "9Kb-4Kb size");
+	ASSERT_EQ(topts.retval, XDP_TX, "9Kb-4Kb retval");
+	ASSERT_EQ(topts.data_size_out, exp_size, "9Kb-4Kb size");
 
 	/* Test case removing two pages resulting in a linear xdp_buff */
 	buf[0] = 2;
 	exp_size = 800; /* 9000 - 8200 */
-	err = bpf_prog_test_run(prog_fd, 1, buf, 9000,
-				buf, &size, &retval, &duration);
+	topts.data_size_out = 9000; /* reset from previous invocation */
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 
 	ASSERT_OK(err, "9Kb-9Kb");
-	ASSERT_EQ(retval, XDP_TX, "9Kb-9Kb retval");
-	ASSERT_EQ(size, exp_size, "9Kb-9Kb size");
+	ASSERT_EQ(topts.retval, XDP_TX, "9Kb-9Kb retval");
+	ASSERT_EQ(topts.data_size_out, exp_size, "9Kb-9Kb size");
 
 	free(buf);
 out:
@@ -183,11 +203,12 @@ out:
 void test_xdp_adjust_frags_tail_grow(void)
 {
 	const char *file = "./test_xdp_adjust_tail_grow.o";
-	__u32 duration, retval, size, exp_size;
+	__u32 exp_size;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	int err, i, prog_fd;
 	__u8 *buf;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
 	obj = bpf_object__open(file);
 	if (libbpf_get_error(obj))
@@ -205,14 +226,17 @@ void test_xdp_adjust_frags_tail_grow(void)
 
 	/* Test case add 10 bytes to last frag */
 	memset(buf, 1, 16384);
-	size = 9000;
-	exp_size = size + 10;
-	err = bpf_prog_test_run(prog_fd, 1, buf, size,
-				buf, &size, &retval, &duration);
+	exp_size = 9000 + 10;
+
+	topts.data_in = buf;
+	topts.data_out = buf;
+	topts.data_size_in = 9000;
+	topts.data_size_out = 16384;
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 
 	ASSERT_OK(err, "9Kb+10b");
-	ASSERT_EQ(retval, XDP_TX, "9Kb+10b retval");
-	ASSERT_EQ(size, exp_size, "9Kb+10b size");
+	ASSERT_EQ(topts.retval, XDP_TX, "9Kb+10b retval");
+	ASSERT_EQ(topts.data_size_out, exp_size, "9Kb+10b size");
 
 	for (i = 0; i < 9000; i++)
 		ASSERT_EQ(buf[i], 1, "9Kb+10b-old");
@@ -225,14 +249,16 @@ void test_xdp_adjust_frags_tail_grow(void)
 
 	/* Test a too large grow */
 	memset(buf, 1, 16384);
-	size = 9001;
-	exp_size = size;
-	err = bpf_prog_test_run(prog_fd, 1, buf, size,
-				buf, &size, &retval, &duration);
+	exp_size = 9001;
+
+	topts.data_in = topts.data_out = buf;
+	topts.data_size_in = 9001;
+	topts.data_size_out = 16384;
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 
 	ASSERT_OK(err, "9Kb+10b");
-	ASSERT_EQ(retval, XDP_DROP, "9Kb+10b retval");
-	ASSERT_EQ(size, exp_size, "9Kb+10b size");
+	ASSERT_EQ(topts.retval, XDP_DROP, "9Kb+10b retval");
+	ASSERT_EQ(topts.data_size_out, exp_size, "9Kb+10b size");
 
 	free(buf);
 out:

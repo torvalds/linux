@@ -23,8 +23,12 @@ void test_trace_ext(void)
 	int err, pkt_fd, ext_fd;
 	struct bpf_program *prog;
 	char buf[100];
-	__u32 retval;
 	__u64 len;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 1,
+	);
 
 	/* open/load/attach test_pkt_md_access */
 	skel_pkt = test_pkt_md_access__open_and_load();
@@ -77,32 +81,32 @@ void test_trace_ext(void)
 
 	/* load/attach tracing */
 	err = test_trace_ext_tracing__load(skel_trace);
-	if (CHECK(err, "setup", "tracing/test_pkt_md_access_new load failed\n")) {
+	if (!ASSERT_OK(err, "tracing/test_pkt_md_access_new load")) {
 		libbpf_strerror(err, buf, sizeof(buf));
 		fprintf(stderr, "%s\n", buf);
 		goto cleanup;
 	}
 
 	err = test_trace_ext_tracing__attach(skel_trace);
-	if (CHECK(err, "setup", "tracing/test_pkt_md_access_new attach failed: %d\n", err))
+	if (!ASSERT_OK(err, "tracing/test_pkt_md_access_new attach"))
 		goto cleanup;
 
 	/* trigger the test */
-	err = bpf_prog_test_run(pkt_fd, 1, &pkt_v4, sizeof(pkt_v4),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "run", "err %d errno %d retval %d\n", err, errno, retval);
+	err = bpf_prog_test_run_opts(pkt_fd, &topts);
+	ASSERT_OK(err, "test_run_opts err");
+	ASSERT_OK(topts.retval, "test_run_opts retval");
 
 	bss_ext = skel_ext->bss;
 	bss_trace = skel_trace->bss;
 
 	len = bss_ext->ext_called;
 
-	CHECK(bss_ext->ext_called == 0,
-		"check", "failed to trigger freplace/test_pkt_md_access\n");
-	CHECK(bss_trace->fentry_called != len,
-		"check", "failed to trigger fentry/test_pkt_md_access_new\n");
-	CHECK(bss_trace->fexit_called != len,
-		"check", "failed to trigger fexit/test_pkt_md_access_new\n");
+	ASSERT_NEQ(bss_ext->ext_called, 0,
+		  "failed to trigger freplace/test_pkt_md_access");
+	ASSERT_EQ(bss_trace->fentry_called, len,
+		  "failed to trigger fentry/test_pkt_md_access_new");
+	ASSERT_EQ(bss_trace->fexit_called, len,
+		   "failed to trigger fexit/test_pkt_md_access_new");
 
 cleanup:
 	test_trace_ext_tracing__destroy(skel_trace);

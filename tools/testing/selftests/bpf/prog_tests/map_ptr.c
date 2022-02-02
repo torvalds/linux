@@ -9,10 +9,16 @@
 void test_map_ptr(void)
 {
 	struct map_ptr_kern_lskel *skel;
-	__u32 duration = 0, retval;
 	char buf[128];
 	int err;
 	int page_size = getpagesize();
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.data_out = buf,
+		.data_size_out = sizeof(buf),
+		.repeat = 1,
+	);
 
 	skel = map_ptr_kern_lskel__open();
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
@@ -26,14 +32,12 @@ void test_map_ptr(void)
 
 	skel->bss->page_size = page_size;
 
-	err = bpf_prog_test_run(skel->progs.cg_skb.prog_fd, 1, &pkt_v4,
-				sizeof(pkt_v4), buf, NULL, &retval, NULL);
+	err = bpf_prog_test_run_opts(skel->progs.cg_skb.prog_fd, &topts);
 
-	if (CHECK(err, "test_run", "err=%d errno=%d\n", err, errno))
+	if (!ASSERT_OK(err, "test_run"))
 		goto cleanup;
 
-	if (CHECK(!retval, "retval", "retval=%d map_type=%u line=%u\n", retval,
-		  skel->bss->g_map_type, skel->bss->g_line))
+	if (!ASSERT_NEQ(topts.retval, 0, "test_run retval"))
 		goto cleanup;
 
 cleanup:
