@@ -670,7 +670,6 @@
 			ranges;
 			compatible = "arm,armv7-timer-mem";
 			reg = <0x0b120000 0x1000>;
-			clock-frequency = <19200000>;
 
 			frame@b120000 {
 				frame-number = <0>;
