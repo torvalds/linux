@@ -6,7 +6,9 @@ CFLAGS += -I. -I../../include -Wall -O2 -fsanitize=address \
 	  -fsanitize=undefined -D CONFIG_PHYS_ADDR_T_64BIT
 LDFLAGS += -fsanitize=address -fsanitize=undefined
 TARGETS = main
-OFILES = main.o memblock.o lib/slab.o mmzone.o slab.o
+TEST_OFILES = tests/basic_api.o tests/common.o
+DEP_OFILES = memblock.o lib/slab.o mmzone.o slab.o
+OFILES = main.o $(DEP_OFILES) $(TEST_OFILES)
 EXTR_SRC = ../../../mm/memblock.c
 
 ifeq ($(BUILD), 32)
