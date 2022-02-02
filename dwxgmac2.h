@@ -46,6 +46,8 @@
  *  VERSION     : 01-00-19
  *  31 Jan 2022 : 1. Additional macros defined for debug dump API usage.
  *  VERSION     : 01-00-39
+ *  02 Feb 2022 : 1. Macros added for Tx Queue flush and Rx DMA flush
+ *  VERSION     : 01-00-40
  */
 
 
@@ -447,6 +449,8 @@
 #define XGMAC_TXQEN			GENMASK(3, 2)
 #define XGMAC_TXQEN_SHIFT		2
 #define XGMAC_TSF			BIT(1)
+#define XGMAC_FTQ			BIT(0)
+
 #define XGMAC_MTL_TXQ_UF_OFFSET(x)	(MAC_OFFSET + (0x00001104 + (0x80 * (x))))
 #define XGMAC_MTL_UFPKTCNT_MASK		GENMASK(10, 0)
 #define XGMAC_MTL_TXQ_UFPKT_CNT(x)	((XGMAC_MTL_TXQ_UF_OFFSET(x)) & XGMAC_MTL_UFPKTCNT_MASK)
@@ -615,6 +619,7 @@
 #define XGMAC_RBSZ			GENMASK(14, 1)
 #define XGMAC_RBSZ_SHIFT		1
 #define XGMAC_RXST			BIT(0)
+#define XGMAC_RPF			BIT(31)
 #define XGMAC_DMA_CH_TxDESC_HADDR(x)	(MAC_OFFSET + (0x00003110 + (0x80 * (x))))
 #define XGMAC_DMA_CH_TxDESC_LADDR(x)	(MAC_OFFSET + (0x00003114 + (0x80 * (x))))
 #define XGMAC_DMA_CH_RxDESC_HADDR(x)	(MAC_OFFSET + (0x00003118 + (0x80 * (x))))
@@ -654,6 +659,8 @@
 #define XGMAC_TBU			BIT(2)
 #define XGMAC_TPS			BIT(1)
 #define XGMAC_TI			BIT(0)
+#define XGMAC_RPS			BIT(8)
+
 #define XGMAC_DMA_CH_Cur_TxDESC_HADDR(x)	(MAC_OFFSET + (0x00003140 + (0x80 * (x))))
 #define XGMAC_DMA_CH_Cur_TxDESC_LADDR(x)	(MAC_OFFSET + (0x00003144 + (0x80 * (x))))
 #define XGMAC_DMA_CH_Cur_RxDESC_HADDR(x)	(MAC_OFFSET + (0x00003148 + (0x80 * (x))))
