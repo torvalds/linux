@@ -608,7 +608,8 @@ static int pata_s3c_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
 
-	return ata_host_suspend(host, PMSG_SUSPEND);
+	ata_host_suspend(host, PMSG_SUSPEND);
+	return 0;
 }
 
 static int pata_s3c_resume(struct device *dev)

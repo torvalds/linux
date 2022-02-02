@@ -945,19 +945,17 @@ static int sata_rcar_suspend(struct device *dev)
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct sata_rcar_priv *priv = host->private_data;
 	void __iomem *base = priv->base;
-	int ret;
 
-	ret = ata_host_suspend(host, PMSG_SUSPEND);
-	if (!ret) {
-		/* disable interrupts */
-		iowrite32(0, base + ATAPI_INT_ENABLE_REG);
-		/* mask */
-		iowrite32(priv->sataint_mask, base + SATAINTMASK_REG);
+	ata_host_suspend(host, PMSG_SUSPEND);
 
-		pm_runtime_put(dev);
-	}
+	/* disable interrupts */
+	iowrite32(0, base + ATAPI_INT_ENABLE_REG);
+	/* mask */
+	iowrite32(priv->sataint_mask, base + SATAINTMASK_REG);
 
-	return ret;
+	pm_runtime_put(dev);
+
+	return 0;
 }
 
 static int sata_rcar_resume(struct device *dev)

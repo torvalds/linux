@@ -4235,10 +4235,10 @@ static int mv_platform_remove(struct platform_device *pdev)
 static int mv_platform_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
+
 	if (host)
-		return ata_host_suspend(host, state);
-	else
-		return 0;
+		ata_host_suspend(host, state);
+	return 0;
 }
 
 static int mv_platform_resume(struct platform_device *pdev)

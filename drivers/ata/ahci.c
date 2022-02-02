@@ -891,7 +891,8 @@ static int ahci_pci_device_suspend(struct device *dev)
 	}
 
 	ahci_pci_disable_interrupts(host);
-	return ata_host_suspend(host, PMSG_SUSPEND);
+	ata_host_suspend(host, PMSG_SUSPEND);
+	return 0;
 }
 
 static int ahci_pci_device_resume(struct device *dev)

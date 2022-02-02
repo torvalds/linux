@@ -824,7 +824,8 @@ mpc52xx_ata_suspend(struct platform_device *op, pm_message_t state)
 {
 	struct ata_host *host = platform_get_drvdata(op);
 
-	return ata_host_suspend(host, state);
+	ata_host_suspend(host, state);
+	return 0;
 }
 
 static int
