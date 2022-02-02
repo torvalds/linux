@@ -4907,13 +4907,20 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 	rcu_read_unlock();
 }
 
-static u8 ieee80211_ht_vht_rx_chains(struct ieee80211_sub_if_data *sdata,
-				     struct cfg80211_bss *cbss)
+static u8 ieee80211_max_rx_chains(struct ieee80211_sub_if_data *sdata,
+				  struct cfg80211_bss *cbss)
 {
+	struct ieee80211_he_mcs_nss_supp *he_mcs_nss_supp;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	const struct element *ht_cap_elem, *vht_cap_elem;
+	const struct cfg80211_bss_ies *ies;
 	const struct ieee80211_ht_cap *ht_cap;
 	const struct ieee80211_vht_cap *vht_cap;
+	const struct ieee80211_he_cap_elem *he_cap;
+	const struct element *he_cap_elem;
+	u16 mcs_80_map, mcs_160_map;
+	int i, mcs_nss_size;
+	bool support_160;
 	u8 chains = 1;
 
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_HT)
@@ -4946,6 +4953,54 @@ static u8 ieee80211_ht_vht_rx_chains(struct ieee80211_sub_if_data *sdata,
 		}
 		/* TODO: use "Tx Highest Supported Long GI Data Rate" field? */
 		chains = max(chains, nss);
+	}
+
+	if (ifmgd->flags & IEEE80211_STA_DISABLE_HE)
+		return chains;
+
+	ies = rcu_dereference(cbss->ies);
+	he_cap_elem = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY,
+					     ies->data, ies->len);
+
+	if (!he_cap_elem || he_cap_elem->datalen < sizeof(*he_cap))
+		return chains;
+
+	/* skip one byte ext_tag_id */
+	he_cap = (void *)(he_cap_elem->data + 1);
+	mcs_nss_size = ieee80211_he_mcs_nss_size(he_cap);
+
+	/* invalid HE IE */
+	if (he_cap_elem->datalen < 1 + mcs_nss_size + sizeof(*he_cap))
+		return chains;
+
+	/* mcs_nss is right after he_cap info */
+	he_mcs_nss_supp = (void *)(he_cap + 1);
+
+	mcs_80_map = le16_to_cpu(he_mcs_nss_supp->tx_mcs_80);
+
+	for (i = 7; i >= 0; i--) {
+		u8 mcs_80 = mcs_80_map >> (2 * i) & 3;
+
+		if (mcs_80 != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+			chains = max_t(u8, chains, i + 1);
+			break;
+		}
+	}
+
+	support_160 = he_cap->phy_cap_info[0] &
+		      IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
+
+	if (!support_160)
+		return chains;
+
+	mcs_160_map = le16_to_cpu(he_mcs_nss_supp->tx_mcs_160);
+	for (i = 7; i >= 0; i--) {
+		u8 mcs_160 = mcs_160_map >> (2 * i) & 3;
+
+		if (mcs_160 != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+			chains = max_t(u8, chains, i + 1);
+			break;
+		}
 	}
 
 	return chains;
@@ -5162,7 +5217,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 						     s1g_oper,
 						     &chandef, false);
 
-	sdata->needed_rx_chains = min(ieee80211_ht_vht_rx_chains(sdata, cbss),
+	sdata->needed_rx_chains = min(ieee80211_max_rx_chains(sdata, cbss),
 				      local->rx_chains);
 
 	rcu_read_unlock();
