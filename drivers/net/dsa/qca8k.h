@@ -14,6 +14,7 @@
 #include <linux/dsa/tag_qca.h>
 
 #define QCA8K_ETHERNET_MDIO_PRIORITY			7
+#define QCA8K_ETHERNET_PHY_PRIORITY			6
 #define QCA8K_ETHERNET_TIMEOUT				100
 
 #define QCA8K_NUM_PORTS					7

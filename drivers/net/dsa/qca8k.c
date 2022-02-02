@@ -867,6 +867,199 @@ qca8k_port_set_status(struct qca8k_priv *priv, int port, int enable)
 		regmap_clear_bits(priv->regmap, QCA8K_REG_PORT_STATUS(port), mask);
 }
 
+static int
+qca8k_phy_eth_busy_wait(struct qca8k_mgmt_eth_data *mgmt_eth_data,
+			struct sk_buff *read_skb, u32 *val)
+{
+	struct sk_buff *skb = skb_copy(read_skb, GFP_KERNEL);
+	bool ack;
+	int ret;
+
+	reinit_completion(&mgmt_eth_data->rw_done);
+
+	/* Increment seq_num and set it in the copy pkt */
+	mgmt_eth_data->seq++;
+	qca8k_mdio_header_fill_seq_num(skb, mgmt_eth_data->seq);
+	mgmt_eth_data->ack = false;
+
+	dev_queue_xmit(skb);
+
+	ret = wait_for_completion_timeout(&mgmt_eth_data->rw_done,
+					  QCA8K_ETHERNET_TIMEOUT);
+
+	ack = mgmt_eth_data->ack;
+
+	if (ret <= 0)
+		return -ETIMEDOUT;
+
+	if (!ack)
+		return -EINVAL;
+
+	*val = mgmt_eth_data->data[0];
+
+	return 0;
+}
+
+static int
+qca8k_phy_eth_command(struct qca8k_priv *priv, bool read, int phy,
+		      int regnum, u16 data)
+{
+	struct sk_buff *write_skb, *clear_skb, *read_skb;
+	struct qca8k_mgmt_eth_data *mgmt_eth_data;
+	u32 write_val, clear_val = 0, val;
+	struct net_device *mgmt_master;
+	int ret, ret1;
+	bool ack;
+
+	if (regnum >= QCA8K_MDIO_MASTER_MAX_REG)
+		return -EINVAL;
+
+	mgmt_eth_data = &priv->mgmt_eth_data;
+
+	write_val = QCA8K_MDIO_MASTER_BUSY | QCA8K_MDIO_MASTER_EN |
+		    QCA8K_MDIO_MASTER_PHY_ADDR(phy) |
+		    QCA8K_MDIO_MASTER_REG_ADDR(regnum);
+
+	if (read) {
+		write_val |= QCA8K_MDIO_MASTER_READ;
+	} else {
+		write_val |= QCA8K_MDIO_MASTER_WRITE;
+		write_val |= QCA8K_MDIO_MASTER_DATA(data);
+	}
+
+	/* Prealloc all the needed skb before the lock */
+	write_skb = qca8k_alloc_mdio_header(MDIO_WRITE, QCA8K_MDIO_MASTER_CTRL,
+					    &write_val, QCA8K_ETHERNET_PHY_PRIORITY);
+	if (!write_skb)
+		return -ENOMEM;
+
+	clear_skb = qca8k_alloc_mdio_header(MDIO_WRITE, QCA8K_MDIO_MASTER_CTRL,
+					    &clear_val, QCA8K_ETHERNET_PHY_PRIORITY);
+	if (!write_skb) {
+		ret = -ENOMEM;
+		goto err_clear_skb;
+	}
+
+	read_skb = qca8k_alloc_mdio_header(MDIO_READ, QCA8K_MDIO_MASTER_CTRL,
+					   &clear_val, QCA8K_ETHERNET_PHY_PRIORITY);
+	if (!write_skb) {
+		ret = -ENOMEM;
+		goto err_read_skb;
+	}
+
+	/* Actually start the request:
+	 * 1. Send mdio master packet
+	 * 2. Busy Wait for mdio master command
+	 * 3. Get the data if we are reading
+	 * 4. Reset the mdio master (even with error)
+	 */
+	mutex_lock(&mgmt_eth_data->mutex);
+
+	/* Check if mgmt_master is operational */
+	mgmt_master = priv->mgmt_master;
+	if (!mgmt_master) {
+		mutex_unlock(&mgmt_eth_data->mutex);
+		ret = -EINVAL;
+		goto err_mgmt_master;
+	}
+
+	read_skb->dev = mgmt_master;
+	clear_skb->dev = mgmt_master;
+	write_skb->dev = mgmt_master;
+
+	reinit_completion(&mgmt_eth_data->rw_done);
+
+	/* Increment seq_num and set it in the write pkt */
+	mgmt_eth_data->seq++;
+	qca8k_mdio_header_fill_seq_num(write_skb, mgmt_eth_data->seq);
+	mgmt_eth_data->ack = false;
+
+	dev_queue_xmit(write_skb);
+
+	ret = wait_for_completion_timeout(&mgmt_eth_data->rw_done,
+					  QCA8K_ETHERNET_TIMEOUT);
+
+	ack = mgmt_eth_data->ack;
+
+	if (ret <= 0) {
+		ret = -ETIMEDOUT;
+		kfree_skb(read_skb);
+		goto exit;
+	}
+
+	if (!ack) {
+		ret = -EINVAL;
+		kfree_skb(read_skb);
+		goto exit;
+	}
+
+	ret = read_poll_timeout(qca8k_phy_eth_busy_wait, ret1,
+				!(val & QCA8K_MDIO_MASTER_BUSY), 0,
+				QCA8K_BUSY_WAIT_TIMEOUT * USEC_PER_MSEC, false,
+				mgmt_eth_data, read_skb, &val);
+
+	if (ret < 0 && ret1 < 0) {
+		ret = ret1;
+		goto exit;
+	}
+
+	if (read) {
+		reinit_completion(&mgmt_eth_data->rw_done);
+
+		/* Increment seq_num and set it in the read pkt */
+		mgmt_eth_data->seq++;
+		qca8k_mdio_header_fill_seq_num(read_skb, mgmt_eth_data->seq);
+		mgmt_eth_data->ack = false;
+
+		dev_queue_xmit(read_skb);
+
+		ret = wait_for_completion_timeout(&mgmt_eth_data->rw_done,
+						  QCA8K_ETHERNET_TIMEOUT);
+
+		ack = mgmt_eth_data->ack;
+
+		if (ret <= 0) {
+			ret = -ETIMEDOUT;
+			goto exit;
+		}
+
+		if (!ack) {
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		ret = mgmt_eth_data->data[0] & QCA8K_MDIO_MASTER_DATA_MASK;
+	} else {
+		kfree_skb(read_skb);
+	}
+exit:
+	reinit_completion(&mgmt_eth_data->rw_done);
+
+	/* Increment seq_num and set it in the clear pkt */
+	mgmt_eth_data->seq++;
+	qca8k_mdio_header_fill_seq_num(clear_skb, mgmt_eth_data->seq);
+	mgmt_eth_data->ack = false;
+
+	dev_queue_xmit(clear_skb);
+
+	wait_for_completion_timeout(&mgmt_eth_data->rw_done,
+				    QCA8K_ETHERNET_TIMEOUT);
+
+	mutex_unlock(&mgmt_eth_data->mutex);
+
+	return ret;
+
+	/* Error handling before lock */
+err_mgmt_master:
+	kfree_skb(read_skb);
+err_read_skb:
+	kfree_skb(clear_skb);
+err_clear_skb:
+	kfree_skb(write_skb);
+
+	return ret;
+}
+
 static u32
 qca8k_port_to_phy(int port)
 {
@@ -989,6 +1182,12 @@ qca8k_internal_mdio_write(struct mii_bus *slave_bus, int phy, int regnum, u16 da
 {
 	struct qca8k_priv *priv = slave_bus->priv;
 	struct mii_bus *bus = priv->bus;
+	int ret;
+
+	/* Use mdio Ethernet when available, fallback to legacy one on error */
+	ret = qca8k_phy_eth_command(priv, false, phy, regnum, data);
+	if (!ret)
+		return 0;
 
 	return qca8k_mdio_write(bus, phy, regnum, data);
 }
@@ -998,6 +1197,12 @@ qca8k_internal_mdio_read(struct mii_bus *slave_bus, int phy, int regnum)
 {
 	struct qca8k_priv *priv = slave_bus->priv;
 	struct mii_bus *bus = priv->bus;
+	int ret;
+
+	/* Use mdio Ethernet when available, fallback to legacy one on error */
+	ret = qca8k_phy_eth_command(priv, true, phy, regnum, 0);
+	if (ret >= 0)
+		return ret;
 
 	return qca8k_mdio_read(bus, phy, regnum);
 }
@@ -1006,6 +1211,7 @@ static int
 qca8k_phy_write(struct dsa_switch *ds, int port, int regnum, u16 data)
 {
 	struct qca8k_priv *priv = ds->priv;
+	int ret;
 
 	/* Check if the legacy mapping should be used and the
 	 * port is not correctly mapped to the right PHY in the
@@ -1013,6 +1219,11 @@ qca8k_phy_write(struct dsa_switch *ds, int port, int regnum, u16 data)
 	 */
 	if (priv->legacy_phy_port_mapping)
 		port = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
+
+	/* Use mdio Ethernet when available, fallback to legacy one on error */
+	ret = qca8k_phy_eth_command(priv, false, port, regnum, 0);
+	if (!ret)
+		return ret;
 
 	return qca8k_mdio_write(priv->bus, port, regnum, data);
 }
@@ -1029,6 +1240,11 @@ qca8k_phy_read(struct dsa_switch *ds, int port, int regnum)
 	 */
 	if (priv->legacy_phy_port_mapping)
 		port = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
+
+	/* Use mdio Ethernet when available, fallback to legacy one on error */
+	ret = qca8k_phy_eth_command(priv, true, port, regnum, 0);
+	if (ret >= 0)
+		return ret;
 
 	ret = qca8k_mdio_read(priv->bus, port, regnum);
 
