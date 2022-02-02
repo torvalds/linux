@@ -1514,10 +1514,9 @@ acpi_find_extended_socket_device(acpi_handle obj_handle, u32 level,
 {
 	struct acpi_device *device;
 	bool *found = context;
-	int result;
 
-	result = acpi_bus_get_device(obj_handle, &device);
-	if (result)
+	device = acpi_fetch_acpi_dev(obj_handle);
+	if (!device)
 		return AE_OK;
 
 	if (strcmp(acpi_device_hid(device), ACPI_MOTHERBOARD_RESOURCE_HID))
