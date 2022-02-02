@@ -344,6 +344,9 @@ struct amd64_umc {
 	u32 sdp_ctrl;		/* SDP Control reg */
 	u32 ecc_ctrl;		/* DRAM ECC Control reg */
 	u32 umc_cap_hi;		/* Capabilities High reg */
+
+	/* cache the dram_type */
+	enum mem_type dram_type;
 };
 
 struct amd64_pvt {
@@ -391,7 +394,12 @@ struct amd64_pvt {
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
 
-	/* cache the dram_type */
+	/*
+	 * cache the dram_type
+	 *
+	 * NOTE: Don't use this for Family 17h and later.
+	 *	 Use dram_type in struct amd64_umc instead.
+	 */
 	enum mem_type dram_type;
 
 	struct amd64_umc *umc;	/* UMC registers */
