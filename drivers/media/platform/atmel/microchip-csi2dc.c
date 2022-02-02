@@ -348,23 +348,14 @@ static int csi2dc_get_mbus_config(struct csi2dc_device *csi2dc)
 	if (ret == -ENOIOCTLCMD) {
 		dev_dbg(csi2dc->dev,
 			"no remote mbus configuration available\n");
-		goto csi2dc_get_mbus_config_defaults;
+		return 0;
 	}
 
 	if (ret) {
 		dev_err(csi2dc->dev,
 			"failed to get remote mbus configuration\n");
-		goto csi2dc_get_mbus_config_defaults;
+		return 0;
 	}
-
-	if (mbus_config.flags & V4L2_MBUS_CSI2_CHANNEL_0)
-		csi2dc->vc = 0;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_CHANNEL_1)
-		csi2dc->vc = 1;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_CHANNEL_2)
-		csi2dc->vc = 2;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_CHANNEL_3)
-		csi2dc->vc = 3;
 
 	dev_dbg(csi2dc->dev, "subdev sending on channel %d\n", csi2dc->vc);
 
@@ -373,11 +364,6 @@ static int csi2dc_get_mbus_config(struct csi2dc_device *csi2dc)
 
 	dev_dbg(csi2dc->dev, "mbus_config: %s clock\n",
 		csi2dc->clk_gated ? "gated" : "free running");
-
-	return 0;
-
-csi2dc_get_mbus_config_defaults:
-	csi2dc->vc = 0; /* Virtual ID 0 by default */
 
 	return 0;
 }
