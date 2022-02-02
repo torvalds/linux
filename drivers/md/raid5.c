@@ -5438,14 +5438,14 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 		return 0;
 	}
 
-	align_bio = bio_clone_fast(raid_bio, GFP_NOIO, &mddev->io_acct_set);
+	align_bio = bio_alloc_clone(rdev->bdev, raid_bio, GFP_NOIO,
+				    &mddev->io_acct_set);
 	md_io_acct = container_of(align_bio, struct md_io_acct, bio_clone);
 	raid_bio->bi_next = (void *)rdev;
 	if (blk_queue_io_stat(raid_bio->bi_bdev->bd_disk->queue))
 		md_io_acct->start_time = bio_start_io_acct(raid_bio);
 	md_io_acct->orig_bio = raid_bio;
 
-	bio_set_dev(align_bio, rdev->bdev);
 	align_bio->bi_end_io = raid5_align_endio;
 	align_bio->bi_private = md_io_acct;
 	align_bio->bi_iter.bi_sector = sector;

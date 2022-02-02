@@ -663,11 +663,6 @@ to i/o submission, if the bio fields are likely to be accessed after the
 i/o is issued (since the bio may otherwise get freed in case i/o completion
 happens in the meantime).
 
-The bio_clone_fast() routine may be used to duplicate a bio, where the clone
-shares the bio_vec_list with the original bio (i.e. both point to the
-same bio_vec_list). This would typically be used for splitting i/o requests
-in lvm or md.
-
 3.2 Generic bio helper Routines
 -------------------------------
 

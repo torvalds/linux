@@ -733,7 +733,8 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
 	bio_set_flag(bio, BIO_CLONED);
 	if (bio_flagged(bio_src, BIO_THROTTLED))
 		bio_set_flag(bio, BIO_THROTTLED);
-	if (bio_flagged(bio_src, BIO_REMAPPED))
+	if (bio->bi_bdev == bio_src->bi_bdev &&
+	    bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
 	bio->bi_ioprio = bio_src->bi_ioprio;
 	bio->bi_write_hint = bio_src->bi_write_hint;
@@ -751,7 +752,8 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
 }
 
 /**
- * bio_clone_fast - clone a bio that shares the original bio's biovec
+ * bio_alloc_clone - clone a bio that shares the original bio's biovec
+ * @bdev: block_device to clone onto
  * @bio_src: bio to clone from
  * @gfp: allocation priority
  * @bs: bio_set to allocate from
@@ -761,11 +763,12 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
  *
  * The caller must ensure that the return bio is not freed before @bio_src.
  */
-struct bio *bio_clone_fast(struct bio *bio_src, gfp_t gfp, struct bio_set *bs)
+struct bio *bio_alloc_clone(struct block_device *bdev, struct bio *bio_src,
+		gfp_t gfp, struct bio_set *bs)
 {
 	struct bio *bio;
 
-	bio = bio_alloc_bioset(bio_src->bi_bdev, 0, bio_src->bi_opf, gfp, bs);
+	bio = bio_alloc_bioset(bdev, 0, bio_src->bi_opf, gfp, bs);
 	if (!bio)
 		return NULL;
 
@@ -777,10 +780,11 @@ struct bio *bio_clone_fast(struct bio *bio_src, gfp_t gfp, struct bio_set *bs)
 
 	return bio;
 }
-EXPORT_SYMBOL(bio_clone_fast);
+EXPORT_SYMBOL(bio_alloc_clone);
 
 /**
- * __bio_clone_fast - clone a bio that shares the original bio's biovec
+ * bio_init_clone - clone a bio that shares the original bio's biovec
+ * @bdev: block_device to clone onto
  * @bio: bio to clone into
  * @bio_src: bio to clone from
  * @gfp: allocation priority
@@ -790,17 +794,18 @@ EXPORT_SYMBOL(bio_clone_fast);
  *
  * The caller must ensure that @bio_src is not freed before @bio.
  */
-int __bio_clone_fast(struct bio *bio, struct bio *bio_src, gfp_t gfp)
+int bio_init_clone(struct block_device *bdev, struct bio *bio,
+		struct bio *bio_src, gfp_t gfp)
 {
 	int ret;
 
-	bio_init(bio, bio_src->bi_bdev, bio_src->bi_io_vec, 0, bio_src->bi_opf);
+	bio_init(bio, bdev, bio_src->bi_io_vec, 0, bio_src->bi_opf);
 	ret = __bio_clone(bio, bio_src, gfp);
 	if (ret)
 		bio_uninit(bio);
 	return ret;
 }
-EXPORT_SYMBOL(__bio_clone_fast);
+EXPORT_SYMBOL(bio_init_clone);
 
 const char *bio_devname(struct bio *bio, char *buf)
 {
@@ -1572,7 +1577,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	if (WARN_ON_ONCE(bio_op(bio) == REQ_OP_ZONE_APPEND))
 		return NULL;
 
-	split = bio_clone_fast(bio, gfp, bs);
+	split = bio_alloc_clone(bio->bi_bdev, bio, gfp, bs);
 	if (!split)
 		return NULL;
 
@@ -1667,9 +1672,9 @@ EXPORT_SYMBOL(bioset_exit);
  *    Note that the bio must be embedded at the END of that structure always,
  *    or things will break badly.
  *    If %BIOSET_NEED_BVECS is set in @flags, a separate pool will be allocated
- *    for allocating iovecs.  This pool is not needed e.g. for bio_clone_fast().
- *    If %BIOSET_NEED_RESCUER is set, a workqueue is created which can be used to
- *    dispatch queued requests when the mempool runs out of space.
+ *    for allocating iovecs.  This pool is not needed e.g. for bio_init_clone().
+ *    If %BIOSET_NEED_RESCUER is set, a workqueue is created which can be used
+ *    to dispatch queued requests when the mempool runs out of space.
  *
  */
 int bioset_init(struct bio_set *bs,

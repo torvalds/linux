@@ -819,13 +819,13 @@ static void issue_op(struct bio *bio, void *context)
 static void remap_to_origin_and_cache(struct cache *cache, struct bio *bio,
 				      dm_oblock_t oblock, dm_cblock_t cblock)
 {
-	struct bio *origin_bio = bio_clone_fast(bio, GFP_NOIO, &cache->bs);
+	struct bio *origin_bio = bio_alloc_clone(cache->origin_dev->bdev, bio,
+						 GFP_NOIO, &cache->bs);
 
 	BUG_ON(!origin_bio);
 
 	bio_chain(origin_bio, bio);
 
-	remap_to_origin(cache, origin_bio);
 	if (bio_data_dir(origin_bio) == WRITE)
 		clear_discard(cache, oblock_to_dblock(cache, oblock));
 	submit_bio(origin_bio);

@@ -1834,17 +1834,16 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 	struct bio *clone;
 
 	/*
-	 * We need the original biovec array in order to decrypt
-	 * the whole bio data *afterwards* -- thanks to immutable
-	 * biovecs we don't need to worry about the block layer
-	 * modifying the biovec array; so leverage bio_clone_fast().
+	 * We need the original biovec array in order to decrypt the whole bio
+	 * data *afterwards* -- thanks to immutable biovecs we don't need to
+	 * worry about the block layer modifying the biovec array; so leverage
+	 * bio_alloc_clone().
 	 */
-	clone = bio_clone_fast(io->base_bio, gfp, &cc->bs);
+	clone = bio_alloc_clone(cc->dev->bdev, io->base_bio, gfp, &cc->bs);
 	if (!clone)
 		return 1;
 	clone->bi_private = io;
 	clone->bi_end_io = crypt_endio;
-	bio_set_dev(clone, cc->dev->bdev);
 
 	crypt_inc_pending(io);
 

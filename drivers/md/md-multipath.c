@@ -121,10 +121,9 @@ static bool multipath_make_request(struct mddev *mddev, struct bio * bio)
 	}
 	multipath = conf->multipaths + mp_bh->path;
 
-	__bio_clone_fast(&mp_bh->bio, bio, GFP_NOIO);
+	bio_init_clone(multipath->rdev->bdev, &mp_bh->bio, bio, GFP_NOIO);
 
 	mp_bh->bio.bi_iter.bi_sector += multipath->rdev->data_offset;
-	bio_set_dev(&mp_bh->bio, multipath->rdev->bdev);
 	mp_bh->bio.bi_opf |= REQ_FAILFAST_TRANSPORT;
 	mp_bh->bio.bi_end_io = multipath_end_request;
 	mp_bh->bio.bi_private = mp_bh;

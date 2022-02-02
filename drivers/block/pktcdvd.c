@@ -2294,12 +2294,12 @@ static void pkt_end_io_read_cloned(struct bio *bio)
 
 static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
 {
-	struct bio *cloned_bio = bio_clone_fast(bio, GFP_NOIO, &pkt_bio_set);
+	struct bio *cloned_bio =
+		bio_alloc_clone(pd->bdev, bio, GFP_NOIO, &pkt_bio_set);
 	struct packet_stacked_data *psd = mempool_alloc(&psd_pool, GFP_NOIO);
 
 	psd->pd = pd;
 	psd->bio = bio;
-	bio_set_dev(cloned_bio, pd->bdev);
 	cloned_bio->bi_private = psd;
 	cloned_bio->bi_end_io = pkt_end_io_read_cloned;
 	pd->stats.secs_r += bio_sectors(bio);

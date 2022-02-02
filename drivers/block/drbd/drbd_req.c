@@ -30,8 +30,8 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio 
 		return NULL;
 	memset(req, 0, sizeof(*req));
 
-	req->private_bio = bio_clone_fast(bio_src, GFP_NOIO, &drbd_io_bio_set);
-	bio_set_dev(req->private_bio, device->ldev->backing_bdev);
+	req->private_bio = bio_alloc_clone(device->ldev->backing_bdev, bio_src,
+					   GFP_NOIO, &drbd_io_bio_set);
 	req->private_bio->bi_private = req;
 	req->private_bio->bi_end_io = drbd_request_endio;
 

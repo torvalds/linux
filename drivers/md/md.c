@@ -8634,13 +8634,14 @@ static void md_end_io_acct(struct bio *bio)
  */
 void md_account_bio(struct mddev *mddev, struct bio **bio)
 {
+	struct block_device *bdev = (*bio)->bi_bdev;
 	struct md_io_acct *md_io_acct;
 	struct bio *clone;
 
-	if (!blk_queue_io_stat((*bio)->bi_bdev->bd_disk->queue))
+	if (!blk_queue_io_stat(bdev->bd_disk->queue))
 		return;
 
-	clone = bio_clone_fast(*bio, GFP_NOIO, &mddev->io_acct_set);
+	clone = bio_alloc_clone(bdev, *bio, GFP_NOIO, &mddev->io_acct_set);
 	md_io_acct = container_of(clone, struct md_io_acct, bio_clone);
 	md_io_acct->orig_bio = *bio;
 	md_io_acct->start_time = bio_start_io_acct(*bio);

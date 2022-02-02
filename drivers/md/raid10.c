@@ -1208,14 +1208,13 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 
 	if (blk_queue_io_stat(bio->bi_bdev->bd_disk->queue))
 		r10_bio->start_time = bio_start_io_acct(bio);
-	read_bio = bio_clone_fast(bio, gfp, &mddev->bio_set);
+	read_bio = bio_alloc_clone(rdev->bdev, bio, gfp, &mddev->bio_set);
 
 	r10_bio->devs[slot].bio = read_bio;
 	r10_bio->devs[slot].rdev = rdev;
 
 	read_bio->bi_iter.bi_sector = r10_bio->devs[slot].addr +
 		choose_data_offset(r10_bio, rdev);
-	bio_set_dev(read_bio, rdev->bdev);
 	read_bio->bi_end_io = raid10_end_read_request;
 	bio_set_op_attrs(read_bio, op, do_sync);
 	if (test_bit(FailFast, &rdev->flags) &&
@@ -1255,7 +1254,7 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 	} else
 		rdev = conf->mirrors[devnum].rdev;
 
-	mbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+	mbio = bio_alloc_clone(rdev->bdev, bio, GFP_NOIO, &mddev->bio_set);
 	if (replacement)
 		r10_bio->devs[n_copy].repl_bio = mbio;
 	else
@@ -1263,7 +1262,6 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 
 	mbio->bi_iter.bi_sector	= (r10_bio->devs[n_copy].addr +
 				   choose_data_offset(r10_bio, rdev));
-	bio_set_dev(mbio, rdev->bdev);
 	mbio->bi_end_io	= raid10_end_write_request;
 	bio_set_op_attrs(mbio, op, do_sync | do_fua);
 	if (!replacement && test_bit(FailFast,
@@ -1812,7 +1810,8 @@ retry_discard:
 		 */
 		if (r10_bio->devs[disk].bio) {
 			struct md_rdev *rdev = conf->mirrors[disk].rdev;
-			mbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+			mbio = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO,
+					       &mddev->bio_set);
 			mbio->bi_end_io = raid10_end_discard_request;
 			mbio->bi_private = r10_bio;
 			r10_bio->devs[disk].bio = mbio;
@@ -1825,7 +1824,8 @@ retry_discard:
 		}
 		if (r10_bio->devs[disk].repl_bio) {
 			struct md_rdev *rrdev = conf->mirrors[disk].replacement;
-			rbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+			rbio = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO,
+					       &mddev->bio_set);
 			rbio->bi_end_io = raid10_end_discard_request;
 			rbio->bi_private = r10_bio;
 			r10_bio->devs[disk].repl_bio = rbio;
@@ -2892,12 +2892,12 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
 		if (sectors > sect_to_write)
 			sectors = sect_to_write;
 		/* Write at 'sector' for 'sectors' */
-		wbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+		wbio = bio_alloc_clone(rdev->bdev, bio, GFP_NOIO,
+				       &mddev->bio_set);
 		bio_trim(wbio, sector - bio->bi_iter.bi_sector, sectors);
 		wsector = r10_bio->devs[i].addr + (sector - r10_bio->sector);
 		wbio->bi_iter.bi_sector = wsector +
 				   choose_data_offset(r10_bio, rdev);
-		bio_set_dev(wbio, rdev->bdev);
 		bio_set_op_attrs(wbio, REQ_OP_WRITE, 0);
 
 		if (submit_bio_wait(wbio) < 0)

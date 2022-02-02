@@ -162,8 +162,7 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *    that does not own the bio - reason being drivers don't use it for
 	 *    iterating over the biovec anymore, so expecting it to be kept up
 	 *    to date (i.e. for clones that share the parent biovec) is just
-	 *    asking for trouble and would force extra work on
-	 *    __bio_clone_fast() anyways.
+	 *    asking for trouble and would force extra work.
 	 */
 	bio = bio_alloc_bioset(bio_src->bi_bdev, bio_segments(bio_src),
 			       bio_src->bi_opf, GFP_NOIO, &bounce_bio_set);

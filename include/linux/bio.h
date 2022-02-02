@@ -413,8 +413,10 @@ struct bio *bio_alloc_kiocb(struct kiocb *kiocb, struct block_device *bdev,
 struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned short nr_iovecs);
 extern void bio_put(struct bio *);
 
-int __bio_clone_fast(struct bio *bio, struct bio *bio_src, gfp_t gfp);
-extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
+struct bio *bio_alloc_clone(struct block_device *bdev, struct bio *bio_src,
+		gfp_t gfp, struct bio_set *bs);
+int bio_init_clone(struct block_device *bdev, struct bio *bio,
+		struct bio *bio_src, gfp_t gfp);
 
 extern struct bio_set fs_bio_set;
 

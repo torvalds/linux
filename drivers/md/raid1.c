@@ -1320,13 +1320,13 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	if (!r1bio_existed && blk_queue_io_stat(bio->bi_bdev->bd_disk->queue))
 		r1_bio->start_time = bio_start_io_acct(bio);
 
-	read_bio = bio_clone_fast(bio, gfp, &mddev->bio_set);
+	read_bio = bio_alloc_clone(mirror->rdev->bdev, bio, gfp,
+				   &mddev->bio_set);
 
 	r1_bio->bios[rdisk] = read_bio;
 
 	read_bio->bi_iter.bi_sector = r1_bio->sector +
 		mirror->rdev->data_offset;
-	bio_set_dev(read_bio, mirror->rdev->bdev);
 	read_bio->bi_end_io = raid1_end_read_request;
 	bio_set_op_attrs(read_bio, op, do_sync);
 	if (test_bit(FailFast, &mirror->rdev->flags) &&
@@ -1546,24 +1546,25 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			first_clone = 0;
 		}
 
-		if (r1_bio->behind_master_bio)
-			mbio = bio_clone_fast(r1_bio->behind_master_bio,
-					      GFP_NOIO, &mddev->bio_set);
-		else
-			mbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
-
 		if (r1_bio->behind_master_bio) {
+			mbio = bio_alloc_clone(rdev->bdev,
+					       r1_bio->behind_master_bio,
+					       GFP_NOIO, &mddev->bio_set);
 			if (test_bit(CollisionCheck, &rdev->flags))
 				wait_for_serialization(rdev, r1_bio);
 			if (test_bit(WriteMostly, &rdev->flags))
 				atomic_inc(&r1_bio->behind_remaining);
-		} else if (mddev->serialize_policy)
-			wait_for_serialization(rdev, r1_bio);
+		} else {
+			mbio = bio_alloc_clone(rdev->bdev, bio, GFP_NOIO,
+					       &mddev->bio_set);
+
+			if (mddev->serialize_policy)
+				wait_for_serialization(rdev, r1_bio);
+		}
 
 		r1_bio->bios[i] = mbio;
 
 		mbio->bi_iter.bi_sector	= (r1_bio->sector + rdev->data_offset);
-		bio_set_dev(mbio, rdev->bdev);
 		mbio->bi_end_io	= raid1_end_write_request;
 		mbio->bi_opf = bio_op(bio) | (bio->bi_opf & (REQ_SYNC | REQ_FUA));
 		if (test_bit(FailFast, &rdev->flags) &&
@@ -2416,12 +2417,12 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 		/* Write at 'sector' for 'sectors'*/
 
 		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
-			wbio = bio_clone_fast(r1_bio->behind_master_bio,
-					      GFP_NOIO,
-					      &mddev->bio_set);
+			wbio = bio_alloc_clone(rdev->bdev,
+					       r1_bio->behind_master_bio,
+					       GFP_NOIO, &mddev->bio_set);
 		} else {
-			wbio = bio_clone_fast(r1_bio->master_bio, GFP_NOIO,
-					      &mddev->bio_set);
+			wbio = bio_alloc_clone(rdev->bdev, r1_bio->master_bio,
+					       GFP_NOIO, &mddev->bio_set);
 		}
 
 		bio_set_op_attrs(wbio, REQ_OP_WRITE, 0);
@@ -2430,7 +2431,6 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 
 		bio_trim(wbio, sector - r1_bio->sector, sectors);
 		wbio->bi_iter.bi_sector += rdev->data_offset;
-		bio_set_dev(wbio, rdev->bdev);
 
 		if (submit_bio_wait(wbio) < 0)
 			/* failure! */
