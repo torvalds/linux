@@ -56,6 +56,39 @@ static int memblock_add_simple_check(void)
 }
 
 /*
+ * A simple test that adds a memory block of a specified base address, size
+ * NUMA node and memory flags to the collection of available memory regions.
+ * It checks if the new entry, region counter and total memory size have
+ * expected values.
+ */
+static int memblock_add_node_simple_check(void)
+{
+	struct memblock_region *rgn;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r = {
+		.base = SZ_1M,
+		.size = SZ_16M
+	};
+
+	reset_memblock();
+	memblock_add_node(r.base, r.size, 1, MEMBLOCK_HOTPLUG);
+
+	assert(rgn->base == r.base);
+	assert(rgn->size == r.size);
+#ifdef CONFIG_NUMA
+	assert(rgn->nid == 1);
+#endif
+	assert(rgn->flags == MEMBLOCK_HOTPLUG);
+
+	assert(memblock.memory.cnt == 1);
+	assert(memblock.memory.total_size == r.size);
+
+	return 0;
+}
+
+/*
  * A test that tries to add two memory blocks that don't overlap with one
  * another. It checks if two correctly initialized entries were added to the
  * collection of available memory regions (memblock.memory) and if this
@@ -230,6 +263,7 @@ static int memblock_add_twice_check(void)
 static int memblock_add_checks(void)
 {
 	memblock_add_simple_check();
+	memblock_add_node_simple_check();
 	memblock_add_disjoint_check();
 	memblock_add_overlap_top_check();
 	memblock_add_overlap_bottom_check();
