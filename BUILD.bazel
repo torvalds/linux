@@ -41,6 +41,7 @@ define_db845c(
     outs = aarch64_gz_outs + [
         "arch/arm64/boot/dts/qcom/qrb5165-rb5.dtb",
         "arch/arm64/boot/dts/qcom/sdm845-db845c.dtb",
+        "arch/arm64/boot/dts/qcom/sm8450-qrd.dtb",
     ],
     module_outs = [
         # keep sorted
@@ -58,6 +59,7 @@ define_db845c(
         "drivers/clk/qcom/dispcc-sm8250.ko",
         "drivers/clk/qcom/gcc-sdm845.ko",
         "drivers/clk/qcom/gcc-sm8250.ko",
+        "drivers/clk/qcom/gcc-sm8450.ko",
         "drivers/clk/qcom/gpucc-sdm845.ko",
         "drivers/clk/qcom/gpucc-sm8250.ko",
         "drivers/clk/qcom/lpass-gfm-sm8250.ko",
@@ -93,6 +95,7 @@ define_db845c(
         "drivers/interconnect/qcom/icc-rpmh.ko",
         "drivers/interconnect/qcom/qnoc-sdm845.ko",
         "drivers/interconnect/qcom/qnoc-sm8250.ko",
+        "drivers/interconnect/qcom/qnoc-sm8450.ko",
         "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mailbox/qcom-apcs-ipc-mailbox.ko",
@@ -122,6 +125,7 @@ define_db845c(
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-sdm845.ko",
         "drivers/pinctrl/qcom/pinctrl-sm8250.ko",
+        "drivers/pinctrl/qcom/pinctrl-sm8450.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
         "drivers/power/reset/qcom-pon.ko",
