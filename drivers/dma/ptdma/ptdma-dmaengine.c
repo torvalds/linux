@@ -100,12 +100,17 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 		spin_lock_irqsave(&chan->vc.lock, flags);
 
 		if (desc) {
-			if (desc->status != DMA_ERROR)
-				desc->status = DMA_COMPLETE;
+			if (desc->status != DMA_COMPLETE) {
+				if (desc->status != DMA_ERROR)
+					desc->status = DMA_COMPLETE;
 
-			dma_cookie_complete(tx_desc);
-			dma_descriptor_unmap(tx_desc);
-			list_del(&desc->vd.node);
+				dma_cookie_complete(tx_desc);
+				dma_descriptor_unmap(tx_desc);
+				list_del(&desc->vd.node);
+			} else {
+				/* Don't handle it twice */
+				tx_desc = NULL;
+			}
 		}
 
 		desc = pt_next_dma_desc(chan);
