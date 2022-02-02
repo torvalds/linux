@@ -84,8 +84,7 @@ static long ptp_vclock_refresh(struct ptp_clock_info *ptp)
 static const struct ptp_clock_info ptp_vclock_info = {
 	.owner		= THIS_MODULE,
 	.name		= "ptp virtual clock",
-	/* The maximum ppb value that long scaled_ppm can support */
-	.max_adj	= 32767999,
+	.max_adj	= 500000000,
 	.adjfine	= ptp_vclock_adjfine,
 	.adjtime	= ptp_vclock_adjtime,
 	.gettime64	= ptp_vclock_gettime,
