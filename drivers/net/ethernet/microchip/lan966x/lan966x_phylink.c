@@ -9,6 +9,14 @@
 
 #include "lan966x_main.h"
 
+static struct phylink_pcs *lan966x_phylink_mac_select(struct phylink_config *config,
+						      phy_interface_t interface)
+{
+	struct lan966x_port *port = netdev_priv(to_net_dev(config->dev));
+
+	return &port->phylink_pcs;
+}
+
 static void lan966x_phylink_mac_config(struct phylink_config *config,
 				       unsigned int mode,
 				       const struct phylink_link_state *state)
@@ -114,6 +122,7 @@ static void lan966x_pcs_aneg_restart(struct phylink_pcs *pcs)
 
 const struct phylink_mac_ops lan966x_phylink_mac_ops = {
 	.validate = phylink_generic_validate,
+	.mac_select_pcs = lan966x_phylink_mac_select,
 	.mac_config = lan966x_phylink_mac_config,
 	.mac_prepare = lan966x_phylink_mac_prepare,
 	.mac_link_down = lan966x_phylink_mac_link_down,

@@ -688,7 +688,6 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 	}
 
 	port->phylink = phylink;
-	phylink_set_pcs(phylink, &port->phylink_pcs);
 
 	err = register_netdev(dev);
 	if (err) {
