@@ -1348,7 +1348,6 @@ config SND_SOC_RT9120
 	tristate "Richtek RT9120 Stereo Class-D Amplifier"
 	depends on I2C
 	select REGMAP_I2C
-	select GPIOLIB
 	help
 	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
 	  high-efficiency Class-D audio amplifier.
