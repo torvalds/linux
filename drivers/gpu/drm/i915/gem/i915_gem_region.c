@@ -62,6 +62,9 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 
 	size = round_up(size, default_page_size);
 
+	if (default_page_size == size)
+		flags |= I915_BO_ALLOC_CONTIGUOUS;
+
 	GEM_BUG_ON(!size);
 	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_MIN_ALIGNMENT));
 
