@@ -30,6 +30,8 @@
  * SOFTWARE.
  */
 
+#include <linux/ethtool_netlink.h>
+
 #include "en.h"
 #include "en/port.h"
 #include "en/params.h"
@@ -305,12 +307,18 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 }
 
 void mlx5e_ethtool_get_ringparam(struct mlx5e_priv *priv,
-				 struct ethtool_ringparam *param)
+				 struct ethtool_ringparam *param,
+				 struct kernel_ethtool_ringparam *kernel_param)
 {
 	param->rx_max_pending = 1 << MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE;
 	param->tx_max_pending = 1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE;
 	param->rx_pending     = 1 << priv->channels.params.log_rq_mtu_frames;
 	param->tx_pending     = 1 << priv->channels.params.log_sq_size;
+
+	kernel_param->tcp_data_split =
+		(priv->channels.params.packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO) ?
+		ETHTOOL_TCP_DATA_SPLIT_ENABLED :
+		ETHTOOL_TCP_DATA_SPLIT_DISABLED;
 }
 
 static void mlx5e_get_ringparam(struct net_device *dev,
@@ -320,7 +328,7 @@ static void mlx5e_get_ringparam(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	mlx5e_ethtool_get_ringparam(priv, param);
+	mlx5e_ethtool_get_ringparam(priv, param, kernel_param);
 }
 
 int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,

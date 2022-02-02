@@ -1181,7 +1181,8 @@ int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset);
 void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 				     struct ethtool_stats *stats, u64 *data);
 void mlx5e_ethtool_get_ringparam(struct mlx5e_priv *priv,
-				 struct ethtool_ringparam *param);
+				 struct ethtool_ringparam *param,
+				 struct kernel_ethtool_ringparam *kernel_param);
 int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 				struct ethtool_ringparam *param);
 void mlx5e_ethtool_get_channels(struct mlx5e_priv *priv,
