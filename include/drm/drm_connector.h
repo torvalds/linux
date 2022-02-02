@@ -566,13 +566,13 @@ struct drm_display_info {
 	bool rgb_quant_range_selectable;
 
 	/**
-	 * @edid_hdmi_dc_rgb444_modes: Mask of supported hdmi deep color modes
+	 * @edid_hdmi_rgb444_dc_modes: Mask of supported hdmi deep color modes
 	 * in RGB 4:4:4. Even more stuff redundant with @bus_formats.
 	 */
 	u8 edid_hdmi_rgb444_dc_modes;
 
 	/**
-	 * @edid_hdmi_dc_ycbcr444_modes: Mask of supported hdmi deep color
+	 * @edid_hdmi_ycbcr444_dc_modes: Mask of supported hdmi deep color
 	 * modes in YCbCr 4:4:4. Even more stuff redundant with @bus_formats.
 	 */
 	u8 edid_hdmi_ycbcr444_dc_modes;
