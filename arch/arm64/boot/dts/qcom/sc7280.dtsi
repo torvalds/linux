@@ -3284,7 +3284,6 @@
 			dp_hot_plug_det: dp-hot-plug-det {
 				pins = "gpio47";
 				function = "dp_hot";
-				bias-disable;
 			};
 
 			edp_hot_plug_det: edp-hot-plug-det {

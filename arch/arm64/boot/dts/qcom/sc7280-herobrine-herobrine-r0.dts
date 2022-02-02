@@ -826,6 +826,10 @@ ap_ec_spi: &spi8 {
 
 /* PINCTRL - additions to nodes defined in sc7280.dtsi */
 
+&dp_hot_plug_det {
+	bias-disable;
+};
+
 &pcie1_clkreq_n {
 	bias-pull-up;
 	drive-strength = <2>;
