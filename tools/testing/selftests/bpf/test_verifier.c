@@ -456,7 +456,7 @@ static int probe_filter_length(const struct bpf_insn *fp)
 
 static bool skip_unsupported_map(enum bpf_map_type map_type)
 {
-	if (!bpf_probe_map_type(map_type, 0)) {
+	if (!libbpf_probe_bpf_map_type(map_type, NULL)) {
 		printf("SKIP (unsupported map type %d)\n", map_type);
 		skips++;
 		return true;
@@ -1180,7 +1180,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	 * bpf_probe_prog_type won't give correct answer
 	 */
 	if (fd_prog < 0 && prog_type != BPF_PROG_TYPE_TRACING &&
-	    !bpf_probe_prog_type(prog_type, 0)) {
+	    !libbpf_probe_bpf_prog_type(prog_type, NULL)) {
 		printf("SKIP (unsupported program type %d)\n", prog_type);
 		skips++;
 		goto close_fds;
