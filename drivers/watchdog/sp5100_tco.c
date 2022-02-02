@@ -48,7 +48,7 @@
 /* internal variables */
 
 enum tco_reg_layout {
-	sp5100, sb800, efch
+	sp5100, sb800, efch, efch_mmio
 };
 
 struct sp5100_tco {
@@ -201,6 +201,8 @@ static void tco_timer_enable(struct sp5100_tco *tco)
 					  ~EFCH_PM_WATCHDOG_DISABLE,
 					  EFCH_PM_DECODEEN_SECOND_RES);
 		break;
+	default:
+		break;
 	}
 }
 
@@ -299,6 +301,99 @@ static int sp5100_tco_timer_init(struct sp5100_tco *tco)
 	return 0;
 }
 
+static u8 efch_read_pm_reg8(void __iomem *addr, u8 index)
+{
+	return readb(addr + index);
+}
+
+static void efch_update_pm_reg8(void __iomem *addr, u8 index, u8 reset, u8 set)
+{
+	u8 val;
+
+	val = readb(addr + index);
+	val &= reset;
+	val |= set;
+	writeb(val, addr + index);
+}
+
+static void tco_timer_enable_mmio(void __iomem *addr)
+{
+	efch_update_pm_reg8(addr, EFCH_PM_DECODEEN3,
+			    ~EFCH_PM_WATCHDOG_DISABLE,
+			    EFCH_PM_DECODEEN_SECOND_RES);
+}
+
+static int sp5100_tco_setupdevice_mmio(struct device *dev,
+				       struct watchdog_device *wdd)
+{
+	struct sp5100_tco *tco = watchdog_get_drvdata(wdd);
+	const char *dev_name = SB800_DEVNAME;
+	u32 mmio_addr = 0, alt_mmio_addr = 0;
+	struct resource *res;
+	void __iomem *addr;
+	int ret;
+	u32 val;
+
+	res = request_mem_region_muxed(EFCH_PM_ACPI_MMIO_PM_ADDR,
+				       EFCH_PM_ACPI_MMIO_PM_SIZE,
+				       "sp5100_tco");
+
+	if (!res) {
+		dev_err(dev,
+			"Memory region 0x%08x already in use\n",
+			EFCH_PM_ACPI_MMIO_PM_ADDR);
+		return -EBUSY;
+	}
+
+	addr = ioremap(EFCH_PM_ACPI_MMIO_PM_ADDR, EFCH_PM_ACPI_MMIO_PM_SIZE);
+	if (!addr) {
+		dev_err(dev, "Address mapping failed\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * EFCH_PM_DECODEEN_WDT_TMREN is dual purpose. This bitfield
+	 * enables sp5100_tco register MMIO space decoding. The bitfield
+	 * also starts the timer operation. Enable if not already enabled.
+	 */
+	val = efch_read_pm_reg8(addr, EFCH_PM_DECODEEN);
+	if (!(val & EFCH_PM_DECODEEN_WDT_TMREN)) {
+		efch_update_pm_reg8(addr, EFCH_PM_DECODEEN, 0xff,
+				    EFCH_PM_DECODEEN_WDT_TMREN);
+	}
+
+	/* Error if the timer could not be enabled */
+	val = efch_read_pm_reg8(addr, EFCH_PM_DECODEEN);
+	if (!(val & EFCH_PM_DECODEEN_WDT_TMREN)) {
+		dev_err(dev, "Failed to enable the timer\n");
+		ret = -EFAULT;
+		goto out;
+	}
+
+	mmio_addr = EFCH_PM_WDT_ADDR;
+
+	/* Determine alternate MMIO base address */
+	val = efch_read_pm_reg8(addr, EFCH_PM_ISACONTROL);
+	if (val & EFCH_PM_ISACONTROL_MMIOEN)
+		alt_mmio_addr = EFCH_PM_ACPI_MMIO_ADDR +
+			EFCH_PM_ACPI_MMIO_WDT_OFFSET;
+
+	ret = sp5100_tco_prepare_base(tco, mmio_addr, alt_mmio_addr, dev_name);
+	if (!ret) {
+		tco_timer_enable_mmio(addr);
+		ret = sp5100_tco_timer_init(tco);
+	}
+
+out:
+	if (addr)
+		iounmap(addr);
+
+	release_resource(res);
+
+	return ret;
+}
+
 static int sp5100_tco_setupdevice(struct device *dev,
 				  struct watchdog_device *wdd)
 {
@@ -307,6 +402,9 @@ static int sp5100_tco_setupdevice(struct device *dev,
 	u32 mmio_addr = 0, val;
 	u32 alt_mmio_addr = 0;
 	int ret;
+
+	if (tco->tco_reg_layout == efch_mmio)
+		return sp5100_tco_setupdevice_mmio(dev, wdd);
 
 	/* Request the IO ports used by this driver */
 	if (!request_muxed_region(SP5100_IO_PM_INDEX_REG,
