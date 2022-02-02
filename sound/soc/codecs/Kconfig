@@ -1394,7 +1394,7 @@ config SND_SOC_SIMPLE_AMPLIFIER
 
 config SND_SOC_SIMPLE_MUX
 	tristate "Simple Audio Mux"
-	select GPIOLIB
+	depends on GPIOLIB
 
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
