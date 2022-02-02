@@ -13,6 +13,16 @@
 void *kmalloc(size_t size, gfp_t gfp);
 void kfree(void *p);
 
+bool slab_is_available(void);
+
+enum slab_state {
+	DOWN,
+	PARTIAL,
+	PARTIAL_NODE,
+	UP,
+	FULL
+};
+
 static inline void *kzalloc(size_t size, gfp_t gfp)
 {
 	return kmalloc(size, gfp | __GFP_ZERO);
