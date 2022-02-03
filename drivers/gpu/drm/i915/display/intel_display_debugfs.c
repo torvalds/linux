@@ -939,7 +939,7 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 		seq_printf(m, "\tLinked to [CRTC:%d:%s] as a %s\n",
 			   crtc_state->bigjoiner_linked_crtc->base.base.id,
 			   crtc_state->bigjoiner_linked_crtc->base.name,
-			   crtc_state->bigjoiner_slave ? "slave" : "master");
+			   intel_crtc_is_bigjoiner_slave(crtc_state) ? "slave" : "master");
 
 	for_each_intel_encoder_mask(&dev_priv->drm, encoder,
 				    crtc_state->uapi.encoder_mask)

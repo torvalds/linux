@@ -338,9 +338,19 @@ is_trans_port_sync_mode(const struct intel_crtc_state *crtc_state)
 		is_trans_port_sync_slave(crtc_state);
 }
 
+bool intel_crtc_is_bigjoiner_slave(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->bigjoiner_slave;
+}
+
+bool intel_crtc_is_bigjoiner_master(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->bigjoiner && !crtc_state->bigjoiner_slave;
+}
+
 static struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state)
 {
-	if (crtc_state->bigjoiner_slave)
+	if (intel_crtc_is_bigjoiner_slave(crtc_state))
 		return crtc_state->bigjoiner_linked_crtc;
 	else
 		return to_intel_crtc(crtc_state->uapi.crtc);
@@ -1848,13 +1858,13 @@ static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 	/*
 	 * Enable sequence steps 1-7 on bigjoiner master
 	 */
-	if (crtc_state->bigjoiner_slave)
+	if (intel_crtc_is_bigjoiner_slave(crtc_state))
 		intel_encoders_pre_pll_enable(state, master_crtc);
 
 	if (crtc_state->shared_dpll)
 		intel_enable_shared_dpll(crtc_state);
 
-	if (crtc_state->bigjoiner_slave)
+	if (intel_crtc_is_bigjoiner_slave(crtc_state))
 		intel_encoders_pre_enable(state, master_crtc);
 }
 
@@ -1918,7 +1928,8 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	if (DISPLAY_VER(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 		bdw_set_pipemisc(new_crtc_state);
 
-	if (!new_crtc_state->bigjoiner_slave && !transcoder_is_dsi(cpu_transcoder))
+	if (!intel_crtc_is_bigjoiner_slave(new_crtc_state) &&
+	    !transcoder_is_dsi(cpu_transcoder))
 		hsw_configure_cpu_transcoder(new_crtc_state);
 
 	crtc->active = true;
@@ -1958,7 +1969,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 		icl_pipe_mbus_enable(crtc, dbuf_state->joined_mbus);
 	}
 
-	if (new_crtc_state->bigjoiner_slave)
+	if (intel_crtc_is_bigjoiner_slave(new_crtc_state))
 		intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
@@ -2043,7 +2054,7 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 	 * FIXME collapse everything to one hook.
 	 * Need care with mst->ddi interactions.
 	 */
-	if (!old_crtc_state->bigjoiner_slave) {
+	if (!intel_crtc_is_bigjoiner_slave(old_crtc_state)) {
 		intel_encoders_disable(state, crtc);
 		intel_encoders_post_disable(state, crtc);
 	}
@@ -5390,8 +5401,8 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 		    pipe_config->sync_mode_slaves_mask);
 
 	drm_dbg_kms(&dev_priv->drm, "bigjoiner: %s\n",
-		    pipe_config->bigjoiner_slave ? "slave" :
-		    pipe_config->bigjoiner ? "master" : "no");
+		    intel_crtc_is_bigjoiner_slave(pipe_config) ? "slave" :
+		    intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "no");
 
 	drm_dbg_kms(&dev_priv->drm, "splitter: %s, link count %d, overlap %d\n",
 		    enableddisabled(pipe_config->splitter.enable),
@@ -5593,7 +5604,7 @@ intel_crtc_copy_uapi_to_hw_state_nomodeset(struct intel_atomic_state *state,
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	WARN_ON(crtc_state->bigjoiner_slave);
+	WARN_ON(intel_crtc_is_bigjoiner_slave(crtc_state));
 
 	drm_property_replace_blob(&crtc_state->hw.degamma_lut,
 				  crtc_state->uapi.degamma_lut);
@@ -5610,7 +5621,7 @@ intel_crtc_copy_uapi_to_hw_state_modeset(struct intel_atomic_state *state,
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	WARN_ON(crtc_state->bigjoiner_slave);
+	WARN_ON(intel_crtc_is_bigjoiner_slave(crtc_state));
 
 	crtc_state->hw.enable = crtc_state->uapi.enable;
 	crtc_state->hw.active = crtc_state->uapi.active;
@@ -5623,7 +5634,7 @@ intel_crtc_copy_uapi_to_hw_state_modeset(struct intel_atomic_state *state,
 
 static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state)
 {
-	if (crtc_state->bigjoiner_slave)
+	if (intel_crtc_is_bigjoiner_slave(crtc_state))
 		return;
 
 	crtc_state->uapi.enable = crtc_state->hw.enable;
@@ -7385,7 +7396,7 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 	struct intel_crtc *slave_crtc;
 
 	WARN_ON(master_crtc_state->bigjoiner_linked_crtc);
-	WARN_ON(master_crtc_state->bigjoiner_slave);
+	WARN_ON(intel_crtc_is_bigjoiner_slave(master_crtc_state));
 
 	if (!master_crtc_state->bigjoiner)
 		return 0;
@@ -7637,7 +7648,7 @@ static int intel_bigjoiner_add_affected_crtcs(struct intel_atomic_state *state)
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		/* Kill old bigjoiner link, we may re-establish afterwards */
 		if (intel_crtc_needs_modeset(crtc_state) &&
-		    crtc_state->bigjoiner && !crtc_state->bigjoiner_slave)
+		    intel_crtc_is_bigjoiner_master(crtc_state))
 			kill_bigjoiner_slave(state, crtc);
 	}
 
@@ -7682,7 +7693,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		if (!intel_crtc_needs_modeset(new_crtc_state)) {
-			if (new_crtc_state->bigjoiner_slave)
+			if (intel_crtc_is_bigjoiner_slave(new_crtc_state))
 				copy_bigjoiner_crtc_state_nomodeset(state, crtc);
 			else
 				intel_crtc_copy_uapi_to_hw_state_nomodeset(state, crtc);
@@ -7690,7 +7701,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		}
 
 		if (!new_crtc_state->uapi.enable) {
-			if (!new_crtc_state->bigjoiner_slave) {
+			if (!intel_crtc_is_bigjoiner_slave(new_crtc_state)) {
 				intel_crtc_copy_uapi_to_hw_state_modeset(state, crtc);
 				any_ms = true;
 			}
@@ -8009,7 +8020,7 @@ static void intel_enable_crtc(struct intel_atomic_state *state,
 
 	dev_priv->display->crtc_enable(state, crtc);
 
-	if (new_crtc_state->bigjoiner_slave)
+	if (intel_crtc_is_bigjoiner_slave(new_crtc_state))
 		return;
 
 	/* vblanks work again, re-enable pipe CRC. */
@@ -8126,7 +8137,7 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		 */
 		if (!is_trans_port_sync_slave(old_crtc_state) &&
 		    !intel_dp_mst_is_slave_trans(old_crtc_state) &&
-		    !old_crtc_state->bigjoiner_slave)
+		    !intel_crtc_is_bigjoiner_slave(old_crtc_state))
 			continue;
 
 		intel_old_crtc_state_disables(state, old_crtc_state,
@@ -8241,7 +8252,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 
 		if (intel_dp_mst_is_slave_trans(new_crtc_state) ||
 		    is_trans_port_sync_master(new_crtc_state) ||
-		    (new_crtc_state->bigjoiner && !new_crtc_state->bigjoiner_slave))
+		    intel_crtc_is_bigjoiner_master(new_crtc_state))
 			continue;
 
 		modeset_pipes &= ~BIT(pipe);
@@ -9953,7 +9964,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
 	if (crtc_state->hw.active && !intel_crtc_has_encoders(crtc) &&
-	    !crtc_state->bigjoiner_slave)
+	    !intel_crtc_is_bigjoiner_slave(crtc_state))
 		intel_crtc_disable_noatomic(crtc, ctx);
 
 	if (crtc_state->hw.active || HAS_GMCH(dev_priv)) {
@@ -10167,7 +10178,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			/* read out to slave crtc as well for bigjoiner */
 			if (crtc_state->bigjoiner) {
 				/* encoder should read be linked to bigjoiner master */
-				WARN_ON(crtc_state->bigjoiner_slave);
+				WARN_ON(intel_crtc_is_bigjoiner_slave(crtc_state));
 
 				crtc = crtc_state->bigjoiner_linked_crtc;
 				crtc_state = to_intel_crtc_state(crtc->base.state);
