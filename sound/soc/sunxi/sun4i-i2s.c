@@ -181,6 +181,9 @@ struct sun4i_i2s_quirks {
 	struct reg_field		field_fmt_wss;
 	struct reg_field		field_fmt_sr;
 
+	unsigned int			num_din_pins;
+	unsigned int			num_dout_pins;
+
 	const struct sun4i_i2s_clk_div	*bclk_dividers;
 	unsigned int			num_bclk_dividers;
 	const struct sun4i_i2s_clk_div	*mclk_dividers;
@@ -531,8 +534,15 @@ static int sun50i_h6_i2s_set_chan_cfg(const struct sun4i_i2s *i2s,
 	/* Map the channels for playback and capture */
 	regmap_write(i2s->regmap, SUN50I_H6_I2S_TX_CHAN_MAP0_REG(0), 0xFEDCBA98);
 	regmap_write(i2s->regmap, SUN50I_H6_I2S_TX_CHAN_MAP1_REG(0), 0x76543210);
-	regmap_write(i2s->regmap, SUN50I_H6_I2S_RX_CHAN_MAP0_REG, 0xFEDCBA98);
-	regmap_write(i2s->regmap, SUN50I_H6_I2S_RX_CHAN_MAP1_REG, 0x76543210);
+	if (i2s->variant->num_din_pins > 1) {
+		regmap_write(i2s->regmap, SUN50I_R329_I2S_RX_CHAN_MAP0_REG, 0x0F0E0D0C);
+		regmap_write(i2s->regmap, SUN50I_R329_I2S_RX_CHAN_MAP1_REG, 0x0B0A0908);
+		regmap_write(i2s->regmap, SUN50I_R329_I2S_RX_CHAN_MAP2_REG, 0x07060504);
+		regmap_write(i2s->regmap, SUN50I_R329_I2S_RX_CHAN_MAP3_REG, 0x03020100);
+	} else {
+		regmap_write(i2s->regmap, SUN50I_H6_I2S_RX_CHAN_MAP0_REG, 0xFEDCBA98);
+		regmap_write(i2s->regmap, SUN50I_H6_I2S_RX_CHAN_MAP1_REG, 0x76543210);
+	}
 
 	/* Configure the channels */
 	regmap_update_bits(i2s->regmap, SUN50I_H6_I2S_TX_CHAN_SEL_REG(0),
@@ -1255,7 +1265,7 @@ static const struct regmap_config sun50i_h6_i2s_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
 	.val_bits	= 32,
-	.max_register	= SUN50I_H6_I2S_RX_CHAN_MAP1_REG,
+	.max_register	= SUN50I_R329_I2S_RX_CHAN_MAP3_REG,
 	.cache_type	= REGCACHE_FLAT,
 	.reg_defaults	= sun50i_h6_i2s_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(sun50i_h6_i2s_reg_defaults),
@@ -1440,6 +1450,26 @@ static const struct sun4i_i2s_quirks sun50i_h6_i2s_quirks = {
 	.set_fmt		= sun50i_h6_i2s_set_soc_fmt,
 };
 
+static const struct sun4i_i2s_quirks sun50i_r329_i2s_quirks = {
+	.has_reset		= true,
+	.reg_offset_txdata	= SUN8I_I2S_FIFO_TX_REG,
+	.sun4i_i2s_regmap	= &sun50i_h6_i2s_regmap_config,
+	.field_clkdiv_mclk_en	= REG_FIELD(SUN4I_I2S_CLK_DIV_REG, 8, 8),
+	.field_fmt_wss		= REG_FIELD(SUN4I_I2S_FMT0_REG, 0, 2),
+	.field_fmt_sr		= REG_FIELD(SUN4I_I2S_FMT0_REG, 4, 6),
+	.num_din_pins		= 4,
+	.num_dout_pins		= 4,
+	.bclk_dividers		= sun8i_i2s_clk_div,
+	.num_bclk_dividers	= ARRAY_SIZE(sun8i_i2s_clk_div),
+	.mclk_dividers		= sun8i_i2s_clk_div,
+	.num_mclk_dividers	= ARRAY_SIZE(sun8i_i2s_clk_div),
+	.get_bclk_parent_rate	= sun8i_i2s_get_bclk_parent_rate,
+	.get_sr			= sun8i_i2s_get_sr_wss,
+	.get_wss		= sun8i_i2s_get_sr_wss,
+	.set_chan_cfg		= sun50i_h6_i2s_set_chan_cfg,
+	.set_fmt		= sun50i_h6_i2s_set_soc_fmt,
+};
+
 static int sun4i_i2s_init_regmap_fields(struct device *dev,
 					struct sun4i_i2s *i2s)
 {
@@ -1611,6 +1641,10 @@ static const struct of_device_id sun4i_i2s_match[] = {
 	{
 		.compatible = "allwinner,sun50i-h6-i2s",
 		.data = &sun50i_h6_i2s_quirks,
+	},
+	{
+		.compatible = "allwinner,sun50i-r329-i2s",
+		.data = &sun50i_r329_i2s_quirks,
 	},
 	{}
 };
