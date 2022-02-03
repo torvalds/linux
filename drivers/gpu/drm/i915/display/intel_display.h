@@ -430,11 +430,11 @@ enum hpd_pin {
 			    &(dev)->mode_config.crtc_list,		\
 			    base.head)
 
-#define for_each_intel_crtc_mask(dev, intel_crtc, crtc_mask)		\
+#define for_each_intel_crtc_in_pipe_mask(dev, intel_crtc, pipe_mask)	\
 	list_for_each_entry(intel_crtc,					\
 			    &(dev)->mode_config.crtc_list,		\
 			    base.head)					\
-		for_each_if((crtc_mask) & drm_crtc_mask(&intel_crtc->base))
+		for_each_if((pipe_mask) & BIT(intel_crtc->pipe))
 
 #define for_each_intel_encoder(dev, intel_encoder)		\
 	list_for_each_entry(intel_encoder,			\

@@ -3819,14 +3819,14 @@ static bool intel_dp_has_connector(struct intel_dp *intel_dp,
 
 static int intel_dp_prep_link_retrain(struct intel_dp *intel_dp,
 				      struct drm_modeset_acquire_ctx *ctx,
-				      u32 *crtc_mask)
+				      u8 *pipe_mask)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
 	int ret = 0;
 
-	*crtc_mask = 0;
+	*pipe_mask = 0;
 
 	if (!intel_dp_needs_link_retrain(intel_dp))
 		return 0;
@@ -3860,12 +3860,12 @@ static int intel_dp_prep_link_retrain(struct intel_dp *intel_dp,
 		    !try_wait_for_completion(&conn_state->commit->hw_done))
 			continue;
 
-		*crtc_mask |= drm_crtc_mask(&crtc->base);
+		*pipe_mask |= BIT(crtc->pipe);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
 	if (!intel_dp_needs_link_retrain(intel_dp))
-		*crtc_mask = 0;
+		*pipe_mask = 0;
 
 	return ret;
 }
@@ -3884,7 +3884,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc;
-	u32 crtc_mask;
+	u8 pipe_mask;
 	int ret;
 
 	if (!intel_dp_is_connected(intel_dp))
@@ -3895,17 +3895,17 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	ret = intel_dp_prep_link_retrain(intel_dp, ctx, &crtc_mask);
+	ret = intel_dp_prep_link_retrain(intel_dp, ctx, &pipe_mask);
 	if (ret)
 		return ret;
 
-	if (crtc_mask == 0)
+	if (pipe_mask == 0)
 		return 0;
 
 	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] retraining link\n",
 		    encoder->base.base.id, encoder->base.name);
 
-	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
+	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
@@ -3916,7 +3916,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 							      intel_crtc_pch_transcoder(crtc), false);
 	}
 
-	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
+	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
@@ -3933,7 +3933,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 		break;
 	}
 
-	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
+	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
@@ -3951,14 +3951,14 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 
 static int intel_dp_prep_phy_test(struct intel_dp *intel_dp,
 				  struct drm_modeset_acquire_ctx *ctx,
-				  u32 *crtc_mask)
+				  u8 *pipe_mask)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
 	int ret = 0;
 
-	*crtc_mask = 0;
+	*pipe_mask = 0;
 
 	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
@@ -3989,7 +3989,7 @@ static int intel_dp_prep_phy_test(struct intel_dp *intel_dp,
 		    !try_wait_for_completion(&conn_state->commit->hw_done))
 			continue;
 
-		*crtc_mask |= drm_crtc_mask(&crtc->base);
+		*pipe_mask |= BIT(crtc->pipe);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
@@ -4002,7 +4002,7 @@ static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc;
-	u32 crtc_mask;
+	u8 pipe_mask;
 	int ret;
 
 	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
@@ -4010,17 +4010,17 @@ static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	ret = intel_dp_prep_phy_test(intel_dp, ctx, &crtc_mask);
+	ret = intel_dp_prep_phy_test(intel_dp, ctx, &pipe_mask);
 	if (ret)
 		return ret;
 
-	if (crtc_mask == 0)
+	if (pipe_mask == 0)
 		return 0;
 
 	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] PHY test\n",
 		    encoder->base.base.id, encoder->base.name);
 
-	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
+	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
