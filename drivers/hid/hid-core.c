@@ -1657,17 +1657,48 @@ static void hid_process_report(struct hid_device *hid,
 			       int interrupt)
 {
 	unsigned int a;
+	struct hid_field_entry *entry;
 	struct hid_field *field;
 
-	for (a = 0; a < report->maxfield; a++) {
-		field = report->field[a];
+	/* first retrieve all incoming values in data */
+	for (a = 0; a < report->maxfield; a++)
+		hid_input_fetch_field(hid, field = report->field[a], data);
 
-		hid_input_fetch_field(hid, field, data);
+	if (!list_empty(&report->field_entry_list)) {
+		/* INPUT_REPORT, we have a priority list of fields */
+		list_for_each_entry(entry,
+				    &report->field_entry_list,
+				    list) {
+			field = entry->field;
 
-		if (field->flags & HID_MAIN_ITEM_VARIABLE)
-			hid_input_var_field(hid, field, interrupt);
-		else
-			hid_input_array_field(hid, field, interrupt);
+			if (field->flags & HID_MAIN_ITEM_VARIABLE)
+				hid_process_event(hid,
+						  field,
+						  &field->usage[entry->index],
+						  field->new_value[entry->index],
+						  interrupt);
+			else
+				hid_input_array_field(hid, field, interrupt);
+		}
+
+		/* we need to do the memcpy at the end for var items */
+		for (a = 0; a < report->maxfield; a++) {
+			field = report->field[a];
+
+			if (field->flags & HID_MAIN_ITEM_VARIABLE)
+				memcpy(field->value, field->new_value,
+				       field->report_count * sizeof(__s32));
+		}
+	} else {
+		/* FEATURE_REPORT, regular processing */
+		for (a = 0; a < report->maxfield; a++) {
+			field = report->field[a];
+
+			if (field->flags & HID_MAIN_ITEM_VARIABLE)
+				hid_input_var_field(hid, field, interrupt);
+			else
+				hid_input_array_field(hid, field, interrupt);
+		}
 	}
 }
 
