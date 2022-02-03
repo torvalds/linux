@@ -101,7 +101,7 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 
 	field = kzalloc((sizeof(struct hid_field) +
 			 usages * sizeof(struct hid_usage) +
-			 usages * sizeof(unsigned)), GFP_KERNEL);
+			 2 * usages * sizeof(unsigned int)), GFP_KERNEL);
 	if (!field)
 		return NULL;
 
@@ -109,6 +109,7 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 	report->field[field->index] = field;
 	field->usage = (struct hid_usage *)(field + 1);
 	field->value = (s32 *)(field->usage + usages);
+	field->new_value = (s32 *)(field->value + usages);
 	field->report = report;
 
 	return field;
@@ -1541,9 +1542,8 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	__s32 max = field->logical_maximum;
 	__s32 *value;
 
-	value = kmalloc_array(count, sizeof(__s32), GFP_ATOMIC);
-	if (!value)
-		return;
+	value = field->new_value;
+	memset(value, 0, count * sizeof(__s32));
 
 	for (n = 0; n < count; n++) {
 
@@ -1557,7 +1557,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 		    value[n] >= min && value[n] <= max &&
 		    value[n] - min < field->maxusage &&
 		    field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1)
-			goto exit;
+			return;
 	}
 
 	for (n = 0; n < count; n++) {
@@ -1581,8 +1581,6 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	}
 
 	memcpy(field->value, value, count * sizeof(__s32));
-exit:
-	kfree(value);
 }
 
 /*

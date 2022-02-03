@@ -476,6 +476,7 @@ struct hid_field {
 	unsigned  report_count;		/* number of this field in the report */
 	unsigned  report_type;		/* (input,output,feature) */
 	__s32    *value;		/* last known value(s) */
+	__s32    *new_value;		/* newly read value(s) */
 	__s32     logical_minimum;
 	__s32     logical_maximum;
 	__s32     physical_minimum;
