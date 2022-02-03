@@ -1090,9 +1090,8 @@ err_free_pages:
  * endpoint, based on the number of entries in the underlying channel ring
  * buffer.  If an endpoint's "backlog" is non-zero, it indicates how many
  * more receive buffers can be supplied to the hardware.  Replenishing for
- * an endpoint can be disabled, in which case requests to replenish a
- * buffer are "saved", and transferred to the backlog once it is re-enabled
- * again.
+ * an endpoint can be disabled, in which case buffers are not queued to
+ * the hardware.
  */
 static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint, bool add_one)
 {
@@ -1102,7 +1101,7 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint, bool add_one)
 
 	if (!test_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags)) {
 		if (add_one)
-			atomic_inc(&endpoint->replenish_saved);
+			atomic_inc(&endpoint->replenish_backlog);
 		return;
 	}
 
@@ -1147,11 +1146,8 @@ static void ipa_endpoint_replenish_enable(struct ipa_endpoint *endpoint)
 {
 	struct gsi *gsi = &endpoint->ipa->gsi;
 	u32 max_backlog;
-	u32 saved;
 
 	set_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags);
-	while ((saved = atomic_xchg(&endpoint->replenish_saved, 0)))
-		atomic_add(saved, &endpoint->replenish_backlog);
 
 	/* Start replenishing if hardware currently has no buffers */
 	max_backlog = gsi_channel_tre_max(gsi, endpoint->channel_id);
@@ -1161,11 +1157,7 @@ static void ipa_endpoint_replenish_enable(struct ipa_endpoint *endpoint)
 
 static void ipa_endpoint_replenish_disable(struct ipa_endpoint *endpoint)
 {
-	u32 backlog;
-
 	clear_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags);
-	while ((backlog = atomic_xchg(&endpoint->replenish_backlog, 0)))
-		atomic_add(backlog, &endpoint->replenish_saved);
 }
 
 static void ipa_endpoint_replenish_work(struct work_struct *work)
@@ -1727,9 +1719,8 @@ static void ipa_endpoint_setup_one(struct ipa_endpoint *endpoint)
 		 */
 		clear_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags);
 		clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
-		atomic_set(&endpoint->replenish_saved,
+		atomic_set(&endpoint->replenish_backlog,
 			   gsi_channel_tre_max(gsi, endpoint->channel_id));
-		atomic_set(&endpoint->replenish_backlog, 0);
 		INIT_DELAYED_WORK(&endpoint->replenish_work,
 				  ipa_endpoint_replenish_work);
 	}
