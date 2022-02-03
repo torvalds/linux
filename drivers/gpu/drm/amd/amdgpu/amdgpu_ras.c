@@ -952,8 +952,8 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 	} else {
 		block_obj = amdgpu_ras_get_ras_block(adev, info->head.block, 0);
 		if (!block_obj || !block_obj->hw_ops)   {
-			dev_info(adev->dev, "%s doesn't config ras function.\n",
-					get_ras_block_str(&info->head));
+			dev_dbg_once(adev->dev, "%s doesn't config RAS function\n",
+				     get_ras_block_str(&info->head));
 			return -EINVAL;
 		}
 
@@ -1028,8 +1028,8 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	if (!block_obj || !block_obj->hw_ops)   {
-		dev_info(adev->dev, "%s doesn't config ras function.\n",
-				ras_block_str(block));
+		dev_dbg_once(adev->dev, "%s doesn't config RAS function\n",
+			     ras_block_str(block));
 		return -EINVAL;
 	}
 
@@ -1066,8 +1066,8 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	if (!block_obj || !block_obj->hw_ops)	{
-		dev_info(adev->dev, "%s doesn't config ras function.\n",
-					get_ras_block_str(&info->head));
+		dev_dbg_once(adev->dev, "%s doesn't config RAS function\n",
+			     get_ras_block_str(&info->head));
 		return -EINVAL;
 	}
 
@@ -1717,8 +1717,8 @@ static void amdgpu_ras_error_status_query(struct amdgpu_device *adev,
 					info->head.sub_block_index);
 
 	if (!block_obj || !block_obj->hw_ops) {
-		dev_info(adev->dev, "%s doesn't config ras function.\n",
-			get_ras_block_str(&info->head));
+		dev_dbg_once(adev->dev, "%s doesn't config RAS function\n",
+			     get_ras_block_str(&info->head));
 		return;
 	}
 
