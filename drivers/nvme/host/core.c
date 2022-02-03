@@ -299,6 +299,37 @@ static void nvme_retry_req(struct request *req)
 	blk_mq_delay_kick_requeue_list(req->q, delay);
 }
 
+static void nvme_log_error(struct request *req)
+{
+	struct nvme_ns *ns = req->q->queuedata;
+	struct nvme_request *nr = nvme_req(req);
+
+	if (ns) {
+		pr_err_ratelimited("%s: %s(0x%x) @ LBA %llu, %llu blocks, %s (sct 0x%x / sc 0x%x) %s%s\n",
+		       ns->disk ? ns->disk->disk_name : "?",
+		       nvme_get_opcode_str(nr->cmd->common.opcode),
+		       nr->cmd->common.opcode,
+		       (unsigned long long)nvme_sect_to_lba(ns, blk_rq_pos(req)),
+		       (unsigned long long)blk_rq_bytes(req) >> ns->lba_shift,
+		       nvme_get_error_status_str(nr->status),
+		       nr->status >> 8 & 7,	/* Status Code Type */
+		       nr->status & 0xff,	/* Status Code */
+		       nr->status & NVME_SC_MORE ? "MORE " : "",
+		       nr->status & NVME_SC_DNR  ? "DNR "  : "");
+		return;
+	}
+
+	pr_err_ratelimited("%s: %s(0x%x), %s (sct 0x%x / sc 0x%x) %s%s\n",
+			   dev_name(nr->ctrl->device),
+			   nvme_get_admin_opcode_str(nr->cmd->common.opcode),
+			   nr->cmd->common.opcode,
+			   nvme_get_error_status_str(nr->status),
+			   nr->status >> 8 & 7,	/* Status Code Type */
+			   nr->status & 0xff,	/* Status Code */
+			   nr->status & NVME_SC_MORE ? "MORE " : "",
+			   nr->status & NVME_SC_DNR  ? "DNR "  : "");
+}
+
 enum nvme_disposition {
 	COMPLETE,
 	RETRY,
@@ -339,6 +370,8 @@ static inline void nvme_end_req(struct request *req)
 {
 	blk_status_t status = nvme_error_status(nvme_req(req)->status);
 
+	if (unlikely(nvme_req(req)->status != NVME_SC_SUCCESS))
+		nvme_log_error(req);
 	nvme_end_req_zoned(req);
 	nvme_trace_bio_complete(req);
 	blk_mq_end_request(req, status);
