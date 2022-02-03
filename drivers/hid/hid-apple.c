@@ -7,6 +7,7 @@
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
  *  Copyright (c) 2006-2007 Jiri Kosina
  *  Copyright (c) 2008 Jiri Slaby <jirislaby@gmail.com>
+ *  Copyright (c) 2019 Paul Pawlowski <paul@mrarm.io>
  */
 
 /*
@@ -33,6 +34,7 @@
 /* BIT(7) reserved, was: APPLE_IGNORE_HIDINPUT */
 #define APPLE_NUMLOCK_EMULATION	BIT(8)
 #define APPLE_RDESC_BATTERY	BIT(9)
+#define APPLE_BACKLIGHT_CTL	BIT(10)
 
 #define APPLE_FLAG_FKEY		0x01
 
@@ -61,6 +63,12 @@ MODULE_PARM_DESC(swap_fn_leftctrl, "Swap the Fn and left Control keys. "
 		"(For people who want to keep PC keyboard muscle memory. "
 		"[0] = as-is, Mac layout, 1 = swapped, PC layout)");
 
+struct apple_sc_backlight {
+	struct led_classdev cdev;
+	struct hid_device *hdev;
+	unsigned short backlight_off, backlight_on_min, backlight_on_max;
+};
+
 struct apple_sc {
 	struct hid_device *hdev;
 	unsigned long quirks;
@@ -68,6 +76,7 @@ struct apple_sc {
 	unsigned int fn_found;
 	DECLARE_BITMAP(pressed_numlock, KEY_CNT);
 	struct timer_list battery_timer;
+	struct apple_sc_backlight *backlight;
 };
 
 struct apple_key_translation {
@@ -116,6 +125,20 @@ static const struct apple_key_translation magic_keyboard_2015_fn_keys[] = {
 	{ KEY_RIGHT,	KEY_END },
 	{ }
 };
+
+struct apple_backlight_config_report {
+	u8 report_id;
+	u8 version;
+	u16 backlight_off, backlight_on_min, backlight_on_max;
+};
+
+struct apple_backlight_set_report {
+	u8 report_id;
+	u8 version;
+	u16 backlight;
+	u16 rate;
+};
+
 
 static const struct apple_key_translation apple2021_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
@@ -582,6 +605,105 @@ static int apple_input_configured(struct hid_device *hdev,
 	return 0;
 }
 
+static bool apple_backlight_check_support(struct hid_device *hdev)
+{
+	int i;
+	unsigned int hid;
+	struct hid_report *report;
+
+	list_for_each_entry(report, &hdev->report_enum[HID_INPUT_REPORT].report_list, list) {
+		for (i = 0; i < report->maxfield; i++) {
+			hid = report->field[i]->usage->hid;
+			if ((hid & HID_USAGE_PAGE) == HID_UP_MSVENDOR && (hid & HID_USAGE) == 0xf)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+static int apple_backlight_set(struct hid_device *hdev, u16 value, u16 rate)
+{
+	int ret = 0;
+	struct apple_backlight_set_report *rep;
+
+	rep = kmalloc(sizeof(*rep), GFP_KERNEL);
+	if (rep == NULL)
+		return -ENOMEM;
+
+	rep->report_id = 0xB0;
+	rep->version = 1;
+	rep->backlight = value;
+	rep->rate = rate;
+
+	ret = hid_hw_raw_request(hdev, 0xB0u, (u8 *) rep, sizeof(*rep),
+				 HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+
+	kfree(rep);
+	return ret;
+}
+
+static int apple_backlight_led_set(struct led_classdev *led_cdev,
+	enum led_brightness brightness)
+{
+	struct apple_sc_backlight *backlight = container_of(led_cdev,
+							    struct apple_sc_backlight, cdev);
+
+	return apple_backlight_set(backlight->hdev, brightness, 0);
+}
+
+static int apple_backlight_init(struct hid_device *hdev)
+{
+	int ret;
+	struct apple_sc *asc = hid_get_drvdata(hdev);
+	struct apple_backlight_config_report *rep;
+
+	if (!apple_backlight_check_support(hdev))
+		return -EINVAL;
+
+	rep = kmalloc(0x200, GFP_KERNEL);
+	if (rep == NULL)
+		return -ENOMEM;
+
+	ret = hid_hw_raw_request(hdev, 0xBFu, (u8 *) rep, sizeof(*rep),
+				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+	if (ret < 0) {
+		hid_err(hdev, "backlight request failed: %d\n", ret);
+		goto cleanup_and_exit;
+	}
+	if (ret < 8 || rep->version != 1) {
+		hid_err(hdev, "backlight config struct: bad version %i\n", rep->version);
+		ret = -EINVAL;
+		goto cleanup_and_exit;
+	}
+
+	hid_dbg(hdev, "backlight config: off=%u, on_min=%u, on_max=%u\n",
+		rep->backlight_off, rep->backlight_on_min, rep->backlight_on_max);
+
+	asc->backlight = devm_kzalloc(&hdev->dev, sizeof(*asc->backlight), GFP_KERNEL);
+	if (!asc->backlight) {
+		ret = -ENOMEM;
+		goto cleanup_and_exit;
+	}
+
+	asc->backlight->hdev = hdev;
+	asc->backlight->cdev.name = "apple::kbd_backlight";
+	asc->backlight->cdev.max_brightness = rep->backlight_on_max;
+	asc->backlight->cdev.brightness_set_blocking = apple_backlight_led_set;
+
+	ret = apple_backlight_set(hdev, 0, 0);
+	if (ret < 0) {
+		hid_err(hdev, "backlight set request failed: %d\n", ret);
+		goto cleanup_and_exit;
+	}
+
+	ret = devm_led_classdev_register(&hdev->dev, &asc->backlight->cdev);
+
+cleanup_and_exit:
+	kfree(rep);
+	return ret;
+}
+
 static int apple_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
@@ -616,6 +738,9 @@ static int apple_probe(struct hid_device *hdev,
 	mod_timer(&asc->battery_timer,
 		  jiffies + msecs_to_jiffies(APPLE_BATTERY_TIMEOUT_MS));
 	apple_fetch_battery(hdev);
+
+	if (quirks & APPLE_BACKLIGHT_CTL)
+		apple_backlight_init(hdev);
 
 	return 0;
 }
