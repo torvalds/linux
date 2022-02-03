@@ -66,7 +66,6 @@ enum ipa_replenish_flag {
  * @netdev:		Network device pointer, if endpoint uses one
  * @replenish_flags:	Replenishing state flags
  * @replenish_ready:	Number of replenish transactions without doorbell
- * @replenish_backlog:	Number of buffers needed to fill hardware queue
  * @replenish_work:	Work item used for repeated replenish failures
  */
 struct ipa_endpoint {
@@ -86,7 +85,6 @@ struct ipa_endpoint {
 	/* Receive buffer replenishing for RX endpoints */
 	DECLARE_BITMAP(replenish_flags, IPA_REPLENISH_COUNT);
 	u32 replenish_ready;
-	atomic_t replenish_backlog;
 	struct delayed_work replenish_work;		/* global wq */
 };
 
