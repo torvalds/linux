@@ -738,11 +738,13 @@ struct drm_panel;
 			    DP_LANE_CHANNEL_EQ_DONE |	\
 			    DP_LANE_SYMBOL_LOCKED)
 
-#define DP_LANE_ALIGN_STATUS_UPDATED	    0x204
-
-#define DP_INTERLANE_ALIGN_DONE		    (1 << 0)
-#define DP_DOWNSTREAM_PORT_STATUS_CHANGED   (1 << 6)
-#define DP_LINK_STATUS_UPDATED		    (1 << 7)
+#define DP_LANE_ALIGN_STATUS_UPDATED                    0x204
+#define  DP_INTERLANE_ALIGN_DONE                        (1 << 0)
+#define  DP_128B132B_DPRX_EQ_INTERLANE_ALIGN_DONE       (1 << 2) /* 2.0 E11 */
+#define  DP_128B132B_DPRX_CDS_INTERLANE_ALIGN_DONE      (1 << 3) /* 2.0 E11 */
+#define  DP_128B132B_LT_FAILED                          (1 << 4) /* 2.0 E11 */
+#define  DP_DOWNSTREAM_PORT_STATUS_CHANGED              (1 << 6)
+#define  DP_LINK_STATUS_UPDATED                         (1 << 7)
 
 #define DP_SINK_STATUS			    0x205
 # define DP_RECEIVE_PORT_0_STATUS	    (1 << 0)
@@ -1554,6 +1556,13 @@ void drm_dp_lttpr_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
 					      const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
 
 int drm_dp_128b132b_read_aux_rd_interval(struct drm_dp_aux *aux);
+bool drm_dp_128b132b_lane_channel_eq_done(const u8 link_status[DP_LINK_STATUS_SIZE],
+					  int lane_count);
+bool drm_dp_128b132b_lane_symbol_locked(const u8 link_status[DP_LINK_STATUS_SIZE],
+					int lane_count);
+bool drm_dp_128b132b_eq_interlane_align_done(const u8 link_status[DP_LINK_STATUS_SIZE]);
+bool drm_dp_128b132b_cds_interlane_align_done(const u8 link_status[DP_LINK_STATUS_SIZE]);
+bool drm_dp_128b132b_link_training_failed(const u8 link_status[DP_LINK_STATUS_SIZE]);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
