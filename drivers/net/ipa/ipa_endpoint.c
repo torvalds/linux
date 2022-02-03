@@ -1087,11 +1087,8 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint)
 	if (test_and_set_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags))
 		return;
 
-	while (atomic_dec_not_zero(&endpoint->replenish_backlog)) {
-		trans = ipa_endpoint_trans_alloc(endpoint, 1);
-		if (!trans)
-			break;
-
+	while ((trans = ipa_endpoint_trans_alloc(endpoint, 1))) {
+		WARN_ON(!atomic_dec_not_zero(&endpoint->replenish_backlog));
 		if (ipa_endpoint_replenish_one(endpoint, trans))
 			goto try_again_later;
 
