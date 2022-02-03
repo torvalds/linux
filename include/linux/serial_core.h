@@ -171,7 +171,7 @@ struct uart_port {
 	 * assigned from the serial_struct flags in uart_set_info()
 	 * [for bit definitions in the UPF_CHANGE_MASK]
 	 *
-	 * Bits [0..UPF_LAST_USER] are userspace defined/visible/changeable
+	 * Bits [0..ASYNCB_LAST_USER] are userspace defined/visible/changeable
 	 * The remaining bits are serial-core specific and not modifiable by
 	 * userspace.
 	 */
