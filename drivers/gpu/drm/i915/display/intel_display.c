@@ -3862,10 +3862,13 @@ static bool transcoder_ddi_func_is_enabled(struct drm_i915_private *dev_priv,
 	return tmp & TRANS_DDI_FUNC_ENABLE;
 }
 
-static u8 enabled_bigjoiner_pipes(struct drm_i915_private *dev_priv)
+static void enabled_bigjoiner_pipes(struct drm_i915_private *dev_priv,
+				    u8 *master_pipes, u8 *slave_pipes)
 {
-	u8 master_pipes = 0, slave_pipes = 0;
 	struct intel_crtc *crtc;
+
+	*master_pipes = 0;
+	*slave_pipes = 0;
 
 	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc,
 					 bigjoiner_pipes(dev_priv)) {
@@ -3881,9 +3884,9 @@ static u8 enabled_bigjoiner_pipes(struct drm_i915_private *dev_priv)
 				continue;
 
 			if (tmp & MASTER_BIG_JOINER_ENABLE)
-				master_pipes |= BIT(pipe);
+				*master_pipes |= BIT(pipe);
 			else
-				slave_pipes |= BIT(pipe);
+				*slave_pipes |= BIT(pipe);
 		}
 
 		if (DISPLAY_VER(dev_priv) < 13)
@@ -3894,18 +3897,16 @@ static u8 enabled_bigjoiner_pipes(struct drm_i915_private *dev_priv)
 			u32 tmp = intel_de_read(dev_priv, ICL_PIPE_DSS_CTL1(pipe));
 
 			if (tmp & UNCOMPRESSED_JOINER_MASTER)
-				master_pipes |= BIT(pipe);
+				*master_pipes |= BIT(pipe);
 			if (tmp & UNCOMPRESSED_JOINER_SLAVE)
-				slave_pipes |= BIT(pipe);
+				*slave_pipes |= BIT(pipe);
 		}
 	}
 
 	/* Bigjoiner pipes should always be consecutive master and slave */
-	drm_WARN(&dev_priv->drm, slave_pipes != master_pipes << 1,
+	drm_WARN(&dev_priv->drm, *slave_pipes != *master_pipes << 1,
 		 "Bigjoiner misconfigured (master pipes 0x%x, slave pipes 0x%x)\n",
-		 master_pipes, slave_pipes);
-
-	return slave_pipes;
+		 *master_pipes, *slave_pipes);
 }
 
 static u8 hsw_panel_transcoders(struct drm_i915_private *i915)
@@ -3924,6 +3925,7 @@ static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u8 panel_transcoder_mask = hsw_panel_transcoders(dev_priv);
 	enum transcoder cpu_transcoder;
+	u8 master_pipes, slave_pipes;
 	u8 enabled_transcoders = 0;
 
 	/*
@@ -3975,7 +3977,8 @@ static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 		enabled_transcoders |= BIT(cpu_transcoder);
 
 	/* bigjoiner slave -> consider the master pipe's transcoder as well */
-	if (enabled_bigjoiner_pipes(dev_priv) & BIT(crtc->pipe)) {
+	enabled_bigjoiner_pipes(dev_priv, &master_pipes, &slave_pipes);
+	if (slave_pipes & BIT(crtc->pipe)) {
 		cpu_transcoder = (enum transcoder) crtc->pipe - 1;
 		if (transcoder_ddi_func_is_enabled(dev_priv, cpu_transcoder))
 			enabled_transcoders |= BIT(cpu_transcoder);
