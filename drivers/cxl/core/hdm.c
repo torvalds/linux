@@ -186,6 +186,9 @@ static void init_hdm_decoder(struct cxl_decoder *cxld, int *target_map,
 	else
 		cxld->target_type = CXL_DECODER_ACCELERATOR;
 
+	if (is_cxl_endpoint(to_cxl_port(cxld->dev.parent)))
+		return;
+
 	target_list.value =
 		ioread64_hi_lo(hdm + CXL_HDM_DECODER0_TL_LOW(which));
 	for (i = 0; i < cxld->interleave_ways; i++)
@@ -225,7 +228,10 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 		int rc, target_count = cxlhdm->target_count;
 		struct cxl_decoder *cxld;
 
-		cxld = cxl_switch_decoder_alloc(port, target_count);
+		if (is_cxl_endpoint(port))
+			cxld = cxl_endpoint_decoder_alloc(port);
+		else
+			cxld = cxl_switch_decoder_alloc(port, target_count);
 		if (IS_ERR(cxld)) {
 			dev_warn(&port->dev,
 				 "Failed to allocate the decoder\n");

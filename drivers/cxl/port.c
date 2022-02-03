@@ -40,15 +40,16 @@ static int cxl_port_probe(struct device *dev)
 		struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
 
 		get_device(&cxlmd->dev);
-		return devm_add_action_or_reset(dev, schedule_detach, cxlmd);
+		rc = devm_add_action_or_reset(dev, schedule_detach, cxlmd);
+		if (rc)
+			return rc;
+	} else {
+		rc = devm_cxl_port_enumerate_dports(port);
+		if (rc < 0)
+			return rc;
+		if (rc == 1)
+			return devm_cxl_add_passthrough_decoder(port);
 	}
-
-	rc = devm_cxl_port_enumerate_dports(port);
-	if (rc < 0)
-		return rc;
-
-	if (rc == 1)
-		return devm_cxl_add_passthrough_decoder(port);
 
 	cxlhdm = devm_cxl_setup_hdm(port);
 	if (IS_ERR(cxlhdm))
