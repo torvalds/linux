@@ -4675,13 +4675,33 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_drop_extents_args drop_args = { 0 };
 	struct btrfs_root *log = inode->root->log_root;
-	struct btrfs_file_extent_item *fi;
+	struct btrfs_file_extent_item fi = { 0 };
 	struct extent_buffer *leaf;
-	struct btrfs_map_token token;
 	struct btrfs_key key;
 	u64 extent_offset = em->start - em->orig_start;
 	u64 block_len;
 	int ret;
+
+	btrfs_set_stack_file_extent_generation(&fi, trans->transid);
+	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+		btrfs_set_stack_file_extent_type(&fi, BTRFS_FILE_EXTENT_PREALLOC);
+	else
+		btrfs_set_stack_file_extent_type(&fi, BTRFS_FILE_EXTENT_REG);
+
+	block_len = max(em->block_len, em->orig_block_len);
+	if (em->compress_type != BTRFS_COMPRESS_NONE) {
+		btrfs_set_stack_file_extent_disk_bytenr(&fi, em->block_start);
+		btrfs_set_stack_file_extent_disk_num_bytes(&fi, block_len);
+	} else if (em->block_start < EXTENT_MAP_LAST_BYTE) {
+		btrfs_set_stack_file_extent_disk_bytenr(&fi, em->block_start -
+							extent_offset);
+		btrfs_set_stack_file_extent_disk_num_bytes(&fi, block_len);
+	}
+
+	btrfs_set_stack_file_extent_offset(&fi, extent_offset);
+	btrfs_set_stack_file_extent_num_bytes(&fi, em->len);
+	btrfs_set_stack_file_extent_ram_bytes(&fi, em->ram_bytes);
+	btrfs_set_stack_file_extent_compression(&fi, em->compress_type);
 
 	ret = log_extent_csums(trans, inode, log, em, ctx);
 	if (ret)
@@ -4701,7 +4721,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 		drop_args.start = em->start;
 		drop_args.end = em->start + em->len;
 		drop_args.replace_extent = true;
-		drop_args.extent_item_size = sizeof(*fi);
+		drop_args.extent_item_size = sizeof(fi);
 		ret = btrfs_drop_extents(trans, log, inode, &drop_args);
 		if (ret)
 			return ret;
@@ -4713,44 +4733,14 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 		key.offset = em->start;
 
 		ret = btrfs_insert_empty_item(trans, log, path, &key,
-					      sizeof(*fi));
+					      sizeof(fi));
 		if (ret)
 			return ret;
 	}
 	leaf = path->nodes[0];
-	btrfs_init_map_token(&token, leaf);
-	fi = btrfs_item_ptr(leaf, path->slots[0],
-			    struct btrfs_file_extent_item);
-
-	btrfs_set_token_file_extent_generation(&token, fi, trans->transid);
-	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
-		btrfs_set_token_file_extent_type(&token, fi,
-						 BTRFS_FILE_EXTENT_PREALLOC);
-	else
-		btrfs_set_token_file_extent_type(&token, fi,
-						 BTRFS_FILE_EXTENT_REG);
-
-	block_len = max(em->block_len, em->orig_block_len);
-	if (em->compress_type != BTRFS_COMPRESS_NONE) {
-		btrfs_set_token_file_extent_disk_bytenr(&token, fi,
-							em->block_start);
-		btrfs_set_token_file_extent_disk_num_bytes(&token, fi, block_len);
-	} else if (em->block_start < EXTENT_MAP_LAST_BYTE) {
-		btrfs_set_token_file_extent_disk_bytenr(&token, fi,
-							em->block_start -
-							extent_offset);
-		btrfs_set_token_file_extent_disk_num_bytes(&token, fi, block_len);
-	} else {
-		btrfs_set_token_file_extent_disk_bytenr(&token, fi, 0);
-		btrfs_set_token_file_extent_disk_num_bytes(&token, fi, 0);
-	}
-
-	btrfs_set_token_file_extent_offset(&token, fi, extent_offset);
-	btrfs_set_token_file_extent_num_bytes(&token, fi, em->len);
-	btrfs_set_token_file_extent_ram_bytes(&token, fi, em->ram_bytes);
-	btrfs_set_token_file_extent_compression(&token, fi, em->compress_type);
-	btrfs_set_token_file_extent_encryption(&token, fi, 0);
-	btrfs_set_token_file_extent_other_encoding(&token, fi, 0);
+	write_extent_buffer(leaf, &fi,
+			    btrfs_item_ptr_offset(leaf, path->slots[0]),
+			    sizeof(fi));
 	btrfs_mark_buffer_dirty(leaf);
 
 	btrfs_release_path(path);
