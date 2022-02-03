@@ -9,12 +9,11 @@
 #include "r9a07g044c2.dtsi"
 #include "rzg2lc-smarc-som.dtsi"
 #include "rzg2lc-smarc-pinfunction.dtsi"
-#include "rzg2l-smarc.dtsi"
+#include "rz-smarc-common.dtsi"
 
 / {
 	model = "Renesas SMARC EVK based on r9a07g044c2";
 	compatible = "renesas,smarc-evk", "renesas,r9a07g044c2", "renesas,r9a07g044";
-
 };
 
 &canfd {
@@ -72,12 +71,6 @@
 };
 
 &phyrst {
-	status = "disabled";
-};
-
-&scif2 {
-	/delete-property/ pinctrl-0;
-	/delete-property/ pinctrl-names;
 	status = "disabled";
 };
 

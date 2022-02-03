@@ -9,6 +9,7 @@
 #include "r9a07g044l2.dtsi"
 #include "rzg2l-smarc-som.dtsi"
 #include "rzg2l-smarc-pinfunction.dtsi"
+#include "rz-smarc-common.dtsi"
 #include "rzg2l-smarc.dtsi"
 
 / {
