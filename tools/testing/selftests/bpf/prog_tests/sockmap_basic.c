@@ -140,12 +140,16 @@ out:
 
 static void test_sockmap_update(enum bpf_map_type map_type)
 {
-	struct bpf_prog_test_run_attr tattr;
 	int err, prog, src, duration = 0;
 	struct test_sockmap_update *skel;
 	struct bpf_map *dst_map;
 	const __u32 zero = 0;
 	char dummy[14] = {0};
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = dummy,
+		.data_size_in = sizeof(dummy),
+		.repeat = 1,
+	);
 	__s64 sk;
 
 	sk = connected_socket_v4();
@@ -167,16 +171,10 @@ static void test_sockmap_update(enum bpf_map_type map_type)
 	if (CHECK(err, "update_elem(src)", "errno=%u\n", errno))
 		goto out;
 
-	tattr = (struct bpf_prog_test_run_attr){
-		.prog_fd = prog,
-		.repeat = 1,
-		.data_in = dummy,
-		.data_size_in = sizeof(dummy),
-	};
-
-	err = bpf_prog_test_run_xattr(&tattr);
-	if (CHECK_ATTR(err || !tattr.retval, "bpf_prog_test_run",
-		       "errno=%u retval=%u\n", errno, tattr.retval))
+	err = bpf_prog_test_run_opts(prog, &topts);
+	if (!ASSERT_OK(err, "test_run"))
+		goto out;
+	if (!ASSERT_NEQ(topts.retval, 0, "test_run retval"))
 		goto out;
 
 	compare_cookies(skel->maps.src, dst_map);

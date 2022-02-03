@@ -23,12 +23,16 @@ static void test_l4lb(const char *file)
 		__u8 flags;
 	} real_def = {.dst = MAGIC_VAL};
 	__u32 ch_key = 11, real_num = 3;
-	__u32 duration, retval, size;
 	int err, i, prog_fd, map_fd;
 	__u64 bytes = 0, pkts = 0;
 	struct bpf_object *obj;
 	char buf[128];
 	u32 *magic = (u32 *)buf;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_out = buf,
+		.data_size_out = sizeof(buf),
+		.repeat = NUM_ITER,
+	);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
@@ -49,19 +53,24 @@ static void test_l4lb(const char *file)
 		goto out;
 	bpf_map_update_elem(map_fd, &real_num, &real_def, 0);
 
-	err = bpf_prog_test_run(prog_fd, NUM_ITER, &pkt_v4, sizeof(pkt_v4),
-				buf, &size, &retval, &duration);
-	CHECK(err || retval != 7/*TC_ACT_REDIRECT*/ || size != 54 ||
-	      *magic != MAGIC_VAL, "ipv4",
-	      "err %d errno %d retval %d size %d magic %x\n",
-	      err, errno, retval, size, *magic);
+	topts.data_in = &pkt_v4;
+	topts.data_size_in = sizeof(pkt_v4);
 
-	err = bpf_prog_test_run(prog_fd, NUM_ITER, &pkt_v6, sizeof(pkt_v6),
-				buf, &size, &retval, &duration);
-	CHECK(err || retval != 7/*TC_ACT_REDIRECT*/ || size != 74 ||
-	      *magic != MAGIC_VAL, "ipv6",
-	      "err %d errno %d retval %d size %d magic %x\n",
-	      err, errno, retval, size, *magic);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 7 /*TC_ACT_REDIRECT*/, "ipv4 test_run retval");
+	ASSERT_EQ(topts.data_size_out, 54, "ipv4 test_run data_size_out");
+	ASSERT_EQ(*magic, MAGIC_VAL, "ipv4 magic");
+
+	topts.data_in = &pkt_v6;
+	topts.data_size_in = sizeof(pkt_v6);
+	topts.data_size_out = sizeof(buf); /* reset out size */
+
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 7 /*TC_ACT_REDIRECT*/, "ipv6 test_run retval");
+	ASSERT_EQ(topts.data_size_out, 74, "ipv6 test_run data_size_out");
+	ASSERT_EQ(*magic, MAGIC_VAL, "ipv6 magic");
 
 	map_fd = bpf_find_map(__func__, obj, "stats");
 	if (map_fd < 0)
