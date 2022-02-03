@@ -3939,6 +3939,25 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid component_idx",
 },
 {
+	.descr = "decl_tag test #15, func, invalid func proto",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_DECL_TAG_ENC(NAME_TBD, 3, 0),		/* [2] */
+		BTF_FUNC_ENC(NAME_TBD, 8),			/* [3] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0tag\0func"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "tag_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+{
 	.descr = "type_tag test #1",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
