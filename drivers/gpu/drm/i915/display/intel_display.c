@@ -3867,13 +3867,11 @@ static u8 enabled_bigjoiner_pipes(struct drm_i915_private *dev_priv)
 	u8 master_pipes = 0, slave_pipes = 0;
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
+	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc,
+					 bigjoiner_pipes(dev_priv)) {
 		enum intel_display_power_domain power_domain;
 		enum pipe pipe = crtc->pipe;
 		intel_wakeref_t wakeref;
-
-		if ((bigjoiner_pipes(dev_priv) & BIT(pipe)) == 0)
-			continue;
 
 		power_domain = intel_dsc_power_domain(crtc, (enum transcoder) pipe);
 		with_intel_display_power_if_enabled(dev_priv, power_domain, wakeref) {
@@ -8779,10 +8777,8 @@ static u32 intel_encoder_possible_crtcs(struct intel_encoder *encoder)
 	struct intel_crtc *crtc;
 	u32 possible_crtcs = 0;
 
-	for_each_intel_crtc(dev, crtc) {
-		if (encoder->pipe_mask & BIT(crtc->pipe))
-			possible_crtcs |= drm_crtc_mask(&crtc->base);
-	}
+	for_each_intel_crtc_in_pipe_mask(dev, crtc, encoder->pipe_mask)
+		possible_crtcs |= drm_crtc_mask(&crtc->base);
 
 	return possible_crtcs;
 }
