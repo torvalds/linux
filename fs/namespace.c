@@ -82,6 +82,7 @@ struct mount_kattr {
 	unsigned int lookup_flags;
 	bool recurse;
 	struct user_namespace *mnt_userns;
+	struct mount *revert;
 };
 
 /* /sys/fs */
@@ -4011,46 +4012,34 @@ static inline bool mnt_allow_writers(const struct mount_kattr *kattr,
 	       (mnt->mnt.mnt_flags & MNT_READONLY);
 }
 
-static struct mount *mount_setattr_prepare(struct mount_kattr *kattr,
-					   struct mount *mnt, int *err)
+static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
 {
-	struct mount *m = mnt, *last = NULL;
-
-	if (!is_mounted(&m->mnt)) {
-		*err = -EINVAL;
-		goto out;
-	}
-
-	if (!(mnt_has_parent(m) ? check_mnt(m) : is_anon_ns(m->mnt_ns))) {
-		*err = -EINVAL;
-		goto out;
-	}
+	struct mount *m = mnt;
 
 	do {
+		int err = -EPERM;
 		unsigned int flags;
 
+		kattr->revert = m;
+
 		flags = recalc_flags(kattr, m);
-		if (!can_change_locked_flags(m, flags)) {
-			*err = -EPERM;
-			goto out;
-		}
+		if (!can_change_locked_flags(m, flags))
+			return err;
 
-		*err = can_idmap_mount(kattr, m);
-		if (*err)
-			goto out;
-
-		last = m;
+		err = can_idmap_mount(kattr, m);
+		if (err)
+			return err;
 
 		if (mnt_allow_writers(kattr, m))
 			continue;
 
-		*err = mnt_hold_writers(m);
-		if (*err)
-			goto out;
+		err = mnt_hold_writers(m);
+		if (err)
+			return err;
 	} while (kattr->recurse && (m = next_mnt(m, mnt)));
 
-out:
-	return last;
+	kattr->revert = NULL;
+	return 0;
 }
 
 static void do_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
@@ -4078,14 +4067,12 @@ static void do_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 		put_user_ns(old_mnt_userns);
 }
 
-static void mount_setattr_commit(struct mount_kattr *kattr,
-				 struct mount *mnt, struct mount *last,
-				 int err)
+static void mount_setattr_finish(struct mount_kattr *kattr, struct mount *mnt)
 {
 	struct mount *m = mnt;
 
 	do {
-		if (!err) {
+		if (!kattr->revert) {
 			unsigned int flags;
 
 			do_idmap_mount(kattr, m);
@@ -4097,24 +4084,24 @@ static void mount_setattr_commit(struct mount_kattr *kattr,
 		if (m->mnt.mnt_flags & MNT_WRITE_HOLD)
 			mnt_unhold_writers(m);
 
-		if (!err && kattr->propagation)
+		if (!kattr->revert && kattr->propagation)
 			change_mnt_propagation(m, kattr->propagation);
 
 		/*
 		 * On failure, only cleanup until we found the first mount
 		 * we failed to handle.
 		 */
-		if (err && m == last)
-			break;
+		if (kattr->revert == m)
+			return;
 	} while (kattr->recurse && (m = next_mnt(m, mnt)));
 
-	if (!err)
+	if (!kattr->revert)
 		touch_mnt_namespace(mnt->mnt_ns);
 }
 
 static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
 {
-	struct mount *mnt = real_mount(path->mnt), *last = NULL;
+	struct mount *mnt = real_mount(path->mnt);
 	int err = 0;
 
 	if (path->dentry != mnt->mnt.mnt_root)
@@ -4135,16 +4122,31 @@ static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
 		}
 	}
 
+	err = -EINVAL;
 	lock_mount_hash();
 
-	/*
-	 * Get the mount tree in a shape where we can change mount
-	 * properties without failure.
-	 */
-	last = mount_setattr_prepare(kattr, mnt, &err);
-	if (last) /* Commit all changes or revert to the old state. */
-		mount_setattr_commit(kattr, mnt, last, err);
+	/* Ensure that this isn't anything purely vfs internal. */
+	if (!is_mounted(&mnt->mnt))
+		goto out;
 
+	/*
+	 * If this is an attached mount make sure it's located in the callers
+	 * mount namespace. If it's not don't let the caller interact with it.
+	 * If this is a detached mount make sure it has an anonymous mount
+	 * namespace attached to it, i.e. we've created it via OPEN_TREE_CLONE.
+	 */
+	if (!(mnt_has_parent(mnt) ? check_mnt(mnt) : is_anon_ns(mnt->mnt_ns)))
+		goto out;
+
+	/*
+	 * First, we get the mount tree in a shape where we can change mount
+	 * properties without failure. If we succeeded to do so we commit all
+	 * changes and if we failed we clean up.
+	 */
+	err = mount_setattr_prepare(kattr, mnt);
+	mount_setattr_finish(kattr, mnt);
+
+out:
 	unlock_mount_hash();
 
 	if (kattr->propagation) {
