@@ -1544,13 +1544,12 @@ static inline int hid_array_value_is_valid(struct hid_field *field,
 }
 
 /*
- * Analyse a received field, and fetch the data from it. The field
- * content is stored for next report processing (we do differential
- * reporting to the layer).
+ * Fetch the field from the data. The field content is stored for next
+ * report processing (we do differential reporting to the layer).
  */
-
-static void hid_input_field(struct hid_device *hid, struct hid_field *field,
-			    __u8 *data, int interrupt)
+static void hid_input_fetch_field(struct hid_device *hid,
+				  struct hid_field *field,
+				  __u8 *data)
 {
 	unsigned n;
 	unsigned count = field->report_count;
@@ -1561,6 +1560,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 
 	value = field->new_value;
 	memset(value, 0, count * sizeof(__s32));
+	field->ignored = false;
 
 	for (n = 0; n < count; n++) {
 
@@ -1572,21 +1572,56 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 		/* Ignore report if ErrorRollOver */
 		if (!(field->flags & HID_MAIN_ITEM_VARIABLE) &&
 		    hid_array_value_is_valid(field, value[n]) &&
-		    field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1)
+		    field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1) {
+			field->ignored = true;
 			return;
+		}
 	}
+}
+
+/*
+ * Process a received variable field.
+ */
+
+static void hid_input_var_field(struct hid_device *hid,
+				struct hid_field *field,
+				int interrupt)
+{
+	unsigned int count = field->report_count;
+	__s32 *value = field->new_value;
+	unsigned int n;
+
+	for (n = 0; n < count; n++)
+		hid_process_event(hid,
+				  field,
+				  &field->usage[n],
+				  value[n],
+				  interrupt);
+
+	memcpy(field->value, value, count * sizeof(__s32));
+}
+
+/*
+ * Process a received array field. The field content is stored for
+ * next report processing (we do differential reporting to the layer).
+ */
+
+static void hid_input_array_field(struct hid_device *hid,
+				  struct hid_field *field,
+				  int interrupt)
+{
+	unsigned int n;
+	unsigned int count = field->report_count;
+	__s32 min = field->logical_minimum;
+	__s32 *value;
+
+	value = field->new_value;
+
+	/* ErrorRollOver */
+	if (field->ignored)
+		return;
 
 	for (n = 0; n < count; n++) {
-
-		if (HID_MAIN_ITEM_VARIABLE & field->flags) {
-			hid_process_event(hid,
-					  field,
-					  &field->usage[n],
-					  value[n],
-					  interrupt);
-			continue;
-		}
-
 		if (hid_array_value_is_valid(field, field->value[n]) &&
 		    search(value, field->value[n], count))
 			hid_process_event(hid,
@@ -1605,6 +1640,31 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	}
 
 	memcpy(field->value, value, count * sizeof(__s32));
+}
+
+/*
+ * Analyse a received report, and fetch the data from it. The field
+ * content is stored for next report processing (we do differential
+ * reporting to the layer).
+ */
+static void hid_process_report(struct hid_device *hid,
+			       struct hid_report *report,
+			       __u8 *data,
+			       int interrupt)
+{
+	unsigned int a;
+	struct hid_field *field;
+
+	for (a = 0; a < report->maxfield; a++) {
+		field = report->field[a];
+
+		hid_input_fetch_field(hid, field, data);
+
+		if (field->flags & HID_MAIN_ITEM_VARIABLE)
+			hid_input_var_field(hid, field, interrupt);
+		else
+			hid_input_array_field(hid, field, interrupt);
+	}
 }
 
 /*
@@ -1768,7 +1828,6 @@ int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, u32 size,
 	struct hid_report_enum *report_enum = hid->report_enum + type;
 	struct hid_report *report;
 	struct hid_driver *hdrv;
-	unsigned int a;
 	u32 rsize, csize = size;
 	u8 *cdata = data;
 	int ret = 0;
@@ -1804,8 +1863,7 @@ int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, u32 size,
 	}
 
 	if (hid->claimed != HID_CLAIMED_HIDRAW && report->maxfield) {
-		for (a = 0; a < report->maxfield; a++)
-			hid_input_field(hid, report->field[a], cdata, interrupt);
+		hid_process_report(hid, report, cdata, interrupt);
 		hdrv = hid->driver;
 		if (hdrv && hdrv->report)
 			hdrv->report(hid, report);
