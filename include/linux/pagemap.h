@@ -817,6 +817,17 @@ static inline loff_t folio_file_pos(struct folio *folio)
 	return page_file_offset(&folio->page);
 }
 
+/*
+ * Get the offset in PAGE_SIZE (even for hugetlb folios).
+ * (TODO: hugetlb folios should have ->index in PAGE_SIZE)
+ */
+static inline pgoff_t folio_pgoff(struct folio *folio)
+{
+	if (unlikely(folio_test_hugetlb(folio)))
+		return hugetlb_basepage_index(&folio->page);
+	return folio->index;
+}
+
 extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
 				     unsigned long address);
 
