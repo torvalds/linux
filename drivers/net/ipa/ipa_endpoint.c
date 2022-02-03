@@ -1036,10 +1036,10 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
-static int ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint)
+static int
+ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint, bool doorbell)
 {
 	struct gsi_trans *trans;
-	bool doorbell = false;
 	struct page *page;
 	u32 buffer_size;
 	u32 offset;
@@ -1063,11 +1063,6 @@ static int ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint)
 	if (ret)
 		goto err_free_pages;
 	trans->data = page;	/* transaction owns page now */
-
-	if (++endpoint->replenish_ready == IPA_REPLENISH_BATCH) {
-		doorbell = true;
-		endpoint->replenish_ready = 0;
-	}
 
 	gsi_trans_commit(trans, doorbell);
 
@@ -1104,9 +1099,17 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint)
 	if (test_and_set_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags))
 		return;
 
-	while (atomic_dec_not_zero(&endpoint->replenish_backlog))
-		if (ipa_endpoint_replenish_one(endpoint))
+	while (atomic_dec_not_zero(&endpoint->replenish_backlog)) {
+		bool doorbell;
+
+		if (++endpoint->replenish_ready == IPA_REPLENISH_BATCH)
+			endpoint->replenish_ready = 0;
+
+		/* Ring the doorbell if we've got a full batch */
+		doorbell = !endpoint->replenish_ready;
+		if (ipa_endpoint_replenish_one(endpoint, doorbell))
 			goto try_again_later;
+	}
 
 	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
 
