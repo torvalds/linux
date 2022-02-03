@@ -1036,24 +1036,19 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
-static int
-ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint, bool doorbell)
+static int ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint,
+				      struct gsi_trans *trans)
 {
-	struct gsi_trans *trans;
 	struct page *page;
 	u32 buffer_size;
 	u32 offset;
 	u32 len;
 	int ret;
 
-	trans = ipa_endpoint_trans_alloc(endpoint, 1);
-	if (!trans)
-		return -ENOMEM;
-
 	buffer_size = endpoint->data->rx.buffer_size;
 	page = dev_alloc_pages(get_order(buffer_size));
 	if (!page)
-		goto err_trans_free;
+		return -ENOMEM;
 
 	/* Offset the buffer to make space for skb headroom */
 	offset = NET_SKB_PAD;
@@ -1061,19 +1056,11 @@ ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint, bool doorbell)
 
 	ret = gsi_trans_page_add(trans, page, len, offset);
 	if (ret)
-		goto err_free_pages;
-	trans->data = page;	/* transaction owns page now */
+		__free_pages(page, get_order(buffer_size));
+	else
+		trans->data = page;	/* transaction owns page now */
 
-	gsi_trans_commit(trans, doorbell);
-
-	return 0;
-
-err_free_pages:
-	__free_pages(page, get_order(buffer_size));
-err_trans_free:
-	gsi_trans_free(trans);
-
-	return -ENOMEM;
+	return ret;
 }
 
 /**
@@ -1089,6 +1076,7 @@ err_trans_free:
  */
 static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint)
 {
+	struct gsi_trans *trans;
 	struct gsi *gsi;
 	u32 backlog;
 
@@ -1100,15 +1088,18 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint)
 		return;
 
 	while (atomic_dec_not_zero(&endpoint->replenish_backlog)) {
-		bool doorbell;
+		trans = ipa_endpoint_trans_alloc(endpoint, 1);
+		if (!trans)
+			break;
+
+		if (ipa_endpoint_replenish_one(endpoint, trans))
+			goto try_again_later;
 
 		if (++endpoint->replenish_ready == IPA_REPLENISH_BATCH)
 			endpoint->replenish_ready = 0;
 
 		/* Ring the doorbell if we've got a full batch */
-		doorbell = !endpoint->replenish_ready;
-		if (ipa_endpoint_replenish_one(endpoint, doorbell))
-			goto try_again_later;
+		gsi_trans_commit(trans, !endpoint->replenish_ready);
 	}
 
 	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
@@ -1116,6 +1107,7 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint)
 	return;
 
 try_again_later:
+	gsi_trans_free(trans);
 	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
 
 	/* The last one didn't succeed, so fix the backlog */
