@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 
 #define MVEBU_A3700_COMPHY_LANES		3
-#define MVEBU_A3700_COMPHY_PORTS		2
 
 /* COMPHY Fast SMC function identifiers */
 #define COMPHY_SIP_POWER_ON			0x82000001
@@ -45,51 +44,47 @@
 #define COMPHY_FW_NET(mode, idx, speed)		(COMPHY_FW_MODE(mode) | \
 						 ((idx) << 8) |	\
 						 ((speed) << 2))
-#define COMPHY_FW_PCIE(mode, idx, speed, width)	(COMPHY_FW_NET(mode, idx, speed) | \
+#define COMPHY_FW_PCIE(mode, speed, width)	(COMPHY_FW_NET(mode, 0, speed) | \
 						 ((width) << 18))
 
 struct mvebu_a3700_comphy_conf {
 	unsigned int lane;
 	enum phy_mode mode;
 	int submode;
-	unsigned int port;
 	u32 fw_mode;
 };
 
-#define MVEBU_A3700_COMPHY_CONF(_lane, _mode, _smode, _port, _fw)	\
+#define MVEBU_A3700_COMPHY_CONF(_lane, _mode, _smode, _fw)		\
 	{								\
 		.lane = _lane,						\
 		.mode = _mode,						\
 		.submode = _smode,					\
-		.port = _port,						\
 		.fw_mode = _fw,						\
 	}
 
-#define MVEBU_A3700_COMPHY_CONF_GEN(_lane, _mode, _port, _fw) \
-	MVEBU_A3700_COMPHY_CONF(_lane, _mode, PHY_INTERFACE_MODE_NA, _port, _fw)
+#define MVEBU_A3700_COMPHY_CONF_GEN(_lane, _mode, _fw) \
+	MVEBU_A3700_COMPHY_CONF(_lane, _mode, PHY_INTERFACE_MODE_NA, _fw)
 
-#define MVEBU_A3700_COMPHY_CONF_ETH(_lane, _smode, _port, _fw) \
-	MVEBU_A3700_COMPHY_CONF(_lane, PHY_MODE_ETHERNET, _smode, _port, _fw)
+#define MVEBU_A3700_COMPHY_CONF_ETH(_lane, _smode, _fw) \
+	MVEBU_A3700_COMPHY_CONF(_lane, PHY_MODE_ETHERNET, _smode, _fw)
 
 static const struct mvebu_a3700_comphy_conf mvebu_a3700_comphy_modes[] = {
 	/* lane 0 */
-	MVEBU_A3700_COMPHY_CONF_GEN(0, PHY_MODE_USB_HOST_SS, 0,
+	MVEBU_A3700_COMPHY_CONF_GEN(0, PHY_MODE_USB_HOST_SS,
 				    COMPHY_FW_MODE_USB3H),
-	MVEBU_A3700_COMPHY_CONF_ETH(0, PHY_INTERFACE_MODE_SGMII, 1,
+	MVEBU_A3700_COMPHY_CONF_ETH(0, PHY_INTERFACE_MODE_SGMII,
 				    COMPHY_FW_MODE_SGMII),
-	MVEBU_A3700_COMPHY_CONF_ETH(0, PHY_INTERFACE_MODE_2500BASEX, 1,
+	MVEBU_A3700_COMPHY_CONF_ETH(0, PHY_INTERFACE_MODE_2500BASEX,
 				    COMPHY_FW_MODE_2500BASEX),
 	/* lane 1 */
-	MVEBU_A3700_COMPHY_CONF_GEN(1, PHY_MODE_PCIE, 0,
-				    COMPHY_FW_MODE_PCIE),
-	MVEBU_A3700_COMPHY_CONF_ETH(1, PHY_INTERFACE_MODE_SGMII, 0,
+	MVEBU_A3700_COMPHY_CONF_GEN(1, PHY_MODE_PCIE, COMPHY_FW_MODE_PCIE),
+	MVEBU_A3700_COMPHY_CONF_ETH(1, PHY_INTERFACE_MODE_SGMII,
 				    COMPHY_FW_MODE_SGMII),
-	MVEBU_A3700_COMPHY_CONF_ETH(1, PHY_INTERFACE_MODE_2500BASEX, 0,
+	MVEBU_A3700_COMPHY_CONF_ETH(1, PHY_INTERFACE_MODE_2500BASEX,
 				    COMPHY_FW_MODE_2500BASEX),
 	/* lane 2 */
-	MVEBU_A3700_COMPHY_CONF_GEN(2, PHY_MODE_SATA, 0,
-				    COMPHY_FW_MODE_SATA),
-	MVEBU_A3700_COMPHY_CONF_GEN(2, PHY_MODE_USB_HOST_SS, 0,
+	MVEBU_A3700_COMPHY_CONF_GEN(2, PHY_MODE_SATA, COMPHY_FW_MODE_SATA),
+	MVEBU_A3700_COMPHY_CONF_GEN(2, PHY_MODE_USB_HOST_SS,
 				    COMPHY_FW_MODE_USB3H),
 };
 
@@ -98,7 +93,6 @@ struct mvebu_a3700_comphy_lane {
 	unsigned int id;
 	enum phy_mode mode;
 	int submode;
-	int port;
 };
 
 static int mvebu_a3700_comphy_smc(unsigned long function, unsigned long lane,
@@ -120,7 +114,7 @@ static int mvebu_a3700_comphy_smc(unsigned long function, unsigned long lane,
 	}
 }
 
-static int mvebu_a3700_comphy_get_fw_mode(int lane, int port,
+static int mvebu_a3700_comphy_get_fw_mode(int lane,
 					  enum phy_mode mode,
 					  int submode)
 {
@@ -132,7 +126,6 @@ static int mvebu_a3700_comphy_get_fw_mode(int lane, int port,
 
 	for (i = 0; i < n; i++) {
 		if (mvebu_a3700_comphy_modes[i].lane == lane &&
-		    mvebu_a3700_comphy_modes[i].port == port &&
 		    mvebu_a3700_comphy_modes[i].mode == mode &&
 		    mvebu_a3700_comphy_modes[i].submode == submode)
 			break;
@@ -153,7 +146,7 @@ static int mvebu_a3700_comphy_set_mode(struct phy *phy, enum phy_mode mode,
 	if (submode == PHY_INTERFACE_MODE_1000BASEX)
 		submode = PHY_INTERFACE_MODE_SGMII;
 
-	fw_mode = mvebu_a3700_comphy_get_fw_mode(lane->id, lane->port, mode,
+	fw_mode = mvebu_a3700_comphy_get_fw_mode(lane->id, mode,
 						 submode);
 	if (fw_mode < 0) {
 		dev_err(lane->dev, "invalid COMPHY mode\n");
@@ -172,9 +165,10 @@ static int mvebu_a3700_comphy_power_on(struct phy *phy)
 	struct mvebu_a3700_comphy_lane *lane = phy_get_drvdata(phy);
 	u32 fw_param;
 	int fw_mode;
+	int fw_port;
 	int ret;
 
-	fw_mode = mvebu_a3700_comphy_get_fw_mode(lane->id, lane->port,
+	fw_mode = mvebu_a3700_comphy_get_fw_mode(lane->id,
 						 lane->mode, lane->submode);
 	if (fw_mode < 0) {
 		dev_err(lane->dev, "invalid COMPHY mode\n");
@@ -191,17 +185,18 @@ static int mvebu_a3700_comphy_power_on(struct phy *phy)
 		fw_param = COMPHY_FW_MODE(fw_mode);
 		break;
 	case PHY_MODE_ETHERNET:
+		fw_port = (lane->id == 0) ? 1 : 0;
 		switch (lane->submode) {
 		case PHY_INTERFACE_MODE_SGMII:
 			dev_dbg(lane->dev, "set lane %d to SGMII mode\n",
 				lane->id);
-			fw_param = COMPHY_FW_NET(fw_mode, lane->port,
+			fw_param = COMPHY_FW_NET(fw_mode, fw_port,
 						 COMPHY_FW_SPEED_1_25G);
 			break;
 		case PHY_INTERFACE_MODE_2500BASEX:
 			dev_dbg(lane->dev, "set lane %d to 2500BASEX mode\n",
 				lane->id);
-			fw_param = COMPHY_FW_NET(fw_mode, lane->port,
+			fw_param = COMPHY_FW_NET(fw_mode, fw_port,
 						 COMPHY_FW_SPEED_3_125G);
 			break;
 		default:
@@ -212,8 +207,7 @@ static int mvebu_a3700_comphy_power_on(struct phy *phy)
 		break;
 	case PHY_MODE_PCIE:
 		dev_dbg(lane->dev, "set lane %d to PCIe mode\n", lane->id);
-		fw_param = COMPHY_FW_PCIE(fw_mode, lane->port,
-					  COMPHY_FW_SPEED_5G,
+		fw_param = COMPHY_FW_PCIE(fw_mode, COMPHY_FW_SPEED_5G,
 					  phy->attrs.bus_width);
 		break;
 	default:
@@ -247,17 +241,20 @@ static struct phy *mvebu_a3700_comphy_xlate(struct device *dev,
 					    struct of_phandle_args *args)
 {
 	struct mvebu_a3700_comphy_lane *lane;
+	unsigned int port;
 	struct phy *phy;
-
-	if (WARN_ON(args->args[0] >= MVEBU_A3700_COMPHY_PORTS))
-		return ERR_PTR(-EINVAL);
 
 	phy = of_phy_simple_xlate(dev, args);
 	if (IS_ERR(phy))
 		return phy;
 
 	lane = phy_get_drvdata(phy);
-	lane->port = args->args[0];
+
+	port = args->args[0];
+	if (port != 0 && (port != 1 || lane->id != 0)) {
+		dev_err(lane->dev, "invalid port number %u\n", port);
+		return ERR_PTR(-EINVAL);
+	}
 
 	return phy;
 }
@@ -302,7 +299,6 @@ static int mvebu_a3700_comphy_probe(struct platform_device *pdev)
 		lane->mode = PHY_MODE_INVALID;
 		lane->submode = PHY_INTERFACE_MODE_NA;
 		lane->id = lane_id;
-		lane->port = -1;
 		phy_set_drvdata(phy, lane);
 	}
 
