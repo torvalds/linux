@@ -1290,8 +1290,15 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 
 	pvlan = 0;
 
-	/* Frames from user ports can egress any local DSA links and CPU ports,
-	 * as well as any local member of their bridge group.
+	/* Frames from standalone user ports can only egress on the
+	 * upstream port.
+	 */
+	if (!dsa_port_bridge_dev_get(dp))
+		return BIT(dsa_switch_upstream_port(ds));
+
+	/* Frames from bridged user ports can egress any local DSA
+	 * links and CPU ports, as well as any local member of their
+	 * bridge group.
 	 */
 	dsa_switch_for_each_port(other_dp, ds)
 		if (other_dp->type == DSA_PORT_TYPE_CPU ||
@@ -2487,6 +2494,10 @@ static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	if (err)
 		goto unlock;
 
+	err = mv88e6xxx_port_set_map_da(chip, port, true);
+	if (err)
+		return err;
+
 	err = mv88e6xxx_port_commit_pvid(chip, port);
 	if (err)
 		goto unlock;
@@ -2520,6 +2531,12 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
 	if (mv88e6xxx_bridge_map(chip, bridge) ||
 	    mv88e6xxx_port_vlan_map(chip, port))
 		dev_err(ds->dev, "failed to remap in-chip Port VLAN\n");
+
+	err = mv88e6xxx_port_set_map_da(chip, port, false);
+	if (err)
+		dev_err(ds->dev,
+			"port %d failed to restore map-DA: %pe\n",
+			port, ERR_PTR(err));
 
 	err = mv88e6xxx_port_commit_pvid(chip, port);
 	if (err)
@@ -2918,12 +2935,13 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		return err;
 
 	/* Port Control 2: don't force a good FCS, set the MTU size to
-	 * 10222 bytes, disable 802.1q tags checking, don't discard tagged or
-	 * untagged frames on this port, do a destination address lookup on all
-	 * received packets as usual, disable ARP mirroring and don't send a
-	 * copy of all transmitted/received frames on this port to the CPU.
+	 * 10222 bytes, disable 802.1q tags checking, don't discard
+	 * tagged or untagged frames on this port, skip destination
+	 * address lookup on user ports, disable ARP mirroring and don't
+	 * send a copy of all transmitted/received frames on this port
+	 * to the CPU.
 	 */
-	err = mv88e6xxx_port_set_map_da(chip, port);
+	err = mv88e6xxx_port_set_map_da(chip, port, !dsa_is_user_port(ds, port));
 	if (err)
 		return err;
 

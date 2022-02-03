@@ -591,6 +591,18 @@ static inline bool dsa_is_upstream_port(struct dsa_switch *ds, int port)
 	return port == dsa_upstream_port(ds, port);
 }
 
+/* Return the local port used to reach the CPU port */
+static inline unsigned int dsa_switch_upstream_port(struct dsa_switch *ds)
+{
+	struct dsa_port *dp;
+
+	dsa_switch_for_each_available_port(dp, ds) {
+		return dsa_upstream_port(ds, dp->index);
+	}
+
+	return ds->num_ports;
+}
+
 /* Return true if @upstream_ds is an upstream switch of @downstream_ds, meaning
  * that the routing port from @downstream_ds to @upstream_ds is also the port
  * which @downstream_ds uses to reach its dedicated CPU.
