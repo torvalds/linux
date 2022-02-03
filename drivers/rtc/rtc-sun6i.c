@@ -668,10 +668,34 @@ static int sun6i_rtc_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(sun6i_rtc_pm_ops,
 	sun6i_rtc_suspend, sun6i_rtc_resume);
 
+static void sun6i_rtc_bus_clk_cleanup(void *data)
+{
+	struct clk *bus_clk = data;
+
+	clk_disable_unprepare(bus_clk);
+}
+
 static int sun6i_rtc_probe(struct platform_device *pdev)
 {
 	struct sun6i_rtc_dev *chip = sun6i_rtc;
+	struct device *dev = &pdev->dev;
+	struct clk *bus_clk;
 	int ret;
+
+	bus_clk = devm_clk_get_optional(dev, "bus");
+	if (IS_ERR(bus_clk))
+		return PTR_ERR(bus_clk);
+
+	if (bus_clk) {
+		ret = clk_prepare_enable(bus_clk);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(dev, sun6i_rtc_bus_clk_cleanup,
+					       bus_clk);
+		if (ret)
+			return ret;
+	}
 
 	if (!chip) {
 		chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
