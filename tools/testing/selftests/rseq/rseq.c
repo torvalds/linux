@@ -27,16 +27,17 @@
 #include <signal.h>
 #include <limits.h>
 #include <dlfcn.h>
+#include <stddef.h>
 
 #include "../kselftest.h"
 #include "rseq.h"
 
-static const int *libc_rseq_offset_p;
+static const ptrdiff_t *libc_rseq_offset_p;
 static const unsigned int *libc_rseq_size_p;
 static const unsigned int *libc_rseq_flags_p;
 
 /* Offset from the thread pointer to the rseq area.  */
-int rseq_offset;
+ptrdiff_t rseq_offset;
 
 /* Size of the registered rseq area.  0 if the registration was
    unsuccessful.  */
