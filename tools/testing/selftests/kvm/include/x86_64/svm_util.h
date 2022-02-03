@@ -28,6 +28,11 @@ struct svm_test_data {
 	struct vmcb_save_area *save_area; /* gva */
 	void *save_area_hva;
 	uint64_t save_area_gpa;
+
+	/* MSR-Bitmap */
+	void *msr; /* gva */
+	void *msr_hva;
+	uint64_t msr_gpa;
 };
 
 struct svm_test_data *vcpu_alloc_svm(struct kvm_vm *vm, vm_vaddr_t *p_svm_gva);
