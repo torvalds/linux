@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config SA1111
 	bool
-	select DMABOUNCE if !ARCH_PXA
+	select ZONE_DMA if ARCH_SA1100
 
 config DMABOUNCE
 	bool
