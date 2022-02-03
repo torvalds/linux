@@ -560,12 +560,8 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		soc_mask = CLKF_SOC_DRA76;
 #endif
 #ifdef CONFIG_SOC_AM33XX
-	if (of_machine_is_compatible("ti,am33xx")) {
-		if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
-			data = am3_clkctrl_compat_data;
-		else
-			data = am3_clkctrl_data;
-	}
+	if (of_machine_is_compatible("ti,am33xx"))
+		data = am3_clkctrl_data;
 #endif
 #ifdef CONFIG_SOC_AM43XX
 	if (of_machine_is_compatible("ti,am4372")) {
