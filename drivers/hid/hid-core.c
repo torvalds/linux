@@ -81,6 +81,7 @@ struct hid_report *hid_register_report(struct hid_device *device,
 	report_enum->report_id_hash[id] = report;
 
 	list_add_tail(&report->list, &report_enum->report_list);
+	INIT_LIST_HEAD(&report->field_entry_list);
 
 	return report;
 }
@@ -101,7 +102,7 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 
 	field = kzalloc((sizeof(struct hid_field) +
 			 usages * sizeof(struct hid_usage) +
-			 2 * usages * sizeof(unsigned int)), GFP_KERNEL);
+			 3 * usages * sizeof(unsigned int)), GFP_KERNEL);
 	if (!field)
 		return NULL;
 
@@ -110,6 +111,7 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 	field->usage = (struct hid_usage *)(field + 1);
 	field->value = (s32 *)(field->usage + usages);
 	field->new_value = (s32 *)(field->value + usages);
+	field->usages_priorities = (s32 *)(field->new_value + usages);
 	field->report = report;
 
 	return field;
@@ -656,6 +658,8 @@ static int hid_parser_reserved(struct hid_parser *parser, struct hid_item *item)
 static void hid_free_report(struct hid_report *report)
 {
 	unsigned n;
+
+	kfree(report->field_entries);
 
 	for (n = 0; n < report->maxfield; n++)
 		kfree(report->field[n]);
@@ -1668,6 +1672,103 @@ static void hid_process_report(struct hid_device *hid,
 }
 
 /*
+ * Insert a given usage_index in a field in the list
+ * of processed usages in the report.
+ *
+ * The elements of lower priority score are processed
+ * first.
+ */
+static void __hid_insert_field_entry(struct hid_device *hid,
+				     struct hid_report *report,
+				     struct hid_field_entry *entry,
+				     struct hid_field *field,
+				     unsigned int usage_index)
+{
+	struct hid_field_entry *next;
+
+	entry->field = field;
+	entry->index = usage_index;
+	entry->priority = field->usages_priorities[usage_index];
+
+	/* insert the element at the correct position */
+	list_for_each_entry(next,
+			    &report->field_entry_list,
+			    list) {
+		/*
+		 * the priority of our element is strictly higher
+		 * than the next one, insert it before
+		 */
+		if (entry->priority > next->priority) {
+			list_add_tail(&entry->list, &next->list);
+			return;
+		}
+	}
+
+	/* lowest priority score: insert at the end */
+	list_add_tail(&entry->list, &report->field_entry_list);
+}
+
+static void hid_report_process_ordering(struct hid_device *hid,
+					struct hid_report *report)
+{
+	struct hid_field *field;
+	struct hid_field_entry *entries;
+	unsigned int a, u, usages;
+	unsigned int count = 0;
+
+	/* count the number of individual fields in the report */
+	for (a = 0; a < report->maxfield; a++) {
+		field = report->field[a];
+
+		if (field->flags & HID_MAIN_ITEM_VARIABLE)
+			count += field->report_count;
+		else
+			count++;
+	}
+
+	/* allocate the memory to process the fields */
+	entries = kcalloc(count, sizeof(*entries), GFP_KERNEL);
+	if (!entries)
+		return;
+
+	report->field_entries = entries;
+
+	/*
+	 * walk through all fields in the report and
+	 * store them by priority order in report->field_entry_list
+	 *
+	 * - Var elements are individualized (field + usage_index)
+	 * - Arrays are taken as one, we can not chose an order for them
+	 */
+	usages = 0;
+	for (a = 0; a < report->maxfield; a++) {
+		field = report->field[a];
+
+		if (field->flags & HID_MAIN_ITEM_VARIABLE) {
+			for (u = 0; u < field->report_count; u++) {
+				__hid_insert_field_entry(hid, report,
+							 &entries[usages],
+							 field, u);
+				usages++;
+			}
+		} else {
+			__hid_insert_field_entry(hid, report, &entries[usages],
+						 field, 0);
+			usages++;
+		}
+	}
+}
+
+static void hid_process_ordering(struct hid_device *hid)
+{
+	struct hid_report *report;
+	struct hid_report_enum *report_enum = &hid->report_enum[HID_INPUT_REPORT];
+
+	list_for_each_entry(report, &report_enum->report_list, list)
+		hid_report_process_ordering(hid, report);
+}
+
+/*
  * Output the field into the report.
  */
 
@@ -2049,6 +2150,8 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		hid_err(hdev, "device has no listeners, quitting\n");
 		return -ENODEV;
 	}
+
+	hid_process_ordering(hdev);
 
 	if ((hdev->claimed & HID_CLAIMED_INPUT) &&
 			(connect_mask & HID_CONNECT_FF) && hdev->ff_init)
