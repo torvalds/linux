@@ -16,6 +16,7 @@
 #define CPUID_SVM_BIT		2
 #define CPUID_SVM		BIT_ULL(CPUID_SVM_BIT)
 
+#define SVM_EXIT_MSR		0x07c
 #define SVM_EXIT_VMMCALL	0x081
 
 struct svm_test_data {
