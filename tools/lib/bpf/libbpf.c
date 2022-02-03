@@ -9505,7 +9505,7 @@ static int bpf_prog_load_xattr2(const struct bpf_prog_load_attr *attr,
 	}
 
 	bpf_object__for_each_map(map, obj) {
-		if (!bpf_map__is_offload_neutral(map))
+		if (map->def.type != BPF_MAP_TYPE_PERF_EVENT_ARRAY)
 			map->map_ifindex = attr->ifindex;
 	}
 

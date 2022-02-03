@@ -487,17 +487,12 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 	size_t maxlen;
 	bool res;
 
-	if (ifindex)
-		/* Only test offload-able program types */
-		switch (prog_type) {
-		case BPF_PROG_TYPE_SCHED_CLS:
-		case BPF_PROG_TYPE_XDP:
-			break;
-		default:
-			return;
-		}
+	if (ifindex) {
+		p_info("BPF offload feature probing is not supported");
+		return;
+	}
 
-	res = bpf_probe_prog_type(prog_type, ifindex);
+	res = libbpf_probe_bpf_prog_type(prog_type, NULL);
 #ifdef USE_LIBCAP
 	/* Probe may succeed even if program load fails, for unprivileged users
 	 * check that we did not fail because of insufficient permissions
@@ -535,7 +530,12 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 	size_t maxlen;
 	bool res;
 
-	res = bpf_probe_map_type(map_type, ifindex);
+	if (ifindex) {
+		p_info("BPF offload feature probing is not supported");
+		return;
+	}
+
+	res = libbpf_probe_bpf_map_type(map_type, NULL);
 
 	/* Probe result depends on the success of map creation, no additional
 	 * check required for unprivileged users
@@ -567,7 +567,12 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 	bool res = false;
 
 	if (supported_type) {
-		res = bpf_probe_helper(id, prog_type, ifindex);
+		if (ifindex) {
+			p_info("BPF offload feature probing is not supported");
+			return;
+		}
+
+		res = libbpf_probe_bpf_helper(prog_type, id, NULL);
 #ifdef USE_LIBCAP
 		/* Probe may succeed even if program load fails, for
 		 * unprivileged users check that we did not fail because of
