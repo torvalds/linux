@@ -1481,6 +1481,12 @@ static int arm_trbe_device_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
+	/* Trace capture is not possible with kernel page table isolation */
+	if (arm64_kernel_unmapped_at_el0()) {
+		pr_err("TRBE wouldn't work if kernel gets unmapped at EL0\n");
+		return -EOPNOTSUPP;
+	}
+
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
@@ -1541,11 +1547,6 @@ static struct platform_driver arm_trbe_driver = {
 static int __init arm_trbe_init(void)
 {
 	int ret;
-
-	if (arm64_kernel_unmapped_at_el0()) {
-		pr_err("TRBE wouldn't work if kernel gets unmapped at EL0\n");
-		return -EOPNOTSUPP;
-	}
 
 	ret = platform_driver_register(&arm_trbe_driver);
 	if (!ret)
