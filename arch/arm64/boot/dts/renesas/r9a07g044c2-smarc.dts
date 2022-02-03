@@ -7,9 +7,7 @@
 
 /dts-v1/;
 #include "r9a07g044c2.dtsi"
-#include "rzg2lc-smarc-som.dtsi"
-#include "rzg2lc-smarc-pinfunction.dtsi"
-#include "rz-smarc-common.dtsi"
+#include "rzg2lc-smarc.dtsi"
 
 / {
 	model = "Renesas SMARC EVK based on r9a07g044c2";
