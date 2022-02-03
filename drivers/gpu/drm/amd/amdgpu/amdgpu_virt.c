@@ -902,7 +902,7 @@ static u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v
 
 		for (i = 0; i < timeout; i++) {
 			tmp = readl(scratch_reg1);
-			if (!(tmp & flag))
+			if (!(tmp & AMDGPU_RLCG_SCRATCH1_ADDRESS_MASK))
 				break;
 			udelay(10);
 		}
