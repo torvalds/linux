@@ -15,6 +15,7 @@
 #include <linux/kdev_t.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
@@ -24,12 +25,25 @@
 /* Provides a unique ID for each counter device */
 static DEFINE_IDA(counter_ida);
 
+struct counter_device_allochelper {
+	struct counter_device counter;
+
+	/*
+	 * This is cache line aligned to ensure private data behaves like if it
+	 * were kmalloced separately.
+	 */
+	unsigned long privdata[] ____cacheline_aligned;
+};
+
 static void counter_device_release(struct device *dev)
 {
-	struct counter_device *const counter = dev_get_drvdata(dev);
+	struct counter_device *const counter =
+		container_of(dev, struct counter_device, dev);
 
 	counter_chrdev_remove(counter);
 	ida_free(&counter_ida, dev->id);
+
+	kfree(container_of(counter, struct counter_device_allochelper, counter));
 }
 
 static struct device_type counter_device_type = {
@@ -45,62 +59,105 @@ static struct bus_type counter_bus_type = {
 static dev_t counter_devt;
 
 /**
- * counter_register - register Counter to the system
- * @counter:	pointer to Counter to register
+ * counter_priv - access counter device private data
+ * @counter: counter device
  *
- * This function registers a Counter to the system. A sysfs "counter" directory
- * will be created and populated with sysfs attributes correlating with the
- * Counter Signals, Synapses, and Counts respectively.
- *
- * RETURNS:
- * 0 on success, negative error number on failure.
+ * Get the counter device private data
  */
-int counter_register(struct counter_device *const counter)
+void *counter_priv(const struct counter_device *const counter)
 {
-	struct device *const dev = &counter->dev;
-	int id;
+	struct counter_device_allochelper *ch =
+		container_of(counter, struct counter_device_allochelper, counter);
+
+	return &ch->privdata;
+}
+EXPORT_SYMBOL_GPL(counter_priv);
+
+/**
+ * counter_alloc - allocate a counter_device
+ * @sizeof_priv: size of the driver private data
+ *
+ * This is part one of counter registration. The structure is allocated
+ * dynamically to ensure the right lifetime for the embedded struct device.
+ *
+ * If this succeeds, call counter_put() to get rid of the counter_device again.
+ */
+struct counter_device *counter_alloc(size_t sizeof_priv)
+{
+	struct counter_device_allochelper *ch;
+	struct counter_device *counter;
+	struct device *dev;
 	int err;
 
+	ch = kzalloc(sizeof(*ch) + sizeof_priv, GFP_KERNEL);
+	if (!ch)
+		return NULL;
+
+	counter = &ch->counter;
+	dev = &counter->dev;
+
 	/* Acquire unique ID */
-	id = ida_alloc(&counter_ida, GFP_KERNEL);
-	if (id < 0)
-		return id;
+	err = ida_alloc(&counter_ida, GFP_KERNEL);
+	if (err < 0)
+		goto err_ida_alloc;
+	dev->id = err;
 
 	mutex_init(&counter->ops_exist_lock);
-
-	/* Configure device structure for Counter */
-	dev->id = id;
 	dev->type = &counter_device_type;
 	dev->bus = &counter_bus_type;
-	dev->devt = MKDEV(MAJOR(counter_devt), id);
+	dev->devt = MKDEV(MAJOR(counter_devt), dev->id);
+
+	err = counter_chrdev_add(counter);
+	if (err < 0)
+		goto err_chrdev_add;
+
+	device_initialize(dev);
+
+	return counter;
+
+err_chrdev_add:
+
+	ida_free(&counter_ida, dev->id);
+err_ida_alloc:
+
+	kfree(ch);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(counter_alloc);
+
+void counter_put(struct counter_device *counter)
+{
+	put_device(&counter->dev);
+}
+EXPORT_SYMBOL_GPL(counter_put);
+
+/**
+ * counter_add - complete registration of a counter
+ * @counter: the counter to add
+ *
+ * This is part two of counter registration.
+ *
+ * If this succeeds, call counter_unregister() to get rid of the counter_device again.
+ */
+int counter_add(struct counter_device *counter)
+{
+	int err;
+	struct device *dev = &counter->dev;
+
 	if (counter->parent) {
 		dev->parent = counter->parent;
 		dev->of_node = counter->parent->of_node;
 	}
-	device_initialize(dev);
-	dev_set_drvdata(dev, counter);
 
 	err = counter_sysfs_add(counter);
 	if (err < 0)
-		goto err_free_id;
+		return err;
 
-	err = counter_chrdev_add(counter);
-	if (err < 0)
-		goto err_free_id;
-
-	err = cdev_device_add(&counter->chrdev, dev);
-	if (err < 0)
-		goto err_remove_chrdev;
-
-	return 0;
-
-err_remove_chrdev:
-	counter_chrdev_remove(counter);
-err_free_id:
-	put_device(dev);
-	return err;
+	/* implies device_add(dev) */
+	return cdev_device_add(&counter->chrdev, dev);
 }
-EXPORT_SYMBOL_GPL(counter_register);
+EXPORT_SYMBOL_GPL(counter_add);
 
 /**
  * counter_unregister - unregister Counter from the system
@@ -121,8 +178,6 @@ void counter_unregister(struct counter_device *const counter)
 	wake_up(&counter->events_wait);
 
 	mutex_unlock(&counter->ops_exist_lock);
-
-	put_device(&counter->dev);
 }
 EXPORT_SYMBOL_GPL(counter_unregister);
 
@@ -131,30 +186,56 @@ static void devm_counter_release(void *counter)
 	counter_unregister(counter);
 }
 
+static void devm_counter_put(void *counter)
+{
+	counter_put(counter);
+}
+
 /**
- * devm_counter_register - Resource-managed counter_register
- * @dev:	device to allocate counter_device for
- * @counter:	pointer to Counter to register
+ * devm_counter_alloc - allocate a counter_device
+ * @dev: the device to register the release callback for
+ * @sizeof_priv: size of the driver private data
  *
- * Managed counter_register. The Counter registered with this function is
- * automatically unregistered on driver detach. This function calls
- * counter_register internally. Refer to that function for more information.
- *
- * RETURNS:
- * 0 on success, negative error number on failure.
+ * This is the device managed version of counter_add(). It registers a cleanup
+ * callback to care for calling counter_put().
  */
-int devm_counter_register(struct device *dev,
-			  struct counter_device *const counter)
+struct counter_device *devm_counter_alloc(struct device *dev, size_t sizeof_priv)
+{
+	struct counter_device *counter;
+	int err;
+
+	counter = counter_alloc(sizeof_priv);
+	if (!counter)
+		return NULL;
+
+	err = devm_add_action_or_reset(dev, devm_counter_put, counter);
+	if (err < 0)
+		return NULL;
+
+	return counter;
+}
+EXPORT_SYMBOL_GPL(devm_counter_alloc);
+
+/**
+ * devm_counter_add - complete registration of a counter
+ * @dev: the device to register the release callback for
+ * @counter: the counter to add
+ *
+ * This is the device managed version of counter_add(). It registers a cleanup
+ * callback to care for calling counter_unregister().
+ */
+int devm_counter_add(struct device *dev,
+		     struct counter_device *const counter)
 {
 	int err;
 
-	err = counter_register(counter);
+	err = counter_add(counter);
 	if (err < 0)
 		return err;
 
 	return devm_add_action_or_reset(dev, devm_counter_release, counter);
 }
-EXPORT_SYMBOL_GPL(devm_counter_register);
+EXPORT_SYMBOL_GPL(devm_counter_add);
 
 #define COUNTER_DEV_MAX 256
 

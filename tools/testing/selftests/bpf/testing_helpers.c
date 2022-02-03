@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+/* Copyright (C) 2019 Netronome Systems, Inc. */
 /* Copyright (C) 2020 Facebook, Inc. */
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 #include "testing_helpers.h"
 
 int parse_num_list(const char *s, bool **num_set, int *num_set_len)
@@ -77,4 +81,62 @@ __u32 link_info_prog_id(const struct bpf_link *link, struct bpf_link_info *info)
 		return 0;
 	}
 	return info->prog_id;
+}
+
+int extra_prog_load_log_flags = 0;
+
+int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
+		       struct bpf_object **pobj, int *prog_fd)
+{
+	LIBBPF_OPTS(bpf_object_open_opts, opts,
+		.kernel_log_level = extra_prog_load_log_flags,
+	);
+	struct bpf_object *obj;
+	struct bpf_program *prog;
+	__u32 flags;
+	int err;
+
+	obj = bpf_object__open_file(file, &opts);
+	if (!obj)
+		return -errno;
+
+	prog = bpf_object__next_program(obj, NULL);
+	if (!prog) {
+		err = -ENOENT;
+		goto err_out;
+	}
+
+	if (type != BPF_PROG_TYPE_UNSPEC)
+		bpf_program__set_type(prog, type);
+
+	flags = bpf_program__flags(prog) | BPF_F_TEST_RND_HI32;
+	bpf_program__set_flags(prog, flags);
+
+	err = bpf_object__load(obj);
+	if (err)
+		goto err_out;
+
+	*pobj = obj;
+	*prog_fd = bpf_program__fd(prog);
+
+	return 0;
+err_out:
+	bpf_object__close(obj);
+	return err;
+}
+
+int bpf_test_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
+			  size_t insns_cnt, const char *license,
+			  __u32 kern_version, char *log_buf,
+			  size_t log_buf_sz)
+{
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.kern_version = kern_version,
+		.prog_flags = BPF_F_TEST_RND_HI32,
+		.log_level = extra_prog_load_log_flags,
+		.log_buf = log_buf,
+		.log_size = log_buf_sz,
+	);
+
+	return bpf_prog_load(type, NULL, license, insns, insns_cnt, &opts);
 }

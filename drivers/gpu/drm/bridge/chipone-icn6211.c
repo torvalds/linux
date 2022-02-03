@@ -4,6 +4,7 @@
  * Author: Jagan Teki <jagan@amarulasolutions.com>
  */
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_mipi_dsi.h>
@@ -30,6 +31,7 @@
 struct chipone {
 	struct device *dev;
 	struct drm_bridge bridge;
+	struct drm_display_mode mode;
 	struct drm_bridge *panel_bridge;
 	struct gpio_desc *enable_gpio;
 	struct regulator *vdd1;
@@ -40,11 +42,6 @@ struct chipone {
 static inline struct chipone *bridge_to_chipone(struct drm_bridge *bridge)
 {
 	return container_of(bridge, struct chipone, bridge);
-}
-
-static struct drm_display_mode *bridge_to_mode(struct drm_bridge *bridge)
-{
-	return &bridge->encoder->crtc->state->adjusted_mode;
 }
 
 static inline int chipone_dsi_write(struct chipone *icn,  const void *seq,
@@ -61,10 +58,11 @@ static inline int chipone_dsi_write(struct chipone *icn,  const void *seq,
 		chipone_dsi_write(icn, d, ARRAY_SIZE(d));	\
 	}
 
-static void chipone_enable(struct drm_bridge *bridge)
+static void chipone_atomic_enable(struct drm_bridge *bridge,
+				  struct drm_bridge_state *old_bridge_state)
 {
 	struct chipone *icn = bridge_to_chipone(bridge);
-	struct drm_display_mode *mode = bridge_to_mode(bridge);
+	struct drm_display_mode *mode = &icn->mode;
 
 	ICN6211_DSI(icn, 0x7a, 0xc1);
 
@@ -114,7 +112,8 @@ static void chipone_enable(struct drm_bridge *bridge)
 	usleep_range(10000, 11000);
 }
 
-static void chipone_pre_enable(struct drm_bridge *bridge)
+static void chipone_atomic_pre_enable(struct drm_bridge *bridge,
+				      struct drm_bridge_state *old_bridge_state)
 {
 	struct chipone *icn = bridge_to_chipone(bridge);
 	int ret;
@@ -145,7 +144,8 @@ static void chipone_pre_enable(struct drm_bridge *bridge)
 	usleep_range(10000, 11000);
 }
 
-static void chipone_post_disable(struct drm_bridge *bridge)
+static void chipone_atomic_post_disable(struct drm_bridge *bridge,
+					struct drm_bridge_state *old_bridge_state)
 {
 	struct chipone *icn = bridge_to_chipone(bridge);
 
@@ -161,6 +161,15 @@ static void chipone_post_disable(struct drm_bridge *bridge)
 	gpiod_set_value(icn->enable_gpio, 0);
 }
 
+static void chipone_mode_set(struct drm_bridge *bridge,
+			     const struct drm_display_mode *mode,
+			     const struct drm_display_mode *adjusted_mode)
+{
+	struct chipone *icn = bridge_to_chipone(bridge);
+
+	drm_mode_copy(&icn->mode, adjusted_mode);
+}
+
 static int chipone_attach(struct drm_bridge *bridge, enum drm_bridge_attach_flags flags)
 {
 	struct chipone *icn = bridge_to_chipone(bridge);
@@ -169,10 +178,14 @@ static int chipone_attach(struct drm_bridge *bridge, enum drm_bridge_attach_flag
 }
 
 static const struct drm_bridge_funcs chipone_bridge_funcs = {
-	.attach = chipone_attach,
-	.post_disable = chipone_post_disable,
-	.pre_enable = chipone_pre_enable,
-	.enable = chipone_enable,
+	.atomic_duplicate_state	= drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset		= drm_atomic_helper_bridge_reset,
+	.atomic_pre_enable	= chipone_atomic_pre_enable,
+	.atomic_enable		= chipone_atomic_enable,
+	.atomic_post_disable	= chipone_atomic_post_disable,
+	.mode_set		= chipone_mode_set,
+	.attach			= chipone_attach,
 };
 
 static int chipone_parse_dt(struct chipone *icn)

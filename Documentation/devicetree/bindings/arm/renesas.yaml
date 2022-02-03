@@ -315,6 +315,18 @@ properties:
           - const: renesas,falcon-cpu
           - const: renesas,r8a779a0
 
+      - description: R-Car S4-8 (R8A779F0)
+        items:
+          - enum:
+              - renesas,spider-cpu # Spider CPU board (RTP8A779F0ASKB0SC2S)
+          - const: renesas,r8a779f0
+
+      - items:
+          - enum:
+              - renesas,spider-breakout # Spider BreakOut board (RTP8A779F0ASKB0SB0S)
+          - const: renesas,spider-cpu
+          - const: renesas,r8a779f0
+
       - description: R-Car H3e (R8A779M0)
         items:
           - enum:

@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/linux_logo.h>
 #include <linux/proc_fs.h>
+#include <linux/platform_device.h>
 #include <linux/seq_file.h>
 #include <linux/console.h>
 #include <linux/kmod.h>
@@ -1557,18 +1558,36 @@ static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
 	/* check all firmware fbs and kick off if the base addr overlaps */
 	for_each_registered_fb(i) {
 		struct apertures_struct *gen_aper;
+		struct device *device;
 
 		if (!(registered_fb[i]->flags & FBINFO_MISC_FIRMWARE))
 			continue;
 
 		gen_aper = registered_fb[i]->apertures;
+		device = registered_fb[i]->device;
 		if (fb_do_apertures_overlap(gen_aper, a) ||
 			(primary && gen_aper && gen_aper->count &&
 			 gen_aper->ranges[0].base == VGA_FB_PHYS)) {
 
 			printk(KERN_INFO "fb%d: switching to %s from %s\n",
 			       i, name, registered_fb[i]->fix.id);
-			do_unregister_framebuffer(registered_fb[i]);
+
+			/*
+			 * If we kick-out a firmware driver, we also want to remove
+			 * the underlying platform device, such as simple-framebuffer,
+			 * VESA, EFI, etc. A native driver will then be able to
+			 * allocate the memory range.
+			 *
+			 * If it's not a platform device, at least print a warning. A
+			 * fix would add code to remove the device from the system.
+			 */
+			if (dev_is_platform(device)) {
+				registered_fb[i]->forced_out = true;
+				platform_device_unregister(to_platform_device(device));
+			} else {
+				pr_warn("fb%d: cannot remove device\n", i);
+				do_unregister_framebuffer(registered_fb[i]);
+			}
 		}
 	}
 }
@@ -1763,6 +1782,53 @@ int remove_conflicting_framebuffers(struct apertures_struct *a,
 EXPORT_SYMBOL(remove_conflicting_framebuffers);
 
 /**
+ * is_firmware_framebuffer - detect if firmware-configured framebuffer matches
+ * @a: memory range, users of which are to be checked
+ *
+ * This function checks framebuffer devices (initialized by firmware/bootloader)
+ * which use memory range described by @a. If @a matchesm the function returns
+ * true, otherwise false.
+ */
+bool is_firmware_framebuffer(struct apertures_struct *a)
+{
+	bool do_free = false;
+	bool found = false;
+	int i;
+
+	if (!a) {
+		a = alloc_apertures(1);
+		if (!a)
+			return false;
+
+		a->ranges[0].base = 0;
+		a->ranges[0].size = ~0;
+		do_free = true;
+	}
+
+	mutex_lock(&registration_lock);
+	/* check all firmware fbs and kick off if the base addr overlaps */
+	for_each_registered_fb(i) {
+		struct apertures_struct *gen_aper;
+
+		if (!(registered_fb[i]->flags & FBINFO_MISC_FIRMWARE))
+			continue;
+
+		gen_aper = registered_fb[i]->apertures;
+		if (fb_do_apertures_overlap(gen_aper, a)) {
+			found = true;
+			break;
+		}
+	}
+	mutex_unlock(&registration_lock);
+
+	if (do_free)
+		kfree(a);
+
+	return found;
+}
+EXPORT_SYMBOL(is_firmware_framebuffer);
+
+/**
  * remove_conflicting_pci_framebuffers - remove firmware-configured framebuffers for PCI devices
  * @pdev: PCI device
  * @name: requesting driver name
@@ -1851,9 +1917,13 @@ EXPORT_SYMBOL(register_framebuffer);
 void
 unregister_framebuffer(struct fb_info *fb_info)
 {
-	mutex_lock(&registration_lock);
+	bool forced_out = fb_info->forced_out;
+
+	if (!forced_out)
+		mutex_lock(&registration_lock);
 	do_unregister_framebuffer(fb_info);
-	mutex_unlock(&registration_lock);
+	if (!forced_out)
+		mutex_unlock(&registration_lock);
 }
 EXPORT_SYMBOL(unregister_framebuffer);
 

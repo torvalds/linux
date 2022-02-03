@@ -9,7 +9,6 @@ Support for Serial devices
 
 
     driver
-    tty
 
 Serial drivers
 ==============

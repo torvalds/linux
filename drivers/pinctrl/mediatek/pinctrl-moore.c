@@ -519,7 +519,7 @@ static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	return mtk_eint_set_debounce(hw->eint, desc->eint.eint_n, debounce);
 }
 
-static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
+static int mtk_build_gpiochip(struct mtk_pinctrl *hw)
 {
 	struct gpio_chip *chip = &hw->chip;
 	int ret;
@@ -536,7 +536,6 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	chip->set_config	= mtk_gpio_set_config;
 	chip->base		= -1;
 	chip->ngpio		= hw->soc->npins;
-	chip->of_node		= np;
 	chip->of_gpio_n_cells	= 2;
 
 	ret = gpiochip_add_data(chip, hw);
@@ -550,7 +549,7 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	 * Documentation/devicetree/bindings/gpio/gpio.txt on how to
 	 * bind pinctrl and gpio drivers via the "gpio-ranges" property.
 	 */
-	if (!of_find_property(np, "gpio-ranges", NULL)) {
+	if (!of_find_property(hw->dev->of_node, "gpio-ranges", NULL)) {
 		ret = gpiochip_add_pin_range(chip, dev_name(hw->dev), 0, 0,
 					     chip->ngpio);
 		if (ret < 0) {
@@ -691,7 +690,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 			 "Failed to add EINT, but pinctrl still can work\n");
 
 	/* Build gpiochip should be after pinctrl_enable is done */
-	err = mtk_build_gpiochip(hw, pdev->dev.of_node);
+	err = mtk_build_gpiochip(hw);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add gpio_chip\n");
 		return err;

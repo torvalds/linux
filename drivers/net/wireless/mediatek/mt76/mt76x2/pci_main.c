@@ -78,8 +78,12 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->txpower_conf = hw->conf.power_level * 2;
+		struct mt76_phy *mphy = &dev->mphy;
 
+		dev->txpower_conf = hw->conf.power_level * 2;
+		dev->txpower_conf = mt76_get_sar_power(mphy,
+						       mphy->chandef.chan,
+						       dev->txpower_conf);
 		/* convert to per-chain power for 2x2 devices */
 		dev->txpower_conf -= 6;
 
@@ -155,5 +159,6 @@ const struct ieee80211_ops mt76x2_ops = {
 	.get_antenna = mt76_get_antenna,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
 	.reconfig_complete = mt76x02_reconfig_complete,
+	.set_sar_specs = mt76x2_set_sar_specs,
 };
 

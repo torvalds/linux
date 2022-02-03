@@ -1759,7 +1759,7 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 		desc->num = resp->range_num;
 		desc->start_sec = resp->range_start_sec;
 		desc->num_sec = resp->range_num_sec;
-	};
+	}
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);

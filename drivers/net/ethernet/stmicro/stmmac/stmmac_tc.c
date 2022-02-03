@@ -232,11 +232,35 @@ static int tc_setup_cls_u32(struct stmmac_priv *priv,
 	}
 }
 
+static int tc_rfs_init(struct stmmac_priv *priv)
+{
+	int i;
+
+	priv->rfs_entries_max[STMMAC_RFS_T_VLAN] = 8;
+	priv->rfs_entries_max[STMMAC_RFS_T_LLDP] = 1;
+	priv->rfs_entries_max[STMMAC_RFS_T_1588] = 1;
+
+	for (i = 0; i < STMMAC_RFS_T_MAX; i++)
+		priv->rfs_entries_total += priv->rfs_entries_max[i];
+
+	priv->rfs_entries = devm_kcalloc(priv->device,
+					 priv->rfs_entries_total,
+					 sizeof(*priv->rfs_entries),
+					 GFP_KERNEL);
+	if (!priv->rfs_entries)
+		return -ENOMEM;
+
+	dev_info(priv->device, "Enabled RFS Flow TC (entries=%d)\n",
+		 priv->rfs_entries_total);
+
+	return 0;
+}
+
 static int tc_init(struct stmmac_priv *priv)
 {
 	struct dma_features *dma_cap = &priv->dma_cap;
 	unsigned int count;
-	int i;
+	int ret, i;
 
 	if (dma_cap->l3l4fnum) {
 		priv->flow_entries_max = dma_cap->l3l4fnum;
@@ -250,9 +274,13 @@ static int tc_init(struct stmmac_priv *priv)
 		for (i = 0; i < priv->flow_entries_max; i++)
 			priv->flow_entries[i].idx = i;
 
-		dev_info(priv->device, "Enabled Flow TC (entries=%d)\n",
+		dev_info(priv->device, "Enabled L3L4 Flow TC (entries=%d)\n",
 			 priv->flow_entries_max);
 	}
+
+	ret = tc_rfs_init(priv);
+	if (ret)
+		return -ENOMEM;
 
 	if (!priv->plat->fpe_cfg) {
 		priv->plat->fpe_cfg = devm_kzalloc(priv->device,
@@ -425,6 +453,8 @@ static int tc_parse_flow_actions(struct stmmac_priv *priv,
 	return 0;
 }
 
+#define ETHER_TYPE_FULL_MASK	cpu_to_be16(~0)
+
 static int tc_add_basic_flow(struct stmmac_priv *priv,
 			     struct flow_cls_offload *cls,
 			     struct stmmac_flow_entry *entry)
@@ -438,6 +468,7 @@ static int tc_add_basic_flow(struct stmmac_priv *priv,
 		return -EINVAL;
 
 	flow_rule_match_basic(rule, &match);
+
 	entry->ip_proto = match.key->ip_proto;
 	return 0;
 }
@@ -607,15 +638,44 @@ static int tc_del_flow(struct stmmac_priv *priv,
 	return ret;
 }
 
+static struct stmmac_rfs_entry *tc_find_rfs(struct stmmac_priv *priv,
+					    struct flow_cls_offload *cls,
+					    bool get_free)
+{
+	int i;
+
+	for (i = 0; i < priv->rfs_entries_total; i++) {
+		struct stmmac_rfs_entry *entry = &priv->rfs_entries[i];
+
+		if (entry->cookie == cls->cookie)
+			return entry;
+		if (get_free && entry->in_use == false)
+			return entry;
+	}
+
+	return NULL;
+}
+
 #define VLAN_PRIO_FULL_MASK (0x07)
 
 static int tc_add_vlan_flow(struct stmmac_priv *priv,
 			    struct flow_cls_offload *cls)
 {
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
 	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct flow_dissector *dissector = rule->match.dissector;
 	int tc = tc_classid_to_hwtc(priv->dev, cls->classid);
 	struct flow_match_vlan match;
+
+	if (!entry) {
+		entry = tc_find_rfs(priv, cls, true);
+		if (!entry)
+			return -ENOENT;
+	}
+
+	if (priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN] >=
+	    priv->rfs_entries_max[STMMAC_RFS_T_VLAN])
+		return -ENOENT;
 
 	/* Nothing to do here */
 	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_VLAN))
@@ -638,6 +698,12 @@ static int tc_add_vlan_flow(struct stmmac_priv *priv,
 
 		prio = BIT(match.key->vlan_priority);
 		stmmac_rx_queue_prio(priv, priv->hw, prio, tc);
+
+		entry->in_use = true;
+		entry->cookie = cls->cookie;
+		entry->tc = tc;
+		entry->type = STMMAC_RFS_T_VLAN;
+		priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN]++;
 	}
 
 	return 0;
@@ -646,12 +712,40 @@ static int tc_add_vlan_flow(struct stmmac_priv *priv,
 static int tc_del_vlan_flow(struct stmmac_priv *priv,
 			    struct flow_cls_offload *cls)
 {
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+
+	if (!entry || !entry->in_use || entry->type != STMMAC_RFS_T_VLAN)
+		return -ENOENT;
+
+	stmmac_rx_queue_prio(priv, priv->hw, 0, entry->tc);
+
+	entry->in_use = false;
+	entry->cookie = 0;
+	entry->tc = 0;
+	entry->type = 0;
+
+	priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN]--;
+
+	return 0;
+}
+
+static int tc_add_ethtype_flow(struct stmmac_priv *priv,
+			       struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
 	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct flow_dissector *dissector = rule->match.dissector;
 	int tc = tc_classid_to_hwtc(priv->dev, cls->classid);
+	struct flow_match_basic match;
+
+	if (!entry) {
+		entry = tc_find_rfs(priv, cls, true);
+		if (!entry)
+			return -ENOENT;
+	}
 
 	/* Nothing to do here */
-	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_VLAN))
+	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC))
 		return -EINVAL;
 
 	if (tc < 0) {
@@ -659,7 +753,86 @@ static int tc_del_vlan_flow(struct stmmac_priv *priv,
 		return -EINVAL;
 	}
 
-	stmmac_rx_queue_prio(priv, priv->hw, 0, tc);
+	flow_rule_match_basic(rule, &match);
+
+	if (match.mask->n_proto) {
+		u16 etype = ntohs(match.key->n_proto);
+
+		if (match.mask->n_proto != ETHER_TYPE_FULL_MASK) {
+			netdev_err(priv->dev, "Only full mask is supported for EthType filter");
+			return -EINVAL;
+		}
+		switch (etype) {
+		case ETH_P_LLDP:
+			if (priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP] >=
+			    priv->rfs_entries_max[STMMAC_RFS_T_LLDP])
+				return -ENOENT;
+
+			entry->type = STMMAC_RFS_T_LLDP;
+			priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP]++;
+
+			stmmac_rx_queue_routing(priv, priv->hw,
+						PACKET_DCBCPQ, tc);
+			break;
+		case ETH_P_1588:
+			if (priv->rfs_entries_cnt[STMMAC_RFS_T_1588] >=
+			    priv->rfs_entries_max[STMMAC_RFS_T_1588])
+				return -ENOENT;
+
+			entry->type = STMMAC_RFS_T_1588;
+			priv->rfs_entries_cnt[STMMAC_RFS_T_1588]++;
+
+			stmmac_rx_queue_routing(priv, priv->hw,
+						PACKET_PTPQ, tc);
+			break;
+		default:
+			netdev_err(priv->dev, "EthType(0x%x) is not supported", etype);
+			return -EINVAL;
+		}
+
+		entry->in_use = true;
+		entry->cookie = cls->cookie;
+		entry->tc = tc;
+		entry->etype = etype;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int tc_del_ethtype_flow(struct stmmac_priv *priv,
+			       struct flow_cls_offload *cls)
+{
+	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
+
+	if (!entry || !entry->in_use ||
+	    entry->type < STMMAC_RFS_T_LLDP ||
+	    entry->type > STMMAC_RFS_T_1588)
+		return -ENOENT;
+
+	switch (entry->etype) {
+	case ETH_P_LLDP:
+		stmmac_rx_queue_routing(priv, priv->hw,
+					PACKET_DCBCPQ, 0);
+		priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP]--;
+		break;
+	case ETH_P_1588:
+		stmmac_rx_queue_routing(priv, priv->hw,
+					PACKET_PTPQ, 0);
+		priv->rfs_entries_cnt[STMMAC_RFS_T_1588]--;
+		break;
+	default:
+		netdev_err(priv->dev, "EthType(0x%x) is not supported",
+			   entry->etype);
+		return -EINVAL;
+	}
+
+	entry->in_use = false;
+	entry->cookie = 0;
+	entry->tc = 0;
+	entry->etype = 0;
+	entry->type = 0;
 
 	return 0;
 }
@@ -673,6 +846,10 @@ static int tc_add_flow_cls(struct stmmac_priv *priv,
 	if (!ret)
 		return ret;
 
+	ret = tc_add_ethtype_flow(priv, cls);
+	if (!ret)
+		return ret;
+
 	return tc_add_vlan_flow(priv, cls);
 }
 
@@ -682,6 +859,10 @@ static int tc_del_flow_cls(struct stmmac_priv *priv,
 	int ret;
 
 	ret = tc_del_flow(priv, cls);
+	if (!ret)
+		return ret;
+
+	ret = tc_del_ethtype_flow(priv, cls);
 	if (!ret)
 		return ret;
 

@@ -804,7 +804,7 @@ static struct uart_driver bcm_uart_driver = {
  */
 static int bcm_uart_probe(struct platform_device *pdev)
 {
-	struct resource *res_mem, *res_irq;
+	struct resource *res_mem;
 	struct uart_port *port;
 	struct clk *clk;
 	int ret;
@@ -833,9 +833,10 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res_irq)
-		return -ENODEV;
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+	port->irq = ret;
 
 	clk = clk_get(&pdev->dev, "refclk");
 	if (IS_ERR(clk) && pdev->dev.of_node)
@@ -845,7 +846,6 @@ static int bcm_uart_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	port->iotype = UPIO_MEM;
-	port->irq = res_irq->start;
 	port->ops = &bcm_uart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
 	port->dev = &pdev->dev;

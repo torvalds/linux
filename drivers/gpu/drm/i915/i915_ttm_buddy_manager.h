@@ -13,7 +13,7 @@
 
 struct ttm_device;
 struct ttm_resource_manager;
-struct i915_buddy_mm;
+struct drm_buddy;
 
 /**
  * struct i915_ttm_buddy_resource
@@ -28,7 +28,7 @@ struct i915_buddy_mm;
 struct i915_ttm_buddy_resource {
 	struct ttm_resource base;
 	struct list_head blocks;
-	struct i915_buddy_mm *mm;
+	struct drm_buddy *mm;
 };
 
 /**

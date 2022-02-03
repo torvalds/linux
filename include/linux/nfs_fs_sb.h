@@ -120,11 +120,6 @@ struct nfs_client {
 	 * This is used to generate the mv0 callback address.
 	 */
 	char			cl_ipaddr[48];
-
-#ifdef CONFIG_NFS_FSCACHE
-	struct fscache_cookie	*fscache;	/* client index cache cookie */
-#endif
-
 	struct net		*cl_net;
 	struct list_head	pending_cb_stateids;
 };
@@ -194,8 +189,8 @@ struct nfs_server {
 	struct nfs_auth_info	auth_info;	/* parsed auth flavors */
 
 #ifdef CONFIG_NFS_FSCACHE
-	struct nfs_fscache_key	*fscache_key;	/* unique key for superblock */
-	struct fscache_cookie	*fscache;	/* superblock cookie */
+	struct fscache_volume	*fscache;	/* superblock cookie */
+	char			*fscache_uniq;	/* Uniquifier (or NULL) */
 #endif
 
 	u32			pnfs_blksize;	/* layout_blksize attr */
@@ -271,6 +266,8 @@ struct nfs_server {
 #define NFS_CAP_ACLS		(1U << 3)
 #define NFS_CAP_ATOMIC_OPEN	(1U << 4)
 #define NFS_CAP_LGOPEN		(1U << 5)
+#define NFS_CAP_CASE_INSENSITIVE	(1U << 6)
+#define NFS_CAP_CASE_PRESERVING	(1U << 7)
 #define NFS_CAP_POSIX_LOCK	(1U << 14)
 #define NFS_CAP_UIDGID_NOMAP	(1U << 15)
 #define NFS_CAP_STATEID_NFSV41	(1U << 16)
@@ -287,5 +284,5 @@ struct nfs_server {
 #define NFS_CAP_COPY_NOTIFY	(1U << 27)
 #define NFS_CAP_XATTR		(1U << 28)
 #define NFS_CAP_READ_PLUS	(1U << 29)
-
+#define NFS_CAP_FS_LOCATIONS	(1U << 30)
 #endif

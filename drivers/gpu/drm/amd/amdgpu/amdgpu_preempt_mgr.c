@@ -95,6 +95,7 @@ static void amdgpu_preempt_mgr_del(struct ttm_resource_manager *man,
 	struct amdgpu_preempt_mgr *mgr = to_preempt_mgr(man);
 
 	atomic64_sub(res->num_pages, &mgr->used);
+	ttm_resource_fini(man, res);
 	kfree(res);
 }
 
@@ -152,7 +153,7 @@ int amdgpu_preempt_mgr_init(struct amdgpu_device *adev)
 	man->use_tt = true;
 	man->func = &amdgpu_preempt_mgr_func;
 
-	ttm_resource_manager_init(man, (1 << 30));
+	ttm_resource_manager_init(man, &adev->mman.bdev, (1 << 30));
 
 	atomic64_set(&mgr->used, 0);
 

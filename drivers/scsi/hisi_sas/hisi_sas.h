@@ -8,7 +8,6 @@
 #define _HISI_SAS_H_
 
 #include <linux/acpi.h>
-#include <linux/async.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-mq-pci.h>
 #include <linux/clk.h>
@@ -134,6 +133,11 @@ struct hisi_sas_rst {
 	bool done;
 };
 
+struct hisi_sas_internal_abort {
+	unsigned int flag;
+	unsigned int tag;
+};
+
 #define HISI_SAS_RST_WORK_INIT(r, c) \
 	{	.hisi_hba = hisi_hba, \
 		.completion = &c, \
@@ -154,6 +158,7 @@ enum hisi_sas_bit_err_type {
 enum hisi_sas_phy_event {
 	HISI_PHYE_PHY_UP   = 0U,
 	HISI_PHYE_LINK_RESET,
+	HISI_PHYE_PHY_UP_PM,
 	HISI_PHYES_NUM,
 };
 

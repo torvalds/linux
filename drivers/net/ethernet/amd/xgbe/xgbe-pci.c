@@ -278,6 +278,13 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	    (rdev->vendor == PCI_VENDOR_ID_AMD) && (rdev->device == 0x15d0)) {
 		pdata->xpcs_window_def_reg = PCS_V2_RV_WINDOW_DEF;
 		pdata->xpcs_window_sel_reg = PCS_V2_RV_WINDOW_SELECT;
+	} else if (rdev && (rdev->vendor == PCI_VENDOR_ID_AMD) &&
+		   (rdev->device == 0x14b5)) {
+		pdata->xpcs_window_def_reg = PCS_V2_YC_WINDOW_DEF;
+		pdata->xpcs_window_sel_reg = PCS_V2_YC_WINDOW_SELECT;
+
+		/* Yellow Carp devices do not need cdr workaround */
+		pdata->vdata->an_cdr_workaround = 0;
 	} else {
 		pdata->xpcs_window_def_reg = PCS_V2_WINDOW_DEF;
 		pdata->xpcs_window_sel_reg = PCS_V2_WINDOW_SELECT;
@@ -460,7 +467,7 @@ static int __maybe_unused xgbe_pci_resume(struct device *dev)
 	return ret;
 }
 
-static const struct xgbe_version_data xgbe_v2a = {
+static struct xgbe_version_data xgbe_v2a = {
 	.init_function_ptrs_phy_impl	= xgbe_init_function_ptrs_phy_v2,
 	.xpcs_access			= XGBE_XPCS_ACCESS_V2,
 	.mmc_64bit			= 1,
@@ -475,7 +482,7 @@ static const struct xgbe_version_data xgbe_v2a = {
 	.an_cdr_workaround		= 1,
 };
 
-static const struct xgbe_version_data xgbe_v2b = {
+static struct xgbe_version_data xgbe_v2b = {
 	.init_function_ptrs_phy_impl	= xgbe_init_function_ptrs_phy_v2,
 	.xpcs_access			= XGBE_XPCS_ACCESS_V2,
 	.mmc_64bit			= 1,

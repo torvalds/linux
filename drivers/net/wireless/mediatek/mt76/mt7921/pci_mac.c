@@ -321,6 +321,10 @@ int mt7921e_mac_reset(struct mt7921_dev *dev)
 		MT_INT_MCU_CMD);
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 
+	err = mt7921e_driver_own(dev);
+	if (err)
+		return err;
+
 	err = mt7921_run_firmware(dev);
 	if (err)
 		goto out;

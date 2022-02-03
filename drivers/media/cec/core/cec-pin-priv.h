@@ -170,7 +170,6 @@ struct cec_pin {
 	ktime_t				ts;
 	unsigned int			wait_usecs;
 	u16				la_mask;
-	bool				enabled;
 	bool				monitor_all;
 	bool				rx_eom;
 	bool				enable_irq_failed;

@@ -35,7 +35,7 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 	 * instead of NULL, we can tell whether @cgrp is on the list by
 	 * testing the next pointer for NULL.
 	 */
-	if (cgroup_rstat_cpu(cgrp, cpu)->updated_next)
+	if (data_race(cgroup_rstat_cpu(cgrp, cpu)->updated_next))
 		return;
 
 	raw_spin_lock_irqsave(cpu_lock, flags);
@@ -88,6 +88,7 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 						   struct cgroup *root, int cpu)
 {
 	struct cgroup_rstat_cpu *rstatc;
+	struct cgroup *parent;
 
 	if (pos == root)
 		return NULL;
@@ -96,10 +97,14 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 	 * We're gonna walk down to the first leaf and visit/remove it.  We
 	 * can pick whatever unvisited node as the starting point.
 	 */
-	if (!pos)
+	if (!pos) {
 		pos = root;
-	else
+		/* return NULL if this subtree is not on-list */
+		if (!cgroup_rstat_cpu(pos, cpu)->updated_next)
+			return NULL;
+	} else {
 		pos = cgroup_parent(pos);
+	}
 
 	/* walk down to the first leaf */
 	while (true) {
@@ -115,33 +120,25 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 	 * However, due to the way we traverse, @pos will be the first
 	 * child in most cases. The only exception is @root.
 	 */
-	if (rstatc->updated_next) {
-		struct cgroup *parent = cgroup_parent(pos);
+	parent = cgroup_parent(pos);
+	if (parent) {
+		struct cgroup_rstat_cpu *prstatc;
+		struct cgroup **nextp;
 
-		if (parent) {
-			struct cgroup_rstat_cpu *prstatc;
-			struct cgroup **nextp;
+		prstatc = cgroup_rstat_cpu(parent, cpu);
+		nextp = &prstatc->updated_children;
+		while (*nextp != pos) {
+			struct cgroup_rstat_cpu *nrstatc;
 
-			prstatc = cgroup_rstat_cpu(parent, cpu);
-			nextp = &prstatc->updated_children;
-			while (true) {
-				struct cgroup_rstat_cpu *nrstatc;
-
-				nrstatc = cgroup_rstat_cpu(*nextp, cpu);
-				if (*nextp == pos)
-					break;
-				WARN_ON_ONCE(*nextp == parent);
-				nextp = &nrstatc->updated_next;
-			}
-			*nextp = rstatc->updated_next;
+			nrstatc = cgroup_rstat_cpu(*nextp, cpu);
+			WARN_ON_ONCE(*nextp == parent);
+			nextp = &nrstatc->updated_next;
 		}
-
-		rstatc->updated_next = NULL;
-		return pos;
+		*nextp = rstatc->updated_next;
 	}
 
-	/* only happens for @root */
-	return NULL;
+	rstatc->updated_next = NULL;
+	return pos;
 }
 
 /* see cgroup_rstat_flush() */

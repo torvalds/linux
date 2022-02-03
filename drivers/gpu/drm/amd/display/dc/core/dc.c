@@ -1418,15 +1418,22 @@ static void program_timing_sync(
 					pipe_set[j]->pipe_idx_syncd = pipe_set[0]->pipe_idx_syncd;
 			}
 		} else {
-			/* remove any other pipes by checking valid plane */
 			for (j = j + 1; j < group_size; j++) {
-				if (pipe_set[j]->plane_state) {
+				bool is_blanked;
+
+				if (pipe_set[j]->stream_res.opp->funcs->dpg_is_blanked)
+					is_blanked =
+						pipe_set[j]->stream_res.opp->funcs->dpg_is_blanked(pipe_set[j]->stream_res.opp);
+				else
+					is_blanked =
+						pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg);
+				if (!is_blanked) {
 					group_size--;
 					pipe_set[j] = pipe_set[group_size];
 					j--;
 				}
- 			}
- 		}
+			}
+		}
 
 		if (group_size > 1) {
 			if (sync_type == TIMING_SYNCHRONIZABLE) {

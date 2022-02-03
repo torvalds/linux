@@ -42,6 +42,9 @@ patternProperties:
                 gpio24, gpio25, gpio26, gpio27, gpio28, gpio29, gpio30,
                 gpio31, uart1_grp ]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg

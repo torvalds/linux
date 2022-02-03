@@ -1660,6 +1660,13 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	unsigned long t;
 	int ret;
 
+	/*
+	 * max_pkt_size should be large enough for one vmbus packet header plus
+	 * our receive buffer size. Hyper-V sends messages up to
+	 * HV_HYP_PAGE_SIZE bytes long on balloon channel.
+	 */
+	dev->channel->max_pkt_size = HV_HYP_PAGE_SIZE * 2;
+
 	ret = vmbus_open(dev->channel, dm_ring_size, dm_ring_size, NULL, 0,
 			 balloon_onchannelcallback, dev);
 	if (ret)

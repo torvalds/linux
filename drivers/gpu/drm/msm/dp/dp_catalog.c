@@ -10,7 +10,7 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-dp.h>
 #include <linux/rational.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_print.h>
 
 #include "dp_catalog.h"

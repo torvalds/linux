@@ -247,7 +247,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_hw_table *table;
 	u16 max_ext_fn = 0;
-	u16 ext_base_id;
+	u16 ext_base_id = 0;
 	u16 max_fn = 0;
 	u16 base_id;
 	int err;

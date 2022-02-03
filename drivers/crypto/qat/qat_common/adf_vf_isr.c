@@ -15,7 +15,6 @@
 #include "adf_cfg_common.h"
 #include "adf_transport_access_macros.h"
 #include "adf_transport_internal.h"
-#include "adf_pf2vf_msg.h"
 
 #define ADF_VINTSOU_OFFSET	0x204
 #define ADF_VINTMSK_OFFSET	0x208
@@ -31,22 +30,16 @@ struct adf_vf_stop_data {
 
 void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 {
-	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	void __iomem *pmisc_bar_addr =
-		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 
-	ADF_CSR_WR(pmisc_bar_addr, ADF_VINTMSK_OFFSET, 0x0);
+	ADF_CSR_WR(pmisc_addr, ADF_VINTMSK_OFFSET, 0x0);
 }
 
 void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 {
-	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	void __iomem *pmisc_bar_addr =
-		pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)].virt_addr;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 
-	ADF_CSR_WR(pmisc_bar_addr, ADF_VINTMSK_OFFSET, 0x2);
+	ADF_CSR_WR(pmisc_addr, ADF_VINTMSK_OFFSET, 0x2);
 }
 EXPORT_SYMBOL_GPL(adf_disable_pf2vf_interrupts);
 
@@ -85,78 +78,37 @@ static void adf_dev_stop_async(struct work_struct *work)
 	kfree(stop_data);
 }
 
+int adf_pf2vf_handle_pf_restarting(struct adf_accel_dev *accel_dev)
+{
+	struct adf_vf_stop_data *stop_data;
+
+	clear_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
+	stop_data = kzalloc(sizeof(*stop_data), GFP_ATOMIC);
+	if (!stop_data) {
+		dev_err(&GET_DEV(accel_dev),
+			"Couldn't schedule stop for vf_%d\n",
+			accel_dev->accel_id);
+		return -ENOMEM;
+	}
+	stop_data->accel_dev = accel_dev;
+	INIT_WORK(&stop_data->work, adf_dev_stop_async);
+	queue_work(adf_vf_stop_wq, &stop_data->work);
+
+	return 0;
+}
+
 static void adf_pf2vf_bh_handler(void *data)
 {
 	struct adf_accel_dev *accel_dev = data;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
-	u32 msg;
+	bool ret;
 
-	/* Read the message from PF */
-	msg = ADF_CSR_RD(pmisc_bar_addr, hw_data->get_pf2vf_offset(0));
-	if (!(msg & ADF_PF2VF_INT)) {
-		dev_info(&GET_DEV(accel_dev),
-			 "Spurious PF2VF interrupt, msg %X. Ignored\n", msg);
-		goto out;
-	}
+	ret = adf_recv_and_handle_pf2vf_msg(accel_dev);
+	if (ret)
+		/* Re-enable PF2VF interrupts */
+		adf_enable_pf2vf_interrupts(accel_dev);
 
-	if (!(msg & ADF_PF2VF_MSGORIGIN_SYSTEM))
-		/* Ignore legacy non-system (non-kernel) PF2VF messages */
-		goto err;
-
-	switch ((msg & ADF_PF2VF_MSGTYPE_MASK) >> ADF_PF2VF_MSGTYPE_SHIFT) {
-	case ADF_PF2VF_MSGTYPE_RESTARTING: {
-		struct adf_vf_stop_data *stop_data;
-
-		dev_dbg(&GET_DEV(accel_dev),
-			"Restarting msg received from PF 0x%x\n", msg);
-
-		clear_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
-
-		stop_data = kzalloc(sizeof(*stop_data), GFP_ATOMIC);
-		if (!stop_data) {
-			dev_err(&GET_DEV(accel_dev),
-				"Couldn't schedule stop for vf_%d\n",
-				accel_dev->accel_id);
-			return;
-		}
-		stop_data->accel_dev = accel_dev;
-		INIT_WORK(&stop_data->work, adf_dev_stop_async);
-		queue_work(adf_vf_stop_wq, &stop_data->work);
-		/* To ack, clear the PF2VFINT bit */
-		msg &= ~ADF_PF2VF_INT;
-		ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
-		return;
-	}
-	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
-		dev_dbg(&GET_DEV(accel_dev),
-			"Version resp received from PF 0x%x\n", msg);
-		accel_dev->vf.pf_version =
-			(msg & ADF_PF2VF_VERSION_RESP_VERS_MASK) >>
-			ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
-		accel_dev->vf.compatible =
-			(msg & ADF_PF2VF_VERSION_RESP_RESULT_MASK) >>
-			ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
-		complete(&accel_dev->vf.iov_msg_completion);
-		break;
-	default:
-		goto err;
-	}
-
-	/* To ack, clear the PF2VFINT bit */
-	msg &= ~ADF_PF2VF_INT;
-	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
-
-out:
-	/* Re-enable PF2VF interrupts */
-	adf_enable_pf2vf_interrupts(accel_dev);
 	return;
-err:
-	dev_err(&GET_DEV(accel_dev),
-		"Unknown message from PF (0x%x); leaving PF2VF ints disabled\n",
-		msg);
+
 }
 
 static int adf_setup_pf2vf_bh(struct adf_accel_dev *accel_dev)

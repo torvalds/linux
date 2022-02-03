@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree fragment for LS1028A QDS board, serdes 13bb
+ *
+ * Copyright 2019-2021 NXP
+ *
+ * Requires a LS1028A QDS board with lane B rework.
+ * Requires a SCH-30841 card with lane A of connector rewired to PHY lane C.
+ * Set-up is a SCH-30842 card in slot 1 and SCH-30841 in slot 2.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&mdio_slot1>;
+
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			slot1_sgmii: ethernet-phy@2 {
+				/* AQR112 */
+				reg = <0x2>;
+				compatible = "ethernet-phy-ieee802.3-c45";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&enetc_port0>;
+
+		__overlay__ {
+			phy-handle = <&slot1_sgmii>;
+			phy-mode = "usxgmii";
+			managed = "in-band-status";
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&mdio_slot2>;
+
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* 4 ports on AQR412 */
+			slot2_qxgmii0: ethernet-phy@0 {
+				reg = <0x0>;
+				compatible = "ethernet-phy-ieee802.3-c45";
+			};
+
+			slot2_qxgmii1: ethernet-phy@1 {
+				reg = <0x1>;
+				compatible = "ethernet-phy-ieee802.3-c45";
+			};
+
+			slot2_qxgmii2: ethernet-phy@2 {
+				reg = <0x2>;
+				compatible = "ethernet-phy-ieee802.3-c45";
+			};
+
+			slot2_qxgmii3: ethernet-phy@3 {
+				reg = <0x3>;
+				compatible = "ethernet-phy-ieee802.3-c45";
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&mscc_felix_ports>;
+
+		__overlay__ {
+			port@0 {
+				status = "okay";
+				phy-handle = <&slot2_qxgmii0>;
+				phy-mode = "usxgmii";
+				managed = "in-band-status";
+			};
+
+			port@1 {
+				status = "okay";
+				phy-handle = <&slot2_qxgmii1>;
+				phy-mode = "usxgmii";
+				managed = "in-band-status";
+			};
+
+			port@2 {
+				status = "okay";
+				phy-handle = <&slot2_qxgmii2>;
+				phy-mode = "usxgmii";
+				managed = "in-band-status";
+			};
+
+			port@3 {
+				status = "okay";
+				phy-handle = <&slot2_qxgmii3>;
+				phy-mode = "usxgmii";
+				managed = "in-band-status";
+			};
+		};
+	};
+
+	fragment@4 {
+		target = <&mscc_felix>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

@@ -375,31 +375,30 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 {
 	struct hinic_hwif *hwif = func_to_io->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	size_t qps_size, wq_size, db_size;
 	void *ci_addr_base;
 	int i, j, err;
 
-	qps_size = num_qps * sizeof(*func_to_io->qps);
-	func_to_io->qps = devm_kzalloc(&pdev->dev, qps_size, GFP_KERNEL);
+	func_to_io->qps = devm_kcalloc(&pdev->dev, num_qps,
+				       sizeof(*func_to_io->qps), GFP_KERNEL);
 	if (!func_to_io->qps)
 		return -ENOMEM;
 
-	wq_size = num_qps * sizeof(*func_to_io->sq_wq);
-	func_to_io->sq_wq = devm_kzalloc(&pdev->dev, wq_size, GFP_KERNEL);
+	func_to_io->sq_wq = devm_kcalloc(&pdev->dev, num_qps,
+					 sizeof(*func_to_io->sq_wq), GFP_KERNEL);
 	if (!func_to_io->sq_wq) {
 		err = -ENOMEM;
 		goto err_sq_wq;
 	}
 
-	wq_size = num_qps * sizeof(*func_to_io->rq_wq);
-	func_to_io->rq_wq = devm_kzalloc(&pdev->dev, wq_size, GFP_KERNEL);
+	func_to_io->rq_wq = devm_kcalloc(&pdev->dev, num_qps,
+					 sizeof(*func_to_io->rq_wq), GFP_KERNEL);
 	if (!func_to_io->rq_wq) {
 		err = -ENOMEM;
 		goto err_rq_wq;
 	}
 
-	db_size = num_qps * sizeof(*func_to_io->sq_db);
-	func_to_io->sq_db = devm_kzalloc(&pdev->dev, db_size, GFP_KERNEL);
+	func_to_io->sq_db = devm_kcalloc(&pdev->dev, num_qps,
+					 sizeof(*func_to_io->sq_db), GFP_KERNEL);
 	if (!func_to_io->sq_db) {
 		err = -ENOMEM;
 		goto err_sq_db;

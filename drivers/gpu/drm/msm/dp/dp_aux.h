@@ -7,7 +7,7 @@
 #define _DP_AUX_H_
 
 #include "dp_catalog.h"
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 
 int dp_aux_register(struct drm_dp_aux *dp_aux);
 void dp_aux_unregister(struct drm_dp_aux *dp_aux);

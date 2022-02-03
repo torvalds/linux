@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/units.h>
 #include <asm/unaligned.h>
 
 #include "es58x_core.h"
@@ -469,8 +470,8 @@ const struct es58x_parameters es581_4_param = {
 	.bittiming_const = &es581_4_bittiming_const,
 	.data_bittiming_const = NULL,
 	.tdc_const = NULL,
-	.bitrate_max = 1 * CAN_MBPS,
-	.clock = {.freq = 50 * CAN_MHZ},
+	.bitrate_max = 1 * MEGA /* BPS */,
+	.clock = {.freq = 50 * MEGA /* Hz */},
 	.ctrlmode_supported = CAN_CTRLMODE_CC_LEN8_DLC,
 	.tx_start_of_frame = 0xAFAF,
 	.rx_start_of_frame = 0xFAFA,

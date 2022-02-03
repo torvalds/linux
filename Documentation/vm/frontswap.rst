@@ -8,12 +8,6 @@ Frontswap provides a "transcendent memory" interface for swap pages.
 In some environments, dramatic performance savings may be obtained because
 swapped pages are saved in RAM (or a RAM-like device) instead of a swap disk.
 
-(Note, frontswap -- and :ref:`cleancache` (merged at 3.0) -- are the "frontends"
-and the only necessary changes to the core kernel for transcendent memory;
-all other supporting code -- the "backends" -- is implemented as drivers.
-See the LWN.net article `Transcendent memory in a nutshell`_
-for a detailed overview of frontswap and related kernel parts)
-
 .. _Transcendent memory in a nutshell: https://lwn.net/Articles/454795/
 
 Frontswap is so named because it can be thought of as the opposite of
@@ -44,12 +38,6 @@ success, the data has been successfully saved to transcendent memory and
 a disk write and, if the data is later read back, a disk read are avoided.
 If a store returns failure, transcendent memory has rejected the data, and the
 page can be written to swap as usual.
-
-If a backend chooses, frontswap can be configured as a "writethrough
-cache" by calling frontswap_writethrough().  In this mode, the reduction
-in swap device writes is lost (and also a non-trivial performance advantage)
-in order to allow the backend to arbitrarily "reclaim" space used to
-store frontswap pages to more completely manage its memory usage.
 
 Note that if a page is stored and the page already exists in transcendent memory
 (a "duplicate" store), either the store succeeds and the data is overwritten,
@@ -87,11 +75,9 @@ This interface is ideal when data is transformed to a different form
 and size (such as with compression) or secretly moved (as might be
 useful for write-balancing for some RAM-like devices).  Swap pages (and
 evicted page-cache pages) are a great use for this kind of slower-than-RAM-
-but-much-faster-than-disk "pseudo-RAM device" and the frontswap (and
-cleancache) interface to transcendent memory provides a nice way to read
-and write -- and indirectly "name" -- the pages.
+but-much-faster-than-disk "pseudo-RAM device".
 
-Frontswap -- and cleancache -- with a fairly small impact on the kernel,
+Frontswap with a fairly small impact on the kernel,
 provides a huge amount of flexibility for more dynamic, flexible RAM
 utilization in various system configurations:
 
@@ -268,19 +254,6 @@ frontswap rejects a store that would overwrite, it also must invalidate
 the old data and ensure that it is no longer accessible.  Since the
 swap subsystem then writes the new data to the read swap device,
 this is the correct course of action to ensure coherency.
-
-* What is frontswap_shrink for?
-
-When the (non-frontswap) swap subsystem swaps out a page to a real
-swap device, that page is only taking up low-value pre-allocated disk
-space.  But if frontswap has placed a page in transcendent memory, that
-page may be taking up valuable real estate.  The frontswap_shrink
-routine allows code outside of the swap subsystem to force pages out
-of the memory managed by frontswap and back into kernel-addressable memory.
-For example, in RAMster, a "suction driver" thread will attempt
-to "repatriate" pages sent to a remote machine back to the local machine;
-this is driven using the frontswap_shrink mechanism when memory pressure
-subsides.
 
 * Why does the frontswap patch create the new include file swapfile.h?
 

@@ -243,6 +243,30 @@ static inline bool amdgpu_discovery_verify_binary_signature(uint8_t *binary)
 	return (le32_to_cpu(bhdr->binary_signature) == BINARY_SIGNATURE);
 }
 
+static void amdgpu_discovery_harvest_config_quirk(struct amdgpu_device *adev)
+{
+	/*
+	 * So far, apply this quirk only on those Navy Flounder boards which
+	 * have a bad harvest table of VCN config.
+	 */
+	if ((adev->ip_versions[UVD_HWIP][1] == IP_VERSION(3, 0, 1)) &&
+		(adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 2))) {
+		switch (adev->pdev->revision) {
+		case 0xC1:
+		case 0xC2:
+		case 0xC3:
+		case 0xC5:
+		case 0xC7:
+		case 0xCF:
+		case 0xDF:
+			adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static int amdgpu_discovery_init(struct amdgpu_device *adev)
 {
 	struct table_info *info;
@@ -548,11 +572,9 @@ void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 			break;
 		}
 	}
-	/* some IP discovery tables on Navy Flounder don't have this set correctly */
-	if ((adev->ip_versions[UVD_HWIP][1] == IP_VERSION(3, 0, 1)) &&
-	    (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 2)) &&
-	    (adev->pdev->revision != 0xFF))
-		adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
+
+	amdgpu_discovery_harvest_config_quirk(adev);
+
 	if (vcn_harvest_count == adev->vcn.num_vcn_inst) {
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_VCN_MASK;
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_JPEG_MASK;

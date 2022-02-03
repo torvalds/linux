@@ -36,6 +36,11 @@ enum hugetlb_memory_event {
 	HUGETLB_NR_MEMORY_EVENTS,
 };
 
+struct hugetlb_cgroup_per_node {
+	/* hugetlb usage in pages over all hstates. */
+	unsigned long usage[HUGE_MAX_HSTATE];
+};
+
 struct hugetlb_cgroup {
 	struct cgroup_subsys_state css;
 
@@ -57,6 +62,8 @@ struct hugetlb_cgroup {
 
 	/* Handle for "hugetlb.events.local" */
 	struct cgroup_file events_local_file[HUGE_MAX_HSTATE];
+
+	struct hugetlb_cgroup_per_node *nodeinfo[];
 };
 
 static inline struct hugetlb_cgroup *

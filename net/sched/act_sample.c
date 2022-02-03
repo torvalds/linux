@@ -70,7 +70,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_sample_ops, bind, true, 0);
+				     &act_sample_ops, bind, true, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -282,6 +282,35 @@ tcf_sample_get_group(const struct tc_action *a,
 	return group;
 }
 
+static void tcf_offload_sample_get_group(struct flow_action_entry *entry,
+					 const struct tc_action *act)
+{
+	entry->sample.psample_group =
+		act->ops->get_psample_group(act, &entry->destructor);
+	entry->destructor_priv = entry->sample.psample_group;
+}
+
+static int tcf_sample_offload_act_setup(struct tc_action *act, void *entry_data,
+					u32 *index_inc, bool bind)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		entry->id = FLOW_ACTION_SAMPLE;
+		entry->sample.trunc_size = tcf_sample_trunc_size(act);
+		entry->sample.truncate = tcf_sample_truncate(act);
+		entry->sample.rate = tcf_sample_rate(act);
+		tcf_offload_sample_get_group(entry, act);
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		fl_action->id = FLOW_ACTION_SAMPLE;
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_sample_ops = {
 	.kind	  = "sample",
 	.id	  = TCA_ID_SAMPLE,
@@ -294,6 +323,7 @@ static struct tc_action_ops act_sample_ops = {
 	.walk	  = tcf_sample_walker,
 	.lookup	  = tcf_sample_search,
 	.get_psample_group = tcf_sample_get_group,
+	.offload_act_setup    = tcf_sample_offload_act_setup,
 	.size	  = sizeof(struct tcf_sample),
 };
 

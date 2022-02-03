@@ -5,6 +5,7 @@
 #define _PRESTERA_HW_H_
 
 #include <linux/types.h>
+#include "prestera_acl.h"
 
 enum prestera_accept_frm_type {
 	PRESTERA_ACCEPT_FRAME_TYPE_TAGGED,
@@ -111,18 +112,32 @@ enum prestera_hw_cpu_code_cnt_t {
 	PRESTERA_HW_CPU_CODE_CNT_TYPE_TRAP = 1,
 };
 
+enum prestera_hw_vtcam_direction_t {
+	PRESTERA_HW_VTCAM_DIR_INGRESS = 0,
+	PRESTERA_HW_VTCAM_DIR_EGRESS = 1,
+};
+
+enum {
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_0 = 0,
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_1 = 1,
+	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_2 = 2,
+};
+
 struct prestera_switch;
 struct prestera_port;
 struct prestera_port_stats;
 struct prestera_port_caps;
 enum prestera_event_type;
 struct prestera_event;
-struct prestera_acl_rule;
 
 typedef void (*prestera_event_cb_t)
 	(struct prestera_switch *sw, struct prestera_event *evt, void *arg);
 
 struct prestera_rxtx_params;
+struct prestera_acl_hw_action_info;
+struct prestera_acl_iface;
+struct prestera_counter_stats;
+struct prestera_iface;
 
 /* Switch API */
 int prestera_hw_switch_init(struct prestera_switch *sw);
@@ -186,27 +201,53 @@ int prestera_hw_bridge_delete(struct prestera_switch *sw, u16 bridge_id);
 int prestera_hw_bridge_port_add(struct prestera_port *port, u16 bridge_id);
 int prestera_hw_bridge_port_delete(struct prestera_port *port, u16 bridge_id);
 
-/* ACL API */
-int prestera_hw_acl_ruleset_create(struct prestera_switch *sw,
-				   u16 *ruleset_id);
-int prestera_hw_acl_ruleset_del(struct prestera_switch *sw,
-				u16 ruleset_id);
-int prestera_hw_acl_rule_add(struct prestera_switch *sw,
-			     struct prestera_acl_rule *rule,
-			     u32 *rule_id);
-int prestera_hw_acl_rule_del(struct prestera_switch *sw, u32 rule_id);
-int prestera_hw_acl_rule_stats_get(struct prestera_switch *sw,
-				   u32 rule_id, u64 *packets, u64 *bytes);
-int prestera_hw_acl_port_bind(const struct prestera_port *port,
-			      u16 ruleset_id);
-int prestera_hw_acl_port_unbind(const struct prestera_port *port,
-				u16 ruleset_id);
+/* vTCAM API */
+int prestera_hw_vtcam_create(struct prestera_switch *sw,
+			     u8 lookup, const u32 *keymask, u32 *vtcam_id,
+			     enum prestera_hw_vtcam_direction_t direction);
+int prestera_hw_vtcam_rule_add(struct prestera_switch *sw, u32 vtcam_id,
+			       u32 prio, void *key, void *keymask,
+			       struct prestera_acl_hw_action_info *act,
+			       u8 n_act, u32 *rule_id);
+int prestera_hw_vtcam_rule_del(struct prestera_switch *sw,
+			       u32 vtcam_id, u32 rule_id);
+int prestera_hw_vtcam_destroy(struct prestera_switch *sw, u32 vtcam_id);
+int prestera_hw_vtcam_iface_bind(struct prestera_switch *sw,
+				 struct prestera_acl_iface *iface,
+				 u32 vtcam_id, u16 pcl_id);
+int prestera_hw_vtcam_iface_unbind(struct prestera_switch *sw,
+				   struct prestera_acl_iface *iface,
+				   u32 vtcam_id);
+
+/* Counter API */
+int prestera_hw_counter_trigger(struct prestera_switch *sw, u32 block_id);
+int prestera_hw_counter_abort(struct prestera_switch *sw);
+int prestera_hw_counters_get(struct prestera_switch *sw, u32 idx,
+			     u32 *len, bool *done,
+			     struct prestera_counter_stats *stats);
+int prestera_hw_counter_block_get(struct prestera_switch *sw,
+				  u32 client, u32 *block_id, u32 *offset,
+				  u32 *num_counters);
+int prestera_hw_counter_block_release(struct prestera_switch *sw,
+				      u32 block_id);
+int prestera_hw_counter_clear(struct prestera_switch *sw, u32 block_id,
+			      u32 counter_id);
 
 /* SPAN API */
 int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id);
 int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id);
 int prestera_hw_span_unbind(const struct prestera_port *port);
 int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id);
+
+/* Router API */
+int prestera_hw_rif_create(struct prestera_switch *sw,
+			   struct prestera_iface *iif, u8 *mac, u16 *rif_id);
+int prestera_hw_rif_delete(struct prestera_switch *sw, u16 rif_id,
+			   struct prestera_iface *iif);
+
+/* Virtual Router API */
+int prestera_hw_vr_create(struct prestera_switch *sw, u16 *vr_id);
+int prestera_hw_vr_delete(struct prestera_switch *sw, u16 vr_id);
 
 /* Event handlers */
 int prestera_hw_event_handler_register(struct prestera_switch *sw,

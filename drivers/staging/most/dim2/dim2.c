@@ -971,7 +971,7 @@ static void fsl_mx6_disable(struct platform_device *pdev)
 	clk_disable_unprepare(dev->clk);
 }
 
-static int rcar_h2_enable(struct platform_device *pdev)
+static int rcar_gen2_enable(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 	int ret;
@@ -1006,7 +1006,7 @@ static int rcar_h2_enable(struct platform_device *pdev)
 	return 0;
 }
 
-static void rcar_h2_disable(struct platform_device *pdev)
+static void rcar_gen2_disable(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 
@@ -1016,7 +1016,7 @@ static void rcar_h2_disable(struct platform_device *pdev)
 	writel(0x0, dev->io_base + 0x600);
 }
 
-static int rcar_m3_enable(struct platform_device *pdev)
+static int rcar_gen3_enable(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 	u32 enable_512fs = dev->clk_speed == CLK_512FS;
@@ -1046,7 +1046,7 @@ static int rcar_m3_enable(struct platform_device *pdev)
 	return 0;
 }
 
-static void rcar_m3_disable(struct platform_device *pdev)
+static void rcar_gen3_disable(struct platform_device *pdev)
 {
 	struct dim2_hdm *dev = platform_get_drvdata(pdev);
 
@@ -1058,20 +1058,20 @@ static void rcar_m3_disable(struct platform_device *pdev)
 
 /* ]] platform specific functions */
 
-enum dim2_platforms { FSL_MX6, RCAR_H2, RCAR_M3 };
+enum dim2_platforms { FSL_MX6, RCAR_GEN2, RCAR_GEN3 };
 
 static struct dim2_platform_data plat_data[] = {
 	[FSL_MX6] = {
 		.enable = fsl_mx6_enable,
 		.disable = fsl_mx6_disable,
 	},
-	[RCAR_H2] = {
-		.enable = rcar_h2_enable,
-		.disable = rcar_h2_disable,
+	[RCAR_GEN2] = {
+		.enable = rcar_gen2_enable,
+		.disable = rcar_gen2_disable,
 	},
-	[RCAR_M3] = {
-		.enable = rcar_m3_enable,
-		.disable = rcar_m3_disable,
+	[RCAR_GEN3] = {
+		.enable = rcar_gen3_enable,
+		.disable = rcar_gen3_disable,
 		.fcnt = 3,
 	},
 };
@@ -1083,11 +1083,11 @@ static const struct of_device_id dim2_of_match[] = {
 	},
 	{
 		.compatible = "renesas,mlp",
-		.data = plat_data + RCAR_H2
+		.data = plat_data + RCAR_GEN2
 	},
 	{
-		.compatible = "rcar,medialb-dim2",
-		.data = plat_data + RCAR_M3
+		.compatible = "renesas,rcar-gen3-mlp",
+		.data = plat_data + RCAR_GEN3
 	},
 	{
 		.compatible = "xlnx,axi4-os62420_3pin-1.00.a",

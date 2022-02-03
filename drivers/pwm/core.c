@@ -548,6 +548,73 @@ static void pwm_apply_state_debug(struct pwm_device *pwm,
 	}
 }
 
+static int pwm_apply_legacy(struct pwm_chip *chip, struct pwm_device *pwm,
+			    const struct pwm_state *state)
+{
+	int err;
+	struct pwm_state initial_state = pwm->state;
+
+	if (state->polarity != pwm->state.polarity) {
+		if (!chip->ops->set_polarity)
+			return -EINVAL;
+
+		/*
+		 * Changing the polarity of a running PWM is only allowed when
+		 * the PWM driver implements ->apply().
+		 */
+		if (pwm->state.enabled) {
+			chip->ops->disable(chip, pwm);
+
+			/*
+			 * Update pwm->state already here in case
+			 * .set_polarity() or another callback depend on that.
+			 */
+			pwm->state.enabled = false;
+		}
+
+		err = chip->ops->set_polarity(chip, pwm, state->polarity);
+		if (err)
+			goto rollback;
+
+		pwm->state.polarity = state->polarity;
+	}
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			chip->ops->disable(chip, pwm);
+
+		return 0;
+	}
+
+	/*
+	 * We cannot skip calling ->config even if state->period ==
+	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
+	 * because we might have exited early in the last call to
+	 * pwm_apply_state because of !state->enabled and so the two values in
+	 * pwm->state might not be configured in hardware.
+	 */
+	err = chip->ops->config(pwm->chip, pwm,
+				state->duty_cycle,
+				state->period);
+	if (err)
+		goto rollback;
+
+	pwm->state.period = state->period;
+	pwm->state.duty_cycle = state->duty_cycle;
+
+	if (!pwm->state.enabled) {
+		err = chip->ops->enable(chip, pwm);
+		if (err)
+			goto rollback;
+	}
+
+	return 0;
+
+rollback:
+	pwm->state = initial_state;
+	return err;
+}
+
 /**
  * pwm_apply_state() - atomically apply a new state to a PWM device
  * @pwm: PWM device
@@ -580,70 +647,22 @@ int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 	    state->usage_power == pwm->state.usage_power)
 		return 0;
 
-	if (chip->ops->apply) {
+	if (chip->ops->apply)
 		err = chip->ops->apply(chip, pwm, state);
-		if (err)
-			return err;
+	else
+		err = pwm_apply_legacy(chip, pwm, state);
+	if (err)
+		return err;
 
-		trace_pwm_apply(pwm, state);
+	trace_pwm_apply(pwm, state);
 
-		pwm->state = *state;
+	pwm->state = *state;
 
-		/*
-		 * only do this after pwm->state was applied as some
-		 * implementations of .get_state depend on this
-		 */
-		pwm_apply_state_debug(pwm, state);
-	} else {
-		/*
-		 * FIXME: restore the initial state in case of error.
-		 */
-		if (state->polarity != pwm->state.polarity) {
-			if (!chip->ops->set_polarity)
-				return -EINVAL;
-
-			/*
-			 * Changing the polarity of a running PWM is
-			 * only allowed when the PWM driver implements
-			 * ->apply().
-			 */
-			if (pwm->state.enabled) {
-				chip->ops->disable(chip, pwm);
-				pwm->state.enabled = false;
-			}
-
-			err = chip->ops->set_polarity(chip, pwm,
-						      state->polarity);
-			if (err)
-				return err;
-
-			pwm->state.polarity = state->polarity;
-		}
-
-		if (state->period != pwm->state.period ||
-		    state->duty_cycle != pwm->state.duty_cycle) {
-			err = chip->ops->config(pwm->chip, pwm,
-						state->duty_cycle,
-						state->period);
-			if (err)
-				return err;
-
-			pwm->state.duty_cycle = state->duty_cycle;
-			pwm->state.period = state->period;
-		}
-
-		if (state->enabled != pwm->state.enabled) {
-			if (state->enabled) {
-				err = chip->ops->enable(chip, pwm);
-				if (err)
-					return err;
-			} else {
-				chip->ops->disable(chip, pwm);
-			}
-
-			pwm->state.enabled = state->enabled;
-		}
-	}
+	/*
+	 * only do this after pwm->state was applied as some
+	 * implementations of .get_state depend on this
+	 */
+	pwm_apply_state_debug(pwm, state);
 
 	return 0;
 }

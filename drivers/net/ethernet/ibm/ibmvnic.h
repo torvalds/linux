@@ -18,8 +18,6 @@
 #define IBMVNIC_NAME		"ibmvnic"
 #define IBMVNIC_DRIVER_VERSION	"1.0.1"
 #define IBMVNIC_INVALID_MAP	-1
-#define IBMVNIC_STATS_TIMEOUT	1
-#define IBMVNIC_INIT_FAILED	2
 #define IBMVNIC_OPEN_FAILED	3
 
 /* basic structures plus 100 2k buffers */
@@ -921,7 +919,6 @@ struct ibmvnic_adapter {
 	int login_rsp_buf_sz;
 
 	atomic_t running_cap_crqs;
-	bool wait_capability;
 
 	struct ibmvnic_sub_crq_queue **tx_scrq ____cacheline_aligned;
 	struct ibmvnic_sub_crq_queue **rx_scrq ____cacheline_aligned;

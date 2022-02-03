@@ -276,7 +276,7 @@ static void fme_mgr_get_compat_id(void __iomem *fme_pr,
 static int fme_mgr_probe(struct platform_device *pdev)
 {
 	struct dfl_fme_mgr_pdata *pdata = dev_get_platdata(&pdev->dev);
-	struct fpga_compat_id *compat_id;
+	struct fpga_manager_info info = { 0 };
 	struct device *dev = &pdev->dev;
 	struct fme_mgr_priv *priv;
 	struct fpga_manager *mgr;
@@ -296,20 +296,16 @@ static int fme_mgr_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->ioaddr);
 	}
 
-	compat_id = devm_kzalloc(dev, sizeof(*compat_id), GFP_KERNEL);
-	if (!compat_id)
+	info.name = "DFL FME FPGA Manager";
+	info.mops = &fme_mgr_ops;
+	info.priv = priv;
+	info.compat_id = devm_kzalloc(dev, sizeof(*info.compat_id), GFP_KERNEL);
+	if (!info.compat_id)
 		return -ENOMEM;
 
-	fme_mgr_get_compat_id(priv->ioaddr, compat_id);
-
-	mgr = devm_fpga_mgr_create(dev, "DFL FME FPGA Manager",
-				   &fme_mgr_ops, priv);
-	if (!mgr)
-		return -ENOMEM;
-
-	mgr->compat_id = compat_id;
-
-	return devm_fpga_mgr_register(dev, mgr);
+	fme_mgr_get_compat_id(priv->ioaddr, info.compat_id);
+	mgr = devm_fpga_mgr_register_full(dev, &info);
+	return PTR_ERR_OR_ZERO(mgr);
 }
 
 static struct platform_driver fme_mgr_driver = {

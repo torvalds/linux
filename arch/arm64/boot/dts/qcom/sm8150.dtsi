@@ -1785,7 +1785,6 @@
 			compatible = "qcom,adreno-640.1",
 				     "qcom,adreno",
 				     "amd,imageon";
-			#stream-id-cells = <16>;
 
 			reg = <0 0x02c00000 0 0x40000>;
 			reg-names = "kgsl_3d0_reg_memory";

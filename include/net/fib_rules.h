@@ -91,7 +91,6 @@ struct fib_rules_ops {
 	void			(*flush_cache)(struct fib_rules_ops *ops);
 
 	int			nlgroup;
-	const struct nla_policy	*policy;
 	struct list_head	rules_list;
 	struct module		*owner;
 	struct net		*fro_net;
@@ -102,26 +101,6 @@ struct fib_rule_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	struct fib_rule *rule;
 };
-
-#define FRA_GENERIC_POLICY \
-	[FRA_UNSPEC]	= { .strict_start_type = FRA_DPORT_RANGE + 1 }, \
-	[FRA_IIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
-	[FRA_OIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
-	[FRA_PRIORITY]	= { .type = NLA_U32 }, \
-	[FRA_FWMARK]	= { .type = NLA_U32 }, \
-	[FRA_TUN_ID]	= { .type = NLA_U64 }, \
-	[FRA_FWMASK]	= { .type = NLA_U32 }, \
-	[FRA_TABLE]     = { .type = NLA_U32 }, \
-	[FRA_SUPPRESS_PREFIXLEN] = { .type = NLA_U32 }, \
-	[FRA_SUPPRESS_IFGROUP] = { .type = NLA_U32 }, \
-	[FRA_GOTO]	= { .type = NLA_U32 }, \
-	[FRA_L3MDEV]	= { .type = NLA_U8 }, \
-	[FRA_UID_RANGE]	= { .len = sizeof(struct fib_rule_uid_range) }, \
-	[FRA_PROTOCOL]  = { .type = NLA_U8 }, \
-	[FRA_IP_PROTO]  = { .type = NLA_U8 }, \
-	[FRA_SPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) }, \
-	[FRA_DPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) }
-
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {

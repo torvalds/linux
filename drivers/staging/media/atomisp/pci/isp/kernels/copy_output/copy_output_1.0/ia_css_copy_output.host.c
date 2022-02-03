@@ -34,14 +34,12 @@ ia_css_copy_output_config(
 	to->enable = from->enable;
 }
 
-void
-ia_css_copy_output_configure(
-    const struct ia_css_binary     *binary,
-    bool enable)
+int ia_css_copy_output_configure(const struct ia_css_binary *binary,
+				 bool enable)
 {
 	struct ia_css_copy_output_configuration config = default_config;
 
 	config.enable = enable;
 
-	ia_css_configure_copy_output(binary, &config);
+	return ia_css_configure_copy_output(binary, &config);
 }

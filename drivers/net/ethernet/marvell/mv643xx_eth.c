@@ -1638,7 +1638,9 @@ static int mv643xx_eth_set_coalesce(struct net_device *dev,
 }
 
 static void
-mv643xx_eth_get_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
+mv643xx_eth_get_ringparam(struct net_device *dev, struct ethtool_ringparam *er,
+			  struct kernel_ethtool_ringparam *kernel_er,
+			  struct netlink_ext_ack *extack)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
@@ -1650,7 +1652,9 @@ mv643xx_eth_get_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 }
 
 static int
-mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
+mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er,
+			  struct kernel_ethtool_ringparam *kernel_er,
+			  struct netlink_ext_ack *extack)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
@@ -3197,7 +3201,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->hw_features = dev->features;
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
-	dev->gso_max_segs = MV643XX_MAX_TSO_SEGS;
+	netif_set_gso_max_segs(dev, MV643XX_MAX_TSO_SEGS);
 
 	/* MTU range: 64 - 9500 */
 	dev->min_mtu = 64;

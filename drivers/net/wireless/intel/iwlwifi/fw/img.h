@@ -279,4 +279,8 @@ u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def);
 
 u8 iwl_fw_lookup_notif_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def);
 const char *iwl_fw_lookup_assert_desc(u32 num);
+
+#define FW_SYSASSERT_CPU_MASK		0xf0000000
+#define FW_SYSASSERT_PNVM_MISSING	0x0010070d
+
 #endif  /* __iwl_fw_img_h__ */

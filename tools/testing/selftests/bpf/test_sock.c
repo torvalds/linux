@@ -35,18 +35,21 @@ struct sock_test {
 	/* Endpoint to bind() to */
 	const char *ip;
 	unsigned short port;
+	unsigned short port_retry;
 	/* Expected test result */
 	enum {
 		LOAD_REJECT,
 		ATTACH_REJECT,
 		BIND_REJECT,
 		SUCCESS,
+		RETRY_SUCCESS,
+		RETRY_REJECT
 	} result;
 };
 
 static struct sock_test tests[] = {
 	{
-		"bind4 load with invalid access: src_ip6",
+		.descr = "bind4 load with invalid access: src_ip6",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
@@ -54,16 +57,12 @@ static struct sock_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET4_POST_BIND,
-		BPF_CGROUP_INET4_POST_BIND,
-		0,
-		0,
-		NULL,
-		0,
-		LOAD_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.result = LOAD_REJECT,
 	},
 	{
-		"bind4 load with invalid access: mark",
+		.descr = "bind4 load with invalid access: mark",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
@@ -71,16 +70,12 @@ static struct sock_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET4_POST_BIND,
-		BPF_CGROUP_INET4_POST_BIND,
-		0,
-		0,
-		NULL,
-		0,
-		LOAD_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.result = LOAD_REJECT,
 	},
 	{
-		"bind6 load with invalid access: src_ip4",
+		.descr = "bind6 load with invalid access: src_ip4",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
@@ -88,16 +83,12 @@ static struct sock_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET6_POST_BIND,
-		BPF_CGROUP_INET6_POST_BIND,
-		0,
-		0,
-		NULL,
-		0,
-		LOAD_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.result = LOAD_REJECT,
 	},
 	{
-		"sock_create load with invalid access: src_port",
+		.descr = "sock_create load with invalid access: src_port",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
 			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
@@ -105,128 +96,106 @@ static struct sock_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET_SOCK_CREATE,
-		BPF_CGROUP_INET_SOCK_CREATE,
-		0,
-		0,
-		NULL,
-		0,
-		LOAD_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.result = LOAD_REJECT,
 	},
 	{
-		"sock_create load w/o expected_attach_type (compat mode)",
+		.descr = "sock_create load w/o expected_attach_type (compat mode)",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		0,
-		BPF_CGROUP_INET_SOCK_CREATE,
-		AF_INET,
-		SOCK_STREAM,
-		"127.0.0.1",
-		8097,
-		SUCCESS,
+		.expected_attach_type = 0,
+		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.domain = AF_INET,
+		.type = SOCK_STREAM,
+		.ip = "127.0.0.1",
+		.port = 8097,
+		.result = SUCCESS,
 	},
 	{
-		"sock_create load w/ expected_attach_type",
+		.descr = "sock_create load w/ expected_attach_type",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET_SOCK_CREATE,
-		BPF_CGROUP_INET_SOCK_CREATE,
-		AF_INET,
-		SOCK_STREAM,
-		"127.0.0.1",
-		8097,
-		SUCCESS,
+		.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.domain = AF_INET,
+		.type = SOCK_STREAM,
+		.ip = "127.0.0.1",
+		.port = 8097,
+		.result = SUCCESS,
 	},
 	{
-		"attach type mismatch bind4 vs bind6",
+		.descr = "attach type mismatch bind4 vs bind6",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET4_POST_BIND,
-		BPF_CGROUP_INET6_POST_BIND,
-		0,
-		0,
-		NULL,
-		0,
-		ATTACH_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.result = ATTACH_REJECT,
 	},
 	{
-		"attach type mismatch bind6 vs bind4",
+		.descr = "attach type mismatch bind6 vs bind4",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET6_POST_BIND,
-		BPF_CGROUP_INET4_POST_BIND,
-		0,
-		0,
-		NULL,
-		0,
-		ATTACH_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.result = ATTACH_REJECT,
 	},
 	{
-		"attach type mismatch default vs bind4",
+		.descr = "attach type mismatch default vs bind4",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		0,
-		BPF_CGROUP_INET4_POST_BIND,
-		0,
-		0,
-		NULL,
-		0,
-		ATTACH_REJECT,
+		.expected_attach_type = 0,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.result = ATTACH_REJECT,
 	},
 	{
-		"attach type mismatch bind6 vs sock_create",
+		.descr = "attach type mismatch bind6 vs sock_create",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET6_POST_BIND,
-		BPF_CGROUP_INET_SOCK_CREATE,
-		0,
-		0,
-		NULL,
-		0,
-		ATTACH_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.result = ATTACH_REJECT,
 	},
 	{
-		"bind4 reject all",
+		.descr = "bind4 reject all",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET4_POST_BIND,
-		BPF_CGROUP_INET4_POST_BIND,
-		AF_INET,
-		SOCK_STREAM,
-		"0.0.0.0",
-		0,
-		BIND_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.domain = AF_INET,
+		.type = SOCK_STREAM,
+		.ip = "0.0.0.0",
+		.result = BIND_REJECT,
 	},
 	{
-		"bind6 reject all",
+		.descr = "bind6 reject all",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET6_POST_BIND,
-		BPF_CGROUP_INET6_POST_BIND,
-		AF_INET6,
-		SOCK_STREAM,
-		"::",
-		0,
-		BIND_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.domain = AF_INET6,
+		.type = SOCK_STREAM,
+		.ip = "::",
+		.result = BIND_REJECT,
 	},
 	{
-		"bind6 deny specific IP & port",
+		.descr = "bind6 deny specific IP & port",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
 
@@ -247,16 +216,16 @@ static struct sock_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET6_POST_BIND,
-		BPF_CGROUP_INET6_POST_BIND,
-		AF_INET6,
-		SOCK_STREAM,
-		"::1",
-		8193,
-		BIND_REJECT,
+		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.domain = AF_INET6,
+		.type = SOCK_STREAM,
+		.ip = "::1",
+		.port = 8193,
+		.result = BIND_REJECT,
 	},
 	{
-		"bind4 allow specific IP & port",
+		.descr = "bind4 allow specific IP & port",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
 
@@ -277,41 +246,132 @@ static struct sock_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET4_POST_BIND,
-		BPF_CGROUP_INET4_POST_BIND,
-		AF_INET,
-		SOCK_STREAM,
-		"127.0.0.1",
-		4098,
-		SUCCESS,
+		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.domain = AF_INET,
+		.type = SOCK_STREAM,
+		.ip = "127.0.0.1",
+		.port = 4098,
+		.result = SUCCESS,
 	},
 	{
-		"bind4 allow all",
+		.descr = "bind4 deny specific IP & port of TCP, and retry",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+
+			/* if (ip == expected && port == expected) */
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
+				    offsetof(struct bpf_sock, src_ip4)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7,
+				    __bpf_constant_ntohl(0x7F000001), 4),
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
+				    offsetof(struct bpf_sock, src_port)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0x1002, 2),
+
+			/* return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_A(1),
+
+			/* else return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.domain = AF_INET,
+		.type = SOCK_STREAM,
+		.ip = "127.0.0.1",
+		.port = 4098,
+		.port_retry = 5000,
+		.result = RETRY_SUCCESS,
+	},
+	{
+		.descr = "bind4 deny specific IP & port of UDP, and retry",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+
+			/* if (ip == expected && port == expected) */
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
+				    offsetof(struct bpf_sock, src_ip4)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7,
+				    __bpf_constant_ntohl(0x7F000001), 4),
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
+				    offsetof(struct bpf_sock, src_port)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0x1002, 2),
+
+			/* return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_A(1),
+
+			/* else return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.domain = AF_INET,
+		.type = SOCK_DGRAM,
+		.ip = "127.0.0.1",
+		.port = 4098,
+		.port_retry = 5000,
+		.result = RETRY_SUCCESS,
+	},
+	{
+		.descr = "bind6 deny specific IP & port, and retry",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+
+			/* if (ip == expected && port == expected) */
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
+				    offsetof(struct bpf_sock, src_ip6[3])),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7,
+				    __bpf_constant_ntohl(0x00000001), 4),
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
+				    offsetof(struct bpf_sock, src_port)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0x2001, 2),
+
+			/* return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_A(1),
+
+			/* else return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.domain = AF_INET6,
+		.type = SOCK_STREAM,
+		.ip = "::1",
+		.port = 8193,
+		.port_retry = 9000,
+		.result = RETRY_SUCCESS,
+	},
+	{
+		.descr = "bind4 allow all",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET4_POST_BIND,
-		BPF_CGROUP_INET4_POST_BIND,
-		AF_INET,
-		SOCK_STREAM,
-		"0.0.0.0",
-		0,
-		SUCCESS,
+		.expected_attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.attach_type = BPF_CGROUP_INET4_POST_BIND,
+		.domain = AF_INET,
+		.type = SOCK_STREAM,
+		.ip = "0.0.0.0",
+		.result = SUCCESS,
 	},
 	{
-		"bind6 allow all",
+		.descr = "bind6 allow all",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		BPF_CGROUP_INET6_POST_BIND,
-		BPF_CGROUP_INET6_POST_BIND,
-		AF_INET6,
-		SOCK_STREAM,
-		"::",
-		0,
-		SUCCESS,
+		.expected_attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.attach_type = BPF_CGROUP_INET6_POST_BIND,
+		.domain = AF_INET6,
+		.type = SOCK_STREAM,
+		.ip = "::",
+		.result = SUCCESS,
 	},
 };
 
@@ -328,18 +388,17 @@ static size_t probe_prog_length(const struct bpf_insn *fp)
 static int load_sock_prog(const struct bpf_insn *prog,
 			  enum bpf_attach_type attach_type)
 {
-	struct bpf_load_program_attr attr;
-	int ret;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
+	int ret, insn_cnt;
 
-	memset(&attr, 0, sizeof(struct bpf_load_program_attr));
-	attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
-	attr.expected_attach_type = attach_type;
-	attr.insns = prog;
-	attr.insns_cnt = probe_prog_length(attr.insns);
-	attr.license = "GPL";
-	attr.log_level = 2;
+	insn_cnt = probe_prog_length(prog);
 
-	ret = bpf_load_program_xattr(&attr, bpf_log_buf, BPF_LOG_BUF_SIZE);
+	opts.expected_attach_type = attach_type;
+	opts.log_buf = bpf_log_buf;
+	opts.log_size = BPF_LOG_BUF_SIZE;
+	opts.log_level = 2;
+
+	ret = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCK, NULL, "GPL", prog, insn_cnt, &opts);
 	if (verbose && ret < 0)
 		fprintf(stderr, "%s\n", bpf_log_buf);
 
@@ -352,14 +411,15 @@ static int attach_sock_prog(int cgfd, int progfd,
 	return bpf_prog_attach(progfd, cgfd, attach_type, BPF_F_ALLOW_OVERRIDE);
 }
 
-static int bind_sock(int domain, int type, const char *ip, unsigned short port)
+static int bind_sock(int domain, int type, const char *ip,
+		     unsigned short port, unsigned short port_retry)
 {
 	struct sockaddr_storage addr;
 	struct sockaddr_in6 *addr6;
 	struct sockaddr_in *addr4;
 	int sockfd = -1;
 	socklen_t len;
-	int err = 0;
+	int res = SUCCESS;
 
 	sockfd = socket(domain, type, 0);
 	if (sockfd < 0)
@@ -385,21 +445,44 @@ static int bind_sock(int domain, int type, const char *ip, unsigned short port)
 		goto err;
 	}
 
-	if (bind(sockfd, (const struct sockaddr *)&addr, len) == -1)
-		goto err;
+	if (bind(sockfd, (const struct sockaddr *)&addr, len) == -1) {
+		/* sys_bind() may fail for different reasons, errno has to be
+		 * checked to confirm that BPF program rejected it.
+		 */
+		if (errno != EPERM)
+			goto err;
+		if (port_retry)
+			goto retry;
+		res = BIND_REJECT;
+		goto out;
+	}
 
 	goto out;
+retry:
+	if (domain == AF_INET)
+		addr4->sin_port = htons(port_retry);
+	else
+		addr6->sin6_port = htons(port_retry);
+	if (bind(sockfd, (const struct sockaddr *)&addr, len) == -1) {
+		if (errno != EPERM)
+			goto err;
+		res = RETRY_REJECT;
+	} else {
+		res = RETRY_SUCCESS;
+	}
+	goto out;
 err:
-	err = -1;
+	res = -1;
 out:
 	close(sockfd);
-	return err;
+	return res;
 }
 
 static int run_test_case(int cgfd, const struct sock_test *test)
 {
 	int progfd = -1;
 	int err = 0;
+	int res;
 
 	printf("Test case: %s .. ", test->descr);
 	progfd = load_sock_prog(test->insns, test->expected_attach_type);
@@ -417,21 +500,11 @@ static int run_test_case(int cgfd, const struct sock_test *test)
 			goto err;
 	}
 
-	if (bind_sock(test->domain, test->type, test->ip, test->port) == -1) {
-		/* sys_bind() may fail for different reasons, errno has to be
-		 * checked to confirm that BPF program rejected it.
-		 */
-		if (test->result == BIND_REJECT && errno == EPERM)
-			goto out;
-		else
-			goto err;
-	}
+	res = bind_sock(test->domain, test->type, test->ip, test->port,
+			test->port_retry);
+	if (res > 0 && test->result == res)
+		goto out;
 
-
-	if (test->result != SUCCESS)
-		goto err;
-
-	goto out;
 err:
 	err = -1;
 out:

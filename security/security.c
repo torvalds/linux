@@ -994,14 +994,6 @@ int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 }
 EXPORT_SYMBOL(security_sb_clone_mnt_opts);
 
-int security_add_mnt_opt(const char *option, const char *val, int len,
-			 void **mnt_opts)
-{
-	return call_int_hook(sb_add_mnt_opt, -EINVAL,
-					option, val, len, mnt_opts);
-}
-EXPORT_SYMBOL(security_add_mnt_opt);
-
 int security_move_mount(const struct path *from_path, const struct path *to_path)
 {
 	return call_int_hook(move_mount, 0, from_path, to_path);
@@ -1056,8 +1048,19 @@ int security_dentry_init_security(struct dentry *dentry, int mode,
 				  const char **xattr_name, void **ctx,
 				  u32 *ctxlen)
 {
-	return call_int_hook(dentry_init_security, -EOPNOTSUPP, dentry, mode,
-				name, xattr_name, ctx, ctxlen);
+	struct security_hook_list *hp;
+	int rc;
+
+	/*
+	 * Only one module will provide a security context.
+	 */
+	hlist_for_each_entry(hp, &security_hook_heads.dentry_init_security, list) {
+		rc = hp->hook.dentry_init_security(dentry, mode, name,
+						   xattr_name, ctx, ctxlen);
+		if (rc != LSM_RET_DEFAULT(dentry_init_security))
+			return rc;
+	}
+	return LSM_RET_DEFAULT(dentry_init_security);
 }
 EXPORT_SYMBOL(security_dentry_init_security);
 
@@ -1808,12 +1811,12 @@ int security_task_getsid(struct task_struct *p)
 	return call_int_hook(task_getsid, 0, p);
 }
 
-void security_task_getsecid_subj(struct task_struct *p, u32 *secid)
+void security_current_getsecid_subj(u32 *secid)
 {
 	*secid = 0;
-	call_void_hook(task_getsecid_subj, p, secid);
+	call_void_hook(current_getsecid_subj, secid);
 }
-EXPORT_SYMBOL(security_task_getsecid_subj);
+EXPORT_SYMBOL(security_current_getsecid_subj);
 
 void security_task_getsecid_obj(struct task_struct *p, u32 *secid)
 {

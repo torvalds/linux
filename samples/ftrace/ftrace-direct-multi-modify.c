@@ -4,6 +4,9 @@
 #include <linux/ftrace.h>
 #include <asm/asm-offsets.h>
 
+extern void my_direct_func1(unsigned long ip);
+extern void my_direct_func2(unsigned long ip);
+
 void my_direct_func1(unsigned long ip)
 {
 	trace_printk("my direct func1 ip %lx\n", ip);

@@ -43,7 +43,7 @@ config ARM_CCN
 
 config ARM_CMN
 	tristate "Arm CMN-600 PMU support"
-	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	depends on ARM64 || COMPILE_TEST
 	help
 	  Support for PMU events monitoring on the Arm CMN-600 Coherent Mesh
 	  Network interconnect.
@@ -138,6 +138,13 @@ config ARM_DMC620_PMU
 	help
 	  Support for PMU events monitoring on the ARM DMC-620 memory
 	  controller.
+
+config MARVELL_CN10K_TAD_PMU
+	tristate "Marvell CN10K LLC-TAD PMU"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Provides support for Last-Level cache Tag-and-data Units (LLC-TAD)
+	  performance monitors on CN10K family silicons.
 
 source "drivers/perf/hisilicon/Kconfig"
 

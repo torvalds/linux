@@ -6,6 +6,7 @@ Qualcomm SPMI Regulators
 	Definition: must be one of:
 			"qcom,pm8004-regulators"
 			"qcom,pm8005-regulators"
+			"qcom,pm8226-regulators"
 			"qcom,pm8841-regulators"
 			"qcom,pm8916-regulators"
 			"qcom,pm8941-regulators"

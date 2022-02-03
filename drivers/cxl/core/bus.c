@@ -200,7 +200,7 @@ bool is_root_decoder(struct device *dev)
 {
 	return dev->type == &cxl_decoder_root_type;
 }
-EXPORT_SYMBOL_GPL(is_root_decoder);
+EXPORT_SYMBOL_NS_GPL(is_root_decoder, CXL);
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev)
 {
@@ -209,7 +209,7 @@ struct cxl_decoder *to_cxl_decoder(struct device *dev)
 		return NULL;
 	return container_of(dev, struct cxl_decoder, dev);
 }
-EXPORT_SYMBOL_GPL(to_cxl_decoder);
+EXPORT_SYMBOL_NS_GPL(to_cxl_decoder, CXL);
 
 static void cxl_dport_release(struct cxl_dport *dport)
 {
@@ -376,7 +376,7 @@ err:
 	put_device(dev);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_GPL(devm_cxl_add_port);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_port, CXL);
 
 static struct cxl_dport *find_dport(struct cxl_port *port, int id)
 {
@@ -451,7 +451,7 @@ err:
 	cxl_dport_release(dport);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(cxl_add_dport);
+EXPORT_SYMBOL_NS_GPL(cxl_add_dport, CXL);
 
 static int decoder_populate_targets(struct cxl_decoder *cxld,
 				    struct cxl_port *port, int *target_map)
@@ -485,9 +485,7 @@ out_unlock:
 
 struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port, int nr_targets)
 {
-	struct cxl_decoder *cxld, cxld_const_init = {
-		.nr_targets = nr_targets,
-	};
+	struct cxl_decoder *cxld;
 	struct device *dev;
 	int rc = 0;
 
@@ -497,13 +495,13 @@ struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port, int nr_targets)
 	cxld = kzalloc(struct_size(cxld, target, nr_targets), GFP_KERNEL);
 	if (!cxld)
 		return ERR_PTR(-ENOMEM);
-	memcpy(cxld, &cxld_const_init, sizeof(cxld_const_init));
 
 	rc = ida_alloc(&port->decoder_ida, GFP_KERNEL);
 	if (rc < 0)
 		goto err;
 
 	cxld->id = rc;
+	cxld->nr_targets = nr_targets;
 	dev = &cxld->dev;
 	device_initialize(dev);
 	device_set_pm_not_required(dev);
@@ -521,7 +519,7 @@ err:
 	kfree(cxld);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_GPL(cxl_decoder_alloc);
+EXPORT_SYMBOL_NS_GPL(cxl_decoder_alloc, CXL);
 
 int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map)
 {
@@ -550,7 +548,7 @@ int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map)
 
 	return device_add(dev);
 }
-EXPORT_SYMBOL_GPL(cxl_decoder_add);
+EXPORT_SYMBOL_NS_GPL(cxl_decoder_add, CXL);
 
 static void cxld_unregister(void *dev)
 {
@@ -561,7 +559,7 @@ int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld)
 {
 	return devm_add_action_or_reset(host, cxld_unregister, &cxld->dev);
 }
-EXPORT_SYMBOL_GPL(cxl_decoder_autoremove);
+EXPORT_SYMBOL_NS_GPL(cxl_decoder_autoremove, CXL);
 
 /**
  * __cxl_driver_register - register a driver for the cxl bus
@@ -594,13 +592,13 @@ int __cxl_driver_register(struct cxl_driver *cxl_drv, struct module *owner,
 
 	return driver_register(&cxl_drv->drv);
 }
-EXPORT_SYMBOL_GPL(__cxl_driver_register);
+EXPORT_SYMBOL_NS_GPL(__cxl_driver_register, CXL);
 
 void cxl_driver_unregister(struct cxl_driver *cxl_drv)
 {
 	driver_unregister(&cxl_drv->drv);
 }
-EXPORT_SYMBOL_GPL(cxl_driver_unregister);
+EXPORT_SYMBOL_NS_GPL(cxl_driver_unregister, CXL);
 
 static int cxl_device_id(struct device *dev)
 {
@@ -642,7 +640,7 @@ struct bus_type cxl_bus_type = {
 	.probe = cxl_bus_probe,
 	.remove = cxl_bus_remove,
 };
-EXPORT_SYMBOL_GPL(cxl_bus_type);
+EXPORT_SYMBOL_NS_GPL(cxl_bus_type, CXL);
 
 static __init int cxl_core_init(void)
 {

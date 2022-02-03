@@ -38,9 +38,6 @@ static void __used common(void)
 #endif
 
 	BLANK();
-	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
-
-	BLANK();
 	OFFSET(pbe_address, pbe, address);
 	OFFSET(pbe_orig_address, pbe, orig_address);
 	OFFSET(pbe_next, pbe, next);

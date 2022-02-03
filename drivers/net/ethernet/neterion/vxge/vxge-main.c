@@ -3159,10 +3159,6 @@ static int vxge_hwtstamp_set(struct vxgedev *vdev, void __user *data)
 	if (copy_from_user(&config, data, sizeof(config)))
 		return -EFAULT;
 
-	/* reserved for future extensions */
-	if (config.flags)
-		return -EINVAL;
-
 	/* Transmit HW Timestamp not supported */
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -3353,7 +3349,7 @@ static const struct net_device_ops vxge_netdev_ops = {
 };
 
 static int vxge_device_register(struct __vxge_hw_device *hldev,
-				struct vxge_config *config, int high_dma,
+				struct vxge_config *config,
 				int no_of_vpath, struct vxgedev **vdev_out)
 {
 	struct net_device *ndev;
@@ -3425,11 +3421,7 @@ static int vxge_device_register(struct __vxge_hw_device *hldev,
 	vxge_debug_init(vxge_hw_device_trace_level_get(hldev),
 		"%s : checksumming enabled", __func__);
 
-	if (high_dma) {
-		ndev->features |= NETIF_F_HIGHDMA;
-		vxge_debug_init(vxge_hw_device_trace_level_get(hldev),
-			"%s : using High DMA", __func__);
-	}
+	ndev->features |= NETIF_F_HIGHDMA;
 
 	/* MTU range: 68 - 9600 */
 	ndev->min_mtu = VXGE_HW_MIN_MTU;
@@ -4286,7 +4278,6 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	struct __vxge_hw_device *hldev;
 	enum vxge_hw_status status;
 	int ret;
-	int high_dma = 0;
 	u64 vpath_mask = 0;
 	struct vxgedev *vdev;
 	struct vxge_config *ll_config = NULL;
@@ -4376,22 +4367,9 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit0;
 	}
 
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		vxge_debug_ll_config(VXGE_TRACE,
 			"%s : using 64bit DMA", __func__);
-
-		high_dma = 1;
-
-		if (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-			vxge_debug_init(VXGE_ERR,
-				"%s : unable to obtain 64bit DMA for "
-				"consistent allocations", __func__);
-			ret = -ENOMEM;
-			goto _exit1;
-		}
-	} else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		vxge_debug_ll_config(VXGE_TRACE,
-			"%s : using 32bit DMA", __func__);
 	} else {
 		ret = -ENOMEM;
 		goto _exit1;
@@ -4559,8 +4537,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	ll_config->tx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
 	ll_config->rx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
 
-	ret = vxge_device_register(hldev, ll_config, high_dma, no_of_vpath,
-				   &vdev);
+	ret = vxge_device_register(hldev, ll_config, no_of_vpath, &vdev);
 	if (ret) {
 		ret = -EINVAL;
 		goto _exit4;

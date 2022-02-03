@@ -216,6 +216,9 @@ struct pm8001_dispatch {
 		u32 state);
 	int (*sas_re_init_req)(struct pm8001_hba_info *pm8001_ha);
 	int (*fatal_errors)(struct pm8001_hba_info *pm8001_ha);
+	void (*hw_event_ack_req)(struct pm8001_hba_info *pm8001_ha,
+		u32 Qnum, u32 SEA, u32 port_id, u32 phyId, u32 param0,
+		u32 param1);
 };
 
 struct pm8001_chip_info {

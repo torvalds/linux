@@ -550,7 +550,7 @@ config SCHED_THERMAL_PRESSURE
 	  i.e. put less load on throttled CPUs than on non/less throttled ones.
 
 	  This requires the architecture to implement
-	  arch_set_thermal_pressure() and arch_scale_thermal_pressure().
+	  arch_update_thermal_pressure() and arch_scale_thermal_pressure().
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
@@ -1414,7 +1414,6 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 config LD_ORPHAN_WARN
 	def_bool y
 	depends on ARCH_WANT_LD_ORPHAN_WARN
-	depends on !LD_IS_LLD || LLD_VERSION >= 110000
 	depends on $(ld-option,--orphan-handling=warn)
 
 config SYSCTL
@@ -1579,6 +1578,7 @@ config BASE_FULL
 
 config FUTEX
 	bool "Enable futex support" if EXPERT
+	depends on !(SPARC32 && SMP)
 	default y
 	imply RT_MUTEXES
 	help
@@ -1590,14 +1590,6 @@ config FUTEX_PI
 	bool
 	depends on FUTEX && RT_MUTEXES
 	default y
-
-config HAVE_FUTEX_CMPXCHG
-	bool
-	depends on FUTEX
-	help
-	  Architectures should select this if futex_atomic_cmpxchg_inatomic()
-	  is implemented and always working. This removes a couple of runtime
-	  checks.
 
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT
@@ -1804,6 +1796,10 @@ config HAVE_PERF_EVENTS
 	help
 	  See tools/perf/design.txt for details.
 
+config GUEST_PERF_EVENTS
+	bool
+	depends on HAVE_PERF_EVENTS
+
 config PERF_USE_VMALLOC
 	bool
 	help
@@ -1933,6 +1929,7 @@ endchoice
 config SLAB_MERGE_DEFAULT
 	bool "Allow slab caches to be merged"
 	default y
+	depends on SLAB || SLUB
 	help
 	  For reduced kernel memory fragmentation, slab caches can be
 	  merged when they share the same size and other characteristics.
@@ -2279,6 +2276,19 @@ config MODULE_COMPRESS_ZSTD
 	  with .ko.zst.
 
 endchoice
+
+config MODULE_DECOMPRESS
+	bool "Support in-kernel module decompression"
+	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ
+	select ZLIB_INFLATE if MODULE_COMPRESS_GZIP
+	select XZ_DEC if MODULE_COMPRESS_XZ
+	help
+
+	  Support for decompressing kernel modules by the kernel itself
+	  instead of relying on userspace to perform this task. Useful when
+	  load pinning security policy is enabled.
+
+	  If unsure, say N.
 
 config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 	bool "Allow loading of modules with missing namespace imports"

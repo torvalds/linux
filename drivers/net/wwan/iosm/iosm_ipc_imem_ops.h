@@ -43,12 +43,8 @@
  */
 struct ipc_mem_channel *ipc_imem_sys_port_open(struct iosm_imem *ipc_imem,
 					       int chl_id, int hp_id);
-
-/**
- * ipc_imem_sys_cdev_close - Release a sio link to CP.
- * @ipc_cdev:		iosm sio instance.
- */
-void ipc_imem_sys_cdev_close(struct iosm_cdev *ipc_cdev);
+void ipc_imem_sys_port_close(struct iosm_imem *ipc_imem,
+			     struct ipc_mem_channel *channel);
 
 /**
  * ipc_imem_sys_cdev_write - Route the uplink buffer to CP.
@@ -145,4 +141,5 @@ int ipc_imem_sys_devlink_read(struct iosm_devlink *ipc_devlink, u8 *data,
  */
 int ipc_imem_sys_devlink_write(struct iosm_devlink *ipc_devlink,
 			       unsigned char *buf, int count);
+
 #endif

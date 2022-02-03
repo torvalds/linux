@@ -9,6 +9,7 @@
  * diagrams as the code is not obvious and probably very easy to break.
  */
 #include <linux/errno.h>
+#include <linux/filter.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>

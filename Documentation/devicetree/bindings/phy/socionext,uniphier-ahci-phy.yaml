@@ -16,6 +16,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - socionext,uniphier-pro4-ahci-phy
       - socionext,uniphier-pxs2-ahci-phy
       - socionext,uniphier-pxs3-ahci-phy
 
@@ -26,23 +27,35 @@ properties:
     const: 0
 
   clocks:
+    minItems: 1
     maxItems: 2
 
   clock-names:
     oneOf:
       - items:          # for PXs2
           - const: link
+      - items:          # for Pro4
+          - const: link
+          - const: gio
       - items:          # for others
           - const: link
           - const: phy
 
   resets:
-    maxItems: 2
+    minItems: 2
+    maxItems: 5
 
   reset-names:
-    items:
-      - const: link
-      - const: phy
+    oneOf:
+      - items:          # for Pro4
+          - const: link
+          - const: gio
+          - const: pm
+          - const: tx
+          - const: rx
+      - items:          # for others
+          - const: link
+          - const: phy
 
 required:
   - compatible

@@ -337,13 +337,6 @@ static int cx25821_risc_decode(u32 risc)
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
-static inline int i2c_slave_did_ack(struct i2c_adapter *i2c_adap)
-{
-	struct cx25821_i2c *bus = i2c_adap->algo_data;
-	struct cx25821_dev *dev = bus->dev;
-	return cx_read(bus->reg_stat) & 0x01;
-}
-
 static void cx25821_registers_init(struct cx25821_dev *dev)
 {
 	u32 tmp;

@@ -42,6 +42,6 @@ brcmsmac-y := \
 	brcms_trace_events.o \
 	debug.o
 
-brcmsmac-$(CONFIG_BCMA_DRIVER_GPIO) += led.o
+brcmsmac-$(CONFIG_BRCMSMAC_LEDS) += led.o
 
 obj-$(CONFIG_BRCMSMAC)	+= brcmsmac.o

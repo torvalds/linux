@@ -59,10 +59,23 @@
 
 /***************************************************************/
 /* Register definition of device address 0x70 */
-#define  I2C_ADDR_70_DPTX              0x70
+#define TX_HDCP_CTRL0			0x01
+#define STORE_AN			BIT(7)
+#define RX_REPEATER			BIT(6)
+#define RE_AUTHEN			BIT(5)
+#define SW_AUTH_OK			BIT(4)
+#define HARD_AUTH_EN			BIT(3)
+#define ENC_EN				BIT(2)
+#define BKSV_SRM_PASS			BIT(1)
+#define KSVLIST_VLD			BIT(0)
 
-#define SP_TX_LINK_BW_SET_REG 0xA0
-#define SP_TX_LANE_COUNT_SET_REG 0xA1
+#define SP_TX_WAIT_R0_TIME		0x40
+#define SP_TX_WAIT_KSVR_TIME		0x42
+#define SP_TX_SYS_CTRL1_REG		0x80
+#define HDCP2TX_FW_EN			BIT(4)
+
+#define SP_TX_LINK_BW_SET_REG		0xA0
+#define SP_TX_LANE_COUNT_SET_REG	0xA1
 
 #define M_VID_0 0xC0
 #define M_VID_1 0xC1
@@ -70,6 +83,12 @@
 #define N_VID_0 0xC3
 #define N_VID_1 0xC4
 #define N_VID_2 0xC5
+
+#define KEY_START_ADDR			0x9000
+#define KEY_RESERVED			416
+
+#define HDCP14KEY_START_ADDR		(KEY_START_ADDR + KEY_RESERVED)
+#define HDCP14KEY_SIZE			624
 
 /***************************************************************/
 /* Register definition of device address 0x72 */
@@ -155,8 +174,42 @@
 
 #define  I2C_ADDR_7E_FLASH_CONTROLLER  0x7E
 
+#define R_BOOT_RETRY		0x00
+#define R_RAM_ADDR_H		0x01
+#define R_RAM_ADDR_L		0x02
+#define R_RAM_LEN_H		0x03
+#define R_RAM_LEN_L		0x04
 #define FLASH_LOAD_STA          0x05
 #define FLASH_LOAD_STA_CHK	BIT(7)
+
+#define R_RAM_CTRL              0x05
+/* bit positions */
+#define FLASH_DONE              BIT(7)
+#define BOOT_LOAD_DONE          BIT(6)
+#define CRC_OK                  BIT(5)
+#define LOAD_DONE               BIT(4)
+#define O_RW_DONE               BIT(3)
+#define FUSE_BUSY               BIT(2)
+#define DECRYPT_EN              BIT(1)
+#define LOAD_START              BIT(0)
+
+#define FLASH_ADDR_HIGH         0x0F
+#define FLASH_ADDR_LOW          0x10
+#define FLASH_LEN_HIGH          0x31
+#define FLASH_LEN_LOW           0x32
+#define R_FLASH_RW_CTRL         0x33
+/* bit positions */
+#define READ_DELAY_SELECT       BIT(7)
+#define GENERAL_INSTRUCTION_EN  BIT(6)
+#define FLASH_ERASE_EN          BIT(5)
+#define RDID_READ_EN            BIT(4)
+#define REMS_READ_EN            BIT(3)
+#define WRITE_STATUS_EN         BIT(2)
+#define FLASH_READ              BIT(1)
+#define FLASH_WRITE             BIT(0)
+
+#define FLASH_BUF_BASE_ADDR     0x60
+#define FLASH_BUF_LEN           0x20
 
 #define  XTAL_FRQ_SEL    0x3F
 /* bit field positions */
@@ -184,10 +237,15 @@
 #define AP_AUX_CTRL_ADDRONLY 0x20
 
 #define AP_AUX_BUFF_START 0x15
-#define PIXEL_CLOCK_L 0x25
-#define PIXEL_CLOCK_H 0x26
+#define PIXEL_CLOCK_L	0x25
+#define PIXEL_CLOCK_H	0x26
 
-#define AP_AUX_COMMAND 0x27  /* com+len */
+#define AP_AUX_COMMAND	0x27  /* com+len */
+#define LENGTH_SHIFT	4
+#define DPCD_READ	0x09
+#define DPCD_WRITE	0x08
+#define DPCD_CMD(len, cmd)	((((len) - 1) << LENGTH_SHIFT) | (cmd))
+
 /* Bit 0&1: 3D video structure */
 /* 0x01: frame packing,  0x02:Line alternative, 0x03:Side-by-side(full) */
 #define AP_AV_STATUS 0x28
@@ -392,21 +450,29 @@ struct anx7625_data {
 	struct platform_device *audio_pdev;
 	int hpd_status;
 	int hpd_high_cnt;
+	int dp_en;
+	int hdcp_cp;
 	/* Lock for work queue */
 	struct mutex lock;
 	struct i2c_client *client;
 	struct anx7625_i2c_client i2c;
 	struct i2c_client *last_client;
+	struct timer_list hdcp_timer;
 	struct s_edid_data slimport_edid_p;
 	struct device *codec_dev;
 	hdmi_codec_plugged_cb plugged_cb;
 	struct work_struct work;
 	struct workqueue_struct *workqueue;
+	struct delayed_work hdcp_work;
+	struct workqueue_struct *hdcp_workqueue;
+	/* Lock for hdcp work queue */
+	struct mutex hdcp_wq_lock;
 	char edid_block;
 	struct display_timing dt;
 	u8 display_timing_valid;
 	struct drm_bridge bridge;
 	u8 bridge_attached;
+	struct drm_connector *connector;
 	struct mipi_dsi_device *dsi;
 };
 

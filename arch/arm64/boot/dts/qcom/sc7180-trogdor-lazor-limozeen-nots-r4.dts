@@ -5,7 +5,7 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "sc7180-trogdor-lazor-limozeen-nots.dts"
+#include "sc7180-trogdor-lazor-limozeen-nots-r5.dts"
 
 / {
 	model = "Google Lazor Limozeen without Touchscreen (rev4)";

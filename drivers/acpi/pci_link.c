@@ -606,12 +606,10 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
 			       int *polarity, char **name)
 {
-	int result;
-	struct acpi_device *device;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	struct acpi_pci_link *link;
 
-	result = acpi_bus_get_device(handle, &device);
-	if (result) {
+	if (!device) {
 		acpi_handle_err(handle, "Invalid link device\n");
 		return -1;
 	}
@@ -658,12 +656,10 @@ int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
  */
 int acpi_pci_link_free_irq(acpi_handle handle)
 {
-	struct acpi_device *device;
+	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	struct acpi_pci_link *link;
-	acpi_status result;
 
-	result = acpi_bus_get_device(handle, &device);
-	if (result) {
+	if (!device) {
 		acpi_handle_err(handle, "Invalid link device\n");
 		return -1;
 	}

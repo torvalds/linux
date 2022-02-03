@@ -293,11 +293,33 @@ static int intel_xpower_exec_mipi_pmic_seq_element(struct regmap *regmap,
 	return ret;
 }
 
-static struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
+static int intel_xpower_lpat_raw_to_temp(struct acpi_lpat_conversion_table *lpat_table,
+					 int raw)
+{
+	struct acpi_lpat first = lpat_table->lpat[0];
+	struct acpi_lpat last = lpat_table->lpat[lpat_table->lpat_count - 1];
+
+	/*
+	 * Some LPAT tables in the ACPI Device for the AXP288 PMIC for some
+	 * reason only describe a small temperature range, e.g. 27° - 37°
+	 * Celcius. Resulting in errors when the tablet is idle in a cool room.
+	 *
+	 * To avoid these errors clamp the raw value to be inside the LPAT.
+	 */
+	if (first.raw < last.raw)
+		raw = clamp(raw, first.raw, last.raw);
+	else
+		raw = clamp(raw, last.raw, first.raw);
+
+	return acpi_lpat_raw_to_temp(lpat_table, raw);
+}
+
+static const struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
 	.get_power = intel_xpower_pmic_get_power,
 	.update_power = intel_xpower_pmic_update_power,
 	.get_raw_temp = intel_xpower_pmic_get_raw_temp,
 	.exec_mipi_pmic_seq_element = intel_xpower_exec_mipi_pmic_seq_element,
+	.lpat_raw_to_temp = intel_xpower_lpat_raw_to_temp,
 	.power_table = power_table,
 	.power_table_count = ARRAY_SIZE(power_table),
 	.thermal_table = thermal_table,

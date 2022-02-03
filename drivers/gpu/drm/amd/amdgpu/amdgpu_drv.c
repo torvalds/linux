@@ -38,6 +38,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/suspend.h>
 #include <linux/cc_platform.h>
+#include <linux/fb.h>
 
 #include "amdgpu.h"
 #include "amdgpu_irq.h"
@@ -1524,6 +1525,87 @@ static const u16 amdgpu_unsupported_pciidlist[] = {
 	0x99A0,
 	0x99A2,
 	0x99A4,
+	/* radeon secondary ids */
+	0x3171,
+	0x3e70,
+	0x4164,
+	0x4165,
+	0x4166,
+	0x4168,
+	0x4170,
+	0x4171,
+	0x4172,
+	0x4173,
+	0x496e,
+	0x4a69,
+	0x4a6a,
+	0x4a6b,
+	0x4a70,
+	0x4a74,
+	0x4b69,
+	0x4b6b,
+	0x4b6c,
+	0x4c6e,
+	0x4e64,
+	0x4e65,
+	0x4e66,
+	0x4e67,
+	0x4e68,
+	0x4e69,
+	0x4e6a,
+	0x4e71,
+	0x4f73,
+	0x5569,
+	0x556b,
+	0x556d,
+	0x556f,
+	0x5571,
+	0x5854,
+	0x5874,
+	0x5940,
+	0x5941,
+	0x5b72,
+	0x5b73,
+	0x5b74,
+	0x5b75,
+	0x5d44,
+	0x5d45,
+	0x5d6d,
+	0x5d6f,
+	0x5d72,
+	0x5d77,
+	0x5e6b,
+	0x5e6d,
+	0x7120,
+	0x7124,
+	0x7129,
+	0x712e,
+	0x712f,
+	0x7162,
+	0x7163,
+	0x7166,
+	0x7167,
+	0x7172,
+	0x7173,
+	0x71a0,
+	0x71a1,
+	0x71a3,
+	0x71a7,
+	0x71bb,
+	0x71e0,
+	0x71e1,
+	0x71e2,
+	0x71e6,
+	0x71e7,
+	0x71f2,
+	0x7269,
+	0x726b,
+	0x726e,
+	0x72a0,
+	0x72a8,
+	0x72b1,
+	0x72b3,
+	0x793f,
 };
 
 static const struct pci_device_id pciidlist[] = {
@@ -1892,6 +1974,26 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static const struct drm_driver amdgpu_kms_driver;
 
+static bool amdgpu_is_fw_framebuffer(resource_size_t base,
+				     resource_size_t size)
+{
+	bool found = false;
+#if IS_REACHABLE(CONFIG_FB)
+	struct apertures_struct *a;
+
+	a = alloc_apertures(1);
+	if (!a)
+		return false;
+
+	a->ranges[0].base = base;
+	a->ranges[0].size = size;
+
+	found = is_firmware_framebuffer(a);
+	kfree(a);
+#endif
+	return found;
+}
+
 static int amdgpu_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
@@ -1900,16 +2002,13 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	unsigned long flags = ent->driver_data;
 	int ret, retry = 0, i;
 	bool supports_atomic = false;
+	bool is_fw_fb;
+	resource_size_t base, size;
 
 	/* skip devices which are owned by radeon */
 	for (i = 0; i < ARRAY_SIZE(amdgpu_unsupported_pciidlist); i++) {
 		if (amdgpu_unsupported_pciidlist[i] == pdev->device)
 			return -ENODEV;
-	}
-
-	if (flags == 0) {
-		DRM_INFO("Unsupported asic.  Remove me when IP discovery init is in place.\n");
-		return -ENODEV;
 	}
 
 	if (amdgpu_virtual_display ||
@@ -1968,6 +2067,10 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	}
 #endif
 
+	base = pci_resource_start(pdev, 0);
+	size = pci_resource_len(pdev, 0);
+	is_fw_fb = amdgpu_is_fw_framebuffer(base, size);
+
 	/* Get rid of things like offb */
 	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &amdgpu_kms_driver);
 	if (ret)
@@ -1980,6 +2083,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	adev->dev  = &pdev->dev;
 	adev->pdev = pdev;
 	ddev = adev_to_drm(adev);
+	adev->is_fw_fb = is_fw_fb;
 
 	if (!supports_atomic)
 		ddev->driver_features &= ~DRIVER_ATOMIC;

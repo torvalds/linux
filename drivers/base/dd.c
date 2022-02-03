@@ -577,14 +577,14 @@ re_probe:
 	if (dev->bus->dma_configure) {
 		ret = dev->bus->dma_configure(dev);
 		if (ret)
-			goto probe_failed;
+			goto pinctrl_bind_failed;
 	}
 
 	ret = driver_sysfs_add(dev);
 	if (ret) {
 		pr_err("%s: driver_sysfs_add(%s) failed\n",
 		       __func__, dev_name(dev));
-		goto probe_failed;
+		goto sysfs_failed;
 	}
 
 	if (dev->pm_domain && dev->pm_domain->activate) {
@@ -657,6 +657,8 @@ dev_groups_failed:
 	else if (drv->remove)
 		drv->remove(dev);
 probe_failed:
+	driver_sysfs_remove(dev);
+sysfs_failed:
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DRIVER_NOT_BOUND, dev);
@@ -666,7 +668,6 @@ pinctrl_bind_failed:
 	arch_teardown_dma_ops(dev);
 	kfree(dev->dma_range_map);
 	dev->dma_range_map = NULL;
-	driver_sysfs_remove(dev);
 	dev->driver = NULL;
 	dev_set_drvdata(dev, NULL);
 	if (dev->pm_domain && dev->pm_domain->dismiss)

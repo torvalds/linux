@@ -442,16 +442,6 @@ static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_OK;
 }
 
-int ipa_modem_init(struct ipa *ipa, bool modem_init)
-{
-	return ipa_smp2p_init(ipa, modem_init);
-}
-
-void ipa_modem_exit(struct ipa *ipa)
-{
-	ipa_smp2p_exit(ipa);
-}
-
 int ipa_modem_config(struct ipa *ipa)
 {
 	void *notifier;

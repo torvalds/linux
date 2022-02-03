@@ -7,6 +7,7 @@
  * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
  */
 
+#include <linux/etherdevice.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -67,6 +68,35 @@ struct devlink {
 	refcount_t refcount;
 	struct completion comp;
 	char priv[] __aligned(NETDEV_ALIGN);
+};
+
+/**
+ * struct devlink_resource - devlink resource
+ * @name: name of the resource
+ * @id: id, per devlink instance
+ * @size: size of the resource
+ * @size_new: updated size of the resource, reload is needed
+ * @size_valid: valid in case the total size of the resource is valid
+ *              including its children
+ * @parent: parent resource
+ * @size_params: size parameters
+ * @list: parent list
+ * @resource_list: list of child resources
+ * @occ_get: occupancy getter callback
+ * @occ_get_priv: occupancy getter callback priv
+ */
+struct devlink_resource {
+	const char *name;
+	u64 id;
+	u64 size;
+	u64 size_new;
+	bool size_valid;
+	struct devlink_resource *parent;
+	struct devlink_resource_size_params size_params;
+	struct list_head list;
+	struct list_head resource_list;
+	devlink_resource_occ_get_t *occ_get;
+	void *occ_get_priv;
 };
 
 void *devlink_priv(struct devlink *devlink)
@@ -4431,6 +4461,21 @@ static const struct devlink_param devlink_param_generic[] = {
 		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
 		.name = DEVLINK_PARAM_GENERIC_ENABLE_VNET_NAME,
 		.type = DEVLINK_PARAM_GENERIC_ENABLE_VNET_TYPE,
+	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_IWARP,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_IWARP_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_IWARP_TYPE,
+	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_IO_EQ_SIZE,
+		.name = DEVLINK_PARAM_GENERIC_IO_EQ_SIZE_NAME,
+		.type = DEVLINK_PARAM_GENERIC_IO_EQ_SIZE_TYPE,
+	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_EVENT_EQ_SIZE,
+		.name = DEVLINK_PARAM_GENERIC_EVENT_EQ_SIZE_NAME,
+		.type = DEVLINK_PARAM_GENERIC_EVENT_EQ_SIZE_TYPE,
 	},
 };
 
@@ -8840,8 +8885,6 @@ static const struct genl_small_ops devlink_nl_ops[] = {
 			    GENL_DONT_VALIDATE_DUMP_STRICT,
 		.dumpit = devlink_nl_cmd_health_reporter_dump_get_dumpit,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT |
-				  DEVLINK_NL_FLAG_NO_LOCK,
 	},
 	{
 		.cmd = DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR,
@@ -9905,34 +9948,38 @@ out:
 }
 EXPORT_SYMBOL_GPL(devlink_resource_register);
 
+static void devlink_resource_unregister(struct devlink *devlink,
+					struct devlink_resource *resource)
+{
+	struct devlink_resource *tmp, *child_resource;
+
+	list_for_each_entry_safe(child_resource, tmp, &resource->resource_list,
+				 list) {
+		devlink_resource_unregister(devlink, child_resource);
+		list_del(&child_resource->list);
+		kfree(child_resource);
+	}
+}
+
 /**
  *	devlink_resources_unregister - free all resources
  *
  *	@devlink: devlink
- *	@resource: resource
  */
-void devlink_resources_unregister(struct devlink *devlink,
-				  struct devlink_resource *resource)
+void devlink_resources_unregister(struct devlink *devlink)
 {
 	struct devlink_resource *tmp, *child_resource;
-	struct list_head *resource_list;
 
-	if (resource)
-		resource_list = &resource->resource_list;
-	else
-		resource_list = &devlink->resource_list;
+	mutex_lock(&devlink->lock);
 
-	if (!resource)
-		mutex_lock(&devlink->lock);
-
-	list_for_each_entry_safe(child_resource, tmp, resource_list, list) {
-		devlink_resources_unregister(devlink, child_resource);
+	list_for_each_entry_safe(child_resource, tmp, &devlink->resource_list,
+				 list) {
+		devlink_resource_unregister(devlink, child_resource);
 		list_del(&child_resource->list);
 		kfree(child_resource);
 	}
 
-	if (!resource)
-		mutex_unlock(&devlink->lock);
+	mutex_unlock(&devlink->lock);
 }
 EXPORT_SYMBOL_GPL(devlink_resources_unregister);
 

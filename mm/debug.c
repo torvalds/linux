@@ -112,56 +112,8 @@ static void __dump_page(struct page *page)
 		type = "ksm ";
 	else if (PageAnon(page))
 		type = "anon ";
-	else if (mapping) {
-		struct inode *host;
-		const struct address_space_operations *a_ops;
-		struct hlist_node *dentry_first;
-		struct dentry *dentry_ptr;
-		struct dentry dentry;
-		unsigned long ino;
-
-		/*
-		 * mapping can be invalid pointer and we don't want to crash
-		 * accessing it, so probe everything depending on it carefully
-		 */
-		if (get_kernel_nofault(host, &mapping->host) ||
-		    get_kernel_nofault(a_ops, &mapping->a_ops)) {
-			pr_warn("failed to read mapping contents, not a valid kernel address?\n");
-			goto out_mapping;
-		}
-
-		if (!host) {
-			pr_warn("aops:%ps\n", a_ops);
-			goto out_mapping;
-		}
-
-		if (get_kernel_nofault(dentry_first, &host->i_dentry.first) ||
-		    get_kernel_nofault(ino, &host->i_ino)) {
-			pr_warn("aops:%ps with invalid host inode %px\n",
-					a_ops, host);
-			goto out_mapping;
-		}
-
-		if (!dentry_first) {
-			pr_warn("aops:%ps ino:%lx\n", a_ops, ino);
-			goto out_mapping;
-		}
-
-		dentry_ptr = container_of(dentry_first, struct dentry, d_u.d_alias);
-		if (get_kernel_nofault(dentry, dentry_ptr)) {
-			pr_warn("aops:%ps ino:%lx with invalid dentry %px\n",
-					a_ops, ino, dentry_ptr);
-		} else {
-			/*
-			 * if dentry is corrupted, the %pd handler may still
-			 * crash, but it's unlikely that we reach here with a
-			 * corrupted struct page
-			 */
-			pr_warn("aops:%ps ino:%lx dentry name:\"%pd\"\n",
-					a_ops, ino, &dentry);
-		}
-	}
-out_mapping:
+	else if (mapping)
+		dump_mapping(mapping);
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
 
 	pr_warn("%sflags: %pGp%s\n", type, &head->flags,

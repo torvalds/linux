@@ -271,7 +271,7 @@ MODULE_PARM_DESC(msi, "IRQ handling."
 	" 0=PIC(default), 1=MSI, 2=MSI-X)");
 module_param(startup_timeout, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(startup_timeout, "The duration of time in seconds to wait for"
-	" adapter to have it's kernel up and\n"
+	" adapter to have its kernel up and\n"
 	"running. This is typically adjusted for large systems that do not"
 	" have a BIOS.");
 module_param(aif_timeout, int, S_IRUGO|S_IWUSR);

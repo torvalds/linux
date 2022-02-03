@@ -41,7 +41,6 @@
 #  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
 # endif
 #endif
-#include "bpf_rlimit.h"
 #include "bpf_rand.h"
 #include "bpf_util.h"
 #include "test_btf.h"
@@ -54,7 +53,7 @@
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_TEST_INSNS	1000000
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	21
+#define MAX_NR_MAPS	22
 #define MAX_TEST_RUNS	8
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
@@ -462,11 +461,11 @@ static int __create_map(uint32_t type, uint32_t size_key,
 			uint32_t size_value, uint32_t max_elem,
 			uint32_t extra_flags)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int fd;
 
-	fd = bpf_create_map(type, size_key, size_value, max_elem,
-			    (type == BPF_MAP_TYPE_HASH ?
-			     BPF_F_NO_PREALLOC : 0) | extra_flags);
+	opts.map_flags = (type == BPF_MAP_TYPE_HASH ? BPF_F_NO_PREALLOC : 0) | extra_flags;
+	fd = bpf_map_create(type, NULL, size_key, size_value, max_elem, &opts);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
@@ -499,8 +498,7 @@ static int create_prog_dummy_simple(enum bpf_prog_type prog_type, int ret)
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(prog_type, prog,
-				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	return bpf_prog_load(prog_type, NULL, "GPL", prog, ARRAY_SIZE(prog), NULL);
 }
 
 static int create_prog_dummy_loop(enum bpf_prog_type prog_type, int mfd,
@@ -515,8 +513,7 @@ static int create_prog_dummy_loop(enum bpf_prog_type prog_type, int mfd,
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(prog_type, prog,
-				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	return bpf_prog_load(prog_type, NULL, "GPL", prog, ARRAY_SIZE(prog), NULL);
 }
 
 static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
@@ -524,8 +521,8 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 {
 	int mfd, p1fd, p2fd, p3fd;
 
-	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
-			     sizeof(int), max_elem, 0);
+	mfd = bpf_map_create(BPF_MAP_TYPE_PROG_ARRAY, NULL, sizeof(int),
+			     sizeof(int), max_elem, NULL);
 	if (mfd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_PROG_ARRAY))
 			return -1;
@@ -555,10 +552,11 @@ err:
 
 static int create_map_in_map(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int inner_map_fd, outer_map_fd;
 
-	inner_map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(int),
-				      sizeof(int), 1, 0);
+	inner_map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(int),
+				      sizeof(int), 1, NULL);
 	if (inner_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY))
 			return -1;
@@ -566,8 +564,9 @@ static int create_map_in_map(void)
 		return inner_map_fd;
 	}
 
-	outer_map_fd = bpf_create_map_in_map(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
-					     sizeof(int), inner_map_fd, 1, 0);
+	opts.inner_map_fd = inner_map_fd;
+	outer_map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
+				      sizeof(int), sizeof(int), 1, &opts);
 	if (outer_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY_OF_MAPS))
 			return -1;
@@ -586,8 +585,8 @@ static int create_cgroup_storage(bool percpu)
 		BPF_MAP_TYPE_CGROUP_STORAGE;
 	int fd;
 
-	fd = bpf_create_map(type, sizeof(struct bpf_cgroup_storage_key),
-			    TEST_DATA_LEN, 0, 0);
+	fd = bpf_map_create(type, NULL, sizeof(struct bpf_cgroup_storage_key),
+			    TEST_DATA_LEN, 0, NULL);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
@@ -654,7 +653,7 @@ static int load_btf(void)
 	memcpy(ptr, btf_str_sec, hdr.str_len);
 	ptr += hdr.str_len;
 
-	btf_fd = bpf_load_btf(raw_btf, ptr - raw_btf, 0, 0, 0);
+	btf_fd = bpf_btf_load(raw_btf, ptr - raw_btf, NULL);
 	free(raw_btf);
 	if (btf_fd < 0)
 		return -1;
@@ -663,22 +662,17 @@ static int load_btf(void)
 
 static int create_map_spin_lock(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_ARRAY,
-		.key_size = 4,
-		.value_size = 8,
-		.max_entries = 1,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_map", 4, 8, 1, &opts);
 	if (fd < 0)
 		printf("Failed to create map with spin_lock\n");
 	return fd;
@@ -686,24 +680,19 @@ static int create_map_spin_lock(void)
 
 static int create_sk_storage_map(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_SK_STORAGE,
-		.key_size = 4,
-		.value_size = 8,
-		.max_entries = 0,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.map_flags = BPF_F_NO_PREALLOC,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
-	close(attr.btf_fd);
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "test_map", 4, 8, 0, &opts);
+	close(opts.btf_fd);
 	if (fd < 0)
 		printf("Failed to create sk_storage_map\n");
 	return fd;
@@ -711,22 +700,18 @@ static int create_sk_storage_map(void)
 
 static int create_map_timer(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_ARRAY,
-		.key_size = 4,
-		.value_size = 16,
-		.max_entries = 1,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 5,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
+
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_map", 4, 16, 1, &opts);
 	if (fd < 0)
 		printf("Failed to create map with timer\n");
 	return fd;
@@ -1089,7 +1074,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	int fd_prog, expected_ret, alignment_prevented_execution;
 	int prog_len, prog_type = test->prog_type;
 	struct bpf_insn *prog = test->insns;
-	struct bpf_load_program_attr attr;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
 	int run_errs, run_successes;
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
@@ -1129,32 +1114,34 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		       test->result_unpriv : test->result;
 	expected_err = unpriv && test->errstr_unpriv ?
 		       test->errstr_unpriv : test->errstr;
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = prog_type;
-	attr.expected_attach_type = test->expected_attach_type;
-	attr.insns = prog;
-	attr.insns_cnt = prog_len;
-	attr.license = "GPL";
+
+	opts.expected_attach_type = test->expected_attach_type;
 	if (verbose)
-		attr.log_level = 1;
+		opts.log_level = 1;
 	else if (expected_ret == VERBOSE_ACCEPT)
-		attr.log_level = 2;
+		opts.log_level = 2;
 	else
-		attr.log_level = 4;
-	attr.prog_flags = pflags;
+		opts.log_level = 4;
+	opts.prog_flags = pflags;
 
 	if (prog_type == BPF_PROG_TYPE_TRACING && test->kfunc) {
-		attr.attach_btf_id = libbpf_find_vmlinux_btf_id(test->kfunc,
-						attr.expected_attach_type);
-		if (attr.attach_btf_id < 0) {
+		int attach_btf_id;
+
+		attach_btf_id = libbpf_find_vmlinux_btf_id(test->kfunc,
+						opts.expected_attach_type);
+		if (attach_btf_id < 0) {
 			printf("FAIL\nFailed to find BTF ID for '%s'!\n",
 				test->kfunc);
 			(*errors)++;
 			return;
 		}
+
+		opts.attach_btf_id = attach_btf_id;
 	}
 
-	fd_prog = bpf_load_program_xattr(&attr, bpf_vlog, sizeof(bpf_vlog));
+	opts.log_buf = bpf_vlog;
+	opts.log_size = sizeof(bpf_vlog);
+	fd_prog = bpf_prog_load(prog_type, NULL, "GPL", prog, prog_len, &opts);
 	saved_errno = errno;
 
 	/* BPF_PROG_TYPE_TRACING requires more setup and
@@ -1406,6 +1393,9 @@ int main(int argc, char **argv)
 		       UNPRIV_SYSCTL);
 		return EXIT_FAILURE;
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	bpf_semi_rand_init();
 	return do_test(unpriv, from, to);

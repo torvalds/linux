@@ -2354,7 +2354,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	}
 
 	if (amdgpu_sriov_vf(adev))
-		amdgpu_virt_exchange_data(adev);
+		amdgpu_virt_init_data_exchange(adev);
 
 	r = amdgpu_ib_pool_init(adev);
 	if (r) {
@@ -4450,33 +4450,24 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 
 	if (amdgpu_gpu_recovery == -1) {
 		switch (adev->asic_type) {
-		case CHIP_BONAIRE:
-		case CHIP_HAWAII:
-		case CHIP_TOPAZ:
-		case CHIP_TONGA:
-		case CHIP_FIJI:
-		case CHIP_POLARIS10:
-		case CHIP_POLARIS11:
-		case CHIP_POLARIS12:
-		case CHIP_VEGAM:
-		case CHIP_VEGA20:
-		case CHIP_VEGA10:
-		case CHIP_VEGA12:
-		case CHIP_RAVEN:
-		case CHIP_ARCTURUS:
-		case CHIP_RENOIR:
-		case CHIP_NAVI10:
-		case CHIP_NAVI14:
-		case CHIP_NAVI12:
-		case CHIP_SIENNA_CICHLID:
-		case CHIP_NAVY_FLOUNDER:
-		case CHIP_DIMGREY_CAVEFISH:
-		case CHIP_BEIGE_GOBY:
-		case CHIP_VANGOGH:
-		case CHIP_ALDEBARAN:
-			break;
-		default:
+#ifdef CONFIG_DRM_AMDGPU_SI
+		case CHIP_VERDE:
+		case CHIP_TAHITI:
+		case CHIP_PITCAIRN:
+		case CHIP_OLAND:
+		case CHIP_HAINAN:
+#endif
+#ifdef CONFIG_DRM_AMDGPU_CIK
+		case CHIP_KAVERI:
+		case CHIP_KABINI:
+		case CHIP_MULLINS:
+#endif
+		case CHIP_CARRIZO:
+		case CHIP_STONEY:
+		case CHIP_CYAN_SKILLFISH:
 			goto disabled;
+		default:
+			break;
 		}
 	}
 

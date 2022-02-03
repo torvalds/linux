@@ -8,8 +8,10 @@ Required properties:
 	      "mediatek,mt7623-efuse", "mediatek,efuse": for MT7623
 	      "mediatek,mt8173-efuse" or "mediatek,efuse": for MT8173
 	      "mediatek,mt8192-efuse", "mediatek,efuse": for MT8192
+	      "mediatek,mt8195-efuse", "mediatek,efuse": for MT8195
 	      "mediatek,mt8516-efuse", "mediatek,efuse": for MT8516
 - reg: Should contain registers location and length
+- bits: contain the bits range by offset and size
 
 = Data cells =
 Are child nodes of MTK-EFUSE, bindings of which as described in

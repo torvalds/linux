@@ -62,7 +62,7 @@ struct ad7606_chip_info {
  * struct ad7606_state - driver instance specific data
  * @dev		pointer to kernel device
  * @chip_info		entry in the table of chips that describes this device
- * @reg		regulator info for the the power supply of the device
+ * @reg		regulator info for the power supply of the device
  * @bops		bus operations (SPI or parallel)
  * @range		voltage range selection, selects which scale to apply
  * @oversampling	oversampling selection

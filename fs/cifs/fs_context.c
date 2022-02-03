@@ -37,6 +37,8 @@
 #include "rfc1002pdu.h"
 #include "fs_context.h"
 
+static DEFINE_MUTEX(cifs_mount_mutex);
+
 static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_1, SMB1_VERSION_STRING },
 	{ Smb_20, SMB20_VERSION_STRING},
@@ -435,6 +437,42 @@ out:
 }
 
 /*
+ * Remove duplicate path delimiters. Windows is supposed to do that
+ * but there are some bugs that prevent rename from working if there are
+ * multiple delimiters.
+ *
+ * Returns a sanitized duplicate of @path. The caller is responsible for
+ * cleaning up the original.
+ */
+#define IS_DELIM(c) ((c) == '/' || (c) == '\\')
+static char *sanitize_path(char *path)
+{
+	char *cursor1 = path, *cursor2 = path;
+
+	/* skip all prepended delimiters */
+	while (IS_DELIM(*cursor1))
+		cursor1++;
+
+	/* copy the first letter */
+	*cursor2 = *cursor1;
+
+	/* copy the remainder... */
+	while (*(cursor1++)) {
+		/* ... skipping all duplicated delimiters */
+		if (IS_DELIM(*cursor1) && IS_DELIM(*cursor2))
+			continue;
+		*(++cursor2) = *cursor1;
+	}
+
+	/* if the last character is a delimiter, skip it */
+	if (IS_DELIM(*(cursor2 - 1)))
+		cursor2--;
+
+	*(cursor2) = '\0';
+	return kstrdup(path, GFP_KERNEL);
+}
+
+/*
  * Parse a devname into substrings and populate the ctx->UNC and ctx->prepath
  * fields with the result. Returns 0 on success and an error otherwise
  * (e.g. ENOMEM or EINVAL)
@@ -493,7 +531,7 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 	if (!*pos)
 		return 0;
 
-	ctx->prepath = kstrdup(pos, GFP_KERNEL);
+	ctx->prepath = sanitize_path(pos);
 	if (!ctx->prepath)
 		return -ENOMEM;
 
@@ -671,10 +709,14 @@ static int smb3_get_tree_common(struct fs_context *fc)
 static int smb3_get_tree(struct fs_context *fc)
 {
 	int err = smb3_fs_context_validate(fc);
+	int ret;
 
 	if (err)
 		return err;
-	return smb3_get_tree_common(fc);
+	mutex_lock(&cifs_mount_mutex);
+	ret = smb3_get_tree_common(fc);
+	mutex_unlock(&cifs_mount_mutex);
+	return ret;
 }
 
 static void smb3_fs_context_free(struct fs_context *fc)

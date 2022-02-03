@@ -686,7 +686,6 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int accept_source_route = net->ipv6.devconf_all->accept_source_route;
 
-	idev = __in6_dev_get(skb->dev);
 	if (idev && accept_source_route > idev->cnf.accept_source_route)
 		accept_source_route = idev->cnf.accept_source_route;
 

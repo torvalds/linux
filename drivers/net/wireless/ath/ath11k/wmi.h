@@ -113,10 +113,10 @@ enum wmi_host_hw_mode_priority {
 	WMI_HOST_HW_MODE_MAX_PRI
 };
 
-enum {
+enum WMI_HOST_WLAN_BAND {
 	WMI_HOST_WLAN_2G_CAP	= 0x1,
 	WMI_HOST_WLAN_5G_CAP	= 0x2,
-	WMI_HOST_WLAN_2G_5G_CAP	= 0x3,
+	WMI_HOST_WLAN_2G_5G_CAP	= WMI_HOST_WLAN_2G_CAP | WMI_HOST_WLAN_5G_CAP,
 };
 
 /* Parameters used for WMI_VDEV_PARAM_AUTORATE_MISC_CFG command.
@@ -774,6 +774,8 @@ enum wmi_tlv_event_id {
 	WMI_MDNS_STATS_EVENTID = WMI_TLV_CMD(WMI_GRP_MDNS_OFL),
 	WMI_SAP_OFL_ADD_STA_EVENTID = WMI_TLV_CMD(WMI_GRP_SAP_OFL),
 	WMI_SAP_OFL_DEL_STA_EVENTID,
+	WMI_OBSS_COLOR_COLLISION_DETECTION_EVENTID =
+		WMI_EVT_GRP_START_ID(WMI_GRP_OBSS_OFL),
 	WMI_OCB_SET_CONFIG_RESP_EVENTID = WMI_TLV_CMD(WMI_GRP_OCB),
 	WMI_OCB_GET_TSF_TIMER_RESP_EVENTID,
 	WMI_DCC_GET_STATS_RESP_EVENTID,
@@ -2167,6 +2169,13 @@ enum wmi_nss_ratio {
 	WMI_NSS_RATIO_2_NSS = 0x3,
 };
 
+enum wmi_dtim_policy {
+	WMI_DTIM_POLICY_IGNORE = 1,
+	WMI_DTIM_POLICY_NORMAL = 2,
+	WMI_DTIM_POLICY_STICK  = 3,
+	WMI_DTIM_POLICY_AUTO   = 4,
+};
+
 struct wmi_host_pdev_band_to_mac {
 	u32 pdev_id;
 	u32 start_freq;
@@ -2522,6 +2531,7 @@ struct ath11k_pdev_wmi {
 	enum ath11k_htc_ep_id eid;
 	const struct wmi_peer_flags_map *peer_flags;
 	u32 rx_decap_mode;
+	wait_queue_head_t tx_ce_desc_wq;
 };
 
 struct vdev_create_params {
@@ -3079,7 +3089,6 @@ enum scan_dwelltime_adaptive_mode {
 
 #define WLAN_SCAN_MAX_NUM_SSID          10
 #define WLAN_SCAN_MAX_NUM_BSSID         10
-#define WLAN_SCAN_MAX_NUM_CHANNELS      40
 
 #define WLAN_SSID_MAX_LEN 32
 
@@ -3300,7 +3309,7 @@ struct scan_req_params {
 	u32 num_bssid;
 	u32 num_ssids;
 	u32 n_probes;
-	u32 chan_list[WLAN_SCAN_MAX_NUM_CHANNELS];
+	u32 *chan_list;
 	u32 notify_scan_events;
 	struct wlan_ssid ssid[WLAN_SCAN_MAX_NUM_SSID];
 	struct wmi_mac_addr bssid_list[WLAN_SCAN_MAX_NUM_BSSID];
@@ -3311,6 +3320,8 @@ struct scan_req_params {
 	u32 num_hint_bssid;
 	struct hint_short_ssid hint_s_ssid[WLAN_SCAN_MAX_HINT_S_SSID];
 	struct hint_bssid hint_bssid[WLAN_SCAN_MAX_HINT_BSSID];
+	struct wmi_mac_addr mac_addr;
+	struct wmi_mac_addr mac_mask;
 };
 
 struct wmi_ssid_arg {
@@ -3617,6 +3628,7 @@ struct peer_assoc_params {
 	u32 peer_he_tx_mcs_set[WMI_HOST_MAX_HE_RATE_SET];
 	bool twt_responder;
 	bool twt_requester;
+	bool is_assoc;
 	struct ath11k_ppe_threshold peer_ppet;
 };
 
@@ -3672,6 +3684,11 @@ struct wmi_scan_chan_list_cmd {
 	u32 flags;
 	u32 pdev_id;
 } __packed;
+
+struct wmi_scan_prob_req_oui_cmd {
+	u32 tlv_header;
+	u32 prob_req_oui;
+}  __packed;
 
 #define WMI_MGMT_SEND_DOWNLD_LEN	64
 
@@ -3766,6 +3783,16 @@ struct stats_request_params {
 	u32 pdev_id;
 };
 
+struct wmi_set_current_country_params {
+	u8 alpha2[3];
+};
+
+struct wmi_set_current_country_cmd {
+	u32 tlv_header;
+	u32 pdev_id;
+	u32 new_alpha2;
+} __packed;
+
 enum set_init_cc_type {
 	WMI_COUNTRY_INFO_TYPE_ALPHA,
 	WMI_COUNTRY_INFO_TYPE_COUNTRY_CODE,
@@ -3797,6 +3824,28 @@ struct wmi_init_country_cmd {
 		u32 regdom_id;
 		u32 alpha2;
 	} cc_info;
+} __packed;
+
+struct wmi_11d_scan_start_params {
+	u32 vdev_id;
+	u32 scan_period_msec;
+	u32 start_interval_msec;
+};
+
+struct wmi_11d_scan_start_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 scan_period_msec;
+	u32 start_interval_msec;
+} __packed;
+
+struct wmi_11d_scan_stop_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+} __packed;
+
+struct wmi_11d_new_cc_ev {
+	u32 new_alpha2;
 } __packed;
 
 #define THERMAL_LEVELS  1
@@ -4390,6 +4439,17 @@ struct wmi_stats_event {
 	u32 num_peer_extd2_stats;
 } __packed;
 
+struct wmi_rssi_stats {
+	u32 vdev_id;
+	u32 rssi_avg_beacon[WMI_MAX_CHAINS];
+	u32 rssi_avg_data[WMI_MAX_CHAINS];
+	struct wmi_mac_addr peer_macaddr;
+} __packed;
+
+struct wmi_per_chain_rssi_stats {
+	u32 num_per_chain_rssi_stats;
+} __packed;
+
 struct wmi_pdev_ctl_failsafe_chk_event {
 	u32 pdev_id;
 	u32 ctl_failsafe_status;
@@ -4914,6 +4974,13 @@ struct wmi_pdev_obss_pd_bitmap_cmd {
 #define ATH11K_BSS_COLOR_COLLISION_DETECTION_STA_PERIOD_MS	10000
 #define ATH11K_BSS_COLOR_COLLISION_DETECTION_AP_PERIOD_MS	5000
 
+enum wmi_bss_color_collision {
+	WMI_BSS_COLOR_COLLISION_DISABLE = 0,
+	WMI_BSS_COLOR_COLLISION_DETECTION,
+	WMI_BSS_COLOR_FREE_SLOT_TIMER_EXPIRY,
+	WMI_BSS_COLOR_FREE_SLOT_AVAILABLE,
+};
+
 struct wmi_obss_color_collision_cfg_params_cmd {
 	u32 tlv_header;
 	u32 vdev_id;
@@ -4929,6 +4996,12 @@ struct wmi_bss_color_change_enable_params_cmd {
 	u32 tlv_header;
 	u32 vdev_id;
 	u32 enable;
+} __packed;
+
+struct wmi_obss_color_collision_event {
+	u32 vdev_id;
+	u32 evt_type;
+	u64 obss_color_bitmap;
 } __packed;
 
 #define ATH11K_IPV4_TH_SEED_SIZE 5
@@ -5142,6 +5215,31 @@ struct target_resource_config {
 	u32 twt_ap_sta_count;
 };
 
+enum wmi_sys_cap_info_flags {
+	WMI_SYS_CAP_INFO_RXTX_LED	= BIT(0),
+	WMI_SYS_CAP_INFO_RFKILL	= BIT(1),
+};
+
+#define WMI_RFKILL_CFG_GPIO_PIN_NUM		GENMASK(5, 0)
+#define WMI_RFKILL_CFG_RADIO_LEVEL		BIT(6)
+#define WMI_RFKILL_CFG_PIN_AS_GPIO		GENMASK(10, 7)
+
+enum wmi_rfkill_enable_radio {
+	WMI_RFKILL_ENABLE_RADIO_ON	= 0,
+	WMI_RFKILL_ENABLE_RADIO_OFF	= 1,
+};
+
+enum wmi_rfkill_radio_state {
+	WMI_RFKILL_RADIO_STATE_OFF	= 1,
+	WMI_RFKILL_RADIO_STATE_ON	= 2,
+};
+
+struct wmi_rfkill_state_change_ev {
+	u32 gpio_pin_num;
+	u32 int_type;
+	u32 radio_state;
+} __packed;
+
 #define WMI_MAX_MEM_REQS 32
 
 #define MAX_RADIOS 3
@@ -5351,7 +5449,8 @@ int ath11k_wmi_set_peer_param(struct ath11k *ar, const u8 *peer_addr,
 			      u32 vdev_id, u32 param_id, u32 param_val);
 int ath11k_wmi_pdev_set_param(struct ath11k *ar, u32 param_id,
 			      u32 param_value, u8 pdev_id);
-int ath11k_wmi_pdev_set_ps_mode(struct ath11k *ar, int vdev_id, u32 enable);
+int ath11k_wmi_pdev_set_ps_mode(struct ath11k *ar, int vdev_id,
+				enum wmi_sta_ps_mode psmode);
 int ath11k_wmi_wait_for_unified_ready(struct ath11k_base *ab);
 int ath11k_wmi_cmd_init(struct ath11k_base *ab);
 int ath11k_wmi_wait_for_service_ready(struct ath11k_base *ab);
@@ -5415,9 +5514,16 @@ int ath11k_wmi_delba_send(struct ath11k *ar, u32 vdev_id, const u8 *mac,
 			  u32 tid, u32 initiator, u32 reason);
 int ath11k_wmi_send_bcn_offload_control_cmd(struct ath11k *ar,
 					    u32 vdev_id, u32 bcn_ctrl_op);
+int ath11k_wmi_send_set_current_country_cmd(struct ath11k *ar,
+					    struct wmi_set_current_country_params *param);
 int
 ath11k_wmi_send_init_country_cmd(struct ath11k *ar,
 				 struct wmi_init_country_params init_cc_param);
+
+int ath11k_wmi_send_11d_scan_start_cmd(struct ath11k *ar,
+				       struct wmi_11d_scan_start_params *param);
+int ath11k_wmi_send_11d_scan_stop_cmd(struct ath11k *ar, u32 vdev_id);
+
 int
 ath11k_wmi_send_thermal_mitigation_param_cmd(struct ath11k *ar,
 					     struct thermal_mitigation_params *param);
@@ -5474,5 +5580,6 @@ int ath11k_wmi_set_hw_mode(struct ath11k_base *ab,
 			   enum wmi_host_hw_mode_config_type mode);
 int ath11k_wmi_wow_host_wakeup_ind(struct ath11k *ar);
 int ath11k_wmi_wow_enable(struct ath11k *ar);
-
+int ath11k_wmi_scan_prob_req_oui(struct ath11k *ar,
+				 const u8 mac_addr[ETH_ALEN]);
 #endif

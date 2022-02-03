@@ -137,6 +137,8 @@ struct smc_link {
 	u8			peer_link_uid[SMC_LGR_ID_SIZE]; /* peer uid */
 	u8			link_idx;	/* index in lgr link array */
 	u8			link_is_asym;	/* is link asymmetric? */
+	u8			clearing : 1;	/* link is being cleared */
+	refcount_t		refcnt;		/* link reference count */
 	struct smc_link_group	*lgr;		/* parent link group */
 	struct work_struct	link_down_wrk;	/* wrk to bring link down */
 	char			ibname[IB_DEVICE_NAME_MAX]; /* ib device name */
@@ -249,6 +251,7 @@ struct smc_link_group {
 	u8			terminating : 1;/* lgr is terminating */
 	u8			freeing : 1;	/* lgr is being freed */
 
+	refcount_t		refcnt;		/* lgr reference count */
 	bool			is_smcd;	/* SMC-R or SMC-D */
 	u8			smc_version;
 	u8			negotiated_eid[SMC_MAX_EID_LEN];
@@ -306,6 +309,8 @@ struct smc_link_group {
 			u8			nexthop_mac[ETH_ALEN];
 			u8			uses_gateway;
 			__be32			saddr;
+						/* net namespace */
+			struct net		*net;
 		};
 		struct { /* SMC-D */
 			u64			peer_gid;
@@ -407,12 +412,38 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	return res;
 }
 
-/* returns true if the specified link is usable */
+static inline bool smc_conn_lgr_valid(struct smc_connection *conn)
+{
+	return conn->lgr && conn->alert_token_local;
+}
+
+/*
+ * Returns true if the specified link is usable.
+ *
+ * usable means the link is ready to receive RDMA messages, map memory
+ * on the link, etc. This doesn't ensure we are able to send RDMA messages
+ * on this link, if sending RDMA messages is needed, use smc_link_sendable()
+ */
 static inline bool smc_link_usable(struct smc_link *lnk)
 {
 	if (lnk->state == SMC_LNK_UNUSED || lnk->state == SMC_LNK_INACTIVE)
 		return false;
 	return true;
+}
+
+/*
+ * Returns true if the specified link is ready to receive AND send RDMA
+ * messages.
+ *
+ * For the client side in first contact, the underlying QP may still in
+ * RESET or RTR when the link state is ACTIVATING, checks in smc_link_usable()
+ * is not strong enough. For those places that need to send any CDC or LLC
+ * messages, use smc_link_sendable(), otherwise, use smc_link_usable() instead
+ */
+static inline bool smc_link_sendable(struct smc_link *lnk)
+{
+	return smc_link_usable(lnk) &&
+		lnk->qp_attr.cur_qp_state == IB_QPS_RTS;
 }
 
 static inline bool smc_link_active(struct smc_link *lnk)
@@ -462,8 +493,10 @@ static inline void smc_set_pci_values(struct pci_dev *pci_dev,
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
 
-void smc_lgr_cleanup_early(struct smc_connection *conn);
+void smc_lgr_cleanup_early(struct smc_link_group *lgr);
 void smc_lgr_terminate_sched(struct smc_link_group *lgr);
+void smc_lgr_hold(struct smc_link_group *lgr);
+void smc_lgr_put(struct smc_link_group *lgr);
 void smcr_port_add(struct smc_ib_device *smcibdev, u8 ibport);
 void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport);
 void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid,
@@ -495,6 +528,8 @@ void smc_core_exit(void);
 int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 		   u8 link_idx, struct smc_init_info *ini);
 void smcr_link_clear(struct smc_link *lnk, bool log);
+void smcr_link_hold(struct smc_link *lnk);
+void smcr_link_put(struct smc_link *lnk);
 void smc_switch_link_and_count(struct smc_connection *conn,
 			       struct smc_link *to_lnk);
 int smcr_buf_map_lgr(struct smc_link *lnk);

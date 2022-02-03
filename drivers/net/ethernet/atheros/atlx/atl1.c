@@ -3438,7 +3438,9 @@ static void atl1_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 }
 
 static void atl1_get_ringparam(struct net_device *netdev,
-	struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	struct atl1_tpd_ring *txdr = &adapter->tpd_ring;
@@ -3451,7 +3453,9 @@ static void atl1_get_ringparam(struct net_device *netdev,
 }
 
 static int atl1_set_ringparam(struct net_device *netdev,
-	struct ethtool_ringparam *ring)
+			      struct ethtool_ringparam *ring,
+			      struct kernel_ethtool_ringparam *kernel_ring,
+			      struct netlink_ext_ack *extack)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	struct atl1_tpd_ring *tpdr = &adapter->tpd_ring;

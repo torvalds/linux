@@ -15,17 +15,11 @@ description:
   properties as well to generate desired MDIO transaction on appropriate bus.
 
 allOf:
-  - $ref: "mdio.yaml#"
+  - $ref: mdio-mux.yaml#
 
 properties:
   compatible:
     const: brcm,bcm6368-mdio-mux
-
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 0
 
   reg:
     maxItems: 1
@@ -33,24 +27,6 @@ properties:
 required:
   - compatible
   - reg
-
-patternProperties:
-  '^mdio@[0-1]$':
-    type: object
-    properties:
-      reg:
-        maxItems: 1
-
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
-    required:
-      - reg
-      - "#address-cells"
-      - "#size-cells"
 
 unevaluatedProperties: false
 

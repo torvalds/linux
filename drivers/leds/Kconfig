@@ -260,13 +260,6 @@ config LEDS_NET48XX
 	  This option enables support for the Soekris net4801 and net4826 error
 	  LED.
 
-config LEDS_FSG
-	tristate "LED Support for the Freecom FSG-3"
-	depends on LEDS_CLASS
-	depends on MACH_FSG
-	help
-	  This option enables support for the LEDs on the Freecom FSG-3.
-
 config LEDS_WRAP
 	tristate "LED Support for the WRAP series LEDs"
 	depends on LEDS_CLASS
@@ -878,5 +871,8 @@ source "drivers/leds/flash/Kconfig"
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
+
+comment "Simple LED drivers"
+source "drivers/leds/simple/Kconfig"
 
 endif # NEW_LEDS

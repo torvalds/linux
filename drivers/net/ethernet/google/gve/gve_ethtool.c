@@ -8,6 +8,7 @@
 #include <linux/rtnetlink.h>
 #include "gve.h"
 #include "gve_adminq.h"
+#include "gve_dqo.h"
 
 static void gve_get_drvinfo(struct net_device *netdev,
 			    struct ethtool_drvinfo *info)
@@ -42,7 +43,7 @@ static const char gve_gstrings_main_stats[][ETH_GSTRING_LEN] = {
 };
 
 static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
-	"rx_posted_desc[%u]", "rx_completed_desc[%u]", "rx_bytes[%u]",
+	"rx_posted_desc[%u]", "rx_completed_desc[%u]", "rx_consumed_desc[%u]", "rx_bytes[%u]",
 	"rx_cont_packet_cnt[%u]", "rx_frag_flip_cnt[%u]", "rx_frag_copy_cnt[%u]",
 	"rx_dropped_pkt[%u]", "rx_copybreak_pkt[%u]", "rx_copied_pkt[%u]",
 	"rx_queue_drop_cnt[%u]", "rx_no_buffers_posted[%u]",
@@ -50,7 +51,7 @@ static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
 };
 
 static const char gve_gstrings_tx_stats[][ETH_GSTRING_LEN] = {
-	"tx_posted_desc[%u]", "tx_completed_desc[%u]", "tx_bytes[%u]",
+	"tx_posted_desc[%u]", "tx_completed_desc[%u]", "tx_consumed_desc[%u]", "tx_bytes[%u]",
 	"tx_wake[%u]", "tx_stop[%u]", "tx_event_counter[%u]",
 	"tx_dma_mapping_error[%u]",
 };
@@ -139,10 +140,11 @@ static void
 gve_get_ethtool_stats(struct net_device *netdev,
 		      struct ethtool_stats *stats, u64 *data)
 {
-	u64 tmp_rx_pkts, tmp_rx_bytes, tmp_rx_skb_alloc_fail,	tmp_rx_buf_alloc_fail,
-		tmp_rx_desc_err_dropped_pkt, tmp_tx_pkts, tmp_tx_bytes;
+	u64 tmp_rx_pkts, tmp_rx_bytes, tmp_rx_skb_alloc_fail,
+		tmp_rx_buf_alloc_fail, tmp_rx_desc_err_dropped_pkt,
+		tmp_tx_pkts, tmp_tx_bytes;
 	u64 rx_buf_alloc_fail, rx_desc_err_dropped_pkt, rx_pkts,
-		rx_skb_alloc_fail, rx_bytes, tx_pkts, tx_bytes;
+		rx_skb_alloc_fail, rx_bytes, tx_pkts, tx_bytes, tx_dropped;
 	int stats_idx, base_stats_idx, max_stats_idx;
 	struct stats *report_stats;
 	int *rx_qid_to_stats_idx;
@@ -191,7 +193,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			rx_desc_err_dropped_pkt += tmp_rx_desc_err_dropped_pkt;
 		}
 	}
-	for (tx_pkts = 0, tx_bytes = 0, ring = 0;
+	for (tx_pkts = 0, tx_bytes = 0, tx_dropped = 0, ring = 0;
 	     ring < priv->tx_cfg.num_queues; ring++) {
 		if (priv->tx) {
 			do {
@@ -203,6 +205,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 						       start));
 			tx_pkts += tmp_tx_pkts;
 			tx_bytes += tmp_tx_bytes;
+			tx_dropped += priv->tx[ring].dropped_pkt;
 		}
 	}
 
@@ -214,9 +217,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	/* total rx dropped packets */
 	data[i++] = rx_skb_alloc_fail + rx_buf_alloc_fail +
 		    rx_desc_err_dropped_pkt;
-	/* Skip tx_dropped */
-	i++;
-
+	data[i++] = tx_dropped;
 	data[i++] = priv->tx_timeo_cnt;
 	data[i++] = rx_skb_alloc_fail;
 	data[i++] = rx_buf_alloc_fail;
@@ -255,6 +256,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 
 			data[i++] = rx->fill_cnt;
 			data[i++] = rx->cnt;
+			data[i++] = rx->fill_cnt - rx->cnt;
 			do {
 				start =
 				  u64_stats_fetch_begin(&priv->rx[ring].statss);
@@ -318,12 +320,14 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			if (gve_is_gqi(priv)) {
 				data[i++] = tx->req;
 				data[i++] = tx->done;
+				data[i++] = tx->req - tx->done;
 			} else {
 				/* DQO doesn't currently support
 				 * posted/completed descriptor counts;
 				 */
 				data[i++] = 0;
 				data[i++] = 0;
+				data[i++] = tx->dqo_tx.tail - tx->dqo_tx.head;
 			}
 			do {
 				start =
@@ -419,7 +423,9 @@ static int gve_set_channels(struct net_device *netdev,
 }
 
 static void gve_get_ringparam(struct net_device *netdev,
-			      struct ethtool_ringparam *cmd)
+			      struct ethtool_ringparam *cmd,
+			      struct kernel_ethtool_ringparam *kernel_cmd,
+			      struct netlink_ext_ack *extack)
 {
 	struct gve_priv *priv = netdev_priv(netdev);
 
@@ -535,7 +541,65 @@ static int gve_get_link_ksettings(struct net_device *netdev,
 	return err;
 }
 
+static int gve_get_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ec,
+			    struct kernel_ethtool_coalesce *kernel_ec,
+			    struct netlink_ext_ack *extack)
+{
+	struct gve_priv *priv = netdev_priv(netdev);
+
+	if (gve_is_gqi(priv))
+		return -EOPNOTSUPP;
+	ec->tx_coalesce_usecs = priv->tx_coalesce_usecs;
+	ec->rx_coalesce_usecs = priv->rx_coalesce_usecs;
+
+	return 0;
+}
+
+static int gve_set_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ec,
+			    struct kernel_ethtool_coalesce *kernel_ec,
+			    struct netlink_ext_ack *extack)
+{
+	struct gve_priv *priv = netdev_priv(netdev);
+	u32 tx_usecs_orig = priv->tx_coalesce_usecs;
+	u32 rx_usecs_orig = priv->rx_coalesce_usecs;
+	int idx;
+
+	if (gve_is_gqi(priv))
+		return -EOPNOTSUPP;
+
+	if (ec->tx_coalesce_usecs > GVE_MAX_ITR_INTERVAL_DQO ||
+	    ec->rx_coalesce_usecs > GVE_MAX_ITR_INTERVAL_DQO)
+		return -EINVAL;
+	priv->tx_coalesce_usecs = ec->tx_coalesce_usecs;
+	priv->rx_coalesce_usecs = ec->rx_coalesce_usecs;
+
+	if (tx_usecs_orig != priv->tx_coalesce_usecs) {
+		for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
+			int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
+			struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+			gve_set_itr_coalesce_usecs_dqo(priv, block,
+						       priv->tx_coalesce_usecs);
+		}
+	}
+
+	if (rx_usecs_orig != priv->rx_coalesce_usecs) {
+		for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
+			int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
+			struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+			gve_set_itr_coalesce_usecs_dqo(priv, block,
+						       priv->rx_coalesce_usecs);
+		}
+	}
+
+	return 0;
+}
+
 const struct ethtool_ops gve_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo = gve_get_drvinfo,
 	.get_strings = gve_get_strings,
 	.get_sset_count = gve_get_sset_count,
@@ -545,6 +609,8 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.set_channels = gve_set_channels,
 	.get_channels = gve_get_channels,
 	.get_link = ethtool_op_get_link,
+	.get_coalesce = gve_get_coalesce,
+	.set_coalesce = gve_set_coalesce,
 	.get_ringparam = gve_get_ringparam,
 	.reset = gve_user_reset,
 	.get_tunable = gve_get_tunable,

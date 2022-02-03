@@ -1868,7 +1868,6 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	at91_chip->chip = at91_gpio_template;
 
 	chip = &at91_chip->chip;
-	chip->of_node = np;
 	chip->label = dev_name(&pdev->dev);
 	chip->parent = &pdev->dev;
 	chip->owner = THIS_MODULE;

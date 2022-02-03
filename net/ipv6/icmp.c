@@ -57,6 +57,7 @@
 #include <net/protocol.h>
 #include <net/raw.h>
 #include <net/rawv6.h>
+#include <net/seg6.h>
 #include <net/transp_v6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
@@ -820,6 +821,7 @@ out_bh_enable:
 
 void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 {
+	struct inet6_skb_parm *opt = IP6CB(skb);
 	const struct inet6_protocol *ipprot;
 	int inner_offset;
 	__be16 frag_off;
@@ -828,6 +830,8 @@ void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto out;
+
+	seg6_icmp_srh(skb, opt);
 
 	nexthdr = ((struct ipv6hdr *)skb->data)->nexthdr;
 	if (ipv6_ext_hdr(nexthdr)) {
@@ -853,7 +857,7 @@ void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 
 	ipprot = rcu_dereference(inet6_protos[nexthdr]);
 	if (ipprot && ipprot->err_handler)
-		ipprot->err_handler(skb, NULL, type, code, inner_offset, info);
+		ipprot->err_handler(skb, opt, type, code, inner_offset, info);
 
 	raw6_icmp_error(skb, nexthdr, type, code, inner_offset, info);
 	return;

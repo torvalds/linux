@@ -59,7 +59,6 @@ enum rc_filter_type {
  * @rc: rcdev for this lirc chardev
  * @carrier_low: when setting the carrier range, first the low end must be
  *	set with an ioctl and then the high end with another ioctl
- * @send_timeout_reports: report timeouts in lirc raw IR.
  * @rawir: queue for incoming raw IR
  * @scancodes: queue for incoming decoded scancodes
  * @wait_poll: poll struct for lirc device
@@ -72,7 +71,6 @@ struct lirc_fh {
 	struct list_head list;
 	struct rc_dev *rc;
 	int				carrier_low;
-	bool				send_timeout_reports;
 	DECLARE_KFIFO_PTR(rawir, unsigned int);
 	DECLARE_KFIFO_PTR(scancodes, struct lirc_scancode);
 	wait_queue_head_t		wait_poll;

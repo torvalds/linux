@@ -72,7 +72,7 @@
 		status = "okay";
 	};
 
-	gpu@0,57000000 {
+	gpu@57000000 {
 		/*
 		 * Node left disabled on purpose - the bootloader will enable
 		 * it after having set the VPR up
@@ -1389,6 +1389,7 @@
 	 */
 	serial@70006000 {
 		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 	};
 
@@ -1401,6 +1402,7 @@
 	 */
 	serial@70006040 {
 		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 	};
 
@@ -1655,7 +1657,8 @@
 	spi@7000da00 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
-		spi-flash@0 {
+
+		flash@0 {
 			compatible = "winbond,w25q32dw", "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <20000000>;
@@ -1868,7 +1871,7 @@
 		vbus-supply = <&vdd_usb3_vbus>;
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -1892,7 +1895,7 @@
 		};
 	};
 
-	vdd_mux: regulator@0 {
+	vdd_mux: regulator-mux {
 		compatible = "regulator-fixed";
 		regulator-name = "+VDD_MUX";
 		regulator-min-microvolt = <12000000>;
@@ -1901,7 +1904,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_5v0_sys: regulator@1 {
+	vdd_5v0_sys: regulator-5v0sys {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_SYS";
 		regulator-min-microvolt = <5000000>;
@@ -1911,7 +1914,7 @@
 		vin-supply = <&vdd_mux>;
 	};
 
-	vdd_3v3_sys: regulator@2 {
+	vdd_3v3_sys: regulator-3v3sys {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_SYS";
 		regulator-min-microvolt = <3300000>;
@@ -1921,7 +1924,7 @@
 		vin-supply = <&vdd_mux>;
 	};
 
-	vdd_3v3_run: regulator@3 {
+	vdd_3v3_run: regulator-3v3run {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_RUN";
 		regulator-min-microvolt = <3300000>;
@@ -1933,7 +1936,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_3v3_hdmi: regulator@4 {
+	vdd_3v3_hdmi: regulator-3v3hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_AVDD_HDMI_AP_GATED";
 		regulator-min-microvolt = <3300000>;
@@ -1941,7 +1944,7 @@
 		vin-supply = <&vdd_3v3_run>;
 	};
 
-	vdd_usb1_vbus: regulator@5 {
+	vdd_usb1_vbus: regulator-usb1 {
 		compatible = "regulator-fixed";
 		regulator-name = "+USB0_VBUS_SW";
 		regulator-min-microvolt = <5000000>;
@@ -1952,7 +1955,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_usb3_vbus: regulator@6 {
+	vdd_usb3_vbus: regulator-usb3 {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_USB_HS";
 		regulator-min-microvolt = <5000000>;
@@ -1963,7 +1966,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_3v3_lp0: regulator@7 {
+	vdd_3v3_lp0: regulator-lp0 {
 		compatible = "regulator-fixed";
 		regulator-name = "+3.3V_LP0";
 		regulator-min-microvolt = <3300000>;
@@ -1975,7 +1978,7 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_hdmi_pll: regulator@8 {
+	vdd_hdmi_pll: regulator-hdmipll {
 		compatible = "regulator-fixed";
 		regulator-name = "+1.05V_RUN_AVDD_HDMI_PLL";
 		regulator-min-microvolt = <1050000>;
@@ -1984,7 +1987,7 @@
 		vin-supply = <&vdd_1v05_run>;
 	};
 
-	vdd_5v0_hdmi: regulator@9 {
+	vdd_5v0_hdmi: regulator-hdmicon {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_HDMI_CON";
 		regulator-min-microvolt = <5000000>;
@@ -1995,7 +1998,7 @@
 	};
 
 	/* Molex power connector */
-	vdd_5v0_sata: regulator@10 {
+	vdd_5v0_sata: regulator-5v0sata {
 		compatible = "regulator-fixed";
 		regulator-name = "+5V_SATA";
 		regulator-min-microvolt = <5000000>;
@@ -2005,7 +2008,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_12v0_sata: regulator@11 {
+	vdd_12v0_sata: regulator-12v0sata {
 		compatible = "regulator-fixed";
 		regulator-name = "+12V_SATA";
 		regulator-min-microvolt = <12000000>;
@@ -2044,7 +2047,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			trips {
 				cpu-shutdown-trip {
 					temperature = <101000>;
@@ -2054,7 +2057,7 @@
 			};
 		};
 
-		mem {
+		mem-thermal {
 			trips {
 				mem-shutdown-trip {
 					temperature = <101000>;
@@ -2064,7 +2067,7 @@
 			};
 		};
 
-		gpu {
+		gpu-thermal {
 			trips {
 				gpu-shutdown-trip {
 					temperature = <101000>;

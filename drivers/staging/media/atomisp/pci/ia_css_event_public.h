@@ -157,21 +157,6 @@ struct ia_css_event {
 int
 ia_css_dequeue_psys_event(struct ia_css_event *event);
 
-/* @brief Dequeue an event from the CSS system.
- *
- * @param[out]	event   Pointer to the event struct which will be filled by
- *                      this function if an event is available.
- * @return		-ENODATA if no events are
- *			available or
- *			0 otherwise.
- *
- * deprecated{Use ia_css_dequeue_psys_event instead}.
- * Unless the isys event queue is explicitly enabled, this function will
- * dequeue both isys (EOF) and psys events (all others).
- */
-int
-ia_css_dequeue_event(struct ia_css_event *event);
-
 /* @brief Dequeue an ISYS event from the CSS system.
  *
  * @param[out]	event   Pointer to the event struct which will be filled by
@@ -182,7 +167,7 @@ ia_css_dequeue_event(struct ia_css_event *event);
  *
  * This function dequeues an event from the ISYS event queue. The queue is
  * between host and the CSS system.
- * Unlike the ia_css_dequeue_event() function, this function can be called
+ * Unlike the ia_css_dequeue_psys_event() function, this function can be called
  * directly from an interrupt service routine (ISR) and it is safe to call
  * this function in parallel with other CSS API functions (but only one
  * call to this function should be in flight at any point in time).

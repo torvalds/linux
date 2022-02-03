@@ -2954,8 +2954,8 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 	char mybuf[64];
 	char *pbuf;
 
-	if (nbytes > 64)
-		nbytes = 64;
+	if (nbytes > 63)
+		nbytes = 63;
 
 	memset(mybuf, 0, sizeof(mybuf));
 
@@ -5484,7 +5484,7 @@ lpfc_cgn_buffer_read(struct file *file, char __user *buf, size_t nbytes,
 		if (len > (LPFC_CGN_BUF_SIZE - LPFC_DEBUG_OUT_LINE_SZ)) {
 			len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
 					 "Truncated . . .\n");
-			break;
+			goto out;
 		}
 		len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
 				 "%03x: %08x %08x %08x %08x "
@@ -5495,6 +5495,17 @@ lpfc_cgn_buffer_read(struct file *file, char __user *buf, size_t nbytes,
 		cnt += 32;
 		ptr += 8;
 	}
+	if (len > (LPFC_CGN_BUF_SIZE - LPFC_DEBUG_OUT_LINE_SZ)) {
+		len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+				 "Truncated . . .\n");
+		goto out;
+	}
+	len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+			 "Parameter Data\n");
+	ptr = (uint32_t *)&phba->cgn_p;
+	len += scnprintf(buffer + len, LPFC_CGN_BUF_SIZE - len,
+			 "%08x %08x %08x %08x\n",
+			 *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3));
 out:
 	return simple_read_from_buffer(buf, nbytes, ppos, buffer, len);
 }
@@ -5561,22 +5572,24 @@ lpfc_rx_monitor_read(struct file *file, char __user *buf, size_t nbytes,
 	start = tail;
 
 	len += scnprintf(buffer + len, MAX_DEBUGFS_RX_TABLE_SIZE - len,
-			"        MaxBPI\t Total Data Cmd  Total Data Cmpl "
-			"  Latency(us)    Avg IO Size\tMax IO Size   IO cnt "
-			"Info BWutil(ms)\n");
+			"        MaxBPI    Tot_Data_CMF Tot_Data_Cmd "
+			"Tot_Data_Cmpl  Lat(us)  Avg_IO  Max_IO "
+			"Bsy IO_cnt Info BWutil(ms)\n");
 get_table:
 	for (i = start; i < last; i++) {
 		entry = &phba->rxtable[i];
 		len += scnprintf(buffer + len, MAX_DEBUGFS_RX_TABLE_SIZE - len,
-				"%3d:%12lld  %12lld\t%12lld\t"
-				"%8lldus\t%8lld\t%10lld "
-				"%8d   %2d %2d(%2d)\n",
+				"%3d:%12lld %12lld %12lld %12lld "
+				"%7lldus %8lld %7lld "
+				"%2d   %4d   %2d   %2d(%2d)\n",
 				i, entry->max_bytes_per_interval,
+				entry->cmf_bytes,
 				entry->total_bytes,
 				entry->rcv_bytes,
 				entry->avg_io_latency,
 				entry->avg_io_size,
 				entry->max_read_cnt,
+				entry->cmf_busy,
 				entry->io_cnt,
 				entry->cmf_info,
 				entry->timer_utilization,

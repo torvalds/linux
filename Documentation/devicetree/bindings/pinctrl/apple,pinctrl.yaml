@@ -17,7 +17,9 @@ description: |
 properties:
   compatible:
     items:
-      - const: apple,t8103-pinctrl
+      - enum:
+          - apple,t8103-pinctrl
+          - apple,t6000-pinctrl
       - const: apple,pinctrl
 
   reg:
@@ -50,6 +52,9 @@ properties:
   '#interrupt-cells':
     const: 2
 
+  power-domains:
+    maxItems: 1
+
 patternProperties:
   '-pins$':
     type: object
@@ -66,6 +71,9 @@ patternProperties:
       - pinmux
 
     additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
 
 required:
   - compatible

@@ -33,6 +33,7 @@ struct rk_gmac_ops {
 	void (*set_rgmii_speed)(struct rk_priv_data *bsp_priv, int speed);
 	void (*set_rmii_speed)(struct rk_priv_data *bsp_priv, int speed);
 	void (*integrated_phy_powerup)(struct rk_priv_data *bsp_priv);
+	bool regs_valid;
 	u32 regs[];
 };
 
@@ -1092,6 +1093,7 @@ static const struct rk_gmac_ops rk3568_ops = {
 	.set_to_rmii = rk3568_set_to_rmii,
 	.set_rgmii_speed = rk3568_set_gmac_speed,
 	.set_rmii_speed = rk3568_set_gmac_speed,
+	.regs_valid = true,
 	.regs = {
 		0xfe2a0000, /* gmac0 */
 		0xfe010000, /* gmac1 */
@@ -1383,7 +1385,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	 * to be distinguished.
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res) {
+	if (res && ops->regs_valid) {
 		int i = 0;
 
 		while (ops->regs[i]) {

@@ -154,6 +154,9 @@ struct worker_pool {
 
 	unsigned long		watchdog_ts;	/* L: watchdog timestamp */
 
+	/* The current concurrency level. */
+	atomic_t		nr_running;
+
 	struct list_head	worklist;	/* L: list of pending works */
 
 	int			nr_workers;	/* L: total number of workers */
@@ -178,18 +181,11 @@ struct worker_pool {
 	int			refcnt;		/* PL: refcnt for unbound pools */
 
 	/*
-	 * The current concurrency level.  As it's likely to be accessed
-	 * from other CPUs during try_to_wake_up(), put it in a separate
-	 * cacheline.
-	 */
-	atomic_t		nr_running ____cacheline_aligned_in_smp;
-
-	/*
 	 * Destruction of pool is RCU protected to allow dereferences
 	 * from get_work_pool().
 	 */
 	struct rcu_head		rcu;
-} ____cacheline_aligned_in_smp;
+};
 
 /*
  * The per-pool workqueue.  While queued, the lower WORK_STRUCT_FLAG_BITS
@@ -868,8 +864,17 @@ void wq_worker_running(struct task_struct *task)
 
 	if (!worker->sleeping)
 		return;
+
+	/*
+	 * If preempted by unbind_workers() between the WORKER_NOT_RUNNING check
+	 * and the nr_running increment below, we may ruin the nr_running reset
+	 * and leave with an unexpected pool->nr_running == 1 on the newly unbound
+	 * pool. Protect against such race.
+	 */
+	preempt_disable();
 	if (!(worker->flags & WORKER_NOT_RUNNING))
 		atomic_inc(&worker->pool->nr_running);
+	preempt_enable();
 	worker->sleeping = 0;
 }
 
@@ -878,8 +883,7 @@ void wq_worker_running(struct task_struct *task)
  * @task: task going to sleep
  *
  * This function is called from schedule() when a busy worker is
- * going to sleep. Preemption needs to be disabled to protect ->sleeping
- * assignment.
+ * going to sleep.
  */
 void wq_worker_sleeping(struct task_struct *task)
 {
@@ -902,6 +906,16 @@ void wq_worker_sleeping(struct task_struct *task)
 
 	worker->sleeping = 1;
 	raw_spin_lock_irq(&pool->lock);
+
+	/*
+	 * Recheck in case unbind_workers() preempted us. We don't
+	 * want to decrement nr_running after the worker is unbound
+	 * and nr_running has been reset.
+	 */
+	if (worker->flags & WORKER_NOT_RUNNING) {
+		raw_spin_unlock_irq(&pool->lock);
+		return;
+	}
 
 	/*
 	 * The counterpart of the following dec_and_test, implied mb,
@@ -1531,7 +1545,8 @@ out:
  * @work: work to queue
  *
  * We queue the work to a specific CPU, the caller must ensure it
- * can't go away.
+ * can't go away.  Callers that fail to ensure that the specified
+ * CPU cannot go away will execute on a randomly chosen CPU.
  *
  * Return: %false if @work was already on a queue, %true otherwise.
  */
@@ -1811,14 +1826,8 @@ static void worker_enter_idle(struct worker *worker)
 	if (too_many_workers(pool) && !timer_pending(&pool->idle_timer))
 		mod_timer(&pool->idle_timer, jiffies + IDLE_WORKER_TIMEOUT);
 
-	/*
-	 * Sanity check nr_running.  Because unbind_workers() releases
-	 * pool->lock between setting %WORKER_UNBOUND and zapping
-	 * nr_running, the warning may trigger spuriously.  Check iff
-	 * unbind is not in progress.
-	 */
-	WARN_ON_ONCE(!(pool->flags & POOL_DISASSOCIATED) &&
-		     pool->nr_workers == pool->nr_idle &&
+	/* Sanity check nr_running. */
+	WARN_ON_ONCE(pool->nr_workers == pool->nr_idle &&
 		     atomic_read(&pool->nr_running));
 }
 
@@ -4979,38 +4988,22 @@ static void unbind_workers(int cpu)
 		/*
 		 * We've blocked all attach/detach operations. Make all workers
 		 * unbound and set DISASSOCIATED.  Before this, all workers
-		 * except for the ones which are still executing works from
-		 * before the last CPU down must be on the cpu.  After
-		 * this, they may become diasporas.
+		 * must be on the cpu.  After this, they may become diasporas.
+		 * And the preemption disabled section in their sched callbacks
+		 * are guaranteed to see WORKER_UNBOUND since the code here
+		 * is on the same cpu.
 		 */
 		for_each_pool_worker(worker, pool)
 			worker->flags |= WORKER_UNBOUND;
 
 		pool->flags |= POOL_DISASSOCIATED;
 
-		raw_spin_unlock_irq(&pool->lock);
-
-		for_each_pool_worker(worker, pool) {
-			kthread_set_per_cpu(worker->task, -1);
-			WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, cpu_possible_mask) < 0);
-		}
-
-		mutex_unlock(&wq_pool_attach_mutex);
-
 		/*
-		 * Call schedule() so that we cross rq->lock and thus can
-		 * guarantee sched callbacks see the %WORKER_UNBOUND flag.
-		 * This is necessary as scheduler callbacks may be invoked
-		 * from other cpus.
-		 */
-		schedule();
-
-		/*
-		 * Sched callbacks are disabled now.  Zap nr_running.
-		 * After this, nr_running stays zero and need_more_worker()
-		 * and keep_working() are always true as long as the
-		 * worklist is not empty.  This pool now behaves as an
-		 * unbound (in terms of concurrency management) pool which
+		 * The handling of nr_running in sched callbacks are disabled
+		 * now.  Zap nr_running.  After this, nr_running stays zero and
+		 * need_more_worker() and keep_working() are always true as
+		 * long as the worklist is not empty.  This pool now behaves as
+		 * an unbound (in terms of concurrency management) pool which
 		 * are served by workers tied to the pool.
 		 */
 		atomic_set(&pool->nr_running, 0);
@@ -5020,9 +5013,16 @@ static void unbind_workers(int cpu)
 		 * worker blocking could lead to lengthy stalls.  Kick off
 		 * unbound chain execution of currently pending work items.
 		 */
-		raw_spin_lock_irq(&pool->lock);
 		wake_up_worker(pool);
+
 		raw_spin_unlock_irq(&pool->lock);
+
+		for_each_pool_worker(worker, pool) {
+			kthread_set_per_cpu(worker->task, -1);
+			WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, cpu_possible_mask) < 0);
+		}
+
+		mutex_unlock(&wq_pool_attach_mutex);
 	}
 }
 
@@ -5057,17 +5057,6 @@ static void rebind_workers(struct worker_pool *pool)
 
 	for_each_pool_worker(worker, pool) {
 		unsigned int worker_flags = worker->flags;
-
-		/*
-		 * A bound idle worker should actually be on the runqueue
-		 * of the associated CPU for local wake-ups targeting it to
-		 * work.  Kick all idle workers so that they migrate to the
-		 * associated CPU.  Doing this in the same loop as
-		 * replacing UNBOUND with REBOUND is safe as no worker will
-		 * be bound before @pool->lock is released.
-		 */
-		if (worker_flags & WORKER_IDLE)
-			wake_up_process(worker->task);
 
 		/*
 		 * We want to clear UNBOUND but can't directly call

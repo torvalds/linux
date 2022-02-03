@@ -19,6 +19,7 @@
 #include "fsl_asrc.h"
 
 #define IDEAL_RATIO_DECIMAL_DEPTH 26
+#define DIVIDER_NUM  64
 
 #define pair_err(fmt, ...) \
 	dev_err(&asrc->pdev->dev, "Pair %c: " fmt, 'A' + index, ##__VA_ARGS__)
@@ -100,6 +101,55 @@ static unsigned char clk_map_imx8qxp[2][ASRC_CLK_MAP_LEN] = {
 	0xf, 0xf, 0x6, 0xf, 0xf, 0xf, 0xa, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
 	},
 };
+
+/*
+ * According to RM, the divider range is 1 ~ 8,
+ * prescaler is power of 2 from 1 ~ 128.
+ */
+static int asrc_clk_divider[DIVIDER_NUM] = {
+	1,  2,  4,  8,  16,  32,  64,  128,  /* divider = 1 */
+	2,  4,  8, 16,  32,  64, 128,  256,  /* divider = 2 */
+	3,  6, 12, 24,  48,  96, 192,  384,  /* divider = 3 */
+	4,  8, 16, 32,  64, 128, 256,  512,  /* divider = 4 */
+	5, 10, 20, 40,  80, 160, 320,  640,  /* divider = 5 */
+	6, 12, 24, 48,  96, 192, 384,  768,  /* divider = 6 */
+	7, 14, 28, 56, 112, 224, 448,  896,  /* divider = 7 */
+	8, 16, 32, 64, 128, 256, 512, 1024,  /* divider = 8 */
+};
+
+/*
+ * Check if the divider is available for internal ratio mode
+ */
+static bool fsl_asrc_divider_avail(int clk_rate, int rate, int *div)
+{
+	u32 rem, i;
+	u64 n;
+
+	if (div)
+		*div = 0;
+
+	if (clk_rate == 0 || rate == 0)
+		return false;
+
+	n = clk_rate;
+	rem = do_div(n, rate);
+
+	if (div)
+		*div = n;
+
+	if (rem != 0)
+		return false;
+
+	for (i = 0; i < DIVIDER_NUM; i++) {
+		if (n == asrc_clk_divider[i])
+			break;
+	}
+
+	if (i == DIVIDER_NUM)
+		return false;
+
+	return true;
+}
 
 /**
  * fsl_asrc_sel_proc - Select the pre-processing and post-processing options
@@ -330,12 +380,12 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 	enum asrc_word_width input_word_width;
 	enum asrc_word_width output_word_width;
 	u32 inrate, outrate, indiv, outdiv;
-	u32 clk_index[2], div[2], rem[2];
+	u32 clk_index[2], div[2];
 	u64 clk_rate;
 	int in, out, channels;
 	int pre_proc, post_proc;
 	struct clk *clk;
-	bool ideal;
+	bool ideal, div_avail;
 
 	if (!config) {
 		pair_err("invalid pair config\n");
@@ -415,8 +465,7 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 	clk = asrc_priv->asrck_clk[clk_index[ideal ? OUT : IN]];
 
 	clk_rate = clk_get_rate(clk);
-	rem[IN] = do_div(clk_rate, inrate);
-	div[IN] = (u32)clk_rate;
+	div_avail = fsl_asrc_divider_avail(clk_rate, inrate, &div[IN]);
 
 	/*
 	 * The divider range is [1, 1024], defined by the hardware. For non-
@@ -425,7 +474,7 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 	 * only result in different converting speeds. So remainder does not
 	 * matter, as long as we keep the divider within its valid range.
 	 */
-	if (div[IN] == 0 || (!ideal && (div[IN] > 1024 || rem[IN] != 0))) {
+	if (div[IN] == 0 || (!ideal && !div_avail)) {
 		pair_err("failed to support input sample rate %dHz by asrck_%x\n",
 				inrate, clk_index[ideal ? OUT : IN]);
 		return -EINVAL;
@@ -436,13 +485,12 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool use_ideal_rate)
 	clk = asrc_priv->asrck_clk[clk_index[OUT]];
 	clk_rate = clk_get_rate(clk);
 	if (ideal && use_ideal_rate)
-		rem[OUT] = do_div(clk_rate, IDEAL_RATIO_RATE);
+		div_avail = fsl_asrc_divider_avail(clk_rate, IDEAL_RATIO_RATE, &div[OUT]);
 	else
-		rem[OUT] = do_div(clk_rate, outrate);
-	div[OUT] = clk_rate;
+		div_avail = fsl_asrc_divider_avail(clk_rate, outrate, &div[OUT]);
 
 	/* Output divider has the same limitation as the input one */
-	if (div[OUT] == 0 || (!ideal && (div[OUT] > 1024 || rem[OUT] != 0))) {
+	if (div[OUT] == 0 || (!ideal && !div_avail)) {
 		pair_err("failed to support output sample rate %dHz by asrck_%x\n",
 				outrate, clk_index[OUT]);
 		return -EINVAL;
@@ -621,8 +669,7 @@ static void fsl_asrc_select_clk(struct fsl_asrc_priv *asrc_priv,
 			clk_index = asrc_priv->clk_map[j][i];
 			clk_rate = clk_get_rate(asrc_priv->asrck_clk[clk_index]);
 			/* Only match a perfect clock source with no remainder */
-			if (clk_rate != 0 && (clk_rate / rate[j]) <= 1024 &&
-			    (clk_rate % rate[j]) == 0)
+			if (fsl_asrc_divider_avail(clk_rate, rate[j], NULL))
 				break;
 		}
 

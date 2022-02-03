@@ -1257,7 +1257,6 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *res;
-	struct resource *res_irq;
 	struct cryp_device_data *device_data;
 	struct cryp_protection_config prot = {
 		.privilege_access = CRYP_STATE_ENABLE
@@ -1341,15 +1340,13 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 		goto out_power;
 	}
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res_irq) {
-		dev_err(dev, "[%s]: IORESOURCE_IRQ unavailable",
-			__func__);
-		ret = -ENODEV;
+	device_data->irq = platform_get_irq(pdev, 0);
+	if (device_data->irq <= 0) {
+		ret = device_data->irq ? device_data->irq : -ENXIO;
 		goto out_power;
 	}
 
-	ret = devm_request_irq(&pdev->dev, res_irq->start,
+	ret = devm_request_irq(&pdev->dev, device_data->irq,
 			       cryp_interrupt_handler, 0, "cryp1", device_data);
 	if (ret) {
 		dev_err(dev, "[%s]: Unable to request IRQ", __func__);
@@ -1489,7 +1486,6 @@ static int ux500_cryp_suspend(struct device *dev)
 	int ret;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct cryp_device_data *device_data;
-	struct resource *res_irq;
 	struct cryp_ctx *temp_ctx = NULL;
 
 	dev_dbg(dev, "[%s]", __func__);
@@ -1501,11 +1497,7 @@ static int ux500_cryp_suspend(struct device *dev)
 		return -ENOMEM;
 	}
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res_irq)
-		dev_err(dev, "[%s]: IORESOURCE_IRQ, unavailable", __func__);
-	else
-		disable_irq(res_irq->start);
+	disable_irq(device_data->irq);
 
 	spin_lock(&device_data->ctx_lock);
 	if (!device_data->current_ctx)
@@ -1532,7 +1524,6 @@ static int ux500_cryp_resume(struct device *dev)
 	int ret = 0;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct cryp_device_data *device_data;
-	struct resource *res_irq;
 	struct cryp_ctx *temp_ctx = NULL;
 
 	dev_dbg(dev, "[%s]", __func__);
@@ -1556,11 +1547,8 @@ static int ux500_cryp_resume(struct device *dev)
 
 	if (ret)
 		dev_err(dev, "[%s]: cryp_enable_power() failed!", __func__);
-	else {
-		res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-		if (res_irq)
-			enable_irq(res_irq->start);
-	}
+	else
+		enable_irq(device_data->irq);
 
 	return ret;
 }

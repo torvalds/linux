@@ -141,6 +141,7 @@ static const struct ieee80211_ops mt76x0u_ops = {
 	.set_tim = mt76_set_tim,
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.get_antenna = mt76_get_antenna,
+	.set_sar_specs = mt76x0_set_sar_specs,
 };
 
 static int mt76x0u_init_hardware(struct mt76x02_dev *dev, bool reset)

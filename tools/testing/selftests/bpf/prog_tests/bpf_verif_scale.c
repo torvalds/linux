@@ -19,16 +19,28 @@ extern int extra_prog_load_log_flags;
 
 static int check_load(const char *file, enum bpf_prog_type type)
 {
-	struct bpf_prog_load_attr attr;
 	struct bpf_object *obj = NULL;
-	int err, prog_fd;
+	struct bpf_program *prog;
+	int err;
 
-	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
-	attr.file = file;
-	attr.prog_type = type;
-	attr.log_level = 4 | extra_prog_load_log_flags;
-	attr.prog_flags = BPF_F_TEST_RND_HI32;
-	err = bpf_prog_load_xattr(&attr, &obj, &prog_fd);
+	obj = bpf_object__open_file(file, NULL);
+	err = libbpf_get_error(obj);
+	if (err)
+		return err;
+
+	prog = bpf_object__next_program(obj, NULL);
+	if (!prog) {
+		err = -ENOENT;
+		goto err_out;
+	}
+
+	bpf_program__set_type(prog, type);
+	bpf_program__set_flags(prog, BPF_F_TEST_RND_HI32);
+	bpf_program__set_log_level(prog, 4 | extra_prog_load_log_flags);
+
+	err = bpf_object__load(obj);
+
+err_out:
 	bpf_object__close(obj);
 	return err;
 }
@@ -115,6 +127,12 @@ void test_verif_scale_pyperf600()
 	scale_test("pyperf600.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
 }
 
+void test_verif_scale_pyperf600_bpf_loop(void)
+{
+	/* use the bpf_loop helper*/
+	scale_test("pyperf600_bpf_loop.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
 void test_verif_scale_pyperf600_nounroll()
 {
 	/* no unroll at all.
@@ -163,6 +181,12 @@ void test_verif_scale_strobemeta()
 	 * ~350k processed_insns
 	 */
 	scale_test("strobemeta.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
+}
+
+void test_verif_scale_strobemeta_bpf_loop(void)
+{
+	/* use the bpf_loop helper*/
+	scale_test("strobemeta_bpf_loop.o", BPF_PROG_TYPE_RAW_TRACEPOINT, false);
 }
 
 void test_verif_scale_strobemeta_nounroll1()

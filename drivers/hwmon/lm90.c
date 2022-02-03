@@ -35,13 +35,14 @@
  * explicitly as max6659, or if its address is not 0x4c.
  * These chips lack the remote temperature offset feature.
  *
- * This driver also supports the MAX6654 chip made by Maxim. This chip can
- * be at 9 different addresses, similar to MAX6680/MAX6681. The MAX6654 is
- * otherwise similar to MAX6657/MAX6658/MAX6659. Extended range is available
- * by setting the configuration register accordingly, and is done during
- * initialization. Extended precision is only available at conversion rates
- * of 1 Hz and slower. Note that extended precision is not enabled by
- * default, as this driver initializes all chips to 2 Hz by design.
+ * This driver also supports the MAX6654 chip made by Maxim. This chip can be
+ * at 9 different addresses, similar to MAX6680/MAX6681. The MAX6654 is similar
+ * to MAX6657/MAX6658/MAX6659, but does not support critical temperature
+ * limits. Extended range is available by setting the configuration register
+ * accordingly, and is done during initialization. Extended precision is only
+ * available at conversion rates of 1 Hz and slower. Note that extended
+ * precision is not enabled by default, as this driver initializes all chips
+ * to 2 Hz by design.
  *
  * This driver also supports the MAX6646, MAX6647, MAX6648, MAX6649 and
  * MAX6692 chips made by Maxim.  These are again similar to the LM86,
@@ -188,6 +189,8 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_HAVE_BROKEN_ALERT	(1 << 7) /* Broken alert		*/
 #define LM90_HAVE_EXTENDED_TEMP	(1 << 8) /* extended temperature support*/
 #define LM90_PAUSE_FOR_CONFIG	(1 << 9) /* Pause conversion for config	*/
+#define LM90_HAVE_CRIT		(1 << 10)/* Chip supports CRIT/OVERT register	*/
+#define LM90_HAVE_CRIT_ALRM_SWP	(1 << 11)/* critical alarm bits swapped	*/
 
 /* LM90 status */
 #define LM90_STATUS_LTHRM	(1 << 0) /* local THERM limit tripped */
@@ -197,6 +200,7 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_STATUS_RHIGH	(1 << 4) /* remote high temp limit tripped */
 #define LM90_STATUS_LLOW	(1 << 5) /* local low temp limit tripped */
 #define LM90_STATUS_LHIGH	(1 << 6) /* local high temp limit tripped */
+#define LM90_STATUS_BUSY	(1 << 7) /* conversion is ongoing */
 
 #define MAX6696_STATUS2_R2THRM	(1 << 1) /* remote2 THERM limit tripped */
 #define MAX6696_STATUS2_R2OPEN	(1 << 2) /* remote2 is an open circuit */
@@ -354,92 +358,99 @@ struct lm90_params {
 static const struct lm90_params lm90_params[] = {
 	[adm1032] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
 	[adt7461] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP
+		  | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
 	},
 	[g781] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7c,
-		.max_convrate = 8,
+		.max_convrate = 7,
 	},
 	[lm86] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[lm90] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[lm99] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 	},
 	[max6646] = {
+		.flags = LM90_HAVE_CRIT | LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
 		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6654] = {
+		.flags = LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6657] = {
-		.flags = LM90_PAUSE_FOR_CONFIG,
+		.flags = LM90_PAUSE_FOR_CONFIG | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6659] = {
-		.flags = LM90_HAVE_EMERGENCY,
+		.flags = LM90_HAVE_EMERGENCY | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6680] = {
-		.flags = LM90_HAVE_OFFSET,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_CRIT
+		  | LM90_HAVE_CRIT_ALRM_SWP | LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 7,
 	},
 	[max6696] = {
 		.flags = LM90_HAVE_EMERGENCY
-		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3,
+		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3 | LM90_HAVE_CRIT,
 		.alert_alarms = 0x1c7c,
 		.max_convrate = 6,
 		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[w83l771] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
 	},
 	[sa56004] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7b,
 		.max_convrate = 9,
 		.reg_local_ext = SA56004_REG_R_LOCAL_TEMPL,
 	},
 	[tmp451] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.reg_local_ext = TMP451_REG_R_LOCAL_TEMPL,
 	},
 	[tmp461] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
-		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP,
+		  | LM90_HAVE_BROKEN_ALERT | LM90_HAVE_EXTENDED_TEMP | LM90_HAVE_CRIT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 9,
 		.reg_local_ext = TMP451_REG_R_LOCAL_TEMPL,
@@ -668,20 +679,22 @@ static int lm90_update_limits(struct device *dev)
 	struct i2c_client *client = data->client;
 	int val;
 
-	val = lm90_read_reg(client, LM90_REG_R_LOCAL_CRIT);
-	if (val < 0)
-		return val;
-	data->temp8[LOCAL_CRIT] = val;
+	if (data->flags & LM90_HAVE_CRIT) {
+		val = lm90_read_reg(client, LM90_REG_R_LOCAL_CRIT);
+		if (val < 0)
+			return val;
+		data->temp8[LOCAL_CRIT] = val;
 
-	val = lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT);
-	if (val < 0)
-		return val;
-	data->temp8[REMOTE_CRIT] = val;
+		val = lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT);
+		if (val < 0)
+			return val;
+		data->temp8[REMOTE_CRIT] = val;
 
-	val = lm90_read_reg(client, LM90_REG_R_TCRIT_HYST);
-	if (val < 0)
-		return val;
-	data->temp_hyst = val;
+		val = lm90_read_reg(client, LM90_REG_R_TCRIT_HYST);
+		if (val < 0)
+			return val;
+		data->temp_hyst = val;
+	}
 
 	val = lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH);
 	if (val < 0)
@@ -809,7 +822,7 @@ static int lm90_update_device(struct device *dev)
 		val = lm90_read_reg(client, LM90_REG_R_STATUS);
 		if (val < 0)
 			return val;
-		data->alarms = val;	/* lower 8 bit of alarms */
+		data->alarms = val & ~LM90_STATUS_BUSY;
 
 		if (data->kind == max6696) {
 			val = lm90_select_remote_channel(data, 1);
@@ -836,7 +849,7 @@ static int lm90_update_device(struct device *dev)
 		 * Re-enable ALERT# output if it was originally enabled and
 		 * relevant alarms are all clear
 		 */
-		if (!(data->config_orig & 0x80) &&
+		if ((client->irq || !(data->config_orig & 0x80)) &&
 		    !(data->alarms & data->alert_alarms)) {
 			if (data->config & 0x80) {
 				dev_dbg(&client->dev, "Re-enabling ALERT#\n");
@@ -1160,8 +1173,8 @@ static int lm90_set_temphyst(struct lm90_data *data, long val)
 	else
 		temp = temp_from_s8(data->temp8[LOCAL_CRIT]);
 
-	/* prevent integer underflow */
-	val = max(val, -128000l);
+	/* prevent integer overflow/underflow */
+	val = clamp_val(val, -128000l, 255000l);
 
 	data->temp_hyst = hyst_to_reg(temp - val);
 	err = i2c_smbus_write_byte_data(client, LM90_REG_W_TCRIT_HYST,
@@ -1192,6 +1205,7 @@ static const u8 lm90_temp_emerg_index[3] = {
 static const u8 lm90_min_alarm_bits[3] = { 5, 3, 11 };
 static const u8 lm90_max_alarm_bits[3] = { 6, 4, 12 };
 static const u8 lm90_crit_alarm_bits[3] = { 0, 1, 9 };
+static const u8 lm90_crit_alarm_bits_swapped[3] = { 1, 0, 9 };
 static const u8 lm90_emergency_alarm_bits[3] = { 15, 13, 14 };
 static const u8 lm90_fault_bits[3] = { 0, 2, 10 };
 
@@ -1217,7 +1231,10 @@ static int lm90_temp_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = (data->alarms >> lm90_max_alarm_bits[channel]) & 1;
 		break;
 	case hwmon_temp_crit_alarm:
-		*val = (data->alarms >> lm90_crit_alarm_bits[channel]) & 1;
+		if (data->flags & LM90_HAVE_CRIT_ALRM_SWP)
+			*val = (data->alarms >> lm90_crit_alarm_bits_swapped[channel]) & 1;
+		else
+			*val = (data->alarms >> lm90_crit_alarm_bits[channel]) & 1;
 		break;
 	case hwmon_temp_emergency_alarm:
 		*val = (data->alarms >> lm90_emergency_alarm_bits[channel]) & 1;
@@ -1465,12 +1482,11 @@ static int lm90_detect(struct i2c_client *client,
 	if (man_id < 0 || chip_id < 0 || config1 < 0 || convrate < 0)
 		return -ENODEV;
 
-	if (man_id == 0x01 || man_id == 0x5C || man_id == 0x41) {
+	if (man_id == 0x01 || man_id == 0x5C || man_id == 0xA1) {
 		config2 = i2c_smbus_read_byte_data(client, LM90_REG_R_CONFIG2);
 		if (config2 < 0)
 			return -ENODEV;
-	} else
-		config2 = 0;		/* Make compiler happy */
+	}
 
 	if ((address == 0x4C || address == 0x4D)
 	 && man_id == 0x01) { /* National Semiconductor */
@@ -1792,22 +1808,22 @@ static bool lm90_is_tripped(struct i2c_client *client, u16 *status)
 
 	if (st & LM90_STATUS_LLOW)
 		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
-				   hwmon_temp_min, 0);
+				   hwmon_temp_min_alarm, 0);
 	if (st & LM90_STATUS_RLOW)
 		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
-				   hwmon_temp_min, 1);
+				   hwmon_temp_min_alarm, 1);
 	if (st2 & MAX6696_STATUS2_R2LOW)
 		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
-				   hwmon_temp_min, 2);
+				   hwmon_temp_min_alarm, 2);
 	if (st & LM90_STATUS_LHIGH)
 		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
-				   hwmon_temp_max, 0);
+				   hwmon_temp_max_alarm, 0);
 	if (st & LM90_STATUS_RHIGH)
 		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
-				   hwmon_temp_max, 1);
+				   hwmon_temp_max_alarm, 1);
 	if (st2 & MAX6696_STATUS2_R2HIGH)
 		hwmon_notify_event(data->hwmon_dev, hwmon_temp,
-				   hwmon_temp_max, 2);
+				   hwmon_temp_max_alarm, 2);
 
 	return true;
 }
@@ -1903,11 +1919,14 @@ static int lm90_probe(struct i2c_client *client)
 	info->config = data->channel_config;
 
 	data->channel_config[0] = HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
-		HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
-		HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM;
+		HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM;
 	data->channel_config[1] = HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
-		HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
-		HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT;
+		HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM | HWMON_T_FAULT;
+
+	if (data->flags & LM90_HAVE_CRIT) {
+		data->channel_config[0] |= HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_CRIT_HYST;
+		data->channel_config[1] |= HWMON_T_CRIT | HWMON_T_CRIT_ALARM | HWMON_T_CRIT_HYST;
+	}
 
 	if (data->flags & LM90_HAVE_OFFSET)
 		data->channel_config[1] |= HWMON_T_OFFSET;

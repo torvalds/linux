@@ -197,25 +197,11 @@
 &mcspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi1_pins>;
-
-	spidev@0 {
-		compatible = "spidev";
-		spi-max-frequency = <48000000>;
-		reg = <0>;
-		spi-cpha;
-	};
 };
 
 &mcspi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi3_pins>;
-
-	spidev@0 {
-		compatible = "spidev";
-		spi-max-frequency = <48000000>;
-		reg = <0>;
-		spi-cpha;
-	};
 };
 
 #include "twl4030.dtsi"

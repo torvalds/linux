@@ -2684,6 +2684,16 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		RCU_INIT_POINTER(mvm->baid_map[baid], NULL);
 		kfree_rcu(baid_data, rcu_head);
 		IWL_DEBUG_HT(mvm, "BAID %d is free\n", baid);
+
+		/*
+		 * After we've deleted it, do another queue sync
+		 * so if an IWL_MVM_RXQ_NSSN_SYNC was concurrently
+		 * running it won't find a new session in the old
+		 * BAID. It can find the NULL pointer for the BAID,
+		 * but we must not have it find a different session.
+		 */
+		iwl_mvm_sync_rx_queues_internal(mvm, IWL_MVM_RXQ_EMPTY,
+						true, NULL, 0);
 	}
 	return 0;
 

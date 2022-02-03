@@ -292,8 +292,6 @@ block/blk-sysfs.c
 
 block/blk-settings.c
 
-block/blk-exec.c
-
 block/blk-flush.c
 
 block/blk-lib.c

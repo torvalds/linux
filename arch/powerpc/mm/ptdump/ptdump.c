@@ -123,7 +123,7 @@ static struct ptdump_range ptdump_range[] __ro_after_init = {
 
 void pt_dump_size(struct seq_file *m, unsigned long size)
 {
-	static const char units[] = "KMGTPE";
+	static const char units[] = " KMGTPE";
 	const char *unit = units;
 
 	/* Work out what appropriate unit to use */
@@ -176,14 +176,14 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 
 	pt_dump_seq_printf(st->seq, REG "-" REG " ", st->start_address, addr - 1);
 	pt_dump_seq_printf(st->seq, " " REG " ", st->start_pa);
-	pt_dump_size(st->seq, (addr - st->start_address) >> 10);
+	pt_dump_size(st->seq, addr - st->start_address);
 }
 
 static void note_prot_wx(struct pg_state *st, unsigned long addr)
 {
 	pte_t pte = __pte(st->current_flags);
 
-	if (!IS_ENABLED(CONFIG_PPC_DEBUG_WX) || !st->check_wx)
+	if (!IS_ENABLED(CONFIG_DEBUG_WX) || !st->check_wx)
 		return;
 
 	if (!pte_write(pte) || !pte_exec(pte))
@@ -315,7 +315,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(ptdump);
 
-static void build_pgtable_complete_mask(void)
+static void __init build_pgtable_complete_mask(void)
 {
 	unsigned int i, j;
 

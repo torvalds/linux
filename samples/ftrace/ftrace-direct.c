@@ -5,6 +5,8 @@
 #include <linux/ftrace.h>
 #include <asm/asm-offsets.h>
 
+extern void my_direct_func(struct task_struct *p);
+
 void my_direct_func(struct task_struct *p)
 {
 	trace_printk("waking up %s-%d\n", p->comm, p->pid);
@@ -25,7 +27,7 @@ asm (
 "	call my_direct_func\n"
 "	popq %rdi\n"
 "	leave\n"
-"	ret\n"
+	ASM_RET
 "	.size		my_tramp, .-my_tramp\n"
 "	.popsection\n"
 );

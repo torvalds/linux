@@ -180,6 +180,11 @@ struct smc_connection {
 	u16			tx_cdc_seq;	/* sequence # for CDC send */
 	u16			tx_cdc_seq_fin;	/* sequence # - tx completed */
 	spinlock_t		send_lock;	/* protect wr_sends */
+	atomic_t		cdc_pend_tx_wr; /* number of pending tx CDC wqe
+						 * - inc when post wqe,
+						 * - dec on polled tx cqe
+						 */
+	wait_queue_head_t	cdc_pend_tx_wq; /* wakeup on no cdc_pend_tx_wr*/
 	struct delayed_work	tx_work;	/* retry of smc_cdc_msg_send */
 	u32			tx_off;		/* base offset in peer rmb */
 
@@ -216,6 +221,7 @@ struct smc_connection {
 						 */
 	u64			peer_token;	/* SMC-D token of peer */
 	u8			killed : 1;	/* abnormal termination */
+	u8			freed : 1;	/* normal termiation */
 	u8			out_of_sync : 1; /* out of sync with peer */
 };
 

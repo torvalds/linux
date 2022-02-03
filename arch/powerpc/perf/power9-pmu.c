@@ -452,7 +452,7 @@ static struct power_pmu power9_pmu = {
 	.check_attr_config	= power9_check_attr_config,
 };
 
-int init_power9_pmu(void)
+int __init init_power9_pmu(void)
 {
 	int rc = 0;
 	unsigned int pvr = mfspr(SPRN_PVR);

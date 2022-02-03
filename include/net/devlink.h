@@ -361,33 +361,6 @@ devlink_resource_size_params_init(struct devlink_resource_size_params *size_para
 
 typedef u64 devlink_resource_occ_get_t(void *priv);
 
-/**
- * struct devlink_resource - devlink resource
- * @name: name of the resource
- * @id: id, per devlink instance
- * @size: size of the resource
- * @size_new: updated size of the resource, reload is needed
- * @size_valid: valid in case the total size of the resource is valid
- *              including its children
- * @parent: parent resource
- * @size_params: size parameters
- * @list: parent list
- * @resource_list: list of child resources
- */
-struct devlink_resource {
-	const char *name;
-	u64 id;
-	u64 size;
-	u64 size_new;
-	bool size_valid;
-	struct devlink_resource *parent;
-	struct devlink_resource_size_params size_params;
-	struct list_head list;
-	struct list_head resource_list;
-	devlink_resource_occ_get_t *occ_get;
-	void *occ_get_priv;
-};
-
 #define DEVLINK_RESOURCE_ID_PARENT_TOP 0
 
 #define DEVLINK_RESOURCE_GENERIC_NAME_PORTS "physical_ports"
@@ -485,6 +458,9 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_ENABLE_ETH,
 	DEVLINK_PARAM_GENERIC_ID_ENABLE_RDMA,
 	DEVLINK_PARAM_GENERIC_ID_ENABLE_VNET,
+	DEVLINK_PARAM_GENERIC_ID_ENABLE_IWARP,
+	DEVLINK_PARAM_GENERIC_ID_IO_EQ_SIZE,
+	DEVLINK_PARAM_GENERIC_ID_EVENT_EQ_SIZE,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
@@ -533,6 +509,15 @@ enum devlink_param_generic_id {
 
 #define DEVLINK_PARAM_GENERIC_ENABLE_VNET_NAME "enable_vnet"
 #define DEVLINK_PARAM_GENERIC_ENABLE_VNET_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_ENABLE_IWARP_NAME "enable_iwarp"
+#define DEVLINK_PARAM_GENERIC_ENABLE_IWARP_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_IO_EQ_SIZE_NAME "io_eq_size"
+#define DEVLINK_PARAM_GENERIC_IO_EQ_SIZE_TYPE DEVLINK_PARAM_TYPE_U32
+
+#define DEVLINK_PARAM_GENERIC_EVENT_EQ_SIZE_NAME "event_eq_size"
+#define DEVLINK_PARAM_GENERIC_EVENT_EQ_SIZE_TYPE DEVLINK_PARAM_TYPE_U32
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -687,13 +672,17 @@ struct devlink_health_reporter_ops {
  * @trap_name: Trap name.
  * @trap_group_name: Trap group name.
  * @input_dev: Input netdevice.
+ * @dev_tracker: refcount tracker for @input_dev.
  * @fa_cookie: Flow action user cookie.
  * @trap_type: Trap type.
  */
 struct devlink_trap_metadata {
 	const char *trap_name;
 	const char *trap_group_name;
+
 	struct net_device *input_dev;
+	netdevice_tracker dev_tracker;
+
 	const struct flow_action_cookie *fa_cookie;
 	enum devlink_trap_type trap_type;
 };
@@ -1567,8 +1556,7 @@ int devlink_resource_register(struct devlink *devlink,
 			      u64 resource_id,
 			      u64 parent_resource_id,
 			      const struct devlink_resource_size_params *size_params);
-void devlink_resources_unregister(struct devlink *devlink,
-				  struct devlink_resource *resource);
+void devlink_resources_unregister(struct devlink *devlink);
 int devlink_resource_size_get(struct devlink *devlink,
 			      u64 resource_id,
 			      u64 *p_resource_size);

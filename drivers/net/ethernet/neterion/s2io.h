@@ -873,7 +873,6 @@ struct s2io_nic {
 	struct mac_addr def_mac_addr[256];
 
 	struct net_device_stats stats;
-	int high_dma_flag;
 	int device_enabled_once;
 
 	char name[60];

@@ -875,7 +875,7 @@ EXPORT_SYMBOL_GPL(pinmux_generic_get_function);
  */
 int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 				const char *name,
-				const char **groups,
+				const char * const *groups,
 				const unsigned int num_groups,
 				void *data)
 {

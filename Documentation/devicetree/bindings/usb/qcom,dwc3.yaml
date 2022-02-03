@@ -13,7 +13,9 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,ipq4019-dwc3
           - qcom,ipq6018-dwc3
+          - qcom,ipq8064-dwc3
           - qcom,msm8996-dwc3
           - qcom,msm8998-dwc3
           - qcom,sc7180-dwc3
@@ -23,9 +25,11 @@ properties:
           - qcom,sdx55-dwc3
           - qcom,sm4250-dwc3
           - qcom,sm6115-dwc3
+          - qcom,sm6350-dwc3
           - qcom,sm8150-dwc3
           - qcom,sm8250-dwc3
           - qcom,sm8350-dwc3
+          - qcom,sm8450-dwc3
       - const: qcom,dwc3
 
   reg:

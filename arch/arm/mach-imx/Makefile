@@ -14,8 +14,6 @@ obj-$(CONFIG_SOC_IMX5) += cpu-imx5.o $(imx5-pm-y)
 obj-$(CONFIG_MXC_TZIC) += tzic.o
 obj-$(CONFIG_MXC_AVIC) += avic.o
 
-obj-$(CONFIG_MXC_DEBUG_BOARD) += 3ds_debugboard.o
-
 ifeq ($(CONFIG_CPU_IDLE),y)
 obj-$(CONFIG_SOC_IMX5) += cpuidle-imx5.o
 obj-$(CONFIG_SOC_IMX6Q) += cpuidle-imx6q.o

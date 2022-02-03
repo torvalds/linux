@@ -120,7 +120,7 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose);
 extern struct device_node *fsl_pci_primary;
 
 #ifdef CONFIG_PCI
-void fsl_pci_assign_primary(void);
+void __init fsl_pci_assign_primary(void);
 #else
 static inline void fsl_pci_assign_primary(void) {}
 #endif

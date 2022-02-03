@@ -146,44 +146,6 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi_pins>;
 		};
-
-		gdma: gdma@2800 {
-			compatible = "ralink,rt3883-gdma";
-			reg = <0x2800 0x800>;
-
-			clocks = <&sysc MT7621_CLK_GDMA>;
-			clock-names = "gdma";
-			resets = <&rstctrl 14>;
-			reset-names = "dma";
-
-			interrupt-parent = <&gic>;
-			interrupts = <0 13 IRQ_TYPE_LEVEL_HIGH>;
-
-			#dma-cells = <1>;
-			#dma-channels = <16>;
-			#dma-requests = <16>;
-
-			status = "disabled";
-		};
-
-		hsdma: hsdma@7000 {
-			compatible = "mediatek,mt7621-hsdma";
-			reg = <0x7000 0x1000>;
-
-			clocks = <&sysc MT7621_CLK_HSDMA>;
-			clock-names = "hsdma";
-			resets = <&rstctrl 5>;
-			reset-names = "hsdma";
-
-			interrupt-parent = <&gic>;
-			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
-
-			#dma-cells = <1>;
-			#dma-channels = <1>;
-			#dma-requests = <1>;
-
-			status = "disabled";
-		};
 	};
 
 	pinctrl: pinctrl {

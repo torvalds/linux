@@ -337,54 +337,52 @@ struct samsung_cmu_info {
 	const char *clk_name;
 };
 
-extern struct samsung_clk_provider *__init samsung_clk_init(
+struct samsung_clk_provider * samsung_clk_init(
 			struct device_node *np, void __iomem *base,
 			unsigned long nr_clks);
-extern void __init samsung_clk_of_add_provider(struct device_node *np,
+void samsung_clk_of_add_provider(struct device_node *np,
 			struct samsung_clk_provider *ctx);
-extern void __init samsung_clk_of_register_fixed_ext(
+void samsung_clk_of_register_fixed_ext(
 			struct samsung_clk_provider *ctx,
 			struct samsung_fixed_rate_clock *fixed_rate_clk,
 			unsigned int nr_fixed_rate_clk,
 			const struct of_device_id *clk_matches);
 
-extern void samsung_clk_add_lookup(struct samsung_clk_provider *ctx,
+void samsung_clk_add_lookup(struct samsung_clk_provider *ctx,
 			struct clk_hw *clk_hw, unsigned int id);
 
-extern void __init samsung_clk_register_alias(struct samsung_clk_provider *ctx,
+void samsung_clk_register_alias(struct samsung_clk_provider *ctx,
 			const struct samsung_clock_alias *list,
 			unsigned int nr_clk);
-extern void __init samsung_clk_register_fixed_rate(
+void samsung_clk_register_fixed_rate(
 			struct samsung_clk_provider *ctx,
 			const struct samsung_fixed_rate_clock *clk_list,
 			unsigned int nr_clk);
-extern void __init samsung_clk_register_fixed_factor(
+void samsung_clk_register_fixed_factor(
 			struct samsung_clk_provider *ctx,
 			const struct samsung_fixed_factor_clock *list,
 			unsigned int nr_clk);
-extern void __init samsung_clk_register_mux(struct samsung_clk_provider *ctx,
+void samsung_clk_register_mux(struct samsung_clk_provider *ctx,
 			const struct samsung_mux_clock *clk_list,
 			unsigned int nr_clk);
-extern void __init samsung_clk_register_div(struct samsung_clk_provider *ctx,
+void samsung_clk_register_div(struct samsung_clk_provider *ctx,
 			const struct samsung_div_clock *clk_list,
 			unsigned int nr_clk);
-extern void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
+void samsung_clk_register_gate(struct samsung_clk_provider *ctx,
 			const struct samsung_gate_clock *clk_list,
 			unsigned int nr_clk);
-extern void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
+void samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 			const struct samsung_pll_clock *pll_list,
 			unsigned int nr_clk, void __iomem *base);
-extern void samsung_clk_register_cpu(struct samsung_clk_provider *ctx,
+void samsung_clk_register_cpu(struct samsung_clk_provider *ctx,
 		const struct samsung_cpu_clock *list, unsigned int nr_clk);
 
-extern struct samsung_clk_provider __init *samsung_cmu_register_one(
+struct samsung_clk_provider *samsung_cmu_register_one(
 			struct device_node *,
 			const struct samsung_cmu_info *);
 
-extern unsigned long _get_rate(const char *clk_name);
-
 #ifdef CONFIG_PM_SLEEP
-extern void samsung_clk_extended_sleep_init(void __iomem *reg_base,
+void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 			const unsigned long *rdump,
 			unsigned long nr_rdump,
 			const struct samsung_clk_reg_dump *rsuspend,
@@ -399,13 +397,13 @@ static inline void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 #define samsung_clk_sleep_init(reg_base, rdump, nr_rdump) \
 	samsung_clk_extended_sleep_init(reg_base, rdump, nr_rdump, NULL, 0)
 
-extern void samsung_clk_save(void __iomem *base,
+void samsung_clk_save(void __iomem *base,
 			struct samsung_clk_reg_dump *rd,
 			unsigned int num_regs);
-extern void samsung_clk_restore(void __iomem *base,
+void samsung_clk_restore(void __iomem *base,
 			const struct samsung_clk_reg_dump *rd,
 			unsigned int num_regs);
-extern struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
+struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
 			const unsigned long *rdump,
 			unsigned long nr_rdump);
 

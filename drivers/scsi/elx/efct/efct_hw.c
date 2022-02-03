@@ -516,7 +516,7 @@ efct_hw_setup_io(struct efct_hw *hw)
 		dma = &hw->xfer_rdy;
 		dma->size = sizeof(struct fcp_txrdy) * hw->config.n_io;
 		dma->virt = dma_alloc_coherent(&efct->pci->dev,
-					       dma->size, &dma->phys, GFP_DMA);
+					       dma->size, &dma->phys, GFP_KERNEL);
 		if (!dma->virt)
 			return -ENOMEM;
 	}
@@ -562,7 +562,7 @@ efct_hw_setup_io(struct efct_hw *hw)
 					sizeof(struct sli4_sge);
 			dma->virt = dma_alloc_coherent(&efct->pci->dev,
 						       dma->size, &dma->phys,
-						       GFP_DMA);
+						       GFP_KERNEL);
 			if (!dma->virt) {
 				efc_log_err(hw->os, "dma_alloc fail %d\n", i);
 				memset(&io->def_sgl, 0,
@@ -618,7 +618,7 @@ efct_hw_init_prereg_io(struct efct_hw *hw)
 	memset(&req, 0, sizeof(struct efc_dma));
 	req.size = 32 + sgls_per_request * 16;
 	req.virt = dma_alloc_coherent(&efct->pci->dev, req.size, &req.phys,
-				      GFP_DMA);
+				      GFP_KERNEL);
 	if (!req.virt) {
 		kfree(sgls);
 		return -ENOMEM;
@@ -1063,7 +1063,7 @@ efct_hw_init(struct efct_hw *hw)
 	dma = &hw->loop_map;
 	dma->size = SLI4_MIN_LOOP_MAP_BYTES;
 	dma->virt = dma_alloc_coherent(&hw->os->pci->dev, dma->size, &dma->phys,
-				       GFP_DMA);
+				       GFP_KERNEL);
 	if (!dma->virt)
 		return -EIO;
 
@@ -1192,7 +1192,7 @@ efct_hw_rx_buffer_alloc(struct efct_hw *hw, u32 rqindex, u32 count,
 		prq->dma.virt = dma_alloc_coherent(&efct->pci->dev,
 						   prq->dma.size,
 						   &prq->dma.phys,
-						   GFP_DMA);
+						   GFP_KERNEL);
 		if (!prq->dma.virt) {
 			efc_log_err(hw->os, "DMA allocation failed\n");
 			kfree(rq_buf);

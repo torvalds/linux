@@ -717,12 +717,23 @@ out:
  * sequence of powers of 3, 5, and 7: 1, 3, 5, 7, 9, 25, 27, 49, 81, ...
  * For a non-sparse filesystem it will be every group: 1, 2, 3, 4, ...
  */
-static unsigned ext4_list_backups(struct super_block *sb, unsigned *three,
-				  unsigned *five, unsigned *seven)
+unsigned int ext4_list_backups(struct super_block *sb, unsigned int *three,
+			       unsigned int *five, unsigned int *seven)
 {
-	unsigned *min = three;
+	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+	unsigned int *min = three;
 	int mult = 3;
-	unsigned ret;
+	unsigned int ret;
+
+	if (ext4_has_feature_sparse_super2(sb)) {
+		do {
+			if (*min > 2)
+				return UINT_MAX;
+			ret = le32_to_cpu(es->s_backup_bgs[*min - 1]);
+			*min += 1;
+		} while (!ret);
+		return ret;
+	}
 
 	if (!ext4_has_feature_sparse_super(sb)) {
 		ret = *min;

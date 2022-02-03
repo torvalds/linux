@@ -186,6 +186,8 @@ static const struct iio_chan_spec axp20x_adc_channels[] = {
 			   AXP20X_BATT_CHRG_I_H),
 	AXP20X_ADC_CHANNEL(AXP20X_BATT_DISCHRG_I, "batt_dischrg_i", IIO_CURRENT,
 			   AXP20X_BATT_DISCHRG_I_H),
+	AXP20X_ADC_CHANNEL(AXP20X_TS_IN, "ts_v", IIO_VOLTAGE,
+			   AXP20X_TS_IN_H),
 };
 
 static const struct iio_chan_spec axp22x_adc_channels[] = {
@@ -203,6 +205,8 @@ static const struct iio_chan_spec axp22x_adc_channels[] = {
 			   AXP20X_BATT_CHRG_I_H),
 	AXP20X_ADC_CHANNEL(AXP22X_BATT_DISCHRG_I, "batt_dischrg_i", IIO_CURRENT,
 			   AXP20X_BATT_DISCHRG_I_H),
+	AXP20X_ADC_CHANNEL(AXP22X_TS_IN, "ts_v", IIO_VOLTAGE,
+			   AXP22X_TS_ADC_H),
 };
 
 static const struct iio_chan_spec axp813_adc_channels[] = {
@@ -222,6 +226,8 @@ static const struct iio_chan_spec axp813_adc_channels[] = {
 			   AXP20X_BATT_CHRG_I_H),
 	AXP20X_ADC_CHANNEL(AXP22X_BATT_DISCHRG_I, "batt_dischrg_i", IIO_CURRENT,
 			   AXP20X_BATT_DISCHRG_I_H),
+	AXP20X_ADC_CHANNEL(AXP813_TS_IN, "ts_v", IIO_VOLTAGE,
+			   AXP288_TS_ADC_H),
 };
 
 static int axp20x_adc_raw(struct iio_dev *indio_dev,
@@ -296,11 +302,36 @@ static int axp20x_adc_scale_voltage(int channel, int *val, int *val2)
 		*val2 = 400000;
 		return IIO_VAL_INT_PLUS_MICRO;
 
+	case AXP20X_TS_IN:
+		/* 0.8 mV per LSB */
+		*val = 0;
+		*val2 = 800000;
+		return IIO_VAL_INT_PLUS_MICRO;
+
 	default:
 		return -EINVAL;
 	}
 }
 
+static int axp22x_adc_scale_voltage(int channel, int *val, int *val2)
+{
+	switch (channel) {
+	case AXP22X_BATT_V:
+		/* 1.1 mV per LSB */
+		*val = 1;
+		*val2 = 100000;
+		return IIO_VAL_INT_PLUS_MICRO;
+
+	case AXP22X_TS_IN:
+		/* 0.8 mV per LSB */
+		*val = 0;
+		*val2 = 800000;
+		return IIO_VAL_INT_PLUS_MICRO;
+
+	default:
+		return -EINVAL;
+	}
+}
 static int axp813_adc_scale_voltage(int channel, int *val, int *val2)
 {
 	switch (channel) {
@@ -312,6 +343,12 @@ static int axp813_adc_scale_voltage(int channel, int *val, int *val2)
 	case AXP813_BATT_V:
 		*val = 1;
 		*val2 = 100000;
+		return IIO_VAL_INT_PLUS_MICRO;
+
+	case AXP813_TS_IN:
+		/* 0.8 mV per LSB */
+		*val = 0;
+		*val2 = 800000;
 		return IIO_VAL_INT_PLUS_MICRO;
 
 	default:
@@ -367,12 +404,7 @@ static int axp22x_adc_scale(struct iio_chan_spec const *chan, int *val,
 {
 	switch (chan->type) {
 	case IIO_VOLTAGE:
-		if (chan->channel != AXP22X_BATT_V)
-			return -EINVAL;
-
-		*val = 1;
-		*val2 = 100000;
-		return IIO_VAL_INT_PLUS_MICRO;
+		return axp22x_adc_scale_voltage(chan->channel, val, val2);
 
 	case IIO_CURRENT:
 		*val = 1;
@@ -476,6 +508,7 @@ static int axp22x_read_raw(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_OFFSET:
+		/* For PMIC temp only */
 		*val = -2677;
 		return IIO_VAL_INT;
 

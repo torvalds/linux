@@ -7,6 +7,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "../kselftest.h"
+
 struct socket_testcase {
 	int	domain;
 	int	type;
@@ -31,7 +33,6 @@ static struct socket_testcase tests[] = {
 	{ AF_INET, SOCK_STREAM, IPPROTO_UDP, -EPROTONOSUPPORT, 1  },
 };
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define ERR_STRING_SZ	64
 
 static int run_tests(void)

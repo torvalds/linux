@@ -114,6 +114,9 @@ properties:
     description: enable output on a pin without actively driving it
       (such as enabling an output buffer)
 
+  output-impedance-ohms:
+    description: set the output impedance of a pin to at most X ohms
+
   output-low:
     type: boolean
     description: set the pin to output mode with low level

@@ -237,6 +237,11 @@ negotiation results.
 
 Some of the interface modes are described below:
 
+``PHY_INTERFACE_MODE_SMII``
+    This is serial MII, clocked at 125MHz, supporting 100M and 10M speeds.
+    Some details can be found in
+    https://opencores.org/ocsvn/smii/smii/trunk/doc/SMII.pdf
+
 ``PHY_INTERFACE_MODE_1000BASEX``
     This defines the 1000BASE-X single-lane serdes link as defined by the
     802.3 standard section 36.  The link operates at a fixed bit rate of

@@ -110,22 +110,5 @@ int main(int argc, char *argv[])
 	ret = _vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, PMU_CAP_LBR_FMT);
 	TEST_ASSERT(ret == 0, "Bad PERF_CAPABILITIES didn't fail.");
 
-	/* testcase 4, set capabilities when we don't have PDCM bit */
-	entry_1_0->ecx &= ~X86_FEATURE_PDCM;
-	vcpu_set_cpuid(vm, VCPU_ID, cpuid);
-	ret = _vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
-	TEST_ASSERT(ret == 0, "Bad PERF_CAPABILITIES didn't fail.");
-
-	/* testcase 5, set capabilities when we don't have PMU version bits */
-	entry_1_0->ecx |= X86_FEATURE_PDCM;
-	eax.split.version_id = 0;
-	entry_1_0->ecx = eax.full;
-	vcpu_set_cpuid(vm, VCPU_ID, cpuid);
-	ret = _vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, PMU_CAP_FW_WRITES);
-	TEST_ASSERT(ret == 0, "Bad PERF_CAPABILITIES didn't fail.");
-
-	vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, 0);
-	ASSERT_EQ(vcpu_get_msr(vm, VCPU_ID, MSR_IA32_PERF_CAPABILITIES), 0);
-
 	kvm_vm_free(vm);
 }

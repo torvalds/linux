@@ -333,7 +333,7 @@ static int read_key_bytes(struct btrfs_inode *inode, u8 key_type, u64 offset,
 		if (key.objectid != btrfs_ino(inode) || key.type != key_type)
 			break;
 
-		item_end = btrfs_item_size_nr(leaf, path->slots[0]) + key.offset;
+		item_end = btrfs_item_size(leaf, path->slots[0]) + key.offset;
 
 		if (copied > 0) {
 			/*

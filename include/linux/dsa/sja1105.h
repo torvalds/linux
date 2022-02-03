@@ -35,23 +35,26 @@
 #define SJA1105_META_SMAC			0x222222222222ull
 #define SJA1105_META_DMAC			0x0180C200000Eull
 
-#define SJA1105_HWTS_RX_EN			0
+enum sja1110_meta_tstamp {
+	SJA1110_META_TSTAMP_TX = 0,
+	SJA1110_META_TSTAMP_RX = 1,
+};
 
-/* Global tagger data: each struct sja1105_port has a reference to
- * the structure defined in struct sja1105_private.
- */
+struct sja1105_deferred_xmit_work {
+	struct dsa_port *dp;
+	struct sk_buff *skb;
+	struct kthread_work work;
+};
+
+/* Global tagger data */
 struct sja1105_tagger_data {
-	struct sk_buff *stampable_skb;
-	/* Protects concurrent access to the meta state machine
-	 * from taggers running on multiple ports on SMP systems
-	 */
-	spinlock_t meta_lock;
-	unsigned long state;
-	u8 ts_id;
-	/* Used on SJA1110 where meta frames are generated only for
-	 * 2-step TX timestamps
-	 */
-	struct sk_buff_head skb_txtstamp_queue;
+	/* Tagger to switch */
+	void (*xmit_work_fn)(struct kthread_work *work);
+	void (*meta_tstamp_handler)(struct dsa_switch *ds, int port, u8 ts_id,
+				    enum sja1110_meta_tstamp dir, u64 tstamp);
+	/* Switch to tagger */
+	bool (*rxtstamp_get_state)(struct dsa_switch *ds);
+	void (*rxtstamp_set_state)(struct dsa_switch *ds, bool on);
 };
 
 struct sja1105_skb_cb {
@@ -64,32 +67,13 @@ struct sja1105_skb_cb {
 #define SJA1105_SKB_CB(skb) \
 	((struct sja1105_skb_cb *)((skb)->cb))
 
-struct sja1105_port {
-	struct kthread_worker *xmit_worker;
-	struct kthread_work xmit_work;
-	struct sk_buff_head xmit_queue;
-	struct sja1105_tagger_data *data;
-	bool hwts_tx_en;
-};
-
-/* Timestamps are in units of 8 ns clock ticks (equivalent to
- * a fixed 125 MHz clock).
- */
-#define SJA1105_TICK_NS			8
-
-static inline s64 ns_to_sja1105_ticks(s64 ns)
+static inline struct sja1105_tagger_data *
+sja1105_tagger_data(struct dsa_switch *ds)
 {
-	return ns / SJA1105_TICK_NS;
-}
+	BUG_ON(ds->dst->tag_ops->proto != DSA_TAG_PROTO_SJA1105 &&
+	       ds->dst->tag_ops->proto != DSA_TAG_PROTO_SJA1110);
 
-static inline s64 sja1105_ticks_to_ns(s64 ticks)
-{
-	return ticks * SJA1105_TICK_NS;
-}
-
-static inline bool dsa_port_is_sja1105(struct dsa_port *dp)
-{
-	return true;
+	return ds->tagger_data;
 }
 
 #endif /* _NET_DSA_SJA1105_H */

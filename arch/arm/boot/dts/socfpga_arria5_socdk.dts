@@ -119,7 +119,7 @@
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q256a";
+		compatible = "micron,n25q256a", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <100000000>;
 

@@ -220,7 +220,8 @@ static struct sock *ping_lookup(struct net *net, struct sk_buff *skb, u16 ident)
 			continue;
 		}
 
-		if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif)
+		if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif &&
+		    sk->sk_bound_dev_if != inet_sdif(skb))
 			continue;
 
 		sock_hold(sk);
@@ -311,15 +312,11 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 		pr_debug("ping_check_bind_addr(sk=%p,addr=%pI4,port=%d)\n",
 			 sk, &addr->sin_addr.s_addr, ntohs(addr->sin_port));
 
-		if (addr->sin_addr.s_addr == htonl(INADDR_ANY))
-			chk_addr_ret = RTN_LOCAL;
-		else
-			chk_addr_ret = inet_addr_type(net, addr->sin_addr.s_addr);
+		chk_addr_ret = inet_addr_type(net, addr->sin_addr.s_addr);
 
-		if ((!inet_can_nonlocal_bind(net, isk) &&
-		     chk_addr_ret != RTN_LOCAL) ||
-		    chk_addr_ret == RTN_MULTICAST ||
-		    chk_addr_ret == RTN_BROADCAST)
+		if (!inet_addr_valid_or_nonlocal(net, inet_sk(sk),
+					         addr->sin_addr.s_addr,
+	                                         chk_addr_ret))
 			return -EADDRNOTAVAIL;
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -998,6 +995,7 @@ struct proto ping_prot = {
 	.hash =		ping_hash,
 	.unhash =	ping_unhash,
 	.get_port =	ping_get_port,
+	.put_port =	ping_unhash,
 	.obj_size =	sizeof(struct inet_sock),
 };
 EXPORT_SYMBOL(ping_prot);

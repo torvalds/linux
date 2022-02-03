@@ -492,23 +492,22 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.mbus_code = MEDIA_BUS_FMT_BGR565_2X8_LE,
 		.sh_fmt = IA_CSS_FRAME_FORMAT_RGB565,
 		.description = "16 RGB 5-6-5"
+#if 0
 	}, {
 		.pixelformat = V4L2_PIX_FMT_JPEG,
 		.depth = 8,
 		.mbus_code = MEDIA_BUS_FMT_JPEG_1X8,
 		.sh_fmt = IA_CSS_FRAME_FORMAT_BINARY_8,
 		.description = "JPEG"
-	},
-#if 0
-	{
+	}, {
 		/* This is a custom format being used by M10MO to send the RAW data */
 		.pixelformat = V4L2_PIX_FMT_CUSTOM_M10MO_RAW,
 		.depth = 8,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_M10MO_RAW,
 		.sh_fmt = IA_CSS_FRAME_FORMAT_BINARY_8,
 		.description = "Custom RAW for M10MO"
-	},
 #endif
+	},
 };
 
 const struct atomisp_format_bridge *
@@ -646,6 +645,12 @@ static int atomisp_g_input(struct file *file, void *fh, unsigned int *input)
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	rt_mutex_lock(&isp->mutex);
 	*input = asd->input_curr;
 	rt_mutex_unlock(&isp->mutex);
@@ -664,6 +669,12 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	struct v4l2_subdev *camera = NULL;
 	struct v4l2_subdev *motor;
 	int ret;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	rt_mutex_lock(&isp->mutex);
 	if (input >= ATOM_ISP_MAX_INPUTS || input >= isp->input_cnt) {
@@ -755,24 +766,91 @@ error:
 	return ret;
 }
 
+static int atomisp_enum_framesizes(struct file *file, void *priv,
+				   struct v4l2_frmsizeenum *fsize)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct atomisp_device *isp = video_get_drvdata(vdev);
+	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct v4l2_subdev_frame_size_enum fse = {
+		.index = fsize->index,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	int ret;
+
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+			       pad, enum_frame_size, NULL, &fse);
+	if (ret)
+		return ret;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	fsize->discrete.width = fse.max_width - pad_w;
+	fsize->discrete.height = fse.max_height - pad_h;
+
+	return 0;
+}
+
+static int atomisp_enum_frameintervals(struct file *file, void *priv,
+				       struct v4l2_frmivalenum *fival)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct atomisp_device *isp = video_get_drvdata(vdev);
+	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct v4l2_subdev_frame_interval_enum fie = {
+		.code	= atomisp_in_fmt_conv[0].code,
+		.index = fival->index,
+		.width = fival->width,
+		.height = fival->height,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	int ret;
+
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+			       pad, enum_frame_interval, NULL,
+			       &fie);
+	if (ret)
+		return ret;
+
+	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	fival->discrete = fie.interval;
+
+	return ret;
+}
+
 static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 				struct v4l2_fmtdesc *f)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
-	struct v4l2_subdev_mbus_code_enum code = { 0 };
+	struct v4l2_subdev_mbus_code_enum code = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	const struct atomisp_format_bridge *format;
+	struct v4l2_subdev *camera;
 	unsigned int i, fi = 0;
 	int rval;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
+	camera = isp->inputs[asd->input_curr].camera;
+	if(!camera) {
+		dev_err(isp->dev, "%s(): camera is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	rt_mutex_lock(&isp->mutex);
-	rval = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
-				enum_mbus_code, NULL, &code);
+
+	rval = v4l2_subdev_call(camera, pad, enum_mbus_code, NULL, &code);
 	if (rval == -ENOIOCTLCMD) {
 		dev_warn(isp->dev,
-			 "enum_mbus_code pad op not supported. Please fix your sensor driver!\n");
-		//	rval = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-		//				video, enum_mbus_fmt, 0, &code.code);
+			 "enum_mbus_code pad op not supported by %s. Please fix your sensor driver!\n",
+			 camera->name);
 	}
 	rt_mutex_unlock(&isp->mutex);
 
@@ -780,15 +858,15 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 		return rval;
 
 	for (i = 0; i < ARRAY_SIZE(atomisp_output_fmts); i++) {
-		const struct atomisp_format_bridge *format =
-			    &atomisp_output_fmts[i];
+		format = &atomisp_output_fmts[i];
 
 		/*
 		 * Is the atomisp-supported format is valid for the
 		 * sensor (configuration)? If not, skip it.
+		 *
+		 * FIXME: fix the pipeline to allow sensor format too.
 		 */
-		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW
-		    && format->mbus_code != code.code)
+		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW)
 			continue;
 
 		/* Found a match. Now let's pick f->index'th one. */
@@ -806,20 +884,6 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	return -EINVAL;
 }
 
-static int atomisp_g_fmt_cap(struct file *file, void *fh,
-			     struct v4l2_format *f)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-
-	int ret;
-
-	rt_mutex_lock(&isp->mutex);
-	ret = atomisp_get_fmt(vdev, f);
-	rt_mutex_unlock(&isp->mutex);
-	return ret;
-}
-
 static int atomisp_g_fmt_file(struct file *file, void *fh,
 			      struct v4l2_format *f)
 {
@@ -830,6 +894,72 @@ static int atomisp_g_fmt_file(struct file *file, void *fh,
 	rt_mutex_lock(&isp->mutex);
 	f->fmt.pix = pipe->pix;
 	rt_mutex_unlock(&isp->mutex);
+
+	return 0;
+}
+
+static int atomisp_adjust_fmt(struct v4l2_format *f)
+{
+	const struct atomisp_format_bridge *format_bridge;
+	u32 padded_width;
+
+	format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
+
+	padded_width = f->fmt.pix.width + pad_w;
+
+	if (format_bridge->planar) {
+		f->fmt.pix.bytesperline = padded_width;
+		f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height *
+						  DIV_ROUND_UP(format_bridge->depth *
+						  padded_width, 8));
+	} else {
+		f->fmt.pix.bytesperline = DIV_ROUND_UP(format_bridge->depth *
+						      padded_width, 8);
+		f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height * f->fmt.pix.bytesperline);
+	}
+
+	if (f->fmt.pix.field == V4L2_FIELD_ANY)
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+
+	format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
+	if (!format_bridge)
+		return -EINVAL;
+
+	/* Currently, raw formats are broken!!! */
+	if (format_bridge->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
+		f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
+
+		format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
+		if (!format_bridge)
+			return -EINVAL;
+	}
+
+	padded_width = f->fmt.pix.width + pad_w;
+
+	if (format_bridge->planar) {
+		f->fmt.pix.bytesperline = padded_width;
+		f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height *
+						  DIV_ROUND_UP(format_bridge->depth *
+						  padded_width, 8));
+	} else {
+		f->fmt.pix.bytesperline = DIV_ROUND_UP(format_bridge->depth *
+						      padded_width, 8);
+		f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height * f->fmt.pix.bytesperline);
+	}
+
+	if (f->fmt.pix.field == V4L2_FIELD_ANY)
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+
+	/*
+	 * FIXME: do we need to setup this differently, depending on the
+	 * sensor or the pipeline?
+	 */
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
+	f->fmt.pix.ycbcr_enc = V4L2_YCBCR_ENC_709;
+	f->fmt.pix.xfer_func = V4L2_XFER_FUNC_709;
+
+	f->fmt.pix.width -= pad_w;
+	f->fmt.pix.height -= pad_h;
 
 	return 0;
 }
@@ -845,7 +975,35 @@ static int atomisp_try_fmt_cap(struct file *file, void *fh,
 	rt_mutex_lock(&isp->mutex);
 	ret = atomisp_try_fmt(vdev, &f->fmt.pix, NULL);
 	rt_mutex_unlock(&isp->mutex);
-	return ret;
+
+	if (ret)
+		return ret;
+
+	return atomisp_adjust_fmt(f);
+}
+
+static int atomisp_g_fmt_cap(struct file *file, void *fh,
+			     struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct atomisp_device *isp = video_get_drvdata(vdev);
+	struct atomisp_video_pipe *pipe;
+
+	rt_mutex_lock(&isp->mutex);
+	pipe = atomisp_to_video_pipe(vdev);
+	rt_mutex_unlock(&isp->mutex);
+
+	f->fmt.pix = pipe->pix;
+
+	/* If s_fmt was issued, just return whatever is was previouly set */
+	if (f->fmt.pix.sizeimage)
+		return 0;
+
+	f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+	f->fmt.pix.width = 10000;
+	f->fmt.pix.height = 10000;
+
+	return atomisp_try_fmt_cap(file, fh, f);
 }
 
 static int atomisp_s_fmt_cap(struct file *file, void *fh,
@@ -1024,8 +1182,15 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 	struct ia_css_frame *frame;
 	struct videobuf_vmalloc_memory *vm_mem;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
-	u16 stream_id = atomisp_source_pad_to_stream_id(asd, source_pad);
+	u16 stream_id;
 	int ret = 0, i = 0;
+
+	if (!asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+	stream_id = atomisp_source_pad_to_stream_id(asd, source_pad);
 
 	if (req->count == 0) {
 		mutex_lock(&pipe->capq.vb_lock);
@@ -1153,6 +1318,12 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	u32 length;
 	u32 pgnr;
 	int ret = 0;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	rt_mutex_lock(&isp->mutex);
 	if (isp->isp_fatal_error) {
@@ -1287,25 +1458,8 @@ done:
 	    pipe->capq.streaming &&
 	    !asd->enable_raw_buffer_lock->val &&
 	    asd->params.offline_parm.num_captures == 1) {
-		if (!IS_ISP2401) {
 			asd->pending_capture_request++;
 			dev_dbg(isp->dev, "Add one pending capture request.\n");
-		} else {
-			if (asd->re_trigger_capture) {
-				ret = atomisp_css_offline_capture_configure(asd,
-					asd->params.offline_parm.num_captures,
-					asd->params.offline_parm.skip_frames,
-					asd->params.offline_parm.offset);
-				asd->re_trigger_capture = false;
-				dev_dbg(isp->dev, "%s Trigger capture again ret=%d\n",
-					__func__, ret);
-
-			} else {
-				asd->pending_capture_request++;
-				asd->re_trigger_capture = false;
-				dev_dbg(isp->dev, "Add one pending capture request.\n");
-			}
-		}
 	}
 	rt_mutex_unlock(&isp->mutex);
 
@@ -1388,6 +1542,12 @@ static int atomisp_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int ret = 0;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	rt_mutex_lock(&isp->mutex);
 
@@ -1640,6 +1800,12 @@ static int atomisp_streamon(struct file *file, void *fh,
 	int ret = 0;
 	unsigned long irqflags;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	dev_dbg(isp->dev, "Start stream on pad %d for asd%d\n",
 		atomisp_subdev_source_pad(vdev), asd->index);
 
@@ -1686,8 +1852,6 @@ static int atomisp_streamon(struct file *file, void *fh,
 
 	/* Reset pending capture request count. */
 	asd->pending_capture_request = 0;
-	if (IS_ISP2401)
-		asd->re_trigger_capture = false;
 
 	if ((atomisp_subdev_streaming_count(asd) > sensor_start_stream) &&
 	    (!isp->inputs[asd->input_curr].camera_caps->multi_stream_ctrl)) {
@@ -1900,6 +2064,12 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	int ret;
 	unsigned long flags;
 	bool first_streamoff = false;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	dev_dbg(isp->dev, "Stop stream on pad %d for asd%d\n",
 		atomisp_subdev_source_pad(vdev), asd->index);
@@ -2150,6 +2320,12 @@ static int atomisp_g_ctrl(struct file *file, void *fh,
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int i, ret = -EINVAL;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < ctrls_num; i++) {
 		if (ci_v4l2_controls[i].id == control->id) {
 			ret = 0;
@@ -2228,6 +2404,12 @@ static int atomisp_s_ctrl(struct file *file, void *fh,
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int i, ret = -EINVAL;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ctrls_num; i++) {
 		if (ci_v4l2_controls[i].id == control->id) {
@@ -2310,6 +2492,12 @@ static int atomisp_queryctl(struct file *file, void *fh,
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	switch (qc->id) {
 	case V4L2_CID_FOCUS_ABSOLUTE:
 	case V4L2_CID_FOCUS_RELATIVE:
@@ -2354,6 +2542,12 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_control ctrl;
 	int i;
 	int ret = 0;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
@@ -2465,6 +2659,12 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_control ctrl;
 	int i;
 	int ret = 0;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
@@ -2591,6 +2791,12 @@ static int atomisp_g_parm(struct file *file, void *fh,
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		dev_err(isp->dev, "unsupported v4l2 buf type\n");
 		return -EINVAL;
@@ -2612,6 +2818,12 @@ static int atomisp_s_parm(struct file *file, void *fh,
 	int mode;
 	int rval;
 	int fps;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		dev_err(isp->dev, "unsupported v4l2 buf type\n");
@@ -3035,6 +3247,8 @@ const struct v4l2_ioctl_ops atomisp_ioctl_ops = {
 	.vidioc_g_ctrl = atomisp_g_ctrl,
 	.vidioc_s_ext_ctrls = atomisp_s_ext_ctrls,
 	.vidioc_g_ext_ctrls = atomisp_g_ext_ctrls,
+	.vidioc_enum_framesizes   = atomisp_enum_framesizes,
+	.vidioc_enum_frameintervals = atomisp_enum_frameintervals,
 	.vidioc_enum_fmt_vid_cap = atomisp_enum_fmt_cap,
 	.vidioc_try_fmt_vid_cap = atomisp_try_fmt_cap,
 	.vidioc_g_fmt_vid_cap = atomisp_g_fmt_cap,

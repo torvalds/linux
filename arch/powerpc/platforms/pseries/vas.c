@@ -151,8 +151,15 @@ int h_query_vas_capabilities(const u64 hcall, u8 query_type, u64 result)
 	if (rc == H_SUCCESS)
 		return 0;
 
-	pr_err("HCALL(%llx) error %ld, query_type %u, result buffer 0x%llx\n",
-			hcall, rc, query_type, result);
+	/* H_FUNCTION means HV does not support VAS so don't print an error */
+	if (rc != H_FUNCTION) {
+		pr_err("%s error %ld, query_type %u, result buffer 0x%llx\n",
+			(hcall == H_QUERY_VAS_CAPABILITIES) ?
+				"H_QUERY_VAS_CAPABILITIES" :
+				"H_QUERY_NX_CAPABILITIES",
+			rc, query_type, result);
+	}
+
 	return -EIO;
 }
 EXPORT_SYMBOL_GPL(h_query_vas_capabilities);
@@ -482,7 +489,7 @@ EXPORT_SYMBOL_GPL(vas_unregister_api_pseries);
  * Get the specific capabilities based on the feature type.
  * Right now supports GZIP default and GZIP QoS capabilities.
  */
-static int get_vas_capabilities(u8 feat, enum vas_cop_feat_type type,
+static int __init get_vas_capabilities(u8 feat, enum vas_cop_feat_type type,
 				struct hv_vas_cop_feat_caps *hv_caps)
 {
 	struct vas_cop_feat_caps *caps;
