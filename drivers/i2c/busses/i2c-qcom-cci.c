@@ -655,7 +655,7 @@ static int cci_probe(struct platform_device *pdev)
 	return 0;
 
 error_i2c:
-	for (; i >= 0; i--) {
+	for (--i ; i >= 0; i--) {
 		if (cci->master[i].cci)
 			i2c_del_adapter(&cci->master[i].adap);
 	}
