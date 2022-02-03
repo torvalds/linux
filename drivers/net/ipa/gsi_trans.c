@@ -320,6 +320,17 @@ gsi_trans_tre_release(struct gsi_trans_info *trans_info, u32 tre_count)
 	atomic_add(tre_count, &trans_info->tre_avail);
 }
 
+/* Return true if no transactions are allocated, false otherwise */
+bool gsi_channel_trans_idle(struct gsi *gsi, u32 channel_id)
+{
+	u32 tre_max = gsi_channel_tre_max(gsi, channel_id);
+	struct gsi_trans_info *trans_info;
+
+	trans_info = &gsi->channel[channel_id].trans_info;
+
+	return atomic_read(&trans_info->tre_avail) == tre_max;
+}
+
 /* Allocate a GSI transaction on a channel */
 struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 					  u32 tre_count,

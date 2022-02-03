@@ -1077,8 +1077,6 @@ static int ipa_endpoint_replenish_one(struct ipa_endpoint *endpoint,
 static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint)
 {
 	struct gsi_trans *trans;
-	struct gsi *gsi;
-	u32 backlog;
 
 	if (!test_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags))
 		return;
@@ -1108,30 +1106,25 @@ try_again_later:
 	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
 
 	/* The last one didn't succeed, so fix the backlog */
-	backlog = atomic_inc_return(&endpoint->replenish_backlog);
+	atomic_inc(&endpoint->replenish_backlog);
 
 	/* Whenever a receive buffer transaction completes we'll try to
 	 * replenish again.  It's unlikely, but if we fail to supply even
 	 * one buffer, nothing will trigger another replenish attempt.
-	 * Receive buffer transactions use one TRE, so schedule work to
-	 * try replenishing again if our backlog is *all* available TREs.
+	 * If the hardware has no receive buffers queued, schedule work to
+	 * try replenishing again.
 	 */
-	gsi = &endpoint->ipa->gsi;
-	if (backlog == gsi_channel_tre_max(gsi, endpoint->channel_id))
+	if (gsi_channel_trans_idle(&endpoint->ipa->gsi, endpoint->channel_id))
 		schedule_delayed_work(&endpoint->replenish_work,
 				      msecs_to_jiffies(1));
 }
 
 static void ipa_endpoint_replenish_enable(struct ipa_endpoint *endpoint)
 {
-	struct gsi *gsi = &endpoint->ipa->gsi;
-	u32 max_backlog;
-
 	set_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags);
 
 	/* Start replenishing if hardware currently has no buffers */
-	max_backlog = gsi_channel_tre_max(gsi, endpoint->channel_id);
-	if (atomic_read(&endpoint->replenish_backlog) == max_backlog)
+	if (gsi_channel_trans_idle(&endpoint->ipa->gsi, endpoint->channel_id))
 		ipa_endpoint_replenish(endpoint);
 }
 
