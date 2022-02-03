@@ -1843,23 +1843,7 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 static void icl_ddi_bigjoiner_pre_enable(struct intel_atomic_state *state,
 					 const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc_state *master_crtc_state;
-	struct intel_crtc *master_crtc;
-	struct drm_connector_state *conn_state;
-	struct drm_connector *conn;
-	struct intel_encoder *encoder = NULL;
-	int i;
-
-	master_crtc = intel_master_crtc(crtc_state);
-	master_crtc_state = intel_atomic_get_new_crtc_state(state, master_crtc);
-
-	for_each_new_connector_in_state(&state->base, conn, conn_state, i) {
-		if (conn_state->crtc != &master_crtc->base)
-			continue;
-
-		encoder = to_intel_encoder(conn_state->best_encoder);
-		break;
-	}
+	struct intel_crtc *master_crtc = intel_master_crtc(crtc_state);
 
 	/*
 	 * Enable sequence steps 1-7 on bigjoiner master
