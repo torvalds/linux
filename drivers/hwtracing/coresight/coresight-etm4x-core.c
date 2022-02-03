@@ -1091,7 +1091,7 @@ static void etm4_init_arch_data(void *info)
 	etmidr0 = etm4x_relaxed_read32(csa, TRCIDR0);
 
 	/* INSTP0, bits[2:1] P0 tracing support field */
-	if (BMVAL(etmidr0, 1, 1) && BMVAL(etmidr0, 2, 2))
+	if (BMVAL(etmidr0, 1, 2) == 0b11)
 		drvdata->instrp0 = true;
 	else
 		drvdata->instrp0 = false;
