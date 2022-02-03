@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2020-2021, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/err.h>
 #include <linux/ipc_logging.h>
@@ -12,7 +13,9 @@
 #include <linux/string.h>
 
 /* SDAM NVMEM register offsets: */
+#define REG_SDAM_COUNT		0x45
 #define REG_PUSH_PTR		0x46
+#define REG_PUSH_SDAM_NUM	0x47
 #define REG_FIFO_DATA_START	0x4B
 #define REG_FIFO_DATA_END	0xBF
 
@@ -26,15 +29,18 @@ struct pmic_pon_log_entry {
 
 #define FIFO_SIZE		(REG_FIFO_DATA_END - REG_FIFO_DATA_START + 1)
 #define FIFO_ENTRY_SIZE		(sizeof(struct pmic_pon_log_entry))
-#define FIFO_MAX_ENTRY_COUNT	(FIFO_SIZE / FIFO_ENTRY_SIZE)
 
 #define IPC_LOG_PAGES	3
 
 struct pmic_pon_log_dev {
-	struct pmic_pon_log_entry	log[FIFO_MAX_ENTRY_COUNT];
+	struct device			*dev;
+	struct pmic_pon_log_entry	*log;
 	int				log_len;
+	int				log_max_entries;
 	void				*ipc_log;
-	struct nvmem_device		*nvmem;
+	struct nvmem_device		**nvmem;
+	int				nvmem_count;
+	int				sdam_fifo_count;
 };
 
 enum pmic_pon_state {
@@ -225,27 +231,31 @@ static bool pmic_pon_entry_is_important(const struct pmic_pon_log_entry *entry)
 	return false;
 }
 
-static int pmic_pon_log_read_entry(struct nvmem_device *nvmem,
-		u16 entry_start_addr, struct pmic_pon_log_entry *entry)
+static int pmic_pon_log_read_entry(struct pmic_pon_log_dev *pon_dev,
+		u32 entry_start_index, struct pmic_pon_log_entry *entry)
 {
 	u8 *buf = (u8 *)entry;
-	int ret, len;
+	int ret, len, fifo_total_size, entry_start_sdam, entry_start_addr, i;
 
-	if (entry_start_addr < REG_FIFO_DATA_START ||
-	    entry_start_addr > REG_FIFO_DATA_END)
-		return -EINVAL;
+	fifo_total_size = FIFO_SIZE * pon_dev->sdam_fifo_count;
+	entry_start_index = entry_start_index % fifo_total_size;
+	entry_start_sdam = entry_start_index / FIFO_SIZE;
+	entry_start_addr = (entry_start_index % FIFO_SIZE)
+				+ REG_FIFO_DATA_START;
 
 	if (entry_start_addr + FIFO_ENTRY_SIZE - 1 > REG_FIFO_DATA_END) {
-		/* The entry wraps around the end of the FIFO. */
-		len = REG_FIFO_DATA_END - entry_start_addr + 1;
-		ret = nvmem_device_read(nvmem, entry_start_addr, len, buf);
+		/* The entry continues beyond the end of this SDAM */
+		len = FIFO_SIZE - (entry_start_index % FIFO_SIZE);
+		ret = nvmem_device_read(pon_dev->nvmem[entry_start_sdam],
+					entry_start_addr, len, buf);
 		if (ret < 0)
 			return ret;
-		ret = nvmem_device_read(nvmem, REG_FIFO_DATA_START,
+		i = (entry_start_sdam + 1) % pon_dev->sdam_fifo_count;
+		ret = nvmem_device_read(pon_dev->nvmem[i], REG_FIFO_DATA_START,
 					FIFO_ENTRY_SIZE - len, &buf[len]);
 	} else {
-		ret = nvmem_device_read(nvmem, entry_start_addr,
-					FIFO_ENTRY_SIZE, buf);
+		ret = nvmem_device_read(pon_dev->nvmem[entry_start_sdam],
+					entry_start_addr, FIFO_ENTRY_SIZE, buf);
 	}
 
 	return ret;
@@ -471,29 +481,47 @@ static int pmic_pon_log_parse_entry(const struct pmic_pon_log_entry *entry,
 
 static int pmic_pon_log_parse(struct pmic_pon_log_dev *pon_dev)
 {
-	int ret, i, addr, addr_start, addr_end;
+	int ret, i, addr_end, sdam_end, fifo_index_start, fifo_index_end, index;
 	struct pmic_pon_log_entry entry;
 	u8 buf;
 
-	ret = nvmem_device_read(pon_dev->nvmem, REG_PUSH_PTR, 1, &buf);
+	ret = nvmem_device_read(pon_dev->nvmem[0], REG_PUSH_PTR, 1, &buf);
 	if (ret < 0)
 		return ret;
 	addr_end = buf;
 
+	if (addr_end < REG_FIFO_DATA_START || addr_end > REG_FIFO_DATA_END) {
+		dev_err(pon_dev->dev, "unexpected PON log end address: %02X\n",
+			addr_end);
+		return -EINVAL;
+	}
+
+	ret = nvmem_device_read(pon_dev->nvmem[0], REG_PUSH_SDAM_NUM, 1, &buf);
+	if (ret < 0)
+		return ret;
+	sdam_end = buf;
+
+	if (sdam_end >= pon_dev->sdam_fifo_count) {
+		dev_err(pon_dev->dev, "unexpected PON log end SDAM index: %d\n",
+			sdam_end);
+		return -EINVAL;
+	}
+
+	fifo_index_end = sdam_end * FIFO_SIZE + addr_end - REG_FIFO_DATA_START;
+
 	/*
-	 * Calculate the FIFO start address from the end address assuming that
-	 * the FIFO is full.
+	 * Calculate the FIFO start index from the end index assuming that the
+	 * FIFO is full.
 	 */
-	addr_start = addr_end - FIFO_MAX_ENTRY_COUNT * FIFO_ENTRY_SIZE;
-	if (addr_start < REG_FIFO_DATA_START)
-		addr_start += FIFO_SIZE;
+	fifo_index_start = fifo_index_end
+				- pon_dev->log_max_entries * FIFO_ENTRY_SIZE;
+	if (fifo_index_start < 0)
+		fifo_index_start += FIFO_SIZE * pon_dev->sdam_fifo_count;
 
-	for (i = 0; i < FIFO_MAX_ENTRY_COUNT; i++) {
-		addr = addr_start + i * FIFO_ENTRY_SIZE;
-		if (addr > REG_FIFO_DATA_END)
-			addr -= FIFO_SIZE;
+	for (i = 0; i < pon_dev->log_max_entries; i++) {
+		index = fifo_index_start + i * FIFO_ENTRY_SIZE;
 
-		ret = pmic_pon_log_read_entry(pon_dev->nvmem, addr, &entry);
+		ret = pmic_pon_log_read_entry(pon_dev, index, &entry);
 		if (ret < 0)
 			return ret;
 
@@ -608,20 +636,66 @@ static void pmic_pon_log_fault_panic(struct pmic_pon_log_dev *pon_dev)
 static int pmic_pon_log_probe(struct platform_device *pdev)
 {
 	struct pmic_pon_log_dev *pon_dev;
-	int ret = 0;
+	char buf[12] = "";
+	int ret, i;
+	u8 reg = 0;
 
 	pon_dev = devm_kzalloc(&pdev->dev, sizeof(*pon_dev), GFP_KERNEL);
 	if (!pon_dev)
 		return -ENOMEM;
+	pon_dev->dev = &pdev->dev;
 
-	pon_dev->nvmem = devm_nvmem_device_get(&pdev->dev, "pon_log");
-	if (IS_ERR(pon_dev->nvmem)) {
-		ret = PTR_ERR(pon_dev->nvmem);
+	ret = of_count_phandle_with_args(pdev->dev.of_node, "nvmem", NULL);
+	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get nvmem device, ret=%d\n",
+			dev_err(&pdev->dev, "failed to get nvmem count, ret=%d\n",
 				ret);
 		return ret;
+	} else if (ret == 0) {
+		dev_err(&pdev->dev, "nvmem property empty\n");
+		return -EINVAL;
 	}
+	pon_dev->nvmem_count = ret;
+
+	pon_dev->nvmem = devm_kcalloc(&pdev->dev, pon_dev->nvmem_count,
+					sizeof(*pon_dev->nvmem), GFP_KERNEL);
+	if (!pon_dev->nvmem)
+		return -ENOMEM;
+
+	for (i = 0; i < pon_dev->nvmem_count; i++) {
+		scnprintf(buf, ARRAY_SIZE(buf), "pon_log%d", i);
+		pon_dev->nvmem[i] = devm_nvmem_device_get(&pdev->dev, buf);
+		if (IS_ERR(pon_dev->nvmem[i]) && i == 0 &&
+		    PTR_ERR(pon_dev->nvmem[i]) != EPROBE_DEFER)
+			pon_dev->nvmem[i] = devm_nvmem_device_get(&pdev->dev,
+								  "pon_log");
+		if (IS_ERR(pon_dev->nvmem[i])) {
+			ret = PTR_ERR(pon_dev->nvmem[i]);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "failed to get nvmem device %d, ret=%d\n",
+					i, ret);
+			return ret;
+		}
+	}
+
+	/* Read how many SDAMs are used for the PON log in PMIC hardware */
+	ret = nvmem_device_read(pon_dev->nvmem[0], REG_SDAM_COUNT, 1, &reg);
+	if (ret < 0)
+		return ret;
+	pon_dev->sdam_fifo_count = reg + 1;
+
+	if (pon_dev->sdam_fifo_count > pon_dev->nvmem_count) {
+		dev_err(&pdev->dev, "Missing nvmem handles; found %d, expected %d\n",
+			pon_dev->nvmem_count, pon_dev->sdam_fifo_count);
+		return -ENODEV;
+	}
+
+	pon_dev->log_max_entries = FIFO_SIZE * pon_dev->sdam_fifo_count
+					/ FIFO_ENTRY_SIZE;
+	pon_dev->log = devm_kcalloc(&pdev->dev, pon_dev->log_max_entries,
+				    sizeof(*pon_dev->log), GFP_KERNEL);
+	if (!pon_dev->log)
+		return -ENOMEM;
 
 	pon_dev->ipc_log = ipc_log_context_create(IPC_LOG_PAGES, "pmic_pon", 0);
 	platform_set_drvdata(pdev, pon_dev);
