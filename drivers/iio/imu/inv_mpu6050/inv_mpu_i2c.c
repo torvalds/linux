@@ -9,8 +9,8 @@
 #include <linux/iio/iio.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
+
 #include "inv_mpu_iio.h"
 
 static const struct regmap_config inv_mpu_regmap_config = {
@@ -51,7 +51,7 @@ static int inv_mpu_i2c_aux_setup(struct iio_dev *indio_dev)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
-	struct device_node *mux_node;
+	struct fwnode_handle *mux_node;
 	int ret;
 
 	/*
@@ -65,12 +65,12 @@ static int inv_mpu_i2c_aux_setup(struct iio_dev *indio_dev)
 	case INV_MPU9150:
 	case INV_MPU9250:
 	case INV_MPU9255:
-		mux_node = of_get_child_by_name(dev->of_node, "i2c-gate");
+		mux_node = device_get_named_child_node(dev, "i2c-gate");
 		if (mux_node != NULL) {
 			st->magn_disabled = true;
 			dev_warn(dev, "disable internal use of magnetometer\n");
 		}
-		of_node_put(mux_node);
+		fwnode_handle_put(mux_node);
 		break;
 	default:
 		break;
