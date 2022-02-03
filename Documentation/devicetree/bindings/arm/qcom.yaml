@@ -268,6 +268,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,sm8450-hdk
               - qcom,sm8450-qrd
           - const: qcom,sm8450
 
