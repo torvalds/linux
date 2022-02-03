@@ -28,8 +28,9 @@ h2_destroy()
 
 switch_create()
 {
-	# 10 Seconds ageing time.
-	ip link add dev br0 type bridge vlan_filtering 1 ageing_time 1000 \
+	ip link add dev br0 type bridge \
+		vlan_filtering 1 \
+		ageing_time $LOW_AGEING_TIME \
 		mcast_snooping 0
 
 	ip link set dev $swp1 master br0
