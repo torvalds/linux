@@ -545,13 +545,8 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		data = omap5_clkctrl_data;
 #endif
 #ifdef CONFIG_SOC_DRA7XX
-	if (of_machine_is_compatible("ti,dra7")) {
-		if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
-			data = dra7_clkctrl_compat_data;
-		else
-			data = dra7_clkctrl_data;
-	}
-
+	if (of_machine_is_compatible("ti,dra7"))
+		data = dra7_clkctrl_data;
 	if (of_machine_is_compatible("ti,dra72"))
 		soc_mask = CLKF_SOC_DRA72;
 	if (of_machine_is_compatible("ti,dra74"))
