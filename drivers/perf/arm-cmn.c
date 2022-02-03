@@ -353,7 +353,7 @@ static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
 	return NULL;
 }
 
-struct dentry *arm_cmn_debugfs;
+static struct dentry *arm_cmn_debugfs;
 
 #ifdef CONFIG_DEBUG_FS
 static const char *arm_cmn_device_type(u8 type)
