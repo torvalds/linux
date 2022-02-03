@@ -183,6 +183,51 @@ static const struct apple_key_translation macbookair_fn_keys[] = {
 	{ }
 };
 
+static const struct apple_key_translation macbookpro_no_esc_fn_keys[] = {
+	{ KEY_BACKSPACE, KEY_DELETE },
+	{ KEY_ENTER,	KEY_INSERT },
+	{ KEY_GRAVE,	KEY_ESC },
+	{ KEY_1,	KEY_F1 },
+	{ KEY_2,	KEY_F2 },
+	{ KEY_3,	KEY_F3 },
+	{ KEY_4,	KEY_F4 },
+	{ KEY_5,	KEY_F5 },
+	{ KEY_6,	KEY_F6 },
+	{ KEY_7,	KEY_F7 },
+	{ KEY_8,	KEY_F8 },
+	{ KEY_9,	KEY_F9 },
+	{ KEY_0,	KEY_F10 },
+	{ KEY_MINUS,	KEY_F11 },
+	{ KEY_EQUAL,	KEY_F12 },
+	{ KEY_UP,	KEY_PAGEUP },
+	{ KEY_DOWN,	KEY_PAGEDOWN },
+	{ KEY_LEFT,	KEY_HOME },
+	{ KEY_RIGHT,	KEY_END },
+	{ }
+};
+
+static const struct apple_key_translation macbookpro_dedicated_esc_fn_keys[] = {
+	{ KEY_BACKSPACE, KEY_DELETE },
+	{ KEY_ENTER,	KEY_INSERT },
+	{ KEY_1,	KEY_F1 },
+	{ KEY_2,	KEY_F2 },
+	{ KEY_3,	KEY_F3 },
+	{ KEY_4,	KEY_F4 },
+	{ KEY_5,	KEY_F5 },
+	{ KEY_6,	KEY_F6 },
+	{ KEY_7,	KEY_F7 },
+	{ KEY_8,	KEY_F8 },
+	{ KEY_9,	KEY_F9 },
+	{ KEY_0,	KEY_F10 },
+	{ KEY_MINUS,	KEY_F11 },
+	{ KEY_EQUAL,	KEY_F12 },
+	{ KEY_UP,	KEY_PAGEUP },
+	{ KEY_DOWN,	KEY_PAGEDOWN },
+	{ KEY_LEFT,	KEY_HOME },
+	{ KEY_RIGHT,	KEY_END },
+	{ }
+};
+
 static const struct apple_key_translation apple_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
 	{ KEY_ENTER,	KEY_INSERT },
@@ -332,6 +377,17 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 			 hid->product == USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_FINGERPRINT_2021 ||
 			 hid->product == USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_2021)
 			table = apple2021_fn_keys;
+		else if (hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J132 ||
+			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J680 ||
+			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J213)
+				table = macbookpro_no_esc_fn_keys;
+		else if (hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J214K ||
+			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J223 ||
+			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J152F)
+				table = macbookpro_dedicated_esc_fn_keys;
+		else if (hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J140K ||
+			 hid->product == USB_DEVICE_ID_APPLE_WELLSPRINGT2_J230K)
+				table = apple_fn_keys;
 		else if (hid->product >= USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI &&
 				hid->product <= USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS)
 			table = macbookair_fn_keys;
@@ -548,6 +604,8 @@ static void apple_setup_input(struct input_dev *input)
 	apple_setup_key_translation(input, magic_keyboard_alu_fn_keys);
 	apple_setup_key_translation(input, magic_keyboard_2015_fn_keys);
 	apple_setup_key_translation(input, apple2021_fn_keys);
+	apple_setup_key_translation(input, macbookpro_no_esc_fn_keys);
+	apple_setup_key_translation(input, macbookpro_dedicated_esc_fn_keys);
 
 	if (swap_fn_leftctrl)
 		apple_setup_key_translation(input, swapped_fn_leftctrl_keys);
