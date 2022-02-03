@@ -2,8 +2,8 @@
 /*
 * Copyright (C) 2015 Intel Corporation Inc.
 */
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>
@@ -148,7 +148,7 @@ static struct spi_driver inv_mpu_driver = {
 	.id_table	=	inv_mpu_id,
 	.driver = {
 		.of_match_table = inv_of_match,
-		.acpi_match_table = ACPI_PTR(inv_acpi_match),
+		.acpi_match_table = inv_acpi_match,
 		.name	=	"inv-mpu6000-spi",
 		.pm     =       &inv_mpu_pmops,
 	},

@@ -3,11 +3,11 @@
 * Copyright (C) 2012 Invensense, Inc.
 */
 
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/property.h>
@@ -249,11 +249,10 @@ static const struct of_device_id inv_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, inv_of_match);
 
-static const struct acpi_device_id __maybe_unused inv_acpi_match[] = {
+static const struct acpi_device_id inv_acpi_match[] = {
 	{"INVN6500", INV_MPU6500},
 	{ },
 };
-
 MODULE_DEVICE_TABLE(acpi, inv_acpi_match);
 
 static struct i2c_driver inv_mpu_driver = {
@@ -262,7 +261,7 @@ static struct i2c_driver inv_mpu_driver = {
 	.id_table	=	inv_mpu_id,
 	.driver = {
 		.of_match_table = inv_of_match,
-		.acpi_match_table = ACPI_PTR(inv_acpi_match),
+		.acpi_match_table = inv_acpi_match,
 		.name	=	"inv-mpu6050-i2c",
 		.pm     =       &inv_mpu_pmops,
 	},
