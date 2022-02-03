@@ -48,6 +48,25 @@ static const struct {
 	__s32 y;
 }  hid_hat_to_axis[] = {{ 0, 0}, { 0,-1}, { 1,-1}, { 1, 0}, { 1, 1}, { 0, 1}, {-1, 1}, {-1, 0}, {-1,-1}};
 
+/*
+ * hid-input will convert this list into priorities:
+ * the first element will have the highest priority
+ * (the length of the following array) and the last
+ * element the lowest (1).
+ *
+ * hid-input will then shift the priority by 8 bits to leave some space
+ * in case drivers want to interleave other fields.
+ *
+ * If drivers want to add fields before those, hid-input will
+ * leave out the first 8 bits of the priority value.
+ *
+ * This still leaves us 65535 individual priority values.
+ */
+static const __u32 hidinput_usages_priorities[] = {
+	HID_DG_INVERT,		/* Invert must always come before In Range */
+	HID_DG_INRANGE,
+};
+
 #define map_abs(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_ABS, (c))
 #define map_rel(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_REL, (c))
 #define map_key(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_KEY, (c))
@@ -586,11 +605,12 @@ static bool hidinput_field_in_collection(struct hid_device *device, struct hid_f
 }
 
 static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_field *field,
-				     struct hid_usage *usage)
+				     struct hid_usage *usage, unsigned int usage_index)
 {
 	struct input_dev *input = hidinput->input;
 	struct hid_device *device = input_get_drvdata(input);
 	int max = 0, code;
+	unsigned int i = 0;
 	unsigned long *bit = NULL;
 
 	field->hidinput = hidinput;
@@ -606,6 +626,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	if (field->report_type == HID_OUTPUT_REPORT &&
 			(usage->hid & HID_USAGE_PAGE) != HID_UP_LED) {
 		goto ignore;
+	}
+
+	/* assign a priority based on the static list declared here */
+	for (i = 0; i < ARRAY_SIZE(hidinput_usages_priorities); i++) {
+		if (usage->hid == hidinput_usages_priorities[i]) {
+			field->usages_priorities[usage_index] =
+				(ARRAY_SIZE(hidinput_usages_priorities) - i) << 8;
+			break;
+		}
 	}
 
 	if (device->driver->input_mapping) {
@@ -1962,7 +1991,8 @@ static inline void hidinput_configure_usages(struct hid_input *hidinput,
 	for (i = 0; i < report->maxfield; i++)
 		for (j = 0; j < report->field[i]->maxusage; j++)
 			hidinput_configure_usage(hidinput, report->field[i],
-						 report->field[i]->usage + j);
+						 report->field[i]->usage + j,
+						 j);
 }
 
 /*

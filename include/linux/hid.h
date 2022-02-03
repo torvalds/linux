@@ -477,7 +477,9 @@ struct hid_field {
 	unsigned  report_type;		/* (input,output,feature) */
 	__s32    *value;		/* last known value(s) */
 	__s32    *new_value;		/* newly read value(s) */
-	__s32    *usages_priorities;	/* priority of each usage when reading the report */
+	__s32    *usages_priorities;	/* priority of each usage when reading the report
+					 * bits 8-16 are reserved for hid-input usage
+					 */
 	__s32     logical_minimum;
 	__s32     logical_maximum;
 	__s32     physical_minimum;
