@@ -3998,6 +3998,22 @@ static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 	return 0;
 }
 
+/**
+ * mnt_allow_writers() - check whether the attribute change allows writers
+ * @kattr: the new mount attributes
+ * @mnt: the mount to which @kattr will be applied
+ *
+ * Check whether thew new mount attributes in @kattr allow concurrent writers.
+ *
+ * Return: true if writers need to be held, false if not
+ */
+static inline bool mnt_allow_writers(const struct mount_kattr *kattr,
+				     const struct mount *mnt)
+{
+	return !(kattr->attr_set & MNT_READONLY) ||
+	       (mnt->mnt.mnt_flags & MNT_READONLY);
+}
+
 static struct mount *mount_setattr_prepare(struct mount_kattr *kattr,
 					   struct mount *mnt, int *err)
 {
@@ -4028,12 +4044,12 @@ static struct mount *mount_setattr_prepare(struct mount_kattr *kattr,
 
 		last = m;
 
-		if ((kattr->attr_set & MNT_READONLY) &&
-		    !(m->mnt.mnt_flags & MNT_READONLY)) {
-			*err = mnt_hold_writers(m);
-			if (*err)
-				goto out;
-		}
+		if (mnt_allow_writers(kattr, m))
+			continue;
+
+		*err = mnt_hold_writers(m);
+		if (*err)
+			goto out;
 	} while (kattr->recurse && (m = next_mnt(m, mnt)));
 
 out:
