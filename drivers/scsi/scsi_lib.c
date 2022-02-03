@@ -1276,7 +1276,7 @@ scsi_device_state_check(struct scsi_device *sdev, struct request *req)
 		 * power management commands.
 		 */
 		if (req && !(req->rq_flags & RQF_PM))
-			return BLK_STS_IOERR;
+			return BLK_STS_OFFLINE;
 		return BLK_STS_OK;
 	}
 }
