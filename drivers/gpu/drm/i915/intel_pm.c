@@ -55,6 +55,10 @@
 #include "vlv_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 
+struct drm_i915_clock_gating_funcs {
+	void (*init_clock_gating)(struct drm_i915_private *i915);
+};
+
 /* Stores plane specific WM parameters */
 struct skl_wm_params {
 	bool x_tiled, y_tiled;

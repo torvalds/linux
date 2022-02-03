@@ -107,6 +107,7 @@
 #include "i915_vma.h"
 
 struct dpll;
+struct drm_i915_clock_gating_funcs;
 struct drm_i915_gem_object;
 struct drm_i915_private;
 struct intel_atomic_state;
@@ -300,11 +301,6 @@ struct sdvo_device_mapping {
 	u8 dvo_wiring;
 	u8 i2c_pin;
 	u8 ddc_pin;
-};
-
-/* functions used internal in intel_pm.c */
-struct drm_i915_clock_gating_funcs {
-	void (*init_clock_gating)(struct drm_i915_private *dev_priv);
 };
 
 /* functions used for watermark calcs for display. */
