@@ -691,7 +691,6 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int modify_tree = -1;
 	int update_refs;
 	int found = 0;
-	int leafs_visited = 0;
 	struct btrfs_path *path = args->path;
 
 	args->bytes_found = 0;
@@ -729,7 +728,6 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 				path->slots[0]--;
 		}
 		ret = 0;
-		leafs_visited++;
 next_slot:
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
@@ -741,7 +739,6 @@ next_slot:
 				ret = 0;
 				break;
 			}
-			leafs_visited++;
 			leaf = path->nodes[0];
 			recow = 1;
 		}
@@ -987,7 +984,7 @@ delete_extent_item:
 	 * which case it unlocked our path, so check path->locks[0] matches a
 	 * write lock.
 	 */
-	if (!ret && args->replace_extent && leafs_visited == 1 &&
+	if (!ret && args->replace_extent &&
 	    path->locks[0] == BTRFS_WRITE_LOCK &&
 	    btrfs_leaf_free_space(leaf) >=
 	    sizeof(struct btrfs_item) + args->extent_item_size) {
