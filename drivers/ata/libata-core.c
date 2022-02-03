@@ -2007,6 +2007,9 @@ static bool ata_log_supported(struct ata_device *dev, u8 log)
 {
 	struct ata_port *ap = dev->link->ap;
 
+	if (dev->horkage & ATA_HORKAGE_NO_LOG_DIR)
+		return false;
+
 	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, ap->sector_buf, 1))
 		return false;
 	return get_unaligned_le16(&ap->sector_buf[log * 2]) ? true : false;
@@ -4072,6 +4075,13 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "WDC WD2500JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
 	{ "WDC WD3000JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
 	{ "WDC WD3200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
+
+	/*
+	 * This sata dom device goes on a walkabout when the ATA_LOG_DIRECTORY
+	 * log page is accessed. Ensure we never ask for this log page with
+	 * these devices.
+	 */
+	{ "SATADOM-ML 3ME",		NULL,	ATA_HORKAGE_NO_LOG_DIR },
 
 	/* End Marker */
 	{ }
