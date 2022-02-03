@@ -1630,21 +1630,11 @@ static int mv88e6xxx_fid_map_vlan(struct mv88e6xxx_chip *chip,
 
 int mv88e6xxx_fid_map(struct mv88e6xxx_chip *chip, unsigned long *fid_bitmap)
 {
-	int i, err;
-	u16 fid;
-
 	bitmap_zero(fid_bitmap, MV88E6XXX_N_FID);
 
-	/* Set every FID bit used by the (un)bridged ports */
-	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-		err = mv88e6xxx_port_get_fid(chip, i, &fid);
-		if (err)
-			return err;
-
-		set_bit(fid, fid_bitmap);
-	}
-
-	/* Set every FID bit used by the VLAN entries */
+	/* Every FID has an associated VID, so walking the VTU
+	 * will discover the full set of FIDs in use.
+	 */
 	return mv88e6xxx_vtu_walk(chip, mv88e6xxx_fid_map_vlan, fid_bitmap);
 }
 
@@ -1657,10 +1647,7 @@ static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 	if (err)
 		return err;
 
-	/* The reset value 0x000 is used to indicate that multiple address
-	 * databases are not needed. Return the next positive available.
-	 */
-	*fid = find_next_zero_bit(fid_bitmap, MV88E6XXX_N_FID, 1);
+	*fid = find_first_zero_bit(fid_bitmap, MV88E6XXX_N_FID);
 	if (unlikely(*fid >= mv88e6xxx_num_databases(chip)))
 		return -ENOSPC;
 
@@ -2151,6 +2138,9 @@ static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 
 	if (!vlan.valid) {
 		memset(&vlan, 0, sizeof(vlan));
+
+		if (vid == MV88E6XXX_VID_STANDALONE)
+			vlan.policy = true;
 
 		err = mv88e6xxx_atu_new(chip, &vlan.fid);
 		if (err)
@@ -2949,8 +2939,44 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
+	/* On chips that support it, set all downstream DSA ports'
+	 * VLAN policy to TRAP. In combination with loading
+	 * MV88E6XXX_VID_STANDALONE as a policy entry in the VTU, this
+	 * provides a better isolation barrier between standalone
+	 * ports, as the ATU is bypassed on any intermediate switches
+	 * between the incoming port and the CPU.
+	 */
+	if (dsa_is_downstream_port(ds, port) &&
+	    chip->info->ops->port_set_policy) {
+		err = chip->info->ops->port_set_policy(chip, port,
+						MV88E6XXX_POLICY_MAPPING_VTU,
+						MV88E6XXX_POLICY_ACTION_TRAP);
+		if (err)
+			return err;
+	}
+
+	/* User ports start out in standalone mode and 802.1Q is
+	 * therefore disabled. On DSA ports, all valid VIDs are always
+	 * loaded in the VTU - therefore, enable 802.1Q in order to take
+	 * advantage of VLAN policy on chips that supports it.
+	 */
 	err = mv88e6xxx_port_set_8021q_mode(chip, port,
-				MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED);
+				dsa_is_user_port(ds, port) ?
+				MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED :
+				MV88E6XXX_PORT_CTL2_8021Q_MODE_SECURE);
+	if (err)
+		return err;
+
+	/* Bind MV88E6XXX_VID_STANDALONE to MV88E6XXX_FID_STANDALONE by
+	 * virtue of the fact that mv88e6xxx_atu_new() will pick it as
+	 * the first free FID. This will be used as the private PVID for
+	 * unbridged ports. Shared (DSA and CPU) ports must also be
+	 * members of this VID, in order to trap all frames assigned to
+	 * it to the CPU.
+	 */
+	err = mv88e6xxx_port_vlan_join(chip, port, MV88E6XXX_VID_STANDALONE,
+				       MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNMODIFIED,
+				       false);
 	if (err)
 		return err;
 
@@ -2963,7 +2989,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * relying on their port default FID.
 	 */
 	err = mv88e6xxx_port_vlan_join(chip, port, MV88E6XXX_VID_BRIDGED,
-				       MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNTAGGED,
+				       MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_UNMODIFIED,
 				       false);
 	if (err)
 		return err;

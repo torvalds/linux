@@ -591,6 +591,12 @@ static inline bool dsa_is_upstream_port(struct dsa_switch *ds, int port)
 	return port == dsa_upstream_port(ds, port);
 }
 
+/* Return true if this is a DSA port leading away from the CPU */
+static inline bool dsa_is_downstream_port(struct dsa_switch *ds, int port)
+{
+	return dsa_is_dsa_port(ds, port) && !dsa_is_upstream_port(ds, port);
+}
+
 /* Return the local port used to reach the CPU port */
 static inline unsigned int dsa_switch_upstream_port(struct dsa_switch *ds)
 {
