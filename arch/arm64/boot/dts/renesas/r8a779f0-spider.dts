@@ -20,3 +20,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 };
+
+&i2c4 {
+	eeprom@51 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "breakout-board";
+		reg = <0x51>;
+		pagesize = <8>;
+	};
+};
