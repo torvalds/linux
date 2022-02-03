@@ -65,7 +65,7 @@ enum ipa_replenish_flag {
  * @evt_ring_id:	GSI event ring used by the endpoint
  * @netdev:		Network device pointer, if endpoint uses one
  * @replenish_flags:	Replenishing state flags
- * @replenish_ready:	Number of replenish transactions without doorbell
+ * @replenish_count:	Total number of replenish transactions committed
  * @replenish_work:	Work item used for repeated replenish failures
  */
 struct ipa_endpoint {
@@ -84,7 +84,7 @@ struct ipa_endpoint {
 
 	/* Receive buffer replenishing for RX endpoints */
 	DECLARE_BITMAP(replenish_flags, IPA_REPLENISH_COUNT);
-	u32 replenish_ready;
+	u64 replenish_count;
 	struct delayed_work replenish_work;		/* global wq */
 };
 

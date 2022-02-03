@@ -25,7 +25,8 @@
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
-#define IPA_REPLENISH_BATCH	16
+/* Hardware is told about receive buffers once a "batch" has been queued */
+#define IPA_REPLENISH_BATCH	16		/* Must be non-zero */
 
 /* The amount of RX buffer space consumed by standard skb overhead */
 #define IPA_RX_BUFFER_OVERHEAD	(PAGE_SIZE - SKB_MAX_ORDER(NET_SKB_PAD, 0))
@@ -1086,14 +1087,15 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint)
 		return;
 
 	while ((trans = ipa_endpoint_trans_alloc(endpoint, 1))) {
+		bool doorbell;
+
 		if (ipa_endpoint_replenish_one(endpoint, trans))
 			goto try_again_later;
 
-		if (++endpoint->replenish_ready == IPA_REPLENISH_BATCH)
-			endpoint->replenish_ready = 0;
 
 		/* Ring the doorbell if we've got a full batch */
-		gsi_trans_commit(trans, !endpoint->replenish_ready);
+		doorbell = !(++endpoint->replenish_count % IPA_REPLENISH_BATCH);
+		gsi_trans_commit(trans, doorbell);
 	}
 
 	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
@@ -1862,6 +1864,8 @@ u32 ipa_endpoint_init(struct ipa *ipa, u32 count,
 {
 	enum ipa_endpoint_name name;
 	u32 filter_map;
+
+	BUILD_BUG_ON(!IPA_REPLENISH_BATCH);
 
 	if (!ipa_endpoint_data_valid(ipa, count, data))
 		return 0;	/* Error */
