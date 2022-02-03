@@ -281,6 +281,26 @@ int drm_dp_read_channel_eq_delay(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIV
 }
 EXPORT_SYMBOL(drm_dp_read_channel_eq_delay);
 
+/* Per DP 2.0 Errata */
+int drm_dp_128b132b_read_aux_rd_interval(struct drm_dp_aux *aux)
+{
+	int unit;
+	u8 val;
+
+	if (drm_dp_dpcd_readb(aux, DP_128B132B_TRAINING_AUX_RD_INTERVAL, &val) != 1) {
+		drm_err(aux->drm_dev, "%s: failed rd interval read\n",
+			aux->name);
+		/* default to max */
+		val = DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK;
+	}
+
+	unit = (val & DP_128B132B_TRAINING_AUX_RD_INTERVAL_1MS_UNIT) ? 1 : 2;
+	val &= DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK;
+
+	return (val + 1) * unit * 1000;
+}
+EXPORT_SYMBOL(drm_dp_128b132b_read_aux_rd_interval);
+
 void drm_dp_link_train_clock_recovery_delay(const struct drm_dp_aux *aux,
 					    const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {

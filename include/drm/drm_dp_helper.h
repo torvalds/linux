@@ -1115,6 +1115,7 @@ struct drm_panel;
 # define DP_UHBR13_5                           (1 << 2)
 
 #define DP_128B132B_TRAINING_AUX_RD_INTERVAL                    0x2216 /* 2.0 */
+# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_1MS_UNIT          (1 << 7)
 # define DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK              0x7f
 # define DP_128B132B_TRAINING_AUX_RD_INTERVAL_400_US            0x00
 # define DP_128B132B_TRAINING_AUX_RD_INTERVAL_4_MS              0x01
@@ -1551,6 +1552,8 @@ void drm_dp_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
 					const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 void drm_dp_lttpr_link_train_channel_eq_delay(const struct drm_dp_aux *aux,
 					      const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
+
+int drm_dp_128b132b_read_aux_rd_interval(struct drm_dp_aux *aux);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
