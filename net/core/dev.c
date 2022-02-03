@@ -1037,7 +1037,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 				/*  avoid cases where sscanf is not exact inverse of printf */
 				snprintf(buf, IFNAMSIZ, name, i);
 				if (!strncmp(buf, name_node->name, IFNAMSIZ))
-					set_bit(i, inuse);
+					__set_bit(i, inuse);
 			}
 			if (!sscanf(d->name, name, &i))
 				continue;
@@ -1047,7 +1047,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 			/*  avoid cases where sscanf is not exact inverse of printf */
 			snprintf(buf, IFNAMSIZ, name, i);
 			if (!strncmp(buf, d->name, IFNAMSIZ))
-				set_bit(i, inuse);
+				__set_bit(i, inuse);
 		}
 
 		i = find_first_zero_bit(inuse, max_netdevices);
