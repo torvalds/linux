@@ -1526,6 +1526,24 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field,
 }
 
 /*
+ * Checks if the given value is valid within this field
+ */
+static inline int hid_array_value_is_valid(struct hid_field *field,
+					   __s32 value)
+{
+	__s32 min = field->logical_minimum;
+
+	/*
+	 * Value needs to be between logical min and max, and
+	 * (value - min) is used as an index in the usage array.
+	 * This array is of size field->maxusage
+	 */
+	return value >= min &&
+	       value <= field->logical_maximum &&
+	       value - min < field->maxusage;
+}
+
+/*
  * Analyse a received field, and fetch the data from it. The field
  * content is stored for next report processing (we do differential
  * reporting to the layer).
@@ -1539,7 +1557,6 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	unsigned offset = field->report_offset;
 	unsigned size = field->report_size;
 	__s32 min = field->logical_minimum;
-	__s32 max = field->logical_maximum;
 	__s32 *value;
 
 	value = field->new_value;
@@ -1554,8 +1571,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 
 		/* Ignore report if ErrorRollOver */
 		if (!(field->flags & HID_MAIN_ITEM_VARIABLE) &&
-		    value[n] >= min && value[n] <= max &&
-		    value[n] - min < field->maxusage &&
+		    hid_array_value_is_valid(field, value[n]) &&
 		    field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1)
 			return;
 	}
@@ -1563,21 +1579,29 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	for (n = 0; n < count; n++) {
 
 		if (HID_MAIN_ITEM_VARIABLE & field->flags) {
-			hid_process_event(hid, field, &field->usage[n], value[n], interrupt);
+			hid_process_event(hid,
+					  field,
+					  &field->usage[n],
+					  value[n],
+					  interrupt);
 			continue;
 		}
 
-		if (field->value[n] >= min && field->value[n] <= max
-			&& field->value[n] - min < field->maxusage
-			&& field->usage[field->value[n] - min].hid
-			&& search(value, field->value[n], count))
-				hid_process_event(hid, field, &field->usage[field->value[n] - min], 0, interrupt);
+		if (hid_array_value_is_valid(field, field->value[n]) &&
+		    search(value, field->value[n], count))
+			hid_process_event(hid,
+					  field,
+					  &field->usage[field->value[n] - min],
+					  0,
+					  interrupt);
 
-		if (value[n] >= min && value[n] <= max
-			&& value[n] - min < field->maxusage
-			&& field->usage[value[n] - min].hid
-			&& search(field->value, value[n], count))
-				hid_process_event(hid, field, &field->usage[value[n] - min], 1, interrupt);
+		if (hid_array_value_is_valid(field, value[n]) &&
+		    search(field->value, value[n], count))
+			hid_process_event(hid,
+					  field,
+					  &field->usage[value[n] - min],
+					  1,
+					  interrupt);
 	}
 
 	memcpy(field->value, value, count * sizeof(__s32));
