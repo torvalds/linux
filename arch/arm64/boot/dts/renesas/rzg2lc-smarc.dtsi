@@ -44,6 +44,19 @@
 	};
 };
 
+#if (SW_SCIF_CAN || SW_RSPI_CAN)
+&canfd {
+	pinctrl-0 = <&can1_pins>;
+	/delete-node/ channel@0;
+};
+#else
+&canfd {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	status = "disabled";
+};
+#endif
+
 /*
  * To enable SCIF1 (SER0) on PMOD1 (CN7), On connector board
  * SW1 should be at position 2->3 so that SER0_CTS# line is activated
