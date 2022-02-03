@@ -508,9 +508,6 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv))
 		rtStatus = _FAIL;
 
-	if (rtStatus != _SUCCESS)
-		goto phy_BB8190_Config_ParaFile_Fail;
-
 phy_BB8190_Config_ParaFile_Fail:
 
 	return rtStatus;
