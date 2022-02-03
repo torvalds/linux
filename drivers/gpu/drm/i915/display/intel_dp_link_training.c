@@ -1083,8 +1083,6 @@ intel_dp_link_train_all_phys(struct intel_dp *intel_dp,
 	bool ret = true;
 	int i;
 
-	intel_dp_prepare_link_train(intel_dp, crtc_state);
-
 	for (i = lttpr_count - 1; i >= 0; i--) {
 		enum drm_dp_phy dp_phy = DP_PHY_LTTPR(i);
 
@@ -1126,6 +1124,8 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 	if (lttpr_count < 0)
 		/* Still continue with enabling the port and link training. */
 		lttpr_count = 0;
+
+	intel_dp_prepare_link_train(intel_dp, crtc_state);
 
 	if (!intel_dp_link_train_all_phys(intel_dp, crtc_state, lttpr_count))
 		intel_dp_schedule_fallback_link_training(intel_dp, crtc_state);
