@@ -1364,6 +1364,30 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
+	/*
+	 * Ignore out-of-range values as per HID specification,
+	 * section 5.10 and 6.2.25, when NULL state bit is present.
+	 * When it's not, clamp the value to match Microsoft's input
+	 * driver as mentioned in "Required HID usages for digitizers":
+	 * https://msdn.microsoft.com/en-us/library/windows/hardware/dn672278(v=vs.85).asp
+	 *
+	 * The logical_minimum < logical_maximum check is done so that we
+	 * don't unintentionally discard values sent by devices which
+	 * don't specify logical min and max.
+	 */
+	if ((field->flags & HID_MAIN_ITEM_VARIABLE) &&
+	    field->logical_minimum < field->logical_maximum) {
+		if (field->flags & HID_MAIN_ITEM_NULL_STATE &&
+		    (value < field->logical_minimum ||
+		     value > field->logical_maximum)) {
+			dbg_hid("Ignoring out-of-range value %x\n", value);
+			return;
+		}
+		value = clamp(value,
+			      field->logical_minimum,
+			      field->logical_maximum);
+	}
+
 	switch (usage->hid) {
 	case HID_DG_INVERT:
 		*quirks = value ? (*quirks | HID_QUIRK_INVERT) : (*quirks & ~HID_QUIRK_INVERT);
@@ -1429,30 +1453,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 			   ((*quirks & HID_QUIRK_Y_INVERT) && usage->code == ABS_Y))
 			value = field->logical_maximum - value;
 		break;
-	}
-
-	/*
-	 * Ignore out-of-range values as per HID specification,
-	 * section 5.10 and 6.2.25, when NULL state bit is present.
-	 * When it's not, clamp the value to match Microsoft's input
-	 * driver as mentioned in "Required HID usages for digitizers":
-	 * https://msdn.microsoft.com/en-us/library/windows/hardware/dn672278(v=vs.85).asp
-	 *
-	 * The logical_minimum < logical_maximum check is done so that we
-	 * don't unintentionally discard values sent by devices which
-	 * don't specify logical min and max.
-	 */
-	if ((field->flags & HID_MAIN_ITEM_VARIABLE) &&
-	    (field->logical_minimum < field->logical_maximum)) {
-		if (field->flags & HID_MAIN_ITEM_NULL_STATE &&
-		    (value < field->logical_minimum ||
-		     value > field->logical_maximum)) {
-			dbg_hid("Ignoring out-of-range value %x\n", value);
-			return;
-		}
-		value = clamp(value,
-			      field->logical_minimum,
-			      field->logical_maximum);
 	}
 
 	/*
