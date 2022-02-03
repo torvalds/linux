@@ -8118,8 +8118,13 @@ int btrfs_readpage(struct file *file, struct page *page)
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
 	ret = btrfs_do_readpage(page, NULL, &bio_ctrl, 0, NULL);
-	if (bio_ctrl.bio)
-		ret = submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.bio_flags);
+	if (bio_ctrl.bio) {
+		int ret2;
+
+		ret2 = submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.bio_flags);
+		if (ret == 0)
+			ret = ret2;
+	}
 	return ret;
 }
 
