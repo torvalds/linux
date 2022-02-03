@@ -802,11 +802,7 @@ static bool page_referenced_one(struct page *page, struct vm_area_struct *vma,
 			unsigned long address, void *arg)
 {
 	struct page_referenced_arg *pra = arg;
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-		.address = address,
-	};
+	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
 	int referenced = 0;
 
 	while (page_vma_mapped_walk(&pvmw)) {
@@ -934,12 +930,7 @@ int page_referenced(struct page *page,
 static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 			    unsigned long address, void *arg)
 {
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-		.address = address,
-		.flags = PVMW_SYNC,
-	};
+	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, PVMW_SYNC);
 	struct mmu_notifier_range range;
 	int *cleaned = arg;
 
@@ -1419,11 +1410,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		     unsigned long address, void *arg)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-		.address = address,
-	};
+	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
 	pte_t pteval;
 	struct page *subpage;
 	bool ret = true;
@@ -1714,11 +1701,7 @@ static bool try_to_migrate_one(struct page *page, struct vm_area_struct *vma,
 		     unsigned long address, void *arg)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-		.address = address,
-	};
+	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
 	pte_t pteval;
 	struct page *subpage;
 	bool ret = true;
@@ -2001,11 +1984,7 @@ static bool page_make_device_exclusive_one(struct page *page,
 		struct vm_area_struct *vma, unsigned long address, void *priv)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-		.address = address,
-	};
+	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
 	struct make_exclusive_args *args = priv;
 	pte_t pteval;
 	struct page *subpage;

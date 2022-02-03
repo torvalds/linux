@@ -48,11 +48,7 @@ static bool page_idle_clear_pte_refs_one(struct page *page,
 					struct vm_area_struct *vma,
 					unsigned long addr, void *arg)
 {
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-		.address = addr,
-	};
+	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, addr, 0);
 	bool referenced = false;
 
 	while (page_vma_mapped_walk(&pvmw)) {

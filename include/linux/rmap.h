@@ -214,6 +214,22 @@ struct page_vma_mapped_walk {
 	unsigned int flags;
 };
 
+#define DEFINE_PAGE_VMA_WALK(name, _page, _vma, _address, _flags)	\
+	struct page_vma_mapped_walk name = {				\
+		.page = _page,						\
+		.vma = _vma,						\
+		.address = _address,					\
+		.flags = _flags,					\
+	}
+
+#define DEFINE_FOLIO_VMA_WALK(name, _folio, _vma, _address, _flags)	\
+	struct page_vma_mapped_walk name = {				\
+		.page = &_folio->page,					\
+		.vma = _vma,						\
+		.address = _address,					\
+		.flags = _flags,					\
+	}
+
 static inline void page_vma_mapped_walk_done(struct page_vma_mapped_walk *pvmw)
 {
 	/* HugeTLB pte is set to the relevant page table entry without pte_mapped. */
