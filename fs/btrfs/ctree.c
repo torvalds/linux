@@ -4215,24 +4215,50 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			fixup_low_keys(path, &disk_key, 1);
 		}
 
-		/* delete the leaf if it is mostly empty */
+		/*
+		 * Try to delete the leaf if it is mostly empty. We do this by
+		 * trying to move all its items into its left and right neighbours.
+		 * If we can't move all the items, then we don't delete it - it's
+		 * not ideal, but future insertions might fill the leaf with more
+		 * items, or items from other leaves might be moved later into our
+		 * leaf due to deletions on those leaves.
+		 */
 		if (used < BTRFS_LEAF_DATA_SIZE(fs_info) / 3) {
+			u32 min_push_space;
+
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below
 			 */
 			slot = path->slots[1];
 			atomic_inc(&leaf->refs);
-
-			wret = push_leaf_left(trans, root, path, 1, 1,
-					      1, (u32)-1);
+			/*
+			 * We want to be able to at least push one item to the
+			 * left neighbour leaf, and that's the first item.
+			 */
+			min_push_space = sizeof(struct btrfs_item) +
+				btrfs_item_size(leaf, 0);
+			wret = push_leaf_left(trans, root, path, 0,
+					      min_push_space, 1, (u32)-1);
 			if (wret < 0 && wret != -ENOSPC)
 				ret = wret;
 
 			if (path->nodes[0] == leaf &&
 			    btrfs_header_nritems(leaf)) {
-				wret = push_leaf_right(trans, root, path, 1,
-						       1, 1, 0);
+				/*
+				 * If we were not able to push all items from our
+				 * leaf to its left neighbour, then attempt to
+				 * either push all the remaining items to the
+				 * right neighbour or none. There's no advantage
+				 * in pushing only some items, instead of all, as
+				 * it's pointless to end up with a leaf having
+				 * too few items while the neighbours can be full
+				 * or nearly full.
+				 */
+				nritems = btrfs_header_nritems(leaf);
+				min_push_space = leaf_space_used(leaf, 0, nritems);
+				wret = push_leaf_right(trans, root, path, 0,
+						       min_push_space, 1, 0);
 				if (wret < 0 && wret != -ENOSPC)
 					ret = wret;
 			}
