@@ -1336,6 +1336,7 @@ static void cec_adap_unconfigure(struct cec_adapter *adap)
 	cec_flush(adap);
 	wake_up_interruptible(&adap->kthread_waitq);
 	cec_post_state_event(adap);
+	call_void_op(adap, adap_configured, false);
 }
 
 /*
@@ -1517,6 +1518,7 @@ configured:
 	adap->kthread_config = NULL;
 	complete(&adap->config_completion);
 	mutex_unlock(&adap->lock);
+	call_void_op(adap, adap_configured, true);
 	return 0;
 
 unconfigure:
