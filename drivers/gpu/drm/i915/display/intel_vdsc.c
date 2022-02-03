@@ -1107,18 +1107,6 @@ static i915_reg_t dss_ctl2_reg(struct intel_crtc *crtc, enum transcoder cpu_tran
 		ICL_PIPE_DSS_CTL2(crtc->pipe) : DSS_CTL2;
 }
 
-struct intel_crtc *
-intel_dsc_get_bigjoiner_secondary(const struct intel_crtc *primary_crtc)
-{
-	return intel_crtc_for_pipe(to_i915(primary_crtc->base.dev), primary_crtc->pipe + 1);
-}
-
-static struct intel_crtc *
-intel_dsc_get_bigjoiner_primary(const struct intel_crtc *secondary_crtc)
-{
-	return intel_crtc_for_pipe(to_i915(secondary_crtc->base.dev), secondary_crtc->pipe - 1);
-}
-
 void intel_uncompressed_joiner_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -1174,25 +1162,6 @@ void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 	}
 }
 
-void intel_uncompressed_joiner_get_config(struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 dss_ctl1;
-
-	dss_ctl1 = intel_de_read(dev_priv, dss_ctl1_reg(crtc, crtc_state->cpu_transcoder));
-	if (dss_ctl1 & UNCOMPRESSED_JOINER_MASTER) {
-		crtc_state->bigjoiner = true;
-		crtc_state->bigjoiner_linked_crtc = intel_dsc_get_bigjoiner_secondary(crtc);
-		drm_WARN_ON(&dev_priv->drm, !crtc_state->bigjoiner_linked_crtc);
-	} else if (dss_ctl1 & UNCOMPRESSED_JOINER_SLAVE) {
-		crtc_state->bigjoiner = true;
-		crtc_state->bigjoiner_slave = true;
-		crtc_state->bigjoiner_linked_crtc = intel_dsc_get_bigjoiner_primary(crtc);
-		drm_WARN_ON(&dev_priv->drm, !crtc_state->bigjoiner_linked_crtc);
-	}
-}
-
 void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -1222,18 +1191,6 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 
 	crtc_state->dsc.dsc_split = (dss_ctl2 & RIGHT_BRANCH_VDSC_ENABLE) &&
 		(dss_ctl1 & JOINER_ENABLE);
-
-	if (dss_ctl1 & BIG_JOINER_ENABLE) {
-		crtc_state->bigjoiner = true;
-
-		if (!(dss_ctl1 & MASTER_BIG_JOINER_ENABLE)) {
-			crtc_state->bigjoiner_slave = true;
-			crtc_state->bigjoiner_linked_crtc = intel_dsc_get_bigjoiner_primary(crtc);
-		} else {
-			crtc_state->bigjoiner_linked_crtc = intel_dsc_get_bigjoiner_secondary(crtc);
-		}
-		drm_WARN_ON(&dev_priv->drm, !crtc_state->bigjoiner_linked_crtc);
-	}
 
 	/* FIXME: add more state readout as needed */
 

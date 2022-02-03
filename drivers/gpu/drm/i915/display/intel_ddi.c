@@ -2703,6 +2703,7 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	bool is_tc_port = intel_phy_is_tc(dev_priv, phy);
+	struct intel_crtc *slave_crtc;
 
 	if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST)) {
 		intel_crtc_vblank_off(old_crtc_state);
@@ -2721,9 +2722,8 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 			ilk_pfit_disable(old_crtc_state);
 	}
 
-	if (old_crtc_state->bigjoiner_linked_crtc) {
-		struct intel_crtc *slave_crtc =
-			old_crtc_state->bigjoiner_linked_crtc;
+	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, slave_crtc,
+					 intel_crtc_bigjoiner_slave_pipes(old_crtc_state)) {
 		const struct intel_crtc_state *old_slave_crtc_state =
 			intel_atomic_get_old_crtc_state(state, slave_crtc);
 
@@ -3041,6 +3041,7 @@ intel_ddi_update_prepare(struct intel_atomic_state *state,
 			 struct intel_encoder *encoder,
 			 struct intel_crtc *crtc)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		crtc ? intel_atomic_get_new_crtc_state(state, crtc) : NULL;
 	int required_lanes = crtc_state ? crtc_state->lane_count : 1;
@@ -3050,11 +3051,12 @@ intel_ddi_update_prepare(struct intel_atomic_state *state,
 	intel_tc_port_get_link(enc_to_dig_port(encoder),
 		               required_lanes);
 	if (crtc_state && crtc_state->hw.active) {
-		struct intel_crtc *slave_crtc = crtc_state->bigjoiner_linked_crtc;
+		struct intel_crtc *slave_crtc;
 
 		intel_update_active_dpll(state, crtc, encoder);
 
-		if (slave_crtc)
+		for_each_intel_crtc_in_pipe_mask(&i915->drm, slave_crtc,
+						 intel_crtc_bigjoiner_slave_pipes(crtc_state))
 			intel_update_active_dpll(state, slave_crtc, encoder);
 	}
 }

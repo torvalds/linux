@@ -165,8 +165,6 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc_state *crtc_state =
-		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane *plane =
 		to_intel_plane(crtc->base.primary);
 	struct intel_plane_state *plane_state =
@@ -203,11 +201,6 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	 * pretend the BIOS never had it enabled.
 	 */
 	intel_plane_disable_noatomic(crtc, plane);
-	if (crtc_state->bigjoiner) {
-		struct intel_crtc *slave =
-			crtc_state->bigjoiner_linked_crtc;
-		intel_plane_disable_noatomic(slave, to_intel_plane(slave->base.primary));
-	}
 
 	return;
 

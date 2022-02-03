@@ -936,9 +936,8 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 	}
 
 	if (crtc_state->bigjoiner)
-		seq_printf(m, "\tLinked to [CRTC:%d:%s] as a %s\n",
-			   crtc_state->bigjoiner_linked_crtc->base.base.id,
-			   crtc_state->bigjoiner_linked_crtc->base.name,
+		seq_printf(m, "\tLinked to 0x%x pipes as a %s\n",
+			   crtc_state->bigjoiner_pipes,
 			   intel_crtc_is_bigjoiner_slave(crtc_state) ? "slave" : "master");
 
 	for_each_intel_encoder_mask(&dev_priv->drm, encoder,

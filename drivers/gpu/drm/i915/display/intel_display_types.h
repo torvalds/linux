@@ -1202,11 +1202,8 @@ struct intel_crtc_state {
 	/* enable pipe big joiner? */
 	bool bigjoiner;
 
-	/* big joiner slave crtc? */
-	bool bigjoiner_slave;
-
-	/* linked crtc for bigjoiner, either slave or master */
-	struct intel_crtc *bigjoiner_linked_crtc;
+	/* big joiner pipe bitmask */
+	u8 bigjoiner_pipes;
 
 	/* Display Stream compression state */
 	struct {

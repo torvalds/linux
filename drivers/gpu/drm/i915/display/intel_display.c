@@ -338,20 +338,38 @@ is_trans_port_sync_mode(const struct intel_crtc_state *crtc_state)
 		is_trans_port_sync_slave(crtc_state);
 }
 
+static enum pipe bigjoiner_master_pipe(const struct intel_crtc_state *crtc_state)
+{
+	return ffs(crtc_state->bigjoiner_pipes) - 1;
+}
+
+u8 intel_crtc_bigjoiner_slave_pipes(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->bigjoiner_pipes & ~BIT(bigjoiner_master_pipe(crtc_state));
+}
+
 bool intel_crtc_is_bigjoiner_slave(const struct intel_crtc_state *crtc_state)
 {
-	return crtc_state->bigjoiner_slave;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	return crtc_state->bigjoiner_pipes &&
+		crtc->pipe != bigjoiner_master_pipe(crtc_state);
 }
 
 bool intel_crtc_is_bigjoiner_master(const struct intel_crtc_state *crtc_state)
 {
-	return crtc_state->bigjoiner && !crtc_state->bigjoiner_slave;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	return crtc_state->bigjoiner_pipes &&
+		crtc->pipe == bigjoiner_master_pipe(crtc_state);
 }
 
-static struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state)
+struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
 	if (intel_crtc_is_bigjoiner_slave(crtc_state))
-		return crtc_state->bigjoiner_linked_crtc;
+		return intel_crtc_for_pipe(i915, bigjoiner_master_pipe(crtc_state));
 	else
 		return to_intel_crtc(crtc_state->uapi.crtc);
 }
@@ -3909,6 +3927,37 @@ static void enabled_bigjoiner_pipes(struct drm_i915_private *dev_priv,
 		 *master_pipes, *slave_pipes);
 }
 
+static enum pipe get_bigjoiner_master_pipe(enum pipe pipe, u8 master_pipes, u8 slave_pipes)
+{
+	if ((slave_pipes & BIT(pipe)) == 0)
+		return pipe;
+
+	/* ignore everything above our pipe */
+	master_pipes &= ~GENMASK(7, pipe);
+
+	/* highest remaining bit should be our master pipe */
+	return fls(master_pipes) - 1;
+}
+
+static u8 get_bigjoiner_slave_pipes(enum pipe pipe, u8 master_pipes, u8 slave_pipes)
+{
+	enum pipe master_pipe, next_master_pipe;
+
+	master_pipe = get_bigjoiner_master_pipe(pipe, master_pipes, slave_pipes);
+
+	if ((master_pipes & BIT(master_pipe)) == 0)
+		return 0;
+
+	/* ignore our master pipe and everything below it */
+	master_pipes &= ~GENMASK(master_pipe, 0);
+	/* make sure a high bit is set for the ffs() */
+	master_pipes |= BIT(7);
+	/* lowest remaining bit should be the next master pipe */
+	next_master_pipe = ffs(master_pipes) - 1;
+
+	return slave_pipes & GENMASK(next_master_pipe - 1, master_pipe);
+}
+
 static u8 hsw_panel_transcoders(struct drm_i915_private *i915)
 {
 	u8 panel_transcoder_mask = BIT(TRANSCODER_EDP);
@@ -3979,7 +4028,8 @@ static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 	/* bigjoiner slave -> consider the master pipe's transcoder as well */
 	enabled_bigjoiner_pipes(dev_priv, &master_pipes, &slave_pipes);
 	if (slave_pipes & BIT(crtc->pipe)) {
-		cpu_transcoder = (enum transcoder) crtc->pipe - 1;
+		cpu_transcoder = (enum transcoder)
+			get_bigjoiner_master_pipe(crtc->pipe, master_pipes, slave_pipes);
 		if (transcoder_ddi_func_is_enabled(dev_priv, cpu_transcoder))
 			enabled_transcoders |= BIT(cpu_transcoder);
 	}
@@ -4104,6 +4154,24 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 	return transcoder_is_dsi(pipe_config->cpu_transcoder);
 }
 
+static void intel_bigjoiner_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	u8 master_pipes, slave_pipes;
+	enum pipe pipe = crtc->pipe;
+
+	enabled_bigjoiner_pipes(i915, &master_pipes, &slave_pipes);
+
+	if (((master_pipes | slave_pipes) & BIT(pipe)) == 0)
+		return;
+
+	crtc_state->bigjoiner = true;
+	crtc_state->bigjoiner_pipes =
+		BIT(get_bigjoiner_master_pipe(pipe, master_pipes, slave_pipes)) |
+		get_bigjoiner_slave_pipes(pipe, master_pipes, slave_pipes);
+}
+
 static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 				struct intel_crtc_state *pipe_config)
 {
@@ -4130,8 +4198,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		goto out;
 
 	intel_dsc_get_config(pipe_config);
-	if (DISPLAY_VER(dev_priv) >= 13 && !pipe_config->dsc.compression_enable)
-		intel_uncompressed_joiner_get_config(pipe_config);
+	intel_bigjoiner_get_config(pipe_config);
 
 	if (!transcoder_is_dsi(pipe_config->cpu_transcoder) ||
 	    DISPLAY_VER(dev_priv) >= 11)
@@ -5401,9 +5468,10 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 		    transcoder_name(pipe_config->master_transcoder),
 		    pipe_config->sync_mode_slaves_mask);
 
-	drm_dbg_kms(&dev_priv->drm, "bigjoiner: %s\n",
+	drm_dbg_kms(&dev_priv->drm, "bigjoiner: %s, pipes: 0x%x\n",
 		    intel_crtc_is_bigjoiner_slave(pipe_config) ? "slave" :
-		    intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "no");
+		    intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "no",
+		    pipe_config->bigjoiner_pipes);
 
 	drm_dbg_kms(&dev_priv->drm, "splitter: %s, link count %d, overlap %d\n",
 		    enableddisabled(pipe_config->splitter.enable),
@@ -6485,8 +6553,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_X(sync_mode_slaves_mask);
 	PIPE_CONF_CHECK_I(master_transcoder);
 	PIPE_CONF_CHECK_BOOL(bigjoiner);
-	PIPE_CONF_CHECK_BOOL(bigjoiner_slave);
-	PIPE_CONF_CHECK_P(bigjoiner_linked_crtc);
+	PIPE_CONF_CHECK_X(bigjoiner_pipes);
 
 	PIPE_CONF_CHECK_I(dsc.compression_enable);
 	PIPE_CONF_CHECK_I(dsc.dsc_split);
@@ -7272,20 +7339,25 @@ static int intel_crtc_add_bigjoiner_planes(struct intel_atomic_state *state,
 
 static int intel_bigjoiner_add_affected_planes(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		int ret;
+		struct intel_crtc *other;
 
-		if (!crtc_state->bigjoiner)
-			continue;
+		for_each_intel_crtc_in_pipe_mask(&i915->drm, other,
+						 crtc_state->bigjoiner_pipes) {
+			int ret;
 
-		ret = intel_crtc_add_bigjoiner_planes(state, crtc,
-						      crtc_state->bigjoiner_linked_crtc);
-		if (ret)
-			return ret;
+			if (crtc == other)
+				continue;
+
+			ret = intel_crtc_add_bigjoiner_planes(state, crtc, other);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -7387,84 +7459,123 @@ static bool intel_cpu_transcoders_need_modeset(struct intel_atomic_state *state,
 	return false;
 }
 
+static bool intel_pipes_need_modeset(struct intel_atomic_state *state,
+				     u8 pipes)
+{
+	const struct intel_crtc_state *new_crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (new_crtc_state->hw.enable &&
+		    pipes & BIT(crtc->pipe) &&
+		    intel_crtc_needs_modeset(new_crtc_state))
+			return true;
+	}
+
+	return false;
+}
+
 static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 					struct intel_crtc *master_crtc)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *master_crtc_state =
 		intel_atomic_get_new_crtc_state(state, master_crtc);
-	struct intel_crtc_state *slave_crtc_state;
 	struct intel_crtc *slave_crtc;
+	u8 slave_pipes;
 
-	WARN_ON(master_crtc_state->bigjoiner_linked_crtc);
-	WARN_ON(intel_crtc_is_bigjoiner_slave(master_crtc_state));
+	/*
+	 * TODO: encoder.compute_config() may be the best
+	 * place to populate the bitmask for the master crtc.
+	 * For now encoder.compute_config() just flags things
+	 * as needing bigjoiner and we populate the bitmask
+	 * here.
+	 */
+	WARN_ON(master_crtc_state->bigjoiner_pipes);
 
 	if (!master_crtc_state->bigjoiner)
 		return 0;
 
-	slave_crtc = intel_dsc_get_bigjoiner_secondary(master_crtc);
-	if (!slave_crtc) {
+	slave_pipes = BIT(master_crtc->pipe + 1);
+
+	if (slave_pipes & ~bigjoiner_pipes(i915)) {
 		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] Big joiner configuration requires "
-			    "CRTC + 1 to be used, doesn't exist\n",
-			    master_crtc->base.base.id, master_crtc->base.name);
+			    "[CRTC:%d:%s] Cannot act as big joiner master "
+			    "(need 0x%x as slave pipes, only 0x%x possible)\n",
+			    master_crtc->base.base.id, master_crtc->base.name,
+			    slave_pipes, bigjoiner_pipes(i915));
 		return -EINVAL;
 	}
 
-	slave_crtc_state = intel_atomic_get_crtc_state(&state->base, slave_crtc);
-	if (IS_ERR(slave_crtc_state))
-		return PTR_ERR(slave_crtc_state);
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, slave_crtc, slave_pipes) {
+		struct intel_crtc_state *slave_crtc_state;
+		int ret;
 
-	/* master being enabled, slave was already configured? */
-	if (slave_crtc_state->uapi.enable)
-		goto claimed;
+		slave_crtc_state = intel_atomic_get_crtc_state(&state->base, slave_crtc);
+		if (IS_ERR(slave_crtc_state))
+			return PTR_ERR(slave_crtc_state);
 
-	/*
-	 * The state copy logic assumes the master crtc gets processed
-	 * before the slave crtc during the main compute_config loop.
-	 * This works because the crtcs are created in pipe order,
-	 * and the hardware requires master pipe < slave pipe as well.
-	 * Should that change we need to rethink the logic.
-	 */
-	if (WARN_ON(drm_crtc_index(&master_crtc->base) > drm_crtc_index(&slave_crtc->base)))
-		return -EINVAL;
+		/* master being enabled, slave was already configured? */
+		if (slave_crtc_state->uapi.enable) {
+			drm_dbg_kms(&i915->drm,
+				    "[CRTC:%d:%s] Slave is enabled as normal CRTC, but "
+				    "[CRTC:%d:%s] claiming this CRTC for bigjoiner.\n",
+				    slave_crtc->base.base.id, slave_crtc->base.name,
+				    master_crtc->base.base.id, master_crtc->base.name);
+			return -EINVAL;
+		}
 
-	drm_dbg_kms(&i915->drm,
-		    "[CRTC:%d:%s] Used as slave for big joiner master [CRTC:%d:%s]\n",
-		    slave_crtc->base.base.id, slave_crtc->base.name,
-		    master_crtc->base.base.id, master_crtc->base.name);
+		/*
+		 * The state copy logic assumes the master crtc gets processed
+		 * before the slave crtc during the main compute_config loop.
+		 * This works because the crtcs are created in pipe order,
+		 * and the hardware requires master pipe < slave pipe as well.
+		 * Should that change we need to rethink the logic.
+		 */
+		if (WARN_ON(drm_crtc_index(&master_crtc->base) >
+			    drm_crtc_index(&slave_crtc->base)))
+			return -EINVAL;
 
-	master_crtc_state->bigjoiner_linked_crtc = slave_crtc;
-	master_crtc_state->bigjoiner_slave = false;
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] Used as slave for big joiner master [CRTC:%d:%s]\n",
+			    slave_crtc->base.base.id, slave_crtc->base.name,
+			    master_crtc->base.base.id, master_crtc->base.name);
 
-	slave_crtc_state->bigjoiner_linked_crtc = master_crtc;
-	slave_crtc_state->bigjoiner_slave = true;
+		master_crtc_state->bigjoiner_pipes =
+			BIT(master_crtc->pipe) | BIT(slave_crtc->pipe);
+		slave_crtc_state->bigjoiner_pipes =
+			BIT(master_crtc->pipe) | BIT(slave_crtc->pipe);
 
-	return copy_bigjoiner_crtc_state_modeset(state, slave_crtc);
+		ret = copy_bigjoiner_crtc_state_modeset(state, slave_crtc);
+		if (ret)
+			return ret;
+	}
 
-claimed:
-	drm_dbg_kms(&i915->drm,
-		    "[CRTC:%d:%s] Slave is enabled as normal CRTC, but "
-		    "[CRTC:%d:%s] claiming this CRTC for bigjoiner.\n",
-		    slave_crtc->base.base.id, slave_crtc->base.name,
-		    master_crtc->base.base.id, master_crtc->base.name);
-	return -EINVAL;
+	return 0;
 }
 
 static void kill_bigjoiner_slave(struct intel_atomic_state *state,
 				 struct intel_crtc *master_crtc)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *master_crtc_state =
 		intel_atomic_get_new_crtc_state(state, master_crtc);
-	struct intel_crtc *slave_crtc = master_crtc_state->bigjoiner_linked_crtc;
-	struct intel_crtc_state *slave_crtc_state =
-		intel_atomic_get_new_crtc_state(state, slave_crtc);
+	struct intel_crtc *slave_crtc;
 
-	slave_crtc_state->bigjoiner = master_crtc_state->bigjoiner = false;
-	slave_crtc_state->bigjoiner_slave = master_crtc_state->bigjoiner_slave = false;
-	slave_crtc_state->bigjoiner_linked_crtc = master_crtc_state->bigjoiner_linked_crtc = NULL;
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, slave_crtc,
+					 intel_crtc_bigjoiner_slave_pipes(master_crtc_state)) {
+		struct intel_crtc_state *slave_crtc_state =
+			intel_atomic_get_new_crtc_state(state, slave_crtc);
 
-	intel_crtc_copy_uapi_to_hw_state_modeset(state, slave_crtc);
+		slave_crtc_state->bigjoiner = false;
+		slave_crtc_state->bigjoiner_pipes = 0;
+
+		intel_crtc_copy_uapi_to_hw_state_modeset(state, slave_crtc);
+	}
+
+	master_crtc_state->bigjoiner = false;
+	master_crtc_state->bigjoiner_pipes = 0;
 }
 
 /**
@@ -7614,34 +7725,37 @@ static int intel_atomic_check_async(struct intel_atomic_state *state, struct int
 
 static int intel_bigjoiner_add_affected_crtcs(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
+	u8 affected_pipes = 0;
+	u8 modeset_pipes = 0;
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		struct intel_crtc_state *linked_crtc_state;
-		struct intel_crtc *linked_crtc;
+		affected_pipes |= crtc_state->bigjoiner_pipes;
+		if (intel_crtc_needs_modeset(crtc_state))
+			modeset_pipes |= crtc_state->bigjoiner_pipes;
+	}
+
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, affected_pipes) {
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	}
+
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, modeset_pipes) {
 		int ret;
 
-		if (!crtc_state->bigjoiner)
-			continue;
+		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
-		linked_crtc = crtc_state->bigjoiner_linked_crtc;
-		linked_crtc_state = intel_atomic_get_crtc_state(&state->base, linked_crtc);
-		if (IS_ERR(linked_crtc_state))
-			return PTR_ERR(linked_crtc_state);
+		crtc_state->uapi.mode_changed = true;
 
-		if (!intel_crtc_needs_modeset(crtc_state))
-			continue;
-
-		linked_crtc_state->uapi.mode_changed = true;
-
-		ret = drm_atomic_add_affected_connectors(&state->base,
-							 &linked_crtc->base);
+		ret = drm_atomic_add_affected_connectors(&state->base, &crtc->base);
 		if (ret)
 			return ret;
 
-		ret = intel_atomic_add_affected_planes(state, linked_crtc);
+		ret = intel_atomic_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
 	}
@@ -7771,10 +7885,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		}
 
 		if (new_crtc_state->bigjoiner) {
-			struct intel_crtc_state *linked_crtc_state =
-				intel_atomic_get_new_crtc_state(state, new_crtc_state->bigjoiner_linked_crtc);
-
-			if (intel_crtc_needs_modeset(linked_crtc_state)) {
+			if (intel_pipes_need_modeset(state, new_crtc_state->bigjoiner_pipes)) {
 				new_crtc_state->uapi.mode_changed = true;
 				new_crtc_state->update_pipe = false;
 			}
@@ -10176,12 +10287,18 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 			/* read out to slave crtc as well for bigjoiner */
 			if (crtc_state->bigjoiner) {
+				struct intel_crtc *slave_crtc;
+
 				/* encoder should read be linked to bigjoiner master */
 				WARN_ON(intel_crtc_is_bigjoiner_slave(crtc_state));
 
-				crtc = crtc_state->bigjoiner_linked_crtc;
-				crtc_state = to_intel_crtc_state(crtc->base.state);
-				intel_encoder_get_config(encoder, crtc_state);
+				for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, slave_crtc,
+								 intel_crtc_bigjoiner_slave_pipes(crtc_state)) {
+					struct intel_crtc_state *slave_crtc_state;
+
+					slave_crtc_state = to_intel_crtc_state(slave_crtc->base.state);
+					intel_encoder_get_config(encoder, slave_crtc_state);
+				}
 			}
 		} else {
 			encoder->base.crtc = NULL;
