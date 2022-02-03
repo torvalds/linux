@@ -63,8 +63,11 @@ static const struct {
  * This still leaves us 65535 individual priority values.
  */
 static const __u32 hidinput_usages_priorities[] = {
+	HID_DG_ERASER,		/* Eraser (eraser touching) must always come before tipswitch */
 	HID_DG_INVERT,		/* Invert must always come before In Range */
-	HID_DG_INRANGE,
+	HID_DG_TIPSWITCH,	/* Is the tip of the tool touching? */
+	HID_DG_TIPPRESSURE,	/* Tip Pressure might emulate tip switch */
+	HID_DG_INRANGE,		/* In Range needs to come after the other tool states */
 };
 
 #define map_abs(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_ABS, (c))
@@ -1365,9 +1368,38 @@ static void hidinput_handle_scroll(struct hid_usage *usage,
 	input_event(input, EV_REL, usage->code, hi_res);
 }
 
+static void hid_report_release_tool(struct hid_report *report, struct input_dev *input,
+				    unsigned int tool)
+{
+	/* if the given tool is not currently reported, ignore */
+	if (!test_bit(tool, input->key))
+		return;
+
+	/*
+	 * if the given tool was previously set, release it,
+	 * release any TOUCH and send an EV_SYN
+	 */
+	input_event(input, EV_KEY, BTN_TOUCH, 0);
+	input_event(input, EV_KEY, tool, 0);
+	input_event(input, EV_SYN, SYN_REPORT, 0);
+
+	report->tool = 0;
+}
+
+static void hid_report_set_tool(struct hid_report *report, struct input_dev *input,
+				unsigned int new_tool)
+{
+	if (report->tool != new_tool)
+		hid_report_release_tool(report, input, report->tool);
+
+	input_event(input, EV_KEY, new_tool, 1);
+	report->tool = new_tool;
+}
+
 void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
 {
 	struct input_dev *input;
+	struct hid_report *report = field->report;
 	unsigned *quirks = &hid->quirks;
 
 	if (!usage->type)
@@ -1418,25 +1450,75 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	}
 
 	switch (usage->hid) {
+	case HID_DG_ERASER:
+		report->tool_active |= !!value;
+
+		/*
+		 * if eraser is set, we must enforce BTN_TOOL_RUBBER
+		 * to accommodate for devices not following the spec.
+		 */
+		if (value)
+			hid_report_set_tool(report, input, BTN_TOOL_RUBBER);
+		else if (report->tool != BTN_TOOL_RUBBER)
+			/* value is off, tool is not rubber, ignore */
+			return;
+
+		/* let hid-input set BTN_TOUCH */
+		break;
+
 	case HID_DG_INVERT:
-		*quirks = value ? (*quirks | HID_QUIRK_INVERT) : (*quirks & ~HID_QUIRK_INVERT);
+		report->tool_active |= !!value;
+
+		/*
+		 * If invert is set, we store BTN_TOOL_RUBBER.
+		 */
+		if (value)
+			hid_report_set_tool(report, input, BTN_TOOL_RUBBER);
+		else if (!report->tool_active)
+			/* tool_active not set means Invert and Eraser are not set */
+			hid_report_release_tool(report, input, BTN_TOOL_RUBBER);
+
+		/* no further processing */
 		return;
 
 	case HID_DG_INRANGE:
-		if (value) {
-			input_event(input, usage->type, (*quirks & HID_QUIRK_INVERT) ? BTN_TOOL_RUBBER : usage->code, 1);
-			return;
+		report->tool_active |= !!value;
+
+		if (report->tool_active) {
+			/*
+			 * if tool is not set but is marked as active,
+			 * assume ours
+			 */
+			if (!report->tool)
+				hid_report_set_tool(report, input, usage->code);
+		} else {
+			hid_report_release_tool(report, input, usage->code);
 		}
-		input_event(input, usage->type, usage->code, 0);
-		input_event(input, usage->type, BTN_TOOL_RUBBER, 0);
+
+		/* reset tool_active for the next event */
+		report->tool_active = false;
+
+		/* no further processing */
 		return;
+
+	case HID_DG_TIPSWITCH:
+		report->tool_active |= !!value;
+
+		/* if tool is set to RUBBER we should ignore the current value */
+		if (report->tool == BTN_TOOL_RUBBER)
+			return;
+
+		break;
 
 	case HID_DG_TIPPRESSURE:
 		if (*quirks & HID_QUIRK_NOTOUCH) {
 			int a = field->logical_minimum;
 			int b = field->logical_maximum;
 
-			input_event(input, EV_KEY, BTN_TOUCH, value > a + ((b - a) >> 3));
+			if (value > a + ((b - a) >> 3)) {
+				input_event(input, EV_KEY, BTN_TOUCH, 1);
+				report->tool_active = true;
+			}
 		}
 		break;
 
