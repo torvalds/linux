@@ -343,7 +343,6 @@ struct amdgpu_pm {
 	struct amdgpu_ctx       *stable_pstate_ctx;
 };
 
-u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev);
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 

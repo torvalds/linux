@@ -25,6 +25,7 @@
 #include "amdgpu_display.h"
 #include "hwmgr.h"
 #include "amdgpu_smu.h"
+#include "amdgpu_dpm_internal.h"
 
 void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev)
 {

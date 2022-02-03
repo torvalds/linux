@@ -28,6 +28,7 @@
 #include "amdgpu_pm.h"
 #include "amdgpu_dpm.h"
 #include "amdgpu_atombios.h"
+#include "amdgpu_dpm_internal.h"
 #include "amd_pcie.h"
 #include "sid.h"
 #include "r600_dpm.h"
