@@ -274,8 +274,8 @@ struct ceph_mds_request {
 
 	union ceph_mds_request_args r_args;
 	int r_fmode;        /* file mode, if expecting cap */
-	const struct cred *r_cred;
 	int r_request_release_offset;
+	const struct cred *r_cred;
 	struct timespec64 r_stamp;
 
 	/* for choosing which mds to send this request to */
@@ -296,12 +296,11 @@ struct ceph_mds_request {
 	struct ceph_msg  *r_reply;
 	struct ceph_mds_reply_info_parsed r_reply_info;
 	int r_err;
-
+	u32               r_readdir_offset;
 
 	struct page *r_locked_page;
 	int r_dir_caps;
 	int r_num_caps;
-	u32               r_readdir_offset;
 
 	unsigned long r_timeout;  /* optional.  jiffies, 0 is "wait forever" */
 	unsigned long r_started;  /* start time to measure timeout against */
@@ -329,7 +328,6 @@ struct ceph_mds_request {
 	struct completion r_completion;
 	struct completion r_safe_completion;
 	ceph_mds_request_callback_t r_callback;
-	ceph_mds_request_wait_callback_t r_wait_for_completion;
 	struct list_head  r_unsafe_item;  /* per-session unsafe list item */
 
 	long long	  r_dir_release_cnt;
@@ -507,6 +505,9 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode);
 extern int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
 				    struct inode *dir,
 				    struct ceph_mds_request *req);
+int ceph_mdsc_wait_request(struct ceph_mds_client *mdsc,
+			struct ceph_mds_request *req,
+			ceph_mds_request_wait_callback_t wait_func);
 extern int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 				struct inode *dir,
 				struct ceph_mds_request *req);
