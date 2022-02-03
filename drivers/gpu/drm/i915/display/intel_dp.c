@@ -3628,6 +3628,32 @@ update_status:
 			    "Could not write test response to sink\n");
 }
 
+static bool intel_dp_link_ok(struct intel_dp *intel_dp,
+			     u8 link_status[DP_LINK_STATUS_SIZE])
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	bool uhbr = intel_dp->link_rate >= 1000000;
+	bool ok;
+
+	if (uhbr)
+		ok = drm_dp_128b132b_lane_channel_eq_done(link_status,
+							  intel_dp->lane_count);
+	else
+		ok = drm_dp_channel_eq_ok(link_status, intel_dp->lane_count);
+
+	if (ok)
+		return true;
+
+	intel_dp_dump_link_status(intel_dp, DP_PHY_DPRX, link_status);
+	drm_dbg_kms(&i915->drm,
+		    "[ENCODER:%d:%s] %s link not ok, retraining\n",
+		    encoder->base.base.id, encoder->base.name,
+		    uhbr ? "128b/132b" : "8b/10b");
+
+	return false;
+}
+
 static void
 intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, u8 *ack)
 {
@@ -3658,14 +3684,7 @@ static bool intel_dp_mst_link_status(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	if (!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count)) {
-		drm_dbg_kms(&i915->drm,
-			    "[ENCODER:%d:%s] channel EQ not ok, retraining\n",
-			    encoder->base.base.id, encoder->base.name);
-		return false;
-	}
-
-	return true;
+	return intel_dp_link_ok(intel_dp, link_status);
 }
 
 /**
@@ -3779,8 +3798,8 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 					intel_dp->lane_count))
 		return false;
 
-	/* Retrain if Channel EQ or CR not ok */
-	return !drm_dp_channel_eq_ok(link_status, intel_dp->lane_count);
+	/* Retrain if link not ok */
+	return !intel_dp_link_ok(intel_dp, link_status);
 }
 
 static bool intel_dp_has_connector(struct intel_dp *intel_dp,
