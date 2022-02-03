@@ -1084,7 +1084,6 @@ err_trans_free:
 /**
  * ipa_endpoint_replenish() - Replenish endpoint receive buffers
  * @endpoint:	Endpoint to be replenished
- * @add_one:	Whether this is replacing a just-consumed buffer
  *
  * The IPA hardware can hold a fixed number of receive buffers for an RX
  * endpoint, based on the number of entries in the underlying channel ring
@@ -1093,24 +1092,17 @@ err_trans_free:
  * an endpoint can be disabled, in which case buffers are not queued to
  * the hardware.
  */
-static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint, bool add_one)
+static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint)
 {
 	struct gsi *gsi;
 	u32 backlog;
-	int delta;
 
-	if (!test_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags)) {
-		if (add_one)
-			atomic_inc(&endpoint->replenish_backlog);
+	if (!test_bit(IPA_REPLENISH_ENABLED, endpoint->replenish_flags))
 		return;
-	}
 
-	/* If already active, just update the backlog */
-	if (test_and_set_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags)) {
-		if (add_one)
-			atomic_inc(&endpoint->replenish_backlog);
+	/* Skip it if it's already active */
+	if (test_and_set_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags))
 		return;
-	}
 
 	while (atomic_dec_not_zero(&endpoint->replenish_backlog))
 		if (ipa_endpoint_replenish_one(endpoint))
@@ -1118,17 +1110,13 @@ static void ipa_endpoint_replenish(struct ipa_endpoint *endpoint, bool add_one)
 
 	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
 
-	if (add_one)
-		atomic_inc(&endpoint->replenish_backlog);
-
 	return;
 
 try_again_later:
 	clear_bit(IPA_REPLENISH_ACTIVE, endpoint->replenish_flags);
 
 	/* The last one didn't succeed, so fix the backlog */
-	delta = add_one ? 2 : 1;
-	backlog = atomic_add_return(delta, &endpoint->replenish_backlog);
+	backlog = atomic_inc_return(&endpoint->replenish_backlog);
 
 	/* Whenever a receive buffer transaction completes we'll try to
 	 * replenish again.  It's unlikely, but if we fail to supply even
@@ -1152,7 +1140,7 @@ static void ipa_endpoint_replenish_enable(struct ipa_endpoint *endpoint)
 	/* Start replenishing if hardware currently has no buffers */
 	max_backlog = gsi_channel_tre_max(gsi, endpoint->channel_id);
 	if (atomic_read(&endpoint->replenish_backlog) == max_backlog)
-		ipa_endpoint_replenish(endpoint, false);
+		ipa_endpoint_replenish(endpoint);
 }
 
 static void ipa_endpoint_replenish_disable(struct ipa_endpoint *endpoint)
@@ -1167,7 +1155,7 @@ static void ipa_endpoint_replenish_work(struct work_struct *work)
 
 	endpoint = container_of(dwork, struct ipa_endpoint, replenish_work);
 
-	ipa_endpoint_replenish(endpoint, false);
+	ipa_endpoint_replenish(endpoint);
 }
 
 static void ipa_endpoint_skb_copy(struct ipa_endpoint *endpoint,
@@ -1372,7 +1360,8 @@ static void ipa_endpoint_rx_complete(struct ipa_endpoint *endpoint,
 {
 	struct page *page;
 
-	ipa_endpoint_replenish(endpoint, true);
+	ipa_endpoint_replenish(endpoint);
+	atomic_inc(&endpoint->replenish_backlog);
 
 	if (trans->cancelled)
 		return;
