@@ -1341,10 +1341,8 @@ static void ipa_endpoint_rx_complete(struct ipa_endpoint *endpoint,
 {
 	struct page *page;
 
-	ipa_endpoint_replenish(endpoint);
-
 	if (trans->cancelled)
-		return;
+		goto done;
 
 	/* Parse or build a socket buffer using the actual received length */
 	page = trans->data;
@@ -1352,6 +1350,8 @@ static void ipa_endpoint_rx_complete(struct ipa_endpoint *endpoint,
 		ipa_endpoint_status_parse(endpoint, page, trans->len);
 	else if (ipa_endpoint_skb_build(endpoint, page, trans->len))
 		trans->data = NULL;	/* Pages have been consumed */
+done:
+	ipa_endpoint_replenish(endpoint);
 }
 
 void ipa_endpoint_trans_complete(struct ipa_endpoint *endpoint,
