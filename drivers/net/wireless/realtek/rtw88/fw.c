@@ -1853,7 +1853,7 @@ static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 	rtwdev->scan_info.probe_pg_size = page_offset;
 out:
 	kfree(buf);
-	skb_queue_walk(probe_req_list, skb)
+	skb_queue_walk_safe(probe_req_list, skb, tmp)
 		kfree_skb(skb);
 
 	return ret;
@@ -1864,7 +1864,7 @@ static int rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev,
 {
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
 	struct sk_buff_head list;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *tmp;
 	u8 num = req->n_ssids, i, bands = 0;
 	int ret;
 
@@ -1889,7 +1889,7 @@ static int rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev,
 	return _rtw_hw_scan_update_probe_req(rtwdev, num * bands, &list);
 
 out:
-	skb_queue_walk(&list, skb)
+	skb_queue_walk_safe(&list, skb, tmp)
 		kfree_skb(skb);
 
 	return ret;
