@@ -123,8 +123,6 @@ void fwnode_handle_put(struct fwnode_handle *fwnode);
 int fwnode_irq_get(const struct fwnode_handle *fwnode, unsigned int index);
 int fwnode_irq_get_byname(const struct fwnode_handle *fwnode, const char *name);
 
-void __iomem *fwnode_iomap(struct fwnode_handle *fwnode, int index);
-
 unsigned int device_get_child_node_count(struct device *dev);
 
 static inline bool device_property_read_bool(struct device *dev,
@@ -388,8 +386,10 @@ enum dev_dma_attr device_get_dma_attr(struct device *dev);
 const void *device_get_match_data(struct device *dev);
 
 int device_get_phy_mode(struct device *dev);
-
 int fwnode_get_phy_mode(struct fwnode_handle *fwnode);
+
+void __iomem *fwnode_iomap(struct fwnode_handle *fwnode, int index);
+
 struct fwnode_handle *fwnode_graph_get_next_endpoint(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *prev);
 struct fwnode_handle *
