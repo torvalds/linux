@@ -7632,6 +7632,10 @@ static int intel_atomic_check(struct drm_device *dev,
 					    new_crtc_state, i) {
 		if (new_crtc_state->inherited != old_crtc_state->inherited)
 			new_crtc_state->uapi.mode_changed = true;
+
+		if (new_crtc_state->uapi.scaling_filter !=
+		    old_crtc_state->uapi.scaling_filter)
+			new_crtc_state->uapi.mode_changed = true;
 	}
 
 	intel_vrr_check_modeset(state);
