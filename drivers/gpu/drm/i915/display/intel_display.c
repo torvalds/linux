@@ -7370,38 +7370,28 @@ static bool intel_cpu_transcoders_need_modeset(struct intel_atomic_state *state,
 }
 
 static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
-					struct intel_crtc *crtc,
-					struct intel_crtc_state *old_crtc_state,
-					struct intel_crtc_state *new_crtc_state)
+					struct intel_crtc *master_crtc)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	struct intel_crtc_state *slave_crtc_state, *master_crtc_state;
-	struct intel_crtc *slave_crtc, *master_crtc;
+	struct intel_crtc_state *master_crtc_state =
+		intel_atomic_get_new_crtc_state(state, master_crtc);
+	struct intel_crtc_state *slave_crtc_state;
+	struct intel_crtc *slave_crtc;
 
-	/* slave being enabled, is master is still claiming this crtc? */
-	if (old_crtc_state->bigjoiner_slave) {
-		slave_crtc = crtc;
-		master_crtc = old_crtc_state->bigjoiner_linked_crtc;
-		master_crtc_state = intel_atomic_get_new_crtc_state(state, master_crtc);
-		if (!master_crtc_state || !intel_crtc_needs_modeset(master_crtc_state))
-			goto claimed;
-	}
-
-	if (!new_crtc_state->bigjoiner)
+	if (!master_crtc_state->bigjoiner)
 		return 0;
 
-	slave_crtc = intel_dsc_get_bigjoiner_secondary(crtc);
+	slave_crtc = intel_dsc_get_bigjoiner_secondary(master_crtc);
 	if (!slave_crtc) {
 		drm_dbg_kms(&i915->drm,
 			    "[CRTC:%d:%s] Big joiner configuration requires "
 			    "CRTC + 1 to be used, doesn't exist\n",
-			    crtc->base.base.id, crtc->base.name);
+			    master_crtc->base.base.id, master_crtc->base.name);
 		return -EINVAL;
 	}
 
-	new_crtc_state->bigjoiner_linked_crtc = slave_crtc;
+	master_crtc_state->bigjoiner_linked_crtc = slave_crtc;
 	slave_crtc_state = intel_atomic_get_crtc_state(&state->base, slave_crtc);
-	master_crtc = crtc;
 	if (IS_ERR(slave_crtc_state))
 		return PTR_ERR(slave_crtc_state);
 
@@ -7413,7 +7403,7 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 		    "[CRTC:%d:%s] Used as slave for big joiner\n",
 		    slave_crtc->base.base.id, slave_crtc->base.name);
 
-	return copy_bigjoiner_crtc_state(slave_crtc_state, new_crtc_state);
+	return copy_bigjoiner_crtc_state(slave_crtc_state, master_crtc_state);
 
 claimed:
 	drm_dbg_kms(&i915->drm,
@@ -7685,8 +7675,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			goto fail;
 
-		ret = intel_atomic_check_bigjoiner(state, crtc, old_crtc_state,
-						   new_crtc_state);
+		ret = intel_atomic_check_bigjoiner(state, crtc);
 		if (ret)
 			goto fail;
 	}
