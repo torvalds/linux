@@ -15,7 +15,9 @@ properties:
     const: 1
 
   compatible:
-    const: allwinner,sun50i-a64-usb-phy
+    enum:
+      - allwinner,sun20i-d1-usb-phy
+      - allwinner,sun50i-a64-usb-phy
 
   reg:
     items:
