@@ -1354,12 +1354,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	input = field->hidinput->input;
 
-	if (usage->type == EV_ABS &&
-	    (((*quirks & HID_QUIRK_X_INVERT) && usage->code == ABS_X) ||
-	     ((*quirks & HID_QUIRK_Y_INVERT) && usage->code == ABS_Y))) {
-		value = field->logical_maximum - value;
-	}
-
 	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
 		int hat_dir = usage->hat_dir;
 		if (!hat_dir)
@@ -1370,12 +1364,12 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
-	if (usage->hid == HID_DG_INVERT) {
+	switch (usage->hid) {
+	case HID_DG_INVERT:
 		*quirks = value ? (*quirks | HID_QUIRK_INVERT) : (*quirks & ~HID_QUIRK_INVERT);
 		return;
-	}
 
-	if (usage->hid == HID_DG_INRANGE) {
+	case HID_DG_INRANGE:
 		if (value) {
 			input_event(input, usage->type, (*quirks & HID_QUIRK_INVERT) ? BTN_TOOL_RUBBER : usage->code, 1);
 			return;
@@ -1383,46 +1377,58 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		input_event(input, usage->type, usage->code, 0);
 		input_event(input, usage->type, BTN_TOOL_RUBBER, 0);
 		return;
-	}
 
-	if (usage->hid == HID_DG_TIPPRESSURE && (*quirks & HID_QUIRK_NOTOUCH)) {
-		int a = field->logical_minimum;
-		int b = field->logical_maximum;
-		input_event(input, EV_KEY, BTN_TOUCH, value > a + ((b - a) >> 3));
-	}
+	case HID_DG_TIPPRESSURE:
+		if (*quirks & HID_QUIRK_NOTOUCH) {
+			int a = field->logical_minimum;
+			int b = field->logical_maximum;
 
-	if (usage->hid == (HID_UP_PID | 0x83UL)) { /* Simultaneous Effects Max */
+			input_event(input, EV_KEY, BTN_TOUCH, value > a + ((b - a) >> 3));
+		}
+		break;
+
+	case HID_UP_PID | 0x83UL: /* Simultaneous Effects Max */
 		dbg_hid("Maximum Effects - %d\n",value);
 		return;
-	}
 
-	if (usage->hid == (HID_UP_PID | 0x7fUL)) {
+	case HID_UP_PID | 0x7fUL:
 		dbg_hid("PID Pool Report\n");
 		return;
 	}
 
-	if ((usage->type == EV_KEY) && (usage->code == 0)) /* Key 0 is "unassigned", not KEY_UNKNOWN */
-		return;
+	switch (usage->type) {
+	case EV_KEY:
+		if (usage->code == 0) /* Key 0 is "unassigned", not KEY_UNKNOWN */
+			return;
+		break;
 
-	if ((usage->type == EV_REL) && (usage->code == REL_WHEEL_HI_RES ||
-					usage->code == REL_HWHEEL_HI_RES)) {
-		hidinput_handle_scroll(usage, input, value);
-		return;
-	}
-
-	if ((usage->type == EV_ABS) && (field->flags & HID_MAIN_ITEM_RELATIVE) &&
-			(usage->code == ABS_VOLUME)) {
-		int count = abs(value);
-		int direction = value > 0 ? KEY_VOLUMEUP : KEY_VOLUMEDOWN;
-		int i;
-
-		for (i = 0; i < count; i++) {
-			input_event(input, EV_KEY, direction, 1);
-			input_sync(input);
-			input_event(input, EV_KEY, direction, 0);
-			input_sync(input);
+	case EV_REL:
+		if (usage->code == REL_WHEEL_HI_RES ||
+		    usage->code == REL_HWHEEL_HI_RES) {
+			hidinput_handle_scroll(usage, input, value);
+			return;
 		}
-		return;
+		break;
+
+	case EV_ABS:
+		if ((field->flags & HID_MAIN_ITEM_RELATIVE) &&
+		    usage->code == ABS_VOLUME) {
+			int count = abs(value);
+			int direction = value > 0 ? KEY_VOLUMEUP : KEY_VOLUMEDOWN;
+			int i;
+
+			for (i = 0; i < count; i++) {
+				input_event(input, EV_KEY, direction, 1);
+				input_sync(input);
+				input_event(input, EV_KEY, direction, 0);
+				input_sync(input);
+			}
+			return;
+
+		} else if (((*quirks & HID_QUIRK_X_INVERT) && usage->code == ABS_X) ||
+			   ((*quirks & HID_QUIRK_Y_INVERT) && usage->code == ABS_Y))
+			value = field->logical_maximum - value;
+		break;
 	}
 
 	/*
