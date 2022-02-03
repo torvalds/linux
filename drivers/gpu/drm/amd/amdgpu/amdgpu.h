@@ -771,6 +771,8 @@ struct amd_powerplay {
 	const struct amd_pm_funcs *pp_funcs;
 };
 
+struct ip_discovery_top;
+
 /* polaris10 kickers */
 #define ASICID_IS_P20(did, rid)		(((did == 0x67DF) && \
 					 ((rid == 0xE3) || \
@@ -1096,6 +1098,8 @@ struct amdgpu_device {
 	bool				ram_is_direct_mapped;
 
 	struct list_head                ras_list;
+
+	struct ip_discovery_top         *ip_top;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
