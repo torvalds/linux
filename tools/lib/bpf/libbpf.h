@@ -246,8 +246,10 @@ struct bpf_object *bpf_object__next(struct bpf_object *prev);
 	     (pos) = (tmp), (tmp) = bpf_object__next(tmp))
 
 typedef void (*bpf_object_clear_priv_t)(struct bpf_object *, void *);
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API int bpf_object__set_priv(struct bpf_object *obj, void *priv,
 				    bpf_object_clear_priv_t clear_priv);
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API void *bpf_object__priv(const struct bpf_object *prog);
 
 LIBBPF_API int
@@ -279,9 +281,10 @@ bpf_object__prev_program(const struct bpf_object *obj, struct bpf_program *prog)
 
 typedef void (*bpf_program_clear_priv_t)(struct bpf_program *, void *);
 
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API int bpf_program__set_priv(struct bpf_program *prog, void *priv,
 				     bpf_program_clear_priv_t clear_priv);
-
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API void *bpf_program__priv(const struct bpf_program *prog);
 LIBBPF_API void bpf_program__set_ifindex(struct bpf_program *prog,
 					 __u32 ifindex);
@@ -769,8 +772,10 @@ LIBBPF_API __u64 bpf_map__map_extra(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_map_extra(struct bpf_map *map, __u64 map_extra);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
 				 bpf_map_clear_priv_t clear_priv);
+LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
 LIBBPF_API void *bpf_map__priv(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
