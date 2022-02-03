@@ -37,6 +37,7 @@
 #include <net/genetlink.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <net/pkt_cls.h>
 
 #include "datapath.h"
 #include "flow.h"
@@ -1601,8 +1602,6 @@ static void ovs_dp_reset_user_features(struct sk_buff *skb,
 	dp->user_features = 0;
 }
 
-DEFINE_STATIC_KEY_FALSE(tc_recirc_sharing_support);
-
 static int ovs_dp_set_upcall_portids(struct datapath *dp,
 			      const struct nlattr *ids)
 {
@@ -1657,7 +1656,7 @@ u32 ovs_dp_get_upcall_portid(const struct datapath *dp, uint32_t cpu_id)
 
 static int ovs_dp_change(struct datapath *dp, struct nlattr *a[])
 {
-	u32 user_features = 0;
+	u32 user_features = 0, old_features = dp->user_features;
 	int err;
 
 	if (a[OVS_DP_ATTR_USER_FEATURES]) {
@@ -1696,10 +1695,12 @@ static int ovs_dp_change(struct datapath *dp, struct nlattr *a[])
 			return err;
 	}
 
-	if (dp->user_features & OVS_DP_F_TC_RECIRC_SHARING)
-		static_branch_enable(&tc_recirc_sharing_support);
-	else
-		static_branch_disable(&tc_recirc_sharing_support);
+	if ((dp->user_features & OVS_DP_F_TC_RECIRC_SHARING) &&
+	    !(old_features & OVS_DP_F_TC_RECIRC_SHARING))
+		tc_skb_ext_tc_enable();
+	else if (!(dp->user_features & OVS_DP_F_TC_RECIRC_SHARING) &&
+		 (old_features & OVS_DP_F_TC_RECIRC_SHARING))
+		tc_skb_ext_tc_disable();
 
 	return 0;
 }
@@ -1838,6 +1839,9 @@ static void __dp_destroy(struct datapath *dp)
 {
 	struct flow_table *table = &dp->table;
 	int i;
+
+	if (dp->user_features & OVS_DP_F_TC_RECIRC_SHARING)
+		tc_skb_ext_tc_disable();
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;

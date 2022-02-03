@@ -49,6 +49,23 @@ static LIST_HEAD(tcf_proto_base);
 /* Protects list of registered TC modules. It is pure SMP lock. */
 static DEFINE_RWLOCK(cls_mod_lock);
 
+#ifdef CONFIG_NET_CLS_ACT
+DEFINE_STATIC_KEY_FALSE(tc_skb_ext_tc);
+EXPORT_SYMBOL(tc_skb_ext_tc);
+
+void tc_skb_ext_tc_enable(void)
+{
+	static_branch_inc(&tc_skb_ext_tc);
+}
+EXPORT_SYMBOL(tc_skb_ext_tc_enable);
+
+void tc_skb_ext_tc_disable(void)
+{
+	static_branch_dec(&tc_skb_ext_tc);
+}
+EXPORT_SYMBOL(tc_skb_ext_tc_disable);
+#endif
+
 static u32 destroy_obj_hashfn(const struct tcf_proto *tp)
 {
 	return jhash_3words(tp->chain->index, tp->prio,
@@ -1615,19 +1632,21 @@ int tcf_classify(struct sk_buff *skb,
 	ret = __tcf_classify(skb, tp, orig_tp, res, compat_mode,
 			     &last_executed_chain);
 
-	/* If we missed on some chain */
-	if (ret == TC_ACT_UNSPEC && last_executed_chain) {
-		struct tc_skb_cb *cb = tc_skb_cb(skb);
+	if (tc_skb_ext_tc_enabled()) {
+		/* If we missed on some chain */
+		if (ret == TC_ACT_UNSPEC && last_executed_chain) {
+			struct tc_skb_cb *cb = tc_skb_cb(skb);
 
-		ext = tc_skb_ext_alloc(skb);
-		if (WARN_ON_ONCE(!ext))
-			return TC_ACT_SHOT;
-		ext->chain = last_executed_chain;
-		ext->mru = cb->mru;
-		ext->post_ct = cb->post_ct;
-		ext->post_ct_snat = cb->post_ct_snat;
-		ext->post_ct_dnat = cb->post_ct_dnat;
-		ext->zone = cb->zone;
+			ext = tc_skb_ext_alloc(skb);
+			if (WARN_ON_ONCE(!ext))
+				return TC_ACT_SHOT;
+			ext->chain = last_executed_chain;
+			ext->mru = cb->mru;
+			ext->post_ct = cb->post_ct;
+			ext->post_ct_snat = cb->post_ct_snat;
+			ext->post_ct_dnat = cb->post_ct_dnat;
+			ext->zone = cb->zone;
+		}
 	}
 
 	return ret;
