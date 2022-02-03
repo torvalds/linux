@@ -2990,14 +2990,9 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (free_space < data_size)
 		goto out_unlock;
 
-	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, right, upper,
 			      slot + 1, &right, BTRFS_NESTING_RIGHT_COW);
 	if (ret)
-		goto out_unlock;
-
-	free_space = btrfs_leaf_free_space(right);
-	if (free_space < data_size)
 		goto out_unlock;
 
 	left_nritems = btrfs_header_nritems(left);
@@ -3224,7 +3219,6 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		goto out;
 	}
 
-	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, left,
 			      path->nodes[1], slot - 1, &left,
 			      BTRFS_NESTING_LEFT_COW);
@@ -3232,12 +3226,6 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		/* we hit -ENOSPC, but it isn't fatal here */
 		if (ret == -ENOSPC)
 			ret = 1;
-		goto out;
-	}
-
-	free_space = btrfs_leaf_free_space(left);
-	if (free_space < data_size) {
-		ret = 1;
 		goto out;
 	}
 
