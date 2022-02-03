@@ -27,7 +27,7 @@ static int mv88e6xxx_g1_vtu_fid_read(struct mv88e6xxx_chip *chip,
 		return err;
 
 	entry->fid = val & MV88E6352_G1_VTU_FID_MASK;
-
+	entry->policy = !!(val & MV88E6352_G1_VTU_FID_VID_POLICY);
 	return 0;
 }
 
@@ -35,6 +35,9 @@ static int mv88e6xxx_g1_vtu_fid_write(struct mv88e6xxx_chip *chip,
 				      struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 val = entry->fid & MV88E6352_G1_VTU_FID_MASK;
+
+	if (entry->policy)
+		val |= MV88E6352_G1_VTU_FID_VID_POLICY;
 
 	return mv88e6xxx_g1_write(chip, MV88E6352_G1_VTU_FID, val);
 }
