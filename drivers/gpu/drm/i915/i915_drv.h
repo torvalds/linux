@@ -121,6 +121,7 @@ struct intel_crtc;
 struct intel_dp;
 struct intel_encoder;
 struct intel_fbdev;
+struct intel_fdi_funcs;
 struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
 struct intel_limit;
@@ -320,11 +321,6 @@ struct drm_i915_wm_disp_funcs {
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
-};
-
-struct intel_fdi_funcs {
-	void (*fdi_link_train)(struct intel_crtc *crtc,
-			       const struct intel_crtc_state *crtc_state);
 };
 
 struct intel_dpll_funcs {
