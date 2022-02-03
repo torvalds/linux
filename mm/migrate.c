@@ -174,7 +174,8 @@ void putback_movable_pages(struct list_head *l)
 static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 				 unsigned long addr, void *old)
 {
-	DEFINE_PAGE_VMA_WALK(pvmw, old, vma, addr, PVMW_SYNC | PVMW_MIGRATION);
+	DEFINE_PAGE_VMA_WALK(pvmw, (struct page *)old, vma, addr,
+				PVMW_SYNC | PVMW_MIGRATION);
 	struct page *new;
 	pte_t pte;
 	swp_entry_t entry;
@@ -184,7 +185,7 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 		if (PageKsm(page))
 			new = page;
 		else
-			new = page - pvmw.page->index +
+			new = page - pvmw.pgoff +
 				linear_page_index(vma, pvmw.address);
 
 #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION

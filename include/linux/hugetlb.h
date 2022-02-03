@@ -970,6 +970,11 @@ static inline struct hstate *page_hstate(struct page *page)
 	return NULL;
 }
 
+static inline struct hstate *size_to_hstate(unsigned long size)
+{
+	return NULL;
+}
+
 static inline unsigned long huge_page_size(struct hstate *h)
 {
 	return PAGE_SIZE;

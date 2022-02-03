@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/rmap.h>
 #include <linux/tracepoint-defs.h>
 
 struct folio_batch;
@@ -475,18 +476,20 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 }
 
 /*
- * Then at what user virtual address will none of the page be found in vma?
+ * Then at what user virtual address will none of the range be found in vma?
  * Assumes that vma_address() already returned a good starting address.
- * If page is a compound head, the entire compound page is considered.
  */
-static inline unsigned long
-vma_address_end(struct page *page, struct vm_area_struct *vma)
+static inline unsigned long vma_address_end(struct page_vma_mapped_walk *pvmw)
 {
+	struct vm_area_struct *vma = pvmw->vma;
 	pgoff_t pgoff;
 	unsigned long address;
 
-	VM_BUG_ON_PAGE(PageKsm(page), page);	/* KSM page->index unusable */
-	pgoff = page_to_pgoff(page) + compound_nr(page);
+	/* Common case, plus ->pgoff is invalid for KSM */
+	if (pvmw->nr_pages == 1)
+		return pvmw->address + PAGE_SIZE;
+
+	pgoff = pvmw->pgoff + pvmw->nr_pages;
 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 	/* Check for address beyond vma (or wrapped through 0?) */
 	if (address < vma->vm_start || address > vma->vm_end)

@@ -11,6 +11,7 @@
 #include <linux/rwsem.h>
 #include <linux/memcontrol.h>
 #include <linux/highmem.h>
+#include <linux/pagemap.h>
 
 /*
  * The anon_vma heads a list of private "related" vmas, to scan if
@@ -201,11 +202,13 @@ int make_device_exclusive_range(struct mm_struct *mm, unsigned long start,
 
 /* Avoid racy checks */
 #define PVMW_SYNC		(1 << 0)
-/* Look for migarion entries rather than present PTEs */
+/* Look for migration entries rather than present PTEs */
 #define PVMW_MIGRATION		(1 << 1)
 
 struct page_vma_mapped_walk {
-	struct page *page;
+	unsigned long pfn;
+	unsigned long nr_pages;
+	pgoff_t pgoff;
 	struct vm_area_struct *vma;
 	unsigned long address;
 	pmd_t *pmd;
@@ -216,7 +219,9 @@ struct page_vma_mapped_walk {
 
 #define DEFINE_PAGE_VMA_WALK(name, _page, _vma, _address, _flags)	\
 	struct page_vma_mapped_walk name = {				\
-		.page = _page,						\
+		.pfn = page_to_pfn(_page),				\
+		.nr_pages = compound_nr(page),				\
+		.pgoff = page_to_pgoff(page),				\
 		.vma = _vma,						\
 		.address = _address,					\
 		.flags = _flags,					\
@@ -224,7 +229,9 @@ struct page_vma_mapped_walk {
 
 #define DEFINE_FOLIO_VMA_WALK(name, _folio, _vma, _address, _flags)	\
 	struct page_vma_mapped_walk name = {				\
-		.page = &_folio->page,					\
+		.pfn = folio_pfn(_folio),				\
+		.nr_pages = folio_nr_pages(_folio),			\
+		.pgoff = folio_pgoff(_folio),				\
 		.vma = _vma,						\
 		.address = _address,					\
 		.flags = _flags,					\
@@ -233,7 +240,7 @@ struct page_vma_mapped_walk {
 static inline void page_vma_mapped_walk_done(struct page_vma_mapped_walk *pvmw)
 {
 	/* HugeTLB pte is set to the relevant page table entry without pte_mapped. */
-	if (pvmw->pte && !PageHuge(pvmw->page))
+	if (pvmw->pte && !is_vm_hugetlb_page(pvmw->vma))
 		pte_unmap(pvmw->pte);
 	if (pvmw->ptl)
 		spin_unlock(pvmw->ptl);
