@@ -613,9 +613,6 @@ struct mv88e6xxx_ops {
 	/* Phylink */
 	void (*phylink_get_caps)(struct mv88e6xxx_chip *chip, int port,
 				 struct phylink_config *config);
-	void (*phylink_validate)(struct mv88e6xxx_chip *chip, int port,
-				 unsigned long *mask,
-				 struct phylink_link_state *state);
 
 	/* Max Frame Size */
 	int (*set_max_frame_size)(struct mv88e6xxx_chip *chip, int mtu);
