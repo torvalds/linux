@@ -19,6 +19,7 @@
 #include <linux/in.h>
 #include <net/arp.h>
 #include <net/ipv6.h>
+#include <net/ndisc.h>
 #include <asm/byteorder.h>
 #include <net/bonding.h>
 #include <net/bond_alb.h>
