@@ -119,6 +119,7 @@ struct intel_color_funcs;
 struct intel_connector;
 struct intel_crtc;
 struct intel_dp;
+struct intel_dpll_funcs;
 struct intel_encoder;
 struct intel_fbdev;
 struct intel_fdi_funcs;
@@ -321,10 +322,6 @@ struct drm_i915_wm_disp_funcs {
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
-};
-
-struct intel_dpll_funcs {
-	int (*crtc_compute_clock)(struct intel_crtc_state *crtc_state);
 };
 
 struct drm_i915_display_funcs {

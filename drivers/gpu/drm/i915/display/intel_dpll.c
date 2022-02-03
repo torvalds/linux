@@ -16,6 +16,10 @@
 #include "intel_snps_phy.h"
 #include "vlv_sideband.h"
 
+struct intel_dpll_funcs {
+	int (*crtc_compute_clock)(struct intel_crtc_state *crtc_state);
+};
+
 struct intel_limit {
 	struct {
 		int min, max;
