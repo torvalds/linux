@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "r8a779f0-spider-cpu.dtsi"
+#include "r8a779f0-spider-ethernet.dtsi"
 
 / {
 	model = "Renesas Spider CPU and Breakout boards based on r8a779f0";
