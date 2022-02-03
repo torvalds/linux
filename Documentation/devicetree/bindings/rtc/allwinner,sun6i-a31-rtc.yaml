@@ -24,9 +24,14 @@ properties:
           - allwinner,sun8i-v3-rtc
           - allwinner,sun50i-h5-rtc
           - allwinner,sun50i-h6-rtc
+          - allwinner,sun50i-h616-rtc
+          - allwinner,sun50i-r329-rtc
       - items:
           - const: allwinner,sun50i-a64-rtc
           - const: allwinner,sun8i-h3-rtc
+      - items:
+          - const: allwinner,sun20i-d1-rtc
+          - const: allwinner,sun50i-r329-rtc
 
   reg:
     maxItems: 1
@@ -38,7 +43,12 @@ properties:
       - description: RTC Alarm 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    maxItems: 4
 
   clock-output-names:
     minItems: 1
@@ -98,7 +108,68 @@ allOf:
       properties:
         compatible:
           contains:
-            const: allwinner,sun8i-r40-rtc
+            const: allwinner,sun50i-h616-rtc
+
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+          items:
+            - description: Bus clock for register access
+            - description: 24 MHz oscillator
+            - description: 32 kHz clock from the CCU
+
+        clock-names:
+          minItems: 3
+          maxItems: 3
+          items:
+            - const: bus
+            - const: hosc
+            - const: pll-32k
+
+      required:
+        - clocks
+        - clock-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: allwinner,sun50i-r329-rtc
+
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 4
+          items:
+            - description: Bus clock for register access
+            - description: 24 MHz oscillator
+            - description: AHB parent for internal SPI clock
+            - description: External 32768 Hz oscillator
+
+        clock-names:
+          minItems: 3
+          maxItems: 4
+          items:
+            - const: bus
+            - const: hosc
+            - const: ahb
+            - const: ext-osc32k
+
+      required:
+        - clocks
+        - clock-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - allwinner,sun8i-r40-rtc
+              - allwinner,sun50i-h616-rtc
+              - allwinner,sun50i-r329-rtc
 
     then:
       properties:
@@ -117,7 +188,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - clock-output-names
 
 additionalProperties: false
 
