@@ -185,7 +185,7 @@ void prep_transhuge_page(struct page *page);
 void free_transhuge_page(struct page *page);
 bool is_transparent_hugepage(struct page *page);
 
-bool can_split_huge_page(struct page *page, int *pextra_pins);
+bool can_split_folio(struct folio *folio, int *pextra_pins);
 int split_huge_page_to_list(struct page *page, struct list_head *list);
 static inline int split_huge_page(struct page *page)
 {
@@ -387,7 +387,7 @@ static inline bool is_transparent_hugepage(struct page *page)
 #define thp_get_unmapped_area	NULL
 
 static inline bool
-can_split_huge_page(struct page *page, int *pextra_pins)
+can_split_folio(struct folio *folio, int *pextra_pins)
 {
 	BUILD_BUG();
 	return false;

@@ -1703,18 +1703,18 @@ retry:
 			if (!PageSwapCache(page)) {
 				if (!(sc->gfp_mask & __GFP_IO))
 					goto keep_locked;
-				if (page_maybe_dma_pinned(page))
+				if (folio_maybe_dma_pinned(folio))
 					goto keep_locked;
 				if (PageTransHuge(page)) {
 					/* cannot split THP, skip it */
-					if (!can_split_huge_page(page, NULL))
+					if (!can_split_folio(folio, NULL))
 						goto activate_locked;
 					/*
 					 * Split pages without a PMD map right
 					 * away. Chances are some or all of the
 					 * tail pages can be freed without IO.
 					 */
-					if (!compound_mapcount(page) &&
+					if (!folio_entire_mapcount(folio) &&
 					    split_folio_to_list(folio,
 								page_list))
 						goto activate_locked;
