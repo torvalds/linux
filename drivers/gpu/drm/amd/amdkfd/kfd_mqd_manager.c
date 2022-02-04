@@ -173,3 +173,66 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		}
 	}
 }
+
+int kfd_hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
+		     uint32_t pipe_id, uint32_t queue_id,
+		     struct queue_properties *p, struct mm_struct *mms)
+{
+	return mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, mqd, pipe_id,
+					      queue_id, p->doorbell_off);
+}
+
+int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
+		enum kfd_preempt_type type, unsigned int timeout,
+		uint32_t pipe_id, uint32_t queue_id)
+{
+	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, mqd, type, timeout,
+						pipe_id, queue_id);
+}
+
+void kfd_free_mqd_cp(struct mqd_manager *mm, void *mqd,
+	      struct kfd_mem_obj *mqd_mem_obj)
+{
+	if (mqd_mem_obj->gtt_mem) {
+		amdgpu_amdkfd_free_gtt_mem(mm->dev->adev, mqd_mem_obj->gtt_mem);
+		kfree(mqd_mem_obj);
+	} else {
+		kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
+	}
+}
+
+bool kfd_is_occupied_cp(struct mqd_manager *mm, void *mqd,
+		 uint64_t queue_address, uint32_t pipe_id,
+		 uint32_t queue_id)
+{
+	return mm->dev->kfd2kgd->hqd_is_occupied(mm->dev->adev, queue_address,
+						pipe_id, queue_id);
+}
+
+int kfd_load_mqd_sdma(struct mqd_manager *mm, void *mqd,
+		  uint32_t pipe_id, uint32_t queue_id,
+		  struct queue_properties *p, struct mm_struct *mms)
+{
+	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->adev, mqd,
+						(uint32_t __user *)p->write_ptr,
+						mms);
+}
+
+/*
+ * preempt type here is ignored because there is only one way
+ * to preempt sdma queue
+ */
+int kfd_destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
+		     enum kfd_preempt_type type,
+		     unsigned int timeout, uint32_t pipe_id,
+		     uint32_t queue_id)
+{
+	return mm->dev->kfd2kgd->hqd_sdma_destroy(mm->dev->adev, mqd, timeout);
+}
+
+bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
+		      uint64_t queue_address, uint32_t pipe_id,
+		      uint32_t queue_id)
+{
+	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
+}

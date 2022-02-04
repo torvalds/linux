@@ -136,4 +136,31 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		const uint32_t *cu_mask, uint32_t cu_mask_count,
 		uint32_t *se_mask);
 
+int kfd_hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
+		uint32_t pipe_id, uint32_t queue_id,
+		struct queue_properties *p, struct mm_struct *mms);
+
+int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
+		enum kfd_preempt_type type, unsigned int timeout,
+		uint32_t pipe_id, uint32_t queue_id);
+
+void kfd_free_mqd_cp(struct mqd_manager *mm, void *mqd,
+		struct kfd_mem_obj *mqd_mem_obj);
+
+bool kfd_is_occupied_cp(struct mqd_manager *mm, void *mqd,
+		 uint64_t queue_address, uint32_t pipe_id,
+		 uint32_t queue_id);
+
+int kfd_load_mqd_sdma(struct mqd_manager *mm, void *mqd,
+		uint32_t pipe_id, uint32_t queue_id,
+		struct queue_properties *p, struct mm_struct *mms);
+
+int kfd_destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
+		enum kfd_preempt_type type, unsigned int timeout,
+		uint32_t pipe_id, uint32_t queue_id);
+
+bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
+		uint64_t queue_address, uint32_t pipe_id,
+		uint32_t queue_id);
+
 #endif /* KFD_MQD_MANAGER_H_ */

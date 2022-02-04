@@ -259,31 +259,6 @@ static void update_mqd_tonga(struct mqd_manager *mm, void *mqd,
 	__update_mqd(mm, mqd, q, minfo, MTYPE_UC, 0);
 }
 
-static int destroy_mqd(struct mqd_manager *mm, void *mqd,
-			enum kfd_preempt_type type,
-			unsigned int timeout, uint32_t pipe_id,
-			uint32_t queue_id)
-{
-	return mm->dev->kfd2kgd->hqd_destroy
-		(mm->dev->adev, mqd, type, timeout,
-		pipe_id, queue_id);
-}
-
-static void free_mqd(struct mqd_manager *mm, void *mqd,
-			struct kfd_mem_obj *mqd_mem_obj)
-{
-	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
-}
-
-static bool is_occupied(struct mqd_manager *mm, void *mqd,
-			uint64_t queue_address,	uint32_t pipe_id,
-			uint32_t queue_id)
-{
-	return mm->dev->kfd2kgd->hqd_is_occupied(
-		mm->dev->adev, queue_address,
-		pipe_id, queue_id);
-}
-
 static int get_wave_state(struct mqd_manager *mm, void *mqd,
 			  void __user *ctl_stack,
 			  u32 *ctl_stack_used_size,
@@ -385,15 +360,6 @@ static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 	mm->update_mqd(mm, m, q, NULL);
 }
 
-static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
-		uint32_t pipe_id, uint32_t queue_id,
-		struct queue_properties *p, struct mm_struct *mms)
-{
-	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->adev, mqd,
-					       (uint32_t __user *)p->write_ptr,
-					       mms);
-}
-
 static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q,
 			struct mqd_update_info *minfo)
@@ -420,25 +386,6 @@ static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	m->sdma_queue_id = q->sdma_queue_id;
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
-}
-
-/*
- *  * preempt type here is ignored because there is only one way
- *  * to preempt sdma queue
- */
-static int destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
-		enum kfd_preempt_type type,
-		unsigned int timeout, uint32_t pipe_id,
-		uint32_t queue_id)
-{
-	return mm->dev->kfd2kgd->hqd_sdma_destroy(mm->dev->adev, mqd, timeout);
-}
-
-static bool is_occupied_sdma(struct mqd_manager *mm, void *mqd,
-		uint64_t queue_address, uint32_t pipe_id,
-		uint32_t queue_id)
-{
-	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
 }
 
 static void checkpoint_mqd_sdma(struct mqd_manager *mm,
@@ -514,11 +461,11 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 	case KFD_MQD_TYPE_CP:
 		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd;
-		mqd->free_mqd = free_mqd;
+		mqd->free_mqd = kfd_free_mqd_cp;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd;
-		mqd->destroy_mqd = destroy_mqd;
-		mqd->is_occupied = is_occupied;
+		mqd->destroy_mqd = kfd_destroy_mqd_cp;
+		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->get_wave_state = get_wave_state;
 		mqd->get_checkpoint_info = get_checkpoint_info;
 		mqd->checkpoint_mqd = checkpoint_mqd;
@@ -534,8 +481,8 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		mqd->free_mqd = free_mqd_hiq_sdma;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd_hiq;
-		mqd->destroy_mqd = destroy_mqd;
-		mqd->is_occupied = is_occupied;
+		mqd->destroy_mqd = kfd_destroy_mqd_cp;
+		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct vi_mqd);
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
@@ -545,11 +492,11 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 	case KFD_MQD_TYPE_DIQ:
 		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd_hiq;
-		mqd->free_mqd = free_mqd;
+		mqd->free_mqd = kfd_free_mqd_cp;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd_hiq;
-		mqd->destroy_mqd = destroy_mqd;
-		mqd->is_occupied = is_occupied;
+		mqd->destroy_mqd = kfd_destroy_mqd_cp;
+		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct vi_mqd);
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
@@ -559,10 +506,10 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		mqd->allocate_mqd = allocate_sdma_mqd;
 		mqd->init_mqd = init_mqd_sdma;
 		mqd->free_mqd = free_mqd_hiq_sdma;
-		mqd->load_mqd = load_mqd_sdma;
+		mqd->load_mqd = kfd_load_mqd_sdma;
 		mqd->update_mqd = update_mqd_sdma;
-		mqd->destroy_mqd = destroy_mqd_sdma;
-		mqd->is_occupied = is_occupied_sdma;
+		mqd->destroy_mqd = kfd_destroy_mqd_sdma;
+		mqd->is_occupied = kfd_is_occupied_sdma;
 		mqd->checkpoint_mqd = checkpoint_mqd_sdma;
 		mqd->restore_mqd = restore_mqd_sdma;
 		mqd->mqd_size = sizeof(struct vi_sdma_mqd);
