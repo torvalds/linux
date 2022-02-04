@@ -6287,7 +6287,7 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
 			goto out_free;
 		}
 
-		cmd_ops->unreg(glob+1, trigger_data, file);
+		event_trigger_unregister(cmd_ops, file, glob+1, trigger_data);
 		se_name = trace_event_name(file->event_call);
 		se = find_synth_event(se_name);
 		if (se)
@@ -6296,13 +6296,10 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
 		goto out_free;
 	}
 
-	ret = cmd_ops->reg(glob, trigger_data, file);
-	/*
-	 * The above returns on success the # of triggers registered,
-	 * but if it didn't register any it returns zero.  Consider no
-	 * triggers registered a failure too.
-	 */
-	if (!ret) {
+	ret = event_trigger_register(cmd_ops, file, glob, trigger_data);
+	if (ret)
+		goto out_free;
+	if (ret == 0) {
 		if (!(attrs->pause || attrs->cont || attrs->clear))
 			ret = -ENOENT;
 		goto out_free;
@@ -6331,15 +6328,13 @@ enable:
 	se = find_synth_event(se_name);
 	if (se)
 		se->ref++;
-	/* Just return zero, not the number of registered triggers */
-	ret = 0;
  out:
 	if (ret == 0)
 		hist_err_clear();
 
 	return ret;
  out_unreg:
-	cmd_ops->unreg(glob+1, trigger_data, file);
+	event_trigger_unregister(cmd_ops, file, glob+1, trigger_data);
  out_free:
 	if (cmd_ops->set_filter)
 		cmd_ops->set_filter(NULL, trigger_data, NULL);

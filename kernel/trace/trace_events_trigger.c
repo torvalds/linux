@@ -587,13 +587,12 @@ static int register_trigger(char *glob,
 	}
 
 	list_add_rcu(&data->list, &file->triggers);
-	ret++;
 
 	update_cond_flag(file);
-	if (trace_event_trigger_enable_disable(file, 1) < 0) {
+	ret = trace_event_trigger_enable_disable(file, 1);
+	if (ret < 0) {
 		list_del_rcu(&data->list);
 		update_cond_flag(file);
-		ret--;
 	}
 out:
 	return ret;
@@ -927,48 +926,37 @@ void event_trigger_reset_filter(struct event_command *cmd_ops,
  * @cmd_ops: The event_command operations for the trigger
  * @file: The event file for the trigger's event
  * @glob: The trigger command string, with optional remove(!) operator
- * @cmd: The cmd string
- * @param: The param string
  * @trigger_data: The trigger_data for the trigger
- * @n_registered: optional outparam, the number of triggers registered
  *
  * Register an event trigger.  The @cmd_ops are used to call the
- * cmd_ops->reg() function which actually does the registration. The
- * cmd_ops->reg() function returns the number of triggers registered,
- * which is assigned to n_registered, if n_registered is non-NULL.
+ * cmd_ops->reg() function which actually does the registration.
  *
  * Return: 0 on success, errno otherwise
  */
 int event_trigger_register(struct event_command *cmd_ops,
 			   struct trace_event_file *file,
 			   char *glob,
-			   char *cmd,
-			   char *param,
-			   struct event_trigger_data *trigger_data,
-			   int *n_registered)
+			   struct event_trigger_data *trigger_data)
 {
-	int ret;
+	return cmd_ops->reg(glob, trigger_data, file);
+}
 
-	if (n_registered)
-		*n_registered = 0;
-
-	ret = cmd_ops->reg(glob, trigger_data, file);
-	/*
-	 * The above returns on success the # of functions enabled,
-	 * but if it didn't find any functions it returns zero.
-	 * Consider no functions a failure too.
-	 */
-	if (!ret) {
-		cmd_ops->unreg(glob, trigger_data, file);
-		ret = -ENOENT;
-	} else if (ret > 0) {
-		if (n_registered)
-			*n_registered = ret;
-		/* Just return zero, not the number of enabled functions */
-		ret = 0;
-	}
-
-	return ret;
+/**
+ * event_trigger_unregister - unregister an event trigger
+ * @cmd_ops: The event_command operations for the trigger
+ * @file: The event file for the trigger's event
+ * @glob: The trigger command string, with optional remove(!) operator
+ * @trigger_data: The trigger_data for the trigger
+ *
+ * Unregister an event trigger.  The @cmd_ops are used to call the
+ * cmd_ops->unreg() function which actually does the unregistration.
+ */
+void event_trigger_unregister(struct event_command *cmd_ops,
+			      struct trace_event_file *file,
+			      char *glob,
+			      struct event_trigger_data *trigger_data)
+{
+	cmd_ops->unreg(glob, trigger_data, file);
 }
 
 /*
@@ -1027,7 +1015,7 @@ event_trigger_parse(struct event_command *cmd_ops,
 	INIT_LIST_HEAD(&trigger_data->named_list);
 
 	if (glob[0] == '!') {
-		cmd_ops->unreg(glob+1, trigger_data, file);
+		event_trigger_unregister(cmd_ops, file, glob+1, trigger_data);
 		kfree(trigger_data);
 		ret = 0;
 		goto out;
@@ -1062,17 +1050,10 @@ event_trigger_parse(struct event_command *cmd_ops,
  out_reg:
 	/* Up the trigger_data count to make sure reg doesn't free it on failure */
 	event_trigger_init(trigger_ops, trigger_data);
-	ret = cmd_ops->reg(glob, trigger_data, file);
-	/*
-	 * The above returns on success the # of functions enabled,
-	 * but if it didn't find any functions it returns zero.
-	 * Consider no functions a failure too.
-	 */
-	if (!ret) {
-		cmd_ops->unreg(glob, trigger_data, file);
-		ret = -ENOENT;
-	} else if (ret > 0)
-		ret = 0;
+
+	ret = event_trigger_register(cmd_ops, file, glob, trigger_data);
+	if (ret)
+		goto out_free;
 
 	/* Down the counter of trigger_data or free it if not used anymore */
 	event_trigger_free(trigger_ops, trigger_data);
@@ -1854,7 +1835,7 @@ int event_enable_trigger_parse(struct event_command *cmd_ops,
 	trigger_data->private_data = enable_data;
 
 	if (glob[0] == '!') {
-		cmd_ops->unreg(glob+1, trigger_data, file);
+		event_trigger_unregister(cmd_ops, file, glob+1, trigger_data);
 		kfree(trigger_data);
 		kfree(enable_data);
 		ret = 0;
@@ -1901,19 +1882,11 @@ int event_enable_trigger_parse(struct event_command *cmd_ops,
 	ret = trace_event_enable_disable(event_enable_file, 1, 1);
 	if (ret < 0)
 		goto out_put;
-	ret = cmd_ops->reg(glob, trigger_data, file);
-	/*
-	 * The above returns on success the # of functions enabled,
-	 * but if it didn't find any functions it returns zero.
-	 * Consider no functions a failure too.
-	 */
-	if (!ret) {
-		ret = -ENOENT;
+
+	ret = event_trigger_register(cmd_ops, file, glob, trigger_data);
+	if (ret)
 		goto out_disable;
-	} else if (ret < 0)
-		goto out_disable;
-	/* Just return zero, not the number of enabled functions */
-	ret = 0;
+
 	event_trigger_free(trigger_ops, trigger_data);
  out:
 	return ret;
@@ -1959,13 +1932,12 @@ int event_enable_register_trigger(char *glob,
 	}
 
 	list_add_rcu(&data->list, &file->triggers);
-	ret++;
 
 	update_cond_flag(file);
-	if (trace_event_trigger_enable_disable(file, 1) < 0) {
+	ret = trace_event_trigger_enable_disable(file, 1);
+	if (ret < 0) {
 		list_del_rcu(&data->list);
 		update_cond_flag(file);
-		ret--;
 	}
 out:
 	return ret;

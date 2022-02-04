@@ -1629,10 +1629,11 @@ extern void event_trigger_reset_filter(struct event_command *cmd_ops,
 extern int event_trigger_register(struct event_command *cmd_ops,
 				  struct trace_event_file *file,
 				  char *glob,
-				  char *cmd,
-				  char *trigger,
-				  struct event_trigger_data *trigger_data,
-				  int *n_registered);
+				  struct event_trigger_data *trigger_data);
+extern void event_trigger_unregister(struct event_command *cmd_ops,
+				     struct trace_event_file *file,
+				     char *glob,
+				     struct event_trigger_data *trigger_data);
 
 /**
  * struct event_trigger_ops - callbacks for trace event triggers
