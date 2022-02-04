@@ -25,11 +25,23 @@
  * PCIe topology.
  */
 
+static void schedule_detach(void *cxlmd)
+{
+	schedule_cxl_memdev_detach(cxlmd);
+}
+
 static int cxl_port_probe(struct device *dev)
 {
 	struct cxl_port *port = to_cxl_port(dev);
 	struct cxl_hdm *cxlhdm;
 	int rc;
+
+	if (is_cxl_endpoint(port)) {
+		struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
+
+		get_device(&cxlmd->dev);
+		return devm_add_action_or_reset(dev, schedule_detach, cxlmd);
+	}
 
 	rc = devm_cxl_port_enumerate_dports(port);
 	if (rc < 0)

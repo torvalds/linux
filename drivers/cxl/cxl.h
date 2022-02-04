@@ -328,6 +328,9 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   struct cxl_port *parent_port);
 struct cxl_port *find_cxl_root(struct device *dev);
 int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd);
+int cxl_bus_rescan(void);
+struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd);
+bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd);
 
 struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 				     struct device *dport, int port_id,
@@ -345,6 +348,8 @@ struct cxl_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
 int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
 int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map);
 int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld);
+int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint);
+
 struct cxl_hdm;
 struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port);
 int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm);
@@ -377,6 +382,7 @@ void cxl_driver_unregister(struct cxl_driver *cxl_drv);
 #define CXL_DEVICE_NVDIMM		2
 #define CXL_DEVICE_PORT			3
 #define CXL_DEVICE_ROOT			4
+#define CXL_DEVICE_MEMORY_EXPANDER	5
 
 #define MODULE_ALIAS_CXL(type) MODULE_ALIAS("cxl:t" __stringify(type) "*")
 #define CXL_MODALIAS_FMT "cxl:t%d"

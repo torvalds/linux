@@ -325,6 +325,9 @@ CXL Memory Device
 .. kernel-doc:: drivers/cxl/pci.c
    :internal:
 
+.. kernel-doc:: drivers/cxl/mem.c
+   :doc: cxl mem
+
 CXL Port
 --------
 .. kernel-doc:: drivers/cxl/port.c
@@ -342,6 +345,12 @@ CXL Core
    :doc: cxl core
 
 .. kernel-doc:: drivers/cxl/core/port.c
+   :identifiers:
+
+.. kernel-doc:: drivers/cxl/core/pci.c
+   :doc: cxl core pci
+
+.. kernel-doc:: drivers/cxl/core/pci.c
    :identifiers:
 
 .. kernel-doc:: drivers/cxl/core/pmem.c

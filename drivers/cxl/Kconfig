@@ -78,6 +78,22 @@ config CXL_PMEM
 
 	  If unsure say 'm'.
 
+config CXL_MEM
+	tristate "CXL: Memory Expansion"
+	depends on CXL_PCI
+	default CXL_BUS
+	help
+	  The CXL.mem protocol allows a device to act as a provider of "System
+	  RAM" and/or "Persistent Memory" that is fully coherent as if the
+	  memory were attached to the typical CPU memory controller. This is
+	  known as HDM "Host-managed Device Memory".
+
+	  Say 'y/m' to enable a driver that will attach to CXL.mem devices for
+	  memory expansion and control of HDM. See Chapter 9.13 in the CXL 2.0
+	  specification for a detailed description of HDM.
+
+	  If unsure say 'm'.
+
 config CXL_PORT
 	default CXL_BUS
 	tristate

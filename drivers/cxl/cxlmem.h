@@ -34,18 +34,26 @@
  * @dev: driver core device object
  * @cdev: char dev core object for ioctl operations
  * @cxlds: The device state backing this device
+ * @detach_work: active memdev lost a port in its ancestry
  * @id: id number of this memdev instance.
  */
 struct cxl_memdev {
 	struct device dev;
 	struct cdev cdev;
 	struct cxl_dev_state *cxlds;
+	struct work_struct detach_work;
 	int id;
 };
 
 static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
 {
 	return container_of(dev, struct cxl_memdev, dev);
+}
+
+bool is_cxl_memdev(struct device *dev);
+static inline bool is_cxl_endpoint(struct cxl_port *port)
+{
+	return is_cxl_memdev(port->uport);
 }
 
 struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds);

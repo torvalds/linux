@@ -162,6 +162,12 @@ static const struct device_type cxl_memdev_type = {
 	.groups = cxl_memdev_attribute_groups,
 };
 
+bool is_cxl_memdev(struct device *dev)
+{
+	return dev->type == &cxl_memdev_type;
+}
+EXPORT_SYMBOL_NS_GPL(is_cxl_memdev, CXL);
+
 /**
  * set_exclusive_cxl_commands() - atomically disable user cxl commands
  * @cxlds: The device state to operate on
@@ -213,6 +219,15 @@ static void cxl_memdev_unregister(void *_cxlmd)
 	put_device(dev);
 }
 
+static void detach_memdev(struct work_struct *work)
+{
+	struct cxl_memdev *cxlmd;
+
+	cxlmd = container_of(work, typeof(*cxlmd), detach_work);
+	device_release_driver(&cxlmd->dev);
+	put_device(&cxlmd->dev);
+}
+
 static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 					   const struct file_operations *fops)
 {
@@ -237,6 +252,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);
 	dev->type = &cxl_memdev_type;
 	device_set_pm_not_required(dev);
+	INIT_WORK(&cxlmd->detach_work, detach_memdev);
 
 	cdev = &cxlmd->cdev;
 	cdev_init(cdev, fops);

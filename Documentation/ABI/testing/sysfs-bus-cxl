@@ -1,3 +1,12 @@
+What:		/sys/bus/cxl/flush
+Date:		Januarry, 2022
+KernelVersion:	v5.18
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(WO) If userspace manually unbinds a port the kernel schedules
+		all descendant memdevs for unbind. Writing '1' to this attribute
+		flushes that work.
+
 What:		/sys/bus/cxl/devices/memX/firmware_version
 Date:		December, 2020
 KernelVersion:	v5.12

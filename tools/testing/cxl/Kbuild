@@ -31,6 +31,12 @@ obj-m += cxl_port.o
 cxl_port-y := $(CXL_SRC)/port.o
 cxl_port-y += config_check.o
 
+obj-m += cxl_mem.o
+
+cxl_mem-y := $(CXL_SRC)/mem.o
+cxl_mem-y += mock_mem.o
+cxl_mem-y += config_check.o
+
 obj-m += cxl_core.o
 
 cxl_core-y := $(CXL_CORE_SRC)/port.o
