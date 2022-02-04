@@ -13,7 +13,7 @@
 #define SYS_PREFIX "__arm64_"
 #else
 #define SYSCALL_WRAPPER 0
-#define SYS_PREFIX ""
+#define SYS_PREFIX "__se_"
 #endif
 
 #endif
