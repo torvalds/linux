@@ -168,7 +168,7 @@ struct acpi_ec_query {
 };
 
 static int acpi_ec_submit_query(struct acpi_ec *ec);
-static bool advance_transaction(struct acpi_ec *ec, bool interrupt);
+static void advance_transaction(struct acpi_ec *ec, bool interrupt);
 static void acpi_ec_event_handler(struct work_struct *work);
 
 struct acpi_ec *first_ec;
@@ -441,11 +441,15 @@ static bool acpi_ec_submit_flushable_request(struct acpi_ec *ec)
 	return true;
 }
 
-static bool acpi_ec_submit_event(struct acpi_ec *ec)
+static void acpi_ec_submit_event(struct acpi_ec *ec)
 {
+	/*
+	 * It is safe to mask the events here, because acpi_ec_close_event()
+	 * will run at least once after this.
+	 */
 	acpi_ec_mask_events(ec);
 	if (!acpi_ec_event_enabled(ec))
-		return false;
+		return;
 
 	if (ec->event_state == EC_EVENT_READY) {
 		ec_dbg_evt("Command(%s) submitted/blocked",
@@ -460,17 +464,11 @@ static bool acpi_ec_submit_event(struct acpi_ec *ec)
 		 * queue up the event work to start the same loop again.
 		 */
 		if (ec->events_to_process++ > 0)
-			return true;
+			return;
 
 		ec->events_in_progress++;
-		return queue_work(ec_wq, &ec->work);
+		queue_work(ec_wq, &ec->work);
 	}
-
-	/*
-	 * The event handling work has not been completed yet, so it needs to be
-	 * flushed.
-	 */
-	return true;
 }
 
 static void acpi_ec_complete_event(struct acpi_ec *ec)
@@ -655,11 +653,10 @@ static void acpi_ec_spurious_interrupt(struct acpi_ec *ec, struct transaction *t
 		acpi_ec_mask_events(ec);
 }
 
-static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
+static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 {
 	struct transaction *t = ec->curr;
 	bool wakeup = false;
-	bool ret = false;
 	u8 status;
 
 	ec_dbg_stm("%s (%d)", interrupt ? "IRQ" : "TASK", smp_processor_id());
@@ -724,12 +721,10 @@ static bool advance_transaction(struct acpi_ec *ec, bool interrupt)
 
 out:
 	if (status & ACPI_EC_FLAG_SCI)
-		ret = acpi_ec_submit_event(ec);
+		acpi_ec_submit_event(ec);
 
 	if (wakeup && interrupt)
 		wake_up(&ec->wait);
-
-	return ret;
 }
 
 static void start_transaction(struct acpi_ec *ec)
@@ -2051,6 +2046,11 @@ void acpi_ec_set_gpe_wake_mask(u8 action)
 		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
 }
 
+static bool acpi_ec_work_in_progress(struct acpi_ec *ec)
+{
+	return ec->events_in_progress + ec->queries_in_progress > 0;
+}
+
 bool acpi_ec_dispatch_gpe(void)
 {
 	bool work_in_progress = false;
@@ -2084,7 +2084,8 @@ bool acpi_ec_dispatch_gpe(void)
 	if (acpi_ec_gpe_status_set(first_ec)) {
 		pm_pr_dbg("ACPI EC GPE status set\n");
 
-		work_in_progress = advance_transaction(first_ec, false);
+		advance_transaction(first_ec, false);
+		work_in_progress = acpi_ec_work_in_progress(first_ec);
 	}
 
 	spin_unlock_irq(&first_ec->lock);
@@ -2102,8 +2103,7 @@ bool acpi_ec_dispatch_gpe(void)
 
 		spin_lock_irq(&first_ec->lock);
 
-		work_in_progress = first_ec->events_in_progress +
-			first_ec->queries_in_progress > 0;
+		work_in_progress = acpi_ec_work_in_progress(first_ec);
 
 		spin_unlock_irq(&first_ec->lock);
 	} while (work_in_progress && !pm_wakeup_pending());
