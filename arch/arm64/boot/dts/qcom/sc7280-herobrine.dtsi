@@ -1,0 +1,785 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Herobrine baseboard device tree source
+ *
+ * The set of things in this file is a bit loosely defined. It's roughly
+ * defined as the set of things that the child boards happen to have in
+ * common. Since all of the child boards started from the same original
+ * design this is hopefully a large set of things but as more derivatives
+ * appear things may "bubble down" out of this file. For things that are
+ * part of the reference design but might not exist on child nodes we will
+ * follow the lead of the SoC dtsi files and leave their status as "disabled".
+ *
+ * Copyright 2022 Google LLC.
+ */
+
+#include <dt-bindings/input/gpio-keys.h>
+#include <dt-bindings/input/input.h>
+
+#include "sc7280-qcard.dtsi"
+#include "sc7280-chrome-common.dtsi"
+
+/ {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	/*
+	 * FIXED REGULATORS
+	 *
+	 * Sort order:
+	 * 1. parents above children.
+	 * 2. higher voltage above lower voltage.
+	 * 3. alphabetically by node name.
+	 */
+
+	/* This is the top level supply and variable voltage */
+	ppvar_sys: ppvar-sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "ppvar_sys";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* This divides ppvar_sys by 2, so voltage is variable */
+	src_vph_pwr: src-vph-pwr-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "src_vph_pwr";
+
+		/* EC turns on with switchcap_on; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp5000_s5: pp5000-s5-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp5000_s5";
+
+		/* EC turns on with en_pp5000_s5; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp3300_z1: pp3300-z1-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_z1";
+
+		/* EC turns on with en_pp3300_z1; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp3300_codec: pp3300-codec-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_codec";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 105 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&en_pp3300_codec>;
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	pp3300_left_in_mlb: pp3300-left-in-mlb-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_left_in_mlb";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 80 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&en_pp3300_dx_edp>;
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	pp3300_mcu_fp:
+	pp3300_fp_ls:
+	pp3300_fp_mcu: pp3300-fp-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_fp";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		regulator-boot-on;
+		regulator-always-on;
+
+		/*
+		 * WARNING: it is intentional that GPIO 77 isn't listed here.
+		 * The userspace script for updating the fingerprint firmware
+		 * needs to control the FP regulators during a FW update,
+		 * hence the signal can't be owned by the kernel regulator.
+		 */
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&en_fp_rails>;
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	pp3300_hub: pp3300-hub-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_hub";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		regulator-boot-on;
+		regulator-always-on;
+
+		gpio = <&tlmm 157 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hub_en>;
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	pp3300_tp: pp3300-tp-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_tp";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		/* AP turns on with PP1800_L18B_S0; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	pp3300_ssd: pp3300-ssd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_ssd";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 51 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ssd_en>;
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	pp2850_vcm_wf_cam: pp2850-vcm-wf-cam-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp2850_vcm_wf_cam";
+
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+
+		gpio = <&tlmm 119 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wf_cam_en>;
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	pp2850_wf_cam: pp2850-wf-cam-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp2850_wf_cam";
+
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+
+		gpio = <&tlmm 119 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/*
+		 * The pinconf can only be referenced once so we put it on the
+		 * first regulator and comment it out here.
+		 *
+		 * pinctrl-names = "default";
+		 * pinctrl-0 = <&wf_cam_en>;
+		 */
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	pp1800_fp: pp1800-fp-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_fp";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		regulator-boot-on;
+		regulator-always-on;
+
+		/*
+		 * WARNING: it is intentional that GPIO 77 isn't listed here.
+		 * The userspace script for updating the fingerprint firmware
+		 * needs to control the FP regulators during a FW update,
+		 * hence the signal can't be owned by the kernel regulator.
+		 */
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&en_fp_rails>;
+
+		vin-supply = <&pp1800_l18b_s0>;
+		status = "disabled";
+	};
+
+	pp1800_wf_cam: pp1800-wf-cam-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_wf_cam";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 119 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/*
+		 * The pinconf can only be referenced once so we put it on the
+		 * first regulator and comment it out here.
+		 *
+		 * pinctrl-names = "default";
+		 * pinctrl-0 = <&wf_cam_en>;
+		 */
+
+		vin-supply = <&vreg_l19b_s0>;
+	};
+
+	pp1200_wf_cam: pp1200-wf-cam-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1200_wf_cam";
+
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+
+		gpio = <&tlmm 119 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/*
+		 * The pinconf can only be referenced once so we put it on the
+		 * first regulator and comment it out here.
+		 *
+		 * pinctrl-names = "default";
+		 * pinctrl-0 = <&wf_cam_en>;
+		 */
+
+		vin-supply = <&pp3300_z1>;
+	};
+
+	/* BOARD-SPECIFIC TOP LEVEL NODES */
+
+	pwmleds {
+		compatible = "pwm-leds";
+		status = "disabled";
+		keyboard_backlight: keyboard-backlight {
+			status = "disabled";
+			label = "cros_ec::kbd_backlight";
+			pwms = <&cros_ec_pwm 0>;
+			max-brightness = <1023>;
+		};
+	};
+};
+
+/*
+ * BOARD-LOCAL NAMES FOR REGULATORS THAT CONNECT TO QCARD
+ *
+ * Names are only listed here if regulators go somewhere other than a
+ * testpoint.
+ */
+
+/* From Qcard to our board; ordered by PMIC-ID / rail number */
+
+pp1256_s8b: &vreg_s8b_1p256 {};
+
+pp1800_l18b_s0: &vreg_l18b_1p8 {};
+pp1800_l18b:    &vreg_l18b_1p8 {};
+
+vreg_l19b_s0: &vreg_l19b_1p8 {};
+
+pp1800_alc5682: &vreg_l2c_1p8 {};
+pp1800_l2c:     &vreg_l2c_1p8 {};
+
+vreg_l4c: &vreg_l4c_1p8_3p0 {};
+
+ppvar_l6c: &vreg_l6c_2p96 {};
+
+pp3000_l7c: &vreg_l7c_3p0 {};
+
+pp1800_prox: &vreg_l8c_1p8 {};
+pp1800_l8c:  &vreg_l8c_1p8 {};
+
+pp2950_l9c: &vreg_l9c_2p96 {};
+
+pp1800_lcm:  &vreg_l12c_1p8 {};
+pp1800_mipi: &vreg_l12c_1p8 {};
+pp1800_l12c: &vreg_l12c_1p8 {};
+
+pp3300_lcm:  &vreg_l13c_3p0 {};
+pp3300_mipi: &vreg_l13c_3p0 {};
+pp3300_l13c: &vreg_l13c_3p0 {};
+
+/* From our board to Qcard; ordered same as node definition above */
+
+vreg_edp_bl: &ppvar_sys {};
+
+ts_avdd:      &pp3300_left_in_mlb {};
+vreg_edp_3p3: &pp3300_left_in_mlb {};
+
+/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+
+ap_i2c_tpm: &i2c14 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tpm@50 {
+		compatible = "google,cr50";
+		reg = <0x50>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gsc_ap_int_odl>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <104 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
+/* NVMe drive, enabled on a per-board basis */
+&pcie1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie1_clkreq_n>, <&ssd_rst_l>, <&pe_wake_odl>;
+
+	perst-gpio = <&tlmm 2 GPIO_ACTIVE_LOW>;
+	vddpe-3v3-supply = <&pp3300_ssd>;
+};
+
+&pmk8350_rtc {
+	status = "disabled";
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
+&qupv3_id_1 {
+	status = "okay";
+};
+
+/* SD Card, enabled on a per-board basis */
+&sdhc_2 {
+	pinctrl-0 = <&sdc2_clk>, <&sdc2_cmd>, <&sdc2_data>, <&sd_cd_odl>;
+	pinctrl-1 = <&sdc2_clk_sleep>, <&sdc2_cmd_sleep>, <&sdc2_data_sleep>, <&sd_cd_odl>;
+
+	vmmc-supply = <&pp2950_l9c>;
+	vqmmc-supply = <&ppvar_l6c>;
+
+	cd-gpios = <&tlmm 91 GPIO_ACTIVE_LOW>;
+};
+
+/* Fingerprint, enabled on a per-board basis */
+ap_spi_fp: &spi9 {
+	pinctrl-0 = <&qup_spi9_data_clk>, <&qup_spi9_cs_gpio_init_high>, <&qup_spi9_cs_gpio>;
+
+	cs-gpios = <&tlmm 39 GPIO_ACTIVE_LOW>;
+
+	cros_ec_fp: ec@0 {
+		compatible = "google,cros-ec-spi";
+		reg = <0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <61 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fp_to_ap_irq_l>, <&fp_rst_l>, <&fpmcu_boot0>;
+		spi-max-frequency = <3000000>;
+	};
+};
+
+ap_ec_spi: &spi10 {
+	status = "okay";
+	pinctrl-0 = <&qup_spi10_data_clk>, <&qup_spi10_cs_gpio_init_high>, <&qup_spi10_cs_gpio>;
+
+	cs-gpios = <&tlmm 43 GPIO_ACTIVE_LOW>;
+
+	cros_ec: ec@0 {
+		compatible = "google,cros-ec-spi";
+		reg = <0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ap_ec_int_l>;
+		spi-max-frequency = <3000000>;
+
+		cros_ec_pwm: ec-pwm {
+			compatible = "google,cros-ec-pwm";
+			#pwm-cells = <1>;
+		};
+
+		i2c_tunnel: i2c-tunnel {
+			compatible = "google,cros-ec-i2c-tunnel";
+			google,remote-bus = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		typec {
+			compatible = "google,cros-ec-typec";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			usb_c0: connector@0 {
+				compatible = "usb-c-connector";
+				reg = <0>;
+				label = "left";
+				power-role = "dual";
+				data-role = "host";
+				try-power-role = "source";
+			};
+
+			usb_c1: connector@1 {
+				compatible = "usb-c-connector";
+				reg = <1>;
+				label = "right";
+				power-role = "dual";
+				data-role = "host";
+				try-power-role = "source";
+			};
+		};
+	};
+};
+
+#include <arm/cros-ec-keyboard.dtsi>
+#include <arm/cros-ec-sbs.dtsi>
+
+&keyboard_controller {
+	function-row-physmap = <
+		MATRIX_KEY(0x00, 0x02, 0)	/* T1 */
+		MATRIX_KEY(0x03, 0x02, 0)	/* T2 */
+		MATRIX_KEY(0x02, 0x02, 0)	/* T3 */
+		MATRIX_KEY(0x01, 0x02, 0)	/* T4 */
+		MATRIX_KEY(0x03, 0x04, 0)	/* T5 */
+		MATRIX_KEY(0x02, 0x04, 0)	/* T6 */
+		MATRIX_KEY(0x01, 0x04, 0)	/* T7 */
+		MATRIX_KEY(0x02, 0x09, 0)	/* T8 */
+		MATRIX_KEY(0x01, 0x09, 0)	/* T9 */
+		MATRIX_KEY(0x00, 0x04, 0)	/* T10 */
+	>;
+	linux,keymap = <
+		MATRIX_KEY(0x00, 0x02, KEY_BACK)
+		MATRIX_KEY(0x03, 0x02, KEY_REFRESH)
+		MATRIX_KEY(0x02, 0x02, KEY_ZOOM)
+		MATRIX_KEY(0x01, 0x02, KEY_SCALE)
+		MATRIX_KEY(0x03, 0x04, KEY_SYSRQ)
+		MATRIX_KEY(0x02, 0x04, KEY_BRIGHTNESSDOWN)
+		MATRIX_KEY(0x01, 0x04, KEY_BRIGHTNESSUP)
+		MATRIX_KEY(0x02, 0x09, KEY_MUTE)
+		MATRIX_KEY(0x01, 0x09, KEY_VOLUMEDOWN)
+		MATRIX_KEY(0x00, 0x04, KEY_VOLUMEUP)
+
+		CROS_STD_MAIN_KEYMAP
+	>;
+};
+
+&usb_1 {
+	status = "okay";
+};
+
+&usb_1_dwc3 {
+	dr_mode = "host";
+};
+
+&usb_1_hsphy {
+	status = "okay";
+};
+
+&usb_1_qmpphy {
+	status = "okay";
+};
+
+&usb_2 {
+	status = "okay";
+};
+
+&usb_2_dwc3 {
+	dr_mode = "host";
+};
+
+&usb_2_hsphy {
+	status = "okay";
+};
+
+/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
+
+&dp_hot_plug_det {
+	bias-disable;
+};
+
+&pcie1_clkreq_n {
+	bias-pull-up;
+	drive-strength = <2>;
+};
+
+&qspi_cs0 {
+	bias-disable;
+	drive-strength = <8>;
+};
+
+&qspi_clk {
+	bias-disable;
+	drive-strength = <8>;
+};
+
+&qspi_data01 {
+	/* High-Z when no transfers; nice to park the lines */
+	bias-pull-up;
+	drive-strength = <8>;
+};
+
+/* For ap_tp_i2c */
+&qup_i2c0_data_clk {
+	/* Has external pull */
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For ap_i2c_tpm */
+&qup_i2c14_data_clk {
+	/* Has external pull */
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For ap_spi_fp */
+&qup_spi9_data_clk {
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For ap_spi_fp */
+&qup_spi9_cs_gpio {
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For ap_ec_spi */
+&qup_spi10_data_clk {
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For ap_ec_spi */
+&qup_spi10_cs_gpio {
+	bias-disable;
+	drive-strength = <2>;
+};
+
+/* For uart_dbg */
+&qup_uart5_rx {
+	bias-pull-up;
+};
+
+/* For uart_dbg */
+&qup_uart5_tx {
+	bias-disable;
+	drive-strength = <2>;
+};
+
+&sdc2_clk {
+	bias-disable;
+	drive-strength = <16>;
+};
+
+&sdc2_cmd {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
+&sdc2_data {
+	bias-pull-up;
+	drive-strength = <10>;
+};
+
+/* PINCTRL - board-specific pinctrl */
+
+&pm7325_gpios {
+	/*
+	 * On a quick glance it might look like KYPD_VOL_UP_N is used, but
+	 * that only passes through to a debug connector and not to the actual
+	 * volume up key.
+	 */
+	status = "disabled"; /* No GPIOs are connected */
+};
+
+&pmk8350_gpios {
+	status = "disabled"; /* No GPIOs are connected */
+};
+
+&tlmm {
+	/* pinctrl settings for pins that have no real owners. */
+	pinctrl-names = "default";
+	pinctrl-0 = <&bios_flash_wp_od>;
+
+	amp_en: amp-en {
+		pins = "gpio63";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	ap_ec_int_l: ap-ec-int-l {
+		pins = "gpio18";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	bios_flash_wp_od: bios-flash-wp-od {
+		pins = "gpio16";
+		function = "gpio";
+		/* Has external pull */
+		bias-disable;
+	};
+
+	en_fp_rails: en-fp-rails {
+		pins = "gpio77";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-high;
+	};
+
+	en_pp3300_codec: en-pp3300-codec {
+		pins = "gpio105";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	en_pp3300_dx_edp: en-pp3300-dx-edp {
+		pins = "gpio80";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	fp_rst_l: fp-rst-l {
+		pins = "gpio78";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-high;
+	};
+
+	fp_to_ap_irq_l: fp-to-ap-irq-l {
+		pins = "gpio61";
+		function = "gpio";
+		/* Has external pullup */
+		bias-disable;
+	};
+
+	fpmcu_boot0: fpmcu-boot0 {
+		pins = "gpio68";
+		function = "gpio";
+		bias-disable;
+		output-low;
+	};
+
+	gsc_ap_int_odl: gsc-ap-int-odl {
+		pins = "gpio104";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	hp_irq: hp-irq {
+		pins = "gpio101";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	hub_en: hub-en {
+		pins = "gpio157";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	pe_wake_odl: pe-wake-odl {
+		pins = "gpio3";
+		function = "gpio";
+		/* Has external pull */
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	/* For ap_spi_fp */
+	qup_spi9_cs_gpio_init_high: qup-spi9-cs-gpio-init-high {
+		pins = "gpio39";
+		function = "gpio";
+		output-high;
+	};
+
+	/* For ap_ec_spi */
+	qup_spi10_cs_gpio_init_high: qup-spi10-cs-gpio-init-high {
+		pins = "gpio43";
+		function = "gpio";
+		output-high;
+	};
+
+	sar0_irq_odl: sar0-irq-odl {
+		pins = "gpio141";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	sar1_irq_odl: sar0-irq-odl {
+		pins = "gpio140";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	sd_cd_odl: sd-cd-odl {
+		pins = "gpio91";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	ssd_en: ssd-en {
+		pins = "gpio51";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	ssd_rst_l: ssd-rst-l {
+		pins = "gpio2";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-low;
+	};
+
+	tp_int_odl: tp-int-odl {
+		pins = "gpio7";
+		function = "gpio";
+		/* Has external pullup */
+		bias-disable;
+	};
+
+	wf_cam_en: wf-cam-en {
+		pins = "gpio119";
+		function = "gpio";
+		/* Has external pulldown */
+		bias-disable;
+		drive-strength = <2>;
+	};
+};

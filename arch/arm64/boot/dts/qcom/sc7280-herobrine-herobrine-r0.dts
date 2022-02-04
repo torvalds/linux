@@ -25,8 +25,7 @@
 
 / {
 	model = "Google Herobrine (rev0)";
-	compatible = "google,herobrine",
-		     "qcom,sc7280";
+	compatible = "google,herobrine-rev0", "qcom,sc7280";
 };
 
 / {
