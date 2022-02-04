@@ -281,17 +281,6 @@ void intel_crtc_free_hw_state(struct intel_crtc_state *crtc_state)
 	intel_crtc_put_color_blobs(crtc_state);
 }
 
-void intel_crtc_copy_color_blobs(struct intel_crtc_state *crtc_state,
-				 const struct intel_crtc_state *from_crtc_state)
-{
-	drm_property_replace_blob(&crtc_state->hw.degamma_lut,
-				  from_crtc_state->uapi.degamma_lut);
-	drm_property_replace_blob(&crtc_state->hw.gamma_lut,
-				  from_crtc_state->uapi.gamma_lut);
-	drm_property_replace_blob(&crtc_state->hw.ctm,
-				  from_crtc_state->uapi.ctm);
-}
-
 /**
  * intel_crtc_destroy_state - destroy crtc state
  * @crtc: drm crtc

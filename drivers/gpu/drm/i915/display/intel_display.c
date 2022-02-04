@@ -5604,32 +5604,37 @@ static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 
 static void
 intel_crtc_copy_uapi_to_hw_state_nomodeset(struct intel_atomic_state *state,
-					   struct intel_crtc_state *crtc_state)
+					   struct intel_crtc *crtc)
 {
-	const struct intel_crtc_state *master_crtc_state;
-	struct intel_crtc *master_crtc;
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
-	master_crtc = intel_master_crtc(crtc_state);
-	master_crtc_state = intel_atomic_get_new_crtc_state(state, master_crtc);
+	WARN_ON(crtc_state->bigjoiner_slave);
 
-	/* No need to copy state if the master state is unchanged */
-	if (master_crtc_state) {
-		crtc_state->uapi.color_mgmt_changed = master_crtc_state->uapi.color_mgmt_changed;
-		intel_crtc_copy_color_blobs(crtc_state, master_crtc_state);
-	}
+	drm_property_replace_blob(&crtc_state->hw.degamma_lut,
+				  crtc_state->uapi.degamma_lut);
+	drm_property_replace_blob(&crtc_state->hw.gamma_lut,
+				  crtc_state->uapi.gamma_lut);
+	drm_property_replace_blob(&crtc_state->hw.ctm,
+				  crtc_state->uapi.ctm);
 }
 
 static void
-intel_crtc_copy_uapi_to_hw_state(struct intel_atomic_state *state,
-				 struct intel_crtc_state *crtc_state)
+intel_crtc_copy_uapi_to_hw_state_modeset(struct intel_atomic_state *state,
+					 struct intel_crtc *crtc)
 {
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	WARN_ON(crtc_state->bigjoiner_slave);
+
 	crtc_state->hw.enable = crtc_state->uapi.enable;
 	crtc_state->hw.active = crtc_state->uapi.active;
 	crtc_state->hw.mode = crtc_state->uapi.mode;
 	crtc_state->hw.adjusted_mode = crtc_state->uapi.adjusted_mode;
 	crtc_state->hw.scaling_filter = crtc_state->uapi.scaling_filter;
 
-	intel_crtc_copy_uapi_to_hw_state_nomodeset(state, crtc_state);
+	intel_crtc_copy_uapi_to_hw_state_nomodeset(state, crtc);
 }
 
 static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state)
@@ -5645,7 +5650,6 @@ static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state
 	crtc_state->uapi.adjusted_mode = crtc_state->hw.adjusted_mode;
 	crtc_state->uapi.scaling_filter = crtc_state->hw.scaling_filter;
 
-	/* copy color blobs to uapi */
 	drm_property_replace_blob(&crtc_state->uapi.degamma_lut,
 				  crtc_state->hw.degamma_lut);
 	drm_property_replace_blob(&crtc_state->uapi.gamma_lut,
@@ -5654,61 +5658,79 @@ static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state
 				  crtc_state->hw.ctm);
 }
 
-static int
-copy_bigjoiner_crtc_state(struct intel_crtc_state *crtc_state,
-			  const struct intel_crtc_state *from_crtc_state)
+static void
+copy_bigjoiner_crtc_state_nomodeset(struct intel_atomic_state *state,
+				    struct intel_crtc *slave_crtc)
 {
+	struct intel_crtc_state *slave_crtc_state =
+		intel_atomic_get_new_crtc_state(state, slave_crtc);
+	struct intel_crtc *master_crtc = intel_master_crtc(slave_crtc_state);
+	const struct intel_crtc_state *master_crtc_state =
+		intel_atomic_get_new_crtc_state(state, master_crtc);
+
+	drm_property_replace_blob(&slave_crtc_state->hw.degamma_lut,
+				  master_crtc_state->hw.degamma_lut);
+	drm_property_replace_blob(&slave_crtc_state->hw.gamma_lut,
+				  master_crtc_state->hw.gamma_lut);
+	drm_property_replace_blob(&slave_crtc_state->hw.ctm,
+				  master_crtc_state->hw.ctm);
+
+	slave_crtc_state->uapi.color_mgmt_changed = master_crtc_state->uapi.color_mgmt_changed;
+}
+
+static int
+copy_bigjoiner_crtc_state_modeset(struct intel_atomic_state *state,
+				  struct intel_crtc *slave_crtc)
+{
+	struct intel_crtc_state *slave_crtc_state =
+		intel_atomic_get_new_crtc_state(state, slave_crtc);
+	struct intel_crtc *master_crtc = intel_master_crtc(slave_crtc_state);
+	const struct intel_crtc_state *master_crtc_state =
+		intel_atomic_get_new_crtc_state(state, master_crtc);
 	struct intel_crtc_state *saved_state;
 
-	saved_state = kmemdup(from_crtc_state, sizeof(*saved_state), GFP_KERNEL);
+	saved_state = kmemdup(master_crtc_state, sizeof(*saved_state), GFP_KERNEL);
 	if (!saved_state)
 		return -ENOMEM;
 
-	saved_state->uapi = crtc_state->uapi;
-	saved_state->scaler_state = crtc_state->scaler_state;
-	saved_state->shared_dpll = crtc_state->shared_dpll;
-	saved_state->dpll_hw_state = crtc_state->dpll_hw_state;
-	saved_state->crc_enabled = crtc_state->crc_enabled;
+	/* preserve some things from the slave's original crtc state */
+	saved_state->uapi = slave_crtc_state->uapi;
+	saved_state->scaler_state = slave_crtc_state->scaler_state;
+	saved_state->shared_dpll = slave_crtc_state->shared_dpll;
+	saved_state->dpll_hw_state = slave_crtc_state->dpll_hw_state;
+	saved_state->crc_enabled = slave_crtc_state->crc_enabled;
 
-	intel_crtc_free_hw_state(crtc_state);
-	memcpy(crtc_state, saved_state, sizeof(*crtc_state));
+	intel_crtc_free_hw_state(slave_crtc_state);
+	memcpy(slave_crtc_state, saved_state, sizeof(*slave_crtc_state));
 	kfree(saved_state);
 
 	/* Re-init hw state */
-	memset(&crtc_state->hw, 0, sizeof(saved_state->hw));
-	crtc_state->hw.enable = from_crtc_state->hw.enable;
-	crtc_state->hw.active = from_crtc_state->hw.active;
-	crtc_state->hw.mode = from_crtc_state->hw.mode;
-	crtc_state->hw.pipe_mode = from_crtc_state->hw.pipe_mode;
-	crtc_state->hw.adjusted_mode = from_crtc_state->hw.adjusted_mode;
-	crtc_state->hw.scaling_filter = from_crtc_state->hw.scaling_filter;
+	memset(&slave_crtc_state->hw, 0, sizeof(slave_crtc_state->hw));
+	slave_crtc_state->hw.enable = master_crtc_state->hw.enable;
+	slave_crtc_state->hw.active = master_crtc_state->hw.active;
+	slave_crtc_state->hw.mode = master_crtc_state->hw.mode;
+	slave_crtc_state->hw.pipe_mode = master_crtc_state->hw.pipe_mode;
+	slave_crtc_state->hw.adjusted_mode = master_crtc_state->hw.adjusted_mode;
+	slave_crtc_state->hw.scaling_filter = master_crtc_state->hw.scaling_filter;
 
-	drm_property_replace_blob(&crtc_state->hw.degamma_lut,
-				  from_crtc_state->hw.degamma_lut);
-	drm_property_replace_blob(&crtc_state->hw.gamma_lut,
-				  from_crtc_state->hw.gamma_lut);
-	drm_property_replace_blob(&crtc_state->hw.ctm,
-				  from_crtc_state->hw.ctm);
+	copy_bigjoiner_crtc_state_nomodeset(state, slave_crtc);
 
 	/* Some fixups */
-	crtc_state->uapi.mode_changed = from_crtc_state->uapi.mode_changed;
-	crtc_state->uapi.connectors_changed = from_crtc_state->uapi.connectors_changed;
-	crtc_state->uapi.active_changed = from_crtc_state->uapi.active_changed;
-	crtc_state->uapi.color_mgmt_changed = from_crtc_state->uapi.color_mgmt_changed;
-	crtc_state->nv12_planes = crtc_state->c8_planes = crtc_state->update_planes = 0;
-	crtc_state->bigjoiner_linked_crtc = to_intel_crtc(from_crtc_state->uapi.crtc);
-	crtc_state->bigjoiner_slave = true;
-	crtc_state->cpu_transcoder = from_crtc_state->cpu_transcoder;
-	crtc_state->has_audio = from_crtc_state->has_audio;
+	slave_crtc_state->uapi.mode_changed = master_crtc_state->uapi.mode_changed;
+	slave_crtc_state->uapi.connectors_changed = master_crtc_state->uapi.connectors_changed;
+	slave_crtc_state->uapi.active_changed = master_crtc_state->uapi.active_changed;
+	slave_crtc_state->cpu_transcoder = master_crtc_state->cpu_transcoder;
+	slave_crtc_state->has_audio = master_crtc_state->has_audio;
 
 	return 0;
 }
 
 static int
 intel_crtc_prepare_cleared_state(struct intel_atomic_state *state,
-				 struct intel_crtc_state *crtc_state)
+				 struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *saved_state;
 
@@ -5738,7 +5760,7 @@ intel_crtc_prepare_cleared_state(struct intel_atomic_state *state,
 	memcpy(crtc_state, saved_state, sizeof(*crtc_state));
 	kfree(saved_state);
 
-	intel_crtc_copy_uapi_to_hw_state(state, crtc_state);
+	intel_crtc_copy_uapi_to_hw_state_modeset(state, crtc);
 
 	return 0;
 }
@@ -7378,6 +7400,9 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 	struct intel_crtc_state *slave_crtc_state;
 	struct intel_crtc *slave_crtc;
 
+	WARN_ON(master_crtc_state->bigjoiner_linked_crtc);
+	WARN_ON(master_crtc_state->bigjoiner_slave);
+
 	if (!master_crtc_state->bigjoiner)
 		return 0;
 
@@ -7390,7 +7415,6 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 		return -EINVAL;
 	}
 
-	master_crtc_state->bigjoiner_linked_crtc = slave_crtc;
 	slave_crtc_state = intel_atomic_get_crtc_state(&state->base, slave_crtc);
 	if (IS_ERR(slave_crtc_state))
 		return PTR_ERR(slave_crtc_state);
@@ -7399,11 +7423,28 @@ static int intel_atomic_check_bigjoiner(struct intel_atomic_state *state,
 	if (slave_crtc_state->uapi.enable)
 		goto claimed;
 
-	drm_dbg_kms(&i915->drm,
-		    "[CRTC:%d:%s] Used as slave for big joiner\n",
-		    slave_crtc->base.base.id, slave_crtc->base.name);
+	/*
+	 * The state copy logic assumes the master crtc gets processed
+	 * before the slave crtc during the main compute_config loop.
+	 * This works because the crtcs are created in pipe order,
+	 * and the hardware requires master pipe < slave pipe as well.
+	 * Should that change we need to rethink the logic.
+	 */
+	if (WARN_ON(drm_crtc_index(&master_crtc->base) > drm_crtc_index(&slave_crtc->base)))
+		return -EINVAL;
 
-	return copy_bigjoiner_crtc_state(slave_crtc_state, master_crtc_state);
+	drm_dbg_kms(&i915->drm,
+		    "[CRTC:%d:%s] Used as slave for big joiner master [CRTC:%d:%s]\n",
+		    slave_crtc->base.base.id, slave_crtc->base.name,
+		    master_crtc->base.base.id, master_crtc->base.name);
+
+	master_crtc_state->bigjoiner_linked_crtc = slave_crtc;
+	master_crtc_state->bigjoiner_slave = false;
+
+	slave_crtc_state->bigjoiner_linked_crtc = master_crtc;
+	slave_crtc_state->bigjoiner_slave = true;
+
+	return copy_bigjoiner_crtc_state_modeset(state, slave_crtc);
 
 claimed:
 	drm_dbg_kms(&i915->drm,
@@ -7415,15 +7456,19 @@ claimed:
 }
 
 static void kill_bigjoiner_slave(struct intel_atomic_state *state,
-				 struct intel_crtc_state *master_crtc_state)
+				 struct intel_crtc *master_crtc)
 {
+	struct intel_crtc_state *master_crtc_state =
+		intel_atomic_get_new_crtc_state(state, master_crtc);
+	struct intel_crtc *slave_crtc = master_crtc_state->bigjoiner_linked_crtc;
 	struct intel_crtc_state *slave_crtc_state =
-		intel_atomic_get_new_crtc_state(state, master_crtc_state->bigjoiner_linked_crtc);
+		intel_atomic_get_new_crtc_state(state, slave_crtc);
 
 	slave_crtc_state->bigjoiner = master_crtc_state->bigjoiner = false;
 	slave_crtc_state->bigjoiner_slave = master_crtc_state->bigjoiner_slave = false;
 	slave_crtc_state->bigjoiner_linked_crtc = master_crtc_state->bigjoiner_linked_crtc = NULL;
-	intel_crtc_copy_uapi_to_hw_state(state, slave_crtc_state);
+
+	intel_crtc_copy_uapi_to_hw_state_modeset(state, slave_crtc);
 }
 
 /**
@@ -7609,7 +7654,7 @@ static int intel_bigjoiner_add_affected_crtcs(struct intel_atomic_state *state)
 		/* Kill old bigjoiner link, we may re-establish afterwards */
 		if (intel_crtc_needs_modeset(crtc_state) &&
 		    crtc_state->bigjoiner && !crtc_state->bigjoiner_slave)
-			kill_bigjoiner_slave(state, crtc_state);
+			kill_bigjoiner_slave(state, crtc);
 	}
 
 	return 0;
@@ -7653,21 +7698,22 @@ static int intel_atomic_check(struct drm_device *dev,
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		if (!intel_crtc_needs_modeset(new_crtc_state)) {
-			/* Light copy */
-			intel_crtc_copy_uapi_to_hw_state_nomodeset(state, new_crtc_state);
-
+			if (new_crtc_state->bigjoiner_slave)
+				copy_bigjoiner_crtc_state_nomodeset(state, crtc);
+			else
+				intel_crtc_copy_uapi_to_hw_state_nomodeset(state, crtc);
 			continue;
 		}
 
 		if (!new_crtc_state->uapi.enable) {
 			if (!new_crtc_state->bigjoiner_slave) {
-				intel_crtc_copy_uapi_to_hw_state(state, new_crtc_state);
+				intel_crtc_copy_uapi_to_hw_state_modeset(state, crtc);
 				any_ms = true;
 			}
 			continue;
 		}
 
-		ret = intel_crtc_prepare_cleared_state(state, new_crtc_state);
+		ret = intel_crtc_prepare_cleared_state(state, crtc);
 		if (ret)
 			goto fail;
 
