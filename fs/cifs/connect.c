@@ -162,7 +162,7 @@ static void cifs_resolve_server(struct work_struct *work)
 	mutex_unlock(&server->srv_mutex);
 }
 
-/**
+/*
  * Mark all sessions and tcons for reconnect.
  *
  * @server needs to be previously set to CifsNeedReconnect.
@@ -1831,13 +1831,9 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 		int i;
 
 		for (i = 1; i < chan_count; i++) {
-			/*
-			 * note: for now, we're okay accessing ses->chans
-			 * without chan_lock. But when chans can go away, we'll
-			 * need to introduce ref counting to make sure that chan
-			 * is not freed from under us.
-			 */
+			spin_unlock(&ses->chan_lock);
 			cifs_put_tcp_session(ses->chans[i].server, 0);
+			spin_lock(&ses->chan_lock);
 			ses->chans[i].server = NULL;
 		}
 	}
@@ -1979,6 +1975,19 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 			ctx->password = NULL;
 			goto out_key_put;
 		}
+	}
+
+	ctx->workstation_name = kstrdup(ses->workstation_name, GFP_KERNEL);
+	if (!ctx->workstation_name) {
+		cifs_dbg(FYI, "Unable to allocate memory for workstation_name\n");
+		rc = -ENOMEM;
+		kfree(ctx->username);
+		ctx->username = NULL;
+		kfree_sensitive(ctx->password);
+		ctx->password = NULL;
+		kfree(ctx->domainname);
+		ctx->domainname = NULL;
+		goto out_key_put;
 	}
 
 out_key_put:
