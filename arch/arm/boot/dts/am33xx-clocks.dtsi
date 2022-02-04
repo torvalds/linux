@@ -501,20 +501,27 @@
 		clock-div = <2>;
 	};
 
-	gfx_fclk_clksel_ck: gfx_fclk_clksel_ck@52c {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&dpll_core_m4_ck>, <&dpll_per_m2_ck>;
-		ti,bit-shift = <1>;
-		reg = <0x052c>;
-	};
+	clock@52c {
+		compatible = "ti,clksel";
+		reg = <0x52c>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	gfx_fck_div_ck: gfx_fck_div_ck@52c {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&gfx_fclk_clksel_ck>;
-		reg = <0x052c>;
-		ti,max-div = <2>;
+		gfx_fclk_clksel_ck: clock-gfx-fclk-clksel {
+			#clock-cells = <0>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "gfx_fclk_clksel_ck";
+			clocks = <&dpll_core_m4_ck>, <&dpll_per_m2_ck>;
+			ti,bit-shift = <1>;
+		};
+
+		gfx_fck_div_ck: clock-gfx-fck-div {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "gfx_fck_div_ck";
+			clocks = <&gfx_fclk_clksel_ck>;
+			ti,max-div = <2>;
+		};
 	};
 
 	sysclkout_pre_ck: sysclkout_pre_ck@700 {
