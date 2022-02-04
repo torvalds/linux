@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <cxlmem.h>
+#include <cxlpci.h>
 #include <cxl.h>
 #include "core.h"
 
@@ -265,10 +266,24 @@ struct cxl_decoder *to_cxl_decoder(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_decoder, CXL);
 
+static void cxl_ep_release(struct cxl_ep *ep)
+{
+	if (!ep)
+		return;
+	list_del(&ep->list);
+	put_device(ep->ep);
+	kfree(ep);
+}
+
 static void cxl_port_release(struct device *dev)
 {
 	struct cxl_port *port = to_cxl_port(dev);
+	struct cxl_ep *ep, *_e;
 
+	cxl_device_lock(dev);
+	list_for_each_entry_safe(ep, _e, &port->endpoints, list)
+		cxl_ep_release(ep);
+	cxl_device_unlock(dev);
 	ida_free(&cxl_port_ida, port->id);
 	kfree(port);
 }
@@ -359,6 +374,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	port->component_reg_phys = component_reg_phys;
 	ida_init(&port->decoder_ida);
 	INIT_LIST_HEAD(&port->dports);
+	INIT_LIST_HEAD(&port->endpoints);
 
 	device_initialize(dev);
 	device_set_pm_not_required(dev);
@@ -457,25 +473,36 @@ int devm_cxl_register_pci_bus(struct device *host, struct device *uport,
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_register_pci_bus, CXL);
 
+static bool dev_is_cxl_root_child(struct device *dev)
+{
+	struct cxl_port *port, *parent;
+
+	if (!is_cxl_port(dev))
+		return false;
+
+	port = to_cxl_port(dev);
+	if (is_cxl_root(port))
+		return false;
+
+	parent = to_cxl_port(port->dev.parent);
+	if (is_cxl_root(parent))
+		return true;
+
+	return false;
+}
+
 /* Find a 2nd level CXL port that has a dport that is an ancestor of @match */
 static int match_root_child(struct device *dev, const void *match)
 {
 	const struct device *iter = NULL;
-	struct cxl_port *port, *parent;
 	struct cxl_dport *dport;
+	struct cxl_port *port;
 
-	if (!is_cxl_port(dev))
+	if (!dev_is_cxl_root_child(dev))
 		return 0;
 
 	port = to_cxl_port(dev);
-	if (is_cxl_root(port))
-		return 0;
-
-	parent = to_cxl_port(port->dev.parent);
-	if (!is_cxl_root(parent))
-		return 0;
-
-	cxl_device_lock(&port->dev);
+	cxl_device_lock(dev);
 	list_for_each_entry(dport, &port->dports, list) {
 		iter = match;
 		while (iter) {
@@ -485,7 +512,7 @@ static int match_root_child(struct device *dev, const void *match)
 		}
 	}
 out:
-	cxl_device_unlock(&port->dev);
+	cxl_device_unlock(dev);
 
 	return !!iter;
 }
@@ -641,6 +668,388 @@ struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 	return dport;
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_dport, CXL);
+
+static struct cxl_ep *find_ep(struct cxl_port *port, struct device *ep_dev)
+{
+	struct cxl_ep *ep;
+
+	device_lock_assert(&port->dev);
+	list_for_each_entry(ep, &port->endpoints, list)
+		if (ep->ep == ep_dev)
+			return ep;
+	return NULL;
+}
+
+static int add_ep(struct cxl_port *port, struct cxl_ep *new)
+{
+	struct cxl_ep *dup;
+
+	cxl_device_lock(&port->dev);
+	if (port->dead) {
+		cxl_device_unlock(&port->dev);
+		return -ENXIO;
+	}
+	dup = find_ep(port, new->ep);
+	if (!dup)
+		list_add_tail(&new->list, &port->endpoints);
+	cxl_device_unlock(&port->dev);
+
+	return dup ? -EEXIST : 0;
+}
+
+/**
+ * cxl_add_ep - register an endpoint's interest in a port
+ * @port: a port in the endpoint's topology ancestry
+ * @ep_dev: device representing the endpoint
+ *
+ * Intermediate CXL ports are scanned based on the arrival of endpoints.
+ * When those endpoints depart the port can be destroyed once all
+ * endpoints that care about that port have been removed.
+ */
+static int cxl_add_ep(struct cxl_port *port, struct device *ep_dev)
+{
+	struct cxl_ep *ep;
+	int rc;
+
+	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	if (!ep)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ep->list);
+	ep->ep = get_device(ep_dev);
+
+	rc = add_ep(port, ep);
+	if (rc)
+		cxl_ep_release(ep);
+	return rc;
+}
+
+struct cxl_find_port_ctx {
+	const struct device *dport_dev;
+	const struct cxl_port *parent_port;
+};
+
+static int match_port_by_dport(struct device *dev, const void *data)
+{
+	const struct cxl_find_port_ctx *ctx = data;
+	struct cxl_port *port;
+
+	if (!is_cxl_port(dev))
+		return 0;
+	if (ctx->parent_port && dev->parent != &ctx->parent_port->dev)
+		return 0;
+
+	port = to_cxl_port(dev);
+	return cxl_find_dport_by_dev(port, ctx->dport_dev) != NULL;
+}
+
+static struct cxl_port *__find_cxl_port(struct cxl_find_port_ctx *ctx)
+{
+	struct device *dev;
+
+	if (!ctx->dport_dev)
+		return NULL;
+
+	dev = bus_find_device(&cxl_bus_type, NULL, ctx, match_port_by_dport);
+	if (dev)
+		return to_cxl_port(dev);
+	return NULL;
+}
+
+static struct cxl_port *find_cxl_port(struct device *dport_dev)
+{
+	struct cxl_find_port_ctx ctx = {
+		.dport_dev = dport_dev,
+	};
+
+	return __find_cxl_port(&ctx);
+}
+
+static struct cxl_port *find_cxl_port_at(struct cxl_port *parent_port,
+					 struct device *dport_dev)
+{
+	struct cxl_find_port_ctx ctx = {
+		.dport_dev = dport_dev,
+		.parent_port = parent_port,
+	};
+
+	return __find_cxl_port(&ctx);
+}
+
+/*
+ * All users of grandparent() are using it to walk PCIe-like swich port
+ * hierarchy. A PCIe switch is comprised of a bridge device representing the
+ * upstream switch port and N bridges representing downstream switch ports. When
+ * bridges stack the grand-parent of a downstream switch port is another
+ * downstream switch port in the immediate ancestor switch.
+ */
+static struct device *grandparent(struct device *dev)
+{
+	if (dev && dev->parent)
+		return dev->parent->parent;
+	return NULL;
+}
+
+/*
+ * The natural end of life of a non-root 'cxl_port' is when its parent port goes
+ * through a ->remove() event ("top-down" unregistration). The unnatural trigger
+ * for a port to be unregistered is when all memdevs beneath that port have gone
+ * through ->remove(). This "bottom-up" removal selectively removes individual
+ * child ports manually. This depends on devm_cxl_add_port() to not change is
+ * devm action registration order.
+ */
+static void delete_switch_port(struct cxl_port *port, struct list_head *dports)
+{
+	struct cxl_dport *dport, *_d;
+
+	list_for_each_entry_safe(dport, _d, dports, list) {
+		devm_release_action(&port->dev, cxl_dport_unlink, dport);
+		devm_release_action(&port->dev, cxl_dport_remove, dport);
+		devm_kfree(&port->dev, dport);
+	}
+	devm_release_action(port->dev.parent, cxl_unlink_uport, port);
+	devm_release_action(port->dev.parent, unregister_port, port);
+}
+
+static void cxl_detach_ep(void *data)
+{
+	struct cxl_memdev *cxlmd = data;
+	struct device *iter;
+
+	for (iter = &cxlmd->dev; iter; iter = grandparent(iter)) {
+		struct device *dport_dev = grandparent(iter);
+		struct cxl_port *port, *parent_port;
+		LIST_HEAD(reap_dports);
+		struct cxl_ep *ep;
+
+		if (!dport_dev)
+			break;
+
+		port = find_cxl_port(dport_dev);
+		if (!port || is_cxl_root(port)) {
+			put_device(&port->dev);
+			continue;
+		}
+
+		parent_port = to_cxl_port(port->dev.parent);
+		cxl_device_lock(&parent_port->dev);
+		if (!parent_port->dev.driver) {
+			/*
+			 * The bottom-up race to delete the port lost to a
+			 * top-down port disable, give up here, because the
+			 * parent_port ->remove() will have cleaned up all
+			 * descendants.
+			 */
+			cxl_device_unlock(&parent_port->dev);
+			put_device(&port->dev);
+			continue;
+		}
+
+		cxl_device_lock(&port->dev);
+		ep = find_ep(port, &cxlmd->dev);
+		dev_dbg(&cxlmd->dev, "disconnect %s from %s\n",
+			ep ? dev_name(ep->ep) : "", dev_name(&port->dev));
+		cxl_ep_release(ep);
+		if (ep && !port->dead && list_empty(&port->endpoints) &&
+		    !is_cxl_root(parent_port)) {
+			/*
+			 * This was the last ep attached to a dynamically
+			 * enumerated port. Block new cxl_add_ep() and garbage
+			 * collect the port.
+			 */
+			port->dead = true;
+			list_splice_init(&port->dports, &reap_dports);
+		}
+		cxl_device_unlock(&port->dev);
+
+		if (!list_empty(&reap_dports)) {
+			dev_dbg(&cxlmd->dev, "delete %s\n",
+				dev_name(&port->dev));
+			delete_switch_port(port, &reap_dports);
+		}
+		put_device(&port->dev);
+		cxl_device_unlock(&parent_port->dev);
+	}
+}
+
+static resource_size_t find_component_registers(struct device *dev)
+{
+	struct cxl_register_map map;
+	struct pci_dev *pdev;
+
+	/*
+	 * Theoretically, CXL component registers can be hosted on a
+	 * non-PCI device, in practice, only cxl_test hits this case.
+	 */
+	if (!dev_is_pci(dev))
+		return CXL_RESOURCE_NONE;
+
+	pdev = to_pci_dev(dev);
+
+	cxl_find_regblock(pdev, CXL_REGLOC_RBI_COMPONENT, &map);
+	return cxl_regmap_to_base(pdev, &map);
+}
+
+static int add_port_attach_ep(struct cxl_memdev *cxlmd,
+			      struct device *uport_dev,
+			      struct device *dport_dev)
+{
+	struct device *dparent = grandparent(dport_dev);
+	struct cxl_port *port, *parent_port = NULL;
+	resource_size_t component_reg_phys;
+	int rc;
+
+	if (!dparent) {
+		/*
+		 * The iteration reached the topology root without finding the
+		 * CXL-root 'cxl_port' on a previous iteration, fail for now to
+		 * be re-probed after platform driver attaches.
+		 */
+		dev_dbg(&cxlmd->dev, "%s is a root dport\n",
+			dev_name(dport_dev));
+		return -ENXIO;
+	}
+
+	parent_port = find_cxl_port(dparent);
+	if (!parent_port) {
+		/* iterate to create this parent_port */
+		return -EAGAIN;
+	}
+
+	cxl_device_lock(&parent_port->dev);
+	if (!parent_port->dev.driver) {
+		dev_warn(&cxlmd->dev,
+			 "port %s:%s disabled, failed to enumerate CXL.mem\n",
+			 dev_name(&parent_port->dev), dev_name(uport_dev));
+		port = ERR_PTR(-ENXIO);
+		goto out;
+	}
+
+	port = find_cxl_port_at(parent_port, dport_dev);
+	if (!port) {
+		component_reg_phys = find_component_registers(uport_dev);
+		port = devm_cxl_add_port(&parent_port->dev, uport_dev,
+					 component_reg_phys, parent_port);
+		if (!IS_ERR(port))
+			get_device(&port->dev);
+	}
+out:
+	cxl_device_unlock(&parent_port->dev);
+
+	if (IS_ERR(port))
+		rc = PTR_ERR(port);
+	else {
+		dev_dbg(&cxlmd->dev, "add to new port %s:%s\n",
+			dev_name(&port->dev), dev_name(port->uport));
+		rc = cxl_add_ep(port, &cxlmd->dev);
+		if (rc == -EEXIST) {
+			/*
+			 * "can't" happen, but this error code means
+			 * something to the caller, so translate it.
+			 */
+			rc = -ENXIO;
+		}
+		put_device(&port->dev);
+	}
+
+	put_device(&parent_port->dev);
+	return rc;
+}
+
+int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd)
+{
+	struct device *dev = &cxlmd->dev;
+	struct device *iter;
+	int rc;
+
+	rc = devm_add_action_or_reset(&cxlmd->dev, cxl_detach_ep, cxlmd);
+	if (rc)
+		return rc;
+
+	/*
+	 * Scan for and add all cxl_ports in this device's ancestry.
+	 * Repeat until no more ports are added. Abort if a port add
+	 * attempt fails.
+	 */
+retry:
+	for (iter = dev; iter; iter = grandparent(iter)) {
+		struct device *dport_dev = grandparent(iter);
+		struct device *uport_dev;
+		struct cxl_port *port;
+
+		if (!dport_dev)
+			return 0;
+
+		uport_dev = dport_dev->parent;
+		if (!uport_dev) {
+			dev_warn(dev, "at %s no parent for dport: %s\n",
+				 dev_name(iter), dev_name(dport_dev));
+			return -ENXIO;
+		}
+
+		dev_dbg(dev, "scan: iter: %s dport_dev: %s parent: %s\n",
+			dev_name(iter), dev_name(dport_dev),
+			dev_name(uport_dev));
+		port = find_cxl_port(dport_dev);
+		if (port) {
+			dev_dbg(&cxlmd->dev,
+				"found already registered port %s:%s\n",
+				dev_name(&port->dev), dev_name(port->uport));
+			rc = cxl_add_ep(port, &cxlmd->dev);
+
+			/*
+			 * If the endpoint already exists in the port's list,
+			 * that's ok, it was added on a previous pass.
+			 * Otherwise, retry in add_port_attach_ep() after taking
+			 * the parent_port lock as the current port may be being
+			 * reaped.
+			 */
+			if (rc && rc != -EEXIST) {
+				put_device(&port->dev);
+				return rc;
+			}
+
+			/* Any more ports to add between this one and the root? */
+			if (!dev_is_cxl_root_child(&port->dev)) {
+				put_device(&port->dev);
+				continue;
+			}
+
+			put_device(&port->dev);
+			return 0;
+		}
+
+		rc = add_port_attach_ep(cxlmd, uport_dev, dport_dev);
+		/* port missing, try to add parent */
+		if (rc == -EAGAIN)
+			continue;
+		/* failed to add ep or port */
+		if (rc)
+			return rc;
+		/* port added, new descendants possible, start over */
+		goto retry;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_enumerate_ports, CXL);
+
+struct cxl_dport *cxl_find_dport_by_dev(struct cxl_port *port,
+					const struct device *dev)
+{
+	struct cxl_dport *dport;
+
+	cxl_device_lock(&port->dev);
+	list_for_each_entry(dport, &port->dports, list)
+		if (dport->dport == dev) {
+			cxl_device_unlock(&port->dev);
+			return dport;
+		}
+
+	cxl_device_unlock(&port->dev);
+	return NULL;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_find_dport_by_dev, CXL);
 
 static int decoder_populate_targets(struct cxl_decoder *cxld,
 				    struct cxl_port *port, int *target_map)

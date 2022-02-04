@@ -262,8 +262,10 @@ struct cxl_nvdimm {
  * @uport: PCI or platform device implementing the upstream port capability
  * @id: id for port device-name
  * @dports: cxl_dport instances referenced by decoders
+ * @endpoints: cxl_ep instances, endpoints that are a descendant of this port
  * @decoder_ida: allocator for decoder ids
  * @component_reg_phys: component register capability base address (optional)
+ * @dead: last ep has been removed, force port re-creation
  * @depth: How deep this port is relative to the root. depth 0 is the root.
  */
 struct cxl_port {
@@ -271,8 +273,10 @@ struct cxl_port {
 	struct device *uport;
 	int id;
 	struct list_head dports;
+	struct list_head endpoints;
 	struct ida decoder_ida;
 	resource_size_t component_reg_phys;
+	bool dead;
 	unsigned int depth;
 };
 
@@ -289,6 +293,16 @@ struct cxl_dport {
 	int port_id;
 	resource_size_t component_reg_phys;
 	struct cxl_port *port;
+	struct list_head list;
+};
+
+/**
+ * struct cxl_ep - track an endpoint's interest in a port
+ * @ep: device that hosts a generic CXL endpoint (expander or accelerator)
+ * @list: node on port->endpoints list
+ */
+struct cxl_ep {
+	struct device *ep;
 	struct list_head list;
 };
 
@@ -313,9 +327,14 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   resource_size_t component_reg_phys,
 				   struct cxl_port *parent_port);
 struct cxl_port *find_cxl_root(struct device *dev);
+int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd);
+
 struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 				     struct device *dport, int port_id,
 				     resource_size_t component_reg_phys);
+struct cxl_dport *cxl_find_dport_by_dev(struct cxl_port *port,
+					const struct device *dev);
+
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
 bool is_cxl_decoder(struct device *dev);
