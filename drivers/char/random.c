@@ -365,7 +365,7 @@ static struct {
 
 static void extract_entropy(void *buf, size_t nbytes);
 
-static void crng_reseed(struct crng_state *crng, bool use_input_pool);
+static void crng_reseed(struct crng_state *crng);
 
 /*
  * This function adds bytes into the entropy "pool".  It does not
@@ -464,7 +464,7 @@ static void credit_entropy_bits(int nbits)
 	trace_credit_entropy_bits(nbits, entropy_count, _RET_IP_);
 
 	if (crng_init < 2 && entropy_count >= POOL_MIN_BITS)
-		crng_reseed(&primary_crng, true);
+		crng_reseed(&primary_crng);
 }
 
 /*********************************************************************
@@ -701,7 +701,7 @@ static int crng_slow_load(const u8 *cp, size_t len)
 	return 1;
 }
 
-static void crng_reseed(struct crng_state *crng, bool use_input_pool)
+static void crng_reseed(struct crng_state *crng)
 {
 	unsigned long flags;
 	int i;
@@ -710,7 +710,7 @@ static void crng_reseed(struct crng_state *crng, bool use_input_pool)
 		u32 key[8];
 	} buf;
 
-	if (use_input_pool) {
+	if (crng == &primary_crng) {
 		int entropy_count;
 		do {
 			entropy_count = READ_ONCE(input_pool.entropy_count);
@@ -748,7 +748,7 @@ static void _extract_crng(struct crng_state *crng, u8 out[CHACHA_BLOCK_SIZE])
 		init_time = READ_ONCE(crng->init_time);
 		if (time_after(READ_ONCE(crng_global_init_time), init_time) ||
 		    time_after(jiffies, init_time + CRNG_RESEED_INTERVAL))
-			crng_reseed(crng, crng == &primary_crng);
+			crng_reseed(crng);
 	}
 	spin_lock_irqsave(&crng->lock, flags);
 	chacha20_block(&crng->state[0], out);
@@ -1547,7 +1547,7 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			return -EPERM;
 		if (crng_init < 2)
 			return -ENODATA;
-		crng_reseed(&primary_crng, true);
+		crng_reseed(&primary_crng);
 		WRITE_ONCE(crng_global_init_time, jiffies - 1);
 		return 0;
 	default:
