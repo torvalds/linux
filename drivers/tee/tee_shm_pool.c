@@ -30,7 +30,7 @@ static int pool_op_gen_alloc(struct tee_shm_pool *pool, struct tee_shm *shm,
 	 * This is from a static shared memory pool so no need to register
 	 * each chunk, and no need to unregister later either.
 	 */
-	shm->flags &= ~TEE_SHM_REGISTER;
+	shm->flags &= ~TEE_SHM_DYNAMIC;
 	return 0;
 }
 
