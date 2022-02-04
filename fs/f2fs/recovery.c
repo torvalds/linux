@@ -343,6 +343,19 @@ static int recover_inode(struct inode *inode, struct page *page)
 	return 0;
 }
 
+static unsigned int adjust_por_ra_blocks(struct f2fs_sb_info *sbi,
+				unsigned int ra_blocks, unsigned int blkaddr,
+				unsigned int next_blkaddr)
+{
+	if (blkaddr + 1 == next_blkaddr)
+		ra_blocks = min_t(unsigned int, RECOVERY_MAX_RA_BLOCKS,
+							ra_blocks * 2);
+	else if (next_blkaddr % sbi->blocks_per_seg)
+		ra_blocks = max_t(unsigned int, RECOVERY_MIN_RA_BLOCKS,
+							ra_blocks / 2);
+	return ra_blocks;
+}
+
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 				bool check_only)
 {
@@ -350,6 +363,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 	struct page *page = NULL;
 	block_t blkaddr;
 	unsigned int loop_cnt = 0;
+	unsigned int ra_blocks = RECOVERY_MAX_RA_BLOCKS;
 	unsigned int free_blocks = MAIN_SEGS(sbi) * sbi->blocks_per_seg -
 						valid_user_blocks(sbi);
 	int err = 0;
@@ -424,11 +438,14 @@ next:
 			break;
 		}
 
+		ra_blocks = adjust_por_ra_blocks(sbi, ra_blocks, blkaddr,
+						next_blkaddr_of_node(page));
+
 		/* check next segment */
 		blkaddr = next_blkaddr_of_node(page);
 		f2fs_put_page(page, 1);
 
-		f2fs_ra_meta_pages_cond(sbi, blkaddr);
+		f2fs_ra_meta_pages_cond(sbi, blkaddr, ra_blocks);
 	}
 	return err;
 }
@@ -704,6 +721,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 	struct page *page = NULL;
 	int err = 0;
 	block_t blkaddr;
+	unsigned int ra_blocks = RECOVERY_MAX_RA_BLOCKS;
 
 	/* get node pages in the current segment */
 	curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
@@ -714,8 +732,6 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 
 		if (!f2fs_is_valid_blkaddr(sbi, blkaddr, META_POR))
 			break;
-
-		f2fs_ra_meta_pages_cond(sbi, blkaddr);
 
 		page = f2fs_get_tmp_page(sbi, blkaddr);
 		if (IS_ERR(page)) {
@@ -759,9 +775,14 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 		if (entry->blkaddr == blkaddr)
 			list_move_tail(&entry->list, tmp_inode_list);
 next:
+		ra_blocks = adjust_por_ra_blocks(sbi, ra_blocks, blkaddr,
+						next_blkaddr_of_node(page));
+
 		/* check next segment */
 		blkaddr = next_blkaddr_of_node(page);
 		f2fs_put_page(page, 1);
+
+		f2fs_ra_meta_pages_cond(sbi, blkaddr, ra_blocks);
 	}
 	if (!err)
 		f2fs_allocate_new_segments(sbi);
