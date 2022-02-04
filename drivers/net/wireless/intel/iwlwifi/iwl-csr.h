@@ -533,6 +533,9 @@ enum {
  * 11-8:  queue selector
  */
 #define HBUS_TARG_WRPTR         (HBUS_BASE+0x060)
+/* This register is common for Tx and Rx, Rx queues start from 512 */
+#define HBUS_TARG_WRPTR_Q_SHIFT (16)
+#define HBUS_TARG_WRPTR_RX_Q(q) (((q) + 512) << HBUS_TARG_WRPTR_Q_SHIFT)
 
 /**********************************************************
  * CSR values
