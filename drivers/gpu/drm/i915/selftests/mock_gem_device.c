@@ -161,6 +161,8 @@ struct drm_i915_private *mock_gem_device(void)
 	i915_params_copy(&i915->params, &i915_modparams);
 
 	intel_runtime_pm_init_early(&i915->runtime_pm);
+	/* wakeref tracking has significant overhead */
+	i915->runtime_pm.no_wakeref_tracking = true;
 
 	/* Using the global GTT may ask questions about KMS users, so prepare */
 	drm_mode_config_init(&i915->drm);
