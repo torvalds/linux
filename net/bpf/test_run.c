@@ -960,7 +960,7 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 		while (size < kattr->test.data_size_in) {
 			struct page *page;
 			skb_frag_t *frag;
-			int data_len;
+			u32 data_len;
 
 			if (sinfo->nr_frags == MAX_SKB_FRAGS) {
 				ret = -ENOMEM;
@@ -976,7 +976,7 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			frag = &sinfo->frags[sinfo->nr_frags++];
 			__skb_frag_set_page(frag, page);
 
-			data_len = min_t(int, kattr->test.data_size_in - size,
+			data_len = min_t(u32, kattr->test.data_size_in - size,
 					 PAGE_SIZE);
 			skb_frag_size_set(frag, data_len);
 
