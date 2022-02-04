@@ -8,16 +8,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
 
-/* SW1[2] should be at OFF position to enable 64 GB eMMC */
-#define EMMC	1
-
-/*
- * To enable uSD card on CN3,
- * SW1[2] should be at ON position.
- * Disable eMMC by setting "#define EMMC	0" above.
- */
-#define SDHI	(!EMMC)
-
 / {
 	aliases {
 		ethernet0 = &eth0;
@@ -185,7 +175,7 @@
 	};
 };
 
-#if SDHI
+#if (!SW_SD0_DEV_SEL)
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-1 = <&sdhi0_pins_uhs>;
@@ -200,7 +190,7 @@
 };
 #endif
 
-#if EMMC
+#if SW_SD0_DEV_SEL
 &sdhi0 {
 	pinctrl-0 = <&sdhi0_emmc_pins>;
 	pinctrl-1 = <&sdhi0_emmc_pins>;
