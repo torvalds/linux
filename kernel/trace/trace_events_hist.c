@@ -5929,6 +5929,48 @@ static bool hist_trigger_match(struct event_trigger_data *data,
 	return true;
 }
 
+static bool existing_hist_update_only(char *glob,
+				      struct event_trigger_data *data,
+				      struct trace_event_file *file)
+{
+	struct hist_trigger_data *hist_data = data->private_data;
+	struct event_trigger_data *test, *named_data = NULL;
+	bool updated = false;
+
+	if (!hist_data->attrs->pause && !hist_data->attrs->cont &&
+	    !hist_data->attrs->clear)
+		goto out;
+
+	if (hist_data->attrs->name) {
+		named_data = find_named_trigger(hist_data->attrs->name);
+		if (named_data) {
+			if (!hist_trigger_match(data, named_data, named_data,
+						true))
+				goto out;
+		}
+	}
+
+	if (hist_data->attrs->name && !named_data)
+		goto out;
+
+	list_for_each_entry(test, &file->triggers, list) {
+		if (test->cmd_ops->trigger_type == ETT_EVENT_HIST) {
+			if (!hist_trigger_match(data, test, named_data, false))
+				continue;
+			if (hist_data->attrs->pause)
+				test->paused = true;
+			else if (hist_data->attrs->cont)
+				test->paused = false;
+			else if (hist_data->attrs->clear)
+				hist_clear(test);
+			updated = true;
+			goto out;
+		}
+	}
+ out:
+	return updated;
+}
+
 static int hist_register_trigger(char *glob,
 				 struct event_trigger_data *data,
 				 struct trace_event_file *file)
@@ -5957,19 +5999,11 @@ static int hist_register_trigger(char *glob,
 
 	list_for_each_entry(test, &file->triggers, list) {
 		if (test->cmd_ops->trigger_type == ETT_EVENT_HIST) {
-			if (!hist_trigger_match(data, test, named_data, false))
-				continue;
-			if (hist_data->attrs->pause)
-				test->paused = true;
-			else if (hist_data->attrs->cont)
-				test->paused = false;
-			else if (hist_data->attrs->clear)
-				hist_clear(test);
-			else {
+			if (hist_trigger_match(data, test, named_data, false)) {
 				hist_err(tr, HIST_ERR_TRIGGER_EEXIST, 0);
 				ret = -EEXIST;
+				goto out;
 			}
-			goto out;
 		}
 	}
  new:
@@ -6008,8 +6042,6 @@ static int hist_register_trigger(char *glob,
 
 	if (named_data)
 		destroy_hist_data(hist_data);
-
-	ret++;
  out:
 	return ret;
 }
@@ -6277,14 +6309,12 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
 		goto out_free;
 	}
 
+	if (existing_hist_update_only(glob, trigger_data, file))
+		goto out_free;
+
 	ret = event_trigger_register(cmd_ops, file, glob, trigger_data);
-	if (ret)
+	if (ret < 0)
 		goto out_free;
-	if (ret == 0) {
-		if (!(attrs->pause || attrs->cont || attrs->clear))
-			ret = -ENOENT;
-		goto out_free;
-	}
 
 	if (get_named_trigger_data(trigger_data))
 		goto enable;
