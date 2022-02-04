@@ -1238,6 +1238,7 @@ static void acpi_ec_event_handler(struct work_struct *work)
 		acpi_ec_submit_query(ec);
 
 		spin_lock_irq(&ec->lock);
+
 		ec->events_to_process--;
 	}
 
@@ -1246,27 +1247,30 @@ static void acpi_ec_event_handler(struct work_struct *work)
 	 * event handling work again regardless of whether or not the query
 	 * queued up above is processed successfully.
 	 */
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT)
+	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT) {
+		bool guard_timeout;
+
 		acpi_ec_complete_event(ec);
-	else
-		acpi_ec_close_event(ec);
 
-	spin_unlock_irq(&ec->lock);
+		ec_dbg_evt("Event stopped");
 
-	ec_dbg_evt("Event stopped");
+		spin_unlock_irq(&ec->lock);
 
-	if (ec_event_clearing == ACPI_EC_EVT_TIMING_EVENT && ec_guard(ec)) {
+		guard_timeout = !!ec_guard(ec);
+
 		spin_lock_irq(&ec->lock);
 
 		/* Take care of SCI_EVT unless someone else is doing that. */
-		if (!ec->curr)
+		if (guard_timeout && !ec->curr)
 			advance_transaction(ec, false);
+	} else {
+		acpi_ec_close_event(ec);
 
-		spin_unlock_irq(&ec->lock);
+		ec_dbg_evt("Event stopped");
 	}
 
-	spin_lock_irq(&ec->lock);
 	ec->events_in_progress--;
+
 	spin_unlock_irq(&ec->lock);
 }
 
