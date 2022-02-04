@@ -821,10 +821,10 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t)
 	}
 }
 
-static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
+static void phy_LCCalibrate_8188E(struct adapter *adapt)
 {
 	u8 tmpreg;
-	u32 RF_Amode = 0, RF_Bmode = 0, LC_Cal;
+	u32 RF_Amode = 0, LC_Cal;
 
 	/* Check continuous TX and Packet TX */
 	tmpreg = rtw_read8(adapt, 0xd03);
@@ -839,17 +839,9 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 		/* Path-A */
 		RF_Amode = rtl8188e_PHY_QueryRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits);
 
-		/* Path-B */
-		if (is2t)
-			RF_Bmode = rtl8188e_PHY_QueryRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits);
-
 		/* 2. Set RF mode = standby mode */
 		/* Path-A */
 		rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, (RF_Amode & 0x8FFFF) | 0x10000);
-
-		/* Path-B */
-		if (is2t)
-			rtl8188e_PHY_SetRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits, (RF_Bmode & 0x8FFFF) | 0x10000);
 	}
 
 	/* 3. Read RF reg18 */
@@ -866,10 +858,6 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 		/* Path-A */
 		rtw_write8(adapt, 0xd03, tmpreg);
 		rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
-
-		/* Path-B */
-		if (is2t)
-			rtl8188e_PHY_SetRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits, RF_Bmode);
 	} else {
 		/*  Deal with Packet TX case */
 		rtw_write8(adapt, REG_TXPAUSE, 0x00);
@@ -999,5 +987,5 @@ void PHY_LCCalibrate_8188E(struct adapter *adapt)
 		timecount += 50;
 	}
 
-	phy_LCCalibrate_8188E(adapt, false);
+	phy_LCCalibrate_8188E(adapt);
 }
