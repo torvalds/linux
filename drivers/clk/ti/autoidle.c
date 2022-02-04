@@ -205,7 +205,7 @@ int __init of_ti_clk_autoidle_setup(struct device_node *node)
 		return -ENOMEM;
 
 	clk->shift = shift;
-	clk->name = node->name;
+	clk->name = ti_dt_clk_name(node);
 	ret = ti_clk_get_reg_addr(node, 0, &clk->reg);
 	if (ret) {
 		kfree(clk);
