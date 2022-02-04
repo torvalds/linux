@@ -132,17 +132,6 @@ void phylink_set_port_modes(unsigned long *mask)
 }
 EXPORT_SYMBOL_GPL(phylink_set_port_modes);
 
-void phylink_set_10g_modes(unsigned long *mask)
-{
-	phylink_set(mask, 10000baseT_Full);
-	phylink_set(mask, 10000baseCR_Full);
-	phylink_set(mask, 10000baseSR_Full);
-	phylink_set(mask, 10000baseLR_Full);
-	phylink_set(mask, 10000baseLRM_Full);
-	phylink_set(mask, 10000baseER_Full);
-}
-EXPORT_SYMBOL_GPL(phylink_set_10g_modes);
-
 static int phylink_is_empty_linkmode(const unsigned long *linkmode)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp) = { 0, };
