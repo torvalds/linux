@@ -301,7 +301,7 @@ static noinstr int error_context(struct mce *m, struct pt_regs *regs)
 	}
 }
 
-static int mce_severity_amd_smca(struct mce *m, enum context err_ctx)
+static __always_inline int mce_severity_amd_smca(struct mce *m, enum context err_ctx)
 {
 	u64 mcx_cfg;
 
