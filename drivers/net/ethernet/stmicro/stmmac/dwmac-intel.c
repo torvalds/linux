@@ -383,10 +383,10 @@ static int intel_crosststamp(ktime_t *device,
 
 	/* Repeat until the timestamps are from the FIFO last segment */
 	for (i = 0; i < num_snapshot; i++) {
-		spin_lock_irqsave(&priv->ptp_lock, flags);
+		read_lock_irqsave(&priv->ptp_lock, flags);
 		stmmac_get_ptptime(priv, ptpaddr, &ptp_time);
 		*device = ns_to_ktime(ptp_time);
-		spin_unlock_irqrestore(&priv->ptp_lock, flags);
+		read_unlock_irqrestore(&priv->ptp_lock, flags);
 		get_arttime(priv->mii, intel_priv->mdio_adhoc_addr, &art_time);
 		*system = convert_art_to_tsc(art_time);
 	}
