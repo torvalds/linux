@@ -168,17 +168,6 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum nl80211_band band,
 		return cpu_to_le32(IWL_RATE_6M_PLCP | tx_ant);
 }
 
-static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
-					    struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int *global_cnt = data;
-
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE && mvmvif->phy_ctxt &&
-	    mvmvif->phy_ctxt->id < NUM_PHY_CTX)
-		*global_cnt += 1;
-}
-
 static enum iwl_mvm_traffic_load iwl_mvm_get_traffic_load(struct iwl_mvm *mvm)
 {
 	return mvm->tcm.result.global_load;
@@ -190,26 +179,31 @@ iwl_mvm_get_traffic_load_band(struct iwl_mvm *mvm, enum nl80211_band band)
 	return mvm->tcm.result.band_load[band];
 }
 
-struct iwl_is_dcm_with_go_iterator_data {
+struct iwl_mvm_scan_iter_data {
+	u32 global_cnt;
 	struct ieee80211_vif *current_vif;
 	bool is_dcm_with_p2p_go;
 };
 
-static void iwl_mvm_is_dcm_with_go_iterator(void *_data, u8 *mac,
-					    struct ieee80211_vif *vif)
+static void iwl_mvm_scan_iterator(void *_data, u8 *mac,
+				  struct ieee80211_vif *vif)
 {
-	struct iwl_is_dcm_with_go_iterator_data *data = _data;
-	struct iwl_mvm_vif *other_mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_vif *curr_mvmvif =
-		iwl_mvm_vif_from_mac80211(data->current_vif);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_scan_iter_data *data = _data;
+	struct iwl_mvm_vif *curr_mvmvif;
 
-	/* exclude the given vif */
-	if (vif == data->current_vif)
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE && mvmvif->phy_ctxt &&
+	    mvmvif->phy_ctxt->id < NUM_PHY_CTX)
+		data->global_cnt += 1;
+
+	if (!data->current_vif || vif == data->current_vif)
 		return;
 
+	curr_mvmvif = iwl_mvm_vif_from_mac80211(data->current_vif);
+
 	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
-	    other_mvmvif->phy_ctxt && curr_mvmvif->phy_ctxt &&
-	    other_mvmvif->phy_ctxt->id != curr_mvmvif->phy_ctxt->id)
+	    mvmvif->phy_ctxt && curr_mvmvif->phy_ctxt &&
+	    mvmvif->phy_ctxt->id != curr_mvmvif->phy_ctxt->id)
 		data->is_dcm_with_p2p_go = true;
 }
 
@@ -219,13 +213,18 @@ iwl_mvm_scan_type _iwl_mvm_get_scan_type(struct iwl_mvm *mvm,
 					 enum iwl_mvm_traffic_load load,
 					 bool low_latency)
 {
-	int global_cnt = 0;
+	struct iwl_mvm_scan_iter_data data = {
+		.current_vif = vif,
+		.is_dcm_with_p2p_go = false,
+		.global_cnt = 0,
+	};
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					    IEEE80211_IFACE_ITER_NORMAL,
-					    iwl_mvm_scan_condition_iterator,
-					    &global_cnt);
-	if (!global_cnt)
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_scan_iterator,
+						   &data);
+
+	if (!data.global_cnt)
 		return IWL_SCAN_TYPE_UNASSOC;
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
@@ -234,23 +233,14 @@ iwl_mvm_scan_type _iwl_mvm_get_scan_type(struct iwl_mvm *mvm,
 		    (!vif || vif->type != NL80211_IFTYPE_P2P_DEVICE))
 			return IWL_SCAN_TYPE_FRAGMENTED;
 
-		/* in case of DCM with GO where BSS DTIM interval < 220msec
+		/*
+		 * in case of DCM with GO where BSS DTIM interval < 220msec
 		 * set all scan requests as fast-balance scan
-		 * */
+		 */
 		if (vif && vif->type == NL80211_IFTYPE_STATION &&
-		    vif->bss_conf.dtim_period < 220) {
-			struct iwl_is_dcm_with_go_iterator_data data = {
-				.current_vif = vif,
-				.is_dcm_with_p2p_go = false,
-			};
-
-			ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						IEEE80211_IFACE_ITER_NORMAL,
-						iwl_mvm_is_dcm_with_go_iterator,
-						&data);
-			if (data.is_dcm_with_p2p_go)
-				return IWL_SCAN_TYPE_FAST_BALANCE;
-		}
+		    vif->bss_conf.dtim_period < 220 &&
+		    data.is_dcm_with_p2p_go)
+			return IWL_SCAN_TYPE_FAST_BALANCE;
 	}
 
 	if (load >= IWL_MVM_TRAFFIC_MEDIUM || low_latency)
