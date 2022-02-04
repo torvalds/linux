@@ -29,46 +29,50 @@ struct napi_gro_cb {
 	/* Number of segments aggregated. */
 	u16	count;
 
-	/* Start offset for remote checksum offload */
-	u16	gro_remcsum_start;
+	/* Used in ipv6_gro_receive() and foo-over-udp */
+	u16	proto;
 
 	/* jiffies when first packet was created/queued */
 	unsigned long age;
 
-	/* Used in ipv6_gro_receive() and foo-over-udp */
-	u16	proto;
+	/* portion of the cb set to zero at every gro iteration */
+	struct_group(zeroed,
 
-	/* This is non-zero if the packet may be of the same flow. */
-	u8	same_flow:1;
+		/* Start offset for remote checksum offload */
+		u16	gro_remcsum_start;
 
-	/* Used in tunnel GRO receive */
-	u8	encap_mark:1;
+		/* This is non-zero if the packet may be of the same flow. */
+		u8	same_flow:1;
 
-	/* GRO checksum is valid */
-	u8	csum_valid:1;
+		/* Used in tunnel GRO receive */
+		u8	encap_mark:1;
 
-	/* Number of checksums via CHECKSUM_UNNECESSARY */
-	u8	csum_cnt:3;
+		/* GRO checksum is valid */
+		u8	csum_valid:1;
 
-	/* Free the skb? */
-	u8	free:2;
+		/* Number of checksums via CHECKSUM_UNNECESSARY */
+		u8	csum_cnt:3;
+
+		/* Free the skb? */
+		u8	free:2;
 #define NAPI_GRO_FREE		  1
 #define NAPI_GRO_FREE_STOLEN_HEAD 2
 
-	/* Used in foo-over-udp, set in udp[46]_gro_receive */
-	u8	is_ipv6:1;
+		/* Used in foo-over-udp, set in udp[46]_gro_receive */
+		u8	is_ipv6:1;
 
-	/* Used in GRE, set in fou/gue_gro_receive */
-	u8	is_fou:1;
+		/* Used in GRE, set in fou/gue_gro_receive */
+		u8	is_fou:1;
 
-	/* Used to determine if flush_id can be ignored */
-	u8	is_atomic:1;
+		/* Used to determine if flush_id can be ignored */
+		u8	is_atomic:1;
 
-	/* Number of gro_receive callbacks this packet already went through */
-	u8 recursion_counter:4;
+		/* Number of gro_receive callbacks this packet already went through */
+		u8 recursion_counter:4;
 
-	/* GRO is done by frag_list pointer chaining. */
-	u8	is_flist:1;
+		/* GRO is done by frag_list pointer chaining. */
+		u8	is_flist:1;
+	);
 
 	/* used to support CHECKSUM_COMPLETE for tunneling protocols */
 	__wsum	csum;
