@@ -317,8 +317,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	state->xmit.buf = NULL;
 	uart_port_unlock(uport, flags);
 
-	if (xmit_buf)
-		free_page((unsigned long)xmit_buf);
+	free_page((unsigned long)xmit_buf);
 }
 
 /**
@@ -1569,8 +1568,7 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 	state->xmit.buf = NULL;
 	spin_unlock_irq(&uport->lock);
 
-	if (buf)
-		free_page((unsigned long)buf);
+	free_page((unsigned long)buf);
 
 	uart_change_pm(state, UART_PM_STATE_OFF);
 }
