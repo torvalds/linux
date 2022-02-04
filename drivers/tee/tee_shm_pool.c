@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015 Linaro Limited
  */
 #include <linux/device.h>
 #include <linux/dma-buf.h>
