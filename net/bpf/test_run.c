@@ -154,7 +154,8 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 			goto out;
 
 		if (sinfo) {
-			int i, offset = len, data_len;
+			int i, offset = len;
+			u32 data_len;
 
 			for (i = 0; i < sinfo->nr_frags; i++) {
 				skb_frag_t *frag = &sinfo->frags[i];
@@ -164,7 +165,7 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 					break;
 				}
 
-				data_len = min_t(int, copy_size - offset,
+				data_len = min_t(u32, copy_size - offset,
 						 skb_frag_size(frag));
 
 				if (copy_to_user(data_out + offset,
