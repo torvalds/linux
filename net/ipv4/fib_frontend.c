@@ -32,6 +32,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
+#include <net/inet_dscp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>
@@ -735,8 +736,16 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 	memset(cfg, 0, sizeof(*cfg));
 
 	rtm = nlmsg_data(nlh);
+
+	if (!inet_validate_dscp(rtm->rtm_tos)) {
+		NL_SET_ERR_MSG(extack,
+			       "Invalid dsfield (tos): ECN bits must be 0");
+		err = -EINVAL;
+		goto errout;
+	}
+	cfg->fc_dscp = inet_dsfield_to_dscp(rtm->rtm_tos);
+
 	cfg->fc_dst_len = rtm->rtm_dst_len;
-	cfg->fc_tos = rtm->rtm_tos;
 	cfg->fc_table = rtm->rtm_table;
 	cfg->fc_protocol = rtm->rtm_protocol;
 	cfg->fc_scope = rtm->rtm_scope;

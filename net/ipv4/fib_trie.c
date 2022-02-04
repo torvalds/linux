@@ -61,6 +61,7 @@
 #include <linux/vmalloc.h>
 #include <linux/notifier.h>
 #include <net/net_namespace.h>
+#include <net/inet_dscp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>
@@ -1210,9 +1211,9 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	struct fib_info *fi;
 	u8 plen = cfg->fc_dst_len;
 	u8 slen = KEYLENGTH - plen;
-	u8 tos = cfg->fc_tos;
 	u32 key;
 	int err;
+	u8 tos;
 
 	key = ntohl(cfg->fc_dst);
 
@@ -1227,6 +1228,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		goto err;
 	}
 
+	tos = inet_dscp_to_dsfield(cfg->fc_dscp);
 	l = fib_find_node(t, &tp, key);
 	fa = l ? fib_find_alias(&l->leaf, slen, tos, fi->fib_priority,
 				tb->tb_id, false) : NULL;
@@ -1703,8 +1705,8 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	struct key_vector *l, *tp;
 	u8 plen = cfg->fc_dst_len;
 	u8 slen = KEYLENGTH - plen;
-	u8 tos = cfg->fc_tos;
 	u32 key;
+	u8 tos;
 
 	key = ntohl(cfg->fc_dst);
 
@@ -1715,6 +1717,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!l)
 		return -ESRCH;
 
+	tos = inet_dscp_to_dsfield(cfg->fc_dscp);
 	fa = fib_find_alias(&l->leaf, slen, tos, 0, tb->tb_id, false);
 	if (!fa)
 		return -ESRCH;

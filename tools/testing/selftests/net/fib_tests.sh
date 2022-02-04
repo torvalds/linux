@@ -1447,6 +1447,81 @@ ipv4_local_rt_cache()
 	log_test $? 0 "Cached route removed from VRF port device"
 }
 
+ipv4_rt_dsfield()
+{
+	echo
+	echo "IPv4 route with dsfield tests"
+
+	run_cmd "$IP route flush 172.16.102.0/24"
+
+	# New routes should reject dsfield options that interfere with ECN
+	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x01 via 172.16.101.2"
+	log_test $? 2 "Reject route with dsfield 0x01"
+
+	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x02 via 172.16.101.2"
+	log_test $? 2 "Reject route with dsfield 0x02"
+
+	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x03 via 172.16.101.2"
+	log_test $? 2 "Reject route with dsfield 0x03"
+
+	# A generic route that doesn't take DSCP into account
+	run_cmd "$IP route add 172.16.102.0/24 via 172.16.101.2"
+
+	# A more specific route for DSCP 0x10
+	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x10 via 172.16.103.2"
+
+	# DSCP 0x10 should match the specific route, no matter the ECN bits
+	$IP route get fibmatch 172.16.102.1 dsfield 0x10 | \
+		grep -q "via 172.16.103.2"
+	log_test $? 0 "IPv4 route with DSCP and ECN:Not-ECT"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x11 | \
+		grep -q "via 172.16.103.2"
+	log_test $? 0 "IPv4 route with DSCP and ECN:ECT(1)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x12 | \
+		grep -q "via 172.16.103.2"
+	log_test $? 0 "IPv4 route with DSCP and ECN:ECT(0)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x13 | \
+		grep -q "via 172.16.103.2"
+	log_test $? 0 "IPv4 route with DSCP and ECN:CE"
+
+	# Unknown DSCP should match the generic route, no matter the ECN bits
+	$IP route get fibmatch 172.16.102.1 dsfield 0x14 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with unknown DSCP and ECN:Not-ECT"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x15 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with unknown DSCP and ECN:ECT(1)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x16 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with unknown DSCP and ECN:ECT(0)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x17 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with unknown DSCP and ECN:CE"
+
+	# Null DSCP should match the generic route, no matter the ECN bits
+	$IP route get fibmatch 172.16.102.1 dsfield 0x00 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with no DSCP and ECN:Not-ECT"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x01 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with no DSCP and ECN:ECT(1)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x02 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with no DSCP and ECN:ECT(0)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x03 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with no DSCP and ECN:CE"
+}
+
 ipv4_route_test()
 {
 	route_setup
@@ -1454,6 +1529,7 @@ ipv4_route_test()
 	ipv4_rt_add
 	ipv4_rt_replace
 	ipv4_local_rt_cache
+	ipv4_rt_dsfield
 
 	route_cleanup
 }
