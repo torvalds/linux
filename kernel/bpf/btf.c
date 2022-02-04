@@ -6798,10 +6798,113 @@ int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 }
 EXPORT_SYMBOL_GPL(register_btf_kfunc_id_set);
 
+#define MAX_TYPES_ARE_COMPAT_DEPTH 2
+
+static
+int __bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
+				const struct btf *targ_btf, __u32 targ_id,
+				int level)
+{
+	const struct btf_type *local_type, *targ_type;
+	int depth = 32; /* max recursion depth */
+
+	/* caller made sure that names match (ignoring flavor suffix) */
+	local_type = btf_type_by_id(local_btf, local_id);
+	targ_type = btf_type_by_id(targ_btf, targ_id);
+	if (btf_kind(local_type) != btf_kind(targ_type))
+		return 0;
+
+recur:
+	depth--;
+	if (depth < 0)
+		return -EINVAL;
+
+	local_type = btf_type_skip_modifiers(local_btf, local_id, &local_id);
+	targ_type = btf_type_skip_modifiers(targ_btf, targ_id, &targ_id);
+	if (!local_type || !targ_type)
+		return -EINVAL;
+
+	if (btf_kind(local_type) != btf_kind(targ_type))
+		return 0;
+
+	switch (btf_kind(local_type)) {
+	case BTF_KIND_UNKN:
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION:
+	case BTF_KIND_ENUM:
+	case BTF_KIND_FWD:
+		return 1;
+	case BTF_KIND_INT:
+		/* just reject deprecated bitfield-like integers; all other
+		 * integers are by default compatible between each other
+		 */
+		return btf_int_offset(local_type) == 0 && btf_int_offset(targ_type) == 0;
+	case BTF_KIND_PTR:
+		local_id = local_type->type;
+		targ_id = targ_type->type;
+		goto recur;
+	case BTF_KIND_ARRAY:
+		local_id = btf_array(local_type)->type;
+		targ_id = btf_array(targ_type)->type;
+		goto recur;
+	case BTF_KIND_FUNC_PROTO: {
+		struct btf_param *local_p = btf_params(local_type);
+		struct btf_param *targ_p = btf_params(targ_type);
+		__u16 local_vlen = btf_vlen(local_type);
+		__u16 targ_vlen = btf_vlen(targ_type);
+		int i, err;
+
+		if (local_vlen != targ_vlen)
+			return 0;
+
+		for (i = 0; i < local_vlen; i++, local_p++, targ_p++) {
+			if (level <= 0)
+				return -EINVAL;
+
+			btf_type_skip_modifiers(local_btf, local_p->type, &local_id);
+			btf_type_skip_modifiers(targ_btf, targ_p->type, &targ_id);
+			err = __bpf_core_types_are_compat(local_btf, local_id,
+							  targ_btf, targ_id,
+							  level - 1);
+			if (err <= 0)
+				return err;
+		}
+
+		/* tail recurse for return type check */
+		btf_type_skip_modifiers(local_btf, local_type->type, &local_id);
+		btf_type_skip_modifiers(targ_btf, targ_type->type, &targ_id);
+		goto recur;
+	}
+	default:
+		return 0;
+	}
+}
+
+/* Check local and target types for compatibility. This check is used for
+ * type-based CO-RE relocations and follow slightly different rules than
+ * field-based relocations. This function assumes that root types were already
+ * checked for name match. Beyond that initial root-level name check, names
+ * are completely ignored. Compatibility rules are as follows:
+ *   - any two STRUCTs/UNIONs/FWDs/ENUMs/INTs are considered compatible, but
+ *     kind should match for local and target types (i.e., STRUCT is not
+ *     compatible with UNION);
+ *   - for ENUMs, the size is ignored;
+ *   - for INT, size and signedness are ignored;
+ *   - for ARRAY, dimensionality is ignored, element types are checked for
+ *     compatibility recursively;
+ *   - CONST/VOLATILE/RESTRICT modifiers are ignored;
+ *   - TYPEDEFs/PTRs are compatible if types they pointing to are compatible;
+ *   - FUNC_PROTOs are compatible if they have compatible signature: same
+ *     number of input args and compatible return and argument types.
+ * These rules are not set in stone and probably will be adjusted as we get
+ * more experience with using BPF CO-RE relocations.
+ */
 int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
 			      const struct btf *targ_btf, __u32 targ_id)
 {
-	return -EOPNOTSUPP;
+	return __bpf_core_types_are_compat(local_btf, local_id,
+					   targ_btf, targ_id,
+					   MAX_TYPES_ARE_COMPAT_DEPTH);
 }
 
 static bool bpf_core_is_flavor_sep(const char *s)
