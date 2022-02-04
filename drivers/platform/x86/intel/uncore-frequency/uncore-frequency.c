@@ -22,6 +22,7 @@
 #include <asm/intel-family.h>
 
 #define MSR_UNCORE_RATIO_LIMIT			0x620
+#define MSR_UNCORE_PERF_STATUS			0x621
 #define UNCORE_FREQ_KHZ_MULTIPLIER		100000
 
 /**
@@ -40,6 +41,7 @@
  * @mix_freq_khz_dev_attr: Storage for device attribute min_freq_khz
  * @initial_max_freq_khz_dev_attr: Storage for device attribute initial_max_freq_khz
  * @initial_min_freq_khz_dev_attr: Storage for device attribute initial_min_freq_khz
+ * @current_freq_khz_dev_attr: Storage for device attribute current_freq_khz
  * @uncore_attrs:	Attribute storage for group creation
  *
  * This structure is used to encapsulate all data related to uncore sysfs
@@ -60,7 +62,8 @@ struct uncore_data {
 	struct device_attribute min_freq_khz_dev_attr;
 	struct device_attribute initial_max_freq_khz_dev_attr;
 	struct device_attribute initial_min_freq_khz_dev_attr;
-	struct attribute *uncore_attrs[5];
+	struct device_attribute current_freq_khz_dev_attr;
+	struct attribute *uncore_attrs[6];
 };
 
 /* Max instances for uncore data, one for each die */
@@ -131,22 +134,32 @@ static int uncore_write_ratio(struct uncore_data *data, unsigned int input,
 	return 0;
 }
 
-static ssize_t show_min_max_freq_khz(struct uncore_data *data,
-				     char *buf, int min_max)
+static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 {
-	unsigned int min, max;
+	u64 ratio;
+	int ret;
+
+	ret = rdmsrl_on_cpu(data->control_cpu, MSR_UNCORE_PERF_STATUS, &ratio);
+	if (ret)
+		return ret;
+
+	*freq = (ratio & 0x7F) * UNCORE_FREQ_KHZ_MULTIPLIER;
+
+	return 0;
+}
+
+static ssize_t show_perf_status_freq_khz(struct uncore_data *data, char *buf)
+{
+	unsigned int freq;
 	int ret;
 
 	mutex_lock(&uncore_lock);
-	ret = uncore_read_ratio(data, &min, &max);
+	ret = uncore_read_freq(data, &freq);
 	mutex_unlock(&uncore_lock);
 	if (ret)
 		return ret;
 
-	if (min_max)
-		return sprintf(buf, "%u\n", max);
-
-	return sprintf(buf, "%u\n", min);
+	return sprintf(buf, "%u\n", freq);
 }
 
 static ssize_t store_min_max_freq_khz(struct uncore_data *data,
@@ -163,6 +176,24 @@ static ssize_t store_min_max_freq_khz(struct uncore_data *data,
 	mutex_unlock(&uncore_lock);
 
 	return count;
+}
+
+static ssize_t show_min_max_freq_khz(struct uncore_data *data,
+				     char *buf, int min_max)
+{
+	unsigned int min, max;
+	int ret;
+
+	mutex_lock(&uncore_lock);
+	ret = uncore_read_ratio(data, &min, &max);
+	mutex_unlock(&uncore_lock);
+	if (ret)
+		return ret;
+
+	if (min_max)
+		return sprintf(buf, "%u\n", max);
+
+	return sprintf(buf, "%u\n", min);
 }
 
 #define store_uncore_min_max(name, min_max)				\
@@ -185,11 +216,22 @@ static ssize_t store_min_max_freq_khz(struct uncore_data *data,
 		return show_min_max_freq_khz(data, buf, min_max);	\
 	}
 
+#define show_uncore_perf_status(name)					\
+	static ssize_t show_##name(struct device *dev,		\
+				   struct device_attribute *attr, char *buf)\
+	{                                                               \
+		struct uncore_data *data = container_of(attr, struct uncore_data, name##_dev_attr);\
+									\
+		return show_perf_status_freq_khz(data, buf); \
+	}
+
 store_uncore_min_max(min_freq_khz, 0);
 store_uncore_min_max(max_freq_khz, 1);
 
 show_uncore_min_max(min_freq_khz, 0);
 show_uncore_min_max(max_freq_khz, 1);
+
+show_uncore_perf_status(current_freq_khz);
 
 #define show_uncore_data(member_name)					\
 	static ssize_t show_##member_name(struct device *dev,	\
@@ -223,6 +265,15 @@ show_uncore_data(initial_max_freq_khz);
 		data->_name##_dev_attr.attr.mode = 0444;		\
 	} while (0)
 
+#define init_attribute_root_ro(_name)					\
+	do {								\
+		sysfs_attr_init(&data->_name##_dev_attr.attr);	\
+		data->_name##_dev_attr.show = show_##_name;		\
+		data->_name##_dev_attr.store = NULL;			\
+		data->_name##_dev_attr.attr.name = #_name;		\
+		data->_name##_dev_attr.attr.mode = 0400;		\
+	} while (0)
+
 static int create_attr_group(struct uncore_data *data, char *name)
 {
 	int ret, index = 0;
@@ -231,11 +282,13 @@ static int create_attr_group(struct uncore_data *data, char *name)
 	init_attribute_rw(min_freq_khz);
 	init_attribute_ro(initial_min_freq_khz);
 	init_attribute_ro(initial_max_freq_khz);
+	init_attribute_root_ro(current_freq_khz);
 
 	data->uncore_attrs[index++] = &data->max_freq_khz_dev_attr.attr;
 	data->uncore_attrs[index++] = &data->min_freq_khz_dev_attr.attr;
 	data->uncore_attrs[index++] = &data->initial_min_freq_khz_dev_attr.attr;
 	data->uncore_attrs[index++] = &data->initial_max_freq_khz_dev_attr.attr;
+	data->uncore_attrs[index++] = &data->current_freq_khz_dev_attr.attr;
 	data->uncore_attrs[index] = NULL;
 
 	data->uncore_attr_group.name = name;
