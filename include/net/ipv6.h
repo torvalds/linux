@@ -17,6 +17,7 @@
 #include <net/if_inet6.h>
 #include <net/flow.h>
 #include <net/flow_dissector.h>
+#include <net/inet_dscp.h>
 #include <net/snmp.h>
 #include <net/netns/hash.h>
 
@@ -972,6 +973,11 @@ static inline __be32 ip6_flowlabel(const struct ipv6hdr *hdr)
 static inline u8 ip6_tclass(__be32 flowinfo)
 {
 	return ntohl(flowinfo & IPV6_TCLASS_MASK) >> IPV6_TCLASS_SHIFT;
+}
+
+static inline dscp_t ip6_dscp(__be32 flowinfo)
+{
+	return inet_dsfield_to_dscp(ip6_tclass(flowinfo));
 }
 
 static inline __be32 ip6_make_flowinfo(unsigned int tclass, __be32 flowlabel)
