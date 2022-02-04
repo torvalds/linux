@@ -652,8 +652,7 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 		if (model == BLK_ZONED_HM ||
 		    (model == BLK_ZONED_HA && incompat_zoned) ||
 		    (model == BLK_ZONED_NONE && incompat_zoned)) {
-			struct btrfs_zoned_device_info *zone_info =
-				device->zone_info;
+			struct btrfs_zoned_device_info *zone_info;
 
 			zone_info = device->zone_info;
 			zoned_devices++;
