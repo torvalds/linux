@@ -30,7 +30,6 @@
 #include <linux/pci.h>
 #include <linux/amd-iommu.h>
 #include "kfd_priv.h"
-#include "kfd_dbgmgr.h"
 #include "kfd_topology.h"
 #include "kfd_iommu.h"
 
@@ -162,17 +161,6 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, u32 pasid)
 		return;
 
 	pr_debug("Unbinding process 0x%x from IOMMU\n", pasid);
-
-	mutex_lock(kfd_get_dbgmgr_mutex());
-
-	if (dev->dbgmgr && dev->dbgmgr->pasid == p->pasid) {
-		if (!kfd_dbgmgr_unregister(dev->dbgmgr, p)) {
-			kfd_dbgmgr_destroy(dev->dbgmgr);
-			dev->dbgmgr = NULL;
-		}
-	}
-
-	mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	mutex_lock(&p->mutex);
 

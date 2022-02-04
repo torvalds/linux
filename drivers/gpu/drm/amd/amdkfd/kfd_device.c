@@ -575,8 +575,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	if (kfd_resume(kfd))
 		goto kfd_resume_error;
 
-	kfd->dbgmgr = NULL;
-
 	if (kfd_topology_add_device(kfd)) {
 		dev_err(kfd_device, "Error adding device to topology\n");
 		goto kfd_topology_add_device_error;

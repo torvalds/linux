@@ -480,6 +480,65 @@ static inline void deallocate_hqd(struct device_queue_manager *dqm,
 	dqm->allocated_queues[q->pipe] |= (1 << q->queue);
 }
 
+#define SQ_IND_CMD_CMD_KILL		0x00000003
+#define SQ_IND_CMD_MODE_BROADCAST	0x00000001
+
+static int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
+{
+	int status = 0;
+	unsigned int vmid;
+	uint16_t queried_pasid;
+	union SQ_CMD_BITS reg_sq_cmd;
+	union GRBM_GFX_INDEX_BITS reg_gfx_index;
+	struct kfd_process_device *pdd;
+	int first_vmid_to_scan = dev->vm_info.first_vmid_kfd;
+	int last_vmid_to_scan = dev->vm_info.last_vmid_kfd;
+
+	reg_sq_cmd.u32All = 0;
+	reg_gfx_index.u32All = 0;
+
+	pr_debug("Killing all process wavefronts\n");
+
+	/* Scan all registers in the range ATC_VMID8_PASID_MAPPING ..
+	 * ATC_VMID15_PASID_MAPPING
+	 * to check which VMID the current process is mapped to.
+	 */
+
+	for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
+		status = dev->kfd2kgd->get_atc_vmid_pasid_mapping_info
+				(dev->adev, vmid, &queried_pasid);
+
+		if (status && queried_pasid == p->pasid) {
+			pr_debug("Killing wave fronts of vmid %d and pasid 0x%x\n",
+					vmid, p->pasid);
+			break;
+		}
+	}
+
+	if (vmid > last_vmid_to_scan) {
+		pr_err("Didn't find vmid for pasid 0x%x\n", p->pasid);
+		return -EFAULT;
+	}
+
+	/* taking the VMID for that process on the safe way using PDD */
+	pdd = kfd_get_process_device_data(dev, p);
+	if (!pdd)
+		return -EFAULT;
+
+	reg_gfx_index.bits.sh_broadcast_writes = 1;
+	reg_gfx_index.bits.se_broadcast_writes = 1;
+	reg_gfx_index.bits.instance_broadcast_writes = 1;
+	reg_sq_cmd.bits.mode = SQ_IND_CMD_MODE_BROADCAST;
+	reg_sq_cmd.bits.cmd = SQ_IND_CMD_CMD_KILL;
+	reg_sq_cmd.bits.vm_id = vmid;
+
+	dev->kfd2kgd->wave_control_execute(dev->adev,
+					reg_gfx_index.u32All,
+					reg_sq_cmd.u32All);
+
+	return 0;
+}
+
 /* Access to DQM has to be locked before calling destroy_queue_nocpsch_locked
  * to avoid asynchronized access
  */

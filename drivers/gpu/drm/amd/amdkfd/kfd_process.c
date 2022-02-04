@@ -40,7 +40,6 @@ struct mm_struct;
 
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
-#include "kfd_dbgmgr.h"
 #include "kfd_iommu.h"
 #include "kfd_svm.h"
 
@@ -1158,7 +1157,6 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 					struct mm_struct *mm)
 {
 	struct kfd_process *p;
-	int i;
 
 	/*
 	 * The kfd_process structure can not be free because the
@@ -1177,23 +1175,6 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 	cancel_delayed_work_sync(&p->restore_work);
 
 	mutex_lock(&p->mutex);
-
-	/* Iterate over all process device data structures and if the
-	 * pdd is in debug mode, we should first force unregistration,
-	 * then we will be able to destroy the queues
-	 */
-	for (i = 0; i < p->n_pdds; i++) {
-		struct kfd_dev *dev = p->pdds[i]->dev;
-
-		mutex_lock(kfd_get_dbgmgr_mutex());
-		if (dev && dev->dbgmgr && dev->dbgmgr->pasid == p->pasid) {
-			if (!kfd_dbgmgr_unregister(dev->dbgmgr, p)) {
-				kfd_dbgmgr_destroy(dev->dbgmgr);
-				dev->dbgmgr = NULL;
-			}
-		}
-		mutex_unlock(kfd_get_dbgmgr_mutex());
-	}
 
 	kfd_process_dequeue_from_all_devices(p);
 	pqm_uninit(&p->pqm);

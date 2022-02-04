@@ -39,6 +39,41 @@ struct device_process_node {
 	struct list_head list;
 };
 
+union SQ_CMD_BITS {
+	struct {
+		uint32_t cmd:3;
+		uint32_t:1;
+		uint32_t mode:3;
+		uint32_t check_vmid:1;
+		uint32_t trap_id:3;
+		uint32_t:5;
+		uint32_t wave_id:4;
+		uint32_t simd_id:2;
+		uint32_t:2;
+		uint32_t queue_id:3;
+		uint32_t:1;
+		uint32_t vm_id:4;
+	} bitfields, bits;
+	uint32_t u32All;
+	signed int i32All;
+	float f32All;
+};
+
+union GRBM_GFX_INDEX_BITS {
+	struct {
+		uint32_t instance_index:8;
+		uint32_t sh_index:8;
+		uint32_t se_index:8;
+		uint32_t:5;
+		uint32_t sh_broadcast_writes:1;
+		uint32_t instance_broadcast_writes:1;
+		uint32_t se_broadcast_writes:1;
+	} bitfields, bits;
+	uint32_t u32All;
+	signed int i32All;
+	float f32All;
+};
+
 /**
  * struct device_queue_manager_ops
  *
