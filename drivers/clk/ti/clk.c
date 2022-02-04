@@ -448,6 +448,24 @@ static const struct of_device_id simple_clk_match_table[] __initconst = {
 };
 
 /**
+ * ti_dt_clk_name - init clock name from first output name or node name
+ * @np: device node
+ *
+ * Use the first clock-output-name for the clock name if found. Fall back
+ * to legacy naming based on node name.
+ */
+const char *ti_dt_clk_name(struct device_node *np)
+{
+	const char *name;
+
+	if (!of_property_read_string_index(np, "clock-output-names", 0,
+					   &name))
+		return name;
+
+	return np->name;
+}
+
+/**
  * ti_clk_add_aliases - setup clock aliases
  *
  * Sets up any missing clock aliases. No return value.
@@ -463,7 +481,7 @@ void __init ti_clk_add_aliases(void)
 		clkspec.np = np;
 		clk = of_clk_get_from_provider(&clkspec);
 
-		ti_clk_add_alias(NULL, clk, np->name);
+		ti_clk_add_alias(NULL, clk, ti_dt_clk_name(np));
 	}
 }
 
