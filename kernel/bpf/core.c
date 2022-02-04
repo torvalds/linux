@@ -1031,6 +1031,109 @@ void bpf_jit_binary_free(struct bpf_binary_header *hdr)
 	bpf_jit_uncharge_modmem(size);
 }
 
+/* Allocate jit binary from bpf_prog_pack allocator.
+ * Since the allocated memory is RO+X, the JIT engine cannot write directly
+ * to the memory. To solve this problem, a RW buffer is also allocated at
+ * as the same time. The JIT engine should calculate offsets based on the
+ * RO memory address, but write JITed program to the RW buffer. Once the
+ * JIT engine finishes, it calls bpf_jit_binary_pack_finalize, which copies
+ * the JITed program to the RO memory.
+ */
+struct bpf_binary_header *
+bpf_jit_binary_pack_alloc(unsigned int proglen, u8 **image_ptr,
+			  unsigned int alignment,
+			  struct bpf_binary_header **rw_header,
+			  u8 **rw_image,
+			  bpf_jit_fill_hole_t bpf_fill_ill_insns)
+{
+	struct bpf_binary_header *ro_header;
+	u32 size, hole, start;
+
+	WARN_ON_ONCE(!is_power_of_2(alignment) ||
+		     alignment > BPF_IMAGE_ALIGNMENT);
+
+	/* add 16 bytes for a random section of illegal instructions */
+	size = round_up(proglen + sizeof(*ro_header) + 16, BPF_PROG_CHUNK_SIZE);
+
+	if (bpf_jit_charge_modmem(size))
+		return NULL;
+	ro_header = bpf_prog_pack_alloc(size);
+	if (!ro_header) {
+		bpf_jit_uncharge_modmem(size);
+		return NULL;
+	}
+
+	*rw_header = kvmalloc(size, GFP_KERNEL);
+	if (!*rw_header) {
+		bpf_prog_pack_free(ro_header);
+		bpf_jit_uncharge_modmem(size);
+		return NULL;
+	}
+
+	/* Fill space with illegal/arch-dep instructions. */
+	bpf_fill_ill_insns(*rw_header, size);
+	(*rw_header)->size = size;
+
+	hole = min_t(unsigned int, size - (proglen + sizeof(*ro_header)),
+		     BPF_PROG_CHUNK_SIZE - sizeof(*ro_header));
+	start = (get_random_int() % hole) & ~(alignment - 1);
+
+	*image_ptr = &ro_header->image[start];
+	*rw_image = &(*rw_header)->image[start];
+
+	return ro_header;
+}
+
+/* Copy JITed text from rw_header to its final location, the ro_header. */
+int bpf_jit_binary_pack_finalize(struct bpf_prog *prog,
+				 struct bpf_binary_header *ro_header,
+				 struct bpf_binary_header *rw_header)
+{
+	void *ptr;
+
+	ptr = bpf_arch_text_copy(ro_header, rw_header, rw_header->size);
+
+	kvfree(rw_header);
+
+	if (IS_ERR(ptr)) {
+		bpf_prog_pack_free(ro_header);
+		return PTR_ERR(ptr);
+	}
+	prog->aux->use_bpf_prog_pack = true;
+	return 0;
+}
+
+/* bpf_jit_binary_pack_free is called in two different scenarios:
+ *   1) when the program is freed after;
+ *   2) when the JIT engine fails (before bpf_jit_binary_pack_finalize).
+ * For case 2), we need to free both the RO memory and the RW buffer.
+ * Also, ro_header->size in 2) is not properly set yet, so rw_header->size
+ * is used for uncharge.
+ */
+void bpf_jit_binary_pack_free(struct bpf_binary_header *ro_header,
+			      struct bpf_binary_header *rw_header)
+{
+	u32 size = rw_header ? rw_header->size : ro_header->size;
+
+	bpf_prog_pack_free(ro_header);
+	kvfree(rw_header);
+	bpf_jit_uncharge_modmem(size);
+}
+
+static inline struct bpf_binary_header *
+bpf_jit_binary_hdr(const struct bpf_prog *fp)
+{
+	unsigned long real_start = (unsigned long)fp->bpf_func;
+	unsigned long addr;
+
+	if (fp->aux->use_bpf_prog_pack)
+		addr = real_start & BPF_PROG_CHUNK_MASK;
+	else
+		addr = real_start & PAGE_MASK;
+
+	return (void *)addr;
+}
+
 /* This symbol is only overridden by archs that have different
  * requirements than the usual eBPF JITs, f.e. when they only
  * implement cBPF JIT, do not set images read-only, etc.
@@ -1040,7 +1143,10 @@ void __weak bpf_jit_free(struct bpf_prog *fp)
 	if (fp->jited) {
 		struct bpf_binary_header *hdr = bpf_jit_binary_hdr(fp);
 
-		bpf_jit_binary_free(hdr);
+		if (fp->aux->use_bpf_prog_pack)
+			bpf_jit_binary_pack_free(hdr, NULL /* rw_buffer */);
+		else
+			bpf_jit_binary_free(hdr);
 
 		WARN_ON_ONCE(!bpf_prog_kallsyms_verify_off(fp));
 	}
