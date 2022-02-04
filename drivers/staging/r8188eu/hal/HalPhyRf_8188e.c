@@ -102,12 +102,10 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	u8 ThermalValue = 0, delta, delta_LCK, delta_IQK, offset;
 	u8 ThermalValue_AVG_count = 0;
 	u32 ThermalValue_AVG = 0;
-	s32 ele_A = 0, ele_D, TempCCk, X, value32;
-	s32 Y, ele_C = 0;
+	s32 ele_D, TempCCk;
 	s8 OFDM_index[2], CCK_index = 0;
 	s8 OFDM_index_old[2] = {0, 0}, CCK_index_old = 0;
 	u32 i = 0, j = 0;
-	bool is2t = false;
 
 	u8 OFDM_min_index = 6, rf; /* OFDM BB Swing should be less than +3.0dB, which is required by Arthur */
 	s8 OFDM_index_mapping[2][index_mapping_NUM_88E] = {
@@ -139,10 +137,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 
 	ThermalValue = (u8)rtl8188e_PHY_QueryRFReg(Adapter, RF_PATH_A, RF_T_METER_88E, 0xfc00); /* 0x42: RF Reg[15:10] 88E */
 
-	if (is2t)
-		rf = 2;
-	else
-		rf = 1;
+	rf = 1;
 
 	if (ThermalValue) {
 		/* Query OFDM path A default setting */
@@ -152,17 +147,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 				OFDM_index_old[0] = (u8)i;
 				dm_odm->BbSwingIdxOfdmBase = (u8)i;
 				break;
-			}
-		}
-
-		/* Query OFDM path B default setting */
-		if (is2t) {
-			ele_D = rtl8188e_PHY_QueryBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord) & bMaskOFDM_D;
-			for (i = 0; i < OFDM_TABLE_SIZE_92D; i++) {	/* find the index */
-				if (ele_D == (OFDMSwingTable[i] & bMaskOFDM_D)) {
-					OFDM_index_old[1] = (u8)i;
-					break;
-				}
 			}
 		}
 
@@ -277,11 +261,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 			if (dm_odm->RFCalibrateInfo.TxPowerTrackControl) {
 				dm_odm->RFCalibrateInfo.bDoneTxpower = true;
 
-				/* Adujst OFDM Ant_A according to IQK result */
-				ele_D = (OFDMSwingTable[(u8)OFDM_index[0]] & 0xFFC00000) >> 22;
-				X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][0];
-				Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][1];
-
 				/*  Revse TX power table. */
 				dm_odm->BbSwingIdxOfdm		= (u8)OFDM_index[0];
 				dm_odm->BbSwingIdxCck		= (u8)CCK_index;
@@ -294,53 +273,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 				if (dm_odm->BbSwingIdxCckCurrent != dm_odm->BbSwingIdxCck) {
 					dm_odm->BbSwingIdxCckCurrent = dm_odm->BbSwingIdxCck;
 					dm_odm->BbSwingFlagCck = true;
-				}
-
-				if (X != 0) {
-					if ((X & 0x00000200) != 0)
-						X = X | 0xFFFFFC00;
-					ele_A = ((X * ele_D) >> 8) & 0x000003FF;
-
-					/* new element C = element D x Y */
-					if ((Y & 0x00000200) != 0)
-						Y = Y | 0xFFFFFC00;
-					ele_C = ((Y * ele_D) >> 8) & 0x000003FF;
-
-					/*  2012/04/23 MH According to Luke's suggestion, we can not write BB digital */
-					/*  to increase TX power. Otherwise, EVM will be bad. */
-				}
-
-				if (is2t) {
-					ele_D = (OFDMSwingTable[(u8)OFDM_index[1]] & 0xFFC00000) >> 22;
-
-					/* new element A = element D x X */
-					X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][4];
-					Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][5];
-
-					if (X != 0) {
-						if ((X & 0x00000200) != 0)	/* consider minus */
-							X = X | 0xFFFFFC00;
-						ele_A = ((X * ele_D) >> 8) & 0x000003FF;
-
-						/* new element C = element D x Y */
-						if ((Y & 0x00000200) != 0)
-							Y = Y | 0xFFFFFC00;
-						ele_C = ((Y * ele_D) >> 8) & 0x00003FF;
-
-						/* wtite new elements A, C, D to regC88 and regC9C, element B is always 0 */
-						value32 = (ele_D << 22) | ((ele_C & 0x3F) << 16) | ele_A;
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, value32);
-
-						value32 = (ele_C & 0x000003C0) >> 6;
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, value32);
-
-						value32 = ((X * ele_D) >> 7) & 0x01;
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT(28), value32);
-					} else {
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, OFDMSwingTable[(u8)OFDM_index[1]]);
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, 0x00);
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT(28), 0x00);
-					}
 				}
 			}
 		}
