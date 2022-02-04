@@ -119,12 +119,51 @@ int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops)
 	return 0;
 }
 
+/*
+ * Eventually we could standardize to using '_' for clk-*.c files to follow the
+ * TRM naming and leave out the tmp name here.
+ */
+static struct device_node *ti_find_clock_provider(struct device_node *from,
+						  const char *name)
+{
+	struct device_node *np;
+	bool found = false;
+	const char *n;
+	char *tmp;
+
+	tmp = kstrdup(name, GFP_KERNEL);
+	if (!tmp)
+		return NULL;
+	strreplace(tmp, '-', '_');
+
+	/* Node named "clock" with "clock-output-names" */
+	for_each_of_allnodes_from(from, np) {
+		if (of_property_read_string_index(np, "clock-output-names",
+						  0, &n))
+			continue;
+
+		if (!strncmp(n, tmp, strlen(tmp))) {
+			found = true;
+			break;
+		}
+	}
+	of_node_put(from);
+	kfree(tmp);
+
+	if (found)
+		return np;
+
+	/* Fall back to using old node name base provider name */
+	return of_find_node_by_name(from, name);
+}
+
 /**
  * ti_dt_clocks_register - register DT alias clocks during boot
  * @oclks: list of clocks to register
  *
  * Register alias or non-standard DT clock entries during boot. By
- * default, DT clocks are found based on their node name. If any
+ * default, DT clocks are found based on their clock-output-names
+ * property, or the clock node name for legacy cases. If any
  * additional con-id / dev-id -> clock mapping is required, use this
  * function to list these.
  */
@@ -168,7 +207,7 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 		if (num_args && clkctrl_nodes_missing)
 			continue;
 
-		node = of_find_node_by_name(NULL, buf);
+		node = ti_find_clock_provider(NULL, buf);
 		if (num_args && compat_mode) {
 			parent = node;
 			child = of_get_child_by_name(parent, "clock");
