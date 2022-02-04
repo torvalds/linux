@@ -12,7 +12,6 @@ menuconfig NET_DSA_REALTEK
 config NET_DSA_REALTEK_MDIO
 	tristate "Realtek MDIO connected switch driver"
 	depends on NET_DSA_REALTEK
-	default y
 	help
 	  Select to enable support for registering switches configured
 	  through MDIO.
@@ -20,14 +19,12 @@ config NET_DSA_REALTEK_MDIO
 config NET_DSA_REALTEK_SMI
 	tristate "Realtek SMI connected switch driver"
 	depends on NET_DSA_REALTEK
-	default y
 	help
 	  Select to enable support for registering switches connected
 	  through SMI.
 
 config NET_DSA_REALTEK_RTL8365MB
 	tristate "Realtek RTL8365MB switch subdriver"
-	default y
 	depends on NET_DSA_REALTEK
 	depends on NET_DSA_REALTEK_SMI || NET_DSA_REALTEK_MDIO
 	select NET_DSA_TAG_RTL8_4
@@ -36,7 +33,6 @@ config NET_DSA_REALTEK_RTL8365MB
 
 config NET_DSA_REALTEK_RTL8366RB
 	tristate "Realtek RTL8366RB switch subdriver"
-	default y
 	depends on NET_DSA_REALTEK
 	depends on NET_DSA_REALTEK_SMI || NET_DSA_REALTEK_MDIO
 	select NET_DSA_TAG_RTL4_A
