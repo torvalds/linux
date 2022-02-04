@@ -75,6 +75,8 @@
  *  VERSION     : 01-00-38
  *  31 Jan 2022 : 1. Additional macros defined for debug dump API usage.
  *  VERSION     : 01-00-39
+ *  04 Feb 2021 : 1. Ethtool statistics added to print doorbell SRAM area for all the channels.
+ *  VERSION     : 01-00-41 
  */
 
 #ifndef __COMMON_H__
@@ -1379,6 +1381,10 @@ struct tc956xmac_extra_stats {
 	u64 m3_tx_timeout_port0;
 	u64 m3_tx_timeout_port1;
 	u64 m3_debug_cnt19;
+	u64 m3_tx_pcie_addr_loc_port0[TC956XMAC_CH_MAX];
+	u64 m3_tx_pcie_addr_loc_port1[TC956XMAC_CH_MAX];
+	u64 m3_rx_pcie_addr_loc_port0[TC956XMAC_CH_MAX];
+	u64 m3_rx_pcie_addr_loc_port1[TC956XMAC_CH_MAX];
 
 };
 

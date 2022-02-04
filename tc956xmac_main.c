@@ -103,6 +103,8 @@
  *  VERSION     : 01-00-37
  *  31 Jan 2022 : 1. Debug dump API supported to dump registers during crash.
  *  VERSION     : 01-00-39
+ *  04 Feb 2022 : 1. DMA channel status cleared only for SW path allocated DMA channels. IPA path DMA channel status clearing is skipped.
+ *  VERSION     : 01-00-41
 */
 
 #include <linux/clk.h>
@@ -4120,10 +4122,19 @@ static void tc956xmac_dma_interrupt(struct tc956xmac_priv *priv)
 	if (WARN_ON_ONCE(channels_to_check > ARRAY_SIZE(status)))
 		channels_to_check = ARRAY_SIZE(status);
 
-	for (chan = 0; chan < channels_to_check; chan++)
+	for (chan = 0; chan < channels_to_check; chan++) {
+		/* Assuming DMA Tx and Rx channels are used as pairs */
+		if ((priv->plat->tx_dma_ch_owner[chan] != USE_IN_TC956X_SW) ||
+			(priv->plat->rx_dma_ch_owner[chan] != USE_IN_TC956X_SW))
+			continue;
+
 		status[chan] = tc956xmac_napi_check(priv, chan);
+	}
 
 	for (chan = 0; chan < tx_channel_count; chan++) {
+		if (priv->plat->tx_dma_ch_owner[chan] != USE_IN_TC956X_SW)
+			continue;
+
 		if (unlikely(status[chan] & tx_hard_error_bump_tc)) {
 			/* Try to bump up the dma threshold on this failure */
 			if (unlikely(priv->xstats.threshold != SF_DMA_MODE) &&
