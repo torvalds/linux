@@ -77,11 +77,11 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 }
 
 static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
-				  unsigned char *buff)
+				  unsigned char *buf)
 {
 	int ret, size;
 
-	ret = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addrptr, buff, 1);
+	ret = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addrptr, buf, 1);
 	if (ret < 1) {
 		DRM_WARN("FRU: Failed to get size field");
 		return ret;
@@ -90,9 +90,9 @@ static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
 	/* The size returned by the i2c requires subtraction of 0xC0 since the
 	 * size apparently always reports as 0xC0+actual size.
 	 */
-	size = buff[0] - I2C_PRODUCT_INFO_OFFSET;
+	size = buf[0] - I2C_PRODUCT_INFO_OFFSET;
 
-	ret = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addrptr + 1, buff, size);
+	ret = amdgpu_eeprom_read(adev->pm.fru_eeprom_i2c_bus, addrptr + 1, buf, size);
 	if (ret < 1) {
 		DRM_WARN("FRU: Failed to get data field");
 		return ret;
@@ -103,7 +103,7 @@ static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
 
 int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 {
-	unsigned char buff[AMDGPU_PRODUCT_NAME_LEN+2];
+	unsigned char buf[AMDGPU_PRODUCT_NAME_LEN+2];
 	u32 addrptr;
 	int size, len;
 	int offset = 2;
@@ -133,7 +133,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	 * and the language field, so just start from 0xb, manufacturer size
 	 */
 	addrptr = FRU_EEPROM_MADDR + 0xb;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf);
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU Manufacturer, ret:%d", size);
 		return -EINVAL;
@@ -143,7 +143,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	 * size field being 1 byte. This pattern continues below.
 	 */
 	addrptr += size + 1;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf);
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU product name, ret:%d", size);
 		return -EINVAL;
@@ -155,12 +155,12 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 				AMDGPU_PRODUCT_NAME_LEN);
 		len = AMDGPU_PRODUCT_NAME_LEN - 1;
 	}
-	/* Start at 2 due to buff using fields 0 and 1 for the address */
-	memcpy(adev->product_name, &buff[offset], len);
+	/* Start at 2 due to buf using fields 0 and 1 for the address */
+	memcpy(adev->product_name, &buf[offset], len);
 	adev->product_name[len] = '\0';
 
 	addrptr += size + 1;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf);
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU product number, ret:%d", size);
 		return -EINVAL;
@@ -174,11 +174,11 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		DRM_WARN("FRU Product Number is larger than 16 characters. This is likely a mistake");
 		len = sizeof(adev->product_number) - 1;
 	}
-	memcpy(adev->product_number, &buff[offset], len);
+	memcpy(adev->product_number, &buf[offset], len);
 	adev->product_number[len] = '\0';
 
 	addrptr += size + 1;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf);
 
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU product version, ret:%d", size);
@@ -186,7 +186,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	}
 
 	addrptr += size + 1;
-	size = amdgpu_fru_read_eeprom(adev, addrptr, buff);
+	size = amdgpu_fru_read_eeprom(adev, addrptr, buf);
 
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU serial number, ret:%d", size);
@@ -201,7 +201,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		DRM_WARN("FRU Serial Number is larger than 16 characters. This is likely a mistake");
 		len = sizeof(adev->serial) - 1;
 	}
-	memcpy(adev->serial, &buff[offset], len);
+	memcpy(adev->serial, &buf[offset], len);
 	adev->serial[len] = '\0';
 
 	return 0;
