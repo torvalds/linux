@@ -137,7 +137,8 @@ static inline int sgpio_addr_to_pin(struct sgpio_priv *priv, int port, int bit)
 
 static inline u32 sgpio_get_addr(struct sgpio_priv *priv, u32 rno, u32 off)
 {
-	return priv->properties->regoff[rno] + off;
+	return (priv->properties->regoff[rno] + off) *
+		regmap_get_reg_stride(priv->regs);
 }
 
 static u32 sgpio_readl(struct sgpio_priv *priv, u32 rno, u32 off)

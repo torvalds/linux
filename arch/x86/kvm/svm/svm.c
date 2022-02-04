@@ -290,7 +290,7 @@ int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 	if ((old_efer & EFER_SVME) != (efer & EFER_SVME)) {
 		if (!(efer & EFER_SVME)) {
-			svm_leave_nested(svm);
+			svm_leave_nested(vcpu);
 			svm_set_gif(svm, true);
 			/* #GP intercept is still needed for vmware backdoor */
 			if (!enable_vmware_backdoor)
@@ -312,7 +312,11 @@ int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 				return ret;
 			}
 
-			if (svm_gp_erratum_intercept)
+			/*
+			 * Never intercept #GP for SEV guests, KVM can't
+			 * decrypt guest memory to workaround the erratum.
+			 */
+			if (svm_gp_erratum_intercept && !sev_guest(vcpu->kvm))
 				set_exception_intercept(svm, GP_VECTOR);
 		}
 	}
@@ -1010,9 +1014,10 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 	 * Guest access to VMware backdoor ports could legitimately
 	 * trigger #GP because of TSS I/O permission bitmap.
 	 * We intercept those #GP and allow access to them anyway
-	 * as VMware does.
+	 * as VMware does.  Don't intercept #GP for SEV guests as KVM can't
+	 * decrypt guest memory to decode the faulting instruction.
 	 */
-	if (enable_vmware_backdoor)
+	if (enable_vmware_backdoor && !sev_guest(vcpu->kvm))
 		set_exception_intercept(svm, GP_VECTOR);
 
 	svm_set_intercept(svm, INTERCEPT_INTR);
@@ -2091,10 +2096,6 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 	if (error_code)
 		goto reinject;
 
-	/* All SVM instructions expect page aligned RAX */
-	if (svm->vmcb->save.rax & ~PAGE_MASK)
-		goto reinject;
-
 	/* Decode the instruction for usage later */
 	if (x86_decode_emulated_instruction(vcpu, 0, NULL, 0) != EMULATION_OK)
 		goto reinject;
@@ -2112,8 +2113,13 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 		if (!is_guest_mode(vcpu))
 			return kvm_emulate_instruction(vcpu,
 				EMULTYPE_VMWARE_GP | EMULTYPE_NO_DECODE);
-	} else
+	} else {
+		/* All SVM instructions expect page aligned RAX */
+		if (svm->vmcb->save.rax & ~PAGE_MASK)
+			goto reinject;
+
 		return emulate_svm_instr(vcpu, opcode);
+	}
 
 reinject:
 	kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
@@ -4252,79 +4258,140 @@ static void svm_enable_smi_window(struct kvm_vcpu *vcpu)
 	}
 }
 
-static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, void *insn, int insn_len)
+static bool svm_can_emulate_instruction(struct kvm_vcpu *vcpu, int emul_type,
+					void *insn, int insn_len)
 {
 	bool smep, smap, is_user;
 	unsigned long cr4;
+	u64 error_code;
+
+	/* Emulation is always possible when KVM has access to all guest state. */
+	if (!sev_guest(vcpu->kvm))
+		return true;
+
+	/* #UD and #GP should never be intercepted for SEV guests. */
+	WARN_ON_ONCE(emul_type & (EMULTYPE_TRAP_UD |
+				  EMULTYPE_TRAP_UD_FORCED |
+				  EMULTYPE_VMWARE_GP));
 
 	/*
-	 * When the guest is an SEV-ES guest, emulation is not possible.
+	 * Emulation is impossible for SEV-ES guests as KVM doesn't have access
+	 * to guest register state.
 	 */
 	if (sev_es_guest(vcpu->kvm))
 		return false;
 
 	/*
-	 * Detect and workaround Errata 1096 Fam_17h_00_0Fh.
-	 *
-	 * Errata:
-	 * When CPU raise #NPF on guest data access and vCPU CR4.SMAP=1, it is
-	 * possible that CPU microcode implementing DecodeAssist will fail
-	 * to read bytes of instruction which caused #NPF. In this case,
-	 * GuestIntrBytes field of the VMCB on a VMEXIT will incorrectly
-	 * return 0 instead of the correct guest instruction bytes.
-	 *
-	 * This happens because CPU microcode reading instruction bytes
-	 * uses a special opcode which attempts to read data using CPL=0
-	 * privileges. The microcode reads CS:RIP and if it hits a SMAP
-	 * fault, it gives up and returns no instruction bytes.
-	 *
-	 * Detection:
-	 * We reach here in case CPU supports DecodeAssist, raised #NPF and
-	 * returned 0 in GuestIntrBytes field of the VMCB.
-	 * First, errata can only be triggered in case vCPU CR4.SMAP=1.
-	 * Second, if vCPU CR4.SMEP=1, errata could only be triggered
-	 * in case vCPU CPL==3 (Because otherwise guest would have triggered
-	 * a SMEP fault instead of #NPF).
-	 * Otherwise, vCPU CR4.SMEP=0, errata could be triggered by any vCPU CPL.
-	 * As most guests enable SMAP if they have also enabled SMEP, use above
-	 * logic in order to attempt minimize false-positive of detecting errata
-	 * while still preserving all cases semantic correctness.
-	 *
-	 * Workaround:
-	 * To determine what instruction the guest was executing, the hypervisor
-	 * will have to decode the instruction at the instruction pointer.
-	 *
-	 * In non SEV guest, hypervisor will be able to read the guest
-	 * memory to decode the instruction pointer when insn_len is zero
-	 * so we return true to indicate that decoding is possible.
-	 *
-	 * But in the SEV guest, the guest memory is encrypted with the
-	 * guest specific key and hypervisor will not be able to decode the
-	 * instruction pointer so we will not able to workaround it. Lets
-	 * print the error and request to kill the guest.
+	 * Emulation is possible if the instruction is already decoded, e.g.
+	 * when completing I/O after returning from userspace.
 	 */
-	if (likely(!insn || insn_len))
+	if (emul_type & EMULTYPE_NO_DECODE)
 		return true;
 
 	/*
-	 * If RIP is invalid, go ahead with emulation which will cause an
-	 * internal error exit.
+	 * Emulation is possible for SEV guests if and only if a prefilled
+	 * buffer containing the bytes of the intercepted instruction is
+	 * available. SEV guest memory is encrypted with a guest specific key
+	 * and cannot be decrypted by KVM, i.e. KVM would read cyphertext and
+	 * decode garbage.
+	 *
+	 * Inject #UD if KVM reached this point without an instruction buffer.
+	 * In practice, this path should never be hit by a well-behaved guest,
+	 * e.g. KVM doesn't intercept #UD or #GP for SEV guests, but this path
+	 * is still theoretically reachable, e.g. via unaccelerated fault-like
+	 * AVIC access, and needs to be handled by KVM to avoid putting the
+	 * guest into an infinite loop.   Injecting #UD is somewhat arbitrary,
+	 * but its the least awful option given lack of insight into the guest.
 	 */
-	if (!kvm_vcpu_gfn_to_memslot(vcpu, kvm_rip_read(vcpu) >> PAGE_SHIFT))
+	if (unlikely(!insn)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return false;
+	}
+
+	/*
+	 * Emulate for SEV guests if the insn buffer is not empty.  The buffer
+	 * will be empty if the DecodeAssist microcode cannot fetch bytes for
+	 * the faulting instruction because the code fetch itself faulted, e.g.
+	 * the guest attempted to fetch from emulated MMIO or a guest page
+	 * table used to translate CS:RIP resides in emulated MMIO.
+	 */
+	if (likely(insn_len))
 		return true;
+
+	/*
+	 * Detect and workaround Errata 1096 Fam_17h_00_0Fh.
+	 *
+	 * Errata:
+	 * When CPU raises #NPF on guest data access and vCPU CR4.SMAP=1, it is
+	 * possible that CPU microcode implementing DecodeAssist will fail to
+	 * read guest memory at CS:RIP and vmcb.GuestIntrBytes will incorrectly
+	 * be '0'.  This happens because microcode reads CS:RIP using a _data_
+	 * loap uop with CPL=0 privileges.  If the load hits a SMAP #PF, ucode
+	 * gives up and does not fill the instruction bytes buffer.
+	 *
+	 * As above, KVM reaches this point iff the VM is an SEV guest, the CPU
+	 * supports DecodeAssist, a #NPF was raised, KVM's page fault handler
+	 * triggered emulation (e.g. for MMIO), and the CPU returned 0 in the
+	 * GuestIntrBytes field of the VMCB.
+	 *
+	 * This does _not_ mean that the erratum has been encountered, as the
+	 * DecodeAssist will also fail if the load for CS:RIP hits a legitimate
+	 * #PF, e.g. if the guest attempt to execute from emulated MMIO and
+	 * encountered a reserved/not-present #PF.
+	 *
+	 * To hit the erratum, the following conditions must be true:
+	 *    1. CR4.SMAP=1 (obviously).
+	 *    2. CR4.SMEP=0 || CPL=3.  If SMEP=1 and CPL<3, the erratum cannot
+	 *       have been hit as the guest would have encountered a SMEP
+	 *       violation #PF, not a #NPF.
+	 *    3. The #NPF is not due to a code fetch, in which case failure to
+	 *       retrieve the instruction bytes is legitimate (see abvoe).
+	 *
+	 * In addition, don't apply the erratum workaround if the #NPF occurred
+	 * while translating guest page tables (see below).
+	 */
+	error_code = to_svm(vcpu)->vmcb->control.exit_info_1;
+	if (error_code & (PFERR_GUEST_PAGE_MASK | PFERR_FETCH_MASK))
+		goto resume_guest;
 
 	cr4 = kvm_read_cr4(vcpu);
 	smep = cr4 & X86_CR4_SMEP;
 	smap = cr4 & X86_CR4_SMAP;
 	is_user = svm_get_cpl(vcpu) == 3;
 	if (smap && (!smep || is_user)) {
-		if (!sev_guest(vcpu->kvm))
-			return true;
-
 		pr_err_ratelimited("KVM: SEV Guest triggered AMD Erratum 1096\n");
-		kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
+
+		/*
+		 * If the fault occurred in userspace, arbitrarily inject #GP
+		 * to avoid killing the guest and to hopefully avoid confusing
+		 * the guest kernel too much, e.g. injecting #PF would not be
+		 * coherent with respect to the guest's page tables.  Request
+		 * triple fault if the fault occurred in the kernel as there's
+		 * no fault that KVM can inject without confusing the guest.
+		 * In practice, the triple fault is moot as no sane SEV kernel
+		 * will execute from user memory while also running with SMAP=1.
+		 */
+		if (is_user)
+			kvm_inject_gp(vcpu, 0);
+		else
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 	}
 
+resume_guest:
+	/*
+	 * If the erratum was not hit, simply resume the guest and let it fault
+	 * again.  While awful, e.g. the vCPU may get stuck in an infinite loop
+	 * if the fault is at CPL=0, it's the lesser of all evils.  Exiting to
+	 * userspace will kill the guest, and letting the emulator read garbage
+	 * will yield random behavior and potentially corrupt the guest.
+	 *
+	 * Simply resuming the guest is technically not a violation of the SEV
+	 * architecture.  AMD's APM states that all code fetches and page table
+	 * accesses for SEV guest are encrypted, regardless of the C-Bit.  The
+	 * APM also states that encrypted accesses to MMIO are "ignored", but
+	 * doesn't explicitly define "ignored", i.e. doing nothing and letting
+	 * the guest spin is technically "ignoring" the access.
+	 */
 	return false;
 }
 

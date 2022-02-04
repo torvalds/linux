@@ -665,16 +665,31 @@ static bool is_xfd_supported(void)
 	return !!(eax & CPUID_XFD_BIT);
 }
 
-void vm_xsave_req_perm(void)
+void vm_xsave_req_perm(int bit)
 {
-	unsigned long bitmask;
+	int kvm_fd;
+	u64 bitmask;
 	long rc;
+	struct kvm_device_attr attr = {
+		.group = 0,
+		.attr = KVM_X86_XCOMP_GUEST_SUPP,
+		.addr = (unsigned long) &bitmask
+	};
+
+	kvm_fd = open_kvm_dev_path_or_exit();
+	rc = ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
+	close(kvm_fd);
+	if (rc == -1 && (errno == ENXIO || errno == EINVAL))
+		exit(KSFT_SKIP);
+	TEST_ASSERT(rc == 0, "KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) error: %ld", rc);
+	if (!(bitmask & (1ULL << bit)))
+		exit(KSFT_SKIP);
 
 	if (!is_xfd_supported())
-		return;
+		exit(KSFT_SKIP);
 
-	rc = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM,
-		     XSTATE_XTILE_DATA_BIT);
+	rc = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, bit);
+
 	/*
 	 * The older kernel version(<5.15) can't support
 	 * ARCH_REQ_XCOMP_GUEST_PERM and directly return.
@@ -684,7 +699,7 @@ void vm_xsave_req_perm(void)
 
 	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_GUEST_PERM, &bitmask);
 	TEST_ASSERT(rc == 0, "prctl(ARCH_GET_XCOMP_GUEST_PERM) error: %ld", rc);
-	TEST_ASSERT(bitmask & XFEATURE_XTILE_MASK,
+	TEST_ASSERT(bitmask & (1ULL << bit),
 		    "prctl(ARCH_REQ_XCOMP_GUEST_PERM) failure bitmask=0x%lx",
 		    bitmask);
 }
