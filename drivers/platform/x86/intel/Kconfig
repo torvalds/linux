@@ -11,6 +11,8 @@ source "drivers/platform/x86/intel/pmt/Kconfig"
 source "drivers/platform/x86/intel/speed_select_if/Kconfig"
 source "drivers/platform/x86/intel/telemetry/Kconfig"
 source "drivers/platform/x86/intel/wmi/Kconfig"
+source "drivers/platform/x86/intel/uncore-frequency/Kconfig"
+
 
 config INTEL_HID_EVENT
 	tristate "Intel HID Event"
@@ -189,18 +191,6 @@ config INTEL_TURBO_MAX_3
 
 	  This driver is only required when the system is not using Hardware
 	  P-States (HWP). In HWP mode, priority can be read from ACPI tables.
-
-config INTEL_UNCORE_FREQ_CONTROL
-	tristate "Intel Uncore frequency control driver"
-	depends on X86_64
-	help
-	  This driver allows control of Uncore frequency limits on
-	  supported server platforms.
-
-	  Uncore frequency controls RING/LLC (last-level cache) clocks.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called intel-uncore-frequency.
 
 config INTEL_VSEC
 	tristate "Intel Vendor Specific Extended Capabilities Driver"
