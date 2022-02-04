@@ -274,6 +274,8 @@ int ti_clk_get_reg_addr(struct device_node *node, int index,
 	for (i = 0; i < CLK_MAX_MEMMAPS; i++) {
 		if (clocks_node_ptr[i] == node->parent)
 			break;
+		if (clocks_node_ptr[i] == node->parent->parent)
+			break;
 	}
 
 	if (i == CLK_MAX_MEMMAPS) {
@@ -284,8 +286,12 @@ int ti_clk_get_reg_addr(struct device_node *node, int index,
 	reg->index = i;
 
 	if (of_property_read_u32_index(node, "reg", index, &val)) {
-		pr_err("%pOFn must have reg[%d]!\n", node, index);
-		return -EINVAL;
+		if (of_property_read_u32_index(node->parent, "reg",
+					       index, &val)) {
+			pr_err("%pOFn or parent must have reg[%d]!\n",
+			       node, index);
+			return -EINVAL;
+		}
 	}
 
 	reg->offset = val;
