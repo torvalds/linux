@@ -267,6 +267,8 @@ int lan966x_handle_port_mdb_del(struct lan966x_port *port,
 				const struct switchdev_obj *obj);
 void lan966x_mdb_erase_entries(struct lan966x *lan966x, u16 vid);
 void lan966x_mdb_write_entries(struct lan966x *lan966x, u16 vid);
+void lan966x_mdb_clear_entries(struct lan966x *lan966x);
+void lan966x_mdb_restore_entries(struct lan966x *lan966x);
 
 int lan966x_ptp_init(struct lan966x *lan966x);
 void lan966x_ptp_deinit(struct lan966x *lan966x);

@@ -185,6 +185,10 @@ static void lan966x_port_mc_set(struct lan966x_port *port, bool mcast_ena)
 	struct lan966x *lan966x = port->lan966x;
 
 	port->mcast_ena = mcast_ena;
+	if (mcast_ena)
+		lan966x_mdb_restore_entries(lan966x);
+	else
+		lan966x_mdb_clear_entries(lan966x);
 
 	lan_rmw(ANA_CPU_FWD_CFG_IGMP_REDIR_ENA_SET(mcast_ena) |
 		ANA_CPU_FWD_CFG_MLD_REDIR_ENA_SET(mcast_ena) |
