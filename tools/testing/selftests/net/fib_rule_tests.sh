@@ -215,10 +215,25 @@ fib_rule4_test_match_n_redirect()
 	log_test $? 0 "rule4 del by pref: $description"
 }
 
+fib_rule4_test_reject()
+{
+	local match="$1"
+	local rc
+
+	$IP rule add $match table $RTABLE 2>/dev/null
+	rc=$?
+	log_test $rc 2 "rule4 check: $match"
+
+	if [ $rc -eq 0 ]; then
+		$IP rule del $match table $RTABLE
+	fi
+}
+
 fib_rule4_test()
 {
 	local getmatch
 	local match
+	local cnt
 
 	# setup the fib rule redirect route
 	$IP route add table $RTABLE default via $GW_IP4 dev $DEV onlink
@@ -234,8 +249,21 @@ fib_rule4_test()
 	fib_rule4_test_match_n_redirect "$match" "$match" "iif redirect to table"
 	ip netns exec testns sysctl -qw net.ipv4.ip_forward=0
 
+	# Reject dsfield (tos) options which have ECN bits set
+	for cnt in $(seq 1 3); do
+		match="dsfield $cnt"
+		fib_rule4_test_reject "$match"
+	done
+
+	# Don't take ECN bits into account when matching on dsfield
 	match="tos 0x10"
-	fib_rule4_test_match_n_redirect "$match" "$match" "tos redirect to table"
+	for cnt in "0x10" "0x11" "0x12" "0x13"; do
+		# Using option 'tos' instead of 'dsfield' as old iproute2
+		# versions don't support 'dsfield' in ip rule show.
+		getmatch="tos $cnt"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+						"$getmatch redirect to table"
+	done
 
 	match="fwmark 0x64"
 	getmatch="mark 0x64"
