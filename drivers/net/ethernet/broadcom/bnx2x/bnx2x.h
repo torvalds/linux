@@ -1271,7 +1271,7 @@ struct bnx2x_fw_stats_data {
 	struct per_port_stats		port;
 	struct per_pf_stats		pf;
 	struct fcoe_statistics_params	fcoe;
-	struct per_queue_stats		queue_stats[1];
+	struct per_queue_stats		queue_stats[];
 };
 
 /* Public slow path states */
