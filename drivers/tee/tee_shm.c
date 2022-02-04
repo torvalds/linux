@@ -31,14 +31,7 @@ static void release_registered_pages(struct tee_shm *shm)
 static void tee_shm_release(struct tee_device *teedev, struct tee_shm *shm)
 {
 	if (shm->flags & TEE_SHM_POOL) {
-		struct tee_shm_pool_mgr *poolm;
-
-		if (shm->flags & TEE_SHM_DMA_BUF)
-			poolm = teedev->pool->dma_buf_mgr;
-		else
-			poolm = teedev->pool->private_mgr;
-
-		poolm->ops->free(poolm, shm);
+		teedev->pool->ops->free(teedev->pool, shm);
 	} else if (shm->flags & TEE_SHM_REGISTER) {
 		int rc = teedev->desc->ops->shm_unregister(shm->ctx, shm);
 
@@ -59,8 +52,8 @@ static void tee_shm_release(struct tee_device *teedev, struct tee_shm *shm)
 struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 {
 	struct tee_device *teedev = ctx->teedev;
-	struct tee_shm_pool_mgr *poolm = NULL;
 	struct tee_shm *shm;
+	size_t align;
 	void *ret;
 	int rc;
 
@@ -93,12 +86,18 @@ struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 	refcount_set(&shm->refcount, 1);
 	shm->flags = flags | TEE_SHM_POOL;
 	shm->ctx = ctx;
-	if (flags & TEE_SHM_DMA_BUF)
-		poolm = teedev->pool->dma_buf_mgr;
-	else
-		poolm = teedev->pool->private_mgr;
+	if (flags & TEE_SHM_DMA_BUF) {
+		align = PAGE_SIZE;
+		/*
+		 * Request to register the shm in the pool allocator below
+		 * if supported.
+		 */
+		shm->flags |= TEE_SHM_REGISTER;
+	} else {
+		align = 2 * sizeof(long);
+	}
 
-	rc = poolm->ops->alloc(poolm, shm, size);
+	rc = teedev->pool->ops->alloc(teedev->pool, shm, size, align);
 	if (rc) {
 		ret = ERR_PTR(rc);
 		goto err_kfree;
@@ -118,7 +117,7 @@ struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 
 	return shm;
 err_pool_free:
-	poolm->ops->free(poolm, shm);
+	teedev->pool->ops->free(teedev->pool, shm);
 err_kfree:
 	kfree(shm);
 err_dev_put:
