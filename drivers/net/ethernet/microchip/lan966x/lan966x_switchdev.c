@@ -9,6 +9,37 @@ static struct notifier_block lan966x_netdevice_nb __read_mostly;
 static struct notifier_block lan966x_switchdev_nb __read_mostly;
 static struct notifier_block lan966x_switchdev_blocking_nb __read_mostly;
 
+static void lan966x_port_set_mcast_ip_flood(struct lan966x_port *port,
+					    u32 pgid_ip)
+{
+	struct lan966x *lan966x = port->lan966x;
+	u32 flood_mask_ip;
+
+	flood_mask_ip = lan_rd(lan966x, ANA_PGID(pgid_ip));
+	flood_mask_ip = ANA_PGID_PGID_GET(flood_mask_ip);
+
+	/* If mcast snooping is not enabled then use mcast flood mask
+	 * to decide to enable multicast flooding or not.
+	 */
+	if (!port->mcast_ena) {
+		u32 flood_mask;
+
+		flood_mask = lan_rd(lan966x, ANA_PGID(PGID_MC));
+		flood_mask = ANA_PGID_PGID_GET(flood_mask);
+
+		if (flood_mask & BIT(port->chip_port))
+			flood_mask_ip |= BIT(port->chip_port);
+		else
+			flood_mask_ip &= ~BIT(port->chip_port);
+	} else {
+		flood_mask_ip &= ~BIT(port->chip_port);
+	}
+
+	lan_rmw(ANA_PGID_PGID_SET(flood_mask_ip),
+		ANA_PGID_PGID,
+		lan966x, ANA_PGID(pgid_ip));
+}
+
 static void lan966x_port_set_mcast_flood(struct lan966x_port *port,
 					 bool enabled)
 {
@@ -23,6 +54,11 @@ static void lan966x_port_set_mcast_flood(struct lan966x_port *port,
 	lan_rmw(ANA_PGID_PGID_SET(val),
 		ANA_PGID_PGID,
 		port->lan966x, ANA_PGID(PGID_MC));
+
+	if (!port->mcast_ena) {
+		lan966x_port_set_mcast_ip_flood(port, PGID_MCIPV4);
+		lan966x_port_set_mcast_ip_flood(port, PGID_MCIPV6);
+	}
 }
 
 static void lan966x_port_set_ucast_flood(struct lan966x_port *port,
@@ -144,6 +180,24 @@ static void lan966x_port_ageing_set(struct lan966x_port *port,
 	lan966x_mac_set_ageing(port->lan966x, ageing_time);
 }
 
+static void lan966x_port_mc_set(struct lan966x_port *port, bool mcast_ena)
+{
+	struct lan966x *lan966x = port->lan966x;
+
+	port->mcast_ena = mcast_ena;
+
+	lan_rmw(ANA_CPU_FWD_CFG_IGMP_REDIR_ENA_SET(mcast_ena) |
+		ANA_CPU_FWD_CFG_MLD_REDIR_ENA_SET(mcast_ena) |
+		ANA_CPU_FWD_CFG_IPMC_CTRL_COPY_ENA_SET(mcast_ena),
+		ANA_CPU_FWD_CFG_IGMP_REDIR_ENA |
+		ANA_CPU_FWD_CFG_MLD_REDIR_ENA |
+		ANA_CPU_FWD_CFG_IPMC_CTRL_COPY_ENA,
+		lan966x, ANA_CPU_FWD_CFG(port->chip_port));
+
+	lan966x_port_set_mcast_ip_flood(port, PGID_MCIPV4);
+	lan966x_port_set_mcast_ip_flood(port, PGID_MCIPV6);
+}
+
 static int lan966x_port_attr_set(struct net_device *dev, const void *ctx,
 				 const struct switchdev_attr *attr,
 				 struct netlink_ext_ack *extack)
@@ -170,6 +224,9 @@ static int lan966x_port_attr_set(struct net_device *dev, const void *ctx,
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
 		lan966x_vlan_port_set_vlan_aware(port, attr->u.vlan_filtering);
 		lan966x_vlan_port_apply(port);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED:
+		lan966x_port_mc_set(port, !attr->u.mc_disabled);
 		break;
 	default:
 		err = -EOPNOTSUPP;
