@@ -166,9 +166,9 @@ struct gs_host_frame {
 /* Only launch a max of GS_MAX_RX_URBS usb requests at a time. */
 #define GS_MAX_RX_URBS 30
 /* Maximum number of interfaces the driver supports per device.
- * Current hardware only supports 2 interfaces. The future may vary.
+ * Current hardware only supports 3 interfaces. The future may vary.
  */
-#define GS_MAX_INTF 2
+#define GS_MAX_INTF 3
 
 struct gs_tx_context {
 	struct gs_can *dev;
