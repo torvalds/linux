@@ -14388,6 +14388,7 @@ F:	scripts/dtc/
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
 M:	Rob Herring <robh+dt@kernel.org>
+M:	Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
 L:	devicetree@vger.kernel.org
 S:	Maintained
 Q:	http://patchwork.ozlabs.org/project/devicetree-bindings/list/
