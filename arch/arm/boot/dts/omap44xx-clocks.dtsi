@@ -1424,7 +1424,7 @@
 		};
 	};
 
-	l4_per_cm: l4_per_cm@1400 {
+	l4_per_cm: clock@1400 {
 		compatible = "ti,omap4-cm";
 		clock-output-names = "l4_per_cm";
 		reg = <0x1400 0x200>;
@@ -1433,13 +1433,15 @@
 		ranges = <0 0x1400 0x200>;
 
 		l4_per_clkctrl: clock@20 {
-			compatible = "ti,clkctrl-l4-per", "ti,clkctrl";
+			compatible = "ti,clkctrl";
+			clock-output-names = "l4_per_clkctrl";
 			reg = <0x20 0x144>;
 			#clock-cells = <2>;
 		};
 
 		l4_secure_clkctrl: clock@1a0 {
-			compatible = "ti,clkctrl-l4-secure", "ti,clkctrl";
+			compatible = "ti,clkctrl";
+			clock-output-names = "l4_secure_clkctrl";
 			reg = <0x1a0 0x3c>;
 			#clock-cells = <2>;
 		};
