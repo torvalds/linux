@@ -7344,11 +7344,11 @@ static void vmx_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 						vmx_secondary_exec_control(vmx));
 
 	if (nested_vmx_allowed(vcpu))
-		to_vmx(vcpu)->msr_ia32_feature_control_valid_bits |=
+		vmx->msr_ia32_feature_control_valid_bits |=
 			FEAT_CTL_VMX_ENABLED_INSIDE_SMX |
 			FEAT_CTL_VMX_ENABLED_OUTSIDE_SMX;
 	else
-		to_vmx(vcpu)->msr_ia32_feature_control_valid_bits &=
+		vmx->msr_ia32_feature_control_valid_bits &=
 			~(FEAT_CTL_VMX_ENABLED_INSIDE_SMX |
 			  FEAT_CTL_VMX_ENABLED_OUTSIDE_SMX);
 
