@@ -758,6 +758,7 @@ bool acpi_s2idle_wake(void)
 			return true;
 		}
 
+		pm_wakeup_clear(acpi_sci_irq);
 		rearm_wake_irq(acpi_sci_irq);
 	}
 
