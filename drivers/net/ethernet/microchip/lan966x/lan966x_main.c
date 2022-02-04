@@ -767,7 +767,7 @@ static void lan966x_init(struct lan966x *lan966x)
 	/* Setup flooding PGIDs */
 	lan_wr(ANA_FLOODING_IPMC_FLD_MC4_DATA_SET(PGID_MCIPV4) |
 	       ANA_FLOODING_IPMC_FLD_MC4_CTRL_SET(PGID_MC) |
-	       ANA_FLOODING_IPMC_FLD_MC6_DATA_SET(PGID_MC) |
+	       ANA_FLOODING_IPMC_FLD_MC6_DATA_SET(PGID_MCIPV6) |
 	       ANA_FLOODING_IPMC_FLD_MC6_CTRL_SET(PGID_MC),
 	       lan966x, ANA_FLOODING_IPMC);
 
@@ -828,6 +828,10 @@ static void lan966x_init(struct lan966x *lan966x)
 	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
 		ANA_PGID_PGID,
 		lan966x, ANA_PGID(PGID_MCIPV4));
+
+	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
+		ANA_PGID_PGID,
+		lan966x, ANA_PGID(PGID_MCIPV6));
 
 	/* Unicast to all other ports */
 	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
