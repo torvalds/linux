@@ -5,3 +5,5 @@
 
 obj-$(CONFIG_INTEL_UNCORE_FREQ_CONTROL)	+= intel-uncore-frequency.o
 intel-uncore-frequency-y		:= uncore-frequency.o
+obj-$(CONFIG_INTEL_UNCORE_FREQ_CONTROL)	+= intel-uncore-frequency-common.o
+intel-uncore-frequency-common-y		:= uncore-frequency-common.o
