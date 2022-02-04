@@ -13,6 +13,10 @@
 #define CREATE_TRACE_POINTS
 #include "bpf_testmod-events.h"
 
+typedef int (*func_proto_typedef)(long);
+typedef int (*func_proto_typedef_nested1)(func_proto_typedef);
+typedef int (*func_proto_typedef_nested2)(func_proto_typedef_nested1);
+
 DEFINE_PER_CPU(int, bpf_testmod_ksym_percpu) = 123;
 
 noinline void
@@ -31,6 +35,9 @@ struct bpf_testmod_btf_type_tag_2 {
 
 noinline int
 bpf_testmod_test_btf_type_tag_user_1(struct bpf_testmod_btf_type_tag_1 __user *arg) {
+	BTF_TYPE_EMIT(func_proto_typedef);
+	BTF_TYPE_EMIT(func_proto_typedef_nested1);
+	BTF_TYPE_EMIT(func_proto_typedef_nested2);
 	return arg->a;
 }
 
