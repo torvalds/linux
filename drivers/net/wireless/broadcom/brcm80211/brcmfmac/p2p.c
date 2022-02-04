@@ -158,7 +158,7 @@ struct brcmf_p2p_pub_act_frame {
 	u8	oui_type;
 	u8	subtype;
 	u8	dialog_token;
-	u8	elts[1];
+	u8	elts[];
 };
 
 /**
@@ -177,7 +177,7 @@ struct brcmf_p2p_action_frame {
 	u8	type;
 	u8	subtype;
 	u8	dialog_token;
-	u8	elts[1];
+	u8	elts[];
 };
 
 /**
@@ -192,7 +192,7 @@ struct brcmf_p2psd_gas_pub_act_frame {
 	u8	category;
 	u8	action;
 	u8	dialog_token;
-	u8	query_data[1];
+	u8	query_data[];
 };
 
 /**
@@ -225,7 +225,7 @@ static bool brcmf_p2p_is_pub_action(void *frame, u32 frame_len)
 		return false;
 
 	pact_frm = (struct brcmf_p2p_pub_act_frame *)frame;
-	if (frame_len < sizeof(struct brcmf_p2p_pub_act_frame) - 1)
+	if (frame_len < sizeof(*pact_frm))
 		return false;
 
 	if (pact_frm->category == P2P_PUB_AF_CATEGORY &&
@@ -253,7 +253,7 @@ static bool brcmf_p2p_is_p2p_action(void *frame, u32 frame_len)
 		return false;
 
 	act_frm = (struct brcmf_p2p_action_frame *)frame;
-	if (frame_len < sizeof(struct brcmf_p2p_action_frame) - 1)
+	if (frame_len < sizeof(*act_frm))
 		return false;
 
 	if (act_frm->category == P2P_AF_CATEGORY &&
@@ -280,7 +280,7 @@ static bool brcmf_p2p_is_gas_action(void *frame, u32 frame_len)
 		return false;
 
 	sd_act_frm = (struct brcmf_p2psd_gas_pub_act_frame *)frame;
-	if (frame_len < sizeof(struct brcmf_p2psd_gas_pub_act_frame) - 1)
+	if (frame_len < sizeof(*sd_act_frm))
 		return false;
 
 	if (sd_act_frm->category != P2PSD_ACTION_CATEGORY)
