@@ -451,24 +451,25 @@ static void acpi_ec_submit_event(struct acpi_ec *ec)
 	if (!acpi_ec_event_enabled(ec))
 		return;
 
-	if (ec->event_state == EC_EVENT_READY) {
-		ec_dbg_evt("Command(%s) submitted/blocked",
-			   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
+	if (ec->event_state != EC_EVENT_READY)
+		return;
 
-		ec->event_state = EC_EVENT_IN_PROGRESS;
-		/*
-		 * If events_to_process is greqter than 0 at this point, the
-		 * while () loop in acpi_ec_event_handler() is still running
-		 * and incrementing events_to_process will cause it to invoke
-		 * acpi_ec_submit_query() once more, so it is not necessary to
-		 * queue up the event work to start the same loop again.
-		 */
-		if (ec->events_to_process++ > 0)
-			return;
+	ec_dbg_evt("Command(%s) submitted/blocked",
+		   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 
-		ec->events_in_progress++;
-		queue_work(ec_wq, &ec->work);
-	}
+	ec->event_state = EC_EVENT_IN_PROGRESS;
+	/*
+	 * If events_to_process is greater than 0 at this point, the while ()
+	 * loop in acpi_ec_event_handler() is still running and incrementing
+	 * events_to_process will cause it to invoke acpi_ec_submit_query() once
+	 * more, so it is not necessary to queue up the event work to start the
+	 * same loop again.
+	 */
+	if (ec->events_to_process++ > 0)
+		return;
+
+	ec->events_in_progress++;
+	queue_work(ec_wq, &ec->work);
 }
 
 static void acpi_ec_complete_event(struct acpi_ec *ec)
