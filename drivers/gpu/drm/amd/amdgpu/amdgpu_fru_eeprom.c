@@ -103,16 +103,12 @@ static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
 
 int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 {
-	unsigned char buf[AMDGPU_PRODUCT_NAME_LEN+2];
+	unsigned char buf[AMDGPU_PRODUCT_NAME_LEN];
 	u32 addrptr;
 	int size, len;
-	int offset = 2;
 
 	if (!is_fru_eeprom_supported(adev))
 		return 0;
-
-	if (adev->asic_type == CHIP_ALDEBARAN)
-		offset = 0;
 
 	/* If algo exists, it means that the i2c_adapter's initialized */
 	if (!adev->pm.fru_eeprom_i2c_bus || !adev->pm.fru_eeprom_i2c_bus->algo) {
@@ -155,8 +151,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 				AMDGPU_PRODUCT_NAME_LEN);
 		len = AMDGPU_PRODUCT_NAME_LEN - 1;
 	}
-	/* Start at 2 due to buf using fields 0 and 1 for the address */
-	memcpy(adev->product_name, &buf[offset], len);
+	memcpy(adev->product_name, buf, len);
 	adev->product_name[len] = '\0';
 
 	addrptr += size + 1;
@@ -174,7 +169,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		DRM_WARN("FRU Product Number is larger than 16 characters. This is likely a mistake");
 		len = sizeof(adev->product_number) - 1;
 	}
-	memcpy(adev->product_number, &buf[offset], len);
+	memcpy(adev->product_number, buf, len);
 	adev->product_number[len] = '\0';
 
 	addrptr += size + 1;
@@ -201,7 +196,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		DRM_WARN("FRU Serial Number is larger than 16 characters. This is likely a mistake");
 		len = sizeof(adev->serial) - 1;
 	}
-	memcpy(adev->serial, &buf[offset], len);
+	memcpy(adev->serial, buf, len);
 	adev->serial[len] = '\0';
 
 	return 0;
