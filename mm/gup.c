@@ -174,14 +174,13 @@ static void put_compound_head(struct page *page, int refs, unsigned int flags)
 
 /**
  * try_grab_page() - elevate a page's refcount by a flag-dependent amount
+ * @page:    pointer to page to be grabbed
+ * @flags:   gup flags: these are the FOLL_* flag values.
  *
  * This might not do anything at all, depending on the flags argument.
  *
  * "grab" names in this file mean, "look at flags to decide whether to use
  * FOLL_PIN or FOLL_GET behavior, when incrementing the page's refcount.
- *
- * @page:    pointer to page to be grabbed
- * @flags:   gup flags: these are the FOLL_* flag values.
  *
  * Either FOLL_PIN or FOLL_GET (or neither) may be set, but not both at the same
  * time. Cases: please see the try_grab_folio() documentation, with
@@ -193,29 +192,28 @@ static void put_compound_head(struct page *page, int refs, unsigned int flags)
  */
 bool __must_check try_grab_page(struct page *page, unsigned int flags)
 {
+	struct folio *folio = page_folio(page);
+
 	WARN_ON_ONCE((flags & (FOLL_GET | FOLL_PIN)) == (FOLL_GET | FOLL_PIN));
+	if (WARN_ON_ONCE(folio_ref_count(folio) <= 0))
+		return false;
 
 	if (flags & FOLL_GET)
-		return try_get_page(page);
+		folio_ref_inc(folio);
 	else if (flags & FOLL_PIN) {
-		page = compound_head(page);
-
-		if (WARN_ON_ONCE(page_ref_count(page) <= 0))
-			return false;
-
 		/*
-		 * Similar to try_grab_compound_head(): be sure to *also*
+		 * Similar to try_grab_folio(): be sure to *also*
 		 * increment the normal page refcount field at least once,
 		 * so that the page really is pinned.
 		 */
-		if (PageHead(page)) {
-			page_ref_add(page, 1);
-			atomic_add(1, compound_pincount_ptr(page));
+		if (folio_test_large(folio)) {
+			folio_ref_add(folio, 1);
+			atomic_add(1, folio_pincount_ptr(folio));
 		} else {
-			page_ref_add(page, GUP_PIN_COUNTING_BIAS);
+			folio_ref_add(folio, GUP_PIN_COUNTING_BIAS);
 		}
 
-		mod_node_page_state(page_pgdat(page), NR_FOLL_PIN_ACQUIRED, 1);
+		node_stat_mod_folio(folio, NR_FOLL_PIN_ACQUIRED, 1);
 	}
 
 	return true;
