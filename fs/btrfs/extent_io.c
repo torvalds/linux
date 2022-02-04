@@ -5390,7 +5390,7 @@ static struct extent_map *get_extent_skip_holes(struct btrfs_inode *inode,
 			break;
 		len = ALIGN(len, sectorsize);
 		em = btrfs_get_extent_fiemap(inode, offset, len);
-		if (IS_ERR_OR_NULL(em))
+		if (IS_ERR(em))
 			return em;
 
 		/* if this isn't a hole return it */
