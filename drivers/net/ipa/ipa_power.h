@@ -41,6 +41,13 @@ void ipa_power_modem_queue_wake(struct ipa *ipa);
 void ipa_power_modem_queue_active(struct ipa *ipa);
 
 /**
+ * ipa_power_retention() - Control register retention on power collapse
+ * @ipa:	IPA pointer
+ * @enable:	Whether retention should be enabled or disabled
+ */
+void ipa_power_retention(struct ipa *ipa, bool enable);
+
+/**
  * ipa_power_setup() - Set up IPA power management
  * @ipa:	IPA pointer
  *
