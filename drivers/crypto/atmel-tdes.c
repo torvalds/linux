@@ -1130,6 +1130,7 @@ static void atmel_tdes_get_cap(struct atmel_tdes_dev *dd)
 
 	/* keep only major version number */
 	switch (dd->hw_version & 0xf00) {
+	case 0x800:
 	case 0x700:
 		dd->caps.has_dma = 1;
 		dd->caps.has_cfb_3keys = 1;
