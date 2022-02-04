@@ -1104,9 +1104,6 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 		return;
 	}
 
-	if (oob->cqe_hdr.cqe_type != CQE_RX_OKAY)
-		return;
-
 	pktlen = oob->ppi[0].pkt_len;
 
 	if (pktlen == 0) {
