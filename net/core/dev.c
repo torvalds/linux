@@ -10172,7 +10172,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	dev->pcpu_refcnt = alloc_percpu(int);
 	if (!dev->pcpu_refcnt)
 		goto free_dev;
-	dev_hold(dev);
+	__dev_hold(dev);
 #else
 	refcount_set(&dev->dev_refcnt, 1);
 #endif
