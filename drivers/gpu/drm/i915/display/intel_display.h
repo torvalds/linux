@@ -629,6 +629,8 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
 struct intel_encoder *
 intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 			   const struct intel_crtc_state *crtc_state);
+void intel_plane_disable_noatomic(struct intel_crtc *crtc,
+				  struct intel_plane *plane);
 
 unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 				  int color_plane);
