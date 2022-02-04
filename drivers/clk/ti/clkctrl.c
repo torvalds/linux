@@ -505,7 +505,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	struct omap_clkctrl_clk *clkctrl_clk = NULL;
 	const __be32 *addrp;
 	bool legacy_naming;
-	char *clkctrl_name;
+	const char *clkctrl_name;
 	u32 addr;
 	int ret;
 	char *c;
