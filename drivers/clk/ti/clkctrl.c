@@ -469,13 +469,31 @@ static void __init _clkctrl_add_provider(void *data,
 	of_clk_add_hw_provider(np, _ti_omap4_clkctrl_xlate, data);
 }
 
-/* Get clock name based on compatible string for clkctrl */
-static char * __init clkctrl_get_name(struct device_node *np)
+/*
+ * Get clock name based on "clock-output-names" property or the
+ * compatible property for clkctrl.
+ */
+static const char * __init clkctrl_get_name(struct device_node *np)
 {
 	struct property *prop;
 	const int prefix_len = 11;
 	const char *compat;
+	const char *output;
 	char *name;
+
+	if (!of_property_read_string_index(np, "clock-output-names", 0,
+					   &output)) {
+		const char *end;
+		int len;
+
+		len = strlen(output);
+		end = strstr(output, "_clkctrl");
+		if (end)
+			len -= strlen(end);
+		name = kstrndup(output, len, GFP_KERNEL);
+
+		return name;
+	}
 
 	of_property_for_each_string(np, "compatible", prop, compat) {
 		if (!strncmp("ti,clkctrl-", compat, prefix_len)) {
