@@ -47,75 +47,70 @@ static void put_page_refs(struct page *page, int refs)
 }
 
 /*
- * Return the compound head page with ref appropriately incremented,
+ * Return the folio with ref appropriately incremented,
  * or NULL if that failed.
  */
-static inline struct page *try_get_compound_head(struct page *page, int refs)
+static inline struct folio *try_get_folio(struct page *page, int refs)
 {
-	struct page *head;
+	struct folio *folio;
 
 retry:
-	head = compound_head(page);
-
-	if (WARN_ON_ONCE(page_ref_count(head) < 0))
+	folio = page_folio(page);
+	if (WARN_ON_ONCE(folio_ref_count(folio) < 0))
 		return NULL;
-	if (unlikely(!page_cache_add_speculative(head, refs)))
+	if (unlikely(!folio_ref_try_add_rcu(folio, refs)))
 		return NULL;
 
 	/*
-	 * At this point we have a stable reference to the head page; but it
-	 * could be that between the compound_head() lookup and the refcount
-	 * increment, the compound page was split, in which case we'd end up
-	 * holding a reference on a page that has nothing to do with the page
+	 * At this point we have a stable reference to the folio; but it
+	 * could be that between calling page_folio() and the refcount
+	 * increment, the folio was split, in which case we'd end up
+	 * holding a reference on a folio that has nothing to do with the page
 	 * we were given anymore.
-	 * So now that the head page is stable, recheck that the pages still
-	 * belong together.
+	 * So now that the folio is stable, recheck that the page still
+	 * belongs to this folio.
 	 */
-	if (unlikely(compound_head(page) != head)) {
-		put_page_refs(head, refs);
+	if (unlikely(page_folio(page) != folio)) {
+		folio_put_refs(folio, refs);
 		goto retry;
 	}
 
-	return head;
+	return folio;
 }
 
 /**
- * try_grab_compound_head() - attempt to elevate a page's refcount, by a
- * flags-dependent amount.
- *
- * Even though the name includes "compound_head", this function is still
- * appropriate for callers that have a non-compound @page to get.
- *
+ * try_grab_folio() - Attempt to get or pin a folio.
  * @page:  pointer to page to be grabbed
- * @refs:  the value to (effectively) add to the page's refcount
+ * @refs:  the value to (effectively) add to the folio's refcount
  * @flags: gup flags: these are the FOLL_* flag values.
  *
  * "grab" names in this file mean, "look at flags to decide whether to use
- * FOLL_PIN or FOLL_GET behavior, when incrementing the page's refcount.
+ * FOLL_PIN or FOLL_GET behavior, when incrementing the folio's refcount.
  *
  * Either FOLL_PIN or FOLL_GET (or neither) must be set, but not both at the
  * same time. (That's true throughout the get_user_pages*() and
  * pin_user_pages*() APIs.) Cases:
  *
- *    FOLL_GET: page's refcount will be incremented by @refs.
+ *    FOLL_GET: folio's refcount will be incremented by @refs.
  *
- *    FOLL_PIN on compound pages: page's refcount will be incremented by
- *    @refs, and page[1].compound_pincount will be incremented by @refs.
+ *    FOLL_PIN on large folios: folio's refcount will be incremented by
+ *    @refs, and its compound_pincount will be incremented by @refs.
  *
- *    FOLL_PIN on normal pages: page's refcount will be incremented by
+ *    FOLL_PIN on single-page folios: folio's refcount will be incremented by
  *    @refs * GUP_PIN_COUNTING_BIAS.
  *
- * Return: head page (with refcount appropriately incremented) for success, or
- * NULL upon failure. If neither FOLL_GET nor FOLL_PIN was set, that's
- * considered failure, and furthermore, a likely bug in the caller, so a warning
- * is also emitted.
+ * Return: The folio containing @page (with refcount appropriately
+ * incremented) for success, or NULL upon failure. If neither FOLL_GET
+ * nor FOLL_PIN was set, that's considered failure, and furthermore,
+ * a likely bug in the caller, so a warning is also emitted.
  */
-__maybe_unused struct page *try_grab_compound_head(struct page *page,
-						   int refs, unsigned int flags)
+struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags)
 {
 	if (flags & FOLL_GET)
-		return try_get_compound_head(page, refs);
+		return try_get_folio(page, refs);
 	else if (flags & FOLL_PIN) {
+		struct folio *folio;
+
 		/*
 		 * Can't do FOLL_LONGTERM + FOLL_PIN gup fast path if not in a
 		 * right zone, so fail and let the caller fall back to the slow
@@ -129,32 +124,36 @@ __maybe_unused struct page *try_grab_compound_head(struct page *page,
 		 * CAUTION: Don't use compound_head() on the page before this
 		 * point, the result won't be stable.
 		 */
-		page = try_get_compound_head(page, refs);
-		if (!page)
+		folio = try_get_folio(page, refs);
+		if (!folio)
 			return NULL;
 
 		/*
-		 * When pinning a compound page, use an exact count to
-		 * track it.
+		 * When pinning a large folio, use an exact count to track it.
 		 *
-		 * However, be sure to *also* increment the normal page
-		 * refcount field at least once, so that the page really
+		 * However, be sure to *also* increment the normal folio
+		 * refcount field at least once, so that the folio really
 		 * is pinned.  That's why the refcount from the earlier
-		 * try_get_compound_head() is left intact.
+		 * try_get_folio() is left intact.
 		 */
-		if (PageHead(page))
-			atomic_add(refs, compound_pincount_ptr(page));
+		if (folio_test_large(folio))
+			atomic_add(refs, folio_pincount_ptr(folio));
 		else
-			page_ref_add(page, refs * (GUP_PIN_COUNTING_BIAS - 1));
+			folio_ref_add(folio,
+					refs * (GUP_PIN_COUNTING_BIAS - 1));
+		node_stat_mod_folio(folio, NR_FOLL_PIN_ACQUIRED, refs);
 
-		mod_node_page_state(page_pgdat(page), NR_FOLL_PIN_ACQUIRED,
-				    refs);
-
-		return page;
+		return folio;
 	}
 
 	WARN_ON_ONCE(1);
 	return NULL;
+}
+
+struct page *try_grab_compound_head(struct page *page,
+		int refs, unsigned int flags)
+{
+	return &try_grab_folio(page, refs, flags)->page;
 }
 
 static void put_compound_head(struct page *page, int refs, unsigned int flags)
@@ -185,7 +184,7 @@ static void put_compound_head(struct page *page, int refs, unsigned int flags)
  * @flags:   gup flags: these are the FOLL_* flag values.
  *
  * Either FOLL_PIN or FOLL_GET (or neither) may be set, but not both at the same
- * time. Cases: please see the try_grab_compound_head() documentation, with
+ * time. Cases: please see the try_grab_folio() documentation, with
  * "refs=1".
  *
  * Return: true for success, or if no action was required (if neither FOLL_PIN
