@@ -20,7 +20,6 @@
 #define IWL_SCAN_DWELL_FRAGMENTED	44
 #define IWL_SCAN_DWELL_EXTENDED		90
 #define IWL_SCAN_NUM_OF_FRAGS		3
-#define IWL_SCAN_LAST_2_4_CHN		14
 
 /* adaptive dwell max budget time [TU] for full scan */
 #define IWL_SCAN_ADWELL_MAX_BUDGET_FULL_SCAN 300

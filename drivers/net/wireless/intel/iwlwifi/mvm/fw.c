@@ -25,8 +25,6 @@
 #define MVM_UCODE_ALIVE_TIMEOUT	(HZ)
 #define MVM_UCODE_CALIB_TIMEOUT	(2 * HZ)
 
-#define UCODE_VALID_OK	cpu_to_le32(0x1)
-
 #define IWL_PPAG_MASK 3
 #define IWL_PPAG_ETSI_MASK BIT(0)
 

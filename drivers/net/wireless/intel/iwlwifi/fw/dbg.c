@@ -303,9 +303,6 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 	iwl_trans_release_nic_access(fwrt->trans);
 }
 
-#define IWL8260_ICCM_OFFSET		0x44000 /* Only for B-step */
-#define IWL8260_ICCM_LEN		0xC000 /* Only for B-step */
-
 struct iwl_prph_range {
 	u32 start, end;
 };

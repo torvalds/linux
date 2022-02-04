@@ -121,8 +121,6 @@
 		IWL_BZ_A_FM_A_FW_PRE __stringify(api) ".ucode"
 #define IWL_GL_A_FM_A_MODULE_FIRMWARE(api) \
 		IWL_GL_A_FM_A_FW_PRE __stringify(api) ".ucode"
-#define IWL_BZ_Z_GF_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_Z_GF_A_FW_PRE __stringify(api) ".ucode"
 #define IWL_BNJ_A_FM_A_MODULE_FIRMWARE(api) \
 	IWL_BNJ_A_FM_A_FW_PRE __stringify(api) ".ucode"
 #define IWL_BNJ_A_FM4_A_MODULE_FIRMWARE(api) \
