@@ -1018,7 +1018,7 @@ qca8k_phy_eth_command(struct qca8k_priv *priv, bool read, int phy,
 
 	clear_skb = qca8k_alloc_mdio_header(MDIO_WRITE, QCA8K_MDIO_MASTER_CTRL, &clear_val,
 					    QCA8K_ETHERNET_PHY_PRIORITY, sizeof(clear_val));
-	if (!write_skb) {
+	if (!clear_skb) {
 		ret = -ENOMEM;
 		goto err_clear_skb;
 	}
