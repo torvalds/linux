@@ -49,7 +49,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 int etnaviv_gem_mmap_offset(struct drm_gem_object *obj, u64 *offset);
 struct sg_table *etnaviv_gem_prime_get_sg_table(struct drm_gem_object *obj);
-int etnaviv_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+int etnaviv_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map);
 struct drm_gem_object *etnaviv_gem_prime_import_sg_table(struct drm_device *dev,
 	struct dma_buf_attachment *attach, struct sg_table *sg);
 int etnaviv_gem_prime_pin(struct drm_gem_object *obj);

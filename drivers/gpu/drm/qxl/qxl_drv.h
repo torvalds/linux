@@ -30,7 +30,7 @@
  * Definitions taken from spice-protocol, plus kernel driver specific bits.
  */
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/dma-fence.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
@@ -50,7 +50,7 @@
 
 #include "qxl_dev.h"
 
-struct dma_buf_map;
+struct iosys_map;
 
 #define DRIVER_AUTHOR		"Dave Airlie"
 
@@ -81,7 +81,7 @@ struct qxl_bo {
 	/* Protected by tbo.reserved */
 	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
-	struct dma_buf_map		map;
+	struct iosys_map		map;
 	void				*kptr;
 	unsigned int                    map_count;
 	int                             type;
@@ -431,9 +431,9 @@ struct sg_table *qxl_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *qxl_gem_prime_import_sg_table(
 	struct drm_device *dev, struct dma_buf_attachment *attach,
 	struct sg_table *sgt);
-int qxl_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+int qxl_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map);
 void qxl_gem_prime_vunmap(struct drm_gem_object *obj,
-			  struct dma_buf_map *map);
+			  struct iosys_map *map);
 
 /* qxl_irq.c */
 int qxl_irq_init(struct qxl_device *qdev);

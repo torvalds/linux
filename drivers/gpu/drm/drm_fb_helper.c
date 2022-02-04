@@ -373,7 +373,7 @@ static void drm_fb_helper_resume_worker(struct work_struct *work)
 
 static void drm_fb_helper_damage_blit_real(struct drm_fb_helper *fb_helper,
 					   struct drm_clip_rect *clip,
-					   struct dma_buf_map *dst)
+					   struct iosys_map *dst)
 {
 	struct drm_framebuffer *fb = fb_helper->fb;
 	unsigned int cpp = fb->format->cpp[0];
@@ -382,11 +382,11 @@ static void drm_fb_helper_damage_blit_real(struct drm_fb_helper *fb_helper,
 	size_t len = (clip->x2 - clip->x1) * cpp;
 	unsigned int y;
 
-	dma_buf_map_incr(dst, offset); /* go to first pixel within clip rect */
+	iosys_map_incr(dst, offset); /* go to first pixel within clip rect */
 
 	for (y = clip->y1; y < clip->y2; y++) {
-		dma_buf_map_memcpy_to(dst, src, len);
-		dma_buf_map_incr(dst, fb->pitches[0]);
+		iosys_map_memcpy_to(dst, src, len);
+		iosys_map_incr(dst, fb->pitches[0]);
 		src += fb->pitches[0];
 	}
 }
@@ -395,7 +395,7 @@ static int drm_fb_helper_damage_blit(struct drm_fb_helper *fb_helper,
 				     struct drm_clip_rect *clip)
 {
 	struct drm_client_buffer *buffer = fb_helper->buffer;
-	struct dma_buf_map map, dst;
+	struct iosys_map map, dst;
 	int ret;
 
 	/*
@@ -2322,7 +2322,7 @@ static int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	struct drm_framebuffer *fb;
 	struct fb_info *fbi;
 	u32 format;
-	struct dma_buf_map map;
+	struct iosys_map map;
 	int ret;
 
 	drm_dbg_kms(dev, "surface width(%d), height(%d) and bpp(%d)\n",

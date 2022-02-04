@@ -33,7 +33,7 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/drm_cache.h>
 #include <drm/drm_vma_manager.h>
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/io.h>
 #include <linux/highmem.h>
 #include <linux/wait.h>
@@ -93,7 +93,7 @@ void ttm_move_memcpy(bool clear,
 {
 	const struct ttm_kmap_iter_ops *dst_ops = dst_iter->ops;
 	const struct ttm_kmap_iter_ops *src_ops = src_iter->ops;
-	struct dma_buf_map src_map, dst_map;
+	struct iosys_map src_map, dst_map;
 	pgoff_t i;
 
 	/* Single TTM move. NOP */
@@ -385,7 +385,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 }
 EXPORT_SYMBOL(ttm_bo_kunmap);
 
-int ttm_bo_vmap(struct ttm_buffer_object *bo, struct dma_buf_map *map)
+int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 {
 	struct ttm_resource *mem = bo->resource;
 	int ret;
@@ -413,7 +413,7 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct dma_buf_map *map)
 		if (!vaddr_iomem)
 			return -ENOMEM;
 
-		dma_buf_map_set_vaddr_iomem(map, vaddr_iomem);
+		iosys_map_set_vaddr_iomem(map, vaddr_iomem);
 
 	} else {
 		struct ttm_operation_ctx ctx = {
@@ -437,25 +437,25 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct dma_buf_map *map)
 		if (!vaddr)
 			return -ENOMEM;
 
-		dma_buf_map_set_vaddr(map, vaddr);
+		iosys_map_set_vaddr(map, vaddr);
 	}
 
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_vmap);
 
-void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct dma_buf_map *map)
+void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 {
 	struct ttm_resource *mem = bo->resource;
 
-	if (dma_buf_map_is_null(map))
+	if (iosys_map_is_null(map))
 		return;
 
 	if (!map->is_iomem)
 		vunmap(map->vaddr);
 	else if (!mem->bus.addr)
 		iounmap(map->vaddr_iomem);
-	dma_buf_map_clear(map);
+	iosys_map_clear(map);
 
 	ttm_mem_io_free(bo->bdev, bo->resource);
 }

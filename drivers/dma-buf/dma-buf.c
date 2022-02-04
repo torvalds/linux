@@ -1047,8 +1047,8 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *
  *   Interfaces::
  *
- *      void \*dma_buf_vmap(struct dma_buf \*dmabuf, struct dma_buf_map \*map)
- *      void dma_buf_vunmap(struct dma_buf \*dmabuf, struct dma_buf_map \*map)
+ *      void \*dma_buf_vmap(struct dma_buf \*dmabuf, struct iosys_map \*map)
+ *      void dma_buf_vunmap(struct dma_buf \*dmabuf, struct iosys_map \*map)
  *
  *   The vmap call can fail if there is no vmap support in the exporter, or if
  *   it runs out of vmalloc space. Note that the dma-buf layer keeps a reference
@@ -1260,12 +1260,12 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_mmap, DMA_BUF);
  *
  * Returns 0 on success, or a negative errno code otherwise.
  */
-int dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+int dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
-	struct dma_buf_map ptr;
+	struct iosys_map ptr;
 	int ret = 0;
 
-	dma_buf_map_clear(map);
+	iosys_map_clear(map);
 
 	if (WARN_ON(!dmabuf))
 		return -EINVAL;
@@ -1276,12 +1276,12 @@ int dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	mutex_lock(&dmabuf->lock);
 	if (dmabuf->vmapping_counter) {
 		dmabuf->vmapping_counter++;
-		BUG_ON(dma_buf_map_is_null(&dmabuf->vmap_ptr));
+		BUG_ON(iosys_map_is_null(&dmabuf->vmap_ptr));
 		*map = dmabuf->vmap_ptr;
 		goto out_unlock;
 	}
 
-	BUG_ON(dma_buf_map_is_set(&dmabuf->vmap_ptr));
+	BUG_ON(iosys_map_is_set(&dmabuf->vmap_ptr));
 
 	ret = dmabuf->ops->vmap(dmabuf, &ptr);
 	if (WARN_ON_ONCE(ret))
@@ -1303,20 +1303,20 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_vmap, DMA_BUF);
  * @dmabuf:	[in]	buffer to vunmap
  * @map:	[in]	vmap pointer to vunmap
  */
-void dma_buf_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+void dma_buf_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	if (WARN_ON(!dmabuf))
 		return;
 
-	BUG_ON(dma_buf_map_is_null(&dmabuf->vmap_ptr));
+	BUG_ON(iosys_map_is_null(&dmabuf->vmap_ptr));
 	BUG_ON(dmabuf->vmapping_counter == 0);
-	BUG_ON(!dma_buf_map_is_equal(&dmabuf->vmap_ptr, map));
+	BUG_ON(!iosys_map_is_equal(&dmabuf->vmap_ptr, map));
 
 	mutex_lock(&dmabuf->lock);
 	if (--dmabuf->vmapping_counter == 0) {
 		if (dmabuf->ops->vunmap)
 			dmabuf->ops->vunmap(dmabuf, map);
-		dma_buf_map_clear(&dmabuf->vmap_ptr);
+		iosys_map_clear(&dmabuf->vmap_ptr);
 	}
 	mutex_unlock(&dmabuf->lock);
 }

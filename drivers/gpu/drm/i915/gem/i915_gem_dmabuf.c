@@ -74,7 +74,8 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	kfree(sg);
 }
 
-static int i915_gem_dmabuf_vmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
+static int i915_gem_dmabuf_vmap(struct dma_buf *dma_buf,
+				struct iosys_map *map)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	void *vaddr;
@@ -83,12 +84,13 @@ static int i915_gem_dmabuf_vmap(struct dma_buf *dma_buf, struct dma_buf_map *map
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 
-	dma_buf_map_set_vaddr(map, vaddr);
+	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;
 }
 
-static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
+static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf,
+				   struct iosys_map *map)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 
