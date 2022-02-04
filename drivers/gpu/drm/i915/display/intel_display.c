@@ -5613,8 +5613,10 @@ intel_crtc_copy_uapi_to_hw_state_nomodeset(struct intel_atomic_state *state,
 	master_crtc_state = intel_atomic_get_new_crtc_state(state, master_crtc);
 
 	/* No need to copy state if the master state is unchanged */
-	if (master_crtc_state)
+	if (master_crtc_state) {
+		crtc_state->uapi.color_mgmt_changed = master_crtc_state->uapi.color_mgmt_changed;
 		intel_crtc_copy_color_blobs(crtc_state, master_crtc_state);
+	}
 }
 
 static void
@@ -5676,13 +5678,23 @@ copy_bigjoiner_crtc_state(struct intel_crtc_state *crtc_state,
 	memset(&crtc_state->hw, 0, sizeof(saved_state->hw));
 	crtc_state->hw.enable = from_crtc_state->hw.enable;
 	crtc_state->hw.active = from_crtc_state->hw.active;
+	crtc_state->hw.mode = from_crtc_state->hw.mode;
 	crtc_state->hw.pipe_mode = from_crtc_state->hw.pipe_mode;
 	crtc_state->hw.adjusted_mode = from_crtc_state->hw.adjusted_mode;
+	crtc_state->hw.scaling_filter = from_crtc_state->hw.scaling_filter;
+
+	drm_property_replace_blob(&crtc_state->hw.degamma_lut,
+				  from_crtc_state->hw.degamma_lut);
+	drm_property_replace_blob(&crtc_state->hw.gamma_lut,
+				  from_crtc_state->hw.gamma_lut);
+	drm_property_replace_blob(&crtc_state->hw.ctm,
+				  from_crtc_state->hw.ctm);
 
 	/* Some fixups */
 	crtc_state->uapi.mode_changed = from_crtc_state->uapi.mode_changed;
 	crtc_state->uapi.connectors_changed = from_crtc_state->uapi.connectors_changed;
 	crtc_state->uapi.active_changed = from_crtc_state->uapi.active_changed;
+	crtc_state->uapi.color_mgmt_changed = from_crtc_state->uapi.color_mgmt_changed;
 	crtc_state->nv12_planes = crtc_state->c8_planes = crtc_state->update_planes = 0;
 	crtc_state->bigjoiner_linked_crtc = to_intel_crtc(from_crtc_state->uapi.crtc);
 	crtc_state->bigjoiner_slave = true;
