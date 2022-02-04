@@ -1583,6 +1583,7 @@ static int aldebaran_i2c_control_init(struct smu_context *smu)
 	}
 
 	adev->pm.ras_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
+	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
 
 	return 0;
 Out_err:
