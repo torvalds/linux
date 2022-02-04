@@ -477,30 +477,28 @@ static void avic_handle_dfr_update(struct kvm_vcpu *vcpu)
 	svm->dfr_reg = dfr;
 }
 
-static int avic_unaccel_trap_write(struct vcpu_svm *svm)
+static int avic_unaccel_trap_write(struct kvm_vcpu *vcpu)
 {
-	struct kvm_lapic *apic = svm->vcpu.arch.apic;
-	u32 offset = svm->vmcb->control.exit_info_1 &
+	u32 offset = to_svm(vcpu)->vmcb->control.exit_info_1 &
 				AVIC_UNACCEL_ACCESS_OFFSET_MASK;
 
 	switch (offset) {
 	case APIC_ID:
-		if (avic_handle_apic_id_update(&svm->vcpu))
+		if (avic_handle_apic_id_update(vcpu))
 			return 0;
 		break;
 	case APIC_LDR:
-		if (avic_handle_ldr_update(&svm->vcpu))
+		if (avic_handle_ldr_update(vcpu))
 			return 0;
 		break;
 	case APIC_DFR:
-		avic_handle_dfr_update(&svm->vcpu);
+		avic_handle_dfr_update(vcpu);
 		break;
 	default:
 		break;
 	}
 
-	kvm_lapic_reg_write(apic, offset, kvm_lapic_get_reg(apic, offset));
-
+	kvm_apic_write_nodecode(vcpu, offset);
 	return 1;
 }
 
@@ -550,7 +548,7 @@ int avic_unaccelerated_access_interception(struct kvm_vcpu *vcpu)
 	if (trap) {
 		/* Handling Trap */
 		WARN_ONCE(!write, "svm: Handling trap read.\n");
-		ret = avic_unaccel_trap_write(svm);
+		ret = avic_unaccel_trap_write(vcpu);
 	} else {
 		/* Handling Fault */
 		ret = kvm_emulate_instruction(vcpu, 0);
