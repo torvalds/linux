@@ -375,6 +375,8 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 	if (bo->tbo.base.resv != vm->root.bo->tbo.base.resv)
 		return;
 
+	dma_resv_assert_held(vm->root.bo->tbo.base.resv);
+
 	vm->bulk_moveable = false;
 	if (bo->tbo.type == ttm_bo_type_kernel && bo->parent)
 		amdgpu_vm_bo_relocated(base);
@@ -2243,8 +2245,6 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 				      struct amdgpu_bo *bo)
 {
 	struct amdgpu_bo_va *bo_va;
-
-	dma_resv_assert_held(vm->root.bo->tbo.base.resv);
 
 	bo_va = kzalloc(sizeof(struct amdgpu_bo_va), GFP_KERNEL);
 	if (bo_va == NULL) {
