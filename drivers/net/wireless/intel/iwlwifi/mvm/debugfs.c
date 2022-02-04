@@ -425,8 +425,7 @@ static ssize_t iwl_dbgfs_amsdu_len_write(struct ieee80211_sta *sta,
 		return -EINVAL;
 
 	/* only change from debug set <-> debug unset */
-	if ((amsdu_len && mvmsta->orig_amsdu_len) ||
-	    (!!amsdu_len && mvmsta->orig_amsdu_len))
+	if (amsdu_len && mvmsta->orig_amsdu_len)
 		return -EBUSY;
 
 	if (amsdu_len) {
