@@ -4881,9 +4881,8 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 
 	new_role = kvm_calc_shadow_npt_root_page_role(vcpu, &regs);
 
-	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base);
-
 	shadow_mmu_init_context(vcpu, context, &regs, new_role);
+	__kvm_mmu_new_pgd(vcpu, nested_cr3, new_role.base);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_npt_mmu);
 
@@ -4921,27 +4920,25 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
 						   execonly, level);
 
+	if (new_role.as_u64 != context->mmu_role.as_u64) {
+		context->mmu_role.as_u64 = new_role.as_u64;
+
+		context->shadow_root_level = level;
+
+		context->ept_ad = accessed_dirty;
+		context->page_fault = ept_page_fault;
+		context->gva_to_gpa = ept_gva_to_gpa;
+		context->sync_page = ept_sync_page;
+		context->invlpg = ept_invlpg;
+		context->root_level = level;
+		context->direct_map = false;
+		update_permission_bitmask(context, true);
+		context->pkru_mask = 0;
+		reset_rsvds_bits_mask_ept(vcpu, context, execonly, huge_page_level);
+		reset_ept_shadow_zero_bits_mask(context, execonly);
+	}
+
 	__kvm_mmu_new_pgd(vcpu, new_eptp, new_role.base);
-
-	if (new_role.as_u64 == context->mmu_role.as_u64)
-		return;
-
-	context->mmu_role.as_u64 = new_role.as_u64;
-
-	context->shadow_root_level = level;
-
-	context->ept_ad = accessed_dirty;
-	context->page_fault = ept_page_fault;
-	context->gva_to_gpa = ept_gva_to_gpa;
-	context->sync_page = ept_sync_page;
-	context->invlpg = ept_invlpg;
-	context->root_level = level;
-	context->direct_map = false;
-
-	update_permission_bitmask(context, true);
-	context->pkru_mask = 0;
-	reset_rsvds_bits_mask_ept(vcpu, context, execonly, huge_page_level);
-	reset_ept_shadow_zero_bits_mask(context, execonly);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_ept_mmu);
 
