@@ -4,11 +4,13 @@
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/iopoll.h>
+#include <linux/ip.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
 #include <linux/packing.h>
 #include <linux/phy/phy.h>
 #include <linux/reset.h>
+#include <net/addrconf.h>
 
 #include "lan966x_main.h"
 
@@ -419,6 +421,32 @@ bool lan966x_netdevice_check(const struct net_device *dev)
 	return dev->netdev_ops == &lan966x_port_netdev_ops;
 }
 
+static bool lan966x_hw_offload(struct lan966x *lan966x, u32 port,
+			       struct sk_buff *skb)
+{
+	u32 val;
+
+	/* The IGMP and MLD frames are not forward by the HW if
+	 * multicast snooping is enabled, therefor don't mark as
+	 * offload to allow the SW to forward the frames accordingly.
+	 */
+	val = lan_rd(lan966x, ANA_CPU_FWD_CFG(port));
+	if (!(val & (ANA_CPU_FWD_CFG_IGMP_REDIR_ENA |
+		     ANA_CPU_FWD_CFG_MLD_REDIR_ENA)))
+		return true;
+
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    ip_hdr(skb)->protocol == IPPROTO_IGMP)
+		return false;
+
+	if (skb->protocol == htons(ETH_P_IPV6) &&
+	    ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) &&
+	    !ipv6_mc_check_mld(skb))
+		return false;
+
+	return true;
+}
+
 static int lan966x_port_xtr_status(struct lan966x *lan966x, u8 grp)
 {
 	return lan_rd(lan966x, QS_XTR_RD(grp));
@@ -563,8 +591,13 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 		lan966x_ptp_rxtstamp(lan966x, skb, timestamp);
 		skb->protocol = eth_type_trans(skb, dev);
 
-		if (lan966x->bridge_mask & BIT(src_port))
+		if (lan966x->bridge_mask & BIT(src_port)) {
 			skb->offload_fwd_mark = 1;
+
+			skb_reset_network_header(skb);
+			if (!lan966x_hw_offload(lan966x, src_port, skb))
+				skb->offload_fwd_mark = 0;
+		}
 
 		netif_rx_ni(skb);
 		dev->stats.rx_bytes += len;
@@ -767,7 +800,7 @@ static void lan966x_init(struct lan966x *lan966x)
 	/* Setup flooding PGIDs */
 	lan_wr(ANA_FLOODING_IPMC_FLD_MC4_DATA_SET(PGID_MCIPV4) |
 	       ANA_FLOODING_IPMC_FLD_MC4_CTRL_SET(PGID_MC) |
-	       ANA_FLOODING_IPMC_FLD_MC6_DATA_SET(PGID_MC) |
+	       ANA_FLOODING_IPMC_FLD_MC6_DATA_SET(PGID_MCIPV6) |
 	       ANA_FLOODING_IPMC_FLD_MC6_CTRL_SET(PGID_MC),
 	       lan966x, ANA_FLOODING_IPMC);
 
@@ -828,6 +861,10 @@ static void lan966x_init(struct lan966x *lan966x)
 	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
 		ANA_PGID_PGID,
 		lan966x, ANA_PGID(PGID_MCIPV4));
+
+	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
+		ANA_PGID_PGID,
+		lan966x, ANA_PGID(PGID_MCIPV6));
 
 	/* Unicast to all other ports */
 	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
