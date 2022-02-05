@@ -3817,14 +3817,7 @@ extern unsigned int	netdev_budget_usecs;
 /* Called by rtnetlink.c:rtnl_unlock() */
 void netdev_run_todo(void);
 
-/**
- *	dev_put - release reference to device
- *	@dev: network device
- *
- * Release reference to device to allow it to be freed.
- * Try using dev_put_track() instead.
- */
-static inline void dev_put(struct net_device *dev)
+static inline void __dev_put(struct net_device *dev)
 {
 	if (dev) {
 #ifdef CONFIG_PCPU_DEV_REFCNT
@@ -3835,14 +3828,7 @@ static inline void dev_put(struct net_device *dev)
 	}
 }
 
-/**
- *	dev_hold - get reference to device
- *	@dev: network device
- *
- * Hold reference to device to keep it from being freed.
- * Try using dev_hold_track() instead.
- */
-static inline void dev_hold(struct net_device *dev)
+static inline void __dev_hold(struct net_device *dev)
 {
 	if (dev) {
 #ifdef CONFIG_PCPU_DEV_REFCNT
@@ -3853,11 +3839,24 @@ static inline void dev_hold(struct net_device *dev)
 	}
 }
 
+static inline void __netdev_tracker_alloc(struct net_device *dev,
+					  netdevice_tracker *tracker,
+					  gfp_t gfp)
+{
+#ifdef CONFIG_NET_DEV_REFCNT_TRACKER
+	ref_tracker_alloc(&dev->refcnt_tracker, tracker, gfp);
+#endif
+}
+
+/* netdev_tracker_alloc() can upgrade a prior untracked reference
+ * taken by dev_get_by_name()/dev_get_by_index() to a tracked one.
+ */
 static inline void netdev_tracker_alloc(struct net_device *dev,
 					netdevice_tracker *tracker, gfp_t gfp)
 {
 #ifdef CONFIG_NET_DEV_REFCNT_TRACKER
-	ref_tracker_alloc(&dev->refcnt_tracker, tracker, gfp);
+	refcount_dec(&dev->refcnt_tracker.no_tracker);
+	__netdev_tracker_alloc(dev, tracker, gfp);
 #endif
 }
 
@@ -3873,8 +3872,8 @@ static inline void dev_hold_track(struct net_device *dev,
 				  netdevice_tracker *tracker, gfp_t gfp)
 {
 	if (dev) {
-		dev_hold(dev);
-		netdev_tracker_alloc(dev, tracker, gfp);
+		__dev_hold(dev);
+		__netdev_tracker_alloc(dev, tracker, gfp);
 	}
 }
 
@@ -3883,8 +3882,32 @@ static inline void dev_put_track(struct net_device *dev,
 {
 	if (dev) {
 		netdev_tracker_free(dev, tracker);
-		dev_put(dev);
+		__dev_put(dev);
 	}
+}
+
+/**
+ *	dev_hold - get reference to device
+ *	@dev: network device
+ *
+ * Hold reference to device to keep it from being freed.
+ * Try using dev_hold_track() instead.
+ */
+static inline void dev_hold(struct net_device *dev)
+{
+	dev_hold_track(dev, NULL, GFP_ATOMIC);
+}
+
+/**
+ *	dev_put - release reference to device
+ *	@dev: network device
+ *
+ * Release reference to device to allow it to be freed.
+ * Try using dev_put_track() instead.
+ */
+static inline void dev_put(struct net_device *dev)
+{
+	dev_put_track(dev, NULL);
 }
 
 static inline void dev_replace_track(struct net_device *odev,
@@ -3895,11 +3918,11 @@ static inline void dev_replace_track(struct net_device *odev,
 	if (odev)
 		netdev_tracker_free(odev, tracker);
 
-	dev_hold(ndev);
-	dev_put(odev);
+	__dev_hold(ndev);
+	__dev_put(odev);
 
 	if (ndev)
-		netdev_tracker_alloc(ndev, tracker, gfp);
+		__netdev_tracker_alloc(ndev, tracker, gfp);
 }
 
 /* Carrier loss detection, dial on demand. The functions netif_carrier_on
