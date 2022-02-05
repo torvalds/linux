@@ -2117,6 +2117,7 @@ usage()
 	echo "  -m fullmesh_tests"
 	echo "  -c capture pcap files"
 	echo "  -C enable data checksum"
+	echo "  -i use ip mptcp"
 	echo "  -h help"
 }
 
@@ -2138,9 +2139,12 @@ for arg in "$@"; do
 	if [[ "${arg}" =~ ^"-"[0-9a-zA-Z]*"C"[0-9a-zA-Z]*$ ]]; then
 		checksum=1
 	fi
+	if [[ "${arg}" =~ ^"-"[0-9a-zA-Z]*"i"[0-9a-zA-Z]*$ ]]; then
+		ip_mptcp=1
+	fi
 
-	# exception for the capture/checksum options, the rest means: a part of the tests
-	if [ "${arg}" != "-c" ] && [ "${arg}" != "-C" ]; then
+	# exception for the capture/checksum/ip_mptcp options, the rest means: a part of the tests
+	if [ "${arg}" != "-c" ] && [ "${arg}" != "-C" ] && [ "${arg}" != "-i" ]; then
 		do_all_tests=0
 	fi
 done
@@ -2150,7 +2154,7 @@ if [ $do_all_tests -eq 1 ]; then
 	exit $ret
 fi
 
-while getopts 'fesltra64bpkdmchCS' opt; do
+while getopts 'fesltra64bpkdmchCSi' opt; do
 	case $opt in
 		f)
 			subflows_tests
@@ -2200,6 +2204,8 @@ while getopts 'fesltra64bpkdmchCS' opt; do
 		c)
 			;;
 		C)
+			;;
+		i)
 			;;
 		h | *)
 			usage
