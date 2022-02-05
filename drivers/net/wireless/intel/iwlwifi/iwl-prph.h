@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -385,6 +385,9 @@ enum {
 #define UREG_UMAC_CURRENT_PC		0xa05c18
 #define UREG_LMAC1_CURRENT_PC		0xa05c1c
 #define UREG_LMAC2_CURRENT_PC		0xa05c20
+
+#define WFPM_LMAC1_PD_NOTIFICATION      0xa0338c
+#define WFPM_ARC1_PD_NOTIFICATION       0xa03044
 
 /* For UMAG_GEN_HW_STATUS reg check */
 enum {

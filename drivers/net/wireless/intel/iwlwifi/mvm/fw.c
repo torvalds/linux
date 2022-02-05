@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -265,6 +265,22 @@ static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
 	return false;
 }
 
+static void iwl_mvm_print_pd_notification(struct iwl_mvm *mvm)
+{
+	struct iwl_trans *trans = mvm->trans;
+	enum iwl_device_family device_family = trans->trans_cfg->device_family;
+
+	if (device_family < IWL_DEVICE_FAMILY_8000)
+		return;
+
+	if (device_family <= IWL_DEVICE_FAMILY_9000)
+		IWL_ERR(mvm, "WFPM_ARC1_PD_NOTIFICATION: 0x%x\n",
+			iwl_read_umac_prph(trans, WFPM_ARC1_PD_NOTIFICATION));
+	else
+		IWL_ERR(mvm, "WFPM_LMAC1_PD_NOTIFICATION: 0x%x\n",
+			iwl_read_umac_prph(trans, WFPM_LMAC1_PD_NOTIFICATION));
+}
+
 static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 					 enum iwl_ucode_type ucode_type)
 {
@@ -329,6 +345,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 				iwl_read_prph(trans, SB_CPU_1_STATUS),
 				iwl_read_prph(trans, SB_CPU_2_STATUS));
 		}
+
+		iwl_mvm_print_pd_notification(mvm);
 
 		/* LMAC/UMAC PC info */
 		if (trans->trans_cfg->device_family >=
