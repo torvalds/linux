@@ -253,7 +253,6 @@ struct odm_rf_cal {
 
 	bool	bReloadtxpowerindex;
 	u8	bRfPiEnable;
-	u32	TXPowerTrackingCallbackCnt; /* cosa add for debug */
 
 	u8	bCCKinCH14;
 	u8	CCK_index;
