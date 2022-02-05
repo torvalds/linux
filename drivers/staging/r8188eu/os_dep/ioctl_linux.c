@@ -2083,6 +2083,9 @@ static int rtw_wx_write_rf(struct net_device *dev,
 	u32 path, addr, data32;
 
 	path = *(u32 *)extra;
+	if (path != RF_PATH_A)
+		return -EINVAL;
+
 	addr = *((u32 *)extra + 1);
 	data32 = *((u32 *)extra + 2);
 	rtl8188e_PHY_SetRFReg(padapter, path, addr, 0xFFFFF, data32);
