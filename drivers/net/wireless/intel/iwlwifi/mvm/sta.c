@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2015, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2015, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -2714,8 +2714,11 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		baid = -1;
 	}
 
-	baid = iwl_mvm_fw_baid_op(mvm, mvm_sta, start, tid, ssn, buf_size,
-				  baid);
+	/* Don't send command to remove (start=0) BAID during restart */
+	if (start || !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		baid = iwl_mvm_fw_baid_op(mvm, mvm_sta, start, tid, ssn, buf_size,
+					  baid);
+
 	if (baid < 0) {
 		ret = baid;
 		goto out_free;
