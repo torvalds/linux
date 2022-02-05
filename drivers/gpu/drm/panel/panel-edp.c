@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
@@ -221,6 +222,8 @@ struct panel_edp {
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *hpd_gpio;
+
+	const struct edp_panel_entry *detected_panel;
 
 	struct edid *edid;
 
@@ -606,6 +609,28 @@ static int panel_edp_get_timings(struct drm_panel *panel,
 	return p->desc->num_timings;
 }
 
+static int detected_panel_show(struct seq_file *s, void *data)
+{
+	struct drm_panel *panel = s->private;
+	struct panel_edp *p = to_panel_edp(panel);
+
+	if (IS_ERR(p->detected_panel))
+		seq_puts(s, "UNKNOWN\n");
+	else if (!p->detected_panel)
+		seq_puts(s, "HARDCODED\n");
+	else
+		seq_printf(s, "%s\n", p->detected_panel->name);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(detected_panel);
+
+static void panel_edp_debugfs_init(struct drm_panel *panel, struct dentry *root)
+{
+	debugfs_create_file("detected_panel", 0600, root, panel, &detected_panel_fops);
+}
+
 static const struct drm_panel_funcs panel_edp_funcs = {
 	.disable = panel_edp_disable,
 	.unprepare = panel_edp_unprepare,
@@ -613,6 +638,7 @@ static const struct drm_panel_funcs panel_edp_funcs = {
 	.enable = panel_edp_enable,
 	.get_modes = panel_edp_get_modes,
 	.get_timings = panel_edp_get_timings,
+	.debugfs_init = panel_edp_debugfs_init,
 };
 
 #define PANEL_EDP_BOUNDS_CHECK(to_check, bounds, field) \
@@ -666,7 +692,6 @@ static const struct edp_panel_entry *find_edp_panel(u32 panel_id);
 
 static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 {
-	const struct edp_panel_entry *edp_panel;
 	struct panel_desc *desc;
 	u32 panel_id;
 	char vend[4];
@@ -705,14 +730,14 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	}
 	drm_edid_decode_panel_id(panel_id, vend, &product_id);
 
-	edp_panel = find_edp_panel(panel_id);
+	panel->detected_panel = find_edp_panel(panel_id);
 
 	/*
 	 * We're using non-optimized timings and want it really obvious that
 	 * someone needs to add an entry to the table, so we'll do a WARN_ON
 	 * splat.
 	 */
-	if (WARN_ON(!edp_panel)) {
+	if (WARN_ON(!panel->detected_panel)) {
 		dev_warn(dev,
 			 "Unknown panel %s %#06x, using conservative timings\n",
 			 vend, product_id);
@@ -734,12 +759,14 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 		 */
 		desc->delay.unprepare = 2000;
 		desc->delay.enable = 200;
+
+		panel->detected_panel = ERR_PTR(-EINVAL);
 	} else {
 		dev_info(dev, "Detected %s %s (%#06x)\n",
-			 vend, edp_panel->name, product_id);
+			 vend, panel->detected_panel->name, product_id);
 
 		/* Update the delay; everything else comes from EDID */
-		desc->delay = *edp_panel->delay;
+		desc->delay = *panel->detected_panel->delay;
 	}
 
 	ret = 0;
