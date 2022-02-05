@@ -522,7 +522,7 @@ static struct lpc18xx_cgu_pll_clk lpc18xx_cgu_src_clk_plls[] = {
 	LPC1XX_CGU_CLK_PLL(PLL1,	pll1_src_ids, pll1_ops),
 };
 
-static void lpc18xx_fill_parent_names(const char **parent, u32 *id, int size)
+static void lpc18xx_fill_parent_names(const char **parent, const u32 *id, int size)
 {
 	int i;
 
