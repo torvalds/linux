@@ -24,6 +24,7 @@
 #include "iwl-prph.h"
 #include "rs.h"
 #include "fw/api/scan.h"
+#include "fw/api/rfi.h"
 #include "time-event.h"
 #include "fw-api.h"
 #include "fw/acpi.h"
@@ -396,6 +397,10 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       iwl_mvm_rx_thermal_dual_chain_req,
 		       RX_HANDLER_ASYNC_LOCKED,
 		       struct iwl_thermal_dual_chain_request),
+
+	RX_HANDLER_GRP(SYSTEM_GROUP, RFI_DEACTIVATE_NOTIF,
+		       iwl_rfi_deactivate_notif_handler, RX_HANDLER_ASYNC_UNLOCKED,
+		       struct iwl_rfi_deactivate_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -505,6 +510,7 @@ static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
 	HCMD_NAME(RFI_CONFIG_CMD),
 	HCMD_NAME(RFI_GET_FREQ_TABLE_CMD),
 	HCMD_NAME(SYSTEM_FEATURES_CONTROL_CMD),
+	HCMD_NAME(RFI_DEACTIVATE_NOTIF),
 };
 
 /* Please keep this array *SORTED* by hex value.

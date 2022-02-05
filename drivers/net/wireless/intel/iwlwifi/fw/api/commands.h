@@ -605,6 +605,11 @@ enum iwl_system_subcmd_ids {
 	 * @SYSTEM_FEATURES_CONTROL_CMD: &struct iwl_system_features_control_cmd
 	 */
 	SYSTEM_FEATURES_CONTROL_CMD = 0xd,
+
+	/**
+	 * @RFI_DEACTIVATE_NOTIF: &struct iwl_rfi_deactivate_notif
+	 */
+	RFI_DEACTIVATE_NOTIF = 0xff,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */

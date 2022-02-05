@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  */
 #ifndef __iwl_fw_api_rfi_h__
 #define __iwl_fw_api_rfi_h__
@@ -57,4 +57,12 @@ struct iwl_rfi_freq_table_resp_cmd {
 	__le32 status;
 } __packed; /* RFI_CONFIG_CMD_API_S_VER_1 */
 
+/**
+ * struct iwl_rfi_deactivate_notif - notifcation that FW disaled RFIm
+ *
+ * @reason: used only for a log message
+ */
+struct iwl_rfi_deactivate_notif {
+	__le32 reason;
+} __packed; /* RFI_DEACTIVATE_NTF_S_VER_1 */
 #endif /* __iwl_fw_api_rfi_h__ */
