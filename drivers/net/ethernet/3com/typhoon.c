@@ -138,11 +138,6 @@ MODULE_PARM_DESC(use_mmio, "Use MMIO (1) or PIO(0) to access the NIC. "
 module_param(rx_copybreak, int, 0);
 module_param(use_mmio, int, 0);
 
-#if defined(NETIF_F_TSO) && MAX_SKB_FRAGS > 32
-#warning Typhoon only supports 32 entries in its SG list for TSO, disabling TSO
-#undef NETIF_F_TSO
-#endif
-
 #if TXLO_ENTRIES <= (2 * MAX_SKB_FRAGS)
 #error TX ring too small!
 #endif
@@ -2261,9 +2256,25 @@ out:
 	return mode;
 }
 
+#if MAX_SKB_FRAGS > 32
+static netdev_features_t typhoon_features_check(struct sk_buff *skb,
+						struct net_device *dev,
+						netdev_features_t features)
+{
+	if (skb_shinfo(skb)->nr_frags > 32 && skb_is_gso(skb))
+		features &= ~NETIF_F_GSO_MASK;
+
+	features = vlan_features_check(skb, features);
+	return vxlan_features_check(skb, features);
+}
+#endif
+
 static const struct net_device_ops typhoon_netdev_ops = {
 	.ndo_open		= typhoon_open,
 	.ndo_stop		= typhoon_close,
+#if MAX_SKB_FRAGS > 32
+	.ndo_features_check	= typhoon_features_check,
+#endif
 	.ndo_start_xmit		= typhoon_start_tx,
 	.ndo_set_rx_mode	= typhoon_set_rx_mode,
 	.ndo_tx_timeout		= typhoon_tx_timeout,
