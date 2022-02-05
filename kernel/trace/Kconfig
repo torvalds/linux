@@ -70,6 +70,19 @@ config HAVE_C_RECORDMCOUNT
 	help
 	  C version of recordmcount available?
 
+config HAVE_BUILDTIME_MCOUNT_SORT
+       bool
+       help
+         An architecture selects this if it sorts the mcount_loc section
+	 at build time.
+
+config BUILDTIME_MCOUNT_SORT
+       bool
+       default y
+       depends on HAVE_BUILDTIME_MCOUNT_SORT && DYNAMIC_FTRACE
+       help
+         Sort the mcount_loc section at build time.
+
 config TRACER_MAX_TRACE
 	bool
 
@@ -914,6 +927,20 @@ config EVENT_TRACE_TEST_SYSCALLS
 
 	 TBD - enable a way to actually call the syscalls as we test their
 	       events
+
+config FTRACE_SORT_STARTUP_TEST
+       bool "Verify compile time sorting of ftrace functions"
+       depends on DYNAMIC_FTRACE
+       depends on BUILDTIME_MCOUNT_SORT
+       help
+	 Sorting of the mcount_loc sections that is used to find the
+	 where the ftrace knows where to patch functions for tracing
+	 and other callbacks is done at compile time. But if the sort
+	 is not done correctly, it will cause non-deterministic failures.
+	 When this is set, the sorted sections will be verified that they
+	 are in deed sorted and will warn if they are not.
+
+	 If unsure, say N
 
 config RING_BUFFER_STARTUP_TEST
        bool "Ring buffer startup self test"

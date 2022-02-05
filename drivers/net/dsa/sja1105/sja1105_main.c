@@ -118,13 +118,14 @@ static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
 static int sja1105_commit_pvid(struct dsa_switch *ds, int port)
 {
 	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_vlan_lookup_entry *vlan;
 	bool drop_untagged = false;
 	int match, rc;
 	u16 pvid;
 
-	if (dp->bridge_dev && br_vlan_enabled(dp->bridge_dev))
+	if (br && br_vlan_enabled(br))
 		pvid = priv->bridge_pvid[port];
 	else
 		pvid = priv->tag_8021q_pvid[port];
@@ -1979,7 +1980,7 @@ static int sja1105_manage_flood_domains(struct sja1105_private *priv)
 }
 
 static int sja1105_bridge_member(struct dsa_switch *ds, int port,
-				 struct net_device *br, bool member)
+				 struct dsa_bridge bridge, bool member)
 {
 	struct sja1105_l2_forwarding_entry *l2_fwd;
 	struct sja1105_private *priv = ds->priv;
@@ -2004,7 +2005,7 @@ static int sja1105_bridge_member(struct dsa_switch *ds, int port,
 		 */
 		if (i == port)
 			continue;
-		if (dsa_to_port(ds, i)->bridge_dev != br)
+		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
 			continue;
 		sja1105_port_allow_traffic(l2_fwd, i, port, member);
 		sja1105_port_allow_traffic(l2_fwd, port, i, member);
@@ -2073,15 +2074,31 @@ static void sja1105_bridge_stp_state_set(struct dsa_switch *ds, int port,
 }
 
 static int sja1105_bridge_join(struct dsa_switch *ds, int port,
-			       struct net_device *br)
+			       struct dsa_bridge bridge,
+			       bool *tx_fwd_offload)
 {
-	return sja1105_bridge_member(ds, port, br, true);
+	int rc;
+
+	rc = sja1105_bridge_member(ds, port, bridge, true);
+	if (rc)
+		return rc;
+
+	rc = dsa_tag_8021q_bridge_tx_fwd_offload(ds, port, bridge);
+	if (rc) {
+		sja1105_bridge_member(ds, port, bridge, false);
+		return rc;
+	}
+
+	*tx_fwd_offload = true;
+
+	return 0;
 }
 
 static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
-				 struct net_device *br)
+				 struct dsa_bridge bridge)
 {
-	sja1105_bridge_member(ds, port, br, false);
+	dsa_tag_8021q_bridge_tx_fwd_unoffload(ds, port, bridge);
+	sja1105_bridge_member(ds, port, bridge, false);
 }
 
 #define BYTES_PER_KBIT (1000LL / 8)
@@ -2587,8 +2604,9 @@ static int sja1105_prechangeupper(struct dsa_switch *ds, int port,
 
 	if (netif_is_bridge_master(upper)) {
 		list_for_each_entry(dp, &dst->ports, list) {
-			if (dp->bridge_dev && dp->bridge_dev != upper &&
-			    br_vlan_enabled(dp->bridge_dev)) {
+			struct net_device *br = dsa_port_bridge_dev_get(dp);
+
+			if (br && br != upper && br_vlan_enabled(br)) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Only one VLAN-aware bridge is supported");
 				return -EBUSY;
@@ -2597,18 +2615,6 @@ static int sja1105_prechangeupper(struct dsa_switch *ds, int port,
 	}
 
 	return 0;
-}
-
-static void sja1105_port_disable(struct dsa_switch *ds, int port)
-{
-	struct sja1105_private *priv = ds->priv;
-	struct sja1105_port *sp = &priv->ports[port];
-
-	if (!dsa_is_user_port(ds, port))
-		return;
-
-	kthread_cancel_work_sync(&sp->xmit_work);
-	skb_queue_purge(&sp->xmit_queue);
 }
 
 static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
@@ -2669,10 +2675,8 @@ static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
 	return NETDEV_TX_OK;
 }
 
-#define work_to_port(work) \
-		container_of((work), struct sja1105_port, xmit_work)
-#define tagger_to_sja1105(t) \
-		container_of((t), struct sja1105_private, tagger_data)
+#define work_to_xmit_work(w) \
+		container_of((w), struct sja1105_deferred_xmit_work, work)
 
 /* Deferred work is unfortunately necessary because setting up the management
  * route cannot be done from atomit context (SPI transfer takes a sleepable
@@ -2680,25 +2684,41 @@ static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
  */
 static void sja1105_port_deferred_xmit(struct kthread_work *work)
 {
-	struct sja1105_port *sp = work_to_port(work);
-	struct sja1105_tagger_data *tagger_data = sp->data;
-	struct sja1105_private *priv = tagger_to_sja1105(tagger_data);
-	int port = sp - priv->ports;
-	struct sk_buff *skb;
+	struct sja1105_deferred_xmit_work *xmit_work = work_to_xmit_work(work);
+	struct sk_buff *clone, *skb = xmit_work->skb;
+	struct dsa_switch *ds = xmit_work->dp->ds;
+	struct sja1105_private *priv = ds->priv;
+	int port = xmit_work->dp->index;
 
-	while ((skb = skb_dequeue(&sp->xmit_queue)) != NULL) {
-		struct sk_buff *clone = SJA1105_SKB_CB(skb)->clone;
+	clone = SJA1105_SKB_CB(skb)->clone;
 
-		mutex_lock(&priv->mgmt_lock);
+	mutex_lock(&priv->mgmt_lock);
 
-		sja1105_mgmt_xmit(priv->ds, port, 0, skb, !!clone);
+	sja1105_mgmt_xmit(ds, port, 0, skb, !!clone);
 
-		/* The clone, if there, was made by dsa_skb_tx_timestamp */
-		if (clone)
-			sja1105_ptp_txtstamp_skb(priv->ds, port, clone);
+	/* The clone, if there, was made by dsa_skb_tx_timestamp */
+	if (clone)
+		sja1105_ptp_txtstamp_skb(ds, port, clone);
 
-		mutex_unlock(&priv->mgmt_lock);
-	}
+	mutex_unlock(&priv->mgmt_lock);
+
+	kfree(xmit_work);
+}
+
+static int sja1105_connect_tag_protocol(struct dsa_switch *ds,
+					enum dsa_tag_protocol proto)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_tagger_data *tagger_data;
+
+	if (proto != priv->info->tag_proto)
+		return -EPROTONOSUPPORT;
+
+	tagger_data = sja1105_tagger_data(ds);
+	tagger_data->xmit_work_fn = sja1105_port_deferred_xmit;
+	tagger_data->meta_tstamp_handler = sja1110_process_meta_tstamp;
+
+	return 0;
 }
 
 /* The MAXAGE setting belongs to the L2 Forwarding Parameters table,
@@ -3001,58 +3021,6 @@ static int sja1105_port_bridge_flags(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static void sja1105_teardown_ports(struct sja1105_private *priv)
-{
-	struct dsa_switch *ds = priv->ds;
-	int port;
-
-	for (port = 0; port < ds->num_ports; port++) {
-		struct sja1105_port *sp = &priv->ports[port];
-
-		if (sp->xmit_worker)
-			kthread_destroy_worker(sp->xmit_worker);
-	}
-}
-
-static int sja1105_setup_ports(struct sja1105_private *priv)
-{
-	struct sja1105_tagger_data *tagger_data = &priv->tagger_data;
-	struct dsa_switch *ds = priv->ds;
-	int port, rc;
-
-	/* Connections between dsa_port and sja1105_port */
-	for (port = 0; port < ds->num_ports; port++) {
-		struct sja1105_port *sp = &priv->ports[port];
-		struct dsa_port *dp = dsa_to_port(ds, port);
-		struct kthread_worker *worker;
-		struct net_device *slave;
-
-		if (!dsa_port_is_user(dp))
-			continue;
-
-		dp->priv = sp;
-		sp->data = tagger_data;
-		slave = dp->slave;
-		kthread_init_work(&sp->xmit_work, sja1105_port_deferred_xmit);
-		worker = kthread_create_worker(0, "%s_xmit", slave->name);
-		if (IS_ERR(worker)) {
-			rc = PTR_ERR(worker);
-			dev_err(ds->dev,
-				"failed to create deferred xmit thread: %d\n",
-				rc);
-			goto out_destroy_workers;
-		}
-		sp->xmit_worker = worker;
-		skb_queue_head_init(&sp->xmit_queue);
-	}
-
-	return 0;
-
-out_destroy_workers:
-	sja1105_teardown_ports(priv);
-	return rc;
-}
-
 /* The programming model for the SJA1105 switch is "all-at-once" via static
  * configuration tables. Some of these can be dynamically modified at runtime,
  * but not the xMII mode parameters table.
@@ -3098,10 +3066,6 @@ static int sja1105_setup(struct dsa_switch *ds)
 		}
 	}
 
-	rc = sja1105_setup_ports(priv);
-	if (rc)
-		goto out_static_config_free;
-
 	sja1105_tas_setup(ds);
 	sja1105_flower_setup(ds);
 
@@ -3139,7 +3103,7 @@ static int sja1105_setup(struct dsa_switch *ds)
 	ds->vlan_filtering_is_global = true;
 	ds->untag_bridge_pvid = true;
 	/* tag_8021q has 3 bits for the VBID, and the value 0 is reserved */
-	ds->num_fwd_offloading_bridges = 7;
+	ds->max_num_bridges = 7;
 
 	/* Advertise the 8 egress queues */
 	ds->num_tx_queues = SJA1105_NUM_TC;
@@ -3158,7 +3122,6 @@ out_ptp_clock_unregister:
 out_flower_teardown:
 	sja1105_flower_teardown(ds);
 	sja1105_tas_teardown(ds);
-	sja1105_teardown_ports(priv);
 out_static_config_free:
 	sja1105_static_config_free(&priv->static_config);
 
@@ -3178,12 +3141,12 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	sja1105_ptp_clock_unregister(ds);
 	sja1105_flower_teardown(ds);
 	sja1105_tas_teardown(ds);
-	sja1105_teardown_ports(priv);
 	sja1105_static_config_free(&priv->static_config);
 }
 
 static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_tag_protocol	= sja1105_get_tag_protocol,
+	.connect_tag_protocol	= sja1105_connect_tag_protocol,
 	.setup			= sja1105_setup,
 	.teardown		= sja1105_teardown,
 	.set_ageing_time	= sja1105_set_ageing_time,
@@ -3197,7 +3160,6 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_ethtool_stats	= sja1105_get_ethtool_stats,
 	.get_sset_count		= sja1105_get_sset_count,
 	.get_ts_info		= sja1105_get_ts_info,
-	.port_disable		= sja1105_port_disable,
 	.port_fdb_dump		= sja1105_fdb_dump,
 	.port_fdb_add		= sja1105_fdb_add,
 	.port_fdb_del		= sja1105_fdb_del,
@@ -3228,8 +3190,6 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.tag_8021q_vlan_add	= sja1105_dsa_8021q_vlan_add,
 	.tag_8021q_vlan_del	= sja1105_dsa_8021q_vlan_del,
 	.port_prechangeupper	= sja1105_prechangeupper,
-	.port_bridge_tx_fwd_offload = dsa_tag_8021q_bridge_tx_fwd_offload,
-	.port_bridge_tx_fwd_unoffload = dsa_tag_8021q_bridge_tx_fwd_unoffload,
 };
 
 static const struct of_device_id sja1105_dt_ids[];
@@ -3367,6 +3327,7 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->ptp_data.lock);
 	mutex_init(&priv->dynamic_config_lock);
 	mutex_init(&priv->mgmt_lock);
+	spin_lock_init(&priv->ts_id_lock);
 
 	rc = sja1105_parse_dt(priv);
 	if (rc < 0) {

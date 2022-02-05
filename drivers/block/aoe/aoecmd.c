@@ -122,7 +122,7 @@ newtag(struct aoedev *d)
 	register ulong n;
 
 	n = jiffies & 0xffff;
-	return n |= (++d->lasttag & 0x7fff) << 16;
+	return n | (++d->lasttag & 0x7fff) << 16;
 }
 
 static u32

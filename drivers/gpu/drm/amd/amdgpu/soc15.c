@@ -744,7 +744,7 @@ static void soc15_reg_base_init(struct amdgpu_device *adev)
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_RENOIR:
-		/* It's safe to do ip discovery here for Renior,
+		/* It's safe to do ip discovery here for Renoir,
 		 * it doesn't support SRIOV. */
 		if (amdgpu_discovery) {
 			r = amdgpu_discovery_reg_base_init(adev);
@@ -1238,7 +1238,9 @@ static int soc15_common_sw_init(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_add_irq_id(adev);
 
-	adev->df.funcs->sw_init(adev);
+	if (adev->df.funcs &&
+	    adev->df.funcs->sw_init)
+		adev->df.funcs->sw_init(adev);
 
 	return 0;
 }
@@ -1250,7 +1252,10 @@ static int soc15_common_sw_fini(void *handle)
 	if (adev->nbio.ras_funcs &&
 	    adev->nbio.ras_funcs->ras_fini)
 		adev->nbio.ras_funcs->ras_fini(adev);
-	adev->df.funcs->sw_fini(adev);
+
+	if (adev->df.funcs &&
+	    adev->df.funcs->sw_fini)
+		adev->df.funcs->sw_fini(adev);
 	return 0;
 }
 

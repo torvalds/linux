@@ -169,7 +169,6 @@ prototypes::
 	int (*show_options)(struct seq_file *, struct dentry *);
 	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
-	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
 
 locking rules:
 	All may block [not true, see below]
@@ -194,7 +193,6 @@ umount_begin:		no
 show_options:		no		(namespace_sem)
 quota_read:		no		(see below)
 quota_write:		no		(see below)
-bdev_try_to_free_page:	no		(see below)
 ======================	============	========================
 
 ->statfs() has s_umount (shared) when called by ustat(2) (native or
@@ -209,9 +207,6 @@ be the only ones operating on the quota file by the quota code (via
 dqio_sem) (unless an admin really wants to screw up something and
 writes to quota files with quotas on). For other details about locking
 see also dquot_operations section.
-
-->bdev_try_to_free_page is called from the ->releasepage handler of
-the block device inode.  See there for more details.
 
 file_system_type
 ================

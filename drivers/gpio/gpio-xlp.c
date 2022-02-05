@@ -6,7 +6,6 @@
 
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -26,16 +25,6 @@
  *
  * where addr is base address of the that feature register and gpio is the pin.
  */
-#define GPIO_OUTPUT_EN		0x00
-#define GPIO_PADDRV		0x08
-#define GPIO_INT_EN00		0x18
-#define GPIO_INT_EN10		0x20
-#define GPIO_INT_EN20		0x28
-#define GPIO_INT_EN30		0x30
-#define GPIO_INT_POL		0x38
-#define GPIO_INT_TYPE		0x40
-#define GPIO_INT_STAT		0x48
-
 #define GPIO_9XX_BYTESWAP	0X00
 #define GPIO_9XX_CTRL		0X04
 #define GPIO_9XX_OUTPUT_EN	0x14
@@ -52,14 +41,6 @@
 #define GPIO_9XX_INT_TYPE	0x114
 #define GPIO_9XX_INT_STAT	0x124
 
-#define GPIO_3XX_INT_EN00	0x18
-#define GPIO_3XX_INT_EN10	0x20
-#define GPIO_3XX_INT_EN20	0x28
-#define GPIO_3XX_INT_EN30	0x30
-#define GPIO_3XX_INT_POL	0x78
-#define GPIO_3XX_INT_TYPE	0x80
-#define GPIO_3XX_INT_STAT	0x88
-
 /* Interrupt type register mask */
 #define XLP_GPIO_IRQ_TYPE_LVL	0x0
 #define XLP_GPIO_IRQ_TYPE_EDGE	0x1
@@ -71,16 +52,6 @@
 #define XLP_GPIO_REGSZ		32
 #define XLP_GPIO_IRQ_BASE	768
 #define XLP_MAX_NR_GPIO		96
-
-/* XLP variants supported by this driver */
-enum {
-	XLP_GPIO_VARIANT_XLP832 = 1,
-	XLP_GPIO_VARIANT_XLP316,
-	XLP_GPIO_VARIANT_XLP208,
-	XLP_GPIO_VARIANT_XLP980,
-	XLP_GPIO_VARIANT_XLP532,
-	GPIO_VARIANT_VULCAN
-};
 
 struct xlp_gpio_priv {
 	struct gpio_chip chip;
@@ -257,44 +228,13 @@ static void xlp_gpio_set(struct gpio_chip *gc, unsigned gpio, int state)
 	xlp_gpio_set_reg(priv->gpio_paddrv, gpio, state);
 }
 
-static const struct of_device_id xlp_gpio_of_ids[] = {
-	{
-		.compatible = "netlogic,xlp832-gpio",
-		.data	    = (void *)XLP_GPIO_VARIANT_XLP832,
-	},
-	{
-		.compatible = "netlogic,xlp316-gpio",
-		.data	    = (void *)XLP_GPIO_VARIANT_XLP316,
-	},
-	{
-		.compatible = "netlogic,xlp208-gpio",
-		.data	    = (void *)XLP_GPIO_VARIANT_XLP208,
-	},
-	{
-		.compatible = "netlogic,xlp980-gpio",
-		.data	    = (void *)XLP_GPIO_VARIANT_XLP980,
-	},
-	{
-		.compatible = "netlogic,xlp532-gpio",
-		.data	    = (void *)XLP_GPIO_VARIANT_XLP532,
-	},
-	{
-		.compatible = "brcm,vulcan-gpio",
-		.data	    = (void *)GPIO_VARIANT_VULCAN,
-	},
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(of, xlp_gpio_of_ids);
-
 static int xlp_gpio_probe(struct platform_device *pdev)
 {
 	struct gpio_chip *gc;
 	struct gpio_irq_chip *girq;
 	struct xlp_gpio_priv *priv;
 	void __iomem *gpio_base;
-	int irq_base, irq, err;
-	int ngpio;
-	u32 soc_type;
+	int irq, err;
 
 	priv = devm_kzalloc(&pdev->dev,	sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -308,62 +248,12 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	if (pdev->dev.of_node) {
-		soc_type = (uintptr_t)of_device_get_match_data(&pdev->dev);
-	} else {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
-						&pdev->dev);
-		if (!acpi_id || !acpi_id->driver_data) {
-			dev_err(&pdev->dev, "Unable to match ACPI ID\n");
-			return -ENODEV;
-		}
-		soc_type = (uintptr_t) acpi_id->driver_data;
-	}
-
-	switch (soc_type) {
-	case XLP_GPIO_VARIANT_XLP832:
-		priv->gpio_out_en = gpio_base + GPIO_OUTPUT_EN;
-		priv->gpio_paddrv = gpio_base + GPIO_PADDRV;
-		priv->gpio_intr_stat = gpio_base + GPIO_INT_STAT;
-		priv->gpio_intr_type = gpio_base + GPIO_INT_TYPE;
-		priv->gpio_intr_pol = gpio_base + GPIO_INT_POL;
-		priv->gpio_intr_en = gpio_base + GPIO_INT_EN00;
-		ngpio = 41;
-		break;
-	case XLP_GPIO_VARIANT_XLP208:
-	case XLP_GPIO_VARIANT_XLP316:
-		priv->gpio_out_en = gpio_base + GPIO_OUTPUT_EN;
-		priv->gpio_paddrv = gpio_base + GPIO_PADDRV;
-		priv->gpio_intr_stat = gpio_base + GPIO_3XX_INT_STAT;
-		priv->gpio_intr_type = gpio_base + GPIO_3XX_INT_TYPE;
-		priv->gpio_intr_pol = gpio_base + GPIO_3XX_INT_POL;
-		priv->gpio_intr_en = gpio_base + GPIO_3XX_INT_EN00;
-
-		ngpio = (soc_type == XLP_GPIO_VARIANT_XLP208) ? 42 : 57;
-		break;
-	case XLP_GPIO_VARIANT_XLP980:
-	case XLP_GPIO_VARIANT_XLP532:
-	case GPIO_VARIANT_VULCAN:
-		priv->gpio_out_en = gpio_base + GPIO_9XX_OUTPUT_EN;
-		priv->gpio_paddrv = gpio_base + GPIO_9XX_PADDRV;
-		priv->gpio_intr_stat = gpio_base + GPIO_9XX_INT_STAT;
-		priv->gpio_intr_type = gpio_base + GPIO_9XX_INT_TYPE;
-		priv->gpio_intr_pol = gpio_base + GPIO_9XX_INT_POL;
-		priv->gpio_intr_en = gpio_base + GPIO_9XX_INT_EN00;
-
-		if (soc_type == XLP_GPIO_VARIANT_XLP980)
-			ngpio = 66;
-		else if (soc_type == XLP_GPIO_VARIANT_XLP532)
-			ngpio = 67;
-		else
-			ngpio = 70;
-		break;
-	default:
-		dev_err(&pdev->dev, "Unknown Processor type!\n");
-		return -ENODEV;
-	}
+	priv->gpio_out_en = gpio_base + GPIO_9XX_OUTPUT_EN;
+	priv->gpio_paddrv = gpio_base + GPIO_9XX_PADDRV;
+	priv->gpio_intr_stat = gpio_base + GPIO_9XX_INT_STAT;
+	priv->gpio_intr_type = gpio_base + GPIO_9XX_INT_TYPE;
+	priv->gpio_intr_pol = gpio_base + GPIO_9XX_INT_POL;
+	priv->gpio_intr_en = gpio_base + GPIO_9XX_INT_EN00;
 
 	bitmap_zero(priv->gpio_enabled_mask, XLP_MAX_NR_GPIO);
 
@@ -373,27 +263,13 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->label = dev_name(&pdev->dev);
 	gc->base = 0;
 	gc->parent = &pdev->dev;
-	gc->ngpio = ngpio;
-	gc->of_node = pdev->dev.of_node;
+	gc->ngpio = 70;
 	gc->direction_output = xlp_gpio_dir_output;
 	gc->direction_input = xlp_gpio_dir_input;
 	gc->set = xlp_gpio_set;
 	gc->get = xlp_gpio_get;
 
 	spin_lock_init(&priv->lock);
-
-	/* XLP(MIPS) has fixed range for GPIO IRQs, Vulcan(ARM64) does not */
-	if (soc_type != GPIO_VARIANT_VULCAN) {
-		irq_base = devm_irq_alloc_descs(&pdev->dev, -1,
-						XLP_GPIO_IRQ_BASE,
-						gc->ngpio, 0);
-		if (irq_base < 0) {
-			dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
-			return irq_base;
-		}
-	} else {
-		irq_base = 0;
-	}
 
 	girq = &gc->irq;
 	girq->chip = &xlp_gpio_irq_chip;
@@ -405,7 +281,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	if (!girq->parents)
 		return -ENOMEM;
 	girq->parents[0] = irq;
-	girq->first = irq_base;
+	girq->first = 0;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
 
@@ -420,8 +296,8 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp_gpio_acpi_match[] = {
-	{ "BRCM9006", GPIO_VARIANT_VULCAN },
-	{ "CAV9006",  GPIO_VARIANT_VULCAN },
+	{ "BRCM9006" },
+	{ "CAV9006" },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, xlp_gpio_acpi_match);
@@ -430,7 +306,6 @@ MODULE_DEVICE_TABLE(acpi, xlp_gpio_acpi_match);
 static struct platform_driver xlp_gpio_driver = {
 	.driver		= {
 		.name	= "xlp-gpio",
-		.of_match_table = xlp_gpio_of_ids,
 		.acpi_match_table = ACPI_PTR(xlp_gpio_acpi_match),
 	},
 	.probe		= xlp_gpio_probe,

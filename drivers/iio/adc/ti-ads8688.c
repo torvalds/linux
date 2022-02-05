@@ -281,12 +281,10 @@ static int ads8688_write_reg_range(struct iio_dev *indio_dev,
 				   enum ads8688_range range)
 {
 	unsigned int tmp;
-	int ret;
 
 	tmp = ADS8688_PROG_REG_RANGE_CH(chan->channel);
-	ret = ads8688_prog_write(indio_dev, tmp, range);
 
-	return ret;
+	return ads8688_prog_write(indio_dev, tmp, range);
 }
 
 static int ads8688_write_raw(struct iio_dev *indio_dev,

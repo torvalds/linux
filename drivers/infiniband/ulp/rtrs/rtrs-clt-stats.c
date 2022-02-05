@@ -13,8 +13,8 @@
 
 void rtrs_clt_update_wc_stats(struct rtrs_clt_con *con)
 {
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
-	struct rtrs_clt_stats *stats = sess->stats;
+	struct rtrs_clt_path *clt_path = to_clt_path(con->c.path);
+	struct rtrs_clt_stats *stats = clt_path->stats;
 	struct rtrs_clt_stats_pcpu *s;
 	int cpu;
 
@@ -180,8 +180,8 @@ static inline void rtrs_clt_update_rdma_stats(struct rtrs_clt_stats *stats,
 void rtrs_clt_update_all_stats(struct rtrs_clt_io_req *req, int dir)
 {
 	struct rtrs_clt_con *con = req->con;
-	struct rtrs_clt_sess *sess = to_clt_sess(con->c.sess);
-	struct rtrs_clt_stats *stats = sess->stats;
+	struct rtrs_clt_path *clt_path = to_clt_path(con->c.path);
+	struct rtrs_clt_stats *stats = clt_path->stats;
 	unsigned int len;
 
 	len = req->usr_len + req->data_len;

@@ -69,6 +69,13 @@ static inline __be32 smc_ib_gid_to_ipv4(u8 gid[SMC_GID_SIZE])
 	return cpu_to_be32(INADDR_NONE);
 }
 
+static inline struct net *smc_ib_net(struct smc_ib_device *smcibdev)
+{
+	if (smcibdev && smcibdev->ibdev)
+		return read_pnet(&smcibdev->ibdev->coredev.rdma_net);
+	return NULL;
+}
+
 struct smc_init_info_smcrv2;
 struct smc_buf_desc;
 struct smc_link;

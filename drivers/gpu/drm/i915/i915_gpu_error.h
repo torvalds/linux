@@ -39,10 +39,8 @@ struct i915_vma_coredump {
 	u64 gtt_size;
 	u32 gtt_page_sizes;
 
-	int num_pages;
-	int page_count;
 	int unused;
-	u32 *pages[];
+	struct list_head page_list;
 };
 
 struct i915_request_coredump {

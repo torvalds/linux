@@ -40,6 +40,7 @@
 #include <asm/kasan.h>
 #include <asm/kaslr.h>
 #include <asm/mce.h>
+#include <asm/memtype.h>
 #include <asm/mtrr.h>
 #include <asm/realmode.h>
 #include <asm/olpc_ofw.h>
@@ -967,7 +968,11 @@ void __init setup_arch(char **cmdline_p)
 	max_pfn = e820__end_of_ram_pfn();
 
 	/* update e820 for memory not covered by WB MTRRs */
-	mtrr_bp_init();
+	if (IS_ENABLED(CONFIG_MTRR))
+		mtrr_bp_init();
+	else
+		pat_disable("PAT support disabled because CONFIG_MTRR is disabled in the kernel.");
+
 	if (mtrr_trim_uncached_memory(max_pfn))
 		max_pfn = e820__end_of_ram_pfn();
 

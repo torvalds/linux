@@ -2186,7 +2186,8 @@ struct execlists_capture {
 static void execlists_capture_work(struct work_struct *work)
 {
 	struct execlists_capture *cap = container_of(work, typeof(*cap), work);
-	const gfp_t gfp = GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN;
+	const gfp_t gfp = __GFP_KSWAPD_RECLAIM | __GFP_RETRY_MAYFAIL |
+		__GFP_NOWARN;
 	struct intel_engine_cs *engine = cap->rq->engine;
 	struct intel_gt_coredump *gt = cap->error->gt;
 	struct intel_engine_capture_vma *vma;
@@ -3293,6 +3294,38 @@ static void execlists_release(struct intel_engine_cs *engine)
 	lrc_fini_wa_ctx(engine);
 }
 
+static ktime_t __execlists_engine_busyness(struct intel_engine_cs *engine,
+					   ktime_t *now)
+{
+	struct intel_engine_execlists_stats *stats = &engine->stats.execlists;
+	ktime_t total = stats->total;
+
+	/*
+	 * If the engine is executing something at the moment
+	 * add it to the total.
+	 */
+	*now = ktime_get();
+	if (READ_ONCE(stats->active))
+		total = ktime_add(total, ktime_sub(*now, stats->start));
+
+	return total;
+}
+
+static ktime_t execlists_engine_busyness(struct intel_engine_cs *engine,
+					 ktime_t *now)
+{
+	struct intel_engine_execlists_stats *stats = &engine->stats.execlists;
+	unsigned int seq;
+	ktime_t total;
+
+	do {
+		seq = read_seqcount_begin(&stats->lock);
+		total = __execlists_engine_busyness(engine, now);
+	} while (read_seqcount_retry(&stats->lock, seq));
+
+	return total;
+}
+
 static void
 logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
@@ -3349,6 +3382,8 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 		engine->emit_bb_start = gen8_emit_bb_start;
 	else
 		engine->emit_bb_start = gen8_emit_bb_start_noarb;
+
+	engine->busyness = execlists_engine_busyness;
 }
 
 static void logical_ring_default_irqs(struct intel_engine_cs *engine)

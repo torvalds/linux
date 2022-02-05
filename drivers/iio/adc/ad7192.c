@@ -257,7 +257,8 @@ static const struct iio_chan_spec_ext_info ad7192_calibsys_ext_info[] = {
 	},
 	IIO_ENUM("sys_calibration_mode", IIO_SEPARATE,
 		 &ad7192_syscalib_mode_enum),
-	IIO_ENUM_AVAILABLE("sys_calibration_mode", &ad7192_syscalib_mode_enum),
+	IIO_ENUM_AVAILABLE("sys_calibration_mode", IIO_SHARED_BY_TYPE,
+			   &ad7192_syscalib_mode_enum),
 	{}
 };
 

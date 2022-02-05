@@ -188,7 +188,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *, int);
 void qlcnic_sriov_cleanup(struct qlcnic_adapter *);
 void __qlcnic_sriov_cleanup(struct qlcnic_adapter *);
 void qlcnic_sriov_vf_register_map(struct qlcnic_hardware_context *);
-int qlcnic_sriov_vf_init(struct qlcnic_adapter *, int);
+int qlcnic_sriov_vf_init(struct qlcnic_adapter *);
 void qlcnic_sriov_vf_set_ops(struct qlcnic_adapter *);
 int qlcnic_sriov_func_to_index(struct qlcnic_adapter *, u8);
 void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *, u32);

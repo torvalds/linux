@@ -10,9 +10,6 @@
 #include <asm/asm-extable.h>
 #include <asm/ptrace.h>
 
-typedef bool (*ex_handler_t)(const struct exception_table_entry *,
-			     struct pt_regs *);
-
 static inline unsigned long
 get_ex_fixup(const struct exception_table_entry *ex)
 {
@@ -43,8 +40,8 @@ static bool
 ex_handler_load_unaligned_zeropad(const struct exception_table_entry *ex,
 				  struct pt_regs *regs)
 {
-	int reg_data = FIELD_GET(EX_DATA_REG_DATA, ex->type);
-	int reg_addr = FIELD_GET(EX_DATA_REG_ADDR, ex->type);
+	int reg_data = FIELD_GET(EX_DATA_REG_DATA, ex->data);
+	int reg_addr = FIELD_GET(EX_DATA_REG_ADDR, ex->data);
 	unsigned long data, addr, offset;
 
 	addr = pt_regs_read_reg(regs, reg_addr);

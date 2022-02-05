@@ -731,14 +731,12 @@ config GPIO_XILINX
 	  Say yes here to support the Xilinx FPGA GPIO device.
 
 config GPIO_XLP
-	tristate "Netlogic XLP GPIO support"
-	depends on OF_GPIO && (CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST)
+	tristate "Cavium ThunderX2 GPIO support"
+	depends on ARCH_THUNDER2 || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
-	  This driver provides support for GPIO interface on Netlogic XLP MIPS64
-	  SoCs. Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX,
-	  XLP9XX and XLP5XX. The same GPIO controller block is also present in
-	  Cavium's ThunderX2 CN99XX SoCs.
+	  This driver provides support for GPIO interface on Cavium's ThunderX2
+	  CN99XX SoCs (Originally from Netlogic XLP).
 
 	  If unsure, say N.
 
@@ -1132,17 +1130,6 @@ config GPIO_ARIZONA
 	depends on MFD_ARIZONA
 	help
 	  Support for GPIOs on Wolfson Arizona class devices.
-
-config GPIO_BD70528
-	tristate "ROHM BD70528 GPIO support"
-	depends on MFD_ROHM_BD70528
-	help
-	  Support for GPIOs on ROHM BD70528 PMIC. There are four GPIOs
-	  available on the ROHM PMIC in total. The GPIOs can also
-	  generate interrupts.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called gpio-bd70528.
 
 config GPIO_BD71815
 	tristate "ROHM BD71815 PMIC GPIO support"
@@ -1693,6 +1680,14 @@ config GPIO_VIRTIO
 
 	  These virtual GPIOs can be routed to real GPIOs or attached to
 	  simulators on the host (like QEMU).
+
+config GPIO_SIM
+	tristate "GPIO Simulator Module"
+	select IRQ_SIM
+	select CONFIGFS_FS
+	help
+	  This enables the GPIO simulator - a configfs-based GPIO testing
+	  driver.
 
 endmenu
 

@@ -17,6 +17,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 
 #include "core.h"
@@ -113,7 +114,7 @@ struct sgpio_priv {
 	u32 bitcount;
 	u32 ports;
 	u32 clock;
-	u32 __iomem *regs;
+	struct regmap *regs;
 	const struct sgpio_properties *properties;
 };
 
@@ -134,31 +135,42 @@ static inline int sgpio_addr_to_pin(struct sgpio_priv *priv, int port, int bit)
 	return bit + port * priv->bitcount;
 }
 
-static inline u32 sgpio_readl(struct sgpio_priv *priv, u32 rno, u32 off)
+static inline u32 sgpio_get_addr(struct sgpio_priv *priv, u32 rno, u32 off)
 {
-	u32 __iomem *reg = &priv->regs[priv->properties->regoff[rno] + off];
-
-	return readl(reg);
+	return priv->properties->regoff[rno] + off;
 }
 
-static inline void sgpio_writel(struct sgpio_priv *priv,
+static u32 sgpio_readl(struct sgpio_priv *priv, u32 rno, u32 off)
+{
+	u32 addr = sgpio_get_addr(priv, rno, off);
+	u32 val = 0;
+	int ret;
+
+	ret = regmap_read(priv->regs, addr, &val);
+	WARN_ONCE(ret, "error reading sgpio reg %d\n", ret);
+
+	return val;
+}
+
+static void sgpio_writel(struct sgpio_priv *priv,
 				u32 val, u32 rno, u32 off)
 {
-	u32 __iomem *reg = &priv->regs[priv->properties->regoff[rno] + off];
+	u32 addr = sgpio_get_addr(priv, rno, off);
+	int ret;
 
-	writel(val, reg);
+	ret = regmap_write(priv->regs, addr, val);
+	WARN_ONCE(ret, "error writing sgpio reg %d\n", ret);
 }
 
 static inline void sgpio_clrsetbits(struct sgpio_priv *priv,
 				    u32 rno, u32 off, u32 clear, u32 set)
 {
-	u32 __iomem *reg = &priv->regs[priv->properties->regoff[rno] + off];
-	u32 val = readl(reg);
+	u32 val = sgpio_readl(priv, rno, off);
 
 	val &= ~clear;
 	val |= set;
 
-	writel(val, reg);
+	sgpio_writel(priv, val, rno, off);
 }
 
 static inline void sgpio_configure_bitstream(struct sgpio_priv *priv)
@@ -807,7 +819,13 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 	struct reset_control *reset;
 	struct sgpio_priv *priv;
 	struct clk *clk;
+	u32 __iomem *regs;
 	u32 val;
+	struct regmap_config regmap_config = {
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+	};
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -832,9 +850,14 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv->regs = devm_platform_ioremap_resource(pdev, 0);
+	regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	priv->regs = devm_regmap_init_mmio(dev, regs, &regmap_config);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
+
 	priv->properties = device_get_match_data(dev);
 	priv->in.is_input = true;
 

@@ -416,3 +416,18 @@ char *perf_exe(char *buf, int len)
 	}
 	return strcpy(buf, "perf");
 }
+
+void perf_debuginfod_setup(struct perf_debuginfod *di)
+{
+	/*
+	 * By default '!di->set' we clear DEBUGINFOD_URLS, so debuginfod
+	 * processing is not triggered, otherwise we set it to 'di->urls'
+	 * value. If 'di->urls' is "system" we keep DEBUGINFOD_URLS value.
+	 */
+	if (!di->set)
+		setenv("DEBUGINFOD_URLS", "", 1);
+	else if (di->urls && strcmp(di->urls, "system"))
+		setenv("DEBUGINFOD_URLS", di->urls, 1);
+
+	pr_debug("DEBUGINFOD_URLS=%s\n", getenv("DEBUGINFOD_URLS"));
+}

@@ -1388,7 +1388,9 @@ static void cp_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *info
 }
 
 static void cp_get_ringparam(struct net_device *dev,
-				struct ethtool_ringparam *ring)
+			     struct ethtool_ringparam *ring,
+			     struct kernel_ethtool_ringparam *kernel_ring,
+			     struct netlink_ext_ack *extack)
 {
 	ring->rx_max_pending = CP_RX_RING_SIZE;
 	ring->tx_max_pending = CP_TX_RING_SIZE;

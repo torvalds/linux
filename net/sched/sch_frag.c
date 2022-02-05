@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+#include <linux/if_vlan.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>

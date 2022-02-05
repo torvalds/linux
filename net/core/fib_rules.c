@@ -750,6 +750,27 @@ static int rule_exists(struct fib_rules_ops *ops, struct fib_rule_hdr *frh,
 	return 0;
 }
 
+static const struct nla_policy fib_rule_policy[FRA_MAX + 1] = {
+	[FRA_UNSPEC]	= { .strict_start_type = FRA_DPORT_RANGE + 1 },
+	[FRA_IIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
+	[FRA_OIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
+	[FRA_PRIORITY]	= { .type = NLA_U32 },
+	[FRA_FWMARK]	= { .type = NLA_U32 },
+	[FRA_FLOW]	= { .type = NLA_U32 },
+	[FRA_TUN_ID]	= { .type = NLA_U64 },
+	[FRA_FWMASK]	= { .type = NLA_U32 },
+	[FRA_TABLE]     = { .type = NLA_U32 },
+	[FRA_SUPPRESS_PREFIXLEN] = { .type = NLA_U32 },
+	[FRA_SUPPRESS_IFGROUP] = { .type = NLA_U32 },
+	[FRA_GOTO]	= { .type = NLA_U32 },
+	[FRA_L3MDEV]	= { .type = NLA_U8 },
+	[FRA_UID_RANGE]	= { .len = sizeof(struct fib_rule_uid_range) },
+	[FRA_PROTOCOL]  = { .type = NLA_U8 },
+	[FRA_IP_PROTO]  = { .type = NLA_U8 },
+	[FRA_SPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) },
+	[FRA_DPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) }
+};
+
 int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		   struct netlink_ext_ack *extack)
 {
@@ -774,7 +795,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	err = nlmsg_parse_deprecated(nlh, sizeof(*frh), tb, FRA_MAX,
-				     ops->policy, extack);
+				     fib_rule_policy, extack);
 	if (err < 0) {
 		NL_SET_ERR_MSG(extack, "Error parsing msg");
 		goto errout;
@@ -882,7 +903,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	err = nlmsg_parse_deprecated(nlh, sizeof(*frh), tb, FRA_MAX,
-				     ops->policy, extack);
+				     fib_rule_policy, extack);
 	if (err < 0) {
 		NL_SET_ERR_MSG(extack, "Error parsing msg");
 		goto errout;

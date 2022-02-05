@@ -616,19 +616,11 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 	struct cpuset *c, *par;
 	int ret;
 
-	rcu_read_lock();
-
-	/* Each of our child cpusets must be a subset of us */
-	ret = -EBUSY;
-	cpuset_for_each_child(c, css, cur)
-		if (!is_cpuset_subset(c, trial))
-			goto out;
-
-	/* Remaining checks don't apply to root cpuset */
-	ret = 0;
+	/* The checks don't apply to root cpuset */
 	if (cur == &top_cpuset)
-		goto out;
+		return 0;
 
+	rcu_read_lock();
 	par = parent_cs(cur);
 
 	/* On legacy hierarchy, we must be a subset of our parent cpuset. */
@@ -3536,7 +3528,7 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
 bool __cpuset_node_allowed(int node, gfp_t gfp_mask)
 {
 	struct cpuset *cs;		/* current cpuset ancestors */
-	int allowed;			/* is allocation in zone z allowed? */
+	bool allowed;			/* is allocation in zone z allowed? */
 	unsigned long flags;
 
 	if (in_interrupt())

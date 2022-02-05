@@ -23,8 +23,8 @@ void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state);
 void intel_fdi_init_hook(struct drm_i915_private *dev_priv);
 void hsw_fdi_link_train(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state);
+void hsw_fdi_disable(struct intel_encoder *encoder);
 void intel_fdi_pll_freq_update(struct drm_i915_private *i915);
-void lpt_fdi_program_mphy(struct drm_i915_private *i915);
 
 void intel_fdi_link_train(struct intel_crtc *crtc,
 			  const struct intel_crtc_state *crtc_state);

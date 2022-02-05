@@ -373,6 +373,8 @@ struct mt76_driver_ops {
 
 	bool (*tx_status_data)(struct mt76_dev *dev, u8 *update);
 
+	bool (*rx_check)(struct mt76_dev *dev, void *data, int len);
+
 	void (*rx_skb)(struct mt76_dev *dev, enum mt76_rxq_id q,
 		       struct sk_buff *skb);
 
@@ -495,6 +497,8 @@ struct mt76_usb {
 };
 
 #define MT76S_XMIT_BUF_SZ	(16 * PAGE_SIZE)
+#define MT76S_NUM_TX_ENTRIES	256
+#define MT76S_NUM_RX_ENTRIES	512
 struct mt76_sdio {
 	struct mt76_worker txrx_worker;
 	struct mt76_worker status_worker;
@@ -598,6 +602,8 @@ struct mt76_testmode_data {
 
 	u8 tx_power[4];
 	u8 tx_power_control;
+
+	u8 addr[3][ETH_ALEN];
 
 	u32 tx_pending;
 	u32 tx_queued;
@@ -808,7 +814,6 @@ struct mt76_ethtool_worker_info {
 }
 
 extern struct ieee80211_rate mt76_rates[12];
-extern const struct cfg80211_sar_capa mt76_sar_capa;
 
 #define __mt76_rr(dev, ...)	(dev)->bus->rr((dev), __VA_ARGS__)
 #define __mt76_wr(dev, ...)	(dev)->bus->wr((dev), __VA_ARGS__)
@@ -1157,6 +1162,11 @@ int mt76_get_min_avg_rssi(struct mt76_dev *dev, bool ext_phy);
 
 int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     int *dbm);
+int mt76_init_sar_power(struct ieee80211_hw *hw,
+			const struct cfg80211_sar_specs *sar);
+int mt76_get_sar_power(struct mt76_phy *phy,
+		       struct ieee80211_channel *chan,
+		       int power);
 
 void mt76_csa_check(struct mt76_dev *dev);
 void mt76_csa_finish(struct mt76_dev *dev);

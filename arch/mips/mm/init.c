@@ -519,17 +519,9 @@ static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 	return node_distance(cpu_to_node(from), cpu_to_node(to));
 }
 
-static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
-				       size_t align)
+static int __init pcpu_cpu_to_node(int cpu)
 {
-	return memblock_alloc_try_nid(size, align, __pa(MAX_DMA_ADDRESS),
-				      MEMBLOCK_ALLOC_ACCESSIBLE,
-				      cpu_to_node(cpu));
-}
-
-static void __init pcpu_fc_free(void *ptr, size_t size)
-{
-	memblock_free(ptr, size);
+	return cpu_to_node(cpu);
 }
 
 void __init setup_per_cpu_areas(void)
@@ -545,7 +537,7 @@ void __init setup_per_cpu_areas(void)
 	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
 				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE,
 				    pcpu_cpu_distance,
-				    pcpu_fc_alloc, pcpu_fc_free);
+				    pcpu_cpu_to_node);
 	if (rc < 0)
 		panic("Failed to initialize percpu areas.");
 

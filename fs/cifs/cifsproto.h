@@ -131,7 +131,11 @@ extern int SendReceiveBlockingLock(const unsigned int xid,
 			struct smb_hdr *in_buf ,
 			struct smb_hdr *out_buf,
 			int *bytes_returned);
-extern int cifs_reconnect(struct TCP_Server_Info *server);
+void
+cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
+				      bool mark_smb_session);
+extern int cifs_reconnect(struct TCP_Server_Info *server,
+			  bool mark_smb_session);
 extern int checkSMB(char *buf, unsigned int len, struct TCP_Server_Info *srvr);
 extern bool is_valid_oplock_break(char *, struct TCP_Server_Info *);
 extern bool backup_cred(struct cifs_sb_info *);
@@ -164,6 +168,7 @@ extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 extern enum securityEnum select_sectype(struct TCP_Server_Info *server,
 				enum securityEnum requested);
 extern int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
+			  struct TCP_Server_Info *server,
 			  const struct nls_table *nls_cp);
 extern struct timespec64 cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec64);
@@ -293,11 +298,15 @@ extern int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon,
 			     const struct nls_table *nlsc);
 
 extern int cifs_negotiate_protocol(const unsigned int xid,
-				   struct cifs_ses *ses);
+				   struct cifs_ses *ses,
+				   struct TCP_Server_Info *server);
 extern int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
+			      struct TCP_Server_Info *server,
 			      struct nls_table *nls_info);
 extern int cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required);
-extern int CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses);
+extern int CIFSSMBNegotiate(const unsigned int xid,
+			    struct cifs_ses *ses,
+			    struct TCP_Server_Info *server);
 
 extern int CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 		    const char *tree, struct cifs_tcon *tcon,
@@ -504,8 +513,10 @@ extern int cifs_verify_signature(struct smb_rqst *rqst,
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
 extern void cifs_crypto_secmech_release(struct TCP_Server_Info *server);
 extern int calc_seckey(struct cifs_ses *);
-extern int generate_smb30signingkey(struct cifs_ses *);
-extern int generate_smb311signingkey(struct cifs_ses *);
+extern int generate_smb30signingkey(struct cifs_ses *ses,
+				    struct TCP_Server_Info *server);
+extern int generate_smb311signingkey(struct cifs_ses *ses,
+				     struct TCP_Server_Info *server);
 
 extern int CIFSSMBCopy(unsigned int xid,
 			struct cifs_tcon *source_tcon,
@@ -601,6 +612,19 @@ bool is_server_using_iface(struct TCP_Server_Info *server,
 bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface);
 void cifs_ses_mark_for_reconnect(struct cifs_ses *ses);
 
+unsigned int
+cifs_ses_get_chan_index(struct cifs_ses *ses,
+			struct TCP_Server_Info *server);
+void
+cifs_chan_set_need_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server);
+void
+cifs_chan_clear_need_reconnect(struct cifs_ses *ses,
+			       struct TCP_Server_Info *server);
+bool
+cifs_chan_needs_reconnect(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server);
+
 void extract_unc_hostname(const char *unc, const char **h, size_t *len);
 int copy_path_name(char *dst, const char *src);
 int smb2_parse_query_directory(struct cifs_tcon *tcon, struct kvec *rsp_iov,
@@ -626,6 +650,11 @@ static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 int match_target_ip(struct TCP_Server_Info *server,
 		    const char *share, size_t share_len,
 		    bool *result);
+
+int cifs_dfs_query_info_nonascii_quirk(const unsigned int xid,
+				       struct cifs_tcon *tcon,
+				       struct cifs_sb_info *cifs_sb,
+				       const char *dfs_link_path);
 #endif
 
 static inline int cifs_create_options(struct cifs_sb_info *cifs_sb, int options)

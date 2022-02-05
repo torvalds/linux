@@ -89,6 +89,30 @@
 		};
 	};
 
+	hdd_a_power: hdd-a-power {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&hdd_a_power_en>;
+		pinctrl-names = "default";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "hdd_a_power";
+		startup-delay-us = <2000000>;
+	};
+
+	hdd_b_power: hdd-b-power {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&hdd_b_power_en>;
+		pinctrl-names = "default";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "hdd_b_power";
+		startup-delay-us = <2000000>;
+	};
+
 	pcie_power: pcie-power {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -99,6 +123,18 @@
 		regulator-name = "pcie_power";
 		startup-delay-us = <10000>;
 		vin-supply = <&vcc5v0_perdev>;
+	};
+
+	usblan_power: usblan-power {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_lan_en>;
+		regulator-name = "usblan_power";
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_usb>;
 	};
 
 	vcc1v8_sys_s0: vcc1v8-sys-s0 {
@@ -390,7 +426,10 @@
 };
 
 &pcie0 {
+	ep-gpios = <&gpio2 RK_PD4 GPIO_ACTIVE_HIGH>;
+	max-link-speed = <2>;
 	num-lanes = <2>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	vpcie12v-supply = <&vcc12v_dcin>;
@@ -430,8 +469,20 @@
 	};
 
 	power {
+		hdd_a_power_en: hdd-a-power-en {
+			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		hdd_b_power_en: hdd-b-power-en {
+			rockchip,pins = <1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
 		vcc5v0_usb_en: vcc5v0-usb-en {
 			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		usb_lan_en: usb-lan-en {
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -531,5 +582,41 @@
 	usb@fe900000 {
 		dr_mode = "host";
 		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hub@1 {
+			compatible = "usb2109,0815";
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				#trigger-source-cells = <0>;
+			};
+
+			port@2 {
+				reg = <2>;
+				#trigger-source-cells = <0>;
+			};
+
+			port@3 {
+				reg = <3>;
+				#trigger-source-cells = <0>;
+			};
+
+			device@4 {
+				compatible = "usbbda,8156";
+				reg = <4>;
+				#address-cells = <2>;
+				#size-cells = <0>;
+
+				interface@0 {	/* interface 0 of configuration 1 */
+					compatible = "usbbda,8156.config1.0";
+					reg = <0 1>;
+				};
+			};
+		};
 	};
 };

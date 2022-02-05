@@ -197,7 +197,8 @@ int smc_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 {
 	int rc;
 
-	if (!conn->lgr || (conn->lgr->is_smcd && conn->lgr->peer_shutdown))
+	if (!smc_conn_lgr_valid(conn) ||
+	    (conn->lgr->is_smcd && conn->lgr->peer_shutdown))
 		return -EPIPE;
 
 	if (conn->lgr->is_smcd) {

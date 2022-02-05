@@ -162,6 +162,8 @@ static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_ds
 	REG_GET(DSCC_PPS_CONFIG2, PIC_WIDTH, &s->dsc_pic_width);
 	REG_GET(DSCC_PPS_CONFIG2, PIC_HEIGHT, &s->dsc_pic_height);
 	REG_GET(DSCC_PPS_CONFIG7, SLICE_BPG_OFFSET, &s->dsc_slice_bpg_offset);
+	REG_GET_2(DSCRM_DSC_FORWARD_CONFIG, DSCRM_DSC_FORWARD_EN, &s->dsc_fw_en,
+		DSCRM_DSC_OPP_PIPE_SOURCE, &s->dsc_opp_source);
 }
 
 

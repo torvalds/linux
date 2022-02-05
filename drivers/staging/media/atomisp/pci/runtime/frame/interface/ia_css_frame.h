@@ -138,27 +138,7 @@ bool ia_css_frame_is_same_type(
  * @param[in]	info           The frame info
  * @return
  */
-void ia_css_dma_configure_from_info(
-    struct dma_port_config *config,
-    const struct ia_css_frame_info *info);
-
-/* ISP2401 */
-/* @brief Finds the cropping resolution
- * This function finds the maximum cropping resolution in an input image keeping
- * the aspect ratio for the given output resolution.Calculates the coordinates
- * for cropping from the center and returns the starting pixel location of the
- * region in the input image. Also returns the dimension of the cropping
- * resolution.
- *
- * @param
- * @param[in]	in_res		Resolution of input image
- * @param[in]	out_res		Resolution of output image
- * @param[out]	crop_res	Crop resolution of input image
- * @return	Returns 0 or -EINVAL on error
- */
-int
-ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
-				  const struct ia_css_resolution *out_res,
-				  struct ia_css_resolution *crop_res);
+int ia_css_dma_configure_from_info(struct dma_port_config *config,
+				   const struct ia_css_frame_info *info);
 
 #endif /* __IA_CSS_FRAME_H__ */

@@ -528,7 +528,7 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 	struct ice_aqc_port_ets_elem buf = { 0 };
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_dcbx_cfg *err_cfg;
-	enum ice_status ret;
+	int ret;
 
 	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
 	if (ret) {

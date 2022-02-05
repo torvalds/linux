@@ -41,7 +41,7 @@ checktool (){
 
 checktool "iptables --version" "run test without iptables"
 checktool "ip -Version" "run test without ip tool"
-checktool "which nc" "run test without nc (netcat)"
+checktool "which socat" "run test without socat"
 checktool "ip netns add ${r_a}" "create net namespace"
 
 for n in ${r_b} ${r_w} ${c_a} ${c_b};do
@@ -60,11 +60,12 @@ trap cleanup EXIT
 test_path() {
 	msg="$1"
 
-	ip netns exec ${c_b} nc -n -w 3 -q 3 -u -l -p 5000 > ${rx} < /dev/null &
+	ip netns exec ${c_b} socat -t 3 - udp4-listen:5000,reuseaddr > ${rx} < /dev/null &
 
 	sleep 1
 	for i in 1 2 3; do
-		head -c1400 /dev/zero | tr "\000" "a" | ip netns exec ${c_a} nc -n -w 1 -u 192.168.20.2 5000
+		head -c1400 /dev/zero | tr "\000" "a" | \
+			ip netns exec ${c_a} socat -t 1 -u STDIN UDP:192.168.20.2:5000
 	done
 
 	wait
@@ -189,7 +190,7 @@ ip netns exec ${r_w} sysctl -q net.ipv4.conf.all.forwarding=1 > /dev/null
 #---------------------
 #Now we send a 1400 bytes UDP packet from Client A to Client B:
 
-# clienta:~# head -c1400 /dev/zero | tr "\000" "a" | nc -u 192.168.20.2 5000
+# clienta:~# head -c1400 /dev/zero | tr "\000" "a" | socat -u STDIN UDP:192.168.20.2:5000
 test_path "without"
 
 # The IPv4 stack on Client A already knows the PMTU to Client B, so the

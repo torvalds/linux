@@ -109,11 +109,9 @@ struct at91_udc_caps {
 };
 
 struct at91_udc_data {
-	int	vbus_pin;		/* high == host powering us */
-	u8	vbus_active_low;	/* vbus polarity */
-	u8	vbus_polled;		/* Use polling, not interrupt */
-	int	pullup_pin;		/* active == D+ pulled up */
-	u8	pullup_active_low;	/* true == pullup_pin is active low */
+	struct gpio_desc  *vbus_pin;		/* high == host powering us */
+	u8	          vbus_polled;		/* Use polling, not interrupt */
+	struct gpio_desc  *pullup_pin;		/* active == D+ pulled up */
 };
 
 /*

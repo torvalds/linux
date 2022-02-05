@@ -11,7 +11,6 @@ r8188eu-y = \
 		hal/hal_com.o \
 		hal/odm.o \
 		hal/odm_debug.o \
-		hal/odm_interface.o \
 		hal/odm_HWConfig.o \
 		hal/odm_RegConfig8188E.o \
 		hal/odm_RTL8188E.o \
@@ -21,9 +20,7 @@ r8188eu-y = \
 		hal/rtl8188e_phycfg.o \
 		hal/rtl8188e_rf6052.o \
 		hal/rtl8188e_rxdesc.o \
-		hal/rtl8188e_sreset.o \
 		hal/rtl8188e_xmit.o \
-		hal/rtl8188eu_led.o \
 		hal/rtl8188eu_recv.o \
 		hal/rtl8188eu_xmit.o \
 		hal/usb_halinit.o \

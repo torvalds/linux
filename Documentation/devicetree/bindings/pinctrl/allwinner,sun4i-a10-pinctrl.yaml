@@ -147,6 +147,7 @@ allOf:
   # boards are defining it at the moment so it would generate a lot of
   # warnings.
 
+  - $ref: "pinctrl.yaml#"
   - if:
       properties:
         compatible:

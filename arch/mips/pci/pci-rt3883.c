@@ -102,14 +102,12 @@ static u32 rt3883_pci_read_cfg32(struct rt3883_pci_controller *rpc,
 			       unsigned func, unsigned reg)
 {
 	u32 address;
-	u32 ret;
 
 	address = rt3883_pci_get_cfgaddr(bus, slot, func, reg);
 
 	rt3883_pci_w32(rpc, address, RT3883_PCI_REG_CFGADDR);
-	ret = rt3883_pci_r32(rpc, RT3883_PCI_REG_CFGDATA);
 
-	return ret;
+	return rt3883_pci_r32(rpc, RT3883_PCI_REG_CFGDATA);
 }
 
 static void rt3883_pci_write_cfg32(struct rt3883_pci_controller *rpc,

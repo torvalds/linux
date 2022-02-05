@@ -431,7 +431,7 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 	int err = 0;
 
 	if (!mlx5_esw_allowed(esw))
-		return -EPERM;
+		return vlan ? -EPERM : 0;
 
 	if (vlan || qos)
 		set_flags = SET_VLAN_STRIP | SET_VLAN_INSERT;
@@ -522,9 +522,7 @@ int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, u16 vport,
 		return PTR_ERR(evport);
 
 	mutex_lock(&esw->state_lock);
-	err = mlx5_esw_qos_set_vport_min_rate(esw, evport, min_rate, NULL);
-	if (!err)
-		err = mlx5_esw_qos_set_vport_max_rate(esw, evport, max_rate, NULL);
+	err = mlx5_esw_qos_set_vport_rate(esw, evport, max_rate, min_rate);
 	mutex_unlock(&esw->state_lock);
 	return err;
 }

@@ -599,6 +599,11 @@ config DEBUG_MISC
 	  Say Y here if you need to enable miscellaneous debug code that should
 	  be under a more specific debug option but isn't.
 
+menu "Networking Debugging"
+
+source "net/Kconfig.debug"
+
+endmenu # "Networking Debugging"
 
 menu "Memory Debugging"
 
@@ -1979,6 +1984,8 @@ config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
 	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
+	depends on !ARCH_WANTS_NO_INSTR || STACK_VALIDATION || \
+		   GCC_VERSION >= 120000 || CLANG_VERSION >= 130000
 	select DEBUG_FS
 	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
 	help
@@ -2107,6 +2114,16 @@ config BACKTRACE_SELF_TEST
 
 	  Say N if you are unsure.
 
+config TEST_REF_TRACKER
+	tristate "Self test for reference tracker"
+	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
+	select REF_TRACKER
+	help
+	  This option provides a kernel module performing tests
+	  using reference tracker infrastructure.
+
+	  Say N if you are unsure.
+
 config RBTREE_TEST
 	tristate "Red-Black tree test"
 	depends on DEBUG_KERNEL
@@ -2207,12 +2224,11 @@ config TEST_RHASHTABLE
 
 	  If unsure, say N.
 
-config TEST_HASH
-	tristate "Perform selftest on hash functions"
+config TEST_SIPHASH
+	tristate "Perform selftest on siphash functions"
 	help
-	  Enable this option to test the kernel's integer (<linux/hash.h>),
-	  string (<linux/stringhash.h>), and siphash (<linux/siphash.h>)
-	  hash functions on boot (or module load).
+	  Enable this option to test the kernel's siphash (<linux/siphash.h>) hash
+	  functions on boot (or module load).
 
 	  This is intended to help people writing architecture-specific
 	  optimized versions.  If unsure, say N.
@@ -2356,6 +2372,25 @@ config BITFIELD_KUNIT
 
 	  If unsure, say N.
 
+config HASH_KUNIT_TEST
+	tristate "KUnit Test for integer hash functions" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the kernel's string (<linux/stringhash.h>), and
+	  integer (<linux/hash.h>) hash functions on boot.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
+	  running the KUnit test harness, and not intended for inclusion into a
+	  production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  This is intended to help people writing architecture-specific
+	  optimized versions. If unsure, say N.
+
 config RESOURCE_KUNIT_TEST
 	tristate "KUnit test for resource API"
 	depends on KUNIT
@@ -2487,6 +2522,7 @@ config TEST_KMOD
 	depends on m
 	depends on NETDEVICES && NET_CORE && INET # for TUN
 	depends on BLOCK
+	depends on PAGE_SIZE_LESS_THAN_256KB # for BTRFS
 	select TEST_LKM
 	select XFS_FS
 	select TUN

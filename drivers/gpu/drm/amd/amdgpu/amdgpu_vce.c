@@ -434,7 +434,6 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
  *
  * @ring: ring we should submit the msg to
  * @handle: VCE session handle to use
- * @bo: amdgpu object for which we query the offset
  * @fence: optional fence to return
  *
  * Open up a stream for HW test

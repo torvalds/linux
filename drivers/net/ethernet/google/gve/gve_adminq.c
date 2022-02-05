@@ -462,7 +462,7 @@ int gve_adminq_configure_device_resources(struct gve_priv *priv,
 		.num_counters = cpu_to_be32(num_counters),
 		.irq_db_addr = cpu_to_be64(db_array_bus_addr),
 		.num_irq_dbs = cpu_to_be32(num_ntfy_blks),
-		.irq_db_stride = cpu_to_be32(sizeof(priv->ntfy_blocks[0])),
+		.irq_db_stride = cpu_to_be32(sizeof(*priv->irq_db_indices)),
 		.ntfy_blk_msix_base_idx =
 					cpu_to_be32(GVE_NTFY_BLK_BASE_MSIX_IDX),
 		.queue_format = priv->queue_format,

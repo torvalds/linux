@@ -31,10 +31,8 @@
 #include <linux/mmc/slot-gpio.h>
 
 #ifdef CONFIG_X86
-#include <asm/cpu_device_id.h>
-#include <asm/intel-family.h>
+#include <linux/platform_data/x86/soc.h>
 #include <asm/iosf_mbi.h>
-#include <linux/pci.h>
 #endif
 
 #include "sdhci.h"
@@ -240,26 +238,6 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 
 #ifdef CONFIG_X86
 
-static bool sdhci_acpi_byt(void)
-{
-	static const struct x86_cpu_id byt[] = {
-		X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT, NULL),
-		{}
-	};
-
-	return x86_match_cpu(byt);
-}
-
-static bool sdhci_acpi_cht(void)
-{
-	static const struct x86_cpu_id cht[] = {
-		X86_MATCH_INTEL_FAM6_MODEL(ATOM_AIRMONT, NULL),
-		{}
-	};
-
-	return x86_match_cpu(cht);
-}
-
 #define BYT_IOSF_SCCEP			0x63
 #define BYT_IOSF_OCP_NETCTRL0		0x1078
 #define BYT_IOSF_OCP_TIMEOUT_BASE	GENMASK(10, 8)
@@ -268,7 +246,7 @@ static void sdhci_acpi_byt_setting(struct device *dev)
 {
 	u32 val = 0;
 
-	if (!sdhci_acpi_byt())
+	if (!soc_intel_is_byt())
 		return;
 
 	if (iosf_mbi_read(BYT_IOSF_SCCEP, MBI_CR_READ, BYT_IOSF_OCP_NETCTRL0,
@@ -293,7 +271,7 @@ static void sdhci_acpi_byt_setting(struct device *dev)
 
 static bool sdhci_acpi_byt_defer(struct device *dev)
 {
-	if (!sdhci_acpi_byt())
+	if (!soc_intel_is_byt())
 		return false;
 
 	if (!iosf_mbi_available())
@@ -304,43 +282,6 @@ static bool sdhci_acpi_byt_defer(struct device *dev)
 	return false;
 }
 
-static bool sdhci_acpi_cht_pci_wifi(unsigned int vendor, unsigned int device,
-				    unsigned int slot, unsigned int parent_slot)
-{
-	struct pci_dev *dev, *parent, *from = NULL;
-
-	while (1) {
-		dev = pci_get_device(vendor, device, from);
-		pci_dev_put(from);
-		if (!dev)
-			break;
-		parent = pci_upstream_bridge(dev);
-		if (ACPI_COMPANION(&dev->dev) && PCI_SLOT(dev->devfn) == slot &&
-		    parent && PCI_SLOT(parent->devfn) == parent_slot &&
-		    !pci_upstream_bridge(parent)) {
-			pci_dev_put(dev);
-			return true;
-		}
-		from = dev;
-	}
-
-	return false;
-}
-
-/*
- * GPDwin uses PCI wifi which conflicts with SDIO's use of
- * acpi_device_fix_up_power() on child device nodes. Identifying GPDwin is
- * problematic, but since SDIO is only used for wifi, the presence of the PCI
- * wifi card in the expected slot with an ACPI companion node, is used to
- * indicate that acpi_device_fix_up_power() should be avoided.
- */
-static inline bool sdhci_acpi_no_fixup_child_power(struct acpi_device *adev)
-{
-	return sdhci_acpi_cht() &&
-	       acpi_dev_hid_uid_match(adev, "80860F14", "2") &&
-	       sdhci_acpi_cht_pci_wifi(0x14e4, 0x43ec, 0, 28);
-}
-
 #else
 
 static inline void sdhci_acpi_byt_setting(struct device *dev)
@@ -348,11 +289,6 @@ static inline void sdhci_acpi_byt_setting(struct device *dev)
 }
 
 static inline bool sdhci_acpi_byt_defer(struct device *dev)
-{
-	return false;
-}
-
-static inline bool sdhci_acpi_no_fixup_child_power(struct acpi_device *adev)
 {
 	return false;
 }
@@ -861,11 +797,9 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	/* Power on the SDHCI controller and its children */
 	acpi_device_fix_up_power(device);
-	if (!sdhci_acpi_no_fixup_child_power(device)) {
-		list_for_each_entry(child, &device->children, node)
-			if (child->status.present && child->status.enabled)
-				acpi_device_fix_up_power(child);
-	}
+	list_for_each_entry(child, &device->children, node)
+		if (child->status.present && child->status.enabled)
+			acpi_device_fix_up_power(child);
 
 	if (sdhci_acpi_byt_defer(dev))
 		return -EPROBE_DEFER;

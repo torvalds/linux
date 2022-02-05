@@ -112,6 +112,11 @@ Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Set timeout to issue discard commands during umount.
 	        Default: 5 secs
 
+What:		/sys/fs/f2fs/<disk>/pending_discard
+Date:		November 2021
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Shows the number of pending discard commands in the queue.
+
 What:		/sys/fs/f2fs/<disk>/max_victim_search
 Date:		January 2014
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
@@ -528,3 +533,10 @@ Description:	With "mode=fragment:block" mount options, we can scatter block allo
 		f2fs will allocate 1..<max_fragment_chunk> blocks in a chunk and make a hole
 		in the length of 1..<max_fragment_hole> by turns. This value can be set
 		between 1..512 and the default value is 4.
+
+What:		/sys/fs/f2fs/<disk>/gc_urgent_high_remaining
+Date:		December 2021
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	You can set the trial count limit for GC urgent high mode with this value.
+		If GC thread gets to the limit, the mode will turn back to GC normal mode.
+		By default, the value is zero, which means there is no limit like before.

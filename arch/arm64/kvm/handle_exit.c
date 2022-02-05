@@ -139,9 +139,12 @@ static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+/*
+ * Guest access to SVE registers should be routed to this handler only
+ * when the system doesn't support SVE.
+ */
 static int handle_sve(struct kvm_vcpu *vcpu)
 {
-	/* Until SVE is supported for guests: */
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
@@ -224,6 +227,14 @@ static int handle_trap_exceptions(struct kvm_vcpu *vcpu)
 int handle_exit(struct kvm_vcpu *vcpu, int exception_index)
 {
 	struct kvm_run *run = vcpu->run;
+
+	if (ARM_SERROR_PENDING(exception_index)) {
+		/*
+		 * The SError is handled by handle_exit_early(). If the guest
+		 * survives it will re-execute the original instruction.
+		 */
+		return 1;
+	}
 
 	exception_index = ARM_EXCEPTION_CODE(exception_index);
 

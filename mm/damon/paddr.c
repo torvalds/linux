@@ -73,7 +73,7 @@ static void __damon_pa_prepare_access_check(struct damon_ctx *ctx,
 	damon_pa_mkold(r->sampling_addr);
 }
 
-void damon_pa_prepare_access_checks(struct damon_ctx *ctx)
+static void damon_pa_prepare_access_checks(struct damon_ctx *ctx)
 {
 	struct damon_target *t;
 	struct damon_region *r;
@@ -192,7 +192,7 @@ static void __damon_pa_check_access(struct damon_ctx *ctx,
 	last_addr = r->sampling_addr;
 }
 
-unsigned int damon_pa_check_accesses(struct damon_ctx *ctx)
+static unsigned int damon_pa_check_accesses(struct damon_ctx *ctx)
 {
 	struct damon_target *t;
 	struct damon_region *r;
@@ -213,14 +213,15 @@ bool damon_pa_target_valid(void *t)
 	return true;
 }
 
-int damon_pa_apply_scheme(struct damon_ctx *ctx, struct damon_target *t,
-		struct damon_region *r, struct damos *scheme)
+static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
+		struct damon_target *t, struct damon_region *r,
+		struct damos *scheme)
 {
-	unsigned long addr;
+	unsigned long addr, applied;
 	LIST_HEAD(page_list);
 
 	if (scheme->action != DAMOS_PAGEOUT)
-		return -EINVAL;
+		return 0;
 
 	for (addr = r->ar.start; addr < r->ar.end; addr += PAGE_SIZE) {
 		struct page *page = damon_get_page(PHYS_PFN(addr));
@@ -241,13 +242,14 @@ int damon_pa_apply_scheme(struct damon_ctx *ctx, struct damon_target *t,
 			put_page(page);
 		}
 	}
-	reclaim_pages(&page_list);
+	applied = reclaim_pages(&page_list);
 	cond_resched();
-	return 0;
+	return applied * PAGE_SIZE;
 }
 
-int damon_pa_scheme_score(struct damon_ctx *context, struct damon_target *t,
-		struct damon_region *r, struct damos *scheme)
+static int damon_pa_scheme_score(struct damon_ctx *context,
+		struct damon_target *t, struct damon_region *r,
+		struct damos *scheme)
 {
 	switch (scheme->action) {
 	case DAMOS_PAGEOUT:

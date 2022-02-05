@@ -175,7 +175,6 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 			 * See 11.3.2 of RFC 3775 for details.
 			 */
 			if (opt[off] == IPV6_TLV_HAO) {
-				struct in6_addr final_addr;
 				struct ipv6_destopt_hao *hao;
 
 				hao = (struct ipv6_destopt_hao *)&opt[off];
@@ -184,9 +183,7 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 							     hao->length);
 					goto bad;
 				}
-				final_addr = hao->addr;
-				hao->addr = iph->saddr;
-				iph->saddr = final_addr;
+				swap(hao->addr, iph->saddr);
 			}
 			break;
 		}

@@ -119,6 +119,7 @@ head917d = {
 	.view = head907d_view,
 	.mode = head907d_mode,
 	.olut = head907d_olut,
+	.ilut_check = head907d_ilut_check,
 	.olut_size = 1024,
 	.olut_set = head907d_olut_set,
 	.olut_clr = head907d_olut_clr,

@@ -8,6 +8,7 @@
 #define __UM_UACCESS_H
 
 #include <asm/elf.h>
+#include <asm/unaligned.h>
 
 #define __under_task_size(addr, size) \
 	(((unsigned long) (addr) < TASK_SIZE) && \
@@ -39,8 +40,24 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 {
 	return __addr_range_nowrap(addr, size) &&
 		(__under_task_size(addr, size) ||
-		__access_ok_vsyscall(addr, size) ||
-		uaccess_kernel());
+		 __access_ok_vsyscall(addr, size));
 }
+
+/* no pagefaults for kernel addresses in um */
+#define HAVE_GET_KERNEL_NOFAULT 1
+
+#define __get_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	*((type *)dst) = get_unaligned((type *)(src));			\
+	if (0) /* make sure the label looks used to the compiler */	\
+		goto err_label;						\
+} while (0)
+
+#define __put_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	put_unaligned(*((type *)src), (type *)(dst));			\
+	if (0) /* make sure the label looks used to the compiler */	\
+		goto err_label;						\
+} while (0)
 
 #endif

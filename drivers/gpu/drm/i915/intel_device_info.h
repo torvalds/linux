@@ -110,6 +110,9 @@ enum intel_platform {
 #define INTEL_SUBPLATFORM_G10	0
 #define INTEL_SUBPLATFORM_G11	1
 
+/* ADL-S */
+#define INTEL_SUBPLATFORM_RPL_S	0
+
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
 	INTEL_PPGTT_ALIASING = I915_GEM_PPGTT_ALIASING,
@@ -123,6 +126,7 @@ enum intel_ppgtt_type {
 	func(is_dgfx); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
+	func(has_64k_pages); \
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
 	func(has_global_mocs); \
@@ -166,11 +170,14 @@ enum intel_ppgtt_type {
 	func(overlay_needs_physical); \
 	func(supports_tv);
 
+struct ip_version {
+	u8 ver;
+	u8 rel;
+};
+
 struct intel_device_info {
-	u8 graphics_ver;
-	u8 graphics_rel;
-	u8 media_ver;
-	u8 media_rel;
+	struct ip_version graphics;
+	struct ip_version media;
 
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
 
@@ -189,17 +196,17 @@ struct intel_device_info {
 
 	u8 gt; /* GT number, 0 if undefined */
 
-	u8 pipe_mask;
-	u8 cpu_transcoder_mask;
-
-	u8 abox_mask;
-
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
 
 	struct {
 		u8 ver;
+		u8 rel;
+
+		u8 pipe_mask;
+		u8 cpu_transcoder_mask;
+		u8 abox_mask;
 
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);

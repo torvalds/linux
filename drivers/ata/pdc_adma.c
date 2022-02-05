@@ -284,9 +284,6 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 		*(__le32 *)(buf + i) =
 			(pFLAGS & pEND) ? 0 : cpu_to_le32(pp->pkt_dma + i + 4);
 		i += 4;
-
-		VPRINTK("PRD[%u] = (0x%lX, 0x%X)\n", i/4,
-					(unsigned long)addr, len);
 	}
 
 	if (likely(last_buf))
@@ -301,8 +298,6 @@ static enum ata_completion_errors adma_qc_prep(struct ata_queued_cmd *qc)
 	u8  *buf = pp->pkt;
 	u32 pkt_dma = (u32)pp->pkt_dma;
 	int i = 0;
-
-	VPRINTK("ENTER\n");
 
 	adma_enter_reg_mode(qc->ap);
 	if (qc->tf.protocol != ATA_PROT_DMA)
@@ -355,22 +350,6 @@ static enum ata_completion_errors adma_qc_prep(struct ata_queued_cmd *qc)
 
 	i = adma_fill_sg(qc);
 	wmb();	/* flush PRDs and pkt to memory */
-#if 0
-	/* dump out CPB + PRDs for debug */
-	{
-		int j, len = 0;
-		static char obuf[2048];
-		for (j = 0; j < i; ++j) {
-			len += sprintf(obuf+len, "%02x ", buf[j]);
-			if ((j & 7) == 7) {
-				printk("%s\n", obuf);
-				len = 0;
-			}
-		}
-		if (len)
-			printk("%s\n", obuf);
-	}
-#endif
 	return AC_ERR_OK;
 }
 
@@ -378,8 +357,6 @@ static inline void adma_packet_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	void __iomem *chan = ADMA_PORT_REGS(ap);
-
-	VPRINTK("ENTER, ap %p\n", ap);
 
 	/* fire up the ADMA engine */
 	writew(aPIOMD4 | aGO, chan + ADMA_CONTROL);
@@ -475,8 +452,6 @@ static inline unsigned int adma_intr_mmio(struct ata_host *host)
 			u8 status = ata_sff_check_status(ap);
 			if ((status & ATA_BUSY))
 				continue;
-			DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
-				ap->print_id, qc->tf.protocol, status);
 
 			/* complete taskfile transaction */
 			pp->state = adma_state_idle;
@@ -504,13 +479,9 @@ static irqreturn_t adma_intr(int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	unsigned int handled = 0;
 
-	VPRINTK("ENTER\n");
-
 	spin_lock(&host->lock);
 	handled  = adma_intr_pkt(host) | adma_intr_mmio(host);
 	spin_unlock(&host->lock);
-
-	VPRINTK("EXIT\n");
 
 	return IRQ_RETVAL(handled);
 }
@@ -547,8 +518,8 @@ static int adma_port_start(struct ata_port *ap)
 		return -ENOMEM;
 	/* paranoia? */
 	if ((pp->pkt_dma & 7) != 0) {
-		printk(KERN_ERR "bad alignment for pp->pkt_dma: %08x\n",
-						(u32)pp->pkt_dma);
+		ata_port_err(ap, "bad alignment for pp->pkt_dma: %08x\n",
+			     (u32)pp->pkt_dma);
 		return -ENOMEM;
 	}
 	ap->private_data = pp;

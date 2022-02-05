@@ -44,6 +44,8 @@ void gf100_pmu_reset(struct nvkm_pmu *);
 
 void gk110_pmu_pgob(struct nvkm_pmu *, bool);
 
+extern const struct nvkm_falcon_func gm200_pmu_flcn;
+
 void gm20b_pmu_acr_bld_patch(struct nvkm_acr *, u32, s64);
 void gm20b_pmu_acr_bld_write(struct nvkm_acr *, u32, struct nvkm_acr_lsfw *);
 int gm20b_pmu_acr_boot(struct nvkm_falcon *);

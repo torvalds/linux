@@ -38,6 +38,7 @@ struct llc_sock {
 	struct llc_addr	    laddr;		/* lsap/mac pair */
 	struct llc_addr	    daddr;		/* dsap/mac pair */
 	struct net_device   *dev;		/* device to send to remote */
+	netdevice_tracker   dev_tracker;
 	u32		    copied_seq;		/* head of yet unread data */
 	u8		    retry_count;	/* number of retries */
 	u8		    ack_must_be_send;

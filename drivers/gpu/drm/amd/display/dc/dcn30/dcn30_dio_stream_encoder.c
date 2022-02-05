@@ -50,22 +50,6 @@
 	enc1->base.ctx
 
 
-void convert_dc_info_packet_to_128(
-	const struct dc_info_packet *info_packet,
-	struct dc_info_packet_128 *info_packet_128)
-{
-	unsigned int i;
-
-	info_packet_128->hb0 = info_packet->hb0;
-	info_packet_128->hb1 = info_packet->hb1;
-	info_packet_128->hb2 = info_packet->hb2;
-	info_packet_128->hb3 = info_packet->hb3;
-
-	for (i = 0; i < 32; i++) {
-		info_packet_128->sb[i] = info_packet->sb[i];
-	}
-
-}
 static void enc3_update_hdmi_info_packet(
 	struct dcn10_stream_encoder *enc1,
 	uint32_t packet_index,
@@ -489,7 +473,7 @@ static void enc3_dp_set_odm_combine(
 }
 
 /* setup stream encoder in dvi mode */
-void enc3_stream_encoder_dvi_set_stream_attribute(
+static void enc3_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link)
@@ -805,6 +789,8 @@ static const struct stream_encoder_funcs dcn30_str_enc_funcs = {
 		enc3_stream_encoder_update_dp_info_packets,
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
+	.reset_fifo =
+		enc1_stream_encoder_reset_fifo,
 	.dp_blank =
 		enc1_stream_encoder_dp_blank,
 	.dp_unblank =

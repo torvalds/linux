@@ -301,7 +301,7 @@ void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
 
 	val = intel_de_read(dev_priv, ICL_PORT_CL_DW10(phy));
 	val &= ~PWR_DOWN_LN_MASK;
-	val |= lane_mask << PWR_DOWN_LN_SHIFT;
+	val |= lane_mask;
 	intel_de_write(dev_priv, ICL_PORT_CL_DW10(phy), val);
 }
 

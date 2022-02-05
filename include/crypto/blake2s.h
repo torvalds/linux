@@ -7,8 +7,8 @@
 #define _CRYPTO_BLAKE2S_H
 
 #include <linux/bug.h>
+#include <linux/kconfig.h>
 #include <linux/types.h>
-#include <linux/kernel.h>
 #include <linux/string.h>
 
 enum blake2s_lengths {
@@ -100,8 +100,5 @@ static inline void blake2s(u8 *out, const u8 *in, const u8 *key,
 	blake2s_update(&state, in, inlen);
 	blake2s_final(&state, out);
 }
-
-void blake2s256_hmac(u8 *out, const u8 *in, const u8 *key, const size_t inlen,
-		     const size_t keylen);
 
 #endif /* _CRYPTO_BLAKE2S_H */

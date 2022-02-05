@@ -1537,6 +1537,16 @@ static ssize_t btrfs_devinfo_writeable_show(struct kobject *kobj,
 }
 BTRFS_ATTR(devid, writeable, btrfs_devinfo_writeable_show);
 
+static ssize_t btrfs_devinfo_fsid_show(struct kobject *kobj,
+				       struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_device *device = container_of(kobj, struct btrfs_device,
+						   devid_kobj);
+
+	return sysfs_emit(buf, "%pU\n", device->fs_devices->fsid);
+}
+BTRFS_ATTR(devid, fsid, btrfs_devinfo_fsid_show);
+
 static ssize_t btrfs_devinfo_error_stats_show(struct kobject *kobj,
 		struct kobj_attribute *a, char *buf)
 {
@@ -1572,6 +1582,7 @@ BTRFS_ATTR(devid, error_stats, btrfs_devinfo_error_stats_show);
  */
 static struct attribute *devid_attrs[] = {
 	BTRFS_ATTR_PTR(devid, error_stats),
+	BTRFS_ATTR_PTR(devid, fsid),
 	BTRFS_ATTR_PTR(devid, in_fs_metadata),
 	BTRFS_ATTR_PTR(devid, missing),
 	BTRFS_ATTR_PTR(devid, replace_target),

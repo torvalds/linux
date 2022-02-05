@@ -359,7 +359,7 @@
 			interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		hsi2c_0: hsi2c@13640000 {
+		hsi2c_0: i2c@13640000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13640000 0x1000>;
 			interrupts = <GIC_SPI 441 IRQ_TYPE_LEVEL_HIGH>;
@@ -372,7 +372,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_1: hsi2c@13650000 {
+		hsi2c_1: i2c@13650000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13650000 0x1000>;
 			interrupts = <GIC_SPI 442 IRQ_TYPE_LEVEL_HIGH>;
@@ -385,7 +385,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_2: hsi2c@14e60000 {
+		hsi2c_2: i2c@14e60000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x14e60000 0x1000>;
 			interrupts = <GIC_SPI 459 IRQ_TYPE_LEVEL_HIGH>;
@@ -398,7 +398,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_3: hsi2c@14e70000 {
+		hsi2c_3: i2c@14e70000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x14e70000 0x1000>;
 			interrupts = <GIC_SPI 460 IRQ_TYPE_LEVEL_HIGH>;
@@ -411,7 +411,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_4: hsi2c@13660000 {
+		hsi2c_4: i2c@13660000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13660000 0x1000>;
 			interrupts = <GIC_SPI 443 IRQ_TYPE_LEVEL_HIGH>;
@@ -424,7 +424,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_5: hsi2c@13670000 {
+		hsi2c_5: i2c@13670000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13670000 0x1000>;
 			interrupts = <GIC_SPI 444 IRQ_TYPE_LEVEL_HIGH>;
@@ -437,7 +437,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_6: hsi2c@14e00000 {
+		hsi2c_6: i2c@14e00000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x14e00000 0x1000>;
 			interrupts = <GIC_SPI 461 IRQ_TYPE_LEVEL_HIGH>;
@@ -450,7 +450,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_7: hsi2c@13e10000 {
+		hsi2c_7: i2c@13e10000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13e10000 0x1000>;
 			interrupts = <GIC_SPI 462 IRQ_TYPE_LEVEL_HIGH>;
@@ -463,7 +463,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_8: hsi2c@14e20000 {
+		hsi2c_8: i2c@14e20000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x14e20000 0x1000>;
 			interrupts = <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH>;
@@ -476,7 +476,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_9: hsi2c@13680000 {
+		hsi2c_9: i2c@13680000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13680000 0x1000>;
 			interrupts = <GIC_SPI 445 IRQ_TYPE_LEVEL_HIGH>;
@@ -489,7 +489,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_10: hsi2c@13690000 {
+		hsi2c_10: i2c@13690000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x13690000 0x1000>;
 			interrupts = <GIC_SPI 446 IRQ_TYPE_LEVEL_HIGH>;
@@ -502,7 +502,7 @@
 			status = "disabled";
 		};
 
-		hsi2c_11: hsi2c@136a0000 {
+		hsi2c_11: i2c@136a0000 {
 			compatible = "samsung,exynos7-hsi2c";
 			reg = <0x136a0000 0x1000>;
 			interrupts = <GIC_SPI 447 IRQ_TYPE_LEVEL_HIGH>;

@@ -423,6 +423,9 @@ static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	mutex_unlock(&d->i2c_mutex);
 
+	if (ret)
+		return -EREMOTEIO;
+
 	return 0;
 }
 

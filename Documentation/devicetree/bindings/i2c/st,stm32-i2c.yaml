@@ -112,6 +112,9 @@ examples:
           clocks = <&rcc 0 149>;
       };
 
+  - |
+    #include <dt-bindings/mfd/stm32f7-rcc.h>
+    #include <dt-bindings/clock/stm32fx-clock.h>
     //Example 2 (with st,stm32f7-i2c compatible)
       i2c@40005800 {
           compatible = "st,stm32f7-i2c";
@@ -124,6 +127,9 @@ examples:
           clocks = <&rcc 1 CLK_I2C1>;
       };
 
+  - |
+    #include <dt-bindings/mfd/stm32f7-rcc.h>
+    #include <dt-bindings/clock/stm32fx-clock.h>
     //Example 3 (with st,stm32mp15-i2c compatible on stm32mp)
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/stm32mp1-clks.h>

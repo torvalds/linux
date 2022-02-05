@@ -618,7 +618,7 @@ static int nt36672a_panel_add(struct nt36672a_panel *pinfo)
 		ret = regulator_set_load(pinfo->supplies[i].consumer,
 					 nt36672a_regulator_enable_loads[i]);
 		if (ret)
-			return  dev_err_probe(dev, ret, "failed to set regulator enable loads\n");
+			return dev_err_probe(dev, ret, "failed to set regulator enable loads\n");
 	}
 
 	pinfo->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
@@ -656,7 +656,13 @@ static int nt36672a_panel_probe(struct mipi_dsi_device *dsi)
 	if (err < 0)
 		return err;
 
-	return mipi_dsi_attach(dsi);
+	err = mipi_dsi_attach(dsi);
+	if (err < 0) {
+		drm_panel_remove(&pinfo->base);
+		return err;
+	}
+
+	return 0;
 }
 
 static int nt36672a_panel_remove(struct mipi_dsi_device *dsi)

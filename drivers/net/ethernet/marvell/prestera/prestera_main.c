@@ -18,6 +18,7 @@
 #include "prestera_rxtx.h"
 #include "prestera_devlink.h"
 #include "prestera_ethtool.h"
+#include "prestera_counter.h"
 #include "prestera_switchdev.h"
 
 #define PRESTERA_MTU_DEFAULT	1536
@@ -162,7 +163,7 @@ static netdev_tx_t prestera_port_xmit(struct sk_buff *skb,
 	return prestera_rxtx_xmit(netdev_priv(dev), skb);
 }
 
-static int prestera_is_valid_mac_addr(struct prestera_port *port, u8 *addr)
+int prestera_is_valid_mac_addr(struct prestera_port *port, const u8 *addr)
 {
 	if (!is_valid_ether_addr(addr))
 		return -EADDRNOTAVAIL;
@@ -901,6 +902,10 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	if (err)
 		return err;
 
+	err = prestera_router_init(sw);
+	if (err)
+		goto err_router_init;
+
 	err = prestera_switchdev_init(sw);
 	if (err)
 		goto err_swdev_register;
@@ -912,6 +917,10 @@ static int prestera_switch_init(struct prestera_switch *sw)
 	err = prestera_event_handlers_register(sw);
 	if (err)
 		goto err_handlers_register;
+
+	err = prestera_counter_init(sw);
+	if (err)
+		goto err_counter_init;
 
 	err = prestera_acl_init(sw);
 	if (err)
@@ -945,12 +954,16 @@ err_dl_register:
 err_span_init:
 	prestera_acl_fini(sw);
 err_acl_init:
+	prestera_counter_fini(sw);
+err_counter_init:
 	prestera_event_handlers_unregister(sw);
 err_handlers_register:
 	prestera_rxtx_switch_fini(sw);
 err_rxtx_register:
 	prestera_switchdev_fini(sw);
 err_swdev_register:
+	prestera_router_fini(sw);
+err_router_init:
 	prestera_netdev_event_handler_unregister(sw);
 	prestera_hw_switch_fini(sw);
 
@@ -965,9 +978,11 @@ static void prestera_switch_fini(struct prestera_switch *sw)
 	prestera_devlink_traps_unregister(sw);
 	prestera_span_fini(sw);
 	prestera_acl_fini(sw);
+	prestera_counter_fini(sw);
 	prestera_event_handlers_unregister(sw);
 	prestera_rxtx_switch_fini(sw);
 	prestera_switchdev_fini(sw);
+	prestera_router_fini(sw);
 	prestera_netdev_event_handler_unregister(sw);
 	prestera_hw_switch_fini(sw);
 }

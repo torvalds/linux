@@ -820,7 +820,7 @@ static inline int queue_on_root_worker(struct cgroup_subsys_state *css)
 
 static void loop_queue_work(struct loop_device *lo, struct loop_cmd *cmd)
 {
-	struct rb_node **node = &(lo->worker_tree.rb_node), *parent = NULL;
+	struct rb_node **node, *parent = NULL;
 	struct loop_worker *cur_worker, *worker = NULL;
 	struct work_struct *work;
 	struct list_head *cmd_list;
@@ -1061,7 +1061,7 @@ static int loop_configure(struct loop_device *lo, fmode_t mode,
 		lo->lo_flags |= LO_FLAGS_PARTSCAN;
 	partscan = lo->lo_flags & LO_FLAGS_PARTSCAN;
 	if (partscan)
-		lo->lo_disk->flags &= ~GENHD_FL_NO_PART_SCAN;
+		lo->lo_disk->flags &= ~GENHD_FL_NO_PART;
 
 	loop_global_unlock(lo, is_loop);
 	if (partscan)
@@ -1082,13 +1082,10 @@ out_putf:
 	return error;
 }
 
-static int __loop_clr_fd(struct loop_device *lo, bool release)
+static void __loop_clr_fd(struct loop_device *lo)
 {
-	struct file *filp = NULL;
+	struct file *filp;
 	gfp_t gfp = lo->old_gfp_mask;
-	int err = 0;
-	bool partscan = false;
-	int lo_number;
 	struct loop_worker *pos, *worker;
 
 	/*
@@ -1103,17 +1100,14 @@ static int __loop_clr_fd(struct loop_device *lo, bool release)
 	 * became visible.
 	 */
 
+	/*
+	 * Since this function is called upon "ioctl(LOOP_CLR_FD)" xor "close()
+	 * after ioctl(LOOP_CLR_FD)", it is a sign of something going wrong if
+	 * lo->lo_state has changed while waiting for lo->lo_mutex.
+	 */
 	mutex_lock(&lo->lo_mutex);
-	if (WARN_ON_ONCE(lo->lo_state != Lo_rundown)) {
-		err = -ENXIO;
-		goto out_unlock;
-	}
-
-	filp = lo->lo_backing_file;
-	if (filp == NULL) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
+	BUG_ON(lo->lo_state != Lo_rundown);
+	mutex_unlock(&lo->lo_mutex);
 
 	if (test_bit(QUEUE_FLAG_WC, &lo->lo_queue->queue_flags))
 		blk_queue_write_cache(lo->lo_queue, false, false);
@@ -1134,6 +1128,7 @@ static int __loop_clr_fd(struct loop_device *lo, bool release)
 	del_timer_sync(&lo->timer);
 
 	spin_lock_irq(&lo->lo_lock);
+	filp = lo->lo_backing_file;
 	lo->lo_backing_file = NULL;
 	spin_unlock_irq(&lo->lo_lock);
 
@@ -1149,60 +1144,59 @@ static int __loop_clr_fd(struct loop_device *lo, bool release)
 	/* let user-space know about this change */
 	kobject_uevent(&disk_to_dev(lo->lo_disk)->kobj, KOBJ_CHANGE);
 	mapping_set_gfp_mask(filp->f_mapping, gfp);
-	/* This is safe: open() is still holding a reference. */
-	module_put(THIS_MODULE);
 	blk_mq_unfreeze_queue(lo->lo_queue);
 
-	partscan = lo->lo_flags & LO_FLAGS_PARTSCAN;
-	lo_number = lo->lo_number;
 	disk_force_media_change(lo->lo_disk, DISK_EVENT_MEDIA_CHANGE);
-out_unlock:
-	mutex_unlock(&lo->lo_mutex);
-	if (partscan) {
-		/*
-		 * open_mutex has been held already in release path, so don't
-		 * acquire it if this function is called in such case.
-		 *
-		 * If the reread partition isn't from release path, lo_refcnt
-		 * must be at least one and it can only become zero when the
-		 * current holder is released.
-		 */
-		if (!release)
-			mutex_lock(&lo->lo_disk->open_mutex);
+
+	if (lo->lo_flags & LO_FLAGS_PARTSCAN) {
+		int err;
+
+		mutex_lock(&lo->lo_disk->open_mutex);
 		err = bdev_disk_changed(lo->lo_disk, false);
-		if (!release)
-			mutex_unlock(&lo->lo_disk->open_mutex);
+		mutex_unlock(&lo->lo_disk->open_mutex);
 		if (err)
 			pr_warn("%s: partition scan of loop%d failed (rc=%d)\n",
-				__func__, lo_number, err);
+				__func__, lo->lo_number, err);
 		/* Device is gone, no point in returning error */
-		err = 0;
 	}
 
-	/*
-	 * lo->lo_state is set to Lo_unbound here after above partscan has
-	 * finished.
-	 *
-	 * There cannot be anybody else entering __loop_clr_fd() as
-	 * lo->lo_backing_file is already cleared and Lo_rundown state
-	 * protects us from all the other places trying to change the 'lo'
-	 * device.
-	 */
-	mutex_lock(&lo->lo_mutex);
 	lo->lo_flags = 0;
 	if (!part_shift)
-		lo->lo_disk->flags |= GENHD_FL_NO_PART_SCAN;
+		lo->lo_disk->flags |= GENHD_FL_NO_PART;
+
+	fput(filp);
+}
+
+static void loop_rundown_completed(struct loop_device *lo)
+{
+	mutex_lock(&lo->lo_mutex);
 	lo->lo_state = Lo_unbound;
 	mutex_unlock(&lo->lo_mutex);
+	module_put(THIS_MODULE);
+}
 
-	/*
-	 * Need not hold lo_mutex to fput backing file. Calling fput holding
-	 * lo_mutex triggers a circular lock dependency possibility warning as
-	 * fput can take open_mutex which is usually taken before lo_mutex.
-	 */
-	if (filp)
-		fput(filp);
-	return err;
+static void loop_rundown_workfn(struct work_struct *work)
+{
+	struct loop_device *lo = container_of(work, struct loop_device,
+					      rundown_work);
+	struct block_device *bdev = lo->lo_device;
+	struct gendisk *disk = lo->lo_disk;
+
+	__loop_clr_fd(lo);
+	kobject_put(&bdev->bd_device.kobj);
+	module_put(disk->fops->owner);
+	loop_rundown_completed(lo);
+}
+
+static void loop_schedule_rundown(struct loop_device *lo)
+{
+	struct block_device *bdev = lo->lo_device;
+	struct gendisk *disk = lo->lo_disk;
+
+	__module_get(disk->fops->owner);
+	kobject_get(&bdev->bd_device.kobj);
+	INIT_WORK(&lo->rundown_work, loop_rundown_workfn);
+	queue_work(system_long_wq, &lo->rundown_work);
 }
 
 static int loop_clr_fd(struct loop_device *lo)
@@ -1234,7 +1228,9 @@ static int loop_clr_fd(struct loop_device *lo)
 	lo->lo_state = Lo_rundown;
 	mutex_unlock(&lo->lo_mutex);
 
-	return __loop_clr_fd(lo, false);
+	__loop_clr_fd(lo);
+	loop_rundown_completed(lo);
+	return 0;
 }
 
 static int
@@ -1301,7 +1297,7 @@ out_unfreeze:
 
 	if (!err && (lo->lo_flags & LO_FLAGS_PARTSCAN) &&
 	     !(prev_lo_flags & LO_FLAGS_PARTSCAN)) {
-		lo->lo_disk->flags &= ~GENHD_FL_NO_PART_SCAN;
+		lo->lo_disk->flags &= ~GENHD_FL_NO_PART;
 		partscan = true;
 	}
 out_unlock:
@@ -1758,7 +1754,7 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 		 * In autoclear mode, stop the loop thread
 		 * and remove configuration after last close.
 		 */
-		__loop_clr_fd(lo, true);
+		loop_schedule_rundown(lo);
 		return;
 	} else if (lo->lo_state == Lo_bound) {
 		/*
@@ -2032,8 +2028,7 @@ static int loop_add(int i)
 	 * userspace tools. Parameters like this in general should be avoided.
 	 */
 	if (!part_shift)
-		disk->flags |= GENHD_FL_NO_PART_SCAN;
-	disk->flags |= GENHD_FL_EXT_DEVT;
+		disk->flags |= GENHD_FL_NO_PART;
 	atomic_set(&lo->lo_refcnt, 0);
 	mutex_init(&lo->lo_mutex);
 	lo->lo_number		= i;

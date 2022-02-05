@@ -535,12 +535,9 @@ static int perf_event__repipe_exit(struct perf_tool *tool,
 static int perf_event__repipe_tracing_data(struct perf_session *session,
 					   union perf_event *event)
 {
-	int err;
-
 	perf_event__repipe_synth(session->tool, event);
-	err = perf_event__process_tracing_data(session, event);
 
-	return err;
+	return perf_event__process_tracing_data(session, event);
 }
 
 static int dso__read_build_id(struct dso *dso)

@@ -239,6 +239,18 @@ void __sched rt_write_lock(rwlock_t *rwlock)
 }
 EXPORT_SYMBOL(rt_write_lock);
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+void __sched rt_write_lock_nested(rwlock_t *rwlock, int subclass)
+{
+	rtlock_might_resched();
+	rwlock_acquire(&rwlock->dep_map, subclass, 0, _RET_IP_);
+	rwbase_write_lock(&rwlock->rwbase, TASK_RTLOCK_WAIT);
+	rcu_read_lock();
+	migrate_disable();
+}
+EXPORT_SYMBOL(rt_write_lock_nested);
+#endif
+
 void __sched rt_read_unlock(rwlock_t *rwlock)
 {
 	rwlock_release(&rwlock->dep_map, _RET_IP_);
@@ -256,12 +268,6 @@ void __sched rt_write_unlock(rwlock_t *rwlock)
 	rwbase_write_unlock(&rwlock->rwbase);
 }
 EXPORT_SYMBOL(rt_write_unlock);
-
-int __sched rt_rwlock_is_contended(rwlock_t *rwlock)
-{
-	return rw_base_is_contended(&rwlock->rwbase);
-}
-EXPORT_SYMBOL(rt_rwlock_is_contended);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void __rt_rwlock_init(rwlock_t *rwlock, const char *name,

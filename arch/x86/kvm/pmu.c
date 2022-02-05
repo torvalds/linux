@@ -79,7 +79,7 @@ static inline void __kvm_perf_overflow(struct kvm_pmc *pmc, bool in_pmi)
 	 * woken up. So we should wake it, but this is impossible from
 	 * NMI context. Do it from irq work instead.
 	 */
-	if (in_pmi && !kvm_is_in_guest())
+	if (in_pmi && !kvm_handling_nmi_from_guest(pmc->vcpu))
 		irq_work_queue(&pmc_to_pmu(pmc)->irq_work);
 	else
 		kvm_make_request(KVM_REQ_PMI, pmc->vcpu);

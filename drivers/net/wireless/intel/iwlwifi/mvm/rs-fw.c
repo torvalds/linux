@@ -129,7 +129,7 @@ int rs_fw_vht_highest_rx_mcs_index(const struct ieee80211_sta_vht_cap *vht_cap,
 static void
 rs_fw_vht_set_enabled_rates(const struct ieee80211_sta *sta,
 			    const struct ieee80211_sta_vht_cap *vht_cap,
-			    struct iwl_tlc_config_cmd *cmd)
+			    struct iwl_tlc_config_cmd_v4 *cmd)
 {
 	u16 supp;
 	int i, highest_mcs;
@@ -154,7 +154,7 @@ rs_fw_vht_set_enabled_rates(const struct ieee80211_sta *sta,
 		if (sta->bandwidth == IEEE80211_STA_RX_BW_20)
 			supp &= ~BIT(IWL_TLC_MNG_HT_RATE_MCS9);
 
-		cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160] = cpu_to_le16(supp);
+		cmd->ht_rates[i][IWL_TLC_MCS_PER_BW_80] = cpu_to_le16(supp);
 		/*
 		 * Check if VHT extended NSS indicates that the bandwidth/NSS
 		 * configuration is supported - only for MCS 0 since we already
@@ -164,8 +164,8 @@ rs_fw_vht_set_enabled_rates(const struct ieee80211_sta *sta,
 		    ieee80211_get_vht_max_nss(&ieee_vht_cap,
 					      IEEE80211_VHT_CHANWIDTH_160MHZ,
 					      0, true, nss) >= nss)
-			cmd->ht_rates[i][IWL_TLC_HT_BW_160] =
-				cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160];
+			cmd->ht_rates[i][IWL_TLC_MCS_PER_BW_160] =
+				cmd->ht_rates[i][IWL_TLC_MCS_PER_BW_80];
 	}
 }
 
@@ -189,7 +189,7 @@ static u16 rs_fw_he_ieee80211_mcs_to_rs_mcs(u16 mcs)
 static void
 rs_fw_he_set_enabled_rates(const struct ieee80211_sta *sta,
 			   struct ieee80211_supported_band *sband,
-			   struct iwl_tlc_config_cmd *cmd)
+			   struct iwl_tlc_config_cmd_v4 *cmd)
 {
 	const struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
 	u16 mcs_160 = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_160);
@@ -219,7 +219,7 @@ rs_fw_he_set_enabled_rates(const struct ieee80211_sta *sta,
 		}
 		if (_mcs_80 > _tx_mcs_80)
 			_mcs_80 = _tx_mcs_80;
-		cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160] =
+		cmd->ht_rates[i][IWL_TLC_MCS_PER_BW_80] =
 			cpu_to_le16(rs_fw_he_ieee80211_mcs_to_rs_mcs(_mcs_80));
 
 		/* If one side doesn't support - mark both as not supporting */
@@ -230,14 +230,14 @@ rs_fw_he_set_enabled_rates(const struct ieee80211_sta *sta,
 		}
 		if (_mcs_160 > _tx_mcs_160)
 			_mcs_160 = _tx_mcs_160;
-		cmd->ht_rates[i][IWL_TLC_HT_BW_160] =
+		cmd->ht_rates[i][IWL_TLC_MCS_PER_BW_160] =
 			cpu_to_le16(rs_fw_he_ieee80211_mcs_to_rs_mcs(_mcs_160));
 	}
 }
 
 static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 				 struct ieee80211_supported_band *sband,
-				 struct iwl_tlc_config_cmd *cmd)
+				 struct iwl_tlc_config_cmd_v4 *cmd)
 {
 	int i;
 	u16 supp = 0;
@@ -263,15 +263,15 @@ static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 		rs_fw_vht_set_enabled_rates(sta, vht_cap, cmd);
 	} else if (ht_cap->ht_supported) {
 		cmd->mode = IWL_TLC_MNG_MODE_HT;
-		cmd->ht_rates[IWL_TLC_NSS_1][IWL_TLC_HT_BW_NONE_160] =
+		cmd->ht_rates[IWL_TLC_NSS_1][IWL_TLC_MCS_PER_BW_80] =
 			cpu_to_le16(ht_cap->mcs.rx_mask[0]);
 
 		/* the station support only a single receive chain */
 		if (sta->smps_mode == IEEE80211_SMPS_STATIC)
-			cmd->ht_rates[IWL_TLC_NSS_2][IWL_TLC_HT_BW_NONE_160] =
+			cmd->ht_rates[IWL_TLC_NSS_2][IWL_TLC_MCS_PER_BW_80] =
 				0;
 		else
-			cmd->ht_rates[IWL_TLC_NSS_2][IWL_TLC_HT_BW_NONE_160] =
+			cmd->ht_rates[IWL_TLC_NSS_2][IWL_TLC_MCS_PER_BW_80] =
 				cpu_to_le16(ht_cap->mcs.rx_mask[1]);
 	}
 }
@@ -291,8 +291,12 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 	notif = (void *)pkt->data;
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[notif->sta_id]);
 	if (IS_ERR_OR_NULL(sta)) {
-		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC notification\n",
-			notif->sta_id);
+		/* can happen in remove station flow where mvm removed internally
+		 * the station before removing from FW
+		 */
+		IWL_DEBUG_RATE(mvm,
+			       "Invalid mvm RCU pointer for sta id (%d) in TLC notification\n",
+			       notif->sta_id);
 		goto out;
 	}
 
@@ -311,18 +315,19 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 	if (flags & IWL_TLC_NOTIF_FLAG_RATE) {
 		char pretty_rate[100];
 
-	if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
-				    TLC_MNG_UPDATE_NOTIF, 0) < 3) {
-		rs_pretty_print_rate_v1(pretty_rate, sizeof(pretty_rate),
-					le32_to_cpu(notif->rate));
-		IWL_DEBUG_RATE(mvm,
-			       "Got rate in old format. Rate: %s. Converting.\n",
-			       pretty_rate);
-		lq_sta->last_rate_n_flags =
-			iwl_new_rate_from_v1(le32_to_cpu(notif->rate));
-	} else {
-		lq_sta->last_rate_n_flags = le32_to_cpu(notif->rate);
-	}
+		if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
+					    TLC_MNG_UPDATE_NOTIF, 0) < 3) {
+			rs_pretty_print_rate_v1(pretty_rate,
+						sizeof(pretty_rate),
+						le32_to_cpu(notif->rate));
+			IWL_DEBUG_RATE(mvm,
+				       "Got rate in old format. Rate: %s. Converting.\n",
+				       pretty_rate);
+			lq_sta->last_rate_n_flags =
+				iwl_new_rate_from_v1(le32_to_cpu(notif->rate));
+		} else {
+			lq_sta->last_rate_n_flags = le32_to_cpu(notif->rate);
+		}
 		rs_pretty_print_rate(pretty_rate, sizeof(pretty_rate),
 				     lq_sta->last_rate_n_flags);
 		IWL_DEBUG_RATE(mvm, "new rate: %s\n", pretty_rate);
@@ -418,23 +423,18 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	u32 cmd_id = iwl_cmd_id(TLC_MNG_CONFIG_CMD, DATA_PATH_GROUP, 0);
 	struct ieee80211_supported_band *sband = hw->wiphy->bands[band];
 	u16 max_amsdu_len = rs_fw_get_max_amsdu_len(sta);
-	struct iwl_tlc_config_cmd cfg_cmd = {
+	struct iwl_tlc_config_cmd_v4 cfg_cmd = {
 		.sta_id = mvmsta->sta_id,
 		.max_ch_width = update ?
 			rs_fw_bw_from_sta_bw(sta) : RATE_MCS_CHAN_WIDTH_20,
 		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, sta, sband)),
 		.chains = rs_fw_set_active_chains(iwl_mvm_get_valid_tx_ant(mvm)),
 		.sgi_ch_width_supp = rs_fw_sgi_cw_support(sta),
-		.max_mpdu_len = cpu_to_le16(max_amsdu_len),
-		.amsdu = iwl_mvm_is_csum_supported(mvm),
+		.max_mpdu_len = iwl_mvm_is_csum_supported(mvm) ?
+				cpu_to_le16(max_amsdu_len) : 0,
 	};
 	int ret;
-	u16 cmd_size = sizeof(cfg_cmd);
-
-	/* In old versions of the API the struct is 4 bytes smaller */
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
-				  TLC_MNG_CONFIG_CMD, 0) < 3)
-		cmd_size -= 4;
+	int cmd_ver;
 
 	memset(lq_sta, 0, offsetof(typeof(*lq_sta), pers));
 
@@ -449,8 +449,41 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 */
 	sta->max_amsdu_len = max_amsdu_len;
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC, cmd_size,
-				   &cfg_cmd);
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
+					TLC_MNG_CONFIG_CMD, 0);
+	if (cmd_ver == 4) {
+		ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC,
+					   sizeof(cfg_cmd), &cfg_cmd);
+	} else if (cmd_ver < 4) {
+		struct iwl_tlc_config_cmd_v3 cfg_cmd_v3 = {
+			.sta_id = cfg_cmd.sta_id,
+			.max_ch_width = cfg_cmd.max_ch_width,
+			.mode = cfg_cmd.mode,
+			.chains = cfg_cmd.chains,
+			.amsdu = !!cfg_cmd.max_mpdu_len,
+			.flags = cfg_cmd.flags,
+			.non_ht_rates = cfg_cmd.non_ht_rates,
+			.ht_rates[0][0] = cfg_cmd.ht_rates[0][0],
+			.ht_rates[0][1] = cfg_cmd.ht_rates[0][1],
+			.ht_rates[1][0] = cfg_cmd.ht_rates[1][0],
+			.ht_rates[1][1] = cfg_cmd.ht_rates[1][1],
+			.sgi_ch_width_supp = cfg_cmd.sgi_ch_width_supp,
+			.max_mpdu_len = cfg_cmd.max_mpdu_len,
+		};
+
+		u16 cmd_size = sizeof(cfg_cmd_v3);
+
+		/* In old versions of the API the struct is 4 bytes smaller */
+		if (iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
+					  TLC_MNG_CONFIG_CMD, 0) < 3)
+			cmd_size -= 4;
+
+		ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC, cmd_size,
+					   &cfg_cmd_v3);
+	} else {
+		ret = -EINVAL;
+	}
+
 	if (ret)
 		IWL_ERR(mvm, "Failed to send rate scale config (%d)\n", ret);
 }

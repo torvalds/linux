@@ -22,6 +22,7 @@ TRACE_EVENT(smc_switch_to_fallback,
 	    TP_STRUCT__entry(
 			     __field(const void *, sk)
 			     __field(const void *, clcsk)
+			     __field(u64, net_cookie)
 			     __field(int, fallback_rsn)
 	    ),
 
@@ -31,11 +32,13 @@ TRACE_EVENT(smc_switch_to_fallback,
 
 			   __entry->sk = sk;
 			   __entry->clcsk = clcsk;
+			   __entry->net_cookie = sock_net(sk)->net_cookie;
 			   __entry->fallback_rsn = fallback_rsn;
 	    ),
 
-	    TP_printk("sk=%p clcsk=%p fallback_rsn=%d",
-		      __entry->sk, __entry->clcsk, __entry->fallback_rsn)
+	    TP_printk("sk=%p clcsk=%p net=%llu fallback_rsn=%d",
+		      __entry->sk, __entry->clcsk,
+		      __entry->net_cookie, __entry->fallback_rsn)
 );
 
 DECLARE_EVENT_CLASS(smc_msg_event,
@@ -46,19 +49,23 @@ DECLARE_EVENT_CLASS(smc_msg_event,
 
 		    TP_STRUCT__entry(
 				     __field(const void *, smc)
+				     __field(u64, net_cookie)
 				     __field(size_t, len)
 				     __string(name, smc->conn.lnk->ibname)
 		    ),
 
 		    TP_fast_assign(
+				   const struct sock *sk = &smc->sk;
+
 				   __entry->smc = smc;
+				   __entry->net_cookie = sock_net(sk)->net_cookie;
 				   __entry->len = len;
 				   __assign_str(name, smc->conn.lnk->ibname);
 		    ),
 
-		    TP_printk("smc=%p len=%zu dev=%s",
-			      __entry->smc, __entry->len,
-			      __get_str(name))
+		    TP_printk("smc=%p net=%llu len=%zu dev=%s",
+			      __entry->smc, __entry->net_cookie,
+			      __entry->len, __get_str(name))
 );
 
 DEFINE_EVENT(smc_msg_event, smc_tx_sendmsg,
@@ -84,6 +91,7 @@ TRACE_EVENT(smcr_link_down,
 	    TP_STRUCT__entry(
 			     __field(const void *, lnk)
 			     __field(const void *, lgr)
+			     __field(u64, net_cookie)
 			     __field(int, state)
 			     __string(name, lnk->ibname)
 			     __field(void *, location)
@@ -94,13 +102,14 @@ TRACE_EVENT(smcr_link_down,
 
 			   __entry->lnk = lnk;
 			   __entry->lgr = lgr;
+			   __entry->net_cookie = lgr->net->net_cookie;
 			   __entry->state = lnk->state;
 			   __assign_str(name, lnk->ibname);
 			   __entry->location = location;
 	    ),
 
-	    TP_printk("lnk=%p lgr=%p state=%d dev=%s location=%pS",
-		      __entry->lnk, __entry->lgr,
+	    TP_printk("lnk=%p lgr=%p net=%llu state=%d dev=%s location=%pS",
+		      __entry->lnk, __entry->lgr, __entry->net_cookie,
 		      __entry->state, __get_str(name),
 		      __entry->location)
 );

@@ -10,6 +10,7 @@
 #include "phy.h"
 #include "debug.h"
 #include "regd.h"
+#include "sar.h"
 
 struct phy_cfg_pair {
 	u32 addr;
@@ -2004,6 +2005,25 @@ static u8 rtw_phy_get_5g_tx_power_index(struct rtw_dev *rtwdev,
 	return tx_power;
 }
 
+/* return RTW_RATE_SECTION_MAX to indicate rate is invalid */
+static u8 rtw_phy_rate_to_rate_section(u8 rate)
+{
+	if (rate >= DESC_RATE1M && rate <= DESC_RATE11M)
+		return RTW_RATE_SECTION_CCK;
+	else if (rate >= DESC_RATE6M && rate <= DESC_RATE54M)
+		return RTW_RATE_SECTION_OFDM;
+	else if (rate >= DESC_RATEMCS0 && rate <= DESC_RATEMCS7)
+		return RTW_RATE_SECTION_HT_1S;
+	else if (rate >= DESC_RATEMCS8 && rate <= DESC_RATEMCS15)
+		return RTW_RATE_SECTION_HT_2S;
+	else if (rate >= DESC_RATEVHT1SS_MCS0 && rate <= DESC_RATEVHT1SS_MCS9)
+		return RTW_RATE_SECTION_VHT_1S;
+	else if (rate >= DESC_RATEVHT2SS_MCS0 && rate <= DESC_RATEVHT2SS_MCS9)
+		return RTW_RATE_SECTION_VHT_2S;
+	else
+		return RTW_RATE_SECTION_MAX;
+}
+
 static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 				     enum rtw_bandwidth bw, u8 rf_path,
 				     u8 rate, u8 channel, u8 regd)
@@ -2011,7 +2031,7 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 	struct rtw_hal *hal = &rtwdev->hal;
 	u8 *cch_by_bw = hal->cch_by_bw;
 	s8 power_limit = (s8)rtwdev->chip->max_power_index;
-	u8 rs;
+	u8 rs = rtw_phy_rate_to_rate_section(rate);
 	int ch_idx;
 	u8 cur_bw, cur_ch;
 	s8 cur_lmt;
@@ -2019,19 +2039,7 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 	if (regd > RTW_REGD_WW)
 		return power_limit;
 
-	if (rate >= DESC_RATE1M && rate <= DESC_RATE11M)
-		rs = RTW_RATE_SECTION_CCK;
-	else if (rate >= DESC_RATE6M && rate <= DESC_RATE54M)
-		rs = RTW_RATE_SECTION_OFDM;
-	else if (rate >= DESC_RATEMCS0 && rate <= DESC_RATEMCS7)
-		rs = RTW_RATE_SECTION_HT_1S;
-	else if (rate >= DESC_RATEMCS8 && rate <= DESC_RATEMCS15)
-		rs = RTW_RATE_SECTION_HT_2S;
-	else if (rate >= DESC_RATEVHT1SS_MCS0 && rate <= DESC_RATEVHT1SS_MCS9)
-		rs = RTW_RATE_SECTION_VHT_1S;
-	else if (rate >= DESC_RATEVHT2SS_MCS0 && rate <= DESC_RATEVHT2SS_MCS9)
-		rs = RTW_RATE_SECTION_VHT_2S;
-	else
+	if (rs == RTW_RATE_SECTION_MAX)
 		goto err;
 
 	/* only 20M BW with cck and ofdm */
@@ -2065,6 +2073,27 @@ err:
 	return (s8)rtwdev->chip->max_power_index;
 }
 
+static s8 rtw_phy_get_tx_power_sar(struct rtw_dev *rtwdev, u8 sar_band,
+				   u8 rf_path, u8 rate)
+{
+	u8 rs = rtw_phy_rate_to_rate_section(rate);
+	struct rtw_sar_arg arg = {
+		.sar_band = sar_band,
+		.path = rf_path,
+		.rs = rs,
+	};
+
+	if (rs == RTW_RATE_SECTION_MAX)
+		goto err;
+
+	return rtw_query_sar(rtwdev, &arg);
+
+err:
+	WARN(1, "invalid arguments, sar_band=%d, path=%d, rate=%d\n",
+	     sar_band, rf_path, rate);
+	return (s8)rtwdev->chip->max_power_index;
+}
+
 void rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path, u8 rate, u8 bw,
 			     u8 ch, u8 regd, struct rtw_power_params *pwr_param)
 {
@@ -2076,6 +2105,7 @@ void rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path, u8 rate, u8 bw,
 	s8 *offset = &pwr_param->pwr_offset;
 	s8 *limit = &pwr_param->pwr_limit;
 	s8 *remnant = &pwr_param->pwr_remnant;
+	s8 *sar = &pwr_param->pwr_sar;
 
 	pwr_idx = &rtwdev->efuse.txpwr_idx_table[path];
 	group = rtw_get_channel_group(ch, rate);
@@ -2099,6 +2129,7 @@ void rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path, u8 rate, u8 bw,
 					    rate, ch, regd);
 	*remnant = (rate <= DESC_RATE11M ? dm_info->txagc_remnant_cck :
 		    dm_info->txagc_remnant_ofdm);
+	*sar = rtw_phy_get_tx_power_sar(rtwdev, hal->sar_band, path, rate);
 }
 
 u8
@@ -2113,7 +2144,9 @@ rtw_phy_get_tx_power_index(struct rtw_dev *rtwdev, u8 rf_path, u8 rate,
 				channel, regd, &pwr_param);
 
 	tx_power = pwr_param.pwr_base;
-	offset = min_t(s8, pwr_param.pwr_offset, pwr_param.pwr_limit);
+	offset = min3(pwr_param.pwr_offset,
+		      pwr_param.pwr_limit,
+		      pwr_param.pwr_sar);
 
 	if (rtwdev->chip->en_dis_dpd)
 		offset += rtw_phy_get_dis_dpd_by_rate_diff(rtwdev, rate);

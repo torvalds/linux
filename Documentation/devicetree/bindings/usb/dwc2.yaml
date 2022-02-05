@@ -114,6 +114,8 @@ properties:
 
   usb-role-switch: true
 
+  role-switch-default-mode: true
+
   g-rx-fifo-size:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: size of rx fifo size in gadget mode.
@@ -135,6 +137,17 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description: If present indicates that we need to reset the PHY when we 
       detect a wakeup. This is due to a hardware errata.
+
+  port:
+    description:
+      Any connector to the data bus of this controller should be modelled
+      using the OF graph bindings specified, if the "usb-role-switch"
+      property is used.
+    $ref: /schemas/graph.yaml#/properties/port
+
+dependencies:
+  port: [ usb-role-switch ]
+  role-switch-default-mode: [ usb-role-switch ]
 
 required:
   - compatible

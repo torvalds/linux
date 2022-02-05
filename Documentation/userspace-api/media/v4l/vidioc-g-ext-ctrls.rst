@@ -233,6 +233,14 @@ still cause this situation.
       - ``p_mpeg2_quantisation``
       - A pointer to a struct :c:type:`v4l2_ctrl_mpeg2_quantisation`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_MPEG2_QUANTISATION``.
+    * - struct :c:type:`v4l2_ctrl_vp9_compressed_hdr` *
+      - ``p_vp9_compressed_hdr_probs``
+      - A pointer to a struct :c:type:`v4l2_ctrl_vp9_compressed_hdr`. Valid if this
+        control is of type ``V4L2_CTRL_TYPE_VP9_COMPRESSED_HDR``.
+    * - struct :c:type:`v4l2_ctrl_vp9_frame` *
+      - ``p_vp9_frame``
+      - A pointer to a struct :c:type:`v4l2_ctrl_vp9_frame`. Valid if this
+        control is of type ``V4L2_CTRL_TYPE_VP9_FRAME``.
     * - struct :c:type:`v4l2_ctrl_hdr10_cll_info` *
       - ``p_hdr10_cll``
       - A pointer to a struct :c:type:`v4l2_ctrl_hdr10_cll_info`. Valid if this control is

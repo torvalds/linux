@@ -134,7 +134,7 @@ static unsigned int davinci_wdt_get_timeleft(struct watchdog_device *wdd)
 	timer_counter = ioread32(davinci_wdt->base + TIM12);
 	timer_counter |= ((u64)ioread32(davinci_wdt->base + TIM34) << 32);
 
-	do_div(timer_counter, freq);
+	timer_counter = div64_ul(timer_counter, freq);
 
 	return wdd->timeout - timer_counter;
 }

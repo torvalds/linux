@@ -104,19 +104,50 @@ int intel_region_ttm_init(struct intel_memory_region *mem)
  * memory region, and if it was registered with the TTM device,
  * removes that registration.
  */
-void intel_region_ttm_fini(struct intel_memory_region *mem)
+int intel_region_ttm_fini(struct intel_memory_region *mem)
 {
-	int ret;
+	struct ttm_resource_manager *man = mem->region_private;
+	int ret = -EBUSY;
+	int count;
+
+	/*
+	 * Put the region's move fences. This releases requests that
+	 * may hold on to contexts and vms that may hold on to buffer
+	 * objects placed in this region.
+	 */
+	if (man)
+		ttm_resource_manager_cleanup(man);
+
+	/* Flush objects from region. */
+	for (count = 0; count < 10; ++count) {
+		i915_gem_flush_free_objects(mem->i915);
+
+		mutex_lock(&mem->objects.lock);
+		if (list_empty(&mem->objects.list))
+			ret = 0;
+		mutex_unlock(&mem->objects.lock);
+		if (!ret)
+			break;
+
+		msleep(20);
+		flush_delayed_work(&mem->i915->bdev.wq);
+	}
+
+	/* If we leaked objects, Don't free the region causing use after free */
+	if (ret || !man)
+		return ret;
 
 	ret = i915_ttm_buddy_man_fini(&mem->i915->bdev,
 				      intel_region_to_ttm_type(mem));
 	GEM_WARN_ON(ret);
 	mem->region_private = NULL;
+
+	return ret;
 }
 
 /**
- * intel_region_ttm_resource_to_st - Convert an opaque TTM resource manager resource
- * to an sg_table.
+ * intel_region_ttm_resource_to_rsgt -
+ * Convert an opaque TTM resource manager resource to a refcounted sg_table.
  * @mem: The memory region.
  * @res: The resource manager resource obtained from the TTM resource manager.
  *
@@ -126,17 +157,18 @@ void intel_region_ttm_fini(struct intel_memory_region *mem)
  *
  * Return: A malloced sg_table on success, an error pointer on failure.
  */
-struct sg_table *intel_region_ttm_resource_to_st(struct intel_memory_region *mem,
-						 struct ttm_resource *res)
+struct i915_refct_sgt *
+intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
+				  struct ttm_resource *res)
 {
 	if (mem->is_range_manager) {
 		struct ttm_range_mgr_node *range_node =
 			to_ttm_range_mgr_node(res);
 
-		return i915_sg_from_mm_node(&range_node->mm_nodes[0],
-					    mem->region.start);
+		return i915_rsgt_from_mm_node(&range_node->mm_nodes[0],
+					      mem->region.start);
 	} else {
-		return i915_sg_from_buddy_resource(res, mem->region.start);
+		return i915_rsgt_from_buddy_resource(res, mem->region.start);
 	}
 }
 

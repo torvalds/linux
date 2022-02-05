@@ -4,7 +4,6 @@ config DRM_HISI_KIRIN
 	depends on DRM && OF && ARM64
 	select DRM_KMS_HELPER
 	select DRM_GEM_CMA_HELPER
-	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DSI
 	help
 	  Choose this option if you have a hisilicon Kirin chipsets(hi6220).

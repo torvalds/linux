@@ -31,11 +31,6 @@ static inline int create_proc_profile(void)
 }
 #endif
 
-enum profile_type {
-	PROFILE_TASK_EXIT,
-	PROFILE_MUNMAP
-};
-
 #ifdef CONFIG_PROFILING
 
 extern int prof_on __read_mostly;
@@ -66,23 +61,6 @@ static inline void profile_hit(int type, void *ip)
 struct task_struct;
 struct mm_struct;
 
-/* task is in do_exit() */
-void profile_task_exit(struct task_struct * task);
-
-/* task is dead, free task struct ? Returns 1 if
- * the task was taken, 0 if the task should be freed.
- */
-int profile_handoff_task(struct task_struct * task);
-
-/* sys_munmap */
-void profile_munmap(unsigned long addr);
-
-int task_handoff_register(struct notifier_block * n);
-int task_handoff_unregister(struct notifier_block * n);
-
-int profile_event_register(enum profile_type, struct notifier_block * n);
-int profile_event_unregister(enum profile_type, struct notifier_block * n);
-
 #else
 
 #define prof_on 0
@@ -107,29 +85,6 @@ static inline void profile_hit(int type, void *ip)
 	return;
 }
 
-static inline int task_handoff_register(struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-static inline int task_handoff_unregister(struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-static inline int profile_event_register(enum profile_type t, struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-static inline int profile_event_unregister(enum profile_type t, struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-#define profile_task_exit(a) do { } while (0)
-#define profile_handoff_task(a) (0)
-#define profile_munmap(a) do { } while (0)
 
 #endif /* CONFIG_PROFILING */
 

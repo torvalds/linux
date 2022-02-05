@@ -69,42 +69,40 @@
 #define iterate_xarray(i, n, base, len, __off, STEP) {		\
 	__label__ __out;					\
 	size_t __off = 0;					\
-	struct page *head = NULL;				\
+	struct folio *folio;					\
 	loff_t start = i->xarray_start + i->iov_offset;		\
-	unsigned offset = start % PAGE_SIZE;			\
 	pgoff_t index = start / PAGE_SIZE;			\
-	int j;							\
-								\
 	XA_STATE(xas, i->xarray, index);			\
 								\
+	len = PAGE_SIZE - offset_in_page(start);		\
 	rcu_read_lock();					\
-	xas_for_each(&xas, head, ULONG_MAX) {			\
+	xas_for_each(&xas, folio, ULONG_MAX) {			\
 		unsigned left;					\
-		if (xas_retry(&xas, head))			\
+		size_t offset;					\
+		if (xas_retry(&xas, folio))			\
 			continue;				\
-		if (WARN_ON(xa_is_value(head)))			\
+		if (WARN_ON(xa_is_value(folio)))		\
 			break;					\
-		if (WARN_ON(PageHuge(head)))			\
+		if (WARN_ON(folio_test_hugetlb(folio)))		\
 			break;					\
-		for (j = (head->index < index) ? index - head->index : 0; \
-		     j < thp_nr_pages(head); j++) {		\
-			void *kaddr = kmap_local_page(head + j);	\
-			base = kaddr + offset;			\
-			len = PAGE_SIZE - offset;		\
+		offset = offset_in_folio(folio, start + __off);	\
+		while (offset < folio_size(folio)) {		\
+			base = kmap_local_folio(folio, offset);	\
 			len = min(n, len);			\
 			left = (STEP);				\
-			kunmap_local(kaddr);			\
+			kunmap_local(base);			\
 			len -= left;				\
 			__off += len;				\
 			n -= len;				\
 			if (left || n == 0)			\
 				goto __out;			\
-			offset = 0;				\
+			offset += len;				\
+			len = PAGE_SIZE;			\
 		}						\
 	}							\
 __out:								\
 	rcu_read_unlock();					\
-	i->iov_offset += __off;						\
+	i->iov_offset += __off;					\
 	n = __off;						\
 }
 

@@ -9,6 +9,7 @@
 
 #define POWER_MODE_ACK		BIT(6)
 #define POWER_MODE_PG		BIT(4)
+#define POWER_TX_WAKE		BIT(1)
 #define POWER_MODE_LCLK		BIT(0)
 
 #define LEAVE_LPS_TRY_CNT	5

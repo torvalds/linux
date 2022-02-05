@@ -495,6 +495,9 @@ struct hi556 {
 
 	/* Streaming on/off */
 	bool streaming;
+
+	/* True if the device has been identified */
+	bool identified;
 };
 
 static u64 to_pixel_rate(u32 f_index)
@@ -757,11 +760,40 @@ static void hi556_assign_pad_format(const struct hi556_mode *mode,
 	fmt->field = V4L2_FIELD_NONE;
 }
 
+static int hi556_identify_module(struct hi556 *hi556)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
+	int ret;
+	u32 val;
+
+	if (hi556->identified)
+		return 0;
+
+	ret = hi556_read_reg(hi556, HI556_REG_CHIP_ID,
+			     HI556_REG_VALUE_16BIT, &val);
+	if (ret)
+		return ret;
+
+	if (val != HI556_CHIP_ID) {
+		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+			HI556_CHIP_ID, val);
+		return -ENXIO;
+	}
+
+	hi556->identified = true;
+
+	return 0;
+}
+
 static int hi556_start_streaming(struct hi556 *hi556)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
 	const struct hi556_reg_list *reg_list;
 	int link_freq_index, ret;
+
+	ret = hi556_identify_module(hi556);
+	if (ret)
+		return ret;
 
 	link_freq_index = hi556->cur_mode->link_freq_index;
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
@@ -1001,26 +1033,6 @@ static const struct v4l2_subdev_internal_ops hi556_internal_ops = {
 	.open = hi556_open,
 };
 
-static int hi556_identify_module(struct hi556 *hi556)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
-	int ret;
-	u32 val;
-
-	ret = hi556_read_reg(hi556, HI556_REG_CHIP_ID,
-			     HI556_REG_VALUE_16BIT, &val);
-	if (ret)
-		return ret;
-
-	if (val != HI556_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
-			HI556_CHIP_ID, val);
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
 static int hi556_check_hwcfg(struct device *dev)
 {
 	struct fwnode_handle *ep;
@@ -1106,6 +1118,7 @@ static int hi556_remove(struct i2c_client *client)
 static int hi556_probe(struct i2c_client *client)
 {
 	struct hi556 *hi556;
+	bool full_power;
 	int ret;
 
 	ret = hi556_check_hwcfg(&client->dev);
@@ -1120,10 +1133,14 @@ static int hi556_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	v4l2_i2c_subdev_init(&hi556->sd, client, &hi556_subdev_ops);
-	ret = hi556_identify_module(hi556);
-	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
-		return ret;
+
+	full_power = acpi_dev_state_d0(&client->dev);
+	if (full_power) {
+		ret = hi556_identify_module(hi556);
+		if (ret) {
+			dev_err(&client->dev, "failed to find sensor: %d", ret);
+			return ret;
+		}
 	}
 
 	mutex_init(&hi556->mutex);
@@ -1152,7 +1169,9 @@ static int hi556_probe(struct i2c_client *client)
 		goto probe_error_media_entity_cleanup;
 	}
 
-	pm_runtime_set_active(&client->dev);
+	/* Set the device's state to active if it's in D0 state. */
+	if (full_power)
+		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
@@ -1189,6 +1208,7 @@ static struct i2c_driver hi556_i2c_driver = {
 	},
 	.probe_new = hi556_probe,
 	.remove = hi556_remove,
+	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
 
 module_i2c_driver(hi556_i2c_driver);

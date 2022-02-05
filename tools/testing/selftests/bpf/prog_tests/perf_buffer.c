@@ -47,7 +47,6 @@ void serial_test_perf_buffer(void)
 {
 	int err, on_len, nr_on_cpus = 0, nr_cpus, i, j;
 	int zero = 0, my_pid = getpid();
-	struct perf_buffer_opts pb_opts = {};
 	struct test_perf_buffer *skel;
 	cpu_set_t cpu_seen;
 	struct perf_buffer *pb;
@@ -82,9 +81,8 @@ void serial_test_perf_buffer(void)
 		goto out_close;
 
 	/* set up perf buffer */
-	pb_opts.sample_cb = on_sample;
-	pb_opts.ctx = &cpu_seen;
-	pb = perf_buffer__new(bpf_map__fd(skel->maps.perf_buf_map), 1, &pb_opts);
+	pb = perf_buffer__new(bpf_map__fd(skel->maps.perf_buf_map), 1,
+			      on_sample, NULL, &cpu_seen, NULL);
 	if (!ASSERT_OK_PTR(pb, "perf_buf__new"))
 		goto out_close;
 

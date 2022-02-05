@@ -236,6 +236,27 @@
 	status = "ok";
 };
 
+&ipa {
+	status = "okay";
+
+	memory-region = <&ipa_fw_mem>;
+};
+
+&pcie0_phy {
+	status = "okay";
+
+	vdda-phy-supply = <&vreg_l1e_bb_1p2>;
+	vdda-pll-supply = <&vreg_l4e_bb_0p875>;
+};
+
+&pcie_ep {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_ep_clkreq_default &pcie_ep_perst_default
+		     &pcie_ep_wake_default>;
+};
+
 &qpic_bam {
 	status = "ok";
 };
@@ -258,6 +279,44 @@
 &remoteproc_mpss {
 	status = "okay";
 	memory-region = <&mpss_adsp_mem>;
+};
+
+&tlmm {
+	pcie_ep_clkreq_default: pcie_ep_clkreq_default {
+		mux {
+			pins = "gpio56";
+			function = "pcie_clkreq";
+		};
+		config {
+			pins = "gpio56";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie_ep_perst_default: pcie_ep_perst_default {
+		mux {
+			pins = "gpio57";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio57";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	pcie_ep_wake_default: pcie_ep_wake_default {
+		mux {
+			pins = "gpio53";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio53";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
 };
 
 &usb_hsphy {

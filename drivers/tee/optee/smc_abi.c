@@ -8,13 +8,16 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/errno.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/sched.h>
+#include <linux/irqdomain.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/tee_drv.h>
@@ -35,7 +38,8 @@
  * 2. Low level support functions to register shared memory in secure world
  * 3. Dynamic shared memory pool based on alloc_pages()
  * 4. Do a normal scheduled call into secure world
- * 5. Driver initialization.
+ * 5. Asynchronous notification
+ * 6. Driver initialization.
  */
 
 #define OPTEE_SHM_NUM_PRIV_PAGES	CONFIG_OPTEE_SHM_NUM_PRIV_PAGES
@@ -877,10 +881,137 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 	return rc;
 }
 
+static int simple_call_with_arg(struct tee_context *ctx, u32 cmd)
+{
+	struct optee_msg_arg *msg_arg;
+	struct tee_shm *shm;
+
+	shm = optee_get_msg_arg(ctx, 0, &msg_arg);
+	if (IS_ERR(shm))
+		return PTR_ERR(shm);
+
+	msg_arg->cmd = cmd;
+	optee_smc_do_call_with_arg(ctx, shm);
+
+	tee_shm_free(shm);
+	return 0;
+}
+
+static int optee_smc_do_bottom_half(struct tee_context *ctx)
+{
+	return simple_call_with_arg(ctx, OPTEE_MSG_CMD_DO_BOTTOM_HALF);
+}
+
+static int optee_smc_stop_async_notif(struct tee_context *ctx)
+{
+	return simple_call_with_arg(ctx, OPTEE_MSG_CMD_STOP_ASYNC_NOTIF);
+}
+
 /*
- * 5. Driver initialization
+ * 5. Asynchronous notification
+ */
+
+static u32 get_async_notif_value(optee_invoke_fn *invoke_fn, bool *value_valid,
+				 bool *value_pending)
+{
+	struct arm_smccc_res res;
+
+	invoke_fn(OPTEE_SMC_GET_ASYNC_NOTIF_VALUE, 0, 0, 0, 0, 0, 0, 0, &res);
+
+	if (res.a0)
+		return 0;
+	*value_valid = (res.a2 & OPTEE_SMC_ASYNC_NOTIF_VALUE_VALID);
+	*value_pending = (res.a2 & OPTEE_SMC_ASYNC_NOTIF_VALUE_PENDING);
+	return res.a1;
+}
+
+static irqreturn_t notif_irq_handler(int irq, void *dev_id)
+{
+	struct optee *optee = dev_id;
+	bool do_bottom_half = false;
+	bool value_valid;
+	bool value_pending;
+	u32 value;
+
+	do {
+		value = get_async_notif_value(optee->smc.invoke_fn,
+					      &value_valid, &value_pending);
+		if (!value_valid)
+			break;
+
+		if (value == OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_BOTTOM_HALF)
+			do_bottom_half = true;
+		else
+			optee_notif_send(optee, value);
+	} while (value_pending);
+
+	if (do_bottom_half)
+		return IRQ_WAKE_THREAD;
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t notif_irq_thread_fn(int irq, void *dev_id)
+{
+	struct optee *optee = dev_id;
+
+	optee_smc_do_bottom_half(optee->notif.ctx);
+
+	return IRQ_HANDLED;
+}
+
+static int optee_smc_notif_init_irq(struct optee *optee, u_int irq)
+{
+	struct tee_context *ctx;
+	int rc;
+
+	ctx = teedev_open(optee->teedev);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	optee->notif.ctx = ctx;
+	rc = request_threaded_irq(irq, notif_irq_handler,
+				  notif_irq_thread_fn,
+				  0, "optee_notification", optee);
+	if (rc)
+		goto err_close_ctx;
+
+	optee->smc.notif_irq = irq;
+
+	return 0;
+
+err_close_ctx:
+	teedev_close_context(optee->notif.ctx);
+	optee->notif.ctx = NULL;
+
+	return rc;
+}
+
+static void optee_smc_notif_uninit_irq(struct optee *optee)
+{
+	if (optee->notif.ctx) {
+		optee_smc_stop_async_notif(optee->notif.ctx);
+		if (optee->smc.notif_irq) {
+			free_irq(optee->smc.notif_irq, optee);
+			irq_dispose_mapping(optee->smc.notif_irq);
+		}
+
+		/*
+		 * The thread normally working with optee->notif.ctx was
+		 * stopped with free_irq() above.
+		 *
+		 * Note we're not using teedev_close_context() or
+		 * tee_client_close_context() since we have already called
+		 * tee_device_put() while initializing to avoid a circular
+		 * reference counting.
+		 */
+		teedev_close_context(optee->notif.ctx);
+	}
+}
+
+/*
+ * 6. Driver initialization
  *
- * During driver inititialization is secure world probed to find out which
+ * During driver initialization is secure world probed to find out which
  * features it supports so the driver can be initialized with a matching
  * configuration. This involves for instance support for dynamic shared
  * memory instead of a static memory carvout.
@@ -952,6 +1083,17 @@ static const struct optee_ops optee_ops = {
 	.from_msg_param = optee_from_msg_param,
 };
 
+static int enable_async_notif(optee_invoke_fn *invoke_fn)
+{
+	struct arm_smccc_res res;
+
+	invoke_fn(OPTEE_SMC_ENABLE_ASYNC_NOTIF, 0, 0, 0, 0, 0, 0, 0, &res);
+
+	if (res.a0)
+		return -EINVAL;
+	return 0;
+}
+
 static bool optee_msg_api_uid_is_optee_api(optee_invoke_fn *invoke_fn)
 {
 	struct arm_smccc_res res;
@@ -1001,7 +1143,7 @@ static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 }
 
 static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
-					    u32 *sec_caps)
+					    u32 *sec_caps, u32 *max_notif_value)
 {
 	union {
 		struct arm_smccc_res smccc;
@@ -1024,6 +1166,11 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 		return false;
 
 	*sec_caps = res.result.capabilities;
+	if (*sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_NOTIF)
+		*max_notif_value = res.result.max_notif_value;
+	else
+		*max_notif_value = OPTEE_DEFAULT_MAX_NOTIF_VALUE;
+
 	return true;
 }
 
@@ -1188,6 +1335,8 @@ static int optee_smc_remove(struct platform_device *pdev)
 	 */
 	optee_disable_shm_cache(optee);
 
+	optee_smc_notif_uninit_irq(optee);
+
 	optee_remove_common(optee);
 
 	if (optee->smc.memremaped_shm)
@@ -1217,6 +1366,7 @@ static int optee_probe(struct platform_device *pdev)
 	struct optee *optee = NULL;
 	void *memremaped_shm = NULL;
 	struct tee_device *teedev;
+	u32 max_notif_value;
 	u32 sec_caps;
 	int rc;
 
@@ -1236,7 +1386,8 @@ static int optee_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps)) {
+	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps,
+					     &max_notif_value)) {
 		pr_warn("capabilities mismatch\n");
 		return -EINVAL;
 	}
@@ -1259,7 +1410,7 @@ static int optee_probe(struct platform_device *pdev)
 	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
 	if (!optee) {
 		rc = -ENOMEM;
-		goto err;
+		goto err_free_pool;
 	}
 
 	optee->ops = &optee_ops;
@@ -1269,31 +1420,54 @@ static int optee_probe(struct platform_device *pdev)
 	teedev = tee_device_alloc(&optee_clnt_desc, NULL, pool, optee);
 	if (IS_ERR(teedev)) {
 		rc = PTR_ERR(teedev);
-		goto err;
+		goto err_free_optee;
 	}
 	optee->teedev = teedev;
 
 	teedev = tee_device_alloc(&optee_supp_desc, NULL, pool, optee);
 	if (IS_ERR(teedev)) {
 		rc = PTR_ERR(teedev);
-		goto err;
+		goto err_unreg_teedev;
 	}
 	optee->supp_teedev = teedev;
 
 	rc = tee_device_register(optee->teedev);
 	if (rc)
-		goto err;
+		goto err_unreg_supp_teedev;
 
 	rc = tee_device_register(optee->supp_teedev);
 	if (rc)
-		goto err;
+		goto err_unreg_supp_teedev;
 
 	mutex_init(&optee->call_queue.mutex);
 	INIT_LIST_HEAD(&optee->call_queue.waiters);
-	optee_wait_queue_init(&optee->wait_queue);
 	optee_supp_init(&optee->supp);
 	optee->smc.memremaped_shm = memremaped_shm;
 	optee->pool = pool;
+
+	platform_set_drvdata(pdev, optee);
+	rc = optee_notif_init(optee, max_notif_value);
+	if (rc)
+		goto err_supp_uninit;
+
+	if (sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_NOTIF) {
+		unsigned int irq;
+
+		rc = platform_get_irq(pdev, 0);
+		if (rc < 0) {
+			pr_err("platform_get_irq: ret %d\n", rc);
+			goto err_notif_uninit;
+		}
+		irq = rc;
+
+		rc = optee_smc_notif_init_irq(optee, irq);
+		if (rc) {
+			irq_dispose_mapping(irq);
+			goto err_notif_uninit;
+		}
+		enable_async_notif(optee->smc.invoke_fn);
+		pr_info("Asynchronous notifications enabled\n");
+	}
 
 	/*
 	 * Ensure that there are no pre-existing shm objects before enabling
@@ -1309,29 +1483,30 @@ static int optee_probe(struct platform_device *pdev)
 	if (optee->smc.sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
 		pr_info("dynamic shared memory is enabled\n");
 
-	platform_set_drvdata(pdev, optee);
-
 	rc = optee_enumerate_devices(PTA_CMD_GET_DEVICES);
-	if (rc) {
-		optee_smc_remove(pdev);
-		return rc;
-	}
+	if (rc)
+		goto err_disable_shm_cache;
 
 	pr_info("initialized driver\n");
 	return 0;
-err:
-	if (optee) {
-		/*
-		 * tee_device_unregister() is safe to call even if the
-		 * devices hasn't been registered with
-		 * tee_device_register() yet.
-		 */
-		tee_device_unregister(optee->supp_teedev);
-		tee_device_unregister(optee->teedev);
-		kfree(optee);
-	}
-	if (pool)
-		tee_shm_pool_free(pool);
+
+err_disable_shm_cache:
+	optee_disable_shm_cache(optee);
+	optee_smc_notif_uninit_irq(optee);
+	optee_unregister_devices();
+err_notif_uninit:
+	optee_notif_uninit(optee);
+err_supp_uninit:
+	optee_supp_uninit(&optee->supp);
+	mutex_destroy(&optee->call_queue.mutex);
+err_unreg_supp_teedev:
+	tee_device_unregister(optee->supp_teedev);
+err_unreg_teedev:
+	tee_device_unregister(optee->teedev);
+err_free_optee:
+	kfree(optee);
+err_free_pool:
+	tee_shm_pool_free(pool);
 	if (memremaped_shm)
 		memunmap(memremaped_shm);
 	return rc;

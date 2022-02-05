@@ -18,9 +18,6 @@ void ipa_modem_skb_rx(struct net_device *netdev, struct sk_buff *skb);
 void ipa_modem_suspend(struct net_device *netdev);
 void ipa_modem_resume(struct net_device *netdev);
 
-int ipa_modem_init(struct ipa *ipa, bool modem_init);
-void ipa_modem_exit(struct ipa *ipa);
-
 int ipa_modem_config(struct ipa *ipa);
 void ipa_modem_deconfig(struct ipa *ipa);
 

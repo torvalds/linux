@@ -316,7 +316,7 @@ static int free_phys_pg_pack(struct hl_device *hdev,
 	}
 
 	if (rc && !hdev->disabled)
-		hl_device_reset(hdev, HL_RESET_HARD);
+		hl_device_reset(hdev, HL_DRV_RESET_HARD);
 
 end:
 	kvfree(phys_pg_pack->pages);
@@ -477,7 +477,7 @@ static int add_va_block_locked(struct hl_device *hdev,
 		struct list_head *va_list, u64 start, u64 end)
 {
 	struct hl_vm_va_block *va_block, *res = NULL;
-	u64 size = end - start;
+	u64 size = end - start + 1;
 
 	print_va_list_locked(hdev, va_list);
 
@@ -518,7 +518,7 @@ static int add_va_block_locked(struct hl_device *hdev,
 /**
  * add_va_block() - wrapper for add_va_block_locked.
  * @hdev: pointer to the habanalabs device structure.
- * @va_list: pointer to the virtual addresses block list.
+ * @va_range: pointer to the virtual addresses range object.
  * @start: start virtual address.
  * @end: end virtual address.
  *
@@ -538,8 +538,11 @@ static inline int add_va_block(struct hl_device *hdev,
 }
 
 /**
- * is_hint_crossing_range() - check if hint address crossing specified reserved
- * range.
+ * is_hint_crossing_range() - check if hint address crossing specified reserved.
+ * @range_type: virtual space range type.
+ * @start_addr: start virtual address.
+ * @size: block size.
+ * @prop: asic properties structure to retrieve reserved ranges from.
  */
 static inline bool is_hint_crossing_range(enum hl_va_range_type range_type,
 		u64 start_addr, u32 size, struct asic_fixed_properties *prop) {
@@ -644,7 +647,7 @@ static u64 get_va_block(struct hl_device *hdev,
 				continue;
 		}
 
-		valid_size = va_block->end - valid_start;
+		valid_size = va_block->end - valid_start + 1;
 		if (valid_size < size)
 			continue;
 
@@ -707,7 +710,7 @@ static u64 get_va_block(struct hl_device *hdev,
 
 	if (new_va_block->size > size) {
 		new_va_block->start += size;
-		new_va_block->size = new_va_block->end - new_va_block->start;
+		new_va_block->size = new_va_block->end - new_va_block->start + 1;
 	} else {
 		list_del(&new_va_block->node);
 		kfree(new_va_block);
@@ -749,6 +752,7 @@ u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 
 /**
  * hl_get_va_range_type() - get va_range type for the given address and size.
+ * @ctx: context to fetch va_range from.
  * @address: the start address of the area we want to validate.
  * @size: the size in bytes of the area we want to validate.
  * @type: returned va_range type.
@@ -776,8 +780,8 @@ static int hl_get_va_range_type(struct hl_ctx *ctx, u64 address, u64 size,
  * hl_unreserve_va_block() - wrapper for add_va_block to unreserve a va block.
  * @hdev: pointer to the habanalabs device structure
  * @ctx: pointer to the context structure.
- * @start: start virtual address.
- * @end: end virtual address.
+ * @start_addr: start virtual address.
+ * @size: number of bytes to unreserve.
  *
  * This function does the following:
  * - Takes the list lock and calls add_va_block_locked.
@@ -1201,17 +1205,13 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto map_err;
 	}
 
-	rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, false,
-		*vm_type, ctx->asid, ret_vaddr, phys_pg_pack->total_size);
+	rc = hl_mmu_invalidate_cache_range(hdev, false, *vm_type | MMU_OP_SKIP_LOW_CACHE_INV,
+				ctx->asid, ret_vaddr, phys_pg_pack->total_size);
 
 	mutex_unlock(&ctx->mmu_lock);
 
-	if (rc) {
-		dev_err(hdev->dev,
-			"mapping handle %u failed due to MMU cache invalidation\n",
-			handle);
+	if (rc)
 		goto map_err;
-	}
 
 	ret_vaddr += phys_pg_pack->offset;
 
@@ -1349,9 +1349,8 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	 * at the loop end rather than for each iteration
 	 */
 	if (!ctx_free)
-		rc = hdev->asic_funcs->mmu_invalidate_cache_range(hdev, true,
-				*vm_type, ctx->asid, vaddr,
-				phys_pg_pack->total_size);
+		rc = hl_mmu_invalidate_cache_range(hdev, true, *vm_type, ctx->asid, vaddr,
+							phys_pg_pack->total_size);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -1363,11 +1362,6 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	 */
 	if (!ctx_free) {
 		int tmp_rc;
-
-		if (rc)
-			dev_err(hdev->dev,
-				"unmapping vaddr 0x%llx failed due to MMU cache invalidation\n",
-				vaddr);
 
 		tmp_rc = add_va_block(hdev, va_range, vaddr,
 					vaddr + phys_pg_pack->total_size - 1);
@@ -2037,7 +2031,7 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 
 	default:
 		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 
@@ -2162,7 +2156,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	default:
 		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
-		rc = -ENOTTY;
+		rc = -EINVAL;
 		break;
 	}
 
@@ -2339,6 +2333,8 @@ void hl_userptr_delete_list(struct hl_device *hdev,
 /**
  * hl_userptr_is_pinned() - returns whether the given userptr is pinned.
  * @hdev: pointer to the habanalabs device structure.
+ * @addr: user address to check.
+ * @size: user block size to check.
  * @userptr_list: pointer to the list to clear.
  * @userptr: pointer to userptr to check.
  *
@@ -2361,9 +2357,10 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr,
 /**
  * va_range_init() - initialize virtual addresses range.
  * @hdev: pointer to the habanalabs device structure.
- * @va_range: pointer to the range to initialize.
+ * @va_ranges: pointer to va_ranges array.
  * @start: range start address.
  * @end: range end address.
+ * @page_size: page size for this va_range.
  *
  * This function does the following:
  * - Initializes the virtual addresses list of the given range with the given
@@ -2388,8 +2385,14 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
 			start += PAGE_SIZE;
 		}
 
-		if (end & (PAGE_SIZE - 1))
-			end &= PAGE_MASK;
+		/*
+		 * The end of the range is inclusive, hence we need to align it
+		 * to the end of the last full page in the range. For example if
+		 * end = 0x3ff5 with page size 0x1000, we need to align it to
+		 * 0x2fff. The remainig 0xff5 bytes do not form a full page.
+		 */
+		if ((end + 1) & (PAGE_SIZE - 1))
+			end = ((end + 1) & PAGE_MASK) - 1;
 	}
 
 	if (start >= end) {
@@ -2414,7 +2417,7 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
 /**
  * va_range_fini() - clear a virtual addresses range.
  * @hdev: pointer to the habanalabs structure.
- * va_range: pointer to virtual addresses rang.e
+ * @va_range: pointer to virtual addresses range.
  *
  * This function does the following:
  * - Frees the virtual addresses block list and its lock.
@@ -2434,12 +2437,15 @@ static void va_range_fini(struct hl_device *hdev, struct hl_va_range *va_range)
  * @ctx: pointer to the habanalabs context structure.
  * @host_range_start: host virtual addresses range start.
  * @host_range_end: host virtual addresses range end.
+ * @host_page_size: host page size.
  * @host_huge_range_start: host virtual addresses range start for memory
  *                         allocated with huge pages.
  * @host_huge_range_end: host virtual addresses range end for memory allocated
  *                        with huge pages.
+ * @host_huge_page_size: host huge page size.
  * @dram_range_start: dram virtual addresses range start.
  * @dram_range_end: dram virtual addresses range end.
+ * @dram_page_size: dram page size.
  *
  * This function initializes the following:
  * - MMU for context.
@@ -2564,14 +2570,14 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 		return 0;
 
 	dram_range_start = prop->dmmu.start_addr;
-	dram_range_end = prop->dmmu.end_addr;
+	dram_range_end = prop->dmmu.end_addr - 1;
 	dram_page_size = prop->dram_page_size ?
 				prop->dram_page_size : prop->dmmu.page_size;
 	host_range_start = prop->pmmu.start_addr;
-	host_range_end = prop->pmmu.end_addr;
+	host_range_end = prop->pmmu.end_addr - 1;
 	host_page_size = prop->pmmu.page_size;
 	host_huge_range_start = prop->pmmu_huge.start_addr;
-	host_huge_range_end = prop->pmmu_huge.end_addr;
+	host_huge_range_end = prop->pmmu_huge.end_addr - 1;
 	host_huge_page_size = prop->pmmu_huge.page_size;
 
 	return vm_ctx_init_with_ranges(ctx, host_range_start, host_range_end,
@@ -2618,7 +2624,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	 * Clearly something went wrong on hard reset so no point in printing
 	 * another side effect error
 	 */
-	if (!hdev->hard_reset_pending && !hash_empty(ctx->mem_hash))
+	if (!hdev->reset_info.hard_reset_pending && !hash_empty(ctx->mem_hash))
 		dev_dbg(hdev->dev,
 			"user released device without removing its memory mappings\n");
 
@@ -2633,8 +2639,8 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	mutex_lock(&ctx->mmu_lock);
 
 	/* invalidate the cache once after the unmapping loop */
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_PHYS_PACK);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_PHYS_PACK);
 
 	mutex_unlock(&ctx->mmu_lock);
 

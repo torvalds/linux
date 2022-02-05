@@ -583,7 +583,7 @@ out:
 int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
 	struct dib0700_state *st = adap->dev->priv;
-	int ret;
+	int ret, adapt_nr;
 
 	if ((onoff != 0) && (st->fw_version >= 0x10201)) {
 		/* for firmware later than 1.20.1,
@@ -610,26 +610,24 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	st->buf[3] = 0x00;
 
-	deb_info("modifying (%d) streaming state for %d\n", onoff, adap->id);
-
-	st->channel_state &= ~0x3;
 	if ((adap->fe_adap[0].stream.props.endpoint != 2)
-			&& (adap->fe_adap[0].stream.props.endpoint != 3)) {
-		deb_info("the endpoint number (%i) is not correct, use the adapter id instead", adap->fe_adap[0].stream.props.endpoint);
-		if (onoff)
-			st->channel_state |=	1 << (adap->id);
-		else
-			st->channel_state |=	1 << ~(adap->id);
+	    && (adap->fe_adap[0].stream.props.endpoint != 3)) {
+		deb_info("the endpoint number (%i) is not correct, use the adapter id instead\n",
+			 adap->fe_adap[0].stream.props.endpoint);
+		adapt_nr = adap->id;
 	} else {
-		if (onoff)
-			st->channel_state |=	1 << (adap->fe_adap[0].stream.props.endpoint-2);
-		else
-			st->channel_state |=	1 << (3-adap->fe_adap[0].stream.props.endpoint);
+		adapt_nr = adap->fe_adap[0].stream.props.endpoint - 2;
 	}
+
+	if (onoff)
+		st->channel_state |= 1 << adapt_nr;
+	else
+		st->channel_state &= ~(1 << adapt_nr);
 
 	st->buf[2] |= st->channel_state;
 
-	deb_info("data for streaming: %x %x\n", st->buf[1], st->buf[2]);
+	deb_info("adapter %d, streaming %s: %*ph\n",
+		adapt_nr, onoff ? "ON" : "OFF", 3, st->buf);
 
 	ret = dib0700_ctrl_wr(adap->dev, st->buf, 4);
 	mutex_unlock(&adap->dev->usb_mutex);

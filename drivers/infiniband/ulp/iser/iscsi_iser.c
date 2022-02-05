@@ -113,10 +113,6 @@ bool iser_pi_enable = false;
 module_param_named(pi_enable, iser_pi_enable, bool, S_IRUGO);
 MODULE_PARM_DESC(pi_enable, "Enable T10-PI offload support (default:disabled)");
 
-int iser_pi_guard;
-module_param_named(pi_guard, iser_pi_guard, int, S_IRUGO);
-MODULE_PARM_DESC(pi_guard, "T10-PI guard_type [deprecated]");
-
 static int iscsi_iser_set(const char *val, const struct kernel_param *kp)
 {
 	int ret;
@@ -139,9 +135,8 @@ static int iscsi_iser_set(const char *val, const struct kernel_param *kp)
  * Notes: In case of data length errors or iscsi PDU completion failures
  *        this routine will signal iscsi layer of connection failure.
  */
-void
-iscsi_iser_recv(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
-		char *rx_data, int rx_data_len)
+void iscsi_iser_recv(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
+		     char *rx_data, int rx_data_len)
 {
 	int rc = 0;
 	int datalen;
@@ -176,8 +171,7 @@ error:
  * Netes: This routine can't fail, just assign iscsi task
  *        hdr and max hdr size.
  */
-static int
-iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
+static int iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 
@@ -198,9 +192,8 @@ iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
  * state mutex to avoid dereferencing the IB device which
  * may have already been terminated.
  */
-int
-iser_initialize_task_headers(struct iscsi_task *task,
-			     struct iser_tx_desc *tx_desc)
+int iser_initialize_task_headers(struct iscsi_task *task,
+				 struct iser_tx_desc *tx_desc)
 {
 	struct iser_conn *iser_conn = task->conn->dd_data;
 	struct iser_device *device = iser_conn->ib_conn.device;
@@ -237,8 +230,7 @@ iser_initialize_task_headers(struct iscsi_task *task,
  * Return: Returns zero on success or -ENOMEM when failing
  *         to init task headers (dma mapping error).
  */
-static int
-iscsi_iser_task_init(struct iscsi_task *task)
+static int iscsi_iser_task_init(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	int ret;
@@ -272,8 +264,8 @@ iscsi_iser_task_init(struct iscsi_task *task)
  *	xmit.
  *
  **/
-static int
-iscsi_iser_mtask_xmit(struct iscsi_conn *conn, struct iscsi_task *task)
+static int iscsi_iser_mtask_xmit(struct iscsi_conn *conn,
+				 struct iscsi_task *task)
 {
 	int error = 0;
 
@@ -290,9 +282,8 @@ iscsi_iser_mtask_xmit(struct iscsi_conn *conn, struct iscsi_task *task)
 	return error;
 }
 
-static int
-iscsi_iser_task_xmit_unsol_data(struct iscsi_conn *conn,
-				 struct iscsi_task *task)
+static int iscsi_iser_task_xmit_unsol_data(struct iscsi_conn *conn,
+					   struct iscsi_task *task)
 {
 	struct iscsi_r2t_info *r2t = &task->unsol_r2t;
 	struct iscsi_data hdr;
@@ -326,8 +317,7 @@ iscsi_iser_task_xmit_unsol_data_exit:
  *
  * Return: zero on success or escalates $error on failure.
  */
-static int
-iscsi_iser_task_xmit(struct iscsi_task *task)
+static int iscsi_iser_task_xmit(struct iscsi_task *task)
 {
 	struct iscsi_conn *conn = task->conn;
 	struct iscsi_iser_task *iser_task = task->dd_data;
@@ -410,8 +400,7 @@ static void iscsi_iser_cleanup_task(struct iscsi_task *task)
  *
  *         In addition the error sector is marked.
  */
-static u8
-iscsi_iser_check_protection(struct iscsi_task *task, sector_t *sector)
+static u8 iscsi_iser_check_protection(struct iscsi_task *task, sector_t *sector)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	enum iser_data_dir dir = iser_task->dir[ISER_DIR_IN] ?
@@ -460,11 +449,9 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session,
  *         -EINVAL in case end-point doesn't exsits anymore or iser connection
  *         state is not UP (teardown already started).
  */
-static int
-iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
-		     struct iscsi_cls_conn *cls_conn,
-		     uint64_t transport_eph,
-		     int is_leading)
+static int iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
+				struct iscsi_cls_conn *cls_conn,
+				uint64_t transport_eph, int is_leading)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iser_conn *iser_conn;
@@ -519,8 +506,7 @@ out:
  *        from this point iscsi must call conn_stop in session/connection
  *        teardown so iser transport must wait for it.
  */
-static int
-iscsi_iser_conn_start(struct iscsi_cls_conn *cls_conn)
+static int iscsi_iser_conn_start(struct iscsi_cls_conn *cls_conn)
 {
 	struct iscsi_conn *iscsi_conn;
 	struct iser_conn *iser_conn;
@@ -542,8 +528,7 @@ iscsi_iser_conn_start(struct iscsi_cls_conn *cls_conn)
  *        handle, so we call it under iser the state lock to protect against
  *        this kind of race.
  */
-static void
-iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
+static void iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iser_conn *iser_conn = conn->dd_data;
@@ -578,8 +563,7 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
  *
  * Removes and free iscsi host.
  */
-static void
-iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
+static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 
@@ -588,8 +572,7 @@ iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 	iscsi_host_free(shost);
 }
 
-static inline unsigned int
-iser_dif_prot_caps(int prot_caps)
+static inline unsigned int iser_dif_prot_caps(int prot_caps)
 {
 	int ret = 0;
 
@@ -708,9 +691,8 @@ free_host:
 	return NULL;
 }
 
-static int
-iscsi_iser_set_param(struct iscsi_cls_conn *cls_conn,
-		     enum iscsi_param param, char *buf, int buflen)
+static int iscsi_iser_set_param(struct iscsi_cls_conn *cls_conn,
+				enum iscsi_param param, char *buf, int buflen)
 {
 	int value;
 
@@ -760,8 +742,8 @@ iscsi_iser_set_param(struct iscsi_cls_conn *cls_conn,
  *
  * Output connection statistics.
  */
-static void
-iscsi_iser_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *stats)
+static void iscsi_iser_conn_get_stats(struct iscsi_cls_conn *cls_conn,
+				      struct iscsi_stats *stats)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 
@@ -812,9 +794,9 @@ static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
  * Return: iscsi_endpoint created by iscsi layer or ERR_PTR(error)
  *         if fails.
  */
-static struct iscsi_endpoint *
-iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
-		      int non_blocking)
+static struct iscsi_endpoint *iscsi_iser_ep_connect(struct Scsi_Host *shost,
+						    struct sockaddr *dst_addr,
+						    int non_blocking)
 {
 	int err;
 	struct iser_conn *iser_conn;
@@ -857,8 +839,7 @@ failure:
  *         or more likely iser connection state transitioned to TEMINATING or
  *         DOWN during the wait period.
  */
-static int
-iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
+static int iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 {
 	struct iser_conn *iser_conn = ep->dd_data;
 	int rc;
@@ -893,8 +874,7 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
  * and cleanup or actually call it immediately in case we didn't pass
  * iscsi conn bind/start stage, thus it is safe.
  */
-static void
-iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
+static void iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 {
 	struct iser_conn *iser_conn = ep->dd_data;
 

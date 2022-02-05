@@ -270,9 +270,13 @@ static int pch_gbe_nway_reset(struct net_device *netdev)
  * pch_gbe_get_ringparam - Report ring sizes
  * @netdev:  Network interface device structure
  * @ring:    Ring param structure
+ * @kernel_ring:	Ring external param structure
+ * @extack:	netlink handle
  */
 static void pch_gbe_get_ringparam(struct net_device *netdev,
-					struct ethtool_ringparam *ring)
+				  struct ethtool_ringparam *ring,
+				  struct kernel_ethtool_ringparam *kernel_ring,
+				  struct netlink_ext_ack *extack)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_tx_ring *txdr = adapter->tx_ring;
@@ -288,12 +292,16 @@ static void pch_gbe_get_ringparam(struct net_device *netdev,
  * pch_gbe_set_ringparam - Set ring sizes
  * @netdev:  Network interface device structure
  * @ring:    Ring param structure
+ * @kernel_ring:	Ring external param structure
+ * @extack:	netlink handle
  * Returns
  *	0:			Successful.
  *	Negative value:		Failed.
  */
 static int pch_gbe_set_ringparam(struct net_device *netdev,
-					struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring,
+				 struct kernel_ethtool_ringparam *kernel_ring,
+				 struct netlink_ext_ack *extack)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_tx_ring *txdr, *tx_old;

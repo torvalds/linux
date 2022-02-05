@@ -218,9 +218,9 @@ static int send_udp_packets(int vary_dst_ip)
 		.h_dest = BOND2_MAC,
 		.h_proto = htons(ETH_P_IP),
 	};
-	uint8_t buf[128] = {};
-	struct iphdr *iph = (struct iphdr *)(buf + sizeof(eh));
-	struct udphdr *uh = (struct udphdr *)(buf + sizeof(eh) + sizeof(*iph));
+	struct iphdr iph = {};
+	struct udphdr uh = {};
+	uint8_t buf[128];
 	int i, s = -1;
 	int ifindex;
 
@@ -232,17 +232,16 @@ static int send_udp_packets(int vary_dst_ip)
 	if (!ASSERT_GT(ifindex, 0, "get bond1 ifindex"))
 		goto err;
 
-	memcpy(buf, &eh, sizeof(eh));
-	iph->ihl = 5;
-	iph->version = 4;
-	iph->tos = 16;
-	iph->id = 1;
-	iph->ttl = 64;
-	iph->protocol = IPPROTO_UDP;
-	iph->saddr = 1;
-	iph->daddr = 2;
-	iph->tot_len = htons(sizeof(buf) - ETH_HLEN);
-	iph->check = 0;
+	iph.ihl = 5;
+	iph.version = 4;
+	iph.tos = 16;
+	iph.id = 1;
+	iph.ttl = 64;
+	iph.protocol = IPPROTO_UDP;
+	iph.saddr = 1;
+	iph.daddr = 2;
+	iph.tot_len = htons(sizeof(buf) - ETH_HLEN);
+	iph.check = 0;
 
 	for (i = 1; i <= NPACKETS; i++) {
 		int n;
@@ -253,10 +252,15 @@ static int send_udp_packets(int vary_dst_ip)
 		};
 
 		/* vary the UDP destination port for even distribution with roundrobin/xor modes */
-		uh->dest++;
+		uh.dest++;
 
 		if (vary_dst_ip)
-			iph->daddr++;
+			iph.daddr++;
+
+		/* construct a packet */
+		memcpy(buf, &eh, sizeof(eh));
+		memcpy(buf + sizeof(eh), &iph, sizeof(iph));
+		memcpy(buf + sizeof(eh) + sizeof(iph), &uh, sizeof(uh));
 
 		n = sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)&saddr_ll, sizeof(saddr_ll));
 		if (!ASSERT_EQ(n, sizeof(buf), "sendto"))

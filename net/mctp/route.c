@@ -231,9 +231,7 @@ static void __mctp_key_unlock_drop(struct mctp_sk_key *key, struct net *net,
 	/* and one for the local reference */
 	mctp_key_unref(key);
 
-	if (skb)
-		kfree_skb(skb);
-
+	kfree_skb(skb);
 }
 
 #ifdef CONFIG_MCTP_FLOWS
@@ -892,8 +890,7 @@ out_release:
 	if (!ext_rt)
 		mctp_route_release(rt);
 
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 
 	return rc;
 

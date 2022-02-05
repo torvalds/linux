@@ -1262,7 +1262,7 @@ static void epf_ntb_db_mw_bar_cleanup(struct epf_ntb *ntb,
 }
 
 /**
- * epf_ntb_configure_interrupt() - Configure MSI/MSI-X capaiblity
+ * epf_ntb_configure_interrupt() - Configure MSI/MSI-X capability
  * @ntb: NTB device that facilitates communication between HOST1 and HOST2
  * @type: PRIMARY interface or SECONDARY interface
  *

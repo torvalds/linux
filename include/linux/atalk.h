@@ -113,7 +113,7 @@ extern int aarp_proto_init(void);
 /* Inter module exports */
 
 /* Give a device find its atif control structure */
-#if IS_ENABLED(CONFIG_IRDA) || IS_ENABLED(CONFIG_ATALK)
+#if IS_ENABLED(CONFIG_ATALK)
 static inline struct atalk_iface *atalk_find_dev(struct net_device *dev)
 {
 	return dev->atalk_ptr;

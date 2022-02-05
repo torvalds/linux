@@ -452,7 +452,7 @@ static void scmi_vio_remove(struct virtio_device *vdev)
 	 * outstanding message on any vqueue to be ignored by complete_cb: now
 	 * we can just stop processing buffers and destroy the vqueues.
 	 */
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	vdev->config->del_vqs(vdev);
 	/* Ensure scmi_vdev is visible as NULL */
 	smp_store_mb(scmi_vdev, NULL);

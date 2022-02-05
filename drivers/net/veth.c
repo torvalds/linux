@@ -134,29 +134,22 @@ static void veth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *inf
 
 static void veth_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
-	char *p = (char *)buf;
+	u8 *p = buf;
 	int i, j;
 
 	switch(stringset) {
 	case ETH_SS_STATS:
 		memcpy(p, &ethtool_stats_keys, sizeof(ethtool_stats_keys));
 		p += sizeof(ethtool_stats_keys);
-		for (i = 0; i < dev->real_num_rx_queues; i++) {
-			for (j = 0; j < VETH_RQ_STATS_LEN; j++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "rx_queue_%u_%.18s",
-					 i, veth_rq_stats_desc[j].desc);
-				p += ETH_GSTRING_LEN;
-			}
-		}
-		for (i = 0; i < dev->real_num_tx_queues; i++) {
-			for (j = 0; j < VETH_TQ_STATS_LEN; j++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "tx_queue_%u_%.18s",
-					 i, veth_tq_stats_desc[j].desc);
-				p += ETH_GSTRING_LEN;
-			}
-		}
+		for (i = 0; i < dev->real_num_rx_queues; i++)
+			for (j = 0; j < VETH_RQ_STATS_LEN; j++)
+				ethtool_sprintf(&p, "rx_queue_%u_%.18s",
+						i, veth_rq_stats_desc[j].desc);
+
+		for (i = 0; i < dev->real_num_tx_queues; i++)
+			for (j = 0; j < VETH_TQ_STATS_LEN; j++)
+				ethtool_sprintf(&p, "tx_queue_%u_%.18s",
+						i, veth_tq_stats_desc[j].desc);
 		break;
 	}
 }
@@ -342,7 +335,6 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		use_napi = rcu_access_pointer(rq->napi) &&
 			   veth_skb_is_eligible_for_gro(dev, rcv, skb);
-		skb_record_rx_queue(skb, rxq);
 	}
 
 	skb_tx_timestamp(skb);
@@ -651,7 +643,7 @@ static struct xdp_frame *veth_xdp_rcv_one(struct veth_rq *rq,
 			rcu_read_unlock();
 			goto xdp_xmit;
 		default:
-			bpf_warn_invalid_xdp_action(act);
+			bpf_warn_invalid_xdp_action(rq->dev, xdp_prog, act);
 			fallthrough;
 		case XDP_ABORTED:
 			trace_xdp_exception(rq->dev, xdp_prog, act);
@@ -801,7 +793,7 @@ static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq,
 		rcu_read_unlock();
 		goto xdp_xmit;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(rq->dev, xdp_prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(rq->dev, xdp_prog, act);
@@ -1693,8 +1685,8 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	if (ifmp && (dev->ifindex != 0))
 		peer->ifindex = ifmp->ifi_index;
 
-	peer->gso_max_size = dev->gso_max_size;
-	peer->gso_max_segs = dev->gso_max_segs;
+	netif_set_gso_max_size(peer, dev->gso_max_size);
+	netif_set_gso_max_segs(peer, dev->gso_max_segs);
 
 	err = register_netdevice(peer);
 	put_net(net);

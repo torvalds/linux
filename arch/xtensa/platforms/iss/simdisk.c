@@ -208,7 +208,7 @@ static int simdisk_detach(struct simdisk *dev)
 static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 			size_t size, loff_t *ppos)
 {
-	struct simdisk *dev = PDE_DATA(file_inode(file));
+	struct simdisk *dev = pde_data(file_inode(file));
 	const char *s = dev->filename;
 	if (s) {
 		ssize_t n = simple_read_from_buffer(buf, size, ppos,
@@ -225,7 +225,7 @@ static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	char *tmp = memdup_user_nul(buf, count);
-	struct simdisk *dev = PDE_DATA(file_inode(file));
+	struct simdisk *dev = pde_data(file_inode(file));
 	int err;
 
 	if (IS_ERR(tmp))

@@ -419,7 +419,7 @@ struct iwl_geo_tx_power_profiles_cmd_v1 {
  * struct iwl_geo_tx_power_profile_cmd_v2 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
- * @table_revision: BIOS table revision.
+ * @table_revision: 0 for not-South Korea, 1 for South Korea (the name is misleading)
  */
 struct iwl_geo_tx_power_profiles_cmd_v2 {
 	__le32 ops;
@@ -431,7 +431,7 @@ struct iwl_geo_tx_power_profiles_cmd_v2 {
  * struct iwl_geo_tx_power_profile_cmd_v3 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
- * @table_revision: BIOS table revision.
+ * @table_revision: 0 for not-South Korea, 1 for South Korea (the name is misleading)
  */
 struct iwl_geo_tx_power_profiles_cmd_v3 {
 	__le32 ops;
@@ -443,7 +443,7 @@ struct iwl_geo_tx_power_profiles_cmd_v3 {
  * struct iwl_geo_tx_power_profile_cmd_v4 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
- * @table_revision: BIOS table revision.
+ * @table_revision: 0 for not-South Korea, 1 for South Korea (the name is misleading)
  */
 struct iwl_geo_tx_power_profiles_cmd_v4 {
 	__le32 ops;
@@ -455,7 +455,7 @@ struct iwl_geo_tx_power_profiles_cmd_v4 {
  * struct iwl_geo_tx_power_profile_cmd_v5 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
- * @table_revision: BIOS table revision.
+ * @table_revision: 0 for not-South Korea, 1 for South Korea (the name is misleading)
  */
 struct iwl_geo_tx_power_profiles_cmd_v5 {
 	__le32 ops;
@@ -502,6 +502,20 @@ union iwl_ppag_table_cmd {
 		s8 reserved[2];
 	} v2;
 } __packed;
+
+#define MCC_TO_SAR_OFFSET_TABLE_ROW_SIZE	26
+#define MCC_TO_SAR_OFFSET_TABLE_COL_SIZE	13
+
+/**
+ * struct iwl_sar_offset_mapping_cmd - struct for SAR_OFFSET_MAPPING_TABLE_CMD
+ * @offset_map: mapping a mcc to a geo sar group
+ * @reserved: reserved
+ */
+struct iwl_sar_offset_mapping_cmd {
+	u8 offset_map[MCC_TO_SAR_OFFSET_TABLE_ROW_SIZE]
+		[MCC_TO_SAR_OFFSET_TABLE_COL_SIZE];
+	u16 reserved;
+} __packed; /*SAR_OFFSET_MAPPING_TABLE_CMD_API_S*/
 
 /**
  * struct iwl_beacon_filter_cmd

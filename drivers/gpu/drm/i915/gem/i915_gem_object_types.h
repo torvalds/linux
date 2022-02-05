@@ -34,9 +34,11 @@ struct i915_lut_handle {
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
-#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
-#define I915_GEM_OBJECT_IS_PROXY	BIT(2)
-#define I915_GEM_OBJECT_NO_MMAP		BIT(3)
+#define I915_GEM_OBJECT_IS_SHRINKABLE			BIT(1)
+/* Skip the shrinker management in set_pages/unset_pages */
+#define I915_GEM_OBJECT_SELF_MANAGED_SHRINK_LIST	BIT(2)
+#define I915_GEM_OBJECT_IS_PROXY			BIT(3)
+#define I915_GEM_OBJECT_NO_MMAP				BIT(4)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -54,14 +56,18 @@ struct drm_i915_gem_object_ops {
 	int (*get_pages)(struct drm_i915_gem_object *obj);
 	void (*put_pages)(struct drm_i915_gem_object *obj,
 			  struct sg_table *pages);
-	void (*truncate)(struct drm_i915_gem_object *obj);
+	int (*truncate)(struct drm_i915_gem_object *obj);
 	void (*writeback)(struct drm_i915_gem_object *obj);
+	int (*shrinker_release_pages)(struct drm_i915_gem_object *obj,
+				      bool no_gpu_wait,
+				      bool should_writeback);
 
 	int (*pread)(struct drm_i915_gem_object *obj,
 		     const struct drm_i915_gem_pread *arg);
 	int (*pwrite)(struct drm_i915_gem_object *obj,
 		      const struct drm_i915_gem_pwrite *arg);
 	u64 (*mmap_offset)(struct drm_i915_gem_object *obj);
+	void (*unmap_virtual)(struct drm_i915_gem_object *obj);
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *obj);
 
@@ -305,6 +311,7 @@ struct drm_i915_gem_object {
 #define I915_BO_READONLY          BIT(6)
 #define I915_TILING_QUIRK_BIT     7 /* unknown swizzling; do not release! */
 #define I915_BO_PROTECTED         BIT(8)
+#define I915_BO_WAS_BOUND_BIT     9
 	/**
 	 * @mem_flags - Mutable placement-related flags
 	 *
@@ -486,7 +493,35 @@ struct drm_i915_gem_object {
 		 * instead go through the pin/unpin interfaces.
 		 */
 		atomic_t pages_pin_count;
+
+		/**
+		 * @shrink_pin: Prevents the pages from being made visible to
+		 * the shrinker, while the shrink_pin is non-zero. Most users
+		 * should pretty much never have to care about this, outside of
+		 * some special use cases.
+		 *
+		 * By default most objects will start out as visible to the
+		 * shrinker(if I915_GEM_OBJECT_IS_SHRINKABLE) as soon as the
+		 * backing pages are attached to the object, like in
+		 * __i915_gem_object_set_pages(). They will then be removed the
+		 * shrinker list once the pages are released.
+		 *
+		 * The @shrink_pin is incremented by calling
+		 * i915_gem_object_make_unshrinkable(), which will also remove
+		 * the object from the shrinker list, if the pin count was zero.
+		 *
+		 * Callers will then typically call
+		 * i915_gem_object_make_shrinkable() or
+		 * i915_gem_object_make_purgeable() to decrement the pin count,
+		 * and make the pages visible again.
+		 */
 		atomic_t shrink_pin;
+
+		/**
+		 * @ttm_shrinkable: True when the object is using shmem pages
+		 * underneath. Protected by the object lock.
+		 */
+		bool ttm_shrinkable;
 
 		/**
 		 * Priority list of potential placements for this object.
@@ -512,6 +547,7 @@ struct drm_i915_gem_object {
 		 */
 		struct list_head region_link;
 
+		struct i915_refct_sgt *rsgt;
 		struct sg_table *pages;
 		void *mapping;
 
@@ -547,7 +583,7 @@ struct drm_i915_gem_object {
 		struct i915_gem_object_page_iter get_dma_page;
 
 		/**
-		 * Element within i915->mm.unbound_list or i915->mm.bound_list,
+		 * Element within i915->mm.shrink_list or i915->mm.purge_list,
 		 * locked by i915->mm.obj_lock.
 		 */
 		struct list_head link;
@@ -565,7 +601,7 @@ struct drm_i915_gem_object {
 	} mm;
 
 	struct {
-		struct sg_table *cached_io_st;
+		struct i915_refct_sgt *cached_io_rsgt;
 		struct i915_gem_object_page_iter get_io_page;
 		struct drm_i915_gem_object *backup;
 		bool created:1;

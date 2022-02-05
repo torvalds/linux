@@ -9,6 +9,7 @@ config VIDEO_ROCKCHIP_VDEC
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
 	select V4L2_H264
+	select V4L2_VP9
 	help
 	  Support for the Rockchip Video Decoder IP present on Rockchip SoCs,
 	  which accelerates video decoding.

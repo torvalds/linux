@@ -817,7 +817,9 @@ static void cpmac_tx_timeout(struct net_device *dev, unsigned int txqueue)
 }
 
 static void cpmac_get_ringparam(struct net_device *dev,
-						struct ethtool_ringparam *ring)
+				struct ethtool_ringparam *ring,
+				struct kernel_ethtool_ringparam *kernel_ring,
+				struct netlink_ext_ack *extack)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 
@@ -833,7 +835,9 @@ static void cpmac_get_ringparam(struct net_device *dev,
 }
 
 static int cpmac_set_ringparam(struct net_device *dev,
-						struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 

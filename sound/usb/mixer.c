@@ -145,6 +145,7 @@ static inline void check_mapped_dB(const struct usbmix_name_map *p,
 	if (p && p->dB) {
 		cval->dBmin = p->dB->min;
 		cval->dBmax = p->dB->max;
+		cval->min_mute = p->dB->min_mute;
 		cval->initialized = 1;
 	}
 }
@@ -3628,7 +3629,6 @@ void snd_usb_mixer_disconnect(struct usb_mixer_interface *mixer)
 	mixer->disconnected = true;
 }
 
-#ifdef CONFIG_PM
 /* stop any bus activity of a mixer */
 static void snd_usb_mixer_inactivate(struct usb_mixer_interface *mixer)
 {
@@ -3710,7 +3710,6 @@ int snd_usb_mixer_resume(struct usb_mixer_interface *mixer)
 
 	return snd_usb_mixer_activate(mixer);
 }
-#endif
 
 void snd_usb_mixer_elem_init_std(struct usb_mixer_elem_list *list,
 				 struct usb_mixer_interface *mixer,
@@ -3719,7 +3718,5 @@ void snd_usb_mixer_elem_init_std(struct usb_mixer_elem_list *list,
 	list->mixer = mixer;
 	list->id = unitid;
 	list->dump = snd_usb_mixer_dump_cval;
-#ifdef CONFIG_PM
 	list->resume = restore_mixer_value;
-#endif
 }

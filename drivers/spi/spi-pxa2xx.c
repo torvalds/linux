@@ -427,17 +427,11 @@ static void lpss_ssp_cs_control(struct spi_device *spi, bool enable)
 
 static void cs_assert(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata(spi);
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 
 	if (drv_data->ssp_type == CE4100_SSP) {
 		pxa2xx_spi_write(drv_data, SSSR, spi->chip_select);
-		return;
-	}
-
-	if (chip->cs_control) {
-		chip->cs_control(PXA2XX_CS_ASSERT);
 		return;
 	}
 
@@ -447,7 +441,6 @@ static void cs_assert(struct spi_device *spi)
 
 static void cs_deassert(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata(spi);
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 	unsigned long timeout;
@@ -460,11 +453,6 @@ static void cs_deassert(struct spi_device *spi)
 	while (pxa2xx_spi_read(drv_data, SSSR) & SSSR_BSY &&
 	       !time_after(jiffies, timeout))
 		cpu_relax();
-
-	if (chip->cs_control) {
-		chip->cs_control(PXA2XX_CS_DEASSERT);
-		return;
-	}
 
 	if (is_lpss_ssp(drv_data))
 		lpss_ssp_cs_control(spi, false);
@@ -994,13 +982,10 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 		dev_err(&spi->dev, "Flush failed\n");
 		return -EIO;
 	}
-	drv_data->n_bytes = chip->n_bytes;
 	drv_data->tx = (void *)transfer->tx_buf;
 	drv_data->tx_end = drv_data->tx + transfer->len;
 	drv_data->rx = transfer->rx_buf;
 	drv_data->rx_end = drv_data->rx + transfer->len;
-	drv_data->write = drv_data->tx ? chip->write : null_writer;
-	drv_data->read = drv_data->rx ? chip->read : null_reader;
 
 	/* Change speed and bit per word on a per transfer */
 	bits = transfer->bits_per_word;
@@ -1010,22 +995,16 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 
 	if (bits <= 8) {
 		drv_data->n_bytes = 1;
-		drv_data->read = drv_data->read != null_reader ?
-					u8_reader : null_reader;
-		drv_data->write = drv_data->write != null_writer ?
-					u8_writer : null_writer;
+		drv_data->read = drv_data->rx ? u8_reader : null_reader;
+		drv_data->write = drv_data->tx ? u8_writer : null_writer;
 	} else if (bits <= 16) {
 		drv_data->n_bytes = 2;
-		drv_data->read = drv_data->read != null_reader ?
-					u16_reader : null_reader;
-		drv_data->write = drv_data->write != null_writer ?
-					u16_writer : null_writer;
+		drv_data->read = drv_data->rx ? u16_reader : null_reader;
+		drv_data->write = drv_data->tx ? u16_writer : null_writer;
 	} else if (bits <= 32) {
 		drv_data->n_bytes = 4;
-		drv_data->read = drv_data->read != null_reader ?
-					u32_reader : null_reader;
-		drv_data->write = drv_data->write != null_writer ?
-					u32_writer : null_writer;
+		drv_data->read = drv_data->rx ? u32_reader : null_reader;
+		drv_data->write = drv_data->tx ? u32_writer : null_writer;
 	}
 	/*
 	 * If bits per word is changed in DMA mode, then must check
@@ -1213,12 +1192,6 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 	 */
 	cleanup_cs(spi);
 
-	/* If ->cs_control() is provided, ignore GPIO chip select */
-	if (chip_info->cs_control) {
-		chip->cs_control = chip_info->cs_control;
-		return 0;
-	}
-
 	if (gpio_is_valid(chip_info->gpio_cs)) {
 		int gpio = chip_info->gpio_cs;
 		int err;
@@ -1316,7 +1289,6 @@ static int setup(struct spi_device *spi)
 	chip_info = spi->controller_data;
 
 	/* chip_info isn't always needed */
-	chip->cr1 = 0;
 	if (chip_info) {
 		if (chip_info->timeout)
 			chip->timeout = chip_info->timeout;
@@ -1327,9 +1299,9 @@ static int setup(struct spi_device *spi)
 		if (chip_info->rx_threshold)
 			rx_thres = chip_info->rx_threshold;
 		chip->dma_threshold = 0;
-		if (chip_info->enable_loopback)
-			chip->cr1 = SSCR1_LBM;
 	}
+
+	chip->cr1 = 0;
 	if (spi_controller_is_slave(drv_data->controller)) {
 		chip->cr1 |= SSCR1_SCFR;
 		chip->cr1 |= SSCR1_SCLKDIR;
@@ -1390,20 +1362,6 @@ static int setup(struct spi_device *spi)
 
 	if (spi->mode & SPI_LOOP)
 		chip->cr1 |= SSCR1_LBM;
-
-	if (spi->bits_per_word <= 8) {
-		chip->n_bytes = 1;
-		chip->read = u8_reader;
-		chip->write = u8_writer;
-	} else if (spi->bits_per_word <= 16) {
-		chip->n_bytes = 2;
-		chip->read = u16_reader;
-		chip->write = u16_writer;
-	} else if (spi->bits_per_word <= 32) {
-		chip->n_bytes = 4;
-		chip->read = u32_reader;
-		chip->write = u32_writer;
-	}
 
 	spi_set_ctldata(spi, chip);
 
@@ -1706,8 +1664,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->controller_info = platform_info;
 	drv_data->ssp = ssp;
 
-	controller->dev.of_node = dev->of_node;
-	controller->dev.fwnode = dev->fwnode;
+	device_set_node(&controller->dev, dev_fwnode(dev));
 
 	/* The spi->mode bits understood by this driver: */
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;

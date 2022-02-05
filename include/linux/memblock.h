@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _LINUX_MEMBLOCK_H
 #define _LINUX_MEMBLOCK_H
-#ifdef __KERNEL__
 
 /*
  * Logical memory blocks.
@@ -605,6 +604,5 @@ static inline void early_memtest(phys_addr_t start, phys_addr_t end)
 }
 #endif
 
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_MEMBLOCK_H */

@@ -232,6 +232,7 @@ enum {
 #define MLX5_IB_NUM_FLOW_FT		(MLX5_IB_FLOW_LEFTOVERS_PRIO + 1)
 #define MLX5_IB_NUM_SNIFFER_FTS		2
 #define MLX5_IB_NUM_EGRESS_FTS		1
+#define MLX5_IB_NUM_FDB_FTS		MLX5_BY_PASS_NUM_REGULAR_PRIOS
 struct mlx5_ib_flow_prio {
 	struct mlx5_flow_table		*flow_table;
 	unsigned int			refcount;
@@ -276,7 +277,7 @@ struct mlx5_ib_flow_db {
 	struct mlx5_ib_flow_prio	egress_prios[MLX5_IB_NUM_FLOW_FT];
 	struct mlx5_ib_flow_prio	sniffer[MLX5_IB_NUM_SNIFFER_FTS];
 	struct mlx5_ib_flow_prio	egress[MLX5_IB_NUM_EGRESS_FTS];
-	struct mlx5_ib_flow_prio	fdb;
+	struct mlx5_ib_flow_prio	fdb[MLX5_IB_NUM_FDB_FTS];
 	struct mlx5_ib_flow_prio	rdma_rx[MLX5_IB_NUM_FLOW_FT];
 	struct mlx5_ib_flow_prio	rdma_tx[MLX5_IB_NUM_FLOW_FT];
 	struct mlx5_ib_flow_prio	opfcs[MLX5_IB_OPCOUNTER_MAX];
@@ -664,9 +665,9 @@ struct mlx5_ib_mr {
 
 	/* User MR data */
 	struct mlx5_cache_ent *cache_ent;
+	/* Everything after cache_ent is zero'd when MR allocated */
 	struct ib_umem *umem;
 
-	/* This is zero'd when the MR is allocated */
 	union {
 		/* Used only while the MR is in the cache */
 		struct {
@@ -718,7 +719,7 @@ struct mlx5_ib_mr {
 /* Zero the fields in the mr that are variant depending on usage */
 static inline void mlx5_clear_mr(struct mlx5_ib_mr *mr)
 {
-	memset(mr->out, 0, sizeof(*mr) - offsetof(struct mlx5_ib_mr, out));
+	memset_after(mr, 0, cache_ent);
 }
 
 static inline bool is_odp_mr(struct mlx5_ib_mr *mr)
@@ -1464,14 +1465,6 @@ extern const struct uapi_definition mlx5_ib_devx_defs[];
 extern const struct uapi_definition mlx5_ib_flow_defs[];
 extern const struct uapi_definition mlx5_ib_qos_defs[];
 extern const struct uapi_definition mlx5_ib_std_types_defs[];
-
-static inline void init_query_mad(struct ib_smp *mad)
-{
-	mad->base_version  = 1;
-	mad->mgmt_class    = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	mad->class_version = 1;
-	mad->method	   = IB_MGMT_METHOD_GET;
-}
 
 static inline int is_qp1(enum ib_qp_type qp_type)
 {

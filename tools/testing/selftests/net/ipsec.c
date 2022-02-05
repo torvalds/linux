@@ -41,7 +41,6 @@
 
 #define pr_err(fmt, ...)	printk(fmt ": %m", ##__VA_ARGS__)
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
 #define IPV4_STR_SZ	16	/* xxx.xxx.xxx.xxx is longest + \0 */

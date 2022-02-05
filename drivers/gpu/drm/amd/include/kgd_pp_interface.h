@@ -153,6 +153,10 @@ enum PP_SMC_POWER_PROFILE {
 	PP_SMC_POWER_PROFILE_COUNT,
 };
 
+extern const char * const amdgpu_pp_profile_name[PP_SMC_POWER_PROFILE_COUNT];
+
+
+
 enum {
 	PP_GROUP_UNKNOWN = 0,
 	PP_GROUP_GFX = 1,

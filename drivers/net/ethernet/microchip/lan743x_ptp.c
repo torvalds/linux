@@ -1305,12 +1305,6 @@ int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
 
-	if (config.flags) {
-		netif_warn(adapter, drv, adapter->netdev,
-			   "ignoring hwtstamp_config.flags == 0x%08X, expected 0\n",
-			   config.flags);
-	}
-
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
 		for (index = 0; index < LAN743X_MAX_TX_CHANNELS;

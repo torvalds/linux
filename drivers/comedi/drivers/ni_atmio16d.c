@@ -39,9 +39,8 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include "../comedidev.h"
-
-#include "8255.h"
+#include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8255.h>
 
 /* Configuration and Status Registers */
 #define COM_REG_1	0x00	/* wo 16 */

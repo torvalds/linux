@@ -10,6 +10,8 @@
 #include "iosm_ipc_flash.h"
 #include "iosm_ipc_imem.h"
 #include "iosm_ipc_port.h"
+#include "iosm_ipc_trace.h"
+#include "iosm_ipc_debugfs.h"
 
 /* Check the wwan ips if it is valid with Channel as input. */
 static int ipc_imem_check_wwan_ips(struct ipc_mem_channel *chnl)
@@ -132,7 +134,6 @@ static int ipc_imem_setup_cp_mux_cap_init(struct iosm_imem *ipc_imem,
 	 * for channel alloc function.
 	 */
 	cfg->instance_id = IPC_MEM_MUX_IP_CH_IF_ID;
-	cfg->nr_sessions = IPC_MEM_MUX_IP_SESSION_ENTRIES;
 
 	return 0;
 }
@@ -269,9 +270,14 @@ static void ipc_imem_dl_skb_process(struct iosm_imem *ipc_imem,
 	switch (pipe->channel->ctype) {
 	case IPC_CTYPE_CTRL:
 		port_id = pipe->channel->channel_id;
+		ipc_pcie_addr_unmap(ipc_imem->pcie, IPC_CB(skb)->len,
+				    IPC_CB(skb)->mapping,
+				    IPC_CB(skb)->direction);
 		if (port_id == IPC_MEM_CTRL_CHL_ID_7)
 			ipc_imem_sys_devlink_notify_rx(ipc_imem->ipc_devlink,
 						       skb);
+		else if (ipc_is_trace_channel(ipc_imem, port_id))
+			ipc_trace_port_rx(ipc_imem, skb);
 		else
 			wwan_port_rx(ipc_imem->ipc_port[port_id]->iosm_port,
 				     skb);
@@ -554,6 +560,8 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 		}
 		ctrl_chl_idx++;
 	}
+
+	ipc_debugfs_init(ipc_imem);
 
 	ipc_task_queue_send_task(ipc_imem, ipc_imem_send_mdm_rdy_cb, 0, NULL, 0,
 				 false);
@@ -1170,6 +1178,7 @@ void ipc_imem_cleanup(struct iosm_imem *ipc_imem)
 
 	if (test_and_clear_bit(FULLY_FUNCTIONAL, &ipc_imem->flag)) {
 		ipc_mux_deinit(ipc_imem->mux);
+		ipc_debugfs_deinit(ipc_imem);
 		ipc_wwan_deinit(ipc_imem->wwan);
 		ipc_port_deinit(ipc_imem->ipc_port);
 	}

@@ -347,7 +347,7 @@ static struct pxa2xx_spi_controller pxa_ssp_master_2_info = {
 };
 
 /* An upcoming kernel change will scrap SFRM usage so these
- * drivers have been moved to use gpio's via cs_control */
+ * drivers have been moved to use GPIOs */
 static struct pxa2xx_spi_chip staccel_chip_info = {
 	.tx_threshold = 8,
 	.rx_threshold = 8,

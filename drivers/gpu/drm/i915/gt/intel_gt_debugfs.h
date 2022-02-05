@@ -10,11 +10,7 @@
 
 struct intel_gt;
 
-#define DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(__name)				\
-	static int __name ## _open(struct inode *inode, struct file *file) \
-{									\
-	return single_open(file, __name ## _show, inode->i_private);	\
-}									\
+#define __GT_DEBUGFS_ATTRIBUTE_FOPS(__name)				\
 static const struct file_operations __name ## _fops = {			\
 	.owner = THIS_MODULE,						\
 	.open = __name ## _open,					\
@@ -22,6 +18,21 @@ static const struct file_operations __name ## _fops = {			\
 	.llseek = seq_lseek,						\
 	.release = single_release,					\
 }
+
+#define DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(__name)			\
+static int __name ## _open(struct inode *inode, struct file *file)	\
+{									\
+	return single_open(file, __name ## _show, inode->i_private);	\
+}									\
+__GT_DEBUGFS_ATTRIBUTE_FOPS(__name)
+
+#define DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE_WITH_SIZE(__name, __size_vf)		\
+static int __name ## _open(struct inode *inode, struct file *file)		\
+{										\
+	return single_open_size(file, __name ## _show, inode->i_private,	\
+			    __size_vf(inode->i_private));			\
+}										\
+__GT_DEBUGFS_ATTRIBUTE_FOPS(__name)
 
 void intel_gt_debugfs_register(struct intel_gt *gt);
 

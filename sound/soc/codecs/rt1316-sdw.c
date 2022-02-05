@@ -602,7 +602,7 @@ static const struct snd_soc_component_driver soc_component_sdw_rt1316 = {
 static const struct snd_soc_dai_ops rt1316_aif_dai_ops = {
 	.hw_params = rt1316_sdw_hw_params,
 	.hw_free	= rt1316_sdw_pcm_hw_free,
-	.set_sdw_stream	= rt1316_set_sdw_stream,
+	.set_stream	= rt1316_set_sdw_stream,
 	.shutdown	= rt1316_sdw_shutdown,
 };
 

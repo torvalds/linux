@@ -55,7 +55,6 @@ enum igc_mac_type {
 
 enum igc_phy_type {
 	igc_phy_unknown = 0,
-	igc_phy_none,
 	igc_phy_i225,
 };
 
@@ -68,8 +67,6 @@ enum igc_media_type {
 enum igc_nvm_type {
 	igc_nvm_unknown = 0,
 	igc_nvm_eeprom_spi,
-	igc_nvm_flash_hw,
-	igc_nvm_invm,
 };
 
 struct igc_info {

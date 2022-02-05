@@ -782,8 +782,8 @@ static int fimc_set_prescaler(struct fimc_context *ctx, struct fimc_scaler *sc,
 
 	sc->hratio = (src_w << 14) / (dst_w << hfactor);
 	sc->vratio = (src_h << 14) / (dst_h << vfactor);
-	sc->up_h = (dst_w >= src_w) ? true : false;
-	sc->up_v = (dst_h >= src_h) ? true : false;
+	sc->up_h = (dst_w >= src_w);
+	sc->up_v = (dst_h >= src_h);
 	DRM_DEV_DEBUG_KMS(ctx->dev, "hratio[%d]vratio[%d]up_h[%d]up_v[%d]\n",
 			  sc->hratio, sc->vratio, sc->up_h, sc->up_v);
 

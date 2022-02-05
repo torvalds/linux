@@ -434,9 +434,6 @@ static int atlas_buffer_predisable(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static const struct iio_trigger_ops atlas_interrupt_trigger_ops = {
-};
-
 static const struct iio_buffer_setup_ops atlas_buffer_setup_ops = {
 	.postenable = atlas_buffer_postenable,
 	.predisable = atlas_buffer_predisable,
@@ -645,7 +642,6 @@ static int atlas_probe(struct i2c_client *client,
 	data->client = client;
 	data->trig = trig;
 	data->chip = chip;
-	trig->ops = &atlas_interrupt_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);
 
 	i2c_set_clientdata(client, indio_dev);

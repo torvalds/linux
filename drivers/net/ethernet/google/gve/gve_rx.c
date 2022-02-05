@@ -86,7 +86,8 @@ static int gve_rx_alloc_buffer(struct gve_priv *priv, struct device *dev,
 	dma_addr_t dma;
 	int err;
 
-	err = gve_alloc_page(priv, dev, &page, &dma, DMA_FROM_DEVICE);
+	err = gve_alloc_page(priv, dev, &page, &dma, DMA_FROM_DEVICE,
+			     GFP_ATOMIC);
 	if (err)
 		return err;
 
@@ -639,8 +640,6 @@ bool gve_rx_work_pending(struct gve_rx_ring *rx)
 	desc = rx->desc.desc_ring + next_idx;
 
 	flags_seq = desc->flags_seq;
-	/* Make sure we have synchronized the seq no with the device */
-	smp_rmb();
 
 	return (GVE_SEQNO(flags_seq) == rx->desc.seqno);
 }

@@ -516,7 +516,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 		if (vb && vb->vb.vb2_buf.planes[0].bytesused >=
 				GO7007_BUF_SIZE - 3) {
 			v4l2_info(&go->v4l2_dev, "dropping oversized frame\n");
-			vb->vb.vb2_buf.planes[0].bytesused = 0;
+			vb2_set_plane_payload(&vb->vb.vb2_buf, 0, 0);
 			vb->frame_offset = 0;
 			vb->modet_active = 0;
 			vb = go->active_buf = NULL;

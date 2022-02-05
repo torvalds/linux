@@ -15,11 +15,9 @@ description: |
   960 TFT source driver pins and 240 TFT gate driver pins, VCOM, VCOML and
   VCOMH outputs.
 
-  The panel must obey the rules for a SPI slave device as specified in
-  spi/spi-controller.yaml
-
 allOf:
   - $ref: panel-common.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:

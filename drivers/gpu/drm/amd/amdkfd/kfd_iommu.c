@@ -89,7 +89,7 @@ int kfd_iommu_device_init(struct kfd_dev *kfd)
 	}
 
 	pasid_limit = min_t(unsigned int,
-			(unsigned int)(1 << kfd->device_info->max_pasid_bits),
+			(unsigned int)(1 << kfd->device_info.max_pasid_bits),
 			iommu_info.max_pasids);
 
 	if (!kfd_set_pasid_limit(pasid_limit)) {

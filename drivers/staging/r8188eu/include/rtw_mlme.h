@@ -243,18 +243,6 @@ struct wifidirect_info {
 	 * by using the sta_preset CAPI. */
 	/*	0: disable */
 	/*	1: enable */
-	u8 wfd_tdls_enable; /* Flag to enable or disable the TDLS by WFD Sigma*/
-			    /* 0: disable */
-			    /*	1: enable */
-	u8 wfd_tdls_weaksec; /* Flag to enable or disable the weak security
-			      * function for TDLS by WFD Sigma */
-			     /* 0: disable */
-			     /* In this case, the driver can't issue the tdsl
-			      * setup request frame. */
-			     /*	1: enable */
-			     /* In this case, the driver can issue the tdls
-			      * setup request frame */
-			     /*	even the current security is weak security. */
 
 	/* This field will store the WPS value (PIN value or PBC) that UI had
 	 * got from the user. */

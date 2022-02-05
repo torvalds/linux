@@ -94,7 +94,7 @@ static void perf_mmap__aio_free(struct mmap *map, int idx)
 	}
 }
 
-static int perf_mmap__aio_bind(struct mmap *map, int idx, int cpu, int affinity)
+static int perf_mmap__aio_bind(struct mmap *map, int idx, struct perf_cpu cpu, int affinity)
 {
 	void *data;
 	size_t mmap_len;
@@ -138,7 +138,7 @@ static void perf_mmap__aio_free(struct mmap *map, int idx)
 }
 
 static int perf_mmap__aio_bind(struct mmap *map __maybe_unused, int idx __maybe_unused,
-		int cpu __maybe_unused, int affinity __maybe_unused)
+		struct perf_cpu cpu __maybe_unused, int affinity __maybe_unused)
 {
 	return 0;
 }
@@ -240,7 +240,8 @@ void mmap__munmap(struct mmap *map)
 
 static void build_node_mask(int node, struct mmap_cpu_mask *mask)
 {
-	int c, cpu, nr_cpus;
+	int idx, nr_cpus;
+	struct perf_cpu cpu;
 	const struct perf_cpu_map *cpu_map = NULL;
 
 	cpu_map = cpu_map__online();
@@ -248,16 +249,16 @@ static void build_node_mask(int node, struct mmap_cpu_mask *mask)
 		return;
 
 	nr_cpus = perf_cpu_map__nr(cpu_map);
-	for (c = 0; c < nr_cpus; c++) {
-		cpu = cpu_map->map[c]; /* map c index to online cpu index */
+	for (idx = 0; idx < nr_cpus; idx++) {
+		cpu = perf_cpu_map__cpu(cpu_map, idx); /* map c index to online cpu index */
 		if (cpu__get_node(cpu) == node)
-			set_bit(cpu, mask->bits);
+			set_bit(cpu.cpu, mask->bits);
 	}
 }
 
 static int perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params *mp)
 {
-	map->affinity_mask.nbits = cpu__max_cpu();
+	map->affinity_mask.nbits = cpu__max_cpu().cpu;
 	map->affinity_mask.bits = bitmap_zalloc(map->affinity_mask.nbits);
 	if (!map->affinity_mask.bits)
 		return -1;
@@ -265,12 +266,12 @@ static int perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params *
 	if (mp->affinity == PERF_AFFINITY_NODE && cpu__max_node() > 1)
 		build_node_mask(cpu__get_node(map->core.cpu), &map->affinity_mask);
 	else if (mp->affinity == PERF_AFFINITY_CPU)
-		set_bit(map->core.cpu, map->affinity_mask.bits);
+		set_bit(map->core.cpu.cpu, map->affinity_mask.bits);
 
 	return 0;
 }
 
-int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
+int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, struct perf_cpu cpu)
 {
 	if (perf_mmap__mmap(&map->core, &mp->core, fd, cpu)) {
 		pr_debug2("failed to mmap perf event ring buffer, error %d\n",

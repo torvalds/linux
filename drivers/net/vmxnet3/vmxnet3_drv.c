@@ -3159,14 +3159,14 @@ out:
 
 
 static void
-vmxnet3_declare_features(struct vmxnet3_adapter *adapter, bool dma64)
+vmxnet3_declare_features(struct vmxnet3_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
 		NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_TX |
 		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_TSO | NETIF_F_TSO6 |
-		NETIF_F_LRO;
+		NETIF_F_LRO | NETIF_F_HIGHDMA;
 
 	if (VMXNET3_VERSION_GE_4(adapter)) {
 		netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL |
@@ -3179,8 +3179,6 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter, bool dma64)
 			NETIF_F_GSO_UDP_TUNNEL_CSUM;
 	}
 
-	if (dma64)
-		netdev->hw_features |= NETIF_F_HIGHDMA;
 	netdev->vlan_features = netdev->hw_features &
 				~(NETIF_F_HW_VLAN_CTAG_TX |
 				  NETIF_F_HW_VLAN_CTAG_RX);
@@ -3397,7 +3395,6 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 #endif
 	};
 	int err;
-	bool dma64;
 	u32 ver;
 	struct net_device *netdev;
 	struct vmxnet3_adapter *adapter;
@@ -3439,15 +3436,10 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	adapter->rx_ring_size = VMXNET3_DEF_RX_RING_SIZE;
 	adapter->rx_ring2_size = VMXNET3_DEF_RX_RING2_SIZE;
 
-	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
-		dma64 = true;
-	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "dma_set_mask failed\n");
-			goto err_set_mask;
-		}
-		dma64 = false;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		dev_err(&pdev->dev, "dma_set_mask failed\n");
+		goto err_set_mask;
 	}
 
 	spin_lock_init(&adapter->cmd_lock);
@@ -3614,7 +3606,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	}
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	vmxnet3_declare_features(adapter, dma64);
+	vmxnet3_declare_features(adapter);
 
 	adapter->rxdata_desc_size = VMXNET3_VERSION_GE_3(adapter) ?
 		VMXNET3_DEF_RXDATA_DESC_SIZE : 0;

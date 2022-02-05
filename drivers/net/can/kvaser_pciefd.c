@@ -1185,19 +1185,20 @@ static int kvaser_pciefd_handle_data_packet(struct kvaser_pciefd *pcie,
 
 	cf->len = can_fd_dlc2len(p->header[1] >> KVASER_PCIEFD_RPACKET_DLC_SHIFT);
 
-	if (p->header[0] & KVASER_PCIEFD_RPACKET_RTR)
+	if (p->header[0] & KVASER_PCIEFD_RPACKET_RTR) {
 		cf->can_id |= CAN_RTR_FLAG;
-	else
+	} else {
 		memcpy(cf->data, data, cf->len);
+
+		stats->rx_bytes += cf->len;
+	}
+	stats->rx_packets++;
 
 	shhwtstamps = skb_hwtstamps(skb);
 
 	shhwtstamps->hwtstamp =
 		ns_to_ktime(div_u64(p->timestamp * 1000,
 				    pcie->freq_to_ticks_div));
-
-	stats->rx_bytes += cf->len;
-	stats->rx_packets++;
 
 	return netif_rx(skb);
 }
@@ -1309,9 +1310,6 @@ static int kvaser_pciefd_rx_error_frame(struct kvaser_pciefd_can *can,
 
 	cf->data[6] = bec.txerr;
 	cf->data[7] = bec.rxerr;
-
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 
 	netif_rx(skb);
 	return 0;
@@ -1510,8 +1508,6 @@ static void kvaser_pciefd_handle_nack_packet(struct kvaser_pciefd_can *can,
 
 	if (skb) {
 		cf->can_id |= CAN_ERR_BUSERROR;
-		stats->rx_bytes += cf->len;
-		stats->rx_packets++;
 		netif_rx(skb);
 	} else {
 		stats->rx_dropped++;

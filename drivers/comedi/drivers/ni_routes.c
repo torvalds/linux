@@ -21,8 +21,7 @@
 #include <linux/slab.h>
 #include <linux/bsearch.h>
 #include <linux/sort.h>
-
-#include "../comedi.h"
+#include <linux/comedi.h>
 
 #include "ni_routes.h"
 #include "ni_routing/ni_route_values.h"

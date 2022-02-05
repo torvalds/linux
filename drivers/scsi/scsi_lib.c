@@ -241,7 +241,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	/*
 	 * head injection *required* here otherwise quiesce won't work
 	 */
-	blk_execute_rq(NULL, req, 1);
+	blk_execute_rq(req, true);
 
 	/*
 	 * Some devices (USB mass-storage in particular) may transfer
@@ -543,8 +543,9 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	if (blk_update_request(req, error, bytes))
 		return true;
 
+	// XXX:
 	if (blk_queue_add_random(q))
-		add_disk_randomness(req->rq_disk);
+		add_disk_randomness(req->q->disk);
 
 	if (!blk_rq_is_passthrough(req)) {
 		WARN_ON_ONCE(!(cmd->flags & SCMD_INITIALIZED));
@@ -615,6 +616,46 @@ static blk_status_t scsi_result_to_blk_status(struct scsi_cmnd *cmd, int result)
 	default:
 		return BLK_STS_IOERR;
 	}
+}
+
+/**
+ * scsi_rq_err_bytes - determine number of bytes till the next failure boundary
+ * @rq: request to examine
+ *
+ * Description:
+ *     A request could be merge of IOs which require different failure
+ *     handling.  This function determines the number of bytes which
+ *     can be failed from the beginning of the request without
+ *     crossing into area which need to be retried further.
+ *
+ * Return:
+ *     The number of bytes to fail.
+ */
+static unsigned int scsi_rq_err_bytes(const struct request *rq)
+{
+	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
+	unsigned int bytes = 0;
+	struct bio *bio;
+
+	if (!(rq->rq_flags & RQF_MIXED_MERGE))
+		return blk_rq_bytes(rq);
+
+	/*
+	 * Currently the only 'mixing' which can happen is between
+	 * different fastfail types.  We can safely fail portions
+	 * which have all the failfast bits that the first one has -
+	 * the ones which are at least as eager to fail as the first
+	 * one.
+	 */
+	for (bio = rq->bio; bio; bio = bio->bi_next) {
+		if ((bio->bi_opf & ff) != ff)
+			break;
+		bytes += bio->bi_iter.bi_size;
+	}
+
+	/* this could lead to infinite loop */
+	BUG_ON(blk_rq_bytes(rq) && !bytes);
+	return bytes;
 }
 
 /* Helper for scsi_io_completion() when "reprep" action required. */
@@ -794,7 +835,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 				scsi_print_command(cmd);
 			}
 		}
-		if (!scsi_end_request(req, blk_stat, blk_rq_err_bytes(req)))
+		if (!scsi_end_request(req, blk_stat, scsi_rq_err_bytes(req)))
 			return;
 		fallthrough;
 	case ACTION_REPREP:
@@ -2026,7 +2067,6 @@ void scsi_exit_queue(void)
  *	@sdev:	SCSI device to be queried
  *	@pf:	Page format bit (1 == standard, 0 == vendor specific)
  *	@sp:	Save page bit (0 == don't save, 1 == save)
- *	@modepage: mode page being requested
  *	@buffer: request buffer (may not be smaller than eight bytes)
  *	@len:	length of request buffer.
  *	@timeout: command timeout
@@ -2039,10 +2079,9 @@ void scsi_exit_queue(void)
  *	status on error
  *
  */
-int
-scsi_mode_select(struct scsi_device *sdev, int pf, int sp, int modepage,
-		 unsigned char *buffer, int len, int timeout, int retries,
-		 struct scsi_mode_data *data, struct scsi_sense_hdr *sshdr)
+int scsi_mode_select(struct scsi_device *sdev, int pf, int sp,
+		     unsigned char *buffer, int len, int timeout, int retries,
+		     struct scsi_mode_data *data, struct scsi_sense_hdr *sshdr)
 {
 	unsigned char cmd[10];
 	unsigned char *real_buffer;

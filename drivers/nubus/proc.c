@@ -93,30 +93,30 @@ struct nubus_proc_pde_data {
 static struct nubus_proc_pde_data *
 nubus_proc_alloc_pde_data(unsigned char *ptr, unsigned int size)
 {
-	struct nubus_proc_pde_data *pde_data;
+	struct nubus_proc_pde_data *pded;
 
-	pde_data = kmalloc(sizeof(*pde_data), GFP_KERNEL);
-	if (!pde_data)
+	pded = kmalloc(sizeof(*pded), GFP_KERNEL);
+	if (!pded)
 		return NULL;
 
-	pde_data->res_ptr = ptr;
-	pde_data->res_size = size;
-	return pde_data;
+	pded->res_ptr = ptr;
+	pded->res_size = size;
+	return pded;
 }
 
 static int nubus_proc_rsrc_show(struct seq_file *m, void *v)
 {
 	struct inode *inode = m->private;
-	struct nubus_proc_pde_data *pde_data;
+	struct nubus_proc_pde_data *pded;
 
-	pde_data = PDE_DATA(inode);
-	if (!pde_data)
+	pded = pde_data(inode);
+	if (!pded)
 		return 0;
 
-	if (pde_data->res_size > m->size)
+	if (pded->res_size > m->size)
 		return -EFBIG;
 
-	if (pde_data->res_size) {
+	if (pded->res_size) {
 		int lanes = (int)proc_get_parent_data(inode);
 		struct nubus_dirent ent;
 
@@ -124,11 +124,11 @@ static int nubus_proc_rsrc_show(struct seq_file *m, void *v)
 			return 0;
 
 		ent.mask = lanes;
-		ent.base = pde_data->res_ptr;
+		ent.base = pded->res_ptr;
 		ent.data = 0;
-		nubus_seq_write_rsrc_mem(m, &ent, pde_data->res_size);
+		nubus_seq_write_rsrc_mem(m, &ent, pded->res_size);
 	} else {
-		unsigned int data = (unsigned int)pde_data->res_ptr;
+		unsigned int data = (unsigned int)pded->res_ptr;
 
 		seq_putc(m, data >> 16);
 		seq_putc(m, data >> 8);
@@ -142,18 +142,18 @@ void nubus_proc_add_rsrc_mem(struct proc_dir_entry *procdir,
 			     unsigned int size)
 {
 	char name[9];
-	struct nubus_proc_pde_data *pde_data;
+	struct nubus_proc_pde_data *pded;
 
 	if (!procdir)
 		return;
 
 	snprintf(name, sizeof(name), "%x", ent->type);
 	if (size)
-		pde_data = nubus_proc_alloc_pde_data(nubus_dirptr(ent), size);
+		pded = nubus_proc_alloc_pde_data(nubus_dirptr(ent), size);
 	else
-		pde_data = NULL;
+		pded = NULL;
 	proc_create_single_data(name, S_IFREG | 0444, procdir,
-			nubus_proc_rsrc_show, pde_data);
+			nubus_proc_rsrc_show, pded);
 }
 
 void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,

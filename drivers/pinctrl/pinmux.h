@@ -129,7 +129,7 @@ static inline void pinmux_init_device_debugfs(struct dentry *devroot,
  */
 struct function_desc {
 	const char *name;
-	const char **group_names;
+	const char * const *group_names;
 	int num_group_names;
 	void *data;
 };
@@ -150,7 +150,7 @@ struct function_desc *pinmux_generic_get_function(struct pinctrl_dev *pctldev,
 
 int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 				const char *name,
-				const char **groups,
+				const char * const *groups,
 				unsigned const num_groups,
 				void *data);
 

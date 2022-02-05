@@ -80,6 +80,9 @@ enum hclge_mbx_tbl_cfg_subcode {
 #define HCLGE_MBX_MAX_RESP_DATA_SIZE	8U
 #define HCLGE_MBX_MAX_RING_CHAIN_PARAM_NUM	4
 
+#define HCLGE_RESET_SCHED_TIMEOUT	(3 * HZ)
+#define HCLGE_MBX_SCHED_TIMEOUT	(HZ / 2)
+
 struct hclge_ring_chain_param {
 	u8 ring_type;
 	u8 tqp_index;

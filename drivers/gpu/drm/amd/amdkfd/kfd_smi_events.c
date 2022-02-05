@@ -207,7 +207,6 @@ void kfd_smi_event_update_gpu_reset(struct kfd_dev *dev, bool post_reset)
 void kfd_smi_event_update_thermal_throttling(struct kfd_dev *dev,
 					     uint64_t throttle_bitmask)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)dev->kgd;
 	/*
 	 * ThermalThrottle msg = throttle_bitmask(8):
 	 * 			 thermal_interrupt_count(16):
@@ -223,14 +222,13 @@ void kfd_smi_event_update_thermal_throttling(struct kfd_dev *dev,
 
 	len = snprintf(fifo_in, sizeof(fifo_in), "%x %llx:%llx\n",
 		       KFD_SMI_EVENT_THERMAL_THROTTLE, throttle_bitmask,
-		       atomic64_read(&adev->smu.throttle_int_counter));
+		       atomic64_read(&dev->adev->smu.throttle_int_counter));
 
 	add_event_to_kfifo(dev, KFD_SMI_EVENT_THERMAL_THROTTLE,	fifo_in, len);
 }
 
 void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)dev->kgd;
 	struct amdgpu_task_info task_info;
 	/* VmFault msg = (hex)uint32_pid(8) + :(1) + task name(16) = 25 */
 	/* 1 byte event + 1 byte space + 25 bytes msg + 1 byte \n +
@@ -243,7 +241,7 @@ void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid)
 		return;
 
 	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
-	amdgpu_vm_get_task_info(adev, pasid, &task_info);
+	amdgpu_vm_get_task_info(dev->adev, pasid, &task_info);
 	/* Report VM faults from user applications, not retry from kernel */
 	if (!task_info.pid)
 		return;

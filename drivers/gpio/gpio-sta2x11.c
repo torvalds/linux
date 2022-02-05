@@ -324,7 +324,7 @@ static int gsta_alloc_irq_chip(struct gsta_gpio *chip)
 	if (rv)
 		return rv;
 
-	/* Set up all all 128 interrupts: code from setup_generic_chip */
+	/* Set up all 128 interrupts: code from setup_generic_chip */
 	{
 		struct irq_chip_type *ct = gc->chip_types;
 		int i, j;

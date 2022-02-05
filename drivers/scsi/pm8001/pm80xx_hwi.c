@@ -42,6 +42,7 @@
  #include "pm80xx_hwi.h"
  #include "pm8001_chips.h"
  #include "pm8001_ctl.h"
+#include "pm80xx_tracepoints.h"
 
 #define SMP_DIRECT 1
 #define SMP_INDIRECT 2
@@ -2400,21 +2401,17 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 
 	psataPayload = (struct sata_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psataPayload->status);
+	param = le32_to_cpu(psataPayload->param);
 	tag = le32_to_cpu(psataPayload->tag);
 
 	if (!tag) {
 		pm8001_dbg(pm8001_ha, FAIL, "tag null\n");
 		return;
 	}
+
 	ccb = &pm8001_ha->ccb_info[tag];
-	param = le32_to_cpu(psataPayload->param);
-	if (ccb) {
-		t = ccb->task;
-		pm8001_dev = ccb->device;
-	} else {
-		pm8001_dbg(pm8001_ha, FAIL, "ccb null\n");
-		return;
-	}
+	t = ccb->task;
+	pm8001_dev = ccb->device;
 
 	if (t) {
 		if (t->dev && (t->dev->lldd_dev))
@@ -2431,10 +2428,6 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	}
 
 	ts = &t->task_status;
-	if (!ts) {
-		pm8001_dbg(pm8001_ha, FAIL, "ts null\n");
-		return;
-	}
 
 	if (status != IO_SUCCESS) {
 		pm8001_dbg(pm8001_ha, FAIL,
@@ -2830,15 +2823,6 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha,
 	u32 dev_id = le32_to_cpu(psataPayload->device_id);
 	unsigned long flags;
 
-	ccb = &pm8001_ha->ccb_info[tag];
-
-	if (ccb) {
-		t = ccb->task;
-		pm8001_dev = ccb->device;
-	} else {
-		pm8001_dbg(pm8001_ha, FAIL, "No CCB !!!. returning\n");
-		return;
-	}
 	if (event)
 		pm8001_dbg(pm8001_ha, FAIL, "SATA EVENT 0x%x\n", event);
 
@@ -2851,6 +2835,10 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha,
 			pm80xx_send_read_log(pm8001_ha, pm8001_dev);
 		return;
 	}
+
+	ccb = &pm8001_ha->ccb_info[tag];
+	t = ccb->task;
+	pm8001_dev = ccb->device;
 
 	if (unlikely(!t || !t->lldd_task || !t->dev)) {
 		pm8001_dbg(pm8001_ha, FAIL, "task or dev null\n");
@@ -3522,7 +3510,7 @@ static int mpi_phy_start_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 status =
 		le32_to_cpu(pPayload->status);
 	u32 phy_id =
-		le32_to_cpu(pPayload->phyid);
+		le32_to_cpu(pPayload->phyid) & 0xFF;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 
 	pm8001_dbg(pm8001_ha, INIT,
@@ -3724,8 +3712,10 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	case HW_EVENT_PORT_RESET_TIMER_TMO:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RESET_TIMER_TMO\n");
-		pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
-			port_id, phy_id, 0, 0);
+		if (!pm8001_ha->phy[phy_id].reset_completion) {
+			pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
+				port_id, phy_id, 0, 0);
+		}
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
 		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
@@ -4161,10 +4151,22 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
 	u32 ret = MPI_IO_STATUS_FAIL;
 	u32 regval;
 
+	/*
+	 * Fatal errors are programmed to be signalled in irq vector
+	 * pm8001_ha->max_q_num - 1 through pm8001_ha->main_cfg_tbl.pm80xx_tbl.
+	 * fatal_err_interrupt
+	 */
 	if (vec == (pm8001_ha->max_q_num - 1)) {
+		u32 mipsall_ready;
+
+		if (pm8001_ha->chip_id == chip_8008 ||
+		    pm8001_ha->chip_id == chip_8009)
+			mipsall_ready = SCRATCH_PAD_MIPSALL_READY_8PORT;
+		else
+			mipsall_ready = SCRATCH_PAD_MIPSALL_READY_16PORT;
+
 		regval = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
-		if ((regval & SCRATCH_PAD_MIPSALL_READY) !=
-					SCRATCH_PAD_MIPSALL_READY) {
+		if ((regval & mipsall_ready) != mipsall_ready) {
 			pm8001_ha->controller_fatal_error = true;
 			pm8001_dbg(pm8001_ha, FAIL,
 				   "Firmware Fatal error! Regval:0x%x\n",
@@ -4547,6 +4549,7 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task = ccb->task;
 	struct domain_device *dev = task->dev;
 	struct pm8001_device *pm8001_ha_dev = dev->lldd_dev;
+	struct ata_queued_cmd *qc = task->uldd_task;
 	u32 tag = ccb->ccb_tag;
 	int ret;
 	u32 q_index, cpu_id;
@@ -4766,6 +4769,11 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			}
 		}
 	}
+	trace_pm80xx_request_issue(pm8001_ha->id,
+				ccb->device ? ccb->device->attached_phy : PM8001_MAX_PHYS,
+				ccb->ccb_tag, opc,
+				qc ? qc->tf.command : 0, // ata opcode
+				ccb->device ? atomic_read(&ccb->device->running_req) : 0);
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
 			&sata_cmd, sizeof(sata_cmd), q_index);
 	return ret;
@@ -5061,4 +5069,5 @@ const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.fw_flash_update_req	= pm8001_chip_fw_flash_update_req,
 	.set_dev_state_req	= pm8001_chip_set_dev_state_req,
 	.fatal_errors		= pm80xx_fatal_errors,
+	.hw_event_ack_req	= pm80xx_hw_event_ack_req,
 };

@@ -67,8 +67,8 @@ static bool test_finish;
 
 static void maps_create(void)
 {
-	map_fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(uint32_t),
-				sizeof(struct stats), 100, 0);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(uint32_t),
+				sizeof(struct stats), 100, NULL);
 	if (map_fd < 0)
 		error(1, errno, "map create failed!\n");
 }
@@ -157,9 +157,13 @@ static void prog_load(void)
 				offsetof(struct __sk_buff, len)),
 		BPF_EXIT_INSN(),
 	};
-	prog_fd = bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog,
-					ARRAY_SIZE(prog), "GPL", 0,
-					log_buf, sizeof(log_buf));
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.log_buf = log_buf,
+		.log_size = sizeof(log_buf),
+	);
+
+	prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL",
+				prog, ARRAY_SIZE(prog), &opts);
 	if (prog_fd < 0)
 		error(1, errno, "failed to load prog\n%s\n", log_buf);
 }

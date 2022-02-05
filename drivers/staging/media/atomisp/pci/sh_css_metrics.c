@@ -123,40 +123,15 @@ sh_css_metrics_sample_pcs(void)
 	unsigned int pc;
 	unsigned int msink;
 
-#if SUSPEND
-	unsigned int sc = 0;
-	unsigned int stopped_sc = 0;
-	unsigned int resume_sc = 0;
-#endif
 
-#if MULTIPLE_PCS
-	int i;
-	unsigned int pc_tab[NOF_PCS];
-
-	for (i = 0; i < NOF_PCS; i++)
-		pc_tab[i] = 0;
-#endif
 
 	if (!pc_histogram_enabled)
 		return;
 
 	if (isp_histogram) {
-#if SUSPEND
-		/* STOP the ISP */
-		isp_ctrl_store(ISP0_ID, ISP_SC_REG, STOP_MASK);
-#endif
 		msink = isp_ctrl_load(ISP0_ID, ISP_CTRL_SINK_REG);
-#if MULTIPLE_PCS
-		for (i = 0; i < NOF_PCS; i++)
-			pc_tab[i] = isp_ctrl_load(ISP0_ID, ISP_PC_REG);
-#else
 		pc = isp_ctrl_load(ISP0_ID, ISP_PC_REG);
-#endif
 
-#if SUSPEND
-		/* RESUME the ISP */
-		isp_ctrl_store(ISP0_ID, ISP_SC_REG, RESUME_MASK);
-#endif
 		isp_histogram->msink[pc] &= msink;
 		stall = (msink != 0x7FF);
 

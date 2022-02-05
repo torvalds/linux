@@ -774,7 +774,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info, u8 version)
 	dclc.os_type = version == SMC_V1 ? 0 : SMC_CLC_OS_LINUX;
 	dclc.hdr.typev2 = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ?
 						SMC_FIRST_CONTACT_MASK : 0;
-	if ((!smc->conn.lgr || !smc->conn.lgr->is_smcd) &&
+	if ((!smc_conn_lgr_valid(&smc->conn) || !smc->conn.lgr->is_smcd) &&
 	    smc_ib_is_valid_local_systemid())
 		memcpy(dclc.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
@@ -1021,7 +1021,6 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 		struct smc_link *link = conn->lnk;
 
 		/* SMC-R specific settings */
-		link = conn->lnk;
 		memcpy(clc->hdr.eyecatcher, SMC_EYECATCHER,
 		       sizeof(SMC_EYECATCHER));
 		clc->hdr.typev1 = SMC_TYPE_R;

@@ -38,9 +38,12 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
+#include "intel_dsi_vbt.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
 #include "skl_scaler.h"
+#include "vlv_dsi.h"
+#include "vlv_dsi_pll.h"
 #include "vlv_sideband.h"
 
 /* return pixels in terms of txbyteclkhs */
@@ -1258,7 +1261,9 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	u32 pclk;
+
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
@@ -1269,6 +1274,9 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	} else {
 		pclk = vlv_dsi_get_pclk(encoder, pipe_config);
 	}
+
+	if (intel_dsi->dual_link)
+		pclk *= 2;
 
 	if (pclk) {
 		pipe_config->hw.adjusted_mode.crtc_clock = pclk;

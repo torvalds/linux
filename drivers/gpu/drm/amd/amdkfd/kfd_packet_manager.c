@@ -223,7 +223,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 {
-	switch (dqm->dev->device_info->asic_family) {
+	switch (dqm->dev->adev->asic_type) {
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
 		/* PM4 packet structures on CIK are the same as on VI */
@@ -236,31 +236,16 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	case CHIP_VEGAM:
 		pm->pmf = &kfd_vi_pm_funcs;
 		break;
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_RAVEN:
-	case CHIP_RENOIR:
-	case CHIP_ARCTURUS:
-	case CHIP_NAVI10:
-	case CHIP_NAVI12:
-	case CHIP_NAVI14:
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_VANGOGH:
-	case CHIP_DIMGREY_CAVEFISH:
-	case CHIP_BEIGE_GOBY:
-	case CHIP_YELLOW_CARP:
-	case CHIP_CYAN_SKILLFISH:
-		pm->pmf = &kfd_v9_pm_funcs;
-		break;
-	case CHIP_ALDEBARAN:
-		pm->pmf = &kfd_aldebaran_pm_funcs;
-		break;
 	default:
-		WARN(1, "Unexpected ASIC family %u",
-		     dqm->dev->device_info->asic_family);
-		return -EINVAL;
+		if (KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 2))
+			pm->pmf = &kfd_aldebaran_pm_funcs;
+		else if (KFD_GC_VERSION(dqm->dev) >= IP_VERSION(9, 0, 1))
+			pm->pmf = &kfd_v9_pm_funcs;
+		else {
+			WARN(1, "Unexpected ASIC family %u",
+			     dqm->dev->adev->asic_type);
+			return -EINVAL;
+		}
 	}
 
 	pm->dqm = dqm;

@@ -75,7 +75,7 @@ EXPORT_SYMBOL(DMA_MODE_WRITE);
 notrace void __init machine_init(u64 dt_ptr)
 {
 	u32 *addr = (u32 *)patch_site_addr(&patch__memset_nocache);
-	struct ppc_inst insn;
+	ppc_inst_t insn;
 
 	/* Configure static keys first, now that we're relocated. */
 	setup_feature_keys();
@@ -175,7 +175,7 @@ void __init emergency_stack_init(void)
 }
 #endif
 
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+#ifdef CONFIG_BOOKE_OR_40x
 void __init exc_lvl_early_init(void)
 {
 	unsigned int i, hw_cpu;

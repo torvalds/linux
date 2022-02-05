@@ -147,6 +147,9 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_FMTBIT_S24_BE		_SNDRV_PCM_FMTBIT(S24_BE)
 #define SNDRV_PCM_FMTBIT_U24_LE		_SNDRV_PCM_FMTBIT(U24_LE)
 #define SNDRV_PCM_FMTBIT_U24_BE		_SNDRV_PCM_FMTBIT(U24_BE)
+// For S32/U32 formats, 'msbits' hardware parameter is often used to deliver information about the
+// available bit count in most significant bit. It's for the case of so-called 'left-justified' or
+// `right-padding` sample which has less width than 32 bit.
 #define SNDRV_PCM_FMTBIT_S32_LE		_SNDRV_PCM_FMTBIT(S32_LE)
 #define SNDRV_PCM_FMTBIT_S32_BE		_SNDRV_PCM_FMTBIT(S32_BE)
 #define SNDRV_PCM_FMTBIT_U32_LE		_SNDRV_PCM_FMTBIT(U32_LE)

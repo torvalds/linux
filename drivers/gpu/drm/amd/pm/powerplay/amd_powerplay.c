@@ -1556,7 +1556,7 @@ static int pp_set_ppfeature_status(void *handle, uint64_t ppfeature_masks)
 static int pp_asic_reset_mode_2(void *handle)
 {
 	struct pp_hwmgr *hwmgr = handle;
-		int ret = 0;
+	int ret = 0;
 
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;

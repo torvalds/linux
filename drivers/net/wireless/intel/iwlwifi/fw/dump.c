@@ -12,6 +12,7 @@
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
+#include "pnvm.h"
 
 /*
  * Note: This structure is read from the device with IO accesses,
@@ -19,53 +20,6 @@
  * read with u32-sized accesses, any members with a different size
  * need to be ordered correctly though!
  */
-struct iwl_error_event_table_v1 {
-	u32 valid;		/* (nonzero) valid, (0) log is empty */
-	u32 error_id;		/* type of error */
-	u32 pc;			/* program counter */
-	u32 blink1;		/* branch link */
-	u32 blink2;		/* branch link */
-	u32 ilink1;		/* interrupt link */
-	u32 ilink2;		/* interrupt link */
-	u32 data1;		/* error-specific data */
-	u32 data2;		/* error-specific data */
-	u32 data3;		/* error-specific data */
-	u32 bcon_time;		/* beacon timer */
-	u32 tsf_low;		/* network timestamp function timer */
-	u32 tsf_hi;		/* network timestamp function timer */
-	u32 gp1;		/* GP1 timer register */
-	u32 gp2;		/* GP2 timer register */
-	u32 gp3;		/* GP3 timer register */
-	u32 ucode_ver;		/* uCode version */
-	u32 hw_ver;		/* HW Silicon version */
-	u32 brd_ver;		/* HW board version */
-	u32 log_pc;		/* log program counter */
-	u32 frame_ptr;		/* frame pointer */
-	u32 stack_ptr;		/* stack pointer */
-	u32 hcmd;		/* last host command header */
-	u32 isr0;		/* isr status register LMPM_NIC_ISR0:
-				 * rxtx_flag */
-	u32 isr1;		/* isr status register LMPM_NIC_ISR1:
-				 * host_flag */
-	u32 isr2;		/* isr status register LMPM_NIC_ISR2:
-				 * enc_flag */
-	u32 isr3;		/* isr status register LMPM_NIC_ISR3:
-				 * time_flag */
-	u32 isr4;		/* isr status register LMPM_NIC_ISR4:
-				 * wico interrupt */
-	u32 isr_pref;		/* isr status register LMPM_NIC_PREF_STAT */
-	u32 wait_event;		/* wait event() caller address */
-	u32 l2p_control;	/* L2pControlField */
-	u32 l2p_duration;	/* L2pDurationField */
-	u32 l2p_mhvalid;	/* L2pMhValidBits */
-	u32 l2p_addr_match;	/* L2pAddrMatchStat */
-	u32 lmpm_pmg_sel;	/* indicate which clocks are turned on
-				 * (LMPM_PMG_SEL) */
-	u32 u_timestamp;	/* indicate when the date and time of the
-				 * compilation */
-	u32 flow_handler;	/* FH read/write pointers, RX credit */
-} __packed /* LOG_ERROR_TABLE_API_S_VER_1 */;
-
 struct iwl_error_event_table {
 	u32 valid;		/* (nonzero) valid, (0) log is empty */
 	u32 error_id;		/* type of error */
@@ -147,6 +101,7 @@ static void iwl_fwrt_dump_umac_error_log(struct iwl_fw_runtime *fwrt)
 	struct iwl_trans *trans = fwrt->trans;
 	struct iwl_umac_error_event_table table = {};
 	u32 base = fwrt->trans->dbg.umac_error_event_table;
+	char pnvm_name[MAX_PNVM_NAME];
 
 	if (!base &&
 	    !(fwrt->trans->dbg.error_event_table_tlv_status &
@@ -162,6 +117,13 @@ static void iwl_fwrt_dump_umac_error_log(struct iwl_fw_runtime *fwrt)
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
 		IWL_ERR(trans, "Transport status: 0x%08lX, valid: %d\n",
 			fwrt->trans->status, table.valid);
+	}
+
+	if ((table.error_id & ~FW_SYSASSERT_CPU_MASK) ==
+	    FW_SYSASSERT_PNVM_MISSING) {
+		iwl_pnvm_get_fs_name(trans, pnvm_name, sizeof(pnvm_name));
+		IWL_ERR(fwrt, "PNVM data is missing, please install %s\n",
+			pnvm_name);
 	}
 
 	IWL_ERR(fwrt, "0x%08X | %s\n", table.error_id,
@@ -212,7 +174,9 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 		IWL_ERR(trans, "HW error, resetting before reading\n");
 
 		/* reset the device */
-		iwl_trans_sw_reset(trans);
+		err = iwl_trans_sw_reset(trans, true);
+		if (err)
+			return;
 
 		err = iwl_finish_nic_init(trans);
 		if (err)
@@ -295,21 +259,21 @@ struct iwl_tcm_error_event_table {
 	u32 reserved[4];
 } __packed; /* TCM_LOG_ERROR_TABLE_API_S_VER_1 */
 
-static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt)
+static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
 {
 	struct iwl_trans *trans = fwrt->trans;
 	struct iwl_tcm_error_event_table table = {};
-	u32 base = fwrt->trans->dbg.tcm_error_event_table;
+	u32 base = fwrt->trans->dbg.tcm_error_event_table[idx];
 	int i;
+	u32 flag = idx ? IWL_ERROR_EVENT_TABLE_TCM2 :
+			 IWL_ERROR_EVENT_TABLE_TCM1;
 
-	if (!base ||
-	    !(fwrt->trans->dbg.error_event_table_tlv_status &
-	      IWL_ERROR_EVENT_TABLE_TCM))
+	if (!base || !(fwrt->trans->dbg.error_event_table_tlv_status & flag))
 		return;
 
 	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
 
-	IWL_ERR(fwrt, "TCM status:\n");
+	IWL_ERR(fwrt, "TCM%d status:\n", idx + 1);
 	IWL_ERR(fwrt, "0x%08X | error ID\n", table.error_id);
 	IWL_ERR(fwrt, "0x%08X | tcm branchlink2\n", table.blink2);
 	IWL_ERR(fwrt, "0x%08X | tcm interruptlink1\n", table.ilink1);
@@ -328,13 +292,72 @@ static void iwl_fwrt_dump_tcm_error_log(struct iwl_fw_runtime *fwrt)
 	for (i = 0; i < ARRAY_SIZE(table.sw_status); i++)
 		IWL_ERR(fwrt, "0x%08X | tcm SW status[%d]\n",
 			table.sw_status[i], i);
+}
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		u32 scratch = iwl_read32(trans, CSR_FUNC_SCRATCH);
+/*
+ * RCM error struct.
+ * Note: This structure is read from the device with IO accesses,
+ * and the reading already does the endian conversion. As it is
+ * read with u32-sized accesses, any members with a different size
+ * need to be ordered correctly though!
+ */
+struct iwl_rcm_error_event_table {
+	u32 valid;
+	u32 error_id;
+	u32 blink2;
+	u32 ilink1;
+	u32 ilink2;
+	u32 data1, data2, data3;
+	u32 logpc;
+	u32 frame_pointer;
+	u32 stack_pointer;
+	u32 msgid;
+	u32 isr;
+	u32 frame_hw_status;
+	u32 mbx_lmac_to_rcm_req;
+	u32 mbx_rcm_to_lmac_req;
+	u32 mh_ctl;
+	u32 mh_addr1_lo;
+	u32 mh_info;
+	u32 mh_err;
+	u32 reserved[3];
+} __packed; /* RCM_LOG_ERROR_TABLE_API_S_VER_1 */
 
-		IWL_ERR(fwrt, "Function Scratch status:\n");
-		IWL_ERR(fwrt, "0x%08X | Func Scratch\n", scratch);
-	}
+static void iwl_fwrt_dump_rcm_error_log(struct iwl_fw_runtime *fwrt, int idx)
+{
+	struct iwl_trans *trans = fwrt->trans;
+	struct iwl_rcm_error_event_table table = {};
+	u32 base = fwrt->trans->dbg.rcm_error_event_table[idx];
+	u32 flag = idx ? IWL_ERROR_EVENT_TABLE_RCM2 :
+			 IWL_ERROR_EVENT_TABLE_RCM1;
+
+	if (!base || !(fwrt->trans->dbg.error_event_table_tlv_status & flag))
+		return;
+
+	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
+
+	IWL_ERR(fwrt, "RCM%d status:\n", idx + 1);
+	IWL_ERR(fwrt, "0x%08X | error ID\n", table.error_id);
+	IWL_ERR(fwrt, "0x%08X | rcm branchlink2\n", table.blink2);
+	IWL_ERR(fwrt, "0x%08X | rcm interruptlink1\n", table.ilink1);
+	IWL_ERR(fwrt, "0x%08X | rcm interruptlink2\n", table.ilink2);
+	IWL_ERR(fwrt, "0x%08X | rcm data1\n", table.data1);
+	IWL_ERR(fwrt, "0x%08X | rcm data2\n", table.data2);
+	IWL_ERR(fwrt, "0x%08X | rcm data3\n", table.data3);
+	IWL_ERR(fwrt, "0x%08X | rcm log PC\n", table.logpc);
+	IWL_ERR(fwrt, "0x%08X | rcm frame pointer\n", table.frame_pointer);
+	IWL_ERR(fwrt, "0x%08X | rcm stack pointer\n", table.stack_pointer);
+	IWL_ERR(fwrt, "0x%08X | rcm msg ID\n", table.msgid);
+	IWL_ERR(fwrt, "0x%08X | rcm ISR status\n", table.isr);
+	IWL_ERR(fwrt, "0x%08X | frame HW status\n", table.frame_hw_status);
+	IWL_ERR(fwrt, "0x%08X | LMAC-to-RCM request mbox\n",
+		table.mbx_lmac_to_rcm_req);
+	IWL_ERR(fwrt, "0x%08X | RCM-to-LMAC request mbox\n",
+		table.mbx_rcm_to_lmac_req);
+	IWL_ERR(fwrt, "0x%08X | MAC header control\n", table.mh_ctl);
+	IWL_ERR(fwrt, "0x%08X | MAC header addr1 low\n", table.mh_addr1_lo);
+	IWL_ERR(fwrt, "0x%08X | MAC header info\n", table.mh_info);
+	IWL_ERR(fwrt, "0x%08X | MAC header error\n", table.mh_err);
 }
 
 static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
@@ -418,8 +441,18 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 	if (fwrt->trans->dbg.lmac_error_event_table[1])
 		iwl_fwrt_dump_lmac_error_log(fwrt, 1);
 	iwl_fwrt_dump_umac_error_log(fwrt);
-	iwl_fwrt_dump_tcm_error_log(fwrt);
+	iwl_fwrt_dump_tcm_error_log(fwrt, 0);
+	iwl_fwrt_dump_rcm_error_log(fwrt, 0);
+	iwl_fwrt_dump_tcm_error_log(fwrt, 1);
+	iwl_fwrt_dump_rcm_error_log(fwrt, 1);
 	iwl_fwrt_dump_iml_error_log(fwrt);
 	iwl_fwrt_dump_fseq_regs(fwrt);
+
+	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		u32 scratch = iwl_read32(fwrt->trans, CSR_FUNC_SCRATCH);
+
+		IWL_ERR(fwrt, "Function Scratch status:\n");
+		IWL_ERR(fwrt, "0x%08X | Func Scratch\n", scratch);
+	}
 }
 IWL_EXPORT_SYMBOL(iwl_fwrt_dump_error_logs);

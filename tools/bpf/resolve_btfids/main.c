@@ -168,7 +168,7 @@ static struct btf_id *btf_id__find(struct rb_root *root, const char *name)
 	return NULL;
 }
 
-static struct btf_id*
+static struct btf_id *
 btf_id__add(struct rb_root *root, char *name, bool unique)
 {
 	struct rb_node **p = &root->rb_node;
@@ -732,7 +732,8 @@ int main(int argc, const char **argv)
 	if (obj.efile.idlist_shndx == -1 ||
 	    obj.efile.symbols_shndx == -1) {
 		pr_debug("Cannot find .BTF_ids or symbols sections, nothing to do\n");
-		return 0;
+		err = 0;
+		goto out;
 	}
 
 	if (symbols_collect(&obj))
