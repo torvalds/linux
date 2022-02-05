@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #ifndef __iwl_fw_acpi__
 #define __iwl_fw_acpi__
@@ -128,7 +128,8 @@ enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_ENABLE_6E = 3,
 	DSM_FUNC_11AX_ENABLEMENT = 6,
 	DSM_FUNC_ENABLE_UNII4_CHAN = 7,
-	DSM_FUNC_ACTIVATE_CHANNEL = 8
+	DSM_FUNC_ACTIVATE_CHANNEL = 8,
+	DSM_FUNC_FORCE_DISABLE_CHANNELS = 9
 };
 
 enum iwl_dsm_values_srd {

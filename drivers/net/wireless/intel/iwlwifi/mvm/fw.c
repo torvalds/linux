@@ -1313,7 +1313,7 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 	int ret;
 	u32 value;
-	struct iwl_lari_config_change_cmd_v5 cmd = {};
+	struct iwl_lari_config_change_cmd_v6 cmd = {};
 
 	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
@@ -1340,26 +1340,43 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	if (!ret)
 		cmd.oem_uhb_allow_bitmap = cpu_to_le32(value);
 
+	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
+				   DSM_FUNC_FORCE_DISABLE_CHANNELS,
+				   &iwl_guid, &value);
+	if (!ret)
+		cmd.force_disable_channels_bitmap = cpu_to_le32(value);
+
 	if (cmd.config_bitmap ||
 	    cmd.oem_uhb_allow_bitmap ||
 	    cmd.oem_11ax_allow_bitmap ||
 	    cmd.oem_unii4_allow_bitmap ||
-	    cmd.chan_state_active_bitmap) {
+	    cmd.chan_state_active_bitmap ||
+	    cmd.force_disable_channels_bitmap) {
 		size_t cmd_size;
 		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 						   WIDE_ID(REGULATORY_AND_NVM_GROUP,
 							   LARI_CONFIG_CHANGE),
 						   1);
-		if (cmd_ver == 5)
+		switch (cmd_ver) {
+		case 6:
+			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v6);
+			break;
+		case 5:
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v5);
-		else if (cmd_ver == 4)
+			break;
+		case 4:
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v4);
-		else if (cmd_ver == 3)
+			break;
+		case 3:
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v3);
-		else if (cmd_ver == 2)
+			break;
+		case 2:
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v2);
-		else
+			break;
+		default:
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v1);
+			break;
+		}
 
 		IWL_DEBUG_RADIO(mvm,
 				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x, oem_11ax_allow_bitmap=0x%x\n",
@@ -1371,8 +1388,9 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 				le32_to_cpu(cmd.chan_state_active_bitmap),
 				cmd_ver);
 		IWL_DEBUG_RADIO(mvm,
-				"sending LARI_CONFIG_CHANGE, oem_uhb_allow_bitmap=0x%x\n",
-				le32_to_cpu(cmd.oem_uhb_allow_bitmap));
+				"sending LARI_CONFIG_CHANGE, oem_uhb_allow_bitmap=0x%x, force_disable_channels_bitmap=0x%x\n",
+				le32_to_cpu(cmd.oem_uhb_allow_bitmap),
+				le32_to_cpu(cmd.force_disable_channels_bitmap));
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						   LARI_CONFIG_CHANGE),
