@@ -279,6 +279,10 @@ static void iwl_mvm_print_pd_notification(struct iwl_mvm *mvm)
 	else
 		IWL_ERR(mvm, "WFPM_LMAC1_PD_NOTIFICATION: 0x%x\n",
 			iwl_read_umac_prph(trans, WFPM_LMAC1_PD_NOTIFICATION));
+
+	IWL_ERR(mvm, "HPM_SECONDARY_DEVICE_STATE: 0x%x\n",
+		iwl_read_umac_prph(trans, HPM_SECONDARY_DEVICE_STATE));
+
 }
 
 static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,

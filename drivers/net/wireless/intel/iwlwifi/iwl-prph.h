@@ -388,6 +388,8 @@ enum {
 
 #define WFPM_LMAC1_PD_NOTIFICATION      0xa0338c
 #define WFPM_ARC1_PD_NOTIFICATION       0xa03044
+#define HPM_SECONDARY_DEVICE_STATE      0xa03404
+
 
 /* For UMAG_GEN_HW_STATUS reg check */
 enum {
