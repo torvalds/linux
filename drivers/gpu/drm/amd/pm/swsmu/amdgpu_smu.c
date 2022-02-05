@@ -2279,7 +2279,6 @@ static int smu_emit_ppclk_levels(void *handle, enum pp_clock_type type, char *bu
 {
 	struct smu_context *smu = handle;
 	enum smu_clk_type clk_type;
-	int ret = 0;
 
 	clk_type = smu_convert_to_smuclk(type);
 	if (clk_type == SMU_CLK_COUNT)
@@ -2289,7 +2288,7 @@ static int smu_emit_ppclk_levels(void *handle, enum pp_clock_type type, char *bu
 		return -EOPNOTSUPP;
 
 	if (!smu->ppt_funcs->emit_clk_levels)
-		ret = -ENOENT;
+		return -ENOENT;
 
 	return smu->ppt_funcs->emit_clk_levels(smu, clk_type, buf, offset);
 
