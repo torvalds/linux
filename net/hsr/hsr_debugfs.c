@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/debugfs.h>
+#include <linux/jhash.h>
 #include "hsr_main.h"
 #include "hsr_framereg.h"
 
@@ -28,6 +29,7 @@ hsr_node_table_show(struct seq_file *sfp, void *data)
 {
 	struct hsr_priv *priv = (struct hsr_priv *)sfp->private;
 	struct hsr_node *node;
+	int i;
 
 	seq_printf(sfp, "Node Table entries for (%s) device\n",
 		   (priv->prot_version == PRP_V1 ? "PRP" : "HSR"));
@@ -39,22 +41,28 @@ hsr_node_table_show(struct seq_file *sfp, void *data)
 		seq_puts(sfp, "DAN-H\n");
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(node, &priv->node_db, mac_list) {
-		/* skip self node */
-		if (hsr_addr_is_self(priv, node->macaddress_A))
-			continue;
-		seq_printf(sfp, "%pM ", &node->macaddress_A[0]);
-		seq_printf(sfp, "%pM ", &node->macaddress_B[0]);
-		seq_printf(sfp, "%10lx, ", node->time_in[HSR_PT_SLAVE_A]);
-		seq_printf(sfp, "%10lx, ", node->time_in[HSR_PT_SLAVE_B]);
-		seq_printf(sfp, "%14x, ", node->addr_B_port);
 
-		if (priv->prot_version == PRP_V1)
-			seq_printf(sfp, "%5x, %5x, %5x\n",
-				   node->san_a, node->san_b,
-				   (node->san_a == 0 && node->san_b == 0));
-		else
-			seq_printf(sfp, "%5x\n", 1);
+	for (i = 0 ; i < priv->hash_buckets; i++) {
+		hlist_for_each_entry_rcu(node, &priv->node_db[i], mac_list) {
+			/* skip self node */
+			if (hsr_addr_is_self(priv, node->macaddress_A))
+				continue;
+			seq_printf(sfp, "%pM ", &node->macaddress_A[0]);
+			seq_printf(sfp, "%pM ", &node->macaddress_B[0]);
+			seq_printf(sfp, "%10lx, ",
+				   node->time_in[HSR_PT_SLAVE_A]);
+			seq_printf(sfp, "%10lx, ",
+				   node->time_in[HSR_PT_SLAVE_B]);
+			seq_printf(sfp, "%14x, ", node->addr_B_port);
+
+			if (priv->prot_version == PRP_V1)
+				seq_printf(sfp, "%5x, %5x, %5x\n",
+					   node->san_a, node->san_b,
+					   (node->san_a == 0 &&
+					    node->san_b == 0));
+			else
+				seq_printf(sfp, "%5x\n", 1);
+		}
 	}
 	rcu_read_unlock();
 	return 0;
