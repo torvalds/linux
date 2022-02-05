@@ -1188,26 +1188,31 @@ static int imx7_csi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	csi->dev = dev;
+	platform_set_drvdata(pdev, &csi->sd);
+
+	spin_lock_init(&csi->irqlock);
+	mutex_init(&csi->lock);
 
 	csi->mclk = devm_clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(csi->mclk)) {
 		ret = PTR_ERR(csi->mclk);
 		dev_err(dev, "Failed to get mclk: %d", ret);
-		return ret;
+		goto destroy_mutex;
 	}
 
 	csi->irq = platform_get_irq(pdev, 0);
-	if (csi->irq < 0)
-		return csi->irq;
+	if (csi->irq < 0) {
+		ret = csi->irq;
+		goto destroy_mutex;
+	}
 
 	csi->regbase = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(csi->regbase))
-		return PTR_ERR(csi->regbase);
+	if (IS_ERR(csi->regbase)) {
+		ret = PTR_ERR(csi->regbase);
+		goto destroy_mutex;
+	}
 
 	csi->model = (enum imx_csi_model)(uintptr_t)of_device_get_match_data(&pdev->dev);
-
-	spin_lock_init(&csi->irqlock);
-	mutex_init(&csi->lock);
 
 	/* install interrupt handler */
 	ret = devm_request_irq(dev, csi->irq, imx7_csi_irq_handler, 0, "csi",
@@ -1223,7 +1228,6 @@ static int imx7_csi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(imxmd);
 		goto destroy_mutex;
 	}
-	platform_set_drvdata(pdev, &csi->sd);
 
 	ret = imx_media_of_add_csi(imxmd, node);
 	if (ret < 0 && ret != -ENODEV && ret != -EEXIST)
