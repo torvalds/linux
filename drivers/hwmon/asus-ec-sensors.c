@@ -659,7 +659,7 @@ static int __init configure_sensor_setup(struct device *dev)
 
 static int __init asus_ec_probe(struct platform_device *pdev)
 {
-	struct asus_ec_sensors *state;
+	struct ec_sensors_data *state;
 	int status = 0;
 
 	state = devm_kzalloc(&pdev->dev, sizeof(struct ec_sensors_data),
