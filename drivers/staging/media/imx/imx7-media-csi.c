@@ -1175,11 +1175,48 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 	return v4l2_async_register_subdev(&csi->sd);
 }
 
+static void imx7_csi_media_cleanup(struct imx7_csi *csi)
+{
+	struct imx_media_dev *imxmd = csi->imxmd;
+
+	v4l2_async_nf_unregister(&imxmd->notifier);
+	v4l2_async_nf_cleanup(&imxmd->notifier);
+
+	v4l2_device_unregister(&imxmd->v4l2_dev);
+	media_device_unregister(&imxmd->md);
+	media_device_cleanup(&imxmd->md);
+}
+
+static int imx7_csi_media_init(struct imx7_csi *csi)
+{
+	struct imx_media_dev *imxmd;
+	int ret;
+
+	/* add media device */
+	imxmd = imx_media_dev_init(csi->dev, NULL);
+	if (IS_ERR(imxmd))
+		return PTR_ERR(imxmd);
+
+	csi->imxmd = imxmd;
+
+	ret = imx_media_of_add_csi(imxmd, csi->dev->of_node);
+	if (ret < 0 && ret != -ENODEV && ret != -EEXIST) {
+		imx7_csi_media_cleanup(csi);
+		return ret;
+	}
+
+	ret = imx_media_dev_notifier_register(imxmd, NULL);
+	if (ret < 0) {
+		imx7_csi_media_cleanup(csi);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int imx7_csi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct imx_media_dev *imxmd;
 	struct imx7_csi *csi;
 	int i, ret;
 
@@ -1193,6 +1230,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	spin_lock_init(&csi->irqlock);
 	mutex_init(&csi->lock);
 
+	/* Acquire resources and install interrupt handler. */
 	csi->mclk = devm_clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(csi->mclk)) {
 		ret = PTR_ERR(csi->mclk);
@@ -1214,7 +1252,6 @@ static int imx7_csi_probe(struct platform_device *pdev)
 
 	csi->model = (enum imx_csi_model)(uintptr_t)of_device_get_match_data(&pdev->dev);
 
-	/* install interrupt handler */
 	ret = devm_request_irq(dev, csi->irq, imx7_csi_irq_handler, 0, "csi",
 			       (void *)csi);
 	if (ret < 0) {
@@ -1222,22 +1259,11 @@ static int imx7_csi_probe(struct platform_device *pdev)
 		goto destroy_mutex;
 	}
 
-	/* add media device */
-	imxmd = imx_media_dev_init(dev, NULL);
-	if (IS_ERR(imxmd)) {
-		ret = PTR_ERR(imxmd);
+	/* Initialize all the media device infrastructure. */
+	ret = imx7_csi_media_init(csi);
+	if (ret)
 		goto destroy_mutex;
-	}
 
-	ret = imx_media_of_add_csi(imxmd, node);
-	if (ret < 0 && ret != -ENODEV && ret != -EEXIST)
-		goto cleanup;
-
-	ret = imx_media_dev_notifier_register(imxmd, NULL);
-	if (ret < 0)
-		goto cleanup;
-
-	csi->imxmd = imxmd;
 	v4l2_subdev_init(&csi->sd, &imx7_csi_subdev_ops);
 	v4l2_set_subdevdata(&csi->sd, csi);
 	csi->sd.internal_ops = &imx7_csi_internal_ops;
@@ -1269,11 +1295,7 @@ subdev_notifier_cleanup:
 	v4l2_async_nf_cleanup(&csi->notifier);
 
 cleanup:
-	v4l2_async_nf_unregister(&imxmd->notifier);
-	v4l2_async_nf_cleanup(&imxmd->notifier);
-	v4l2_device_unregister(&imxmd->v4l2_dev);
-	media_device_unregister(&imxmd->md);
-	media_device_cleanup(&imxmd->md);
+	imx7_csi_media_cleanup(csi);
 
 destroy_mutex:
 	mutex_destroy(&csi->lock);
@@ -1285,14 +1307,8 @@ static int imx7_csi_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct imx_media_dev *imxmd = csi->imxmd;
 
-	v4l2_async_nf_unregister(&imxmd->notifier);
-	v4l2_async_nf_cleanup(&imxmd->notifier);
-
-	media_device_unregister(&imxmd->md);
-	v4l2_device_unregister(&imxmd->v4l2_dev);
-	media_device_cleanup(&imxmd->md);
+	imx7_csi_media_cleanup(csi);
 
 	v4l2_async_nf_unregister(&csi->notifier);
 	v4l2_async_nf_cleanup(&csi->notifier);
