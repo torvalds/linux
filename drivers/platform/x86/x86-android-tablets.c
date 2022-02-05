@@ -12,10 +12,12 @@
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/gpio_keys.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
 #include <linux/i2c.h>
+#include <linux/input.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/module.h>
@@ -231,6 +233,51 @@ static struct gpiod_lookup_table int3496_gpo2_pin22_gpios = {
 	},
 };
 
+/* Asus ME176C and TF103C tablets shared data */
+static struct gpio_keys_button asus_me176c_tf103c_lid = {
+	.code = SW_LID,
+	/* .gpio gets filled in by asus_me176c_tf103c_init() */
+	.active_low = true,
+	.desc = "lid_sw",
+	.type = EV_SW,
+	.wakeup = true,
+	.debounce_interval = 50,
+};
+
+static const struct gpio_keys_platform_data asus_me176c_tf103c_lid_pdata __initconst = {
+	.buttons = &asus_me176c_tf103c_lid,
+	.nbuttons = 1,
+	.name = "lid_sw",
+};
+
+static const struct platform_device_info asus_me176c_tf103c_pdevs[] __initconst = {
+	{
+		.name = "gpio-keys",
+		.id = PLATFORM_DEVID_AUTO,
+		.data = &asus_me176c_tf103c_lid_pdata,
+		.size_data = sizeof(asus_me176c_tf103c_lid_pdata),
+	},
+	{
+		/* For micro USB ID pin handling */
+		.name = "intel-int3496",
+		.id = PLATFORM_DEVID_NONE,
+	},
+};
+
+static int __init asus_me176c_tf103c_init(void)
+{
+	struct gpio_desc *gpiod;
+	int ret;
+
+	ret = x86_android_tablet_get_gpiod("INT33FC:02", 12, &gpiod);
+	if (ret < 0)
+		return ret;
+	asus_me176c_tf103c_lid.gpio = desc_to_gpio(gpiod);
+
+	return 0;
+}
+
+
 /* Asus ME176C tablets have an Android factory img with everything hardcoded */
 static const char * const asus_me176c_accel_mount_matrix[] = {
 	"-1", "0", "0",
@@ -358,14 +405,15 @@ static struct gpiod_lookup_table * const asus_me176c_gpios[] = {
 static const struct x86_dev_info asus_me176c_info __initconst = {
 	.i2c_client_info = asus_me176c_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(asus_me176c_i2c_clients),
-	.pdev_info = int3496_pdevs,
-	.pdev_count = ARRAY_SIZE(int3496_pdevs),
+	.pdev_info = asus_me176c_tf103c_pdevs,
+	.pdev_count = ARRAY_SIZE(asus_me176c_tf103c_pdevs),
 	.serdev_info = asus_me176c_serdevs,
 	.serdev_count = ARRAY_SIZE(asus_me176c_serdevs),
 	.gpiod_lookup_tables = asus_me176c_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
 	.invalid_aei_gpiochip = "INT33FC:02",
+	.init = asus_me176c_tf103c_init,
 };
 
 /* Asus TF103C tablets have an Android factory img with everything hardcoded */
@@ -502,12 +550,13 @@ static struct gpiod_lookup_table * const asus_tf103c_gpios[] = {
 static const struct x86_dev_info asus_tf103c_info __initconst = {
 	.i2c_client_info = asus_tf103c_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(asus_tf103c_i2c_clients),
-	.pdev_info = int3496_pdevs,
-	.pdev_count = ARRAY_SIZE(int3496_pdevs),
+	.pdev_info = asus_me176c_tf103c_pdevs,
+	.pdev_count = ARRAY_SIZE(asus_me176c_tf103c_pdevs),
 	.gpiod_lookup_tables = asus_tf103c_gpios,
 	.bat_swnode = &asus_tf103c_battery_node,
 	.modules = bq24190_modules,
 	.invalid_aei_gpiochip = "INT33FC:02",
+	.init = asus_me176c_tf103c_init,
 };
 
 /*
