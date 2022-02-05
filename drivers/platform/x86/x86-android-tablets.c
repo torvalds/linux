@@ -146,6 +146,7 @@ struct x86_serdev_info {
 struct x86_dev_info {
 	char *invalid_aei_gpiochip;
 	const char * const *modules;
+	const struct software_node *bat_swnode;
 	struct gpiod_lookup_table * const *gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
 	const struct platform_device_info *pdev_info;
@@ -727,6 +728,7 @@ static struct i2c_client **i2c_clients;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
 static struct gpiod_lookup_table * const *gpiod_lookup_tables;
+static const struct software_node *bat_swnode;
 static void (*exit_handler)(void);
 
 static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info,
@@ -850,6 +852,8 @@ static void x86_android_tablet_cleanup(void)
 
 	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
 		gpiod_remove_lookup_table(gpiod_lookup_tables[i]);
+
+	software_node_unregister(bat_swnode);
 }
 
 static __init int x86_android_tablet_init(void)
@@ -885,6 +889,13 @@ static __init int x86_android_tablet_init(void)
 	 */
 	for (i = 0; dev_info->modules && dev_info->modules[i]; i++)
 		request_module(dev_info->modules[i]);
+
+	bat_swnode = dev_info->bat_swnode;
+	if (bat_swnode) {
+		ret = software_node_register(bat_swnode);
+		if (ret)
+			return ret;
+	}
 
 	gpiod_lookup_tables = dev_info->gpiod_lookup_tables;
 	for (i = 0; gpiod_lookup_tables && gpiod_lookup_tables[i]; i++)
