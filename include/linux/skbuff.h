@@ -341,6 +341,11 @@ enum skb_drop_reason {
 						  */
 	SKB_DROP_REASON_XFRM_POLICY,	/* xfrm policy check failed */
 	SKB_DROP_REASON_IP_NOPROTO,	/* no support for IP protocol */
+	SKB_DROP_REASON_SOCKET_RCVBUFF,	/* socket receive buff is full */
+	SKB_DROP_REASON_PROTO_MEM,	/* proto memory limition, such as
+					 * udp packet drop out of
+					 * udp_memory_allocated.
+					 */
 	SKB_DROP_REASON_MAX,
 };
 
