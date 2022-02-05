@@ -2792,6 +2792,51 @@ struct atom_vram_info_header_v2_3 {
   struct   atom_vram_module_v9  vram_module[16];         // just for allocation, real number of blocks is in ucNumOfVRAMModule;
 };
 
+/*
+  ***************************************************************************
+    Data Table vram_info v3.0  structure
+  ***************************************************************************
+*/
+struct atom_vram_module_v3_0 {
+	uint8_t density;
+	uint8_t tunningset_id;
+	uint8_t ext_memory_id;
+	uint8_t dram_vendor_id;
+	uint16_t dram_info_offset;
+	uint16_t mem_tuning_offset;
+	uint16_t tmrs_seq_offset;
+	uint16_t reserved1;
+	uint32_t dram_size_per_ch;
+	uint32_t reserved[3];
+	char dram_pnstring[40];
+};
+
+struct atom_vram_info_header_v3_0 {
+	struct atom_common_table_header table_header;
+	uint16_t mem_tuning_table_offset;
+	uint16_t dram_info_table_offset;
+	uint16_t tmrs_table_offset;
+	uint16_t mc_init_table_offset;
+	uint16_t dram_data_remap_table_offset;
+	uint16_t umc_emuinittable_offset;
+	uint16_t reserved_sub_table_offset[2];
+	uint8_t vram_module_num;
+	uint8_t umcip_min_ver;
+	uint8_t umcip_max_ver;
+	uint8_t mc_phy_tile_num;
+	uint8_t memory_type;
+	uint8_t channel_num;
+	uint8_t channel_width;
+	uint8_t reserved1;
+	uint32_t channel_enable;
+	uint32_t channel1_enable;
+	uint32_t feature_enable;
+	uint32_t feature1_enable;
+	uint32_t hardcode_mem_size;
+	uint32_t reserved4[4];
+	struct atom_vram_module_v3_0 vram_module[8];
+};
+
 struct atom_umc_register_addr_info{
   uint32_t  umc_register_addr:24;
   uint32_t  umc_reg_type_ind:1;
