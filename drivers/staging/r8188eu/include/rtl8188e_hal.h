@@ -143,7 +143,7 @@ struct hal_data_8188e {
 
 	struct bb_reg_def PHYRegDef[2];	/* Radio A/B */
 
-	u32	RfRegChnlVal[2];
+	u32	RfRegChnlVal;
 
 	/* for host message to fw */
 	u8	LastHMEBoxNum;
