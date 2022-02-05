@@ -376,6 +376,22 @@ pm_nl_show_endpoints()
 	fi
 }
 
+pm_nl_change_endpoint()
+{
+	local ns=$1
+	local flags=$2
+	local id=$3
+	local addr=$4
+	local port=""
+
+	if [ $ip_mptcp -eq 1 ]; then
+		ip -n $ns mptcp endpoint change id $id ${flags//","/" "}
+	else
+		if [ $5 -ne 0 ]; then port="port $5"; fi
+		ip netns exec $ns ./pm_nl_ctl set $addr flags $flags $port
+	fi
+}
+
 do_transfer()
 {
 	listener_ns="$1"
@@ -577,7 +593,7 @@ do_transfer()
 				local arr=($line)
 				local addr
 				local port=0
-				local _port=""
+				local id
 
 				for i in ${arr[@]}; do
 					if is_addr $i; then
@@ -586,11 +602,13 @@ do_transfer()
 						# The minimum expected port number is 10000
 						if [ $i -gt 10000 ]; then
 							port=$i
+						# The maximum id number is 255
+						elif [ $i -lt 255 ]; then
+							id=$i
 						fi
 					fi
 				done
-				if [ $port -ne 0 ]; then _port="port $port"; fi
-				ip netns exec $netns ./pm_nl_ctl set $addr flags $sflags $_port
+				pm_nl_change_endpoint $netns $sflags $id $addr $port
 			done
 		done
 	fi
