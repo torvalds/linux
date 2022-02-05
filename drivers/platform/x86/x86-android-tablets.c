@@ -158,21 +158,27 @@ struct x86_dev_info {
 	void (*exit)(void);
 };
 
-/* Generic / shared bq24190 settings */
-static const char * const bq24190_suppliers[] = { "tusb1210-psy" };
+/* Generic / shared charger / battery settings */
+static const char * const bq24190_suppliers[] = { "tusb1211-charger-detect" };
+static const char * const ug3105_suppliers[] = { "bq24190-charger" };
 
-static const struct property_entry bq24190_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_suppliers),
-	PROPERTY_ENTRY_BOOL("omit-battery-class"),
-	PROPERTY_ENTRY_BOOL("disable-reset"),
+/* LiPo HighVoltage (max 4.35V) settings used by most devs with a HV bat. */
+static const struct property_entry generic_lipo_hv_4v35_battery_props[] = {
+	PROPERTY_ENTRY_STRING("compatible", "simple-battery"),
+	PROPERTY_ENTRY_STRING("device-chemistry", "lithium-ion"),
+	PROPERTY_ENTRY_U32("precharge-current-microamp", 256000),
+	PROPERTY_ENTRY_U32("charge-term-current-microamp", 128000),
+	PROPERTY_ENTRY_U32("constant-charge-current-max-microamp", 1856000),
+	PROPERTY_ENTRY_U32("constant-charge-voltage-max-microvolt", 4352000),
+	PROPERTY_ENTRY_U32("factory-internal-resistance-micro-ohms", 150000),
 	{ }
 };
 
-static const struct software_node bq24190_node = {
-	.properties = bq24190_props,
+static const struct software_node generic_lipo_hv_4v35_battery_node = {
+	.properties = generic_lipo_hv_4v35_battery_props,
 };
 
-/* For enableing the bq24190 5V boost based on id-pin */
+/* For enabling the bq24190 5V boost based on id-pin */
 static struct regulator_consumer_supply intel_int3496_consumer = {
 	.supply = "vbus",
 	.dev_name = "intel-int3496",
@@ -230,6 +236,30 @@ static const struct software_node asus_me176c_accel_node = {
 	.properties = asus_me176c_accel_props,
 };
 
+static const struct property_entry asus_me176c_bq24190_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_suppliers),
+	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
+	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
+	PROPERTY_ENTRY_BOOL("omit-battery-class"),
+	PROPERTY_ENTRY_BOOL("disable-reset"),
+	{ }
+};
+
+static const struct software_node asus_me176c_bq24190_node = {
+	.properties = asus_me176c_bq24190_props,
+};
+
+static const struct property_entry asus_me176c_ug3105_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", ug3105_suppliers),
+	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
+	PROPERTY_ENTRY_U32("upi,rsns-microohm", 10000),
+	{ }
+};
+
+static const struct software_node asus_me176c_ug3105_node = {
+	.properties = asus_me176c_ug3105_props,
+};
+
 static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = {
 	{
 		/* bq24190 battery charger */
@@ -237,7 +267,7 @@ static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = 
 			.type = "bq24190",
 			.addr = 0x6b,
 			.dev_name = "bq24190",
-			.swnode = &bq24190_node,
+			.swnode = &asus_me176c_bq24190_node,
 			.platform_data = &bq24190_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C1",
@@ -253,6 +283,7 @@ static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = 
 			.type = "ug3105",
 			.addr = 0x70,
 			.dev_name = "ug3105",
+			.swnode = &asus_me176c_ug3105_node,
 		},
 		.adapter_path = "\\_SB_.I2C1",
 	}, {
@@ -321,6 +352,7 @@ static const struct x86_dev_info asus_me176c_info __initconst = {
 	.serdev_info = asus_me176c_serdevs,
 	.serdev_count = ARRAY_SIZE(asus_me176c_serdevs),
 	.gpiod_lookup_tables = asus_me176c_gpios,
+	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
 	.invalid_aei_gpiochip = "INT33FC:02",
 };
@@ -350,6 +382,45 @@ static const struct software_node asus_tf103c_touchscreen_node = {
 	.properties = asus_tf103c_touchscreen_props,
 };
 
+static const struct property_entry asus_tf103c_battery_props[] = {
+	PROPERTY_ENTRY_STRING("compatible", "simple-battery"),
+	PROPERTY_ENTRY_STRING("device-chemistry", "lithium-ion-polymer"),
+	PROPERTY_ENTRY_U32("precharge-current-microamp", 256000),
+	PROPERTY_ENTRY_U32("charge-term-current-microamp", 128000),
+	PROPERTY_ENTRY_U32("constant-charge-current-max-microamp", 2048000),
+	PROPERTY_ENTRY_U32("constant-charge-voltage-max-microvolt", 4208000),
+	PROPERTY_ENTRY_U32("factory-internal-resistance-micro-ohms", 150000),
+	{ }
+};
+
+static const struct software_node asus_tf103c_battery_node = {
+	.properties = asus_tf103c_battery_props,
+};
+
+static const struct property_entry asus_tf103c_bq24190_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_suppliers),
+	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
+	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
+	PROPERTY_ENTRY_BOOL("omit-battery-class"),
+	PROPERTY_ENTRY_BOOL("disable-reset"),
+	{ }
+};
+
+static const struct software_node asus_tf103c_bq24190_node = {
+	.properties = asus_tf103c_bq24190_props,
+};
+
+static const struct property_entry asus_tf103c_ug3105_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", ug3105_suppliers),
+	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
+	PROPERTY_ENTRY_U32("upi,rsns-microohm", 5000),
+	{ }
+};
+
+static const struct software_node asus_tf103c_ug3105_node = {
+	.properties = asus_tf103c_ug3105_props,
+};
+
 static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = {
 	{
 		/* bq24190 battery charger */
@@ -357,7 +428,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 			.type = "bq24190",
 			.addr = 0x6b,
 			.dev_name = "bq24190",
-			.swnode = &bq24190_node,
+			.swnode = &asus_tf103c_bq24190_node,
 			.platform_data = &bq24190_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C1",
@@ -373,6 +444,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 			.type = "ug3105",
 			.addr = 0x70,
 			.dev_name = "ug3105",
+			.swnode = &asus_tf103c_ug3105_node,
 		},
 		.adapter_path = "\\_SB_.I2C1",
 	}, {
@@ -422,6 +494,7 @@ static const struct x86_dev_info asus_tf103c_info __initconst = {
 	.pdev_info = int3496_pdevs,
 	.pdev_count = ARRAY_SIZE(int3496_pdevs),
 	.gpiod_lookup_tables = asus_tf103c_gpios,
+	.bat_swnode = &asus_tf103c_battery_node,
 	.modules = bq24190_modules,
 	.invalid_aei_gpiochip = "INT33FC:02",
 };
