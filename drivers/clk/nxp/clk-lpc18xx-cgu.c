@@ -457,9 +457,8 @@ static unsigned long lpc18xx_pll1_recalc_rate(struct clk_hw *hw,
 	struct lpc18xx_pll *pll = to_lpc_pll(hw);
 	u16 msel, nsel, psel;
 	bool direct, fbsel;
-	u32 stat, ctrl;
+	u32 ctrl;
 
-	stat = readl(pll->reg + LPC18XX_CGU_PLL1_STAT);
 	ctrl = readl(pll->reg + LPC18XX_CGU_PLL1_CTRL);
 
 	direct = (ctrl & LPC18XX_PLL1_CTRL_DIRECT) ? true : false;
