@@ -361,6 +361,12 @@ static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = 
 			.swnode = &asus_me176c_accel_node,
 		},
 		.adapter_path = "\\_SB_.I2C5",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_APIC,
+			.index = 0x44,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+		},
 	}, {
 		/* goodix touchscreen */
 		.board_info = {
