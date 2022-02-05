@@ -1738,18 +1738,18 @@ static int vc4_hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	u32 val;
 	int ret;
 
+	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
+	if (ret)
+		return ret;
+
+	val = HDMI_READ(HDMI_CEC_CNTRL_5);
+	val &= ~(VC4_HDMI_CEC_TX_SW_RESET | VC4_HDMI_CEC_RX_SW_RESET |
+		 VC4_HDMI_CEC_CNT_TO_4700_US_MASK |
+		 VC4_HDMI_CEC_CNT_TO_4500_US_MASK);
+	val |= ((4700 / usecs) << VC4_HDMI_CEC_CNT_TO_4700_US_SHIFT) |
+	       ((4500 / usecs) << VC4_HDMI_CEC_CNT_TO_4500_US_SHIFT);
+
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
-		if (ret)
-			return ret;
-
-		val = HDMI_READ(HDMI_CEC_CNTRL_5);
-		val &= ~(VC4_HDMI_CEC_TX_SW_RESET | VC4_HDMI_CEC_RX_SW_RESET |
-			 VC4_HDMI_CEC_CNT_TO_4700_US_MASK |
-			 VC4_HDMI_CEC_CNT_TO_4500_US_MASK);
-		val |= ((4700 / usecs) << VC4_HDMI_CEC_CNT_TO_4700_US_SHIFT) |
-			((4500 / usecs) << VC4_HDMI_CEC_CNT_TO_4500_US_SHIFT);
-
 		HDMI_WRITE(HDMI_CEC_CNTRL_5, val |
 			   VC4_HDMI_CEC_TX_SW_RESET | VC4_HDMI_CEC_RX_SW_RESET);
 		HDMI_WRITE(HDMI_CEC_CNTRL_5, val);
@@ -1777,10 +1777,7 @@ static int vc4_hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 			HDMI_WRITE(HDMI_CEC_CPU_MASK_SET, VC4_HDMI_CPU_CEC);
 		HDMI_WRITE(HDMI_CEC_CNTRL_5, val |
 			   VC4_HDMI_CEC_TX_SW_RESET | VC4_HDMI_CEC_RX_SW_RESET);
-
-		pm_runtime_put(&vc4_hdmi->pdev->dev);
 	}
-
 	return 0;
 }
 
@@ -1890,6 +1887,8 @@ static int vc4_hdmi_cec_init(struct vc4_hdmi *vc4_hdmi)
 	ret = cec_register_adapter(vc4_hdmi->cec_adap, &pdev->dev);
 	if (ret < 0)
 		goto err_remove_handlers;
+
+	pm_runtime_put(&vc4_hdmi->pdev->dev);
 
 	return 0;
 
