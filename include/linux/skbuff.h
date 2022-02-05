@@ -330,6 +330,15 @@ enum skb_drop_reason {
 					 * IP header (see
 					 * IPSTATS_MIB_INHDRERRORS)
 					 */
+	SKB_DROP_REASON_IP_RPFILTER,	/* IP rpfilter validate failed.
+					 * see the document for rp_filter
+					 * in ip-sysctl.rst for more
+					 * information
+					 */
+	SKB_DROP_REASON_UNICAST_IN_L2_MULTICAST, /* destination address of L2
+						  * is multicast, but L3 is
+						  * unicast.
+						  */
 	SKB_DROP_REASON_MAX,
 };
 
