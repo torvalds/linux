@@ -285,7 +285,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 		if (dm_odm->RFCalibrateInfo.TxPowerTrackControl)
 			dm_odm->RFCalibrateInfo.ThermalValue = ThermalValue;
 	}
-	dm_odm->RFCalibrateInfo.TXPowercount = 0;
 }
 
 /* 1 7.	IQK */
