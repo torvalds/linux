@@ -1627,10 +1627,13 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 	if (WARN_ON(entry->entry >= trans->num_rx_queues))
 		return IRQ_NONE;
 
-	if (WARN_ONCE(!rxq,
-		      "[%d] Got MSI-X interrupt before we have Rx queues",
-		      entry->entry))
+	if (!rxq) {
+		if (net_ratelimit())
+			IWL_ERR(trans,
+				"[%d] Got MSI-X interrupt before we have Rx queues\n",
+				entry->entry);
 		return IRQ_NONE;
+	}
 
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);
 	IWL_DEBUG_ISR(trans, "[%d] Got interrupt\n", entry->entry);
