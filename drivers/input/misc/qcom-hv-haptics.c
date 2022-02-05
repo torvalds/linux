@@ -2683,7 +2683,7 @@ static int haptics_init_fifo_memory(struct haptics_chip *chip)
 
 	for (i = 0; i < chip->effects_count; i++) {
 		effect = &chip->effects[i];
-		if (!effect->fifo->preload)
+		if (!effect->fifo || !effect->fifo->preload)
 			continue;
 
 		rc = haptics_mmap_preload_fifo_effect(chip, effect);
@@ -2697,7 +2697,7 @@ static int haptics_init_fifo_memory(struct haptics_chip *chip)
 
 	for (i = 0; i < chip->effects_count; i++) {
 		effect = &chip->effects[i];
-		if (!effect->fifo->preload)
+		if (!effect->fifo || !effect->fifo->preload)
 			continue;
 
 		rc = haptics_config_preload_fifo_effect(chip, effect);
