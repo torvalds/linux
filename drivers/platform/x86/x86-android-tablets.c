@@ -53,13 +53,33 @@ static int gpiochip_find_match_label(struct gpio_chip *gc, void *data)
 	return gc->label && !strcmp(gc->label, data);
 }
 
+static int x86_android_tablet_get_gpiod(char *label, int pin, struct gpio_desc **desc)
+{
+	struct gpio_desc *gpiod;
+	struct gpio_chip *chip;
+
+	chip = gpiochip_find(label, gpiochip_find_match_label);
+	if (!chip) {
+		pr_err("error cannot find GPIO chip %s\n", label);
+		return -ENODEV;
+	}
+
+	gpiod = gpiochip_get_desc(chip, pin);
+	if (IS_ERR(gpiod)) {
+		pr_err("error %ld getting GPIO %s %d\n", PTR_ERR(gpiod), label, pin);
+		return PTR_ERR(gpiod);
+	}
+
+	*desc = gpiod;
+	return 0;
+}
+
 static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 {
 	struct irq_fwspec fwspec = { };
 	struct irq_domain *domain;
 	struct acpi_device *adev;
 	struct gpio_desc *gpiod;
-	struct gpio_chip *chip;
 	unsigned int irq_type;
 	acpi_handle handle;
 	acpi_status status;
@@ -74,18 +94,9 @@ static int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		return irq;
 	case X86_ACPI_IRQ_TYPE_GPIOINT:
 		/* Like acpi_dev_gpio_irq_get(), but without parsing ACPI resources */
-		chip = gpiochip_find(data->chip, gpiochip_find_match_label);
-		if (!chip) {
-			pr_err("error cannot find GPIO chip %s\n", data->chip);
-			return -ENODEV;
-		}
-
-		gpiod = gpiochip_get_desc(chip, data->index);
-		if (IS_ERR(gpiod)) {
-			ret = PTR_ERR(gpiod);
-			pr_err("error %d getting GPIO %s %d\n", ret, data->chip, data->index);
+		ret = x86_android_tablet_get_gpiod(data->chip, data->index, &gpiod);
+		if (ret)
 			return ret;
-		}
 
 		irq = gpiod_to_irq(gpiod);
 		if (irq < 0) {
