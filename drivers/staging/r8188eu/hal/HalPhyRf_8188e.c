@@ -895,14 +895,9 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 
 void PHY_LCCalibrate_8188E(struct adapter *adapt)
 {
-	bool singletone = false, carrier_sup = false;
 	u32 timeout = 2000, timecount = 0;
 	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
-	if (singletone || carrier_sup)
-		return;
 
 	while (*dm_odm->pbScanInProcess && timecount < timeout) {
 		mdelay(50);
