@@ -727,34 +727,6 @@ static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
 }
 
 /*
- * Create the missing media links from the CSI-2 receiver.
- * Called after all async subdevs have bound.
- */
-static void imx_media_create_csi2_links(struct imx_media_dev *imxmd)
-{
-	struct v4l2_subdev *sd, *csi2 = NULL;
-
-	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
-		if (sd->grp_id == IMX_MEDIA_GRP_ID_CSI2) {
-			csi2 = sd;
-			break;
-		}
-	}
-	if (!csi2)
-		return;
-
-	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
-		/* skip if not a CSI or a CSI mux */
-		if (!(sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI) &&
-		    !(sd->grp_id & IMX_MEDIA_GRP_ID_CSI) &&
-		    !(sd->grp_id & IMX_MEDIA_GRP_ID_CSI_MUX))
-			continue;
-
-		v4l2_create_fwnode_links(csi2, sd);
-	}
-}
-
-/*
  * adds given video device to given imx-media source pad vdev list.
  * Continues upstream from the pad entity's sink pads.
  */
@@ -882,8 +854,6 @@ static int __imx_media_probe_complete(struct v4l2_async_notifier *notifier)
 	int ret;
 
 	mutex_lock(&imxmd->mutex);
-
-	imx_media_create_csi2_links(imxmd);
 
 	ret = imx_media_create_pad_vdev_lists(imxmd);
 	if (ret)
@@ -1480,7 +1450,6 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	csi->sd.dev = &pdev->dev;
 	csi->sd.owner = THIS_MODULE;
 	csi->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-	csi->sd.grp_id = IMX_MEDIA_GRP_ID_CSI;
 	snprintf(csi->sd.name, sizeof(csi->sd.name), "csi");
 
 	for (i = 0; i < IMX7_CSI_PADS_NUM; i++)
