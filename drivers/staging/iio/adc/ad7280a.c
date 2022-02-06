@@ -23,8 +23,6 @@
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 
-#include "ad7280a.h"
-
 /* Registers */
 
 #define AD7280A_CELL_VOLTAGE_1_REG		0x0  /* D11 to D0, Read only */
@@ -81,6 +79,11 @@
 #define AD7280A_AUX_ADC_UNDERVOLTAGE_REG	0x12 /* D7 to D0, Read/write */
 
 #define AD7280A_ALERT_REG			0x13 /* D7 to D0, Read/write */
+#define   AD7280A_ALERT_REMOVE_MSK			GENMASK(3, 0)
+#define     AD7280A_ALERT_REMOVE_AUX5			BIT(0)
+#define     AD7280A_ALERT_REMOVE_AUX3_AUX5		BIT(1)
+#define     AD7280A_ALERT_REMOVE_VIN5			BIT(2)
+#define     AD7280A_ALERT_REMOVE_VIN4_VIN5		BIT(3)
 #define   AD7280A_ALERT_GEN_STATIC_HIGH			BIT(6)
 #define   AD7280A_ALERT_RELAY_SIG_CHAIN_DOWN		(BIT(7) | BIT(6))
 
@@ -163,6 +166,8 @@ static unsigned int ad7280a_devaddr(unsigned int addr)
 struct ad7280_state {
 	struct spi_device		*spi;
 	struct iio_chan_spec		*channels;
+	unsigned int			chain_last_alert_ignore;
+	bool				thermistor_term_en;
 	int				slave_num;
 	int				scan_cnt;
 	int				readback_delay_us;
@@ -947,14 +952,8 @@ static const struct iio_info ad7280_info_no_irq = {
 	.write_raw = ad7280_write_raw,
 };
 
-static const struct ad7280_platform_data ad7793_default_pdata = {
-	.acquisition_time = AD7280A_ACQ_TIME_400ns,
-	.thermistor_term_en = true,
-};
-
 static int ad7280_probe(struct spi_device *spi)
 {
-	const struct ad7280_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct device *dev = &spi->dev;
 	struct ad7280_state *st;
 	int ret;
@@ -969,17 +968,90 @@ static int ad7280_probe(struct spi_device *spi)
 	st->spi = spi;
 	mutex_init(&st->lock);
 
-	if (!pdata)
-		pdata = &ad7793_default_pdata;
+	st->thermistor_term_en =
+		device_property_read_bool(dev, "adi,thermistor-termination");
 
+	if (device_property_present(dev, "adi,acquisition-time-ns")) {
+		u32 val;
+
+		ret = device_property_read_u32(dev, "adi,acquisition-time-ns", &val);
+		if (ret)
+			return ret;
+
+		switch (val) {
+		case 400:
+			st->acquisition_time = AD7280A_CTRL_LB_ACQ_TIME_400ns;
+			break;
+		case 800:
+			st->acquisition_time = AD7280A_CTRL_LB_ACQ_TIME_800ns;
+			break;
+		case 1200:
+			st->acquisition_time = AD7280A_CTRL_LB_ACQ_TIME_1200ns;
+			break;
+		case 1600:
+			st->acquisition_time = AD7280A_CTRL_LB_ACQ_TIME_1600ns;
+			break;
+		default:
+			dev_err(dev, "Firmware provided acquisition time is invalid\n");
+			return -EINVAL;
+		}
+	} else {
+		st->acquisition_time = AD7280A_CTRL_LB_ACQ_TIME_400ns;
+	}
+
+	/* Alert masks are intended for when particular inputs are not wired up */
+	if (device_property_present(dev, "adi,voltage-alert-last-chan")) {
+		u32 val;
+
+		ret = device_property_read_u32(dev, "adi,voltage-alert-last-chan", &val);
+		if (ret)
+			return ret;
+
+		switch (val) {
+		case 3:
+			st->chain_last_alert_ignore |= AD7280A_ALERT_REMOVE_VIN4_VIN5;
+			break;
+		case 4:
+			st->chain_last_alert_ignore |= AD7280A_ALERT_REMOVE_VIN5;
+			break;
+		case 5:
+			break;
+		default:
+			dev_err(dev,
+				"Firmware provided last voltage alert channel invalid\n");
+			break;
+		}
+	}
+	if (device_property_present(dev, "adi,temp-alert-last-chan")) {
+		u32 val;
+
+		ret = device_property_read_u32(dev, "adi,temp-alert-last-chan", &val);
+		if (ret)
+			return ret;
+
+		switch (val) {
+		case 3:
+			st->chain_last_alert_ignore |= AD7280A_ALERT_REMOVE_AUX3_AUX5;
+			break;
+		case 4:
+			st->chain_last_alert_ignore |= AD7280A_ALERT_REMOVE_AUX5;
+			break;
+		case 5:
+			break;
+		default:
+			dev_err(dev,
+				"Firmware provided last temp alert channel invalid\n");
+			break;
+		}
+	}
 	crc8_populate_msb(st->crc_tab, POLYNOM);
 
 	st->spi->max_speed_hz = AD7280A_MAX_SPI_CLK_HZ;
 	st->spi->mode = SPI_MODE_1;
 	spi_setup(st->spi);
 
-	st->ctrl_lb = FIELD_PREP(AD7280A_CTRL_LB_ACQ_TIME_MSK, pdata->acquisition_time) |
-		FIELD_PREP(AD7280A_CTRL_LB_THERMISTOR_MSK, pdata->thermistor_term_en);
+	st->ctrl_lb = FIELD_PREP(AD7280A_CTRL_LB_ACQ_TIME_MSK, st->acquisition_time) |
+		FIELD_PREP(AD7280A_CTRL_LB_THERMISTOR_MSK, st->thermistor_term_en);
 	st->oversampling_ratio = 0; /* No oversampling */
 
 	ret = ad7280_chain_setup(st);
@@ -990,7 +1062,6 @@ static int ad7280_probe(struct spi_device *spi)
 	st->scan_cnt = (st->slave_num + 1) * AD7280A_NUM_CH;
 	st->cell_threshhigh = 0xFF;
 	st->aux_threshhigh = 0xFF;
-	st->acquisition_time = pdata->acquisition_time;
 
 	ret = devm_add_action_or_reset(dev, ad7280_sw_power_down, st);
 	if (ret)
@@ -1017,7 +1088,8 @@ static int ad7280_probe(struct spi_device *spi)
 		ret = ad7280_write(st, ad7280a_devaddr(st->slave_num),
 				   AD7280A_ALERT_REG, 0,
 				   AD7280A_ALERT_GEN_STATIC_HIGH |
-				   (pdata->chain_last_alert_ignore & 0xF));
+				   FIELD_PREP(AD7280A_ALERT_REMOVE_MSK,
+					      st->chain_last_alert_ignore));
 		if (ret)
 			return ret;
 
