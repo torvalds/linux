@@ -88,6 +88,7 @@
 #define   AD7280A_ALERT_RELAY_SIG_CHAIN_DOWN		(BIT(7) | BIT(6))
 
 #define AD7280A_CELL_BALANCE_REG		0x14 /* D7 to D0, Read/write */
+#define  AD7280A_CELL_BALANCE_CHAN_BITMAP_MSK		GENMASK(7, 2)
 #define AD7280A_CB1_TIMER_REG			0x15 /* D7 to D0, Read/write */
 #define  AD7280A_CB_TIMER_VAL_MSK			GENMASK(7, 3)
 #define AD7280A_CB2_TIMER_REG			0x16 /* D7 to D0, Read/write */
@@ -474,7 +475,7 @@ static ssize_t ad7280_show_balance_sw(struct iio_dev *indio_dev,
 
 	return sysfs_emit(buf, "%d\n",
 			  !!(st->cb_mask[chan->address >> 8] &
-			  (1 << ((chan->address & 0xFF) + 2))));
+			     BIT(chan->address & 0xFF)));
 }
 
 static ssize_t ad7280_store_balance_sw(struct iio_dev *indio_dev,
@@ -496,12 +497,13 @@ static ssize_t ad7280_store_balance_sw(struct iio_dev *indio_dev,
 
 	mutex_lock(&st->lock);
 	if (readin)
-		st->cb_mask[devaddr] |= 1 << (ch + 2);
+		st->cb_mask[devaddr] |= BIT(ch);
 	else
-		st->cb_mask[devaddr] &= ~(1 << (ch + 2));
+		st->cb_mask[devaddr] &= ~BIT(ch);
 
-	ret = ad7280_write(st, devaddr, AD7280A_CELL_BALANCE_REG,
-			   0, st->cb_mask[devaddr]);
+	ret = ad7280_write(st, devaddr, AD7280A_CELL_BALANCE_REG, 0,
+			   FIELD_PREP(AD7280A_CELL_BALANCE_CHAN_BITMAP_MSK,
+				      st->cb_mask[devaddr]));
 	mutex_unlock(&st->lock);
 
 	return ret ? ret : len;
