@@ -414,7 +414,7 @@ static int pi433_receive(void *data)
 	dev->interrupt_rx_allowed = false;
 
 	/* wait for any tx to finish */
-	dev_dbg(dev->dev, "rx: going to wait for any tx to finish");
+	dev_dbg(dev->dev, "rx: going to wait for any tx to finish\n");
 	retval = wait_event_interruptible(dev->rx_wait_queue, !dev->tx_active);
 	if (retval) {
 		/* wait was interrupted */
@@ -440,7 +440,7 @@ static int pi433_receive(void *data)
 		wake_up_interruptible(&dev->tx_wait_queue);
 
 		/* wait for RSSI level to become high */
-		dev_dbg(dev->dev, "rx: going to wait for high RSSI level");
+		dev_dbg(dev->dev, "rx: going to wait for high RSSI level\n");
 		retval = wait_event_interruptible(dev->rx_wait_queue,
 						  rf69_get_flag(dev->spi,
 								rssi_exceeded_threshold));
@@ -467,11 +467,11 @@ static int pi433_receive(void *data)
 			goto abort;
 		}
 		bytes_total = dev->rx_cfg.fixed_message_length;
-		dev_dbg(dev->dev, "rx: msg len set to %d by fixed length",
+		dev_dbg(dev->dev, "rx: msg len set to %d by fixed length\n",
 			bytes_total);
 	} else {
 		bytes_total = dev->rx_buffer_size;
-		dev_dbg(dev->dev, "rx: msg len set to %d as requested by read",
+		dev_dbg(dev->dev, "rx: msg len set to %d as requested by read\n",
 			bytes_total);
 	}
 
@@ -488,7 +488,7 @@ static int pi433_receive(void *data)
 			goto abort;
 		}
 		dev->free_in_fifo++;
-		dev_dbg(dev->dev, "rx: msg len reset to %d due to length byte",
+		dev_dbg(dev->dev, "rx: msg len reset to %d due to length byte\n",
 			bytes_total);
 	}
 
@@ -505,7 +505,7 @@ static int pi433_receive(void *data)
 
 		rf69_read_fifo(spi, &dummy, 1);
 		dev->free_in_fifo++;
-		dev_dbg(dev->dev, "rx: address byte stripped off");
+		dev_dbg(dev->dev, "rx: address byte stripped off\n");
 	}
 
 	/* get payload */
@@ -567,7 +567,7 @@ static int pi433_tx_thread(void *data)
 
 	while (1) {
 		/* wait for fifo to be populated or for request to terminate*/
-		dev_dbg(device->dev, "thread: going to wait for new messages");
+		dev_dbg(device->dev, "thread: going to wait for new messages\n");
 		wait_event_interruptible(device->tx_wait_queue,
 					 (!kfifo_is_empty(&device->tx_fifo) ||
 					  kthread_should_stop()));
@@ -583,7 +583,7 @@ static int pi433_tx_thread(void *data)
 		retval = kfifo_out(&device->tx_fifo, &tx_cfg, sizeof(tx_cfg));
 		if (retval != sizeof(tx_cfg)) {
 			dev_dbg(device->dev,
-				"reading tx_cfg from fifo failed: got %d byte(s), expected %d",
+				"reading tx_cfg from fifo failed: got %d byte(s), expected %d\n",
 				retval, (unsigned int)sizeof(tx_cfg));
 			continue;
 		}
@@ -591,7 +591,7 @@ static int pi433_tx_thread(void *data)
 		retval = kfifo_out(&device->tx_fifo, &size, sizeof(size_t));
 		if (retval != sizeof(size_t)) {
 			dev_dbg(device->dev,
-				"reading msg size from fifo failed: got %d, expected %d",
+				"reading msg size from fifo failed: got %d, expected %d\n",
 				retval, (unsigned int)sizeof(size_t));
 			continue;
 		}
@@ -628,7 +628,7 @@ static int pi433_tx_thread(void *data)
 		retval = kfifo_out(&device->tx_fifo, &device->buffer[position],
 				   sizeof(device->buffer) - position);
 		dev_dbg(device->dev,
-			"read %d message byte(s) from fifo queue.", retval);
+			"read %d message byte(s) from fifo queue.\n", retval);
 
 		/*
 		 * if rx is active, we need to interrupt the waiting for
@@ -733,7 +733,7 @@ static int pi433_tx_thread(void *data)
 
 		/* we are done. Wait for packet to get sent */
 		dev_dbg(device->dev,
-			"thread: wait for packet to get sent/fifo to be empty");
+			"thread: wait for packet to get sent/fifo to be empty\n");
 		wait_event_interruptible(device->fifo_wait_queue,
 					 device->free_in_fifo == FIFO_SIZE ||
 					 kthread_should_stop());
@@ -741,7 +741,7 @@ static int pi433_tx_thread(void *data)
 			return 0;
 
 		/* STOP_TRANSMISSION */
-		dev_dbg(device->dev, "thread: Packet sent. Set mode to stby.");
+		dev_dbg(device->dev, "thread: Packet sent. Set mode to stby.\n");
 		retval = rf69_set_mode(spi, standby);
 		if (retval < 0)
 			goto abort;
@@ -831,7 +831,7 @@ pi433_write(struct file *filp, const char __user *buf,
 	 */
 	if (!instance->tx_cfg_initialized) {
 		dev_notice_once(device->dev,
-				"write: failed due to unconfigured tx_cfg (see PI433_IOC_WR_TX_CFG)");
+				"write: failed due to unconfigured tx_cfg (see PI433_IOC_WR_TX_CFG)\n");
 		return -EINVAL;
 	}
 
@@ -846,7 +846,7 @@ pi433_write(struct file *filp, const char __user *buf,
 	required = sizeof(instance->tx_cfg) + sizeof(size_t) + count;
 	available = kfifo_avail(&device->tx_fifo);
 	if (required > available) {
-		dev_dbg(device->dev, "write to fifo failed: %d bytes required but %d available",
+		dev_dbg(device->dev, "write to fifo failed: %d bytes required but %d available\n",
 			required, available);
 		mutex_unlock(&device->tx_fifo_lock);
 		return -EAGAIN;
@@ -869,13 +869,13 @@ pi433_write(struct file *filp, const char __user *buf,
 
 	/* start transfer */
 	wake_up_interruptible(&device->tx_wait_queue);
-	dev_dbg(device->dev, "write: generated new msg with %d bytes.", copied);
+	dev_dbg(device->dev, "write: generated new msg with %d bytes.\n", copied);
 
 	return copied;
 
 abort:
 	dev_warn(device->dev,
-		 "write to fifo failed, non recoverable: 0x%x", retval);
+		 "write to fifo failed, non recoverable: 0x%x\n", retval);
 	mutex_unlock(&device->tx_fifo_lock);
 	return -EAGAIN;
 }
@@ -1000,12 +1000,12 @@ static int setup_gpio(struct pi433_device *device)
 
 		if (device->gpiod[i] == ERR_PTR(-ENOENT)) {
 			dev_dbg(&device->spi->dev,
-				"Could not find entry for %s. Ignoring.", name);
+				"Could not find entry for %s. Ignoring.\n", name);
 			continue;
 		}
 
 		if (device->gpiod[i] == ERR_PTR(-EBUSY))
-			dev_dbg(&device->spi->dev, "%s is busy.", name);
+			dev_dbg(&device->spi->dev, "%s is busy.\n", name);
 
 		if (IS_ERR(device->gpiod[i])) {
 			retval = PTR_ERR(device->gpiod[i]);
@@ -1038,7 +1038,7 @@ static int setup_gpio(struct pi433_device *device)
 		if (retval)
 			return retval;
 
-		dev_dbg(&device->spi->dev, "%s successfully configured", name);
+		dev_dbg(&device->spi->dev, "%s successfully configured\n", name);
 	}
 
 	return 0;
@@ -1186,7 +1186,7 @@ static int pi433_probe(struct spi_device *spi)
 	}
 
 	dev_dbg(&spi->dev,
-		"spi interface setup: mode 0x%2x, %d bits per word, %dhz max speed",
+		"spi interface setup: mode 0x%2x, %d bits per word, %dhz max speed\n",
 		spi->mode, spi->bits_per_word, spi->max_speed_hz);
 
 	/* read chip version */
@@ -1196,10 +1196,10 @@ static int pi433_probe(struct spi_device *spi)
 
 	switch (retval) {
 	case 0x24:
-		dev_dbg(&spi->dev, "found pi433 (ver. 0x%x)", retval);
+		dev_dbg(&spi->dev, "found pi433 (ver. 0x%x)\n", retval);
 		break;
 	default:
-		dev_dbg(&spi->dev, "unknown chip version: 0x%x", retval);
+		dev_dbg(&spi->dev, "unknown chip version: 0x%x\n", retval);
 		return -ENODEV;
 	}
 
@@ -1236,7 +1236,7 @@ static int pi433_probe(struct spi_device *spi)
 	/* setup GPIO (including irq_handler) for the different DIOs */
 	retval = setup_gpio(device);
 	if (retval) {
-		dev_dbg(&spi->dev, "setup of GPIOs failed");
+		dev_dbg(&spi->dev, "setup of GPIOs failed\n");
 		goto GPIO_failed;
 	}
 
@@ -1266,7 +1266,7 @@ static int pi433_probe(struct spi_device *spi)
 	/* determ minor number */
 	retval = pi433_get_minor(device);
 	if (retval) {
-		dev_dbg(&spi->dev, "get of minor number failed");
+		dev_dbg(&spi->dev, "get of minor number failed\n");
 		goto minor_failed;
 	}
 
@@ -1295,7 +1295,7 @@ static int pi433_probe(struct spi_device *spi)
 					     "pi433.%d_tx_task",
 					     device->minor);
 	if (IS_ERR(device->tx_task_struct)) {
-		dev_dbg(device->dev, "start of send thread failed");
+		dev_dbg(device->dev, "start of send thread failed\n");
 		retval = PTR_ERR(device->tx_task_struct);
 		goto send_thread_failed;
 	}
@@ -1303,7 +1303,7 @@ static int pi433_probe(struct spi_device *spi)
 	/* create cdev */
 	device->cdev = cdev_alloc();
 	if (!device->cdev) {
-		dev_dbg(device->dev, "allocation of cdev failed");
+		dev_dbg(device->dev, "allocation of cdev failed\n");
 		retval = -ENOMEM;
 		goto cdev_failed;
 	}
@@ -1311,7 +1311,7 @@ static int pi433_probe(struct spi_device *spi)
 	cdev_init(device->cdev, &pi433_fops);
 	retval = cdev_add(device->cdev, device->devt, 1);
 	if (retval) {
-		dev_dbg(device->dev, "register of cdev failed");
+		dev_dbg(device->dev, "register of cdev failed\n");
 		goto del_cdev;
 	}
 
