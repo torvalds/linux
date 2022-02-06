@@ -571,7 +571,8 @@ int power_supply_get_battery_info(struct power_supply *psy,
 {
 	struct power_supply_resistance_temp_table *resist_table;
 	struct power_supply_battery_info *info;
-	struct device_node *battery_np;
+	struct device_node *battery_np = NULL;
+	struct fwnode_reference_args args;
 	struct fwnode_handle *fwnode;
 	const char *value;
 	int err, len, index;
@@ -610,17 +611,21 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		info->ocv_table_size[index]  = -EINVAL;
 	}
 
-	if (!psy->of_node) {
-		dev_warn(&psy->dev, "%s currently only supports devicetree\n",
-			 __func__);
-		return -ENXIO;
+	if (psy->of_node) {
+		battery_np = of_parse_phandle(psy->of_node, "monitored-battery", 0);
+		if (!battery_np)
+			return -ENODEV;
+
+		fwnode = fwnode_handle_get(of_fwnode_handle(battery_np));
+	} else {
+		err = fwnode_property_get_reference_args(
+					dev_fwnode(psy->dev.parent),
+					"monitored-battery", NULL, 0, 0, &args);
+		if (err)
+			return err;
+
+		fwnode = args.fwnode;
 	}
-
-	battery_np = of_parse_phandle(psy->of_node, "monitored-battery", 0);
-	if (!battery_np)
-		return -ENODEV;
-
-	fwnode = of_fwnode_handle(battery_np);
 
 	err = fwnode_property_read_string(fwnode, "compatible", &value);
 	if (err)
@@ -778,6 +783,7 @@ out_ret_pointer:
 	*info_out = info;
 
 out_put_node:
+	fwnode_handle_put(fwnode);
 	of_node_put(battery_np);
 	return err;
 }
