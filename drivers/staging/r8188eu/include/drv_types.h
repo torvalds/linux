@@ -141,7 +141,6 @@ struct dvobj_priv {
 	u8	RtNumOutPipes;
 	int	RegUsbSS;
 	struct semaphore usb_suspend_sema;
-	struct mutex  usb_vendor_req_mutex;
 
 	struct usb_interface *pusbintf;
 	struct usb_device *pusbdev;
