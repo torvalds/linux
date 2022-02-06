@@ -129,6 +129,10 @@
 
 #define AD7280A_DEVADDR_MASTER		0
 #define AD7280A_DEVADDR_ALL		0x1F
+
+static const unsigned short ad7280a_n_avg[4] = {1, 2, 4, 8};
+static const unsigned short ad7280a_t_acq_ns[4] = {465, 1010, 1460, 1890};
+
 /* 5-bit device address is sent LSB first */
 static unsigned int ad7280a_devaddr(unsigned int addr)
 {
@@ -161,7 +165,8 @@ struct ad7280_state {
 	int				scan_cnt;
 	int				readback_delay_us;
 	unsigned char			crc_tab[CRC8_TABLE_SIZE];
-	unsigned char			ctrl_hb;
+	u8				oversampling_ratio;
+	u8				acquisition_time;
 	unsigned char			ctrl_lb;
 	unsigned char			cell_threshhigh;
 	unsigned char			cell_threshlow;
@@ -260,7 +265,8 @@ static int ad7280_read_reg(struct ad7280_state *st, unsigned int devaddr,
 				      AD7280A_CTRL_HB_CONV_INPUT_ALL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_RREAD_MSK,
 				      AD7280A_CTRL_HB_CONV_RREAD_NO) |
-			   st->ctrl_hb);
+			   FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK,
+				      st->oversampling_ratio));
 	if (ret)
 		return ret;
 
@@ -270,7 +276,8 @@ static int ad7280_read_reg(struct ad7280_state *st, unsigned int devaddr,
 				      AD7280A_CTRL_HB_CONV_INPUT_ALL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_RREAD_MSK,
 				      AD7280A_CTRL_HB_CONV_RREAD_ALL) |
-			   st->ctrl_hb);
+			   FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK,
+				      st->oversampling_ratio));
 	if (ret)
 		return ret;
 
@@ -310,7 +317,8 @@ static int ad7280_read_channel(struct ad7280_state *st, unsigned int devaddr,
 				      AD7280A_CTRL_HB_CONV_INPUT_ALL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_RREAD_MSK,
 				      AD7280A_CTRL_HB_CONV_RREAD_NO) |
-			   st->ctrl_hb);
+			   FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK,
+				      st->oversampling_ratio));
 	if (ret)
 		return ret;
 
@@ -321,7 +329,8 @@ static int ad7280_read_channel(struct ad7280_state *st, unsigned int devaddr,
 				      AD7280A_CTRL_HB_CONV_RREAD_ALL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_START_MSK,
 				      AD7280A_CTRL_HB_CONV_START_CS) |
-			   st->ctrl_hb);
+			   FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK,
+				      st->oversampling_ratio));
 	if (ret)
 		return ret;
 
@@ -359,7 +368,8 @@ static int ad7280_read_all_channels(struct ad7280_state *st, unsigned int cnt,
 				      AD7280A_CTRL_HB_CONV_RREAD_ALL) |
 			   FIELD_PREP(AD7280A_CTRL_HB_CONV_START_MSK,
 				      AD7280A_CTRL_HB_CONV_START_CS) |
-			   st->ctrl_hb);
+			   FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK,
+				      st->oversampling_ratio));
 	if (ret)
 		return ret;
 
@@ -389,7 +399,8 @@ static void ad7280_sw_power_down(void *data)
 	struct ad7280_state *st = data;
 
 	ad7280_write(st, AD7280A_DEVADDR_MASTER, AD7280A_CTRL_HB_REG, 1,
-		     AD7280A_CTRL_HB_PWRDN_SW | st->ctrl_hb);
+		     AD7280A_CTRL_HB_PWRDN_SW |
+		     FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK, st->oversampling_ratio));
 }
 
 static int ad7280_chain_setup(struct ad7280_state *st)
@@ -442,7 +453,8 @@ static int ad7280_chain_setup(struct ad7280_state *st)
 
 error_power_down:
 	ad7280_write(st, AD7280A_DEVADDR_MASTER, AD7280A_CTRL_HB_REG, 1,
-		     AD7280A_CTRL_HB_PWRDN_SW | st->ctrl_hb);
+		     AD7280A_CTRL_HB_PWRDN_SW |
+		     FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK, st->oversampling_ratio));
 
 	return ret;
 }
@@ -590,6 +602,7 @@ static void ad7280_common_fields_init(struct iio_chan_spec *chan, int addr,
 	chan->indexed = 1;
 	chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
 	chan->info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
+	chan->info_mask_shared_by_all = BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
 	chan->address = addr;
 	chan->scan_index = cnt;
 	chan->scan_type.sign = 'u';
@@ -829,6 +842,26 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void ad7280_update_delay(struct ad7280_state *st)
+{
+	/*
+	 * Total Conversion Time = ((tACQ + tCONV) *
+	 *			   (Number of Conversions per Part)) −
+	 *			   tACQ + ((N - 1) * tDELAY)
+	 *
+	 * Readback Delay = Total Conversion Time + tWAIT
+	 */
+
+	st->readback_delay_us =
+		((ad7280a_t_acq_ns[st->acquisition_time & 0x3] + 695) *
+			(AD7280A_NUM_CH * ad7280a_n_avg[st->oversampling_ratio & 0x3])) -
+		ad7280a_t_acq_ns[st->acquisition_time & 0x3] + st->slave_num * 250;
+
+	/* Convert to usecs */
+	st->readback_delay_us = DIV_ROUND_UP(st->readback_delay_us, 1000);
+	st->readback_delay_us += 5; /* Add tWAIT */
+}
+
 static int ad7280_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
@@ -862,19 +895,46 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 
 		*val2 = AD7280A_BITS;
 		return IIO_VAL_FRACTIONAL_LOG2;
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		*val = ad7280a_n_avg[st->oversampling_ratio];
+		return IIO_VAL_INT;
 	}
 	return -EINVAL;
 }
 
+static int ad7280_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
+{
+	struct ad7280_state *st = iio_priv(indio_dev);
+	int i;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		if (val2 != 0)
+			return -EINVAL;
+		for (i = 0; i < ARRAY_SIZE(ad7280a_n_avg); i++) {
+			if (val == ad7280a_n_avg[i]) {
+				st->oversampling_ratio = i;
+				ad7280_update_delay(st);
+				return 0;
+			}
+		}
+		return -EINVAL;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info ad7280_info = {
 	.read_raw = ad7280_read_raw,
+	.write_raw = ad7280_write_raw,
 	.read_event_value = &ad7280a_read_thresh,
 	.write_event_value = &ad7280a_write_thresh,
 };
 
 static const struct ad7280_platform_data ad7793_default_pdata = {
 	.acquisition_time = AD7280A_ACQ_TIME_400ns,
-	.conversion_averaging = AD7280A_CONV_AVG_DIS,
 	.thermistor_term_en = true,
 };
 
@@ -883,8 +943,6 @@ static int ad7280_probe(struct spi_device *spi)
 	const struct ad7280_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad7280_state *st;
 	int ret;
-	const unsigned short t_acq_ns[4] = {465, 1010, 1460, 1890};
-	const unsigned short n_avg[4] = {1, 2, 4, 8};
 	struct iio_dev *indio_dev;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -907,7 +965,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 	st->ctrl_lb = FIELD_PREP(AD7280A_CTRL_LB_ACQ_TIME_MSK, pdata->acquisition_time) |
 		FIELD_PREP(AD7280A_CTRL_LB_THERMISTOR_MSK, pdata->thermistor_term_en);
-	st->ctrl_hb = FIELD_PREP(AD7280A_CTRL_HB_CONV_AVG_MSK, pdata->conversion_averaging);
+	st->oversampling_ratio = 0; /* No oversampling */
 
 	ret = ad7280_chain_setup(st);
 	if (ret < 0)
@@ -917,27 +975,13 @@ static int ad7280_probe(struct spi_device *spi)
 	st->scan_cnt = (st->slave_num + 1) * AD7280A_NUM_CH;
 	st->cell_threshhigh = 0xFF;
 	st->aux_threshhigh = 0xFF;
+	st->acquisition_time = pdata->acquisition_time;
 
 	ret = devm_add_action_or_reset(&spi->dev, ad7280_sw_power_down, st);
 	if (ret)
 		return ret;
 
-	/*
-	 * Total Conversion Time = ((tACQ + tCONV) *
-	 *			   (Number of Conversions per Part)) −
-	 *			   tACQ + ((N - 1) * tDELAY)
-	 *
-	 * Readback Delay = Total Conversion Time + tWAIT
-	 */
-
-	st->readback_delay_us =
-		((t_acq_ns[pdata->acquisition_time & 0x3] + 695) *
-		 (AD7280A_NUM_CH * n_avg[pdata->conversion_averaging & 0x3])) -
-		t_acq_ns[pdata->acquisition_time & 0x3] + st->slave_num * 250;
-
-	/* Convert to usecs */
-	st->readback_delay_us = DIV_ROUND_UP(st->readback_delay_us, 1000);
-	st->readback_delay_us += 5; /* Add tWAIT */
+	ad7280_update_delay(st);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
