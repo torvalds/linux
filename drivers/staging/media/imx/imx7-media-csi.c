@@ -721,11 +721,6 @@ static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
  * Temporary copy of imx_media_dev helpers
  */
 
-static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
-{
-	return container_of(n, struct imx_media_dev, notifier);
-}
-
 /*
  * adds given video device to given imx-media source pad vdev list.
  * Continues upstream from the pad entity's sink pads.
@@ -848,9 +843,8 @@ static int imx_media_create_pad_vdev_lists(struct imx_media_dev *imxmd)
 }
 
 /* async subdev complete notifier */
-static int __imx_media_probe_complete(struct v4l2_async_notifier *notifier)
+static int __imx_media_probe_complete(struct imx_media_dev *imxmd)
 {
-	struct imx_media_dev *imxmd = notifier2dev(notifier);
 	int ret;
 
 	mutex_lock(&imxmd->mutex);
@@ -866,33 +860,6 @@ unlock:
 		return ret;
 
 	return media_device_register(&imxmd->md);
-}
-
-static const struct v4l2_async_notifier_operations imx_media_notifier_ops = {
-	.complete = __imx_media_probe_complete,
-};
-
-static int __imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
-			    const struct v4l2_async_notifier_operations *ops)
-{
-	int ret;
-
-	/* no subdevs? just bail */
-	if (list_empty(&imxmd->notifier.asd_list)) {
-		v4l2_err(&imxmd->v4l2_dev, "no subdevs\n");
-		return -ENODEV;
-	}
-
-	/* prepare the async subdev notifier and register it */
-	imxmd->notifier.ops = ops ? ops : &imx_media_notifier_ops;
-	ret = v4l2_async_nf_register(&imxmd->v4l2_dev, &imxmd->notifier);
-	if (ret) {
-		v4l2_err(&imxmd->v4l2_dev,
-			 "v4l2_async_nf_register failed with %d\n", ret);
-		return ret;
-	}
-
-	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -1247,10 +1214,12 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 
 	ret = imx_media_capture_device_register(csi->vdev,
 						MEDIA_LNK_FL_IMMUTABLE);
-	if (ret)
+	if (ret) {
 		imx_media_capture_device_remove(csi->vdev);
+		return ret;
+	}
 
-	return ret;
+	return __imx_media_probe_complete(csi->imxmd);
 }
 
 static void imx7_csi_unregistered(struct v4l2_subdev *sd)
@@ -1316,8 +1285,16 @@ static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
 					       MEDIA_LNK_FL_IMMUTABLE);
 }
 
+static int imx7_csi_notify_complete(struct v4l2_async_notifier *notifier)
+{
+	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
+
+	return v4l2_device_register_subdev_nodes(&csi->imxmd->v4l2_dev);
+}
+
 static const struct v4l2_async_notifier_operations imx7_csi_notify_ops = {
 	.bound = imx7_csi_notify_bound,
+	.complete = imx7_csi_notify_complete,
 };
 
 static int imx7_csi_async_register(struct imx7_csi *csi)
@@ -1346,19 +1323,16 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 
 	csi->notifier.ops = &imx7_csi_notify_ops;
 
-	ret = v4l2_async_subdev_nf_register(&csi->sd, &csi->notifier);
+	ret = v4l2_async_nf_register(&csi->imxmd->v4l2_dev, &csi->notifier);
 	if (ret)
 		return ret;
 
-	return v4l2_async_register_subdev(&csi->sd);
+	return 0;
 }
 
 static void imx7_csi_media_cleanup(struct imx7_csi *csi)
 {
 	struct imx_media_dev *imxmd = csi->imxmd;
-
-	v4l2_async_nf_unregister(&imxmd->notifier);
-	v4l2_async_nf_cleanup(&imxmd->notifier);
 
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_unregister(&imxmd->md);
@@ -1379,12 +1353,6 @@ static int imx7_csi_media_init(struct imx7_csi *csi)
 
 	ret = imx_media_of_add_csi(imxmd, csi->dev->of_node);
 	if (ret < 0 && ret != -ENODEV && ret != -EEXIST) {
-		imx7_csi_media_cleanup(csi);
-		return ret;
-	}
-
-	ret = __imx_media_dev_notifier_register(imxmd, NULL);
-	if (ret < 0) {
 		imx7_csi_media_cleanup(csi);
 		return ret;
 	}
@@ -1459,6 +1427,10 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	ret = media_entity_pads_init(&csi->sd.entity, IMX7_CSI_PADS_NUM,
 				     csi->pad);
 	if (ret < 0)
+		goto cleanup;
+
+	ret = v4l2_device_register_subdev(&csi->imxmd->v4l2_dev, &csi->sd);
+	if (ret)
 		goto cleanup;
 
 	ret = imx7_csi_async_register(csi);
