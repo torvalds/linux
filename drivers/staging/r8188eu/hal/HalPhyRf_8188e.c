@@ -103,7 +103,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	u8 ThermalValue_AVG_count = 0;
 	u32 ThermalValue_AVG = 0;
 	s32 ele_D, TempCCk;
-	s8 OFDM_index[2], CCK_index = 0;
+	s8 OFDM_index, CCK_index = 0;
 	s8 OFDM_index_old = 0, CCK_index_old = 0;
 	u32 i = 0, j = 0;
 
@@ -234,13 +234,13 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 			}
 			if (offset >= index_mapping_NUM_88E)
 				offset = index_mapping_NUM_88E - 1;
-			OFDM_index[0] = dm_odm->RFCalibrateInfo.OFDM_index + OFDM_index_mapping[j][offset];
+			OFDM_index = dm_odm->RFCalibrateInfo.OFDM_index + OFDM_index_mapping[j][offset];
 			CCK_index = dm_odm->RFCalibrateInfo.CCK_index + OFDM_index_mapping[j][offset];
 
-			if (OFDM_index[0] > OFDM_TABLE_SIZE_92D - 1)
-				OFDM_index[0] = OFDM_TABLE_SIZE_92D - 1;
-			else if (OFDM_index[0] < OFDM_min_index)
-				OFDM_index[0] = OFDM_min_index;
+			if (OFDM_index > OFDM_TABLE_SIZE_92D - 1)
+				OFDM_index = OFDM_TABLE_SIZE_92D - 1;
+			else if (OFDM_index < OFDM_min_index)
+				OFDM_index = OFDM_min_index;
 
 			if (CCK_index > CCK_TABLE_SIZE - 1)
 				CCK_index = CCK_TABLE_SIZE - 1;
@@ -253,7 +253,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 				dm_odm->RFCalibrateInfo.bDoneTxpower = true;
 
 				/*  Revse TX power table. */
-				dm_odm->BbSwingIdxOfdm		= (u8)OFDM_index[0];
+				dm_odm->BbSwingIdxOfdm		= (u8)OFDM_index;
 				dm_odm->BbSwingIdxCck		= (u8)CCK_index;
 
 				if (dm_odm->BbSwingIdxOfdmCurrent != dm_odm->BbSwingIdxOfdm) {
