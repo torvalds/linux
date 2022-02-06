@@ -1105,13 +1105,7 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
 				rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_BCN);
 			} else {
-				if (Adapter->in_cta_test) {
-					u32 v = rtw_read32(Adapter, REG_RCR);
-					v &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);/*  RCR_ADF */
-					rtw_write32(Adapter, REG_RCR, v);
-				} else {
-					rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_BCN);
-				}
+				rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_BCN);
 			}
 		}
 		break;
@@ -1125,13 +1119,7 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				/* enable to rx data frame.Accept all data frame */
 				rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
 
-				if (Adapter->in_cta_test) {
-					u32 v = rtw_read32(Adapter, REG_RCR);
-					v &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);/*  RCR_ADF */
-					rtw_write32(Adapter, REG_RCR, v);
-				} else {
-					rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_DATA | RCR_CBSSID_BCN);
-				}
+				rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_DATA | RCR_CBSSID_BCN);
 
 				if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 					RetryLimit = 48;

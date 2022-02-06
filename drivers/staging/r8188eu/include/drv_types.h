@@ -232,8 +232,6 @@ struct adapter {
 	unsigned char			br_mac[ETH_ALEN];
 	unsigned char			br_ip[4];
 	struct br_ext_info		ethBrExtInfo;
-
-	unsigned char     in_cta_test;
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
