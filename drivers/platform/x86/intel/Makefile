@@ -6,7 +6,6 @@
 
 obj-$(CONFIG_INTEL_ATOMISP2_PDX86)	+= atomisp2/
 obj-$(CONFIG_INTEL_SAR_INT1092)		+= int1092/
-obj-$(CONFIG_INTEL_CHT_INT33FE)		+= int33fe/
 obj-$(CONFIG_INTEL_SKL_INT3472)		+= int3472/
 obj-$(CONFIG_INTEL_PMC_CORE)		+= pmc/
 obj-$(CONFIG_INTEL_PMT_CLASS)		+= pmt/
@@ -36,6 +35,8 @@ intel_crystal_cove_charger-y		:= crystal_cove_charger.o
 obj-$(CONFIG_X86_ANDROID_TABLETS)	+= intel_crystal_cove_charger.o
 intel_chtdc_ti_pwrbtn-y			:= chtdc_ti_pwrbtn.o
 obj-$(CONFIG_INTEL_CHTDC_TI_PWRBTN)	+= intel_chtdc_ti_pwrbtn.o
+intel_chtwc_int33fe-y			:= chtwc_int33fe.o
+obj-$(CONFIG_INTEL_CHTWC_INT33FE)	+= intel_chtwc_int33fe.o
 intel_mrfld_pwrbtn-y			:= mrfld_pwrbtn.o
 obj-$(CONFIG_INTEL_MRFLD_PWRBTN)	+= intel_mrfld_pwrbtn.o
 intel_punit_ipc-y			:= punit_ipc.o

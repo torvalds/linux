@@ -5,7 +5,6 @@
 
 source "drivers/platform/x86/intel/atomisp2/Kconfig"
 source "drivers/platform/x86/intel/int1092/Kconfig"
-source "drivers/platform/x86/intel/int33fe/Kconfig"
 source "drivers/platform/x86/intel/int3472/Kconfig"
 source "drivers/platform/x86/intel/pmc/Kconfig"
 source "drivers/platform/x86/intel/pmt/Kconfig"
@@ -88,6 +87,26 @@ config INTEL_CHTDC_TI_PWRBTN
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_chtdc_ti_pwrbtn.
+
+config INTEL_CHTWC_INT33FE
+	tristate "Intel Cherry Trail Whiskey Cove ACPI INT33FE Driver"
+	depends on X86 && ACPI && I2C && REGULATOR
+	depends on CHARGER_BQ24190=y || (CHARGER_BQ24190=m && m)
+	depends on USB_ROLES_INTEL_XHCI=y || (USB_ROLES_INTEL_XHCI=m && m)
+	depends on TYPEC_MUX_PI3USB30532=y || (TYPEC_MUX_PI3USB30532=m && m)
+	help
+	  This driver add support for the Intel Cherry Trail Whiskey Cove
+	  INT33FE ACPI device found on the GPD win and the GPD pocket.
+
+	  The INT33FE ACPI device on these mini laptops contains I2cSerialBusV2
+	  resources for a MAX17042 Fuel Gauge, FUSB302 USB Type-C Controller
+	  and PI3USB30532 USB switch.
+	  This driver instantiates i2c-clients for these, so that standard
+	  i2c drivers for these chips can bind to the them.
+
+	  If you enable this driver it is advised to also select
+	  CONFIG_TYPEC_FUSB302=m, CONFIG_TYPEC_MUX_PI3USB30532=m and
+	  CONFIG_BATTERY_MAX17042=m.
 
 config INTEL_ISHTP_ECLITE
 	tristate "Intel ISHTP eclite controller Driver"
