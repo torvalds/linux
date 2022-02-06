@@ -955,11 +955,12 @@ static const struct ad7280_platform_data ad7793_default_pdata = {
 static int ad7280_probe(struct spi_device *spi)
 {
 	const struct ad7280_platform_data *pdata = dev_get_platdata(&spi->dev);
+	struct device *dev = &spi->dev;
 	struct ad7280_state *st;
 	int ret;
 	struct iio_dev *indio_dev;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -991,7 +992,7 @@ static int ad7280_probe(struct spi_device *spi)
 	st->aux_threshhigh = 0xFF;
 	st->acquisition_time = pdata->acquisition_time;
 
-	ret = devm_add_action_or_reset(&spi->dev, ad7280_sw_power_down, st);
+	ret = devm_add_action_or_reset(dev, ad7280_sw_power_down, st);
 	if (ret)
 		return ret;
 
@@ -1020,7 +1021,7 @@ static int ad7280_probe(struct spi_device *spi)
 		if (ret)
 			return ret;
 
-		ret = devm_request_threaded_irq(&spi->dev, spi->irq,
+		ret = devm_request_threaded_irq(dev, spi->irq,
 						NULL,
 						ad7280_event_handler,
 						IRQF_TRIGGER_FALLING |
@@ -1035,7 +1036,7 @@ static int ad7280_probe(struct spi_device *spi)
 		indio_dev->info = &ad7280_info_no_irq;
 	}
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct spi_device_id ad7280_id[] = {
