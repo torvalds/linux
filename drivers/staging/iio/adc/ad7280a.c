@@ -579,23 +579,29 @@ static const struct iio_event_spec ad7280_events[] = {
 	},
 };
 
-static void ad7280_voltage_channel_init(struct iio_chan_spec *chan, int i)
+static void ad7280_voltage_channel_init(struct iio_chan_spec *chan, int i,
+					bool irq_present)
 {
 	chan->type = IIO_VOLTAGE;
 	chan->differential = 1;
 	chan->channel = i;
 	chan->channel2 = chan->channel + 1;
-	chan->event_spec = ad7280_events;
-	chan->num_event_specs = ARRAY_SIZE(ad7280_events);
+	if (irq_present) {
+		chan->event_spec = ad7280_events;
+		chan->num_event_specs = ARRAY_SIZE(ad7280_events);
+	}
 	chan->ext_info = ad7280_cell_ext_info;
 }
 
-static void ad7280_temp_channel_init(struct iio_chan_spec *chan, int i)
+static void ad7280_temp_channel_init(struct iio_chan_spec *chan, int i,
+				     bool irq_present)
 {
 	chan->type = IIO_TEMP;
 	chan->channel = i;
-	chan->event_spec = ad7280_events;
-	chan->num_event_specs = ARRAY_SIZE(ad7280_events);
+	if (irq_present) {
+		chan->event_spec = ad7280_events;
+		chan->num_event_specs = ARRAY_SIZE(ad7280_events);
+	}
 }
 
 static void ad7280_common_fields_init(struct iio_chan_spec *chan, int addr,
@@ -629,7 +635,8 @@ static void ad7280_total_voltage_channel_init(struct iio_chan_spec *chan,
 	chan->scan_type.storagebits = 32;
 }
 
-static void ad7280_init_dev_channels(struct ad7280_state *st, int dev, int *cnt)
+static void ad7280_init_dev_channels(struct ad7280_state *st, int dev, int *cnt,
+				     bool irq_present)
 {
 	int addr, ch, i;
 	struct iio_chan_spec *chan;
@@ -639,10 +646,10 @@ static void ad7280_init_dev_channels(struct ad7280_state *st, int dev, int *cnt)
 
 		if (ch < AD7280A_AUX_ADC_1_REG) {
 			i = AD7280A_CALC_VOLTAGE_CHAN_NUM(dev, ch);
-			ad7280_voltage_channel_init(chan, i);
+			ad7280_voltage_channel_init(chan, i, irq_present);
 		} else {
 			i = AD7280A_CALC_TEMP_CHAN_NUM(dev, ch);
-			ad7280_temp_channel_init(chan, i);
+			ad7280_temp_channel_init(chan, i, irq_present);
 		}
 
 		addr = ad7280a_devaddr(dev) << 8 | ch;
@@ -652,7 +659,7 @@ static void ad7280_init_dev_channels(struct ad7280_state *st, int dev, int *cnt)
 	}
 }
 
-static int ad7280_channel_init(struct ad7280_state *st)
+static int ad7280_channel_init(struct ad7280_state *st, bool irq_present)
 {
 	int dev, cnt = 0;
 
@@ -662,7 +669,7 @@ static int ad7280_channel_init(struct ad7280_state *st)
 		return -ENOMEM;
 
 	for (dev = 0; dev <= st->slave_num; dev++)
-		ad7280_init_dev_channels(st, dev, &cnt);
+		ad7280_init_dev_channels(st, dev, &cnt, irq_present);
 
 	ad7280_total_voltage_channel_init(&st->channels[cnt], cnt, dev);
 
@@ -935,6 +942,11 @@ static const struct iio_info ad7280_info = {
 	.write_event_value = &ad7280a_write_thresh,
 };
 
+static const struct iio_info ad7280_info_no_irq = {
+	.read_raw = ad7280_read_raw,
+	.write_raw = ad7280_write_raw,
+};
+
 static const struct ad7280_platform_data ad7793_default_pdata = {
 	.acquisition_time = AD7280A_ACQ_TIME_400ns,
 	.thermistor_term_en = true,
@@ -988,18 +1000,12 @@ static int ad7280_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = ad7280_channel_init(st);
+	ret = ad7280_channel_init(st, spi->irq > 0);
 	if (ret < 0)
 		return ret;
 
 	indio_dev->num_channels = ret;
 	indio_dev->channels = st->channels;
-	indio_dev->info = &ad7280_info;
-
-	ret = devm_iio_device_register(&spi->dev, indio_dev);
-	if (ret)
-		return ret;
-
 	if (spi->irq > 0) {
 		ret = ad7280_write(st, AD7280A_DEVADDR_MASTER,
 				   AD7280A_ALERT_REG, 1,
@@ -1023,9 +1029,13 @@ static int ad7280_probe(struct spi_device *spi)
 						indio_dev);
 		if (ret)
 			return ret;
+
+		indio_dev->info = &ad7280_info;
+	} else {
+		indio_dev->info = &ad7280_info_no_irq;
 	}
 
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad7280_id[] = {
