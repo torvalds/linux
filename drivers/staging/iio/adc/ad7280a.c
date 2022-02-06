@@ -153,7 +153,8 @@ struct ad7280_state {
 	unsigned char			cb_mask[AD7280A_MAX_CHAIN];
 	struct mutex			lock; /* protect sensor state */
 
-	__be32				buf[2] ____cacheline_aligned;
+	__be32				tx ____cacheline_aligned;
+	__be32				rx;
 };
 
 static unsigned char ad7280_calc_crc8(unsigned char *crc_tab, unsigned int val)
@@ -196,18 +197,18 @@ static int __ad7280_read32(struct ad7280_state *st, unsigned int *val)
 {
 	int ret;
 	struct spi_transfer t = {
-		.tx_buf	= &st->buf[0],
-		.rx_buf = &st->buf[1],
-		.len = 4,
+		.tx_buf	= &st->tx,
+		.rx_buf = &st->rx,
+		.len = sizeof(st->tx),
 	};
 
-	st->buf[0] = cpu_to_be32(AD7280A_READ_TXVAL);
+	st->tx = cpu_to_be32(AD7280A_READ_TXVAL);
 
 	ret = spi_sync_transfer(st->spi, &t, 1);
 	if (ret)
 		return ret;
 
-	*val = be32_to_cpu(st->buf[1]);
+	*val = be32_to_cpu(st->rx);
 
 	return 0;
 }
@@ -219,9 +220,9 @@ static int ad7280_write(struct ad7280_state *st, unsigned int devaddr,
 			(val & 0xFF) << 13 | all << 12;
 
 	reg |= ad7280_calc_crc8(st->crc_tab, reg >> 11) << 3 | 0x2;
-	st->buf[0] = cpu_to_be32(reg);
+	st->tx = cpu_to_be32(reg);
 
-	return spi_write(st->spi, &st->buf[0], 4);
+	return spi_write(st->spi, &st->tx, sizeof(st->tx));
 }
 
 static int ad7280_read_reg(struct ad7280_state *st, unsigned int devaddr,
