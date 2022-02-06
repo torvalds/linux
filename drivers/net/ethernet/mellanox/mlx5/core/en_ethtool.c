@@ -38,6 +38,7 @@
 #include "en/xsk/pool.h"
 #include "en/ptp.h"
 #include "lib/clock.h"
+#include "en/fs_ethtool.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)

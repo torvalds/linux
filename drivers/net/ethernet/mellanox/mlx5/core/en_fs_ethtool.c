@@ -34,6 +34,22 @@
 #include "en.h"
 #include "en/params.h"
 #include "en/xsk/pool.h"
+#include "en/fs_ethtool.h"
+
+struct mlx5e_ethtool_table {
+	struct mlx5_flow_table *ft;
+	int                    num_rules;
+};
+
+#define ETHTOOL_NUM_L3_L4_FTS 7
+#define ETHTOOL_NUM_L2_FTS 4
+
+struct mlx5e_ethtool_steering {
+	struct mlx5e_ethtool_table      l3_l4_ft[ETHTOOL_NUM_L3_L4_FTS];
+	struct mlx5e_ethtool_table      l2_ft[ETHTOOL_NUM_L2_FTS];
+	struct list_head                rules;
+	int                             tot_num_rules;
+};
 
 static int flow_type_to_traffic_type(u32 flow_type);
 
@@ -829,6 +845,19 @@ mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
 		location++;
 	}
 	return err;
+}
+
+int mlx5e_ethtool_alloc(struct mlx5e_ethtool_steering **ethtool)
+{
+	*ethtool =  kvzalloc(sizeof(**ethtool), GFP_KERNEL);
+	if (!*ethtool)
+		return -ENOMEM;
+	return 0;
+}
+
+void mlx5e_ethtool_free(struct mlx5e_ethtool_steering *ethtool)
+{
+	kvfree(ethtool);
 }
 
 void mlx5e_ethtool_cleanup_steering(struct mlx5e_flow_steering *fs)

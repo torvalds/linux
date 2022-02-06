@@ -92,38 +92,6 @@ enum {
 struct mlx5e_flow_steering;
 struct mlx5e_priv;
 
-#ifdef CONFIG_MLX5_EN_RXNFC
-
-struct mlx5e_ethtool_table {
-	struct mlx5_flow_table *ft;
-	int                    num_rules;
-};
-
-#define ETHTOOL_NUM_L3_L4_FTS 7
-#define ETHTOOL_NUM_L2_FTS 4
-
-struct mlx5e_ethtool_steering {
-	struct mlx5e_ethtool_table      l3_l4_ft[ETHTOOL_NUM_L3_L4_FTS];
-	struct mlx5e_ethtool_table      l2_ft[ETHTOOL_NUM_L2_FTS];
-	struct list_head                rules;
-	int                             tot_num_rules;
-};
-
-void mlx5e_ethtool_init_steering(struct mlx5e_flow_steering *fs);
-void mlx5e_ethtool_cleanup_steering(struct mlx5e_flow_steering *fs);
-int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd);
-int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
-			    struct ethtool_rxnfc *info, u32 *rule_locs);
-#else
-static inline void mlx5e_ethtool_init_steering(struct mlx5e_flow_steering *fs) { }
-static inline void mlx5e_ethtool_cleanup_steering(struct mlx5e_flow_steering *fs) { }
-static inline int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd)
-{ return -EOPNOTSUPP; }
-static inline int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
-					  struct ethtool_rxnfc *info, u32 *rule_locs)
-{ return -EOPNOTSUPP; }
-#endif /* CONFIG_MLX5_EN_RXNFC */
-
 #ifdef CONFIG_MLX5_EN_ARFS
 struct mlx5e_arfs_tables;
 

@@ -40,6 +40,7 @@
 #include "en_tc.h"
 #include "lib/mpfs.h"
 #include "en/ptp.h"
+#include "en/fs_ethtool.h"
 
 struct mlx5e_flow_steering {
 	struct work_struct		set_rx_mode_work;
@@ -1410,16 +1411,12 @@ struct mlx5e_tc_table *mlx5e_fs_get_tc(struct mlx5e_flow_steering *fs)
 #ifdef CONFIG_MLX5_EN_RXNFC
 static int mlx5e_fs_ethtool_alloc(struct mlx5e_flow_steering *fs)
 {
-	fs->ethtool = kvzalloc(sizeof(*fs->ethtool), GFP_KERNEL);
-
-	if (!fs->ethtool)
-		return -ENOMEM;
-	return 0;
+	return mlx5e_ethtool_alloc(&fs->ethtool);
 }
 
 static void mlx5e_fs_ethtool_free(struct mlx5e_flow_steering *fs)
 {
-	kvfree(fs->ethtool);
+	mlx5e_ethtool_free(fs->ethtool);
 }
 
 struct mlx5e_ethtool_steering *mlx5e_fs_get_ethtool(struct mlx5e_flow_steering *fs)

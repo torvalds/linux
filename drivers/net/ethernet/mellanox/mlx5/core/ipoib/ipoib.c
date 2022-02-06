@@ -35,6 +35,7 @@
 #include "en.h"
 #include "en/params.h"
 #include "ipoib.h"
+#include "en/fs_ethtool.h"
 
 #define IB_DEFAULT_Q_KEY   0xb1b
 #define MLX5I_PARAMS_DEFAULT_LOG_RQ_SIZE 9
