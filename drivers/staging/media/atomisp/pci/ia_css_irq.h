@@ -23,6 +23,7 @@
 #include "ia_css_err.h"
 #include "ia_css_pipe_public.h"
 #include "ia_css_input_port.h"
+#include <linux/bits.h>
 
 /* Interrupt types, these enumerate all supported interrupt types.
  */
@@ -46,49 +47,49 @@ enum ia_css_irq_type {
  * (SW) interrupts
  */
 enum ia_css_irq_info {
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_ERROR            = 1 << 0,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_ERROR            = BIT(0),
 	/** the css receiver has encountered an error */
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_FIFO_OVERFLOW    = 1 << 1,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_FIFO_OVERFLOW    = BIT(1),
 	/** the FIFO in the csi receiver has overflown */
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF              = 1 << 2,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF              = BIT(2),
 	/** the css receiver received the start of frame */
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_EOF              = 1 << 3,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_EOF              = BIT(3),
 	/** the css receiver received the end of frame */
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_SOL              = 1 << 4,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_SOL              = BIT(4),
 	/** the css receiver received the start of line */
-	IA_CSS_IRQ_INFO_EVENTS_READY                  = 1 << 5,
+	IA_CSS_IRQ_INFO_EVENTS_READY                  = BIT(5),
 	/** One or more events are available in the PSYS event queue */
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_EOL              = 1 << 6,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_EOL              = BIT(6),
 	/** the css receiver received the end of line */
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_SIDEBAND_CHANGED = 1 << 7,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_SIDEBAND_CHANGED = BIT(7),
 	/** the css receiver received a change in side band signals */
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_GEN_SHORT_0      = 1 << 8,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_GEN_SHORT_0      = BIT(8),
 	/** generic short packets (0) */
-	IA_CSS_IRQ_INFO_CSS_RECEIVER_GEN_SHORT_1      = 1 << 9,
+	IA_CSS_IRQ_INFO_CSS_RECEIVER_GEN_SHORT_1      = BIT(9),
 	/** generic short packets (1) */
-	IA_CSS_IRQ_INFO_IF_PRIM_ERROR                 = 1 << 10,
+	IA_CSS_IRQ_INFO_IF_PRIM_ERROR                 = BIT(10),
 	/** the primary input formatter (A) has encountered an error */
-	IA_CSS_IRQ_INFO_IF_PRIM_B_ERROR               = 1 << 11,
+	IA_CSS_IRQ_INFO_IF_PRIM_B_ERROR               = BIT(11),
 	/** the primary input formatter (B) has encountered an error */
-	IA_CSS_IRQ_INFO_IF_SEC_ERROR                  = 1 << 12,
+	IA_CSS_IRQ_INFO_IF_SEC_ERROR                  = BIT(12),
 	/** the secondary input formatter has encountered an error */
-	IA_CSS_IRQ_INFO_STREAM_TO_MEM_ERROR           = 1 << 13,
+	IA_CSS_IRQ_INFO_STREAM_TO_MEM_ERROR           = BIT(13),
 	/** the stream-to-memory device has encountered an error */
-	IA_CSS_IRQ_INFO_SW_0                          = 1 << 14,
+	IA_CSS_IRQ_INFO_SW_0                          = BIT(14),
 	/** software interrupt 0 */
-	IA_CSS_IRQ_INFO_SW_1                          = 1 << 15,
+	IA_CSS_IRQ_INFO_SW_1                          = BIT(15),
 	/** software interrupt 1 */
-	IA_CSS_IRQ_INFO_SW_2                          = 1 << 16,
+	IA_CSS_IRQ_INFO_SW_2                          = BIT(16),
 	/** software interrupt 2 */
-	IA_CSS_IRQ_INFO_ISP_BINARY_STATISTICS_READY   = 1 << 17,
+	IA_CSS_IRQ_INFO_ISP_BINARY_STATISTICS_READY   = BIT(17),
 	/** ISP binary statistics are ready */
-	IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR            = 1 << 18,
+	IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR            = BIT(18),
 	/** the input system in in error */
-	IA_CSS_IRQ_INFO_IF_ERROR                      = 1 << 19,
+	IA_CSS_IRQ_INFO_IF_ERROR                      = BIT(19),
 	/** the input formatter in in error */
-	IA_CSS_IRQ_INFO_DMA_ERROR                     = 1 << 20,
+	IA_CSS_IRQ_INFO_DMA_ERROR                     = BIT(20),
 	/** the dma in in error */
-	IA_CSS_IRQ_INFO_ISYS_EVENTS_READY             = 1 << 21,
+	IA_CSS_IRQ_INFO_ISYS_EVENTS_READY             = BIT(21),
 	/** end-of-frame events are ready in the isys_event queue */
 };
 
@@ -103,23 +104,23 @@ enum ia_css_irq_info {
  * different receiver types, or possibly none in case of tests systems.
  */
 enum ia_css_rx_irq_info {
-	IA_CSS_RX_IRQ_INFO_BUFFER_OVERRUN   = 1U << 0, /** buffer overrun */
-	IA_CSS_RX_IRQ_INFO_ENTER_SLEEP_MODE = 1U << 1, /** entering sleep mode */
-	IA_CSS_RX_IRQ_INFO_EXIT_SLEEP_MODE  = 1U << 2, /** exited sleep mode */
-	IA_CSS_RX_IRQ_INFO_ECC_CORRECTED    = 1U << 3, /** ECC corrected */
-	IA_CSS_RX_IRQ_INFO_ERR_SOT          = 1U << 4,
+	IA_CSS_RX_IRQ_INFO_BUFFER_OVERRUN   = BIT(0),  /** buffer overrun */
+	IA_CSS_RX_IRQ_INFO_ENTER_SLEEP_MODE = BIT(1),  /** entering sleep mode */
+	IA_CSS_RX_IRQ_INFO_EXIT_SLEEP_MODE  = BIT(2),  /** exited sleep mode */
+	IA_CSS_RX_IRQ_INFO_ECC_CORRECTED    = BIT(3),  /** ECC corrected */
+	IA_CSS_RX_IRQ_INFO_ERR_SOT          = BIT(4),
 	/** Start of transmission */
-	IA_CSS_RX_IRQ_INFO_ERR_SOT_SYNC     = 1U << 5, /** SOT sync (??) */
-	IA_CSS_RX_IRQ_INFO_ERR_CONTROL      = 1U << 6, /** Control (??) */
-	IA_CSS_RX_IRQ_INFO_ERR_ECC_DOUBLE   = 1U << 7, /** Double ECC */
-	IA_CSS_RX_IRQ_INFO_ERR_CRC          = 1U << 8, /** CRC error */
-	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ID   = 1U << 9, /** Unknown ID */
-	IA_CSS_RX_IRQ_INFO_ERR_FRAME_SYNC   = 1U << 10,/** Frame sync error */
-	IA_CSS_RX_IRQ_INFO_ERR_FRAME_DATA   = 1U << 11,/** Frame data error */
-	IA_CSS_RX_IRQ_INFO_ERR_DATA_TIMEOUT = 1U << 12,/** Timeout occurred */
-	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ESC  = 1U << 13,/** Unknown escape seq. */
-	IA_CSS_RX_IRQ_INFO_ERR_LINE_SYNC    = 1U << 14,/** Line Sync error */
-	IA_CSS_RX_IRQ_INFO_INIT_TIMEOUT     = 1U << 15,
+	IA_CSS_RX_IRQ_INFO_ERR_SOT_SYNC     = BIT(5),  /** SOT sync (??) */
+	IA_CSS_RX_IRQ_INFO_ERR_CONTROL      = BIT(6),  /** Control (??) */
+	IA_CSS_RX_IRQ_INFO_ERR_ECC_DOUBLE   = BIT(7),  /** Double ECC */
+	IA_CSS_RX_IRQ_INFO_ERR_CRC          = BIT(8),  /** CRC error */
+	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ID   = BIT(9),  /** Unknown ID */
+	IA_CSS_RX_IRQ_INFO_ERR_FRAME_SYNC   = BIT(10), /** Frame sync error */
+	IA_CSS_RX_IRQ_INFO_ERR_FRAME_DATA   = BIT(11), /** Frame data error */
+	IA_CSS_RX_IRQ_INFO_ERR_DATA_TIMEOUT = BIT(12), /** Timeout occurred */
+	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ESC  = BIT(13), /** Unknown escape seq. */
+	IA_CSS_RX_IRQ_INFO_ERR_LINE_SYNC    = BIT(14), /** Line Sync error */
+	IA_CSS_RX_IRQ_INFO_INIT_TIMEOUT     = BIT(15),
 };
 
 /* Interrupt info structure. This structure contains information about an
