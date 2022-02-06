@@ -165,7 +165,9 @@ struct bq24190_dev_info {
 	u16				sys_min;
 	u16				iprechg;
 	u16				iterm;
+	u32				ichg;
 	u32				ichg_max;
+	u32				vreg;
 	u32				vreg_max;
 	struct mutex			f_reg_lock;
 	u8				f_reg;
@@ -662,6 +664,28 @@ static int bq24190_set_config(struct bq24190_dev_info *bdi)
 			return ret;
 	}
 
+	if (bdi->ichg) {
+		ret = bq24190_set_field_val(bdi, BQ24190_REG_CCC,
+					    BQ24190_REG_CCC_ICHG_MASK,
+					    BQ24190_REG_CCC_ICHG_SHIFT,
+					    bq24190_ccc_ichg_values,
+					    ARRAY_SIZE(bq24190_ccc_ichg_values),
+					    bdi->ichg);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (bdi->vreg) {
+		ret = bq24190_set_field_val(bdi, BQ24190_REG_CVC,
+					    BQ24190_REG_CVC_VREG_MASK,
+					    BQ24190_REG_CVC_VREG_SHIFT,
+					    bq24190_cvc_vreg_values,
+					    ARRAY_SIZE(bq24190_cvc_vreg_values),
+					    bdi->vreg);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -995,10 +1019,16 @@ static int bq24190_charger_set_current(struct bq24190_dev_info *bdi,
 	if (v)
 		curr *= 5;
 
-	return bq24190_set_field_val(bdi, BQ24190_REG_CCC,
+	ret = bq24190_set_field_val(bdi, BQ24190_REG_CCC,
 			BQ24190_REG_CCC_ICHG_MASK, BQ24190_REG_CCC_ICHG_SHIFT,
 			bq24190_ccc_ichg_values,
 			ARRAY_SIZE(bq24190_ccc_ichg_values), curr);
+	if (ret < 0)
+		return ret;
+
+	bdi->ichg = curr;
+
+	return 0;
 }
 
 static int bq24190_charger_get_voltage(struct bq24190_dev_info *bdi,
@@ -1020,10 +1050,18 @@ static int bq24190_charger_get_voltage(struct bq24190_dev_info *bdi,
 static int bq24190_charger_set_voltage(struct bq24190_dev_info *bdi,
 		const union power_supply_propval *val)
 {
-	return bq24190_set_field_val(bdi, BQ24190_REG_CVC,
+	int ret;
+
+	ret = bq24190_set_field_val(bdi, BQ24190_REG_CVC,
 			BQ24190_REG_CVC_VREG_MASK, BQ24190_REG_CVC_VREG_SHIFT,
 			bq24190_cvc_vreg_values,
 			ARRAY_SIZE(bq24190_cvc_vreg_values), val->intval);
+	if (ret < 0)
+		return ret;
+
+	bdi->vreg = val->intval;
+
+	return 0;
 }
 
 static int bq24190_charger_get_iinlimit(struct bq24190_dev_info *bdi,
@@ -1701,6 +1739,15 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 		else
 			dev_warn(bdi->dev, "invalid value for battery:charge-term-current-microamp: %d\n",
 				 v);
+
+		/* These are optional, so no warning when not set */
+		v = info->constant_charge_current_max_ua;
+		if (v >= bq24190_ccc_ichg_values[0] && v <= bdi->ichg_max)
+			bdi->ichg = v;
+
+		v = info->constant_charge_voltage_max_uv;
+		if (v >= bq24190_cvc_vreg_values[0] && v <= bdi->vreg_max)
+			bdi->vreg = v;
 	}
 
 	return 0;
