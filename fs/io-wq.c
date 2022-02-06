@@ -239,10 +239,15 @@ static void io_worker_exit(struct io_worker *worker)
 
 static inline bool io_acct_run_queue(struct io_wqe_acct *acct)
 {
+	bool ret = false;
+
+	raw_spin_lock(&acct->lock);
 	if (!wq_list_empty(&acct->work_list) &&
 	    !test_bit(IO_ACCT_STALLED_BIT, &acct->flags))
-		return true;
-	return false;
+		ret = true;
+	raw_spin_unlock(&acct->lock);
+
+	return ret;
 }
 
 /*
@@ -395,13 +400,9 @@ static void io_wqe_dec_running(struct io_worker *worker)
 
 	if (!atomic_dec_and_test(&acct->nr_running))
 		return;
-	raw_spin_lock(&wqe->lock);
-	if (!io_acct_run_queue(acct)) {
-		raw_spin_unlock(&wqe->lock);
+	if (!io_acct_run_queue(acct))
 		return;
-	}
 
-	raw_spin_unlock(&wqe->lock);
 	atomic_inc(&acct->nr_running);
 	atomic_inc(&wqe->wq->worker_refs);
 	io_queue_worker_create(worker, acct, create_worker_cb);
@@ -544,7 +545,6 @@ static void io_assign_current_work(struct io_worker *worker,
 static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work);
 
 static void io_worker_handle_work(struct io_worker *worker)
-	__releases(acct->lock)
 {
 	struct io_wqe_acct *acct = io_wqe_get_acct(worker);
 	struct io_wqe *wqe = worker->wqe;
@@ -561,6 +561,7 @@ static void io_worker_handle_work(struct io_worker *worker)
 		 * can't make progress, any work completion or insertion will
 		 * clear the stalled flag.
 		 */
+		raw_spin_lock(&acct->lock);
 		work = io_get_next_work(acct, worker);
 		raw_spin_unlock(&acct->lock);
 		if (work) {
@@ -614,8 +615,6 @@ static void io_worker_handle_work(struct io_worker *worker)
 					wake_up(&wq->hash->wait);
 			}
 		} while (work);
-
-		raw_spin_lock(&acct->lock);
 	} while (1);
 }
 
@@ -639,14 +638,9 @@ static int io_wqe_worker(void *data)
 		long ret;
 
 		set_current_state(TASK_INTERRUPTIBLE);
-loop:
-		raw_spin_lock(&acct->lock);
-		if (io_acct_run_queue(acct)) {
+		while (io_acct_run_queue(acct))
 			io_worker_handle_work(worker);
-			goto loop;
-		} else {
-			raw_spin_unlock(&acct->lock);
-		}
+
 		raw_spin_lock(&wqe->lock);
 		/* timed out, exit unless we're the last worker */
 		if (last_timeout && acct->nr_workers > 1) {
@@ -671,10 +665,8 @@ loop:
 		last_timeout = !ret;
 	}
 
-	if (test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
-		raw_spin_lock(&acct->lock);
+	if (test_bit(IO_WQ_BIT_EXIT, &wq->state))
 		io_worker_handle_work(worker);
-	}
 
 	audit_free(current);
 	io_worker_exit(worker);
