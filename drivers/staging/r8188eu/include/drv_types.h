@@ -161,7 +161,6 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 
 struct adapter {
 	int	pid[3];/* process id from UI, 0:wps, 1:hostapd, 2:dhcpcd */
-	int	bDongle;/* build-in module or external dongle */
 
 	struct dvobj_priv *dvobj;
 	struct	mlme_priv mlmepriv;
@@ -186,20 +185,11 @@ struct adapter {
 	s32	bSurpriseRemoved;
 	s32	bCardDisableWOHSM;
 
-	u32	IsrContent;
-	u32	ImrContent;
-
 	u8	EepromAddressSize;
 	u8	hw_init_completed;
-	u8	bDriverIsGoingToUnload;
-	u8	init_adpt_in_progress;
-	u8	bHaltInProgress;
 	s8	signal_strength;
 
 	void *cmdThread;
-	void *evtThread;
-	void *xmitThread;
-	void *recvThread;
 	void (*intf_start)(struct adapter *adapter);
 	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
@@ -219,7 +209,6 @@ struct adapter {
 
 	int net_closed;
 	u8 bFWReady;
-	u8 bBTFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
 	u8 bRxRSSIDisplay;
