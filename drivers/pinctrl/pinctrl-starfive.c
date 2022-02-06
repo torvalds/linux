@@ -1026,7 +1026,7 @@ static int starfive_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	starfive_padctl_rmw(sfp, starfive_gpio_to_pin(sfp, gpio), mask, value);
 	return 0;
