@@ -224,8 +224,8 @@ static int ad7280_write(struct ad7280_state *st, unsigned int devaddr,
 	return spi_write(st->spi, &st->buf[0], 4);
 }
 
-static int ad7280_read(struct ad7280_state *st, unsigned int devaddr,
-		       unsigned int addr)
+static int ad7280_read_reg(struct ad7280_state *st, unsigned int devaddr,
+			   unsigned int addr)
 {
 	int ret;
 	unsigned int tmp;
@@ -476,8 +476,8 @@ static ssize_t ad7280_show_balance_timer(struct device *dev,
 	unsigned int msecs;
 
 	mutex_lock(&st->lock);
-	ret = ad7280_read(st, this_attr->address >> 8,
-			  this_attr->address & 0xFF);
+	ret = ad7280_read_reg(st, this_attr->address >> 8,
+			      this_attr->address & 0xFF);
 	mutex_unlock(&st->lock);
 
 	if (ret < 0)
