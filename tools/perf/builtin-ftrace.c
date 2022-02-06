@@ -1115,6 +1115,7 @@ enum perf_ftrace_subcommand {
 int cmd_ftrace(int argc, const char **argv)
 {
 	int ret;
+	int (*cmd_func)(struct perf_ftrace *) = NULL;
 	struct perf_ftrace ftrace = {
 		.tracer = DEFAULT_TRACER,
 		.target = { .uid = UINT_MAX, },
@@ -1221,6 +1222,28 @@ int cmd_ftrace(int argc, const char **argv)
 		goto out_delete_filters;
 	}
 
+	switch (subcmd) {
+	case PERF_FTRACE_TRACE:
+		if (!argc && target__none(&ftrace.target))
+			ftrace.target.system_wide = true;
+		cmd_func = __cmd_ftrace;
+		break;
+	case PERF_FTRACE_LATENCY:
+		if (list_empty(&ftrace.filters)) {
+			pr_err("Should provide a function to measure\n");
+			parse_options_usage(ftrace_usage, options, "T", 1);
+			ret = -EINVAL;
+			goto out_delete_filters;
+		}
+		cmd_func = __cmd_latency;
+		break;
+	case PERF_FTRACE_NONE:
+	default:
+		pr_err("Invalid subcommand\n");
+		ret = -EINVAL;
+		goto out_delete_filters;
+	}
+
 	ret = target__validate(&ftrace.target);
 	if (ret) {
 		char errbuf[512];
@@ -1248,27 +1271,7 @@ int cmd_ftrace(int argc, const char **argv)
 			goto out_delete_evlist;
 	}
 
-	switch (subcmd) {
-	case PERF_FTRACE_TRACE:
-		if (!argc && target__none(&ftrace.target))
-			ftrace.target.system_wide = true;
-		ret = __cmd_ftrace(&ftrace);
-		break;
-	case PERF_FTRACE_LATENCY:
-		if (list_empty(&ftrace.filters)) {
-			pr_err("Should provide a function to measure\n");
-			parse_options_usage(ftrace_usage, options, "T", 1);
-			ret = -EINVAL;
-			goto out_delete_evlist;
-		}
-		ret = __cmd_latency(&ftrace);
-		break;
-	case PERF_FTRACE_NONE:
-	default:
-		pr_err("Invalid subcommand\n");
-		ret = -EINVAL;
-		break;
-	}
+	ret = cmd_func(&ftrace);
 
 out_delete_evlist:
 	evlist__delete(ftrace.evlist);
