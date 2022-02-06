@@ -850,7 +850,6 @@ static void mlx5_do_bond_work(struct work_struct *work)
 
 static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 					 struct lag_tracker *tracker,
-					 struct net_device *ndev,
 					 struct netdev_notifier_changeupper_info *info)
 {
 	struct net_device *upper = info->upper_dev, *ndev_tmp;
@@ -1006,8 +1005,7 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
-		changed = mlx5_handle_changeupper_event(ldev, &tracker, ndev,
-							ptr);
+		changed = mlx5_handle_changeupper_event(ldev, &tracker, ptr);
 		break;
 	case NETDEV_CHANGELOWERSTATE:
 		changed = mlx5_handle_changelowerstate_event(ldev, &tracker,
