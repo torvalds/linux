@@ -763,26 +763,6 @@ out_unlock:
 	return ret;
 }
 
-static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *sd_state)
-{
-	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct v4l2_mbus_framefmt *mf;
-	int ret;
-	int i;
-
-	for (i = 0; i < IMX7_CSI_PADS_NUM; i++) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
-
-		ret = imx_media_init_mbus_fmt(mf, 800, 600, 0, V4L2_FIELD_NONE,
-					      &csi->cc[i]);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
 static struct v4l2_mbus_framefmt *
 imx7_csi_get_format(struct imx7_csi *csi,
 		    struct v4l2_subdev_state *sd_state,
@@ -793,6 +773,28 @@ imx7_csi_get_format(struct imx7_csi *csi,
 		return v4l2_subdev_get_try_format(&csi->sd, sd_state, pad);
 
 	return &csi->format_mbus[pad];
+}
+
+static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
+{
+	const enum v4l2_subdev_format_whence which =
+		sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
+	int ret;
+	int i;
+
+	for (i = 0; i < IMX7_CSI_PADS_NUM; i++) {
+		struct v4l2_mbus_framefmt *mf =
+			imx7_csi_get_format(csi, sd_state, i, which);
+
+		ret = imx_media_init_mbus_fmt(mf, 800, 600, 0, V4L2_FIELD_NONE,
+					      &csi->cc[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int imx7_csi_enum_mbus_code(struct v4l2_subdev *sd,
@@ -1046,16 +1048,6 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
 	int ret;
-	int i;
-
-	for (i = 0; i < IMX7_CSI_PADS_NUM; i++) {
-		/* set a default mbus format  */
-		ret = imx_media_init_mbus_fmt(&csi->format_mbus[i],
-					      800, 600, 0, V4L2_FIELD_NONE,
-					      &csi->cc[i]);
-		if (ret < 0)
-			return ret;
-	}
 
 	csi->vdev = imx_media_capture_device_init(csi->sd.dev, &csi->sd,
 						  IMX7_CSI_PAD_SRC, false);
@@ -1298,7 +1290,8 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	if (ret)
 		goto destroy_mutex;
 
-	ret = v4l2_device_register_subdev(&csi->imxmd->v4l2_dev, &csi->sd);
+	/* Set the default mbus formats. */
+	ret = imx7_csi_init_cfg(&csi->sd, NULL);
 	if (ret)
 		goto media_cleanup;
 
