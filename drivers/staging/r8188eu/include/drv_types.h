@@ -174,7 +174,6 @@ struct adapter {
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
-	struct	hostapd_priv	*phostapdpriv;
 	struct wifidirect_info	wdinfo;
 
 	struct hal_data_8188e haldata;

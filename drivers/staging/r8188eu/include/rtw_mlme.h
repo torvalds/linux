@@ -416,10 +416,6 @@ struct mlme_priv {
 	u8		update_bcn;
 };
 
-struct hostapd_priv {
-	struct adapter *padapter;
-};
-
 int hostapd_mode_init(struct adapter *padapter);
 void hostapd_mode_unload(struct adapter *padapter);
 
