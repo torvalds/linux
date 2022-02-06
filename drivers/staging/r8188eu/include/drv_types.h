@@ -133,8 +133,6 @@ struct dvobj_priv {
 	int	RtOutPipe[3];
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];/* for out pipe mapping */
 
-	u8	irq_alloc;
-
 	struct rt_firmware firmware;
 
 /*-------- below is for USB INTERFACE --------*/
