@@ -1019,6 +1019,9 @@ static int bq24190_charger_set_current(struct bq24190_dev_info *bdi,
 	if (v)
 		curr *= 5;
 
+	if (curr > bdi->ichg_max)
+		return -EINVAL;
+
 	ret = bq24190_set_field_val(bdi, BQ24190_REG_CCC,
 			BQ24190_REG_CCC_ICHG_MASK, BQ24190_REG_CCC_ICHG_SHIFT,
 			bq24190_ccc_ichg_values,
@@ -1051,6 +1054,9 @@ static int bq24190_charger_set_voltage(struct bq24190_dev_info *bdi,
 		const union power_supply_propval *val)
 {
 	int ret;
+
+	if (val->intval > bdi->vreg_max)
+		return -EINVAL;
 
 	ret = bq24190_set_field_val(bdi, BQ24190_REG_CVC,
 			BQ24190_REG_CVC_VREG_MASK, BQ24190_REG_CVC_VREG_SHIFT,
@@ -1743,11 +1749,11 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 		/* These are optional, so no warning when not set */
 		v = info->constant_charge_current_max_ua;
 		if (v >= bq24190_ccc_ichg_values[0] && v <= bdi->ichg_max)
-			bdi->ichg = v;
+			bdi->ichg = bdi->ichg_max = v;
 
 		v = info->constant_charge_voltage_max_uv;
 		if (v >= bq24190_cvc_vreg_values[0] && v <= bdi->vreg_max)
-			bdi->vreg = v;
+			bdi->vreg = bdi->vreg_max = v;
 	}
 
 	return 0;
