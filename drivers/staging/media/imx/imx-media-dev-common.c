@@ -19,18 +19,6 @@ static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
 	return container_of(n, struct imx_media_dev, notifier);
 }
 
-/* async subdev bound notifier */
-static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
-				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
-{
-	struct imx_media_dev *imxmd = notifier2dev(notifier);
-
-	dev_dbg(imxmd->md.dev, "subdev %s bound\n", sd->name);
-
-	return 0;
-}
-
 /*
  * Create the missing media links from the CSI-2 receiver.
  * Called after all async subdevs have bound.
@@ -337,7 +325,6 @@ static void imx_media_notify(struct v4l2_subdev *sd, unsigned int notification,
 }
 
 static const struct v4l2_async_notifier_operations imx_media_notifier_ops = {
-	.bound = imx_media_subdev_bound,
 	.complete = imx_media_probe_complete,
 };
 
