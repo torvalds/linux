@@ -37,6 +37,7 @@
 #include "nbio_v4_3.h"
 #include "gfxhub_v3_0.h"
 #include "mmhub_v3_0.h"
+#include "mmhub_v3_0_2.h"
 #include "athub_v3_0.h"
 
 
@@ -550,7 +551,14 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 
 static void gmc_v11_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
-	adev->mmhub.funcs = &mmhub_v3_0_funcs;
+	switch (adev->ip_versions[MMHUB_HWIP][0]) {
+	case IP_VERSION(3, 0, 2):
+		adev->mmhub.funcs = &mmhub_v3_0_2_funcs;
+		break;
+	default:
+		adev->mmhub.funcs = &mmhub_v3_0_funcs;
+		break;
+	}
 }
 
 static void gmc_v11_0_set_gfxhub_funcs(struct amdgpu_device *adev)
