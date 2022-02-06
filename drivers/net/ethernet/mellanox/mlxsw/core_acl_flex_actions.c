@@ -1957,6 +1957,51 @@ int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_mcrouter);
 
+/* SIP DIP Action
+ * --------------
+ * The SIP_DIP_ACTION is used for modifying the SIP and DIP fields of the
+ * packet, e.g. for NAT. The L3 checksum is updated. Also, if the L4 is TCP or
+ * if the L4 is UDP and the checksum field is not zero, then the L4 checksum is
+ * updated.
+ */
+
+#define MLXSW_AFA_IP_CODE 0x11
+#define MLXSW_AFA_IP_SIZE 2
+
+enum mlxsw_afa_ip_s_d {
+	/* ip refers to dip */
+	MLXSW_AFA_IP_S_D_DIP,
+	/* ip refers to sip */
+	MLXSW_AFA_IP_S_D_SIP,
+};
+
+/* afa_ip_s_d
+ * Source or destination.
+ */
+MLXSW_ITEM32(afa, ip, s_d, 0x00, 31, 1);
+
+enum mlxsw_afa_ip_m_l {
+	/* LSB: ip[63:0] refers to ip[63:0] */
+	MLXSW_AFA_IP_M_L_LSB,
+	/* MSB: ip[63:0] refers to ip[127:64] */
+	MLXSW_AFA_IP_M_L_MSB,
+};
+
+/* afa_ip_m_l
+ * MSB or LSB.
+ */
+MLXSW_ITEM32(afa, ip, m_l, 0x00, 30, 1);
+
+/* afa_ip_ip_63_32
+ * Bits [63:32] in the IP address to change to.
+ */
+MLXSW_ITEM32(afa, ip, ip_63_32, 0x08, 0, 32);
+
+/* afa_ip_ip_31_0
+ * Bits [31:0] in the IP address to change to.
+ */
+MLXSW_ITEM32(afa, ip, ip_31_0, 0x0C, 0, 32);
+
 /* L4 Port Action
  * --------------
  * The L4_PORT_ACTION is used for modifying the sport and dport fields of the packet, e.g. for NAT.
