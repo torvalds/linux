@@ -613,16 +613,6 @@ static void ad7280_total_voltage_channel_init(struct iio_chan_spec *chan,
 	chan->scan_type.storagebits = 32;
 }
 
-static void ad7280_timestamp_channel_init(struct iio_chan_spec *chan, int cnt)
-{
-	chan->type = IIO_TIMESTAMP;
-	chan->channel = -1;
-	chan->scan_index = cnt;
-	chan->scan_type.sign = 's';
-	chan->scan_type.realbits = 64;
-	chan->scan_type.storagebits = 64;
-}
-
 static void ad7280_init_dev_channels(struct ad7280_state *st, int dev, int *cnt)
 {
 	int addr, ch, i;
@@ -650,7 +640,7 @@ static int ad7280_channel_init(struct ad7280_state *st)
 {
 	int dev, cnt = 0;
 
-	st->channels = devm_kcalloc(&st->spi->dev, (st->slave_num + 1) * 12 + 2,
+	st->channels = devm_kcalloc(&st->spi->dev, (st->slave_num + 1) * 12 + 1,
 				    sizeof(*st->channels), GFP_KERNEL);
 	if (!st->channels)
 		return -ENOMEM;
@@ -659,8 +649,6 @@ static int ad7280_channel_init(struct ad7280_state *st)
 		ad7280_init_dev_channels(st, dev, &cnt);
 
 	ad7280_total_voltage_channel_init(&st->channels[cnt], cnt, dev);
-	cnt++;
-	ad7280_timestamp_channel_init(&st->channels[cnt], cnt);
 
 	return cnt + 1;
 }
