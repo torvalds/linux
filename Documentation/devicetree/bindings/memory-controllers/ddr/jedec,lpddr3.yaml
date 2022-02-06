@@ -18,6 +18,7 @@ properties:
 
   '#address-cells':
     const: 1
+    deprecated: true
 
   density:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -55,6 +56,7 @@ properties:
 
   '#size-cells':
     const: 0
+    deprecated: true
 
   tCKE-min-tck:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -191,7 +193,7 @@ properties:
       cycles.
 
 patternProperties:
-  "^timings@[0-9a-f]+$":
+  "^timings((-[0-9])+|(@[0-9a-f]+))?$":
     $ref: jedec,lpddr3-timings.yaml
     description: |
       The lpddr3 node may have one or more child nodes with timings.
@@ -201,10 +203,8 @@ patternProperties:
 
 required:
   - compatible
-  - '#address-cells'
   - density
   - io-width
-  - '#size-cells'
 
 additionalProperties: false
 
@@ -214,8 +214,6 @@ examples:
         compatible = "samsung,K3QF2F20DB", "jedec,lpddr3";
         density = <16384>;
         io-width = <32>;
-        #address-cells = <1>;
-        #size-cells = <0>;
 
         tCKE-min-tck = <2>;
         tCKESR-min-tck = <2>;
@@ -239,9 +237,9 @@ examples:
         tXP-min-tck = <2>;
         tXSR-min-tck = <12>;
 
-        timings@800000000 {
+        timings {
             compatible = "jedec,lpddr3-timings";
-            reg = <800000000>;
+            max-freq = <800000000>;
             min-freq = <100000000>;
             tCKE = <3750>;
             tCKESR = <3750>;

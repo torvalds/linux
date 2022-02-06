@@ -17,6 +17,13 @@ properties:
     maxItems: 1
     description: |
       Maximum DDR clock frequency for the speed-bin, in Hz.
+      Property is deprecated, use max-freq.
+    deprecated: true
+
+  max-freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Maximum DDR clock frequency for the speed-bin, in Hz.
 
   min-freq:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -117,19 +124,16 @@ properties:
 required:
   - compatible
   - min-freq
-  - reg
+  - max-freq
 
 additionalProperties: false
 
 examples:
   - |
     lpddr3 {
-        #address-cells = <1>;
-        #size-cells = <0>;
-
-        timings@800000000 {
+        timings {
             compatible = "jedec,lpddr3-timings";
-            reg = <800000000>;
+            max-freq = <800000000>;
             min-freq = <100000000>;
             tCKE = <3750>;
             tCKESR = <3750>;
