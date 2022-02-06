@@ -181,7 +181,6 @@ struct imx7_csi {
 
 	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
 	const struct imx_media_pixfmt *cc[IMX7_CSI_PADS_NUM];
-	struct v4l2_fract frame_interval[IMX7_CSI_PADS_NUM];
 
 	void __iomem *regbase;
 	int irq;
@@ -1056,10 +1055,6 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 					      &csi->cc[i]);
 		if (ret < 0)
 			return ret;
-
-		/* init default frame interval */
-		csi->frame_interval[i].numerator = 1;
-		csi->frame_interval[i].denominator = 30;
 	}
 
 	csi->vdev = imx_media_capture_device_init(csi->sd.dev, &csi->sd,
