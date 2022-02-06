@@ -18,6 +18,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -26,7 +27,9 @@
 #include <linux/slab.h>
 #include <linux/usb/pd.h>
 
-#include "intel_cht_int33fe_common.h"
+struct cht_int33fe_data {
+	struct i2c_client *battery_fg;
+};
 
 static const char * const bq27xxx_suppliers[] = { "bq25890-charger" };
 
@@ -39,10 +42,30 @@ static const struct software_node bq27xxx_node = {
 	.properties = bq27xxx_props,
 };
 
-int cht_int33fe_microb_probe(struct cht_int33fe_data *data)
+static const struct dmi_system_id cht_int33fe_microb_ids[] = {
+	{
+		/* Lenovo Yoga Book X90F / X91F / X91L */
+		.matches = {
+			/* Non exact match to match all versions */
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X9"),
+		},
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(dmi, cht_int33fe_microb_ids);
+
+static int cht_int33fe_microb_probe(struct platform_device *pdev)
 {
-	struct device *dev = data->dev;
 	struct i2c_board_info board_info;
+	struct device *dev = &pdev->dev;
+	struct cht_int33fe_data *data;
+
+	if (!dmi_check_system(cht_int33fe_microb_ids))
+		return -ENODEV;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	memset(&board_info, 0, sizeof(board_info));
 	strscpy(board_info.type, "bq27542", ARRAY_SIZE(board_info.type));
@@ -53,9 +76,31 @@ int cht_int33fe_microb_probe(struct cht_int33fe_data *data)
 	return PTR_ERR_OR_ZERO(data->battery_fg);
 }
 
-int cht_int33fe_microb_remove(struct cht_int33fe_data *data)
+static int cht_int33fe_microb_remove(struct platform_device *pdev)
 {
+	struct cht_int33fe_data *data = platform_get_drvdata(pdev);
+
 	i2c_unregister_device(data->battery_fg);
 
 	return 0;
 }
+
+static const struct acpi_device_id cht_int33fe_acpi_ids[] = {
+	{ "INT33FE", },
+	{ }
+};
+
+static struct platform_driver cht_int33fe_microb_driver = {
+	.driver	= {
+		.name = "Intel Cherry Trail ACPI INT33FE micro-B driver",
+		.acpi_match_table = ACPI_PTR(cht_int33fe_acpi_ids),
+	},
+	.probe = cht_int33fe_microb_probe,
+	.remove = cht_int33fe_microb_remove,
+};
+
+module_platform_driver(cht_int33fe_microb_driver);
+
+MODULE_DESCRIPTION("Intel Cherry Trail ACPI INT33FE micro-B pseudo device driver");
+MODULE_AUTHOR("Yauhen Kharuzhy <jekhor@gmail.com>");
+MODULE_LICENSE("GPL v2");

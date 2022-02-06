@@ -17,6 +17,7 @@
  * for these chips can bind to the them.
  */
 
+#include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -26,7 +27,12 @@
 #include <linux/slab.h>
 #include <linux/usb/pd.h>
 
-#include "intel_cht_int33fe_common.h"
+struct cht_int33fe_data {
+	struct i2c_client *battery_fg;
+	struct i2c_client *fusb302;
+	struct i2c_client *pi3usb30532;
+	struct fwnode_handle *dp;
+};
 
 /*
  * Grrr, I severely dislike buggy BIOS-es. At least one BIOS enumerates
@@ -272,14 +278,43 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 	return PTR_ERR_OR_ZERO(data->battery_fg);
 }
 
-int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
+static const struct dmi_system_id cht_int33fe_typec_ids[] = {
+	{
+		/*
+		 * GPD win / GPD pocket mini laptops
+		 *
+		 * This DMI match may not seem unique, but it is. In the 67000+
+		 * DMI decode dumps from linux-hardware.org only 116 have
+		 * board_vendor set to "AMI Corporation" and of those 116 only
+		 * the GPD win's and pocket's board_name is "Default string".
+		 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Default string"),
+			DMI_EXACT_MATCH(DMI_BOARD_SERIAL, "Default string"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Default string"),
+		},
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(dmi, cht_int33fe_typec_ids);
+
+static int cht_int33fe_typec_probe(struct platform_device *pdev)
 {
-	struct device *dev = data->dev;
 	struct i2c_board_info board_info;
+	struct device *dev = &pdev->dev;
+	struct cht_int33fe_data *data;
 	struct fwnode_handle *fwnode;
 	struct regulator *regulator;
 	int fusb302_irq;
 	int ret;
+
+	if (!dmi_check_system(cht_int33fe_typec_ids))
+		return -ENODEV;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	/*
 	 * We expect the WC PMIC to be paired with a TI bq24292i charger-IC.
@@ -368,8 +403,10 @@ out_remove_nodes:
 	return ret;
 }
 
-int cht_int33fe_typec_remove(struct cht_int33fe_data *data)
+static int cht_int33fe_typec_remove(struct platform_device *pdev)
 {
+	struct cht_int33fe_data *data = platform_get_drvdata(pdev);
+
 	i2c_unregister_device(data->pi3usb30532);
 	i2c_unregister_device(data->fusb302);
 	i2c_unregister_device(data->battery_fg);
@@ -378,3 +415,23 @@ int cht_int33fe_typec_remove(struct cht_int33fe_data *data)
 
 	return 0;
 }
+
+static const struct acpi_device_id cht_int33fe_acpi_ids[] = {
+	{ "INT33FE", },
+	{ }
+};
+
+static struct platform_driver cht_int33fe_typec_driver = {
+	.driver	= {
+		.name = "Intel Cherry Trail ACPI INT33FE Type-C driver",
+		.acpi_match_table = ACPI_PTR(cht_int33fe_acpi_ids),
+	},
+	.probe = cht_int33fe_typec_probe,
+	.remove = cht_int33fe_typec_remove,
+};
+
+module_platform_driver(cht_int33fe_typec_driver);
+
+MODULE_DESCRIPTION("Intel Cherry Trail ACPI INT33FE Type-C pseudo device driver");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
+MODULE_LICENSE("GPL v2");
