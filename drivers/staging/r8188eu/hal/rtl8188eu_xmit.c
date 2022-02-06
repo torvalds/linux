@@ -382,7 +382,7 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 
 s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 {
-	struct hal_data_8188e *haldata = &adapt->haldata;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapt);
 	struct xmit_frame *pxmitframe = NULL;
 	struct xmit_frame *pfirstframe = NULL;
 
@@ -396,12 +396,17 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	u32 pbuf_tail;	/*  last pkt tail */
 	u32 len;	/*  packet length, except TXDESC_SIZE and PKT_OFFSET */
 
-	u32 bulksize = haldata->UsbBulkOutSize;
+	u32 bulksize;
 	u8 desc_cnt;
 	u32 bulkptr;
 
 	/*  dump frame variable */
 	u32 ff_hwaddr;
+
+	if (pdvobjpriv->ishighspeed)
+		bulksize = USB_HIGH_SPEED_BULK_SIZE;
+	else
+		bulksize = USB_FULL_SPEED_BULK_SIZE;
 
 	/*  check xmitbuffer is ok */
 	if (!pxmitbuf) {

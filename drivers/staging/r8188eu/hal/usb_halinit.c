@@ -45,13 +45,7 @@ static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumOutPi
 
 void rtl8188eu_interface_configure(struct adapter *adapt)
 {
-	struct hal_data_8188e *haldata = &adapt->haldata;
-	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(adapt);
-
-	if (pdvobjpriv->ishighspeed)
-		haldata->UsbBulkOutSize = USB_HIGH_SPEED_BULK_SIZE;/* 512 bytes */
-	else
-		haldata->UsbBulkOutSize = USB_FULL_SPEED_BULK_SIZE;/* 64 bytes */
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(adapt);
 
 	HalUsbSetQueuePipeMapping8188EUsb(adapt, pdvobjpriv->RtNumOutPipes);
 }

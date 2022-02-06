@@ -171,8 +171,6 @@ struct hal_data_8188e {
 	/*  Auto FSM to Turn On, include clock, isolation, power control
 	 *  for MAC only */
 	u8	bMacPwrCtrlOn;
-
-	u32	UsbBulkOutSize;
 };
 
 s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy);
