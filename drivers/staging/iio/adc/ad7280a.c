@@ -1022,28 +1022,6 @@ static int ad7280_probe(struct spi_device *spi)
 			break;
 		}
 	}
-	if (device_property_present(dev, "adi,temp-alert-last-chan")) {
-		u32 val;
-
-		ret = device_property_read_u32(dev, "adi,temp-alert-last-chan", &val);
-		if (ret)
-			return ret;
-
-		switch (val) {
-		case 3:
-			st->chain_last_alert_ignore |= AD7280A_ALERT_REMOVE_AUX3_AUX5;
-			break;
-		case 4:
-			st->chain_last_alert_ignore |= AD7280A_ALERT_REMOVE_AUX5;
-			break;
-		case 5:
-			break;
-		default:
-			dev_err(dev,
-				"Firmware provided last temp alert channel invalid\n");
-			break;
-		}
-	}
 	crc8_populate_msb(st->crc_tab, POLYNOM);
 
 	st->spi->max_speed_hz = AD7280A_MAX_SPI_CLK_HZ;
