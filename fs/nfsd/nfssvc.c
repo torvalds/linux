@@ -117,9 +117,7 @@ static struct svc_stat	nfsd_acl_svcstats = {
 
 static const struct svc_version *nfsd_version[] = {
 	[2] = &nfsd_version2,
-#if defined(CONFIG_NFSD_V3)
 	[3] = &nfsd_version3,
-#endif
 #if defined(CONFIG_NFSD_V4)
 	[4] = &nfsd_version4,
 #endif
