@@ -2011,7 +2011,6 @@ static void nft_last_rule(struct nft_rule_blob *blob, const void *ptr)
 
 	prule = (struct nft_rule_dp *)ptr;
 	prule->is_last = 1;
-	ptr += offsetof(struct nft_rule_dp, data);
 	/* blob size does not include the trailer rule */
 }
 

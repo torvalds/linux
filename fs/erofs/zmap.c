@@ -630,6 +630,13 @@ static int z_erofs_do_map_blocks(struct inode *inode,
 		if (endoff >= m.clusterofs) {
 			m.headtype = m.type;
 			map->m_la = (m.lcn << lclusterbits) | m.clusterofs;
+			/*
+			 * For ztailpacking files, in order to inline data more
+			 * effectively, special EOF lclusters are now supported
+			 * which can have three parts at most.
+			 */
+			if (ztailpacking && end > inode->i_size)
+				end = inode->i_size;
 			break;
 		}
 		/* m.lcn should be >= 1 if endoff < m.clusterofs */

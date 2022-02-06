@@ -46,7 +46,7 @@
 
 static struct kmem_cache *fsync_entry_slab;
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 extern struct kmem_cache *f2fs_cf_name_slab;
 #endif
 
@@ -149,7 +149,7 @@ static int init_recovered_filename(const struct inode *dir,
 		if (err)
 			return err;
 		f2fs_hash_filename(dir, fname);
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 		/* Case-sensitive match is fine for recovery */
 		kmem_cache_free(f2fs_cf_name_slab, fname->cf_name.name);
 		fname->cf_name.name = NULL;

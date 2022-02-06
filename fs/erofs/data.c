@@ -252,12 +252,10 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		return ret;
 
 	iomap->offset = map.m_la;
-	if (flags & IOMAP_DAX) {
+	if (flags & IOMAP_DAX)
 		iomap->dax_dev = mdev.m_daxdev;
-		iomap->offset += mdev.m_dax_part_off;
-	} else {
+	else
 		iomap->bdev = mdev.m_bdev;
-	}
 	iomap->length = map.m_llen;
 	iomap->flags = 0;
 	iomap->private = NULL;
@@ -284,6 +282,8 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	} else {
 		iomap->type = IOMAP_MAPPED;
 		iomap->addr = mdev.m_pa;
+		if (flags & IOMAP_DAX)
+			iomap->addr += mdev.m_dax_part_off;
 	}
 	return 0;
 }
