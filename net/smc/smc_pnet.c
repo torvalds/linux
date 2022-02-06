@@ -382,7 +382,7 @@ static int smc_pnet_add_eth(struct smc_pnettable *pnettable, struct net *net,
 		if (ndev) {
 			new_pe->ndev = ndev;
 			netdev_tracker_alloc(ndev, &new_pe->dev_tracker,
-					     GFP_KERNEL);
+					     GFP_ATOMIC);
 		}
 		list_add_tail(&new_pe->list, &pnettable->pnetlist);
 		write_unlock(&pnettable->lock);
