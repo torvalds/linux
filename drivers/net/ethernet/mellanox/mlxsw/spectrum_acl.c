@@ -511,6 +511,8 @@ enum mlxsw_sp_acl_mangle_field {
 	MLXSW_SP_ACL_MANGLE_FIELD_IP_ECN,
 	MLXSW_SP_ACL_MANGLE_FIELD_IP_SPORT,
 	MLXSW_SP_ACL_MANGLE_FIELD_IP_DPORT,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP4_SIP,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP4_DIP,
 };
 
 struct mlxsw_sp_acl_mangle_action {
@@ -561,6 +563,9 @@ static struct mlxsw_sp_acl_mangle_action mlxsw_sp_acl_mangle_actions[] = {
 
 	MLXSW_SP_ACL_MANGLE_ACTION_UDP(0, 0x0000ffff, 16, IP_SPORT),
 	MLXSW_SP_ACL_MANGLE_ACTION_UDP(0, 0xffff0000, 0,  IP_DPORT),
+
+	MLXSW_SP_ACL_MANGLE_ACTION_IP4(12, 0x00000000, 0, IP4_SIP),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP4(16, 0x00000000, 0, IP4_DIP),
 };
 
 static int
@@ -615,6 +620,13 @@ static int mlxsw_sp2_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_afa_block_append_l4port(rulei->act_block, false, val, extack);
 	case MLXSW_SP_ACL_MANGLE_FIELD_IP_DPORT:
 		return mlxsw_afa_block_append_l4port(rulei->act_block, true, val, extack);
+	/* IPv4 fields */
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP4_SIP:
+		return mlxsw_afa_block_append_ip(rulei->act_block, false,
+						 true, val, 0, extack);
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP4_DIP:
+		return mlxsw_afa_block_append_ip(rulei->act_block, true,
+						 true, val, 0, extack);
 	default:
 		break;
 	}

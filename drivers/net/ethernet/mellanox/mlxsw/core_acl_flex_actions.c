@@ -2002,6 +2002,38 @@ MLXSW_ITEM32(afa, ip, ip_63_32, 0x08, 0, 32);
  */
 MLXSW_ITEM32(afa, ip, ip_31_0, 0x0C, 0, 32);
 
+static void mlxsw_afa_ip_pack(char *payload, enum mlxsw_afa_ip_s_d s_d,
+			      enum mlxsw_afa_ip_m_l m_l, u32 ip_31_0,
+			      u32 ip_63_32)
+{
+	mlxsw_afa_ip_s_d_set(payload, s_d);
+	mlxsw_afa_ip_m_l_set(payload, m_l);
+	mlxsw_afa_ip_ip_31_0_set(payload, ip_31_0);
+	mlxsw_afa_ip_ip_63_32_set(payload, ip_63_32);
+}
+
+int mlxsw_afa_block_append_ip(struct mlxsw_afa_block *block, bool is_dip,
+			      bool is_lsb, u32 val_31_0, u32 val_63_32,
+			      struct netlink_ext_ack *extack)
+{
+	enum mlxsw_afa_ip_s_d s_d = is_dip ? MLXSW_AFA_IP_S_D_DIP :
+					     MLXSW_AFA_IP_S_D_SIP;
+	enum mlxsw_afa_ip_m_l m_l = is_lsb ? MLXSW_AFA_IP_M_L_LSB :
+					     MLXSW_AFA_IP_M_L_MSB;
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_IP_CODE,
+						  MLXSW_AFA_IP_SIZE);
+
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append IP action");
+		return PTR_ERR(act);
+	}
+
+	mlxsw_afa_ip_pack(act, s_d, m_l, val_31_0, val_63_32);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_ip);
+
 /* L4 Port Action
  * --------------
  * The L4_PORT_ACTION is used for modifying the sport and dport fields of the packet, e.g. for NAT.
