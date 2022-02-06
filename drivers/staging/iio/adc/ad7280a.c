@@ -551,18 +551,34 @@ static const struct attribute_group ad7280_attrs_group = {
 	.attrs = ad7280_attributes,
 };
 
+static const struct iio_event_spec ad7280_events[] = {
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE),
+	},
+};
+
 static void ad7280_voltage_channel_init(struct iio_chan_spec *chan, int i)
 {
 	chan->type = IIO_VOLTAGE;
 	chan->differential = 1;
 	chan->channel = i;
 	chan->channel2 = chan->channel + 1;
+	chan->event_spec = ad7280_events;
+	chan->num_event_specs = ARRAY_SIZE(ad7280_events);
 }
 
 static void ad7280_temp_channel_init(struct iio_chan_spec *chan, int i)
 {
 	chan->type = IIO_TEMP;
 	chan->channel = i;
+	chan->event_spec = ad7280_events;
+	chan->num_event_specs = ARRAY_SIZE(ad7280_events);
 }
 
 static void ad7280_common_fields_init(struct iio_chan_spec *chan, int addr,
@@ -732,88 +748,120 @@ static int ad7280_attr_init(struct ad7280_state *st)
 	return 0;
 }
 
-static ssize_t ad7280_read_channel_config(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
+static int ad7280a_read_thresh(struct iio_dev *indio_dev,
+			       const struct iio_chan_spec *chan,
+			       enum iio_event_type type,
+			       enum iio_event_direction dir,
+			       enum iio_event_info info, int *val, int *val2)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7280_state *st = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	unsigned int val;
 
-	switch (this_attr->address) {
-	case AD7280A_CELL_OVERVOLTAGE_REG:
-		val = 1000 + (st->cell_threshhigh * 1568) / 100;
+	switch (chan->type) {
+	case IIO_VOLTAGE:
+		switch (dir) {
+		case IIO_EV_DIR_RISING:
+			*val = 1000 + (st->cell_threshhigh * 1568L) / 100;
+			return IIO_VAL_INT;
+		case IIO_EV_DIR_FALLING:
+			*val = 1000 + (st->cell_threshlow * 1568L) / 100;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 		break;
-	case AD7280A_CELL_UNDERVOLTAGE_REG:
-		val = 1000 + (st->cell_threshlow * 1568) / 100;
-		break;
-	case AD7280A_AUX_ADC_OVERVOLTAGE_REG:
-		val = (st->aux_threshhigh * 196) / 10;
-		break;
-	case AD7280A_AUX_ADC_UNDERVOLTAGE_REG:
-		val = (st->aux_threshlow * 196) / 10;
+	case IIO_TEMP:
+		switch (dir) {
+		case IIO_EV_DIR_RISING:
+			*val = ((st->aux_threshhigh) * 196L) / 10;
+			return IIO_VAL_INT;
+		case IIO_EV_DIR_FALLING:
+			*val = (st->aux_threshlow * 196L) / 10;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	return sprintf(buf, "%u\n", val);
 }
 
-static ssize_t ad7280_write_channel_config(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf,
-					   size_t len)
+static int ad7280a_write_thresh(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan,
+				enum iio_event_type type,
+				enum iio_event_direction dir,
+				enum iio_event_info info,
+				int val, int val2)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7280_state *st = iio_priv(indio_dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-
-	long val;
+	unsigned int addr;
+	long value;
 	int ret;
 
-	ret = kstrtol(buf, 10, &val);
-	if (ret)
-		return ret;
-
-	switch (this_attr->address) {
-	case AD7280A_CELL_OVERVOLTAGE_REG:
-	case AD7280A_CELL_UNDERVOLTAGE_REG:
-		val = ((val - 1000) * 100) / 1568; /* LSB 15.68mV */
-		break;
-	case AD7280A_AUX_ADC_OVERVOLTAGE_REG:
-	case AD7280A_AUX_ADC_UNDERVOLTAGE_REG:
-		val = (val * 10) / 196; /* LSB 19.6mV */
-		break;
-	default:
-		return -EFAULT;
-	}
-
-	val = clamp(val, 0L, 0xFFL);
+	if (val2 != 0)
+		return -EINVAL;
 
 	mutex_lock(&st->lock);
-	switch (this_attr->address) {
-	case AD7280A_CELL_OVERVOLTAGE_REG:
-		st->cell_threshhigh = val;
+	switch (chan->type) {
+	case IIO_VOLTAGE:
+		value = ((val - 1000) * 100) / 1568; /* LSB 15.68mV */
+		value = clamp(value, 0L, 0xFFL);
+		switch (dir) {
+		case IIO_EV_DIR_RISING:
+			addr = AD7280A_CELL_OVERVOLTAGE_REG;
+			ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, addr,
+					   1, val);
+			if (ret)
+				break;
+			st->cell_threshhigh = value;
+			break;
+		case IIO_EV_DIR_FALLING:
+			addr = AD7280A_CELL_UNDERVOLTAGE_REG;
+			ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, addr,
+					   1, val);
+			if (ret)
+				break;
+			st->cell_threshlow = value;
+			break;
+		default:
+			ret = -EINVAL;
+			goto err_unlock;
+		}
 		break;
-	case AD7280A_CELL_UNDERVOLTAGE_REG:
-		st->cell_threshlow = val;
+	case IIO_TEMP:
+		value = (val * 10) / 196; /* LSB 19.6mV */
+		value = clamp(value, 0L, 0xFFL);
+		switch (dir) {
+		case IIO_EV_DIR_RISING:
+			addr = AD7280A_AUX_ADC_OVERVOLTAGE_REG;
+			ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, addr,
+					   1, val);
+			if (ret)
+				break;
+			st->aux_threshhigh = val;
+			break;
+		case IIO_EV_DIR_FALLING:
+			addr = AD7280A_AUX_ADC_UNDERVOLTAGE_REG;
+			ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, addr,
+					   1, val);
+			if (ret)
+				break;
+			st->aux_threshlow = val;
+			break;
+		default:
+			ret = -EINVAL;
+			goto err_unlock;
+		}
 		break;
-	case AD7280A_AUX_ADC_OVERVOLTAGE_REG:
-		st->aux_threshhigh = val;
-		break;
-	case AD7280A_AUX_ADC_UNDERVOLTAGE_REG:
-		st->aux_threshlow = val;
-		break;
+	default:
+		ret = -EINVAL;
+		goto err_unlock;
 	}
 
-	ret = ad7280_write(st, AD7280A_DEVADDR_MASTER,
-			   this_attr->address, 1, val);
-
+err_unlock:
 	mutex_unlock(&st->lock);
 
-	return ret ? ret : len;
+	return ret;
 }
 
 static irqreturn_t ad7280_event_handler(int irq, void *private)
@@ -875,48 +923,6 @@ out:
 	return IRQ_HANDLED;
 }
 
-/* Note: No need to fix checkpatch warning that reads:
- *	CHECK: spaces preferred around that '-' (ctx:VxV)
- * The function argument is stringified and doesn't need a fix
- */
-static IIO_DEVICE_ATTR_NAMED(in_thresh_low_value,
-			     in_voltage-voltage_thresh_low_value,
-			     0644,
-			     ad7280_read_channel_config,
-			     ad7280_write_channel_config,
-			     AD7280A_CELL_UNDERVOLTAGE_REG);
-
-static IIO_DEVICE_ATTR_NAMED(in_thresh_high_value,
-			     in_voltage-voltage_thresh_high_value,
-			     0644,
-			     ad7280_read_channel_config,
-			     ad7280_write_channel_config,
-			     AD7280A_CELL_OVERVOLTAGE_REG);
-
-static IIO_DEVICE_ATTR(in_temp_thresh_low_value,
-		       0644,
-		       ad7280_read_channel_config,
-		       ad7280_write_channel_config,
-		       AD7280A_AUX_ADC_UNDERVOLTAGE_REG);
-
-static IIO_DEVICE_ATTR(in_temp_thresh_high_value,
-		       0644,
-		       ad7280_read_channel_config,
-		       ad7280_write_channel_config,
-		       AD7280A_AUX_ADC_OVERVOLTAGE_REG);
-
-static struct attribute *ad7280_event_attributes[] = {
-	&iio_dev_attr_in_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_in_thresh_high_value.dev_attr.attr,
-	&iio_dev_attr_in_temp_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_in_temp_thresh_high_value.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad7280_event_attrs_group = {
-	.attrs = ad7280_event_attributes,
-};
-
 static int ad7280_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
@@ -956,7 +962,8 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info ad7280_info = {
 	.read_raw = ad7280_read_raw,
-	.event_attrs = &ad7280_event_attrs_group,
+	.read_event_value = &ad7280a_read_thresh,
+	.write_event_value = &ad7280a_write_thresh,
 	.attrs = &ad7280_attrs_group,
 };
 
