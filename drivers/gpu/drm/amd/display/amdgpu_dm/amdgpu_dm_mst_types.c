@@ -599,6 +599,21 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 		} else {
 			params[i].timing->flags.DSC = 0;
 		}
+		params[i].timing->dsc_cfg.mst_pbn = vars[i + k].pbn;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (params[i].sink) {
+			if (params[i].sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
+				params[i].sink->sink_signal != SIGNAL_TYPE_NONE)
+				DRM_DEBUG_DRIVER("%s i=%d dispname=%s\n", __func__, i,
+					params[i].sink->edid_caps.display_name);
+		}
+
+		DRM_DEBUG_DRIVER("dsc=%d bits_per_pixel=%d pbn=%d\n",
+			params[i].timing->flags.DSC,
+			params[i].timing->dsc_cfg.bits_per_pixel,
+			vars[i + k].pbn);
 	}
 }
 

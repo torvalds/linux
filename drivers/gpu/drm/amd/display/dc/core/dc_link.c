@@ -4082,6 +4082,15 @@ void core_link_enable_stream(
 
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
+	if (pipe_ctx->stream->sink) {
+		if (pipe_ctx->stream->sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
+			pipe_ctx->stream->sink->sink_signal != SIGNAL_TYPE_NONE) {
+			DC_LOG_DC("%s pipe_ctx dispname=%s signal=%x\n", __func__,
+			pipe_ctx->stream->sink->edid_caps.display_name,
+			pipe_ctx->stream->signal);
+		}
+	}
+
 	if (!IS_DIAG_DC(dc->ctx->dce_environment) &&
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
@@ -4302,6 +4311,17 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 
 	if (is_dp_128b_132b_signal(pipe_ctx))
 		vpg = pipe_ctx->stream_res.hpo_dp_stream_enc->vpg;
+
+	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
+
+	if (pipe_ctx->stream->sink) {
+		if (pipe_ctx->stream->sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
+			pipe_ctx->stream->sink->sink_signal != SIGNAL_TYPE_NONE) {
+			DC_LOG_DC("%s pipe_ctx dispname=%s signal=%x\n", __func__,
+			pipe_ctx->stream->sink->edid_caps.display_name,
+			pipe_ctx->stream->signal);
+		}
+	}
 
 	if (!IS_DIAG_DC(dc->ctx->dce_environment) &&
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
