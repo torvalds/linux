@@ -710,36 +710,32 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&iommu->ctx_list);
 
 	iommu->pclk = devm_clk_get(iommu->dev, "smmu_pclk");
-	if (IS_ERR(iommu->pclk)) {
-		dev_err(iommu->dev, "could not get smmu_pclk\n");
-		return PTR_ERR(iommu->pclk);
-	}
+	if (IS_ERR(iommu->pclk))
+		return dev_err_probe(iommu->dev, PTR_ERR(iommu->pclk),
+				     "could not get smmu_pclk\n");
 
 	ret = clk_prepare(iommu->pclk);
-	if (ret) {
-		dev_err(iommu->dev, "could not prepare smmu_pclk\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(iommu->dev, ret,
+				     "could not prepare smmu_pclk\n");
 
 	iommu->clk = devm_clk_get(iommu->dev, "iommu_clk");
 	if (IS_ERR(iommu->clk)) {
-		dev_err(iommu->dev, "could not get iommu_clk\n");
 		clk_unprepare(iommu->pclk);
-		return PTR_ERR(iommu->clk);
+		return dev_err_probe(iommu->dev, PTR_ERR(iommu->clk),
+				     "could not get iommu_clk\n");
 	}
 
 	ret = clk_prepare(iommu->clk);
 	if (ret) {
-		dev_err(iommu->dev, "could not prepare iommu_clk\n");
 		clk_unprepare(iommu->pclk);
-		return ret;
+		return dev_err_probe(iommu->dev, ret, "could not prepare iommu_clk\n");
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iommu->base = devm_ioremap_resource(iommu->dev, r);
 	if (IS_ERR(iommu->base)) {
-		dev_err(iommu->dev, "could not get iommu base\n");
-		ret = PTR_ERR(iommu->base);
+		ret = dev_err_probe(iommu->dev, PTR_ERR(iommu->base), "could not get iommu base\n");
 		goto fail;
 	}
 	ioaddr = r->start;
