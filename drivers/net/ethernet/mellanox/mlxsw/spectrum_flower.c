@@ -233,6 +233,12 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			return -EOPNOTSUPP;
 		}
 	}
+
+	if (rulei->ipv6_valid) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
