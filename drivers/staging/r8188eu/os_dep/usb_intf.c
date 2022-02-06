@@ -454,11 +454,9 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 
 	free_mlme_ap_info(if1);
 
-	if (if1->DriverState != DRIVER_DISAPPEAR) {
-		if (pnetdev) {
-			/* will call netdev_close() */
-			unregister_netdev(pnetdev);
-		}
+	if (pnetdev) {
+		/* will call netdev_close() */
+		unregister_netdev(pnetdev);
 	}
 	rtw_cancel_all_timer(if1);
 
