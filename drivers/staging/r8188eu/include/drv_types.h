@@ -139,7 +139,6 @@ struct dvobj_priv {
 
 	u8	ishighspeed;
 	u8	RtNumOutPipes;
-	struct semaphore usb_suspend_sema;
 
 	struct usb_interface *pusbintf;
 	struct usb_device *pusbdev;
