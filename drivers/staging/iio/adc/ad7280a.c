@@ -139,9 +139,10 @@ static unsigned int ad7280a_devaddr(unsigned int addr)
 	       ((addr & 0x10) >> 4);
 }
 
-/* During a read a valid write is mandatory.
- * So writing to the highest available address (Address 0x1F)
- * and setting the address all parts bit to 0 is recommended
+/*
+ * During a read a valid write is mandatory.
+ * So writing to the highest available address (Address 0x1F) and setting the
+ * address all parts bit to 0 is recommended.
  * So the TXVAL is AD7280A_DEVADDR_ALL + CRC
  */
 #define AD7280A_READ_TXVAL	0xF800030A
@@ -180,7 +181,7 @@ static unsigned char ad7280_calc_crc8(unsigned char *crc_tab, unsigned int val)
 	crc = crc_tab[val >> 16 & 0xFF];
 	crc = crc_tab[crc ^ (val >> 8 & 0xFF)];
 
-	return  crc ^ (val & 0xFF);
+	return crc ^ (val & 0xFF);
 }
 
 static int ad7280_check_crc(struct ad7280_state *st, unsigned int val)
@@ -193,12 +194,12 @@ static int ad7280_check_crc(struct ad7280_state *st, unsigned int val)
 	return 0;
 }
 
-/* After initiating a conversion sequence we need to wait until the
- * conversion is done. The delay is typically in the range of 15..30 us
- * however depending an the number of devices in the daisy chain and the
- * number of averages taken, conversion delays and acquisition time options
- * it may take up to 250us, in this case we better sleep instead of busy
- * wait.
+/*
+ * After initiating a conversion sequence we need to wait until the conversion
+ * is done. The delay is typically in the range of 15..30us however depending on
+ * the number of devices in the daisy chain, the number of averages taken,
+ * conversion delays and acquisition time options it may take up to 250us, in
+ * this case we better sleep instead of busy wait.
  */
 
 static void ad7280_delay(struct ad7280_state *st)
