@@ -146,7 +146,6 @@ struct dvobj_priv {
 	struct usb_device *pusbdev;
 
 	atomic_t continual_urb_error;
-	u8 signal_strength;
 };
 
 static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
