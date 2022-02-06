@@ -137,7 +137,7 @@
 #define AD7280A_DEVADDR_ALL		0x1F
 
 static const unsigned short ad7280a_n_avg[4] = {1, 2, 4, 8};
-static const unsigned short ad7280a_t_acq_ns[4] = {465, 1010, 1460, 1890};
+static const unsigned short ad7280a_t_acq_ns[4] = {470, 1030, 1510, 1945};
 
 /* 5-bit device address is sent LSB first */
 static unsigned int ad7280a_devaddr(unsigned int addr)
@@ -869,7 +869,7 @@ static void ad7280_update_delay(struct ad7280_state *st)
 	 */
 
 	st->readback_delay_us =
-		((ad7280a_t_acq_ns[st->acquisition_time & 0x3] + 695) *
+		((ad7280a_t_acq_ns[st->acquisition_time & 0x3] + 720) *
 			(AD7280A_NUM_CH * ad7280a_n_avg[st->oversampling_ratio & 0x3])) -
 		ad7280a_t_acq_ns[st->acquisition_time & 0x3] + st->slave_num * 250;
 
