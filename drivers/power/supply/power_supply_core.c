@@ -572,9 +572,11 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	struct power_supply_resistance_temp_table *resist_table;
 	struct power_supply_battery_info *info;
 	struct device_node *battery_np;
+	struct fwnode_handle *fwnode;
 	const char *value;
 	int err, len, index;
 	const __be32 *list;
+	u32 min_max[2];
 
 	info = devm_kmalloc(&psy->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -618,7 +620,9 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	if (!battery_np)
 		return -ENODEV;
 
-	err = of_property_read_string(battery_np, "compatible", &value);
+	fwnode = of_fwnode_handle(battery_np);
+
+	err = fwnode_property_read_string(fwnode, "compatible", &value);
 	if (err)
 		goto out_put_node;
 
@@ -632,7 +636,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	 * Documentation/power/power_supply_class.rst.
 	 */
 
-	if (!of_property_read_string(battery_np, "device-chemistry", &value)) {
+	if (!fwnode_property_read_string(fwnode, "device-chemistry", &value)) {
 		if (!strcmp("nickel-cadmium", value))
 			info->technology = POWER_SUPPLY_TECHNOLOGY_NiCd;
 		else if (!strcmp("nickel-metal-hydride", value))
@@ -650,45 +654,56 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			dev_warn(&psy->dev, "%s unknown battery type\n", value);
 	}
 
-	of_property_read_u32(battery_np, "energy-full-design-microwatt-hours",
+	fwnode_property_read_u32(fwnode, "energy-full-design-microwatt-hours",
 			     &info->energy_full_design_uwh);
-	of_property_read_u32(battery_np, "charge-full-design-microamp-hours",
+	fwnode_property_read_u32(fwnode, "charge-full-design-microamp-hours",
 			     &info->charge_full_design_uah);
-	of_property_read_u32(battery_np, "voltage-min-design-microvolt",
+	fwnode_property_read_u32(fwnode, "voltage-min-design-microvolt",
 			     &info->voltage_min_design_uv);
-	of_property_read_u32(battery_np, "voltage-max-design-microvolt",
+	fwnode_property_read_u32(fwnode, "voltage-max-design-microvolt",
 			     &info->voltage_max_design_uv);
-	of_property_read_u32(battery_np, "trickle-charge-current-microamp",
+	fwnode_property_read_u32(fwnode, "trickle-charge-current-microamp",
 			     &info->tricklecharge_current_ua);
-	of_property_read_u32(battery_np, "precharge-current-microamp",
+	fwnode_property_read_u32(fwnode, "precharge-current-microamp",
 			     &info->precharge_current_ua);
-	of_property_read_u32(battery_np, "precharge-upper-limit-microvolt",
+	fwnode_property_read_u32(fwnode, "precharge-upper-limit-microvolt",
 			     &info->precharge_voltage_max_uv);
-	of_property_read_u32(battery_np, "charge-term-current-microamp",
+	fwnode_property_read_u32(fwnode, "charge-term-current-microamp",
 			     &info->charge_term_current_ua);
-	of_property_read_u32(battery_np, "re-charge-voltage-microvolt",
+	fwnode_property_read_u32(fwnode, "re-charge-voltage-microvolt",
 			     &info->charge_restart_voltage_uv);
-	of_property_read_u32(battery_np, "over-voltage-threshold-microvolt",
+	fwnode_property_read_u32(fwnode, "over-voltage-threshold-microvolt",
 			     &info->overvoltage_limit_uv);
-	of_property_read_u32(battery_np, "constant-charge-current-max-microamp",
+	fwnode_property_read_u32(fwnode, "constant-charge-current-max-microamp",
 			     &info->constant_charge_current_max_ua);
-	of_property_read_u32(battery_np, "constant-charge-voltage-max-microvolt",
+	fwnode_property_read_u32(fwnode, "constant-charge-voltage-max-microvolt",
 			     &info->constant_charge_voltage_max_uv);
-	of_property_read_u32(battery_np, "factory-internal-resistance-micro-ohms",
+	fwnode_property_read_u32(fwnode, "factory-internal-resistance-micro-ohms",
 			     &info->factory_internal_resistance_uohm);
 
-	of_property_read_u32_index(battery_np, "ambient-celsius",
-				   0, &info->temp_ambient_alert_min);
-	of_property_read_u32_index(battery_np, "ambient-celsius",
-				   1, &info->temp_ambient_alert_max);
-	of_property_read_u32_index(battery_np, "alert-celsius",
-				   0, &info->temp_alert_min);
-	of_property_read_u32_index(battery_np, "alert-celsius",
-				   1, &info->temp_alert_max);
-	of_property_read_u32_index(battery_np, "operating-range-celsius",
-				   0, &info->temp_min);
-	of_property_read_u32_index(battery_np, "operating-range-celsius",
-				   1, &info->temp_max);
+	if (!fwnode_property_read_u32_array(fwnode, "ambient-celsius",
+					    min_max, ARRAY_SIZE(min_max))) {
+		info->temp_ambient_alert_min = min_max[0];
+		info->temp_ambient_alert_max = min_max[1];
+	}
+	if (!fwnode_property_read_u32_array(fwnode, "alert-celsius",
+					    min_max, ARRAY_SIZE(min_max))) {
+		info->temp_alert_min = min_max[0];
+		info->temp_alert_max = min_max[1];
+	}
+	if (!fwnode_property_read_u32_array(fwnode, "operating-range-celsius",
+					    min_max, ARRAY_SIZE(min_max))) {
+		info->temp_min = min_max[0];
+		info->temp_max = min_max[1];
+	}
+
+	/*
+	 * The below code uses raw of-data parsing to parse
+	 * /schemas/types.yaml#/definitions/uint32-matrix
+	 * data, so for now this is only support with of.
+	 */
+	if (!battery_np)
+		goto out_ret_pointer;
 
 	len = of_property_count_u32_elems(battery_np, "ocv-capacity-celsius");
 	if (len < 0 && len != -EINVAL) {
