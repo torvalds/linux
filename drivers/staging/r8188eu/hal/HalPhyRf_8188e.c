@@ -104,7 +104,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	u32 ThermalValue_AVG = 0;
 	s32 ele_D, TempCCk;
 	s8 OFDM_index[2], CCK_index = 0;
-	s8 OFDM_index_old[2] = {0, 0}, CCK_index_old = 0;
+	s8 OFDM_index_old = 0, CCK_index_old = 0;
 	u32 i = 0, j = 0;
 
 	u8 OFDM_min_index = 6; /* OFDM BB Swing should be less than +3.0dB, which is required by Arthur */
@@ -139,7 +139,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 		ele_D = rtl8188e_PHY_QueryBBReg(Adapter, rOFDM0_XATxIQImbalance, bMaskDWord) & bMaskOFDM_D;
 		for (i = 0; i < OFDM_TABLE_SIZE_92D; i++) {	/* find the index */
 			if (ele_D == (OFDMSwingTable[i] & bMaskOFDM_D)) {
-				OFDM_index_old[0] = (u8)i;
+				OFDM_index_old = (u8)i;
 				dm_odm->BbSwingIdxOfdmBase = (u8)i;
 				break;
 			}
@@ -169,7 +169,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 			dm_odm->RFCalibrateInfo.ThermalValue_LCK = ThermalValue;
 			dm_odm->RFCalibrateInfo.ThermalValue_IQK = ThermalValue;
 
-			dm_odm->RFCalibrateInfo.OFDM_index[0] = OFDM_index_old[0];
+			dm_odm->RFCalibrateInfo.OFDM_index[0] = OFDM_index_old;
 			dm_odm->RFCalibrateInfo.CCK_index = CCK_index_old;
 		}
 
