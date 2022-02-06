@@ -165,6 +165,8 @@ struct bq24190_dev_info {
 	u16				sys_min;
 	u16				iprechg;
 	u16				iterm;
+	u32				ichg_max;
+	u32				vreg_max;
 	struct mutex			f_reg_lock;
 	u8				f_reg;
 	u8				ss_reg;
@@ -977,15 +979,6 @@ static int bq24190_charger_get_current(struct bq24190_dev_info *bdi,
 	return 0;
 }
 
-static int bq24190_charger_get_current_max(struct bq24190_dev_info *bdi,
-		union power_supply_propval *val)
-{
-	int idx = ARRAY_SIZE(bq24190_ccc_ichg_values) - 1;
-
-	val->intval = bq24190_ccc_ichg_values[idx];
-	return 0;
-}
-
 static int bq24190_charger_set_current(struct bq24190_dev_info *bdi,
 		const union power_supply_propval *val)
 {
@@ -1021,15 +1014,6 @@ static int bq24190_charger_get_voltage(struct bq24190_dev_info *bdi,
 		return ret;
 
 	val->intval = voltage;
-	return 0;
-}
-
-static int bq24190_charger_get_voltage_max(struct bq24190_dev_info *bdi,
-		union power_supply_propval *val)
-{
-	int idx = ARRAY_SIZE(bq24190_cvc_vreg_values) - 1;
-
-	val->intval = bq24190_cvc_vreg_values[idx];
 	return 0;
 }
 
@@ -1109,13 +1093,15 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 		ret = bq24190_charger_get_current(bdi, val);
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
-		ret = bq24190_charger_get_current_max(bdi, val);
+		val->intval = bdi->ichg_max;
+		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 		ret = bq24190_charger_get_voltage(bdi, val);
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
-		ret = bq24190_charger_get_voltage_max(bdi, val);
+		val->intval = bdi->vreg_max;
+		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		ret = bq24190_charger_get_iinlimit(bdi, val);
@@ -1682,7 +1668,13 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 {
 	const char * const s = "ti,system-minimum-microvolt";
 	struct power_supply_battery_info *info;
-	int v;
+	int v, idx;
+
+	idx = ARRAY_SIZE(bq24190_ccc_ichg_values) - 1;
+	bdi->ichg_max = bq24190_ccc_ichg_values[idx];
+
+	idx = ARRAY_SIZE(bq24190_cvc_vreg_values) - 1;
+	bdi->vreg_max = bq24190_cvc_vreg_values[idx];
 
 	if (device_property_read_u32(bdi->dev, s, &v) == 0) {
 		v /= 1000;
