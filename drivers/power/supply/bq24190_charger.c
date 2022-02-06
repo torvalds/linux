@@ -497,10 +497,8 @@ static ssize_t bq24190_sysfs_store(struct device *dev,
 }
 #endif
 
-#ifdef CONFIG_REGULATOR
-static int bq24190_set_charge_mode(struct regulator_dev *dev, u8 val)
+static int bq24190_set_charge_mode(struct bq24190_dev_info *bdi, u8 val)
 {
-	struct bq24190_dev_info *bdi = rdev_get_drvdata(dev);
 	int ret;
 
 	ret = pm_runtime_get_sync(bdi->dev);
@@ -520,14 +518,17 @@ static int bq24190_set_charge_mode(struct regulator_dev *dev, u8 val)
 	return ret;
 }
 
+#ifdef CONFIG_REGULATOR
 static int bq24190_vbus_enable(struct regulator_dev *dev)
 {
-	return bq24190_set_charge_mode(dev, BQ24190_REG_POC_CHG_CONFIG_OTG);
+	return bq24190_set_charge_mode(rdev_get_drvdata(dev),
+				       BQ24190_REG_POC_CHG_CONFIG_OTG);
 }
 
 static int bq24190_vbus_disable(struct regulator_dev *dev)
 {
-	return bq24190_set_charge_mode(dev, BQ24190_REG_POC_CHG_CONFIG_CHARGE);
+	return bq24190_set_charge_mode(rdev_get_drvdata(dev),
+				       BQ24190_REG_POC_CHG_CONFIG_CHARGE);
 }
 
 static int bq24190_vbus_is_enabled(struct regulator_dev *dev)
@@ -1870,6 +1871,14 @@ static int bq24190_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void bq24190_shutdown(struct i2c_client *client)
+{
+	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
+
+	/* Turn off 5V boost regulator on shutdown */
+	bq24190_set_charge_mode(bdi, BQ24190_REG_POC_CHG_CONFIG_CHARGE);
+}
+
 static __maybe_unused int bq24190_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1980,6 +1989,7 @@ MODULE_DEVICE_TABLE(of, bq24190_of_match);
 static struct i2c_driver bq24190_driver = {
 	.probe		= bq24190_probe,
 	.remove		= bq24190_remove,
+	.shutdown	= bq24190_shutdown,
 	.id_table	= bq24190_i2c_ids,
 	.driver = {
 		.name		= "bq24190-charger",
