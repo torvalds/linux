@@ -169,7 +169,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 			dm_odm->RFCalibrateInfo.ThermalValue_LCK = ThermalValue;
 			dm_odm->RFCalibrateInfo.ThermalValue_IQK = ThermalValue;
 
-			dm_odm->RFCalibrateInfo.OFDM_index[0] = OFDM_index_old;
+			dm_odm->RFCalibrateInfo.OFDM_index = OFDM_index_old;
 			dm_odm->RFCalibrateInfo.CCK_index = CCK_index_old;
 		}
 
@@ -234,7 +234,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 			}
 			if (offset >= index_mapping_NUM_88E)
 				offset = index_mapping_NUM_88E - 1;
-			OFDM_index[0] = dm_odm->RFCalibrateInfo.OFDM_index[0] + OFDM_index_mapping[j][offset];
+			OFDM_index[0] = dm_odm->RFCalibrateInfo.OFDM_index + OFDM_index_mapping[j][offset];
 			CCK_index = dm_odm->RFCalibrateInfo.CCK_index + OFDM_index_mapping[j][offset];
 
 			if (OFDM_index[0] > OFDM_TABLE_SIZE_92D - 1)

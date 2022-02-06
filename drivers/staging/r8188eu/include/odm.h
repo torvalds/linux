@@ -254,7 +254,7 @@ struct odm_rf_cal {
 
 	u8	bCCKinCH14;
 	u8	CCK_index;
-	u8	OFDM_index[2];
+	u8	OFDM_index;
 	bool bDoneTxpower;
 
 	u8	ThermalValue_HP[HP_THERMAL_NUM];
