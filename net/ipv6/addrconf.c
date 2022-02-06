@@ -7184,7 +7184,9 @@ static void __net_exit addrconf_exit_net(struct net *net)
 				     NETCONFA_IFINDEX_ALL);
 #endif
 	kfree(net->ipv6.devconf_dflt);
+	net->ipv6.devconf_dflt = NULL;
 	kfree(net->ipv6.devconf_all);
+	net->ipv6.devconf_all = NULL;
 }
 
 static struct pernet_operations addrconf_ops = {

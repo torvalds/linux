@@ -1567,15 +1567,17 @@ static int ip6mr_sk_init(struct mr_table *mrt, struct sock *sk)
 
 int ip6mr_sk_done(struct sock *sk)
 {
-	int err = -EACCES;
 	struct net *net = sock_net(sk);
+	struct ipv6_devconf *devconf;
 	struct mr_table *mrt;
+	int err = -EACCES;
 
 	if (sk->sk_type != SOCK_RAW ||
 	    inet_sk(sk)->inet_num != IPPROTO_ICMPV6)
 		return err;
 
-	if (!atomic_read(&net->ipv6.devconf_all->mc_forwarding))
+	devconf = net->ipv6.devconf_all;
+	if (!devconf || !atomic_read(&devconf->mc_forwarding))
 		return err;
 
 	rtnl_lock();
@@ -1587,7 +1589,7 @@ int ip6mr_sk_done(struct sock *sk)
 			 * so the RCU grace period before sk freeing
 			 * is guaranteed by sk_destruct()
 			 */
-			atomic_dec(&net->ipv6.devconf_all->mc_forwarding);
+			atomic_dec(&devconf->mc_forwarding);
 			write_unlock_bh(&mrt_lock);
 			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
 						     NETCONFA_MC_FORWARDING,
