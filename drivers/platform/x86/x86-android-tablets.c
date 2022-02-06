@@ -172,8 +172,18 @@ struct x86_dev_info {
 };
 
 /* Generic / shared charger / battery settings */
-static const char * const bq24190_suppliers[] = { "tusb1211-charger-detect" };
-static const char * const ug3105_suppliers[] = { "bq24190-charger" };
+static const char * const tusb1211_chg_det_psy[] = { "tusb1211-charger-detect" };
+static const char * const bq24190_psy[] = { "bq24190-charger" };
+static const char * const bq25890_psy[] = { "bq25890-charger" };
+
+static const struct property_entry fg_bq25890_supply_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq25890_psy),
+	{ }
+};
+
+static const struct software_node fg_bq25890_supply_node = {
+	.properties = fg_bq25890_supply_props,
+};
 
 /* LiPo HighVoltage (max 4.35V) settings used by most devs with a HV bat. */
 static const struct property_entry generic_lipo_hv_4v35_battery_props[] = {
@@ -295,7 +305,7 @@ static const struct software_node asus_me176c_accel_node = {
 };
 
 static const struct property_entry asus_me176c_bq24190_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_suppliers),
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", tusb1211_chg_det_psy),
 	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
 	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
@@ -308,9 +318,9 @@ static const struct software_node asus_me176c_bq24190_node = {
 };
 
 static const struct property_entry asus_me176c_ug3105_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", ug3105_suppliers),
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_psy),
 	PROPERTY_ENTRY_REF("monitored-battery", &generic_lipo_hv_4v35_battery_node),
-	PROPERTY_ENTRY_U32("upi,rsns-microohm", 10000),
+	PROPERTY_ENTRY_U32("upisemi,rsns-microohm", 10000),
 	{ }
 };
 
@@ -320,11 +330,11 @@ static const struct software_node asus_me176c_ug3105_node = {
 
 static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = {
 	{
-		/* bq24190 battery charger */
+		/* bq24297 battery charger */
 		.board_info = {
 			.type = "bq24190",
 			.addr = 0x6b,
-			.dev_name = "bq24190",
+			.dev_name = "bq24297",
 			.swnode = &asus_me176c_bq24190_node,
 			.platform_data = &bq24190_pdata,
 		},
@@ -463,7 +473,7 @@ static const struct software_node asus_tf103c_battery_node = {
 };
 
 static const struct property_entry asus_tf103c_bq24190_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_suppliers),
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", tusb1211_chg_det_psy),
 	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
 	PROPERTY_ENTRY_U32("ti,system-minimum-microvolt", 3600000),
 	PROPERTY_ENTRY_BOOL("omit-battery-class"),
@@ -476,9 +486,9 @@ static const struct software_node asus_tf103c_bq24190_node = {
 };
 
 static const struct property_entry asus_tf103c_ug3105_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", ug3105_suppliers),
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq24190_psy),
 	PROPERTY_ENTRY_REF("monitored-battery", &asus_tf103c_battery_node),
-	PROPERTY_ENTRY_U32("upi,rsns-microohm", 5000),
+	PROPERTY_ENTRY_U32("upisemi,rsns-microohm", 5000),
 	{ }
 };
 
@@ -488,11 +498,11 @@ static const struct software_node asus_tf103c_ug3105_node = {
 
 static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = {
 	{
-		/* bq24190 battery charger */
+		/* bq24297 battery charger */
 		.board_info = {
 			.type = "bq24190",
 			.addr = 0x6b,
-			.dev_name = "bq24190",
+			.dev_name = "bq24297",
 			.swnode = &asus_tf103c_bq24190_node,
 			.platform_data = &bq24190_pdata,
 		},
@@ -834,17 +844,6 @@ static const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
  *
  * This takes care of instantiating the hidden devices manually.
  */
-static const char * const bq27520_suppliers[] = { "bq25890-charger" };
-
-static const struct property_entry bq27520_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", bq27520_suppliers),
-	{ }
-};
-
-static const struct software_node bq27520_node = {
-	.properties = bq27520_props,
-};
-
 static const struct x86_i2c_client_info xiaomi_mipad2_i2c_clients[] __initconst = {
 	{
 		/* BQ27520 fuel-gauge */
@@ -852,7 +851,7 @@ static const struct x86_i2c_client_info xiaomi_mipad2_i2c_clients[] __initconst 
 			.type = "bq27520",
 			.addr = 0x55,
 			.dev_name = "bq27520",
-			.swnode = &bq27520_node,
+			.swnode = &fg_bq25890_supply_node,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C1",
 	}, {
