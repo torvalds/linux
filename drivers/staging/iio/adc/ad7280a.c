@@ -5,21 +5,23 @@
  * Copyright 2011 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/crc8.h>
+#include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/err.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mod_devicetable.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/spi/spi.h>
-#include <linux/bitfield.h>
-#include <linux/err.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/module.h>
 
-#include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
+#include <linux/iio/iio.h>
 
 #include "ad7280a.h"
 
