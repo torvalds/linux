@@ -39,7 +39,6 @@ static void imx_media_create_csi2_links(struct imx_media_dev *imxmd)
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
 		/* skip if not a CSI or a CSI mux */
 		if (!(sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI) &&
-		    !(sd->grp_id & IMX_MEDIA_GRP_ID_CSI) &&
 		    !(sd->grp_id & IMX_MEDIA_GRP_ID_CSI_MUX))
 			continue;
 
