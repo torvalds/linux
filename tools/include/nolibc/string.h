@@ -69,7 +69,7 @@ void *memmove(void *dst, const void *src, size_t len)
 }
 
 /* must be exported, as it's used by libgcc on ARM */
-__attribute__((weak,unused))
+__attribute__((weak,unused,section(".text.nolibc_memcpy")))
 void *memcpy(void *dst, const void *src, size_t len)
 {
 	return _nolibc_memcpy_up(dst, src, len);
