@@ -140,6 +140,17 @@ to_ast_vga_connector(struct drm_connector *connector)
 	return container_of(connector, struct ast_vga_connector, base);
 }
 
+struct ast_sil164_connector {
+	struct drm_connector base;
+	struct ast_i2c_chan *i2c;
+};
+
+static inline struct ast_sil164_connector *
+to_ast_sil164_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct ast_sil164_connector, base);
+}
+
 /*
  * Device
  */
@@ -165,6 +176,10 @@ struct ast_private {
 			struct drm_encoder encoder;
 			struct ast_vga_connector vga_connector;
 		} vga;
+		struct {
+			struct drm_encoder encoder;
+			struct ast_sil164_connector sil164_connector;
+		} sil164;
 		struct {
 			struct drm_encoder encoder;
 			struct drm_connector connector;
