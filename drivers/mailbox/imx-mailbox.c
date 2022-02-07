@@ -218,7 +218,7 @@ static int imx_mu_specific_tx(struct imx_mu_priv *priv, struct imx_mu_con_priv *
 			ret = readl_poll_timeout(priv->base + priv->dcfg->xSR[IMX_MU_TSR],
 						 xsr,
 						 xsr & IMX_MU_xSR_TEn(priv->dcfg->type, i % num_tr),
-						 0, 100);
+						 0, 5 * USEC_PER_SEC);
 			if (ret) {
 				dev_err(priv->dev, "Send data index: %d timeout\n", i);
 				return ret;
@@ -263,7 +263,8 @@ static int imx_mu_specific_rx(struct imx_mu_priv *priv, struct imx_mu_con_priv *
 
 	for (i = 1; i < size; i++) {
 		ret = readl_poll_timeout(priv->base + priv->dcfg->xSR[IMX_MU_RSR], xsr,
-					 xsr & IMX_MU_xSR_RFn(priv->dcfg->type, i % 4), 0, 100);
+					 xsr & IMX_MU_xSR_RFn(priv->dcfg->type, i % 4), 0,
+					 5 * USEC_PER_SEC);
 		if (ret) {
 			dev_err(priv->dev, "timeout read idx %d\n", i);
 			return ret;
