@@ -585,7 +585,7 @@ static void mv88e6185_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 {
 	u8 cmode = chip->ports[port].cmode;
 
-	if (cmode <= ARRAY_SIZE(mv88e6185_phy_interface_modes) &&
+	if (cmode < ARRAY_SIZE(mv88e6185_phy_interface_modes) &&
 	    mv88e6185_phy_interface_modes[cmode])
 		__set_bit(mv88e6185_phy_interface_modes[cmode],
 			  config->supported_interfaces);
