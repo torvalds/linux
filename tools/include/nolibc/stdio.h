@@ -7,6 +7,8 @@
 #ifndef _NOLIBC_STDIO_H
 #define _NOLIBC_STDIO_H
 
+#include <stdarg.h>
+
 #include "std.h"
 #include "arch.h"
 #include "types.h"
@@ -156,6 +158,132 @@ char *fgets(char *s, int size, FILE *stream)
 	if (ofs < size)
 		s[ofs] = 0;
 	return ofs ? s : NULL;
+}
+
+
+/* minimal vfprintf(). It supports the following formats:
+ *  - %[l*]{d,u,c,x}
+ *  - %s
+ *  - unknown modifiers are ignored.
+ */
+static __attribute__((unused))
+int vfprintf(FILE *stream, const char *fmt, va_list args)
+{
+	char escape, lpref, c;
+	unsigned long long v;
+	unsigned int written;
+	size_t len, ofs;
+	char tmpbuf[21];
+	const char *outstr;
+
+	written = ofs = escape = lpref = 0;
+	while (1) {
+		c = fmt[ofs++];
+
+		if (escape) {
+			/* we're in an escape sequence, ofs == 1 */
+			escape = 0;
+			if (c == 'c' || c == 'd' || c == 'u' || c == 'x') {
+				if (lpref) {
+					if (lpref > 1)
+						v = va_arg(args, unsigned long long);
+					else
+						v = va_arg(args, unsigned long);
+				} else
+					v = va_arg(args, unsigned int);
+
+				if (c == 'd') {
+					/* sign-extend the value */
+					if (lpref == 0)
+						v = (long long)(int)v;
+					else if (lpref == 1)
+						v = (long long)(long)v;
+				}
+
+				switch (c) {
+				case 'd':
+					i64toa_r(v, tmpbuf);
+					break;
+				case 'u':
+					u64toa_r(v, tmpbuf);
+					break;
+				case 'x':
+					u64toh_r(v, tmpbuf);
+					break;
+				default: /* 'c' */
+					tmpbuf[0] = v;
+					tmpbuf[1] = 0;
+					break;
+				}
+				outstr = tmpbuf;
+			}
+			else if (c == 's') {
+				outstr = va_arg(args, char *);
+			}
+			else if (c == '%') {
+				/* queue it verbatim */
+				continue;
+			}
+			else {
+				/* modifiers or final 0 */
+				if (c == 'l') {
+					/* long format prefix, maintain the escape */
+					lpref++;
+				}
+				escape = 1;
+				goto do_escape;
+			}
+			len = strlen(outstr);
+			goto flush_str;
+		}
+
+		/* not an escape sequence */
+		if (c == 0 || c == '%') {
+			/* flush pending data on escape or end */
+			escape = 1;
+			lpref = 0;
+			outstr = fmt;
+			len = ofs - 1;
+		flush_str:
+			if (_fwrite(outstr, len, stream) != 0)
+				break;
+
+			written += len;
+		do_escape:
+			if (c == 0)
+				break;
+			fmt += ofs;
+			ofs = 0;
+			continue;
+		}
+
+		/* literal char, just queue it */
+	}
+	return written;
+}
+
+static __attribute__((unused))
+int fprintf(FILE *stream, const char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	ret = vfprintf(stream, fmt, args);
+	va_end(args);
+	return ret;
+}
+
+static __attribute__((unused))
+int printf(const char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	ret = vfprintf(stdout, fmt, args);
+	va_end(args);
+	return ret;
 }
 
 #endif /* _NOLIBC_STDIO_H */
