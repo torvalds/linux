@@ -316,7 +316,6 @@
 				dma-names = "tx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 12>;
 				clock-names = "sha_clk";
-				status = "okay";
 			};
 
 			aes@f002c000 {
@@ -332,7 +331,6 @@
 				dma-names = "tx", "rx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 9>;
 				clock-names = "aes_clk";
-				status = "okay";
 			};
 
 			spi0: spi@f8000000 {
@@ -1097,7 +1095,6 @@
 				dma-names = "tx", "rx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 11>;
 				clock-names = "tdes_clk";
-				status = "okay";
 			};
 
 			classd: classd@fc048000 {

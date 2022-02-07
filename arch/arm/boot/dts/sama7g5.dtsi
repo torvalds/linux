@@ -83,7 +83,6 @@
 			#size-cells = <1>;
 			ranges = <0 0xe0000000 0x4000>;
 			no-memory-wc;
-			status = "okay";
 		};
 
 		secumod: secumod@e0004000 {
@@ -618,13 +617,11 @@
 		uddrc: uddrc@e3800000 {
 			compatible = "microchip,sama7g5-uddrc";
 			reg = <0xe3800000 0x4000>;
-			status = "okay";
 		};
 
 		ddr3phy: ddr3phy@e3804000 {
 			compatible = "microchip,sama7g5-ddr3phy";
 			reg = <0xe3804000 0x1000>;
-			status = "okay";
 		};
 
 		gic: interrupt-controller@e8c11000 {

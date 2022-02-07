@@ -684,7 +684,6 @@
 				dma-names = "tx", "rx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 12>;
 				clock-names = "aes_clk";
-				status = "okay";
 			};
 
 			tdes@fc04c000 {
@@ -698,7 +697,6 @@
 				dma-names = "tx", "rx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 14>;
 				clock-names = "tdes_clk";
-				status = "okay";
 			};
 
 			sha@fc050000 {
@@ -710,7 +708,6 @@
 				dma-names = "tx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 15>;
 				clock-names = "sha_clk";
-				status = "okay";
 			};
 
 			hsmc: smc@fc05c000 {
