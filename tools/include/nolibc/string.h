@@ -122,6 +122,34 @@ size_t nolibc_strlen(const char *str)
 })
 
 static __attribute__((unused))
+size_t strlcpy(char *dst, const char *src, size_t size)
+{
+	size_t len;
+	char c;
+
+	for (len = 0;;) {
+		c = src[len];
+		if (len < size)
+			dst[len] = c;
+		if (!c)
+			break;
+		len++;
+	}
+	return len;
+}
+
+static __attribute__((unused))
+char *strncpy(char *dst, const char *src, size_t size)
+{
+	size_t len;
+
+	for (len = 0; len < size; len++)
+		if ((dst[len] = *src))
+			src++;
+	return dst;
+}
+
+static __attribute__((unused))
 char *strrchr(const char *s, int c)
 {
 	const char *ret = NULL;
