@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -147,28 +148,15 @@ static inline void pch_eth_enable_set(struct pch_dev *chip)
 static u64 pch_systime_read(struct pch_ts_regs __iomem *regs)
 {
 	u64 ns;
-	u32 lo, hi;
 
-	lo = ioread32(&regs->systime_lo);
-	hi = ioread32(&regs->systime_hi);
+	ns = ioread64_lo_hi(&regs->systime_lo);
 
-	ns = ((u64) hi) << 32;
-	ns |= lo;
-	ns <<= TICKS_NS_SHIFT;
-
-	return ns;
+	return ns << TICKS_NS_SHIFT;
 }
 
 static void pch_systime_write(struct pch_ts_regs __iomem *regs, u64 ns)
 {
-	u32 hi, lo;
-
-	ns >>= TICKS_NS_SHIFT;
-	hi = ns >> 32;
-	lo = ns & 0xffffffff;
-
-	iowrite32(lo, &regs->systime_lo);
-	iowrite32(hi, &regs->systime_hi);
+	iowrite64_lo_hi(ns >> TICKS_NS_SHIFT, &regs->systime_lo);
 }
 
 static inline void pch_block_reset(struct pch_dev *chip)
@@ -234,16 +222,10 @@ u64 pch_rx_snap_read(struct pci_dev *pdev)
 {
 	struct pch_dev *chip = pci_get_drvdata(pdev);
 	u64 ns;
-	u32 lo, hi;
 
-	lo = ioread32(&chip->regs->rx_snap_lo);
-	hi = ioread32(&chip->regs->rx_snap_hi);
+	ns = ioread64_lo_hi(&chip->regs->rx_snap_lo);
 
-	ns = ((u64) hi) << 32;
-	ns |= lo;
-	ns <<= TICKS_NS_SHIFT;
-
-	return ns;
+	return ns << TICKS_NS_SHIFT;
 }
 EXPORT_SYMBOL(pch_rx_snap_read);
 
@@ -251,16 +233,10 @@ u64 pch_tx_snap_read(struct pci_dev *pdev)
 {
 	struct pch_dev *chip = pci_get_drvdata(pdev);
 	u64 ns;
-	u32 lo, hi;
 
-	lo = ioread32(&chip->regs->tx_snap_lo);
-	hi = ioread32(&chip->regs->tx_snap_hi);
+	ns = ioread64_lo_hi(&chip->regs->tx_snap_lo);
 
-	ns = ((u64) hi) << 32;
-	ns |= lo;
-	ns <<= TICKS_NS_SHIFT;
-
-	return ns;
+	return ns << TICKS_NS_SHIFT;
 }
 EXPORT_SYMBOL(pch_tx_snap_read);
 
@@ -309,8 +285,7 @@ int pch_set_station_address(u8 *addr, struct pci_dev *pdev)
 	}
 
 	dev_dbg(&pdev->dev, "invoking pch_station_set\n");
-	iowrite32(lower_32_bits(mac), &chip->regs->ts_st[0]);
-	iowrite32(upper_32_bits(mac), &chip->regs->ts_st[4]);
+	iowrite64_lo_hi(mac, &chip->regs->ts_st);
 	return 0;
 }
 EXPORT_SYMBOL(pch_set_station_address);
@@ -577,8 +552,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pch_reset(chip);
 
 	iowrite32(DEFAULT_ADDEND, &chip->regs->addend);
-	iowrite32(1, &chip->regs->trgt_lo);
-	iowrite32(0, &chip->regs->trgt_hi);
+	iowrite64_lo_hi(1, &chip->regs->trgt_lo);
 	iowrite32(PCH_TSE_TTIPEND, &chip->regs->event);
 
 	pch_eth_enable_set(chip);
