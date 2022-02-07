@@ -1027,7 +1027,6 @@ static int ina2xx_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 
 	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &ina2xx_setup_ops);
 	if (ret)
 		return ret;

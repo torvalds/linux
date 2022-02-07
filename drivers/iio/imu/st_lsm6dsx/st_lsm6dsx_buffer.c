@@ -746,7 +746,6 @@ int st_lsm6dsx_fifo_setup(struct st_lsm6dsx_hw *hw)
 			continue;
 
 		ret = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[i],
-						  INDIO_BUFFER_SOFTWARE,
 						  &st_lsm6dsx_buffer_ops);
 		if (ret)
 			return ret;
