@@ -176,7 +176,7 @@ static int vcn_v4_0_3_hw_init(void *handle)
 	int r;
 
 	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
-				ring->doorbell_index, ring->me);
+				(adev->doorbell_index.vcn.vcn_ring0_1 << 1), ring->me);
 	if (ring->use_doorbell)
 		WREG32_SOC15(VCN, ring->me, regVCN_RB4_DB_CTRL,
 			ring->doorbell_index << VCN_RB4_DB_CTRL__OFFSET__SHIFT |
