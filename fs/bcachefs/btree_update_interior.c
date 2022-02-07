@@ -243,6 +243,8 @@ retry:
 	bch2_alloc_sectors_done(c, wp);
 mem_alloc:
 	b = bch2_btree_node_mem_alloc(c);
+	six_unlock_write(&b->c.lock);
+	six_unlock_intent(&b->c.lock);
 
 	/* we hold cannibalize_lock: */
 	BUG_ON(IS_ERR(b));
@@ -264,6 +266,9 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 	BUG_ON(!as->nr_prealloc_nodes);
 
 	b = as->prealloc_nodes[--as->nr_prealloc_nodes];
+
+	six_lock_intent(&b->c.lock, NULL, NULL);
+	six_lock_write(&b->c.lock, NULL, NULL);
 
 	set_btree_node_accessed(b);
 	set_btree_node_dirty(c, b);
@@ -378,7 +383,8 @@ static void bch2_btree_reserve_put(struct btree_update *as)
 	while (as->nr_prealloc_nodes) {
 		struct btree *b = as->prealloc_nodes[--as->nr_prealloc_nodes];
 
-		six_unlock_write(&b->c.lock);
+		six_lock_intent(&b->c.lock, NULL, NULL);
+		six_lock_write(&b->c.lock, NULL, NULL);
 
 		if (c->btree_reserve_cache_nr <
 		    ARRAY_SIZE(c->btree_reserve_cache)) {
@@ -392,10 +398,8 @@ static void bch2_btree_reserve_put(struct btree_update *as)
 			bch2_open_buckets_put(c, &b->ob);
 		}
 
-		btree_node_lock_type(c, b, SIX_LOCK_write);
 		__btree_node_free(c, b);
 		six_unlock_write(&b->c.lock);
-
 		six_unlock_intent(&b->c.lock);
 	}
 
