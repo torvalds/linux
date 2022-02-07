@@ -200,14 +200,18 @@ int u64toh_r(uint64_t in, char *buffer)
 	int dig;
 
 	do {
-		dig = in >> pos;
-		in -= (uint64_t)dig << pos;
-		pos -= 4;
-		if (dig || digits || pos < 0) {
-			if (dig > 9)
-				dig += 'a' - '0' - 10;
-			buffer[digits++] = '0' + dig;
+		if (sizeof(long) >= 8) {
+			dig = (in >> pos) & 0xF;
+		} else {
+			/* 32-bit platforms: avoid a 64-bit shift */
+			uint32_t d = (pos >= 32) ? (in >> 32) : in;
+			dig = (d >> (pos & 31)) & 0xF;
 		}
+		if (dig > 9)
+			dig += 'a' - '0' - 10;
+		pos -= 4;
+		if (dig || digits || pos < 0)
+			buffer[digits++] = '0' + dig;
 	} while (pos >= 0);
 
 	buffer[digits] = 0;
