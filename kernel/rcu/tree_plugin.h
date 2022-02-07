@@ -1214,9 +1214,9 @@ static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
 		if ((mask & leaf_node_cpu_bit(rnp, cpu)) &&
 		    cpu != outgoingcpu)
 			cpumask_set_cpu(cpu, cm);
-	cpumask_and(cm, cm, housekeeping_cpumask(HK_FLAG_RCU));
+	cpumask_and(cm, cm, housekeeping_cpumask(HK_TYPE_RCU));
 	if (cpumask_weight(cm) == 0)
-		cpumask_copy(cm, housekeeping_cpumask(HK_FLAG_RCU));
+		cpumask_copy(cm, housekeeping_cpumask(HK_TYPE_RCU));
 	set_cpus_allowed_ptr(t, cm);
 	free_cpumask_var(cm);
 }
@@ -1291,7 +1291,7 @@ static void rcu_bind_gp_kthread(void)
 {
 	if (!tick_nohz_full_enabled())
 		return;
-	housekeeping_affine(current, HK_FLAG_RCU);
+	housekeeping_affine(current, HK_TYPE_RCU);
 }
 
 /* Record the current task on dyntick-idle entry. */

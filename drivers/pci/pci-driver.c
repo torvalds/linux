@@ -377,8 +377,8 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 			goto out;
 		}
 		cpumask_and(wq_domain_mask,
-			    housekeeping_cpumask(HK_FLAG_WQ),
-			    housekeeping_cpumask(HK_FLAG_DOMAIN));
+			    housekeeping_cpumask(HK_TYPE_WQ),
+			    housekeeping_cpumask(HK_TYPE_DOMAIN));
 
 		cpu = cpumask_any_and(cpumask_of_node(node),
 				      wq_domain_mask);

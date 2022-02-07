@@ -9,23 +9,35 @@
  */
 #include "sched.h"
 
+enum hk_flags {
+	HK_FLAG_TIMER		= BIT(HK_TYPE_TIMER),
+	HK_FLAG_RCU		= BIT(HK_TYPE_RCU),
+	HK_FLAG_MISC		= BIT(HK_TYPE_MISC),
+	HK_FLAG_SCHED		= BIT(HK_TYPE_SCHED),
+	HK_FLAG_TICK		= BIT(HK_TYPE_TICK),
+	HK_FLAG_DOMAIN		= BIT(HK_TYPE_DOMAIN),
+	HK_FLAG_WQ		= BIT(HK_TYPE_WQ),
+	HK_FLAG_MANAGED_IRQ	= BIT(HK_TYPE_MANAGED_IRQ),
+	HK_FLAG_KTHREAD		= BIT(HK_TYPE_KTHREAD),
+};
+
 DEFINE_STATIC_KEY_FALSE(housekeeping_overridden);
 EXPORT_SYMBOL_GPL(housekeeping_overridden);
 static cpumask_var_t housekeeping_mask;
 static unsigned int housekeeping_flags;
 
-bool housekeeping_enabled(enum hk_flags flags)
+bool housekeeping_enabled(enum hk_type type)
 {
-	return !!(housekeeping_flags & flags);
+	return !!(housekeeping_flags & BIT(type));
 }
 EXPORT_SYMBOL_GPL(housekeeping_enabled);
 
-int housekeeping_any_cpu(enum hk_flags flags)
+int housekeeping_any_cpu(enum hk_type type)
 {
 	int cpu;
 
 	if (static_branch_unlikely(&housekeeping_overridden)) {
-		if (housekeeping_flags & flags) {
+		if (housekeeping_flags & BIT(type)) {
 			cpu = sched_numa_find_closest(housekeeping_mask, smp_processor_id());
 			if (cpu < nr_cpu_ids)
 				return cpu;
@@ -37,27 +49,27 @@ int housekeeping_any_cpu(enum hk_flags flags)
 }
 EXPORT_SYMBOL_GPL(housekeeping_any_cpu);
 
-const struct cpumask *housekeeping_cpumask(enum hk_flags flags)
+const struct cpumask *housekeeping_cpumask(enum hk_type type)
 {
 	if (static_branch_unlikely(&housekeeping_overridden))
-		if (housekeeping_flags & flags)
+		if (housekeeping_flags & BIT(type))
 			return housekeeping_mask;
 	return cpu_possible_mask;
 }
 EXPORT_SYMBOL_GPL(housekeeping_cpumask);
 
-void housekeeping_affine(struct task_struct *t, enum hk_flags flags)
+void housekeeping_affine(struct task_struct *t, enum hk_type type)
 {
 	if (static_branch_unlikely(&housekeeping_overridden))
-		if (housekeeping_flags & flags)
+		if (housekeeping_flags & BIT(type))
 			set_cpus_allowed_ptr(t, housekeeping_mask);
 }
 EXPORT_SYMBOL_GPL(housekeeping_affine);
 
-bool housekeeping_test_cpu(int cpu, enum hk_flags flags)
+bool housekeeping_test_cpu(int cpu, enum hk_type type)
 {
 	if (static_branch_unlikely(&housekeeping_overridden))
-		if (housekeeping_flags & flags)
+		if (housekeeping_flags & BIT(type))
 			return cpumask_test_cpu(cpu, housekeeping_mask);
 	return true;
 }
