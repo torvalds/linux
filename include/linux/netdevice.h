@@ -1948,6 +1948,8 @@ enum netdev_ml_priv_type {
  *	@dev_addr_shadow:	Copy of @dev_addr to catch direct writes.
  *	@linkwatch_dev_tracker:	refcount tracker used by linkwatch.
  *	@watchdog_dev_tracker:	refcount tracker used by watchdog.
+ *	@dev_registered_tracker:	tracker for reference held while
+ *					registered
  *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
@@ -2282,6 +2284,7 @@ struct net_device {
 	u8 dev_addr_shadow[MAX_ADDR_LEN];
 	netdevice_tracker	linkwatch_dev_tracker;
 	netdevice_tracker	watchdog_dev_tracker;
+	netdevice_tracker	dev_registered_tracker;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

@@ -9683,8 +9683,10 @@ int register_netdevice(struct net_device *dev)
 	linkwatch_init_dev(dev);
 
 	dev_init_scheduler(dev);
-	dev_hold(dev);
+
+	dev_hold_track(dev, &dev->dev_registered_tracker, GFP_KERNEL);
 	list_netdevice(dev);
+
 	add_device_randomness(dev->dev_addr, dev->addr_len);
 
 	/* If the device has permanent device address, driver should
@@ -10449,7 +10451,7 @@ void unregister_netdevice_many(struct list_head *head)
 	synchronize_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
-		dev_put(dev);
+		dev_put_track(dev, &dev->dev_registered_tracker);
 		net_set_todo(dev);
 	}
 
