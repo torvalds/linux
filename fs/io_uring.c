@@ -9378,7 +9378,7 @@ static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 {
 	struct io_ev_fd *ev_fd;
 	__s32 __user *fds = arg;
-	int fd, ret;
+	int fd;
 
 	ev_fd = rcu_dereference_protected(ctx->io_ev_fd,
 					lockdep_is_held(&ctx->uring_lock));
@@ -9394,14 +9394,14 @@ static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	ev_fd->cq_ev_fd = eventfd_ctx_fdget(fd);
 	if (IS_ERR(ev_fd->cq_ev_fd)) {
-		ret = PTR_ERR(ev_fd->cq_ev_fd);
+		int ret = PTR_ERR(ev_fd->cq_ev_fd);
 		kfree(ev_fd);
 		return ret;
 	}
 	ev_fd->eventfd_async = eventfd_async;
 
 	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
-	return ret;
+	return 0;
 }
 
 static void io_eventfd_put(struct rcu_head *rcu)
