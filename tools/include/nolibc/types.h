@@ -71,6 +71,9 @@
 #define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
 #define WIFEXITED(status)   (((status) & 0x7f) == 0)
 
+/* standard exit() codes */
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
 
 /* for select() */
 typedef struct {
