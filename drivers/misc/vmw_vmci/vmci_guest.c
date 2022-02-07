@@ -45,6 +45,7 @@ static u32 vm_context_id = VMCI_INVALID_ID;
 struct vmci_guest_device {
 	struct device *dev;	/* PCI device we are attached to */
 	void __iomem *iobase;
+	void __iomem *mmio_base;
 
 	bool exclusive_vectors;
 
@@ -89,6 +90,21 @@ u32 vmci_get_vm_context_id(void)
 	return vm_context_id;
 }
 
+static unsigned int vmci_read_reg(struct vmci_guest_device *dev, u32 reg)
+{
+	if (dev->mmio_base != NULL)
+		return readl(dev->mmio_base + reg);
+	return ioread32(dev->iobase + reg);
+}
+
+static void vmci_write_reg(struct vmci_guest_device *dev, u32 val, u32 reg)
+{
+	if (dev->mmio_base != NULL)
+		writel(val, dev->mmio_base + reg);
+	else
+		iowrite32(val, dev->iobase + reg);
+}
+
 /*
  * VM to hypervisor call mechanism. We use the standard VMware naming
  * convention since shared code is calling this function as well.
@@ -116,7 +132,7 @@ int vmci_send_datagram(struct vmci_datagram *dg)
 	if (vmci_dev_g) {
 		iowrite8_rep(vmci_dev_g->iobase + VMCI_DATA_OUT_ADDR,
 			     dg, VMCI_DG_SIZE(dg));
-		result = ioread32(vmci_dev_g->iobase + VMCI_RESULT_LOW_ADDR);
+		result = vmci_read_reg(vmci_dev_g, VMCI_RESULT_LOW_ADDR);
 	} else {
 		result = VMCI_ERROR_UNAVAILABLE;
 	}
@@ -384,7 +400,7 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 		unsigned int icr;
 
 		/* Acknowledge interrupt and determine what needs doing. */
-		icr = ioread32(dev->iobase + VMCI_ICR_ADDR);
+		icr = vmci_read_reg(dev, VMCI_ICR_ADDR);
 		if (icr == 0 || icr == ~0)
 			return IRQ_NONE;
 
@@ -429,7 +445,8 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct vmci_guest_device *vmci_dev;
-	void __iomem *iobase;
+	void __iomem *iobase = NULL;
+	void __iomem *mmio_base = NULL;
 	unsigned int capabilities;
 	unsigned int caps_in_use;
 	unsigned long cmd;
@@ -445,16 +462,29 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 		return error;
 	}
 
-	error = pcim_iomap_regions(pdev, 1 << 0, KBUILD_MODNAME);
-	if (error) {
-		dev_err(&pdev->dev, "Failed to reserve/map IO regions\n");
-		return error;
+	/*
+	 * The VMCI device with mmio access to registers requests 256KB
+	 * for BAR1. If present, driver will use new VMCI device
+	 * functionality for register access and datagram send/recv.
+	 */
+
+	if (pci_resource_len(pdev, 1) == VMCI_WITH_MMIO_ACCESS_BAR_SIZE) {
+		dev_info(&pdev->dev, "MMIO register access is available\n");
+		mmio_base = pci_iomap_range(pdev, 1, VMCI_MMIO_ACCESS_OFFSET,
+					    VMCI_MMIO_ACCESS_SIZE);
+		/* If the map fails, we fall back to IOIO access. */
+		if (!mmio_base)
+			dev_warn(&pdev->dev, "Failed to map MMIO register access\n");
 	}
 
-	iobase = pcim_iomap_table(pdev)[0];
-
-	dev_info(&pdev->dev, "Found VMCI PCI device at %#lx, irq %u\n",
-		 (unsigned long)iobase, pdev->irq);
+	if (!mmio_base) {
+		error = pcim_iomap_regions(pdev, BIT(0), KBUILD_MODNAME);
+		if (error) {
+			dev_err(&pdev->dev, "Failed to reserve/map IO regions\n");
+			return error;
+		}
+		iobase = pcim_iomap_table(pdev)[0];
+	}
 
 	vmci_dev = devm_kzalloc(&pdev->dev, sizeof(*vmci_dev), GFP_KERNEL);
 	if (!vmci_dev) {
@@ -466,6 +496,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	vmci_dev->dev = &pdev->dev;
 	vmci_dev->exclusive_vectors = false;
 	vmci_dev->iobase = iobase;
+	vmci_dev->mmio_base = mmio_base;
 
 	tasklet_init(&vmci_dev->datagram_tasklet,
 		     vmci_dispatch_dgs, (unsigned long)vmci_dev);
@@ -490,7 +521,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 *
 	 * Right now, we need datagrams. There are no fallbacks.
 	 */
-	capabilities = ioread32(vmci_dev->iobase + VMCI_CAPS_ADDR);
+	capabilities = vmci_read_reg(vmci_dev, VMCI_CAPS_ADDR);
 	if (!(capabilities & VMCI_CAPS_DATAGRAM)) {
 		dev_err(&pdev->dev, "Device does not support datagrams\n");
 		error = -ENXIO;
@@ -534,7 +565,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "Using capabilities 0x%x\n", caps_in_use);
 
 	/* Let the host know which capabilities we intend to use. */
-	iowrite32(caps_in_use, vmci_dev->iobase + VMCI_CAPS_ADDR);
+	vmci_write_reg(vmci_dev, caps_in_use, VMCI_CAPS_ADDR);
 
 	/* Set up global device so that we can start sending datagrams */
 	spin_lock_irq(&vmci_dev_spinlock);
@@ -630,11 +661,10 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	cmd = VMCI_IMR_DATAGRAM;
 	if (caps_in_use & VMCI_CAPS_NOTIFICATIONS)
 		cmd |= VMCI_IMR_NOTIFICATION;
-	iowrite32(cmd, vmci_dev->iobase + VMCI_IMR_ADDR);
+	vmci_write_reg(vmci_dev, cmd, VMCI_IMR_ADDR);
 
 	/* Enable interrupts. */
-	iowrite32(VMCI_CONTROL_INT_ENABLE,
-		  vmci_dev->iobase + VMCI_CONTROL_ADDR);
+	vmci_write_reg(vmci_dev, VMCI_CONTROL_INT_ENABLE, VMCI_CONTROL_ADDR);
 
 	pci_set_drvdata(pdev, vmci_dev);
 
@@ -657,8 +687,7 @@ err_disable_msi:
 
 err_remove_bitmap:
 	if (vmci_dev->notification_bitmap) {
-		iowrite32(VMCI_CONTROL_RESET,
-			  vmci_dev->iobase + VMCI_CONTROL_ADDR);
+		vmci_write_reg(vmci_dev, VMCI_CONTROL_RESET, VMCI_CONTROL_ADDR);
 		dma_free_coherent(&pdev->dev, PAGE_SIZE,
 				  vmci_dev->notification_bitmap,
 				  vmci_dev->notification_base);
@@ -700,7 +729,7 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 	spin_unlock_irq(&vmci_dev_spinlock);
 
 	dev_dbg(&pdev->dev, "Resetting vmci device\n");
-	iowrite32(VMCI_CONTROL_RESET, vmci_dev->iobase + VMCI_CONTROL_ADDR);
+	vmci_write_reg(vmci_dev, VMCI_CONTROL_RESET, VMCI_CONTROL_ADDR);
 
 	/*
 	 * Free IRQ and then disable MSI/MSI-X as appropriate.  For

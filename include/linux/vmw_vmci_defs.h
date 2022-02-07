@@ -83,6 +83,18 @@ enum {
 #define VMCI_MAX_PINNED_QP_MEMORY ((size_t)(32 * 1024))
 
 /*
+ * The version of the VMCI device that supports MMIO access to registers
+ * requests 256KB for BAR1 whereas the version of VMCI that supports
+ * MSI/MSI-X only requests 8KB. The layout of the larger 256KB region is:
+ * - the first 128KB are used for MSI/MSI-X.
+ * - the following 64KB are used for MMIO register access.
+ * - the remaining 64KB are unused.
+ */
+#define VMCI_WITH_MMIO_ACCESS_BAR_SIZE ((size_t)(256 * 1024))
+#define VMCI_MMIO_ACCESS_OFFSET        ((size_t)(128 * 1024))
+#define VMCI_MMIO_ACCESS_SIZE          ((size_t)(64 * 1024))
+
+/*
  * We have a fixed set of resource IDs available in the VMX.
  * This allows us to have a very simple implementation since we statically
  * know how many will create datagram handles. If a new caller arrives and
