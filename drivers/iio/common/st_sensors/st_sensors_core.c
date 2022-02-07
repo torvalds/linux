@@ -641,7 +641,6 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
 	for (i = 0; i < ST_SENSORS_ODR_LIST_MAX; i++) {
 		if (sdata->sensor_settings->odr.odr_avl[i].hz == 0)
 			break;
@@ -649,7 +648,6 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ",
 				sdata->sensor_settings->odr.odr_avl[i].hz);
 	}
-	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';
 
 	return len;
@@ -663,7 +661,6 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
 	for (i = 0; i < ST_SENSORS_FULLSCALE_AVL_MAX; i++) {
 		if (sdata->sensor_settings->fs.fs_avl[i].num == 0)
 			break;
@@ -673,7 +670,6 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ", q, r);
 	}
-	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';
 
 	return len;
