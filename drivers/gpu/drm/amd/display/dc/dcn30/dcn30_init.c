@@ -29,6 +29,8 @@
 #include "dcn21/dcn21_hwseq.h"
 #include "dcn30_hwseq.h"
 
+#include "dcn30_init.h"
+
 static const struct hw_sequencer_funcs dcn30_funcs = {
 	.program_gamut_remap = dcn10_program_gamut_remap,
 	.init_hw = dcn30_init_hw,
@@ -53,6 +55,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dcn20_disable_plane,
+	.disable_pixel_data = dcn20_disable_pixel_data,
 	.pipe_control_lock = dcn20_pipe_control_lock,
 	.interdependent_update_lock = dcn10_lock_all_pipes,
 	.cursor_lock = dcn10_cursor_lock,

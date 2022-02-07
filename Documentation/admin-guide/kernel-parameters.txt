@@ -225,14 +225,23 @@
 			For broken nForce2 BIOS resulting in XT-PIC timer.
 
 	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
-				  old_ordering, nonvs, sci_force_enable, nobl }
+			Format: { s3_bios, s3_mode, s3_beep, s4_hwsig,
+				  s4_nohwsig, old_ordering, nonvs,
+				  sci_force_enable, nobl }
 			See Documentation/power/video.rst for information on
 			s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
+			s4_hwsig causes the kernel to check the ACPI hardware
+			signature during resume from hibernation, and gracefully
+			refuse to resume if it has changed. This complies with
+			the ACPI specification but not with reality, since
+			Windows does not do this and many laptops do change it
+			on docking. So the default behaviour is to allow resume
+			and simply warn when the signature changes, unless the
+			s4_hwsig option is enabled.
 			s4_nohwsig prevents ACPI hardware signature from being
-			used during resume from hibernation.
+			used (or even warned about) during resume.
 			old_ordering causes the ACPI 1.0 ordering of the _PTS
 			control method, with respect to putting devices into
 			low power states, to be enforced (the ACPI 2.0 ordering
@@ -603,8 +612,8 @@
 	clocksource.max_cswd_read_retries= [KNL]
 			Number of clocksource_watchdog() retries due to
 			external delays before the clock will be marked
-			unstable.  Defaults to three retries, that is,
-			four attempts to read the clock under test.
+			unstable.  Defaults to two retries, that is,
+			three attempts to read the clock under test.
 
 	clocksource.verify_n_cpus= [KNL]
 			Limit the number of CPUs checked for clocksources
@@ -1689,6 +1698,8 @@
 			architectures force reset to be always executed
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 	i8042.kbdreset	[HW] Reset device connected to KBD port
+	i8042.probe_defer
+			[HW] Allow deferred probing upon i8042 probe errors
 
 	i810=		[HW,DRM]
 
@@ -2413,8 +2424,12 @@
 			Default is 1 (enabled)
 
 	kvm-intel.emulate_invalid_guest_state=
-			[KVM,Intel] Enable emulation of invalid guest states
-			Default is 0 (disabled)
+			[KVM,Intel] Disable emulation of invalid guest state.
+			Ignored if kvm-intel.enable_unrestricted_guest=1, as
+			guest state is never invalid for unrestricted guests.
+			This param doesn't apply to nested guests (L2), as KVM
+			never emulates invalid L2 guest state.
+			Default is 1 (enabled)
 
 	kvm-intel.flexpriority=
 			[KVM,Intel] Disable FlexPriority feature (TPR shadow).
@@ -2934,7 +2949,7 @@
 			both parameters are enabled, hugetlb_free_vmemmap takes
 			precedence over memory_hotplug.memmap_on_memory.
 
-	memtest=	[KNL,X86,ARM,PPC,RISCV] Enable memtest
+	memtest=	[KNL,X86,ARM,M68K,PPC,RISCV] Enable memtest
 			Format: <integer>
 			default : 0 <disable>
 			Specifies the number of memtest passes to be
@@ -3378,7 +3393,7 @@
 			Disable SMAP (Supervisor Mode Access Prevention)
 			even if it is supported by processor.
 
-	nosmep		[X86,PPC]
+	nosmep		[X86,PPC64s]
 			Disable SMEP (Supervisor Mode Execution Prevention)
 			even if it is supported by processor.
 
@@ -4151,6 +4166,14 @@
 			Override pmtimer IOPort with a hex value.
 			e.g. pmtmr=0x508
 
+	pmu_override=	[PPC] Override the PMU.
+			This option takes over the PMU facility, so it is no
+			longer usable by perf. Setting this option starts the
+			PMU counters by setting MMCR0 to 0 (the FC bit is
+			cleared). If a number is given, then MMCR1 is set to
+			that number, otherwise (e.g., 'pmu_override=on'), MMCR1
+			remains 0.
+
 	pm_debug_messages	[SUSPEND,KNL]
 			Enable suspend/resume debug messages during boot up.
 
@@ -4350,19 +4373,30 @@
 				Disable the Correctable Errors Collector,
 				see CONFIG_RAS_CEC help text.
 
-	rcu_nocbs=	[KNL]
-			The argument is a cpu list, as described above.
+	rcu_nocbs[=cpu-list]
+			[KNL] The optional argument is a cpu list,
+			as described above.
 
-			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
-			the specified list of CPUs to be no-callback CPUs.
-			Invocation of these CPUs' RCU callbacks will be
-			offloaded to "rcuox/N" kthreads created for that
-			purpose, where "x" is "p" for RCU-preempt, and
-			"s" for RCU-sched, and "N" is the CPU number.
-			This reduces OS jitter on the offloaded CPUs,
-			which can be useful for HPC and real-time
-			workloads.  It can also improve energy efficiency
-			for asymmetric multiprocessors.
+			In kernels built with CONFIG_RCU_NOCB_CPU=y,
+			enable the no-callback CPU mode, which prevents
+			such CPUs' callbacks from being invoked in
+			softirq context.  Invocation of such CPUs' RCU
+			callbacks will instead be offloaded to "rcuox/N"
+			kthreads created for that purpose, where "x" is
+			"p" for RCU-preempt, "s" for RCU-sched, and "g"
+			for the kthreads that mediate grace periods; and
+			"N" is the CPU number. This reduces OS jitter on
+			the offloaded CPUs, which can be useful for HPC
+			and real-time workloads.  It can also improve
+			energy efficiency for asymmetric multiprocessors.
+
+			If a cpulist is passed as an argument, the specified
+			list of	CPUs is set to no-callback mode from boot.
+
+			Otherwise, if the '=' sign and the cpulist
+			arguments are omitted, no CPU will be set to
+			no-callback mode from boot but the mode may be
+			toggled at runtime via cpusets.
 
 	rcu_nocb_poll	[KNL]
 			Rather than requiring that offloaded CPUs
@@ -4496,10 +4530,6 @@
 			on rcutree.qhimark at boot time and to zero to
 			disable more aggressive help enlistment.
 
-	rcutree.rcu_idle_gp_delay= [KNL]
-			Set wakeup interval for idle CPUs that have
-			RCU callbacks (RCU_FAST_NO_HZ=y).
-
 	rcutree.rcu_kick_kthreads= [KNL]
 			Cause the grace-period kthread to get an extra
 			wake_up() if it sleeps three times longer than
@@ -4610,8 +4640,12 @@
 			in seconds.
 
 	rcutorture.fwd_progress= [KNL]
-			Enable RCU grace-period forward-progress testing
+			Specifies the number of kthreads to be used
+			for  RCU grace-period forward-progress testing
 			for the types of RCU supporting this notion.
+			Defaults to 1 kthread, values less than zero or
+			greater than the number of CPUs cause the number
+			of CPUs to be used.
 
 	rcutorture.fwd_progress_div= [KNL]
 			Specify the fraction of a CPU-stall-warning
@@ -4811,6 +4845,29 @@
 			post-boot attempt at an expedited RCU grace
 			period to instead use normal non-expedited
 			grace-period processing.
+
+	rcupdate.rcu_task_collapse_lim= [KNL]
+			Set the maximum number of callbacks present
+			at the beginning of a grace period that allows
+			the RCU Tasks flavors to collapse back to using
+			a single callback queue.  This switching only
+			occurs when rcupdate.rcu_task_enqueue_lim is
+			set to the default value of -1.
+
+	rcupdate.rcu_task_contend_lim= [KNL]
+			Set the minimum number of callback-queuing-time
+			lock-contention events per jiffy required to
+			cause the RCU Tasks flavors to switch to per-CPU
+			callback queuing.  This switching only occurs
+			when rcupdate.rcu_task_enqueue_lim is set to
+			the default value of -1.
+
+	rcupdate.rcu_task_enqueue_lim= [KNL]
+			Set the number of callback queues to use for the
+			RCU Tasks family of RCU flavors.  The default
+			of -1 allows this to be automatically (and
+			dynamically) adjusted.	This parameter is intended
+			for use in testing.
 
 	rcupdate.rcu_task_ipi_delay= [KNL]
 			Set time in jiffies during which RCU tasks will
@@ -6444,6 +6501,12 @@
 			off       Fallback to firmware control of XIVE interrupt
 				  controller on both pseries and powernv
 				  platforms. Only useful on POWER9 and above.
+
+	xive.store-eoi=off	[PPC]
+			By default on POWER10 and above, the kernel will use
+			stores for EOI handling when the XIVE interrupt mode
+			is active. This option allows the XIVE driver to use
+			loads instead, as on POWER9.
 
 	xhci-hcd.quirks		[USB,KNL]
 			A hex value specifying bitmask with supplemental xhci

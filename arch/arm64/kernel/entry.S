@@ -966,8 +966,10 @@ SYM_CODE_START(__sdei_asm_handler)
 	mov	sp, x1
 
 	mov	x1, x0			// address to complete_and_resume
-	/* x0 = (x0 <= 1) ? EVENT_COMPLETE:EVENT_COMPLETE_AND_RESUME */
-	cmp	x0, #1
+	/* x0 = (x0 <= SDEI_EV_FAILED) ?
+	 * EVENT_COMPLETE:EVENT_COMPLETE_AND_RESUME
+	 */
+	cmp	x0, #SDEI_EV_FAILED
 	mov_q	x2, SDEI_1_0_FN_SDEI_EVENT_COMPLETE
 	mov_q	x3, SDEI_1_0_FN_SDEI_EVENT_COMPLETE_AND_RESUME
 	csel	x0, x2, x3, ls

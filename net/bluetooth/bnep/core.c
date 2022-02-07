@@ -535,7 +535,7 @@ static int bnep_session(void *arg)
 
 	up_write(&bnep_session_sem);
 	free_netdev(dev);
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 	return 0;
 }
 

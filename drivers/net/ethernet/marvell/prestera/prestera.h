@@ -225,6 +225,29 @@ struct prestera_event {
 	};
 };
 
+enum prestera_if_type {
+	/* the interface is of port type (dev,port) */
+	PRESTERA_IF_PORT_E = 0,
+
+	/* the interface is of lag type (lag-id) */
+	PRESTERA_IF_LAG_E = 1,
+
+	/* the interface is of Vid type (vlan-id) */
+	PRESTERA_IF_VID_E = 3,
+};
+
+struct prestera_iface {
+	enum prestera_if_type type;
+	struct {
+		u32 hw_dev_num;
+		u32 port_num;
+	} dev_port;
+	u32 hw_dev_num;
+	u16 vr_id;
+	u16 lag_id;
+	u16 vlan_id;
+};
+
 struct prestera_switchdev;
 struct prestera_span;
 struct prestera_rxtx;
@@ -247,9 +270,19 @@ struct prestera_switch {
 	u32 mtu_min;
 	u32 mtu_max;
 	u8 id;
+	struct prestera_router *router;
 	struct prestera_lag *lags;
+	struct prestera_counter *counter;
 	u8 lag_member_max;
 	u8 lag_max;
+};
+
+struct prestera_router {
+	struct prestera_switch *sw;
+	struct list_head vr_list;
+	struct list_head rif_entry_list;
+	struct notifier_block inetaddr_nb;
+	struct notifier_block inetaddr_valid_nb;
 };
 
 struct prestera_rxtx_params {
@@ -279,6 +312,9 @@ struct prestera_port *prestera_port_find_by_hwid(struct prestera_switch *sw,
 
 int prestera_port_autoneg_set(struct prestera_port *port, u64 link_modes);
 
+int prestera_router_init(struct prestera_switch *sw);
+void prestera_router_fini(struct prestera_switch *sw);
+
 struct prestera_port *prestera_find_port(struct prestera_switch *sw, u32 id);
 
 int prestera_port_cfg_mac_read(struct prestera_port *port,
@@ -292,6 +328,8 @@ struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev);
 int prestera_port_pvid_set(struct prestera_port *port, u16 vid);
 
 bool prestera_netdev_check(const struct net_device *dev);
+
+int prestera_is_valid_mac_addr(struct prestera_port *port, const u8 *addr);
 
 bool prestera_port_is_lag_member(const struct prestera_port *port);
 

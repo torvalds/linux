@@ -3,6 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/prandom.h>
+
 #include "intel_memory_region.h"
 #include "i915_drv.h"
 #include "i915_ttm_buddy_manager.h"
@@ -28,6 +30,110 @@ static const struct {
 		.instance = 0,
 	},
 };
+
+static int __iopagetest(struct intel_memory_region *mem,
+			u8 __iomem *va, int pagesize,
+			u8 value, resource_size_t offset,
+			const void *caller)
+{
+	int byte = prandom_u32_max(pagesize);
+	u8 result[3];
+
+	memset_io(va, value, pagesize); /* or GPF! */
+	wmb();
+
+	result[0] = ioread8(va);
+	result[1] = ioread8(va + byte);
+	result[2] = ioread8(va + pagesize - 1);
+	if (memchr_inv(result, value, sizeof(result))) {
+		dev_err(mem->i915->drm.dev,
+			"Failed to read back from memory region:%pR at [%pa + %pa] for %ps; wrote %x, read (%x, %x, %x)\n",
+			&mem->region, &mem->io_start, &offset, caller,
+			value, result[0], result[1], result[2]);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int iopagetest(struct intel_memory_region *mem,
+		      resource_size_t offset,
+		      const void *caller)
+{
+	const u8 val[] = { 0x0, 0xa5, 0xc3, 0xf0 };
+	void __iomem *va;
+	int err;
+	int i;
+
+	va = ioremap_wc(mem->io_start + offset, PAGE_SIZE);
+	if (!va) {
+		dev_err(mem->i915->drm.dev,
+			"Failed to ioremap memory region [%pa + %pa] for %ps\n",
+			&mem->io_start, &offset, caller);
+		return -EFAULT;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(val); i++) {
+		err = __iopagetest(mem, va, PAGE_SIZE, val[i], offset, caller);
+		if (err)
+			break;
+
+		err = __iopagetest(mem, va, PAGE_SIZE, ~val[i], offset, caller);
+		if (err)
+			break;
+	}
+
+	iounmap(va);
+	return err;
+}
+
+static resource_size_t random_page(resource_size_t last)
+{
+	/* Limited to low 44b (16TiB), but should suffice for a spot check */
+	return prandom_u32_max(last >> PAGE_SHIFT) << PAGE_SHIFT;
+}
+
+static int iomemtest(struct intel_memory_region *mem,
+		     bool test_all,
+		     const void *caller)
+{
+	resource_size_t last = resource_size(&mem->region) - PAGE_SIZE;
+	resource_size_t page;
+	int err;
+
+	/*
+	 * Quick test to check read/write access to the iomap (backing store).
+	 *
+	 * Write a byte, read it back. If the iomapping fails, we expect
+	 * a GPF preventing further execution. If the backing store does not
+	 * exist, the read back will return garbage. We check a couple of pages,
+	 * the first and last of the specified region to confirm the backing
+	 * store + iomap does cover the entire memory region; and we check
+	 * a random offset within as a quick spot check for bad memory.
+	 */
+
+	if (test_all) {
+		for (page = 0; page <= last; page += PAGE_SIZE) {
+			err = iopagetest(mem, page, caller);
+			if (err)
+				return err;
+		}
+	} else {
+		err = iopagetest(mem, 0, caller);
+		if (err)
+			return err;
+
+		err = iopagetest(mem, last, caller);
+		if (err)
+			return err;
+
+		err = iopagetest(mem, random_page(last), caller);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
 
 struct intel_memory_region *
 intel_memory_region_lookup(struct drm_i915_private *i915,
@@ -90,6 +196,21 @@ void intel_memory_region_debug(struct intel_memory_region *mr,
 			   &mr->total, &mr->avail);
 }
 
+static int intel_memory_region_memtest(struct intel_memory_region *mem,
+				       void *caller)
+{
+	struct drm_i915_private *i915 = mem->i915;
+	int err = 0;
+
+	if (!mem->io_start)
+		return 0;
+
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) || i915->params.memtest)
+		err = iomemtest(mem, i915->params.memtest, caller);
+
+	return err;
+}
+
 struct intel_memory_region *
 intel_memory_region_create(struct drm_i915_private *i915,
 			   resource_size_t start,
@@ -126,8 +247,15 @@ intel_memory_region_create(struct drm_i915_private *i915,
 			goto err_free;
 	}
 
+	err = intel_memory_region_memtest(mem, (void *)_RET_IP_);
+	if (err)
+		goto err_release;
+
 	return mem;
 
+err_release:
+	if (mem->ops->release)
+		mem->ops->release(mem);
 err_free:
 	kfree(mem);
 	return ERR_PTR(err);

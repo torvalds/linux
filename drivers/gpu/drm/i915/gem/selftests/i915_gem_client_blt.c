@@ -592,7 +592,7 @@ int i915_gem_client_blt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_client_tiled_blits),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	return i915_live_subtests(tests, i915);

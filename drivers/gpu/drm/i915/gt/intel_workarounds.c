@@ -929,7 +929,7 @@ hsw_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 static void
 gen9_wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	const struct sseu_dev_info *sseu = &i915->gt.info.sseu;
+	const struct sseu_dev_info *sseu = &to_gt(i915)->info.sseu;
 	unsigned int slice, subslice;
 	u32 mcr, mcr_mask;
 

@@ -4,6 +4,7 @@
  */
 
 #include "ctree.h"
+#include "inode-item.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "print-tree.h"
@@ -19,7 +20,7 @@ struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
 	u32 cur_offset = 0;
 	int len;
 
-	item_size = btrfs_item_size_nr(leaf, slot);
+	item_size = btrfs_item_size(leaf, slot);
 	ptr = btrfs_item_ptr_offset(leaf, slot);
 	while (cur_offset < item_size) {
 		ref = (struct btrfs_inode_ref *)(ptr + cur_offset);
@@ -45,7 +46,7 @@ struct btrfs_inode_extref *btrfs_find_name_in_ext_backref(
 	u32 cur_offset = 0;
 	int ref_name_len;
 
-	item_size = btrfs_item_size_nr(leaf, slot);
+	item_size = btrfs_item_size(leaf, slot);
 	ptr = btrfs_item_ptr_offset(leaf, slot);
 
 	/*
@@ -139,7 +140,7 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	}
 
 	leaf = path->nodes[0];
-	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	item_size = btrfs_item_size(leaf, path->slots[0]);
 	if (index)
 		*index = btrfs_inode_extref_index(leaf, extref);
 
@@ -208,7 +209,7 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 	leaf = path->nodes[0];
-	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
+	item_size = btrfs_item_size(leaf, path->slots[0]);
 
 	if (index)
 		*index = btrfs_inode_ref_index(leaf, ref);
@@ -256,7 +257,6 @@ static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
-	struct btrfs_item *item;
 
 	key.objectid = inode_objectid;
 	key.type = BTRFS_INODE_EXTREF_KEY;
@@ -282,9 +282,8 @@ static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 		goto out;
 
 	leaf = path->nodes[0];
-	item = btrfs_item_nr(path->slots[0]);
 	ptr = (unsigned long)btrfs_item_ptr(leaf, path->slots[0], char);
-	ptr += btrfs_item_size(leaf, item) - ins_len;
+	ptr += btrfs_item_size(leaf, path->slots[0]) - ins_len;
 	extref = (struct btrfs_inode_extref *)ptr;
 
 	btrfs_set_inode_extref_name_len(path->nodes[0], extref, name_len);
@@ -332,7 +331,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 		if (ref)
 			goto out;
 
-		old_size = btrfs_item_size_nr(path->nodes[0], path->slots[0]);
+		old_size = btrfs_item_size(path->nodes[0], path->slots[0]);
 		btrfs_extend_item(path, ins_len);
 		ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				     struct btrfs_inode_ref);
@@ -417,5 +416,334 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 			return 0;
 		}
 	}
+	return ret;
+}
+
+static inline void btrfs_trace_truncate(struct btrfs_inode *inode,
+					struct extent_buffer *leaf,
+					struct btrfs_file_extent_item *fi,
+					u64 offset, int extent_type, int slot)
+{
+	if (!inode)
+		return;
+	if (extent_type == BTRFS_FILE_EXTENT_INLINE)
+		trace_btrfs_truncate_show_fi_inline(inode, leaf, fi, slot,
+						    offset);
+	else
+		trace_btrfs_truncate_show_fi_regular(inode, leaf, fi, offset);
+}
+
+/*
+ * Remove inode items from a given root.
+ *
+ * @trans:		A transaction handle.
+ * @root:		The root from which to remove items.
+ * @inode:		The inode whose items we want to remove.
+ * @control:		The btrfs_truncate_control to control how and what we
+ *			are truncating.
+ *
+ * Remove all keys associated with the inode from the given root that have a key
+ * with a type greater than or equals to @min_type. When @min_type has a value of
+ * BTRFS_EXTENT_DATA_KEY, only remove file extent items that have an offset value
+ * greater than or equals to @new_size. If a file extent item that starts before
+ * @new_size and ends after it is found, its length is adjusted.
+ *
+ * Returns: 0 on success, < 0 on error and NEED_TRUNCATE_BLOCK when @min_type is
+ * BTRFS_EXTENT_DATA_KEY and the caller must truncate the last block.
+ */
+int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct btrfs_truncate_control *control)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_path *path;
+	struct extent_buffer *leaf;
+	struct btrfs_file_extent_item *fi;
+	struct btrfs_key key;
+	struct btrfs_key found_key;
+	u64 new_size = control->new_size;
+	u64 extent_num_bytes = 0;
+	u64 extent_offset = 0;
+	u64 item_end = 0;
+	u32 found_type = (u8)-1;
+	int del_item;
+	int pending_del_nr = 0;
+	int pending_del_slot = 0;
+	int extent_type = -1;
+	int ret;
+	u64 bytes_deleted = 0;
+	bool be_nice = false;
+
+	ASSERT(control->inode || !control->clear_extent_range);
+	ASSERT(new_size == 0 || control->min_type == BTRFS_EXTENT_DATA_KEY);
+
+	control->last_size = new_size;
+	control->sub_bytes = 0;
+
+	/*
+	 * For shareable roots we want to back off from time to time, this turns
+	 * out to be subvolume roots, reloc roots, and data reloc roots.
+	 */
+	if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
+		be_nice = true;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	path->reada = READA_BACK;
+
+	key.objectid = control->ino;
+	key.offset = (u64)-1;
+	key.type = (u8)-1;
+
+search_again:
+	/*
+	 * With a 16K leaf size and 128MiB extents, you can actually queue up a
+	 * huge file in a single leaf.  Most of the time that bytes_deleted is
+	 * > 0, it will be huge by the time we get here
+	 */
+	if (be_nice && bytes_deleted > SZ_32M &&
+	    btrfs_should_end_transaction(trans)) {
+		ret = -EAGAIN;
+		goto out;
+	}
+
+	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
+	if (ret < 0)
+		goto out;
+
+	if (ret > 0) {
+		ret = 0;
+		/* There are no items in the tree for us to truncate, we're done */
+		if (path->slots[0] == 0)
+			goto out;
+		path->slots[0]--;
+	}
+
+	while (1) {
+		u64 clear_start = 0, clear_len = 0, extent_start = 0;
+		bool should_throttle = false;
+
+		fi = NULL;
+		leaf = path->nodes[0];
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+		found_type = found_key.type;
+
+		if (found_key.objectid != control->ino)
+			break;
+
+		if (found_type < control->min_type)
+			break;
+
+		item_end = found_key.offset;
+		if (found_type == BTRFS_EXTENT_DATA_KEY) {
+			fi = btrfs_item_ptr(leaf, path->slots[0],
+					    struct btrfs_file_extent_item);
+			extent_type = btrfs_file_extent_type(leaf, fi);
+			if (extent_type != BTRFS_FILE_EXTENT_INLINE)
+				item_end +=
+				    btrfs_file_extent_num_bytes(leaf, fi);
+			else if (extent_type == BTRFS_FILE_EXTENT_INLINE)
+				item_end += btrfs_file_extent_ram_bytes(leaf, fi);
+
+			btrfs_trace_truncate(control->inode, leaf, fi,
+					     found_key.offset, extent_type,
+					     path->slots[0]);
+			item_end--;
+		}
+		if (found_type > control->min_type) {
+			del_item = 1;
+		} else {
+			if (item_end < new_size)
+				break;
+			if (found_key.offset >= new_size)
+				del_item = 1;
+			else
+				del_item = 0;
+		}
+
+		/* FIXME, shrink the extent if the ref count is only 1 */
+		if (found_type != BTRFS_EXTENT_DATA_KEY)
+			goto delete;
+
+		control->extents_found++;
+
+		if (extent_type != BTRFS_FILE_EXTENT_INLINE) {
+			u64 num_dec;
+
+			clear_start = found_key.offset;
+			extent_start = btrfs_file_extent_disk_bytenr(leaf, fi);
+			if (!del_item) {
+				u64 orig_num_bytes =
+					btrfs_file_extent_num_bytes(leaf, fi);
+				extent_num_bytes = ALIGN(new_size -
+						found_key.offset,
+						fs_info->sectorsize);
+				clear_start = ALIGN(new_size, fs_info->sectorsize);
+
+				btrfs_set_file_extent_num_bytes(leaf, fi,
+							 extent_num_bytes);
+				num_dec = (orig_num_bytes - extent_num_bytes);
+				if (extent_start != 0)
+					control->sub_bytes += num_dec;
+				btrfs_mark_buffer_dirty(leaf);
+			} else {
+				extent_num_bytes =
+					btrfs_file_extent_disk_num_bytes(leaf, fi);
+				extent_offset = found_key.offset -
+					btrfs_file_extent_offset(leaf, fi);
+
+				/* FIXME blocksize != 4096 */
+				num_dec = btrfs_file_extent_num_bytes(leaf, fi);
+				if (extent_start != 0)
+					control->sub_bytes += num_dec;
+			}
+			clear_len = num_dec;
+		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
+			/*
+			 * We can't truncate inline items that have had
+			 * special encodings
+			 */
+			if (!del_item &&
+			    btrfs_file_extent_encryption(leaf, fi) == 0 &&
+			    btrfs_file_extent_other_encoding(leaf, fi) == 0 &&
+			    btrfs_file_extent_compression(leaf, fi) == 0) {
+				u32 size = (u32)(new_size - found_key.offset);
+
+				btrfs_set_file_extent_ram_bytes(leaf, fi, size);
+				size = btrfs_file_extent_calc_inline_size(size);
+				btrfs_truncate_item(path, size, 1);
+			} else if (!del_item) {
+				/*
+				 * We have to bail so the last_size is set to
+				 * just before this extent.
+				 */
+				ret = BTRFS_NEED_TRUNCATE_BLOCK;
+				break;
+			} else {
+				/*
+				 * Inline extents are special, we just treat
+				 * them as a full sector worth in the file
+				 * extent tree just for simplicity sake.
+				 */
+				clear_len = fs_info->sectorsize;
+			}
+
+			control->sub_bytes += item_end + 1 - new_size;
+		}
+delete:
+		/*
+		 * We only want to clear the file extent range if we're
+		 * modifying the actual inode's mapping, which is just the
+		 * normal truncate path.
+		 */
+		if (control->clear_extent_range) {
+			ret = btrfs_inode_clear_file_extent_range(control->inode,
+						  clear_start, clear_len);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				break;
+			}
+		}
+
+		if (del_item) {
+			ASSERT(!pending_del_nr ||
+			       ((path->slots[0] + 1) == pending_del_slot));
+
+			control->last_size = found_key.offset;
+			if (!pending_del_nr) {
+				/* No pending yet, add ourselves */
+				pending_del_slot = path->slots[0];
+				pending_del_nr = 1;
+			} else if (pending_del_nr &&
+				   path->slots[0] + 1 == pending_del_slot) {
+				/* Hop on the pending chunk */
+				pending_del_nr++;
+				pending_del_slot = path->slots[0];
+			}
+		} else {
+			control->last_size = new_size;
+			break;
+		}
+
+		if (del_item && extent_start != 0 && !control->skip_ref_updates) {
+			struct btrfs_ref ref = { 0 };
+
+			bytes_deleted += extent_num_bytes;
+
+			btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF,
+					extent_start, extent_num_bytes, 0);
+			btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
+					control->ino, extent_offset,
+					root->root_key.objectid, false);
+			ret = btrfs_free_extent(trans, &ref);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				break;
+			}
+			if (be_nice) {
+				if (btrfs_should_throttle_delayed_refs(trans))
+					should_throttle = true;
+			}
+		}
+
+		if (found_type == BTRFS_INODE_ITEM_KEY)
+			break;
+
+		if (path->slots[0] == 0 ||
+		    path->slots[0] != pending_del_slot ||
+		    should_throttle) {
+			if (pending_del_nr) {
+				ret = btrfs_del_items(trans, root, path,
+						pending_del_slot,
+						pending_del_nr);
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
+					break;
+				}
+				pending_del_nr = 0;
+			}
+			btrfs_release_path(path);
+
+			/*
+			 * We can generate a lot of delayed refs, so we need to
+			 * throttle every once and a while and make sure we're
+			 * adding enough space to keep up with the work we are
+			 * generating.  Since we hold a transaction here we
+			 * can't flush, and we don't want to FLUSH_LIMIT because
+			 * we could have generated too many delayed refs to
+			 * actually allocate, so just bail if we're short and
+			 * let the normal reservation dance happen higher up.
+			 */
+			if (should_throttle) {
+				ret = btrfs_delayed_refs_rsv_refill(fs_info,
+							BTRFS_RESERVE_NO_FLUSH);
+				if (ret) {
+					ret = -EAGAIN;
+					break;
+				}
+			}
+			goto search_again;
+		} else {
+			path->slots[0]--;
+		}
+	}
+out:
+	if (ret >= 0 && pending_del_nr) {
+		int err;
+
+		err = btrfs_del_items(trans, root, path, pending_del_slot,
+				      pending_del_nr);
+		if (err) {
+			btrfs_abort_transaction(trans, err);
+			ret = err;
+		}
+	}
+
+	ASSERT(control->last_size >= new_size);
+	if (!ret && control->last_size > new_size)
+		control->last_size = new_size;
+
+	btrfs_free_path(path);
 	return ret;
 }

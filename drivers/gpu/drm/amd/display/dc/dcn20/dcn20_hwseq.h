@@ -53,6 +53,10 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx);
 void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);
 void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn20_disable_pixel_data(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool blank);
 void dcn20_blank_pixel_data(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,

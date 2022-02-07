@@ -76,129 +76,42 @@ err_mutex_unlock:
 	return ret;
 }
 
-static int si2157_init(struct dvb_frontend *fe)
+static const struct si2157_tuner_info si2157_tuners[] = {
+	{ SI2141, false, 0x60, SI2141_60_FIRMWARE, SI2141_A10_FIRMWARE },
+	{ SI2141, false, 0x61, SI2141_61_FIRMWARE, SI2141_A10_FIRMWARE },
+	{ SI2146, false, 0x11, SI2146_11_FIRMWARE, NULL },
+	{ SI2147, false, 0x50, SI2147_50_FIRMWARE, NULL },
+	{ SI2148, true,  0x32, SI2148_32_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2148, true,  0x33, SI2148_33_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2157, false, 0x50, SI2157_50_FIRMWARE, SI2157_A30_FIRMWARE },
+	{ SI2158, false, 0x50, SI2158_50_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2158, false, 0x51, SI2158_51_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2177, false, 0x50, SI2177_50_FIRMWARE, SI2157_A30_FIRMWARE },
+};
+
+static int si2157_load_firmware(struct dvb_frontend *fe,
+				const char *fw_name)
 {
 	struct i2c_client *client = fe->tuner_priv;
-	struct si2157_dev *dev = i2c_get_clientdata(client);
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	const struct firmware *fw;
 	int ret, len, remaining;
 	struct si2157_cmd cmd;
-	const struct firmware *fw;
-	const char *fw_name;
-	unsigned int chip_id, xtal_trim;
-
-	dev_dbg(&client->dev, "\n");
-
-	/* Try to get Xtal trim property, to verify tuner still running */
-	memcpy(cmd.args, "\x15\x00\x04\x02", 4);
-	cmd.wlen = 4;
-	cmd.rlen = 4;
-	ret = si2157_cmd_execute(client, &cmd);
-
-	xtal_trim = cmd.args[2] | (cmd.args[3] << 8);
-
-	if (ret == 0 && xtal_trim < 16)
-		goto warm;
-
-	dev->if_frequency = 0; /* we no longer know current tuner state */
-
-	/* power up */
-	if (dev->chiptype == SI2157_CHIPTYPE_SI2146) {
-		memcpy(cmd.args, "\xc0\x05\x01\x00\x00\x0b\x00\x00\x01", 9);
-		cmd.wlen = 9;
-	} else if (dev->chiptype == SI2157_CHIPTYPE_SI2141) {
-		memcpy(cmd.args, "\xc0\x00\x0d\x0e\x00\x01\x01\x01\x01\x03", 10);
-		cmd.wlen = 10;
-	} else {
-		memcpy(cmd.args, "\xc0\x00\x0c\x00\x00\x01\x01\x01\x01\x01\x01\x02\x00\x00\x01", 15);
-		cmd.wlen = 15;
-	}
-	cmd.rlen = 1;
-	ret = si2157_cmd_execute(client, &cmd);
-	if (ret && (dev->chiptype != SI2157_CHIPTYPE_SI2141 || ret != -EAGAIN))
-		goto err;
-
-	/* Si2141 needs a second command before it answers the revision query */
-	if (dev->chiptype == SI2157_CHIPTYPE_SI2141) {
-		memcpy(cmd.args, "\xc0\x08\x01\x02\x00\x00\x01", 7);
-		cmd.wlen = 7;
-		ret = si2157_cmd_execute(client, &cmd);
-		if (ret)
-			goto err;
-	}
-
-	if (dev->dont_load_firmware) {
-		dev_info(&client->dev, "device is buggy, skipping firmware download\n");
-		goto skip_fw_download;
-	}
-
-	/* query chip revision */
-	memcpy(cmd.args, "\x02", 1);
-	cmd.wlen = 1;
-	cmd.rlen = 13;
-	ret = si2157_cmd_execute(client, &cmd);
-	if (ret)
-		goto err;
-
-	chip_id = cmd.args[1] << 24 | cmd.args[2] << 16 | cmd.args[3] << 8 |
-			cmd.args[4] << 0;
-
-	#define SI2177_A30 ('A' << 24 | 77 << 16 | '3' << 8 | '0' << 0)
-	#define SI2158_A20 ('A' << 24 | 58 << 16 | '2' << 8 | '0' << 0)
-	#define SI2148_A20 ('A' << 24 | 48 << 16 | '2' << 8 | '0' << 0)
-	#define SI2157_A30 ('A' << 24 | 57 << 16 | '3' << 8 | '0' << 0)
-	#define SI2147_A30 ('A' << 24 | 47 << 16 | '3' << 8 | '0' << 0)
-	#define SI2146_A10 ('A' << 24 | 46 << 16 | '1' << 8 | '0' << 0)
-	#define SI2141_A10 ('A' << 24 | 41 << 16 | '1' << 8 | '0' << 0)
-
-	switch (chip_id) {
-	case SI2158_A20:
-	case SI2148_A20:
-		fw_name = SI2158_A20_FIRMWARE;
-		break;
-	case SI2141_A10:
-		fw_name = SI2141_A10_FIRMWARE;
-		break;
-	case SI2177_A30:
-		fw_name = SI2157_A30_FIRMWARE;
-		break;
-	case SI2157_A30:
-	case SI2147_A30:
-	case SI2146_A10:
-		fw_name = NULL;
-		break;
-	default:
-		dev_err(&client->dev, "unknown chip version Si21%d-%c%c%c\n",
-				cmd.args[2], cmd.args[1],
-				cmd.args[3], cmd.args[4]);
-		ret = -EINVAL;
-		goto err;
-	}
-
-	dev_info(&client->dev, "found a 'Silicon Labs Si21%d-%c%c%c'\n",
-			cmd.args[2], cmd.args[1], cmd.args[3], cmd.args[4]);
-
-	if (fw_name == NULL)
-		goto skip_fw_download;
 
 	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_name, &client->dev);
-	if (ret) {
-		dev_err(&client->dev, "firmware file '%s' not found\n",
-				fw_name);
-		goto err;
-	}
+	ret = firmware_request_nowarn(&fw, fw_name, &client->dev);
+	if (ret)
+		return ret;
 
 	/* firmware should be n chunks of 17 bytes */
 	if (fw->size % 17 != 0) {
 		dev_err(&client->dev, "firmware file '%s' is invalid\n",
-				fw_name);
+			fw_name);
 		ret = -EINVAL;
 		goto err_release_firmware;
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
-			fw_name);
+		 fw_name);
 
 	for (remaining = fw->size; remaining > 0; remaining -= 17) {
 		len = fw->data[fw->size - remaining];
@@ -218,9 +131,144 @@ static int si2157_init(struct dvb_frontend *fe)
 		}
 	}
 
+err_release_firmware:
 	release_firmware(fw);
 
-skip_fw_download:
+	return ret;
+}
+
+static int si2157_find_and_load_firmware(struct dvb_frontend *fe)
+{
+	struct i2c_client *client = fe->tuner_priv;
+	struct si2157_dev *dev = i2c_get_clientdata(client);
+	const char *fw_alt_name = NULL;
+	unsigned char part_id, rom_id;
+	const char *fw_name = NULL;
+	struct si2157_cmd cmd;
+	bool required = true;
+	int ret, i;
+
+	if (dev->dont_load_firmware) {
+		dev_info(&client->dev,
+			 "device is buggy, skipping firmware download\n");
+		return 0;
+	}
+
+	/* query chip revision */
+	memcpy(cmd.args, "\x02", 1);
+	cmd.wlen = 1;
+	cmd.rlen = 13;
+	ret = si2157_cmd_execute(client, &cmd);
+	if (ret)
+		return ret;
+
+	part_id = cmd.args[2];
+	rom_id = cmd.args[12];
+
+	for (i = 0; i < ARRAY_SIZE(si2157_tuners); i++) {
+		if (si2157_tuners[i].part_id != part_id)
+			continue;
+		required = si2157_tuners[i].required;
+		fw_alt_name = si2157_tuners[i].fw_alt_name;
+
+		/* Both part and rom ID match */
+		if (si2157_tuners[i].rom_id == rom_id) {
+			fw_name = si2157_tuners[i].fw_name;
+			break;
+		}
+	}
+
+	if (!fw_name && !fw_alt_name) {
+		dev_err(&client->dev,
+			"unknown chip version Si21%d-%c%c%c ROM 0x%02x\n",
+			part_id, cmd.args[1], cmd.args[3], cmd.args[4], rom_id);
+		return -EINVAL;
+	}
+
+	/* Update the part id based on device's report */
+	dev->part_id = part_id;
+
+	dev_info(&client->dev,
+		 "found a 'Silicon Labs Si21%d-%c%c%c ROM 0x%02x'\n",
+		 part_id, cmd.args[1], cmd.args[3], cmd.args[4], rom_id);
+
+	if (fw_name)
+		ret = si2157_load_firmware(fe, fw_name);
+	else
+		ret = -ENOENT;
+
+	/* Try alternate name, if any */
+	if (ret == -ENOENT && fw_alt_name)
+		ret = si2157_load_firmware(fe, fw_alt_name);
+
+	if (ret == -ENOENT) {
+		if (!required) {
+			dev_info(&client->dev, "Using ROM firmware.\n");
+			return 0;
+		}
+		dev_err(&client->dev, "Can't continue without a firmware.\n");
+	} else if (ret < 0) {
+		dev_err(&client->dev, "error %d when loading firmware\n", ret);
+	}
+	return ret;
+}
+
+static int si2157_init(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct i2c_client *client = fe->tuner_priv;
+	struct si2157_dev *dev = i2c_get_clientdata(client);
+	unsigned int xtal_trim;
+	struct si2157_cmd cmd;
+	int ret;
+
+	dev_dbg(&client->dev, "\n");
+
+	/* Try to get Xtal trim property, to verify tuner still running */
+	memcpy(cmd.args, "\x15\x00\x02\x04", 4);
+	cmd.wlen = 4;
+	cmd.rlen = 4;
+	ret = si2157_cmd_execute(client, &cmd);
+
+	xtal_trim = cmd.args[2] | (cmd.args[3] << 8);
+
+	if (ret == 0 && xtal_trim < 16)
+		goto warm;
+
+	dev->if_frequency = 0; /* we no longer know current tuner state */
+
+	/* power up */
+	if (dev->part_id == SI2146) {
+		/* clock_mode = XTAL, clock_freq = 24MHz */
+		memcpy(cmd.args, "\xc0\x05\x01\x00\x00\x0b\x00\x00\x01", 9);
+		cmd.wlen = 9;
+	} else if (dev->part_id == SI2141) {
+		/* clock_mode: XTAL, xout enabled */
+		memcpy(cmd.args, "\xc0\x00\x0d\x0e\x00\x01\x01\x01\x01\x03", 10);
+		cmd.wlen = 10;
+	} else {
+		memcpy(cmd.args, "\xc0\x00\x0c\x00\x00\x01\x01\x01\x01\x01\x01\x02\x00\x00\x01", 15);
+		cmd.wlen = 15;
+	}
+	cmd.rlen = 1;
+	ret = si2157_cmd_execute(client, &cmd);
+	if (ret && (dev->part_id != SI2141 || ret != -EAGAIN))
+		goto err;
+
+	/* Si2141 needs a wake up command */
+	if (dev->part_id == SI2141) {
+		memcpy(cmd.args, "\xc0\x08\x01\x02\x00\x00\x01", 7);
+		cmd.wlen = 7;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+	}
+
+	/* Try to load the firmware */
+	ret = si2157_find_and_load_firmware(fe);
+	if (ret < 0)
+		goto err;
+
 	/* reboot the tuner with new firmware? */
 	memcpy(cmd.args, "\x01\x01", 2);
 	cmd.wlen = 2;
@@ -270,8 +318,7 @@ warm:
 
 	dev->active = true;
 	return 0;
-err_release_firmware:
-	release_firmware(fw);
+
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
@@ -399,7 +446,8 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	struct si2157_cmd cmd;
-	u8 bandwidth, delivery_system;
+	u8 bw, delivery_system;
+	u32 bandwidth;
 	u32 if_frequency = 5000000;
 
 	dev_dbg(&client->dev,
@@ -411,14 +459,22 @@ static int si2157_set_params(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	if (c->bandwidth_hz <= 6000000)
-		bandwidth = 0x06;
-	else if (c->bandwidth_hz <= 7000000)
-		bandwidth = 0x07;
-	else if (c->bandwidth_hz <= 8000000)
-		bandwidth = 0x08;
-	else
-		bandwidth = 0x0f;
+	if (SUPPORTS_1700KHz(dev) && c->bandwidth_hz <= 1700000) {
+		bandwidth = 1700000;
+		bw = 9;
+	} else if (c->bandwidth_hz <= 6000000) {
+		bandwidth = 6000000;
+		bw = 6;
+	} else if (SUPPORTS_1700KHz(dev) && c->bandwidth_hz <= 6100000) {
+		bandwidth = 6100000;
+		bw = 10;
+	} else if (c->bandwidth_hz <= 7000000) {
+		bandwidth = 7000000;
+		bw = 7;
+	} else {
+		bandwidth = 8000000;
+		bw = 8;
+	}
 
 	switch (c->delivery_system) {
 	case SYS_ATSC:
@@ -434,7 +490,14 @@ static int si2157_set_params(struct dvb_frontend *fe)
 			delivery_system = 0x20;
 			break;
 	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
 			delivery_system = 0x30;
+			break;
+	case SYS_ISDBT:
+			delivery_system = 0x40;
+			break;
+	case SYS_DTMB:
+			delivery_system = 0x60;
 			break;
 	default:
 			ret = -EINVAL;
@@ -442,7 +505,7 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	}
 
 	memcpy(cmd.args, "\x14\x00\x03\x07\x00\x00", 6);
-	cmd.args[4] = delivery_system | bandwidth;
+	cmd.args[4] = delivery_system | bw;
 	if (dev->inversion)
 		cmd.args[5] = 0x01;
 	cmd.wlen = 6;
@@ -451,7 +514,8 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	if (dev->chiptype == SI2157_CHIPTYPE_SI2146)
+	/* On SI2146, set DTV AGC source to DLIF_AGC_3DB */
+	if (dev->part_id == SI2146)
 		memcpy(cmd.args, "\x14\x00\x02\x07\x00\x01", 6);
 	else
 		memcpy(cmd.args, "\x14\x00\x02\x07\x00\x00", 6);
@@ -518,9 +582,9 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 	u8 color = 0;    /* 0=NTSC/PAL, 0x10=SECAM */
 	u8 invert_analog = 1; /* analog tuner spectrum; 0=normal, 1=inverted */
 
-	if (dev->chiptype != SI2157_CHIPTYPE_SI2157) {
-		dev_info(&client->dev, "Analog tuning not supported for chiptype=%u\n",
-			 dev->chiptype);
+	if (!SUPPORTS_ATV_IF(dev)) {
+		dev_info(&client->dev, "Analog tuning not supported yet for Si21%d\n",
+			 dev->part_id);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -832,7 +896,7 @@ static int si2157_probe(struct i2c_client *client,
 	dev->inversion = cfg->inversion;
 	dev->dont_load_firmware = cfg->dont_load_firmware;
 	dev->if_port = cfg->if_port;
-	dev->chiptype = (u8)id->driver_data;
+	dev->part_id = (u8)id->driver_data;
 	dev->if_frequency = 5000000; /* default value of property 0x0706 */
 	mutex_init(&dev->i2c_mutex);
 	INIT_DELAYED_WORK(&dev->stat_work, si2157_stat_work);
@@ -875,10 +939,8 @@ static int si2157_probe(struct i2c_client *client,
 	}
 #endif
 
-	dev_info(&client->dev, "Silicon Labs %s successfully attached\n",
-			dev->chiptype == SI2157_CHIPTYPE_SI2141 ?  "Si2141" :
-			dev->chiptype == SI2157_CHIPTYPE_SI2146 ?
-			"Si2146" : "Si2147/2148/2157/2158");
+	dev_info(&client->dev, "Silicon Labs Si21%d successfully attached\n",
+		 dev->part_id);
 
 	return 0;
 
@@ -911,11 +973,16 @@ static int si2157_remove(struct i2c_client *client)
 	return 0;
 }
 
+/*
+ * The part_id used here will only be used on buggy devices that don't
+ * accept firmware uploads. Non-buggy devices should just use "si2157" for
+ * all SiLabs TER tuners, as the driver should auto-detect it.
+ */
 static const struct i2c_device_id si2157_id_table[] = {
-	{"si2157", SI2157_CHIPTYPE_SI2157},
-	{"si2146", SI2157_CHIPTYPE_SI2146},
-	{"si2141", SI2157_CHIPTYPE_SI2141},
-	{"si2177", SI2157_CHIPTYPE_SI2177},
+	{"si2157", SI2157},
+	{"si2146", SI2146},
+	{"si2141", SI2141},
+	{"si2177", SI2177},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, si2157_id_table);
@@ -938,3 +1005,13 @@ MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(SI2158_A20_FIRMWARE);
 MODULE_FIRMWARE(SI2141_A10_FIRMWARE);
 MODULE_FIRMWARE(SI2157_A30_FIRMWARE);
+MODULE_FIRMWARE(SI2141_60_FIRMWARE);
+MODULE_FIRMWARE(SI2141_61_FIRMWARE);
+MODULE_FIRMWARE(SI2146_11_FIRMWARE);
+MODULE_FIRMWARE(SI2147_50_FIRMWARE);
+MODULE_FIRMWARE(SI2148_32_FIRMWARE);
+MODULE_FIRMWARE(SI2148_33_FIRMWARE);
+MODULE_FIRMWARE(SI2157_50_FIRMWARE);
+MODULE_FIRMWARE(SI2158_50_FIRMWARE);
+MODULE_FIRMWARE(SI2158_51_FIRMWARE);
+MODULE_FIRMWARE(SI2177_50_FIRMWARE);

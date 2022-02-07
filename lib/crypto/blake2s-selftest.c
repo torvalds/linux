@@ -15,7 +15,6 @@
  * #include <stdio.h>
  *
  * #include <openssl/evp.h>
- * #include <openssl/hmac.h>
  *
  * #define BLAKE2S_TESTVEC_COUNT	256
  *
@@ -57,16 +56,6 @@
  *		print_vec(hash, outlen);
  *	}
  *	printf("};\n\n");
- *
- *	printf("static const u8 blake2s_hmac_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {\n");
- *
- *	HMAC(EVP_blake2s256(), key, sizeof(key), buf, sizeof(buf), hash, NULL);
- *	print_vec(hash, BLAKE2S_OUTBYTES);
- *
- *	HMAC(EVP_blake2s256(), buf, sizeof(buf), key, sizeof(key), hash, NULL);
- *	print_vec(hash, BLAKE2S_OUTBYTES);
- *
- *	printf("};\n");
  *
  *	return 0;
  *}
@@ -554,15 +543,6 @@ static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
     0xd6, 0x98, 0x6b, 0x07, 0x10, 0x65, 0x52, 0x65, },
 };
 
-static const u8 blake2s_hmac_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
-  { 0xce, 0xe1, 0x57, 0x69, 0x82, 0xdc, 0xbf, 0x43, 0xad, 0x56, 0x4c, 0x70,
-    0xed, 0x68, 0x16, 0x96, 0xcf, 0xa4, 0x73, 0xe8, 0xe8, 0xfc, 0x32, 0x79,
-    0x08, 0x0a, 0x75, 0x82, 0xda, 0x3f, 0x05, 0x11, },
-  { 0x77, 0x2f, 0x0c, 0x71, 0x41, 0xf4, 0x4b, 0x2b, 0xb3, 0xc6, 0xb6, 0xf9,
-    0x60, 0xde, 0xe4, 0x52, 0x38, 0x66, 0xe8, 0xbf, 0x9b, 0x96, 0xc4, 0x9f,
-    0x60, 0xd9, 0x24, 0x37, 0x99, 0xd6, 0xec, 0x31, },
-};
-
 bool __init blake2s_selftest(void)
 {
 	u8 key[BLAKE2S_KEY_SIZE];
@@ -605,17 +585,6 @@ bool __init blake2s_selftest(void)
 			       i + 1);
 			success = false;
 		}
-	}
-
-	if (success) {
-		blake2s256_hmac(hash, buf, key, sizeof(buf), sizeof(key));
-		success &= !memcmp(hash, blake2s_hmac_testvecs[0], BLAKE2S_HASH_SIZE);
-
-		blake2s256_hmac(hash, key, buf, sizeof(key), sizeof(buf));
-		success &= !memcmp(hash, blake2s_hmac_testvecs[1], BLAKE2S_HASH_SIZE);
-
-		if (!success)
-			pr_err("blake2s256_hmac self-test: FAIL\n");
 	}
 
 	return success;

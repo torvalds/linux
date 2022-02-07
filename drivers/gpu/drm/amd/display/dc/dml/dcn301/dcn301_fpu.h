@@ -34,7 +34,7 @@ void dcn301_fpu_set_wm_ranges(int i,
 
 void dcn301_fpu_init_soc_bounding_box(struct bp_soc_bb_info bb_info);
 
-void dcn301_calculate_wm_and_dlg(struct dc *dc,
+void dcn301_calculate_wm_and_dlg_fp(struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,

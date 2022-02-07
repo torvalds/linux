@@ -1205,10 +1205,6 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 
 	INIT_WORK(&pf->ptp_extts0_work, i40e_ptp_extts0_work);
 
-	/* Reserved for future extensions. */
-	if (config->flags)
-		return -EINVAL;
-
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		pf->ptp_tx = false;

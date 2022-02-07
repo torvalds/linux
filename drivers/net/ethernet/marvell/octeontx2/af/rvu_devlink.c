@@ -41,7 +41,7 @@ static bool rvu_common_request_irq(struct rvu *rvu, int offset,
 	struct rvu_devlink *rvu_dl = rvu->rvu_dl;
 	int rc;
 
-	sprintf(&rvu->irq_name[offset * NAME_SIZE], name);
+	sprintf(&rvu->irq_name[offset * NAME_SIZE], "%s", name);
 	rc = request_irq(pci_irq_vector(rvu->pdev, offset), fn, 0,
 			 &rvu->irq_name[offset * NAME_SIZE], rvu_dl);
 	if (rc)

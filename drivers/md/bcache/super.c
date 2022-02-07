@@ -1139,6 +1139,7 @@ static void cancel_writeback_rate_update_dwork(struct cached_dev *dc)
 static void cached_dev_detach_finish(struct work_struct *w)
 {
 	struct cached_dev *dc = container_of(w, struct cached_dev, detach);
+	struct cache_set *c = dc->disk.c;
 
 	BUG_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
 	BUG_ON(refcount_read(&dc->count));
@@ -1156,7 +1157,7 @@ static void cached_dev_detach_finish(struct work_struct *w)
 
 	bcache_device_detach(&dc->disk);
 	list_move(&dc->list, &uncached_devices);
-	calc_cached_dev_sectors(dc->disk.c);
+	calc_cached_dev_sectors(c);
 
 	clear_bit(BCACHE_DEV_DETACHING, &dc->disk.flags);
 	clear_bit(BCACHE_DEV_UNLINK_DONE, &dc->disk.flags);

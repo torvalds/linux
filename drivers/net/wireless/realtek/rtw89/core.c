@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
+#include <linux/ip.h>
+#include <linux/udp.h>
 
 #include "coex.h"
 #include "core.h"
@@ -143,19 +145,14 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 {
 	struct ieee80211_channel *channel = chandef->chan;
 	enum nl80211_chan_width width = chandef->width;
-	u8 *cch_by_bw = chan_param->cch_by_bw;
 	u32 primary_freq, center_freq;
 	u8 center_chan;
 	u8 bandwidth = RTW89_CHANNEL_WIDTH_20;
 	u8 primary_chan_idx = 0;
-	u8 i;
 
 	center_chan = channel->hw_value;
 	primary_freq = channel->center_freq;
 	center_freq = chandef->center_freq1;
-
-	/* assign the center channel used while 20M bw is selected */
-	cch_by_bw[RTW89_CHANNEL_WIDTH_20] = channel->hw_value;
 
 	switch (width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -183,10 +180,6 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 				primary_chan_idx = RTW89_SC_20_UPMOST;
 				center_chan -= 6;
 			}
-			/* assign the center channel used
-			 * while 40M bw is selected
-			 */
-			cch_by_bw[RTW89_CHANNEL_WIDTH_40] = center_chan + 4;
 		} else {
 			if (center_freq - primary_freq == 10) {
 				primary_chan_idx = RTW89_SC_20_LOWER;
@@ -195,10 +188,6 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 				primary_chan_idx = RTW89_SC_20_LOWEST;
 				center_chan += 6;
 			}
-			/* assign the center channel used
-			 * while 40M bw is selected
-			 */
-			cch_by_bw[RTW89_CHANNEL_WIDTH_40] = center_chan - 4;
 		}
 		break;
 	default:
@@ -210,12 +199,6 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 	chan_param->primary_chan = channel->hw_value;
 	chan_param->bandwidth = bandwidth;
 	chan_param->pri_ch_idx = primary_chan_idx;
-
-	/* assign the center channel used while current bw is selected */
-	cch_by_bw[bandwidth] = center_chan;
-
-	for (i = bandwidth + 1; i <= RTW89_MAX_CHANNEL_WIDTH; i++)
-		cch_by_bw[i] = 0;
 }
 
 void rtw89_set_channel(struct rtw89_dev *rtwdev)
@@ -228,7 +211,6 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	u8 center_chan, bandwidth;
 	u8 band_type;
 	bool band_changed;
-	u8 i;
 
 	rtw89_get_channel_params(&hw->conf.chandef, &ch_param);
 	if (WARN(ch_param.center_chan == 0, "Invalid channel\n"))
@@ -242,6 +224,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	hal->current_band_width = bandwidth;
 	hal->current_channel = center_chan;
+	hal->prev_primary_channel = hal->current_primary_channel;
 	hal->current_primary_channel = ch_param.primary_chan;
 	hal->current_band_type = band_type;
 
@@ -259,9 +242,6 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 		hal->current_subband = RTW89_CH_5G_BAND_4;
 		break;
 	}
-
-	for (i = RTW89_CHANNEL_WIDTH_20; i <= RTW89_MAX_CHANNEL_WIDTH; i++)
-		hal->cch_by_bw[i] = ch_param.cch_by_bw[i];
 
 	rtw89_chip_set_channel_prepare(rtwdev, &bak);
 
@@ -881,8 +861,11 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev, u8 *addr,
 {
 	s16 cfo;
 
+	phy_ppdu->chan_idx = RTW89_GET_PHY_STS_IE01_CH_IDX(addr);
+	if (phy_ppdu->rate < RTW89_HW_RATE_OFDM6)
+		return;
 	/* sign conversion for S(12,2) */
-	cfo = sign_extend32(RTW89_GET_PHY_STS_IE0_CFO(addr), 11);
+	cfo = sign_extend32(RTW89_GET_PHY_STS_IE01_CFO(addr), 11);
 	rtw89_phy_cfo_parse(rtwdev, cfo, phy_ppdu);
 }
 
@@ -908,6 +891,7 @@ static void rtw89_core_update_phy_ppdu(struct rtw89_rx_phy_ppdu *phy_ppdu)
 	s8 *rssi = phy_ppdu->rssi;
 	u8 *buf = phy_ppdu->buf;
 
+	phy_ppdu->ie = RTW89_GET_PHY_STS_IE_MAP(buf);
 	phy_ppdu->rssi_avg = RTW89_GET_PHY_STS_RSSI_AVG(buf);
 	rssi[RF_PATH_A] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_A(buf));
 	rssi[RF_PATH_B] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_B(buf));
@@ -936,8 +920,9 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 	u16 ie_len;
 	u8 *pos, *end;
 
-	if (!phy_ppdu->to_self)
-		return 0;
+	/* mark invalid reports and bypass them */
+	if (phy_ppdu->ie < RTW89_CCK_PKT)
+		return -EINVAL;
 
 	pos = (u8 *)phy_ppdu->buf + PHY_STS_HDR_LEN;
 	end = (u8 *)phy_ppdu->buf + phy_ppdu->len;
@@ -1000,9 +985,7 @@ static bool rtw89_core_rx_ppdu_match(struct rtw89_dev *rtwdev,
 	data_rate_mode = GET_DATA_RATE_MODE(data_rate);
 	if (data_rate_mode == DATA_RATE_MODE_NON_HT) {
 		rate_idx = GET_DATA_RATE_NOT_HT_IDX(data_rate);
-		/* No 4 CCK rates for 5G */
-		if (status->band == NL80211_BAND_5GHZ)
-			rate_idx -= 4;
+		/* rate_idx is still hardware value here */
 	} else if (data_rate_mode == DATA_RATE_MODE_HT) {
 		rate_idx = GET_DATA_RATE_HT_IDX(data_rate);
 	} else if (data_rate_mode == DATA_RATE_MODE_VHT) {
@@ -1081,6 +1064,29 @@ static void rtw89_core_rx_stats(struct rtw89_dev *rtwdev,
 	rtw89_iterate_vifs_bh(rtwdev, rtw89_vif_rx_stats_iter, &iter_data);
 }
 
+static void rtw89_correct_cck_chan(struct rtw89_dev *rtwdev,
+				   struct ieee80211_rx_status *status)
+{
+	u16 chan = rtwdev->hal.prev_primary_channel;
+	u8 band = chan <= 14 ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+
+	if (status->band != NL80211_BAND_2GHZ &&
+	    status->encoding == RX_ENC_LEGACY &&
+	    status->rate_idx < RTW89_HW_RATE_OFDM6) {
+		status->freq = ieee80211_channel_to_frequency(chan, band);
+		status->band = band;
+	}
+}
+
+static void rtw89_core_hw_to_sband_rate(struct ieee80211_rx_status *rx_status)
+{
+	if (rx_status->band == NL80211_BAND_2GHZ ||
+	    rx_status->encoding != RX_ENC_LEGACY)
+		return;
+	/* No 4 CCK rates for non-2G */
+	rx_status->rate_idx -= 4;
+}
+
 static void rtw89_core_rx_pending_skb(struct rtw89_dev *rtwdev,
 				      struct rtw89_rx_phy_ppdu *phy_ppdu,
 				      struct rtw89_rx_desc_info *desc_info,
@@ -1099,6 +1105,8 @@ static void rtw89_core_rx_pending_skb(struct rtw89_dev *rtwdev,
 		rx_status = IEEE80211_SKB_RXCB(skb_ppdu);
 		if (rtw89_core_rx_ppdu_match(rtwdev, desc_info, rx_status))
 			rtw89_chip_query_ppdu(rtwdev, phy_ppdu, rx_status);
+		rtw89_correct_cck_chan(rtwdev, rx_status);
+		rtw89_core_hw_to_sband_rate(rx_status);
 		rtw89_core_rx_stats(rtwdev, phy_ppdu, desc_info, skb_ppdu);
 		ieee80211_rx_napi(rtwdev->hw, NULL, skb_ppdu, &rtwdev->napi);
 		rtwdev->napi_budget_countdown--;
@@ -1112,6 +1120,7 @@ static void rtw89_core_rx_process_ppdu_sts(struct rtw89_dev *rtwdev,
 	struct rtw89_rx_phy_ppdu phy_ppdu = {.buf = skb->data, .valid = false,
 					     .len = skb->len,
 					     .to_self = desc_info->addr1_match,
+					     .rate = desc_info->data_rate,
 					     .mac_id = desc_info->mac_id};
 	int ret;
 
@@ -1267,12 +1276,7 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 	if (data_rate_mode == DATA_RATE_MODE_NON_HT) {
 		rx_status->encoding = RX_ENC_LEGACY;
 		rx_status->rate_idx = GET_DATA_RATE_NOT_HT_IDX(data_rate);
-		/* No 4 CCK rates for 5G */
-		if (rx_status->band == NL80211_BAND_5GHZ)
-			rx_status->rate_idx -= 4;
-		if (rtwdev->scanning)
-			rx_status->rate_idx = min_t(u8, rx_status->rate_idx,
-						    ARRAY_SIZE(rtw89_bitrates) - 5);
+		/* convert rate_idx after we get the correct band */
 	} else if (data_rate_mode == DATA_RATE_MODE_HT) {
 		rx_status->encoding = RX_ENC_HT;
 		rx_status->rate_idx = GET_DATA_RATE_HT_IDX(data_rate);
@@ -1324,10 +1328,13 @@ static void rtw89_core_flush_ppdu_rx_queue(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_ppdu_sts_info *ppdu_sts = &rtwdev->ppdu_sts;
 	u8 band = desc_info->bb_sel ? RTW89_PHY_1 : RTW89_PHY_0;
+	struct ieee80211_rx_status *rx_status;
 	struct sk_buff *skb_ppdu, *tmp;
 
 	skb_queue_walk_safe(&ppdu_sts->rx_queue[band], skb_ppdu, tmp) {
 		skb_unlink(skb_ppdu, &ppdu_sts->rx_queue[band]);
+		rx_status = IEEE80211_SKB_RXCB(skb_ppdu);
+		rtw89_core_hw_to_sband_rate(rx_status);
 		rtw89_core_rx_stats(rtwdev, NULL, desc_info, skb_ppdu);
 		ieee80211_rx_napi(rtwdev->hw, NULL, skb_ppdu, &rtwdev->napi);
 		rtwdev->napi_budget_countdown--;
@@ -1360,6 +1367,7 @@ void rtw89_core_rx(struct rtw89_dev *rtwdev,
 	    BIT(desc_info->frame_type) & PPDU_FILTER_BITMAP) {
 		skb_queue_tail(&ppdu_sts->rx_queue[band], skb);
 	} else {
+		rtw89_core_hw_to_sband_rate(rx_status);
 		rtw89_core_rx_stats(rtwdev, NULL, desc_info, skb);
 		ieee80211_rx_napi(rtwdev->hw, NULL, skb, &rtwdev->napi);
 		rtwdev->napi_budget_countdown--;
@@ -1825,7 +1833,8 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 	ewma_rssi_init(&rtwsta->avg_rssi);
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
-		rtwvif->mgd.ap = sta;
+		/* for station mode, assign the mac_id from itself */
+		rtwsta->mac_id = rtwvif->mac_id;
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_CONN_START);
 		rtw89_chip_rfk_channel(rtwdev);
@@ -1851,6 +1860,7 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 			      struct ieee80211_sta *sta)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	int ret;
 
 	rtw89_mac_bf_monitor_calc(rtwdev, sta, true);
@@ -1872,7 +1882,7 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 	}
 
 	/* update cam aid mac_id net_type */
-	rtw89_fw_h2c_cam(rtwdev, rtwvif);
+	rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c cam\n");
 		return ret;
@@ -1897,10 +1907,6 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	/* for station mode, assign the mac_id from itself */
-	if (vif->type == NL80211_IFTYPE_STATION)
-		rtwsta->mac_id = rtwvif->mac_id;
-
 	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif, 0);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c join info\n");
@@ -1908,7 +1914,7 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 	}
 
 	/* update cam aid mac_id net_type */
-	rtw89_fw_h2c_cam(rtwdev, rtwvif);
+	rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c cam\n");
 		return ret;
@@ -2115,7 +2121,8 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 				  IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU |
 				  IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
 				  IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB |
-				  IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US;
+				  u8_encode_bits(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US,
+						 IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK);
 		if (i == NL80211_IFTYPE_STATION)
 			phy_cap_info[9] |= IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU;
 		he_cap->he_mcs_nss_supp.rx_mcs_80 = cpu_to_le16(mcs_map);

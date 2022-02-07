@@ -1797,11 +1797,7 @@ static u32 stv0367cab_get_mclk(struct dvb_frontend *fe, u32 ExtClk_Hz)
 
 static u32 stv0367cab_get_adc_freq(struct dvb_frontend *fe, u32 ExtClk_Hz)
 {
-	u32 ADCClk_Hz = ExtClk_Hz;
-
-	ADCClk_Hz = stv0367cab_get_mclk(fe, ExtClk_Hz);
-
-	return ADCClk_Hz;
+	return stv0367cab_get_mclk(fe, ExtClk_Hz);
 }
 
 static enum stv0367cab_mod stv0367cab_SetQamSize(struct stv0367_state *state,

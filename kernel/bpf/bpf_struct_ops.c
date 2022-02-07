@@ -165,7 +165,7 @@ void bpf_struct_ops_init(struct btf *btf, struct bpf_verifier_log *log)
 				break;
 			}
 
-			if (btf_member_bitfield_size(t, member)) {
+			if (__btf_member_bitfield_size(t, member)) {
 				pr_warn("bit field member %s in struct %s is not supported\n",
 					mname, st_ops->name);
 				break;
@@ -296,7 +296,7 @@ static int check_zero_holes(const struct btf_type *t, void *data)
 	const struct btf_type *mtype;
 
 	for_each_member(i, t, member) {
-		moff = btf_member_bit_offset(t, member) / 8;
+		moff = __btf_member_bit_offset(t, member) / 8;
 		if (moff > prev_mend &&
 		    memchr_inv(data + prev_mend, 0, moff - prev_mend))
 			return -EINVAL;
@@ -387,7 +387,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		struct bpf_prog *prog;
 		u32 moff;
 
-		moff = btf_member_bit_offset(t, member) / 8;
+		moff = __btf_member_bit_offset(t, member) / 8;
 		ptype = btf_type_resolve_ptr(btf_vmlinux, member->type, NULL);
 		if (ptype == module_type) {
 			if (*(void **)(udata + moff))

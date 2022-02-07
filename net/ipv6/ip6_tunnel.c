@@ -383,7 +383,7 @@ ip6_tnl_dev_uninit(struct net_device *dev)
 	else
 		ip6_tnl_unlink(ip6n, t);
 	dst_cache_reset(&t->dst_cache);
-	dev_put(dev);
+	dev_put_track(dev, &t->dev_tracker);
 }
 
 /**
@@ -1036,14 +1036,14 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
 
 		if (unlikely(!ipv6_chk_addr_and_flags(net, laddr, ldev, false,
 						      0, IFA_F_TENTATIVE)))
-			pr_warn("%s xmit: Local address not yet configured!\n",
-				p->name);
+			pr_warn_ratelimited("%s xmit: Local address not yet configured!\n",
+					    p->name);
 		else if (!(p->flags & IP6_TNL_F_ALLOW_LOCAL_REMOTE) &&
 			 !ipv6_addr_is_multicast(raddr) &&
 			 unlikely(ipv6_chk_addr_and_flags(net, raddr, ldev,
 							  true, 0, IFA_F_TENTATIVE)))
-			pr_warn("%s xmit: Routing loop! Remote address found on this node!\n",
-				p->name);
+			pr_warn_ratelimited("%s xmit: Routing loop! Remote address found on this node!\n",
+					    p->name);
 		else
 			ret = 1;
 		rcu_read_unlock();
@@ -1883,7 +1883,7 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 	dev->min_mtu = ETH_MIN_MTU;
 	dev->max_mtu = IP6_MAX_MTU - dev->hard_header_len;
 
-	dev_hold(dev);
+	dev_hold_track(dev, &t->dev_tracker, GFP_KERNEL);
 	return 0;
 
 destroy_dst:

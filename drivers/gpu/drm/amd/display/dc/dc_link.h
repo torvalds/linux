@@ -30,6 +30,8 @@
 #include "dc_types.h"
 #include "grph_object_defs.h"
 
+struct link_resource;
+
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
 	dc_link_fec_ready,
@@ -160,9 +162,6 @@ struct dc_link {
 
 	struct panel_cntl *panel_cntl;
 	struct link_encoder *link_enc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	struct hpo_dp_link_encoder *hpo_dp_link_enc;
-#endif
 	struct graphics_object_id link_id;
 	/* Endpoint type distinguishes display endpoints which do not have entries
 	 * in the BIOS connector table from those that do. Helps when tracking link
@@ -185,6 +184,10 @@ struct dc_link {
 
 	/* Drive settings read from integrated info table */
 	struct dc_lane_settings bios_forced_drive_settings;
+
+	/* Vendor specific LTTPR workaround variables */
+	uint8_t vendor_specific_lttpr_link_rate_wa;
+	bool apply_vendor_specific_lttpr_link_rate_wa;
 
 	/* MST record stream using this link */
 	struct link_flags {
@@ -355,14 +358,17 @@ void dc_link_remove_remote_sink(
 
 void dc_link_dp_set_drive_settings(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	struct link_training_settings *lt_settings);
 
 bool dc_link_dp_perform_link_training_skip_aux(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	const struct dc_link_settings *link_setting);
 
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	const struct dc_link_settings *link_settings,
 	bool skip_video_pattern);
 
@@ -370,6 +376,7 @@ bool dc_link_dp_sync_lt_begin(struct dc_link *link);
 
 enum link_training_result dc_link_dp_sync_lt_attempt(
 	struct dc_link *link,
+	const struct link_resource *link_res,
 	struct dc_link_settings *link_setting,
 	struct dc_link_training_overrides *lt_settings);
 
@@ -447,6 +454,13 @@ bool dc_link_is_fec_supported(const struct dc_link *link);
 bool dc_link_should_enable_fec(const struct dc_link *link);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw);
 enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc_link *link);
 #endif
+
+const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link);
+/* take a snapshot of current link resource allocation state */
+void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
+/* restore link resource allocation state from a snapshot */
+void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
 #endif /* DC_LINK_H_ */

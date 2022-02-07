@@ -204,50 +204,35 @@ static int surface_hid_suspend(struct device *dev)
 {
 	struct surface_hid_device *d = dev_get_drvdata(dev);
 
-	if (d->hid->driver && d->hid->driver->suspend)
-		return d->hid->driver->suspend(d->hid, PMSG_SUSPEND);
-
-	return 0;
+	return hid_driver_suspend(d->hid, PMSG_SUSPEND);
 }
 
 static int surface_hid_resume(struct device *dev)
 {
 	struct surface_hid_device *d = dev_get_drvdata(dev);
 
-	if (d->hid->driver && d->hid->driver->resume)
-		return d->hid->driver->resume(d->hid);
-
-	return 0;
+	return hid_driver_resume(d->hid);
 }
 
 static int surface_hid_freeze(struct device *dev)
 {
 	struct surface_hid_device *d = dev_get_drvdata(dev);
 
-	if (d->hid->driver && d->hid->driver->suspend)
-		return d->hid->driver->suspend(d->hid, PMSG_FREEZE);
-
-	return 0;
+	return hid_driver_suspend(d->hid, PMSG_FREEZE);
 }
 
 static int surface_hid_poweroff(struct device *dev)
 {
 	struct surface_hid_device *d = dev_get_drvdata(dev);
 
-	if (d->hid->driver && d->hid->driver->suspend)
-		return d->hid->driver->suspend(d->hid, PMSG_HIBERNATE);
-
-	return 0;
+	return hid_driver_suspend(d->hid, PMSG_HIBERNATE);
 }
 
 static int surface_hid_restore(struct device *dev)
 {
 	struct surface_hid_device *d = dev_get_drvdata(dev);
 
-	if (d->hid->driver && d->hid->driver->reset_resume)
-		return d->hid->driver->reset_resume(d->hid);
-
-	return 0;
+	return hid_driver_reset_resume(d->hid);
 }
 
 const struct dev_pm_ops surface_hid_pm_ops = {

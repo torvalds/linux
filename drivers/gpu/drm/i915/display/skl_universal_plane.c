@@ -13,6 +13,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
+#include "intel_fbc.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
@@ -420,9 +421,19 @@ static int icl_plane_min_width(const struct drm_framebuffer *fb,
 	}
 }
 
-static int icl_plane_max_width(const struct drm_framebuffer *fb,
-			       int color_plane,
-			       unsigned int rotation)
+static int icl_hdr_plane_max_width(const struct drm_framebuffer *fb,
+				   int color_plane,
+				   unsigned int rotation)
+{
+	if (intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
+		return 4096;
+	else
+		return 5120;
+}
+
+static int icl_sdr_plane_max_width(const struct drm_framebuffer *fb,
+				   int color_plane,
+				   unsigned int rotation)
 {
 	return 5120;
 }
@@ -672,13 +683,13 @@ static u32 skl_plane_ctl_format(u32 pixel_format)
 	case DRM_FORMAT_XYUV8888:
 		return PLANE_CTL_FORMAT_XYUV;
 	case DRM_FORMAT_YUYV:
-		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
+		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_ORDER_YUYV;
 	case DRM_FORMAT_YVYU:
-		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YVYU;
+		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_ORDER_YVYU;
 	case DRM_FORMAT_UYVY:
-		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_UYVY;
+		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_ORDER_UYVY;
 	case DRM_FORMAT_VYUY:
-		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
+		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_ORDER_VYUY;
 	case DRM_FORMAT_NV12:
 		return PLANE_CTL_FORMAT_NV12;
 	case DRM_FORMAT_P010:
@@ -1022,10 +1033,6 @@ skl_program_plane_noarm(struct intel_plane *plane,
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	unsigned long irqflags;
 
-	/* Sizes are 0 based */
-	src_w--;
-	src_h--;
-
 	/* The scaler will handle the output position */
 	if (plane_state->scaler_id >= 0) {
 		crtc_x = 0;
@@ -1045,7 +1052,14 @@ skl_program_plane_noarm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_POS(pipe, plane_id),
 			  (crtc_y << 16) | crtc_x);
 	intel_de_write_fw(dev_priv, PLANE_SIZE(pipe, plane_id),
-			  (src_h << 16) | src_w);
+			  ((src_h - 1) << 16) | (src_w - 1));
+
+	if (intel_fb_is_rc_ccs_cc_modifier(fb->modifier)) {
+		intel_de_write_fw(dev_priv, PLANE_CC_VAL(pipe, plane_id, 0),
+				  lower_32_bits(plane_state->ccval));
+		intel_de_write_fw(dev_priv, PLANE_CC_VAL(pipe, plane_id, 1),
+				  upper_32_bits(plane_state->ccval));
+	}
 
 	if (icl_is_hdr_plane(dev_priv, plane_id))
 		intel_de_write_fw(dev_priv, PLANE_CUS_CTL(pipe, plane_id),
@@ -1053,10 +1067,6 @@ skl_program_plane_noarm(struct intel_plane *plane,
 
 	if (fb->format->is_yuv && icl_is_hdr_plane(dev_priv, plane_id))
 		icl_program_input_csc(plane, crtc_state, plane_state);
-
-	if (intel_fb_is_rc_ccs_cc_modifier(fb->modifier))
-		intel_uncore_write64_fw(&dev_priv->uncore,
-					PLANE_CC_VAL(pipe, plane_id), plane_state->ccval);
 
 	skl_write_plane_wm(plane, crtc_state);
 
@@ -1727,7 +1737,7 @@ static bool bo_has_valid_encryption(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
-	return intel_pxp_key_check(&i915->gt.pxp, obj, false) == 0;
+	return intel_pxp_key_check(&to_gt(i915)->pxp, obj, false) == 0;
 }
 
 static bool pxp_is_borked(struct drm_i915_gem_object *obj)
@@ -1813,6 +1823,15 @@ static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
 		return false;
 
 	return pipe == PIPE_A && plane_id == PLANE_PRIMARY;
+}
+
+static struct intel_fbc *skl_plane_fbc(struct drm_i915_private *dev_priv,
+				       enum pipe pipe, enum plane_id plane_id)
+{
+	if (skl_plane_has_fbc(dev_priv, pipe, plane_id))
+		return dev_priv->fbc;
+	else
+		return NULL;
 }
 
 static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
@@ -2101,14 +2120,14 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->id = plane_id;
 	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane_id);
 
-	if (skl_plane_has_fbc(dev_priv, pipe, plane_id))
-		plane->fbc = &dev_priv->fbc;
-	if (plane->fbc)
-		plane->fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
+	intel_fbc_add_plane(skl_plane_fbc(dev_priv, pipe, plane_id), plane);
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		plane->min_width = icl_plane_min_width;
-		plane->max_width = icl_plane_max_width;
+		if (icl_is_hdr_plane(dev_priv, plane_id))
+			plane->max_width = icl_hdr_plane_max_width;
+		else
+			plane->max_width = icl_sdr_plane_max_width;
 		plane->max_height = icl_plane_max_height;
 		plane->min_cdclk = icl_plane_min_cdclk;
 	} else if (DISPLAY_VER(dev_priv) >= 10) {

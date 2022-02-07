@@ -203,7 +203,7 @@ static bool update_cfg_data(
 	return true;
 }
 
-bool dcn21_link_encoder_acquire_phy(struct link_encoder *enc)
+static bool dcn21_link_encoder_acquire_phy(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	int value;
@@ -277,7 +277,7 @@ void dcn21_link_encoder_enable_dp_output(
 
 }
 
-void dcn21_link_encoder_enable_dp_mst_output(
+static void dcn21_link_encoder_enable_dp_mst_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source)
@@ -288,9 +288,8 @@ void dcn21_link_encoder_enable_dp_mst_output(
 	dcn10_link_encoder_enable_dp_mst_output(enc, link_settings, clock_source);
 }
 
-void dcn21_link_encoder_disable_output(
-	struct link_encoder *enc,
-	enum signal_type signal)
+static void dcn21_link_encoder_disable_output(struct link_encoder *enc,
+					      enum signal_type signal)
 {
 	dcn10_link_encoder_disable_output(enc, signal);
 

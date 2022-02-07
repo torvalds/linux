@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/dma-resv.h>
 #include <linux/slab.h>
+#include <linux/vga_switcheroo.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -41,6 +42,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_privacy_screen_consumer.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 
@@ -697,7 +699,7 @@ u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 	 * the highest stride limits of them all,
 	 * if in case pipe A is disabled, use the first pipe from pipe_mask.
 	 */
-	crtc = intel_get_first_crtc(dev_priv);
+	crtc = intel_first_crtc(dev_priv);
 	if (!crtc)
 		return 0;
 
@@ -775,7 +777,7 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	 */
 	if (HAS_GMCH(dev_priv) &&
 	    intel_set_memory_cxsr(dev_priv, false))
-		intel_wait_for_vblank(dev_priv, crtc->pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	/*
 	 * Gen2 reports pipe underruns whenever all planes are disabled.
@@ -785,7 +787,7 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
 
 	intel_plane_disable_arm(plane, crtc_state);
-	intel_wait_for_vblank(dev_priv, crtc->pipe);
+	intel_crtc_wait_for_next_vblank(crtc);
 }
 
 unsigned int
@@ -841,7 +843,7 @@ __intel_display_resume(struct drm_device *dev,
 static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
 {
 	return (INTEL_INFO(dev_priv)->gpu_reset_clobbers_display &&
-		intel_has_gpu_reset(&dev_priv->gt));
+		intel_has_gpu_reset(to_gt(dev_priv)));
 }
 
 void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
@@ -860,14 +862,14 @@ void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
 		return;
 
 	/* We have a modeset vs reset deadlock, defensively unbreak it. */
-	set_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags);
+	set_bit(I915_RESET_MODESET, &to_gt(dev_priv)->reset.flags);
 	smp_mb__after_atomic();
-	wake_up_bit(&dev_priv->gt.reset.flags, I915_RESET_MODESET);
+	wake_up_bit(&to_gt(dev_priv)->reset.flags, I915_RESET_MODESET);
 
 	if (atomic_read(&dev_priv->gpu_error.pending_fb_pin)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Modeset potentially stuck, unbreaking through wedging\n");
-		intel_gt_set_wedged(&dev_priv->gt);
+		intel_gt_set_wedged(to_gt(dev_priv));
 	}
 
 	/*
@@ -918,7 +920,7 @@ void intel_display_finish_reset(struct drm_i915_private *dev_priv)
 		return;
 
 	/* reset doesn't touch the display */
-	if (!test_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags))
+	if (!test_bit(I915_RESET_MODESET, &to_gt(dev_priv)->reset.flags))
 		return;
 
 	state = fetch_and_zero(&dev_priv->modeset_restore_state);
@@ -956,7 +958,7 @@ unlock:
 	drm_modeset_acquire_fini(ctx);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	clear_bit_unlock(I915_RESET_MODESET, &dev_priv->gt.reset.flags);
+	clear_bit_unlock(I915_RESET_MODESET, &to_gt(dev_priv)->reset.flags);
 }
 
 static void icl_set_pipe_chicken(const struct intel_crtc_state *crtc_state)
@@ -991,6 +993,10 @@ static void icl_set_pipe_chicken(const struct intel_crtc_state *crtc_state)
 	else if (DISPLAY_VER(dev_priv) >= 13)
 		tmp |= UNDERRUN_RECOVERY_DISABLE_ADLP;
 
+	/* Wa_14010547955:dg2 */
+	if (IS_DG2_DISPLAY_STEP(dev_priv, STEP_B0, STEP_FOREVER))
+		tmp |= DG2_RENDER_CCSTAG_4_3_EN;
+
 	intel_de_write(dev_priv, PIPE_CHICKEN(pipe), tmp);
 }
 
@@ -1011,7 +1017,7 @@ bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv)
 		if (cleanup_done)
 			continue;
 
-		drm_crtc_wait_one_vblank(crtc);
+		intel_crtc_wait_for_next_vblank(to_intel_crtc(crtc));
 
 		return true;
 	}
@@ -1158,7 +1164,7 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 	}
 
 	/* We need to wait for a vblank before we can disable the plane. */
-	intel_wait_for_vblank(dev_priv, crtc->pipe);
+	intel_crtc_wait_for_next_vblank(crtc);
 }
 
 static void intel_crtc_dpms_overlay_disable(struct intel_crtc *crtc)
@@ -1389,7 +1395,6 @@ static void intel_crtc_disable_flip_done(struct intel_atomic_state *state,
 static void intel_crtc_async_flip_disable_wa(struct intel_atomic_state *state,
 					     struct intel_crtc *crtc)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	const struct intel_crtc_state *new_crtc_state =
@@ -1415,7 +1420,7 @@ static void intel_crtc_async_flip_disable_wa(struct intel_atomic_state *state,
 	}
 
 	if (need_vbl_wait)
-		intel_wait_for_vblank(i915, crtc->pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 }
 
 static void intel_pre_plane_update(struct intel_atomic_state *state,
@@ -1434,7 +1439,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 		hsw_disable_ips(old_crtc_state);
 
 	if (intel_fbc_pre_update(state, crtc))
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	if (!needs_async_flip_vtd_wa(old_crtc_state) &&
 	    needs_async_flip_vtd_wa(new_crtc_state))
@@ -1466,7 +1471,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	 */
 	if (HAS_GMCH(dev_priv) && old_crtc_state->hw.active &&
 	    new_crtc_state->disable_cxsr && intel_set_memory_cxsr(dev_priv, false))
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	/*
 	 * IVB workaround: must disable low power watermarks for at least
@@ -1477,7 +1482,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	 */
 	if (old_crtc_state->hw.active &&
 	    new_crtc_state->disable_lp_wm && ilk_disable_lp_wm(dev_priv))
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	/*
 	 * If we're doing a modeset we don't need to do any
@@ -1893,8 +1898,8 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	 * in case there are more corner cases we don't know about.
 	 */
 	if (new_crtc_state->has_pch_encoder) {
-		intel_wait_for_vblank(dev_priv, pipe);
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
+		intel_crtc_wait_for_next_vblank(crtc);
 	}
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
@@ -2094,7 +2099,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	intel_encoders_enable(state, crtc);
 
 	if (psl_clkgate_wa) {
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 		glk_pipe_scaler_clock_gating_wa(dev_priv, pipe, false);
 	}
 
@@ -2102,8 +2107,12 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	 * to change the workaround. */
 	hsw_workaround_pipe = new_crtc_state->hsw_workaround_pipe;
 	if (IS_HASWELL(dev_priv) && hsw_workaround_pipe != INVALID_PIPE) {
-		intel_wait_for_vblank(dev_priv, hsw_workaround_pipe);
-		intel_wait_for_vblank(dev_priv, hsw_workaround_pipe);
+		struct intel_crtc *wa_crtc;
+
+		wa_crtc = intel_crtc_for_pipe(dev_priv, hsw_workaround_pipe);
+
+		intel_crtc_wait_for_next_vblank(wa_crtc);
+		intel_crtc_wait_for_next_vblank(wa_crtc);
 	}
 }
 
@@ -2529,7 +2538,7 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 
 	/* prevents spurious underruns */
 	if (DISPLAY_VER(dev_priv) == 2)
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 }
 
 static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
@@ -2560,7 +2569,7 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 	 * wait for planes to fully turn off before disabling the pipe.
 	 */
 	if (DISPLAY_VER(dev_priv) == 2)
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	intel_encoders_disable(state, crtc);
 
@@ -4645,7 +4654,8 @@ found:
 	drm_atomic_state_put(state);
 
 	/* let the connector get through one full cycle before testing */
-	intel_wait_for_vblank(dev_priv, crtc->pipe);
+	intel_crtc_wait_for_next_vblank(crtc);
+
 	return true;
 
 fail:
@@ -4830,7 +4840,7 @@ intel_encoder_current_mode(struct intel_encoder *encoder)
 	if (!encoder->get_hw_state(encoder, &pipe))
 		return NULL;
 
-	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	crtc = intel_crtc_for_pipe(dev_priv, pipe);
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)
@@ -5159,13 +5169,13 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 
 		if (icl_is_hdr_plane(dev_priv, plane->id)) {
 			if (linked->id == PLANE_SPRITE5)
-				plane_state->cus_ctl |= PLANE_CUS_PLANE_7;
+				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_7_ICL;
 			else if (linked->id == PLANE_SPRITE4)
-				plane_state->cus_ctl |= PLANE_CUS_PLANE_6;
+				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_6_ICL;
 			else if (linked->id == PLANE_SPRITE3)
-				plane_state->cus_ctl |= PLANE_CUS_PLANE_5_RKL;
+				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_5_RKL;
 			else if (linked->id == PLANE_SPRITE2)
-				plane_state->cus_ctl |= PLANE_CUS_PLANE_4_RKL;
+				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_4_RKL;
 			else
 				MISSING_CASE(linked->id);
 		}
@@ -7546,59 +7556,6 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 	return 0;
 }
 
-static int intel_atomic_check_cdclk(struct intel_atomic_state *state,
-				    bool *need_cdclk_calc)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	const struct intel_cdclk_state *old_cdclk_state;
-	const struct intel_cdclk_state *new_cdclk_state;
-	struct intel_plane_state *plane_state;
-	struct intel_bw_state *new_bw_state;
-	struct intel_plane *plane;
-	int min_cdclk = 0;
-	enum pipe pipe;
-	int ret;
-	int i;
-	/*
-	 * active_planes bitmask has been updated, and potentially
-	 * affected planes are part of the state. We can now
-	 * compute the minimum cdclk for each plane.
-	 */
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		ret = intel_plane_calc_min_cdclk(state, plane, need_cdclk_calc);
-		if (ret)
-			return ret;
-	}
-
-	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
-	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
-
-	if (new_cdclk_state &&
-	    old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk)
-		*need_cdclk_calc = true;
-
-	ret = intel_cdclk_bw_calc_min_cdclk(state);
-	if (ret)
-		return ret;
-
-	new_bw_state = intel_atomic_get_new_bw_state(state);
-
-	if (!new_cdclk_state || !new_bw_state)
-		return 0;
-
-	for_each_pipe(dev_priv, pipe) {
-		min_cdclk = max(new_cdclk_state->min_cdclk[pipe], min_cdclk);
-
-		/*
-		 * Currently do this change only if we need to increase
-		 */
-		if (new_bw_state->min_cdclk > min_cdclk)
-			*need_cdclk_calc = true;
-	}
-
-	return 0;
-}
-
 static int intel_atomic_check_crtcs(struct intel_atomic_state *state)
 {
 	struct intel_crtc_state *crtc_state;
@@ -8039,7 +7996,6 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	intel_fbc_choose_crtc(dev_priv, state);
 	ret = intel_compute_global_watermarks(state);
 	if (ret)
 		goto fail;
@@ -8048,7 +8004,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	ret = intel_atomic_check_cdclk(state, &any_ms);
+	ret = intel_cdclk_atomic_check(state, &any_ms);
 	if (ret)
 		goto fail;
 
@@ -8068,6 +8024,10 @@ static int intel_atomic_check(struct drm_device *dev,
 	}
 
 	ret = intel_atomic_check_crtcs(state);
+	if (ret)
+		goto fail;
+
+	ret = intel_fbc_atomic_check(state);
 	if (ret)
 		goto fail;
 
@@ -8462,7 +8422,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 			if (!skl_ddb_entry_equal(&new_crtc_state->wm.skl.ddb,
 						 &old_crtc_state->wm.skl.ddb) &&
 			    (update_pipes | modeset_pipes))
-				intel_wait_for_vblank(dev_priv, pipe);
+				intel_crtc_wait_for_next_vblank(crtc);
 		}
 	}
 
@@ -8553,19 +8513,19 @@ static void intel_atomic_commit_fence_wait(struct intel_atomic_state *intel_stat
 	for (;;) {
 		prepare_to_wait(&intel_state->commit_ready.wait,
 				&wait_fence, TASK_UNINTERRUPTIBLE);
-		prepare_to_wait(bit_waitqueue(&dev_priv->gt.reset.flags,
+		prepare_to_wait(bit_waitqueue(&to_gt(dev_priv)->reset.flags,
 					      I915_RESET_MODESET),
 				&wait_reset, TASK_UNINTERRUPTIBLE);
 
 
 		if (i915_sw_fence_done(&intel_state->commit_ready) ||
-		    test_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags))
+		    test_bit(I915_RESET_MODESET, &to_gt(dev_priv)->reset.flags))
 			break;
 
 		schedule();
 	}
 	finish_wait(&intel_state->commit_ready.wait, &wait_fence);
-	finish_wait(bit_waitqueue(&dev_priv->gt.reset.flags,
+	finish_wait(bit_waitqueue(&to_gt(dev_priv)->reset.flags,
 				  I915_RESET_MODESET),
 		    &wait_reset);
 }
@@ -8962,8 +8922,8 @@ static void intel_plane_possible_crtcs_init(struct drm_i915_private *dev_priv)
 	struct intel_plane *plane;
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
-		struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv,
-								  plane->pipe);
+		struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv,
+							      plane->pipe);
 
 		plane->base.possible_crtcs = drm_crtc_mask(&crtc->base);
 	}
@@ -9956,7 +9916,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 	/* 640x480@60Hz, ~25175 kHz */
 	struct dpll clock = {
 		.m1 = 18,
@@ -10029,7 +9989,7 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
 
 	drm_dbg_kms(&dev_priv->drm, "disabling pipe %c due to force quirk\n",
 		    pipe_name(pipe));
@@ -10081,7 +10041,7 @@ intel_sanitize_plane_mapping(struct drm_i915_private *dev_priv)
 			    "[PLANE:%d:%s] attached to the wrong pipe, disabling plane\n",
 			    plane->base.base.id, plane->base.name);
 
-		plane_crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+		plane_crtc = intel_crtc_for_pipe(dev_priv, pipe);
 		intel_plane_disable_noatomic(plane_crtc, plane);
 	}
 }
@@ -10334,7 +10294,7 @@ static void readout_plane_state(struct drm_i915_private *dev_priv)
 
 		visible = plane->get_hw_state(plane, &pipe);
 
-		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+		crtc = intel_crtc_for_pipe(dev_priv, pipe);
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 
 		intel_set_plane_visible(crtc_state, plane_state, visible);
@@ -10401,7 +10361,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		pipe = 0;
 
 		if (encoder->get_hw_state(encoder, &pipe)) {
-			crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+			crtc = intel_crtc_for_pipe(dev_priv, pipe);
 			crtc_state = to_intel_crtc_state(crtc->base.state);
 
 			encoder->base.crtc = &crtc->base;
@@ -10852,6 +10812,27 @@ void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915)
 	intel_vga_unregister(i915);
 
 	intel_bios_driver_remove(i915);
+}
+
+bool intel_modeset_probe_defer(struct pci_dev *pdev)
+{
+	struct drm_privacy_screen *privacy_screen;
+
+	/*
+	 * apple-gmux is needed on dual GPU MacBook Pro
+	 * to probe the panel if we're the inactive GPU.
+	 */
+	if (vga_switcheroo_client_probe_defer(pdev))
+		return true;
+
+	/* If the LCD panel has a privacy-screen, wait for it */
+	privacy_screen = drm_privacy_screen_get(&pdev->dev, NULL);
+	if (IS_ERR(privacy_screen) && PTR_ERR(privacy_screen) == -EPROBE_DEFER)
+		return true;
+
+	drm_privacy_screen_put(privacy_screen);
+
+	return false;
 }
 
 void intel_display_driver_register(struct drm_i915_private *i915)

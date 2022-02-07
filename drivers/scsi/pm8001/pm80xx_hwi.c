@@ -42,6 +42,7 @@
  #include "pm80xx_hwi.h"
  #include "pm8001_chips.h"
  #include "pm8001_ctl.h"
+#include "pm80xx_tracepoints.h"
 
 #define SMP_DIRECT 1
 #define SMP_INDIRECT 2
@@ -2400,21 +2401,17 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 
 	psataPayload = (struct sata_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psataPayload->status);
+	param = le32_to_cpu(psataPayload->param);
 	tag = le32_to_cpu(psataPayload->tag);
 
 	if (!tag) {
 		pm8001_dbg(pm8001_ha, FAIL, "tag null\n");
 		return;
 	}
+
 	ccb = &pm8001_ha->ccb_info[tag];
-	param = le32_to_cpu(psataPayload->param);
-	if (ccb) {
-		t = ccb->task;
-		pm8001_dev = ccb->device;
-	} else {
-		pm8001_dbg(pm8001_ha, FAIL, "ccb null\n");
-		return;
-	}
+	t = ccb->task;
+	pm8001_dev = ccb->device;
 
 	if (t) {
 		if (t->dev && (t->dev->lldd_dev))
@@ -2431,10 +2428,6 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha,
 	}
 
 	ts = &t->task_status;
-	if (!ts) {
-		pm8001_dbg(pm8001_ha, FAIL, "ts null\n");
-		return;
-	}
 
 	if (status != IO_SUCCESS) {
 		pm8001_dbg(pm8001_ha, FAIL,
@@ -2830,15 +2823,6 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha,
 	u32 dev_id = le32_to_cpu(psataPayload->device_id);
 	unsigned long flags;
 
-	ccb = &pm8001_ha->ccb_info[tag];
-
-	if (ccb) {
-		t = ccb->task;
-		pm8001_dev = ccb->device;
-	} else {
-		pm8001_dbg(pm8001_ha, FAIL, "No CCB !!!. returning\n");
-		return;
-	}
 	if (event)
 		pm8001_dbg(pm8001_ha, FAIL, "SATA EVENT 0x%x\n", event);
 
@@ -2851,6 +2835,10 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha,
 			pm80xx_send_read_log(pm8001_ha, pm8001_dev);
 		return;
 	}
+
+	ccb = &pm8001_ha->ccb_info[tag];
+	t = ccb->task;
+	pm8001_dev = ccb->device;
 
 	if (unlikely(!t || !t->lldd_task || !t->dev)) {
 		pm8001_dbg(pm8001_ha, FAIL, "task or dev null\n");
@@ -3053,7 +3041,6 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	struct smp_completion_resp *psmpPayload;
 	struct task_status_struct *ts;
 	struct pm8001_device *pm8001_dev;
-	char *pdma_respaddr = NULL;
 
 	psmpPayload = (struct smp_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psmpPayload->status);
@@ -3080,19 +3067,23 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		if (pm8001_ha->smp_exp_mode == SMP_DIRECT) {
+			struct scatterlist *sg_resp = &t->smp_task.smp_resp;
+			u8 *payload;
+			void *to;
+
 			pm8001_dbg(pm8001_ha, IO,
 				   "DIRECT RESPONSE Length:%d\n",
 				   param);
-			pdma_respaddr = (char *)(phys_to_virt(cpu_to_le64
-						((u64)sg_dma_address
-						(&t->smp_task.smp_resp))));
+			to = kmap_atomic(sg_page(sg_resp));
+			payload = to + sg_resp->offset;
 			for (i = 0; i < param; i++) {
-				*(pdma_respaddr+i) = psmpPayload->_r_a[i];
+				*(payload + i) = psmpPayload->_r_a[i];
 				pm8001_dbg(pm8001_ha, IO,
 					   "SMP Byte%d DMA data 0x%x psmp 0x%x\n",
-					   i, *(pdma_respaddr + i),
+					   i, *(payload + i),
 					   psmpPayload->_r_a[i]);
 			}
+			kunmap_atomic(to);
 		}
 		break;
 	case IO_ABORTED:
@@ -3519,7 +3510,7 @@ static int mpi_phy_start_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 status =
 		le32_to_cpu(pPayload->status);
 	u32 phy_id =
-		le32_to_cpu(pPayload->phyid);
+		le32_to_cpu(pPayload->phyid) & 0xFF;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 
 	pm8001_dbg(pm8001_ha, INIT,
@@ -3721,8 +3712,10 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	case HW_EVENT_PORT_RESET_TIMER_TMO:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PORT_RESET_TIMER_TMO\n");
-		pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
-			port_id, phy_id, 0, 0);
+		if (!pm8001_ha->phy[phy_id].reset_completion) {
+			pm80xx_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
+				port_id, phy_id, 0, 0);
+		}
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
 		sas_notify_port_event(sas_phy, PORTE_LINK_RESET_ERR,
@@ -4158,10 +4151,22 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
 	u32 ret = MPI_IO_STATUS_FAIL;
 	u32 regval;
 
+	/*
+	 * Fatal errors are programmed to be signalled in irq vector
+	 * pm8001_ha->max_q_num - 1 through pm8001_ha->main_cfg_tbl.pm80xx_tbl.
+	 * fatal_err_interrupt
+	 */
 	if (vec == (pm8001_ha->max_q_num - 1)) {
+		u32 mipsall_ready;
+
+		if (pm8001_ha->chip_id == chip_8008 ||
+		    pm8001_ha->chip_id == chip_8009)
+			mipsall_ready = SCRATCH_PAD_MIPSALL_READY_8PORT;
+		else
+			mipsall_ready = SCRATCH_PAD_MIPSALL_READY_16PORT;
+
 		regval = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
-		if ((regval & SCRATCH_PAD_MIPSALL_READY) !=
-					SCRATCH_PAD_MIPSALL_READY) {
+		if ((regval & mipsall_ready) != mipsall_ready) {
 			pm8001_ha->controller_fatal_error = true;
 			pm8001_dbg(pm8001_ha, FAIL,
 				   "Firmware Fatal error! Regval:0x%x\n",
@@ -4236,14 +4241,14 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task = ccb->task;
 	struct domain_device *dev = task->dev;
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
-	struct scatterlist *sg_req, *sg_resp;
+	struct scatterlist *sg_req, *sg_resp, *smp_req;
 	u32 req_len, resp_len;
 	struct smp_req smp_cmd;
 	u32 opc;
 	struct inbound_queue_table *circularQ;
-	char *preq_dma_addr = NULL;
-	__le64 tmp_addr;
 	u32 i, length;
+	u8 *payload;
+	u8 *to;
 
 	memset(&smp_cmd, 0, sizeof(smp_cmd));
 	/*
@@ -4280,8 +4285,9 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		pm8001_ha->smp_exp_mode = SMP_INDIRECT;
 
 
-	tmp_addr = cpu_to_le64((u64)sg_dma_address(&task->smp_task.smp_req));
-	preq_dma_addr = (char *)phys_to_virt(tmp_addr);
+	smp_req = &task->smp_task.smp_req;
+	to = kmap_atomic(sg_page(smp_req));
+	payload = to + smp_req->offset;
 
 	/* INDIRECT MODE command settings. Use DMA */
 	if (pm8001_ha->smp_exp_mode == SMP_INDIRECT) {
@@ -4289,7 +4295,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		/* for SPCv indirect mode. Place the top 4 bytes of
 		 * SMP Request header here. */
 		for (i = 0; i < 4; i++)
-			smp_cmd.smp_req16[i] = *(preq_dma_addr + i);
+			smp_cmd.smp_req16[i] = *(payload + i);
 		/* exclude top 4 bytes for SMP req header */
 		smp_cmd.long_smp_req.long_req_addr =
 			cpu_to_le64((u64)sg_dma_address
@@ -4320,20 +4326,20 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		pm8001_dbg(pm8001_ha, IO, "SMP REQUEST DIRECT MODE\n");
 		for (i = 0; i < length; i++)
 			if (i < 16) {
-				smp_cmd.smp_req16[i] = *(preq_dma_addr+i);
+				smp_cmd.smp_req16[i] = *(payload + i);
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
 					   i, smp_cmd.smp_req16[i],
-					   *(preq_dma_addr));
+					   *(payload));
 			} else {
-				smp_cmd.smp_req[i] = *(preq_dma_addr+i);
+				smp_cmd.smp_req[i] = *(payload + i);
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
 					   i, smp_cmd.smp_req[i],
-					   *(preq_dma_addr));
+					   *(payload));
 			}
 	}
-
+	kunmap_atomic(to);
 	build_smp_cmd(pm8001_dev->device_id, smp_cmd.tag,
 				&smp_cmd, pm8001_ha->smp_exp_mode, length);
 	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &smp_cmd,
@@ -4543,6 +4549,7 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task = ccb->task;
 	struct domain_device *dev = task->dev;
 	struct pm8001_device *pm8001_ha_dev = dev->lldd_dev;
+	struct ata_queued_cmd *qc = task->uldd_task;
 	u32 tag = ccb->ccb_tag;
 	int ret;
 	u32 q_index, cpu_id;
@@ -4762,6 +4769,11 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			}
 		}
 	}
+	trace_pm80xx_request_issue(pm8001_ha->id,
+				ccb->device ? ccb->device->attached_phy : PM8001_MAX_PHYS,
+				ccb->ccb_tag, opc,
+				qc ? qc->tf.command : 0, // ata opcode
+				ccb->device ? atomic_read(&ccb->device->running_req) : 0);
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
 			&sata_cmd, sizeof(sata_cmd), q_index);
 	return ret;
@@ -5057,4 +5069,5 @@ const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.fw_flash_update_req	= pm8001_chip_fw_flash_update_req,
 	.set_dev_state_req	= pm8001_chip_set_dev_state_req,
 	.fatal_errors		= pm80xx_fatal_errors,
+	.hw_event_ack_req	= pm80xx_hw_event_ack_req,
 };

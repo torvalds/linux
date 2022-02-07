@@ -24,14 +24,14 @@
 #define CLK_SPI_CDIV_MASK	0x00000e00
 #define CLK_SPI_DISABLE_OFFSET	8
 
-struct spi_pci_desc {
+struct dw_spi_pci_desc {
 	int	(*setup)(struct dw_spi *);
 	u16	num_cs;
 	u16	bus_num;
 	u32	max_freq;
 };
 
-static int spi_mid_init(struct dw_spi *dws)
+static int dw_spi_pci_mid_init(struct dw_spi *dws)
 {
 	void __iomem *clk_reg;
 	u32 clk_cdiv;
@@ -53,36 +53,36 @@ static int spi_mid_init(struct dw_spi *dws)
 	return 0;
 }
 
-static int spi_generic_init(struct dw_spi *dws)
+static int dw_spi_pci_generic_init(struct dw_spi *dws)
 {
 	dw_spi_dma_setup_generic(dws);
 
 	return 0;
 }
 
-static struct spi_pci_desc spi_pci_mid_desc_1 = {
-	.setup = spi_mid_init,
+static struct dw_spi_pci_desc dw_spi_pci_mid_desc_1 = {
+	.setup = dw_spi_pci_mid_init,
 	.num_cs = 5,
 	.bus_num = 0,
 };
 
-static struct spi_pci_desc spi_pci_mid_desc_2 = {
-	.setup = spi_mid_init,
+static struct dw_spi_pci_desc dw_spi_pci_mid_desc_2 = {
+	.setup = dw_spi_pci_mid_init,
 	.num_cs = 2,
 	.bus_num = 1,
 };
 
-static struct spi_pci_desc spi_pci_ehl_desc = {
-	.setup = spi_generic_init,
+static struct dw_spi_pci_desc dw_spi_pci_ehl_desc = {
+	.setup = dw_spi_pci_generic_init,
 	.num_cs = 2,
 	.bus_num = -1,
 	.max_freq = 100000000,
 };
 
-static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int dw_spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct dw_spi_pci_desc *desc = (struct dw_spi_pci_desc *)ent->driver_data;
 	struct dw_spi *dws;
-	struct spi_pci_desc *desc = (struct spi_pci_desc *)ent->driver_data;
 	int pci_bar = 0;
 	int ret;
 
@@ -150,7 +150,7 @@ err_free_irq_vectors:
 	return ret;
 }
 
-static void spi_pci_remove(struct pci_dev *pdev)
+static void dw_spi_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_spi *dws = pci_get_drvdata(pdev);
 
@@ -162,14 +162,14 @@ static void spi_pci_remove(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int spi_suspend(struct device *dev)
+static int dw_spi_pci_suspend(struct device *dev)
 {
 	struct dw_spi *dws = dev_get_drvdata(dev);
 
 	return dw_spi_suspend_host(dws);
 }
 
-static int spi_resume(struct device *dev)
+static int dw_spi_pci_resume(struct device *dev)
 {
 	struct dw_spi *dws = dev_get_drvdata(dev);
 
@@ -177,39 +177,39 @@ static int spi_resume(struct device *dev)
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(dw_spi_pm_ops, spi_suspend, spi_resume);
+static SIMPLE_DEV_PM_OPS(dw_spi_pci_pm_ops, dw_spi_pci_suspend, dw_spi_pci_resume);
 
-static const struct pci_device_id pci_ids[] = {
+static const struct pci_device_id dw_spi_pci_ids[] = {
 	/* Intel MID platform SPI controller 0 */
 	/*
 	 * The access to the device 8086:0801 is disabled by HW, since it's
 	 * exclusively used by SCU to communicate with MSIC.
 	 */
 	/* Intel MID platform SPI controller 1 */
-	{ PCI_VDEVICE(INTEL, 0x0800), (kernel_ulong_t)&spi_pci_mid_desc_1},
+	{ PCI_VDEVICE(INTEL, 0x0800), (kernel_ulong_t)&dw_spi_pci_mid_desc_1},
 	/* Intel MID platform SPI controller 2 */
-	{ PCI_VDEVICE(INTEL, 0x0812), (kernel_ulong_t)&spi_pci_mid_desc_2},
+	{ PCI_VDEVICE(INTEL, 0x0812), (kernel_ulong_t)&dw_spi_pci_mid_desc_2},
 	/* Intel Elkhart Lake PSE SPI controllers */
-	{ PCI_VDEVICE(INTEL, 0x4b84), (kernel_ulong_t)&spi_pci_ehl_desc},
-	{ PCI_VDEVICE(INTEL, 0x4b85), (kernel_ulong_t)&spi_pci_ehl_desc},
-	{ PCI_VDEVICE(INTEL, 0x4b86), (kernel_ulong_t)&spi_pci_ehl_desc},
-	{ PCI_VDEVICE(INTEL, 0x4b87), (kernel_ulong_t)&spi_pci_ehl_desc},
+	{ PCI_VDEVICE(INTEL, 0x4b84), (kernel_ulong_t)&dw_spi_pci_ehl_desc},
+	{ PCI_VDEVICE(INTEL, 0x4b85), (kernel_ulong_t)&dw_spi_pci_ehl_desc},
+	{ PCI_VDEVICE(INTEL, 0x4b86), (kernel_ulong_t)&dw_spi_pci_ehl_desc},
+	{ PCI_VDEVICE(INTEL, 0x4b87), (kernel_ulong_t)&dw_spi_pci_ehl_desc},
 	{},
 };
-MODULE_DEVICE_TABLE(pci, pci_ids);
+MODULE_DEVICE_TABLE(pci, dw_spi_pci_ids);
 
-static struct pci_driver dw_spi_driver = {
+static struct pci_driver dw_spi_pci_driver = {
 	.name =		DRIVER_NAME,
-	.id_table =	pci_ids,
-	.probe =	spi_pci_probe,
-	.remove =	spi_pci_remove,
+	.id_table =	dw_spi_pci_ids,
+	.probe =	dw_spi_pci_probe,
+	.remove =	dw_spi_pci_remove,
 	.driver         = {
-		.pm     = &dw_spi_pm_ops,
+		.pm     = &dw_spi_pci_pm_ops,
 	},
 };
-
-module_pci_driver(dw_spi_driver);
+module_pci_driver(dw_spi_pci_driver);
 
 MODULE_AUTHOR("Feng Tang <feng.tang@intel.com>");
 MODULE_DESCRIPTION("PCI interface driver for DW SPI Core");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(SPI_DW_CORE);

@@ -11,6 +11,7 @@
 #include <linux/net.h>
 #include <linux/igmp.h>
 #include <linux/workqueue.h>
+#include <net/sch_generic.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/udp.h>
@@ -1106,7 +1107,7 @@ static bool amt_send_membership_query(struct amt_dev *amt,
 	rt = ip_route_output_key(amt->net, &fl4);
 	if (IS_ERR(rt)) {
 		netdev_dbg(amt->dev, "no route to %pI4\n", &tunnel->ip4);
-		return -1;
+		return true;
 	}
 
 	amtmq		= skb_push(skb, sizeof(*amtmq));

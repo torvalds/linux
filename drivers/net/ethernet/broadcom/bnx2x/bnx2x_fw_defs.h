@@ -241,6 +241,8 @@
 	IRO[221].m2))
 #define XSTORM_VF_TO_PF_OFFSET(funcId) \
 	(IRO[48].base + ((funcId) * IRO[48].m1))
+#define XSTORM_ETH_FUNCTION_INFO_FP_HSI_VALID_E2_OFFSET(fid)	\
+	(IRO[386].base + ((fid) * IRO[386].m1))
 #define COMMON_ASM_INVALID_ASSERT_OPCODE 0x0
 
 /* eth hsi version */

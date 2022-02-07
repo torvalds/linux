@@ -67,6 +67,7 @@ struct drm_i915_gem_object_ops {
 	int (*pwrite)(struct drm_i915_gem_object *obj,
 		      const struct drm_i915_gem_pwrite *arg);
 	u64 (*mmap_offset)(struct drm_i915_gem_object *obj);
+	void (*unmap_virtual)(struct drm_i915_gem_object *obj);
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *obj);
 
@@ -310,6 +311,7 @@ struct drm_i915_gem_object {
 #define I915_BO_READONLY          BIT(6)
 #define I915_TILING_QUIRK_BIT     7 /* unknown swizzling; do not release! */
 #define I915_BO_PROTECTED         BIT(8)
+#define I915_BO_WAS_BOUND_BIT     9
 	/**
 	 * @mem_flags - Mutable placement-related flags
 	 *

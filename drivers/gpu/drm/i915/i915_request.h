@@ -47,6 +47,7 @@
 struct drm_file;
 struct drm_i915_gem_object;
 struct drm_printer;
+struct i915_deps;
 struct i915_request;
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
@@ -411,6 +412,7 @@ int i915_request_await_object(struct i915_request *to,
 			      bool write);
 int i915_request_await_dma_fence(struct i915_request *rq,
 				 struct dma_fence *fence);
+int i915_request_await_deps(struct i915_request *rq, const struct i915_deps *deps);
 int i915_request_await_execution(struct i915_request *rq,
 				 struct dma_fence *fence);
 
@@ -657,7 +659,8 @@ i915_request_timeline(const struct i915_request *rq)
 {
 	/* Valid only while the request is being constructed (or retired). */
 	return rcu_dereference_protected(rq->timeline,
-					 lockdep_is_held(&rcu_access_pointer(rq->timeline)->mutex));
+					 lockdep_is_held(&rcu_access_pointer(rq->timeline)->mutex) ||
+					 test_bit(CONTEXT_IS_PARKING, &rq->context->flags));
 }
 
 static inline struct i915_gem_context *

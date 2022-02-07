@@ -10,6 +10,8 @@
 #include "i915_gem_lmem.h"
 #include "i915_gem_mman.h"
 
+#include "gt/intel_gt.h"
+
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 struct sg_table *pages,
 				 unsigned int sg_page_sizes)
@@ -161,7 +163,6 @@ retry:
 /* Immediately discard the backing storage */
 int i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 {
-	drm_gem_free_mmap_offset(&obj->base);
 	if (obj->ops->truncate)
 		return obj->ops->truncate(obj);
 
@@ -221,6 +222,14 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 
 	__i915_gem_object_reset_page_iter(obj);
 	obj->mm.page_sizes.phys = obj->mm.page_sizes.sg = 0;
+
+	if (test_and_clear_bit(I915_BO_WAS_BOUND_BIT, &obj->flags)) {
+		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+		intel_wakeref_t wakeref;
+
+		with_intel_runtime_pm_if_active(&i915->runtime_pm, wakeref)
+			intel_gt_invalidate_tlbs(to_gt(i915));
+	}
 
 	return pages;
 }
@@ -424,8 +433,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 			goto err_unpin;
 		}
 
-		if (GEM_WARN_ON(type == I915_MAP_WC &&
-				!static_cpu_has(X86_FEATURE_PAT)))
+		if (GEM_WARN_ON(type == I915_MAP_WC && !pat_enabled()))
 			ptr = ERR_PTR(-ENODEV);
 		else if (i915_gem_object_has_struct_page(obj))
 			ptr = i915_gem_object_map_page(obj, type);

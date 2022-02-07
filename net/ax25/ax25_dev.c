@@ -58,7 +58,7 @@ void ax25_dev_device_up(struct net_device *dev)
 
 	dev->ax25_ptr     = ax25_dev;
 	ax25_dev->dev     = dev;
-	dev_hold(dev);
+	dev_hold_track(dev, &ax25_dev->dev_tracker, GFP_ATOMIC);
 	ax25_dev->forward = NULL;
 
 	ax25_dev->values[AX25_VALUES_IPDEFMODE] = AX25_DEF_IPDEFMODE;
@@ -114,7 +114,7 @@ void ax25_dev_device_down(struct net_device *dev)
 		ax25_dev_list = s->next;
 		spin_unlock_bh(&ax25_dev_lock);
 		dev->ax25_ptr = NULL;
-		dev_put(dev);
+		dev_put_track(dev, &ax25_dev->dev_tracker);
 		kfree(ax25_dev);
 		return;
 	}
@@ -124,7 +124,7 @@ void ax25_dev_device_down(struct net_device *dev)
 			s->next = ax25_dev->next;
 			spin_unlock_bh(&ax25_dev_lock);
 			dev->ax25_ptr = NULL;
-			dev_put(dev);
+			dev_put_track(dev, &ax25_dev->dev_tracker);
 			kfree(ax25_dev);
 			return;
 		}
@@ -188,7 +188,7 @@ void __exit ax25_dev_free(void)
 	ax25_dev = ax25_dev_list;
 	while (ax25_dev != NULL) {
 		s        = ax25_dev;
-		dev_put(ax25_dev->dev);
+		dev_put_track(ax25_dev->dev, &ax25_dev->dev_tracker);
 		ax25_dev = ax25_dev->next;
 		kfree(s);
 	}

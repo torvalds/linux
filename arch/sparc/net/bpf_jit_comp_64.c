@@ -227,7 +227,7 @@ static const int bpf2sparc[] = {
 
 	[BPF_REG_AX] = G7,
 
-	/* temporary register for internal BPF JIT */
+	/* temporary register for BPF JIT */
 	[TMP_REG_1] = G1,
 	[TMP_REG_2] = G2,
 	[TMP_REG_3] = G3,
@@ -867,7 +867,7 @@ static void emit_tail_call(struct jit_ctx *ctx)
 	emit(LD32 | IMMED | RS1(SP) | S13(off) | RD(tmp), ctx);
 	emit_cmpi(tmp, MAX_TAIL_CALL_CNT, ctx);
 #define OFFSET2 13
-	emit_branch(BGU, ctx->idx, ctx->idx + OFFSET2, ctx);
+	emit_branch(BGEU, ctx->idx, ctx->idx + OFFSET2, ctx);
 	emit_nop(ctx);
 
 	emit_alu_K(ADD, tmp, 1, ctx);

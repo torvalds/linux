@@ -348,12 +348,6 @@ extern void opt_pre_handler(struct kprobe *p, struct pt_regs *regs);
 
 DEFINE_INSN_CACHE_OPS(optinsn);
 
-#ifdef CONFIG_SYSCTL
-extern int sysctl_kprobes_optimization;
-extern int proc_kprobes_optimization_handler(struct ctl_table *table,
-					     int write, void *buffer,
-					     size_t *length, loff_t *ppos);
-#endif /* CONFIG_SYSCTL */
 extern void wait_for_kprobe_optimizer(void);
 #else /* !CONFIG_OPTPROBES */
 static inline void wait_for_kprobe_optimizer(void) { }

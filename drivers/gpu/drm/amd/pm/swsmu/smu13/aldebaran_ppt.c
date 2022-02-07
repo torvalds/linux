@@ -141,6 +141,7 @@ static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT
 	MSG_MAP(SetUclkDpmMode,			     PPSMC_MSG_SetUclkDpmMode,			0),
 	MSG_MAP(GfxDriverResetRecovery,		     PPSMC_MSG_GfxDriverResetRecovery,		0),
 	MSG_MAP(BoardPowerCalibration,		     PPSMC_MSG_BoardPowerCalibration,		0),
+	MSG_MAP(HeavySBR,                            PPSMC_MSG_HeavySBR,                        0),
 };
 
 static const struct cmn2asic_mapping aldebaran_clk_map[SMU_CLK_COUNT] = {
@@ -261,16 +262,6 @@ static int aldebaran_allocate_dpm_context(struct smu_context *smu)
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_13_0_dpm_context);
-
-	smu_dpm->dpm_current_power_state = kzalloc(sizeof(struct smu_power_state),
-						   GFP_KERNEL);
-	if (!smu_dpm->dpm_current_power_state)
-		return -ENOMEM;
-
-	smu_dpm->dpm_request_power_state = kzalloc(sizeof(struct smu_power_state),
-						   GFP_KERNEL);
-	if (!smu_dpm->dpm_request_power_state)
-		return -ENOMEM;
 
 	return 0;
 }
@@ -1615,7 +1606,8 @@ out_unlock:
 	mutex_unlock(&smu->metrics_lock);
 
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
-	sprintf(adev->serial, "%016llx", adev->unique_id);
+	if (adev->serial[0] == '\0')
+		sprintf(adev->serial, "%016llx", adev->unique_id);
 }
 
 static bool aldebaran_is_baco_supported(struct smu_context *smu)
@@ -1633,10 +1625,18 @@ static int aldebaran_set_df_cstate(struct smu_context *smu,
 
 static int aldebaran_allow_xgmi_power_down(struct smu_context *smu, bool en)
 {
-	return smu_cmn_send_smc_msg_with_param(smu,
-					       SMU_MSG_GmiPwrDnControl,
-					       en ? 1 : 0,
-					       NULL);
+	struct amdgpu_device *adev = smu->adev;
+
+	/* The message only works on master die and NACK will be sent
+	   back for other dies, only send it on master die */
+	if (!adev->smuio.funcs->get_socket_id(adev) &&
+	    !adev->smuio.funcs->get_die_id(adev))
+		return smu_cmn_send_smc_msg_with_param(smu,
+				   SMU_MSG_GmiPwrDnControl,
+				   en ? 0 : 1,
+				   NULL);
+	else
+		return 0;
 }
 
 static const struct throttling_logging_label {
@@ -1922,6 +1922,14 @@ out:
 	return ret;
 }
 
+static int aldebaran_smu_handle_passthrough_sbr(struct smu_context *smu, bool enable)
+{
+	int ret = 0;
+	ret =  smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_HeavySBR, enable ? 1 : 0, NULL);
+
+	return ret;
+}
+
 static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
 {
 #if 0
@@ -2031,6 +2039,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.get_gpu_metrics = aldebaran_get_gpu_metrics,
 	.mode1_reset_is_support = aldebaran_is_mode1_reset_supported,
 	.mode2_reset_is_support = aldebaran_is_mode2_reset_supported,
+	.smu_handle_passthrough_sbr = aldebaran_smu_handle_passthrough_sbr,
 	.mode1_reset = aldebaran_mode1_reset,
 	.set_mp1_state = aldebaran_set_mp1_state,
 	.mode2_reset = aldebaran_mode2_reset,

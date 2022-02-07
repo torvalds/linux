@@ -23,9 +23,6 @@
 #include "mtk_vcodec_util.h"
 #include "mtk_vcodec_fw.h"
 
-module_param(mtk_v4l2_dbg_level, int, S_IRUGO | S_IWUSR);
-module_param(mtk_vcodec_dbg, bool, S_IRUGO | S_IWUSR);
-
 static const struct mtk_video_fmt mtk_video_formats_output[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12M,
@@ -214,11 +211,11 @@ static int fops_vcodec_release(struct file *file)
 	mtk_v4l2_debug(1, "[%d] encoder", ctx->id);
 	mutex_lock(&dev->dev_mutex);
 
+	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 	mtk_vcodec_enc_release(ctx);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	v4l2_ctrl_handler_free(&ctx->ctrl_hdl);
-	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 
 	list_del_init(&ctx->list);
 	kfree(ctx);
@@ -461,7 +458,6 @@ static int mtk_vcodec_enc_remove(struct platform_device *pdev)
 	struct mtk_vcodec_dev *dev = platform_get_drvdata(pdev);
 
 	mtk_v4l2_debug_enter();
-	flush_workqueue(dev->encode_workqueue);
 	destroy_workqueue(dev->encode_workqueue);
 	if (dev->m2m_dev_enc)
 		v4l2_m2m_release(dev->m2m_dev_enc);

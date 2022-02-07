@@ -113,12 +113,16 @@ __init int sysfb_create_simplefb(const struct screen_info *si,
 	sysfb_apply_efi_quirks(pd);
 
 	ret = platform_device_add_resources(pd, &res, 1);
-	if (ret)
+	if (ret) {
+		platform_device_put(pd);
 		return ret;
+	}
 
 	ret = platform_device_add_data(pd, mode, sizeof(*mode));
-	if (ret)
+	if (ret) {
+		platform_device_put(pd);
 		return ret;
+	}
 
 	return platform_device_add(pd);
 }

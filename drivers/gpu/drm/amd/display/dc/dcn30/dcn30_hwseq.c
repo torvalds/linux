@@ -344,6 +344,17 @@ void dcn30_enable_writeback(
 	dwb->funcs->enable(dwb, &wb_info->dwb_params);
 }
 
+void dcn30_prepare_bandwidth(struct dc *dc,
+ 	struct dc_state *context)
+{
+	if (dc->clk_mgr->dc_mode_softmax_enabled)
+		if (dc->clk_mgr->clks.dramclk_khz <= dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
+				context->bw_ctx.bw.dcn.clk.dramclk_khz > dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
+			dc->clk_mgr->funcs->set_max_memclk(dc->clk_mgr, dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz);
+
+ 	dcn20_prepare_bandwidth(dc, context);
+}
+
 void dcn30_disable_writeback(
 		struct dc *dc,
 		unsigned int dwb_pipe_inst)

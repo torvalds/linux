@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/phy/phy-tegra194-p2u.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: NVIDIA Tegra194 P2U binding
+
+maintainers:
+  - Thierry Reding <treding@nvidia.com>
+
+description: >
+  Tegra194 has two PHY bricks namely HSIO (High Speed IO) and NVHS (NVIDIA High
+  Speed) each interfacing with 12 and 8 P2U instances respectively.
+  A P2U instance is a glue logic between Synopsys DesignWare Core PCIe IP's PIPE
+  interface and PHY of HSIO/NVHS bricks. Each P2U instance represents one PCIe
+  lane.
+
+properties:
+  compatible:
+    const: nvidia,tegra194-p2u
+
+  reg:
+    maxItems: 1
+    description: Should be the physical address space and length of respective each P2U instance.
+
+  reg-names:
+    items:
+      - const: ctl
+
+  '#phy-cells':
+    const: 0
+
+additionalProperties: false
+
+examples:
+  - |
+    p2u_hsio_0: phy@3e10000 {
+        compatible = "nvidia,tegra194-p2u";
+        reg = <0x03e10000 0x10000>;
+        reg-names = "ctl";
+
+        #phy-cells = <0>;
+    };

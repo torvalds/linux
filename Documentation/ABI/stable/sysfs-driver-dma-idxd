@@ -41,14 +41,14 @@ KernelVersion:  5.6.0
 Contact:        dmaengine@vger.kernel.org
 Description:    The maximum number of groups can be created under this device.
 
-What:           /sys/bus/dsa/devices/dsa<m>/max_tokens
-Date:           Oct 25, 2019
-KernelVersion:  5.6.0
+What:           /sys/bus/dsa/devices/dsa<m>/max_read_buffers
+Date:           Dec 10, 2021
+KernelVersion:  5.17.0
 Contact:        dmaengine@vger.kernel.org
-Description:    The total number of bandwidth tokens supported by this device.
-		The bandwidth tokens represent resources within the DSA
+Description:    The total number of read buffers supported by this device.
+		The read buffers represent resources within the DSA
 		implementation, and these resources are allocated by engines to
-		support operations.
+		support operations. See DSA spec v1.2 9.2.4 Total Read Buffers.
 
 What:           /sys/bus/dsa/devices/dsa<m>/max_transfer_size
 Date:           Oct 25, 2019
@@ -115,13 +115,13 @@ KernelVersion:  5.6.0
 Contact:        dmaengine@vger.kernel.org
 Description:    To indicate if this device is configurable or not.
 
-What:           /sys/bus/dsa/devices/dsa<m>/token_limit
-Date:           Oct 25, 2019
-KernelVersion:  5.6.0
+What:           /sys/bus/dsa/devices/dsa<m>/read_buffer_limit
+Date:           Dec 10, 2021
+KernelVersion:  5.17.0
 Contact:        dmaengine@vger.kernel.org
-Description:    The maximum number of bandwidth tokens that may be in use at
+Description:    The maximum number of read buffers that may be in use at
 		one time by operations that access low bandwidth memory in the
-		device.
+		device. See DSA spec v1.2 9.2.8 GENCFG on Global Read Buffer Limit.
 
 What:		/sys/bus/dsa/devices/dsa<m>/cmd_status
 Date:		Aug 28, 2020
@@ -220,8 +220,38 @@ Contact:	dmaengine@vger.kernel.org
 Description:	Show the current number of entries in this WQ if WQ Occupancy
 		Support bit WQ capabilities is 1.
 
+What:		/sys/bus/dsa/devices/wq<m>.<n>/enqcmds_retries
+Date		Oct 29, 2021
+KernelVersion:	5.17.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Indicate the number of retires for an enqcmds submission on a sharedwq.
+		A max value to set attribute is capped at 64.
+
 What:           /sys/bus/dsa/devices/engine<m>.<n>/group_id
 Date:           Oct 25, 2019
 KernelVersion:  5.6.0
 Contact:        dmaengine@vger.kernel.org
 Description:    The group that this engine belongs to.
+
+What:		/sys/bus/dsa/devices/group<m>.<n>/use_read_buffer_limit
+Date:		Dec 10, 2021
+KernelVersion:	5.17.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Enable the use of global read buffer limit for the group. See DSA
+		spec v1.2 9.2.18 GRPCFG Use Global Read Buffer Limit.
+
+What:		/sys/bus/dsa/devices/group<m>.<n>/read_buffers_allowed
+Date:		Dec 10, 2021
+KernelVersion:	5.17.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Indicates max number of read buffers that may be in use at one time
+		by all engines in the group. See DSA spec v1.2 9.2.18 GRPCFG Read
+		Buffers Allowed.
+
+What:		/sys/bus/dsa/devices/group<m>.<n>/read_buffers_reserved
+Date:		Dec 10, 2021
+KernelVersion:	5.17.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Indicates the number of Read Buffers reserved for the use of
+		engines in the group. See DSA spec v1.2 9.2.18 GRPCFG Read Buffers
+		Reserved.

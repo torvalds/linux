@@ -1223,8 +1223,8 @@ static void dml_full_validate_bw_helper(struct dc *dc,
 		*pipe_cnt = dml_populate_dml_pipes_from_context(dc, context, pipes, false);
 		*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
 		if (*vlevel < context->bw_ctx.dml.soc.num_states) {
-			memset(split, 0, sizeof(split));
-			memset(merge, 0, sizeof(merge));
+			memset(split, 0, MAX_PIPES * sizeof(*split));
+			memset(merge, 0, MAX_PIPES * sizeof(*merge));
 			*vlevel = dml_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
 		}
 
@@ -1274,7 +1274,7 @@ static void dcn20_adjust_adaptive_sync_v_startup(
 static bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx)
 {
 	return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
-			pipe_ctx->stream->link->hpo_dp_link_enc &&
+			pipe_ctx->link_res.hpo_dp_link_enc &&
 			dc_is_dp_signal(pipe_ctx->stream->signal));
 }
 

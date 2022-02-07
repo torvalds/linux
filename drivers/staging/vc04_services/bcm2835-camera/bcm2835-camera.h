@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Broadcom BM2835 V4L2 driver
+ * Broadcom BCM2835 V4L2 driver
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
  *
@@ -32,7 +32,7 @@ enum {
 
 extern int bcm2835_v4l2_debug;
 
-struct bm2835_mmal_dev {
+struct bcm2835_mmal_dev {
 	/* v4l2 devices */
 	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
@@ -110,12 +110,10 @@ struct bm2835_mmal_dev {
 	unsigned int rgb_bgr_swapped;
 };
 
-int bm2835_mmal_init_controls(
-			struct bm2835_mmal_dev *dev,
-			struct v4l2_ctrl_handler *hdl);
+int bcm2835_mmal_init_controls(struct bcm2835_mmal_dev *dev, struct v4l2_ctrl_handler *hdl);
 
-int bm2835_mmal_set_all_camera_controls(struct bm2835_mmal_dev *dev);
-int set_framerate_params(struct bm2835_mmal_dev *dev);
+int bcm2835_mmal_set_all_camera_controls(struct bcm2835_mmal_dev *dev);
+int set_framerate_params(struct bcm2835_mmal_dev *dev);
 
 /* Debug helpers */
 

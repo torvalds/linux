@@ -508,7 +508,7 @@ nla_put_failure:
 
 static int ctnetlink_dump_use(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	if (nla_put_be32(skb, CTA_USE, htonl(atomic_read(&ct->ct_general.use))))
+	if (nla_put_be32(skb, CTA_USE, htonl(refcount_read(&ct->ct_general.use))))
 		goto nla_put_failure;
 	return 0;
 
@@ -1195,17 +1195,18 @@ restart:
 		}
 		hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[cb->args[0]],
 					   hnnode) {
-			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
-				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			if (nf_ct_is_expired(ct)) {
 				if (i < ARRAY_SIZE(nf_ct_evict) &&
-				    atomic_inc_not_zero(&ct->ct_general.use))
+				    refcount_inc_not_zero(&ct->ct_general.use))
 					nf_ct_evict[i++] = ct;
 				continue;
 			}
 
 			if (!net_eq(net, nf_ct_net(ct)))
+				continue;
+
+			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 
 			if (cb->args[1]) {
@@ -1746,9 +1747,9 @@ restart:
 			res = ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).portid,
 						  cb->nlh->nlmsg_seq,
 						  NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
-						  ct, dying ? true : false, 0);
+						  ct, dying, 0);
 			if (res < 0) {
-				if (!atomic_inc_not_zero(&ct->ct_general.use))
+				if (!refcount_inc_not_zero(&ct->ct_general.use))
 					continue;
 				cb->args[0] = cpu;
 				cb->args[1] = (unsigned long)ct;
@@ -1819,7 +1820,7 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 			  const struct nlattr *attr)
 	__must_hold(RCU)
 {
-	struct nf_nat_hook *nat_hook;
+	const struct nf_nat_hook *nat_hook;
 	int err;
 
 	nat_hook = rcu_dereference(nf_nat_hook);
@@ -2921,7 +2922,7 @@ static void ctnetlink_glue_seqadj(struct sk_buff *skb, struct nf_conn *ct,
 	nf_ct_tcp_seqadj_set(skb, ct, ctinfo, diff);
 }
 
-static struct nfnl_ct_hook ctnetlink_glue_hook = {
+static const struct nfnl_ct_hook ctnetlink_glue_hook = {
 	.build_size	= ctnetlink_glue_build_size,
 	.build		= ctnetlink_glue_build,
 	.parse		= ctnetlink_glue_parse,
@@ -2995,7 +2996,7 @@ static const union nf_inet_addr any_addr;
 
 static __be32 nf_expect_get_id(const struct nf_conntrack_expect *exp)
 {
-	static __read_mostly siphash_key_t exp_id_seed;
+	static siphash_aligned_key_t exp_id_seed;
 	unsigned long a, b, c, d;
 
 	net_get_random_once(&exp_id_seed, sizeof(exp_id_seed));

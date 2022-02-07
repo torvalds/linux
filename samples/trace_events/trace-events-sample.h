@@ -155,7 +155,7 @@
  *
  *         To assign this string, use the helper macro __assign_str_len().
  *
- *         __assign_str(foo, bar, len);
+ *         __assign_str_len(foo, bar, len);
  *
  *         Then len + 1 is allocated to the ring buffer, and a nul terminating
  *         byte is added. This is similar to:
@@ -506,6 +506,39 @@ DEFINE_EVENT_PRINT(foo_template, foo_with_template_print,
 	TP_ARGS(foo, bar),
 	TP_printk("bar %s %d", __get_str(foo), __entry->bar));
 
+/*
+ * There are yet another __rel_loc dynamic data attribute. If you
+ * use __rel_dynamic_array() and __rel_string() etc. macros, you
+ * can use this attribute. There is no difference from the viewpoint
+ * of functionality with/without 'rel' but the encoding is a bit
+ * different. This is expected to be used with user-space event,
+ * there is no reason that the kernel event use this, but only for
+ * testing.
+ */
+
+TRACE_EVENT(foo_rel_loc,
+
+	TP_PROTO(const char *foo, int bar, unsigned long *mask),
+
+	TP_ARGS(foo, bar, mask),
+
+	TP_STRUCT__entry(
+		__rel_string(	foo,	foo	)
+		__field(	int,	bar	)
+		__rel_bitmask(	bitmask,
+			BITS_PER_BYTE * sizeof(unsigned long)	)
+	),
+
+	TP_fast_assign(
+		__assign_rel_str(foo, foo);
+		__entry->bar = bar;
+		__assign_rel_bitmask(bitmask, mask,
+			BITS_PER_BYTE * sizeof(unsigned long));
+	),
+
+	TP_printk("foo_rel_loc %s, %d, %s", __get_rel_str(foo), __entry->bar,
+		  __get_rel_bitmask(bitmask))
+);
 #endif
 
 /***** NOTICE! The #if protection ends here. *****/

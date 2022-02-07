@@ -36,6 +36,7 @@
 #include "display/intel_atomic_plane.h"
 #include "display/intel_bw.h"
 #include "display/intel_de.h"
+#include "display/intel_display_trace.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fb.h"
 #include "display/intel_fbc.h"
@@ -47,7 +48,6 @@
 #include "i915_drv.h"
 #include "i915_fixed.h"
 #include "i915_irq.h"
-#include "i915_trace.h"
 #include "intel_pcode.h"
 #include "intel_pm.h"
 #include "vlv_sideband.h"
@@ -989,7 +989,7 @@ static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe)
-		trace_g4x_wm(intel_get_crtc_for_pipe(dev_priv, pipe), wm);
+		trace_g4x_wm(intel_crtc_for_pipe(dev_priv, pipe), wm);
 
 	intel_uncore_write(&dev_priv->uncore, DSPFW1,
 		   FW_WM(wm->sr.plane, SR) |
@@ -1021,7 +1021,7 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
-		trace_vlv_wm(intel_get_crtc_for_pipe(dev_priv, pipe), wm);
+		trace_vlv_wm(intel_crtc_for_pipe(dev_priv, pipe), wm);
 
 		intel_uncore_write(&dev_priv->uncore, VLV_DDL(pipe),
 			   (wm->ddl[pipe].plane[PLANE_CURSOR] << DDL_CURSOR_SHIFT) |
@@ -2336,6 +2336,20 @@ static void i965_update_wm(struct drm_i915_private *dev_priv)
 
 #undef FW_WM
 
+static struct intel_crtc *intel_crtc_for_plane(struct drm_i915_private *i915,
+					       enum i9xx_plane_id i9xx_plane)
+{
+	struct intel_plane *plane;
+
+	for_each_intel_plane(&i915->drm, plane) {
+		if (plane->id == PLANE_PRIMARY &&
+		    plane->i9xx_plane == i9xx_plane)
+			return intel_crtc_for_pipe(i915, plane->pipe);
+	}
+
+	return NULL;
+}
+
 static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 {
 	const struct intel_watermark_params *wm_info;
@@ -2357,7 +2371,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		fifo_size = i830_get_fifo_size(dev_priv, PLANE_A);
 	else
 		fifo_size = i9xx_get_fifo_size(dev_priv, PLANE_A);
-	crtc = intel_get_crtc_for_plane(dev_priv, PLANE_A);
+	crtc = intel_crtc_for_plane(dev_priv, PLANE_A);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *pipe_mode =
 			&crtc->config->hw.pipe_mode;
@@ -2387,7 +2401,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		fifo_size = i830_get_fifo_size(dev_priv, PLANE_B);
 	else
 		fifo_size = i9xx_get_fifo_size(dev_priv, PLANE_B);
-	crtc = intel_get_crtc_for_plane(dev_priv, PLANE_B);
+	crtc = intel_crtc_for_plane(dev_priv, PLANE_B);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *pipe_mode =
 			&crtc->config->hw.pipe_mode;
@@ -3369,13 +3383,8 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	}
 
 	/* ILK: LP2+ must be disabled when FBC WM is disabled but FBC enabled */
-	/*
-	 * FIXME this is racy. FBC might get enabled later.
-	 * What we should check here is whether FBC can be
-	 * enabled sometime later.
-	 */
-	if (DISPLAY_VER(dev_priv) == 5 && !merged->fbc_wm_enabled &&
-	    intel_fbc_is_active(&dev_priv->fbc)) {
+	if (DISPLAY_VER(dev_priv) == 5 && HAS_FBC(dev_priv) &&
+	    dev_priv->params.enable_fbc && !merged->fbc_wm_enabled) {
 		for (level = 2; level <= max_level; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
 
@@ -6909,7 +6918,7 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_crtc *crtc =
-			intel_get_crtc_for_pipe(dev_priv, plane->pipe);
+			intel_crtc_for_pipe(dev_priv, plane->pipe);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
@@ -7065,7 +7074,7 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_crtc *crtc =
-			intel_get_crtc_for_pipe(dev_priv, plane->pipe);
+			intel_crtc_for_pipe(dev_priv, plane->pipe);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
@@ -7452,9 +7461,9 @@ static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void gen12lp_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	/* Wa_1409120013:tgl,rkl,adl-s,dg1 */
+	/* Wa_1409120013:tgl,rkl,adl-s,dg1,dg2 */
 	if (IS_TIGERLAKE(dev_priv) || IS_ROCKETLAKE(dev_priv) ||
-	    IS_ALDERLAKE_S(dev_priv) || IS_DG1(dev_priv))
+	    IS_ALDERLAKE_S(dev_priv) || IS_DG1(dev_priv) || IS_DG2(dev_priv))
 		intel_uncore_write(&dev_priv->uncore, ILK_DPFC_CHICKEN,
 				   DPFC_CHICKEN_COMP_DUMMY_PIXEL);
 

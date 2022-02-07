@@ -17,7 +17,7 @@ static int mock_timeline_pin(struct intel_timeline *tl)
 {
 	int err;
 
-	if (WARN_ON(!i915_gem_object_trylock(tl->hwsp_ggtt->obj)))
+	if (WARN_ON(!i915_gem_object_trylock(tl->hwsp_ggtt->obj, NULL)))
 		return -EBUSY;
 
 	err = intel_timeline_pin_map(tl);
@@ -345,7 +345,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	struct mock_engine *engine;
 
 	GEM_BUG_ON(id >= I915_NUM_ENGINES);
-	GEM_BUG_ON(!i915->gt.uncore);
+	GEM_BUG_ON(!to_gt(i915)->uncore);
 
 	engine = kzalloc(sizeof(*engine) + PAGE_SIZE, GFP_KERNEL);
 	if (!engine)
@@ -353,8 +353,8 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 
 	/* minimal engine setup for requests */
 	engine->base.i915 = i915;
-	engine->base.gt = &i915->gt;
-	engine->base.uncore = i915->gt.uncore;
+	engine->base.gt = to_gt(i915);
+	engine->base.uncore = to_gt(i915)->uncore;
 	snprintf(engine->base.name, sizeof(engine->base.name), "%s", name);
 	engine->base.id = id;
 	engine->base.mask = BIT(id);
@@ -377,8 +377,8 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 
 	engine->base.release = mock_engine_release;
 
-	i915->gt.engine[id] = &engine->base;
-	i915->gt.engine_class[0][id] = &engine->base;
+	to_gt(i915)->engine[id] = &engine->base;
+	to_gt(i915)->engine_class[0][id] = &engine->base;
 
 	/* fake hw queue */
 	spin_lock_init(&engine->hw_lock);

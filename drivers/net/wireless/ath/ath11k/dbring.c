@@ -6,6 +6,35 @@
 #include "core.h"
 #include "debug.h"
 
+#define ATH11K_DB_MAGIC_VALUE 0xdeadbeaf
+
+int ath11k_dbring_validate_buffer(struct ath11k *ar, void *buffer, u32 size)
+{
+	u32 *temp;
+	int idx;
+
+	size = size >> 2;
+
+	for (idx = 0, temp = buffer; idx < size; idx++, temp++) {
+		if (*temp == ATH11K_DB_MAGIC_VALUE)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void ath11k_dbring_fill_magic_value(struct ath11k *ar,
+					   void *buffer, u32 size)
+{
+	u32 *temp;
+	int idx;
+
+	size = size >> 2;
+
+	for (idx = 0, temp = buffer; idx < size; idx++, temp++)
+		*temp++ = ATH11K_DB_MAGIC_VALUE;
+}
+
 static int ath11k_dbring_bufs_replenish(struct ath11k *ar,
 					struct ath11k_dbring *ring,
 					struct ath11k_dbring_element *buff)
@@ -26,6 +55,7 @@ static int ath11k_dbring_bufs_replenish(struct ath11k *ar,
 
 	ptr_unaligned = buff->payload;
 	ptr_aligned = PTR_ALIGN(ptr_unaligned, ring->buf_align);
+	ath11k_dbring_fill_magic_value(ar, ptr_aligned, ring->buf_sz);
 	paddr = dma_map_single(ab->dev, ptr_aligned, ring->buf_sz,
 			       DMA_FROM_DEVICE);
 
@@ -87,17 +117,23 @@ static int ath11k_dbring_fill_bufs(struct ath11k *ar,
 	req_entries = min(num_free, ring->bufs_max);
 	num_remain = req_entries;
 	align = ring->buf_align;
-	size = sizeof(*buff) + ring->buf_sz + align - 1;
+	size = ring->buf_sz + align - 1;
 
 	while (num_remain > 0) {
-		buff = kzalloc(size, GFP_ATOMIC);
+		buff = kzalloc(sizeof(*buff), GFP_ATOMIC);
 		if (!buff)
 			break;
 
+		buff->payload = kzalloc(size, GFP_ATOMIC);
+		if (!buff->payload) {
+			kfree(buff);
+			break;
+		}
 		ret = ath11k_dbring_bufs_replenish(ar, ring, buff);
 		if (ret) {
 			ath11k_warn(ar->ab, "failed to replenish db ring num_remain %d req_ent %d\n",
 				    num_remain, req_entries);
+			kfree(buff->payload);
 			kfree(buff);
 			break;
 		}
@@ -282,7 +318,7 @@ int ath11k_dbring_buffer_release_event(struct ath11k_base *ab,
 
 	srng = &ab->hal.srng_list[ring->refill_srng.ring_id];
 	num_entry = ev->fixed.num_buf_release_entry;
-	size = sizeof(*buff) + ring->buf_sz + ring->buf_align - 1;
+	size = ring->buf_sz + ring->buf_align - 1;
 	num_buff_reaped = 0;
 
 	spin_lock_bh(&srng->lock);
@@ -319,7 +355,8 @@ int ath11k_dbring_buffer_release_event(struct ath11k_base *ab,
 			ring->handler(ar, &handler_data);
 		}
 
-		memset(buff, 0, size);
+		buff->paddr = 0;
+		memset(buff->payload, 0, size);
 		ath11k_dbring_bufs_replenish(ar, ring, buff);
 	}
 
@@ -346,6 +383,7 @@ void ath11k_dbring_buf_cleanup(struct ath11k *ar, struct ath11k_dbring *ring)
 		idr_remove(&ring->bufs_idr, buf_id);
 		dma_unmap_single(ar->ab->dev, buff->paddr,
 				 ring->buf_sz, DMA_FROM_DEVICE);
+		kfree(buff->payload);
 		kfree(buff);
 	}
 

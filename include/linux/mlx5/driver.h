@@ -478,6 +478,10 @@ struct mlx5_fc_stats {
 	unsigned long next_query;
 	unsigned long sampling_interval; /* jiffies */
 	u32 *bulk_query_out;
+	int bulk_query_len;
+	size_t num_counters;
+	bool bulk_query_alloc_failed;
+	unsigned long next_bulk_query_alloc;
 	struct mlx5_fc_pool fc_pool;
 };
 

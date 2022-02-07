@@ -63,13 +63,17 @@ void __init xen_init_vga(const struct dom0_vga_console_info *info, size_t size)
 		}
 
 		if (size >= offsetof(struct dom0_vga_console_info,
-				     u.vesa_lfb.gbl_caps)
-		    + sizeof(info->u.vesa_lfb.gbl_caps))
-			screen_info->capabilities = info->u.vesa_lfb.gbl_caps;
-		if (size >= offsetof(struct dom0_vga_console_info,
 				     u.vesa_lfb.mode_attrs)
 		    + sizeof(info->u.vesa_lfb.mode_attrs))
 			screen_info->vesa_attributes = info->u.vesa_lfb.mode_attrs;
+
+		if (size >= offsetof(struct dom0_vga_console_info,
+				     u.vesa_lfb.ext_lfb_base)
+		    + sizeof(info->u.vesa_lfb.ext_lfb_base)
+		    && info->u.vesa_lfb.ext_lfb_base) {
+			screen_info->ext_lfb_base = info->u.vesa_lfb.ext_lfb_base;
+			screen_info->capabilities |= VIDEO_CAPABILITY_64BIT_BASE;
+		}
 		break;
 	}
 }

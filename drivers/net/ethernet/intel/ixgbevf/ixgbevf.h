@@ -430,6 +430,7 @@ extern const struct ixgbevf_info ixgbevf_X540_vf_info;
 extern const struct ixgbevf_info ixgbevf_X550_vf_info;
 extern const struct ixgbevf_info ixgbevf_X550EM_x_vf_info;
 extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops;
+extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops_legacy;
 extern const struct ixgbevf_info ixgbevf_x550em_a_vf_info;
 
 extern const struct ixgbevf_info ixgbevf_82599_vf_hv_info;
@@ -491,4 +492,8 @@ void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
 
 #define hw_dbg(hw, format, arg...) \
 	netdev_dbg(ixgbevf_hw_to_netdev(hw), format, ## arg)
+
+s32 ixgbevf_poll_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size);
+s32 ixgbevf_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size);
+
 #endif /* _IXGBEVF_H_ */

@@ -686,9 +686,8 @@ static struct output_pixel_processor *dcn10_opp_create(
 	return &opp->base;
 }
 
-struct dce_aux *dcn10_aux_engine_create(
-	struct dc_context *ctx,
-	uint32_t inst)
+static struct dce_aux *dcn10_aux_engine_create(struct dc_context *ctx,
+					       uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
 		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
@@ -724,9 +723,8 @@ static const struct dce_i2c_mask i2c_masks = {
 		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
 };
 
-struct dce_i2c_hw *dcn10_i2c_hw_create(
-	struct dc_context *ctx,
-	uint32_t inst)
+static struct dce_i2c_hw *dcn10_i2c_hw_create(struct dc_context *ctx,
+					      uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
 		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
@@ -805,7 +803,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_TPS4_CAPABLE = true
 };
 
-struct link_encoder *dcn10_link_encoder_create(
+static struct link_encoder *dcn10_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn10_link_encoder *enc10 =
@@ -847,7 +845,7 @@ static struct panel_cntl *dcn10_panel_cntl_create(const struct panel_cntl_init_d
 	return &panel_cntl->base;
 }
 
-struct clock_source *dcn10_clock_source_create(
+static struct clock_source *dcn10_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
 	enum clock_source_id id,
@@ -945,7 +943,7 @@ static const struct resource_create_funcs res_create_maximus_funcs = {
 	.create_hwseq = dcn10_hwseq_create,
 };
 
-void dcn10_clock_source_destroy(struct clock_source **clk_src)
+static void dcn10_clock_source_destroy(struct clock_source **clk_src)
 {
 	kfree(TO_DCE110_CLK_SRC(*clk_src));
 	*clk_src = NULL;
@@ -1122,7 +1120,7 @@ static enum dc_status build_mapped_resource(
 	return DC_OK;
 }
 
-enum dc_status dcn10_add_stream_to_ctx(
+static enum dc_status dcn10_add_stream_to_ctx(
 		struct dc *dc,
 		struct dc_state *new_ctx,
 		struct dc_stream_state *dc_stream)

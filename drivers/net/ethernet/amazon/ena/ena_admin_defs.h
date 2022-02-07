@@ -48,6 +48,11 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_FEATURES_OPCODE_NUM               = 32,
 };
 
+/* device capabilities */
+enum ena_admin_aq_caps_id {
+	ENA_ADMIN_ENI_STATS                         = 0,
+};
+
 enum ena_admin_placement_policy_type {
 	/* descriptors and headers are in host memory */
 	ENA_ADMIN_PLACEMENT_POLICY_HOST             = 1,
@@ -455,7 +460,10 @@ struct ena_admin_device_attr_feature_desc {
 	 */
 	u32 supported_features;
 
-	u32 reserved3;
+	/* bitmap of ena_admin_aq_caps_id, which represents device
+	 * capabilities.
+	 */
+	u32 capabilities;
 
 	/* Indicates how many bits are used physical address access. */
 	u32 phys_addr_width;

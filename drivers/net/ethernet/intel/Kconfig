@@ -327,6 +327,16 @@ config ICE_SWITCHDEV
 
 	  If unsure, say N.
 
+config ICE_HWTS
+	bool "Support HW cross-timestamp on platforms with PTM support"
+	default y
+	depends on ICE && X86
+	help
+	  Say Y to enable hardware supported cross-timestamping on platforms
+	  with PCIe PTM support. The cross-timestamp is available through
+	  the PTP clock driver precise cross-timestamp ioctl
+	  (PTP_SYS_OFFSET_PRECISE).
+
 config FM10K
 	tristate "Intel(R) FM10000 Ethernet Switch Host Interface Support"
 	default n

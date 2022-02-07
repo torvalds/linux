@@ -321,8 +321,8 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 
 	intel_crt_set_dpms(encoder, crtc_state, DRM_MODE_DPMS_ON);
 
-	intel_wait_for_vblank(dev_priv, pipe);
-	intel_wait_for_vblank(dev_priv, pipe);
+	intel_crtc_wait_for_next_vblank(crtc);
+	intel_crtc_wait_for_next_vblank(crtc);
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 }
@@ -721,7 +721,7 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 		intel_uncore_posting_read(uncore, pipeconf_reg);
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
-		intel_wait_for_vblank(dev_priv, pipe);
+		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
 		st00 = intel_uncore_read8(uncore, _VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :

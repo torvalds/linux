@@ -93,7 +93,7 @@ static struct pmf_handlers macio_gpio_handlers = {
 	.delay		= macio_do_delay,
 };
 
-static void macio_gpio_init_one(struct macio_chip *macio)
+static void __init macio_gpio_init_one(struct macio_chip *macio)
 {
 	struct device_node *gparent, *gp;
 
@@ -265,7 +265,7 @@ static struct pmf_handlers macio_mmio_handlers = {
 	.delay			= macio_do_delay,
 };
 
-static void macio_mmio_init_one(struct macio_chip *macio)
+static void __init macio_mmio_init_one(struct macio_chip *macio)
 {
 	DBG("Installing MMIO functions for macio %pOF\n",
 	    macio->of_node);
@@ -294,7 +294,7 @@ static struct pmf_handlers unin_mmio_handlers = {
 	.delay			= macio_do_delay,
 };
 
-static void uninorth_install_pfunc(void)
+static void __init uninorth_install_pfunc(void)
 {
 	struct device_node *np;
 

@@ -488,6 +488,9 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 		return 0;
 	}
 
+	/* Exclude the reserved region from driver use */
+	mem->region.end = reserved_base - 1;
+
 	/* It is possible for the reserved area to end before the end of stolen
 	 * memory, so just consider the start. */
 	reserved_total = stolen_top - reserved_base;
@@ -653,7 +656,7 @@ static int __i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	cache_level = HAS_LLC(mem->i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 
-	if (WARN_ON(!i915_gem_object_trylock(obj)))
+	if (WARN_ON(!i915_gem_object_trylock(obj, NULL)))
 		return -EBUSY;
 
 	i915_gem_object_init_memory_region(obj, mem);
@@ -780,6 +783,7 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	struct intel_uncore *uncore = &i915->uncore;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct intel_memory_region *mem;
+	resource_size_t min_page_size;
 	resource_size_t io_start;
 	resource_size_t lmem_size;
 	u64 lmem_base;
@@ -791,8 +795,11 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	lmem_size = pci_resource_len(pdev, 2) - lmem_base;
 	io_start = pci_resource_start(pdev, 2) + lmem_base;
 
+	min_page_size = HAS_64K_PAGES(i915) ? I915_GTT_PAGE_SIZE_64K :
+						I915_GTT_PAGE_SIZE_4K;
+
 	mem = intel_memory_region_create(i915, lmem_base, lmem_size,
-					 I915_GTT_PAGE_SIZE_4K, io_start,
+					 min_page_size, io_start,
 					 type, instance,
 					 &i915_region_stolen_lmem_ops);
 	if (IS_ERR(mem))

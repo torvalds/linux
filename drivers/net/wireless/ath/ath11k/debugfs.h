@@ -117,6 +117,8 @@ void ath11k_debugfs_unregister(struct ath11k *ar);
 void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb);
 
 void ath11k_debugfs_fw_stats_init(struct ath11k *ar);
+int ath11k_debugfs_get_fw_stats(struct ath11k *ar, u32 pdev_id,
+				u32 vdev_id, u32 stats_id);
 
 static inline bool ath11k_debugfs_is_pktlog_lite_mode_enabled(struct ath11k *ar)
 {
@@ -212,6 +214,12 @@ static inline bool ath11k_debugfs_is_pktlog_peer_valid(struct ath11k *ar, u8 *ad
 }
 
 static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
+{
+	return 0;
+}
+
+static inline int ath11k_debugfs_get_fw_stats(struct ath11k *ar,
+					      u32 pdev_id, u32 vdev_id, u32 stats_id)
 {
 	return 0;
 }

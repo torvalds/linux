@@ -93,8 +93,8 @@
 		interrupt-names = "syncpt", "host1x";
 		clocks = <&tegra_car TEGRA210_CLK_HOST1X>;
 		clock-names = "host1x";
-		resets = <&tegra_car 28>;
-		reset-names = "host1x";
+		resets = <&tegra_car 28>, <&mc TEGRA210_MC_RESET_HC>;
+		reset-names = "host1x", "mc";
 
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -181,6 +181,12 @@
 		tsec@54100000 {
 			compatible = "nvidia,tegra210-tsec";
 			reg = <0x0 0x54100000 0x0 0x00040000>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA210_CLK_TSEC>;
+			clock-names = "tsec";
+			resets = <&tegra_car 83>;
+			reset-names = "tsec";
+			status = "disabled";
 		};
 
 		dc@54200000 {
@@ -283,6 +289,11 @@
 		tsec@54500000 {
 			compatible = "nvidia,tegra210-tsec";
 			reg = <0x0 0x54500000 0x0 0x00040000>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA210_CLK_TSECB>;
+			clock-names = "tsec";
+			resets = <&tegra_car 206>;
+			reset-names = "tsec";
 			status = "disabled";
 		};
 
@@ -1015,8 +1026,8 @@
 			 <&tegra_car TEGRA210_CLK_XUSB_HOST_SRC>,
 			 <&tegra_car TEGRA210_CLK_XUSB_FALCON_SRC>,
 			 <&tegra_car TEGRA210_CLK_XUSB_SS>,
-			 <&tegra_car TEGRA210_CLK_XUSB_SS_SRC>,
 			 <&tegra_car TEGRA210_CLK_XUSB_SS_DIV2>,
+			 <&tegra_car TEGRA210_CLK_XUSB_SS_SRC>,
 			 <&tegra_car TEGRA210_CLK_XUSB_HS_SRC>,
 			 <&tegra_car TEGRA210_CLK_XUSB_FS_SRC>,
 			 <&tegra_car TEGRA210_CLK_PLL_U_480M>,
@@ -1024,7 +1035,7 @@
 			 <&tegra_car TEGRA210_CLK_PLL_E>;
 		clock-names = "xusb_host", "xusb_host_src",
 			      "xusb_falcon_src", "xusb_ss",
-			      "xusb_ss_src", "xusb_ss_div2",
+			      "xusb_ss_div2", "xusb_ss_src",
 			      "xusb_hs_src", "xusb_fs_src",
 			      "pll_u_480m", "clk_m", "pll_e";
 		resets = <&tegra_car 89>, <&tegra_car 156>,
@@ -1981,7 +1992,7 @@
 	};
 
 	thermal-zones {
-		cpu {
+		cpu-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <0>;
 
@@ -2010,7 +2021,7 @@
 			};
 		};
 
-		mem {
+		mem-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 
@@ -2056,7 +2067,7 @@
 			};
 		};
 
-		gpu {
+		gpu-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <0>;
 
@@ -2085,7 +2096,7 @@
 			};
 		};
 
-		pllx {
+		pllx-thermal {
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 

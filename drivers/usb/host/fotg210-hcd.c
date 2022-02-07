@@ -5576,14 +5576,9 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 
 	pdev->dev.power.power_state = PMSG_ON;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "Found HC with no IRQ. Check %s setup!\n",
-				dev_name(dev));
-		return -ENODEV;
-	}
-
-	irq = res->start;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	hcd = usb_create_hcd(&fotg210_fotg210_hc_driver, dev,
 			dev_name(dev));

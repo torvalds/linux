@@ -4,14 +4,16 @@
 /aarch64/get-reg-list
 /aarch64/psci_cpu_on_test
 /aarch64/vgic_init
+/aarch64/vgic_irq
 /s390x/memop
 /s390x/resets
 /s390x/sync_regs_test
+/x86_64/amx_test
+/x86_64/cpuid_test
 /x86_64/cr4_cpuid_sync_test
 /x86_64/debug_regs
 /x86_64/evmcs_test
 /x86_64/emulator_error_test
-/x86_64/get_cpuid_test
 /x86_64/get_msr_index_features
 /x86_64/kvm_clock_test
 /x86_64/kvm_pv_test
@@ -21,6 +23,7 @@
 /x86_64/mmio_warning_test
 /x86_64/mmu_role_test
 /x86_64/platform_info_test
+/x86_64/pmu_event_filter_test
 /x86_64/set_boot_cpu_id
 /x86_64/set_sregs_test
 /x86_64/sev_migrate_tests
@@ -35,6 +38,8 @@
 /x86_64/vmx_apic_access_test
 /x86_64/vmx_close_while_nested_test
 /x86_64/vmx_dirty_log_test
+/x86_64/vmx_exception_with_invalid_guest_state
+/x86_64/vmx_invalid_nested_guest_state
 /x86_64/vmx_preemption_timer_test
 /x86_64/vmx_set_nested_state_test
 /x86_64/vmx_tsc_adjust_test

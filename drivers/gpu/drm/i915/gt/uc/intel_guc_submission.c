@@ -145,7 +145,8 @@ guc_create_parallel(struct intel_engine_cs **engines,
  * use should be low and 1/16 should be sufficient. Minimum of 32 guc_ids for
  * multi-lrc.
  */
-#define NUMBER_MULTI_LRC_GUC_ID		(GUC_MAX_LRC_DESCRIPTORS / 16)
+#define NUMBER_MULTI_LRC_GUC_ID(guc)	\
+	((guc)->submission_state.num_guc_ids / 16)
 
 /*
  * Below is a set of functions which control the GuC scheduling state which
@@ -1040,8 +1041,6 @@ static void scrub_guc_desc_for_outstanding_g2h(struct intel_guc *guc)
 
 		spin_unlock(&ce->guc_state.lock);
 
-		GEM_BUG_ON(!do_put && !destroyed);
-
 		if (pending_enable || destroyed || deregister) {
 			decr_outstanding_submission_g2h(guc);
 			if (deregister)
@@ -1206,7 +1205,7 @@ static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
 	 * start_gt_clk is derived from GuC state. To get a consistent
 	 * view of activity, we query the GuC state only if gt is awake.
 	 */
-	if (intel_gt_pm_get_if_awake(gt) && !in_reset) {
+	if (!in_reset && intel_gt_pm_get_if_awake(gt)) {
 		stats_saved = *stats;
 		gt_stamp_saved = guc->timestamp.gt_stamp;
 		guc_update_engine_gt_clks(engine);
@@ -1777,7 +1776,7 @@ int intel_guc_submission_init(struct intel_guc *guc)
 		  destroyed_worker_func);
 
 	guc->submission_state.guc_ids_bitmap =
-		bitmap_zalloc(NUMBER_MULTI_LRC_GUC_ID, GFP_KERNEL);
+		bitmap_zalloc(NUMBER_MULTI_LRC_GUC_ID(guc), GFP_KERNEL);
 	if (!guc->submission_state.guc_ids_bitmap)
 		return -ENOMEM;
 
@@ -1871,13 +1870,13 @@ static int new_guc_id(struct intel_guc *guc, struct intel_context *ce)
 
 	if (intel_context_is_parent(ce))
 		ret = bitmap_find_free_region(guc->submission_state.guc_ids_bitmap,
-					      NUMBER_MULTI_LRC_GUC_ID,
+					      NUMBER_MULTI_LRC_GUC_ID(guc),
 					      order_base_2(ce->parallel.number_children
 							   + 1));
 	else
 		ret = ida_simple_get(&guc->submission_state.guc_ids,
-				     NUMBER_MULTI_LRC_GUC_ID,
-				     GUC_MAX_LRC_DESCRIPTORS,
+				     NUMBER_MULTI_LRC_GUC_ID(guc),
+				     guc->submission_state.num_guc_ids,
 				     GFP_KERNEL | __GFP_RETRY_MAYFAIL |
 				     __GFP_NOWARN);
 	if (unlikely(ret < 0))
@@ -1935,13 +1934,17 @@ static int steal_guc_id(struct intel_guc *guc, struct intel_context *ce)
 		GEM_BUG_ON(intel_context_is_parent(cn));
 
 		list_del_init(&cn->guc_id.link);
-		ce->guc_id = cn->guc_id;
+		ce->guc_id.id = cn->guc_id.id;
 
-		spin_lock(&ce->guc_state.lock);
+		spin_lock(&cn->guc_state.lock);
 		clr_context_registered(cn);
-		spin_unlock(&ce->guc_state.lock);
+		spin_unlock(&cn->guc_state.lock);
 
 		set_context_guc_id_invalid(cn);
+
+#ifdef CONFIG_DRM_I915_SELFTEST
+		guc->number_guc_id_stolen++;
+#endif
 
 		return 0;
 	} else {
@@ -2646,7 +2649,6 @@ static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 	unsigned long flags;
 	bool disabled;
 
-	lockdep_assert_held(&guc->submission_state.lock);
 	GEM_BUG_ON(!intel_gt_pm_is_awake(gt));
 	GEM_BUG_ON(!lrc_desc_registered(guc, ce->guc_id.id));
 	GEM_BUG_ON(ce != __get_context(guc, ce->guc_id.id));
@@ -2662,7 +2664,7 @@ static inline void guc_lrc_desc_unpin(struct intel_context *ce)
 	}
 	spin_unlock_irqrestore(&ce->guc_state.lock, flags);
 	if (unlikely(disabled)) {
-		__release_guc_id(guc, ce);
+		release_guc_id(guc, ce);
 		__guc_context_destroy(ce);
 		return;
 	}
@@ -2696,36 +2698,48 @@ static void __guc_context_destroy(struct intel_context *ce)
 
 static void guc_flush_destroyed_contexts(struct intel_guc *guc)
 {
-	struct intel_context *ce, *cn;
+	struct intel_context *ce;
 	unsigned long flags;
 
 	GEM_BUG_ON(!submission_disabled(guc) &&
 		   guc_submission_initialized(guc));
 
-	spin_lock_irqsave(&guc->submission_state.lock, flags);
-	list_for_each_entry_safe(ce, cn,
-				 &guc->submission_state.destroyed_contexts,
-				 destroyed_link) {
-		list_del_init(&ce->destroyed_link);
-		__release_guc_id(guc, ce);
+	while (!list_empty(&guc->submission_state.destroyed_contexts)) {
+		spin_lock_irqsave(&guc->submission_state.lock, flags);
+		ce = list_first_entry_or_null(&guc->submission_state.destroyed_contexts,
+					      struct intel_context,
+					      destroyed_link);
+		if (ce)
+			list_del_init(&ce->destroyed_link);
+		spin_unlock_irqrestore(&guc->submission_state.lock, flags);
+
+		if (!ce)
+			break;
+
+		release_guc_id(guc, ce);
 		__guc_context_destroy(ce);
 	}
-	spin_unlock_irqrestore(&guc->submission_state.lock, flags);
 }
 
 static void deregister_destroyed_contexts(struct intel_guc *guc)
 {
-	struct intel_context *ce, *cn;
+	struct intel_context *ce;
 	unsigned long flags;
 
-	spin_lock_irqsave(&guc->submission_state.lock, flags);
-	list_for_each_entry_safe(ce, cn,
-				 &guc->submission_state.destroyed_contexts,
-				 destroyed_link) {
-		list_del_init(&ce->destroyed_link);
+	while (!list_empty(&guc->submission_state.destroyed_contexts)) {
+		spin_lock_irqsave(&guc->submission_state.lock, flags);
+		ce = list_first_entry_or_null(&guc->submission_state.destroyed_contexts,
+					      struct intel_context,
+					      destroyed_link);
+		if (ce)
+			list_del_init(&ce->destroyed_link);
+		spin_unlock_irqrestore(&guc->submission_state.lock, flags);
+
+		if (!ce)
+			break;
+
 		guc_lrc_desc_unpin(ce);
 	}
-	spin_unlock_irqrestore(&guc->submission_state.lock, flags);
 }
 
 static void destroyed_worker_func(struct work_struct *w)
@@ -3770,6 +3784,7 @@ static bool __guc_submission_selected(struct intel_guc *guc)
 
 void intel_guc_submission_init_early(struct intel_guc *guc)
 {
+	guc->submission_state.num_guc_ids = GUC_MAX_LRC_DESCRIPTORS;
 	guc->submission_supported = __guc_submission_supported(guc);
 	guc->submission_selected = __guc_submission_selected(guc);
 }
@@ -4018,11 +4033,12 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 					 const u32 *msg, u32 len)
 {
 	struct intel_engine_cs *engine;
+	struct intel_gt *gt = guc_to_gt(guc);
 	u8 guc_class, instance;
 	u32 reason;
 
 	if (unlikely(len != 3)) {
-		drm_err(&guc_to_gt(guc)->i915->drm, "Invalid length %u", len);
+		drm_err(&gt->i915->drm, "Invalid length %u", len);
 		return -EPROTO;
 	}
 
@@ -4032,12 +4048,19 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 
 	engine = guc_lookup_engine(guc, guc_class, instance);
 	if (unlikely(!engine)) {
-		drm_err(&guc_to_gt(guc)->i915->drm,
+		drm_err(&gt->i915->drm,
 			"Invalid engine %d:%d", guc_class, instance);
 		return -EPROTO;
 	}
 
-	intel_gt_handle_error(guc_to_gt(guc), engine->mask,
+	/*
+	 * This is an unexpected failure of a hardware feature. So, log a real
+	 * error message not just the informational that comes with the reset.
+	 */
+	drm_err(&gt->i915->drm, "GuC engine reset request failed on %d:%d (%s) because 0x%08X",
+		guc_class, instance, engine->name, reason);
+
+	intel_gt_handle_error(gt, engine->mask,
 			      I915_ERROR_CAPTURE,
 			      "GuC failed to reset %s (reason=0x%08x)\n",
 			      engine->name, reason);

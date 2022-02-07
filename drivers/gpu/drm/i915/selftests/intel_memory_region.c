@@ -1218,7 +1218,7 @@ int intel_memory_region_live_selftests(struct drm_i915_private *i915)
 		return 0;
 	}
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	return i915_live_subtests(tests, i915);
@@ -1230,7 +1230,7 @@ int intel_memory_region_perf_selftests(struct drm_i915_private *i915)
 		SUBTEST(perf_memcpy),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	return i915_live_subtests(tests, i915);

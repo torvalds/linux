@@ -84,10 +84,12 @@ static inline void __dc_gzva(u64 p)
 static inline void mte_set_mem_tag_range(void *addr, size_t size, u8 tag,
 					 bool init)
 {
-	u64 curr, mask, dczid_bs, end1, end2, end3;
+	u64 curr, mask, dczid, dczid_bs, dczid_dzp, end1, end2, end3;
 
 	/* Read DC G(Z)VA block size from the system register. */
-	dczid_bs = 4ul << (read_cpuid(DCZID_EL0) & 0xf);
+	dczid = read_cpuid(DCZID_EL0);
+	dczid_bs = 4ul << (dczid & 0xf);
+	dczid_dzp = (dczid >> 4) & 1;
 
 	curr = (u64)__tag_set(addr, tag);
 	mask = dczid_bs - 1;
@@ -106,7 +108,7 @@ static inline void mte_set_mem_tag_range(void *addr, size_t size, u8 tag,
 	 */
 #define SET_MEMTAG_RANGE(stg_post, dc_gva)		\
 	do {						\
-		if (size >= 2 * dczid_bs) {		\
+		if (!dczid_dzp && size >= 2 * dczid_bs) {\
 			do {				\
 				curr = stg_post(curr);	\
 			} while (curr < end1);		\

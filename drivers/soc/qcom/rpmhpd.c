@@ -63,73 +63,134 @@ struct rpmhpd_desc {
 
 static DEFINE_MUTEX(rpmhpd_lock);
 
-/* SDM845 RPMH powerdomains */
+/* RPMH powerdomains */
 
-static struct rpmhpd sdm845_ebi = {
+static struct rpmhpd cx_ao;
+static struct rpmhpd mx;
+static struct rpmhpd mx_ao;
+static struct rpmhpd cx = {
+	.pd = { .name = "cx", },
+	.peer = &cx_ao,
+	.res_name = "cx.lvl",
+};
+
+static struct rpmhpd cx_ao = {
+	.pd = { .name = "cx_ao", },
+	.active_only = true,
+	.peer = &cx,
+	.res_name = "cx.lvl",
+};
+
+static struct rpmhpd cx_ao_w_mx_parent;
+static struct rpmhpd cx_w_mx_parent = {
+	.pd = { .name = "cx", },
+	.peer = &cx_ao_w_mx_parent,
+	.parent = &mx.pd,
+	.res_name = "cx.lvl",
+};
+
+static struct rpmhpd cx_ao_w_mx_parent = {
+	.pd = { .name = "cx_ao", },
+	.active_only = true,
+	.peer = &cx_w_mx_parent,
+	.parent = &mx_ao.pd,
+	.res_name = "cx.lvl",
+};
+
+static struct rpmhpd ebi = {
 	.pd = { .name = "ebi", },
 	.res_name = "ebi.lvl",
 };
 
-static struct rpmhpd sdm845_lmx = {
-	.pd = { .name = "lmx", },
-	.res_name = "lmx.lvl",
-};
-
-static struct rpmhpd sdm845_lcx = {
-	.pd = { .name = "lcx", },
-	.res_name = "lcx.lvl",
-};
-
-static struct rpmhpd sdm845_gfx = {
+static struct rpmhpd gfx = {
 	.pd = { .name = "gfx", },
 	.res_name = "gfx.lvl",
 };
 
-static struct rpmhpd sdm845_mss = {
+static struct rpmhpd lcx = {
+	.pd = { .name = "lcx", },
+	.res_name = "lcx.lvl",
+};
+
+static struct rpmhpd lmx = {
+	.pd = { .name = "lmx", },
+	.res_name = "lmx.lvl",
+};
+
+static struct rpmhpd mmcx_ao;
+static struct rpmhpd mmcx = {
+	.pd = { .name = "mmcx", },
+	.peer = &mmcx_ao,
+	.res_name = "mmcx.lvl",
+};
+
+static struct rpmhpd mmcx_ao = {
+	.pd = { .name = "mmcx_ao", },
+	.active_only = true,
+	.peer = &mmcx,
+	.res_name = "mmcx.lvl",
+};
+
+static struct rpmhpd mmcx_ao_w_cx_parent;
+static struct rpmhpd mmcx_w_cx_parent = {
+	.pd = { .name = "mmcx", },
+	.peer = &mmcx_ao_w_cx_parent,
+	.parent = &cx.pd,
+	.res_name = "mmcx.lvl",
+};
+
+static struct rpmhpd mmcx_ao_w_cx_parent = {
+	.pd = { .name = "mmcx_ao", },
+	.active_only = true,
+	.peer = &mmcx_w_cx_parent,
+	.parent = &cx_ao.pd,
+	.res_name = "mmcx.lvl",
+};
+
+static struct rpmhpd mss = {
 	.pd = { .name = "mss", },
 	.res_name = "mss.lvl",
 };
 
-static struct rpmhpd sdm845_mx_ao;
-static struct rpmhpd sdm845_mx = {
+static struct rpmhpd mx_ao;
+static struct rpmhpd mx = {
 	.pd = { .name = "mx", },
-	.peer = &sdm845_mx_ao,
+	.peer = &mx_ao,
 	.res_name = "mx.lvl",
 };
 
-static struct rpmhpd sdm845_mx_ao = {
+static struct rpmhpd mx_ao = {
 	.pd = { .name = "mx_ao", },
 	.active_only = true,
-	.peer = &sdm845_mx,
+	.peer = &mx,
 	.res_name = "mx.lvl",
 };
 
-static struct rpmhpd sdm845_cx_ao;
-static struct rpmhpd sdm845_cx = {
-	.pd = { .name = "cx", },
-	.peer = &sdm845_cx_ao,
-	.parent = &sdm845_mx.pd,
-	.res_name = "cx.lvl",
+static struct rpmhpd mxc_ao;
+static struct rpmhpd mxc = {
+	.pd = { .name = "mxc", },
+	.peer = &mxc_ao,
+	.res_name = "mxc.lvl",
 };
 
-static struct rpmhpd sdm845_cx_ao = {
-	.pd = { .name = "cx_ao", },
+static struct rpmhpd mxc_ao = {
+	.pd = { .name = "mxc_ao", },
 	.active_only = true,
-	.peer = &sdm845_cx,
-	.parent = &sdm845_mx_ao.pd,
-	.res_name = "cx.lvl",
+	.peer = &mxc,
+	.res_name = "mxc.lvl",
 };
 
+/* SDM845 RPMH powerdomains */
 static struct rpmhpd *sdm845_rpmhpds[] = {
-	[SDM845_EBI] = &sdm845_ebi,
-	[SDM845_MX] = &sdm845_mx,
-	[SDM845_MX_AO] = &sdm845_mx_ao,
-	[SDM845_CX] = &sdm845_cx,
-	[SDM845_CX_AO] = &sdm845_cx_ao,
-	[SDM845_LMX] = &sdm845_lmx,
-	[SDM845_LCX] = &sdm845_lcx,
-	[SDM845_GFX] = &sdm845_gfx,
-	[SDM845_MSS] = &sdm845_mss,
+	[SDM845_CX] = &cx_w_mx_parent,
+	[SDM845_CX_AO] = &cx_ao_w_mx_parent,
+	[SDM845_EBI] = &ebi,
+	[SDM845_GFX] = &gfx,
+	[SDM845_LCX] = &lcx,
+	[SDM845_LMX] = &lmx,
+	[SDM845_MSS] = &mss,
+	[SDM845_MX] = &mx,
+	[SDM845_MX_AO] = &mx_ao,
 };
 
 static const struct rpmhpd_desc sdm845_desc = {
@@ -139,9 +200,9 @@ static const struct rpmhpd_desc sdm845_desc = {
 
 /* SDX55 RPMH powerdomains */
 static struct rpmhpd *sdx55_rpmhpds[] = {
-	[SDX55_MSS] = &sdm845_mss,
-	[SDX55_MX] = &sdm845_mx,
-	[SDX55_CX] = &sdm845_cx,
+	[SDX55_CX] = &cx_w_mx_parent,
+	[SDX55_MSS] = &mss,
+	[SDX55_MX] = &mx,
 };
 
 static const struct rpmhpd_desc sdx55_desc = {
@@ -151,12 +212,12 @@ static const struct rpmhpd_desc sdx55_desc = {
 
 /* SM6350 RPMH powerdomains */
 static struct rpmhpd *sm6350_rpmhpds[] = {
-	[SM6350_CX] = &sdm845_cx,
-	[SM6350_GFX] = &sdm845_gfx,
-	[SM6350_LCX] = &sdm845_lcx,
-	[SM6350_LMX] = &sdm845_lmx,
-	[SM6350_MSS] = &sdm845_mss,
-	[SM6350_MX] = &sdm845_mx,
+	[SM6350_CX] = &cx_w_mx_parent,
+	[SM6350_GFX] = &gfx,
+	[SM6350_LCX] = &lcx,
+	[SM6350_LMX] = &lmx,
+	[SM6350_MSS] = &mss,
+	[SM6350_MX] = &mx,
 };
 
 static const struct rpmhpd_desc sm6350_desc = {
@@ -165,33 +226,18 @@ static const struct rpmhpd_desc sm6350_desc = {
 };
 
 /* SM8150 RPMH powerdomains */
-
-static struct rpmhpd sm8150_mmcx_ao;
-static struct rpmhpd sm8150_mmcx = {
-	.pd = { .name = "mmcx", },
-	.peer = &sm8150_mmcx_ao,
-	.res_name = "mmcx.lvl",
-};
-
-static struct rpmhpd sm8150_mmcx_ao = {
-	.pd = { .name = "mmcx_ao", },
-	.active_only = true,
-	.peer = &sm8150_mmcx,
-	.res_name = "mmcx.lvl",
-};
-
 static struct rpmhpd *sm8150_rpmhpds[] = {
-	[SM8150_MSS] = &sdm845_mss,
-	[SM8150_EBI] = &sdm845_ebi,
-	[SM8150_LMX] = &sdm845_lmx,
-	[SM8150_LCX] = &sdm845_lcx,
-	[SM8150_GFX] = &sdm845_gfx,
-	[SM8150_MX] = &sdm845_mx,
-	[SM8150_MX_AO] = &sdm845_mx_ao,
-	[SM8150_CX] = &sdm845_cx,
-	[SM8150_CX_AO] = &sdm845_cx_ao,
-	[SM8150_MMCX] = &sm8150_mmcx,
-	[SM8150_MMCX_AO] = &sm8150_mmcx_ao,
+	[SM8150_CX] = &cx_w_mx_parent,
+	[SM8150_CX_AO] = &cx_ao_w_mx_parent,
+	[SM8150_EBI] = &ebi,
+	[SM8150_GFX] = &gfx,
+	[SM8150_LCX] = &lcx,
+	[SM8150_LMX] = &lmx,
+	[SM8150_MMCX] = &mmcx,
+	[SM8150_MMCX_AO] = &mmcx_ao,
+	[SM8150_MSS] = &mss,
+	[SM8150_MX] = &mx,
+	[SM8150_MX_AO] = &mx_ao,
 };
 
 static const struct rpmhpd_desc sm8150_desc = {
@@ -199,17 +245,18 @@ static const struct rpmhpd_desc sm8150_desc = {
 	.num_pds = ARRAY_SIZE(sm8150_rpmhpds),
 };
 
+/* SM8250 RPMH powerdomains */
 static struct rpmhpd *sm8250_rpmhpds[] = {
-	[SM8250_CX] = &sdm845_cx,
-	[SM8250_CX_AO] = &sdm845_cx_ao,
-	[SM8250_EBI] = &sdm845_ebi,
-	[SM8250_GFX] = &sdm845_gfx,
-	[SM8250_LCX] = &sdm845_lcx,
-	[SM8250_LMX] = &sdm845_lmx,
-	[SM8250_MMCX] = &sm8150_mmcx,
-	[SM8250_MMCX_AO] = &sm8150_mmcx_ao,
-	[SM8250_MX] = &sdm845_mx,
-	[SM8250_MX_AO] = &sdm845_mx_ao,
+	[SM8250_CX] = &cx_w_mx_parent,
+	[SM8250_CX_AO] = &cx_ao_w_mx_parent,
+	[SM8250_EBI] = &ebi,
+	[SM8250_GFX] = &gfx,
+	[SM8250_LCX] = &lcx,
+	[SM8250_LMX] = &lmx,
+	[SM8250_MMCX] = &mmcx,
+	[SM8250_MMCX_AO] = &mmcx_ao,
+	[SM8250_MX] = &mx,
+	[SM8250_MX_AO] = &mx_ao,
 };
 
 static const struct rpmhpd_desc sm8250_desc = {
@@ -218,34 +265,20 @@ static const struct rpmhpd_desc sm8250_desc = {
 };
 
 /* SM8350 Power domains */
-static struct rpmhpd sm8350_mxc_ao;
-static struct rpmhpd sm8350_mxc = {
-	.pd = { .name = "mxc", },
-	.peer = &sm8350_mxc_ao,
-	.res_name = "mxc.lvl",
-};
-
-static struct rpmhpd sm8350_mxc_ao = {
-	.pd = { .name = "mxc_ao", },
-	.active_only = true,
-	.peer = &sm8350_mxc,
-	.res_name = "mxc.lvl",
-};
-
 static struct rpmhpd *sm8350_rpmhpds[] = {
-	[SM8350_CX] = &sdm845_cx,
-	[SM8350_CX_AO] = &sdm845_cx_ao,
-	[SM8350_EBI] = &sdm845_ebi,
-	[SM8350_GFX] = &sdm845_gfx,
-	[SM8350_LCX] = &sdm845_lcx,
-	[SM8350_LMX] = &sdm845_lmx,
-	[SM8350_MMCX] = &sm8150_mmcx,
-	[SM8350_MMCX_AO] = &sm8150_mmcx_ao,
-	[SM8350_MX] = &sdm845_mx,
-	[SM8350_MX_AO] = &sdm845_mx_ao,
-	[SM8350_MXC] = &sm8350_mxc,
-	[SM8350_MXC_AO] = &sm8350_mxc_ao,
-	[SM8350_MSS] = &sdm845_mss,
+	[SM8350_CX] = &cx_w_mx_parent,
+	[SM8350_CX_AO] = &cx_ao_w_mx_parent,
+	[SM8350_EBI] = &ebi,
+	[SM8350_GFX] = &gfx,
+	[SM8350_LCX] = &lcx,
+	[SM8350_LMX] = &lmx,
+	[SM8350_MMCX] = &mmcx,
+	[SM8350_MMCX_AO] = &mmcx_ao,
+	[SM8350_MSS] = &mss,
+	[SM8350_MX] = &mx,
+	[SM8350_MX_AO] = &mx_ao,
+	[SM8350_MXC] = &mxc,
+	[SM8350_MXC_AO] = &mxc_ao,
 };
 
 static const struct rpmhpd_desc sm8350_desc = {
@@ -253,16 +286,38 @@ static const struct rpmhpd_desc sm8350_desc = {
 	.num_pds = ARRAY_SIZE(sm8350_rpmhpds),
 };
 
+/* SM8450 RPMH powerdomains */
+static struct rpmhpd *sm8450_rpmhpds[] = {
+	[SM8450_CX] = &cx,
+	[SM8450_CX_AO] = &cx_ao,
+	[SM8450_EBI] = &ebi,
+	[SM8450_GFX] = &gfx,
+	[SM8450_LCX] = &lcx,
+	[SM8450_LMX] = &lmx,
+	[SM8450_MMCX] = &mmcx_w_cx_parent,
+	[SM8450_MMCX_AO] = &mmcx_ao_w_cx_parent,
+	[SM8450_MSS] = &mss,
+	[SM8450_MX] = &mx,
+	[SM8450_MX_AO] = &mx_ao,
+	[SM8450_MXC] = &mxc,
+	[SM8450_MXC_AO] = &mxc_ao,
+};
+
+static const struct rpmhpd_desc sm8450_desc = {
+	.rpmhpds = sm8450_rpmhpds,
+	.num_pds = ARRAY_SIZE(sm8450_rpmhpds),
+};
+
 /* SC7180 RPMH powerdomains */
 static struct rpmhpd *sc7180_rpmhpds[] = {
-	[SC7180_CX] = &sdm845_cx,
-	[SC7180_CX_AO] = &sdm845_cx_ao,
-	[SC7180_GFX] = &sdm845_gfx,
-	[SC7180_MX] = &sdm845_mx,
-	[SC7180_MX_AO] = &sdm845_mx_ao,
-	[SC7180_LMX] = &sdm845_lmx,
-	[SC7180_LCX] = &sdm845_lcx,
-	[SC7180_MSS] = &sdm845_mss,
+	[SC7180_CX] = &cx_w_mx_parent,
+	[SC7180_CX_AO] = &cx_ao_w_mx_parent,
+	[SC7180_GFX] = &gfx,
+	[SC7180_LCX] = &lcx,
+	[SC7180_LMX] = &lmx,
+	[SC7180_MSS] = &mss,
+	[SC7180_MX] = &mx,
+	[SC7180_MX_AO] = &mx_ao,
 };
 
 static const struct rpmhpd_desc sc7180_desc = {
@@ -272,15 +327,15 @@ static const struct rpmhpd_desc sc7180_desc = {
 
 /* SC7280 RPMH powerdomains */
 static struct rpmhpd *sc7280_rpmhpds[] = {
-	[SC7280_CX] = &sdm845_cx,
-	[SC7280_CX_AO] = &sdm845_cx_ao,
-	[SC7280_EBI] = &sdm845_ebi,
-	[SC7280_GFX] = &sdm845_gfx,
-	[SC7280_MX] = &sdm845_mx,
-	[SC7280_MX_AO] = &sdm845_mx_ao,
-	[SC7280_LMX] = &sdm845_lmx,
-	[SC7280_LCX] = &sdm845_lcx,
-	[SC7280_MSS] = &sdm845_mss,
+	[SC7280_CX] = &cx,
+	[SC7280_CX_AO] = &cx_ao,
+	[SC7280_EBI] = &ebi,
+	[SC7280_GFX] = &gfx,
+	[SC7280_LCX] = &lcx,
+	[SC7280_LMX] = &lmx,
+	[SC7280_MSS] = &mss,
+	[SC7280_MX] = &mx,
+	[SC7280_MX_AO] = &mx_ao,
 };
 
 static const struct rpmhpd_desc sc7280_desc = {
@@ -290,17 +345,17 @@ static const struct rpmhpd_desc sc7280_desc = {
 
 /* SC8180x RPMH powerdomains */
 static struct rpmhpd *sc8180x_rpmhpds[] = {
-	[SC8180X_CX] = &sdm845_cx,
-	[SC8180X_CX_AO] = &sdm845_cx_ao,
-	[SC8180X_EBI] = &sdm845_ebi,
-	[SC8180X_GFX] = &sdm845_gfx,
-	[SC8180X_LCX] = &sdm845_lcx,
-	[SC8180X_LMX] = &sdm845_lmx,
-	[SC8180X_MMCX] = &sm8150_mmcx,
-	[SC8180X_MMCX_AO] = &sm8150_mmcx_ao,
-	[SC8180X_MSS] = &sdm845_mss,
-	[SC8180X_MX] = &sdm845_mx,
-	[SC8180X_MX_AO] = &sdm845_mx_ao,
+	[SC8180X_CX] = &cx_w_mx_parent,
+	[SC8180X_CX_AO] = &cx_ao_w_mx_parent,
+	[SC8180X_EBI] = &ebi,
+	[SC8180X_GFX] = &gfx,
+	[SC8180X_LCX] = &lcx,
+	[SC8180X_LMX] = &lmx,
+	[SC8180X_MMCX] = &mmcx,
+	[SC8180X_MMCX_AO] = &mmcx_ao,
+	[SC8180X_MSS] = &mss,
+	[SC8180X_MX] = &mx,
+	[SC8180X_MX_AO] = &mx_ao,
 };
 
 static const struct rpmhpd_desc sc8180x_desc = {
@@ -318,6 +373,7 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,sm8150-rpmhpd", .data = &sm8150_desc },
 	{ .compatible = "qcom,sm8250-rpmhpd", .data = &sm8250_desc },
 	{ .compatible = "qcom,sm8350-rpmhpd", .data = &sm8350_desc },
+	{ .compatible = "qcom,sm8450-rpmhpd", .data = &sm8450_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmhpd_match_table);

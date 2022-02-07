@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018, 2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2020-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -150,11 +150,12 @@ struct iwl_phy_context_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */
 	__le32 id_and_color;
 	__le32 action;
-	/* PHY_CONTEXT_DATA_API_S_VER_3 */
+	/* PHY_CONTEXT_DATA_API_S_VER_3, PHY_CONTEXT_DATA_API_S_VER_4 */
 	struct iwl_fw_channel_info ci;
 	__le32 lmac_id;
-	__le32 rxchain_info;
+	__le32 rxchain_info; /* reserved in _VER_4 */
 	__le32 dsp_cfg_flags;
 	__le32 reserved;
-} __packed; /* PHY_CONTEXT_CMD_API_VER_3 */
+} __packed; /* PHY_CONTEXT_CMD_API_VER_3, PHY_CONTEXT_CMD_API_VER_4 */
+
 #endif /* __iwl_fw_api_phy_ctxt_h__ */

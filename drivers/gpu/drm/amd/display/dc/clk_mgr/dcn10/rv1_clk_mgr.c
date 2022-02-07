@@ -34,7 +34,7 @@
 #include "rv1_clk_mgr_vbios_smu.h"
 #include "rv1_clk_mgr_clk.h"
 
-void rv1_init_clocks(struct clk_mgr *clk_mgr)
+static void rv1_init_clocks(struct clk_mgr *clk_mgr)
 {
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 }

@@ -1446,7 +1446,6 @@
 			iommus = <&adreno_smmu 0>;
 			operating-points-v2 = <&gpu_opp_table>;
 			power-domains = <&rpmpd MSM8998_VDDMX>;
-			#stream-id-cells = <16>;
 			status = "disabled";
 
 			gpu_opp_table: opp-table {

@@ -3625,6 +3625,7 @@ static int intel_pt_parse_vm_tm_corr_arg(struct intel_pt *pt, char **args)
 		*args = p;
 		return 0;
 	}
+	p += 1;
 	while (1) {
 		vmcs = strtoull(p, &p, 0);
 		if (errno)

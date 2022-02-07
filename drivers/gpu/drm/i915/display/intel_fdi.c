@@ -4,6 +4,7 @@
  */
 
 #include "intel_atomic.h"
+#include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -157,7 +158,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		if (pipe_config->fdi_lanes <= 2)
 			return 0;
 
-		other_crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_C);
+		other_crtc = intel_crtc_for_pipe(dev_priv, PIPE_C);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))
@@ -178,7 +179,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 			return -EINVAL;
 		}
 
-		other_crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_B);
+		other_crtc = intel_crtc_for_pipe(dev_priv, PIPE_B);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))

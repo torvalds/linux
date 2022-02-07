@@ -127,7 +127,6 @@ config S390
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_ENTRY
-	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_PTDUMP
 	select GENERIC_SMP_IDLE_THREAD
@@ -165,7 +164,6 @@ config S390
 	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
-	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_GCC_PLUGINS
 	select HAVE_GENERIC_VDSO
 	select HAVE_IOREMAP_PROT if PCI
@@ -947,6 +945,9 @@ config S390_GUEST
 
 endmenu
 
+config S390_MODULES_SANITY_TEST_HELPERS
+	def_bool n
+
 menu "Selftests"
 
 config S390_UNWIND_SELFTEST
@@ -973,4 +974,16 @@ config S390_KPROBES_SANITY_TEST
 
 	  Say N if you are unsure.
 
+config S390_MODULES_SANITY_TEST
+	def_tristate n
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	prompt "Enable s390 specific modules tests"
+	select S390_MODULES_SANITY_TEST_HELPERS
+	help
+	  This option enables an s390 specific modules test. This option is
+	  not useful for distributions or general kernels, but only for
+	  kernel developers working on architecture code.
+
+	  Say N if you are unsure.
 endmenu

@@ -724,7 +724,8 @@ void intel_uncore_forcewake_get__locked(struct intel_uncore *uncore,
 }
 
 static void __intel_uncore_forcewake_put(struct intel_uncore *uncore,
-					 enum forcewake_domains fw_domains)
+					 enum forcewake_domains fw_domains,
+					 bool delayed)
 {
 	struct intel_uncore_forcewake_domain *domain;
 	unsigned int tmp;
@@ -739,7 +740,11 @@ static void __intel_uncore_forcewake_put(struct intel_uncore *uncore,
 			continue;
 		}
 
-		fw_domains_put(uncore, domain->mask);
+		if (delayed &&
+		    !(domain->uncore->fw_domains_timer & domain->mask))
+			fw_domain_arm_timer(domain);
+		else
+			fw_domains_put(uncore, domain->mask);
 	}
 }
 
@@ -760,7 +765,20 @@ void intel_uncore_forcewake_put(struct intel_uncore *uncore,
 		return;
 
 	spin_lock_irqsave(&uncore->lock, irqflags);
-	__intel_uncore_forcewake_put(uncore, fw_domains);
+	__intel_uncore_forcewake_put(uncore, fw_domains, false);
+	spin_unlock_irqrestore(&uncore->lock, irqflags);
+}
+
+void intel_uncore_forcewake_put_delayed(struct intel_uncore *uncore,
+					enum forcewake_domains fw_domains)
+{
+	unsigned long irqflags;
+
+	if (!uncore->fw_get_funcs)
+		return;
+
+	spin_lock_irqsave(&uncore->lock, irqflags);
+	__intel_uncore_forcewake_put(uncore, fw_domains, true);
 	spin_unlock_irqrestore(&uncore->lock, irqflags);
 }
 
@@ -802,7 +820,7 @@ void intel_uncore_forcewake_put__locked(struct intel_uncore *uncore,
 	if (!uncore->fw_get_funcs)
 		return;
 
-	__intel_uncore_forcewake_put(uncore, fw_domains);
+	__intel_uncore_forcewake_put(uncore, fw_domains, false);
 }
 
 void assert_forcewakes_inactive(struct intel_uncore *uncore)
@@ -2061,12 +2079,13 @@ void intel_uncore_cleanup_mmio(struct intel_uncore *uncore)
 }
 
 void intel_uncore_init_early(struct intel_uncore *uncore,
-			     struct drm_i915_private *i915)
+			     struct intel_gt *gt)
 {
 	spin_lock_init(&uncore->lock);
-	uncore->i915 = i915;
-	uncore->rpm = &i915->runtime_pm;
-	uncore->debug = &i915->mmio_debug;
+	uncore->i915 = gt->i915;
+	uncore->gt = gt;
+	uncore->rpm = &gt->i915->runtime_pm;
+	uncore->debug = &gt->i915->mmio_debug;
 }
 
 static void uncore_raw_init(struct intel_uncore *uncore)

@@ -1851,6 +1851,6 @@ module_i2c_driver(imx355_i2c_driver);
 MODULE_AUTHOR("Qiu, Tianshu <tian.shu.qiu@intel.com>");
 MODULE_AUTHOR("Rapolu, Chiranjeevi <chiranjeevi.rapolu@intel.com>");
 MODULE_AUTHOR("Bingbu Cao <bingbu.cao@intel.com>");
-MODULE_AUTHOR("Yang, Hyungwoo <hyungwoo.yang@intel.com>");
+MODULE_AUTHOR("Yang, Hyungwoo");
 MODULE_DESCRIPTION("Sony imx355 sensor driver");
 MODULE_LICENSE("GPL v2");

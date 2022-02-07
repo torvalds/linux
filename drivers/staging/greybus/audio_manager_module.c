@@ -142,11 +142,12 @@ static struct attribute *gb_audio_module_default_attrs[] = {
 	&gb_audio_module_op_devices_attribute.attr,
 	NULL,   /* need to NULL terminate the list of attributes */
 };
+ATTRIBUTE_GROUPS(gb_audio_module_default);
 
 static struct kobj_type gb_audio_module_type = {
 	.sysfs_ops = &gb_audio_module_sysfs_ops,
 	.release = gb_audio_module_release,
-	.default_attrs = gb_audio_module_default_attrs,
+	.default_groups = gb_audio_module_default_groups,
 };
 
 static void send_add_uevent(struct gb_audio_manager_module *module)

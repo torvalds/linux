@@ -32,6 +32,7 @@ config IA64
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE if (!ITANIUM)
 	select HAVE_FUNCTION_TRACER
+	select HAVE_SETUP_PER_CPU_AREA
 	select TTY
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_VIRT_CPU_ACCOUNTING
@@ -87,9 +88,6 @@ config GENERIC_LOCKBREAK
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
-
-config HAVE_SETUP_PER_CPU_AREA
-	def_bool y
 
 config DMI
 	bool
@@ -292,6 +290,7 @@ config NUMA
 	bool "NUMA support"
 	depends on !FLATMEM
 	select SMP
+	select USE_PERCPU_NUMA_NODE_ID
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option is for configuring high-end multiprocessor
@@ -311,10 +310,6 @@ config HAVE_ARCH_NODEDATA_EXTENSION
 	def_bool y
 	depends on NUMA
 
-config USE_PERCPU_NUMA_NODE_ID
-	def_bool y
-	depends on NUMA
-
 config HAVE_MEMORYLESS_NODES
 	def_bool NUMA
 
@@ -323,7 +318,7 @@ config ARCH_PROC_KCORE_TEXT
 	depends on PROC_KCORE
 
 config IA64_MCA_RECOVERY
-	tristate "MCA recovery from errors other than TLB."
+	bool "MCA recovery from errors other than TLB."
 
 config IA64_PALINFO
 	tristate "/proc/pal support"

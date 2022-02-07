@@ -852,7 +852,7 @@ bool dmub_srv_should_detect(struct dmub_srv *dmub)
 
 enum dmub_status dmub_srv_clear_inbox0_ack(struct dmub_srv *dmub)
 {
-	if (!dmub->hw_init || dmub->hw_funcs.clear_inbox0_ack_register)
+	if (!dmub->hw_init || !dmub->hw_funcs.clear_inbox0_ack_register)
 		return DMUB_STATUS_INVALID;
 
 	dmub->hw_funcs.clear_inbox0_ack_register(dmub);
@@ -878,7 +878,7 @@ enum dmub_status dmub_srv_wait_for_inbox0_ack(struct dmub_srv *dmub, uint32_t ti
 enum dmub_status dmub_srv_send_inbox0_cmd(struct dmub_srv *dmub,
 		union dmub_inbox0_data_register data)
 {
-	if (!dmub->hw_init || dmub->hw_funcs.send_inbox0_cmd)
+	if (!dmub->hw_init || !dmub->hw_funcs.send_inbox0_cmd)
 		return DMUB_STATUS_INVALID;
 
 	dmub->hw_funcs.send_inbox0_cmd(dmub, data);

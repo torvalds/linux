@@ -317,22 +317,19 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const char *name = dev_name(dev);
 	struct ts5500_priv *priv;
-	struct resource *res;
 	unsigned long flags;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "missing IRQ resource\n");
-		return -EINVAL;
-	}
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
 
 	priv = devm_kzalloc(dev, sizeof(struct ts5500_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, priv);
-	priv->hwirq = res->start;
+	priv->hwirq = ret;
 	spin_lock_init(&priv->lock);
 
 	priv->gpio_chip.owner = THIS_MODULE;

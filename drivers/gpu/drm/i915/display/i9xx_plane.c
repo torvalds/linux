@@ -13,6 +13,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
+#include "intel_fbc.h"
 #include "intel_sprite.h"
 #include "i9xx_plane.h"
 
@@ -118,6 +119,15 @@ static bool i9xx_plane_has_fbc(struct drm_i915_private *dev_priv,
 		return i9xx_plane == PLANE_A || i9xx_plane == PLANE_B;
 	else
 		return i9xx_plane == PLANE_A;
+}
+
+static struct intel_fbc *i9xx_plane_fbc(struct drm_i915_private *dev_priv,
+					enum i9xx_plane_id i9xx_plane)
+{
+	if (i9xx_plane_has_fbc(dev_priv, i9xx_plane))
+		return dev_priv->fbc;
+	else
+		return NULL;
 }
 
 static bool i9xx_plane_has_windowing(struct intel_plane *plane)
@@ -807,10 +817,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	plane->id = PLANE_PRIMARY;
 	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane->id);
 
-	if (i9xx_plane_has_fbc(dev_priv, plane->i9xx_plane))
-		plane->fbc = &dev_priv->fbc;
-	if (plane->fbc)
-		plane->fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
+	intel_fbc_add_plane(i9xx_plane_fbc(dev_priv, plane->i9xx_plane), plane);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		formats = vlv_primary_formats;

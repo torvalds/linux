@@ -241,11 +241,12 @@ static void mmci_sdmmc_set_clkreg(struct mmci_host *host, unsigned int desired)
 
 	/*
 	 * SDMMC_FBCK is selected when an external Delay Block is needed
-	 * with SDR104.
+	 * with SDR104 or HS200.
 	 */
 	if (host->mmc->ios.timing >= MMC_TIMING_UHS_SDR50) {
 		clk |= MCI_STM32_CLK_BUSSPEED;
-		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104) {
+		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104 ||
+		    host->mmc->ios.timing == MMC_TIMING_MMC_HS200) {
 			clk &= ~MCI_STM32_CLK_SEL_MSK;
 			clk |= MCI_STM32_CLK_SELFBCK;
 		}
@@ -440,6 +441,8 @@ static int sdmmc_dlyb_phase_tuning(struct mmci_host *host, u32 opcode)
 		dev_err(mmc_dev(host->mmc), "no tuning point found\n");
 		return -EINVAL;
 	}
+
+	writel_relaxed(0, dlyb->base + DLYB_CR);
 
 	phase = end_of_len - max_len / 2;
 	sdmmc_dlyb_set_cfgr(dlyb, dlyb->unit, phase, false);

@@ -348,36 +348,6 @@ void opp1_program_stereo(
 	*/
 }
 
-void opp1_program_oppbuf(
-	struct output_pixel_processor *opp,
-	struct oppbuf_params *oppbuf)
-{
-	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
-
-	/* Program the oppbuf active width to be the frame width from mpc */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, oppbuf->active_width);
-
-	/* Specifies the number of segments in multi-segment mode (DP-MSO operation)
-	 * description  "In 1/2/4 segment mode, specifies the horizontal active width in pixels of the display panel.
-	 * In 4 segment split left/right mode, specifies the horizontal 1/2 active width in pixels of the display panel.
-	 * Used to determine segment boundaries in multi-segment mode. Used to determine the width of the vertical active space in 3D frame packed modes.
-	 * OPPBUF_ACTIVE_WIDTH must be integer divisible by the total number of segments."
-	 */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_DISPLAY_SEGMENTATION, oppbuf->mso_segmentation);
-
-	/* description  "Specifies the number of overlap pixels (1-8 overlapping pixels supported), used in multi-segment mode (DP-MSO operation)" */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_OVERLAP_PIXEL_NUM, oppbuf->mso_overlap_pixel_num);
-
-	/* description  "Specifies the number of times a pixel is replicated (0-15 pixel replications supported).
-	 * A value of 0 disables replication. The total number of times a pixel is output is OPPBUF_PIXEL_REPETITION + 1."
-	 */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, oppbuf->pixel_repetition);
-
-	/* Controls the number of padded pixels at the end of a segment */
-	if (REG(OPPBUF_CONTROL1))
-		REG_UPDATE(OPPBUF_CONTROL1, OPPBUF_NUM_SEGMENT_PADDED_PIXELS, oppbuf->num_segment_padded_pixels);
-}
-
 void opp1_pipe_clock_control(struct output_pixel_processor *opp, bool enable)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);

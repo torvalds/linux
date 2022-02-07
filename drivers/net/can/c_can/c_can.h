@@ -211,7 +211,6 @@ struct c_can_priv {
 	struct c_can_raminit raminit_sys;	/* RAMINIT via syscon regmap */
 	void (*raminit)(const struct c_can_priv *priv, bool enable);
 	u32 comm_rcv_high;
-	u32 dlc[];
 };
 
 struct net_device *alloc_c_can_dev(int msg_obj_num);

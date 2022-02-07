@@ -54,7 +54,7 @@ int kfd_interrupt_init(struct kfd_dev *kfd)
 	int r;
 
 	r = kfifo_alloc(&kfd->ih_fifo,
-		KFD_IH_NUM_ENTRIES * kfd->device_info->ih_ring_entry_size,
+		KFD_IH_NUM_ENTRIES * kfd->device_info.ih_ring_entry_size,
 		GFP_KERNEL);
 	if (r) {
 		dev_err(kfd_chardev(), "Failed to allocate IH fifo\n");
@@ -114,8 +114,8 @@ bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry)
 	int count;
 
 	count = kfifo_in(&kfd->ih_fifo, ih_ring_entry,
-				kfd->device_info->ih_ring_entry_size);
-	if (count != kfd->device_info->ih_ring_entry_size) {
+				kfd->device_info.ih_ring_entry_size);
+	if (count != kfd->device_info.ih_ring_entry_size) {
 		dev_err_ratelimited(kfd_chardev(),
 			"Interrupt ring overflow, dropping interrupt %d\n",
 			count);
@@ -133,11 +133,11 @@ static bool dequeue_ih_ring_entry(struct kfd_dev *kfd, void *ih_ring_entry)
 	int count;
 
 	count = kfifo_out(&kfd->ih_fifo, ih_ring_entry,
-				kfd->device_info->ih_ring_entry_size);
+				kfd->device_info.ih_ring_entry_size);
 
-	WARN_ON(count && count != kfd->device_info->ih_ring_entry_size);
+	WARN_ON(count && count != kfd->device_info.ih_ring_entry_size);
 
-	return count == kfd->device_info->ih_ring_entry_size;
+	return count == kfd->device_info.ih_ring_entry_size;
 }
 
 static void interrupt_wq(struct work_struct *work)
@@ -146,13 +146,13 @@ static void interrupt_wq(struct work_struct *work)
 						interrupt_work);
 	uint32_t ih_ring_entry[KFD_MAX_RING_ENTRY_SIZE];
 
-	if (dev->device_info->ih_ring_entry_size > sizeof(ih_ring_entry)) {
+	if (dev->device_info.ih_ring_entry_size > sizeof(ih_ring_entry)) {
 		dev_err_once(kfd_chardev(), "Ring entry too small\n");
 		return;
 	}
 
 	while (dequeue_ih_ring_entry(dev, ih_ring_entry))
-		dev->device_info->event_interrupt_class->interrupt_wq(dev,
+		dev->device_info.event_interrupt_class->interrupt_wq(dev,
 								ih_ring_entry);
 }
 
@@ -163,7 +163,7 @@ bool interrupt_is_wanted(struct kfd_dev *dev,
 	/* integer and bitwise OR so there is no boolean short-circuiting */
 	unsigned int wanted = 0;
 
-	wanted |= dev->device_info->event_interrupt_class->interrupt_isr(dev,
+	wanted |= dev->device_info.event_interrupt_class->interrupt_isr(dev,
 					 ih_ring_entry, patched_ihre, flag);
 
 	return wanted != 0;

@@ -47,7 +47,7 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm,
 				uint32_t filter_param);
 static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 				enum kfd_unmap_queues_filter filter,
-				uint32_t filter_param);
+				uint32_t filter_param, bool reset);
 
 static int map_queues_cpsch(struct device_queue_manager *dqm);
 
@@ -108,13 +108,13 @@ static unsigned int get_num_all_sdma_engines(struct device_queue_manager *dqm)
 unsigned int get_num_sdma_queues(struct device_queue_manager *dqm)
 {
 	return kfd_get_num_sdma_engines(dqm->dev) *
-		dqm->dev->device_info->num_sdma_queues_per_engine;
+		dqm->dev->device_info.num_sdma_queues_per_engine;
 }
 
 unsigned int get_num_xgmi_sdma_queues(struct device_queue_manager *dqm)
 {
 	return kfd_get_num_xgmi_sdma_engines(dqm->dev) *
-		dqm->dev->device_info->num_sdma_queues_per_engine;
+		dqm->dev->device_info.num_sdma_queues_per_engine;
 }
 
 void program_sh_mem_settings(struct device_queue_manager *dqm,
@@ -570,7 +570,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q,
 	/* Make sure the queue is unmapped before updating the MQD */
 	if (dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) {
 		retval = unmap_queues_cpsch(dqm,
-				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
+				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0, false);
 		if (retval) {
 			pr_err("unmap queue failed\n");
 			goto out_unlock;
@@ -1004,14 +1004,17 @@ static void uninitialize(struct device_queue_manager *dqm)
 
 static int start_nocpsch(struct device_queue_manager *dqm)
 {
+	int r = 0;
+
 	pr_info("SW scheduler is used");
 	init_interrupts(dqm);
 	
 	if (dqm->dev->adev->asic_type == CHIP_HAWAII)
-		return pm_init(&dqm->packet_mgr, dqm);
-	dqm->sched_running = true;
+		r = pm_init(&dqm->packet_mgr, dqm);
+	if (!r)
+		dqm->sched_running = true;
 
-	return 0;
+	return r;
 }
 
 static int stop_nocpsch(struct device_queue_manager *dqm)
@@ -1223,7 +1226,7 @@ static int stop_cpsch(struct device_queue_manager *dqm)
 	}
 
 	if (!dqm->is_hws_hang)
-		unmap_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES, 0);
+		unmap_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES, 0, false);
 	hanging = dqm->is_hws_hang || dqm->is_resetting;
 	dqm->sched_running = false;
 
@@ -1419,7 +1422,7 @@ static int map_queues_cpsch(struct device_queue_manager *dqm)
 /* dqm->lock mutex has to be locked before calling this function */
 static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 				enum kfd_unmap_queues_filter filter,
-				uint32_t filter_param)
+				uint32_t filter_param, bool reset)
 {
 	int retval = 0;
 	struct mqd_manager *mqd_mgr;
@@ -1432,7 +1435,7 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 		return retval;
 
 	retval = pm_send_unmap_queue(&dqm->packet_mgr, KFD_QUEUE_TYPE_COMPUTE,
-			filter, filter_param, false, 0);
+			filter, filter_param, reset, 0);
 	if (retval)
 		return retval;
 
@@ -1476,6 +1479,21 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 	return retval;
 }
 
+/* only for compute queue */
+static int reset_queues_cpsch(struct device_queue_manager *dqm,
+			uint16_t pasid)
+{
+	int retval;
+
+	dqm_lock(dqm);
+
+	retval = unmap_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_BY_PASID,
+			pasid, true);
+
+	dqm_unlock(dqm);
+	return retval;
+}
+
 /* dqm->lock mutex has to be locked before calling this function */
 static int execute_queues_cpsch(struct device_queue_manager *dqm,
 				enum kfd_unmap_queues_filter filter,
@@ -1485,7 +1503,7 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm,
 
 	if (dqm->is_hws_hang)
 		return -EIO;
-	retval = unmap_queues_cpsch(dqm, filter, filter_param);
+	retval = unmap_queues_cpsch(dqm, filter, filter_param, false);
 	if (retval)
 		return retval;
 
@@ -1838,7 +1856,7 @@ static int allocate_hiq_sdma_mqd(struct device_queue_manager *dqm)
 	struct kfd_mem_obj *mem_obj = &dqm->hiq_sdma_mqd;
 	uint32_t size = dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size *
 		get_num_all_sdma_engines(dqm) *
-		dev->device_info->num_sdma_queues_per_engine +
+		dev->device_info.num_sdma_queues_per_engine +
 		dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
 
 	retval = amdgpu_amdkfd_alloc_gtt_mem(dev->adev, size,
@@ -1896,6 +1914,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.evict_process_queues = evict_process_queues_cpsch;
 		dqm->ops.restore_process_queues = restore_process_queues_cpsch;
 		dqm->ops.get_wave_state = get_wave_state;
+		dqm->ops.reset_queues = reset_queues_cpsch;
 		break;
 	case KFD_SCHED_POLICY_NO_HWS:
 		/* initialize dqm for no cp scheduling */
@@ -2082,7 +2101,7 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 
 	for (pipe = 0; pipe < get_num_all_sdma_engines(dqm); pipe++) {
 		for (queue = 0;
-		     queue < dqm->dev->device_info->num_sdma_queues_per_engine;
+		     queue < dqm->dev->device_info.num_sdma_queues_per_engine;
 		     queue++) {
 			r = dqm->dev->kfd2kgd->hqd_sdma_dump(
 				dqm->dev->adev, pipe, queue, &dump, &n_regs);

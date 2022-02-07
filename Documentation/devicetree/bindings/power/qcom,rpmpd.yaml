@@ -24,6 +24,7 @@ properties:
       - qcom,msm8994-rpmpd
       - qcom,msm8996-rpmpd
       - qcom,msm8998-rpmpd
+      - qcom,qcm2290-rpmpd
       - qcom,qcs404-rpmpd
       - qcom,sdm660-rpmpd
       - qcom,sc7180-rpmhpd
@@ -32,10 +33,12 @@ properties:
       - qcom,sdm845-rpmhpd
       - qcom,sdx55-rpmhpd
       - qcom,sm6115-rpmpd
+      - qcom,sm6125-rpmpd
       - qcom,sm6350-rpmhpd
       - qcom,sm8150-rpmhpd
       - qcom,sm8250-rpmhpd
       - qcom,sm8350-rpmhpd
+      - qcom,sm8450-rpmhpd
 
   '#power-domain-cells':
     const: 1

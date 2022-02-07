@@ -35,15 +35,16 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
-#include "i915_trace.h"
+#include "gt/intel_rps.h"
+
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
+#include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_pm.h"
 #include "intel_sprite.h"
-#include "gt/intel_rps.h"
 
 static void intel_plane_state_reset(struct intel_plane_state *plane_state,
 				    struct intel_plane *plane)
@@ -395,7 +396,7 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 	const struct intel_plane_state *old_plane_state =
 		intel_atomic_get_old_plane_state(state, plane);
 	const struct intel_plane_state *new_master_plane_state;
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(i915, plane->pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, plane->pipe);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
@@ -818,7 +819,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	 * maximum clocks following a vblank miss (see do_rps_boost()).
 	 */
 	if (!state->rps_interactive) {
-		intel_rps_mark_interactive(&dev_priv->gt.rps, true);
+		intel_rps_mark_interactive(&to_gt(dev_priv)->rps, true);
 		state->rps_interactive = true;
 	}
 
@@ -852,7 +853,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 		return;
 
 	if (state->rps_interactive) {
-		intel_rps_mark_interactive(&dev_priv->gt.rps, false);
+		intel_rps_mark_interactive(&to_gt(dev_priv)->rps, false);
 		state->rps_interactive = false;
 	}
 

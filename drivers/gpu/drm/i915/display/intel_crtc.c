@@ -12,8 +12,8 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank_work.h>
 
-#include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "i9xx_plane.h"
 #include "icl_dsi.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
@@ -21,19 +21,51 @@
 #include "intel_crtc.h"
 #include "intel_cursor.h"
 #include "intel_display_debugfs.h"
+#include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
 #include "intel_pipe_crc.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
 #include "intel_vrr.h"
-#include "i9xx_plane.h"
 #include "skl_universal_plane.h"
 
 static void assert_vblank_disabled(struct drm_crtc *crtc)
 {
 	if (I915_STATE_WARN_ON(drm_crtc_vblank_get(crtc) == 0))
 		drm_crtc_vblank_put(crtc);
+}
+
+struct intel_crtc *intel_first_crtc(struct drm_i915_private *i915)
+{
+	return to_intel_crtc(drm_crtc_from_index(&i915->drm, 0));
+}
+
+struct intel_crtc *intel_crtc_for_pipe(struct drm_i915_private *i915,
+				       enum pipe pipe)
+{
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc(&i915->drm, crtc) {
+		if (crtc->pipe == pipe)
+			return crtc;
+	}
+
+	return NULL;
+}
+
+void intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc)
+{
+	drm_crtc_wait_one_vblank(&crtc->base);
+}
+
+void intel_wait_for_vblank_if_active(struct drm_i915_private *i915,
+				     enum pipe pipe)
+{
+	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, pipe);
+
+	if (crtc->active)
+		intel_crtc_wait_for_next_vblank(crtc);
 }
 
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
@@ -326,18 +358,6 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 					funcs, "pipe %c", pipe_name(pipe));
 	if (ret)
 		goto fail;
-
-	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->pipe_to_crtc_mapping) ||
-	       dev_priv->pipe_to_crtc_mapping[pipe] != NULL);
-	dev_priv->pipe_to_crtc_mapping[pipe] = crtc;
-
-	if (DISPLAY_VER(dev_priv) < 9) {
-		enum i9xx_plane_id i9xx_plane = primary->i9xx_plane;
-
-		BUG_ON(i9xx_plane >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
-		       dev_priv->plane_to_crtc_mapping[i9xx_plane] != NULL);
-		dev_priv->plane_to_crtc_mapping[i9xx_plane] = crtc;
-	}
 
 	if (DISPLAY_VER(dev_priv) >= 11)
 		drm_crtc_create_scaling_filter_property(&crtc->base,

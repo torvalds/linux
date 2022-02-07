@@ -877,6 +877,8 @@ i915_gem_object_ggtt_pin_ww(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
+	GEM_WARN_ON(!ww);
+
 	if (flags & PIN_MAPPABLE &&
 	    (!view || view->type == I915_GGTT_VIEW_NORMAL)) {
 		/*
@@ -936,10 +938,7 @@ new_vma:
 			return ERR_PTR(ret);
 	}
 
-	if (ww)
-		ret = i915_vma_pin_ww(vma, ww, size, alignment, flags | PIN_GLOBAL);
-	else
-		ret = i915_vma_pin(vma, size, alignment, flags | PIN_GLOBAL);
+	ret = i915_vma_pin_ww(vma, ww, size, alignment, flags | PIN_GLOBAL);
 
 	if (ret)
 		return ERR_PTR(ret);
@@ -957,6 +956,29 @@ new_vma:
 	}
 
 	return vma;
+}
+
+struct i915_vma * __must_check
+i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
+			 const struct i915_ggtt_view *view,
+			 u64 size, u64 alignment, u64 flags)
+{
+	struct i915_gem_ww_ctx ww;
+	struct i915_vma *ret;
+	int err;
+
+	for_i915_gem_ww(&ww, err, true) {
+		err = i915_gem_object_lock(obj, &ww);
+		if (err)
+			continue;
+
+		ret = i915_gem_object_ggtt_pin_ww(obj, &ww, view, size,
+						  alignment, flags);
+		if (IS_ERR(ret))
+			err = PTR_ERR(ret);
+	}
+
+	return err ? ERR_PTR(err) : ret;
 }
 
 int
@@ -1049,7 +1071,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	intel_uc_fetch_firmwares(&dev_priv->gt.uc);
+	intel_uc_fetch_firmwares(&to_gt(dev_priv)->uc);
 	intel_wopcm_init(&dev_priv->wopcm);
 
 	ret = i915_init_ggtt(dev_priv);
@@ -1069,7 +1091,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_init_clock_gating(dev_priv);
 
-	ret = intel_gt_init(&dev_priv->gt);
+	ret = intel_gt_init(to_gt(dev_priv));
 	if (ret)
 		goto err_unlock;
 
@@ -1085,7 +1107,7 @@ err_unlock:
 	i915_gem_drain_workqueue(dev_priv);
 
 	if (ret != -EIO)
-		intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
+		intel_uc_cleanup_firmwares(&to_gt(dev_priv)->uc);
 
 	if (ret == -EIO) {
 		/*
@@ -1093,10 +1115,10 @@ err_unlock:
 		 * as wedged. But we only want to do this when the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
-		if (!intel_gt_is_wedged(&dev_priv->gt)) {
+		if (!intel_gt_is_wedged(to_gt(dev_priv))) {
 			i915_probe_error(dev_priv,
 					 "Failed to initialize GPU, declaring it wedged!\n");
-			intel_gt_set_wedged(&dev_priv->gt);
+			intel_gt_set_wedged(to_gt(dev_priv));
 		}
 
 		/* Minimal basic recovery for KMS */
@@ -1127,7 +1149,7 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 	intel_wakeref_auto_fini(&dev_priv->ggtt.userfault_wakeref);
 
 	i915_gem_suspend_late(dev_priv);
-	intel_gt_driver_remove(&dev_priv->gt);
+	intel_gt_driver_remove(to_gt(dev_priv));
 	dev_priv->uabi_engines = RB_ROOT;
 
 	/* Flush any outstanding unpin_work. */
@@ -1138,9 +1160,9 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
-	intel_gt_driver_release(&dev_priv->gt);
+	intel_gt_driver_release(to_gt(dev_priv));
 
-	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
+	intel_uc_cleanup_firmwares(&to_gt(dev_priv)->uc);
 
 	i915_gem_drain_freed_objects(dev_priv);
 

@@ -3491,7 +3491,7 @@ static int be_msix_register(struct be_adapter *adapter)
 		if (status)
 			goto err_msix;
 
-		irq_set_affinity_hint(vec, eqo->affinity_mask);
+		irq_update_affinity_hint(vec, eqo->affinity_mask);
 	}
 
 	return 0;
@@ -3552,7 +3552,7 @@ static void be_irq_unregister(struct be_adapter *adapter)
 	/* MSIx */
 	for_all_evt_queues(adapter, eqo, i) {
 		vec = be_msix_vec_get(adapter, eqo);
-		irq_set_affinity_hint(vec, NULL);
+		irq_update_affinity_hint(vec, NULL);
 		free_irq(vec, eqo);
 	}
 
@@ -5194,7 +5194,8 @@ static void be_netdev_init(struct net_device *netdev)
 		netdev->hw_features |= NETIF_F_RXHASH;
 
 	netdev->features |= netdev->hw_features |
-		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER;
+		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER |
+		NETIF_F_HIGHDMA;
 
 	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
@@ -5840,14 +5841,9 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	status = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (!status) {
-		netdev->features |= NETIF_F_HIGHDMA;
-	} else {
-		status = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (status) {
-			dev_err(&pdev->dev, "Could not set PCI DMA Mask\n");
-			goto free_netdev;
-		}
+	if (status) {
+		dev_err(&pdev->dev, "Could not set PCI DMA Mask\n");
+		goto free_netdev;
 	}
 
 	status = pci_enable_pcie_error_reporting(pdev);

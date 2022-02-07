@@ -207,4 +207,6 @@ static inline void pentium_machine_check(struct pt_regs *regs) {}
 static inline void winchip_machine_check(struct pt_regs *regs) {}
 #endif
 
+noinstr u64 mce_rdmsrl(u32 msr);
+
 #endif /* __X86_MCE_INTERNAL_H__ */

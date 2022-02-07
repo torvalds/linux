@@ -273,6 +273,31 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+int module_trampoline_target(struct module *mod, unsigned long addr,
+			     unsigned long *target)
+{
+	unsigned int jmp[4];
+
+	/* Find where the trampoline jumps to */
+	if (copy_from_kernel_nofault(jmp, (void *)addr, sizeof(jmp)))
+		return -EFAULT;
+
+	/* verify that this is what we expect it to be */
+	if ((jmp[0] & 0xffff0000) != PPC_RAW_LIS(_R12, 0) ||
+	    (jmp[1] & 0xffff0000) != PPC_RAW_ADDI(_R12, _R12, 0) ||
+	    jmp[2] != PPC_RAW_MTCTR(_R12) ||
+	    jmp[3] != PPC_RAW_BCTR())
+		return -EINVAL;
+
+	addr = (jmp[1] & 0xffff) | ((jmp[0] & 0xffff) << 16);
+	if (addr & 0x8000)
+		addr -= 0x10000;
+
+	*target = addr;
+
+	return 0;
+}
+
 int module_finalize_ftrace(struct module *module, const Elf_Shdr *sechdrs)
 {
 	module->arch.tramp = do_plt_call(module->core_layout.base,
@@ -280,6 +305,14 @@ int module_finalize_ftrace(struct module *module, const Elf_Shdr *sechdrs)
 					 sechdrs, module);
 	if (!module->arch.tramp)
 		return -ENOENT;
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	module->arch.tramp_regs = do_plt_call(module->core_layout.base,
+					      (unsigned long)ftrace_regs_caller,
+					      sechdrs, module);
+	if (!module->arch.tramp_regs)
+		return -ENOENT;
+#endif
 
 	return 0;
 }

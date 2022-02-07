@@ -48,6 +48,19 @@ config LEDS_MAX77693
 	  multifunction device. It has build in control for two leds in flash
 	  and torch mode.
 
+config LEDS_MT6360
+	tristate "LED Support for Mediatek MT6360 PMIC"
+	depends on LEDS_CLASS && OF
+	depends on LEDS_CLASS_FLASH || !LEDS_CLASS_FLASH
+	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	depends on MFD_MT6360
+	help
+	  This option enables support for dual Flash LED drivers found on
+	  Mediatek MT6360 PMIC.
+	  Independent current sources supply for each flash LED support torch
+	  and strobe mode.
+
 config LEDS_RT4505
 	tristate "LED support for RT4505 flashlight controller"
 	depends on I2C && OF

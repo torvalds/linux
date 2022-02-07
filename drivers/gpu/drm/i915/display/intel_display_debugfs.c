@@ -40,52 +40,6 @@ static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int i915_fbc_status(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_fbc *fbc = &dev_priv->fbc;
-	intel_wakeref_t wakeref;
-
-	if (!HAS_FBC(dev_priv))
-		return -ENODEV;
-
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-	mutex_lock(&fbc->lock);
-
-	if (intel_fbc_is_active(fbc)) {
-		seq_puts(m, "FBC enabled\n");
-		seq_printf(m, "Compressing: %s\n",
-			   yesno(intel_fbc_is_compressing(fbc)));
-	} else {
-		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
-	}
-
-	mutex_unlock(&fbc->lock);
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-
-	return 0;
-}
-
-static int i915_fbc_false_color_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-
-	*val = dev_priv->fbc.false_color;
-
-	return 0;
-}
-
-static int i915_fbc_false_color_set(void *data, u64 val)
-{
-	struct drm_i915_private *dev_priv = data;
-
-	return intel_fbc_set_false_color(&dev_priv->fbc, val);
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_fbc_false_color_fops,
-			i915_fbc_false_color_get, i915_fbc_false_color_set,
-			"%llu\n");
-
 static int i915_ips_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -2044,9 +1998,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 			return ret;
 	}
 
-	ret = intel_fbc_reset_underrun(&dev_priv->fbc);
-	if (ret)
-		return ret;
+	intel_fbc_reset_underrun(dev_priv);
 
 	return cnt;
 }
@@ -2060,7 +2012,6 @@ static const struct file_operations i915_fifo_underrun_reset_ops = {
 
 static const struct drm_info_list intel_display_debugfs_list[] = {
 	{"i915_frontbuffer_tracking", i915_frontbuffer_tracking, 0},
-	{"i915_fbc_status", i915_fbc_status, 0},
 	{"i915_ips_status", i915_ips_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_opregion", i915_opregion, 0},
@@ -2085,7 +2036,6 @@ static const struct {
 	{"i915_pri_wm_latency", &i915_pri_wm_latency_fops},
 	{"i915_spr_wm_latency", &i915_spr_wm_latency_fops},
 	{"i915_cur_wm_latency", &i915_cur_wm_latency_fops},
-	{"i915_fbc_false_color", &i915_fbc_false_color_fops},
 	{"i915_dp_test_data", &i915_displayport_test_data_fops},
 	{"i915_dp_test_type", &i915_displayport_test_type_fops},
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
@@ -2112,6 +2062,8 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	drm_debugfs_create_files(intel_display_debugfs_list,
 				 ARRAY_SIZE(intel_display_debugfs_list),
 				 minor->debugfs_root, minor);
+
+	intel_fbc_debugfs_register(i915);
 }
 
 static int i915_panel_show(struct seq_file *m, void *data)

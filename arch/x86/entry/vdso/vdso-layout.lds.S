@@ -77,7 +77,6 @@ SECTIONS
 
 	.text		: {
 		*(.text*)
-		*(.fixup)
 	}						:text	=0x90909090,
 
 

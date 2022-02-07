@@ -236,7 +236,6 @@ bool cobalt_cpld_set_freq(struct cobalt *cobalt, unsigned f_out)
 	u8 n1, hsdiv;
 	u8 regs[6];
 	int found = 0;
-	u16 clock_ctrl;
 	int retries = 3;
 
 	for (i = 0; i < ARRAY_SIZE(multipliers); i++) {
@@ -260,9 +259,7 @@ bool cobalt_cpld_set_freq(struct cobalt *cobalt, unsigned f_out)
 	hsdiv = multipliers[i_best].hsdiv - 4;
 	rfreq = div_u64(dco << 28, f_xtal);
 
-	clock_ctrl = cpld_read(cobalt, SI570_CLOCK_CTRL);
-	clock_ctrl |= S01755_REG_CLOCK_CTRL_BITMAP_CLKHSMA_FPGA_CTRL;
-	clock_ctrl |= S01755_REG_CLOCK_CTRL_BITMAP_CLKHSMA_EN;
+	cpld_read(cobalt, SI570_CLOCK_CTRL);
 
 	regs[0] = (hsdiv << 5) | (n1 >> 2);
 	regs[1] = ((n1 & 0x3) << 6) | (rfreq >> 32);

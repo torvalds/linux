@@ -147,6 +147,7 @@ lan_init_chip(struct parisc_device *dev)
 	struct	net_device *netdevice;
 	struct i596_private *lp;
 	int retval = -ENOMEM;
+	u8 addr[ETH_ALEN];
 	int i;
 
 	if (!dev->irq) {
@@ -167,13 +168,14 @@ lan_init_chip(struct parisc_device *dev)
 	netdevice->base_addr = dev->hpa.start;
 	netdevice->irq = dev->irq;
 
-	if (pdc_lan_station_id(netdevice->dev_addr, netdevice->base_addr)) {
+	if (pdc_lan_station_id(addr, netdevice->base_addr)) {
 		for (i = 0; i < 6; i++) {
-			netdevice->dev_addr[i] = gsc_readb(LAN_PROM_ADDR + i);
+			addr[i] = gsc_readb(LAN_PROM_ADDR + i);
 		}
 		printk(KERN_INFO
 		       "%s: MAC of HP700 LAN read from EEPROM\n", __FILE__);
 	}
+	eth_hw_addr_set(netdevice, addr);
 
 	lp = netdev_priv(netdevice);
 	lp->options = dev->id.sversion == 0x72 ? OPT_SWAP_PORT : 0;

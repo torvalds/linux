@@ -298,25 +298,23 @@ static u8 fix_header(struct _adapter *adapter, u8 header, u16 header_addr)
 			continue;
 		}
 		for (i = 0; i < PGPKG_MAX_WORDS; i++) {
-			if (BIT(i) & word_en) {
-				if (BIT(i) & pkt.word_en) {
-					if (efuse_one_byte_read(
-							adapter, addr,
+			if (!(BIT(i) & word_en))
+				continue;
+			if (BIT(i) & pkt.word_en) {
+				if (efuse_one_byte_read(adapter,
+							addr,
 							&value))
-						pkt.data[i * 2] = value;
-					else
-						return false;
-					if (efuse_one_byte_read(
-							adapter,
+					pkt.data[i * 2] = value;
+				else
+					return false;
+				if (efuse_one_byte_read(adapter,
 							addr + 1,
 							&value))
-						pkt.data[i * 2 + 1] =
-							value;
-					else
-						return false;
-				}
-				addr += 2;
+					pkt.data[i * 2 + 1] = value;
+				else
+					return false;
 			}
+			addr += 2;
 		}
 	}
 	if (addr != header_addr)

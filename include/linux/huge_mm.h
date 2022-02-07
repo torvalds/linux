@@ -274,6 +274,15 @@ static inline int thp_nr_pages(struct page *page)
 	return 1;
 }
 
+/**
+ * folio_test_pmd_mappable - Can we map this folio with a PMD?
+ * @folio: The folio to test
+ */
+static inline bool folio_test_pmd_mappable(struct folio *folio)
+{
+	return folio_order(folio) >= HPAGE_PMD_ORDER;
+}
+
 struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
 		pmd_t *pmd, int flags, struct dev_pagemap **pgmap);
 struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
@@ -337,6 +346,11 @@ static inline int thp_nr_pages(struct page *page)
 {
 	VM_BUG_ON_PGFLAGS(PageTail(page), page);
 	return 1;
+}
+
+static inline bool folio_test_pmd_mappable(struct folio *folio)
+{
+	return false;
 }
 
 static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)

@@ -700,6 +700,9 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 	cl_dbg(dev, cl, "unlink client");
 
+	if (cl->state == MEI_FILE_UNINITIALIZED)
+		return 0;
+
 	if (dev->open_handle_count > 0)
 		dev->open_handle_count--;
 
@@ -2327,6 +2330,8 @@ int mei_cl_dma_alloc_and_map(struct mei_cl *cl, const struct file *fp,
 		list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	}
 
+	cl->status = 0;
+
 	mutex_unlock(&dev->device_lock);
 	wait_event_timeout(cl->wait,
 			   cl->dma_mapped || cl->status,
@@ -2403,6 +2408,8 @@ int mei_cl_dma_unmap(struct mei_cl *cl, const struct file *fp)
 		}
 		list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	}
+
+	cl->status = 0;
 
 	mutex_unlock(&dev->device_lock);
 	wait_event_timeout(cl->wait,

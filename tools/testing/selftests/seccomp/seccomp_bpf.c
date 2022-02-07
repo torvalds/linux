@@ -1487,7 +1487,7 @@ TEST_F(precedence, log_is_fifth_in_any_order)
 #define PTRACE_EVENT_SECCOMP 7
 #endif
 
-#define IS_SECCOMP_EVENT(status) ((status >> 16) == PTRACE_EVENT_SECCOMP)
+#define PTRACE_EVENT_MASK(status) ((status) >> 16)
 bool tracer_running;
 void tracer_stop(int sig)
 {
@@ -1539,12 +1539,22 @@ void start_tracer(struct __test_metadata *_metadata, int fd, pid_t tracee,
 
 		if (wait(&status) != tracee)
 			continue;
-		if (WIFSIGNALED(status) || WIFEXITED(status))
-			/* Child is dead. Time to go. */
-			return;
 
-		/* Check if this is a seccomp event. */
-		ASSERT_EQ(!ptrace_syscall, IS_SECCOMP_EVENT(status));
+		if (WIFSIGNALED(status)) {
+			/* Child caught a fatal signal. */
+			return;
+		}
+		if (WIFEXITED(status)) {
+			/* Child exited with code. */
+			return;
+		}
+
+		/* Check if we got an expected event. */
+		ASSERT_EQ(WIFCONTINUED(status), false);
+		ASSERT_EQ(WIFSTOPPED(status), true);
+		ASSERT_EQ(WSTOPSIG(status) & SIGTRAP, SIGTRAP) {
+			TH_LOG("Unexpected WSTOPSIG: %d", WSTOPSIG(status));
+		}
 
 		tracer_func(_metadata, tracee, status, args);
 
@@ -1961,6 +1971,11 @@ void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
 	int ret;
 	unsigned long msg;
 
+	EXPECT_EQ(PTRACE_EVENT_MASK(status), PTRACE_EVENT_SECCOMP) {
+		TH_LOG("Unexpected ptrace event: %d", PTRACE_EVENT_MASK(status));
+		return;
+	}
+
 	/* Make sure we got the right message. */
 	ret = ptrace(PTRACE_GETEVENTMSG, tracee, NULL, &msg);
 	EXPECT_EQ(0, ret);
@@ -2010,6 +2025,11 @@ void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 	long syscall_nr_val, syscall_ret_val;
 	long *syscall_nr = NULL, *syscall_ret = NULL;
 	FIXTURE_DATA(TRACE_syscall) *self = args;
+
+	EXPECT_EQ(WSTOPSIG(status) & 0x80, 0x80) {
+		TH_LOG("Unexpected WSTOPSIG: %d", WSTOPSIG(status));
+		return;
+	}
 
 	/*
 	 * The traditional way to tell PTRACE_SYSCALL entry/exit
@@ -2128,6 +2148,7 @@ FIXTURE_SETUP(TRACE_syscall)
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
 
+	/* Do not install seccomp rewrite filters, as we'll use ptrace instead. */
 	if (variant->use_ptrace)
 		return;
 
@@ -2184,6 +2205,29 @@ TEST_F(TRACE_syscall, syscall_faked)
 {
 	/* Tracer skips the gettid syscall and store altered return value. */
 	EXPECT_SYSCALL_RETURN(45000, syscall(__NR_gettid));
+}
+
+TEST_F_SIGNAL(TRACE_syscall, kill_immediate, SIGSYS)
+{
+	struct sock_filter filter[] = {
+		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
+			offsetof(struct seccomp_data, nr)),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_mknodat, 0, 1),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL_THREAD),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog prog = {
+		.len = (unsigned short)ARRAY_SIZE(filter),
+		.filter = filter,
+	};
+	long ret;
+
+	/* Install "kill on mknodat" filter. */
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog, 0, 0);
+	ASSERT_EQ(0, ret);
+
+	/* This should immediately die with SIGSYS, regardless of tracer. */
+	EXPECT_EQ(-1, syscall(__NR_mknodat, -1, NULL, 0, 0));
 }
 
 TEST_F(TRACE_syscall, skip_after)
@@ -4087,7 +4131,7 @@ TEST(user_notification_addfd)
 	 * lowest available fd to be assigned here.
 	 */
 	EXPECT_EQ(fd, nextfd++);
-	EXPECT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
+	ASSERT_EQ(filecmp(getpid(), pid, memfd, fd), 0);
 
 	/*
 	 * This sets the ID of the ADD FD to the last request plus 1. The

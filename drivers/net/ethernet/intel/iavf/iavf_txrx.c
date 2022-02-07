@@ -865,6 +865,9 @@ static void iavf_receive_skb(struct iavf_ring *rx_ring,
 	if ((rx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    (vlan_tag & VLAN_VID_MASK))
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
+	else if ((rx_ring->netdev->features & NETIF_F_HW_VLAN_STAG_RX) &&
+		 vlan_tag & VLAN_VID_MASK)
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD), vlan_tag);
 
 	napi_gro_receive(&q_vector->napi, skb);
 }
@@ -1363,7 +1366,7 @@ static struct sk_buff *iavf_build_skb(struct iavf_ring *rx_ring,
 	net_prefetch(va);
 
 	/* build an skb around the page buffer */
-	skb = build_skb(va - IAVF_SKB_PAD, truesize);
+	skb = napi_build_skb(va - IAVF_SKB_PAD, truesize);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -1468,7 +1471,7 @@ static int iavf_clean_rx_irq(struct iavf_ring *rx_ring, int budget)
 		struct iavf_rx_buffer *rx_buffer;
 		union iavf_rx_desc *rx_desc;
 		unsigned int size;
-		u16 vlan_tag;
+		u16 vlan_tag = 0;
 		u8 rx_ptype;
 		u64 qword;
 
@@ -1551,9 +1554,13 @@ static int iavf_clean_rx_irq(struct iavf_ring *rx_ring, int budget)
 		/* populate checksum, VLAN, and protocol */
 		iavf_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 
-
-		vlan_tag = (qword & BIT(IAVF_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
-			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
+		if (qword & BIT(IAVF_RX_DESC_STATUS_L2TAG1P_SHIFT) &&
+		    rx_ring->flags & IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1)
+			vlan_tag = le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1);
+		if (rx_desc->wb.qword2.ext_status &
+		    cpu_to_le16(BIT(IAVF_RX_DESC_EXT_STATUS_L2TAG2P_SHIFT)) &&
+		    rx_ring->flags & IAVF_RXR_FLAGS_VLAN_TAG_LOC_L2TAG2_2)
+			vlan_tag = le16_to_cpu(rx_desc->wb.qword2.l2tag2_2);
 
 		iavf_trace(clean_rx_irq_rx, rx_ring, rx_desc, skb);
 		iavf_receive_skb(rx_ring, skb, vlan_tag);
@@ -1766,7 +1773,7 @@ tx_only:
 	if (likely(napi_complete_done(napi, work_done)))
 		iavf_update_enable_itr(vsi, q_vector);
 
-	return min(work_done, budget - 1);
+	return min_t(int, work_done, budget - 1);
 }
 
 /**
@@ -1781,46 +1788,29 @@ tx_only:
  * Returns error code indicate the frame should be dropped upon error and the
  * otherwise  returns 0 to indicate the flags has been set properly.
  **/
-static inline int iavf_tx_prepare_vlan_flags(struct sk_buff *skb,
-					     struct iavf_ring *tx_ring,
-					     u32 *flags)
+static void iavf_tx_prepare_vlan_flags(struct sk_buff *skb,
+				       struct iavf_ring *tx_ring, u32 *flags)
 {
-	__be16 protocol = skb->protocol;
 	u32  tx_flags = 0;
 
-	if (protocol == htons(ETH_P_8021Q) &&
-	    !(tx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_TX)) {
-		/* When HW VLAN acceleration is turned off by the user the
-		 * stack sets the protocol to 8021q so that the driver
-		 * can take any steps required to support the SW only
-		 * VLAN handling.  In our case the driver doesn't need
-		 * to take any further steps so just set the protocol
-		 * to the encapsulated ethertype.
-		 */
-		skb->protocol = vlan_get_protocol(skb);
-		goto out;
-	}
 
-	/* if we have a HW VLAN tag being added, default to the HW one */
-	if (skb_vlan_tag_present(skb)) {
-		tx_flags |= skb_vlan_tag_get(skb) << IAVF_TX_FLAGS_VLAN_SHIFT;
+	/* stack will only request hardware VLAN insertion offload for protocols
+	 * that the driver supports and has enabled
+	 */
+	if (!skb_vlan_tag_present(skb))
+		return;
+
+	tx_flags |= skb_vlan_tag_get(skb) << IAVF_TX_FLAGS_VLAN_SHIFT;
+	if (tx_ring->flags & IAVF_TXR_FLAGS_VLAN_TAG_LOC_L2TAG2) {
+		tx_flags |= IAVF_TX_FLAGS_HW_OUTER_SINGLE_VLAN;
+	} else if (tx_ring->flags & IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1) {
 		tx_flags |= IAVF_TX_FLAGS_HW_VLAN;
-	/* else if it is a SW VLAN, check the next protocol and store the tag */
-	} else if (protocol == htons(ETH_P_8021Q)) {
-		struct vlan_hdr *vhdr, _vhdr;
-
-		vhdr = skb_header_pointer(skb, ETH_HLEN, sizeof(_vhdr), &_vhdr);
-		if (!vhdr)
-			return -EINVAL;
-
-		protocol = vhdr->h_vlan_encapsulated_proto;
-		tx_flags |= ntohs(vhdr->h_vlan_TCI) << IAVF_TX_FLAGS_VLAN_SHIFT;
-		tx_flags |= IAVF_TX_FLAGS_SW_VLAN;
+	} else {
+		dev_dbg(tx_ring->dev, "Unsupported Tx VLAN tag location requested\n");
+		return;
 	}
 
-out:
 	*flags = tx_flags;
-	return 0;
 }
 
 /**
@@ -2440,8 +2430,13 @@ static netdev_tx_t iavf_xmit_frame_ring(struct sk_buff *skb,
 	first->gso_segs = 1;
 
 	/* prepare the xmit flags */
-	if (iavf_tx_prepare_vlan_flags(skb, tx_ring, &tx_flags))
-		goto out_drop;
+	iavf_tx_prepare_vlan_flags(skb, tx_ring, &tx_flags);
+	if (tx_flags & IAVF_TX_FLAGS_HW_OUTER_SINGLE_VLAN) {
+		cd_type_cmd_tso_mss |= IAVF_TX_CTX_DESC_IL2TAG2 <<
+			IAVF_TXD_CTX_QW1_CMD_SHIFT;
+		cd_l2tag2 = (tx_flags & IAVF_TX_FLAGS_VLAN_MASK) >>
+			IAVF_TX_FLAGS_VLAN_SHIFT;
+	}
 
 	/* obtain protocol of skb */
 	protocol = vlan_get_protocol(skb);

@@ -34,7 +34,7 @@
  * 1) Energy break even point
  * 2) Performance impact
  * 3) Latency tolerance (from pmqos infrastructure)
- * These these three factors are treated independently.
+ * These three factors are treated independently.
  *
  * Energy break even point
  * -----------------------

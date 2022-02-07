@@ -206,6 +206,13 @@
 		clock-output-names = "sysclk";
 	};
 
+	reboot {
+		compatible = "syscon-reboot";
+		regmap = <&reset>;
+		offset = <0x0>;
+		mask = <0x02>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -224,6 +231,11 @@
 			compatible = "fsl,ls1088a-dcfg", "syscon";
 			reg = <0x0 0x1e00000 0x0 0x10000>;
 			little-endian;
+		};
+
+		reset: syscon@1e60000 {
+			compatible = "fsl,ls1088a-reset", "syscon";
+			reg = <0x0 0x1e60000 0x0 0x10000>;
 		};
 
 		isc: syscon@1f70000 {
@@ -485,6 +497,7 @@
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
+			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
 			status = "disabled";
 		};
 

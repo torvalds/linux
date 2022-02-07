@@ -63,6 +63,13 @@
 #define mmGCEA_PROBE_MAP                        0x070c
 #define mmGCEA_PROBE_MAP_BASE_IDX               0
 
+#define GFX9_RLCG_GC_WRITE_OLD			(0x8 << 28)
+#define GFX9_RLCG_GC_WRITE			(0x0 << 28)
+#define GFX9_RLCG_GC_READ			(0x1 << 28)
+#define GFX9_RLCG_VFGATE_DISABLED		0x4000000
+#define GFX9_RLCG_WRONG_OPERATION_TYPE		0x2000000
+#define GFX9_RLCG_NOT_IN_RANGE			0x1000000
+
 MODULE_FIRMWARE("amdgpu/vega10_ce.bin");
 MODULE_FIRMWARE("amdgpu/vega10_pfp.bin");
 MODULE_FIRMWARE("amdgpu/vega10_me.bin");
@@ -739,7 +746,7 @@ static const u32 GFX_RLC_SRM_INDEX_CNTL_DATA_OFFSETS[] =
 	mmRLC_SRM_INDEX_CNTL_DATA_7 - mmRLC_SRM_INDEX_CNTL_DATA_0,
 };
 
-static void gfx_v9_0_rlcg_w(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag)
+static u32 gfx_v9_0_rlcg_rw(struct amdgpu_device *adev, u32 offset, u32 v, uint32_t flag)
 {
 	static void *scratch_reg0;
 	static void *scratch_reg1;
@@ -748,20 +755,19 @@ static void gfx_v9_0_rlcg_w(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 	static void *spare_int;
 	static uint32_t grbm_cntl;
 	static uint32_t grbm_idx;
+	uint32_t i = 0;
+	uint32_t retries = 50000;
+	u32 ret = 0;
+	u32 tmp;
 
 	scratch_reg0 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG0)*4;
 	scratch_reg1 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG1)*4;
-	scratch_reg2 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG2)*4;
-	scratch_reg3 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG3)*4;
+	scratch_reg2 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG2_BASE_IDX] + mmSCRATCH_REG2)*4;
+	scratch_reg3 = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG3_BASE_IDX] + mmSCRATCH_REG3)*4;
 	spare_int = adev->rmmio + (adev->reg_offset[GC_HWIP][0][mmRLC_SPARE_INT_BASE_IDX] + mmRLC_SPARE_INT)*4;
 
 	grbm_cntl = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_CNTL_BASE_IDX] + mmGRBM_GFX_CNTL;
 	grbm_idx = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_INDEX_BASE_IDX] + mmGRBM_GFX_INDEX;
-
-	if (amdgpu_sriov_runtime(adev)) {
-		pr_err("shouldn't call rlcg write register during runtime\n");
-		return;
-	}
 
 	if (offset == grbm_cntl || offset == grbm_idx) {
 		if (offset  == grbm_cntl)
@@ -771,41 +777,95 @@ static void gfx_v9_0_rlcg_w(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 
 		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
 	} else {
-		uint32_t i = 0;
-		uint32_t retries = 50000;
-
+		/*
+		 * SCRATCH_REG0 	= read/write value
+		 * SCRATCH_REG1[30:28]	= command
+		 * SCRATCH_REG1[19:0]	= address in dword
+		 * SCRATCH_REG1[26:24]	= Error reporting
+		 */
 		writel(v, scratch_reg0);
-		writel(offset | 0x80000000, scratch_reg1);
+		writel(offset | flag, scratch_reg1);
 		writel(1, spare_int);
-		for (i = 0; i < retries; i++) {
-			u32 tmp;
 
+		for (i = 0; i < retries; i++) {
 			tmp = readl(scratch_reg1);
-			if (!(tmp & 0x80000000))
+			if (!(tmp & flag))
 				break;
 
 			udelay(10);
 		}
-		if (i >= retries)
-			pr_err("timeout: rlcg program reg:0x%05x failed !\n", offset);
+
+		if (i >= retries) {
+			if (amdgpu_sriov_reg_indirect_gc(adev)) {
+				if (tmp & GFX9_RLCG_VFGATE_DISABLED)
+					pr_err("The vfgate is disabled, program reg:0x%05x failed!\n", offset);
+				else if (tmp & GFX9_RLCG_WRONG_OPERATION_TYPE)
+					pr_err("Wrong operation type, program reg:0x%05x failed!\n", offset);
+				else if (tmp & GFX9_RLCG_NOT_IN_RANGE)
+					pr_err("The register is not in range, program reg:0x%05x failed!\n", offset);
+				else
+					pr_err("Unknown error type, program reg:0x%05x failed!\n", offset);
+			} else
+				pr_err("timeout: rlcg program reg:0x%05x failed!\n", offset);
+		}
 	}
 
+	ret = readl(scratch_reg0);
+
+	return ret;
+}
+
+static bool gfx_v9_0_get_rlcg_flag(struct amdgpu_device *adev, u32 acc_flags, u32 hwip,
+				int write, u32 *rlcg_flag)
+{
+
+	switch (hwip) {
+	case GC_HWIP:
+		if (amdgpu_sriov_reg_indirect_gc(adev)) {
+			*rlcg_flag = write ? GFX9_RLCG_GC_WRITE : GFX9_RLCG_GC_READ;
+
+			return true;
+		/* only in new version, AMDGPU_REGS_NO_KIQ and AMDGPU_REGS_RLC enabled simultaneously */
+		} else if ((acc_flags & AMDGPU_REGS_RLC) && !(acc_flags & AMDGPU_REGS_NO_KIQ) && write) {
+			*rlcg_flag = GFX9_RLCG_GC_WRITE_OLD;
+			return true;
+		}
+
+		break;
+	default:
+		return false;
+	}
+
+	return false;
+}
+
+static u32 gfx_v9_0_sriov_rreg(struct amdgpu_device *adev, u32 offset, u32 acc_flags, u32 hwip)
+{
+	u32 rlcg_flag;
+
+	if (!amdgpu_sriov_runtime(adev) && gfx_v9_0_get_rlcg_flag(adev, acc_flags, hwip, 0, &rlcg_flag))
+		return gfx_v9_0_rlcg_rw(adev, offset, 0, rlcg_flag);
+
+	if (acc_flags & AMDGPU_REGS_NO_KIQ)
+		return RREG32_NO_KIQ(offset);
+	else
+		return RREG32(offset);
 }
 
 static void gfx_v9_0_sriov_wreg(struct amdgpu_device *adev, u32 offset,
-			       u32 v, u32 acc_flags, u32 hwip)
+			       u32 value, u32 acc_flags, u32 hwip)
 {
-	if ((acc_flags & AMDGPU_REGS_RLC) &&
-	    amdgpu_sriov_fullaccess(adev)) {
-		gfx_v9_0_rlcg_w(adev, offset, v, acc_flags);
+	u32 rlcg_flag;
 
+	if (!amdgpu_sriov_runtime(adev) && gfx_v9_0_get_rlcg_flag(adev, acc_flags, hwip, 1, &rlcg_flag)) {
+		gfx_v9_0_rlcg_rw(adev, offset, value, rlcg_flag);
 		return;
 	}
 
 	if (acc_flags & AMDGPU_REGS_NO_KIQ)
-		WREG32_NO_KIQ(offset, v);
+		WREG32_NO_KIQ(offset, value);
 	else
-		WREG32(offset, v);
+		WREG32(offset, value);
 }
 
 #define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
@@ -3070,8 +3130,8 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 			      AMD_PG_SUPPORT_CP |
 			      AMD_PG_SUPPORT_GDS |
 			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
-		WREG32(mmRLC_JUMP_TABLE_RESTORE,
-		       adev->gfx.rlc.cp_table_gpu_addr >> 8);
+		WREG32_SOC15(GC, 0, mmRLC_JUMP_TABLE_RESTORE,
+			     adev->gfx.rlc.cp_table_gpu_addr >> 8);
 		gfx_v9_0_init_gfx_power_gating(adev);
 	}
 }
@@ -5135,7 +5195,7 @@ static void gfx_v9_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 	if (amdgpu_sriov_is_pp_one_vf(adev))
 		data = RREG32_NO_KIQ(reg);
 	else
-		data = RREG32(reg);
+		data = RREG32_SOC15(GC, 0, mmRLC_SPM_MC_CNTL);
 
 	data &= ~RLC_SPM_MC_CNTL__RLC_SPM_VMID_MASK;
 	data |= (vmid & RLC_SPM_MC_CNTL__RLC_SPM_VMID_MASK) << RLC_SPM_MC_CNTL__RLC_SPM_VMID__SHIFT;
@@ -5191,6 +5251,7 @@ static const struct amdgpu_rlc_funcs gfx_v9_0_rlc_funcs = {
 	.start = gfx_v9_0_rlc_start,
 	.update_spm_vmid = gfx_v9_0_update_spm_vmid,
 	.sriov_wreg = gfx_v9_0_sriov_wreg,
+	.sriov_rreg = gfx_v9_0_sriov_rreg,
 	.is_rlcg_access_range = gfx_v9_0_is_rlcg_access_range,
 };
 
@@ -5796,16 +5857,16 @@ static void gfx_v9_0_set_compute_eop_interrupt_state(struct amdgpu_device *adev,
 
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		mec_int_cntl = RREG32(mec_int_cntl_reg);
+		mec_int_cntl = RREG32_SOC15_IP(GC,mec_int_cntl_reg);
 		mec_int_cntl = REG_SET_FIELD(mec_int_cntl, CP_ME1_PIPE0_INT_CNTL,
 					     TIME_STAMP_INT_ENABLE, 0);
-		WREG32(mec_int_cntl_reg, mec_int_cntl);
+		WREG32_SOC15_IP(GC, mec_int_cntl_reg, mec_int_cntl);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		mec_int_cntl = RREG32(mec_int_cntl_reg);
+		mec_int_cntl = RREG32_SOC15_IP(GC, mec_int_cntl_reg);
 		mec_int_cntl = REG_SET_FIELD(mec_int_cntl, CP_ME1_PIPE0_INT_CNTL,
 					     TIME_STAMP_INT_ENABLE, 1);
-		WREG32(mec_int_cntl_reg, mec_int_cntl);
+		WREG32_SOC15_IP(GC, mec_int_cntl_reg, mec_int_cntl);
 		break;
 	default:
 		break;

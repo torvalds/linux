@@ -503,7 +503,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 
 	if (dev->gpu) {
 		log_max_watch_addr =
-			__ilog2_u32(dev->gpu->device_info->num_of_watch_points);
+			__ilog2_u32(dev->gpu->device_info.num_of_watch_points);
 
 		if (log_max_watch_addr) {
 			dev->node_props.capability |=
@@ -1285,6 +1285,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	void *crat_image = NULL;
 	size_t image_size = 0;
 	int proximity_domain;
+	int i;
+	const char *asic_name = amdgpu_asic_name[gpu->adev->asic_type];
 
 	INIT_LIST_HEAD(&temp_topology_device_list);
 
@@ -1370,13 +1372,17 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	amdgpu_amdkfd_get_cu_info(dev->gpu->adev, &cu_info);
 
-	strncpy(dev->node_props.name, gpu->device_info->asic_name,
-			KFD_TOPOLOGY_PUBLIC_NAME_SIZE);
+	for (i = 0; i < KFD_TOPOLOGY_PUBLIC_NAME_SIZE-1; i++) {
+		dev->node_props.name[i] = __tolower(asic_name[i]);
+		if (asic_name[i] == '\0')
+			break;
+	}
+	dev->node_props.name[i] = '\0';
 
 	dev->node_props.simd_arrays_per_engine =
 		cu_info.num_shader_arrays_per_engine;
 
-	dev->node_props.gfx_target_version = gpu->device_info->gfx_target_version;
+	dev->node_props.gfx_target_version = gpu->device_info.gfx_target_version;
 	dev->node_props.vendor_id = gpu->pdev->vendor;
 	dev->node_props.device_id = gpu->pdev->device;
 	dev->node_props.capability |=
@@ -1396,7 +1402,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.num_sdma_xgmi_engines =
 					kfd_get_num_xgmi_sdma_engines(gpu);
 	dev->node_props.num_sdma_queues_per_engine =
-				gpu->device_info->num_sdma_queues_per_engine;
+				gpu->device_info.num_sdma_queues_per_engine;
 	dev->node_props.num_gws = (dev->gpu->gws &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
 		dev->gpu->adev->gds.gws_size : 0;
@@ -1572,7 +1578,7 @@ void kfd_double_confirm_iommu_support(struct kfd_dev *gpu)
 
 	gpu->use_iommu_v2 = false;
 
-	if (!gpu->device_info->needs_iommu_device)
+	if (!gpu->device_info.needs_iommu_device)
 		return;
 
 	down_read(&topology_lock);

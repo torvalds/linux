@@ -280,7 +280,7 @@
 	/*L0-L7*/	"","","","","","","","",
 	/*M0-M7*/	"","","","","","","","",
 	/*N0-N7*/	"","","","","","","","",
-	/*O0-O7*/	"","","","","","","","",
+	/*O0-O7*/	"","","","usb-power","","","","",
 	/*P0-P7*/	"","","","","led-pcieslot-power","","","",
 	/*Q0-Q7*/	"","","regulator-standby-faulted","","","","","",
 	/*R0-R7*/	"bmc-tpm-reset","power-chassis-control","power-chassis-good","","","I2C_FLASH_MICRO_N","","",
@@ -292,6 +292,12 @@
 	/*X0-X7*/	"","","","","","","","",
 	/*Y0-Y7*/	"","","","","","","","",
 	/*Z0-Z7*/   "","","","","","","","";
+
+	usb_power {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(O, 3) GPIO_ACTIVE_LOW>;
+		output-high;
+	};
 };
 
 &i2c0 {
@@ -1881,6 +1887,11 @@
 
 &i2c12 {
 	status = "okay";
+
+	tpm@2e {
+		compatible = "nuvoton,npct75x", "tcg,tpm-tis-i2c";
+		reg = <0x2e>;
+	};
 };
 
 &i2c13 {
@@ -2373,6 +2384,10 @@
 			reg = <3>;
 		};
 	};
+};
+
+&ehci0 {
+	status = "okay";
 };
 
 &ehci1 {

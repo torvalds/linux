@@ -313,11 +313,15 @@ enum gsi_evt_cmd_opcode {
 #define GENERIC_OPCODE_FMASK		GENMASK(4, 0)
 #define GENERIC_CHID_FMASK		GENMASK(9, 5)
 #define GENERIC_EE_FMASK		GENMASK(13, 10)
+#define GENERIC_PARAMS_FMASK		GENMASK(31, 24)	/* IPA v4.11+ */
 
 /** enum gsi_generic_cmd_opcode - GENERIC_OPCODE field values in GENERIC_CMD */
 enum gsi_generic_cmd_opcode {
 	GSI_GENERIC_HALT_CHANNEL		= 0x1,
 	GSI_GENERIC_ALLOCATE_CHANNEL		= 0x2,
+	GSI_GENERIC_ENABLE_FLOW_CONTROL		= 0x3,	/* IPA v4.2+ */
+	GSI_GENERIC_DISABLE_FLOW_CONTROL	= 0x4,	/* IPA v4.2+ */
+	GSI_GENERIC_QUERY_FLOW_CONTROL		= 0x5,	/* IPA v4.11+ */
 };
 
 /* The next register is present for IPA v3.5.1 and above */

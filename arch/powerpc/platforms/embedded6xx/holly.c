@@ -50,7 +50,7 @@ static int holly_exclude_device(struct pci_controller *hose, u_char bus,
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void holly_remap_bridge(void)
+static void __init holly_remap_bridge(void)
 {
 	u32 lut_val, lut_addr;
 	int i;

@@ -384,7 +384,7 @@ set_register:
 }
 EXPORT_SYMBOL(native_write_cr0);
 
-void native_write_cr4(unsigned long val)
+void __no_profile native_write_cr4(unsigned long val)
 {
 	unsigned long bits_changed = 0;
 
@@ -1787,6 +1787,17 @@ EXPORT_PER_CPU_SYMBOL(__preempt_count);
 
 DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) = TOP_OF_INIT_STACK;
 
+static void wrmsrl_cstar(unsigned long val)
+{
+	/*
+	 * Intel CPUs do not support 32-bit SYSCALL. Writing to MSR_CSTAR
+	 * is so far ignored by the CPU, but raises a #VE trap in a TDX
+	 * guest. Avoid the pointless write on all Intel CPUs.
+	 */
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		wrmsrl(MSR_CSTAR, val);
+}
+
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
@@ -1794,7 +1805,7 @@ void syscall_init(void)
 	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 #ifdef CONFIG_IA32_EMULATION
-	wrmsrl(MSR_CSTAR, (unsigned long)entry_SYSCALL_compat);
+	wrmsrl_cstar((unsigned long)entry_SYSCALL_compat);
 	/*
 	 * This only works on Intel CPUs.
 	 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
@@ -1806,7 +1817,7 @@ void syscall_init(void)
 		    (unsigned long)(cpu_entry_stack(smp_processor_id()) + 1));
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
-	wrmsrl(MSR_CSTAR, (unsigned long)ignore_sysret);
+	wrmsrl_cstar((unsigned long)ignore_sysret);
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, 0ULL);

@@ -404,7 +404,7 @@ static int virtcrypto_probe(struct virtio_device *vdev)
 free_engines:
 	virtcrypto_clear_crypto_engines(vcrypto);
 free_vqs:
-	vcrypto->vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtcrypto_del_vqs(vcrypto);
 free_dev:
 	virtcrypto_devmgr_rm_dev(vcrypto);
@@ -436,7 +436,7 @@ static void virtcrypto_remove(struct virtio_device *vdev)
 
 	if (virtcrypto_dev_started(vcrypto))
 		virtcrypto_dev_stop(vcrypto);
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtcrypto_free_unused_reqs(vcrypto);
 	virtcrypto_clear_crypto_engines(vcrypto);
 	virtcrypto_del_vqs(vcrypto);
@@ -456,7 +456,7 @@ static int virtcrypto_freeze(struct virtio_device *vdev)
 {
 	struct virtio_crypto *vcrypto = vdev->priv;
 
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtcrypto_free_unused_reqs(vcrypto);
 	if (virtcrypto_dev_started(vcrypto))
 		virtcrypto_dev_stop(vcrypto);
@@ -492,7 +492,7 @@ static int virtcrypto_restore(struct virtio_device *vdev)
 free_engines:
 	virtcrypto_clear_crypto_engines(vcrypto);
 free_vqs:
-	vcrypto->vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtcrypto_del_vqs(vcrypto);
 	return err;
 }

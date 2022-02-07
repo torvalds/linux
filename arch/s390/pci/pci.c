@@ -771,7 +771,7 @@ int zpci_hot_reset_device(struct zpci_dev *zdev)
 
 	if (zdev->dma_table)
 		rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-					(u64)zdev->dma_table);
+					virt_to_phys(zdev->dma_table));
 	else
 		rc = zpci_dma_init_device(zdev);
 	if (rc) {

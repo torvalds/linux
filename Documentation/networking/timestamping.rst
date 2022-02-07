@@ -582,8 +582,8 @@ Time stamps for outgoing packets are to be generated as follows:
   and hardware timestamping is not possible (SKBTX_IN_PROGRESS not set).
 - As soon as the driver has sent the packet and/or obtained a
   hardware time stamp for it, it passes the time stamp back by
-  calling skb_hwtstamp_tx() with the original skb, the raw
-  hardware time stamp. skb_hwtstamp_tx() clones the original skb and
+  calling skb_tstamp_tx() with the original skb, the raw
+  hardware time stamp. skb_tstamp_tx() clones the original skb and
   adds the timestamps, therefore the original skb has to be freed now.
   If obtaining the hardware time stamp somehow fails, then the driver
   should not fall back to software time stamping. The rationale is that

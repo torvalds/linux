@@ -119,23 +119,30 @@ static inline void writeccr(struct mpc_i2c *i2c, u32 x)
 /* Sometimes 9th clock pulse isn't generated, and slave doesn't release
  * the bus, because it wants to send ACK.
  * Following sequence of enabling/disabling and sending start/stop generates
- * the 9 pulses, so it's all OK.
+ * the 9 pulses, each with a START then ending with STOP, so it's all OK.
  */
 static void mpc_i2c_fixup(struct mpc_i2c *i2c)
 {
 	int k;
-	u32 delay_val = 1000000 / i2c->real_clk + 1;
-
-	if (delay_val < 2)
-		delay_val = 2;
+	unsigned long flags;
 
 	for (k = 9; k; k--) {
 		writeccr(i2c, 0);
-		writeccr(i2c, CCR_MSTA | CCR_MTX | CCR_MEN);
+		writeb(0, i2c->base + MPC_I2C_SR); /* clear any status bits */
+		writeccr(i2c, CCR_MEN | CCR_MSTA); /* START */
+		readb(i2c->base + MPC_I2C_DR); /* init xfer */
+		udelay(15); /* let it hit the bus */
+		local_irq_save(flags); /* should not be delayed further */
+		writeccr(i2c, CCR_MEN | CCR_MSTA | CCR_RSTA); /* delay SDA */
 		readb(i2c->base + MPC_I2C_DR);
-		writeccr(i2c, CCR_MEN);
-		udelay(delay_val << 1);
+		if (k != 1)
+			udelay(5);
+		local_irq_restore(flags);
 	}
+	writeccr(i2c, CCR_MEN); /* Initiate STOP */
+	readb(i2c->base + MPC_I2C_DR);
+	udelay(15); /* Let STOP propagate */
+	writeccr(i2c, 0);
 }
 
 static int i2c_mpc_wait_sr(struct mpc_i2c *i2c, int mask)
@@ -492,7 +499,7 @@ static void mpc_i2c_finish(struct mpc_i2c *i2c, int rc)
 
 static void mpc_i2c_do_action(struct mpc_i2c *i2c)
 {
-	struct i2c_msg *msg = &i2c->msgs[i2c->curr_msg];
+	struct i2c_msg *msg = NULL;
 	int dir = 0;
 	int recv_len = 0;
 	u8 byte;
@@ -501,10 +508,13 @@ static void mpc_i2c_do_action(struct mpc_i2c *i2c)
 
 	i2c->cntl_bits &= ~(CCR_RSTA | CCR_MTX | CCR_TXAK);
 
-	if (msg->flags & I2C_M_RD)
-		dir = 1;
-	if (msg->flags & I2C_M_RECV_LEN)
-		recv_len = 1;
+	if (i2c->action != MPC_I2C_ACTION_STOP) {
+		msg = &i2c->msgs[i2c->curr_msg];
+		if (msg->flags & I2C_M_RD)
+			dir = 1;
+		if (msg->flags & I2C_M_RECV_LEN)
+			recv_len = 1;
+	}
 
 	switch (i2c->action) {
 	case MPC_I2C_ACTION_RESTART:
@@ -581,7 +591,7 @@ static void mpc_i2c_do_action(struct mpc_i2c *i2c)
 		break;
 	}
 
-	if (msg->len == i2c->byte_posn) {
+	if (msg && msg->len == i2c->byte_posn) {
 		i2c->curr_msg++;
 		i2c->byte_posn = 0;
 

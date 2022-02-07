@@ -292,6 +292,33 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	spx5_port->phylink_config.dev = &spx5_port->ndev->dev;
 	spx5_port->phylink_config.type = PHYLINK_NETDEV;
 	spx5_port->phylink_config.pcs_poll = true;
+	spx5_port->phylink_config.mac_capabilities = MAC_ASYM_PAUSE |
+		MAC_SYM_PAUSE | MAC_10 | MAC_100 | MAC_1000FD |
+		MAC_2500FD | MAC_5000FD | MAC_10000FD | MAC_25000FD;
+
+	__set_bit(PHY_INTERFACE_MODE_SGMII,
+		  spx5_port->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_QSGMII,
+		  spx5_port->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_1000BASEX,
+		  spx5_port->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_2500BASEX,
+		  spx5_port->phylink_config.supported_interfaces);
+
+	if (spx5_port->conf.bandwidth == SPEED_5000 ||
+	    spx5_port->conf.bandwidth == SPEED_10000 ||
+	    spx5_port->conf.bandwidth == SPEED_25000)
+		__set_bit(PHY_INTERFACE_MODE_5GBASER,
+			  spx5_port->phylink_config.supported_interfaces);
+
+	if (spx5_port->conf.bandwidth == SPEED_10000 ||
+	    spx5_port->conf.bandwidth == SPEED_25000)
+		__set_bit(PHY_INTERFACE_MODE_10GBASER,
+			  spx5_port->phylink_config.supported_interfaces);
+
+	if (spx5_port->conf.bandwidth == SPEED_25000)
+		__set_bit(PHY_INTERFACE_MODE_25GBASER,
+			  spx5_port->phylink_config.supported_interfaces);
 
 	phylink = phylink_create(&spx5_port->phylink_config,
 				 of_fwnode_handle(config->node),

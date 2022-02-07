@@ -105,7 +105,6 @@ static void guest_code(void *arg)
 
 		if (cpu_has_svm()) {
 			run_guest(svm->vmcb, svm->vmcb_gpa);
-			svm->vmcb->save.rip += 3;
 			run_guest(svm->vmcb, svm->vmcb_gpa);
 		} else {
 			vmlaunch();
@@ -212,7 +211,7 @@ int main(int argc, char *argv[])
 		vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 		vcpu_load_state(vm, VCPU_ID, state);
 		run = vcpu_state(vm, VCPU_ID);
-		free(state);
+		kvm_x86_state_cleanup(state);
 	}
 
 done:

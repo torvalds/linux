@@ -65,6 +65,11 @@ struct elf_prpsinfo
 	__kernel_gid_t	pr_gid;
 	pid_t	pr_pid, pr_ppid, pr_pgrp, pr_sid;
 	/* Lots missing */
+	/*
+	 * The hard-coded 16 is derived from TASK_COMM_LEN, but it can't be
+	 * changed as it is exposed to userspace. We'd better make it hard-coded
+	 * here.
+	 */
 	char	pr_fname[16];	/* filename of executable */
 	char	pr_psargs[ELF_PRARGSZ];	/* initial part of arg list */
 };

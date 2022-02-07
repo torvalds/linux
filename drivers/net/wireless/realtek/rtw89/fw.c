@@ -523,7 +523,8 @@ void rtw89_unload_firmware(struct rtw89_dev *rtwdev)
 }
 
 #define H2C_CAM_LEN 60
-int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+		     struct rtw89_sta *rtwsta, const u8 *scan_mac_addr)
 {
 	struct sk_buff *skb;
 
@@ -533,7 +534,7 @@ int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 		return -ENOMEM;
 	}
 	skb_put(skb, H2C_CAM_LEN);
-	rtw89_cam_fill_addr_cam_info(rtwdev, rtwvif, skb->data);
+	rtw89_cam_fill_addr_cam_info(rtwdev, rtwvif, rtwsta, scan_mac_addr, skb->data);
 	rtw89_cam_fill_bssid_cam_info(rtwdev, rtwvif, skb->data);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
@@ -780,7 +781,7 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 	if (!ppe_th) {
 		u8 pad;
 
-		pad = FIELD_GET(IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK,
+		pad = FIELD_GET(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK,
 				sta->he_cap.he_cap_elem.phy_cap_info[9]);
 
 		for (i = 0; i < RTW89_PPE_BW_NUM; i++)

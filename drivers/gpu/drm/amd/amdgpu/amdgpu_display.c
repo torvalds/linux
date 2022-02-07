@@ -1362,7 +1362,7 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 		if ((!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
 		    ((amdgpu_encoder->underscan_type == UNDERSCAN_ON) ||
 		     ((amdgpu_encoder->underscan_type == UNDERSCAN_AUTO) &&
-		      drm_detect_hdmi_monitor(amdgpu_connector_edid(connector)) &&
+		      connector->display_info.is_hdmi &&
 		      amdgpu_display_is_hdtv_mode(mode)))) {
 			if (amdgpu_encoder->underscan_hborder != 0)
 				amdgpu_crtc->h_border = amdgpu_encoder->underscan_hborder;

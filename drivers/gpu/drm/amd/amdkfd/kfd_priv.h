@@ -195,7 +195,6 @@ struct kfd_event_interrupt_class {
 };
 
 struct kfd_device_info {
-	const char *asic_name;
 	uint32_t gfx_target_version;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
@@ -231,7 +230,7 @@ struct kfd_vmid_info {
 struct kfd_dev {
 	struct amdgpu_device *adev;
 
-	const struct kfd_device_info *device_info;
+	struct kfd_device_info device_info;
 	struct pci_dev *pdev;
 	struct drm_device *ddev;
 
@@ -857,6 +856,8 @@ struct kfd_process {
 	struct svm_range_list svms;
 
 	bool xnack_enabled;
+
+	atomic_t poison;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */

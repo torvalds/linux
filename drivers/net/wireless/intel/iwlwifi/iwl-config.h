@@ -84,6 +84,10 @@ enum iwl_nvm_type {
 #define IWL_DEFAULT_MAX_TX_POWER 22
 #define IWL_TX_CSUM_NETIF_FLAGS (NETIF_F_IPV6_CSUM | NETIF_F_IP_CSUM |\
 				 NETIF_F_TSO | NETIF_F_TSO6)
+#define IWL_TX_CSUM_NETIF_FLAGS_BZ (NETIF_F_HW_CSUM | NETIF_F_TSO | NETIF_F_TSO6)
+#define IWL_CSUM_NETIF_FLAGS_MASK (IWL_TX_CSUM_NETIF_FLAGS | \
+				   IWL_TX_CSUM_NETIF_FLAGS_BZ | \
+				   NETIF_F_RXCSUM)
 
 /* Antenna presence definitions */
 #define	ANT_NONE	0x0
@@ -448,6 +452,9 @@ struct iwl_cfg {
 #define IWL_CFG_NO_CDB			0x0
 #define IWL_CFG_CDB			0x1
 
+#define IWL_CFG_NO_JACKET		0x0
+#define IWL_CFG_IS_JACKET		0x1
+
 #define IWL_SUBDEVICE_RF_ID(subdevice)	((u16)((subdevice) & 0x00F0) >> 4)
 #define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
 #define IWL_SUBDEVICE_CORES(subdevice)	((u16)((subdevice) & 0x1C00) >> 10)
@@ -462,6 +469,7 @@ struct iwl_dev_info {
 	u8 no_160;
 	u8 cores;
 	u8 cdb;
+	u8 jacket;
 	const struct iwl_cfg *cfg;
 	const char *name;
 };
@@ -610,7 +618,6 @@ extern const struct iwl_cfg killer1650x_2ax_cfg;
 extern const struct iwl_cfg killer1650w_2ax_cfg;
 extern const struct iwl_cfg iwl_qnj_b0_hr_b0_cfg;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0;
-extern const struct iwl_cfg iwlax210_2ax_cfg_so_hr_a0;
 extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0;
 extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0_long;
 extern const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0;
@@ -634,6 +641,12 @@ extern const struct iwl_cfg iwl_cfg_bz_a0_gf4_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_mr_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_fm_a0;
 extern const struct iwl_cfg iwl_cfg_gl_a0_fm_a0;
+extern const struct iwl_cfg iwl_cfg_bz_z0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_fm_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_fm4_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_gf4_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_hr_b0;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

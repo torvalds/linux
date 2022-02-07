@@ -1056,7 +1056,7 @@ static void remove_common(struct virtio_balloon *vb)
 		return_free_pages_to_mm(vb, ULONG_MAX);
 
 	/* Now we reset the device so we can clean up the queues. */
-	vb->vdev->config->reset(vb->vdev);
+	virtio_reset_device(vb->vdev);
 
 	vb->vdev->config->del_vqs(vb->vdev);
 }

@@ -404,7 +404,7 @@ static int emit_copy(struct i915_request *rq, int size)
 
 int
 intel_context_migrate_copy(struct intel_context *ce,
-			   struct dma_fence *await,
+			   const struct i915_deps *deps,
 			   struct scatterlist *src,
 			   enum i915_cache_level src_cache_level,
 			   bool src_is_lmem,
@@ -431,8 +431,8 @@ intel_context_migrate_copy(struct intel_context *ce,
 			goto out_ce;
 		}
 
-		if (await) {
-			err = i915_request_await_dma_fence(rq, await);
+		if (deps) {
+			err = i915_request_await_deps(rq, deps);
 			if (err)
 				goto out_rq;
 
@@ -442,7 +442,7 @@ intel_context_migrate_copy(struct intel_context *ce,
 					goto out_rq;
 			}
 
-			await = NULL;
+			deps = NULL;
 		}
 
 		/* The PTE updates + copy must not be interrupted. */
@@ -525,7 +525,7 @@ static int emit_clear(struct i915_request *rq, int size, u32 value)
 
 int
 intel_context_migrate_clear(struct intel_context *ce,
-			    struct dma_fence *await,
+			    const struct i915_deps *deps,
 			    struct scatterlist *sg,
 			    enum i915_cache_level cache_level,
 			    bool is_lmem,
@@ -550,8 +550,8 @@ intel_context_migrate_clear(struct intel_context *ce,
 			goto out_ce;
 		}
 
-		if (await) {
-			err = i915_request_await_dma_fence(rq, await);
+		if (deps) {
+			err = i915_request_await_deps(rq, deps);
 			if (err)
 				goto out_rq;
 
@@ -561,7 +561,7 @@ intel_context_migrate_clear(struct intel_context *ce,
 					goto out_rq;
 			}
 
-			await = NULL;
+			deps = NULL;
 		}
 
 		/* The PTE updates + clear must not be interrupted. */
@@ -599,7 +599,7 @@ out_ce:
 
 int intel_migrate_copy(struct intel_migrate *m,
 		       struct i915_gem_ww_ctx *ww,
-		       struct dma_fence *await,
+		       const struct i915_deps *deps,
 		       struct scatterlist *src,
 		       enum i915_cache_level src_cache_level,
 		       bool src_is_lmem,
@@ -624,7 +624,7 @@ int intel_migrate_copy(struct intel_migrate *m,
 	if (err)
 		goto out;
 
-	err = intel_context_migrate_copy(ce, await,
+	err = intel_context_migrate_copy(ce, deps,
 					 src, src_cache_level, src_is_lmem,
 					 dst, dst_cache_level, dst_is_lmem,
 					 out);
@@ -638,7 +638,7 @@ out:
 int
 intel_migrate_clear(struct intel_migrate *m,
 		    struct i915_gem_ww_ctx *ww,
-		    struct dma_fence *await,
+		    const struct i915_deps *deps,
 		    struct scatterlist *sg,
 		    enum i915_cache_level cache_level,
 		    bool is_lmem,
@@ -661,7 +661,7 @@ intel_migrate_clear(struct intel_migrate *m,
 	if (err)
 		goto out;
 
-	err = intel_context_migrate_clear(ce, await, sg, cache_level,
+	err = intel_context_migrate_clear(ce, deps, sg, cache_level,
 					  is_lmem, value, out);
 
 	intel_context_unpin(ce);

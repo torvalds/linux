@@ -146,7 +146,7 @@ static int system_opcode_insn(struct kvm_vcpu *vcpu,
 		vcpu->stat.wfi_exit_stat++;
 		if (!kvm_arch_vcpu_runnable(vcpu)) {
 			srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
-			kvm_vcpu_block(vcpu);
+			kvm_vcpu_halt(vcpu);
 			vcpu->arch.srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 			kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 		}

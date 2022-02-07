@@ -158,6 +158,16 @@
 #endif
 	.endm
 
+	/* The depi instruction leaves the most significant 32 bits of the
+	 * target register in an undefined state on PA 2.0 systems. */
+	.macro depi_safe i, p, len, t
+#ifdef CONFIG_64BIT
+	depdi	\i, 32+(\p), \len, \t
+#else
+	depi	\i, \p, \len, \t
+#endif
+	.endm
+
 	/* load 32-bit 'value' into 'reg' compensating for the ldil
 	 * sign-extension when running in wide mode.
 	 * WARNING!! neither 'value' nor 'reg' can be expressions

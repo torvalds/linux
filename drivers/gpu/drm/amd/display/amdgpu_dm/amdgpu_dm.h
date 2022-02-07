@@ -50,9 +50,9 @@
 
 #define AMDGPU_DMUB_NOTIFICATION_MAX 5
 
-/**
+/*
  * DMUB Async to Sync Mechanism Status
- **/
+ */
 #define DMUB_ASYNC_TO_SYNC_ACCESS_FAIL 1
 #define DMUB_ASYNC_TO_SYNC_ACCESS_TIMEOUT 2
 #define DMUB_ASYNC_TO_SYNC_ACCESS_SUCCESS 3
@@ -625,6 +625,8 @@ struct dm_crtc_state {
 
 	bool cm_has_degamma;
 	bool cm_is_degamma_srgb;
+
+	bool mpo_requested;
 
 	int update_type;
 	int active_planes;

@@ -95,31 +95,32 @@ properties:
 
   power-supply: true
 
-if:
-  not:
-    properties:
-      compatible:
-        contains:
-          const: lvds-decoder
-then:
-  properties:
-    ports:
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: lvds-decoder
+    then:
       properties:
-        port@0:
+        ports:
           properties:
-            endpoint:
+            port@0:
               properties:
-                data-mapping: false
+                endpoint:
+                  properties:
+                    data-mapping: false
 
-if:
-  not:
-    properties:
-      compatible:
-        contains:
-          const: lvds-encoder
-then:
-  properties:
-    pclk-sample: false
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: lvds-encoder
+    then:
+      properties:
+        pclk-sample: false
 
 required:
   - compatible

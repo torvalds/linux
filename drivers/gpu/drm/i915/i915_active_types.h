@@ -15,8 +15,6 @@
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 
-#include "i915_utils.h"
-
 struct i915_active_fence {
 	struct dma_fence __rcu *fence;
 	struct dma_fence_cb cb;

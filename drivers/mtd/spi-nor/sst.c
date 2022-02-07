@@ -8,6 +8,9 @@
 
 #include "core.h"
 
+/* SST flash_info mfr_flag. Used to specify SST byte programming. */
+#define SST_WRITE		BIT(0)
+
 #define SST26VF_CR_BPNV		BIT(3)
 
 static int sst26vf_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
@@ -46,48 +49,71 @@ static const struct spi_nor_locking_ops sst26vf_locking_ops = {
 	.is_locked = sst26vf_is_locked,
 };
 
-static void sst26vf_default_init(struct spi_nor *nor)
+static void sst26vf_late_init(struct spi_nor *nor)
 {
 	nor->params->locking_ops = &sst26vf_locking_ops;
 }
 
 static const struct spi_nor_fixups sst26vf_fixups = {
-	.default_init = sst26vf_default_init,
+	.late_init = sst26vf_late_init,
 };
 
 static const struct flash_info sst_parts[] = {
 	/* SST -- large erase sizes are "overlays", "sectors" are 4K */
-	{ "sst25vf040b", INFO(0xbf258d, 0, 64 * 1024,  8,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25vf080b", INFO(0xbf258e, 0, 64 * 1024, 16,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25vf016b", INFO(0xbf2541, 0, 64 * 1024, 32,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25vf032b", INFO(0xbf254a, 0, 64 * 1024, 64,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25vf064c", INFO(0xbf254b, 0, 64 * 1024, 128,
-			      SECT_4K | SPI_NOR_4BIT_BP | SPI_NOR_HAS_LOCK |
-			      SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25wf512",  INFO(0xbf2501, 0, 64 * 1024,  1,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25wf010",  INFO(0xbf2502, 0, 64 * 1024,  2,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25wf020",  INFO(0xbf2503, 0, 64 * 1024,  4,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25wf020a", INFO(0x621612, 0, 64 * 1024,  4, SECT_4K | SPI_NOR_HAS_LOCK) },
-	{ "sst25wf040b", INFO(0x621613, 0, 64 * 1024,  8, SECT_4K | SPI_NOR_HAS_LOCK) },
-	{ "sst25wf040",  INFO(0xbf2504, 0, 64 * 1024,  8,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst25wf080",  INFO(0xbf2505, 0, 64 * 1024, 16,
-			      SECT_4K | SST_WRITE | SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE) },
-	{ "sst26wf016b", INFO(0xbf2651, 0, 64 * 1024, 32,
-			      SECT_4K | SPI_NOR_DUAL_READ |
+	{ "sst25vf040b", INFO(0xbf258d, 0, 64 * 1024,  8)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst25vf080b", INFO(0xbf258e, 0, 64 * 1024, 16)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst25vf016b", INFO(0xbf2541, 0, 64 * 1024, 32)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst25vf032b", INFO(0xbf254a, 0, 64 * 1024, 64)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst25vf064c", INFO(0xbf254b, 0, 64 * 1024, 128)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_4BIT_BP |
+		      SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "sst25wf512",  INFO(0xbf2501, 0, 64 * 1024,  1)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst25wf010",  INFO(0xbf2502, 0, 64 * 1024,  2)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst25wf020",  INFO(0xbf2503, 0, 64 * 1024,  4)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst25wf020a", INFO(0x621612, 0, 64 * 1024,  4)
+		FLAGS(SPI_NOR_HAS_LOCK)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "sst25wf040b", INFO(0x621613, 0, 64 * 1024,  8)
+		FLAGS(SPI_NOR_HAS_LOCK)
+		NO_SFDP_FLAGS(SECT_4K) },
+	{ "sst25wf040",  INFO(0xbf2504, 0, 64 * 1024,  8)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst25wf080",  INFO(0xbf2505, 0, 64 * 1024, 16)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K)
+		MFR_FLAGS(SST_WRITE) },
+	{ "sst26wf016b", INFO(0xbf2651, 0, 64 * 1024, 32)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
 			      SPI_NOR_QUAD_READ) },
-	{ "sst26vf016b", INFO(0xbf2641, 0, 64 * 1024, 32,
-			      SECT_4K | SPI_NOR_DUAL_READ) },
-	{ "sst26vf064b", INFO(0xbf2643, 0, 64 * 1024, 128,
-			      SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
-			      SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+	{ "sst26vf016b", INFO(0xbf2641, 0, 64 * 1024, 32)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ) },
+	{ "sst26vf064b", INFO(0xbf2643, 0, 64 * 1024, 128)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_SWP_IS_VOLATILE)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		.fixups = &sst26vf_fixups },
 };
 
@@ -177,14 +203,14 @@ out:
 	return ret;
 }
 
-static void sst_post_sfdp_fixups(struct spi_nor *nor)
+static void sst_late_init(struct spi_nor *nor)
 {
-	if (nor->info->flags & SST_WRITE)
+	if (nor->info->mfr_flags & SST_WRITE)
 		nor->mtd._write = sst_write;
 }
 
 static const struct spi_nor_fixups sst_fixups = {
-	.post_sfdp = sst_post_sfdp_fixups,
+	.late_init = sst_late_init,
 };
 
 const struct spi_nor_manufacturer spi_nor_sst = {

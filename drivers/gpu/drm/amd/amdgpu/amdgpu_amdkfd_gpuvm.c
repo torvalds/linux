@@ -708,10 +708,12 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 		pr_debug("\t add VA 0x%llx - 0x%llx to vm %p\n", va,
 			 va + bo_size, vm);
 
-		if (adev == bo_adev || (mem->domain == AMDGPU_GEM_DOMAIN_VRAM &&
-					amdgpu_xgmi_same_hive(adev, bo_adev))) {
-			/* Mappings on the local GPU and VRAM mappings in the
-			 * local hive share the original BO
+		if (adev == bo_adev ||
+		   (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm) && adev->ram_is_direct_mapped) ||
+		   (mem->domain == AMDGPU_GEM_DOMAIN_VRAM && amdgpu_xgmi_same_hive(adev, bo_adev))) {
+			/* Mappings on the local GPU, or VRAM mappings in the
+			 * local hive, or userptr mapping IOMMU direct map mode
+			 * share the original BO
 			 */
 			attachment[i]->type = KFD_MEM_ATT_SHARED;
 			bo[i] = mem->bo;
@@ -1559,13 +1561,8 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		ret = init_user_pages(*mem, user_addr);
 		if (ret)
 			goto allocate_init_user_pages_failed;
-	}
-
-	if (offset)
-		*offset = amdgpu_bo_mmap_offset(bo);
-
-	if (flags & (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
-			KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {
+	} else  if (flags & (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
+				KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {
 		ret = amdgpu_amdkfd_gpuvm_pin_bo(bo, AMDGPU_GEM_DOMAIN_GTT);
 		if (ret) {
 			pr_err("Pinning MMIO/DOORBELL BO during ALLOC FAILED\n");
@@ -1575,11 +1572,14 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		bo->preferred_domains = AMDGPU_GEM_DOMAIN_GTT;
 	}
 
+	if (offset)
+		*offset = amdgpu_bo_mmap_offset(bo);
+
 	return 0;
 
 allocate_init_user_pages_failed:
-	remove_kgd_mem_from_kfd_bo_list(*mem, avm->process_info);
 err_pin_bo:
+	remove_kgd_mem_from_kfd_bo_list(*mem, avm->process_info);
 	drm_vma_node_revoke(&gobj->vma_node, drm_priv);
 err_node_allow:
 	/* Don't unreserve system mem limit twice */

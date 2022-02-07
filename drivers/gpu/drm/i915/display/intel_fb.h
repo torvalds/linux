@@ -90,4 +90,6 @@ intel_user_framebuffer_create(struct drm_device *dev,
 			      struct drm_file *filp,
 			      const struct drm_mode_fb_cmd2 *user_mode_cmd);
 
+bool intel_fb_uses_dpt(const struct drm_framebuffer *fb);
+
 #endif /* __INTEL_FB_H__ */

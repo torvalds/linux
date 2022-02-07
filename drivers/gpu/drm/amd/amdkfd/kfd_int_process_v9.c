@@ -89,6 +89,44 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 #define KFD_SQ_INT_DATA__ERR_TYPE_MASK 0xF00000
 #define KFD_SQ_INT_DATA__ERR_TYPE__SHIFT 20
 
+static void event_interrupt_poison_consumption(struct kfd_dev *dev,
+				uint16_t pasid, uint16_t source_id)
+{
+	int ret = -EINVAL;
+	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+
+	if (!p)
+		return;
+
+	/* all queues of a process will be unmapped in one time */
+	if (atomic_read(&p->poison)) {
+		kfd_unref_process(p);
+		return;
+	}
+
+	atomic_set(&p->poison, 1);
+	kfd_unref_process(p);
+
+	switch (source_id) {
+	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
+		if (dev->dqm->ops.reset_queues)
+			ret = dev->dqm->ops.reset_queues(dev->dqm, pasid);
+		break;
+	case SOC15_INTSRC_SDMA_ECC:
+	default:
+		break;
+	}
+
+	kfd_signal_poison_consumed_event(dev, pasid);
+
+	/* resetting queue passes, do page retirement without gpu reset
+	   resetting queue fails, fallback to gpu reset solution */
+	if (!ret)
+		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, false);
+	else
+		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, true);
+}
+
 static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 					const uint32_t *ih_ring_entry,
 					uint32_t *patched_ihre,
@@ -135,7 +173,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 
 		*patched_flag = true;
 		memcpy(patched_ihre, ih_ring_entry,
-				dev->device_info->ih_ring_entry_size);
+				dev->device_info.ih_ring_entry_size);
 
 		pasid = dev->dqm->vmid_pasid[vmid];
 
@@ -159,6 +197,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 	 */
 	return source_id == SOC15_INTSRC_CP_END_OF_PIPE ||
 		source_id == SOC15_INTSRC_SDMA_TRAP ||
+		source_id == SOC15_INTSRC_SDMA_ECC ||
 		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
 		source_id == SOC15_INTSRC_CP_BAD_OPCODE ||
 		((client_id == SOC15_IH_CLIENTID_VMC ||
@@ -230,8 +269,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 					sq_intr_err);
 				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
 					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					kfd_signal_poison_consumed_event(dev, pasid);
-					amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev);
+					event_interrupt_poison_consumption(dev, pasid, source_id);
 					return;
 				}
 				break;
@@ -252,8 +290,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 		if (source_id == SOC15_INTSRC_SDMA_TRAP) {
 			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
 		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
-			kfd_signal_poison_consumed_event(dev, pasid);
-			amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev);
+			event_interrupt_poison_consumption(dev, pasid, source_id);
 			return;
 		}
 	} else if (client_id == SOC15_IH_CLIENTID_VMC ||

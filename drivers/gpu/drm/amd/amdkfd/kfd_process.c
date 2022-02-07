@@ -251,14 +251,13 @@ cleanup:
 }
 
 /**
- * @kfd_get_cu_occupancy - Collect number of waves in-flight on this device
+ * kfd_get_cu_occupancy - Collect number of waves in-flight on this device
  * by current process. Translates acquired wave count into number of compute units
  * that are occupied.
  *
- * @atr: Handle of attribute that allows reporting of wave count. The attribute
+ * @attr: Handle of attribute that allows reporting of wave count. The attribute
  * handle encapsulates GPU device it is associated with, thereby allowing collection
  * of waves in flight, etc
- *
  * @buffer: Handle of user provided buffer updated with wave count
  *
  * Return: Number of bytes written to user buffer or an error value
@@ -462,6 +461,7 @@ static struct attribute *procfs_queue_attrs[] = {
 	&attr_queue_gpuid,
 	NULL
 };
+ATTRIBUTE_GROUPS(procfs_queue);
 
 static const struct sysfs_ops procfs_queue_ops = {
 	.show = kfd_procfs_queue_show,
@@ -469,7 +469,7 @@ static const struct sysfs_ops procfs_queue_ops = {
 
 static struct kobj_type procfs_queue_type = {
 	.sysfs_ops = &procfs_queue_ops,
-	.default_attrs = procfs_queue_attrs,
+	.default_groups = procfs_queue_groups,
 };
 
 static const struct sysfs_ops procfs_stats_ops = {
@@ -1011,7 +1011,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 			free_pages((unsigned long)pdd->qpd.cwsr_kaddr,
 				get_order(KFD_CWSR_TBA_TMA_SIZE));
 
-		kfree(pdd->qpd.doorbell_bitmap);
+		bitmap_free(pdd->qpd.doorbell_bitmap);
 		idr_destroy(&pdd->alloc_idr);
 
 		kfd_free_process_doorbells(pdd->dev, pdd->doorbell_index);
@@ -1433,9 +1433,8 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 	if (!KFD_IS_SOC15(dev))
 		return 0;
 
-	qpd->doorbell_bitmap =
-		kzalloc(DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
-				     BITS_PER_BYTE), GFP_KERNEL);
+	qpd->doorbell_bitmap = bitmap_zalloc(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
+					     GFP_KERNEL);
 	if (!qpd->doorbell_bitmap)
 		return -ENOMEM;
 
@@ -1447,9 +1446,9 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 
 	for (i = 0; i < KFD_MAX_NUM_OF_QUEUES_PER_PROCESS / 2; i++) {
 		if (i >= range_start && i <= range_end) {
-			set_bit(i, qpd->doorbell_bitmap);
-			set_bit(i + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
-				qpd->doorbell_bitmap);
+			__set_bit(i, qpd->doorbell_bitmap);
+			__set_bit(i + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
+				  qpd->doorbell_bitmap);
 		}
 	}
 

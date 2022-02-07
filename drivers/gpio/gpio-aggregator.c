@@ -371,6 +371,13 @@ static int gpio_fwd_set_config(struct gpio_chip *chip, unsigned int offset,
 	return gpiod_set_config(fwd->descs[offset], config);
 }
 
+static int gpio_fwd_to_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	struct gpiochip_fwd *fwd = gpiochip_get_data(chip);
+
+	return gpiod_to_irq(fwd->descs[offset]);
+}
+
 /**
  * gpiochip_fwd_create() - Create a new GPIO forwarder
  * @dev: Parent device pointer
@@ -411,7 +418,8 @@ static struct gpiochip_fwd *gpiochip_fwd_create(struct device *dev,
 	for (i = 0; i < ngpios; i++) {
 		struct gpio_chip *parent = gpiod_to_chip(descs[i]);
 
-		dev_dbg(dev, "%u => gpio-%d\n", i, desc_to_gpio(descs[i]));
+		dev_dbg(dev, "%u => gpio %d irq %d\n", i,
+			desc_to_gpio(descs[i]), gpiod_to_irq(descs[i]));
 
 		if (gpiod_cansleep(descs[i]))
 			chip->can_sleep = true;
@@ -429,6 +437,7 @@ static struct gpiochip_fwd *gpiochip_fwd_create(struct device *dev,
 	chip->get_multiple = gpio_fwd_get_multiple_locked;
 	chip->set = gpio_fwd_set;
 	chip->set_multiple = gpio_fwd_set_multiple_locked;
+	chip->to_irq = gpio_fwd_to_irq;
 	chip->base = -1;
 	chip->ngpio = ngpios;
 	fwd->descs = descs;

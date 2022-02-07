@@ -623,7 +623,7 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 	if (unlikely(ret < 0))
 		return ret;
 
-	intel_guc_pm_intrmsk_enable(&i915->gt);
+	intel_guc_pm_intrmsk_enable(to_gt(i915));
 
 	slpc_get_rp_values(slpc);
 

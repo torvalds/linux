@@ -66,7 +66,7 @@ mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 
 static inline void
 mlx5e_rep_tc_receive(struct mlx5_cqe64 *cqe, struct mlx5e_rq *rq,
-		     struct sk_buff *skb) {}
+		     struct sk_buff *skb) { napi_gro_receive(rq->cq.napi, skb); }
 
 #endif /* CONFIG_MLX5_CLS_ACT */
 

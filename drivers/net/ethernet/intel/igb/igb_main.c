@@ -2927,7 +2927,7 @@ static int igb_xdp_xmit_back(struct igb_adapter *adapter, struct xdp_buff *xdp)
 	nq = txring_txq(tx_ring);
 	__netif_tx_lock(nq, cpu);
 	/* Avoid transmit queue timeout since we share it with the slow path */
-	nq->trans_start = jiffies;
+	txq_trans_cond_update(nq);
 	ret = igb_xmit_xdp_ring(adapter, tx_ring, xdpf);
 	__netif_tx_unlock(nq);
 
@@ -2961,7 +2961,7 @@ static int igb_xdp_xmit(struct net_device *dev, int n,
 	__netif_tx_lock(nq, cpu);
 
 	/* Avoid transmit queue timeout since we share it with the slow path */
-	nq->trans_start = jiffies;
+	txq_trans_cond_update(nq);
 
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
@@ -6739,12 +6739,119 @@ void igb_update_stats(struct igb_adapter *adapter)
 	}
 }
 
-static void igb_tsync_interrupt(struct igb_adapter *adapter)
+static void igb_perout(struct igb_adapter *adapter, int tsintr_tt)
 {
+	int pin = ptp_find_pin(adapter->ptp_clock, PTP_PF_PEROUT, tsintr_tt);
+	struct e1000_hw *hw = &adapter->hw;
+	struct timespec64 ts;
+	u32 tsauxc;
+
+	if (pin < 0 || pin >= IGB_N_PEROUT)
+		return;
+
+	spin_lock(&adapter->tmreg_lock);
+
+	if (hw->mac.type == e1000_82580 ||
+	    hw->mac.type == e1000_i354 ||
+	    hw->mac.type == e1000_i350) {
+		s64 ns = timespec64_to_ns(&adapter->perout[pin].period);
+		u32 systiml, systimh, level_mask, level, rem;
+		u64 systim, now;
+
+		/* read systim registers in sequence */
+		rd32(E1000_SYSTIMR);
+		systiml = rd32(E1000_SYSTIML);
+		systimh = rd32(E1000_SYSTIMH);
+		systim = (((u64)(systimh & 0xFF)) << 32) | ((u64)systiml);
+		now = timecounter_cyc2time(&adapter->tc, systim);
+
+		if (pin < 2) {
+			level_mask = (tsintr_tt == 1) ? 0x80000 : 0x40000;
+			level = (rd32(E1000_CTRL) & level_mask) ? 1 : 0;
+		} else {
+			level_mask = (tsintr_tt == 1) ? 0x80 : 0x40;
+			level = (rd32(E1000_CTRL_EXT) & level_mask) ? 1 : 0;
+		}
+
+		div_u64_rem(now, ns, &rem);
+		systim = systim + (ns - rem);
+
+		/* synchronize pin level with rising/falling edges */
+		div_u64_rem(now, ns << 1, &rem);
+		if (rem < ns) {
+			/* first half of period */
+			if (level == 0) {
+				/* output is already low, skip this period */
+				systim += ns;
+				pr_notice("igb: periodic output on %s missed falling edge\n",
+					  adapter->sdp_config[pin].name);
+			}
+		} else {
+			/* second half of period */
+			if (level == 1) {
+				/* output is already high, skip this period */
+				systim += ns;
+				pr_notice("igb: periodic output on %s missed rising edge\n",
+					  adapter->sdp_config[pin].name);
+			}
+		}
+
+		/* for this chip family tv_sec is the upper part of the binary value,
+		 * so not seconds
+		 */
+		ts.tv_nsec = (u32)systim;
+		ts.tv_sec  = ((u32)(systim >> 32)) & 0xFF;
+	} else {
+		ts = timespec64_add(adapter->perout[pin].start,
+				    adapter->perout[pin].period);
+	}
+
+	/* u32 conversion of tv_sec is safe until y2106 */
+	wr32((tsintr_tt == 1) ? E1000_TRGTTIML1 : E1000_TRGTTIML0, ts.tv_nsec);
+	wr32((tsintr_tt == 1) ? E1000_TRGTTIMH1 : E1000_TRGTTIMH0, (u32)ts.tv_sec);
+	tsauxc = rd32(E1000_TSAUXC);
+	tsauxc |= TSAUXC_EN_TT0;
+	wr32(E1000_TSAUXC, tsauxc);
+	adapter->perout[pin].start = ts;
+
+	spin_unlock(&adapter->tmreg_lock);
+}
+
+static void igb_extts(struct igb_adapter *adapter, int tsintr_tt)
+{
+	int pin = ptp_find_pin(adapter->ptp_clock, PTP_PF_EXTTS, tsintr_tt);
+	int auxstmpl = (tsintr_tt == 1) ? E1000_AUXSTMPL1 : E1000_AUXSTMPL0;
+	int auxstmph = (tsintr_tt == 1) ? E1000_AUXSTMPH1 : E1000_AUXSTMPH0;
 	struct e1000_hw *hw = &adapter->hw;
 	struct ptp_clock_event event;
 	struct timespec64 ts;
-	u32 ack = 0, tsauxc, sec, nsec, tsicr = rd32(E1000_TSICR);
+
+	if (pin < 0 || pin >= IGB_N_EXTTS)
+		return;
+
+	if (hw->mac.type == e1000_82580 ||
+	    hw->mac.type == e1000_i354 ||
+	    hw->mac.type == e1000_i350) {
+		s64 ns = rd32(auxstmpl);
+
+		ns += ((s64)(rd32(auxstmph) & 0xFF)) << 32;
+		ts = ns_to_timespec64(ns);
+	} else {
+		ts.tv_nsec = rd32(auxstmpl);
+		ts.tv_sec  = rd32(auxstmph);
+	}
+
+	event.type = PTP_CLOCK_EXTTS;
+	event.index = tsintr_tt;
+	event.timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+	ptp_clock_event(adapter->ptp_clock, &event);
+}
+
+static void igb_tsync_interrupt(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ack = 0, tsicr = rd32(E1000_TSICR);
+	struct ptp_clock_event event;
 
 	if (tsicr & TSINTR_SYS_WRAP) {
 		event.type = PTP_CLOCK_PPS;
@@ -6760,51 +6867,22 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 	}
 
 	if (tsicr & TSINTR_TT0) {
-		spin_lock(&adapter->tmreg_lock);
-		ts = timespec64_add(adapter->perout[0].start,
-				    adapter->perout[0].period);
-		/* u32 conversion of tv_sec is safe until y2106 */
-		wr32(E1000_TRGTTIML0, ts.tv_nsec);
-		wr32(E1000_TRGTTIMH0, (u32)ts.tv_sec);
-		tsauxc = rd32(E1000_TSAUXC);
-		tsauxc |= TSAUXC_EN_TT0;
-		wr32(E1000_TSAUXC, tsauxc);
-		adapter->perout[0].start = ts;
-		spin_unlock(&adapter->tmreg_lock);
+		igb_perout(adapter, 0);
 		ack |= TSINTR_TT0;
 	}
 
 	if (tsicr & TSINTR_TT1) {
-		spin_lock(&adapter->tmreg_lock);
-		ts = timespec64_add(adapter->perout[1].start,
-				    adapter->perout[1].period);
-		wr32(E1000_TRGTTIML1, ts.tv_nsec);
-		wr32(E1000_TRGTTIMH1, (u32)ts.tv_sec);
-		tsauxc = rd32(E1000_TSAUXC);
-		tsauxc |= TSAUXC_EN_TT1;
-		wr32(E1000_TSAUXC, tsauxc);
-		adapter->perout[1].start = ts;
-		spin_unlock(&adapter->tmreg_lock);
+		igb_perout(adapter, 1);
 		ack |= TSINTR_TT1;
 	}
 
 	if (tsicr & TSINTR_AUTT0) {
-		nsec = rd32(E1000_AUXSTMPL0);
-		sec  = rd32(E1000_AUXSTMPH0);
-		event.type = PTP_CLOCK_EXTTS;
-		event.index = 0;
-		event.timestamp = sec * 1000000000ULL + nsec;
-		ptp_clock_event(adapter->ptp_clock, &event);
+		igb_extts(adapter, 0);
 		ack |= TSINTR_AUTT0;
 	}
 
 	if (tsicr & TSINTR_AUTT1) {
-		nsec = rd32(E1000_AUXSTMPL1);
-		sec  = rd32(E1000_AUXSTMPH1);
-		event.type = PTP_CLOCK_EXTTS;
-		event.index = 1;
-		event.timestamp = sec * 1000000000ULL + nsec;
-		ptp_clock_event(adapter->ptp_clock, &event);
+		igb_extts(adapter, 1);
 		ack |= TSINTR_AUTT1;
 	}
 
@@ -7648,6 +7726,20 @@ static int igb_set_vf_mac_filter(struct igb_adapter *adapter, const int vf,
 	struct vf_mac_filter *entry = NULL;
 	int ret = 0;
 
+	if ((vf_data->flags & IGB_VF_FLAG_PF_SET_MAC) &&
+	    !vf_data->trusted) {
+		dev_warn(&pdev->dev,
+			 "VF %d requested MAC filter but is administratively denied\n",
+			  vf);
+		return -EINVAL;
+	}
+	if (!is_valid_ether_addr(addr)) {
+		dev_warn(&pdev->dev,
+			 "VF %d attempted to set invalid MAC filter\n",
+			  vf);
+		return -EINVAL;
+	}
+
 	switch (info) {
 	case E1000_VF_MAC_FILTER_CLR:
 		/* remove all unicast MAC filters related to the current VF */
@@ -7661,20 +7753,6 @@ static int igb_set_vf_mac_filter(struct igb_adapter *adapter, const int vf,
 		}
 		break;
 	case E1000_VF_MAC_FILTER_ADD:
-		if ((vf_data->flags & IGB_VF_FLAG_PF_SET_MAC) &&
-		    !vf_data->trusted) {
-			dev_warn(&pdev->dev,
-				 "VF %d requested MAC filter but is administratively denied\n",
-				 vf);
-			return -EINVAL;
-		}
-		if (!is_valid_ether_addr(addr)) {
-			dev_warn(&pdev->dev,
-				 "VF %d attempted to set invalid MAC filter\n",
-				 vf);
-			return -EINVAL;
-		}
-
 		/* try to find empty slot in the list */
 		list_for_each(pos, &adapter->vf_macs.l) {
 			entry = list_entry(pos, struct vf_mac_filter, l);
@@ -8367,7 +8445,7 @@ static struct sk_buff *igb_build_skb(struct igb_ring *rx_ring,
 	net_prefetch(xdp->data_meta);
 
 	/* build an skb around the page buffer */
-	skb = build_skb(xdp->data_hard_start, truesize);
+	skb = napi_build_skb(xdp->data_hard_start, truesize);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -8422,7 +8500,7 @@ static struct sk_buff *igb_run_xdp(struct igb_adapter *adapter,
 		result = IGB_XDP_REDIR;
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(adapter->netdev, xdp_prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 out_failure:
@@ -9254,7 +9332,7 @@ static int __maybe_unused igb_suspend(struct device *dev)
 	return __igb_shutdown(to_pci_dev(dev), NULL, 0);
 }
 
-static int __maybe_unused igb_resume(struct device *dev)
+static int __maybe_unused __igb_resume(struct device *dev, bool rpm)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -9297,15 +9375,22 @@ static int __maybe_unused igb_resume(struct device *dev)
 
 	wr32(E1000_WUS, ~0);
 
-	rtnl_lock();
+	if (!rpm)
+		rtnl_lock();
 	if (!err && netif_running(netdev))
 		err = __igb_open(netdev, true);
 
 	if (!err)
 		netif_device_attach(netdev);
-	rtnl_unlock();
+	if (!rpm)
+		rtnl_unlock();
 
 	return err;
+}
+
+static int __maybe_unused igb_resume(struct device *dev)
+{
+	return __igb_resume(dev, false);
 }
 
 static int __maybe_unused igb_runtime_idle(struct device *dev)
@@ -9326,7 +9411,7 @@ static int __maybe_unused igb_runtime_suspend(struct device *dev)
 
 static int __maybe_unused igb_runtime_resume(struct device *dev)
 {
-	return igb_resume(dev);
+	return __igb_resume(dev, true);
 }
 
 static void igb_shutdown(struct pci_dev *pdev)
@@ -9442,7 +9527,7 @@ static pci_ers_result_t igb_io_error_detected(struct pci_dev *pdev,
  *  @pdev: Pointer to PCI device
  *
  *  Restart the card from scratch, as if from a cold-boot. Implementation
- *  resembles the first-half of the igb_resume routine.
+ *  resembles the first-half of the __igb_resume routine.
  **/
 static pci_ers_result_t igb_io_slot_reset(struct pci_dev *pdev)
 {
@@ -9482,7 +9567,7 @@ static pci_ers_result_t igb_io_slot_reset(struct pci_dev *pdev)
  *
  *  This callback is called when the error recovery driver tells us that
  *  its OK to resume normal operation. Implementation resembles the
- *  second-half of the igb_resume routine.
+ *  second-half of the __igb_resume routine.
  */
 static void igb_io_resume(struct pci_dev *pdev)
 {

@@ -31,13 +31,11 @@ properties:
   clocks:
     items:
       - description: Display AHB clock from gcc
-      - description: Display AXI clock
       - description: Display core clock
 
   clock-names:
     items:
       - const: iface
-      - const: bus
       - const: core
 
   interrupts:
@@ -160,9 +158,8 @@ examples:
           power-domains = <&dispcc MDSS_GDSC>;
 
           clocks = <&gcc GCC_DISP_AHB_CLK>,
-                   <&gcc GCC_DISP_AXI_CLK>,
                    <&dispcc DISP_CC_MDSS_MDP_CLK>;
-          clock-names = "iface", "bus", "core";
+          clock-names = "iface", "core";
 
           interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
           interrupt-controller;

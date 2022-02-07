@@ -15,6 +15,7 @@
 #include <net/pkt_cls.h>
 #include "ocelot.h"
 #include "ocelot_vcap.h"
+#include "ocelot_fdma.h"
 
 #define OCELOT_MAC_QUIRKS	OCELOT_QUIRK_QSGMII_PORTS_MUST_BE_UP
 
@@ -457,7 +458,8 @@ static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	int port = priv->chip_port;
 	u32 rew_op = 0;
 
-	if (!ocelot_can_inject(ocelot, 0))
+	if (!static_branch_unlikely(&ocelot_fdma_enabled) &&
+	    !ocelot_can_inject(ocelot, 0))
 		return NETDEV_TX_BUSY;
 
 	/* Check if timestamping is needed */
@@ -475,9 +477,13 @@ static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 		rew_op = ocelot_ptp_rew_op(skb);
 	}
 
-	ocelot_port_inject_frame(ocelot, port, 0, rew_op, skb);
+	if (static_branch_unlikely(&ocelot_fdma_enabled)) {
+		ocelot_fdma_inject_frame(ocelot, port, rew_op, skb, dev);
+	} else {
+		ocelot_port_inject_frame(ocelot, port, 0, rew_op, skb);
 
-	kfree_skb(skb);
+		consume_skb(skb);
+	}
 
 	return NETDEV_TX_OK;
 }
@@ -764,10 +770,23 @@ static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
+static int ocelot_change_mtu(struct net_device *dev, int new_mtu)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+
+	ocelot_port_set_maxlen(ocelot, priv->chip_port, new_mtu);
+	WRITE_ONCE(dev->mtu, new_mtu);
+
+	return 0;
+}
+
 static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_open			= ocelot_port_open,
 	.ndo_stop			= ocelot_port_stop,
 	.ndo_start_xmit			= ocelot_port_xmit,
+	.ndo_change_mtu			= ocelot_change_mtu,
 	.ndo_set_rx_mode		= ocelot_set_rx_mode,
 	.ndo_set_mac_address		= ocelot_port_set_mac_address,
 	.ndo_get_stats64		= ocelot_get_stats64,
@@ -1168,7 +1187,7 @@ static int ocelot_netdevice_bridge_join(struct net_device *dev,
 	ocelot_port_bridge_join(ocelot, port, bridge);
 
 	err = switchdev_bridge_port_offload(brport_dev, dev, priv,
-					    &ocelot_netdevice_nb,
+					    &ocelot_switchdev_nb,
 					    &ocelot_switchdev_blocking_nb,
 					    false, extack);
 	if (err)
@@ -1182,7 +1201,7 @@ static int ocelot_netdevice_bridge_join(struct net_device *dev,
 
 err_switchdev_sync:
 	switchdev_bridge_port_unoffload(brport_dev, priv,
-					&ocelot_netdevice_nb,
+					&ocelot_switchdev_nb,
 					&ocelot_switchdev_blocking_nb);
 err_switchdev_offload:
 	ocelot_port_bridge_leave(ocelot, port, bridge);
@@ -1195,7 +1214,7 @@ static void ocelot_netdevice_pre_bridge_leave(struct net_device *dev,
 	struct ocelot_port_private *priv = netdev_priv(dev);
 
 	switchdev_bridge_port_unoffload(brport_dev, priv,
-					&ocelot_netdevice_nb,
+					&ocelot_switchdev_nb,
 					&ocelot_switchdev_blocking_nb);
 }
 
@@ -1498,40 +1517,6 @@ struct notifier_block ocelot_switchdev_blocking_nb __read_mostly = {
 	.notifier_call = ocelot_switchdev_blocking_event,
 };
 
-static void vsc7514_phylink_validate(struct phylink_config *config,
-				     unsigned long *supported,
-				     struct phylink_link_state *state)
-{
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct ocelot_port_private *priv = netdev_priv(ndev);
-	struct ocelot_port *ocelot_port = &priv->port;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = {};
-
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    state->interface != ocelot_port->phy_mode) {
-		linkmode_zero(supported);
-		return;
-	}
-
-	phylink_set_port_modes(mask);
-
-	phylink_set(mask, Pause);
-	phylink_set(mask, Autoneg);
-	phylink_set(mask, Asym_Pause);
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-	phylink_set(mask, 1000baseT_Half);
-	phylink_set(mask, 1000baseT_Full);
-	phylink_set(mask, 1000baseX_Full);
-	phylink_set(mask, 2500baseT_Full);
-	phylink_set(mask, 2500baseX_Full);
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
-}
-
 static void vsc7514_phylink_mac_config(struct phylink_config *config,
 				       unsigned int link_an_mode,
 				       const struct phylink_link_state *state)
@@ -1590,7 +1575,7 @@ static void vsc7514_phylink_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops ocelot_phylink_ops = {
-	.validate		= vsc7514_phylink_validate,
+	.validate		= phylink_generic_validate,
 	.mac_config		= vsc7514_phylink_mac_config,
 	.mac_link_down		= vsc7514_phylink_mac_link_down,
 	.mac_link_up		= vsc7514_phylink_mac_link_up,
@@ -1654,6 +1639,11 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 
 	priv->phylink_config.dev = &priv->dev->dev;
 	priv->phylink_config.type = PHYLINK_NETDEV;
+	priv->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+		MAC_10 | MAC_100 | MAC_1000FD | MAC_2500FD;
+
+	__set_bit(ocelot_port->phy_mode,
+		  priv->phylink_config.supported_interfaces);
 
 	phylink = phylink_create(&priv->phylink_config,
 				 of_fwnode_handle(portnp),
@@ -1699,12 +1689,16 @@ int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 
 	dev->netdev_ops = &ocelot_port_netdev_ops;
 	dev->ethtool_ops = &ocelot_ethtool_ops;
+	dev->max_mtu = OCELOT_JUMBO_MTU;
 
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXFCS |
 		NETIF_F_HW_TC;
 	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_TC;
 
-	eth_hw_addr_gen(dev, ocelot->base_mac, port);
+	err = of_get_ethdev_address(portnp, dev);
+	if (err)
+		eth_hw_addr_gen(dev, ocelot->base_mac, port);
+
 	ocelot_mact_learn(ocelot, PGID_CPU, dev->dev_addr,
 			  OCELOT_VLAN_UNAWARE_PVID, ENTRYTYPE_LOCKED);
 
@@ -1714,14 +1708,20 @@ int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 	if (err)
 		goto out;
 
+	if (ocelot->fdma)
+		ocelot_fdma_netdev_init(ocelot, dev);
+
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(ocelot->dev, "register_netdev failed\n");
-		goto out;
+		goto out_fdma_deinit;
 	}
 
 	return 0;
 
+out_fdma_deinit:
+	if (ocelot->fdma)
+		ocelot_fdma_netdev_deinit(ocelot, dev);
 out:
 	ocelot->ports[port] = NULL;
 	free_netdev(dev);
@@ -1734,8 +1734,13 @@ void ocelot_release_port(struct ocelot_port *ocelot_port)
 	struct ocelot_port_private *priv = container_of(ocelot_port,
 						struct ocelot_port_private,
 						port);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	struct ocelot_fdma *fdma = ocelot->fdma;
 
 	unregister_netdev(priv->dev);
+
+	if (fdma)
+		ocelot_fdma_netdev_deinit(ocelot, priv->dev);
 
 	if (priv->phylink) {
 		rtnl_lock();

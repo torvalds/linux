@@ -406,7 +406,7 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
-	u8 local_port;
+	u16 local_port;
 	bool in_port;
 
 	if (out_dev) {

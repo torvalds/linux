@@ -57,6 +57,7 @@ struct intel_plane;
 struct intel_plane_state;
 struct intel_remapped_info;
 struct intel_rotation_info;
+struct pci_dev;
 
 enum i915_gpio {
 	GPIOA,
@@ -346,9 +347,33 @@ enum phy_fia {
 	FIA3,
 };
 
+enum hpd_pin {
+	HPD_NONE = 0,
+	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
+	HPD_CRT,
+	HPD_SDVO_B,
+	HPD_SDVO_C,
+	HPD_PORT_A,
+	HPD_PORT_B,
+	HPD_PORT_C,
+	HPD_PORT_D,
+	HPD_PORT_E,
+	HPD_PORT_TC1,
+	HPD_PORT_TC2,
+	HPD_PORT_TC3,
+	HPD_PORT_TC4,
+	HPD_PORT_TC5,
+	HPD_PORT_TC6,
+
+	HPD_NUM_PINS
+};
+
+#define for_each_hpd_pin(__pin) \
+	for ((__pin) = (HPD_NONE + 1); (__pin) < HPD_NUM_PINS; (__pin)++)
+
 #define for_each_pipe(__dev_priv, __p) \
 	for ((__p) = 0; (__p) < I915_MAX_PIPES; (__p)++) \
-		for_each_if(INTEL_INFO(__dev_priv)->pipe_mask & BIT(__p))
+		for_each_if(INTEL_INFO(__dev_priv)->display.pipe_mask & BIT(__p))
 
 #define for_each_pipe_masked(__dev_priv, __p, __mask) \
 	for_each_pipe(__dev_priv, __p) \
@@ -356,7 +381,7 @@ enum phy_fia {
 
 #define for_each_cpu_transcoder(__dev_priv, __t) \
 	for ((__t) = 0; (__t) < I915_MAX_TRANSCODERS; (__t)++)	\
-		for_each_if (INTEL_INFO(__dev_priv)->cpu_transcoder_mask & BIT(__t))
+		for_each_if (INTEL_INFO(__dev_priv)->display.cpu_transcoder_mask & BIT(__t))
 
 #define for_each_cpu_transcoder_masked(__dev_priv, __t, __mask) \
 	for_each_cpu_transcoder(__dev_priv, __t) \
@@ -616,6 +641,7 @@ void intel_display_driver_register(struct drm_i915_private *i915);
 void intel_display_driver_unregister(struct drm_i915_private *i915);
 
 /* modesetting */
+bool intel_modeset_probe_defer(struct pci_dev *pdev);
 void intel_modeset_init_hw(struct drm_i915_private *i915);
 int intel_modeset_init_noirq(struct drm_i915_private *i915);
 int intel_modeset_init_nogem(struct drm_i915_private *i915);

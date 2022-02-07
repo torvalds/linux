@@ -1439,13 +1439,6 @@ static int smu10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 						{70, 90, 0, 0,},
 						{30, 60, 0, 6,},
 						};
-	static const char *profile_name[6] = {
-					"BOOTUP_DEFAULT",
-					"3D_FULL_SCREEN",
-					"POWER_SAVING",
-					"VIDEO",
-					"VR",
-					"COMPUTE"};
 	static const char *title[6] = {"NUM",
 			"MODE_NAME",
 			"BUSY_SET_POINT",
@@ -1463,7 +1456,7 @@ static int smu10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_COMPUTE; i++)
 		size += sysfs_emit_at(buf, size, "%3d %14s%s: %14d %3d %10d %14d\n",
-			i, profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ",
+			i, amdgpu_pp_profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ",
 			profile_mode_setting[i][0], profile_mode_setting[i][1],
 			profile_mode_setting[i][2], profile_mode_setting[i][3]);
 

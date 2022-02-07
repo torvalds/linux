@@ -126,7 +126,6 @@ static int irqc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const char *name = dev_name(dev);
 	struct irqc_priv *p;
-	struct resource *irq;
 	int ret;
 	int k;
 
@@ -142,13 +141,15 @@ static int irqc_probe(struct platform_device *pdev)
 
 	/* allow any number of IRQs between 1 and IRQC_IRQ_MAX */
 	for (k = 0; k < IRQC_IRQ_MAX; k++) {
-		irq = platform_get_resource(pdev, IORESOURCE_IRQ, k);
-		if (!irq)
+		ret = platform_get_irq_optional(pdev, k);
+		if (ret == -ENXIO)
 			break;
+		if (ret < 0)
+			goto err_runtime_pm_disable;
 
 		p->irq[k].p = p;
 		p->irq[k].hw_irq = k;
-		p->irq[k].requested_irq = irq->start;
+		p->irq[k].requested_irq = ret;
 	}
 
 	p->number_of_irqs = k;

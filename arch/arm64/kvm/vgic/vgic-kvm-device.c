@@ -325,7 +325,7 @@ void unlock_all_vcpus(struct kvm *kvm)
 bool lock_all_vcpus(struct kvm *kvm)
 {
 	struct kvm_vcpu *tmp_vcpu;
-	int c;
+	unsigned long c;
 
 	/*
 	 * Any time a vcpu is run, vcpu_load is called which tries to grab the

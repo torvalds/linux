@@ -13,7 +13,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/phy/phy.h>
 #include <linux/regulator/consumer.h>
@@ -266,7 +265,7 @@ struct exynos_dsi {
 	struct clk **clks;
 	struct regulator_bulk_data supplies[2];
 	int irq;
-	int te_gpio;
+	struct gpio_desc *te_gpio;
 
 	u32 pll_clk_rate;
 	u32 burst_clk_rate;
@@ -1299,14 +1298,14 @@ static void exynos_dsi_enable_irq(struct exynos_dsi *dsi)
 {
 	enable_irq(dsi->irq);
 
-	if (gpio_is_valid(dsi->te_gpio))
-		enable_irq(gpio_to_irq(dsi->te_gpio));
+	if (dsi->te_gpio)
+		enable_irq(gpiod_to_irq(dsi->te_gpio));
 }
 
 static void exynos_dsi_disable_irq(struct exynos_dsi *dsi)
 {
-	if (gpio_is_valid(dsi->te_gpio))
-		disable_irq(gpio_to_irq(dsi->te_gpio));
+	if (dsi->te_gpio)
+		disable_irq(gpiod_to_irq(dsi->te_gpio));
 
 	disable_irq(dsi->irq);
 }
@@ -1336,42 +1335,31 @@ static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi,
 	int ret;
 	int te_gpio_irq;
 
-	dsi->te_gpio = of_get_named_gpio(panel->of_node, "te-gpios", 0);
-	if (dsi->te_gpio == -ENOENT)
-		return 0;
-
-	if (!gpio_is_valid(dsi->te_gpio)) {
-		ret = dsi->te_gpio;
-		dev_err(dsi->dev, "cannot get te-gpios, %d\n", ret);
-		goto out;
+	dsi->te_gpio = devm_gpiod_get_optional(dsi->dev, "te", GPIOD_IN);
+	if (IS_ERR(dsi->te_gpio)) {
+		dev_err(dsi->dev, "gpio request failed with %ld\n",
+				PTR_ERR(dsi->te_gpio));
+		return PTR_ERR(dsi->te_gpio);
 	}
 
-	ret = gpio_request(dsi->te_gpio, "te_gpio");
-	if (ret) {
-		dev_err(dsi->dev, "gpio request failed with %d\n", ret);
-		goto out;
-	}
-
-	te_gpio_irq = gpio_to_irq(dsi->te_gpio);
+	te_gpio_irq = gpiod_to_irq(dsi->te_gpio);
 
 	ret = request_threaded_irq(te_gpio_irq, exynos_dsi_te_irq_handler, NULL,
 				   IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN, "TE", dsi);
 	if (ret) {
 		dev_err(dsi->dev, "request interrupt failed with %d\n", ret);
-		gpio_free(dsi->te_gpio);
-		goto out;
+		gpiod_put(dsi->te_gpio);
+		return ret;
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static void exynos_dsi_unregister_te_irq(struct exynos_dsi *dsi)
 {
-	if (gpio_is_valid(dsi->te_gpio)) {
-		free_irq(gpio_to_irq(dsi->te_gpio), dsi);
-		gpio_free(dsi->te_gpio);
-		dsi->te_gpio = -ENOENT;
+	if (dsi->te_gpio) {
+		free_irq(gpiod_to_irq(dsi->te_gpio), dsi);
+		gpiod_put(dsi->te_gpio);
 	}
 }
 
@@ -1755,9 +1743,6 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
 		return -ENOMEM;
-
-	/* To be checked as invalid one */
-	dsi->te_gpio = -ENOENT;
 
 	init_completion(&dsi->completed);
 	spin_lock_init(&dsi->transfer_lock);

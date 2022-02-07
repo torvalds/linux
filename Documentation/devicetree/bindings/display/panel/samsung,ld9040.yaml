@@ -6,15 +6,12 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Samsung LD9040 AMOLED LCD parallel RGB panel with SPI control bus
 
-description: |
-  The panel must obey the rules for a SPI slave device as specified in
-  spi/spi-controller.yaml
-
 maintainers:
   - Andrzej Hajda <a.hajda@samsung.com>
 
 allOf:
   - $ref: panel-common.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:
@@ -63,8 +60,6 @@ examples:
 
         lcd@0 {
             compatible = "samsung,ld9040";
-            #address-cells = <1>;
-            #size-cells = <0>;
 
             reg = <0>;
             vdd3-supply = <&ldo7_reg>;

@@ -9,7 +9,15 @@ import os, sys
 
 LINUX_ROOT = os.path.abspath(os.path.join(__file__,
     os.pardir, os.pardir, os.pardir, os.pardir, os.pardir))
-BPFTOOL_DIR = os.path.join(LINUX_ROOT, 'tools/bpf/bpftool')
+BPFTOOL_DIR = os.getenv('BPFTOOL_DIR',
+    os.path.join(LINUX_ROOT, 'tools/bpf/bpftool'))
+BPFTOOL_BASHCOMP_DIR = os.getenv('BPFTOOL_BASHCOMP_DIR',
+    os.path.join(BPFTOOL_DIR, 'bash-completion'))
+BPFTOOL_DOC_DIR = os.getenv('BPFTOOL_DOC_DIR',
+    os.path.join(BPFTOOL_DIR, 'Documentation'))
+INCLUDE_DIR = os.getenv('INCLUDE_DIR',
+    os.path.join(LINUX_ROOT, 'tools/include'))
+
 retval = 0
 
 class BlockParser(object):
@@ -242,12 +250,6 @@ class FileExtractor(object):
         end_marker = re.compile('}\\\\n')
         return self.__get_description_list(start_marker, pattern, end_marker)
 
-    def default_options(self):
-        """
-        Return the default options contained in HELP_SPEC_OPTIONS
-        """
-        return { '-j', '--json', '-p', '--pretty', '-d', '--debug' }
-
     def get_bashcomp_list(self, block_name):
         """
         Search for and parse a list of type names from a variable in bash
@@ -274,7 +276,56 @@ class SourceFileExtractor(FileExtractor):
     defined in children classes.
     """
     def get_options(self):
-        return self.default_options().union(self.get_help_list_macro('HELP_SPEC_OPTIONS'))
+        return self.get_help_list_macro('HELP_SPEC_OPTIONS')
+
+class MainHeaderFileExtractor(SourceFileExtractor):
+    """
+    An extractor for bpftool's main.h
+    """
+    filename = os.path.join(BPFTOOL_DIR, 'main.h')
+
+    def get_common_options(self):
+        """
+        Parse the list of common options in main.h (options that apply to all
+        commands), which looks to the lists of options in other source files
+        but has different start and end markers:
+
+            "OPTIONS := { {-j|--json} [{-p|--pretty}] | {-d|--debug} | {-l|--legacy}"
+
+        Return a set containing all options, such as:
+
+            {'-p', '-d', '--legacy', '--pretty', '--debug', '--json', '-l', '-j'}
+        """
+        start_marker = re.compile(f'"OPTIONS :=')
+        pattern = re.compile('([\w-]+) ?(?:\||}[ }\]"])')
+        end_marker = re.compile('#define')
+
+        parser = InlineListParser(self.reader)
+        parser.search_block(start_marker)
+        return parser.parse(pattern, end_marker)
+
+class ManSubstitutionsExtractor(SourceFileExtractor):
+    """
+    An extractor for substitutions.rst
+    """
+    filename = os.path.join(BPFTOOL_DOC_DIR, 'substitutions.rst')
+
+    def get_common_options(self):
+        """
+        Parse the list of common options in substitutions.rst (options that
+        apply to all commands).
+
+        Return a set containing all options, such as:
+
+            {'-p', '-d', '--legacy', '--pretty', '--debug', '--json', '-l', '-j'}
+        """
+        start_marker = re.compile('\|COMMON_OPTIONS\| replace:: {')
+        pattern = re.compile('\*\*([\w/-]+)\*\*')
+        end_marker = re.compile('}$')
+
+        parser = InlineListParser(self.reader)
+        parser.search_block(start_marker)
+        return parser.parse(pattern, end_marker)
 
 class ProgFileExtractor(SourceFileExtractor):
     """
@@ -350,7 +401,7 @@ class BpfHeaderExtractor(FileExtractor):
     """
     An extractor for the UAPI BPF header.
     """
-    filename = os.path.join(LINUX_ROOT, 'tools/include/uapi/linux/bpf.h')
+    filename = os.path.join(INCLUDE_DIR, 'uapi/linux/bpf.h')
 
     def get_prog_types(self):
         return self.get_enum('bpf_prog_type')
@@ -374,7 +425,7 @@ class ManProgExtractor(ManPageExtractor):
     """
     An extractor for bpftool-prog.rst.
     """
-    filename = os.path.join(BPFTOOL_DIR, 'Documentation/bpftool-prog.rst')
+    filename = os.path.join(BPFTOOL_DOC_DIR, 'bpftool-prog.rst')
 
     def get_attach_types(self):
         return self.get_rst_list('ATTACH_TYPE')
@@ -383,7 +434,7 @@ class ManMapExtractor(ManPageExtractor):
     """
     An extractor for bpftool-map.rst.
     """
-    filename = os.path.join(BPFTOOL_DIR, 'Documentation/bpftool-map.rst')
+    filename = os.path.join(BPFTOOL_DOC_DIR, 'bpftool-map.rst')
 
     def get_map_types(self):
         return self.get_rst_list('TYPE')
@@ -392,7 +443,7 @@ class ManCgroupExtractor(ManPageExtractor):
     """
     An extractor for bpftool-cgroup.rst.
     """
-    filename = os.path.join(BPFTOOL_DIR, 'Documentation/bpftool-cgroup.rst')
+    filename = os.path.join(BPFTOOL_DOC_DIR, 'bpftool-cgroup.rst')
 
     def get_attach_types(self):
         return self.get_rst_list('ATTACH_TYPE')
@@ -411,7 +462,7 @@ class BashcompExtractor(FileExtractor):
     """
     An extractor for bpftool's bash completion file.
     """
-    filename = os.path.join(BPFTOOL_DIR, 'bash-completion/bpftool')
+    filename = os.path.join(BPFTOOL_BASHCOMP_DIR, 'bpftool')
 
     def get_prog_attach_types(self):
         return self.get_bashcomp_list('BPFTOOL_PROG_ATTACH_TYPES')
@@ -562,7 +613,7 @@ def main():
         help_cmd_options = source_info.get_options()
         source_info.close()
 
-        man_cmd_info = ManGenericExtractor(os.path.join('Documentation', 'bpftool-' + cmd + '.rst'))
+        man_cmd_info = ManGenericExtractor(os.path.join(BPFTOOL_DOC_DIR, 'bpftool-' + cmd + '.rst'))
         man_cmd_options = man_cmd_info.get_options()
         man_cmd_info.close()
 
@@ -573,12 +624,25 @@ def main():
     help_main_options = source_main_info.get_options()
     source_main_info.close()
 
-    man_main_info = ManGenericExtractor(os.path.join('Documentation', 'bpftool.rst'))
+    man_main_info = ManGenericExtractor(os.path.join(BPFTOOL_DOC_DIR, 'bpftool.rst'))
     man_main_options = man_main_info.get_options()
     man_main_info.close()
 
     verify(help_main_options, man_main_options,
             f'Comparing {source_main_info.filename} (do_help() OPTIONS) and {man_main_info.filename} (OPTIONS):')
+
+    # Compare common options (options that apply to all commands)
+
+    main_hdr_info = MainHeaderFileExtractor()
+    source_common_options = main_hdr_info.get_common_options()
+    main_hdr_info.close()
+
+    man_substitutions = ManSubstitutionsExtractor()
+    man_common_options = man_substitutions.get_common_options()
+    man_substitutions.close()
+
+    verify(source_common_options, man_common_options,
+            f'Comparing common options from {main_hdr_info.filename} (HELP_SPEC_OPTIONS) and {man_substitutions.filename}:')
 
     sys.exit(retval)
 

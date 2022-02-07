@@ -505,7 +505,7 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 				const char *header,
 				const struct i915_gem_context_coredump *ctx)
 {
-	const u32 period = m->i915->gt.clock_period_ns;
+	const u32 period = to_gt(m->i915)->clock_period_ns;
 
 	err_printf(m, "%s%s[%d] prio %d, guilty %d active %d, runtime total %lluns, avg %lluns\n",
 		   header, ctx->comm, ctx->pid, ctx->sched_attr.priority,
@@ -1415,18 +1415,15 @@ static struct i915_vma_coredump *
 create_vma_coredump(const struct intel_gt *gt, struct i915_vma *vma,
 		    const char *name, struct i915_vma_compress *compress)
 {
-	struct i915_vma_coredump *ret = NULL;
+	struct i915_vma_coredump *ret;
 	struct i915_vma_snapshot tmp;
-	bool lockdep_cookie;
 
 	if (!vma)
 		return NULL;
 
+	GEM_WARN_ON(!i915_vma_is_pinned(vma));
 	i915_vma_snapshot_init_onstack(&tmp, vma, name);
-	if (i915_vma_snapshot_resource_pin(&tmp, &lockdep_cookie)) {
-		ret = i915_vma_coredump_create(gt, &tmp, compress);
-		i915_vma_snapshot_resource_unpin(&tmp, lockdep_cookie);
-	}
+	ret = i915_vma_coredump_create(gt, &tmp, compress);
 	i915_vma_snapshot_put_onstack(&tmp);
 
 	return ret;
@@ -1849,7 +1846,7 @@ i915_gpu_coredump_alloc(struct drm_i915_private *i915, gfp_t gfp)
 
 	error->time = ktime_get_real();
 	error->boottime = ktime_get_boottime();
-	error->uptime = ktime_sub(ktime_get(), i915->gt.last_init_time);
+	error->uptime = ktime_sub(ktime_get(), to_gt(i915)->last_init_time);
 	error->capture = jiffies;
 
 	capture_gen(error);

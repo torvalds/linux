@@ -242,12 +242,15 @@ static int mac89x0_device_probe(struct platform_device *pdev)
 		pr_info("No EEPROM, giving up now.\n");
 		goto out1;
         } else {
+		u8 addr[ETH_ALEN];
+
                 for (i = 0; i < ETH_ALEN; i += 2) {
 			/* Big-endian (why??!) */
 			unsigned short s = readreg(dev, PP_IA + i);
-                        dev->dev_addr[i] = s >> 8;
-                        dev->dev_addr[i+1] = s & 0xff;
+			addr[i] = s >> 8;
+			addr[i+1] = s & 0xff;
                 }
+		eth_hw_addr_set(dev, addr);
         }
 
 	dev->irq = SLOT2IRQ(slot);

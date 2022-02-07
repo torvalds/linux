@@ -253,10 +253,11 @@ static int intel_cht_wc_exec_mipi_pmic_seq_element(struct regmap *regmap,
  * The thermal table and ops are empty, we do not support the Thermal opregion
  * (DPTF) due to lacking documentation.
  */
-static struct intel_pmic_opregion_data intel_cht_wc_pmic_opregion_data = {
+static const struct intel_pmic_opregion_data intel_cht_wc_pmic_opregion_data = {
 	.get_power		= intel_cht_wc_pmic_get_power,
 	.update_power		= intel_cht_wc_pmic_update_power,
 	.exec_mipi_pmic_seq_element = intel_cht_wc_exec_mipi_pmic_seq_element,
+	.lpat_raw_to_temp	= acpi_lpat_raw_to_temp,
 	.power_table		= power_table,
 	.power_table_count	= ARRAY_SIZE(power_table),
 };

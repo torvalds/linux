@@ -193,7 +193,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
-		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
@@ -254,7 +254,7 @@ static const struct dc_plane_cap plane_cap = {
 				.argb8888 = true,
 				.nv12 = true,
 				.fp16 = true,
-				.p010 = false,
+				.p010 = true,
 				.ayuv = false,
 		},
 		.max_upscale_factor = {

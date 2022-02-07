@@ -10,7 +10,7 @@ Overview
 Software Guard eXtensions (SGX) hardware enables for user space applications
 to set aside private memory regions of code and data:
 
-* Privileged (ring-0) ENCLS functions orchestrate the construction of the.
+* Privileged (ring-0) ENCLS functions orchestrate the construction of the
   regions.
 * Unprivileged (ring-3) ENCLU functions allow an application to enter and
   execute inside the regions.
@@ -91,7 +91,7 @@ In addition to the traditional compiler and linker build process, SGX has a
 separate enclave “build” process.  Enclaves must be built before they can be
 executed (entered). The first step in building an enclave is opening the
 **/dev/sgx_enclave** device.  Since enclave memory is protected from direct
-access, special privileged instructions are Then used to copy data into enclave
+access, special privileged instructions are then used to copy data into enclave
 pages and establish enclave page permissions.
 
 .. kernel-doc:: arch/x86/kernel/cpu/sgx/ioctl.c
@@ -126,13 +126,13 @@ the need to juggle signal handlers.
 ksgxd
 =====
 
-SGX support includes a kernel thread called *ksgxwapd*.
+SGX support includes a kernel thread called *ksgxd*.
 
 EPC sanitization
 ----------------
 
 ksgxd is started when SGX initializes.  Enclave memory is typically ready
-For use when the processor powers on or resets.  However, if SGX has been in
+for use when the processor powers on or resets.  However, if SGX has been in
 use since the reset, enclave pages may be in an inconsistent state.  This might
 occur after a crash and kexec() cycle, for instance.  At boot, ksgxd
 reinitializes all enclave pages so that they can be allocated and re-used.
@@ -147,7 +147,7 @@ Page reclaimer
 
 Similar to the core kswapd, ksgxd, is responsible for managing the
 overcommitment of enclave memory.  If the system runs out of enclave memory,
-*ksgxwapd* “swaps” enclave memory to normal memory.
+*ksgxd* “swaps” enclave memory to normal memory.
 
 Launch Control
 ==============
@@ -156,7 +156,7 @@ SGX provides a launch control mechanism. After all enclave pages have been
 copied, kernel executes EINIT function, which initializes the enclave. Only after
 this the CPU can execute inside the enclave.
 
-ENIT function takes an RSA-3072 signature of the enclave measurement.  The function
+EINIT function takes an RSA-3072 signature of the enclave measurement.  The function
 checks that the measurement is correct and signature is signed with the key
 hashed to the four **IA32_SGXLEPUBKEYHASH{0, 1, 2, 3}** MSRs representing the
 SHA256 of a public key.
@@ -184,7 +184,7 @@ CPUs starting from Icelake use Total Memory Encryption (TME) in the place of
 MEE. TME-based SGX implementations do not have an integrity Merkle tree, which
 means integrity and replay-attacks are not mitigated.  B, it includes
 additional changes to prevent cipher text from being returned and SW memory
-aliases from being Created.
+aliases from being created.
 
 DMA to enclave memory is blocked by range registers on both MEE and TME systems
 (SDM section 41.10).

@@ -46,7 +46,7 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 {
 	struct inode *inode = file_inode(filep);
 	struct nfs_server *server = NFS_SERVER(inode);
-	u32 bitmask[3];
+	u32 bitmask[NFS_BITMASK_SZ];
 	struct nfs42_falloc_args args = {
 		.falloc_fh	= NFS_FH(inode),
 		.falloc_offset	= offset,
@@ -69,9 +69,8 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 		return status;
 	}
 
-	memcpy(bitmask, server->cache_consistency_bitmask, sizeof(bitmask));
-	if (server->attr_bitmask[1] & FATTR4_WORD1_SPACE_USED)
-		bitmask[1] |= FATTR4_WORD1_SPACE_USED;
+	nfs4_bitmask_set(bitmask, server->cache_consistency_bitmask, inode,
+			 NFS_INO_INVALID_BLOCKS);
 
 	res.falloc_fattr = nfs_alloc_fattr();
 	if (!res.falloc_fattr)
@@ -1044,13 +1043,14 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 	struct inode *src_inode = file_inode(src_f);
 	struct inode *dst_inode = file_inode(dst_f);
 	struct nfs_server *server = NFS_SERVER(dst_inode);
+	__u32 dst_bitmask[NFS_BITMASK_SZ];
 	struct nfs42_clone_args args = {
 		.src_fh = NFS_FH(src_inode),
 		.dst_fh = NFS_FH(dst_inode),
 		.src_offset = src_offset,
 		.dst_offset = dst_offset,
 		.count = count,
-		.dst_bitmask = server->cache_consistency_bitmask,
+		.dst_bitmask = dst_bitmask,
 	};
 	struct nfs42_clone_res res = {
 		.server	= server,
@@ -1078,6 +1078,9 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 	res.dst_fattr = nfs_alloc_fattr();
 	if (!res.dst_fattr)
 		return -ENOMEM;
+
+	nfs4_bitmask_set(dst_bitmask, server->cache_consistency_bitmask,
+			 dst_inode, NFS_INO_INVALID_BLOCKS);
 
 	status = nfs4_call_sync(server->client, server, msg,
 				&args.seq_args, &res.seq_res, 0);

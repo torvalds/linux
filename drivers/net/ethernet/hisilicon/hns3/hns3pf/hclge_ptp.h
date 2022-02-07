@@ -8,6 +8,9 @@
 #include <linux/net_tstamp.h>
 #include <linux/types.h>
 
+struct hclge_dev;
+struct ifreq;
+
 #define HCLGE_PTP_REG_OFFSET	0x29000
 
 #define HCLGE_PTP_TX_TS_SEQID_REG	0x0

@@ -183,8 +183,6 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_net = get_net(cl_init->net);
 
 	clp->cl_principal = "*";
-	nfs_fscache_get_client_cookie(clp);
-
 	return clp;
 
 error_cleanup:
@@ -238,8 +236,6 @@ static void pnfs_init_server(struct nfs_server *server)
  */
 void nfs_free_client(struct nfs_client *clp)
 {
-	nfs_fscache_release_client_cookie(clp);
-
 	/* -EIO all pending I/O */
 	if (!IS_ERR(clp->cl_rpcclient))
 		rpc_shutdown_client(clp->cl_rpcclient);
@@ -858,6 +854,13 @@ static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, str
 
 		if (clp->rpc_ops->pathconf(server, mntfh, &pathinfo) >= 0)
 			server->namelen = pathinfo.max_namelen;
+	}
+
+	if (clp->rpc_ops->discover_trunking != NULL &&
+			(server->caps & NFS_CAP_FS_LOCATIONS)) {
+		error = clp->rpc_ops->discover_trunking(server, mntfh);
+		if (error < 0)
+			return error;
 	}
 
 	return 0;

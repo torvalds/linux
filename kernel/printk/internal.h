@@ -4,6 +4,14 @@
  */
 #include <linux/percpu.h>
 
+#if defined(CONFIG_PRINTK) && defined(CONFIG_SYSCTL)
+void __init printk_sysctl_init(void);
+int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
+			      void *buffer, size_t *lenp, loff_t *ppos);
+#else
+#define printk_sysctl_init() do { } while (0)
+#endif
+
 #ifdef CONFIG_PRINTK
 
 /* Flags for a single printk record. */

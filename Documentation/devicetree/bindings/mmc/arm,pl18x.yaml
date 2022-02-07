@@ -53,12 +53,30 @@ properties:
         items:
           - const: arm,pl18x
           - const: arm,primecell
+      - description: Entry for STMicroelectronics variant of PL18x.
+          This dedicated compatible is used by bootloaders.
+        items:
+          - const: st,stm32-sdmmc2
+          - const: arm,pl18x
+          - const: arm,primecell
 
   clocks:
     description: One or two clocks, the "apb_pclk" and the "MCLK"
       which is the core block clock. The names are not compulsory.
     minItems: 1
     maxItems: 2
+
+  dmas:
+    maxItems: 2
+
+  dma-names:
+    oneOf:
+      - items:
+          - const: tx
+          - const: rx
+      - items:
+          - const: rx
+          - const: tx
 
   power-domains: true
 
@@ -167,6 +185,9 @@ examples:
       clock-names = "mclk", "apb_pclk";
     };
 
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
     mmc@80126000 {
       compatible = "arm,pl18x", "arm,primecell";
       reg = <0x80126000 0x1000>;
@@ -188,12 +209,12 @@ examples:
       vqmmc-supply = <&vmmci>;
     };
 
+  - |
     mmc@101f6000 {
       compatible = "arm,pl18x", "arm,primecell";
       reg = <0x101f6000 0x1000>;
       clocks = <&sdiclk>, <&pclksdi>;
       clock-names = "mclk", "apb_pclk";
-      interrupt-parent = <&vica>;
       interrupts = <22>;
       max-frequency = <400000>;
       bus-width = <4>;
@@ -208,12 +229,12 @@ examples:
       vmmc-supply = <&vmmc_regulator>;
     };
 
+  - |
     mmc@52007000 {
       compatible = "arm,pl18x", "arm,primecell";
       arm,primecell-periphid = <0x10153180>;
       reg = <0x52007000 0x1000>;
       interrupts = <49>;
-      interrupt-names = "cmd_irq";
       clocks = <&rcc 0>;
       clock-names = "apb_pclk";
       resets = <&rcc 1>;

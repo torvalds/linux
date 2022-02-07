@@ -178,7 +178,6 @@ static void ia_hack_tcq(IADEV *dev) {
 
 static u16 get_desc (IADEV *dev, struct ia_vcc *iavcc) {
   u_short 		desc_num, i;
-  struct sk_buff        *skb;
   struct ia_vcc         *iavcc_r = NULL; 
   unsigned long delta;
   static unsigned long timer = 0;
@@ -202,8 +201,7 @@ static u16 get_desc (IADEV *dev, struct ia_vcc *iavcc) {
            else 
               dev->ffL.tcq_rd -= 2;
            *(u_short *)(dev->seg_ram + dev->ffL.tcq_rd) = i+1;
-           if (!(skb = dev->desc_tbl[i].txskb) || 
-                          !(iavcc_r = dev->desc_tbl[i].iavcc))
+           if (!dev->desc_tbl[i].txskb || !(iavcc_r = dev->desc_tbl[i].iavcc))
               printk("Fatal err, desc table vcc or skb is NULL\n");
            else 
               iavcc_r->vc_desc_cnt--;

@@ -16,7 +16,9 @@
 
 static inline struct intel_pxp *i915_dev_to_pxp(struct device *i915_kdev)
 {
-	return &kdev_to_i915(i915_kdev)->gt.pxp;
+	struct drm_i915_private *i915 = kdev_to_i915(i915_kdev);
+
+	return &to_gt(i915)->pxp;
 }
 
 static int intel_pxp_tee_io_message(struct intel_pxp *pxp,
@@ -105,9 +107,12 @@ static int i915_pxp_tee_component_bind(struct device *i915_kdev,
 static void i915_pxp_tee_component_unbind(struct device *i915_kdev,
 					  struct device *tee_kdev, void *data)
 {
+	struct drm_i915_private *i915 = kdev_to_i915(i915_kdev);
 	struct intel_pxp *pxp = i915_dev_to_pxp(i915_kdev);
+	intel_wakeref_t wakeref;
 
-	intel_pxp_fini_hw(pxp);
+	with_intel_runtime_pm_if_in_use(&i915->runtime_pm, wakeref)
+		intel_pxp_fini_hw(pxp);
 
 	mutex_lock(&pxp->tee_mutex);
 	pxp->pxp_component = NULL;

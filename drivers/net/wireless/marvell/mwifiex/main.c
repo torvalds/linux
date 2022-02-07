@@ -226,6 +226,23 @@ exit_rx_proc:
 	return 0;
 }
 
+static void maybe_quirk_fw_disable_ds(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+	struct mwifiex_ver_ext ver_ext;
+
+	if (test_and_set_bit(MWIFIEX_IS_REQUESTING_FW_VEREXT, &adapter->work_flags))
+		return;
+
+	memset(&ver_ext, 0, sizeof(ver_ext));
+	ver_ext.version_str_sel = 1;
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_VERSION_EXT,
+			     HostCmd_ACT_GEN_GET, 0, &ver_ext, false)) {
+		mwifiex_dbg(priv->adapter, MSG,
+			    "Checking hardware revision failed.\n");
+	}
+}
+
 /*
  * The main process.
  *
@@ -356,6 +373,7 @@ process_start:
 			if (adapter->hw_status == MWIFIEX_HW_STATUS_INIT_DONE) {
 				adapter->hw_status = MWIFIEX_HW_STATUS_READY;
 				mwifiex_init_fw_complete(adapter);
+				maybe_quirk_fw_disable_ds(adapter);
 			}
 		}
 

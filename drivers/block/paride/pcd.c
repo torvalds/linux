@@ -690,7 +690,7 @@ static void pcd_request(void)
 	if (!pcd_req && !set_next_request())
 		return;
 
-	cd = pcd_req->rq_disk->private_data;
+	cd = pcd_req->q->disk->private_data;
 	if (cd != pcd_current)
 		pcd_bufblk = -1;
 	pcd_current = cd;
@@ -928,8 +928,9 @@ static int pcd_init_unit(struct pcd_unit *cd, bool autoprobe, int port,
 	disk->minors = 1;
 	strcpy(disk->disk_name, cd->name);	/* umm... */
 	disk->fops = &pcd_bdops;
-	disk->flags = GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
+	disk->flags |= GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
+	disk->event_flags = DISK_EVENT_FLAG_BLOCK_ON_EXCL_WRITE;
 
 	if (!pi_init(cd->pi, autoprobe, port, mode, unit, protocol, delay,
 			pcd_buffer, PI_PCD, verbose, cd->name)) {

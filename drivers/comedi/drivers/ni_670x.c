@@ -24,8 +24,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
 
 #define AO_VALUE_OFFSET			0x00
 #define	AO_CHAN_OFFSET			0x0c

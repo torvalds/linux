@@ -634,7 +634,7 @@ config INTEL_SOC_PMIC_CHTWC
 config INTEL_SOC_PMIC_CHTDC_TI
 	tristate "Support for Intel Cherry Trail Dollar Cove TI PMIC"
 	depends on GPIOLIB
-	depends on I2C
+	depends on I2C=y && I2C_DESIGNWARE_PLATFORM=y
 	depends on ACPI
 	depends on X86
 	select MFD_CORE
@@ -643,6 +643,10 @@ config INTEL_SOC_PMIC_CHTDC_TI
 	help
 	  Select this option for supporting Dollar Cove (TI version) PMIC
 	  device that is found on some Intel Cherry Trail systems.
+
+	  This option is a bool as it provides an ACPI OpRegion which must be
+	  available before any devices using it are probed. This option also
+	  needs the designware-i2c driver to be builtin for the same reason.
 
 config INTEL_SOC_PMIC_MRFLD
 	tristate "Support for Intel Merrifield Basin Cove PMIC"
@@ -691,16 +695,6 @@ config MFD_INTEL_PMC_BXT
 	  multi-function device that exposes IPC, General Control
 	  Register and P-unit access. In addition this creates devices
 	  for iTCO watchdog and telemetry that are part of the PMC.
-
-config MFD_INTEL_PMT
-	tristate "Intel Platform Monitoring Technology (PMT) support"
-	depends on X86 && PCI
-	select MFD_CORE
-	help
-	  The Intel Platform Monitoring Technology (PMT) is an interface that
-	  provides access to hardware monitor registers. This driver supports
-	  Telemetry, Watcher, and Crashlog PMT capabilities/devices for
-	  platforms starting from Tiger Lake.
 
 config MFD_IPAQ_MICRO
 	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
@@ -1944,23 +1938,6 @@ config MFD_ROHM_BD718XX
 	  Power Management ICs. BD71837 is designed to power processors like
 	  NXP i.MX8. It contains 8 BUCK outputs and 7 LDOs, voltage monitoring
 	  and emergency shut down as well as 32,768KHz clock output.
-
-config MFD_ROHM_BD70528
-	tristate "ROHM BD70528 Power Management IC"
-	depends on I2C=y
-	depends on OF
-	select REGMAP_I2C
-	select REGMAP_IRQ
-	select MFD_CORE
-	help
-	  Select this option to get support for the ROHM BD70528 Power
-	  Management IC. BD71837 is general purpose single-chip power
-	  management IC for battery-powered portable devices. It contains
-	  3 ultra-low current consumption buck converters, 3 LDOs and 2 LED
-	  drivers. Also included are 4 GPIOs, a real-time clock (RTC), a 32kHz
-	  crystal oscillator, high-accuracy VREF for use with an external ADC,
-	  10 bits SAR ADC for battery temperature monitor and 1S battery
-	  charger.
 
 config MFD_ROHM_BD71828
 	tristate "ROHM BD71828 and BD71815 Power Management IC"

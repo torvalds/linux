@@ -636,7 +636,8 @@ static int __sev_launch_update_vmsa(struct kvm *kvm, struct kvm_vcpu *vcpu,
 static int sev_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_vcpu *vcpu;
-	int i, ret;
+	unsigned long i;
+	int ret;
 
 	if (!sev_es_guest(kvm))
 		return -ENOTTY;
@@ -1565,7 +1566,7 @@ static int sev_lock_two_vms(struct kvm *dst_kvm, struct kvm *src_kvm)
 	r = -EINTR;
 	if (mutex_lock_killable(&dst_kvm->lock))
 		goto release_src;
-	if (mutex_lock_killable(&src_kvm->lock))
+	if (mutex_lock_killable_nested(&src_kvm->lock, SINGLE_DEPTH_NESTING))
 		goto unlock_dst;
 	return 0;
 
@@ -1593,7 +1594,7 @@ static void sev_unlock_two_vms(struct kvm *dst_kvm, struct kvm *src_kvm)
 static int sev_lock_vcpus_for_migration(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
-	int i, j;
+	unsigned long i, j;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (mutex_lock_killable(&vcpu->mutex))
@@ -1615,7 +1616,7 @@ out_unlock:
 static void sev_unlock_vcpus_for_migration(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
-	int i;
+	unsigned long i;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		mutex_unlock(&vcpu->mutex);
@@ -1642,7 +1643,7 @@ static void sev_migrate_from(struct kvm_sev_info *dst,
 
 static int sev_es_migrate_from(struct kvm *dst, struct kvm *src)
 {
-	int i;
+	unsigned long i;
 	struct kvm_vcpu *dst_vcpu, *src_vcpu;
 	struct vcpu_svm *dst_svm, *src_svm;
 
@@ -2099,8 +2100,13 @@ void __init sev_hardware_setup(void)
 	if (!sev_enabled || !npt_enabled)
 		goto out;
 
-	/* Does the CPU support SEV? */
-	if (!boot_cpu_has(X86_FEATURE_SEV))
+	/*
+	 * SEV must obviously be supported in hardware.  Sanity check that the
+	 * CPU supports decode assists, which is mandatory for SEV guests to
+	 * support instruction emulation.
+	 */
+	if (!boot_cpu_has(X86_FEATURE_SEV) ||
+	    WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_DECODEASSISTS)))
 		goto out;
 
 	/* Retrieve SEV CPUID information */

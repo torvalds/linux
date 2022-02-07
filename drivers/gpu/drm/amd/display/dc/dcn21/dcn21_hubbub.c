@@ -680,7 +680,7 @@ void hubbub21_wm_read_state(struct hubbub *hubbub,
 			DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, &s->dram_clk_chanage);
 }
 
-void hubbub21_apply_DEDCN21_147_wa(struct hubbub *hubbub)
+static void hubbub21_apply_DEDCN21_147_wa(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
 	uint32_t prog_wm_value;

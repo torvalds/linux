@@ -1491,7 +1491,7 @@ static u32 mlxsw_sp1_to_ptys_speed_lanes(struct mlxsw_sp *mlxsw_sp, u8 width,
 
 static void
 mlxsw_sp1_reg_ptys_eth_pack(struct mlxsw_sp *mlxsw_sp, char *payload,
-			    u8 local_port, u32 proto_admin, bool autoneg)
+			    u16 local_port, u32 proto_admin, bool autoneg)
 {
 	mlxsw_reg_ptys_eth_pack(payload, local_port, proto_admin, autoneg);
 }
@@ -1969,7 +1969,7 @@ static u32 mlxsw_sp2_to_ptys_speed_lanes(struct mlxsw_sp *mlxsw_sp, u8 width,
 
 static void
 mlxsw_sp2_reg_ptys_eth_pack(struct mlxsw_sp *mlxsw_sp, char *payload,
-			    u8 local_port, u32 proto_admin,
+			    u16 local_port, u32 proto_admin,
 			    bool autoneg)
 {
 	mlxsw_reg_ptys_ext_eth_pack(payload, local_port, proto_admin, autoneg);

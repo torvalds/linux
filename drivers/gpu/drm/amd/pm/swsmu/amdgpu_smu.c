@@ -277,8 +277,12 @@ static int smu_dpm_set_power_gate(void *handle,
 	struct smu_context *smu = handle;
 	int ret = 0;
 
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled) {
+		dev_WARN(smu->adev->dev,
+			 "SMU uninitialized but power %s requested for %u!\n",
+			 gate ? "gate" : "ungate", block_type);
 		return -EOPNOTSUPP;
+	}
 
 	switch (block_type) {
 	/*
@@ -1346,7 +1350,6 @@ static int smu_hw_init(void *handle)
 	}
 
 	if (smu->is_apu) {
-		smu_powergate_sdma(&adev->smu, false);
 		smu_dpm_set_vcn_enable(smu, true);
 		smu_dpm_set_jpeg_enable(smu, true);
 		smu_set_gfx_cgpg(&adev->smu, true);
@@ -1402,8 +1405,14 @@ static int smu_disable_dpms(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
+	/*
+	 * TODO: (adev->in_suspend && !adev->in_s0ix) is added to pair
+	 * the workaround which always reset the asic in suspend.
+	 * It's likely that workaround will be dropped in the future.
+	 * Then the change here should be dropped together.
+	 */
 	bool use_baco = !smu->is_apu &&
-		((amdgpu_in_reset(adev) &&
+		(((amdgpu_in_reset(adev) || (adev->in_suspend && !adev->in_s0ix)) &&
 		  (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) ||
 		 ((adev->in_runpm || adev->in_s4) && amdgpu_asic_supports_baco(adev)));
 
@@ -1508,10 +1517,6 @@ static int smu_hw_fini(void *handle)
 	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
 
-	if (smu->is_apu) {
-		smu_powergate_sdma(&adev->smu, true);
-	}
-
 	smu_dpm_set_vcn_enable(smu, false);
 	smu_dpm_set_jpeg_enable(smu, false);
 
@@ -1570,9 +1575,7 @@ static int smu_suspend(void *handle)
 
 	smu->watermarks_bitmap &= ~(WATERMARKS_LOADED);
 
-	/* skip CGPG when in S0ix */
-	if (smu->is_apu && !adev->in_s0ix)
-		smu_set_gfx_cgpg(&adev->smu, false);
+	smu_set_gfx_cgpg(&adev->smu, false);
 
 	return 0;
 }
@@ -1603,8 +1606,7 @@ static int smu_resume(void *handle)
 		return ret;
 	}
 
-	if (smu->is_apu)
-		smu_set_gfx_cgpg(&adev->smu, true);
+	smu_set_gfx_cgpg(&adev->smu, true);
 
 	smu->disable_uclk_switch = 0;
 
@@ -3062,13 +3064,13 @@ static int smu_gfx_state_change_set(void *handle,
 	return ret;
 }
 
-int smu_set_light_sbr(struct smu_context *smu, bool enable)
+int smu_handle_passthrough_sbr(struct smu_context *smu, bool enable)
 {
 	int ret = 0;
 
 	mutex_lock(&smu->mutex);
-	if (smu->ppt_funcs->set_light_sbr)
-		ret = smu->ppt_funcs->set_light_sbr(smu, enable);
+	if (smu->ppt_funcs->smu_handle_passthrough_sbr)
+		ret = smu->ppt_funcs->smu_handle_passthrough_sbr(smu, enable);
 	mutex_unlock(&smu->mutex);
 
 	return ret;

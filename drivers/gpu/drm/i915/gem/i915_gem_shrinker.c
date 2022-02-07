@@ -36,8 +36,8 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	return swap_available() || obj->mm.madv == I915_MADV_DONTNEED;
 }
 
-static bool unsafe_drop_pages(struct drm_i915_gem_object *obj,
-			      unsigned long shrink, bool trylock_vm)
+static int drop_pages(struct drm_i915_gem_object *obj,
+		       unsigned long shrink, bool trylock_vm)
 {
 	unsigned long flags;
 
@@ -153,7 +153,7 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 	 */
 	if (shrink & I915_SHRINK_ACTIVE)
 		/* Retire requests to unpin all idle contexts */
-		intel_gt_retire_requests(&i915->gt);
+		intel_gt_retire_requests(to_gt(i915));
 
 	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
@@ -214,25 +214,23 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 
 			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
-			err = 0;
-			if (unsafe_drop_pages(obj, shrink, trylock_vm)) {
-				/* May arrive from get_pages on another bo */
-				if (!ww) {
-					if (!i915_gem_object_trylock(obj))
-						goto skip;
-				} else {
-					err = i915_gem_object_lock(obj, ww);
-					if (err)
-						goto skip;
-				}
-
-				if (!__i915_gem_object_put_pages(obj)) {
-					if (!try_to_writeback(obj, shrink))
-						count += obj->base.size >> PAGE_SHIFT;
-				}
-				if (!ww)
-					i915_gem_object_unlock(obj);
+			/* May arrive from get_pages on another bo */
+			if (!ww) {
+				if (!i915_gem_object_trylock(obj, NULL))
+					goto skip;
+			} else {
+				err = i915_gem_object_lock(obj, ww);
+				if (err)
+					goto skip;
 			}
+
+			if (drop_pages(obj, shrink, trylock_vm) &&
+			    !__i915_gem_object_put_pages(obj) &&
+			    !try_to_writeback(obj, shrink))
+				count += obj->base.size >> PAGE_SHIFT;
+
+			if (!ww)
+				i915_gem_object_unlock(obj);
 
 			scanned += obj->base.size >> PAGE_SHIFT;
 skip:
@@ -407,12 +405,18 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	list_for_each_entry_safe(vma, next,
 				 &i915->ggtt.vm.bound_list, vm_link) {
 		unsigned long count = vma->node.size >> PAGE_SHIFT;
+		struct drm_i915_gem_object *obj = vma->obj;
 
 		if (!vma->iomap || i915_vma_is_active(vma))
 			continue;
 
+		if (!i915_gem_object_trylock(obj, NULL))
+			continue;
+
 		if (__i915_vma_unbind(vma) == 0)
 			freed_pages += count;
+
+		i915_gem_object_unlock(obj);
 	}
 	mutex_unlock(&i915->ggtt.vm.mutex);
 

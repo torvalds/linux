@@ -15,7 +15,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.10";
+static const char *version_str = "v1.11";
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -1599,6 +1599,7 @@ static void set_scaling_min_to_cpuinfo_max(int cpu)
 		    die_id != get_physical_die_id(i))
 			continue;
 
+		adjust_scaling_max_from_base_freq(i);
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 0);
 		adjust_scaling_min_from_base_freq(i);
 	}
@@ -1615,6 +1616,7 @@ static void set_scaling_min_to_cpuinfo_min(int cpu)
 		    die_id != get_physical_die_id(i))
 			continue;
 
+		adjust_scaling_max_from_base_freq(i);
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 0, 0);
 	}
 }

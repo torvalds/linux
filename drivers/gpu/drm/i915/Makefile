@@ -162,6 +162,7 @@ i915-y += \
 	  $(gem-y) \
 	  i915_active.o \
 	  i915_cmd_parser.o \
+	  i915_deps.o \
 	  i915_gem_evict.o \
 	  i915_gem_gtt.o \
 	  i915_gem_ww.o \
@@ -258,6 +259,7 @@ i915-y += \
 	display/intel_crt.o \
 	display/intel_ddi.o \
 	display/intel_ddi_buf_trans.o \
+	display/intel_display_trace.o \
 	display/intel_dp.o \
 	display/intel_dp_aux.o \
 	display/intel_dp_aux_backlight.o \

@@ -23,6 +23,23 @@ struct fpga_bridge_ops {
 };
 
 /**
+ * struct fpga_bridge_info - collection of parameters an FPGA Bridge
+ * @name: fpga bridge name
+ * @br_ops: pointer to structure of fpga bridge ops
+ * @priv: fpga bridge private data
+ *
+ * fpga_bridge_info contains parameters for the register function. These
+ * are separated into an info structure because they some are optional
+ * others could be added to in the future. The info structure facilitates
+ * maintaining a stable API.
+ */
+struct fpga_bridge_info {
+	const char *name;
+	const struct fpga_bridge_ops *br_ops;
+	void *priv;
+};
+
+/**
  * struct fpga_bridge - FPGA bridge structure
  * @name: name of low level FPGA bridge
  * @dev: FPGA bridge device
@@ -62,15 +79,10 @@ int of_fpga_bridge_get_to_list(struct device_node *np,
 			       struct fpga_image_info *info,
 			       struct list_head *bridge_list);
 
-struct fpga_bridge *fpga_bridge_create(struct device *dev, const char *name,
-				       const struct fpga_bridge_ops *br_ops,
-				       void *priv);
-void fpga_bridge_free(struct fpga_bridge *br);
-int fpga_bridge_register(struct fpga_bridge *br);
+struct fpga_bridge *
+fpga_bridge_register(struct device *parent, const char *name,
+		     const struct fpga_bridge_ops *br_ops,
+		     void *priv);
 void fpga_bridge_unregister(struct fpga_bridge *br);
-
-struct fpga_bridge
-*devm_fpga_bridge_create(struct device *dev, const char *name,
-			 const struct fpga_bridge_ops *br_ops, void *priv);
 
 #endif /* _LINUX_FPGA_BRIDGE_H */

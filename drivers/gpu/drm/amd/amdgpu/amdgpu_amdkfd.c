@@ -514,13 +514,6 @@ out_put:
 	return r;
 }
 
-uint64_t amdgpu_amdkfd_get_vram_usage(struct amdgpu_device *adev)
-{
-	struct ttm_resource_manager *vram_man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
-
-	return amdgpu_vram_mgr_usage(vram_man);
-}
-
 uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct amdgpu_device *dst,
 					  struct amdgpu_device *src)
 {
@@ -721,13 +714,13 @@ bool amdgpu_amdkfd_have_atomics_support(struct amdgpu_device *adev)
 	return adev->have_atomics_support;
 }
 
-void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev)
+void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bool reset)
 {
 	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	/* CPU MCA will handle page retirement if connected_to_cpu is 1 */
 	if (!adev->gmc.xgmi.connected_to_cpu)
-		amdgpu_umc_process_ras_data_cb(adev, &err_data, NULL);
-	else
+		amdgpu_umc_poison_handler(adev, &err_data, reset);
+	else if (reset)
 		amdgpu_amdkfd_gpu_reset(adev);
 }

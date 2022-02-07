@@ -72,7 +72,7 @@ static void	tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req);
 
-static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
+INDIRECT_CALLABLE_SCOPE int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
 
 static const struct inet_connection_sock_af_ops ipv6_mapped;
 const struct inet_connection_sock_af_ops ipv6_specific;
@@ -107,7 +107,7 @@ static void inet6_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
 	if (dst && dst_hold_safe(dst)) {
 		const struct rt6_info *rt = (const struct rt6_info *)dst;
 
-		sk->sk_rx_dst = dst;
+		rcu_assign_pointer(sk->sk_rx_dst, dst);
 		sk->sk_rx_dst_ifindex = skb->skb_iif;
 		sk->sk_rx_dst_cookie = rt6_get_cookie(rt);
 	}
@@ -1466,7 +1466,8 @@ INDIRECT_CALLABLE_DECLARE(struct dst_entry *ipv4_dst_check(struct dst_entry *,
  * This is because we cannot sleep with the original spinlock
  * held.
  */
-static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE
+int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = tcp_inet6_sk(sk);
 	struct sk_buff *opt_skb = NULL;
@@ -1505,7 +1506,10 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 		opt_skb = skb_clone(skb, sk_gfp_mask(sk, GFP_ATOMIC));
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
-		struct dst_entry *dst = sk->sk_rx_dst;
+		struct dst_entry *dst;
+
+		dst = rcu_dereference_protected(sk->sk_rx_dst,
+						lockdep_sock_is_held(sk));
 
 		sock_rps_save_rxhash(sk, skb);
 		sk_mark_napi_id(sk, skb);
@@ -1513,8 +1517,8 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 			if (sk->sk_rx_dst_ifindex != skb->skb_iif ||
 			    INDIRECT_CALL_1(dst->ops->check, ip6_dst_check,
 					    dst, sk->sk_rx_dst_cookie) == NULL) {
+				RCU_INIT_POINTER(sk->sk_rx_dst, NULL);
 				dst_release(dst);
-				sk->sk_rx_dst = NULL;
 			}
 		}
 
@@ -1757,6 +1761,7 @@ process:
 
 	sk_incoming_cpu_update(sk);
 
+	sk_defer_free_flush(sk);
 	bh_lock_sock_nested(sk);
 	tcp_segs_in(tcp_sk(sk), skb);
 	ret = 0;
@@ -1874,7 +1879,7 @@ INDIRECT_CALLABLE_SCOPE void tcp_v6_early_demux(struct sk_buff *skb)
 		skb->sk = sk;
 		skb->destructor = sock_edemux;
 		if (sk_fullsock(sk)) {
-			struct dst_entry *dst = READ_ONCE(sk->sk_rx_dst);
+			struct dst_entry *dst = rcu_dereference(sk->sk_rx_dst);
 
 			if (dst)
 				dst = dst_check(dst, sk->sk_rx_dst_cookie);
@@ -1893,9 +1898,7 @@ static struct timewait_sock_ops tcp6_timewait_sock_ops = {
 
 INDIRECT_CALLABLE_SCOPE void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb)
 {
-	struct ipv6_pinfo *np = inet6_sk(sk);
-
-	__tcp_v6_send_check(skb, &np->saddr, &sk->sk_v6_daddr);
+	__tcp_v6_send_check(skb, &sk->sk_v6_rcv_saddr, &sk->sk_v6_daddr);
 }
 
 const struct inet_connection_sock_af_ops ipv6_specific = {
@@ -2178,6 +2181,7 @@ struct proto tcpv6_prot = {
 	.hash			= inet6_hash,
 	.unhash			= inet_unhash,
 	.get_port		= inet_csk_get_port,
+	.put_port		= inet_put_port,
 #ifdef CONFIG_BPF_SYSCALL
 	.psock_update_sk_prot	= tcp_bpf_update_proto,
 #endif

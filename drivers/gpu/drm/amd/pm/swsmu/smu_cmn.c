@@ -94,7 +94,7 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 
 /**
  * __smu_cmn_poll_stat -- poll for a status from the SMU
- * smu: a pointer to SMU context
+ * @smu: a pointer to SMU context
  *
  * Returns the status of the SMU, which could be,
  *    0, the SMU is busy with your command;
@@ -257,10 +257,11 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 				     uint16_t msg_index,
 				     uint32_t param)
 {
+	struct amdgpu_device *adev = smu->adev;
 	u32 reg;
 	int res;
 
-	if (smu->adev->no_hw_access)
+	if (adev->no_hw_access)
 		return 0;
 
 	reg = __smu_cmn_poll_stat(smu);
@@ -272,6 +273,12 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 	__smu_cmn_send_msg(smu, msg_index, param);
 	res = 0;
 Out:
+	if (unlikely(adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) &&
+	    res && (res != -ETIME)) {
+		amdgpu_device_halt(adev);
+		WARN_ON(1);
+	}
+
 	return res;
 }
 
@@ -288,9 +295,18 @@ Out:
 int smu_cmn_wait_for_response(struct smu_context *smu)
 {
 	u32 reg;
+	int res;
 
 	reg = __smu_cmn_poll_stat(smu);
-	return __smu_cmn_reg2errno(smu, reg);
+	res = __smu_cmn_reg2errno(smu, reg);
+
+	if (unlikely(smu->adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) &&
+	    res && (res != -ETIME)) {
+		amdgpu_device_halt(smu->adev);
+		WARN_ON(1);
+	}
+
+	return res;
 }
 
 /**
@@ -328,10 +344,11 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 				    uint32_t param,
 				    uint32_t *read_arg)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int res, index;
 	u32 reg;
 
-	if (smu->adev->no_hw_access)
+	if (adev->no_hw_access)
 		return 0;
 
 	index = smu_cmn_to_asic_specific_index(smu,
@@ -357,6 +374,11 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	if (read_arg)
 		smu_cmn_read_arg(smu, read_arg);
 Out:
+	if (unlikely(adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) && res) {
+		amdgpu_device_halt(adev);
+		WARN_ON(1);
+	}
+
 	mutex_unlock(&smu->message_lock);
 	return res;
 }

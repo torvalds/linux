@@ -523,6 +523,15 @@ static inline bool ct_deadlocked(struct intel_guc_ct *ct)
 		CT_ERROR(ct, "Communication stalled for %lld ms, desc status=%#x,%#x\n",
 			 ktime_ms_delta(ktime_get(), ct->stall_time),
 			 send->status, recv->status);
+		CT_ERROR(ct, "H2G Space: %u (Bytes)\n",
+			 atomic_read(&ct->ctbs.send.space) * 4);
+		CT_ERROR(ct, "Head: %u (Dwords)\n", ct->ctbs.send.desc->head);
+		CT_ERROR(ct, "Tail: %u (Dwords)\n", ct->ctbs.send.desc->tail);
+		CT_ERROR(ct, "G2H Space: %u (Bytes)\n",
+			 atomic_read(&ct->ctbs.recv.space) * 4);
+		CT_ERROR(ct, "Head: %u\n (Dwords)", ct->ctbs.recv.desc->head);
+		CT_ERROR(ct, "Tail: %u\n (Dwords)", ct->ctbs.recv.desc->tail);
+
 		ct->ctbs.send.broken = true;
 	}
 
@@ -582,11 +591,18 @@ static inline bool h2g_has_room(struct intel_guc_ct *ct, u32 len_dw)
 
 static int has_room_nb(struct intel_guc_ct *ct, u32 h2g_dw, u32 g2h_dw)
 {
+	bool h2g = h2g_has_room(ct, h2g_dw);
+	bool g2h = g2h_has_room(ct, g2h_dw);
+
 	lockdep_assert_held(&ct->ctbs.send.lock);
 
-	if (unlikely(!h2g_has_room(ct, h2g_dw) || !g2h_has_room(ct, g2h_dw))) {
+	if (unlikely(!h2g || !g2h)) {
 		if (ct->stall_time == KTIME_MAX)
 			ct->stall_time = ktime_get();
+
+		/* Be paranoid and kick G2H tasklet to free credits */
+		if (!g2h)
+			tasklet_hi_schedule(&ct->receive_tasklet);
 
 		if (unlikely(ct_deadlocked(ct)))
 			return -EPIPE;

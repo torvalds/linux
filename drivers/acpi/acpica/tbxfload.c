@@ -227,9 +227,7 @@ unlock_and_exit:
  *
  * FUNCTION:    acpi_install_table
  *
- * PARAMETERS:  address             - Address of the ACPI table to be installed.
- *              physical            - Whether the address is a physical table
- *                                    address or not
+ * PARAMETERS:  table               - Pointer to the ACPI table to be installed.
  *
  * RETURN:      Status
  *
@@ -240,27 +238,53 @@ unlock_and_exit:
  ******************************************************************************/
 
 acpi_status ACPI_INIT_FUNCTION
-acpi_install_table(acpi_physical_address address, u8 physical)
+acpi_install_table(struct acpi_table_header *table)
 {
 	acpi_status status;
-	u8 flags;
 	u32 table_index;
 
 	ACPI_FUNCTION_TRACE(acpi_install_table);
 
-	if (physical) {
-		flags = ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL;
-	} else {
-		flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
-	}
-
-	status = acpi_tb_install_standard_table(address, flags,
-						FALSE, FALSE, &table_index);
+	status = acpi_tb_install_standard_table(ACPI_PTR_TO_PHYSADDR(table),
+						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
+						table, FALSE, FALSE,
+						&table_index);
 
 	return_ACPI_STATUS(status);
 }
 
 ACPI_EXPORT_SYMBOL_INIT(acpi_install_table)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_install_physical_table
+ *
+ * PARAMETERS:  address             - Address of the ACPI table to be installed.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Dynamically install an ACPI table.
+ *              Note: This function should only be invoked after
+ *                    acpi_initialize_tables() and before acpi_load_tables().
+ *
+ ******************************************************************************/
+acpi_status ACPI_INIT_FUNCTION
+acpi_install_physical_table(acpi_physical_address address)
+{
+	acpi_status status;
+	u32 table_index;
+
+	ACPI_FUNCTION_TRACE(acpi_install_physical_table);
+
+	status = acpi_tb_install_standard_table(address,
+						ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
+						NULL, FALSE, FALSE,
+						&table_index);
+
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_install_physical_table)
 
 /*******************************************************************************
  *
@@ -298,7 +322,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table, u32 *table_idx)
 	ACPI_INFO(("Host-directed Dynamic ACPI Table Load:"));
 	status = acpi_tb_install_and_load_table(ACPI_PTR_TO_PHYSADDR(table),
 						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
-						FALSE, &table_index);
+						table, FALSE, &table_index);
 	if (table_idx) {
 		*table_idx = table_index;
 	}

@@ -617,7 +617,7 @@ config I2C_EXYNOS5
 	help
 	  High-speed I2C controller on Samsung Exynos5 and newer Samsung SoCs:
 	  Exynos5250, Exynos5260, Exynos5410, Exynos542x, Exynos5800,
-	  Exynos5433 and Exynos7.
+	  Exynos5433, Exynos7, Exynos850 and ExynosAutoV9.
 	  Choose Y here only if you build for such Samsung SoC.
 
 config I2C_GPIO
@@ -963,16 +963,10 @@ config I2C_RK3X
 	  This driver can also be built as a module. If so, the module will
 	  be called i2c-rk3x.
 
-config HAVE_S3C2410_I2C
-	bool
-	help
-	  This will include I2C support for Samsung SoCs. If you want to
-	  include I2C support for any machine, kindly select this in the
-	  respective Kconfig file.
-
 config I2C_S3C2410
 	tristate "S3C/Exynos I2C Driver"
-	depends on HAVE_S3C2410_I2C || COMPILE_TEST
+	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || \
+		   ARCH_S5PV210 || COMPILE_TEST
 	help
 	  Say Y here to include support for I2C controller in the
 	  Samsung SoCs (S3C, S5Pv210, Exynos).
@@ -1159,22 +1153,12 @@ config I2C_XILINX
 	  This driver can also be built as a module.  If so, the module
 	  will be called xilinx_i2c.
 
-config I2C_XLR
-	tristate "Netlogic XLR I2C support"
-	depends on CPU_XLR || COMPILE_TEST
-	help
-	  This driver enables support for the on-chip I2C interface of
-	  the Netlogic XLR/XLS MIPS processors and Sigma Designs SOCs.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-xlr.
-
 config I2C_XLP9XX
-	tristate "XLP9XX I2C support"
-	depends on CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST
+	tristate "Cavium ThunderX2 I2C support"
+	depends on ARCH_THUNDER2 || COMPILE_TEST
 	help
 	  This driver enables support for the on-chip I2C interface of
-	  the Broadcom XLP9xx/XLP5xx MIPS and Vulcan ARM64 processors.
+	  the Cavium ThunderX2 processors. (Originally on Netlogic XLP SoCs.)
 
 	  This driver can also be built as a module.  If so, the module will
 	  be called i2c-xlp9xx.

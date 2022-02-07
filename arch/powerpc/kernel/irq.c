@@ -745,7 +745,8 @@ void __do_irq(struct pt_regs *regs)
 	irq = ppc_md.get_irq();
 
 	/* We can hard enable interrupts now to allow perf interrupts */
-	may_hard_irq_enable();
+	if (should_hard_irq_enable())
+		do_hard_irq_enable();
 
 	/* And finally process it */
 	if (unlikely(!irq))
@@ -811,7 +812,7 @@ void __init init_IRQ(void)
 		ppc_md.init_IRQ();
 }
 
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+#ifdef CONFIG_BOOKE_OR_40x
 void   *critirq_ctx[NR_CPUS] __read_mostly;
 void    *dbgirq_ctx[NR_CPUS] __read_mostly;
 void *mcheckirq_ctx[NR_CPUS] __read_mostly;

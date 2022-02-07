@@ -45,6 +45,12 @@ struct tdp_iter {
 	 * iterator walks off the end of the paging structure.
 	 */
 	bool valid;
+	/*
+	 * True if KVM dropped mmu_lock and yielded in the middle of a walk, in
+	 * which case tdp_iter_next() needs to restart the walk at the root
+	 * level instead of advancing to the next entry.
+	 */
+	bool yielded;
 };
 
 /*

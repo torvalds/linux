@@ -59,7 +59,7 @@ static DEVICE_ATTR_RO(mem_info_preempt_used);
  * @man: TTM memory type manager
  * @tbo: TTM BO we need this range for
  * @place: placement flags and restrictions
- * @mem: the resulting mem object
+ * @res: TTM memory object
  *
  * Dummy, just count the space used without allocating resources or any limit.
  */
@@ -85,7 +85,7 @@ static int amdgpu_preempt_mgr_new(struct ttm_resource_manager *man,
  * amdgpu_preempt_mgr_del - free ranges
  *
  * @man: TTM memory type manager
- * @mem: TTM memory object
+ * @res: TTM memory object
  *
  * Free the allocated GTT again.
  */

@@ -75,7 +75,7 @@ void rsi_sdio_rx_thread(struct rsi_common *common)
 
 	rsi_dbg(INFO_ZONE, "%s: Terminated SDIO RX thread\n", __func__);
 	atomic_inc(&sdev->rx_thread.thread_done);
-	complete_and_exit(&sdev->rx_thread.completion, 0);
+	kthread_complete_and_exit(&sdev->rx_thread.completion, 0);
 }
 
 /**

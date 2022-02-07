@@ -1186,12 +1186,12 @@ int perf_event__synthesize_thread_map2(struct perf_tool *tool,
 static void synthesize_cpus(struct cpu_map_entries *cpus,
 			    struct perf_cpu_map *map)
 {
-	int i;
+	int i, map_nr = perf_cpu_map__nr(map);
 
-	cpus->nr = map->nr;
+	cpus->nr = map_nr;
 
-	for (i = 0; i < map->nr; i++)
-		cpus->cpu[i] = map->map[i];
+	for (i = 0; i < map_nr; i++)
+		cpus->cpu[i] = perf_cpu_map__cpu(map, i).cpu;
 }
 
 static void synthesize_mask(struct perf_record_record_cpu_map *mask,
@@ -1202,13 +1202,13 @@ static void synthesize_mask(struct perf_record_record_cpu_map *mask,
 	mask->nr = BITS_TO_LONGS(max);
 	mask->long_size = sizeof(long);
 
-	for (i = 0; i < map->nr; i++)
-		set_bit(map->map[i], mask->mask);
+	for (i = 0; i < perf_cpu_map__nr(map); i++)
+		set_bit(perf_cpu_map__cpu(map, i).cpu, mask->mask);
 }
 
 static size_t cpus_size(struct perf_cpu_map *map)
 {
-	return sizeof(struct cpu_map_entries) + map->nr * sizeof(u16);
+	return sizeof(struct cpu_map_entries) + perf_cpu_map__nr(map) * sizeof(u16);
 }
 
 static size_t mask_size(struct perf_cpu_map *map, int *max)
@@ -1217,9 +1217,9 @@ static size_t mask_size(struct perf_cpu_map *map, int *max)
 
 	*max = 0;
 
-	for (i = 0; i < map->nr; i++) {
+	for (i = 0; i < perf_cpu_map__nr(map); i++) {
 		/* bit position of the cpu is + 1 */
-		int bit = map->map[i] + 1;
+		int bit = perf_cpu_map__cpu(map, i).cpu + 1;
 
 		if (bit > *max)
 			*max = bit;
@@ -1354,7 +1354,7 @@ int perf_event__synthesize_stat_config(struct perf_tool *tool,
 }
 
 int perf_event__synthesize_stat(struct perf_tool *tool,
-				u32 cpu, u32 thread, u64 id,
+				struct perf_cpu cpu, u32 thread, u64 id,
 				struct perf_counts_values *count,
 				perf_event__handler_t process,
 				struct machine *machine)
@@ -1366,7 +1366,7 @@ int perf_event__synthesize_stat(struct perf_tool *tool,
 	event.header.misc = 0;
 
 	event.id        = id;
-	event.cpu       = cpu;
+	event.cpu       = cpu.cpu;
 	event.thread    = thread;
 	event.val       = count->val;
 	event.ena       = count->ena;
@@ -1763,7 +1763,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_
 			}
 
 			e->idx = sid->idx;
-			e->cpu = sid->cpu;
+			e->cpu = sid->cpu.cpu;
 			e->tid = sid->tid;
 		}
 	}

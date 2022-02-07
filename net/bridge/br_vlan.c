@@ -560,10 +560,10 @@ static bool __allowed_ingress(const struct net_bridge *br,
 		    !br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) {
 			if (*state == BR_STATE_FORWARDING) {
 				*state = br_vlan_get_pvid_state(vg);
-				return br_vlan_state_allowed(*state, true);
-			} else {
-				return true;
+				if (!br_vlan_state_allowed(*state, true))
+					goto drop;
 			}
+			return true;
 		}
 	}
 	v = br_vlan_find(vg, *vid);
@@ -1063,7 +1063,7 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 		if (br_vlan_delete(br, old_pvid))
 			br_vlan_notify(br, NULL, old_pvid, 0, RTM_DELVLAN);
 		br_vlan_notify(br, NULL, pvid, 0, RTM_NEWVLAN);
-		set_bit(0, changed);
+		__set_bit(0, changed);
 	}
 
 	list_for_each_entry(p, &br->port_list, list) {
@@ -1085,7 +1085,7 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 		if (nbp_vlan_delete(p, old_pvid))
 			br_vlan_notify(br, p, old_pvid, 0, RTM_DELVLAN);
 		br_vlan_notify(p->br, p, pvid, 0, RTM_NEWVLAN);
-		set_bit(p->port_no, changed);
+		__set_bit(p->port_no, changed);
 	}
 
 	br->default_pvid = pvid;
@@ -2020,7 +2020,8 @@ static int br_vlan_rtm_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			goto out_err;
 		}
 		err = br_vlan_dump_dev(dev, skb, cb, dump_flags);
-		if (err && err != -EMSGSIZE)
+		/* if the dump completed without an error we return 0 here */
+		if (err != -EMSGSIZE)
 			goto out_err;
 	} else {
 		for_each_netdev_rcu(net, dev) {
