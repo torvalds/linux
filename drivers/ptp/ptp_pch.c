@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -298,19 +299,16 @@ static irqreturn_t isr(int irq, void *priv)
 	struct pch_dev *pch_dev = priv;
 	struct pch_ts_regs __iomem *regs = pch_dev->regs;
 	struct ptp_clock_event event;
-	u32 ack = 0, lo, hi, val;
+	u32 ack = 0, val;
 
 	val = ioread32(&regs->event);
 
 	if (val & PCH_TSE_SNS) {
 		ack |= PCH_TSE_SNS;
 		if (pch_dev->exts0_enabled) {
-			hi = ioread32(&regs->asms_hi);
-			lo = ioread32(&regs->asms_lo);
 			event.type = PTP_CLOCK_EXTTS;
 			event.index = 0;
-			event.timestamp = ((u64) hi) << 32;
-			event.timestamp |= lo;
+			event.timestamp = ioread64_hi_lo(&regs->asms_hi);
 			event.timestamp <<= TICKS_NS_SHIFT;
 			ptp_clock_event(pch_dev->ptp_clock, &event);
 		}
@@ -319,12 +317,9 @@ static irqreturn_t isr(int irq, void *priv)
 	if (val & PCH_TSE_SNM) {
 		ack |= PCH_TSE_SNM;
 		if (pch_dev->exts1_enabled) {
-			hi = ioread32(&regs->amms_hi);
-			lo = ioread32(&regs->amms_lo);
 			event.type = PTP_CLOCK_EXTTS;
 			event.index = 1;
-			event.timestamp = ((u64) hi) << 32;
-			event.timestamp |= lo;
+			event.timestamp = ioread64_hi_lo(&regs->asms_hi);
 			event.timestamp <<= TICKS_NS_SHIFT;
 			ptp_clock_event(pch_dev->ptp_clock, &event);
 		}
