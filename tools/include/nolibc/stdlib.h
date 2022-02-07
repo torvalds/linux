@@ -12,6 +12,13 @@
 #include "types.h"
 #include "sys.h"
 
+
+/* Buffer used to store int-to-ASCII conversions. Will only be implemented if
+ * any of the related functions is implemented. The area is large enough to
+ * store "18446744073709551615" or "-9223372036854775808" and the final zero.
+ */
+static __attribute__((unused)) char itoa_buffer[21];
+
 /*
  * As much as possible, please keep functions alphabetically sorted.
  */
@@ -45,36 +52,96 @@ int atoi(const char *s)
 	return atol(s);
 }
 
-/* performs the opposite of atol() using a user-fed buffer. The buffer must be
- * at least 21 bytes long (large enough for "-9223372036854775808").
+/* Converts the unsigned long integer <in> to its string representation into
+ * buffer <buffer>, which must be long enough to store the number and the
+ * trailing zero (21 bytes for 18446744073709551615 in 64-bit, 11 for
+ * 4294967295 in 32-bit). The buffer is filled from the first byte, and the
+ * number of characters emitted (not counting the trailing zero) is returned.
+ * The function is constructed in a way to optimize the code size and avoid
+ * any divide that could add a dependency on large external functions.
  */
 static __attribute__((unused))
-const char *ltoa_r(long in, char *buffer)
+int utoa_r(unsigned long in, char *buffer)
 {
-	char       *pos = buffer + 21 - 1;
-	int         neg = in < 0;
-	unsigned long n = neg ? -in : in;
+	unsigned long lim;
+	int digits = 0;
+	int pos = (~0UL > 0xfffffffful) ? 19 : 9;
+	int dig;
 
-	*pos-- = '\0';
 	do {
-		*pos-- = '0' + n % 10;
-		n /= 10;
-		if (pos < buffer)
-			return pos + 1;
-	} while (n);
+		for (dig = 0, lim = 1; dig < pos; dig++)
+			lim *= 10;
 
-	if (neg)
-		*pos-- = '-';
-	return pos + 1;
+		if (digits || in >= lim || !pos) {
+			for (dig = 0; in >= lim; dig++)
+				in -= lim;
+			buffer[digits++] = '0' + dig;
+		}
+	} while (pos--);
+
+	buffer[digits] = 0;
+	return digits;
 }
 
-/* performs the opposite of atol() using a statically allocated buffer */
+/* Converts the signed long integer <in> to its string representation into
+ * buffer <buffer>, which must be long enough to store the number and the
+ * trailing zero (21 bytes for -9223372036854775808 in 64-bit, 12 for
+ * -2147483648 in 32-bit). The buffer is filled from the first byte, and the
+ * number of characters emitted (not counting the trailing zero) is returned.
+ */
 static __attribute__((unused))
-const char *ltoa(long in)
+int itoa_r(long in, char *buffer)
 {
-	/* large enough for -9223372036854775808 */
-	static char buffer[21];
-	return ltoa_r(in, buffer);
+	char *ptr = buffer;
+	int len = 0;
+
+	if (in < 0) {
+		in = -in;
+		*(ptr++) = '-';
+		len++;
+	}
+	len += utoa_r(in, ptr);
+	return len;
+}
+
+/* for historical compatibility, same as above but returns the pointer to the
+ * buffer.
+ */
+static inline __attribute__((unused))
+char *ltoa_r(long in, char *buffer)
+{
+	itoa_r(in, buffer);
+	return buffer;
+}
+
+/* converts long integer <in> to a string using the static itoa_buffer and
+ * returns the pointer to that string.
+ */
+static inline __attribute__((unused))
+char *itoa(long in)
+{
+	itoa_r(in, itoa_buffer);
+	return itoa_buffer;
+}
+
+/* converts long integer <in> to a string using the static itoa_buffer and
+ * returns the pointer to that string. Same as above, for compatibility.
+ */
+static inline __attribute__((unused))
+char *ltoa(long in)
+{
+	itoa_r(in, itoa_buffer);
+	return itoa_buffer;
+}
+
+/* converts unsigned long integer <in> to a string using the static itoa_buffer
+ * and returns the pointer to that string.
+ */
+static inline __attribute__((unused))
+char *utoa(unsigned long in)
+{
+	utoa_r(in, itoa_buffer);
+	return itoa_buffer;
 }
 
 static __attribute__((unused))
