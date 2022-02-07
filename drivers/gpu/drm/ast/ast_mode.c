@@ -1341,7 +1341,7 @@ static int ast_vga_output_init(struct ast_private *ast)
 	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DAC);
 	if (ret)
 		return ret;
-	encoder->possible_crtcs = 1;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = ast_vga_connector_init(dev, ast_vga_connector);
 	if (ret)
