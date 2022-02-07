@@ -109,8 +109,7 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 
 	switch (source_id) {
 	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
-		if (dev->dqm->ops.reset_queues)
-			ret = dev->dqm->ops.reset_queues(dev->dqm, pasid);
+		kfd_dqm_evict_pasid(dev->dqm, pasid);
 		break;
 	case SOC15_INTSRC_SDMA_ECC:
 	default:
