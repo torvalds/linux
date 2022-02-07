@@ -1217,8 +1217,7 @@ static int st_accel_write_raw(struct iio_dev *indio_dev,
 		int gain;
 
 		gain = val * 1000000 + val2;
-		err = st_sensors_set_fullscale_by_gain(indio_dev, gain);
-		break;
+		return st_sensors_set_fullscale_by_gain(indio_dev, gain);
 	}
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val2)
@@ -1230,8 +1229,6 @@ static int st_accel_write_raw(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
-
-	return err;
 }
 
 static ST_SENSORS_DEV_ATTR_SAMP_FREQ_AVAIL();

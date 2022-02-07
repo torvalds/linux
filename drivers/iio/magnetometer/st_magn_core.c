@@ -544,8 +544,7 @@ static int st_magn_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		err = st_sensors_set_fullscale_by_gain(indio_dev, val2);
-		break;
+		return st_sensors_set_fullscale_by_gain(indio_dev, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val2)
 			return -EINVAL;
@@ -554,10 +553,8 @@ static int st_magn_write_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&indio_dev->mlock);
 		return err;
 	default:
-		err = -EINVAL;
+		return -EINVAL;
 	}
-
-	return err;
 }
 
 static ST_SENSORS_DEV_ATTR_SAMP_FREQ_AVAIL();
