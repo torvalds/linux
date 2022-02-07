@@ -73,7 +73,6 @@ properties:
       - items:
           - enum:
               - renesas,scif-r9a07g044      # RZ/G2{L,LC}
-              - renesas,scif-r9a07g054      # RZ/V2L
 
       - items:
           - enum:
@@ -167,7 +166,6 @@ if:
           - renesas,rcar-gen3-scif
           - renesas,rcar-gen4-scif
           - renesas,scif-r9a07g044
-          - renesas,scif-r9a07g054
 then:
   required:
     - resets
