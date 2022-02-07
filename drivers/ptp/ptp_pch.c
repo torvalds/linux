@@ -447,9 +447,6 @@ static const struct ptp_clock_info ptp_pch_caps = {
 	.enable		= ptp_pch_enable,
 };
 
-#define pch_suspend NULL
-#define pch_resume NULL
-
 static void pch_remove(struct pci_dev *pdev)
 {
 	struct pch_dev *chip = pci_get_drvdata(pdev);
@@ -540,14 +537,11 @@ static const struct pci_device_id pch_ieee1588_pcidev_id[] = {
 };
 MODULE_DEVICE_TABLE(pci, pch_ieee1588_pcidev_id);
 
-static SIMPLE_DEV_PM_OPS(pch_pm_ops, pch_suspend, pch_resume);
-
 static struct pci_driver pch_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pch_ieee1588_pcidev_id,
 	.probe = pch_probe,
 	.remove = pch_remove,
-	.driver.pm = &pch_pm_ops,
 };
 module_pci_driver(pch_driver);
 
