@@ -26,6 +26,28 @@ int memcmp(const void *s1, const void *s2, size_t n)
 }
 
 static __attribute__((unused))
+void *_nolibc_memcpy_up(void *dst, const void *src, size_t len)
+{
+	size_t pos = 0;
+
+	while (pos < len) {
+		((char *)dst)[pos] = ((const char *)src)[pos];
+		pos++;
+	}
+	return dst;
+}
+
+static __attribute__((unused))
+void *_nolibc_memcpy_down(void *dst, const void *src, size_t len)
+{
+	while (len) {
+		len--;
+		((char *)dst)[len] = ((const char *)src)[len];
+	}
+	return dst;
+}
+
+static __attribute__((unused))
 void *memmove(void *dst, const void *src, size_t len)
 {
 	ssize_t pos = (dst <= src) ? -1 : (long)len;
@@ -42,7 +64,7 @@ void *memmove(void *dst, const void *src, size_t len)
 __attribute__((weak,unused))
 void *memcpy(void *dst, const void *src, size_t len)
 {
-	return memmove(dst, src, len);
+	return _nolibc_memcpy_up(dst, src, len);
 }
 
 static __attribute__((unused))
