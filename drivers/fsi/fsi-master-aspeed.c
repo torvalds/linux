@@ -449,11 +449,13 @@ static ssize_t cfam_reset_store(struct device *dev, struct device_attribute *att
 {
 	struct fsi_master_aspeed *aspeed = dev_get_drvdata(dev);
 
+	trace_fsi_master_aspeed_cfam_reset(true);
 	mutex_lock(&aspeed->lock);
 	gpiod_set_value(aspeed->cfam_reset_gpio, 1);
 	usleep_range(900, 1000);
 	gpiod_set_value(aspeed->cfam_reset_gpio, 0);
 	mutex_unlock(&aspeed->lock);
+	trace_fsi_master_aspeed_cfam_reset(false);
 
 	return count;
 }
