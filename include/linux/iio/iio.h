@@ -494,9 +494,6 @@ struct iio_buffer_setup_ops {
  *			also be filed up by the IIO core, as a result of
  *			enabling particular features in the driver
  *			(see iio_triggered_event_setup()).
- * @currentmode:	[INTERN] operating mode currently in use, may be
- *			eventually checked by device drivers but should be
- *			considered read-only as this is a core internal bit
  * @dev:		[DRIVER] device structure, should be assigned a parent
  *			and owner
  * @buffer:		[DRIVER] any buffer present
@@ -523,7 +520,6 @@ struct iio_buffer_setup_ops {
  */
 struct iio_dev {
 	int				modes;
-	int				currentmode;
 	struct device			dev;
 
 	struct iio_buffer		*buffer;

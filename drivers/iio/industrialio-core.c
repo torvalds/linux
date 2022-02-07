@@ -190,7 +190,9 @@ EXPORT_SYMBOL_GPL(iio_device_id);
  */
 bool iio_buffer_enabled(struct iio_dev *indio_dev)
 {
-	return indio_dev->currentmode
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	return iio_dev_opaque->currentmode
 		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE |
 		   INDIO_BUFFER_SOFTWARE);
 }
@@ -2072,12 +2074,14 @@ EXPORT_SYMBOL_GPL(iio_device_release_direct_mode);
 
 /**
  * iio_device_get_current_mode() - helper function providing read-only access to
- *				   the @currentmode variable
+ *				   the opaque @currentmode variable
  * @indio_dev:			   IIO device structure for device
  */
 int iio_device_get_current_mode(struct iio_dev *indio_dev)
 {
-	return indio_dev->currentmode;
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	return iio_dev_opaque->currentmode;
 }
 EXPORT_SYMBOL_GPL(iio_device_get_current_mode);
 
