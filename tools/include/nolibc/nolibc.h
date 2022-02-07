@@ -87,17 +87,12 @@
 #include "arch.h"
 #include "types.h"
 #include "sys.h"
+#include "ctype.h"
 #include "stdlib.h"
 #include "string.h"
 
 /* Used by programs to avoid std includes */
 #define NOLIBC
-
-static __attribute__((unused))
-int isdigit(int c)
-{
-	return (unsigned int)(c - '0') <= 9;
-}
 
 static __attribute__((unused))
 const char *ltoa(long in)
