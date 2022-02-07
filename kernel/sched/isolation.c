@@ -92,12 +92,12 @@ void __init housekeeping_init(void)
 static int __init housekeeping_setup(char *str, enum hk_flags flags)
 {
 	cpumask_var_t non_housekeeping_mask, housekeeping_staging;
+	int err = 0;
 
 	alloc_bootmem_cpumask_var(&non_housekeeping_mask);
 	if (cpulist_parse(str, non_housekeeping_mask) < 0) {
 		pr_warn("Housekeeping: nohz_full= or isolcpus= incorrect CPU range\n");
-		free_bootmem_cpumask_var(non_housekeeping_mask);
-		return 0;
+		goto free_non_housekeeping_mask;
 	}
 
 	alloc_bootmem_cpumask_var(&housekeeping_staging);
@@ -119,13 +119,9 @@ static int __init housekeeping_setup(char *str, enum hk_flags flags)
 	} else {
 		if (!cpumask_equal(housekeeping_staging, housekeeping_mask)) {
 			pr_warn("Housekeeping: nohz_full= must match isolcpus=\n");
-			free_bootmem_cpumask_var(housekeeping_staging);
-			free_bootmem_cpumask_var(non_housekeeping_mask);
-			return 0;
+			goto free_housekeeping_staging;
 		}
 	}
-
-	free_bootmem_cpumask_var(housekeeping_staging);
 
 	if ((flags & HK_FLAG_TICK) && !(housekeeping_flags & HK_FLAG_TICK)) {
 		if (IS_ENABLED(CONFIG_NO_HZ_FULL)) {
@@ -133,16 +129,19 @@ static int __init housekeeping_setup(char *str, enum hk_flags flags)
 		} else {
 			pr_warn("Housekeeping: nohz unsupported."
 				" Build with CONFIG_NO_HZ_FULL\n");
-			free_bootmem_cpumask_var(non_housekeeping_mask);
-			return 0;
+			goto free_housekeeping_staging;
 		}
 	}
 
 	housekeeping_flags |= flags;
+	err = 1;
 
+free_housekeeping_staging:
+	free_bootmem_cpumask_var(housekeeping_staging);
+free_non_housekeeping_mask:
 	free_bootmem_cpumask_var(non_housekeeping_mask);
 
-	return 1;
+	return err;
 }
 
 static int __init housekeeping_nohz_full_setup(char *str)
