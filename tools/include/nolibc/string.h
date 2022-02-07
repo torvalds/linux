@@ -50,14 +50,22 @@ void *_nolibc_memcpy_down(void *dst, const void *src, size_t len)
 static __attribute__((unused))
 void *memmove(void *dst, const void *src, size_t len)
 {
-	ssize_t pos = (dst <= src) ? -1 : (long)len;
-	void *ret = dst;
+	size_t dir, pos;
 
-	while (len--) {
-		pos += (dst <= src) ? 1 : -1;
-		((char *)dst)[pos] = ((char *)src)[pos];
+	pos = len;
+	dir = -1;
+
+	if (dst < src) {
+		pos = -1;
+		dir = 1;
 	}
-	return ret;
+
+	while (len) {
+		pos += dir;
+		((char *)dst)[pos] = ((const char *)src)[pos];
+		len--;
+	}
+	return dst;
 }
 
 /* must be exported, as it's used by libgcc on ARM */
