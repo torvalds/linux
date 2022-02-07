@@ -45,6 +45,38 @@ int atoi(const char *s)
 	return atol(s);
 }
 
+/* performs the opposite of atol() using a user-fed buffer. The buffer must be
+ * at least 21 bytes long (large enough for "-9223372036854775808").
+ */
+static __attribute__((unused))
+const char *ltoa_r(long in, char *buffer)
+{
+	char       *pos = buffer + 21 - 1;
+	int         neg = in < 0;
+	unsigned long n = neg ? -in : in;
+
+	*pos-- = '\0';
+	do {
+		*pos-- = '0' + n % 10;
+		n /= 10;
+		if (pos < buffer)
+			return pos + 1;
+	} while (n);
+
+	if (neg)
+		*pos-- = '-';
+	return pos + 1;
+}
+
+/* performs the opposite of atol() using a statically allocated buffer */
+static __attribute__((unused))
+const char *ltoa(long in)
+{
+	/* large enough for -9223372036854775808 */
+	static char buffer[21];
+	return ltoa_r(in, buffer);
+}
+
 static __attribute__((unused))
 int msleep(unsigned int msecs)
 {

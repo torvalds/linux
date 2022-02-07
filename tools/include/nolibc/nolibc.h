@@ -94,26 +94,4 @@
 /* Used by programs to avoid std includes */
 #define NOLIBC
 
-static __attribute__((unused))
-const char *ltoa(long in)
-{
-	/* large enough for -9223372036854775808 */
-	static char buffer[21];
-	char       *pos = buffer + sizeof(buffer) - 1;
-	int         neg = in < 0;
-	unsigned long n = neg ? -in : in;
-
-	*pos-- = '\0';
-	do {
-		*pos-- = '0' + n % 10;
-		n /= 10;
-		if (pos < buffer)
-			return pos + 1;
-	} while (n);
-
-	if (neg)
-		*pos-- = '-';
-	return pos + 1;
-}
-
 #endif /* _NOLIBC_H */
