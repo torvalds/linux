@@ -3,7 +3,7 @@
 // kselftest for the ALSA mixer API
 //
 // Original author: Mark Brown <broonie@kernel.org>
-// Copyright (c) 2021 Arm Limited
+// Copyright (c) 2021-2 Arm Limited
 
 // This test will iterate over all cards detected in the system, exercising
 // every mixer control it can find.  This may conflict with other system
@@ -27,11 +27,12 @@
 
 #include "../kselftest.h"
 
-#define TESTS_PER_CONTROL 4
+#define TESTS_PER_CONTROL 6
 
 struct card_data {
 	snd_ctl_t *handle;
 	int card;
+	struct pollfd pollfd;
 	int num_ctls;
 	snd_ctl_elem_list_t *ctls;
 	struct card_data *next;
@@ -43,6 +44,8 @@ struct ctl_data {
 	snd_ctl_elem_info_t *info;
 	snd_ctl_elem_value_t *def_val;
 	int elem;
+	int event_missing;
+	int event_spurious;
 	struct card_data *card;
 	struct ctl_data *next;
 };
@@ -68,7 +71,8 @@ struct ctl_data *ctl_list = NULL;
 #endif
 
 #ifndef LIB_HAS_LOAD_STRING
-int snd_config_load_string(snd_config_t **config, const char *s, size_t size)
+static int snd_config_load_string(snd_config_t **config, const char *s,
+				  size_t size)
 {
 	snd_input_t *input;
 	snd_config_t *dst;
@@ -96,7 +100,7 @@ int snd_config_load_string(snd_config_t **config, const char *s, size_t size)
 }
 #endif
 
-void find_controls(void)
+static void find_controls(void)
 {
 	char name[32];
 	int card, ctl, err;
@@ -149,6 +153,7 @@ void find_controls(void)
 			if (!ctl_data)
 				ksft_exit_fail_msg("Out of memory\n");
 
+			memset(ctl_data, 0, sizeof(*ctl_data));
 			ctl_data->card = card_data;
 			ctl_data->elem = ctl;
 			ctl_data->name = snd_ctl_elem_list_get_name(card_data->ctls,
@@ -184,6 +189,26 @@ void find_controls(void)
 			ctl_list = ctl_data;
 		}
 
+		/* Set up for events */
+		err = snd_ctl_subscribe_events(card_data->handle, true);
+		if (err < 0) {
+			ksft_exit_fail_msg("snd_ctl_subscribe_events() failed for card %d: %d\n",
+					   card, err);
+		}
+
+		err = snd_ctl_poll_descriptors_count(card_data->handle);
+		if (err != 1) {
+			ksft_exit_fail_msg("Unexpected desciptor count %d for card %d\n",
+					   err, card);
+		}
+
+		err = snd_ctl_poll_descriptors(card_data->handle,
+					       &card_data->pollfd, 1);
+		if (err != 1) {
+			ksft_exit_fail_msg("snd_ctl_poll_descriptors() failed for %d\n",
+				       card, err);
+		}
+
 	next_card:
 		if (snd_card_next(&card) < 0) {
 			ksft_print_msg("snd_card_next");
@@ -194,8 +219,82 @@ void find_controls(void)
 	snd_config_delete(config);
 }
 
-bool ctl_value_index_valid(struct ctl_data *ctl, snd_ctl_elem_value_t *val,
-			   int index)
+/*
+ * Block for up to timeout ms for an event, returns a negative value
+ * on error, 0 for no event and 1 for an event.
+ */
+static int wait_for_event(struct ctl_data *ctl, int timeout)
+{
+	unsigned short revents;
+	snd_ctl_event_t *event;
+	int count, err;
+	unsigned int mask = 0;
+	unsigned int ev_id;
+
+	snd_ctl_event_alloca(&event);
+
+	do {
+		err = poll(&(ctl->card->pollfd), 1, timeout);
+		if (err < 0) {
+			ksft_print_msg("poll() failed for %s: %s (%d)\n",
+				       ctl->name, strerror(errno), errno);
+			return -1;
+		}
+		/* Timeout */
+		if (err == 0)
+			return 0;
+
+		err = snd_ctl_poll_descriptors_revents(ctl->card->handle,
+						       &(ctl->card->pollfd),
+						       1, &revents);
+		if (err < 0) {
+			ksft_print_msg("snd_ctl_poll_desciptors_revents() failed for %s: %d\n",
+				       ctl->name, err);
+			return err;
+		}
+		if (revents & POLLERR) {
+			ksft_print_msg("snd_ctl_poll_desciptors_revents() reported POLLERR for %s\n",
+				       ctl->name);
+			return -1;
+		}
+		/* No read events */
+		if (!(revents & POLLIN)) {
+			ksft_print_msg("No POLLIN\n");
+			continue;
+		}
+
+		err = snd_ctl_read(ctl->card->handle, event);
+		if (err < 0) {
+			ksft_print_msg("snd_ctl_read() failed for %s: %d\n",
+			       ctl->name, err);
+			return err;
+		}
+
+		if (snd_ctl_event_get_type(event) != SND_CTL_EVENT_ELEM)
+			continue;
+
+		/* The ID returned from the event is 1 less than numid */
+		mask = snd_ctl_event_elem_get_mask(event);
+		ev_id = snd_ctl_event_elem_get_numid(event);
+		if (ev_id != snd_ctl_elem_info_get_numid(ctl->info)) {
+			ksft_print_msg("Event for unexpected ctl %s\n",
+				       snd_ctl_event_elem_get_name(event));
+			continue;
+		}
+
+		if ((mask & SND_CTL_EVENT_MASK_REMOVE) == SND_CTL_EVENT_MASK_REMOVE) {
+			ksft_print_msg("Removal event for %s\n",
+				       ctl->name);
+			return -1;
+		}
+	} while ((mask & SND_CTL_EVENT_MASK_VALUE) != SND_CTL_EVENT_MASK_VALUE);
+
+	return 1;
+}
+
+static bool ctl_value_index_valid(struct ctl_data *ctl,
+				  snd_ctl_elem_value_t *val,
+				  int index)
 {
 	long int_val;
 	long long int64_val;
@@ -306,7 +405,7 @@ bool ctl_value_index_valid(struct ctl_data *ctl, snd_ctl_elem_value_t *val,
  * Check that the provided value meets the constraints for the
  * provided control.
  */
-bool ctl_value_valid(struct ctl_data *ctl, snd_ctl_elem_value_t *val)
+static bool ctl_value_valid(struct ctl_data *ctl, snd_ctl_elem_value_t *val)
 {
 	int i;
 	bool valid = true;
@@ -322,7 +421,7 @@ bool ctl_value_valid(struct ctl_data *ctl, snd_ctl_elem_value_t *val)
  * Check that we can read the default value and it is valid. Write
  * tests use the read value to restore the default.
  */
-void test_ctl_get_value(struct ctl_data *ctl)
+static void test_ctl_get_value(struct ctl_data *ctl)
 {
 	int err;
 
@@ -357,9 +456,9 @@ out:
 			 ctl->card->card, ctl->elem);
 }
 
-bool show_mismatch(struct ctl_data *ctl, int index,
-		   snd_ctl_elem_value_t *read_val,
-		   snd_ctl_elem_value_t *expected_val)
+static bool show_mismatch(struct ctl_data *ctl, int index,
+			  snd_ctl_elem_value_t *read_val,
+			  snd_ctl_elem_value_t *expected_val)
 {
 	long long expected_int, read_int;
 
@@ -422,13 +521,14 @@ bool show_mismatch(struct ctl_data *ctl, int index,
  * the write to fail, for verifying that invalid writes don't corrupt
  * anything.
  */
-int write_and_verify(struct ctl_data *ctl,
-		     snd_ctl_elem_value_t *write_val,
-		     snd_ctl_elem_value_t *expected_val)
+static int write_and_verify(struct ctl_data *ctl,
+			    snd_ctl_elem_value_t *write_val,
+			    snd_ctl_elem_value_t *expected_val)
 {
 	int err, i;
 	bool error_expected, mismatch_shown;
-	snd_ctl_elem_value_t *read_val, *w_val;
+	snd_ctl_elem_value_t *initial_val, *read_val, *w_val;
+	snd_ctl_elem_value_alloca(&initial_val);
 	snd_ctl_elem_value_alloca(&read_val);
 	snd_ctl_elem_value_alloca(&w_val);
 
@@ -444,6 +544,18 @@ int write_and_verify(struct ctl_data *ctl,
 		error_expected = false;
 		snd_ctl_elem_value_alloca(&expected_val);
 		snd_ctl_elem_value_copy(expected_val, write_val);
+	}
+
+	/* Store the value before we write */
+	if (snd_ctl_elem_info_is_readable(ctl->info)) {
+		snd_ctl_elem_value_set_id(initial_val, ctl->id);
+
+		err = snd_ctl_elem_read(ctl->card->handle, initial_val);
+		if (err < 0) {
+			ksft_print_msg("snd_ctl_elem_read() failed: %s\n",
+				       snd_strerror(err));
+			return err;
+		}
 	}
 
 	/*
@@ -471,6 +583,30 @@ int write_and_verify(struct ctl_data *ctl,
 	}
 
 	/*
+	 * Check for an event if the value changed, or confirm that
+	 * there was none if it didn't.  We rely on the kernel
+	 * generating the notification before it returns from the
+	 * write, this is currently true, should that ever change this
+	 * will most likely break and need updating.
+	 */
+	if (!snd_ctl_elem_info_is_volatile(ctl->info)) {
+		err = wait_for_event(ctl, 0);
+		if (snd_ctl_elem_value_compare(initial_val, read_val)) {
+			if (err < 1) {
+				ksft_print_msg("No event generated for %s\n",
+					       ctl->name);
+				ctl->event_missing++;
+			}
+		} else {
+			if (err != 0) {
+				ksft_print_msg("Spurious event generated for %s\n",
+					       ctl->name);
+				ctl->event_spurious++;
+			}
+		}
+	}
+
+	/*
 	 * Use the libray to compare values, if there's a mismatch
 	 * carry on and try to provide a more useful diagnostic than
 	 * just "mismatch".
@@ -494,7 +630,7 @@ int write_and_verify(struct ctl_data *ctl,
  * Make sure we can write the default value back to the control, this
  * should validate that at least some write works.
  */
-void test_ctl_write_default(struct ctl_data *ctl)
+static void test_ctl_write_default(struct ctl_data *ctl)
 {
 	int err;
 
@@ -527,7 +663,7 @@ void test_ctl_write_default(struct ctl_data *ctl)
 			 ctl->card->card, ctl->elem);
 }
 
-bool test_ctl_write_valid_boolean(struct ctl_data *ctl)
+static bool test_ctl_write_valid_boolean(struct ctl_data *ctl)
 {
 	int err, i, j;
 	bool fail = false;
@@ -548,7 +684,7 @@ bool test_ctl_write_valid_boolean(struct ctl_data *ctl)
 	return !fail;
 }
 
-bool test_ctl_write_valid_integer(struct ctl_data *ctl)
+static bool test_ctl_write_valid_integer(struct ctl_data *ctl)
 {
 	int err;
 	int i;
@@ -578,7 +714,7 @@ bool test_ctl_write_valid_integer(struct ctl_data *ctl)
 	return !fail;
 }
 
-bool test_ctl_write_valid_integer64(struct ctl_data *ctl)
+static bool test_ctl_write_valid_integer64(struct ctl_data *ctl)
 {
 	int err, i;
 	long long j, step;
@@ -606,7 +742,7 @@ bool test_ctl_write_valid_integer64(struct ctl_data *ctl)
 	return !fail;
 }
 
-bool test_ctl_write_valid_enumerated(struct ctl_data *ctl)
+static bool test_ctl_write_valid_enumerated(struct ctl_data *ctl)
 {
 	int err, i, j;
 	bool fail = false;
@@ -627,7 +763,7 @@ bool test_ctl_write_valid_enumerated(struct ctl_data *ctl)
 	return !fail;
 }
 
-void test_ctl_write_valid(struct ctl_data *ctl)
+static void test_ctl_write_valid(struct ctl_data *ctl)
 {
 	bool pass;
 	int err;
@@ -680,8 +816,8 @@ void test_ctl_write_valid(struct ctl_data *ctl)
 			 ctl->card->card, ctl->elem);
 }
 
-bool test_ctl_write_invalid_value(struct ctl_data *ctl,
-				  snd_ctl_elem_value_t *val)
+static bool test_ctl_write_invalid_value(struct ctl_data *ctl,
+					 snd_ctl_elem_value_t *val)
 {
 	int err;
 	long val_read;
@@ -702,7 +838,7 @@ bool test_ctl_write_invalid_value(struct ctl_data *ctl,
 	return !ctl_value_valid(ctl, val);
 }
 
-bool test_ctl_write_invalid_boolean(struct ctl_data *ctl)
+static bool test_ctl_write_invalid_boolean(struct ctl_data *ctl)
 {
 	int err, i;
 	long val_read;
@@ -721,7 +857,7 @@ bool test_ctl_write_invalid_boolean(struct ctl_data *ctl)
 	return !fail;
 }
 
-bool test_ctl_write_invalid_integer(struct ctl_data *ctl)
+static bool test_ctl_write_invalid_integer(struct ctl_data *ctl)
 {
 	int i;
 	bool fail = false;
@@ -767,7 +903,7 @@ bool test_ctl_write_invalid_integer(struct ctl_data *ctl)
 	return !fail;
 }
 
-bool test_ctl_write_invalid_integer64(struct ctl_data *ctl)
+static bool test_ctl_write_invalid_integer64(struct ctl_data *ctl)
 {
 	int i;
 	bool fail = false;
@@ -813,7 +949,7 @@ bool test_ctl_write_invalid_integer64(struct ctl_data *ctl)
 	return !fail;
 }
 
-bool test_ctl_write_invalid_enumerated(struct ctl_data *ctl)
+static bool test_ctl_write_invalid_enumerated(struct ctl_data *ctl)
 {
 	int err, i;
 	unsigned int val_read;
@@ -845,7 +981,7 @@ bool test_ctl_write_invalid_enumerated(struct ctl_data *ctl)
 }
 
 
-void test_ctl_write_invalid(struct ctl_data *ctl)
+static void test_ctl_write_invalid(struct ctl_data *ctl)
 {
 	bool pass;
 	int err;
@@ -898,6 +1034,18 @@ void test_ctl_write_invalid(struct ctl_data *ctl)
 			 ctl->card->card, ctl->elem);
 }
 
+static void test_ctl_event_missing(struct ctl_data *ctl)
+{
+	ksft_test_result(!ctl->event_missing, "event_missing.%d.%d\n",
+			 ctl->card->card, ctl->elem);
+}
+
+static void test_ctl_event_spurious(struct ctl_data *ctl)
+{
+	ksft_test_result(!ctl->event_spurious, "event_spurious.%d.%d\n",
+			 ctl->card->card, ctl->elem);
+}
+
 int main(void)
 {
 	struct ctl_data *ctl;
@@ -917,6 +1065,8 @@ int main(void)
 		test_ctl_write_default(ctl);
 		test_ctl_write_valid(ctl);
 		test_ctl_write_invalid(ctl);
+		test_ctl_event_missing(ctl);
+		test_ctl_event_spurious(ctl);
 	}
 
 	ksft_exit_pass();
