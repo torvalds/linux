@@ -107,6 +107,7 @@ struct nfs_open_dir_context {
 	__u64 dup_cookie;
 	__u64 last_cookie;
 	pgoff_t page_index;
+	unsigned int dtsize;
 	signed char duped;
 	bool eof;
 };
