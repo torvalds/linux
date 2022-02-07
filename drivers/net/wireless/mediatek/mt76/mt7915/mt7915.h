@@ -60,6 +60,7 @@
 #define MT7915_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 
 #define MT7915_THERMAL_THROTTLE_MAX	100
+#define MT7915_CDEV_THROTTLE_MAX	99
 
 #define MT7915_SKU_RATE_NUM		161
 
@@ -229,6 +230,7 @@ struct mt7915_phy {
 	struct ieee80211_vif *monitor_vif;
 
 	struct thermal_cooling_device *cdev;
+	u8 cdev_state;
 	u8 throttle_state;
 	u32 throttle_temp[2]; /* 0: critical high, 1: maximum */
 

@@ -97,7 +97,7 @@ static int
 mt7915_thermal_get_max_throttle_state(struct thermal_cooling_device *cdev,
 				      unsigned long *state)
 {
-	*state = MT7915_THERMAL_THROTTLE_MAX;
+	*state = MT7915_CDEV_THROTTLE_MAX;
 
 	return 0;
 }
@@ -108,7 +108,7 @@ mt7915_thermal_get_cur_throttle_state(struct thermal_cooling_device *cdev,
 {
 	struct mt7915_phy *phy = cdev->devdata;
 
-	*state = phy->throttle_state;
+	*state = phy->cdev_state;
 
 	return 0;
 }
@@ -118,22 +118,27 @@ mt7915_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 				      unsigned long state)
 {
 	struct mt7915_phy *phy = cdev->devdata;
+	u8 throttling = MT7915_THERMAL_THROTTLE_MAX - state;
 	int ret;
 
-	if (state > MT7915_THERMAL_THROTTLE_MAX)
+	if (state > MT7915_CDEV_THROTTLE_MAX)
 		return -EINVAL;
 
 	if (phy->throttle_temp[0] > phy->throttle_temp[1])
 		return 0;
 
-	if (state == phy->throttle_state)
+	if (state == phy->cdev_state)
 		return 0;
 
-	ret = mt7915_mcu_set_thermal_throttling(phy, state);
+	/*
+	 * cooling_device convention: 0 = no cooling, more = more cooling
+	 * mcu convention: 1 = max cooling, more = less cooling
+	 */
+	ret = mt7915_mcu_set_thermal_throttling(phy, throttling);
 	if (ret)
 		return ret;
 
-	phy->throttle_state = state;
+	phy->cdev_state = state;
 
 	return 0;
 }
