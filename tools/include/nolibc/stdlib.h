@@ -300,41 +300,11 @@ char *u64toa(uint64_t in)
 	return itoa_buffer;
 }
 
-static __attribute__((unused))
-int msleep(unsigned int msecs)
-{
-	struct timeval my_timeval = { msecs / 1000, (msecs % 1000) * 1000 };
-
-	if (sys_select(0, 0, 0, 0, &my_timeval) < 0)
-		return (my_timeval.tv_sec * 1000) +
-			(my_timeval.tv_usec / 1000) +
-			!!(my_timeval.tv_usec % 1000);
-	else
-		return 0;
-}
-
 /* This one is not marked static as it's needed by libgcc for divide by zero */
 __attribute__((weak,unused,section(".text.nolibc_raise")))
 int raise(int signal)
 {
 	return sys_kill(sys_getpid(), signal);
-}
-
-static __attribute__((unused))
-unsigned int sleep(unsigned int seconds)
-{
-	struct timeval my_timeval = { seconds, 0 };
-
-	if (sys_select(0, 0, 0, 0, &my_timeval) < 0)
-		return my_timeval.tv_sec + !!my_timeval.tv_usec;
-	else
-		return 0;
-}
-
-static __attribute__((unused))
-int tcsetpgrp(int fd, pid_t pid)
-{
-	return ioctl(fd, TIOCSPGRP, &pid);
 }
 
 #endif /* _NOLIBC_STDLIB_H */
