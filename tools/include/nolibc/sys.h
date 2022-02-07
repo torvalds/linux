@@ -458,13 +458,7 @@ pid_t sys_getpgrp(void)
 static __attribute__((unused))
 pid_t getpgrp(void)
 {
-	pid_t ret = sys_getpgrp();
-
-	if (ret < 0) {
-		SET_ERRNO(-ret);
-		ret = -1;
-	}
-	return ret;
+	return sys_getpgrp();
 }
 
 
@@ -481,13 +475,7 @@ pid_t sys_getpid(void)
 static __attribute__((unused))
 pid_t getpid(void)
 {
-	pid_t ret = sys_getpid();
-
-	if (ret < 0) {
-		SET_ERRNO(-ret);
-		ret = -1;
-	}
-	return ret;
+	return sys_getpid();
 }
 
 
@@ -504,13 +492,7 @@ pid_t sys_gettid(void)
 static __attribute__((unused))
 pid_t gettid(void)
 {
-	pid_t ret = sys_gettid();
-
-	if (ret < 0) {
-		SET_ERRNO(-ret);
-		ret = -1;
-	}
-	return ret;
+	return sys_gettid();
 }
 
 
