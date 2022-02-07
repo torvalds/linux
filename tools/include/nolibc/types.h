@@ -49,6 +49,17 @@
 #define FD_SETSIZE     256
 #endif
 
+/* PATH_MAX and MAXPATHLEN are often used and found with plenty of different
+ * values.
+ */
+#ifndef PATH_MAX
+#define PATH_MAX       4096
+#endif
+
+#ifndef MAXPATHLEN
+#define MAXPATHLEN     (PATH_MAX)
+#endif
+
 /* Special FD used by all the *at functions */
 #ifndef AT_FDCWD
 #define AT_FDCWD       (-100)
