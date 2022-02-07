@@ -84,12 +84,14 @@ int putchar(int c)
 }
 
 
-/* puts(), fputs(). Note that puts() emits '\n' but not fputs(). */
+/* fwrite(), puts(), fputs(). Note that puts() emits '\n' but not fputs(). */
 
+/* internal fwrite()-like function which only takes a size and returns 0 on
+ * success or EOF on error. It automatically retries on short writes.
+ */
 static __attribute__((unused))
-int fputs(const char *s, FILE *stream)
+int _fwrite(const void *buf, size_t size, FILE *stream)
 {
-	size_t len = strlen(s);
 	ssize_t ret;
 	int fd;
 
@@ -98,14 +100,33 @@ int fputs(const char *s, FILE *stream)
 
 	fd = 3 + (long)stream;
 
-	while (len > 0) {
-		ret = write(fd, s, len);
+	while (size) {
+		ret = write(fd, buf, size);
 		if (ret <= 0)
 			return EOF;
-		s += ret;
-		len -= ret;
+		size -= ret;
+		buf += ret;
 	}
 	return 0;
+}
+
+static __attribute__((unused))
+size_t fwrite(const void *s, size_t size, size_t nmemb, FILE *stream)
+{
+	size_t written;
+
+	for (written = 0; written < nmemb; written++) {
+		if (_fwrite(s, size, stream) != 0)
+			break;
+		s += size;
+	}
+	return written;
+}
+
+static __attribute__((unused))
+int fputs(const char *s, FILE *stream)
+{
+	return _fwrite(s, strlen(s), stream);
 }
 
 static __attribute__((unused))
