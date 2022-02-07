@@ -451,7 +451,7 @@ struct bch_dev {
 	 * Or rcu_read_lock(), but only for ptr_stale():
 	 */
 	struct bucket_array __rcu *buckets[2];
-	struct bucket_gens	*bucket_gens;
+	struct bucket_gens __rcu *bucket_gens;
 	unsigned long		*buckets_nouse;
 	struct rw_semaphore	bucket_lock;
 
