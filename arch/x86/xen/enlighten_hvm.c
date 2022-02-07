@@ -185,8 +185,7 @@ static int xen_cpu_dead_hvm(unsigned int cpu)
 
 	if (xen_have_vector_callback && xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_teardown_timer(cpu);
-
-       return 0;
+	return 0;
 }
 
 static bool no_vector_callback __initdata;
