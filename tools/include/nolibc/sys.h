@@ -14,28 +14,13 @@
 #include <asm/unistd.h>
 #include <asm/signal.h>  // for SIGCHLD
 #include <asm/ioctls.h>
-#include <asm/errno.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
 #include <linux/time.h>
 
 #include "arch.h"
+#include "errno.h"
 #include "types.h"
-
-/* this way it will be removed if unused */
-static int errno;
-
-#ifndef NOLIBC_IGNORE_ERRNO
-#define SET_ERRNO(v) do { errno = (v); } while (0)
-#else
-#define SET_ERRNO(v) do { } while (0)
-#endif
-
-
-/* errno codes all ensure that they will not conflict with a valid pointer
- * because they all correspond to the highest addressable memory page.
- */
-#define MAX_ERRNO 4095
 
 
 /* Functions in this file only describe syscalls. They're declared static so
