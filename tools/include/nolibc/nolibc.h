@@ -57,21 +57,31 @@
  * having to specify anything.
  *
  * Finally some very common libc-level functions are provided. It is the case
- * for a few functions usually found in string.h, ctype.h, or stdlib.h. Nothing
- * is currently provided regarding stdio emulation.
+ * for a few functions usually found in string.h, ctype.h, or stdlib.h.
  *
- * The macro NOLIBC is always defined, so that it is possible for a program to
- * check this macro to know if it is being built against and decide to disable
- * some features or simply not to include some standard libc files.
- *
- * Ideally this file should be split in multiple files for easier long term
- * maintenance, but provided as a single file as it is now, it's quite
- * convenient to use. Maybe some variations involving a set of includes at the
- * top could work.
+ * The nolibc.h file is only a convenient entry point which includes all other
+ * files. It also defines the NOLIBC macro, so that it is possible for a
+ * program to check this macro to know if it is being built against and decide
+ * to disable some features or simply not to include some standard libc files.
  *
  * A simple static executable may be built this way :
  *      $ gcc -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
  *            -static -include nolibc.h -o hello hello.c -lgcc
+ *
+ * Simple programs meant to be reasonably portable to various libc and using
+ * only a few common includes, may also be built by simply making the include
+ * path point to the nolibc directory:
+ *      $ gcc -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
+ *            -I../nolibc -o hello hello.c -lgcc
+ *
+ * The available standard (but limited) include files are:
+ *   ctype.h, errno.h, signal.h, stdio.h, stdlib.h, string.h, time.h
+ *
+ * In addition, the following ones are expected to be provided by the compiler:
+ *   float.h, stdarg.h, stddef.h
+ *
+ * The following ones which are part to the C standard are not provided:
+ *   assert.h, locale.h, math.h, setjmp.h, limits.h
  *
  * A very useful calling convention table may be found here :
  *      http://man7.org/linux/man-pages/man2/syscall.2.html
