@@ -115,8 +115,6 @@ struct pch_dev {
 	int exts0_enabled;
 	int exts1_enabled;
 
-	u32 mem_base;
-	u32 mem_size;
 	u32 irq;
 	struct pci_dev *pdev;
 	spinlock_t register_lock;
@@ -456,24 +454,8 @@ static void pch_remove(struct pci_dev *pdev)
 {
 	struct pch_dev *chip = pci_get_drvdata(pdev);
 
+	free_irq(pdev->irq, chip);
 	ptp_clock_unregister(chip->ptp_clock);
-	/* free the interrupt */
-	if (pdev->irq != 0)
-		free_irq(pdev->irq, chip);
-
-	/* unmap the virtual IO memory space */
-	if (chip->regs != NULL) {
-		iounmap(chip->regs);
-		chip->regs = NULL;
-	}
-	/* release the reserved IO memory space */
-	if (chip->mem_base != 0) {
-		release_mem_region(chip->mem_base, chip->mem_size);
-		chip->mem_base = 0;
-	}
-	pci_disable_device(pdev);
-	kfree(chip);
-	dev_info(&pdev->dev, "complete\n");
 }
 
 static s32
@@ -483,50 +465,29 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	unsigned long flags;
 	struct pch_dev *chip;
 
-	chip = kzalloc(sizeof(struct pch_dev), GFP_KERNEL);
+	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
 	/* enable the 1588 pci device */
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "could not enable the pci device\n");
-		goto err_pci_en;
+		return ret;
 	}
 
-	chip->mem_base = pci_resource_start(pdev, IO_MEM_BAR);
-	if (!chip->mem_base) {
+	ret = pcim_iomap_regions(pdev, BIT(IO_MEM_BAR), "1588_regs");
+	if (ret) {
 		dev_err(&pdev->dev, "could not locate IO memory address\n");
-		ret = -ENODEV;
-		goto err_pci_start;
-	}
-
-	/* retrieve the available length of the IO memory space */
-	chip->mem_size = pci_resource_len(pdev, IO_MEM_BAR);
-
-	/* allocate the memory for the device registers */
-	if (!request_mem_region(chip->mem_base, chip->mem_size, "1588_regs")) {
-		dev_err(&pdev->dev,
-			"could not allocate register memory space\n");
-		ret = -EBUSY;
-		goto err_req_mem_region;
+		return ret;
 	}
 
 	/* get the virtual address to the 1588 registers */
-	chip->regs = ioremap(chip->mem_base, chip->mem_size);
-
-	if (!chip->regs) {
-		dev_err(&pdev->dev, "Could not get virtual address\n");
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
-
+	chip->regs = pcim_iomap_table(pdev)[IO_MEM_BAR];
 	chip->caps = ptp_pch_caps;
 	chip->ptp_clock = ptp_clock_register(&chip->caps, &pdev->dev);
-	if (IS_ERR(chip->ptp_clock)) {
-		ret = PTR_ERR(chip->ptp_clock);
-		goto err_ptp_clock_reg;
-	}
+	if (IS_ERR(chip->ptp_clock))
+		return PTR_ERR(chip->ptp_clock);
 
 	spin_lock_init(&chip->register_lock);
 
@@ -564,21 +525,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 err_req_irq:
 	ptp_clock_unregister(chip->ptp_clock);
-err_ptp_clock_reg:
-	iounmap(chip->regs);
-	chip->regs = NULL;
 
-err_ioremap:
-	release_mem_region(chip->mem_base, chip->mem_size);
-
-err_req_mem_region:
-	chip->mem_base = 0;
-
-err_pci_start:
-	pci_disable_device(pdev);
-
-err_pci_en:
-	kfree(chip);
 	dev_err(&pdev->dev, "probe failed(ret=0x%x)\n", ret);
 
 	return ret;
