@@ -80,6 +80,8 @@
  *      https://w3challs.com/syscalls/
  *
  */
+#ifndef _NOLIBC_H
+#define _NOLIBC_H
 
 #include <asm/unistd.h>
 #include <asm/ioctls.h>
@@ -2582,3 +2584,5 @@ dev_t makedev(unsigned int major, unsigned int minor)
 {
 	return ((major & 0xfff) << 8) | (minor & 0xff);
 }
+
+#endif /* _NOLIBC_H */
