@@ -116,13 +116,4 @@ const char *ltoa(long in)
 	return pos + 1;
 }
 
-/* Here come a few helper functions */
-
-/* WARNING, it only deals with the 4096 first majors and 256 first minors */
-static __attribute__((unused))
-dev_t makedev(unsigned int major, unsigned int minor)
-{
-	return ((major & 0xfff) << 8) | (minor & 0xff);
-}
-
 #endif /* _NOLIBC_H */
