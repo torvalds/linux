@@ -100,7 +100,6 @@ struct pch_ts_regs {
 #define PCH_ECS_ETH		(1 << 0)
 
 #define PCH_ECS_CAN		(1 << 1)
-#define PCH_STATION_BYTES	6
 
 #define PCH_IEEE1588_ETH	(1 << 0)
 #define PCH_IEEE1588_CAN	(1 << 1)
@@ -292,8 +291,9 @@ static void pch_reset(struct pch_dev *chip)
  */
 int pch_set_station_address(u8 *addr, struct pci_dev *pdev)
 {
-	s32 i;
 	struct pch_dev *chip = pci_get_drvdata(pdev);
+	bool valid;
+	u64 mac;
 
 	/* Verify the parameter */
 	if ((chip->regs == NULL) || addr == (u8 *)NULL) {
@@ -301,37 +301,16 @@ int pch_set_station_address(u8 *addr, struct pci_dev *pdev)
 			"invalid params returning PCH_INVALIDPARAM\n");
 		return PCH_INVALIDPARAM;
 	}
-	/* For all station address bytes */
-	for (i = 0; i < PCH_STATION_BYTES; i++) {
-		u32 val;
-		s32 tmp;
 
-		tmp = hex_to_bin(addr[i * 3]);
-		if (tmp < 0) {
-			dev_err(&pdev->dev,
-				"invalid params returning PCH_INVALIDPARAM\n");
-			return PCH_INVALIDPARAM;
-		}
-		val = tmp * 16;
-		tmp = hex_to_bin(addr[(i * 3) + 1]);
-		if (tmp < 0) {
-			dev_err(&pdev->dev,
-				"invalid params returning PCH_INVALIDPARAM\n");
-			return PCH_INVALIDPARAM;
-		}
-		val += tmp;
-		/* Expects ':' separated addresses */
-		if ((i < 5) && (addr[(i * 3) + 2] != ':')) {
-			dev_err(&pdev->dev,
-				"invalid params returning PCH_INVALIDPARAM\n");
-			return PCH_INVALIDPARAM;
-		}
-
-		/* Ideally we should set the address only after validating
-							 entire string */
-		dev_dbg(&pdev->dev, "invoking pch_station_set\n");
-		iowrite32(val, &chip->regs->ts_st[i]);
+	valid = mac_pton(addr, (u8 *)&mac);
+	if (!valid) {
+		dev_err(&pdev->dev, "invalid params returning PCH_INVALIDPARAM\n");
+		return PCH_INVALIDPARAM;
 	}
+
+	dev_dbg(&pdev->dev, "invoking pch_station_set\n");
+	iowrite32(lower_32_bits(mac), &chip->regs->ts_st[0]);
+	iowrite32(upper_32_bits(mac), &chip->regs->ts_st[4]);
 	return 0;
 }
 EXPORT_SYMBOL(pch_set_station_address);
