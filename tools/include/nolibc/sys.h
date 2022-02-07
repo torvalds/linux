@@ -7,6 +7,7 @@
 #ifndef _NOLIBC_SYS_H
 #define _NOLIBC_SYS_H
 
+#include <stdarg.h>
 #include "std.h"
 
 /* system includes */
@@ -719,7 +720,7 @@ int mount(const char *src, const char *tgt,
 
 
 /*
- * int open(const char *path, int flags, mode_t mode);
+ * int open(const char *path, int flags[, mode_t mode]);
  */
 
 static __attribute__((unused))
@@ -735,9 +736,20 @@ int sys_open(const char *path, int flags, mode_t mode)
 }
 
 static __attribute__((unused))
-int open(const char *path, int flags, mode_t mode)
+int open(const char *path, int flags, ...)
 {
-	int ret = sys_open(path, flags, mode);
+	mode_t mode = 0;
+	int ret;
+
+	if (flags & O_CREAT) {
+		va_list args;
+
+		va_start(args, flags);
+		mode = va_arg(args, mode_t);
+		va_end(args);
+	}
+
+	ret = sys_open(path, flags, mode);
 
 	if (ret < 0) {
 		SET_ERRNO(-ret);
