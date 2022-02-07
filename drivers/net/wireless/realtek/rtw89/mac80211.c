@@ -324,6 +324,9 @@ static void rtw89_station_mode_sta_assoc(struct rtw89_dev *rtwdev,
 		rtw89_err(rtwdev, "can't find sta to set sta_assoc state\n");
 		return;
 	}
+
+	rtw89_vif_type_mapping(vif, true);
+
 	rtw89_core_sta_assoc(rtwdev, vif, sta);
 }
 
