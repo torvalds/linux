@@ -45,13 +45,22 @@
 /* Interrupt Cause register bits. */
 #define VMCI_ICR_DATAGRAM      BIT(0)
 #define VMCI_ICR_NOTIFICATION  BIT(1)
+#define VMCI_ICR_DMA_DATAGRAM  BIT(2)
 
 /* Interrupt Mask register bits. */
 #define VMCI_IMR_DATAGRAM      BIT(0)
 #define VMCI_IMR_NOTIFICATION  BIT(1)
+#define VMCI_IMR_DMA_DATAGRAM  BIT(2)
 
-/* Maximum MSI/MSI-X interrupt vectors in the device. */
-#define VMCI_MAX_INTRS 2
+/*
+ * Maximum MSI/MSI-X interrupt vectors in the device.
+ * If VMCI_CAPS_DMA_DATAGRAM is supported by the device,
+ * VMCI_MAX_INTRS_DMA_DATAGRAM vectors are available,
+ * otherwise only VMCI_MAX_INTRS_NOTIFICATION.
+ */
+#define VMCI_MAX_INTRS_NOTIFICATION 2
+#define VMCI_MAX_INTRS_DMA_DATAGRAM 3
+#define VMCI_MAX_INTRS              VMCI_MAX_INTRS_DMA_DATAGRAM
 
 /*
  * Supported interrupt vectors.  There is one for each ICR value above,
@@ -60,6 +69,7 @@
 enum {
 	VMCI_INTR_DATAGRAM = 0,
 	VMCI_INTR_NOTIFICATION = 1,
+	VMCI_INTR_DMA_DATAGRAM = 2,
 };
 
 /*

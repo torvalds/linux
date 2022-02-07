@@ -414,6 +414,9 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 			icr &= ~VMCI_ICR_NOTIFICATION;
 		}
 
+		if (icr & VMCI_ICR_DMA_DATAGRAM)
+			icr &= ~VMCI_ICR_DMA_DATAGRAM;
+
 		if (icr != 0)
 			dev_warn(dev->dev,
 				 "Ignoring unknown interrupt cause (%d)\n",
@@ -439,6 +442,16 @@ static irqreturn_t vmci_interrupt_bm(int irq, void *_dev)
 }
 
 /*
+ * Interrupt handler for MSI-X interrupt vector VMCI_INTR_DMA_DATAGRAM,
+ * which is for the completion of a DMA datagram send or receive operation.
+ * Will only get called if we are using MSI-X with exclusive vectors.
+ */
+static irqreturn_t vmci_interrupt_dma_datagram(int irq, void *_dev)
+{
+	return IRQ_HANDLED;
+}
+
+/*
  * Most of the initialization at module load time is done here.
  */
 static int vmci_guest_probe_device(struct pci_dev *pdev,
@@ -447,6 +460,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	struct vmci_guest_device *vmci_dev;
 	void __iomem *iobase = NULL;
 	void __iomem *mmio_base = NULL;
+	unsigned int num_irq_vectors;
 	unsigned int capabilities;
 	unsigned int caps_in_use;
 	unsigned long cmd;
@@ -627,8 +641,12 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * Enable interrupts.  Try MSI-X first, then MSI, and then fallback on
 	 * legacy interrupts.
 	 */
-	error = pci_alloc_irq_vectors(pdev, VMCI_MAX_INTRS, VMCI_MAX_INTRS,
-			PCI_IRQ_MSIX);
+	if (vmci_dev->mmio_base != NULL)
+		num_irq_vectors = VMCI_MAX_INTRS;
+	else
+		num_irq_vectors = VMCI_MAX_INTRS_NOTIFICATION;
+	error = pci_alloc_irq_vectors(pdev, num_irq_vectors, num_irq_vectors,
+				      PCI_IRQ_MSIX);
 	if (error < 0) {
 		error = pci_alloc_irq_vectors(pdev, 1, 1,
 				PCI_IRQ_MSIX | PCI_IRQ_MSI | PCI_IRQ_LEGACY);
@@ -666,6 +684,17 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 				pci_irq_vector(pdev, 1), error);
 			goto err_free_irq;
 		}
+		if (caps_in_use & VMCI_CAPS_DMA_DATAGRAM) {
+			error = request_irq(pci_irq_vector(pdev, 2),
+					    vmci_interrupt_dma_datagram,
+					    0, KBUILD_MODNAME, vmci_dev);
+			if (error) {
+				dev_err(&pdev->dev,
+					"Failed to allocate irq %u: %d\n",
+					pci_irq_vector(pdev, 2), error);
+				goto err_free_bm_irq;
+			}
+		}
 	}
 
 	dev_dbg(&pdev->dev, "Registered device\n");
@@ -676,6 +705,8 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	cmd = VMCI_IMR_DATAGRAM;
 	if (caps_in_use & VMCI_CAPS_NOTIFICATIONS)
 		cmd |= VMCI_IMR_NOTIFICATION;
+	if (caps_in_use & VMCI_CAPS_DMA_DATAGRAM)
+		cmd |= VMCI_IMR_DMA_DATAGRAM;
 	vmci_write_reg(vmci_dev, cmd, VMCI_IMR_ADDR);
 
 	/* Enable interrupts. */
@@ -686,6 +717,8 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	vmci_call_vsock_callback(false);
 	return 0;
 
+err_free_bm_irq:
+	free_irq(pci_irq_vector(pdev, 1), vmci_dev);
 err_free_irq:
 	free_irq(pci_irq_vector(pdev, 0), vmci_dev);
 	tasklet_kill(&vmci_dev->datagram_tasklet);
@@ -751,8 +784,11 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 	 * MSI-X, we might have multiple vectors, each with their own
 	 * IRQ, which we must free too.
 	 */
-	if (vmci_dev->exclusive_vectors)
+	if (vmci_dev->exclusive_vectors) {
 		free_irq(pci_irq_vector(pdev, 1), vmci_dev);
+		if (vmci_dev->mmio_base != NULL)
+			free_irq(pci_irq_vector(pdev, 2), vmci_dev);
+	}
 	free_irq(pci_irq_vector(pdev, 0), vmci_dev);
 	pci_free_irq_vectors(pdev);
 
