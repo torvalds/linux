@@ -190,6 +190,7 @@ struct sys_stat_struct {
 
 /* startup code, note that it's called __start on MIPS */
 asm(".section .text\n"
+    ".weak __start\n"
     ".set nomips16\n"
     ".global __start\n"
     ".set    noreorder\n"

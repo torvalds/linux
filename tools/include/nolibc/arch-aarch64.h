@@ -183,6 +183,7 @@ struct sys_stat_struct {
 
 /* startup code */
 asm(".section .text\n"
+    ".weak _start\n"
     ".global _start\n"
     "_start:\n"
     "ldr x0, [sp]\n"              // argc (x0) was in the stack
