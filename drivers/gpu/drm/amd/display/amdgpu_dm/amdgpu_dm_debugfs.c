@@ -857,9 +857,9 @@ static int psr_capability_show(struct seq_file *m, void *data)
 	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
 		return -ENODEV;
 
-	seq_printf(m, "Sink support: %s", yesno(link->dpcd_caps.psr_caps.psr_version != 0));
-	if (link->dpcd_caps.psr_caps.psr_version)
-		seq_printf(m, " [0x%02x]", link->dpcd_caps.psr_caps.psr_version);
+	seq_printf(m, "Sink support: %s", yesno(link->dpcd_caps.psr_info.psr_version != 0));
+	if (link->dpcd_caps.psr_info.psr_version)
+		seq_printf(m, " [0x%02x]", link->dpcd_caps.psr_info.psr_version);
 	seq_puts(m, "\n");
 
 	seq_printf(m, "Driver support: %s", yesno(link->psr_settings.psr_feature_enabled));
