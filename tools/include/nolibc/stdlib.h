@@ -300,11 +300,4 @@ char *u64toa(uint64_t in)
 	return itoa_buffer;
 }
 
-/* This one is not marked static as it's needed by libgcc for divide by zero */
-__attribute__((weak,unused,section(".text.nolibc_raise")))
-int raise(int signal)
-{
-	return sys_kill(sys_getpid(), signal);
-}
-
 #endif /* _NOLIBC_STDLIB_H */
