@@ -259,6 +259,9 @@ void amdgpu_gart_invalidate_tlb(struct amdgpu_device *adev)
 {
 	int i;
 
+	if (!adev->gart.ptr)
+		return;
+
 	mb();
 	amdgpu_device_flush_hdp(adev, NULL);
 	for (i = 0; i < adev->num_vmhubs; i++)
