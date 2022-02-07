@@ -144,6 +144,78 @@ char *utoa(unsigned long in)
 	return itoa_buffer;
 }
 
+/* Converts the unsigned 64-bit integer <in> to its string representation into
+ * buffer <buffer>, which must be long enough to store the number and the
+ * trailing zero (21 bytes for 18446744073709551615). The buffer is filled from
+ * the first byte, and the number of characters emitted (not counting the
+ * trailing zero) is returned. The function is constructed in a way to optimize
+ * the code size and avoid any divide that could add a dependency on large
+ * external functions.
+ */
+static __attribute__((unused))
+int u64toa_r(uint64_t in, char *buffer)
+{
+	unsigned long long lim;
+	int digits = 0;
+	int pos = 19; /* start with the highest possible digit */
+	int dig;
+
+	do {
+		for (dig = 0, lim = 1; dig < pos; dig++)
+			lim *= 10;
+
+		if (digits || in >= lim || !pos) {
+			for (dig = 0; in >= lim; dig++)
+				in -= lim;
+			buffer[digits++] = '0' + dig;
+		}
+	} while (pos--);
+
+	buffer[digits] = 0;
+	return digits;
+}
+
+/* Converts the signed 64-bit integer <in> to its string representation into
+ * buffer <buffer>, which must be long enough to store the number and the
+ * trailing zero (21 bytes for -9223372036854775808). The buffer is filled from
+ * the first byte, and the number of characters emitted (not counting the
+ * trailing zero) is returned.
+ */
+static __attribute__((unused))
+int i64toa_r(int64_t in, char *buffer)
+{
+	char *ptr = buffer;
+	int len = 0;
+
+	if (in < 0) {
+		in = -in;
+		*(ptr++) = '-';
+		len++;
+	}
+	len += u64toa_r(in, ptr);
+	return len;
+}
+
+/* converts int64_t <in> to a string using the static itoa_buffer and returns
+ * the pointer to that string.
+ */
+static inline __attribute__((unused))
+char *i64toa(int64_t in)
+{
+	i64toa_r(in, itoa_buffer);
+	return itoa_buffer;
+}
+
+/* converts uint64_t <in> to a string using the static itoa_buffer and returns
+ * the pointer to that string.
+ */
+static inline __attribute__((unused))
+char *u64toa(uint64_t in)
+{
+	u64toa_r(in, itoa_buffer);
+	return itoa_buffer;
+}
+
 static __attribute__((unused))
 int msleep(unsigned int msecs)
 {
