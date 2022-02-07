@@ -993,9 +993,21 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 #define H2C_ROLE_MAINTAIN_LEN 4
 int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif *rtwvif,
+			       struct rtw89_sta *rtwsta,
 			       enum rtw89_upd_mode upd_mode)
 {
 	struct sk_buff *skb;
+	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
+	u8 self_role;
+
+	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE) {
+		if (rtwsta)
+			self_role = RTW89_SELF_ROLE_AP_CLIENT;
+		else
+			self_role = rtwvif->self_role;
+	} else {
+		self_role = rtwvif->self_role;
+	}
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(H2C_ROLE_MAINTAIN_LEN);
 	if (!skb) {
@@ -1003,8 +1015,8 @@ int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 		return -ENOMEM;
 	}
 	skb_put(skb, H2C_ROLE_MAINTAIN_LEN);
-	SET_FWROLE_MAINTAIN_MACID(skb->data, rtwvif->mac_id);
-	SET_FWROLE_MAINTAIN_SELF_ROLE(skb->data, rtwvif->self_role);
+	SET_FWROLE_MAINTAIN_MACID(skb->data, mac_id);
+	SET_FWROLE_MAINTAIN_SELF_ROLE(skb->data, self_role);
 	SET_FWROLE_MAINTAIN_UPD_MODE(skb->data, upd_mode);
 	SET_FWROLE_MAINTAIN_WIFI_ROLE(skb->data, rtwvif->wifi_role);
 
