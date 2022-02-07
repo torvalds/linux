@@ -200,7 +200,8 @@ static int mt7915_thermal_init(struct mt7915_phy *phy)
 	phy->throttle_temp[0] = 110;
 	phy->throttle_temp[1] = 120;
 
-	return 0;
+	return mt7915_mcu_set_thermal_throttling(phy,
+						 MT7915_THERMAL_THROTTLE_MAX);
 }
 
 static void mt7915_led_set_config(struct led_classdev *led_cdev,
