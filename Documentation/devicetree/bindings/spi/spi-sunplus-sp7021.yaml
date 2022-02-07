@@ -59,8 +59,6 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/sp-sp7021.h>
-    #include <dt-bindings/reset/sp-sp7021.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     spi@9C002D80 {
         compatible = "sunplus,sp7021-spi";
@@ -73,8 +71,8 @@ examples:
         interrupts = <144 IRQ_TYPE_LEVEL_HIGH>,
                      <146 IRQ_TYPE_LEVEL_HIGH>,
                      <145 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&clkc SPI_COMBO_0>;
-        resets = <&rstc RST_SPI_COMBO_0>;
+        clocks = <&clkc 0x32>;
+        resets = <&rstc 0x22>;
         pinctrl-names = "default";
         pinctrl-0 = <&pins_spi0>;
     };
