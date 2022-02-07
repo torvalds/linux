@@ -265,7 +265,7 @@ static int add_dt_node(struct device_node *parent_dn, __be32 drc_index)
 	return rc;
 }
 
-int pseries_devicetree_update(s32 scope)
+static int pseries_devicetree_update(s32 scope)
 {
 	char *rtas_buf;
 	__be32 *data;
