@@ -50,15 +50,22 @@ static ssize_t mt7915_thermal_temp_show(struct device *dev,
 	int i = to_sensor_dev_attr(attr)->index;
 	int temperature;
 
-	if (i)
-		return sprintf(buf, "%u\n", phy->throttle_temp[i - 1] * 1000);
-
-	temperature = mt7915_mcu_get_temperature(phy);
-	if (temperature < 0)
-		return temperature;
-
-	/* display in millidegree celcius */
-	return sprintf(buf, "%u\n", temperature * 1000);
+	switch (i) {
+	case 0:
+		temperature = mt7915_mcu_get_temperature(phy);
+		if (temperature < 0)
+			return temperature;
+		/* display in millidegree celcius */
+		return sprintf(buf, "%u\n", temperature * 1000);
+	case 1:
+	case 2:
+		return sprintf(buf, "%u\n",
+			       phy->throttle_temp[i - 1] * 1000);
+	case 3:
+		return sprintf(buf, "%hhu\n", phy->throttle_state);
+	default:
+		return -EINVAL;
+	}
 }
 
 static ssize_t mt7915_thermal_temp_store(struct device *dev,
@@ -84,11 +91,13 @@ static ssize_t mt7915_thermal_temp_store(struct device *dev,
 static SENSOR_DEVICE_ATTR_RO(temp1_input, mt7915_thermal_temp, 0);
 static SENSOR_DEVICE_ATTR_RW(temp1_crit, mt7915_thermal_temp, 1);
 static SENSOR_DEVICE_ATTR_RW(temp1_max, mt7915_thermal_temp, 2);
+static SENSOR_DEVICE_ATTR_RO(throttle1, mt7915_thermal_temp, 3);
 
 static struct attribute *mt7915_hwmon_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_throttle1.dev_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(mt7915_hwmon);
