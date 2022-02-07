@@ -185,6 +185,18 @@ int iio_device_id(struct iio_dev *indio_dev)
 EXPORT_SYMBOL_GPL(iio_device_id);
 
 /**
+ * iio_buffer_enabled() - helper function to test if the buffer is enabled
+ * @indio_dev:		IIO device structure for device
+ */
+bool iio_buffer_enabled(struct iio_dev *indio_dev)
+{
+	return indio_dev->currentmode
+		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE |
+		   INDIO_BUFFER_SOFTWARE);
+}
+EXPORT_SYMBOL_GPL(iio_buffer_enabled);
+
+/**
  * iio_sysfs_match_string_with_gaps - matches given string in an array with gaps
  * @array: array of strings
  * @n: number of strings in the array
