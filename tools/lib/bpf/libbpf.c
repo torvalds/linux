@@ -156,14 +156,6 @@ enum libbpf_strict_mode libbpf_mode = LIBBPF_STRICT_NONE;
 
 int libbpf_set_strict_mode(enum libbpf_strict_mode mode)
 {
-	/* __LIBBPF_STRICT_LAST is the last power-of-2 value used + 1, so to
-	 * get all possible values we compensate last +1, and then (2*x - 1)
-	 * to get the bit mask
-	 */
-	if (mode != LIBBPF_STRICT_ALL
-	    && (mode & ~((__LIBBPF_STRICT_LAST - 1) * 2 - 1)))
-		return errno = EINVAL, -EINVAL;
-
 	libbpf_mode = mode;
 	return 0;
 }
