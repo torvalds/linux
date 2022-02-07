@@ -93,6 +93,7 @@ enum imx_mu_type {
 struct imx_mu_dcfg {
 	int (*tx)(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp, void *data);
 	int (*rx)(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp);
+	int (*rxdb)(struct imx_mu_priv *priv, struct imx_mu_con_priv *cp);
 	void (*init)(struct imx_mu_priv *priv);
 	enum imx_mu_type type;
 	u32	xTR;		/* Transmit Register0 */
@@ -175,6 +176,16 @@ static int imx_mu_generic_rx(struct imx_mu_priv *priv,
 
 	dat = imx_mu_read(priv, priv->dcfg->xRR + (cp->idx) * 4);
 	mbox_chan_received_data(cp->chan, (void *)&dat);
+
+	return 0;
+}
+
+static int imx_mu_generic_rxdb(struct imx_mu_priv *priv,
+			       struct imx_mu_con_priv *cp)
+{
+	imx_mu_write(priv, IMX_MU_xSR_GIPn(priv->dcfg->type, cp->idx),
+		     priv->dcfg->xSR[IMX_MU_GSR]);
+	mbox_chan_received_data(cp->chan, NULL);
 
 	return 0;
 }
@@ -329,9 +340,7 @@ static irqreturn_t imx_mu_isr(int irq, void *p)
 		priv->dcfg->rx(priv, cp);
 	} else if ((val == IMX_MU_xSR_GIPn(priv->dcfg->type, cp->idx)) &&
 		   (cp->type == IMX_MU_TYPE_RXDB)) {
-		imx_mu_write(priv, IMX_MU_xSR_GIPn(priv->dcfg->type, cp->idx),
-			     priv->dcfg->xSR[IMX_MU_GSR]);
-		mbox_chan_received_data(chan, NULL);
+		priv->dcfg->rxdb(priv, cp);
 	} else {
 		dev_warn_ratelimited(priv->dev, "Not handled interrupt\n");
 		return IRQ_NONE;
@@ -639,6 +648,7 @@ static int imx_mu_remove(struct platform_device *pdev)
 static const struct imx_mu_dcfg imx_mu_cfg_imx6sx = {
 	.tx	= imx_mu_generic_tx,
 	.rx	= imx_mu_generic_rx,
+	.rxdb	= imx_mu_generic_rxdb,
 	.init	= imx_mu_init_generic,
 	.xTR	= 0x0,
 	.xRR	= 0x10,
@@ -649,6 +659,7 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx6sx = {
 static const struct imx_mu_dcfg imx_mu_cfg_imx7ulp = {
 	.tx	= imx_mu_generic_tx,
 	.rx	= imx_mu_generic_rx,
+	.rxdb	= imx_mu_generic_rxdb,
 	.init	= imx_mu_init_generic,
 	.xTR	= 0x20,
 	.xRR	= 0x40,
@@ -659,7 +670,9 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx7ulp = {
 static const struct imx_mu_dcfg imx_mu_cfg_imx8ulp = {
 	.tx	= imx_mu_generic_tx,
 	.rx	= imx_mu_generic_rx,
+	.rxdb	= imx_mu_generic_rxdb,
 	.init	= imx_mu_init_generic,
+	.rxdb	= imx_mu_generic_rxdb,
 	.type	= IMX_MU_V2,
 	.xTR	= 0x200,
 	.xRR	= 0x280,
@@ -682,6 +695,7 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx8_scu = {
 	.tx	= imx_mu_specific_tx,
 	.rx	= imx_mu_specific_rx,
 	.init	= imx_mu_init_specific,
+	.rxdb	= imx_mu_generic_rxdb,
 	.xTR	= 0x0,
 	.xRR	= 0x10,
 	.xSR	= {0x20, 0x20, 0x20, 0x20},
