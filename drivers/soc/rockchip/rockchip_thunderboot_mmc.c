@@ -91,7 +91,7 @@ static int rk_tb_mmc_thread(void *p)
 		if (ret >= 0)
 			free_reserved_area(phys_to_virt(idmac.start),
 					   phys_to_virt(idmac.start) + resource_size(&idmac),
-					   -1, NULL);
+					   -1, "memory-region-idmac");
 	}
 
 out:
