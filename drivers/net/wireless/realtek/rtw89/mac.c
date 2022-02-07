@@ -2718,7 +2718,7 @@ static void rtw89_mac_cmac_tbl_init(struct rtw89_dev *rtwdev, u8 macid)
 	rtw89_write32(rtwdev, R_AX_INDIR_ACCESS_ENTRY + 28, 0xB8109);
 }
 
-static int rtw89_set_macid_pause(struct rtw89_dev *rtwdev, u8 macid, bool pause)
+int rtw89_mac_set_macid_pause(struct rtw89_dev *rtwdev, u8 macid, bool pause)
 {
 	u8 sh =  FIELD_GET(GENMASK(4, 0), macid);
 	u8 grp = macid >> 5;
@@ -3021,7 +3021,7 @@ int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_mac_dmac_tbl_init(rtwdev, rtwvif->mac_id);
 	rtw89_mac_cmac_tbl_init(rtwdev, rtwvif->mac_id);
 
-	ret = rtw89_set_macid_pause(rtwdev, rtwvif->mac_id, false);
+	ret = rtw89_mac_set_macid_pause(rtwdev, rtwvif->mac_id, false);
 	if (ret)
 		return ret;
 
