@@ -110,7 +110,7 @@ static inline int thermal_genl_sampling_temp(int id, int temp)
 	return 0;
 }
 
-static inline int thermal_genl_cpu_capability_event(int count, struct cpu_capability *caps)
+static inline int thermal_genl_cpu_capability_event(int count, struct thermal_genl_cpu_caps *caps)
 {
 	return 0;
 }
