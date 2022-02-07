@@ -886,7 +886,6 @@ static int amdgpu_ras_block_match_default(struct amdgpu_ras_block_object *block_
 static struct amdgpu_ras_block_object *amdgpu_ras_get_ras_block(struct amdgpu_device *adev,
 					enum amdgpu_ras_block block, uint32_t sub_block_index)
 {
-	int loop_cnt = 0;
 	struct amdgpu_ras_block_list *node, *tmp;
 	struct amdgpu_ras_block_object *obj;
 
@@ -910,9 +909,6 @@ static struct amdgpu_ras_block_object *amdgpu_ras_get_ras_block(struct amdgpu_de
 			if (amdgpu_ras_block_match_default(obj, block) == 0)
 				return obj;
 		}
-
-		if (++loop_cnt >= AMDGPU_RAS_BLOCK__LAST)
-			break;
 	}
 
 	return NULL;
