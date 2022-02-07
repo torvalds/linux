@@ -122,6 +122,28 @@ size_t nolibc_strlen(const char *str)
 })
 
 static __attribute__((unused))
+size_t strlcat(char *dst, const char *src, size_t size)
+{
+	size_t len;
+	char c;
+
+	for (len = 0; dst[len];	len++)
+		;
+
+	for (;;) {
+		c = *src;
+		if (len < size)
+			dst[len] = c;
+		if (!c)
+			break;
+		len++;
+		src++;
+	}
+
+	return len;
+}
+
+static __attribute__((unused))
 size_t strlcpy(char *dst, const char *src, size_t size)
 {
 	size_t len;
@@ -137,6 +159,25 @@ size_t strlcpy(char *dst, const char *src, size_t size)
 	}
 	return len;
 }
+
+static __attribute__((unused))
+char *strncat(char *dst, const char *src, size_t size)
+{
+	char *orig = dst;
+
+	while (*dst)
+		dst++;
+
+	while (size && (*dst = *src)) {
+		src++;
+		dst++;
+		size--;
+	}
+
+	*dst = 0;
+	return orig;
+}
+
 
 static __attribute__((unused))
 char *strncpy(char *dst, const char *src, size_t size)
