@@ -50,7 +50,7 @@ struct mlx5e_flow_steering {
 	struct mlx5_flow_namespace      *ns;
 	struct mlx5_flow_namespace      *egress_ns;
 #ifdef CONFIG_MLX5_EN_RXNFC
-	struct mlx5e_ethtool_steering   ethtool;
+	struct mlx5e_ethtool_steering   *ethtool;
 #endif
 	struct mlx5e_tc_table           *tc;
 	struct mlx5e_promisc_table      promisc;
@@ -1407,6 +1407,31 @@ struct mlx5e_tc_table *mlx5e_fs_get_tc(struct mlx5e_flow_steering *fs)
 	return fs->tc;
 }
 
+#ifdef CONFIG_MLX5_EN_RXNFC
+static int mlx5e_fs_ethtool_alloc(struct mlx5e_flow_steering *fs)
+{
+	fs->ethtool = kvzalloc(sizeof(*fs->ethtool), GFP_KERNEL);
+
+	if (!fs->ethtool)
+		return -ENOMEM;
+	return 0;
+}
+
+static void mlx5e_fs_ethtool_free(struct mlx5e_flow_steering *fs)
+{
+	kvfree(fs->ethtool);
+}
+
+struct mlx5e_ethtool_steering *mlx5e_fs_get_ethtool(struct mlx5e_flow_steering *fs)
+{
+	return fs->ethtool;
+}
+#else
+static int mlx5e_fs_ethtool_alloc(struct mlx5e_flow_steering *fs)
+{ return 0; }
+static void mlx5e_fs_ethtool_free(struct mlx5e_flow_steering *fs) { }
+#endif
+
 struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 					  struct mlx5_core_dev *mdev,
 					  bool state_destroy)
@@ -1432,7 +1457,13 @@ struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 			goto err_free_vlan;
 	}
 
+	err = mlx5e_fs_ethtool_alloc(fs);
+	if (err)
+		goto err_free_tc;
+
 	return fs;
+err_free_tc:
+	mlx5e_fs_tc_free(fs);
 err_free_fs:
 	kvfree(fs);
 err_free_vlan:
@@ -1443,6 +1474,7 @@ err:
 
 void mlx5e_fs_cleanup(struct mlx5e_flow_steering *fs)
 {
+	mlx5e_fs_ethtool_free(fs);
 	mlx5e_fs_tc_free(fs);
 	mlx5e_fs_vlan_free(fs);
 	kvfree(fs);
@@ -1465,13 +1497,6 @@ void mlx5e_fs_set_ns(struct mlx5e_flow_steering *fs, struct mlx5_flow_namespace 
 	else
 		fs->egress_ns = ns;
 }
-
-#ifdef CONFIG_MLX5_EN_RXNFC
-struct mlx5e_ethtool_steering *mlx5e_fs_get_ethtool(struct mlx5e_flow_steering *fs)
-{
-	return &fs->ethtool;
-}
-#endif
 
 struct mlx5_ttc_table *mlx5e_fs_get_ttc(struct mlx5e_flow_steering *fs, bool inner)
 {
