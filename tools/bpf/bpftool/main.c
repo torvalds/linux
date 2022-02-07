@@ -478,14 +478,11 @@ int main(int argc, char **argv)
 	}
 
 	if (!legacy_libbpf) {
-		enum libbpf_strict_mode mode;
-
 		/* Allow legacy map definitions for skeleton generation.
 		 * It will still be rejected if users use LIBBPF_STRICT_ALL
 		 * mode for loading generated skeleton.
 		 */
-		mode = (__LIBBPF_STRICT_LAST - 1) & ~LIBBPF_STRICT_MAP_DEFINITIONS;
-		ret = libbpf_set_strict_mode(mode);
+		ret = libbpf_set_strict_mode(LIBBPF_STRICT_ALL & ~LIBBPF_STRICT_MAP_DEFINITIONS);
 		if (ret)
 			p_err("failed to enable libbpf strict mode: %d", ret);
 	}
