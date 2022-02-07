@@ -23,6 +23,14 @@ static __attribute__((unused)) char itoa_buffer[21];
  * As much as possible, please keep functions alphabetically sorted.
  */
 
+/* must be exported, as it's used by libgcc for various divide functions */
+__attribute__((weak,unused,noreturn,section(".text.nolibc_abort")))
+void abort(void)
+{
+	sys_kill(sys_getpid(), SIGABRT);
+	for (;;);
+}
+
 static __attribute__((unused))
 long atol(const char *s)
 {
