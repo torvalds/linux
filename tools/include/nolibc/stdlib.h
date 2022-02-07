@@ -52,6 +52,46 @@ int atoi(const char *s)
 	return atol(s);
 }
 
+/* Converts the unsigned long integer <in> to its hex representation into
+ * buffer <buffer>, which must be long enough to store the number and the
+ * trailing zero (17 bytes for "ffffffffffffffff" or 9 for "ffffffff"). The
+ * buffer is filled from the first byte, and the number of characters emitted
+ * (not counting the trailing zero) is returned. The function is constructed
+ * in a way to optimize the code size and avoid any divide that could add a
+ * dependency on large external functions.
+ */
+static __attribute__((unused))
+int utoh_r(unsigned long in, char *buffer)
+{
+	signed char pos = (~0UL > 0xfffffffful) ? 60 : 28;
+	int digits = 0;
+	int dig;
+
+	do {
+		dig = in >> pos;
+		in -= (uint64_t)dig << pos;
+		pos -= 4;
+		if (dig || digits || pos < 0) {
+			if (dig > 9)
+				dig += 'a' - '0' - 10;
+			buffer[digits++] = '0' + dig;
+		}
+	} while (pos >= 0);
+
+	buffer[digits] = 0;
+	return digits;
+}
+
+/* converts unsigned long <in> to an hex string using the static itoa_buffer
+ * and returns the pointer to that string.
+ */
+static inline __attribute__((unused))
+char *utoh(unsigned long in)
+{
+	utoh_r(in, itoa_buffer);
+	return itoa_buffer;
+}
+
 /* Converts the unsigned long integer <in> to its string representation into
  * buffer <buffer>, which must be long enough to store the number and the
  * trailing zero (21 bytes for 18446744073709551615 in 64-bit, 11 for
@@ -141,6 +181,46 @@ static inline __attribute__((unused))
 char *utoa(unsigned long in)
 {
 	utoa_r(in, itoa_buffer);
+	return itoa_buffer;
+}
+
+/* Converts the unsigned 64-bit integer <in> to its hex representation into
+ * buffer <buffer>, which must be long enough to store the number and the
+ * trailing zero (17 bytes for "ffffffffffffffff"). The buffer is filled from
+ * the first byte, and the number of characters emitted (not counting the
+ * trailing zero) is returned. The function is constructed in a way to optimize
+ * the code size and avoid any divide that could add a dependency on large
+ * external functions.
+ */
+static __attribute__((unused))
+int u64toh_r(uint64_t in, char *buffer)
+{
+	signed char pos = 60;
+	int digits = 0;
+	int dig;
+
+	do {
+		dig = in >> pos;
+		in -= (uint64_t)dig << pos;
+		pos -= 4;
+		if (dig || digits || pos < 0) {
+			if (dig > 9)
+				dig += 'a' - '0' - 10;
+			buffer[digits++] = '0' + dig;
+		}
+	} while (pos >= 0);
+
+	buffer[digits] = 0;
+	return digits;
+}
+
+/* converts uint64_t <in> to an hex string using the static itoa_buffer and
+ * returns the pointer to that string.
+ */
+static inline __attribute__((unused))
+char *u64toh(uint64_t in)
+{
+	u64toh_r(in, itoa_buffer);
 	return itoa_buffer;
 }
 
