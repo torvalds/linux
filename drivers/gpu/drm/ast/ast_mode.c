@@ -1253,25 +1253,6 @@ static int ast_crtc_init(struct drm_device *dev)
 }
 
 /*
- * Encoder
- */
-
-static int ast_encoder_init(struct drm_device *dev)
-{
-	struct ast_private *ast = to_ast_private(dev);
-	struct drm_encoder *encoder = &ast->encoder;
-	int ret;
-
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DAC);
-	if (ret)
-		return ret;
-
-	encoder->possible_crtcs = 1;
-
-	return 0;
-}
-
-/*
  * VGA Connector
  */
 
@@ -1318,12 +1299,10 @@ static const struct drm_connector_funcs ast_vga_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ast_vga_connector_init(struct drm_device *dev)
+static int ast_vga_connector_init(struct drm_device *dev,
+				  struct ast_vga_connector *ast_vga_connector)
 {
-	struct ast_private *ast = to_ast_private(dev);
-	struct ast_vga_connector *ast_vga_connector = &ast->connector;
 	struct drm_connector *connector = &ast_vga_connector->base;
-	struct drm_encoder *encoder = &ast->encoder;
 	int ret;
 
 	ast_vga_connector->i2c = ast_i2c_create(dev);
@@ -1347,7 +1326,30 @@ static int ast_vga_connector_init(struct drm_device *dev)
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
-	drm_connector_attach_encoder(connector, encoder);
+	return 0;
+}
+
+static int ast_vga_output_init(struct ast_private *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct drm_crtc *crtc = &ast->crtc;
+	struct drm_encoder *encoder = &ast->output.vga.encoder;
+	struct ast_vga_connector *ast_vga_connector = &ast->output.vga.vga_connector;
+	struct drm_connector *connector = &ast_vga_connector->base;
+	int ret;
+
+	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DAC);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = 1;
+
+	ret = ast_vga_connector_init(dev, ast_vga_connector);
+	if (ret)
+		return ret;
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1408,8 +1410,16 @@ int ast_mode_config_init(struct ast_private *ast)
 		return ret;
 
 	ast_crtc_init(dev);
-	ast_encoder_init(dev);
-	ast_vga_connector_init(dev);
+
+	switch (ast->tx_chip_type) {
+	case AST_TX_NONE:
+	case AST_TX_SIL164:
+	case AST_TX_DP501:
+		ret = ast_vga_output_init(ast);
+		break;
+	}
+	if (ret)
+		return ret;
 
 	drm_mode_config_reset(dev);
 
