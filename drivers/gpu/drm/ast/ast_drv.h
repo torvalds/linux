@@ -129,15 +129,15 @@ struct ast_i2c_chan {
 	struct i2c_algo_bit_data bit;
 };
 
-struct ast_connector {
+struct ast_vga_connector {
 	struct drm_connector base;
 	struct ast_i2c_chan *i2c;
 };
 
-static inline struct ast_connector *
-to_ast_connector(struct drm_connector *connector)
+static inline struct ast_vga_connector *
+to_ast_vga_connector(struct drm_connector *connector)
 {
-	return container_of(connector, struct ast_connector, base);
+	return container_of(connector, struct ast_vga_connector, base);
 }
 
 /*
@@ -161,7 +161,7 @@ struct ast_private {
 	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
-	struct ast_connector connector;
+	struct ast_vga_connector connector;
 
 	bool support_wide_screen;
 	enum {

@@ -1272,12 +1272,12 @@ static int ast_encoder_init(struct drm_device *dev)
 }
 
 /*
- * Connector
+ * VGA Connector
  */
 
-static int ast_get_modes(struct drm_connector *connector)
+static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct ast_connector *ast_connector = to_ast_connector(connector);
+	struct ast_vga_connector *ast_vga_connector = to_ast_vga_connector(connector);
 	struct ast_private *ast = to_ast_private(connector->dev);
 	struct edid *edid = NULL;
 	bool flags = false;
@@ -1294,23 +1294,23 @@ static int ast_get_modes(struct drm_connector *connector)
 			edid = NULL;
 		}
 	}
-	if (!flags && ast_connector->i2c)
-		edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
+	if (!flags && ast_vga_connector->i2c)
+		edid = drm_get_edid(connector, &ast_vga_connector->i2c->adapter);
 	if (edid) {
-		drm_connector_update_edid_property(&ast_connector->base, edid);
+		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 		return ret;
 	}
-	drm_connector_update_edid_property(&ast_connector->base, NULL);
+	drm_connector_update_edid_property(connector, NULL);
 	return 0;
 }
 
-static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
-	.get_modes = ast_get_modes,
+static const struct drm_connector_helper_funcs ast_vga_connector_helper_funcs = {
+	.get_modes = ast_vga_connector_helper_get_modes,
 };
 
-static const struct drm_connector_funcs ast_connector_funcs = {
+static const struct drm_connector_funcs ast_vga_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
@@ -1318,29 +1318,29 @@ static const struct drm_connector_funcs ast_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ast_connector_init(struct drm_device *dev)
+static int ast_vga_connector_init(struct drm_device *dev)
 {
 	struct ast_private *ast = to_ast_private(dev);
-	struct ast_connector *ast_connector = &ast->connector;
-	struct drm_connector *connector = &ast_connector->base;
+	struct ast_vga_connector *ast_vga_connector = &ast->connector;
+	struct drm_connector *connector = &ast_vga_connector->base;
 	struct drm_encoder *encoder = &ast->encoder;
 	int ret;
 
-	ast_connector->i2c = ast_i2c_create(dev);
-	if (!ast_connector->i2c)
+	ast_vga_connector->i2c = ast_i2c_create(dev);
+	if (!ast_vga_connector->i2c)
 		drm_err(dev, "failed to add ddc bus for connector\n");
 
-	if (ast_connector->i2c)
-		ret = drm_connector_init_with_ddc(dev, connector, &ast_connector_funcs,
+	if (ast_vga_connector->i2c)
+		ret = drm_connector_init_with_ddc(dev, connector, &ast_vga_connector_funcs,
 						  DRM_MODE_CONNECTOR_VGA,
-						  &ast_connector->i2c->adapter);
+						  &ast_vga_connector->i2c->adapter);
 	else
-		ret = drm_connector_init(dev, connector, &ast_connector_funcs,
+		ret = drm_connector_init(dev, connector, &ast_vga_connector_funcs,
 					 DRM_MODE_CONNECTOR_VGA);
 	if (ret)
 		return ret;
 
-	drm_connector_helper_add(connector, &ast_connector_helper_funcs);
+	drm_connector_helper_add(connector, &ast_vga_connector_helper_funcs);
 
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
@@ -1356,8 +1356,7 @@ static int ast_connector_init(struct drm_device *dev)
  * Mode config
  */
 
-static const struct drm_mode_config_helper_funcs
-ast_mode_config_helper_funcs = {
+static const struct drm_mode_config_helper_funcs ast_mode_config_helper_funcs = {
 	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
 };
 
@@ -1410,7 +1409,7 @@ int ast_mode_config_init(struct ast_private *ast)
 
 	ast_crtc_init(dev);
 	ast_encoder_init(dev);
-	ast_connector_init(dev);
+	ast_vga_connector_init(dev);
 
 	drm_mode_config_reset(dev);
 
