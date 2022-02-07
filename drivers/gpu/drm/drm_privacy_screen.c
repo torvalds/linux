@@ -379,6 +379,7 @@ static void drm_privacy_screen_device_release(struct device *dev)
  * drm_privacy_screen_register - register a privacy-screen
  * @parent: parent-device for the privacy-screen
  * @ops: &struct drm_privacy_screen_ops pointer with ops for the privacy-screen
+ * @data: Private data owned by the privacy screen provider
  *
  * Create and register a privacy-screen.
  *
