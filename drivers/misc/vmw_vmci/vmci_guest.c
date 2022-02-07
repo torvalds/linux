@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/processor.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -114,6 +115,47 @@ static void vmci_write_reg(struct vmci_guest_device *dev, u32 val, u32 reg)
 		iowrite32(val, dev->iobase + reg);
 }
 
+static int vmci_write_data(struct vmci_guest_device *dev,
+			   struct vmci_datagram *dg)
+{
+	int result;
+
+	if (dev->mmio_base != NULL) {
+		struct vmci_data_in_out_header *buffer_header = dev->tx_buffer;
+		u8 *dg_out_buffer = (u8 *)(buffer_header + 1);
+
+		if (VMCI_DG_SIZE(dg) > VMCI_MAX_DG_SIZE)
+			return VMCI_ERROR_INVALID_ARGS;
+
+		/*
+		 * Initialize send buffer with outgoing datagram
+		 * and set up header for inline data. Device will
+		 * not access buffer asynchronously - only after
+		 * the write to VMCI_DATA_OUT_LOW_ADDR.
+		 */
+		memcpy(dg_out_buffer, dg, VMCI_DG_SIZE(dg));
+		buffer_header->opcode = 0;
+		buffer_header->size = VMCI_DG_SIZE(dg);
+		buffer_header->busy = 1;
+
+		vmci_write_reg(dev, lower_32_bits(dev->tx_buffer_base),
+			       VMCI_DATA_OUT_LOW_ADDR);
+
+		/* Caller holds a spinlock, so cannot block. */
+		spin_until_cond(buffer_header->busy == 0);
+
+		result = vmci_read_reg(vmci_dev_g, VMCI_RESULT_LOW_ADDR);
+		if (result == VMCI_SUCCESS)
+			result = (int)buffer_header->result;
+	} else {
+		iowrite8_rep(dev->iobase + VMCI_DATA_OUT_ADDR,
+			     dg, VMCI_DG_SIZE(dg));
+		result = vmci_read_reg(vmci_dev_g, VMCI_RESULT_LOW_ADDR);
+	}
+
+	return result;
+}
+
 /*
  * VM to hypervisor call mechanism. We use the standard VMware naming
  * convention since shared code is calling this function as well.
@@ -139,8 +181,7 @@ int vmci_send_datagram(struct vmci_datagram *dg)
 	spin_lock_irqsave(&vmci_dev_spinlock, flags);
 
 	if (vmci_dev_g) {
-		iowrite8_rep(vmci_dev_g->iobase + VMCI_DATA_OUT_ADDR,
-			     dg, VMCI_DG_SIZE(dg));
+		vmci_write_data(vmci_dev_g, dg);
 		result = vmci_read_reg(vmci_dev_g, VMCI_RESULT_LOW_ADDR);
 	} else {
 		result = VMCI_ERROR_UNAVAILABLE;

@@ -111,6 +111,40 @@ enum {
 #define VMCI_MMIO_ACCESS_SIZE          ((size_t)(64 * 1024))
 
 /*
+ * For VMCI devices supporting the VMCI_CAPS_DMA_DATAGRAM capability, the
+ * sending and receiving of datagrams can be performed using DMA to/from
+ * a driver allocated buffer.
+ * Sending and receiving will be handled as follows:
+ * - when sending datagrams, the driver initializes the buffer where the
+ *   data part will refer to the outgoing VMCI datagram, sets the busy flag
+ *   to 1 and writes the address of the buffer to VMCI_DATA_OUT_HIGH_ADDR
+ *   and VMCI_DATA_OUT_LOW_ADDR. Writing to VMCI_DATA_OUT_LOW_ADDR triggers
+ *   the device processing of the buffer. When the device has processed the
+ *   buffer, it will write the result value to the buffer and then clear the
+ *   busy flag.
+ * - when receiving datagrams, the driver initializes the buffer where the
+ *   data part will describe the receive buffer, clears the busy flag and
+ *   writes the address of the buffer to VMCI_DATA_IN_HIGH_ADDR and
+ *   VMCI_DATA_IN_LOW_ADDR. Writing to VMCI_DATA_IN_LOW_ADDR triggers the
+ *   device processing of the buffer. The device will copy as many available
+ *   datagrams into the buffer as possible, and then sets the busy flag.
+ *   When the busy flag is set, the driver will process the datagrams in the
+ *   buffer.
+ */
+struct vmci_data_in_out_header {
+	uint32_t busy;
+	uint32_t opcode;
+	uint32_t size;
+	uint32_t rsvd;
+	uint64_t result;
+};
+
+struct vmci_sg_elem {
+	uint64_t addr;
+	uint64_t size;
+};
+
+/*
  * We have a fixed set of resource IDs available in the VMX.
  * This allows us to have a very simple implementation since we statically
  * know how many will create datagram handles. If a new caller arrives and
