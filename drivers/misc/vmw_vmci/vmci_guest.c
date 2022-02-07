@@ -58,6 +58,7 @@ struct vmci_guest_device {
 
 	struct tasklet_struct datagram_tasklet;
 	struct tasklet_struct bm_tasklet;
+	struct wait_queue_head inout_wq;
 
 	void *data_buffer;
 	dma_addr_t data_buffer_base;
@@ -113,6 +114,36 @@ static void vmci_write_reg(struct vmci_guest_device *dev, u32 val, u32 reg)
 		writel(val, dev->mmio_base + reg);
 	else
 		iowrite32(val, dev->iobase + reg);
+}
+
+static void vmci_read_data(struct vmci_guest_device *vmci_dev,
+			   void *dest, size_t size)
+{
+	if (vmci_dev->mmio_base == NULL)
+		ioread8_rep(vmci_dev->iobase + VMCI_DATA_IN_ADDR,
+			    dest, size);
+	else {
+		/*
+		 * For DMA datagrams, the data_buffer will contain the header on the
+		 * first page, followed by the incoming datagram(s) on the following
+		 * pages. The header uses an S/G element immediately following the
+		 * header on the first page to point to the data area.
+		 */
+		struct vmci_data_in_out_header *buffer_header = vmci_dev->data_buffer;
+		struct vmci_sg_elem *sg_array = (struct vmci_sg_elem *)(buffer_header + 1);
+		size_t buffer_offset = dest - vmci_dev->data_buffer;
+
+		buffer_header->opcode = 1;
+		buffer_header->size = 1;
+		buffer_header->busy = 0;
+		sg_array[0].addr = vmci_dev->data_buffer_base + buffer_offset;
+		sg_array[0].size = size;
+
+		vmci_write_reg(vmci_dev, lower_32_bits(vmci_dev->data_buffer_base),
+			       VMCI_DATA_IN_LOW_ADDR);
+
+		wait_event(vmci_dev->inout_wq, buffer_header->busy == 1);
+	}
 }
 
 static int vmci_write_data(struct vmci_guest_device *dev,
@@ -261,15 +292,17 @@ static int vmci_check_host_caps(struct pci_dev *pdev)
 }
 
 /*
- * Reads datagrams from the data in port and dispatches them. We
- * always start reading datagrams into only the first page of the
- * datagram buffer. If the datagrams don't fit into one page, we
- * use the maximum datagram buffer size for the remainder of the
- * invocation. This is a simple heuristic for not penalizing
- * small datagrams.
+ * Reads datagrams from the device and dispatches them. For IO port
+ * based access to the device, we always start reading datagrams into
+ * only the first page of the datagram buffer. If the datagrams don't
+ * fit into one page, we use the maximum datagram buffer size for the
+ * remainder of the invocation. This is a simple heuristic for not
+ * penalizing small datagrams. For DMA-based datagrams, we always
+ * use the maximum datagram buffer size, since there is no performance
+ * penalty for doing so.
  *
  * This function assumes that it has exclusive access to the data
- * in port for the duration of the call.
+ * in register(s) for the duration of the call.
  */
 static void vmci_dispatch_dgs(unsigned long data)
 {
@@ -277,23 +310,41 @@ static void vmci_dispatch_dgs(unsigned long data)
 	u8 *dg_in_buffer = vmci_dev->data_buffer;
 	struct vmci_datagram *dg;
 	size_t dg_in_buffer_size = VMCI_MAX_DG_SIZE;
-	size_t current_dg_in_buffer_size = PAGE_SIZE;
+	size_t current_dg_in_buffer_size;
 	size_t remaining_bytes;
+	bool is_io_port = vmci_dev->mmio_base == NULL;
 
 	BUILD_BUG_ON(VMCI_MAX_DG_SIZE < PAGE_SIZE);
 
-	ioread8_rep(vmci_dev->iobase + VMCI_DATA_IN_ADDR,
-		    vmci_dev->data_buffer, current_dg_in_buffer_size);
+	if (!is_io_port) {
+		/* For mmio, the first page is used for the header. */
+		dg_in_buffer += PAGE_SIZE;
+
+		/*
+		 * For DMA-based datagram operations, there is no performance
+		 * penalty for reading the maximum buffer size.
+		 */
+		current_dg_in_buffer_size = VMCI_MAX_DG_SIZE;
+	} else {
+		current_dg_in_buffer_size = PAGE_SIZE;
+	}
+	vmci_read_data(vmci_dev, dg_in_buffer, current_dg_in_buffer_size);
 	dg = (struct vmci_datagram *)dg_in_buffer;
 	remaining_bytes = current_dg_in_buffer_size;
 
+	/*
+	 * Read through the buffer until an invalid datagram header is
+	 * encountered. The exit condition for datagrams read through
+	 * VMCI_DATA_IN_ADDR is a bit more complicated, since a datagram
+	 * can start on any page boundary in the buffer.
+	 */
 	while (dg->dst.resource != VMCI_INVALID_ID ||
-	       remaining_bytes > PAGE_SIZE) {
+	       (is_io_port && remaining_bytes > PAGE_SIZE)) {
 		unsigned dg_in_size;
 
 		/*
-		 * When the input buffer spans multiple pages, a datagram can
-		 * start on any page boundary in the buffer.
+		 * If using VMCI_DATA_IN_ADDR, skip to the next page
+		 * as a datagram can start on any page boundary.
 		 */
 		if (dg->dst.resource == VMCI_INVALID_ID) {
 			dg = (struct vmci_datagram *)roundup(
@@ -343,11 +394,10 @@ static void vmci_dispatch_dgs(unsigned long data)
 					current_dg_in_buffer_size =
 					    dg_in_buffer_size;
 
-				ioread8_rep(vmci_dev->iobase +
-						VMCI_DATA_IN_ADDR,
-					vmci_dev->data_buffer +
+				vmci_read_data(vmci_dev,
+					       dg_in_buffer +
 						remaining_bytes,
-					current_dg_in_buffer_size -
+					       current_dg_in_buffer_size -
 						remaining_bytes);
 			}
 
@@ -385,10 +435,8 @@ static void vmci_dispatch_dgs(unsigned long data)
 				current_dg_in_buffer_size = dg_in_buffer_size;
 
 			for (;;) {
-				ioread8_rep(vmci_dev->iobase +
-						VMCI_DATA_IN_ADDR,
-					vmci_dev->data_buffer,
-					current_dg_in_buffer_size);
+				vmci_read_data(vmci_dev, dg_in_buffer,
+					       current_dg_in_buffer_size);
 				if (bytes_to_skip <= current_dg_in_buffer_size)
 					break;
 
@@ -405,8 +453,7 @@ static void vmci_dispatch_dgs(unsigned long data)
 		if (remaining_bytes < VMCI_DG_HEADERSIZE) {
 			/* Get the next batch of datagrams. */
 
-			ioread8_rep(vmci_dev->iobase + VMCI_DATA_IN_ADDR,
-				    vmci_dev->data_buffer,
+			vmci_read_data(vmci_dev, dg_in_buffer,
 				    current_dg_in_buffer_size);
 			dg = (struct vmci_datagram *)dg_in_buffer;
 			remaining_bytes = current_dg_in_buffer_size;
@@ -464,8 +511,11 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 			icr &= ~VMCI_ICR_NOTIFICATION;
 		}
 
-		if (icr & VMCI_ICR_DMA_DATAGRAM)
+
+		if (icr & VMCI_ICR_DMA_DATAGRAM) {
+			wake_up_all(&dev->inout_wq);
 			icr &= ~VMCI_ICR_DMA_DATAGRAM;
+		}
 
 		if (icr != 0)
 			dev_warn(dev->dev,
@@ -498,6 +548,10 @@ static irqreturn_t vmci_interrupt_bm(int irq, void *_dev)
  */
 static irqreturn_t vmci_interrupt_dma_datagram(int irq, void *_dev)
 {
+	struct vmci_guest_device *dev = _dev;
+
+	wake_up_all(&dev->inout_wq);
+
 	return IRQ_HANDLED;
 }
 
@@ -584,6 +638,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 		     vmci_dispatch_dgs, (unsigned long)vmci_dev);
 	tasklet_init(&vmci_dev->bm_tasklet,
 		     vmci_process_bitmap, (unsigned long)vmci_dev);
+	init_waitqueue_head(&vmci_dev->inout_wq);
 
 	if (mmio_base != NULL) {
 		vmci_dev->tx_buffer = dma_alloc_coherent(&pdev->dev, VMCI_DMA_DG_BUFFER_SIZE,
