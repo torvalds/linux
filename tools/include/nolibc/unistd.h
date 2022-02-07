@@ -38,6 +38,14 @@ unsigned int sleep(unsigned int seconds)
 }
 
 static __attribute__((unused))
+int usleep(unsigned int usecs)
+{
+	struct timeval my_timeval = { usecs / 1000000, usecs % 1000000 };
+
+	return sys_select(0, 0, 0, 0, &my_timeval);
+}
+
+static __attribute__((unused))
 int tcsetpgrp(int fd, pid_t pid)
 {
 	return ioctl(fd, TIOCSPGRP, &pid);
