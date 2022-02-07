@@ -165,6 +165,10 @@ struct ast_private {
 			struct drm_encoder encoder;
 			struct ast_vga_connector vga_connector;
 		} vga;
+		struct {
+			struct drm_encoder encoder;
+			struct drm_connector connector;
+		} dp501;
 	} output;
 
 	bool support_wide_screen;
