@@ -555,32 +555,28 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 	int err;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
-		err = -EBUSY;
+	err = iio_device_claim_direct_mode(indio_dev);
+	if (err)
+		return err;
+
+	mutex_lock(&sdata->odr_lock);
+
+	err = st_sensors_set_enable(indio_dev, true);
+	if (err < 0)
 		goto out;
-	} else {
-		mutex_lock(&sdata->odr_lock);
-		err = st_sensors_set_enable(indio_dev, true);
-		if (err < 0) {
-			mutex_unlock(&sdata->odr_lock);
-			goto out;
-		}
 
-		msleep((sdata->sensor_settings->bootime * 1000) / sdata->odr);
-		err = st_sensors_read_axis_data(indio_dev, ch, val);
-		if (err < 0) {
-			mutex_unlock(&sdata->odr_lock);
-			goto out;
-		}
+	msleep((sdata->sensor_settings->bootime * 1000) / sdata->odr);
+	err = st_sensors_read_axis_data(indio_dev, ch, val);
+	if (err < 0)
+		goto out;
 
-		*val = *val >> ch->scan_type.shift;
+	*val = *val >> ch->scan_type.shift;
 
-		err = st_sensors_set_enable(indio_dev, false);
-		mutex_unlock(&sdata->odr_lock);
-	}
+	err = st_sensors_set_enable(indio_dev, false);
+
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&sdata->odr_lock);
+	iio_device_release_direct_mode(indio_dev);
 
 	return err;
 }
