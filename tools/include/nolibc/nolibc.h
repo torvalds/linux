@@ -87,39 +87,10 @@
 #include "arch.h"
 #include "types.h"
 #include "sys.h"
+#include "stdlib.h"
 
 /* Used by programs to avoid std includes */
 #define NOLIBC
-
-static __attribute__((unused))
-int tcsetpgrp(int fd, pid_t pid)
-{
-	return ioctl(fd, TIOCSPGRP, &pid);
-}
-
-static __attribute__((unused))
-unsigned int sleep(unsigned int seconds)
-{
-	struct timeval my_timeval = { seconds, 0 };
-
-	if (sys_select(0, 0, 0, 0, &my_timeval) < 0)
-		return my_timeval.tv_sec + !!my_timeval.tv_usec;
-	else
-		return 0;
-}
-
-static __attribute__((unused))
-int msleep(unsigned int msecs)
-{
-	struct timeval my_timeval = { msecs / 1000, (msecs % 1000) * 1000 };
-
-	if (sys_select(0, 0, 0, 0, &my_timeval) < 0)
-		return (my_timeval.tv_sec * 1000) +
-			(my_timeval.tv_usec / 1000) +
-			!!(my_timeval.tv_usec % 1000);
-	else
-		return 0;
-}
 
 /* some size-optimized reimplementations of a few common str* and mem*
  * functions. They're marked static, except memcpy() and raise() which are used
@@ -217,35 +188,6 @@ int isdigit(int c)
 }
 
 static __attribute__((unused))
-long atol(const char *s)
-{
-	unsigned long ret = 0;
-	unsigned long d;
-	int neg = 0;
-
-	if (*s == '-') {
-		neg = 1;
-		s++;
-	}
-
-	while (1) {
-		d = (*s++) - '0';
-		if (d > 9)
-			break;
-		ret *= 10;
-		ret += d;
-	}
-
-	return neg ? -ret : ret;
-}
-
-static __attribute__((unused))
-int atoi(const char *s)
-{
-	return atol(s);
-}
-
-static __attribute__((unused))
 const char *ltoa(long in)
 {
 	/* large enough for -9223372036854775808 */
@@ -271,13 +213,6 @@ __attribute__((weak,unused))
 void *memcpy(void *dst, const void *src, size_t len)
 {
 	return memmove(dst, src, len);
-}
-
-/* needed by libgcc for divide by zero */
-__attribute__((weak,unused))
-int raise(int signal)
-{
-	return kill(getpid(), signal);
 }
 
 /* Here come a few helper functions */
