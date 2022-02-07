@@ -221,7 +221,7 @@ static int snd_s1810c_init_mixer_maps(struct snd_usb_audio *chip)
 	e = 0xbc;
 	for (n = 0; n < 2; n++) {
 		off = n * 18;
-		for (b = off, c = 0; b < 18 + off; b++) {
+		for (b = off; b < 18 + off; b++) {
 			/* This channel to all outputs ? */
 			for (c = 0; c <= 8; c++) {
 				snd_s1810c_send_ctl_packet(dev, a, b, c, 0, e);
