@@ -1322,18 +1322,21 @@ static int ast_connector_init(struct drm_device *dev)
 	struct ast_connector *ast_connector = &ast->connector;
 	struct drm_connector *connector = &ast_connector->base;
 	struct drm_encoder *encoder = &ast->encoder;
+	int ret;
 
 	ast_connector->i2c = ast_i2c_create(dev);
 	if (!ast_connector->i2c)
 		drm_err(dev, "failed to add ddc bus for connector\n");
 
 	if (ast_connector->i2c)
-		drm_connector_init_with_ddc(dev, connector, &ast_connector_funcs,
-					    DRM_MODE_CONNECTOR_VGA,
-					    &ast_connector->i2c->adapter);
+		ret = drm_connector_init_with_ddc(dev, connector, &ast_connector_funcs,
+						  DRM_MODE_CONNECTOR_VGA,
+						  &ast_connector->i2c->adapter);
 	else
-		drm_connector_init(dev, connector, &ast_connector_funcs,
-				   DRM_MODE_CONNECTOR_VGA);
+		ret = drm_connector_init(dev, connector, &ast_connector_funcs,
+					 DRM_MODE_CONNECTOR_VGA);
+	if (ret)
+		return ret;
 
 	drm_connector_helper_add(connector, &ast_connector_helper_funcs);
 
