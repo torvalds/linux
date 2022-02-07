@@ -47,7 +47,10 @@ void *_nolibc_memcpy_down(void *dst, const void *src, size_t len)
 	return dst;
 }
 
-static __attribute__((unused))
+/* might be ignored by the compiler without -ffreestanding, then found as
+ * missing.
+ */
+__attribute__((weak,unused,section(".text.nolibc_memmove")))
 void *memmove(void *dst, const void *src, size_t len)
 {
 	size_t dir, pos;
@@ -75,7 +78,10 @@ void *memcpy(void *dst, const void *src, size_t len)
 	return _nolibc_memcpy_up(dst, src, len);
 }
 
-static __attribute__((unused))
+/* might be ignored by the compiler without -ffreestanding, then found as
+ * missing.
+ */
+__attribute__((weak,unused,section(".text.nolibc_memset")))
 void *memset(void *dst, int b, size_t len)
 {
 	char *p = dst;
