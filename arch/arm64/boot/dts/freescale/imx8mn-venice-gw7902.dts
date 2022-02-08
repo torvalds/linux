@@ -220,6 +220,10 @@
 	};
 };
 
+&disp_blk_ctrl {
+	status = "disabled";
+};
+
 /* off-board header */
 &ecspi2 {
 	pinctrl-names = "default";
@@ -249,6 +253,10 @@
 			rx-fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
 		};
 	};
+};
+
+&gpu {
+	status = "disabled";
 };
 
 &i2c1 {
@@ -544,6 +552,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c4>;
 	status = "okay";
+};
+
+&pgc_gpumix {
+	status = "disabled";
 };
 
 /* off-board header */
