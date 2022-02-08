@@ -202,6 +202,15 @@ static const struct apple_key_translation swapped_fn_leftctrl_keys[] = {
 	{ }
 };
 
+static inline void apple_setup_key_translation(struct input_dev *input,
+		const struct apple_key_translation *table)
+{
+	const struct apple_key_translation *trans;
+
+	for (trans = table; trans->from; trans++)
+		set_bit(trans->to, input->keybit);
+}
+
 static const struct apple_key_translation *apple_find_translation(
 		const struct apple_key_translation *table, u16 from)
 {
@@ -452,30 +461,17 @@ static __u8 *apple_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 static void apple_setup_input(struct input_dev *input)
 {
-	const struct apple_key_translation *trans;
-
 	set_bit(KEY_NUMLOCK, input->keybit);
 
 	/* Enable all needed keys */
-	for (trans = apple_fn_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
+	apple_setup_key_translation(input, apple_fn_keys);
+	apple_setup_key_translation(input, powerbook_fn_keys);
+	apple_setup_key_translation(input, powerbook_numlock_keys);
+	apple_setup_key_translation(input, apple_iso_keyboard);
+	apple_setup_key_translation(input, apple2021_fn_keys);
 
-	for (trans = powerbook_fn_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = powerbook_numlock_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = apple_iso_keyboard; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = apple2021_fn_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	if (swap_fn_leftctrl) {
-		for (trans = swapped_fn_leftctrl_keys; trans->from; trans++)
-			set_bit(trans->to, input->keybit);
-	}
+	if (swap_fn_leftctrl)
+		apple_setup_key_translation(input, swapped_fn_leftctrl_keys);
 }
 
 static int apple_input_mapping(struct hid_device *hdev, struct hid_input *hi,
