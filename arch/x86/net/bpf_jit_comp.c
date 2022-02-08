@@ -2378,9 +2378,13 @@ out_image:
 			 *   1) header is not pointing to proper module memory;
 			 *   2) the arch doesn't support bpf_arch_text_copy().
 			 *
-			 * Both cases are serious bugs that we should not continue.
+			 * Both cases are serious bugs and justify WARN_ON.
 			 */
-			BUG_ON(bpf_jit_binary_pack_finalize(prog, header, rw_header));
+			if (WARN_ON(bpf_jit_binary_pack_finalize(prog, header, rw_header))) {
+				prog = orig_prog;
+				goto out_addrs;
+			}
+
 			bpf_tail_call_direct_fixup(prog);
 		} else {
 			jit_data->addrs = addrs;
