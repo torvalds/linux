@@ -150,6 +150,13 @@ struct intel_guc {
 	struct __guc_ads_blob *ads_blob;
 	/** @ads_regset_size: size of the save/restore regsets in the ADS */
 	u32 ads_regset_size;
+	/**
+	 * @ads_regset_count: number of save/restore registers in the ADS for
+	 * each engine
+	 */
+	u32 ads_regset_count[I915_NUM_ENGINES];
+	/** @ads_regset: save/restore regsets in the ADS */
+	struct guc_mmio_reg *ads_regset;
 	/** @ads_golden_ctxt_size: size of the golden contexts in the ADS */
 	u32 ads_golden_ctxt_size;
 	/** @ads_engine_usage_size: size of engine usage in the ADS */
