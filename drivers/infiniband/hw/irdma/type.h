@@ -611,6 +611,8 @@ struct irdma_sc_vsi {
 				struct irdma_ws_node *tc_node);
 	u8 qos_rel_bw;
 	u8 qos_prio_type;
+	u8 dscp_map[IIDC_MAX_DSCP_MAPPING];
+	bool dscp_mode:1;
 };
 
 struct irdma_sc_dev {
@@ -735,11 +737,13 @@ struct irdma_l2params {
 	u16 qs_handle_list[IRDMA_MAX_USER_PRIORITY];
 	u16 mtu;
 	u8 up2tc[IRDMA_MAX_USER_PRIORITY];
+	u8 dscp_map[IIDC_MAX_DSCP_MAPPING];
 	u8 num_tc;
 	u8 vsi_rel_bw;
 	u8 vsi_prio_type;
 	bool mtu_changed:1;
 	bool tc_changed:1;
+	bool dscp_mode:1;
 };
 
 struct irdma_vsi_init_info {
