@@ -586,19 +586,6 @@ void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu)
 	avic_handle_ldr_update(vcpu);
 }
 
-void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
-{
-	return;
-}
-
-void avic_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
-{
-}
-
-void avic_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
-{
-}
-
 static int avic_set_pi_irte_mode(struct kvm_vcpu *vcpu, bool activate)
 {
 	int ret = 0;
@@ -661,11 +648,6 @@ void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 		avic_vcpu_put(vcpu);
 
 	avic_set_pi_irte_mode(vcpu, activated);
-}
-
-void avic_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
-{
-	return;
 }
 
 bool avic_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu)

@@ -4589,12 +4589,8 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.enable_nmi_window = svm_enable_nmi_window,
 	.enable_irq_window = svm_enable_irq_window,
 	.update_cr8_intercept = svm_update_cr8_intercept,
-	.set_virtual_apic_mode = avic_set_virtual_apic_mode,
 	.refresh_apicv_exec_ctrl = avic_refresh_apicv_exec_ctrl,
 	.check_apicv_inhibit_reasons = avic_check_apicv_inhibit_reasons,
-	.load_eoi_exitmap = avic_load_eoi_exitmap,
-	.hwapic_irr_update = avic_hwapic_irr_update,
-	.hwapic_isr_update = avic_hwapic_isr_update,
 	.apicv_post_state_restore = avic_apicv_post_state_restore,
 
 	.set_tss_addr = svm_set_tss_addr,
