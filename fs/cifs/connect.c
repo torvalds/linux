@@ -175,11 +175,6 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
-	struct mid_q_entry *mid, *nmid;
-	struct list_head retry_list;
-
-	server->maxBuf = 0;
-	server->max_read = 0;
 
 	/*
 	 * before reconnecting the tcp session, mark the smb session (uid) and the tid bad so they
@@ -219,6 +214,16 @@ next_session:
 		spin_unlock(&ses->chan_lock);
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
+}
+
+static void
+cifs_abort_connection(struct TCP_Server_Info *server)
+{
+	struct mid_q_entry *mid, *nmid;
+	struct list_head retry_list;
+
+	server->maxBuf = 0;
+	server->max_read = 0;
 
 	/* do not want to be sending data on a socket we are freeing */
 	cifs_dbg(FYI, "%s: tearing down socket\n", __func__);
@@ -309,6 +314,8 @@ static int __cifs_reconnect(struct TCP_Server_Info *server,
 		return 0;
 
 	cifs_mark_tcp_ses_conns_for_reconnect(server, mark_smb_session);
+
+	cifs_abort_connection(server);
 
 	do {
 		try_to_freeze();
@@ -433,6 +440,8 @@ reconnect_dfs_server(struct TCP_Server_Info *server,
 		return 0;
 
 	cifs_mark_tcp_ses_conns_for_reconnect(server, mark_smb_session);
+
+	cifs_abort_connection(server);
 
 	do {
 		try_to_freeze();
