@@ -60,6 +60,7 @@ static inline struct peci_controller *to_peci_controller(void *d)
  * @dev: device object to register PECI device to the device model
  * @controller: manages the bus segment hosting this PECI device
  * @addr: address used on the PECI bus connected to the parent controller
+ * @deleted: indicates that PECI device was already deleted
  *
  * A peci_device identifies a single device (i.e. CPU) connected to a PECI bus.
  * The behaviour exposed to the rest of the system is defined by the PECI driver
@@ -68,6 +69,7 @@ static inline struct peci_controller *to_peci_controller(void *d)
 struct peci_device {
 	struct device dev;
 	u8 addr;
+	bool deleted;
 };
 
 static inline struct peci_device *to_peci_device(struct device *d)
