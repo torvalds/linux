@@ -26,43 +26,43 @@ static int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid)
 }
 
 /* caller should hold rxe->mcg_lock */
-static struct rxe_mcg *__rxe_create_grp(struct rxe_dev *rxe,
+static struct rxe_mcg *__rxe_create_mcg(struct rxe_dev *rxe,
 					struct rxe_pool *pool,
 					union ib_gid *mgid)
 {
-	struct rxe_mcg *grp;
+	struct rxe_mcg *mcg;
 	int err;
 
-	grp = rxe_alloc_locked(pool);
-	if (!grp)
+	mcg = rxe_alloc_locked(pool);
+	if (!mcg)
 		return ERR_PTR(-ENOMEM);
 
 	err = rxe_mcast_add(rxe, mgid);
 	if (unlikely(err)) {
-		rxe_drop_ref(grp);
+		rxe_drop_ref(mcg);
 		return ERR_PTR(err);
 	}
 
-	INIT_LIST_HEAD(&grp->qp_list);
-	grp->rxe = rxe;
+	INIT_LIST_HEAD(&mcg->qp_list);
+	mcg->rxe = rxe;
 
-	/* rxe_alloc_locked takes a ref on grp but that will be
-	 * dropped when grp goes out of scope. We need to take a ref
+	/* rxe_alloc_locked takes a ref on mcg but that will be
+	 * dropped when mcg goes out of scope. We need to take a ref
 	 * on the pointer that will be saved in the red-black tree
-	 * by rxe_add_key and used to lookup grp from mgid later.
+	 * by rxe_add_key and used to lookup mcg from mgid later.
 	 * Adding key makes object visible to outside so this should
 	 * be done last after the object is ready.
 	 */
-	rxe_add_ref(grp);
-	rxe_add_key_locked(grp, mgid);
+	rxe_add_ref(mcg);
+	rxe_add_key_locked(mcg, mgid);
 
-	return grp;
+	return mcg;
 }
 
-static struct rxe_mcg *rxe_mcast_get_grp(struct rxe_dev *rxe,
+static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe,
 					 union ib_gid *mgid)
 {
-	struct rxe_mcg *grp;
+	struct rxe_mcg *mcg;
 	struct rxe_pool *pool = &rxe->mc_grp_pool;
 	unsigned long flags;
 
@@ -70,16 +70,16 @@ static struct rxe_mcg *rxe_mcast_get_grp(struct rxe_dev *rxe,
 		return ERR_PTR(-EINVAL);
 
 	spin_lock_irqsave(&rxe->mcg_lock, flags);
-	grp = rxe_pool_get_key_locked(pool, mgid);
-	if (!grp)
-		grp = __rxe_create_grp(rxe, pool, mgid);
+	mcg = rxe_pool_get_key_locked(pool, mgid);
+	if (!mcg)
+		mcg = __rxe_create_mcg(rxe, pool, mgid);
 	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
 
-	return grp;
+	return mcg;
 }
 
-static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
-				  struct rxe_mcg *grp)
+static int rxe_attach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
+				  struct rxe_mcg *mcg)
 {
 	struct rxe_mca *mca, *tmp;
 	unsigned long flags;
@@ -87,7 +87,7 @@ static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	/* check to see if the qp is already a member of the group */
 	spin_lock_irqsave(&rxe->mcg_lock, flags);
-	list_for_each_entry(mca, &grp->qp_list, qp_list) {
+	list_for_each_entry(mca, &mcg->qp_list, qp_list) {
 		if (mca->qp == qp) {
 			spin_unlock_irqrestore(&rxe->mcg_lock, flags);
 			return 0;
@@ -102,7 +102,7 @@ static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	spin_lock_irqsave(&rxe->mcg_lock, flags);
 	/* re-check to see if someone else just attached qp */
-	list_for_each_entry(tmp, &grp->qp_list, qp_list) {
+	list_for_each_entry(tmp, &mcg->qp_list, qp_list) {
 		if (tmp->qp == qp) {
 			kfree(mca);
 			err = 0;
@@ -111,7 +111,7 @@ static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 	}
 
 	/* check limits after checking if already attached */
-	if (grp->num_qp >= rxe->attr.max_mcast_qp_attach) {
+	if (mcg->num_qp >= rxe->attr.max_mcast_qp_attach) {
 		kfree(mca);
 		err = -ENOMEM;
 		goto out;
@@ -122,8 +122,8 @@ static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 	mca->qp = qp;
 
 	atomic_inc(&qp->mcg_num);
-	grp->num_qp++;
-	list_add(&mca->qp_list, &grp->qp_list);
+	mcg->num_qp++;
+	list_add(&mca->qp_list, &mcg->qp_list);
 
 	err = 0;
 out:
@@ -132,22 +132,22 @@ out:
 }
 
 /* caller should be holding rxe->mcg_lock */
-static void __rxe_destroy_grp(struct rxe_mcg *grp)
+static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
 {
-	/* first remove grp from red-black tree then drop ref */
-	rxe_drop_key_locked(grp);
-	rxe_drop_ref(grp);
+	/* first remove mcg from red-black tree then drop ref */
+	rxe_drop_key_locked(mcg);
+	rxe_drop_ref(mcg);
 
-	rxe_mcast_delete(grp->rxe, &grp->mgid);
+	rxe_mcast_delete(mcg->rxe, &mcg->mgid);
 }
 
-static void rxe_destroy_grp(struct rxe_mcg *grp)
+static void rxe_destroy_mcg(struct rxe_mcg *mcg)
 {
-	struct rxe_dev *rxe = grp->rxe;
+	struct rxe_dev *rxe = mcg->rxe;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rxe->mcg_lock, flags);
-	__rxe_destroy_grp(grp);
+	__rxe_destroy_mcg(mcg);
 	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
 }
 
@@ -156,23 +156,23 @@ void rxe_mc_cleanup(struct rxe_pool_elem *elem)
 	/* nothing left to do for now */
 }
 
-static int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
+static int rxe_detach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 				   union ib_gid *mgid)
 {
-	struct rxe_mcg *grp;
+	struct rxe_mcg *mcg;
 	struct rxe_mca *mca, *tmp;
 	unsigned long flags;
 	int err;
 
 	spin_lock_irqsave(&rxe->mcg_lock, flags);
-	grp = rxe_pool_get_key_locked(&rxe->mc_grp_pool, mgid);
-	if (!grp) {
+	mcg = rxe_pool_get_key_locked(&rxe->mc_grp_pool, mgid);
+	if (!mcg) {
 		/* we didn't find the mcast group for mgid */
 		err = -EINVAL;
 		goto out_unlock;
 	}
 
-	list_for_each_entry_safe(mca, tmp, &grp->qp_list, qp_list) {
+	list_for_each_entry_safe(mca, tmp, &mcg->qp_list, qp_list) {
 		if (mca->qp == qp) {
 			list_del(&mca->qp_list);
 
@@ -182,16 +182,16 @@ static int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 			 * object since we are still holding a ref
 			 * from the get key above.
 			 */
-			grp->num_qp--;
-			if (grp->num_qp <= 0)
-				__rxe_destroy_grp(grp);
+			mcg->num_qp--;
+			if (mcg->num_qp <= 0)
+				__rxe_destroy_mcg(mcg);
 
 			atomic_dec(&qp->mcg_num);
 
 			/* drop the ref from get key. This will free the
 			 * object if num_qp is zero.
 			 */
-			rxe_drop_ref(grp);
+			rxe_drop_ref(mcg);
 			kfree(mca);
 			err = 0;
 			goto out_unlock;
@@ -199,7 +199,7 @@ static int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 	}
 
 	/* we didn't find the qp on the list */
-	rxe_drop_ref(grp);
+	rxe_drop_ref(mcg);
 	err = -EINVAL;
 
 out_unlock:
@@ -212,20 +212,20 @@ int rxe_attach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibqp->device);
 	struct rxe_qp *qp = to_rqp(ibqp);
-	struct rxe_mcg *grp;
+	struct rxe_mcg *mcg;
 
-	/* takes a ref on grp if successful */
-	grp = rxe_mcast_get_grp(rxe, mgid);
-	if (IS_ERR(grp))
-		return PTR_ERR(grp);
+	/* takes a ref on mcg if successful */
+	mcg = rxe_get_mcg(rxe, mgid);
+	if (IS_ERR(mcg))
+		return PTR_ERR(mcg);
 
-	err = rxe_mcast_add_grp_elem(rxe, qp, grp);
+	err = rxe_attach_mcg(rxe, qp, mcg);
 
-	/* if we failed to attach the first qp to grp tear it down */
-	if (grp->num_qp == 0)
-		rxe_destroy_grp(grp);
+	/* if we failed to attach the first qp to mcg tear it down */
+	if (mcg->num_qp == 0)
+		rxe_destroy_mcg(mcg);
 
-	rxe_drop_ref(grp);
+	rxe_drop_ref(mcg);
 	return err;
 }
 
@@ -234,5 +234,5 @@ int rxe_detach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 	struct rxe_dev *rxe = to_rdev(ibqp->device);
 	struct rxe_qp *qp = to_rqp(ibqp);
 
-	return rxe_mcast_drop_grp_elem(rxe, qp, mgid);
+	return rxe_detach_mcg(rxe, qp, mgid);
 }
