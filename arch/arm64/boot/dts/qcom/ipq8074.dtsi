@@ -634,9 +634,18 @@
 
 		intc: interrupt-controller@b000000 {
 			compatible = "qcom,msm-qgic2";
+			#address-cells = <1>;
+			#size-cells = <1>;
 			interrupt-controller;
 			#interrupt-cells = <0x3>;
 			reg = <0x0b000000 0x1000>, <0x0b002000 0x1000>;
+			ranges = <0 0xb00a000 0xffd>;
+
+			v2m@0 {
+				compatible = "arm,gic-v2m-frame";
+				msi-controller;
+				reg = <0x0 0xffd>;
+			};
 		};
 
 		timer {
