@@ -23,7 +23,6 @@ enum rxe_elem_type {
 	RXE_TYPE_MR,
 	RXE_TYPE_MW,
 	RXE_TYPE_MC_GRP,
-	RXE_TYPE_MC_ELEM,
 	RXE_NUM_TYPES,		/* keep me last */
 };
 
@@ -155,5 +154,7 @@ void rxe_elem_release(struct kref *kref);
 
 /* drop a reference on an object */
 #define rxe_drop_ref(obj) kref_put(&(obj)->elem.ref_cnt, rxe_elem_release)
+
+#define rxe_read_ref(obj) kref_read(&(obj)->elem.ref_cnt)
 
 #endif /* RXE_POOL_H */
