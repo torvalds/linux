@@ -8,7 +8,7 @@
 
 #define IFINDEX_LO	1
 
-void test_xdp_with_cpumap_helpers(void)
+static void test_xdp_with_cpumap_helpers(void)
 {
 	struct test_xdp_with_cpumap_helpers *skel;
 	struct bpf_prog_info info = {};
@@ -68,7 +68,7 @@ out_close:
 	test_xdp_with_cpumap_helpers__destroy(skel);
 }
 
-void test_xdp_with_cpumap_frags_helpers(void)
+static void test_xdp_with_cpumap_frags_helpers(void)
 {
 	struct test_xdp_with_cpumap_frags_helpers *skel;
 	struct bpf_prog_info info = {};

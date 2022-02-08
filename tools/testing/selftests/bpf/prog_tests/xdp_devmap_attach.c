@@ -81,7 +81,7 @@ static void test_neg_xdp_devmap_helpers(void)
 	}
 }
 
-void test_xdp_with_devmap_frags_helpers(void)
+static void test_xdp_with_devmap_frags_helpers(void)
 {
 	struct test_xdp_with_devmap_frags_helpers *skel;
 	struct bpf_prog_info info = {};

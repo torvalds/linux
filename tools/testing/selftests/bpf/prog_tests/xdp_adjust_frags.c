@@ -2,7 +2,7 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 
-void test_xdp_update_frags(void)
+static void test_xdp_update_frags(void)
 {
 	const char *file = "./test_xdp_update_frags.o";
 	struct bpf_program *prog;
