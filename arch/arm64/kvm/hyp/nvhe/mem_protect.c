@@ -138,8 +138,7 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
 
 	mmu->pgd_phys = __hyp_pa(host_kvm.pgt.pgd);
 	mmu->pgt = &host_kvm.pgt;
-	WRITE_ONCE(mmu->vmid.vmid_gen, 0);
-	WRITE_ONCE(mmu->vmid.vmid, 0);
+	atomic64_set(&mmu->vmid.id, 0);
 
 	return 0;
 }
