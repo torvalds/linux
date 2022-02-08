@@ -19,7 +19,6 @@
 #define HUSB311_VID		0x2E99
 #define HUSB311_PID		0x0311
 #define HUSB311_TCPC_POWER	0x90
-#define HUSB311_TCPC_I2C_RESET	0x9E
 #define HUSB311_TCPC_SOFTRESET	0xA0
 #define HUSB311_TCPC_FILTER	0xA1
 #define HUSB311_TCPC_TDRP	0xA2
@@ -70,10 +69,8 @@ static int husb311_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 	int ret;
 	struct husb311_chip *chip = tdata_to_husb311(tdata);
 
-	/* I2C reset : (val + 1) * 12.5ms */
-	ret = husb311_write8(chip, HUSB311_TCPC_I2C_RESET, 0x8F);
 	/* tTCPCfilter : (26.7 * val) us */
-	ret |= husb311_write8(chip, HUSB311_TCPC_FILTER, 0x0F);
+	ret = husb311_write8(chip, HUSB311_TCPC_FILTER, 0x0F);
 	/* tDRP : (51.2 + 6.4 * val) ms */
 	ret |= husb311_write8(chip, HUSB311_TCPC_TDRP, 0x04);
 	/* dcSRC.DRP : 33% */
