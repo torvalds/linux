@@ -1262,7 +1262,7 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	if (size_changed && lo->lo_device->bd_inode->i_mapping->nrpages) {
 		/* If any pages were dirtied after invalidate_bdev(), try again */
 		err = -EAGAIN;
-		pr_warn("%s: loop%d (%s) has still dirty pages (nrpages=%lu)\n",
+		pr_warn("%s: loop%d (%s) still has dirty pages (nrpages=%lu)\n",
 			__func__, lo->lo_number, lo->lo_file_name,
 			lo->lo_device->bd_inode->i_mapping->nrpages);
 		goto out_unfreeze;
@@ -1482,7 +1482,7 @@ static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
 	/* invalidate_bdev should have truncated all the pages */
 	if (lo->lo_device->bd_inode->i_mapping->nrpages) {
 		err = -EAGAIN;
-		pr_warn("%s: loop%d (%s) has still dirty pages (nrpages=%lu)\n",
+		pr_warn("%s: loop%d (%s) still has dirty pages (nrpages=%lu)\n",
 			__func__, lo->lo_number, lo->lo_file_name,
 			lo->lo_device->bd_inode->i_mapping->nrpages);
 		goto out_unfreeze;
