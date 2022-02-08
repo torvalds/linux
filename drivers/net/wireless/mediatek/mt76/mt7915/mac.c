@@ -1861,12 +1861,17 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
 
 void mt7915_mac_enable_nf(struct mt7915_dev *dev, bool ext_phy)
 {
-	mt76_set(dev, MT_WF_PHY_RXTD12(ext_phy),
+	u32 reg;
+
+	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_RXTD12(ext_phy) :
+		MT_WF_PHY_RXTD12_MT7916(ext_phy);
+	mt76_set(dev, reg,
 		 MT_WF_PHY_RXTD12_IRPI_SW_CLR_ONLY |
 		 MT_WF_PHY_RXTD12_IRPI_SW_CLR);
 
-	mt76_set(dev, MT_WF_PHY_RX_CTRL1(ext_phy),
-		 FIELD_PREP(MT_WF_PHY_RX_CTRL1_IPI_EN, 0x5));
+	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_RX_CTRL1(ext_phy) :
+		MT_WF_PHY_RX_CTRL1_MT7916(ext_phy);
+	mt76_set(dev, reg, FIELD_PREP(MT_WF_PHY_RX_CTRL1_IPI_EN, 0x5));
 }
 
 static u8
@@ -1878,7 +1883,9 @@ mt7915_phy_get_nf(struct mt7915_phy *phy, int idx)
 	int nss, i;
 
 	for (nss = 0; nss < hweight8(phy->mt76->chainmask); nss++) {
-		u32 reg = MT_WF_IRPI(nss + (idx << dev->dbdc_support));
+		u32 reg = is_mt7915(&dev->mt76) ?
+			MT_WF_IRPI_NSS(0, nss + (idx << dev->dbdc_support)) :
+			MT_WF_IRPI_NSS_MT7916(idx, nss);
 
 		for (i = 0; i < ARRAY_SIZE(nf_power); i++, reg += 4) {
 			val = mt76_rr(dev, reg);

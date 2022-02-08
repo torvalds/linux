@@ -3064,10 +3064,12 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch)
 	struct mt7915_dev *dev = phy->dev;
 	struct mt7915_mcu_mib *res, req[4];
 	struct sk_buff *skb;
-	int i, ret, start = 0;
+	int i, ret, start = 0, ofs = 20;
 
-	if (!is_mt7915(&dev->mt76))
+	if (!is_mt7915(&dev->mt76)) {
 		start = 4;
+		ofs = 0;
+	}
 
 	for (i = 0; i < 4; i++) {
 		req[i].band = cpu_to_le32(phy != &dev->phy);
@@ -3079,7 +3081,7 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch)
 	if (ret)
 		return ret;
 
-	res = (struct mt7915_mcu_mib *)(skb->data + 20);
+	res = (struct mt7915_mcu_mib *)(skb->data + ofs);
 
 	if (chan_switch)
 		goto out;
