@@ -2842,10 +2842,14 @@ static ssize_t amdgpu_hwmon_show_power_label(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	int limit_type = to_sensor_dev_attr(attr)->index;
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%s\n",
-		limit_type == PP_PWR_TYPE_FAST ? "fastPPT" : "slowPPT");
+	if (adev->asic_type == CHIP_VANGOGH)
+		return sysfs_emit(buf, "%s\n",
+				  to_sensor_dev_attr(attr)->index == PP_PWR_TYPE_FAST ?
+				  "fastPPT" : "slowPPT");
+	else
+		return sysfs_emit(buf, "PPT\n");
 }
 
 static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
