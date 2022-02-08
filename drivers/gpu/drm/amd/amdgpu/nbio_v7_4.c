@@ -667,6 +667,7 @@ struct amdgpu_nbio_ras nbio_v7_4_ras = {
 		.ras_comm = {
 			.name = "pcie_bif",
 			.block = AMDGPU_RAS_BLOCK__PCIE_BIF,
+			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 		},
 		.hw_ops = &nbio_v7_4_ras_hw_ops,
 		.ras_late_init = amdgpu_nbio_ras_late_init,

@@ -2301,6 +2301,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 		if (!adev->gmc.xgmi.connected_to_cpu) {
 			adev->nbio.ras = &nbio_v7_4_ras;
 			amdgpu_ras_register_ras_block(adev, &adev->nbio.ras->ras_block);
+			adev->nbio.ras_if = &adev->nbio.ras->ras_block.ras_comm;
 		}
 		break;
 	default:
