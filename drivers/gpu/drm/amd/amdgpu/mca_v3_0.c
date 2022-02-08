@@ -71,6 +71,7 @@ struct amdgpu_mca_ras_block mca_v3_0_mp0_ras = {
 		.ras_comm = {
 			.block = AMDGPU_RAS_BLOCK__MCA,
 			.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MP0,
+			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 			.name = "mp0",
 		},
 		.hw_ops = &mca_v3_0_mp0_hw_ops,
@@ -108,6 +109,7 @@ struct amdgpu_mca_ras_block mca_v3_0_mp1_ras = {
 		.ras_comm = {
 			.block = AMDGPU_RAS_BLOCK__MCA,
 			.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MP1,
+			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 			.name = "mp1",
 		},
 		.hw_ops = &mca_v3_0_mp1_hw_ops,
@@ -145,6 +147,7 @@ struct amdgpu_mca_ras_block mca_v3_0_mpio_ras = {
 		.ras_comm = {
 			.block = AMDGPU_RAS_BLOCK__MCA,
 			.sub_block_index = AMDGPU_RAS_MCA_BLOCK__MPIO,
+			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 			.name = "mpio",
 		},
 		.hw_ops = &mca_v3_0_mpio_hw_ops,
@@ -165,6 +168,9 @@ static void mca_v3_0_init(struct amdgpu_device *adev)
 	amdgpu_ras_register_ras_block(adev, &mca->mp0.ras->ras_block);
 	amdgpu_ras_register_ras_block(adev, &mca->mp1.ras->ras_block);
 	amdgpu_ras_register_ras_block(adev, &mca->mpio.ras->ras_block);
+	mca->mp0.ras_if = &mca->mp0.ras->ras_block.ras_comm;
+	mca->mp1.ras_if = &mca->mp1.ras->ras_block.ras_comm;
+	mca->mpio.ras_if = &mca->mpio.ras->ras_block.ras_comm;
 }
 
 const struct amdgpu_mca_funcs mca_v3_0_funcs = {
