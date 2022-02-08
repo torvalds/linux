@@ -146,7 +146,7 @@ static bool setup_test_encl(unsigned long heap_size, struct encl *encl,
 
 	if (!encl_load("test_encl.elf", encl, heap_size)) {
 		encl_delete(encl);
-		TH_LOG("Failed to load the test enclave.\n");
+		TH_LOG("Failed to load the test enclave.");
 		return false;
 	}
 
@@ -204,7 +204,7 @@ err:
 		fclose(maps_file);
 	}
 
-	TH_LOG("Failed to initialize the test enclave.\n");
+	TH_LOG("Failed to initialize the test enclave.");
 
 	encl_delete(encl);
 
