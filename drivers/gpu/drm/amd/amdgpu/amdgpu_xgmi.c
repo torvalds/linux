@@ -734,51 +734,20 @@ int amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 
 static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev, void *ras_info)
 {
-	int r;
-	struct ras_ih_if ih_info = {
-		.cb = NULL,
-	};
-	struct ras_fs_if fs_info = {
-		.sysfs_name = "xgmi_wafl_err_count",
-	};
-
 	if (!adev->gmc.xgmi.supported ||
 	    adev->gmc.xgmi.num_physical_nodes == 0)
 		return 0;
 
 	adev->gmc.xgmi.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 
-	if (!adev->gmc.xgmi.ras_if) {
-		adev->gmc.xgmi.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-		if (!adev->gmc.xgmi.ras_if)
-			return -ENOMEM;
-		adev->gmc.xgmi.ras_if->block = AMDGPU_RAS_BLOCK__XGMI_WAFL;
-		adev->gmc.xgmi.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->gmc.xgmi.ras_if->sub_block_index = 0;
-	}
-	ih_info.head = fs_info.head = *adev->gmc.xgmi.ras_if;
-	r = amdgpu_ras_late_init(adev, adev->gmc.xgmi.ras_if,
-				 &fs_info, &ih_info);
-	if (r || !amdgpu_ras_is_supported(adev, adev->gmc.xgmi.ras_if->block)) {
-		kfree(adev->gmc.xgmi.ras_if);
-		adev->gmc.xgmi.ras_if = NULL;
-	}
-
-	return r;
+	return amdgpu_ras_block_late_init(adev, adev->gmc.xgmi.ras_if);
 }
 
 static void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
 {
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL) &&
-			adev->gmc.xgmi.ras_if) {
-		struct ras_common_if *ras_if = adev->gmc.xgmi.ras_if;
-		struct ras_ih_if ih_info = {
-			.cb = NULL,
-		};
-
-		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
-		kfree(ras_if);
-	}
+			adev->gmc.xgmi.ras_if)
+		amdgpu_ras_block_late_fini(adev, adev->gmc.xgmi.ras_if);
 }
 
 uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
@@ -982,8 +951,9 @@ struct amdgpu_ras_block_hw_ops  xgmi_ras_hw_ops = {
 struct amdgpu_xgmi_ras xgmi_ras = {
 	.ras_block = {
 		.ras_comm = {
-			.name = "xgmi",
+			.name = "xgmi_wafl",
 			.block = AMDGPU_RAS_BLOCK__XGMI_WAFL,
+			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 		},
 		.hw_ops = &xgmi_ras_hw_ops,
 		.ras_late_init = amdgpu_xgmi_ras_late_init,
