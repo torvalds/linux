@@ -463,6 +463,7 @@ static int rockchip_hdptx_phy_verify_config(struct rockchip_hdptx_phy *hdptx,
 	}
 
 	switch (dp->lanes) {
+	case 0:
 	case 1:
 	case 2:
 	case 4:
@@ -586,21 +587,59 @@ static int rockchip_hdptx_phy_set_voltages(struct rockchip_hdptx_phy *hdptx,
 	return 0;
 }
 
+static void rockchip_hdptx_phy_lane_disable(struct rockchip_hdptx_phy *hdptx)
+{
+	reset_control_assert(hdptx->lane_reset);
+
+	regmap_update_bits(hdptx->regmap, 0x081c, LANE_EN,
+			   FIELD_PREP(LANE_EN, 0x0));
+
+	rockchip_grf_write(hdptx->grf, HDPTXPHY_GRF_CON0, PLL_EN,
+			   FIELD_PREP(PLL_EN, 0x0));
+
+	regmap_update_bits(hdptx->regmap, 0x0020, OVRD_LCPLL_EN | LCPLL_EN,
+			   FIELD_PREP(OVRD_LCPLL_EN, 0x1) |
+			   FIELD_PREP(LCPLL_EN, 0x0));
+	regmap_update_bits(hdptx->regmap, 0x00f4, OVRD_ROPLL_EN | ROPLL_EN,
+			   FIELD_PREP(OVRD_ROPLL_EN, 0x1) |
+			   FIELD_PREP(ROPLL_EN, 0x0));
+}
+
+static int rockchip_hdptx_phy_set_lanes(struct rockchip_hdptx_phy *hdptx,
+					struct phy_configure_opts_dp *dp)
+{
+	u32 status;
+	int ret;
+
+	if (!dp->lanes) {
+		rockchip_hdptx_phy_lane_disable(hdptx);
+		return 0;
+	}
+
+	regmap_update_bits(hdptx->regmap, 0x081c, LANE_EN,
+			   FIELD_PREP(LANE_EN, GENMASK(dp->lanes - 1, 0)));
+
+	reset_control_deassert(hdptx->lane_reset);
+
+	ret = regmap_read_poll_timeout(hdptx->grf, HDPTXPHY_GRF_STATUS0,
+				       status, FIELD_GET(PHY_RDY, status),
+				       50, 1000);
+	if (ret) {
+		dev_err(hdptx->dev, "timeout waiting for phy_rdy\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rockchip_hdptx_phy_set_rate(struct rockchip_hdptx_phy *hdptx,
 				       struct phy_configure_opts_dp *dp)
 {
 	u32 bw, status;
 	int ret;
 
-	reset_control_assert(hdptx->lane_reset);
-	udelay(20);
-	reset_control_assert(hdptx->cmn_reset);
-	udelay(20);
 	rockchip_grf_write(hdptx->grf, HDPTXPHY_GRF_CON0, PLL_EN,
 			   FIELD_PREP(PLL_EN, 0x0));
-	udelay(20);
-	regmap_update_bits(hdptx->regmap, 0x081c, LANE_EN,
-			   FIELD_PREP(LANE_EN, 0x0));
 
 	switch (dp->link_rate) {
 	case 1620:
@@ -645,31 +684,21 @@ static int rockchip_hdptx_phy_set_rate(struct rockchip_hdptx_phy *hdptx,
 				   FIELD_PREP(SSC_EN, 0x0));
 	}
 
+	regmap_update_bits(hdptx->regmap, 0x0020, OVRD_LCPLL_EN | LCPLL_EN,
+			   FIELD_PREP(OVRD_LCPLL_EN, 0x1) |
+			   FIELD_PREP(LCPLL_EN, 0x0));
+	regmap_update_bits(hdptx->regmap, 0x00f4, OVRD_ROPLL_EN | ROPLL_EN,
+			   FIELD_PREP(OVRD_ROPLL_EN, 0x1) |
+			   FIELD_PREP(ROPLL_EN, 0x1));
+
 	rockchip_grf_write(hdptx->grf, HDPTXPHY_GRF_CON0, PLL_EN,
 			   FIELD_PREP(PLL_EN, 0x1));
-	udelay(20);
-	reset_control_deassert(hdptx->cmn_reset);
-	udelay(20);
 
 	ret = regmap_read_poll_timeout(hdptx->grf, HDPTXPHY_GRF_STATUS0,
 				       status, FIELD_GET(PLL_LOCK_DONE, status),
 				       50, 1000);
 	if (ret) {
 		dev_err(hdptx->dev, "timeout waiting for pll_lock_done\n");
-		return ret;
-	}
-
-	regmap_update_bits(hdptx->regmap, 0x081c, LANE_EN,
-			   FIELD_PREP(LANE_EN, GENMASK(dp->lanes - 1, 0)));
-
-	reset_control_deassert(hdptx->lane_reset);
-	udelay(20);
-
-	ret = regmap_read_poll_timeout(hdptx->grf, HDPTXPHY_GRF_STATUS0,
-				       status, FIELD_PREP(PHY_RDY, status),
-				       50, 1000);
-	if (ret) {
-		dev_err(hdptx->dev, "timeout waiting for phy_rdy\n");
 		return ret;
 	}
 
@@ -700,6 +729,14 @@ static int rockchip_hdptx_phy_configure(struct phy *phy,
 		}
 	}
 
+	if (opts->dp.set_lanes) {
+		ret = rockchip_hdptx_phy_set_lanes(hdptx, &opts->dp);
+		if (ret) {
+			dev_err(hdptx->dev, "failed to set lanes: %d\n", ret);
+			return ret;
+		}
+	}
+
 	if (opts->dp.set_voltages) {
 		ret = rockchip_hdptx_phy_set_voltages(hdptx, &opts->dp);
 		if (ret) {
@@ -714,15 +751,6 @@ static int rockchip_hdptx_phy_configure(struct phy *phy,
 
 static void rockchip_hdptx_phy_dp_pll_init(struct rockchip_hdptx_phy *hdptx)
 {
-	regmap_update_bits(hdptx->regmap, 0x0020, OVRD_LCPLL_EN | LCPLL_EN,
-			   FIELD_PREP(OVRD_LCPLL_EN, 0x1) |
-			   FIELD_PREP(LCPLL_EN, 0x0));
-	regmap_update_bits(hdptx->regmap, 0x00f4, OVRD_ROPLL_EN | ROPLL_EN,
-			   FIELD_PREP(OVRD_ROPLL_EN, 0x1) |
-			   FIELD_PREP(ROPLL_EN, 0x1));
-	regmap_update_bits(hdptx->regmap, 0x0138, ANA_ROPLL_PI_EN,
-			   FIELD_PREP(ANA_ROPLL_PI_EN, 0x1));
-
 	regmap_write(hdptx->regmap, 0x0144, FIELD_PREP(ROPLL_PMS_MDIV, 0x87));
 	regmap_write(hdptx->regmap, 0x0148, FIELD_PREP(ROPLL_PMS_MDIV, 0x71));
 	regmap_write(hdptx->regmap, 0x014c, FIELD_PREP(ROPLL_PMS_MDIV, 0x71));
