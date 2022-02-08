@@ -1122,7 +1122,10 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 			memcpy(&fl6->daddr, addr6, sizeof(fl6->daddr));
 			neigh_release(neigh);
 		} else if (skb->protocol == htons(ETH_P_IP)) {
-			struct rtable *rt = skb_rtable(skb);
+			const struct rtable *rt = skb_rtable(skb);
+
+			if (!rt)
+				goto tx_err_link_failure;
 
 			if (rt->rt_gw_family == AF_INET6)
 				memcpy(&fl6->daddr, &rt->rt_gw6, sizeof(fl6->daddr));
