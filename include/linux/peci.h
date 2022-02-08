@@ -14,6 +14,14 @@
  */
 #define PECI_REQUEST_MAX_BUF_SIZE 32
 
+#define PECI_PCS_PKG_ID			0  /* Package Identifier Read */
+#define  PECI_PKG_ID_CPU_ID		0x0000  /* CPUID Info */
+#define  PECI_PKG_ID_PLATFORM_ID	0x0001  /* Platform ID */
+#define  PECI_PKG_ID_DEVICE_ID		0x0002  /* Uncore Device ID */
+#define  PECI_PKG_ID_MAX_THREAD_ID	0x0003  /* Max Thread ID */
+#define  PECI_PKG_ID_MICROCODE_REV	0x0004  /* CPU Microcode Update Revision */
+#define  PECI_PKG_ID_MCA_ERROR_LOG	0x0005  /* Machine Check Status */
+
 struct peci_controller;
 struct peci_request;
 
@@ -59,6 +67,11 @@ static inline struct peci_controller *to_peci_controller(void *d)
  * struct peci_device - PECI device
  * @dev: device object to register PECI device to the device model
  * @controller: manages the bus segment hosting this PECI device
+ * @info: PECI device characteristics
+ * @info.family: device family
+ * @info.model: device model
+ * @info.peci_revision: PECI revision supported by the PECI device
+ * @info.socket_id: the socket ID represented by the PECI device
  * @addr: address used on the PECI bus connected to the parent controller
  * @deleted: indicates that PECI device was already deleted
  *
@@ -68,6 +81,12 @@ static inline struct peci_controller *to_peci_controller(void *d)
  */
 struct peci_device {
 	struct device dev;
+	struct {
+		u16 family;
+		u8 model;
+		u8 peci_revision;
+		u8 socket_id;
+	} info;
 	u8 addr;
 	bool deleted;
 };

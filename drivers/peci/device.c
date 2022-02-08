@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2018-2021 Intel Corporation
 
+#include <linux/bitfield.h>
 #include <linux/peci.h>
 #include <linux/slab.h>
 
@@ -12,6 +13,104 @@
  * Mutex is used to protect PECI device from being double-deleted.
  */
 static DEFINE_MUTEX(peci_device_del_lock);
+
+#define REVISION_NUM_MASK GENMASK(15, 8)
+static int peci_get_revision(struct peci_device *device, u8 *revision)
+{
+	struct peci_request *req;
+	u64 dib;
+
+	req = peci_xfer_get_dib(device);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	/*
+	 * PECI device may be in a state where it is unable to return a proper
+	 * DIB, in which case it returns 0 as DIB value.
+	 * Let's treat this as an error to avoid carrying on with the detection
+	 * using invalid revision.
+	 */
+	dib = peci_request_dib_read(req);
+	if (dib == 0) {
+		peci_request_free(req);
+		return -EIO;
+	}
+
+	*revision = FIELD_GET(REVISION_NUM_MASK, dib);
+
+	peci_request_free(req);
+
+	return 0;
+}
+
+static int peci_get_cpu_id(struct peci_device *device, u32 *cpu_id)
+{
+	struct peci_request *req;
+	int ret;
+
+	req = peci_xfer_pkg_cfg_readl(device, PECI_PCS_PKG_ID, PECI_PKG_ID_CPU_ID);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	ret = peci_request_status(req);
+	if (ret)
+		goto out_req_free;
+
+	*cpu_id = peci_request_data_readl(req);
+out_req_free:
+	peci_request_free(req);
+
+	return ret;
+}
+
+static unsigned int peci_x86_cpu_family(unsigned int sig)
+{
+	unsigned int x86;
+
+	x86 = (sig >> 8) & 0xf;
+
+	if (x86 == 0xf)
+		x86 += (sig >> 20) & 0xff;
+
+	return x86;
+}
+
+static unsigned int peci_x86_cpu_model(unsigned int sig)
+{
+	unsigned int fam, model;
+
+	fam = peci_x86_cpu_family(sig);
+
+	model = (sig >> 4) & 0xf;
+
+	if (fam >= 0x6)
+		model += ((sig >> 16) & 0xf) << 4;
+
+	return model;
+}
+
+static int peci_device_info_init(struct peci_device *device)
+{
+	u8 revision;
+	u32 cpu_id;
+	int ret;
+
+	ret = peci_get_cpu_id(device, &cpu_id);
+	if (ret)
+		return ret;
+
+	device->info.family = peci_x86_cpu_family(cpu_id);
+	device->info.model = peci_x86_cpu_model(cpu_id);
+
+	ret = peci_get_revision(device, &revision);
+	if (ret)
+		return ret;
+	device->info.peci_revision = revision;
+
+	device->info.socket_id = device->addr - PECI_BASE_ADDR;
+
+	return 0;
+}
 
 static int peci_detect(struct peci_controller *controller, u8 addr)
 {
@@ -82,6 +181,10 @@ int peci_device_create(struct peci_controller *controller, u8 addr)
 	device->dev.bus = &peci_bus_type;
 	device->dev.type = &peci_device_type;
 
+	ret = peci_device_info_init(device);
+	if (ret)
+		goto err_put;
+
 	ret = dev_set_name(&device->dev, "%d-%02x", controller->id, device->addr);
 	if (ret)
 		goto err_put;
@@ -107,6 +210,33 @@ void peci_device_destroy(struct peci_device *device)
 	}
 	mutex_unlock(&peci_device_del_lock);
 }
+
+int __peci_driver_register(struct peci_driver *driver, struct module *owner,
+			   const char *mod_name)
+{
+	driver->driver.bus = &peci_bus_type;
+	driver->driver.owner = owner;
+	driver->driver.mod_name = mod_name;
+
+	if (!driver->probe) {
+		pr_err("peci: trying to register driver without probe callback\n");
+		return -EINVAL;
+	}
+
+	if (!driver->id_table) {
+		pr_err("peci: trying to register driver without device id table\n");
+		return -EINVAL;
+	}
+
+	return driver_register(&driver->driver);
+}
+EXPORT_SYMBOL_NS_GPL(__peci_driver_register, PECI);
+
+void peci_driver_unregister(struct peci_driver *driver)
+{
+	driver_unregister(&driver->driver);
+}
+EXPORT_SYMBOL_NS_GPL(peci_driver_unregister, PECI);
 
 static void peci_device_release(struct device *dev)
 {

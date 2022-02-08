@@ -160,8 +160,52 @@ err_put:
 }
 EXPORT_SYMBOL_NS_GPL(devm_peci_controller_add, PECI);
 
+static const struct peci_device_id *
+peci_bus_match_device_id(const struct peci_device_id *id, struct peci_device *device)
+{
+	while (id->family != 0) {
+		if (id->family == device->info.family &&
+		    id->model == device->info.model)
+			return id;
+		id++;
+	}
+
+	return NULL;
+}
+
+static int peci_bus_device_match(struct device *dev, struct device_driver *drv)
+{
+	struct peci_device *device = to_peci_device(dev);
+	struct peci_driver *peci_drv = to_peci_driver(drv);
+
+	if (dev->type != &peci_device_type)
+		return 0;
+
+	return !!peci_bus_match_device_id(peci_drv->id_table, device);
+}
+
+static int peci_bus_device_probe(struct device *dev)
+{
+	struct peci_device *device = to_peci_device(dev);
+	struct peci_driver *driver = to_peci_driver(dev->driver);
+
+	return driver->probe(device, peci_bus_match_device_id(driver->id_table, device));
+}
+
+static void peci_bus_device_remove(struct device *dev)
+{
+	struct peci_device *device = to_peci_device(dev);
+	struct peci_driver *driver = to_peci_driver(dev->driver);
+
+	if (driver->remove)
+		driver->remove(device);
+}
+
 struct bus_type peci_bus_type = {
 	.name		= "peci",
+	.match		= peci_bus_device_match,
+	.probe		= peci_bus_device_probe,
+	.remove		= peci_bus_device_remove,
 	.bus_groups	= peci_bus_groups,
 };
 
