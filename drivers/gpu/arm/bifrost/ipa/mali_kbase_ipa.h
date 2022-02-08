@@ -29,14 +29,19 @@ struct devfreq;
 /**
  * enum kbase_ipa_block_type - Type of block for which power estimation is done.
  *
+ * @KBASE_IPA_BLOCK_TYPE_USING_CLK_MALI:
+ *				       Blocks using clk_mali in dts.
  * @KBASE_IPA_BLOCK_TYPE_TOP_LEVEL:    Top-level block, that covers CSHW,
  *                                     MEMSYS, Tiler.
  * @KBASE_IPA_BLOCK_TYPE_SHADER_CORES: All Shader cores.
+ * @KBASE_IPA_BLOCK_TYPE_FOR_CLK_GPU:  Dummy for clk_gpu in dts.
  * @KBASE_IPA_BLOCK_TYPE_NUM:          Number of blocks.
  */
 enum kbase_ipa_block_type {
+	KBASE_IPA_BLOCK_TYPE_USING_CLK_MALI,
 	KBASE_IPA_BLOCK_TYPE_TOP_LEVEL,
 	KBASE_IPA_BLOCK_TYPE_SHADER_CORES,
+	KBASE_IPA_BLOCK_TYPE_FOR_CLK_GPU,
 	KBASE_IPA_BLOCK_TYPE_NUM
 };
 
