@@ -86,6 +86,8 @@
 
 	reg_pcie: regulator-pcie {
 		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_regpcie>;
 		regulator-name = "supply-pcie";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -436,8 +438,6 @@
 			MX6QDL_PAD_SD4_DAT3__GPIO2_IO11 0x001b0f0 /* #PCIE.WAKE */
 			MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x001b0f0 /* #PCIE.RST */
 			MX6QDL_PAD_NANDF_CS0__GPIO6_IO11 0x001b0f0 /* #PCIE.DIS */
-			/* HYS = 1, DSE = 110, PUE+PKE, SPEED = HIGH (11)*/
-			MX6QDL_PAD_NANDF_D0__GPIO2_IO00 0x00130f0 /* PCIE.PWR_EN */
 		>;
 	};
 
@@ -459,6 +459,13 @@
 		fsl,pins = <
 			/* 100 k PD, DSE 120 OHM, SPPEED LO */
 			MX6QDL_PAD_SD4_DAT2__PWM4_OUT 0x00003050
+		>;
+	};
+
+	pinctrl_regpcie: regpciegrp {
+		fsl,pins = <
+			/* HYS = 1, DSE = 110, PUE+PKE, SPEED = HIGH (11)*/
+			MX6QDL_PAD_NANDF_D0__GPIO2_IO00 0x00130f0 /* PCIE.PWR_EN */
 		>;
 	};
 
