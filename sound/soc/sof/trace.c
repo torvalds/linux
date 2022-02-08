@@ -409,7 +409,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	sdev->host_offset = 0;
 	sdev->dtrace_draining = false;
 
-	ret = snd_sof_dma_trace_init(sdev, &params.stream_tag);
+	ret = snd_sof_dma_trace_init(sdev, &params);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: fail in snd_sof_dma_trace_init %d\n", ret);

@@ -369,10 +369,10 @@ static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 
 /* host DMA trace */
 static inline int snd_sof_dma_trace_init(struct snd_sof_dev *sdev,
-					 u32 *stream_tag)
+					 struct sof_ipc_dma_trace_params_ext *dtrace_params)
 {
 	if (sof_ops(sdev)->trace_init)
-		return sof_ops(sdev)->trace_init(sdev, stream_tag);
+		return sof_ops(sdev)->trace_init(sdev, dtrace_params);
 
 	return 0;
 }
