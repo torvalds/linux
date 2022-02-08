@@ -1110,8 +1110,19 @@ static int analogix_dp_enable_psr(struct analogix_dp_device *dp)
 	psr_vsc.db[1] = EDP_VSC_PSR_STATE_ACTIVE | EDP_VSC_PSR_CRC_VALUES_VALID;
 
 	ret = analogix_dp_send_psr_spd(dp, &psr_vsc, true);
-	if (!ret)
+	if (!ret) {
 		analogix_dp_set_analog_power_down(dp, POWER_ALL, true);
+
+		if (dp->phy) {
+			union phy_configure_opts phy_cfg = {0};
+
+			phy_cfg.dp.lanes = 0;
+			phy_cfg.dp.set_lanes = true;
+			ret = phy_configure(dp->phy, &phy_cfg);
+			if (ret)
+				return ret;
+		}
+	}
 
 	return ret;
 }
@@ -1793,6 +1804,25 @@ int analogix_dp_audio_get_eld(struct analogix_dp_device *dp, u8 *buf, size_t len
 }
 EXPORT_SYMBOL_GPL(analogix_dp_audio_get_eld);
 
+static void analogix_dp_link_train_restore(struct analogix_dp_device *dp)
+{
+	u32 link_rate, lane_count;
+	u8 lane, spread;
+
+	analogix_dp_get_link_bandwidth(dp, &link_rate);
+	analogix_dp_get_lane_count(dp, &lane_count);
+	drm_dp_dpcd_readb(&dp->aux, DP_MAX_DOWNSPREAD, &spread);
+
+	dp->link_train.link_rate = link_rate;
+	dp->link_train.lane_count = lane_count;
+	dp->link_train.enhanced_framing = analogix_dp_get_enhanced_mode(dp);
+	dp->link_train.ssc = !!(spread & DP_MAX_DOWNSPREAD_0_5);
+
+	for (lane = 0; lane < 4; lane++)
+		dp->link_train.training_lane[lane] =
+				analogix_dp_get_lane_link_training(dp, lane);
+}
+
 int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 {
 	int ret;
@@ -1806,6 +1836,18 @@ int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 	analogix_dp_phy_power_on(dp);
 
 	dp->dpms_mode = DRM_MODE_DPMS_ON;
+
+	analogix_dp_link_train_restore(dp);
+
+	ret = analogix_dp_fast_link_train_detection(dp);
+	if (ret)
+		return ret;
+
+	if (analogix_dp_detect_sink_psr(dp)) {
+		ret = analogix_dp_enable_sink_psr(dp);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

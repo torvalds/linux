@@ -699,6 +699,15 @@ void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp,
 	}
 }
 
+bool analogix_dp_get_enhanced_mode(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_SYS_CTL_4);
+
+	return !!(reg & ENHANCED);
+}
+
 void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 				      enum pattern_set pattern)
 {
@@ -978,6 +987,24 @@ static ssize_t analogix_dp_get_psr_status(struct analogix_dp_device *dp)
 	return status;
 }
 
+static void analogix_dp_reuse_spd(struct analogix_dp_device *dp)
+{
+	u32 reg, val;
+
+	switch (dp->plat_data->dev_type) {
+	case RK3588_EDP:
+		reg = ANALOGIX_DP_SPDIF_AUDIO_CTL_0;
+		break;
+	default:
+		reg = ANALOGIX_DP_VIDEO_CTL_3;
+		break;
+	}
+
+	val = analogix_dp_read(dp, reg);
+	val |= REUSE_SPD_EN;
+	analogix_dp_write(dp, reg, val);
+}
+
 int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 			     struct dp_sdp *vsc, bool blocking)
 {
@@ -1010,10 +1037,13 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 	analogix_dp_write(dp, ANALOGIX_DP_VSC_SHADOW_DB0, vsc->db[0]);
 	analogix_dp_write(dp, ANALOGIX_DP_VSC_SHADOW_DB1, vsc->db[1]);
 
+	/* configure PB0 / PB1 values */
+	analogix_dp_write(dp, ANALOGIX_DP_VSC_SHADOW_PB0,
+			  vsc->db[1] ? 0x8d : 0x00);
+	analogix_dp_write(dp, ANALOGIX_DP_VSC_SHADOW_PB1, 0x00);
+
 	/* set reuse spd inforframe */
-	val = analogix_dp_read(dp, ANALOGIX_DP_VIDEO_CTL_3);
-	val |= REUSE_SPD_EN;
-	analogix_dp_write(dp, ANALOGIX_DP_VIDEO_CTL_3, val);
+	analogix_dp_reuse_spd(dp);
 
 	/* mark info frame update */
 	val = analogix_dp_read(dp, ANALOGIX_DP_PKT_SEND_CTL);

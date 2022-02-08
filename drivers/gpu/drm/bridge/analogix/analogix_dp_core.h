@@ -221,6 +221,7 @@ void analogix_dp_set_lane_count(struct analogix_dp_device *dp, u32 count);
 void analogix_dp_get_lane_count(struct analogix_dp_device *dp, u32 *count);
 void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp,
 				      bool enable);
+bool analogix_dp_get_enhanced_mode(struct analogix_dp_device *dp);
 void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 				      enum pattern_set pattern);
 void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp);
