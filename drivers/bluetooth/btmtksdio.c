@@ -12,10 +12,12 @@
 
 #include <asm/unaligned.h>
 #include <linux/atomic.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/skbuff.h>
 
@@ -83,6 +85,7 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 
 #define MTK_REG_CHCR		0xc
 #define C_INT_CLR_CTRL		BIT(1)
+#define BT_RST_DONE		BIT(8)
 
 /* CHISR have the same bits field definition with CHIER */
 #define MTK_REG_CHISR		0x10
@@ -114,6 +117,7 @@ MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 #define BTMTKSDIO_HW_TX_READY		2
 #define BTMTKSDIO_FUNC_ENABLED		3
 #define BTMTKSDIO_PATCH_ENABLED		4
+#define BTMTKSDIO_HW_RESET_ACTIVE	5
 
 struct mtkbtsdio_hdr {
 	__le16	len;
@@ -133,6 +137,8 @@ struct btmtksdio_dev {
 	struct sk_buff *evt_skb;
 
 	const struct btmtksdio_data *data;
+
+	struct gpio_desc *reset;
 };
 
 static int mtk_hci_wmt_sync(struct hci_dev *hdev,
@@ -295,6 +301,11 @@ static u32 btmtksdio_drv_own_query(struct btmtksdio_dev *bdev)
 static u32 btmtksdio_drv_own_query_79xx(struct btmtksdio_dev *bdev)
 {
 	return sdio_readl(bdev->func, MTK_REG_PD2HRM0R, NULL);
+}
+
+static u32 btmtksdio_chcr_query(struct btmtksdio_dev *bdev)
+{
+	return sdio_readl(bdev->func, MTK_REG_CHCR, NULL);
 }
 
 static int btmtksdio_fw_pmctrl(struct btmtksdio_dev *bdev)
@@ -967,6 +978,28 @@ static int btmtksdio_sco_setting(struct hci_dev *hdev)
 	return btmtksdio_mtk_reg_write(hdev, MT7921_PINMUX_1, val, ~0);
 }
 
+static int btmtksdio_reset_setting(struct hci_dev *hdev)
+{
+	int err;
+	u32 val;
+
+	err = btmtksdio_mtk_reg_read(hdev, MT7921_PINMUX_1, &val);
+	if (err < 0)
+		return err;
+
+	val |= 0x20; /* set the pin (bit field 11:8) work as GPIO mode */
+	err = btmtksdio_mtk_reg_write(hdev, MT7921_PINMUX_1, val, ~0);
+	if (err < 0)
+		return err;
+
+	err = btmtksdio_mtk_reg_read(hdev, MT7921_BTSYS_RST, &val);
+	if (err < 0)
+		return err;
+
+	val |= MT7921_BTSYS_RST_WITH_GPIO;
+	return btmtksdio_mtk_reg_write(hdev, MT7921_BTSYS_RST, val, ~0);
+}
+
 static int btmtksdio_setup(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -974,13 +1007,32 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 	unsigned long long duration;
 	char fwname[64];
 	int err, dev_id;
-	u32 fw_version = 0;
+	u32 fw_version = 0, val;
 
 	calltime = ktime_get();
 	set_bit(BTMTKSDIO_HW_TX_READY, &bdev->tx_state);
 
 	switch (bdev->data->chipid) {
 	case 0x7921:
+		if (test_bit(BTMTKSDIO_HW_RESET_ACTIVE, &bdev->tx_state)) {
+			err = btmtksdio_mtk_reg_read(hdev, MT7921_DLSTATUS,
+						     &val);
+			if (err < 0)
+				return err;
+
+			val &= ~BT_DL_STATE;
+			err = btmtksdio_mtk_reg_write(hdev, MT7921_DLSTATUS,
+						      val, ~0);
+			if (err < 0)
+				return err;
+
+			btmtksdio_fw_pmctrl(bdev);
+			msleep(20);
+			btmtksdio_drv_pmctrl(bdev);
+
+			clear_bit(BTMTKSDIO_HW_RESET_ACTIVE, &bdev->tx_state);
+		}
+
 		err = btmtksdio_mtk_reg_read(hdev, 0x70010200, &dev_id);
 		if (err < 0) {
 			bt_dev_err(hdev, "Failed to get device id (%d)", err);
@@ -1013,6 +1065,16 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 		if (err < 0) {
 			bt_dev_err(hdev, "Failed to enable SCO setting (%d)", err);
 			return err;
+		}
+
+		/* Enable GPIO reset mechanism */
+		if (bdev->reset) {
+			err = btmtksdio_reset_setting(hdev);
+			if (err < 0) {
+				bt_dev_err(hdev, "Failed to enable Reset setting (%d)", err);
+				devm_gpiod_put(bdev->dev, bdev->reset);
+				bdev->reset = NULL;
+			}
 		}
 
 		break;
@@ -1111,6 +1173,47 @@ static int btmtksdio_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
+static void btmtksdio_cmd_timeout(struct hci_dev *hdev)
+{
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+	u32 status;
+	int err;
+
+	if (!bdev->reset || bdev->data->chipid != 0x7921)
+		return;
+
+	pm_runtime_get_sync(bdev->dev);
+
+	if (test_and_set_bit(BTMTKSDIO_HW_RESET_ACTIVE, &bdev->tx_state))
+		return;
+
+	sdio_claim_host(bdev->func);
+
+	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
+	skb_queue_purge(&bdev->txq);
+	cancel_work_sync(&bdev->txrx_work);
+
+	gpiod_set_value_cansleep(bdev->reset, 1);
+	msleep(100);
+	gpiod_set_value_cansleep(bdev->reset, 0);
+
+	err = readx_poll_timeout(btmtksdio_chcr_query, bdev, status,
+				 status & BT_RST_DONE, 100000, 2000000);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to reset (%d)", err);
+		goto err;
+	}
+
+	clear_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
+err:
+	sdio_release_host(bdev->func);
+
+	pm_runtime_put_noidle(bdev->dev);
+	pm_runtime_disable(bdev->dev);
+
+	hci_reset_dev(hdev);
+}
+
 static bool btmtksdio_sdio_wakeup(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -1172,6 +1275,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 
 	hdev->open     = btmtksdio_open;
 	hdev->close    = btmtksdio_close;
+	hdev->cmd_timeout = btmtksdio_cmd_timeout;
 	hdev->flush    = btmtksdio_flush;
 	hdev->setup    = btmtksdio_setup;
 	hdev->shutdown = btmtksdio_shutdown;
@@ -1215,6 +1319,13 @@ static int btmtksdio_probe(struct sdio_func *func,
 	err = device_init_wakeup(bdev->dev, true);
 	if (err)
 		bt_dev_err(hdev, "failed to initialize device wakeup");
+
+	bdev->dev->of_node = of_find_compatible_node(NULL, NULL,
+						     "mediatek,mt7921s-bluetooth");
+	bdev->reset = devm_gpiod_get_optional(bdev->dev, "reset",
+					      GPIOD_OUT_LOW);
+	if (IS_ERR(bdev->reset))
+		err = PTR_ERR(bdev->reset);
 
 	return err;
 }
