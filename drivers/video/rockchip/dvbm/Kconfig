@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+menuconfig ROCKCHIP_DVBM
+	tristate "RK Direct Video Buffer Manager driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  rockchip dvbm module.
+
+if ROCKCHIP_DVBM
+
+config ROCKCHIP_DVBM_PROC_FS
+	bool "enable dvbm procfs"
+	depends on PROC_FS
+	default y
+	help
+	  rockchip dvbm procfs.
+
+endif
