@@ -2242,6 +2242,59 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 		}
 	}
 
+	/*
+	 * Calculate an allowed NUMA imbalance such that LLCs do not get
+	 * imbalanced.
+	 */
+	for_each_cpu(i, cpu_map) {
+		unsigned int imb = 0;
+		unsigned int imb_span = 1;
+
+		for (sd = *per_cpu_ptr(d.sd, i); sd; sd = sd->parent) {
+			struct sched_domain *child = sd->child;
+
+			if (!(sd->flags & SD_SHARE_PKG_RESOURCES) && child &&
+			    (child->flags & SD_SHARE_PKG_RESOURCES)) {
+				struct sched_domain *top, *top_p;
+				unsigned int nr_llcs;
+
+				/*
+				 * For a single LLC per node, allow an
+				 * imbalance up to 25% of the node. This is an
+				 * arbitrary cutoff based on SMT-2 to balance
+				 * between memory bandwidth and avoiding
+				 * premature sharing of HT resources and SMT-4
+				 * or SMT-8 *may* benefit from a different
+				 * cutoff.
+				 *
+				 * For multiple LLCs, allow an imbalance
+				 * until multiple tasks would share an LLC
+				 * on one node while LLCs on another node
+				 * remain idle.
+				 */
+				nr_llcs = sd->span_weight / child->span_weight;
+				if (nr_llcs == 1)
+					imb = sd->span_weight >> 2;
+				else
+					imb = nr_llcs;
+				sd->imb_numa_nr = imb;
+
+				/* Set span based on the first NUMA domain. */
+				top = sd;
+				top_p = top->parent;
+				while (top_p && !(top_p->flags & SD_NUMA)) {
+					top = top->parent;
+					top_p = top->parent;
+				}
+				imb_span = top_p ? top_p->span_weight : sd->span_weight;
+			} else {
+				int factor = max(1U, (sd->span_weight / imb_span));
+
+				sd->imb_numa_nr = imb * factor;
+			}
+		}
+	}
+
 	/* Calculate CPU capacity for physical packages and nodes */
 	for (i = nr_cpumask_bits-1; i >= 0; i--) {
 		if (!cpumask_test_cpu(i, cpu_map))
