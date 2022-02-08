@@ -33,7 +33,6 @@
 #define PCM3168A_FMT_DSP_B		0x5
 #define PCM3168A_FMT_I2S_TDM		0x6
 #define PCM3168A_FMT_LEFT_J_TDM		0x7
-#define PCM3168A_FMT_DSP_MASK		0x4
 
 #define PCM3168A_NUM_SUPPLIES 6
 static const char *const pcm3168a_supply_names[PCM3168A_NUM_SUPPLIES] = {
@@ -511,7 +510,8 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 		fmt = PCM3168A_FMT_RIGHT_J_16;
 		break;
 	case 24:
-		if (master_mode || (fmt & PCM3168A_FMT_DSP_MASK)) {
+		if (master_mode || (fmt == PCM3168A_FMT_DSP_A) ||
+				   (fmt == PCM3168A_FMT_DSP_B)) {
 			dev_err(component->dev, "24-bit slots not supported in master mode, or slave mode using DSP\n");
 			return -EINVAL;
 		}
