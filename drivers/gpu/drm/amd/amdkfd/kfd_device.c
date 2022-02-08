@@ -137,6 +137,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v9;
 		break;
 	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 2):
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
 		break;
 	default:
@@ -366,6 +367,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		case IP_VERSION(11, 0, 0):
 			gfx_target_version = 110000;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(11, 0, 2):
+			gfx_target_version = 110002;
 			f2g = &gfx_v11_kfd2kgd;
 			break;
 		default:
