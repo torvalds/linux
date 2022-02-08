@@ -6099,7 +6099,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	u16 vact_end = vact_st + vdisplay;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
 	uint8_t out_mode;
-	int for_ddr_freq = 0;
 	bool dclk_inv, yc_swap = false;
 	int act_end;
 	uint32_t val;
@@ -6416,8 +6415,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	}
 
 	VOP_INTR_SET(vop2, intr, line_flag_num[0], act_end);
-	VOP_INTR_SET(vop2, intr, line_flag_num[1],
-		     act_end - us_to_vertical_line(adjusted_mode, for_ddr_freq));
+	VOP_INTR_SET(vop2, intr, line_flag_num[1], act_end);
 
 	VOP_MODULE_SET(vop2, vp, vtotal_pw, vtotal << 16 | vsync_len);
 
