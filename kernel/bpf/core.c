@@ -814,7 +814,11 @@ int bpf_jit_add_poke_descriptor(struct bpf_prog *prog,
  * allocator. The prog_pack allocator uses HPAGE_PMD_SIZE page (2MB on x86)
  * to host BPF programs.
  */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define BPF_PROG_PACK_SIZE	HPAGE_PMD_SIZE
+#else
+#define BPF_PROG_PACK_SIZE	PAGE_SIZE
+#endif
 #define BPF_PROG_CHUNK_SHIFT	6
 #define BPF_PROG_CHUNK_SIZE	(1 << BPF_PROG_CHUNK_SHIFT)
 #define BPF_PROG_CHUNK_MASK	(~(BPF_PROG_CHUNK_SIZE - 1))
@@ -826,7 +830,7 @@ struct bpf_prog_pack {
 	unsigned long bitmap[BITS_TO_LONGS(BPF_PROG_CHUNK_COUNT)];
 };
 
-#define BPF_PROG_MAX_PACK_PROG_SIZE	HPAGE_PMD_SIZE
+#define BPF_PROG_MAX_PACK_PROG_SIZE	BPF_PROG_PACK_SIZE
 #define BPF_PROG_SIZE_TO_NBITS(size)	(round_up(size, BPF_PROG_CHUNK_SIZE) / BPF_PROG_CHUNK_SIZE)
 
 static DEFINE_MUTEX(pack_mutex);
