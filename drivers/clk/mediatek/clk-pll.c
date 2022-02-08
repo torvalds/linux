@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 
 #include "clk-mtk.h"
+#include "clk-pll.h"
 
 #define REG_CON0		0
 #define REG_CON1		4
