@@ -352,8 +352,8 @@ struct rxe_mw {
 };
 
 struct rxe_mcg {
-	struct rxe_pool_elem	elem;
 	struct rb_node		node;
+	struct kref		ref_cnt;
 	struct rxe_dev		*rxe;
 	struct list_head	qp_list;
 	union ib_gid		mgid;

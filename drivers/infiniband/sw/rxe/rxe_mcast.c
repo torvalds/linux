@@ -98,7 +98,7 @@ static struct rxe_mcg *__rxe_lookup_mcg(struct rxe_dev *rxe,
 	}
 
 	if (node) {
-		rxe_add_ref(mcg);
+		kref_get(&mcg->ref_cnt);
 		return mcg;
 	}
 
@@ -142,6 +142,7 @@ static int __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
 	if (unlikely(err))
 		return err;
 
+	kref_init(&mcg->ref_cnt);
 	memcpy(&mcg->mgid, mgid, sizeof(mcg->mgid));
 	INIT_LIST_HEAD(&mcg->qp_list);
 	mcg->rxe = rxe;
@@ -153,7 +154,7 @@ static int __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
 	 * Inserting mcg makes it visible to outside so this should
 	 * be done last after the object is ready.
 	 */
-	rxe_add_ref(mcg);
+	kref_get(&mcg->ref_cnt);
 	__rxe_insert_mcg(mcg);
 
 	return 0;
@@ -168,7 +169,6 @@ static int __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
  */
 static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 {
-	struct rxe_pool *pool = &rxe->mc_grp_pool;
 	struct rxe_mcg *mcg, *tmp;
 	unsigned long flags;
 	int err;
@@ -182,7 +182,7 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 		return mcg;
 
 	/* speculative alloc of new mcg */
-	mcg = rxe_alloc(pool);
+	mcg = kzalloc(sizeof(*mcg), GFP_KERNEL);
 	if (!mcg)
 		return ERR_PTR(-ENOMEM);
 
@@ -190,7 +190,7 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 	/* re-check to see if someone else just added it */
 	tmp = __rxe_lookup_mcg(rxe, mgid);
 	if (tmp) {
-		rxe_drop_ref(mcg);
+		kfree(mcg);
 		mcg = tmp;
 		goto out;
 	}
@@ -210,8 +210,19 @@ out:
 err_dec:
 	atomic_dec(&rxe->mcg_num);
 	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
-	rxe_drop_ref(mcg);
+	kfree(mcg);
 	return ERR_PTR(err);
+}
+
+/**
+ * rxe_cleanup_mcg - cleanup mcg for kref_put
+ * @kref:
+ */
+void rxe_cleanup_mcg(struct kref *kref)
+{
+	struct rxe_mcg *mcg = container_of(kref, typeof(*mcg), ref_cnt);
+
+	kfree(mcg);
 }
 
 /**
@@ -223,11 +234,14 @@ err_dec:
  */
 static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
 {
+	struct rxe_dev *rxe = mcg->rxe;
+
 	/* remove mcg from red-black tree then drop ref */
 	__rxe_remove_mcg(mcg);
-	rxe_drop_ref(mcg);
+	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 
 	rxe_mcast_delete(mcg->rxe, &mcg->mgid);
+	atomic_dec(&rxe->mcg_num);
 }
 
 /**
@@ -243,11 +257,6 @@ static void rxe_destroy_mcg(struct rxe_mcg *mcg)
 	spin_lock_irqsave(&mcg->rxe->mcg_lock, flags);
 	__rxe_destroy_mcg(mcg);
 	spin_unlock_irqrestore(&mcg->rxe->mcg_lock, flags);
-}
-
-void rxe_mc_cleanup(struct rxe_pool_elem *elem)
-{
-	/* nothing left to do for now */
 }
 
 static int rxe_attach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
@@ -334,7 +343,7 @@ static int rxe_detach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 			/* drop the ref from get key. This will free the
 			 * object if qp_num is zero.
 			 */
-			rxe_drop_ref(mcg);
+			kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 			kfree(mca);
 			err = 0;
 			goto out_unlock;
@@ -342,7 +351,7 @@ static int rxe_detach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 	}
 
 	/* we didn't find the qp on the list */
-	rxe_drop_ref(mcg);
+	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 	err = -EINVAL;
 
 out_unlock:
@@ -368,7 +377,7 @@ int rxe_attach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 	if (atomic_read(&mcg->qp_num) == 0)
 		rxe_destroy_mcg(mcg);
 
-	rxe_drop_ref(mcg);
+	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 	return err;
 }
 
