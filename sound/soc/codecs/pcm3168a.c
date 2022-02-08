@@ -50,7 +50,7 @@ static const char *const pcm3168a_supply_names[PCM3168A_NUM_SUPPLIES] = {
 /* ADC/DAC side parameters */
 struct pcm3168a_io_params {
 	bool master_mode;
-	unsigned int fmt;
+	unsigned int format;
 	int tdm_slots;
 	u32 tdm_mask;
 	int slot_width;
@@ -328,10 +328,11 @@ static void pcm3168a_update_fixup_pcm_stream(struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
+	struct pcm3168a_io_params *io_params = &pcm3168a->io_params[dai->id];
 	u64 formats = SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE;
 	unsigned int channel_max = dai->id == PCM3168A_DAI_DAC ? 8 : 6;
 
-	if (pcm3168a->io_params[dai->id].fmt == PCM3168A_FMT_RIGHT_J) {
+	if (io_params->format == SND_SOC_DAIFMT_RIGHT_J) {
 		/* S16_LE is only supported in RIGHT_J mode */
 		formats |= SNDRV_PCM_FMTBIT_S16_LE;
 
@@ -339,7 +340,7 @@ static void pcm3168a_update_fixup_pcm_stream(struct snd_soc_dai *dai)
 		 * If multi DIN/DOUT is not selected, RIGHT_J can only support
 		 * two channels (no TDM support)
 		 */
-		if (pcm3168a->io_params[dai->id].tdm_slots != 2)
+		if (io_params->tdm_slots != 2)
 			channel_max = 2;
 	}
 
@@ -356,24 +357,15 @@ static int pcm3168a_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 {
 	struct snd_soc_component *component = dai->component;
 	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
-	u32 fmt, reg, mask, shift;
+	struct pcm3168a_io_params *io_params = &pcm3168a->io_params[dai->id];
 	bool master_mode;
 
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_LEFT_J:
-		fmt = PCM3168A_FMT_LEFT_J;
-		break;
 	case SND_SOC_DAIFMT_I2S:
-		fmt = PCM3168A_FMT_I2S;
-		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		fmt = PCM3168A_FMT_RIGHT_J;
-		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		fmt = PCM3168A_FMT_DSP_A;
-		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		fmt = PCM3168A_FMT_DSP_B;
 		break;
 	default:
 		dev_err(component->dev, "unsupported dai format\n");
@@ -399,20 +391,8 @@ static int pcm3168a_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 		return -EINVAL;
 	}
 
-	if (dai->id == PCM3168A_DAI_DAC) {
-		reg = PCM3168A_DAC_PWR_MST_FMT;
-		mask = PCM3168A_DAC_FMT_MASK;
-		shift = PCM3168A_DAC_FMT_SHIFT;
-	} else {
-		reg = PCM3168A_ADC_MST_FMT;
-		mask = PCM3168A_ADC_FMTAD_MASK;
-		shift = PCM3168A_ADC_FMTAD_SHIFT;
-	}
-
-	pcm3168a->io_params[dai->id].master_mode = master_mode;
-	pcm3168a->io_params[dai->id].fmt = fmt;
-
-	regmap_update_bits(pcm3168a->regmap, reg, mask, fmt << shift);
+	io_params->master_mode = master_mode;
+	io_params->format = format & SND_SOC_DAIFMT_FORMAT_MASK;
 
 	pcm3168a_update_fixup_pcm_stream(dai);
 
@@ -461,7 +441,8 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
 	struct pcm3168a_io_params *io_params = &pcm3168a->io_params[dai->id];
-	bool master_mode;
+	bool master_mode, tdm_mode;
+	unsigned int format;
 	unsigned int reg, mask, ms, ms_shift, fmt, fmt_shift, ratio, tdm_slots;
 	int i, num_scki_ratios, slot_width;
 
@@ -499,7 +480,7 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 		ms = 0;
 	}
 
-	fmt = io_params->fmt;
+	format = io_params->format;
 
 	if (io_params->slot_width)
 		slot_width = io_params->slot_width;
@@ -508,15 +489,14 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 
 	switch (slot_width) {
 	case 16:
-		if (master_mode || (fmt != PCM3168A_FMT_RIGHT_J)) {
+		if (master_mode || (format != SND_SOC_DAIFMT_RIGHT_J)) {
 			dev_err(component->dev, "16-bit slots are supported only for slave mode using right justified\n");
 			return -EINVAL;
 		}
-		fmt = PCM3168A_FMT_RIGHT_J_16;
 		break;
 	case 24:
-		if (master_mode || (fmt == PCM3168A_FMT_DSP_A) ||
-				   (fmt == PCM3168A_FMT_DSP_B)) {
+		if (master_mode || (format == SND_SOC_DAIFMT_DSP_A) ||
+				   (format == SND_SOC_DAIFMT_DSP_B)) {
 			dev_err(component->dev, "24-bit slots not supported in master mode, or slave mode using DSP\n");
 			return -EINVAL;
 		}
@@ -541,21 +521,41 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	 * If pcm3168a->tdm_slots is set to 2 then DIN1/2/3/4 and DOUT1/2/3 is
 	 * used in normal mode, no need to switch to TDM modes.
 	 */
-	if (tdm_slots > 2) {
-		switch (fmt) {
-		case PCM3168A_FMT_I2S:
-		case PCM3168A_FMT_DSP_A:
-			fmt = PCM3168A_FMT_I2S_TDM;
-			break;
-		case PCM3168A_FMT_LEFT_J:
-		case PCM3168A_FMT_DSP_B:
-			fmt = PCM3168A_FMT_LEFT_J_TDM;
+	tdm_mode = (tdm_slots > 2);
+
+	if (tdm_mode) {
+		switch (format) {
+		case SND_SOC_DAIFMT_I2S:
+		case SND_SOC_DAIFMT_DSP_A:
+		case SND_SOC_DAIFMT_LEFT_J:
+		case SND_SOC_DAIFMT_DSP_B:
 			break;
 		default:
 			dev_err(component->dev,
 				"TDM is supported under DSP/I2S/Left_J only\n");
 			return -EINVAL;
 		}
+	}
+
+	switch (format) {
+	case SND_SOC_DAIFMT_I2S:
+		fmt = tdm_mode ? PCM3168A_FMT_I2S_TDM : PCM3168A_FMT_I2S;
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		fmt = tdm_mode ? PCM3168A_FMT_LEFT_J_TDM : PCM3168A_FMT_LEFT_J;
+		break;
+	case SND_SOC_DAIFMT_RIGHT_J:
+		fmt = (slot_width == 16) ? PCM3168A_FMT_RIGHT_J_16 :
+					   PCM3168A_FMT_RIGHT_J;
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		fmt = tdm_mode ? PCM3168A_FMT_I2S_TDM : PCM3168A_FMT_DSP_A;
+		break;
+	case SND_SOC_DAIFMT_DSP_B:
+		fmt = tdm_mode ? PCM3168A_FMT_LEFT_J_TDM : PCM3168A_FMT_DSP_B;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	regmap_update_bits(pcm3168a->regmap, reg, mask,
