@@ -4262,6 +4262,13 @@ static int nvme_class_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return ret;
 }
 
+static void nvme_change_uevent(struct nvme_ctrl *ctrl, char *envdata)
+{
+	char *envp[2] = { envdata, NULL };
+
+	kobject_uevent_env(&ctrl->device->kobj, KOBJ_CHANGE, envp);
+}
+
 static void nvme_aen_uevent(struct nvme_ctrl *ctrl)
 {
 	char *envp[2] = { NULL, NULL };
@@ -4429,6 +4436,8 @@ void nvme_start_ctrl(struct nvme_ctrl *ctrl)
 		nvme_queue_scan(ctrl);
 		nvme_start_queues(ctrl);
 	}
+
+	nvme_change_uevent(ctrl, "NVME_EVENT=connected");
 }
 EXPORT_SYMBOL_GPL(nvme_start_ctrl);
 
