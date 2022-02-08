@@ -579,7 +579,13 @@ enum
 	NR_SOFTIRQS
 };
 
-#define SOFTIRQ_STOP_IDLE_MASK (~(1 << RCU_SOFTIRQ))
+/*
+ * Ignoring the RCU vector after ksoftirqd is parked is fine
+ * because:
+ * 	1) rcutree_migrate_callbacks() takes care of the queue.
+ * 	2) rcu_report_dead() reports the final quiescent states.
+ */
+#define SOFTIRQ_HOTPLUG_SAFE_MASK (BIT(RCU_SOFTIRQ))
 
 /* map softirq index to softirq name. update 'softirq_to_name' in
  * kernel/softirq.c when adding a new softirq.
