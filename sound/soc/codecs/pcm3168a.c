@@ -462,39 +462,44 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
 	struct pcm3168a_io_params *io_params = &pcm3168a->io_params[dai->id];
 	bool master_mode;
-	u32 val, mask, shift, reg;
-	unsigned int rate, fmt, ratio, max_ratio;
-	unsigned int tdm_slots;
-	int i, slot_width;
-
-	rate = params_rate(params);
-
-	ratio = pcm3168a->sysclk / rate;
+	unsigned int reg, mask, ms, ms_shift, fmt, fmt_shift, ratio, tdm_slots;
+	int i, num_scki_ratios, slot_width;
 
 	if (dai->id == PCM3168A_DAI_DAC) {
-		max_ratio = PCM3168A_NUM_SCKI_RATIOS_DAC;
+		num_scki_ratios = PCM3168A_NUM_SCKI_RATIOS_DAC;
 		reg = PCM3168A_DAC_PWR_MST_FMT;
-		mask = PCM3168A_DAC_MSDA_MASK;
-		shift = PCM3168A_DAC_MSDA_SHIFT;
+		mask = PCM3168A_DAC_MSDA_MASK | PCM3168A_DAC_FMT_MASK;
+		ms_shift = PCM3168A_DAC_MSDA_SHIFT;
+		fmt_shift = PCM3168A_DAC_FMT_SHIFT;
 	} else {
-		max_ratio = PCM3168A_NUM_SCKI_RATIOS_ADC;
+		num_scki_ratios = PCM3168A_NUM_SCKI_RATIOS_ADC;
 		reg = PCM3168A_ADC_MST_FMT;
-		mask = PCM3168A_ADC_MSAD_MASK;
-		shift = PCM3168A_ADC_MSAD_SHIFT;
+		mask = PCM3168A_ADC_MSAD_MASK | PCM3168A_ADC_FMTAD_MASK;
+		ms_shift = PCM3168A_ADC_MSAD_SHIFT;
+		fmt_shift = PCM3168A_ADC_FMTAD_SHIFT;
 	}
 
 	master_mode = io_params->master_mode;
+
+	if (master_mode) {
+		ratio = pcm3168a->sysclk / params_rate(params);
+
+		for (i = 0; i < num_scki_ratios; i++) {
+			if (pcm3168a_scki_ratios[i] == ratio)
+				break;
+		}
+
+		if (i == num_scki_ratios) {
+			dev_err(component->dev, "unsupported sysclk ratio\n");
+			return -EINVAL;
+		}
+
+		ms = (i + 1);
+	} else {
+		ms = 0;
+	}
+
 	fmt = io_params->fmt;
-
-	for (i = 0; i < max_ratio; i++) {
-		if (pcm3168a_scki_ratios[i] == ratio)
-			break;
-	}
-
-	if (i == max_ratio) {
-		dev_err(component->dev, "unsupported sysclk ratio\n");
-		return -EINVAL;
-	}
 
 	if (io_params->slot_width)
 		slot_width = io_params->slot_width;
@@ -553,22 +558,8 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	if (master_mode)
-		val = ((i + 1) << shift);
-	else
-		val = 0;
-
-	regmap_update_bits(pcm3168a->regmap, reg, mask, val);
-
-	if (dai->id == PCM3168A_DAI_DAC) {
-		mask = PCM3168A_DAC_FMT_MASK;
-		shift = PCM3168A_DAC_FMT_SHIFT;
-	} else {
-		mask = PCM3168A_ADC_FMTAD_MASK;
-		shift = PCM3168A_ADC_FMTAD_SHIFT;
-	}
-
-	regmap_update_bits(pcm3168a->regmap, reg, mask, fmt << shift);
+	regmap_update_bits(pcm3168a->regmap, reg, mask,
+			(ms << ms_shift) | (fmt << fmt_shift));
 
 	return 0;
 }
