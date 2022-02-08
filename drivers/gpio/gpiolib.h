@@ -37,6 +37,9 @@
  * or name of the IP component in a System on Chip.
  * @data: per-instance data assigned by the driver
  * @list: links gpio_device:s together for traversal
+ * @notifier: used to notify subscribers about lines being requested, released
+ *            or reconfigured
+ * @pin_ranges: range of pins served by the GPIO driver
  *
  * This state container holds most of the runtime variable data
  * for a GPIO device and can hold references and live on after the
@@ -72,6 +75,20 @@ struct gpio_device {
 /* gpio suffixes used for ACPI and device tree lookup */
 static __maybe_unused const char * const gpio_suffixes[] = { "gpios", "gpio" };
 
+/**
+ * struct gpio_array - Opaque descriptor for a structure of GPIO array attributes
+ *
+ * @desc:		Array of pointers to the GPIO descriptors
+ * @size:		Number of elements in desc
+ * @chip:		Parent GPIO chip
+ * @get_mask:		Get mask used in fastpath
+ * @set_mask:		Set mask used in fastpath
+ * @invert_mask:	Invert mask used in fastpath
+ *
+ * This structure is attached to struct gpiod_descs obtained from
+ * gpiod_get_array() and can be passed back to get/set array functions in order
+ * to activate fast processing path if applicable.
+ */
 struct gpio_array {
 	struct gpio_desc	**desc;
 	unsigned int		size;
@@ -103,6 +120,23 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 extern spinlock_t gpio_lock;
 extern struct list_head gpio_devices;
 
+
+/**
+ * struct gpio_desc - Opaque descriptor for a GPIO
+ *
+ * @gdev:		Pointer to the parent GPIO device
+ * @flags:		Binary descriptor flags
+ * @label:		Name of the consumer
+ * @name:		Line name
+ * @hog:		Pointer to the device node that hogs this line (if any)
+ * @debounce_period_us:	Debounce period in microseconds
+ *
+ * These are obtained using gpiod_get() and are preferable to the old
+ * integer-based handles.
+ *
+ * Contrary to integers, a pointer to a &struct gpio_desc is guaranteed to be
+ * valid until the GPIO is released.
+ */
 struct gpio_desc {
 	struct gpio_device	*gdev;
 	unsigned long		flags;
