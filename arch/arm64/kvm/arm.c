@@ -145,6 +145,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (ret)
 		goto out_free_stage2_pgd;
 
+	if (!zalloc_cpumask_var(&kvm->arch.supported_cpus, GFP_KERNEL))
+		goto out_free_stage2_pgd;
+	cpumask_copy(kvm->arch.supported_cpus, cpu_possible_mask);
+
 	kvm_vgic_early_init(kvm);
 
 	/* The maximum number of VCPUs is limited by the host's GIC model */
@@ -171,6 +175,7 @@ vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	bitmap_free(kvm->arch.pmu_filter);
+	free_cpumask_var(kvm->arch.supported_cpus);
 
 	kvm_vgic_destroy(kvm);
 
@@ -406,6 +411,9 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (vcpu_has_ptrauth(vcpu))
 		vcpu_ptrauth_disable(vcpu);
 	kvm_arch_vcpu_load_debug_state_flags(vcpu);
+
+	if (!cpumask_test_cpu(smp_processor_id(), vcpu->kvm->arch.supported_cpus))
+		vcpu_set_on_unsupported_cpu(vcpu);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
@@ -419,6 +427,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	kvm_vcpu_pmu_restore_host(vcpu);
 	kvm_arm_vmid_clear_active();
 
+	vcpu_clear_on_unsupported_cpu(vcpu);
 	vcpu->cpu = -1;
 }
 
@@ -548,6 +557,10 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 	 */
 	if (kvm_vm_is_protected(kvm))
 		kvm_call_hyp_nvhe(__pkvm_vcpu_init_traps, vcpu);
+
+	mutex_lock(&kvm->lock);
+	kvm->arch.ran_once = true;
+	mutex_unlock(&kvm->lock);
 
 	return ret;
 }
@@ -705,6 +718,14 @@ static bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu, int *ret)
 			run->exit_reason = KVM_EXIT_INTR;
 			return true;
 		}
+	}
+
+	if (unlikely(vcpu_on_unsupported_cpu(vcpu))) {
+		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		run->fail_entry.hardware_entry_failure_reason = KVM_EXIT_FAIL_ENTRY_CPU_UNSUPPORTED;
+		run->fail_entry.cpu = smp_processor_id();
+		*ret = 0;
+		return true;
 	}
 
 	return kvm_request_pending(vcpu) ||
