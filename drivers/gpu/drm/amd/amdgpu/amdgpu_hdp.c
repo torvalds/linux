@@ -26,43 +26,12 @@
 
 int amdgpu_hdp_ras_late_init(struct amdgpu_device *adev, void *ras_info)
 {
-	int r;
-	struct ras_ih_if ih_info = {
-		.cb = NULL,
-	};
-	struct ras_fs_if fs_info = {
-		.sysfs_name = "hdp_err_count",
-	};
-
-	if (!adev->hdp.ras_if) {
-		adev->hdp.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-		if (!adev->hdp.ras_if)
-			return -ENOMEM;
-		adev->hdp.ras_if->block = AMDGPU_RAS_BLOCK__HDP;
-		adev->hdp.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->hdp.ras_if->sub_block_index = 0;
-	}
-	ih_info.head = fs_info.head = *adev->hdp.ras_if;
-	r = amdgpu_ras_late_init(adev, adev->hdp.ras_if,
-				 &fs_info, &ih_info);
-	if (r || !amdgpu_ras_is_supported(adev, adev->hdp.ras_if->block)) {
-		kfree(adev->hdp.ras_if);
-		adev->hdp.ras_if = NULL;
-	}
-
-	return r;
+	return amdgpu_ras_block_late_init(adev, adev->hdp.ras_if);
 }
 
 void amdgpu_hdp_ras_fini(struct amdgpu_device *adev)
 {
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__HDP) &&
-	    adev->hdp.ras_if) {
-		struct ras_common_if *ras_if = adev->hdp.ras_if;
-		struct ras_ih_if ih_info = {
-			.cb = NULL,
-		};
-
-		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
-		kfree(ras_if);
-	}
+	    adev->hdp.ras_if)
+		amdgpu_ras_block_late_fini(adev, adev->hdp.ras_if);
 }
