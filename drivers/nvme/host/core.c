@@ -3023,6 +3023,9 @@ static int nvme_init_identify(struct nvme_ctrl *ctrl)
 	ctrl->max_namespaces = le32_to_cpu(id->mnan);
 	ctrl->ctratt = le32_to_cpu(id->ctratt);
 
+	ctrl->cntrltype = id->cntrltype;
+	ctrl->dctype = id->dctype;
+
 	if (id->rtd3e) {
 		/* us -> s */
 		u32 transition_time = le32_to_cpu(id->rtd3e) / USEC_PER_SEC;
@@ -3556,6 +3559,40 @@ static ssize_t nvme_ctrl_fast_io_fail_tmo_store(struct device *dev,
 static DEVICE_ATTR(fast_io_fail_tmo, S_IRUGO | S_IWUSR,
 	nvme_ctrl_fast_io_fail_tmo_show, nvme_ctrl_fast_io_fail_tmo_store);
 
+static ssize_t cntrltype_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	static const char * const type[] = {
+		[NVME_CTRL_IO] = "io\n",
+		[NVME_CTRL_DISC] = "discovery\n",
+		[NVME_CTRL_ADMIN] = "admin\n",
+	};
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+
+	if (ctrl->cntrltype > NVME_CTRL_ADMIN || !type[ctrl->cntrltype])
+		return sysfs_emit(buf, "reserved\n");
+
+	return sysfs_emit(buf, type[ctrl->cntrltype]);
+}
+static DEVICE_ATTR_RO(cntrltype);
+
+static ssize_t dctype_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	static const char * const type[] = {
+		[NVME_DCTYPE_NOT_REPORTED] = "none\n",
+		[NVME_DCTYPE_DDC] = "ddc\n",
+		[NVME_DCTYPE_CDC] = "cdc\n",
+	};
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+
+	if (ctrl->dctype > NVME_DCTYPE_CDC || !type[ctrl->dctype])
+		return sysfs_emit(buf, "reserved\n");
+
+	return sysfs_emit(buf, type[ctrl->dctype]);
+}
+static DEVICE_ATTR_RO(dctype);
+
 static struct attribute *nvme_dev_attrs[] = {
 	&dev_attr_reset_controller.attr,
 	&dev_attr_rescan_controller.attr,
@@ -3577,6 +3614,8 @@ static struct attribute *nvme_dev_attrs[] = {
 	&dev_attr_reconnect_delay.attr,
 	&dev_attr_fast_io_fail_tmo.attr,
 	&dev_attr_kato.attr,
+	&dev_attr_cntrltype.attr,
+	&dev_attr_dctype.attr,
 	NULL
 };
 
