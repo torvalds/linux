@@ -557,14 +557,14 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 	return 0;
 }
 
-int __sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
-				unsigned int shallow_depth)
+int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
+			      unsigned int shallow_depth)
 {
 	WARN_ON_ONCE(shallow_depth < sbq->min_shallow_depth);
 
 	return sbitmap_get_shallow(&sbq->sb, shallow_depth);
 }
-EXPORT_SYMBOL_GPL(__sbitmap_queue_get_shallow);
+EXPORT_SYMBOL_GPL(sbitmap_queue_get_shallow);
 
 void sbitmap_queue_min_shallow_depth(struct sbitmap_queue *sbq,
 				     unsigned int min_shallow_depth)
