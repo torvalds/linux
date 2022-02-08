@@ -373,6 +373,8 @@
 
 		intc: interrupt-controller@b000000 {
 			compatible = "qcom,msm-qgic2";
+			#address-cells = <2>;
+			#size-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <0x3>;
 			reg =   <0x0 0x0b000000 0x0 0x1000>,  /*GICD*/
@@ -380,6 +382,13 @@
 				<0x0 0x0b001000 0x0 0x1000>,  /*GICH*/
 				<0x0 0x0b004000 0x0 0x1000>;  /*GICV*/
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+			ranges = <0 0 0 0xb00a000 0 0xffd>;
+
+			v2m@0 {
+				compatible = "arm,gic-v2m-frame";
+				msi-controller;
+				reg = <0x0 0x0 0x0 0xffd>;
+			};
 		};
 
 		pcie_phy: phy@84000 {
