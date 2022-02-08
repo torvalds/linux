@@ -3304,8 +3304,8 @@ static void svm_deliver_interrupt(struct kvm_lapic *apic, int delivery_mode,
 {
 	struct kvm_vcpu *vcpu = apic->vcpu;
 
+	kvm_lapic_set_irr(vector, apic);
 	if (svm_deliver_avic_intr(vcpu, vector)) {
-		kvm_lapic_set_irr(vector, apic);
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 		kvm_vcpu_kick(vcpu);
 	} else {

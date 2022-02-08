@@ -668,8 +668,6 @@ int svm_deliver_avic_intr(struct kvm_vcpu *vcpu, int vec)
 	if (!vcpu->arch.apicv_active)
 		return -1;
 
-	kvm_lapic_set_irr(vec, vcpu->arch.apic);
-
 	/*
 	 * Pairs with the smp_mb_*() after setting vcpu->guest_mode in
 	 * vcpu_enter_guest() to ensure the write to the vIRR is ordered before
