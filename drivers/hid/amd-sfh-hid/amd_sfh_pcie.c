@@ -290,6 +290,8 @@ static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
 		}
 	}
 
+	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
+
 	return 0;
 }
 
@@ -311,6 +313,8 @@ static int __maybe_unused amd_mp2_pci_suspend(struct device *dev)
 				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
 		}
 	}
+
+	cancel_delayed_work_sync(&cl_data->work_buffer);
 
 	return 0;
 }
