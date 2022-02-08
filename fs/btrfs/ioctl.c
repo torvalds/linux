@@ -1210,6 +1210,10 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		if (em->generation < newer_than)
 			goto next;
 
+		/* This em is under writeback, no need to defrag */
+		if (em->generation == (u64)-1)
+			goto next;
+
 		/*
 		 * Our start offset might be in the middle of an existing extent
 		 * map, so take that into account.
