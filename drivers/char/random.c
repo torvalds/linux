@@ -477,42 +477,30 @@ static size_t crng_fast_load(const u8 *cp, size_t len)
  * all), and (2) it doesn't have the performance constraints of
  * crng_fast_load().
  *
- * So we do something more comprehensive which is guaranteed to touch
- * all of the primary_crng's state, and which uses a LFSR with a
- * period of 255 as part of the mixing algorithm.  Finally, we do
- * *not* advance crng_init_cnt since buffer we may get may be something
- * like a fixed DMI table (for example), which might very well be
- * unique to the machine, but is otherwise unvarying.
+ * So, we simply hash the contents in with the current key. Finally,
+ * we do *not* advance crng_init_cnt since buffer we may get may be
+ * something like a fixed DMI table (for example), which might very
+ * well be unique to the machine, but is otherwise unvarying.
  */
-static int crng_slow_load(const u8 *cp, size_t len)
+static void crng_slow_load(const u8 *cp, size_t len)
 {
 	unsigned long flags;
-	static u8 lfsr = 1;
-	u8 tmp;
-	unsigned int i, max = sizeof(base_crng.key);
-	const u8 *src_buf = cp;
-	u8 *dest_buf = base_crng.key;
+	struct blake2s_state hash;
+
+	blake2s_init(&hash, sizeof(base_crng.key));
 
 	if (!spin_trylock_irqsave(&base_crng.lock, flags))
-		return 0;
+		return;
 	if (crng_init != 0) {
 		spin_unlock_irqrestore(&base_crng.lock, flags);
-		return 0;
+		return;
 	}
-	if (len > max)
-		max = len;
 
-	for (i = 0; i < max; i++) {
-		tmp = lfsr;
-		lfsr >>= 1;
-		if (tmp & 1)
-			lfsr ^= 0xE1;
-		tmp = dest_buf[i % sizeof(base_crng.key)];
-		dest_buf[i % sizeof(base_crng.key)] ^= src_buf[i % len] ^ lfsr;
-		lfsr += (tmp << 3) | (tmp >> 5);
-	}
+	blake2s_update(&hash, base_crng.key, sizeof(base_crng.key));
+	blake2s_update(&hash, cp, len);
+	blake2s_final(&hash, base_crng.key);
+
 	spin_unlock_irqrestore(&base_crng.lock, flags);
-	return 1;
 }
 
 static void crng_reseed(void)
