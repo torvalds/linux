@@ -871,7 +871,7 @@ static int rockchip_usb2phy_exit(struct phy *phy)
 	if (rport->port_id == USB2PHY_PORT_HOST)
 		cancel_delayed_work_sync(&rport->sm_work);
 	else if (rport->port_id == USB2PHY_PORT_OTG &&
-		 rport->bvalid_irq > 0)
+		 rport->otg_sm_work.work.func)
 		flush_delayed_work(&rport->otg_sm_work);
 
 	return 0;
@@ -1617,8 +1617,10 @@ static irqreturn_t rockchip_usb2phy_bvalid_irq(int irq, void *data)
 	if (rport->bypass_uart_en)
 		rockchip_usb_bypass_uart(rport, false);
 
-	cancel_delayed_work_sync(&rport->otg_sm_work);
-	rockchip_usb2phy_otg_sm_work(&rport->otg_sm_work.work);
+	if (rport->otg_sm_work.work.func) {
+		cancel_delayed_work_sync(&rport->otg_sm_work);
+		rockchip_usb2phy_otg_sm_work(&rport->otg_sm_work.work);
+	}
 
 	return IRQ_HANDLED;
 }
