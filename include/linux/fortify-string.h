@@ -4,7 +4,7 @@
 
 #include <linux/const.h>
 
-#define __FORTIFY_INLINE extern __always_inline __gnu_inline
+#define __FORTIFY_INLINE extern __always_inline __gnu_inline __overloadable
 #define __RENAME(x) __asm__(#x)
 
 void fortify_panic(const char *name) __noreturn __cold;
@@ -52,8 +52,17 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
 #define __underlying_strncpy	__builtin_strncpy
 #endif
 
+/*
+ * Clang's use of __builtin_object_size() within inlines needs hinting via
+ * __pass_object_size(). The preference is to only ever use type 1 (member
+ * size, rather than struct size), but there remain some stragglers using
+ * type 0 that will be converted in the future.
+ */
+#define POS	__pass_object_size(1)
+#define POS0	__pass_object_size(0)
+
 __FORTIFY_INLINE __diagnose_as(__builtin_strncpy, 1, 2, 3)
-char *strncpy(char * const p, const char *q, __kernel_size_t size)
+char *strncpy(char * const POS p, const char *q, __kernel_size_t size)
 {
 	size_t p_size = __builtin_object_size(p, 1);
 
@@ -65,7 +74,7 @@ char *strncpy(char * const p, const char *q, __kernel_size_t size)
 }
 
 __FORTIFY_INLINE __diagnose_as(__builtin_strcat, 1, 2)
-char *strcat(char * const p, const char *q)
+char *strcat(char * const POS p, const char *q)
 {
 	size_t p_size = __builtin_object_size(p, 1);
 
@@ -77,7 +86,7 @@ char *strcat(char * const p, const char *q)
 }
 
 extern __kernel_size_t __real_strnlen(const char *, __kernel_size_t) __RENAME(strnlen);
-__FORTIFY_INLINE __kernel_size_t strnlen(const char * const p, __kernel_size_t maxlen)
+__FORTIFY_INLINE __kernel_size_t strnlen(const char * const POS p, __kernel_size_t maxlen)
 {
 	size_t p_size = __builtin_object_size(p, 1);
 	size_t p_len = __compiletime_strlen(p);
@@ -106,7 +115,7 @@ __FORTIFY_INLINE __kernel_size_t strnlen(const char * const p, __kernel_size_t m
 	__builtin_choose_expr(__is_constexpr(__builtin_strlen(p)),	\
 		__builtin_strlen(p), __fortify_strlen(p))
 __FORTIFY_INLINE __diagnose_as(__builtin_strlen, 1)
-__kernel_size_t __fortify_strlen(const char * const p)
+__kernel_size_t __fortify_strlen(const char * const POS p)
 {
 	__kernel_size_t ret;
 	size_t p_size = __builtin_object_size(p, 1);
@@ -122,7 +131,7 @@ __kernel_size_t __fortify_strlen(const char * const p)
 
 /* defined after fortified strlen to reuse it */
 extern size_t __real_strlcpy(char *, const char *, size_t) __RENAME(strlcpy);
-__FORTIFY_INLINE size_t strlcpy(char * const p, const char * const q, size_t size)
+__FORTIFY_INLINE size_t strlcpy(char * const POS p, const char * const POS q, size_t size)
 {
 	size_t p_size = __builtin_object_size(p, 1);
 	size_t q_size = __builtin_object_size(q, 1);
@@ -149,7 +158,7 @@ __FORTIFY_INLINE size_t strlcpy(char * const p, const char * const q, size_t siz
 
 /* defined after fortified strnlen to reuse it */
 extern ssize_t __real_strscpy(char *, const char *, size_t) __RENAME(strscpy);
-__FORTIFY_INLINE ssize_t strscpy(char * const p, const char * const q, size_t size)
+__FORTIFY_INLINE ssize_t strscpy(char * const POS p, const char * const POS q, size_t size)
 {
 	size_t len;
 	/* Use string size rather than possible enclosing struct size. */
@@ -196,7 +205,7 @@ __FORTIFY_INLINE ssize_t strscpy(char * const p, const char * const q, size_t si
 
 /* defined after fortified strlen and strnlen to reuse them */
 __FORTIFY_INLINE __diagnose_as(__builtin_strncat, 1, 2, 3)
-char *strncat(char * const p, const char * const q, __kernel_size_t count)
+char *strncat(char * const POS p, const char * const POS q, __kernel_size_t count)
 {
 	size_t p_len, copy_len;
 	size_t p_size = __builtin_object_size(p, 1);
@@ -367,7 +376,7 @@ __FORTIFY_INLINE void fortify_memcpy_chk(__kernel_size_t size,
 		memmove)
 
 extern void *__real_memscan(void *, int, __kernel_size_t) __RENAME(memscan);
-__FORTIFY_INLINE void *memscan(void * const p, int c, __kernel_size_t size)
+__FORTIFY_INLINE void *memscan(void * const POS0 p, int c, __kernel_size_t size)
 {
 	size_t p_size = __builtin_object_size(p, 0);
 
@@ -379,7 +388,7 @@ __FORTIFY_INLINE void *memscan(void * const p, int c, __kernel_size_t size)
 }
 
 __FORTIFY_INLINE __diagnose_as(__builtin_memcmp, 1, 2, 3)
-int memcmp(const void * const p, const void * const q, __kernel_size_t size)
+int memcmp(const void * const POS0 p, const void * const POS0 q, __kernel_size_t size)
 {
 	size_t p_size = __builtin_object_size(p, 0);
 	size_t q_size = __builtin_object_size(q, 0);
@@ -396,7 +405,7 @@ int memcmp(const void * const p, const void * const q, __kernel_size_t size)
 }
 
 __FORTIFY_INLINE __diagnose_as(__builtin_memchr, 1, 2, 3)
-void *memchr(const void * const p, int c, __kernel_size_t size)
+void *memchr(const void * const POS0 p, int c, __kernel_size_t size)
 {
 	size_t p_size = __builtin_object_size(p, 0);
 
@@ -408,7 +417,7 @@ void *memchr(const void * const p, int c, __kernel_size_t size)
 }
 
 void *__real_memchr_inv(const void *s, int c, size_t n) __RENAME(memchr_inv);
-__FORTIFY_INLINE void *memchr_inv(const void * const p, int c, size_t size)
+__FORTIFY_INLINE void *memchr_inv(const void * const POS0 p, int c, size_t size)
 {
 	size_t p_size = __builtin_object_size(p, 0);
 
@@ -420,7 +429,7 @@ __FORTIFY_INLINE void *memchr_inv(const void * const p, int c, size_t size)
 }
 
 extern void *__real_kmemdup(const void *src, size_t len, gfp_t gfp) __RENAME(kmemdup);
-__FORTIFY_INLINE void *kmemdup(const void * const p, size_t size, gfp_t gfp)
+__FORTIFY_INLINE void *kmemdup(const void * const POS0 p, size_t size, gfp_t gfp)
 {
 	size_t p_size = __builtin_object_size(p, 0);
 
@@ -433,7 +442,7 @@ __FORTIFY_INLINE void *kmemdup(const void * const p, size_t size, gfp_t gfp)
 
 /* Defined after fortified strlen to reuse it. */
 __FORTIFY_INLINE __diagnose_as(__builtin_strcpy, 1, 2)
-char *strcpy(char * const p, const char * const q)
+char *strcpy(char * const POS p, const char * const POS q)
 {
 	size_t p_size = __builtin_object_size(p, 1);
 	size_t q_size = __builtin_object_size(q, 1);
@@ -461,5 +470,8 @@ char *strcpy(char * const p, const char * const q)
 #undef __underlying_strlen
 #undef __underlying_strncat
 #undef __underlying_strncpy
+
+#undef POS
+#undef POS0
 
 #endif /* _LINUX_FORTIFY_STRING_H_ */
