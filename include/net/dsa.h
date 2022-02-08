@@ -1281,7 +1281,7 @@ module_exit(dsa_tag_driver_module_exit)
 /**
  * module_dsa_tag_drivers() - Helper macro for registering DSA tag
  * drivers
- * @__ops_array: Array of tag driver strucutres
+ * @__ops_array: Array of tag driver structures
  *
  * Helper macro for DSA tag drivers which do not do anything special
  * in module init/exit. Each module may only use this macro once, and
