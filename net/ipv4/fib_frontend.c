@@ -1556,7 +1556,7 @@ static void ip_fib_net_exit(struct net *net)
 {
 	int i;
 
-	rtnl_lock();
+	ASSERT_RTNL();
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	RCU_INIT_POINTER(net->ipv4.fib_main, NULL);
 	RCU_INIT_POINTER(net->ipv4.fib_default, NULL);
@@ -1581,7 +1581,7 @@ static void ip_fib_net_exit(struct net *net)
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	fib4_rules_exit(net);
 #endif
-	rtnl_unlock();
+
 	kfree(net->ipv4.fib_table_hash);
 	fib4_notifier_exit(net);
 }
@@ -1608,7 +1608,9 @@ out:
 out_proc:
 	nl_fib_lookup_exit(net);
 out_nlfl:
+	rtnl_lock();
 	ip_fib_net_exit(net);
+	rtnl_unlock();
 	goto out;
 }
 
@@ -1616,12 +1618,23 @@ static void __net_exit fib_net_exit(struct net *net)
 {
 	fib_proc_exit(net);
 	nl_fib_lookup_exit(net);
-	ip_fib_net_exit(net);
+}
+
+static void __net_exit fib_net_exit_batch(struct list_head *net_list)
+{
+	struct net *net;
+
+	rtnl_lock();
+	list_for_each_entry(net, net_list, exit_list)
+		ip_fib_net_exit(net);
+
+	rtnl_unlock();
 }
 
 static struct pernet_operations fib_net_ops = {
 	.init = fib_net_init,
 	.exit = fib_net_exit,
+	.exit_batch = fib_net_exit_batch,
 };
 
 void __init ip_fib_init(void)
