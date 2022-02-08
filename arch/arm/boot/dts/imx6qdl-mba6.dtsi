@@ -17,6 +17,7 @@
 		mmc1 = &usdhc2;
 		/delete-property/ mmc2;
 		/delete-property/ mmc3;
+		rtc0 = &rtc0;
 	};
 
 	chosen {

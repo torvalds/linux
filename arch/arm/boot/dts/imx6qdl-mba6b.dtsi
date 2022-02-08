@@ -6,12 +6,6 @@
  * Author: Markus Niebel <Markus.Niebel@tq-group.com>
  */
 
-/ {
-	aliases {
-		rtc0 = &rtc0;
-	};
-};
-
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
