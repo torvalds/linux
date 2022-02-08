@@ -85,4 +85,8 @@ void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 		uint64_t retired_page,
 		uint32_t channel_index,
 		uint32_t umc_inst);
+
+int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
+		void *ras_error_status,
+		struct amdgpu_iv_entry *entry);
 #endif
