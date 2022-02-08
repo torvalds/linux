@@ -40,18 +40,21 @@
 			label = "s6";
 			linux,code = <KEY_F6>;
 			gpios = <&gpio7 13 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
 		button2 {
 			label = "s7";
 			linux,code = <KEY_F7>;
 			gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
 		button3 {
 			label = "s8";
 			linux,code = <KEY_F8>;
 			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 	};
 
