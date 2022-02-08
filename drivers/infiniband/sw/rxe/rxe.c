@@ -203,7 +203,9 @@ static int rxe_init(struct rxe_dev *rxe)
 	spin_lock_init(&rxe->pending_lock);
 	INIT_LIST_HEAD(&rxe->pending_mmaps);
 
+	/* init multicast support */
 	spin_lock_init(&rxe->mcg_lock);
+	rxe->mcg_tree = RB_ROOT;
 
 	mutex_init(&rxe->usdev_lock);
 

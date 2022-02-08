@@ -353,6 +353,7 @@ struct rxe_mw {
 
 struct rxe_mcg {
 	struct rxe_pool_elem	elem;
+	struct rb_node		node;
 	struct rxe_dev		*rxe;
 	struct list_head	qp_list;
 	union ib_gid		mgid;
@@ -396,7 +397,10 @@ struct rxe_dev {
 	struct rxe_pool		mw_pool;
 	struct rxe_pool		mc_grp_pool;
 
+	/* multicast support */
 	spinlock_t		mcg_lock;
+	struct rb_root		mcg_tree;
+	atomic_t		mcg_num;
 
 	spinlock_t		pending_lock; /* guard pending_mmaps */
 	struct list_head	pending_mmaps;
@@ -476,7 +480,5 @@ static inline struct rxe_pd *rxe_mw_pd(struct rxe_mw *mw)
 }
 
 int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name);
-
-void rxe_mc_cleanup(struct rxe_pool_elem *elem);
 
 #endif /* RXE_VERBS_H */
