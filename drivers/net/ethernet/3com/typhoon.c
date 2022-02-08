@@ -2257,6 +2257,9 @@ out:
 }
 
 #if MAX_SKB_FRAGS > 32
+
+#include <net/vxlan.h>
+
 static netdev_features_t typhoon_features_check(struct sk_buff *skb,
 						struct net_device *dev,
 						netdev_features_t features)
