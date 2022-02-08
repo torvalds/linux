@@ -1885,9 +1885,6 @@ static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
 static int sdma_v4_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_ih_if ih_info = {
-		.cb = sdma_v4_0_process_ras_data_cb,
-	};
 
 	sdma_v4_0_setup_ulv(adev);
 
@@ -1898,7 +1895,7 @@ static int sdma_v4_0_late_init(void *handle)
 	}
 
 	if (adev->sdma.ras && adev->sdma.ras->ras_block.ras_late_init)
-		return adev->sdma.ras->ras_block.ras_late_init(adev, &ih_info);
+		return adev->sdma.ras->ras_block.ras_late_init(adev, NULL);
 	else
 		return 0;
 }
@@ -2802,6 +2799,7 @@ const struct amdgpu_ras_block_hw_ops sdma_v4_0_ras_hw_ops = {
 static struct amdgpu_sdma_ras sdma_v4_0_ras = {
 	.ras_block = {
 		.hw_ops = &sdma_v4_0_ras_hw_ops,
+		.ras_cb = sdma_v4_0_process_ras_data_cb,
 	},
 };
 
@@ -2824,6 +2822,8 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 
 		strcpy(adev->sdma.ras->ras_block.ras_comm.name, "sdma");
 		adev->sdma.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__SDMA;
+		adev->sdma.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->sdma.ras_if = &adev->sdma.ras->ras_block.ras_comm;
 
 		/* If don't define special ras_late_init function, use default ras_late_init */
 		if (!adev->sdma.ras->ras_block.ras_late_init)
@@ -2832,6 +2832,10 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 		/* If don't define special ras_fini function, use default ras_fini */
 		if (!adev->sdma.ras->ras_block.ras_fini)
 			adev->sdma.ras->ras_block.ras_fini = amdgpu_sdma_ras_fini;
+
+		/* If not defined special ras_cb function, use default ras_cb */
+		if (!adev->sdma.ras->ras_block.ras_cb)
+			adev->sdma.ras->ras_block.ras_cb = amdgpu_sdma_process_ras_data_cb;
 	}
 }
 
