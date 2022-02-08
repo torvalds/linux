@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig PECI
+	tristate "PECI support"
+	help
+	  The Platform Environment Control Interface (PECI) is an interface
+	  that provides a communication channel to Intel processors and
+	  chipset components from external monitoring or control devices.
+
+	  If you are building a Baseboard Management Controller (BMC) kernel
+	  for Intel platform say Y here and also to the specific driver for
+	  your adapter(s) below. If unsure say N.
+
+	  This support is also available as a module. If so, the module
+	  will be called peci.
