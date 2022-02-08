@@ -92,8 +92,8 @@ again:
 			lock_sock(sk);
 			s->ax25_dev = NULL;
 			ax25_dev_put(ax25_dev);
-			release_sock(sk);
 			ax25_disconnect(s, ENETUNREACH);
+			release_sock(sk);
 			spin_lock_bh(&ax25_list_lock);
 			sock_put(sk);
 			/* The entry could have been deleted from the
