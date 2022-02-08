@@ -3,3 +3,6 @@
 # Core functionality
 peci-y := core.o
 obj-$(CONFIG_PECI) += peci.o
+
+# Hardware specific bus drivers
+obj-y += controller/

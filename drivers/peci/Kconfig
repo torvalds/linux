@@ -13,3 +13,9 @@ menuconfig PECI
 
 	  This support is also available as a module. If so, the module
 	  will be called peci.
+
+if PECI
+
+source "drivers/peci/controller/Kconfig"
+
+endif # PECI
