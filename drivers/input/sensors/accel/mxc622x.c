@@ -229,7 +229,7 @@ static int sensor_report_value(struct i2c_client *client)
 }
 
 
-struct sensor_operate gsensor_mxc6225_ops = {
+static struct sensor_operate gsensor_mxc6225_ops = {
 	.name			= "mxc6225",
 	.type			= SENSOR_TYPE_ACCEL,
 	.id_i2c			= ACCEL_ID_MXC6225,

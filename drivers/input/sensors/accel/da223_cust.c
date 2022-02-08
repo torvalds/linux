@@ -838,7 +838,7 @@ static int sensor_resume(struct i2c_client *client)
 }
 
 /******************************************************************************/
-struct sensor_operate gsensor_ops = {
+static struct sensor_operate gsensor_ops = {
 	.name           = MIR3DA_DRV_NAME,
 	.type           = SENSOR_TYPE_ACCEL,
 	.id_i2c         = ACCEL_ID_MIR3DA,

@@ -901,7 +901,7 @@ static int sensor_init(struct i2c_client *client)
 	return 0;
 }
 
-struct sensor_operate gsensor_stk8baxx_ops = {
+static struct sensor_operate gsensor_stk8baxx_ops = {
 	.name				= "gs_stk8baxx",
 	.type				= SENSOR_TYPE_ACCEL,			/*sensor type and it should be correct*/
 	.id_i2c				= ACCEL_ID_STK8BAXX,			/*i2c id number*/

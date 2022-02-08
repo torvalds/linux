@@ -227,7 +227,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return result;
 }
 
-struct sensor_operate light_em3071x_ops = {
+static struct sensor_operate light_em3071x_ops = {
 	.name		= "ls_em3071x",
 	.type		= SENSOR_TYPE_LIGHT,
 	.id_i2c		= LIGHT_ID_EM3071X,

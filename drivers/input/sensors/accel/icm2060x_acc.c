@@ -205,7 +205,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_icm2060x_ops = {
+static struct sensor_operate gsensor_icm2060x_ops = {
 	.name		= "icm2060x_acc",
 	.type		= SENSOR_TYPE_ACCEL,
 	.id_i2c		= ACCEL_ID_ICM2060X,

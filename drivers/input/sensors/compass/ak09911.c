@@ -611,7 +611,7 @@ static struct miscdevice compass_dev_device = {
 	.fops = &compass_dev_fops,
 };
 
-struct sensor_operate compass_akm09911_ops = {
+static struct sensor_operate compass_akm09911_ops = {
 	.name				= "akm09911",
 	.type				= SENSOR_TYPE_COMPASS,
 	.id_i2c				= COMPASS_ID_AK09911,

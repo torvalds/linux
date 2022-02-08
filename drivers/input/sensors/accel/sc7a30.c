@@ -1160,7 +1160,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_sc7a30_ops = {
+static struct sensor_operate gsensor_sc7a30_ops = {
 	.name				= "gs_sc7a30",
 	.type				= SENSOR_TYPE_ACCEL,			//sensor type and it should be correct
 	.id_i2c				= ACCEL_ID_SC7A30,			//i2c id number

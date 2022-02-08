@@ -350,7 +350,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return 0;
 }
 
-struct sensor_operate light_cm3218_ops = {
+static struct sensor_operate light_cm3218_ops = {
 	.name				= "cm3218",
 	/* sensor type and it should be correct */
 	.type				= SENSOR_TYPE_LIGHT,

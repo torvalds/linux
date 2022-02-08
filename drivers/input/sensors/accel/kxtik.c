@@ -304,7 +304,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_kxtik_ops = {
+static struct sensor_operate gsensor_kxtik_ops = {
 	.name			= "kxtik",
 	.type			= SENSOR_TYPE_ACCEL,
 	.id_i2c			= ACCEL_ID_KXTIK,

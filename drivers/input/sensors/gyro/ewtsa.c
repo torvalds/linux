@@ -406,7 +406,7 @@ static int sensor_report_value(struct i2c_client *client)
 }
 
 
-struct sensor_operate gyro_ewtsa_ops = {
+static struct sensor_operate gyro_ewtsa_ops = {
 	.name			= "ewtsa",
 	.type			= SENSOR_TYPE_GYROSCOPE,
 	.id_i2c			= GYRO_ID_EWTSA,

@@ -343,7 +343,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate angle_kxtik_ops = {
+static struct sensor_operate angle_kxtik_ops = {
 	.name				= "angle_kxtik",
 	.type				= SENSOR_TYPE_ANGLE,		//sensor type and it should be correct
 	.id_i2c				= ANGLE_ID_KXTIK,		//i2c id number

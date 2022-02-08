@@ -322,7 +322,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return result;
 }
 
-struct sensor_operate psensor_stk3410_ops = {
+static struct sensor_operate psensor_stk3410_ops = {
 	.name			= "ps_stk3410",
 	.type			= SENSOR_TYPE_PROXIMITY,
 	.id_i2c			= PROXIMITY_ID_STK3410,

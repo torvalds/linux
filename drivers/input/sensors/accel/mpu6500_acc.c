@@ -245,7 +245,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_mpu6500_ops = {
+static struct sensor_operate gsensor_mpu6500_ops = {
 	.name				= "mpu6500_acc",
 	.type				= SENSOR_TYPE_ACCEL,
 	.id_i2c				= ACCEL_ID_MPU6500,

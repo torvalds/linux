@@ -149,7 +149,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gyro_mpu6500_ops = {
+static struct sensor_operate gyro_mpu6500_ops = {
 	.name				= "mpu6500_gyro",
 	.type				= SENSOR_TYPE_GYROSCOPE,
 	.id_i2c				= GYRO_ID_MPU6500,

@@ -242,7 +242,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return result;
 }
 
-struct sensor_operate pressure_ms5607_ops = {
+static struct sensor_operate pressure_ms5607_ops = {
 	.name				= "pr_ms5607",
 	.type				= SENSOR_TYPE_PRESSURE,	//sensor type and it should be correct
 	.id_i2c				= PRESSURE_ID_MS5607,	//i2c id number

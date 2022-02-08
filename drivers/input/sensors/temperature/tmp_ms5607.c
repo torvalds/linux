@@ -260,7 +260,7 @@ static int sensor_report_value(struct i2c_client *client)
 }
 
 
-struct sensor_operate temperature_ms5607_ops = {
+static struct sensor_operate temperature_ms5607_ops = {
 	.name				= "tmp_ms5607",
 	.type				= SENSOR_TYPE_TEMPERATURE,	//sensor type and it should be correct
 	.id_i2c				= TEMPERATURE_ID_MS5607,	//i2c id number

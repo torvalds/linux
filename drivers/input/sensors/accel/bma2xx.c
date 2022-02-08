@@ -2210,7 +2210,7 @@ static int sensor_init(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_bma2x2_ops = {
+static struct sensor_operate gsensor_bma2x2_ops = {
 	.name		= "bma2xx_acc",
 	/*sensor type and it should be correct*/
 	.type		= SENSOR_TYPE_ACCEL,
