@@ -111,7 +111,8 @@ static int rxe_attach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 	}
 
 	/* check limits after checking if already attached */
-	if (mcg->num_qp >= rxe->attr.max_mcast_qp_attach) {
+	if (atomic_inc_return(&mcg->qp_num) > rxe->attr.max_mcast_qp_attach) {
+		atomic_dec(&mcg->qp_num);
 		kfree(mca);
 		err = -ENOMEM;
 		goto out;
@@ -122,7 +123,6 @@ static int rxe_attach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 	mca->qp = qp;
 
 	atomic_inc(&qp->mcg_num);
-	mcg->num_qp++;
 	list_add(&mca->qp_list, &mcg->qp_list);
 
 	err = 0;
@@ -182,8 +182,7 @@ static int rxe_detach_mcg(struct rxe_dev *rxe, struct rxe_qp *qp,
 			 * object since we are still holding a ref
 			 * from the get key above.
 			 */
-			mcg->num_qp--;
-			if (mcg->num_qp <= 0)
+			if (atomic_dec_return(&mcg->qp_num) <= 0)
 				__rxe_destroy_mcg(mcg);
 
 			atomic_dec(&qp->mcg_num);
@@ -222,7 +221,7 @@ int rxe_attach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 	err = rxe_attach_mcg(rxe, qp, mcg);
 
 	/* if we failed to attach the first qp to mcg tear it down */
-	if (mcg->num_qp == 0)
+	if (atomic_read(&mcg->qp_num) == 0)
 		rxe_destroy_mcg(mcg);
 
 	rxe_drop_ref(mcg);

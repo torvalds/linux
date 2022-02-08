@@ -356,7 +356,7 @@ struct rxe_mcg {
 	struct rxe_dev		*rxe;
 	struct list_head	qp_list;
 	union ib_gid		mgid;
-	int			num_qp;
+	atomic_t		qp_num;
 	u32			qkey;
 	u16			pkey;
 };
