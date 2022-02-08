@@ -108,8 +108,12 @@ static inline void nf_ct_destroy_timeout(struct nf_conn *ct)
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-extern struct nf_ct_timeout *(*nf_ct_timeout_find_get_hook)(struct net *net, const char *name);
-extern void (*nf_ct_timeout_put_hook)(struct nf_ct_timeout *timeout);
+struct nf_ct_timeout_hooks {
+	struct nf_ct_timeout *(*timeout_find_get)(struct net *net, const char *name);
+	void (*timeout_put)(struct nf_ct_timeout *timeout);
+};
+
+extern const struct nf_ct_timeout_hooks *nf_ct_timeout_hook;
 #endif
 
 #endif /* _NF_CONNTRACK_TIMEOUT_H */
