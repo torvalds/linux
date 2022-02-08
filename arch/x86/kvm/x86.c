@@ -4391,6 +4391,8 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 				vcpu->arch.hflags |= HF_SMM_MASK;
 			else
 				vcpu->arch.hflags &= ~HF_SMM_MASK;
+
+			kvm_x86_ops.nested_ops->leave_nested(vcpu);
 			kvm_smm_changed(vcpu);
 		}
 
