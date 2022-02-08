@@ -21,6 +21,7 @@
 #include "space-info.h"
 #include "block-group.h"
 #include "qgroup.h"
+#include "misc.h"
 
 /*
  * Structure name                       Path
@@ -92,6 +93,7 @@ static struct btrfs_feature_attr btrfs_attr_features_##_name = {	     \
 
 static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj);
 static inline struct btrfs_fs_devices *to_fs_devs(struct kobject *kobj);
+static struct kobject *get_btrfs_kobj(struct kobject *kobj);
 
 static struct btrfs_feature_attr *to_btrfs_feature_attr(struct kobj_attribute *a)
 {
@@ -709,6 +711,66 @@ static ssize_t btrfs_space_info_show_##field(struct kobject *kobj,	\
 }									\
 BTRFS_ATTR(space_info, field, btrfs_space_info_show_##field)
 
+static ssize_t btrfs_chunk_size_show(struct kobject *kobj,
+				     struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_space_info *sinfo = to_space_info(kobj);
+
+	return sysfs_emit(buf, "%llu\n", READ_ONCE(sinfo->chunk_size));
+}
+
+/*
+ * Store new chunk size in space info. Can be called on a read-only filesystem.
+ *
+ * If the new chunk size value is larger than 10% of free space it is reduced
+ * to match that limit. Alignment must be to 256M and the system chunk size
+ * cannot be set.
+ */
+static ssize_t btrfs_chunk_size_store(struct kobject *kobj,
+				      struct kobj_attribute *a,
+				      const char *buf, size_t len)
+{
+	struct btrfs_space_info *space_info = to_space_info(kobj);
+	struct btrfs_fs_info *fs_info = to_fs_info(get_btrfs_kobj(kobj));
+	char *retptr;
+	u64 val;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (!fs_info->fs_devices)
+		return -EINVAL;
+
+	if (btrfs_is_zoned(fs_info))
+		return -EINVAL;
+
+	/* System block type must not be changed. */
+	if (space_info->flags & BTRFS_BLOCK_GROUP_SYSTEM)
+		return -EPERM;
+
+	val = memparse(buf, &retptr);
+	/* There could be trailing '\n', also catch any typos after the value */
+	retptr = skip_spaces(retptr);
+	if (*retptr != 0 || val == 0)
+		return -EINVAL;
+
+	val = min(val, BTRFS_MAX_DATA_CHUNK_SIZE);
+
+	/* Limit stripe size to 10% of available space. */
+	val = min(div_factor(fs_info->fs_devices->total_rw_bytes, 1), val);
+
+	/* Must be multiple of 256M. */
+	val &= ~((u64)SZ_256M - 1);
+
+	/* Must be at least 256M. */
+	if (val < SZ_256M)
+		return -EINVAL;
+
+	btrfs_update_space_info_chunk_size(space_info, val);
+
+	return len;
+}
+
 SPACE_INFO_ATTR(flags);
 SPACE_INFO_ATTR(total_bytes);
 SPACE_INFO_ATTR(bytes_used);
@@ -719,6 +781,7 @@ SPACE_INFO_ATTR(bytes_readonly);
 SPACE_INFO_ATTR(bytes_zone_unusable);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
+BTRFS_ATTR_RW(space_info, chunk_size, btrfs_chunk_size_show, btrfs_chunk_size_store);
 
 static ssize_t btrfs_sinfo_bg_reclaim_threshold_show(struct kobject *kobj,
 						     struct kobj_attribute *a,
@@ -773,6 +836,7 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(space_info, disk_used),
 	BTRFS_ATTR_PTR(space_info, disk_total),
 	BTRFS_ATTR_PTR(space_info, bg_reclaim_threshold),
+	BTRFS_ATTR_PTR(space_info, chunk_size),
 	NULL,
 };
 ATTRIBUTE_GROUPS(space_info);
@@ -1138,6 +1202,16 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 	if (kobj->ktype != &btrfs_ktype)
 		return NULL;
 	return to_fs_devs(kobj)->fs_info;
+}
+
+static struct kobject *get_btrfs_kobj(struct kobject *kobj)
+{
+	while (kobj) {
+		if (kobj->ktype == &btrfs_ktype)
+			return kobj;
+		kobj = kobj->parent;
+	}
+	return NULL;
 }
 
 #define NUM_FEATURE_BITS 64
