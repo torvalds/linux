@@ -255,18 +255,6 @@ struct adc5_chip {
 	struct work_struct		tm_handler_work;
 };
 
-static const struct u32_fract adc5_prescale_ratios[] = {
-	{ .numerator =  1, .denominator =  1 },
-	{ .numerator =  1, .denominator =  3 },
-	{ .numerator =  1, .denominator =  6 },
-	{ .numerator =  1, .denominator = 16 },
-	/* Prescale ratios for current channels below */
-	{ .numerator = 32, .denominator = 100 },	/* IIN_FB */
-	{ .numerator = 14, .denominator = 100 },	/* ICHG_SMB */
-	{ .numerator = 28, .denominator = 100 },	/* IIN_SMB */
-	{ .numerator = 1000, .denominator = 305185 },	/* ICHG_FB */
-};
-
 static int adc5_read(struct adc5_chip *adc, unsigned int sdam_index, u16 offset, u8 *data, int len)
 {
 	int ret;
@@ -288,22 +276,6 @@ static int adc5_write(struct adc5_chip *adc, unsigned int sdam_index, u16 offset
 			ret);
 
 	return ret;
-}
-
-static int adc5_prescaling_from_dt(u32 numerator, u32 denominator)
-{
-	unsigned int pre;
-
-	for (pre = 0; pre < ARRAY_SIZE(adc5_prescale_ratios); pre++) {
-		if (adc5_prescale_ratios[pre].numerator == numerator &&
-		    adc5_prescale_ratios[pre].denominator == denominator)
-			break;
-	}
-
-	if (pre == ARRAY_SIZE(adc5_prescale_ratios))
-		return -ENOENT;
-
-	return pre;
 }
 
 static int adc5_hw_settle_time_from_dt(u32 value,
@@ -1390,17 +1362,17 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 						SCALE_HW_CALIB_PM7_SMB_TEMP)
 	[ADC5_GEN3_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
 						SCALE_HW_CALIB_PM7_CHG_TEMP)
-	[ADC5_GEN3_USB_SNS_V_16]	= ADC5_CHAN_TEMP("usb_sns_v_div_16", 3,
+	[ADC5_GEN3_USB_SNS_V_16]	= ADC5_CHAN_TEMP("usb_sns_v_div_16", 8,
 						SCALE_HW_CALIB_DEFAULT)
-	[ADC5_GEN3_VIN_DIV16_MUX]	= ADC5_CHAN_TEMP("vin_div_16", 3,
+	[ADC5_GEN3_VIN_DIV16_MUX]	= ADC5_CHAN_TEMP("vin_div_16", 8,
 						SCALE_HW_CALIB_DEFAULT)
-	[ADC5_GEN3_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 4,
+	[ADC5_GEN3_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 10,
 						SCALE_HW_CALIB_CUR)
-	[ADC5_GEN3_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 5,
+	[ADC5_GEN3_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 11,
 						SCALE_HW_CALIB_CUR)
-	[ADC5_GEN3_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 6,
+	[ADC5_GEN3_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 10,
 						SCALE_HW_CALIB_CUR)
-	[ADC5_GEN3_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 7,
+	[ADC5_GEN3_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 14,
 						SCALE_HW_CALIB_CUR_RAW)
 	[ADC5_GEN3_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
 						SCALE_HW_CALIB_PMIC_THERM_PM7)
@@ -1483,7 +1455,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 
 	ret = of_property_read_u32_array(node, "qcom,pre-scaling", varr, 2);
 	if (!ret) {
-		ret = adc5_prescaling_from_dt(varr[0], varr[1]);
+		ret = qcom_adc5_prescaling_from_dt(varr[0], varr[1]);
 		if (ret < 0) {
 			dev_err(dev, "%02x invalid pre-scaling <%d %d>\n",
 				chan, varr[0], varr[1]);
