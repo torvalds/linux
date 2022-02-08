@@ -152,12 +152,10 @@ static int ipv6_generate_stable_address(struct in6_addr *addr,
 static struct hlist_head inet6_addr_lst[IN6_ADDR_HSIZE];
 static DEFINE_SPINLOCK(addrconf_hash_lock);
 
-static void addrconf_verify(void);
-static void addrconf_verify_rtnl(void);
-static void addrconf_verify_work(struct work_struct *);
+static void addrconf_verify(struct net *net);
+static void addrconf_verify_rtnl(struct net *net);
 
 static struct workqueue_struct *addrconf_wq;
-static DECLARE_DELAYED_WORK(addr_chk_work, addrconf_verify_work);
 
 static void addrconf_join_anycast(struct inet6_ifaddr *ifp);
 static void addrconf_leave_anycast(struct inet6_ifaddr *ifp);
@@ -2675,7 +2673,7 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
 				 create, now);
 
 		in6_ifa_put(ifp);
-		addrconf_verify();
+		addrconf_verify(net);
 	}
 
 	return 0;
@@ -2987,7 +2985,7 @@ static int inet6_addr_add(struct net *net, int ifindex,
 			manage_tempaddrs(idev, ifp, cfg->valid_lft,
 					 cfg->preferred_lft, true, jiffies);
 		in6_ifa_put(ifp);
-		addrconf_verify_rtnl();
+		addrconf_verify_rtnl(net);
 		return 0;
 	} else if (cfg->ifa_flags & IFA_F_MCAUTOJOIN) {
 		ipv6_mc_config(net->ipv6.mc_autojoin_sk, false,
@@ -3027,7 +3025,7 @@ static int inet6_addr_del(struct net *net, int ifindex, u32 ifa_flags,
 				manage_tempaddrs(idev, ifp, 0, 0, false,
 						 jiffies);
 			ipv6_del_addr(ifp);
-			addrconf_verify_rtnl();
+			addrconf_verify_rtnl(net);
 			if (ipv6_addr_is_multicast(pfx)) {
 				ipv6_mc_config(net->ipv6.mc_autojoin_sk,
 					       false, pfx, dev->ifindex);
@@ -4246,7 +4244,7 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp, bool bump_id,
 	 * before this temporary address becomes deprecated.
 	 */
 	if (ifp->flags & IFA_F_TEMPORARY)
-		addrconf_verify_rtnl();
+		addrconf_verify_rtnl(dev_net(dev));
 }
 
 static void addrconf_dad_run(struct inet6_dev *idev, bool restart)
@@ -4484,7 +4482,7 @@ int ipv6_chk_rpl_srh_loop(struct net *net, const struct in6_addr *segs,
  *	Periodic address status verification
  */
 
-static void addrconf_verify_rtnl(void)
+static void addrconf_verify_rtnl(struct net *net)
 {
 	unsigned long now, next, next_sec, next_sched;
 	struct inet6_ifaddr *ifp;
@@ -4496,7 +4494,7 @@ static void addrconf_verify_rtnl(void)
 	now = jiffies;
 	next = round_jiffies_up(now + ADDR_CHECK_FREQUENCY);
 
-	cancel_delayed_work(&addr_chk_work);
+	cancel_delayed_work(&net->ipv6.addr_chk_work);
 
 	for (i = 0; i < IN6_ADDR_HSIZE; i++) {
 restart:
@@ -4599,20 +4597,23 @@ restart:
 
 	pr_debug("now = %lu, schedule = %lu, rounded schedule = %lu => %lu\n",
 		 now, next, next_sec, next_sched);
-	mod_delayed_work(addrconf_wq, &addr_chk_work, next_sched - now);
+	mod_delayed_work(addrconf_wq, &net->ipv6.addr_chk_work, next_sched - now);
 	rcu_read_unlock_bh();
 }
 
 static void addrconf_verify_work(struct work_struct *w)
 {
+	struct net *net = container_of(to_delayed_work(w), struct net,
+				       ipv6.addr_chk_work);
+
 	rtnl_lock();
-	addrconf_verify_rtnl();
+	addrconf_verify_rtnl(net);
 	rtnl_unlock();
 }
 
-static void addrconf_verify(void)
+static void addrconf_verify(struct net *net)
 {
-	mod_delayed_work(addrconf_wq, &addr_chk_work, 0);
+	mod_delayed_work(addrconf_wq, &net->ipv6.addr_chk_work, 0);
 }
 
 static struct in6_addr *extract_addr(struct nlattr *addr, struct nlattr *local,
@@ -4708,7 +4709,8 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 	return 0;
 }
 
-static int inet6_addr_modify(struct inet6_ifaddr *ifp, struct ifa6_config *cfg)
+static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
+			     struct ifa6_config *cfg)
 {
 	u32 flags;
 	clock_t expires;
@@ -4822,7 +4824,7 @@ static int inet6_addr_modify(struct inet6_ifaddr *ifp, struct ifa6_config *cfg)
 				 jiffies);
 	}
 
-	addrconf_verify_rtnl();
+	addrconf_verify_rtnl(net);
 
 	return 0;
 }
@@ -4909,7 +4911,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	    !(nlh->nlmsg_flags & NLM_F_REPLACE))
 		err = -EEXIST;
 	else
-		err = inet6_addr_modify(ifa, &cfg);
+		err = inet6_addr_modify(net, ifa, &cfg);
 
 	in6_ifa_put(ifa);
 
@@ -5794,7 +5796,7 @@ update_lft:
 
 	write_unlock_bh(&idev->lock);
 	inet6_ifinfo_notify(RTM_NEWLINK, idev);
-	addrconf_verify_rtnl();
+	addrconf_verify_rtnl(dev_net(dev));
 	return 0;
 }
 
@@ -7112,6 +7114,7 @@ static int __net_init addrconf_init_net(struct net *net)
 	struct ipv6_devconf *all, *dflt;
 
 	spin_lock_init(&net->ipv6.addrconf_hash_lock);
+	INIT_DEFERRABLE_WORK(&net->ipv6.addr_chk_work, addrconf_verify_work);
 	net->ipv6.inet6_addr_lst = kcalloc(IN6_ADDR_HSIZE,
 					   sizeof(struct hlist_head),
 					   GFP_KERNEL);
@@ -7199,6 +7202,7 @@ static void __net_exit addrconf_exit_net(struct net *net)
 	kfree(net->ipv6.devconf_all);
 	net->ipv6.devconf_all = NULL;
 
+	cancel_delayed_work(&net->ipv6.addr_chk_work);
 	/*
 	 *	Check hash table, then free it.
 	 */
@@ -7281,7 +7285,7 @@ int __init addrconf_init(void)
 
 	register_netdevice_notifier(&ipv6_dev_notf);
 
-	addrconf_verify();
+	addrconf_verify(&init_net);
 
 	rtnl_af_register(&inet6_ops);
 
@@ -7364,7 +7368,7 @@ void addrconf_cleanup(void)
 	for (i = 0; i < IN6_ADDR_HSIZE; i++)
 		WARN_ON(!hlist_empty(&inet6_addr_lst[i]));
 	spin_unlock_bh(&addrconf_hash_lock);
-	cancel_delayed_work(&addr_chk_work);
+
 	rtnl_unlock();
 
 	destroy_workqueue(addrconf_wq);

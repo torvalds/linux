@@ -95,6 +95,7 @@ struct netns_ipv6 {
 
 	struct hlist_head	*inet6_addr_lst;
 	spinlock_t		addrconf_hash_lock;
+	struct delayed_work	addr_chk_work;
 
 #ifdef CONFIG_IPV6_MROUTE
 #ifndef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
