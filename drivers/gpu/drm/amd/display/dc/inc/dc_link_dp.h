@@ -106,7 +106,7 @@ bool dp_overwrite_extended_receiver_cap(struct dc_link *link);
 
 void dpcd_set_source_specific_data(struct dc_link *link);
 
-void dpcd_update_cable_id(struct dc_link *link);
+void dpcd_write_cable_id_to_dprx(struct dc_link *link);
 
 /* Write DPCD link configuration data. */
 enum dc_status dpcd_set_link_settings(

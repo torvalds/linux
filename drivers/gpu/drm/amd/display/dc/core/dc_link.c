@@ -1305,7 +1305,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		 */
 		link->dongle_max_pix_clk = 0;
 
-		dc_link_dp_clear_rx_status(link);
+		dc_link_clear_dprx_states(link);
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p edid same=%d\n",
@@ -1986,7 +1986,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		msleep(post_oui_delay);
 
 	// similarly, mode switch can cause loss of cable ID
-	dpcd_update_cable_id(link);
+	dpcd_write_cable_id_to_dprx(link);
 
 	skip_video_pattern = true;
 

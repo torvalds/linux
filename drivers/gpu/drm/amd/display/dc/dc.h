@@ -1236,7 +1236,7 @@ struct dpcd_caps {
 	union dp_main_line_channel_coding_cap channel_coding_cap;
 	union dp_sink_video_fallback_formats fallback_formats;
 	union dp_fec_capability1 fec_cap1;
-	union dp_cable_attributes cable_attributes;
+	union dp_cable_id cable_id;
 	uint8_t edp_rev;
 	union edp_alpm_caps alpm_caps;
 	struct edp_psr_info psr_info;

@@ -51,6 +51,13 @@ static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
 
 #include "link_dpcd.h"
 
+#ifndef MAX
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+#endif
+#ifndef MIN
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#endif
+
 	/* maximum pre emphasis level allowed for each voltage swing level*/
 	static const enum dc_pre_emphasis
 	voltage_swing_to_pre_emphasis[] = { PRE_EMPHASIS_LEVEL3,
@@ -2986,11 +2993,11 @@ static enum dc_link_rate get_cable_max_link_rate(struct dc_link *link)
 {
 	enum dc_link_rate cable_max_link_rate = LINK_RATE_HIGH3;
 
-	if (link->dpcd_caps.cable_attributes.bits.UHBR10_20_CAPABILITY & DP_UHBR20)
+	if (link->dpcd_caps.cable_id.bits.UHBR10_20_CAPABILITY & DP_UHBR20)
 		cable_max_link_rate = LINK_RATE_UHBR20;
-	else if (link->dpcd_caps.cable_attributes.bits.UHBR13_5_CAPABILITY)
+	else if (link->dpcd_caps.cable_id.bits.UHBR13_5_CAPABILITY)
 		cable_max_link_rate = LINK_RATE_UHBR13_5;
-	else if (link->dpcd_caps.cable_attributes.bits.UHBR10_20_CAPABILITY & DP_UHBR10)
+	else if (link->dpcd_caps.cable_id.bits.UHBR10_20_CAPABILITY & DP_UHBR10)
 		cable_max_link_rate = LINK_RATE_UHBR10;
 
 	return cable_max_link_rate;
@@ -5051,11 +5058,52 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 	return is_lttpr_present;
 }
 
-
-static bool is_usbc_connector(struct dc_link *link)
+static bool get_usbc_cable_id(struct dc_link *link, union dp_cable_id *cable_id)
 {
-	return link->link_enc &&
-			link->link_enc->features.flags.bits.DP_IS_USB_C;
+	union dmub_rb_cmd cmd;
+
+	if (!link->ctx->dmub_srv ||
+			link->ep_type != DISPLAY_ENDPOINT_PHY ||
+			link->link_enc->features.flags.bits.DP_IS_USB_C == 0)
+		return false;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.cable_id.header.type = DMUB_CMD_GET_USBC_CABLE_ID;
+	cmd.cable_id.header.payload_bytes = sizeof(cmd.cable_id.data);
+	cmd.cable_id.data.input.phy_inst = resource_transmitter_to_phy_idx(
+			link->dc, link->link_enc->transmitter);
+	if (dc_dmub_srv_cmd_with_reply_data(link->ctx->dmub_srv, &cmd) &&
+			cmd.cable_id.header.ret_status == 1)
+		cable_id->raw = cmd.cable_id.data.output_raw;
+
+	return cmd.cable_id.header.ret_status == 1;
+}
+
+static union dp_cable_id intersect_cable_id(
+		union dp_cable_id *a, union dp_cable_id *b)
+{
+	union dp_cable_id out;
+
+	out.bits.UHBR10_20_CAPABILITY = MIN(a->bits.UHBR10_20_CAPABILITY,
+			b->bits.UHBR10_20_CAPABILITY);
+	out.bits.UHBR13_5_CAPABILITY = MIN(a->bits.UHBR13_5_CAPABILITY,
+			b->bits.UHBR13_5_CAPABILITY);
+	out.bits.CABLE_TYPE = MAX(a->bits.CABLE_TYPE, b->bits.CABLE_TYPE);
+
+	return out;
+}
+
+static void retrieve_cable_id(struct dc_link *link)
+{
+	union dp_cable_id usbc_cable_id;
+
+	link->dpcd_caps.cable_id.raw = 0;
+	core_link_read_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX,
+			&link->dpcd_caps.cable_id.raw, sizeof(uint8_t));
+
+	if (get_usbc_cable_id(link, &usbc_cable_id))
+		link->dpcd_caps.cable_id = intersect_cable_id(
+				&link->dpcd_caps.cable_id, &usbc_cable_id);
 }
 
 static bool retrieve_link_cap(struct dc_link *link)
@@ -5113,9 +5161,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 	 * time before proceeding with possibly vendor specific transactions
 	 */
 	msleep(post_oui_delay);
-
-	/* Read cable ID and update receiver */
-	dpcd_update_cable_id(link);
 
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
 		status = core_link_read_dpcd(
@@ -5236,7 +5281,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 		edp_config_cap.bits.ALT_SCRAMBLER_RESET;
 	link->dpcd_caps.dpcd_display_control_capable =
 		edp_config_cap.bits.DPCD_DISPLAY_CONTROL_CAPABLE;
-
+	link->dpcd_caps.channel_coding_cap.raw =
+			dpcd_data[DP_MAIN_LINK_CHANNEL_CODING - DP_DPCD_REV];
 	link->test_pattern_enabled = false;
 	link->compliance_test_state.raw = 0;
 
@@ -5363,8 +5409,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 	if (!dpcd_read_sink_ext_caps(link))
 		link->dpcd_sink_ext_caps.raw = 0;
 
-	link->dpcd_caps.channel_coding_cap.raw = dpcd_data[DP_MAIN_LINK_CHANNEL_CODING_CAP - DP_DPCD_REV];
-
 	if (link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
 		DC_LOG_DP2("128b/132b encoding is supported at link %d", link->link_index);
 
@@ -5409,6 +5453,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 		if (link->dpcd_caps.fec_cap1.bits.AGGREGATED_ERROR_COUNTERS_CAPABLE)
 			DC_LOG_DP2("\tFEC aggregated error counters are supported");
 	}
+
+	retrieve_cable_id(link);
+	dpcd_write_cable_id_to_dprx(link);
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
@@ -6342,29 +6389,18 @@ void dpcd_set_source_specific_data(struct dc_link *link)
 	}
 }
 
-void dpcd_update_cable_id(struct dc_link *link)
+void dpcd_write_cable_id_to_dprx(struct dc_link *link)
 {
-	struct link_encoder *link_enc = NULL;
-
-	link_enc = link_enc_cfg_get_link_enc(link);
-
-	if (!link_enc ||
-			!link_enc->features.flags.bits.IS_UHBR10_CAPABLE ||
-			link->dprx_status.cable_id_updated)
+	if (!link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED ||
+			link->dpcd_caps.cable_id.raw == 0 ||
+			link->dprx_states.cable_id_written)
 		return;
 
-	/* Retrieve cable attributes */
-	if (!is_usbc_connector(link))
-		core_link_read_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX,
-				&link->dpcd_caps.cable_attributes.raw,
-				sizeof(uint8_t));
-
-	/* Update receiver with cable attributes */
 	core_link_write_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX,
-			&link->dpcd_caps.cable_attributes.raw,
-			sizeof(link->dpcd_caps.cable_attributes.raw));
+			&link->dpcd_caps.cable_id.raw,
+			sizeof(link->dpcd_caps.cable_id.raw));
 
-	link->dprx_status.cable_id_updated = 1;
+	link->dprx_states.cable_id_written = 1;
 }
 
 bool dc_link_set_backlight_level_nits(struct dc_link *link,
@@ -6765,9 +6801,9 @@ void edp_panel_backlight_power_on(struct dc_link *link)
 		link->dc->hwss.edp_backlight_control(link, true);
 }
 
-void dc_link_dp_clear_rx_status(struct dc_link *link)
+void dc_link_clear_dprx_states(struct dc_link *link)
 {
-	memset(&link->dprx_status, 0, sizeof(link->dprx_status));
+	memset(&link->dprx_states, 0, sizeof(link->dprx_states));
 }
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on)

@@ -668,6 +668,10 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__EDID_CEA = 79,
 	/**
+	 * Command type used for getting usbc cable ID
+	 */
+	DMUB_CMD_GET_USBC_CABLE_ID = 81,
+	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
 	DMUB_CMD__VBIOS = 128,
@@ -2484,6 +2488,38 @@ struct dmub_rb_cmd_edid_cea {
 };
 
 /**
+ * struct dmub_cmd_cable_id_input - Defines the input of DMUB_CMD_GET_USBC_CABLE_ID command.
+ */
+struct dmub_cmd_cable_id_input {
+	uint8_t phy_inst;  /**< phy inst for cable id data */
+};
+
+/**
+ * struct dmub_cmd_cable_id_input - Defines the output of DMUB_CMD_GET_USBC_CABLE_ID command.
+ */
+struct dmub_cmd_cable_id_output {
+	uint8_t UHBR10_20_CAPABILITY	:2; /**< b'01 for UHBR10 support, b'10 for both UHBR10 and UHBR20 support */
+	uint8_t UHBR13_5_CAPABILITY	:1; /**< b'1 for UHBR13.5 support */
+	uint8_t CABLE_TYPE		:3; /**< b'01 for passive cable, b'10 for active LRD cable, b'11 for active retimer cable */
+	uint8_t RESERVED		:2; /**< reserved means not defined */
+};
+
+/**
+ * Definition of a DMUB_CMD_GET_USBC_CABLE_ID command
+ */
+struct dmub_rb_cmd_get_usbc_cable_id {
+	struct dmub_cmd_header header; /**< Command header */
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD_GET_USBC_CABLE_ID command.
+	 */
+	union dmub_cmd_cable_id_data {
+		struct dmub_cmd_cable_id_input input; /**< Input */
+		struct dmub_cmd_cable_id_output output; /**< Output */
+		uint8_t output_raw; /**< Raw data output */
+	} data;
+};
+
+/**
  * union dmub_rb_cmd - DMUB inbox command.
  */
 union dmub_rb_cmd {
@@ -2648,6 +2684,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__EDID_CEA command.
 	 */
 	struct dmub_rb_cmd_edid_cea edid_cea;
+	/**
+	 * Definition of a DMUB_CMD_GET_USBC_CABLE_ID command.
+	 */
+	struct dmub_rb_cmd_get_usbc_cable_id cable_id;
 };
 
 /**

@@ -1018,7 +1018,7 @@ union dp_fec_capability1 {
 	uint8_t raw;
 };
 
-union dp_cable_attributes {
+union dp_cable_id {
 	struct {
 		uint8_t UHBR10_20_CAPABILITY	:2;
 		uint8_t UHBR13_5_CAPABILITY	:1;
