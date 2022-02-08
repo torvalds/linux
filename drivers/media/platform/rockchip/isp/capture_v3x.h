@@ -32,4 +32,16 @@ static inline void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev) {}
 static inline void rkisp_mipi_v32_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev) {}
 #endif
 
+#if IS_ENABLED(CONFIG_ROCKCHIP_DVBM)
+int rkisp_dvbm_get(struct rkisp_device *dev);
+int rkisp_dvbm_init(struct rkisp_stream *stream);
+void rkisp_dvbm_deinit(void);
+int rkisp_dvbm_event(struct rkisp_device *dev, u32 event);
+#else
+static inline int rkisp_dvbm_get(struct rkisp_device *dev) { return -EINVAL; }
+static inline int rkisp_dvbm_init(struct rkisp_stream *stream) { return -EINVAL; }
+static inline void rkisp_dvbm_deinit(void) {}
+static inline int rkisp_dvbm_event(struct rkisp_device *dev, u32 event) { return -EINVAL; }
+#endif
+
 #endif

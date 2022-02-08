@@ -44,4 +44,7 @@ video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32) += \
 		isp_params_v32.o \
 		isp_stats_v32.o
 
+video_rkisp-$(CONFIG_ROCKCHIP_DVBM) += \
+		isp_dvbm.o
+
 video_rkisp-$(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) += rkisp_tb_helper.o

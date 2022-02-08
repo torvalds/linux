@@ -79,6 +79,10 @@ static unsigned int rkisp_wait_line;
 module_param_named(wait_line, rkisp_wait_line, uint, 0644);
 MODULE_PARM_DESC(wait_line, "rkisp wait line to buf done early");
 
+static unsigned int rkisp_wrap_line;
+module_param_named(wrap_line, rkisp_wrap_line, uint, 0644);
+MODULE_PARM_DESC(wrap_line, "rkisp wrap line for mpp");
+
 static DEFINE_MUTEX(rkisp_dev_mutex);
 static LIST_HEAD(rkisp_device_list);
 
@@ -912,6 +916,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	int ret;
 
 	isp_dev->cap_dev.wait_line = rkisp_wait_line;
+	isp_dev->cap_dev.wrap_line = rkisp_wrap_line;
 	mutex_lock(&isp_dev->hw_dev->dev_lock);
 	ret = pm_runtime_get_sync(isp_dev->hw_dev->dev);
 	mutex_unlock(&isp_dev->hw_dev->dev_lock);

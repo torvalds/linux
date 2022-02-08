@@ -438,8 +438,10 @@ int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis)
 	struct rkisp_stream *stream;
 	int i;
 
-	if (isp_mis)
+	if (isp_mis) {
+		rkisp_dvbm_event(dev, CIF_ISP_V_START);
 		rkisp_bridge_update_mi(dev, isp_mis);
+	}
 
 	for (i = 0; i < RKISP_MAX_STREAM; i++) {
 		if (i == RKISP_STREAM_VIR || i == RKISP_STREAM_LUMA)
@@ -1422,6 +1424,33 @@ static int rkisp_set_mirror_flip(struct rkisp_stream *stream,
 	return 0;
 }
 
+static int rkisp_get_wrap_line(struct rkisp_stream *stream, int *line)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (dev->isp_ver != ISP_V32 && stream->id != RKISP_STREAM_MP)
+		return -EINVAL;
+
+	*line = dev->cap_dev.wrap_line;
+	return 0;
+}
+
+static int rkisp_set_wrap_line(struct rkisp_stream *stream, int *line)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (dev->isp_ver != ISP_V32)
+		return -EINVAL;
+
+	if (dev->hw_dev->dev_link_num > 1 || stream->id != RKISP_STREAM_MP) {
+		v4l2_err(&dev->v4l2_dev,
+			 "wrap only support for single sensor and mainpath\n");
+		return -EINVAL;
+	}
+	dev->cap_dev.wrap_line = *line;
+	return 0;
+}
+
 static long rkisp_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -1473,6 +1502,12 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKISP_CMD_SET_MIRROR_FLIP:
 		ret = rkisp_set_mirror_flip(stream, arg);
+		break;
+	case RKISP_CMD_GET_WRAP_LINE:
+		ret = rkisp_get_wrap_line(stream, arg);
+		break;
+	case RKISP_CMD_SET_WRAP_LINE:
+		ret = rkisp_set_wrap_line(stream, arg);
 		break;
 	default:
 		ret = -EINVAL;

@@ -67,6 +67,12 @@
 #define RKISP_CMD_SET_MIRROR_FLIP \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 106, struct rkisp_mirror_flip)
 
+#define RKISP_CMD_GET_WRAP_LINE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 107, int)
+/* set wrap line before VIDIOC_S_FMT */
+#define RKISP_CMD_SET_WRAP_LINE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 108, int)
+
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)

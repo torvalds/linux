@@ -1251,6 +1251,7 @@ static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct rkisp_dummy_buffer *buf = &stream->dummy_buf;
+	int ret;
 
 	/* mainpath for warp default */
 	if (!dev->cap_dev.wrap_line || stream->id != RKISP_STREAM_MP)
@@ -1258,7 +1259,14 @@ static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 
 	buf->size = stream->out_fmt.plane_fmt[0].sizeimage;
 	buf->is_need_dbuf = true;
-	return rkisp_alloc_buffer(stream->ispdev, buf);
+	ret = rkisp_alloc_buffer(stream->ispdev, buf);
+	if (ret == 0) {
+		ret = rkisp_dvbm_init(stream);
+		if (ret < 0)
+			rkisp_free_buffer(dev, buf);
+	}
+
+	return ret;
 }
 
 static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
@@ -1267,7 +1275,8 @@ static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 
 	if (!dev->cap_dev.wrap_line || stream->id != RKISP_STREAM_MP)
 		return;
-	rkisp_free_buffer(stream->ispdev, &stream->dummy_buf);
+	rkisp_dvbm_deinit();
+	rkisp_free_buffer(dev, &stream->dummy_buf);
 }
 
 static void destroy_buf_queue(struct rkisp_stream *stream,
@@ -1604,6 +1613,8 @@ int rkisp_register_stream_v32(struct rkisp_device *dev)
 	struct rkisp_capture_device *cap_dev = &dev->cap_dev;
 	int ret;
 
+	rkisp_dvbm_get(dev);
+
 	ret = rkisp_stream_init(dev, RKISP_STREAM_MP);
 	if (ret < 0)
 		goto err;
@@ -1673,6 +1684,9 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 			continue;
 
 		mi_frame_end_int_clear(stream);
+
+		if (i == RKISP_STREAM_MP)
+			rkisp_dvbm_event(dev, CIF_MI_MP_FRAME);
 
 		if (stream->stopping) {
 			/*
