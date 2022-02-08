@@ -1623,14 +1623,29 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		if (!(seg_desc.type & 8))
 			goto exception;
 
-		if (seg_desc.type & 4) {
-			/* conforming */
-			if (dpl > cpl)
-				goto exception;
-		} else {
-			/* nonconforming */
-			if (rpl > cpl || dpl != cpl)
-				goto exception;
+		/* RET can never return to an inner privilege level. */
+		if (transfer == X86_TRANSFER_RET && rpl < cpl)
+			goto exception;
+		if (transfer == X86_TRANSFER_RET || transfer == X86_TRANSFER_TASK_SWITCH) {
+			if (seg_desc.type & 4) {
+				/* conforming */
+				if (dpl > rpl)
+					goto exception;
+			} else {
+				/* nonconforming */
+				if (dpl != rpl)
+					goto exception;
+			}
+		} else { /* X86_TRANSFER_CALL_JMP */
+			if (seg_desc.type & 4) {
+				/* conforming */
+				if (dpl > cpl)
+					goto exception;
+			} else {
+				/* nonconforming */
+				if (rpl > cpl || dpl != cpl)
+					goto exception;
+			}
 		}
 		/* in long-mode d/b must be clear if l is set */
 		if (seg_desc.d && seg_desc.l) {
