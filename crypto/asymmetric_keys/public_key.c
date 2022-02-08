@@ -325,6 +325,21 @@ int public_key_verify_signature(const struct public_key *pkey,
 	BUG_ON(!sig);
 	BUG_ON(!sig->s);
 
+	/*
+	 * If the signature specifies a public key algorithm, it *must* match
+	 * the key's actual public key algorithm.
+	 *
+	 * Small exception: ECDSA signatures don't specify the curve, but ECDSA
+	 * keys do.  So the strings can mismatch slightly in that case:
+	 * "ecdsa-nist-*" for the key, but "ecdsa" for the signature.
+	 */
+	if (sig->pkey_algo) {
+		if (strcmp(pkey->pkey_algo, sig->pkey_algo) != 0 &&
+		    (strncmp(pkey->pkey_algo, "ecdsa-", 6) != 0 ||
+		     strcmp(sig->pkey_algo, "ecdsa") != 0))
+			return -EKEYREJECTED;
+	}
+
 	ret = software_key_determine_akcipher(sig->encoding,
 					      sig->hash_algo,
 					      pkey, alg_name);
