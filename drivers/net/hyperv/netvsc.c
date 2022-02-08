@@ -154,19 +154,15 @@ static void free_netvsc_device(struct rcu_head *head)
 
 	kfree(nvdev->extension);
 
-	if (nvdev->recv_original_buf) {
-		hv_unmap_memory(nvdev->recv_buf);
+	if (nvdev->recv_original_buf)
 		vfree(nvdev->recv_original_buf);
-	} else {
+	else
 		vfree(nvdev->recv_buf);
-	}
 
-	if (nvdev->send_original_buf) {
-		hv_unmap_memory(nvdev->send_buf);
+	if (nvdev->send_original_buf)
 		vfree(nvdev->send_original_buf);
-	} else {
+	else
 		vfree(nvdev->send_buf);
-	}
 
 	bitmap_free(nvdev->send_section_map);
 
@@ -764,6 +760,12 @@ void netvsc_device_remove(struct hv_device *device)
 		netvsc_teardown_recv_gpadl(device, net_device, ndev);
 		netvsc_teardown_send_gpadl(device, net_device, ndev);
 	}
+
+	if (net_device->recv_original_buf)
+		hv_unmap_memory(net_device->recv_buf);
+
+	if (net_device->send_original_buf)
+		hv_unmap_memory(net_device->send_buf);
 
 	/* Release all resources */
 	free_netvsc_device_rcu(net_device);
@@ -1821,6 +1823,12 @@ cleanup:
 	netif_napi_del(&net_device->chan_table[0].napi);
 
 cleanup2:
+	if (net_device->recv_original_buf)
+		hv_unmap_memory(net_device->recv_buf);
+
+	if (net_device->send_original_buf)
+		hv_unmap_memory(net_device->send_buf);
+
 	free_netvsc_device(&net_device->rcu);
 
 	return ERR_PTR(ret);
