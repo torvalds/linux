@@ -34,8 +34,7 @@
 #define PCM3168A_FMT_I2S_TDM		0x6
 #define PCM3168A_FMT_LEFT_J_TDM		0x7
 
-#define PCM3168A_NUM_SUPPLIES 6
-static const char *const pcm3168a_supply_names[PCM3168A_NUM_SUPPLIES] = {
+static const char *const pcm3168a_supply_names[] = {
 	"VDD1",
 	"VDD2",
 	"VCCAD1",
@@ -57,7 +56,7 @@ struct pcm3168a_io_params {
 };
 
 struct pcm3168a_priv {
-	struct regulator_bulk_data supplies[PCM3168A_NUM_SUPPLIES];
+	struct regulator_bulk_data supplies[ARRAY_SIZE(pcm3168a_supply_names)];
 	struct regmap *regmap;
 	struct clk *scki;
 	struct gpio_desc *gpio_rst;
