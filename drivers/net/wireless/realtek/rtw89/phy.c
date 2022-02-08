@@ -117,15 +117,26 @@ static u64 rtw89_phy_ra_mask_rssi(struct rtw89_dev *rtwdev, u8 rssi,
 	else if (rssi_lv == 1)
 		return 0xfffffffffffffff0ULL;
 	else if (rssi_lv == 2)
-		return 0xffffffffffffffe0ULL;
+		return 0xffffffffffffefe0ULL;
 	else if (rssi_lv == 3)
-		return 0xffffffffffffffc0ULL;
+		return 0xffffffffffffcfc0ULL;
 	else if (rssi_lv == 4)
-		return 0xffffffffffffff80ULL;
+		return 0xffffffffffff8f80ULL;
 	else if (rssi_lv >= 5)
-		return 0xffffffffffffff00ULL;
+		return 0xffffffffffff0f00ULL;
 
 	return 0xffffffffffffffffULL;
+}
+
+static u64 rtw89_phy_ra_mask_recover(u64 ra_mask, u64 ra_mask_bak)
+{
+	if ((ra_mask & ~(RA_MASK_CCK_RATES | RA_MASK_OFDM_RATES)) == 0)
+		ra_mask |= (ra_mask_bak & ~(RA_MASK_CCK_RATES | RA_MASK_OFDM_RATES));
+
+	if (ra_mask == 0)
+		ra_mask |= (ra_mask_bak & (RA_MASK_CCK_RATES | RA_MASK_OFDM_RATES));
+
+	return ra_mask;
 }
 
 static u64 rtw89_phy_ra_mask_cfg(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta)
@@ -194,8 +205,8 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	struct rtw89_ra_info *ra = &rtwsta->ra;
 	const u64 *high_rate_masks = rtw89_ra_mask_ht_rates;
 	u8 rssi = ewma_rssi_read(&rtwsta->avg_rssi);
-	u64 high_rate_mask = 0;
 	u64 ra_mask = 0;
+	u64 ra_mask_bak;
 	u8 mode = 0;
 	u8 csi_mode = RTW89_RA_RPT_MODE_LEGACY;
 	u8 bw_mode = 0;
@@ -244,34 +255,36 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	}
 
 	if (rtwdev->hal.current_band_type == RTW89_BAND_2G) {
+		ra_mask |= sta->supp_rates[NL80211_BAND_2GHZ];
 		if (sta->supp_rates[NL80211_BAND_2GHZ] <= 0xf)
 			mode |= RTW89_RA_MODE_CCK;
 		else
 			mode |= RTW89_RA_MODE_CCK | RTW89_RA_MODE_OFDM;
 	} else {
+		ra_mask |= (u64)sta->supp_rates[NL80211_BAND_5GHZ] << 4;
 		mode |= RTW89_RA_MODE_OFDM;
 	}
 
+	ra_mask_bak = ra_mask;
+
 	if (mode >= RTW89_RA_MODE_HT) {
+		u64 mask = 0;
 		for (i = 0; i < rtwdev->hal.tx_nss; i++)
-			high_rate_mask |= high_rate_masks[i];
-		ra_mask &= high_rate_mask;
+			mask |= high_rate_masks[i];
 		if (mode & RTW89_RA_MODE_OFDM)
-			ra_mask |= RA_MASK_SUBOFDM_RATES;
+			mask |= RA_MASK_SUBOFDM_RATES;
 		if (mode & RTW89_RA_MODE_CCK)
-			ra_mask |= RA_MASK_SUBCCK_RATES;
+			mask |= RA_MASK_SUBCCK_RATES;
+		ra_mask &= mask;
 	} else if (mode & RTW89_RA_MODE_OFDM) {
-		if (mode & RTW89_RA_MODE_CCK)
-			ra_mask |= RA_MASK_SUBCCK_RATES;
-		ra_mask |= RA_MASK_OFDM_RATES;
-	} else {
-		ra_mask = RA_MASK_CCK_RATES;
+		ra_mask &= (RA_MASK_OFDM_RATES | RA_MASK_SUBCCK_RATES);
 	}
 
-	if (mode != RTW89_RA_MODE_CCK) {
+	if (mode != RTW89_RA_MODE_CCK)
 		ra_mask &= rtw89_phy_ra_mask_rssi(rtwdev, rssi, 0);
-		ra_mask &= rtw89_phy_ra_mask_cfg(rtwdev, rtwsta);
-	}
+
+	ra_mask = rtw89_phy_ra_mask_recover(ra_mask, ra_mask_bak);
+	ra_mask &= rtw89_phy_ra_mask_cfg(rtwdev, rtwsta);
 
 	switch (sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_80:
