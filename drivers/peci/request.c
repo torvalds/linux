@@ -3,6 +3,7 @@
 
 #include <linux/bug.h>
 #include <linux/export.h>
+#include <linux/pci.h>
 #include <linux/peci.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -15,12 +16,55 @@
 #define  PECI_GET_DIB_WR_LEN		1
 #define  PECI_GET_DIB_RD_LEN		8
 
+#define PECI_GET_TEMP_CMD		0x01
+#define  PECI_GET_TEMP_WR_LEN		1
+#define  PECI_GET_TEMP_RD_LEN		2
+
 #define PECI_RDPKGCFG_CMD		0xa1
 #define  PECI_RDPKGCFG_WR_LEN		5
 #define  PECI_RDPKGCFG_RD_LEN_BASE	1
 #define PECI_WRPKGCFG_CMD		0xa5
 #define  PECI_WRPKGCFG_WR_LEN_BASE	6
 #define  PECI_WRPKGCFG_RD_LEN		1
+
+#define PECI_RDIAMSR_CMD		0xb1
+#define  PECI_RDIAMSR_WR_LEN		5
+#define  PECI_RDIAMSR_RD_LEN		9
+#define PECI_WRIAMSR_CMD		0xb5
+#define PECI_RDIAMSREX_CMD		0xd1
+#define  PECI_RDIAMSREX_WR_LEN		6
+#define  PECI_RDIAMSREX_RD_LEN		9
+
+#define PECI_RDPCICFG_CMD		0x61
+#define  PECI_RDPCICFG_WR_LEN		6
+#define  PECI_RDPCICFG_RD_LEN		5
+#define  PECI_RDPCICFG_RD_LEN_MAX	24
+#define PECI_WRPCICFG_CMD		0x65
+
+#define PECI_RDPCICFGLOCAL_CMD			0xe1
+#define  PECI_RDPCICFGLOCAL_WR_LEN		5
+#define  PECI_RDPCICFGLOCAL_RD_LEN_BASE		1
+#define PECI_WRPCICFGLOCAL_CMD			0xe5
+#define  PECI_WRPCICFGLOCAL_WR_LEN_BASE		6
+#define  PECI_WRPCICFGLOCAL_RD_LEN		1
+
+#define PECI_ENDPTCFG_TYPE_LOCAL_PCI		0x03
+#define PECI_ENDPTCFG_TYPE_PCI			0x04
+#define PECI_ENDPTCFG_TYPE_MMIO			0x05
+#define PECI_ENDPTCFG_ADDR_TYPE_PCI		0x04
+#define PECI_ENDPTCFG_ADDR_TYPE_MMIO_D		0x05
+#define PECI_ENDPTCFG_ADDR_TYPE_MMIO_Q		0x06
+#define PECI_RDENDPTCFG_CMD			0xc1
+#define  PECI_RDENDPTCFG_PCI_WR_LEN		12
+#define  PECI_RDENDPTCFG_MMIO_WR_LEN_BASE	10
+#define  PECI_RDENDPTCFG_MMIO_D_WR_LEN		14
+#define  PECI_RDENDPTCFG_MMIO_Q_WR_LEN		18
+#define  PECI_RDENDPTCFG_RD_LEN_BASE		1
+#define PECI_WRENDPTCFG_CMD			0xc5
+#define  PECI_WRENDPTCFG_PCI_WR_LEN_BASE	13
+#define  PECI_WRENDPTCFG_MMIO_D_WR_LEN_BASE	15
+#define  PECI_WRENDPTCFG_MMIO_Q_WR_LEN_BASE	19
+#define  PECI_WRENDPTCFG_RD_LEN			1
 
 /* Device Specific Completion Code (CC) Definition */
 #define PECI_CC_SUCCESS				0x40
@@ -202,6 +246,27 @@ struct peci_request *peci_xfer_get_dib(struct peci_device *device)
 }
 EXPORT_SYMBOL_NS_GPL(peci_xfer_get_dib, PECI);
 
+struct peci_request *peci_xfer_get_temp(struct peci_device *device)
+{
+	struct peci_request *req;
+	int ret;
+
+	req = peci_request_alloc(device, PECI_GET_TEMP_WR_LEN, PECI_GET_TEMP_RD_LEN);
+	if (!req)
+		return ERR_PTR(-ENOMEM);
+
+	req->tx.buf[0] = PECI_GET_TEMP_CMD;
+
+	ret = peci_request_xfer(req);
+	if (ret) {
+		peci_request_free(req);
+		return ERR_PTR(ret);
+	}
+
+	return req;
+}
+EXPORT_SYMBOL_NS_GPL(peci_xfer_get_temp, PECI);
+
 static struct peci_request *
 __pkg_cfg_read(struct peci_device *device, u8 index, u16 param, u8 len)
 {
@@ -216,6 +281,108 @@ __pkg_cfg_read(struct peci_device *device, u8 index, u16 param, u8 len)
 	req->tx.buf[1] = 0;
 	req->tx.buf[2] = index;
 	put_unaligned_le16(param, &req->tx.buf[3]);
+
+	ret = peci_request_xfer_retry(req);
+	if (ret) {
+		peci_request_free(req);
+		return ERR_PTR(ret);
+	}
+
+	return req;
+}
+
+static u32 __get_pci_addr(u8 bus, u8 dev, u8 func, u16 reg)
+{
+	return reg | PCI_DEVID(bus, PCI_DEVFN(dev, func)) << 12;
+}
+
+static struct peci_request *
+__pci_cfg_local_read(struct peci_device *device, u8 bus, u8 dev, u8 func, u16 reg, u8 len)
+{
+	struct peci_request *req;
+	u32 pci_addr;
+	int ret;
+
+	req = peci_request_alloc(device, PECI_RDPCICFGLOCAL_WR_LEN,
+				 PECI_RDPCICFGLOCAL_RD_LEN_BASE + len);
+	if (!req)
+		return ERR_PTR(-ENOMEM);
+
+	pci_addr = __get_pci_addr(bus, dev, func, reg);
+
+	req->tx.buf[0] = PECI_RDPCICFGLOCAL_CMD;
+	req->tx.buf[1] = 0;
+	put_unaligned_le24(pci_addr, &req->tx.buf[2]);
+
+	ret = peci_request_xfer_retry(req);
+	if (ret) {
+		peci_request_free(req);
+		return ERR_PTR(ret);
+	}
+
+	return req;
+}
+
+static struct peci_request *
+__ep_pci_cfg_read(struct peci_device *device, u8 msg_type, u8 seg,
+		  u8 bus, u8 dev, u8 func, u16 reg, u8 len)
+{
+	struct peci_request *req;
+	u32 pci_addr;
+	int ret;
+
+	req = peci_request_alloc(device, PECI_RDENDPTCFG_PCI_WR_LEN,
+				 PECI_RDENDPTCFG_RD_LEN_BASE + len);
+	if (!req)
+		return ERR_PTR(-ENOMEM);
+
+	pci_addr = __get_pci_addr(bus, dev, func, reg);
+
+	req->tx.buf[0] = PECI_RDENDPTCFG_CMD;
+	req->tx.buf[1] = 0;
+	req->tx.buf[2] = msg_type;
+	req->tx.buf[3] = 0;
+	req->tx.buf[4] = 0;
+	req->tx.buf[5] = 0;
+	req->tx.buf[6] = PECI_ENDPTCFG_ADDR_TYPE_PCI;
+	req->tx.buf[7] = seg; /* PCI Segment */
+	put_unaligned_le32(pci_addr, &req->tx.buf[8]);
+
+	ret = peci_request_xfer_retry(req);
+	if (ret) {
+		peci_request_free(req);
+		return ERR_PTR(ret);
+	}
+
+	return req;
+}
+
+static struct peci_request *
+__ep_mmio_read(struct peci_device *device, u8 bar, u8 addr_type, u8 seg,
+	       u8 bus, u8 dev, u8 func, u64 offset, u8 tx_len, u8 len)
+{
+	struct peci_request *req;
+	int ret;
+
+	req = peci_request_alloc(device, tx_len, PECI_RDENDPTCFG_RD_LEN_BASE + len);
+	if (!req)
+		return ERR_PTR(-ENOMEM);
+
+	req->tx.buf[0] = PECI_RDENDPTCFG_CMD;
+	req->tx.buf[1] = 0;
+	req->tx.buf[2] = PECI_ENDPTCFG_TYPE_MMIO;
+	req->tx.buf[3] = 0; /* Endpoint ID */
+	req->tx.buf[4] = 0; /* Reserved */
+	req->tx.buf[5] = bar;
+	req->tx.buf[6] = addr_type;
+	req->tx.buf[7] = seg; /* PCI Segment */
+	req->tx.buf[8] = PCI_DEVFN(dev, func);
+	req->tx.buf[9] = bus; /* PCI Bus */
+
+	if (addr_type == PECI_ENDPTCFG_ADDR_TYPE_MMIO_D)
+		put_unaligned_le32(offset, &req->tx.buf[10]);
+	else
+		put_unaligned_le64(offset, &req->tx.buf[10]);
 
 	ret = peci_request_xfer_retry(req);
 	if (ret) {
@@ -256,6 +423,12 @@ u64 peci_request_dib_read(struct peci_request *req)
 }
 EXPORT_SYMBOL_NS_GPL(peci_request_dib_read, PECI);
 
+s16 peci_request_temp_read(struct peci_request *req)
+{
+	return get_unaligned_le16(&req->rx.buf[0]);
+}
+EXPORT_SYMBOL_NS_GPL(peci_request_temp_read, PECI);
+
 #define __read_pkg_config(x, type) \
 struct peci_request *peci_xfer_pkg_cfg_##x(struct peci_device *device, u8 index, u16 param) \
 { \
@@ -267,3 +440,43 @@ __read_pkg_config(readb, u8);
 __read_pkg_config(readw, u16);
 __read_pkg_config(readl, u32);
 __read_pkg_config(readq, u64);
+
+#define __read_pci_config_local(x, type) \
+struct peci_request * \
+peci_xfer_pci_cfg_local_##x(struct peci_device *device, u8 bus, u8 dev, u8 func, u16 reg) \
+{ \
+	return __pci_cfg_local_read(device, bus, dev, func, reg, sizeof(type)); \
+} \
+EXPORT_SYMBOL_NS_GPL(peci_xfer_pci_cfg_local_##x, PECI)
+
+__read_pci_config_local(readb, u8);
+__read_pci_config_local(readw, u16);
+__read_pci_config_local(readl, u32);
+
+#define __read_ep_pci_config(x, msg_type, type) \
+struct peci_request * \
+peci_xfer_ep_pci_cfg_##x(struct peci_device *device, u8 seg, u8 bus, u8 dev, u8 func, u16 reg) \
+{ \
+	return __ep_pci_cfg_read(device, msg_type, seg, bus, dev, func, reg, sizeof(type)); \
+} \
+EXPORT_SYMBOL_NS_GPL(peci_xfer_ep_pci_cfg_##x, PECI)
+
+__read_ep_pci_config(local_readb, PECI_ENDPTCFG_TYPE_LOCAL_PCI, u8);
+__read_ep_pci_config(local_readw, PECI_ENDPTCFG_TYPE_LOCAL_PCI, u16);
+__read_ep_pci_config(local_readl, PECI_ENDPTCFG_TYPE_LOCAL_PCI, u32);
+__read_ep_pci_config(readb, PECI_ENDPTCFG_TYPE_PCI, u8);
+__read_ep_pci_config(readw, PECI_ENDPTCFG_TYPE_PCI, u16);
+__read_ep_pci_config(readl, PECI_ENDPTCFG_TYPE_PCI, u32);
+
+#define __read_ep_mmio(x, y, addr_type, type1, type2) \
+struct peci_request *peci_xfer_ep_mmio##y##_##x(struct peci_device *device, u8 bar, u8 seg, \
+					   u8 bus, u8 dev, u8 func, u64 offset) \
+{ \
+	return __ep_mmio_read(device, bar, addr_type, seg, bus, dev, func, \
+			      offset, PECI_RDENDPTCFG_MMIO_WR_LEN_BASE + sizeof(type1), \
+			      sizeof(type2)); \
+} \
+EXPORT_SYMBOL_NS_GPL(peci_xfer_ep_mmio##y##_##x, PECI)
+
+__read_ep_mmio(readl, 32, PECI_ENDPTCFG_ADDR_TYPE_MMIO_D, u32, u32);
+__read_ep_mmio(readl, 64, PECI_ENDPTCFG_ADDR_TYPE_MMIO_Q, u64, u32);

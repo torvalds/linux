@@ -22,6 +22,7 @@ void peci_request_free(struct peci_request *req);
 int peci_request_status(struct peci_request *req);
 
 u64 peci_request_dib_read(struct peci_request *req);
+s16 peci_request_temp_read(struct peci_request *req);
 
 u8 peci_request_data_readb(struct peci_request *req);
 u16 peci_request_data_readw(struct peci_request *req);
@@ -36,6 +37,32 @@ struct peci_request *peci_xfer_pkg_cfg_readw(struct peci_device *device, u8 inde
 struct peci_request *peci_xfer_pkg_cfg_readl(struct peci_device *device, u8 index, u16 param);
 struct peci_request *peci_xfer_pkg_cfg_readq(struct peci_device *device, u8 index, u16 param);
 
+struct peci_request *peci_xfer_pci_cfg_local_readb(struct peci_device *device,
+						   u8 bus, u8 dev, u8 func, u16 reg);
+struct peci_request *peci_xfer_pci_cfg_local_readw(struct peci_device *device,
+						   u8 bus, u8 dev, u8 func, u16 reg);
+struct peci_request *peci_xfer_pci_cfg_local_readl(struct peci_device *device,
+						   u8 bus, u8 dev, u8 func, u16 reg);
+
+struct peci_request *peci_xfer_ep_pci_cfg_local_readb(struct peci_device *device, u8 seg,
+						      u8 bus, u8 dev, u8 func, u16 reg);
+struct peci_request *peci_xfer_ep_pci_cfg_local_readw(struct peci_device *device, u8 seg,
+						      u8 bus, u8 dev, u8 func, u16 reg);
+struct peci_request *peci_xfer_ep_pci_cfg_local_readl(struct peci_device *device, u8 seg,
+						      u8 bus, u8 dev, u8 func, u16 reg);
+
+struct peci_request *peci_xfer_ep_pci_cfg_readb(struct peci_device *device, u8 seg,
+						u8 bus, u8 dev, u8 func, u16 reg);
+struct peci_request *peci_xfer_ep_pci_cfg_readw(struct peci_device *device, u8 seg,
+						u8 bus, u8 dev, u8 func, u16 reg);
+struct peci_request *peci_xfer_ep_pci_cfg_readl(struct peci_device *device, u8 seg,
+						u8 bus, u8 dev, u8 func, u16 reg);
+
+struct peci_request *peci_xfer_ep_mmio32_readl(struct peci_device *device, u8 bar, u8 seg,
+					       u8 bus, u8 dev, u8 func, u64 offset);
+
+struct peci_request *peci_xfer_ep_mmio64_readl(struct peci_device *device, u8 bar, u8 seg,
+					       u8 bus, u8 dev, u8 func, u64 offset);
 /**
  * struct peci_device_id - PECI device data to match
  * @data: pointer to driver private data specific to device

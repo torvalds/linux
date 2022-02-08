@@ -16,6 +16,21 @@ menuconfig PECI
 
 if PECI
 
+config PECI_CPU
+	tristate "PECI CPU"
+	select AUXILIARY_BUS
+	help
+	  This option enables peci-cpu driver for Intel processors. It is
+	  responsible for creating auxiliary devices that can subsequently
+	  be used by other drivers in order to perform various
+	  functionalities such as e.g. temperature monitoring.
+
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called peci-cpu.
+
 source "drivers/peci/controller/Kconfig"
 
 endif # PECI

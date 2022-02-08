@@ -14,14 +14,6 @@
  */
 #define PECI_REQUEST_MAX_BUF_SIZE 32
 
-#define PECI_PCS_PKG_ID			0  /* Package Identifier Read */
-#define  PECI_PKG_ID_CPU_ID		0x0000  /* CPUID Info */
-#define  PECI_PKG_ID_PLATFORM_ID	0x0001  /* Platform ID */
-#define  PECI_PKG_ID_DEVICE_ID		0x0002  /* Uncore Device ID */
-#define  PECI_PKG_ID_MAX_THREAD_ID	0x0003  /* Max Thread ID */
-#define  PECI_PKG_ID_MICROCODE_REV	0x0004  /* CPU Microcode Update Revision */
-#define  PECI_PKG_ID_MCA_ERROR_LOG	0x0005  /* Machine Check Status */
-
 struct peci_controller;
 struct peci_request;
 

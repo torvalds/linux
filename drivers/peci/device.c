@@ -3,6 +3,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/peci.h>
+#include <linux/peci-cpu.h>
 #include <linux/slab.h>
 
 #include "internal.h"
