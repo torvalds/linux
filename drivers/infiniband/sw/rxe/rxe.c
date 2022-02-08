@@ -211,6 +211,8 @@ static int rxe_init(struct rxe_dev *rxe)
 	spin_lock_init(&rxe->pending_lock);
 	INIT_LIST_HEAD(&rxe->pending_mmaps);
 
+	spin_lock_init(&rxe->mcg_lock);
+
 	mutex_init(&rxe->usdev_lock);
 
 	return 0;
