@@ -532,52 +532,67 @@ static void restore_deleg_ino(struct inode *dir, u64 ino)
 	}
 }
 
+static void wake_async_create_waiters(struct inode *inode,
+				      struct ceph_mds_session *session)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	spin_lock(&ci->i_ceph_lock);
+	if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
+		ci->i_ceph_flags &= ~CEPH_I_ASYNC_CREATE;
+		wake_up_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT);
+	}
+	ceph_kick_flushing_inode_caps(session, ci);
+	spin_unlock(&ci->i_ceph_lock);
+}
+
 static void ceph_async_create_cb(struct ceph_mds_client *mdsc,
                                  struct ceph_mds_request *req)
 {
+	struct dentry *dentry = req->r_dentry;
+	struct inode *dinode = d_inode(dentry);
+	struct inode *tinode = req->r_target_inode;
 	int result = req->r_err ? req->r_err :
 			le32_to_cpu(req->r_reply_info.head->result);
 
+	WARN_ON_ONCE(dinode && tinode && dinode != tinode);
+
+	/* MDS changed -- caller must resubmit */
 	if (result == -EJUKEBOX)
 		goto out;
 
 	mapping_set_error(req->r_parent->i_mapping, result);
 
 	if (result) {
-		struct dentry *dentry = req->r_dentry;
-		struct inode *inode = d_inode(dentry);
 		int pathlen = 0;
 		u64 base = 0;
 		char *path = ceph_mdsc_build_path(req->r_dentry, &pathlen,
 						  &base, 0);
 
+		pr_warn("ceph: async create failure path=(%llx)%s result=%d!\n",
+			base, IS_ERR(path) ? "<<bad>>" : path, result);
+		ceph_mdsc_free_path(path, pathlen);
+
 		ceph_dir_clear_complete(req->r_parent);
 		if (!d_unhashed(dentry))
 			d_drop(dentry);
 
-		ceph_inode_shutdown(inode);
-
-		pr_warn("ceph: async create failure path=(%llx)%s result=%d!\n",
-			base, IS_ERR(path) ? "<<bad>>" : path, result);
-		ceph_mdsc_free_path(path, pathlen);
+		if (dinode) {
+			mapping_set_error(dinode->i_mapping, result);
+			ceph_inode_shutdown(dinode);
+			wake_async_create_waiters(dinode, req->r_session);
+		}
 	}
 
-	if (req->r_target_inode) {
-		struct ceph_inode_info *ci = ceph_inode(req->r_target_inode);
-		u64 ino = ceph_vino(req->r_target_inode).ino;
+	if (tinode) {
+		u64 ino = ceph_vino(tinode).ino;
 
 		if (req->r_deleg_ino != ino)
 			pr_warn("%s: inode number mismatch! err=%d deleg_ino=0x%llx target=0x%llx\n",
 				__func__, req->r_err, req->r_deleg_ino, ino);
-		mapping_set_error(req->r_target_inode->i_mapping, result);
 
-		spin_lock(&ci->i_ceph_lock);
-		if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
-			ci->i_ceph_flags &= ~CEPH_I_ASYNC_CREATE;
-			wake_up_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT);
-		}
-		ceph_kick_flushing_inode_caps(req->r_session, ci);
-		spin_unlock(&ci->i_ceph_lock);
+		mapping_set_error(tinode->i_mapping, result);
+		wake_async_create_waiters(tinode, req->r_session);
 	} else if (!result) {
 		pr_warn("%s: no req->r_target_inode for 0x%llx\n", __func__,
 			req->r_deleg_ino);
