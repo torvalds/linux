@@ -198,7 +198,7 @@ static void find_controls(void)
 
 		err = snd_ctl_poll_descriptors_count(card_data->handle);
 		if (err != 1) {
-			ksft_exit_fail_msg("Unexpected desciptor count %d for card %d\n",
+			ksft_exit_fail_msg("Unexpected descriptor count %d for card %d\n",
 					   err, card);
 		}
 
@@ -248,12 +248,12 @@ static int wait_for_event(struct ctl_data *ctl, int timeout)
 						       &(ctl->card->pollfd),
 						       1, &revents);
 		if (err < 0) {
-			ksft_print_msg("snd_ctl_poll_desciptors_revents() failed for %s: %d\n",
+			ksft_print_msg("snd_ctl_poll_descriptors_revents() failed for %s: %d\n",
 				       ctl->name, err);
 			return err;
 		}
 		if (revents & POLLERR) {
-			ksft_print_msg("snd_ctl_poll_desciptors_revents() reported POLLERR for %s\n",
+			ksft_print_msg("snd_ctl_poll_descriptors_revents() reported POLLERR for %s\n",
 				       ctl->name);
 			return -1;
 		}
