@@ -847,7 +847,6 @@ config SND_SOC_DA9055
 
 config SND_SOC_DMIC
 	tristate "Generic Digital Microphone CODEC"
-	depends on GPIOLIB
 	help
 	  Enable support for the Generic Digital Microphone CODEC.
 	  Select this if your sound card has DMICs.
@@ -1354,7 +1353,6 @@ config SND_SOC_RT9120
 	tristate "Richtek RT9120 Stereo Class-D Amplifier"
 	depends on I2C
 	select REGMAP_I2C
-	select GPIOLIB
 	help
 	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
 	  high-efficiency Class-D audio amplifier.
@@ -1398,11 +1396,10 @@ config SND_SOC_SIGMADSP_REGMAP
 
 config SND_SOC_SIMPLE_AMPLIFIER
 	tristate "Simple Audio Amplifier"
-	select GPIOLIB
 
 config SND_SOC_SIMPLE_MUX
 	tristate "Simple Audio Mux"
-	select GPIOLIB
+	depends on GPIOLIB
 
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
@@ -1915,7 +1912,6 @@ config SND_SOC_WSA881X
 config SND_SOC_ZL38060
 	tristate "Microsemi ZL38060 Connected Home Audio Processor"
 	depends on SPI_MASTER
-	select GPIOLIB
 	select REGMAP
 	help
 	  Support for ZL38060 Connected Home Audio Processor from Microsemi,
@@ -1929,7 +1925,7 @@ config SND_SOC_LM4857
 
 config SND_SOC_MAX9759
 	tristate "Maxim MAX9759 speaker Amplifier"
-	select GPIOLIB
+	depends on GPIOLIB
 
 config SND_SOC_MAX9768
 	tristate
