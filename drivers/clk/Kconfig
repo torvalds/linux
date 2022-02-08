@@ -59,6 +59,15 @@ config LMK04832
 	  Say yes here to build support for Texas Instruments' LMK04832 Ultra
 	  Low-Noise JESD204B Compliant Clock Jitter Cleaner With Dual Loop PLLs
 
+config COMMON_CLK_APPLE_NCO
+	bool "Clock driver for Apple SoC NCOs"
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  This driver supports NCO (Numerically Controlled Oscillator) blocks
+	  found on Apple SoCs such as t8103 (M1). The blocks are typically
+	  generators of audio clocks.
+
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77620/77686/77802 MFD"
 	depends on MFD_MAX77686 || MFD_MAX77620 || COMPILE_TEST
