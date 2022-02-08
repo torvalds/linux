@@ -297,6 +297,7 @@
 };
 
 &edp0 {
+	support-psr;
 	force-hpd;
 	status = "okay";
 
