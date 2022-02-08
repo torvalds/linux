@@ -306,7 +306,7 @@
 				status = "disabled";
 			};
 
-			sha@f0028000 {
+			sha: crypto@f0028000 {
 				compatible = "atmel,at91sam9g46-sha";
 				reg = <0xf0028000 0x100>;
 				interrupts = <12 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -318,7 +318,7 @@
 				clock-names = "sha_clk";
 			};
 
-			aes@f002c000 {
+			aes: crypto@f002c000 {
 				compatible = "atmel,at91sam9g46-aes";
 				reg = <0xf002c000 0x100>;
 				interrupts = <9 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -1082,7 +1082,7 @@
 				#gpio-cells = <2>;
 			};
 
-			tdes@fc044000 {
+			tdes: crypto@fc044000 {
 				compatible = "atmel,at91sam9g46-tdes";
 				reg = <0xfc044000 0x100>;
 				interrupts = <11 IRQ_TYPE_LEVEL_HIGH 0>;

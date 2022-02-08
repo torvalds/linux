@@ -270,7 +270,7 @@
 				clock-names = "pclk", "gclk";
 			};
 
-			sha: sha@f002c000 {
+			sha: crypto@f002c000 {
 				compatible = "atmel,at91sam9g46-sha";
 				reg = <0xf002c000 0x100>;
 				interrupts = <41 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -289,7 +289,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 38>;
 			};
 
-			aes: aes@f0034000 {
+			aes: crypto@f0034000 {
 				compatible = "atmel,at91sam9g46-aes";
 				reg = <0xf0034000 0x100>;
 				interrupts = <39 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -304,7 +304,7 @@
 				clock-names = "aes_clk";
 			};
 
-			tdes: tdes@f0038000 {
+			tdes: crypto@f0038000 {
 				compatible = "atmel,at91sam9g46-tdes";
 				reg = <0xf0038000 0x100>;
 				interrupts = <40 IRQ_TYPE_LEVEL_HIGH 0>;
