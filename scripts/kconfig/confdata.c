@@ -979,10 +979,10 @@ static int conf_write_autoconf_cmd(const char *autoconf_name)
 
 	fprintf(out, "\n$(deps_config): ;\n");
 
-	if (ferror(out)) /* error check for all fprintf() calls */
-		return -1;
-
+	ret = ferror(out); /* error check for all fprintf() calls */
 	fclose(out);
+	if (ret)
+		return -1;
 
 	if (rename(tmp, name)) {
 		perror("rename");
@@ -1093,10 +1093,10 @@ static int __conf_write_autoconf(const char *filename,
 			print_symbol(file, sym);
 
 	/* check possible errors in conf_write_heading() and print_symbol() */
-	if (ferror(file))
-		return -1;
-
+	ret = ferror(file);
 	fclose(file);
+	if (ret)
+		return -1;
 
 	if (rename(tmp, filename)) {
 		perror("rename");
