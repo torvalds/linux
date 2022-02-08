@@ -39,6 +39,7 @@ The driver is aware of and reads the following sensors:
 9. Readings from the "Water flow meter" header (RPM)
 10. Readings from the "Water In" and "Water Out" temperature headers
 11. CPU current
+12. CPU core voltage
 
 Sensor values are read from EC registers, and to avoid race with the board
 firmware the driver acquires ACPI mutex, the one used by the WMI when its
