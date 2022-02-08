@@ -14,6 +14,7 @@
 .. toctree::
     :maxdepth: 1
 
+    energy-model
     opp
 
 TODOList:
@@ -22,7 +23,6 @@ TODOList:
     * basic-pm-debugging
     * charger-manager
     * drivers-testing
-    * energy-model
     * freezing-of-tasks
     * pci
     * pm_qos_interface
