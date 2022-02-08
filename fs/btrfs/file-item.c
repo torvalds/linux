@@ -1211,6 +1211,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 	extent_start = key.offset;
 	extent_end = btrfs_file_extent_end(path);
 	em->ram_bytes = btrfs_file_extent_ram_bytes(leaf, fi);
+	em->generation = btrfs_file_extent_generation(leaf, fi);
 	if (type == BTRFS_FILE_EXTENT_REG ||
 	    type == BTRFS_FILE_EXTENT_PREALLOC) {
 		em->start = extent_start;
