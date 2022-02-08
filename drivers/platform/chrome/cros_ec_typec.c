@@ -521,6 +521,13 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 	enum typec_orientation orientation;
 	int ret;
 
+	/* No change needs to be made, let's exit early. */
+	if (port->mux_flags == mux_flags && port->role == pd_ctrl->role)
+		return 0;
+
+	port->mux_flags = mux_flags;
+	port->role = pd_ctrl->role;
+
 	if (mux_flags == USB_PD_MUX_NONE) {
 		ret = cros_typec_usb_disconnect_state(port);
 		goto mux_ack;
@@ -983,13 +990,6 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 		return 0;
 	}
 
-	/* No change needs to be made, let's exit early. */
-	if (typec->ports[port_num]->mux_flags == mux_resp.flags &&
-	    typec->ports[port_num]->role == resp.role)
-		return 0;
-
-	typec->ports[port_num]->mux_flags = mux_resp.flags;
-	typec->ports[port_num]->role = resp.role;
 	ret = cros_typec_configure_mux(typec, port_num, mux_resp.flags, &resp);
 	if (ret)
 		dev_warn(typec->dev, "Configure muxes failed, err = %d\n", ret);
