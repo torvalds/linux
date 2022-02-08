@@ -639,6 +639,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct msghdr *smb_msg)
 
 		if (server->tcpStatus == CifsNeedReconnect) {
 			spin_unlock(&cifs_tcp_ses_lock);
+			cifs_reconnect(server, false);
 			return -ECONNABORTED;
 		}
 		spin_unlock(&cifs_tcp_ses_lock);
