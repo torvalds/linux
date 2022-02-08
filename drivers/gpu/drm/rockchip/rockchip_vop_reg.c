@@ -1846,6 +1846,89 @@ static const struct vop_data rv1126_vop = {
 	.win_size = ARRAY_SIZE(rv1126_vop_win_data),
 };
 
+static const struct vop_ctrl rv1106_ctrl_data = {
+	.standby = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 1),
+	.axi_outstanding_max_num = VOP_REG(RK3366_LIT_SYS_CTRL1, 0x1f, 16),
+	.axi_max_outstanding_en = VOP_REG(RK3366_LIT_SYS_CTRL1, 0x1, 12),
+	.htotal_pw = VOP_REG(RK3366_LIT_DSP_HTOTAL_HS_END, 0x0fff0fff, 0),
+	.hact_st_end = VOP_REG(RK3366_LIT_DSP_HACT_ST_END, 0x0fff0fff, 0),
+	.vtotal_pw = VOP_REG(RK3366_LIT_DSP_VTOTAL_VS_END, 0x0fff0fff, 0),
+	.vact_st_end = VOP_REG(RK3366_LIT_DSP_VACT_ST_END, 0x0fff0fff, 0),
+	.vact_st_end_f1 = VOP_REG(RK3366_LIT_DSP_VACT_ST_END_F1, 0x0fff0fff, 0),
+	.vs_st_end_f1 = VOP_REG(RK3366_LIT_DSP_VS_ST_END_F1, 0x0fff0fff, 0),
+	.dsp_interlace = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 0),
+	.auto_gate_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 0),
+	.overlay_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 4),
+	.core_dclk_div = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 13),
+	.dclk_ddr = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 14),
+	.rgb_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 0),
+	.rgb_dclk_pol = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 1),
+	.dither_down_en = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 8),
+	.dither_down_sel = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 7),
+	.dither_down_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 6),
+	.dither_up_en = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 2),
+	.dsp_data_swap = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1f, 9),
+	.yuv_clip = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 4),
+	.dsp_black = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 15),
+	.dsp_blank = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 14),
+	.dsp_outzero = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 3),
+	.out_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xf, 16),
+	.dsp_background = VOP_REG(RK3366_LIT_DSP_BG, 0x00ffffff, 0),
+	.cfg_done = VOP_REG(RK3366_LIT_REG_CFG_DONE, 0x1, 0),
+
+	.bcsh_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 0),
+	.bcsh_r2y_csc_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 1),
+	.bcsh_out_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x3, 2),
+	.bcsh_y2r_csc_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x3, 4),
+	.bcsh_y2r_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 6),
+	.bcsh_r2y_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 7),
+	.bcsh_color_bar = VOP_REG(RK3366_LIT_BCSH_COL_BAR, 0xffffff, 0),
+	.bcsh_brightness = VOP_REG(RK3366_LIT_BCSH_BCS, 0xff, 0),
+	.bcsh_contrast = VOP_REG(RK3366_LIT_BCSH_BCS, 0x1ff, 8),
+	.bcsh_sat_con = VOP_REG(RK3366_LIT_BCSH_BCS, 0x3ff, 20),
+	.bcsh_sin_hue = VOP_REG(RK3366_LIT_BCSH_H, 0x1ff, 0),
+	.bcsh_cos_hue = VOP_REG(RK3366_LIT_BCSH_H, 0x1ff, 16),
+
+	.mcu_pix_total = VOP_REG(RK3366_LIT_MCU_CTRL, 0x3f, 0),
+	.mcu_cs_pst = VOP_REG(RK3366_LIT_MCU_CTRL, 0xf, 6),
+	.mcu_cs_pend = VOP_REG(RK3366_LIT_MCU_CTRL, 0x3f, 10),
+	.mcu_rw_pst = VOP_REG(RK3366_LIT_MCU_CTRL, 0xf, 16),
+	.mcu_rw_pend = VOP_REG(RK3366_LIT_MCU_CTRL, 0x3f, 20),
+	.mcu_clk_sel = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 26),
+	.mcu_hold_mode = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 27),
+	.mcu_frame_st = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 28),
+	.mcu_rs = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 29),
+	.mcu_bypass = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 30),
+	.mcu_type = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 31),
+	.mcu_rw_bypass_port = VOP_REG(RK3366_LIT_MCU_RW_BYPASS_PORT,
+				      0xffffffff, 0),
+	.bt1120_yc_swap = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 30),
+	.bt1120_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 31),
+};
+
+static const struct vop_win_data rv1106_vop_win_data[] = {
+	{ .phy = NULL },
+	{ .base = 0x00, .phy = &rk3366_lit_win1_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+};
+
+static const struct vop_grf_ctrl rv1106_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(RV1106_VENC_GRF_VOP_IO_WRAPPER, 0x1, 2),
+};
+
+static const struct vop_data rv1106_vop = {
+	.soc_id = 0x1106,
+	.vop_id = 0,
+	.version = VOP_VERSION(2, 0xc),
+	.max_input = {1280, 1280},
+	.max_output = {1280, 1280},
+	.ctrl = &rv1106_ctrl_data,
+	.intr = &rk3366_lit_intr,
+	.grf_ctrl = &rv1106_grf_ctrl,
+	.win = rv1106_vop_win_data,
+	.win_size = ARRAY_SIZE(rv1106_vop_win_data),
+};
+
 static const struct of_device_id vop_driver_dt_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3036)
 	{ .compatible = "rockchip,rk3036-vop",
@@ -1868,6 +1951,10 @@ static const struct of_device_id vop_driver_dt_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3308)
 	{ .compatible = "rockchip,rk3308-vop",
 	  .data = &rk3308_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	{ .compatible = "rockchip,rv1106-vop",
+	  .data = &rv1106_vop },
 #endif
 #if IS_ENABLED(CONFIG_CPU_RV1126)
 	{ .compatible = "rockchip,rv1126-vop",

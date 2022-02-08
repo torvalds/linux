@@ -1035,6 +1035,8 @@
 #define PX30_GRF_PD_VO_CON1			0x00438
 /* px30 register definition end */
 
+#define RV1106_VENC_GRF_VOP_IO_WRAPPER		0x1000c
+
 #define RV1126_GRF_IOFUNC_CON3			0x1026c
 
 /* rk3568 vop registers definition */
