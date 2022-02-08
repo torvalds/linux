@@ -521,9 +521,9 @@ timerlat_top_set_signals(struct timerlat_top_params *params)
 int timerlat_top_main(int argc, char *argv[])
 {
 	struct timerlat_top_params *params;
+	struct osnoise_tool *record = NULL;
+	struct osnoise_tool *top = NULL;
 	struct trace_instance *trace;
-	struct osnoise_tool *record;
-	struct osnoise_tool *top;
 	int return_value = 1;
 	int retval;
 
@@ -609,9 +609,8 @@ int timerlat_top_main(int argc, char *argv[])
 
 out_top:
 	timerlat_free_top(top->data);
+	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(top);
-	if (params->trace_output)
-		osnoise_destroy_tool(record);
 	free(params);
 out_exit:
 	exit(return_value);
