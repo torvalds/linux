@@ -1102,16 +1102,16 @@ static netdev_tx_t __dpaa2_eth_tx(struct sk_buff *skb,
 				  struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	struct dpaa2_fd fd;
-	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa2_eth_drv_stats *percpu_extras;
+	struct rtnl_link_stats64 *percpu_stats;
+	unsigned int needed_headroom;
 	struct dpaa2_eth_fq *fq;
 	struct netdev_queue *nq;
+	struct dpaa2_fd fd;
 	u16 queue_mapping;
-	unsigned int needed_headroom;
-	u32 fd_len;
 	u8 prio = 0;
 	int err, i;
+	u32 fd_len;
 	void *swa;
 
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
