@@ -689,8 +689,10 @@ static int load_image_and_restore(void)
 
 	lock_device_hotplug();
 	error = create_basic_memory_bitmaps();
-	if (error)
+	if (error) {
+		swsusp_close(FMODE_READ | FMODE_EXCL);
 		goto Unlock;
+	}
 
 	error = swsusp_read(&flags);
 	swsusp_close(FMODE_READ | FMODE_EXCL);
