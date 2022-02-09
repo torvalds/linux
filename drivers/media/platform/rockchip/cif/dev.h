@@ -75,6 +75,7 @@
 
 #define RKCIF_RX_BUF_MAX	8
 
+#define RKCIF_MAX_INTERVAL_NS	5000000
 /*
  * for HDR mode sync buf
  */

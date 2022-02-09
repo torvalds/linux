@@ -839,7 +839,7 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 			if (!is_streaming) {
 				ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
 						       RKMODULE_SET_QUICK_STREAM, &on);
-				if (!ret)
+				if (ret)
 					dev_info(dev->dev,
 						 "set RKMODULE_SET_QUICK_STREAM failed\n");
 				hw->sync_config.slave.is_streaming[i] = true;

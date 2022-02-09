@@ -3102,6 +3102,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		}
 		stream->dma_en &= ~RKCIF_DMAEN_BY_VICAP;
+		if (dev->sync_type != RKCIF_NOSYNC_MODE)
+			dev->hw_dev->is_in_group_sync = false;
 	}
 
 	if (mode == stream->cur_stream_mode) {
@@ -6166,7 +6168,7 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 
 	if (active_buf) {
 		vb_done = &active_buf->vb;
-		vb_done->vb2_buf.timestamp = ktime_get_ns();
+		vb_done->vb2_buf.timestamp = stream->readout.fs_timestamp;
 		vb_done->sequence = stream->frame_idx;
 		if (stream->is_line_wake_up) {
 			spin_lock_irqsave(&stream->fps_lock, flags);
@@ -7192,12 +7194,51 @@ void rkcif_irq_handle_toisp(struct rkcif_device *cif_dev, unsigned int intstat_g
 	}
 }
 
-static void rkcif_deal_sof(struct rkcif_device *cif_dev)
+static int rkcif_check_group_sync_state(struct rkcif_device *cif_dev)
 {
 	struct rkcif_stream *detect_stream = &cif_dev->stream[0];
+	struct rkcif_stream *next_stream = NULL;
+	struct rkcif_hw *hw = cif_dev->hw_dev;
+	u64 fs_interval = 0;
+	int i = 0;
+	int ret = 0;
+
+	for (i = 0; i < hw->sync_config.dev_cnt; i++) {
+		if (hw->sync_config.mode == RKCIF_MASTER_MASTER) {
+			if (i < hw->sync_config.ext_master.count)
+				next_stream = &hw->sync_config.ext_master.cif_dev[i]->stream
+					[0];
+			else
+				next_stream = &hw->sync_config.int_master.cif_dev[0]->stream
+					[0];
+		} else if (hw->sync_config.mode == RKCIF_MASTER_SLAVE) {
+			if (i < hw->sync_config.slave.count)
+				next_stream = &hw->sync_config.slave.cif_dev[i]->stream
+					[0];
+			else
+				next_stream = &hw->sync_config.int_master.cif_dev[0]->stream
+					[0];
+		} else {
+			v4l2_err(&cif_dev->v4l2_dev,
+				 "ERROR: invalid group sync mode\n");
+			ret = -EINVAL;
+			break;
+		}
+		if (detect_stream == next_stream)
+			continue;
+		fs_interval = abs(detect_stream->readout.fs_timestamp - next_stream->readout.fs_timestamp);
+		if (fs_interval > RKCIF_MAX_INTERVAL_NS) {
+			ret = -EINVAL;
+			break;
+		}
+	}
+	return ret;
+}
+
+static void rkcif_send_sof(struct rkcif_device *cif_dev)
+{
 	struct v4l2_mbus_config *mbus = &cif_dev->active_sensor->mbus;
 	struct csi2_dev *csi;
-	unsigned long flags;
 
 	if (mbus->type == V4L2_MBUS_CSI2_DPHY ||
 	    mbus->type == V4L2_MBUS_CSI2_CPHY) {
@@ -7208,11 +7249,55 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 	} else {
 		rkcif_dvp_event_inc_sof(cif_dev);
 	}
+}
+
+static void rkcif_deal_sof(struct rkcif_device *cif_dev)
+{
+	struct rkcif_stream *detect_stream = &cif_dev->stream[0];
+	struct rkcif_hw *hw = cif_dev->hw_dev;
+	struct rkcif_device *tmp_dev = NULL;
+	unsigned long flags;
+	unsigned int frame_idx = 0;
+	int i = 0;
+	int ret = 0;
 
 	detect_stream->fs_cnt_in_single_frame++;
 	spin_lock_irqsave(&detect_stream->fps_lock, flags);
 	detect_stream->readout.fs_timestamp = ktime_get_ns();
 	spin_unlock_irqrestore(&detect_stream->fps_lock, flags);
+
+	if (cif_dev->sync_type != RKCIF_NOSYNC_MODE && !hw->is_in_group_sync) {
+		ret = rkcif_check_group_sync_state(cif_dev);
+		if (!ret) {
+			hw->is_in_group_sync = true;
+			for (i = 0; i < hw->sync_config.dev_cnt; i++) {
+				if (hw->sync_config.mode == RKCIF_MASTER_MASTER) {
+					if (i < hw->sync_config.ext_master.count)
+						tmp_dev = hw->sync_config.ext_master.cif_dev[i];
+					else
+						tmp_dev = hw->sync_config.int_master.cif_dev[0];
+				} else if (hw->sync_config.mode == RKCIF_MASTER_SLAVE) {
+					if (i < hw->sync_config.slave.count)
+						tmp_dev = hw->sync_config.slave.cif_dev[i];
+					else
+						tmp_dev = hw->sync_config.int_master.cif_dev[0];
+				} else {
+					v4l2_err(&cif_dev->v4l2_dev,
+						 "ERROR: invalid group sync mode\n");
+				}
+				if (tmp_dev) {
+					rkcif_send_sof(tmp_dev);
+					frame_idx = rkcif_get_sof(tmp_dev);
+					tmp_dev->stream[0].frame_idx = frame_idx;
+					tmp_dev->stream[1].frame_idx = frame_idx;
+					tmp_dev->stream[2].frame_idx = frame_idx;
+					tmp_dev->stream[3].frame_idx = frame_idx;
+				}
+			}
+		}
+	} else {
+		rkcif_send_sof(cif_dev);
+	}
 }
 
 unsigned int rkcif_irq_global(struct rkcif_device *cif_dev)
@@ -7367,10 +7452,16 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			if (stream->crop_dyn_en)
 				rkcif_dynamic_crop(stream);
 
-			if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
-				rkcif_update_stream(cif_dev, stream, mipi_id);
-			else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
+			if (stream->dma_en & RKCIF_DMAEN_BY_VICAP) {
+				if (cif_dev->sync_type == RKCIF_NOSYNC_MODE) {
+					rkcif_update_stream(cif_dev, stream, mipi_id);
+				} else {
+					if (cif_dev->hw_dev->is_in_group_sync)
+						rkcif_update_stream(cif_dev, stream, mipi_id);
+				}
+			} else if (stream->dma_en & RKCIF_DMAEN_BY_ISP) {
 				rkcif_update_stream_toisp(cif_dev, stream, mipi_id);
+			}
 
 			if (stream->to_en_dma)
 				rkcif_enable_dma_capture(stream);
@@ -7393,6 +7484,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 						 detect_stream->fs_cnt_in_single_frame);
 					detect_stream->is_fs_fe_not_paired = true;
 					detect_stream->fs_cnt_in_single_frame = 0;
+					cif_dev->hw_dev->is_in_group_sync = false;
 				} else {
 					detect_stream->fs_cnt_in_single_frame--;
 				}

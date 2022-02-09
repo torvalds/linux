@@ -121,6 +121,7 @@ struct rkcif_hw {
 	const struct rkcif_hw_match_data *match_data;
 	struct mutex			dev_lock;
 	struct rkcif_multi_sync_config	sync_config;
+	bool				is_in_group_sync;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);
