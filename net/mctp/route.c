@@ -76,7 +76,7 @@ static struct mctp_sock *mctp_lookup_bind(struct net *net, struct sk_buff *skb)
 static bool mctp_key_match(struct mctp_sk_key *key, mctp_eid_t local,
 			   mctp_eid_t peer, u8 tag)
 {
-	if (key->local_addr != local)
+	if (!mctp_address_matches(key->local_addr, local))
 		return false;
 
 	if (key->peer_addr != peer)
@@ -616,7 +616,7 @@ static struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
 			continue;
 
 		if (!(mctp_address_matches(tmp->peer_addr, daddr) &&
-		      tmp->local_addr == saddr))
+		      mctp_address_matches(tmp->local_addr, saddr)))
 			continue;
 
 		spin_lock(&tmp->lock);

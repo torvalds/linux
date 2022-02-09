@@ -645,6 +645,14 @@ static const struct mctp_route_input_sk_keys_test mctp_route_input_sk_keys_tests
 		.hdr = RX_HDR(1, 11, 8, FL_S | FL_E | FL_T(1)),
 		.deliver = true,
 	},
+	{
+		.name = "any local match",
+		.key_peer_addr = 12,
+		.key_local_addr = MCTP_ADDR_ANY,
+		.key_tag = 1,
+		.hdr = RX_HDR(1, 12, 8, FL_S | FL_E | FL_T(1)),
+		.deliver = true,
+	},
 };
 
 static void mctp_route_input_sk_keys_to_desc(
