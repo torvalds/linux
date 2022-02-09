@@ -113,19 +113,8 @@ static inline void clear_notify_signal(void)
 }
 
 /*
- * called by exit_to_user_mode_loop() if ti_work & _TIF_NOTIFY_SIGNAL. This
- * is currently used by TWA_SIGNAL based task_work, which requires breaking
- * wait loops to ensure that task_work is noticed and run.
- */
-static inline void tracehook_notify_signal(void)
-{
-	clear_notify_signal();
-	if (task_work_pending(current))
-		task_work_run();
-}
-
-/*
- * Called when we have work to process from exit_to_user_mode_loop()
+ * Called to break out of interruptible wait loops, and enter the
+ * exit_to_user_mode_loop().
  */
 static inline void set_notify_signal(struct task_struct *task)
 {
