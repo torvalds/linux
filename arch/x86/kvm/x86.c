@@ -12287,14 +12287,28 @@ static inline bool apf_pageready_slot_free(struct kvm_vcpu *vcpu)
 
 static bool kvm_can_deliver_async_pf(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->arch.apf.delivery_as_pf_vmexit && is_guest_mode(vcpu))
+
+	if (!kvm_pv_async_pf_enabled(vcpu))
 		return false;
 
-	if (!kvm_pv_async_pf_enabled(vcpu) ||
-	    (vcpu->arch.apf.send_user_only && static_call(kvm_x86_get_cpl)(vcpu) == 0))
+	if (vcpu->arch.apf.send_user_only &&
+	    static_call(kvm_x86_get_cpl)(vcpu) == 0)
 		return false;
 
-	return true;
+	if (is_guest_mode(vcpu)) {
+		/*
+		 * L1 needs to opt into the special #PF vmexits that are
+		 * used to deliver async page faults.
+		 */
+		return vcpu->arch.apf.delivery_as_pf_vmexit;
+	} else {
+		/*
+		 * Play it safe in case the guest temporarily disables paging.
+		 * The real mode IDT in particular is unlikely to have a #PF
+		 * exception setup.
+		 */
+		return is_paging(vcpu);
+	}
 }
 
 bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
