@@ -1049,7 +1049,7 @@ static int rockchip_adjust_opp_table(struct device *dev,
 			goto out;
 		}
 		if (opp->rate > scale_rate)
-			dev_pm_opp_remove(dev, opp->rate);
+			dev_pm_opp_disable(dev, opp->rate);
 		dev_pm_opp_put(opp);
 	}
 out:
