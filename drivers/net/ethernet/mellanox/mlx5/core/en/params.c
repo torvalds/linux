@@ -444,7 +444,7 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 
 	max_mtu = mlx5e_max_nonlinear_mtu(first_frag_size_max, frag_size_max,
 					  params->xdp_prog);
-	if (byte_count > max_mtu) {
+	if (byte_count > max_mtu || params->xdp_prog) {
 		frag_size_max = PAGE_SIZE;
 		first_frag_size_max = SKB_WITH_OVERHEAD(frag_size_max - headroom);
 
