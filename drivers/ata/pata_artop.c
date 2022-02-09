@@ -28,7 +28,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_artop"
-#define DRV_VERSION	"0.4.7"
+#define DRV_VERSION	"0.4.8"
 
 /*
  *	The ARTOP has 33 Mhz and "over clocked" timing tables. Until we
@@ -315,12 +315,15 @@ static struct ata_port_operations artop6260_ops = {
 
 static void atp8xx_fixup(struct pci_dev *pdev)
 {
-	if (pdev->device == 0x0005)
+	u8 reg;
+
+	switch (pdev->device) {
+	case 0x0005:
 		/* BIOS may have left us in UDMA, clear it before libata probe */
 		pci_write_config_byte(pdev, 0x54, 0);
-	else if (pdev->device == 0x0008 || pdev->device == 0x0009) {
-		u8 reg;
-
+		break;
+	case 0x0008:
+	case 0x0009:
 		/* Mac systems come up with some registers not set as we
 		   will need them */
 
@@ -338,6 +341,7 @@ static void atp8xx_fixup(struct pci_dev *pdev)
 		/* Enable IRQ output and burst mode */
 		pci_read_config_byte(pdev, 0x4a, &reg);
 		pci_write_config_byte(pdev, 0x4a, (reg & ~0x01) | 0x80);
+		break;
 	}
 }
 
