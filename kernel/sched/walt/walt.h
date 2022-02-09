@@ -788,13 +788,6 @@ static inline unsigned int task_load(struct task_struct *p)
 	return wts->demand;
 }
 
-static inline unsigned int task_pl(struct task_struct *p)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	return wts->pred_demand;
-}
-
 static inline bool task_in_related_thread_group(struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;

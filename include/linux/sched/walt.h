@@ -32,7 +32,9 @@ enum task_boost_type {
 
 #define WALT_NR_CPUS 8
 #define RAVG_HIST_SIZE_MAX 8
-#define NUM_BUSY_BUCKETS 10
+/* wts->bucket_bitmask needs to be updated if NUM_BUSY_BUCKETS > 16 */
+#define NUM_BUSY_BUCKETS 16
+#define NUM_BUSY_BUCKETS_SHIFT 4
 
 struct walt_related_thread_group {
 	int			id;
@@ -73,7 +75,8 @@ struct walt_task_struct {
 	 *
 	 * 'prev_window' represents the sum of all entries in prev_window_cpu
 	 *
-	 * 'pred_demand' represents task's current predicted cpu busy time
+	 * 'pred_demand_scaled' represents task's current predicted cpu busy time
+	 * in terms of 1024 units
 	 *
 	 * 'busy_buckets' groups historical busy time into different buckets
 	 * used for prediction
@@ -90,7 +93,6 @@ struct walt_task_struct {
 	u32				curr_window_cpu[WALT_NR_CPUS];
 	u32				prev_window_cpu[WALT_NR_CPUS];
 	u32				curr_window, prev_window;
-	u32				pred_demand;
 	u8				busy_buckets[NUM_BUSY_BUCKETS];
 	u16				bucket_bitmask;
 	u16				demand_scaled;
