@@ -276,6 +276,15 @@
 		twd: timer-mfd@400 {
 			compatible = "brcm,bcm4908-twd", "simple-mfd", "syscon";
 			reg = <0x400 0x4c>;
+			ranges = <0x0 0x400 0x4c>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			watchdog@28 {
+				compatible = "brcm,bcm6345-wdt";
+				reg = <0x28 0x8>;
+			};
 		};
 
 		gpio0: gpio-controller@500 {
