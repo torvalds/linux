@@ -549,8 +549,6 @@ void rtw_init_registrypriv_dev_network(struct adapter *adapter);
 
 void rtw_update_registrypriv_dev_network(struct adapter *adapter);
 
-void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter);
-
 void _rtw_join_timeout_handler(struct adapter *adapter);
 void rtw_scan_timeout_handler(struct adapter *adapter);
 
