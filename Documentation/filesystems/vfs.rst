@@ -658,7 +658,7 @@ pages, however the address_space has finer control of write sizes.
 
 The read process essentially only requires 'readpage'.  The write
 process is more complicated and uses write_begin/write_end or
-set_page_dirty to write data into the address_space, and writepage and
+dirty_folio to write data into the address_space, and writepage and
 writepages to writeback data to storage.
 
 Adding and removing pages to/from an address_space is protected by the
@@ -724,7 +724,7 @@ cache in your filesystem.  The following members are defined:
 		int (*writepage)(struct page *page, struct writeback_control *wbc);
 		int (*readpage)(struct file *, struct page *);
 		int (*writepages)(struct address_space *, struct writeback_control *);
-		int (*set_page_dirty)(struct page *page);
+		bool (*dirty_folio)(struct address_space *, struct folio *);
 		void (*readahead)(struct readahead_control *);
 		int (*readpages)(struct file *filp, struct address_space *mapping,
 				 struct list_head *pages, unsigned nr_pages);
@@ -793,13 +793,13 @@ cache in your filesystem.  The following members are defined:
 	This will choose pages from the address space that are tagged as
 	DIRTY and will pass them to ->writepage.
 
-``set_page_dirty``
-	called by the VM to set a page dirty.  This is particularly
-	needed if an address space attaches private data to a page, and
-	that data needs to be updated when a page is dirtied.  This is
+``dirty_folio``
+	called by the VM to mark a folio as dirty.  This is particularly
+	needed if an address space attaches private data to a folio, and
+	that data needs to be updated when a folio is dirtied.  This is
 	called, for example, when a memory mapped page gets modified.
-	If defined, it should set the PageDirty flag, and the
-	PAGECACHE_TAG_DIRTY tag in the radix tree.
+	If defined, it should set the folio dirty flag, and the
+	PAGECACHE_TAG_DIRTY search mark in i_pages.
 
 ``readahead``
 	Called by the VM to read pages associated with the address_space

@@ -369,6 +369,7 @@ struct address_space_operations {
 
 	/* Set a page dirty.  Return true if this dirtied it */
 	int (*set_page_dirty)(struct page *page);
+	bool (*dirty_folio)(struct address_space *, struct folio *);
 
 	/*
 	 * Reads in the requested pages. Unlike ->readpage(), this is

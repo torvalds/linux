@@ -239,7 +239,7 @@ prototypes::
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	int (*readpage)(struct file *, struct page *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
-	int (*set_page_dirty)(struct page *page);
+	bool (*dirty_folio)(struct address_space *, struct folio *folio);
 	void (*readahead)(struct readahead_control *);
 	int (*readpages)(struct file *filp, struct address_space *mapping,
 			struct list_head *pages, unsigned nr_pages);
@@ -264,7 +264,7 @@ prototypes::
 	int (*swap_deactivate)(struct file *);
 
 locking rules:
-	All except set_page_dirty and freepage may block
+	All except dirty_folio and freepage may block
 
 ======================	======================== =========	===============
 ops			PageLocked(page)	 i_rwsem	invalidate_lock
@@ -272,7 +272,7 @@ ops			PageLocked(page)	 i_rwsem	invalidate_lock
 writepage:		yes, unlocks (see below)
 readpage:		yes, unlocks				shared
 writepages:
-set_page_dirty		no
+dirty_folio		maybe
 readahead:		yes, unlocks				shared
 readpages:		no					shared
 write_begin:		locks the page		 exclusive
@@ -361,10 +361,11 @@ If nr_to_write is NULL, all dirty pages must be written.
 writepages should _only_ write pages which are present on
 mapping->io_pages.
 
-->set_page_dirty() is called from various places in the kernel
-when the target page is marked as needing writeback.  It may be called
-under spinlock (it cannot block) and is sometimes called with the page
-not locked.
+->dirty_folio() is called from various places in the kernel when
+the target folio is marked as needing writeback.  The folio cannot be
+truncated because either the caller holds the folio lock, or the caller
+has found the folio while holding the page table lock which will block
+truncation.
 
 ->bmap() is currently used by legacy ioctl() (FIBMAP) provided by some
 filesystems and by the swapper. The latter will eventually go away.  Please,

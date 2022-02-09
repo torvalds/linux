@@ -444,9 +444,12 @@ int swap_set_page_dirty(struct page *page)
 
 	if (data_race(sis->flags & SWP_FS_OPS)) {
 		struct address_space *mapping = sis->swap_file->f_mapping;
+		const struct address_space_operations *aops = mapping->a_ops;
 
 		VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-		return mapping->a_ops->set_page_dirty(page);
+		if (aops->dirty_folio)
+			return aops->dirty_folio(mapping, page_folio(page));
+		return aops->set_page_dirty(page);
 	} else {
 		return __set_page_dirty_no_writeback(page);
 	}
