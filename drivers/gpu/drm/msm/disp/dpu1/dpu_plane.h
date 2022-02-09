@@ -65,15 +65,6 @@ struct dpu_multirect_plane_states {
 enum dpu_sspp dpu_plane_pipe(struct drm_plane *plane);
 
 /**
- * dpu_plane_get_ctl_flush - get control flush mask
- * @plane:   Pointer to DRM plane object
- * @ctl: Pointer to control hardware
- * @flush_sspp: Pointer to sspp flush control word
- */
-void dpu_plane_get_ctl_flush(struct drm_plane *plane, struct dpu_hw_ctl *ctl,
-		u32 *flush_sspp);
-
-/**
  * dpu_plane_flush - final plane operations before commit flush
  * @plane: Pointer to drm plane structure
  */
