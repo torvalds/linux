@@ -555,21 +555,21 @@ static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
 	return ret;
 }
 
-static void metapage_invalidatepage(struct page *page, unsigned int offset,
-				    unsigned int length)
+static void metapage_invalidate_folio(struct folio *folio, size_t offset,
+				    size_t length)
 {
-	BUG_ON(offset || length < PAGE_SIZE);
+	BUG_ON(offset || length < folio_size(folio));
 
-	BUG_ON(PageWriteback(page));
+	BUG_ON(folio_test_writeback(folio));
 
-	metapage_releasepage(page, 0);
+	metapage_releasepage(&folio->page, 0);
 }
 
 const struct address_space_operations jfs_metapage_aops = {
 	.readpage	= metapage_readpage,
 	.writepage	= metapage_writepage,
 	.releasepage	= metapage_releasepage,
-	.invalidatepage	= metapage_invalidatepage,
+	.invalidate_folio = metapage_invalidate_folio,
 	.set_page_dirty	= __set_page_dirty_nobuffers,
 };
 
