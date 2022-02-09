@@ -36,11 +36,6 @@ struct hpt_clock {
 	u32	timing;
 };
 
-struct hpt_chip {
-	const char *name;
-	struct hpt_clock *clocks[3];
-};
-
 /* key for bus clock timings
  * bit
  * 0:3    data_high_time. Inactive time of DIOW_/DIOR_ for PIO and MW DMA.
