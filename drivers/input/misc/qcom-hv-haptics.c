@@ -728,9 +728,9 @@ static void __dump_effects(struct haptics_chip *chip)
 
 			dev_dbg(chip->dev, "%s\n", str);
 			kfree(str);
-			dev_dbg(chip->dev, "FIFO data play rate: %s\n",
-					period_str[effect->fifo->period_per_s]);
-			dev_dbg(chip->dev, "FIFO data play length: %dus\n",
+			dev_dbg(chip->dev, "FIFO data preload: %d, play rate: %s, play length: %uus\n",
+					effect->fifo->preload,
+					period_str[effect->fifo->period_per_s],
 					effect->fifo->play_length_us);
 		}
 
@@ -2630,10 +2630,9 @@ static int haptics_mmap_preload_fifo_effect(struct haptics_chip *chip,
 	}
 
 	for (i = PAT4_MEM; i >= PAT1_MEM; i--) {
-		if (chip->mmap.pat_sel_mmap[i].in_use)
-			continue;
-		if (length > chip->mmap.pat_sel_mmap[i].max_size)
-			continue;
+		if (!chip->mmap.pat_sel_mmap[i].in_use &&
+				(length <= chip->mmap.pat_sel_mmap[i].max_size))
+			break;
 	}
 
 	if (i < PAT1_MEM) {
