@@ -7157,7 +7157,7 @@ static void _linked_rx_signal_strength_display(struct adapter *padapter)
 		   "UndecoratedSmoothedPWDB:%d\n", UndecoratedSmoothedPWDB);
 }
 
-static u8 chk_ap_is_alive(struct adapter *padapter, struct sta_info *psta)
+static u8 chk_ap_is_alive(struct sta_info *psta)
 {
 	u8 ret = false;
 
@@ -7221,7 +7221,7 @@ void linked_status_chk(struct adapter *padapter)
 			bool is_p2p_enable = false;
 			is_p2p_enable = !rtw_p2p_chk_state(&padapter->wdinfo, P2P_STATE_NONE);
 
-			if (!chk_ap_is_alive(padapter, psta))
+			if (!chk_ap_is_alive(psta))
 				rx_chk = _FAIL;
 
 			if (pxmitpriv->last_tx_pkts == pxmitpriv->tx_pkts)
