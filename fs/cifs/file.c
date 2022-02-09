@@ -4754,10 +4754,10 @@ static int cifs_release_page(struct page *page, gfp_t gfp)
 	return true;
 }
 
-static void cifs_invalidate_page(struct page *page, unsigned int offset,
-				 unsigned int length)
+static void cifs_invalidate_folio(struct folio *folio, size_t offset,
+				 size_t length)
 {
-	wait_on_page_fscache(page);
+	folio_wait_fscache(folio);
 }
 
 static int cifs_launder_page(struct page *page)
@@ -4957,7 +4957,7 @@ const struct address_space_operations cifs_addr_ops = {
 	.set_page_dirty = cifs_set_page_dirty,
 	.releasepage = cifs_release_page,
 	.direct_IO = cifs_direct_io,
-	.invalidatepage = cifs_invalidate_page,
+	.invalidate_folio = cifs_invalidate_folio,
 	.launder_page = cifs_launder_page,
 	/*
 	 * TODO: investigate and if useful we could add an cifs_migratePage
@@ -4981,6 +4981,6 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.write_end = cifs_write_end,
 	.set_page_dirty = cifs_set_page_dirty,
 	.releasepage = cifs_release_page,
-	.invalidatepage = cifs_invalidate_page,
+	.invalidate_folio = cifs_invalidate_folio,
 	.launder_page = cifs_launder_page,
 };
