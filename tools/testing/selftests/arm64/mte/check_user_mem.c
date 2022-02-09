@@ -26,6 +26,8 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 	char val = 'A';
 	size_t len, read_len;
 	void *ptr, *ptr_next;
+	int fileoff, ptroff, size;
+	int sizes[] = {1, 2, 3, 8, 16, 32, 4096, page_sz};
 
 	err = KSFT_PASS;
 	len = 2 * page_sz;
@@ -62,24 +64,31 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 	ptr_next = mte_insert_new_tag(ptr_next);
 	mte_set_tag_address_range(ptr_next, tag_len);
 
-	lseek(fd, 0, 0);
-	/* Copy from file into buffer with invalid tag */
-	read_len = read(fd, ptr, len);
-	mte_wait_after_trig();
-	/*
-	 * Accessing user memory in kernel with invalid tag should fail in sync
-	 * mode without fault but may not fail in async mode as per the
-	 * implemented MTE userspace support in Arm64 kernel.
-	 */
-	if (cur_mte_cxt.fault_valid)
-		goto usermem_acc_err;
-
-	if (mode == MTE_SYNC_ERR && read_len < len) {
-		/* test passed */
-	} else if (mode == MTE_ASYNC_ERR && read_len == len) {
-		/* test passed */
-	} else {
-		goto usermem_acc_err;
+	for (fileoff = 0; fileoff < 16; fileoff++) {
+		for (ptroff = 0; ptroff < 16; ptroff++) {
+			for (i = 0; i < ARRAY_SIZE(sizes); i++) {
+				size = sizes[i];
+				lseek(fd, 0, 0);
+				/* Copy from file into buffer with invalid tag */
+				read_len = read(fd, ptr + ptroff, size);
+				mte_wait_after_trig();
+				/*
+				 * Accessing user memory in kernel with invalid tag should fail in sync
+				 * mode without fault but may not fail in async mode as per the
+				 * implemented MTE userspace support in Arm64 kernel.
+				 */
+				if (cur_mte_cxt.fault_valid) {
+					goto usermem_acc_err;
+				}
+				if (mode == MTE_SYNC_ERR && read_len < len) {
+					/* test passed */
+				} else if (mode == MTE_ASYNC_ERR && read_len == size) {
+					/* test passed */
+				} else {
+					goto usermem_acc_err;
+				}
+			}
+		}
 	}
 
 	goto exit;
