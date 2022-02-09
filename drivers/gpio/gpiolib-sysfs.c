@@ -121,24 +121,18 @@ static ssize_t value_store(struct device *dev,
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
-	ssize_t status = 0;
+	ssize_t status;
+	long value;
+
+	status = kstrtol(buf, 0, &value);
 
 	mutex_lock(&data->mutex);
 
 	if (!test_bit(FLAG_IS_OUT, &desc->flags)) {
 		status = -EPERM;
-	} else {
-		long		value;
-
-		if (size <= 2 && isdigit(buf[0]) &&
-		    (size == 1 || buf[1] == '\n'))
-			value = buf[0] - '0';
-		else
-			status = kstrtol(buf, 0, &value);
-		if (status == 0) {
-			gpiod_set_value_cansleep(desc, value);
-			status = size;
-		}
+	} else if (status == 0) {
+		gpiod_set_value_cansleep(desc, value);
+		status = size;
 	}
 
 	mutex_unlock(&data->mutex);
@@ -342,11 +336,13 @@ static ssize_t active_low_store(struct device *dev,
 	ssize_t			status;
 	long			value;
 
+	status = kstrtol(buf, 0, &value);
+	if (status)
+		return status;
+
 	mutex_lock(&data->mutex);
 
-	status = kstrtol(buf, 0, &value);
-	if (status == 0)
-		status = gpio_sysfs_set_active_low(dev, value);
+	status = gpio_sysfs_set_active_low(dev, value);
 
 	mutex_unlock(&data->mutex);
 
