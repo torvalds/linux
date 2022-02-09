@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/rculist_nulls.h>
 #include <linux/cpu.h>
-#include <linux/tracehook.h>
+#include <linux/task_work.h>
 #include <linux/audit.h>
 #include <uapi/linux/io_uring.h>
 

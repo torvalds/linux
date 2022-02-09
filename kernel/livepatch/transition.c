@@ -9,7 +9,6 @@
 
 #include <linux/cpu.h>
 #include <linux/stacktrace.h>
-#include <linux/tracehook.h>
 #include "core.h"
 #include "patch.h"
 #include "transition.h"

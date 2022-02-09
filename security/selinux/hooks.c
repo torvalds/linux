@@ -25,7 +25,6 @@
 #include <linux/kd.h>
 #include <linux/kernel.h>
 #include <linux/kernel_read_file.h>
-#include <linux/tracehook.h>
 #include <linux/errno.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>

@@ -49,7 +49,8 @@
 #include <linux/audit.h> /* for audit_free() */
 #include <linux/resource.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/tracehook.h>
+#include <linux/blkdev.h>
+#include <linux/task_work.h>
 #include <linux/fs_struct.h>
 #include <linux/init_task.h>
 #include <linux/perf_event.h>

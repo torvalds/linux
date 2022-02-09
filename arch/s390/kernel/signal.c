@@ -25,7 +25,6 @@
 #include <linux/tty.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>
-#include <linux/tracehook.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <asm/ucontext.h>
