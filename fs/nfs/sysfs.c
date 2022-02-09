@@ -151,6 +151,18 @@ static struct kobj_type nfs_netns_client_type = {
 	.namespace = nfs_netns_client_namespace,
 };
 
+static void assign_unique_clientid(struct nfs_netns_client *clp)
+{
+	unsigned char client_uuid[16];
+	char *uuid_str = kmalloc(UUID_STRING_LEN + 1, GFP_KERNEL);
+
+	if (uuid_str) {
+		generate_random_uuid(client_uuid);
+		sprintf(uuid_str, "%pU", client_uuid);
+		rcu_assign_pointer(clp->identifier, uuid_str);
+	}
+}
+
 static struct nfs_netns_client *nfs_netns_client_alloc(struct kobject *parent,
 		struct net *net)
 {
@@ -158,6 +170,8 @@ static struct nfs_netns_client *nfs_netns_client_alloc(struct kobject *parent,
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (p) {
+		if (net != &init_net)
+			assign_unique_clientid(p);
 		p->net = net;
 		p->kobject.kset = nfs_client_kset;
 		if (kobject_init_and_add(&p->kobject, &nfs_netns_client_type,
