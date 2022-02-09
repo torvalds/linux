@@ -46,7 +46,7 @@ static int orangefs_writepage_locked(struct page *page,
 		else
 			wlen = PAGE_SIZE;
 	}
-	/* Should've been handled in orangefs_invalidatepage. */
+	/* Should've been handled in orangefs_invalidate_folio. */
 	WARN_ON(off == len || off + wlen > len);
 
 	bv.bv_page = page;
@@ -415,47 +415,45 @@ static int orangefs_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 
-static void orangefs_invalidatepage(struct page *page,
-				 unsigned int offset,
-				 unsigned int length)
+static void orangefs_invalidate_folio(struct folio *folio,
+				 size_t offset, size_t length)
 {
-	struct orangefs_write_range *wr;
-	wr = (struct orangefs_write_range *)page_private(page);
+	struct orangefs_write_range *wr = folio_get_private(folio);
 
 	if (offset == 0 && length == PAGE_SIZE) {
-		kfree(detach_page_private(page));
+		kfree(folio_detach_private(folio));
 		return;
 	/* write range entirely within invalidate range (or equal) */
-	} else if (page_offset(page) + offset <= wr->pos &&
-	    wr->pos + wr->len <= page_offset(page) + offset + length) {
-		kfree(detach_page_private(page));
+	} else if (folio_pos(folio) + offset <= wr->pos &&
+	    wr->pos + wr->len <= folio_pos(folio) + offset + length) {
+		kfree(folio_detach_private(folio));
 		/* XXX is this right? only caller in fs */
-		cancel_dirty_page(page);
+		folio_cancel_dirty(folio);
 		return;
 	/* invalidate range chops off end of write range */
-	} else if (wr->pos < page_offset(page) + offset &&
-	    wr->pos + wr->len <= page_offset(page) + offset + length &&
-	     page_offset(page) + offset < wr->pos + wr->len) {
+	} else if (wr->pos < folio_pos(folio) + offset &&
+	    wr->pos + wr->len <= folio_pos(folio) + offset + length &&
+	     folio_pos(folio) + offset < wr->pos + wr->len) {
 		size_t x;
-		x = wr->pos + wr->len - (page_offset(page) + offset);
+		x = wr->pos + wr->len - (folio_pos(folio) + offset);
 		WARN_ON(x > wr->len);
 		wr->len -= x;
 		wr->uid = current_fsuid();
 		wr->gid = current_fsgid();
 	/* invalidate range chops off beginning of write range */
-	} else if (page_offset(page) + offset <= wr->pos &&
-	    page_offset(page) + offset + length < wr->pos + wr->len &&
-	    wr->pos < page_offset(page) + offset + length) {
+	} else if (folio_pos(folio) + offset <= wr->pos &&
+	    folio_pos(folio) + offset + length < wr->pos + wr->len &&
+	    wr->pos < folio_pos(folio) + offset + length) {
 		size_t x;
-		x = page_offset(page) + offset + length - wr->pos;
+		x = folio_pos(folio) + offset + length - wr->pos;
 		WARN_ON(x > wr->len);
 		wr->pos += x;
 		wr->len -= x;
 		wr->uid = current_fsuid();
 		wr->gid = current_fsgid();
 	/* invalidate range entirely within write range (punch hole) */
-	} else if (wr->pos < page_offset(page) + offset &&
-	    page_offset(page) + offset + length < wr->pos + wr->len) {
+	} else if (wr->pos < folio_pos(folio) + offset &&
+	    folio_pos(folio) + offset + length < wr->pos + wr->len) {
 		/* XXX what do we do here... should not WARN_ON */
 		WARN_ON(1);
 		/* punch hole */
@@ -467,11 +465,11 @@ static void orangefs_invalidatepage(struct page *page,
 	/* non-overlapping ranges */
 	} else {
 		/* WARN if they do overlap */
-		if (!((page_offset(page) + offset + length <= wr->pos) ^
-		    (wr->pos + wr->len <= page_offset(page) + offset))) {
+		if (!((folio_pos(folio) + offset + length <= wr->pos) ^
+		    (wr->pos + wr->len <= folio_pos(folio) + offset))) {
 			WARN_ON(1);
-			printk("invalidate range offset %llu length %u\n",
-			    page_offset(page) + offset, length);
+			printk("invalidate range offset %llu length %zu\n",
+			    folio_pos(folio) + offset, length);
 			printk("write range offset %llu length %zu\n",
 			    wr->pos, wr->len);
 		}
@@ -483,7 +481,7 @@ static void orangefs_invalidatepage(struct page *page,
 	 * Thus the following runs if wr was modified above.
 	 */
 
-	orangefs_launder_page(page);
+	orangefs_launder_page(&folio->page);
 }
 
 static int orangefs_releasepage(struct page *page, gfp_t foo)
@@ -636,7 +634,7 @@ static const struct address_space_operations orangefs_address_operations = {
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.write_begin = orangefs_write_begin,
 	.write_end = orangefs_write_end,
-	.invalidatepage = orangefs_invalidatepage,
+	.invalidate_folio = orangefs_invalidate_folio,
 	.releasepage = orangefs_releasepage,
 	.freepage = orangefs_freepage,
 	.launder_page = orangefs_launder_page,
