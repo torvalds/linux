@@ -2158,7 +2158,7 @@ const struct address_space_operations f2fs_node_aops = {
 	.writepage	= f2fs_write_node_page,
 	.writepages	= f2fs_write_node_pages,
 	.set_page_dirty	= f2fs_set_node_page_dirty,
-	.invalidatepage	= f2fs_invalidate_page,
+	.invalidate_folio = f2fs_invalidate_folio,
 	.releasepage	= f2fs_release_page,
 #ifdef CONFIG_MIGRATION
 	.migratepage	= f2fs_migrate_page,

@@ -3492,17 +3492,16 @@ unlock_out:
 	return copied;
 }
 
-void f2fs_invalidate_page(struct page *page, unsigned int offset,
-							unsigned int length)
+void f2fs_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 
 	if (inode->i_ino >= F2FS_ROOT_INO(sbi) &&
-		(offset % PAGE_SIZE || length != PAGE_SIZE))
+				(offset || length != folio_size(folio)))
 		return;
 
-	if (PageDirty(page)) {
+	if (folio_test_dirty(folio)) {
 		if (inode->i_ino == F2FS_META_INO(sbi)) {
 			dec_page_count(sbi, F2FS_DIRTY_META);
 		} else if (inode->i_ino == F2FS_NODE_INO(sbi)) {
@@ -3513,17 +3512,16 @@ void f2fs_invalidate_page(struct page *page, unsigned int offset,
 		}
 	}
 
-	clear_page_private_gcing(page);
+	clear_page_private_gcing(&folio->page);
 
 	if (test_opt(sbi, COMPRESS_CACHE) &&
 			inode->i_ino == F2FS_COMPRESS_INO(sbi))
-		clear_page_private_data(page);
+		clear_page_private_data(&folio->page);
 
-	if (page_private_atomic(page))
-		return f2fs_drop_inmem_page(inode, page);
+	if (page_private_atomic(&folio->page))
+		return f2fs_drop_inmem_page(inode, &folio->page);
 
-	detach_page_private(page);
-	set_page_private(page, 0);
+	folio_detach_private(folio);
 }
 
 int f2fs_release_page(struct page *page, gfp_t wait)
@@ -3939,7 +3937,7 @@ const struct address_space_operations f2fs_dblock_aops = {
 	.write_begin	= f2fs_write_begin,
 	.write_end	= f2fs_write_end,
 	.set_page_dirty	= f2fs_set_data_page_dirty,
-	.invalidatepage	= f2fs_invalidate_page,
+	.invalidate_folio = f2fs_invalidate_folio,
 	.releasepage	= f2fs_release_page,
 	.direct_IO	= noop_direct_IO,
 	.bmap		= f2fs_bmap,
