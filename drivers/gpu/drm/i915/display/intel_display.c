@@ -753,9 +753,11 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	crtc_state->data_rate[plane->id] = 0;
 	crtc_state->min_cdclk[plane->id] = 0;
 
-	if (plane->id == PLANE_PRIMARY &&
-	    hsw_ips_disable(crtc_state))
+	if ((crtc_state->active_planes & ~BIT(PLANE_CURSOR)) == 0 &&
+	    hsw_ips_disable(crtc_state)) {
+		crtc_state->ips_enabled = false;
 		intel_crtc_wait_for_next_vblank(crtc);
+	}
 
 	/*
 	 * Vblank time updates from the shadow to live plane control register
