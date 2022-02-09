@@ -158,18 +158,9 @@ static int v9fs_release_page(struct page *page, gfp_t gfp)
 	return 1;
 }
 
-/**
- * v9fs_invalidate_page - Invalidate a page completely or partially
- * @page: The page to be invalidated
- * @offset: offset of the invalidated region
- * @length: length of the invalidated region
- */
-
-static void v9fs_invalidate_page(struct page *page, unsigned int offset,
-				 unsigned int length)
+static void v9fs_invalidate_folio(struct folio *folio, size_t offset,
+				 size_t length)
 {
-	struct folio *folio = page_folio(page);
-
 	folio_wait_fscache(folio);
 }
 
@@ -394,7 +385,7 @@ const struct address_space_operations v9fs_addr_operations = {
 	.write_begin = v9fs_write_begin,
 	.write_end = v9fs_write_end,
 	.releasepage = v9fs_release_page,
-	.invalidatepage = v9fs_invalidate_page,
+	.invalidate_folio = v9fs_invalidate_folio,
 	.launder_page = v9fs_launder_page,
 	.direct_IO = v9fs_direct_IO,
 };
