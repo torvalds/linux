@@ -369,14 +369,14 @@ static void mctp_test_route_input_sk(struct kunit *test)
 
 #define FL_S	(MCTP_HDR_FLAG_SOM)
 #define FL_E	(MCTP_HDR_FLAG_EOM)
-#define FL_T	(MCTP_HDR_FLAG_TO)
+#define FL_TO	(MCTP_HDR_FLAG_TO)
 
 static const struct mctp_route_input_sk_test mctp_route_input_sk_tests[] = {
-	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_T), .type = 0, .deliver = true },
-	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_T), .type = 1, .deliver = false },
+	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_TO), .type = 0, .deliver = true },
+	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_TO), .type = 1, .deliver = false },
 	{ .hdr = RX_HDR(1, 10, 8, FL_S | FL_E), .type = 0, .deliver = false },
-	{ .hdr = RX_HDR(1, 10, 8, FL_E | FL_T), .type = 0, .deliver = false },
-	{ .hdr = RX_HDR(1, 10, 8, FL_T), .type = 0, .deliver = false },
+	{ .hdr = RX_HDR(1, 10, 8, FL_E | FL_TO), .type = 0, .deliver = false },
+	{ .hdr = RX_HDR(1, 10, 8, FL_TO), .type = 0, .deliver = false },
 	{ .hdr = RX_HDR(1, 10, 8, 0), .type = 0, .deliver = false },
 };
 
@@ -436,7 +436,7 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 	__mctp_route_test_fini(test, dev, rt, sock);
 }
 
-#define RX_FRAG(f, s) RX_HDR(1, 10, 8, FL_T | (f) | ((s) << MCTP_HDR_SEQ_SHIFT))
+#define RX_FRAG(f, s) RX_HDR(1, 10, 8, FL_TO | (f) | ((s) << MCTP_HDR_SEQ_SHIFT))
 
 static const struct mctp_route_input_sk_reasm_test mctp_route_input_sk_reasm_tests[] = {
 	{
