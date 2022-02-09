@@ -593,12 +593,12 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 	iblock = initialized_size >> blocksize_bits;
 
 	/*
-	 * Be very careful.  We have no exclusion from __set_page_dirty_buffers
+	 * Be very careful.  We have no exclusion from block_dirty_folio
 	 * here, and the (potentially unmapped) buffers may become dirty at
 	 * any time.  If a buffer becomes dirty here after we've inspected it
 	 * then we just miss that fact, and the page stays dirty.
 	 *
-	 * Buffers outside i_size may be dirtied by __set_page_dirty_buffers;
+	 * Buffers outside i_size may be dirtied by block_dirty_folio;
 	 * handle that here by just cleaning them.
 	 */
 
@@ -653,7 +653,7 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 				// Update initialized size in the attribute and
 				// in the inode.
 				// Again, for each page do:
-				//	__set_page_dirty_buffers();
+				//	block_dirty_folio();
 				// put_page()
 				// We don't need to wait on the writes.
 				// Update iblock.
@@ -1654,7 +1654,7 @@ const struct address_space_operations ntfs_normal_aops = {
 	.readpage	= ntfs_readpage,
 #ifdef NTFS_RW
 	.writepage	= ntfs_writepage,
-	.set_page_dirty	= __set_page_dirty_buffers,
+	.dirty_folio	= block_dirty_folio,
 #endif /* NTFS_RW */
 	.bmap		= ntfs_bmap,
 	.migratepage	= buffer_migrate_page,
@@ -1669,7 +1669,7 @@ const struct address_space_operations ntfs_compressed_aops = {
 	.readpage	= ntfs_readpage,
 #ifdef NTFS_RW
 	.writepage	= ntfs_writepage,
-	.set_page_dirty	= __set_page_dirty_buffers,
+	.dirty_folio	= block_dirty_folio,
 #endif /* NTFS_RW */
 	.migratepage	= buffer_migrate_page,
 	.is_partially_uptodate = block_is_partially_uptodate,
@@ -1746,7 +1746,7 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 		set_buffer_dirty(bh);
 	} while ((bh = bh->b_this_page) != head);
 	spin_unlock(&mapping->private_lock);
-	__set_page_dirty_nobuffers(page);
+	block_dirty_folio(mapping, page_folio(page));
 	if (unlikely(buffers_to_free)) {
 		do {
 			bh = buffers_to_free->b_this_page;

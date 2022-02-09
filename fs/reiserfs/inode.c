@@ -3201,14 +3201,14 @@ out:
 	return;
 }
 
-static int reiserfs_set_page_dirty(struct page *page)
+static bool reiserfs_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	if (reiserfs_file_data_log(inode)) {
-		SetPageChecked(page);
-		return __set_page_dirty_nobuffers(page);
+	if (reiserfs_file_data_log(mapping->host)) {
+		folio_set_checked(folio);
+		return filemap_dirty_folio(mapping, folio);
 	}
-	return __set_page_dirty_buffers(page);
+	return block_dirty_folio(mapping, folio);
 }
 
 /*
@@ -3435,5 +3435,5 @@ const struct address_space_operations reiserfs_address_space_operations = {
 	.write_end = reiserfs_write_end,
 	.bmap = reiserfs_aop_bmap,
 	.direct_IO = reiserfs_direct_IO,
-	.set_page_dirty = reiserfs_set_page_dirty,
+	.dirty_folio = reiserfs_dirty_folio,
 };
