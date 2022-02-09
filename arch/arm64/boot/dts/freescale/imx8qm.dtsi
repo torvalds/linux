@@ -20,6 +20,9 @@
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
 		serial0 = &lpuart0;
+		serial1 = &lpuart1;
+		serial2 = &lpuart2;
+		serial3 = &lpuart3;
 	};
 
 	cpus {
