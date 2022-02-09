@@ -296,7 +296,6 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 	struct rvu_hwinfo *hw = rvu->hw;
 	struct sdp_node_info *sdp_info;
 	int pkind, pf, vf, lbkid, vfid;
-	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
 	bool from_vf;
 	int err;
@@ -326,13 +325,6 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf,
 		cgx_set_pkind(rvu_cgx_pdata(cgx_id, rvu), lmac_id, pkind);
 		rvu_npc_set_pkind(rvu, pkind, pfvf);
 
-		mac_ops = get_mac_ops(rvu_cgx_pdata(cgx_id, rvu));
-
-		/* By default we enable pause frames */
-		if ((pcifunc & RVU_PFVF_FUNC_MASK) == 0)
-			mac_ops->mac_enadis_pause_frm(rvu_cgx_pdata(cgx_id,
-								    rvu),
-						      lmac_id, true, true);
 		break;
 	case NIX_INTF_TYPE_LBK:
 		vf = (pcifunc & RVU_PFVF_FUNC_MASK) - 1;
@@ -533,7 +525,7 @@ static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 	 */
 	switch (type) {
 	case NIX_INTF_TYPE_CGX:
-		if ((req->chan_base + req->chan_cnt) > 15)
+		if ((req->chan_base + req->chan_cnt) > 16)
 			return -EINVAL;
 		rvu_get_cgx_lmac_id(pfvf->cgx_lmac, &cgx_id, &lmac_id);
 		/* Assign bpid based on cgx, lmac and chan id */
@@ -4577,6 +4569,12 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 			dev_err(rvu->dev, "NPC config for PTP failed\n");
 		pfvf->hw_rx_tstamp_en = false;
 	}
+
+	/* reset priority flow control config */
+	rvu_cgx_prio_flow_ctrl_cfg(rvu, pcifunc, 0, 0, 0);
+
+	/* reset 802.3x flow control config */
+	rvu_cgx_cfg_pause_frm(rvu, pcifunc, 0, 0);
 
 	nix_ctx_free(rvu, pfvf);
 

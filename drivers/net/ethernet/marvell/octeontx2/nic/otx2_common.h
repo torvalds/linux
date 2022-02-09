@@ -399,6 +399,11 @@ struct otx2_nic {
 
 	/* Devlink */
 	struct otx2_devlink	*dl;
+#ifdef CONFIG_DCB
+	/* PFC */
+	u8			pfc_en;
+	u8			*queue_to_pfc_map;
+#endif
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
@@ -879,4 +884,11 @@ int otx2_dmacflt_remove(struct otx2_nic *pf, const u8 *mac, u8 bit_pos);
 int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u8 bit_pos);
 void otx2_dmacflt_reinstall_flows(struct otx2_nic *pf);
 void otx2_dmacflt_update_pfmac_flow(struct otx2_nic *pfvf);
+
+#ifdef CONFIG_DCB
+/* DCB support*/
+void otx2_update_bpid_in_rqctx(struct otx2_nic *pfvf, int vlan_prio, int qidx, bool pfc_enable);
+int otx2_config_priority_flow_ctrl(struct otx2_nic *pfvf);
+int otx2_dcbnl_set_ops(struct net_device *dev);
+#endif
 #endif /* OTX2_COMMON_H */
