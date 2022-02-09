@@ -203,14 +203,13 @@ void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 				   NFS_INO_INVALID_OTHER |
 				   NFS_INO_INVALID_XATTR);
 		flags &= ~(NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_SIZE);
-	} else if (flags & NFS_INO_REVAL_PAGECACHE)
-		flags |= NFS_INO_INVALID_CHANGE | NFS_INO_INVALID_SIZE;
+	}
 
 	if (!nfs_has_xattr_cache(nfsi))
 		flags &= ~NFS_INO_INVALID_XATTR;
 	if (flags & NFS_INO_INVALID_DATA)
 		nfs_fscache_invalidate(inode, 0);
-	flags &= ~(NFS_INO_REVAL_PAGECACHE | NFS_INO_REVAL_FORCED);
+	flags &= ~NFS_INO_REVAL_FORCED;
 
 	nfsi->cache_validity |= flags;
 

@@ -247,7 +247,6 @@ struct nfs4_copy_state {
 #define NFS_INO_INVALID_ATIME	BIT(2)		/* cached atime is invalid */
 #define NFS_INO_INVALID_ACCESS	BIT(3)		/* cached access cred invalid */
 #define NFS_INO_INVALID_ACL	BIT(4)		/* cached acls are invalid */
-#define NFS_INO_REVAL_PAGECACHE	BIT(5)		/* must revalidate pagecache */
 #define NFS_INO_REVAL_FORCED	BIT(6)		/* force revalidation ignoring a delegation */
 #define NFS_INO_INVALID_LABEL	BIT(7)		/* cached label is invalid */
 #define NFS_INO_INVALID_CHANGE	BIT(8)		/* cached change is invalid */
