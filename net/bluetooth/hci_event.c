@@ -5716,8 +5716,6 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
-	adv = hci_find_adv_instance(hdev, ev->handle);
-
 	/* The Bluetooth Core 5.3 specification clearly states that this event
 	 * shall not be sent when the Host disables the advertising set. So in
 	 * case of HCI_ERROR_CANCELLED_BY_HOST, just ignore the event.
@@ -5730,9 +5728,13 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 		return;
 	}
 
+	hci_dev_lock(hdev);
+
+	adv = hci_find_adv_instance(hdev, ev->handle);
+
 	if (ev->status) {
 		if (!adv)
-			return;
+			goto unlock;
 
 		/* Remove advertising as it has been terminated */
 		hci_remove_adv_instance(hdev, ev->handle);
@@ -5740,12 +5742,12 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 
 		list_for_each_entry_safe(adv, n, &hdev->adv_instances, list) {
 			if (adv->enabled)
-				return;
+				goto unlock;
 		}
 
 		/* We are no longer advertising, clear HCI_LE_ADV */
 		hci_dev_clear_flag(hdev, HCI_LE_ADV);
-		return;
+		goto unlock;
 	}
 
 	if (adv)
@@ -5760,16 +5762,19 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 
 		if (hdev->adv_addr_type != ADDR_LE_DEV_RANDOM ||
 		    bacmp(&conn->resp_addr, BDADDR_ANY))
-			return;
+			goto unlock;
 
 		if (!ev->handle) {
 			bacpy(&conn->resp_addr, &hdev->random_addr);
-			return;
+			goto unlock;
 		}
 
 		if (adv)
 			bacpy(&conn->resp_addr, &adv->random_addr);
 	}
+
+unlock:
+	hci_dev_unlock(hdev);
 }
 
 static void hci_le_conn_update_complete_evt(struct hci_dev *hdev, void *data,
