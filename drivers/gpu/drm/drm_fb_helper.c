@@ -754,11 +754,18 @@ EXPORT_SYMBOL(drm_fb_helper_sys_read);
 ssize_t drm_fb_helper_sys_write(struct fb_info *info, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
+	loff_t pos = *ppos;
 	ssize_t ret;
+	struct drm_rect damage_area;
 
 	ret = fb_sys_write(info, buf, count, ppos);
-	if (ret > 0)
-		drm_fb_helper_damage(info, 0, 0, info->var.xres, info->var.yres);
+	if (ret <= 0)
+		return ret;
+
+	drm_fb_helper_memory_range_to_clip(info, pos, ret, &damage_area);
+	drm_fb_helper_damage(info, damage_area.x1, damage_area.y1,
+			     drm_rect_width(&damage_area),
+			     drm_rect_height(&damage_area));
 
 	return ret;
 }
@@ -2237,6 +2244,7 @@ static ssize_t drm_fbdev_fb_write(struct fb_info *info, const char __user *buf,
 	loff_t pos = *ppos;
 	size_t total_size;
 	ssize_t ret;
+	struct drm_rect damage_area;
 	int err = 0;
 
 	if (info->screen_size)
@@ -2265,13 +2273,19 @@ static ssize_t drm_fbdev_fb_write(struct fb_info *info, const char __user *buf,
 	else
 		ret = fb_write_screen_buffer(info, buf, count, pos);
 
-	if (ret > 0)
-		*ppos += ret;
+	if (ret < 0)
+		return ret; /* return last error, if any */
+	else if (!ret)
+		return err; /* return previous error, if any */
 
-	if (ret > 0)
-		drm_fb_helper_damage(info, 0, 0, info->var.xres_virtual, info->var.yres_virtual);
+	*ppos += ret;
 
-	return ret ? ret : err;
+	drm_fb_helper_memory_range_to_clip(info, pos, ret, &damage_area);
+	drm_fb_helper_damage(info, damage_area.x1, damage_area.y1,
+			     drm_rect_width(&damage_area),
+			     drm_rect_height(&damage_area));
+
+	return ret;
 }
 
 static void drm_fbdev_fb_fillrect(struct fb_info *info,
