@@ -45,6 +45,7 @@ void enetc_sched_speed_set(struct enetc_ndev_priv *priv, int speed)
 		      | pspeed);
 }
 
+#define ENETC_QOS_ALIGN	64
 static int enetc_setup_taprio(struct net_device *ndev,
 			      struct tc_taprio_qopt_offload *admin_conf)
 {
@@ -52,10 +53,11 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	struct enetc_cbd cbd = {.cmd = 0};
 	struct tgs_gcl_conf *gcl_config;
 	struct tgs_gcl_data *gcl_data;
+	dma_addr_t dma, dma_align;
 	struct gce *gce;
-	dma_addr_t dma;
 	u16 data_size;
 	u16 gcl_len;
+	void *tmp;
 	u32 tge;
 	int err;
 	int i;
@@ -82,9 +84,16 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	gcl_config = &cbd.gcl_conf;
 
 	data_size = struct_size(gcl_data, entry, gcl_len);
-	gcl_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!gcl_data)
+	tmp = dma_alloc_coherent(&priv->si->pdev->dev,
+				 data_size + ENETC_QOS_ALIGN,
+				 &dma, GFP_KERNEL);
+	if (!tmp) {
+		dev_err(&priv->si->pdev->dev,
+			"DMA mapping of taprio gate list failed!\n");
 		return -ENOMEM;
+	}
+	dma_align = ALIGN(dma, ENETC_QOS_ALIGN);
+	gcl_data = (struct tgs_gcl_data *)PTR_ALIGN(tmp, ENETC_QOS_ALIGN);
 
 	gce = (struct gce *)(gcl_data + 1);
 
@@ -110,16 +119,8 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	cbd.length = cpu_to_le16(data_size);
 	cbd.status_flags = 0;
 
-	dma = dma_map_single(&priv->si->pdev->dev, gcl_data,
-			     data_size, DMA_TO_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		kfree(gcl_data);
-		return -ENOMEM;
-	}
-
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma_align));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma_align));
 	cbd.cls = BDCR_CMD_PORT_GCL;
 	cbd.status_flags = 0;
 
@@ -132,8 +133,8 @@ static int enetc_setup_taprio(struct net_device *ndev,
 			 ENETC_QBV_PTGCR_OFFSET,
 			 tge & (~ENETC_QBV_TGE));
 
-	dma_unmap_single(&priv->si->pdev->dev, dma, data_size, DMA_TO_DEVICE);
-	kfree(gcl_data);
+	dma_free_coherent(&priv->si->pdev->dev, data_size + ENETC_QOS_ALIGN,
+			  tmp, dma);
 
 	return err;
 }
@@ -463,8 +464,9 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	struct enetc_cbd cbd = {.cmd = 0};
 	struct streamid_data *si_data;
 	struct streamid_conf *si_conf;
+	dma_addr_t dma, dma_align;
 	u16 data_size;
-	dma_addr_t dma;
+	void *tmp;
 	int port;
 	int err;
 
@@ -485,21 +487,20 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 	cbd.status_flags = 0;
 
 	data_size = sizeof(struct streamid_data);
-	si_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!si_data)
+	tmp = dma_alloc_coherent(&priv->si->pdev->dev,
+				 data_size + ENETC_QOS_ALIGN,
+				 &dma, GFP_KERNEL);
+	if (!tmp) {
+		dev_err(&priv->si->pdev->dev,
+			"DMA mapping of stream identify failed!\n");
 		return -ENOMEM;
-	cbd.length = cpu_to_le16(data_size);
-
-	dma = dma_map_single(&priv->si->pdev->dev, si_data,
-			     data_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		err = -ENOMEM;
-		goto out;
 	}
+	dma_align = ALIGN(dma, ENETC_QOS_ALIGN);
+	si_data = (struct streamid_data *)PTR_ALIGN(tmp, ENETC_QOS_ALIGN);
 
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
+	cbd.length = cpu_to_le16(data_size);
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma_align));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma_align));
 	eth_broadcast_addr(si_data->dmac);
 	si_data->vid_vidm_tg = (ENETC_CBDR_SID_VID_MASK
 			       + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
@@ -539,8 +540,8 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	cbd.length = cpu_to_le16(data_size);
 
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma_align));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma_align));
 
 	/* VIDM default to be 1.
 	 * VID Match. If set (b1) then the VID must match, otherwise
@@ -561,10 +562,8 @@ static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
 
 	err = enetc_send_cmd(priv->si, &cbd);
 out:
-	if (!dma_mapping_error(&priv->si->pdev->dev, dma))
-		dma_unmap_single(&priv->si->pdev->dev, dma, data_size, DMA_FROM_DEVICE);
-
-	kfree(si_data);
+	dma_free_coherent(&priv->si->pdev->dev, data_size + ENETC_QOS_ALIGN,
+			  tmp, dma);
 
 	return err;
 }
@@ -633,8 +632,9 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 {
 	struct enetc_cbd cbd = { .cmd = 2 };
 	struct sfi_counter_data *data_buf;
-	dma_addr_t dma;
+	dma_addr_t dma, dma_align;
 	u16 data_size;
+	void *tmp;
 	int err;
 
 	cbd.index = cpu_to_le16((u16)index);
@@ -643,19 +643,19 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 	cbd.status_flags = 0;
 
 	data_size = sizeof(struct sfi_counter_data);
-	data_buf = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!data_buf)
+	tmp = dma_alloc_coherent(&priv->si->pdev->dev,
+				 data_size + ENETC_QOS_ALIGN,
+				 &dma, GFP_KERNEL);
+	if (!tmp) {
+		dev_err(&priv->si->pdev->dev,
+			"DMA mapping of stream counter failed!\n");
 		return -ENOMEM;
-
-	dma = dma_map_single(&priv->si->pdev->dev, data_buf,
-			     data_size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		err = -ENOMEM;
-		goto exit;
 	}
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
+	dma_align = ALIGN(dma, ENETC_QOS_ALIGN);
+	data_buf = (struct sfi_counter_data *)PTR_ALIGN(tmp, ENETC_QOS_ALIGN);
+
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma_align));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma_align));
 
 	cbd.length = cpu_to_le16(data_size);
 
@@ -684,7 +684,9 @@ static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
 				data_buf->flow_meter_dropl;
 
 exit:
-	kfree(data_buf);
+	dma_free_coherent(&priv->si->pdev->dev, data_size + ENETC_QOS_ALIGN,
+			  tmp, dma);
+
 	return err;
 }
 
@@ -723,9 +725,10 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	struct sgcl_conf *sgcl_config;
 	struct sgcl_data *sgcl_data;
 	struct sgce *sgce;
-	dma_addr_t dma;
+	dma_addr_t dma, dma_align;
 	u16 data_size;
 	int err, i;
+	void *tmp;
 	u64 now;
 
 	cbd.index = cpu_to_le16(sgi->index);
@@ -772,24 +775,20 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	sgcl_config->acl_len = (sgi->num_entries - 1) & 0x3;
 
 	data_size = struct_size(sgcl_data, sgcl, sgi->num_entries);
-
-	sgcl_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
-	if (!sgcl_data)
-		return -ENOMEM;
-
-	cbd.length = cpu_to_le16(data_size);
-
-	dma = dma_map_single(&priv->si->pdev->dev,
-			     sgcl_data, data_size,
-			     DMA_FROM_DEVICE);
-	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
-		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
-		kfree(sgcl_data);
+	tmp = dma_alloc_coherent(&priv->si->pdev->dev,
+				 data_size + ENETC_QOS_ALIGN,
+				 &dma, GFP_KERNEL);
+	if (!tmp) {
+		dev_err(&priv->si->pdev->dev,
+			"DMA mapping of stream counter failed!\n");
 		return -ENOMEM;
 	}
+	dma_align = ALIGN(dma, ENETC_QOS_ALIGN);
+	sgcl_data = (struct sgcl_data *)PTR_ALIGN(tmp, ENETC_QOS_ALIGN);
 
-	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma));
-	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma));
+	cbd.length = cpu_to_le16(data_size);
+	cbd.addr[0] = cpu_to_le32(lower_32_bits(dma_align));
+	cbd.addr[1] = cpu_to_le32(upper_32_bits(dma_align));
 
 	sgce = &sgcl_data->sgcl[0];
 
@@ -844,7 +843,8 @@ static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
 	err = enetc_send_cmd(priv->si, &cbd);
 
 exit:
-	kfree(sgcl_data);
+	dma_free_coherent(&priv->si->pdev->dev, data_size + ENETC_QOS_ALIGN,
+			  tmp, dma);
 
 	return err;
 }
