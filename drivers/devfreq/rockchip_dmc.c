@@ -1194,7 +1194,7 @@ static __maybe_unused int rockchip_get_freq_info(struct rockchip_dmcfreq *dmcfre
 				break;
 		}
 		if (j == dmcfreq->freq_count)
-			dev_pm_opp_remove(dmcfreq->dev, rate);
+			dev_pm_opp_disable(dmcfreq->dev, rate);
 	}
 
 	for (i = 0; i < dmcfreq->freq_count; i++) {
