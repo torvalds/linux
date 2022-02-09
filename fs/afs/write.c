@@ -972,9 +972,8 @@ void afs_prune_wb_keys(struct afs_vnode *vnode)
 /*
  * Clean up a page during invalidation.
  */
-int afs_launder_page(struct page *subpage)
+int afs_launder_folio(struct folio *folio)
 {
-	struct folio *folio = page_folio(subpage);
 	struct afs_vnode *vnode = AFS_FS_I(folio_inode(folio));
 	struct iov_iter iter;
 	struct bio_vec bv[1];
@@ -982,7 +981,7 @@ int afs_launder_page(struct page *subpage)
 	unsigned int f, t;
 	int ret = 0;
 
-	_enter("{%lx}", folio_index(folio));
+	_enter("{%lx}", folio->index);
 
 	priv = (unsigned long)folio_get_private(folio);
 	if (folio_clear_dirty_for_io(folio)) {
