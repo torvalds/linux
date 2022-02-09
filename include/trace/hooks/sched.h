@@ -283,9 +283,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_tick,
 			unsigned long delta_exec, struct cfs_rq *cfs_rq, struct sched_entity *curr,
 			unsigned int granularity),
 	TP_ARGS(p, ideal_runtime, skip_preempt, delta_exec, cfs_rq, curr, granularity), 1);
-DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_wakeup_ignore,
-	TP_PROTO(struct task_struct *p, bool *ignore),
-	TP_ARGS(p, ignore), 1);
 DECLARE_RESTRICTED_HOOK(android_rvh_replace_next_task_fair,
 	TP_PROTO(struct rq *rq, struct task_struct **p, struct sched_entity **se, bool *repick,
 			bool simple, struct task_struct *prev),
@@ -342,10 +339,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_dequeue_entity,
 	TP_PROTO(struct cfs_rq *cfs, struct sched_entity *se),
 	TP_ARGS(cfs, se), 1);
 
-DECLARE_RESTRICTED_HOOK(android_rvh_entity_tick,
-	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se),
-	TP_ARGS(cfs_rq, se), 1);
-
 DECLARE_RESTRICTED_HOOK(android_rvh_enqueue_task_fair,
 	TP_PROTO(struct rq *rq, struct task_struct *p, int flags),
 	TP_ARGS(rq, p, flags), 1);
@@ -369,10 +362,6 @@ DECLARE_HOOK(android_vh_finish_update_load_avg_se,
 DECLARE_HOOK(android_vh_dup_task_struct,
 	TP_PROTO(struct task_struct *tsk, struct task_struct *orig),
 	TP_ARGS(tsk, orig));
-
-DECLARE_HOOK(android_vh_set_task_comm,
-	TP_PROTO(struct task_struct *p),
-	TP_ARGS(p));
 
 DECLARE_RESTRICTED_HOOK(android_rvh_find_new_ilb,
 	TP_PROTO(struct cpumask *nohz_idle_cpus_mask, int *ilb),

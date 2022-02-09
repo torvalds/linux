@@ -53,6 +53,7 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	if (iommu) {
 		iommu_setup_dma_ops(dev, dma_base, size);
 		trace_android_vh_iommu_setup_dma_ops(dev, dma_base, size);
+		trace_android_rvh_iommu_setup_dma_ops(dev, dma_base, size);
 	}
 
 #ifdef CONFIG_XEN

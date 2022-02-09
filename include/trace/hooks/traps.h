@@ -17,11 +17,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_do_undefinstr,
 	TP_ARGS(regs, user),
 	TP_CONDITION(!user));
 
-DECLARE_RESTRICTED_HOOK(android_rvh_do_bti,
-	TP_PROTO(struct pt_regs *regs, bool user),
-	TP_ARGS(regs, user),
-	TP_CONDITION(!user));
-
 DECLARE_RESTRICTED_HOOK(android_rvh_do_ptrauth_fault,
 	TP_PROTO(struct pt_regs *regs, unsigned int esr, bool user),
 	TP_ARGS(regs, esr, user),

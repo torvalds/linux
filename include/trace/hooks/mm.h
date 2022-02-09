@@ -68,16 +68,7 @@ DECLARE_HOOK(android_vh_include_reserved_zone,
 DECLARE_HOOK(android_vh_show_mem,
 	TP_PROTO(unsigned int filter, nodemask_t *nodemask),
 	TP_ARGS(filter, nodemask));
-DECLARE_HOOK(android_vh_alloc_pages_slowpath,
-	TP_PROTO(gfp_t gfp_mask, unsigned int order, unsigned long delta),
-	TP_ARGS(gfp_mask, order, delta));
-DECLARE_HOOK(android_vh_print_slabinfo_header,
-	TP_PROTO(struct seq_file *m),
-	TP_ARGS(m));
 struct slabinfo;
-DECLARE_HOOK(android_vh_cache_show,
-	TP_PROTO(struct seq_file *m, struct slabinfo *sinfo, struct kmem_cache *s),
-	TP_ARGS(m, sinfo, s));
 struct dirty_throttle_control;
 DECLARE_HOOK(android_vh_mm_dirty_limits,
 	TP_PROTO(struct dirty_throttle_control *const gdtc, bool strictlimit,
