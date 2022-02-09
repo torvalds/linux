@@ -368,9 +368,6 @@
 #define NOPID		_MMIO(0x2094)
 #define HWSTAM		_MMIO(0x2098)
 
-#define VDBOX_CGCTL3F18(base)		_MMIO((base) + 0x3f18)
-#define   ALNUNIT_CLKGATE_DIS		REG_BIT(13)
-
 #define ERROR_GEN6	_MMIO(0x40a0)
 
 #define GEN8_FAULT_TLB_DATA0		_MMIO(0x4b10)
