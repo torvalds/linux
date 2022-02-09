@@ -13,6 +13,7 @@
 #include "gpiolib.h"
 #include "gpiolib-sysfs.h"
 
+#define GPIO_IRQF_TRIGGER_NONE		0
 #define GPIO_IRQF_TRIGGER_FALLING	BIT(0)
 #define GPIO_IRQF_TRIGGER_RISING	BIT(1)
 #define GPIO_IRQF_TRIGGER_BOTH		(GPIO_IRQF_TRIGGER_FALLING | \
@@ -218,54 +219,41 @@ static void gpio_sysfs_free_irq(struct device *dev)
 	sysfs_put(data->value_kn);
 }
 
-static const struct {
-	const char *name;
-	unsigned char flags;
-} trigger_types[] = {
-	{ "none",    0 },
-	{ "falling", GPIO_IRQF_TRIGGER_FALLING },
-	{ "rising",  GPIO_IRQF_TRIGGER_RISING },
-	{ "both",    GPIO_IRQF_TRIGGER_BOTH },
+static const char * const trigger_names[] = {
+	[GPIO_IRQF_TRIGGER_NONE]	= "none",
+	[GPIO_IRQF_TRIGGER_FALLING]	= "falling",
+	[GPIO_IRQF_TRIGGER_RISING]	= "rising",
+	[GPIO_IRQF_TRIGGER_BOTH]	= "both",
 };
 
 static ssize_t edge_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
-	int i;
+	int flags;
 
 	mutex_lock(&data->mutex);
 
-	for (i = 0; i < ARRAY_SIZE(trigger_types); i++) {
-		if (data->irq_flags == trigger_types[i].flags)
-			break;
-	}
+	flags = data->irq_flags;
 
 	mutex_unlock(&data->mutex);
 
-	if (i >= ARRAY_SIZE(trigger_types))
+	if (flags >= ARRAY_SIZE(trigger_names))
 		return 0;
 
-	return sysfs_emit(buf, "%s\n", trigger_types[i].name);
+	return sysfs_emit(buf, "%s\n", trigger_names[flags]);
 }
 
 static ssize_t edge_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
-	unsigned char flags;
 	ssize_t	status = size;
-	int i;
+	int flags;
 
-	for (i = 0; i < ARRAY_SIZE(trigger_types); i++) {
-		if (sysfs_streq(trigger_types[i].name, buf))
-			break;
-	}
-
-	if (i == ARRAY_SIZE(trigger_types))
-		return -EINVAL;
-
-	flags = trigger_types[i].flags;
+	flags = sysfs_match_string(trigger_names, buf);
+	if (flags < 0)
+		return flags;
 
 	mutex_lock(&data->mutex);
 
