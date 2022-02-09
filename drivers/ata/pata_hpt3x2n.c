@@ -27,7 +27,6 @@
 #define DRV_VERSION	"0.3.17"
 
 enum {
-	HPT_PCI_FAST	=	(1 << 31),
 	PCI66		=	(1 << 1),
 	USE_DPLL	=	(1 << 0)
 };
