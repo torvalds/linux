@@ -348,12 +348,28 @@ EXPORT_SYMBOL_NS_GPL(to_cxl_port, CXL);
 static void unregister_port(void *_port)
 {
 	struct cxl_port *port = _port;
+	struct cxl_port *parent;
+	struct device *lock_dev;
 
-	if (!is_cxl_root(port)) {
-		device_lock_assert(port->dev.parent);
-		port->uport = NULL;
-	}
+	if (is_cxl_root(port))
+		parent = NULL;
+	else
+		parent = to_cxl_port(port->dev.parent);
 
+	/*
+	 * CXL root port's and the first level of ports are unregistered
+	 * under the platform firmware device lock, all other ports are
+	 * unregistered while holding their parent port lock.
+	 */
+	if (!parent)
+		lock_dev = port->uport;
+	else if (is_cxl_root(parent))
+		lock_dev = parent->uport;
+	else
+		lock_dev = &parent->dev;
+
+	device_lock_assert(lock_dev);
+	port->uport = NULL;
 	device_unregister(&port->dev);
 }
 
