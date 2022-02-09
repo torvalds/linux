@@ -19,7 +19,8 @@
 
 static size_t page_sz;
 
-static int check_usermem_access_fault(int mem_type, int mode, int mapping)
+static int check_usermem_access_fault(int mem_type, int mode, int mapping,
+                                      int tag_offset, int tag_len)
 {
 	int fd, i, err;
 	char val = 'A';
@@ -54,10 +55,12 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping)
 	if (i < len)
 		goto usermem_acc_err;
 
-	/* Tag the next half of memory with different value */
-	ptr_next = (void *)((unsigned long)ptr + page_sz);
+	if (!tag_len)
+		tag_len = len - tag_offset;
+	/* Tag a part of memory with different value */
+	ptr_next = (void *)((unsigned long)ptr + tag_offset);
 	ptr_next = mte_insert_new_tag(ptr_next);
-	mte_set_tag_address_range(ptr_next, page_sz);
+	mte_set_tag_address_range(ptr_next, tag_len);
 
 	lseek(fd, 0, 0);
 	/* Copy from file into buffer with invalid tag */
@@ -100,14 +103,14 @@ int main(int argc, char *argv[])
 	/* Set test plan */
 	ksft_set_plan(4);
 
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE),
+	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, page_sz, 0),
 		"Check memory access from kernel in sync mode, private mapping and mmap memory\n");
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED),
+	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED, page_sz, 0),
 		"Check memory access from kernel in sync mode, shared mapping and mmap memory\n");
 
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_PRIVATE),
+	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_PRIVATE, page_sz, 0),
 		"Check memory access from kernel in async mode, private mapping and mmap memory\n");
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_SHARED),
+	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_SHARED, page_sz, 0),
 		"Check memory access from kernel in async mode, shared mapping and mmap memory\n");
 
 	mte_restore_setup();
