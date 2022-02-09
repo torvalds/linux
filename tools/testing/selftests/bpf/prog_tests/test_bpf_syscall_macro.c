@@ -62,6 +62,12 @@ void test_bpf_syscall_macro(void)
 	ASSERT_EQ(skel->bss->arg4_core, exp_arg4, "syscall_arg4_core_variant");
 	ASSERT_EQ(skel->bss->arg5_core, exp_arg5, "syscall_arg5_core_variant");
 
+	ASSERT_EQ(skel->bss->option_syscall, exp_arg1, "BPF_KPROBE_SYSCALL_option");
+	ASSERT_EQ(skel->bss->arg2_syscall, exp_arg2, "BPF_KPROBE_SYSCALL_arg2");
+	ASSERT_EQ(skel->bss->arg3_syscall, exp_arg3, "BPF_KPROBE_SYSCALL_arg3");
+	ASSERT_EQ(skel->bss->arg4_syscall, exp_arg4, "BPF_KPROBE_SYSCALL_arg4");
+	ASSERT_EQ(skel->bss->arg5_syscall, exp_arg5, "BPF_KPROBE_SYSCALL_arg5");
+
 cleanup:
 	bpf_syscall_macro__destroy(skel);
 }

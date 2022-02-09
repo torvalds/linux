@@ -21,6 +21,12 @@ unsigned long arg4_core_cx = 0;
 unsigned long arg4_core = 0;
 unsigned long arg5_core = 0;
 
+int option_syscall = 0;
+unsigned long arg2_syscall = 0;
+unsigned long arg3_syscall = 0;
+unsigned long arg4_syscall = 0;
+unsigned long arg5_syscall = 0;
+
 const volatile pid_t filter_pid = 0;
 
 SEC("kprobe/" SYS_PREFIX "sys_prctl")
@@ -55,6 +61,23 @@ int BPF_KPROBE(handle_sys_prctl)
 	arg4_core = PT_REGS_PARM4_CORE_SYSCALL(real_regs);
 	arg5_core = PT_REGS_PARM5_CORE_SYSCALL(real_regs);
 
+	return 0;
+}
+
+SEC("kprobe/" SYS_PREFIX "sys_prctl")
+int BPF_KPROBE_SYSCALL(prctl_enter, int option, unsigned long arg2,
+		       unsigned long arg3, unsigned long arg4, unsigned long arg5)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+
+	if (pid != filter_pid)
+		return 0;
+
+	option_syscall = option;
+	arg2_syscall = arg2;
+	arg3_syscall = arg3;
+	arg4_syscall = arg4;
+	arg5_syscall = arg5;
 	return 0;
 }
 
