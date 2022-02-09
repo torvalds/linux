@@ -306,7 +306,7 @@ static void nfs_set_pageerror(struct address_space *mapping)
 	/* Force file size revalidation */
 	spin_lock(&inode->i_lock);
 	nfs_set_cache_invalid(inode, NFS_INO_REVAL_FORCED |
-					     NFS_INO_REVAL_PAGECACHE |
+					     NFS_INO_INVALID_CHANGE |
 					     NFS_INO_INVALID_SIZE);
 	spin_unlock(&inode->i_lock);
 }
