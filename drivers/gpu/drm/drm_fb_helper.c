@@ -699,7 +699,7 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 	max = 0;
 	list_for_each_entry(page, pagelist, lru) {
 		start = page->index << PAGE_SHIFT;
-		end = start + PAGE_SIZE - 1;
+		end = start + PAGE_SIZE;
 		min = min(min, start);
 		max = max(max, end);
 	}
