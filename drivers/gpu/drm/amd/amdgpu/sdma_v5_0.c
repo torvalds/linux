@@ -264,7 +264,8 @@ static int sdma_v5_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "navi12";
 		break;
 	case IP_VERSION(5, 0, 1):
-		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
+		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2 ||
+		    adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 1, 4))
 			chip_name = "cyan_skillfish2";
 		else
 			chip_name = "cyan_skillfish";

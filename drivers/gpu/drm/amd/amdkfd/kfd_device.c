@@ -110,6 +110,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(10, 3, 1): /* VANGOGH */
 	case IP_VERSION(10, 3, 3): /* YELLOW_CARP */
 	case IP_VERSION(10, 1, 3): /* CYAN_SKILLFISH */
+	case IP_VERSION(10, 1, 4):
 	case IP_VERSION(10, 1, 10): /* NAVI10 */
 	case IP_VERSION(10, 1, 2): /* NAVI12 */
 	case IP_VERSION(10, 1, 1): /* NAVI14 */
@@ -307,6 +308,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		/* Cyan Skillfish */
 		case IP_VERSION(10, 1, 3):
+		case IP_VERSION(10, 1, 4):
 			gfx_target_version = 100103;
 			if (!vf)
 				f2g = &gfx_v10_kfd2kgd;

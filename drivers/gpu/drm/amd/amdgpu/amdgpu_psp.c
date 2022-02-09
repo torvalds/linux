@@ -137,7 +137,8 @@ static int psp_early_init(void *handle)
 		psp->autoload_supported = true;
 		break;
 	case IP_VERSION(11, 0, 8):
-		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2) {
+		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2 ||
+		    adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 1, 4)) {
 			psp_v11_0_8_set_psp_funcs(psp);
 			psp->autoload_supported = false;
 		}
