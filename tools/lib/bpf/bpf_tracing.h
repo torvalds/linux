@@ -70,13 +70,15 @@
 #define __PT_PARM2_REG si
 #define __PT_PARM3_REG dx
 #define __PT_PARM4_REG cx
-#define __PT_PARM4_REG_SYSCALL r10 /* syscall uses r10 */
 #define __PT_PARM5_REG r8
 #define __PT_RET_REG sp
 #define __PT_FP_REG bp
 #define __PT_RC_REG ax
 #define __PT_SP_REG sp
 #define __PT_IP_REG ip
+/* syscall uses r10 for PARM4 */
+#define PT_REGS_PARM4_SYSCALL(x) ((x)->r10)
+#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(x, r10)
 
 #else
 
@@ -100,13 +102,15 @@
 #define __PT_PARM2_REG rsi
 #define __PT_PARM3_REG rdx
 #define __PT_PARM4_REG rcx
-#define __PT_PARM4_REG_SYSCALL r10 /* syscall uses r10 */
 #define __PT_PARM5_REG r8
 #define __PT_RET_REG rsp
 #define __PT_FP_REG rbp
 #define __PT_RC_REG rax
 #define __PT_SP_REG rsp
 #define __PT_IP_REG rip
+/* syscall uses r10 for PARM4 */
+#define PT_REGS_PARM4_SYSCALL(x) ((x)->r10)
+#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(x, r10)
 
 #endif /* __i386__ */
 
@@ -269,22 +273,22 @@ struct pt_regs;
 
 #endif
 
+#ifndef PT_REGS_PARM1_SYSCALL
 #define PT_REGS_PARM1_SYSCALL(x) PT_REGS_PARM1(x)
+#endif
 #define PT_REGS_PARM2_SYSCALL(x) PT_REGS_PARM2(x)
 #define PT_REGS_PARM3_SYSCALL(x) PT_REGS_PARM3(x)
-#ifdef __PT_PARM4_REG_SYSCALL
-#define PT_REGS_PARM4_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM4_REG_SYSCALL)
-#else /* __PT_PARM4_REG_SYSCALL */
+#ifndef PT_REGS_PARM4_SYSCALL
 #define PT_REGS_PARM4_SYSCALL(x) PT_REGS_PARM4(x)
 #endif
 #define PT_REGS_PARM5_SYSCALL(x) PT_REGS_PARM5(x)
 
+#ifndef PT_REGS_PARM1_CORE_SYSCALL
 #define PT_REGS_PARM1_CORE_SYSCALL(x) PT_REGS_PARM1_CORE(x)
+#endif
 #define PT_REGS_PARM2_CORE_SYSCALL(x) PT_REGS_PARM2_CORE(x)
 #define PT_REGS_PARM3_CORE_SYSCALL(x) PT_REGS_PARM3_CORE(x)
-#ifdef __PT_PARM4_REG_SYSCALL
-#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM4_REG_SYSCALL)
-#else /* __PT_PARM4_REG_SYSCALL */
+#ifndef PT_REGS_PARM4_CORE_SYSCALL
 #define PT_REGS_PARM4_CORE_SYSCALL(x) PT_REGS_PARM4_CORE(x)
 #endif
 #define PT_REGS_PARM5_CORE_SYSCALL(x) PT_REGS_PARM5_CORE(x)
