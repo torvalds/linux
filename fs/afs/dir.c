@@ -45,7 +45,8 @@ static int afs_dir_releasepage(struct page *page, gfp_t gfp_flags);
 static void afs_dir_invalidate_folio(struct folio *folio, size_t offset,
 				   size_t length);
 
-static int afs_dir_set_page_dirty(struct page *page)
+static bool afs_dir_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
 	BUG(); /* This should never happen. */
 }
@@ -73,7 +74,7 @@ const struct inode_operations afs_dir_inode_operations = {
 };
 
 const struct address_space_operations afs_dir_aops = {
-	.set_page_dirty	= afs_dir_set_page_dirty,
+	.dirty_folio	= afs_dir_dirty_folio,
 	.releasepage	= afs_dir_releasepage,
 	.invalidate_folio = afs_dir_invalidate_folio,
 };
