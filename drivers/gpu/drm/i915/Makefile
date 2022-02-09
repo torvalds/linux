@@ -198,6 +198,7 @@ i915-y += gt/uc/intel_uc.o \
 
 # modesetting core code
 i915-y += \
+	display/hsw_ips.o \
 	display/intel_atomic.o \
 	display/intel_atomic_plane.o \
 	display/intel_audio.o \
