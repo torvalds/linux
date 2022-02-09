@@ -767,7 +767,8 @@ static void *dpaa2_eth_sgt_get(struct dpaa2_eth_priv *priv)
 	int sgt_buf_size;
 
 	sgt_cache = this_cpu_ptr(priv->sgt_cache);
-	sgt_buf_size = priv->tx_data_offset + sizeof(struct dpaa2_sg_entry);
+	sgt_buf_size = priv->tx_data_offset +
+		DPAA2_ETH_SG_ENTRIES_MAX * sizeof(struct dpaa2_sg_entry);
 
 	if (sgt_cache->count == 0)
 		sgt_buf = napi_alloc_frag_align(sgt_buf_size, DPAA2_ETH_TX_BUF_ALIGN);
@@ -837,7 +838,7 @@ static int dpaa2_eth_build_sg_fd(struct dpaa2_eth_priv *priv,
 	/* Prepare the HW SGT structure */
 	sgt_buf_size = priv->tx_data_offset +
 		       sizeof(struct dpaa2_sg_entry) *  num_dma_bufs;
-	sgt_buf = napi_alloc_frag_align(sgt_buf_size, DPAA2_ETH_TX_BUF_ALIGN);
+	sgt_buf = dpaa2_eth_sgt_get(priv);
 	if (unlikely(!sgt_buf)) {
 		err = -ENOMEM;
 		goto sgt_buf_alloc_failed;
@@ -886,7 +887,7 @@ static int dpaa2_eth_build_sg_fd(struct dpaa2_eth_priv *priv,
 	return 0;
 
 dma_map_single_failed:
-	skb_free_frag(sgt_buf);
+	dpaa2_eth_sgt_recycle(priv, sgt_buf);
 sgt_buf_alloc_failed:
 	dma_unmap_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
 dma_map_sg_failed:
@@ -1099,12 +1100,8 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 	}
 
 	/* Free SGT buffer allocated on tx */
-	if (fd_format != dpaa2_fd_single) {
-		if (swa->type == DPAA2_ETH_SWA_SG)
-			skb_free_frag(buffer_start);
-		else
-			dpaa2_eth_sgt_recycle(priv, buffer_start);
-	}
+	if (fd_format != dpaa2_fd_single)
+		dpaa2_eth_sgt_recycle(priv, buffer_start);
 
 	/* Move on with skb release */
 	napi_consume_skb(skb, in_napi);

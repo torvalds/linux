@@ -493,6 +493,8 @@ struct dpaa2_eth_trap_data {
 	struct dpaa2_eth_priv *priv;
 };
 
+#define DPAA2_ETH_SG_ENTRIES_MAX	(PAGE_SIZE / sizeof(struct scatterlist))
+
 #define DPAA2_ETH_DEFAULT_COPYBREAK	512
 
 /* Driver private data */
