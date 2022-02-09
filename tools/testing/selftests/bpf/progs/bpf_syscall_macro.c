@@ -28,14 +28,19 @@ int BPF_KPROBE(handle_sys_prctl)
 {
 	struct pt_regs *real_regs;
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	unsigned long tmp = 0;
 
 	if (pid != filter_pid)
 		return 0;
 
-	real_regs = (struct pt_regs *)PT_REGS_PARM1(ctx);
+	real_regs = PT_REGS_SYSCALL_REGS(ctx);
 
 	/* test for PT_REGS_PARM */
-	bpf_probe_read_kernel(&arg1, sizeof(arg1), &PT_REGS_PARM1_SYSCALL(real_regs));
+
+#if !defined(bpf_target_arm64) && !defined(bpf_target_s390)
+	bpf_probe_read_kernel(&tmp, sizeof(tmp), &PT_REGS_PARM1_SYSCALL(real_regs));
+#endif
+	arg1 = tmp;
 	bpf_probe_read_kernel(&arg2, sizeof(arg2), &PT_REGS_PARM2_SYSCALL(real_regs));
 	bpf_probe_read_kernel(&arg3, sizeof(arg3), &PT_REGS_PARM3_SYSCALL(real_regs));
 	bpf_probe_read_kernel(&arg4_cx, sizeof(arg4_cx), &PT_REGS_PARM4(real_regs));

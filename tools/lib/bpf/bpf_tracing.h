@@ -70,13 +70,15 @@
 #define __PT_PARM2_REG si
 #define __PT_PARM3_REG dx
 #define __PT_PARM4_REG cx
-#define __PT_PARM4_REG_SYSCALL r10 /* syscall uses r10 */
 #define __PT_PARM5_REG r8
 #define __PT_RET_REG sp
 #define __PT_FP_REG bp
 #define __PT_RC_REG ax
 #define __PT_SP_REG sp
 #define __PT_IP_REG ip
+/* syscall uses r10 for PARM4 */
+#define PT_REGS_PARM4_SYSCALL(x) ((x)->r10)
+#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(x, r10)
 
 #else
 
@@ -100,19 +102,25 @@
 #define __PT_PARM2_REG rsi
 #define __PT_PARM3_REG rdx
 #define __PT_PARM4_REG rcx
-#define __PT_PARM4_REG_SYSCALL r10 /* syscall uses r10 */
 #define __PT_PARM5_REG r8
 #define __PT_RET_REG rsp
 #define __PT_FP_REG rbp
 #define __PT_RC_REG rax
 #define __PT_SP_REG rsp
 #define __PT_IP_REG rip
+/* syscall uses r10 for PARM4 */
+#define PT_REGS_PARM4_SYSCALL(x) ((x)->r10)
+#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(x, r10)
 
 #endif /* __i386__ */
 
 #endif /* __KERNEL__ || __VMLINUX_H__ */
 
 #elif defined(bpf_target_s390)
+
+struct pt_regs___s390 {
+	unsigned long orig_gpr2;
+};
 
 /* s390 provides user_pt_regs instead of struct pt_regs to userspace */
 #define __PT_REGS_CAST(x) ((const user_pt_regs *)(x))
@@ -126,6 +134,8 @@
 #define __PT_RC_REG gprs[2]
 #define __PT_SP_REG gprs[15]
 #define __PT_IP_REG psw.addr
+#define PT_REGS_PARM1_SYSCALL(x) ({ _Pragma("GCC error \"use PT_REGS_PARM1_CORE_SYSCALL() instead\""); 0l; })
+#define PT_REGS_PARM1_CORE_SYSCALL(x) BPF_CORE_READ((const struct pt_regs___s390 *)(x), orig_gpr2)
 
 #elif defined(bpf_target_arm)
 
@@ -142,6 +152,10 @@
 
 #elif defined(bpf_target_arm64)
 
+struct pt_regs___arm64 {
+	unsigned long orig_x0;
+};
+
 /* arm64 provides struct user_pt_regs instead of struct pt_regs to userspace */
 #define __PT_REGS_CAST(x) ((const struct user_pt_regs *)(x))
 #define __PT_PARM1_REG regs[0]
@@ -154,6 +168,8 @@
 #define __PT_RC_REG regs[0]
 #define __PT_SP_REG sp
 #define __PT_IP_REG pc
+#define PT_REGS_PARM1_SYSCALL(x) ({ _Pragma("GCC error \"use PT_REGS_PARM1_CORE_SYSCALL() instead\""); 0l; })
+#define PT_REGS_PARM1_CORE_SYSCALL(x) BPF_CORE_READ((const struct pt_regs___arm64 *)(x), orig_x0)
 
 #elif defined(bpf_target_mips)
 
@@ -180,6 +196,8 @@
 #define __PT_RC_REG gpr[3]
 #define __PT_SP_REG sp
 #define __PT_IP_REG nip
+/* powerpc does not select ARCH_HAS_SYSCALL_WRAPPER. */
+#define PT_REGS_SYSCALL_REGS(ctx) ctx
 
 #elif defined(bpf_target_sparc)
 
@@ -208,10 +226,12 @@
 #define __PT_PARM4_REG a3
 #define __PT_PARM5_REG a4
 #define __PT_RET_REG ra
-#define __PT_FP_REG fp
+#define __PT_FP_REG s0
 #define __PT_RC_REG a5
 #define __PT_SP_REG sp
-#define __PT_IP_REG epc
+#define __PT_IP_REG pc
+/* riscv does not select ARCH_HAS_SYSCALL_WRAPPER. */
+#define PT_REGS_SYSCALL_REGS(ctx) ctx
 
 #endif
 
@@ -265,22 +285,22 @@ struct pt_regs;
 
 #endif
 
+#ifndef PT_REGS_PARM1_SYSCALL
 #define PT_REGS_PARM1_SYSCALL(x) PT_REGS_PARM1(x)
+#endif
 #define PT_REGS_PARM2_SYSCALL(x) PT_REGS_PARM2(x)
 #define PT_REGS_PARM3_SYSCALL(x) PT_REGS_PARM3(x)
-#ifdef __PT_PARM4_REG_SYSCALL
-#define PT_REGS_PARM4_SYSCALL(x) (__PT_REGS_CAST(x)->__PT_PARM4_REG_SYSCALL)
-#else /* __PT_PARM4_REG_SYSCALL */
+#ifndef PT_REGS_PARM4_SYSCALL
 #define PT_REGS_PARM4_SYSCALL(x) PT_REGS_PARM4(x)
 #endif
 #define PT_REGS_PARM5_SYSCALL(x) PT_REGS_PARM5(x)
 
+#ifndef PT_REGS_PARM1_CORE_SYSCALL
 #define PT_REGS_PARM1_CORE_SYSCALL(x) PT_REGS_PARM1_CORE(x)
+#endif
 #define PT_REGS_PARM2_CORE_SYSCALL(x) PT_REGS_PARM2_CORE(x)
 #define PT_REGS_PARM3_CORE_SYSCALL(x) PT_REGS_PARM3_CORE(x)
-#ifdef __PT_PARM4_REG_SYSCALL
-#define PT_REGS_PARM4_CORE_SYSCALL(x) BPF_CORE_READ(__PT_REGS_CAST(x), __PT_PARM4_REG_SYSCALL)
-#else /* __PT_PARM4_REG_SYSCALL */
+#ifndef PT_REGS_PARM4_CORE_SYSCALL
 #define PT_REGS_PARM4_CORE_SYSCALL(x) PT_REGS_PARM4_CORE(x)
 #endif
 #define PT_REGS_PARM5_CORE_SYSCALL(x) PT_REGS_PARM5_CORE(x)
@@ -325,6 +345,16 @@ struct pt_regs;
 #define PT_REGS_PARM5_CORE_SYSCALL(x) ({ _Pragma(__BPF_TARGET_MISSING); 0l; })
 
 #endif /* defined(bpf_target_defined) */
+
+/*
+ * When invoked from a syscall handler kprobe, returns a pointer to a
+ * struct pt_regs containing syscall arguments and suitable for passing to
+ * PT_REGS_PARMn_SYSCALL() and PT_REGS_PARMn_CORE_SYSCALL().
+ */
+#ifndef PT_REGS_SYSCALL_REGS
+/* By default, assume that the arch selects ARCH_HAS_SYSCALL_WRAPPER. */
+#define PT_REGS_SYSCALL_REGS(ctx) ((struct pt_regs *)PT_REGS_PARM1(ctx))
+#endif
 
 #ifndef ___bpf_concat
 #define ___bpf_concat(a, b) a ## b
