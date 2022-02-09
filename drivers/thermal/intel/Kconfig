@@ -102,6 +102,7 @@ config INTEL_MENLOW
 
 config INTEL_HFI_THERMAL
 	bool "Intel Hardware Feedback Interface"
+	depends on NET
 	depends on CPU_SUP_INTEL
 	depends on X86_THERMAL_VECTOR
 	select THERMAL_NETLINK
