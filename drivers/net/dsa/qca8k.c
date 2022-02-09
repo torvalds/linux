@@ -456,7 +456,7 @@ qca8k_regmap_read(void *ctx, uint32_t reg, uint32_t *val)
 	u16 r1, r2, page;
 	int ret;
 
-	if (!qca8k_read_eth(priv, reg, val, sizeof(val)))
+	if (!qca8k_read_eth(priv, reg, val, sizeof(*val)))
 		return 0;
 
 	qca8k_split_addr(reg, &r1, &r2, &page);
