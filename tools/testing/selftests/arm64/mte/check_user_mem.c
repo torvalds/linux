@@ -11,6 +11,7 @@
 #include <string.h>
 #include <ucontext.h>
 #include <unistd.h>
+#include <sys/uio.h>
 #include <sys/mman.h>
 
 #include "kselftest.h"
@@ -21,6 +22,9 @@ static size_t page_sz;
 
 enum test_type {
 	READ_TEST,
+	WRITE_TEST,
+	READV_TEST,
+	WRITEV_TEST,
 	LAST_TEST,
 };
 
@@ -81,6 +85,23 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 				case READ_TEST:
 					syscall_len = read(fd, ptr + ptroff, size);
 					break;
+				case WRITE_TEST:
+					syscall_len = write(fd, ptr + ptroff, size);
+					break;
+				case READV_TEST: {
+					struct iovec iov[1];
+					iov[0].iov_base = ptr + ptroff;
+					iov[0].iov_len = size;
+					syscall_len = readv(fd, iov, 1);
+					break;
+				}
+				case WRITEV_TEST: {
+					struct iovec iov[1];
+					iov[0].iov_base = ptr + ptroff;
+					iov[0].iov_len = size;
+					syscall_len = writev(fd, iov, 1);
+					break;
+				}
 				case LAST_TEST:
 					goto usermem_acc_err;
 				}
