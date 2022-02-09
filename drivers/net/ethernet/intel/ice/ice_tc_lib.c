@@ -24,6 +24,9 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 	if (flags & ICE_TC_FLWR_FIELD_TENANT_ID)
 		lkups_cnt++;
 
+	if (flags & ICE_TC_FLWR_FIELD_ENC_DST_MAC)
+		lkups_cnt++;
+
 	if (flags & (ICE_TC_FLWR_FIELD_ENC_SRC_IPV4 |
 		     ICE_TC_FLWR_FIELD_ENC_DEST_IPV4 |
 		     ICE_TC_FLWR_FIELD_ENC_SRC_IPV6 |
@@ -146,6 +149,15 @@ ice_tc_fill_tunnel_outer(u32 flags, struct ice_tc_flower_fltr *fltr,
 		default:
 			break;
 		}
+	}
+
+	if (flags & ICE_TC_FLWR_FIELD_ENC_DST_MAC) {
+		list[i].type = ice_proto_type_from_mac(false);
+		ether_addr_copy(list[i].h_u.eth_hdr.dst_addr,
+				hdr->l2_key.dst_mac);
+		ether_addr_copy(list[i].m_u.eth_hdr.dst_addr,
+				hdr->l2_mask.dst_mac);
+		i++;
 	}
 
 	if (flags & (ICE_TC_FLWR_FIELD_ENC_SRC_IPV4 |
@@ -1064,12 +1076,24 @@ ice_handle_tclass_action(struct ice_vsi *vsi,
 	 * this code won't do anything
 	 * 2. For non-tunnel, if user didn't specify MAC address, add implicit
 	 * dest MAC to be lower netdev's active unicast MAC address
+	 * 3. For tunnel,  as of now TC-filter through flower classifier doesn't
+	 * have provision for user to specify outer DMAC, hence driver to
+	 * implicitly add outer dest MAC to be lower netdev's active unicast
+	 * MAC address.
 	 */
-	if (!(fltr->flags & ICE_TC_FLWR_FIELD_DST_MAC)) {
-		ether_addr_copy(fltr->outer_headers.l2_key.dst_mac,
-				main_vsi->netdev->dev_addr);
-		eth_broadcast_addr(fltr->outer_headers.l2_mask.dst_mac);
+	if (fltr->tunnel_type != TNL_LAST &&
+	    !(fltr->flags & ICE_TC_FLWR_FIELD_ENC_DST_MAC))
+		fltr->flags |= ICE_TC_FLWR_FIELD_ENC_DST_MAC;
+
+	if (fltr->tunnel_type == TNL_LAST &&
+	    !(fltr->flags & ICE_TC_FLWR_FIELD_DST_MAC))
 		fltr->flags |= ICE_TC_FLWR_FIELD_DST_MAC;
+
+	if (fltr->flags & (ICE_TC_FLWR_FIELD_DST_MAC |
+			   ICE_TC_FLWR_FIELD_ENC_DST_MAC)) {
+		ether_addr_copy(fltr->outer_headers.l2_key.dst_mac,
+				vsi->netdev->dev_addr);
+		memset(fltr->outer_headers.l2_mask.dst_mac, 0xff, ETH_ALEN);
 	}
 
 	/* validate specified dest MAC address, make sure either it belongs to
