@@ -2,16 +2,14 @@
 /*
  * Intel PCH/PCU SPI flash PCI driver.
  *
- * Copyright (C) 2016, Intel Corporation
+ * Copyright (C) 2016 - 2022, Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/ioport.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include "intel-spi.h"
+#include "spi-intel.h"
 
 #define BCR		0xdc
 #define BCR_WPD		BIT(0)
@@ -46,7 +44,6 @@ static int intel_spi_pci_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
 	struct intel_spi_boardinfo *info;
-	struct intel_spi *ispi;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -59,17 +56,7 @@ static int intel_spi_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	info->data = pdev;
-	ispi = intel_spi_probe(&pdev->dev, &pdev->resource[0], info);
-	if (IS_ERR(ispi))
-		return PTR_ERR(ispi);
-
-	pci_set_drvdata(pdev, ispi);
-	return 0;
-}
-
-static void intel_spi_pci_remove(struct pci_dev *pdev)
-{
-	intel_spi_remove(pci_get_drvdata(pdev));
+	return intel_spi_probe(&pdev->dev, &pdev->resource[0], info);
 }
 
 static const struct pci_device_id intel_spi_pci_ids[] = {
@@ -98,7 +85,6 @@ static struct pci_driver intel_spi_pci_driver = {
 	.name = "intel-spi",
 	.id_table = intel_spi_pci_ids,
 	.probe = intel_spi_pci_probe,
-	.remove = intel_spi_pci_remove,
 };
 
 module_pci_driver(intel_spi_pci_driver);
