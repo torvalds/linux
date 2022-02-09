@@ -27,7 +27,7 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 	size_t len, read_len;
 	void *ptr, *ptr_next;
 
-	err = KSFT_FAIL;
+	err = KSFT_PASS;
 	len = 2 * page_sz;
 	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
 	fd = create_temp_file();
@@ -71,14 +71,22 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 	 * mode without fault but may not fail in async mode as per the
 	 * implemented MTE userspace support in Arm64 kernel.
 	 */
-	if (mode == MTE_SYNC_ERR &&
-	    !cur_mte_cxt.fault_valid && read_len < len) {
-		err = KSFT_PASS;
-	} else if (mode == MTE_ASYNC_ERR &&
-		   !cur_mte_cxt.fault_valid && read_len == len) {
-		err = KSFT_PASS;
+	if (cur_mte_cxt.fault_valid)
+		goto usermem_acc_err;
+
+	if (mode == MTE_SYNC_ERR && read_len < len) {
+		/* test passed */
+	} else if (mode == MTE_ASYNC_ERR && read_len == len) {
+		/* test passed */
+	} else {
+		goto usermem_acc_err;
 	}
+
+	goto exit;
+
 usermem_acc_err:
+	err = KSFT_FAIL;
+exit:
 	mte_free_memory((void *)ptr, len, mem_type, true);
 	close(fd);
 	return err;
