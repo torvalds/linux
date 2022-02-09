@@ -578,7 +578,7 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 		save = kmalloc(array3_size(logo_lines, new_cols, 2),
 			       GFP_KERNEL);
 		if (save) {
-			int i = cols < new_cols ? cols : new_cols;
+			int i = min(cols, new_cols);
 			scr_memsetw(save, erase, array3_size(logo_lines, new_cols, 2));
 			r = q - step;
 			for (cnt = 0; cnt < logo_lines; cnt++, r += i)
