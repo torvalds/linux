@@ -788,6 +788,14 @@ struct qed_mcp_info {
 
 	/* S/N for debug data mailbox commands */
 	atomic_t dbg_data_seq;
+
+	/* Spinlock used to sync the flag mcp_handling_status with
+	 * the mfw events handler
+	 */
+	spinlock_t unload_lock;
+	unsigned long mcp_handling_status;
+#define QED_MCP_BYPASS_PROC_BIT 0
+#define QED_MCP_IN_PROCESSING_BIT       1
 };
 
 struct qed_mcp_mb_params {
