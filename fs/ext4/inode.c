@@ -1971,6 +1971,7 @@ out_no_pagelock:
 static int ext4_writepage(struct page *page,
 			  struct writeback_control *wbc)
 {
+	struct folio *folio = page_folio(page);
 	int ret = 0;
 	loff_t size;
 	unsigned int len;
@@ -1980,8 +1981,8 @@ static int ext4_writepage(struct page *page,
 	bool keep_towrite = false;
 
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb)))) {
-		inode->i_mapping->a_ops->invalidatepage(page, 0, PAGE_SIZE);
-		unlock_page(page);
+		folio_invalidate(folio, 0, folio_size(folio));
+		folio_unlock(folio);
 		return -EIO;
 	}
 
