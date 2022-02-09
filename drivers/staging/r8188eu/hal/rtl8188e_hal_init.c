@@ -336,14 +336,6 @@ exit:
 	return ret;
 }
 
-/*  */
-/*			Efuse related code */
-/*  */
-enum{
-		VOLTAGE_V25						= 0x03,
-		LDOE25_SHIFT						= 28,
-	};
-
 void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState)
 {
 	u16	tmpV16;
