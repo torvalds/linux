@@ -1188,9 +1188,7 @@ static inline int busy_to_bucket(u32 normalized_rt)
  * A new predicted busy time is returned for task @p based on @runtime
  * passed in. The function searches through buckets that represent busy
  * time equal to or bigger than @runtime and attempts to find the bucket
- * to use for prediction. Once found, it searches through historical busy
- * time and returns the latest that falls into the bucket. If no such busy
- * time exists, it returns the medium of that bucket.
+ * to use for prediction. Once found, it returns the midpoint of that bucket.
  */
 static u32 get_pred_busy(struct task_struct *p,
 				int start, u32 runtime)
@@ -1198,7 +1196,6 @@ static u32 get_pred_busy(struct task_struct *p,
 	int i;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 	u8 *buckets = wts->busy_buckets;
-	u32 *hist = wts->sum_history;
 	u32 dmin, dmax;
 	u64 cur_freq_runtime = 0;
 	int first = NUM_BUSY_BUCKETS, final;
@@ -1233,23 +1230,10 @@ static u32 get_pred_busy(struct task_struct *p,
 	dmax = mult_frac(final + 1, max_task_load(), NUM_BUSY_BUCKETS);
 
 	/*
-	 * search through runtime history and return first runtime that falls
-	 * into the range of predicted bucket.
-	 */
-	for (i = 0; i < sched_ravg_hist_size; i++) {
-		if (hist[i] >= dmin && hist[i] < dmax) {
-			ret = hist[i];
-			break;
-		}
-	}
-	/* no historical runtime within bucket found, use average of the bin */
-	if (ret < dmin)
-		ret = (dmin + dmax) / 2;
-	/*
 	 * when updating in middle of a window, runtime could be higher
 	 * than all recorded history. Always predict at least runtime.
 	 */
-	ret = max(runtime, ret);
+	ret = max(runtime, (dmin + dmax) / 2);
 out:
 	trace_sched_update_pred_demand(p, runtime,
 		mult_frac((unsigned int)cur_freq_runtime, 100,
