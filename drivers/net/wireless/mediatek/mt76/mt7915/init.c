@@ -486,6 +486,9 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 	phy->dev = dev;
 	phy->mt76 = mphy;
 
+	/* Bind main phy to band0 and ext_phy to band1 for dbdc case */
+	phy->band_idx = 1;
+
 	INIT_DELAYED_WORK(&mphy->mac_work, mt7915_mac_work);
 
 	mt7915_eeprom_parse_hw_cap(dev, phy);
@@ -505,7 +508,7 @@ static int mt7915_register_ext_phy(struct mt7915_dev *dev)
 
 	/* init wiphy according to mphy and phy */
 	mt7915_init_wiphy(mphy->hw);
-	ret = mt7915_init_tx_queues(phy, MT_TXQ_ID(1),
+	ret = mt7915_init_tx_queues(phy, MT_TXQ_ID(phy->band_idx),
 				    MT7915_TX_RING_SIZE,
 				    MT_TXQ_RING_BASE(1));
 	if (ret)
@@ -597,6 +600,32 @@ static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 	}
 }
 
+static bool mt7915_band_config(struct mt7915_dev *dev)
+{
+	bool ret = true;
+
+	dev->phy.band_idx = 0;
+
+	if (is_mt7986(&dev->mt76)) {
+		u32 sku = mt7915_check_adie(dev, true);
+
+		/*
+		 * for mt7986, dbdc support is determined by the number
+		 * of adie chips and the main phy is bound to band1 when
+		 * dbdc is disabled.
+		 */
+		if (sku == MT7975_ONE_ADIE || sku == MT7976_ONE_ADIE) {
+			dev->phy.band_idx = 1;
+			ret = false;
+		}
+	} else {
+		ret = is_mt7915(&dev->mt76) ?
+		      !!(mt76_rr(dev, MT_HW_BOUND) & BIT(5)) : true;
+	}
+
+	return ret;
+}
+
 static int mt7915_init_hardware(struct mt7915_dev *dev)
 {
 	int ret, idx;
@@ -605,8 +634,7 @@ static int mt7915_init_hardware(struct mt7915_dev *dev)
 
 	INIT_WORK(&dev->init_work, mt7915_init_work);
 
-	dev->dbdc_support = is_mt7915(&dev->mt76) ?
-			    !!(mt76_rr(dev, MT_HW_BOUND) & BIT(5)) : true;
+	dev->dbdc_support = mt7915_band_config(dev);
 
 	/* If MCU was already running, it is likely in a bad state */
 	if (mt76_get_field(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE) >

@@ -130,14 +130,14 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
-	bool ext_phy = phy != &dev->phy;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u32 val;
 
-	val = eeprom[MT_EE_WIFI_CONF + ext_phy];
+	val = eeprom[MT_EE_WIFI_CONF + phy->band_idx];
 	val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val);
-	if (val == MT_EE_BAND_SEL_DEFAULT && dev->dbdc_support)
-		val = ext_phy ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
+	if (val == MT_EE_BAND_SEL_DEFAULT &&
+	    (!is_mt7915(&dev->mt76) || dev->dbdc_support))
+		val = phy->band_idx ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
 
 	switch (val) {
 	case MT_EE_BAND_SEL_5GHZ:
@@ -168,7 +168,7 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
 				eeprom[MT_EE_WIFI_CONF]);
 	} else {
 		nss = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
-				eeprom[MT_EE_WIFI_CONF + ext_phy]);
+				eeprom[MT_EE_WIFI_CONF + phy->band_idx]);
 	}
 
 	if (!nss || nss > 4)
@@ -181,12 +181,12 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
 		if (is_mt7915(&dev->mt76)) {
 			nss_band = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B0,
 					     eeprom[MT_EE_WIFI_CONF + 3]);
-			if (ext_phy)
+			if (phy->band_idx)
 				nss_band = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B1,
 						     eeprom[MT_EE_WIFI_CONF + 3]);
 		} else {
 			nss_band = FIELD_GET(MT_EE_WIFI_CONF_STREAM_NUM,
-					     eeprom[MT_EE_WIFI_CONF + 2 + ext_phy]);
+					     eeprom[MT_EE_WIFI_CONF + 2 + phy->band_idx]);
 		}
 
 		nss_band_max = is_mt7986(&dev->mt76) ?
@@ -201,8 +201,8 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
 
 	if (nss_band > nss) {
 		dev_warn(dev->mt76.dev,
-			 "nss mismatch, nss(%d) nss_band(%d) ext_phy(%d)\n",
-			 nss, nss_band, ext_phy);
+			 "nss mismatch, nss(%d) nss_band(%d) band(%d) ext_phy(%d)\n",
+			 nss, nss_band, phy->band_idx, ext_phy);
 		nss = nss_band;
 	}
 
