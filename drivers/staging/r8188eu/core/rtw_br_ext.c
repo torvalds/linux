@@ -105,8 +105,7 @@ static int skb_pull_and_merge(struct sk_buff *skb, unsigned char *src, int len)
 	return 0;
 }
 
-static int  __nat25_has_expired(struct adapter *priv,
-				struct nat25_network_db_entry *fdb)
+static int  __nat25_has_expired(struct nat25_network_db_entry *fdb)
 {
 	if (time_before_eq(fdb->ageing_timer, jiffies - NAT25_AGEING_TIME * HZ))
 		return 1;
@@ -363,7 +362,7 @@ void nat25_db_expire(struct adapter *priv)
 			struct nat25_network_db_entry *g;
 			g = f->next_hash;
 
-			if (__nat25_has_expired(priv, f)) {
+			if (__nat25_has_expired(f)) {
 				if (atomic_dec_and_test(&f->use_count)) {
 					if (priv->scdb_entry == f) {
 						memset(priv->scdb_mac, 0, ETH_ALEN);
