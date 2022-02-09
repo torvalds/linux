@@ -3,7 +3,7 @@
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright(c) 2020-2021 Intel Corporation
+ * Copyright(c) 2020-2022 Intel Corporation
  */
 
 #ifndef STA_INFO_H
@@ -616,7 +616,6 @@ struct link_sta_info {
  *	taken from HT/VHT capabilities or VHT operating mode notification
  * @known_smps_mode: the smps_mode the client thinks we are in. Relevant for
  *	AP only.
- * @cipher_scheme: optional cipher scheme for this station
  * @cparams: CoDel parameters for this station.
  * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
  * @fast_tx: TX fastpath information
@@ -700,7 +699,6 @@ struct sta_info {
 #endif
 
 	enum ieee80211_smps_mode known_smps_mode;
-	const struct ieee80211_cipher_scheme *cipher_scheme;
 
 	struct codel_params cparams;
 

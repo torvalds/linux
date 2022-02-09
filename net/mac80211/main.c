@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2017     Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -778,7 +778,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 {
 	bool have_wep = !fips_enabled; /* FIPS does not permit the use of RC4 */
 	bool have_mfp = ieee80211_hw_check(&local->hw, MFP_CAPABLE);
-	int n_suites = 0, r = 0, w = 0;
+	int r = 0, w = 0;
 	u32 *suites;
 	static const u32 cipher_suites[] = {
 		/* keep WEP first, it may be removed below */
@@ -824,10 +824,9 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 				continue;
 			suites[w++] = suite;
 		}
-	} else if (!local->hw.cipher_schemes) {
-		/* If the driver doesn't have cipher schemes, there's nothing
-		 * else to do other than assign the (software supported and
-		 * perhaps offloaded) cipher suites.
+	} else {
+		/* assign the (software supported and perhaps offloaded)
+		 * cipher suites
 		 */
 		local->hw.wiphy->cipher_suites = cipher_suites;
 		local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
@@ -842,58 +841,6 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 
 		/* not dynamically allocated, so just return */
 		return 0;
-	} else {
-		const struct ieee80211_cipher_scheme *cs;
-
-		cs = local->hw.cipher_schemes;
-
-		/* Driver specifies cipher schemes only (but not cipher suites
-		 * including the schemes)
-		 *
-		 * We start counting ciphers defined by schemes, TKIP, CCMP,
-		 * CCMP-256, GCMP, and GCMP-256
-		 */
-		n_suites = local->hw.n_cipher_schemes + 5;
-
-		/* check if we have WEP40 and WEP104 */
-		if (have_wep)
-			n_suites += 2;
-
-		/* check if we have AES_CMAC, BIP-CMAC-256, BIP-GMAC-128,
-		 * BIP-GMAC-256
-		 */
-		if (have_mfp)
-			n_suites += 4;
-
-		suites = kmalloc_array(n_suites, sizeof(u32), GFP_KERNEL);
-		if (!suites)
-			return -ENOMEM;
-
-		suites[w++] = WLAN_CIPHER_SUITE_CCMP;
-		suites[w++] = WLAN_CIPHER_SUITE_CCMP_256;
-		suites[w++] = WLAN_CIPHER_SUITE_TKIP;
-		suites[w++] = WLAN_CIPHER_SUITE_GCMP;
-		suites[w++] = WLAN_CIPHER_SUITE_GCMP_256;
-
-		if (have_wep) {
-			suites[w++] = WLAN_CIPHER_SUITE_WEP40;
-			suites[w++] = WLAN_CIPHER_SUITE_WEP104;
-		}
-
-		if (have_mfp) {
-			suites[w++] = WLAN_CIPHER_SUITE_AES_CMAC;
-			suites[w++] = WLAN_CIPHER_SUITE_BIP_CMAC_256;
-			suites[w++] = WLAN_CIPHER_SUITE_BIP_GMAC_128;
-			suites[w++] = WLAN_CIPHER_SUITE_BIP_GMAC_256;
-		}
-
-		for (r = 0; r < local->hw.n_cipher_schemes; r++) {
-			suites[w++] = cs[r].cipher;
-			if (WARN_ON(cs[r].pn_len > IEEE80211_MAX_PN_LEN)) {
-				kfree(suites);
-				return -EINVAL;
-			}
-		}
 	}
 
 	local->hw.wiphy->cipher_suites = suites;
@@ -1167,12 +1114,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 */
 	if (local->hw.wiphy->max_scan_ie_len)
 		local->hw.wiphy->max_scan_ie_len -= local->scan_ies_len;
-
-	if (WARN_ON(!ieee80211_cs_list_valid(local->hw.cipher_schemes,
-					     local->hw.n_cipher_schemes))) {
-		result = -EINVAL;
-		goto fail_workqueue;
-	}
 
 	result = ieee80211_init_cipher_suites(local);
 	if (result < 0)

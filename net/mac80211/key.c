@@ -6,7 +6,7 @@
  * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright 2018-2020  Intel Corporation
+ * Copyright 2018-2020, 2022  Intel Corporation
  */
 
 #include <linux/if_ether.h>
@@ -531,8 +531,7 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 struct ieee80211_key *
 ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		    const u8 *key_data,
-		    size_t seq_len, const u8 *seq,
-		    const struct ieee80211_cipher_scheme *cs)
+		    size_t seq_len, const u8 *seq)
 {
 	struct ieee80211_key *key;
 	int i, j, err;
@@ -675,21 +674,6 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 			return ERR_PTR(err);
 		}
 		break;
-	default:
-		if (cs) {
-			if (seq_len && seq_len != cs->pn_len) {
-				kfree(key);
-				return ERR_PTR(-EINVAL);
-			}
-
-			key->conf.iv_len = cs->hdr_len;
-			key->conf.icv_len = cs->mic_len;
-			for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++)
-				for (j = 0; j < seq_len; j++)
-					key->u.gen.rx_pn[i][j] =
-							seq[seq_len - j - 1];
-			key->flags |= KEY_FLAG_CIPHER_SCHEME;
-		}
 	}
 	memcpy(key->conf.key, key_data, key_len);
 	INIT_LIST_HEAD(&key->list);
@@ -1294,7 +1278,7 @@ ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
 
 	key = ieee80211_key_alloc(keyconf->cipher, keyconf->keyidx,
 				  keyconf->keylen, keyconf->key,
-				  0, NULL, NULL);
+				  0, NULL);
 	if (IS_ERR(key))
 		return ERR_CAST(key);
 

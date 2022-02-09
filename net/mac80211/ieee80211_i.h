@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 
 #ifndef IEEE80211_I_H
@@ -944,7 +944,6 @@ struct ieee80211_sub_if_data {
 	bool control_port_no_encrypt;
 	bool control_port_no_preauth;
 	bool control_port_over_nl80211;
-	int encrypt_headroom;
 
 	atomic_t num_tx_queued;
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
@@ -2483,14 +2482,6 @@ void ieee80211_dfs_radar_detected_work(struct work_struct *work);
 int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 			      struct cfg80211_csa_settings *csa_settings);
 
-bool ieee80211_cs_valid(const struct ieee80211_cipher_scheme *cs);
-bool ieee80211_cs_list_valid(const struct ieee80211_cipher_scheme *cs, int n);
-const struct ieee80211_cipher_scheme *
-ieee80211_cs_get(struct ieee80211_local *local, u32 cipher,
-		 enum nl80211_iftype iftype);
-int ieee80211_cs_headroom(struct ieee80211_local *local,
-			  struct cfg80211_crypto_settings *crypto,
-			  enum nl80211_iftype iftype);
 void ieee80211_recalc_dtim(struct ieee80211_local *local,
 			   struct ieee80211_sub_if_data *sdata);
 int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,

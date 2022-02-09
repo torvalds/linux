@@ -5,7 +5,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -438,7 +438,6 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta = NULL;
-	const struct ieee80211_cipher_scheme *cs = NULL;
 	struct ieee80211_key *key;
 	int err;
 
@@ -456,23 +455,12 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		if (WARN_ON_ONCE(fips_enabled))
 			return -EINVAL;
 		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_CCMP_256:
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		break;
 	default:
-		cs = ieee80211_cs_get(local, params->cipher, sdata->vif.type);
 		break;
 	}
 
 	key = ieee80211_key_alloc(params->cipher, key_idx, params->key_len,
-				  params->key, params->seq_len, params->seq,
-				  cs);
+				  params->key, params->seq_len, params->seq);
 	if (IS_ERR(key))
 		return PTR_ERR(key);
 
@@ -536,9 +524,6 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		WARN_ON_ONCE(1);
 		break;
 	}
-
-	if (sta)
-		sta->cipher_scheme = cs;
 
 	err = ieee80211_key_link(key, sdata, sta);
 
@@ -1207,9 +1192,6 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 				params->crypto.control_port_over_nl80211;
 	sdata->control_port_no_preauth =
 				params->crypto.control_port_no_preauth;
-	sdata->encrypt_headroom = ieee80211_cs_headroom(sdata->local,
-							&params->crypto,
-							sdata->vif.type);
 
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 		vlan->control_port_protocol =
@@ -1220,10 +1202,6 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			params->crypto.control_port_over_nl80211;
 		vlan->control_port_no_preauth =
 			params->crypto.control_port_no_preauth;
-		vlan->encrypt_headroom =
-			ieee80211_cs_headroom(sdata->local,
-					      &params->crypto,
-					      vlan->vif.type);
 	}
 
 	sdata->vif.bss_conf.dtim_period = params->dtim_period;

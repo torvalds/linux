@@ -8,7 +8,7 @@
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (c) 2016        Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -1036,8 +1036,6 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 		 wiphy_name(local->hw.wiphy));
 	sdata->wdev.iftype = NL80211_IFTYPE_MONITOR;
 
-	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
-
 	ieee80211_set_default_queues(sdata);
 
 	ret = drv_add_interface(local, sdata);
@@ -1644,7 +1642,6 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	sdata->control_port_no_encrypt = false;
 	sdata->control_port_over_nl80211 = false;
 	sdata->control_port_no_preauth = false;
-	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
 	sdata->vif.bss_conf.idle = true;
 	sdata->vif.bss_conf.txpower = INT_MIN; /* unset */
 
@@ -2115,8 +2112,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
 	sdata->user_power_level = local->user_power_level;
-
-	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
 
 	/* setup type-dependent data */
 	ieee80211_setup_sdata(sdata, type);
