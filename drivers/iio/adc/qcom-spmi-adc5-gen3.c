@@ -175,33 +175,33 @@ struct adc5_base_data {
  * @high_thr_voltage: upper threshold voltage for TM.
  * @low_thr_voltage: lower threshold voltage for TM.
  * @last_temp: last temperature that caused threshold violation,
- * or a thermal TM channel.
+ *	or a thermal TM channel.
  * @last_temp_set: indicates if last_temp is stored.
  * @req_wq: workqueue holding queued notification tasks for a non-thermal
- * TM channel.
+ *	TM channel.
  * @work: scheduled work for handling non-thermal TM client notification.
  * @thr_list: list of client thresholds configured for non-thermal TM channel.
  * @adc_rscale_fn: reverse scaling function to convert voltage to raw code
- * for non-thermal TM channels.
+ *	for non-thermal TM channels.
  */
 struct adc5_channel_prop {
-	unsigned int		channel;
-	enum adc5_cal_method	cal_method;
-	unsigned int		decimation;
-	unsigned int		sid;
-	unsigned int		prescale;
-	unsigned int		hw_settle_time;
-	unsigned int		avg_samples;
-	unsigned int		sdam_index;
+	unsigned int			channel;
+	enum adc5_cal_method		cal_method;
+	unsigned int			decimation;
+	unsigned int			sid;
+	unsigned int			prescale;
+	unsigned int			hw_settle_time;
+	unsigned int			avg_samples;
+	unsigned int			sdam_index;
 
-	enum vadc_scale_fn_type	scale_fn_type;
-	const char		*datasheet_name;
+	enum vadc_scale_fn_type		scale_fn_type;
+	const char			*datasheet_name;
 
 	struct adc5_chip		*chip;
 	/* TM properties */
-	int		adc_tm;
-	unsigned int		tm_chan_index;
-	unsigned int		timer;
+	int				adc_tm;
+	unsigned int			tm_chan_index;
+	unsigned int			timer;
 	struct thermal_zone_device	*tzd;
 	int				high_thr_en;
 	int				low_thr_en;
@@ -209,8 +209,8 @@ struct adc5_channel_prop {
 	bool				low_thr_triggered;
 	int64_t				high_thr_voltage;
 	int64_t				low_thr_voltage;
-	int		last_temp;
-	bool		last_temp_set;
+	int				last_temp;
+	bool				last_temp_set;
 	struct workqueue_struct		*req_wq;
 	struct work_struct		work;
 	struct list_head		thr_list;
@@ -223,7 +223,7 @@ struct adc5_channel_prop {
  * @dev: SPMI ADC5 device.
  * @base: pointer to array of ADC peripheral base and interrupt.
  * @debug_base: base address for the reserved ADC peripheral,
- * to dump for debug purposes alone.
+ *	to dump for debug purposes alone.
  * @num_sdams: number of SDAMs being used.
  * @nchannels: number of ADC channels.
  * @chan_props: array of ADC channel properties.
@@ -231,28 +231,28 @@ struct adc5_channel_prop {
  * @complete: ADC result notification after interrupt is received.
  * @lock: ADC lock for access to the peripheral.
  * @data: software configuration data.
+ * @n_tm_channels: number of ADC channels used for TM measurements.
  * @list: list item, used to add this device to gloal list of ADC_TM devices.
  * @device_list: pointer to list of ADC_TM devices.
- * @n_tm_channels: number of ADC channels used for TM measurements.
  * @tm_handler_work: scheduled work for handling TM threshold violation.
  */
 struct adc5_chip {
-	struct regmap		*regmap;
-	struct device		*dev;
-	struct adc5_base_data	*base;
-	u16			debug_base;
-	unsigned int		num_sdams;
-	unsigned int		nchannels;
+	struct regmap			*regmap;
+	struct device			*dev;
+	struct adc5_base_data		*base;
+	u16				debug_base;
+	unsigned int			num_sdams;
+	unsigned int			nchannels;
 	struct adc5_channel_prop	*chan_props;
-	struct iio_chan_spec	*iio_chans;
-	struct completion	complete;
-	struct mutex		lock;
-	const struct adc5_data	*data;
+	struct iio_chan_spec		*iio_chans;
+	struct completion		complete;
+	struct mutex			lock;
+	const struct adc5_data		*data;
 	/* TM properties */
-	unsigned int		n_tm_channels;
+	unsigned int			n_tm_channels;
 	struct list_head		list;
 	struct list_head		*device_list;
-	struct work_struct	tm_handler_work;
+	struct work_struct		tm_handler_work;
 };
 
 static const struct u32_fract adc5_prescale_ratios[] = {
@@ -424,7 +424,7 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 
 #define ADC5_GEN3_HS_DELAY_MIN_US		100
 #define ADC5_GEN3_HS_DELAY_MAX_US		110
-#define ADC5_GEN3_HS_RETRY_COUNT			20
+#define ADC5_GEN3_HS_RETRY_COUNT		20
 
 static int adc5_gen3_poll_wait_hs(struct adc5_chip *adc, struct adc5_channel_prop *prop)
 {
@@ -511,8 +511,8 @@ unlock:
 	return ret;
 }
 
-#define ADC_OFFSET_DUMP					8
-#define ADC_SDAM_REG_DUMP					32
+#define ADC_OFFSET_DUMP		8
+#define ADC_SDAM_REG_DUMP	32
 static void adc5_gen3_dump_register(struct adc5_chip *adc, unsigned int offset)
 {
 	int i, rc;
@@ -1379,51 +1379,51 @@ struct adc5_channels {
 
 static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 	[ADC5_GEN3_OFFSET_REF]		= ADC5_CHAN_VOLT("ref_gnd", 0,
-					SCALE_HW_CALIB_DEFAULT)
+						SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_1P25VREF]		= ADC5_CHAN_VOLT("vref_1p25", 0,
-					SCALE_HW_CALIB_DEFAULT)
+						SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 1,
-					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_GEN3_VBAT_SNS_QBG]		= ADC5_CHAN_VOLT("vbat_sns", 1,
-					SCALE_HW_CALIB_DEFAULT)
-	[ADC5_GEN3_AMUX3_THM]	= ADC5_CHAN_TEMP("smb_temp", 0,
-					SCALE_HW_CALIB_PM7_SMB_TEMP)
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_VBAT_SNS_QBG]	= ADC5_CHAN_VOLT("vbat_sns", 1,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_AMUX3_THM]		= ADC5_CHAN_TEMP("smb_temp", 0,
+						SCALE_HW_CALIB_PM7_SMB_TEMP)
 	[ADC5_GEN3_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
-					SCALE_HW_CALIB_PM7_CHG_TEMP)
+						SCALE_HW_CALIB_PM7_CHG_TEMP)
 	[ADC5_GEN3_USB_SNS_V_16]	= ADC5_CHAN_TEMP("usb_sns_v_div_16", 3,
-					SCALE_HW_CALIB_DEFAULT)
+						SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_VIN_DIV16_MUX]	= ADC5_CHAN_TEMP("vin_div_16", 3,
-					SCALE_HW_CALIB_DEFAULT)
+						SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 4,
-					SCALE_HW_CALIB_CUR)
+						SCALE_HW_CALIB_CUR)
 	[ADC5_GEN3_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 5,
-					SCALE_HW_CALIB_CUR)
+						SCALE_HW_CALIB_CUR)
 	[ADC5_GEN3_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 6,
-					SCALE_HW_CALIB_CUR)
+						SCALE_HW_CALIB_CUR)
 	[ADC5_GEN3_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 7,
-					SCALE_HW_CALIB_CUR_RAW)
+						SCALE_HW_CALIB_CUR_RAW)
 	[ADC5_GEN3_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
-					SCALE_HW_CALIB_PMIC_THERM_PM7)
+						SCALE_HW_CALIB_PMIC_THERM_PM7)
 	[ADC5_GEN3_AMUX1_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm1_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX2_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm2_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX3_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm3_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX4_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm4_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX5_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm5_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX6_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm6_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX1_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux1_gpio_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX2_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux2_gpio_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX3_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux3_gpio_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 	[ADC5_GEN3_AMUX4_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux4_gpio_pu2", 0,
-					SCALE_HW_CALIB_THERM_100K_PU_PM7)
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 };
 
 static int adc5_get_dt_channel_data(struct adc5_chip *adc,
