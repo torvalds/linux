@@ -249,3 +249,23 @@ int hsw_ips_compute_config(struct intel_atomic_state *state,
 
 	return 0;
 }
+
+void hsw_ips_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (!hsw_crtc_supports_ips(crtc))
+		return;
+
+	if (IS_HASWELL(i915)) {
+		crtc_state->ips_enabled = intel_de_read(i915, IPS_CTL) & IPS_ENABLE;
+	} else {
+		/*
+		 * We cannot readout IPS state on broadwell, set to
+		 * true so we can set it to a defined state on first
+		 * commit.
+		 */
+		crtc_state->ips_enabled = true;
+	}
+}
