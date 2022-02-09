@@ -1135,7 +1135,7 @@ static void set_window_start(struct rq *rq)
  * decayed. The rate of increase and decay could be different based
  * on current count in the bucket.
  */
-static inline void bucket_increase(u8 *buckets, int idx)
+static inline void bucket_increase(u8 *buckets, u16 *bucket_bitmask, int idx)
 {
 	int i, step;
 
@@ -1143,8 +1143,10 @@ static inline void bucket_increase(u8 *buckets, int idx)
 		if (idx != i) {
 			if (buckets[i] > DEC_STEP)
 				buckets[i] -= DEC_STEP;
-			else
+			else {
 				buckets[i] = 0;
+				*bucket_bitmask &= ~BIT_MASK(i);
+			}
 		} else {
 			step = buckets[i] >= CONSISTENT_THRES ?
 						INC_STEP_BIG : INC_STEP;
@@ -1152,6 +1154,7 @@ static inline void bucket_increase(u8 *buckets, int idx)
 				buckets[i] = U8_MAX;
 			else
 				buckets[i] += step;
+			*bucket_bitmask |= BIT_MASK(i);
 		}
 	}
 }
@@ -1191,27 +1194,23 @@ static inline int busy_to_bucket(u32 normalized_rt)
  * to use for prediction. Once found, it returns the midpoint of that bucket.
  */
 static u32 get_pred_busy(struct task_struct *p,
-				int start, u32 runtime)
+				int start, u32 runtime, u16 bucket_bitmask)
 {
-	int i;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-	u8 *buckets = wts->busy_buckets;
 	u32 dmin, dmax;
 	u64 cur_freq_runtime = 0;
-	int first = NUM_BUSY_BUCKETS, final;
+	int first = NUM_BUSY_BUCKETS, final = NUM_BUSY_BUCKETS;
 	u32 ret = runtime;
+	u16 next_mask = bucket_bitmask >> start;
 
 	/* skip prediction for new tasks due to lack of history */
 	if (unlikely(is_new_task(p)))
 		goto out;
 
 	/* find minimal bucket index to pick */
-	for (i = start; i < NUM_BUSY_BUCKETS; i++) {
-		if (buckets[i]) {
-			first = i;
-			break;
-		}
-	}
+	if (next_mask)
+		first = ffs(next_mask) - 1 + start;
+
 	/* if no higher buckets are filled, predict runtime */
 	if (first >= NUM_BUSY_BUCKETS)
 		goto out;
@@ -1249,7 +1248,7 @@ static inline u32 calc_pred_demand(struct task_struct *p)
 		return wts->pred_demand;
 
 	return get_pred_busy(p, busy_to_bucket(wts->curr_window),
-			     wts->curr_window);
+			     wts->curr_window, wts->bucket_bitmask);
 }
 
 /*
@@ -1809,8 +1808,8 @@ static inline u32 predict_and_update_buckets(
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	bidx = busy_to_bucket(runtime);
-	pred_demand = get_pred_busy(p, bidx, runtime);
-	bucket_increase(wts->busy_buckets, bidx);
+	pred_demand = get_pred_busy(p, bidx, runtime, wts->bucket_bitmask);
+	bucket_increase(wts->busy_buckets, &wts->bucket_bitmask, bidx);
 
 	return pred_demand;
 }
@@ -2237,7 +2236,7 @@ static void init_new_task_load(struct task_struct *p)
 
 	for (i = 0; i < NUM_BUSY_BUCKETS; ++i)
 		wts->busy_buckets[i] = 0;
-
+	wts->bucket_bitmask = 0;
 	wts->cpu_cycles = 0;
 
 	memset(wts->curr_window_cpu, 0, sizeof(u32) * WALT_NR_CPUS);

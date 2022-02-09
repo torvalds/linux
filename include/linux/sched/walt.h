@@ -92,6 +92,7 @@ struct walt_task_struct {
 	u32				curr_window, prev_window;
 	u32				pred_demand;
 	u8				busy_buckets[NUM_BUSY_BUCKETS];
+	u16				bucket_bitmask;
 	u16				demand_scaled;
 	u16				pred_demand_scaled;
 	u64				active_time;
