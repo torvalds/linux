@@ -597,17 +597,9 @@ amdgpu_ras_error_to_ta(enum amdgpu_ras_error_type error) {
 int amdgpu_ras_init(struct amdgpu_device *adev);
 int amdgpu_ras_fini(struct amdgpu_device *adev);
 int amdgpu_ras_pre_fini(struct amdgpu_device *adev);
-int amdgpu_ras_late_init(struct amdgpu_device *adev,
-			 struct ras_common_if *ras_block,
-			 struct ras_fs_if *fs_info,
-			 struct ras_ih_if *ih_info);
 
 int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 			struct ras_common_if *ras_block);
-
-void amdgpu_ras_late_fini(struct amdgpu_device *adev,
-			  struct ras_common_if *ras_block,
-			  struct ras_ih_if *ih_info);
 
 void amdgpu_ras_block_late_fini(struct amdgpu_device *adev,
 			  struct ras_common_if *ras_block);

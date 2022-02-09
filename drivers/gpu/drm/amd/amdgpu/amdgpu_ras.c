@@ -2397,11 +2397,10 @@ bool amdgpu_ras_is_poison_mode_supported(struct amdgpu_device *adev)
 }
 
 /* helper function to handle common stuff in ip late init phase */
-int amdgpu_ras_late_init(struct amdgpu_device *adev,
-			 struct ras_common_if *ras_block,
-			 struct ras_fs_if *fs_info,
-			 struct ras_ih_if *ih_info)
+int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
+			 struct ras_common_if *ras_block)
 {
+	struct amdgpu_ras_block_object *ras_obj;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	unsigned long ue_count, ce_count;
 	int r;
@@ -2429,7 +2428,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 	if (adev->in_suspend || amdgpu_in_reset(adev))
 		return 0;
 
-	if (ih_info->cb) {
+	ras_obj = container_of(ras_block, struct amdgpu_ras_block_object, ras_comm);
+	if (ras_obj->ras_cb) {
 		r = amdgpu_ras_interrupt_add_handler(adev, ras_block);
 		if (r)
 			goto interrupt;
@@ -2450,57 +2450,26 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 cleanup:
 	amdgpu_ras_sysfs_remove(adev, ras_block);
 sysfs:
-	if (ih_info->cb)
+	if (ras_obj->ras_cb)
 		amdgpu_ras_interrupt_remove_handler(adev, ras_block);
 interrupt:
 	amdgpu_ras_feature_enable(adev, ras_block, 0);
 	return r;
 }
 
-int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
-			struct ras_common_if *ras_block)
-{
-	char sysfs_name[32];
-	struct ras_ih_if ih_info;
-	struct ras_fs_if fs_info;
-	struct amdgpu_ras_block_object *obj;
-
-	obj = container_of(ras_block, struct amdgpu_ras_block_object, ras_comm);
-	ih_info.cb = obj->ras_cb;
-	ih_info.head = *ras_block;
-	snprintf(sysfs_name, sizeof(sysfs_name), "%s_err_count", ras_block->name);
-	fs_info.sysfs_name = (const char *)sysfs_name;
-	fs_info.head = *ras_block;
-	return amdgpu_ras_late_init(adev, ras_block, &fs_info, &ih_info);
-}
-
 /* helper function to remove ras fs node and interrupt handler */
-void amdgpu_ras_late_fini(struct amdgpu_device *adev,
-			  struct ras_common_if *ras_block,
-			  struct ras_ih_if *ih_info)
-{
-	if (!ras_block || !ih_info)
-		return;
-
-	amdgpu_ras_sysfs_remove(adev, ras_block);
-	if (ih_info->cb)
-		amdgpu_ras_interrupt_remove_handler(adev, &ih_info->head);
-}
-
 void amdgpu_ras_block_late_fini(struct amdgpu_device *adev,
 			  struct ras_common_if *ras_block)
 {
-	struct ras_ih_if ih_info;
-	struct amdgpu_ras_block_object *obj;
-
+	struct amdgpu_ras_block_object *ras_obj;
 	if (!ras_block)
 		return;
 
-	obj = container_of(ras_block, struct amdgpu_ras_block_object, ras_comm);
-	ih_info.head = *ras_block;
-	ih_info.cb = obj->ras_cb;
+	amdgpu_ras_sysfs_remove(adev, ras_block);
 
-	amdgpu_ras_late_fini(adev, ras_block, &ih_info);
+	ras_obj = container_of(ras_block, struct amdgpu_ras_block_object, ras_comm);
+	if (ras_obj->ras_cb)
+		amdgpu_ras_interrupt_remove_handler(adev, ras_block);
 }
 
 /* do some init work after IP late init as dependence.
