@@ -562,6 +562,7 @@ static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
 	.fini_smc_tables = smu_v11_0_fini_smc_tables,
 	.read_sensor = cyan_skillfish_read_sensor,
 	.print_clk_levels = cyan_skillfish_print_clk_levels,
+	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.is_dpm_running = cyan_skillfish_is_dpm_running,
 	.get_gpu_metrics = cyan_skillfish_get_gpu_metrics,
 	.od_edit_dpm_table = cyan_skillfish_od_edit_dpm_table,

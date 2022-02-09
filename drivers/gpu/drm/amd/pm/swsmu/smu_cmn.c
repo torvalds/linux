@@ -500,7 +500,17 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	uint64_t enabled_features;
 	int feature_id;
 
-	if (smu->is_apu && adev->family < AMDGPU_FAMILY_VGH)
+	if (smu_cmn_get_enabled_mask(smu, &enabled_features)) {
+		dev_err(adev->dev, "Failed to retrieve enabled ppfeatures!\n");
+		return 0;
+	}
+
+	/*
+	 * For Renoir and Cyan Skillfish, they are assumed to have all features
+	 * enabled. Also considering they have no feature_map available, the
+	 * check here can avoid unwanted feature_map check below.
+	 */
+	if (enabled_features == ULLONG_MAX)
 		return 1;
 
 	feature_id = smu_cmn_to_asic_specific_index(smu,
@@ -508,11 +518,6 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 						    mask);
 	if (feature_id < 0)
 		return 0;
-
-	if (smu_cmn_get_enabled_mask(smu, &enabled_features)) {
-		dev_err(adev->dev, "Failed to retrieve enabled ppfeatures!\n");
-		return 0;
-	}
 
 	return test_bit(feature_id, (unsigned long *)&enabled_features);
 }
@@ -559,7 +564,7 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 	feature_mask_high = &((uint32_t *)feature_mask)[1];
 
 	switch (adev->ip_versions[MP1_HWIP][0]) {
-	case IP_VERSION(11, 0, 8):
+	/* For Vangogh and Yellow Carp */
 	case IP_VERSION(11, 5, 0):
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 3):
@@ -575,8 +580,16 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 						      1,
 						      feature_mask_high);
 		break;
+	/*
+	 * For Cyan Skillfish and Renoir, there is no interface provided by PMFW
+	 * to retrieve the enabled features. So, we assume all features are enabled.
+	 * TODO: add other APU ASICs which suffer from the same issue here
+	 */
+	case IP_VERSION(11, 0, 8):
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):
+		memset(feature_mask, 0xff, sizeof(*feature_mask));
+		break;
 	/* other dGPU ASICs */
 	default:
 		ret = smu_cmn_send_smc_msg(smu,
