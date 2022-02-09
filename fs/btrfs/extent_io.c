@@ -4048,6 +4048,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			      struct extent_page_data *epd)
 {
+	struct folio *folio = page_folio(page);
 	struct inode *inode = page->mapping->host;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	const u64 page_start = page_offset(page);
@@ -4068,8 +4069,8 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	pg_offset = offset_in_page(i_size);
 	if (page->index > end_index ||
 	   (page->index == end_index && !pg_offset)) {
-		page->mapping->a_ops->invalidatepage(page, 0, PAGE_SIZE);
-		unlock_page(page);
+		folio_invalidate(folio, 0, folio_size(folio));
+		folio_unlock(folio);
 		return 0;
 	}
 
