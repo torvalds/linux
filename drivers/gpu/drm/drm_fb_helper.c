@@ -680,6 +680,19 @@ static void drm_fb_helper_damage(struct fb_info *info, u32 x, u32 y,
 	schedule_work(&helper->damage_work);
 }
 
+/* Convert memory region into area of scanlines and pixels per scanline */
+static void drm_fb_helper_memory_range_to_clip(struct fb_info *info, off_t off, size_t len,
+					       struct drm_rect *clip)
+{
+	off_t end = off + len;
+	u32 x1 = 0;
+	u32 y1 = off / info->fix.line_length;
+	u32 x2 = info->var.xres;
+	u32 y2 = DIV_ROUND_UP(end, info->fix.line_length);
+
+	drm_rect_init(clip, x1, y1, x2 - x1, y2 - y1);
+}
+
 /**
  * drm_fb_helper_deferred_io() - fbdev deferred_io callback function
  * @info: fb_info struct pointer
@@ -693,7 +706,7 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 {
 	unsigned long start, end, min, max;
 	struct page *page;
-	u32 y1, y2;
+	struct drm_rect damage_area;
 
 	min = ULONG_MAX;
 	max = 0;
@@ -703,12 +716,13 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 		min = min(min, start);
 		max = max(max, end);
 	}
+	if (min >= max)
+		return;
 
-	if (min < max) {
-		y1 = min / info->fix.line_length;
-		y2 = DIV_ROUND_UP(max, info->fix.line_length);
-		drm_fb_helper_damage(info, 0, y1, info->var.xres, y2 - y1);
-	}
+	drm_fb_helper_memory_range_to_clip(info, min, max - min, &damage_area);
+	drm_fb_helper_damage(info, damage_area.x1, damage_area.y1,
+			     drm_rect_width(&damage_area),
+			     drm_rect_height(&damage_area));
 }
 EXPORT_SYMBOL(drm_fb_helper_deferred_io);
 
