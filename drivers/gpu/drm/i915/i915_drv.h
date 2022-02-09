@@ -1696,14 +1696,6 @@ mkwrite_device_info(struct drm_i915_private *dev_priv)
 	return (struct intel_device_info *)INTEL_INFO(dev_priv);
 }
 
-static inline int intel_hws_csb_write_index(struct drm_i915_private *i915)
-{
-	if (GRAPHICS_VER(i915) >= 11)
-		return ICL_HWS_CSB_WRITE_INDEX;
-	else
-		return I915_HWS_CSB_WRITE_INDEX;
-}
-
 static inline enum i915_map_type
 i915_coherent_map_type(struct drm_i915_private *i915,
 		       struct drm_i915_gem_object *obj, bool always_coherent)
