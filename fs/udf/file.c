@@ -126,6 +126,7 @@ static int udf_adinicb_write_end(struct file *file, struct address_space *mappin
 
 const struct address_space_operations udf_adinicb_aops = {
 	.set_page_dirty	= __set_page_dirty_buffers,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage	= udf_adinicb_readpage,
 	.writepage	= udf_adinicb_writepage,
 	.write_begin	= udf_adinicb_write_begin,

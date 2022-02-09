@@ -1350,12 +1350,13 @@ retry_writepage:
 	/* Is the page fully outside i_size? (truncate in progress) */
 	if (unlikely(page->index >= (i_size + PAGE_SIZE - 1) >>
 			PAGE_SHIFT)) {
+		struct folio *folio = page_folio(page);
 		/*
 		 * The page may have dirty, unmapped buffers.  Make them
 		 * freeable here, so the page does not leak.
 		 */
-		block_invalidatepage(page, 0, PAGE_SIZE);
-		unlock_page(page);
+		block_invalidate_folio(folio, 0, folio_size(folio));
+		folio_unlock(folio);
 		ntfs_debug("Write outside i_size - truncated?");
 		return 0;
 	}

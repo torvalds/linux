@@ -163,10 +163,6 @@ void folio_invalidate(struct folio *folio, size_t offset, size_t length)
 	}
 
 	invalidatepage = aops->invalidatepage;
-#ifdef CONFIG_BLOCK
-	if (!invalidatepage)
-		invalidatepage = block_invalidatepage;
-#endif
 	if (invalidatepage)
 		(*invalidatepage)(&folio->page, offset, length);
 }

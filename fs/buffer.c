@@ -1482,41 +1482,40 @@ static void discard_buffer(struct buffer_head * bh)
 }
 
 /**
- * block_invalidatepage - invalidate part or all of a buffer-backed page
- *
- * @page: the page which is affected
+ * block_invalidate_folio - Invalidate part or all of a buffer-backed folio.
+ * @folio: The folio which is affected.
  * @offset: start of the range to invalidate
  * @length: length of the range to invalidate
  *
- * block_invalidatepage() is called when all or part of the page has become
+ * block_invalidate_folio() is called when all or part of the folio has been
  * invalidated by a truncate operation.
  *
- * block_invalidatepage() does not have to release all buffers, but it must
+ * block_invalidate_folio() does not have to release all buffers, but it must
  * ensure that no dirty buffer is left outside @offset and that no I/O
  * is underway against any of the blocks which are outside the truncation
  * point.  Because the caller is about to free (and possibly reuse) those
  * blocks on-disk.
  */
-void block_invalidatepage(struct page *page, unsigned int offset,
-			  unsigned int length)
+void block_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 {
 	struct buffer_head *head, *bh, *next;
-	unsigned int curr_off = 0;
-	unsigned int stop = length + offset;
+	size_t curr_off = 0;
+	size_t stop = length + offset;
 
-	BUG_ON(!PageLocked(page));
-	if (!page_has_buffers(page))
-		goto out;
+	BUG_ON(!folio_test_locked(folio));
 
 	/*
 	 * Check for overflow
 	 */
-	BUG_ON(stop > PAGE_SIZE || stop < length);
+	BUG_ON(stop > folio_size(folio) || stop < length);
 
-	head = page_buffers(page);
+	head = folio_buffers(folio);
+	if (!head)
+		return;
+
 	bh = head;
 	do {
-		unsigned int next_off = curr_off + bh->b_size;
+		size_t next_off = curr_off + bh->b_size;
 		next = bh->b_this_page;
 
 		/*
@@ -1535,16 +1534,16 @@ void block_invalidatepage(struct page *page, unsigned int offset,
 	} while (bh != head);
 
 	/*
-	 * We release buffers only if the entire page is being invalidated.
+	 * We release buffers only if the entire folio is being invalidated.
 	 * The get_block cached value has been unconditionally invalidated,
 	 * so real IO is not possible anymore.
 	 */
-	if (length == PAGE_SIZE)
-		try_to_release_page(page, 0);
+	if (length == folio_size(folio))
+		filemap_release_folio(folio, 0);
 out:
 	return;
 }
-EXPORT_SYMBOL(block_invalidatepage);
+EXPORT_SYMBOL(block_invalidate_folio);
 
 
 /*

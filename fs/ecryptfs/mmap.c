@@ -546,6 +546,7 @@ const struct address_space_operations ecryptfs_aops = {
 	 */
 #ifdef CONFIG_BLOCK
 	.set_page_dirty = __set_page_dirty_buffers,
+	.invalidate_folio = block_invalidate_folio,
 #endif
 	.writepage = ecryptfs_writepage,
 	.readpage = ecryptfs_readpage,

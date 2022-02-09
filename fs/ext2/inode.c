@@ -968,6 +968,7 @@ ext2_dax_writepages(struct address_space *mapping, struct writeback_control *wbc
 
 const struct address_space_operations ext2_aops = {
 	.set_page_dirty		= __set_page_dirty_buffers,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage		= ext2_readpage,
 	.readahead		= ext2_readahead,
 	.writepage		= ext2_writepage,
@@ -983,6 +984,7 @@ const struct address_space_operations ext2_aops = {
 
 const struct address_space_operations ext2_nobh_aops = {
 	.set_page_dirty		= __set_page_dirty_buffers,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage		= ext2_readpage,
 	.readahead		= ext2_readahead,
 	.writepage		= ext2_nobh_writepage,

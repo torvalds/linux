@@ -246,6 +246,7 @@ static int hpfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo, 
 
 const struct address_space_operations hpfs_aops = {
 	.set_page_dirty	= __set_page_dirty_buffers,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage = hpfs_readpage,
 	.writepage = hpfs_writepage,
 	.readahead = hpfs_readahead,

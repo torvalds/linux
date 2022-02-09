@@ -435,6 +435,7 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 
 static const struct address_space_operations def_mdt_aops = {
 	.set_page_dirty		= __set_page_dirty_buffers,
+	.invalidate_folio = block_invalidate_folio,
 	.writepage		= nilfs_mdt_write_page,
 };
 
