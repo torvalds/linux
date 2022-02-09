@@ -436,25 +436,26 @@ stop:
 	return nwritten;
 }
 
-static int f2fs_set_meta_page_dirty(struct page *page)
+static bool f2fs_dirty_meta_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	trace_f2fs_set_page_dirty(page, META);
+	trace_f2fs_set_page_dirty(&folio->page, META);
 
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
-	if (!PageDirty(page)) {
-		__set_page_dirty_nobuffers(page);
-		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_META);
-		set_page_private_reference(page);
-		return 1;
+	if (!folio_test_uptodate(folio))
+		folio_mark_uptodate(folio);
+	if (!folio_test_dirty(folio)) {
+		filemap_dirty_folio(mapping, folio);
+		inc_page_count(F2FS_P_SB(&folio->page), F2FS_DIRTY_META);
+		set_page_private_reference(&folio->page);
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 const struct address_space_operations f2fs_meta_aops = {
 	.writepage	= f2fs_write_meta_page,
 	.writepages	= f2fs_write_meta_pages,
-	.set_page_dirty	= f2fs_set_meta_page_dirty,
+	.dirty_folio	= f2fs_dirty_meta_folio,
 	.invalidate_folio = f2fs_invalidate_folio,
 	.releasepage	= f2fs_release_page,
 #ifdef CONFIG_MIGRATION
