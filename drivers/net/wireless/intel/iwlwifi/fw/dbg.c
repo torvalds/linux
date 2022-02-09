@@ -2604,7 +2604,7 @@ static void iwl_fw_error_dump_data_free(struct iwl_fwrt_dump_data *dump_data)
 static void iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 				  struct iwl_fwrt_dump_data *dump_data)
 {
-	struct list_head dump_list = LIST_HEAD_INIT(dump_list);
+	LIST_HEAD(dump_list);
 	struct scatterlist *sg_dump_data;
 	u32 file_len = iwl_dump_ini_file_gen(fwrt, dump_data, &dump_list);
 
