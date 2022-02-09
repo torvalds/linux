@@ -515,7 +515,7 @@ static void nfs_swap_deactivate(struct file *file)
 const struct address_space_operations nfs_file_aops = {
 	.readpage = nfs_readpage,
 	.readpages = nfs_readpages,
-	.set_page_dirty = __set_page_dirty_nobuffers,
+	.dirty_folio = filemap_dirty_folio,
 	.writepage = nfs_writepage,
 	.writepages = nfs_writepages,
 	.write_begin = nfs_write_begin,

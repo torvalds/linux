@@ -570,7 +570,7 @@ const struct address_space_operations jfs_metapage_aops = {
 	.writepage	= metapage_writepage,
 	.releasepage	= metapage_releasepage,
 	.invalidate_folio = metapage_invalidate_folio,
-	.set_page_dirty	= __set_page_dirty_nobuffers,
+	.dirty_folio	= filemap_dirty_folio,
 };
 
 struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,

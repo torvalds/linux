@@ -1684,9 +1684,7 @@ const struct address_space_operations ntfs_mst_aops = {
 	.readpage	= ntfs_readpage,	/* Fill page with data. */
 #ifdef NTFS_RW
 	.writepage	= ntfs_writepage,	/* Write dirty page to disk. */
-	.set_page_dirty	= __set_page_dirty_nobuffers,	/* Set the page dirty
-						   without touching the buffers
-						   belonging to the page. */
+	.dirty_folio	= filemap_dirty_folio,
 #endif /* NTFS_RW */
 	.migratepage	= buffer_migrate_page,
 	.is_partially_uptodate	= block_is_partially_uptodate,
