@@ -502,7 +502,7 @@ u64 mpc52xx_gpt_timer_period(struct mpc52xx_gpt_priv *gpt)
 	if (prescale == 0)
 		prescale = 0x10000;
 	period = period * prescale * 1000000000ULL;
-	do_div(period, (u64)gpt->ipb_freq);
+	do_div(period, gpt->ipb_freq);
 	return period;
 }
 EXPORT_SYMBOL(mpc52xx_gpt_timer_period);
