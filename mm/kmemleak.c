@@ -381,15 +381,20 @@ static void dump_object_info(struct kmemleak_object *object)
 static struct kmemleak_object *lookup_object(unsigned long ptr, int alias)
 {
 	struct rb_node *rb = object_tree_root.rb_node;
+	unsigned long untagged_ptr = (unsigned long)kasan_reset_tag((void *)ptr);
 
 	while (rb) {
-		struct kmemleak_object *object =
-			rb_entry(rb, struct kmemleak_object, rb_node);
-		if (ptr < object->pointer)
+		struct kmemleak_object *object;
+		unsigned long untagged_objp;
+
+		object = rb_entry(rb, struct kmemleak_object, rb_node);
+		untagged_objp = (unsigned long)kasan_reset_tag((void *)object->pointer);
+
+		if (untagged_ptr < untagged_objp)
 			rb = object->rb_node.rb_left;
-		else if (object->pointer + object->size <= ptr)
+		else if (untagged_objp + object->size <= untagged_ptr)
 			rb = object->rb_node.rb_right;
-		else if (object->pointer == ptr || alias)
+		else if (untagged_objp == untagged_ptr || alias)
 			return object;
 		else {
 			kmemleak_warn("Found object by alias at 0x%08lx\n",
@@ -576,6 +581,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 	struct kmemleak_object *object, *parent;
 	struct rb_node **link, *rb_parent;
 	unsigned long untagged_ptr;
+	unsigned long untagged_objp;
 
 	object = mem_pool_alloc(gfp);
 	if (!object) {
@@ -629,9 +635,10 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 	while (*link) {
 		rb_parent = *link;
 		parent = rb_entry(rb_parent, struct kmemleak_object, rb_node);
-		if (ptr + size <= parent->pointer)
+		untagged_objp = (unsigned long)kasan_reset_tag((void *)parent->pointer);
+		if (untagged_ptr + size <= untagged_objp)
 			link = &parent->rb_node.rb_left;
-		else if (parent->pointer + parent->size <= ptr)
+		else if (untagged_objp + parent->size <= untagged_ptr)
 			link = &parent->rb_node.rb_right;
 		else {
 			kmemleak_stop("Cannot insert 0x%lx into the object search tree (overlaps existing)\n",
