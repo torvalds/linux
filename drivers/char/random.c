@@ -1336,19 +1336,24 @@ static __poll_t random_poll(struct file *file, poll_table *wait)
 static int write_pool(const char __user *ubuf, size_t count)
 {
 	size_t len;
+	int ret = 0;
 	u8 block[BLAKE2S_BLOCK_SIZE];
 
 	while (count) {
 		len = min(count, sizeof(block));
-		if (copy_from_user(block, ubuf, len))
-			return -EFAULT;
+		if (copy_from_user(block, ubuf, len)) {
+			ret = -EFAULT;
+			goto out;
+		}
 		count -= len;
 		ubuf += len;
 		mix_pool_bytes(block, len);
 		cond_resched();
 	}
 
-	return 0;
+out:
+	memzero_explicit(block, sizeof(block));
+	return ret;
 }
 
 static ssize_t random_write(struct file *file, const char __user *buffer,
