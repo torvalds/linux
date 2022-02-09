@@ -20,6 +20,8 @@
 #include <linux/of_net.h>
 #include <linux/mdio.h>
 #include <linux/phy.h>
+#include <net/selftests.h>
+
 #include "smsc95xx.h"
 
 #define SMSC_CHIPNAME			"smsc95xx"
@@ -727,6 +729,26 @@ static u32 smsc95xx_get_link(struct net_device *net)
 	return net->phydev->link;
 }
 
+static void smsc95xx_ethtool_get_strings(struct net_device *netdev, u32 sset,
+					u8 *data)
+{
+	switch (sset) {
+	case ETH_SS_TEST:
+		net_selftest_get_strings(data);
+		break;
+	}
+}
+
+static int smsc95xx_ethtool_get_sset_count(struct net_device *ndev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_TEST:
+		return net_selftest_get_count();
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link	= smsc95xx_get_link,
 	.nway_reset	= phy_ethtool_nway_reset,
@@ -743,6 +765,9 @@ static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 	.get_ts_info	= ethtool_op_get_ts_info,
+	.self_test	= net_selftest,
+	.get_strings	= smsc95xx_ethtool_get_strings,
+	.get_sset_count	= smsc95xx_ethtool_get_sset_count,
 };
 
 static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
