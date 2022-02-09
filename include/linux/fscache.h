@@ -457,6 +457,20 @@ int fscache_begin_read_operation(struct netfs_cache_resources *cres,
 }
 
 /**
+ * fscache_end_operation - End the read operation for the netfs lib
+ * @cres: The cache resources for the read operation
+ *
+ * Clean up the resources at the end of the read request.
+ */
+static inline void fscache_end_operation(struct netfs_cache_resources *cres)
+{
+	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
+
+	if (ops)
+		ops->end_operation(cres);
+}
+
+/**
  * fscache_read - Start a read from the cache.
  * @cres: The cache resources to use
  * @start_pos: The beginning file offset in the cache file
