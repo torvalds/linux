@@ -240,16 +240,8 @@ static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
 	return retval;
 }
 
-/**
- * v9fs_launder_page - Writeback a dirty page
- * @page: The page to be cleaned up
- *
- * Returns 0 on success.
- */
-
-static int v9fs_launder_page(struct page *page)
+static int v9fs_launder_folio(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	int retval;
 
 	if (folio_clear_dirty_for_io(folio)) {
@@ -386,6 +378,6 @@ const struct address_space_operations v9fs_addr_operations = {
 	.write_end = v9fs_write_end,
 	.releasepage = v9fs_release_page,
 	.invalidate_folio = v9fs_invalidate_folio,
-	.launder_page = v9fs_launder_page,
+	.launder_folio = v9fs_launder_folio,
 	.direct_IO = v9fs_direct_IO,
 };
