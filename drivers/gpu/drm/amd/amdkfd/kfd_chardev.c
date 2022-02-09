@@ -2252,7 +2252,7 @@ static int criu_restore_bos(struct kfd_process *p,
 				break;
 
 			peer_pdd = kfd_process_device_data_by_id(p, bo_priv->mapped_gpuids[j]);
-			if (IS_ERR(peer_pdd)) {
+			if (!peer_pdd) {
 				ret = -EINVAL;
 				goto exit;
 			}
