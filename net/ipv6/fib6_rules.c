@@ -493,16 +493,21 @@ out_fib6_rules_ops:
 	goto out;
 }
 
-static void __net_exit fib6_rules_net_exit(struct net *net)
+static void __net_exit fib6_rules_net_exit_batch(struct list_head *net_list)
 {
+	struct net *net;
+
 	rtnl_lock();
-	fib_rules_unregister(net->ipv6.fib6_rules_ops);
+	list_for_each_entry(net, net_list, exit_list) {
+		fib_rules_unregister(net->ipv6.fib6_rules_ops);
+		cond_resched();
+	}
 	rtnl_unlock();
 }
 
 static struct pernet_operations fib6_rules_net_ops = {
 	.init = fib6_rules_net_init,
-	.exit = fib6_rules_net_exit,
+	.exit_batch = fib6_rules_net_exit_batch,
 };
 
 int __init fib6_rules_init(void)
