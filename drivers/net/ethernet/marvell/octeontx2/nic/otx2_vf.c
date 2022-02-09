@@ -702,6 +702,12 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_unreg_netdev;
 
+#ifdef CONFIG_DCB
+	err = otx2_dcbnl_set_ops(netdev);
+	if (err)
+		goto err_unreg_netdev;
+#endif
+
 	return 0;
 
 err_unreg_netdev:
@@ -743,6 +749,14 @@ static void otx2vf_remove(struct pci_dev *pdev)
 		vf->flags &= ~OTX2_FLAG_TX_PAUSE_ENABLED;
 		otx2_config_pause_frm(vf);
 	}
+
+#ifdef CONFIG_DCB
+	/* Disable PFC config */
+	if (vf->pfc_en) {
+		vf->pfc_en = 0;
+		otx2_config_priority_flow_ctrl(vf);
+	}
+#endif
 
 	cancel_work_sync(&vf->reset_task);
 	otx2_unregister_dl(vf);
