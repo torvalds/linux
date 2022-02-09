@@ -4939,12 +4939,13 @@ static void cifs_swap_deactivate(struct file *file)
  * need to pin the cache object to write back to.
  */
 #ifdef CONFIG_CIFS_FSCACHE
-static int cifs_set_page_dirty(struct page *page)
+static bool cifs_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	return fscache_set_page_dirty(page, cifs_inode_cookie(page->mapping->host));
+	return fscache_dirty_folio(mapping, folio,
+					cifs_inode_cookie(mapping->host));
 }
 #else
-#define cifs_set_page_dirty __set_page_dirty_nobuffers
+#define cifs_dirty_folio filemap_dirty_folio
 #endif
 
 const struct address_space_operations cifs_addr_ops = {
@@ -4954,7 +4955,7 @@ const struct address_space_operations cifs_addr_ops = {
 	.writepages = cifs_writepages,
 	.write_begin = cifs_write_begin,
 	.write_end = cifs_write_end,
-	.set_page_dirty = cifs_set_page_dirty,
+	.dirty_folio = cifs_dirty_folio,
 	.releasepage = cifs_release_page,
 	.direct_IO = cifs_direct_io,
 	.invalidate_folio = cifs_invalidate_folio,
@@ -4979,7 +4980,7 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.writepages = cifs_writepages,
 	.write_begin = cifs_write_begin,
 	.write_end = cifs_write_end,
-	.set_page_dirty = cifs_set_page_dirty,
+	.dirty_folio = cifs_dirty_folio,
 	.releasepage = cifs_release_page,
 	.invalidate_folio = cifs_invalidate_folio,
 	.launder_folio = cifs_launder_folio,

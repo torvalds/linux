@@ -359,20 +359,20 @@ out:
  * Mark a page as having been made dirty and thus needing writeback.  We also
  * need to pin the cache object to write back to.
  */
-static int v9fs_set_page_dirty(struct page *page)
+static bool v9fs_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	struct v9fs_inode *v9inode = V9FS_I(page->mapping->host);
+	struct v9fs_inode *v9inode = V9FS_I(mapping->host);
 
-	return fscache_set_page_dirty(page, v9fs_inode_cookie(v9inode));
+	return fscache_dirty_folio(mapping, folio, v9fs_inode_cookie(v9inode));
 }
 #else
-#define v9fs_set_page_dirty __set_page_dirty_nobuffers
+#define v9fs_dirty_folio filemap_dirty_folio
 #endif
 
 const struct address_space_operations v9fs_addr_operations = {
 	.readpage = v9fs_vfs_readpage,
 	.readahead = v9fs_vfs_readahead,
-	.set_page_dirty = v9fs_set_page_dirty,
+	.dirty_folio = v9fs_dirty_folio,
 	.writepage = v9fs_vfs_writepage,
 	.write_begin = v9fs_write_begin,
 	.write_end = v9fs_write_end,
