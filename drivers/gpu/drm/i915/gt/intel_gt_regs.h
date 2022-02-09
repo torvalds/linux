@@ -68,25 +68,6 @@
 #define  GEN11_VCS_SFC_RESET_BIT(instance)	(GEN11_GRDOM_SFC0 << ((instance) >> 1))
 #define  GEN11_VECS_SFC_RESET_BIT(instance)	(GEN11_GRDOM_SFC0 << (instance))
 
-#define GEN11_VCS_SFC_FORCED_LOCK(engine)	_MMIO((engine)->mmio_base + 0x88C)
-#define   GEN11_VCS_SFC_FORCED_LOCK_BIT		(1 << 0)
-#define GEN11_VCS_SFC_LOCK_STATUS(engine)	_MMIO((engine)->mmio_base + 0x890)
-#define   GEN11_VCS_SFC_USAGE_BIT		(1 << 0)
-#define   GEN11_VCS_SFC_LOCK_ACK_BIT		(1 << 1)
-
-#define GEN11_VECS_SFC_FORCED_LOCK(engine)	_MMIO((engine)->mmio_base + 0x201C)
-#define   GEN11_VECS_SFC_FORCED_LOCK_BIT	(1 << 0)
-#define GEN11_VECS_SFC_LOCK_ACK(engine)		_MMIO((engine)->mmio_base + 0x2018)
-#define   GEN11_VECS_SFC_LOCK_ACK_BIT		(1 << 0)
-#define GEN11_VECS_SFC_USAGE(engine)		_MMIO((engine)->mmio_base + 0x2014)
-#define   GEN11_VECS_SFC_USAGE_BIT		(1 << 0)
-
-#define GEN12_HCP_SFC_FORCED_LOCK(engine)	_MMIO((engine)->mmio_base + 0x2910)
-#define   GEN12_HCP_SFC_FORCED_LOCK_BIT		REG_BIT(0)
-#define GEN12_HCP_SFC_LOCK_STATUS(engine)	_MMIO((engine)->mmio_base + 0x2914)
-#define   GEN12_HCP_SFC_LOCK_ACK_BIT		REG_BIT(1)
-#define   GEN12_HCP_SFC_USAGE_BIT			REG_BIT(0)
-
 #define GEN12_SFC_DONE(n)		_MMIO(0x1cc000 + (n) * 0x1000)
 
 #define WAIT_FOR_RC6_EXIT		_MMIO(0x20CC)

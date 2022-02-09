@@ -348,25 +348,25 @@ static void get_sfc_forced_lock_data(struct intel_engine_cs *engine,
 		MISSING_CASE(engine->class);
 		fallthrough;
 	case VIDEO_DECODE_CLASS:
-		sfc_lock->lock_reg = GEN11_VCS_SFC_FORCED_LOCK(engine);
+		sfc_lock->lock_reg = GEN11_VCS_SFC_FORCED_LOCK(engine->mmio_base);
 		sfc_lock->lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
 
-		sfc_lock->ack_reg = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_lock->ack_reg = GEN11_VCS_SFC_LOCK_STATUS(engine->mmio_base);
 		sfc_lock->ack_bit  = GEN11_VCS_SFC_LOCK_ACK_BIT;
 
-		sfc_lock->usage_reg = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_lock->usage_reg = GEN11_VCS_SFC_LOCK_STATUS(engine->mmio_base);
 		sfc_lock->usage_bit = GEN11_VCS_SFC_USAGE_BIT;
 		sfc_lock->reset_bit = GEN11_VCS_SFC_RESET_BIT(engine->instance);
 
 		break;
 	case VIDEO_ENHANCEMENT_CLASS:
-		sfc_lock->lock_reg = GEN11_VECS_SFC_FORCED_LOCK(engine);
+		sfc_lock->lock_reg = GEN11_VECS_SFC_FORCED_LOCK(engine->mmio_base);
 		sfc_lock->lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
 
-		sfc_lock->ack_reg = GEN11_VECS_SFC_LOCK_ACK(engine);
+		sfc_lock->ack_reg = GEN11_VECS_SFC_LOCK_ACK(engine->mmio_base);
 		sfc_lock->ack_bit  = GEN11_VECS_SFC_LOCK_ACK_BIT;
 
-		sfc_lock->usage_reg = GEN11_VECS_SFC_USAGE(engine);
+		sfc_lock->usage_reg = GEN11_VECS_SFC_USAGE(engine->mmio_base);
 		sfc_lock->usage_bit = GEN11_VECS_SFC_USAGE_BIT;
 		sfc_lock->reset_bit = GEN11_VECS_SFC_RESET_BIT(engine->instance);
 
@@ -413,7 +413,7 @@ static int gen11_lock_sfc(struct intel_engine_cs *engine,
 		 * forced lock on the VE engine that shares the same SFC.
 		 */
 		if (!(intel_uncore_read_fw(uncore,
-					   GEN12_HCP_SFC_LOCK_STATUS(engine)) &
+					   GEN12_HCP_SFC_LOCK_STATUS(engine->mmio_base)) &
 		      GEN12_HCP_SFC_USAGE_BIT))
 			return 0;
 
