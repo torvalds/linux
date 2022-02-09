@@ -125,6 +125,7 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state);
 static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 struct drm_modeset_acquire_ctx *ctx);
+static bool hsw_ips_disable(const struct intel_crtc_state *crtc_state);
 
 /**
  * intel_update_watermarks - update FIFO watermark values based on current modes
@@ -753,7 +754,7 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	crtc_state->min_cdclk[plane->id] = 0;
 
 	if (plane->id == PLANE_PRIMARY &&
-	    hsw_disable_ips(crtc_state))
+	    hsw_ips_disable(crtc_state))
 		intel_crtc_wait_for_next_vblank(crtc);
 
 	/*
@@ -1091,7 +1092,7 @@ static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, PF_WIN_SZ(pipe), width << 16 | height);
 }
 
-void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
+static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_device *dev = crtc->base.dev;
@@ -1128,7 +1129,7 @@ void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-bool hsw_disable_ips(const struct intel_crtc_state *crtc_state)
+static bool hsw_ips_disable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_device *dev = crtc->base.dev;
@@ -1170,8 +1171,8 @@ static void intel_crtc_dpms_overlay_disable(struct intel_crtc *crtc)
 	 */
 }
 
-static bool hsw_pre_update_disable_ips(struct intel_atomic_state *state,
-				       struct intel_crtc *crtc)
+static bool hsw_ips_need_disable(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state =
@@ -1200,8 +1201,20 @@ static bool hsw_pre_update_disable_ips(struct intel_atomic_state *state,
 	return !new_crtc_state->ips_enabled;
 }
 
-static bool hsw_post_update_enable_ips(struct intel_atomic_state *state,
-				       struct intel_crtc *crtc)
+static bool hsw_ips_pre_update(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+
+	if (!hsw_ips_need_disable(state, crtc))
+		return false;
+
+	return hsw_ips_disable(old_crtc_state);
+}
+
+static bool hsw_ips_need_enable(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state =
@@ -1235,6 +1248,18 @@ static bool hsw_post_update_enable_ips(struct intel_atomic_state *state,
 		return true;
 
 	return !old_crtc_state->ips_enabled;
+}
+
+static void hsw_ips_post_update(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	if (!hsw_ips_need_enable(state, crtc))
+		return;
+
+	hsw_ips_enable(new_crtc_state);
 }
 
 static bool needs_nv12_wa(const struct intel_crtc_state *crtc_state)
@@ -1331,9 +1356,7 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 	if (new_crtc_state->update_wm_post && new_crtc_state->hw.active)
 		intel_update_watermarks(dev_priv);
 
-	if (hsw_post_update_enable_ips(state, crtc))
-		hsw_enable_ips(new_crtc_state);
-
+	hsw_ips_post_update(state, crtc);
 	intel_fbc_post_update(state, crtc);
 	intel_drrs_page_flip(state, crtc);
 
@@ -1436,8 +1459,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 
 	intel_psr_pre_plane_update(state, crtc);
 
-	if (hsw_pre_update_disable_ips(state, crtc) &&
-	    hsw_disable_ips(old_crtc_state))
+	if (hsw_ips_pre_update(state, crtc))
 		intel_crtc_wait_for_next_vblank(crtc);
 
 	if (intel_fbc_pre_update(state, crtc))
