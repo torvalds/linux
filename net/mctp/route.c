@@ -64,8 +64,7 @@ static struct mctp_sock *mctp_lookup_bind(struct net *net, struct sk_buff *skb)
 		if (msk->bind_type != type)
 			continue;
 
-		if (msk->bind_addr != MCTP_ADDR_ANY &&
-		    msk->bind_addr != mh->dest)
+		if (!mctp_address_matches(msk->bind_addr, mh->dest))
 			continue;
 
 		return msk;
@@ -616,9 +615,8 @@ static struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
 		if (tmp->tag & MCTP_HDR_FLAG_TO)
 			continue;
 
-		if (!((tmp->peer_addr == daddr ||
-		       tmp->peer_addr == MCTP_ADDR_ANY) &&
-		       tmp->local_addr == saddr))
+		if (!(mctp_address_matches(tmp->peer_addr, daddr) &&
+		      tmp->local_addr == saddr))
 			continue;
 
 		spin_lock(&tmp->lock);

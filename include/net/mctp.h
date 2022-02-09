@@ -45,6 +45,11 @@ static inline bool mctp_address_ok(mctp_eid_t eid)
 	return eid >= 8 && eid < 255;
 }
 
+static inline bool mctp_address_matches(mctp_eid_t match, mctp_eid_t eid)
+{
+	return match == eid || match == MCTP_ADDR_ANY;
+}
+
 static inline struct mctp_hdr *mctp_hdr(struct sk_buff *skb)
 {
 	return (struct mctp_hdr *)skb_network_header(skb);
