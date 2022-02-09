@@ -130,6 +130,32 @@ struct dpu_hw_ctl_ops {
 		enum dpu_merge_3d blk);
 
 	/**
+	 * OR in the given flushbits to the cached pending_flush_mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 * @blk       : SSPP block index
+	 */
+	void (*update_pending_flush_sspp)(struct dpu_hw_ctl *ctx,
+		enum dpu_sspp blk);
+
+	/**
+	 * OR in the given flushbits to the cached pending_flush_mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 * @blk       : LM block index
+	 */
+	void (*update_pending_flush_mixer)(struct dpu_hw_ctl *ctx,
+		enum dpu_lm blk);
+
+	/**
+	 * OR in the given flushbits to the cached pending_flush_mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 * @blk       : DSPP block index
+	 */
+	void (*update_pending_flush_dspp)(struct dpu_hw_ctl *ctx,
+		enum dpu_dspp blk);
+	/**
 	 * Write the value of the pending_flush_mask to hardware
 	 * @ctx       : ctl path ctx pointer
 	 */
@@ -170,15 +196,6 @@ struct dpu_hw_ctl_ops {
 	 * Returns: 0 on success or -error if reset incomplete within interval
 	 */
 	int (*wait_reset_status)(struct dpu_hw_ctl *ctx);
-
-	uint32_t (*get_bitmask_sspp)(struct dpu_hw_ctl *ctx,
-		enum dpu_sspp blk);
-
-	uint32_t (*get_bitmask_mixer)(struct dpu_hw_ctl *ctx,
-		enum dpu_lm blk);
-
-	uint32_t (*get_bitmask_dspp)(struct dpu_hw_ctl *ctx,
-		enum dpu_dspp blk);
 
 	/**
 	 * Set all blend stages to disabled
