@@ -99,10 +99,10 @@ static void _InitInterrupt(struct adapter *Adapter)
 	/*  1; Use bulk endpoint to upload interrupt pkt, */
 	usb_opt = rtw_read8(Adapter, REG_USB_SPECIAL_OPTION);
 
-	if (!adapter_to_dvobj(Adapter)->ishighspeed)
-		usb_opt = usb_opt & (~INT_BULK_SEL);
-	else
+	if (adapter_to_dvobj(Adapter)->pusbdev->speed == USB_SPEED_HIGH)
 		usb_opt = usb_opt | (INT_BULK_SEL);
+	else
+		usb_opt = usb_opt & (~INT_BULK_SEL);
 
 	rtw_write8(Adapter, REG_USB_SPECIAL_OPTION, usb_opt);
 }

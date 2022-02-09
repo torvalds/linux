@@ -55,7 +55,7 @@ static inline u8 rtw_usb_bulk_size_boundary(struct adapter *padapter,
 	u8 rst = true;
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
 
-	if (pdvobjpriv->ishighspeed)
+	if (pdvobjpriv->pusbdev->speed == USB_SPEED_HIGH)
 		rst = (0 == (buf_len) % USB_HIGH_SPEED_BULK_SIZE) ?
 		      true : false;
 	else

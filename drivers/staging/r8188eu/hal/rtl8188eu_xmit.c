@@ -403,7 +403,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	/*  dump frame variable */
 	u32 ff_hwaddr;
 
-	if (pdvobjpriv->ishighspeed)
+	if (pdvobjpriv->pusbdev->speed == USB_SPEED_HIGH)
 		bulksize = USB_HIGH_SPEED_BULK_SIZE;
 	else
 		bulksize = USB_FULL_SPEED_BULK_SIZE;
