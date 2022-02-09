@@ -283,8 +283,7 @@ static void sata_rcar_dev_select(struct ata_port *ap, unsigned int device)
 	ata_sff_pause(ap);	/* needed; also flushes, for mmio */
 }
 
-static unsigned int sata_rcar_ata_devchk(struct ata_port *ap,
-					 unsigned int device)
+static bool sata_rcar_ata_devchk(struct ata_port *ap, unsigned int device)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	u8 nsect, lbal;
@@ -304,9 +303,9 @@ static unsigned int sata_rcar_ata_devchk(struct ata_port *ap,
 	lbal  = ioread32(ioaddr->lbal_addr);
 
 	if (nsect == 0x55 && lbal == 0xaa)
-		return 1;	/* found a device */
+		return true;	/* found a device */
 
-	return 0;		/* nothing found */
+	return false;		/* nothing found */
 }
 
 static int sata_rcar_wait_after_reset(struct ata_link *link,
