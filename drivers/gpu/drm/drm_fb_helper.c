@@ -706,8 +706,7 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 
 	if (min < max) {
 		y1 = min / info->fix.line_length;
-		y2 = min_t(u32, DIV_ROUND_UP(max, info->fix.line_length),
-			   info->var.yres);
+		y2 = DIV_ROUND_UP(max, info->fix.line_length);
 		drm_fb_helper_damage(info, 0, y1, info->var.xres, y2 - y1);
 	}
 }
