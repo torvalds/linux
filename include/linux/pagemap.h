@@ -636,15 +636,15 @@ extern int read_cache_pages(struct address_space *mapping,
 		struct list_head *pages, filler_t *filler, void *data);
 
 static inline struct page *read_mapping_page(struct address_space *mapping,
-				pgoff_t index, void *data)
+				pgoff_t index, struct file *file)
 {
-	return read_cache_page(mapping, index, NULL, data);
+	return read_cache_page(mapping, index, NULL, file);
 }
 
 static inline struct folio *read_mapping_folio(struct address_space *mapping,
-				pgoff_t index, void *data)
+				pgoff_t index, struct file *file)
 {
-	return read_cache_folio(mapping, index, NULL, data);
+	return read_cache_folio(mapping, index, NULL, file);
 }
 
 /*
