@@ -453,6 +453,6 @@ bool swap_dirty_folio(struct address_space *mapping, struct folio *folio)
 			return aops->dirty_folio(mapping, folio);
 		return aops->set_page_dirty(&folio->page);
 	} else {
-		return __set_page_dirty_no_writeback(&folio->page);
+		return noop_dirty_folio(mapping, folio);
 	}
 }

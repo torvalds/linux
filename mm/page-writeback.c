@@ -2430,13 +2430,13 @@ EXPORT_SYMBOL(folio_write_one);
 /*
  * For address_spaces which do not use buffers nor write back.
  */
-int __set_page_dirty_no_writeback(struct page *page)
+bool noop_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	if (!PageDirty(page))
-		return !TestSetPageDirty(page);
-	return 0;
+	if (!folio_test_dirty(folio))
+		return !folio_test_set_dirty(folio);
+	return false;
 }
-EXPORT_SYMBOL(__set_page_dirty_no_writeback);
+EXPORT_SYMBOL(noop_dirty_folio);
 
 /*
  * Helper function for set_page_dirty family.

@@ -631,7 +631,7 @@ const struct address_space_operations ram_aops = {
 	.readpage	= simple_readpage,
 	.write_begin	= simple_write_begin,
 	.write_end	= simple_write_end,
-	.set_page_dirty	= __set_page_dirty_no_writeback,
+	.dirty_folio	= noop_dirty_folio,
 };
 EXPORT_SYMBOL(ram_aops);
 
@@ -1220,7 +1220,7 @@ EXPORT_SYMBOL(kfree_link);
 struct inode *alloc_anon_inode(struct super_block *s)
 {
 	static const struct address_space_operations anon_aops = {
-		.set_page_dirty = __set_page_dirty_no_writeback,
+		.dirty_folio	= noop_dirty_folio,
 	};
 	struct inode *inode = new_inode_pseudo(s);
 

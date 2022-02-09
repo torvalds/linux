@@ -919,7 +919,7 @@ static inline int __must_check write_one_page(struct page *page)
 }
 
 int __set_page_dirty_nobuffers(struct page *page);
-int __set_page_dirty_no_writeback(struct page *page);
+bool noop_dirty_folio(struct address_space *mapping, struct folio *folio);
 
 void page_endio(struct page *page, bool is_write, int err);
 
