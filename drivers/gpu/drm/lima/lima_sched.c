@@ -409,7 +409,8 @@ static enum drm_gpu_sched_stat lima_sched_timedout_job(struct drm_sched_job *job
 
 	drm_sched_increase_karma(&task->base);
 
-	lima_sched_build_error_task_list(task);
+	if (lima_max_error_tasks)
+		lima_sched_build_error_task_list(task);
 
 	pipe->task_error(pipe);
 
