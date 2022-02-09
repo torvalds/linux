@@ -251,7 +251,6 @@ prototypes::
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
 	void (*invalidate_folio) (struct folio *, size_t start, size_t len);
-	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
 	int (*direct_IO)(struct kiocb *, struct iov_iter *iter);
@@ -280,7 +279,6 @@ write_begin:		locks the page		 exclusive
 write_end:		yes, unlocks		 exclusive
 bmap:
 invalidate_folio:	yes					exclusive
-invalidatepage:		yes					exclusive
 releasepage:		yes
 freepage:		yes
 direct_IO:

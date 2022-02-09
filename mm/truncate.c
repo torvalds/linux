@@ -19,8 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/pagevec.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/buffer_head.h>	/* grr. try_to_release_page,
-				   do_invalidatepage */
+#include <linux/buffer_head.h>	/* grr. try_to_release_page */
 #include <linux/shmem_fs.h>
 #include <linux/rmap.h>
 #include "internal.h"
@@ -155,16 +154,9 @@ static int invalidate_exceptional_entry2(struct address_space *mapping,
 void folio_invalidate(struct folio *folio, size_t offset, size_t length)
 {
 	const struct address_space_operations *aops = folio->mapping->a_ops;
-	void (*invalidatepage)(struct page *, unsigned int, unsigned int);
 
-	if (aops->invalidate_folio) {
+	if (aops->invalidate_folio)
 		aops->invalidate_folio(folio, offset, length);
-		return;
-	}
-
-	invalidatepage = aops->invalidatepage;
-	if (invalidatepage)
-		(*invalidatepage)(&folio->page, offset, length);
 }
 EXPORT_SYMBOL_GPL(folio_invalidate);
 
@@ -334,7 +326,7 @@ int invalidate_inode_page(struct page *page)
  * mapping is large, it is probably the case that the final pages are the most
  * recently touched, and freeing happens in ascending file offset order.
  *
- * Note that since ->invalidatepage() accepts range to invalidate
+ * Note that since ->invalidate_folio() accepts range to invalidate
  * truncate_inode_pages_range is able to handle cases where lend + 1 is not
  * page aligned properly.
  */

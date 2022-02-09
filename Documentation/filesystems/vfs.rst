@@ -736,7 +736,6 @@ cache in your filesystem.  The following members are defined:
 				 struct page *page, void *fsdata);
 		sector_t (*bmap)(struct address_space *, sector_t);
 		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
-		void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 		int (*releasepage) (struct page *, int);
 		void (*freepage)(struct page *);
 		ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
