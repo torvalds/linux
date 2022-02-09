@@ -181,9 +181,6 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	case REQ_OP_SECURE_ERASE:
 	case REQ_OP_WRITE_ZEROES:
 		break;
-	case REQ_OP_WRITE_SAME:
-		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
-		break;
 	default:
 		bio_for_each_segment(bv, bio_src, iter)
 			bio->bi_io_vec[bio->bi_vcnt++] = bv;
