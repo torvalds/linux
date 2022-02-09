@@ -392,6 +392,7 @@ int ctx_narrow_access(struct bpf_sk_lookup *ctx)
 {
 	struct bpf_sock *sk;
 	int err, family;
+	__u32 val_u32;
 	bool v4;
 
 	v4 = (ctx->family == AF_INET);
@@ -416,6 +417,11 @@ int ctx_narrow_access(struct bpf_sk_lookup *ctx)
 	    LSB(ctx->remote_port, 2) != 0 || LSB(ctx->remote_port, 3) != 0)
 		return SK_DROP;
 	if (LSW(ctx->remote_port, 0) != SRC_PORT)
+		return SK_DROP;
+
+	/* Load from remote_port field with zero padding (backward compatibility) */
+	val_u32 = *(__u32 *)&ctx->remote_port;
+	if (val_u32 != bpf_htonl(bpf_ntohs(SRC_PORT) << 16))
 		return SK_DROP;
 
 	/* Narrow loads from local_port field. Expect DST_PORT. */
