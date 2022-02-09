@@ -817,6 +817,47 @@ static void cgx_lmac_pause_frm_config(void *cgxd, int lmac_id, bool enable)
 	cgx_write(cgx, lmac_id, CGXX_SMUX_TX_CTL, cfg);
 }
 
+int cgx_lmac_pfc_config(void *cgxd, int lmac_id, u8 tx_pause,
+			u8 rx_pause, u16 pfc_en)
+{
+	struct cgx *cgx = cgxd;
+	u64 cfg;
+
+	if (!is_lmac_valid(cgx, lmac_id))
+		return -ENODEV;
+
+	/* Return as no traffic classes are requested */
+	if (tx_pause && !pfc_en)
+		return 0;
+
+	cfg = cgx_read(cgx, lmac_id, CGXX_SMUX_CBFC_CTL);
+
+	if (rx_pause) {
+		cfg |= (CGXX_SMUX_CBFC_CTL_RX_EN |
+			CGXX_SMUX_CBFC_CTL_BCK_EN |
+			CGXX_SMUX_CBFC_CTL_DRP_EN);
+	} else {
+		cfg &= ~(CGXX_SMUX_CBFC_CTL_RX_EN |
+			CGXX_SMUX_CBFC_CTL_BCK_EN |
+			CGXX_SMUX_CBFC_CTL_DRP_EN);
+	}
+
+	if (tx_pause)
+		cfg |= CGXX_SMUX_CBFC_CTL_TX_EN;
+	else
+		cfg &= ~CGXX_SMUX_CBFC_CTL_TX_EN;
+
+	cfg = FIELD_SET(CGX_PFC_CLASS_MASK, pfc_en, cfg);
+
+	cgx_write(cgx, lmac_id, CGXX_SMUX_CBFC_CTL, cfg);
+
+	/* Write source MAC address which will be filled into PFC packet */
+	cfg = cgx_lmac_addr_get(cgx->cgx_id, lmac_id);
+	cgx_write(cgx, lmac_id, CGXX_SMUX_SMAC, cfg);
+
+	return 0;
+}
+
 void cgx_lmac_ptp_config(void *cgxd, int lmac_id, bool enable)
 {
 	struct cgx *cgx = cgxd;
@@ -1559,6 +1600,7 @@ static struct mac_ops	cgx_mac_ops    = {
 	.mac_enadis_ptp_config =	cgx_lmac_ptp_config,
 	.mac_rx_tx_enable =		cgx_lmac_rx_tx_enable,
 	.mac_tx_enable =		cgx_lmac_tx_enable,
+	.pfc_config =                   cgx_lmac_pfc_config,
 };
 
 static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
