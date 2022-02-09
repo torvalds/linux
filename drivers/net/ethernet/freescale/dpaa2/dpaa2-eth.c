@@ -888,14 +888,13 @@ static int dpaa2_eth_build_sg_fd_single_buf(struct dpaa2_eth_priv *priv,
 	sgt_buf_size = priv->tx_data_offset + sizeof(struct dpaa2_sg_entry);
 
 	if (sgt_cache->count == 0)
-		sgt_buf = kzalloc(sgt_buf_size + DPAA2_ETH_TX_BUF_ALIGN,
-				  GFP_ATOMIC);
+		sgt_buf = napi_alloc_frag_align(sgt_buf_size, DPAA2_ETH_TX_BUF_ALIGN);
 	else
 		sgt_buf = sgt_cache->buf[--sgt_cache->count];
 	if (unlikely(!sgt_buf))
 		return -ENOMEM;
+	memset(sgt_buf, 0, sgt_buf_size);
 
-	sgt_buf = PTR_ALIGN(sgt_buf, DPAA2_ETH_TX_BUF_ALIGN);
 	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
 
 	addr = dma_map_single(dev, skb->data, skb->len, DMA_BIDIRECTIONAL);
@@ -935,7 +934,7 @@ sgt_map_failed:
 	dma_unmap_single(dev, addr, skb->len, DMA_BIDIRECTIONAL);
 data_map_failed:
 	if (sgt_cache->count >= DPAA2_ETH_SGT_CACHE_SIZE)
-		kfree(sgt_buf);
+		skb_free_frag(sgt_buf);
 	else
 		sgt_cache->buf[sgt_cache->count++] = sgt_buf;
 
@@ -1088,7 +1087,7 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 			skb_free_frag(buffer_start);
 		} else {
 			if (sgt_cache->count >= DPAA2_ETH_SGT_CACHE_SIZE)
-				kfree(buffer_start);
+				skb_free_frag(buffer_start);
 			else
 				sgt_cache->buf[sgt_cache->count++] = buffer_start;
 		}
@@ -1523,7 +1522,7 @@ static void dpaa2_eth_sgt_cache_drain(struct dpaa2_eth_priv *priv)
 		count = sgt_cache->count;
 
 		for (i = 0; i < count; i++)
-			kfree(sgt_cache->buf[i]);
+			skb_free_frag(sgt_cache->buf[i]);
 		sgt_cache->count = 0;
 	}
 }
