@@ -249,9 +249,6 @@ static inline u32 rnbd_to_bio_flags(u32 rnbd_opf)
 	case RNBD_OP_SECURE_ERASE:
 		bio_opf = REQ_OP_SECURE_ERASE;
 		break;
-	case RNBD_OP_WRITE_SAME:
-		bio_opf = REQ_OP_WRITE_SAME;
-		break;
 	default:
 		WARN(1, "Unknown RNBD type: %d (flags %d)\n",
 		     rnbd_op(rnbd_opf), rnbd_opf);
@@ -283,9 +280,6 @@ static inline u32 rq_to_rnbd_flags(struct request *rq)
 		break;
 	case REQ_OP_SECURE_ERASE:
 		rnbd_opf = RNBD_OP_SECURE_ERASE;
-		break;
-	case REQ_OP_WRITE_SAME:
-		rnbd_opf = RNBD_OP_WRITE_SAME;
 		break;
 	case REQ_OP_FLUSH:
 		rnbd_opf = RNBD_OP_FLUSH;

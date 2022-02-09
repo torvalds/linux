@@ -122,7 +122,6 @@ struct rnbd_clt_dev {
 	bool			wc;
 	bool			fua;
 	u32			max_hw_sectors;
-	u32			max_write_same_sectors;
 	u32			max_discard_sectors;
 	u32			discard_granularity;
 	u32			discard_alignment;
