@@ -250,6 +250,7 @@ prototypes::
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
+	void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
@@ -278,6 +279,7 @@ readpages:		no					shared
 write_begin:		locks the page		 exclusive
 write_end:		yes, unlocks		 exclusive
 bmap:
+invalidate_folio:	yes					exclusive
 invalidatepage:		yes					exclusive
 releasepage:		yes
 freepage:		yes
@@ -370,13 +372,12 @@ not locked.
 filesystems and by the swapper. The latter will eventually go away.  Please,
 keep it that way and don't breed new callers.
 
-->invalidatepage() is called when the filesystem must attempt to drop
+->invalidate_folio() is called when the filesystem must attempt to drop
 some or all of the buffers from the page when it is being truncated. It
-returns zero on success. If ->invalidatepage is zero, the kernel uses
-block_invalidatepage() instead. The filesystem must exclusively acquire
-invalidate_lock before invalidating page cache in truncate / hole punch path
-(and thus calling into ->invalidatepage) to block races between page cache
-invalidation and page cache filling functions (fault, read, ...).
+returns zero on success.  The filesystem must exclusively acquire
+invalidate_lock before invalidating page cache in truncate / hole punch
+path (and thus calling into ->invalidate_folio) to block races between page
+cache invalidation and page cache filling functions (fault, read, ...).
 
 ->releasepage() is called when the kernel is about to try to drop the
 buffers from the page in preparation for freeing it.  It returns zero to

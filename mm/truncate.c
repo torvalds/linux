@@ -154,9 +154,15 @@ static int invalidate_exceptional_entry2(struct address_space *mapping,
  */
 void folio_invalidate(struct folio *folio, size_t offset, size_t length)
 {
+	const struct address_space_operations *aops = folio->mapping->a_ops;
 	void (*invalidatepage)(struct page *, unsigned int, unsigned int);
 
-	invalidatepage = folio->mapping->a_ops->invalidatepage;
+	if (aops->invalidate_folio) {
+		aops->invalidate_folio(folio, offset, length);
+		return;
+	}
+
+	invalidatepage = aops->invalidatepage;
 #ifdef CONFIG_BLOCK
 	if (!invalidatepage)
 		invalidatepage = block_invalidatepage;
