@@ -45,6 +45,11 @@ static inline bool mctp_address_ok(mctp_eid_t eid)
 	return eid >= 8 && eid < 255;
 }
 
+static inline bool mctp_address_matches(mctp_eid_t match, mctp_eid_t eid)
+{
+	return match == eid || match == MCTP_ADDR_ANY;
+}
+
 static inline struct mctp_hdr *mctp_hdr(struct sk_buff *skb)
 {
 	return (struct mctp_hdr *)skb_network_header(skb);
@@ -121,7 +126,7 @@ struct mctp_sock {
  */
 struct mctp_sk_key {
 	mctp_eid_t	peer_addr;
-	mctp_eid_t	local_addr;
+	mctp_eid_t	local_addr; /* MCTP_ADDR_ANY for local owned tags */
 	__u8		tag; /* incoming tag match; invert TO for local */
 
 	/* we hold a ref to sk when set */
@@ -158,6 +163,12 @@ struct mctp_sk_key {
 	 */
 	unsigned long	dev_flow_state;
 	struct mctp_dev	*dev;
+
+	/* a tag allocated with SIOCMCTPALLOCTAG ioctl will not expire
+	 * automatically on timeout or response, instead SIOCMCTPDROPTAG
+	 * is used.
+	 */
+	bool		manual_alloc;
 };
 
 struct mctp_skb_cb {
@@ -234,6 +245,9 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		      struct sk_buff *skb, mctp_eid_t daddr, u8 req_tag);
 
 void mctp_key_unref(struct mctp_sk_key *key);
+struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
+					 mctp_eid_t daddr, mctp_eid_t saddr,
+					 bool manual, u8 *tagp);
 
 /* routing <--> device interface */
 unsigned int mctp_default_net(struct net *net);
