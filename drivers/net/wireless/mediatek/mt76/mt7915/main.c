@@ -969,12 +969,9 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 
 	phy->mt76->antenna_mask = tx_ant;
 
-	if (ext_phy) {
-		if (dev->chainmask == 0xf)
-			tx_ant <<= 2;
-		else
-			tx_ant <<= 1;
-	}
+	if (ext_phy)
+		tx_ant <<= dev->chainshift;
+
 	phy->mt76->chainmask = tx_ant;
 
 	mt76_set_stream_caps(phy->mt76, true);

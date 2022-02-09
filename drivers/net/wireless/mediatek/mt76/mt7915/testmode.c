@@ -456,7 +456,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 			u8 tx_ant = td->tx_antenna_mask;
 
 			if (phy != &dev->phy)
-				tx_ant >>= 2;
+				tx_ant >>= dev->chainshift;
 			phy->test.spe_idx = spe_idx_map[tx_ant];
 		}
 	}

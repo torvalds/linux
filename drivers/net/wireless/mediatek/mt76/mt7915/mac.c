@@ -1971,16 +1971,22 @@ mt7915_dma_reset(struct mt7915_dev *dev)
 	int i;
 
 	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
-		   MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
-	mt76_clear(dev, MT_WFDMA1_GLO_CFG,
-		   MT_WFDMA1_GLO_CFG_TX_DMA_EN | MT_WFDMA1_GLO_CFG_RX_DMA_EN);
+		   MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+		   MT_WFDMA0_GLO_CFG_RX_DMA_EN);
+
+	if (is_mt7915(&dev->mt76))
+		mt76_clear(dev, MT_WFDMA1_GLO_CFG,
+			   MT_WFDMA1_GLO_CFG_TX_DMA_EN |
+			   MT_WFDMA1_GLO_CFG_RX_DMA_EN);
 	if (dev->hif2) {
 		mt76_clear(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
-			   (MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-			    MT_WFDMA0_GLO_CFG_RX_DMA_EN));
-		mt76_clear(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
-			   (MT_WFDMA1_GLO_CFG_TX_DMA_EN |
-			    MT_WFDMA1_GLO_CFG_RX_DMA_EN));
+			   MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+			   MT_WFDMA0_GLO_CFG_RX_DMA_EN);
+
+		if (is_mt7915(&dev->mt76))
+			mt76_clear(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
+				   MT_WFDMA1_GLO_CFG_TX_DMA_EN |
+				   MT_WFDMA1_GLO_CFG_RX_DMA_EN);
 	}
 
 	usleep_range(1000, 2000);
@@ -2004,19 +2010,23 @@ mt7915_dma_reset(struct mt7915_dev *dev)
 
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,
 		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
-	mt76_set(dev, MT_WFDMA1_GLO_CFG,
-		 MT_WFDMA1_GLO_CFG_TX_DMA_EN | MT_WFDMA1_GLO_CFG_RX_DMA_EN |
-		 MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
-		 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
-	if (dev->hif2) {
-		mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
-			(MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-			 MT_WFDMA0_GLO_CFG_RX_DMA_EN));
-		mt76_set(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
-			(MT_WFDMA1_GLO_CFG_TX_DMA_EN |
+	if (is_mt7915(&dev->mt76))
+		mt76_set(dev, MT_WFDMA1_GLO_CFG,
+			 MT_WFDMA1_GLO_CFG_TX_DMA_EN |
 			 MT_WFDMA1_GLO_CFG_RX_DMA_EN |
 			 MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
-			 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO));
+			 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
+	if (dev->hif2) {
+		mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
+			 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+			 MT_WFDMA0_GLO_CFG_RX_DMA_EN);
+
+		if (is_mt7915(&dev->mt76))
+			mt76_set(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
+				 MT_WFDMA1_GLO_CFG_TX_DMA_EN |
+				 MT_WFDMA1_GLO_CFG_RX_DMA_EN |
+				 MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
+				 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
 	}
 }
 

@@ -64,6 +64,26 @@ struct mt7915_fw_region {
 	u8 reserved1[15];
 } __packed;
 
+#define fw_name(_dev, name, ...)	({			\
+	char *_fw;						\
+	switch (mt76_chip(&(_dev)->mt76)) {			\
+	case 0x7915:						\
+		_fw = MT7915_##name;				\
+		break;						\
+	case 0x7986:						\
+		_fw = MT7986_##name##__VA_ARGS__;		\
+		break;						\
+	default:						\
+		_fw = MT7916_##name;				\
+		break;						\
+	}							\
+	_fw;							\
+})
+
+#define fw_name_var(_dev, name)		(mt7915_check_adie(dev, false) ?	\
+					 fw_name(_dev, name) :			\
+					 fw_name(_dev, name, _MT7975))
+
 #define MCU_PATCH_ADDRESS		0x200000
 
 #define HE_PHY(p, c)			u8_get_bits(c, IEEE80211_HE_PHY_##p)
@@ -89,6 +109,7 @@ mt7915_mcu_set_sta_he_mcs(struct ieee80211_sta *sta, __le16 *he_mcs,
 			  u16 mcs_map)
 {
 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+	struct mt7915_dev *dev = msta->vif->phy->dev;
 	enum nl80211_band band = msta->vif->phy->mt76->chandef.chan->band;
 	const u16 *mask = msta->vif->bitrate_mask.control[band].he_mcs;
 	int nss, max_nss = sta->rx_nss > 3 ? 4 : sta->rx_nss;
@@ -129,8 +150,9 @@ mt7915_mcu_set_sta_he_mcs(struct ieee80211_sta *sta, __le16 *he_mcs,
 		mcs_map &= ~(0x3 << (nss * 2));
 		mcs_map |= mcs << (nss * 2);
 
-		/* only support 2ss on 160MHz */
-		if (nss > 1 && (sta->bandwidth == IEEE80211_STA_RX_BW_160))
+		/* only support 2ss on 160MHz for mt7915 */
+		if (is_mt7915(&dev->mt76) && nss > 1 &&
+		    sta->bandwidth == IEEE80211_STA_RX_BW_160)
 			break;
 	}
 
@@ -141,6 +163,8 @@ static void
 mt7915_mcu_set_sta_vht_mcs(struct ieee80211_sta *sta, __le16 *vht_mcs,
 			   const u16 *mask)
 {
+	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
+	struct mt7915_dev *dev = msta->vif->phy->dev;
 	u16 mcs_map = le16_to_cpu(sta->vht_cap.vht_mcs.rx_mcs_map);
 	int nss, max_nss = sta->rx_nss > 3 ? 4 : sta->rx_nss;
 	u16 mcs;
@@ -162,8 +186,9 @@ mt7915_mcu_set_sta_vht_mcs(struct ieee80211_sta *sta, __le16 *vht_mcs,
 
 		vht_mcs[nss] = cpu_to_le16(mcs & mask[nss]);
 
-		/* only support 2ss on 160MHz */
-		if (nss > 1 && (sta->bandwidth == IEEE80211_STA_RX_BW_160))
+		/* only support 2ss on 160MHz for mt7915 */
+		if (is_mt7915(&dev->mt76) && nss > 1 &&
+		    sta->bandwidth == IEEE80211_STA_RX_BW_160)
 			break;
 	}
 }
@@ -1962,7 +1987,6 @@ static int mt7915_load_patch(struct mt7915_dev *dev)
 {
 	const struct mt7915_patch_hdr *hdr;
 	const struct firmware *fw = NULL;
-	const char *patch;
 	int i, ret, sem;
 
 	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, 1);
@@ -1976,8 +2000,8 @@ static int mt7915_load_patch(struct mt7915_dev *dev)
 		return -EAGAIN;
 	}
 
-	patch = is_mt7915(&dev->mt76) ? MT7915_ROM_PATCH : MT7916_ROM_PATCH;
-	ret = request_firmware(&fw, patch, dev->mt76.dev);
+	ret = request_firmware(&fw, fw_name_var(dev, ROM_PATCH),
+			       dev->mt76.dev);
 	if (ret)
 		goto out;
 
@@ -2096,11 +2120,10 @@ static int mt7915_load_ram(struct mt7915_dev *dev)
 {
 	const struct mt7915_fw_trailer *hdr;
 	const struct firmware *fw;
-	const char *mcu;
 	int ret;
 
-	mcu = is_mt7915(&dev->mt76) ? MT7915_FIRMWARE_WM : MT7916_FIRMWARE_WM;
-	ret = request_firmware(&fw, mcu, dev->mt76.dev);
+	ret = request_firmware(&fw, fw_name_var(dev, FIRMWARE_WM),
+			       dev->mt76.dev);
 	if (ret)
 		return ret;
 
@@ -2124,8 +2147,8 @@ static int mt7915_load_ram(struct mt7915_dev *dev)
 
 	release_firmware(fw);
 
-	mcu = is_mt7915(&dev->mt76) ? MT7915_FIRMWARE_WA : MT7916_FIRMWARE_WA;
-	ret = request_firmware(&fw, mcu, dev->mt76.dev);
+	ret = request_firmware(&fw, fw_name(dev, FIRMWARE_WA),
+			       dev->mt76.dev);
 	if (ret)
 		return ret;
 
@@ -2777,10 +2800,8 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 		req.tx_streams_num = fls(phy->mt76->test.tx_antenna_mask);
 		req.rx_streams = phy->mt76->test.tx_antenna_mask;
 
-		if (ext_phy) {
-			req.tx_streams_num = 2;
-			req.rx_streams >>= 2;
-		}
+		if (ext_phy)
+			req.rx_streams >>= dev->chainshift;
 	}
 #endif
 

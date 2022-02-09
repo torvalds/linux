@@ -582,6 +582,12 @@ static void mt7915_wfsys_reset(struct mt7915_dev *dev)
 		mt76_clear(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE);
 
 		msleep(100);
+	} else if (is_mt7986(&dev->mt76)) {
+		mt7986_wmac_disable(dev);
+		msleep(20);
+
+		mt7986_wmac_enable(dev);
+		msleep(20);
 	} else {
 		mt76_set(dev, MT_WF_SUBSYS_RST, 0x1);
 		msleep(20);
@@ -767,9 +773,17 @@ static int
 mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		    struct ieee80211_sband_iftype_data *data)
 {
+	struct mt7915_dev *dev = phy->dev;
 	int i, idx = 0, nss = hweight8(phy->mt76->chainmask);
 	u16 mcs_map = 0;
 	u16 mcs_map_160 = 0;
+	u8 nss_160;
+
+	/* Can do 1/2 of NSS streams in 160Mhz mode for mt7915 */
+	if (is_mt7915(&dev->mt76) && !dev->dbdc_support)
+		nss_160 = nss / 2;
+	else
+		nss_160 = nss;
 
 	for (i = 0; i < 8; i++) {
 		if (i < nss)
@@ -777,8 +791,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		else
 			mcs_map |= (IEEE80211_HE_MCS_NOT_SUPPORTED << (i * 2));
 
-		/* Can do 1/2 of NSS streams in 160Mhz mode. */
-		if (i < nss / 2)
+		if (i < nss_160)
 			mcs_map_160 |= (IEEE80211_HE_MCS_SUPPORT_0_11 << (i * 2));
 		else
 			mcs_map_160 |= (IEEE80211_HE_MCS_NOT_SUPPORTED << (i * 2));
@@ -1010,6 +1023,9 @@ void mt7915_unregister_device(struct mt7915_dev *dev)
 	mt7915_tx_token_put(dev);
 	mt7915_dma_cleanup(dev);
 	tasklet_disable(&dev->irq_tasklet);
+
+	if (is_mt7986(&dev->mt76))
+		mt7986_wmac_disable(dev);
 
 	mt76_free_device(&dev->mt76);
 }
