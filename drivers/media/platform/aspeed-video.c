@@ -93,8 +93,6 @@
 #define  VE_CTRL_SOURCE			BIT(2)
 #define  VE_CTRL_INT_DE			BIT(4)
 #define  VE_CTRL_DIRECT_FETCH		BIT(5)
-#define  VE_CTRL_YUV			BIT(6)
-#define  VE_CTRL_RGB			BIT(7)
 #define  VE_CTRL_CAPTURE_FMT		GENMASK(7, 6)
 #define  VE_CTRL_AUTO_OR_CURSOR		BIT(8)
 #define  VE_CTRL_CLK_INVERSE		BIT(11)
@@ -255,6 +253,15 @@ enum aspeed_video_format {
 	VIDEO_FMT_STANDARD = 0,
 	VIDEO_FMT_ASPEED,
 	VIDEO_FMT_MAX = VIDEO_FMT_ASPEED
+};
+
+// for VE_CTRL_CAPTURE_FMT
+enum aspeed_video_capture_format {
+	VIDEO_CAP_FMT_YUV_STUDIO_SWING = 0,
+	VIDEO_CAP_FMT_YUV_FULL_SWING,
+	VIDEO_CAP_FMT_RGB,
+	VIDEO_CAP_FMT_GRAY,
+	VIDEO_CAP_FMT_MAX
 };
 
 struct aspeed_video_addr {
@@ -1388,7 +1395,8 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 
 	/* Set control registers */
 	aspeed_video_write(video, VE_SEQ_CTRL, VE_SEQ_CTRL_AUTO_COMP);
-	aspeed_video_write(video, VE_CTRL, VE_CTRL_AUTO_OR_CURSOR | VE_CTRL_YUV);
+	aspeed_video_write(video, VE_CTRL, VE_CTRL_AUTO_OR_CURSOR |
+					   FIELD_PREP(VE_CTRL_CAPTURE_FMT, VIDEO_CAP_FMT_YUV_FULL_SWING));
 	aspeed_video_write(video, VE_COMP_CTRL, VE_COMP_CTRL_RSVD);
 
 	/* Don't downscale */
