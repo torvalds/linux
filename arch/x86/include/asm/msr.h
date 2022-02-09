@@ -10,16 +10,7 @@
 #include <asm/errno.h>
 #include <asm/cpumask.h>
 #include <uapi/asm/msr.h>
-
-struct msr {
-	union {
-		struct {
-			u32 l;
-			u32 h;
-		};
-		u64 q;
-	};
-};
+#include <asm/shared/msr.h>
 
 struct msr_info {
 	u32 msr_no;
