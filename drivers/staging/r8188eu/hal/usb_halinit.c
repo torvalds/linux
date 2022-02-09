@@ -449,10 +449,6 @@ static void InitUsbAggregationSetting(struct adapter *Adapter)
 	usb_AggSettingRxUpdate(Adapter);
 }
 
-static void _InitOperationMode(struct adapter *Adapter)
-{
-}
-
 static void _InitBeaconParameters(struct adapter *Adapter)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
@@ -635,7 +631,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	_InitEDCA(Adapter);
 	_InitRetryFunction(Adapter);
 	InitUsbAggregationSetting(Adapter);
-	_InitOperationMode(Adapter);/* todo */
 	_InitBeaconParameters(Adapter);
 
 	/*  */
