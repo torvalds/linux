@@ -340,6 +340,15 @@ config QCM_GCC_2290
 	  Say Y if you want to use multimedia devices or peripheral
 	  devices such as UART, SPI, I2C, USB, SD/eMMC etc.
 
+config QCM_DISPCC_2290
+	tristate "QCM2290 Display Clock Controller"
+	select QCM_GCC_2290
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  QCM2290 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config QCS_GCC_404
 	tristate "QCS404 Global Clock Controller"
 	help
