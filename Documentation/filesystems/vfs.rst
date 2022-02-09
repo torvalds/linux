@@ -745,7 +745,7 @@ cache in your filesystem.  The following members are defined:
 		int (*migratepage) (struct page *, struct page *);
 		/* put migration-failed page back to right list */
 		void (*putback_page) (struct page *);
-		int (*launder_page) (struct page *);
+		int (*launder_folio) (struct folio *);
 
 		bool (*is_partially_uptodate) (struct folio *, size_t from,
 					       size_t count);
@@ -930,9 +930,9 @@ cache in your filesystem.  The following members are defined:
 ``putback_page``
 	Called by the VM when isolated page's migration fails.
 
-``launder_page``
-	Called before freeing a page - it writes back the dirty page.
-	To prevent redirtying the page, it is kept locked during the
+``launder_folio``
+	Called before freeing a folio - it writes back the dirty folio.
+	To prevent redirtying the folio, it is kept locked during the
 	whole operation.
 
 ``is_partially_uptodate``
