@@ -23,34 +23,34 @@ int hda_probe_compr_assign(struct snd_sof_dev *sdev,
 			   struct snd_compr_stream *cstream,
 			   struct snd_soc_dai *dai)
 {
-	struct hdac_ext_stream *stream;
+	struct hdac_ext_stream *hext_stream;
 
-	stream = hda_dsp_stream_get(sdev, cstream->direction, 0);
-	if (!stream)
+	hext_stream = hda_dsp_stream_get(sdev, cstream->direction, 0);
+	if (!hext_stream)
 		return -EBUSY;
 
-	hdac_stream(stream)->curr_pos = 0;
-	hdac_stream(stream)->cstream = cstream;
-	cstream->runtime->private_data = stream;
+	hdac_stream(hext_stream)->curr_pos = 0;
+	hdac_stream(hext_stream)->cstream = cstream;
+	cstream->runtime->private_data = hext_stream;
 
-	return hdac_stream(stream)->stream_tag;
+	return hdac_stream(hext_stream)->stream_tag;
 }
 
 int hda_probe_compr_free(struct snd_sof_dev *sdev,
 			 struct snd_compr_stream *cstream,
 			 struct snd_soc_dai *dai)
 {
-	struct hdac_ext_stream *stream = hda_compr_get_stream(cstream);
+	struct hdac_ext_stream *hext_stream = hda_compr_get_stream(cstream);
 	int ret;
 
 	ret = hda_dsp_stream_put(sdev, cstream->direction,
-				 hdac_stream(stream)->stream_tag);
+				 hdac_stream(hext_stream)->stream_tag);
 	if (ret < 0) {
 		dev_dbg(sdev->dev, "stream put failed: %d\n", ret);
 		return ret;
 	}
 
-	hdac_stream(stream)->cstream = NULL;
+	hdac_stream(hext_stream)->cstream = NULL;
 	cstream->runtime->private_data = NULL;
 
 	return 0;
@@ -61,8 +61,8 @@ int hda_probe_compr_set_params(struct snd_sof_dev *sdev,
 			       struct snd_compr_params *params,
 			       struct snd_soc_dai *dai)
 {
-	struct hdac_ext_stream *stream = hda_compr_get_stream(cstream);
-	struct hdac_stream *hstream = hdac_stream(stream);
+	struct hdac_ext_stream *hext_stream = hda_compr_get_stream(cstream);
+	struct hdac_stream *hstream = hdac_stream(hext_stream);
 	struct snd_dma_buffer *dmab;
 	u32 bits, rate;
 	int bps, ret;
@@ -80,7 +80,7 @@ int hda_probe_compr_set_params(struct snd_sof_dev *sdev,
 	hstream->period_bytes = cstream->runtime->fragment_size;
 	hstream->no_period_wakeup = 0;
 
-	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, NULL);
+	ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, NULL);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: hdac prepare failed: %d\n", ret);
 		return ret;
@@ -93,9 +93,9 @@ int hda_probe_compr_trigger(struct snd_sof_dev *sdev,
 			    struct snd_compr_stream *cstream, int cmd,
 			    struct snd_soc_dai *dai)
 {
-	struct hdac_ext_stream *stream = hda_compr_get_stream(cstream);
+	struct hdac_ext_stream *hext_stream = hda_compr_get_stream(cstream);
 
-	return hda_dsp_stream_trigger(sdev, stream, cmd);
+	return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
 }
 
 int hda_probe_compr_pointer(struct snd_sof_dev *sdev,
@@ -103,11 +103,11 @@ int hda_probe_compr_pointer(struct snd_sof_dev *sdev,
 			    struct snd_compr_tstamp *tstamp,
 			    struct snd_soc_dai *dai)
 {
-	struct hdac_ext_stream *stream = hda_compr_get_stream(cstream);
+	struct hdac_ext_stream *hext_stream = hda_compr_get_stream(cstream);
 	struct snd_soc_pcm_stream *pstream;
 
 	pstream = &dai->driver->capture;
-	tstamp->copied_total = hdac_stream(stream)->curr_pos;
+	tstamp->copied_total = hdac_stream(hext_stream)->curr_pos;
 	tstamp->sampling_rate = snd_pcm_rate_bit_to_rate(pstream->rates);
 
 	return 0;

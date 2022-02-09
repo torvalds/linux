@@ -47,18 +47,18 @@ static struct hdac_ext_stream *cl_stream_prepare(struct snd_sof_dev *sdev, unsig
 						 unsigned int size, struct snd_dma_buffer *dmab,
 						 int direction)
 {
-	struct hdac_ext_stream *dsp_stream;
+	struct hdac_ext_stream *hext_stream;
 	struct hdac_stream *hstream;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
 
-	dsp_stream = hda_dsp_stream_get(sdev, direction, 0);
+	hext_stream = hda_dsp_stream_get(sdev, direction, 0);
 
-	if (!dsp_stream) {
+	if (!hext_stream) {
 		dev_err(sdev->dev, "error: no stream available\n");
 		return ERR_PTR(-ENODEV);
 	}
-	hstream = &dsp_stream->hstream;
+	hstream = &hext_stream->hstream;
 	hstream->substream = NULL;
 
 	/* allocate DMA buffer */
@@ -73,21 +73,21 @@ static struct hdac_ext_stream *cl_stream_prepare(struct snd_sof_dev *sdev, unsig
 	hstream->bufsize = size;
 
 	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
-		ret = hda_dsp_iccmax_stream_hw_params(sdev, dsp_stream, dmab, NULL);
+		ret = hda_dsp_iccmax_stream_hw_params(sdev, hext_stream, dmab, NULL);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: iccmax stream prepare failed: %d\n", ret);
 			goto error;
 		}
 	} else {
-		ret = hda_dsp_stream_hw_params(sdev, dsp_stream, dmab, NULL);
+		ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, NULL);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: hdac prepare failed: %d\n", ret);
 			goto error;
 		}
-		hda_dsp_stream_spib_config(sdev, dsp_stream, HDA_DSP_SPIB_ENABLE, size);
+		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_ENABLE, size);
 	}
 
-	return dsp_stream;
+	return hext_stream;
 
 error:
 	hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
@@ -209,9 +209,9 @@ err:
 }
 
 static int cl_trigger(struct snd_sof_dev *sdev,
-		      struct hdac_ext_stream *stream, int cmd)
+		      struct hdac_ext_stream *hext_stream, int cmd)
 {
-	struct hdac_stream *hstream = &stream->hstream;
+	struct hdac_stream *hstream = &hext_stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 
 	/* code loader is special case that reuses stream ops */
@@ -231,19 +231,19 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 		hstream->running = true;
 		return 0;
 	default:
-		return hda_dsp_stream_trigger(sdev, stream, cmd);
+		return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
 	}
 }
 
 static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
-		      struct hdac_ext_stream *stream)
+		      struct hdac_ext_stream *hext_stream)
 {
-	struct hdac_stream *hstream = &stream->hstream;
+	struct hdac_stream *hstream = &hext_stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	int ret = 0;
 
 	if (hstream->direction == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
+		ret = hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
 	else
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
 					SOF_HDA_SD_CTL_DMA_START, 0);
@@ -267,12 +267,12 @@ static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 	return ret;
 }
 
-static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
+static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream)
 {
 	unsigned int reg;
 	int ret, status;
 
-	ret = cl_trigger(sdev, stream, SNDRV_PCM_TRIGGER_START);
+	ret = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: DMA trigger start failed\n");
 		return ret;
@@ -296,7 +296,7 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 			__func__);
 	}
 
-	ret = cl_trigger(sdev, stream, SNDRV_PCM_TRIGGER_STOP);
+	ret = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: DMA trigger stop failed\n");
 		if (!status)
@@ -392,7 +392,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const struct sof_dev_desc *desc = plat_data->desc;
 	const struct sof_intel_dsp_desc *chip_info;
-	struct hdac_ext_stream *stream;
+	struct hdac_ext_stream *hext_stream;
 	struct firmware stripped_firmware;
 	int ret, ret1, i;
 
@@ -417,11 +417,11 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	init_waitqueue_head(&sdev->boot_wait);
 
 	/* prepare DMA for code loader stream */
-	stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
-				   &sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
-	if (IS_ERR(stream)) {
+	hext_stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
+					&sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
+	if (IS_ERR(hext_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for fw loading failed\n");
-		return PTR_ERR(stream);
+		return PTR_ERR(hext_stream);
 	}
 
 	memcpy(sdev->dmab.area, stripped_firmware.data,
@@ -433,7 +433,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 			"Attempting iteration %d of Core En/ROM load...\n", i);
 
 		hda->boot_iteration = i + 1;
-		ret = cl_dsp_init(sdev, stream->hstream.stream_tag);
+		ret = cl_dsp_init(sdev, hext_stream->hstream.stream_tag);
 
 		/* don't retry anymore if successful */
 		if (!ret)
@@ -472,7 +472,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	 * Continue with code loading and firmware boot
 	 */
 	hda->boot_iteration = HDA_FW_BOOT_ATTEMPTS;
-	ret = cl_copy_fw(sdev, stream);
+	ret = cl_copy_fw(sdev, hext_stream);
 	if (!ret)
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
 	else
@@ -485,7 +485,7 @@ cleanup:
 	 * This should be done even if firmware loading fails.
 	 * If the cleanup also fails, we return the initial error
 	 */
-	ret1 = cl_cleanup(sdev, &sdev->dmab, stream);
+	ret1 = cl_cleanup(sdev, &sdev->dmab, hext_stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
 

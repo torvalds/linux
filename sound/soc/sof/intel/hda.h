@@ -471,14 +471,14 @@ static inline struct hda_bus *sof_to_hbus(struct snd_sof_dev *s)
 
 struct sof_intel_hda_stream {
 	struct snd_sof_dev *sdev;
-	struct hdac_ext_stream hda_stream;
-	struct sof_intel_stream stream;
+	struct hdac_ext_stream hext_stream;
+	struct sof_intel_stream sof_intel_stream;
 	int host_reserved; /* reserve host DMA channel */
 	u32 flags;
 };
 
 #define hstream_to_sof_hda_stream(hstream) \
-	container_of(hstream, struct sof_intel_hda_stream, hda_stream)
+	container_of(hstream, struct sof_intel_hda_stream, hext_stream)
 
 #define bus_to_sof_hda(bus) \
 	container_of(bus, struct sof_intel_hda_dev, hbus.core)
@@ -545,18 +545,19 @@ int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substrea
 int hda_dsp_stream_init(struct snd_sof_dev *sdev);
 void hda_dsp_stream_free(struct snd_sof_dev *sdev);
 int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
-			     struct hdac_ext_stream *stream,
+			     struct hdac_ext_stream *hext_stream,
 			     struct snd_dma_buffer *dmab,
 			     struct snd_pcm_hw_params *params);
-int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream,
+int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev,
+				    struct hdac_ext_stream *hext_stream,
 				    struct snd_dma_buffer *dmab,
 				    struct snd_pcm_hw_params *params);
 int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
-			   struct hdac_ext_stream *stream, int cmd);
+			   struct hdac_ext_stream *hext_stream, int cmd);
 irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context);
 int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 			     struct snd_dma_buffer *dmab,
-			     struct hdac_stream *stream);
+			     struct hdac_stream *hstream);
 bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
 bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev);
 
@@ -564,7 +565,7 @@ struct hdac_ext_stream *
 	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags);
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
 int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
-			       struct hdac_ext_stream *stream,
+			       struct hdac_ext_stream *hext_stream,
 			       int enable, u32 size);
 
 int hda_ipc_msg_data(struct snd_sof_dev *sdev,
