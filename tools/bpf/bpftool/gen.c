@@ -472,7 +472,7 @@ static void codegen_destroy(struct bpf_object *obj, const char *obj_name)
 			continue;
 		if (bpf_map__is_internal(map) &&
 		    (bpf_map__map_flags(map) & BPF_F_MMAPABLE))
-			printf("\tmunmap(skel->%1$s, %2$zd);\n",
+			printf("\tskel_free_map_data(skel->%1$s, skel->maps.%1$s.initial_value, %2$zd);\n",
 			       ident, bpf_map_mmap_sz(map));
 		codegen("\
 			\n\
@@ -481,7 +481,7 @@ static void codegen_destroy(struct bpf_object *obj, const char *obj_name)
 	}
 	codegen("\
 		\n\
-			free(skel);					    \n\
+			skel_free(skel);				    \n\
 		}							    \n\
 		",
 		obj_name);
@@ -525,7 +525,7 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 		{							    \n\
 			struct %1$s *skel;				    \n\
 									    \n\
-			skel = calloc(sizeof(*skel), 1);		    \n\
+			skel = skel_alloc(sizeof(*skel));		    \n\
 			if (!skel)					    \n\
 				goto cleanup;				    \n\
 			skel->ctx.sz = (void *)&skel->links - (void *)skel; \n\
@@ -543,19 +543,18 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 			continue;
 
 		codegen("\
-			\n\
-				skel->%1$s =					 \n\
-					mmap(NULL, %2$zd, PROT_READ | PROT_WRITE,\n\
-					     MAP_SHARED | MAP_ANONYMOUS, -1, 0); \n\
-				if (skel->%1$s == (void *) -1)			 \n\
-					goto cleanup;				 \n\
-				memcpy(skel->%1$s, (void *)\"\\			 \n\
-			", ident, bpf_map_mmap_sz(map));
+		\n\
+			skel->%1$s = skel_prep_map_data((void *)\"\\	    \n\
+		", ident);
 		mmap_data = bpf_map__initial_value(map, &mmap_size);
 		print_hex(mmap_data, mmap_size);
-		printf("\", %2$zd);\n"
-		       "\tskel->maps.%1$s.initial_value = (__u64)(long)skel->%1$s;\n",
-		       ident, mmap_size);
+		codegen("\
+		\n\
+		\", %1$zd, %2$zd);					    \n\
+			if (!skel->%3$s)				    \n\
+				goto cleanup;				    \n\
+			skel->maps.%3$s.initial_value = (__u64) (long) skel->%3$s;\n\
+		", bpf_map_mmap_sz(map), mmap_size, ident);
 	}
 	codegen("\
 		\n\
@@ -611,9 +610,13 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 		else
 			mmap_flags = "PROT_READ | PROT_WRITE";
 
-		printf("\tskel->%1$s =\n"
-		       "\t\tmmap(skel->%1$s, %2$zd, %3$s, MAP_SHARED | MAP_FIXED,\n"
-		       "\t\t\tskel->maps.%1$s.map_fd, 0);\n",
+		codegen("\
+		\n\
+			skel->%1$s = skel_finalize_map_data(&skel->maps.%1$s.initial_value,  \n\
+							%2$zd, %3$s, skel->maps.%1$s.map_fd);\n\
+			if (!skel->%1$s)				    \n\
+				return -ENOMEM;				    \n\
+			",
 		       ident, bpf_map_mmap_sz(map), mmap_flags);
 	}
 	codegen("\
@@ -751,8 +754,6 @@ static int do_skeleton(int argc, char **argv)
 		#ifndef %2$s						    \n\
 		#define %2$s						    \n\
 									    \n\
-		#include <stdlib.h>					    \n\
-		#include <bpf/bpf.h>					    \n\
 		#include <bpf/skel_internal.h>				    \n\
 									    \n\
 		struct %1$s {						    \n\
