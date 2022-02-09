@@ -213,6 +213,7 @@ static const struct drm_gem_object_funcs lima_gem_funcs = {
 	.vmap = lima_gem_vmap,
 	.vunmap = drm_gem_shmem_object_vunmap,
 	.mmap = lima_gem_mmap,
+	.vm_ops = &drm_gem_shmem_vm_ops,
 };
 
 struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t size)
