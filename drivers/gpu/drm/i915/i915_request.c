@@ -44,6 +44,7 @@
 
 #include "i915_active.h"
 #include "i915_deps.h"
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_pm.h"

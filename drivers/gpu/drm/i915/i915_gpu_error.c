@@ -46,6 +46,7 @@
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_gt_regs.h"
 
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
 #include "i915_memcpy.h"

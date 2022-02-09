@@ -49,6 +49,7 @@
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_rps.h"
 
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_pm.h"

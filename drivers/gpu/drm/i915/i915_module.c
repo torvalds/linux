@@ -10,6 +10,7 @@
 #include "gem/i915_gem_object.h"
 #include "i915_active.h"
 #include "i915_buddy.h"
+#include "i915_driver.h"
 #include "i915_params.h"
 #include "i915_pci.h"
 #include "i915_perf.h"

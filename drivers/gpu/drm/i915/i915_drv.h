@@ -131,14 +131,6 @@ struct intel_overlay;
 struct intel_overlay_error_state;
 struct vlv_s0ix_state;
 
-/* General customization:
- */
-
-#define DRIVER_NAME		"i915"
-#define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20201103"
-#define DRIVER_TIMESTAMP	1604406085
-
 /* Threshold == 5 for long IRQs, 50 for short */
 #define HPD_STORM_DEFAULT_THRESHOLD 50
 
@@ -279,20 +271,6 @@ struct drm_i915_file_private {
 	atomic_t ban_score;
 	unsigned long hang_timestamp;
 };
-
-/* Interface history:
- *
- * 1.1: Original.
- * 1.2: Add Power Management
- * 1.3: Add vblank support
- * 1.4: Fix cmdbuffer path, add heap destroy
- * 1.5: Add vblank pipe configuration
- * 1.6: - New ioctl for scheduling buffer swaps on vertical blank
- *      - Support vertical blank on secondary display pipe
- */
-#define DRIVER_MAJOR		1
-#define DRIVER_MINOR		6
-#define DRIVER_PATCHLEVEL	0
 
 struct sdvo_device_mapping {
 	u8 initialized;

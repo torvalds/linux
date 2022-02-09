@@ -1821,6 +1821,21 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_VM_DESTROY, i915_gem_vm_destroy_ioctl, DRM_RENDER_ALLOW),
 };
 
+/*
+ * Interface history:
+ *
+ * 1.1: Original.
+ * 1.2: Add Power Management
+ * 1.3: Add vblank support
+ * 1.4: Fix cmdbuffer path, add heap destroy
+ * 1.5: Add vblank pipe configuration
+ * 1.6: - New ioctl for scheduling buffer swaps on vertical blank
+ *      - Support vertical blank on secondary display pipe
+ */
+#define DRIVER_MAJOR		1
+#define DRIVER_MINOR		6
+#define DRIVER_PATCHLEVEL	0
+
 static const struct drm_driver i915_drm_driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should
 	 * deal with them for Intel hardware.
