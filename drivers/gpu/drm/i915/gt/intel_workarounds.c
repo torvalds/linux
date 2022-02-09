@@ -237,7 +237,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_masked_en(wal, INSTPM, INSTPM_FORCE_ORDERING);
 
 	/* WaDisableAsyncFlipPerfMode:bdw,chv */
-	wa_masked_en(wal, MI_MODE, ASYNC_FLIP_PERF_DISABLE);
+	wa_masked_en(wal, RING_MI_MODE(RENDER_RING_BASE), ASYNC_FLIP_PERF_DISABLE);
 
 	/* WaDisablePartialInstShootdown:bdw,chv */
 	wa_masked_en(wal, GEN8_ROW_CHICKEN,
@@ -2463,7 +2463,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
 		 */
 		wa_masked_en(wal,
-			     MI_MODE,
+			     RING_MI_MODE(RENDER_RING_BASE),
 			     ASYNC_FLIP_PERF_DISABLE);
 
 	if (GRAPHICS_VER(i915) == 6) {
@@ -2522,7 +2522,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 	if (IS_GRAPHICS_VER(i915, 4, 6))
 		/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
-		wa_add(wal, MI_MODE,
+		wa_add(wal, RING_MI_MODE(RENDER_RING_BASE),
 		       0, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH),
 		       /* XXX bit doesn't stick on Broadwater */
 		       IS_I965G(i915) ? 0 : VS_TIMER_DISPATCH, true);

@@ -389,14 +389,6 @@
 #define  _3D_CHICKEN_SDE_LIMIT_FIFO_POLY_DEPTH(x)	((x) << 1) /* gen8+ */
 #define  _3D_CHICKEN3_SF_DISABLE_PIPELINED_ATTR_FETCH	(1 << 1) /* gen6 */
 
-#define MI_MODE		_MMIO(0x209c)
-# define VS_TIMER_DISPATCH				(1 << 6)
-# define MI_FLUSH_ENABLE				(1 << 12)
-# define TGL_NESTED_BB_EN				(1 << 12)
-# define ASYNC_FLIP_PERF_DISABLE			(1 << 14)
-# define MODE_IDLE					(1 << 9)
-# define STOP_RING					(1 << 8)
-
 #define GEN6_GT_MODE	_MMIO(0x20d0)
 #define GEN7_GT_MODE	_MMIO(0x7008)
 #define   GEN6_WIZ_HASHING(hi, lo)			(((hi) << 9) | ((lo) << 7))
