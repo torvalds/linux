@@ -1388,7 +1388,7 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 
 	/* Set control registers */
 	aspeed_video_write(video, VE_SEQ_CTRL, VE_SEQ_CTRL_AUTO_COMP);
-	aspeed_video_write(video, VE_CTRL, VE_CTRL_AUTO_OR_CURSOR);
+	aspeed_video_write(video, VE_CTRL, VE_CTRL_AUTO_OR_CURSOR | VE_CTRL_YUV);
 	aspeed_video_write(video, VE_COMP_CTRL, VE_COMP_CTRL_RSVD);
 
 	/* Don't downscale */
