@@ -106,6 +106,12 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
 	rseq_handle_notify_resume(NULL, regs);
 }
 
+static inline void clear_notify_signal(void)
+{
+	clear_thread_flag(TIF_NOTIFY_SIGNAL);
+	smp_mb__after_atomic();
+}
+
 /*
  * called by exit_to_user_mode_loop() if ti_work & _TIF_NOTIFY_SIGNAL. This
  * is currently used by TWA_SIGNAL based task_work, which requires breaking
@@ -113,8 +119,7 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
  */
 static inline void tracehook_notify_signal(void)
 {
-	clear_thread_flag(TIF_NOTIFY_SIGNAL);
-	smp_mb__after_atomic();
+	clear_notify_signal();
 	if (task_work_pending(current))
 		task_work_run();
 }

@@ -139,15 +139,7 @@ void noinstr exit_to_user_mode(void)
 }
 
 /* Workaround to allow gradual conversion of architecture code */
-void __weak arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal) { }
-
-static void handle_signal_work(struct pt_regs *regs, unsigned long ti_work)
-{
-	if (ti_work & _TIF_NOTIFY_SIGNAL)
-		tracehook_notify_signal();
-
-	arch_do_signal_or_restart(regs, ti_work & _TIF_SIGPENDING);
-}
+void __weak arch_do_signal_or_restart(struct pt_regs *regs) { }
 
 static unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 					    unsigned long ti_work)
@@ -170,7 +162,7 @@ static unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 			klp_update_patch_state(current);
 
 		if (ti_work & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
-			handle_signal_work(regs, ti_work);
+			arch_do_signal_or_restart(regs);
 
 		if (ti_work & _TIF_NOTIFY_RESUME)
 			tracehook_notify_resume(regs);

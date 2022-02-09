@@ -453,7 +453,7 @@ static void handle_signal(struct ksignal *ksig, sigset_t *oldset,
  * stack-frames in one go after that.
  */
 
-void arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal)
+void arch_do_signal_or_restart(struct pt_regs *regs)
 {
 	struct ksignal ksig;
 	sigset_t *oldset = sigmask_to_save();
@@ -466,7 +466,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal)
 	current->thread.system_call =
 		test_pt_regs_flag(regs, PIF_SYSCALL) ? regs->int_code : 0;
 
-	if (has_signal && get_signal(&ksig)) {
+	if (get_signal(&ksig)) {
 		/* Whee!  Actually deliver the signal.  */
 		if (current->thread.system_call) {
 			regs->int_code = current->thread.system_call;

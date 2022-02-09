@@ -2626,20 +2626,12 @@ bool get_signal(struct ksignal *ksig)
 	struct signal_struct *signal = current->signal;
 	int signr;
 
+	clear_notify_signal();
 	if (unlikely(task_work_pending(current)))
 		task_work_run();
 
-	/*
-	 * For non-generic architectures, check for TIF_NOTIFY_SIGNAL so
-	 * that the arch handlers don't all have to do it. If we get here
-	 * without TIF_SIGPENDING, just exit after running signal work.
-	 */
-	if (!IS_ENABLED(CONFIG_GENERIC_ENTRY)) {
-		if (test_thread_flag(TIF_NOTIFY_SIGNAL))
-			tracehook_notify_signal();
-		if (!task_sigpending(current))
-			return false;
-	}
+	if (!task_sigpending(current))
+		return false;
 
 	if (unlikely(uprobe_deny_signal()))
 		return false;

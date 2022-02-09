@@ -257,7 +257,7 @@ static __always_inline void arch_exit_to_user_mode(void) { }
  *
  * Invoked from exit_to_user_mode_loop().
  */
-void arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal);
+void arch_do_signal_or_restart(struct pt_regs *regs);
 
 /**
  * exit_to_user_mode - Fixup state when exiting to user mode
