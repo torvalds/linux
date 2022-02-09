@@ -34,5 +34,5 @@ int st33zp24_pm_resume(struct device *dev);
 
 int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 		   struct device *dev, int irq, int io_lpcpd);
-int st33zp24_remove(struct tpm_chip *chip);
+void st33zp24_remove(struct tpm_chip *chip);
 #endif /* __LOCAL_ST33ZP24_H__ */

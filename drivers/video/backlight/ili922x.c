@@ -526,10 +526,9 @@ static int ili922x_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ili922x_remove(struct spi_device *spi)
+static void ili922x_remove(struct spi_device *spi)
 {
 	ili922x_poweroff(spi);
-	return 0;
 }
 
 static struct spi_driver ili922x_driver = {

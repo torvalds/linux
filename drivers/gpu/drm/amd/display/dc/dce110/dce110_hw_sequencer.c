@@ -1566,6 +1566,10 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 				&pipe_ctx->stream->audio_info);
 	}
 
+	/* make sure no pipes syncd to the pipe being enabled */
+	if (!pipe_ctx->stream->apply_seamless_boot_optimization && dc->config.use_pipe_ctx_sync_logic)
+		check_syncd_pipes_for_disabled_master_pipe(dc, context, pipe_ctx->pipe_idx);
+
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* DCN3.1 FPGA Workaround
 	 * Need to enable HPO DP Stream Encoder before setting OTG master enable.
@@ -1604,7 +1608,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx->stream_res.stream_enc,
 			pipe_ctx->stream_res.tg->inst);
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
+	if (dc_is_embedded_signal(pipe_ctx->stream->signal) &&
 		pipe_ctx->stream_res.stream_enc->funcs->reset_fifo)
 		pipe_ctx->stream_res.stream_enc->funcs->reset_fifo(
 			pipe_ctx->stream_res.stream_enc);
@@ -2296,6 +2300,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status status;
 	int i;
+
+	/* reset syncd pipes from disabled pipes */
+	if (dc->config.use_pipe_ctx_sync_logic)
+		reset_syncd_pipes_from_disabled_pipes(dc, context);
 
 	/* Reset old context */
 	/* look up the targets that have been removed since last commit */

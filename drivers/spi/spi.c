@@ -404,15 +404,8 @@ static void spi_remove(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
 
-	if (sdrv->remove) {
-		int ret;
-
-		ret = sdrv->remove(to_spi_device(dev));
-		if (ret)
-			dev_warn(dev,
-				 "Failed to unbind driver (%pe), ignoring\n",
-				 ERR_PTR(ret));
-	}
+	if (sdrv->remove)
+		sdrv->remove(to_spi_device(dev));
 
 	dev_pm_domain_detach(dev, true);
 }

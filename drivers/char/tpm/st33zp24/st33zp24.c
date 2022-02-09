@@ -511,10 +511,9 @@ _tpm_clean_answer:
 }
 EXPORT_SYMBOL(st33zp24_probe);
 
-int st33zp24_remove(struct tpm_chip *chip)
+void st33zp24_remove(struct tpm_chip *chip)
 {
 	tpm_chip_unregister(chip);
-	return 0;
 }
 EXPORT_SYMBOL(st33zp24_remove);
 

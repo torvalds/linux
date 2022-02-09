@@ -65,7 +65,7 @@ static int ksz9477_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ksz9477_spi_remove(struct spi_device *spi)
+static void ksz9477_spi_remove(struct spi_device *spi)
 {
 	struct ksz_device *dev = spi_get_drvdata(spi);
 
@@ -73,8 +73,6 @@ static int ksz9477_spi_remove(struct spi_device *spi)
 		ksz_switch_remove(dev);
 
 	spi_set_drvdata(spi, NULL);
-
-	return 0;
 }
 
 static void ksz9477_spi_shutdown(struct spi_device *spi)

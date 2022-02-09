@@ -1966,7 +1966,7 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	return err;
 }
 
-static int mcp251xfd_remove(struct spi_device *spi)
+static void mcp251xfd_remove(struct spi_device *spi)
 {
 	struct mcp251xfd_priv *priv = spi_get_drvdata(spi);
 	struct net_device *ndev = priv->ndev;
@@ -1975,8 +1975,6 @@ static int mcp251xfd_remove(struct spi_device *spi)
 	mcp251xfd_unregister(priv);
 	spi->max_speed_hz = priv->spi_max_speed_hz_orig;
 	free_candev(ndev);
-
-	return 0;
 }
 
 static int __maybe_unused mcp251xfd_runtime_suspend(struct device *device)

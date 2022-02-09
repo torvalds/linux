@@ -332,7 +332,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int ad5764_remove(struct spi_device *spi)
+static void ad5764_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5764_state *st = iio_priv(indio_dev);
@@ -341,8 +341,6 @@ static int ad5764_remove(struct spi_device *spi)
 
 	if (st->chip_info->int_vref == 0)
 		regulator_bulk_disable(ARRAY_SIZE(st->vref_reg), st->vref_reg);
-
-	return 0;
 }
 
 static const struct spi_device_id ad5764_ids[] = {

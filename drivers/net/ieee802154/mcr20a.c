@@ -1335,7 +1335,7 @@ free_dev:
 	return ret;
 }
 
-static int mcr20a_remove(struct spi_device *spi)
+static void mcr20a_remove(struct spi_device *spi)
 {
 	struct mcr20a_local *lp = spi_get_drvdata(spi);
 
@@ -1343,8 +1343,6 @@ static int mcr20a_remove(struct spi_device *spi)
 
 	ieee802154_unregister_hw(lp->hw);
 	ieee802154_free_hw(lp->hw);
-
-	return 0;
 }
 
 static const struct of_device_id mcr20a_of_match[] = {

@@ -33,6 +33,9 @@ static bool __init detect_thinkpad_privacy_screen(void)
 	unsigned long long output;
 	acpi_status status;
 
+	if (acpi_disabled)
+		return false;
+
 	/* Get embedded-controller handle */
 	status = acpi_get_devices("PNP0C09", acpi_set_handle, NULL, &ec_handle);
 	if (ACPI_FAILURE(status) || !ec_handle)

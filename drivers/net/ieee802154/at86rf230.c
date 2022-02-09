@@ -1759,7 +1759,7 @@ free_dev:
 	return rc;
 }
 
-static int at86rf230_remove(struct spi_device *spi)
+static void at86rf230_remove(struct spi_device *spi)
 {
 	struct at86rf230_local *lp = spi_get_drvdata(spi);
 
@@ -1769,8 +1769,6 @@ static int at86rf230_remove(struct spi_device *spi)
 	ieee802154_free_hw(lp->hw);
 	at86rf230_debugfs_remove();
 	dev_dbg(&spi->dev, "unregistered at86rf230\n");
-
-	return 0;
 }
 
 static const struct of_device_id at86rf230_of_match[] = {

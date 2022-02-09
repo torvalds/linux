@@ -1001,7 +1001,7 @@ out:
 	return retval;
 }
 
-static int snd_at73c213_remove(struct spi_device *spi)
+static void snd_at73c213_remove(struct spi_device *spi)
 {
 	struct snd_card *card = dev_get_drvdata(&spi->dev);
 	struct snd_at73c213 *chip = card->private_data;
@@ -1066,8 +1066,6 @@ out:
 
 	ssc_free(chip->ssc);
 	snd_card_free(card);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
