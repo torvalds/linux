@@ -3771,10 +3771,10 @@ int kfd_criu_checkpoint_svm(struct kfd_process *p,
 			goto exit_priv;
 		}
 
-		ret = copy_to_user(user_priv_data + *priv_data_offset,
-				   svm_priv, svm_priv_data_size);
-		if (ret) {
+		if (copy_to_user(user_priv_data + *priv_data_offset, svm_priv,
+				 svm_priv_data_size)) {
 			pr_err("Failed to copy svm priv to user\n");
+			ret = -EFAULT;
 			goto exit_priv;
 		}
 
