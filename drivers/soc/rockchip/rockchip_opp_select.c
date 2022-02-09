@@ -934,8 +934,9 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 	struct sel_table *irdrop_table = NULL;
 	struct opp_table *opp_table;
 	struct dev_pm_opp *opp;
+	unsigned long tmp_safe_rate = 0;
 	int evb_irdrop = 0, board_irdrop, delta_irdrop;
-	int tmp_safe_rate = 0, opp_rate, i, ret = 0;
+	int opp_rate, i, ret = 0;
 	u32 max_volt = UINT_MAX;
 	bool reach_max_volt = false;
 
