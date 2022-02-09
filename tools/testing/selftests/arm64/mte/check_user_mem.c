@@ -19,12 +19,18 @@
 
 static size_t page_sz;
 
+enum test_type {
+	READ_TEST,
+	LAST_TEST,
+};
+
 static int check_usermem_access_fault(int mem_type, int mode, int mapping,
-                                      int tag_offset, int tag_len)
+                                      int tag_offset, int tag_len,
+                                      enum test_type test_type)
 {
 	int fd, i, err;
 	char val = 'A';
-	size_t len, read_len;
+	ssize_t len, syscall_len;
 	void *ptr, *ptr_next;
 	int fileoff, ptroff, size;
 	int sizes[] = {1, 2, 3, 8, 16, 32, 4096, page_sz};
@@ -46,9 +52,9 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 	}
 	mte_initialize_current_context(mode, (uintptr_t)ptr, len);
 	/* Copy from file into buffer with valid tag */
-	read_len = read(fd, ptr, len);
+	syscall_len = read(fd, ptr, len);
 	mte_wait_after_trig();
-	if (cur_mte_cxt.fault_valid || read_len < len)
+	if (cur_mte_cxt.fault_valid || syscall_len < len)
 		goto usermem_acc_err;
 	/* Verify same pattern is read */
 	for (i = 0; i < len; i++)
@@ -69,8 +75,16 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 			for (i = 0; i < ARRAY_SIZE(sizes); i++) {
 				size = sizes[i];
 				lseek(fd, 0, 0);
-				/* Copy from file into buffer with invalid tag */
-				read_len = read(fd, ptr + ptroff, size);
+
+				/* perform file operation on buffer with invalid tag */
+				switch (test_type) {
+				case READ_TEST:
+					syscall_len = read(fd, ptr + ptroff, size);
+					break;
+				case LAST_TEST:
+					goto usermem_acc_err;
+				}
+
 				mte_wait_after_trig();
 				/*
 				 * Accessing user memory in kernel with invalid tag should fail in sync
@@ -80,9 +94,9 @@ static int check_usermem_access_fault(int mem_type, int mode, int mapping,
 				if (cur_mte_cxt.fault_valid) {
 					goto usermem_acc_err;
 				}
-				if (mode == MTE_SYNC_ERR && read_len < len) {
+				if (mode == MTE_SYNC_ERR && syscall_len < len) {
 					/* test passed */
-				} else if (mode == MTE_ASYNC_ERR && read_len == size) {
+				} else if (mode == MTE_ASYNC_ERR && syscall_len == size) {
 					/* test passed */
 				} else {
 					goto usermem_acc_err;
@@ -120,14 +134,14 @@ int main(int argc, char *argv[])
 	/* Set test plan */
 	ksft_set_plan(4);
 
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, page_sz, 0),
+	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, page_sz, 0, READ_TEST),
 		"Check memory access from kernel in sync mode, private mapping and mmap memory\n");
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED, page_sz, 0),
+	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED, page_sz, 0, READ_TEST),
 		"Check memory access from kernel in sync mode, shared mapping and mmap memory\n");
 
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_PRIVATE, page_sz, 0),
+	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_PRIVATE, page_sz, 0, READ_TEST),
 		"Check memory access from kernel in async mode, private mapping and mmap memory\n");
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_SHARED, page_sz, 0),
+	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_SHARED, page_sz, 0, READ_TEST),
 		"Check memory access from kernel in async mode, shared mapping and mmap memory\n");
 
 	mte_restore_setup();
