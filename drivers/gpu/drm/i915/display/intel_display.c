@@ -752,8 +752,9 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	crtc_state->data_rate[plane->id] = 0;
 	crtc_state->min_cdclk[plane->id] = 0;
 
-	if (plane->id == PLANE_PRIMARY)
-		hsw_disable_ips(crtc_state);
+	if (plane->id == PLANE_PRIMARY &&
+	    hsw_disable_ips(crtc_state))
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	/*
 	 * Vblank time updates from the shadow to live plane control register
@@ -1127,14 +1128,15 @@ void hsw_enable_ips(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
+bool hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	bool need_vblank_wait = false;
 
 	if (!crtc_state->ips_enabled)
-		return;
+		return need_vblank_wait;
 
 	if (IS_BROADWELL(dev_priv)) {
 		drm_WARN_ON(dev,
@@ -1153,7 +1155,9 @@ void hsw_disable_ips(const struct intel_crtc_state *crtc_state)
 	}
 
 	/* We need to wait for a vblank before we can disable the plane. */
-	intel_crtc_wait_for_next_vblank(crtc);
+	need_vblank_wait = true;
+
+	return need_vblank_wait;
 }
 
 static void intel_crtc_dpms_overlay_disable(struct intel_crtc *crtc)
@@ -1426,8 +1430,9 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 
 	intel_psr_pre_plane_update(state, crtc);
 
-	if (hsw_pre_update_disable_ips(old_crtc_state, new_crtc_state))
-		hsw_disable_ips(old_crtc_state);
+	if (hsw_pre_update_disable_ips(old_crtc_state, new_crtc_state) &&
+	    hsw_disable_ips(old_crtc_state))
+		intel_crtc_wait_for_next_vblank(crtc);
 
 	if (intel_fbc_pre_update(state, crtc))
 		intel_crtc_wait_for_next_vblank(crtc);
