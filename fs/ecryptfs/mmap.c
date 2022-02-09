@@ -540,7 +540,7 @@ const struct address_space_operations ecryptfs_aops = {
 	 * XXX: This is pretty broken for multiple reasons: ecryptfs does not
 	 * actually use buffer_heads, and ecryptfs will crash without
 	 * CONFIG_BLOCK.  But it matches the behavior before the default for
-	 * address_space_operations without the ->set_page_dirty method was
+	 * address_space_operations without the ->dirty_folio method was
 	 * cleaned up, so this is the best we can do without maintainer
 	 * feedback.
 	 */

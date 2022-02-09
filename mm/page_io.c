@@ -449,9 +449,7 @@ bool swap_dirty_folio(struct address_space *mapping, struct folio *folio)
 		aops = mapping->a_ops;
 
 		VM_BUG_ON_FOLIO(!folio_test_swapcache(folio), folio);
-		if (aops->dirty_folio)
-			return aops->dirty_folio(mapping, folio);
-		return aops->set_page_dirty(&folio->page);
+		return aops->dirty_folio(mapping, folio);
 	} else {
 		return noop_dirty_folio(mapping, folio);
 	}

@@ -2641,15 +2641,10 @@ bool folio_mark_dirty(struct folio *folio)
 		 */
 		if (folio_test_reclaim(folio))
 			folio_clear_reclaim(folio);
-		if (mapping->a_ops->dirty_folio)
-			return mapping->a_ops->dirty_folio(mapping, folio);
-		return mapping->a_ops->set_page_dirty(&folio->page);
+		return mapping->a_ops->dirty_folio(mapping, folio);
 	}
-	if (!folio_test_dirty(folio)) {
-		if (!folio_test_set_dirty(folio))
-			return true;
-	}
-	return false;
+
+	return noop_dirty_folio(mapping, folio);
 }
 EXPORT_SYMBOL(folio_mark_dirty);
 
