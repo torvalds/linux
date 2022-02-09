@@ -31,7 +31,7 @@
 #include <linux/personality.h>
 #include <linux/percpu.h>
 #include <linux/linkage.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <asm/entry.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
@@ -311,5 +311,5 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
 		do_signal(regs, in_syscall);
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }

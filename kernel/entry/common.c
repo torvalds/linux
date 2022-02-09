@@ -2,7 +2,7 @@
 
 #include <linux/context_tracking.h>
 #include <linux/entry-common.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/highmem.h>
 #include <linux/livepatch.h>
 #include <linux/audit.h>
@@ -165,7 +165,7 @@ static unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 			arch_do_signal_or_restart(regs);
 
 		if (ti_work & _TIF_NOTIFY_RESUME)
-			tracehook_notify_resume(regs);
+			resume_user_mode_work(regs);
 
 		/* Architecture specific TIF work */
 		arch_exit_to_user_mode_work(regs, ti_work);

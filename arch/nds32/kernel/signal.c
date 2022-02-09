@@ -6,7 +6,7 @@
 #include <linux/ptrace.h>
 #include <linux/personality.h>
 #include <linux/freezer.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
@@ -380,5 +380,5 @@ do_notify_resume(struct pt_regs *regs, unsigned int thread_flags)
 		do_signal(regs);
 
 	if (thread_flags & _TIF_NOTIFY_RESUME)
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }
