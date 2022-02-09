@@ -52,6 +52,18 @@ source "drivers/usb/typec/ucsi/Kconfig"
 
 source "drivers/usb/typec/tipd/Kconfig"
 
+config TYPEC_RT1719
+	tristate "Richtek RT1719 Sink Only Type-C controller driver"
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y or M here if your system has Richtek RT1719 sink only
+	  Type-C port controller driver.
+
+	  If you choose to build this driver as a dynamically linked module, the
+	  module will be called rt1719.ko
+
 config TYPEC_HD3SS3220
 	tristate "TI HD3SS3220 Type-C DRP Port controller driver"
 	depends on I2C
