@@ -61,17 +61,16 @@ static ssize_t direction_show(struct device *dev,
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
-	ssize_t			status;
+	int value;
 
 	mutex_lock(&data->mutex);
 
 	gpiod_get_direction(desc);
-	status = sysfs_emit(buf, "%s\n",
-			    test_bit(FLAG_IS_OUT, &desc->flags) ? "out" : "in");
+	value = !!test_bit(FLAG_IS_OUT, &desc->flags);
 
 	mutex_unlock(&data->mutex);
 
-	return status;
+	return sysfs_emit(buf, "%s\n", value ? "out" : "in");
 }
 
 static ssize_t direction_store(struct device *dev,
@@ -108,12 +107,13 @@ static ssize_t value_show(struct device *dev,
 	mutex_lock(&data->mutex);
 
 	status = gpiod_get_value_cansleep(desc);
-	if (status >= 0)
-		status = sysfs_emit(buf, "%zd\n", status);
 
 	mutex_unlock(&data->mutex);
 
-	return status;
+	if (status < 0)
+		return status;
+
+	return sysfs_emit(buf, "%zd\n", status);
 }
 
 static ssize_t value_store(struct device *dev,
@@ -238,7 +238,6 @@ static ssize_t edge_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
-	ssize_t	status = 0;
 	int i;
 
 	mutex_lock(&data->mutex);
@@ -247,12 +246,13 @@ static ssize_t edge_show(struct device *dev,
 		if (data->irq_flags == trigger_types[i].flags)
 			break;
 	}
-	if (i < ARRAY_SIZE(trigger_types))
-		status = sysfs_emit(buf, "%s\n", trigger_types[i].name);
 
 	mutex_unlock(&data->mutex);
 
-	return status;
+	if (i >= ARRAY_SIZE(trigger_types))
+		return 0;
+
+	return sysfs_emit(buf, "%s\n", trigger_types[i].name);
 }
 
 static ssize_t edge_store(struct device *dev,
@@ -324,16 +324,15 @@ static ssize_t active_low_show(struct device *dev,
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
-	ssize_t			status;
+	int value;
 
 	mutex_lock(&data->mutex);
 
-	status = sysfs_emit(buf, "%d\n",
-			    !!test_bit(FLAG_ACTIVE_LOW, &desc->flags));
+	value = !!test_bit(FLAG_ACTIVE_LOW, &desc->flags);
 
 	mutex_unlock(&data->mutex);
 
-	return status;
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 static ssize_t active_low_store(struct device *dev,
