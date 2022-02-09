@@ -525,7 +525,7 @@ static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 	 */
 	switch (type) {
 	case NIX_INTF_TYPE_CGX:
-		if ((req->chan_base + req->chan_cnt) > 15)
+		if ((req->chan_base + req->chan_cnt) > 16)
 			return -EINVAL;
 		rvu_get_cgx_lmac_id(pfvf->cgx_lmac, &cgx_id, &lmac_id);
 		/* Assign bpid based on cgx, lmac and chan id */
@@ -4569,6 +4569,12 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 			dev_err(rvu->dev, "NPC config for PTP failed\n");
 		pfvf->hw_rx_tstamp_en = false;
 	}
+
+	/* reset priority flow control config */
+	rvu_cgx_prio_flow_ctrl_cfg(rvu, pcifunc, 0, 0, 0);
+
+	/* reset 802.3x flow control config */
+	rvu_cgx_cfg_pause_frm(rvu, pcifunc, 0, 0);
 
 	nix_ctx_free(rvu, pfvf);
 

@@ -33,6 +33,7 @@ static struct mac_ops	rpm_mac_ops   = {
 	.mac_rx_tx_enable =		rpm_lmac_rx_tx_enable,
 	.mac_tx_enable =		rpm_lmac_tx_enable,
 	.pfc_config =                   rpm_lmac_pfc_config,
+	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
 };
 
 struct mac_ops *rpm_get_mac_ops(void)
@@ -97,9 +98,18 @@ int rpm_lmac_rx_tx_enable(void *rpmd, int lmac_id, bool enable)
 void rpm_lmac_enadis_rx_pause_fwding(void *rpmd, int lmac_id, bool enable)
 {
 	rpm_t *rpm = rpmd;
+	struct lmac *lmac;
 	u64 cfg;
 
 	if (!rpm)
+		return;
+
+	lmac = lmac_pdata(lmac_id, rpm);
+	if (!lmac)
+		return;
+
+	/* Pause frames are not enabled just return */
+	if (!bitmap_weight(lmac->rx_fc_pfvf_bmap.bmap, lmac->rx_fc_pfvf_bmap.max))
 		return;
 
 	if (enable) {
@@ -123,10 +133,11 @@ int rpm_lmac_get_pause_frm_status(void *rpmd, int lmac_id,
 		return -ENODEV;
 
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
-	*rx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE);
+	if (!(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_PFC_MODE)) {
+		*rx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE);
+		*tx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE);
+	}
 
-	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
-	*tx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE);
 	return 0;
 }
 
@@ -413,6 +424,23 @@ int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 p
 	cfg = rpm_read(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL);
 	cfg = FIELD_SET(RPM_PFC_CLASS_MASK, pfc_en, cfg);
 	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, cfg);
+
+	return 0;
+}
+
+int  rpm_lmac_get_pfc_frm_cfg(void *rpmd, int lmac_id, u8 *tx_pause, u8 *rx_pause)
+{
+	rpm_t *rpm = rpmd;
+	u64 cfg;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return -ENODEV;
+
+	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
+	if (cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_PFC_MODE) {
+		*rx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE);
+		*tx_pause = !(cfg & RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE);
+	}
 
 	return 0;
 }

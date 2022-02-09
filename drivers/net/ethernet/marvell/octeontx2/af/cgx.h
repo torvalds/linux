@@ -181,4 +181,8 @@ u64 cgx_read_dmac_ctrl(void *cgxd, int lmac_id);
 u64 cgx_read_dmac_entry(void *cgxd, int index);
 int cgx_lmac_pfc_config(void *cgxd, int lmac_id, u8 tx_pause, u8 rx_pause,
 			u16 pfc_en);
+int cgx_lmac_get_pfc_frm_cfg(void *cgxd, int lmac_id, u8 *tx_pause,
+			     u8 *rx_pause);
+int verify_lmac_fc_cfg(void *cgxd, int lmac_id, u8 tx_pause, u8 rx_pause,
+		       int pfvf_idx);
 #endif /* CGX_H */
