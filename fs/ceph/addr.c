@@ -121,7 +121,7 @@ static int ceph_set_page_dirty(struct page *page)
 
 	/*
 	 * Reference snap context in page->private.  Also set
-	 * PagePrivate so that we get invalidatepage callback.
+	 * PagePrivate so that we get invalidate_folio callback.
 	 */
 	BUG_ON(PagePrivate(page));
 	attach_page_private(page, snapc);
@@ -130,37 +130,37 @@ static int ceph_set_page_dirty(struct page *page)
 }
 
 /*
- * If we are truncating the full page (i.e. offset == 0), adjust the
- * dirty page counters appropriately.  Only called if there is private
- * data on the page.
+ * If we are truncating the full folio (i.e. offset == 0), adjust the
+ * dirty folio counters appropriately.  Only called if there is private
+ * data on the folio.
  */
-static void ceph_invalidatepage(struct page *page, unsigned int offset,
-				unsigned int length)
+static void ceph_invalidate_folio(struct folio *folio, size_t offset,
+				size_t length)
 {
 	struct inode *inode;
 	struct ceph_inode_info *ci;
 	struct ceph_snap_context *snapc;
 
-	inode = page->mapping->host;
+	inode = folio->mapping->host;
 	ci = ceph_inode(inode);
 
-	if (offset != 0 || length != thp_size(page)) {
-		dout("%p invalidatepage %p idx %lu partial dirty page %u~%u\n",
-		     inode, page, page->index, offset, length);
+	if (offset != 0 || length != folio_size(folio)) {
+		dout("%p invalidate_folio idx %lu partial dirty page %zu~%zu\n",
+		     inode, folio->index, offset, length);
 		return;
 	}
 
-	WARN_ON(!PageLocked(page));
-	if (PagePrivate(page)) {
-		dout("%p invalidatepage %p idx %lu full dirty page\n",
-		     inode, page, page->index);
+	WARN_ON(!folio_test_locked(folio));
+	if (folio_get_private(folio)) {
+		dout("%p invalidate_folio idx %lu full dirty page\n",
+		     inode, folio->index);
 
-		snapc = detach_page_private(page);
+		snapc = folio_detach_private(folio);
 		ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
 		ceph_put_snap_context(snapc);
 	}
 
-	wait_on_page_fscache(page);
+	folio_wait_fscache(folio);
 }
 
 static int ceph_releasepage(struct page *page, gfp_t gfp)
@@ -1377,7 +1377,7 @@ const struct address_space_operations ceph_aops = {
 	.write_begin = ceph_write_begin,
 	.write_end = ceph_write_end,
 	.set_page_dirty = ceph_set_page_dirty,
-	.invalidatepage = ceph_invalidatepage,
+	.invalidate_folio = ceph_invalidate_folio,
 	.releasepage = ceph_releasepage,
 	.direct_IO = noop_direct_IO,
 };
