@@ -308,8 +308,7 @@ static void pata_s3c_dev_select(struct ata_port *ap, unsigned int device)
 /*
  * pata_s3c_devchk - PATA device presence detection
  */
-static unsigned int pata_s3c_devchk(struct ata_port *ap,
-				unsigned int device)
+static bool pata_s3c_devchk(struct ata_port *ap, unsigned int device)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	u8 nsect, lbal;
@@ -329,9 +328,9 @@ static unsigned int pata_s3c_devchk(struct ata_port *ap,
 	lbal = ata_inb(ap->host, ioaddr->lbal_addr);
 
 	if ((nsect == 0x55) && (lbal == 0xaa))
-		return 1;	/* we found a device */
+		return true;	/* we found a device */
 
-	return 0;		/* nothing found */
+	return false;		/* nothing found */
 }
 
 /*
