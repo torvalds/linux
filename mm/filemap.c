@@ -2452,7 +2452,7 @@ static bool filemap_range_uptodate(struct address_space *mapping,
 		pos -= folio_pos(folio);
 	}
 
-	return mapping->a_ops->is_partially_uptodate(&folio->page, pos, count);
+	return mapping->a_ops->is_partially_uptodate(folio, pos, count);
 }
 
 static int filemap_update_page(struct kiocb *iocb,
@@ -2844,7 +2844,7 @@ static inline loff_t folio_seek_hole_data(struct xa_state *xas,
 	offset = offset_in_folio(folio, start) & ~(bsz - 1);
 
 	do {
-		if (ops->is_partially_uptodate(&folio->page, offset, bsz) ==
+		if (ops->is_partially_uptodate(folio, offset, bsz) ==
 							seek_data)
 			break;
 		start = (start + bsz) & ~(bsz - 1);

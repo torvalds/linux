@@ -258,7 +258,7 @@ prototypes::
 	int (*migratepage)(struct address_space *, struct page *, struct page *);
 	void (*putback_page) (struct page *);
 	int (*launder_page)(struct page *);
-	int (*is_partially_uptodate)(struct page *, unsigned long, unsigned long);
+	bool (*is_partially_uptodate)(struct folio *, size_t from, size_t count);
 	int (*error_remove_page)(struct address_space *, struct page *);
 	int (*swap_activate)(struct file *);
 	int (*swap_deactivate)(struct file *);

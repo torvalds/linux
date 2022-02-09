@@ -747,8 +747,8 @@ cache in your filesystem.  The following members are defined:
 		void (*putback_page) (struct page *);
 		int (*launder_page) (struct page *);
 
-		int (*is_partially_uptodate) (struct page *, unsigned long,
-					      unsigned long);
+		bool (*is_partially_uptodate) (struct folio *, size_t from,
+					       size_t count);
 		void (*is_dirty_writeback) (struct page *, bool *, bool *);
 		int (*error_remove_page) (struct mapping *mapping, struct page *page);
 		int (*swap_activate)(struct file *);
@@ -937,9 +937,9 @@ cache in your filesystem.  The following members are defined:
 
 ``is_partially_uptodate``
 	Called by the VM when reading a file through the pagecache when
-	the underlying blocksize != pagesize.  If the required block is
-	up to date then the read can complete without needing the IO to
-	bring the whole page up to date.
+	the underlying blocksize is smaller than the size of the folio.
+	If the required block is up to date then the read can complete
+	without needing I/O to bring the whole page up to date.
 
 ``is_dirty_writeback``
 	Called by the VM when attempting to reclaim a page.  The VM uses
