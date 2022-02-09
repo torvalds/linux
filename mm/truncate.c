@@ -138,33 +138,33 @@ static int invalidate_exceptional_entry2(struct address_space *mapping,
 }
 
 /**
- * do_invalidatepage - invalidate part or all of a page
- * @page: the page which is affected
+ * folio_invalidate - Invalidate part or all of a folio.
+ * @folio: The folio which is affected.
  * @offset: start of the range to invalidate
  * @length: length of the range to invalidate
  *
- * do_invalidatepage() is called when all or part of the page has become
+ * folio_invalidate() is called when all or part of the folio has become
  * invalidated by a truncate operation.
  *
- * do_invalidatepage() does not have to release all buffers, but it must
+ * folio_invalidate() does not have to release all buffers, but it must
  * ensure that no dirty buffer is left outside @offset and that no I/O
  * is underway against any of the blocks which are outside the truncation
  * point.  Because the caller is about to free (and possibly reuse) those
  * blocks on-disk.
  */
-void do_invalidatepage(struct page *page, unsigned int offset,
-		       unsigned int length)
+void folio_invalidate(struct folio *folio, size_t offset, size_t length)
 {
 	void (*invalidatepage)(struct page *, unsigned int, unsigned int);
 
-	invalidatepage = page->mapping->a_ops->invalidatepage;
+	invalidatepage = folio->mapping->a_ops->invalidatepage;
 #ifdef CONFIG_BLOCK
 	if (!invalidatepage)
 		invalidatepage = block_invalidatepage;
 #endif
 	if (invalidatepage)
-		(*invalidatepage)(page, offset, length);
+		(*invalidatepage)(&folio->page, offset, length);
 }
+EXPORT_SYMBOL_GPL(folio_invalidate);
 
 /*
  * If truncate cannot remove the fs-private metadata from the page, the page
@@ -182,7 +182,7 @@ static void truncate_cleanup_folio(struct folio *folio)
 		unmap_mapping_folio(folio);
 
 	if (folio_has_private(folio))
-		do_invalidatepage(&folio->page, 0, folio_size(folio));
+		folio_invalidate(folio, 0, folio_size(folio));
 
 	/*
 	 * Some filesystems seem to re-dirty the page even after
@@ -264,7 +264,7 @@ bool truncate_inode_partial_folio(struct folio *folio, loff_t start, loff_t end)
 	folio_zero_range(folio, offset, length);
 
 	if (folio_has_private(folio))
-		do_invalidatepage(&folio->page, offset, length);
+		folio_invalidate(folio, offset, length);
 	if (!folio_test_large(folio))
 		return true;
 	if (split_huge_page(&folio->page) == 0)

@@ -893,6 +893,7 @@ static inline void cancel_dirty_page(struct page *page)
 }
 bool folio_clear_dirty_for_io(struct folio *folio);
 bool clear_page_dirty_for_io(struct page *page);
+void folio_invalidate(struct folio *folio, size_t offset, size_t length);
 int __must_check folio_write_one(struct folio *folio);
 static inline int __must_check write_one_page(struct page *page)
 {
