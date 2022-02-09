@@ -3,6 +3,7 @@
 
 #define _GNU_SOURCE
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -19,6 +20,8 @@
 #include "mte_def.h"
 
 static size_t page_sz;
+
+#define TEST_NAME_MAX 100
 
 enum test_type {
 	READ_TEST,
@@ -136,9 +139,67 @@ exit:
 	return err;
 }
 
+void format_test_name(char* name, int name_len, int type, int sync, int map, int len, int offset) {
+	const char* test_type;
+	const char* mte_type;
+	const char* map_type;
+
+	switch (type) {
+	case READ_TEST:
+		test_type = "read";
+		break;
+	case WRITE_TEST:
+		test_type = "write";
+		break;
+	case READV_TEST:
+		test_type = "readv";
+		break;
+	case WRITEV_TEST:
+		test_type = "writev";
+		break;
+	default:
+		assert(0);
+		break;
+	}
+
+	switch (sync) {
+	case MTE_SYNC_ERR:
+		mte_type = "MTE_SYNC_ERR";
+		break;
+	case MTE_ASYNC_ERR:
+		mte_type = "MTE_ASYNC_ERR";
+		break;
+	default:
+		assert(0);
+		break;
+	}
+
+	switch (map) {
+	case MAP_SHARED:
+		map_type = "MAP_SHARED";
+		break;
+	case MAP_PRIVATE:
+		map_type = "MAP_PRIVATE";
+		break;
+	default:
+		assert(0);
+		break;
+	}
+
+	snprintf(name, name_len,
+	         "test type: %s, %s, %s, tag len: %d, tag offset: %d\n",
+	         test_type, mte_type, map_type, len, offset);
+}
+
 int main(int argc, char *argv[])
 {
 	int err;
+	int t, s, m, l, o;
+	int mte_sync[] = {MTE_SYNC_ERR, MTE_ASYNC_ERR};
+	int maps[] = {MAP_SHARED, MAP_PRIVATE};
+	int tag_lens[] = {0, MT_GRANULE_SIZE};
+	int tag_offsets[] = {page_sz, MT_GRANULE_SIZE};
+	char test_name[TEST_NAME_MAX];
 
 	page_sz = getpagesize();
 	if (!page_sz) {
@@ -153,17 +214,28 @@ int main(int argc, char *argv[])
 	mte_register_signal(SIGSEGV, mte_default_handler);
 
 	/* Set test plan */
-	ksft_set_plan(4);
+	ksft_set_plan(64);
 
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, page_sz, 0, READ_TEST),
-		"Check memory access from kernel in sync mode, private mapping and mmap memory\n");
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED, page_sz, 0, READ_TEST),
-		"Check memory access from kernel in sync mode, shared mapping and mmap memory\n");
-
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_PRIVATE, page_sz, 0, READ_TEST),
-		"Check memory access from kernel in async mode, private mapping and mmap memory\n");
-	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_ASYNC_ERR, MAP_SHARED, page_sz, 0, READ_TEST),
-		"Check memory access from kernel in async mode, shared mapping and mmap memory\n");
+	for (t = 0; t < LAST_TEST; t++) {
+		for (s = 0; s < ARRAY_SIZE(mte_sync); s++) {
+			for (m = 0; m < ARRAY_SIZE(maps); m++) {
+				for (l = 0; l < ARRAY_SIZE(tag_lens); l++) {
+					for (o = 0; o < ARRAY_SIZE(tag_offsets); o++) {
+						int sync = mte_sync[s];
+						int map = maps[m];
+						int offset = tag_offsets[o];
+						int tag_len = tag_lens[l];
+						int res = check_usermem_access_fault(USE_MMAP, sync,
+						                                     map, offset,
+						                                     tag_len, t);
+						format_test_name(test_name, TEST_NAME_MAX,
+						                 t, sync, map, tag_len, offset);
+						evaluate_test(res, test_name);
+					}
+				}
+			}
+		}
+	}
 
 	mte_restore_setup();
 	ksft_print_cnts();
