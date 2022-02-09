@@ -22,6 +22,7 @@
 #include <asm/svm.h>
 
 #include "error.h"
+#include "../msr.h"
 
 struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
 struct ghcb *boot_ghcb;
@@ -56,23 +57,19 @@ static unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
 
 static inline u64 sev_es_rd_ghcb_msr(void)
 {
-	unsigned long low, high;
+	struct msr m;
 
-	asm volatile("rdmsr" : "=a" (low), "=d" (high) :
-			"c" (MSR_AMD64_SEV_ES_GHCB));
+	boot_rdmsr(MSR_AMD64_SEV_ES_GHCB, &m);
 
-	return ((high << 32) | low);
+	return m.q;
 }
 
 static inline void sev_es_wr_ghcb_msr(u64 val)
 {
-	u32 low, high;
+	struct msr m;
 
-	low  = val & 0xffffffffUL;
-	high = val >> 32;
-
-	asm volatile("wrmsr" : : "c" (MSR_AMD64_SEV_ES_GHCB),
-			"a"(low), "d" (high) : "memory");
+	m.q = val;
+	boot_wrmsr(MSR_AMD64_SEV_ES_GHCB, &m);
 }
 
 static enum es_result vc_decode_insn(struct es_em_ctxt *ctxt)
