@@ -169,6 +169,52 @@ int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc_tx_message, SND_SOC_SOF_CLIENT);
 
+int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
+{
+	struct auxiliary_driver *adrv;
+	struct sof_client_dev *cdev;
+
+	mutex_lock(&sdev->ipc_client_mutex);
+
+	list_for_each_entry(cdev, &sdev->ipc_client_list, list) {
+		/* Skip devices without loaded driver */
+		if (!cdev->auxdev.dev.driver)
+			continue;
+
+		adrv = to_auxiliary_drv(cdev->auxdev.dev.driver);
+		if (adrv->suspend)
+			adrv->suspend(&cdev->auxdev, state);
+	}
+
+	mutex_unlock(&sdev->ipc_client_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(sof_suspend_clients, SND_SOC_SOF_CLIENT);
+
+int sof_resume_clients(struct snd_sof_dev *sdev)
+{
+	struct auxiliary_driver *adrv;
+	struct sof_client_dev *cdev;
+
+	mutex_lock(&sdev->ipc_client_mutex);
+
+	list_for_each_entry(cdev, &sdev->ipc_client_list, list) {
+		/* Skip devices without loaded driver */
+		if (!cdev->auxdev.dev.driver)
+			continue;
+
+		adrv = to_auxiliary_drv(cdev->auxdev.dev.driver);
+		if (adrv->resume)
+			adrv->resume(&cdev->auxdev);
+	}
+
+	mutex_unlock(&sdev->ipc_client_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(sof_resume_clients, SND_SOC_SOF_CLIENT);
+
 struct dentry *sof_client_get_debugfs_root(struct sof_client_dev *cdev)
 {
 	return cdev->sdev->debugfs_root;
