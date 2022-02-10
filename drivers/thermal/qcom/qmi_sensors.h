@@ -74,6 +74,14 @@ enum qmi_ts_sensor {
 	QMI_TS_SUB2_SCG_FR1_CC,
 	QMI_TS_SUB2_SCG_FR2_CC,
 	QMI_TS_NSP_ISENSE_TRIM,
+	QMI_TS_EPM0,
+	QMI_TS_EPM1,
+	QMI_TS_EPM2,
+	QMI_TS_EPM3,
+	QMI_TS_EPM4,
+	QMI_TS_EPM5,
+	QMI_TS_EPM6,
+	QMI_TS_EPM7,
 	QMI_TS_MAX_NR
 };
 
@@ -142,6 +150,14 @@ static char sensor_clients[QMI_TS_MAX_NR][QMI_CLIENT_NAME_LENGTH] = {
 	{"sub2_scg_fr1_cc"},
 	{"sub2_scg_fr2_cc"},
 	{"isense_trim"},
+	{"epm0"},
+	{"epm1"},
+	{"epm2"},
+	{"epm3"},
+	{"epm4"},
+	{"epm5"},
+	{"epm6"},
+	{"epm7"},
 };
 
 #endif /* __QMI_SENSORS_H__ */
