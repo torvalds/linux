@@ -59,8 +59,6 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct pingfakehdr pfh;
 	struct ipcm6_cookie ipc6;
 
-	pr_debug("ping_v6_sendmsg(sk=%p,sk->num=%u)\n", inet, inet->inet_num);
-
 	err = ping_common_sendmsg(AF_INET6, msg, len, &user_icmph,
 				  sizeof(user_icmph));
 	if (err)
@@ -99,6 +97,14 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	    (oif && sk->sk_bound_dev_if && oif != sk->sk_bound_dev_if))
 		return -EINVAL;
 
+	ipcm6_init_sk(&ipc6, np);
+	ipc6.sockc.tsflags = sk->sk_tsflags;
+	ipc6.sockc.mark = sk->sk_mark;
+
+	err = sock_cmsg_send(sk, msg, &ipc6.sockc);
+	if (err)
+		return err;
+
 	/* TODO: use ip6_datagram_send_ctl to get options from cmsg */
 
 	memset(&fl6, 0, sizeof(fl6));
@@ -107,14 +113,12 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	fl6.saddr = np->saddr;
 	fl6.daddr = *daddr;
 	fl6.flowi6_oif = oif;
-	fl6.flowi6_mark = sk->sk_mark;
+	fl6.flowi6_mark = ipc6.sockc.mark;
 	fl6.flowi6_uid = sk->sk_uid;
 	fl6.fl6_icmp_type = user_icmph.icmp6_type;
 	fl6.fl6_icmp_code = user_icmph.icmp6_code;
 	security_sk_classify_flow(sk, flowi6_to_flowi_common(&fl6));
 
-	ipcm6_init_sk(&ipc6, np);
-	ipc6.sockc.mark = sk->sk_mark;
 	fl6.flowlabel = ip6_make_flowinfo(ipc6.tclass, fl6.flowlabel);
 
 	dst = ip6_sk_dst_lookup_flow(sk, &fl6, daddr, false);
