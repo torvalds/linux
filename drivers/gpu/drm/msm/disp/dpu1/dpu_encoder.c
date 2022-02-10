@@ -1142,14 +1142,12 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	int ret = 0;
-	struct msm_drm_private *priv;
 	struct drm_display_mode *cur_mode = NULL;
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 
 	mutex_lock(&dpu_enc->enc_lock);
 	cur_mode = &dpu_enc->base.crtc->state->adjusted_mode;
-	priv = drm_enc->dev->dev_private;
 
 	trace_dpu_enc_enable(DRMID(drm_enc), cur_mode->hdisplay,
 			     cur_mode->vdisplay);
@@ -1179,7 +1177,6 @@ out:
 static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
-	struct msm_drm_private *priv;
 	int i = 0;
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
@@ -1187,8 +1184,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 
 	mutex_lock(&dpu_enc->enc_lock);
 	dpu_enc->enabled = false;
-
-	priv = drm_enc->dev->dev_private;
 
 	trace_dpu_enc_disable(DRMID(drm_enc));
 
