@@ -41,14 +41,14 @@ check_result() {
     fi
 }
 
-ip netns exec $NS ./cmsg_so_mark $TGT4 1234 $((MARK + 1))
+ip netns exec $NS ./cmsg_sender $TGT4 1234 $((MARK + 1))
 check_result $? 0 "IPv4 pass"
-ip netns exec $NS ./cmsg_so_mark $TGT6 1234 $((MARK + 1))
+ip netns exec $NS ./cmsg_sender $TGT6 1234 $((MARK + 1))
 check_result $? 0 "IPv6 pass"
 
-ip netns exec $NS ./cmsg_so_mark $TGT4 1234 $MARK
+ip netns exec $NS ./cmsg_sender $TGT4 1234 $MARK
 check_result $? 1 "IPv4 rejection"
-ip netns exec $NS ./cmsg_so_mark $TGT6 1234 $MARK
+ip netns exec $NS ./cmsg_sender $TGT6 1234 $MARK
 check_result $? 1 "IPv6 rejection"
 
 # Summary

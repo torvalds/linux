@@ -52,7 +52,7 @@ TEST_GEN_FILES += gro
 TEST_GEN_PROGS = reuseport_bpf reuseport_bpf_cpu reuseport_bpf_numa
 TEST_GEN_PROGS += reuseport_dualstack reuseaddr_conflict tls
 TEST_GEN_FILES += toeplitz
-TEST_GEN_FILES += cmsg_so_mark
+TEST_GEN_FILES += cmsg_sender
 
 TEST_FILES := settings
 
