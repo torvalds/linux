@@ -16,10 +16,6 @@
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "../sof-probes.h"
-#endif
-
 struct hda_pipe_params {
 	u32 ch;
 	u32 s_freq;
@@ -737,20 +733,5 @@ struct snd_soc_dai_driver skl_dai[] = {
 		.channels_max = 16,
 	},
 },
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
-{
-	.name = "Probe Extraction CPU DAI",
-	.compress_new = snd_soc_new_compress,
-	.cops = &sof_probe_compr_ops,
-	.capture = {
-		.stream_name = "Probe Extraction",
-		.channels_min = 1,
-		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_48000,
-		.rate_min = 48000,
-		.rate_max = 48000,
-	},
-},
-#endif
 #endif
 };

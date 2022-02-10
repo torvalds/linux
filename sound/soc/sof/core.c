@@ -14,9 +14,6 @@
 #include <sound/sof.h>
 #include "sof-priv.h"
 #include "ops.h"
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "sof-probes.h"
-#endif
 
 /* see SOF_DBG_ flags */
 static int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE);
@@ -358,9 +355,6 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 
 	sdev->pdata = plat_data;
 	sdev->first_boot = true;
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-	sdev->extractor_stream_tag = SOF_PROBE_INVALID_NODE_ID;
-#endif
 	dev_set_drvdata(dev, sdev);
 
 	/* check all mandatory ops */

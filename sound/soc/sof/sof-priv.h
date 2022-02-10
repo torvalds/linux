@@ -201,27 +201,6 @@ struct snd_sof_dsp_ops {
 	/* pcm ack */
 	int (*pcm_ack)(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream); /* optional */
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-	/* Except for probe_pointer, all probe ops are mandatory */
-	int (*probe_assign)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream,
-			struct snd_soc_dai *dai); /* mandatory */
-	int (*probe_free)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream,
-			struct snd_soc_dai *dai); /* mandatory */
-	int (*probe_set_params)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream,
-			struct snd_compr_params *params,
-			struct snd_soc_dai *dai); /* mandatory */
-	int (*probe_trigger)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream, int cmd,
-			struct snd_soc_dai *dai); /* mandatory */
-	int (*probe_pointer)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream,
-			struct snd_compr_tstamp *tstamp,
-			struct snd_soc_dai *dai); /* optional */
-#endif
-
 	/* host read DSP stream data */
 	int (*ipc_msg_data)(struct snd_sof_dev *sdev,
 			    struct snd_pcm_substream *substream,
@@ -445,10 +424,6 @@ struct snd_sof_dev {
 	/* IPC timeouts in ms */
 	int ipc_timeout;
 	int boot_timeout;
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-	unsigned int extractor_stream_tag;
-#endif
 
 	/* DMA for Trace */
 	struct snd_dma_buffer dmatb;
