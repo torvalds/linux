@@ -4005,10 +4005,10 @@ static inline bool for_each_element_completed(const struct element *element,
 #define IEEE80211_RNR_TBTT_PARAMS_COLOC_AP			0x40
 
 struct ieee80211_neighbor_ap_info {
-       u8 tbtt_info_hdr;
-       u8 tbtt_info_len;
-       u8 op_class;
-       u8 channel;
+	u8 tbtt_info_hdr;
+	u8 tbtt_info_len;
+	u8 op_class;
+	u8 channel;
 } __packed;
 
 enum ieee80211_range_params_max_total_ltf {
