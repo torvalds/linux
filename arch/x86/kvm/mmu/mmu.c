@@ -231,6 +231,7 @@ BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, smap);
 BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, pke);
 BUILD_MMU_ROLE_ACCESSOR(ext,  cr4, la57);
 BUILD_MMU_ROLE_ACCESSOR(base, efer, nx);
+BUILD_MMU_ROLE_ACCESSOR(ext,  efer, lma);
 
 static inline bool is_cr0_pg(struct kvm_mmu *mmu)
 {
@@ -4840,33 +4841,6 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
 	reset_tdp_shadow_zero_bits_mask(context);
 }
 
-static union kvm_mmu_page_role
-kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu,
-				   union kvm_cpu_role cpu_role)
-{
-	union kvm_mmu_page_role role;
-
-	role = cpu_role.base;
-	if (!cpu_role.ext.efer_lma)
-		role.level = PT32E_ROOT_LEVEL;
-	else if (cpu_role.ext.cr4_la57)
-		role.level = PT64_ROOT_5LEVEL;
-	else
-		role.level = PT64_ROOT_4LEVEL;
-
-	/*
-	 * KVM forces EFER.NX=1 when TDP is disabled, reflect it in the MMU role.
-	 * KVM uses NX when TDP is disabled to handle a variety of scenarios,
-	 * notably for huge SPTEs if iTLB multi-hit mitigation is enabled and
-	 * to generate correct permissions for CR0.WP=0/CR4.SMEP=1/EFER.NX=0.
-	 * The iTLB multi-hit workaround can be toggled at any time, so assume
-	 * NX can be used by any non-nested shadow MMU to avoid having to reset
-	 * MMU contexts.
-	 */
-	role.efer_nx = true;
-	return role;
-}
-
 static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
 				    union kvm_cpu_role cpu_role,
 				    union kvm_mmu_page_role root_role)
@@ -4897,22 +4871,25 @@ static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
 	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
-	union kvm_mmu_page_role root_role =
-		kvm_calc_shadow_mmu_root_page_role(vcpu, cpu_role);
+	union kvm_mmu_page_role root_role;
+
+	root_role = cpu_role.base;
+
+	/* KVM uses PAE paging whenever the guest isn't using 64-bit paging. */
+	root_role.level = max_t(u32, root_role.level, PT32E_ROOT_LEVEL);
+
+	/*
+	 * KVM forces EFER.NX=1 when TDP is disabled, reflect it in the MMU role.
+	 * KVM uses NX when TDP is disabled to handle a variety of scenarios,
+	 * notably for huge SPTEs if iTLB multi-hit mitigation is enabled and
+	 * to generate correct permissions for CR0.WP=0/CR4.SMEP=1/EFER.NX=0.
+	 * The iTLB multi-hit workaround can be toggled at any time, so assume
+	 * NX can be used by any non-nested shadow MMU to avoid having to reset
+	 * MMU contexts.
+	 */
+	root_role.efer_nx = true;
 
 	shadow_mmu_init_context(vcpu, context, cpu_role, root_role);
-}
-
-static union kvm_mmu_page_role
-kvm_calc_shadow_npt_root_page_role(struct kvm_vcpu *vcpu,
-				   union kvm_cpu_role cpu_role)
-{
-	union kvm_mmu_page_role role;
-
-	WARN_ON_ONCE(cpu_role.base.direct);
-	role = cpu_role.base;
-	role.level = kvm_mmu_get_tdp_level(vcpu);
-	return role;
 }
 
 void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
@@ -4925,7 +4902,13 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 		.efer = efer,
 	};
 	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, &regs);
-	union kvm_mmu_page_role root_role = kvm_calc_shadow_npt_root_page_role(vcpu, cpu_role);
+	union kvm_mmu_page_role root_role;
+
+	/* NPT requires CR0.PG=1. */
+	WARN_ON_ONCE(cpu_role.base.direct);
+
+	root_role = cpu_role.base;
+	root_role.level = kvm_mmu_get_tdp_level(vcpu);
 
 	shadow_mmu_init_context(vcpu, context, cpu_role, root_role);
 	kvm_mmu_new_pgd(vcpu, nested_cr3);
