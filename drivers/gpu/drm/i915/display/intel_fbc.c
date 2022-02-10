@@ -1115,7 +1115,8 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 
 	/* Wa_22010751166: icl, ehl, tgl, dg1, rkl */
 	if (DISPLAY_VER(i915) >= 11 &&
-	    (plane_state->view.color_plane[0].y + drm_rect_height(&plane_state->uapi.src)) & 3) {
+	    (plane_state->view.color_plane[0].y +
+	     (drm_rect_height(&plane_state->uapi.src) >> 16)) & 3) {
 		plane_state->no_fbc_reason = "plane end Y offset misaligned";
 		return false;
 	}
