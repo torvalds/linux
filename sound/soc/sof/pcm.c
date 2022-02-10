@@ -19,6 +19,7 @@
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
 #include "sof-probes.h"
 #endif
+#include "sof-utils.h"
 
 /* Create DMA buffer page table for DSP */
 static int create_page_table(struct snd_soc_component *component,
