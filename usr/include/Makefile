@@ -21,7 +21,6 @@ override c_flags = $(UAPI_CFLAGS) -Wp,-MMD,$(depfile) -I$(objtree)/usr/include
 #
 # Sorted alphabetically.
 no-header-test += asm/shmbuf.h
-no-header-test += asm/signal.h
 no-header-test += asm/ucontext.h
 no-header-test += drm/vmwgfx_drm.h
 no-header-test += linux/am437x-vpfe.h
@@ -41,7 +40,6 @@ no-header-test += linux/patchkey.h
 no-header-test += linux/phonet.h
 no-header-test += linux/reiserfs_xattr.h
 no-header-test += linux/sctp.h
-no-header-test += linux/signal.h
 no-header-test += linux/sysctl.h
 no-header-test += linux/usb/audio.h
 no-header-test += linux/v4l2-mediabus.h
