@@ -42,7 +42,7 @@ enum iwl_data_path_subcmd_ids {
 	RFH_QUEUE_CONFIG_CMD = 0xD,
 
 	/**
-	 * @TLC_MNG_CONFIG_CMD: &struct iwl_tlc_config_cmd
+	 * @TLC_MNG_CONFIG_CMD: &struct iwl_tlc_config_cmd_v4
 	 */
 	TLC_MNG_CONFIG_CMD = 0xF,
 

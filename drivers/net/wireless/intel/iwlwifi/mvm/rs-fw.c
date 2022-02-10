@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include "rs.h"
 #include "fw-api.h"
@@ -456,6 +456,18 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 					WIDE_ID(DATA_PATH_GROUP,
 						TLC_MNG_CONFIG_CMD),
 					0);
+	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, sta_id=%d, max_ch_width=%d, mode=%d\n",
+		       cfg_cmd.sta_id, cfg_cmd.max_ch_width, cfg_cmd.mode);
+	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, chains=0x%X, ch_wid_supp=%d, flags=0x%X\n",
+		       cfg_cmd.chains, cfg_cmd.sgi_ch_width_supp, cfg_cmd.flags);
+	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, mpdu_len=%d, no_ht_rate=0x%X, tx_op=%d\n",
+		       cfg_cmd.max_mpdu_len, cfg_cmd.non_ht_rates, cfg_cmd.max_tx_op);
+	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, ht_rate[0][0]=0x%X, ht_rate[1][0]=0x%X\n",
+		       cfg_cmd.ht_rates[0][0], cfg_cmd.ht_rates[1][0]);
+	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, ht_rate[0][1]=0x%X, ht_rate[1][1]=0x%X\n",
+		       cfg_cmd.ht_rates[0][1], cfg_cmd.ht_rates[1][1]);
+	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, ht_rate[0][2]=0x%X, ht_rate[1][2]=0x%X\n",
+		       cfg_cmd.ht_rates[0][2], cfg_cmd.ht_rates[1][2]);
 	if (cmd_ver == 4) {
 		ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC,
 					   sizeof(cfg_cmd), &cfg_cmd);
