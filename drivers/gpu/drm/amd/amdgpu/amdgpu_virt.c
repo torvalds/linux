@@ -836,7 +836,7 @@ static bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
 		/* only in new version, AMDGPU_REGS_NO_KIQ and
 		 * AMDGPU_REGS_RLC are enabled simultaneously */
 		} else if ((acc_flags & AMDGPU_REGS_RLC) &&
-			   !(acc_flags & AMDGPU_REGS_NO_KIQ)) {
+				!(acc_flags & AMDGPU_REGS_NO_KIQ) && write) {
 			*rlcg_flag = AMDGPU_RLCG_GC_WRITE_LEGACY;
 			ret = true;
 		}
@@ -940,7 +940,7 @@ void amdgpu_sriov_wreg(struct amdgpu_device *adev,
 	u32 rlcg_flag;
 
 	if (!amdgpu_sriov_runtime(adev) &&
-	    amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, true, &rlcg_flag)) {
+		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, true, &rlcg_flag)) {
 		amdgpu_virt_rlcg_reg_rw(adev, offset, value, rlcg_flag);
 		return;
 	}
@@ -957,7 +957,7 @@ u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 	u32 rlcg_flag;
 
 	if (!amdgpu_sriov_runtime(adev) &&
-	    amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))
+		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))
 		return amdgpu_virt_rlcg_reg_rw(adev, offset, 0, rlcg_flag);
 
 	if (acc_flags & AMDGPU_REGS_NO_KIQ)
