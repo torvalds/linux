@@ -372,7 +372,7 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	if (dev->mtu < IPV6_MIN_MTU)
+	if (dev->mtu < IPV6_MIN_MTU && dev != blackhole_netdev)
 		return ERR_PTR(-EINVAL);
 
 	ndev = kzalloc(sizeof(struct inet6_dev), GFP_KERNEL);
@@ -400,21 +400,22 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 	/* We refer to the device */
 	dev_hold_track(dev, &ndev->dev_tracker, GFP_KERNEL);
 
-	if (snmp6_alloc_dev(ndev) < 0) {
-		netdev_dbg(dev, "%s: cannot allocate memory for statistics\n",
-			   __func__);
-		neigh_parms_release(&nd_tbl, ndev->nd_parms);
-		dev_put_track(dev, &ndev->dev_tracker);
-		kfree(ndev);
-		return ERR_PTR(err);
-	}
+	if (dev != blackhole_netdev) {
+		if (snmp6_alloc_dev(ndev) < 0) {
+			netdev_dbg(dev, "%s: cannot allocate memory for statistics\n",
+				   __func__);
+			neigh_parms_release(&nd_tbl, ndev->nd_parms);
+			dev_put_track(dev, &ndev->dev_tracker);
+			kfree(ndev);
+			return ERR_PTR(err);
+		}
 
-	if (snmp6_register_dev(ndev) < 0) {
-		netdev_dbg(dev, "%s: cannot create /proc/net/dev_snmp6/%s\n",
-			   __func__, dev->name);
-		goto err_release;
+		if (snmp6_register_dev(ndev) < 0) {
+			netdev_dbg(dev, "%s: cannot create /proc/net/dev_snmp6/%s\n",
+				   __func__, dev->name);
+			goto err_release;
+		}
 	}
-
 	/* One reference from device. */
 	refcount_set(&ndev->refcnt, 1);
 
@@ -445,25 +446,28 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 
 	ipv6_mc_init_dev(ndev);
 	ndev->tstamp = jiffies;
-	err = addrconf_sysctl_register(ndev);
-	if (err) {
-		ipv6_mc_destroy_dev(ndev);
-		snmp6_unregister_dev(ndev);
-		goto err_release;
+	if (dev != blackhole_netdev) {
+		err = addrconf_sysctl_register(ndev);
+		if (err) {
+			ipv6_mc_destroy_dev(ndev);
+			snmp6_unregister_dev(ndev);
+			goto err_release;
+		}
 	}
 	/* protected by rtnl_lock */
 	rcu_assign_pointer(dev->ip6_ptr, ndev);
 
-	/* Join interface-local all-node multicast group */
-	ipv6_dev_mc_inc(dev, &in6addr_interfacelocal_allnodes);
+	if (dev != blackhole_netdev) {
+		/* Join interface-local all-node multicast group */
+		ipv6_dev_mc_inc(dev, &in6addr_interfacelocal_allnodes);
 
-	/* Join all-node multicast group */
-	ipv6_dev_mc_inc(dev, &in6addr_linklocal_allnodes);
+		/* Join all-node multicast group */
+		ipv6_dev_mc_inc(dev, &in6addr_linklocal_allnodes);
 
-	/* Join all-router multicast group if forwarding is set */
-	if (ndev->cnf.forwarding && (dev->flags & IFF_MULTICAST))
-		ipv6_dev_mc_inc(dev, &in6addr_linklocal_allrouters);
-
+		/* Join all-router multicast group if forwarding is set */
+		if (ndev->cnf.forwarding && (dev->flags & IFF_MULTICAST))
+			ipv6_dev_mc_inc(dev, &in6addr_linklocal_allrouters);
+	}
 	return ndev;
 
 err_release:
@@ -7233,26 +7237,8 @@ int __init addrconf_init(void)
 		goto out_nowq;
 	}
 
-	/* The addrconf netdev notifier requires that loopback_dev
-	 * has it's ipv6 private information allocated and setup
-	 * before it can bring up and give link-local addresses
-	 * to other devices which are up.
-	 *
-	 * Unfortunately, loopback_dev is not necessarily the first
-	 * entry in the global dev_base list of net devices.  In fact,
-	 * it is likely to be the very last entry on that list.
-	 * So this causes the notifier registry below to try and
-	 * give link-local addresses to all devices besides loopback_dev
-	 * first, then loopback_dev, which cases all the non-loopback_dev
-	 * devices to fail to get a link-local address.
-	 *
-	 * So, as a temporary fix, allocate the ipv6 structure for
-	 * loopback_dev first by hand.
-	 * Longer term, all of the dependencies ipv6 has upon the loopback
-	 * device and it being up should be removed.
-	 */
 	rtnl_lock();
-	idev = ipv6_add_dev(init_net.loopback_dev);
+	idev = ipv6_add_dev(blackhole_netdev);
 	rtnl_unlock();
 	if (IS_ERR(idev)) {
 		err = PTR_ERR(idev);
