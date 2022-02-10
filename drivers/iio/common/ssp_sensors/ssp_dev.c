@@ -7,9 +7,10 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mfd/core.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/property.h>
+
 #include "ssp.h"
 
 #define SSP_WDT_TIME			10000
@@ -425,7 +426,6 @@ int ssp_queue_ssp_refresh_task(struct ssp_data *data, unsigned int delay)
 				  msecs_to_jiffies(delay));
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id ssp_of_match[] = {
 	{
 		.compatible	= "samsung,sensorhub-rinato",
@@ -441,8 +441,6 @@ MODULE_DEVICE_TABLE(of, ssp_of_match);
 static struct ssp_data *ssp_parse_dt(struct device *dev)
 {
 	struct ssp_data *data;
-	struct device_node *node = dev->of_node;
-	const struct of_device_id *match;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -461,22 +459,12 @@ static struct ssp_data *ssp_parse_dt(struct device *dev)
 	if (IS_ERR(data->mcu_reset_gpiod))
 		return NULL;
 
-	match = of_match_node(ssp_of_match, node);
-	if (!match)
-		return NULL;
-
-	data->sensorhub_info = match->data;
+	data->sensorhub_info = device_get_match_data(dev);
 
 	dev_set_drvdata(dev, data);
 
 	return data;
 }
-#else
-static struct ssp_data *ssp_parse_dt(struct device *pdev)
-{
-	return NULL;
-}
-#endif
 
 /**
  * ssp_register_consumer() - registers iio consumer in ssp framework
@@ -672,7 +660,7 @@ static struct spi_driver ssp_driver = {
 	.remove = ssp_remove,
 	.driver = {
 		.pm = &ssp_pm_ops,
-		.of_match_table = of_match_ptr(ssp_of_match),
+		.of_match_table = ssp_of_match,
 		.name = "sensorhub"
 	},
 };
