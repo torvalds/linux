@@ -18,6 +18,8 @@ trap cleanup EXIT
 # Namespaces
 ip netns add $NS
 
+ip netns exec $NS sysctl -w net.ipv4.ping_group_range='0 2147483647' > /dev/null
+
 # Connectivity
 ip -netns $NS link add type dummy
 ip -netns $NS link set dev dummy0 up
@@ -41,15 +43,21 @@ check_result() {
     fi
 }
 
-ip netns exec $NS ./cmsg_sender -m $((MARK + 1)) $TGT4 1234
-check_result $? 0 "IPv4 pass"
-ip netns exec $NS ./cmsg_sender -m $((MARK + 1)) $TGT6 1234
-check_result $? 0 "IPv6 pass"
+for i in 4 6; do
+    [ $i == 4 ] && TGT=$TGT4 || TGT=$TGT6
 
-ip netns exec $NS ./cmsg_sender -s -m $MARK $TGT4 1234
-check_result $? 1 "IPv4 rejection"
-ip netns exec $NS ./cmsg_sender -s -m $MARK $TGT6 1234
-check_result $? 1 "IPv6 rejection"
+    for p in u i r; do
+	[ $p == "u" ] && prot=UDP
+	[ $p == "i" ] && prot=ICMP
+	[ $p == "r" ] && prot=RAW
+
+	ip netns exec $NS ./cmsg_sender -$i -p $p -m $((MARK + 1)) $TGT 1234
+	check_result $? 0 "$prot pass"
+
+	ip netns exec $NS ./cmsg_sender -$i -p $p -m $MARK -s $TGT 1234
+	check_result $? 1 "$prot rejection"
+    done
+done
 
 # Summary
 if [ $BAD -ne 0 ]; then
