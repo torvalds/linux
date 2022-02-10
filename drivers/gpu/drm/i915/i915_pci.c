@@ -22,6 +22,7 @@
  *
  */
 
+#include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
 #include <drm/i915_pciids.h>
 

@@ -31,7 +31,6 @@
 #define _I915_DRV_H_
 
 #include <uapi/drm/i915_drm.h>
-#include <uapi/drm/drm_fourcc.h>
 
 #include <asm/hypervisor.h>
 
@@ -52,7 +51,6 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_util.h>
 #include <drm/drm_dsc.h>
-#include <drm/drm_atomic.h>
 #include <drm/drm_connector.h>
 #include <drm/i915_mei_hdcp_interface.h>
 #include <drm/ttm/ttm_device.h>
