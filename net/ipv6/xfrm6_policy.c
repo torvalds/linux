@@ -92,7 +92,6 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt6.rt6i_src = rt->rt6i_src;
 	INIT_LIST_HEAD(&xdst->u.rt6.rt6i_uncached);
 	rt6_uncached_list_add(&xdst->u.rt6);
-	atomic_inc(&dev_net(dev)->ipv6.rt6_stats->fib_rt_uncache);
 
 	return 0;
 }
