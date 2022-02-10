@@ -41,7 +41,6 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
-#include <trace/events/random.h>
 
 /**
  *	prandom_u32_state - seeded pseudo-random number generator.
@@ -387,7 +386,6 @@ u32 prandom_u32(void)
 	struct siprand_state *state = get_cpu_ptr(&net_rand_state);
 	u32 res = siprand_u32(state);
 
-	trace_prandom_u32(res);
 	put_cpu_ptr(&net_rand_state);
 	return res;
 }
