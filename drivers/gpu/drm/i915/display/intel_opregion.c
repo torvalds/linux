@@ -358,10 +358,16 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	u32 parm = 0;
 	u32 type = 0;
 	u32 port;
+	int ret;
 
 	/* don't care about old stuff for now */
 	if (!HAS_DDI(dev_priv))
 		return 0;
+
+	/* Avoid port out of bounds checks if SWSCI isn't there. */
+	ret = check_swsci_function(dev_priv, SWSCI_SBCB_DISPLAY_POWER_STATE);
+	if (ret)
+		return ret;
 
 	if (intel_encoder->type == INTEL_OUTPUT_DSI)
 		port = 0;
