@@ -503,6 +503,8 @@ static const struct ieee80211_rate hwsim_rates[] = {
 	{ .bitrate = 540 }
 };
 
+#define DEFAULT_RX_RSSI -50
+
 static const u32 hwsim_ciphers[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
@@ -690,6 +692,9 @@ struct mac80211_hwsim_data {
 	u64 rx_bytes;
 	u64 tx_dropped;
 	u64 tx_failed;
+
+	/* RSSI in rx status of the receiver */
+	int rx_rssi;
 };
 
 static const struct rhashtable_params hwsim_rht_params = {
@@ -963,6 +968,29 @@ static int hwsim_fops_group_write(void *dat, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(hwsim_fops_group,
 			 hwsim_fops_group_read, hwsim_fops_group_write,
 			 "%llx\n");
+
+static int hwsim_fops_rx_rssi_read(void *dat, u64 *val)
+{
+	struct mac80211_hwsim_data *data = dat;
+	*val = data->rx_rssi;
+	return 0;
+}
+
+static int hwsim_fops_rx_rssi_write(void *dat, u64 val)
+{
+	struct mac80211_hwsim_data *data = dat;
+	int rssi = (int)val;
+
+	if (rssi >= 0 || rssi < -100)
+		return -EINVAL;
+
+	data->rx_rssi = rssi;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(hwsim_fops_rx_rssi,
+			hwsim_fops_rx_rssi_read, hwsim_fops_rx_rssi_write,
+			"%lld\n");
 
 static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 					struct net_device *dev)
@@ -1482,8 +1510,8 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 		rx_status.bw = RATE_INFO_BW_20;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
 		rx_status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
-	/* TODO: simulate real signal strength (and optional packet loss) */
-	rx_status.signal = -50;
+	/* TODO: simulate optional packet loss */
+	rx_status.signal = data->rx_rssi;
 	if (info->control.vif)
 		rx_status.signal += info->control.vif->bss_conf.txpower;
 
@@ -3309,6 +3337,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		hw->wiphy->n_cipher_suites = param->n_ciphers;
 	}
 
+	data->rx_rssi = DEFAULT_RX_RSSI;
+
 	INIT_DELAYED_WORK(&data->roc_start, hw_roc_start);
 	INIT_DELAYED_WORK(&data->roc_done, hw_roc_done);
 	INIT_DELAYED_WORK(&data->hw_scan, hw_scan_work);
@@ -3500,6 +3530,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	debugfs_create_file("ps", 0666, data->debugfs, data, &hwsim_fops_ps);
 	debugfs_create_file("group", 0666, data->debugfs, data,
 			    &hwsim_fops_group);
+	debugfs_create_file("rx_rssi", 0666, data->debugfs, data,
+			    &hwsim_fops_rx_rssi);
 	if (!data->use_chanctx)
 		debugfs_create_file("dfs_simulate_radar", 0222,
 				    data->debugfs,
