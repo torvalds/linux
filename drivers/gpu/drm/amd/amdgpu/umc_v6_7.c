@@ -451,21 +451,13 @@ static uint32_t umc_v6_7_query_ras_poison_mode_per_channel(
 
 static bool umc_v6_7_query_ras_poison_mode(struct amdgpu_device *adev)
 {
-	uint32_t umc_inst        = 0;
-	uint32_t ch_inst         = 0;
 	uint32_t umc_reg_offset  = 0;
 
-	LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) {
-		umc_reg_offset = get_umc_v6_7_reg_offset(adev,
-							umc_inst,
-							ch_inst);
-		/* Enabling fatal error in one channel will be considered
-		   as fatal error mode */
-		if (umc_v6_7_query_ras_poison_mode_per_channel(adev, umc_reg_offset))
-			return false;
-	}
-
-	return true;
+	/* Enabling fatal error in umc instance0 channel0 will be
+	 * considered as fatal error mode
+	 */
+	umc_reg_offset = get_umc_v6_7_reg_offset(adev, 0, 0);
+	return !umc_v6_7_query_ras_poison_mode_per_channel(adev, umc_reg_offset);
 }
 
 const struct amdgpu_ras_block_hw_ops umc_v6_7_ras_hw_ops = {
