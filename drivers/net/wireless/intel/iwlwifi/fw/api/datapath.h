@@ -304,21 +304,33 @@ struct iwl_rx_baid_cfg_cmd_alloc {
 
 /**
  * struct iwl_rx_baid_cfg_cmd_modify - BAID modification data
- * @sta_id_mask: station ID mask
- * @baid: the BAID to modify
+ * @old_sta_id_mask: old station ID mask
+ * @new_sta_id_mask: new station ID mask
+ * @tid: TID of the BAID
  */
 struct iwl_rx_baid_cfg_cmd_modify {
-	__le32 sta_id_mask;
+	__le32 old_sta_id_mask;
+	__le32 new_sta_id_mask;
+	__le32 tid;
+} __packed; /* RX_BAID_ALLOCATION_MODIFY_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_rx_baid_cfg_cmd_remove_v1 - BAID removal data
+ * @baid: the BAID to remove
+ */
+struct iwl_rx_baid_cfg_cmd_remove_v1 {
 	__le32 baid;
-} __packed; /* RX_BAID_ALLOCATION_MODIFY_CMD_API_S_VER_1 */
+} __packed; /* RX_BAID_ALLOCATION_REMOVE_CMD_API_S_VER_1 */
 
 /**
  * struct iwl_rx_baid_cfg_cmd_remove - BAID removal data
- * @baid: the BAID to remove
+ * @sta_id_mask: the station mask of the BAID to remove
+ * @tid: the TID of the BAID to remove
  */
 struct iwl_rx_baid_cfg_cmd_remove {
-	__le32 baid;
-} __packed; /* RX_BAID_ALLOCATION_REMOVE_CMD_API_S_VER_1 */
+	__le32 sta_id_mask;
+	__le32 tid;
+} __packed; /* RX_BAID_ALLOCATION_REMOVE_CMD_API_S_VER_2 */
 
 /**
  * struct iwl_rx_baid_cfg_cmd - BAID allocation/config command
@@ -329,9 +341,10 @@ struct iwl_rx_baid_cfg_cmd {
 	union {
 		struct iwl_rx_baid_cfg_cmd_alloc alloc;
 		struct iwl_rx_baid_cfg_cmd_modify modify;
+		struct iwl_rx_baid_cfg_cmd_remove_v1 remove_v1;
 		struct iwl_rx_baid_cfg_cmd_remove remove;
-	}; /* RX_BAID_ALLOCATION_OPERATION_API_U_VER_1 */
-} __packed; /* RX_BAID_ALLOCATION_CONFIG_CMD_API_S_VER_1 */
+	}; /* RX_BAID_ALLOCATION_OPERATION_API_U_VER_2 */
+} __packed; /* RX_BAID_ALLOCATION_CONFIG_CMD_API_S_VER_2 */
 
 /**
  * struct iwl_rx_baid_cfg_resp - BAID allocation response
