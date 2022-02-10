@@ -2934,8 +2934,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	if (test_bit(IREQ_COMPLETE_IN_TARGET, &request->flags)) {
 		/* Normal notification (task_done) */
 		task->task_state_flags |= SAS_TASK_STATE_DONE;
-		task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
-					    SAS_TASK_STATE_PENDING);
+		task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	}
 	spin_unlock_irqrestore(&task->task_state_lock, task_flags);
 

@@ -91,8 +91,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 
 	/* Normal notification (task_done) */
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
-	task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
-				    SAS_TASK_STATE_PENDING);
+	task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	task->lldd_task = NULL;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
@@ -164,7 +163,6 @@ int isci_task_execute_task(struct sas_task *task, gfp_t gfp_flags)
 		} else {
 			struct isci_request *ireq;
 
-			task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 			/* do common allocation and init of request object. */
 			ireq = isci_io_request_from_tag(ihost, task, tag);
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -531,8 +529,7 @@ int isci_task_abort_task(struct sas_task *task)
 		*/
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		task->task_state_flags |= SAS_TASK_STATE_DONE;
-		task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
-					    SAS_TASK_STATE_PENDING);
+		task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		ret = TMF_RESP_FUNC_COMPLETE;
@@ -580,8 +577,7 @@ int isci_task_abort_task(struct sas_task *task)
 			 test_bit(IDEV_GONE, &idev->flags));
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
-		task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
-					    SAS_TASK_STATE_PENDING);
+		task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 		task->task_state_flags |= SAS_TASK_STATE_DONE;
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 

@@ -487,9 +487,6 @@ static int pm8001_task_exec(struct sas_task *task,
 			goto err_out_tag;
 		}
 		/* TODO: select normal or high priority */
-		spin_lock(&t->task_state_lock);
-		t->task_state_flags |= SAS_TASK_AT_INITIATOR;
-		spin_unlock(&t->task_state_lock);
 	} while (0);
 	rc = 0;
 	goto out_done;
@@ -978,7 +975,6 @@ void pm8001_open_reject_retry(
 			atomic_dec(&pm8001_dev->running_req);
 		spin_lock_irqsave(&task->task_state_lock, flags1);
 		task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-		task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 		task->task_state_flags |= SAS_TASK_STATE_DONE;
 		if (unlikely((task->task_state_flags
 				& SAS_TASK_STATE_ABORTED))) {
