@@ -1186,6 +1186,9 @@ static int mlx5_esw_acls_ns_init(struct mlx5_eswitch *esw)
 	int total_vports;
 	int err;
 
+	if (esw->flags & MLX5_ESWITCH_VPORT_ACL_NS_CREATED)
+		return 0;
+
 	total_vports = mlx5_eswitch_get_total_vports(dev);
 
 	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support)) {
@@ -1203,6 +1206,7 @@ static int mlx5_esw_acls_ns_init(struct mlx5_eswitch *esw)
 	} else {
 		esw_warn(dev, "ingress ACL is not supported by FW\n");
 	}
+	esw->flags |= MLX5_ESWITCH_VPORT_ACL_NS_CREATED;
 	return 0;
 
 err:
@@ -1215,6 +1219,7 @@ static void mlx5_esw_acls_ns_cleanup(struct mlx5_eswitch *esw)
 {
 	struct mlx5_core_dev *dev = esw->dev;
 
+	esw->flags &= ~MLX5_ESWITCH_VPORT_ACL_NS_CREATED;
 	if (MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
 		mlx5_fs_ingress_acls_cleanup(dev);
 	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))

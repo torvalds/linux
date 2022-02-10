@@ -282,6 +282,7 @@ struct mlx5_esw_functions {
 enum {
 	MLX5_ESWITCH_VPORT_MATCH_METADATA = BIT(0),
 	MLX5_ESWITCH_REG_C1_LOOPBACK_ENABLED = BIT(1),
+	MLX5_ESWITCH_VPORT_ACL_NS_CREATED = BIT(2),
 };
 
 struct mlx5_esw_bridge_offloads;
