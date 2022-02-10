@@ -46,7 +46,6 @@
 #include <linux/perf_event.h>
 #include <linux/pm_qos.h>
 #include <linux/dma-resv.h>
-#include <linux/shmem_fs.h>
 #include <linux/stackdepot.h>
 
 #include <drm/drm_gem.h>

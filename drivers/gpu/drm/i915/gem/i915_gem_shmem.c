@@ -5,6 +5,7 @@
  */
 
 #include <linux/pagevec.h>
+#include <linux/shmem_fs.h>
 #include <linux/swap.h>
 
 #include <drm/drm_cache.h>
