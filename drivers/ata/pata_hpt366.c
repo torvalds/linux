@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.6.12"
+#define DRV_VERSION	"0.6.13"
 
 struct hpt_clock {
 	u8	xfer_mode;
@@ -300,9 +300,14 @@ static int hpt366_prereset(struct ata_link *link, unsigned long deadline)
 	static const struct pci_bits hpt366_enable_bits = {
 		0x50, 1, 0x30, 0x30
 	};
+	u8 mcr2;
 
 	if (!pci_test_config_bits(pdev, &hpt366_enable_bits))
 		return -ENOENT;
+
+	pci_read_config_byte(pdev, 0x51, &mcr2);
+	if (mcr2 & 0x80)
+		pci_write_config_byte(pdev, 0x51, mcr2 & ~0x80);
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -334,16 +339,12 @@ static struct ata_port_operations hpt366_port_ops = {
 
 static void hpt36x_init_chipset(struct pci_dev *dev)
 {
-	u8 drive_fast, mcr1;
+	u8 mcr1;
 
 	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, (L1_CACHE_BYTES / 4));
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x78);
 	pci_write_config_byte(dev, PCI_MIN_GNT, 0x08);
 	pci_write_config_byte(dev, PCI_MAX_LAT, 0x08);
-
-	pci_read_config_byte(dev, 0x51, &drive_fast);
-	if (drive_fast & 0x80)
-		pci_write_config_byte(dev, 0x51, drive_fast & ~0x80);
 
 	/*
 	 * Now we'll have to force both channels enabled if at least one
