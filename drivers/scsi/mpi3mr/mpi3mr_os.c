@@ -4473,8 +4473,8 @@ static int mpi3mr_suspend(struct pci_dev *pdev, pm_message_t state)
 	ioc_info(mrioc, "pdev=0x%p, slot=%s, entering operating state [D%d]\n",
 	    pdev, pci_name(pdev), device_state);
 	pci_save_state(pdev);
-	pci_set_power_state(pdev, device_state);
 	mpi3mr_cleanup_resources(mrioc);
+	pci_set_power_state(pdev, device_state);
 
 	return 0;
 }
