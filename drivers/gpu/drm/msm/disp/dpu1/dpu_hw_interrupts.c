@@ -13,7 +13,7 @@
 #include "dpu_hw_mdss.h"
 #include "dpu_trace.h"
 
-/**
+/*
  * Register offsets in MDSS register file for the interrupt registers
  * w.r.t. to the MDP base
  */
