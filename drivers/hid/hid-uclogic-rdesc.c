@@ -633,7 +633,17 @@ const __u8 uclogic_rdesc_pen_v2_template_arr[] = {
 	0x27, UCLOGIC_RDESC_PEN_PH(PRESSURE_LM),
 				/*          Logical Maximum (PLACEHOLDER),  */
 	0x81, 0x02,             /*          Input (Variable),               */
-	0x81, 0x03,             /*          Input (Constant, Variable),     */
+	0x54,                   /*          Unit Exponent (0),              */
+	0x65, 0x14,             /*          Unit (Degrees),                 */
+	0x35, 0xC4,             /*          Physical Minimum (-60),         */
+	0x45, 0x3C,             /*          Physical Maximum (60),          */
+	0x15, 0xC4,             /*          Logical Minimum (-60),          */
+	0x25, 0x3C,             /*          Logical Maximum (60),           */
+	0x75, 0x08,             /*          Report Size (8),                */
+	0x95, 0x02,             /*          Report Count (2),               */
+	0x09, 0x3D,             /*          Usage (X Tilt),                 */
+	0x09, 0x3E,             /*          Usage (Y Tilt),                 */
+	0x81, 0x02,             /*          Input (Variable),               */
 	0xC0,                   /*      End Collection,                     */
 	0xC0                    /*  End Collection                          */
 };

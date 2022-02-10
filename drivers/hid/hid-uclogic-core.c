@@ -304,6 +304,9 @@ static int uclogic_raw_event(struct hid_device *hdev,
 			mod_timer(&drvdata->inrange_timer,
 					jiffies + msecs_to_jiffies(100));
 		}
+		/* If we report tilt and Y direction is flipped */
+		if (size >= 12 && params->pen.tilt_y_flipped)
+			data[11] = -data[11];
 	}
 
 	/* Tweak frame control reports, if necessary */

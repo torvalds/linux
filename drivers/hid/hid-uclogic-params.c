@@ -369,6 +369,7 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	pen->id = UCLOGIC_RDESC_PEN_V2_ID;
 	pen->inrange = UCLOGIC_PARAMS_PEN_INRANGE_NONE;
 	pen->fragmented_hires = true;
+	pen->tilt_y_flipped = true;
 	found = true;
 finish:
 	*pfound = found;

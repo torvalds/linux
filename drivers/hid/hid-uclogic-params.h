@@ -62,6 +62,12 @@ struct uclogic_params_pen {
 	 * Only valid if "id" is not zero.
 	 */
 	bool fragmented_hires;
+	/*
+	 * True if the pen reports tilt in bytes at offset 10 (X) and 11 (Y),
+	 * and the Y tilt direction is flipped.
+	 * Only valid if "id" is not zero.
+	 */
+	bool tilt_y_flipped;
 };
 
 /*
@@ -171,6 +177,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		".pen.id = %u\n"                    \
 		".pen.inrange = %s\n"               \
 		".pen.fragmented_hires = %s\n"      \
+		".pen.tilt_y_flipped = %s\n"        \
 		".frame.desc_ptr = %p\n"            \
 		".frame.desc_size = %u\n"           \
 		".frame.id = %u\n"                  \
@@ -189,6 +196,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 		(_params)->pen.id,                                          \
 		uclogic_params_pen_inrange_to_str((_params)->pen.inrange),  \
 		((_params)->pen.fragmented_hires ? "true" : "false"),       \
+		((_params)->pen.tilt_y_flipped ? "true" : "false"),         \
 		(_params)->frame.desc_ptr,                                  \
 		(_params)->frame.desc_size,                                 \
 		(_params)->frame.id,                                        \
