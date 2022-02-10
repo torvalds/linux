@@ -1127,13 +1127,12 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 	.unmap = gic_irq_domain_unmap,
 };
 
-static void gic_init_chip(struct gic_chip_data *gic, struct device *dev,
-			  const char *name, bool use_eoimode1)
+static void gic_init_chip(struct gic_chip_data *gic, const char *name,
+			  bool use_eoimode1)
 {
 	/* Initialize irq_chip */
 	gic->chip = gic_chip;
 	gic->chip.name = name;
-	gic->chip.parent_device = dev;
 
 	if (use_eoimode1) {
 		gic->chip.irq_mask = gic_eoimode1_mask_irq;
@@ -1268,10 +1267,10 @@ static int __init __gic_init_bases(struct gic_chip_data *gic,
 
 	if (static_branch_likely(&supports_deactivate_key) && gic == &gic_data[0]) {
 		name = kasprintf(GFP_KERNEL, "GICv2");
-		gic_init_chip(gic, NULL, name, true);
+		gic_init_chip(gic, name, true);
 	} else {
 		name = kasprintf(GFP_KERNEL, "GIC-%d", (int)(gic-&gic_data[0]));
-		gic_init_chip(gic, NULL, name, false);
+		gic_init_chip(gic, name, false);
 	}
 
 	ret = gic_init_bases(gic, handle);
@@ -1460,7 +1459,7 @@ int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq)
 	if (!*gic)
 		return -ENOMEM;
 
-	gic_init_chip(*gic, dev, dev->of_node->name, false);
+	gic_init_chip(*gic, dev->of_node->name, false);
 
 	ret = gic_of_setup(*gic, dev->of_node);
 	if (ret)
@@ -1472,6 +1471,7 @@ int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq)
 		return ret;
 	}
 
+	irq_domain_set_pm_device((*gic)->domain, dev);
 	irq_set_chained_handler_and_data(irq, gic_handle_cascade_irq, *gic);
 
 	return 0;
