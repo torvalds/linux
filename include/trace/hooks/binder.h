@@ -35,6 +35,10 @@ DECLARE_HOOK(android_vh_binder_wait_for_work,
 DECLARE_HOOK(android_vh_sync_txn_recvd,
 	TP_PROTO(struct task_struct *tsk, struct task_struct *from),
 	TP_ARGS(tsk, from));
+DECLARE_HOOK(android_vh_binder_proc_transaction_finish,
+	TP_PROTO(struct binder_proc *proc, struct binder_transaction *t,
+		struct task_struct *binder_th_task, bool pending_async, bool sync),
+	TP_ARGS(proc, t, binder_th_task, pending_async, sync));
 #endif /* _TRACE_HOOK_BINDER_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
