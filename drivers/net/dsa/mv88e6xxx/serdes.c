@@ -1313,6 +1313,44 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 	}
 }
 
+static const int mv88e6352_serdes_p2p_to_reg[] = {
+	/* Index of value in microvolts corresponds to the register value */
+	14000, 112000, 210000, 308000, 406000, 504000, 602000, 700000,
+};
+
+int mv88e6352_serdes_set_tx_amplitude(struct mv88e6xxx_chip *chip, int port,
+				      int val)
+{
+	bool found = false;
+	u16 ctrl, reg;
+	int err;
+	int i;
+
+	err = mv88e6352_g2_scratch_port_has_serdes(chip, port);
+	if (err <= 0)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_p2p_to_reg); ++i) {
+		if (mv88e6352_serdes_p2p_to_reg[i] == val) {
+			reg = i;
+			found = true;
+			break;
+		}
+	}
+
+	if (!found)
+		return -EINVAL;
+
+	err = mv88e6352_serdes_read(chip, MV88E6352_SERDES_SPEC_CTRL2, &ctrl);
+	if (err)
+		return err;
+
+	ctrl &= ~MV88E6352_SERDES_OUT_AMP_MASK;
+	ctrl |= reg;
+
+	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_SPEC_CTRL2, ctrl);
+}
+
 static int mv88e6393x_serdes_power_lane(struct mv88e6xxx_chip *chip, int lane,
 					bool on)
 {
