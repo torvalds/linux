@@ -39,20 +39,6 @@
 #define ADF_4XXX_NUM_RINGS_PER_BANK	2
 #define ADF_4XXX_NUM_BANKS_PER_VF	4
 
-/* Error source registers */
-#define ADF_4XXX_ERRSOU0	(0x41A200)
-#define ADF_4XXX_ERRSOU1	(0x41A204)
-#define ADF_4XXX_ERRSOU2	(0x41A208)
-#define ADF_4XXX_ERRSOU3	(0x41A20C)
-
-/* Error source mask registers */
-#define ADF_4XXX_ERRMSK0	(0x41A210)
-#define ADF_4XXX_ERRMSK1	(0x41A214)
-#define ADF_4XXX_ERRMSK2	(0x41A218)
-#define ADF_4XXX_ERRMSK3	(0x41A21C)
-
-#define ADF_4XXX_VFLNOTIFY	BIT(7)
-
 /* Arbiter configuration */
 #define ADF_4XXX_ARB_CONFIG			(BIT(31) | BIT(6) | BIT(0))
 #define ADF_4XXX_ARB_OFFSET			(0x0)

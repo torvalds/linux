@@ -229,7 +229,7 @@ static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 	void __iomem *csr = misc_bar->virt_addr;
 
 	/* Enable all in errsou3 except VFLR notification on host */
-	ADF_CSR_WR(csr, ADF_4XXX_ERRMSK3, ADF_4XXX_VFLNOTIFY);
+	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK3, ADF_GEN4_VFLNOTIFY);
 }
 
 static void adf_enable_ints(struct adf_accel_dev *accel_dev)
@@ -256,9 +256,9 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 	addr = (&GET_BARS(accel_dev)[ADF_4XXX_PMISC_BAR])->virt_addr;
 
 	/* Temporarily mask PM interrupt */
-	csr = ADF_CSR_RD(addr, ADF_4XXX_ERRMSK2);
+	csr = ADF_CSR_RD(addr, ADF_GEN4_ERRMSK2);
 	csr |= ADF_4XXX_PM_SOU;
-	ADF_CSR_WR(addr, ADF_4XXX_ERRMSK2, csr);
+	ADF_CSR_WR(addr, ADF_GEN4_ERRMSK2, csr);
 
 	/* Set DRV_ACTIVE bit to power up the device */
 	ADF_CSR_WR(addr, ADF_4XXX_PM_INTERRUPT, ADF_4XXX_PM_DRV_ACTIVE);
