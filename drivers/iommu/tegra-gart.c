@@ -238,11 +238,6 @@ static phys_addr_t gart_iommu_iova_to_phys(struct iommu_domain *domain,
 	return pte & GART_PAGE_MASK;
 }
 
-static bool gart_iommu_capable(enum iommu_cap cap)
-{
-	return false;
-}
-
 static struct iommu_device *gart_iommu_probe_device(struct device *dev)
 {
 	if (!dev_iommu_fwspec_get(dev))
@@ -276,7 +271,6 @@ static void gart_iommu_sync(struct iommu_domain *domain,
 }
 
 static const struct iommu_ops gart_iommu_ops = {
-	.capable	= gart_iommu_capable,
 	.domain_alloc	= gart_iommu_domain_alloc,
 	.domain_free	= gart_iommu_domain_free,
 	.attach_dev	= gart_iommu_attach_dev,

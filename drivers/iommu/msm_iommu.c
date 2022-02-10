@@ -558,11 +558,6 @@ fail:
 	return ret;
 }
 
-static bool msm_iommu_capable(enum iommu_cap cap)
-{
-	return false;
-}
-
 static void print_ctx_regs(void __iomem *base, int ctx)
 {
 	unsigned int fsr = GET_FSR(base, ctx);
@@ -672,7 +667,6 @@ fail:
 }
 
 static struct iommu_ops msm_iommu_ops = {
-	.capable = msm_iommu_capable,
 	.domain_alloc = msm_iommu_domain_alloc,
 	.domain_free = msm_iommu_domain_free,
 	.attach_dev = msm_iommu_attach_dev,
