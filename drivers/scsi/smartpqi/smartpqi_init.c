@@ -8951,6 +8951,8 @@ static void pqi_process_module_params(void)
 	pqi_process_lockup_action_param();
 }
 
+#if defined(CONFIG_PM)
+
 static inline enum bmic_flush_cache_shutdown_event pqi_get_flush_cache_shutdown_event(struct pci_dev *pci_dev)
 {
 	if (pci_dev->subsystem_vendor == PCI_VENDOR_ID_ADAPTEC2 && pci_dev->subsystem_device == 0x1304)
@@ -9072,6 +9074,8 @@ static const struct dev_pm_ops pqi_pm_ops = {
 	.poweroff = pqi_poweroff,
 	.restore = pqi_resume_or_restore,
 };
+
+#endif /* CONFIG_PM */
 
 /* Define the PCI IDs for the controllers that we support. */
 static const struct pci_device_id pqi_pci_id_table[] = {
