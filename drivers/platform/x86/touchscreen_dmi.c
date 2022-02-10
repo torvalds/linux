@@ -107,6 +107,9 @@ static const struct property_entry chuwi_hi10_plus_props[] = {
 	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-chuwi-hi10plus.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
 	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	PROPERTY_ENTRY_BOOL("silead,pen-supported"),
+	PROPERTY_ENTRY_U32("silead,pen-resolution-x", 8),
+	PROPERTY_ENTRY_U32("silead,pen-resolution-y", 8),
 	{ }
 };
 
@@ -124,15 +127,21 @@ static const struct ts_dmi_data chuwi_hi10_plus_data = {
 	.properties     = chuwi_hi10_plus_props,
 };
 
+static const u32 chuwi_hi10_pro_efi_min_max[] = { 8, 1911, 8, 1271 };
+
 static const struct property_entry chuwi_hi10_pro_props[] = {
-	PROPERTY_ENTRY_U32("touchscreen-min-x", 8),
-	PROPERTY_ENTRY_U32("touchscreen-min-y", 8),
-	PROPERTY_ENTRY_U32("touchscreen-size-x", 1912),
-	PROPERTY_ENTRY_U32("touchscreen-size-y", 1272),
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 80),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 26),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1962),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1254),
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
 	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-chuwi-hi10-pro.fw"),
+	PROPERTY_ENTRY_U32_ARRAY("silead,efi-fw-min-max", chuwi_hi10_pro_efi_min_max),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
 	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	PROPERTY_ENTRY_BOOL("silead,pen-supported"),
+	PROPERTY_ENTRY_U32("silead,pen-resolution-x", 8),
+	PROPERTY_ENTRY_U32("silead,pen-resolution-y", 8),
 	{ }
 };
 
@@ -350,18 +359,6 @@ static const struct ts_dmi_data gdix1001_00_upside_down_data = {
 static const struct ts_dmi_data gdix1001_01_upside_down_data = {
 	.acpi_name	= "GDIX1001:01",
 	.properties	= gdix1001_upside_down_props,
-};
-
-static const struct property_entry glavey_tm800a550l_props[] = {
-	PROPERTY_ENTRY_STRING("firmware-name", "gt912-glavey-tm800a550l.fw"),
-	PROPERTY_ENTRY_STRING("goodix,config-name", "gt912-glavey-tm800a550l.cfg"),
-	PROPERTY_ENTRY_U32("goodix,main-clk", 54),
-	{ }
-};
-
-static const struct ts_dmi_data glavey_tm800a550l_data = {
-	.acpi_name	= "GDIX1001:00",
-	.properties	= glavey_tm800a550l_props,
 };
 
 static const struct property_entry gp_electronic_t701_props[] = {
@@ -773,6 +770,21 @@ static const struct ts_dmi_data predia_basic_data = {
 	.properties	= predia_basic_props,
 };
 
+static const struct property_entry rwc_nanote_p8_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 46),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1728),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-rwc-nanote-p8.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct ts_dmi_data rwc_nanote_p8_data = {
+	.acpi_name = "MSSL1680:00",
+	.properties = rwc_nanote_p8_props,
+};
+
 static const struct property_entry schneider_sct101ctm_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1715),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
@@ -1140,15 +1152,6 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "eSTAR BEAUTY HD Intel Quad core"),
 		},
 	},
-	{	/* Glavey TM800A550L */
-		.driver_data = (void *)&glavey_tm800a550l_data,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
-			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
-			/* Above strings are too generic, also match on BIOS version */
-			DMI_MATCH(DMI_BIOS_VERSION, "ZY-8-BI-PX4S70VTR400-X423B-005-D"),
-		},
-	},
 	{
 		/* GP-electronic T701 */
 		.driver_data = (void *)&gp_electronic_t701_data,
@@ -1404,6 +1407,15 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 			/* Note 105b is Foxcon's USB/PCI vendor id */
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
+		},
+	},
+	{
+		/* RWC NANOTE P8 */
+		.driver_data = (void *)&rwc_nanote_p8_data,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Default string"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AY07J"),
+			DMI_MATCH(DMI_PRODUCT_SKU, "0001")
 		},
 	},
 	{

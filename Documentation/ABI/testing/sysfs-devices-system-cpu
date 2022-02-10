@@ -666,3 +666,18 @@ Description:	Preferred MTE tag checking mode
 		================  ==============================================
 
 		See also: Documentation/arm64/memory-tagging-extension.rst
+
+What:		/sys/devices/system/cpu/nohz_full
+Date:		Apr 2015
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:
+		(RO) the list of CPUs that are in nohz_full mode.
+		These CPUs are set by boot parameter "nohz_full=".
+
+What:		/sys/devices/system/cpu/isolated
+Date:		Apr 2015
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:
+		(RO) the list of CPUs that are isolated and don't
+		participate in load balancing. These CPUs are set by
+		boot parameter "isolcpus=".

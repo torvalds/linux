@@ -320,7 +320,9 @@ static void init_rdev_errors(struct regulator_irq *h)
  *			IRQF_ONESHOT when requesting the (threaded) irq.
  * @common_errs:	Errors which can be flagged by this IRQ for all rdevs.
  *			When IRQ is re-enabled these errors will be cleared
- *			from all associated regulators
+ *			from all associated regulators. Use this instead of the
+ *			per_rdev_errs if you use
+ *			regulator_irq_map_event_simple() for event mapping.
  * @per_rdev_errs:	Optional error flag array describing errors specific
  *			for only some of the regulators. These errors will be
  *			or'ed with common errors. If this is given the array
@@ -395,3 +397,40 @@ void regulator_irq_helper_cancel(void **handle)
 	}
 }
 EXPORT_SYMBOL_GPL(regulator_irq_helper_cancel);
+
+/**
+ * regulator_irq_map_event_simple - regulator IRQ notification for trivial IRQs
+ *
+ * @irq:	Number of IRQ that occurred
+ * @rid:	Information about the event IRQ indicates
+ * @dev_mask:	mask indicating the regulator originating the IRQ
+ *
+ * Regulators whose IRQ has single, well defined purpose (always indicate
+ * exactly one event, and are relevant to exactly one regulator device) can
+ * use this function as their map_event callbac for their regulator IRQ
+ * notification helperk. Exactly one rdev and exactly one error (in
+ * "common_errs"-field) can be given at IRQ helper registration for
+ * regulator_irq_map_event_simple() to be viable.
+ */
+int regulator_irq_map_event_simple(int irq, struct regulator_irq_data *rid,
+			    unsigned long *dev_mask)
+{
+	int err = rid->states[0].possible_errs;
+
+	*dev_mask = 1;
+	/*
+	 * This helper should only be used in a situation where the IRQ
+	 * can indicate only one type of problem for one specific rdev.
+	 * Something fishy is going on if we are having multiple rdevs or ERROR
+	 * flags here.
+	 */
+	if (WARN_ON(rid->num_states != 1 || hweight32(err) != 1))
+		return 0;
+
+	rid->states[0].errors = err;
+	rid->states[0].notifs = regulator_err2notif(err);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_irq_map_event_simple);
+

@@ -2095,7 +2095,7 @@ process:
 	nf_reset_ct(skb);
 
 	if (tcp_filter(sk, skb)) {
-		drop_reason = SKB_DROP_REASON_TCP_FILTER;
+		drop_reason = SKB_DROP_REASON_SOCKET_FILTER;
 		goto discard_and_relse;
 	}
 	th = (const struct tcphdr *)skb->data;
@@ -3002,7 +3002,7 @@ static unsigned short seq_file_family(const struct seq_file *seq)
 #endif
 
 	/* Iterated from proc fs */
-	afinfo = PDE_DATA(file_inode(seq->file));
+	afinfo = pde_data(file_inode(seq->file));
 	return afinfo->family;
 }
 

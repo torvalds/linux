@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/platform_device.h>
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
 #include "hns_roce_common.h"

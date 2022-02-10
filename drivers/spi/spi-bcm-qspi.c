@@ -287,6 +287,18 @@ static inline int bcm_qspi_spbr_min(struct bcm_qspi *qspi)
 		return 8;
 }
 
+static u32 bcm_qspi_calc_spbr(u32 clk_speed_hz,
+			      const struct bcm_qspi_parms *xp)
+{
+	u32 spbr = 0;
+
+	/* SPBR = System Clock/(2 * SCK Baud Rate) */
+	if (xp->speed_hz)
+		spbr = clk_speed_hz / (xp->speed_hz * 2);
+
+	return spbr;
+}
+
 /* Read qspi controller register*/
 static inline u32 bcm_qspi_read(struct bcm_qspi *qspi, enum base_type type,
 				unsigned int offset)
@@ -573,7 +585,7 @@ static void bcm_qspi_chip_select(struct bcm_qspi *qspi, int cs)
 	u32 rd = 0;
 	u32 wr = 0;
 
-	if (qspi->base[CHIP_SELECT]) {
+	if (cs >= 0 && qspi->base[CHIP_SELECT]) {
 		rd = bcm_qspi_read(qspi, CHIP_SELECT, 0);
 		wr = (rd & ~0xff) | (1 << cs);
 		if (rd == wr)
@@ -586,11 +598,23 @@ static void bcm_qspi_chip_select(struct bcm_qspi *qspi, int cs)
 	qspi->curr_cs = cs;
 }
 
+static bool bcmspi_parms_did_change(const struct bcm_qspi_parms * const cur,
+				    const struct bcm_qspi_parms * const prev)
+{
+	return (cur->speed_hz != prev->speed_hz) ||
+		(cur->mode != prev->mode) ||
+		(cur->bits_per_word != prev->bits_per_word);
+}
+
+
 /* MSPI helpers */
 static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 				  const struct bcm_qspi_parms *xp)
 {
 	u32 spcr, spbr = 0;
+
+	if (!bcmspi_parms_did_change(xp, &qspi->last_parms))
+		return;
 
 	if (!qspi->mspi_maj_rev)
 		/* legacy controller */
@@ -621,9 +645,17 @@ static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 			spcr |= MSPI_SPCR3_HALFDUPLEX |  MSPI_SPCR3_HDOUTTYPE;
 
 		if (bcm_qspi_has_sysclk_108(qspi)) {
-			/* SYSCLK_108 */
-			spcr |= MSPI_SPCR3_SYSCLKSEL_108;
-			qspi->base_clk = MSPI_BASE_FREQ * 4;
+			/* check requested baud rate before moving to 108Mhz */
+			spbr = bcm_qspi_calc_spbr(MSPI_BASE_FREQ * 4, xp);
+			if (spbr > QSPI_SPBR_MAX) {
+				/* use SYSCLK_27Mhz for slower baud rates */
+				spcr &= ~MSPI_SPCR3_SYSCLKSEL_MASK;
+				qspi->base_clk = MSPI_BASE_FREQ;
+			} else {
+				/* SYSCLK_108Mhz */
+				spcr |= MSPI_SPCR3_SYSCLKSEL_108;
+				qspi->base_clk = MSPI_BASE_FREQ * 4;
+			}
 		}
 
 		if (xp->bits_per_word > 16) {
@@ -649,9 +681,9 @@ static void bcm_qspi_hw_set_parms(struct bcm_qspi *qspi,
 		bcm_qspi_write(qspi, MSPI, MSPI_SPCR3, spcr);
 	}
 
-	if (xp->speed_hz)
-		spbr = qspi->base_clk / (2 * xp->speed_hz);
-
+	/* SCK Baud Rate = System Clock/(2 * SPBR) */
+	qspi->max_speed_hz = qspi->base_clk / (bcm_qspi_spbr_min(qspi) * 2);
+	spbr = bcm_qspi_calc_spbr(qspi->base_clk, xp);
 	spbr = clamp_val(spbr, bcm_qspi_spbr_min(qspi), QSPI_SPBR_MAX);
 	bcm_qspi_write(qspi, MSPI, MSPI_SPCR0_LSB, spbr);
 

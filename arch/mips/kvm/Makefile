@@ -2,9 +2,10 @@
 # Makefile for KVM support for MIPS
 #
 
+include $(srctree)/virt/kvm/Makefile.kvm
+
 ccflags-y += -Ivirt/kvm -Iarch/mips/kvm
 
-kvm-y := $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o eventfd.o binary_stats.o)
 kvm-$(CONFIG_CPU_HAS_MSA) += msa.o
 
 kvm-y +=    mips.o emulate.o entry.o \

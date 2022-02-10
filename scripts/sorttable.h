@@ -19,6 +19,9 @@
 
 #undef extable_ent_size
 #undef compare_extable
+#undef get_mcount_loc
+#undef sort_mcount_loc
+#undef elf_mcount_loc
 #undef do_sort
 #undef Elf_Addr
 #undef Elf_Ehdr
@@ -41,6 +44,9 @@
 #ifdef SORTTABLE_64
 # define extable_ent_size	16
 # define compare_extable	compare_extable_64
+# define get_mcount_loc		get_mcount_loc_64
+# define sort_mcount_loc	sort_mcount_loc_64
+# define elf_mcount_loc		elf_mcount_loc_64
 # define do_sort		do_sort_64
 # define Elf_Addr		Elf64_Addr
 # define Elf_Ehdr		Elf64_Ehdr
@@ -62,6 +68,9 @@
 #else
 # define extable_ent_size	8
 # define compare_extable	compare_extable_32
+# define get_mcount_loc		get_mcount_loc_32
+# define sort_mcount_loc	sort_mcount_loc_32
+# define elf_mcount_loc		elf_mcount_loc_32
 # define do_sort		do_sort_32
 # define Elf_Addr		Elf32_Addr
 # define Elf_Ehdr		Elf32_Ehdr
@@ -84,8 +93,6 @@
 
 #if defined(SORTTABLE_64) && defined(UNWINDER_ORC_ENABLED)
 /* ORC unwinder only support X86_64 */
-#include <errno.h>
-#include <pthread.h>
 #include <asm/orc_types.h>
 
 #define ERRSTR_MAXSZ	256
@@ -191,7 +198,66 @@ static int compare_extable(const void *a, const void *b)
 		return 1;
 	return 0;
 }
+#ifdef MCOUNT_SORT_ENABLED
+pthread_t mcount_sort_thread;
 
+struct elf_mcount_loc {
+	Elf_Ehdr *ehdr;
+	Elf_Shdr *init_data_sec;
+	uint_t start_mcount_loc;
+	uint_t stop_mcount_loc;
+};
+
+/* Sort the addresses stored between __start_mcount_loc to __stop_mcount_loc in vmlinux */
+static void *sort_mcount_loc(void *arg)
+{
+	struct elf_mcount_loc *emloc = (struct elf_mcount_loc *)arg;
+	uint_t offset = emloc->start_mcount_loc - _r(&(emloc->init_data_sec)->sh_addr)
+					+ _r(&(emloc->init_data_sec)->sh_offset);
+	uint_t count = emloc->stop_mcount_loc - emloc->start_mcount_loc;
+	unsigned char *start_loc = (void *)emloc->ehdr + offset;
+
+	qsort(start_loc, count/sizeof(uint_t), sizeof(uint_t), compare_extable);
+	return NULL;
+}
+
+/* Get the address of __start_mcount_loc and __stop_mcount_loc in System.map */
+static void get_mcount_loc(uint_t *_start, uint_t *_stop)
+{
+	FILE *file_start, *file_stop;
+	char start_buff[20];
+	char stop_buff[20];
+	int len = 0;
+
+	file_start = popen(" grep start_mcount System.map | awk '{print $1}' ", "r");
+	if (!file_start) {
+		fprintf(stderr, "get start_mcount_loc error!");
+		return;
+	}
+
+	file_stop = popen(" grep stop_mcount System.map | awk '{print $1}' ", "r");
+	if (!file_stop) {
+		fprintf(stderr, "get stop_mcount_loc error!");
+		pclose(file_start);
+		return;
+	}
+
+	while (fgets(start_buff, sizeof(start_buff), file_start) != NULL) {
+		len = strlen(start_buff);
+		start_buff[len - 1] = '\0';
+	}
+	*_start = strtoul(start_buff, NULL, 16);
+
+	while (fgets(stop_buff, sizeof(stop_buff), file_stop) != NULL) {
+		len = strlen(stop_buff);
+		stop_buff[len - 1] = '\0';
+	}
+	*_stop = strtoul(stop_buff, NULL, 16);
+
+	pclose(file_start);
+	pclose(file_stop);
+}
+#endif
 static int do_sort(Elf_Ehdr *ehdr,
 		   char const *const fname,
 		   table_sort_t custom_sort)
@@ -217,6 +283,11 @@ static int do_sort(Elf_Ehdr *ehdr,
 	int idx;
 	unsigned int shnum;
 	unsigned int shstrndx;
+#ifdef MCOUNT_SORT_ENABLED
+	struct elf_mcount_loc mstruct = {0};
+	uint_t _start_mcount_loc = 0;
+	uint_t _stop_mcount_loc = 0;
+#endif
 #if defined(SORTTABLE_64) && defined(UNWINDER_ORC_ENABLED)
 	unsigned int orc_ip_size = 0;
 	unsigned int orc_size = 0;
@@ -252,6 +323,17 @@ static int do_sort(Elf_Ehdr *ehdr,
 		if (r(&s->sh_type) == SHT_SYMTAB_SHNDX)
 			symtab_shndx = (Elf32_Word *)((const char *)ehdr +
 						      _r(&s->sh_offset));
+
+#ifdef MCOUNT_SORT_ENABLED
+		/* locate the .init.data section in vmlinux */
+		if (!strcmp(secstrings + idx, ".init.data")) {
+			get_mcount_loc(&_start_mcount_loc, &_stop_mcount_loc);
+			mstruct.ehdr = ehdr;
+			mstruct.init_data_sec = s;
+			mstruct.start_mcount_loc = _start_mcount_loc;
+			mstruct.stop_mcount_loc = _stop_mcount_loc;
+		}
+#endif
 
 #if defined(SORTTABLE_64) && defined(UNWINDER_ORC_ENABLED)
 		/* locate the ORC unwind tables */
@@ -290,6 +372,23 @@ static int do_sort(Elf_Ehdr *ehdr,
 			   sort_orctable, &orc_ip_size)) {
 		fprintf(stderr,
 			"pthread_create orc_sort_thread failed '%s': %s\n",
+			strerror(errno), fname);
+		goto out;
+	}
+#endif
+
+#ifdef MCOUNT_SORT_ENABLED
+	if (!mstruct.init_data_sec || !_start_mcount_loc || !_stop_mcount_loc) {
+		fprintf(stderr,
+			"incomplete mcount's sort in file: %s\n",
+			fname);
+		goto out;
+	}
+
+	/* create thread to sort mcount_loc concurrently */
+	if (pthread_create(&mcount_sort_thread, NULL, &sort_mcount_loc, &mstruct)) {
+		fprintf(stderr,
+			"pthread_create mcount_sort_thread failed '%s': %s\n",
 			strerror(errno), fname);
 		goto out;
 	}
@@ -364,14 +463,32 @@ out:
 		void *retval = NULL;
 		/* wait for ORC tables sort done */
 		rc = pthread_join(orc_sort_thread, &retval);
-		if (rc)
+		if (rc) {
 			fprintf(stderr,
 				"pthread_join failed '%s': %s\n",
 				strerror(errno), fname);
-		else if (retval) {
+		} else if (retval) {
 			rc = -1;
 			fprintf(stderr,
 				"failed to sort ORC tables '%s': %s\n",
+				(char *)retval, fname);
+		}
+	}
+#endif
+
+#ifdef MCOUNT_SORT_ENABLED
+	if (mcount_sort_thread) {
+		void *retval = NULL;
+		/* wait for mcount sort done */
+		rc = pthread_join(mcount_sort_thread, &retval);
+		if (rc) {
+			fprintf(stderr,
+				"pthread_join failed '%s': %s\n",
+				strerror(errno), fname);
+		} else if (retval) {
+			rc = -1;
+			fprintf(stderr,
+				"failed to sort mcount '%s': %s\n",
 				(char *)retval, fname);
 		}
 	}

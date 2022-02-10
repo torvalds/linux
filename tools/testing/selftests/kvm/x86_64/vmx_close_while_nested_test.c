@@ -30,8 +30,8 @@ static struct kvm_vm *vm;
 static void l2_guest_code(void)
 {
 	/* Exit to L0 */
-        asm volatile("inb %%dx, %%al"
-                     : : [port] "d" (PORT_L0_EXIT) : "rax");
+	asm volatile("inb %%dx, %%al"
+		     : : [port] "d" (PORT_L0_EXIT) : "rax");
 }
 
 static void l1_guest_code(struct vmx_pages *vmx_pages)

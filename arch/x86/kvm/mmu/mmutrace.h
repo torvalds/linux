@@ -35,7 +35,7 @@
 			 " %snxe %sad root %u %s%c",			\
 			 __entry->mmu_valid_gen,			\
 			 __entry->gfn, role.level,			\
-			 role.gpte_is_8_bytes ? 8 : 4,			\
+			 role.has_4_byte_gpte ? 4 : 8,			\
 			 role.quadrant,					\
 			 role.direct ? " direct" : "",			\
 			 access_str[role.access],			\

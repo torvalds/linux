@@ -4,6 +4,12 @@
 
 #include <asm/page.h>
 
+#ifdef CONFIG_HUGETLB_PAGE
+#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+#endif
+#define HAVE_ARCH_UNMAPPED_AREA
+#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
+
 #ifndef __ASSEMBLY__
 /*
  * Page size definition
@@ -62,6 +68,9 @@ extern struct patb_entry *partition_tb;
 #define PRTS_MASK	0x1f		/* process table size field */
 #define PRTB_MASK	0x0ffffffffffff000UL
 
+/* Number of supported LPID bits */
+extern unsigned int mmu_lpid_bits;
+
 /* Number of supported PID bits */
 extern unsigned int mmu_pid_bits;
 
@@ -76,10 +85,8 @@ extern unsigned long __ro_after_init radix_mem_block_size;
 #define PRTB_SIZE_SHIFT	(mmu_pid_bits + 4)
 #define PRTB_ENTRIES	(1ul << mmu_pid_bits)
 
-/*
- * Power9 currently only support 64K partition table size.
- */
-#define PATB_SIZE_SHIFT	16
+#define PATB_SIZE_SHIFT	(mmu_lpid_bits + 4)
+#define PATB_ENTRIES	(1ul << mmu_lpid_bits)
 
 typedef unsigned long mm_context_id_t;
 struct spinlock;
@@ -98,7 +105,9 @@ typedef struct {
 		 * from EA and new context ids to build the new VAs.
 		 */
 		mm_context_id_t id;
+#ifdef CONFIG_PPC_64S_HASH_MMU
 		mm_context_id_t extended_id[TASK_SIZE_USER64/TASK_CONTEXT_SIZE];
+#endif
 	};
 
 	/* Number of bits in the mm_cpumask */
@@ -110,7 +119,9 @@ typedef struct {
 	/* Number of user space windows opened in process mm_context */
 	atomic_t vas_windows;
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	struct hash_mm_context *hash_context;
+#endif
 
 	void __user *vdso;
 	/*
@@ -133,6 +144,7 @@ typedef struct {
 #endif
 } mm_context_t;
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 static inline u16 mm_ctx_user_psize(mm_context_t *ctx)
 {
 	return ctx->hash_context->user_psize;
@@ -193,8 +205,15 @@ static inline struct subpage_prot_table *mm_ctx_subpage_prot(mm_context_t *ctx)
 extern int mmu_linear_psize;
 extern int mmu_virtual_psize;
 extern int mmu_vmalloc_psize;
-extern int mmu_vmemmap_psize;
 extern int mmu_io_psize;
+#else /* CONFIG_PPC_64S_HASH_MMU */
+#ifdef CONFIG_PPC_64K_PAGES
+#define mmu_virtual_psize MMU_PAGE_64K
+#else
+#define mmu_virtual_psize MMU_PAGE_4K
+#endif
+#endif
+extern int mmu_vmemmap_psize;
 
 /* MMU initialization */
 void mmu_early_init_devtree(void);
@@ -233,12 +252,13 @@ static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	 * know which translations we will pick. Hence go with hash
 	 * restrictions.
 	 */
-	return hash__setup_initial_memory_limit(first_memblock_base,
-					   first_memblock_size);
+	if (!early_radix_enabled())
+		hash__setup_initial_memory_limit(first_memblock_base,
+						 first_memblock_size);
 }
 
 #ifdef CONFIG_PPC_PSERIES
-extern void radix_init_pseries(void);
+void __init radix_init_pseries(void);
 #else
 static inline void radix_init_pseries(void) { }
 #endif
@@ -255,6 +275,7 @@ static inline void radix_init_pseries(void) { }
 void cleanup_cpu_mmu_context(void);
 #endif
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 static inline int get_user_context(mm_context_t *ctx, unsigned long ea)
 {
 	int index = ea >> MAX_EA_BITS_PER_CONTEXT;
@@ -274,6 +295,7 @@ static inline unsigned long get_user_vsid(mm_context_t *ctx,
 
 	return get_vsid(context, ea, ssize);
 }
+#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */

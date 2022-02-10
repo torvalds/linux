@@ -10,6 +10,7 @@
 
 #include "test_d_path.skel.h"
 #include "test_d_path_check_rdonly_mem.skel.h"
+#include "test_d_path_check_types.skel.h"
 
 static int duration;
 
@@ -167,6 +168,16 @@ static void test_d_path_check_rdonly_mem(void)
 	test_d_path_check_rdonly_mem__destroy(skel);
 }
 
+static void test_d_path_check_types(void)
+{
+	struct test_d_path_check_types *skel;
+
+	skel = test_d_path_check_types__open_and_load();
+	ASSERT_ERR_PTR(skel, "unexpected_load_passing_wrong_type");
+
+	test_d_path_check_types__destroy(skel);
+}
+
 void test_d_path(void)
 {
 	if (test__start_subtest("basic"))
@@ -174,4 +185,7 @@ void test_d_path(void)
 
 	if (test__start_subtest("check_rdonly_mem"))
 		test_d_path_check_rdonly_mem();
+
+	if (test__start_subtest("check_alloc_mem"))
+		test_d_path_check_types();
 }

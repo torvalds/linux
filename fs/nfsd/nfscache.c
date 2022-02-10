@@ -87,7 +87,7 @@ nfsd_hashsize(unsigned int limit)
 static u32
 nfsd_cache_hash(__be32 xid, struct nfsd_net *nn)
 {
-	return hash_32(be32_to_cpu(xid), nn->maskbits);
+	return hash_32((__force u32)xid, nn->maskbits);
 }
 
 static struct svc_cacherep *

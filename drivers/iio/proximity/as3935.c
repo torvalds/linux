@@ -133,7 +133,7 @@ static ssize_t as3935_sensor_sensitivity_store(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	ret = kstrtoul((const char *) buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return -EINVAL;
 
@@ -237,9 +237,6 @@ err_read:
 
 	return IRQ_HANDLED;
 }
-
-static const struct iio_trigger_ops iio_interrupt_trigger_ops = {
-};
 
 static void as3935_event_work(struct work_struct *work)
 {
@@ -417,7 +414,6 @@ static int as3935_probe(struct spi_device *spi)
 	st->trig = trig;
 	st->noise_tripped = jiffies - HZ;
 	iio_trigger_set_drvdata(trig, indio_dev);
-	trig->ops = &iio_interrupt_trigger_ops;
 
 	ret = devm_iio_trigger_register(dev, trig);
 	if (ret) {

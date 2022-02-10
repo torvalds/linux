@@ -54,10 +54,6 @@
 #include "xprt_rdma.h"
 #include <trace/events/rpcrdma.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define RPCDBG_FACILITY	RPCDBG_TRANS
-#endif
-
 /* Returns size of largest RPC-over-RDMA header in a Call message
  *
  * The largest Call header contains a full-size Read list and a

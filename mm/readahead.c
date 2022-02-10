@@ -196,9 +196,9 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	 * Preallocate as many pages as we will need.
 	 */
 	for (i = 0; i < nr_to_read; i++) {
-		struct page *page = xa_load(&mapping->i_pages, index + i);
+		struct folio *folio = xa_load(&mapping->i_pages, index + i);
 
-		if (page && !xa_is_value(page)) {
+		if (folio && !xa_is_value(folio)) {
 			/*
 			 * Page already present?  Kick off the current batch
 			 * of contiguous pages before continuing with the
@@ -212,21 +212,21 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 			continue;
 		}
 
-		page = __page_cache_alloc(gfp_mask);
-		if (!page)
+		folio = filemap_alloc_folio(gfp_mask, 0);
+		if (!folio)
 			break;
 		if (mapping->a_ops->readpages) {
-			page->index = index + i;
-			list_add(&page->lru, &page_pool);
-		} else if (add_to_page_cache_lru(page, mapping, index + i,
+			folio->index = index + i;
+			list_add(&folio->lru, &page_pool);
+		} else if (filemap_add_folio(mapping, folio, index + i,
 					gfp_mask) < 0) {
-			put_page(page);
+			folio_put(folio);
 			read_pages(ractl, &page_pool, true);
 			i = ractl->_index + ractl->_nr_pages - index - 1;
 			continue;
 		}
 		if (i == nr_to_read - lookahead_size)
-			SetPageReadahead(page);
+			folio_set_readahead(folio);
 		ractl->_nr_pages++;
 	}
 
@@ -581,7 +581,7 @@ void page_cache_sync_ra(struct readahead_control *ractl,
 EXPORT_SYMBOL_GPL(page_cache_sync_ra);
 
 void page_cache_async_ra(struct readahead_control *ractl,
-		struct page *page, unsigned long req_count)
+		struct folio *folio, unsigned long req_count)
 {
 	/* no read-ahead */
 	if (!ractl->ra->ra_pages)
@@ -590,10 +590,10 @@ void page_cache_async_ra(struct readahead_control *ractl,
 	/*
 	 * Same bit is used for PG_readahead and PG_reclaim.
 	 */
-	if (PageWriteback(page))
+	if (folio_test_writeback(folio))
 		return;
 
-	ClearPageReadahead(page);
+	folio_clear_readahead(folio);
 
 	/*
 	 * Defer asynchronous read-ahead on IO congestion.

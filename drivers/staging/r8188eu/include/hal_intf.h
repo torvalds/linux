@@ -29,7 +29,6 @@ enum hw_variables {
 	HW_VAR_ACK_PREAMBLE,
 	HW_VAR_SEC_CFG,
 	HW_VAR_BCN_VALID,
-	HW_VAR_RF_TYPE,
 	HW_VAR_DM_FLAG,
 	HW_VAR_DM_FUNC_OP,
 	HW_VAR_DM_FUNC_SET,
@@ -95,40 +94,17 @@ enum hal_def_variable {
 	HAL_DEF_DBG_DUMP_TXPKT,
 };
 
-enum hal_odm_variable {
-	HAL_ODM_STA_INFO,
-	HAL_ODM_P2P_STATE,
-	HAL_ODM_WIFI_DISPLAY_STATE,
-};
-
 typedef s32 (*c2h_id_filter)(u8 id);
 
-#define RF_CHANGE_BY_INIT	0
-#define RF_CHANGE_BY_IPS	BIT(28)
-#define RF_CHANGE_BY_PS		BIT(29)
-#define RF_CHANGE_BY_HW		BIT(30)
-#define RF_CHANGE_BY_SW		BIT(31)
-
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
-
-void rtl8188eu_alloc_haldata(struct adapter *adapt);
 
 void rtl8188eu_interface_configure(struct adapter *adapt);
 void ReadAdapterInfo8188EU(struct adapter *Adapter);
 void rtl8188eu_init_default_value(struct adapter *adapt);
-void rtl8188e_SetHalODMVar(struct adapter *Adapter,
-			   enum hal_odm_variable eVariable, void *pValue1, bool bSet);
+void rtl8188e_SetHalODMVar(struct adapter *Adapter, void *pValue1, bool bSet);
 u32 rtl8188eu_InitPowerOn(struct adapter *adapt);
-void rtl8188e_free_hal_data(struct adapter *padapter);
-void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 bWrite, u8 PwrState);
-void rtl8188e_ReadEFuse(struct adapter *Adapter, u8 efuseType,
-			u16 _offset, u16 _size_byte, u8 *pbuf,
-			bool bPseudoTest);
-void rtl8188e_EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 efuseType,
-				       u8 type, void *pOut, bool bPseudoTest);
-u16 rtl8188e_EfuseGetCurrentSize(struct adapter *pAdapter, u8 efuseType, bool bPseudoTest);
-int rtl8188e_Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data, bool bPseudoTest);
-int rtl8188e_Efuse_PgPacketWrite(struct adapter *pAdapter, u8 offset, u8 word_en, u8 *data, bool bPseudoTest);
+void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState);
+void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf);
 
 void hal_notch_filter_8188e(struct adapter *adapter, bool enable);
 

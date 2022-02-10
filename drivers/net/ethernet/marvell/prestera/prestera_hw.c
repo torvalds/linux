@@ -1831,8 +1831,8 @@ static int prestera_iface_to_msg(struct prestera_iface *iface,
 int prestera_hw_rif_create(struct prestera_switch *sw,
 			   struct prestera_iface *iif, u8 *mac, u16 *rif_id)
 {
-	struct prestera_msg_rif_req req;
 	struct prestera_msg_rif_resp resp;
+	struct prestera_msg_rif_req req;
 	int err;
 
 	memcpy(req.mac, mac, ETH_ALEN);
@@ -1868,9 +1868,9 @@ int prestera_hw_rif_delete(struct prestera_switch *sw, u16 rif_id,
 
 int prestera_hw_vr_create(struct prestera_switch *sw, u16 *vr_id)
 {
-	int err;
 	struct prestera_msg_vr_resp resp;
 	struct prestera_msg_vr_req req;
+	int err;
 
 	err = prestera_cmd_ret(sw, PRESTERA_CMD_TYPE_ROUTER_VR_CREATE,
 			       &req.cmd, sizeof(req), &resp.ret, sizeof(resp));

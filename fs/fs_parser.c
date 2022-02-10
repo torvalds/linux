@@ -199,6 +199,8 @@ int fs_param_is_bool(struct p_log *log, const struct fs_parameter_spec *p,
 	int b;
 	if (param->type != fs_value_is_string)
 		return fs_param_bad_value(log, param);
+	if (!*param->string && (p->flags & fs_param_can_be_empty))
+		return 0;
 	b = lookup_constant(bool_names, param->string, -1);
 	if (b == -1)
 		return fs_param_bad_value(log, param);
@@ -211,8 +213,11 @@ int fs_param_is_u32(struct p_log *log, const struct fs_parameter_spec *p,
 		    struct fs_parameter *param, struct fs_parse_result *result)
 {
 	int base = (unsigned long)p->data;
-	if (param->type != fs_value_is_string ||
-	    kstrtouint(param->string, base, &result->uint_32) < 0)
+	if (param->type != fs_value_is_string)
+		return fs_param_bad_value(log, param);
+	if (!*param->string && (p->flags & fs_param_can_be_empty))
+		return 0;
+	if (kstrtouint(param->string, base, &result->uint_32) < 0)
 		return fs_param_bad_value(log, param);
 	return 0;
 }
@@ -221,8 +226,11 @@ EXPORT_SYMBOL(fs_param_is_u32);
 int fs_param_is_s32(struct p_log *log, const struct fs_parameter_spec *p,
 		    struct fs_parameter *param, struct fs_parse_result *result)
 {
-	if (param->type != fs_value_is_string ||
-	    kstrtoint(param->string, 0, &result->int_32) < 0)
+	if (param->type != fs_value_is_string)
+		return fs_param_bad_value(log, param);
+	if (!*param->string && (p->flags & fs_param_can_be_empty))
+		return 0;
+	if (kstrtoint(param->string, 0, &result->int_32) < 0)
 		return fs_param_bad_value(log, param);
 	return 0;
 }
@@ -231,8 +239,11 @@ EXPORT_SYMBOL(fs_param_is_s32);
 int fs_param_is_u64(struct p_log *log, const struct fs_parameter_spec *p,
 		    struct fs_parameter *param, struct fs_parse_result *result)
 {
-	if (param->type != fs_value_is_string ||
-	    kstrtoull(param->string, 0, &result->uint_64) < 0)
+	if (param->type != fs_value_is_string)
+		return fs_param_bad_value(log, param);
+	if (!*param->string && (p->flags & fs_param_can_be_empty))
+		return 0;
+	if (kstrtoull(param->string, 0, &result->uint_64) < 0)
 		return fs_param_bad_value(log, param);
 	return 0;
 }
@@ -244,6 +255,8 @@ int fs_param_is_enum(struct p_log *log, const struct fs_parameter_spec *p,
 	const struct constant_table *c;
 	if (param->type != fs_value_is_string)
 		return fs_param_bad_value(log, param);
+	if (!*param->string && (p->flags & fs_param_can_be_empty))
+		return 0;
 	c = __lookup_constant(p->data, param->string);
 	if (!c)
 		return fs_param_bad_value(log, param);
@@ -255,7 +268,8 @@ EXPORT_SYMBOL(fs_param_is_enum);
 int fs_param_is_string(struct p_log *log, const struct fs_parameter_spec *p,
 		       struct fs_parameter *param, struct fs_parse_result *result)
 {
-	if (param->type != fs_value_is_string || !*param->string)
+	if (param->type != fs_value_is_string ||
+	    (!*param->string && !(p->flags & fs_param_can_be_empty)))
 		return fs_param_bad_value(log, param);
 	return 0;
 }
@@ -275,7 +289,8 @@ int fs_param_is_fd(struct p_log *log, const struct fs_parameter_spec *p,
 {
 	switch (param->type) {
 	case fs_value_is_string:
-		if (kstrtouint(param->string, 0, &result->uint_32) < 0)
+		if ((!*param->string && !(p->flags & fs_param_can_be_empty)) ||
+		    kstrtouint(param->string, 0, &result->uint_32) < 0)
 			break;
 		if (result->uint_32 <= INT_MAX)
 			return 0;

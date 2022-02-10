@@ -23,13 +23,20 @@ properties:
     items:
       - enum:
           - ti,am3352-gpmc
+          - ti,am64-gpmc
           - ti,omap2420-gpmc
           - ti,omap2430-gpmc
           - ti,omap3430-gpmc
           - ti,omap4430-gpmc
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: cfg
+      - const: data
 
   interrupts:
     maxItems: 1
@@ -43,6 +50,9 @@ properties:
   clock-names:
     items:
       - const: fck
+
+  power-domains:
+    maxItems: 1
 
   dmas:
     items:
@@ -119,11 +129,8 @@ patternProperties:
       The child device node represents the device connected to the GPMC
       bus. The device can be a NAND chip, SRAM device, NOR device
       or an ASIC.
+    $ref: "ti,gpmc-child.yaml"
 
-    allOf:
-      - $ref: "ti,gpmc-child.yaml"
-
-    unevaluatedProperties: false
 
 required:
   - compatible
@@ -132,6 +139,17 @@ required:
   - gpmc,num-waitpins
   - "#address-cells"
   - "#size-cells"
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am64-gpmc
+    then:
+      required:
+        - reg-names
+        - power-domains
 
 additionalProperties: false
 

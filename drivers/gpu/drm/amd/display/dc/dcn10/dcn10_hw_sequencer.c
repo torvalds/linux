@@ -1365,7 +1365,12 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		uint32_t opp_id_src1 = OPP_ID_INVALID;
 
 		// Step 1: To find out which OPTC is running & OPTC DSC is ON
-		for (i = 0; i < dc->res_pool->res_cap->num_timing_generator; i++) {
+		// We can't use res_pool->res_cap->num_timing_generator to check
+		// Because it records display pipes default setting built in driver,
+		// not display pipes of the current chip.
+		// Some ASICs would be fused display pipes less than the default setting.
+		// In dcnxx_resource_construct function, driver would obatin real information.
+		for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 			uint32_t optc_dsc_state = 0;
 			struct timing_generator *tg = dc->res_pool->timing_generators[i];
 

@@ -76,33 +76,31 @@ properties:
       M_CAN user manual for details.
     $ref: /schemas/types.yaml#/definitions/int32-array
     items:
-      items:
-        - description: The 'offset' is an address offset of the Message RAM where
-            the following elements start from. This is usually set to 0x0 if
-            you're using a private Message RAM.
-          default: 0
-        - description: 11-bit Filter 0-128 elements / 0-128 words
-          minimum: 0
-          maximum: 128
-        - description: 29-bit Filter 0-64 elements / 0-128 words
-          minimum: 0
-          maximum: 64
-        - description: Rx FIFO 0 0-64 elements / 0-1152 words
-          minimum: 0
-          maximum: 64
-        - description: Rx FIFO 1 0-64 elements / 0-1152 words
-          minimum: 0
-          maximum: 64
-        - description: Rx Buffers 0-64 elements / 0-1152 words
-          minimum: 0
-          maximum: 64
-        - description: Tx Event FIFO 0-32 elements / 0-64 words
-          minimum: 0
-          maximum: 32
-        - description: Tx Buffers 0-32 elements / 0-576 words
-          minimum: 0
-          maximum: 32
-    maxItems: 1
+      - description: The 'offset' is an address offset of the Message RAM where
+          the following elements start from. This is usually set to 0x0 if
+          you're using a private Message RAM.
+        default: 0
+      - description: 11-bit Filter 0-128 elements / 0-128 words
+        minimum: 0
+        maximum: 128
+      - description: 29-bit Filter 0-64 elements / 0-128 words
+        minimum: 0
+        maximum: 64
+      - description: Rx FIFO 0 0-64 elements / 0-1152 words
+        minimum: 0
+        maximum: 64
+      - description: Rx FIFO 1 0-64 elements / 0-1152 words
+        minimum: 0
+        maximum: 64
+      - description: Rx Buffers 0-64 elements / 0-1152 words
+        minimum: 0
+        maximum: 64
+      - description: Tx Event FIFO 0-32 elements / 0-64 words
+        minimum: 0
+        maximum: 32
+      - description: Tx Buffers 0-32 elements / 0-576 words
+        minimum: 0
+        maximum: 32
 
   power-domains:
     description:

@@ -34,8 +34,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-
-#include "../comedi_usb.h"
+#include <linux/comedi/comedi_usb.h>
 
 #define DT9812_DIAGS_BOARD_INFO_ADDR	0xFBFF
 #define DT9812_MAX_WRITE_CMD_PIPE_SIZE	32

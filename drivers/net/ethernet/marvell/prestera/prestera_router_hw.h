@@ -6,7 +6,7 @@
 
 struct prestera_vr {
 	struct list_head router_node;
-	unsigned int ref_cnt;
+	refcount_t refcount;
 	u32 tb_id;			/* key (kernel fib table id) */
 	u16 hw_vr_id;			/* virtual router ID */
 	u8 __pad[2];
@@ -32,5 +32,6 @@ prestera_rif_entry_create(struct prestera_switch *sw,
 			  struct prestera_rif_entry_key *k,
 			  u32 tb_id, const unsigned char *addr);
 int prestera_router_hw_init(struct prestera_switch *sw);
+void prestera_router_hw_fini(struct prestera_switch *sw);
 
 #endif /* _PRESTERA_ROUTER_HW_H_ */

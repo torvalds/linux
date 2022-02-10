@@ -37,6 +37,7 @@
 
 /* Bank and ring configuration */
 #define ADF_4XXX_NUM_RINGS_PER_BANK	2
+#define ADF_4XXX_NUM_BANKS_PER_VF	4
 
 /* Error source registers */
 #define ADF_4XXX_ERRSOU0	(0x41A200)
@@ -76,6 +77,7 @@
 #define ADF_4XXX_FW		"qat_4xxx.bin"
 #define ADF_4XXX_MMP		"qat_4xxx_mmp.bin"
 #define ADF_4XXX_SYM_OBJ	"qat_4xxx_sym.bin"
+#define ADF_4XXX_DC_OBJ		"qat_4xxx_dc.bin"
 #define ADF_4XXX_ASYM_OBJ	"qat_4xxx_asym.bin"
 #define ADF_4XXX_ADMIN_OBJ	"qat_4xxx_admin.bin"
 

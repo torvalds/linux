@@ -2069,6 +2069,31 @@ static int test_event(struct evlist_test *e)
 	return ret;
 }
 
+static int test_event_fake_pmu(const char *str)
+{
+	struct parse_events_error err;
+	struct evlist *evlist;
+	int ret;
+
+	evlist = evlist__new();
+	if (!evlist)
+		return -ENOMEM;
+
+	parse_events_error__init(&err);
+	perf_pmu__test_parse_init();
+	ret = __parse_events(evlist, str, &err, &perf_pmu__fake);
+	if (ret) {
+		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
+			 str, ret, err.str);
+		parse_events_error__print(&err, str);
+	}
+
+	parse_events_error__exit(&err);
+	evlist__delete(evlist);
+
+	return ret;
+}
+
 static int test_events(struct evlist_test *events, unsigned cnt)
 {
 	int ret1, ret2 = 0;
@@ -2276,6 +2301,26 @@ static int test_pmu_events_alias(char *event, char *alias)
 	return test_event(&e);
 }
 
+static int test_pmu_events_alias2(void)
+{
+	static const char events[][30] = {
+			"event-hyphen",
+			"event-two-hyph",
+	};
+	unsigned long i;
+	int ret = 0;
+
+	for (i = 0; i < ARRAY_SIZE(events); i++) {
+		ret = test_event_fake_pmu(&events[i][0]);
+		if (ret) {
+			pr_err("check_parse_fake %s failed\n", &events[i][0]);
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static int test__parse_events(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret1, ret2 = 0;
@@ -2312,6 +2357,10 @@ do {							\
 		if (ret)
 			return ret;
 	}
+
+	ret1 = test_pmu_events_alias2();
+	if (!ret2)
+		ret2 = ret1;
 
 	ret1 = test_terms(test__terms, ARRAY_SIZE(test__terms));
 	if (!ret2)

@@ -12,6 +12,8 @@
 #include <linux/pagemap.h>
 #include <linux/tracepoint-defs.h>
 
+struct folio_batch;
+
 /*
  * The set of flags that only affect watermark checking and reclaim
  * behaviour. This is used by the MM to obey the caller constraints
@@ -21,7 +23,7 @@
 #define GFP_RECLAIM_MASK (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|\
 			__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NOFAIL|\
 			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC|\
-			__GFP_ATOMIC)
+			__GFP_ATOMIC|__GFP_NOLOCKDEP)
 
 /* The GFP flags allowed during early boot */
 #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_RECLAIM|__GFP_IO|__GFP_FS))
@@ -74,6 +76,7 @@ static inline bool can_madv_lru_vma(struct vm_area_struct *vma)
 	return !(vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP));
 }
 
+struct zap_details;
 void unmap_page_range(struct mmu_gather *tlb,
 			     struct vm_area_struct *vma,
 			     unsigned long addr, unsigned long end,
@@ -90,7 +93,13 @@ static inline void force_page_cache_readahead(struct address_space *mapping,
 }
 
 unsigned find_lock_entries(struct address_space *mapping, pgoff_t start,
-		pgoff_t end, struct pagevec *pvec, pgoff_t *indices);
+		pgoff_t end, struct folio_batch *fbatch, pgoff_t *indices);
+unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
+		pgoff_t end, struct folio_batch *fbatch, pgoff_t *indices);
+void filemap_free_folio(struct address_space *mapping, struct folio *folio);
+int truncate_inode_folio(struct address_space *mapping, struct folio *folio);
+bool truncate_inode_partial_folio(struct folio *folio, loff_t start,
+		loff_t end);
 
 /**
  * folio_evictable - Test whether a folio is evictable.
@@ -156,11 +165,6 @@ extern void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason
  * in mm/rmap.c:
  */
 extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
-
-/*
- * in mm/memcontrol.c:
- */
-extern bool cgroup_memory_nokmem;
 
 /*
  * in mm/page_alloc.c
@@ -388,6 +392,7 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
 void __vma_unlink_list(struct mm_struct *mm, struct vm_area_struct *vma);
 
 #ifdef CONFIG_MMU
+void unmap_mapping_folio(struct folio *folio);
 extern long populate_vma_page_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end, int *locked);
 extern long faultin_vma_page_range(struct vm_area_struct *vma,
@@ -491,8 +496,8 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 	}
 	return fpin;
 }
-
 #else /* !CONFIG_MMU */
+static inline void unmap_mapping_folio(struct folio *folio) { }
 static inline void clear_page_mlock(struct page *page) { }
 static inline void mlock_vma_page(struct page *page) { }
 static inline void vunmap_range_noflush(unsigned long start, unsigned long end)

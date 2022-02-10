@@ -403,7 +403,7 @@ struct hwmon_ops {
 };
 
 /**
- * Channel information
+ * struct hwmon_channel_info - Channel information
  * @type:	Channel type.
  * @config:	Pointer to NULL-terminated list of channel parameters.
  *		Use for per-channel attributes.
@@ -422,7 +422,7 @@ struct hwmon_channel_info {
 	})
 
 /**
- * Chip configuration
+ * struct hwmon_chip_info - Chip configuration
  * @ops:	Pointer to hwmon operations.
  * @info:	Null-terminated list of channel information.
  */

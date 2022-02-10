@@ -742,6 +742,7 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 	priv->gendisk = gendisk;
 	gendisk->major = ps3vram_major;
 	gendisk->minors = 1;
+	gendisk->flags |= GENHD_FL_NO_PART;
 	gendisk->fops = &ps3vram_fops;
 	gendisk->private_data = dev;
 	strlcpy(gendisk->disk_name, DEVICE_NAME, sizeof(gendisk->disk_name));

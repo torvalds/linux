@@ -69,7 +69,8 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
-	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status)) {
+	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status) &&
+	    !accel_dev->is_vf) {
 		dev_err(&GET_DEV(accel_dev), "Device not configured\n");
 		return -EFAULT;
 	}
@@ -117,9 +118,15 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	hw_data->enable_ints(accel_dev);
 	hw_data->enable_error_correction(accel_dev);
 
-	ret = hw_data->enable_pfvf_comms(accel_dev);
+	ret = hw_data->pfvf_ops.enable_comms(accel_dev);
 	if (ret)
 		return ret;
+
+	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status) &&
+	    accel_dev->is_vf) {
+		if (qat_crypto_vf_dev_config(accel_dev))
+			return -EFAULT;
+	}
 
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.

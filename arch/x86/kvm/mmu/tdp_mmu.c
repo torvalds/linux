@@ -165,7 +165,7 @@ static union kvm_mmu_page_role page_role_for_level(struct kvm_vcpu *vcpu,
 	role = vcpu->arch.mmu->mmu_role.base;
 	role.level = level;
 	role.direct = true;
-	role.gpte_is_8_bytes = true;
+	role.has_4_byte_gpte = false;
 	role.access = ACC_ALL;
 	role.ad_disabled = !shadow_accessed_mask;
 
@@ -1442,11 +1442,11 @@ static bool write_protect_gfn(struct kvm *kvm, struct kvm_mmu_page *root,
 		    !is_last_spte(iter.old_spte, iter.level))
 			continue;
 
-		if (!is_writable_pte(iter.old_spte))
-			break;
-
 		new_spte = iter.old_spte &
 			~(PT_WRITABLE_MASK | shadow_mmu_writable_mask);
+
+		if (new_spte == iter.old_spte)
+			break;
 
 		tdp_mmu_set_spte(kvm, &iter, new_spte);
 		spte_set = true;

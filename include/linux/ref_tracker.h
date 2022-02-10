@@ -4,6 +4,7 @@
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/stackdepot.h>
 
 struct ref_tracker;
 
@@ -26,6 +27,7 @@ static inline void ref_tracker_dir_init(struct ref_tracker_dir *dir,
 	spin_lock_init(&dir->lock);
 	dir->quarantine_avail = quarantine_count;
 	refcount_set(&dir->untracked, 1);
+	stack_depot_init();
 }
 
 void ref_tracker_dir_exit(struct ref_tracker_dir *dir);

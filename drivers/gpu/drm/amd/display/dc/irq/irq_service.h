@@ -69,10 +69,6 @@ struct irq_service {
 	const struct irq_service_funcs *funcs;
 };
 
-const struct irq_source_info *find_irq_source_info(
-	struct irq_service *irq_service,
-	enum dc_irq_source source);
-
 void dal_irq_service_construct(
 	struct irq_service *irq_service,
 	struct irq_service_init_data *init_data);

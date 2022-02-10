@@ -1368,20 +1368,10 @@ static int __igt_mmap_revoke(struct drm_i915_private *i915,
 		}
 	}
 
-	if (!obj->ops->mmap_ops) {
-		err = check_absent(addr, obj->base.size);
-		if (err) {
-			pr_err("%s: was not absent\n", obj->mm.region->name);
-			goto out_unmap;
-		}
-	} else {
-		/* ttm allows access to evicted regions by design */
-
-		err = check_present(addr, obj->base.size);
-		if (err) {
-			pr_err("%s: was not present\n", obj->mm.region->name);
-			goto out_unmap;
-		}
+	err = check_absent(addr, obj->base.size);
+	if (err) {
+		pr_err("%s: was not absent\n", obj->mm.region->name);
+		goto out_unmap;
 	}
 
 out_unmap:

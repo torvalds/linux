@@ -67,14 +67,8 @@ struct slab {
 	static_assert(offsetof(struct page, pg) == offsetof(struct slab, sl))
 SLAB_MATCH(flags, __page_flags);
 SLAB_MATCH(compound_head, slab_list);	/* Ensure bit 0 is clear */
-SLAB_MATCH(slab_list, slab_list);
 #ifndef CONFIG_SLOB
 SLAB_MATCH(rcu_head, rcu_head);
-SLAB_MATCH(slab_cache, slab_cache);
-#endif
-#ifdef CONFIG_SLAB
-SLAB_MATCH(s_mem, s_mem);
-SLAB_MATCH(active, active);
 #endif
 SLAB_MATCH(_refcount, __page_refcount);
 #ifdef CONFIG_MEMCG
@@ -793,11 +787,6 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 		 if ((__n = get_node(__s, __node)))
 
 #endif
-
-void *slab_start(struct seq_file *m, loff_t *pos);
-void *slab_next(struct seq_file *m, void *p, loff_t *pos);
-void slab_stop(struct seq_file *m, void *p);
-int memcg_slab_show(struct seq_file *m, void *p);
 
 #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
 void dump_unreclaimable_slab(void);

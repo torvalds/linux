@@ -207,7 +207,7 @@ static void irdma_remove(struct auxiliary_device *aux_dev)
 							    struct iidc_auxiliary_dev,
 							    adev);
 	struct ice_pf *pf = iidc_adev->pf;
-	struct irdma_device *iwdev = dev_get_drvdata(&aux_dev->dev);
+	struct irdma_device *iwdev = auxiliary_get_drvdata(aux_dev);
 
 	irdma_ib_unregister_device(iwdev);
 	ice_rdma_update_vsi_filter(pf, iwdev->vsi_num, false);
@@ -295,7 +295,7 @@ static int irdma_probe(struct auxiliary_device *aux_dev, const struct auxiliary_
 	ice_rdma_update_vsi_filter(pf, iwdev->vsi_num, true);
 
 	ibdev_dbg(&iwdev->ibdev, "INIT: Gen2 PF[%d] device probe success\n", PCI_FUNC(rf->pcidev->devfn));
-	dev_set_drvdata(&aux_dev->dev, iwdev);
+	auxiliary_set_drvdata(aux_dev, iwdev);
 
 	return 0;
 

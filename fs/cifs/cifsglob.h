@@ -24,8 +24,6 @@
 #include "../smbfs_common/smb2pdu.h"
 #include "smb2pdu.h"
 
-#define CIFS_MAGIC_NUMBER 0xFF534D42      /* the first four bytes of SMB PDUs */
-
 #define SMB_PATH_MAX 260
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
@@ -113,7 +111,14 @@ enum statusEnum {
 	CifsGood,
 	CifsExiting,
 	CifsNeedReconnect,
-	CifsNeedNegotiate
+	CifsNeedNegotiate,
+	CifsInNegotiate,
+	CifsNeedSessSetup,
+	CifsInSessSetup,
+	CifsNeedTcon,
+	CifsInTcon,
+	CifsNeedFilesInvalidate,
+	CifsInFilesInvalidate
 };
 
 enum securityEnum {
@@ -263,13 +268,16 @@ struct smb_version_operations {
 	/* check if we need to negotiate */
 	bool (*need_neg)(struct TCP_Server_Info *);
 	/* negotiate to the server */
-	int (*negotiate)(const unsigned int, struct cifs_ses *);
+	int (*negotiate)(const unsigned int xid,
+			 struct cifs_ses *ses,
+			 struct TCP_Server_Info *server);
 	/* set negotiated write size */
 	unsigned int (*negotiate_wsize)(struct cifs_tcon *tcon, struct smb3_fs_context *ctx);
 	/* set negotiated read size */
 	unsigned int (*negotiate_rsize)(struct cifs_tcon *tcon, struct smb3_fs_context *ctx);
 	/* setup smb sessionn */
 	int (*sess_setup)(const unsigned int, struct cifs_ses *,
+			  struct TCP_Server_Info *server,
 			  const struct nls_table *);
 	/* close smb session */
 	int (*logoff)(const unsigned int, struct cifs_ses *);
@@ -414,7 +422,8 @@ struct smb_version_operations {
 	void (*set_lease_key)(struct inode *, struct cifs_fid *);
 	/* generate new lease key */
 	void (*new_lease_key)(struct cifs_fid *);
-	int (*generate_signingkey)(struct cifs_ses *);
+	int (*generate_signingkey)(struct cifs_ses *ses,
+				   struct TCP_Server_Info *server);
 	int (*calc_signature)(struct smb_rqst *, struct TCP_Server_Info *,
 				bool allocate_crypto);
 	int (*set_integrity)(const unsigned int, struct cifs_tcon *tcon,
@@ -582,7 +591,7 @@ struct TCP_Server_Info {
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	struct smb_version_operations	*ops;
 	struct smb_version_values	*vals;
-	/* updates to tcpStatus protected by GlobalMid_Lock */
+	/* updates to tcpStatus protected by cifs_tcp_ses_lock */
 	enum statusEnum tcpStatus; /* what we think the status is */
 	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
@@ -659,9 +668,6 @@ struct TCP_Server_Info {
 	unsigned int total_read; /* total amount of data read in this pass */
 	atomic_t in_send; /* requests trying to send */
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
-#ifdef CONFIG_CIFS_FSCACHE
-	struct fscache_cookie   *fscache; /* client index cache cookie */
-#endif
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t num_cmds[NUMBER_OF_SMB2_COMMANDS]; /* total requests by cmd */
 	atomic_t smb2slowcmd[NUMBER_OF_SMB2_COMMANDS]; /* count resps > 1 sec */
@@ -915,12 +921,13 @@ struct cifs_chan {
  */
 struct cifs_ses {
 	struct list_head smb_ses_list;
+	struct list_head rlist; /* reconnect list */
 	struct list_head tcon_list;
 	struct cifs_tcon *tcon_ipc;
 	struct mutex session_mutex;
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	int ses_count;		/* reference counter */
-	enum statusEnum status;  /* updates protected by GlobalMid_Lock */
+	enum statusEnum status;  /* updates protected by cifs_tcp_ses_lock */
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
@@ -939,16 +946,12 @@ struct cifs_ses {
 	struct ntlmssp_auth *ntlmssp; /* ciphertext, flags, server challenge */
 	enum securityEnum sectype; /* what security flavor was specified? */
 	bool sign;		/* is signing required? */
-	bool need_reconnect:1; /* connection reset, uid now invalid */
 	bool domainAuto:1;
-	bool binding:1; /* are we binding the session? */
 	__u16 session_flags;
 	__u8 smb3signingkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3encryptionkey[SMB3_ENC_DEC_KEY_SIZE];
 	__u8 smb3decryptionkey[SMB3_ENC_DEC_KEY_SIZE];
 	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
-
-	__u8 binding_preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 
 	/*
 	 * Network interfaces available on the server this session is
@@ -969,44 +972,33 @@ struct cifs_ses {
 	spinlock_t chan_lock;
 	/* ========= begin: protected by chan_lock ======== */
 #define CIFS_MAX_CHANNELS 16
+#define CIFS_ALL_CHANNELS_SET(ses)	\
+	((1UL << (ses)->chan_count) - 1)
+#define CIFS_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect == CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect = CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_CHAN_NEEDS_RECONNECT(ses, index)	\
+	test_bit((index), &(ses)->chans_need_reconnect)
+
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
-	struct cifs_chan *binding_chan;
 	size_t chan_count;
 	size_t chan_max;
 	atomic_t chan_seq; /* round robin state */
+
+	/*
+	 * chans_need_reconnect is a bitmap indicating which of the channels
+	 * under this smb session needs to be reconnected.
+	 * If not multichannel session, only one bit will be used.
+	 *
+	 * We will ask for sess and tcon reconnection only if all the
+	 * channels are marked for needing reconnection. This will
+	 * enable the sessions on top to continue to live till any
+	 * of the channels below are active.
+	 */
+	unsigned long chans_need_reconnect;
 	/* ========= end: protected by chan_lock ======== */
 };
-
-/*
- * When binding a new channel, we need to access the channel which isn't fully
- * established yet.
- */
-
-static inline
-struct cifs_chan *cifs_ses_binding_channel(struct cifs_ses *ses)
-{
-	if (ses->binding)
-		return ses->binding_chan;
-	else
-		return NULL;
-}
-
-/*
- * Returns the server pointer of the session. When binding a new
- * channel this returns the last channel which isn't fully established
- * yet.
- *
- * This function should be use for negprot/sess.setup codepaths. For
- * the other requests see cifs_pick_channel().
- */
-static inline
-struct TCP_Server_Info *cifs_ses_server(struct cifs_ses *ses)
-{
-	if (ses->binding)
-		return ses->binding_chan->server;
-	else
-		return ses->server;
-}
 
 static inline bool
 cap_unix(struct cifs_ses *ses)
@@ -1117,7 +1109,7 @@ struct cifs_tcon {
 	__u32 max_bytes_copy;
 #ifdef CONFIG_CIFS_FSCACHE
 	u64 resource_id;		/* server resource id */
-	struct fscache_cookie *fscache;	/* cookie for share */
+	struct fscache_volume *fscache;	/* cookie for share */
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
 	struct cached_fid crfid; /* Cached root fid */

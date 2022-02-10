@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2011 Realtek Corporation. */
 
-#include "../include/odm_precomp.h"
+#include "../include/drv_types.h"
 
 #define READ_AND_CONFIG     READ_AND_CONFIG_MP
 
@@ -251,17 +251,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 	isCCKrate = ((pPktinfo->Rate >= DESC92C_RATE1M) && (pPktinfo->Rate <= DESC92C_RATE11M)) ? true : false;
 
 	/* Smart Antenna Debug Message------------------  */
-	if (dm_odm->AntDivType == CG_TRX_SMART_ANTDIV) {
-		if (pDM_FatTable->FAT_State == FAT_TRAINING_STATE) {
-			if (pPktinfo->bPacketToSelf) {
-				antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
-						(pDM_FatTable->antsel_rx_keep_1 << 1) |
-						pDM_FatTable->antsel_rx_keep_0;
-				pDM_FatTable->antSumRSSI[antsel_tr_mux] += pPhyInfo->RxPWDBAll;
-				pDM_FatTable->antRSSIcnt[antsel_tr_mux]++;
-			}
-		}
-	} else if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) || (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)) {
+	if ((dm_odm->AntDivType == CG_TRX_HW_ANTDIV) || (dm_odm->AntDivType == CGCS_RX_HW_ANTDIV)) {
 		if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon) {
 			antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2 << 2) |
 					(pDM_FatTable->antsel_rx_keep_1 << 1) | pDM_FatTable->antsel_rx_keep_0;
@@ -368,10 +358,8 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 			struct odm_per_pkt_info *pPktinfo,
 			struct adapter *adapt)
 {
-	odm_RxPhyStatus92CSeries_Parsing(dm_odm, pPhyInfo, pPhyStatus,
-					 pPktinfo, adapt);
-	if (!dm_odm->RSSI_test)
-		odm_Process_RSSIForDM(dm_odm, pPhyInfo, pPktinfo);
+	odm_RxPhyStatus92CSeries_Parsing(dm_odm, pPhyInfo, pPhyStatus, pPktinfo, adapt);
+	odm_Process_RSSIForDM(dm_odm, pPhyInfo, pPktinfo);
 }
 
 enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,

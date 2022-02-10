@@ -538,6 +538,9 @@ void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 {
 	struct i915_mmap_offset *mmo, *mn;
 
+	if (obj->ops->unmap_virtual)
+		obj->ops->unmap_virtual(obj);
+
 	spin_lock(&obj->mmo.lock);
 	rbtree_postorder_for_each_entry_safe(mmo, mn,
 					     &obj->mmo.offsets, offset) {

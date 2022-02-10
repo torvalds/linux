@@ -110,7 +110,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 	match = device_get_match_data(&client->dev);
 	if (match) {
-		chip_type = (enum inv_devices)match;
+		chip_type = (uintptr_t)match;
 		name = client->name;
 	} else if (id) {
 		chip_type = (enum inv_devices)

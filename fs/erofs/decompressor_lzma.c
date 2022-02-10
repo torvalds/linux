@@ -156,7 +156,7 @@ int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
 	const unsigned int nrpages_in =
 		PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT;
-	unsigned int inputmargin, inlen, outlen, pageofs;
+	unsigned int inlen, outlen, pageofs;
 	struct z_erofs_lzma *strm;
 	u8 *kin;
 	bool bounced = false;
@@ -164,16 +164,13 @@ int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 
 	/* 1. get the exact LZMA compressed size */
 	kin = kmap(*rq->in);
-	inputmargin = 0;
-	while (!kin[inputmargin & ~PAGE_MASK])
-		if (!(++inputmargin & ~PAGE_MASK))
-			break;
-
-	if (inputmargin >= PAGE_SIZE) {
+	err = z_erofs_fixup_insize(rq, kin + rq->pageofs_in,
+				   min_t(unsigned int, rq->inputsize,
+					 EROFS_BLKSIZ - rq->pageofs_in));
+	if (err) {
 		kunmap(*rq->in);
-		return -EFSCORRUPTED;
+		return err;
 	}
-	rq->inputsize -= inputmargin;
 
 	/* 2. get an available lzma context */
 again:
@@ -193,9 +190,9 @@ again:
 	xz_dec_microlzma_reset(strm->state, inlen, outlen,
 			       !rq->partial_decoding);
 	pageofs = rq->pageofs_out;
-	strm->buf.in = kin + inputmargin;
+	strm->buf.in = kin + rq->pageofs_in;
 	strm->buf.in_pos = 0;
-	strm->buf.in_size = min_t(u32, inlen, PAGE_SIZE - inputmargin);
+	strm->buf.in_size = min_t(u32, inlen, PAGE_SIZE - rq->pageofs_in);
 	inlen -= strm->buf.in_size;
 	strm->buf.out = NULL;
 	strm->buf.out_pos = 0;

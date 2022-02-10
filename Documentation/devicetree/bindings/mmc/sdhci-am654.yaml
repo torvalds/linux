@@ -48,6 +48,8 @@ properties:
       - const: clk_ahb
       - const: clk_xin
 
+  sdhci-caps-mask: true
+
   # PHY output tap delays:
   # Used to delay the data valid window and align it to the sampling clock.
   # Binding needs to be provided for each supported speed mode otherwise the

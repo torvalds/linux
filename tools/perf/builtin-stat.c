@@ -230,11 +230,12 @@ static bool cpus_map_matched(struct evsel *a, struct evsel *b)
 	if (!a->core.cpus || !b->core.cpus)
 		return false;
 
-	if (a->core.cpus->nr != b->core.cpus->nr)
+	if (perf_cpu_map__nr(a->core.cpus) != perf_cpu_map__nr(b->core.cpus))
 		return false;
 
-	for (int i = 0; i < a->core.cpus->nr; i++) {
-		if (a->core.cpus->map[i] != b->core.cpus->map[i])
+	for (int i = 0; i < perf_cpu_map__nr(a->core.cpus); i++) {
+		if (perf_cpu_map__cpu(a->core.cpus, i).cpu !=
+		    perf_cpu_map__cpu(b->core.cpus, i).cpu)
 			return false;
 	}
 
@@ -327,34 +328,35 @@ static int write_stat_round_event(u64 tm, u64 type)
 
 #define SID(e, x, y) xyarray__entry(e->core.sample_id, x, y)
 
-static int evsel__write_stat_event(struct evsel *counter, u32 cpu, u32 thread,
+static int evsel__write_stat_event(struct evsel *counter, int cpu_map_idx, u32 thread,
 				   struct perf_counts_values *count)
 {
-	struct perf_sample_id *sid = SID(counter, cpu, thread);
+	struct perf_sample_id *sid = SID(counter, cpu_map_idx, thread);
+	struct perf_cpu cpu = perf_cpu_map__cpu(evsel__cpus(counter), cpu_map_idx);
 
 	return perf_event__synthesize_stat(NULL, cpu, thread, sid->id, count,
 					   process_synthesized_event, NULL);
 }
 
-static int read_single_counter(struct evsel *counter, int cpu,
+static int read_single_counter(struct evsel *counter, int cpu_map_idx,
 			       int thread, struct timespec *rs)
 {
 	if (counter->tool_event == PERF_TOOL_DURATION_TIME) {
 		u64 val = rs->tv_nsec + rs->tv_sec*1000000000ULL;
 		struct perf_counts_values *count =
-			perf_counts(counter->counts, cpu, thread);
+			perf_counts(counter->counts, cpu_map_idx, thread);
 		count->ena = count->run = val;
 		count->val = val;
 		return 0;
 	}
-	return evsel__read_counter(counter, cpu, thread);
+	return evsel__read_counter(counter, cpu_map_idx, thread);
 }
 
 /*
  * Read out the results of a single counter:
  * do not aggregate counts across CPUs in system-wide mode
  */
-static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
+static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu_map_idx)
 {
 	int nthreads = perf_thread_map__nr(evsel_list->core.threads);
 	int thread;
@@ -368,24 +370,24 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 	for (thread = 0; thread < nthreads; thread++) {
 		struct perf_counts_values *count;
 
-		count = perf_counts(counter->counts, cpu, thread);
+		count = perf_counts(counter->counts, cpu_map_idx, thread);
 
 		/*
 		 * The leader's group read loads data into its group members
 		 * (via evsel__read_counter()) and sets their count->loaded.
 		 */
-		if (!perf_counts__is_loaded(counter->counts, cpu, thread) &&
-		    read_single_counter(counter, cpu, thread, rs)) {
+		if (!perf_counts__is_loaded(counter->counts, cpu_map_idx, thread) &&
+		    read_single_counter(counter, cpu_map_idx, thread, rs)) {
 			counter->counts->scaled = -1;
-			perf_counts(counter->counts, cpu, thread)->ena = 0;
-			perf_counts(counter->counts, cpu, thread)->run = 0;
+			perf_counts(counter->counts, cpu_map_idx, thread)->ena = 0;
+			perf_counts(counter->counts, cpu_map_idx, thread)->run = 0;
 			return -1;
 		}
 
-		perf_counts__set_loaded(counter->counts, cpu, thread, false);
+		perf_counts__set_loaded(counter->counts, cpu_map_idx, thread, false);
 
 		if (STAT_RECORD) {
-			if (evsel__write_stat_event(counter, cpu, thread, count)) {
+			if (evsel__write_stat_event(counter, cpu_map_idx, thread, count)) {
 				pr_err("failed to write stat event\n");
 				return -1;
 			}
@@ -395,7 +397,8 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 			fprintf(stat_config.output,
 				"%s: %d: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
 					evsel__name(counter),
-					cpu,
+					perf_cpu_map__cpu(evsel__cpus(counter),
+							  cpu_map_idx).cpu,
 					count->val, count->ena, count->run);
 		}
 	}
@@ -405,36 +408,33 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 
 static int read_affinity_counters(struct timespec *rs)
 {
-	struct evsel *counter;
-	struct affinity affinity;
-	int i, ncpus, cpu;
+	struct evlist_cpu_iterator evlist_cpu_itr;
+	struct affinity saved_affinity, *affinity;
 
 	if (all_counters_use_bpf)
 		return 0;
 
-	if (affinity__setup(&affinity) < 0)
-		return -1;
-
-	ncpus = perf_cpu_map__nr(evsel_list->core.all_cpus);
 	if (!target__has_cpu(&target) || target__has_per_thread(&target))
-		ncpus = 1;
-	evlist__for_each_cpu(evsel_list, i, cpu) {
-		if (i >= ncpus)
-			break;
-		affinity__set(&affinity, cpu);
+		affinity = NULL;
+	else if (affinity__setup(&saved_affinity) < 0)
+		return -1;
+	else
+		affinity = &saved_affinity;
 
-		evlist__for_each_entry(evsel_list, counter) {
-			if (evsel__cpu_iter_skip(counter, cpu))
-				continue;
-			if (evsel__is_bpf(counter))
-				continue;
-			if (!counter->err) {
-				counter->err = read_counter_cpu(counter, rs,
-								counter->cpu_iter - 1);
-			}
+	evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
+		struct evsel *counter = evlist_cpu_itr.evsel;
+
+		if (evsel__is_bpf(counter))
+			continue;
+
+		if (!counter->err) {
+			counter->err = read_counter_cpu(counter, rs,
+							evlist_cpu_itr.cpu_map_idx);
 		}
 	}
-	affinity__cleanup(&affinity);
+	if (affinity)
+		affinity__cleanup(&saved_affinity);
+
 	return 0;
 }
 
@@ -788,8 +788,9 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	int status = 0;
 	const bool forks = (argc > 0);
 	bool is_pipe = STAT_RECORD ? perf_stat.data.is_pipe : false;
-	struct affinity affinity;
-	int i, cpu, err;
+	struct evlist_cpu_iterator evlist_cpu_itr;
+	struct affinity saved_affinity, *affinity = NULL;
+	int err;
 	bool second_pass = false;
 
 	if (forks) {
@@ -803,8 +804,11 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	if (group)
 		evlist__set_leader(evsel_list);
 
-	if (affinity__setup(&affinity) < 0)
-		return -1;
+	if (!cpu_map__is_dummy(evsel_list->core.cpus)) {
+		if (affinity__setup(&saved_affinity) < 0)
+			return -1;
+		affinity = &saved_affinity;
+	}
 
 	evlist__for_each_entry(evsel_list, counter) {
 		if (bpf_counter__load(counter, &target))
@@ -813,56 +817,53 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 			all_counters_use_bpf = false;
 	}
 
-	evlist__for_each_cpu (evsel_list, i, cpu) {
+	evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
+		counter = evlist_cpu_itr.evsel;
+
 		/*
 		 * bperf calls evsel__open_per_cpu() in bperf__load(), so
 		 * no need to call it again here.
 		 */
 		if (target.use_bpf)
 			break;
-		affinity__set(&affinity, cpu);
 
-		evlist__for_each_entry(evsel_list, counter) {
-			if (evsel__cpu_iter_skip(counter, cpu))
-				continue;
-			if (counter->reset_group || counter->errored)
-				continue;
-			if (evsel__is_bpf(counter))
-				continue;
+		if (counter->reset_group || counter->errored)
+			continue;
+		if (evsel__is_bpf(counter))
+			continue;
 try_again:
-			if (create_perf_stat_counter(counter, &stat_config, &target,
-						     counter->cpu_iter - 1) < 0) {
+		if (create_perf_stat_counter(counter, &stat_config, &target,
+					     evlist_cpu_itr.cpu_map_idx) < 0) {
 
-				/*
-				 * Weak group failed. We cannot just undo this here
-				 * because earlier CPUs might be in group mode, and the kernel
-				 * doesn't support mixing group and non group reads. Defer
-				 * it to later.
-				 * Don't close here because we're in the wrong affinity.
-				 */
-				if ((errno == EINVAL || errno == EBADF) &&
-				    evsel__leader(counter) != counter &&
-				    counter->weak_group) {
-					evlist__reset_weak_group(evsel_list, counter, false);
-					assert(counter->reset_group);
-					second_pass = true;
-					continue;
-				}
-
-				switch (stat_handle_error(counter)) {
-				case COUNTER_FATAL:
-					return -1;
-				case COUNTER_RETRY:
-					goto try_again;
-				case COUNTER_SKIP:
-					continue;
-				default:
-					break;
-				}
-
+			/*
+			 * Weak group failed. We cannot just undo this here
+			 * because earlier CPUs might be in group mode, and the kernel
+			 * doesn't support mixing group and non group reads. Defer
+			 * it to later.
+			 * Don't close here because we're in the wrong affinity.
+			 */
+			if ((errno == EINVAL || errno == EBADF) &&
+				evsel__leader(counter) != counter &&
+				counter->weak_group) {
+				evlist__reset_weak_group(evsel_list, counter, false);
+				assert(counter->reset_group);
+				second_pass = true;
+				continue;
 			}
-			counter->supported = true;
+
+			switch (stat_handle_error(counter)) {
+			case COUNTER_FATAL:
+				return -1;
+			case COUNTER_RETRY:
+				goto try_again;
+			case COUNTER_SKIP:
+				continue;
+			default:
+				break;
+			}
+
 		}
+		counter->supported = true;
 	}
 
 	if (second_pass) {
@@ -871,45 +872,43 @@ try_again:
 		 * and also close errored counters.
 		 */
 
-		evlist__for_each_cpu(evsel_list, i, cpu) {
-			affinity__set(&affinity, cpu);
-			/* First close errored or weak retry */
-			evlist__for_each_entry(evsel_list, counter) {
-				if (!counter->reset_group && !counter->errored)
-					continue;
-				if (evsel__cpu_iter_skip_no_inc(counter, cpu))
-					continue;
-				perf_evsel__close_cpu(&counter->core, counter->cpu_iter);
-			}
-			/* Now reopen weak */
-			evlist__for_each_entry(evsel_list, counter) {
-				if (!counter->reset_group && !counter->errored)
-					continue;
-				if (evsel__cpu_iter_skip(counter, cpu))
-					continue;
-				if (!counter->reset_group)
-					continue;
-try_again_reset:
-				pr_debug2("reopening weak %s\n", evsel__name(counter));
-				if (create_perf_stat_counter(counter, &stat_config, &target,
-							     counter->cpu_iter - 1) < 0) {
+		/* First close errored or weak retry */
+		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
+			counter = evlist_cpu_itr.evsel;
 
-					switch (stat_handle_error(counter)) {
-					case COUNTER_FATAL:
-						return -1;
-					case COUNTER_RETRY:
-						goto try_again_reset;
-					case COUNTER_SKIP:
-						continue;
-					default:
-						break;
-					}
+			if (!counter->reset_group && !counter->errored)
+				continue;
+
+			perf_evsel__close_cpu(&counter->core, evlist_cpu_itr.cpu_map_idx);
+		}
+		/* Now reopen weak */
+		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
+			counter = evlist_cpu_itr.evsel;
+
+			if (!counter->reset_group && !counter->errored)
+				continue;
+			if (!counter->reset_group)
+				continue;
+try_again_reset:
+			pr_debug2("reopening weak %s\n", evsel__name(counter));
+			if (create_perf_stat_counter(counter, &stat_config, &target,
+						     evlist_cpu_itr.cpu_map_idx) < 0) {
+
+				switch (stat_handle_error(counter)) {
+				case COUNTER_FATAL:
+					return -1;
+				case COUNTER_RETRY:
+					goto try_again_reset;
+				case COUNTER_SKIP:
+					continue;
+				default:
+					break;
 				}
-				counter->supported = true;
 			}
+			counter->supported = true;
 		}
 	}
-	affinity__cleanup(&affinity);
+	affinity__cleanup(affinity);
 
 	evlist__for_each_entry(evsel_list, counter) {
 		if (!counter->supported) {
@@ -1168,6 +1167,26 @@ static int parse_stat_cgroups(const struct option *opt,
 	return parse_cgroups(opt, str, unset);
 }
 
+static int parse_hybrid_type(const struct option *opt,
+			     const char *str,
+			     int unset __maybe_unused)
+{
+	struct evlist *evlist = *(struct evlist **)opt->value;
+
+	if (!list_empty(&evlist->core.entries)) {
+		fprintf(stderr, "Must define cputype before events/metrics\n");
+		return -1;
+	}
+
+	evlist->hybrid_pmu_name = perf_pmu__hybrid_type_to_pmu(str);
+	if (!evlist->hybrid_pmu_name) {
+		fprintf(stderr, "--cputype %s is not supported!\n", str);
+		return -1;
+	}
+
+	return 0;
+}
+
 static struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
@@ -1282,6 +1301,10 @@ static struct option stat_options[] = {
 		       "don't print 'summary' for CSV summary output"),
 	OPT_BOOLEAN(0, "quiet", &stat_config.quiet,
 			"don't print output (useful with record)"),
+	OPT_CALLBACK(0, "cputype", &evsel_list, "hybrid cpu type",
+		     "Only enable events on applying cpu with this type "
+		     "for hybrid platform (e.g. core or atom)",
+		     parse_hybrid_type),
 #ifdef HAVE_LIBPFM
 	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
 		"libpfm4 event selector. use 'perf list' to list available events",
@@ -1298,70 +1321,75 @@ static struct option stat_options[] = {
 	OPT_END()
 };
 
+static const char *const aggr_mode__string[] = {
+	[AGGR_CORE] = "core",
+	[AGGR_DIE] = "die",
+	[AGGR_GLOBAL] = "global",
+	[AGGR_NODE] = "node",
+	[AGGR_NONE] = "none",
+	[AGGR_SOCKET] = "socket",
+	[AGGR_THREAD] = "thread",
+	[AGGR_UNSET] = "unset",
+};
+
 static struct aggr_cpu_id perf_stat__get_socket(struct perf_stat_config *config __maybe_unused,
-				 struct perf_cpu_map *map, int cpu)
+						struct perf_cpu cpu)
 {
-	return cpu_map__get_socket(map, cpu, NULL);
+	return aggr_cpu_id__socket(cpu, /*data=*/NULL);
 }
 
 static struct aggr_cpu_id perf_stat__get_die(struct perf_stat_config *config __maybe_unused,
-			      struct perf_cpu_map *map, int cpu)
+					     struct perf_cpu cpu)
 {
-	return cpu_map__get_die(map, cpu, NULL);
+	return aggr_cpu_id__die(cpu, /*data=*/NULL);
 }
 
 static struct aggr_cpu_id perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
-			       struct perf_cpu_map *map, int cpu)
+					      struct perf_cpu cpu)
 {
-	return cpu_map__get_core(map, cpu, NULL);
+	return aggr_cpu_id__core(cpu, /*data=*/NULL);
 }
 
 static struct aggr_cpu_id perf_stat__get_node(struct perf_stat_config *config __maybe_unused,
-			       struct perf_cpu_map *map, int cpu)
+					      struct perf_cpu cpu)
 {
-	return cpu_map__get_node(map, cpu, NULL);
+	return aggr_cpu_id__node(cpu, /*data=*/NULL);
 }
 
 static struct aggr_cpu_id perf_stat__get_aggr(struct perf_stat_config *config,
-			       aggr_get_id_t get_id, struct perf_cpu_map *map, int idx)
+					      aggr_get_id_t get_id, struct perf_cpu cpu)
 {
-	int cpu;
-	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
-	if (idx >= map->nr)
-		return id;
+	if (aggr_cpu_id__is_empty(&config->cpus_aggr_map->map[cpu.cpu]))
+		config->cpus_aggr_map->map[cpu.cpu] = get_id(config, cpu);
 
-	cpu = map->map[idx];
-
-	if (cpu_map__aggr_cpu_id_is_empty(config->cpus_aggr_map->map[cpu]))
-		config->cpus_aggr_map->map[cpu] = get_id(config, map, idx);
-
-	id = config->cpus_aggr_map->map[cpu];
+	id = config->cpus_aggr_map->map[cpu.cpu];
 	return id;
 }
 
 static struct aggr_cpu_id perf_stat__get_socket_cached(struct perf_stat_config *config,
-					struct perf_cpu_map *map, int idx)
+						       struct perf_cpu cpu)
 {
-	return perf_stat__get_aggr(config, perf_stat__get_socket, map, idx);
+	return perf_stat__get_aggr(config, perf_stat__get_socket, cpu);
 }
 
 static struct aggr_cpu_id perf_stat__get_die_cached(struct perf_stat_config *config,
-					struct perf_cpu_map *map, int idx)
+						    struct perf_cpu cpu)
 {
-	return perf_stat__get_aggr(config, perf_stat__get_die, map, idx);
+	return perf_stat__get_aggr(config, perf_stat__get_die, cpu);
 }
 
 static struct aggr_cpu_id perf_stat__get_core_cached(struct perf_stat_config *config,
-				      struct perf_cpu_map *map, int idx)
+						     struct perf_cpu cpu)
 {
-	return perf_stat__get_aggr(config, perf_stat__get_core, map, idx);
+	return perf_stat__get_aggr(config, perf_stat__get_core, cpu);
 }
 
 static struct aggr_cpu_id perf_stat__get_node_cached(struct perf_stat_config *config,
-				      struct perf_cpu_map *map, int idx)
+						     struct perf_cpu cpu)
 {
-	return perf_stat__get_aggr(config, perf_stat__get_node, map, idx);
+	return perf_stat__get_aggr(config, perf_stat__get_node, cpu);
 }
 
 static bool term_percore_set(void)
@@ -1376,54 +1404,67 @@ static bool term_percore_set(void)
 	return false;
 }
 
-static int perf_stat_init_aggr_mode(void)
+static aggr_cpu_id_get_t aggr_mode__get_aggr(enum aggr_mode aggr_mode)
 {
-	int nr;
-
-	switch (stat_config.aggr_mode) {
+	switch (aggr_mode) {
 	case AGGR_SOCKET:
-		if (cpu_map__build_socket_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build socket map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_socket_cached;
-		break;
+		return aggr_cpu_id__socket;
 	case AGGR_DIE:
-		if (cpu_map__build_die_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build die map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_die_cached;
-		break;
+		return aggr_cpu_id__die;
 	case AGGR_CORE:
-		if (cpu_map__build_core_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_core_cached;
-		break;
+		return aggr_cpu_id__core;
 	case AGGR_NODE:
-		if (cpu_map__build_node_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_node_cached;
-		break;
+		return aggr_cpu_id__node;
 	case AGGR_NONE:
-		if (term_percore_set()) {
-			if (cpu_map__build_core_map(evsel_list->core.cpus,
-						    &stat_config.aggr_map)) {
-				perror("cannot build core map");
-				return -1;
-			}
-			stat_config.aggr_get_id = perf_stat__get_core_cached;
-		}
-		break;
+		if (term_percore_set())
+			return aggr_cpu_id__core;
+
+		return NULL;
 	case AGGR_GLOBAL:
 	case AGGR_THREAD:
 	case AGGR_UNSET:
 	default:
-		break;
+		return NULL;
+	}
+}
+
+static aggr_get_id_t aggr_mode__get_id(enum aggr_mode aggr_mode)
+{
+	switch (aggr_mode) {
+	case AGGR_SOCKET:
+		return perf_stat__get_socket_cached;
+	case AGGR_DIE:
+		return perf_stat__get_die_cached;
+	case AGGR_CORE:
+		return perf_stat__get_core_cached;
+	case AGGR_NODE:
+		return perf_stat__get_node_cached;
+	case AGGR_NONE:
+		if (term_percore_set()) {
+			return perf_stat__get_core_cached;
+		}
+		return NULL;
+	case AGGR_GLOBAL:
+	case AGGR_THREAD:
+	case AGGR_UNSET:
+	default:
+		return NULL;
+	}
+}
+
+static int perf_stat_init_aggr_mode(void)
+{
+	int nr;
+	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr(stat_config.aggr_mode);
+
+	if (get_id) {
+		stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.cpus,
+							 get_id, /*data=*/NULL);
+		if (!stat_config.aggr_map) {
+			pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
+			return -1;
+		}
+		stat_config.aggr_get_id = aggr_mode__get_id(stat_config.aggr_mode);
 	}
 
 	/*
@@ -1431,7 +1472,7 @@ static int perf_stat_init_aggr_mode(void)
 	 * taking the highest cpu number to be the size of
 	 * the aggregation translate cpumap.
 	 */
-	nr = perf_cpu_map__max(evsel_list->core.cpus);
+	nr = perf_cpu_map__max(evsel_list->core.cpus).cpu;
 	stat_config.cpus_aggr_map = cpu_aggr_map__empty_new(nr + 1);
 	return stat_config.cpus_aggr_map ? 0 : -ENOMEM;
 }
@@ -1459,169 +1500,139 @@ static void perf_stat__exit_aggr_mode(void)
 	stat_config.cpus_aggr_map = NULL;
 }
 
-static inline int perf_env__get_cpu(struct perf_env *env, struct perf_cpu_map *map, int idx)
-{
-	int cpu;
-
-	if (idx > map->nr)
-		return -1;
-
-	cpu = map->map[idx];
-
-	if (cpu >= env->nr_cpus_avail)
-		return -1;
-
-	return cpu;
-}
-
-static struct aggr_cpu_id perf_env__get_socket(struct perf_cpu_map *map, int idx, void *data)
+static struct aggr_cpu_id perf_env__get_socket_aggr_by_cpu(struct perf_cpu cpu, void *data)
 {
 	struct perf_env *env = data;
-	int cpu = perf_env__get_cpu(env, map, idx);
-	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
-	if (cpu != -1)
-		id.socket = env->cpu[cpu].socket_id;
+	if (cpu.cpu != -1)
+		id.socket = env->cpu[cpu.cpu].socket_id;
 
 	return id;
 }
 
-static struct aggr_cpu_id perf_env__get_die(struct perf_cpu_map *map, int idx, void *data)
+static struct aggr_cpu_id perf_env__get_die_aggr_by_cpu(struct perf_cpu cpu, void *data)
 {
 	struct perf_env *env = data;
-	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
-	int cpu = perf_env__get_cpu(env, map, idx);
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
-	if (cpu != -1) {
+	if (cpu.cpu != -1) {
 		/*
 		 * die_id is relative to socket, so start
 		 * with the socket ID and then add die to
 		 * make a unique ID.
 		 */
-		id.socket = env->cpu[cpu].socket_id;
-		id.die = env->cpu[cpu].die_id;
+		id.socket = env->cpu[cpu.cpu].socket_id;
+		id.die = env->cpu[cpu.cpu].die_id;
 	}
 
 	return id;
 }
 
-static struct aggr_cpu_id perf_env__get_core(struct perf_cpu_map *map, int idx, void *data)
+static struct aggr_cpu_id perf_env__get_core_aggr_by_cpu(struct perf_cpu cpu, void *data)
 {
 	struct perf_env *env = data;
-	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
-	int cpu = perf_env__get_cpu(env, map, idx);
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
-	if (cpu != -1) {
+	if (cpu.cpu != -1) {
 		/*
 		 * core_id is relative to socket and die,
 		 * we need a global id. So we set
 		 * socket, die id and core id
 		 */
-		id.socket = env->cpu[cpu].socket_id;
-		id.die = env->cpu[cpu].die_id;
-		id.core = env->cpu[cpu].core_id;
+		id.socket = env->cpu[cpu.cpu].socket_id;
+		id.die = env->cpu[cpu.cpu].die_id;
+		id.core = env->cpu[cpu.cpu].core_id;
 	}
 
 	return id;
 }
 
-static struct aggr_cpu_id perf_env__get_node(struct perf_cpu_map *map, int idx, void *data)
+static struct aggr_cpu_id perf_env__get_node_aggr_by_cpu(struct perf_cpu cpu, void *data)
 {
-	int cpu = perf_env__get_cpu(data, map, idx);
-	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
 
 	id.node = perf_env__numa_node(data, cpu);
 	return id;
 }
 
-static int perf_env__build_socket_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				      struct cpu_aggr_map **sockp)
-{
-	return cpu_map__build_map(cpus, sockp, perf_env__get_socket, env);
-}
-
-static int perf_env__build_die_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				   struct cpu_aggr_map **diep)
-{
-	return cpu_map__build_map(cpus, diep, perf_env__get_die, env);
-}
-
-static int perf_env__build_core_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				    struct cpu_aggr_map **corep)
-{
-	return cpu_map__build_map(cpus, corep, perf_env__get_core, env);
-}
-
-static int perf_env__build_node_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				    struct cpu_aggr_map **nodep)
-{
-	return cpu_map__build_map(cpus, nodep, perf_env__get_node, env);
-}
-
 static struct aggr_cpu_id perf_stat__get_socket_file(struct perf_stat_config *config __maybe_unused,
-				      struct perf_cpu_map *map, int idx)
+						     struct perf_cpu cpu)
 {
-	return perf_env__get_socket(map, idx, &perf_stat.session->header.env);
+	return perf_env__get_socket_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 static struct aggr_cpu_id perf_stat__get_die_file(struct perf_stat_config *config __maybe_unused,
-				   struct perf_cpu_map *map, int idx)
+						  struct perf_cpu cpu)
 {
-	return perf_env__get_die(map, idx, &perf_stat.session->header.env);
+	return perf_env__get_die_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
 static struct aggr_cpu_id perf_stat__get_core_file(struct perf_stat_config *config __maybe_unused,
-				    struct perf_cpu_map *map, int idx)
+						   struct perf_cpu cpu)
 {
-	return perf_env__get_core(map, idx, &perf_stat.session->header.env);
+	return perf_env__get_core_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
 static struct aggr_cpu_id perf_stat__get_node_file(struct perf_stat_config *config __maybe_unused,
-				    struct perf_cpu_map *map, int idx)
+						   struct perf_cpu cpu)
 {
-	return perf_env__get_node(map, idx, &perf_stat.session->header.env);
+	return perf_env__get_node_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
-static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
+static aggr_cpu_id_get_t aggr_mode__get_aggr_file(enum aggr_mode aggr_mode)
 {
-	struct perf_env *env = &st->session->header.env;
-
-	switch (stat_config.aggr_mode) {
+	switch (aggr_mode) {
 	case AGGR_SOCKET:
-		if (perf_env__build_socket_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build socket map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_socket_file;
-		break;
+		return perf_env__get_socket_aggr_by_cpu;
 	case AGGR_DIE:
-		if (perf_env__build_die_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build die map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_die_file;
-		break;
+		return perf_env__get_die_aggr_by_cpu;
 	case AGGR_CORE:
-		if (perf_env__build_core_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_core_file;
-		break;
+		return perf_env__get_core_aggr_by_cpu;
 	case AGGR_NODE:
-		if (perf_env__build_node_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
-			return -1;
-		}
-		stat_config.aggr_get_id = perf_stat__get_node_file;
-		break;
+		return perf_env__get_node_aggr_by_cpu;
 	case AGGR_NONE:
 	case AGGR_GLOBAL:
 	case AGGR_THREAD:
 	case AGGR_UNSET:
 	default:
-		break;
+		return NULL;
 	}
+}
 
+static aggr_get_id_t aggr_mode__get_id_file(enum aggr_mode aggr_mode)
+{
+	switch (aggr_mode) {
+	case AGGR_SOCKET:
+		return perf_stat__get_socket_file;
+	case AGGR_DIE:
+		return perf_stat__get_die_file;
+	case AGGR_CORE:
+		return perf_stat__get_core_file;
+	case AGGR_NODE:
+		return perf_stat__get_node_file;
+	case AGGR_NONE:
+	case AGGR_GLOBAL:
+	case AGGR_THREAD:
+	case AGGR_UNSET:
+	default:
+		return NULL;
+	}
+}
+
+static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
+{
+	struct perf_env *env = &st->session->header.env;
+	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr_file(stat_config.aggr_mode);
+
+	if (!get_id)
+		return 0;
+
+	stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.cpus, get_id, env);
+	if (!stat_config.aggr_map) {
+		pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
+		return -1;
+	}
+	stat_config.aggr_get_id = aggr_mode__get_id_file(stat_config.aggr_mode);
 	return 0;
 }
 

@@ -83,14 +83,14 @@ static int srm_env_proc_show(struct seq_file *m, void *v)
 
 static int srm_env_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, srm_env_proc_show, PDE_DATA(inode));
+	return single_open(file, srm_env_proc_show, pde_data(inode));
 }
 
 static ssize_t srm_env_proc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int res;
-	unsigned long	id = (unsigned long)PDE_DATA(file_inode(file));
+	unsigned long	id = (unsigned long)pde_data(file_inode(file));
 	char		*buf = (char *) __get_free_page(GFP_USER);
 	unsigned long	ret1, ret2;
 

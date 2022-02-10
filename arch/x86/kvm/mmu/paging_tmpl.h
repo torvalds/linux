@@ -403,9 +403,8 @@ retry_walk:
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
-		real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
-					      nested_access,
-					      &walker->fault);
+		real_gpa = kvm_translate_gpa(vcpu, mmu, gfn_to_gpa(table_gfn),
+					     nested_access, &walker->fault);
 
 		/*
 		 * FIXME: This can happen if emulation (for of an INS/OUTS
@@ -467,7 +466,7 @@ retry_walk:
 	if (PTTYPE == 32 && walker->level > PG_LEVEL_4K && is_cpuid_PSE36())
 		gfn += pse36_gfn_delta(pte);
 
-	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), access, &walker->fault);
+	real_gpa = kvm_translate_gpa(vcpu, mmu, gfn_to_gpa(gfn), access, &walker->fault);
 	if (real_gpa == UNMAPPED_GVA)
 		return 0;
 
@@ -546,16 +545,6 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 	return FNAME(walk_addr_generic)(walker, vcpu, vcpu->arch.mmu, addr,
 					access);
 }
-
-#if PTTYPE != PTTYPE_EPT
-static int FNAME(walk_addr_nested)(struct guest_walker *walker,
-				   struct kvm_vcpu *vcpu, gva_t addr,
-				   u32 access)
-{
-	return FNAME(walk_addr_generic)(walker, vcpu, &vcpu->arch.nested_mmu,
-					addr, access);
-}
-#endif
 
 static bool
 FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
@@ -1000,14 +989,20 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa)
 }
 
 /* Note, @addr is a GPA when gva_to_gpa() translates an L2 GPA to an L1 GPA. */
-static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gpa_t addr, u32 access,
+static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+			       gpa_t addr, u32 access,
 			       struct x86_exception *exception)
 {
 	struct guest_walker walker;
 	gpa_t gpa = UNMAPPED_GVA;
 	int r;
 
-	r = FNAME(walk_addr)(&walker, vcpu, addr, access);
+#ifndef CONFIG_X86_64
+	/* A 64-bit GVA should be impossible on 32-bit KVM. */
+	WARN_ON_ONCE((addr >> 32) && mmu == vcpu->arch.walk_mmu);
+#endif
+
+	r = FNAME(walk_addr_generic)(&walker, vcpu, mmu, addr, access);
 
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
@@ -1017,33 +1012,6 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gpa_t addr, u32 access,
 
 	return gpa;
 }
-
-#if PTTYPE != PTTYPE_EPT
-/* Note, gva_to_gpa_nested() is only used to translate L2 GVAs. */
-static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gpa_t vaddr,
-				      u32 access,
-				      struct x86_exception *exception)
-{
-	struct guest_walker walker;
-	gpa_t gpa = UNMAPPED_GVA;
-	int r;
-
-#ifndef CONFIG_X86_64
-	/* A 64-bit GVA should be impossible on 32-bit KVM. */
-	WARN_ON_ONCE(vaddr >> 32);
-#endif
-
-	r = FNAME(walk_addr_nested)(&walker, vcpu, vaddr, access);
-
-	if (r) {
-		gpa = gfn_to_gpa(walker.gfn);
-		gpa |= vaddr & ~PAGE_MASK;
-	} else if (exception)
-		*exception = walker.fault;
-
-	return gpa;
-}
-#endif
 
 /*
  * Using the cached information from sp->gfns is safe because:

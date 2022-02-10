@@ -25,10 +25,4 @@ void ODM_AntselStatistics_88E(struct odm_dm_struct *pDM_Odm, u8	antsel_tr_mux,
 
 void odm_FastAntTraining(struct odm_dm_struct *pDM_Odm);
 
-void odm_FastAntTrainingCallback(struct odm_dm_struct *pDM_Odm);
-
-void odm_FastAntTrainingWorkItemCallback(struct odm_dm_struct *pDM_Odm);
-
-void odm_PrimaryCCA_Init(struct odm_dm_struct *pDM_Odm);
-
 #endif

@@ -125,27 +125,6 @@ static int bd71837_get_buck34_enable_hwctrl(struct regulator_dev *rdev)
 
 	return !!(BD718XX_BUCK_RUN_ON & val);
 }
-/*
- * On BD71837 (not on BD71847, BD71850, ...)
- * Bucks 1 to 4 support DVS. PWM mode is used when voltage is changed.
- * Bucks 5 to 8 and LDOs can use PFM and must be disabled when voltage
- * is changed. Hence we return -EBUSY for these if voltage is changed
- * when BUCK/LDO is enabled.
- *
- * On BD71847, BD71850, ... The LDO voltage can be changed when LDO is
- * enabled. But if voltage is increased the LDO power-good monitoring
- * must be disabled for the duration of changing + 1mS to ensure voltage
- * has reached the higher level before HW does next under voltage detection
- * cycle.
- */
-static int bd71837_set_voltage_sel_restricted(struct regulator_dev *rdev,
-						    unsigned int sel)
-{
-	if (rdev->desc->ops->is_enabled(rdev))
-		return -EBUSY;
-
-	return regulator_set_voltage_sel_regmap(rdev, sel);
-}
 
 static void voltage_change_done(struct regulator_dev *rdev, unsigned int sel,
 				unsigned int *mask)
@@ -642,22 +621,22 @@ BD718XX_OPS(bd71837_pickable_range_buck_ops,
 	    bd718x7_set_buck_ovp);
 
 BD718XX_OPS(bd71837_ldo_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, bd71837_set_voltage_sel_restricted,
+	    NULL, rohm_regulator_set_voltage_sel_restricted,
 	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
 	    NULL);
 
 BD718XX_OPS(bd71837_ldo_regulator_nolinear_ops, regulator_list_voltage_table,
-	    NULL, bd71837_set_voltage_sel_restricted,
+	    NULL, rohm_regulator_set_voltage_sel_restricted,
 	    regulator_get_voltage_sel_regmap, NULL, NULL, bd718x7_set_ldo_uvp,
 	    NULL);
 
 BD718XX_OPS(bd71837_buck_regulator_ops, regulator_list_voltage_linear_range,
-	    NULL, bd71837_set_voltage_sel_restricted,
+	    NULL, rohm_regulator_set_voltage_sel_restricted,
 	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
 	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
 
 BD718XX_OPS(bd71837_buck_regulator_nolinear_ops, regulator_list_voltage_table,
-	    regulator_map_voltage_ascend, bd71837_set_voltage_sel_restricted,
+	    regulator_map_voltage_ascend, rohm_regulator_set_voltage_sel_restricted,
 	    regulator_get_voltage_sel_regmap, regulator_set_voltage_time_sel,
 	    NULL, bd718x7_set_buck_uvp, bd718x7_set_buck_ovp);
 /*

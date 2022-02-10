@@ -21,15 +21,15 @@ struct logic_iomem_area {
 
 #define AREA_SHIFT	24
 #define MAX_AREA_SIZE	(1 << AREA_SHIFT)
-#define MAX_AREAS	((1ULL<<32) / MAX_AREA_SIZE)
+#define MAX_AREAS	((1U << 31) / MAX_AREA_SIZE)
 #define AREA_BITS	((MAX_AREAS - 1) << AREA_SHIFT)
 #define AREA_MASK	(MAX_AREA_SIZE - 1)
 #ifdef CONFIG_64BIT
 #define IOREMAP_BIAS	0xDEAD000000000000UL
 #define IOREMAP_MASK	0xFFFFFFFF00000000UL
 #else
-#define IOREMAP_BIAS	0
-#define IOREMAP_MASK	0
+#define IOREMAP_BIAS	0x80000000UL
+#define IOREMAP_MASK	0x80000000UL
 #endif
 
 static DEFINE_MUTEX(regions_mtx);
@@ -76,10 +76,10 @@ static void __iomem *real_ioremap(phys_addr_t offset, size_t size)
 	return NULL;
 }
 
-static void real_iounmap(void __iomem *addr)
+static void real_iounmap(volatile void __iomem *addr)
 {
 	WARN(1, "invalid iounmap for addr 0x%llx\n",
-	     (unsigned long long __force)addr);
+	     (unsigned long long)(uintptr_t __force)addr);
 }
 #endif /* CONFIG_LOGIC_IOMEM_FALLBACK */
 
@@ -149,7 +149,7 @@ get_area(const volatile void __iomem *addr)
 	return NULL;
 }
 
-void iounmap(void __iomem *addr)
+void iounmap(volatile void __iomem *addr)
 {
 	struct logic_iomem_area *area = get_area(addr);
 
@@ -173,7 +173,7 @@ EXPORT_SYMBOL(iounmap);
 static u##sz real_raw_read ## op(const volatile void __iomem *addr)	\
 {									\
 	WARN(1, "Invalid read" #op " at address %llx\n",		\
-	     (unsigned long long __force)addr);				\
+	     (unsigned long long)(uintptr_t __force)addr);		\
 	return (u ## sz)~0ULL;						\
 }									\
 									\
@@ -181,7 +181,8 @@ static void real_raw_write ## op(u ## sz val,				\
 				 volatile void __iomem *addr)		\
 {									\
 	WARN(1, "Invalid writeq" #op " of 0x%llx at address %llx\n",	\
-	     (unsigned long long)val, (unsigned long long __force)addr);\
+	     (unsigned long long)val,					\
+	     (unsigned long long)(uintptr_t __force)addr);\
 }									\
 
 MAKE_FALLBACK(b, 8);
@@ -194,14 +195,14 @@ MAKE_FALLBACK(q, 64);
 static void real_memset_io(volatile void __iomem *addr, int value, size_t size)
 {
 	WARN(1, "Invalid memset_io at address 0x%llx\n",
-	     (unsigned long long __force)addr);
+	     (unsigned long long)(uintptr_t __force)addr);
 }
 
 static void real_memcpy_fromio(void *buffer, const volatile void __iomem *addr,
 			       size_t size)
 {
 	WARN(1, "Invalid memcpy_fromio at address 0x%llx\n",
-	     (unsigned long long __force)addr);
+	     (unsigned long long)(uintptr_t __force)addr);
 
 	memset(buffer, 0xff, size);
 }
@@ -210,7 +211,7 @@ static void real_memcpy_toio(volatile void __iomem *addr, const void *buffer,
 			     size_t size)
 {
 	WARN(1, "Invalid memcpy_toio at address 0x%llx\n",
-	     (unsigned long long __force)addr);
+	     (unsigned long long)(uintptr_t __force)addr);
 }
 #endif /* CONFIG_LOGIC_IOMEM_FALLBACK */
 

@@ -130,8 +130,6 @@ int sierra_ms_init(struct us_data *us)
 	struct swoc_info *swocInfo;
 	struct usb_device *udev;
 
-	retries = 3;
-	result = 0;
 	udev = us->pusb_dev;
 
 	/* Force Modem mode */
