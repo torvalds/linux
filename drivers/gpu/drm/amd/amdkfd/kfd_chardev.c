@@ -1648,7 +1648,7 @@ exit:
 	return ret;
 }
 
-uint32_t get_process_num_bos(struct kfd_process *p)
+static uint32_t get_process_num_bos(struct kfd_process *p)
 {
 	uint32_t num_of_bos = 0;
 	int i;
