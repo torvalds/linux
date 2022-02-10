@@ -418,9 +418,6 @@ static void i9xx_plane_update_noarm(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
 			  plane_state->view.color_plane[0].mapping_stride);
@@ -441,8 +438,6 @@ static void i9xx_plane_update_noarm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, DSPSIZE(i9xx_plane),
 				  DISP_HEIGHT(crtc_h - 1) | DISP_WIDTH(crtc_w - 1));
 	}
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void i9xx_plane_update_arm(struct intel_plane *plane,
@@ -464,8 +459,6 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 		dspaddr_offset = plane_state->view.color_plane[0].offset;
 	else
 		dspaddr_offset = linear_offset;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
 		int crtc_x = plane_state->uapi.dst.x1;
@@ -496,13 +489,15 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	 * the control register just before the surface register.
 	 */
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+
+	/* lock to protect against rmw in fbc nuke */
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 	else
 		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
-
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
@@ -540,14 +535,14 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 	 */
 	dspcntr = i9xx_plane_ctl_crtc(crtc_state);
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+
+	/* lock to protect against rmw in fbc nuke */
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane), 0);
 	else
 		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane), 0);
-
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
@@ -566,8 +561,10 @@ g4x_primary_async_flip(struct intel_plane *plane,
 	if (async_flip)
 		dspcntr |= DISP_ASYNC_FLIP;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+
+	/* lock to protect against rmw in fbc nuke */
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
@@ -582,12 +579,9 @@ vlv_primary_async_flip(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	intel_de_write_fw(dev_priv, DSPADDR_VLV(i9xx_plane),
 			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void
