@@ -121,7 +121,7 @@ static size_t amdgpu_amdkfd_acc_size(uint64_t size)
 }
 
 /**
- * @amdgpu_amdkfd_reserve_mem_limit() - Decrease available memory by size
+ * amdgpu_amdkfd_reserve_mem_limit() - Decrease available memory by size
  * of buffer including any reserved for control structures
  *
  * @adev: Device to which allocated BO belongs to

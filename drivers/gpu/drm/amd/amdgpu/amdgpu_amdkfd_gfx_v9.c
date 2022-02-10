@@ -715,7 +715,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  * process whose pasid is provided as a parameter. The process could have ZERO
  * or more queues running and submitting waves to compute units.
  *
- * @kgd: Handle of device from which to get number of waves in flight
+ * @adev: Handle of device from which to get number of waves in flight
  * @pasid: Identifies the process for which this query call is invoked
  * @pasid_wave_cnt: Output parameter updated with number of waves in flight that
  * belong to process with given pasid
@@ -724,7 +724,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  *
  * Note: It's possible that the device has too many queues (oversubscription)
  * in which case a VMID could be remapped to a different PASID. This could lead
- * to an iaccurate wave count. Following is a high-level sequence:
+ * to an inaccurate wave count. Following is a high-level sequence:
  *    Time T1: vmid = getVmid(); vmid is associated with Pasid P1
  *    Time T2: passId = getPasId(vmid); vmid is associated with Pasid P2
  * In the sequence above wave count obtained from time T1 will be incorrectly
