@@ -439,7 +439,6 @@ struct kvm_mmu {
 	union kvm_cpu_role cpu_role;
 	union kvm_mmu_page_role root_role;
 	u8 root_level;
-	u8 shadow_root_level;
 	bool direct_map;
 
 	/*
