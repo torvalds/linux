@@ -240,9 +240,9 @@ static int pcf8523_param_get(struct device *dev, struct rtc_param *param)
 {
 	struct pcf8523 *pcf8523 = dev_get_drvdata(dev);
 	int ret;
+	u32 value;
 
 	switch(param->param) {
-		u32 value;
 
 	case RTC_PARAM_BACKUP_SWITCH_MODE:
 		ret = regmap_read(pcf8523->regmap, PCF8523_REG_CONTROL3, &value);
@@ -279,9 +279,9 @@ static int pcf8523_param_get(struct device *dev, struct rtc_param *param)
 static int pcf8523_param_set(struct device *dev, struct rtc_param *param)
 {
 	struct pcf8523 *pcf8523 = dev_get_drvdata(dev);
+	u8 mode;
 
 	switch(param->param) {
-		u8 mode;
 	case RTC_PARAM_BACKUP_SWITCH_MODE:
 		switch (param->uvalue) {
 		case RTC_BSM_DISABLED:
