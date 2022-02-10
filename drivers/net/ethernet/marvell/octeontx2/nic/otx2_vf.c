@@ -472,23 +472,7 @@ static void otx2vf_reset_task(struct work_struct *work)
 static int otx2vf_set_features(struct net_device *netdev,
 			       netdev_features_t features)
 {
-	netdev_features_t changed = features ^ netdev->features;
-	bool ntuple_enabled = !!(features & NETIF_F_NTUPLE);
-	struct otx2_nic *vf = netdev_priv(netdev);
-
-	if (changed & NETIF_F_NTUPLE) {
-		if (!ntuple_enabled) {
-			otx2_mcam_flow_del(vf);
-			return 0;
-		}
-
-		if (!otx2_get_maxflows(vf->flow_cfg)) {
-			netdev_err(netdev,
-				   "Can't enable NTUPLE, MCAM entries not allocated\n");
-			return -EINVAL;
-		}
-	}
-	return 0;
+	return otx2_handle_ntuple_tc_features(netdev, features);
 }
 
 static const struct net_device_ops otx2vf_netdev_ops = {
@@ -502,6 +486,7 @@ static const struct net_device_ops otx2vf_netdev_ops = {
 	.ndo_get_stats64 = otx2_get_stats64,
 	.ndo_tx_timeout = otx2_tx_timeout,
 	.ndo_eth_ioctl	= otx2_ioctl,
+	.ndo_setup_tc = otx2_setup_tc,
 };
 
 static int otx2_wq_init(struct otx2_nic *vf)
@@ -663,6 +648,7 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	netdev->hw_features |= NETIF_F_NTUPLE;
 	netdev->hw_features |= NETIF_F_RXALL;
+	netdev->hw_features |= NETIF_F_HW_TC;
 
 	netif_set_gso_max_segs(netdev, OTX2_MAX_GSO_SEGS);
 	netdev->watchdog_timeo = OTX2_TX_TIMEOUT;
@@ -698,18 +684,24 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_unreg_netdev;
 
-	err = otx2_register_dl(vf);
+	err = otx2_init_tc(vf);
 	if (err)
 		goto err_unreg_netdev;
+
+	err = otx2_register_dl(vf);
+	if (err)
+		goto err_shutdown_tc;
 
 #ifdef CONFIG_DCB
 	err = otx2_dcbnl_set_ops(netdev);
 	if (err)
-		goto err_unreg_netdev;
+		goto err_shutdown_tc;
 #endif
 
 	return 0;
 
+err_shutdown_tc:
+	otx2_shutdown_tc(vf);
 err_unreg_netdev:
 	unregister_netdev(netdev);
 err_ptp_destroy:

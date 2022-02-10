@@ -5312,6 +5312,7 @@ int rvu_nix_setup_ratelimit_aggr(struct rvu *rvu, u16 pcifunc,
 	aq_req.ctype = NIX_AQ_CTYPE_BANDPROF;
 	aq_req.op = NIX_AQ_INSTOP_WRITE;
 	memcpy(&aq_req.prof, &aq_rsp.prof, sizeof(struct nix_bandprof_s));
+	memset((char *)&aq_req.prof_mask, 0xff, sizeof(struct nix_bandprof_s));
 	/* Clear higher layer enable bit in the mid profile, just in case */
 	aq_req.prof.hl_en = 0;
 	aq_req.prof_mask.hl_en = 1;

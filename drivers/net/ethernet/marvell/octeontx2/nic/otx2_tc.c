@@ -58,7 +58,7 @@ int otx2_tc_alloc_ent_bitmap(struct otx2_nic *nic)
 {
 	struct otx2_tc_info *tc = &nic->tc_info;
 
-	if (!nic->flow_cfg->max_flows || is_otx2_vf(nic->pcifunc))
+	if (!nic->flow_cfg->max_flows)
 		return 0;
 
 	/* Max flows changed, free the existing bitmap */
@@ -1023,6 +1023,7 @@ int otx2_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL(otx2_setup_tc);
 
 static const struct rhashtable_params tc_flow_ht_params = {
 	.head_offset = offsetof(struct otx2_tc_flow, node),
@@ -1052,6 +1053,7 @@ int otx2_init_tc(struct otx2_nic *nic)
 	tc->flow_ht_params = tc_flow_ht_params;
 	return rhashtable_init(&tc->flow_table, &tc->flow_ht_params);
 }
+EXPORT_SYMBOL(otx2_init_tc);
 
 void otx2_shutdown_tc(struct otx2_nic *nic)
 {
@@ -1060,3 +1062,4 @@ void otx2_shutdown_tc(struct otx2_nic *nic)
 	kfree(tc->tc_entries_bitmap);
 	rhashtable_destroy(&tc->flow_table);
 }
+EXPORT_SYMBOL(otx2_shutdown_tc);
