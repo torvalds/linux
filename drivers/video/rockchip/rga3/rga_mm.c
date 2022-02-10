@@ -11,38 +11,7 @@
 #include "rga_job.h"
 #include "rga_mm.h"
 #include "rga_dma_buf.h"
-#include "rga_hw_config.h"
-
-static bool is_yuv422p_format(u32 format)
-{
-	bool ret = false;
-
-	switch (format) {
-	case RGA2_FORMAT_YCbCr_422_P:
-	case RGA2_FORMAT_YCrCb_422_P:
-		ret = true;
-		break;
-	}
-	return ret;
-}
-
-static void rga_convert_addr(struct rga_img_info_t *img)
-{
-	if (img->rd_mode != RGA_FBC_MODE) {
-		img->uv_addr = img->yrgb_addr + (img->vir_w * img->vir_h);
-
-		//warning: rga3 may need /2 for all
-		if (is_yuv422p_format(img->format))
-			img->v_addr =
-				img->uv_addr + (img->vir_w * img->vir_h) / 2;
-		else
-			img->v_addr =
-				img->uv_addr + (img->vir_w * img->vir_h) / 4;
-	} else {
-		img->uv_addr = img->yrgb_addr;
-		img->v_addr = 0;
-	}
-}
+#include "rga_common.h"
 
 static void rga_current_mm_read_lock(struct mm_struct *mm)
 {
@@ -263,7 +232,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	struct page **pages = NULL;
 	struct rga_virt_addr *virt_addr = NULL;
 
-	user_format_convert(&format, memory_parm->format);
+	rga_user_format_convert(&format, memory_parm->format);
 
 	/* Calculate page size. */
 	count = rga_buf_size_cal(viraddr, viraddr, viraddr, format,
@@ -940,7 +909,7 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 	}
 	mutex_unlock(&mm->lock);
 
-	rga_convert_addr(img);
+	rga_convert_addr(img, false);
 
 	return 0;
 unlock_mm_and_return:

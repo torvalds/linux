@@ -11,6 +11,7 @@
 #include "rga_dma_buf.h"
 #include "rga_mm.h"
 #include "rga_job.h"
+#include "rga_common.h"
 
 extern struct rga2_mmu_info_t rga2_mmu_info;
 

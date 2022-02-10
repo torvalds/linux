@@ -9,7 +9,7 @@
 
 #include "rga_dma_buf.h"
 #include "rga.h"
-#include "rga_hw_config.h"
+#include "rga_common.h"
 #include "rga_job.h"
 
 /**
@@ -568,7 +568,7 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 		return -ENOMEM;
 	}
 
-	user_format_convert(&format, channel_info->format);
+	rga_user_format_convert(&format, channel_info->format);
 
 	scheduler = rga_job_get_scheduler(core);
 	if (scheduler == NULL) {
@@ -681,104 +681,6 @@ out_free_buffer:
 	kfree(alloc_buffer);
 
 	return ret;
-}
-
-static bool is_yuv422p_format(u32 format)
-{
-	bool ret = false;
-
-	switch (format) {
-	case RGA2_FORMAT_YCbCr_422_P:
-	case RGA2_FORMAT_YCrCb_422_P:
-		ret = true;
-		break;
-	}
-	return ret;
-}
-
-static void rga_convert_addr(struct rga_img_info_t *img, bool before_vir_get_channel)
-{
-	/*
-	 * If it is not using dma fd, the virtual/phyical address is assigned
-	 * to the address of the corresponding channel.
-	 */
-
-	//img->yrgb_addr = img->uv_addr;
-
-	/*
-	 * if before_vir_get_channel is true, then convert addr by default
-	 * when has iova (before_vir_get_channel is false),
-	 * need to consider whether fbc case
-	 */
-	if (img->rd_mode != RGA_FBC_MODE || before_vir_get_channel) {
-		img->uv_addr = img->yrgb_addr + (img->vir_w * img->vir_h);
-
-		//warning: rga3 may need /2 for all
-		if (is_yuv422p_format(img->format))
-			img->v_addr =
-				img->uv_addr + (img->vir_w * img->vir_h) / 2;
-		else
-			img->v_addr =
-				img->uv_addr + (img->vir_w * img->vir_h) / 4;
-	} else {
-		img->uv_addr = img->yrgb_addr;
-		img->v_addr = 0;
-	}
-}
-
-int rga_get_format_bits(u32 format)
-{
-	int bits = 0;
-
-	switch (format) {
-	case RGA2_FORMAT_RGBA_8888:
-	case RGA2_FORMAT_RGBX_8888:
-	case RGA2_FORMAT_BGRA_8888:
-	case RGA2_FORMAT_BGRX_8888:
-	case RGA2_FORMAT_ARGB_8888:
-	case RGA2_FORMAT_XRGB_8888:
-	case RGA2_FORMAT_ABGR_8888:
-	case RGA2_FORMAT_XBGR_8888:
-		bits = 32;
-		break;
-	case RGA2_FORMAT_RGB_888:
-	case RGA2_FORMAT_BGR_888:
-		bits = 24;
-		break;
-	case RGA2_FORMAT_RGB_565:
-	case RGA2_FORMAT_RGBA_5551:
-	case RGA2_FORMAT_RGBA_4444:
-	case RGA2_FORMAT_BGR_565:
-	case RGA2_FORMAT_YCbCr_422_SP:
-	case RGA2_FORMAT_YCbCr_422_P:
-	case RGA2_FORMAT_YCrCb_422_SP:
-	case RGA2_FORMAT_YCrCb_422_P:
-	case RGA2_FORMAT_BGRA_5551:
-	case RGA2_FORMAT_BGRA_4444:
-	case RGA2_FORMAT_ARGB_5551:
-	case RGA2_FORMAT_ARGB_4444:
-	case RGA2_FORMAT_ABGR_5551:
-	case RGA2_FORMAT_ABGR_4444:
-		bits = 16;
-		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
-	case RGA2_FORMAT_YCbCr_420_P:
-	case RGA2_FORMAT_YCrCb_420_SP:
-	case RGA2_FORMAT_YCrCb_420_P:
-		bits = 12;
-		break;
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
-	case RGA2_FORMAT_YCbCr_422_SP_10B:
-	case RGA2_FORMAT_YCrCb_422_SP_10B:
-		bits = 15;
-		break;
-	default:
-		pr_err("unknown format [%d]\n", format);
-		return -1;
-	}
-
-	return bits;
 }
 
 static int rga_virtual_memory_check(void *vaddr, u32 w, u32 h, u32 format,

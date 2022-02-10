@@ -30,7 +30,5 @@ void rga_dma_unmap_fd(struct rga_dma_buffer *rga_dma_buffer);
 int rga_dma_get_info(struct rga_job *job);
 void rga_dma_put_info(struct rga_job *job);
 
-int rga_get_format_bits(u32 format);
-
 #endif /* #ifndef __RGA3_DMA_BUF_H__ */
 

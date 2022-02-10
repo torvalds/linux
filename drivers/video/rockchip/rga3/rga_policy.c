@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) "rga_policy: " fmt
 
 #include "rga_job.h"
+#include "rga_common.h"
 #include "rga_hw_config.h"
 
 static int rga_set_feature(struct rga_req *rga_base)
@@ -69,7 +70,7 @@ static bool rga_check_src0(const struct rga_hw_data *data,
 {
 	int format;
 
-	user_format_convert(&format, src0->format);
+	rga_user_format_convert(&format, src0->format);
 
 	if (src0->act_w < data->min_input.w ||
 		src0->act_h < data->min_input.h)
@@ -90,7 +91,7 @@ static bool rga_check_src1(const struct rga_hw_data *data,
 {
 	int format;
 
-	user_format_convert(&format, src1->format);
+	rga_user_format_convert(&format, src1->format);
 
 	if (src1->act_w < data->min_input.w ||
 		src1->act_h < data->min_input.h)
@@ -111,7 +112,7 @@ static bool rga_check_dst(const struct rga_hw_data *data,
 {
 	int format;
 
-	user_format_convert(&format, dst->format);
+	rga_user_format_convert(&format, dst->format);
 
 	if (dst->act_w < data->min_output.w ||
 		dst->act_h < data->min_output.h)

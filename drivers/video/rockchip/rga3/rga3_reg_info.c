@@ -8,7 +8,7 @@
 #define pr_fmt(fmt) "rga3_reg: " fmt
 
 #include "rga3_reg_info.h"
-#include "rga_hw_config.h"
+#include "rga_common.h"
 
 #define FACTOR_MAX ((int)(2 << 15))
 
@@ -1355,8 +1355,8 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		addr_copy(&req->win0, &req_rga->src);
 		addr_copy(&req->wr, &req_rga->dst);
 
-		user_format_convert(&req->win0.format, req_rga->src.format);
-		user_format_convert(&req->wr.format, req_rga->dst.format);
+		rga_user_format_convert(&req->win0.format, req_rga->src.format);
+		rga_user_format_convert(&req->wr.format, req_rga->dst.format);
 	} else {
 		/* A+B->C */
 		if (req_rga->pat.yrgb_addr != 0) {
@@ -1369,9 +1369,9 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			addr_copy(&req->win0, &req_rga->pat);
 			addr_copy(&req->wr, &req_rga->dst);
 
-			user_format_convert(&req->win0.format, req_rga->src.format);
-			user_format_convert(&req->wr.format, req_rga->dst.format);
-			user_format_convert(&req->win1.format, req_rga->pat.format);
+			rga_user_format_convert(&req->win0.format, req_rga->src.format);
+			rga_user_format_convert(&req->wr.format, req_rga->dst.format);
+			rga_user_format_convert(&req->win1.format, req_rga->pat.format);
 
 		} else {
 			/* A+B->B */
@@ -1387,9 +1387,9 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			addr_copy(&req->win0, &req_rga->dst);
 			addr_copy(&req->wr, &req_rga->dst);
 
-			user_format_convert(&req->win1.format, req_rga->src.format);
-			user_format_convert(&req->wr.format, req_rga->dst.format);
-			user_format_convert(&req->win0.format, req_rga->dst.format);
+			rga_user_format_convert(&req->win1.format, req_rga->src.format);
+			rga_user_format_convert(&req->wr.format, req_rga->dst.format);
+			rga_user_format_convert(&req->win0.format, req_rga->dst.format);
 		}
 
 		/* set win0 dst size */

@@ -10,7 +10,7 @@
 #include "rga_job.h"
 #include "rga2_reg_info.h"
 #include "rga2_mmu_info.h"
-#include "rga_hw_config.h"
+#include "rga_common.h"
 
 extern struct rga2_mmu_info_t rga2_mmu_info;
 
@@ -1701,9 +1701,9 @@ void rga_cmd_to_rga2_cmd(struct rga_req *req_rga, struct rga2_req *req)
 	else
 		memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
 
-	user_format_convert(&req->src.format, req_rga->src.format);
-	user_format_convert(&req->dst.format, req_rga->dst.format);
-	user_format_convert(&req->src1.format, req_rga->pat.format);
+	rga_user_format_convert(&req->src.format, req_rga->src.format);
+	rga_user_format_convert(&req->dst.format, req_rga->dst.format);
+	rga_user_format_convert(&req->src1.format, req_rga->pat.format);
 
 	switch (req_rga->rotate_mode & 0x0F) {
 	case 1:

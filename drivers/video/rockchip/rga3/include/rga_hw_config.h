@@ -53,6 +53,4 @@ struct rga_hw_data {
 extern const struct rga_hw_data rga3_data;
 extern const struct rga_hw_data rga2e_data;
 
-void user_format_convert(uint32_t *df, uint32_t sf);
-
 #endif /* __LINUX_RGA_HW_CONFIG_H_ */
