@@ -6,9 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
+#include <linux/net_tstamp.h>
 #include <linux/types.h>
 #include <linux/udp.h>
 #include <sys/socket.h>
@@ -23,6 +25,8 @@ enum {
 	ERN_SOCK_CREATE,
 	ERN_RESOLVE,
 	ERN_CMSG_WR,
+	ERN_SOCKOPT,
+	ERN_GETTIME,
 };
 
 struct options {
@@ -41,6 +45,10 @@ struct options {
 		bool ena;
 		unsigned int val;
 	} mark;
+	struct {
+		bool ena;
+		unsigned int delay;
+	} txtime;
 } opt = {
 	.sock = {
 		.family	= AF_UNSPEC,
@@ -48,6 +56,8 @@ struct options {
 		.proto	= IPPROTO_UDP,
 	},
 };
+
+static struct timespec time_start_mono;
 
 static void __attribute__((noreturn)) cs_usage(const char *bin)
 {
@@ -60,6 +70,7 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\n"
 	       "\t\t-m val  Set SO_MARK with given value\n"
 	       "\t\t-M val  Set SO_MARK via setsockopt\n"
+	       "\t\t-d val  Set SO_TXTIME with given delay (usec)\n"
 	       "");
 	exit(ERN_HELP);
 }
@@ -68,7 +79,7 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	char o;
 
-	while ((o = getopt(argc, argv, "46sp:m:M:")) != -1) {
+	while ((o = getopt(argc, argv, "46sp:m:M:d:")) != -1) {
 		switch (o) {
 		case 's':
 			opt.silent_send = true;
@@ -91,12 +102,17 @@ static void cs_parse_args(int argc, char *argv[])
 				cs_usage(argv[0]);
 			}
 			break;
+
 		case 'm':
 			opt.mark.ena = true;
 			opt.mark.val = atoi(optarg);
 			break;
 		case 'M':
 			opt.sockopt.mark = atoi(optarg);
+			break;
+		case 'd':
+			opt.txtime.ena = true;
+			opt.txtime.delay = atoi(optarg);
 			break;
 		}
 	}
@@ -109,7 +125,7 @@ static void cs_parse_args(int argc, char *argv[])
 }
 
 static void
-cs_write_cmsg(struct msghdr *msg, char *cbuf, size_t cbuf_sz)
+cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 {
 	struct cmsghdr *cmsg;
 	size_t cmsg_len;
@@ -127,6 +143,30 @@ cs_write_cmsg(struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 		cmsg->cmsg_type = SO_MARK;
 		cmsg->cmsg_len = CMSG_LEN(sizeof(__u32));
 		*(__u32 *)CMSG_DATA(cmsg) = opt.mark.val;
+	}
+	if (opt.txtime.ena) {
+		struct sock_txtime so_txtime = {
+			.clockid = CLOCK_MONOTONIC,
+		};
+		__u64 txtime;
+
+		if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
+			       &so_txtime, sizeof(so_txtime)))
+			error(ERN_SOCKOPT, errno, "setsockopt TXTIME");
+
+		txtime = time_start_mono.tv_sec * (1000ULL * 1000 * 1000) +
+			 time_start_mono.tv_nsec +
+			 opt.txtime.delay * 1000;
+
+		cmsg = (struct cmsghdr *)(cbuf + cmsg_len);
+		cmsg_len += CMSG_SPACE(sizeof(txtime));
+		if (cbuf_sz < cmsg_len)
+			error(ERN_CMSG_WR, EFAULT, "cmsg buffer too small");
+
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_TXTIME;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(txtime));
+		memcpy(CMSG_DATA(cmsg), &txtime, sizeof(txtime));
 	}
 
 	if (cmsg_len)
@@ -187,6 +227,9 @@ int main(int argc, char *argv[])
 		       &opt.sockopt.mark, sizeof(opt.sockopt.mark)))
 		error(ERN_SOCKOPT, errno, "setsockopt SO_MARK");
 
+	if (clock_gettime(CLOCK_MONOTONIC, &time_start_mono))
+		error(ERN_GETTIME, errno, "gettime MONOTINIC");
+
 	iov[0].iov_base = buf;
 	iov[0].iov_len = sizeof(buf);
 
@@ -196,7 +239,7 @@ int main(int argc, char *argv[])
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
 
-	cs_write_cmsg(&msg, cbuf, sizeof(cbuf));
+	cs_write_cmsg(fd, &msg, cbuf, sizeof(cbuf));
 
 	err = sendmsg(fd, &msg, 0);
 	if (err < 0) {
