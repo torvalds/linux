@@ -253,7 +253,7 @@ Code  Seq#    Include File                                           Comments
 'l'   00-3F  linux/tcfs_fs.h                                         transparent cryptographic file system
                                                                      <http://web.archive.org/web/%2A/http://mikonos.dia.unisa.it/tcfs>
 'l'   40-7F  linux/udf_fs_i.h                                        in development:
-                                                                     <http://sourceforge.net/projects/linux-udf/>
+                                                                     <https://github.com/pali/udftools>
 'm'   00-09  linux/mmtimer.h                                         conflict!
 'm'   all    linux/mtio.h                                            conflict!
 'm'   all    linux/soundcard.h                                       conflict!
