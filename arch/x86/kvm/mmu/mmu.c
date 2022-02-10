@@ -4808,10 +4808,9 @@ kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu,
 }
 
 static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
-			     const struct kvm_mmu_role_regs *regs)
+			     union kvm_cpu_role cpu_role)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
-	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
 	union kvm_mmu_page_role root_role = kvm_calc_tdp_mmu_root_page_role(vcpu, cpu_role);
 
 	if (cpu_role.as_u64 == context->cpu_role.as_u64 &&
@@ -4867,10 +4866,9 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 }
 
 static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
-				const struct kvm_mmu_role_regs *regs)
+				union kvm_cpu_role cpu_role)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
-	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
 	union kvm_mmu_page_role root_role;
 
 	root_role = cpu_role.base;
@@ -4974,11 +4972,11 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 EXPORT_SYMBOL_GPL(kvm_init_shadow_ept_mmu);
 
 static void init_kvm_softmmu(struct kvm_vcpu *vcpu,
-			     const struct kvm_mmu_role_regs *regs)
+			     union kvm_cpu_role cpu_role)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
 
-	kvm_init_shadow_mmu(vcpu, regs);
+	kvm_init_shadow_mmu(vcpu, cpu_role);
 
 	context->get_guest_pgd     = get_cr3;
 	context->get_pdptr         = kvm_pdptr_read;
@@ -4986,9 +4984,8 @@ static void init_kvm_softmmu(struct kvm_vcpu *vcpu,
 }
 
 static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu,
-				const struct kvm_mmu_role_regs *regs)
+				union kvm_cpu_role new_mode)
 {
-	union kvm_cpu_role new_mode = kvm_calc_cpu_role(vcpu, regs);
 	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
 
 	if (new_mode.as_u64 == g_context->cpu_role.as_u64)
@@ -5029,13 +5026,14 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu,
 void kvm_init_mmu(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_role_regs regs = vcpu_to_role_regs(vcpu);
+	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, &regs);
 
 	if (mmu_is_nested(vcpu))
-		init_kvm_nested_mmu(vcpu, &regs);
+		init_kvm_nested_mmu(vcpu, cpu_role);
 	else if (tdp_enabled)
-		init_kvm_tdp_mmu(vcpu, &regs);
+		init_kvm_tdp_mmu(vcpu, cpu_role);
 	else
-		init_kvm_softmmu(vcpu, &regs);
+		init_kvm_softmmu(vcpu, cpu_role);
 }
 EXPORT_SYMBOL_GPL(kvm_init_mmu);
 
