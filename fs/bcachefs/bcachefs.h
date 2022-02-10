@@ -758,6 +758,7 @@ struct bch_fs {
 	unsigned		write_points_nr;
 
 	struct buckets_waiting_for_journal buckets_waiting_for_journal;
+	struct work_struct	discard_work;
 
 	/* GARBAGE COLLECTION */
 	struct task_struct	*gc_thread;

@@ -401,6 +401,8 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
+	bch2_do_discards(c);
+
 	if (!early) {
 		ret = bch2_fs_read_write_late(c);
 		if (ret)

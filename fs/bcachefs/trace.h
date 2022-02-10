@@ -182,6 +182,40 @@ TRACE_EVENT(journal_reclaim_finish,
 		  __entry->nr_flushed)
 );
 
+/* allocator: */
+
+TRACE_EVENT(do_discards,
+	TP_PROTO(struct bch_fs *c, u64 seen, u64 open,
+		 u64 need_journal_commit, u64 discarded, int ret),
+	TP_ARGS(c, seen, open, need_journal_commit, discarded, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(u64,		seen			)
+		__field(u64,		open			)
+		__field(u64,		need_journal_commit	)
+		__field(u64,		discarded		)
+		__field(int,		ret			)
+	),
+
+	TP_fast_assign(
+		__entry->dev			= c->dev;
+		__entry->seen			= seen;
+		__entry->open			= open;
+		__entry->need_journal_commit	= need_journal_commit;
+		__entry->discarded		= discarded;
+		__entry->ret			= ret;
+	),
+
+	TP_printk("%d%d seen %llu open %llu need_journal_commit %llu discarded %llu ret %i",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->seen,
+		  __entry->open,
+		  __entry->need_journal_commit,
+		  __entry->discarded,
+		  __entry->ret)
+);
+
 /* bset.c: */
 
 DEFINE_EVENT(bpos, bkey_pack_pos_fail,

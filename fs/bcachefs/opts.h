@@ -266,7 +266,7 @@ enum opt_type {
 	x(discard,			u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_DEVICE,					\
 	  OPT_BOOL(),							\
-	  BCH2_NO_SB_OPT,		false,				\
+	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"Enable discard/TRIM support")			\
 	x(verbose,			u8,				\
 	  OPT_FS|OPT_MOUNT,						\

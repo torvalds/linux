@@ -545,6 +545,7 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 		new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
 		new_a->io_time[WRITE]= max_t(u64, 1, atomic64_read(&c->io_clock[WRITE].now));
 		SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, true);
+		SET_BCH_ALLOC_V4_NEED_DISCARD(new_a, true);
 	}
 
 	if (old_a.data_type && !new_a->data_type &&
@@ -577,6 +578,144 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 	}
 
 	return 0;
+}
+
+static int bch2_clear_need_discard(struct btree_trans *trans, struct bpos pos,
+				   struct bch_dev *ca, bool *discard_done)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bkey_i_alloc_v4 *a;
+	struct printbuf buf = PRINTBUF;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, pos,
+			     BTREE_ITER_CACHED);
+	k = bch2_btree_iter_peek_slot(&iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto out;
+
+	a = bch2_alloc_to_v4_mut(trans, k);
+	ret = PTR_ERR_OR_ZERO(a);
+	if (ret)
+		goto out;
+
+	if (BCH_ALLOC_V4_NEED_INC_GEN(&a->v)) {
+		a->v.gen++;
+		SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
+		goto write;
+	}
+
+	BUG_ON(a->v.journal_seq > c->journal.flushed_seq_ondisk);
+
+	if (bch2_fs_inconsistent_on(!BCH_ALLOC_V4_NEED_DISCARD(&a->v), c,
+			"%s\n  incorrectly set in need_discard btree",
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+		ret = -EIO;
+		goto out;
+	}
+
+	if (!*discard_done && ca->mi.discard && !c->opts.nochanges) {
+		/*
+		 * This works without any other locks because this is the only
+		 * thread that removes items from the need_discard tree
+		 */
+		bch2_trans_unlock(trans);
+		blkdev_issue_discard(ca->disk_sb.bdev,
+				     k.k->p.offset * ca->mi.bucket_size,
+				     ca->mi.bucket_size,
+				     GFP_KERNEL);
+		*discard_done = true;
+
+		ret = bch2_trans_relock(trans) ? 0 : -EINTR;
+		if (ret)
+			goto out;
+	}
+
+	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
+write:
+	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
+out:
+	bch2_trans_iter_exit(trans, &iter);
+	printbuf_exit(&buf);
+	return ret;
+}
+
+static void bch2_do_discards_work(struct work_struct *work)
+{
+	struct bch_fs *c = container_of(work, struct bch_fs, discard_work);
+	struct bch_dev *ca = NULL;
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	u64 seen = 0, open = 0, need_journal_commit = 0, discarded = 0;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_need_discard,
+			   POS_MIN, 0, k, ret) {
+		bool discard_done = false;
+
+		if (ca && k.k->p.inode != ca->dev_idx) {
+			percpu_ref_put(&ca->io_ref);
+			ca = NULL;
+		}
+
+		if (!ca) {
+			ca = bch_dev_bkey_exists(c, k.k->p.inode);
+			if (!percpu_ref_tryget(&ca->io_ref)) {
+				ca = NULL;
+				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
+				continue;
+			}
+		}
+
+		seen++;
+
+		if (bch2_bucket_is_open_safe(c, k.k->p.inode, k.k->p.offset)) {
+			open++;
+			continue;
+		}
+
+		if (bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
+				c->journal.flushed_seq_ondisk,
+				k.k->p.inode, k.k->p.offset)) {
+			need_journal_commit++;
+			continue;
+		}
+
+		ret = __bch2_trans_do(&trans, NULL, NULL,
+				      BTREE_INSERT_USE_RESERVE|
+				      BTREE_INSERT_NOFAIL,
+				bch2_clear_need_discard(&trans, k.k->p, ca, &discard_done));
+		if (ret)
+			break;
+
+		discarded++;
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	if (ca)
+		percpu_ref_put(&ca->io_ref);
+
+	bch2_trans_exit(&trans);
+
+	if (need_journal_commit * 2 > seen)
+		bch2_journal_flush_async(&c->journal, NULL);
+
+	percpu_ref_put(&c->writes);
+
+	trace_do_discards(c, seen, open, need_journal_commit, discarded, ret);
+}
+
+void bch2_do_discards(struct bch_fs *c)
+{
+	if (percpu_ref_tryget(&c->writes) &&
+	    !queue_work(system_long_wq, &c->discard_work))
+		percpu_ref_put(&c->writes);
 }
 
 static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
@@ -862,4 +1001,5 @@ void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 void bch2_fs_allocator_background_init(struct bch_fs *c)
 {
 	spin_lock_init(&c->freelist_lock);
+	INIT_WORK(&c->discard_work, bch2_do_discards_work);
 }

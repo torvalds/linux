@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
+#include "alloc_background.h"
 #include "alloc_foreground.h"
 #include "btree_io.h"
 #include "btree_update_interior.h"
@@ -1399,6 +1400,7 @@ static void journal_write_done(struct closure *cl)
 			j->flushed_seq_ondisk = seq;
 			j->last_seq_ondisk = w->last_seq;
 
+			bch2_do_discards(c);
 			closure_wake_up(&c->freelist_wait);
 
 			bch2_reset_alloc_cursors(c);

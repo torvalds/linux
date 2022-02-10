@@ -543,6 +543,11 @@ int bch2_mark_alloc(struct btree_trans *trans,
 	    (!new_a.journal_seq || new_a.journal_seq < c->journal.flushed_seq_ondisk))
 		closure_wake_up(&c->freelist_wait);
 
+	if ((flags & BTREE_TRIGGER_INSERT) &&
+	    BCH_ALLOC_V4_NEED_DISCARD(&new_a) &&
+	    !new_a.journal_seq)
+		bch2_do_discards(c);
+
 	if (bucket_state(new_a) == BUCKET_need_gc_gens) {
 		atomic_inc(&c->kick_gc);
 		wake_up_process(c->gc_thread);
