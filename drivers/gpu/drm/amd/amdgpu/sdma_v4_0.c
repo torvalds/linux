@@ -2058,12 +2058,20 @@ static int sdma_v4_0_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	/* SMU saves SDMA state for us */
+	if (adev->in_s0ix)
+		return 0;
+
 	return sdma_v4_0_hw_fini(adev);
 }
 
 static int sdma_v4_0_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	/* SMU restores SDMA state for us */
+	if (adev->in_s0ix)
+		return 0;
 
 	return sdma_v4_0_hw_init(adev);
 }
