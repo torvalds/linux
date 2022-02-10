@@ -53,8 +53,8 @@ extern spinlock_t mrioc_list_lock;
 extern struct list_head mrioc_list;
 extern int prot_mask;
 
-#define MPI3MR_DRIVER_VERSION	"8.0.0.61.0"
-#define MPI3MR_DRIVER_RELDATE	"20-December-2021"
+#define MPI3MR_DRIVER_VERSION	"8.0.0.68.0"
+#define MPI3MR_DRIVER_RELDATE	"10-February-2022"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
