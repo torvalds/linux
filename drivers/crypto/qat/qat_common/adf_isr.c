@@ -16,6 +16,7 @@
 #include "adf_transport_internal.h"
 
 #define ADF_MAX_NUM_VFS	32
+static struct workqueue_struct *adf_misc_wq;
 
 static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 {
@@ -341,3 +342,30 @@ err_out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adf_isr_resource_alloc);
+
+/**
+ * adf_init_misc_wq() - Init misc workqueue
+ *
+ * Function init workqueue 'qat_misc_wq' for general purpose.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int __init adf_init_misc_wq(void)
+{
+	adf_misc_wq = alloc_workqueue("qat_misc_wq", WQ_MEM_RECLAIM, 0);
+
+	return !adf_misc_wq ? -ENOMEM : 0;
+}
+
+void adf_exit_misc_wq(void)
+{
+	if (adf_misc_wq)
+		destroy_workqueue(adf_misc_wq);
+
+	adf_misc_wq = NULL;
+}
+
+bool adf_misc_wq_queue_work(struct work_struct *work)
+{
+	return queue_work(adf_misc_wq, work);
+}
