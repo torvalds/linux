@@ -365,6 +365,7 @@ static int uclogic_raw_event(struct hid_device *hdev,
 				struct hid_report *report,
 				u8 *data, int size)
 {
+	unsigned int report_id = report->id;
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 	struct uclogic_params *params = &drvdata->params;
 
@@ -374,20 +375,20 @@ static int uclogic_raw_event(struct hid_device *hdev,
 
 	/* Tweak pen reports, if necessary */
 	if (!params->pen_unused &&
-	    (report->id == params->pen.id) &&
+	    (report_id == params->pen.id) &&
 	    (size >= 2)) {
 		/* If it's the "virtual" frame controls report */
 		if (params->frame.id != 0 &&
 		    data[1] & params->pen_frame_flag) {
 			/* Change to virtual frame controls report ID */
-			data[0] = params->frame.id;
-			return 0;
+			report_id = data[0] = params->frame.id;
+		} else {
+			return uclogic_raw_event_pen(drvdata, data, size);
 		}
-		return uclogic_raw_event_pen(drvdata, data, size);
 	}
 
 	/* Tweak frame control reports, if necessary */
-	if (report->id == params->frame.id)
+	if (report_id == params->frame.id)
 		return uclogic_raw_event_frame(drvdata, data, size);
 
 	return 0;
