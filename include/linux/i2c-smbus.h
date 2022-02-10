@@ -30,14 +30,6 @@ struct i2c_client *i2c_new_smbus_alert_device(struct i2c_adapter *adapter,
 					      struct i2c_smbus_alert_setup *setup);
 int i2c_handle_smbus_alert(struct i2c_client *ara);
 
-#if IS_ENABLED(CONFIG_I2C_SMBUS)
-int i2c_setup_smbus_alert(struct i2c_adapter *adap);
-#else
-static inline int i2c_setup_smbus_alert(struct i2c_adapter *adap)
-{
-	return 0;
-}
-#endif
 #if IS_ENABLED(CONFIG_I2C_SMBUS) && IS_ENABLED(CONFIG_I2C_SLAVE)
 struct i2c_client *i2c_new_slave_host_notify_device(struct i2c_adapter *adapter);
 void i2c_free_slave_host_notify_device(struct i2c_client *client);
