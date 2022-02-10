@@ -42,9 +42,6 @@
 #include <drm/drm_connector.h>
 #include <drm/ttm/ttm_device.h>
 
-#include "i915_params.h"
-#include "i915_utils.h"
-
 #include "display/intel_bios.h"
 #include "display/intel_cdclk.h"
 #include "display/intel_display.h"
@@ -59,9 +56,9 @@
 #include "display/intel_opregion.h"
 
 #include "gem/i915_gem_context_types.h"
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_shrinker.h"
 #include "gem/i915_gem_stolen.h"
-#include "gem/i915_gem_lmem.h"
 
 #include "gt/intel_engine.h"
 #include "gt/intel_gt_types.h"
@@ -69,6 +66,12 @@
 #include "gt/intel_workarounds.h"
 #include "gt/uc/intel_uc.h"
 
+#include "i915_gem.h"
+#include "i915_gpu_error.h"
+#include "i915_params.h"
+#include "i915_perf_types.h"
+#include "i915_scheduler.h"
+#include "i915_utils.h"
 #include "intel_device_info.h"
 #include "intel_memory_region.h"
 #include "intel_pch.h"
@@ -77,11 +80,6 @@
 #include "intel_step.h"
 #include "intel_uncore.h"
 #include "intel_wopcm.h"
-
-#include "i915_gem.h"
-#include "i915_gpu_error.h"
-#include "i915_perf_types.h"
-#include "i915_scheduler.h"
 
 struct dpll;
 struct drm_i915_clock_gating_funcs;
