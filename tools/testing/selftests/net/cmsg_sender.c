@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <linux/errqueue.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/net_tstamp.h>
@@ -27,6 +28,9 @@ enum {
 	ERN_CMSG_WR,
 	ERN_SOCKOPT,
 	ERN_GETTIME,
+	ERN_RECVERR,
+	ERN_CMSG_RD,
+	ERN_CMSG_RCV,
 };
 
 struct options {
@@ -49,6 +53,9 @@ struct options {
 		bool ena;
 		unsigned int delay;
 	} txtime;
+	struct {
+		bool ena;
+	} ts;
 } opt = {
 	.sock = {
 		.family	= AF_UNSPEC,
@@ -57,6 +64,7 @@ struct options {
 	},
 };
 
+static struct timespec time_start_real;
 static struct timespec time_start_mono;
 
 static void __attribute__((noreturn)) cs_usage(const char *bin)
@@ -71,6 +79,7 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\t\t-m val  Set SO_MARK with given value\n"
 	       "\t\t-M val  Set SO_MARK via setsockopt\n"
 	       "\t\t-d val  Set SO_TXTIME with given delay (usec)\n"
+	       "\t\t-t      Enable time stamp reporting\n"
 	       "");
 	exit(ERN_HELP);
 }
@@ -79,7 +88,7 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	char o;
 
-	while ((o = getopt(argc, argv, "46sp:m:M:d:")) != -1) {
+	while ((o = getopt(argc, argv, "46sp:m:M:d:t")) != -1) {
 		switch (o) {
 		case 's':
 			opt.silent_send = true;
@@ -113,6 +122,9 @@ static void cs_parse_args(int argc, char *argv[])
 		case 'd':
 			opt.txtime.ena = true;
 			opt.txtime.delay = atoi(optarg);
+			break;
+		case 't':
+			opt.ts.ena = true;
 			break;
 		}
 	}
@@ -168,11 +180,110 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 		cmsg->cmsg_len = CMSG_LEN(sizeof(txtime));
 		memcpy(CMSG_DATA(cmsg), &txtime, sizeof(txtime));
 	}
+	if (opt.ts.ena) {
+		__u32 val = SOF_TIMESTAMPING_SOFTWARE |
+			    SOF_TIMESTAMPING_OPT_TSONLY;
+
+		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
+			       &val, sizeof(val)))
+			error(ERN_SOCKOPT, errno, "setsockopt TIMESTAMPING");
+
+		cmsg = (struct cmsghdr *)(cbuf + cmsg_len);
+		cmsg_len += CMSG_SPACE(sizeof(__u32));
+		if (cbuf_sz < cmsg_len)
+			error(ERN_CMSG_WR, EFAULT, "cmsg buffer too small");
+
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SO_TIMESTAMPING;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(__u32));
+		*(__u32 *)CMSG_DATA(cmsg) = SOF_TIMESTAMPING_TX_SCHED |
+					    SOF_TIMESTAMPING_TX_SOFTWARE;
+	}
 
 	if (cmsg_len)
 		msg->msg_controllen = cmsg_len;
 	else
 		msg->msg_control = NULL;
+}
+
+static const char *cs_ts_info2str(unsigned int info)
+{
+	static const char *names[] = {
+		[SCM_TSTAMP_SND]	= "SND",
+		[SCM_TSTAMP_SCHED]	= "SCHED",
+		[SCM_TSTAMP_ACK]	= "ACK",
+	};
+
+	if (info < sizeof(names) / sizeof(names[0]))
+		return names[info];
+	return "unknown";
+}
+
+static void
+cs_read_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
+{
+	struct sock_extended_err *see;
+	struct scm_timestamping *ts;
+	struct cmsghdr *cmsg;
+	int i, err;
+
+	if (!opt.ts.ena)
+		return;
+	msg->msg_control = cbuf;
+	msg->msg_controllen = cbuf_sz;
+
+	while (true) {
+		ts = NULL;
+		see = NULL;
+		memset(cbuf, 0, cbuf_sz);
+
+		err = recvmsg(fd, msg, MSG_ERRQUEUE);
+		if (err < 0) {
+			if (errno == EAGAIN)
+				break;
+			error(ERN_RECVERR, errno, "recvmsg ERRQ");
+		}
+
+		for (cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL;
+		     cmsg = CMSG_NXTHDR(msg, cmsg)) {
+			if (cmsg->cmsg_level == SOL_SOCKET &&
+			    cmsg->cmsg_type == SO_TIMESTAMPING_OLD) {
+				if (cmsg->cmsg_len < sizeof(*ts))
+					error(ERN_CMSG_RD, EINVAL, "TS cmsg");
+
+				ts = (void *)CMSG_DATA(cmsg);
+			}
+			if ((cmsg->cmsg_level == SOL_IP &&
+			     cmsg->cmsg_type == IP_RECVERR) ||
+			    (cmsg->cmsg_level == SOL_IPV6 &&
+			     cmsg->cmsg_type == IPV6_RECVERR)) {
+				if (cmsg->cmsg_len < sizeof(*see))
+					error(ERN_CMSG_RD, EINVAL, "sock_err cmsg");
+
+				see = (void *)CMSG_DATA(cmsg);
+			}
+		}
+
+		if (!ts)
+			error(ERN_CMSG_RCV, ENOENT, "TS cmsg not found");
+		if (!see)
+			error(ERN_CMSG_RCV, ENOENT, "sock_err cmsg not found");
+
+		for (i = 0; i < 3; i++) {
+			unsigned long long rel_time;
+
+			if (!ts->ts[i].tv_sec && !ts->ts[i].tv_nsec)
+				continue;
+
+			rel_time = (ts->ts[i].tv_sec - time_start_real.tv_sec) *
+				(1000ULL * 1000) +
+				(ts->ts[i].tv_nsec - time_start_real.tv_nsec) /
+				1000;
+			printf(" %5s ts%d %lluus\n",
+			       cs_ts_info2str(see->ee_info),
+			       i, rel_time);
+		}
+	}
 }
 
 int main(int argc, char *argv[])
@@ -227,6 +338,8 @@ int main(int argc, char *argv[])
 		       &opt.sockopt.mark, sizeof(opt.sockopt.mark)))
 		error(ERN_SOCKOPT, errno, "setsockopt SO_MARK");
 
+	if (clock_gettime(CLOCK_REALTIME, &time_start_real))
+		error(ERN_GETTIME, errno, "gettime REALTIME");
 	if (clock_gettime(CLOCK_MONOTONIC, &time_start_mono))
 		error(ERN_GETTIME, errno, "gettime MONOTINIC");
 
@@ -246,13 +359,21 @@ int main(int argc, char *argv[])
 		if (!opt.silent_send)
 			fprintf(stderr, "send failed: %s\n", strerror(errno));
 		err = ERN_SEND;
+		goto err_out;
 	} else if (err != sizeof(buf)) {
 		fprintf(stderr, "short send\n");
 		err = ERN_SEND_SHORT;
+		goto err_out;
 	} else {
 		err = ERN_SUCCESS;
 	}
 
+	/* Make sure all timestamps have time to loop back */
+	usleep(opt.txtime.delay);
+
+	cs_read_cmsg(fd, &msg, cbuf, sizeof(cbuf));
+
+err_out:
 	close(fd);
 	freeaddrinfo(ai);
 	return err;
