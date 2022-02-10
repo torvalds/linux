@@ -59,8 +59,6 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct pingfakehdr pfh;
 	struct ipcm6_cookie ipc6;
 
-	pr_debug("ping_v6_sendmsg(sk=%p,sk->num=%u)\n", inet, inet->inet_num);
-
 	err = ping_common_sendmsg(AF_INET6, msg, len, &user_icmph,
 				  sizeof(user_icmph));
 	if (err)
