@@ -60,7 +60,14 @@ struct uniphier_pcie_ep_priv {
 	struct clk *clk, *clk_gio;
 	struct reset_control *rst, *rst_gio;
 	struct phy *phy;
-	const struct pci_epc_features *features;
+	const struct uniphier_pcie_ep_soc_data *data;
+};
+
+struct uniphier_pcie_ep_soc_data {
+	bool has_gio;
+	void (*init)(struct uniphier_pcie_ep_priv *priv);
+	int (*wait)(struct uniphier_pcie_ep_priv *priv);
+	const struct pci_epc_features features;
 };
 
 #define to_uniphier_pcie(x)	dev_get_drvdata((x)->dev)
@@ -91,7 +98,7 @@ static void uniphier_pcie_phy_reset(struct uniphier_pcie_ep_priv *priv,
 	writel(val, priv->base + PCL_RSTCTRL2);
 }
 
-static void uniphier_pcie_init_ep(struct uniphier_pcie_ep_priv *priv)
+static void uniphier_pcie_pro5_init_ep(struct uniphier_pcie_ep_priv *priv)
 {
 	u32 val;
 
@@ -209,7 +216,7 @@ uniphier_pcie_get_features(struct dw_pcie_ep *ep)
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct uniphier_pcie_ep_priv *priv = to_uniphier_pcie(pci);
 
-	return priv->features;
+	return &priv->data->features;
 }
 
 static const struct dw_pcie_ep_ops uniphier_pcie_ep_ops = {
@@ -238,7 +245,8 @@ static int uniphier_pcie_ep_enable(struct uniphier_pcie_ep_priv *priv)
 	if (ret)
 		goto out_rst_assert;
 
-	uniphier_pcie_init_ep(priv);
+	if (priv->data->init)
+		priv->data->init(priv);
 
 	uniphier_pcie_phy_reset(priv, true);
 
@@ -248,8 +256,16 @@ static int uniphier_pcie_ep_enable(struct uniphier_pcie_ep_priv *priv)
 
 	uniphier_pcie_phy_reset(priv, false);
 
+	if (priv->data->wait) {
+		ret = priv->data->wait(priv);
+		if (ret)
+			goto out_phy_exit;
+	}
+
 	return 0;
 
+out_phy_exit:
+	phy_exit(priv->phy);
 out_rst_gio_assert:
 	reset_control_assert(priv->rst_gio);
 out_rst_assert:
@@ -277,8 +293,8 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->features = of_device_get_match_data(dev);
-	if (WARN_ON(!priv->features))
+	priv->data = of_device_get_match_data(dev);
+	if (WARN_ON(!priv->data))
 		return -EINVAL;
 
 	priv->pci.dev = dev;
@@ -288,13 +304,15 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	priv->clk_gio = devm_clk_get(dev, "gio");
-	if (IS_ERR(priv->clk_gio))
-		return PTR_ERR(priv->clk_gio);
+	if (priv->data->has_gio) {
+		priv->clk_gio = devm_clk_get(dev, "gio");
+		if (IS_ERR(priv->clk_gio))
+			return PTR_ERR(priv->clk_gio);
 
-	priv->rst_gio = devm_reset_control_get_shared(dev, "gio");
-	if (IS_ERR(priv->rst_gio))
-		return PTR_ERR(priv->rst_gio);
+		priv->rst_gio = devm_reset_control_get_shared(dev, "gio");
+		if (IS_ERR(priv->rst_gio))
+			return PTR_ERR(priv->rst_gio);
+	}
 
 	priv->clk = devm_clk_get(dev, "link");
 	if (IS_ERR(priv->clk))
@@ -321,13 +339,18 @@ static int uniphier_pcie_ep_probe(struct platform_device *pdev)
 	return dw_pcie_ep_init(&priv->pci.ep);
 }
 
-static const struct pci_epc_features uniphier_pro5_data = {
-	.linkup_notifier = false,
-	.msi_capable = true,
-	.msix_capable = false,
-	.align = 1 << 16,
-	.bar_fixed_64bit = BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
-	.reserved_bar =  BIT(BAR_4),
+static const struct uniphier_pcie_ep_soc_data uniphier_pro5_data = {
+	.has_gio = true,
+	.init = uniphier_pcie_pro5_init_ep,
+	.wait = NULL,
+	.features = {
+		.linkup_notifier = false,
+		.msi_capable = true,
+		.msix_capable = false,
+		.align = 1 << 16,
+		.bar_fixed_64bit = BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
+		.reserved_bar =  BIT(BAR_4),
+	},
 };
 
 static const struct of_device_id uniphier_pcie_ep_match[] = {
