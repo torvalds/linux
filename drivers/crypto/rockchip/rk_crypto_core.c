@@ -87,11 +87,14 @@ static int check_scatter_align(struct scatterlist *sg_src,
 	int in, out, align;
 
 	in = IS_ALIGNED((u32)sg_src->offset, 4) &&
-	     IS_ALIGNED((u32)sg_src->length, align_mask);
+	     IS_ALIGNED((u32)sg_src->length, align_mask) &&
+	     (sg_phys(sg_src) < SZ_4G);
 	if (!sg_dst)
 		return in;
+
 	out = IS_ALIGNED((u32)sg_dst->offset, 4) &&
-	      IS_ALIGNED((u32)sg_dst->length, align_mask);
+	      IS_ALIGNED((u32)sg_dst->length, align_mask) &&
+	      (sg_phys(sg_dst) < SZ_4G);
 	align = in && out;
 
 	return (align && (sg_src->length == sg_dst->length));
@@ -392,11 +395,14 @@ static void rk_crypto_done_task_cb(unsigned long data)
 	if (rk_dev->err)
 		goto exit;
 
+	if (alg_ctx->total && alg_ctx->left_bytes == 0) {
+		/* unload data for last calculation */
+		rk_dev->err = rk_update_op(rk_dev);
+		goto exit;
+	}
+
 	rk_dev->err = rk_update_op(rk_dev);
 	if (rk_dev->err)
-		goto exit;
-
-	if (alg_ctx->total && alg_ctx->left_bytes == 0)
 		goto exit;
 
 	return;
@@ -586,7 +592,7 @@ static char *px30_algs_name[] = {
 
 static char *crypto_full_algs_name[] = {
 	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)", "xts(sm4)",
-	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ctr(aes)", "xts(aes)",
+	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)", "xts(aes)",
 	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
 	"sha1", "sha256", "sha512", "md5", "sm3",
