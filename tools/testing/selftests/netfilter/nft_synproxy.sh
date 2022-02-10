@@ -23,6 +23,8 @@ checktool "ip -Version" "run test without ip tool"
 checktool "iperf3 --version" "run test without iperf3"
 checktool "ip netns add $nsr" "create net namespace"
 
+modprobe -q nf_conntrack
+
 ip netns add $ns1
 ip netns add $ns2
 
