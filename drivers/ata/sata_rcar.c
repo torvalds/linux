@@ -18,10 +18,6 @@
 
 #define DRV_NAME "sata_rcar"
 
-/* SH-Navi2G/ATAPI-ATA compatible task registers */
-#define DATA_REG			0x100
-#define SDEVCON_REG			0x138
-
 /* SH-Navi2G/ATAPI module compatible control registers */
 #define ATAPI_CONTROL1_REG		0x180
 #define ATAPI_STATUS_REG		0x184
