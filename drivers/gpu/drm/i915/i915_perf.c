@@ -209,6 +209,7 @@
 #include "gt/intel_ring.h"
 
 #include "i915_drv.h"
+#include "i915_file_private.h"
 #include "i915_perf.h"
 #include "i915_perf_oa_regs.h"
 
