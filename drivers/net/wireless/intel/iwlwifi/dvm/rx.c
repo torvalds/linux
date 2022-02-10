@@ -915,7 +915,7 @@ static void iwlagn_rx_noa_notification(struct iwl_priv *priv,
 		len += 1 + 2;
 		copylen += 1 + 2;
 
-		new_data = kmalloc(sizeof(*new_data) + len, GFP_ATOMIC);
+		new_data = kmalloc(struct_size(new_data, data, len), GFP_ATOMIC);
 		if (new_data) {
 			new_data->length = len;
 			new_data->data[0] = WLAN_EID_VENDOR_SPECIFIC;
