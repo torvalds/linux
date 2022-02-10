@@ -66,18 +66,70 @@ static int sof_client_dev_add_data(struct sof_client_dev *cdev, const void *data
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST)
+static int sof_register_ipc_flood_test(struct snd_sof_dev *sdev)
+{
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST_NUM; i++) {
+		ret = sof_client_dev_register(sdev, "ipc_flood", i, NULL, 0);
+		if (ret < 0)
+			break;
+	}
+
+	if (ret) {
+		for (; i >= 0; --i)
+			sof_client_dev_unregister(sdev, "ipc_flood", i);
+	}
+
+	return ret;
+}
+
+static void sof_unregister_ipc_flood_test(struct snd_sof_dev *sdev)
+{
+	int i;
+
+	for (i = 0; i < CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST_NUM; i++)
+		sof_client_dev_unregister(sdev, "ipc_flood", i);
+}
+#else
+static inline int sof_register_ipc_flood_test(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+
+static inline void sof_unregister_ipc_flood_test(struct snd_sof_dev *sdev) {}
+#endif /* CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST */
+
 int sof_register_clients(struct snd_sof_dev *sdev)
 {
-	if (sof_ops(sdev) && sof_ops(sdev)->register_ipc_clients)
-		return sof_ops(sdev)->register_ipc_clients(sdev);
+	int ret;
 
-	return 0;
+	/* Register platform independent client devices */
+	ret = sof_register_ipc_flood_test(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "IPC flood test client registration failed\n");
+		return ret;
+	}
+
+	/* Platform depndent client device registration */
+
+	if (sof_ops(sdev) && sof_ops(sdev)->register_ipc_clients)
+		ret = sof_ops(sdev)->register_ipc_clients(sdev);
+
+	if (ret)
+		sof_unregister_ipc_flood_test(sdev);
+
+	return ret;
 }
 
 void sof_unregister_clients(struct snd_sof_dev *sdev)
 {
 	if (sof_ops(sdev) && sof_ops(sdev)->unregister_ipc_clients)
 		sof_ops(sdev)->unregister_ipc_clients(sdev);
+
+	sof_unregister_ipc_flood_test(sdev);
 }
 
 int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
