@@ -8,9 +8,10 @@
 
 #include "i915_selftest.h"
 
-#include "gem/i915_gem_region.h"
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_pm.h"
+#include "gem/i915_gem_region.h"
 
 #include "gt/intel_gt.h"
 
