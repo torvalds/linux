@@ -107,7 +107,7 @@ void dcn10_lock_all_pipes(struct dc *dc,
 		 * (un)locking. Also skip if pipe is disabled.
 		 */
 		if (pipe_ctx->top_pipe ||
-		    !pipe_ctx->stream || !pipe_ctx->plane_state ||
+		    !pipe_ctx->stream ||
 		    !tg->funcs->is_tg_enabled(tg))
 			continue;
 
