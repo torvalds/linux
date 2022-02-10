@@ -5,6 +5,7 @@
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_dcb_lib.h"
+#include "ice_virtchnl_pf.h"
 
 static bool ice_alloc_rx_buf_zc(struct ice_rx_ring *rx_ring)
 {
@@ -418,8 +419,22 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	 */
 	rlan_ctx.crcstrip = 1;
 
-	/* L2TSEL flag defines the reported L2 Tags in the receive descriptor */
-	rlan_ctx.l2tsel = 1;
+	/* L2TSEL flag defines the reported L2 Tags in the receive descriptor
+	 * and it needs to remain 1 for non-DVM capable configurations to not
+	 * break backward compatibility for VF drivers. Setting this field to 0
+	 * will cause the single/outer VLAN tag to be stripped to the L2TAG2_2ND
+	 * field in the Rx descriptor. Setting it to 1 allows the VLAN tag to
+	 * be stripped in L2TAG1 of the Rx descriptor, which is where VFs will
+	 * check for the tag
+	 */
+	if (ice_is_dvm_ena(hw))
+		if (vsi->type == ICE_VSI_VF &&
+		    ice_vf_is_port_vlan_ena(&vsi->back->vf[vsi->vf_id]))
+			rlan_ctx.l2tsel = 1;
+		else
+			rlan_ctx.l2tsel = 0;
+	else
+		rlan_ctx.l2tsel = 1;
 
 	rlan_ctx.dtype = ICE_RX_DTYPE_NO_SPLIT;
 	rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_NO_SPLIT;

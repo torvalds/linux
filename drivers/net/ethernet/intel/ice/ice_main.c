@@ -21,6 +21,7 @@
 #include "ice_trace.h"
 #include "ice_eswitch.h"
 #include "ice_tc_lib.h"
+#include "ice_vsi_vlan_ops.h"
 
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -244,7 +245,7 @@ static int ice_set_promisc(struct ice_vsi *vsi, u8 promisc_m)
 	if (vsi->type != ICE_VSI_PF)
 		return 0;
 
-	if (vsi->num_vlan > 1)
+	if (ice_vsi_has_non_zero_vlans(vsi))
 		status = ice_fltr_set_vlan_vsi_promisc(&vsi->back->hw, vsi, promisc_m);
 	else
 		status = ice_fltr_set_vsi_promisc(&vsi->back->hw, vsi->idx, promisc_m, 0);
@@ -264,7 +265,7 @@ static int ice_clear_promisc(struct ice_vsi *vsi, u8 promisc_m)
 	if (vsi->type != ICE_VSI_PF)
 		return 0;
 
-	if (vsi->num_vlan > 1)
+	if (ice_vsi_has_non_zero_vlans(vsi))
 		status = ice_fltr_clear_vlan_vsi_promisc(&vsi->back->hw, vsi, promisc_m);
 	else
 		status = ice_fltr_clear_vsi_promisc(&vsi->back->hw, vsi->idx, promisc_m, 0);
@@ -279,6 +280,7 @@ static int ice_clear_promisc(struct ice_vsi *vsi, u8 promisc_m)
  */
 static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 {
+	struct ice_vsi_vlan_ops *vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
 	struct device *dev = ice_pf_to_dev(vsi->back);
 	struct net_device *netdev = vsi->netdev;
 	bool promisc_forced_on = false;
@@ -352,7 +354,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	/* check for changes in promiscuous modes */
 	if (changed_flags & IFF_ALLMULTI) {
 		if (vsi->current_netdev_flags & IFF_ALLMULTI) {
-			if (vsi->num_vlan > 1)
+			if (ice_vsi_has_non_zero_vlans(vsi))
 				promisc_m = ICE_MCAST_VLAN_PROMISC_BITS;
 			else
 				promisc_m = ICE_MCAST_PROMISC_BITS;
@@ -366,7 +368,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			}
 		} else {
 			/* !(vsi->current_netdev_flags & IFF_ALLMULTI) */
-			if (vsi->num_vlan > 1)
+			if (ice_vsi_has_non_zero_vlans(vsi))
 				promisc_m = ICE_MCAST_VLAN_PROMISC_BITS;
 			else
 				promisc_m = ICE_MCAST_PROMISC_BITS;
@@ -396,7 +398,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 					goto out_promisc;
 				}
 				err = 0;
-				ice_cfg_vlan_pruning(vsi, false);
+				vlan_ops->dis_rx_filtering(vsi);
 			}
 		} else {
 			/* Clear Rx filter to remove traffic from wire */
@@ -409,8 +411,9 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 						IFF_PROMISC;
 					goto out_promisc;
 				}
-				if (vsi->num_vlan > 1)
-					ice_cfg_vlan_pruning(vsi, true);
+				if (vsi->current_netdev_flags &
+				    NETIF_F_HW_VLAN_CTAG_FILTER)
+					vlan_ops->ena_rx_filtering(vsi);
 			}
 		}
 	}
@@ -3230,6 +3233,7 @@ static void ice_set_ops(struct net_device *netdev)
 static void ice_set_netdev_features(struct net_device *netdev)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+	bool is_dvm_ena = ice_is_dvm_ena(&pf->hw);
 	netdev_features_t csumo_features;
 	netdev_features_t vlano_features;
 	netdev_features_t dflt_features;
@@ -3255,6 +3259,10 @@ static void ice_set_netdev_features(struct net_device *netdev)
 	vlano_features = NETIF_F_HW_VLAN_CTAG_FILTER |
 			 NETIF_F_HW_VLAN_CTAG_TX     |
 			 NETIF_F_HW_VLAN_CTAG_RX;
+
+	/* Enable CTAG/STAG filtering by default in Double VLAN Mode (DVM) */
+	if (is_dvm_ena)
+		vlano_features |= NETIF_F_HW_VLAN_STAG_FILTER;
 
 	tso_features = NETIF_F_TSO			|
 		       NETIF_F_TSO_ECN			|
@@ -3287,6 +3295,15 @@ static void ice_set_netdev_features(struct net_device *netdev)
 				   tso_features;
 	netdev->vlan_features |= dflt_features | csumo_features |
 				 tso_features;
+
+	/* advertise support but don't enable by default since only one type of
+	 * VLAN offload can be enabled at a time (i.e. CTAG or STAG). When one
+	 * type turns on the other has to be turned off. This is enforced by the
+	 * ice_fix_features() ndo callback.
+	 */
+	if (is_dvm_ena)
+		netdev->hw_features |= NETIF_F_HW_VLAN_STAG_RX |
+			NETIF_F_HW_VLAN_STAG_TX;
 }
 
 /**
@@ -3402,34 +3419,31 @@ ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 /**
  * ice_vlan_rx_add_vid - Add a VLAN ID filter to HW offload
  * @netdev: network interface to be adjusted
- * @proto: unused protocol
+ * @proto: VLAN TPID
  * @vid: VLAN ID to be added
  *
  * net_device_ops implementation for adding VLAN IDs
  */
 static int
-ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
-		    u16 vid)
+ice_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi_vlan_ops *vlan_ops;
 	struct ice_vsi *vsi = np->vsi;
+	struct ice_vlan vlan;
 	int ret;
 
 	/* VLAN 0 is added by default during load/reset */
 	if (!vid)
 		return 0;
 
-	/* Enable VLAN pruning when a VLAN other than 0 is added */
-	if (!ice_vsi_is_vlan_pruning_ena(vsi)) {
-		ret = ice_cfg_vlan_pruning(vsi, true);
-		if (ret)
-			return ret;
-	}
+	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
 
 	/* Add a switch rule for this VLAN ID so its corresponding VLAN tagged
 	 * packets aren't pruned by the device's internal switch on Rx
 	 */
-	ret = ice_vsi_add_vlan(vsi, vid, ICE_FWD_TO_VSI);
+	vlan = ICE_VLAN(be16_to_cpu(proto), vid, 0);
+	ret = vlan_ops->add_vlan(vsi, &vlan);
 	if (!ret)
 		set_bit(ICE_VSI_VLAN_FLTR_CHANGED, vsi->state);
 
@@ -3439,36 +3453,36 @@ ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
 /**
  * ice_vlan_rx_kill_vid - Remove a VLAN ID filter from HW offload
  * @netdev: network interface to be adjusted
- * @proto: unused protocol
+ * @proto: VLAN TPID
  * @vid: VLAN ID to be removed
  *
  * net_device_ops implementation for removing VLAN IDs
  */
 static int
-ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
-		     u16 vid)
+ice_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi_vlan_ops *vlan_ops;
 	struct ice_vsi *vsi = np->vsi;
+	struct ice_vlan vlan;
 	int ret;
 
 	/* don't allow removal of VLAN 0 */
 	if (!vid)
 		return 0;
 
-	/* Make sure ice_vsi_kill_vlan is successful before updating VLAN
+	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
+
+	/* Make sure VLAN delete is successful before updating VLAN
 	 * information
 	 */
-	ret = ice_vsi_kill_vlan(vsi, vid);
+	vlan = ICE_VLAN(be16_to_cpu(proto), vid, 0);
+	ret = vlan_ops->del_vlan(vsi, &vlan);
 	if (ret)
 		return ret;
 
-	/* Disable pruning when VLAN 0 is the only VLAN rule */
-	if (vsi->num_vlan == 1 && ice_vsi_is_vlan_pruning_ena(vsi))
-		ret = ice_cfg_vlan_pruning(vsi, false);
-
 	set_bit(ICE_VSI_VLAN_FLTR_CHANGED, vsi->state);
-	return ret;
+	return 0;
 }
 
 /**
@@ -3537,11 +3551,16 @@ static int ice_tc_indir_block_register(struct ice_vsi *vsi)
 static int ice_setup_pf_sw(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
+	bool dvm = ice_is_dvm_ena(&pf->hw);
 	struct ice_vsi *vsi;
 	int status;
 
 	if (ice_is_reset_in_progress(pf->state))
 		return -EBUSY;
+
+	status = ice_aq_set_port_params(pf->hw.port_info, dvm, NULL);
+	if (status)
+		return -EIO;
 
 	vsi = ice_pf_vsi_setup(pf, pf->hw.port_info);
 	if (!vsi)
@@ -4064,8 +4083,8 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 	ctxt->info.sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
 
 	/* allow all VLANs on Tx and don't strip on Rx */
-	ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_ALL |
-		ICE_AQ_VSI_VLAN_EMOD_NOTHING;
+	ctxt->info.inner_vlan_flags = ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL |
+		ICE_AQ_VSI_INNER_VLAN_EMODE_NOTHING;
 
 	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
@@ -4074,7 +4093,7 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 	} else {
 		vsi->info.sec_flags = ctxt->info.sec_flags;
 		vsi->info.sw_flags2 = ctxt->info.sw_flags2;
-		vsi->info.vlan_flags = ctxt->info.vlan_flags;
+		vsi->info.inner_vlan_flags = ctxt->info.inner_vlan_flags;
 	}
 
 	kfree(ctxt);
@@ -5568,6 +5587,194 @@ ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
 	return err;
 }
 
+#define NETIF_VLAN_OFFLOAD_FEATURES	(NETIF_F_HW_VLAN_CTAG_RX | \
+					 NETIF_F_HW_VLAN_CTAG_TX | \
+					 NETIF_F_HW_VLAN_STAG_RX | \
+					 NETIF_F_HW_VLAN_STAG_TX)
+
+#define NETIF_VLAN_FILTERING_FEATURES	(NETIF_F_HW_VLAN_CTAG_FILTER | \
+					 NETIF_F_HW_VLAN_STAG_FILTER)
+
+/**
+ * ice_fix_features - fix the netdev features flags based on device limitations
+ * @netdev: ptr to the netdev that flags are being fixed on
+ * @features: features that need to be checked and possibly fixed
+ *
+ * Make sure any fixups are made to features in this callback. This enables the
+ * driver to not have to check unsupported configurations throughout the driver
+ * because that's the responsiblity of this callback.
+ *
+ * Single VLAN Mode (SVM) Supported Features:
+ *	NETIF_F_HW_VLAN_CTAG_FILTER
+ *	NETIF_F_HW_VLAN_CTAG_RX
+ *	NETIF_F_HW_VLAN_CTAG_TX
+ *
+ * Double VLAN Mode (DVM) Supported Features:
+ *	NETIF_F_HW_VLAN_CTAG_FILTER
+ *	NETIF_F_HW_VLAN_CTAG_RX
+ *	NETIF_F_HW_VLAN_CTAG_TX
+ *
+ *	NETIF_F_HW_VLAN_STAG_FILTER
+ *	NETIF_HW_VLAN_STAG_RX
+ *	NETIF_HW_VLAN_STAG_TX
+ *
+ * Features that need fixing:
+ *	Cannot simultaneously enable CTAG and STAG stripping and/or insertion.
+ *	These are mutually exlusive as the VSI context cannot support multiple
+ *	VLAN ethertypes simultaneously for stripping and/or insertion. If this
+ *	is not done, then default to clearing the requested STAG offload
+ *	settings.
+ *
+ *	All supported filtering has to be enabled or disabled together. For
+ *	example, in DVM, CTAG and STAG filtering have to be enabled and disabled
+ *	together. If this is not done, then default to VLAN filtering disabled.
+ *	These are mutually exclusive as there is currently no way to
+ *	enable/disable VLAN filtering based on VLAN ethertype when using VLAN
+ *	prune rules.
+ */
+static netdev_features_t
+ice_fix_features(struct net_device *netdev, netdev_features_t features)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	netdev_features_t supported_vlan_filtering;
+	netdev_features_t requested_vlan_filtering;
+	struct ice_vsi *vsi = np->vsi;
+
+	requested_vlan_filtering = features & NETIF_VLAN_FILTERING_FEATURES;
+
+	/* make sure supported_vlan_filtering works for both SVM and DVM */
+	supported_vlan_filtering = NETIF_F_HW_VLAN_CTAG_FILTER;
+	if (ice_is_dvm_ena(&vsi->back->hw))
+		supported_vlan_filtering |= NETIF_F_HW_VLAN_STAG_FILTER;
+
+	if (requested_vlan_filtering &&
+	    requested_vlan_filtering != supported_vlan_filtering) {
+		if (requested_vlan_filtering & NETIF_F_HW_VLAN_CTAG_FILTER) {
+			netdev_warn(netdev, "cannot support requested VLAN filtering settings, enabling all supported VLAN filtering settings\n");
+			features |= supported_vlan_filtering;
+		} else {
+			netdev_warn(netdev, "cannot support requested VLAN filtering settings, clearing all supported VLAN filtering settings\n");
+			features &= ~supported_vlan_filtering;
+		}
+	}
+
+	if ((features & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX)) &&
+	    (features & (NETIF_F_HW_VLAN_STAG_RX | NETIF_F_HW_VLAN_STAG_TX))) {
+		netdev_warn(netdev, "cannot support CTAG and STAG VLAN stripping and/or insertion simultaneously since CTAG and STAG offloads are mutually exclusive, clearing STAG offload settings\n");
+		features &= ~(NETIF_F_HW_VLAN_STAG_RX |
+			      NETIF_F_HW_VLAN_STAG_TX);
+	}
+
+	return features;
+}
+
+/**
+ * ice_set_vlan_offload_features - set VLAN offload features for the PF VSI
+ * @vsi: PF's VSI
+ * @features: features used to determine VLAN offload settings
+ *
+ * First, determine the vlan_ethertype based on the VLAN offload bits in
+ * features. Then determine if stripping and insertion should be enabled or
+ * disabled. Finally enable or disable VLAN stripping and insertion.
+ */
+static int
+ice_set_vlan_offload_features(struct ice_vsi *vsi, netdev_features_t features)
+{
+	bool enable_stripping = true, enable_insertion = true;
+	struct ice_vsi_vlan_ops *vlan_ops;
+	int strip_err = 0, insert_err = 0;
+	u16 vlan_ethertype = 0;
+
+	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
+
+	if (features & (NETIF_F_HW_VLAN_STAG_RX | NETIF_F_HW_VLAN_STAG_TX))
+		vlan_ethertype = ETH_P_8021AD;
+	else if (features & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX))
+		vlan_ethertype = ETH_P_8021Q;
+
+	if (!(features & (NETIF_F_HW_VLAN_STAG_RX | NETIF_F_HW_VLAN_CTAG_RX)))
+		enable_stripping = false;
+	if (!(features & (NETIF_F_HW_VLAN_STAG_TX | NETIF_F_HW_VLAN_CTAG_TX)))
+		enable_insertion = false;
+
+	if (enable_stripping)
+		strip_err = vlan_ops->ena_stripping(vsi, vlan_ethertype);
+	else
+		strip_err = vlan_ops->dis_stripping(vsi);
+
+	if (enable_insertion)
+		insert_err = vlan_ops->ena_insertion(vsi, vlan_ethertype);
+	else
+		insert_err = vlan_ops->dis_insertion(vsi);
+
+	if (strip_err || insert_err)
+		return -EIO;
+
+	return 0;
+}
+
+/**
+ * ice_set_vlan_filtering_features - set VLAN filtering features for the PF VSI
+ * @vsi: PF's VSI
+ * @features: features used to determine VLAN filtering settings
+ *
+ * Enable or disable Rx VLAN filtering based on the VLAN filtering bits in the
+ * features.
+ */
+static int
+ice_set_vlan_filtering_features(struct ice_vsi *vsi, netdev_features_t features)
+{
+	struct ice_vsi_vlan_ops *vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
+	int err = 0;
+
+	/* support Single VLAN Mode (SVM) and Double VLAN Mode (DVM) by checking
+	 * if either bit is set
+	 */
+	if (features &
+	    (NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER))
+		err = vlan_ops->ena_rx_filtering(vsi);
+	else
+		err = vlan_ops->dis_rx_filtering(vsi);
+
+	return err;
+}
+
+/**
+ * ice_set_vlan_features - set VLAN settings based on suggested feature set
+ * @netdev: ptr to the netdev being adjusted
+ * @features: the feature set that the stack is suggesting
+ *
+ * Only update VLAN settings if the requested_vlan_features are different than
+ * the current_vlan_features.
+ */
+static int
+ice_set_vlan_features(struct net_device *netdev, netdev_features_t features)
+{
+	netdev_features_t current_vlan_features, requested_vlan_features;
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	int err;
+
+	current_vlan_features = netdev->features & NETIF_VLAN_OFFLOAD_FEATURES;
+	requested_vlan_features = features & NETIF_VLAN_OFFLOAD_FEATURES;
+	if (current_vlan_features ^ requested_vlan_features) {
+		err = ice_set_vlan_offload_features(vsi, features);
+		if (err)
+			return err;
+	}
+
+	current_vlan_features = netdev->features &
+		NETIF_VLAN_FILTERING_FEATURES;
+	requested_vlan_features = features & NETIF_VLAN_FILTERING_FEATURES;
+	if (current_vlan_features ^ requested_vlan_features) {
+		err = ice_set_vlan_filtering_features(vsi, features);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 /**
  * ice_set_features - set the netdev feature flags
  * @netdev: ptr to the netdev being adjusted
@@ -5602,26 +5809,9 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 		 netdev->features & NETIF_F_RXHASH)
 		ice_vsi_manage_rss_lut(vsi, false);
 
-	if ((features & NETIF_F_HW_VLAN_CTAG_RX) &&
-	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_RX))
-		ret = ice_vsi_manage_vlan_stripping(vsi, true);
-	else if (!(features & NETIF_F_HW_VLAN_CTAG_RX) &&
-		 (netdev->features & NETIF_F_HW_VLAN_CTAG_RX))
-		ret = ice_vsi_manage_vlan_stripping(vsi, false);
-
-	if ((features & NETIF_F_HW_VLAN_CTAG_TX) &&
-	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_TX))
-		ret = ice_vsi_manage_vlan_insertion(vsi);
-	else if (!(features & NETIF_F_HW_VLAN_CTAG_TX) &&
-		 (netdev->features & NETIF_F_HW_VLAN_CTAG_TX))
-		ret = ice_vsi_manage_vlan_insertion(vsi);
-
-	if ((features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
-	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
-		ret = ice_cfg_vlan_pruning(vsi, true);
-	else if (!(features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
-		 (netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
-		ret = ice_cfg_vlan_pruning(vsi, false);
+	ret = ice_set_vlan_features(netdev, features);
+	if (ret)
+		return ret;
 
 	if ((features & NETIF_F_NTUPLE) &&
 	    !(netdev->features & NETIF_F_NTUPLE)) {
@@ -5645,23 +5835,26 @@ ice_set_features(struct net_device *netdev, netdev_features_t features)
 	else
 		clear_bit(ICE_FLAG_CLS_FLOWER, pf->flags);
 
-	return ret;
+	return 0;
 }
 
 /**
- * ice_vsi_vlan_setup - Setup VLAN offload properties on a VSI
+ * ice_vsi_vlan_setup - Setup VLAN offload properties on a PF VSI
  * @vsi: VSI to setup VLAN properties for
  */
 static int ice_vsi_vlan_setup(struct ice_vsi *vsi)
 {
-	int ret = 0;
+	int err;
 
-	if (vsi->netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
-		ret = ice_vsi_manage_vlan_stripping(vsi, true);
-	if (vsi->netdev->features & NETIF_F_HW_VLAN_CTAG_TX)
-		ret = ice_vsi_manage_vlan_insertion(vsi);
+	err = ice_set_vlan_offload_features(vsi, vsi->netdev->features);
+	if (err)
+		return err;
 
-	return ret;
+	err = ice_set_vlan_filtering_features(vsi, vsi->netdev->features);
+	if (err)
+		return err;
+
+	return ice_vsi_add_vlan_zero(vsi);
 }
 
 /**
@@ -6262,11 +6455,12 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
  */
 int ice_down(struct ice_vsi *vsi)
 {
-	int i, tx_err, rx_err, link_err = 0;
+	int i, tx_err, rx_err, link_err = 0, vlan_err = 0;
 
 	WARN_ON(!test_bit(ICE_VSI_DOWN, vsi->state));
 
 	if (vsi->netdev && vsi->type == ICE_VSI_PF) {
+		vlan_err = ice_vsi_del_vlan_zero(vsi);
 		if (!ice_is_e810(&vsi->back->hw))
 			ice_ptp_link_change(vsi->back, vsi->back->hw.pf_id, false);
 		netif_carrier_off(vsi->netdev);
@@ -6308,7 +6502,7 @@ int ice_down(struct ice_vsi *vsi)
 	ice_for_each_rxq(vsi, i)
 		ice_clean_rx_ring(vsi->rx_rings[i]);
 
-	if (tx_err || rx_err || link_err) {
+	if (tx_err || rx_err || link_err || vlan_err) {
 		netdev_err(vsi->netdev, "Failed to close VSI 0x%04X on switch 0x%04X\n",
 			   vsi->vsi_num, vsi->vsw->sw_id);
 		return -EIO;
@@ -6618,6 +6812,7 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
+	bool dvm;
 	int err;
 
 	if (test_bit(ICE_DOWN, pf->state))
@@ -6680,6 +6875,12 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 		dev_err(dev, "set_mac_cfg failed %d\n", err);
 		goto err_init_ctrlq;
 	}
+
+	dvm = ice_is_dvm_ena(hw);
+
+	err = ice_aq_set_port_params(pf->hw.port_info, dvm, NULL);
+	if (err)
+		goto err_init_ctrlq;
 
 	err = ice_sched_init_port(hw->port_info);
 	if (err)
@@ -8580,6 +8781,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_start_xmit = ice_start_xmit,
 	.ndo_select_queue = ice_select_queue,
 	.ndo_features_check = ice_features_check,
+	.ndo_fix_features = ice_fix_features,
 	.ndo_set_rx_mode = ice_set_rx_mode,
 	.ndo_set_mac_address = ice_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,

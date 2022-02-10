@@ -5,6 +5,7 @@
 #define _ICE_LIB_H_
 
 #include "ice.h"
+#include "ice_vlan.h"
 
 const char *ice_vsi_type_str(enum ice_vsi_type vsi_type);
 
@@ -22,15 +23,6 @@ int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi);
 
 void ice_vsi_cfg_msix(struct ice_vsi *vsi);
 
-int
-ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid, enum ice_sw_fwd_act_type action);
-
-int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid);
-
-int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi);
-
-int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena);
-
 int ice_vsi_start_all_rx_rings(struct ice_vsi *vsi);
 
 int ice_vsi_stop_all_rx_rings(struct ice_vsi *vsi);
@@ -44,8 +36,6 @@ int ice_vsi_cfg_xdp_txqs(struct ice_vsi *vsi);
 int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi);
 
 bool ice_vsi_is_vlan_pruning_ena(struct ice_vsi *vsi);
-
-int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena);
 
 void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create);
 
@@ -132,7 +122,10 @@ void ice_vsi_ctx_clear_antispoof(struct ice_vsi_ctx *ctx);
 void ice_vsi_ctx_set_allow_override(struct ice_vsi_ctx *ctx);
 
 void ice_vsi_ctx_clear_allow_override(struct ice_vsi_ctx *ctx);
-
+int ice_vsi_add_vlan_zero(struct ice_vsi *vsi);
+int ice_vsi_del_vlan_zero(struct ice_vsi *vsi);
+bool ice_vsi_has_non_zero_vlans(struct ice_vsi *vsi);
+u16 ice_vsi_num_non_zero_vlans(struct ice_vsi *vsi);
 bool ice_is_feature_supported(struct ice_pf *pf, enum ice_feature f);
 void ice_clear_feature_support(struct ice_pf *pf, enum ice_feature f);
 void ice_init_feature_support(struct ice_pf *pf);

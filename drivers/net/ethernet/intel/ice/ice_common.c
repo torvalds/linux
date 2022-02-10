@@ -1518,16 +1518,27 @@ ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf,
 
 	/* When a package download is in process (i.e. when the firmware's
 	 * Global Configuration Lock resource is held), only the Download
-	 * Package, Get Version, Get Package Info List and Release Resource
-	 * (with resource ID set to Global Config Lock) AdminQ commands are
-	 * allowed; all others must block until the package download completes
-	 * and the Global Config Lock is released.  See also
-	 * ice_acquire_global_cfg_lock().
+	 * Package, Get Version, Get Package Info List, Upload Section,
+	 * Update Package, Set Port Parameters, Get/Set VLAN Mode Parameters,
+	 * Add Recipe, Set Recipes to Profile Association, Get Recipe, and Get
+	 * Recipes to Profile Association, and Release Resource (with resource
+	 * ID set to Global Config Lock) AdminQ commands are allowed; all others
+	 * must block until the package download completes and the Global Config
+	 * Lock is released.  See also ice_acquire_global_cfg_lock().
 	 */
 	switch (le16_to_cpu(desc->opcode)) {
 	case ice_aqc_opc_download_pkg:
 	case ice_aqc_opc_get_pkg_info_list:
 	case ice_aqc_opc_get_ver:
+	case ice_aqc_opc_upload_section:
+	case ice_aqc_opc_update_pkg:
+	case ice_aqc_opc_set_port_params:
+	case ice_aqc_opc_get_vlan_mode_parameters:
+	case ice_aqc_opc_set_vlan_mode_parameters:
+	case ice_aqc_opc_add_recipe:
+	case ice_aqc_opc_recipe_to_profile:
+	case ice_aqc_opc_get_recipe:
+	case ice_aqc_opc_get_recipe_to_profile:
 		break;
 	case ice_aqc_opc_release_res:
 		if (le16_to_cpu(cmd->res_id) == ICE_AQC_RES_ID_GLBL_LOCK)
@@ -2734,6 +2745,34 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
 {
 	if (ice_check_sq_alive(hw, &hw->adminq))
 		ice_aq_clear_pxe_mode(hw);
+}
+
+/**
+ * ice_aq_set_port_params - set physical port parameters.
+ * @pi: pointer to the port info struct
+ * @double_vlan: if set double VLAN is enabled
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set Physical port parameters (0x0203)
+ */
+int
+ice_aq_set_port_params(struct ice_port_info *pi, bool double_vlan,
+		       struct ice_sq_cd *cd)
+
+{
+	struct ice_aqc_set_port_params *cmd;
+	struct ice_hw *hw = pi->hw;
+	struct ice_aq_desc desc;
+	u16 cmd_flags = 0;
+
+	cmd = &desc.params.set_port_params;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_port_params);
+	if (double_vlan)
+		cmd_flags |= ICE_AQC_SET_P_PARAMS_DOUBLE_VLAN_ENA;
+	cmd->cmd_flags = cpu_to_le16(cmd_flags);
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
 
 /**
