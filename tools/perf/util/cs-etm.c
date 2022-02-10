@@ -1553,6 +1553,7 @@ static int cs_etm__flush(struct cs_etm_queue *etmq,
 		goto swap_packet;
 
 	if (etmq->etm->synth_opts.last_branch &&
+	    etmq->etm->synth_opts.instructions &&
 	    tidq->prev_packet->sample_type == CS_ETM_RANGE) {
 		u64 addr;
 
@@ -1610,6 +1611,7 @@ static int cs_etm__end_block(struct cs_etm_queue *etmq,
 	 * the trace.
 	 */
 	if (etmq->etm->synth_opts.last_branch &&
+	    etmq->etm->synth_opts.instructions &&
 	    tidq->prev_packet->sample_type == CS_ETM_RANGE) {
 		u64 addr;
 
