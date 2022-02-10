@@ -18,7 +18,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
-#include <linux/of_gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
@@ -542,7 +541,6 @@ struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 	spi->dev.parent = &ctlr->dev;
 	spi->dev.bus = &spi_bus_type;
 	spi->dev.release = spidev_release;
-	spi->cs_gpio = -ENOENT;
 	spi->mode = ctlr->buswidth_override_bits;
 
 	spin_lock_init(&spi->statistics.lock);
@@ -606,11 +604,8 @@ static int __spi_add_device(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	/* Descriptors take precedence */
 	if (ctlr->cs_gpiods)
 		spi->cs_gpiod = ctlr->cs_gpiods[spi->chip_select];
-	else if (ctlr->cs_gpios)
-		spi->cs_gpio = ctlr->cs_gpios[spi->chip_select];
 
 	/*
 	 * Drivers may modify this initial i/o setup, but will
@@ -940,39 +935,30 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 	spi->controller->last_cs_enable = enable;
 	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
 
-	if ((spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
-	    !spi->controller->set_cs_timing) && !activate) {
+	if ((spi->cs_gpiod || !spi->controller->set_cs_timing) && !activate) {
 		spi_delay_exec(&spi->cs_hold, NULL);
 	}
 
 	if (spi->mode & SPI_CS_HIGH)
 		enable = !enable;
 
-	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio)) {
+	if (spi->cs_gpiod) {
 		if (!(spi->mode & SPI_NO_CS)) {
-			if (spi->cs_gpiod) {
-				/*
-				 * Historically ACPI has no means of the GPIO polarity and
-				 * thus the SPISerialBus() resource defines it on the per-chip
-				 * basis. In order to avoid a chain of negations, the GPIO
-				 * polarity is considered being Active High. Even for the cases
-				 * when _DSD() is involved (in the updated versions of ACPI)
-				 * the GPIO CS polarity must be defined Active High to avoid
-				 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
-				 * into account.
-				 */
-				if (has_acpi_companion(&spi->dev))
-					gpiod_set_value_cansleep(spi->cs_gpiod, !enable);
-				else
-					/* Polarity handled by GPIO library */
-					gpiod_set_value_cansleep(spi->cs_gpiod, activate);
-			} else {
-				/*
-				 * Invert the enable line, as active low is
-				 * default for SPI.
-				 */
-				gpio_set_value_cansleep(spi->cs_gpio, !enable);
-			}
+			/*
+			 * Historically ACPI has no means of the GPIO polarity and
+			 * thus the SPISerialBus() resource defines it on the per-chip
+			 * basis. In order to avoid a chain of negations, the GPIO
+			 * polarity is considered being Active High. Even for the cases
+			 * when _DSD() is involved (in the updated versions of ACPI)
+			 * the GPIO CS polarity must be defined Active High to avoid
+			 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
+			 * into account.
+			 */
+			if (has_acpi_companion(&spi->dev))
+				gpiod_set_value_cansleep(spi->cs_gpiod, !enable);
+			else
+				/* Polarity handled by GPIO library */
+				gpiod_set_value_cansleep(spi->cs_gpiod, activate);
 		}
 		/* Some SPI masters need both GPIO CS & slave_select */
 		if ((spi->controller->flags & SPI_MASTER_GPIO_SS) &&
@@ -982,8 +968,7 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 		spi->controller->set_cs(spi, !enable);
 	}
 
-	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
-	    !spi->controller->set_cs_timing) {
+	if (spi->cs_gpiod || !spi->controller->set_cs_timing) {
 		if (activate)
 			spi_delay_exec(&spi->cs_setup, NULL);
 		else
@@ -2827,46 +2812,6 @@ struct spi_controller *__devm_spi_alloc_controller(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__devm_spi_alloc_controller);
 
-#ifdef CONFIG_OF
-static int of_spi_get_gpio_numbers(struct spi_controller *ctlr)
-{
-	int nb, i, *cs;
-	struct device_node *np = ctlr->dev.of_node;
-
-	if (!np)
-		return 0;
-
-	nb = of_gpio_named_count(np, "cs-gpios");
-	ctlr->num_chipselect = max_t(int, nb, ctlr->num_chipselect);
-
-	/* Return error only for an incorrectly formed cs-gpios property */
-	if (nb == 0 || nb == -ENOENT)
-		return 0;
-	else if (nb < 0)
-		return nb;
-
-	cs = devm_kcalloc(&ctlr->dev, ctlr->num_chipselect, sizeof(int),
-			  GFP_KERNEL);
-	ctlr->cs_gpios = cs;
-
-	if (!ctlr->cs_gpios)
-		return -ENOMEM;
-
-	for (i = 0; i < ctlr->num_chipselect; i++)
-		cs[i] = -ENOENT;
-
-	for (i = 0; i < nb; i++)
-		cs[i] = of_get_named_gpio(np, "cs-gpios", i);
-
-	return 0;
-}
-#else
-static int of_spi_get_gpio_numbers(struct spi_controller *ctlr)
-{
-	return 0;
-}
-#endif
-
 /**
  * spi_get_gpio_descs() - grab chip select GPIOs for the master
  * @ctlr: The SPI master to grab GPIO descriptors for
@@ -3051,22 +2996,15 @@ int spi_register_controller(struct spi_controller *ctlr)
 	 */
 	dev_set_name(&ctlr->dev, "spi%u", ctlr->bus_num);
 
-	if (!spi_controller_is_slave(ctlr)) {
-		if (ctlr->use_gpio_descriptors) {
-			status = spi_get_gpio_descs(ctlr);
-			if (status)
-				goto free_bus_id;
-			/*
-			 * A controller using GPIO descriptors always
-			 * supports SPI_CS_HIGH if need be.
-			 */
-			ctlr->mode_bits |= SPI_CS_HIGH;
-		} else {
-			/* Legacy code path for GPIOs from DT */
-			status = of_spi_get_gpio_numbers(ctlr);
-			if (status)
-				goto free_bus_id;
-		}
+	if (!spi_controller_is_slave(ctlr) && ctlr->use_gpio_descriptors) {
+		status = spi_get_gpio_descs(ctlr);
+		if (status)
+			goto free_bus_id;
+		/*
+		 * A controller using GPIO descriptors always
+		 * supports SPI_CS_HIGH if need be.
+		 */
+		ctlr->mode_bits |= SPI_CS_HIGH;
 	}
 
 	/*
@@ -3555,12 +3493,6 @@ int spi_setup(struct spi_device *spi)
 	 */
 	bad_bits = spi->mode & ~(spi->controller->mode_bits | SPI_CS_WORD |
 				 SPI_NO_TX | SPI_NO_RX);
-	/*
-	 * Nothing prevents from working with active-high CS in case if it
-	 * is driven by GPIO.
-	 */
-	if (gpio_is_valid(spi->cs_gpio))
-		bad_bits &= ~SPI_CS_HIGH;
 	ugly_bits = bad_bits &
 		    (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL |
 		     SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL);
@@ -3686,8 +3618,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 	 * cs_change is set for each transfer.
 	 */
 	if ((spi->mode & SPI_CS_WORD) && (!(ctlr->mode_bits & SPI_CS_WORD) ||
-					  spi->cs_gpiod ||
-					  gpio_is_valid(spi->cs_gpio))) {
+					  spi->cs_gpiod)) {
 		size_t maxsize;
 		int ret;
 

@@ -137,9 +137,6 @@ extern int spi_delay_exec(struct spi_delay *_delay, struct spi_transfer *xfer);
  *	for driver coldplugging, and in uevents used for hotplugging
  * @driver_override: If the name of a driver is written to this attribute, then
  *	the device will bind to the named driver and only the named driver.
- * @cs_gpio: LEGACY: gpio number of the chipselect line (optional, -ENOENT when
- *	not using a GPIO line) use cs_gpiod in new drivers by opting in on
- *	the spi_master.
  * @cs_gpiod: gpio descriptor of the chipselect line (optional, NULL when
  *	not using a GPIO line)
  * @word_delay: delay to be inserted between consecutive
@@ -186,7 +183,6 @@ struct spi_device {
 	void			*controller_data;
 	char			modalias[SPI_NAME_SIZE];
 	const char		*driver_override;
-	int			cs_gpio;	/* LEGACY: chip select gpio */
 	struct gpio_desc	*cs_gpiod;	/* chip select gpio desc */
 	struct spi_delay	word_delay; /* inter-word delay */
 	/* CS delays */
@@ -418,17 +414,12 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  *	     controller has native support for memory like operations.
  * @unprepare_message: undo any work done by prepare_message().
  * @slave_abort: abort the ongoing transfer request on an SPI slave controller
- * @cs_gpios: LEGACY: array of GPIO descs to use as chip select lines; one per
- *	CS number. Any individual value may be -ENOENT for CS lines that
- *	are not GPIOs (driven by the SPI controller itself). Use the cs_gpiods
- *	in new drivers.
  * @cs_gpiods: Array of GPIO descs to use as chip select lines; one per CS
  *	number. Any individual value may be NULL for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
  * @use_gpio_descriptors: Turns on the code in the SPI core to parse and grab
- *	GPIO descriptors rather than using global GPIO numbers grabbed by the
- *	driver. This will fill in @cs_gpiods and @cs_gpios should not be used,
- *	and SPI devices will have the cs_gpiod assigned rather than cs_gpio.
+ *	GPIO descriptors. This will fill in @cs_gpiods and SPI devices will have
+ *	the cs_gpiod assigned if a GPIO line is found for the chipselect.
  * @unused_native_cs: When cs_gpiods is used, spi_register_controller() will
  *	fill in this field with the first unused native CS, to be used by SPI
  *	controller drivers that need to drive a native CS when using GPIO CS.
@@ -642,7 +633,6 @@ struct spi_controller {
 	const struct spi_controller_mem_ops *mem_ops;
 
 	/* gpio chip select */
-	int			*cs_gpios;
 	struct gpio_desc	**cs_gpiods;
 	bool			use_gpio_descriptors;
 	s8			unused_native_cs;
