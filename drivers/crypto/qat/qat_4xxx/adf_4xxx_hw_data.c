@@ -6,6 +6,7 @@
 #include <adf_common_drv.h>
 #include <adf_gen4_hw_data.h>
 #include <adf_gen4_pfvf.h>
+#include <adf_gen4_pm.h>
 #include "adf_4xxx_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -257,18 +258,18 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 
 	/* Temporarily mask PM interrupt */
 	csr = ADF_CSR_RD(addr, ADF_GEN4_ERRMSK2);
-	csr |= ADF_4XXX_PM_SOU;
+	csr |= ADF_GEN4_PM_SOU;
 	ADF_CSR_WR(addr, ADF_GEN4_ERRMSK2, csr);
 
 	/* Set DRV_ACTIVE bit to power up the device */
-	ADF_CSR_WR(addr, ADF_4XXX_PM_INTERRUPT, ADF_4XXX_PM_DRV_ACTIVE);
+	ADF_CSR_WR(addr, ADF_GEN4_PM_INTERRUPT, ADF_GEN4_PM_DRV_ACTIVE);
 
 	/* Poll status register to make sure the device is powered up */
 	ret = read_poll_timeout(ADF_CSR_RD, status,
-				status & ADF_4XXX_PM_INIT_STATE,
-				ADF_4XXX_PM_POLL_DELAY_US,
-				ADF_4XXX_PM_POLL_TIMEOUT_US, true, addr,
-				ADF_4XXX_PM_STATUS);
+				status & ADF_GEN4_PM_INIT_STATE,
+				ADF_GEN4_PM_POLL_DELAY_US,
+				ADF_GEN4_PM_POLL_TIMEOUT_US, true, addr,
+				ADF_GEN4_PM_STATUS);
 	if (ret)
 		dev_err(&GET_DEV(accel_dev), "Failed to power up the device\n");
 
@@ -354,6 +355,8 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->set_ssm_wdtimer = adf_gen4_set_ssm_wdtimer;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->ring_pair_reset = adf_gen4_ring_pair_reset;
+	hw_data->enable_pm = adf_gen4_enable_pm;
+	hw_data->handle_pm_interrupt = adf_gen4_handle_pm_interrupt;
 
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen4_init_pf_pfvf_ops(&hw_data->pfvf_ops);

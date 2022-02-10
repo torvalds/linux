@@ -124,6 +124,17 @@ static bool adf_handle_vf2pf_int(struct adf_accel_dev *accel_dev)
 }
 #endif /* CONFIG_PCI_IOV */
 
+static bool adf_handle_pm_int(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+
+	if (hw_data->handle_pm_interrupt &&
+	    hw_data->handle_pm_interrupt(accel_dev))
+		return true;
+
+	return false;
+}
+
 static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 {
 	struct adf_accel_dev *accel_dev = dev_ptr;
@@ -133,6 +144,9 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 	if (accel_dev->pf.vf_info && adf_handle_vf2pf_int(accel_dev))
 		return IRQ_HANDLED;
 #endif /* CONFIG_PCI_IOV */
+
+	if (adf_handle_pm_int(accel_dev))
+		return IRQ_HANDLED;
 
 	dev_dbg(&GET_DEV(accel_dev), "qat_dev%d spurious AE interrupt\n",
 		accel_dev->accel_id);
