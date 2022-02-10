@@ -30,6 +30,9 @@ struct options {
 	const char *host;
 	const char *service;
 	struct {
+		unsigned int mark;
+	} sockopt;
+	struct {
 		unsigned int family;
 		unsigned int type;
 		unsigned int proto;
@@ -56,6 +59,7 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\t\t        (u = UDP (default); i = ICMP; r = RAW)\n"
 	       "\n"
 	       "\t\t-m val  Set SO_MARK with given value\n"
+	       "\t\t-M val  Set SO_MARK via setsockopt\n"
 	       "");
 	exit(ERN_HELP);
 }
@@ -64,7 +68,7 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	char o;
 
-	while ((o = getopt(argc, argv, "46sp:m:")) != -1) {
+	while ((o = getopt(argc, argv, "46sp:m:M:")) != -1) {
 		switch (o) {
 		case 's':
 			opt.silent_send = true;
@@ -90,6 +94,9 @@ static void cs_parse_args(int argc, char *argv[])
 		case 'm':
 			opt.mark.ena = true;
 			opt.mark.val = atoi(optarg);
+			break;
+		case 'M':
+			opt.sockopt.mark = atoi(optarg);
 			break;
 		}
 	}
@@ -174,6 +181,11 @@ int main(int argc, char *argv[])
 		memcpy(buf, &hdr, sizeof(hdr));
 		sin6->sin6_port = htons(opt.sock.proto);
 	}
+
+	if (opt.sockopt.mark &&
+	    setsockopt(fd, SOL_SOCKET, SO_MARK,
+		       &opt.sockopt.mark, sizeof(opt.sockopt.mark)))
+		error(ERN_SOCKOPT, errno, "setsockopt SO_MARK");
 
 	iov[0].iov_base = buf;
 	iov[0].iov_len = sizeof(buf);

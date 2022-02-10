@@ -43,19 +43,27 @@ check_result() {
     fi
 }
 
-for i in 4 6; do
-    [ $i == 4 ] && TGT=$TGT4 || TGT=$TGT6
+for ovr in setsock cmsg both; do
+    for i in 4 6; do
+	[ $i == 4 ] && TGT=$TGT4 || TGT=$TGT6
 
-    for p in u i r; do
-	[ $p == "u" ] && prot=UDP
-	[ $p == "i" ] && prot=ICMP
-	[ $p == "r" ] && prot=RAW
+	for p in u i r; do
+	    [ $p == "u" ] && prot=UDP
+	    [ $p == "i" ] && prot=ICMP
+	    [ $p == "r" ] && prot=RAW
 
-	ip netns exec $NS ./cmsg_sender -$i -p $p -m $((MARK + 1)) $TGT 1234
-	check_result $? 0 "$prot pass"
+	    [ $ovr == "setsock" ] && m="-M"
+	    [ $ovr == "cmsg" ]    && m="-m"
+	    [ $ovr == "both" ]    && m="-M $MARK -m"
 
-	ip netns exec $NS ./cmsg_sender -$i -p $p -m $MARK -s $TGT 1234
-	check_result $? 1 "$prot rejection"
+	    ip netns exec $NS ./cmsg_sender -$i -p $p $m $((MARK + 1)) $TGT 1234
+	    check_result $? 0 "$prot $ovr - pass"
+
+	    [ $ovr == "diff" ] && m="-M $((MARK + 1)) -m"
+
+	    ip netns exec $NS ./cmsg_sender -$i -p $p $m $MARK -s $TGT 1234
+	    check_result $? 1 "$prot $ovr - rejection"
+	done
     done
 done
 
