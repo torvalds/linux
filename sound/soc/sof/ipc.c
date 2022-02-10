@@ -18,8 +18,10 @@
 #include "sof-audio.h"
 #include "ops.h"
 
-static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_type);
-static void ipc_stream_message(struct snd_sof_dev *sdev, u32 msg_cmd);
+typedef void (*ipc_rx_callback)(struct snd_sof_dev *sdev, void *msg_buf);
+
+static void ipc_trace_message(struct snd_sof_dev *sdev, void *msg_buf);
+static void ipc_stream_message(struct snd_sof_dev *sdev, void *msg_buf);
 
 /*
  * IPC message Tx/Rx message handling.
@@ -477,44 +479,30 @@ void snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 }
 EXPORT_SYMBOL(snd_sof_ipc_reply);
 
-static void ipc_comp_notification(struct snd_sof_dev *sdev,
-				  struct sof_ipc_cmd_hdr *hdr)
+static void ipc_comp_notification(struct snd_sof_dev *sdev, void *msg_buf)
 {
+	struct sof_ipc_cmd_hdr *hdr = msg_buf;
 	u32 msg_type = hdr->cmd & SOF_CMD_TYPE_MASK;
-	struct sof_ipc_ctrl_data *cdata;
-	int ret;
 
 	switch (msg_type) {
 	case SOF_IPC_COMP_GET_VALUE:
 	case SOF_IPC_COMP_GET_DATA:
-		cdata = kmalloc(hdr->size, GFP_KERNEL);
-		if (!cdata)
-			return;
-
-		/* read back full message */
-		ret = snd_sof_ipc_msg_data(sdev, NULL, cdata, hdr->size);
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: failed to read component event: %d\n", ret);
-			goto err;
-		}
 		break;
 	default:
 		dev_err(sdev->dev, "error: unhandled component message %#x\n", msg_type);
 		return;
 	}
 
-	snd_sof_control_notify(sdev, cdata);
-
-err:
-	kfree(cdata);
+	snd_sof_control_notify(sdev, msg_buf);
 }
 
 /* DSP firmware has sent host a message  */
 void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 {
+	ipc_rx_callback rx_callback = NULL;
 	struct sof_ipc_cmd_hdr hdr;
-	u32 cmd, type;
+	void *msg_buf;
+	u32 cmd;
 	int err;
 
 	/* read back header */
@@ -523,10 +511,15 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 		dev_warn(sdev->dev, "failed to read IPC header: %d\n", err);
 		return;
 	}
+
+	if (hdr.size < sizeof(hdr)) {
+		dev_err(sdev->dev, "The received message size is invalid\n");
+		return;
+	}
+
 	ipc_log_header(sdev->dev, "ipc rx", hdr.cmd);
 
 	cmd = hdr.cmd & SOF_GLB_TYPE_MASK;
-	type = hdr.cmd & SOF_CMD_TYPE_MASK;
 
 	/* check message type */
 	switch (cmd) {
@@ -551,18 +544,33 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 	case SOF_IPC_GLB_PM_MSG:
 		break;
 	case SOF_IPC_GLB_COMP_MSG:
-		ipc_comp_notification(sdev, &hdr);
+		rx_callback = ipc_comp_notification;
 		break;
 	case SOF_IPC_GLB_STREAM_MSG:
-		/* need to pass msg id into the function */
-		ipc_stream_message(sdev, hdr.cmd);
+		rx_callback = ipc_stream_message;
 		break;
 	case SOF_IPC_GLB_TRACE_MSG:
-		ipc_trace_message(sdev, type);
+		rx_callback = ipc_trace_message;
 		break;
 	default:
-		dev_err(sdev->dev, "error: unknown DSP message 0x%x\n", cmd);
+		dev_err(sdev->dev, "%s: Unknown DSP message: 0x%x\n", __func__, cmd);
 		break;
+	}
+
+	if (rx_callback) {
+		/* read the full message as we have rx handler for it */
+		msg_buf = kmalloc(hdr.size, GFP_KERNEL);
+		if (!msg_buf)
+			return;
+
+		err = snd_sof_ipc_msg_data(sdev, NULL, msg_buf, hdr.size);
+		if (err < 0)
+			dev_err(sdev->dev, "%s: Failed to read message: %d\n",
+				__func__, err);
+		else
+			rx_callback(sdev, msg_buf);
+
+		kfree(msg_buf);
 	}
 
 	ipc_log_header(sdev->dev, "ipc rx done", hdr.cmd);
@@ -573,19 +581,14 @@ EXPORT_SYMBOL(snd_sof_ipc_msgs_rx);
  * IPC trace mechanism.
  */
 
-static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_type)
+static void ipc_trace_message(struct snd_sof_dev *sdev, void *msg_buf)
 {
-	struct sof_ipc_dma_trace_posn posn;
-	int ret;
+	struct sof_ipc_cmd_hdr *hdr = msg_buf;
+	u32 msg_type = hdr->cmd & SOF_CMD_TYPE_MASK;
 
 	switch (msg_type) {
 	case SOF_IPC_TRACE_DMA_POSITION:
-		/* read back full message */
-		ret = snd_sof_ipc_msg_data(sdev, NULL, &posn, sizeof(posn));
-		if (ret < 0)
-			dev_warn(sdev->dev, "failed to read trace position: %d\n", ret);
-		else
-			snd_sof_trace_update_pos(sdev, &posn);
+		snd_sof_trace_update_pos(sdev, msg_buf);
 		break;
 	default:
 		dev_err(sdev->dev, "error: unhandled trace message %#x\n", msg_type);
@@ -667,11 +670,11 @@ static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 }
 
 /* stream notifications from DSP FW */
-static void ipc_stream_message(struct snd_sof_dev *sdev, u32 msg_cmd)
+static void ipc_stream_message(struct snd_sof_dev *sdev, void *msg_buf)
 {
-	/* get msg cmd type and msd id */
-	u32 msg_type = msg_cmd & SOF_CMD_TYPE_MASK;
-	u32 msg_id = SOF_IPC_MESSAGE_ID(msg_cmd);
+	struct sof_ipc_cmd_hdr *hdr = msg_buf;
+	u32 msg_type = hdr->cmd & SOF_CMD_TYPE_MASK;
+	u32 msg_id = SOF_IPC_MESSAGE_ID(hdr->cmd);
 
 	switch (msg_type) {
 	case SOF_IPC_STREAM_POSITION:
