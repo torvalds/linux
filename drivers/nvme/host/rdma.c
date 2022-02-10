@@ -978,11 +978,9 @@ static int nvme_rdma_configure_io_queues(struct nvme_rdma_ctrl *ctrl, bool new)
 			goto out_free_io_queues;
 		}
 
-		ctrl->ctrl.connect_q = blk_mq_init_queue(&ctrl->tag_set);
-		if (IS_ERR(ctrl->ctrl.connect_q)) {
-			ret = PTR_ERR(ctrl->ctrl.connect_q);
+		ret = nvme_ctrl_init_connect_q(&(ctrl->ctrl));
+		if (ret)
 			goto out_free_tag_set;
-		}
 	}
 
 	ret = nvme_rdma_start_io_queues(ctrl);
