@@ -438,7 +438,6 @@ struct kvm_mmu {
 	struct kvm_mmu_root_info root;
 	union kvm_cpu_role cpu_role;
 	union kvm_mmu_page_role root_role;
-	bool direct_map;
 
 	/*
 	* The pkru_mask indicates if protection key checks are needed.  It
