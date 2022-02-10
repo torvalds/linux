@@ -541,9 +541,9 @@ static void snd_dma_noncontig_sync(struct snd_dma_buffer *dmab,
 	if (mode == SNDRV_DMA_SYNC_CPU) {
 		if (dmab->dev.dir == DMA_TO_DEVICE)
 			return;
+		invalidate_kernel_vmap_range(dmab->area, dmab->bytes);
 		dma_sync_sgtable_for_cpu(dmab->dev.dev, dmab->private_data,
 					 dmab->dev.dir);
-		invalidate_kernel_vmap_range(dmab->area, dmab->bytes);
 	} else {
 		if (dmab->dev.dir == DMA_FROM_DEVICE)
 			return;
