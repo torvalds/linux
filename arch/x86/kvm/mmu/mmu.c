@@ -4726,10 +4726,10 @@ static void paging32_init_context(struct kvm_mmu *context)
 	context->direct_map = false;
 }
 
-static union kvm_mmu_role
+static union kvm_cpu_role
 kvm_calc_cpu_role(struct kvm_vcpu *vcpu, const struct kvm_mmu_role_regs *regs)
 {
-	union kvm_mmu_role role = {0};
+	union kvm_cpu_role role = {0};
 
 	role.base.access = ACC_ALL;
 	role.base.smm = is_smm(vcpu);
@@ -4783,7 +4783,7 @@ static inline int kvm_mmu_get_tdp_level(struct kvm_vcpu *vcpu)
 
 static union kvm_mmu_page_role
 kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu,
-				union kvm_mmu_role cpu_role)
+				union kvm_cpu_role cpu_role)
 {
 	union kvm_mmu_page_role role = {0};
 
@@ -4804,7 +4804,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
 			     const struct kvm_mmu_role_regs *regs)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
-	union kvm_mmu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
+	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
 	union kvm_mmu_page_role root_role = kvm_calc_tdp_mmu_root_page_role(vcpu, cpu_role);
 
 	if (cpu_role.as_u64 == context->cpu_role.as_u64 &&
@@ -4836,7 +4836,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
 
 static union kvm_mmu_page_role
 kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu,
-				   union kvm_mmu_role cpu_role)
+				   union kvm_cpu_role cpu_role)
 {
 	union kvm_mmu_page_role role;
 
@@ -4862,7 +4862,7 @@ kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu,
 }
 
 static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
-				    union kvm_mmu_role cpu_role,
+				    union kvm_cpu_role cpu_role,
 				    union kvm_mmu_page_role root_role)
 {
 	if (cpu_role.as_u64 == context->cpu_role.as_u64 &&
@@ -4890,7 +4890,7 @@ static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
 				const struct kvm_mmu_role_regs *regs)
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
-	union kvm_mmu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
+	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
 	union kvm_mmu_page_role root_role =
 		kvm_calc_shadow_mmu_root_page_role(vcpu, cpu_role);
 
@@ -4899,7 +4899,7 @@ static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
 
 static union kvm_mmu_page_role
 kvm_calc_shadow_npt_root_page_role(struct kvm_vcpu *vcpu,
-				   union kvm_mmu_role cpu_role)
+				   union kvm_cpu_role cpu_role)
 {
 	union kvm_mmu_page_role role;
 
@@ -4918,7 +4918,7 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 		.cr4 = cr4 & ~X86_CR4_PKE,
 		.efer = efer,
 	};
-	union kvm_mmu_role cpu_role = kvm_calc_cpu_role(vcpu, &regs);
+	union kvm_cpu_role cpu_role = kvm_calc_cpu_role(vcpu, &regs);
 	union kvm_mmu_page_role root_role = kvm_calc_shadow_npt_root_page_role(vcpu, cpu_role);
 
 	shadow_mmu_init_context(vcpu, context, cpu_role, root_role);
@@ -4926,11 +4926,11 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_npt_mmu);
 
-static union kvm_mmu_role
+static union kvm_cpu_role
 kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 				   bool execonly, u8 level)
 {
-	union kvm_mmu_role role = {0};
+	union kvm_cpu_role role = {0};
 
 	/*
 	 * KVM does not support SMM transfer monitors, and consequently does not
@@ -4957,7 +4957,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 {
 	struct kvm_mmu *context = &vcpu->arch.guest_mmu;
 	u8 level = vmx_eptp_page_walk_level(new_eptp);
-	union kvm_mmu_role new_mode =
+	union kvm_cpu_role new_mode =
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
 						   execonly, level);
 
@@ -4999,7 +4999,7 @@ static void init_kvm_softmmu(struct kvm_vcpu *vcpu,
 static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu,
 				const struct kvm_mmu_role_regs *regs)
 {
-	union kvm_mmu_role new_mode = kvm_calc_cpu_role(vcpu, regs);
+	union kvm_cpu_role new_mode = kvm_calc_cpu_role(vcpu, regs);
 	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
 
 	if (new_mode.as_u64 == g_context->cpu_role.as_u64)
@@ -6276,7 +6276,7 @@ int kvm_mmu_vendor_module_init(void)
 	 */
 	BUILD_BUG_ON(sizeof(union kvm_mmu_page_role) != sizeof(u32));
 	BUILD_BUG_ON(sizeof(union kvm_mmu_extended_role) != sizeof(u32));
-	BUILD_BUG_ON(sizeof(union kvm_mmu_role) != sizeof(u64));
+	BUILD_BUG_ON(sizeof(union kvm_cpu_role) != sizeof(u64));
 
 	kvm_mmu_reset_all_pte_masks();
 

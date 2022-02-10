@@ -281,7 +281,7 @@ struct kvm_kernel_irq_routing_entry;
 /*
  * kvm_mmu_page_role tracks the properties of a shadow page (where shadow page
  * also includes TDP pages) to determine whether or not a page can be used in
- * the given MMU context.  This is a subset of the overall kvm_mmu_role to
+ * the given MMU context.  This is a subset of the overall kvm_cpu_role to
  * minimize the size of kvm_memory_slot.arch.gfn_track, i.e. allows allocating
  * 2 bytes per gfn instead of 4 bytes per gfn.
  *
@@ -378,7 +378,7 @@ union kvm_mmu_extended_role {
 	};
 };
 
-union kvm_mmu_role {
+union kvm_cpu_role {
 	u64 as_u64;
 	struct {
 		union kvm_mmu_page_role base;
@@ -438,7 +438,7 @@ struct kvm_mmu {
 			 struct kvm_mmu_page *sp);
 	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa);
 	struct kvm_mmu_root_info root;
-	union kvm_mmu_role cpu_role;
+	union kvm_cpu_role cpu_role;
 	union kvm_mmu_page_role root_role;
 	u8 root_level;
 	u8 shadow_root_level;
