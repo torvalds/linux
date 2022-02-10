@@ -317,6 +317,7 @@ enum ipc_phase {
  * @tdupdate_timer:		Delay the TD update doorbell.
  * @fast_update_timer:		forced head pointer update delay timer.
  * @td_alloc_timer:		Timer for DL pipe TD allocation retry
+ * @adb_timer:			Timer for finishing the ADB.
  * @rom_exit_code:		Mapped boot rom exit code.
  * @enter_runtime:		1 means the transition to runtime phase was
  *				executed.
@@ -364,6 +365,7 @@ struct iosm_imem {
 	struct hrtimer tdupdate_timer;
 	struct hrtimer fast_update_timer;
 	struct hrtimer td_alloc_timer;
+	struct hrtimer adb_timer;
 	enum rom_exit_code rom_exit_code;
 	u32 enter_runtime;
 	struct completion ul_pend_sem;
@@ -593,4 +595,7 @@ void ipc_imem_channel_init(struct iosm_imem *ipc_imem, enum ipc_ctype ctype,
  * Returns: 0 on success, -1 on failure
  */
 int ipc_imem_devlink_trigger_chip_info(struct iosm_imem *ipc_imem);
+
+void ipc_imem_adb_timer_start(struct iosm_imem *ipc_imem);
+
 #endif

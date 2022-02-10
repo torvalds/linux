@@ -13,6 +13,39 @@
  */
 #define MUX_QUEUE_LEVEL 1
 
+/* ADB finish timer value */
+#define IOSM_AGGR_MUX_ADB_FINISH_TIMEOUT_NSEC (500 * 1000)
+
+/* Enables the flow control (Flow is not allowed) */
+#define IOSM_AGGR_MUX_CMD_FLOW_CTL_ENABLE 5
+
+/* Disables the flow control (Flow is allowed) */
+#define IOSM_AGGR_MUX_CMD_FLOW_CTL_DISABLE 6
+
+/* ACK the flow control command. Shall have the same Transaction ID as the
+ * matching FLOW_CTL command
+ */
+#define IOSM_AGGR_MUX_CMD_FLOW_CTL_ACK 7
+
+/* Aggregation Protocol Command for report packet indicating link quality
+ */
+#define IOSM_AGGR_MUX_CMD_LINK_STATUS_REPORT 8
+
+/* Response to a report packet */
+#define IOSM_AGGR_MUX_CMD_LINK_STATUS_REPORT_RESP 9
+
+/* ACBH: Signature of the Aggregated Command Block Header. */
+#define IOSM_AGGR_MUX_SIG_ACBH 0x48424341
+
+/* ADTH: Signature of the Aggregated Datagram Table Header. */
+#define IOSM_AGGR_MUX_SIG_ADTH 0x48544441
+
+/* ADBH: Signature of the Aggregated Data Block Header. */
+#define IOSM_AGGR_MUX_SIG_ADBH 0x48424441
+
+/* ADGH: Signature of the Datagram Header. */
+#define IOSM_AGGR_MUX_SIG_ADGH 0x48474441
+
 /* Size of the buffer for the IP MUX commands. */
 #define MUX_MAX_UL_ACB_BUF_SIZE 256
 
@@ -51,6 +84,85 @@
 
 /* MUX UL flow control higher threshold in bytes (5ms worth of data)*/
 #define IPC_MEM_MUX_UL_FLOWCTRL_HIGH_B (110 * 1024)
+
+/**
+ * struct mux_cmdh - Structure of Command Header.
+ * @signature:		Signature of the Command Header.
+ * @cmd_len:		Length (in bytes) of the Aggregated Command Block.
+ * @if_id:		ID of the interface the commands in the table belong to.
+ * @reserved:		Reserved. Set to zero.
+ * @next_cmd_index:	Index (in bytes) to the next command in the buffer.
+ * @command_type:	Command Enum. See table Session Management chapter for
+ *			details.
+ * @transaction_id:	The Transaction ID shall be unique to the command
+ * @param:		Optional parameters used with the command.
+ */
+struct mux_cmdh {
+	__le32 signature;
+	__le16 cmd_len;
+	u8 if_id;
+	u8 reserved;
+	__le32 next_cmd_index;
+	__le32 command_type;
+	__le32 transaction_id;
+	union mux_cmd_param param;
+};
+
+/**
+ * struct mux_acbh -    Structure of the Aggregated Command Block Header.
+ * @signature:          Signature of the Aggregated Command Block Header.
+ * @reserved:           Reserved bytes. Set to zero.
+ * @sequence_nr:        Block sequence number.
+ * @block_length:       Length (in bytes) of the Aggregated Command Block.
+ * @first_cmd_index:    Index (in bytes) to the first command in the buffer.
+ */
+struct mux_acbh {
+	__le32 signature;
+	__le16 reserved;
+	__le16 sequence_nr;
+	__le32 block_length;
+	__le32 first_cmd_index;
+};
+
+/**
+ * struct mux_adbh - Structure of the Aggregated Data Block Header.
+ * @signature:		Signature of the Aggregated Data Block Header.
+ * @reserved:		Reserved bytes. Set to zero.
+ * @sequence_nr:	Block sequence number.
+ * @block_length:	Length (in bytes) of the Aggregated Data Block.
+ * @first_table_index:	Index (in bytes) to the first Datagram Table in
+ *			the buffer.
+ */
+struct mux_adbh {
+	__le32 signature;
+	__le16 reserved;
+	__le16 sequence_nr;
+	__le32 block_length;
+	__le32 first_table_index;
+};
+
+/**
+ * struct mux_adth - Structure of the Aggregated Datagram Table Header.
+ * @signature:          Signature of the Aggregated Datagram Table Header.
+ * @table_length:       Length (in bytes) of the datagram table.
+ * @if_id:              ID of the interface the datagrams in the table
+ *                      belong to.
+ * @opt_ipv4v6:         Indicates IPv4(=0)/IPv6(=1) hint.
+ * @reserved:           Reserved bits. Set to zero.
+ * @next_table_index:   Index (in bytes) to the next Datagram Table in
+ *                      the buffer.
+ * @reserved2:          Reserved bytes. Set to zero
+ * @dg:                 datagramm table with variable length
+ */
+struct mux_adth {
+	__le32 signature;
+	__le16 table_length;
+	u8 if_id;
+	u8 opt_ipv4v6;
+	__le32 next_table_index;
+	__le32 reserved2;
+	struct mux_adth_dg dg;
+};
 
 /**
  * struct mux_adgh - Aggregated Datagram Header.
@@ -129,11 +241,25 @@ struct ipc_mem_lite_gen_tbl {
 };
 
 /**
- * ipc_mux_dl_decode -Route the DL packet through the IP MUX layer
- *		      depending on Header.
- * @ipc_mux:	Pointer to MUX data-struct
- * @skb:	Pointer to ipc_skb.
+ * struct mux_type_cmdh - Structure of command header for mux lite and aggr
+ * @ack_lite:	MUX Lite Command Header pointer
+ * @ack_aggr:	Command Header pointer
  */
+union mux_type_cmdh {
+	struct mux_lite_cmdh *ack_lite;
+	struct mux_cmdh *ack_aggr;
+};
+
+/**
+ * struct mux_type_header - Structure of mux header type
+ * @adgh:	Aggregated Datagram Header pointer
+ * @adbh:	Aggregated Data Block Header pointer
+ */
+union mux_type_header {
+	struct mux_adgh *adgh;
+	struct mux_adbh *adbh;
+};
+
 void ipc_mux_dl_decode(struct iosm_mux *ipc_mux, struct sk_buff *skb);
 
 /**
@@ -147,7 +273,7 @@ void ipc_mux_dl_decode(struct iosm_mux *ipc_mux, struct sk_buff *skb);
  * @blocking:		True for blocking send
  * @respond:		If true return transaction ID
  *
- * Returns: 0 in success and failure value on error
+ * Returns:		0 in success and failure value on error
  */
 int ipc_mux_dl_acb_send_cmds(struct iosm_mux *ipc_mux, u32 cmd_type, u8 if_id,
 			     u32 transaction_id, union mux_cmd_param *param,
@@ -189,5 +315,11 @@ bool ipc_mux_ul_data_encode(struct iosm_mux *ipc_mux);
  * @skb:	Pointer to ipc_skb.
  */
 void ipc_mux_ul_encoded_process(struct iosm_mux *ipc_mux, struct sk_buff *skb);
+
+void ipc_mux_ul_adb_finish(struct iosm_mux *ipc_mux);
+
+void ipc_mux_ul_adb_update_ql(struct iosm_mux *ipc_mux, struct mux_adb *p_adb,
+			      int session_id, int qlth_n_ql_size,
+			      struct sk_buff_head *ul_list);
 
 #endif
