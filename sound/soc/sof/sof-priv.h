@@ -292,6 +292,10 @@ struct snd_sof_dsp_ops {
 	void (*set_mach_params)(struct snd_soc_acpi_mach *mach,
 				struct snd_sof_dev *sdev); /* optional */
 
+	/* IPC client ops */
+	int (*register_ipc_clients)(struct snd_sof_dev *sdev); /* optional */
+	void (*unregister_ipc_clients)(struct snd_sof_dev *sdev); /* optional */
+
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
 	int num_drv;
@@ -479,6 +483,30 @@ struct snd_sof_dev {
 	 */
 	int dsp_core_ref_count[SOF_MAX_DSP_NUM_CORES];
 
+	/*
+	 * Used to keep track of registered IPC client devices so that they can
+	 * be removed when the parent SOF module is removed.
+	 */
+	struct list_head ipc_client_list;
+
+	/* mutex to protect client list */
+	struct mutex ipc_client_mutex;
+
+	/*
+	 * Used for tracking the IPC client's RX registration for DSP initiated
+	 * message handling.
+	 */
+	struct list_head ipc_rx_handler_list;
+
+	/*
+	 * Used for tracking the IPC client's registration for DSP state change
+	 * notification
+	 */
+	struct list_head fw_state_handler_list;
+
+	/* to protect the ipc_rx_handler_list  and  dsp_state_handler_list list */
+	struct mutex client_event_handler_mutex;
+
 	void *private;			/* core does not touch this */
 };
 
@@ -582,15 +610,7 @@ extern const struct dsp_arch_ops sof_xtensa_arch_ops;
 /*
  * Firmware state tracking
  */
-static inline void sof_set_fw_state(struct snd_sof_dev *sdev,
-				    enum sof_fw_state new_state)
-{
-	if (sdev->fw_state == new_state)
-		return;
-
-	dev_dbg(sdev->dev, "fw_state change: %d -> %d\n", sdev->fw_state, new_state);
-	sdev->fw_state = new_state;
-}
+void sof_set_fw_state(struct snd_sof_dev *sdev, enum sof_fw_state new_state);
 
 /*
  * Utilities
@@ -623,4 +643,44 @@ int sof_stream_pcm_close(struct snd_sof_dev *sdev,
 			 struct snd_pcm_substream *substream);
 
 int sof_machine_check(struct snd_sof_dev *sdev);
+
+/* SOF client support */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_CLIENT)
+int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
+			    const void *data, size_t size);
+void sof_client_dev_unregister(struct snd_sof_dev *sdev, const char *name, u32 id);
+int sof_register_clients(struct snd_sof_dev *sdev);
+void sof_unregister_clients(struct snd_sof_dev *sdev);
+void sof_client_ipc_rx_dispatcher(struct snd_sof_dev *sdev, void *msg_buf);
+void sof_client_fw_state_dispatcher(struct snd_sof_dev *sdev);
+#else /* CONFIG_SND_SOC_SOF_CLIENT */
+static inline int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name,
+					  u32 id, const void *data, size_t size)
+{
+	return 0;
+}
+
+static inline void sof_client_dev_unregister(struct snd_sof_dev *sdev,
+					     const char *name, u32 id)
+{
+}
+
+static inline int sof_register_clients(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+
+static inline  void sof_unregister_clients(struct snd_sof_dev *sdev)
+{
+}
+
+static inline void sof_client_ipc_rx_dispatcher(struct snd_sof_dev *sdev, void *msg_buf)
+{
+}
+
+static inline void sof_client_fw_state_dispatcher(struct snd_sof_dev *sdev)
+{
+}
+#endif /* CONFIG_SND_SOC_SOF_CLIENT */
+
 #endif
