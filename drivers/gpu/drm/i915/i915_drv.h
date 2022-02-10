@@ -1597,10 +1597,6 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
-int i915_gem_dumb_create(struct drm_file *file_priv,
-			 struct drm_device *dev,
-			 struct drm_mode_create_dumb *args);
-
 int __must_check i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno);
 
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
