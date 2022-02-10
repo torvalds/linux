@@ -15,11 +15,12 @@
 #include <media/v4l2-device.h>
 #include <linux/rk_vcm_head.h>
 #include <linux/gpio/consumer.h>
+#include <linux/compat.h>
 
 #define DRIVER_VERSION	KERNEL_VERSION(0, 0x01, 0x0)
 #define FP5510_NAME			"fp5510"
 
-#define FP5510_MAX_CURRENT		100U
+#define FP5510_MAX_CURRENT		120U
 #define FP5510_MAX_REG			1023U
 
 #define FP5510_DEFAULT_START_CURRENT	0
@@ -48,8 +49,8 @@ struct fp5510_device {
 	unsigned int t_src;
 	unsigned int mclk;
 
-	struct timeval start_move_tv;
-	struct timeval end_move_tv;
+	struct __kernel_old_timeval start_move_tv;
+	struct __kernel_old_timeval end_move_tv;
 	unsigned long move_ms;
 
 	u32 module_index;
@@ -437,7 +438,7 @@ static int fp5510_set_ctrl(struct v4l2_ctrl *ctrl)
 			(uint32_t)move_pos) /
 			VCMDRV_MAX_LOG);
 
-		dev_vcm->start_move_tv = ns_to_timeval(ktime_get_ns());
+		dev_vcm->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 		mv_us = dev_vcm->start_move_tv.tv_usec +
 				dev_vcm->move_ms * 1000;
 		if (mv_us >= 1000000) {
@@ -584,12 +585,17 @@ static long fp5510_compat_ioctl32(struct v4l2_subdev *sd,
 			&p32->vcm_end_t.tv_usec);
 	} else if (cmd == RK_VIDIOC_GET_VCM_CFG) {
 		ret = fp5510_ioctl(sd, RK_VIDIOC_GET_VCM_CFG, &vcm_cfg);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, &vcm_cfg, sizeof(vcm_cfg));
+			if (ret)
+				ret = -EFAULT;
+		}
 	} else if (cmd == RK_VIDIOC_SET_VCM_CFG) {
 		ret = copy_from_user(&vcm_cfg, up, sizeof(vcm_cfg));
 		if (!ret)
 			ret = fp5510_ioctl(sd, cmd, &vcm_cfg);
+		else
+			ret = -EFAULT;
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
@@ -742,8 +748,8 @@ static int fp5510_probe(struct i2c_client *client,
 	fp5510_update_vcm_cfg(fp5510_dev);
 	fp5510_dev->move_ms       = 0;
 	fp5510_dev->current_related_pos = VCMDRV_MAX_LOG;
-	fp5510_dev->start_move_tv = ns_to_timeval(ktime_get_ns());
-	fp5510_dev->end_move_tv = ns_to_timeval(ktime_get_ns());
+	fp5510_dev->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
+	fp5510_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 	/*
 	 * Note:
 	 * 1. At ESC mode, ESC code=1 and TSC must be equal 0.
