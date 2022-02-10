@@ -231,6 +231,11 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			       "Invalid dsfield (tos): ECN bits must be 0");
 		goto errout;
 	}
+	/* IPv4 currently doesn't handle high order DSCP bits correctly */
+	if (frh->tos & ~IPTOS_TOS_MASK) {
+		NL_SET_ERR_MSG(extack, "Invalid tos");
+		goto errout;
+	}
 	rule4->dscp = inet_dsfield_to_dscp(frh->tos);
 
 	/* split local/main if they are not already split */
