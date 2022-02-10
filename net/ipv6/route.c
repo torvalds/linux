@@ -5009,6 +5009,12 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = -EINVAL;
 	rtm = nlmsg_data(nlh);
 
+	if (rtm->rtm_tos) {
+		NL_SET_ERR_MSG(extack,
+			       "Invalid dsfield (tos): option not available for IPv6");
+		goto errout;
+	}
+
 	*cfg = (struct fib6_config){
 		.fc_table = rtm->rtm_table,
 		.fc_dst_len = rtm->rtm_dst_len,
