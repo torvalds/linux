@@ -1373,8 +1373,6 @@ static struct wm_adsp_compr_buf *wm_adsp_buffer_alloc(struct wm_adsp *dsp)
 
 	wm_adsp_buffer_clear(buf);
 
-	list_add_tail(&buf->list, &dsp->buffer_list);
-
 	return buf;
 }
 
@@ -1391,10 +1389,6 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 		return -EINVAL;
 	}
 
-	buf = wm_adsp_buffer_alloc(dsp);
-	if (!buf)
-		return -ENOMEM;
-
 	xmalg = dsp->sys_config_size / sizeof(__be32);
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(magic);
@@ -1405,12 +1399,16 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
 		return -ENODEV;
 
+	buf = wm_adsp_buffer_alloc(dsp);
+	if (!buf)
+		return -ENOMEM;
+
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(host_buf_ptr);
 	for (i = 0; i < 5; ++i) {
 		ret = cs_dsp_read_data_word(&dsp->cs_dsp, WMFW_ADSP2_XM, addr,
 					    &buf->host_buf_ptr);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		if (buf->host_buf_ptr)
 			break;
@@ -1418,18 +1416,27 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 		usleep_range(1000, 2000);
 	}
 
-	if (!buf->host_buf_ptr)
-		return -EIO;
+	if (!buf->host_buf_ptr) {
+		ret = -EIO;
+		goto err;
+	}
 
 	buf->host_buf_mem_type = WMFW_ADSP2_XM;
 
 	ret = wm_adsp_buffer_populate(buf);
 	if (ret < 0)
-		return ret;
+		goto err;
+
+	list_add_tail(&buf->list, &dsp->buffer_list);
 
 	compr_dbg(buf, "legacy host_buf_ptr=%x\n", buf->host_buf_ptr);
 
 	return 0;
+
+err:
+	kfree(buf);
+
+	return ret;
 }
 
 static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
@@ -1437,7 +1444,7 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 	struct wm_adsp_host_buf_coeff_v1 coeff_v1;
 	struct wm_adsp_compr_buf *buf;
 	struct wm_adsp *dsp = container_of(cs_ctl->dsp, struct wm_adsp, cs_dsp);
-	unsigned int version;
+	unsigned int version = 0;
 	int ret, i;
 
 	for (i = 0; i < 5; ++i) {
@@ -1465,16 +1472,14 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 
 	ret = wm_adsp_buffer_populate(buf);
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	/*
 	 * v0 host_buffer coefficients didn't have versioning, so if the
 	 * control is one word, assume version 0.
 	 */
-	if (cs_ctl->len == 4) {
-		compr_dbg(buf, "host_buf_ptr=%x\n", buf->host_buf_ptr);
-		return 0;
-	}
+	if (cs_ctl->len == 4)
+		goto done;
 
 	version = be32_to_cpu(coeff_v1.versions) & HOST_BUF_COEFF_COMPAT_VER_MASK;
 	version >>= HOST_BUF_COEFF_COMPAT_VER_SHIFT;
@@ -1483,7 +1488,8 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 		adsp_err(dsp,
 			 "Host buffer coeff ver %u > supported version %u\n",
 			 version, HOST_BUF_COEFF_SUPPORTED_COMPAT_VER);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	cs_dsp_remove_padding((u32 *)&coeff_v1.name, ARRAY_SIZE(coeff_v1.name));
@@ -1491,10 +1497,18 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 	buf->name = kasprintf(GFP_KERNEL, "%s-dsp-%s", dsp->part,
 			      (char *)&coeff_v1.name);
 
+done:
+	list_add_tail(&buf->list, &dsp->buffer_list);
+
 	compr_dbg(buf, "host_buf_ptr=%x coeff version %u\n",
 		  buf->host_buf_ptr, version);
 
 	return version;
+
+err:
+	kfree(buf);
+
+	return ret;
 }
 
 static int wm_adsp_buffer_init(struct wm_adsp *dsp)
@@ -1522,10 +1536,8 @@ static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 	if (list_empty(&dsp->buffer_list)) {
 		/* Fall back to legacy support */
 		ret = wm_adsp_buffer_parse_legacy(dsp);
-		if (ret) {
-			adsp_err(dsp, "Failed to parse legacy: %d\n", ret);
-			goto error;
-		}
+		if (ret)
+			adsp_warn(dsp, "Failed to parse legacy: %d\n", ret);
 	}
 
 	return 0;
