@@ -50,8 +50,6 @@ struct cs_etm_auxtrace {
 	u8 timeless_decoding;
 	u8 snapshot_mode;
 	u8 data_queued;
-	u8 sample_branches;
-	u8 sample_instructions;
 
 	int num_cpu;
 	u64 latest_kernel_timestamp;
@@ -410,8 +408,8 @@ static void cs_etm__packet_swap(struct cs_etm_auxtrace *etm,
 {
 	struct cs_etm_packet *tmp;
 
-	if (etm->sample_branches || etm->synth_opts.last_branch ||
-	    etm->sample_instructions) {
+	if (etm->synth_opts.branches || etm->synth_opts.last_branch ||
+	    etm->synth_opts.instructions) {
 		/*
 		 * Swap PACKET with PREV_PACKET: PACKET becomes PREV_PACKET for
 		 * the next incoming packet.
@@ -1365,7 +1363,6 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 		err = cs_etm__synth_event(session, &attr, id);
 		if (err)
 			return err;
-		etm->sample_branches = true;
 		etm->branches_sample_type = attr.sample_type;
 		etm->branches_id = id;
 		id += 1;
@@ -1389,7 +1386,6 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 		err = cs_etm__synth_event(session, &attr, id);
 		if (err)
 			return err;
-		etm->sample_instructions = true;
 		etm->instructions_sample_type = attr.sample_type;
 		etm->instructions_id = id;
 		id += 1;
@@ -1420,7 +1416,7 @@ static int cs_etm__sample(struct cs_etm_queue *etmq,
 	    tidq->prev_packet->last_instr_taken_branch)
 		cs_etm__update_last_branch_rb(etmq, tidq);
 
-	if (etm->sample_instructions &&
+	if (etm->synth_opts.instructions &&
 	    tidq->period_instructions >= etm->instructions_sample_period) {
 		/*
 		 * Emit instruction sample periodically
@@ -1503,7 +1499,7 @@ static int cs_etm__sample(struct cs_etm_queue *etmq,
 		}
 	}
 
-	if (etm->sample_branches) {
+	if (etm->synth_opts.branches) {
 		bool generate_sample = false;
 
 		/* Generate sample for tracing on packet */
@@ -1582,7 +1578,7 @@ static int cs_etm__flush(struct cs_etm_queue *etmq,
 
 	}
 
-	if (etm->sample_branches &&
+	if (etm->synth_opts.branches &&
 	    tidq->prev_packet->sample_type == CS_ETM_RANGE) {
 		err = cs_etm__synth_branch_sample(etmq, tidq);
 		if (err)
