@@ -1197,6 +1197,22 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 
 				return false;
 			}
+
+			if (link->type == dc_connection_sst_branch &&
+					link->dpcd_caps.dongle_type ==
+						DISPLAY_DONGLE_DP_VGA_CONVERTER &&
+					reason == DETECT_REASON_HPDRX) {
+				/* Abort detection for DP-VGA adapters when EDID
+				 * can't be read and detection reason is VGA-side
+				 * hotplug
+				 */
+				if (prev_sink)
+					dc_sink_release(prev_sink);
+				link_disconnect_sink(link);
+
+				return true;
+			}
+
 			break;
 		default:
 			break;
