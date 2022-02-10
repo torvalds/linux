@@ -190,56 +190,17 @@ static inline bool ti_msgmgr_queue_is_error(const struct ti_msgmgr_desc *d,
 	return val ? true : false;
 }
 
-/**
- * ti_msgmgr_queue_rx_interrupt() - Interrupt handler for receive Queue
- * @irq:	Interrupt number
- * @p:		Channel Pointer
- *
- * Return: -EINVAL if there is no instance
- * IRQ_NONE if the interrupt is not ours.
- * IRQ_HANDLED if the rx interrupt was successfully handled.
- */
-static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
+static int ti_msgmgr_queue_rx_data(struct mbox_chan *chan, struct ti_queue_inst *qinst,
+				   const struct ti_msgmgr_desc *desc)
 {
-	struct mbox_chan *chan = p;
-	struct device *dev = chan->mbox->dev;
-	struct ti_msgmgr_inst *inst = dev_get_drvdata(dev);
-	struct ti_queue_inst *qinst = chan->con_priv;
-	const struct ti_msgmgr_desc *desc;
-	int msg_count, num_words;
+	int num_words;
 	struct ti_msgmgr_message message;
 	void __iomem *data_reg;
 	u32 *word_data;
 
-	if (WARN_ON(!inst)) {
-		dev_err(dev, "no platform drv data??\n");
-		return -EINVAL;
-	}
-
-	/* Do I have an invalid interrupt source? */
-	if (qinst->is_tx) {
-		dev_err(dev, "Cannot handle rx interrupt on tx channel %s\n",
-			qinst->name);
-		return IRQ_NONE;
-	}
-
-	desc = inst->desc;
-	if (ti_msgmgr_queue_is_error(desc, qinst)) {
-		dev_err(dev, "Error on Rx channel %s\n", qinst->name);
-		return IRQ_NONE;
-	}
-
-	/* Do I actually have messages to read? */
-	msg_count = ti_msgmgr_queue_get_num_messages(desc, qinst);
-	if (!msg_count) {
-		/* Shared IRQ? */
-		dev_dbg(dev, "Spurious event - 0 pending data!\n");
-		return IRQ_NONE;
-	}
-
 	/*
 	 * I have no idea about the protocol being used to communicate with the
-	 * remote producer - 0 could be valid data, so I won't make a judgement
+	 * remote producer - 0 could be valid data, so I wont make a judgement
 	 * of how many bytes I should be reading. Let the client figure this
 	 * out.. I just read the full message and pass it on..
 	 */
@@ -272,6 +233,55 @@ static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
 	 * we invoke the handler in IRQ context.
 	 */
 	mbox_chan_received_data(chan, (void *)&message);
+
+	return 0;
+}
+
+/**
+ * ti_msgmgr_queue_rx_interrupt() - Interrupt handler for receive Queue
+ * @irq:	Interrupt number
+ * @p:		Channel Pointer
+ *
+ * Return: -EINVAL if there is no instance
+ * IRQ_NONE if the interrupt is not ours.
+ * IRQ_HANDLED if the rx interrupt was successfully handled.
+ */
+static irqreturn_t ti_msgmgr_queue_rx_interrupt(int irq, void *p)
+{
+	struct mbox_chan *chan = p;
+	struct device *dev = chan->mbox->dev;
+	struct ti_msgmgr_inst *inst = dev_get_drvdata(dev);
+	struct ti_queue_inst *qinst = chan->con_priv;
+	const struct ti_msgmgr_desc *desc;
+	int msg_count;
+
+	if (WARN_ON(!inst)) {
+		dev_err(dev, "no platform drv data??\n");
+		return -EINVAL;
+	}
+
+	/* Do I have an invalid interrupt source? */
+	if (qinst->is_tx) {
+		dev_err(dev, "Cannot handle rx interrupt on tx channel %s\n",
+			qinst->name);
+		return IRQ_NONE;
+	}
+
+	desc = inst->desc;
+	if (ti_msgmgr_queue_is_error(desc, qinst)) {
+		dev_err(dev, "Error on Rx channel %s\n", qinst->name);
+		return IRQ_NONE;
+	}
+
+	/* Do I actually have messages to read? */
+	msg_count = ti_msgmgr_queue_get_num_messages(desc, qinst);
+	if (!msg_count) {
+		/* Shared IRQ? */
+		dev_dbg(dev, "Spurious event - 0 pending data!\n");
+		return IRQ_NONE;
+	}
+
+	ti_msgmgr_queue_rx_data(chan, qinst, desc);
 
 	return IRQ_HANDLED;
 }
