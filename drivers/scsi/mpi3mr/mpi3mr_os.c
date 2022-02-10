@@ -286,6 +286,35 @@ static struct mpi3mr_fwevt *mpi3mr_dequeue_fwevt(
 }
 
 /**
+ * mpi3mr_cancel_work - cancel firmware event
+ * @fwevt: fwevt object which needs to be canceled
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_cancel_work(struct mpi3mr_fwevt *fwevt)
+{
+	/*
+	 * Wait on the fwevt to complete. If this returns 1, then
+	 * the event was never executed.
+	 *
+	 * If it did execute, we wait for it to finish, and the put will
+	 * happen from mpi3mr_process_fwevt()
+	 */
+	if (cancel_work_sync(&fwevt->work)) {
+		/*
+		 * Put fwevt reference count after
+		 * dequeuing it from worker queue
+		 */
+		mpi3mr_fwevt_put(fwevt);
+		/*
+		 * Put fwevt reference count to neutralize
+		 * kref_init increment
+		 */
+		mpi3mr_fwevt_put(fwevt);
+	}
+}
+
+/**
  * mpi3mr_cleanup_fwevt_list - Cleanup firmware event list
  * @mrioc: Adapter instance reference
  *
@@ -302,28 +331,25 @@ void mpi3mr_cleanup_fwevt_list(struct mpi3mr_ioc *mrioc)
 	    !mrioc->fwevt_worker_thread)
 		return;
 
-	while ((fwevt = mpi3mr_dequeue_fwevt(mrioc)) ||
-	    (fwevt = mrioc->current_event)) {
+	while ((fwevt = mpi3mr_dequeue_fwevt(mrioc)))
+		mpi3mr_cancel_work(fwevt);
+
+	if (mrioc->current_event) {
+		fwevt = mrioc->current_event;
 		/*
-		 * Wait on the fwevt to complete. If this returns 1, then
-		 * the event was never executed, and we need a put for the
-		 * reference the work had on the fwevt.
-		 *
-		 * If it did execute, we wait for it to finish, and the put will
-		 * happen from mpi3mr_process_fwevt()
+		 * Don't call cancel_work_sync() API for the
+		 * fwevt work if the controller reset is
+		 * get called as part of processing the
+		 * same fwevt work (or) when worker thread is
+		 * waiting for device add/remove APIs to complete.
+		 * Otherwise we will see deadlock.
 		 */
-		if (cancel_work_sync(&fwevt->work)) {
-			/*
-			 * Put fwevt reference count after
-			 * dequeuing it from worker queue
-			 */
-			mpi3mr_fwevt_put(fwevt);
-			/*
-			 * Put fwevt reference count to neutralize
-			 * kref_init increment
-			 */
-			mpi3mr_fwevt_put(fwevt);
+		if (current_work() == &fwevt->work || fwevt->pending_at_sml) {
+			fwevt->discard = 1;
+			return;
 		}
+
+		mpi3mr_cancel_work(fwevt);
 	}
 }
 
@@ -691,6 +717,24 @@ static struct mpi3mr_tgt_dev  *__mpi3mr_get_tgtdev_from_tgtpriv(
 }
 
 /**
+ * mpi3mr_print_device_event_notice - print notice related to post processing of
+ *					device event after controller reset.
+ *
+ * @mrioc: Adapter instance reference
+ * @device_add: true for device add event and false for device removal event
+ *
+ * Return: None.
+ */
+static void mpi3mr_print_device_event_notice(struct mpi3mr_ioc *mrioc,
+	bool device_add)
+{
+	ioc_notice(mrioc, "Device %s was in progress before the reset and\n",
+	    (device_add ? "addition" : "removal"));
+	ioc_notice(mrioc, "completed after reset, verify whether the exposed devices\n");
+	ioc_notice(mrioc, "are matched with attached devices for correctness\n");
+}
+
+/**
  * mpi3mr_remove_tgtdev_from_host - Remove dev from upper layers
  * @mrioc: Adapter instance reference
  * @tgtdev: Target device structure
@@ -714,8 +758,17 @@ static void mpi3mr_remove_tgtdev_from_host(struct mpi3mr_ioc *mrioc,
 	}
 
 	if (tgtdev->starget) {
+		if (mrioc->current_event)
+			mrioc->current_event->pending_at_sml = 1;
 		scsi_remove_target(&tgtdev->starget->dev);
 		tgtdev->host_exposed = 0;
+		if (mrioc->current_event) {
+			mrioc->current_event->pending_at_sml = 0;
+			if (mrioc->current_event->discard) {
+				mpi3mr_print_device_event_notice(mrioc, false);
+				return;
+			}
+		}
 	}
 	ioc_info(mrioc, "%s :Removed handle(0x%04x), wwid(0x%016llx)\n",
 	    __func__, tgtdev->dev_handle, (unsigned long long)tgtdev->wwid);
@@ -749,11 +802,20 @@ static int mpi3mr_report_tgtdev_to_host(struct mpi3mr_ioc *mrioc,
 	}
 	if (!tgtdev->host_exposed && !mrioc->reset_in_progress) {
 		tgtdev->host_exposed = 1;
+		if (mrioc->current_event)
+			mrioc->current_event->pending_at_sml = 1;
 		scsi_scan_target(&mrioc->shost->shost_gendev, 0,
 		    tgtdev->perst_id,
 		    SCAN_WILD_CARD, SCSI_SCAN_INITIAL);
 		if (!tgtdev->starget)
 			tgtdev->host_exposed = 0;
+		if (mrioc->current_event) {
+			mrioc->current_event->pending_at_sml = 0;
+			if (mrioc->current_event->discard) {
+				mpi3mr_print_device_event_notice(mrioc, true);
+				goto out;
+			}
+		}
 	}
 out:
 	if (tgtdev)
@@ -1193,6 +1255,8 @@ static void mpi3mr_sastopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 	mpi3mr_sastopochg_evt_debug(mrioc, event_data);
 
 	for (i = 0; i < event_data->num_entries; i++) {
+		if (fwevt->discard)
+			return;
 		handle = le16_to_cpu(event_data->phy_entry[i].attached_dev_handle);
 		if (!handle)
 			continue;
@@ -1324,6 +1388,8 @@ static void mpi3mr_pcietopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 	mpi3mr_pcietopochg_evt_debug(mrioc, event_data);
 
 	for (i = 0; i < event_data->num_entries; i++) {
+		if (fwevt->discard)
+			return;
 		handle =
 		    le16_to_cpu(event_data->port_entry[i].attached_dev_handle);
 		if (!handle)
@@ -1362,8 +1428,8 @@ static void mpi3mr_pcietopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_fwevt *fwevt)
 {
-	mrioc->current_event = fwevt;
 	mpi3mr_fwevt_del_from_list(mrioc, fwevt);
+	mrioc->current_event = fwevt;
 
 	if (mrioc->stop_drv_processing)
 		goto out;
