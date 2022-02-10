@@ -84,9 +84,7 @@ enum sof_dsp_power_states {
 	SOF_DSP_PM_D0,
 	SOF_DSP_PM_D1,
 	SOF_DSP_PM_D2,
-	SOF_DSP_PM_D3_HOT,
 	SOF_DSP_PM_D3,
-	SOF_DSP_PM_D3_COLD,
 };
 
 struct sof_dsp_power_state {
