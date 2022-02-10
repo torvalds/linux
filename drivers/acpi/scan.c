@@ -477,7 +477,8 @@ static void acpi_device_del(struct acpi_device *device)
 	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
 		if (!strcmp(acpi_device_bus_id->bus_id,
 			    acpi_device_hid(device))) {
-			ida_simple_remove(&acpi_device_bus_id->instance_ida, device->pnp.instance_no);
+			ida_free(&acpi_device_bus_id->instance_ida,
+				 device->pnp.instance_no);
 			if (ida_is_empty(&acpi_device_bus_id->instance_ida)) {
 				list_del(&acpi_device_bus_id->node);
 				kfree_const(acpi_device_bus_id->bus_id);
@@ -642,7 +643,7 @@ static int acpi_device_set_name(struct acpi_device *device,
 	struct ida *instance_ida = &acpi_device_bus_id->instance_ida;
 	int result;
 
-	result = ida_simple_get(instance_ida, 0, ACPI_MAX_DEVICE_INSTANCES, GFP_KERNEL);
+	result = ida_alloc(instance_ida, GFP_KERNEL);
 	if (result < 0)
 		return result;
 
