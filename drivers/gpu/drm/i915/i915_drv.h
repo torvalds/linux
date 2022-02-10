@@ -34,25 +34,12 @@
 
 #include <asm/hypervisor.h>
 
-#include <linux/io-mapping.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/backlight.h>
-#include <linux/hash.h>
 #include <linux/intel-iommu.h>
-#include <linux/kref.h>
-#include <linux/mm_types.h>
-#include <linux/perf_event.h>
 #include <linux/pm_qos.h>
-#include <linux/dma-resv.h>
-#include <linux/stackdepot.h>
 
-#include <drm/drm_gem.h>
-#include <drm/drm_auth.h>
-#include <drm/drm_util.h>
-#include <drm/drm_dsc.h>
 #include <drm/drm_connector.h>
-#include <drm/i915_mei_hdcp_interface.h>
 #include <drm/ttm/ttm_device.h>
 
 #include "i915_params.h"
@@ -89,17 +76,12 @@
 #include "intel_runtime_pm.h"
 #include "intel_step.h"
 #include "intel_uncore.h"
-#include "intel_wakeref.h"
 #include "intel_wopcm.h"
 
 #include "i915_gem.h"
-#include "i915_gem_gtt.h"
 #include "i915_gpu_error.h"
 #include "i915_perf_types.h"
-#include "i915_request.h"
 #include "i915_scheduler.h"
-#include "gt/intel_timeline.h"
-#include "i915_vma.h"
 
 struct dpll;
 struct drm_i915_clock_gating_funcs;
