@@ -11,7 +11,12 @@ enum {
 void test_bpf_nf_ct(int mode)
 {
 	struct test_bpf_nf *skel;
-	int prog_fd, err, retval;
+	int prog_fd, err;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 1,
+	);
 
 	skel = test_bpf_nf__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "test_bpf_nf__open_and_load"))
@@ -22,8 +27,7 @@ void test_bpf_nf_ct(int mode)
 	else
 		prog_fd = bpf_program__fd(skel->progs.nf_skb_ct_test);
 
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4), NULL, NULL,
-				(__u32 *)&retval, NULL);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	if (!ASSERT_OK(err, "bpf_prog_test_run"))
 		goto end;
 

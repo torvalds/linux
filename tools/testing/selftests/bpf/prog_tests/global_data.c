@@ -132,24 +132,26 @@ static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 void test_global_data(void)
 {
 	const char *file = "./test_global_data.o";
-	__u32 duration = 0, retval;
 	struct bpf_object *obj;
 	int err, prog_fd;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 1,
+	);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (CHECK(err, "load program", "error %d loading %s\n", err, file))
+	if (!ASSERT_OK(err, "load program"))
 		return;
 
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "pass global data run",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "pass global data run err");
+	ASSERT_OK(topts.retval, "pass global data run retval");
 
-	test_global_data_number(obj, duration);
-	test_global_data_string(obj, duration);
-	test_global_data_struct(obj, duration);
-	test_global_data_rdonly(obj, duration);
+	test_global_data_number(obj, topts.duration);
+	test_global_data_string(obj, topts.duration);
+	test_global_data_struct(obj, topts.duration);
+	test_global_data_rdonly(obj, topts.duration);
 
 	bpf_object__close(obj);
 }

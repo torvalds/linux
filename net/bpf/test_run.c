@@ -154,7 +154,8 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 			goto out;
 
 		if (sinfo) {
-			int i, offset = len, data_len;
+			int i, offset = len;
+			u32 data_len;
 
 			for (i = 0; i < sinfo->nr_frags; i++) {
 				skb_frag_t *frag = &sinfo->frags[i];
@@ -164,7 +165,7 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 					break;
 				}
 
-				data_len = min_t(int, copy_size - offset,
+				data_len = min_t(u32, copy_size - offset,
 						 skb_frag_size(frag));
 
 				if (copy_to_user(data_out + offset,
@@ -960,7 +961,12 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 		while (size < kattr->test.data_size_in) {
 			struct page *page;
 			skb_frag_t *frag;
-			int data_len;
+			u32 data_len;
+
+			if (sinfo->nr_frags == MAX_SKB_FRAGS) {
+				ret = -ENOMEM;
+				goto out;
+			}
 
 			page = alloc_page(GFP_KERNEL);
 			if (!page) {
@@ -971,7 +977,7 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			frag = &sinfo->frags[sinfo->nr_frags++];
 			__skb_frag_set_page(frag, page);
 
-			data_len = min_t(int, kattr->test.data_size_in - size,
+			data_len = min_t(u32, kattr->test.data_size_in - size,
 					 PAGE_SIZE);
 			skb_frag_size_set(frag, data_len);
 
@@ -1141,7 +1147,7 @@ int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog, const union bpf_attr *kat
 	if (!range_is_zero(user_ctx, offsetofend(typeof(*user_ctx), local_port), sizeof(*user_ctx)))
 		goto out;
 
-	if (user_ctx->local_port > U16_MAX || user_ctx->remote_port > U16_MAX) {
+	if (user_ctx->local_port > U16_MAX) {
 		ret = -ERANGE;
 		goto out;
 	}
@@ -1149,7 +1155,7 @@ int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog, const union bpf_attr *kat
 	ctx.family = (u16)user_ctx->family;
 	ctx.protocol = (u16)user_ctx->protocol;
 	ctx.dport = (u16)user_ctx->local_port;
-	ctx.sport = (__force __be16)user_ctx->remote_port;
+	ctx.sport = user_ctx->remote_port;
 
 	switch (ctx.family) {
 	case AF_INET:

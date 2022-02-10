@@ -413,7 +413,7 @@ static void fixup_map(struct bpf_object *obj)
 		for (i = 0; i < NR_TESTS; i++) {
 			if (!strcmp(test_map_names[i], name) &&
 			    (check_test_flags(i))) {
-				bpf_map__resize(map, num_map_entries);
+				bpf_map__set_max_entries(map, num_map_entries);
 				continue;
 			}
 		}

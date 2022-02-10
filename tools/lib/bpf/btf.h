@@ -147,11 +147,10 @@ LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__align_of(const struct btf *btf, __u32 id);
 LIBBPF_API int btf__fd(const struct btf *btf);
 LIBBPF_API void btf__set_fd(struct btf *btf, int fd);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use btf__raw_data() instead")
-LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const void *btf__raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API const char *btf__str_by_offset(const struct btf *btf, __u32 offset);
+LIBBPF_DEPRECATED_SINCE(0, 7, "this API is not necessary when BTF-defined maps are used")
 LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 				    __u32 expected_key_size,
 				    __u32 expected_value_size,
@@ -159,8 +158,7 @@ LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 LIBBPF_API struct btf_ext *btf_ext__new(const __u8 *data, __u32 size);
 LIBBPF_API void btf_ext__free(struct btf_ext *btf_ext);
-LIBBPF_API const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext,
-					     __u32 *size);
+LIBBPF_API const void *btf_ext__raw_data(const struct btf_ext *btf_ext, __u32 *size);
 LIBBPF_API LIBBPF_DEPRECATED("btf_ext__reloc_func_info was never meant as a public API and has wrong assumptions embedded in it; it will be removed in the future libbpf versions")
 int btf_ext__reloc_func_info(const struct btf *btf,
 			     const struct btf_ext *btf_ext,
@@ -171,8 +169,10 @@ int btf_ext__reloc_line_info(const struct btf *btf,
 			     const struct btf_ext *btf_ext,
 			     const char *sec_name, __u32 insns_cnt,
 			     void **line_info, __u32 *cnt);
-LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
-LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
+LIBBPF_API LIBBPF_DEPRECATED("btf_ext__reloc_func_info is deprecated; write custom func_info parsing to fetch rec_size")
+__u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
+LIBBPF_API LIBBPF_DEPRECATED("btf_ext__reloc_line_info is deprecated; write custom line_info parsing to fetch rec_size")
+__u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
 
 LIBBPF_API int btf__find_str(struct btf *btf, const char *s);
 LIBBPF_API int btf__add_str(struct btf *btf, const char *s);

@@ -206,6 +206,8 @@ btf_tag test and Clang version
 
 The btf_tag selftest requires LLVM support to recognize the btf_decl_tag and
 btf_type_tag attributes. They are introduced in `Clang 14` [0_, 1_].
+The subtests ``btf_type_tag_user_{mod1, mod2, vmlinux}`` also requires
+pahole version ``1.23``.
 
 Without them, the btf_tag selftest will be skipped and you will observe:
 

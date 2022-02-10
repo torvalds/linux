@@ -101,4 +101,20 @@ int balancer_ingress(struct __sk_buff *ctx)
 	return 0;
 }
 
+typedef int (*func_proto_typedef___match)(long);
+typedef int (*func_proto_typedef___doesnt_match)(char *);
+typedef int (*func_proto_typedef_nested1)(func_proto_typedef___match);
+
+int proto_out[3];
+
+SEC("raw_tracepoint/sys_enter")
+int core_relo_proto(void *ctx)
+{
+	proto_out[0] = bpf_core_type_exists(func_proto_typedef___match);
+	proto_out[1] = bpf_core_type_exists(func_proto_typedef___doesnt_match);
+	proto_out[2] = bpf_core_type_exists(func_proto_typedef_nested1);
+
+	return 0;
+}
+
 char LICENSE[] SEC("license") = "GPL";

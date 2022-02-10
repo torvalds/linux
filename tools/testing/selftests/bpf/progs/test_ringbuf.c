@@ -3,6 +3,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -35,7 +36,7 @@ long prod_pos = 0;
 /* inner state */
 long seq = 0;
 
-SEC("fentry/__x64_sys_getpgid")
+SEC("fentry/" SYS_PREFIX "sys_getpgid")
 int test_ringbuf(void *ctx)
 {
 	int cur_pid = bpf_get_current_pid_tgid() >> 32;

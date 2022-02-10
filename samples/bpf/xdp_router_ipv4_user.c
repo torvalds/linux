@@ -640,12 +640,10 @@ static void usage(const char *prog)
 
 int main(int ac, char **argv)
 {
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type	= BPF_PROG_TYPE_XDP,
-	};
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	const char *optstr = "SF";
+	struct bpf_program *prog;
 	struct bpf_object *obj;
 	char filename[256];
 	char **ifname_list;
@@ -653,7 +651,6 @@ int main(int ac, char **argv)
 	int err, i = 1;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
 
 	total_ifindex = ac - 1;
 	ifname_list = (argv + 1);
@@ -684,14 +681,20 @@ int main(int ac, char **argv)
 		return 1;
 	}
 
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return 1;
 
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_XDP);
+
 	printf("\n******************loading bpf file*********************\n");
-	if (!prog_fd) {
-		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
+	err = bpf_object__load(obj);
+	if (err) {
+		printf("bpf_object__load(): %s\n", strerror(errno));
 		return 1;
 	}
+	prog_fd = bpf_program__fd(prog);
 
 	lpm_map_fd = bpf_object__find_map_fd_by_name(obj, "lpm_map");
 	rxcnt_map_fd = bpf_object__find_map_fd_by_name(obj, "rxcnt");

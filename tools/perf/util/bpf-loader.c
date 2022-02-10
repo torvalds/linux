@@ -54,6 +54,7 @@ static bool libbpf_initialized;
 struct bpf_object *
 bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
 {
+	LIBBPF_OPTS(bpf_object_open_opts, opts, .object_name = name);
 	struct bpf_object *obj;
 
 	if (!libbpf_initialized) {
@@ -61,7 +62,7 @@ bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
 		libbpf_initialized = true;
 	}
 
-	obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, name);
+	obj = bpf_object__open_mem(obj_buf, obj_buf_sz, &opts);
 	if (IS_ERR_OR_NULL(obj)) {
 		pr_debug("bpf: failed to load buffer\n");
 		return ERR_PTR(-EINVAL);
@@ -72,6 +73,7 @@ bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
 
 struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 {
+	LIBBPF_OPTS(bpf_object_open_opts, opts, .object_name = filename);
 	struct bpf_object *obj;
 
 	if (!libbpf_initialized) {
@@ -94,7 +96,7 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 				return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
 		} else
 			pr_debug("bpf: successful builtin compilation\n");
-		obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, filename);
+		obj = bpf_object__open_mem(obj_buf, obj_buf_sz, &opts);
 
 		if (!IS_ERR_OR_NULL(obj) && llvm_param.dump_obj)
 			llvm__dump_obj(filename, obj_buf, obj_buf_sz);
@@ -654,11 +656,11 @@ int bpf__probe(struct bpf_object *obj)
 		}
 
 		if (priv->is_tp) {
-			bpf_program__set_tracepoint(prog);
+			bpf_program__set_type(prog, BPF_PROG_TYPE_TRACEPOINT);
 			continue;
 		}
 
-		bpf_program__set_kprobe(prog);
+		bpf_program__set_type(prog, BPF_PROG_TYPE_KPROBE);
 		pev = &priv->pev;
 
 		err = convert_perf_probe_events(pev, 1);

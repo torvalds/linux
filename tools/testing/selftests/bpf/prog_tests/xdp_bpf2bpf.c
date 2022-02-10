@@ -45,9 +45,9 @@ static void run_xdp_bpf2bpf_pkt_size(int pkt_fd, struct perf_buffer *pb,
 				     struct test_xdp_bpf2bpf *ftrace_skel,
 				     int pkt_size)
 {
-	__u32 duration = 0, retval, size;
 	__u8 *buf, *buf_in;
 	int err;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
 	if (!ASSERT_LE(pkt_size, BUF_SZ, "pkt_size") ||
 	    !ASSERT_GE(pkt_size, sizeof(pkt_v4), "pkt_size"))
@@ -73,12 +73,16 @@ static void run_xdp_bpf2bpf_pkt_size(int pkt_fd, struct perf_buffer *pb,
 	}
 
 	/* Run test program */
-	err = bpf_prog_test_run(pkt_fd, 1, buf_in, pkt_size,
-				buf, &size, &retval, &duration);
+	topts.data_in = buf_in;
+	topts.data_size_in = pkt_size;
+	topts.data_out = buf;
+	topts.data_size_out = BUF_SZ;
+
+	err = bpf_prog_test_run_opts(pkt_fd, &topts);
 
 	ASSERT_OK(err, "ipv4");
-	ASSERT_EQ(retval, XDP_PASS, "ipv4 retval");
-	ASSERT_EQ(size, pkt_size, "ipv4 size");
+	ASSERT_EQ(topts.retval, XDP_PASS, "ipv4 retval");
+	ASSERT_EQ(topts.data_size_out, pkt_size, "ipv4 size");
 
 	/* Make sure bpf_xdp_output() was triggered and it sent the expected
 	 * data to the perf ring buffer.

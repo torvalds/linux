@@ -170,11 +170,6 @@ static inline u32 sk_msg_iter_dist(u32 start, u32 end)
 #define sk_msg_iter_next(msg, which)			\
 	sk_msg_iter_var_next(msg->sg.which)
 
-static inline void sk_msg_clear_meta(struct sk_msg *msg)
-{
-	memset(&msg->sg, 0, offsetofend(struct sk_msg_sg, copy));
-}
-
 static inline void sk_msg_init(struct sk_msg *msg)
 {
 	BUILD_BUG_ON(ARRAY_SIZE(msg->sg.data) - 1 != NR_MSG_FRAG_IDS);

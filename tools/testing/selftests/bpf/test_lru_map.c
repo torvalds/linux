@@ -61,7 +61,11 @@ static int bpf_map_lookup_elem_with_ref_bit(int fd, unsigned long long key,
 	};
 	__u8 data[64] = {};
 	int mfd, pfd, ret, zero = 0;
-	__u32 retval = 0;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = data,
+		.data_size_in = sizeof(data),
+		.repeat = 1,
+	);
 
 	mfd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(int), sizeof(__u64), 1, NULL);
 	if (mfd < 0)
@@ -75,9 +79,8 @@ static int bpf_map_lookup_elem_with_ref_bit(int fd, unsigned long long key,
 		return -1;
 	}
 
-	ret = bpf_prog_test_run(pfd, 1, data, sizeof(data),
-				NULL, NULL, &retval, NULL);
-	if (ret < 0 || retval != 42) {
+	ret = bpf_prog_test_run_opts(pfd, &topts);
+	if (ret < 0 || topts.retval != 42) {
 		ret = -1;
 	} else {
 		assert(!bpf_map_lookup_elem(mfd, &zero, value));

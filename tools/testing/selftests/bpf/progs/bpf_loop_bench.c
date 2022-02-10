@@ -3,6 +3,7 @@
 
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -14,7 +15,7 @@ static int empty_callback(__u32 index, void *data)
 	return 0;
 }
 
-SEC("fentry/__x64_sys_getpgid")
+SEC("fentry/" SYS_PREFIX "sys_getpgid")
 int benchmark(void *ctx)
 {
 	for (int i = 0; i < 1000; i++) {

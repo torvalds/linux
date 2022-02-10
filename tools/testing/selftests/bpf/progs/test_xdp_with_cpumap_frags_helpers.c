@@ -12,7 +12,7 @@ struct {
 	__uint(max_entries, 4);
 } cpu_map SEC(".maps");
 
-SEC("xdp_cpumap/dummy_cm")
+SEC("xdp/cpumap")
 int xdp_dummy_cm(struct xdp_md *ctx)
 {
 	return XDP_PASS;

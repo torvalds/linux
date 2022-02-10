@@ -92,6 +92,9 @@
 # define offsetofend(TYPE, FIELD) \
 	(offsetof(TYPE, FIELD) + sizeof(((TYPE *)0)->FIELD))
 #endif
+#ifndef __alias
+#define __alias(symbol) __attribute__((alias(#symbol)))
+#endif
 
 /* Check whether a string `str` has prefix `pfx`, regardless if `pfx` is
  * a string literal known at compilation time or char * pointer known only at

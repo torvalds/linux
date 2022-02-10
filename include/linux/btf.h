@@ -238,6 +238,11 @@ static inline bool btf_type_is_var(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_VAR;
 }
 
+static inline bool btf_type_is_type_tag(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_TYPE_TAG;
+}
+
 /* union is only a special case of struct:
  * all its offsetof(member) == 0
  */
@@ -320,6 +325,11 @@ static inline const struct btf_var_secinfo *btf_type_var_secinfo(
 		const struct btf_type *t)
 {
 	return (const struct btf_var_secinfo *)(t + 1);
+}
+
+static inline struct btf_param *btf_params(const struct btf_type *t)
+{
+	return (struct btf_param *)(t + 1);
 }
 
 #ifdef CONFIG_BPF_SYSCALL

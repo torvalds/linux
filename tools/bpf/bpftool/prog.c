@@ -1272,12 +1272,12 @@ static int do_run(int argc, char **argv)
 {
 	char *data_fname_in = NULL, *data_fname_out = NULL;
 	char *ctx_fname_in = NULL, *ctx_fname_out = NULL;
-	struct bpf_prog_test_run_attr test_attr = {0};
 	const unsigned int default_size = SZ_32K;
 	void *data_in = NULL, *data_out = NULL;
 	void *ctx_in = NULL, *ctx_out = NULL;
 	unsigned int repeat = 1;
 	int fd, err;
+	LIBBPF_OPTS(bpf_test_run_opts, test_attr);
 
 	if (!REQ_ARGS(4))
 		return -1;
@@ -1395,14 +1395,13 @@ static int do_run(int argc, char **argv)
 			goto free_ctx_in;
 	}
 
-	test_attr.prog_fd	= fd;
 	test_attr.repeat	= repeat;
 	test_attr.data_in	= data_in;
 	test_attr.data_out	= data_out;
 	test_attr.ctx_in	= ctx_in;
 	test_attr.ctx_out	= ctx_out;
 
-	err = bpf_prog_test_run_xattr(&test_attr);
+	err = bpf_prog_test_run_opts(fd, &test_attr);
 	if (err) {
 		p_err("failed to run program: %s", strerror(errno));
 		goto free_ctx_out;
@@ -2283,10 +2282,10 @@ static int do_profile(int argc, char **argv)
 	profile_obj->rodata->num_metric = num_metric;
 
 	/* adjust map sizes */
-	bpf_map__resize(profile_obj->maps.events, num_metric * num_cpu);
-	bpf_map__resize(profile_obj->maps.fentry_readings, num_metric);
-	bpf_map__resize(profile_obj->maps.accum_readings, num_metric);
-	bpf_map__resize(profile_obj->maps.counts, 1);
+	bpf_map__set_max_entries(profile_obj->maps.events, num_metric * num_cpu);
+	bpf_map__set_max_entries(profile_obj->maps.fentry_readings, num_metric);
+	bpf_map__set_max_entries(profile_obj->maps.accum_readings, num_metric);
+	bpf_map__set_max_entries(profile_obj->maps.counts, 1);
 
 	/* change target name */
 	profile_tgt_name = profile_target_name(profile_tgt_fd);

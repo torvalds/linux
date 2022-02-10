@@ -222,6 +222,7 @@ ice_receive_skb(struct ice_rx_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
 static void ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 {
 	unsigned int total_bytes = 0, total_pkts = 0;
+	u16 tx_thresh = ICE_RING_QUARTER(xdp_ring);
 	u16 ntc = xdp_ring->next_to_clean;
 	struct ice_tx_desc *next_dd_desc;
 	u16 next_dd = xdp_ring->next_dd;
@@ -233,7 +234,7 @@ static void ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 	    cpu_to_le64(ICE_TX_DESC_DTYPE_DESC_DONE)))
 		return;
 
-	for (i = 0; i < ICE_TX_THRESH; i++) {
+	for (i = 0; i < tx_thresh; i++) {
 		tx_buf = &xdp_ring->tx_buf[ntc];
 
 		total_bytes += tx_buf->bytecount;
@@ -254,9 +255,9 @@ static void ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
 	}
 
 	next_dd_desc->cmd_type_offset_bsz = 0;
-	xdp_ring->next_dd = xdp_ring->next_dd + ICE_TX_THRESH;
+	xdp_ring->next_dd = xdp_ring->next_dd + tx_thresh;
 	if (xdp_ring->next_dd > xdp_ring->count)
-		xdp_ring->next_dd = ICE_TX_THRESH - 1;
+		xdp_ring->next_dd = tx_thresh - 1;
 	xdp_ring->next_to_clean = ntc;
 	ice_update_tx_ring_stats(xdp_ring, total_pkts, total_bytes);
 }
@@ -269,12 +270,13 @@ static void ice_clean_xdp_irq(struct ice_tx_ring *xdp_ring)
  */
 int ice_xmit_xdp_ring(void *data, u16 size, struct ice_tx_ring *xdp_ring)
 {
+	u16 tx_thresh = ICE_RING_QUARTER(xdp_ring);
 	u16 i = xdp_ring->next_to_use;
 	struct ice_tx_desc *tx_desc;
 	struct ice_tx_buf *tx_buf;
 	dma_addr_t dma;
 
-	if (ICE_DESC_UNUSED(xdp_ring) < ICE_TX_THRESH)
+	if (ICE_DESC_UNUSED(xdp_ring) < tx_thresh)
 		ice_clean_xdp_irq(xdp_ring);
 
 	if (!unlikely(ICE_DESC_UNUSED(xdp_ring))) {
@@ -300,13 +302,14 @@ int ice_xmit_xdp_ring(void *data, u16 size, struct ice_tx_ring *xdp_ring)
 	tx_desc->cmd_type_offset_bsz = ice_build_ctob(ICE_TX_DESC_CMD_EOP, 0,
 						      size, 0);
 
+	xdp_ring->xdp_tx_active++;
 	i++;
 	if (i == xdp_ring->count) {
 		i = 0;
 		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_rs);
 		tx_desc->cmd_type_offset_bsz |=
 			cpu_to_le64(ICE_TX_DESC_CMD_RS << ICE_TXD_QW1_CMD_S);
-		xdp_ring->next_rs = ICE_TX_THRESH - 1;
+		xdp_ring->next_rs = tx_thresh - 1;
 	}
 	xdp_ring->next_to_use = i;
 
@@ -314,7 +317,7 @@ int ice_xmit_xdp_ring(void *data, u16 size, struct ice_tx_ring *xdp_ring)
 		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_rs);
 		tx_desc->cmd_type_offset_bsz |=
 			cpu_to_le64(ICE_TX_DESC_CMD_RS << ICE_TXD_QW1_CMD_S);
-		xdp_ring->next_rs += ICE_TX_THRESH;
+		xdp_ring->next_rs += tx_thresh;
 	}
 
 	return ICE_XDP_TX;

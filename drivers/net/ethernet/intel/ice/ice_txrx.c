@@ -173,6 +173,8 @@ tx_skip_free:
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+	tx_ring->next_dd = ICE_RING_QUARTER(tx_ring) - 1;
+	tx_ring->next_rs = ICE_RING_QUARTER(tx_ring) - 1;
 
 	if (!tx_ring->netdev)
 		return;
@@ -1467,7 +1469,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		bool wd;
 
 		if (tx_ring->xsk_pool)
-			wd = ice_clean_tx_irq_zc(tx_ring, budget);
+			wd = ice_xmit_zc(tx_ring, ICE_DESC_UNUSED(tx_ring), budget);
 		else if (ice_ring_is_xdp(tx_ring))
 			wd = true;
 		else
@@ -1520,7 +1522,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	/* Exit the polling mode, but don't re-enable interrupts if stack might
 	 * poll us due to busy-polling
 	 */
-	if (likely(napi_complete_done(napi, work_done))) {
+	if (napi_complete_done(napi, work_done)) {
 		ice_net_dim(q_vector);
 		ice_enable_interrupt(q_vector);
 	} else {

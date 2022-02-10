@@ -16,6 +16,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
 #include <linux/security.h>
+#include <linux/btf_ids.h>
 
 #include "../../lib/kstrtox.h"
 
@@ -669,6 +670,39 @@ const struct bpf_func_proto bpf_copy_from_user_proto = {
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
 	.arg3_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_5(bpf_copy_from_user_task, void *, dst, u32, size,
+	   const void __user *, user_ptr, struct task_struct *, tsk, u64, flags)
+{
+	int ret;
+
+	/* flags is not used yet */
+	if (unlikely(flags))
+		return -EINVAL;
+
+	if (unlikely(!size))
+		return 0;
+
+	ret = access_process_vm(tsk, (unsigned long)user_ptr, dst, size, 0);
+	if (ret == size)
+		return 0;
+
+	memset(dst, 0, size);
+	/* Return -EFAULT for partial read */
+	return ret < 0 ? ret : -EFAULT;
+}
+
+const struct bpf_func_proto bpf_copy_from_user_task_proto = {
+	.func		= bpf_copy_from_user_task,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_BTF_ID,
+	.arg4_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
+	.arg5_type	= ARG_ANYTHING
 };
 
 BPF_CALL_2(bpf_per_cpu_ptr, const void *, ptr, u32, cpu)
