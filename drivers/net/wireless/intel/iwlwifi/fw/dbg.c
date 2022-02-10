@@ -2096,21 +2096,40 @@ static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 	struct iwl_fw_ini_error_dump_data *tlv;
 	struct iwl_fw_ini_error_dump_header *header;
 	u32 type = reg->type;
-	u32 id = le32_to_cpu(reg->id);
+	u32 id = le32_get_bits(reg->id, IWL_FW_INI_REGION_ID_MASK);
 	u32 num_of_ranges, i, size;
 	u8 *range;
 	u32 free_size;
 	u64 header_size;
+	u32 dump_policy = IWL_FW_INI_DUMP_VERBOSE;
 
-	/*
-	 * The higher part of the ID from 2 is irrelevant for
-	 * us, so mask it out.
-	 */
-	if (le32_to_cpu(reg->hdr.version) >= 2)
-		id &= IWL_FW_INI_REGION_V2_MASK;
+	IWL_DEBUG_FW(fwrt, "WRT: Collecting region: dump type=%d, id=%d, type=%d\n",
+		     dump_policy, id, type);
 
-	IWL_DEBUG_FW(fwrt, "WRT: Collecting region: id=%d, type=%d\n", id,
-		     type);
+	if (le32_to_cpu(reg->hdr.version) >= 2) {
+		u32 dp = le32_get_bits(reg->id,
+				       IWL_FW_INI_REGION_DUMP_POLICY_MASK);
+
+		if (dump_policy == IWL_FW_INI_DUMP_VERBOSE &&
+		    !(dp & IWL_FW_INI_DEBUG_DUMP_POLICY_NO_LIMIT)) {
+			IWL_DEBUG_FW(fwrt,
+				     "WRT: no dump - type %d and policy mismatch=%d\n",
+				     dump_policy, dp);
+			return 0;
+		} else if (dump_policy == IWL_FW_INI_DUMP_MEDIUM &&
+			   !(dp & IWL_FW_IWL_DEBUG_DUMP_POLICY_MAX_LIMIT_5MB)) {
+			IWL_DEBUG_FW(fwrt,
+				     "WRT: no dump - type %d and policy mismatch=%d\n",
+				     dump_policy, dp);
+			return 0;
+		} else if (dump_policy == IWL_FW_INI_DUMP_BRIEF &&
+			   !(dp & IWL_FW_INI_DEBUG_DUMP_POLICY_MAX_LIMIT_600KB)) {
+			IWL_DEBUG_FW(fwrt,
+				     "WRT: no dump - type %d and policy mismatch=%d\n",
+				     dump_policy, dp);
+			return 0;
+		}
+	}
 
 	if (!ops->get_num_of_ranges || !ops->get_size || !ops->fill_mem_hdr ||
 	    !ops->fill_range) {

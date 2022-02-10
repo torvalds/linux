@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include <linux/firmware.h>
 #include "iwl-drv.h"
@@ -181,11 +181,11 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 	u32 tlv_len = sizeof(*tlv) + le32_to_cpu(tlv->length);
 
 	/*
-	 * The higher part of the ID in from version 2 is irrelevant for
-	 * us, so mask it out.
+	 * The higher part of the ID from version 2 is debug policy.
+	 * The id will be only lsb 16 bits, so mask it out.
 	 */
 	if (le32_to_cpu(reg->hdr.version) >= 2)
-		id &= IWL_FW_INI_REGION_V2_MASK;
+		id &= IWL_FW_INI_REGION_ID_MASK;
 
 	if (le32_to_cpu(tlv->length) < sizeof(*reg))
 		return -EINVAL;
