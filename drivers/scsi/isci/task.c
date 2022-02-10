@@ -162,18 +162,18 @@ int isci_task_execute_task(struct sas_task *task, gfp_t gfp_flags)
 					 SAS_TASK_UNDELIVERED,
 					 SAS_SAM_STAT_TASK_ABORTED);
 		} else {
+			struct isci_request *ireq;
+
 			task->task_state_flags |= SAS_TASK_AT_INITIATOR;
+			/* do common allocation and init of request object. */
+			ireq = isci_io_request_from_tag(ihost, task, tag);
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 			/* build and send the request. */
-			status = isci_request_execute(ihost, idev, task, tag);
+			/* do common allocation and init of request object. */
+			status = isci_request_execute(ihost, idev, task, ireq);
 
 			if (status != SCI_SUCCESS) {
-				spin_lock_irqsave(&task->task_state_lock, flags);
-				/* Did not really start this command. */
-				task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
-				spin_unlock_irqrestore(&task->task_state_lock, flags);
-
 				if (test_bit(IDEV_GONE, &idev->flags)) {
 					/* Indicate that the device
 					 * is gone.
@@ -498,7 +498,6 @@ int isci_task_abort_task(struct sas_task *task)
 
 	/* If task is already done, the request isn't valid */
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE) &&
-	    (task->task_state_flags & SAS_TASK_AT_INITIATOR) &&
 	    old_request) {
 		idev = isci_get_device(task->dev->lldd_dev);
 		target_done_already = test_bit(IREQ_COMPLETE_IN_TARGET,

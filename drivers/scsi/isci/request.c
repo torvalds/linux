@@ -3406,9 +3406,9 @@ static struct isci_request *isci_request_from_tag(struct isci_host *ihost, u16 t
 	return ireq;
 }
 
-static struct isci_request *isci_io_request_from_tag(struct isci_host *ihost,
-						     struct sas_task *task,
-						     u16 tag)
+struct isci_request *isci_io_request_from_tag(struct isci_host *ihost,
+					      struct sas_task *task,
+					      u16 tag)
 {
 	struct isci_request *ireq;
 
@@ -3434,15 +3434,11 @@ struct isci_request *isci_tmf_request_from_tag(struct isci_host *ihost,
 }
 
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
-			 struct sas_task *task, u16 tag)
+			 struct sas_task *task, struct isci_request *ireq)
 {
 	enum sci_status status;
-	struct isci_request *ireq;
 	unsigned long flags;
 	int ret = 0;
-
-	/* do common allocation and init of request object. */
-	ireq = isci_io_request_from_tag(ihost, task, tag);
 
 	status = isci_io_request_build(ihost, ireq, idev);
 	if (status != SCI_SUCCESS) {
