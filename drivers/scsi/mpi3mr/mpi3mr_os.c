@@ -3452,7 +3452,7 @@ static int mpi3mr_eh_target_reset(struct scsi_cmnd *scmd)
 	if (stgt_priv_data->pend_count) {
 		sdev_printk(KERN_INFO, scmd->device,
 		    "%s: target has %d pending commands, target reset is failed\n",
-		    mrioc->name, sdev_priv_data->pend_count);
+		    mrioc->name, stgt_priv_data->pend_count);
 		goto out;
 	}
 
