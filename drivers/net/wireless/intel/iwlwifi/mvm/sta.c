@@ -784,9 +784,8 @@ static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 	do {
 		__le16 enable = cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE);
 
-		queue = iwl_trans_txq_alloc(mvm->trans, enable,
-					    sta_id, tid, SCD_QUEUE_CFG,
-					    size, timeout);
+		queue = iwl_trans_txq_alloc(mvm->trans, enable, sta_id,
+					    tid, size, timeout);
 
 		if (queue < 0)
 			IWL_DEBUG_TX_QUEUES(mvm,

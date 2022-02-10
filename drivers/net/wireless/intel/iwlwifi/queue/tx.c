@@ -7,6 +7,7 @@
 
 #include "iwl-debug.h"
 #include "iwl-io.h"
+#include "fw/api/commands.h"
 #include "fw/api/tx.h"
 #include "queue/tx.h"
 #include "iwl-fh.h"
@@ -1185,7 +1186,7 @@ error_free_resp:
 }
 
 int iwl_txq_dyn_alloc(struct iwl_trans *trans, __le16 flags, u8 sta_id, u8 tid,
-		      int cmd_id, int size, unsigned int timeout)
+		      int size, unsigned int timeout)
 {
 	struct iwl_txq *txq;
 	struct iwl_tx_queue_cfg_cmd cmd = {
@@ -1194,7 +1195,7 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, __le16 flags, u8 sta_id, u8 tid,
 		.tid = tid,
 	};
 	struct iwl_host_cmd hcmd = {
-		.id = cmd_id,
+		.id = SCD_QUEUE_CFG,
 		.len = { sizeof(cmd) },
 		.data = { &cmd, },
 		.flags = CMD_WANT_SKB,

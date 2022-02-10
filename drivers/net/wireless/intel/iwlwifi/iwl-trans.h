@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -571,8 +571,7 @@ struct iwl_trans_ops {
 	/* 22000 functions */
 	int (*txq_alloc)(struct iwl_trans *trans,
 			 __le16 flags, u8 sta_id, u8 tid,
-			 int cmd_id, int size,
-			 unsigned int queue_wdg_timeout);
+			 int size, unsigned int queue_wdg_timeout);
 	void (*txq_free)(struct iwl_trans *trans, int queue);
 	int (*rxq_dma_data)(struct iwl_trans *trans, int queue,
 			    struct iwl_trans_rxq_dma_data *data);
@@ -1246,8 +1245,7 @@ iwl_trans_txq_free(struct iwl_trans *trans, int queue)
 static inline int
 iwl_trans_txq_alloc(struct iwl_trans *trans,
 		    __le16 flags, u8 sta_id, u8 tid,
-		    int cmd_id, int size,
-		    unsigned int wdg_timeout)
+		    int size, unsigned int wdg_timeout)
 {
 	might_sleep();
 
@@ -1260,7 +1258,7 @@ iwl_trans_txq_alloc(struct iwl_trans *trans,
 	}
 
 	return trans->ops->txq_alloc(trans, flags, sta_id, tid,
-				     cmd_id, size, wdg_timeout);
+				     size, wdg_timeout);
 }
 
 static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
