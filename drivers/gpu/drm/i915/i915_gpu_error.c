@@ -34,6 +34,7 @@
 #include <linux/utsname.h>
 #include <linux/zlib.h>
 
+#include <drm/drm_cache.h>
 #include <drm/drm_print.h>
 
 #include "display/intel_dmc.h"

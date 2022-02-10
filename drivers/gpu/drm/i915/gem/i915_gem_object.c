@@ -24,6 +24,8 @@
 
 #include <linux/sched/mm.h>
 
+#include <drm/drm_cache.h>
+
 #include "display/intel_frontbuffer.h"
 #include "pxp/intel_pxp.h"
 

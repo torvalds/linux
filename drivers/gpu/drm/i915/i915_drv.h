@@ -51,7 +51,6 @@
 
 #include <drm/drm_gem.h>
 #include <drm/drm_auth.h>
-#include <drm/drm_cache.h>
 #include <drm/drm_util.h>
 #include <drm/drm_dsc.h>
 #include <drm/drm_atomic.h>

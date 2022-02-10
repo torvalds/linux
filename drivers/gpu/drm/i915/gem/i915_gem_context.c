@@ -67,6 +67,7 @@
 #include <linux/log2.h>
 #include <linux/nospec.h>
 
+#include <drm/drm_cache.h>
 #include <drm/drm_syncobj.h>
 
 #include "gt/gen6_ppgtt.h"

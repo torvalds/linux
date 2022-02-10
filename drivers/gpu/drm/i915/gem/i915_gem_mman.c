@@ -9,6 +9,8 @@
 #include <linux/pfn_t.h>
 #include <linux/sizes.h>
 
+#include <drm/drm_cache.h>
+
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
 

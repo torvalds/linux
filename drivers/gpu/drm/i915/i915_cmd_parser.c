@@ -25,6 +25,8 @@
  *
  */
 
+#include <drm/drm_cache.h>
+
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"

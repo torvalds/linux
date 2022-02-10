@@ -3,6 +3,8 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include <drm/drm_cache.h>
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_guc_slpc.h"

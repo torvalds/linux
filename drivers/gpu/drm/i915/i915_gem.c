@@ -25,7 +25,6 @@
  *
  */
 
-#include <drm/drm_vma_manager.h>
 #include <linux/dma-fence-array.h>
 #include <linux/kthread.h>
 #include <linux/dma-resv.h>
@@ -36,6 +35,9 @@
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
 #include <linux/mman.h>
+
+#include <drm/drm_cache.h>
+#include <drm/drm_vma_manager.h>
 
 #include "display/intel_display.h"
 #include "display/intel_frontbuffer.h"
