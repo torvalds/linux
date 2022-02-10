@@ -14,6 +14,7 @@ enum {
 	__SPECTRE_V2_METHOD_ICIALLU,
 	__SPECTRE_V2_METHOD_SMC,
 	__SPECTRE_V2_METHOD_HVC,
+	__SPECTRE_V2_METHOD_LOOP8,
 };
 
 enum {
@@ -21,8 +22,11 @@ enum {
 	SPECTRE_V2_METHOD_ICIALLU = BIT(__SPECTRE_V2_METHOD_ICIALLU),
 	SPECTRE_V2_METHOD_SMC = BIT(__SPECTRE_V2_METHOD_SMC),
 	SPECTRE_V2_METHOD_HVC = BIT(__SPECTRE_V2_METHOD_HVC),
+	SPECTRE_V2_METHOD_LOOP8 = BIT(__SPECTRE_V2_METHOD_LOOP8),
 };
 
 void spectre_v2_update_state(unsigned int state, unsigned int methods);
+
+int spectre_bhb_update_vectors(unsigned int method);
 
 #endif

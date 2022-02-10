@@ -177,6 +177,81 @@ static void cpu_v7_spectre_v2_init(void)
 	spectre_v2_update_state(state, method);
 }
 
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+static int spectre_bhb_method;
+
+static const char *spectre_bhb_method_name(int method)
+{
+	switch (method) {
+	case SPECTRE_V2_METHOD_LOOP8:
+		return "loop";
+
+	case SPECTRE_V2_METHOD_BPIALL:
+		return "BPIALL";
+
+	default:
+		return "unknown";
+	}
+}
+
+static int spectre_bhb_install_workaround(int method)
+{
+	if (spectre_bhb_method != method) {
+		if (spectre_bhb_method) {
+			pr_err("CPU%u: Spectre BHB: method disagreement, system vulnerable\n",
+			       smp_processor_id());
+
+			return SPECTRE_VULNERABLE;
+		}
+
+		if (spectre_bhb_update_vectors(method) == SPECTRE_VULNERABLE)
+			return SPECTRE_VULNERABLE;
+
+		spectre_bhb_method = method;
+	}
+
+	pr_info("CPU%u: Spectre BHB: using %s workaround\n",
+		smp_processor_id(), spectre_bhb_method_name(method));
+
+	return SPECTRE_MITIGATED;
+}
+#else
+static int spectre_bhb_install_workaround(int method)
+{
+	return SPECTRE_VULNERABLE;
+}
+#endif
+
+static void cpu_v7_spectre_bhb_init(void)
+{
+	unsigned int state, method = 0;
+
+	switch (read_cpuid_part()) {
+	case ARM_CPU_PART_CORTEX_A15:
+	case ARM_CPU_PART_BRAHMA_B15:
+	case ARM_CPU_PART_CORTEX_A57:
+	case ARM_CPU_PART_CORTEX_A72:
+		state = SPECTRE_MITIGATED;
+		method = SPECTRE_V2_METHOD_LOOP8;
+		break;
+
+	case ARM_CPU_PART_CORTEX_A73:
+	case ARM_CPU_PART_CORTEX_A75:
+		state = SPECTRE_MITIGATED;
+		method = SPECTRE_V2_METHOD_BPIALL;
+		break;
+
+	default:
+		state = SPECTRE_UNAFFECTED;
+		break;
+	}
+
+	if (state == SPECTRE_MITIGATED)
+		state = spectre_bhb_install_workaround(method);
+
+	spectre_v2_update_state(state, method);
+}
+
 static __maybe_unused bool cpu_v7_check_auxcr_set(bool *warned,
 						  u32 mask, const char *msg)
 {
@@ -217,4 +292,5 @@ void cpu_v7_ca15_ibe(void)
 void cpu_v7_bugs_init(void)
 {
 	cpu_v7_spectre_v2_init();
+	cpu_v7_spectre_bhb_init();
 }

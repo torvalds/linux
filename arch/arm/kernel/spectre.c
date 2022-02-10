@@ -45,6 +45,10 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr,
 		method = "Firmware call";
 		break;
 
+	case SPECTRE_V2_METHOD_LOOP8:
+		method = "History overwrite";
+		break;
+
 	default:
 		method = "Multiple mitigations";
 		break;
