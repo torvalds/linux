@@ -170,6 +170,23 @@
 /* 63-127 Reserved */
 
 /*
+ * Page 4 registers. First page of coefficient memory for the miniDSP.
+ */
+#define ADC3XXX_LEFT_ADC_IIR_COEFF_N0_MSB	ADC3XXX_REG(4, 8)
+#define ADC3XXX_LEFT_ADC_IIR_COEFF_N0_LSB	ADC3XXX_REG(4, 9)
+#define ADC3XXX_LEFT_ADC_IIR_COEFF_N1_MSB	ADC3XXX_REG(4, 10)
+#define ADC3XXX_LEFT_ADC_IIR_COEFF_N1_LSB	ADC3XXX_REG(4, 11)
+#define ADC3XXX_LEFT_ADC_IIR_COEFF_D1_MSB	ADC3XXX_REG(4, 12)
+#define ADC3XXX_LEFT_ADC_IIR_COEFF_D1_LSB	ADC3XXX_REG(4, 13)
+
+#define ADC3XXX_RIGHT_ADC_IIR_COEFF_N0_MSB	ADC3XXX_REG(4, 72)
+#define ADC3XXX_RIGHT_ADC_IIR_COEFF_N0_LSB	ADC3XXX_REG(4, 73)
+#define ADC3XXX_RIGHT_ADC_IIR_COEFF_N1_MSB	ADC3XXX_REG(4, 74)
+#define ADC3XXX_RIGHT_ADC_IIR_COEFF_N1_LSB	ADC3XXX_REG(4, 75)
+#define ADC3XXX_RIGHT_ADC_IIR_COEFF_D1_MSB	ADC3XXX_REG(4, 76)
+#define ADC3XXX_RIGHT_ADC_IIR_COEFF_D1_LSB	ADC3XXX_REG(4, 77)
+
+/*
  * Register bits.
  */
 
@@ -373,6 +390,40 @@ static const struct reg_default adc3xxx_defaults[] = {
 	{ 180, 0xff },  { 181, 0x00 },  { 182, 0x3f },  { 183, 0xff },
 	{ 184, 0x00 },  { 185, 0x3f },  { 186, 0x00 },  { 187, 0x80 },
 	{ 188, 0x80 },  { 189, 0x00 },  { 190, 0x00 },  { 191, 0x00 },
+
+	/* Page 4 */
+	{ 1024, 0x00 },			{ 1026, 0x01 },	{ 1027, 0x17 },
+	{ 1028, 0x01 }, { 1029, 0x17 }, { 1030, 0x7d }, { 1031, 0xd3 },
+	{ 1032, 0x7f }, { 1033, 0xff }, { 1034, 0x00 }, { 1035, 0x00 },
+	{ 1036, 0x00 }, { 1037, 0x00 }, { 1038, 0x7f }, { 1039, 0xff },
+	{ 1040, 0x00 }, { 1041, 0x00 }, { 1042, 0x00 }, { 1043, 0x00 },
+	{ 1044, 0x00 }, { 1045, 0x00 }, { 1046, 0x00 }, { 1047, 0x00 },
+	{ 1048, 0x7f }, { 1049, 0xff }, { 1050, 0x00 }, { 1051, 0x00 },
+	{ 1052, 0x00 }, { 1053, 0x00 }, { 1054, 0x00 }, { 1055, 0x00 },
+	{ 1056, 0x00 }, { 1057, 0x00 }, { 1058, 0x7f }, { 1059, 0xff },
+	{ 1060, 0x00 }, { 1061, 0x00 }, { 1062, 0x00 }, { 1063, 0x00 },
+	{ 1064, 0x00 }, { 1065, 0x00 }, { 1066, 0x00 }, { 1067, 0x00 },
+	{ 1068, 0x7f }, { 1069, 0xff }, { 1070, 0x00 }, { 1071, 0x00 },
+	{ 1072, 0x00 }, { 1073, 0x00 }, { 1074, 0x00 }, { 1075, 0x00 },
+	{ 1076, 0x00 }, { 1077, 0x00 }, { 1078, 0x7f }, { 1079, 0xff },
+	{ 1080, 0x00 }, { 1081, 0x00 }, { 1082, 0x00 }, { 1083, 0x00 },
+	{ 1084, 0x00 }, { 1085, 0x00 }, { 1086, 0x00 }, { 1087, 0x00 },
+	{ 1088, 0x00 }, { 1089, 0x00 }, { 1090, 0x00 }, { 1091, 0x00 },
+	{ 1092, 0x00 }, { 1093, 0x00 }, { 1094, 0x00 }, { 1095, 0x00 },
+	{ 1096, 0x00 }, { 1097, 0x00 }, { 1098, 0x00 }, { 1099, 0x00 },
+	{ 1100, 0x00 }, { 1101, 0x00 }, { 1102, 0x00 }, { 1103, 0x00 },
+	{ 1104, 0x00 }, { 1105, 0x00 }, { 1106, 0x00 }, { 1107, 0x00 },
+	{ 1108, 0x00 }, { 1109, 0x00 }, { 1110, 0x00 }, { 1111, 0x00 },
+	{ 1112, 0x00 }, { 1113, 0x00 }, { 1114, 0x00 }, { 1115, 0x00 },
+	{ 1116, 0x00 }, { 1117, 0x00 }, { 1118, 0x00 }, { 1119, 0x00 },
+	{ 1120, 0x00 }, { 1121, 0x00 }, { 1122, 0x00 }, { 1123, 0x00 },
+	{ 1124, 0x00 }, { 1125, 0x00 }, { 1126, 0x00 }, { 1127, 0x00 },
+	{ 1128, 0x00 }, { 1129, 0x00 }, { 1130, 0x00 }, { 1131, 0x00 },
+	{ 1132, 0x00 }, { 1133, 0x00 }, { 1134, 0x00 }, { 1135, 0x00 },
+	{ 1136, 0x00 }, { 1137, 0x00 }, { 1138, 0x00 }, { 1139, 0x00 },
+	{ 1140, 0x00 }, { 1141, 0x00 }, { 1142, 0x00 }, { 1143, 0x00 },
+	{ 1144, 0x00 }, { 1145, 0x00 }, { 1146, 0x00 }, { 1147, 0x00 },
+	{ 1148, 0x00 }, { 1149, 0x00 }, { 1150, 0x00 }, { 1151, 0x00 },
 };
 
 static bool adc3xxx_volatile_reg(struct device *dev, unsigned int reg)
@@ -388,7 +439,7 @@ static bool adc3xxx_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_range_cfg adc3xxx_ranges[] = {
 	{
 		.range_min = 0,
-		.range_max = 2 * ADC3XXX_PAGE_SIZE,
+		.range_max = 5 * ADC3XXX_PAGE_SIZE,
 		.selector_reg = ADC3XXX_PAGE_SELECT,
 		.selector_mask = 0xff,
 		.selector_shift = 0,
@@ -410,7 +461,7 @@ static const struct regmap_config adc3xxx_regmap = {
 
 	.ranges = adc3xxx_ranges,
 	.num_ranges = ARRAY_SIZE(adc3xxx_ranges),
-	.max_register = 2 * ADC3XXX_PAGE_SIZE,
+	.max_register = 5 * ADC3XXX_PAGE_SIZE,
 };
 
 struct adc3xxx_rate_divs {
@@ -495,6 +546,83 @@ static int adc3xxx_pll_delay(struct snd_soc_dapm_widget *w,
 	usleep_range(10000, 20000);
 
 	return 0;
+}
+
+static int adc3xxx_coefficient_info(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_info *uinfo)
+{
+	int numcoeff = kcontrol->private_value >> 16;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = numcoeff;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 0xffff; /* all coefficients are 16 bit */
+	return 0;
+}
+
+static int adc3xxx_coefficient_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	int numcoeff  = kcontrol->private_value >> 16;
+	int reg = kcontrol->private_value & 0xffff;
+	int index = 0;
+
+	for (index = 0; index < numcoeff; index++) {
+		unsigned int value_msb, value_lsb, value;
+
+		value_msb = snd_soc_component_read(component, reg++);
+		if ((int)value_msb < 0)
+			return (int)value_msb;
+
+		value_lsb = snd_soc_component_read(component, reg++);
+		if ((int)value_lsb < 0)
+			return (int)value_lsb;
+
+		value = (value_msb << 8) | value_lsb;
+		ucontrol->value.integer.value[index] = value;
+	}
+
+	return 0;
+}
+
+static int adc3xxx_coefficient_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	int numcoeff  = kcontrol->private_value >> 16;
+	int reg = kcontrol->private_value & 0xffff;
+	int index = 0;
+	int ret;
+
+	for (index = 0; index < numcoeff; index++) {
+		unsigned int value = ucontrol->value.integer.value[index];
+		unsigned int value_msb = (value >> 8) & 0xff;
+		unsigned int value_lsb = value & 0xff;
+
+		ret = snd_soc_component_write(component, reg++, value_msb);
+		if (ret)
+			return ret;
+
+		ret = snd_soc_component_write(component, reg++, value_lsb);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/* All on-chip filters have coefficients which are expressed in terms of
+ * 16 bit values, so represent them as strings of 16-bit integers.
+ */
+#define TI_COEFFICIENTS(xname, reg, numcoeffs) { \
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.info = adc3xxx_coefficient_info, \
+	.get = adc3xxx_coefficient_get,\
+	.put = adc3xxx_coefficient_put, \
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE, \
+	.private_value = reg | (numcoeffs << 16) \
 }
 
 static const char * const adc_softstepping_text[] = { "1 step", "2 step", "off" };
@@ -640,6 +768,17 @@ static const struct snd_kcontrol_new adc3xxx_snd_controls[] = {
 	SOC_SINGLE("Right ADC Unselected CM Bias Capture Switch",
 		   ADC3XXX_RIGHT_PGA_SEL_2, 6, 1, 0),
 	SOC_ENUM("Dither Control DC Offset", dither_dc_offset_enum),
+
+	/* Coefficient memory for miniDSP. */
+	/* For the default PRB_R1 processing block, the only available
+	 * filter is the first order IIR.
+	 */
+
+	TI_COEFFICIENTS("Left ADC IIR Coefficients N0 N1 D1",
+			ADC3XXX_LEFT_ADC_IIR_COEFF_N0_MSB, 3),
+
+	TI_COEFFICIENTS("Right ADC IIR Coefficients N0 N1 D1",
+			ADC3XXX_RIGHT_ADC_IIR_COEFF_N0_MSB, 3),
 };
 
 /* Left input selection, Single Ended inputs and Differential inputs */
