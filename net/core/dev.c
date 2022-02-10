@@ -9143,7 +9143,7 @@ DECLARE_WAIT_QUEUE_HEAD(netdev_unregistering_wq);
 static void net_set_todo(struct net_device *dev)
 {
 	list_add_tail(&dev->todo_list, &net_todo_list);
-	dev_net(dev)->dev_unreg_count++;
+	atomic_inc(&dev_net(dev)->dev_unreg_count);
 }
 
 static netdev_features_t netdev_sync_upper_features(struct net_device *lower,
@@ -9965,11 +9965,8 @@ void netdev_run_todo(void)
 		if (dev->needs_free_netdev)
 			free_netdev(dev);
 
-		/* Report a network device has been unregistered */
-		rtnl_lock();
-		dev_net(dev)->dev_unreg_count--;
-		__rtnl_unlock();
-		wake_up(&netdev_unregistering_wq);
+		if (atomic_dec_and_test(&dev_net(dev)->dev_unreg_count))
+			wake_up(&netdev_unregistering_wq);
 
 		/* Free network device */
 		kobject_put(&dev->dev.kobj);
@@ -10898,7 +10895,7 @@ static void __net_exit rtnl_lock_unregistering(struct list_head *net_list)
 		unregistering = false;
 
 		list_for_each_entry(net, net_list, exit_list) {
-			if (net->dev_unreg_count > 0) {
+			if (atomic_read(&net->dev_unreg_count) > 0) {
 				unregistering = true;
 				break;
 			}

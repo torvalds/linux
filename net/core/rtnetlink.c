@@ -459,7 +459,7 @@ static void rtnl_lock_unregistering_all(void)
 		 * setup_net() and cleanup_net() are not possible.
 		 */
 		for_each_net(net) {
-			if (net->dev_unreg_count > 0) {
+			if (atomic_read(&net->dev_unreg_count) > 0) {
 				unregistering = true;
 				break;
 			}

@@ -63,7 +63,7 @@ struct net {
 						 */
 	spinlock_t		rules_mod_lock;
 
-	unsigned int		dev_unreg_count;
+	atomic_t		dev_unreg_count;
 
 	unsigned int		dev_base_seq;	/* protected by rtnl_mutex */
 	int			ifindex;
