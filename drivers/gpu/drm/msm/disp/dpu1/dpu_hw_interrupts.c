@@ -140,7 +140,7 @@ static const struct dpu_intr_reg dpu_intr_set[] = {
 
 /**
  * dpu_core_irq_callback_handler - dispatch core interrupts
- * @arg:		private data of callback handler
+ * @dpu_kms:		Pointer to DPU's KMS structure
  * @irq_idx:		interrupt index
  */
 static void dpu_core_irq_callback_handler(struct dpu_kms *dpu_kms, int irq_idx)
