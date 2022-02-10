@@ -103,6 +103,21 @@ drop:
 	return NULL;
 }
 
+static bool smc_hs_congested(const struct sock *sk)
+{
+	const struct smc_sock *smc;
+
+	smc = smc_clcsock_user_data(sk);
+
+	if (!smc)
+		return true;
+
+	if (workqueue_congested(WORK_CPU_UNBOUND, smc_hs_wq))
+		return true;
+
+	return false;
+}
+
 static struct smc_hashinfo smc_v4_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(smc_v4_hashinfo.lock),
 };
@@ -2310,6 +2325,8 @@ static int smc_listen(struct socket *sock, int backlog)
 	smc->af_ops.syn_recv_sock = smc_tcp_syn_recv_sock;
 
 	inet_csk(smc->clcsock->sk)->icsk_af_ops = &smc->af_ops;
+
+	tcp_sk(smc->clcsock->sk)->smc_hs_congested = smc_hs_congested;
 
 	rc = kernel_listen(smc->clcsock, backlog);
 	if (rc) {
