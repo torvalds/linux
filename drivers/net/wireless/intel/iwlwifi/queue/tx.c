@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  */
 #include <net/tso.h>
 #include <linux/tcp.h>
@@ -1083,9 +1083,8 @@ error:
 	return -ENOMEM;
 }
 
-static int iwl_txq_dyn_alloc_dma(struct iwl_trans *trans,
-				 struct iwl_txq **intxq, int size,
-				 unsigned int timeout)
+static struct iwl_txq *
+iwl_txq_dyn_alloc_dma(struct iwl_trans *trans, int size, unsigned int timeout)
 {
 	size_t bc_tbl_size, bc_tbl_entries;
 	struct iwl_txq *txq;
@@ -1097,18 +1096,18 @@ static int iwl_txq_dyn_alloc_dma(struct iwl_trans *trans,
 	bc_tbl_entries = bc_tbl_size / sizeof(u16);
 
 	if (WARN_ON(size > bc_tbl_entries))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	txq = kzalloc(sizeof(*txq), GFP_KERNEL);
 	if (!txq)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	txq->bc_tbl.addr = dma_pool_alloc(trans->txqs.bc_pool, GFP_KERNEL,
 					  &txq->bc_tbl.dma);
 	if (!txq->bc_tbl.addr) {
 		IWL_ERR(trans, "Scheduler BC Table allocation failed\n");
 		kfree(txq);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	ret = iwl_txq_alloc(trans, txq, size, false);
@@ -1124,12 +1123,11 @@ static int iwl_txq_dyn_alloc_dma(struct iwl_trans *trans,
 
 	txq->wd_timeout = msecs_to_jiffies(timeout);
 
-	*intxq = txq;
-	return 0;
+	return txq;
 
 error:
 	iwl_txq_gen2_free_memory(trans, txq);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static int iwl_txq_alloc_response(struct iwl_trans *trans, struct iwl_txq *txq,
@@ -1189,7 +1187,7 @@ error_free_resp:
 int iwl_txq_dyn_alloc(struct iwl_trans *trans, __le16 flags, u8 sta_id, u8 tid,
 		      int cmd_id, int size, unsigned int timeout)
 {
-	struct iwl_txq *txq = NULL;
+	struct iwl_txq *txq;
 	struct iwl_tx_queue_cfg_cmd cmd = {
 		.flags = flags,
 		.sta_id = sta_id,
@@ -1203,9 +1201,9 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, __le16 flags, u8 sta_id, u8 tid,
 	};
 	int ret;
 
-	ret = iwl_txq_dyn_alloc_dma(trans, &txq, size, timeout);
-	if (ret)
-		return ret;
+	txq = iwl_txq_dyn_alloc_dma(trans, size, timeout);
+	if (IS_ERR(txq))
+		return PTR_ERR(txq);
 
 	cmd.tfdq_addr = cpu_to_le64(txq->dma_addr);
 	cmd.byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
