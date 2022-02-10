@@ -59,15 +59,15 @@
 /* PCI function 0 registers, address = <val> + PCIBASE0						*/
 /************************************************************************************************/
 
-#define PTR			0x00		/* Indexed register set pointer register	*/
+#define CA0106_PTR		0x00		/* Indexed register set pointer register	*/
 						/* NOTE: The CHANNELNUM and ADDRESS words can	*/
 						/* be modified independently of each other.	*/
 						/* CNL[1:0], ADDR[27:16]                        */
 
-#define DATA			0x04		/* Indexed register set data register		*/
+#define CA0106_DATA		0x04		/* Indexed register set data register		*/
 						/* DATA[31:0]					*/
 
-#define IPR			0x08		/* Global interrupt pending register		*/
+#define CA0106_IPR		0x08		/* Global interrupt pending register		*/
 						/* Clear pending interrupts by writing a 1 to	*/
 						/* the relevant bits and zero to the other bits	*/
 #define IPR_MIDI_RX_B		0x00020000	/* MIDI UART-B Receive buffer non-empty		*/
@@ -88,7 +88,7 @@
 #define IPR_MIDI_TX_A		0x00000002	/* MIDI UART-A Transmit buffer empty		*/
 #define IPR_PCI			0x00000001	/* PCI Bus error				*/
 
-#define INTE			0x0c		/* Interrupt enable register			*/
+#define CA0106_INTE		0x0c		/* Interrupt enable register			*/
 
 #define INTE_MIDI_RX_B		0x00020000	/* MIDI UART-B Receive buffer non-empty		*/
 #define INTE_MIDI_TX_B		0x00010000	/* MIDI UART-B Transmit buffer empty		*/
@@ -108,8 +108,8 @@
 #define INTE_MIDI_TX_A		0x00000002	/* MIDI UART-A Transmit buffer empty		*/
 #define INTE_PCI		0x00000001	/* PCI Bus error				*/
 
-#define UNKNOWN10		0x10		/* Unknown ??. Defaults to 0 */
-#define HCFG			0x14		/* Hardware config register			*/
+#define CA0106_UNKNOWN10	0x10		/* Unknown ??. Defaults to 0 */
+#define CA0106_HCFG		0x14		/* Hardware config register			*/
 						/* 0x1000 causes AC3 to fails. It adds a dither bit. */
 
 #define HCFG_STAC		0x10000000	/* Special mode for STAC9460 Codec. */
@@ -133,7 +133,7 @@
 #define HCFG_AUDIOENABLE	0x00000001	/* 0 = CODECs transmit zero-valued samples	*/
 						/* Should be set to 1 when the EMU10K1 is	*/
 						/* completely initialized.			*/
-#define GPIO			0x18		/* Defaults: 005f03a3-Analog, 005f02a2-SPDIF.   */
+#define CA0106_GPIO		0x18		/* Defaults: 005f03a3-Analog, 005f02a2-SPDIF.   */
 						/* Here pins 0,1,2,3,4,,6 are output. 5,7 are input */
 						/* For the Audigy LS, pin 0 (or bit 8) controls the SPDIF/Analog jack. */
 						/* SB Live 24bit:
@@ -152,9 +152,9 @@
 						 * GPO [15:8] Default 0x9. (Default to SPDIF jack enabled for SPDIF)
 						 * GPO Enable [23:16] Default 0x0f. Setting a bit to 1, causes the pin to be an output pin.
 						 */
-#define AC97DATA		0x1c		/* AC97 register set data register (16 bit)	*/
+#define CA0106_AC97DATA		0x1c		/* AC97 register set data register (16 bit)	*/
 
-#define AC97ADDRESS		0x1e		/* AC97 register set address register (8 bit)	*/
+#define CA0106_AC97ADDRESS	0x1e		/* AC97 register set address register (8 bit)	*/
 
 /********************************************************************************************************/
 /* CA0106 pointer-offset register set, accessed through the PTR and DATA registers                     */
