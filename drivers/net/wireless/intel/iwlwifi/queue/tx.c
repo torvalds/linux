@@ -9,6 +9,7 @@
 #include "iwl-io.h"
 #include "fw/api/commands.h"
 #include "fw/api/tx.h"
+#include "fw/api/datapath.h"
 #include "queue/tx.h"
 #include "iwl-fh.h"
 #include "iwl-scd.h"
@@ -1185,19 +1186,15 @@ error_free_resp:
 	return ret;
 }
 
-int iwl_txq_dyn_alloc(struct iwl_trans *trans, __le16 flags, u8 sta_id, u8 tid,
-		      int size, unsigned int timeout)
+int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
+		      u8 tid, int size, unsigned int timeout)
 {
 	struct iwl_txq *txq;
-	struct iwl_tx_queue_cfg_cmd cmd = {
-		.flags = flags,
-		.sta_id = sta_id,
-		.tid = tid,
-	};
+	union {
+		struct iwl_tx_queue_cfg_cmd old;
+		struct iwl_scd_queue_cfg_cmd new;
+	} cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = SCD_QUEUE_CFG,
-		.len = { sizeof(cmd) },
-		.data = { &cmd, },
 		.flags = CMD_WANT_SKB,
 	};
 	int ret;
@@ -1206,9 +1203,40 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, __le16 flags, u8 sta_id, u8 tid,
 	if (IS_ERR(txq))
 		return PTR_ERR(txq);
 
-	cmd.tfdq_addr = cpu_to_le64(txq->dma_addr);
-	cmd.byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
-	cmd.cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(size));
+	if (trans->txqs.queue_alloc_cmd_ver == 0) {
+		memset(&cmd.old, 0, sizeof(cmd.old));
+		cmd.old.tfdq_addr = cpu_to_le64(txq->dma_addr);
+		cmd.old.byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
+		cmd.old.cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(size));
+		cmd.old.flags = cpu_to_le16(flags | TX_QUEUE_CFG_ENABLE_QUEUE);
+		cmd.old.tid = tid;
+
+		if (hweight32(sta_mask) != 1) {
+			ret = -EINVAL;
+			goto error;
+		}
+		cmd.old.sta_id = ffs(sta_mask) - 1;
+
+		hcmd.id = SCD_QUEUE_CFG;
+		hcmd.len[0] = sizeof(cmd.old);
+		hcmd.data[0] = &cmd.old;
+	} else if (trans->txqs.queue_alloc_cmd_ver == 3) {
+		memset(&cmd.new, 0, sizeof(cmd.new));
+		cmd.new.operation = cpu_to_le32(IWL_SCD_QUEUE_ADD);
+		cmd.new.u.add.tfdq_dram_addr = cpu_to_le64(txq->dma_addr);
+		cmd.new.u.add.bc_dram_addr = cpu_to_le64(txq->bc_tbl.dma);
+		cmd.new.u.add.cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(size));
+		cmd.new.u.add.flags = cpu_to_le32(flags);
+		cmd.new.u.add.sta_mask = cpu_to_le32(sta_mask);
+		cmd.new.u.add.tid = tid;
+
+		hcmd.id = WIDE_ID(DATA_PATH_GROUP, SCD_QUEUE_CONFIG_CMD);
+		hcmd.len[0] = sizeof(cmd.new);
+		hcmd.data[0] = &cmd.new;
+	} else {
+		ret = -EOPNOTSUPP;
+		goto error;
+	}
 
 	ret = iwl_trans_send_cmd(trans, &hcmd);
 	if (ret)

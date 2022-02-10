@@ -112,8 +112,8 @@ void iwl_txq_gen2_tfd_unmap(struct iwl_trans *trans,
 			    struct iwl_cmd_meta *meta,
 			    struct iwl_tfh_tfd *tfd);
 
-int iwl_txq_dyn_alloc(struct iwl_trans *trans,
-		      __le16 flags, u8 sta_id, u8 tid,
+int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags,
+		      u32 sta_mask, u8 tid,
 		      int size, unsigned int timeout);
 
 int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,

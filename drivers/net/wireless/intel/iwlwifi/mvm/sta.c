@@ -326,11 +326,28 @@ static int iwl_mvm_disable_txq(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	};
 	int ret;
 
+	lockdep_assert_held(&mvm->mutex);
+
 	if (iwl_mvm_has_new_tx_api(mvm)) {
+		if (mvm->sta_remove_requires_queue_remove) {
+			u32 cmd_id = WIDE_ID(DATA_PATH_GROUP,
+					     SCD_QUEUE_CONFIG_CMD);
+			struct iwl_scd_queue_cfg_cmd remove_cmd = {
+				.operation = cpu_to_le32(IWL_SCD_QUEUE_REMOVE),
+				.u.remove.queue = cpu_to_le32(queue),
+			};
+
+			ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0,
+						   sizeof(remove_cmd),
+						   &remove_cmd);
+		} else {
+			ret = 0;
+		}
+
 		iwl_trans_txq_free(mvm->trans, queue);
 		*queueptr = IWL_MVM_INVALID_QUEUE;
 
-		return 0;
+		return ret;
 	}
 
 	if (WARN_ON(mvm->queue_info[queue].tid_bitmap == 0))
@@ -782,9 +799,7 @@ static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 	size = rounddown_pow_of_two(size);
 
 	do {
-		__le16 enable = cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE);
-
-		queue = iwl_trans_txq_alloc(mvm->trans, enable, sta_id,
+		queue = iwl_trans_txq_alloc(mvm->trans, 0, BIT(sta_id),
 					    tid, size, timeout);
 
 		if (queue < 0)

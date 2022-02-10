@@ -406,6 +406,9 @@ struct iwl_dump_sanitize_ops {
  * @cb_data_offs: offset inside skb->cb to store transport data at, must have
  *	space for at least two pointers
  * @fw_reset_handshake: firmware supports reset flow handshake
+ * @queue_alloc_cmd_ver: queue allocation command version, set to 0
+ *	for using the older SCD_QUEUE_CFG, set to the version of
+ *	SCD_QUEUE_CONFIG_CMD otherwise.
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -424,6 +427,7 @@ struct iwl_trans_config {
 
 	u8 cb_data_offs;
 	bool fw_reset_handshake;
+	u8 queue_alloc_cmd_ver;
 };
 
 struct iwl_trans_dump_data {
@@ -569,8 +573,8 @@ struct iwl_trans_ops {
 	void (*txq_disable)(struct iwl_trans *trans, int queue,
 			    bool configure_scd);
 	/* 22000 functions */
-	int (*txq_alloc)(struct iwl_trans *trans,
-			 __le16 flags, u8 sta_id, u8 tid,
+	int (*txq_alloc)(struct iwl_trans *trans, u32 flags,
+			 u32 sta_mask, u8 tid,
 			 int size, unsigned int queue_wdg_timeout);
 	void (*txq_free)(struct iwl_trans *trans, int queue);
 	int (*rxq_dma_data)(struct iwl_trans *trans, int queue,
@@ -928,6 +932,7 @@ struct iwl_txq {
  * @queue_used - bit mask of used queues
  * @queue_stopped - bit mask of stopped queues
  * @scd_bc_tbls: gen1 pointer to the byte count table of the scheduler
+ * @queue_alloc_cmd_ver: queue allocation command version
  */
 struct iwl_trans_txqs {
 	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
@@ -953,6 +958,8 @@ struct iwl_trans_txqs {
 	} tfd;
 
 	struct iwl_dma_ptr scd_bc_tbls;
+
+	u8 queue_alloc_cmd_ver;
 };
 
 /**
@@ -1244,7 +1251,7 @@ iwl_trans_txq_free(struct iwl_trans *trans, int queue)
 
 static inline int
 iwl_trans_txq_alloc(struct iwl_trans *trans,
-		    __le16 flags, u8 sta_id, u8 tid,
+		    u32 flags, u32 sta_mask, u8 tid,
 		    int size, unsigned int wdg_timeout)
 {
 	might_sleep();
@@ -1257,7 +1264,7 @@ iwl_trans_txq_alloc(struct iwl_trans *trans,
 		return -EIO;
 	}
 
-	return trans->ops->txq_alloc(trans, flags, sta_id, tid,
+	return trans->ops->txq_alloc(trans, flags, sta_mask, tid,
 				     size, wdg_timeout);
 }
 
