@@ -881,6 +881,31 @@ static inline pgprot_t pte_pgprot(pte_t pte)
  * pgd/pmd/pte modification functions
  */
 
+static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
+{
+	WRITE_ONCE(*pgdp, pgd);
+}
+
+static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
+{
+	WRITE_ONCE(*p4dp, p4d);
+}
+
+static inline void set_pud(pud_t *pudp, pud_t pud)
+{
+	WRITE_ONCE(*pudp, pud);
+}
+
+static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+{
+	WRITE_ONCE(*pmdp, pmd);
+}
+
+static inline void set_pte(pte_t *ptep, pte_t pte)
+{
+	WRITE_ONCE(*ptep, pte);
+}
+
 static inline void pgd_clear(pgd_t *pgd)
 {
 	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R1)
