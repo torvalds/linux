@@ -2186,30 +2186,6 @@ static void mpi3mr_energypackchg_evt_th(struct mpi3mr_ioc *mrioc,
 }
 
 /**
- * mpi3mr_tempthreshold_evt_th - Temp threshold event tophalf
- * @mrioc: Adapter instance reference
- * @event_reply: event data
- *
- * Displays temperature threshold event details and fault code
- * if any is hit due to temperature exceeding threshold.
- *
- * Return: Nothing
- */
-static void mpi3mr_tempthreshold_evt_th(struct mpi3mr_ioc *mrioc,
-	struct mpi3_event_notification_reply *event_reply)
-{
-	struct mpi3_event_data_temp_threshold *evtdata =
-	    (struct mpi3_event_data_temp_threshold *)event_reply->event_data;
-
-	ioc_err(mrioc, "Temperature threshold levels %s%s%s exceeded for sensor: %d !!! Current temperature in Celsius: %d\n",
-	    (le16_to_cpu(evtdata->status) & 0x1) ? "Warning " : " ",
-	    (le16_to_cpu(evtdata->status) & 0x2) ? "Critical " : " ",
-	    (le16_to_cpu(evtdata->status) & 0x4) ? "Fatal " : " ", evtdata->sensor_num,
-	    le16_to_cpu(evtdata->current_temperature));
-	mpi3mr_print_fault_info(mrioc);
-}
-
-/**
  * mpi3mr_cablemgmt_evt_th - Cable management event tophalf
  * @mrioc: Adapter instance reference
  * @event_reply: event data
@@ -2317,11 +2293,6 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 	case MPI3_EVENT_ENERGY_PACK_CHANGE:
 	{
 		mpi3mr_energypackchg_evt_th(mrioc, event_reply);
-		break;
-	}
-	case MPI3_EVENT_TEMP_THRESHOLD:
-	{
-		mpi3mr_tempthreshold_evt_th(mrioc, event_reply);
 		break;
 	}
 	case MPI3_EVENT_CABLE_MGMT:

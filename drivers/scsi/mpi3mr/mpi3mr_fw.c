@@ -184,9 +184,6 @@ static void mpi3mr_print_event_data(struct mpi3mr_ioc *mrioc,
 	case MPI3_EVENT_GPIO_INTERRUPT:
 		desc = "GPIO Interrupt";
 		break;
-	case MPI3_EVENT_TEMP_THRESHOLD:
-		desc = "Temperature Threshold";
-		break;
 	case MPI3_EVENT_CABLE_MGMT:
 		desc = "Cable Management";
 		break;
@@ -2739,7 +2736,7 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	    MPI3_IOCFACTS_FLAGS_DMA_ADDRESS_WIDTH_SHIFT;
 	mrioc->facts.protocol_flags = facts_data->protocol_flags;
 	mrioc->facts.mpi_version = le32_to_cpu(facts_data->mpi_version.word);
-	mrioc->facts.max_reqs = le16_to_cpu(facts_data->max_outstanding_request);
+	mrioc->facts.max_reqs = le16_to_cpu(facts_data->max_outstanding_requests);
 	mrioc->facts.product_id = le16_to_cpu(facts_data->product_id);
 	mrioc->facts.reply_sz = le16_to_cpu(facts_data->reply_frame_size) * 4;
 	mrioc->facts.exceptions = le16_to_cpu(facts_data->ioc_exceptions);
@@ -3621,7 +3618,6 @@ static int mpi3mr_enable_events(struct mpi3mr_ioc *mrioc)
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PREPARE_FOR_RESET);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_CABLE_MGMT);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENERGY_PACK_CHANGE);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_TEMP_THRESHOLD);
 
 	retval = mpi3mr_issue_event_notification(mrioc);
 	if (retval)
