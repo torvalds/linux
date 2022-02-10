@@ -759,6 +759,7 @@ struct bch_fs {
 
 	struct buckets_waiting_for_journal buckets_waiting_for_journal;
 	struct work_struct	discard_work;
+	struct work_struct	invalidate_work;
 
 	/* GARBAGE COLLECTION */
 	struct task_struct	*gc_thread;

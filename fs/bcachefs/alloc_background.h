@@ -115,6 +115,17 @@ int bch2_trans_mark_alloc(struct btree_trans *, struct bkey_s_c,
 			  struct bkey_i *, unsigned);
 void bch2_do_discards(struct bch_fs *);
 
+static inline bool should_invalidate_buckets(struct bch_dev *ca)
+{
+	struct bch_dev_usage u = bch2_dev_usage_read(ca);
+
+	return u.d[BCH_DATA_cached].buckets &&
+		u.buckets_unavailable + u.d[BCH_DATA_cached].buckets <
+		ca->mi.nbuckets >> 7;
+}
+
+void bch2_do_invalidates(struct bch_fs *);
+
 int bch2_fs_freespace_init(struct bch_fs *);
 
 void bch2_recalc_capacity(struct bch_fs *);

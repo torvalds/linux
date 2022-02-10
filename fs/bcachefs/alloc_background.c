@@ -718,6 +718,86 @@ void bch2_do_discards(struct bch_fs *c)
 		percpu_ref_put(&c->writes);
 }
 
+static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter lru_iter, alloc_iter = { NULL };
+	struct bkey_s_c k;
+	struct bkey_i_alloc_v4 *a;
+	u64 bucket, idx;
+	int ret;
+
+	bch2_trans_iter_init(trans, &lru_iter, BTREE_ID_lru,
+			     POS(ca->dev_idx, 0), 0);
+	k = bch2_btree_iter_peek(&lru_iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto out;
+
+	if (!k.k || k.k->p.inode != ca->dev_idx)
+		goto out;
+
+	if (bch2_fs_inconsistent_on(k.k->type != KEY_TYPE_lru, c,
+				    "non lru key in lru btree"))
+		goto out;
+
+	idx	= k.k->p.offset;
+	bucket	= le64_to_cpu(bkey_s_c_to_lru(k).v->idx);
+
+	a = bch2_trans_start_alloc_update(trans, &alloc_iter,
+					  POS(ca->dev_idx, bucket));
+	ret = PTR_ERR_OR_ZERO(a);
+	if (ret)
+		goto out;
+
+	if (bch2_fs_inconsistent_on(idx != alloc_lru_idx(a->v), c,
+			"invalidating bucket with wrong lru idx (got %llu should be %llu",
+			idx, alloc_lru_idx(a->v)))
+		goto out;
+
+	SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
+	a->v.gen++;
+	a->v.data_type		= 0;
+	a->v.dirty_sectors	= 0;
+	a->v.cached_sectors	= 0;
+	a->v.io_time[READ]	= atomic64_read(&c->io_clock[READ].now);
+	a->v.io_time[WRITE]	= atomic64_read(&c->io_clock[WRITE].now);
+
+	ret = bch2_trans_update(trans, &alloc_iter, &a->k_i,
+				BTREE_TRIGGER_BUCKET_INVALIDATE);
+out:
+	bch2_trans_iter_exit(trans, &alloc_iter);
+	bch2_trans_iter_exit(trans, &lru_iter);
+	return ret;
+}
+
+static void bch2_do_invalidates_work(struct work_struct *work)
+{
+	struct bch_fs *c = container_of(work, struct bch_fs, invalidate_work);
+	struct bch_dev *ca;
+	struct btree_trans trans;
+	unsigned i;
+	int ret = 0;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_member_device(ca, c, i)
+		while (!ret && should_invalidate_buckets(ca))
+			ret = __bch2_trans_do(&trans, NULL, NULL,
+					      BTREE_INSERT_USE_RESERVE|
+					      BTREE_INSERT_NOFAIL,
+					invalidate_one_bucket(&trans, ca));
+
+	bch2_trans_exit(&trans);
+	percpu_ref_put(&c->writes);
+}
+
+void bch2_do_invalidates(struct bch_fs *c)
+{
+	if (percpu_ref_tryget(&c->writes))
+		queue_work(system_long_wq, &c->invalidate_work);
+}
+
 static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct btree_trans trans;
@@ -1002,4 +1082,5 @@ void bch2_fs_allocator_background_init(struct bch_fs *c)
 {
 	spin_lock_init(&c->freelist_lock);
 	INIT_WORK(&c->discard_work, bch2_do_discards_work);
+	INIT_WORK(&c->invalidate_work, bch2_do_invalidates_work);
 }
