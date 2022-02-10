@@ -1839,9 +1839,6 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 	unsigned int reg_val = 0;
 	unsigned int pll_bit = 0;
 
-	if (freq == rt5640->sysclk && clk_id == rt5640->sysclk_src)
-		return 0;
-
 	switch (clk_id) {
 	case RT5640_SCLK_S_MCLK:
 		reg_val |= RT5640_SCLK_SRC_MCLK;
