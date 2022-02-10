@@ -57,12 +57,6 @@ static const struct rhashtable_params zones_params = {
 	.automatic_shrinking = true,
 };
 
-static struct nf_ct_ext_type act_ct_extend __read_mostly = {
-	.len		= sizeof(struct nf_conn_act_ct_ext),
-	.align		= __alignof__(struct nf_conn_act_ct_ext),
-	.id		= NF_CT_EXT_ACT_CT,
-};
-
 static struct flow_action_entry *
 tcf_ct_flow_table_flow_action_get_next(struct flow_action *flow_action)
 {
@@ -1608,16 +1602,10 @@ static int __init ct_init_module(void)
 	if (err)
 		goto err_register;
 
-	err = nf_ct_extend_register(&act_ct_extend);
-	if (err)
-		goto err_register_extend;
-
 	static_branch_inc(&tcf_frag_xmit_count);
 
 	return 0;
 
-err_register_extend:
-	tcf_unregister_action(&act_ct_ops, &ct_net_ops);
 err_register:
 	tcf_ct_flow_tables_uninit();
 err_tbl_init:
@@ -1628,7 +1616,6 @@ err_tbl_init:
 static void __exit ct_cleanup_module(void)
 {
 	static_branch_dec(&tcf_frag_xmit_count);
-	nf_ct_extend_unregister(&act_ct_extend);
 	tcf_unregister_action(&act_ct_ops, &ct_net_ops);
 	tcf_ct_flow_tables_uninit();
 	destroy_workqueue(act_ct_wq);

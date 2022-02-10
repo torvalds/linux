@@ -58,6 +58,12 @@
 
 MODULE_LICENSE("GPL");
 
+struct ctnetlink_list_dump_ctx {
+	struct nf_conn *last;
+	unsigned int cpu;
+	bool done;
+};
+
 static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple,
 				const struct nf_conntrack_l4proto *l4proto)
@@ -1694,14 +1700,18 @@ static int ctnetlink_get_conntrack(struct sk_buff *skb,
 
 static int ctnetlink_done_list(struct netlink_callback *cb)
 {
-	if (cb->args[1])
-		nf_ct_put((struct nf_conn *)cb->args[1]);
+	struct ctnetlink_list_dump_ctx *ctx = (void *)cb->ctx;
+
+	if (ctx->last)
+		nf_ct_put(ctx->last);
+
 	return 0;
 }
 
 static int
 ctnetlink_dump_list(struct sk_buff *skb, struct netlink_callback *cb, bool dying)
 {
+	struct ctnetlink_list_dump_ctx *ctx = (void *)cb->ctx;
 	struct nf_conn *ct, *last;
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_node *n;
@@ -1712,12 +1722,12 @@ ctnetlink_dump_list(struct sk_buff *skb, struct netlink_callback *cb, bool dying
 	struct hlist_nulls_head *list;
 	struct net *net = sock_net(skb->sk);
 
-	if (cb->args[2])
+	if (ctx->done)
 		return 0;
 
-	last = (struct nf_conn *)cb->args[1];
+	last = ctx->last;
 
-	for (cpu = cb->args[0]; cpu < nr_cpu_ids; cpu++) {
+	for (cpu = ctx->cpu; cpu < nr_cpu_ids; cpu++) {
 		struct ct_pcpu *pcpu;
 
 		if (!cpu_possible(cpu))
@@ -1731,10 +1741,10 @@ restart:
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			if (l3proto && nf_ct_l3num(ct) != l3proto)
 				continue;
-			if (cb->args[1]) {
+			if (ctx->last) {
 				if (ct != last)
 					continue;
-				cb->args[1] = 0;
+				ctx->last = NULL;
 			}
 
 			/* We can't dump extension info for the unconfirmed
@@ -1751,19 +1761,19 @@ restart:
 			if (res < 0) {
 				if (!refcount_inc_not_zero(&ct->ct_general.use))
 					continue;
-				cb->args[0] = cpu;
-				cb->args[1] = (unsigned long)ct;
+				ctx->cpu = cpu;
+				ctx->last = ct;
 				spin_unlock_bh(&pcpu->lock);
 				goto out;
 			}
 		}
-		if (cb->args[1]) {
-			cb->args[1] = 0;
+		if (ctx->last) {
+			ctx->last = NULL;
 			goto restart;
 		}
 		spin_unlock_bh(&pcpu->lock);
 	}
-	cb->args[2] = 1;
+	ctx->done = true;
 out:
 	if (last)
 		nf_ct_put(last);
@@ -3876,6 +3886,8 @@ static struct pernet_operations ctnetlink_net_ops = {
 static int __init ctnetlink_init(void)
 {
 	int ret;
+
+	BUILD_BUG_ON(sizeof(struct ctnetlink_list_dump_ctx) > sizeof_field(struct netlink_callback, ctx));
 
 	ret = nfnetlink_subsys_register(&ctnl_subsys);
 	if (ret < 0) {

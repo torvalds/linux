@@ -49,7 +49,7 @@ enum nf_ct_ext_id {
 struct nf_ct_ext {
 	u8 offset[NF_CT_EXT_NUM];
 	u8 len;
-	char data[];
+	char data[] __aligned(8);
 };
 
 static inline bool __nf_ct_ext_exist(const struct nf_ct_ext *ext, u8 id)
@@ -72,23 +72,7 @@ static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)
 #define nf_ct_ext_find(ext, id)	\
 	((id##_TYPE *)__nf_ct_ext_find((ext), (id)))
 
-/* Destroy all relationships */
-void nf_ct_ext_destroy(struct nf_conn *ct);
-
 /* Add this type, returns pointer to data or NULL. */
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
 
-struct nf_ct_ext_type {
-	/* Destroys relationships (can be NULL). */
-	void (*destroy)(struct nf_conn *ct);
-
-	enum nf_ct_ext_id id;
-
-	/* Length and min alignment. */
-	u8 len;
-	u8 align;
-};
-
-int nf_ct_extend_register(const struct nf_ct_ext_type *type);
-void nf_ct_extend_unregister(const struct nf_ct_ext_type *type);
 #endif /* _NF_CONNTRACK_EXTEND_H */

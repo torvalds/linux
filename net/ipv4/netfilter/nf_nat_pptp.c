@@ -295,28 +295,24 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
+static const struct nf_nat_pptp_hook pptp_hooks = {
+	.outbound = pptp_outbound_pkt,
+	.inbound = pptp_inbound_pkt,
+	.exp_gre = pptp_exp_gre,
+	.expectfn = pptp_nat_expected,
+};
+
 static int __init nf_nat_helper_pptp_init(void)
 {
-	BUG_ON(nf_nat_pptp_hook_outbound != NULL);
-	RCU_INIT_POINTER(nf_nat_pptp_hook_outbound, pptp_outbound_pkt);
+	WARN_ON(nf_nat_pptp_hook != NULL);
+	RCU_INIT_POINTER(nf_nat_pptp_hook, &pptp_hooks);
 
-	BUG_ON(nf_nat_pptp_hook_inbound != NULL);
-	RCU_INIT_POINTER(nf_nat_pptp_hook_inbound, pptp_inbound_pkt);
-
-	BUG_ON(nf_nat_pptp_hook_exp_gre != NULL);
-	RCU_INIT_POINTER(nf_nat_pptp_hook_exp_gre, pptp_exp_gre);
-
-	BUG_ON(nf_nat_pptp_hook_expectfn != NULL);
-	RCU_INIT_POINTER(nf_nat_pptp_hook_expectfn, pptp_nat_expected);
 	return 0;
 }
 
 static void __exit nf_nat_helper_pptp_fini(void)
 {
-	RCU_INIT_POINTER(nf_nat_pptp_hook_expectfn, NULL);
-	RCU_INIT_POINTER(nf_nat_pptp_hook_exp_gre, NULL);
-	RCU_INIT_POINTER(nf_nat_pptp_hook_inbound, NULL);
-	RCU_INIT_POINTER(nf_nat_pptp_hook_outbound, NULL);
+	RCU_INIT_POINTER(nf_nat_pptp_hook, NULL);
 	synchronize_rcu();
 }
 
