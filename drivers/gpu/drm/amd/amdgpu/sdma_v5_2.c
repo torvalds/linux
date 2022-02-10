@@ -51,6 +51,7 @@ MODULE_FIRMWARE("amdgpu/beige_goby_sdma.bin");
 
 MODULE_FIRMWARE("amdgpu/vangogh_sdma.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_sdma.bin");
+MODULE_FIRMWARE("amdgpu/sdma_5_2_6.bin");
 MODULE_FIRMWARE("amdgpu/sdma_5_2_7.bin");
 
 #define SDMA1_REG_OFFSET 0x600
@@ -156,10 +157,12 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 	case IP_VERSION(5, 2, 3):
 		chip_name = "yellow_carp_sdma";
 		break;
+	case IP_VERSION(5, 2, 6):
+		chip_name = "sdma_5_2_6";
+		break;
 	case IP_VERSION(5, 2, 7):
 		chip_name = "sdma_5_2_7";
 		break;
-
 	default:
 		BUG();
 	}
@@ -1622,6 +1625,7 @@ static int sdma_v5_2_set_clockgating_state(void *handle,
 	case IP_VERSION(5, 2, 1):
 	case IP_VERSION(5, 2, 4):
 	case IP_VERSION(5, 2, 5):
+	case IP_VERSION(5, 2, 6):
 	case IP_VERSION(5, 2, 3):
 		sdma_v5_2_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
@@ -1648,6 +1652,11 @@ static void sdma_v5_2_get_clockgating_state(void *handle, u32 *flags)
 
 	if (amdgpu_sriov_vf(adev))
 		*flags = 0;
+
+	/* AMD_CG_SUPPORT_SDMA_MGCG */
+	data = RREG32(sdma_v5_2_get_reg_offset(adev, 0, mmSDMA0_CLK_CTRL));
+	if (!(data & SDMA0_CLK_CTRL__CGCG_EN_OVERRIDE_MASK))
+		*flags |= AMD_CG_SUPPORT_SDMA_MGCG;
 
 	/* AMD_CG_SUPPORT_SDMA_LS */
 	data = RREG32_KIQ(sdma_v5_2_get_reg_offset(adev, 0, mmSDMA0_POWER_CNTL));
