@@ -298,15 +298,6 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.pcm_pointer	= hda_dsp_pcm_pointer,
 	.pcm_ack	= hda_dsp_pcm_ack,
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
-	/* probe callbacks */
-	.probe_assign	= hda_probe_compr_assign,
-	.probe_free	= hda_probe_compr_free,
-	.probe_set_params	= hda_probe_compr_set_params,
-	.probe_trigger	= hda_probe_compr_trigger,
-	.probe_pointer	= hda_probe_compr_pointer,
-#endif
-
 	/* firmware loading */
 	.load_firmware = snd_sof_load_firmware_raw,
 
@@ -327,6 +318,10 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.trace_init = hda_dsp_trace_init,
 	.trace_release = hda_dsp_trace_release,
 	.trace_trigger = hda_dsp_trace_trigger,
+
+	/* client ops */
+	.register_ipc_clients = hda_register_clients,
+	.unregister_ipc_clients = hda_unregister_clients,
 
 	/* DAI drivers */
 	.drv		= skl_dai,

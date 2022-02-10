@@ -69,25 +69,11 @@ bool sof_debug_check_flag(int mask);
 #define SOF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
 	SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_FLOAT)
 
-#define ENABLE_DEBUGFS_CACHEBUF \
-	(IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE) || \
-	 IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST))
-
 /* So far the primary core on all DSPs has ID 0 */
 #define SOF_DSP_PRIMARY_CORE 0
 
 /* max number of DSP cores */
 #define SOF_MAX_DSP_NUM_CORES 8
-
-/* DSP power state */
-enum sof_dsp_power_states {
-	SOF_DSP_PM_D0,
-	SOF_DSP_PM_D1,
-	SOF_DSP_PM_D2,
-	SOF_DSP_PM_D3_HOT,
-	SOF_DSP_PM_D3,
-	SOF_DSP_PM_D3_COLD,
-};
 
 struct sof_dsp_power_state {
 	u32 state;
@@ -215,27 +201,6 @@ struct snd_sof_dsp_ops {
 	/* pcm ack */
 	int (*pcm_ack)(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream); /* optional */
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-	/* Except for probe_pointer, all probe ops are mandatory */
-	int (*probe_assign)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream,
-			struct snd_soc_dai *dai); /* mandatory */
-	int (*probe_free)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream,
-			struct snd_soc_dai *dai); /* mandatory */
-	int (*probe_set_params)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream,
-			struct snd_compr_params *params,
-			struct snd_soc_dai *dai); /* mandatory */
-	int (*probe_trigger)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream, int cmd,
-			struct snd_soc_dai *dai); /* mandatory */
-	int (*probe_pointer)(struct snd_sof_dev *sdev,
-			struct snd_compr_stream *cstream,
-			struct snd_compr_tstamp *tstamp,
-			struct snd_soc_dai *dai); /* optional */
-#endif
-
 	/* host read DSP stream data */
 	int (*ipc_msg_data)(struct snd_sof_dev *sdev,
 			    struct snd_pcm_substream *substream,
@@ -302,6 +267,10 @@ struct snd_sof_dsp_ops {
 	void (*set_mach_params)(struct snd_soc_acpi_mach *mach,
 				struct snd_sof_dev *sdev); /* optional */
 
+	/* IPC client ops */
+	int (*register_ipc_clients)(struct snd_sof_dev *sdev); /* optional */
+	void (*unregister_ipc_clients)(struct snd_sof_dev *sdev); /* optional */
+
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
 	int num_drv;
@@ -332,12 +301,8 @@ struct snd_sof_dfsentry {
 	 * or if it is accessible only when the DSP is in D0.
 	 */
 	enum sof_debugfs_access_type access_type;
-#if ENABLE_DEBUGFS_CACHEBUF
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 	char *cache_buf; /* buffer to cache the contents of debugfs memory */
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR)
-	void *msg_inject_tx;
-	void *msg_inject_rx;
 #endif
 	struct snd_sof_dev *sdev;
 	struct list_head list;  /* list in sdev dfsentry list */
@@ -460,10 +425,6 @@ struct snd_sof_dev {
 	int ipc_timeout;
 	int boot_timeout;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-	unsigned int extractor_stream_tag;
-#endif
-
 	/* DMA for Trace */
 	struct snd_dma_buffer dmatb;
 	struct snd_dma_buffer dmatp;
@@ -489,6 +450,30 @@ struct snd_sof_dev {
 	 */
 	int dsp_core_ref_count[SOF_MAX_DSP_NUM_CORES];
 
+	/*
+	 * Used to keep track of registered IPC client devices so that they can
+	 * be removed when the parent SOF module is removed.
+	 */
+	struct list_head ipc_client_list;
+
+	/* mutex to protect client list */
+	struct mutex ipc_client_mutex;
+
+	/*
+	 * Used for tracking the IPC client's RX registration for DSP initiated
+	 * message handling.
+	 */
+	struct list_head ipc_rx_handler_list;
+
+	/*
+	 * Used for tracking the IPC client's registration for DSP state change
+	 * notification
+	 */
+	struct list_head fw_state_handler_list;
+
+	/* to protect the ipc_rx_handler_list  and  dsp_state_handler_list list */
+	struct mutex client_event_handler_mutex;
+
 	void *private;			/* core does not touch this */
 };
 
@@ -511,10 +496,6 @@ int snd_sof_prepare(struct device *dev);
 void snd_sof_complete(struct device *dev);
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev);
-
-int snd_sof_create_page_table(struct device *dev,
-			      struct snd_dma_buffer *dmab,
-			      unsigned char *page_table, size_t size);
 
 /*
  * Firmware loading.
@@ -596,15 +577,7 @@ extern const struct dsp_arch_ops sof_xtensa_arch_ops;
 /*
  * Firmware state tracking
  */
-static inline void sof_set_fw_state(struct snd_sof_dev *sdev,
-				    enum sof_fw_state new_state)
-{
-	if (sdev->fw_state == new_state)
-		return;
-
-	dev_dbg(sdev->dev, "fw_state change: %d -> %d\n", sdev->fw_state, new_state);
-	sdev->fw_state = new_state;
-}
+void sof_set_fw_state(struct snd_sof_dev *sdev, enum sof_fw_state new_state);
 
 /*
  * Utilities
@@ -637,4 +610,56 @@ int sof_stream_pcm_close(struct snd_sof_dev *sdev,
 			 struct snd_pcm_substream *substream);
 
 int sof_machine_check(struct snd_sof_dev *sdev);
+
+/* SOF client support */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_CLIENT)
+int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
+			    const void *data, size_t size);
+void sof_client_dev_unregister(struct snd_sof_dev *sdev, const char *name, u32 id);
+int sof_register_clients(struct snd_sof_dev *sdev);
+void sof_unregister_clients(struct snd_sof_dev *sdev);
+void sof_client_ipc_rx_dispatcher(struct snd_sof_dev *sdev, void *msg_buf);
+void sof_client_fw_state_dispatcher(struct snd_sof_dev *sdev);
+int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state);
+int sof_resume_clients(struct snd_sof_dev *sdev);
+#else /* CONFIG_SND_SOC_SOF_CLIENT */
+static inline int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name,
+					  u32 id, const void *data, size_t size)
+{
+	return 0;
+}
+
+static inline void sof_client_dev_unregister(struct snd_sof_dev *sdev,
+					     const char *name, u32 id)
+{
+}
+
+static inline int sof_register_clients(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+
+static inline  void sof_unregister_clients(struct snd_sof_dev *sdev)
+{
+}
+
+static inline void sof_client_ipc_rx_dispatcher(struct snd_sof_dev *sdev, void *msg_buf)
+{
+}
+
+static inline void sof_client_fw_state_dispatcher(struct snd_sof_dev *sdev)
+{
+}
+
+static inline int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
+{
+	return 0;
+}
+
+static inline int sof_resume_clients(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+#endif /* CONFIG_SND_SOC_SOF_CLIENT */
+
 #endif

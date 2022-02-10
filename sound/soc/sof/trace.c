@@ -12,6 +12,7 @@
 #include <linux/sched/signal.h>
 #include "sof-priv.h"
 #include "ops.h"
+#include "sof-utils.h"
 
 #define TRACE_FILTER_ELEMENTS_PER_ENTRY 4
 #define TRACE_FILTER_MAX_CONFIG_STRING_LENGTH 1024

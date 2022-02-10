@@ -9,6 +9,7 @@
 #include <sound/compress_driver.h>
 #include "sof-audio.h"
 #include "sof-priv.h"
+#include "sof-utils.h"
 
 static void sof_set_transferred_bytes(struct snd_compr_tstamp *tstamp,
 				      u64 host_pos, u64 buffer_size)
