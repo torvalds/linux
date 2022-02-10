@@ -1501,10 +1501,18 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool initial,
 
 			bkey_reassemble(new, k);
 
-			if (!r->refcount)
+			if (!r->refcount) {
 				new->k.type = KEY_TYPE_deleted;
-			else
+				/*
+				 * XXX ugly: bch2_journal_key_insert() queues up
+				 * the key for the journal replay code, which
+				 * doesn't run the extent overwrite pass
+				 */
+				if (initial)
+					new->k.size = 0;
+			} else {
 				*bkey_refcount(new) = cpu_to_le64(r->refcount);
+			}
 
 			ret = initial
 			       ? bch2_journal_key_insert(c, BTREE_ID_stripes, 0, new)
