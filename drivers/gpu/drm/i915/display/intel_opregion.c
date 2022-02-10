@@ -245,14 +245,10 @@ struct opregion_asle_ext {
 
 #define MAX_DSLP	1500
 
-static int swsci(struct drm_i915_private *dev_priv,
-		 u32 function, u32 parm, u32 *parm_out)
+static int check_swsci_function(struct drm_i915_private *i915, u32 function)
 {
-	struct opregion_swsci *swsci = dev_priv->opregion.swsci;
-	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
-	u32 main_function, sub_function, scic;
-	u16 swsci_val;
-	u32 dslp;
+	struct opregion_swsci *swsci = i915->opregion.swsci;
+	u32 main_function, sub_function;
 
 	if (!swsci)
 		return -ENODEV;
@@ -264,14 +260,30 @@ static int swsci(struct drm_i915_private *dev_priv,
 
 	/* Check if we can call the function. See swsci_setup for details. */
 	if (main_function == SWSCI_SBCB) {
-		if ((dev_priv->opregion.swsci_sbcb_sub_functions &
+		if ((i915->opregion.swsci_sbcb_sub_functions &
 		     (1 << sub_function)) == 0)
 			return -EINVAL;
 	} else if (main_function == SWSCI_GBDA) {
-		if ((dev_priv->opregion.swsci_gbda_sub_functions &
+		if ((i915->opregion.swsci_gbda_sub_functions &
 		     (1 << sub_function)) == 0)
 			return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int swsci(struct drm_i915_private *dev_priv,
+		 u32 function, u32 parm, u32 *parm_out)
+{
+	struct opregion_swsci *swsci = dev_priv->opregion.swsci;
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
+	u32 scic, dslp;
+	u16 swsci_val;
+	int ret;
+
+	ret = check_swsci_function(dev_priv, function);
+	if (ret)
+		return ret;
 
 	/* Driver sleep timeout in ms. */
 	dslp = swsci->dslp;
