@@ -55,7 +55,7 @@ static LIST_HEAD(adc_tm_device_list);
 #define ADC5_GEN3_CONV_ERR_CLR_REQ		BIT(0)
 
 #define ADC5_GEN3_SID				0x4f
-#define ADC5_GEN3_SID_MASK			0xf
+#define ADC5_GEN3_SID_MASK			GENMASK(3, 0)
 
 #define ADC5_GEN3_PERPH_CH			0x50
 #define ADC5_GEN3_CHAN_CONV_REQ			BIT(7)
@@ -357,8 +357,7 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 		return ret;
 
 	/* Write SID */
-	buf[0] &= (u8) ~ADC5_GEN3_SID_MASK;
-	buf[0] &= prop->sid;
+	buf[0] = prop->sid & ADC5_GEN3_SID_MASK;
 
 	/*
 	 * Use channel 0 by default for immediate conversion and
@@ -821,8 +820,7 @@ static int adc_tm5_gen3_configure(struct adc5_channel_prop *prop)
 		return ret;
 
 	/* Write SID */
-	buf[0] &= (u8) ~ADC5_GEN3_SID_MASK;
-	buf[0] &= prop->sid;
+	buf[0] = prop->sid & ADC5_GEN3_SID_MASK;
 
 	/*
 	 * Select TM channel and indicate there is an actual
