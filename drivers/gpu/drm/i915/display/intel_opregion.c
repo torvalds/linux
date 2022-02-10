@@ -47,10 +47,11 @@
 #define OPREGION_ASLE_EXT_OFFSET	0x1C00
 
 #define OPREGION_SIGNATURE "IntelGraphicsMem"
-#define MBOX_ACPI      (1<<0)
-#define MBOX_SWSCI     (1<<1)
-#define MBOX_ASLE      (1<<2)
-#define MBOX_ASLE_EXT  (1<<4)
+#define MBOX_ACPI		BIT(0)	/* Mailbox #1 */
+#define MBOX_SWSCI		BIT(1)	/* Mailbox #2 (obsolete from v2.x) */
+#define MBOX_ASLE		BIT(2)	/* Mailbox #3 */
+#define MBOX_ASLE_EXT		BIT(4)	/* Mailbox #5 */
+#define MBOX_BACKLIGHT		BIT(5)	/* Mailbox #2 (valid from v3.x) */
 
 struct opregion_header {
 	u8 signature[16];
@@ -955,6 +956,10 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	if (mboxes & MBOX_ASLE_EXT) {
 		drm_dbg(&dev_priv->drm, "ASLE extension supported\n");
 		opregion->asle_ext = base + OPREGION_ASLE_EXT_OFFSET;
+	}
+
+	if (mboxes & MBOX_BACKLIGHT) {
+		drm_dbg(&dev_priv->drm, "Mailbox #2 for backlight present\n");
 	}
 
 	if (intel_load_vbt_firmware(dev_priv) == 0)
