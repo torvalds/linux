@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.23"
+#define DRV_VERSION	"0.6.24"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -394,6 +394,7 @@ static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 		{ 0x50, 1, 0x04, 0x04 },
 		{ 0x54, 1, 0x04, 0x04 }
 	};
+	u8 mcr2;
 
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
 		return -ENOENT;
@@ -402,6 +403,20 @@ static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
+	/*
+	 * Disable the "fast interrupt" prediction.  Don't hold off
+	 * on interrupts. (== 0x01 despite what the docs say)
+	 */
+	pci_read_config_byte(pdev, 0x51 + 4 * ap->port_no, &mcr2);
+	/* Is it HPT370/A? */
+	if (pdev->device == PCI_DEVICE_ID_TTI_HPT366 && pdev->revision < 5) {
+		mcr2 &= ~0x02;
+		mcr2 |= 0x01;
+	} else {
+		mcr2 &= ~0x07;
+	}
+	pci_write_config_byte(pdev, 0x51 + 4 * ap->port_no, mcr2);
+
 	return ata_sff_prereset(link, deadline);
 }
 
@@ -409,18 +424,8 @@ static void hpt370_set_mode(struct ata_port *ap, struct ata_device *adev,
 			    u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr1, addr2;
+	int addr = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	u32 reg, timing, mask;
-	u8 fast;
-
-	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	addr2 = 0x51 + 4 * ap->port_no;
-
-	/* Fast interrupt prediction disable, hold off interrupt disable */
-	pci_read_config_byte(pdev, addr2, &fast);
-	fast &= ~0x02;
-	fast |= 0x01;
-	pci_write_config_byte(pdev, addr2, fast);
 
 	/* Determine timing mask and find matching mode entry */
 	if (mode < XFER_MW_DMA_0)
@@ -432,9 +437,9 @@ static void hpt370_set_mode(struct ata_port *ap, struct ata_device *adev,
 
 	timing = hpt37x_find_mode(ap, mode);
 
-	pci_read_config_dword(pdev, addr1, &reg);
+	pci_read_config_dword(pdev, addr, &reg);
 	reg = (reg & ~mask) | (timing & mask);
-	pci_write_config_dword(pdev, addr1, reg);
+	pci_write_config_dword(pdev, addr, reg);
 }
 /**
  *	hpt370_set_piomode		-	PIO setup
@@ -503,17 +508,8 @@ static void hpt372_set_mode(struct ata_port *ap, struct ata_device *adev,
 			    u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr1, addr2;
+	int addr = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	u32 reg, timing, mask;
-	u8 fast;
-
-	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	addr2 = 0x51 + 4 * ap->port_no;
-
-	/* Fast interrupt prediction disable, hold off interrupt disable */
-	pci_read_config_byte(pdev, addr2, &fast);
-	fast &= ~0x07;
-	pci_write_config_byte(pdev, addr2, fast);
 
 	/* Determine timing mask and find matching mode entry */
 	if (mode < XFER_MW_DMA_0)
@@ -525,9 +521,9 @@ static void hpt372_set_mode(struct ata_port *ap, struct ata_device *adev,
 
 	timing = hpt37x_find_mode(ap, mode);
 
-	pci_read_config_dword(pdev, addr1, &reg);
+	pci_read_config_dword(pdev, addr, &reg);
 	reg = (reg & ~mask) | (timing & mask);
-	pci_write_config_dword(pdev, addr1, reg);
+	pci_write_config_dword(pdev, addr, reg);
 }
 
 /**
