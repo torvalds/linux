@@ -1,0 +1,45 @@
+################################################################################
+# Common MSM configuration for building GKI-based kernels
+DEFCONFIG="gki_defconfig"
+
+# Configuration options to build images for MSM targets
+# Must be included AFTER build.config.msm.<target>
+
+# boot image macros
+BUILD_BOOT_IMG=1
+BUILD_INITRAMFS=1
+
+ABI_DEFINITION=android/abi_gki_aarch64.xml
+KMI_SYMBOL_LIST=android/abi_gki_aarch64_qcom
+KMI_SYMBOL_LIST_MODULE_GROUPING=0
+KMI_SYMBOL_LIST_ADD_ONLY=1
+KMI_ENFORCED=1
+
+MAKE_GOALS="modules dtbs"
+GKI_BUILD_CONFIG=common/build.config.gki.aarch64
+GKI_TRIM_NONLISTED_KMI=0
+GKI_KMI_SYMBOL_LIST_STRICT_MODE=0
+GKI_SKIP_IF_VERSION_MATCHES=1
+GKI_SKIP_CP_KERNEL_HDR=1
+
+function build_defconfig_fragments() {
+	if [[ "${VARIANT}" =~ ^(gki|consolidate)$ ]]; then
+		apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/vendor/${MSM_ARCH}_GKI.config vendor/${MSM_ARCH}-gki_defconfig
+		if [ "${VARIANT}" = gki ]; then
+			return
+		fi
+		GKI_BUILD_CONFIG=common/build.config.gki-debug.aarch64
+		GKI_GKI_BUILD_CONFIG_FRAGMENT=msm-kernel/build.config.gki_consolidate.aarch64
+		# ABI comparison isn't applicable on consolidate variant
+		unset ABI_DEFINITION
+		apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/consolidate.fragment consolidate_defconfig
+		apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/vendor/${MSM_ARCH}_consolidate.config vendor/${MSM_ARCH}-consolidate_defconfig
+	elif [ "${VARIANT}" = gki-ack ]; then
+		# In gki-only, then using ACK's GKI config directly
+		. ${KERNEL_DIR}/build.config.gki
+	else
+		echo "Variant '${VARIANT}' unsupported by gki"
+		exit 1
+	fi
+}
+build_defconfig_fragments
