@@ -69,6 +69,15 @@ properties:
       calibration data is generic and specific calibration data should be
       pulled from the OTP ROM
 
+  mediatek,disable-radar-background:
+    type: boolean
+    description:
+      Disable/enable radar/CAC detection running on a dedicated offchannel
+      chain available on some hw.
+      Background radar/CAC detection allows to avoid the CAC downtime
+      switching on a different channel during CAC detection on the selected
+      radar channel.
+
   led:
     type: object
     $ref: /schemas/leds/common.yaml#

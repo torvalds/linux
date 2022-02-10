@@ -105,10 +105,10 @@ mt7615_pm_set(void *data, u64 val)
 	if (!mt7615_firmware_offload(dev) || mt76_is_usb(&dev->mt76))
 		return -EOPNOTSUPP;
 
-	if (val == pm->enable)
-		return 0;
+	mutex_lock(&dev->mt76.mutex);
 
-	mt7615_mutex_acquire(dev);
+	if (val == pm->enable)
+		goto out;
 
 	if (dev->phy.n_beacon_vif) {
 		ret = -EBUSY;
@@ -119,9 +119,16 @@ mt7615_pm_set(void *data, u64 val)
 		pm->stats.last_wake_event = jiffies;
 		pm->stats.last_doze_event = jiffies;
 	}
+	/* make sure the chip is awake here and ps_work is scheduled
+	 * just at end of the this routine.
+	 */
+	pm->enable = false;
+	mt76_connac_pm_wake(&dev->mphy, pm);
+
 	pm->enable = val;
+	mt76_connac_power_save_sched(&dev->mphy, pm);
 out:
-	mt7615_mutex_release(dev);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
 }

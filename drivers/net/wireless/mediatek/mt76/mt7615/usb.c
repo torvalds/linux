@@ -17,6 +17,7 @@
 
 static const struct usb_device_id mt7615_device_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0e8d, 0x7663, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x043e, 0x310c, 0xff, 0xff, 0xff) },
 	{ },
 };
 

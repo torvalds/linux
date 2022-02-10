@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: ISC
 config MT7915E
 	tristate "MediaTek MT7915E (PCIe) support"
-	select MT76_CORE
+	select MT76_CONNAC_LIB
 	depends on MAC80211
 	depends on PCI
+	select RELAY
 	help
 	  This adds support for MT7915-based wireless PCIe devices,
 	  which support concurrent dual-band operation at both 5GHz

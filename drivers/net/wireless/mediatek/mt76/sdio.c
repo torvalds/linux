@@ -12,6 +12,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
 
@@ -627,6 +629,7 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 	       const struct mt76_bus_ops *bus_ops)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
+	u32 host_max_cap;
 	int err;
 
 	err = mt76_worker_setup(dev->hw, &sdio->status_worker,
@@ -648,7 +651,16 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 	dev->bus = bus_ops;
 	dev->sdio.func = func;
 
-	return 0;
+	host_max_cap = min_t(u32, func->card->host->max_req_size,
+			     func->cur_blksize *
+			     func->card->host->max_blk_count);
+	dev->sdio.xmit_buf_sz = min_t(u32, host_max_cap, MT76S_XMIT_BUF_SZ);
+	dev->sdio.xmit_buf = devm_kmalloc(dev->dev, dev->sdio.xmit_buf_sz,
+					  GFP_KERNEL);
+	if (!dev->sdio.xmit_buf)
+		err = -ENOMEM;
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(mt76s_init);
 

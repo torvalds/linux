@@ -60,7 +60,11 @@ int mt7921s_wfsys_reset(struct mt7921_dev *dev)
 
 	sdio_release_host(sdio->func);
 
+	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
+
 	/* activate mt7921s again */
+	mt7921s_mcu_drv_pmctrl(dev);
+	mt76_clear(dev, MT_CONN_STATUS, MT_WIFI_PATCH_DL_STATE);
 	mt7921s_mcu_fw_pmctrl(dev);
 	mt7921s_mcu_drv_pmctrl(dev);
 
@@ -81,7 +85,6 @@ int mt7921s_init_reset(struct mt7921_dev *dev)
 	mt7921s_wfsys_reset(dev);
 
 	mt76_worker_enable(&dev->mt76.sdio.txrx_worker);
-	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	mt7921s_enable_irq(&dev->mt76);
 
@@ -114,7 +117,6 @@ int mt7921s_mac_reset(struct mt7921_dev *dev)
 	mt76_worker_enable(&dev->mt76.sdio.net_worker);
 
 	dev->fw_assert = false;
-	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	mt7921s_enable_irq(&dev->mt76);
 
