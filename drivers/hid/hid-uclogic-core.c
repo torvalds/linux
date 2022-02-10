@@ -259,13 +259,13 @@ static int uclogic_resume(struct hid_device *hdev)
 static int uclogic_raw_event_pen(struct uclogic_drvdata *drvdata,
 					u8 *data, int size)
 {
-	struct uclogic_params *params = &drvdata->params;
+	struct uclogic_params_pen *pen = &drvdata->params.pen;
 
 	WARN_ON(drvdata == NULL);
 	WARN_ON(data == NULL && size != 0);
 
 	/* If in-range reports are inverted */
-	if (params->pen.inrange ==
+	if (pen->inrange ==
 		UCLOGIC_PARAMS_PEN_INRANGE_INVERTED) {
 		/* Invert the in-range bit */
 		data[1] ^= 0x40;
@@ -274,7 +274,7 @@ static int uclogic_raw_event_pen(struct uclogic_drvdata *drvdata,
 	 * If report contains fragmented high-resolution pen
 	 * coordinates
 	 */
-	if (size >= 10 && params->pen.fragmented_hires) {
+	if (size >= 10 && pen->fragmented_hires) {
 		u8 pressure_low_byte;
 		u8 pressure_high_byte;
 
@@ -296,7 +296,7 @@ static int uclogic_raw_event_pen(struct uclogic_drvdata *drvdata,
 		data[9] = pressure_high_byte;
 	}
 	/* If we need to emulate in-range detection */
-	if (params->pen.inrange == UCLOGIC_PARAMS_PEN_INRANGE_NONE) {
+	if (pen->inrange == UCLOGIC_PARAMS_PEN_INRANGE_NONE) {
 		/* Set in-range bit */
 		data[1] |= 0x40;
 		/* (Re-)start in-range timeout */
@@ -304,7 +304,7 @@ static int uclogic_raw_event_pen(struct uclogic_drvdata *drvdata,
 				jiffies + msecs_to_jiffies(100));
 	}
 	/* If we report tilt and Y direction is flipped */
-	if (size >= 12 && params->pen.tilt_y_flipped)
+	if (size >= 12 && pen->tilt_y_flipped)
 		data[11] = -data[11];
 
 	return 0;
@@ -323,21 +323,19 @@ static int uclogic_raw_event_pen(struct uclogic_drvdata *drvdata,
 static int uclogic_raw_event_frame(struct uclogic_drvdata *drvdata,
 					u8 *data, int size)
 {
-	struct uclogic_params *params = &drvdata->params;
+	struct uclogic_params_frame *frame = &drvdata->params.frame;
 
 	WARN_ON(drvdata == NULL);
 	WARN_ON(data == NULL && size != 0);
 
 	/* If need to, and can, set pad device ID for Wacom drivers */
-	if (params->frame.dev_id_byte > 0 &&
-	    params->frame.dev_id_byte < size) {
-		data[params->frame.dev_id_byte] = 0xf;
+	if (frame->dev_id_byte > 0 && frame->dev_id_byte < size) {
+		data[frame->dev_id_byte] = 0xf;
 	}
 	/* If need to, and can, read rotary encoder state change */
-	if (params->frame.re_lsb > 0 &&
-	    params->frame.re_lsb / 8 < size) {
-		unsigned int byte = params->frame.re_lsb / 8;
-		unsigned int bit = params->frame.re_lsb % 8;
+	if (frame->re_lsb > 0 && frame->re_lsb / 8 < size) {
+		unsigned int byte = frame->re_lsb / 8;
+		unsigned int bit = frame->re_lsb % 8;
 
 		u8 change;
 		u8 prev_state = drvdata->re_state;
