@@ -3236,9 +3236,16 @@ bool dc_link_setup_psr(struct dc_link *link,
 	/*skip power down the single pipe since it blocks the cstate*/
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV) {
-		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
-		if (link->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP && !dc->debug.disable_z10)
-			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+		switch(link->ctx->asic_id.chip_family) {
+		case FAMILY_YELLOW_CARP:
+		case AMDGPU_FAMILY_GC_10_3_6:
+			if(!dc->debug.disable_z10)
+				psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+			break;
+		default:
+			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
+			break;
+		}
 	}
 #else
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV)
