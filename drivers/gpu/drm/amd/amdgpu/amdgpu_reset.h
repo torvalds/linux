@@ -118,8 +118,7 @@ static inline bool amdgpu_reset_domain_schedule(struct amdgpu_reset_domain *doma
 	return queue_work(domain->wq, work);
 }
 
-void amdgpu_device_lock_reset_domain(struct amdgpu_reset_domain *reset_domain,
-				     struct amdgpu_hive_info *hive);
+void amdgpu_device_lock_reset_domain(struct amdgpu_reset_domain *reset_domain);
 
 void amdgpu_device_unlock_reset_domain(struct amdgpu_reset_domain *reset_domain);
 
