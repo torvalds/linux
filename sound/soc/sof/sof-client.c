@@ -102,6 +102,25 @@ static inline int sof_register_ipc_flood_test(struct snd_sof_dev *sdev)
 static inline void sof_unregister_ipc_flood_test(struct snd_sof_dev *sdev) {}
 #endif /* CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST */
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR)
+static int sof_register_ipc_msg_injector(struct snd_sof_dev *sdev)
+{
+	return sof_client_dev_register(sdev, "msg_injector", 0, NULL, 0);
+}
+
+static void sof_unregister_ipc_msg_injector(struct snd_sof_dev *sdev)
+{
+	sof_client_dev_unregister(sdev, "msg_injector", 0);
+}
+#else
+static inline int sof_register_ipc_msg_injector(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+
+static inline void sof_unregister_ipc_msg_injector(struct snd_sof_dev *sdev) {}
+#endif /* CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR */
+
 int sof_register_clients(struct snd_sof_dev *sdev)
 {
 	int ret;
@@ -113,13 +132,24 @@ int sof_register_clients(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
+	ret = sof_register_ipc_msg_injector(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "IPC message injector client registration failed\n");
+		goto err_msg_injector;
+	}
+
 	/* Platform depndent client device registration */
 
 	if (sof_ops(sdev) && sof_ops(sdev)->register_ipc_clients)
 		ret = sof_ops(sdev)->register_ipc_clients(sdev);
 
-	if (ret)
-		sof_unregister_ipc_flood_test(sdev);
+	if (!ret)
+		return 0;
+
+	sof_unregister_ipc_msg_injector(sdev);
+
+err_msg_injector:
+	sof_unregister_ipc_flood_test(sdev);
 
 	return ret;
 }
@@ -129,6 +159,7 @@ void sof_unregister_clients(struct snd_sof_dev *sdev)
 	if (sof_ops(sdev) && sof_ops(sdev)->unregister_ipc_clients)
 		sof_ops(sdev)->unregister_ipc_clients(sdev);
 
+	sof_unregister_ipc_msg_injector(sdev);
 	sof_unregister_ipc_flood_test(sdev);
 }
 

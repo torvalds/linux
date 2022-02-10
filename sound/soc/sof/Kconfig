@@ -212,7 +212,8 @@ config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST_NUM
 	  Select the number of IPC flood test clients to be created.
 
 config SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR
-	bool "SOF enable IPC message injector"
+	tristate "SOF enable IPC message injector"
+	select SND_SOC_SOF_CLIENT
 	help
 	  This option enables the IPC message injector which can be used to send
 	  crafted IPC messages to the DSP to test its robustness.
