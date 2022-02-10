@@ -3514,7 +3514,7 @@ int kfd_criu_resume_svm(struct kfd_process *p)
 			 i, criu_svm_md->data.start_addr, criu_svm_md->data.size);
 
 		for (j = 0; j < num_attrs; j++) {
-			pr_debug("\ncriu_svm_md[%d]->attrs[%d].type : 0x%x \ncriu_svm_md[%d]->attrs[%d].value : 0x%x\n",
+			pr_debug("\ncriu_svm_md[%d]->attrs[%d].type : 0x%x\ncriu_svm_md[%d]->attrs[%d].value : 0x%x\n",
 				 i, j, criu_svm_md->data.attrs[j].type,
 				 i, j, criu_svm_md->data.attrs[j].value);
 			switch (criu_svm_md->data.attrs[j].type) {
@@ -3601,7 +3601,8 @@ int kfd_criu_restore_svm(struct kfd_process *p,
 	num_devices = p->n_pdds;
 	/* Handle one SVM range object at a time, also the number of gpus are
 	 * assumed to be same on the restore node, checking must be done while
-	 * evaluating the topology earlier */
+	 * evaluating the topology earlier
+	 */
 
 	svm_attrs_size = sizeof(struct kfd_ioctl_svm_attribute) *
 		(nattr_common + nattr_accessibility * num_devices);
