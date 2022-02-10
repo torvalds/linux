@@ -116,11 +116,23 @@
  */
 #define ARM_VECTORS							\
 	__vectors_lma = .;						\
-	.vectors 0xffff0000 : AT(__vectors_start) {			\
-		*(.vectors)						\
+	OVERLAY 0xffff0000 : NOCROSSREFS AT(__vectors_lma) {		\
+		.vectors {						\
+			*(.vectors)					\
+		}							\
+		.vectors.bhb.loop8 {					\
+			*(.vectors.bhb.loop8)				\
+		}							\
+		.vectors.bhb.bpiall {					\
+			*(.vectors.bhb.bpiall)				\
+		}							\
 	}								\
 	ARM_LMA(__vectors, .vectors);					\
-	. = __vectors_lma + SIZEOF(.vectors);				\
+	ARM_LMA(__vectors_bhb_loop8, .vectors.bhb.loop8);		\
+	ARM_LMA(__vectors_bhb_bpiall, .vectors.bhb.bpiall);		\
+	. = __vectors_lma + SIZEOF(.vectors) +				\
+		SIZEOF(.vectors.bhb.loop8) +				\
+		SIZEOF(.vectors.bhb.bpiall);				\
 									\
 	__stubs_lma = .;						\
 	.stubs ADDR(.vectors) + 0x1000 : AT(__stubs_lma) {		\
