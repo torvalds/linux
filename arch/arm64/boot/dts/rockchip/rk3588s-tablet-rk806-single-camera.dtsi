@@ -55,6 +55,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m4_xfer>;
 
+	fp5510: fp5510@c {
+		compatible = "fitipower,fp5510";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
 	s5k3l6: s5k3l6@10 {
 		compatible = "samsung,s5k3l6xx";
 		reg = <0x10>;
@@ -70,6 +78,7 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "default";
 		rockchip,camera-module-lens-name = "default";
+		lens-focus = <&fp5510>;
 		port {
 			s5k3l6_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
