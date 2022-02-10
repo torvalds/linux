@@ -246,6 +246,123 @@ static int uclogic_resume(struct hid_device *hdev)
 }
 #endif
 
+/**
+ * uclogic_raw_event_pen - handle raw pen events (pen HID reports).
+ *
+ * @drvdata:	Driver data.
+ * @data:	Report data buffer, can be modified.
+ * @size:	Report data size, bytes.
+ *
+ * Returns:
+ *	Negative value on error (stops event delivery), zero for success.
+ */
+static int uclogic_raw_event_pen(struct uclogic_drvdata *drvdata,
+					u8 *data, int size)
+{
+	struct uclogic_params *params = &drvdata->params;
+
+	WARN_ON(drvdata == NULL);
+	WARN_ON(data == NULL && size != 0);
+
+	/* If in-range reports are inverted */
+	if (params->pen.inrange ==
+		UCLOGIC_PARAMS_PEN_INRANGE_INVERTED) {
+		/* Invert the in-range bit */
+		data[1] ^= 0x40;
+	}
+	/*
+	 * If report contains fragmented high-resolution pen
+	 * coordinates
+	 */
+	if (size >= 10 && params->pen.fragmented_hires) {
+		u8 pressure_low_byte;
+		u8 pressure_high_byte;
+
+		/* Lift pressure bytes */
+		pressure_low_byte = data[6];
+		pressure_high_byte = data[7];
+		/*
+		 * Move Y coord to make space for high-order X
+		 * coord byte
+		 */
+		data[6] = data[5];
+		data[5] = data[4];
+		/* Move high-order X coord byte */
+		data[4] = data[8];
+		/* Move high-order Y coord byte */
+		data[7] = data[9];
+		/* Place pressure bytes */
+		data[8] = pressure_low_byte;
+		data[9] = pressure_high_byte;
+	}
+	/* If we need to emulate in-range detection */
+	if (params->pen.inrange == UCLOGIC_PARAMS_PEN_INRANGE_NONE) {
+		/* Set in-range bit */
+		data[1] |= 0x40;
+		/* (Re-)start in-range timeout */
+		mod_timer(&drvdata->inrange_timer,
+				jiffies + msecs_to_jiffies(100));
+	}
+	/* If we report tilt and Y direction is flipped */
+	if (size >= 12 && params->pen.tilt_y_flipped)
+		data[11] = -data[11];
+
+	return 0;
+}
+
+/**
+ * uclogic_raw_event_frame - handle raw frame events (frame HID reports).
+ *
+ * @drvdata:	Driver data.
+ * @data:	Report data buffer, can be modified.
+ * @size:	Report data size, bytes.
+ *
+ * Returns:
+ *	Negative value on error (stops event delivery), zero for success.
+ */
+static int uclogic_raw_event_frame(struct uclogic_drvdata *drvdata,
+					u8 *data, int size)
+{
+	struct uclogic_params *params = &drvdata->params;
+
+	WARN_ON(drvdata == NULL);
+	WARN_ON(data == NULL && size != 0);
+
+	/* If need to, and can, set pad device ID for Wacom drivers */
+	if (params->frame.dev_id_byte > 0 &&
+	    params->frame.dev_id_byte < size) {
+		data[params->frame.dev_id_byte] = 0xf;
+	}
+	/* If need to, and can, read rotary encoder state change */
+	if (params->frame.re_lsb > 0 &&
+	    params->frame.re_lsb / 8 < size) {
+		unsigned int byte = params->frame.re_lsb / 8;
+		unsigned int bit = params->frame.re_lsb % 8;
+
+		u8 change;
+		u8 prev_state = drvdata->re_state;
+		/* Read Gray-coded state */
+		u8 state = (data[byte] >> bit) & 0x3;
+		/* Encode state change into 2-bit signed integer */
+		if ((prev_state == 1 && state == 0) ||
+		    (prev_state == 2 && state == 3)) {
+			change = 1;
+		} else if ((prev_state == 2 && state == 0) ||
+			   (prev_state == 1 && state == 3)) {
+			change = 3;
+		} else {
+			change = 0;
+		}
+		/* Write change */
+		data[byte] = (data[byte] & ~((u8)3 << bit)) |
+				(change << bit);
+		/* Remember state */
+		drvdata->re_state = state;
+	}
+
+	return 0;
+}
+
 static int uclogic_raw_event(struct hid_device *hdev,
 				struct hid_report *report,
 				u8 *data, int size)
@@ -265,85 +382,13 @@ static int uclogic_raw_event(struct hid_device *hdev,
 			data[0] = params->frame.id;
 			return 0;
 		}
-		/* If in-range reports are inverted */
-		if (params->pen.inrange ==
-			UCLOGIC_PARAMS_PEN_INRANGE_INVERTED) {
-			/* Invert the in-range bit */
-			data[1] ^= 0x40;
-		}
-		/*
-		 * If report contains fragmented high-resolution pen
-		 * coordinates
-		 */
-		if (size >= 10 && params->pen.fragmented_hires) {
-			u8 pressure_low_byte;
-			u8 pressure_high_byte;
-
-			/* Lift pressure bytes */
-			pressure_low_byte = data[6];
-			pressure_high_byte = data[7];
-			/*
-			 * Move Y coord to make space for high-order X
-			 * coord byte
-			 */
-			data[6] = data[5];
-			data[5] = data[4];
-			/* Move high-order X coord byte */
-			data[4] = data[8];
-			/* Move high-order Y coord byte */
-			data[7] = data[9];
-			/* Place pressure bytes */
-			data[8] = pressure_low_byte;
-			data[9] = pressure_high_byte;
-		}
-		/* If we need to emulate in-range detection */
-		if (params->pen.inrange == UCLOGIC_PARAMS_PEN_INRANGE_NONE) {
-			/* Set in-range bit */
-			data[1] |= 0x40;
-			/* (Re-)start in-range timeout */
-			mod_timer(&drvdata->inrange_timer,
-					jiffies + msecs_to_jiffies(100));
-		}
-		/* If we report tilt and Y direction is flipped */
-		if (size >= 12 && params->pen.tilt_y_flipped)
-			data[11] = -data[11];
+		return uclogic_raw_event_pen(drvdata, data, size);
 	}
 
 	/* Tweak frame control reports, if necessary */
 	if ((report->type == HID_INPUT_REPORT) &&
-	    (report->id == params->frame.id)) {
-		/* If need to, and can, set pad device ID for Wacom drivers */
-		if (params->frame.dev_id_byte > 0 &&
-		    params->frame.dev_id_byte < size) {
-			data[params->frame.dev_id_byte] = 0xf;
-		}
-		/* If need to, and can, read rotary encoder state change */
-		if (params->frame.re_lsb > 0 &&
-		    params->frame.re_lsb / 8 < size) {
-			unsigned int byte = params->frame.re_lsb / 8;
-			unsigned int bit = params->frame.re_lsb % 8;
-
-			u8 change;
-			u8 prev_state = drvdata->re_state;
-			/* Read Gray-coded state */
-			u8 state = (data[byte] >> bit) & 0x3;
-			/* Encode state change into 2-bit signed integer */
-			if ((prev_state == 1 && state == 0) ||
-			    (prev_state == 2 && state == 3)) {
-				change = 1;
-			} else if ((prev_state == 2 && state == 0) ||
-				   (prev_state == 1 && state == 3)) {
-				change = 3;
-			} else {
-				change = 0;
-			}
-			/* Write change */
-			data[byte] = (data[byte] & ~((u8)3 << bit)) |
-					(change << bit);
-			/* Remember state */
-			drvdata->re_state = state;
-		}
-	}
+	    (report->id == params->frame.id))
+		return uclogic_raw_event_frame(drvdata, data, size);
 
 	return 0;
 }
