@@ -2845,6 +2845,28 @@ int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 conf_id)
 }
 IWL_EXPORT_SYMBOL(iwl_fw_start_dbg_conf);
 
+void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
+				    u32 timepoint,
+				    u32 timepoint_data)
+{
+	struct iwl_dbg_dump_complete_cmd hcmd_data;
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(DEBUG_GROUP, FW_DUMP_COMPLETE_CMD),
+		.data[0] = &hcmd_data,
+		.len[0] = sizeof(hcmd_data),
+	};
+
+	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status))
+		return;
+
+	if (fw_has_capa(&fwrt->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_DUMP_COMPLETE_SUPPORT)) {
+		hcmd_data.tp = cpu_to_le32(timepoint);
+		hcmd_data.tp_data = cpu_to_le32(timepoint_data);
+		iwl_trans_send_cmd(fwrt->trans, &hcmd);
+	}
+}
+
 /* this function assumes dump_start was called beforehand and dump_end will be
  * called afterwards
  */
@@ -2853,7 +2875,8 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	struct iwl_fw_dbg_params params = {0};
 	struct iwl_fwrt_dump_data *dump_data =
 		&fwrt->dump.wks[wk_idx].dump_data;
-
+	u32 policy;
+	u32 time_point;
 	if (!test_bit(wk_idx, &fwrt->dump.active_wks))
 		return;
 
@@ -2879,6 +2902,13 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 
 	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
 
+	policy = le32_to_cpu(dump_data->trig->apply_policy);
+	time_point = le32_to_cpu(dump_data->trig->time_point);
+
+	if (policy & IWL_FW_INI_APPLY_POLICY_DUMP_COMPLETE_CMD) {
+		IWL_DEBUG_FW_INFO(fwrt, "WRT: sending dump complete\n");
+		iwl_send_dbg_dump_complete_cmd(fwrt, time_point, 0);
+	}
 	if (fwrt->trans->dbg.last_tp_resetfw == IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY)
 		iwl_force_nmi(fwrt->trans);
 

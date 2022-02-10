@@ -369,6 +369,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	reset flow
  * @IWL_UCODE_TLV_CAPA_PASSIVE_6GHZ_SCAN: Support for passive scan on 6GHz PSC
  *      channels even when these are not enabled.
+ * @IWL_UCODE_TLV_CAPA_DUMP_COMPLETE_SUPPORT: Support for indicating dump collection
+ *	complete to FW.
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -454,6 +456,7 @@ enum iwl_ucode_tlv_capa {
 
 	IWL_UCODE_TLV_CAPA_BIGTK_SUPPORT		= (__force iwl_ucode_tlv_capa_t)100,
 	IWL_UCODE_TLV_CAPA_DRAM_FRAG_SUPPORT		= (__force iwl_ucode_tlv_capa_t)104,
+	IWL_UCODE_TLV_CAPA_DUMP_COMPLETE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)105,
 
 #ifdef __CHECKER__
 	/* sparse says it cannot increment the previous enum member */
