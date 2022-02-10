@@ -31,6 +31,8 @@
 #include <linux/dma-buf.h>
 #include <linux/vfio.h>
 
+#include "gem/i915_gem_dmabuf.h"
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "gvt.h"

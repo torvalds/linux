@@ -11,6 +11,7 @@
 
 #include <asm/smp.h>
 
+#include "gem/i915_gem_dmabuf.h"
 #include "i915_drv.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
