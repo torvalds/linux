@@ -15766,6 +15766,14 @@ F:	sound/soc/codecs/wcd-clsh-v2.*
 F:	sound/soc/codecs/wsa881x.c
 F:	sound/soc/qcom/
 
+QCOM EMBEDDED USB DEBUGGER (EUD)
+M:	Souradeep Chowdhury <quic_schowdhu@quicinc.com>
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-driver-eud
+F:	Documentation/devicetree/bindings/soc/qcom/qcom,eud.yaml
+F:	drivers/usb/misc/qcom_eud.c
+
 QCOM IPA DRIVER
 M:	Alex Elder <elder@kernel.org>
 L:	netdev@vger.kernel.org
