@@ -1201,7 +1201,7 @@ out_unlock:
 
 /*
  * splice a dentry to an inode.
- * caller must hold directory i_mutex for this to be safe.
+ * caller must hold directory i_rwsem for this to be safe.
  */
 static int splice_dentry(struct dentry **pdn, struct inode *in)
 {
@@ -1598,7 +1598,7 @@ static int fill_readdir_cache(struct inode *dir, struct dentry *dn,
 			return idx == 0 ? -ENOMEM : 0;
 		}
 		/* reading/filling the cache are serialized by
-		 * i_mutex, no need to use page lock */
+		 * i_rwsem, no need to use page lock */
 		unlock_page(ctl->page);
 		ctl->dentries = kmap(ctl->page);
 		if (idx == 0)

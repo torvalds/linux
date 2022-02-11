@@ -145,7 +145,7 @@ __dcache_find_get_entry(struct dentry *parent, u64 idx,
 			return ERR_PTR(-EAGAIN);
 		}
 		/* reading/filling the cache are serialized by
-		   i_mutex, no need to use page lock */
+		   i_rwsem, no need to use page lock */
 		unlock_page(cache_ctl->page);
 		cache_ctl->dentries = kmap(cache_ctl->page);
 	}
@@ -155,7 +155,7 @@ __dcache_find_get_entry(struct dentry *parent, u64 idx,
 	rcu_read_lock();
 	spin_lock(&parent->d_lock);
 	/* check i_size again here, because empty directory can be
-	 * marked as complete while not holding the i_mutex. */
+	 * marked as complete while not holding the i_rwsem. */
 	if (ceph_dir_is_complete_ordered(dir) && ptr_pos < i_size_read(dir))
 		dentry = cache_ctl->dentries[cache_ctl->index];
 	else
@@ -671,7 +671,7 @@ struct dentry *ceph_handle_snapdir(struct ceph_mds_request *req,
 				   struct dentry *dentry)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
-	struct inode *parent = d_inode(dentry->d_parent); /* we hold i_mutex */
+	struct inode *parent = d_inode(dentry->d_parent); /* we hold i_rwsem */
 
 	/* .snap dir? */
 	if (ceph_snap(parent) == CEPH_NOSNAP &&
