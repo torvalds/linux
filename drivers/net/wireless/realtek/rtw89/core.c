@@ -293,19 +293,58 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 		break;
 	}
 
-	switch (center_chan) {
+	switch (band) {
 	default:
-	case 1 ... 14:
-		subband = RTW89_CH_2G;
+	case RTW89_BAND_2G:
+		switch (center_chan) {
+		default:
+		case 1 ... 14:
+			subband = RTW89_CH_2G;
+			break;
+		}
 		break;
-	case 36 ... 64:
-		subband = RTW89_CH_5G_BAND_1;
+	case RTW89_BAND_5G:
+		switch (center_chan) {
+		default:
+		case 36 ... 64:
+			subband = RTW89_CH_5G_BAND_1;
+			break;
+		case 100 ... 144:
+			subband = RTW89_CH_5G_BAND_3;
+			break;
+		case 149 ... 177:
+			subband = RTW89_CH_5G_BAND_4;
+			break;
+		}
 		break;
-	case 100 ... 144:
-		subband = RTW89_CH_5G_BAND_3;
-		break;
-	case 149 ... 177:
-		subband = RTW89_CH_5G_BAND_4;
+	case RTW89_BAND_6G:
+		switch (center_chan) {
+		default:
+		case 1 ... 29:
+			subband = RTW89_CH_6G_BAND_IDX0;
+			break;
+		case 33 ... 61:
+			subband = RTW89_CH_6G_BAND_IDX1;
+			break;
+		case 65 ... 93:
+			subband = RTW89_CH_6G_BAND_IDX2;
+			break;
+		case 97 ... 125:
+			subband = RTW89_CH_6G_BAND_IDX3;
+			break;
+		case 129 ... 157:
+			subband = RTW89_CH_6G_BAND_IDX4;
+			break;
+		case 161 ... 189:
+			subband = RTW89_CH_6G_BAND_IDX5;
+			break;
+		case 193 ... 221:
+			subband = RTW89_CH_6G_BAND_IDX6;
+			break;
+		case 225 ... 253:
+			subband = RTW89_CH_6G_BAND_IDX7;
+			break;
+		}
 		break;
 	}
 

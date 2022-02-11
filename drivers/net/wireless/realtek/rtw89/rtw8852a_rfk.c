@@ -2917,6 +2917,7 @@ static void _tssi_set_tmeter_tbl(struct rtw89_dev *rtwdev, enum rtw89_phy_idx ph
 	u8 i, j;
 
 	switch (subband) {
+	default:
 	case RTW89_CH_2G:
 		thm_up_a = rtw89_8852a_trk_cfg.delta_swingidx_2ga_p;
 		thm_down_a = rtw89_8852a_trk_cfg.delta_swingidx_2ga_n;
@@ -3101,6 +3102,7 @@ static void _tssi_pak(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	u8 subband = rtwdev->hal.current_subband;
 
 	switch (subband) {
+	default:
 	case RTW89_CH_2G:
 		rtw89_rfk_parser_by_cond(rtwdev, path == RF_PATH_A,
 					 &rtw8852a_tssi_pak_defs_a_2g_tbl,

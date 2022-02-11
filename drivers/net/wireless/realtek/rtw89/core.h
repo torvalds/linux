@@ -61,6 +61,15 @@ enum rtw89_subband {
 	RTW89_CH_5G_BAND_3 = 3,
 	RTW89_CH_5G_BAND_4 = 4,
 
+	RTW89_CH_6G_BAND_IDX0, /* Low */
+	RTW89_CH_6G_BAND_IDX1, /* Low */
+	RTW89_CH_6G_BAND_IDX2, /* Mid */
+	RTW89_CH_6G_BAND_IDX3, /* Mid */
+	RTW89_CH_6G_BAND_IDX4, /* High */
+	RTW89_CH_6G_BAND_IDX5, /* High */
+	RTW89_CH_6G_BAND_IDX6, /* Ultra-high */
+	RTW89_CH_6G_BAND_IDX7, /* Ultra-high */
+
 	RTW89_SUBBAND_NR,
 };
 
