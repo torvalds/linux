@@ -2301,7 +2301,96 @@ static enum link_training_result dp_perform_128b_132b_link_training(
 	return result;
 }
 
-static enum link_training_result dc_link_dp_perform_fixed_vs_pe_training_sequence(
+static enum link_training_result perform_fixed_vs_pe_nontransparent_training_sequence(
+		struct dc_link *link,
+		const struct link_resource *link_res,
+		struct link_training_settings *lt_settings)
+{
+	enum link_training_result status = LINK_TRAINING_SUCCESS;
+	uint8_t lane = 0;
+	uint8_t toggle_rate = 0x6;
+	uint8_t target_rate = 0x6;
+	bool apply_toggle_rate_wa = false;
+	uint8_t repeater_cnt;
+	uint8_t repeater_id;
+
+	/* Fixed VS/PE specific: Force CR AUX RD Interval to at least 16ms */
+	if (lt_settings->cr_pattern_time < 16000)
+		lt_settings->cr_pattern_time = 16000;
+
+	/* Fixed VS/PE specific: Toggle link rate */
+	apply_toggle_rate_wa = (link->vendor_specific_lttpr_link_rate_wa == target_rate);
+	target_rate = get_dpcd_link_rate(&lt_settings->link_settings);
+	toggle_rate = (target_rate == 0x6) ? 0xA : 0x6;
+
+	if (apply_toggle_rate_wa)
+		lt_settings->link_settings.link_rate = toggle_rate;
+
+	if (link->ctx->dc->work_arounds.lt_early_cr_pattern)
+		start_clock_recovery_pattern_early(link, link_res, lt_settings, DPRX);
+
+	/* 1. set link rate, lane count and spread. */
+	dpcd_set_link_settings(link, lt_settings);
+
+	/* Fixed VS/PE specific: Toggle link rate back*/
+	if (apply_toggle_rate_wa) {
+		core_link_write_dpcd(
+				link,
+				DP_LINK_BW_SET,
+				&target_rate,
+				1);
+	}
+
+	link->vendor_specific_lttpr_link_rate_wa = target_rate;
+
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+
+		/* 2. perform link training (set link training done
+		 *  to false is done as well)
+		 */
+		repeater_cnt = dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
+		for (repeater_id = repeater_cnt; (repeater_id > 0 && status == LINK_TRAINING_SUCCESS);
+				repeater_id--) {
+			status = perform_clock_recovery_sequence(link, link_res, lt_settings, repeater_id);
+
+			if (status != LINK_TRAINING_SUCCESS) {
+				repeater_training_done(link, repeater_id);
+				break;
+			}
+
+			status = perform_channel_equalization_sequence(link,
+					link_res,
+					lt_settings,
+					repeater_id);
+
+			repeater_training_done(link, repeater_id);
+
+			if (status != LINK_TRAINING_SUCCESS)
+				break;
+
+			for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
+				lt_settings->dpcd_lane_settings[lane].raw = 0;
+				lt_settings->hw_lane_settings[lane].VOLTAGE_SWING = 0;
+				lt_settings->hw_lane_settings[lane].PRE_EMPHASIS = 0;
+			}
+		}
+	}
+
+	if (status == LINK_TRAINING_SUCCESS) {
+		status = perform_clock_recovery_sequence(link, link_res, lt_settings, DPRX);
+		if (status == LINK_TRAINING_SUCCESS) {
+			status = perform_channel_equalization_sequence(link,
+								       link_res,
+								       lt_settings,
+								       DPRX);
+		}
+	}
+
+	return status;
+}
+
+static enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	struct dc_link *link,
 	const struct link_resource *link_res,
 	struct link_training_settings *lt_settings)
@@ -2324,6 +2413,11 @@ static enum link_training_result dc_link_dp_perform_fixed_vs_pe_training_sequenc
 	/* Only 8b/10b is supported */
 	ASSERT(dp_get_link_encoding_format(&lt_settings->link_settings) ==
 			DP_8b_10b_ENCODING);
+
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+		status = perform_fixed_vs_pe_nontransparent_training_sequence(link, link_res, lt_settings);
+		return status;
+	}
 
 	if (offset != 0xFF) {
 		vendor_lttpr_write_address +=
@@ -2671,10 +2765,8 @@ enum link_training_result dc_link_dp_perform_link_training(
 	 * Per DP specs starting from here, DPTX device shall not issue
 	 * Non-LT AUX transactions inside training mode.
 	 */
-	if (!link->dc->debug.apply_vendor_specific_lttpr_wa &&
-			(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
-			link->lttpr_mode == LTTPR_MODE_TRANSPARENT)
-		status = dc_link_dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
+	if (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN)
+		status = dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
 	else if (encoding == DP_8b_10b_ENCODING)
 		status = dp_perform_8b_10b_link_training(link, link_res, &lt_settings);
 	else if (encoding == DP_128b_132b_ENCODING)
