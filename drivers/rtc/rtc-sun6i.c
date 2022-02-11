@@ -110,6 +110,8 @@
 #define SUN6I_YEAR_MIN				1970
 #define SUN6I_YEAR_OFF				(SUN6I_YEAR_MIN - 1900)
 
+#define SECS_PER_DAY				(24 * 3600ULL)
+
 /*
  * There are other differences between models, including:
  *
@@ -133,12 +135,15 @@ struct sun6i_rtc_clk_data {
 	unsigned int has_auto_swt : 1;
 };
 
+#define RTC_LINEAR_DAY	BIT(0)
+
 struct sun6i_rtc_dev {
 	struct rtc_device *rtc;
 	const struct sun6i_rtc_clk_data *data;
 	void __iomem *base;
 	int irq;
 	time64_t alarm;
+	unsigned long flags;
 
 	struct clk_hw hw;
 	struct clk_hw *int_osc;
@@ -467,21 +472,29 @@ static int sun6i_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 	} while ((date != readl(chip->base + SUN6I_RTC_YMD)) ||
 		 (time != readl(chip->base + SUN6I_RTC_HMS)));
 
+	if (chip->flags & RTC_LINEAR_DAY) {
+		/*
+		 * Newer chips store a linear day number, the manual
+		 * does not mandate any epoch base. The BSP driver uses
+		 * the UNIX epoch, let's just copy that, as it's the
+		 * easiest anyway.
+		 */
+		rtc_time64_to_tm((date & 0xffff) * SECS_PER_DAY, rtc_tm);
+	} else {
+		rtc_tm->tm_mday = SUN6I_DATE_GET_DAY_VALUE(date);
+		rtc_tm->tm_mon  = SUN6I_DATE_GET_MON_VALUE(date) - 1;
+		rtc_tm->tm_year = SUN6I_DATE_GET_YEAR_VALUE(date);
+
+		/*
+		 * switch from (data_year->min)-relative offset to
+		 * a (1900)-relative one
+		 */
+		rtc_tm->tm_year += SUN6I_YEAR_OFF;
+	}
+
 	rtc_tm->tm_sec  = SUN6I_TIME_GET_SEC_VALUE(time);
 	rtc_tm->tm_min  = SUN6I_TIME_GET_MIN_VALUE(time);
 	rtc_tm->tm_hour = SUN6I_TIME_GET_HOUR_VALUE(time);
-
-	rtc_tm->tm_mday = SUN6I_DATE_GET_DAY_VALUE(date);
-	rtc_tm->tm_mon  = SUN6I_DATE_GET_MON_VALUE(date);
-	rtc_tm->tm_year = SUN6I_DATE_GET_YEAR_VALUE(date);
-
-	rtc_tm->tm_mon  -= 1;
-
-	/*
-	 * switch from (data_year->min)-relative offset to
-	 * a (1900)-relative one
-	 */
-	rtc_tm->tm_year += SUN6I_YEAR_OFF;
 
 	return 0;
 }
@@ -567,19 +580,24 @@ static int sun6i_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 	u32 date = 0;
 	u32 time = 0;
 
-	rtc_tm->tm_year -= SUN6I_YEAR_OFF;
-	rtc_tm->tm_mon += 1;
-
-	date = SUN6I_DATE_SET_DAY_VALUE(rtc_tm->tm_mday) |
-		SUN6I_DATE_SET_MON_VALUE(rtc_tm->tm_mon)  |
-		SUN6I_DATE_SET_YEAR_VALUE(rtc_tm->tm_year);
-
-	if (is_leap_year(rtc_tm->tm_year + SUN6I_YEAR_MIN))
-		date |= SUN6I_LEAP_SET_VALUE(1);
-
 	time = SUN6I_TIME_SET_SEC_VALUE(rtc_tm->tm_sec)  |
 		SUN6I_TIME_SET_MIN_VALUE(rtc_tm->tm_min)  |
 		SUN6I_TIME_SET_HOUR_VALUE(rtc_tm->tm_hour);
+
+	if (chip->flags & RTC_LINEAR_DAY) {
+		/* The division will cut off the H:M:S part of rtc_tm. */
+		date = div_u64(rtc_tm_to_time64(rtc_tm), SECS_PER_DAY);
+	} else {
+		rtc_tm->tm_year -= SUN6I_YEAR_OFF;
+		rtc_tm->tm_mon += 1;
+
+		date = SUN6I_DATE_SET_DAY_VALUE(rtc_tm->tm_mday) |
+			SUN6I_DATE_SET_MON_VALUE(rtc_tm->tm_mon)  |
+			SUN6I_DATE_SET_YEAR_VALUE(rtc_tm->tm_year);
+
+		if (is_leap_year(rtc_tm->tm_year + SUN6I_YEAR_MIN))
+			date |= SUN6I_LEAP_SET_VALUE(1);
+	}
 
 	/* Check whether registers are writable */
 	if (sun6i_rtc_wait(chip, SUN6I_LOSC_CTRL,
@@ -707,6 +725,8 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
+	chip->flags = (unsigned long)of_device_get_match_data(&pdev->dev);
+
 	chip->irq = platform_get_irq(pdev, 0);
 	if (chip->irq < 0)
 		return chip->irq;
@@ -753,7 +773,10 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->rtc);
 
 	chip->rtc->ops = &sun6i_rtc_ops;
-	chip->rtc->range_max = 2019686399LL; /* 2033-12-31 23:59:59 */
+	if (chip->flags & RTC_LINEAR_DAY)
+		chip->rtc->range_max = (65536 * SECS_PER_DAY) - 1;
+	else
+		chip->rtc->range_max = 2019686399LL; /* 2033-12-31 23:59:59 */
 
 	ret = devm_rtc_register_device(chip->rtc);
 	if (ret)
