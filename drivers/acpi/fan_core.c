@@ -63,20 +63,24 @@ static int fan_get_max_state(struct thermal_cooling_device *cdev, unsigned long
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_fan *fan = acpi_driver_data(device);
 
-	if (fan->acpi4)
-		*state = fan->fps_count - 1;
-	else
+	if (fan->acpi4) {
+		if (fan->fif.fine_grain_ctrl)
+			*state = 100 / fan->fif.step_size;
+		else
+			*state = fan->fps_count - 1;
+	} else {
 		*state = 1;
+	}
+
 	return 0;
 }
 
-static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
+static int acpi_fan_get_fst(struct acpi_device *device, struct acpi_fan_fst *fst)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_fan *fan = acpi_driver_data(device);
 	union acpi_object *obj;
 	acpi_status status;
-	int control, i;
+	int ret = 0;
 
 	status = acpi_evaluate_object(device->handle, "_FST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -89,35 +93,52 @@ static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
 	    obj->package.count != 3 ||
 	    obj->package.elements[1].type != ACPI_TYPE_INTEGER) {
 		dev_err(&device->dev, "Invalid _FST data\n");
-		status = -EINVAL;
+		ret = -EINVAL;
 		goto err;
 	}
 
-	control = obj->package.elements[1].integer.value;
-	for (i = 0; i < fan->fps_count; i++) {
-		/*
-		 * When Fine Grain Control is set, return the state
-		 * corresponding to maximum fan->fps[i].control
-		 * value compared to the current speed. Here the
-		 * fan->fps[] is sorted array with increasing speed.
-		 */
-		if (fan->fif.fine_grain_ctrl && control < fan->fps[i].control) {
-			i = (i > 0) ? i - 1 : 0;
-			break;
-		} else if (control == fan->fps[i].control) {
-			break;
+	fst->revision = obj->package.elements[0].integer.value;
+	fst->control = obj->package.elements[1].integer.value;
+	fst->speed = obj->package.elements[2].integer.value;
+
+err:
+	kfree(obj);
+	return ret;
+}
+
+static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
+{
+	struct acpi_fan *fan = acpi_driver_data(device);
+	struct acpi_fan_fst fst;
+	int status, i;
+
+	status = acpi_fan_get_fst(device, &fst);
+	if (status)
+		return status;
+
+	if (fan->fif.fine_grain_ctrl) {
+		/* This control should be same what we set using _FSL by spec */
+		if (fst.control > 100) {
+			dev_dbg(&device->dev, "Invalid control value returned\n");
+			goto match_fps;
 		}
+
+		*state = (int) fst.control / fan->fif.step_size;
+		return 0;
+	}
+
+match_fps:
+	for (i = 0; i < fan->fps_count; i++) {
+		if (fst.control == fan->fps[i].control)
+			break;
 	}
 	if (i == fan->fps_count) {
 		dev_dbg(&device->dev, "Invalid control value returned\n");
-		status = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	*state = i;
 
-err:
-	kfree(obj);
 	return status;
 }
 
@@ -161,12 +182,27 @@ static int fan_set_state_acpi4(struct acpi_device *device, unsigned long state)
 {
 	struct acpi_fan *fan = acpi_driver_data(device);
 	acpi_status status;
+	u64 value = state;
+	int max_state;
 
-	if (state >= fan->fps_count)
+	if (fan->fif.fine_grain_ctrl)
+		max_state = 100 / fan->fif.step_size;
+	else
+		max_state = fan->fps_count - 1;
+
+	if (state > max_state)
 		return -EINVAL;
 
-	status = acpi_execute_simple_method(device->handle, "_FSL",
-					    fan->fps[state].control);
+	if (fan->fif.fine_grain_ctrl) {
+		value *= fan->fif.step_size;
+		/* Spec allows compensate the last step only */
+		if (value + fan->fif.step_size > 100)
+			value = 100;
+	} else {
+		value = fan->fps[state].control;
+	}
+
+	status = acpi_execute_simple_method(device->handle, "_FSL", value);
 	if (ACPI_FAILURE(status)) {
 		dev_dbg(&device->dev, "Failed to set state by _FSL\n");
 		return -ENODEV;
@@ -238,6 +274,12 @@ static int acpi_fan_get_fif(struct acpi_device *device)
 	fan->fif.step_size = fields[2];
 	fan->fif.low_speed_notification = fields[3];
 
+	/* If there is a bug in step size and set as 0, change to 1 */
+	if (!fan->fif.step_size)
+		fan->fif.step_size = 1;
+	/* If step size > 9, change to 9 (by spec valid values 1-9) */
+	else if (fan->fif.step_size > 9)
+		fan->fif.step_size = 9;
 err:
 	kfree(obj);
 	return status;
