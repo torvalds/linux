@@ -28,8 +28,6 @@
 /* percpu_counter batch for blkg_[rw]stats, per-cpu drift doesn't matter */
 #define BLKG_STAT_CPU_BATCH	(INT_MAX / 2)
 
-/* Max limits for throttle policy */
-#define THROTL_IOPS_MAX		UINT_MAX
 #define FC_APPID_LEN              129
 
 
