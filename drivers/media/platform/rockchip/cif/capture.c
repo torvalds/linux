@@ -2873,7 +2873,7 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 
 	dummy_buf->is_need_vaddr = true;
 	dummy_buf->is_need_dbuf = true;
-	ret = rkcif_alloc_common_dummy_buf(dev, dummy_buf);
+	ret = rkcif_alloc_buffer(dev, dummy_buf);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to allocate the memory for dummy buffer\n");
@@ -2892,7 +2892,7 @@ static void rkcif_destroy_dummy_buf(struct rkcif_stream *stream)
 	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
 
 	if (dummy_buf->vaddr)
-		rkcif_free_common_dummy_buf(dev, dummy_buf);
+		rkcif_free_buffer(dev, dummy_buf);
 	dummy_buf->dma_addr = 0;
 	dummy_buf->vaddr = NULL;
 }
