@@ -53,6 +53,11 @@
 		};
 	};
 
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&vdiv_vaccu>;
+	};
+
 	keys {
 		compatible = "gpio-keys";
 		autorepeat;
@@ -236,6 +241,26 @@
 		};
 	};
 
+	thermal-zones {
+		chassis-thermal {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&tsens0>;
+		};
+
+		touch-thermal0 {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&touch_temp0>;
+		};
+
+		touch-thermal1 {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&touch_temp1>;
+		};
+	};
+
 	touchscreen {
 		compatible = "resistive-adc-touch";
 		io-channels = <&adc_ts 1>, <&adc_ts 3>, <&adc_ts 4>,
@@ -246,6 +271,32 @@
 		touchscreen-inverted-y;
 		touchscreen-x-plate-ohms = <300>;
 		touchscreen-y-plate-ohms = <800>;
+	};
+
+	touch_temp0: touch-temperature-sensor0 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc_ts 0>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-40000) 736
+						85000 474>;
+	};
+
+	touch_temp1: touch-temperature-sensor1 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc_ts 7>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-40000) 826
+						85000 609>;
+	};
+
+	vdiv_vaccu: voltage-divider-vaccu {
+		compatible = "voltage-divider";
+		io-channels = <&adc_ts 2>;
+		output-ohms = <2500>;
+		full-ohms = <64000>;
+		#io-channel-cells = <0>;
 	};
 };
 
@@ -370,6 +421,12 @@
 	rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
+	};
+
+	tsens0: temperature-sensor@70 {
+		compatible = "ti,tmp103";
+		reg = <0x70>;
+		#thermal-sensor-cells = <0>;
 	};
 
 	gpio_pca: gpio@74 {
