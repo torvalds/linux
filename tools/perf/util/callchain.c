@@ -1119,7 +1119,7 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 			goto out;
 	}
 
-	if (al->maps == &al->maps->machine->kmaps) {
+	if (al->maps == machine__kernel_maps(al->maps->machine)) {
 		if (machine__is_host(al->maps->machine)) {
 			al->cpumode = PERF_RECORD_MISC_KERNEL;
 			al->level = 'k';

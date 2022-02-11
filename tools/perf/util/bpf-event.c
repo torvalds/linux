@@ -105,7 +105,7 @@ static int machine__process_bpf_event_load(struct machine *machine,
 	for (i = 0; i < info_linear->info.nr_jited_ksyms; i++) {
 		u64 *addrs = (u64 *)(uintptr_t)(info_linear->info.jited_ksyms);
 		u64 addr = addrs[i];
-		struct map *map = maps__find(&machine->kmaps, addr);
+		struct map *map = maps__find(machine__kernel_maps(machine), addr);
 
 		if (map) {
 			map->dso->binary_type = DSO_BINARY_TYPE__BPF_PROG_INFO;
