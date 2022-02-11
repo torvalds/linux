@@ -89,8 +89,8 @@ static int create_page_table(struct snd_soc_component *component,
 					 spcm->stream[dir].page_table.area, size);
 }
 
-int sof_compr_open(struct snd_soc_component *component,
-		   struct snd_compr_stream *cstream)
+static int sof_compr_open(struct snd_soc_component *component,
+			  struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_compr_runtime *crtd = cstream->runtime;
@@ -125,8 +125,8 @@ int sof_compr_open(struct snd_soc_component *component,
 	return 0;
 }
 
-int sof_compr_free(struct snd_soc_component *component,
-		   struct snd_compr_stream *cstream)
+static int sof_compr_free(struct snd_soc_component *component,
+			  struct snd_compr_stream *cstream)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_compr_tstamp *tstamp = cstream->runtime->private_data;
@@ -159,8 +159,8 @@ int sof_compr_free(struct snd_soc_component *component,
 	return ret;
 }
 
-int sof_compr_set_params(struct snd_soc_component *component,
-			 struct snd_compr_stream *cstream, struct snd_compr_params *params)
+static int sof_compr_set_params(struct snd_soc_component *component,
+				struct snd_compr_stream *cstream, struct snd_compr_params *params)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -222,8 +222,8 @@ int sof_compr_set_params(struct snd_soc_component *component,
 	return 0;
 }
 
-int sof_compr_get_params(struct snd_soc_component *component,
-			 struct snd_compr_stream *cstream, struct snd_codec *params)
+static int sof_compr_get_params(struct snd_soc_component *component,
+				struct snd_compr_stream *cstream, struct snd_codec *params)
 {
 	/* TODO: we don't query the supported codecs for now, if the
 	 * application asks for an unsupported codec the set_params() will fail.
@@ -231,8 +231,8 @@ int sof_compr_get_params(struct snd_soc_component *component,
 	return 0;
 }
 
-int sof_compr_trigger(struct snd_soc_component *component,
-		      struct snd_compr_stream *cstream, int cmd)
+static int sof_compr_trigger(struct snd_soc_component *component,
+			     struct snd_compr_stream *cstream, int cmd)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -271,9 +271,9 @@ int sof_compr_trigger(struct snd_soc_component *component,
 				  &reply, sizeof(reply));
 }
 
-int sof_compr_copy(struct snd_soc_component *component,
-		   struct snd_compr_stream *cstream,
-		   char __user *buf, size_t count)
+static int sof_compr_copy(struct snd_soc_component *component,
+			  struct snd_compr_stream *cstream,
+			  char __user *buf, size_t count)
 {
 	struct snd_compr_runtime *rtd = cstream->runtime;
 	unsigned int offset, n;
