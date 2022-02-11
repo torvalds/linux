@@ -411,38 +411,10 @@ int dma_set_coherent_mask(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(dma_set_coherent_mask);
 
-#ifdef CONFIG_IXP4XX_INDIRECT_PCI
-/*
- * In the case of using indirect PCI, we simply return the actual PCI
- * address and our read/write implementation use that to drive the
- * access registers. If something outside of PCI is ioremap'd, we
- * fallback to the default.
- */
-
-static void __iomem *ixp4xx_ioremap_caller(phys_addr_t addr, size_t size,
-					   unsigned int mtype, void *caller)
-{
-	if (!is_pci_memory(addr))
-		return __arm_ioremap_caller(addr, size, mtype, caller);
-
-	return (void __iomem *)addr;
-}
-
-static void ixp4xx_iounmap(volatile void __iomem *addr)
-{
-	if (!is_pci_memory((__force u32)addr))
-		__iounmap(addr);
-}
-#endif
-
 void __init ixp4xx_init_early(void)
 {
 	platform_notify = ixp4xx_platform_notify;
 #ifdef CONFIG_PCI
 	platform_notify_remove = ixp4xx_platform_notify_remove;
-#endif
-#ifdef CONFIG_IXP4XX_INDIRECT_PCI
-	arch_ioremap_caller = ixp4xx_ioremap_caller;
-	arch_iounmap = ixp4xx_iounmap;
 #endif
 }

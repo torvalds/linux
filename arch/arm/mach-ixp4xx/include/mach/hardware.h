@@ -13,12 +13,6 @@
 #ifndef __ASM_ARCH_HARDWARE_H__
 #define __ASM_ARCH_HARDWARE_H__
 
-#ifdef CONFIG_IXP4XX_INDIRECT_PCI
-#define PCIBIOS_MAX_MEM		0x4FFFFFFF
-#else
-#define PCIBIOS_MAX_MEM		0x4BFFFFFF
-#endif
-
 /* Register locations and bits */
 #include "ixp4xx-regs.h"
 

@@ -93,10 +93,6 @@ extern void ixp4xx_init_irq(void);
 extern void ixp4xx_sys_init(void);
 extern void ixp4xx_timer_init(void);
 extern void ixp4xx_restart(enum reboot_mode, const char *);
-extern void ixp4xx_pci_preinit(void);
-struct pci_sys_data;
-extern int ixp4xx_setup(int nr, struct pci_sys_data *sys);
-extern struct pci_ops ixp4xx_ops;
 
 #endif // __ASSEMBLY__
 
