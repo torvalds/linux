@@ -287,7 +287,7 @@ static int veth_forward_skb(struct net_device *dev, struct sk_buff *skb,
 {
 	return __dev_forward_skb(dev, skb) ?: xdp ?
 		veth_xdp_rx(rq, skb) :
-		netif_rx(skb);
+		__netif_rx(skb);
 }
 
 /* return true if the specified skb has chances of GRO aggregation
