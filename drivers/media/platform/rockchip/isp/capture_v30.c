@@ -290,6 +290,7 @@ static u32 calc_burst_len(struct rkisp_stream *stream)
 static int mp_config_mi(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
+	struct capture_fmt *fmt = &stream->out_isp_fmt;
 	struct v4l2_pix_format_mplane *out_fmt = &stream->out_fmt;
 	bool is_unite = dev->hw_dev->is_unite;
 	u32 val, mask;
@@ -313,8 +314,8 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	val = out_fmt->height;
 	rkisp_unite_write(dev, ISP3X_MI_MP_WR_Y_PIC_HEIGHT, val, false, is_unite);
 
-	val = ALIGN(out_fmt->plane_fmt[0].bytesperline, 16);
-	rkisp_unite_write(dev, ISP3X_MI_MP_WR_Y_LLENGTH, val, false, is_unite);
+	val = out_fmt->plane_fmt[0].bytesperline / DIV_ROUND_UP(fmt->bpp[0], 8);
+	rkisp_unite_write(dev, ISP3X_MI_MP_WR_Y_LLENGTH, val, val, is_unite);
 
 	val = stream->out_isp_fmt.uv_swap ? ISP3X_MI_XTD_FORMAT_MP_UV_SWAP : 0;
 	mask = ISP3X_MI_XTD_FORMAT_MP_UV_SWAP;
@@ -405,7 +406,7 @@ static int sp_config_mi(struct rkisp_stream *stream)
 	val = out_fmt->height;
 	rkisp_unite_write(dev, ISP3X_MI_SP_WR_Y_PIC_HEIGHT, val, false, is_unite);
 
-	val = ALIGN(out_fmt->plane_fmt[0].bytesperline, 16);
+	val = stream->u.sp.y_stride;
 	rkisp_unite_write(dev, ISP3X_MI_SP_WR_Y_LLENGTH, val, false, is_unite);
 
 	val = stream->out_isp_fmt.uv_swap ? ISP3X_MI_XTD_FORMAT_SP_UV_SWAP : 0;
@@ -468,6 +469,7 @@ static int fbc_config_mi(struct rkisp_stream *stream)
 static int bp_config_mi(struct rkisp_stream *stream)
 {
 	struct v4l2_pix_format_mplane *out_fmt = &stream->out_fmt;
+	struct capture_fmt *fmt = &stream->out_isp_fmt;
 	struct rkisp_device *dev = stream->ispdev;
 	bool is_unite = dev->hw_dev->is_unite;
 	u32 val, mask;
@@ -488,7 +490,7 @@ static int bp_config_mi(struct rkisp_stream *stream)
 	val = out_fmt->height;
 	rkisp_unite_write(dev, ISP3X_MI_BP_WR_Y_PIC_HEIGHT, val, false, is_unite);
 
-	val = ALIGN(out_fmt->plane_fmt[0].bytesperline, 16);
+	val = out_fmt->plane_fmt[0].bytesperline / DIV_ROUND_UP(fmt->bpp[0], 8);
 	rkisp_unite_write(dev, ISP3X_MI_BP_WR_Y_LLENGTH, val, false, is_unite);
 
 	mask = ISP3X_MPFBC_FORCE_UPD | ISP3X_BP_YUV_MODE;
