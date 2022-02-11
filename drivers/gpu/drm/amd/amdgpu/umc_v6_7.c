@@ -47,6 +47,13 @@ static inline uint32_t get_umc_v6_7_reg_offset(struct amdgpu_device *adev,
 					      uint32_t umc_inst,
 					      uint32_t ch_inst)
 {
+	uint32_t index = umc_inst * adev->umc.channel_inst_num + ch_inst;
+
+	/* adjust umc and channel index offset,
+	 * the register address is not linear on each umc instace */
+	umc_inst = index / 4;
+	ch_inst = index % 4;
+
 	return adev->umc.channel_offs * ch_inst + UMC_V6_7_INST_DIST * umc_inst;
 }
 
