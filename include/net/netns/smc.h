@@ -12,5 +12,7 @@ struct netns_smc {
 	/* protect fback_rsn */
 	struct mutex			mutex_fback_rsn;
 	struct smc_stats_rsn		*fback_rsn;
+
+	bool				limit_smc_hs;	/* constraint on handshake */
 };
 #endif
