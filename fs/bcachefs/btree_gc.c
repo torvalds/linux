@@ -1160,10 +1160,10 @@ static void bch2_gc_free(struct bch_fs *c)
 	genradix_free(&c->gc_stripes);
 
 	for_each_member_device(ca, c, i) {
-		kvpfree(rcu_dereference_protected(ca->buckets[1], 1),
+		kvpfree(rcu_dereference_protected(ca->buckets_gc, 1),
 			sizeof(struct bucket_array) +
 			ca->mi.nbuckets * sizeof(struct bucket));
-		ca->buckets[1] = NULL;
+		ca->buckets_gc = NULL;
 
 		free_percpu(ca->usage_gc);
 		ca->usage_gc = NULL;
@@ -1292,7 +1292,7 @@ static int bch2_gc_start(struct bch_fs *c,
 	}
 
 	for_each_member_device(ca, c, i) {
-		BUG_ON(ca->buckets[1]);
+		BUG_ON(ca->buckets_gc);
 		BUG_ON(ca->usage_gc);
 
 		ca->usage_gc = alloc_percpu(struct bch_dev_usage);
@@ -1346,8 +1346,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 		.data_type	= g->mark.data_type,
 		.dirty_sectors	= g->mark.dirty_sectors,
 		.cached_sectors	= g->mark.cached_sectors,
-		.io_time[READ]	= g->io_time[READ],
-		.io_time[WRITE]	= g->io_time[WRITE],
 		.stripe		= g->stripe,
 		.stripe_redundancy = g->stripe_redundancy,
 	};
@@ -1437,7 +1435,13 @@ static int bch2_gc_alloc_done(struct bch_fs *c, bool metadata_only)
 static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 {
 	struct bch_dev *ca;
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bucket *g;
+	struct bch_alloc_v4 a;
 	unsigned i;
+	int ret;
 
 	for_each_member_device(ca, c, i) {
 		struct bucket_array *buckets = kvpmalloc(sizeof(struct bucket_array) +
@@ -1445,17 +1449,47 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 				GFP_KERNEL|__GFP_ZERO);
 		if (!buckets) {
 			percpu_ref_put(&ca->ref);
-			percpu_up_write(&c->mark_lock);
 			bch_err(c, "error allocating ca->buckets[gc]");
 			return -ENOMEM;
 		}
 
 		buckets->first_bucket	= ca->mi.first_bucket;
 		buckets->nbuckets	= ca->mi.nbuckets;
-		rcu_assign_pointer(ca->buckets[1], buckets);
+		rcu_assign_pointer(ca->buckets_gc, buckets);
 	};
 
-	return bch2_alloc_read(c, true, metadata_only);
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
+			   BTREE_ITER_PREFETCH, k, ret) {
+		ca = bch_dev_bkey_exists(c, k.k->p.inode);
+		g = gc_bucket(ca, k.k->p.offset);
+
+		bch2_alloc_to_v4(k, &a);
+
+		g->_mark.gen		= a.gen;
+		g->gen_valid		= 1;
+
+		if (metadata_only &&
+		    (a.data_type == BCH_DATA_user ||
+		     a.data_type == BCH_DATA_cached ||
+		     a.data_type == BCH_DATA_parity)) {
+			g->_mark.data_type	= a.data_type;
+			g->_mark.dirty_sectors	= a.dirty_sectors;
+			g->_mark.cached_sectors	= a.cached_sectors;
+			g->_mark.stripe		= a.stripe != 0;
+			g->stripe		= a.stripe;
+			g->stripe_redundancy	= a.stripe_redundancy;
+		}
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	bch2_trans_exit(&trans);
+
+	if (ret)
+		bch_err(c, "error reading alloc info at gc start: %i", ret);
+
+	return ret;
 }
 
 static void bch2_gc_alloc_reset(struct bch_fs *c, bool metadata_only)
@@ -1464,7 +1498,7 @@ static void bch2_gc_alloc_reset(struct bch_fs *c, bool metadata_only)
 	unsigned i;
 
 	for_each_member_device(ca, c, i) {
-		struct bucket_array *buckets = __bucket_array(ca, true);
+		struct bucket_array *buckets = gc_bucket_array(ca);
 		struct bucket *g;
 
 		for_each_bucket(g, buckets) {

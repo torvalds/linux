@@ -1139,7 +1139,7 @@ use_clean:
 	err = "error reading allocation information";
 
 	down_read(&c->gc_lock);
-	ret = bch2_alloc_read(c, false, false);
+	ret = bch2_alloc_read(c);
 	up_read(&c->gc_lock);
 
 	if (ret)

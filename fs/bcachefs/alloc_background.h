@@ -109,7 +109,7 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 		k->type == KEY_TYPE_alloc_v3;
 }
 
-int bch2_alloc_read(struct bch_fs *, bool, bool);
+int bch2_alloc_read(struct bch_fs *);
 
 int bch2_trans_mark_alloc(struct btree_trans *, struct bkey_s_c,
 			  struct bkey_i *, unsigned);

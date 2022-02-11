@@ -30,32 +30,21 @@
 	_old;							\
 })
 
-static inline struct bucket_array *__bucket_array(struct bch_dev *ca,
-						  bool gc)
+static inline struct bucket_array *gc_bucket_array(struct bch_dev *ca)
 {
-	return rcu_dereference_check(ca->buckets[gc],
+	return rcu_dereference_check(ca->buckets_gc,
 				     !ca->fs ||
 				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
 				     lockdep_is_held(&ca->fs->gc_lock) ||
 				     lockdep_is_held(&ca->bucket_lock));
 }
 
-static inline struct bucket_array *bucket_array(struct bch_dev *ca)
+static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
-	return __bucket_array(ca, false);
-}
-
-static inline struct bucket *__bucket(struct bch_dev *ca, size_t b, bool gc)
-{
-	struct bucket_array *buckets = __bucket_array(ca, gc);
+	struct bucket_array *buckets = gc_bucket_array(ca);
 
 	BUG_ON(b < buckets->first_bucket || b >= buckets->nbuckets);
 	return buckets->b + b;
-}
-
-static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
-{
-	return __bucket(ca, b, true);
 }
 
 static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
@@ -65,7 +54,6 @@ static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
 				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
 				     lockdep_is_held(&ca->fs->gc_lock) ||
 				     lockdep_is_held(&ca->bucket_lock));
-
 }
 
 static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)

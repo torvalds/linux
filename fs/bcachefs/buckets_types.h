@@ -27,7 +27,6 @@ struct bucket {
 		const struct bucket_mark mark;
 	};
 
-	u64				io_time[2];
 	unsigned			gen_valid:1;
 	u8				stripe_redundancy;
 	u32				stripe;
