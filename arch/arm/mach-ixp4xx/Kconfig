@@ -17,13 +17,6 @@ config MACH_IXP4XX_OF
 	help
 	  Say 'Y' here to support Device Tree-based IXP4xx platforms.
 
-config ARCH_PRPMC1100
-	bool "PrPMC1100"
-	help
-	  Say 'Y' here if you want your kernel to support the Motorola
-	  PrPCM1100 Processor Mezanine Module. For more information on
-	  this platform, see <file:Documentation/arm/ixp4xx.rst>.
-
 endmenu
 
 endif
