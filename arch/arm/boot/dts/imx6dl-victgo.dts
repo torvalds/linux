@@ -181,6 +181,18 @@
 			frame-master;
 		};
 	};
+
+	touchscreen {
+		compatible = "resistive-adc-touch";
+		io-channels = <&adc_ts 1>, <&adc_ts 3>, <&adc_ts 4>,
+                              <&adc_ts 5>;
+		io-channel-names = "y", "z1", "z2", "x";
+		touchscreen-min-pressure = <64687>;
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+		touchscreen-x-plate-ohms = <300>;
+		touchscreen-y-plate-ohms = <800>;
+	};
 };
 
 &audmux {
@@ -244,22 +256,41 @@
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
 
-	touchscreen@0 {
-		compatible = "ti,tsc2046";
+	adc_ts: adc@0 {
+		compatible = "ti,tsc2046e-adc";
 		reg = <0>;
-		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_touchscreen>;
-		spi-max-frequency = <200000>;
-		interrupts-extended = <&gpio5 8 IRQ_TYPE_EDGE_FALLING>;
-		pendown-gpio = <&gpio5 8 GPIO_ACTIVE_LOW>;
-		touchscreen-size-x = <800>;
-		touchscreen-size-y = <480>;
-		touchscreen-inverted-y;
-		touchscreen-max-pressure = <4095>;
-		ti,vref-delay-usecs = /bits/ 16 <100>;
-		ti,x-plate-ohms = /bits/ 16 <800>;
-		ti,y-plate-ohms = /bits/ 16 <300>;
-		wakeup-source;
+		pinctrl-names ="default";
+		spi-max-frequency = <1000000>;
+		interrupts-extended = <&gpio5 8 IRQ_TYPE_LEVEL_LOW>;
+		#io-channel-cells = <1>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		channel@1 {
+			reg = <1>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@3 {
+			reg = <3>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@4 {
+			reg = <4>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@5 {
+			reg = <5>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
 	};
 };
 
