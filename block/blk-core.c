@@ -476,9 +476,6 @@ struct request_queue *blk_alloc_queue(int node_id, bool alloc_srcu)
 	timer_setup(&q->timeout, blk_rq_timed_out_timer, 0);
 	INIT_WORK(&q->timeout_work, blk_timeout_work);
 	INIT_LIST_HEAD(&q->icq_list);
-#ifdef CONFIG_BLK_CGROUP
-	INIT_LIST_HEAD(&q->blkg_list);
-#endif
 
 	kobject_init(&q->kobj, &blk_queue_ktype);
 
