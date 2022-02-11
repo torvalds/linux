@@ -23,10 +23,11 @@ properties:
   regulators:
     type: object
 
-    patternProperties:
+    properties:
       "SW":
         type: object
         $ref: regulator.yaml#
+        unevaluatedProperties: false
 
     additionalProperties: false
 
