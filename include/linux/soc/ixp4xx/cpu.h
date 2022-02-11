@@ -90,9 +90,6 @@
 			 IXP43X_PROCESSOR_ID_VALUE)
 #define cpu_is_ixp46x()	((read_cpuid_id() & IXP46X_PROCESSOR_ID_MASK) == \
 			 IXP46X_PROCESSOR_ID_VALUE)
-
-u32 ixp4xx_read_feature_bits(void);
-void ixp4xx_write_feature_bits(u32 value);
 static inline u32 cpu_ixp4xx_features(struct regmap *rmap)
 {
 	u32 val;
@@ -114,13 +111,6 @@ static inline u32 cpu_ixp4xx_features(struct regmap *rmap)
 #define cpu_is_ixp42x()			0
 #define cpu_is_ixp43x()			0
 #define cpu_is_ixp46x()			0
-static inline u32 ixp4xx_read_feature_bits(void)
-{
-	return 0;
-}
-static inline void ixp4xx_write_feature_bits(u32 value)
-{
-}
 static inline u32 cpu_ixp4xx_features(struct regmap *rmap)
 {
 	return 0;
