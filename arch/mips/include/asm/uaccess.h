@@ -296,8 +296,6 @@ struct __large_struct { unsigned long buf[100]; };
 	(val) = __gu_tmp.t;						\
 }
 
-#define HAVE_GET_KERNEL_NOFAULT
-
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\
 	int __gu_err;							\

@@ -507,8 +507,6 @@ do {									\
 	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u8, label);	\
 } while (0)
 
-#define HAVE_GET_KERNEL_NOFAULT
-
 #ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 	__get_user_size(*((type *)(dst)), (__force type __user *)(src),	\

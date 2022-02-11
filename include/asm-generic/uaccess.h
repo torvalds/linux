@@ -77,8 +77,6 @@ do {									\
 		goto err_label;						\
 } while (0)
 
-#define HAVE_GET_KERNEL_NOFAULT 1
-
 static inline __must_check unsigned long
 raw_copy_from_user(void *to, const void __user * from, unsigned long n)
 {

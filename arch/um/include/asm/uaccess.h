@@ -44,8 +44,6 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 }
 
 /* no pagefaults for kernel addresses in um */
-#define HAVE_GET_KERNEL_NOFAULT 1
-
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\
 	*((type *)dst) = get_unaligned((type *)(src));			\

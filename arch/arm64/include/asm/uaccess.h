@@ -26,8 +26,6 @@
 #include <asm/memory.h>
 #include <asm/extable.h>
 
-#define HAVE_GET_KERNEL_NOFAULT
-
 /*
  * Test whether a block of memory is a valid user space address.
  * Returns 1 if the range is valid, 0 otherwise.

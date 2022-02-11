@@ -95,7 +95,6 @@ struct exception_table_entry {
 	(val) = (__force __typeof__(*(ptr))) __gu_val;	\
 }
 
-#define HAVE_GET_KERNEL_NOFAULT
 #define __get_kernel_nofault(dst, src, type, err_label)	\
 {							\
 	type __z;					\
