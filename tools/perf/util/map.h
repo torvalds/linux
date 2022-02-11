@@ -152,6 +152,8 @@ static inline bool __map__is_kmodule(const struct map *map)
 
 bool map__has_symbols(const struct map *map);
 
+bool map__contains_symbol(struct map *map, struct symbol *sym);
+
 #define ENTRY_TRAMPOLINE_NAME "__entry_SYSCALL_64_trampoline"
 
 static inline bool is_entry_trampoline(const char *name)
