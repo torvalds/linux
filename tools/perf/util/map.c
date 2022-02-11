@@ -513,7 +513,7 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	return ip + map->reloc;
 }
 
-bool map__contains_symbol(struct map *map, struct symbol *sym)
+bool map__contains_symbol(const struct map *map, const struct symbol *sym)
 {
 	u64 ip = map->unmap_ip(map, sym->start);
 
