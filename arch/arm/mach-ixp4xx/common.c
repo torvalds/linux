@@ -30,7 +30,6 @@
 #include <linux/soc/ixp4xx/cpu.h>
 #include <linux/irqchip/irq-ixp4xx.h>
 #include <linux/platform_data/timer-ixp4xx.h>
-#include <linux/dma-map-ops.h>
 #include <mach/hardware.h>
 #include <linux/uaccess.h>
 #include <asm/page.h>
@@ -329,60 +328,4 @@ void ixp4xx_restart(enum reboot_mode mode, const char *cmd)
 
 		*IXP4XX_OSWE = IXP4XX_WDT_RESET_ENABLE | IXP4XX_WDT_COUNT_ENABLE;
 	}
-}
-
-#ifdef CONFIG_PCI
-static int ixp4xx_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
-{
-	return (dma_addr + size) > SZ_64M;
-}
-
-static int ixp4xx_platform_notify_remove(struct device *dev)
-{
-	if (dev_is_pci(dev))
-		dmabounce_unregister_dev(dev);
-
-	return 0;
-}
-#endif
-
-/*
- * Setup DMA mask to 64MB on PCI devices and 4 GB on all other things.
- */
-static int ixp4xx_platform_notify(struct device *dev)
-{
-	dev->dma_mask = &dev->coherent_dma_mask;
-
-#ifdef CONFIG_PCI
-	if (dev_is_pci(dev)) {
-		dev->coherent_dma_mask = DMA_BIT_MASK(28); /* 64 MB */
-		dmabounce_register_dev(dev, 2048, 4096, ixp4xx_needs_bounce);
-		return 0;
-	}
-#endif
-
-	dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	return 0;
-}
-
-int dma_set_coherent_mask(struct device *dev, u64 mask)
-{
-	if (dev_is_pci(dev))
-		mask &= DMA_BIT_MASK(28); /* 64 MB */
-
-	if ((mask & DMA_BIT_MASK(28)) == DMA_BIT_MASK(28)) {
-		dev->coherent_dma_mask = mask;
-		return 0;
-	}
-
-	return -EIO;		/* device wanted sub-64MB mask */
-}
-EXPORT_SYMBOL(dma_set_coherent_mask);
-
-void __init ixp4xx_init_early(void)
-{
-	platform_notify = ixp4xx_platform_notify;
-#ifdef CONFIG_PCI
-	platform_notify_remove = ixp4xx_platform_notify_remove;
-#endif
 }

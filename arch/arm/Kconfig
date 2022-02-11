@@ -217,9 +217,6 @@ config ARCH_MAY_HAVE_PC_FDC
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
-config ARCH_HAS_DMA_SET_COHERENT_MASK
-	bool
-
 config GENERIC_ISA_DMA
 	bool
 
@@ -381,10 +378,8 @@ config ARCH_IOP32X
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
-	select ARCH_HAS_DMA_SET_COHERENT_MASK
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CPU_XSCALE
-	select DMABOUNCE if PCI
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_IXP4XX
 	select GPIOLIB
