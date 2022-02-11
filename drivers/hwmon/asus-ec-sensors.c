@@ -266,6 +266,15 @@ static u8 register_index(u16 reg)
 	return reg & 0x00ff;
 }
 
+static bool is_sensor_data_signed(const struct ec_sensor_info *si)
+{
+	/*
+	 * guessed from WMI functions in DSDT code for boards
+	 * of the X470 generation
+	 */
+	return si->type == hwmon_temp;
+}
+
 static const struct ec_sensor_info *
 get_sensor_info(const struct ec_sensors_data *state, int index)
 {
@@ -420,15 +429,28 @@ static int asus_ec_block_read(const struct device *dev,
 
 static inline s32 get_sensor_value(const struct ec_sensor_info *si, u8 *data)
 {
-	switch (si->addr.components.size) {
-	case 1:
-		return (s8)*data;
-	case 2:
-		return (s16)get_unaligned_be16(data);
-	case 4:
-		return (s32)get_unaligned_be32(data);
-	default:
-		return 0;
+	if (is_sensor_data_signed(si)) {
+		switch (si->addr.components.size) {
+		case 1:
+			return (s8)*data;
+		case 2:
+			return (s16)get_unaligned_be16(data);
+		case 4:
+			return (s32)get_unaligned_be32(data);
+		default:
+			return 0;
+		}
+	} else {
+		switch (si->addr.components.size) {
+		case 1:
+			return *data;
+		case 2:
+			return get_unaligned_be16(data);
+		case 4:
+			return get_unaligned_be32(data);
+		default:
+			return 0;
+		}
 	}
 }
 
