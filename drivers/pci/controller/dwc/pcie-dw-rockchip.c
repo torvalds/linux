@@ -50,11 +50,6 @@ enum rk_pcie_device_mode {
 	RK_PCIE_RC_TYPE,
 };
 
-struct reset_bulk_data	{
-	const char *id;
-	struct reset_control *rst;
-};
-
 #define RK_PCIE_DBG			0
 
 #define PCIE_DMA_OFFSET			0x380000
@@ -146,7 +141,6 @@ struct rk_pcie {
 	struct phy			*phy;
 	struct clk_bulk_data		*clks;
 	unsigned int			clk_cnt;
-	struct reset_bulk_data		*rsts;
 	struct gpio_desc		*rst_gpio;
 	struct gpio_desc		*prsnt_gpio;
 	phys_addr_t			mem_start;
@@ -1261,46 +1255,14 @@ static int rk_pcie_phy_init(struct rk_pcie *rk_pcie)
 static int rk_pcie_reset_control_release(struct rk_pcie *rk_pcie)
 {
 	struct device *dev = rk_pcie->pci->dev;
-	struct property *prop;
-	const char *name;
-	int ret, count, i = 0;
+	struct reset_control *rsts;
 
-	count = of_property_count_strings(dev->of_node, "reset-names");
-	if (count < 1)
-		return -ENODEV;
+	rsts = of_reset_control_array_get_exclusive(dev->of_node);
+	if (IS_ERR(rsts))
+		return dev_err_probe(dev, PTR_ERR(rsts), "failed to get reset lines\n");
 
-	rk_pcie->rsts = devm_kcalloc(dev, count,
-				     sizeof(struct reset_bulk_data),
-				     GFP_KERNEL);
-	if (!rk_pcie->rsts)
-		return -ENOMEM;
-
-	of_property_for_each_string(dev->of_node, "reset-names",
-				    prop, name) {
-		rk_pcie->rsts[i].id = name;
-		if (!rk_pcie->rsts[i].id)
-			return -ENOMEM;
-		i++;
-	}
-
-	for (i = 0; i < count; i++) {
-		rk_pcie->rsts[i].rst = devm_reset_control_get_exclusive(dev,
-						rk_pcie->rsts[i].id);
-		if (IS_ERR_OR_NULL(rk_pcie->rsts[i].rst)) {
-			dev_err(dev, "failed to get %s\n",
-				rk_pcie->clks[i].id);
-			return -PTR_ERR(rk_pcie->rsts[i].rst);
-		}
-	}
-
-	for (i = 0; i < count; i++) {
-		ret = reset_control_deassert(rk_pcie->rsts[i].rst);
-		if (ret) {
-			dev_err(dev, "failed to release %s\n",
-				rk_pcie->rsts[i].id);
-			return ret;
-		}
-	}
+	reset_control_deassert(rsts);
+	reset_control_put(rsts);
 
 	return 0;
 }
