@@ -60,8 +60,6 @@ static inline struct maps *maps__get(struct maps *maps)
 }
 
 void maps__put(struct maps *maps);
-void maps__init(struct maps *maps, struct machine *machine);
-void maps__exit(struct maps *maps);
 int maps__clone(struct thread *thread, struct maps *parent);
 size_t maps__fprintf(struct maps *maps, FILE *fp);
 

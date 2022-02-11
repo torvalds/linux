@@ -524,7 +524,7 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	return ip + map->reloc;
 }
 
-void maps__init(struct maps *maps, struct machine *machine)
+static void maps__init(struct maps *maps, struct machine *machine)
 {
 	maps->entries = RB_ROOT;
 	init_rwsem(&maps->lock);
@@ -613,7 +613,7 @@ static void __maps__purge(struct maps *maps)
 	}
 }
 
-void maps__exit(struct maps *maps)
+static void maps__exit(struct maps *maps)
 {
 	down_write(&maps->lock);
 	__maps__purge(maps);
