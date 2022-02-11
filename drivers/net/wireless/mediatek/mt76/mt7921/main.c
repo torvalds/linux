@@ -273,6 +273,7 @@ static void mt7921_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&dev->pm.ps_work);
 	cancel_work_sync(&dev->pm.wake_work);
+	cancel_work_sync(&dev->reset_work);
 	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
 
 	mt7921_mutex_acquire(dev);
@@ -452,17 +453,44 @@ static int mt7921_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	mt76_wcid_key_setup(&dev->mt76, wcid,
 			    cmd == SET_KEY ? key : NULL);
 
-	err = mt7921_mcu_add_key(dev, vif, msta, key, cmd);
+	err = mt76_connac_mcu_add_key(&dev->mt76, vif, &msta->bip,
+				      key, MCU_UNI_CMD(STA_REC_UPDATE),
+				      &msta->wcid, cmd);
 	if (err)
 		goto out;
 
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP104 ||
 	    key->cipher == WLAN_CIPHER_SUITE_WEP40)
-		err = mt7921_mcu_add_key(dev, vif, mvif->wep_sta, key, cmd);
+		err = mt76_connac_mcu_add_key(&dev->mt76, vif,
+					      &mvif->wep_sta->bip,
+					      key, MCU_UNI_CMD(STA_REC_UPDATE),
+					      &mvif->wep_sta->wcid, cmd);
 out:
 	mt7921_mutex_release(dev);
 
 	return err;
+}
+
+static void
+mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct mt7921_dev *dev = priv;
+
+	mt7921_mcu_set_beacon_filter(dev, vif, dev->pm.enable);
+}
+
+void mt7921_set_runtime_pm(struct mt7921_dev *dev)
+{
+	struct ieee80211_hw *hw = dev->mphy.hw;
+	struct mt76_connac_pm *pm = &dev->pm;
+	bool monitor = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
+
+	pm->enable = pm->enable_user && !monitor;
+	ieee80211_iterate_active_interfaces(hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
+					    mt7921_pm_interface_iter, dev);
+	pm->ds_enable = pm->ds_enable_user && !monitor;
+	mt76_connac_mcu_set_deep_sleep(&dev->mt76, pm->ds_enable);
 }
 
 static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
@@ -498,6 +526,7 @@ static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 		mt76_rmw_field(dev, MT_DMA_DCR0(0), MT_DMA_DCR0_RXD_G5_EN,
 			       enabled);
 		mt76_wr(dev, MT_WF_RFCR(0), phy->rxfilter);
+		mt7921_set_runtime_pm(dev);
 	}
 
 out:
@@ -510,11 +539,10 @@ static int
 mt7921_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
-	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
 
 	/* no need to update right away, we'll get BSS_CHANGED_QOS */
-	queue = mt7921_lmac_mapping(dev, queue);
+	queue = mt76_connac_lmac_mapping(queue);
 	mvif->queue_params[queue] = *params;
 
 	return 0;

@@ -72,6 +72,9 @@ static int rtw_ops_config(struct ieee80211_hw *hw, u32 changed)
 	struct rtw_dev *rtwdev = hw->priv;
 	int ret = 0;
 
+	/* let previous ips work finish to ensure we don't leave ips twice */
+	cancel_work_sync(&rtwdev->ips_work);
+
 	mutex_lock(&rtwdev->mutex);
 
 	rtw_leave_lps_deep(rtwdev);
@@ -614,7 +617,7 @@ static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 	struct rtw_dev *rtwdev = hw->priv;
 
 	mutex_lock(&rtwdev->mutex);
-	rtw_core_scan_complete(rtwdev, vif);
+	rtw_core_scan_complete(rtwdev, vif, false);
 	mutex_unlock(&rtwdev->mutex);
 }
 

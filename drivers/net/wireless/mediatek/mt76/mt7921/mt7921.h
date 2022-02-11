@@ -89,11 +89,6 @@ enum mt7921_rxq_id {
 	MT7921_RXQ_MCU_WM = 0,
 };
 
-struct mt7921_sta_key_conf {
-	s8 keyidx;
-	u8 key[16];
-};
-
 struct mt7921_sta {
 	struct mt76_wcid wcid; /* must be first */
 
@@ -106,7 +101,7 @@ struct mt7921_sta {
 	unsigned long ampdu_state;
 	struct mt76_sta_stats stats;
 
-	struct mt7921_sta_key_conf bip;
+	struct mt76_connac_sta_key_conf bip;
 };
 
 DECLARE_EWMA(rssi, 10, 8);
@@ -277,12 +272,6 @@ mt7921_hw_dev(struct ieee80211_hw *hw)
 #define mt7921_mutex_release(dev)	\
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
-static inline u8 mt7921_lmac_mapping(struct mt7921_dev *dev, u8 ac)
-{
-	/* LMAC uses the reverse order of mac80211 AC indexes */
-	return 3 - ac;
-}
-
 extern const struct ieee80211_ops mt7921_ops;
 extern struct pci_driver mt7921_pci_driver;
 
@@ -296,16 +285,12 @@ int mt7921_wpdma_reset(struct mt7921_dev *dev, bool force);
 int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev);
 void mt7921_dma_cleanup(struct mt7921_dev *dev);
 int mt7921_run_firmware(struct mt7921_dev *dev);
-int mt7921_mcu_add_key(struct mt7921_dev *dev, struct ieee80211_vif *vif,
-		       struct mt7921_sta *msta, struct ieee80211_key_conf *key,
-		       enum set_key_cmd cmd);
 int mt7921_mcu_sta_update(struct mt7921_dev *dev, struct ieee80211_sta *sta,
 			  struct ieee80211_vif *vif, bool enable,
 			  enum mt76_sta_info_state state);
 int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd);
 int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif);
 int mt7921_mcu_set_eeprom(struct mt7921_dev *dev);
-int mt7921_mcu_get_eeprom(struct mt7921_dev *dev, u32 offset);
 int mt7921_mcu_get_rx_rate(struct mt7921_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7921_mcu_fw_log_2_host(struct mt7921_dev *dev, u8 ctrl);
@@ -442,8 +427,8 @@ int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			    int cmd, int *wait_seq);
 int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq);
-int mt7921_mcu_restart(struct mt76_dev *dev);
 
+bool mt7921e_rx_check(struct mt76_dev *mdev, void *data, int len);
 void mt7921e_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			  struct sk_buff *skb);
 int mt7921e_driver_own(struct mt7921_dev *dev);
@@ -452,6 +437,7 @@ int mt7921e_mcu_init(struct mt7921_dev *dev);
 int mt7921s_wfsys_reset(struct mt7921_dev *dev);
 int mt7921s_mac_reset(struct mt7921_dev *dev);
 int mt7921s_init_reset(struct mt7921_dev *dev);
+int __mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev);
 int mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev);
 int mt7921e_mcu_fw_pmctrl(struct mt7921_dev *dev);
 
@@ -465,4 +451,5 @@ int mt7921s_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 void mt7921s_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 bool mt7921s_tx_status_data(struct mt76_dev *mdev, u8 *update);
 void mt7921_mac_add_txs(struct mt7921_dev *dev, void *data);
+void mt7921_set_runtime_pm(struct mt7921_dev *dev);
 #endif

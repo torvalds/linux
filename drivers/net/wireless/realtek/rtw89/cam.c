@@ -231,7 +231,7 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 	}
 
 	rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	addr_cam = &rtwvif->addr_cam;
+	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
 	ret = rtw89_cam_get_addr_cam_key_idx(addr_cam, sec_cam, key, &key_idx);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get addr cam key idx %d, %d\n",
@@ -387,7 +387,7 @@ int rtw89_cam_sec_key_del(struct rtw89_dev *rtwdev,
 	}
 
 	rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	addr_cam = &rtwvif->addr_cam;
+	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
 	sec_cam = addr_cam->sec_entries[key_idx];
 	if (!sec_cam)
 		return -EINVAL;
@@ -427,15 +427,23 @@ static void rtw89_cam_reset_key_iter(struct ieee80211_hw *hw,
 	rtw89_cam_deinit(rtwdev, rtwvif);
 }
 
+void rtw89_cam_deinit_addr_cam(struct rtw89_dev *rtwdev,
+			       struct rtw89_addr_cam_entry *addr_cam)
+{
+	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
+
+	addr_cam->valid = false;
+	clear_bit(addr_cam->addr_cam_idx, cam_info->addr_cam_map);
+}
+
 void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
 	struct rtw89_addr_cam_entry *addr_cam = &rtwvif->addr_cam;
 	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
 
-	addr_cam->valid = false;
+	rtw89_cam_deinit_addr_cam(rtwdev, addr_cam);
 	bssid_cam->valid = false;
-	clear_bit(addr_cam->addr_cam_idx, cam_info->addr_cam_map);
 	clear_bit(bssid_cam->bssid_cam_idx, cam_info->bssid_cam_map);
 }
 
@@ -464,10 +472,10 @@ static int rtw89_cam_get_avail_addr_cam(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-static int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif *rtwvif)
+int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
+			    struct rtw89_addr_cam_entry *addr_cam,
+			    const struct rtw89_bssid_cam_entry *bssid_cam)
 {
-	struct rtw89_addr_cam_entry *addr_cam = &rtwvif->addr_cam;
 	u8 addr_cam_idx;
 	int i;
 	int ret;
@@ -484,13 +492,16 @@ static int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
 	addr_cam->valid = true;
 	addr_cam->addr_mask = 0;
 	addr_cam->mask_sel = RTW89_NO_MSK;
+	addr_cam->sec_ent_mode = RTW89_ADDR_CAM_SEC_NORMAL;
 	bitmap_zero(addr_cam->sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM);
-	ether_addr_copy(addr_cam->sma, rtwvif->mac_addr);
 
 	for (i = 0; i < RTW89_SEC_CAM_IN_ADDR_CAM; i++) {
 		addr_cam->sec_ent_keyid[i] = 0;
 		addr_cam->sec_ent[i] = 0;
 	}
+
+	/* associate addr cam with bssid cam */
+	addr_cam->bssid_cam_idx = bssid_cam->bssid_cam_idx;
 
 	return 0;
 }
@@ -549,20 +560,17 @@ int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
 	int ret;
 
-	ret = rtw89_cam_init_addr_cam(rtwdev, rtwvif);
-	if (ret) {
-		rtw89_err(rtwdev, "failed to init addr cam\n");
-		return ret;
-	}
-
 	ret = rtw89_cam_init_bssid_cam(rtwdev, rtwvif);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to init bssid cam\n");
 		return ret;
 	}
 
-	/* associate addr cam with bssid cam */
-	addr_cam->bssid_cam_idx = bssid_cam->bssid_cam_idx;
+	ret = rtw89_cam_init_addr_cam(rtwdev, addr_cam, bssid_cam);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to init addr cam\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -609,7 +617,7 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 				  u8 *cmd)
 {
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
-	struct rtw89_addr_cam_entry *addr_cam = &rtwvif->addr_cam;
+	struct rtw89_addr_cam_entry *addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
 	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta);
 	const u8 *sma = scan_mac_addr ? scan_mac_addr : rtwvif->mac_addr;
 	u8 sma_hash, tma_hash, addr_msk_start;

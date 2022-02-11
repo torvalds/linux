@@ -1306,13 +1306,10 @@ static int ath10k_snoc_resource_init(struct ath10k *ar)
 	}
 
 	for (i = 0; i < CE_COUNT; i++) {
-		res = platform_get_resource(ar_snoc->dev, IORESOURCE_IRQ, i);
-		if (!res) {
-			ath10k_err(ar, "failed to get IRQ%d\n", i);
-			ret = -ENODEV;
-			goto out;
-		}
-		ar_snoc->ce_irqs[i].irq_line = res->start;
+		ret = platform_get_irq(ar_snoc->dev, i);
+		if (ret < 0)
+			return ret;
+		ar_snoc->ce_irqs[i].irq_line = ret;
 	}
 
 	ret = device_property_read_u32(&pdev->dev, "qcom,xo-cal-data",
@@ -1323,10 +1320,8 @@ static int ath10k_snoc_resource_init(struct ath10k *ar)
 		ath10k_dbg(ar, ATH10K_DBG_SNOC, "xo cal data %x\n",
 			   ar_snoc->xo_cal_data);
 	}
-	ret = 0;
 
-out:
-	return ret;
+	return 0;
 }
 
 static void ath10k_snoc_quirks_init(struct ath10k *ar)

@@ -65,10 +65,6 @@ enum hal_rx_reception_type {
 	HAL_RX_RECEPTION_TYPE_MAX,
 };
 
-#define HAL_TLV_STATUS_PPDU_NOT_DONE            0
-#define HAL_TLV_STATUS_PPDU_DONE                1
-#define HAL_TLV_STATUS_BUF_DONE                 2
-#define HAL_TLV_STATUS_PPDU_NON_STD_DONE        3
 #define HAL_RX_FCS_LEN                          4
 
 enum hal_rx_mon_status {
@@ -76,6 +72,10 @@ enum hal_rx_mon_status {
 	HAL_RX_MON_STATUS_PPDU_DONE,
 	HAL_RX_MON_STATUS_BUF_DONE,
 };
+
+#define HAL_TLV_STATUS_PPDU_NOT_DONE    HAL_RX_MON_STATUS_PPDU_NOT_DONE
+#define HAL_TLV_STATUS_PPDU_DONE        HAL_RX_MON_STATUS_PPDU_DONE
+#define HAL_TLV_STATUS_BUF_DONE         HAL_RX_MON_STATUS_BUF_DONE
 
 struct hal_sw_mon_ring_entries {
 	dma_addr_t mon_dst_paddr;

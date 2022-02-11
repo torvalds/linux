@@ -1932,10 +1932,11 @@ static int ath11k_qmi_assign_target_mem_chunk(struct ath11k_base *ab)
 			if (!hremote_node) {
 				ath11k_dbg(ab, ATH11K_DBG_QMI,
 					   "qmi fail to get hremote_node\n");
-				return ret;
+				return -ENODEV;
 			}
 
 			ret = of_address_to_resource(hremote_node, 0, &res);
+			of_node_put(hremote_node);
 			if (ret) {
 				ath11k_dbg(ab, ATH11K_DBG_QMI,
 					   "qmi fail to get reg from hremote\n");

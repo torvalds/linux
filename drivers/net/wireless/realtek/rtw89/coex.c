@@ -594,7 +594,7 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 		memset(&btc->dm, 0, sizeof(btc->dm));
 		memset(bt_linfo->rssi_state, 0, sizeof(bt_linfo->rssi_state));
 
-		for (i = 0; i < RTW89_MAX_HW_PORT_NUM; i++)
+		for (i = 0; i < RTW89_PORT_NUM; i++)
 			memset(wl_linfo[i].rssi_state, 0,
 			       sizeof(wl_linfo[i].rssi_state));
 
@@ -1698,7 +1698,7 @@ static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
 		   wl_rinfo->link_mode == BTC_WLINK_2G_SCC) {
 		en = true;
 		/* get p2p channel */
-		for (i = 0; i < RTW89_MAX_HW_PORT_NUM; i++) {
+		for (i = 0; i < RTW89_PORT_NUM; i++) {
 			if (wl_rinfo->active_role[i].role ==
 			    RTW89_WIFI_ROLE_P2P_GO ||
 			    wl_rinfo->active_role[i].role ==
@@ -1711,7 +1711,7 @@ static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
 	} else {
 		en = true;
 		/* get 2g channel  */
-		for (i = 0; i < RTW89_MAX_HW_PORT_NUM; i++) {
+		for (i = 0; i < RTW89_PORT_NUM; i++) {
 			if (wl_rinfo->active_role[i].connected &&
 			    wl_rinfo->active_role[i].band == RTW89_BAND_2G) {
 				ch = wl_rinfo->active_role[i].ch;
@@ -3287,7 +3287,7 @@ static void _update_wl_info(struct rtw89_dev *rtwdev)
 
 	memset(wl_rinfo, 0, sizeof(*wl_rinfo));
 
-	for (i = 0; i < RTW89_MAX_HW_PORT_NUM; i++) {
+	for (i = 0; i < RTW89_PORT_NUM; i++) {
 		/* check if role active? */
 		if (!wl_linfo[i].active)
 			continue;
@@ -4370,6 +4370,7 @@ void rtw89_btc_ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_map,
 		rtwdev->is_bt_iqk_timeout = true;
 	}
 }
+EXPORT_SYMBOL(rtw89_btc_ntfy_wl_rfk);
 
 struct rtw89_btc_wl_sta_iter_data {
 	struct rtw89_dev *rtwdev;
@@ -4676,7 +4677,7 @@ static void _show_wl_role_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 			   wl_dinfo->real_band[RTW89_PHY_1]);
 	}
 
-	for (i = 0; i < RTW89_MAX_HW_PORT_NUM; i++) {
+	for (i = 0; i < RTW89_PORT_NUM; i++) {
 		plink = &btc->cx.wl.link_info[i];
 
 		if (!plink->active)

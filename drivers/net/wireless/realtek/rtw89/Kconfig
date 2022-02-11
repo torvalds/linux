@@ -16,11 +16,15 @@ config RTW89_CORE
 config RTW89_PCI
 	tristate
 
+config RTW89_8852A
+	tristate
+
 config RTW89_8852AE
 	tristate "Realtek 8852AE PCI wireless network adapter"
 	depends on PCI
 	select RTW89_CORE
 	select RTW89_PCI
+	select RTW89_8852A
 	help
 	  Select this option will enable support for 8852AE chipset
 

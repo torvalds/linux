@@ -1784,9 +1784,9 @@ void rtw_fw_scan_notify(struct rtw_dev *rtwdev, bool start)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
-static void rtw_append_probe_req_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
-				    struct sk_buff_head *list,
-				    struct rtw_vif *rtwvif)
+static int rtw_append_probe_req_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
+				   struct sk_buff_head *list, u8 *bands,
+				   struct rtw_vif *rtwvif)
 {
 	struct ieee80211_scan_ies *ies = rtwvif->scan_ies;
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -1797,19 +1797,24 @@ static void rtw_append_probe_req_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
 		if (!(BIT(idx) & chip->band))
 			continue;
 		new = skb_copy(skb, GFP_KERNEL);
+		if (!new)
+			return -ENOMEM;
 		skb_put_data(new, ies->ies[idx], ies->len[idx]);
 		skb_put_data(new, ies->common_ies, ies->common_ie_len);
 		skb_queue_tail(list, new);
+		(*bands)++;
 	}
+
+	return 0;
 }
 
-static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_ssids,
+static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 					 struct sk_buff_head *probe_req_list)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb, *tmp;
 	u8 page_offset = 1, *buf, page_size = chip->page_size;
-	u8 pages = page_offset + num_ssids * RTW_PROBE_PG_CNT;
+	u8 pages = page_offset + num_probes * RTW_PROBE_PG_CNT;
 	u16 pg_addr = rtwdev->fifo.rsvd_h2c_info_addr, loc;
 	u16 buf_offset = page_size * page_offset;
 	u8 tx_desc_sz = chip->tx_pkt_desc_sz;
@@ -1848,6 +1853,8 @@ static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_ssids,
 	rtwdev->scan_info.probe_pg_size = page_offset;
 out:
 	kfree(buf);
+	skb_queue_walk_safe(probe_req_list, skb, tmp)
+		kfree_skb(skb);
 
 	return ret;
 }
@@ -1857,8 +1864,9 @@ static int rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev,
 {
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
 	struct sk_buff_head list;
-	struct sk_buff *skb;
-	u8 num = req->n_ssids, i;
+	struct sk_buff *skb, *tmp;
+	u8 num = req->n_ssids, i, bands = 0;
+	int ret;
 
 	skb_queue_head_init(&list);
 	for (i = 0; i < num; i++) {
@@ -1866,11 +1874,25 @@ static int rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev,
 					     req->ssids[i].ssid,
 					     req->ssids[i].ssid_len,
 					     req->ie_len);
-		rtw_append_probe_req_ie(rtwdev, skb, &list, rtwvif);
+		if (!skb) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		ret = rtw_append_probe_req_ie(rtwdev, skb, &list, &bands,
+					      rtwvif);
+		if (ret)
+			goto out;
+
 		kfree_skb(skb);
 	}
 
-	return _rtw_hw_scan_update_probe_req(rtwdev, num, &list);
+	return _rtw_hw_scan_update_probe_req(rtwdev, num * bands, &list);
+
+out:
+	skb_queue_walk_safe(&list, skb, tmp)
+		kfree_skb(skb);
+
+	return ret;
 }
 
 static int rtw_add_chan_info(struct rtw_dev *rtwdev, struct rtw_chan_info *info,
@@ -2022,7 +2044,7 @@ void rtw_hw_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	rtwdev->hal.rcr |= BIT_CBSSID_BCN;
 	rtw_write32(rtwdev, REG_RCR, rtwdev->hal.rcr);
 
-	rtw_core_scan_complete(rtwdev, vif);
+	rtw_core_scan_complete(rtwdev, vif, true);
 
 	ieee80211_wake_queues(rtwdev->hw);
 	ieee80211_scan_completed(rtwdev->hw, &info);

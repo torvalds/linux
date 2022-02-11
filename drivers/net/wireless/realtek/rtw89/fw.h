@@ -1056,6 +1056,106 @@ static inline void SET_CMC_TBL_CSI_BW(void *table, u32 val)
 			   GENMASK(31, 30));
 }
 
+static inline void SET_BCN_UPD_PORT(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
+}
+
+static inline void SET_BCN_UPD_MBSSID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(15, 8));
+}
+
+static inline void SET_BCN_UPD_BAND(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(23, 16));
+}
+
+static inline void SET_BCN_UPD_GRP_IE_OFST(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, (val - 24) | BIT(7), GENMASK(31, 24));
+}
+
+static inline void SET_BCN_UPD_MACID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(7, 0));
+}
+
+static inline void SET_BCN_UPD_SSN_SEL(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(9, 8));
+}
+
+static inline void SET_BCN_UPD_SSN_MODE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(11, 10));
+}
+
+static inline void SET_BCN_UPD_RATE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(20, 12));
+}
+
+static inline void SET_BCN_UPD_TXPWR(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(23, 21));
+}
+
+static inline void SET_BCN_UPD_TXINFO_CTRL_EN(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val, BIT(0));
+}
+
+static inline void SET_BCN_UPD_NTX_PATH_EN(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(4, 1));
+}
+
+static inline void SET_BCN_UPD_PATH_MAP_A(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(6, 5));
+}
+
+static inline void SET_BCN_UPD_PATH_MAP_B(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(8, 7));
+}
+
+static inline void SET_BCN_UPD_PATH_MAP_C(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(10, 9));
+}
+
+static inline void SET_BCN_UPD_PATH_MAP_D(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(12, 11));
+}
+
+static inline void SET_BCN_UPD_PATH_ANTSEL_A(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  BIT(13));
+}
+
+static inline void SET_BCN_UPD_PATH_ANTSEL_B(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  BIT(14));
+}
+
+static inline void SET_BCN_UPD_PATH_ANTSEL_C(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  BIT(15));
+}
+
+static inline void SET_BCN_UPD_PATH_ANTSEL_D(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  BIT(16));
+}
+
+static inline void SET_BCN_UPD_CSA_OFST(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(31, 17));
+}
+
 static inline void SET_FWROLE_MAINTAIN_MACID(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
@@ -1224,6 +1324,26 @@ static inline void SET_BA_CAM_BMAP_SIZE(void *h2c, u32 val)
 static inline void SET_BA_CAM_SSN(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 20));
+}
+
+static inline void SET_BA_CAM_UID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(7, 0));
+}
+
+static inline void SET_BA_CAM_STD_EN(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, BIT(8));
+}
+
+static inline void SET_BA_CAM_BAND(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, BIT(9));
+}
+
+static inline void SET_BA_CAM_ENTRY_IDX_V1(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(31, 28));
 }
 
 static inline void SET_LPS_PARM_MACID(void *h2c, u32 val)
@@ -1709,6 +1829,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 /* CLASS 5 - Frame Exchange */
 #define H2C_CL_MAC_FR_EXCHG		0x5
 #define H2C_FUNC_MAC_CCTLINFO_UD	0x2
+#define H2C_FUNC_MAC_BCN_UPD		0x5
 
 /* CLASS 6 - Address CAM */
 #define H2C_CL_MAC_ADDR_CAM_UPDATE	0x6
@@ -1750,21 +1871,25 @@ int rtw89_wait_firmware_completion(struct rtw89_dev *rtwdev);
 void rtw89_h2c_pkt_set_hdr(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			   u8 type, u8 cat, u8 class, u8 func,
 			   bool rack, bool dack, u32 len);
-int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev, u8 macid);
+int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta);
 int rtw89_fw_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta *rtwsta);
+int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
+			       struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *vif,
 		     struct rtw89_sta *rtwsta, const u8 *scan_mac_addr);
 void rtw89_fw_c2h_irqsafe(struct rtw89_dev *rtwdev, struct sk_buff *c2h);
 void rtw89_fw_c2h_work(struct work_struct *work);
-int rtw89_fw_h2c_vif_maintain(struct rtw89_dev *rtwdev,
-			      struct rtw89_vif *rtwvif,
-			      enum rtw89_upd_mode upd_mode);
+int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
+			       struct rtw89_vif *rtwvif,
+			       struct rtw89_sta *rtwsta,
+			       enum rtw89_upd_mode upd_mode);
 int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
-			   u8 dis_conn);
+			   struct rtw89_sta *rtwsta, bool dis_conn);
 int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 			     bool pause);
 int rtw89_fw_h2c_set_edca(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
@@ -1785,8 +1910,9 @@ int rtw89_fw_h2c_raw(struct rtw89_dev *rtwdev, const u8 *buf, u16 len);
 void rtw89_fw_send_all_early_h2c(struct rtw89_dev *rtwdev);
 void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_general_pkt(struct rtw89_dev *rtwdev, u8 macid);
-int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, bool valid, u8 macid,
-			struct ieee80211_ampdu_params *params);
+int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+			bool valid, struct ieee80211_ampdu_params *params);
+
 int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 			  struct rtw89_lps_parm *lps_param);
 struct sk_buff *rtw89_fw_h2c_alloc_skb_with_hdr(u32 len);

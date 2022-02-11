@@ -131,6 +131,29 @@ struct mt7915_mcu_rdd_report {
 	} hw_pulse[32];
 } __packed;
 
+struct mt7915_mcu_background_chain_ctrl {
+	u8 chan;		/* primary channel */
+	u8 central_chan;	/* central channel */
+	u8 bw;
+	u8 tx_stream;
+	u8 rx_stream;
+
+	u8 monitor_chan;	/* monitor channel */
+	u8 monitor_central_chan;/* monitor central channel */
+	u8 monitor_bw;
+	u8 monitor_tx_stream;
+	u8 monitor_rx_stream;
+
+	u8 scan_mode;		/* 0: ScanStop
+				 * 1: ScanStart
+				 * 2: ScanRunning
+				 */
+	u8 band_idx;		/* DBDC */
+	u8 monitor_scan_type;
+	u8 band;		/* 0: 2.4GHz, 1: 5GHz */
+	u8 rsv[2];
+} __packed;
+
 struct mt7915_mcu_eeprom {
 	u8 buffer_mode;
 	u8 format;
@@ -161,10 +184,16 @@ struct mt7915_mcu_mib {
 } __packed;
 
 enum mt7915_chan_mib_offs {
+	/* mt7915 */
 	MIB_BUSY_TIME = 14,
 	MIB_TX_TIME = 81,
 	MIB_RX_TIME,
-	MIB_OBSS_AIRTIME = 86
+	MIB_OBSS_AIRTIME = 86,
+	/* mt7916 */
+	MIB_BUSY_TIME_V2 = 0,
+	MIB_TX_TIME_V2 = 6,
+	MIB_RX_TIME_V2 = 8,
+	MIB_OBSS_AIRTIME_V2 = 490
 };
 
 struct edca {
@@ -265,29 +294,6 @@ enum mcu_mmps_mode {
 	MCU_MMPS_RSV,
 	MCU_MMPS_DISABLE,
 };
-
-#define STA_TYPE_STA			BIT(0)
-#define STA_TYPE_AP			BIT(1)
-#define STA_TYPE_ADHOC			BIT(2)
-#define STA_TYPE_WDS			BIT(4)
-#define STA_TYPE_BC			BIT(5)
-
-#define NETWORK_INFRA			BIT(16)
-#define NETWORK_P2P			BIT(17)
-#define NETWORK_IBSS			BIT(18)
-#define NETWORK_WDS			BIT(21)
-
-#define CONNECTION_INFRA_STA		(STA_TYPE_STA | NETWORK_INFRA)
-#define CONNECTION_INFRA_AP		(STA_TYPE_AP | NETWORK_INFRA)
-#define CONNECTION_P2P_GC		(STA_TYPE_STA | NETWORK_P2P)
-#define CONNECTION_P2P_GO		(STA_TYPE_AP | NETWORK_P2P)
-#define CONNECTION_IBSS_ADHOC		(STA_TYPE_ADHOC | NETWORK_IBSS)
-#define CONNECTION_WDS			(STA_TYPE_WDS | NETWORK_WDS)
-#define CONNECTION_INFRA_BC		(STA_TYPE_BC | NETWORK_INFRA)
-
-#define CONN_STATE_DISCONNECT		0
-#define CONN_STATE_CONNECT		1
-#define CONN_STATE_PORT_SECURE		2
 
 enum {
 	SCS_SEND_DATA,

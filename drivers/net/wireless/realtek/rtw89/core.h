@@ -15,7 +15,6 @@
 struct rtw89_dev;
 
 extern const struct ieee80211_ops rtw89_ops;
-extern const struct rtw89_chip_info rtw8852a_chip_info;
 
 #define MASKBYTE0 0xff
 #define MASKBYTE1 0xff00
@@ -33,7 +32,6 @@ extern const struct rtw89_chip_info rtw8852a_chip_info;
 #define MAX_RSSI 110
 #define RSSI_FACTOR 1
 #define RTW89_RSSI_RAW_TO_DBM(rssi) ((s8)((rssi) >> RSSI_FACTOR) - MAX_RSSI)
-#define RTW89_MAX_HW_PORT_NUM 5
 
 #define RTW89_HTC_MASK_VARIANT GENMASK(1, 0)
 #define RTW89_HTC_VARIANT_HE 3
@@ -140,11 +138,11 @@ enum rtw89_wifi_role {
 };
 
 enum rtw89_upd_mode {
-	RTW89_VIF_CREATE,
-	RTW89_VIF_REMOVE,
-	RTW89_VIF_TYPE_CHANGE,
-	RTW89_VIF_INFO_CHANGE,
-	RTW89_VIF_CON_DISCONN
+	RTW89_ROLE_CREATE,
+	RTW89_ROLE_REMOVE,
+	RTW89_ROLE_TYPE_CHANGE,
+	RTW89_ROLE_INFO_CHANGE,
+	RTW89_ROLE_CON_DISCONN
 };
 
 enum rtw89_self_role {
@@ -205,6 +203,7 @@ enum rtw89_port {
 enum rtw89_band {
 	RTW89_BAND_2G = 0,
 	RTW89_BAND_5G = 1,
+	RTW89_BAND_6G = 2,
 	RTW89_BAND_MAX,
 };
 
@@ -421,9 +420,6 @@ enum rtw89_regulation_type {
 	RTW89_REGD_NUM,
 };
 
-extern const u8 rtw89_rs_idx_max[RTW89_RS_MAX];
-extern const u8 rtw89_rs_nss_max[RTW89_RS_MAX];
-
 struct rtw89_txpwr_byrate {
 	s8 cck[RTW89_RATE_CCK_MAX];
 	s8 ofdm[RTW89_RATE_OFDM_MAX];
@@ -573,6 +569,8 @@ struct rtw89_channel_params {
 	u8 primary_chan;
 	u8 bandwidth;
 	u8 pri_ch_idx;
+	u8 band_type;
+	u8 subband_type;
 };
 
 struct rtw89_channel_help_params {
@@ -670,6 +668,7 @@ struct rtw89_rxdesc_long {
 struct rtw89_tx_desc_info {
 	u16 pkt_size;
 	u8 wp_offset;
+	u8 mac_id;
 	u8 qsel;
 	u8 ch_dma;
 	u8 hdr_llc_len;
@@ -691,6 +690,12 @@ struct rtw89_tx_desc_info {
 	bool fw_dl;
 	u16 seq;
 	bool a_ctrl_bsr;
+	u8 hw_ssn_sel;
+#define RTW89_MGMT_HW_SSN_SEL	1
+	u8 hw_seq_mode;
+#define RTW89_MGMT_HW_SEQ_MODE	1
+	bool hiq;
+	u8 port;
 };
 
 struct rtw89_core_tx_request {
@@ -1048,7 +1053,7 @@ struct rtw89_btc_wl_role_info { /* struct size must be n*4 bytes */
 	u8 connect_cnt;
 	u8 link_mode;
 	union rtw89_btc_wl_role_info_map role_map;
-	struct rtw89_btc_wl_active_role active_role[RTW89_MAX_HW_PORT_NUM];
+	struct rtw89_btc_wl_active_role active_role[RTW89_PORT_NUM];
 };
 
 struct rtw89_btc_wl_ver_info {
@@ -1151,7 +1156,7 @@ struct rtw89_btc_rf_para {
 };
 
 struct rtw89_btc_wl_info {
-	struct rtw89_btc_wl_link_info link_info[RTW89_MAX_HW_PORT_NUM];
+	struct rtw89_btc_wl_link_info link_info[RTW89_PORT_NUM];
 	struct rtw89_btc_wl_rfk_info rfk_info;
 	struct rtw89_btc_wl_ver_info  ver_info;
 	struct rtw89_btc_wl_afh_info afh_info;
@@ -1831,27 +1836,10 @@ struct rtw89_ra_report {
 
 DECLARE_EWMA(rssi, 10, 16);
 
-struct rtw89_sta {
-	u8 mac_id;
-	bool disassoc;
-	struct rtw89_vif *rtwvif;
-	struct rtw89_ra_info ra;
-	struct rtw89_ra_report ra_report;
-	int max_agg_wait;
-	u8 prev_rssi;
-	struct ewma_rssi avg_rssi;
-	struct rtw89_ampdu_params ampdu_params[IEEE80211_NUM_TIDS];
-	struct ieee80211_rx_status rx_status;
-	u16 rx_hw_rate;
-	__le32 htc_template;
+#define RTW89_BA_CAM_NUM 2
 
-	bool use_cfg_mask;
-	struct cfg80211_bitrate_mask mask;
-
-	bool cctl_tx_time;
-	u32 ampdu_max_time:4;
-	bool cctl_tx_retry_limit;
-	u32 data_tx_cnt_lmt:6;
+struct rtw89_ba_cam_entry {
+	u8 tid;
 };
 
 #define RTW89_MAX_ADDR_CAM_NUM		128
@@ -1868,7 +1856,6 @@ struct rtw89_addr_cam_entry {
 	u8 wapi		: 1;
 	u8 mask_sel	: 2;
 	u8 bssid_cam_idx: 6;
-	u8 sma[ETH_ALEN];
 
 	u8 sec_ent_mode;
 	DECLARE_BITMAP(sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM);
@@ -1898,6 +1885,33 @@ struct rtw89_sec_cam_entry {
 	u8 key[32];
 };
 
+struct rtw89_sta {
+	u8 mac_id;
+	bool disassoc;
+	struct rtw89_vif *rtwvif;
+	struct rtw89_ra_info ra;
+	struct rtw89_ra_report ra_report;
+	int max_agg_wait;
+	u8 prev_rssi;
+	struct ewma_rssi avg_rssi;
+	struct rtw89_ampdu_params ampdu_params[IEEE80211_NUM_TIDS];
+	struct ieee80211_rx_status rx_status;
+	u16 rx_hw_rate;
+	__le32 htc_template;
+	struct rtw89_addr_cam_entry addr_cam; /* AP mode only */
+
+	bool use_cfg_mask;
+	struct cfg80211_bitrate_mask mask;
+
+	bool cctl_tx_time;
+	u32 ampdu_max_time:4;
+	bool cctl_tx_retry_limit;
+	u32 data_tx_cnt_lmt:6;
+
+	DECLARE_BITMAP(ba_cam_map, RTW89_BA_CAM_NUM);
+	struct rtw89_ba_cam_entry ba_cam_entry[RTW89_BA_CAM_NUM];
+};
+
 struct rtw89_efuse {
 	bool valid;
 	u8 xtal_cap;
@@ -1915,6 +1929,7 @@ struct rtw89_phy_rate_pattern {
 
 struct rtw89_vif {
 	struct list_head list;
+	struct rtw89_dev *rtwdev;
 	u8 mac_id;
 	u8 port;
 	u8 mac_addr[ETH_ALEN];
@@ -1936,6 +1951,7 @@ struct rtw89_vif {
 	bool wowlan_magic;
 	bool is_hesta;
 	bool last_a_ctrl;
+	struct work_struct update_beacon_work;
 	struct rtw89_addr_cam_entry addr_cam;
 	struct rtw89_bssid_cam_entry bssid_cam;
 	struct ieee80211_tx_queue_params tx_params[IEEE80211_NUM_ACS];
@@ -2192,6 +2208,7 @@ struct rtw89_chip_info {
 	const struct rtw89_hfc_param_ini *hfc_param_ini;
 	const struct rtw89_dle_mem *dle_mem;
 	u32 rf_base_addr[2];
+	u8 support_bands;
 	u8 rf_path_num;
 	u8 tx_nss;
 	u8 rx_nss;
@@ -2245,6 +2262,10 @@ struct rtw89_chip_info {
 	u8 rf_para_dlink_num;
 	const struct rtw89_btc_rf_trx_para *rf_para_dlink;
 	u8 ps_mode_supported;
+};
+
+struct rtw89_driver_info {
+	const struct rtw89_chip_info *chip;
 };
 
 enum rtw89_hcifc_mode {
@@ -2358,6 +2379,7 @@ struct rtw89_hal {
 	u32 antenna_rx;
 	u8 tx_nss;
 	u8 rx_nss;
+	bool support_cckpd;
 };
 
 #define RTW89_MAX_MAC_ID_NUM 128
@@ -2805,7 +2827,7 @@ struct rtw89_dev {
 
 	struct rtw89_ser ser;
 
-	DECLARE_BITMAP(hw_port, RTW89_MAX_HW_PORT_NUM);
+	DECLARE_BITMAP(hw_port, RTW89_PORT_NUM);
 	DECLARE_BITMAP(mac_id_map, RTW89_MAX_MAC_ID_NUM);
 	DECLARE_BITMAP(flags, NUM_OF_RTW89_FLAGS);
 
@@ -3129,6 +3151,15 @@ static inline struct rtw89_sta *sta_to_rtwsta_safe(struct ieee80211_sta *sta)
 }
 
 static inline
+struct rtw89_addr_cam_entry *rtw89_get_addr_cam_of(struct rtw89_vif *rtwvif,
+						   struct rtw89_sta *rtwsta)
+{
+	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE && rtwsta)
+		return &rtwsta->addr_cam;
+	return &rtwvif->addr_cam;
+}
+
+static inline
 void rtw89_chip_set_channel_prepare(struct rtw89_dev *rtwdev,
 				    struct rtw89_channel_help_params *p)
 {
@@ -3371,6 +3402,8 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev);
 u8 rtw89_core_acquire_bit_map(unsigned long *addr, unsigned long size);
 void rtw89_core_release_bit_map(unsigned long *addr, u8 bit);
 void rtw89_core_release_all_bits_map(unsigned long *addr, unsigned int nbits);
+int rtw89_core_acquire_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx);
+int rtw89_core_release_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx);
 void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc);
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev);
 u16 rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate);
@@ -3381,5 +3414,6 @@ void rtw89_traffic_stats_init(struct rtw89_dev *rtwdev,
 			      struct rtw89_traffic_stats *stats);
 int rtw89_core_start(struct rtw89_dev *rtwdev);
 void rtw89_core_stop(struct rtw89_dev *rtwdev);
+void rtw89_core_update_beacon_work(struct work_struct *work);
 
 #endif

@@ -36,16 +36,19 @@ static const struct rtw89_hfc_pub_cfg rtw8852a_hfc_pubcfg_pcie = {
 
 static const struct rtw89_hfc_param_ini rtw8852a_hfc_param_ini_pcie[] = {
 	[RTW89_QTA_SCC] = {rtw8852a_hfc_chcfg_pcie, &rtw8852a_hfc_pubcfg_pcie,
-			   &rtw_hfc_preccfg_pcie, RTW89_HCIFC_POH},
-	[RTW89_QTA_DLFW] = {NULL, NULL, &rtw_hfc_preccfg_pcie, RTW89_HCIFC_POH},
+			   &rtw89_hfc_preccfg_pcie, RTW89_HCIFC_POH},
+	[RTW89_QTA_DLFW] = {NULL, NULL, &rtw89_hfc_preccfg_pcie,
+			    RTW89_HCIFC_POH},
 	[RTW89_QTA_INVALID] = {NULL},
 };
 
 static const struct rtw89_dle_mem rtw8852a_dle_mem_pcie[] = {
-	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &wde_size0, &ple_size0, &wde_qt0,
-			    &wde_qt0, &ple_qt4, &ple_qt5},
-	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &wde_size4, &ple_size4,
-			    &wde_qt4, &wde_qt4, &ple_qt13, &ple_qt13},
+	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_wde_size0, &rtw89_ple_size0,
+			   &rtw89_wde_qt0, &rtw89_wde_qt0, &rtw89_ple_qt4,
+			   &rtw89_ple_qt5},
+	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &rtw89_wde_size4, &rtw89_ple_size4,
+			    &rtw89_wde_qt4, &rtw89_wde_qt4, &rtw89_ple_qt13,
+			    &rtw89_ple_qt13},
 	[RTW89_QTA_INVALID] = {RTW89_QTA_INVALID, NULL, NULL, NULL, NULL, NULL,
 			       NULL},
 };
@@ -2019,6 +2022,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= &rtw89_8852a_phy_dig_table,
+	.support_bands		= BIT(NL80211_BAND_2GHZ) |
+				  BIT(NL80211_BAND_5GHZ),
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,
@@ -2053,3 +2058,6 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 EXPORT_SYMBOL(rtw8852a_chip_info);
 
 MODULE_FIRMWARE("rtw89/rtw8852a_fw.bin");
+MODULE_AUTHOR("Realtek Corporation");
+MODULE_DESCRIPTION("Realtek 802.11ax wireless 8852A driver");
+MODULE_LICENSE("Dual BSD/GPL");

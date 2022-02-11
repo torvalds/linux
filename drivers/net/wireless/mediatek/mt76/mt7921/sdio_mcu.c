@@ -49,6 +49,26 @@ mt7921s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	return ret;
 }
 
+static u32 mt7921s_read_rm3r(struct mt7921_dev *dev)
+{
+	struct mt76_sdio *sdio = &dev->mt76.sdio;
+
+	return sdio_readl(sdio->func, MCR_D2HRM3R, NULL);
+}
+
+static u32 mt7921s_clear_rm3r_drv_own(struct mt7921_dev *dev)
+{
+	struct mt76_sdio *sdio = &dev->mt76.sdio;
+	u32 val;
+
+	val = sdio_readl(sdio->func, MCR_D2HRM3R, NULL);
+	if (val)
+		sdio_writel(sdio->func, H2D_SW_INT_CLEAR_MAILBOX_ACK,
+			    MCR_WSICR, NULL);
+
+	return val;
+}
+
 int mt7921s_mcu_init(struct mt7921_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7921s_mcu_ops = {
@@ -88,6 +108,12 @@ int mt7921s_mcu_drv_pmctrl(struct mt7921_dev *dev)
 
 	err = readx_poll_timeout(mt76s_read_pcr, &dev->mt76, status,
 				 status & WHLPCR_IS_DRIVER_OWN, 2000, 1000000);
+
+	if (!err && test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
+		err = readx_poll_timeout(mt7921s_read_rm3r, dev, status,
+					 status & D2HRM3R_IS_DRIVER_OWN,
+					 2000, 1000000);
+
 	sdio_release_host(func);
 
 	if (err < 0) {
@@ -115,12 +141,24 @@ int mt7921s_mcu_fw_pmctrl(struct mt7921_dev *dev)
 
 	sdio_claim_host(func);
 
+	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state)) {
+		err = readx_poll_timeout(mt7921s_clear_rm3r_drv_own,
+					 dev, status,
+					 !(status & D2HRM3R_IS_DRIVER_OWN),
+					 2000, 1000000);
+		if (err < 0) {
+			dev_err(dev->mt76.dev, "mailbox ACK not cleared\n");
+			goto err;
+		}
+	}
+
 	sdio_writel(func, WHLPCR_FW_OWN_REQ_SET, MCR_WHLPCR, NULL);
 
 	err = readx_poll_timeout(mt76s_read_pcr, &dev->mt76, status,
 				 !(status & WHLPCR_IS_DRIVER_OWN), 2000, 1000000);
 	sdio_release_host(func);
 
+err:
 	if (err < 0) {
 		dev_err(dev->mt76.dev, "firmware own failed\n");
 		clear_bit(MT76_STATE_PM, &mphy->state);
