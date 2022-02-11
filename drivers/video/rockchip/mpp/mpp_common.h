@@ -219,6 +219,7 @@ struct mpp_task_msgs {
 	u32 poll_cnt;
 
 	struct mpp_request reqs[MPP_MAX_MSG_NUM];
+	struct mpp_request *poll_req;
 };
 
 struct mpp_grf_info {

@@ -135,6 +135,30 @@ union rkvenc2_dual_core_handshake_id {
 	};
 };
 
+#define RKVENC2_REG_INT_EN		(8)
+#define RKVENC2_BIT_SLICE_DONE_EN	BIT(3)
+
+#define RKVENC2_REG_INT_MASK		(9)
+#define RKVENC2_BIT_SLICE_DONE_MASK	BIT(3)
+
+#define RKVENC2_REG_ENC_PIC		(32)
+#define RKVENC2_BIT_SLEN_FIFO		BIT(30)
+
+#define RKVENC2_REG_SLI_SPLIT		(56)
+#define RKVENC2_BIT_SLI_SPLIT		BIT(0)
+#define RKVENC2_BIT_SLI_FLUSH		BIT(15)
+
+#define RKVENC2_REG_SLICE_NUM_BASE	(0x4034)
+#define RKVENC2_REG_SLICE_LEN_BASE	(0x4038)
+
+struct rkvenc_poll_slice_cfg {
+	s32 poll_type;
+	s32 poll_ret;
+	s32 count_max;
+	s32 count_ret;
+	s32 slice_len[];
+};
+
 struct rkvenc_task {
 	struct mpp_task mpp_task;
 	int fmt;
@@ -159,6 +183,11 @@ struct rkvenc_task {
 	struct mpp_dma_buffer *table;
 
 	union rkvenc2_dual_core_handshake_id dchs_id;
+
+	/* split output / slice mode info */
+	u32 task_split;
+	u32 task_split_done;
+	DECLARE_KFIFO(slice_len, u32, 64);
 };
 
 #define RKVENC_MAX_RCB_NUM		(4)
@@ -669,6 +698,47 @@ static void rkvenc2_setup_task_id(u32 session_id, struct rkvenc_task *task)
 	task->dchs_id.val = (((u64)session_id << 32) | val);
 }
 
+static int rkvenc2_is_split_task(struct rkvenc_task *task)
+{
+	u32 slc_done_en;
+	u32 slc_done_msk;
+	u32 slen_fifo_en;
+	u32 sli_split_en;
+	u32 sli_flsh_en;
+
+	if (task->reg[RKVENC_CLASS_BASE].valid) {
+		u32 *reg = task->reg[RKVENC_CLASS_BASE].data;
+
+		slc_done_en  = (reg[RKVENC2_REG_INT_EN] & RKVENC2_BIT_SLICE_DONE_EN) ? 1 : 0;
+		slc_done_msk = (reg[RKVENC2_REG_INT_MASK] & RKVENC2_BIT_SLICE_DONE_MASK) ? 1 : 0;
+	} else {
+		slc_done_en  = 0;
+		slc_done_msk = 0;
+	}
+
+	if (task->reg[RKVENC_CLASS_PIC].valid) {
+		u32 *reg = task->reg[RKVENC_CLASS_PIC].data;
+
+		slen_fifo_en = (reg[RKVENC2_REG_ENC_PIC] & RKVENC2_BIT_SLEN_FIFO) ? 1 : 0;
+		sli_split_en = (reg[RKVENC2_REG_SLI_SPLIT] & RKVENC2_BIT_SLI_SPLIT) ? 1 : 0;
+		sli_flsh_en  = (reg[RKVENC2_REG_SLI_SPLIT] & RKVENC2_BIT_SLI_FLUSH) ? 1 : 0;
+	} else {
+		slen_fifo_en = 0;
+		sli_split_en = 0;
+		sli_flsh_en  = 0;
+	}
+
+	if (sli_split_en && slen_fifo_en && sli_flsh_en) {
+		mpp_dbg_slice("slice output with irq enabled\n");
+		if (!slc_done_en || slc_done_msk)
+			mpp_dbg_slice("slice output enabled but irq disabled!\n");
+
+		return 1;
+	}
+
+	return 0;
+}
+
 static void *rkvenc_alloc_task(struct mpp_session *session,
 			       struct mpp_task_msgs *msgs)
 {
@@ -729,6 +799,9 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	rkvenc2_set_rcbbuf(mpp, session, task);
 	rkvenc2_setup_task_id(session->index, task);
 	task->clk_mode = CLK_MODE_NORMAL;
+	task->task_split = rkvenc2_is_split_task(task);
+	if (task->task_split)
+		INIT_KFIFO(task->slice_len);
 
 	mpp_debug_leave();
 
@@ -931,25 +1004,73 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return 0;
 }
 
+static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task)
+{
+	u32 sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE);
+	u32 i;
+
+	for (i = 0; i < sli_num; i++) {
+		u32 sli_len = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_LEN_BASE);
+
+		mpp_dbg_slice("wr %d:%d len %d\n", sli_num, i, sli_len);
+		kfifo_in(&task->slice_len, &sli_len, 1);
+	}
+}
+
+static void rkvenc2_last_slice(struct rkvenc_task *task)
+{
+	u32 sli_len = 0;
+
+	mpp_dbg_slice("wr last slice\n");
+	kfifo_in(&task->slice_len, &sli_len, 1);
+}
+
 static int rkvenc_irq(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct rkvenc_hw_info *hw = enc->hw_info;
+	struct mpp_task *mpp_task = NULL;
+	struct rkvenc_task *task = NULL;
+	int ret = IRQ_NONE;
 
 	mpp_debug_enter();
 
 	mpp->irq_status = mpp_read(mpp, hw->int_sta_base);
 	if (!mpp->irq_status)
-		return IRQ_NONE;
+		return ret;
 
-	mpp_write(mpp, hw->int_mask_base, 0x100);
-	mpp_write(mpp, hw->int_clr_base, 0xffffffff);
-	udelay(5);
-	mpp_write(mpp, hw->int_sta_base, 0);
+	mpp_task = mpp->cur_task;
+
+	if (mpp_task) {
+		task = to_rkvenc_task(mpp_task);
+
+		if (task->task_split) {
+			mpp_time_part_diff(mpp_task);
+
+			rkvenc2_read_slice_len(mpp, task);
+			mpp_write(mpp, hw->int_clr_base, 0x8);
+			wake_up(&mpp_task->wait);
+		}
+	}
+
+	if (mpp->irq_status & 1) {
+		mpp_write(mpp, hw->int_mask_base, 0x100);
+		mpp_write(mpp, hw->int_clr_base, 0xffffffff);
+		udelay(5);
+		mpp_write(mpp, hw->int_sta_base, 0);
+
+		ret = IRQ_WAKE_THREAD;
+
+		if (task) {
+			rkvenc2_read_slice_len(mpp, task);
+			rkvenc2_last_slice(task);
+			wake_up(&mpp_task->wait);
+		}
+	}
 
 	mpp_debug_leave();
 
-	return IRQ_WAKE_THREAD;
+	return ret;
 }
 
 static int rkvenc_isr(struct mpp_dev *mpp)
@@ -1388,6 +1509,146 @@ static int rkvenc_set_freq(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return 0;
 }
 
+#define RKVENC2_WORK_TIMEOUT_DELAY		(200)
+#define RKVENC2_WAIT_TIMEOUT_DELAY		(2000)
+
+static void rkvenc2_task_pop_pending(struct mpp_task *task)
+{
+	struct mpp_session *session = task->session;
+
+	mutex_lock(&session->pending_lock);
+	list_del_init(&task->pending_link);
+	mutex_unlock(&session->pending_lock);
+
+	kref_put(&task->ref, mpp_free_task);
+}
+
+static int rkvenc2_task_default_process(struct mpp_dev *mpp,
+					struct mpp_task_msgs *msgs)
+{
+	struct mpp_task *task = msgs->task;
+	int ret = 0;
+
+	if (mpp->dev_ops && mpp->dev_ops->result)
+		ret = mpp->dev_ops->result(mpp, task, msgs);
+
+	mpp_debug_func(DEBUG_TASK_INFO, "kref_read %d, ret %d\n",
+			kref_read(&task->ref), ret);
+
+	rkvenc2_task_pop_pending(task);
+
+	return ret;
+}
+
+static void rkvenc2_task_timeout_process(struct mpp_session *session,
+					 struct mpp_task *task)
+{
+	atomic_inc(&task->abort_request);
+	set_bit(TASK_STATE_ABORT, &task->state);
+
+	mpp_err("session %d:%d count %d task %d ref %d timeout\n",
+		session->pid, session->index, atomic_read(&session->task_count),
+		task->task_index, kref_read(&task->ref));
+
+	rkvenc2_task_pop_pending(task);
+}
+
+static int rkvenc2_wait_result(struct mpp_session *session,
+			       struct mpp_task_msgs *msgs)
+{
+	struct rkvenc_poll_slice_cfg cfg;
+	struct rkvenc_task *enc_task;
+	struct mpp_request *req;
+	struct mpp_task *task;
+	struct mpp_dev *mpp;
+	u32 slice_len = 0;
+	int ret = 0;
+
+	mutex_lock(&session->pending_lock);
+	task = list_first_entry_or_null(&session->pending_list,
+					struct mpp_task,
+					pending_link);
+	mutex_unlock(&session->pending_lock);
+	if (!task) {
+		mpp_err("session %p pending list is empty!\n", session);
+		return -EIO;
+	}
+
+	mpp = mpp_get_task_used_device(task, session);
+	enc_task = to_rkvenc_task(task);
+
+	if (!enc_task->task_split || enc_task->task_split_done) {
+task_done_ret:
+		ret = wait_event_timeout(task->wait,
+					 test_bit(TASK_STATE_DONE, &task->state),
+					 msecs_to_jiffies(RKVENC2_WAIT_TIMEOUT_DELAY));
+
+		if (ret > 0)
+			return rkvenc2_task_default_process(mpp, msgs);
+
+		rkvenc2_task_timeout_process(session, task);
+		return ret;
+	}
+
+	req = msgs->poll_req;
+
+	/* not slice return just wait all slice length */
+	if (!req) {
+		do {
+			ret = wait_event_timeout(task->wait,
+						 kfifo_out(&enc_task->slice_len, &slice_len, 1),
+						 msecs_to_jiffies(RKVENC2_WORK_TIMEOUT_DELAY));
+			if (ret > 0) {
+				mpp_dbg_slice("not ret rd len %d\n", slice_len);
+				if (slice_len == 0)
+					goto task_done_ret;
+
+				continue;
+			}
+
+			rkvenc2_task_timeout_process(session, task);
+			return ret;
+		} while (1);
+	}
+
+	if (copy_from_user(&cfg, req->data, sizeof(cfg))) {
+		mpp_err("copy_from_user failed\n");
+		return -EINVAL;
+	}
+
+	mpp_dbg_slice("count %d : %d\n", cfg.count_max, cfg.count_ret);
+	cfg.count_ret = 0;
+
+	/* handle slice mode poll return */
+	ret = wait_event_timeout(task->wait,
+				 kfifo_out(&enc_task->slice_len, &slice_len, 1),
+				 msecs_to_jiffies(RKVENC2_WORK_TIMEOUT_DELAY));
+	if (ret > 0) {
+		mpp_dbg_slice("rd len %d\n", slice_len);
+		if (!slice_len)
+			enc_task->task_split_done = 1;
+
+		if (cfg.count_ret < cfg.count_max) {
+			struct rkvenc_poll_slice_cfg __user *ucfg =
+				(struct rkvenc_poll_slice_cfg __user *)(req->data);
+			u32 __user *dst = (u32 __user *)(ucfg + 1);
+
+			if (put_user(slice_len, dst + cfg.count_ret))
+				return -EFAULT;
+
+			cfg.count_ret++;
+			if (put_user(cfg.count_ret, &ucfg->count_ret))
+				return -EFAULT;
+		}
+
+		return 0;
+	}
+
+	rkvenc2_task_timeout_process(session, task);
+
+	return ret;
+}
+
 static struct mpp_hw_ops rkvenc_hw_ops = {
 	.init = rkvenc_init,
 	.clk_on = rkvenc_clk_on,
@@ -1397,6 +1658,7 @@ static struct mpp_hw_ops rkvenc_hw_ops = {
 };
 
 static struct mpp_dev_ops rkvenc_dev_ops_v2 = {
+	.wait_result = rkvenc2_wait_result,
 	.alloc_task = rkvenc_alloc_task,
 	.run = rkvenc_run,
 	.irq = rkvenc_irq,
@@ -1411,6 +1673,7 @@ static struct mpp_dev_ops rkvenc_dev_ops_v2 = {
 };
 
 static struct mpp_dev_ops rkvenc_ccu_dev_ops = {
+	.wait_result = rkvenc2_wait_result,
 	.alloc_task = rkvenc_ccu_alloc_task,
 	.prepare = rkvenc2_prepare,
 	.run = rkvenc_run,
