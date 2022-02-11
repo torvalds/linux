@@ -31,7 +31,6 @@
 #include <linux/irqchip/irq-ixp4xx.h>
 #include <linux/platform_data/timer-ixp4xx.h>
 #include <linux/dma-map-ops.h>
-#include <mach/udc.h>
 #include <mach/hardware.h>
 #include <linux/uaccess.h>
 #include <asm/page.h>
@@ -113,13 +112,6 @@ void __init ixp4xx_timer_init(void)
 				  IXP4XX_TIMER_FREQ);
 }
 
-static struct pxa2xx_udc_mach_info ixp4xx_udc_info;
-
-void __init ixp4xx_set_udc_info(struct pxa2xx_udc_mach_info *info)
-{
-	memcpy(&ixp4xx_udc_info, info, sizeof *info);
-}
-
 static struct resource ixp4xx_udc_resources[] = {
 	[0] = {
 		.start  = 0xc800b000,
@@ -160,9 +152,6 @@ static struct platform_device ixp4xx_udc_device = {
 	.id             = -1,
 	.num_resources  = 2,
 	.resource       = ixp4xx_udc_resources,
-	.dev            = {
-		.platform_data = &ixp4xx_udc_info,
-	},
 };
 
 static struct resource ixp4xx_npe_resources[] = {
