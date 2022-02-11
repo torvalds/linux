@@ -300,6 +300,22 @@
 		pinctrl-0 = <&pinctrl_pca6416_int>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+		gpio-line-names = "EXT_PWREN1",
+			"EXT_PWREN2",
+			"CAN1/I2C5_SEL",
+			"PDM/CAN2_SEL",
+			"FAN_EN",
+			"PWR_MEAS_IO1",
+			"PWR_MEAS_IO2",
+			"EXP_P0_7",
+			"EXP_P1_0",
+			"EXP_P1_1",
+			"EXP_P1_2",
+			"EXP_P1_3",
+			"EXP_P1_4",
+			"EXP_P1_5",
+			"EXP_P1_6",
+			"EXP_P1_7";
 	};
 };
 
