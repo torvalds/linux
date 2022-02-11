@@ -301,17 +301,22 @@ static int dp_parser_parse(struct dp_parser *parser, int connector_type)
 		return rc;
 
 	/*
-	 * Currently we support external bridges only for eDP connectors.
+	 * External bridges are mandatory for eDP interfaces: one has to
+	 * provide at least an eDP panel (which gets wrapped into panel-bridge).
 	 *
-	 * No external bridges are expected for the DisplayPort connector,
-	 * it is physically present in a form of a DP or USB-C connector.
+	 * For DisplayPort interfaces external bridges are optional, so
+	 * silently ignore an error if one is not present (-ENODEV).
 	 */
-	if (connector_type == DRM_MODE_CONNECTOR_eDP) {
-		rc = dp_parser_find_next_bridge(parser);
-		if (rc) {
-			DRM_ERROR("DP: failed to find next bridge\n");
+	rc = dp_parser_find_next_bridge(parser);
+	if (rc == -ENODEV) {
+		if (connector_type == DRM_MODE_CONNECTOR_eDP) {
+			DRM_ERROR("eDP: next bridge is not present\n");
 			return rc;
 		}
+	} else if (rc) {
+		if (rc != -EPROBE_DEFER)
+			DRM_ERROR("DP: error parsing next bridge: %d\n", rc);
+		return rc;
 	}
 
 	/* Map the corresponding regulator information according to
