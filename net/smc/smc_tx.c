@@ -611,6 +611,10 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 	return rc;
 }
 
+/* Wakeup sndbuf consumers from process context
+ * since there is more data to transmit. The caller
+ * must hold sock lock.
+ */
 void smc_tx_pending(struct smc_connection *conn)
 {
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
@@ -626,7 +630,8 @@ void smc_tx_pending(struct smc_connection *conn)
 }
 
 /* Wakeup sndbuf consumers from process context
- * since there is more data to transmit
+ * since there is more data to transmit in locked
+ * sock.
  */
 void smc_tx_work(struct work_struct *work)
 {
