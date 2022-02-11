@@ -75,6 +75,13 @@
 		};
 	};
 
+	miphy28lp_phy: miphy28lp {
+
+		phy_port1: port@9b2a000 {
+			st,osc-force-ext;
+		};
+	};
+
 	soc {
 		/* Low speed expansion connector */
 		uart0: serial@9830000 {
@@ -194,13 +201,6 @@
 			st,i2c-min-scl-pulse-width-us = <0>;
 			st,i2c-min-sda-pulse-width-us = <5>;
 			status = "okay";
-		};
-
-		miphy28lp_phy: miphy28lp@0 {
-
-			phy_port1: port@9b2a000 {
-				st,osc-force-ext;
-			};
 		};
 
 		sata1: sata@9b28000 {
