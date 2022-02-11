@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #undef TRACE_SYSTEM
@@ -1099,11 +1100,13 @@ TRACE_EVENT(sched_find_best_target,
 		 unsigned long candidates,
 		 int most_spare_cap,
 		 int order_index, int end_index,
-		 int skip, bool running),
+		 int skip, bool running,
+		 int most_spare_rq_cpu, unsigned int cpu_rq_runnable_cnt),
 
 	TP_ARGS(tsk, min_util, start_cpu, candidates,
 		most_spare_cap,
-		order_index, end_index, skip, running),
+		order_index, end_index, skip, running,
+		most_spare_rq_cpu, cpu_rq_runnable_cnt),
 
 	TP_STRUCT__entry(
 		__array(char,		comm, TASK_COMM_LEN)
@@ -1116,6 +1119,8 @@ TRACE_EVENT(sched_find_best_target,
 		__field(int,		end_index)
 		__field(int,		skip)
 		__field(bool,		running)
+		__field(int,		most_spare_rq_cpu)
+		__field(unsigned int,	cpu_rq_runnable_cnt)
 		),
 
 	TP_fast_assign(
@@ -1129,9 +1134,11 @@ TRACE_EVENT(sched_find_best_target,
 		__entry->end_index	= end_index;
 		__entry->skip		= skip;
 		__entry->running	= running;
+		__entry->most_spare_rq_cpu	= most_spare_rq_cpu;
+		__entry->cpu_rq_runnable_cnt	= cpu_rq_runnable_cnt;
 		),
 
-	TP_printk("pid=%d comm=%s start_cpu=%d candidates=%#lx most_spare_cap=%d order_index=%d end_index=%d skip=%d running=%d",
+	TP_printk("pid=%d comm=%s start_cpu=%d candidates=%#lx most_spare_cap=%d order_index=%d end_index=%d skip=%d running=%d min_util=%lu spare_rq_cpu=%d min_runnable=%u",
 		  __entry->pid, __entry->comm,
 		  __entry->start_cpu,
 		  __entry->candidates,
@@ -1139,7 +1146,10 @@ TRACE_EVENT(sched_find_best_target,
 		  __entry->order_index,
 		  __entry->end_index,
 		  __entry->skip,
-		  __entry->running)
+		  __entry->running,
+		  __entry->min_util,
+		  __entry->most_spare_rq_cpu,
+		  __entry->cpu_rq_runnable_cnt)
 );
 
 TRACE_EVENT(sched_enq_deq_task,
