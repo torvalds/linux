@@ -263,6 +263,7 @@ static int amdgpu_ras_eeprom_correct_header_tag(
  */
 int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 {
+	struct amdgpu_device *adev = to_amdgpu_device(control);
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	u8 csum;
 	int res;
@@ -281,6 +282,8 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 
 	control->ras_num_recs = 0;
 	control->ras_fri = 0;
+
+	amdgpu_dpm_send_hbm_bad_pages_num(adev, control->ras_num_recs);
 
 	amdgpu_ras_debugfs_set_ret_size(control);
 
