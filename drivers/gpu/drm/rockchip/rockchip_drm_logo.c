@@ -121,21 +121,28 @@ err_put_encoder:
 	return sub_dev;
 }
 
-static void rockchip_drm_release_reserve_vm(struct drm_mm_node *node)
+static void rockchip_drm_release_reserve_vm(struct drm_device *drm, struct drm_mm_node *node)
 {
+	struct rockchip_drm_private *private = drm->dev_private;
+
+	mutex_lock(&private->mm_lock);
 	if (drm_mm_node_allocated(node))
 		drm_mm_remove_node(node);
+	mutex_unlock(&private->mm_lock);
 }
 
-static int rockchip_drm_reserve_vm(struct drm_mm *mm,
+static int rockchip_drm_reserve_vm(struct drm_device *drm, struct drm_mm *mm,
 				   struct drm_mm_node *node, u64 size, u64 offset)
 {
+	struct rockchip_drm_private *private = drm->dev_private;
 	int ret;
 
 	node->size = size;
 	node->start = offset;
 	node->color = 0;
+	mutex_lock(&private->mm_lock);
 	ret = drm_mm_reserve_node(mm, node);
+	mutex_unlock(&private->mm_lock);
 
 	return ret;
 }
@@ -194,7 +201,7 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 		u32 pg_size = 1UL << __ffs(private->domain->pgsize_bitmap);
 
 		iommu_unmap(private->domain, logo->dma_addr, ALIGN(logo->size, pg_size));
-		rockchip_drm_release_reserve_vm(&logo->logo_reserved_node);
+		rockchip_drm_release_reserve_vm(drm, &logo->logo_reserved_node);
 	}
 
 	memblock_free(logo->start, logo->size);
@@ -240,7 +247,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	logo->kvaddr = phys_to_virt(start);
 
 	if (private->domain) {
-		ret = rockchip_drm_reserve_vm(&private->mm, &logo->logo_reserved_node, size, start);
+		ret = rockchip_drm_reserve_vm(drm_dev, &private->mm, &logo->logo_reserved_node, size, start);
 		if (ret)
 			dev_err(drm_dev->dev, "failed to reserve vm for logo memory\n");
 		ret = iommu_map(private->domain, start, start, ALIGN(size, pg_size),
@@ -278,7 +285,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 		if (!private->clut_reserved_node)
 			return -ENOMEM;
 
-		ret = rockchip_drm_reserve_vm(&private->mm, private->clut_reserved_node, size, start);
+		ret = rockchip_drm_reserve_vm(drm_dev, &private->mm, private->clut_reserved_node, size, start);
 		if (ret)
 			dev_err(drm_dev->dev, "failed to reserve vm for clut memory\n");
 
@@ -294,11 +301,11 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	return 0;
 
 err_free_clut:
-	rockchip_drm_release_reserve_vm(private->clut_reserved_node);
+	rockchip_drm_release_reserve_vm(drm_dev, private->clut_reserved_node);
 	kfree(private->clut_reserved_node);
 	private->clut_reserved_node = NULL;
 err_free_logo:
-	rockchip_drm_release_reserve_vm(&logo->logo_reserved_node);
+	rockchip_drm_release_reserve_vm(drm_dev, &logo->logo_reserved_node);
 	kfree(logo);
 
 	return ret;
