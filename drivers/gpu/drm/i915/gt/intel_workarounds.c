@@ -683,6 +683,11 @@ static void dg2_ctx_workarounds_init(struct intel_engine_cs *engine,
 	/* Wa_16013271637:dg2 */
 	wa_masked_en(wal, SLICE_COMMON_ECO_CHICKEN1,
 		     MSC_MSAA_REODER_BUF_BYPASS_DISABLE);
+
+	/* Wa_14014947963:dg2 */
+	if (IS_DG2_GRAPHICS_STEP(engine->i915, G10, STEP_B0, STEP_FOREVER) ||
+		IS_DG2_G11(engine->i915) || IS_DG2_G12(engine->i915))
+		wa_masked_field_set(wal, VF_PREEMPTION, PREEMPTION_VERTEX_COUNT, 0x4000);
 }
 
 static void fakewa_disable_nestedbb_mode(struct intel_engine_cs *engine,
