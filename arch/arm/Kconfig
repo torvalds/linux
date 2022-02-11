@@ -263,7 +263,7 @@ config PHYS_OFFSET
 	hex "Physical address of main memory" if MMU
 	depends on !ARM_PATCH_PHYS_VIRT
 	default DRAM_BASE if !MMU
-	default 0x00000000 if ARCH_FOOTBRIDGE || ARCH_IXP4XX
+	default 0x00000000 if ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x30000000 if ARCH_S3C24XX
 	default 0xa0000000 if ARCH_IOP32X || ARCH_PXA
@@ -379,6 +379,7 @@ config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
 	select ARCH_SUPPORTS_BIG_ENDIAN
+	select ARM_PATCH_PHYS_VIRT
 	select CPU_XSCALE
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_IXP4XX
@@ -386,6 +387,7 @@ config ARCH_IXP4XX
 	select HAVE_PCI
 	select IXP4XX_IRQ
 	select IXP4XX_TIMER
+	select SPARSE_IRQ
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	help
