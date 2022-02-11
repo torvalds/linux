@@ -323,6 +323,7 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 
 	crtc_state->active_planes &= ~BIT(plane->id);
+	crtc_state->scaled_planes &= ~BIT(plane->id);
 	crtc_state->nv12_planes &= ~BIT(plane->id);
 	crtc_state->c8_planes &= ~BIT(plane->id);
 	crtc_state->data_rate[plane->id] = 0;
@@ -535,6 +536,10 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	/* FIXME pre-g4x don't work like this */
 	if (new_plane_state->uapi.visible)
 		new_crtc_state->active_planes |= BIT(plane->id);
+
+	if (new_plane_state->uapi.visible &&
+	    intel_plane_is_scaled(new_plane_state))
+		new_crtc_state->scaled_planes |= BIT(plane->id);
 
 	if (new_plane_state->uapi.visible &&
 	    intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
