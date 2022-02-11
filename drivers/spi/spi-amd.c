@@ -38,7 +38,6 @@
 struct amd_spi {
 	void __iomem *io_remap_addr;
 	unsigned long io_base_addr;
-	u32 rom_addr;
 };
 
 static inline u8 amd_spi_readreg8(struct amd_spi *amd_spi, int idx)
