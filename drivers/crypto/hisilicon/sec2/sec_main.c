@@ -90,6 +90,10 @@
 					SEC_USER1_WB_DATA_SSV)
 #define SEC_USER1_SMMU_SVA		(SEC_USER1_SMMU_NORMAL | SEC_USER1_SVA_SET)
 #define SEC_USER1_SMMU_MASK		(~SEC_USER1_SVA_SET)
+#define SEC_INTERFACE_USER_CTRL0_REG_V3	0x302220
+#define SEC_INTERFACE_USER_CTRL1_REG_V3	0x302224
+#define SEC_USER1_SMMU_NORMAL_V3	(BIT(23) | BIT(17) | BIT(11) | BIT(5))
+#define SEC_USER1_SMMU_MASK_V3		0xFF79E79E
 #define SEC_CORE_INT_STATUS_M_ECC	BIT(2)
 
 #define SEC_PREFETCH_CFG		0x301130
@@ -335,6 +339,41 @@ static void sec_set_endian(struct hisi_qm *qm)
 	writel_relaxed(reg, qm->io_base + SEC_CONTROL_REG);
 }
 
+static void sec_engine_sva_config(struct hisi_qm *qm)
+{
+	u32 reg;
+
+	if (qm->ver > QM_HW_V2) {
+		reg = readl_relaxed(qm->io_base +
+				SEC_INTERFACE_USER_CTRL0_REG_V3);
+		reg |= SEC_USER0_SMMU_NORMAL;
+		writel_relaxed(reg, qm->io_base +
+				SEC_INTERFACE_USER_CTRL0_REG_V3);
+
+		reg = readl_relaxed(qm->io_base +
+				SEC_INTERFACE_USER_CTRL1_REG_V3);
+		reg &= SEC_USER1_SMMU_MASK_V3;
+		reg |= SEC_USER1_SMMU_NORMAL_V3;
+		writel_relaxed(reg, qm->io_base +
+				SEC_INTERFACE_USER_CTRL1_REG_V3);
+	} else {
+		reg = readl_relaxed(qm->io_base +
+				SEC_INTERFACE_USER_CTRL0_REG);
+		reg |= SEC_USER0_SMMU_NORMAL;
+		writel_relaxed(reg, qm->io_base +
+				SEC_INTERFACE_USER_CTRL0_REG);
+		reg = readl_relaxed(qm->io_base +
+				SEC_INTERFACE_USER_CTRL1_REG);
+		reg &= SEC_USER1_SMMU_MASK;
+		if (qm->use_sva)
+			reg |= SEC_USER1_SMMU_SVA;
+		else
+			reg |= SEC_USER1_SMMU_NORMAL;
+		writel_relaxed(reg, qm->io_base +
+				SEC_INTERFACE_USER_CTRL1_REG);
+	}
+}
+
 static void sec_open_sva_prefetch(struct hisi_qm *qm)
 {
 	u32 val;
@@ -426,17 +465,7 @@ static int sec_engine_init(struct hisi_qm *qm)
 	reg |= (0x1 << SEC_TRNG_EN_SHIFT);
 	writel_relaxed(reg, qm->io_base + SEC_CONTROL_REG);
 
-	reg = readl_relaxed(qm->io_base + SEC_INTERFACE_USER_CTRL0_REG);
-	reg |= SEC_USER0_SMMU_NORMAL;
-	writel_relaxed(reg, qm->io_base + SEC_INTERFACE_USER_CTRL0_REG);
-
-	reg = readl_relaxed(qm->io_base + SEC_INTERFACE_USER_CTRL1_REG);
-	reg &= SEC_USER1_SMMU_MASK;
-	if (qm->use_sva && qm->ver == QM_HW_V2)
-		reg |= SEC_USER1_SMMU_SVA;
-	else
-		reg |= SEC_USER1_SMMU_NORMAL;
-	writel_relaxed(reg, qm->io_base + SEC_INTERFACE_USER_CTRL1_REG);
+	sec_engine_sva_config(qm);
 
 	writel(SEC_SINGLE_PORT_MAX_TRANS,
 	       qm->io_base + AM_CFG_SINGLE_PORT_MAX_TRANS);
