@@ -163,55 +163,6 @@ bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
 	return false;
 }
 
-/* In legacy format, the PDS file is often bigger than Rx buffers of the chip, so it has to be sent
- * in multiple parts.
- *
- * In add, the PDS data cannot be split anywhere. The PDS files contains tree structures. Braces are
- * used to enter/leave a level of the tree (in a JSON fashion). PDS files can only been split
- * between root nodes.
- */
-int wfx_send_pds_legacy(struct wfx_dev *wdev, u8 *buf, size_t len)
-{
-	int ret;
-	int start = 0, brace_level = 0, i;
-
-	for (i = 1; i < len - 1; i++) {
-		if (buf[i] == '{')
-			brace_level++;
-		if (buf[i] == '}')
-			brace_level--;
-		if (buf[i] == '}' && !brace_level) {
-			i++;
-			if (i - start + 1 > WFX_PDS_MAX_CHUNK_SIZE)
-				return -EFBIG;
-			buf[start] = '{';
-			buf[i] = 0;
-			dev_dbg(wdev->dev, "send PDS '%s}'\n", buf + start);
-			buf[i] = '}';
-			ret = wfx_hif_configuration(wdev, buf + start,
-						    i - start + 1);
-			if (ret > 0) {
-				dev_err(wdev->dev, "PDS bytes %d to %d: invalid data (unsupported options?)\n",
-					start, i);
-				return -EINVAL;
-			}
-			if (ret == -ETIMEDOUT) {
-				dev_err(wdev->dev, "PDS bytes %d to %d: chip didn't reply (corrupted file?)\n",
-					start, i);
-				return ret;
-			}
-			if (ret) {
-				dev_err(wdev->dev, "PDS bytes %d to %d: chip returned an unknown error\n",
-					start, i);
-				return -EIO;
-			}
-			buf[i] = ',';
-			start = i;
-		}
-	}
-	return 0;
-}
-
 /* The device needs data about the antenna configuration. This information in provided by PDS
  * (Platform Data Set, this is the wording used in WF200 documentation) files. For hardware
  * integrators, the full process to create PDS files is described here:
@@ -223,8 +174,10 @@ int wfx_send_pds_legacy(struct wfx_dev *wdev, u8 *buf, size_t len)
 {
 	int ret, chunk_type, chunk_len, chunk_num = 0;
 
-	if (*buf == '{')
-		return wfx_send_pds_legacy(wdev, buf, len);
+	if (*buf == '{') {
+		dev_err(wdev->dev, "PDS: malformed file (legacy format?)\n");
+		return -EINVAL;
+	}
 	while (len > 0) {
 		chunk_type = get_unaligned_le16(buf + 0);
 		chunk_len = get_unaligned_le16(buf + 2);
