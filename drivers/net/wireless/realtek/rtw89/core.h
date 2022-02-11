@@ -2218,6 +2218,7 @@ struct rtw89_chip_info {
 	const struct rtw89_dle_mem *dle_mem;
 	u32 rf_base_addr[2];
 	u8 support_bands;
+	bool support_bw160;
 	u8 rf_path_num;
 	u8 tx_nss;
 	u8 rx_nss;
