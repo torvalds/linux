@@ -736,6 +736,10 @@ static void blk_complete_request(struct request *req)
 
 		/* Completion has already been traced */
 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
+
+		if (req_op(req) == REQ_OP_ZONE_APPEND)
+			bio->bi_iter.bi_sector = req->__sector;
+
 		if (!is_flush)
 			bio_endio(bio);
 		bio = next;
