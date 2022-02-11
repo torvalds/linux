@@ -5,54 +5,7 @@
 #ifndef __RTW89_8852A_RFK_TABLE_H__
 #define __RTW89_8852A_RFK_TABLE_H__
 
-#include "core.h"
-
-enum rtw89_rfk_flag {
-	RTW89_RFK_F_WRF = 0,
-	RTW89_RFK_F_WM = 1,
-	RTW89_RFK_F_WS = 2,
-	RTW89_RFK_F_WC = 3,
-	RTW89_RFK_F_DELAY = 4,
-	RTW89_RFK_F_NUM,
-};
-
-struct rtw89_rfk_tbl {
-	const struct rtw89_reg5_def *defs;
-	u32 size;
-};
-
-#define DECLARE_RFK_TBL(_name)			\
-const struct rtw89_rfk_tbl _name ## _tbl = {	\
-	.defs = _name,				\
-	.size = ARRAY_SIZE(_name),		\
-}
-
-#define DECL_RFK_WRF(_path, _addr, _mask, _data)	\
-	{.flag = RTW89_RFK_F_WRF,			\
-	 .path = _path,					\
-	 .addr = _addr,					\
-	 .mask = _mask,					\
-	 .data = _data,}
-
-#define DECL_RFK_WM(_addr, _mask, _data)	\
-	{.flag = RTW89_RFK_F_WM,		\
-	 .addr = _addr,				\
-	 .mask = _mask,				\
-	 .data = _data,}
-
-#define DECL_RFK_WS(_addr, _mask)	\
-	{.flag = RTW89_RFK_F_WS,	\
-	 .addr = _addr,			\
-	 .mask = _mask,}
-
-#define DECL_RFK_WC(_addr, _mask)	\
-	{.flag = RTW89_RFK_F_WC,	\
-	 .addr = _addr,			\
-	 .mask = _mask,}
-
-#define DECL_RFK_DELAY(_data)		\
-	{.flag = RTW89_RFK_F_DELAY,	\
-	 .data = _data,}
+#include "phy.h"
 
 extern const struct rtw89_rfk_tbl rtw8852a_tssi_sys_defs_tbl;
 extern const struct rtw89_rfk_tbl rtw8852a_tssi_sys_defs_2g_tbl;

@@ -3037,3 +3037,55 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 	rtw89_phy_write32_idx(rtwdev, R_BSS_CLR_MAP, B_BSS_CLR_MAP_STAID,
 			      vif->bss_conf.aid, phy_idx);
 }
+
+static void
+_rfk_write_rf(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
+{
+	rtw89_write_rf(rtwdev, def->path, def->addr, def->mask, def->data);
+}
+
+static void
+_rfk_write32_mask(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
+{
+	rtw89_phy_write32_mask(rtwdev, def->addr, def->mask, def->data);
+}
+
+static void
+_rfk_write32_set(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
+{
+	rtw89_phy_write32_set(rtwdev, def->addr, def->mask);
+}
+
+static void
+_rfk_write32_clr(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
+{
+	rtw89_phy_write32_clr(rtwdev, def->addr, def->mask);
+}
+
+static void
+_rfk_delay(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)
+{
+	udelay(def->data);
+}
+
+static void
+(*_rfk_handler[])(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def) = {
+	[RTW89_RFK_F_WRF] = _rfk_write_rf,
+	[RTW89_RFK_F_WM] = _rfk_write32_mask,
+	[RTW89_RFK_F_WS] = _rfk_write32_set,
+	[RTW89_RFK_F_WC] = _rfk_write32_clr,
+	[RTW89_RFK_F_DELAY] = _rfk_delay,
+};
+
+static_assert(ARRAY_SIZE(_rfk_handler) == RTW89_RFK_F_NUM);
+
+void
+rtw89_rfk_parser(struct rtw89_dev *rtwdev, const struct rtw89_rfk_tbl *tbl)
+{
+	const struct rtw89_reg5_def *p = tbl->defs;
+	const struct rtw89_reg5_def *end = tbl->defs + tbl->size;
+
+	for (; p < end; p++)
+		_rfk_handler[p->flag](rtwdev, p);
+}
+EXPORT_SYMBOL(rtw89_rfk_parser);
