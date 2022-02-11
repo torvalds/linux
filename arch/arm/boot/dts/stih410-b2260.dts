@@ -82,6 +82,14 @@
 		};
 	};
 
+	usb2_picophy1: phy2 {
+		status = "okay";
+	};
+
+	usb2_picophy2: phy3 {
+		status = "okay";
+	};
+
 	soc {
 		/* Low speed expansion connector */
 		uart0: serial@9830000 {
@@ -149,14 +157,6 @@
 		};
 
 		pwm1: pwm@9510000 {
-			status = "okay";
-		};
-
-		usb2_picophy1: phy2@0 {
-			status = "okay";
-		};
-
-		usb2_picophy2: phy3@0 {
 			status = "okay";
 		};
 
