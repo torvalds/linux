@@ -39,6 +39,7 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "inc/dc_link_dpia.h"
 #include "inc/link_enc_cfg.h"
+#include "link/link_dp_trace.h"
 
 /*Travis*/
 static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
@@ -2776,6 +2777,10 @@ bool perform_link_training_with_retries(
 	enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
 	struct dc_link_settings current_setting = *link_setting;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+	int fail_count = 0;
+
+	dp_trace_commit_lt_init(link);
+
 
 	if (dp_get_link_encoding_format(&current_setting) == DP_8b_10b_ENCODING)
 		/* We need to do this before the link training to ensure the idle
@@ -2783,6 +2788,7 @@ bool perform_link_training_with_retries(
 		 */
 		link_hwss->setup_stream_encoder(pipe_ctx);
 
+	dp_trace_set_lt_start_timestamp(link, false);
 	for (j = 0; j < attempts; ++j) {
 
 		DC_LOG_HW_LINK_TRAINING("%s: Beginning link training attempt %u of %d\n",
@@ -2838,10 +2844,15 @@ bool perform_link_training_with_retries(
 						skip_video_pattern);
 			}
 
+			dp_trace_lt_total_count_increment(link, false);
+			dp_trace_lt_result_update(link, status, false);
+			dp_trace_set_lt_end_timestamp(link, false);
 			if (status == LINK_TRAINING_SUCCESS)
 				return true;
 		}
 
+		fail_count++;
+		dp_trace_lt_fail_count_update(link, fail_count, false);
 		/* latest link training still fail, skip delay and keep PHY on
 		 */
 		if (j == (attempts - 1) && link->ep_type == DISPLAY_ENDPOINT_PHY)
@@ -3309,6 +3320,8 @@ static bool dp_verify_link_cap(
 		} else {
 			(*fail_count)++;
 		}
+		dp_trace_lt_total_count_increment(link, true);
+		dp_trace_lt_result_update(link, status, true);
 		dp_disable_link_phy(link, &link_res, link->connector_signal);
 	} while (!success && decide_fallback_link_setting(link,
 			initial_link_settings, &cur_link_settings, status));
@@ -3340,13 +3353,16 @@ bool dp_verify_link_cap_with_retries(
 {
 	int i = 0;
 	bool success = false;
+	int fail_count = 0;
+
+	dp_trace_detect_lt_init(link);
 
 	if (link->link_enc && link->link_enc->features.flags.bits.DP_IS_USB_C &&
 			link->dc->debug.usbc_combo_phy_reset_wa)
 		apply_usbc_combo_phy_reset_wa(link, known_limit_link_setting);
 
+	dp_trace_set_lt_start_timestamp(link, false);
 	for (i = 0; i < attempts; i++) {
-		int fail_count = 0;
 		enum dc_connection_type type = dc_connection_none;
 
 		memset(&link->verified_link_cap, 0,
@@ -3361,6 +3377,10 @@ bool dp_verify_link_cap_with_retries(
 		}
 		msleep(10);
 	}
+
+	dp_trace_lt_fail_count_update(link, fail_count, true);
+	dp_trace_set_lt_end_timestamp(link, true);
+
 	return success;
 }
 
@@ -4627,6 +4647,8 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		status = false;
 		if (out_link_loss)
 			*out_link_loss = true;
+
+		dp_trace_link_loss_increment(link);
 	}
 
 	if (link->type == dc_connection_sst_branch &&
