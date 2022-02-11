@@ -151,7 +151,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 
 		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),
-				 "/tmp/perf-%d.map", nsi->pid);
+				 "/tmp/perf-%d.map", nsinfo__pid(nsi));
 			filename = newfilename;
 		}
 
@@ -168,7 +168,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			nnsi = nsinfo__copy(nsi);
 			if (nnsi) {
 				nsinfo__put(nsi);
-				nnsi->need_setns = false;
+				nsinfo__clear_need_setns(nnsi);
 				nsi = nnsi;
 			}
 			pgoff = 0;

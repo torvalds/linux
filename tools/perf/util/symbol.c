@@ -1735,8 +1735,8 @@ static int dso__find_perf_map(char *filebuf, size_t bufsz,
 
 	nsi = *nsip;
 
-	if (nsi->need_setns) {
-		snprintf(filebuf, bufsz, "/tmp/perf-%d.map", nsi->nstgid);
+	if (nsinfo__need_setns(nsi)) {
+		snprintf(filebuf, bufsz, "/tmp/perf-%d.map", nsinfo__nstgid(nsi));
 		nsinfo__mountns_enter(nsi, &nsc);
 		rc = access(filebuf, R_OK);
 		nsinfo__mountns_exit(&nsc);
@@ -1748,8 +1748,8 @@ static int dso__find_perf_map(char *filebuf, size_t bufsz,
 	if (nnsi) {
 		nsinfo__put(nsi);
 
-		nnsi->need_setns = false;
-		snprintf(filebuf, bufsz, "/tmp/perf-%d.map", nnsi->tgid);
+		nsinfo__clear_need_setns(nnsi);
+		snprintf(filebuf, bufsz, "/tmp/perf-%d.map", nsinfo__tgid(nnsi));
 		*nsip = nnsi;
 		rc = 0;
 	}
