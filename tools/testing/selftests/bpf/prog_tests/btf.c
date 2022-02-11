@@ -6556,7 +6556,7 @@ done:
 static void do_test_info_raw(unsigned int test_num)
 {
 	const struct prog_info_raw_test *test = &info_raw_tests[test_num - 1];
-	unsigned int raw_btf_size, linfo_str_off, linfo_size;
+	unsigned int raw_btf_size, linfo_str_off, linfo_size = 0;
 	int btf_fd = -1, prog_fd = -1, err = 0;
 	void *raw_btf, *patched_linfo = NULL;
 	const char *ret_next_str;

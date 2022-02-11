@@ -872,7 +872,7 @@ void test_core_reloc(void)
 		if (test_case->btf_src_file) {
 			err = access(test_case->btf_src_file, R_OK);
 			if (!ASSERT_OK(err, "btf_src_file"))
-				goto cleanup;
+				continue;
 		}
 
 		open_opts.btf_custom_path = test_case->btf_src_file;
