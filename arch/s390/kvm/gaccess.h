@@ -186,24 +186,31 @@ enum gacc_mode {
 	GACC_IFETCH,
 };
 
+int guest_translate_address_with_key(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
+				     unsigned long *gpa, enum gacc_mode mode,
+				     u8 access_key);
+
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
 			    u8 ar, unsigned long *gpa, enum gacc_mode mode);
-int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
-		    unsigned long length, enum gacc_mode mode);
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
-		 unsigned long len, enum gacc_mode mode);
+int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
+		    unsigned long length, enum gacc_mode mode, u8 access_key);
+
+int access_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
+			  void *data, unsigned long len, enum gacc_mode mode,
+			  u8 access_key);
 
 int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 		      void *data, unsigned long len, enum gacc_mode mode);
 
 /**
- * write_guest - copy data from kernel space to guest space
+ * write_guest_with_key - copy data from kernel space to guest space
  * @vcpu: virtual cpu
  * @ga: guest address
  * @ar: access register
  * @data: source address in kernel space
  * @len: number of bytes to copy
+ * @access_key: access key the storage key needs to match
  *
  * Copy @len bytes from @data (kernel space) to @ga (guest address).
  * In order to copy data to guest space the PSW of the vcpu is inspected:
@@ -214,8 +221,8 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * The addressing mode of the PSW is also inspected, so that address wrap
  * around is taken into account for 24-, 31- and 64-bit addressing mode,
  * if the to be copied data crosses page boundaries in guest address space.
- * In addition also low address and DAT protection are inspected before
- * copying any data (key protection is currently not implemented).
+ * In addition low address, DAT and key protection checks are performed before
+ * copying any data.
  *
  * This function modifies the 'struct kvm_s390_pgm_info pgm' member of @vcpu.
  * In case of an access exception (e.g. protection exception) pgm will contain
@@ -243,10 +250,53 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  *	 if data has been changed in guest space in case of an exception.
  */
 static inline __must_check
+int write_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
+			 void *data, unsigned long len, u8 access_key)
+{
+	return access_guest_with_key(vcpu, ga, ar, data, len, GACC_STORE,
+				     access_key);
+}
+
+/**
+ * write_guest - copy data from kernel space to guest space
+ * @vcpu: virtual cpu
+ * @ga: guest address
+ * @ar: access register
+ * @data: source address in kernel space
+ * @len: number of bytes to copy
+ *
+ * The behaviour of write_guest is identical to write_guest_with_key, except
+ * that the PSW access key is used instead of an explicit argument.
+ */
+static inline __must_check
 int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		unsigned long len)
 {
-	return access_guest(vcpu, ga, ar, data, len, GACC_STORE);
+	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+
+	return write_guest_with_key(vcpu, ga, ar, data, len, access_key);
+}
+
+/**
+ * read_guest_with_key - copy data from guest space to kernel space
+ * @vcpu: virtual cpu
+ * @ga: guest address
+ * @ar: access register
+ * @data: destination address in kernel space
+ * @len: number of bytes to copy
+ * @access_key: access key the storage key needs to match
+ *
+ * Copy @len bytes from @ga (guest address) to @data (kernel space).
+ *
+ * The behaviour of read_guest_with_key is identical to write_guest_with_key,
+ * except that data will be copied from guest space to kernel space.
+ */
+static inline __must_check
+int read_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
+			void *data, unsigned long len, u8 access_key)
+{
+	return access_guest_with_key(vcpu, ga, ar, data, len, GACC_FETCH,
+				     access_key);
 }
 
 /**
@@ -259,14 +309,16 @@ int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
  *
  * Copy @len bytes from @ga (guest address) to @data (kernel space).
  *
- * The behaviour of read_guest is identical to write_guest, except that
- * data will be copied from guest space to kernel space.
+ * The behaviour of read_guest is identical to read_guest_with_key, except
+ * that the PSW access key is used instead of an explicit argument.
  */
 static inline __must_check
 int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 	       unsigned long len)
 {
-	return access_guest(vcpu, ga, ar, data, len, GACC_FETCH);
+	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+
+	return read_guest_with_key(vcpu, ga, ar, data, len, access_key);
 }
 
 /**
@@ -287,7 +339,10 @@ static inline __must_check
 int read_guest_instr(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
 		     unsigned long len)
 {
-	return access_guest(vcpu, ga, 0, data, len, GACC_IFETCH);
+	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+
+	return access_guest_with_key(vcpu, ga, 0, data, len, GACC_IFETCH,
+				     access_key);
 }
 
 /**

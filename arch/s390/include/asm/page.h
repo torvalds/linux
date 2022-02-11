@@ -20,6 +20,8 @@
 #define PAGE_SIZE	_PAGE_SIZE
 #define PAGE_MASK	_PAGE_MASK
 #define PAGE_DEFAULT_ACC	0
+/* storage-protection override */
+#define PAGE_SPO_ACC		9
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
 #define HPAGE_SHIFT	20
