@@ -26,7 +26,7 @@ static struct platform_driver vudc_driver = {
 	},
 };
 
-static struct list_head vudc_devices = LIST_HEAD_INIT(vudc_devices);
+static LIST_HEAD(vudc_devices);
 
 static int __init init(void)
 {
