@@ -111,7 +111,7 @@ subdir-ym	:= $(addprefix $(obj)/,$(subdir-ym))
 modname-multi = $(sort $(foreach m,$(multi-obj-ym),\
 		$(if $(filter $*.o, $(call suffix-search, $m, .o, -objs -y -m)),$(m:.o=))))
 
-__modname = $(if $(modname-multi),$(modname-multi),$(basetarget))
+__modname = $(or $(modname-multi),$(basetarget))
 
 modname = $(subst $(space),:,$(__modname))
 modfile = $(addprefix $(obj)/,$(__modname))
@@ -434,7 +434,7 @@ MKIMAGE := $(srctree)/scripts/mkuboot.sh
 # SRCARCH just happens to match slightly more than ARCH (on sparc), so reduces
 # the number of overrides in arch makefiles
 UIMAGE_ARCH ?= $(SRCARCH)
-UIMAGE_COMPRESSION ?= $(if $(2),$(2),none)
+UIMAGE_COMPRESSION ?= $(or $(2),none)
 UIMAGE_OPTS-y ?=
 UIMAGE_TYPE ?= kernel
 UIMAGE_LOADADDR ?= arch_must_set_this

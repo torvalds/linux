@@ -13,7 +13,7 @@ srctree := $(patsubst %/,%,$(dir $(srctree)))
 endif
 
 SUBCMD_SRCDIR		= $(srctree)/tools/lib/subcmd/
-LIBSUBCMD_OUTPUT	= $(if $(OUTPUT),$(OUTPUT),$(CURDIR)/)
+LIBSUBCMD_OUTPUT	= $(or $(OUTPUT),$(CURDIR)/)
 LIBSUBCMD		= $(LIBSUBCMD_OUTPUT)libsubcmd.a
 
 OBJTOOL    := $(OUTPUT)objtool
