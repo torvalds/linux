@@ -107,7 +107,7 @@ static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
 	status = acpi_evaluate_object(device->handle, "_FST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		dev_err(&device->dev, "Get fan state failed\n");
-		return status;
+		return -ENODEV;
 	}
 
 	obj = buffer.pointer;
@@ -195,7 +195,7 @@ static int fan_set_state_acpi4(struct acpi_device *device, unsigned long state)
 					    fan->fps[state].control);
 	if (ACPI_FAILURE(status)) {
 		dev_dbg(&device->dev, "Failed to set state by _FSL\n");
-		return status;
+		return -ENODEV;
 	}
 
 	return 0;
