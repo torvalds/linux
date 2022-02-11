@@ -161,6 +161,11 @@ static u64 rtw89_phy_ra_mask_cfg(struct rtw89_dev *rtwdev, struct rtw89_sta *rtw
 		cfg_mask = u64_encode_bits(mask->control[NL80211_BAND_5GHZ].legacy,
 					   RA_MASK_OFDM_RATES);
 		break;
+	case RTW89_BAND_6G:
+		band = NL80211_BAND_6GHZ;
+		cfg_mask = u64_encode_bits(mask->control[NL80211_BAND_6GHZ].legacy,
+					   RA_MASK_OFDM_RATES);
+		break;
 	default:
 		rtw89_warn(rtwdev, "unhandled band type %d\n", hal->current_band_type);
 		return -1;
@@ -254,15 +259,25 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 			ldpc_en = 1;
 	}
 
-	if (rtwdev->hal.current_band_type == RTW89_BAND_2G) {
+	switch (rtwdev->hal.current_band_type) {
+	case RTW89_BAND_2G:
 		ra_mask |= sta->supp_rates[NL80211_BAND_2GHZ];
 		if (sta->supp_rates[NL80211_BAND_2GHZ] <= 0xf)
 			mode |= RTW89_RA_MODE_CCK;
 		else
 			mode |= RTW89_RA_MODE_CCK | RTW89_RA_MODE_OFDM;
-	} else {
+		break;
+	case RTW89_BAND_5G:
 		ra_mask |= (u64)sta->supp_rates[NL80211_BAND_5GHZ] << 4;
 		mode |= RTW89_RA_MODE_OFDM;
+		break;
+	case RTW89_BAND_6G:
+		ra_mask |= (u64)sta->supp_rates[NL80211_BAND_6GHZ] << 4;
+		mode |= RTW89_RA_MODE_OFDM;
+		break;
+	default:
+		rtw89_err(rtwdev, "Unknown band type\n");
+		break;
 	}
 
 	ra_mask_bak = ra_mask;
