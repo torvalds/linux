@@ -3160,6 +3160,18 @@ static inline struct rtw89_sta *sta_to_rtwsta_safe(struct ieee80211_sta *sta)
 	return sta ? (struct rtw89_sta *)sta->drv_priv : NULL;
 }
 
+static inline u8 rtw89_hw_to_rate_info_bw(enum rtw89_bandwidth hw_bw)
+{
+	if (hw_bw == RTW89_CHANNEL_WIDTH_160)
+		return RATE_INFO_BW_160;
+	else if (hw_bw == RTW89_CHANNEL_WIDTH_80)
+		return RATE_INFO_BW_80;
+	else if (hw_bw == RTW89_CHANNEL_WIDTH_40)
+		return RATE_INFO_BW_40;
+	else
+		return RATE_INFO_BW_20;
+}
+
 static inline
 struct rtw89_addr_cam_entry *rtw89_get_addr_cam_of(struct rtw89_vif *rtwvif,
 						   struct rtw89_sta *rtwsta)

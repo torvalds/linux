@@ -302,6 +302,11 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra_mask &= rtw89_phy_ra_mask_cfg(rtwdev, rtwsta);
 
 	switch (sta->bandwidth) {
+	case IEEE80211_STA_RX_BW_160:
+		bw_mode = RTW89_CHANNEL_WIDTH_160;
+		sgi = sta->vht_cap.vht_supported &&
+		      (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_160);
+		break;
 	case IEEE80211_STA_RX_BW_80:
 		bw_mode = RTW89_CHANNEL_WIDTH_80;
 		sgi = sta->vht_cap.vht_supported &&
@@ -1439,13 +1444,7 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 		break;
 	}
 
-	if (bw == RTW89_CHANNEL_WIDTH_80)
-		ra_report->txrate.bw = RATE_INFO_BW_80;
-	else if (bw == RTW89_CHANNEL_WIDTH_40)
-		ra_report->txrate.bw = RATE_INFO_BW_40;
-	else
-		ra_report->txrate.bw = RATE_INFO_BW_20;
-
+	ra_report->txrate.bw = rtw89_hw_to_rate_info_bw(bw);
 	ra_report->bit_rate = cfg80211_calculate_bitrate(&ra_report->txrate);
 	ra_report->hw_rate = FIELD_PREP(RTW89_HW_RATE_MASK_MOD, mode) |
 			     FIELD_PREP(RTW89_HW_RATE_MASK_VAL, rate);

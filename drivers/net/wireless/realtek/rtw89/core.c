@@ -1165,13 +1165,7 @@ static bool rtw89_core_rx_ppdu_match(struct rtw89_dev *rtwdev,
 		rtw89_warn(rtwdev, "invalid RX rate mode %d\n", data_rate_mode);
 	}
 
-	if (desc_info->bw == RTW89_CHANNEL_WIDTH_80)
-		bw = RATE_INFO_BW_80;
-	else if (desc_info->bw == RTW89_CHANNEL_WIDTH_40)
-		bw = RATE_INFO_BW_40;
-	else
-		bw = RATE_INFO_BW_20;
-
+	bw = rtw89_hw_to_rate_info_bw(desc_info->bw);
 	gi_ltf = rtw89_rxdesc_to_nl_he_gi(rtwdev, desc_info, false);
 	ret = rtwdev->ppdu_sts.curr_rx_ppdu_cnt[band] == desc_info->ppdu_cnt &&
 	      status->rate_idx == rate_idx &&
@@ -1442,12 +1436,7 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 	    !(desc_info->sw_dec || desc_info->icv_err))
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 
-	if (desc_info->bw == RTW89_CHANNEL_WIDTH_80)
-		rx_status->bw = RATE_INFO_BW_80;
-	else if (desc_info->bw == RTW89_CHANNEL_WIDTH_40)
-		rx_status->bw = RATE_INFO_BW_40;
-	else
-		rx_status->bw = RATE_INFO_BW_20;
+	rx_status->bw = rtw89_hw_to_rate_info_bw(desc_info->bw);
 
 	data_rate = desc_info->data_rate;
 	data_rate_mode = GET_DATA_RATE_MODE(data_rate);
