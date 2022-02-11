@@ -13,14 +13,6 @@
 #include "msm_kms.h"
 #include "dp_drm.h"
 
-
-struct msm_dp_bridge {
-	struct drm_bridge bridge;
-	struct msm_dp *dp_display;
-};
-
-#define to_dp_display(x)     container_of((x), struct msm_dp_bridge, bridge)
-
 /**
  * dp_bridge_detect - callback to determine if connector is connected
  * @bridge: Pointer to drm bridge structure
@@ -30,7 +22,7 @@ static enum drm_connector_status dp_bridge_detect(struct drm_bridge *bridge)
 {
 	struct msm_dp *dp;
 
-	dp = to_dp_display(bridge)->dp_display;
+	dp = to_dp_bridge(bridge)->dp_display;
 
 	DRM_DEBUG_DP("is_connected = %s\n",
 		(dp->is_connected) ? "true" : "false");
@@ -55,7 +47,7 @@ static int dp_bridge_get_modes(struct drm_bridge *bridge, struct drm_connector *
 	if (!connector)
 		return 0;
 
-	dp = to_dp_display(bridge)->dp_display;
+	dp = to_dp_bridge(bridge)->dp_display;
 
 	dp_mode = kzalloc(sizeof(*dp_mode),  GFP_KERNEL);
 	if (!dp_mode)
@@ -95,64 +87,6 @@ static int dp_bridge_get_modes(struct drm_bridge *bridge, struct drm_connector *
 	return rc;
 }
 
-/**
- * dp_bridge_mode_valid - callback to determine if specified mode is valid
- * @bridge: Pointer to drm bridge structure
- * @info: display info
- * @mode: Pointer to drm mode structure
- * Returns: Validity status for specified mode
- */
-static enum drm_mode_status dp_bridge_mode_valid(
-		struct drm_bridge *bridge,
-		const struct drm_display_info *info,
-		const struct drm_display_mode *mode)
-{
-	struct msm_dp *dp_disp;
-
-	dp_disp = to_dp_display(bridge)->dp_display;
-
-	if ((dp_disp->max_pclk_khz <= 0) ||
-			(dp_disp->max_pclk_khz > DP_MAX_PIXEL_CLK_KHZ) ||
-			(mode->clock > dp_disp->max_pclk_khz))
-		return MODE_BAD;
-
-	return dp_display_validate_mode(dp_disp, mode->clock);
-}
-
-static void dp_bridge_mode_set(struct drm_bridge *drm_bridge,
-				const struct drm_display_mode *mode,
-				const struct drm_display_mode *adjusted_mode)
-{
-	struct msm_dp_bridge *dp_bridge = to_dp_display(drm_bridge);
-	struct msm_dp *dp_display = dp_bridge->dp_display;
-
-	msm_dp_display_mode_set(dp_display, drm_bridge->encoder, mode, adjusted_mode);
-}
-
-static void dp_bridge_enable(struct drm_bridge *drm_bridge)
-{
-	struct msm_dp_bridge *dp_bridge = to_dp_display(drm_bridge);
-	struct msm_dp *dp_display = dp_bridge->dp_display;
-
-	msm_dp_display_enable(dp_display, drm_bridge->encoder);
-}
-
-static void dp_bridge_disable(struct drm_bridge *drm_bridge)
-{
-	struct msm_dp_bridge *dp_bridge = to_dp_display(drm_bridge);
-	struct msm_dp *dp_display = dp_bridge->dp_display;
-
-	msm_dp_display_pre_disable(dp_display, drm_bridge->encoder);
-}
-
-static void dp_bridge_post_disable(struct drm_bridge *drm_bridge)
-{
-	struct msm_dp_bridge *dp_bridge = to_dp_display(drm_bridge);
-	struct msm_dp *dp_display = dp_bridge->dp_display;
-
-	msm_dp_display_disable(dp_display, drm_bridge->encoder);
-}
-
 static const struct drm_bridge_funcs dp_bridge_ops = {
 	.enable       = dp_bridge_enable,
 	.disable      = dp_bridge_disable,
@@ -163,7 +97,7 @@ static const struct drm_bridge_funcs dp_bridge_ops = {
 	.detect       = dp_bridge_detect,
 };
 
-struct drm_bridge *msm_dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
+struct drm_bridge *dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
 			struct drm_encoder *encoder)
 {
 	int rc;
