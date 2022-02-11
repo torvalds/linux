@@ -8,6 +8,7 @@
  * address space, e.g. all NOMMU machines.
  */
 #include <linux/string.h>
+#include <asm-generic/access_ok.h>
 
 #ifdef CONFIG_UACCESS_MEMCPY
 #include <asm/unaligned.h>
@@ -93,30 +94,6 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 #define INLINE_COPY_FROM_USER
 #define INLINE_COPY_TO_USER
 #endif /* CONFIG_UACCESS_MEMCPY */
-
-#ifdef CONFIG_SET_FS
-#define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
-
-#ifndef KERNEL_DS
-#define KERNEL_DS	MAKE_MM_SEG(~0UL)
-#endif
-
-#ifndef USER_DS
-#define USER_DS		MAKE_MM_SEG(TASK_SIZE - 1)
-#endif
-
-#ifndef get_fs
-#define get_fs()	(current_thread_info()->addr_limit)
-
-static inline void set_fs(mm_segment_t fs)
-{
-	current_thread_info()->addr_limit = fs;
-}
-#endif
-
-#endif /* CONFIG_SET_FS */
-
-#include <asm-generic/access_ok.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically

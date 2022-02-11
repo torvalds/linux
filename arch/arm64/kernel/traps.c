@@ -519,7 +519,7 @@ void do_ptrauth_fault(struct pt_regs *regs, unsigned int esr)
 NOKPROBE_SYMBOL(do_ptrauth_fault);
 
 #define __user_cache_maint(insn, address, res)			\
-	if (address >= user_addr_max()) {			\
+	if (address >= TASK_SIZE_MAX) {				\
 		res = -EFAULT;					\
 	} else {						\
 		uaccess_ttbr0_enable();				\

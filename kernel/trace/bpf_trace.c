@@ -332,8 +332,6 @@ BPF_CALL_3(bpf_probe_write_user, void __user *, unsafe_ptr, const void *, src,
 	if (unlikely(in_interrupt() ||
 		     current->flags & (PF_KTHREAD | PF_EXITING)))
 		return -EPERM;
-	if (unlikely(uaccess_kernel()))
-		return -EPERM;
 	if (unlikely(!nmi_uaccess_okay()))
 		return -EPERM;
 
@@ -834,8 +832,6 @@ static int bpf_send_signal_common(u32 sig, enum pid_type type)
 	 * task.
 	 */
 	if (unlikely(current->flags & (PF_KTHREAD | PF_EXITING)))
-		return -EPERM;
-	if (unlikely(uaccess_kernel()))
 		return -EPERM;
 	if (unlikely(!nmi_uaccess_okay()))
 		return -EPERM;

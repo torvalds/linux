@@ -16,18 +16,6 @@
 #define TASK_SIZE_MAX			TASK_SIZE
 #endif
 
-#ifndef uaccess_kernel
-#ifdef CONFIG_SET_FS
-#define uaccess_kernel()		(get_fs().seg == KERNEL_DS.seg)
-#else
-#define uaccess_kernel()		(0)
-#endif
-#endif
-
-#ifndef user_addr_max
-#define user_addr_max()			(uaccess_kernel() ? ~0UL : TASK_SIZE_MAX)
-#endif
-
 #ifndef __access_ok
 /*
  * 'size' is a compile-time constant for most callers, so optimize for
@@ -42,7 +30,7 @@
  */
 static inline int __access_ok(const void __user *ptr, unsigned long size)
 {
-	unsigned long limit = user_addr_max();
+	unsigned long limit = TASK_SIZE_MAX;
 	unsigned long addr = (unsigned long)ptr;
 
 	if (IS_ENABLED(CONFIG_ALTERNATE_USER_ADDRESS_SPACE) ||

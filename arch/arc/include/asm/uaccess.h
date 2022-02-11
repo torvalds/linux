@@ -638,7 +638,6 @@ extern unsigned long arc_clear_user_noinline(void __user *to,
 #define __clear_user(d, n)		arc_clear_user_noinline(d, n)
 #endif
 
-#include <asm/segment.h>
 #include <asm-generic/uaccess.h>
 
 #endif

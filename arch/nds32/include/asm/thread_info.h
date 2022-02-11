@@ -16,8 +16,6 @@ struct task_struct;
 #include <asm/ptrace.h>
 #include <asm/types.h>
 
-typedef unsigned long mm_segment_t;
-
 /*
  * low level task data that entry.S needs immediate access to.
  * __switch_to() assumes cpu_context follows immediately after cpu_domain.
@@ -25,12 +23,10 @@ typedef unsigned long mm_segment_t;
 struct thread_info {
 	unsigned long flags;	/* low level flags */
 	__s32 preempt_count;	/* 0 => preemptable, <0 => bug */
-	mm_segment_t addr_limit;	/* address limit */
 };
 #define INIT_THREAD_INFO(tsk)						\
 {									\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
-	.addr_limit	= KERNEL_DS,					\
 }
 #define thread_saved_pc(tsk) ((unsigned long)(tsk->thread.cpu_context.pc))
 #define thread_saved_fp(tsk) ((unsigned long)(tsk->thread.cpu_context.fp))

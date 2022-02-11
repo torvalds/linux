@@ -19,22 +19,6 @@
 #include <linux/prefetch.h>
 #include <asm/types.h>
 #include <asm/extable.h>
-
-/*
- * The fs value determines whether argument validity checking should
- * be performed or not.  If get_fs() == USER_DS, checking is
- * performed, with get_fs() == KERNEL_DS, checking is bypassed.
- *
- * For historical reasons (Data Segment Register?), these macros are
- * grossly misnamed.
- */
-
-#define KERNEL_DS	((mm_segment_t) { 0 })
-#define USER_DS		((mm_segment_t) { 1 })
-
-#define get_fs()	(current->thread.current_ds)
-#define set_fs(val)	(current->thread.current_ds = (val))
-
 #include <asm-generic/access_ok.h>
 
 /*

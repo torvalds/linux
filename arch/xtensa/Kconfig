@@ -40,7 +40,6 @@ config XTENSA
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
 	select PERF_USE_VMALLOC
-	select SET_FS
 	select TRACE_IRQFLAGS_SUPPORT
 	select VIRT_TO_BUS
 	help

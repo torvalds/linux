@@ -119,9 +119,8 @@ void show_regs(struct pt_regs *regs)
 		regs->uregs[7], regs->uregs[6], regs->uregs[5], regs->uregs[4]);
 	pr_info("r3 : %08lx  r2 : %08lx  r1 : %08lx  r0 : %08lx\n",
 		regs->uregs[3], regs->uregs[2], regs->uregs[1], regs->uregs[0]);
-	pr_info("  IRQs o%s  Segment %s\n",
-		interrupts_enabled(regs) ? "n" : "ff",
-		uaccess_kernel() ? "kernel" : "user");
+	pr_info("  IRQs o%s  Segment user\n",
+		interrupts_enabled(regs) ? "n" : "ff");
 }
 
 EXPORT_SYMBOL(show_regs);

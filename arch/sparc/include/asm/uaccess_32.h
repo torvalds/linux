@@ -12,19 +12,6 @@
 #include <linux/string.h>
 
 #include <asm/processor.h>
-
-/* Sparc is not segmented, however we need to be able to fool access_ok()
- * when doing system calls from kernel mode legitimately.
- *
- * "For historical reasons, these macros are grossly misnamed." -Linus
- */
-
-#define KERNEL_DS   ((mm_segment_t) { 0 })
-#define USER_DS     ((mm_segment_t) { -1 })
-
-#define get_fs()	(current->thread.current_ds)
-#define set_fs(val)	((current->thread.current_ds) = (val))
-
 #include <asm-generic/access_ok.h>
 
 /* Uh, these should become the main single-value transfer routines..

@@ -10,39 +10,6 @@
 
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_SET_FS
-/*
- * Force the uaccess routines to be wired up for actual userspace access,
- * overriding any possible set_fs(KERNEL_DS) still lingering around.  Undone
- * using force_uaccess_end below.
- */
-static inline mm_segment_t force_uaccess_begin(void)
-{
-	mm_segment_t fs = get_fs();
-
-	set_fs(USER_DS);
-	return fs;
-}
-
-static inline void force_uaccess_end(mm_segment_t oldfs)
-{
-	set_fs(oldfs);
-}
-#else /* CONFIG_SET_FS */
-typedef struct {
-	/* empty dummy */
-} mm_segment_t;
-
-static inline mm_segment_t force_uaccess_begin(void)
-{
-	return (mm_segment_t) { };
-}
-
-static inline void force_uaccess_end(mm_segment_t oldfs)
-{
-}
-#endif /* CONFIG_SET_FS */
-
 /*
  * Architectures should provide two primitives (raw_copy_{to,from}_user())
  * and get rid of their private instances of copy_{to,from}_user() and
