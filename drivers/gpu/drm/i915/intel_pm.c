@@ -3179,12 +3179,8 @@ static int ilk_compute_pipe_wm(struct intel_atomic_state *state,
 	}
 
 	pipe_wm->pipe_enabled = crtc_state->hw.active;
-	if (sprstate) {
-		pipe_wm->sprites_enabled = sprstate->uapi.visible;
-		pipe_wm->sprites_scaled = sprstate->uapi.visible &&
-			(drm_rect_width(&sprstate->uapi.dst) != drm_rect_width(&sprstate->uapi.src) >> 16 ||
-			 drm_rect_height(&sprstate->uapi.dst) != drm_rect_height(&sprstate->uapi.src) >> 16);
-	}
+	pipe_wm->sprites_enabled = crtc_state->active_planes & BIT(PLANE_SPRITE0);
+	pipe_wm->sprites_scaled = crtc_state->scaled_planes & BIT(PLANE_SPRITE0);
 
 	usable_level = max_level;
 
