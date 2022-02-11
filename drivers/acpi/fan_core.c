@@ -211,7 +211,8 @@ static int acpi_fan_get_fif(struct acpi_device *device)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_fan *fan = acpi_driver_data(device);
 	struct acpi_buffer format = { sizeof("NNNN"), "NNNN" };
-	struct acpi_buffer fif = { sizeof(fan->fif), &fan->fif };
+	u64 fields[4];
+	struct acpi_buffer fif = { sizeof(fields), fields };
 	union acpi_object *obj;
 	acpi_status status;
 
@@ -231,6 +232,11 @@ static int acpi_fan_get_fif(struct acpi_device *device)
 		dev_err(&device->dev, "Invalid _FIF element\n");
 		status = -EINVAL;
 	}
+
+	fan->fif.revision = fields[0];
+	fan->fif.fine_grain_ctrl = fields[1];
+	fan->fif.step_size = fields[2];
+	fan->fif.low_speed_notification = fields[3];
 
 err:
 	kfree(obj);

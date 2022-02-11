@@ -30,10 +30,10 @@ struct acpi_fan_fps {
 };
 
 struct acpi_fan_fif {
-	u64 revision;
-	u64 fine_grain_ctrl;
-	u64 step_size;
-	u64 low_speed_notification;
+	u8 revision;
+	u8 fine_grain_ctrl;
+	u8 step_size;
+	u8 low_speed_notification;
 };
 
 struct acpi_fan {
