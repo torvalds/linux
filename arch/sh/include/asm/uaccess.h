@@ -2,11 +2,7 @@
 #ifndef __ASM_SH_UACCESS_H
 #define __ASM_SH_UACCESS_H
 
-#include <asm/segment.h>
 #include <asm/extable.h>
-
-#define user_addr_max()	(current_thread_info()->addr_limit.seg)
-
 #include <asm-generic/access_ok.h>
 
 /*

@@ -65,7 +65,6 @@ config SUPERH
 	select PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select RTC_LIB
-	select SET_FS
 	select SPARSE_IRQ
 	select TRACE_IRQFLAGS_SUPPORT
 	help
