@@ -17,13 +17,6 @@ config MACH_IXP4XX_OF
 	help
 	  Say 'Y' here to support Device Tree-based IXP4xx platforms.
 
-config MACH_GORAMO_MLR
-	bool "GORAMO Multi Link Router"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support GORAMO
-	  MultiLink router.
-
 config ARCH_PRPMC1100
 	bool "PrPMC1100"
 	help
