@@ -141,14 +141,15 @@ int rpm_lmac_get_pause_frm_status(void *rpmd, int lmac_id,
 	return 0;
 }
 
-static void rpm_cfg_pfc_quanta_thresh(rpm_t *rpm, int lmac_id, u16 pfc_en,
+static void rpm_cfg_pfc_quanta_thresh(rpm_t *rpm, int lmac_id,
+				      unsigned long pfc_en,
 				      bool enable)
 {
 	u64 quanta_offset = 0, quanta_thresh = 0, cfg;
 	int i, shift;
 
 	/* Set pause time and interval */
-	for_each_set_bit(i, (unsigned long *)&pfc_en, 16) {
+	for_each_set_bit(i, &pfc_en, 16) {
 		switch (i) {
 		case 0:
 		case 1:
