@@ -75,7 +75,7 @@ static int fan_get_max_state(struct thermal_cooling_device *cdev, unsigned long
 	return 0;
 }
 
-static int acpi_fan_get_fst(struct acpi_device *device, struct acpi_fan_fst *fst)
+int acpi_fan_get_fst(struct acpi_device *device, struct acpi_fan_fst *fst)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;

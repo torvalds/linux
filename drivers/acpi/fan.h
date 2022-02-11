@@ -48,8 +48,11 @@ struct acpi_fan {
 	struct acpi_fan_fps *fps;
 	int fps_count;
 	struct thermal_cooling_device *cdev;
+	struct device_attribute fst_speed;
+	struct device_attribute fine_grain_control;
 };
 
+int acpi_fan_get_fst(struct acpi_device *device, struct acpi_fan_fst *fst);
 int acpi_fan_create_attributes(struct acpi_device *device);
 void acpi_fan_delete_attributes(struct acpi_device *device);
 #endif
