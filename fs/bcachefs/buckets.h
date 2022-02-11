@@ -134,13 +134,6 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 	return ret;
 }
 
-/* bucket gc marks */
-
-static inline bool is_available_bucket(struct bucket_mark mark)
-{
-	return !mark.dirty_sectors && !mark.stripe;
-}
-
 /* Device usage: */
 
 struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *);
