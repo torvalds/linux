@@ -341,35 +341,54 @@ static void test_sev_mirror_parameters(void)
 
 static void test_sev_move_copy(void)
 {
-	struct kvm_vm *dst_vm, *sev_vm, *mirror_vm, *dst_mirror_vm;
-	int ret;
+	struct kvm_vm *dst_vm, *dst2_vm, *dst3_vm, *sev_vm, *mirror_vm,
+		      *dst_mirror_vm, *dst2_mirror_vm, *dst3_mirror_vm;
 
+	sev_vm = sev_vm_create(/* es= */ false);
+	dst_vm = aux_vm_create(true);
+	dst2_vm = aux_vm_create(true);
+	dst3_vm = aux_vm_create(true);
+	mirror_vm = aux_vm_create(false);
+	dst_mirror_vm = aux_vm_create(false);
+	dst2_mirror_vm = aux_vm_create(false);
+	dst3_mirror_vm = aux_vm_create(false);
+
+	sev_mirror_create(mirror_vm->fd, sev_vm->fd);
+
+	sev_migrate_from(dst_mirror_vm->fd, mirror_vm->fd);
+	sev_migrate_from(dst_vm->fd, sev_vm->fd);
+
+	sev_migrate_from(dst2_vm->fd, dst_vm->fd);
+	sev_migrate_from(dst2_mirror_vm->fd, dst_mirror_vm->fd);
+
+	sev_migrate_from(dst3_mirror_vm->fd, dst2_mirror_vm->fd);
+	sev_migrate_from(dst3_vm->fd, dst2_vm->fd);
+
+	kvm_vm_free(dst_vm);
+	kvm_vm_free(sev_vm);
+	kvm_vm_free(dst2_vm);
+	kvm_vm_free(dst3_vm);
+	kvm_vm_free(mirror_vm);
+	kvm_vm_free(dst_mirror_vm);
+	kvm_vm_free(dst2_mirror_vm);
+	kvm_vm_free(dst3_mirror_vm);
+
+	/*
+	 * Run similar test be destroy mirrors before mirrored VMs to ensure
+	 * destruction is done safely.
+	 */
 	sev_vm = sev_vm_create(/* es= */ false);
 	dst_vm = aux_vm_create(true);
 	mirror_vm = aux_vm_create(false);
 	dst_mirror_vm = aux_vm_create(false);
 
 	sev_mirror_create(mirror_vm->fd, sev_vm->fd);
-	ret = __sev_migrate_from(dst_vm->fd, sev_vm->fd);
-	TEST_ASSERT(ret == -1 && errno == EBUSY,
-		    "Cannot migrate VM that has mirrors. ret %d, errno: %d\n", ret,
-		    errno);
 
-	/* The mirror itself can be migrated.  */
 	sev_migrate_from(dst_mirror_vm->fd, mirror_vm->fd);
-	ret = __sev_migrate_from(dst_vm->fd, sev_vm->fd);
-	TEST_ASSERT(ret == -1 && errno == EBUSY,
-		    "Cannot migrate VM that has mirrors. ret %d, errno: %d\n", ret,
-		    errno);
-
-	/*
-	 * mirror_vm is not a mirror anymore, dst_mirror_vm is.  Thus,
-	 * the owner can be copied as soon as dst_mirror_vm is gone.
-	 */
-	kvm_vm_free(dst_mirror_vm);
 	sev_migrate_from(dst_vm->fd, sev_vm->fd);
 
 	kvm_vm_free(mirror_vm);
+	kvm_vm_free(dst_mirror_vm);
 	kvm_vm_free(dst_vm);
 	kvm_vm_free(sev_vm);
 }

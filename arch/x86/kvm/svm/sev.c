@@ -258,6 +258,7 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		goto e_free;
 
 	INIT_LIST_HEAD(&sev->regions_list);
+	INIT_LIST_HEAD(&sev->mirror_vms);
 
 	return 0;
 
@@ -1623,9 +1624,12 @@ static void sev_unlock_vcpus_for_migration(struct kvm *kvm)
 	}
 }
 
-static void sev_migrate_from(struct kvm_sev_info *dst,
-			      struct kvm_sev_info *src)
+static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 {
+	struct kvm_sev_info *dst = &to_kvm_svm(dst_kvm)->sev_info;
+	struct kvm_sev_info *src = &to_kvm_svm(src_kvm)->sev_info;
+	struct kvm_sev_info *mirror;
+
 	dst->active = true;
 	dst->asid = src->asid;
 	dst->handle = src->handle;
@@ -1639,6 +1643,30 @@ static void sev_migrate_from(struct kvm_sev_info *dst,
 	src->enc_context_owner = NULL;
 
 	list_cut_before(&dst->regions_list, &src->regions_list, &src->regions_list);
+
+	/*
+	 * If this VM has mirrors, "transfer" each mirror's refcount of the
+	 * source to the destination (this KVM).  The caller holds a reference
+	 * to the source, so there's no danger of use-after-free.
+	 */
+	list_cut_before(&dst->mirror_vms, &src->mirror_vms, &src->mirror_vms);
+	list_for_each_entry(mirror, &dst->mirror_vms, mirror_entry) {
+		kvm_get_kvm(dst_kvm);
+		kvm_put_kvm(src_kvm);
+		mirror->enc_context_owner = dst_kvm;
+	}
+
+	/*
+	 * If this VM is a mirror, remove the old mirror from the owners list
+	 * and add the new mirror to the list.
+	 */
+	if (is_mirroring_enc_context(dst_kvm)) {
+		struct kvm_sev_info *owner_sev_info =
+			&to_kvm_svm(dst->enc_context_owner)->sev_info;
+
+		list_del(&src->mirror_entry);
+		list_add_tail(&dst->mirror_entry, &owner_sev_info->mirror_vms);
+	}
 }
 
 static int sev_es_migrate_from(struct kvm *dst, struct kvm *src)
@@ -1708,15 +1736,6 @@ int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 
 	src_sev = &to_kvm_svm(source_kvm)->sev_info;
 
-	/*
-	 * VMs mirroring src's encryption context rely on it to keep the
-	 * ASID allocated, but below we are clearing src_sev->asid.
-	 */
-	if (src_sev->num_mirrored_vms) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
-
 	dst_sev->misc_cg = get_current_misc_cg();
 	cg_cleanup_sev = dst_sev;
 	if (dst_sev->misc_cg != src_sev->misc_cg) {
@@ -1738,7 +1757,8 @@ int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 		if (ret)
 			goto out_source_vcpu;
 	}
-	sev_migrate_from(dst_sev, src_sev);
+
+	sev_migrate_from(kvm, source_kvm);
 	kvm_vm_dead(source_kvm);
 	cg_cleanup_sev = src_sev;
 	ret = 0;
@@ -2008,10 +2028,10 @@ int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	 */
 	source_sev = &to_kvm_svm(source_kvm)->sev_info;
 	kvm_get_kvm(source_kvm);
-	source_sev->num_mirrored_vms++;
+	mirror_sev = &to_kvm_svm(kvm)->sev_info;
+	list_add_tail(&mirror_sev->mirror_entry, &source_sev->mirror_vms);
 
 	/* Set enc_context_owner and copy its encryption context over */
-	mirror_sev = &to_kvm_svm(kvm)->sev_info;
 	mirror_sev->enc_context_owner = source_kvm;
 	mirror_sev->active = true;
 	mirror_sev->asid = source_sev->asid;
@@ -2019,6 +2039,7 @@ int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	mirror_sev->es_active = source_sev->es_active;
 	mirror_sev->handle = source_sev->handle;
 	INIT_LIST_HEAD(&mirror_sev->regions_list);
+	INIT_LIST_HEAD(&mirror_sev->mirror_vms);
 	ret = 0;
 
 	/*
@@ -2041,19 +2062,17 @@ void sev_vm_destroy(struct kvm *kvm)
 	struct list_head *head = &sev->regions_list;
 	struct list_head *pos, *q;
 
-	WARN_ON(sev->num_mirrored_vms);
-
 	if (!sev_guest(kvm))
 		return;
+
+	WARN_ON(!list_empty(&sev->mirror_vms));
 
 	/* If this is a mirror_kvm release the enc_context_owner and skip sev cleanup */
 	if (is_mirroring_enc_context(kvm)) {
 		struct kvm *owner_kvm = sev->enc_context_owner;
-		struct kvm_sev_info *owner_sev = &to_kvm_svm(owner_kvm)->sev_info;
 
 		mutex_lock(&owner_kvm->lock);
-		if (!WARN_ON(!owner_sev->num_mirrored_vms))
-			owner_sev->num_mirrored_vms--;
+		list_del(&sev->mirror_entry);
 		mutex_unlock(&owner_kvm->lock);
 		kvm_put_kvm(owner_kvm);
 		return;
