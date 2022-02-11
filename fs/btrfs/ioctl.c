@@ -1186,8 +1186,10 @@ struct defrag_target_range {
 static int defrag_collect_targets(struct btrfs_inode *inode,
 				  u64 start, u64 len, u32 extent_thresh,
 				  u64 newer_than, bool do_compress,
-				  bool locked, struct list_head *target_list)
+				  bool locked, struct list_head *target_list,
+				  u64 *last_scanned_ret)
 {
+	bool last_is_target = false;
 	u64 cur = start;
 	int ret = 0;
 
@@ -1197,6 +1199,7 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		bool next_mergeable = true;
 		u64 range_len;
 
+		last_is_target = false;
 		em = defrag_lookup_extent(&inode->vfs_inode, cur, locked);
 		if (!em)
 			break;
@@ -1272,6 +1275,7 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		}
 
 add:
+		last_is_target = true;
 		range_len = min(extent_map_end(em), start + len) - cur;
 		/*
 		 * This one is a good target, check if it can be merged into
@@ -1314,6 +1318,17 @@ next:
 			list_del_init(&entry->list);
 			kfree(entry);
 		}
+	}
+	if (!ret && last_scanned_ret) {
+		/*
+		 * If the last extent is not a target, the caller can skip to
+		 * the end of that extent.
+		 * Otherwise, we can only go the end of the specified range.
+		 */
+		if (!last_is_target)
+			*last_scanned_ret = max(cur, *last_scanned_ret);
+		else
+			*last_scanned_ret = max(start + len, *last_scanned_ret);
 	}
 	return ret;
 }
@@ -1373,7 +1388,8 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 }
 
 static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
-			    u32 extent_thresh, u64 newer_than, bool do_compress)
+			    u32 extent_thresh, u64 newer_than, bool do_compress,
+			    u64 *last_scanned_ret)
 {
 	struct extent_state *cached_state = NULL;
 	struct defrag_target_range *entry;
@@ -1419,7 +1435,7 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 	 */
 	ret = defrag_collect_targets(inode, start, len, extent_thresh,
 				     newer_than, do_compress, true,
-				     &target_list);
+				     &target_list, last_scanned_ret);
 	if (ret < 0)
 		goto unlock_extent;
 
@@ -1454,7 +1470,8 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 			      u64 start, u32 len, u32 extent_thresh,
 			      u64 newer_than, bool do_compress,
 			      unsigned long *sectors_defragged,
-			      unsigned long max_sectors)
+			      unsigned long max_sectors,
+			      u64 *last_scanned_ret)
 {
 	const u32 sectorsize = inode->root->fs_info->sectorsize;
 	struct defrag_target_range *entry;
@@ -1465,7 +1482,7 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 	BUILD_BUG_ON(!IS_ALIGNED(CLUSTER_SIZE, PAGE_SIZE));
 	ret = defrag_collect_targets(inode, start, len, extent_thresh,
 				     newer_than, do_compress, false,
-				     &target_list);
+				     &target_list, NULL);
 	if (ret < 0)
 		goto out;
 
@@ -1482,6 +1499,15 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 			range_len = min_t(u32, range_len,
 				(max_sectors - *sectors_defragged) * sectorsize);
 
+		/*
+		 * If defrag_one_range() has updated last_scanned_ret,
+		 * our range may already be invalid (e.g. hole punched).
+		 * Skip if our range is before last_scanned_ret, as there is
+		 * no need to defrag the range anymore.
+		 */
+		if (entry->start + range_len <= *last_scanned_ret)
+			continue;
+
 		if (ra)
 			page_cache_sync_readahead(inode->vfs_inode.i_mapping,
 				ra, NULL, entry->start >> PAGE_SHIFT,
@@ -1494,7 +1520,8 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 		 * accounting.
 		 */
 		ret = defrag_one_range(inode, entry->start, range_len,
-				       extent_thresh, newer_than, do_compress);
+				       extent_thresh, newer_than, do_compress,
+				       last_scanned_ret);
 		if (ret < 0)
 			break;
 		*sectors_defragged += range_len >>
@@ -1505,6 +1532,8 @@ out:
 		list_del_init(&entry->list);
 		kfree(entry);
 	}
+	if (ret >= 0)
+		*last_scanned_ret = max(*last_scanned_ret, start + len);
 	return ret;
 }
 
@@ -1590,6 +1619,7 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 
 	while (cur < last_byte) {
 		const unsigned long prev_sectors_defragged = sectors_defragged;
+		u64 last_scanned = cur;
 		u64 cluster_end;
 
 		/* The cluster size 256K should always be page aligned */
@@ -1619,8 +1649,8 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 			BTRFS_I(inode)->defrag_compress = compress_type;
 		ret = defrag_one_cluster(BTRFS_I(inode), ra, cur,
 				cluster_end + 1 - cur, extent_thresh,
-				newer_than, do_compress,
-				&sectors_defragged, max_to_defrag);
+				newer_than, do_compress, &sectors_defragged,
+				max_to_defrag, &last_scanned);
 
 		if (sectors_defragged > prev_sectors_defragged)
 			balance_dirty_pages_ratelimited(inode->i_mapping);
@@ -1628,7 +1658,7 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		btrfs_inode_unlock(inode, 0);
 		if (ret < 0)
 			break;
-		cur = cluster_end + 1;
+		cur = max(cluster_end + 1, last_scanned);
 		if (ret > 0) {
 			ret = 0;
 			break;
