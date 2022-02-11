@@ -33,7 +33,8 @@
 #include "hif_tx_mib.h"
 #include "hif_api_cmd.h"
 
-#define WFX_PDS_MAX_SIZE 1500
+#define WFX_PDS_TLV_TYPE 0x4450 // "PD" (Platform Data) in ascii little-endian
+#define WFX_PDS_MAX_CHUNK_SIZE 1500
 
 MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WF200");
 MODULE_AUTHOR("Jérôme Pouiller <jerome.pouiller@silabs.com>");
@@ -162,29 +163,18 @@ bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
 	return false;
 }
 
-/* The device needs data about the antenna configuration. This information in provided by PDS
- * (Platform Data Set, this is the wording used in WF200 documentation) files. For hardware
- * integrators, the full process to create PDS files is described here:
- *   https:github.com/SiliconLabs/wfx-firmware/blob/master/PDS/README.md
- *
- * So this function aims to send PDS to the device. However, the PDS file is often bigger than Rx
- * buffers of the chip, so it has to be sent in multiple parts.
+/* In legacy format, the PDS file is often bigger than Rx buffers of the chip, so it has to be sent
+ * in multiple parts.
  *
  * In add, the PDS data cannot be split anywhere. The PDS files contains tree structures. Braces are
  * used to enter/leave a level of the tree (in a JSON fashion). PDS files can only been split
  * between root nodes.
  */
-int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
+int wfx_send_pds_legacy(struct wfx_dev *wdev, u8 *buf, size_t len)
 {
 	int ret;
-	int start, brace_level, i;
+	int start = 0, brace_level = 0, i;
 
-	start = 0;
-	brace_level = 0;
-	if (buf[0] != '{') {
-		dev_err(wdev->dev, "valid PDS start with '{'. Did you forget to compress it?\n");
-		return -EINVAL;
-	}
 	for (i = 1; i < len - 1; i++) {
 		if (buf[i] == '{')
 			brace_level++;
@@ -192,7 +182,7 @@ int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 			brace_level--;
 		if (buf[i] == '}' && !brace_level) {
 			i++;
-			if (i - start + 1 > WFX_PDS_MAX_SIZE)
+			if (i - start + 1 > WFX_PDS_MAX_CHUNK_SIZE)
 				return -EFBIG;
 			buf[start] = '{';
 			buf[i] = 0;
@@ -218,6 +208,56 @@ int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 			buf[i] = ',';
 			start = i;
 		}
+	}
+	return 0;
+}
+
+/* The device needs data about the antenna configuration. This information in provided by PDS
+ * (Platform Data Set, this is the wording used in WF200 documentation) files. For hardware
+ * integrators, the full process to create PDS files is described here:
+ *   https://github.com/SiliconLabs/wfx-firmware/blob/master/PDS/README.md
+ *
+ * The PDS file is an array of Time-Length-Value structs.
+ */
+ int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
+{
+	int ret, chunk_type, chunk_len, chunk_num = 0;
+
+	if (*buf == '{')
+		return wfx_send_pds_legacy(wdev, buf, len);
+	while (len > 0) {
+		chunk_type = get_unaligned_le16(buf + 0);
+		chunk_len = get_unaligned_le16(buf + 2);
+		if (chunk_len > len) {
+			dev_err(wdev->dev, "PDS:%d: corrupted file\n", chunk_num);
+			return -EINVAL;
+		}
+		if (chunk_type != WFX_PDS_TLV_TYPE) {
+			dev_info(wdev->dev, "PDS:%d: skip unknown data\n", chunk_num);
+			goto next;
+		}
+		if (chunk_len > WFX_PDS_MAX_CHUNK_SIZE)
+			dev_warn(wdev->dev, "PDS:%d: unexpectly large chunk\n", chunk_num);
+		if (buf[4] != '{' || buf[chunk_len - 1] != '}')
+			dev_warn(wdev->dev, "PDS:%d: unexpected content\n", chunk_num);
+
+		ret = wfx_hif_configuration(wdev, buf + 4, chunk_len - 4);
+		if (ret > 0) {
+			dev_err(wdev->dev, "PDS:%d: invalid data (unsupported options?)\n", chunk_num);
+			return -EINVAL;
+		}
+		if (ret == -ETIMEDOUT) {
+			dev_err(wdev->dev, "PDS:%d: chip didn't reply (corrupted file?)\n", chunk_num);
+			return ret;
+		}
+		if (ret) {
+			dev_err(wdev->dev, "PDS:%d: chip returned an unknown error\n", chunk_num);
+			return -EIO;
+		}
+next:
+		chunk_num++;
+		len -= chunk_len;
+		buf += chunk_len;
 	}
 	return 0;
 }
