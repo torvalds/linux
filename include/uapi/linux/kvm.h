@@ -567,7 +567,7 @@ struct kvm_s390_mem_op {
 			__u8 key;	/* access key, ignored if flag unset */
 		};
 		__u32 sida_offset; /* offset into the sida */
-		__u8 reserved[32]; /* should be set to 0 */
+		__u8 reserved[32]; /* ignored */
 	};
 };
 /* types for kvm_s390_mem_op->op */
