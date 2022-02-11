@@ -96,7 +96,7 @@ static vm_fault_t fb_deferred_io_mkwrite(struct vm_fault *vmf)
 	struct page *page = vmf->page;
 	struct fb_info *info = vmf->vma->vm_private_data;
 	struct fb_deferred_io *fbdefio = info->fbdefio;
-	struct page *cur;
+	struct list_head *pos = &fbdefio->pagelist;
 
 	/* this is a callback we get when userspace first tries to
 	write to the page. we schedule a workqueue. that workqueue
@@ -137,14 +137,24 @@ static vm_fault_t fb_deferred_io_mkwrite(struct vm_fault *vmf)
 	if (!list_empty(&page->lru))
 		goto page_already_added;
 
-	/* we loop through the pagelist before adding in order
-	to keep the pagelist sorted */
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
-		if (cur->index > page->index)
-			break;
+	if (unlikely(fbdefio->sort_pagelist)) {
+		/*
+		 * We loop through the pagelist before adding in order to
+		 * keep the pagelist sorted. This has significant overhead
+		 * of O(n^2) with n being the number of written pages. If
+		 * possible, drivers should try to work with unsorted page
+		 * lists instead.
+		 */
+		struct page *cur;
+
+		list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+			if (cur->index > page->index)
+				break;
+		}
+		pos = &cur->lru;
 	}
 
-	list_add_tail(&page->lru, &cur->lru);
+	list_add_tail(&page->lru, pos);
 
 page_already_added:
 	mutex_unlock(&fbdefio->lock);
