@@ -36,7 +36,7 @@ static int kfd_debugfs_open(struct inode *inode, struct file *file)
 }
 static int kfd_debugfs_hang_hws_read(struct seq_file *m, void *data)
 {
-	seq_printf(m, "echo gpu_id > hang_hws\n");
+	seq_puts(m, "echo gpu_id > hang_hws\n");
 	return 0;
 }
 

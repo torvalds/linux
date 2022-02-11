@@ -92,7 +92,7 @@ union GRBM_GFX_INDEX_BITS {
  *
  * @initialize: Initializes the pipelines and memory module for that device.
  *
- * @start: Initializes the resources/modules the the device needs for queues
+ * @start: Initializes the resources/modules the device needs for queues
  * execution. This function is called on device initialization and after the
  * system woke up after suspension.
  *
@@ -113,7 +113,7 @@ union GRBM_GFX_INDEX_BITS {
  *
  * @evict_process_queues: Evict all active queues of a process
  *
- * @restore_process_queues: Restore all evicted queues queues of a process
+ * @restore_process_queues: Restore all evicted queues of a process
  *
  * @get_wave_state: Retrieves context save state and optionally copies the
  * control stack, if kept in the MQD, to the given userspace address.
@@ -303,9 +303,7 @@ static inline void dqm_unlock(struct device_queue_manager *dqm)
 
 static inline int read_sdma_queue_counter(uint64_t __user *q_rptr, uint64_t *val)
 {
-        /*
-         * SDMA activity counter is stored at queue's RPTR + 0x8 location.
-         */
+	/* SDMA activity counter is stored at queue's RPTR + 0x8 location. */
 	return get_user(*val, q_rptr + 1);
 }
 #endif /* KFD_DEVICE_QUEUE_MANAGER_H_ */

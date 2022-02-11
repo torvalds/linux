@@ -35,7 +35,7 @@
 #include "kfd_priv.h"
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <asm/processor.h>
+#include <linux/processor.h>
 
 /*
  * The primary memory I/O features being added for revisions of gfxip

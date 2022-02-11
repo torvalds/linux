@@ -1442,9 +1442,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	}
 
 	/*
-	* Overwrite ATS capability according to needs_iommu_device to fix
-	* potential missing corresponding bit in CRAT of BIOS.
-	*/
+	 * Overwrite ATS capability according to needs_iommu_device to fix
+	 * potential missing corresponding bit in CRAT of BIOS.
+	 */
 	if (dev->gpu->use_iommu_v2)
 		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 	else

@@ -363,7 +363,7 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 			if (r)
 				goto out_free_vram_pages;
 			amdgpu_res_next(&cursor, (j + 1) * PAGE_SIZE);
-			j= 0;
+			j = 0;
 		} else {
 			j++;
 		}

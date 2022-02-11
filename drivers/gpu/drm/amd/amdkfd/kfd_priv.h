@@ -794,7 +794,7 @@ struct svm_range_list {
 	atomic_t			drain_pagefaults;
 	struct delayed_work		restore_work;
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
-	struct task_struct 		*faulting_task;
+	struct task_struct		*faulting_task;
 };
 
 /* Process data */
@@ -915,7 +915,7 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev);
 int kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
 struct kfd_process *kfd_create_process(struct file *filep);
-struct kfd_process *kfd_get_process(const struct task_struct *);
+struct kfd_process *kfd_get_process(const struct task_struct *task);
 struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 

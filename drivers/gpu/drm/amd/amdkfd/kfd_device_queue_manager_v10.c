@@ -62,15 +62,6 @@ static int update_qpd_v10(struct device_queue_manager *dqm,
 			(SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
 				SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) |
 			(3 << SH_MEM_CONFIG__INITIAL_INST_PREFETCH__SHIFT);
-#if 0
-		/* TODO:
-		 *    This shouldn't be an issue with Navi10.  Verify.
-		 */
-		if (vega10_noretry)
-			qpd->sh_mem_config |=
-				1 << SH_MEM_CONFIG__RETRY_DISABLE__SHIFT;
-#endif
-
 		qpd->sh_mem_ape1_limit = 0;
 		qpd->sh_mem_ape1_base = 0;
 	}

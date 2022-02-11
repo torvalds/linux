@@ -120,7 +120,8 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 	kfd_signal_poison_consumed_event(dev, pasid);
 
 	/* resetting queue passes, do page retirement without gpu reset
-	   resetting queue fails, fallback to gpu reset solution */
+	 * resetting queue fails, fallback to gpu reset solution
+	 */
 	if (!ret)
 		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, false);
 	else

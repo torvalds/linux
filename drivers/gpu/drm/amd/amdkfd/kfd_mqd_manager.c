@@ -101,6 +101,7 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	struct kfd_cu_info cu_info;
 	uint32_t cu_per_sh[KFD_MAX_NUM_SE][KFD_MAX_NUM_SH_PER_SE] = {0};
 	int i, se, sh, cu;
+
 	amdgpu_amdkfd_get_cu_info(mm->dev->adev, &cu_info);
 
 	if (cu_mask_count > cu_info.cu_active_number)

@@ -1382,7 +1382,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		num_of_cache_types = ARRAY_SIZE(vegam_cache_info);
 		break;
 	default:
-		switch(KFD_GC_VERSION(kdev)) {
+		switch (KFD_GC_VERSION(kdev)) {
 		case IP_VERSION(9, 0, 1):
 			pcache_info = vega10_cache_info;
 			num_of_cache_types = ARRAY_SIZE(vega10_cache_info);

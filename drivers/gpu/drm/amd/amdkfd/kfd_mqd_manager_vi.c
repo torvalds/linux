@@ -329,6 +329,7 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 			struct queue_properties *q)
 {
 	struct vi_mqd *m;
+
 	init_mqd(mm, mqd, mqd_mem_obj, gart_addr, q);
 
 	m = get_mqd(*mqd);
