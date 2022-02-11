@@ -26,11 +26,11 @@
 #include <linux/delay.h>
 #include <linux/atomic.h>
 #include <linux/ctype.h>
-#include <linux/blk-cgroup.h>
 #include <linux/tracehook.h>
 #include <linux/psi.h>
 #include <linux/part_stat.h>
 #include "blk.h"
+#include "blk-cgroup.h"
 #include "blk-ioprio.h"
 #include "blk-throttle.h"
 

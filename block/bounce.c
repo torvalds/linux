@@ -14,7 +14,6 @@
 #include <linux/pagemap.h>
 #include <linux/mempool.h>
 #include <linux/blkdev.h>
-#include <linux/blk-cgroup.h>
 #include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/hash.h>
@@ -24,6 +23,7 @@
 
 #include <trace/events/block.h>
 #include "blk.h"
+#include "blk-cgroup.h"
 
 #define POOL_SIZE	64
 #define ISA_POOL_SIZE	16

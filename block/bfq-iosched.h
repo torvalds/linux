@@ -8,7 +8,6 @@
 
 #include <linux/blktrace_api.h>
 #include <linux/hrtimer.h>
-#include <linux/blk-cgroup.h>
 
 #include "blk-cgroup-rwstat.h"
 

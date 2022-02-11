@@ -34,7 +34,6 @@
 #include <linux/delay.h>
 #include <linux/ratelimit.h>
 #include <linux/pm_runtime.h>
-#include <linux/blk-cgroup.h>
 #include <linux/t10-pi.h>
 #include <linux/debugfs.h>
 #include <linux/bpf.h>
@@ -49,6 +48,7 @@
 #include "blk.h"
 #include "blk-mq-sched.h"
 #include "blk-pm.h"
+#include "blk-cgroup.h"
 #include "blk-throttle.h"
 
 struct dentry *blk_debugfs_root;

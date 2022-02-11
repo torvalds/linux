@@ -10,7 +10,6 @@
 #include <linux/backing-dev.h>
 #include <linux/blktrace_api.h>
 #include <linux/blk-mq.h>
-#include <linux/blk-cgroup.h>
 #include <linux/debugfs.h>
 
 #include "blk.h"
@@ -18,6 +17,7 @@
 #include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
 #include "blk-wbt.h"
+#include "blk-cgroup.h"
 #include "blk-throttle.h"
 
 struct queue_sysfs_entry {

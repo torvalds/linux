@@ -12,11 +12,11 @@
  *   Documentation/admin-guide/cgroup-v2.rst.
  */
 
-#include <linux/blk-cgroup.h>
 #include <linux/blk-mq.h>
 #include <linux/blk_types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include "blk-cgroup.h"
 #include "blk-ioprio.h"
 #include "blk-rq-qos.h"
 
