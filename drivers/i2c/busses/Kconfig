@@ -477,8 +477,8 @@ config I2C_BCM_KONA
 
 config I2C_BRCMSTB
 	tristate "BRCM Settop/DSL I2C controller"
-	depends on ARCH_BCM2835 || ARCH_BRCMSTB || BMIPS_GENERIC || \
-		   ARCH_BCM_63XX || COMPILE_TEST
+	depends on ARCH_BCM2835 || ARCH_BCM4908 || ARCH_BCM_63XX || \
+		   ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
 	default y
 	help
 	  If you say yes to this option, support will be included for the
