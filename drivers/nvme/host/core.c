@@ -368,6 +368,7 @@ EXPORT_SYMBOL_GPL(nvme_complete_rq);
 
 void nvme_complete_batch_req(struct request *req)
 {
+	trace_nvme_complete_rq(req);
 	nvme_cleanup_cmd(req);
 	nvme_end_req_zoned(req);
 }
