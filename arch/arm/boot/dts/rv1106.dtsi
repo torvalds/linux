@@ -31,6 +31,9 @@
 		serial3 = &uart3;
 		serial4 = &uart4;
 		serial5 = &uart5;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &sfc;
 	};
 
 	cpus {
@@ -361,6 +364,36 @@
 		status = "disabled";
 	};
 
+	spi0: spi@ff500000 {
+		compatible = "rockchip,rv1106-spi", "rockchip,rk3066-spi";
+		reg = <0xff500000 0x1000>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>;
+		clock-names = "spiclk", "apb_pclk";
+		dmas = <&dmac 1>, <&dmac 0>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins>;
+		status = "disabled";
+	};
+
+	spi1: spi@ff510000 {
+		compatible = "rockchip,rv1106-spi", "rockchip,rk3066-spi";
+		reg = <0xff510000 0x1000>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
+		clock-names = "spiclk", "apb_pclk";
+		dmas = <&dmac 3>, <&dmac 2>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi1m0_cs0 &spi1m0_cs1 &spi1m0_pins>;
+		status = "disabled";
+	};
+
 	ioc: syscon@ff538000 {
 		compatible = "rockchip,rv1106-ioc", "syscon";
 		reg = <0xff538000 0x40000>;
@@ -421,6 +454,19 @@
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		max-frequency = <200000000>;
+		status = "disabled";
+	};
+
+	sfc: spi@ffac0000  {
+		compatible = "rockchip,sfc";
+		reg = <0xffac0000 0x4000>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		assigned-clocks = <&cru SCLK_SFC>;
+		assigned-clock-rates = <75000000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
