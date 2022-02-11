@@ -27,7 +27,7 @@
 
 #include <linux/types.h>
 #include <linux/mutex.h>
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/dma-fence.h>
 #include <drm/drm_print.h>
 #include <drm/ttm/ttm_caching.h>
@@ -41,7 +41,7 @@ struct ttm_resource;
 struct ttm_place;
 struct ttm_buffer_object;
 struct ttm_placement;
-struct dma_buf_map;
+struct iosys_map;
 struct io_mapping;
 struct sg_table;
 struct scatterlist;
@@ -210,7 +210,7 @@ struct ttm_kmap_iter_iomap {
  */
 struct ttm_kmap_iter_linear_io {
 	struct ttm_kmap_iter base;
-	struct dma_buf_map dmap;
+	struct iosys_map dmap;
 	bool needs_unmap;
 };
 

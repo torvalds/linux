@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_memory_region.h"
 #include "intel_region_lmem.h"
 #include "intel_region_ttm.h"

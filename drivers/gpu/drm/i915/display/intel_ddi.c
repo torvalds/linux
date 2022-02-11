@@ -32,6 +32,7 @@
 #include "intel_audio.h"
 #include "intel_backlight.h"
 #include "intel_combo_phy.h"
+#include "intel_combo_phy_regs.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_ddi.h"
@@ -56,6 +57,7 @@
 #include "intel_snps_phy.h"
 #include "intel_sprite.h"
 #include "intel_tc.h"
+#include "intel_tc_phy_regs.h"
 #include "intel_vdsc.h"
 #include "intel_vrr.h"
 #include "skl_scaler.h"
@@ -2287,116 +2289,6 @@ static void intel_ddi_mso_configure(const struct intel_crtc_state *crtc_state)
 		     OVERLAP_PIXELS_MASK, dss1);
 }
 
-static void dg2_ddi_pre_enable_dp(struct intel_atomic_state *state,
-				  struct intel_encoder *encoder,
-				  const struct intel_crtc_state *crtc_state,
-				  const struct drm_connector_state *conn_state)
-{
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
-
-	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
-				 crtc_state->lane_count);
-
-	/*
-	 * We only configure what the register value will be here.  Actual
-	 * enabling happens during link training farther down.
-	 */
-	intel_ddi_init_dp_buf_reg(encoder, crtc_state);
-
-	/*
-	 * 1. Enable Power Wells
-	 *
-	 * This was handled at the beginning of intel_atomic_commit_tail(),
-	 * before we called down into this function.
-	 */
-
-	/* 2. Enable Panel Power if PPS is required */
-	intel_pps_on(intel_dp);
-
-	/*
-	 * 3. Enable the port PLL.
-	 */
-	intel_ddi_enable_clock(encoder, crtc_state);
-
-	/* 4. Enable IO power */
-	if (!intel_tc_port_in_tbt_alt_mode(dig_port))
-		dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
-								   dig_port->ddi_io_power_domain);
-
-	/*
-	 * 5. The rest of the below are substeps under the bspec's "Enable and
-	 * Train Display Port" step.  Note that steps that are specific to
-	 * MST will be handled by intel_mst_pre_enable_dp() before/after it
-	 * calls into this function.  Also intel_mst_pre_enable_dp() only calls
-	 * us when active_mst_links==0, so any steps designated for "single
-	 * stream or multi-stream master transcoder" can just be performed
-	 * unconditionally here.
-	 */
-
-	/*
-	 * 5.a Configure Transcoder Clock Select to direct the Port clock to the
-	 * Transcoder.
-	 */
-	intel_ddi_enable_pipe_clock(encoder, crtc_state);
-
-	/* 5.b Configure transcoder for DP 2.0 128b/132b */
-	intel_ddi_config_transcoder_dp2(encoder, crtc_state);
-
-	/*
-	 * 5.c Configure TRANS_DDI_FUNC_CTL DDI Select, DDI Mode Select & MST
-	 * Transport Select
-	 */
-	intel_ddi_config_transcoder_func(encoder, crtc_state);
-
-	/*
-	 * 5.d Configure & enable DP_TP_CTL with link training pattern 1
-	 * selected
-	 *
-	 * This will be handled by the intel_dp_start_link_train() farther
-	 * down this function.
-	 */
-
-	/* 5.e Configure voltage swing and related IO settings */
-	encoder->set_signal_levels(encoder, crtc_state);
-
-	if (!is_mst)
-		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
-
-	intel_dp_configure_protocol_converter(intel_dp, crtc_state);
-	intel_dp_sink_set_decompression_state(intel_dp, crtc_state, true);
-	/*
-	 * DDI FEC: "anticipates enabling FEC encoding sets the FEC_READY bit
-	 * in the FEC_CONFIGURATION register to 1 before initiating link
-	 * training
-	 */
-	intel_dp_sink_set_fec_ready(intel_dp, crtc_state);
-	intel_dp_check_frl_training(intel_dp);
-	intel_dp_pcon_dsc_configure(intel_dp, crtc_state);
-
-	/*
-	 * 5.h Follow DisplayPort specification training sequence (see notes for
-	 *     failure handling)
-	 * 5.i If DisplayPort multi-stream - Set DP_TP_CTL link training to Idle
-	 *     Pattern, wait for 5 idle patterns (DP_TP_STATUS Min_Idles_Sent)
-	 *     (timeout after 800 us)
-	 */
-	intel_dp_start_link_train(intel_dp, crtc_state);
-
-	/* 5.j Set DP_TP_CTL link training to Normal */
-	if (!is_trans_port_sync_mode(crtc_state))
-		intel_dp_stop_link_train(intel_dp, crtc_state);
-
-	/* 5.k Configure and enable FEC if needed */
-	intel_ddi_enable_fec(encoder, crtc_state);
-
-	intel_dsc_dp_pps_write(encoder, crtc_state);
-
-	intel_dsc_enable(crtc_state);
-}
-
 static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state,
@@ -2470,6 +2362,9 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 */
 	intel_ddi_enable_pipe_clock(encoder, crtc_state);
 
+	if (HAS_DP20(dev_priv))
+		intel_ddi_config_transcoder_dp2(encoder, crtc_state);
+
 	/*
 	 * 7.b Configure TRANS_DDI_FUNC_CTL DDI Select, DDI Mode Select & MST
 	 * Transport Select
@@ -2530,9 +2425,6 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	intel_ddi_enable_fec(encoder, crtc_state);
 
 	intel_dsc_dp_pps_write(encoder, crtc_state);
-
-	if (!crtc_state->bigjoiner)
-		intel_dsc_enable(crtc_state);
 }
 
 static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
@@ -2598,9 +2490,6 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 		intel_ddi_enable_pipe_clock(encoder, crtc_state);
 
 	intel_dsc_dp_pps_write(encoder, crtc_state);
-
-	if (!crtc_state->bigjoiner)
-		intel_dsc_enable(crtc_state);
 }
 
 static void intel_ddi_pre_enable_dp(struct intel_atomic_state *state,
@@ -2610,9 +2499,7 @@ static void intel_ddi_pre_enable_dp(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (IS_DG2(dev_priv))
-		dg2_ddi_pre_enable_dp(state, encoder, crtc_state, conn_state);
-	else if (DISPLAY_VER(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 12)
 		tgl_ddi_pre_enable_dp(state, encoder, crtc_state, conn_state);
 	else
 		hsw_ddi_pre_enable_dp(state, encoder, crtc_state, conn_state);
@@ -2620,11 +2507,8 @@ static void intel_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	/* MST will call a setting of MSA after an allocating of Virtual Channel
 	 * from MST encoder pre_enable callback.
 	 */
-	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
 		intel_ddi_set_dp_msa(crtc_state, conn_state);
-
-		intel_dp_set_m_n(crtc_state, M1_N1);
-	}
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
@@ -3471,7 +3355,11 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 			pipe_config->output_types |= BIT(INTEL_OUTPUT_DP);
 		pipe_config->lane_count =
 			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
-		intel_dp_get_m_n(crtc, pipe_config);
+
+		intel_cpu_transcoder_get_m1_n1(crtc, cpu_transcoder,
+					       &pipe_config->dp_m_n);
+		intel_cpu_transcoder_get_m2_n2(crtc, cpu_transcoder,
+					       &pipe_config->dp_m2_n2);
 
 		if (DISPLAY_VER(dev_priv) >= 11) {
 			i915_reg_t dp_tp_ctl = dp_tp_ctl_reg(encoder, pipe_config);
@@ -3508,7 +3396,8 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 			pipe_config->mst_master_transcoder =
 					REG_FIELD_GET(TRANS_DDI_MST_TRANSPORT_SELECT_MASK, temp);
 
-		intel_dp_get_m_n(crtc, pipe_config);
+		intel_cpu_transcoder_get_m1_n1(crtc, cpu_transcoder,
+					       &pipe_config->dp_m_n);
 
 		pipe_config->infoframes.enable |=
 			intel_hdmi_infoframes_enabled(encoder, pipe_config);
@@ -3797,8 +3686,8 @@ static bool m_n_equal(const struct intel_link_m_n *m_n_1,
 		      const struct intel_link_m_n *m_n_2)
 {
 	return m_n_1->tu == m_n_2->tu &&
-		m_n_1->gmch_m == m_n_2->gmch_m &&
-		m_n_1->gmch_n == m_n_2->gmch_n &&
+		m_n_1->data_m == m_n_2->data_m &&
+		m_n_1->data_n == m_n_2->data_n &&
 		m_n_1->link_m == m_n_2->link_m &&
 		m_n_1->link_n == m_n_2->link_n;
 }

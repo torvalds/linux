@@ -341,19 +341,14 @@ bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 	const struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	enum pipe pipe = crtc->pipe;
 
 	if (!INTEL_INFO(i915)->display.has_dsc)
 		return false;
 
-	/* On TGL, DSC is supported on all Pipes */
 	if (DISPLAY_VER(i915) >= 12)
 		return true;
 
-	if (DISPLAY_VER(i915) >= 11 &&
-	    (pipe != PIPE_A || cpu_transcoder == TRANSCODER_EDP ||
-	     cpu_transcoder == TRANSCODER_DSI_0 ||
-	     cpu_transcoder == TRANSCODER_DSI_1))
+	if (DISPLAY_VER(i915) >= 11 && cpu_transcoder != TRANSCODER_A)
 		return true;
 
 	return false;

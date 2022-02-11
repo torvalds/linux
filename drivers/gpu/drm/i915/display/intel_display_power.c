@@ -7,6 +7,7 @@
 #include "i915_irq.h"
 #include "intel_cdclk.h"
 #include "intel_combo_phy.h"
+#include "intel_combo_phy_regs.h"
 #include "intel_crt.h"
 #include "intel_de.h"
 #include "intel_display_power.h"
@@ -682,9 +683,8 @@ static void icl_tc_cold_exit(struct drm_i915_private *i915)
 	int ret, tries = 0;
 
 	while (1) {
-		ret = sandybridge_pcode_write_timeout(i915,
-						      ICL_PCODE_EXIT_TCCOLD,
-						      0, 250, 1);
+		ret = snb_pcode_write_timeout(i915, ICL_PCODE_EXIT_TCCOLD, 0,
+					      250, 1);
 		if (ret != -EAGAIN || ++tries == 3)
 			break;
 		msleep(1);
@@ -4052,8 +4052,7 @@ tgl_tc_cold_request(struct drm_i915_private *i915, bool block)
 		 * Spec states that we should timeout the request after 200us
 		 * but the function below will timeout after 500us
 		 */
-		ret = sandybridge_pcode_read(i915, TGL_PCODE_TCCOLD, &low_val,
-					     &high_val);
+		ret = snb_pcode_read(i915, TGL_PCODE_TCCOLD, &low_val, &high_val);
 		if (ret == 0) {
 			if (block &&
 			    (low_val & TGL_PCODE_EXIT_TCCOLD_DATA_L_EXIT_FAILED))
@@ -5468,8 +5467,7 @@ static u32 hsw_read_dcomp(struct drm_i915_private *dev_priv)
 static void hsw_write_dcomp(struct drm_i915_private *dev_priv, u32 val)
 {
 	if (IS_HASWELL(dev_priv)) {
-		if (sandybridge_pcode_write(dev_priv,
-					    GEN6_PCODE_WRITE_D_COMP, val))
+		if (snb_pcode_write(dev_priv, GEN6_PCODE_WRITE_D_COMP, val))
 			drm_dbg_kms(&dev_priv->drm,
 				    "Failed to write to D_COMP\n");
 	} else {
@@ -5582,7 +5580,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	intel_update_cdclk(dev_priv);
-	intel_dump_cdclk_config(&dev_priv->cdclk.hw, "Current CDCLK");
+	intel_cdclk_dump_config(dev_priv, &dev_priv->cdclk.hw, "Current CDCLK");
 }
 
 /*
@@ -6213,6 +6211,37 @@ void intel_power_domains_driver_remove(struct drm_i915_private *i915)
 
 	/* Keep the power well enabled, but cancel its rpm wakeref. */
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+}
+
+/**
+ * intel_power_domains_sanitize_state - sanitize power domains state
+ * @i915: i915 device instance
+ *
+ * Sanitize the power domains state during driver loading and system resume.
+ * The function will disable all display power wells that BIOS has enabled
+ * without a user for it (any user for a power well has taken a reference
+ * on it by the time this function is called, after the state of all the
+ * pipe, encoder, etc. HW resources have been sanitized).
+ */
+void intel_power_domains_sanitize_state(struct drm_i915_private *i915)
+{
+	struct i915_power_domains *power_domains = &i915->power_domains;
+	struct i915_power_well *power_well;
+
+	mutex_lock(&power_domains->lock);
+
+	for_each_power_well_reverse(i915, power_well) {
+		if (power_well->desc->always_on || power_well->count ||
+		    !power_well->desc->ops->is_enabled(i915, power_well))
+			continue;
+
+		drm_dbg_kms(&i915->drm,
+			    "BIOS left unused %s power well enabled, disabling it\n",
+			    power_well->desc->name);
+		intel_power_well_disable(i915, power_well);
+	}
+
+	mutex_unlock(&power_domains->lock);
 }
 
 /**

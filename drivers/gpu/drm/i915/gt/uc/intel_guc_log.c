@@ -7,6 +7,7 @@
 
 #include "gt/intel_gt.h"
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "i915_memcpy.h"
 #include "intel_guc_log.h"
 

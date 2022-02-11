@@ -4,8 +4,10 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_guc_slpc.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_regs.h"
 
 static inline struct intel_guc *slpc_to_guc(struct intel_guc_slpc *slpc)
 {

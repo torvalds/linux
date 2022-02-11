@@ -286,13 +286,14 @@ void drm_gem_shmem_unpin(struct drm_gem_shmem_object *shmem)
 }
 EXPORT_SYMBOL(drm_gem_shmem_unpin);
 
-static int drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem, struct dma_buf_map *map)
+static int drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem,
+				     struct iosys_map *map)
 {
 	struct drm_gem_object *obj = &shmem->base;
 	int ret = 0;
 
 	if (shmem->vmap_use_count++ > 0) {
-		dma_buf_map_set_vaddr(map, shmem->vaddr);
+		iosys_map_set_vaddr(map, shmem->vaddr);
 		return 0;
 	}
 
@@ -319,7 +320,7 @@ static int drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem, struct 
 		if (!shmem->vaddr)
 			ret = -ENOMEM;
 		else
-			dma_buf_map_set_vaddr(map, shmem->vaddr);
+			iosys_map_set_vaddr(map, shmem->vaddr);
 	}
 
 	if (ret) {
@@ -353,7 +354,8 @@ err_zero_use:
  * Returns:
  * 0 on success or a negative error code on failure.
  */
-int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem, struct dma_buf_map *map)
+int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
+		       struct iosys_map *map)
 {
 	int ret;
 
@@ -368,7 +370,7 @@ int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem, struct dma_buf_map *m
 EXPORT_SYMBOL(drm_gem_shmem_vmap);
 
 static void drm_gem_shmem_vunmap_locked(struct drm_gem_shmem_object *shmem,
-					struct dma_buf_map *map)
+					struct iosys_map *map)
 {
 	struct drm_gem_object *obj = &shmem->base;
 
@@ -400,7 +402,8 @@ static void drm_gem_shmem_vunmap_locked(struct drm_gem_shmem_object *shmem,
  * This function hides the differences between dma-buf imported and natively
  * allocated objects.
  */
-void drm_gem_shmem_vunmap(struct drm_gem_shmem_object *shmem, struct dma_buf_map *map)
+void drm_gem_shmem_vunmap(struct drm_gem_shmem_object *shmem,
+			  struct iosys_map *map)
 {
 	mutex_lock(&shmem->vmap_lock);
 	drm_gem_shmem_vunmap_locked(shmem, map);

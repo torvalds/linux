@@ -36,6 +36,7 @@
 #include "gt/intel_context.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_heartbeat.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_ring.h"

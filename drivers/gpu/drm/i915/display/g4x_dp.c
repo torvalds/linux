@@ -18,6 +18,7 @@
 #include "intel_fifo_underrun.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
+#include "intel_pch_display.h"
 #include "intel_pps.h"
 #include "vlv_sideband.h"
 
@@ -333,6 +334,21 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	return ret;
 }
 
+static void g4x_dp_get_m_n(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc_state->has_pch_encoder) {
+		intel_pch_transcoder_get_m1_n1(crtc, &crtc_state->dp_m_n);
+		intel_pch_transcoder_get_m2_n2(crtc, &crtc_state->dp_m2_n2);
+	} else {
+		intel_cpu_transcoder_get_m1_n1(crtc, crtc_state->cpu_transcoder,
+					       &crtc_state->dp_m_n);
+		intel_cpu_transcoder_get_m2_n2(crtc, crtc_state->cpu_transcoder,
+					       &crtc_state->dp_m2_n2);
+	}
+}
+
 static void intel_dp_get_config(struct intel_encoder *encoder,
 				struct intel_crtc_state *pipe_config)
 {
@@ -384,7 +400,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	pipe_config->lane_count =
 		((tmp & DP_PORT_WIDTH_MASK) >> DP_PORT_WIDTH_SHIFT) + 1;
 
-	intel_dp_get_m_n(crtc, pipe_config);
+	g4x_dp_get_m_n(pipe_config);
 
 	if (port == PORT_A) {
 		if ((intel_de_read(dev_priv, DP_A) & DP_PLL_FREQ_MASK) == DP_PLL_FREQ_162MHZ)

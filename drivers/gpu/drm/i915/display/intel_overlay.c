@@ -38,6 +38,7 @@
 #include "intel_display_types.h"
 #include "intel_frontbuffer.h"
 #include "intel_overlay.h"
+#include "intel_pci_config.h"
 
 /* Limits for overlay size. According to intel doc, the real limits are:
  * Y width: 4095, UV width (planar): 2047, Y height: 2047,
@@ -958,6 +959,9 @@ static int check_overlay_dst(struct intel_overlay *overlay,
 {
 	const struct intel_crtc_state *pipe_config =
 		overlay->crtc->config;
+
+	if (rec->dst_height == 0 || rec->dst_width == 0)
+		return -EINVAL;
 
 	if (rec->dst_x < pipe_config->pipe_src_w &&
 	    rec->dst_x + rec->dst_width <= pipe_config->pipe_src_w &&

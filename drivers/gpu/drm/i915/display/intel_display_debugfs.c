@@ -2402,6 +2402,9 @@ void intel_connector_debugfs_add(struct intel_connector *intel_connector)
  */
 void intel_crtc_debugfs_add(struct drm_crtc *crtc)
 {
-	if (crtc->debugfs_entry)
-		crtc_updates_add(crtc);
+	if (!crtc->debugfs_entry)
+		return;
+
+	crtc_updates_add(crtc);
+	intel_fbc_crtc_debugfs_add(to_intel_crtc(crtc));
 }

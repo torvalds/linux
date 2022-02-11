@@ -10,6 +10,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_snps_phy.h"
+#include "intel_snps_phy_regs.h"
 
 /**
  * DOC: Synopsis PHY support
@@ -23,18 +24,18 @@
  * since it is not handled by the shared DPLL framework as on other platforms.
  */
 
-void intel_snps_phy_wait_for_calibration(struct drm_i915_private *dev_priv)
+void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
 {
 	enum phy phy;
 
 	for_each_phy_masked(phy, ~0) {
-		if (!intel_phy_is_snps(dev_priv, phy))
+		if (!intel_phy_is_snps(i915, phy))
 			continue;
 
-		if (intel_de_wait_for_clear(dev_priv, ICL_PHY_MISC(phy),
+		if (intel_de_wait_for_clear(i915, ICL_PHY_MISC(phy),
 					    DG2_PHY_DP_TX_ACK_MASK, 25))
-			DRM_ERROR("SNPS PHY %c failed to calibrate after 25ms.\n",
-				  phy);
+			drm_err(&i915->drm, "SNPS PHY %c failed to calibrate after 25ms.\n",
+				phy);
 	}
 }
 
@@ -775,6 +776,7 @@ intel_mpllb_tables_get(struct intel_crtc_state *crtc_state,
 int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 			   struct intel_encoder *encoder)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	const struct intel_mpllb_state * const *tables;
 	int i;
 
@@ -786,8 +788,8 @@ int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 			 * until we have a proper algorithm under a valid
 			 * license.
 			 */
-			DRM_DEBUG_KMS("Can't support HDMI link rate %d\n",
-				      crtc_state->port_clock);
+			drm_dbg_kms(&i915->drm, "Can't support HDMI link rate %d\n",
+				    crtc_state->port_clock);
 			return -EINVAL;
 		}
 	}
@@ -854,7 +856,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 * dp_mpllb_state interface signal.
 	 */
 	if (intel_de_wait_for_set(dev_priv, enable_reg, PLL_LOCK, 5))
-		DRM_ERROR("Port %c PLL not locked\n", phy_name(phy));
+		drm_dbg_kms(&dev_priv->drm, "Port %c PLL not locked\n", phy_name(phy));
 
 	/*
 	 * 11. If the frequency will result in a change to the voltage
@@ -867,8 +869,8 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 
 void intel_mpllb_disable(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
 	i915_reg_t enable_reg = (phy <= PHY_D ?
 				 DG2_PLL_ENABLE(phy) : MG_PLL_ENABLE(0));
 
@@ -881,21 +883,21 @@ void intel_mpllb_disable(struct intel_encoder *encoder)
 	 */
 
 	/* 2. Software programs DPLL_ENABLE [PLL Enable] to "0" */
-	intel_uncore_rmw(&dev_priv->uncore, enable_reg, PLL_ENABLE, 0);
+	intel_uncore_rmw(&i915->uncore, enable_reg, PLL_ENABLE, 0);
 
 	/*
 	 * 4. Software programs SNPS_PHY_MPLLB_DIV dp_mpllb_force_en to "0".
 	 * This will allow the PLL to stop running.
 	 */
-	intel_uncore_rmw(&dev_priv->uncore, SNPS_PHY_MPLLB_DIV(phy),
+	intel_uncore_rmw(&i915->uncore, SNPS_PHY_MPLLB_DIV(phy),
 			 SNPS_PHY_MPLLB_FORCE_EN, 0);
 
 	/*
 	 * 5. Software polls DPLL_ENABLE [PLL Lock] for PHY acknowledgment
 	 * (dp_txX_ack) that the new transmitter setting request is completed.
 	 */
-	if (intel_de_wait_for_clear(dev_priv, enable_reg, PLL_LOCK, 5))
-		DRM_ERROR("Port %c PLL not locked\n", phy_name(phy));
+	if (intel_de_wait_for_clear(i915, enable_reg, PLL_LOCK, 5))
+		drm_err(&i915->drm, "Port %c PLL not locked\n", phy_name(phy));
 
 	/*
 	 * 6. If the frequency will result in a change to the voltage

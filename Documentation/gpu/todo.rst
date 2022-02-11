@@ -222,7 +222,7 @@ Convert drivers to use drm_fbdev_generic_setup()
 Most drivers can use drm_fbdev_generic_setup(). Driver have to implement
 atomic modesetting and GEM vmap support. Historically, generic fbdev emulation
 expected the framebuffer in system memory or system-like memory. By employing
-struct dma_buf_map, drivers with frambuffers in I/O memory can be supported
+struct iosys_map, drivers with frambuffers in I/O memory can be supported
 as well.
 
 Contact: Maintainer of the driver you plan to convert
@@ -234,7 +234,7 @@ Reimplement functions in drm_fbdev_fb_ops without fbdev
 
 A number of callback functions in drm_fbdev_fb_ops could benefit from
 being rewritten without dependencies on the fbdev module. Some of the
-helpers could further benefit from using struct dma_buf_map instead of
+helpers could further benefit from using struct iosys_map instead of
 raw pointers.
 
 Contact: Thomas Zimmermann <tzimmermann@suse.de>, Daniel Vetter
@@ -434,19 +434,19 @@ Contact: Emil Velikov, respective driver maintainers
 
 Level: Intermediate
 
-Use struct dma_buf_map throughout codebase
-------------------------------------------
+Use struct iosys_map throughout codebase
+----------------------------------------
 
-Pointers to shared device memory are stored in struct dma_buf_map. Each
+Pointers to shared device memory are stored in struct iosys_map. Each
 instance knows whether it refers to system or I/O memory. Most of the DRM-wide
-interface have been converted to use struct dma_buf_map, but implementations
+interface have been converted to use struct iosys_map, but implementations
 often still use raw pointers.
 
-The task is to use struct dma_buf_map where it makes sense.
+The task is to use struct iosys_map where it makes sense.
 
-* Memory managers should use struct dma_buf_map for dma-buf-imported buffers.
-* TTM might benefit from using struct dma_buf_map internally.
-* Framebuffer copying and blitting helpers should operate on struct dma_buf_map.
+* Memory managers should use struct iosys_map for dma-buf-imported buffers.
+* TTM might benefit from using struct iosys_map internally.
+* Framebuffer copying and blitting helpers should operate on struct iosys_map.
 
 Contact: Thomas Zimmermann <tzimmermann@suse.de>, Christian König, Daniel Vetter
 
