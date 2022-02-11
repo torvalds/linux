@@ -1147,47 +1147,50 @@ void add_bootloader_randomness(const void *buf, size_t size)
 EXPORT_SYMBOL_GPL(add_bootloader_randomness);
 
 struct fast_pool {
-	union {
-		u32 pool32[4];
-		u64 pool64[2];
-	};
 	struct work_struct mix;
+	unsigned long pool[4];
 	unsigned long last;
 	unsigned int count;
 	u16 reg_idx;
 };
 
+static DEFINE_PER_CPU(struct fast_pool, irq_randomness) = {
+#ifdef CONFIG_64BIT
+	/* SipHash constants */
+	.pool = { 0x736f6d6570736575UL, 0x646f72616e646f6dUL,
+		  0x6c7967656e657261UL, 0x7465646279746573UL }
+#else
+	/* HalfSipHash constants */
+	.pool = { 0, 0, 0x6c796765U, 0x74656462U }
+#endif
+};
+
 /*
- * This is a fast mixing routine used by the interrupt randomness
- * collector. It's hardcoded for an 128 bit pool and assumes that any
- * locks that might be needed are taken by the caller.
+ * This is [Half]SipHash-1-x, starting from an empty key. Because
+ * the key is fixed, it assumes that its inputs are non-malicious,
+ * and therefore this has no security on its own. s represents the
+ * 128 or 256-bit SipHash state, while v represents a 128-bit input.
  */
-static void fast_mix(u32 pool[4])
+static void fast_mix(unsigned long s[4], const unsigned long *v)
 {
-	u32 a = pool[0],	b = pool[1];
-	u32 c = pool[2],	d = pool[3];
+	size_t i;
 
-	a += b;			c += d;
-	b = rol32(b, 6);	d = rol32(d, 27);
-	d ^= a;			b ^= c;
-
-	a += b;			c += d;
-	b = rol32(b, 16);	d = rol32(d, 14);
-	d ^= a;			b ^= c;
-
-	a += b;			c += d;
-	b = rol32(b, 6);	d = rol32(d, 27);
-	d ^= a;			b ^= c;
-
-	a += b;			c += d;
-	b = rol32(b, 16);	d = rol32(d, 14);
-	d ^= a;			b ^= c;
-
-	pool[0] = a;  pool[1] = b;
-	pool[2] = c;  pool[3] = d;
+	for (i = 0; i < 16 / sizeof(long); ++i) {
+		s[3] ^= v[i];
+#ifdef CONFIG_64BIT
+		s[0] += s[1]; s[1] = rol64(s[1], 13); s[1] ^= s[0]; s[0] = rol64(s[0], 32);
+		s[2] += s[3]; s[3] = rol64(s[3], 16); s[3] ^= s[2];
+		s[0] += s[3]; s[3] = rol64(s[3], 21); s[3] ^= s[0];
+		s[2] += s[1]; s[1] = rol64(s[1], 17); s[1] ^= s[2]; s[2] = rol64(s[2], 32);
+#else
+		s[0] += s[1]; s[1] = rol32(s[1],  5); s[1] ^= s[0]; s[0] = rol32(s[0], 16);
+		s[2] += s[3]; s[3] = rol32(s[3],  8); s[3] ^= s[2];
+		s[0] += s[3]; s[3] = rol32(s[3],  7); s[3] ^= s[0];
+		s[2] += s[1]; s[1] = rol32(s[1], 13); s[1] ^= s[2]; s[2] = rol32(s[2], 16);
+#endif
+		s[0] ^= v[i];
+	}
 }
-
-static DEFINE_PER_CPU(struct fast_pool, irq_randomness);
 
 #ifdef CONFIG_SMP
 /*
@@ -1230,7 +1233,15 @@ static unsigned long get_reg(struct fast_pool *f, struct pt_regs *regs)
 static void mix_interrupt_randomness(struct work_struct *work)
 {
 	struct fast_pool *fast_pool = container_of(work, struct fast_pool, mix);
-	u32 pool[4];
+	/*
+	 * The size of the copied stack pool is explicitly 16 bytes so that we
+	 * tax mix_pool_byte()'s compression function the same amount on all
+	 * platforms. This means on 64-bit we copy half the pool into this,
+	 * while on 32-bit we copy all of it. The entropy is supposed to be
+	 * sufficiently dispersed between bits that in the sponge-like
+	 * half case, on average we don't wind up "losing" some.
+	 */
+	u8 pool[16];
 
 	/* Check to see if we're running on the wrong CPU due to hotplug. */
 	local_irq_disable();
@@ -1243,7 +1254,7 @@ static void mix_interrupt_randomness(struct work_struct *work)
 	 * Copy the pool to the stack so that the mixer always has a
 	 * consistent view, before we reenable irqs again.
 	 */
-	memcpy(pool, fast_pool->pool32, sizeof(pool));
+	memcpy(pool, fast_pool->pool, sizeof(pool));
 	fast_pool->count = 0;
 	fast_pool->last = jiffies;
 	local_irq_enable();
@@ -1267,25 +1278,30 @@ void add_interrupt_randomness(int irq)
 	struct fast_pool *fast_pool = this_cpu_ptr(&irq_randomness);
 	struct pt_regs *regs = get_irq_regs();
 	unsigned int new_count;
+	union {
+		u32 u32[4];
+		u64 u64[2];
+		unsigned long longs[16 / sizeof(long)];
+	} irq_data;
 
 	if (cycles == 0)
 		cycles = get_reg(fast_pool, regs);
 
 	if (sizeof(cycles) == 8)
-		fast_pool->pool64[0] ^= cycles ^ rol64(now, 32) ^ irq;
+		irq_data.u64[0] = cycles ^ rol64(now, 32) ^ irq;
 	else {
-		fast_pool->pool32[0] ^= cycles ^ irq;
-		fast_pool->pool32[1] ^= now;
+		irq_data.u32[0] = cycles ^ irq;
+		irq_data.u32[1] = now;
 	}
 
 	if (sizeof(unsigned long) == 8)
-		fast_pool->pool64[1] ^= regs ? instruction_pointer(regs) : _RET_IP_;
+		irq_data.u64[1] = regs ? instruction_pointer(regs) : _RET_IP_;
 	else {
-		fast_pool->pool32[2] ^= regs ? instruction_pointer(regs) : _RET_IP_;
-		fast_pool->pool32[3] ^= get_reg(fast_pool, regs);
+		irq_data.u32[2] = regs ? instruction_pointer(regs) : _RET_IP_;
+		irq_data.u32[3] = get_reg(fast_pool, regs);
 	}
 
-	fast_mix(fast_pool->pool32);
+	fast_mix(fast_pool->pool, irq_data.longs);
 	new_count = ++fast_pool->count;
 
 	if (new_count & MIX_INFLIGHT)
