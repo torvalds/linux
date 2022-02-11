@@ -961,3 +961,18 @@ struct maps *map__kmaps(struct map *map)
 	}
 	return kmap->kmaps;
 }
+
+u64 map__map_ip(const struct map *map, u64 ip)
+{
+	return ip - map->start + map->pgoff;
+}
+
+u64 map__unmap_ip(const struct map *map, u64 ip)
+{
+	return ip + map->start - map->pgoff;
+}
+
+u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip)
+{
+	return ip;
+}
