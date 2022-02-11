@@ -25,18 +25,6 @@
 #include "sysfs.h"
 #include "tree-mod-log.h"
 
-/* TODO XXX FIXME
- *  - subvol delete -> delete when ref goes to 0? delete limits also?
- *  - reorganize keys
- *  - compressed
- *  - sync
- *  - copy also limits on subvol creation
- *  - limit
- *  - caches for ulists
- *  - performance benchmarks
- *  - check all ioctl parameters
- */
-
 /*
  * Helpers to access qgroup reservation
  *
