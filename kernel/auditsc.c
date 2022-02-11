@@ -185,7 +185,7 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 	case AUDITSC_EXECVE:
 		return mask & AUDIT_PERM_EXEC;
 	case AUDITSC_OPENAT2:
-		return mask & ACC_MODE((u32)((struct open_how *)ctx->argv[2])->flags);
+		return mask & ACC_MODE((u32)ctx->openat2.flags);
 	default:
 		return 0;
 	}
