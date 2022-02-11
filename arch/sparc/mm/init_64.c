@@ -709,9 +709,10 @@ static void __init inherit_prom_mappings(void)
 
 void prom_world(int enter)
 {
-	if (!enter)
-		set_fs(get_fs());
-
+	/*
+	 * No need to change the address space any more, just flush
+	 * the register windows
+	 */
 	__asm__ __volatile__("flushw");
 }
 

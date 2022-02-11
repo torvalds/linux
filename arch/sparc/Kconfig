@@ -46,7 +46,6 @@ config SPARC
 	select LOCKDEP_SMALL if LOCKDEP
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
-	select SET_FS
 	select TRACE_IRQFLAGS_SUPPORT
 
 config SPARC32
@@ -59,6 +58,7 @@ config SPARC32
 	select HAVE_UID16
 	select OLD_SIGACTION
 	select ZONE_DMA
+	select SET_FS
 
 config SPARC64
 	def_bool 64BIT
