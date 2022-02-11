@@ -782,8 +782,7 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	sas_enable_revalidation(sas_ha);
 }
 
-void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
-		struct list_head *done_q)
+void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q)
 {
 	struct scsi_cmnd *cmd, *n;
 	struct domain_device *eh_dev;
