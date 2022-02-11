@@ -947,13 +947,13 @@ void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int 
 		__le16 len;
 	} hdr = {
 		.magic = cpu_to_le32(FW_BIN_LOG_MAGIC),
-		.msg_type = PKT_TYPE_RX_FW_MONITOR,
+		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
 	};
 
 	if (!dev->relay_fwlog)
 		return;
 
-	hdr.timestamp = mt76_rr(dev, MT_LPON_FRCR(0));
+	hdr.timestamp = cpu_to_le32(mt76_rr(dev, MT_LPON_FRCR(0)));
 	hdr.len = *(__le16 *)data;
 	mt7915_debugfs_write_fwlog(dev, &hdr, sizeof(hdr), data, len);
 }
