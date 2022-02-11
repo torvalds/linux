@@ -2,29 +2,6 @@
 
 These are the HW cryptographic accelerators found on some Atmel products.
 
-* Triple Data Encryption Standard (Triple DES)
-
-Required properties:
-- compatible : Should be "atmel,at91sam9g46-tdes".
-- reg: Should contain TDES registers location and length.
-- interrupts: Should contain the IRQ line for the TDES.
-
-Optional properties:
-- dmas: List of two DMA specifiers as described in
-        atmel-dma.txt and dma.txt files.
-- dma-names: Contains one identifier string for each DMA specifier
-             in the dmas property.
-
-Example:
-tdes@f803c000 {
-	compatible = "atmel,at91sam9g46-tdes";
-	reg = <0xf803c000 0x100>;
-	interrupts = <44 4 0>;
-	dmas = <&dma1 2 20>,
-	       <&dma1 2 21>;
-	dma-names = "tx", "rx";
-};
-
 * Secure Hash Algorithm (SHA)
 
 Required properties:
