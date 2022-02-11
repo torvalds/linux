@@ -1539,7 +1539,7 @@ static int liquidio_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	 * compute the delta in terms of coprocessor clocks.
 	 */
 	delta = (u64)ppb << 32;
-	div64_u64(delta, oct->coproc_clock_rate);
+	do_div(delta, oct->coproc_clock_rate);
 
 	spin_lock_irqsave(&lio->ptp_lock, flags);
 	comp = lio_pci_readq(oct, CN6XXX_MIO_PTP_CLOCK_COMP);
@@ -1672,7 +1672,7 @@ static void liquidio_ptp_init(struct octeon_device *oct)
 	u64 clock_comp, cfg;
 
 	clock_comp = (u64)NSEC_PER_SEC << 32;
-	div64_u64(clock_comp, oct->coproc_clock_rate);
+	do_div(clock_comp, oct->coproc_clock_rate);
 	lio_pci_writeq(oct, clock_comp, CN6XXX_MIO_PTP_CLOCK_COMP);
 
 	/* Enable */
