@@ -554,7 +554,11 @@ void amdgpu_device_wreg(struct amdgpu_device *adev,
 /**
  * amdgpu_mm_wreg_mmio_rlc -  write register either with direct/indirect mmio or with RLC path if in range
  *
- * this function is invoked only the debugfs register access
+ * @adev: amdgpu_device pointer
+ * @reg: mmio/rlc register
+ * @v: value to write
+ *
+ * this function is invoked only for the debugfs register access
  */
 void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
 			     uint32_t reg, uint32_t v)
