@@ -1436,7 +1436,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
 	bool v3, wake = false;
 	u16 total, count = 0;
 	u32 txd = le32_to_cpu(free->txd);
-	u32 *cur_info;
+	__le32 *cur_info;
 
 	/* clean DMA queues and unmap buffers first */
 	mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_PSD], false);
