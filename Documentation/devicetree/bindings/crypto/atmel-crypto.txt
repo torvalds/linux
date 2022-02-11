@@ -2,26 +2,6 @@
 
 These are the HW cryptographic accelerators found on some Atmel products.
 
-* Advanced Encryption Standard (AES)
-
-Required properties:
-- compatible : Should be "atmel,at91sam9g46-aes".
-- reg: Should contain AES registers location and length.
-- interrupts: Should contain the IRQ line for the AES.
-- dmas: List of two DMA specifiers as described in
-        atmel-dma.txt and dma.txt files.
-- dma-names: Contains one identifier string for each DMA specifier
-             in the dmas property.
-
-Example:
-aes@f8038000 {
-	compatible = "atmel,at91sam9g46-aes";
-	reg = <0xf8038000 0x100>;
-	interrupts = <43 4 0>;
-	dmas = <&dma1 2 18>,
-	       <&dma1 2 19>;
-	dma-names = "tx", "rx";
-
 * Triple Data Encryption Standard (Triple DES)
 
 Required properties:
