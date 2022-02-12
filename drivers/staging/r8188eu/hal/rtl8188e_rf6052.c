@@ -375,7 +375,7 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 
 	/* Initialize RF */
 
-	pPhyReg = &pHalData->PHYRegDef[0];
+	pPhyReg = &pHalData->PHYRegDef;
 
 	/*----Store original RFENV control type----*/
 	u4RegValue = rtl8188e_PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV);
