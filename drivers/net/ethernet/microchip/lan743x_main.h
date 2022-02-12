@@ -16,8 +16,13 @@
 #define ID_REV_ID_MASK_			(0xFFFF0000)
 #define ID_REV_ID_LAN7430_		(0x74300000)
 #define ID_REV_ID_LAN7431_		(0x74310000)
-#define ID_REV_IS_VALID_CHIP_ID_(id_rev)	\
-	(((id_rev) & 0xFFF00000) == 0x74300000)
+#define ID_REV_ID_LAN743X_		(0x74300000)
+#define ID_REV_ID_A011_			(0xA0110000)	// PCI11010
+#define ID_REV_ID_A041_			(0xA0410000)	// PCI11414
+#define ID_REV_ID_A0X1_			(0xA0010000)
+#define ID_REV_IS_VALID_CHIP_ID_(id_rev)	    \
+	((((id_rev) & 0xFFF00000) == ID_REV_ID_LAN743X_) || \
+	 (((id_rev) & 0xFF0F0000) == ID_REV_ID_A0X1_))
 #define ID_REV_CHIP_REV_MASK_		(0x0000FFFF)
 #define ID_REV_CHIP_REV_A0_		(0x00000000)
 #define ID_REV_CHIP_REV_B0_		(0x00000010)
@@ -559,6 +564,8 @@ struct lan743x_adapter;
 #define PCI_VENDOR_ID_SMSC		PCI_VENDOR_ID_EFAR
 #define PCI_DEVICE_ID_SMSC_LAN7430	(0x7430)
 #define PCI_DEVICE_ID_SMSC_LAN7431	(0x7431)
+#define PCI_DEVICE_ID_SMSC_A011		(0xA011)
+#define PCI_DEVICE_ID_SMSC_A041		(0xA041)
 
 #define PCI_CONFIG_LENGTH		(0x1000)
 
