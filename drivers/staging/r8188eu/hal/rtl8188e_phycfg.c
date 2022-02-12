@@ -217,14 +217,13 @@ phy_RFSerialRead(
 static	void
 phy_RFSerialWrite(
 		struct adapter *Adapter,
-		enum rf_radio_path eRFPath,
 		u32 Offset,
 		u32 Data
 	)
 {
 	u32 DataAndAddr = 0;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	struct bb_reg_def *pPhyReg = &pHalData->PHYRegDef[eRFPath];
+	struct bb_reg_def *pPhyReg = &pHalData->PHYRegDef[RF_PATH_A];
 	u32 NewOffset;
 
 	/*  2009/06/17 MH We can not execute IO for power save or other accident mode. */
@@ -309,7 +308,7 @@ rtl8188e_PHY_SetRFReg(
 		Data = ((Original_Value & (~BitMask)) | (Data << BitShift));
 	}
 
-	phy_RFSerialWrite(Adapter, RF_PATH_A, RegAddr, Data);
+	phy_RFSerialWrite(Adapter, RegAddr, Data);
 }
 
 /*  */
