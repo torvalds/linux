@@ -2063,8 +2063,11 @@ static int rtw_wx_read_rf(struct net_device *dev,
 	u32 path, addr, data32;
 
 	path = *(u32 *)extra;
+	if (path != RF_PATH_A)
+		return -EINVAL;
+
 	addr = *((u32 *)extra + 1);
-	data32 = rtl8188e_PHY_QueryRFReg(padapter, path, addr, 0xFFFFF);
+	data32 = rtl8188e_PHY_QueryRFReg(padapter, RF_PATH_A, addr, 0xFFFFF);
 	/*
 	 * IMPORTANT!!
 	 * Only when wireless private ioctl is at odd order,
@@ -3626,7 +3629,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			break;
 		}
 		rtl8188e_PHY_SetRFReg(padapter, arg, 0xffffffff, extra_arg);
-		DBG_88E("write RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtl8188e_PHY_QueryRFReg(padapter, minor_cmd, arg, 0xffffffff));
+		DBG_88E("write RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", RF_PATH_A, arg, rtl8188e_PHY_QueryRFReg(padapter, RF_PATH_A, arg, 0xffffffff));
 		break;
 
 	case 0x76:
