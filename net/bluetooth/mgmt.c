@@ -8079,7 +8079,7 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	u32 flags;
 	u8 status;
 	u16 timeout, duration;
-	unsigned int prev_instance_cnt = hdev->adv_instance_cnt;
+	unsigned int prev_instance_cnt;
 	u8 schedule_instance = 0;
 	struct adv_info *next_instance;
 	int err;
@@ -8129,6 +8129,8 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 				      MGMT_STATUS_INVALID_PARAMS);
 		goto unlock;
 	}
+
+	prev_instance_cnt = hdev->adv_instance_cnt;
 
 	err = hci_add_adv_instance(hdev, cp->instance, flags,
 				   cp->adv_data_len, cp->data,
