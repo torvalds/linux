@@ -537,7 +537,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 
 	/*
 	 * Ignore masked IRQs and ack if we need to; we ack early so
-	 * there is no race between handling and acknowleding the
+	 * there is no race between handling and acknowledging the
 	 * interrupt.  We assume that typically few of the interrupts
 	 * will fire simultaneously so don't worry about overhead from
 	 * doing a write per register.
@@ -1082,7 +1082,7 @@ EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip);
 /**
  * devm_regmap_del_irq_chip() - Resource managed regmap_del_irq_chip()
  *
- * @dev: Device for which which resource was allocated.
+ * @dev: Device for which the resource was allocated.
  * @irq: Primary IRQ for the device.
  * @data: &regmap_irq_chip_data allocated by regmap_add_irq_chip().
  *
