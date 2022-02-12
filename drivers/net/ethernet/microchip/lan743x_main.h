@@ -546,10 +546,12 @@
 
 #define LAN743X_MAX_RX_CHANNELS		(4)
 #define LAN743X_MAX_TX_CHANNELS		(1)
+#define PCI11X1X_MAX_TX_CHANNELS	(4)
 struct lan743x_adapter;
 
 #define LAN743X_USED_RX_CHANNELS	(4)
 #define LAN743X_USED_TX_CHANNELS	(1)
+#define PCI11X1X_USED_TX_CHANNELS	(4)
 #define LAN743X_INT_MOD	(400)
 
 #if (LAN743X_USED_RX_CHANNELS > LAN743X_MAX_RX_CHANNELS)
@@ -557,6 +559,9 @@ struct lan743x_adapter;
 #endif
 #if (LAN743X_USED_TX_CHANNELS > LAN743X_MAX_TX_CHANNELS)
 #error Invalid LAN743X_USED_TX_CHANNELS
+#endif
+#if (PCI11X1X_USED_TX_CHANNELS > PCI11X1X_MAX_TX_CHANNELS)
+#error Invalid PCI11X1X_USED_TX_CHANNELS
 #endif
 
 /* PCI */
@@ -728,8 +733,11 @@ struct lan743x_adapter {
 	u8			mac_address[ETH_ALEN];
 
 	struct lan743x_phy      phy;
-	struct lan743x_tx       tx[LAN743X_MAX_TX_CHANNELS];
-	struct lan743x_rx       rx[LAN743X_MAX_RX_CHANNELS];
+	struct lan743x_tx       tx[PCI11X1X_USED_TX_CHANNELS];
+	struct lan743x_rx       rx[LAN743X_USED_RX_CHANNELS];
+	bool			is_pci11x1x;
+	u8			max_tx_channels;
+	u8			used_tx_channels;
 
 #define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
 	u32			flags;
