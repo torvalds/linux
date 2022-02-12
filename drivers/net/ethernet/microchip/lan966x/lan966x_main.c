@@ -439,7 +439,8 @@ static bool lan966x_hw_offload(struct lan966x *lan966x, u32 port,
 	    ip_hdr(skb)->protocol == IPPROTO_IGMP)
 		return false;
 
-	if (skb->protocol == htons(ETH_P_IPV6) &&
+	if (IS_ENABLED(CONFIG_IPV6) &&
+	    skb->protocol == htons(ETH_P_IPV6) &&
 	    ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) &&
 	    !ipv6_mc_check_mld(skb))
 		return false;
