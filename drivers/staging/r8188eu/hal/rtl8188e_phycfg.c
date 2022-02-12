@@ -253,7 +253,6 @@ phy_RFSerialWrite(
 *
 * Input:
 *			struct adapter *Adapter,
-*			enum rf_radio_path eRFPath,	Radio path of A/B/C/D
 *			u32			RegAddr,	The target address to be read
 *			u32			BitMask		The target bit position in the target address
 *									to be read
@@ -262,12 +261,11 @@ phy_RFSerialWrite(
 * Return:		u32			Readback value
 * Note:		This function is equal to "GetRFRegSetting" in PHY programming guide
 */
-u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, enum rf_radio_path eRFPath,
-			    u32 RegAddr, u32 BitMask)
+u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 {
 	u32 Original_Value, Readback_Value, BitShift;
 
-	Original_Value = phy_RFSerialRead(Adapter, eRFPath, RegAddr);
+	Original_Value = phy_RFSerialRead(Adapter, RF_PATH_A, RegAddr);
 
 	BitShift =  phy_CalculateBitShift(BitMask);
 	Readback_Value = (Original_Value & BitMask) >> BitShift;

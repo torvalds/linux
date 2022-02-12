@@ -132,7 +132,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	/*  <Kordan> RFCalibrateInfo.RegA24 will be initialized when ODM HW configuring, but MP configures with para files. */
 	dm_odm->RFCalibrateInfo.RegA24 = 0x090e1317;
 
-	ThermalValue = (u8)rtl8188e_PHY_QueryRFReg(Adapter, RF_PATH_A, RF_T_METER_88E, 0xfc00); /* 0x42: RF Reg[15:10] 88E */
+	ThermalValue = (u8)rtl8188e_PHY_QueryRFReg(Adapter, RF_T_METER_88E, 0xfc00); /* 0x42: RF Reg[15:10] 88E */
 
 	if (ThermalValue) {
 		/* Query OFDM path A default setting */
@@ -759,7 +759,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt)
 	if ((tmpreg & 0x70) != 0) {
 		/* 1. Read original RF mode */
 		/* Path-A */
-		RF_Amode = rtl8188e_PHY_QueryRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits);
+		RF_Amode = rtl8188e_PHY_QueryRFReg(adapt, RF_AC, bMask12Bits);
 
 		/* 2. Set RF mode = standby mode */
 		/* Path-A */
@@ -767,7 +767,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt)
 	}
 
 	/* 3. Read RF reg18 */
-	LC_Cal = rtl8188e_PHY_QueryRFReg(adapt, RF_PATH_A, RF_CHNLBW, bMask12Bits);
+	LC_Cal = rtl8188e_PHY_QueryRFReg(adapt, RF_CHNLBW, bMask12Bits);
 
 	/* 4. Set LC calibration begin	bit15 */
 	rtl8188e_PHY_SetRFReg(adapt, RF_CHNLBW, bMask12Bits, LC_Cal | 0x08000);
