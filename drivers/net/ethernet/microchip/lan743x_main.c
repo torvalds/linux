@@ -422,7 +422,7 @@ static u32 lan743x_intr_get_vector_flags(struct lan743x_adapter *adapter,
 {
 	int index;
 
-	for (index = 0; index < LAN743X_MAX_VECTOR_COUNT; index++) {
+	for (index = 0; index < adapter->max_vector_count; index++) {
 		if (adapter->intr.vector_list[index].int_mask & int_mask)
 			return adapter->intr.vector_list[index].flags;
 	}
@@ -435,9 +435,12 @@ static void lan743x_intr_close(struct lan743x_adapter *adapter)
 	int index = 0;
 
 	lan743x_csr_write(adapter, INT_EN_CLR, INT_BIT_MAS_);
-	lan743x_csr_write(adapter, INT_VEC_EN_CLR, 0x000000FF);
+	if (adapter->is_pci11x1x)
+		lan743x_csr_write(adapter, INT_VEC_EN_CLR, 0x0000FFFF);
+	else
+		lan743x_csr_write(adapter, INT_VEC_EN_CLR, 0x000000FF);
 
-	for (index = 0; index < LAN743X_MAX_VECTOR_COUNT; index++) {
+	for (index = 0; index < intr->number_of_vectors; index++) {
 		if (intr->flags & INTR_FLAG_IRQ_REQUESTED(index)) {
 			lan743x_intr_unregister_isr(adapter, index);
 			intr->flags &= ~INTR_FLAG_IRQ_REQUESTED(index);
@@ -457,10 +460,11 @@ static void lan743x_intr_close(struct lan743x_adapter *adapter)
 
 static int lan743x_intr_open(struct lan743x_adapter *adapter)
 {
-	struct msix_entry msix_entries[LAN743X_MAX_VECTOR_COUNT];
+	struct msix_entry msix_entries[PCI11X1X_MAX_VECTOR_COUNT];
 	struct lan743x_intr *intr = &adapter->intr;
 	unsigned int used_tx_channels;
 	u32 int_vec_en_auto_clr = 0;
+	u8 max_vector_count;
 	u32 int_vec_map0 = 0;
 	u32 int_vec_map1 = 0;
 	int ret = -ENODEV;
@@ -470,9 +474,10 @@ static int lan743x_intr_open(struct lan743x_adapter *adapter)
 	intr->number_of_vectors = 0;
 
 	/* Try to set up MSIX interrupts */
+	max_vector_count = adapter->max_vector_count;
 	memset(&msix_entries[0], 0,
-	       sizeof(struct msix_entry) * LAN743X_MAX_VECTOR_COUNT);
-	for (index = 0; index < LAN743X_MAX_VECTOR_COUNT; index++)
+	       sizeof(struct msix_entry) * max_vector_count);
+	for (index = 0; index < max_vector_count; index++)
 		msix_entries[index].entry = index;
 	used_tx_channels = adapter->used_tx_channels;
 	ret = pci_enable_msix_range(adapter->pdev,
@@ -570,8 +575,15 @@ static int lan743x_intr_open(struct lan743x_adapter *adapter)
 		lan743x_csr_write(adapter, INT_MOD_CFG5, LAN743X_INT_MOD);
 		lan743x_csr_write(adapter, INT_MOD_CFG6, LAN743X_INT_MOD);
 		lan743x_csr_write(adapter, INT_MOD_CFG7, LAN743X_INT_MOD);
-		lan743x_csr_write(adapter, INT_MOD_MAP0, 0x00005432);
-		lan743x_csr_write(adapter, INT_MOD_MAP1, 0x00000001);
+		if (adapter->is_pci11x1x) {
+			lan743x_csr_write(adapter, INT_MOD_CFG8, LAN743X_INT_MOD);
+			lan743x_csr_write(adapter, INT_MOD_CFG9, LAN743X_INT_MOD);
+			lan743x_csr_write(adapter, INT_MOD_MAP0, 0x00007654);
+			lan743x_csr_write(adapter, INT_MOD_MAP1, 0x00003210);
+		} else {
+			lan743x_csr_write(adapter, INT_MOD_MAP0, 0x00005432);
+			lan743x_csr_write(adapter, INT_MOD_MAP1, 0x00000001);
+		}
 		lan743x_csr_write(adapter, INT_MOD_MAP2, 0x00FFFFFF);
 	}
 
@@ -646,7 +658,7 @@ static int lan743x_intr_open(struct lan743x_adapter *adapter)
 				LAN743X_VECTOR_FLAG_SOURCE_STATUS_AUTO_CLEAR;
 		}
 		for (index = 0; index < number_of_rx_vectors; index++) {
-			int vector = index + 1 + LAN743X_USED_TX_CHANNELS;
+			int vector = index + 1 + used_tx_channels;
 			u32 int_bit = INT_BIT_DMA_RX_(index);
 
 			/* map RX interrupt to vector */
@@ -2731,9 +2743,11 @@ static int lan743x_hardware_init(struct lan743x_adapter *adapter,
 	if (adapter->is_pci11x1x) {
 		adapter->max_tx_channels = PCI11X1X_MAX_TX_CHANNELS;
 		adapter->used_tx_channels = PCI11X1X_USED_TX_CHANNELS;
+		adapter->max_vector_count = PCI11X1X_MAX_VECTOR_COUNT;
 	} else {
 		adapter->max_tx_channels = LAN743X_MAX_TX_CHANNELS;
 		adapter->used_tx_channels = LAN743X_USED_TX_CHANNELS;
+		adapter->max_vector_count = LAN743X_MAX_VECTOR_COUNT;
 	}
 
 	adapter->intr.irq = adapter->pdev->irq;

@@ -266,6 +266,8 @@
 #define INT_MOD_CFG5			(0x7D4)
 #define INT_MOD_CFG6			(0x7D8)
 #define INT_MOD_CFG7			(0x7DC)
+#define INT_MOD_CFG8			(0x7E0)
+#define INT_MOD_CFG9			(0x7E4)
 
 #define PTP_CMD_CTL					(0x0A00)
 #define PTP_CMD_CTL_PTP_CLK_STP_NSEC_			BIT(6)
@@ -619,13 +621,14 @@ struct lan743x_vector {
 };
 
 #define LAN743X_MAX_VECTOR_COUNT	(8)
+#define PCI11X1X_MAX_VECTOR_COUNT	(16)
 
 struct lan743x_intr {
 	int			flags;
 
 	unsigned int		irq;
 
-	struct lan743x_vector	vector_list[LAN743X_MAX_VECTOR_COUNT];
+	struct lan743x_vector	vector_list[PCI11X1X_MAX_VECTOR_COUNT];
 	int			number_of_vectors;
 	bool			using_vectors;
 
@@ -738,6 +741,7 @@ struct lan743x_adapter {
 	bool			is_pci11x1x;
 	u8			max_tx_channels;
 	u8			used_tx_channels;
+	u8			max_vector_count;
 
 #define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
 	u32			flags;
