@@ -193,27 +193,6 @@ static void truncate_cleanup_folio(struct folio *folio)
 	folio_clear_mappedtodisk(folio);
 }
 
-/*
- * This is for invalidate_mapping_pages().  That function can be called at
- * any time, and is not supposed to throw away dirty pages.  But pages can
- * be marked dirty at any time too, so use remove_mapping which safely
- * discards clean, unused pages.
- *
- * Returns non-zero if the page was successfully invalidated.
- */
-static int
-invalidate_complete_page(struct address_space *mapping, struct page *page)
-{
-
-	if (page->mapping != mapping)
-		return 0;
-
-	if (page_has_private(page) && !try_to_release_page(page, 0))
-		return 0;
-
-	return remove_mapping(mapping, page);
-}
-
 int truncate_inode_folio(struct address_space *mapping, struct folio *folio)
 {
 	if (folio->mapping != mapping)
@@ -309,7 +288,10 @@ int invalidate_inode_page(struct page *page)
 		return 0;
 	if (page_mapped(page))
 		return 0;
-	return invalidate_complete_page(mapping, page);
+	if (page_has_private(page) && !try_to_release_page(page, 0))
+		return 0;
+
+	return remove_mapping(mapping, page);
 }
 
 /**
@@ -584,7 +566,7 @@ void invalidate_mapping_pagevec(struct address_space *mapping,
 }
 
 /*
- * This is like invalidate_complete_page(), except it ignores the page's
+ * This is like invalidate_inode_page(), except it ignores the page's
  * refcount.  We do this because invalidate_inode_pages2() needs stronger
  * invalidation guarantees, and cannot afford to leave pages behind because
  * shrink_page_list() has a temp ref on them, or because they're transiently
