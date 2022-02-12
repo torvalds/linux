@@ -506,6 +506,22 @@ config SENSORS_DELL_SMM
 	  When option I8K is also enabled this driver provides legacy /proc/i8k
 	  userspace interface for i8kutils package.
 
+config I8K
+	bool "Dell i8k legacy laptop support"
+	depends on SENSORS_DELL_SMM
+	depends on PROC_FS
+	help
+	  This option enables legacy /proc/i8k userspace interface in hwmon
+	  dell-smm-hwmon driver. Character file /proc/i8k reports bios version,
+	  temperature and allows controlling fan speeds of Dell laptops via
+	  System Management Mode. For old Dell laptops (like Dell Inspiron 8000)
+	  it reports also power and hotkey status. For fan speed control is
+	  needed userspace package i8kutils.
+
+	  Say Y if you intend to run this kernel on old Dell laptops or want to
+	  use userspace package i8kutils.
+	  Say N otherwise.
+
 config SENSORS_DA9052_ADC
 	tristate "Dialog DA9052/DA9053 ADC"
 	depends on PMIC_DA9052
