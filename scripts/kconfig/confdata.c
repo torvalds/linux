@@ -979,6 +979,7 @@ static int conf_write_autoconf_cmd(const char *autoconf_name)
 
 	fprintf(out, "\n$(deps_config): ;\n");
 
+	fflush(out);
 	ret = ferror(out); /* error check for all fprintf() calls */
 	fclose(out);
 	if (ret)
@@ -1097,6 +1098,7 @@ static int __conf_write_autoconf(const char *filename,
 		if ((sym->flags & SYMBOL_WRITE) && sym->name)
 			print_symbol(file, sym);
 
+	fflush(file);
 	/* check possible errors in conf_write_heading() and print_symbol() */
 	ret = ferror(file);
 	fclose(file);
