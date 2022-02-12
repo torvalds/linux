@@ -18,6 +18,11 @@
 #include "lan743x_main.h"
 #include "lan743x_ethtool.h"
 
+#define MMD_ACCESS_ADDRESS	0
+#define MMD_ACCESS_WRITE	1
+#define MMD_ACCESS_READ		2
+#define MMD_ACCESS_READ_INC	3
+
 static void pci11x1x_strap_get_status(struct lan743x_adapter *adapter)
 {
 	u32 chip_rev;
@@ -811,6 +816,96 @@ static int lan743x_mdiobus_write(struct mii_bus *bus,
 	mii_access = lan743x_mac_mii_access(phy_id, index, MAC_MII_WRITE);
 	lan743x_csr_write(adapter, MAC_MII_ACC, mii_access);
 	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+	return ret;
+}
+
+static u32 lan743x_mac_mmd_access(int id, int index, int op)
+{
+	u16 dev_addr;
+	u32 ret;
+
+	dev_addr = (index >> 16) & 0x1f;
+	ret = (id << MAC_MII_ACC_PHY_ADDR_SHIFT_) &
+		MAC_MII_ACC_PHY_ADDR_MASK_;
+	ret |= (dev_addr << MAC_MII_ACC_MIIMMD_SHIFT_) &
+		MAC_MII_ACC_MIIMMD_MASK_;
+	if (op == MMD_ACCESS_WRITE)
+		ret |= MAC_MII_ACC_MIICMD_WRITE_;
+	else if (op == MMD_ACCESS_READ)
+		ret |= MAC_MII_ACC_MIICMD_READ_;
+	else if (op == MMD_ACCESS_READ_INC)
+		ret |= MAC_MII_ACC_MIICMD_READ_INC_;
+	else
+		ret |= MAC_MII_ACC_MIICMD_ADDR_;
+	ret |= (MAC_MII_ACC_MII_BUSY_ | MAC_MII_ACC_MIICL45_);
+
+	return ret;
+}
+
+static int lan743x_mdiobus_c45_read(struct mii_bus *bus, int phy_id, int index)
+{
+	struct lan743x_adapter *adapter = bus->priv;
+	u32 mmd_access;
+	int ret;
+
+	/* comfirm MII not busy */
+	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+	if (ret < 0)
+		return ret;
+	if (index & MII_ADDR_C45) {
+		/* Load Register Address */
+		lan743x_csr_write(adapter, MAC_MII_DATA, (u32)(index & 0xffff));
+		mmd_access = lan743x_mac_mmd_access(phy_id, index,
+						    MMD_ACCESS_ADDRESS);
+		lan743x_csr_write(adapter, MAC_MII_ACC, mmd_access);
+		ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+		if (ret < 0)
+			return ret;
+		/* Read Data */
+		mmd_access = lan743x_mac_mmd_access(phy_id, index,
+						    MMD_ACCESS_READ);
+		lan743x_csr_write(adapter, MAC_MII_ACC, mmd_access);
+		ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+		if (ret < 0)
+			return ret;
+		ret = lan743x_csr_read(adapter, MAC_MII_DATA);
+		return (int)(ret & 0xFFFF);
+	}
+
+	ret = lan743x_mdiobus_read(bus, phy_id, index);
+	return ret;
+}
+
+static int lan743x_mdiobus_c45_write(struct mii_bus *bus,
+				     int phy_id, int index, u16 regval)
+{
+	struct lan743x_adapter *adapter = bus->priv;
+	u32 mmd_access;
+	int ret;
+
+	/* confirm MII not busy */
+	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+	if (ret < 0)
+		return ret;
+	if (index & MII_ADDR_C45) {
+		/* Load Register Address */
+		lan743x_csr_write(adapter, MAC_MII_DATA, (u32)(index & 0xffff));
+		mmd_access = lan743x_mac_mmd_access(phy_id, index,
+						    MMD_ACCESS_ADDRESS);
+		lan743x_csr_write(adapter, MAC_MII_ACC, mmd_access);
+		ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+		if (ret < 0)
+			return ret;
+		/* Write Data */
+		lan743x_csr_write(adapter, MAC_MII_DATA, (u32)regval);
+		mmd_access = lan743x_mac_mmd_access(phy_id, index,
+						    MMD_ACCESS_WRITE);
+		lan743x_csr_write(adapter, MAC_MII_ACC, mmd_access);
+		ret = lan743x_mac_mii_wait_till_not_busy(adapter);
+	} else {
+		ret = lan743x_mdiobus_write(bus, phy_id, index, regval);
+	}
+
 	return ret;
 }
 
@@ -2847,11 +2942,19 @@ static int lan743x_mdiobus_init(struct lan743x_adapter *adapter)
 			netif_dbg(adapter, drv, adapter->netdev,
 					  "(R)GMII operation\n");
 		}
+
+		adapter->mdiobus->probe_capabilities = MDIOBUS_C22_C45;
+		adapter->mdiobus->read = lan743x_mdiobus_c45_read;
+		adapter->mdiobus->write = lan743x_mdiobus_c45_write;
+		adapter->mdiobus->name = "lan743x-mdiobus-c45";
+		netif_dbg(adapter, drv, adapter->netdev, "lan743x-mdiobus-c45\n");
+	} else {
+		adapter->mdiobus->read = lan743x_mdiobus_read;
+		adapter->mdiobus->write = lan743x_mdiobus_write;
+		adapter->mdiobus->name = "lan743x-mdiobus";
+		netif_dbg(adapter, drv, adapter->netdev, "lan743x-mdiobus\n");
 	}
 
-	adapter->mdiobus->read = lan743x_mdiobus_read;
-	adapter->mdiobus->write = lan743x_mdiobus_write;
-	adapter->mdiobus->name = "lan743x-mdiobus";
 	snprintf(adapter->mdiobus->id, MII_BUS_ID_SIZE,
 		 "pci-%s", pci_name(adapter->pdev));
 
