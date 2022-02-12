@@ -123,4 +123,6 @@ void dcn315_smu_transfer_dpm_table_smu_2_dram(struct clk_mgr_internal *clk_mgr);
 void dcn315_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr);
 void dcn315_smu_request_voltage_via_phyclk(struct clk_mgr_internal *clk_mgr, int requested_phyclk_khz);
 void dcn315_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr);
+int dcn315_smu_get_dpref_clk(struct clk_mgr_internal *clk_mgr);
+int dcn315_smu_get_smu_fclk(struct clk_mgr_internal *clk_mgr);
 #endif /* DAL_DC_315_SMU_H_ */
