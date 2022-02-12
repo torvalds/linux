@@ -262,6 +262,127 @@ err_unlock:
 	return ret;
 }
 
+bool mhi_ep_queue_is_empty(struct mhi_ep_device *mhi_dev, enum dma_data_direction dir)
+{
+	struct mhi_ep_chan *mhi_chan = (dir == DMA_FROM_DEVICE) ? mhi_dev->dl_chan :
+								mhi_dev->ul_chan;
+	struct mhi_ep_cntrl *mhi_cntrl = mhi_dev->mhi_cntrl;
+	struct mhi_ep_ring *ring = &mhi_cntrl->mhi_chan[mhi_chan->chan].ring;
+
+	return !!(ring->rd_offset == ring->wr_offset);
+}
+EXPORT_SYMBOL_GPL(mhi_ep_queue_is_empty);
+
+static int mhi_ep_read_channel(struct mhi_ep_cntrl *mhi_cntrl,
+				struct mhi_ep_ring *ring,
+				struct mhi_result *result,
+				u32 len)
+{
+	struct mhi_ep_chan *mhi_chan = &mhi_cntrl->mhi_chan[ring->ch_id];
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	size_t tr_len, read_offset, write_offset;
+	struct mhi_ring_element *el;
+	bool tr_done = false;
+	void *write_addr;
+	u64 read_addr;
+	u32 buf_left;
+	int ret;
+
+	buf_left = len;
+
+	do {
+		/* Don't process the transfer ring if the channel is not in RUNNING state */
+		if (mhi_chan->state != MHI_CH_STATE_RUNNING) {
+			dev_err(dev, "Channel not available\n");
+			return -ENODEV;
+		}
+
+		el = &ring->ring_cache[ring->rd_offset];
+
+		/* Check if there is data pending to be read from previous read operation */
+		if (mhi_chan->tre_bytes_left) {
+			dev_dbg(dev, "TRE bytes remaining: %u\n", mhi_chan->tre_bytes_left);
+			tr_len = min(buf_left, mhi_chan->tre_bytes_left);
+		} else {
+			mhi_chan->tre_loc = MHI_TRE_DATA_GET_PTR(el);
+			mhi_chan->tre_size = MHI_TRE_DATA_GET_LEN(el);
+			mhi_chan->tre_bytes_left = mhi_chan->tre_size;
+
+			tr_len = min(buf_left, mhi_chan->tre_size);
+		}
+
+		read_offset = mhi_chan->tre_size - mhi_chan->tre_bytes_left;
+		write_offset = len - buf_left;
+		read_addr = mhi_chan->tre_loc + read_offset;
+		write_addr = result->buf_addr + write_offset;
+
+		dev_dbg(dev, "Reading %zd bytes from channel (%u)\n", tr_len, ring->ch_id);
+		ret = mhi_cntrl->read_from_host(mhi_cntrl, read_addr, write_addr, tr_len);
+		if (ret < 0) {
+			dev_err(&mhi_chan->mhi_dev->dev, "Error reading from channel\n");
+			return ret;
+		}
+
+		buf_left -= tr_len;
+		mhi_chan->tre_bytes_left -= tr_len;
+
+		/*
+		 * Once the TRE (Transfer Ring Element) of a TD (Transfer Descriptor) has been
+		 * read completely:
+		 *
+		 * 1. Send completion event to the host based on the flags set in TRE.
+		 * 2. Increment the local read offset of the transfer ring.
+		 */
+		if (!mhi_chan->tre_bytes_left) {
+			/*
+			 * The host will split the data packet into multiple TREs if it can't fit
+			 * the packet in a single TRE. In that case, CHAIN flag will be set by the
+			 * host for all TREs except the last one.
+			 */
+			if (MHI_TRE_DATA_GET_CHAIN(el)) {
+				/*
+				 * IEOB (Interrupt on End of Block) flag will be set by the host if
+				 * it expects the completion event for all TREs of a TD.
+				 */
+				if (MHI_TRE_DATA_GET_IEOB(el)) {
+					ret = mhi_ep_send_completion_event(mhi_cntrl, ring, el,
+								     MHI_TRE_DATA_GET_LEN(el),
+								     MHI_EV_CC_EOB);
+					if (ret < 0) {
+						dev_err(&mhi_chan->mhi_dev->dev,
+							"Error sending transfer compl. event\n");
+						return ret;
+					}
+				}
+			} else {
+				/*
+				 * IEOT (Interrupt on End of Transfer) flag will be set by the host
+				 * for the last TRE of the TD and expects the completion event for
+				 * the same.
+				 */
+				if (MHI_TRE_DATA_GET_IEOT(el)) {
+					ret = mhi_ep_send_completion_event(mhi_cntrl, ring, el,
+								     MHI_TRE_DATA_GET_LEN(el),
+								     MHI_EV_CC_EOT);
+					if (ret < 0) {
+						dev_err(&mhi_chan->mhi_dev->dev,
+							"Error sending transfer compl. event\n");
+						return ret;
+					}
+				}
+
+				tr_done = true;
+			}
+
+			mhi_ep_ring_inc_index(ring);
+		}
+
+		result->bytes_xferd += tr_len;
+	} while (buf_left && !tr_done);
+
+	return 0;
+}
+
 static int mhi_ep_cache_host_cfg(struct mhi_ep_cntrl *mhi_cntrl)
 {
 	size_t cmd_ctx_host_size, ch_ctx_host_size, ev_ctx_host_size;
