@@ -163,6 +163,8 @@ struct bq24190_dev_info {
 	char				model_name[I2C_NAME_SIZE];
 	bool				initialized;
 	bool				irq_event;
+	bool				otg_vbus_enabled;
+	int				charge_type;
 	u16				sys_min;
 	u16				iprechg;
 	u16				iterm;
@@ -175,6 +177,9 @@ struct bq24190_dev_info {
 	u8				ss_reg;
 	u8				watchdog;
 };
+
+static int bq24190_charger_set_charge_type(struct bq24190_dev_info *bdi,
+					   const union power_supply_propval *val);
 
 static const unsigned int bq24190_usb_extcon_cable[] = {
 	EXTCON_USB,
@@ -502,8 +507,9 @@ static ssize_t bq24190_sysfs_store(struct device *dev,
 }
 #endif
 
-static int bq24190_set_charge_mode(struct bq24190_dev_info *bdi, u8 val)
+static int bq24190_set_otg_vbus(struct bq24190_dev_info *bdi, bool enable)
 {
+	union power_supply_propval val = { .intval = bdi->charge_type };
 	int ret;
 
 	ret = pm_runtime_get_sync(bdi->dev);
@@ -513,9 +519,14 @@ static int bq24190_set_charge_mode(struct bq24190_dev_info *bdi, u8 val)
 		return ret;
 	}
 
-	ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
-				 BQ24190_REG_POC_CHG_CONFIG_MASK,
-				 BQ24190_REG_POC_CHG_CONFIG_SHIFT, val);
+	bdi->otg_vbus_enabled = enable;
+	if (enable)
+		ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
+					 BQ24190_REG_POC_CHG_CONFIG_MASK,
+					 BQ24190_REG_POC_CHG_CONFIG_SHIFT,
+					 BQ24190_REG_POC_CHG_CONFIG_OTG);
+	else
+		ret = bq24190_charger_set_charge_type(bdi, &val);
 
 	pm_runtime_mark_last_busy(bdi->dev);
 	pm_runtime_put_autosuspend(bdi->dev);
@@ -526,14 +537,12 @@ static int bq24190_set_charge_mode(struct bq24190_dev_info *bdi, u8 val)
 #ifdef CONFIG_REGULATOR
 static int bq24190_vbus_enable(struct regulator_dev *dev)
 {
-	return bq24190_set_charge_mode(rdev_get_drvdata(dev),
-				       BQ24190_REG_POC_CHG_CONFIG_OTG);
+	return bq24190_set_otg_vbus(rdev_get_drvdata(dev), true);
 }
 
 static int bq24190_vbus_disable(struct regulator_dev *dev)
 {
-	return bq24190_set_charge_mode(rdev_get_drvdata(dev),
-				       BQ24190_REG_POC_CHG_CONFIG_CHARGE);
+	return bq24190_set_otg_vbus(rdev_get_drvdata(dev), false);
 }
 
 static int bq24190_vbus_is_enabled(struct regulator_dev *dev)
@@ -559,8 +568,9 @@ static int bq24190_vbus_is_enabled(struct regulator_dev *dev)
 	if (ret)
 		return ret;
 
-	return (val == BQ24190_REG_POC_CHG_CONFIG_OTG ||
-		val == BQ24190_REG_POC_CHG_CONFIG_OTG_ALT);
+	bdi->otg_vbus_enabled = (val == BQ24190_REG_POC_CHG_CONFIG_OTG ||
+				 val == BQ24190_REG_POC_CHG_CONFIG_OTG_ALT);
+	return bdi->otg_vbus_enabled;
 }
 
 static const struct regulator_ops bq24190_vbus_ops = {
@@ -806,6 +816,14 @@ static int bq24190_charger_set_charge_type(struct bq24190_dev_info *bdi,
 	default:
 		return -EINVAL;
 	}
+
+	bdi->charge_type = val->intval;
+	/*
+	 * If the 5V Vbus boost regulator is enabled delay setting
+	 * the charge-type until its gets disabled.
+	 */
+	if (bdi->otg_vbus_enabled)
+		return 0;
 
 	if (chg_config) { /* Enabling the charger */
 		ret = bq24190_write_mask(bdi, BQ24190_REG_CCC,
@@ -1788,6 +1806,7 @@ static int bq24190_probe(struct i2c_client *client,
 	bdi->dev = dev;
 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
 	mutex_init(&bdi->f_reg_lock);
+	bdi->charge_type = POWER_SUPPLY_CHARGE_TYPE_FAST;
 	bdi->f_reg = 0;
 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK; /* impossible state */
 	INIT_DELAYED_WORK(&bdi->input_current_limit_work,
@@ -1925,7 +1944,7 @@ static void bq24190_shutdown(struct i2c_client *client)
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
 
 	/* Turn off 5V boost regulator on shutdown */
-	bq24190_set_charge_mode(bdi, BQ24190_REG_POC_CHG_CONFIG_CHARGE);
+	bq24190_set_otg_vbus(bdi, false);
 }
 
 static __maybe_unused int bq24190_runtime_suspend(struct device *dev)
