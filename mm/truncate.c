@@ -281,14 +281,15 @@ EXPORT_SYMBOL(generic_error_remove_page);
  */
 int invalidate_inode_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct folio *folio = page_folio(page);
+	struct address_space *mapping = folio_mapping(folio);
 	if (!mapping)
 		return 0;
-	if (PageDirty(page) || PageWriteback(page))
+	if (folio_test_dirty(folio) || folio_test_writeback(folio))
 		return 0;
 	if (page_mapped(page))
 		return 0;
-	if (page_has_private(page) && !try_to_release_page(page, 0))
+	if (folio_has_private(folio) && !filemap_release_folio(folio, 0))
 		return 0;
 
 	return remove_mapping(mapping, page);
