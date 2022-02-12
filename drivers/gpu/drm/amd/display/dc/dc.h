@@ -709,6 +709,7 @@ struct dc_debug_options {
 	union dpia_debug_options dpia_debug;
 #endif
 	bool apply_vendor_specific_lttpr_wa;
+	bool ignore_dpref_ss;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
