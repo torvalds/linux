@@ -1972,9 +1972,8 @@ static void bch2_read_endio(struct bio *bio)
 		return;
 	}
 
-	if (rbio->pick.ptr.cached &&
-	    (((rbio->flags & BCH_READ_RETRY_IF_STALE) && race_fault()) ||
-	     ptr_stale(ca, &rbio->pick.ptr))) {
+	if (((rbio->flags & BCH_READ_RETRY_IF_STALE) && race_fault()) ||
+	    ptr_stale(ca, &rbio->pick.ptr)) {
 		atomic_long_inc(&c->read_realloc_races);
 
 		if (rbio->flags & BCH_READ_RETRY_IF_STALE)
