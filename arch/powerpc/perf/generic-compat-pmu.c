@@ -307,7 +307,7 @@ static struct power_pmu generic_compat_pmu = {
 	.attr_groups		= generic_compat_pmu_attr_groups,
 };
 
-int init_generic_compat_pmu(void)
+int __init init_generic_compat_pmu(void)
 {
 	int rc = 0;
 

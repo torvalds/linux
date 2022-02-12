@@ -61,7 +61,7 @@ examples:
                 #size-cells = <0>;
 
                 magnetometer@c {
-                    compatible = "ak,ak8975";
+                    compatible = "asahi-kasei,ak8975";
                     reg = <0x0c>;
                 };
             };

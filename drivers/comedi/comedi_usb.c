@@ -8,8 +8,7 @@
  */
 
 #include <linux/module.h>
-
-#include "comedi_usb.h"
+#include <linux/comedi/comedi_usb.h>
 
 /**
  * comedi_to_usb_interface() - Return USB interface attached to COMEDI device

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * usbusy2y.c - ALSA USB US-428 Driver
+ * usbusx2y.c - ALSA USB US-428 Driver
  *
 2005-04-14 Karsten Wiese
 	Version 0.8.7.2:

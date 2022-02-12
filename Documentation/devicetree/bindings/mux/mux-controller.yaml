@@ -25,7 +25,9 @@ description: |
   --------------------
 
   Mux controller nodes must specify the number of cells used for the
-  specifier using the '#mux-control-cells' property.
+  specifier using the '#mux-control-cells' or '#mux-state-cells' property.
+  The value of '#mux-state-cells' will always be one greater than the value
+  of '#mux-control-cells'.
 
   Optionally, mux controller nodes can also specify the state the mux should
   have when it is idle. The idle-state property is used for this. If the
@@ -67,6 +69,8 @@ select:
           pattern: '^mux-controller'
     - required:
         - '#mux-control-cells'
+    - required:
+        - '#mux-state-cells'
 
 properties:
   $nodename:
@@ -74,6 +78,9 @@ properties:
 
   '#mux-control-cells':
     enum: [ 0, 1 ]
+
+  '#mux-state-cells':
+    enum: [ 1, 2 ]
 
   idle-state:
     $ref: /schemas/types.yaml#/definitions/int32
@@ -178,5 +185,22 @@ examples:
                 reg = <0x20>;
             };
         };
+    };
+
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    mux1: mux-controller {
+        compatible = "gpio-mux";
+        #mux-state-cells = <1>;
+        mux-gpios = <&exp_som 2 GPIO_ACTIVE_HIGH>;
+    };
+
+    transceiver4: can-phy4 {
+        compatible = "ti,tcan1042";
+        #phy-cells = <0>;
+        max-bitrate = <5000000>;
+        standby-gpios = <&exp_som 7 GPIO_ACTIVE_HIGH>;
+        mux-states = <&mux1 1>;
     };
 ...

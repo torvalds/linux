@@ -274,7 +274,7 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 	struct device_node *child_node;
 	int ret;
 
-	if (!dev_of_node(dev))
+	if (!np)
 		return -ENXIO;
 
 	led->ctrl_gpio = devm_gpiod_get(dev, "ctrl", GPIOD_ASIS);

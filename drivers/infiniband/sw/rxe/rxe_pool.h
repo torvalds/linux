@@ -7,9 +7,6 @@
 #ifndef RXE_POOL_H
 #define RXE_POOL_H
 
-#define RXE_POOL_ALIGN		(16)
-#define RXE_POOL_CACHE_FLAGS	(0)
-
 enum rxe_pool_flags {
 	RXE_POOL_INDEX		= BIT(1),
 	RXE_POOL_KEY		= BIT(2),
@@ -30,10 +27,9 @@ enum rxe_elem_type {
 	RXE_NUM_TYPES,		/* keep me last */
 };
 
-struct rxe_pool_entry;
-
-struct rxe_pool_entry {
+struct rxe_pool_elem {
 	struct rxe_pool		*pool;
+	void			*obj;
 	struct kref		ref_cnt;
 	struct list_head	list;
 
@@ -47,14 +43,16 @@ struct rxe_pool_entry {
 
 struct rxe_pool {
 	struct rxe_dev		*rxe;
+	const char		*name;
 	rwlock_t		pool_lock; /* protects pool add/del/search */
-	size_t			elem_size;
-	void			(*cleanup)(struct rxe_pool_entry *obj);
+	void			(*cleanup)(struct rxe_pool_elem *obj);
 	enum rxe_pool_flags	flags;
 	enum rxe_elem_type	type;
 
 	unsigned int		max_elem;
 	atomic_t		num_elem;
+	size_t			elem_size;
+	size_t			elem_offset;
 
 	/* only used if indexed */
 	struct {
@@ -89,51 +87,51 @@ void *rxe_alloc_locked(struct rxe_pool *pool);
 void *rxe_alloc(struct rxe_pool *pool);
 
 /* connect already allocated object to pool */
-int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem);
+int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem);
 
-#define rxe_add_to_pool(pool, obj) __rxe_add_to_pool(pool, &(obj)->pelem)
+#define rxe_add_to_pool(pool, obj) __rxe_add_to_pool(pool, &(obj)->elem)
 
 /* assign an index to an indexed object and insert object into
  *  pool's rb tree holding and not holding the pool_lock
  */
-int __rxe_add_index_locked(struct rxe_pool_entry *elem);
+int __rxe_add_index_locked(struct rxe_pool_elem *elem);
 
-#define rxe_add_index_locked(obj) __rxe_add_index_locked(&(obj)->pelem)
+#define rxe_add_index_locked(obj) __rxe_add_index_locked(&(obj)->elem)
 
-int __rxe_add_index(struct rxe_pool_entry *elem);
+int __rxe_add_index(struct rxe_pool_elem *elem);
 
-#define rxe_add_index(obj) __rxe_add_index(&(obj)->pelem)
+#define rxe_add_index(obj) __rxe_add_index(&(obj)->elem)
 
 /* drop an index and remove object from rb tree
  * holding and not holding the pool_lock
  */
-void __rxe_drop_index_locked(struct rxe_pool_entry *elem);
+void __rxe_drop_index_locked(struct rxe_pool_elem *elem);
 
-#define rxe_drop_index_locked(obj) __rxe_drop_index_locked(&(obj)->pelem)
+#define rxe_drop_index_locked(obj) __rxe_drop_index_locked(&(obj)->elem)
 
-void __rxe_drop_index(struct rxe_pool_entry *elem);
+void __rxe_drop_index(struct rxe_pool_elem *elem);
 
-#define rxe_drop_index(obj) __rxe_drop_index(&(obj)->pelem)
+#define rxe_drop_index(obj) __rxe_drop_index(&(obj)->elem)
 
 /* assign a key to a keyed object and insert object into
  * pool's rb tree holding and not holding pool_lock
  */
-int __rxe_add_key_locked(struct rxe_pool_entry *elem, void *key);
+int __rxe_add_key_locked(struct rxe_pool_elem *elem, void *key);
 
-#define rxe_add_key_locked(obj, key) __rxe_add_key_locked(&(obj)->pelem, key)
+#define rxe_add_key_locked(obj, key) __rxe_add_key_locked(&(obj)->elem, key)
 
-int __rxe_add_key(struct rxe_pool_entry *elem, void *key);
+int __rxe_add_key(struct rxe_pool_elem *elem, void *key);
 
-#define rxe_add_key(obj, key) __rxe_add_key(&(obj)->pelem, key)
+#define rxe_add_key(obj, key) __rxe_add_key(&(obj)->elem, key)
 
 /* remove elem from rb tree holding and not holding the pool_lock */
-void __rxe_drop_key_locked(struct rxe_pool_entry *elem);
+void __rxe_drop_key_locked(struct rxe_pool_elem *elem);
 
-#define rxe_drop_key_locked(obj) __rxe_drop_key_locked(&(obj)->pelem)
+#define rxe_drop_key_locked(obj) __rxe_drop_key_locked(&(obj)->elem)
 
-void __rxe_drop_key(struct rxe_pool_entry *elem);
+void __rxe_drop_key(struct rxe_pool_elem *elem);
 
-#define rxe_drop_key(obj) __rxe_drop_key(&(obj)->pelem)
+#define rxe_drop_key(obj) __rxe_drop_key(&(obj)->elem)
 
 /* lookup an indexed object from index holding and not holding the pool_lock.
  * takes a reference on object
@@ -153,9 +151,9 @@ void *rxe_pool_get_key(struct rxe_pool *pool, void *key);
 void rxe_elem_release(struct kref *kref);
 
 /* take a reference on an object */
-#define rxe_add_ref(elem) kref_get(&(elem)->pelem.ref_cnt)
+#define rxe_add_ref(obj) kref_get(&(obj)->elem.ref_cnt)
 
 /* drop a reference on an object */
-#define rxe_drop_ref(elem) kref_put(&(elem)->pelem.ref_cnt, rxe_elem_release)
+#define rxe_drop_ref(obj) kref_put(&(obj)->elem.ref_cnt, rxe_elem_release)
 
 #endif /* RXE_POOL_H */

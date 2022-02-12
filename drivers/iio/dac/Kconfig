@@ -6,6 +6,16 @@
 
 menu "Digital to analog converters"
 
+config AD3552R
+	tristate "Analog Devices AD3552R DAC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD3552R
+	  Digital to Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad3552r.
+
 config AD5064
 	tristate "Analog Devices AD5064 and similar multi-channel DAC driver"
 	depends on (SPI_MASTER && I2C!=m) || I2C
@@ -221,6 +231,17 @@ config AD5791
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5791.
 
+config AD7293
+	tristate "Analog Devices AD7293 Power Amplifier Current Controller"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7293
+	  Power Amplifier Current Controller with
+	  ADC, DACs, and Temperature and Current Sensors
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7293.
+
 config AD7303
 	tristate "Analog Devices AD7303 DAC driver"
 	depends on SPI
@@ -329,7 +350,6 @@ config MAX517
 config MAX5821
 	tristate "Maxim MAX5821 DAC driver"
 	depends on I2C
-	depends on OF
 	help
 	  Say yes here to build support for Maxim MAX5821
 	  10 bits DAC.

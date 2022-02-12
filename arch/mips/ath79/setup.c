@@ -34,15 +34,6 @@
 
 static char ath79_sys_type[ATH79_SYS_TYPE_LEN];
 
-static void ath79_restart(char *command)
-{
-	local_irq_disable();
-	ath79_device_reset_set(AR71XX_RESET_FULL_CHIP);
-	for (;;)
-		if (cpu_wait)
-			cpu_wait();
-}
-
 static void ath79_halt(void)
 {
 	while (1)
@@ -234,7 +225,6 @@ void __init plat_mem_setup(void)
 
 	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 
-	_machine_restart = ath79_restart;
 	_machine_halt = ath79_halt;
 	pm_power_off = ath79_halt;
 }

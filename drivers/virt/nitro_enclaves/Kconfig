@@ -14,3 +14,12 @@ config NITRO_ENCLAVES
 
 	  To compile this driver as a module, choose M here.
 	  The module will be called nitro_enclaves.
+
+config NITRO_ENCLAVES_MISC_DEV_TEST
+	bool "Tests for the misc device functionality of the Nitro Enclaves"
+	depends on NITRO_ENCLAVES && KUNIT=y
+	help
+	  Enable KUnit tests for the misc device functionality of the Nitro
+	  Enclaves. Select this option only if you will boot the kernel for
+	  the purpose of running unit tests (e.g. under UML or qemu). If
+	  unsure, say N.

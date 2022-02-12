@@ -54,4 +54,15 @@ config GNSS_UBX_SERIAL
 
 	  If unsure, say N.
 
+config GNSS_USB
+	tristate "USB GNSS receiver support"
+	depends on USB
+	help
+	  Say Y here if you have a GNSS receiver which uses a USB interface.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gnss-usb.
+
+	  If unsure, say N.
+
 endif # GNSS

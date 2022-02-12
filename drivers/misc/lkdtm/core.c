@@ -182,7 +182,7 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(FORTIFIED_SUBOBJECT),
 	CRASHTYPE(FORTIFIED_STRSCPY),
 	CRASHTYPE(DOUBLE_FAULT),
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	CRASHTYPE(PPC_SLB_MULTIHIT),
 #endif
 };
@@ -212,7 +212,11 @@ module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
 
-/* For test debug reporting. */
+/*
+ * For test debug reporting when CI systems provide terse summaries.
+ * TODO: Remove this once reasonable reporting exists in most CI systems:
+ * https://lore.kernel.org/lkml/CAHk-=wiFvfkoFixTapvvyPMN9pq5G-+Dys2eSyBa1vzDGAO5+A@mail.gmail.com
+ */
 char *lkdtm_kernel_info;
 
 /* Return the crashtype number or NULL if the name is invalid */

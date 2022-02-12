@@ -4354,7 +4354,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 	int i, ndevs_to_allocate;
 	int raid_ctlr_position;
 	bool physical_device;
-	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kcalloc(HPSA_MAX_DEVICES, sizeof(*currentsd), GFP_KERNEL);
 	physdev_list = kzalloc(sizeof(*physdev_list), GFP_KERNEL);
@@ -4368,7 +4367,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		dev_err(&h->pdev->dev, "out of memory\n");
 		goto out;
 	}
-	memset(lunzerobits, 0, sizeof(lunzerobits));
 
 	h->drv_req_rescan = 0; /* cancel scheduled rescan - we're doing it. */
 

@@ -25,9 +25,8 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
-#include "8255.h"
+#include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8255.h>
 
 struct pcl724_board {
 	const char *name;
