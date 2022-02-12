@@ -282,7 +282,6 @@ u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, enum rf_radio_path eRFPath,
 *
 * Input:
 *			struct adapter *Adapter,
-*			enum rf_radio_path eRFPath,	Radio path of A/B/C/D
 *			u32			RegAddr,	The target address to be modified
 *			u32			BitMask		The target bit position in the target address
 *									to be modified
@@ -296,7 +295,6 @@ u32 rtl8188e_PHY_QueryRFReg(struct adapter *Adapter, enum rf_radio_path eRFPath,
 void
 rtl8188e_PHY_SetRFReg(
 		struct adapter *Adapter,
-		enum rf_radio_path eRFPath,
 		u32 RegAddr,
 		u32 BitMask,
 		u32 Data
@@ -306,12 +304,12 @@ rtl8188e_PHY_SetRFReg(
 
 	/*  RF data is 12 bits only */
 	if (BitMask != bRFRegOffsetMask) {
-		Original_Value = phy_RFSerialRead(Adapter, eRFPath, RegAddr);
+		Original_Value = phy_RFSerialRead(Adapter, RF_PATH_A, RegAddr);
 		BitShift =  phy_CalculateBitShift(BitMask);
 		Data = ((Original_Value & (~BitMask)) | (Data << BitShift));
 	}
 
-	phy_RFSerialWrite(Adapter, eRFPath, RegAddr, Data);
+	phy_RFSerialWrite(Adapter, RF_PATH_A, RegAddr, Data);
 }
 
 /*  */
@@ -725,7 +723,7 @@ static void _PHY_SwChnl8192C(struct adapter *Adapter, u8 channel)
 	param1 = RF_CHNLBW;
 	param2 = channel;
 	pHalData->RfRegChnlVal = ((pHalData->RfRegChnlVal & 0xfffffc00) | param2);
-	rtl8188e_PHY_SetRFReg(Adapter, RF_PATH_A, param1, bRFRegOffsetMask, pHalData->RfRegChnlVal);
+	rtl8188e_PHY_SetRFReg(Adapter, param1, bRFRegOffsetMask, pHalData->RfRegChnlVal);
 }
 
 void PHY_SwChnl8188E(struct adapter *Adapter, u8 channel)

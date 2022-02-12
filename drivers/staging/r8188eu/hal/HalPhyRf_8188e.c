@@ -327,14 +327,14 @@ phy_PathA_RxIQK(struct adapter *adapt)
 	/* 1 Get TXIMR setting */
 	/* modify RXIQK mode table */
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x00000000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_WE_LUT, bRFRegOffsetMask, 0x800a0);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_RCK_OS, bRFRegOffsetMask, 0x30000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_TXPA_G1, bRFRegOffsetMask, 0x0000f);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_TXPA_G2, bRFRegOffsetMask, 0xf117B);
+	rtl8188e_PHY_SetRFReg(adapt, RF_WE_LUT, bRFRegOffsetMask, 0x800a0);
+	rtl8188e_PHY_SetRFReg(adapt, RF_RCK_OS, bRFRegOffsetMask, 0x30000);
+	rtl8188e_PHY_SetRFReg(adapt, RF_TXPA_G1, bRFRegOffsetMask, 0x0000f);
+	rtl8188e_PHY_SetRFReg(adapt, RF_TXPA_G2, bRFRegOffsetMask, 0xf117B);
 
 	/* PA,PAD off */
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, 0xdf, bRFRegOffsetMask, 0x980);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, 0x56, bRFRegOffsetMask, 0x51000);
+	rtl8188e_PHY_SetRFReg(adapt, 0xdf, bRFRegOffsetMask, 0x980);
+	rtl8188e_PHY_SetRFReg(adapt, 0x56, bRFRegOffsetMask, 0x51000);
 
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x80800000);
 
@@ -376,10 +376,10 @@ phy_PathA_RxIQK(struct adapter *adapt)
 	/* 1 RX IQK */
 	/* modify RXIQK mode table */
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x00000000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_WE_LUT, bRFRegOffsetMask, 0x800a0);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_RCK_OS, bRFRegOffsetMask, 0x30000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_TXPA_G1, bRFRegOffsetMask, 0x0000f);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_TXPA_G2, bRFRegOffsetMask, 0xf7ffa);
+	rtl8188e_PHY_SetRFReg(adapt, RF_WE_LUT, bRFRegOffsetMask, 0x800a0);
+	rtl8188e_PHY_SetRFReg(adapt, RF_RCK_OS, bRFRegOffsetMask, 0x30000);
+	rtl8188e_PHY_SetRFReg(adapt, RF_TXPA_G1, bRFRegOffsetMask, 0x0000f);
+	rtl8188e_PHY_SetRFReg(adapt, RF_TXPA_G2, bRFRegOffsetMask, 0xf7ffa);
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x80800000);
 
 	/* IQK setting */
@@ -410,7 +410,7 @@ phy_PathA_RxIQK(struct adapter *adapt)
 
 	/* reload RF 0xdf */
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x00000000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, 0xdf, bRFRegOffsetMask, 0x180);
+	rtl8188e_PHY_SetRFReg(adapt, 0xdf, bRFRegOffsetMask, 0x180);
 
 	if (!(regeac & BIT(27)) &&		/* if Tx is OK, check whether Rx is OK */
 	    (((regEA4 & 0x03FF0000) >> 16) != 0x132) &&
@@ -763,14 +763,14 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt)
 
 		/* 2. Set RF mode = standby mode */
 		/* Path-A */
-		rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, (RF_Amode & 0x8FFFF) | 0x10000);
+		rtl8188e_PHY_SetRFReg(adapt, RF_AC, bMask12Bits, (RF_Amode & 0x8FFFF) | 0x10000);
 	}
 
 	/* 3. Read RF reg18 */
 	LC_Cal = rtl8188e_PHY_QueryRFReg(adapt, RF_PATH_A, RF_CHNLBW, bMask12Bits);
 
 	/* 4. Set LC calibration begin	bit15 */
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_CHNLBW, bMask12Bits, LC_Cal | 0x08000);
+	rtl8188e_PHY_SetRFReg(adapt, RF_CHNLBW, bMask12Bits, LC_Cal | 0x08000);
 
 	msleep(100);
 
@@ -779,7 +779,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt)
 		/* Deal with continuous TX case */
 		/* Path-A */
 		rtw_write8(adapt, 0xd03, tmpreg);
-		rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
+		rtl8188e_PHY_SetRFReg(adapt, RF_AC, bMask12Bits, RF_Amode);
 	} else {
 		/*  Deal with Packet TX case */
 		rtw_write8(adapt, REG_TXPAUSE, 0x00);

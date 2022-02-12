@@ -75,8 +75,7 @@ void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr,
 			   u32 mask, u32 data);
 u32 rtl8188e_PHY_QueryRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
 			    u32 regaddr, u32 mask);
-void rtl8188e_PHY_SetRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
-			   u32 regaddr, u32 mask, u32 data);
+void rtl8188e_PHY_SetRFReg(struct adapter *adapter, u32 regaddr, u32 mask, u32 data);
 
 /*  Initialization related function */
 /* MAC/BB/RF HAL config */

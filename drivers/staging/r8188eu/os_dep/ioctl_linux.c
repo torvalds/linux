@@ -2088,7 +2088,7 @@ static int rtw_wx_write_rf(struct net_device *dev,
 
 	addr = *((u32 *)extra + 1);
 	data32 = *((u32 *)extra + 2);
-	rtl8188e_PHY_SetRFReg(padapter, RF_PATH_A, addr, 0xFFFFF, data32);
+	rtl8188e_PHY_SetRFReg(padapter, addr, 0xFFFFF, data32);
 
 	return 0;
 }
@@ -3625,7 +3625,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			ret = -EINVAL;
 			break;
 		}
-		rtl8188e_PHY_SetRFReg(padapter, RF_PATH_A, arg, 0xffffffff, extra_arg);
+		rtl8188e_PHY_SetRFReg(padapter, arg, 0xffffffff, extra_arg);
 		DBG_88E("write RF_reg path(0x%02x), offset(0x%x), value(0x%08x)\n", minor_cmd, arg, rtl8188e_PHY_QueryRFReg(padapter, minor_cmd, arg, 0xffffffff));
 		break;
 
