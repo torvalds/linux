@@ -30,6 +30,17 @@
 #define FPGA_REV			(0x04)
 #define FPGA_REV_GET_MINOR_(fpga_rev)	(((fpga_rev) >> 8) & 0x000000FF)
 #define FPGA_REV_GET_MAJOR_(fpga_rev)	((fpga_rev) & 0x000000FF)
+#define FPGA_SGMII_OP			BIT(24)
+
+#define STRAP_READ			(0x0C)
+#define STRAP_READ_USE_SGMII_EN_	BIT(22)
+#define STRAP_READ_SGMII_EN_		BIT(6)
+#define STRAP_READ_SGMII_REFCLK_	BIT(5)
+#define STRAP_READ_SGMII_2_5G_		BIT(4)
+#define STRAP_READ_BASE_X_		BIT(3)
+#define STRAP_READ_RGMII_TXC_DELAY_EN_	BIT(2)
+#define STRAP_READ_RGMII_RXC_DELAY_EN_	BIT(1)
+#define STRAP_READ_ADV_PM_DISABLE_	BIT(0)
 
 #define HW_CFG					(0x010)
 #define HW_CFG_RELOAD_TYPE_ALL_			(0x00000FC0)
@@ -218,6 +229,11 @@
 #define RFE_INDX(index)			(0x580 + (index << 2))
 
 #define MAC_WUCSR2			(0x600)
+
+#define SGMII_CTL			(0x728)
+#define SGMII_CTL_SGMII_ENABLE_		BIT(31)
+#define SGMII_CTL_LINK_STATUS_SOURCE_	BIT(8)
+#define SGMII_CTL_SGMII_POWER_DN_	BIT(1)
 
 #define INT_STS				(0x780)
 #define INT_BIT_DMA_RX_(channel)	BIT(24 + (channel))
@@ -739,6 +755,7 @@ struct lan743x_adapter {
 	struct lan743x_tx       tx[PCI11X1X_USED_TX_CHANNELS];
 	struct lan743x_rx       rx[LAN743X_USED_RX_CHANNELS];
 	bool			is_pci11x1x;
+	bool			is_sgmii_en;
 	u8			max_tx_channels;
 	u8			used_tx_channels;
 	u8			max_vector_count;

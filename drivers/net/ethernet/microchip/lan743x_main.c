@@ -18,6 +18,34 @@
 #include "lan743x_main.h"
 #include "lan743x_ethtool.h"
 
+static void pci11x1x_strap_get_status(struct lan743x_adapter *adapter)
+{
+	u32 chip_rev;
+	u32 strap;
+
+	strap = lan743x_csr_read(adapter, STRAP_READ);
+	if (strap & STRAP_READ_USE_SGMII_EN_) {
+		if (strap & STRAP_READ_SGMII_EN_)
+			adapter->is_sgmii_en = true;
+		else
+			adapter->is_sgmii_en = false;
+		netif_dbg(adapter, drv, adapter->netdev,
+			  "STRAP_READ: 0x%08X\n", strap);
+	} else {
+		chip_rev = lan743x_csr_read(adapter, FPGA_REV);
+		if (chip_rev) {
+			if (chip_rev & FPGA_SGMII_OP)
+				adapter->is_sgmii_en = true;
+			else
+				adapter->is_sgmii_en = false;
+			netif_dbg(adapter, drv, adapter->netdev,
+				  "FPGA_REV: 0x%08X\n", chip_rev);
+		} else {
+			adapter->is_sgmii_en = false;
+		}
+	}
+}
+
 static bool is_pci11x1x_chip(struct lan743x_adapter *adapter)
 {
 	struct lan743x_csr *csr = &adapter->csr;
@@ -2744,6 +2772,7 @@ static int lan743x_hardware_init(struct lan743x_adapter *adapter,
 		adapter->max_tx_channels = PCI11X1X_MAX_TX_CHANNELS;
 		adapter->used_tx_channels = PCI11X1X_USED_TX_CHANNELS;
 		adapter->max_vector_count = PCI11X1X_MAX_VECTOR_COUNT;
+		pci11x1x_strap_get_status(adapter);
 	} else {
 		adapter->max_tx_channels = LAN743X_MAX_TX_CHANNELS;
 		adapter->used_tx_channels = LAN743X_USED_TX_CHANNELS;
@@ -2792,6 +2821,7 @@ static int lan743x_hardware_init(struct lan743x_adapter *adapter,
 
 static int lan743x_mdiobus_init(struct lan743x_adapter *adapter)
 {
+	u32 sgmii_ctl;
 	int ret;
 
 	adapter->mdiobus = devm_mdiobus_alloc(&adapter->pdev->dev);
@@ -2801,6 +2831,24 @@ static int lan743x_mdiobus_init(struct lan743x_adapter *adapter)
 	}
 
 	adapter->mdiobus->priv = (void *)adapter;
+	if (adapter->is_pci11x1x) {
+		if (adapter->is_sgmii_en) {
+			sgmii_ctl = lan743x_csr_read(adapter, SGMII_CTL);
+			sgmii_ctl |= SGMII_CTL_SGMII_ENABLE_;
+			sgmii_ctl &= ~SGMII_CTL_SGMII_POWER_DN_;
+			lan743x_csr_write(adapter, SGMII_CTL, sgmii_ctl);
+			netif_dbg(adapter, drv, adapter->netdev,
+				  "SGMII operation\n");
+		} else {
+			sgmii_ctl = lan743x_csr_read(adapter, SGMII_CTL);
+			sgmii_ctl &= ~SGMII_CTL_SGMII_ENABLE_;
+			sgmii_ctl |= SGMII_CTL_SGMII_POWER_DN_;
+			lan743x_csr_write(adapter, SGMII_CTL, sgmii_ctl);
+			netif_dbg(adapter, drv, adapter->netdev,
+					  "(R)GMII operation\n");
+		}
+	}
+
 	adapter->mdiobus->read = lan743x_mdiobus_read;
 	adapter->mdiobus->write = lan743x_mdiobus_write;
 	adapter->mdiobus->name = "lan743x-mdiobus";
