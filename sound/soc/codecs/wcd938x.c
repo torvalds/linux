@@ -194,6 +194,7 @@ struct wcd938x_priv {
 	int ear_rx_path;
 	int variant;
 	int reset_gpio;
+	int us_euro_gpio;
 	u32 micb1_mv;
 	u32 micb2_mv;
 	u32 micb3_mv;
@@ -4196,6 +4197,33 @@ static void wcd938x_dt_parse_micbias_info(struct device *dev, struct wcd938x_pri
 		dev_info(dev, "%s: Micbias4 DT property not found\n", __func__);
 }
 
+static bool wcd938x_swap_gnd_mic(struct snd_soc_component *component, bool active)
+{
+	int value;
+
+	struct wcd938x_priv *wcd938x;
+
+	if (!component) {
+		dev_err(component->dev, "%s component is NULL\n", __func__);
+		return false;
+	}
+
+	wcd938x = snd_soc_component_get_drvdata(component);
+	if (!wcd938x) {
+		dev_err(component->dev, "%s private data is NULL\n", __func__);
+		return false;
+	}
+
+	value = gpio_get_value(wcd938x->us_euro_gpio);
+
+	gpio_set_value(wcd938x->us_euro_gpio, !value);
+	/* 20us sleep required after changing the gpio state*/
+	usleep_range(20, 30);
+
+	return true;
+}
+
+
 static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device *dev)
 {
 	struct wcd_mbhc_config *cfg = &wcd938x->mbhc_cfg;
@@ -4206,6 +4234,16 @@ static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device 
 		dev_err(dev, "Failed to get reset gpio: err = %d\n",
 			wcd938x->reset_gpio);
 		return wcd938x->reset_gpio;
+	}
+
+	wcd938x->us_euro_gpio = of_get_named_gpio(dev->of_node, "us-euro-gpios", 0);
+	if (wcd938x->us_euro_gpio < 0) {
+		dev_err(dev, "Failed to get us-euro-gpios gpio: err = %d\n", wcd938x->us_euro_gpio);
+	} else {
+		cfg->swap_gnd_mic = wcd938x_swap_gnd_mic;
+		gpio_direction_output(wcd938x->us_euro_gpio, 0);
+		/* 20us sleep required after pulling the reset gpio to LOW */
+		usleep_range(20, 30);
 	}
 
 	wcd938x->supplies[0].supply = "vdd-rxtx";
