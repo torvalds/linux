@@ -1297,14 +1297,6 @@ config AB8500_CORE
 	  the irq_chip parts for handling the Mixed Signal chip events.
 	  This chip embeds various other multimedia functionalities as well.
 
-config AB8500_DEBUG
-	bool "Enable debug info via debugfs"
-	depends on AB8500_GPADC && DEBUG_FS
-	default y if DEBUG_FS
-	help
-	  Select this option if you want debug information using the debug
-	  filesystem, debugfs.
-
 config MFD_DB8500_PRCMU
 	bool "ST-Ericsson DB8500 Power Reset Control Management Unit"
 	depends on UX500_SOC_DB8500
