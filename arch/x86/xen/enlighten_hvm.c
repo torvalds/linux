@@ -185,8 +185,7 @@ static int xen_cpu_dead_hvm(unsigned int cpu)
 
 	if (xen_have_vector_callback && xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_teardown_timer(cpu);
-
-       return 0;
+	return 0;
 }
 
 static bool no_vector_callback __initdata;
@@ -246,6 +245,11 @@ early_param("xen_no_vector_callback", xen_parse_no_vector_callback);
 static __init bool xen_x2apic_available(void)
 {
 	return x2apic_supported();
+}
+
+static bool __init msi_ext_dest_id(void)
+{
+       return cpuid_eax(xen_cpuid_base() + 4) & XEN_HVM_CPUID_EXT_DEST_ID;
 }
 
 static __init void xen_hvm_guest_late_init(void)
@@ -310,6 +314,7 @@ struct hypervisor_x86 x86_hyper_xen_hvm __initdata = {
 	.init.x2apic_available  = xen_x2apic_available,
 	.init.init_mem_mapping	= xen_hvm_init_mem_mapping,
 	.init.guest_late_init	= xen_hvm_guest_late_init,
+	.init.msi_ext_dest_id   = msi_ext_dest_id,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
 	.ignore_nopv            = true,
 };
