@@ -2088,7 +2088,7 @@ static int rtw_wx_write_rf(struct net_device *dev,
 
 	addr = *((u32 *)extra + 1);
 	data32 = *((u32 *)extra + 2);
-	rtl8188e_PHY_SetRFReg(padapter, path, addr, 0xFFFFF, data32);
+	rtl8188e_PHY_SetRFReg(padapter, RF_PATH_A, addr, 0xFFFFF, data32);
 
 	return 0;
 }
