@@ -281,9 +281,9 @@ following order:
 The output buffer the user space caller provides must be at least as
 large to hold the following data:
 
--  AEAD encryption output: ciphertext \|\| authentication tag
+-  AEAD encryption output: AAD \|\| ciphertext \|\| authentication tag
 
--  AEAD decryption output: plaintext
+-  AEAD decryption output: AAD \|\| plaintext
 
 Random Number Generator API
 ---------------------------
