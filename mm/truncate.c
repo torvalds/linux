@@ -287,7 +287,9 @@ int invalidate_inode_page(struct page *page)
 		return 0;
 	if (folio_test_dirty(folio) || folio_test_writeback(folio))
 		return 0;
-	if (page_mapped(page))
+	/* The refcount will be elevated if any page in the folio is mapped */
+	if (folio_ref_count(folio) >
+			folio_nr_pages(folio) + folio_has_private(folio) + 1)
 		return 0;
 	if (folio_has_private(folio) && !filemap_release_folio(folio, 0))
 		return 0;
