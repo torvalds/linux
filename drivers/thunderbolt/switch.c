@@ -1168,10 +1168,17 @@ int tb_port_wait_for_link_width(struct tb_port *port, int width,
 
 	do {
 		ret = tb_port_get_link_width(port);
-		if (ret < 0)
-			return ret;
-		else if (ret == width)
+		if (ret < 0) {
+			/*
+			 * Sometimes we get port locked error when
+			 * polling the lanes so we can ignore it and
+			 * retry.
+			 */
+			if (ret != -EACCES)
+				return ret;
+		} else if (ret == width) {
 			return 0;
+		}
 
 		usleep_range(1000, 2000);
 	} while (ktime_before(ktime_get(), timeout));
