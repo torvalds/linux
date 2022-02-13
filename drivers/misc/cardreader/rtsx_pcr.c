@@ -1054,38 +1054,6 @@ static int rtsx_pci_acquire_irq(struct rtsx_pcr *pcr)
 	return 0;
 }
 
-static void rtsx_enable_aspm(struct rtsx_pcr *pcr)
-{
-	if (pcr->ops->set_aspm)
-		pcr->ops->set_aspm(pcr, true);
-	else
-		rtsx_comm_set_aspm(pcr, true);
-}
-
-static void rtsx_comm_pm_power_saving(struct rtsx_pcr *pcr)
-{
-	struct rtsx_cr_option *option = &pcr->option;
-
-	if (option->ltr_enabled) {
-		u32 latency = option->ltr_l1off_latency;
-
-		if (rtsx_check_dev_flag(pcr, L1_SNOOZE_TEST_EN))
-			mdelay(option->l1_snooze_delay);
-
-		rtsx_set_ltr_latency(pcr, latency);
-	}
-
-	if (rtsx_check_dev_flag(pcr, LTR_L1SS_PWR_GATE_EN))
-		rtsx_set_l1off_sub_cfg_d0(pcr, 0);
-
-	rtsx_enable_aspm(pcr);
-}
-
-static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
-{
-	rtsx_comm_pm_power_saving(pcr);
-}
-
 static void rtsx_base_force_power_down(struct rtsx_pcr *pcr)
 {
 	/* Set relink_time to 0 */
@@ -1700,6 +1668,38 @@ out:
 }
 
 #ifdef CONFIG_PM
+
+static void rtsx_enable_aspm(struct rtsx_pcr *pcr)
+{
+	if (pcr->ops->set_aspm)
+		pcr->ops->set_aspm(pcr, true);
+	else
+		rtsx_comm_set_aspm(pcr, true);
+}
+
+static void rtsx_comm_pm_power_saving(struct rtsx_pcr *pcr)
+{
+	struct rtsx_cr_option *option = &pcr->option;
+
+	if (option->ltr_enabled) {
+		u32 latency = option->ltr_l1off_latency;
+
+		if (rtsx_check_dev_flag(pcr, L1_SNOOZE_TEST_EN))
+			mdelay(option->l1_snooze_delay);
+
+		rtsx_set_ltr_latency(pcr, latency);
+	}
+
+	if (rtsx_check_dev_flag(pcr, LTR_L1SS_PWR_GATE_EN))
+		rtsx_set_l1off_sub_cfg_d0(pcr, 0);
+
+	rtsx_enable_aspm(pcr);
+}
+
+static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
+{
+	rtsx_comm_pm_power_saving(pcr);
+}
 
 static void rtsx_pci_shutdown(struct pci_dev *pcidev)
 {
