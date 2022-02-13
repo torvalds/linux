@@ -886,7 +886,7 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_root_ft;
 
-	mlx5e_ethtool_init_steering(priv);
+	mlx5e_ethtool_init_steering(priv->fs);
 
 	return 0;
 
@@ -907,7 +907,7 @@ err_free_fs:
 
 static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 {
-	mlx5e_ethtool_cleanup_steering(priv);
+	mlx5e_ethtool_cleanup_steering(priv->fs);
 	rep_vport_rx_rule_destroy(priv);
 	mlx5e_destroy_rep_root_ft(priv);
 	mlx5_destroy_ttc_table(mlx5e_fs_get_ttc(priv->fs, false));

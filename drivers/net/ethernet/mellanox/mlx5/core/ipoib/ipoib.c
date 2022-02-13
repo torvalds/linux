@@ -344,7 +344,7 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 		goto err_destroy_arfs_tables;
 	}
 
-	mlx5e_ethtool_init_steering(priv);
+	mlx5e_ethtool_init_steering(priv->fs);
 
 	return 0;
 
@@ -358,7 +358,7 @@ static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 {
 	mlx5e_destroy_ttc_table(priv);
 	mlx5e_arfs_destroy_tables(priv);
-	mlx5e_ethtool_cleanup_steering(priv);
+	mlx5e_ethtool_cleanup_steering(priv->fs);
 }
 
 static int mlx5i_init_rx(struct mlx5e_priv *priv)

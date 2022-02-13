@@ -501,10 +501,10 @@ free:
 	return err ? ERR_PTR(err) : rule;
 }
 
-static void del_ethtool_rule(struct mlx5e_priv *priv,
+static void del_ethtool_rule(struct mlx5e_flow_steering *fs,
 			     struct mlx5e_ethtool_rule *eth_rule)
 {
-	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(priv->fs);
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(fs);
 	if (eth_rule->rule)
 		mlx5_del_flow_rules(eth_rule->rule);
 	if (eth_rule->rss)
@@ -535,7 +535,7 @@ static struct mlx5e_ethtool_rule *get_ethtool_rule(struct mlx5e_priv *priv,
 
 	eth_rule = find_ethtool_rule(priv, location);
 	if (eth_rule)
-		del_ethtool_rule(priv, eth_rule);
+		del_ethtool_rule(priv->fs, eth_rule);
 
 	eth_rule = kzalloc(sizeof(*eth_rule), GFP_KERNEL);
 	if (!eth_rule)
@@ -758,7 +758,7 @@ mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 	return 0;
 
 del_ethtool_rule:
-	del_ethtool_rule(priv, eth_rule);
+	del_ethtool_rule(priv->fs, eth_rule);
 
 	return err;
 }
@@ -778,7 +778,7 @@ mlx5e_ethtool_flow_remove(struct mlx5e_priv *priv, int location)
 		goto out;
 	}
 
-	del_ethtool_rule(priv, eth_rule);
+	del_ethtool_rule(priv->fs, eth_rule);
 out:
 	return err;
 }
@@ -831,19 +831,19 @@ mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
 	return err;
 }
 
-void mlx5e_ethtool_cleanup_steering(struct mlx5e_priv *priv)
+void mlx5e_ethtool_cleanup_steering(struct mlx5e_flow_steering *fs)
 {
-	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(priv->fs);
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(fs);
 	struct mlx5e_ethtool_rule *iter;
 	struct mlx5e_ethtool_rule *temp;
 
 	list_for_each_entry_safe(iter, temp, &ethtool->rules, list)
-		del_ethtool_rule(priv, iter);
+		del_ethtool_rule(fs, iter);
 }
 
-void mlx5e_ethtool_init_steering(struct mlx5e_priv *priv)
+void mlx5e_ethtool_init_steering(struct mlx5e_flow_steering *fs)
 {
-	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(priv->fs);
+	struct mlx5e_ethtool_steering *ethtool = mlx5e_fs_get_ethtool(fs);
 
 	INIT_LIST_HEAD(&ethtool->rules);
 }

@@ -1342,7 +1342,7 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destory_vlan_table;
 
-	mlx5e_ethtool_init_steering(priv);
+	mlx5e_ethtool_init_steering(priv->fs);
 
 	return 0;
 
@@ -1368,7 +1368,7 @@ void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv)
 	mlx5e_destroy_ttc_table(priv);
 	mlx5e_destroy_inner_ttc_table(priv);
 	mlx5e_arfs_destroy_tables(priv);
-	mlx5e_ethtool_cleanup_steering(priv);
+	mlx5e_ethtool_cleanup_steering(priv->fs);
 }
 
 static int mlx5e_fs_vlan_alloc(struct mlx5e_flow_steering *fs)
