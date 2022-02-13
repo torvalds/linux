@@ -102,8 +102,10 @@ static int flat_core_dump(struct coredump_params *cprm);
 static struct linux_binfmt flat_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_flat_binary,
+#ifdef CONFIG_COREDUMP
 	.core_dump	= flat_core_dump,
 	.min_coredump	= PAGE_SIZE
+#endif
 };
 
 /****************************************************************************/

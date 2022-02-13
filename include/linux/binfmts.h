@@ -98,8 +98,10 @@ struct linux_binfmt {
 	struct module *module;
 	int (*load_binary)(struct linux_binprm *);
 	int (*load_shlib)(struct file *);
+#ifdef CONFIG_COREDUMP
 	int (*core_dump)(struct coredump_params *cprm);
 	unsigned long min_coredump;	/* minimal dump size */
+#endif
 } __randomize_layout;
 
 extern void __register_binfmt(struct linux_binfmt *fmt, int insert);
