@@ -31,7 +31,7 @@ static struct hwrng *current_rng;
 /* the current rng has been explicitly chosen by user via sysfs */
 static int cur_rng_set_by_user;
 static struct task_struct *hwrng_fill;
-/* list of registered rngs, sorted decending by quality */
+/* list of registered rngs */
 static LIST_HEAD(rng_list);
 /* Protects rng_list and current_rng */
 static DEFINE_MUTEX(rng_mutex);
@@ -297,23 +297,27 @@ static struct miscdevice rng_miscdev = {
 
 static int enable_best_rng(void)
 {
+	struct hwrng *rng, *new_rng = NULL;
 	int ret = -ENODEV;
 
 	BUG_ON(!mutex_is_locked(&rng_mutex));
 
-	/* rng_list is sorted by quality, use the best (=first) one */
-	if (!list_empty(&rng_list)) {
-		struct hwrng *new_rng;
-
-		new_rng = list_entry(rng_list.next, struct hwrng, list);
-		ret = ((new_rng == current_rng) ? 0 : set_current_rng(new_rng));
-		if (!ret)
-			cur_rng_set_by_user = 0;
-	} else {
+	/* no rng to use? */
+	if (list_empty(&rng_list)) {
 		drop_current_rng();
 		cur_rng_set_by_user = 0;
-		ret = 0;
+		return 0;
 	}
+
+	/* use the rng which offers the best quality */
+	list_for_each_entry(rng, &rng_list, list) {
+		if (!new_rng || rng->quality > new_rng->quality)
+			new_rng = rng;
+	}
+
+	ret = ((new_rng == current_rng) ? 0 : set_current_rng(new_rng));
+	if (!ret)
+		cur_rng_set_by_user = 0;
 
 	return ret;
 }
@@ -475,7 +479,6 @@ int hwrng_register(struct hwrng *rng)
 {
 	int err = -EINVAL;
 	struct hwrng *tmp;
-	struct list_head *rng_list_ptr;
 	bool is_new_current = false;
 
 	if (!rng->name || (!rng->data_read && !rng->read))
@@ -489,17 +492,10 @@ int hwrng_register(struct hwrng *rng)
 		if (strcmp(tmp->name, rng->name) == 0)
 			goto out_unlock;
 	}
+	list_add_tail(&rng->list, &rng_list);
 
 	init_completion(&rng->cleanup_done);
 	complete(&rng->cleanup_done);
-
-	/* rng_list is sorted by decreasing quality */
-	list_for_each(rng_list_ptr, &rng_list) {
-		tmp = list_entry(rng_list_ptr, struct hwrng, list);
-		if (tmp->quality < rng->quality)
-			break;
-	}
-	list_add_tail(&rng->list, rng_list_ptr);
 
 	if (!current_rng ||
 	    (!cur_rng_set_by_user && rng->quality > current_rng->quality)) {
