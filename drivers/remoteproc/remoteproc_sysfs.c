@@ -206,7 +206,7 @@ static ssize_t state_store(struct device *dev,
 		    rproc->state != RPROC_ATTACHED)
 			return -EINVAL;
 
-		rproc_shutdown(rproc);
+		ret = rproc_shutdown(rproc);
 	} else if (sysfs_streq(buf, "detach")) {
 		if (rproc->state != RPROC_ATTACHED)
 			return -EINVAL;
