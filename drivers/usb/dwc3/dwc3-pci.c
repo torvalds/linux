@@ -242,6 +242,14 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc,
 			}
 
 			/*
+			 * Make the pdev name predictable (only 1 DWC3 on BYT)
+			 * and patch the phy dev-name into the lookup table so
+			 * that the phy-driver can get the GPIOs.
+			 */
+			dwc->dwc3->id = PLATFORM_DEVID_NONE;
+			platform_bytcr_gpios.dev_id = "dwc3.ulpi";
+
+			/*
 			 * Some Android tablets with a Crystal Cove PMIC
 			 * (INT33FD), rely on the TUSB1211 phy for charger
 			 * detection. These can be identified by them _not_
