@@ -487,6 +487,11 @@ static int lenovo_send_cmd_cptkbd(struct hid_device *hdev,
 	if (!buf)
 		return -ENOMEM;
 
+	/*
+	 * Feature report 0x13 is used for USB,
+	 * output report 0x18 is used for Bluetooth.
+	 * buf[0] is ignored by hid_hw_raw_request.
+	 */
 	buf[0] = 0x18;
 	buf[1] = byte2;
 	buf[2] = byte3;
