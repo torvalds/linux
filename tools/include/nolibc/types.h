@@ -45,7 +45,9 @@
 #define DT_SOCK        0xc
 
 /* commonly an fd_set represents 256 FDs */
+#ifndef FD_SETSIZE
 #define FD_SETSIZE     256
+#endif
 
 /* Special FD used by all the *at functions */
 #ifndef AT_FDCWD
@@ -72,7 +74,7 @@
 
 /* for select() */
 typedef struct {
-	uint32_t fd32[FD_SETSIZE / 32];
+	uint32_t fd32[(FD_SETSIZE + 31) / 32];
 } fd_set;
 
 #define FD_CLR(fd, set) do {                                            \
@@ -101,7 +103,7 @@ typedef struct {
 #define FD_ZERO(set) do {                                               \
 		fd_set *__set = (set);                                  \
 		int __idx;                                              \
-		for (__idx = 0; __idx < FD_SETSIZE / 32; __idx ++)      \
+		for (__idx = 0; __idx < (FD_SETSIZE+31) / 32; __idx ++) \
 			__set->fd32[__idx] = 0;                         \
 	} while (0)
 
