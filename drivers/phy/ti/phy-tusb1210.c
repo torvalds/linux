@@ -26,6 +26,33 @@ struct tusb1210 {
 	u8 vendor_specific2;
 };
 
+static int tusb1210_ulpi_write(struct tusb1210 *tusb, u8 reg, u8 val)
+{
+	int ret;
+
+	ret = ulpi_write(tusb->ulpi, reg, val);
+	if (ret)
+		dev_err(&tusb->ulpi->dev, "error %d writing val 0x%02x to reg 0x%02x\n",
+			ret, val, reg);
+
+	return ret;
+}
+
+static int tusb1210_ulpi_read(struct tusb1210 *tusb, u8 reg, u8 *val)
+{
+	int ret;
+
+	ret = ulpi_read(tusb->ulpi, reg);
+	if (ret >= 0) {
+		*val = ret;
+		ret = 0;
+	} else {
+		dev_err(&tusb->ulpi->dev, "error %d reading reg 0x%02x\n", ret, reg);
+	}
+
+	return ret;
+}
+
 static int tusb1210_power_on(struct phy *phy)
 {
 	struct tusb1210 *tusb = phy_get_drvdata(phy);
@@ -35,8 +62,8 @@ static int tusb1210_power_on(struct phy *phy)
 
 	/* Restore the optional eye diagram optimization value */
 	if (tusb->vendor_specific2)
-		ulpi_write(tusb->ulpi, TUSB1210_VENDOR_SPECIFIC2,
-			   tusb->vendor_specific2);
+		return tusb1210_ulpi_write(tusb, TUSB1210_VENDOR_SPECIFIC2,
+					   tusb->vendor_specific2);
 
 	return 0;
 }
@@ -55,33 +82,34 @@ static int tusb1210_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct tusb1210 *tusb = phy_get_drvdata(phy);
 	int ret;
+	u8 reg;
 
-	ret = ulpi_read(tusb->ulpi, ULPI_OTG_CTRL);
+	ret = tusb1210_ulpi_read(tusb, ULPI_OTG_CTRL, &reg);
 	if (ret < 0)
 		return ret;
 
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
-		ret |= (ULPI_OTG_CTRL_DRVVBUS_EXT
+		reg |= (ULPI_OTG_CTRL_DRVVBUS_EXT
 			| ULPI_OTG_CTRL_ID_PULLUP
 			| ULPI_OTG_CTRL_DP_PULLDOWN
 			| ULPI_OTG_CTRL_DM_PULLDOWN);
-		ulpi_write(tusb->ulpi, ULPI_OTG_CTRL, ret);
-		ret |= ULPI_OTG_CTRL_DRVVBUS;
+		tusb1210_ulpi_write(tusb, ULPI_OTG_CTRL, reg);
+		reg |= ULPI_OTG_CTRL_DRVVBUS;
 		break;
 	case PHY_MODE_USB_DEVICE:
-		ret &= ~(ULPI_OTG_CTRL_DRVVBUS
+		reg &= ~(ULPI_OTG_CTRL_DRVVBUS
 			 | ULPI_OTG_CTRL_DP_PULLDOWN
 			 | ULPI_OTG_CTRL_DM_PULLDOWN);
-		ulpi_write(tusb->ulpi, ULPI_OTG_CTRL, ret);
-		ret &= ~ULPI_OTG_CTRL_DRVVBUS_EXT;
+		tusb1210_ulpi_write(tusb, ULPI_OTG_CTRL, reg);
+		reg &= ~ULPI_OTG_CTRL_DRVVBUS_EXT;
 		break;
 	default:
 		/* nothing */
 		return 0;
 	}
 
-	return ulpi_write(tusb->ulpi, ULPI_OTG_CTRL, ret);
+	return tusb1210_ulpi_write(tusb, ULPI_OTG_CTRL, reg);
 }
 
 static const struct phy_ops phy_ops = {
@@ -95,10 +123,13 @@ static int tusb1210_probe(struct ulpi *ulpi)
 {
 	struct tusb1210 *tusb;
 	u8 val, reg;
+	int ret;
 
 	tusb = devm_kzalloc(&ulpi->dev, sizeof(*tusb), GFP_KERNEL);
 	if (!tusb)
 		return -ENOMEM;
+
+	tusb->ulpi = ulpi;
 
 	tusb->gpio_reset = devm_gpiod_get_optional(&ulpi->dev, "reset",
 						   GPIOD_OUT_LOW);
@@ -119,7 +150,9 @@ static int tusb1210_probe(struct ulpi *ulpi)
 	 * diagram optimization and DP/DM swap.
 	 */
 
-	reg = ulpi_read(ulpi, TUSB1210_VENDOR_SPECIFIC2);
+	ret = tusb1210_ulpi_read(tusb, TUSB1210_VENDOR_SPECIFIC2, &reg);
+	if (ret)
+		return ret;
 
 	/* High speed output drive strength configuration */
 	if (!device_property_read_u8(&ulpi->dev, "ihstx", &val))
@@ -133,14 +166,15 @@ static int tusb1210_probe(struct ulpi *ulpi)
 	if (!device_property_read_u8(&ulpi->dev, "datapolarity", &val))
 		u8p_replace_bits(&reg, val, (u8)TUSB1210_VENDOR_SPECIFIC2_DP_MASK);
 
-	ulpi_write(ulpi, TUSB1210_VENDOR_SPECIFIC2, reg);
+	ret = tusb1210_ulpi_write(tusb, TUSB1210_VENDOR_SPECIFIC2, reg);
+	if (ret)
+		return ret;
+
 	tusb->vendor_specific2 = reg;
 
 	tusb->phy = ulpi_phy_create(ulpi, &phy_ops);
 	if (IS_ERR(tusb->phy))
 		return PTR_ERR(tusb->phy);
-
-	tusb->ulpi = ulpi;
 
 	phy_set_drvdata(tusb->phy, tusb);
 	ulpi_set_drvdata(ulpi, tusb);
