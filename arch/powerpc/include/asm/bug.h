@@ -11,7 +11,7 @@
 #ifdef __ASSEMBLY__
 #include <asm/asm-offsets.h>
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-.macro EMIT_BUG_ENTRY addr,file,line,flags
+.macro __EMIT_BUG_ENTRY addr,file,line,flags
 	 .section __bug_table,"aw"
 5001:	 .4byte \addr - 5001b, 5002f - 5001b
 	 .short \line, \flags
@@ -22,7 +22,7 @@
 	 .previous
 .endm
 #else
-.macro EMIT_BUG_ENTRY addr,file,line,flags
+.macro __EMIT_BUG_ENTRY addr,file,line,flags
 	 .section __bug_table,"aw"
 5001:	 .4byte \addr - 5001b
 	 .short \flags
@@ -33,7 +33,14 @@
 
 .macro EMIT_WARN_ENTRY addr,file,line,flags
 	EX_TABLE(\addr,\addr+4)
-	EMIT_BUG_ENTRY \addr,\file,\line,\flags
+	__EMIT_BUG_ENTRY \addr,\file,\line,\flags
+.endm
+
+.macro EMIT_BUG_ENTRY addr,file,line,flags
+	.if \flags & 1 /* BUGFLAG_WARNING */
+	.err /* Use EMIT_WARN_ENTRY for warnings */
+	.endif
+	__EMIT_BUG_ENTRY \addr,\file,\line,\flags
 .endm
 
 #else /* !__ASSEMBLY__ */
