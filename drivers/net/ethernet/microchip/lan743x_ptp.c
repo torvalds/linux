@@ -1307,21 +1307,21 @@ int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
-		for (index = 0; index < LAN743X_MAX_TX_CHANNELS;
-			index++)
+		for (index = 0; index < adapter->used_tx_channels;
+		     index++)
 			lan743x_tx_set_timestamping_mode(&adapter->tx[index],
 							 false, false);
 		lan743x_ptp_set_sync_ts_insert(adapter, false);
 		break;
 	case HWTSTAMP_TX_ON:
-		for (index = 0; index < LAN743X_MAX_TX_CHANNELS;
+		for (index = 0; index < adapter->used_tx_channels;
 			index++)
 			lan743x_tx_set_timestamping_mode(&adapter->tx[index],
 							 true, false);
 		lan743x_ptp_set_sync_ts_insert(adapter, false);
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
-		for (index = 0; index < LAN743X_MAX_TX_CHANNELS;
+		for (index = 0; index < adapter->used_tx_channels;
 			index++)
 			lan743x_tx_set_timestamping_mode(&adapter->tx[index],
 							 true, true);

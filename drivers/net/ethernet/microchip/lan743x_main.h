@@ -16,8 +16,13 @@
 #define ID_REV_ID_MASK_			(0xFFFF0000)
 #define ID_REV_ID_LAN7430_		(0x74300000)
 #define ID_REV_ID_LAN7431_		(0x74310000)
-#define ID_REV_IS_VALID_CHIP_ID_(id_rev)	\
-	(((id_rev) & 0xFFF00000) == 0x74300000)
+#define ID_REV_ID_LAN743X_		(0x74300000)
+#define ID_REV_ID_A011_			(0xA0110000)	// PCI11010
+#define ID_REV_ID_A041_			(0xA0410000)	// PCI11414
+#define ID_REV_ID_A0X1_			(0xA0010000)
+#define ID_REV_IS_VALID_CHIP_ID_(id_rev)	    \
+	((((id_rev) & 0xFFF00000) == ID_REV_ID_LAN743X_) || \
+	 (((id_rev) & 0xFF0F0000) == ID_REV_ID_A0X1_))
 #define ID_REV_CHIP_REV_MASK_		(0x0000FFFF)
 #define ID_REV_CHIP_REV_A0_		(0x00000000)
 #define ID_REV_CHIP_REV_B0_		(0x00000010)
@@ -25,6 +30,17 @@
 #define FPGA_REV			(0x04)
 #define FPGA_REV_GET_MINOR_(fpga_rev)	(((fpga_rev) >> 8) & 0x000000FF)
 #define FPGA_REV_GET_MAJOR_(fpga_rev)	((fpga_rev) & 0x000000FF)
+#define FPGA_SGMII_OP			BIT(24)
+
+#define STRAP_READ			(0x0C)
+#define STRAP_READ_USE_SGMII_EN_	BIT(22)
+#define STRAP_READ_SGMII_EN_		BIT(6)
+#define STRAP_READ_SGMII_REFCLK_	BIT(5)
+#define STRAP_READ_SGMII_2_5G_		BIT(4)
+#define STRAP_READ_BASE_X_		BIT(3)
+#define STRAP_READ_RGMII_TXC_DELAY_EN_	BIT(2)
+#define STRAP_READ_RGMII_RXC_DELAY_EN_	BIT(1)
+#define STRAP_READ_ADV_PM_DISABLE_	BIT(0)
 
 #define HW_CFG					(0x010)
 #define HW_CFG_RELOAD_TYPE_ALL_			(0x00000FC0)
@@ -135,6 +151,13 @@
 #define MAC_RX_ADDRL			(0x11C)
 
 #define MAC_MII_ACC			(0x120)
+#define MAC_MII_ACC_MDC_CYCLE_SHIFT_	(16)
+#define MAC_MII_ACC_MDC_CYCLE_MASK_	(0x00070000)
+#define MAC_MII_ACC_MDC_CYCLE_2_5MHZ_	(0)
+#define MAC_MII_ACC_MDC_CYCLE_5MHZ_	(1)
+#define MAC_MII_ACC_MDC_CYCLE_12_5MHZ_	(2)
+#define MAC_MII_ACC_MDC_CYCLE_25MHZ_	(3)
+#define MAC_MII_ACC_MDC_CYCLE_1_25MHZ_	(4)
 #define MAC_MII_ACC_PHY_ADDR_SHIFT_	(11)
 #define MAC_MII_ACC_PHY_ADDR_MASK_	(0x0000F800)
 #define MAC_MII_ACC_MIIRINDA_SHIFT_	(6)
@@ -142,6 +165,15 @@
 #define MAC_MII_ACC_MII_READ_		(0x00000000)
 #define MAC_MII_ACC_MII_WRITE_		(0x00000002)
 #define MAC_MII_ACC_MII_BUSY_		BIT(0)
+
+#define MAC_MII_ACC_MIIMMD_SHIFT_	(6)
+#define MAC_MII_ACC_MIIMMD_MASK_	(0x000007C0)
+#define MAC_MII_ACC_MIICL45_		BIT(3)
+#define MAC_MII_ACC_MIICMD_MASK_	(0x00000006)
+#define MAC_MII_ACC_MIICMD_ADDR_	(0x00000000)
+#define MAC_MII_ACC_MIICMD_WRITE_	(0x00000002)
+#define MAC_MII_ACC_MIICMD_READ_	(0x00000004)
+#define MAC_MII_ACC_MIICMD_READ_INC_	(0x00000006)
 
 #define MAC_MII_DATA			(0x124)
 
@@ -214,6 +246,11 @@
 
 #define MAC_WUCSR2			(0x600)
 
+#define SGMII_CTL			(0x728)
+#define SGMII_CTL_SGMII_ENABLE_		BIT(31)
+#define SGMII_CTL_LINK_STATUS_SOURCE_	BIT(8)
+#define SGMII_CTL_SGMII_POWER_DN_	BIT(1)
+
 #define INT_STS				(0x780)
 #define INT_BIT_DMA_RX_(channel)	BIT(24 + (channel))
 #define INT_BIT_ALL_RX_			(0x0F000000)
@@ -261,6 +298,8 @@
 #define INT_MOD_CFG5			(0x7D4)
 #define INT_MOD_CFG6			(0x7D8)
 #define INT_MOD_CFG7			(0x7DC)
+#define INT_MOD_CFG8			(0x7E0)
+#define INT_MOD_CFG9			(0x7E4)
 
 #define PTP_CMD_CTL					(0x0A00)
 #define PTP_CMD_CTL_PTP_CLK_STP_NSEC_			BIT(6)
@@ -541,10 +580,12 @@
 
 #define LAN743X_MAX_RX_CHANNELS		(4)
 #define LAN743X_MAX_TX_CHANNELS		(1)
+#define PCI11X1X_MAX_TX_CHANNELS	(4)
 struct lan743x_adapter;
 
 #define LAN743X_USED_RX_CHANNELS	(4)
 #define LAN743X_USED_TX_CHANNELS	(1)
+#define PCI11X1X_USED_TX_CHANNELS	(4)
 #define LAN743X_INT_MOD	(400)
 
 #if (LAN743X_USED_RX_CHANNELS > LAN743X_MAX_RX_CHANNELS)
@@ -553,12 +594,17 @@ struct lan743x_adapter;
 #if (LAN743X_USED_TX_CHANNELS > LAN743X_MAX_TX_CHANNELS)
 #error Invalid LAN743X_USED_TX_CHANNELS
 #endif
+#if (PCI11X1X_USED_TX_CHANNELS > PCI11X1X_MAX_TX_CHANNELS)
+#error Invalid PCI11X1X_USED_TX_CHANNELS
+#endif
 
 /* PCI */
 /* SMSC acquired EFAR late 1990's, MCHP acquired SMSC 2012 */
 #define PCI_VENDOR_ID_SMSC		PCI_VENDOR_ID_EFAR
 #define PCI_DEVICE_ID_SMSC_LAN7430	(0x7430)
 #define PCI_DEVICE_ID_SMSC_LAN7431	(0x7431)
+#define PCI_DEVICE_ID_SMSC_A011		(0xA011)
+#define PCI_DEVICE_ID_SMSC_A041		(0xA041)
 
 #define PCI_CONFIG_LENGTH		(0x1000)
 
@@ -607,13 +653,14 @@ struct lan743x_vector {
 };
 
 #define LAN743X_MAX_VECTOR_COUNT	(8)
+#define PCI11X1X_MAX_VECTOR_COUNT	(16)
 
 struct lan743x_intr {
 	int			flags;
 
 	unsigned int		irq;
 
-	struct lan743x_vector	vector_list[LAN743X_MAX_VECTOR_COUNT];
+	struct lan743x_vector	vector_list[PCI11X1X_MAX_VECTOR_COUNT];
 	int			number_of_vectors;
 	bool			using_vectors;
 
@@ -721,8 +768,13 @@ struct lan743x_adapter {
 	u8			mac_address[ETH_ALEN];
 
 	struct lan743x_phy      phy;
-	struct lan743x_tx       tx[LAN743X_MAX_TX_CHANNELS];
-	struct lan743x_rx       rx[LAN743X_MAX_RX_CHANNELS];
+	struct lan743x_tx       tx[PCI11X1X_USED_TX_CHANNELS];
+	struct lan743x_rx       rx[LAN743X_USED_RX_CHANNELS];
+	bool			is_pci11x1x;
+	bool			is_sgmii_en;
+	u8			max_tx_channels;
+	u8			used_tx_channels;
+	u8			max_vector_count;
 
 #define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
 	u32			flags;
