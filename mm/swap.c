@@ -630,32 +630,33 @@ void lru_add_drain_cpu(int cpu)
 }
 
 /**
- * deactivate_file_page - forcefully deactivate a file page
- * @page: page to deactivate
+ * deactivate_file_folio() - Forcefully deactivate a file folio.
+ * @folio: Folio to deactivate.
  *
- * This function hints the VM that @page is a good reclaim candidate,
- * for example if its invalidation fails due to the page being dirty
+ * This function hints to the VM that @folio is a good reclaim candidate,
+ * for example if its invalidation fails due to the folio being dirty
  * or under writeback.
+ *
+ * Context: Caller holds a reference on the page.
  */
-void deactivate_file_page(struct page *page)
+void deactivate_file_folio(struct folio *folio)
 {
+	struct pagevec *pvec;
+
 	/*
-	 * In a workload with many unevictable page such as mprotect,
-	 * unevictable page deactivation for accelerating reclaim is pointless.
+	 * In a workload with many unevictable pages such as mprotect,
+	 * unevictable folio deactivation for accelerating reclaim is pointless.
 	 */
-	if (PageUnevictable(page))
+	if (folio_test_unevictable(folio))
 		return;
 
-	if (likely(get_page_unless_zero(page))) {
-		struct pagevec *pvec;
+	folio_get(folio);
+	local_lock(&lru_pvecs.lock);
+	pvec = this_cpu_ptr(&lru_pvecs.lru_deactivate_file);
 
-		local_lock(&lru_pvecs.lock);
-		pvec = this_cpu_ptr(&lru_pvecs.lru_deactivate_file);
-
-		if (pagevec_add_and_need_flush(pvec, page))
-			pagevec_lru_move_fn(pvec, lru_deactivate_file_fn);
-		local_unlock(&lru_pvecs.lock);
-	}
+	if (pagevec_add_and_need_flush(pvec, &folio->page))
+		pagevec_lru_move_fn(pvec, lru_deactivate_file_fn);
+	local_unlock(&lru_pvecs.lock);
 }
 
 /*
