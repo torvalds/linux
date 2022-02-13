@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/devm-helpers.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/irq.h>
@@ -344,14 +345,6 @@ static SIMPLE_DEV_PM_OPS(as3935_pm_ops, as3935_suspend, as3935_resume);
 #define AS3935_PM_OPS NULL
 #endif
 
-static void as3935_stop_work(void *data)
-{
-	struct iio_dev *indio_dev = data;
-	struct as3935_state *st = iio_priv(indio_dev);
-
-	cancel_delayed_work_sync(&st->work);
-}
-
 static int as3935_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
@@ -432,8 +425,7 @@ static int as3935_probe(struct spi_device *spi)
 
 	calibrate_as3935(st);
 
-	INIT_DELAYED_WORK(&st->work, as3935_event_work);
-	ret = devm_add_action(dev, as3935_stop_work, indio_dev);
+	ret = devm_delayed_work_autocancel(dev, &st->work, as3935_event_work);
 	if (ret)
 		return ret;
 
