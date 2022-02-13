@@ -45,6 +45,49 @@
 
 static const struct amd_ip_funcs soc21_common_ip_funcs;
 
+/* SOC21 */
+static const struct amdgpu_video_codec_info vcn_4_0_0_video_codecs_encode_array[] =
+{
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 2304, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 4096, 2304, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_4_0_0_video_codecs_encode =
+{
+	.codec_count = ARRAY_SIZE(vcn_4_0_0_video_codecs_encode_array),
+	.codec_array = vcn_4_0_0_video_codecs_encode_array,
+};
+
+static const struct amdgpu_video_codec_info vcn_4_0_0_video_codecs_decode_array[] =
+{
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4906, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_4_0_0_video_codecs_decode =
+{
+	.codec_count = ARRAY_SIZE(vcn_4_0_0_video_codecs_decode_array),
+	.codec_array = vcn_4_0_0_video_codecs_decode_array,
+};
+
+static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
+				 const struct amdgpu_video_codecs **codecs)
+{
+	switch (adev->ip_versions[UVD_HWIP][0]) {
+
+	case IP_VERSION(4, 0, 0):
+		if (encode)
+			*codecs = &vcn_4_0_0_video_codecs_encode;
+		else
+			*codecs = &vcn_4_0_0_video_codecs_decode;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
 /*
  * Indirect registers accessor
  */
@@ -451,6 +494,7 @@ static const struct amdgpu_asic_funcs soc21_asic_funcs =
 	.get_pcie_replay_count = &soc21_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,
 	.pre_asic_init = &soc21_pre_asic_init,
+	.query_video_codecs = &soc21_query_video_codecs,
 };
 
 static int soc21_common_early_init(void *handle)
