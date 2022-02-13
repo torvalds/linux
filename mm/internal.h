@@ -95,6 +95,7 @@ void filemap_free_folio(struct address_space *mapping, struct folio *folio);
 int truncate_inode_folio(struct address_space *mapping, struct folio *folio);
 bool truncate_inode_partial_folio(struct folio *folio, loff_t start,
 		loff_t end);
+long invalidate_inode_page(struct page *page);
 
 /**
  * folio_evictable - Test whether a folio is evictable.

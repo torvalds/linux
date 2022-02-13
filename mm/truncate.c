@@ -273,18 +273,9 @@ int generic_error_remove_page(struct address_space *mapping, struct page *page)
 }
 EXPORT_SYMBOL(generic_error_remove_page);
 
-/*
- * Safely invalidate one page from its pagecache mapping.
- * It only drops clean, unused pages. The page must be locked.
- *
- * Returns 1 if the page is successfully invalidated, otherwise 0.
- */
-int invalidate_inode_page(struct page *page)
+static long mapping_evict_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-	struct address_space *mapping = folio_mapping(folio);
-	if (!mapping)
-		return 0;
 	if (folio_test_dirty(folio) || folio_test_writeback(folio))
 		return 0;
 	/* The refcount will be elevated if any page in the folio is mapped */
@@ -295,6 +286,27 @@ int invalidate_inode_page(struct page *page)
 		return 0;
 
 	return remove_mapping(mapping, folio);
+}
+
+/**
+ * invalidate_inode_page() - Remove an unused page from the pagecache.
+ * @page: The page to remove.
+ *
+ * Safely invalidate one page from its pagecache mapping.
+ * It only drops clean, unused pages.
+ *
+ * Context: Page must be locked.
+ * Return: The number of pages successfully removed.
+ */
+long invalidate_inode_page(struct page *page)
+{
+	struct folio *folio = page_folio(page);
+	struct address_space *mapping = folio_mapping(folio);
+
+	/* The page may have been truncated before it was locked */
+	if (!mapping)
+		return 0;
+	return mapping_evict_folio(mapping, folio);
 }
 
 /**

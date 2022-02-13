@@ -2139,7 +2139,7 @@ static bool isolate_page(struct page *page, struct list_head *pagelist)
  */
 static int __soft_offline_page(struct page *page)
 {
-	int ret = 0;
+	long ret = 0;
 	unsigned long pfn = page_to_pfn(page);
 	struct page *hpage = compound_head(page);
 	char const *msg_page[] = {"page", "hugepage"};
@@ -2196,7 +2196,7 @@ static int __soft_offline_page(struct page *page)
 			if (!list_empty(&pagelist))
 				putback_movable_pages(&pagelist);
 
-			pr_info("soft offline: %#lx: %s migration failed %d, type %pGp\n",
+			pr_info("soft offline: %#lx: %s migration failed %ld, type %pGp\n",
 				pfn, msg_page[huge], ret, &page->flags);
 			if (ret > 0)
 				ret = -EBUSY;
