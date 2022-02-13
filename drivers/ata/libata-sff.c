@@ -70,22 +70,35 @@ EXPORT_SYMBOL_GPL(ata_sff_check_status);
 /**
  *	ata_sff_altstatus - Read device alternate status reg
  *	@ap: port where the device is
+ *	@status: pointer to a status value
  *
- *	Reads ATA taskfile alternate status register for
- *	currently-selected device and return its value.
+ *	Reads ATA alternate status register for currently-selected device
+ *	and return its value.
  *
- *	Note: may NOT be used as the check_altstatus() entry in
- *	ata_port_operations.
+ *	RETURN:
+ *	true if the register exists, false if not.
  *
  *	LOCKING:
  *	Inherited from caller.
  */
-static u8 ata_sff_altstatus(struct ata_port *ap)
+static bool ata_sff_altstatus(struct ata_port *ap, u8 *status)
 {
-	if (ap->ops->sff_check_altstatus)
-		return ap->ops->sff_check_altstatus(ap);
+	u8 tmp;
 
-	return ioread8(ap->ioaddr.altstatus_addr);
+	if (ap->ops->sff_check_altstatus) {
+		tmp = ap->ops->sff_check_altstatus(ap);
+		goto read;
+	}
+	if (ap->ioaddr.altstatus_addr) {
+		tmp = ioread8(ap->ioaddr.altstatus_addr);
+		goto read;
+	}
+	return false;
+
+read:
+	if (status)
+		*status = tmp;
+	return true;
 }
 
 /**
@@ -104,12 +117,9 @@ static u8 ata_sff_irq_status(struct ata_port *ap)
 {
 	u8 status;
 
-	if (ap->ops->sff_check_altstatus || ap->ioaddr.altstatus_addr) {
-		status = ata_sff_altstatus(ap);
-		/* Not us: We are busy */
-		if (status & ATA_BUSY)
-			return status;
-	}
+	/* Not us: We are busy */
+	if (ata_sff_altstatus(ap, &status) && (status & ATA_BUSY))
+		return status;
 	/* Clear INTRQ latch */
 	status = ap->ops->sff_check_status(ap);
 	return status;
@@ -129,10 +139,7 @@ static u8 ata_sff_irq_status(struct ata_port *ap)
 
 static void ata_sff_sync(struct ata_port *ap)
 {
-	if (ap->ops->sff_check_altstatus)
-		ap->ops->sff_check_altstatus(ap);
-	else if (ap->ioaddr.altstatus_addr)
-		ioread8(ap->ioaddr.altstatus_addr);
+	ata_sff_altstatus(ap, NULL);
 }
 
 /**
@@ -164,12 +171,12 @@ EXPORT_SYMBOL_GPL(ata_sff_pause);
 
 void ata_sff_dma_pause(struct ata_port *ap)
 {
-	if (ap->ops->sff_check_altstatus || ap->ioaddr.altstatus_addr) {
-		/* An altstatus read will cause the needed delay without
-		   messing up the IRQ status */
-		ata_sff_altstatus(ap);
+	/*
+	 * An altstatus read will cause the needed delay without
+	 * messing up the IRQ status
+	 */
+	if (ata_sff_altstatus(ap, NULL))
 		return;
-	}
 	/* There are no DMA controllers without ctl. BUG here to ensure
 	   we never violate the HDMA1:0 transition timing and risk
 	   corruption. */
@@ -1637,14 +1644,14 @@ void ata_sff_lost_interrupt(struct ata_port *ap)
 		return;
 	/* See if the controller thinks it is still busy - if so the command
 	   isn't a lost IRQ but is still in progress */
-	status = ata_sff_altstatus(ap);
+	if (WARN_ON_ONCE(!ata_sff_altstatus(ap, &status)))
+		return;
 	if (status & ATA_BUSY)
 		return;
 
 	/* There was a command running, we are no longer busy and we have
 	   no interrupt. */
-	ata_port_warn(ap, "lost interrupt (Status 0x%x)\n",
-								status);
+	ata_port_warn(ap, "lost interrupt (Status 0x%x)\n", status);
 	/* Run the host interrupt logic as if the interrupt had not been
 	   lost */
 	ata_sff_port_intr(ap, qc);
