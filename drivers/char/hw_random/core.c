@@ -44,14 +44,14 @@ static unsigned short default_quality; /* = 0; default to "off" */
 
 module_param(current_quality, ushort, 0644);
 MODULE_PARM_DESC(current_quality,
-		 "current hwrng entropy estimation per 1024 bits of input");
+		 "current hwrng entropy estimation per 1024 bits of input -- obsolete");
 module_param(default_quality, ushort, 0644);
 MODULE_PARM_DESC(default_quality,
 		 "default entropy content of hwrng per 1024 bits of input");
 
 static void drop_current_rng(void);
 static int hwrng_init(struct hwrng *rng);
-static void hwrng_manage_rngd(void);
+static void hwrng_manage_rngd(struct hwrng *rng);
 
 static inline int rng_get_data(struct hwrng *rng, u8 *buffer, size_t size,
 			       int wait);
@@ -160,11 +160,13 @@ static int hwrng_init(struct hwrng *rng)
 	reinit_completion(&rng->cleanup_done);
 
 skip_init:
-	current_quality = rng->quality ? : default_quality;
-	if (current_quality > 1024)
-		current_quality = 1024;
+	if (!rng->quality)
+		rng->quality = default_quality;
+	if (rng->quality > 1024)
+		rng->quality = 1024;
+	current_quality = rng->quality; /* obsolete */
 
-	hwrng_manage_rngd();
+	hwrng_manage_rngd(rng);
 
 	return 0;
 }
@@ -429,10 +431,8 @@ static int hwrng_fillfn(void *unused)
 	long rc;
 
 	while (!kthread_should_stop()) {
+		unsigned short quality;
 		struct hwrng *rng;
-
-		if (!current_quality)
-			break;
 
 		rng = get_current_rng();
 		if (IS_ERR(rng) || !rng)
@@ -440,8 +440,15 @@ static int hwrng_fillfn(void *unused)
 		mutex_lock(&reading_mutex);
 		rc = rng_get_data(rng, rng_fillbuf,
 				  rng_buffer_size(), 1);
+		if (current_quality != rng->quality)
+			rng->quality = current_quality; /* obsolete */
+		quality = rng->quality;
 		mutex_unlock(&reading_mutex);
 		put_rng(rng);
+
+		if (!quality)
+			break;
+
 		if (rc <= 0) {
 			pr_warn("hwrng: no data available\n");
 			msleep_interruptible(10000);
@@ -451,7 +458,7 @@ static int hwrng_fillfn(void *unused)
 		/* If we cannot credit at least one bit of entropy,
 		 * keep track of the remainder for the next iteration
 		 */
-		entropy = rc * current_quality * 8 + entropy_credit;
+		entropy = rc * quality * 8 + entropy_credit;
 		if ((entropy >> 10) == 0)
 			entropy_credit = entropy;
 
@@ -463,14 +470,14 @@ static int hwrng_fillfn(void *unused)
 	return 0;
 }
 
-static void hwrng_manage_rngd(void)
+static void hwrng_manage_rngd(struct hwrng *rng)
 {
 	if (WARN_ON(!mutex_is_locked(&rng_mutex)))
 		return;
 
-	if (current_quality == 0 && hwrng_fill)
+	if (rng->quality == 0 && hwrng_fill)
 		kthread_stop(hwrng_fill);
-	if (current_quality > 0 && !hwrng_fill) {
+	if (rng->quality > 0 && !hwrng_fill) {
 		hwrng_fill = kthread_run(hwrng_fillfn, NULL, "hwrng");
 		if (IS_ERR(hwrng_fill)) {
 			pr_err("hwrng_fill thread creation failed\n");
