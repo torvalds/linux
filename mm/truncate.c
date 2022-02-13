@@ -507,27 +507,27 @@ static unsigned long __invalidate_mapping_pages(struct address_space *mapping,
 	folio_batch_init(&fbatch);
 	while (find_lock_entries(mapping, index, end, &fbatch, indices)) {
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
-			struct page *page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion not changing folio->index */
 			index = indices[i];
 
-			if (xa_is_value(page)) {
+			if (xa_is_value(folio)) {
 				count += invalidate_exceptional_entry(mapping,
 								      index,
-								      page);
+								      folio);
 				continue;
 			}
-			index += thp_nr_pages(page) - 1;
+			index += folio_nr_pages(folio) - 1;
 
-			ret = invalidate_inode_page(page);
-			unlock_page(page);
+			ret = mapping_evict_folio(mapping, folio);
+			folio_unlock(folio);
 			/*
-			 * Invalidation is a hint that the page is no longer
+			 * Invalidation is a hint that the folio is no longer
 			 * of interest and try to speed up its reclaim.
 			 */
 			if (!ret) {
-				deactivate_file_page(page);
+				deactivate_file_page(&folio->page);
 				/* It is likely on the pagevec of a remote CPU */
 				if (nr_pagevec)
 					(*nr_pagevec)++;
