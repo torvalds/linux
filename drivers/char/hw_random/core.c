@@ -44,7 +44,7 @@ static unsigned short default_quality; /* = 0; default to "off" */
 
 module_param(current_quality, ushort, 0644);
 MODULE_PARM_DESC(current_quality,
-		 "current hwrng entropy estimation per 1024 bits of input -- obsolete");
+		 "current hwrng entropy estimation per 1024 bits of input -- obsolete, use rng_quality instead");
 module_param(default_quality, ushort, 0644);
 MODULE_PARM_DESC(default_quality,
 		 "default entropy content of hwrng per 1024 bits of input");
@@ -402,14 +402,76 @@ static ssize_t rng_selected_show(struct device *dev,
 	return sysfs_emit(buf, "%d\n", cur_rng_set_by_user);
 }
 
+static ssize_t rng_quality_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	ssize_t ret;
+	struct hwrng *rng;
+
+	rng = get_current_rng();
+	if (IS_ERR(rng))
+		return PTR_ERR(rng);
+
+	if (!rng) /* no need to put_rng */
+		return -ENODEV;
+
+	ret = sysfs_emit(buf, "%hu\n", rng->quality);
+	put_rng(rng);
+
+	return ret;
+}
+
+static ssize_t rng_quality_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t len)
+{
+	u16 quality;
+	int ret = -EINVAL;
+
+	if (len < 2)
+		return -EINVAL;
+
+	ret = mutex_lock_interruptible(&rng_mutex);
+	if (ret)
+		return -ERESTARTSYS;
+
+	ret = kstrtou16(buf, 0, &quality);
+	if (ret || quality > 1024) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!current_rng) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	current_rng->quality = quality;
+	current_quality = quality; /* obsolete */
+
+	/* the best available RNG may have changed */
+	ret = enable_best_rng();
+
+	/* start/stop rngd if necessary */
+	if (current_rng)
+		hwrng_manage_rngd(current_rng);
+
+out:
+	mutex_unlock(&rng_mutex);
+	return ret ? ret : len;
+}
+
 static DEVICE_ATTR_RW(rng_current);
 static DEVICE_ATTR_RO(rng_available);
 static DEVICE_ATTR_RO(rng_selected);
+static DEVICE_ATTR_RW(rng_quality);
 
 static struct attribute *rng_dev_attrs[] = {
 	&dev_attr_rng_current.attr,
 	&dev_attr_rng_available.attr,
 	&dev_attr_rng_selected.attr,
+	&dev_attr_rng_quality.attr,
 	NULL
 };
 
