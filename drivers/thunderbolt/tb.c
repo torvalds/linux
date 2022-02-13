@@ -169,12 +169,6 @@ static void tb_discover_tunnels(struct tb *tb)
 
 static int tb_port_configure_xdomain(struct tb_port *port)
 {
-	/*
-	 * XDomain paths currently only support single lane so we must
-	 * disable the other lane according to USB4 spec.
-	 */
-	tb_port_disable(port->dual_link_port);
-
 	if (tb_switch_is_usb4(port->sw))
 		return usb4_port_configure_xdomain(port);
 	return tb_lc_configure_xdomain(port);
