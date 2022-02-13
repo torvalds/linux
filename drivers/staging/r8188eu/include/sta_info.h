@@ -344,7 +344,7 @@ static inline u32 wifi_mac_hash(u8 *mac)
 }
 
 extern u32	_rtw_init_sta_priv(struct sta_priv *pstapriv);
-extern u32	_rtw_free_sta_priv(struct sta_priv *pstapriv);
+extern void _rtw_free_sta_priv(struct sta_priv *pstapriv);
 
 #define stainfo_offset_valid(offset) (offset < NUM_STA && offset >= 0)
 int rtw_stainfo_offset(struct sta_priv *stapriv, struct sta_info *sta);
