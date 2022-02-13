@@ -118,20 +118,6 @@ const char *ltoa(long in)
 
 /* Here come a few helper functions */
 
-static __attribute__((unused))
-void FD_ZERO(fd_set *set)
-{
-	memset(set, 0, sizeof(*set));
-}
-
-static __attribute__((unused))
-void FD_SET(int fd, fd_set *set)
-{
-	if (fd < 0 || fd >= FD_SETSIZE)
-		return;
-	set->fd32[fd / 32] |= 1 << (fd & 31);
-}
-
 /* WARNING, it only deals with the 4096 first majors and 256 first minors */
 static __attribute__((unused))
 dev_t makedev(unsigned int major, unsigned int minor)

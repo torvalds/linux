@@ -75,6 +75,36 @@ typedef struct {
 	uint32_t fd32[FD_SETSIZE / 32];
 } fd_set;
 
+#define FD_CLR(fd, set) do {                                            \
+		fd_set *__set = (set);                                  \
+		int __fd = (fd);                                        \
+		if (__fd >= 0)                                          \
+			__set->fd32[__fd / 32] &= ~(1U << (__fd & 31)); \
+	} while (0)
+
+#define FD_SET(fd, set) do {                                            \
+		fd_set *__set = (set);                                  \
+		int __fd = (fd);                                        \
+		if (__fd >= 0)                                          \
+			__set->fd32[__fd / 32] |= 1U << (__fd & 31);    \
+	} while (0)
+
+#define FD_ISSET(fd, set) ({                                                  \
+		fd_set *__set = (set);                                        \
+		int __fd = (fd);                                              \
+		int __r = 0;                                                  \
+		if (__fd >= 0)                                                \
+			__r = !!(__set->fd32[__fd / 32] & 1U << (__fd & 31)); \
+		__r;                                                          \
+	})
+
+#define FD_ZERO(set) do {                                               \
+		fd_set *__set = (set);                                  \
+		int __idx;                                              \
+		for (__idx = 0; __idx < FD_SETSIZE / 32; __idx ++)      \
+			__set->fd32[__idx] = 0;                         \
+	} while (0)
+
 /* for poll() */
 struct pollfd {
 	int fd;
