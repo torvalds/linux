@@ -8,6 +8,7 @@
  */
 #include <linux/module.h>
 #include <linux/bitfield.h>
+#include <linux/delay.h>
 #include <linux/ulpi/driver.h>
 #include <linux/ulpi/regs.h>
 #include <linux/gpio/consumer.h>
@@ -17,6 +18,8 @@
 #define TUSB1210_VENDOR_SPECIFIC2_IHSTX_MASK	GENMASK(3, 0)
 #define TUSB1210_VENDOR_SPECIFIC2_ZHSDRV_MASK	GENMASK(5, 4)
 #define TUSB1210_VENDOR_SPECIFIC2_DP_MASK	BIT(6)
+
+#define TUSB1210_RESET_TIME_MS				30
 
 struct tusb1210 {
 	struct ulpi *ulpi;
@@ -59,6 +62,8 @@ static int tusb1210_power_on(struct phy *phy)
 
 	gpiod_set_value_cansleep(tusb->gpio_reset, 1);
 	gpiod_set_value_cansleep(tusb->gpio_cs, 1);
+
+	msleep(TUSB1210_RESET_TIME_MS);
 
 	/* Restore the optional eye diagram optimization value */
 	return tusb1210_ulpi_write(tusb, TUSB1210_VENDOR_SPECIFIC2,
