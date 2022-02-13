@@ -61,11 +61,8 @@ static int tusb1210_power_on(struct phy *phy)
 	gpiod_set_value_cansleep(tusb->gpio_cs, 1);
 
 	/* Restore the optional eye diagram optimization value */
-	if (tusb->vendor_specific2)
-		return tusb1210_ulpi_write(tusb, TUSB1210_VENDOR_SPECIFIC2,
-					   tusb->vendor_specific2);
-
-	return 0;
+	return tusb1210_ulpi_write(tusb, TUSB1210_VENDOR_SPECIFIC2,
+				   tusb->vendor_specific2);
 }
 
 static int tusb1210_power_off(struct phy *phy)
