@@ -580,6 +580,25 @@ static const u8 mv88e6185_phy_interface_modes[] = {
 	[MV88E6185_PORT_STS_CMODE_PHY]		 = PHY_INTERFACE_MODE_SGMII,
 };
 
+static void mv88e6095_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
+				       struct phylink_config *config)
+{
+	u8 cmode = chip->ports[port].cmode;
+
+	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100;
+
+	if (mv88e6xxx_phy_is_internal(chip->ds, port)) {
+		__set_bit(PHY_INTERFACE_MODE_MII, config->supported_interfaces);
+	} else {
+		if (cmode < ARRAY_SIZE(mv88e6185_phy_interface_modes) &&
+		    mv88e6185_phy_interface_modes[cmode])
+			__set_bit(mv88e6185_phy_interface_modes[cmode],
+				  config->supported_interfaces);
+
+		config->mac_capabilities |= MAC_1000FD;
+	}
+}
+
 static void mv88e6185_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 				       struct phylink_config *config)
 {
@@ -3803,7 +3822,7 @@ static const struct mv88e6xxx_ops mv88e6095_ops = {
 	.reset = mv88e6185_g1_reset,
 	.vtu_getnext = mv88e6185_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
-	.phylink_get_caps = mv88e6185_phylink_get_caps,
+	.phylink_get_caps = mv88e6095_phylink_get_caps,
 	.set_max_frame_size = mv88e6185_g1_set_max_frame_size,
 };
 
@@ -3850,7 +3869,7 @@ static const struct mv88e6xxx_ops mv88e6097_ops = {
 	.rmu_disable = mv88e6085_g1_rmu_disable,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
-	.phylink_get_caps = mv88e6185_phylink_get_caps,
+	.phylink_get_caps = mv88e6095_phylink_get_caps,
 	.set_max_frame_size = mv88e6185_g1_set_max_frame_size,
 };
 
