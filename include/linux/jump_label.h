@@ -82,10 +82,9 @@ extern bool static_key_initialized;
 				    "%s(): static key '%pS' used before call to jump_label_init()", \
 				    __func__, (key))
 
-#ifdef CONFIG_JUMP_LABEL
-
 struct static_key {
 	atomic_t enabled;
+#ifdef CONFIG_JUMP_LABEL
 /*
  * Note:
  *   To make anonymous unions work with old compilers, the static
@@ -104,13 +103,9 @@ struct static_key {
 		struct jump_entry *entries;
 		struct static_key_mod *next;
 	};
+#endif	/* CONFIG_JUMP_LABEL */
 };
 
-#else
-struct static_key {
-	atomic_t enabled;
-};
-#endif	/* CONFIG_JUMP_LABEL */
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_JUMP_LABEL
