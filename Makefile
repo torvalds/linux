@@ -2,8 +2,8 @@
 VERSION = 5
 PATCHLEVEL = 17
 SUBLEVEL = 0
-EXTRAVERSION = -rc3
-NAME = Gobble Gobble
+EXTRAVERSION = -rc4
+NAME = Superb Owl
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
