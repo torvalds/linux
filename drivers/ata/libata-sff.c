@@ -265,20 +265,26 @@ EXPORT_SYMBOL_GPL(ata_sff_wait_ready);
  *	@ap: port where the device is
  *	@ctl: value to write
  *
- *	Writes ATA taskfile device control register.
+ *	Writes ATA device control register.
  *
- *	Note: may NOT be used as the sff_set_devctl() entry in
- *	ata_port_operations.
+ *	RETURN:
+ *	true if the register exists, false if not.
  *
  *	LOCKING:
  *	Inherited from caller.
  */
-static void ata_sff_set_devctl(struct ata_port *ap, u8 ctl)
+static bool ata_sff_set_devctl(struct ata_port *ap, u8 ctl)
 {
-	if (ap->ops->sff_set_devctl)
+	if (ap->ops->sff_set_devctl) {
 		ap->ops->sff_set_devctl(ap, ctl);
-	else
+		return true;
+	}
+	if (ap->ioaddr.ctl_addr) {
 		iowrite8(ctl, ap->ioaddr.ctl_addr);
+		return true;
+	}
+
+	return false;
 }
 
 /**
@@ -357,8 +363,6 @@ static void ata_dev_select(struct ata_port *ap, unsigned int device,
  */
 void ata_sff_irq_on(struct ata_port *ap)
 {
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-
 	if (ap->ops->sff_irq_on) {
 		ap->ops->sff_irq_on(ap);
 		return;
@@ -367,8 +371,7 @@ void ata_sff_irq_on(struct ata_port *ap)
 	ap->ctl &= ~ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	if (ap->ops->sff_set_devctl || ioaddr->ctl_addr)
-		ata_sff_set_devctl(ap, ap->ctl);
+	ata_sff_set_devctl(ap, ap->ctl);
 	ata_wait_idle(ap);
 
 	if (ap->ops->sff_irq_clear)
@@ -1662,8 +1665,7 @@ void ata_sff_freeze(struct ata_port *ap)
 	ap->ctl |= ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	if (ap->ops->sff_set_devctl || ap->ioaddr.ctl_addr)
-		ata_sff_set_devctl(ap, ap->ctl);
+	ata_sff_set_devctl(ap, ap->ctl);
 
 	/* Under certain circumstances, some controllers raise IRQ on
 	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
@@ -2061,10 +2063,8 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 		return;
 
 	/* set up device control */
-	if (ap->ops->sff_set_devctl || ap->ioaddr.ctl_addr) {
-		ata_sff_set_devctl(ap, ap->ctl);
+	if (ata_sff_set_devctl(ap, ap->ctl))
 		ap->last_ctl = ap->ctl;
-	}
 }
 EXPORT_SYMBOL_GPL(ata_sff_postreset);
 
