@@ -46,8 +46,7 @@
 static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
 		struct pipe_buffer *buf)
 {
-	struct page *page = buf->page;
-	struct folio *folio = page_folio(page);
+	struct folio *folio = page_folio(buf->page);
 	struct address_space *mapping;
 
 	folio_lock(folio);
@@ -74,7 +73,7 @@ static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
 		 * If we succeeded in removing the mapping, set LRU flag
 		 * and return good.
 		 */
-		if (remove_mapping(mapping, page)) {
+		if (remove_mapping(mapping, folio)) {
 			buf->flags |= PIPE_BUF_FLAG_LRU;
 			return true;
 		}

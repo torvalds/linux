@@ -1335,23 +1335,28 @@ cannot_free:
 	return 0;
 }
 
-/*
- * Attempt to detach a locked page from its ->mapping.  If it is dirty or if
- * someone else has a ref on the page, abort and return 0.  If it was
- * successfully detached, return 1.  Assumes the caller has a single ref on
- * this page.
+/**
+ * remove_mapping() - Attempt to remove a folio from its mapping.
+ * @mapping: The address space.
+ * @folio: The folio to remove.
+ *
+ * If the folio is dirty, under writeback or if someone else has a ref
+ * on it, removal will fail.
+ * Return: The number of pages removed from the mapping.  0 if the folio
+ * could not be removed.
+ * Context: The caller should have a single refcount on the folio and
+ * hold its lock.
  */
-int remove_mapping(struct address_space *mapping, struct page *page)
+long remove_mapping(struct address_space *mapping, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	if (__remove_mapping(mapping, folio, false, NULL)) {
 		/*
-		 * Unfreezing the refcount with 1 rather than 2 effectively
+		 * Unfreezing the refcount with 1 effectively
 		 * drops the pagecache ref for us without requiring another
 		 * atomic operation.
 		 */
 		folio_ref_unfreeze(folio, 1);
-		return 1;
+		return folio_nr_pages(folio);
 	}
 	return 0;
 }

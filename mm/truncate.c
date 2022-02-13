@@ -294,7 +294,7 @@ int invalidate_inode_page(struct page *page)
 	if (folio_has_private(folio) && !filemap_release_folio(folio, 0))
 		return 0;
 
-	return remove_mapping(mapping, page);
+	return remove_mapping(mapping, folio);
 }
 
 /**
