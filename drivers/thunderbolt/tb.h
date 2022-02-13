@@ -1024,6 +1024,8 @@ static inline bool tb_port_use_credit_allocation(const struct tb_port *port)
 
 int tb_port_get_link_speed(struct tb_port *port);
 int tb_port_get_link_width(struct tb_port *port);
+int tb_port_set_link_width(struct tb_port *port, unsigned int width);
+int tb_port_set_lane_bonding(struct tb_port *port, bool bonding);
 int tb_port_lane_bonding_enable(struct tb_port *port);
 void tb_port_lane_bonding_disable(struct tb_port *port);
 int tb_port_wait_for_link_width(struct tb_port *port, int width,
