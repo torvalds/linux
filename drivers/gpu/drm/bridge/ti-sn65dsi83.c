@@ -488,6 +488,11 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	/* Clear all errors that got asserted during initialization. */
 	regmap_read(ctx->regmap, REG_IRQ_STAT, &pval);
 	regmap_write(ctx->regmap, REG_IRQ_STAT, pval);
+
+	usleep_range(10000, 12000);
+	regmap_read(ctx->regmap, REG_IRQ_STAT, &pval);
+	if (pval)
+		dev_err(ctx->dev, "Unexpected link status 0x%02x\n", pval);
 }
 
 static void sn65dsi83_atomic_disable(struct drm_bridge *bridge,
