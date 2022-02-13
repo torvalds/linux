@@ -443,10 +443,6 @@ static void crng_make_state(u32 chacha_state[CHACHA_STATE_WORDS],
  * boot time when it's better to have something there rather than
  * nothing.
  *
- * There are two paths, a slow one and a fast one. The slow one
- * hashes the input along with the current key. The fast one simply
- * xors it in, and should only be used from interrupt context.
- *
  * If account is set, then the crng_init_cnt counter is incremented.
  * This shouldn't be set by functions like add_device_randomness(),
  * where we can't trust the buffer passed to it is guaranteed to be
@@ -455,19 +451,15 @@ static void crng_make_state(u32 chacha_state[CHACHA_STATE_WORDS],
  * Returns the number of bytes processed from input, which is bounded
  * by CRNG_INIT_CNT_THRESH if account is true.
  */
-static size_t crng_pre_init_inject(const void *input, size_t len,
-				   bool fast, bool account)
+static size_t crng_pre_init_inject(const void *input, size_t len, bool account)
 {
 	static int crng_init_cnt = 0;
+	struct blake2s_state hash;
 	unsigned long flags;
 
-	if (fast) {
-		if (!spin_trylock_irqsave(&base_crng.lock, flags))
-			return 0;
-	} else {
-		spin_lock_irqsave(&base_crng.lock, flags);
-	}
+	blake2s_init(&hash, sizeof(base_crng.key));
 
+	spin_lock_irqsave(&base_crng.lock, flags);
 	if (crng_init != 0) {
 		spin_unlock_irqrestore(&base_crng.lock, flags);
 		return 0;
@@ -476,21 +468,9 @@ static size_t crng_pre_init_inject(const void *input, size_t len,
 	if (account)
 		len = min_t(size_t, len, CRNG_INIT_CNT_THRESH - crng_init_cnt);
 
-	if (fast) {
-		const u8 *src = input;
-		size_t i;
-
-		for (i = 0; i < len; ++i)
-			base_crng.key[(crng_init_cnt + i) %
-				      sizeof(base_crng.key)] ^= src[i];
-	} else {
-		struct blake2s_state hash;
-
-		blake2s_init(&hash, sizeof(base_crng.key));
-		blake2s_update(&hash, base_crng.key, sizeof(base_crng.key));
-		blake2s_update(&hash, input, len);
-		blake2s_final(&hash, base_crng.key);
-	}
+	blake2s_update(&hash, base_crng.key, sizeof(base_crng.key));
+	blake2s_update(&hash, input, len);
+	blake2s_final(&hash, base_crng.key);
 
 	if (account) {
 		crng_init_cnt += len;
@@ -1034,7 +1014,7 @@ void add_device_randomness(const void *buf, size_t size)
 	unsigned long flags, now = jiffies;
 
 	if (crng_init == 0 && size)
-		crng_pre_init_inject(buf, size, false, false);
+		crng_pre_init_inject(buf, size, false);
 
 	spin_lock_irqsave(&input_pool.lock, flags);
 	_mix_pool_bytes(&cycles, sizeof(cycles));
@@ -1155,7 +1135,7 @@ void add_hwgenerator_randomness(const void *buffer, size_t count,
 				size_t entropy)
 {
 	if (unlikely(crng_init == 0)) {
-		size_t ret = crng_pre_init_inject(buffer, count, false, true);
+		size_t ret = crng_pre_init_inject(buffer, count, true);
 		mix_pool_bytes(buffer, ret);
 		count -= ret;
 		buffer += ret;
@@ -1295,8 +1275,14 @@ static void mix_interrupt_randomness(struct work_struct *work)
 	fast_pool->last = jiffies;
 	local_irq_enable();
 
-	mix_pool_bytes(pool, sizeof(pool));
-	credit_entropy_bits(1);
+	if (unlikely(crng_init == 0)) {
+		crng_pre_init_inject(pool, sizeof(pool), true);
+		mix_pool_bytes(pool, sizeof(pool));
+	} else {
+		mix_pool_bytes(pool, sizeof(pool));
+		credit_entropy_bits(1);
+	}
+
 	memzero_explicit(pool, sizeof(pool));
 }
 
@@ -1329,24 +1315,11 @@ void add_interrupt_randomness(int irq)
 	fast_mix(fast_pool->pool32);
 	new_count = ++fast_pool->count;
 
-	if (unlikely(crng_init == 0)) {
-		if (new_count >= 64 &&
-		    crng_pre_init_inject(fast_pool->pool32, sizeof(fast_pool->pool32),
-					 true, true) > 0) {
-			fast_pool->count = 0;
-			fast_pool->last = now;
-			if (spin_trylock(&input_pool.lock)) {
-				_mix_pool_bytes(&fast_pool->pool32, sizeof(fast_pool->pool32));
-				spin_unlock(&input_pool.lock);
-			}
-		}
-		return;
-	}
-
 	if (new_count & MIX_INFLIGHT)
 		return;
 
-	if (new_count < 64 && !time_after(now, fast_pool->last + HZ))
+	if (new_count < 64 && (!time_after(now, fast_pool->last + HZ) ||
+			       unlikely(crng_init == 0)))
 		return;
 
 	if (unlikely(!fast_pool->mix.func))
