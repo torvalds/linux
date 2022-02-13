@@ -693,8 +693,14 @@ static int __tb_port_enable(struct tb_port *port, bool enable)
 	else
 		phy |= LANE_ADP_CS_1_LD;
 
-	return tb_port_write(port, &phy, TB_CFG_PORT,
-			     port->cap_phy + LANE_ADP_CS_1, 1);
+
+	ret = tb_port_write(port, &phy, TB_CFG_PORT,
+			    port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	tb_port_dbg(port, "lane %sabled\n", enable ? "en" : "dis");
+	return 0;
 }
 
 /**
