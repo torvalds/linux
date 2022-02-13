@@ -12,6 +12,8 @@
 
 #include "sched.h"
 #include "sched-pelt.h"
+#include "stats.h"
+#include "autogroup.h"
 
 #include <linux/sched_clock.h>
 

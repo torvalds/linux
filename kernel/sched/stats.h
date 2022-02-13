@@ -2,9 +2,9 @@
 #ifndef _KERNEL_STATS_H
 #define _KERNEL_STATS_H
 
-#ifdef CONFIG_SCHEDSTATS
-
 #include "sched.h"
+
+#ifdef CONFIG_SCHEDSTATS
 
 extern struct static_key_false sched_schedstats;
 

@@ -96,10 +96,19 @@
 # include <asm/paravirt.h>
 #endif
 
+#include <trace/events/sched.h>
+
+#ifdef CONFIG_CGROUP_SCHED
+#include <linux/cgroup.h>
+#include <linux/psi.h>
+#endif
+
+#ifdef CONFIG_SCHED_DEBUG
+# include <linux/static_key.h>
+#endif
+
 #include "cpupri.h"
 #include "cpudeadline.h"
-
-#include <trace/events/sched.h>
 
 #ifdef CONFIG_SCHED_DEBUG
 # define SCHED_WARN_ON(x)	WARN_ONCE(x, #x)
@@ -416,9 +425,6 @@ extern int  dl_cpuset_cpumask_can_shrink(const struct cpumask *cur, const struct
 extern bool dl_cpu_busy(unsigned int cpu);
 
 #ifdef CONFIG_CGROUP_SCHED
-
-#include <linux/cgroup.h>
-#include <linux/psi.h>
 
 struct cfs_rq;
 struct rt_rq;
@@ -1919,9 +1925,6 @@ extern void flush_smp_call_function_from_idle(void);
 static inline void flush_smp_call_function_from_idle(void) { }
 #endif
 
-#include "stats.h"
-#include "autogroup.h"
-
 #if defined(CONFIG_SCHED_CORE) && defined(CONFIG_SCHEDSTATS)
 
 extern void __sched_core_account_forceidle(struct rq *rq);
@@ -2016,7 +2019,6 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
  * Tunables that become constants when CONFIG_SCHED_DEBUG is off:
  */
 #ifdef CONFIG_SCHED_DEBUG
-# include <linux/static_key.h>
 # define const_debug __read_mostly
 #else
 # define const_debug const

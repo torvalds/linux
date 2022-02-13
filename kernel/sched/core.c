@@ -11,6 +11,8 @@
 #undef CREATE_TRACE_POINTS
 
 #include "sched.h"
+#include "stats.h"
+#include "autogroup.h"
 
 #include <linux/nospec.h>
 #include <linux/blkdev.h>
