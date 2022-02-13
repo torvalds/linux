@@ -12,6 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/devm-helpers.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -1348,11 +1349,6 @@ static void ams_clk_disable_unprepare(void *data)
 	clk_disable_unprepare(data);
 }
 
-static void ams_cancel_delayed_work(void *data)
-{
-	cancel_delayed_work(data);
-}
-
 static int ams_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
@@ -1389,9 +1385,8 @@ static int ams_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	INIT_DELAYED_WORK(&ams->ams_unmask_work, ams_unmask_worker);
-	ret = devm_add_action_or_reset(&pdev->dev, ams_cancel_delayed_work,
-				       &ams->ams_unmask_work);
+	ret = devm_delayed_work_autocancel(&pdev->dev, &ams->ams_unmask_work,
+					   ams_unmask_worker);
 	if (ret < 0)
 		return ret;
 
