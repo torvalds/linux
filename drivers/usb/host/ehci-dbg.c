@@ -931,7 +931,7 @@ static struct debug_buffer *alloc_buffer(struct usb_bus *bus,
 
 static int fill_buffer(struct debug_buffer *buf)
 {
-	int ret = 0;
+	int ret;
 
 	if (!buf->output_buf)
 		buf->output_buf = vmalloc(buf->alloc_size);
@@ -956,7 +956,7 @@ static ssize_t debug_output(struct file *file, char __user *user_buf,
 		size_t len, loff_t *offset)
 {
 	struct debug_buffer *buf = file->private_data;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&buf->mutex);
 	if (buf->count == 0) {
