@@ -193,7 +193,7 @@ struct kvm_mmu_role_regs {
 
 /*
  * Yes, lot's of underscores.  They're a hint that you probably shouldn't be
- * reading from the role_regs.  Once the mmu_role is constructed, it becomes
+ * reading from the role_regs.  Once the root_role is constructed, it becomes
  * the single source of truth for the MMU's state.
  */
 #define BUILD_MMU_ROLE_REGS_ACCESSOR(reg, name, flag)			\
@@ -2028,7 +2028,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	int collisions = 0;
 	LIST_HEAD(invalid_list);
 
-	role = vcpu->arch.mmu->mmu_role.base;
+	role = vcpu->arch.mmu->root_role;
 	role.level = level;
 	role.direct = direct;
 	role.access = access;
@@ -3315,7 +3315,7 @@ void kvm_mmu_free_guest_mode_roots(struct kvm *kvm, struct kvm_mmu *mmu)
 	 * This should not be called while L2 is active, L2 can't invalidate
 	 * _only_ its own roots, e.g. INVVPID unconditionally exits.
 	 */
-	WARN_ON_ONCE(mmu->mmu_role.base.guest_mode);
+	WARN_ON_ONCE(mmu->root_role.guest_mode);
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
 		root_hpa = mmu->prev_roots[i].hpa;
@@ -4226,7 +4226,7 @@ static bool fast_pgd_switch(struct kvm *kvm, struct kvm_mmu *mmu,
 void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
-	union kvm_mmu_page_role new_role = mmu->mmu_role.base;
+	union kvm_mmu_page_role new_role = mmu->root_role;
 
 	if (!fast_pgd_switch(vcpu->kvm, mmu, new_pgd, new_role)) {
 		/* kvm_mmu_ensure_valid_pgd will set up a new root.  */
@@ -4485,7 +4485,7 @@ static void reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 	shadow_zero_check = &context->shadow_zero_check;
 	__reset_rsvds_bits_mask(shadow_zero_check, reserved_hpa_bits(),
 				context->shadow_root_level,
-				context->mmu_role.base.efer_nx,
+				context->root_role.efer_nx,
 				guest_can_use_gbpages(vcpu), is_pse, is_amd);
 
 	if (!shadow_me_mask)
@@ -4781,22 +4781,21 @@ static inline int kvm_mmu_get_tdp_level(struct kvm_vcpu *vcpu)
 	return max_tdp_level;
 }
 
-static union kvm_mmu_role
+static union kvm_mmu_page_role
 kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu,
 				union kvm_mmu_role cpu_role)
 {
-	union kvm_mmu_role role = {0};
+	union kvm_mmu_page_role role = {0};
 
-	role.base.access = ACC_ALL;
-	role.base.cr0_wp = true;
-	role.base.efer_nx = true;
-	role.base.smm = cpu_role.base.smm;
-	role.base.guest_mode = cpu_role.base.guest_mode;
-	role.base.ad_disabled = (shadow_accessed_mask == 0);
-	role.base.level = kvm_mmu_get_tdp_level(vcpu);
-	role.base.direct = true;
-	role.base.has_4_byte_gpte = false;
-	role.ext.valid = true;
+	role.access = ACC_ALL;
+	role.cr0_wp = true;
+	role.efer_nx = true;
+	role.smm = cpu_role.base.smm;
+	role.guest_mode = cpu_role.base.guest_mode;
+	role.ad_disabled = (shadow_accessed_mask == 0);
+	role.level = kvm_mmu_get_tdp_level(vcpu);
+	role.direct = true;
+	role.has_4_byte_gpte = false;
 
 	return role;
 }
@@ -4806,14 +4805,14 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
 	union kvm_mmu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
-	union kvm_mmu_role mmu_role = kvm_calc_tdp_mmu_root_page_role(vcpu, cpu_role);
+	union kvm_mmu_page_role root_role = kvm_calc_tdp_mmu_root_page_role(vcpu, cpu_role);
 
 	if (cpu_role.as_u64 == context->cpu_role.as_u64 &&
-	    mmu_role.as_u64 == context->mmu_role.as_u64)
+	    root_role.word == context->root_role.word)
 		return;
 
 	context->cpu_role.as_u64 = cpu_role.as_u64;
-	context->mmu_role.as_u64 = mmu_role.as_u64;
+	context->root_role.word = root_role.word;
 	context->page_fault = kvm_tdp_page_fault;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = NULL;
@@ -4835,19 +4834,19 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu,
 	reset_tdp_shadow_zero_bits_mask(context);
 }
 
-static union kvm_mmu_role
+static union kvm_mmu_page_role
 kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu,
 				   union kvm_mmu_role cpu_role)
 {
-	union kvm_mmu_role role;
+	union kvm_mmu_page_role role;
 
-	role = cpu_role;
+	role = cpu_role.base;
 	if (!cpu_role.ext.efer_lma)
-		role.base.level = PT32E_ROOT_LEVEL;
+		role.level = PT32E_ROOT_LEVEL;
 	else if (cpu_role.ext.cr4_la57)
-		role.base.level = PT64_ROOT_5LEVEL;
+		role.level = PT64_ROOT_5LEVEL;
 	else
-		role.base.level = PT64_ROOT_4LEVEL;
+		role.level = PT64_ROOT_4LEVEL;
 
 	/*
 	 * KVM forces EFER.NX=1 when TDP is disabled, reflect it in the MMU role.
@@ -4858,20 +4857,20 @@ kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu,
 	 * NX can be used by any non-nested shadow MMU to avoid having to reset
 	 * MMU contexts.
 	 */
-	role.base.efer_nx = true;
+	role.efer_nx = true;
 	return role;
 }
 
 static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *context,
 				    union kvm_mmu_role cpu_role,
-				    union kvm_mmu_role mmu_role)
+				    union kvm_mmu_page_role root_role)
 {
 	if (cpu_role.as_u64 == context->cpu_role.as_u64 &&
-	    mmu_role.as_u64 == context->mmu_role.as_u64)
+	    root_role.word == context->root_role.word)
 		return;
 
 	context->cpu_role.as_u64 = cpu_role.as_u64;
-	context->mmu_role.as_u64 = mmu_role.as_u64;
+	context->root_role.word = root_role.word;
 
 	if (!is_cr0_pg(context))
 		nonpaging_init_context(context);
@@ -4882,7 +4881,7 @@ static void shadow_mmu_init_context(struct kvm_vcpu *vcpu, struct kvm_mmu *conte
 	context->root_level = cpu_role.base.level;
 
 	reset_guest_paging_metadata(vcpu, context);
-	context->shadow_root_level = mmu_role.base.level;
+	context->shadow_root_level = root_role.level;
 
 	reset_shadow_zero_bits_mask(vcpu, context);
 }
@@ -4892,22 +4891,21 @@ static void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu,
 {
 	struct kvm_mmu *context = &vcpu->arch.root_mmu;
 	union kvm_mmu_role cpu_role = kvm_calc_cpu_role(vcpu, regs);
-	union kvm_mmu_role mmu_role =
+	union kvm_mmu_page_role root_role =
 		kvm_calc_shadow_mmu_root_page_role(vcpu, cpu_role);
 
-	shadow_mmu_init_context(vcpu, context, cpu_role, mmu_role);
+	shadow_mmu_init_context(vcpu, context, cpu_role, root_role);
 }
 
-static union kvm_mmu_role
+static union kvm_mmu_page_role
 kvm_calc_shadow_npt_root_page_role(struct kvm_vcpu *vcpu,
 				   union kvm_mmu_role cpu_role)
 {
-	union kvm_mmu_role role;
+	union kvm_mmu_page_role role;
 
 	WARN_ON_ONCE(cpu_role.base.direct);
-	role = cpu_role;
-	role.base.level = kvm_mmu_get_tdp_level(vcpu);
-
+	role = cpu_role.base;
+	role.level = kvm_mmu_get_tdp_level(vcpu);
 	return role;
 }
 
@@ -4921,9 +4919,9 @@ void kvm_init_shadow_npt_mmu(struct kvm_vcpu *vcpu, unsigned long cr0,
 		.efer = efer,
 	};
 	union kvm_mmu_role cpu_role = kvm_calc_cpu_role(vcpu, &regs);
-	union kvm_mmu_role mmu_role = kvm_calc_shadow_npt_root_page_role(vcpu, cpu_role);
+	union kvm_mmu_page_role root_role = kvm_calc_shadow_npt_root_page_role(vcpu, cpu_role);
 
-	shadow_mmu_init_context(vcpu, context, cpu_role, mmu_role);
+	shadow_mmu_init_context(vcpu, context, cpu_role, root_role);
 	kvm_mmu_new_pgd(vcpu, nested_cr3);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_npt_mmu);
@@ -4966,7 +4964,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	if (new_mode.as_u64 != context->cpu_role.as_u64) {
 		/* EPT, and thus nested EPT, does not consume CR0, CR4, nor EFER. */
 		context->cpu_role.as_u64 = new_mode.as_u64;
-		context->mmu_role.as_u64 = new_mode.as_u64;
+		context->root_role.word = new_mode.base.word;
 
 		context->shadow_root_level = level;
 
@@ -5066,9 +5064,9 @@ void kvm_mmu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	 * problem is swept under the rug; KVM's CPUID API is horrific and
 	 * it's all but impossible to solve it without introducing a new API.
 	 */
-	vcpu->arch.root_mmu.mmu_role.ext.valid = 0;
-	vcpu->arch.guest_mmu.mmu_role.ext.valid = 0;
-	vcpu->arch.nested_mmu.mmu_role.ext.valid = 0;
+	vcpu->arch.root_mmu.root_role.word = 0;
+	vcpu->arch.guest_mmu.root_role.word = 0;
+	vcpu->arch.nested_mmu.root_role.word = 0;
 	vcpu->arch.root_mmu.cpu_role.ext.valid = 0;
 	vcpu->arch.guest_mmu.cpu_role.ext.valid = 0;
 	vcpu->arch.nested_mmu.cpu_role.ext.valid = 0;

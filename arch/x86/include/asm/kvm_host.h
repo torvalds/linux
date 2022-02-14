@@ -439,7 +439,7 @@ struct kvm_mmu {
 	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa);
 	struct kvm_mmu_root_info root;
 	union kvm_mmu_role cpu_role;
-	union kvm_mmu_role mmu_role;
+	union kvm_mmu_page_role root_role;
 	u8 root_level;
 	u8 shadow_root_level;
 	bool direct_map;
