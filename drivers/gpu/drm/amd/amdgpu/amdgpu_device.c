@@ -1452,7 +1452,8 @@ static int amdgpu_device_init_apu_flags(struct amdgpu_device *adev)
 	case CHIP_YELLOW_CARP:
 		break;
 	case CHIP_CYAN_SKILLFISH:
-		if (adev->pdev->device == 0x13FE)
+		if ((adev->pdev->device == 0x13FE) ||
+		    (adev->pdev->device == 0x143F))
 			adev->apu_flags |= AMD_APU_IS_CYAN_SKILLFISH2;
 		break;
 	default:

@@ -3956,13 +3956,11 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "yellow_carp";
 		break;
 	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 1, 4):
 		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
 			chip_name = "cyan_skillfish2";
 		else
 			chip_name = "cyan_skillfish";
-		break;
-	case IP_VERSION(10, 1, 4):
-		chip_name = "cyan_skillfish2";
 		break;
 	default:
 		BUG();
