@@ -349,34 +349,6 @@ static void s2mpu_host_stage2_set_owner(phys_addr_t addr, size_t size,
 	hyp_spin_unlock(&s2mpu_lock);
 }
 
-static int s2mpu_host_stage2_adjust_mmio_range(phys_addr_t addr, phys_addr_t *start,
-					       phys_addr_t *end)
-{
-	struct pkvm_iommu *dev;
-	phys_addr_t dev_start, dev_end, int_start, int_end;
-
-	/* Find the PA interval in the non-empty, sorted list of S2MPUs. */
-	int_start = 0;
-	for_each_s2mpu(dev) {
-		dev_start = dev->pa;
-		dev_end = dev_start + S2MPU_MMIO_SIZE;
-		int_end = dev_start;
-
-		if (dev_start <= addr && addr < dev_end)
-			return -EPERM;
-
-		if (int_start <= addr && addr < int_end)
-			break;
-
-		int_start = dev_end;
-		int_end = PA_MAX;
-	}
-
-	*start = max(*start, int_start);
-	*end = min(*end, int_end);
-	return 0;
-}
-
 static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 {
 	DECLARE_REG(u64, fn, host_ctxt, 0);
@@ -545,5 +517,4 @@ const struct kvm_iommu_ops kvm_s2mpu_ops = (struct kvm_iommu_ops){
 	.host_smc_handler = s2mpu_host_smc_handler,
 	.host_mmio_dabt_handler = s2mpu_host_mmio_dabt_handler,
 	.host_stage2_set_owner = s2mpu_host_stage2_set_owner,
-	.host_stage2_adjust_mmio_range = s2mpu_host_stage2_adjust_mmio_range,
 };
