@@ -205,14 +205,8 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 		if (gpiod_get_value_cansleep(vc4_hdmi->hpd_gpio))
 			connected = true;
 	} else {
-		unsigned long flags;
-		u32 hotplug;
-
-		spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
-		hotplug = HDMI_READ(HDMI_HOTPLUG);
-		spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
-
-		if (hotplug & VC4_HDMI_HOTPLUG_CONNECTED)
+		if (vc4_hdmi->variant->hp_detect &&
+		    vc4_hdmi->variant->hp_detect(vc4_hdmi))
 			connected = true;
 	}
 
@@ -1275,6 +1269,7 @@ static int vc4_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 	unsigned long long tmds_rate;
 
 	if (vc4_hdmi->variant->unsupported_odd_h_timings &&
+	    !(mode->flags & DRM_MODE_FLAG_DBLCLK) &&
 	    ((mode->hdisplay % 2) || (mode->hsync_start % 2) ||
 	     (mode->hsync_end % 2) || (mode->htotal % 2)))
 		return -EINVAL;
@@ -1322,6 +1317,7 @@ vc4_hdmi_encoder_mode_valid(struct drm_encoder *encoder,
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 
 	if (vc4_hdmi->variant->unsupported_odd_h_timings &&
+	    !(mode->flags & DRM_MODE_FLAG_DBLCLK) &&
 	    ((mode->hdisplay % 2) || (mode->hsync_start % 2) ||
 	     (mode->hsync_end % 2) || (mode->htotal % 2)))
 		return MODE_H_ILLEGAL;
@@ -1365,6 +1361,18 @@ static u32 vc5_hdmi_channel_map(struct vc4_hdmi *vc4_hdmi, u32 channel_mask)
 			channel_map |= i << (4 * i);
 	}
 	return channel_map;
+}
+
+static bool vc5_hdmi_hp_detect(struct vc4_hdmi *vc4_hdmi)
+{
+	unsigned long flags;
+	u32 hotplug;
+
+	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
+	hotplug = HDMI_READ(HDMI_HOTPLUG);
+	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
+
+	return !!(hotplug & VC4_HDMI_HOTPLUG_CONNECTED);
 }
 
 /* HDMI audio codec callbacks */
@@ -2528,7 +2536,8 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	 * vc4_hdmi_disable_scrambling() will thus run at boot, make
 	 * sure it's disabled, and avoid any inconsistency.
 	 */
-	vc4_hdmi->scdc_enabled = true;
+	if (variant->max_pixel_clock > HDMI_14_MAX_TMDS_CLK)
+		vc4_hdmi->scdc_enabled = true;
 
 	ret = variant->init_resources(vc4_hdmi);
 	if (ret)
@@ -2747,6 +2756,7 @@ static const struct vc4_hdmi_variant bcm2711_hdmi0_variant = {
 	.phy_rng_disable	= vc5_hdmi_phy_rng_disable,
 	.channel_map		= vc5_hdmi_channel_map,
 	.supports_hdr		= true,
+	.hp_detect		= vc5_hdmi_hp_detect,
 };
 
 static const struct vc4_hdmi_variant bcm2711_hdmi1_variant = {
@@ -2775,6 +2785,7 @@ static const struct vc4_hdmi_variant bcm2711_hdmi1_variant = {
 	.phy_rng_disable	= vc5_hdmi_phy_rng_disable,
 	.channel_map		= vc5_hdmi_channel_map,
 	.supports_hdr		= true,
+	.hp_detect		= vc5_hdmi_hp_detect,
 };
 
 static const struct of_device_id vc4_hdmi_dt_match[] = {

@@ -2854,7 +2854,7 @@ static inline bool func_uaccess_safe(struct symbol *func)
 
 static inline const char *call_dest_name(struct instruction *insn)
 {
-	static char pvname[16];
+	static char pvname[19];
 	struct reloc *rel;
 	int idx;
 

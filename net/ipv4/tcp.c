@@ -937,6 +937,22 @@ void tcp_remove_empty_skb(struct sock *sk)
 	}
 }
 
+/* skb changing from pure zc to mixed, must charge zc */
+static int tcp_downgrade_zcopy_pure(struct sock *sk, struct sk_buff *skb)
+{
+	if (unlikely(skb_zcopy_pure(skb))) {
+		u32 extra = skb->truesize -
+			    SKB_TRUESIZE(skb_end_offset(skb));
+
+		if (!sk_wmem_schedule(sk, extra))
+			return -ENOMEM;
+
+		sk_mem_charge(sk, extra);
+		skb_shinfo(skb)->flags &= ~SKBFL_PURE_ZEROCOPY;
+	}
+	return 0;
+}
+
 static struct sk_buff *tcp_build_frag(struct sock *sk, int size_goal, int flags,
 				      struct page *page, int offset, size_t *size)
 {
@@ -972,7 +988,7 @@ new_segment:
 		tcp_mark_push(tp, skb);
 		goto new_segment;
 	}
-	if (!sk_wmem_schedule(sk, copy))
+	if (tcp_downgrade_zcopy_pure(sk, skb) || !sk_wmem_schedule(sk, copy))
 		return NULL;
 
 	if (can_coalesce) {
@@ -1320,16 +1336,8 @@ new_segment:
 
 			copy = min_t(int, copy, pfrag->size - pfrag->offset);
 
-			/* skb changing from pure zc to mixed, must charge zc */
-			if (unlikely(skb_zcopy_pure(skb))) {
-				if (!sk_wmem_schedule(sk, skb->data_len))
-					goto wait_for_space;
-
-				sk_mem_charge(sk, skb->data_len);
-				skb_shinfo(skb)->flags &= ~SKBFL_PURE_ZEROCOPY;
-			}
-
-			if (!sk_wmem_schedule(sk, copy))
+			if (tcp_downgrade_zcopy_pure(sk, skb) ||
+			    !sk_wmem_schedule(sk, copy))
 				goto wait_for_space;
 
 			err = skb_copy_to_page_nocache(sk, &msg->msg_iter, skb,

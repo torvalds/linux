@@ -83,6 +83,7 @@ static void cifs_set_ops(struct inode *inode)
 static void
 cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 {
+	struct cifs_fscache_inode_coherency_data cd;
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 
 	cifs_dbg(FYI, "%s: revalidating inode %llu\n",
@@ -113,6 +114,9 @@ cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 	cifs_dbg(FYI, "%s: invalidating inode %llu mapping\n",
 		 __func__, cifs_i->uniqueid);
 	set_bit(CIFS_INO_INVALID_MAPPING, &cifs_i->flags);
+	/* Invalidate fscache cookie */
+	cifs_fscache_fill_coherency(&cifs_i->vfs_inode, &cd);
+	fscache_invalidate(cifs_inode_cookie(inode), &cd, i_size_read(inode), 0);
 }
 
 /*
@@ -2261,8 +2265,6 @@ cifs_dentry_needs_reval(struct dentry *dentry)
 int
 cifs_invalidate_mapping(struct inode *inode)
 {
-	struct cifs_fscache_inode_coherency_data cd;
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 	int rc = 0;
 
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
@@ -2272,8 +2274,6 @@ cifs_invalidate_mapping(struct inode *inode)
 				 __func__, inode);
 	}
 
-	cifs_fscache_fill_coherency(&cifsi->vfs_inode, &cd);
-	fscache_invalidate(cifs_inode_cookie(inode), &cd, i_size_read(inode), 0);
 	return rc;
 }
 
