@@ -561,7 +561,7 @@ static void nvme_free_ns_head(struct kref *ref)
 		container_of(ref, struct nvme_ns_head, ref);
 
 	nvme_mpath_remove_disk(head);
-	ida_simple_remove(&head->subsys->ns_ida, head->instance);
+	ida_free(&head->subsys->ns_ida, head->instance);
 	cleanup_srcu_struct(&head->srcu);
 	nvme_put_subsystem(head->subsys);
 	kfree(head);
@@ -2565,7 +2565,7 @@ static void nvme_release_subsystem(struct device *dev)
 		container_of(dev, struct nvme_subsystem, dev);
 
 	if (subsys->instance >= 0)
-		ida_simple_remove(&nvme_instance_ida, subsys->instance);
+		ida_free(&nvme_instance_ida, subsys->instance);
 	kfree(subsys);
 }
 
@@ -3616,7 +3616,7 @@ static int __nvme_check_ids(struct nvme_subsystem *subsys,
 
 static void nvme_cdev_rel(struct device *dev)
 {
-	ida_simple_remove(&nvme_ns_chr_minor_ida, MINOR(dev->devt));
+	ida_free(&nvme_ns_chr_minor_ida, MINOR(dev->devt));
 }
 
 void nvme_cdev_del(struct cdev *cdev, struct device *cdev_device)
@@ -3630,7 +3630,7 @@ int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
 {
 	int minor, ret;
 
-	minor = ida_simple_get(&nvme_ns_chr_minor_ida, 0, 0, GFP_KERNEL);
+	minor = ida_alloc(&nvme_ns_chr_minor_ida, GFP_KERNEL);
 	if (minor < 0)
 		return minor;
 	cdev_device->devt = MKDEV(MAJOR(nvme_ns_chr_devt), minor);
@@ -3693,7 +3693,7 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 	head = kzalloc(size, GFP_KERNEL);
 	if (!head)
 		goto out;
-	ret = ida_simple_get(&ctrl->subsys->ns_ida, 1, 0, GFP_KERNEL);
+	ret = ida_alloc_min(&ctrl->subsys->ns_ida, 1, GFP_KERNEL);
 	if (ret < 0)
 		goto out_free_head;
 	head->instance = ret;
@@ -3732,7 +3732,7 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 out_cleanup_srcu:
 	cleanup_srcu_struct(&head->srcu);
 out_ida_remove:
-	ida_simple_remove(&ctrl->subsys->ns_ida, head->instance);
+	ida_free(&ctrl->subsys->ns_ida, head->instance);
 out_free_head:
 	kfree(head);
 out:
@@ -4429,7 +4429,7 @@ static void nvme_free_ctrl(struct device *dev)
 	struct nvme_subsystem *subsys = ctrl->subsys;
 
 	if (!subsys || ctrl->instance != subsys->instance)
-		ida_simple_remove(&nvme_instance_ida, ctrl->instance);
+		ida_free(&nvme_instance_ida, ctrl->instance);
 
 	nvme_free_cels(ctrl);
 	nvme_mpath_uninit(ctrl);
@@ -4488,7 +4488,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		goto out;
 	}
 
-	ret = ida_simple_get(&nvme_instance_ida, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&nvme_instance_ida, GFP_KERNEL);
 	if (ret < 0)
 		goto out;
 	ctrl->instance = ret;
@@ -4529,7 +4529,7 @@ out_free_name:
 	nvme_put_ctrl(ctrl);
 	kfree_const(ctrl->device->kobj.name);
 out_release_instance:
-	ida_simple_remove(&nvme_instance_ida, ctrl->instance);
+	ida_free(&nvme_instance_ida, ctrl->instance);
 out:
 	if (ctrl->discard_page)
 		__free_page(ctrl->discard_page);
