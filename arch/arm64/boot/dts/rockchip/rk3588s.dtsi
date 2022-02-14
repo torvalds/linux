@@ -4232,7 +4232,7 @@
 	can0: can@fea50000 {
 		compatible = "rockchip,can-2.0";
 		reg = <0x0 0xfea50000 0x0 0x1000>;
-		iinterrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru CLK_CAN0>, <&cru PCLK_CAN0>;
 		clock-names = "baudclk", "apb_pclk";
 		resets = <&cru SRST_CAN0>, <&cru SRST_P_CAN0>;
