@@ -1189,15 +1189,11 @@ static int soc15_common_early_init(void *handle)
 static int soc15_common_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r = 0;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_get_irq(adev);
 
-	if (adev->nbio.ras && adev->nbio.ras->ras_block.ras_late_init)
-		r = adev->nbio.ras->ras_block.ras_late_init(adev, adev->nbio.ras_if);
-
-	return r;
+	return 0;
 }
 
 static int soc15_common_sw_init(void *handle)

@@ -1894,10 +1894,7 @@ static int sdma_v4_0_late_init(void *handle)
 			adev->sdma.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 	}
 
-	if (adev->sdma.ras && adev->sdma.ras->ras_block.ras_late_init)
-		return adev->sdma.ras->ras_block.ras_late_init(adev, adev->sdma.ras_if);
-	else
-		return 0;
+	return 0;
 }
 
 static int sdma_v4_0_sw_init(void *handle)

@@ -2629,6 +2629,12 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 		adev->ip_blocks[i].status.late_initialized = true;
 	}
 
+	r = amdgpu_ras_late_init(adev);
+	if (r) {
+		DRM_ERROR("amdgpu_ras_late_init failed %d", r);
+		return r;
+	}
+
 	amdgpu_ras_set_error_query_ready(adev, true);
 
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);

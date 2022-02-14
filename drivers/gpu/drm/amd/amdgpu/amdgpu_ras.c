@@ -2522,6 +2522,31 @@ void amdgpu_ras_suspend(struct amdgpu_device *adev)
 		amdgpu_ras_disable_all_features(adev, 1);
 }
 
+int amdgpu_ras_late_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_block_list *node, *tmp;
+	struct amdgpu_ras_block_object *obj;
+	int r;
+
+	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
+		if (!node->ras_obj) {
+			dev_warn(adev->dev, "Warning: abnormal ras list node.\n");
+			continue;
+		}
+		obj = node->ras_obj;
+		if (obj->ras_late_init) {
+			r = obj->ras_late_init(adev, &obj->ras_comm);
+			if (r) {
+				dev_err(adev->dev, "%s failed to execute ras_late_init! ret:%d\n",
+					obj->ras_comm.name, r);
+				return r;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /* do some fini work before IP fini as dependence */
 int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 {
