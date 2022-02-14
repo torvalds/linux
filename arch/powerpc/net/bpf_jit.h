@@ -59,10 +59,7 @@
 				EMIT(PPC_RAW_ORI(d, d, IMM_L(i)));	      \
 		} } while(0)
 
-#ifdef CONFIG_PPC32
-#define PPC_EX32(r, i)		EMIT(PPC_RAW_LI((r), (i) < 0 ? -1 : 0))
-#endif
-
+#ifdef CONFIG_PPC64
 #define PPC_LI64(d, i)		do {					      \
 		if ((long)(i) >= -2147483648 &&				      \
 				(long)(i) < 2147483648)			      \
@@ -85,11 +82,6 @@
 				EMIT(PPC_RAW_ORI(d, d, (uintptr_t)(i) &       \
 							0xffff));             \
 		} } while (0)
-
-#ifdef CONFIG_PPC64
-#define PPC_FUNC_ADDR(d,i) do { PPC_LI64(d, i); } while(0)
-#else
-#define PPC_FUNC_ADDR(d,i) do { PPC_LI32(d, i); } while(0)
 #endif
 
 /*

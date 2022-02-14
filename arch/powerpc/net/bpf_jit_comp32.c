@@ -36,6 +36,8 @@
 /* BPF register usage */
 #define TMP_REG	(MAX_BPF_JIT_REG + 0)
 
+#define PPC_EX32(r, i)		EMIT(PPC_RAW_LI((r), (i) < 0 ? -1 : 0))
+
 /* BPF to ppc register mappings */
 const int b2p[MAX_BPF_JIT_REG + 1] = {
 	/* function return value */
