@@ -160,6 +160,42 @@ struct dentry *wwan_get_debugfs_dir(struct device *parent)
 	return wwandev->debugfs_dir;
 }
 EXPORT_SYMBOL_GPL(wwan_get_debugfs_dir);
+
+static int wwan_dev_debugfs_match(struct device *dev, const void *dir)
+{
+	struct wwan_device *wwandev;
+
+	if (dev->type != &wwan_dev_type)
+		return 0;
+
+	wwandev = to_wwan_dev(dev);
+
+	return wwandev->debugfs_dir == dir;
+}
+
+static struct wwan_device *wwan_dev_get_by_debugfs(struct dentry *dir)
+{
+	struct device *dev;
+
+	dev = class_find_device(wwan_class, NULL, dir, wwan_dev_debugfs_match);
+	if (!dev)
+		return ERR_PTR(-ENODEV);
+
+	return to_wwan_dev(dev);
+}
+
+void wwan_put_debugfs_dir(struct dentry *dir)
+{
+	struct wwan_device *wwandev = wwan_dev_get_by_debugfs(dir);
+
+	if (WARN_ON(IS_ERR(wwandev)))
+		return;
+
+	/* wwan_dev_get_by_debugfs() also got a reference */
+	put_device(&wwandev->dev);
+	put_device(&wwandev->dev);
+}
+EXPORT_SYMBOL_GPL(wwan_put_debugfs_dir);
 #endif
 
 /* This function allocates and registers a new WWAN device OR if a WWAN device
