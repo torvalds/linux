@@ -143,6 +143,45 @@ In robust cases the client unfortunately needs to call
 acpi_dma_request_slave_chan_by_index() directly and therefore choose the
 specific FixedDMA resource by its index.
 
+Named Interrupts
+================
+
+Drivers enumerated via ACPI can have names to interrupts in the ACPI table
+which can be used to get the IRQ number in the driver.
+
+The interrupt name can be listed in _DSD as 'interrupt-names'. The names
+should be listed as an array of strings which will map to the Interrupt()
+resource in the ACPI table corresponding to its index.
+
+The table below shows an example of its usage::
+
+    Device (DEV0) {
+        ...
+        Name (_CRS, ResourceTemplate() {
+            ...
+            Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) {
+                0x20,
+                0x24
+            }
+        })
+
+        Name (_DSD, Package () {
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+            Package () {
+                Package () {"interrupt-names",
+                Package (2) {"default", "alert"}},
+            }
+        ...
+        })
+    }
+
+The interrupt name 'default' will correspond to 0x20 in Interrupt()
+resource and 'alert' to 0x24. Note that only the Interrupt() resource
+is mapped and not GpioInt() or similar.
+
+The driver can call the function - fwnode_irq_get_byname() with the fwnode
+and interrupt name as arguments to get the corresponding IRQ number.
+
 SPI serial bus support
 ======================
 
