@@ -744,19 +744,20 @@ static void last_cmd_set(struct trace_event_file *file, char *str)
 {
 	const char *system = NULL, *name = NULL;
 	struct trace_event_call *call;
-	int len = 0;
+	int len;
 
 	if (!str)
 		return;
 
-	len += sizeof(HIST_PREFIX) + strlen(str) + 1;
+	len = sizeof(HIST_PREFIX) + strlen(str) + 1;
 	kfree(last_cmd);
 	last_cmd = kzalloc(len, GFP_KERNEL);
 	if (!last_cmd)
 		return;
 
 	strcpy(last_cmd, HIST_PREFIX);
-	strncat(last_cmd, str, len - sizeof(HIST_PREFIX));
+	len -= sizeof(HIST_PREFIX) + 1;
+	strncat(last_cmd, str, len);
 
 	if (file) {
 		call = file->event_call;
