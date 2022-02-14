@@ -151,22 +151,6 @@ static void open_bucket_free_unused(struct bch_fs *c,
 	}
 }
 
-static void verify_not_stale(struct bch_fs *c, const struct open_buckets *obs)
-{
-#ifdef CONFIG_BCACHEFS_DEBUG
-	struct open_bucket *ob;
-	unsigned i;
-
-	rcu_read_lock();
-	open_bucket_for_each(c, obs, ob, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
-
-		BUG_ON(*bucket_gen(ca, ob->bucket) != ob->gen);
-	}
-	rcu_read_unlock();
-#endif
-}
-
 /* _only_ for allocating the journal on a new device: */
 long bch2_bucket_alloc_new_fs(struct bch_dev *ca)
 {
@@ -856,8 +840,6 @@ alloc_done:
 		wp->sectors_free = min(wp->sectors_free, ob->sectors_free);
 
 	BUG_ON(!wp->sectors_free || wp->sectors_free == UINT_MAX);
-
-	verify_not_stale(c, &wp->ptrs);
 
 	return wp;
 err:
