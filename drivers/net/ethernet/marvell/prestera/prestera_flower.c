@@ -8,26 +8,60 @@
 
 struct prestera_flower_template {
 	struct prestera_acl_ruleset *ruleset;
+	struct list_head list;
+	u32 chain_index;
 };
 
 void prestera_flower_template_cleanup(struct prestera_flow_block *block)
 {
-	if (block->tmplt) {
-		/* put the reference to the ruleset kept in create */
-		prestera_acl_ruleset_put(block->tmplt->ruleset);
-		kfree(block->tmplt);
-		block->tmplt = NULL;
-		return;
+	struct prestera_flower_template *template;
+	struct list_head *pos, *n;
+
+	/* put the reference to all rulesets kept in tmpl create */
+	list_for_each_safe(pos, n, &block->template_list) {
+		template = list_entry(pos, typeof(*template), list);
+		prestera_acl_ruleset_put(template->ruleset);
+		list_del(&template->list);
+		kfree(template);
 	}
+}
+
+static int
+prestera_flower_parse_goto_action(struct prestera_flow_block *block,
+				  struct prestera_acl_rule *rule,
+				  u32 chain_index,
+				  const struct flow_action_entry *act)
+{
+	struct prestera_acl_ruleset *ruleset;
+
+	if (act->chain_index <= chain_index)
+		/* we can jump only forward */
+		return -EINVAL;
+
+	if (rule->re_arg.jump.valid)
+		return -EEXIST;
+
+	ruleset = prestera_acl_ruleset_get(block->sw->acl, block,
+					   act->chain_index);
+	if (IS_ERR(ruleset))
+		return PTR_ERR(ruleset);
+
+	rule->re_arg.jump.valid = 1;
+	rule->re_arg.jump.i.index = prestera_acl_ruleset_index_get(ruleset);
+
+	rule->jump_ruleset = ruleset;
+
+	return 0;
 }
 
 static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 					 struct prestera_acl_rule *rule,
 					 struct flow_action *flow_action,
+					 u32 chain_index,
 					 struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *act;
-	int i;
+	int err, i;
 
 	/* whole struct (rule->re_arg) must be initialized with 0 */
 	if (!flow_action_has_entries(flow_action))
@@ -52,6 +86,13 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 				return -EEXIST;
 
 			rule->re_arg.trap.valid = 1;
+			break;
+		case FLOW_ACTION_GOTO:
+			err = prestera_flower_parse_goto_action(block, rule,
+								chain_index,
+								act);
+			if (err)
+				return err;
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
@@ -259,6 +300,7 @@ static int prestera_flower_parse(struct prestera_flow_block *block,
 	}
 
 	return prestera_flower_parse_actions(block, rule, &f->rule->action,
+					     f->common.chain_index,
 					     f->common.extack);
 }
 
@@ -270,12 +312,13 @@ int prestera_flower_replace(struct prestera_flow_block *block,
 	struct prestera_acl_rule *rule;
 	int err;
 
-	ruleset = prestera_acl_ruleset_get(acl, block);
+	ruleset = prestera_acl_ruleset_get(acl, block, f->common.chain_index);
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
 	/* increments the ruleset reference */
-	rule = prestera_acl_rule_create(ruleset, f->cookie);
+	rule = prestera_acl_rule_create(ruleset, f->cookie,
+					f->common.chain_index);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		goto err_rule_create;
@@ -312,7 +355,8 @@ void prestera_flower_destroy(struct prestera_flow_block *block,
 	struct prestera_acl_ruleset *ruleset;
 	struct prestera_acl_rule *rule;
 
-	ruleset = prestera_acl_ruleset_lookup(block->sw->acl, block);
+	ruleset = prestera_acl_ruleset_lookup(block->sw->acl, block,
+					      f->common.chain_index);
 	if (IS_ERR(ruleset))
 		return;
 
@@ -345,7 +389,8 @@ int prestera_flower_tmplt_create(struct prestera_flow_block *block,
 	}
 
 	prestera_acl_rule_keymask_pcl_id_set(&rule, 0);
-	ruleset = prestera_acl_ruleset_get(block->sw->acl, block);
+	ruleset = prestera_acl_ruleset_get(block->sw->acl, block,
+					   f->common.chain_index);
 	if (IS_ERR_OR_NULL(ruleset)) {
 		err = -EINVAL;
 		goto err_ruleset_get;
@@ -364,7 +409,8 @@ int prestera_flower_tmplt_create(struct prestera_flow_block *block,
 
 	/* keep the reference to the ruleset */
 	template->ruleset = ruleset;
-	block->tmplt = template;
+	template->chain_index = f->common.chain_index;
+	list_add_rcu(&template->list, &block->template_list);
 	return 0;
 
 err_ruleset_get:
@@ -390,7 +436,8 @@ int prestera_flower_stats(struct prestera_flow_block *block,
 	u64 bytes;
 	int err;
 
-	ruleset = prestera_acl_ruleset_lookup(block->sw->acl, block);
+	ruleset = prestera_acl_ruleset_lookup(block->sw->acl, block,
+					      f->common.chain_index);
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 

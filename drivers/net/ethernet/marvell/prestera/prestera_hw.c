@@ -424,6 +424,9 @@ struct prestera_msg_acl_action {
 	__le32 __reserved;
 	union {
 		struct {
+			__le32 index;
+		} jump;
+		struct {
 			__le32 id;
 		} count;
 		__le32 reserved[6];
@@ -1163,6 +1166,9 @@ prestera_acl_rule_add_put_action(struct prestera_msg_acl_action *action,
 	case PRESTERA_ACL_RULE_ACTION_DROP:
 	case PRESTERA_ACL_RULE_ACTION_TRAP:
 		/* just rule action id, no specific data */
+		break;
+	case PRESTERA_ACL_RULE_ACTION_JUMP:
+		action->jump.index = __cpu_to_le32(info->jump.index);
 		break;
 	case PRESTERA_ACL_RULE_ACTION_COUNT:
 		action->count.id = __cpu_to_le32(info->count.id);
