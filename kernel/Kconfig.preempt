@@ -96,8 +96,9 @@ config PREEMPTION
 config PREEMPT_DYNAMIC
 	bool "Preemption behaviour defined on boot"
 	depends on HAVE_PREEMPT_DYNAMIC && !PREEMPT_RT
+	select JUMP_LABEL if HAVE_PREEMPT_DYNAMIC_KEY
 	select PREEMPT_BUILD
-	default y
+	default y if HAVE_PREEMPT_DYNAMIC_CALL
 	help
 	  This option allows to define the preemption model on the kernel
 	  command line parameter and thus override the default preemption
