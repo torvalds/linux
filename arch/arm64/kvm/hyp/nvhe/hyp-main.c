@@ -1136,6 +1136,14 @@ static void handle___pkvm_iommu_register(struct kvm_cpu_context *host_ctxt)
 						      dev_size, mem, mem_size);
 }
 
+static void handle___pkvm_iommu_pm_notify(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(unsigned long, dev_id, host_ctxt, 1);
+	DECLARE_REG(enum pkvm_iommu_pm_event, event, host_ctxt, 2);
+
+	cpu_reg(host_ctxt, 1) = __pkvm_iommu_pm_notify(dev_id, event);
+}
+
 typedef void (*hcall_t)(struct kvm_cpu_context *);
 
 #define HANDLE_FUNC(x)	[__KVM_HOST_SMCCC_FUNC_##x] = (hcall_t)handle_##x
@@ -1172,6 +1180,7 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_vcpu_sync_state),
 	HANDLE_FUNC(__pkvm_iommu_driver_init),
 	HANDLE_FUNC(__pkvm_iommu_register),
+	HANDLE_FUNC(__pkvm_iommu_pm_notify),
 };
 
 static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)

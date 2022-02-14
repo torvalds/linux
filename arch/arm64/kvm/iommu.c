@@ -40,3 +40,17 @@ int pkvm_iommu_register(struct device *dev, enum pkvm_iommu_driver_id drv_id,
 	}
 	return ret;
 }
+
+int pkvm_iommu_suspend(struct device *dev)
+{
+	return kvm_call_hyp_nvhe(__pkvm_iommu_pm_notify, dev_to_id(dev),
+				 PKVM_IOMMU_PM_SUSPEND);
+}
+EXPORT_SYMBOL_GPL(pkvm_iommu_suspend);
+
+int pkvm_iommu_resume(struct device *dev)
+{
+	return kvm_call_hyp_nvhe(__pkvm_iommu_pm_notify, dev_to_id(dev),
+				 PKVM_IOMMU_PM_RESUME);
+}
+EXPORT_SYMBOL_GPL(pkvm_iommu_resume);

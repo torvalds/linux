@@ -7,6 +7,8 @@
 
 #include <nvhe/mem_protect.h>
 
+struct pkvm_iommu;
+
 struct pkvm_iommu_ops {
 	/*
 	 * Global driver initialization called before devices are registered.
@@ -23,6 +25,10 @@ struct pkvm_iommu_ops {
 	 */
 	int (*validate)(phys_addr_t base, size_t size);
 
+	/* Power management callbacks. Called with host lock held. */
+	int (*suspend)(struct pkvm_iommu *dev);
+	int (*resume)(struct pkvm_iommu *dev);
+
 	/* Amount of memory allocated per-device for use by the driver. */
 	size_t data_size;
 };
@@ -34,6 +40,7 @@ struct pkvm_iommu {
 	phys_addr_t pa;
 	void *va;
 	size_t size;
+	bool powered;
 	char data[];
 };
 
@@ -42,6 +49,8 @@ int __pkvm_iommu_register(unsigned long dev_id,
 			  enum pkvm_iommu_driver_id drv_id,
 			  phys_addr_t dev_pa, size_t dev_size,
 			  void *kern_mem_va, size_t mem_size);
+int __pkvm_iommu_pm_notify(unsigned long dev_id,
+			   enum pkvm_iommu_pm_event event);
 int pkvm_iommu_host_stage2_adjust_range(phys_addr_t addr, phys_addr_t *start,
 					phys_addr_t *end);
 

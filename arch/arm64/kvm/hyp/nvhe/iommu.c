@@ -166,6 +166,19 @@ static bool validate_against_existing_iommus(struct pkvm_iommu *dev)
 	return true;
 }
 
+static struct pkvm_iommu *find_iommu_by_id(unsigned long id)
+{
+	struct pkvm_iommu *dev;
+
+	assert_host_component_locked();
+
+	list_for_each_entry(dev, &iommu_list, list) {
+		if (dev->id == id)
+			return dev;
+	}
+	return NULL;
+}
+
 /*
  * Initialize EL2 IOMMU driver.
  *
@@ -285,6 +298,30 @@ int __pkvm_iommu_register(unsigned long dev_id,
 	list_add_tail(&dev->list, &iommu_list);
 
 out:
+	host_unlock_component();
+	return ret;
+}
+
+int __pkvm_iommu_pm_notify(unsigned long dev_id, enum pkvm_iommu_pm_event event)
+{
+	struct pkvm_iommu *dev;
+	int ret;
+
+	host_lock_component();
+	dev = find_iommu_by_id(dev_id);
+	if (dev) {
+		if (event == PKVM_IOMMU_PM_SUSPEND) {
+			ret = dev->ops->suspend ? dev->ops->suspend(dev) : 0;
+			dev->powered = !!ret;
+		} else if (event == PKVM_IOMMU_PM_RESUME) {
+			ret = dev->ops->resume ? dev->ops->resume(dev) : 0;
+			dev->powered = !ret;
+		} else {
+			ret = -EINVAL;
+		}
+	} else {
+		ret = -ENODEV;
+	}
 	host_unlock_component();
 	return ret;
 }
