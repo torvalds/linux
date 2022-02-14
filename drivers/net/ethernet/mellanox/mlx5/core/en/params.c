@@ -392,16 +392,23 @@ void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e
 	};
 }
 
+static int mlx5e_max_nonlinear_mtu(int frag_size)
+{
+	/* Optimization for small packets: the last fragment is bigger than the others. */
+	return (MLX5E_MAX_RX_FRAGS - 1) * frag_size + PAGE_SIZE;
+}
+
 #define DEFAULT_FRAG_SIZE (2048)
 
-static void mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
-				      struct mlx5e_params *params,
-				      struct mlx5e_xsk_param *xsk,
-				      struct mlx5e_rq_frags_info *info)
+static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
+				     struct mlx5e_params *params,
+				     struct mlx5e_xsk_param *xsk,
+				     struct mlx5e_rq_frags_info *info)
 {
 	u32 byte_count = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	int frag_size_max = DEFAULT_FRAG_SIZE;
 	u32 buf_size = 0;
+	int max_mtu;
 	int i;
 
 	if (mlx5_fpga_is_ipsec_device(mdev))
@@ -420,9 +427,17 @@ static void mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 		goto out;
 	}
 
-	if (byte_count > PAGE_SIZE +
-	    (MLX5E_MAX_RX_FRAGS - 1) * frag_size_max)
+	max_mtu = mlx5e_max_nonlinear_mtu(frag_size_max);
+	if (byte_count > max_mtu) {
 		frag_size_max = PAGE_SIZE;
+
+		max_mtu = mlx5e_max_nonlinear_mtu(frag_size_max);
+		if (byte_count > max_mtu) {
+			mlx5_core_err(mdev, "MTU %u is too big for non-linear legacy RQ (max %d)\n",
+				      params->sw_mtu, max_mtu);
+			return -EINVAL;
+		}
+	}
 
 	i = 0;
 	while (buf_size < byte_count) {
@@ -444,6 +459,8 @@ static void mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 out:
 	info->wqe_bulk = max_t(u8, info->wqe_bulk, 8);
 	info->log_num_frags = order_base_2(info->num_frags);
+
+	return 0;
 }
 
 static u8 mlx5e_get_rqwq_log_stride(u8 wq_type, int ndsegs)
@@ -540,6 +557,7 @@ int mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
 	void *rqc = param->rqc;
 	void *wq = MLX5_ADDR_OF(rqc, rqc, wq);
 	int ndsegs = 1;
+	int err;
 
 	switch (params->rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ: {
@@ -579,7 +597,9 @@ int mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
 	}
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		MLX5_SET(wq, wq, log_wq_sz, params->log_rq_mtu_frames);
-		mlx5e_build_rq_frags_info(mdev, params, xsk, &param->frags_info);
+		err = mlx5e_build_rq_frags_info(mdev, params, xsk, &param->frags_info);
+		if (err)
+			return err;
 		ndsegs = param->frags_info.num_frags;
 	}
 
