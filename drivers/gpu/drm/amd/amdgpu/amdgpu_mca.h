@@ -56,9 +56,6 @@ void amdgpu_mca_query_ras_error_count(struct amdgpu_device *adev,
 				      uint64_t mc_status_addr,
 				      void *ras_error_status);
 
-int amdgpu_mca_ras_late_init(struct amdgpu_device *adev,
-			     struct amdgpu_mca_ras *mca_dev);
-
 void amdgpu_mca_ras_fini(struct amdgpu_device *adev,
 			 struct amdgpu_mca_ras *mca_dev);
 
