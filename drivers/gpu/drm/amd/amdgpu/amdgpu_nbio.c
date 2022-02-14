@@ -22,7 +22,7 @@
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
 
-int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, void *ras_info)
+int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	int r;
 	r = amdgpu_ras_block_late_init(adev, adev->nbio.ras_if);

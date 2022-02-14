@@ -37,7 +37,7 @@ static void mca_v3_0_mp0_query_ras_error_count(struct amdgpu_device *adev,
 				         ras_error_status);
 }
 
-static int mca_v3_0_mp0_ras_late_init(struct amdgpu_device *adev, void *ras_info)
+static int mca_v3_0_mp0_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	return amdgpu_mca_ras_late_init(adev, &adev->mca.mp0);
 }
@@ -89,7 +89,7 @@ static void mca_v3_0_mp1_query_ras_error_count(struct amdgpu_device *adev,
 				         ras_error_status);
 }
 
-static int mca_v3_0_mp1_ras_late_init(struct amdgpu_device *adev, void *ras_info)
+static int mca_v3_0_mp1_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	return amdgpu_mca_ras_late_init(adev, &adev->mca.mp1);
 }
@@ -127,7 +127,7 @@ static void mca_v3_0_mpio_query_ras_error_count(struct amdgpu_device *adev,
 				         ras_error_status);
 }
 
-static int mca_v3_0_mpio_ras_late_init(struct amdgpu_device *adev, void *ras_info)
+static int mca_v3_0_mpio_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	return amdgpu_mca_ras_late_init(adev, &adev->mca.mpio);
 }

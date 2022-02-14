@@ -87,7 +87,7 @@ uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring,
 }
 
 int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
-			      void *ras_ih_info)
+			      struct ras_common_if *ras_block)
 {
 	int r, i;
 

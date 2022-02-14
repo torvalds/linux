@@ -622,7 +622,7 @@ int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value)
 	return r;
 }
 
-int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, void *ras_info)
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	int r;
 	r = amdgpu_ras_block_late_init(adev, adev->gfx.ras_if);

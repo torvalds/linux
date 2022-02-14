@@ -490,7 +490,7 @@ struct amdgpu_ras_block_object {
 
 	int (*ras_block_match)(struct amdgpu_ras_block_object *block_obj,
 				enum amdgpu_ras_block block, uint32_t sub_block_index);
-	int (*ras_late_init)(struct amdgpu_device *adev, void *ras_info);
+	int (*ras_late_init)(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 	void (*ras_fini)(struct amdgpu_device *adev);
 	ras_ih_cb ras_cb;
 	const struct amdgpu_ras_block_hw_ops *hw_ops;

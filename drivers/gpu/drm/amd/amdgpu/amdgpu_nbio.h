@@ -104,6 +104,6 @@ struct amdgpu_nbio {
 	struct amdgpu_nbio_ras  *ras;
 };
 
-int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, void *ras_info);
+int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 void amdgpu_nbio_ras_fini(struct amdgpu_device *adev);
 #endif

@@ -24,7 +24,7 @@
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
 
-int amdgpu_hdp_ras_late_init(struct amdgpu_device *adev, void *ras_info)
+int amdgpu_hdp_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	return amdgpu_ras_block_late_init(adev, adev->hdp.ras_if);
 }
