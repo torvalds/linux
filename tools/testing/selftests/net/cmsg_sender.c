@@ -341,7 +341,7 @@ int main(int argc, char *argv[])
 	if (clock_gettime(CLOCK_REALTIME, &time_start_real))
 		error(ERN_GETTIME, errno, "gettime REALTIME");
 	if (clock_gettime(CLOCK_MONOTONIC, &time_start_mono))
-		error(ERN_GETTIME, errno, "gettime MONOTINIC");
+		error(ERN_GETTIME, errno, "gettime MONOTONIC");
 
 	iov[0].iov_base = buf;
 	iov[0].iov_len = sizeof(buf);
