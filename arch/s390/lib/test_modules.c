@@ -5,9 +5,6 @@
 
 #include "test_modules.h"
 
-#define DECLARE_RETURN(i) int test_modules_return_ ## i(void)
-REPEAT_10000(DECLARE_RETURN);
-
 /*
  * Test that modules with many relocations are loaded properly.
  */
