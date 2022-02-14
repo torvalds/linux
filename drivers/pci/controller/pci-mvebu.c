@@ -1288,7 +1288,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		 * indirectly via kernel emulated PCI bridge driver.
 		 */
 		mvebu_pcie_setup_hw(port);
-		mvebu_pcie_set_local_dev_nr(port, 0);
+		mvebu_pcie_set_local_dev_nr(port, 1);
+		mvebu_pcie_set_local_bus_nr(port, 0);
 	}
 
 	pcie->nports = i;
