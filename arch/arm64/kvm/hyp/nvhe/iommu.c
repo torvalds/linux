@@ -149,6 +149,40 @@ static bool is_mmio_range(phys_addr_t base, size_t size)
 	return true;
 }
 
+static int __snapshot_host_stage2(u64 start, u64 end, u32 level,
+				  kvm_pte_t *ptep,
+				  enum kvm_pgtable_walk_flags flags,
+				  void * const arg)
+{
+	struct pkvm_iommu_driver * const drv = arg;
+	enum kvm_pgtable_prot prot;
+	kvm_pte_t pte = *ptep;
+
+	/*
+	 * Valid stage-2 entries are created lazily, invalid ones eagerly.
+	 * Note: In the future we may need to check if [start,end) is MMIO.
+	 */
+	prot = (!pte || kvm_pte_valid(pte)) ? PKVM_HOST_MEM_PROT : 0;
+
+	drv->ops->host_stage2_idmap_prepare(start, end, prot);
+	return 0;
+}
+
+static int snapshot_host_stage2(struct pkvm_iommu_driver * const drv)
+{
+	struct kvm_pgtable_walker walker = {
+		.cb	= __snapshot_host_stage2,
+		.arg	= drv,
+		.flags	= KVM_PGTABLE_WALK_LEAF,
+	};
+	struct kvm_pgtable *pgt = &host_mmu.pgt;
+
+	if (!drv->ops->host_stage2_idmap_prepare)
+		return 0;
+
+	return kvm_pgtable_walk(pgt, 0, BIT(pgt->ia_bits), &walker);
+}
+
 static bool validate_against_existing_iommus(struct pkvm_iommu *dev)
 {
 	struct pkvm_iommu *other;
@@ -216,8 +250,19 @@ int __pkvm_iommu_driver_init(enum pkvm_iommu_driver_id id, void *data, size_t si
 			goto out;
 	}
 
+	/*
+	 * Walk host stage-2 and pass current mappings to the driver. Start
+	 * accepting host stage-2 updates as soon as the host lock is released.
+	 */
+	host_lock_component();
+	ret = snapshot_host_stage2(drv);
+	if (!ret)
+		driver_release_init(drv, /*success=*/true);
+	host_unlock_component();
+
 out:
-	driver_release_init(drv, /*success=*/!ret);
+	if (ret)
+		driver_release_init(drv, /*success=*/false);
 	return ret;
 }
 
