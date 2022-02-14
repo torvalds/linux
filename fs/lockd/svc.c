@@ -185,7 +185,7 @@ lockd(void *vrqstp)
 
 	svc_exit_thread(rqstp);
 
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 }
 
 static int create_lockd_listener(struct svc_serv *serv, const char *name,

@@ -65,7 +65,7 @@ struct svc_serv_ops {
 	void		(*svo_enqueue_xprt)(struct svc_xprt *);
 
 	/* optional module to count when adding threads.
-	 * Thread function must call module_put_and_exit() to exit.
+	 * Thread function must call module_put_and_kthread_exit() to exit.
 	 */
 	struct module	*svo_module;
 };

@@ -1031,7 +1031,7 @@ static void futex_cleanup(struct task_struct *tsk)
  * actually finished the futex cleanup. The worst case for this is that the
  * waiter runs through the wait loop until the state becomes visible.
  *
- * This is called from the recursive fault handling path in do_exit().
+ * This is called from the recursive fault handling path in make_task_dead().
  *
  * This is best effort. Either the futex exit code has run already or
  * not. If the OWNER_DIED bit has been set on the futex then the waiter can
