@@ -1316,8 +1316,9 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 		if (i->inode.bi_nlink == i->count)
 			continue;
 
-		count2 = lockrestart_do(trans,
-				bch2_count_subdirs(trans, w->cur_inum, i->snapshot));
+		count2 = bch2_count_subdirs(trans, w->cur_inum, i->snapshot);
+		if (count2 < 0)
+			return count2;
 
 		if (i->count != count2) {
 			bch_err(c, "fsck counted subdirectories wrong: got %llu should be %llu",
