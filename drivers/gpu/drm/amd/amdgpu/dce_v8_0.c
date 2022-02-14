@@ -2433,7 +2433,7 @@ static void dce_v8_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		break;
 	}
 	/* adjust pm to dpms */
-	amdgpu_pm_compute_clocks(adev);
+	amdgpu_dpm_compute_clocks(adev);
 }
 
 static void dce_v8_0_crtc_prepare(struct drm_crtc *crtc)

@@ -23,6 +23,12 @@
 #ifndef __AMDGPU_DPM_H__
 #define __AMDGPU_DPM_H__
 
+/* Argument for PPSMC_MSG_GpuChangeState */
+enum gfx_change_state {
+	sGpuChangeState_D0Entry = 1,
+	sGpuChangeState_D3Entry,
+};
+
 enum amdgpu_int_thermal_type {
 	THERMAL_TYPE_NONE,
 	THERMAL_TYPE_EXTERNAL,
@@ -37,19 +43,6 @@ enum amdgpu_int_thermal_type {
 	THERMAL_TYPE_EMC2103_WITH_INTERNAL,
 	THERMAL_TYPE_CI,
 	THERMAL_TYPE_KV,
-};
-
-enum amdgpu_dpm_auto_throttle_src {
-	AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL,
-	AMDGPU_DPM_AUTO_THROTTLE_SRC_EXTERNAL
-};
-
-enum amdgpu_dpm_event_src {
-	AMDGPU_DPM_EVENT_SRC_ANALOG = 0,
-	AMDGPU_DPM_EVENT_SRC_EXTERNAL = 1,
-	AMDGPU_DPM_EVENT_SRC_DIGITAL = 2,
-	AMDGPU_DPM_EVENT_SRC_ANALOG_OR_EXTERNAL = 3,
-	AMDGPU_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL = 4
 };
 
 struct amdgpu_ps {
@@ -93,19 +86,6 @@ struct amdgpu_dpm_thermal {
 	bool               high_to_low;
 	/* interrupt source */
 	struct amdgpu_irq_src	irq;
-};
-
-enum amdgpu_clk_action
-{
-	AMDGPU_SCLK_UP = 1,
-	AMDGPU_SCLK_DOWN
-};
-
-struct amdgpu_blacklist_clocks
-{
-	u32 sclk;
-	u32 mclk;
-	enum amdgpu_clk_action action;
 };
 
 struct amdgpu_clock_and_voltage_limits {
@@ -246,128 +226,6 @@ struct amdgpu_dpm_fan {
 	bool ucode_fan_control;
 };
 
-enum amdgpu_pcie_gen {
-	AMDGPU_PCIE_GEN1 = 0,
-	AMDGPU_PCIE_GEN2 = 1,
-	AMDGPU_PCIE_GEN3 = 2,
-	AMDGPU_PCIE_GEN_INVALID = 0xffff
-};
-
-#define amdgpu_dpm_pre_set_power_state(adev) \
-		((adev)->powerplay.pp_funcs->pre_set_power_state((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_set_power_state(adev) \
-		((adev)->powerplay.pp_funcs->set_power_state((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_post_set_power_state(adev) \
-		((adev)->powerplay.pp_funcs->post_set_power_state((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_display_configuration_changed(adev) \
-		((adev)->powerplay.pp_funcs->display_configuration_changed((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_print_power_state(adev, ps) \
-		((adev)->powerplay.pp_funcs->print_power_state((adev)->powerplay.pp_handle, (ps)))
-
-#define amdgpu_dpm_vblank_too_short(adev) \
-		((adev)->powerplay.pp_funcs->vblank_too_short((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_enable_bapm(adev, e) \
-		((adev)->powerplay.pp_funcs->enable_bapm((adev)->powerplay.pp_handle, (e)))
-
-#define amdgpu_dpm_set_fan_control_mode(adev, m) \
-		((adev)->powerplay.pp_funcs->set_fan_control_mode((adev)->powerplay.pp_handle, (m)))
-
-#define amdgpu_dpm_get_fan_control_mode(adev) \
-		((adev)->powerplay.pp_funcs->get_fan_control_mode((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_set_fan_speed_pwm(adev, s) \
-		((adev)->powerplay.pp_funcs->set_fan_speed_pwm((adev)->powerplay.pp_handle, (s)))
-
-#define amdgpu_dpm_get_fan_speed_pwm(adev, s) \
-		((adev)->powerplay.pp_funcs->get_fan_speed_pwm((adev)->powerplay.pp_handle, (s)))
-
-#define amdgpu_dpm_get_fan_speed_rpm(adev, s) \
-		((adev)->powerplay.pp_funcs->get_fan_speed_rpm)((adev)->powerplay.pp_handle, (s))
-
-#define amdgpu_dpm_set_fan_speed_rpm(adev, s) \
-		((adev)->powerplay.pp_funcs->set_fan_speed_rpm)((adev)->powerplay.pp_handle, (s))
-
-#define amdgpu_dpm_force_performance_level(adev, l) \
-		((adev)->powerplay.pp_funcs->force_performance_level((adev)->powerplay.pp_handle, (l)))
-
-#define amdgpu_dpm_get_current_power_state(adev) \
-		((adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_get_pp_num_states(adev, data) \
-		((adev)->powerplay.pp_funcs->get_pp_num_states((adev)->powerplay.pp_handle, data))
-
-#define amdgpu_dpm_get_pp_table(adev, table) \
-		((adev)->powerplay.pp_funcs->get_pp_table((adev)->powerplay.pp_handle, table))
-
-#define amdgpu_dpm_set_pp_table(adev, buf, size) \
-		((adev)->powerplay.pp_funcs->set_pp_table((adev)->powerplay.pp_handle, buf, size))
-
-#define amdgpu_dpm_print_clock_levels(adev, type, buf) \
-		((adev)->powerplay.pp_funcs->print_clock_levels((adev)->powerplay.pp_handle, type, buf))
-
-#define amdgpu_dpm_force_clock_level(adev, type, level) \
-		((adev)->powerplay.pp_funcs->force_clock_level((adev)->powerplay.pp_handle, type, level))
-
-#define amdgpu_dpm_get_sclk_od(adev) \
-		((adev)->powerplay.pp_funcs->get_sclk_od((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_set_sclk_od(adev, value) \
-		((adev)->powerplay.pp_funcs->set_sclk_od((adev)->powerplay.pp_handle, value))
-
-#define amdgpu_dpm_get_mclk_od(adev) \
-		((adev)->powerplay.pp_funcs->get_mclk_od((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_set_mclk_od(adev, value) \
-		((adev)->powerplay.pp_funcs->set_mclk_od((adev)->powerplay.pp_handle, value))
-
-#define amdgpu_dpm_dispatch_task(adev, task_id, user_state)		\
-		((adev)->powerplay.pp_funcs->dispatch_tasks)((adev)->powerplay.pp_handle, (task_id), (user_state))
-
-#define amdgpu_dpm_check_state_equal(adev, cps, rps, equal) \
-		((adev)->powerplay.pp_funcs->check_state_equal((adev)->powerplay.pp_handle, (cps), (rps), (equal)))
-
-#define amdgpu_dpm_get_vce_clock_state(adev, i)				\
-		((adev)->powerplay.pp_funcs->get_vce_clock_state((adev)->powerplay.pp_handle, (i)))
-
-#define amdgpu_dpm_get_performance_level(adev)				\
-		((adev)->powerplay.pp_funcs->get_performance_level((adev)->powerplay.pp_handle))
-
-#define amdgpu_dpm_reset_power_profile_state(adev, request) \
-		((adev)->powerplay.pp_funcs->reset_power_profile_state(\
-			(adev)->powerplay.pp_handle, request))
-
-#define amdgpu_dpm_get_power_profile_mode(adev, buf) \
-		((adev)->powerplay.pp_funcs->get_power_profile_mode(\
-			(adev)->powerplay.pp_handle, buf))
-
-#define amdgpu_dpm_set_power_profile_mode(adev, parameter, size) \
-		((adev)->powerplay.pp_funcs->set_power_profile_mode(\
-			(adev)->powerplay.pp_handle, parameter, size))
-
-#define amdgpu_dpm_set_fine_grain_clk_vol(adev, type, parameter, size) \
-		((adev)->powerplay.pp_funcs->set_fine_grain_clk_vol(\
-			(adev)->powerplay.pp_handle, type, parameter, size))
-
-#define amdgpu_dpm_odn_edit_dpm_table(adev, type, parameter, size) \
-		((adev)->powerplay.pp_funcs->odn_edit_dpm_table(\
-			(adev)->powerplay.pp_handle, type, parameter, size))
-
-#define amdgpu_dpm_get_ppfeature_status(adev, buf) \
-		((adev)->powerplay.pp_funcs->get_ppfeature_status(\
-			(adev)->powerplay.pp_handle, (buf)))
-
-#define amdgpu_dpm_set_ppfeature_status(adev, ppfeatures) \
-		((adev)->powerplay.pp_funcs->set_ppfeature_status(\
-			(adev)->powerplay.pp_handle, (ppfeatures)))
-
-#define amdgpu_dpm_get_gpu_metrics(adev, table) \
-		((adev)->powerplay.pp_funcs->get_gpu_metrics((adev)->powerplay.pp_handle, table))
-
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
 	/* number of valid power states */
@@ -426,6 +284,15 @@ enum ip_power_state {
 /* Used to mask smu debug modes */
 #define SMU_DEBUG_HALT_ON_ERROR		0x1
 
+#define MAX_SMU_I2C_BUSES       2
+
+struct amdgpu_smu_i2c_bus {
+	struct i2c_adapter adapter;
+	struct amdgpu_device *adev;
+	int port;
+	struct mutex mutex;
+};
+
 struct amdgpu_pm {
 	struct mutex		mutex;
 	u32                     current_sclk;
@@ -458,8 +325,9 @@ struct amdgpu_pm {
 	uint32_t pp_feature;
 
 	/* Used for I2C access to various EEPROMs on relevant ASICs */
-	struct i2c_adapter smu_i2c;
-	struct mutex		smu_i2c_mutex;
+	struct amdgpu_smu_i2c_bus smu_i2c[MAX_SMU_I2C_BUSES];
+	struct i2c_adapter     *ras_eeprom_i2c_bus;
+	struct i2c_adapter     *fru_eeprom_i2c_bus;
 	struct list_head	pm_attr_list;
 
 	atomic_t		pwr_state[AMD_IP_BLOCK_TYPE_NUM];
@@ -468,63 +336,15 @@ struct amdgpu_pm {
 	 * 0 = disabled (default), otherwise enable corresponding debug mode
 	 */
 	uint32_t		smu_debug_mask;
+
+	bool			pp_force_state_enabled;
+
+	struct mutex            stable_pstate_ctx_lock;
+	struct amdgpu_ctx       *stable_pstate_ctx;
 };
 
-#define R600_SSTU_DFLT                               0
-#define R600_SST_DFLT                                0x00C8
-
-/* XXX are these ok? */
-#define R600_TEMP_RANGE_MIN (90 * 1000)
-#define R600_TEMP_RANGE_MAX (120 * 1000)
-
-#define FDO_PWM_MODE_STATIC  1
-#define FDO_PWM_MODE_STATIC_RPM 5
-
-enum amdgpu_td {
-	AMDGPU_TD_AUTO,
-	AMDGPU_TD_UP,
-	AMDGPU_TD_DOWN,
-};
-
-enum amdgpu_display_watermark {
-	AMDGPU_DISPLAY_WATERMARK_LOW = 0,
-	AMDGPU_DISPLAY_WATERMARK_HIGH = 1,
-};
-
-enum amdgpu_display_gap
-{
-    AMDGPU_PM_DISPLAY_GAP_VBLANK_OR_WM = 0,
-    AMDGPU_PM_DISPLAY_GAP_VBLANK       = 1,
-    AMDGPU_PM_DISPLAY_GAP_WATERMARK    = 2,
-    AMDGPU_PM_DISPLAY_GAP_IGNORE       = 3,
-};
-
-void amdgpu_dpm_print_class_info(u32 class, u32 class2);
-void amdgpu_dpm_print_cap_info(u32 caps);
-void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
-				struct amdgpu_ps *rps);
-u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev);
-u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev);
-void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev);
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
-
-bool amdgpu_is_internal_thermal_sensor(enum amdgpu_int_thermal_type sensor);
-
-int amdgpu_get_platform_caps(struct amdgpu_device *adev);
-
-int amdgpu_parse_extended_power_table(struct amdgpu_device *adev);
-void amdgpu_free_extended_power_table(struct amdgpu_device *adev);
-
-void amdgpu_add_thermal_controller(struct amdgpu_device *adev);
-
-enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
-						 u32 sys_mask,
-						 enum amdgpu_pcie_gen asic_gen,
-						 enum amdgpu_pcie_gen default_gen);
-
-struct amd_vce_state*
-amdgpu_get_vce_clock_state(void *handle, u32 idx);
 
 int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 				      uint32_t block_type, bool gate);
@@ -571,16 +391,139 @@ int amdgpu_dpm_smu_i2c_bus_access(struct amdgpu_device *adev,
 
 void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev);
 
-int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
-			   void *data, uint32_t *size);
-
-void amdgpu_dpm_thermal_work_handler(struct work_struct *work);
-
-void amdgpu_pm_compute_clocks(struct amdgpu_device *adev);
+void amdgpu_dpm_compute_clocks(struct amdgpu_device *adev);
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable);
 void amdgpu_dpm_enable_jpeg(struct amdgpu_device *adev, bool enable);
-void amdgpu_pm_print_power_states(struct amdgpu_device *adev);
 int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_version);
-
+int amdgpu_dpm_handle_passthrough_sbr(struct amdgpu_device *adev, bool enable);
+int amdgpu_dpm_send_hbm_bad_pages_num(struct amdgpu_device *adev, uint32_t size);
+int amdgpu_dpm_get_dpm_freq_range(struct amdgpu_device *adev,
+				       enum pp_clock_type type,
+				       uint32_t *min,
+				       uint32_t *max);
+int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
+				        enum pp_clock_type type,
+				        uint32_t min,
+				        uint32_t max);
+int amdgpu_dpm_write_watermarks_table(struct amdgpu_device *adev);
+int amdgpu_dpm_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
+		       uint64_t event_arg);
+int amdgpu_dpm_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
+uint64_t amdgpu_dpm_get_thermal_throttling_counter(struct amdgpu_device *adev);
+void amdgpu_dpm_gfx_state_change(struct amdgpu_device *adev,
+				 enum gfx_change_state state);
+int amdgpu_dpm_get_ecc_info(struct amdgpu_device *adev,
+			    void *umc_ecc);
+struct amd_vce_state *amdgpu_dpm_get_vce_clock_state(struct amdgpu_device *adev,
+						     uint32_t idx);
+void amdgpu_dpm_get_current_power_state(struct amdgpu_device *adev, enum amd_pm_state_type *state);
+void amdgpu_dpm_set_power_state(struct amdgpu_device *adev,
+				enum amd_pm_state_type state);
+enum amd_dpm_forced_level amdgpu_dpm_get_performance_level(struct amdgpu_device *adev);
+int amdgpu_dpm_force_performance_level(struct amdgpu_device *adev,
+				       enum amd_dpm_forced_level level);
+int amdgpu_dpm_get_pp_num_states(struct amdgpu_device *adev,
+				 struct pp_states_info *states);
+int amdgpu_dpm_dispatch_task(struct amdgpu_device *adev,
+			      enum amd_pp_task task_id,
+			      enum amd_pm_state_type *user_state);
+int amdgpu_dpm_get_pp_table(struct amdgpu_device *adev, char **table);
+int amdgpu_dpm_set_fine_grain_clk_vol(struct amdgpu_device *adev,
+				      uint32_t type,
+				      long *input,
+				      uint32_t size);
+int amdgpu_dpm_odn_edit_dpm_table(struct amdgpu_device *adev,
+				  uint32_t type,
+				  long *input,
+				  uint32_t size);
+int amdgpu_dpm_print_clock_levels(struct amdgpu_device *adev,
+				  enum pp_clock_type type,
+				  char *buf);
+int amdgpu_dpm_emit_clock_levels(struct amdgpu_device *adev,
+				  enum pp_clock_type type,
+				  char *buf,
+				  int *offset);
+int amdgpu_dpm_set_ppfeature_status(struct amdgpu_device *adev,
+				    uint64_t ppfeature_masks);
+int amdgpu_dpm_get_ppfeature_status(struct amdgpu_device *adev, char *buf);
+int amdgpu_dpm_force_clock_level(struct amdgpu_device *adev,
+				 enum pp_clock_type type,
+				 uint32_t mask);
+int amdgpu_dpm_get_sclk_od(struct amdgpu_device *adev);
+int amdgpu_dpm_set_sclk_od(struct amdgpu_device *adev, uint32_t value);
+int amdgpu_dpm_get_mclk_od(struct amdgpu_device *adev);
+int amdgpu_dpm_set_mclk_od(struct amdgpu_device *adev, uint32_t value);
+int amdgpu_dpm_get_power_profile_mode(struct amdgpu_device *adev,
+				      char *buf);
+int amdgpu_dpm_set_power_profile_mode(struct amdgpu_device *adev,
+				      long *input, uint32_t size);
+int amdgpu_dpm_get_gpu_metrics(struct amdgpu_device *adev, void **table);
+int amdgpu_dpm_get_fan_control_mode(struct amdgpu_device *adev,
+				    uint32_t *fan_mode);
+int amdgpu_dpm_set_fan_speed_pwm(struct amdgpu_device *adev,
+				 uint32_t speed);
+int amdgpu_dpm_get_fan_speed_pwm(struct amdgpu_device *adev,
+				 uint32_t *speed);
+int amdgpu_dpm_get_fan_speed_rpm(struct amdgpu_device *adev,
+				 uint32_t *speed);
+int amdgpu_dpm_set_fan_speed_rpm(struct amdgpu_device *adev,
+				 uint32_t speed);
+int amdgpu_dpm_set_fan_control_mode(struct amdgpu_device *adev,
+				    uint32_t mode);
+int amdgpu_dpm_get_power_limit(struct amdgpu_device *adev,
+			       uint32_t *limit,
+			       enum pp_power_limit_level pp_limit_level,
+			       enum pp_power_type power_type);
+int amdgpu_dpm_set_power_limit(struct amdgpu_device *adev,
+			       uint32_t limit);
+int amdgpu_dpm_is_cclk_dpm_supported(struct amdgpu_device *adev);
+int amdgpu_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
+						       struct seq_file *m);
+int amdgpu_dpm_get_smu_prv_buf_details(struct amdgpu_device *adev,
+				       void **addr,
+				       size_t *size);
+int amdgpu_dpm_is_overdrive_supported(struct amdgpu_device *adev);
+int amdgpu_dpm_set_pp_table(struct amdgpu_device *adev,
+			    const char *buf,
+			    size_t size);
+int amdgpu_dpm_get_num_cpu_cores(struct amdgpu_device *adev);
+void amdgpu_dpm_stb_debug_fs_init(struct amdgpu_device *adev);
+int amdgpu_dpm_display_configuration_change(struct amdgpu_device *adev,
+					    const struct amd_pp_display_configuration *input);
+int amdgpu_dpm_get_clock_by_type(struct amdgpu_device *adev,
+				 enum amd_pp_clock_type type,
+				 struct amd_pp_clocks *clocks);
+int amdgpu_dpm_get_display_mode_validation_clks(struct amdgpu_device *adev,
+						struct amd_pp_simple_clock_info *clocks);
+int amdgpu_dpm_get_clock_by_type_with_latency(struct amdgpu_device *adev,
+					      enum amd_pp_clock_type type,
+					      struct pp_clock_levels_with_latency *clocks);
+int amdgpu_dpm_get_clock_by_type_with_voltage(struct amdgpu_device *adev,
+					      enum amd_pp_clock_type type,
+					      struct pp_clock_levels_with_voltage *clocks);
+int amdgpu_dpm_set_watermarks_for_clocks_ranges(struct amdgpu_device *adev,
+					       void *clock_ranges);
+int amdgpu_dpm_display_clock_voltage_request(struct amdgpu_device *adev,
+					     struct pp_display_clock_request *clock);
+int amdgpu_dpm_get_current_clocks(struct amdgpu_device *adev,
+				  struct amd_pp_clock_info *clocks);
+void amdgpu_dpm_notify_smu_enable_pwe(struct amdgpu_device *adev);
+int amdgpu_dpm_set_active_display_count(struct amdgpu_device *adev,
+					uint32_t count);
+int amdgpu_dpm_set_min_deep_sleep_dcefclk(struct amdgpu_device *adev,
+					  uint32_t clock);
+void amdgpu_dpm_set_hard_min_dcefclk_by_freq(struct amdgpu_device *adev,
+					     uint32_t clock);
+void amdgpu_dpm_set_hard_min_fclk_by_freq(struct amdgpu_device *adev,
+					  uint32_t clock);
+int amdgpu_dpm_display_disable_memory_clock_switch(struct amdgpu_device *adev,
+						   bool disable_memory_clock_switch);
+int amdgpu_dpm_get_max_sustainable_clocks_by_dc(struct amdgpu_device *adev,
+						struct pp_smu_nv_clock_table *max_clocks);
+enum pp_smu_status amdgpu_dpm_get_uclk_dpm_states(struct amdgpu_device *adev,
+						  unsigned int *clock_values_in_khz,
+						  unsigned int *num_states);
+int amdgpu_dpm_get_dpm_clock_table(struct amdgpu_device *adev,
+				   struct dpm_clocks *clock_table);
 #endif

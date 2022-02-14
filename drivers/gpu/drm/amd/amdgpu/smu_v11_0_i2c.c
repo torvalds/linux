@@ -26,6 +26,7 @@
 
 #include "smu_v11_0_i2c.h"
 #include "amdgpu.h"
+#include "amdgpu_dpm.h"
 #include "soc15_common.h"
 #include <drm/drm_fixed.h>
 #include <drm/drm_drv.h>
@@ -43,11 +44,10 @@
 
 #define I2C_X_RESTART         BIT(31)
 
-#define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
-
 static void smu_v11_0_i2c_set_clock_gating(struct i2c_adapter *control, bool en)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	uint32_t reg = RREG32_SOC15(SMUIO, 0, mmSMUIO_PWRMGT);
 
 	reg = REG_SET_FIELD(reg, SMUIO_PWRMGT, i2c_clk_gate_en, en ? 1 : 0);
@@ -75,7 +75,8 @@ static void smu_v11_0_i2c_set_clock_gating(struct i2c_adapter *control, bool en)
 
 static int smu_v11_0_i2c_enable(struct i2c_adapter *control, bool enable)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 
 	WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_ENABLE, enable ? 1 : 0);
 
@@ -100,7 +101,8 @@ static int smu_v11_0_i2c_enable(struct i2c_adapter *control, bool enable)
 
 static void smu_v11_0_i2c_clear_status(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	/* do */
 	{
 		RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_CLR_INTR);
@@ -110,7 +112,8 @@ static void smu_v11_0_i2c_clear_status(struct i2c_adapter *control)
 
 static void smu_v11_0_i2c_configure(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	uint32_t reg = 0;
 
 	reg = REG_SET_FIELD(reg, CKSVII2C_IC_CON, IC_SLAVE_DISABLE, 1);
@@ -131,7 +134,8 @@ static void smu_v11_0_i2c_configure(struct i2c_adapter *control)
 
 static void smu_v11_0_i2c_set_clock(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 
 	/*
 	 * Standard mode speed, These values are taken from SMUIO MAS,
@@ -154,7 +158,8 @@ static void smu_v11_0_i2c_set_clock(struct i2c_adapter *control)
 
 static void smu_v11_0_i2c_set_address(struct i2c_adapter *control, u16 address)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 
 	/* The IC_TAR::IC_TAR field is 10-bits wide.
 	 * It takes a 7-bit or 10-bit addresses as an address,
@@ -165,7 +170,8 @@ static void smu_v11_0_i2c_set_address(struct i2c_adapter *control, u16 address)
 
 static uint32_t smu_v11_0_i2c_poll_tx_status(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	uint32_t ret = I2C_OK;
 	uint32_t reg, reg_c_tx_abrt_source;
 
@@ -216,7 +222,8 @@ static uint32_t smu_v11_0_i2c_poll_tx_status(struct i2c_adapter *control)
 
 static uint32_t smu_v11_0_i2c_poll_rx_status(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	uint32_t ret = I2C_OK;
 	uint32_t reg_ic_status, reg_c_tx_abrt_source;
 
@@ -262,7 +269,8 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 				       u16 address, u8 *data,
 				       u32 numbytes, u32 i2c_flag)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	u32 bytes_sent, reg, ret = I2C_OK;
 	unsigned long  timeout_counter;
 
@@ -360,7 +368,8 @@ static uint32_t smu_v11_0_i2c_receive(struct i2c_adapter *control,
 				      u16 address, u8 *data,
 				      u32 numbytes, u32 i2c_flag)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	uint32_t bytes_received, ret = I2C_OK;
 
 	bytes_received = 0;
@@ -431,7 +440,8 @@ static uint32_t smu_v11_0_i2c_receive(struct i2c_adapter *control,
 
 static void smu_v11_0_i2c_abort(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	uint32_t reg = 0;
 
 	/* Enable I2C engine; */
@@ -447,7 +457,8 @@ static void smu_v11_0_i2c_abort(struct i2c_adapter *control)
 
 static bool smu_v11_0_i2c_activity_done(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 
 	const uint32_t IDLE_TIMEOUT = 1024;
 	uint32_t timeout_count = 0;
@@ -508,7 +519,8 @@ static void smu_v11_0_i2c_init(struct i2c_adapter *control)
 
 static void smu_v11_0_i2c_fini(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 	u32 status, enable, en_stat;
 	int res;
 
@@ -543,7 +555,8 @@ static void smu_v11_0_i2c_fini(struct i2c_adapter *control)
 
 static bool smu_v11_0_i2c_bus_lock(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 
 	/* Send  PPSMC_MSG_RequestI2CBus */
 	if (!amdgpu_dpm_smu_i2c_bus_access(adev, true))
@@ -554,7 +567,8 @@ static bool smu_v11_0_i2c_bus_lock(struct i2c_adapter *control)
 
 static bool smu_v11_0_i2c_bus_unlock(struct i2c_adapter *control)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(control);
+	struct amdgpu_device *adev = smu_i2c->adev;
 
 	/* Send  PPSMC_MSG_ReleaseI2CBus */
 	if (!amdgpu_dpm_smu_i2c_bus_access(adev, false))
@@ -587,16 +601,17 @@ static uint32_t smu_v11_0_i2c_write_data(struct i2c_adapter *control,
 
 	if (ret != I2C_OK)
 		DRM_ERROR("WriteI2CData() - I2C error occurred :%x", ret);
-	
+
 	return ret;
 
 }
 
 static void lock_bus(struct i2c_adapter *i2c, unsigned int flags)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(i2c);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(i2c);
+	struct amdgpu_device *adev = smu_i2c->adev;
 
-	mutex_lock(&adev->pm.smu_i2c_mutex);
+	mutex_lock(&smu_i2c->mutex);
 	if (!smu_v11_0_i2c_bus_lock(i2c))
 		DRM_ERROR("Failed to lock the bus from SMU");
 	else
@@ -611,13 +626,14 @@ static int trylock_bus(struct i2c_adapter *i2c, unsigned int flags)
 
 static void unlock_bus(struct i2c_adapter *i2c, unsigned int flags)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(i2c);
+	struct amdgpu_smu_i2c_bus *smu_i2c = i2c_get_adapdata(i2c);
+	struct amdgpu_device *adev = smu_i2c->adev;
 
 	if (!smu_v11_0_i2c_bus_unlock(i2c))
 		DRM_ERROR("Failed to unlock the bus from SMU");
 	else
 		adev->pm.bus_locked = false;
-	mutex_unlock(&adev->pm.smu_i2c_mutex);
+	mutex_unlock(&smu_i2c->mutex);
 }
 
 static const struct i2c_lock_operations smu_v11_0_i2c_i2c_lock_ops = {
@@ -706,19 +722,26 @@ static const struct i2c_adapter_quirks smu_v11_0_i2c_control_quirks = {
 	.flags = I2C_AQ_NO_ZERO_LEN,
 };
 
-int smu_v11_0_i2c_control_init(struct i2c_adapter *control)
+int smu_v11_0_i2c_control_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[0];
+	struct i2c_adapter *control = &smu_i2c->adapter;
 	int res;
 
-	mutex_init(&adev->pm.smu_i2c_mutex);
+	smu_i2c->adev = adev;
+	smu_i2c->port = 0;
+	mutex_init(&smu_i2c->mutex);
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_HWMON;
 	control->dev.parent = &adev->pdev->dev;
 	control->algo = &smu_v11_0_i2c_algo;
-	snprintf(control->name, sizeof(control->name), "AMDGPU SMU");
+	snprintf(control->name, sizeof(control->name), "AMDGPU SMU 0");
 	control->lock_ops = &smu_v11_0_i2c_i2c_lock_ops;
 	control->quirks = &smu_v11_0_i2c_control_quirks;
+	i2c_set_adapdata(control, smu_i2c);
+
+	adev->pm.ras_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
+	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
 
 	res = i2c_add_adapter(control);
 	if (res)
@@ -727,9 +750,13 @@ int smu_v11_0_i2c_control_init(struct i2c_adapter *control)
 	return res;
 }
 
-void smu_v11_0_i2c_control_fini(struct i2c_adapter *control)
+void smu_v11_0_i2c_control_fini(struct amdgpu_device *adev)
 {
+	struct i2c_adapter *control = adev->pm.ras_eeprom_i2c_bus;
+
 	i2c_del_adapter(control);
+	adev->pm.ras_eeprom_i2c_bus = NULL;
+	adev->pm.fru_eeprom_i2c_bus = NULL;
 }
 
 /*

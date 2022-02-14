@@ -96,6 +96,9 @@ struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
 		struct dc *dc,
 		const struct dc_stream_state *stream);
 
+/* Return DIG link encoder. NULL if unused. */
+struct link_encoder *link_enc_cfg_get_link_enc(const struct dc_link *link);
+
 /* Return true if encoder available to use. */
 bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id, struct dc_link *link);
 

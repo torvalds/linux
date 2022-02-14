@@ -28,6 +28,7 @@
 #include "amdgpu_pm.h"
 #include "amdgpu_dpm.h"
 #include "amdgpu_atombios.h"
+#include "amdgpu_dpm_internal.h"
 #include "amd_pcie.h"
 #include "sid.h"
 #include "r600_dpm.h"
@@ -37,6 +38,7 @@
 #include <linux/math64.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
+#include <legacy_dpm.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -94,6 +96,19 @@ union pplib_clock_info {
 	struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO evergreen;
 	struct _ATOM_PPLIB_SUMO_CLOCK_INFO sumo;
 	struct _ATOM_PPLIB_SI_CLOCK_INFO si;
+};
+
+enum si_dpm_auto_throttle_src {
+	SI_DPM_AUTO_THROTTLE_SRC_THERMAL,
+	SI_DPM_AUTO_THROTTLE_SRC_EXTERNAL
+};
+
+enum si_dpm_event_src {
+	SI_DPM_EVENT_SRC_ANALOG = 0,
+	SI_DPM_EVENT_SRC_EXTERNAL = 1,
+	SI_DPM_EVENT_SRC_DIGITAL = 2,
+	SI_DPM_EVENT_SRC_ANALOG_OR_EXTERNAL = 3,
+	SI_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL = 4
 };
 
 static const u32 r600_utc[R600_PM_NUMBER_OF_TC] =
@@ -3718,25 +3733,25 @@ static void si_set_dpm_event_sources(struct amdgpu_device *adev, u32 sources)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(adev);
 	bool want_thermal_protection;
-	enum amdgpu_dpm_event_src dpm_event_src;
+	enum si_dpm_event_src dpm_event_src;
 
 	switch (sources) {
 	case 0:
 	default:
 		want_thermal_protection = false;
 		break;
-	case (1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL):
+	case (1 << SI_DPM_AUTO_THROTTLE_SRC_THERMAL):
 		want_thermal_protection = true;
-		dpm_event_src = AMDGPU_DPM_EVENT_SRC_DIGITAL;
+		dpm_event_src = SI_DPM_EVENT_SRC_DIGITAL;
 		break;
-	case (1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_EXTERNAL):
+	case (1 << SI_DPM_AUTO_THROTTLE_SRC_EXTERNAL):
 		want_thermal_protection = true;
-		dpm_event_src = AMDGPU_DPM_EVENT_SRC_EXTERNAL;
+		dpm_event_src = SI_DPM_EVENT_SRC_EXTERNAL;
 		break;
-	case ((1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_EXTERNAL) |
-	      (1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL)):
+	case ((1 << SI_DPM_AUTO_THROTTLE_SRC_EXTERNAL) |
+	      (1 << SI_DPM_AUTO_THROTTLE_SRC_THERMAL)):
 		want_thermal_protection = true;
-		dpm_event_src = AMDGPU_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL;
+		dpm_event_src = SI_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL;
 		break;
 	}
 
@@ -3750,7 +3765,7 @@ static void si_set_dpm_event_sources(struct amdgpu_device *adev, u32 sources)
 }
 
 static void si_enable_auto_throttle_source(struct amdgpu_device *adev,
-					   enum amdgpu_dpm_auto_throttle_src source,
+					   enum si_dpm_auto_throttle_src source,
 					   bool enable)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(adev);
@@ -3876,6 +3891,40 @@ static int si_set_boot_state(struct amdgpu_device *adev)
 		0 : -EINVAL;
 }
 #endif
+
+static int si_set_powergating_by_smu(void *handle,
+				     uint32_t block_type,
+				     bool gate)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (block_type) {
+	case AMD_IP_BLOCK_TYPE_UVD:
+		if (!gate) {
+			adev->pm.dpm.uvd_active = true;
+			adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_UVD;
+		} else {
+			adev->pm.dpm.uvd_active = false;
+		}
+
+		amdgpu_legacy_dpm_compute_clocks(handle);
+		break;
+	case AMD_IP_BLOCK_TYPE_VCE:
+		if (!gate) {
+			adev->pm.dpm.vce_active = true;
+			/* XXX select vce level based on ring/task */
+			adev->pm.dpm.vce_level = AMD_VCE_LEVEL_AC_ALL;
+		} else {
+			adev->pm.dpm.vce_active = false;
+		}
+
+		amdgpu_legacy_dpm_compute_clocks(handle);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
 
 static int si_set_sw_state(struct amdgpu_device *adev)
 {
@@ -4927,6 +4976,31 @@ static int si_populate_smc_initial_state(struct amdgpu_device *adev,
 	return 0;
 }
 
+static enum si_pcie_gen si_gen_pcie_gen_support(struct amdgpu_device *adev,
+						u32 sys_mask,
+						enum si_pcie_gen asic_gen,
+						enum si_pcie_gen default_gen)
+{
+	switch (asic_gen) {
+	case SI_PCIE_GEN1:
+		return SI_PCIE_GEN1;
+	case SI_PCIE_GEN2:
+		return SI_PCIE_GEN2;
+	case SI_PCIE_GEN3:
+		return SI_PCIE_GEN3;
+	default:
+		if ((sys_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) &&
+		    (default_gen == SI_PCIE_GEN3))
+			return SI_PCIE_GEN3;
+		else if ((sys_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) &&
+			 (default_gen == SI_PCIE_GEN2))
+			return SI_PCIE_GEN2;
+		else
+			return SI_PCIE_GEN1;
+	}
+	return SI_PCIE_GEN1;
+}
+
 static int si_populate_smc_acpi_state(struct amdgpu_device *adev,
 				      SISLANDS_SMC_STATETABLE *table)
 {
@@ -4989,10 +5063,10 @@ static int si_populate_smc_acpi_state(struct amdgpu_device *adev,
 							      &table->ACPIState.level.std_vddc);
 		}
 		table->ACPIState.level.gen2PCIE =
-			(u8)amdgpu_get_pcie_gen_support(adev,
-							si_pi->sys_pcie_mask,
-							si_pi->boot_pcie_gen,
-							AMDGPU_PCIE_GEN1);
+			(u8)si_gen_pcie_gen_support(adev,
+						    si_pi->sys_pcie_mask,
+						    si_pi->boot_pcie_gen,
+						    SI_PCIE_GEN1);
 
 		if (si_pi->vddc_phase_shed_control)
 			si_populate_phase_shedding_value(adev,
@@ -5430,7 +5504,7 @@ static int si_convert_power_level_to_smc(struct amdgpu_device *adev,
 	bool gmc_pg = false;
 
 	if (eg_pi->pcie_performance_request &&
-	    (si_pi->force_pcie_gen != AMDGPU_PCIE_GEN_INVALID))
+	    (si_pi->force_pcie_gen != SI_PCIE_GEN_INVALID))
 		level->gen2PCIE = (u8)si_pi->force_pcie_gen;
 	else
 		level->gen2PCIE = (u8)pl->pcie_gen;
@@ -6147,8 +6221,8 @@ static void si_enable_voltage_control(struct amdgpu_device *adev, bool enable)
 		WREG32_P(GENERAL_PWRMGT, 0, ~VOLT_PWRMGT_EN);
 }
 
-static enum amdgpu_pcie_gen si_get_maximum_link_speed(struct amdgpu_device *adev,
-						      struct amdgpu_ps *amdgpu_state)
+static enum si_pcie_gen si_get_maximum_link_speed(struct amdgpu_device *adev,
+						  struct amdgpu_ps *amdgpu_state)
 {
 	struct si_ps *state = si_get_ps(amdgpu_state);
 	int i;
@@ -6177,27 +6251,27 @@ static void si_request_link_speed_change_before_state_change(struct amdgpu_devic
 							     struct amdgpu_ps *amdgpu_current_state)
 {
 	struct si_power_info *si_pi = si_get_pi(adev);
-	enum amdgpu_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
-	enum amdgpu_pcie_gen current_link_speed;
+	enum si_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
+	enum si_pcie_gen current_link_speed;
 
-	if (si_pi->force_pcie_gen == AMDGPU_PCIE_GEN_INVALID)
+	if (si_pi->force_pcie_gen == SI_PCIE_GEN_INVALID)
 		current_link_speed = si_get_maximum_link_speed(adev, amdgpu_current_state);
 	else
 		current_link_speed = si_pi->force_pcie_gen;
 
-	si_pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
+	si_pi->force_pcie_gen = SI_PCIE_GEN_INVALID;
 	si_pi->pspp_notify_required = false;
 	if (target_link_speed > current_link_speed) {
 		switch (target_link_speed) {
 #if defined(CONFIG_ACPI)
-		case AMDGPU_PCIE_GEN3:
+		case SI_PCIE_GEN3:
 			if (amdgpu_acpi_pcie_performance_request(adev, PCIE_PERF_REQ_PECI_GEN3, false) == 0)
 				break;
-			si_pi->force_pcie_gen = AMDGPU_PCIE_GEN2;
-			if (current_link_speed == AMDGPU_PCIE_GEN2)
+			si_pi->force_pcie_gen = SI_PCIE_GEN2;
+			if (current_link_speed == SI_PCIE_GEN2)
 				break;
 			fallthrough;
-		case AMDGPU_PCIE_GEN2:
+		case SI_PCIE_GEN2:
 			if (amdgpu_acpi_pcie_performance_request(adev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
 			fallthrough;
@@ -6217,13 +6291,13 @@ static void si_notify_link_speed_change_after_state_change(struct amdgpu_device 
 							   struct amdgpu_ps *amdgpu_current_state)
 {
 	struct si_power_info *si_pi = si_get_pi(adev);
-	enum amdgpu_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
+	enum si_pcie_gen target_link_speed = si_get_maximum_link_speed(adev, amdgpu_new_state);
 	u8 request;
 
 	if (si_pi->pspp_notify_required) {
-		if (target_link_speed == AMDGPU_PCIE_GEN3)
+		if (target_link_speed == SI_PCIE_GEN3)
 			request = PCIE_PERF_REQ_PECI_GEN3;
-		else if (target_link_speed == AMDGPU_PCIE_GEN2)
+		else if (target_link_speed == SI_PCIE_GEN2)
 			request = PCIE_PERF_REQ_PECI_GEN2;
 		else
 			request = PCIE_PERF_REQ_PECI_GEN1;
@@ -6546,6 +6620,9 @@ static int si_dpm_get_fan_speed_pwm(void *handle,
 	u64 tmp64;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (!speed)
+		return -EINVAL;
+
 	if (adev->pm.no_fan)
 		return -ENOENT;
 
@@ -6596,9 +6673,12 @@ static int si_dpm_set_fan_speed_pwm(void *handle,
 	return 0;
 }
 
-static void si_dpm_set_fan_control_mode(void *handle, u32 mode)
+static int si_dpm_set_fan_control_mode(void *handle, u32 mode)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (mode == U32_MAX)
+		return -EINVAL;
 
 	if (mode) {
 		/* stop auto-manage */
@@ -6612,19 +6692,26 @@ static void si_dpm_set_fan_control_mode(void *handle, u32 mode)
 		else
 			si_fan_ctrl_set_default_mode(adev);
 	}
+
+	return 0;
 }
 
-static u32 si_dpm_get_fan_control_mode(void *handle)
+static int si_dpm_get_fan_control_mode(void *handle, u32 *fan_mode)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct si_power_info *si_pi = si_get_pi(adev);
 	u32 tmp;
 
+	if (!fan_mode)
+		return -EINVAL;
+
 	if (si_pi->fan_is_controlled_by_smc)
 		return 0;
 
 	tmp = RREG32(CG_FDO_CTRL2) & FDO_PWM_MODE_MASK;
-	return (tmp >> FDO_PWM_MODE_SHIFT);
+	*fan_mode = (tmp >> FDO_PWM_MODE_SHIFT);
+
+	return 0;
 }
 
 #if 0
@@ -6864,7 +6951,7 @@ static int si_dpm_enable(struct amdgpu_device *adev)
 	si_enable_sclk_control(adev, true);
 	si_start_dpm(adev);
 
-	si_enable_auto_throttle_source(adev, AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
+	si_enable_auto_throttle_source(adev, SI_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 	si_thermal_start_thermal_controller(adev);
 
 	ni_update_current_ps(adev, boot_ps);
@@ -6904,7 +6991,7 @@ static void si_dpm_disable(struct amdgpu_device *adev)
 	si_enable_power_containment(adev, boot_ps, false);
 	si_enable_smc_cac(adev, boot_ps, false);
 	si_enable_spread_spectrum(adev, false);
-	si_enable_auto_throttle_source(adev, AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL, false);
+	si_enable_auto_throttle_source(adev, SI_DPM_AUTO_THROTTLE_SRC_THERMAL, false);
 	si_stop_dpm(adev);
 	si_reset_to_default(adev);
 	si_dpm_stop_smc(adev);
@@ -6946,10 +7033,7 @@ static int si_power_control_set_level(struct amdgpu_device *adev)
 	ret = si_resume_smc(adev);
 	if (ret)
 		return ret;
-	ret = si_set_sw_state(adev);
-	if (ret)
-		return ret;
-	return 0;
+	return si_set_sw_state(adev);
 }
 
 static void si_set_vce_clock(struct amdgpu_device *adev,
@@ -7148,10 +7232,10 @@ static void si_parse_pplib_clock_info(struct amdgpu_device *adev,
 	pl->vddc = le16_to_cpu(clock_info->si.usVDDC);
 	pl->vddci = le16_to_cpu(clock_info->si.usVDDCI);
 	pl->flags = le32_to_cpu(clock_info->si.ulFlags);
-	pl->pcie_gen = amdgpu_get_pcie_gen_support(adev,
-						   si_pi->sys_pcie_mask,
-						   si_pi->boot_pcie_gen,
-						   clock_info->si.ucPCIEGen);
+	pl->pcie_gen = si_gen_pcie_gen_support(adev,
+					       si_pi->sys_pcie_mask,
+					       si_pi->boot_pcie_gen,
+					       clock_info->si.ucPCIEGen);
 
 	/* patch up vddc if necessary */
 	ret = si_get_leakage_voltage_from_leakage_index(adev, pl->vddc,
@@ -7318,7 +7402,7 @@ static int si_dpm_init(struct amdgpu_device *adev)
 
 	si_pi->sys_pcie_mask =
 		adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK;
-	si_pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
+	si_pi->force_pcie_gen = SI_PCIE_GEN_INVALID;
 	si_pi->boot_pcie_gen = si_get_current_pcie_speed(adev);
 
 	si_set_max_cu_value(adev);
@@ -7713,21 +7797,18 @@ static int si_dpm_sw_init(void *handle)
 		return ret;
 
 	INIT_WORK(&adev->pm.dpm.thermal.work, amdgpu_dpm_thermal_work_handler);
-	mutex_lock(&adev->pm.mutex);
 	ret = si_dpm_init(adev);
 	if (ret)
 		goto dpm_failed;
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
-	mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
 
 	return 0;
 
 dpm_failed:
 	si_dpm_fini(adev);
-	mutex_unlock(&adev->pm.mutex);
 	DRM_ERROR("amdgpu: dpm initialization failed\n");
 	return ret;
 }
@@ -7738,9 +7819,7 @@ static int si_dpm_sw_fini(void *handle)
 
 	flush_work(&adev->pm.dpm.thermal.work);
 
-	mutex_lock(&adev->pm.mutex);
 	si_dpm_fini(adev);
-	mutex_unlock(&adev->pm.mutex);
 
 	return 0;
 }
@@ -7754,15 +7833,13 @@ static int si_dpm_hw_init(void *handle)
 	if (!amdgpu_dpm)
 		return 0;
 
-	mutex_lock(&adev->pm.mutex);
 	si_dpm_setup_asic(adev);
 	ret = si_dpm_enable(adev);
 	if (ret)
 		adev->pm.dpm_enabled = false;
 	else
 		adev->pm.dpm_enabled = true;
-	mutex_unlock(&adev->pm.mutex);
-	amdgpu_pm_compute_clocks(adev);
+	amdgpu_legacy_dpm_compute_clocks(adev);
 	return ret;
 }
 
@@ -7770,11 +7847,8 @@ static int si_dpm_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->pm.dpm_enabled) {
-		mutex_lock(&adev->pm.mutex);
+	if (adev->pm.dpm_enabled)
 		si_dpm_disable(adev);
-		mutex_unlock(&adev->pm.mutex);
-	}
 
 	return 0;
 }
@@ -7784,12 +7858,10 @@ static int si_dpm_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->pm.dpm_enabled) {
-		mutex_lock(&adev->pm.mutex);
 		/* disable dpm */
 		si_dpm_disable(adev);
 		/* reset the power state */
 		adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
-		mutex_unlock(&adev->pm.mutex);
 	}
 	return 0;
 }
@@ -7801,16 +7873,14 @@ static int si_dpm_resume(void *handle)
 
 	if (adev->pm.dpm_enabled) {
 		/* asic init will reset to the boot state */
-		mutex_lock(&adev->pm.mutex);
 		si_dpm_setup_asic(adev);
 		ret = si_dpm_enable(adev);
 		if (ret)
 			adev->pm.dpm_enabled = false;
 		else
 			adev->pm.dpm_enabled = true;
-		mutex_unlock(&adev->pm.mutex);
 		if (adev->pm.dpm_enabled)
-			amdgpu_pm_compute_clocks(adev);
+			amdgpu_legacy_dpm_compute_clocks(adev);
 	}
 	return 0;
 }
@@ -8055,6 +8125,7 @@ static const struct amd_pm_funcs si_dpm_funcs = {
 	.print_power_state = &si_dpm_print_power_state,
 	.debugfs_print_current_performance_level = &si_dpm_debugfs_print_current_performance_level,
 	.force_performance_level = &si_dpm_force_performance_level,
+	.set_powergating_by_smu = &si_set_powergating_by_smu,
 	.vblank_too_short = &si_dpm_vblank_too_short,
 	.set_fan_control_mode = &si_dpm_set_fan_control_mode,
 	.get_fan_control_mode = &si_dpm_get_fan_control_mode,
@@ -8063,6 +8134,7 @@ static const struct amd_pm_funcs si_dpm_funcs = {
 	.check_state_equal = &si_check_state_equal,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 	.read_sensor = &si_dpm_read_sensor,
+	.pm_compute_clocks = amdgpu_legacy_dpm_compute_clocks,
 };
 
 static const struct amdgpu_irq_src_funcs si_dpm_irq_funcs = {

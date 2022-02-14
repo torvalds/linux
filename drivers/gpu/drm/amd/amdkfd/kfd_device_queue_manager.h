@@ -39,6 +39,41 @@ struct device_process_node {
 	struct list_head list;
 };
 
+union SQ_CMD_BITS {
+	struct {
+		uint32_t cmd:3;
+		uint32_t:1;
+		uint32_t mode:3;
+		uint32_t check_vmid:1;
+		uint32_t trap_id:3;
+		uint32_t:5;
+		uint32_t wave_id:4;
+		uint32_t simd_id:2;
+		uint32_t:2;
+		uint32_t queue_id:3;
+		uint32_t:1;
+		uint32_t vm_id:4;
+	} bitfields, bits;
+	uint32_t u32All;
+	signed int i32All;
+	float f32All;
+};
+
+union GRBM_GFX_INDEX_BITS {
+	struct {
+		uint32_t instance_index:8;
+		uint32_t sh_index:8;
+		uint32_t se_index:8;
+		uint32_t:5;
+		uint32_t sh_broadcast_writes:1;
+		uint32_t instance_broadcast_writes:1;
+		uint32_t se_broadcast_writes:1;
+	} bitfields, bits;
+	uint32_t u32All;
+	signed int i32All;
+	float f32All;
+};
+
 /**
  * struct device_queue_manager_ops
  *
@@ -83,12 +118,18 @@ struct device_process_node {
  * control stack, if kept in the MQD, to the given userspace address.
  *
  * @reset_queues: reset queues which consume RAS poison
+ * @get_queue_checkpoint_info: Retrieves queue size information for CRIU checkpoint.
+ *
+ * @checkpoint_mqd: checkpoint queue MQD contents for CRIU.
  */
 
 struct device_queue_manager_ops {
 	int	(*create_queue)(struct device_queue_manager *dqm,
 				struct queue *q,
-				struct qcm_process_device *qpd);
+				struct qcm_process_device *qpd,
+				const struct kfd_criu_queue_priv_data *qd,
+				const void *restore_mqd,
+				const void *restore_ctl_stack);
 
 	int	(*destroy_queue)(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
@@ -139,6 +180,14 @@ struct device_queue_manager_ops {
 
 	int (*reset_queues)(struct device_queue_manager *dqm,
 					uint16_t pasid);
+	void	(*get_queue_checkpoint_info)(struct device_queue_manager *dqm,
+				  const struct queue *q, u32 *mqd_size,
+				  u32 *ctl_stack_size);
+
+	int	(*checkpoint_mqd)(struct device_queue_manager *dqm,
+				  const struct queue *q,
+				  void *mqd,
+				  void *ctl_stack);
 };
 
 struct device_queue_manager_asic_ops {

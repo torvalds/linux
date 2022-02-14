@@ -260,7 +260,7 @@ static int aldebaran_mode2_restore_ip(struct amdgpu_device *adev)
 	adev->gfx.rlc.funcs->resume(adev);
 
 	/* Wait for FW reset event complete */
-	r = smu_wait_for_event(adev, SMU_EVENT_RESET_COMPLETE, 0);
+	r = amdgpu_dpm_wait_for_event(adev, SMU_EVENT_RESET_COMPLETE, 0);
 	if (r) {
 		dev_err(adev->dev,
 			"Failed to get response from firmware after reset\n");

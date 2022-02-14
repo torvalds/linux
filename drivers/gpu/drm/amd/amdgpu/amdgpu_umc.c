@@ -21,7 +21,7 @@
  *
  */
 
-#include "amdgpu_ras.h"
+#include "amdgpu.h"
 
 static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 		void *ras_error_status,
@@ -33,14 +33,14 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	int ret = 0;
 
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-	ret = smu_get_ecc_info(&adev->smu, (void *)&(con->umc_ecc));
+	ret = amdgpu_dpm_get_ecc_info(adev, (void *)&(con->umc_ecc));
 	if (ret == -EOPNOTSUPP) {
-		if (adev->umc.ras_funcs &&
-		    adev->umc.ras_funcs->query_ras_error_count)
-		    adev->umc.ras_funcs->query_ras_error_count(adev, ras_error_status);
+		if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
+		    adev->umc.ras->ras_block.hw_ops->query_ras_error_count)
+		    adev->umc.ras->ras_block.hw_ops->query_ras_error_count(adev, ras_error_status);
 
-		if (adev->umc.ras_funcs &&
-		    adev->umc.ras_funcs->query_ras_error_address &&
+		if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
+		    adev->umc.ras->ras_block.hw_ops->query_ras_error_address &&
 		    adev->umc.max_ras_err_cnt_per_query) {
 			err_data->err_addr =
 				kcalloc(adev->umc.max_ras_err_cnt_per_query,
@@ -56,15 +56,15 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 			/* umc query_ras_error_address is also responsible for clearing
 			 * error status
 			 */
-			adev->umc.ras_funcs->query_ras_error_address(adev, ras_error_status);
+			adev->umc.ras->ras_block.hw_ops->query_ras_error_address(adev, ras_error_status);
 		}
 	} else if (!ret) {
-		if (adev->umc.ras_funcs &&
-		    adev->umc.ras_funcs->ecc_info_query_ras_error_count)
-		    adev->umc.ras_funcs->ecc_info_query_ras_error_count(adev, ras_error_status);
+		if (adev->umc.ras &&
+		    adev->umc.ras->ecc_info_query_ras_error_count)
+		    adev->umc.ras->ecc_info_query_ras_error_count(adev, ras_error_status);
 
-		if (adev->umc.ras_funcs &&
-		    adev->umc.ras_funcs->ecc_info_query_ras_error_address &&
+		if (adev->umc.ras &&
+		    adev->umc.ras->ecc_info_query_ras_error_address &&
 		    adev->umc.max_ras_err_cnt_per_query) {
 			err_data->err_addr =
 				kcalloc(adev->umc.max_ras_err_cnt_per_query,
@@ -80,7 +80,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 			/* umc query_ras_error_address is also responsible for clearing
 			 * error status
 			 */
-			adev->umc.ras_funcs->ecc_info_query_ras_error_address(adev, ras_error_status);
+			adev->umc.ras->ecc_info_query_ras_error_address(adev, ras_error_status);
 		}
 	}
 
@@ -96,8 +96,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 						err_data->err_addr_cnt);
 			amdgpu_ras_save_bad_pages(adev);
 
-			if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->send_hbm_bad_pages_num)
-				adev->smu.ppt_funcs->send_hbm_bad_pages_num(&adev->smu, con->eeprom_control.ras_num_recs);
+			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
 		}
 
 		if (reset)
@@ -137,7 +136,7 @@ static int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry, true);
 }
 
-int amdgpu_umc_ras_late_init(struct amdgpu_device *adev)
+int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, void *ras_info)
 {
 	int r;
 	struct ras_fs_if fs_info = {
@@ -173,9 +172,9 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev)
 	}
 
 	/* ras init of specific umc version */
-	if (adev->umc.ras_funcs &&
-	    adev->umc.ras_funcs->err_cnt_init)
-		adev->umc.ras_funcs->err_cnt_init(adev);
+	if (adev->umc.ras &&
+	    adev->umc.ras->err_cnt_init)
+		adev->umc.ras->err_cnt_init(adev);
 
 	return 0;
 
@@ -218,4 +217,25 @@ int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;
+}
+
+void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
+		uint64_t err_addr,
+		uint64_t retired_page,
+		uint32_t channel_index,
+		uint32_t umc_inst)
+{
+	struct eeprom_table_record *err_rec =
+		&err_data->err_addr[err_data->err_addr_cnt];
+
+	err_rec->address = err_addr;
+	/* page frame address is saved */
+	err_rec->retired_page = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+	err_rec->ts = (uint64_t)ktime_get_real_seconds();
+	err_rec->err_type = AMDGPU_RAS_EEPROM_ERR_NON_RECOVERABLE;
+	err_rec->cu = 0;
+	err_rec->mem_channel = channel_index;
+	err_rec->mcumc_id = umc_inst;
+
+	err_data->err_addr_cnt++;
 }

@@ -222,26 +222,21 @@ uint64_t amdgpu_gtt_mgr_usage(struct amdgpu_gtt_mgr *mgr)
  *
  * Re-init the gart for each known BO in the GTT.
  */
-int amdgpu_gtt_mgr_recover(struct amdgpu_gtt_mgr *mgr)
+void amdgpu_gtt_mgr_recover(struct amdgpu_gtt_mgr *mgr)
 {
 	struct amdgpu_gtt_node *node;
 	struct drm_mm_node *mm_node;
 	struct amdgpu_device *adev;
-	int r = 0;
 
 	adev = container_of(mgr, typeof(*adev), mman.gtt_mgr);
 	spin_lock(&mgr->lock);
 	drm_mm_for_each_node(mm_node, &mgr->mm) {
 		node = container_of(mm_node, typeof(*node), base.mm_nodes[0]);
-		r = amdgpu_ttm_recover_gart(node->tbo);
-		if (r)
-			break;
+		amdgpu_ttm_recover_gart(node->tbo);
 	}
 	spin_unlock(&mgr->lock);
 
 	amdgpu_gart_invalidate_tlb(adev);
-
-	return r;
 }
 
 /**

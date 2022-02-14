@@ -23,6 +23,6 @@
 #ifndef __SDMA_V4_4_H__
 #define __SDMA_V4_4_H__
 
-extern const struct amdgpu_sdma_ras_funcs sdma_v4_4_ras_funcs;
+extern struct amdgpu_sdma_ras sdma_v4_4_ras;
 
 #endif

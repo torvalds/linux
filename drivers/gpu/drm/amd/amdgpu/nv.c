@@ -258,21 +258,6 @@ static u64 nv_pcie_rreg64(struct amdgpu_device *adev, u32 reg)
 	return amdgpu_device_indirect_rreg64(adev, address, data, reg);
 }
 
-static u32 nv_pcie_port_rreg(struct amdgpu_device *adev, u32 reg)
-{
-	unsigned long flags, address, data;
-	u32 r;
-	address = adev->nbio.funcs->get_pcie_port_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_port_data_offset(adev);
-
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(address, reg * 4);
-	(void)RREG32(address);
-	r = RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
-	return r;
-}
-
 static void nv_pcie_wreg64(struct amdgpu_device *adev, u32 reg, u64 v)
 {
 	unsigned long address, data;
@@ -281,21 +266,6 @@ static void nv_pcie_wreg64(struct amdgpu_device *adev, u32 reg, u64 v)
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
 	amdgpu_device_indirect_wreg64(adev, address, data, reg, v);
-}
-
-static void nv_pcie_port_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
-{
-	unsigned long flags, address, data;
-
-	address = adev->nbio.funcs->get_pcie_port_index_offset(adev);
-	data = adev->nbio.funcs->get_pcie_port_data_offset(adev);
-
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(address, reg * 4);
-	(void)RREG32(address);
-	WREG32(data, v);
-	(void)RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 }
 
 static u32 nv_didt_rreg(struct amdgpu_device *adev, u32 reg)
@@ -358,38 +328,6 @@ static bool nv_read_disabled_bios(struct amdgpu_device *adev)
 {
 	/* todo */
 	return false;
-}
-
-static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
-				  u8 *bios, u32 length_bytes)
-{
-	u32 *dw_ptr;
-	u32 i, length_dw;
-	u32 rom_index_offset, rom_data_offset;
-
-	if (bios == NULL)
-		return false;
-	if (length_bytes == 0)
-		return false;
-	/* APU vbios image is part of sbios image */
-	if (adev->flags & AMD_IS_APU)
-		return false;
-
-	dw_ptr = (u32 *)bios;
-	length_dw = ALIGN(length_bytes, 4) / 4;
-
-	rom_index_offset =
-		adev->smuio.funcs->get_rom_index_offset(adev);
-	rom_data_offset =
-		adev->smuio.funcs->get_rom_data_offset(adev);
-
-	/* set rom index to 0 */
-	WREG32(rom_index_offset, 0);
-	/* read out the rom data */
-	for (i = 0; i < length_dw; i++)
-		dw_ptr[i] = RREG32(rom_data_offset);
-
-	return true;
 }
 
 static struct soc15_allowed_register_entry nv_allowed_read_registers[] = {
@@ -708,7 +646,7 @@ static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
 static const struct amdgpu_asic_funcs nv_asic_funcs =
 {
 	.read_disabled_bios = &nv_read_disabled_bios,
-	.read_bios_from_rom = &nv_read_bios_from_rom,
+	.read_bios_from_rom = &amdgpu_soc15_read_bios_from_rom,
 	.read_register = &nv_read_register,
 	.reset = &nv_asic_reset,
 	.reset_method = &nv_asic_reset_method,
@@ -742,8 +680,8 @@ static int nv_common_early_init(void *handle)
 	adev->pcie_wreg = &nv_pcie_wreg;
 	adev->pcie_rreg64 = &nv_pcie_rreg64;
 	adev->pcie_wreg64 = &nv_pcie_wreg64;
-	adev->pciep_rreg = &nv_pcie_port_rreg;
-	adev->pciep_wreg = &nv_pcie_port_wreg;
+	adev->pciep_rreg = amdgpu_device_pcie_port_rreg;
+	adev->pciep_wreg = amdgpu_device_pcie_port_wreg;
 
 	/* TODO: will add them during VCN v2 implementation */
 	adev->uvd_ctx_rreg = NULL;
@@ -964,6 +902,7 @@ static int nv_common_early_init(void *handle)
 			adev->external_rev_id = adev->rev_id + 0x01;
 		break;
 	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 1, 4):
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x82;

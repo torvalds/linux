@@ -658,15 +658,24 @@ static void nbio_v7_4_enable_doorbell_interrupt(struct amdgpu_device *adev,
 		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 
-const struct amdgpu_nbio_ras_funcs nbio_v7_4_ras_funcs = {
+const struct amdgpu_ras_block_hw_ops nbio_v7_4_ras_hw_ops = {
+	.query_ras_error_count = nbio_v7_4_query_ras_error_count,
+};
+
+struct amdgpu_nbio_ras nbio_v7_4_ras = {
+	.ras_block = {
+		.name = "pcie_bif",
+		.block = AMDGPU_RAS_BLOCK__PCIE_BIF,
+		.hw_ops = &nbio_v7_4_ras_hw_ops,
+		.ras_late_init = amdgpu_nbio_ras_late_init,
+		.ras_fini = amdgpu_nbio_ras_fini,
+	},
 	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
 	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
 	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
 	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
-	.query_ras_error_count = nbio_v7_4_query_ras_error_count,
-	.ras_late_init = amdgpu_nbio_ras_late_init,
-	.ras_fini = amdgpu_nbio_ras_fini,
 };
+
 
 static void nbio_v7_4_program_ltr(struct amdgpu_device *adev)
 {

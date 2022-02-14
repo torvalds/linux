@@ -121,7 +121,7 @@ typedef struct SMU_Task SMU_Task;
 
 struct TOC {
     uint8_t JobList[NUM_JOBLIST_ENTRIES];
-    SMU_Task tasks[1];
+    SMU_Task tasks[];
 };
 
 // META DATA COMMAND Definitions

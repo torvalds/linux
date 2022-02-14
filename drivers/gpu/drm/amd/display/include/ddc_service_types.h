@@ -34,6 +34,8 @@
 #define DP_BRANCH_DEVICE_ID_90CC24 0x90CC24
 #define DP_BRANCH_DEVICE_ID_00E04C 0x00E04C
 #define DP_BRANCH_DEVICE_ID_006037 0x006037
+#define DP_BRANCH_HW_REV_10 0x10
+#define DP_BRANCH_HW_REV_20 0x20
 
 #define DP_DEVICE_ID_38EC11 0x38EC11
 enum ddc_result {
@@ -120,5 +122,8 @@ struct av_sync_data {
 
 static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3, 0};
 static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5, 0};
+
+/*MST Dock*/
+static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";
 
 #endif /* __DAL_DDC_SERVICE_TYPES_H__ */

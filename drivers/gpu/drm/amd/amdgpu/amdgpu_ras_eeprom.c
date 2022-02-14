@@ -194,7 +194,7 @@ static int __write_table_header(struct amdgpu_ras_eeprom_control *control)
 
 	/* i2c may be unstable in gpu reset */
 	down_read(&adev->reset_sem);
-	res = amdgpu_eeprom_write(&adev->pm.smu_i2c,
+	res = amdgpu_eeprom_write(adev->pm.ras_eeprom_i2c_bus,
 				  control->i2c_address +
 				  control->ras_header_offset,
 				  buf, RAS_TABLE_HEADER_SIZE);
@@ -263,6 +263,7 @@ static int amdgpu_ras_eeprom_correct_header_tag(
  */
 int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 {
+	struct amdgpu_device *adev = to_amdgpu_device(control);
 	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
 	u8 csum;
 	int res;
@@ -281,6 +282,8 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 
 	control->ras_num_recs = 0;
 	control->ras_fri = 0;
+
+	amdgpu_dpm_send_hbm_bad_pages_num(adev, control->ras_num_recs);
 
 	amdgpu_ras_debugfs_set_ret_size(control);
 
@@ -389,7 +392,7 @@ static int __amdgpu_ras_eeprom_write(struct amdgpu_ras_eeprom_control *control,
 	/* i2c may be unstable in gpu reset */
 	down_read(&adev->reset_sem);
 	buf_size = num * RAS_TABLE_RECORD_SIZE;
-	res = amdgpu_eeprom_write(&adev->pm.smu_i2c,
+	res = amdgpu_eeprom_write(adev->pm.ras_eeprom_i2c_bus,
 				  control->i2c_address +
 				  RAS_INDEX_TO_OFFSET(control, fri),
 				  buf, buf_size);
@@ -548,7 +551,7 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 	}
 
 	down_read(&adev->reset_sem);
-	res = amdgpu_eeprom_read(&adev->pm.smu_i2c,
+	res = amdgpu_eeprom_read(adev->pm.ras_eeprom_i2c_bus,
 				 control->i2c_address +
 				 control->ras_record_offset,
 				 buf, buf_size);
@@ -644,7 +647,7 @@ static int __amdgpu_ras_eeprom_read(struct amdgpu_ras_eeprom_control *control,
 	/* i2c may be unstable in gpu reset */
 	down_read(&adev->reset_sem);
 	buf_size = num * RAS_TABLE_RECORD_SIZE;
-	res = amdgpu_eeprom_read(&adev->pm.smu_i2c,
+	res = amdgpu_eeprom_read(adev->pm.ras_eeprom_i2c_bus,
 				 control->i2c_address +
 				 RAS_INDEX_TO_OFFSET(control, fri),
 				 buf, buf_size);
@@ -1009,7 +1012,7 @@ static int __verify_ras_table_checksum(struct amdgpu_ras_eeprom_control *control
 		return -ENOMEM;
 	}
 
-	res = amdgpu_eeprom_read(&adev->pm.smu_i2c,
+	res = amdgpu_eeprom_read(adev->pm.ras_eeprom_i2c_bus,
 				 control->i2c_address +
 				 control->ras_header_offset,
 				 buf, buf_size);
@@ -1045,7 +1048,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 		return 0;
 
 	/* Verify i2c adapter is initialized */
-	if (!adev->pm.smu_i2c.algo)
+	if (!adev->pm.ras_eeprom_i2c_bus || !adev->pm.ras_eeprom_i2c_bus->algo)
 		return -ENOENT;
 
 	if (!__get_eeprom_i2c_addr(adev, control))
@@ -1057,7 +1060,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 	mutex_init(&control->ras_tbl_mutex);
 
 	/* Read the table header from EEPROM address */
-	res = amdgpu_eeprom_read(&adev->pm.smu_i2c,
+	res = amdgpu_eeprom_read(adev->pm.ras_eeprom_i2c_bus,
 				 control->i2c_address + control->ras_header_offset,
 				 buf, RAS_TABLE_HEADER_SIZE);
 	if (res < RAS_TABLE_HEADER_SIZE) {

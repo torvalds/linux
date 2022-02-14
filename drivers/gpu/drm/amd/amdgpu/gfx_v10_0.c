@@ -56,10 +56,6 @@
 #define GFX10_NUM_GFX_RINGS_Sienna_Cichlid	1
 #define GFX10_MEC_HPD_SIZE	2048
 
-#define RLCG_VFGATE_DISABLED	0x4000000
-#define RLCG_WRONG_OPERATION_TYPE	0x2000000
-#define RLCG_NOT_IN_RANGE	0x1000000
-
 #define F32_CE_PROGRAM_RAM_SIZE		65536
 #define RLCG_UCODE_LOADING_START_ADDRESS	0x00002000L
 
@@ -179,14 +175,6 @@
 
 #define mmRLC_SPARE_INT_0_Sienna_Cichlid               0x4ca5
 #define mmRLC_SPARE_INT_0_Sienna_Cichlid_BASE_IDX      1
-
-#define GFX_RLCG_GC_WRITE_OLD	(0x8 << 28)
-#define GFX_RLCG_GC_WRITE	(0x0 << 28)
-#define GFX_RLCG_GC_READ	(0x1 << 28)
-#define GFX_RLCG_MMHUB_WRITE	(0x2 << 28)
-
-#define RLCG_ERROR_REPORT_ENABLED(adev) \
-	(amdgpu_sriov_reg_indirect_mmhub(adev) || amdgpu_sriov_reg_indirect_gc(adev))
 
 MODULE_FIRMWARE("amdgpu/navi10_ce.bin");
 MODULE_FIRMWARE("amdgpu/navi10_pfp.bin");
@@ -1462,143 +1450,6 @@ static const struct soc15_reg_golden golden_settings_gc_10_1_2[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CNTL, 0xffdf80ff, 0x479c0010),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmUTCL1_CTRL, 0xffffffff, 0x00c00000)
 };
-
-static bool gfx_v10_get_rlcg_flag(struct amdgpu_device *adev, u32 acc_flags, u32 hwip,
-				 int write, u32 *rlcg_flag)
-{
-	switch (hwip) {
-	case GC_HWIP:
-		if (amdgpu_sriov_reg_indirect_gc(adev)) {
-			*rlcg_flag = write ? GFX_RLCG_GC_WRITE : GFX_RLCG_GC_READ;
-
-			return true;
-		/* only in new version, AMDGPU_REGS_NO_KIQ and AMDGPU_REGS_RLC enabled simultaneously */
-		} else if ((acc_flags & AMDGPU_REGS_RLC) && !(acc_flags & AMDGPU_REGS_NO_KIQ)) {
-			*rlcg_flag = GFX_RLCG_GC_WRITE_OLD;
-
-			return true;
-		}
-
-		break;
-	case MMHUB_HWIP:
-		if (amdgpu_sriov_reg_indirect_mmhub(adev) &&
-		    (acc_flags & AMDGPU_REGS_RLC) && write) {
-			*rlcg_flag = GFX_RLCG_MMHUB_WRITE;
-			return true;
-		}
-
-		break;
-	default:
-		DRM_DEBUG("Not program register by RLCG\n");
-	}
-
-	return false;
-}
-
-static u32 gfx_v10_rlcg_rw(struct amdgpu_device *adev, u32 offset, u32 v, uint32_t flag)
-{
-	static void *scratch_reg0;
-	static void *scratch_reg1;
-	static void *scratch_reg2;
-	static void *scratch_reg3;
-	static void *spare_int;
-	static uint32_t grbm_cntl;
-	static uint32_t grbm_idx;
-	uint32_t i = 0;
-	uint32_t retries = 50000;
-	u32 ret = 0;
-	u32 tmp;
-
-	scratch_reg0 = adev->rmmio +
-		       (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG0) * 4;
-	scratch_reg1 = adev->rmmio +
-		       (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG1) * 4;
-	scratch_reg2 = adev->rmmio +
-		       (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG0_BASE_IDX] + mmSCRATCH_REG2) * 4;
-	scratch_reg3 = adev->rmmio +
-		       (adev->reg_offset[GC_HWIP][0][mmSCRATCH_REG1_BASE_IDX] + mmSCRATCH_REG3) * 4;
-
-	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0)) {
-		spare_int = adev->rmmio +
-			    (adev->reg_offset[GC_HWIP][0][mmRLC_SPARE_INT_0_Sienna_Cichlid_BASE_IDX]
-			     + mmRLC_SPARE_INT_0_Sienna_Cichlid) * 4;
-	} else {
-		spare_int = adev->rmmio +
-			    (adev->reg_offset[GC_HWIP][0][mmRLC_SPARE_INT_BASE_IDX] + mmRLC_SPARE_INT) * 4;
-	}
-
-	grbm_cntl = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_CNTL_BASE_IDX] + mmGRBM_GFX_CNTL;
-	grbm_idx = adev->reg_offset[GC_HWIP][0][mmGRBM_GFX_INDEX_BASE_IDX] + mmGRBM_GFX_INDEX;
-
-	if (offset == grbm_cntl || offset == grbm_idx) {
-		if (offset  == grbm_cntl)
-			writel(v, scratch_reg2);
-		else if (offset == grbm_idx)
-			writel(v, scratch_reg3);
-
-		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
-	} else {
-		writel(v, scratch_reg0);
-		writel(offset | flag, scratch_reg1);
-		writel(1, spare_int);
-
-		for (i = 0; i < retries; i++) {
-			tmp = readl(scratch_reg1);
-			if (!(tmp & flag))
-				break;
-
-			udelay(10);
-		}
-
-		if (i >= retries) {
-			if (RLCG_ERROR_REPORT_ENABLED(adev)) {
-				if (tmp & RLCG_VFGATE_DISABLED)
-					pr_err("The vfgate is disabled, program reg:0x%05x failed!\n", offset);
-				else if (tmp & RLCG_WRONG_OPERATION_TYPE)
-					pr_err("Wrong operation type, program reg:0x%05x failed!\n", offset);
-				else if (tmp & RLCG_NOT_IN_RANGE)
-					pr_err("The register is not in range, program reg:0x%05x failed!\n", offset);
-				else
-					pr_err("Unknown error type, program reg:0x%05x failed!\n", offset);
-			} else
-				pr_err("timeout: rlcg program reg:0x%05x failed!\n", offset);
-		}
-	}
-
-	ret = readl(scratch_reg0);
-
-	return ret;
-}
-
-static void gfx_v10_sriov_wreg(struct amdgpu_device *adev, u32 offset, u32 value, u32 acc_flags, u32 hwip)
-{
-	u32 rlcg_flag;
-
-	if (!amdgpu_sriov_runtime(adev) &&
-	    gfx_v10_get_rlcg_flag(adev, acc_flags, hwip, 1, &rlcg_flag)) {
-		gfx_v10_rlcg_rw(adev, offset, value, rlcg_flag);
-		return;
-	}
-
-	if (acc_flags & AMDGPU_REGS_NO_KIQ)
-		WREG32_NO_KIQ(offset, value);
-	else
-		WREG32(offset, value);
-}
-
-static u32 gfx_v10_sriov_rreg(struct amdgpu_device *adev, u32 offset, u32 acc_flags, u32 hwip)
-{
-	u32 rlcg_flag;
-
-	if (!amdgpu_sriov_runtime(adev) &&
-	    gfx_v10_get_rlcg_flag(adev, acc_flags, hwip, 0, &rlcg_flag))
-		return gfx_v10_rlcg_rw(adev, offset, 0, rlcg_flag);
-
-	if (acc_flags & AMDGPU_REGS_NO_KIQ)
-		return RREG32_NO_KIQ(offset);
-	else
-		return RREG32(offset);
-}
 
 static const struct soc15_reg_golden golden_settings_gc_10_1_nv14[] =
 {
@@ -3790,6 +3641,7 @@ static void gfx_v10_0_init_golden_registers(struct amdgpu_device *adev)
 						(const u32)ARRAY_SIZE(golden_settings_gc_10_3_5));
 		break;
 	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 1, 4):
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_10_0_cyan_skillfish,
 						(const u32)ARRAY_SIZE(golden_settings_gc_10_0_cyan_skillfish));
@@ -3968,6 +3820,7 @@ static void gfx_v10_0_check_fw_write_wait(struct amdgpu_device *adev)
 	case IP_VERSION(10, 1, 2):
 	case IP_VERSION(10, 1, 1):
 	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 1, 4):
 		if ((adev->gfx.me_fw_version >= 0x00000046) &&
 		    (adev->gfx.me_feature_version >= 27) &&
 		    (adev->gfx.pfp_fw_version >= 0x00000068) &&
@@ -4107,6 +3960,9 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 			chip_name = "cyan_skillfish2";
 		else
 			chip_name = "cyan_skillfish";
+		break;
+	case IP_VERSION(10, 1, 4):
+		chip_name = "cyan_skillfish2";
 		break;
 	default:
 		BUG();
@@ -4448,6 +4304,30 @@ static void gfx_v10_0_rlc_fini(struct amdgpu_device *adev)
 			(void **)&adev->gfx.rlc.cp_table_ptr);
 }
 
+static void gfx_v10_0_init_rlcg_reg_access_ctrl(struct amdgpu_device *adev)
+{
+	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
+
+	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl;
+	reg_access_ctrl->scratch_reg0 = SOC15_REG_OFFSET(GC, 0, mmSCRATCH_REG0);
+	reg_access_ctrl->scratch_reg1 = SOC15_REG_OFFSET(GC, 0, mmSCRATCH_REG1);
+	reg_access_ctrl->scratch_reg2 = SOC15_REG_OFFSET(GC, 0, mmSCRATCH_REG2);
+	reg_access_ctrl->scratch_reg3 = SOC15_REG_OFFSET(GC, 0, mmSCRATCH_REG3);
+	reg_access_ctrl->grbm_cntl = SOC15_REG_OFFSET(GC, 0, mmGRBM_GFX_CNTL);
+	reg_access_ctrl->grbm_idx = SOC15_REG_OFFSET(GC, 0, mmGRBM_GFX_INDEX);
+	switch (adev->ip_versions[GC_HWIP][0]) {
+		case IP_VERSION(10, 3, 0):
+			reg_access_ctrl->spare_int =
+				SOC15_REG_OFFSET(GC, 0, mmRLC_SPARE_INT_0_Sienna_Cichlid);
+			break;
+		default:
+			reg_access_ctrl->spare_int =
+				SOC15_REG_OFFSET(GC, 0, mmRLC_SPARE_INT);
+			break;
+	}
+	adev->gfx.rlc.rlcg_reg_access_supported = true;
+}
+
 static int gfx_v10_0_rlc_init(struct amdgpu_device *adev)
 {
 	const struct cs_section_def *cs_data;
@@ -4467,6 +4347,7 @@ static int gfx_v10_0_rlc_init(struct amdgpu_device *adev)
 	/* init spm vmid with 0xf */
 	if (adev->gfx.rlc.funcs->update_spm_vmid)
 		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0xf);
+
 
 	return 0;
 }
@@ -4689,6 +4570,7 @@ static void gfx_v10_0_gpu_early_init(struct amdgpu_device *adev)
 			1 << REG_GET_FIELD(gb_addr_config, GB_ADDR_CONFIG, NUM_PKRS);
 		break;
 	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 1, 4):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -4801,6 +4683,7 @@ static int gfx_v10_0_sw_init(void *handle)
 	case IP_VERSION(10, 1, 1):
 	case IP_VERSION(10, 1, 2):
 	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 1, 4):
 		adev->gfx.me.num_me = 1;
 		adev->gfx.me.num_pipe_per_me = 1;
 		adev->gfx.me.num_queue_per_pipe = 1;
@@ -4865,10 +4748,14 @@ static int gfx_v10_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = gfx_v10_0_rlc_init(adev);
-	if (r) {
-		DRM_ERROR("Failed to init rlc BOs!\n");
-		return r;
+	if (adev->gfx.rlc.funcs) {
+		if (adev->gfx.rlc.funcs->init) {
+			r = adev->gfx.rlc.funcs->init(adev);
+			if (r) {
+				dev_err(adev->dev, "Failed to init rlc BOs!\n");
+				return r;
+			}
+		}
 	}
 
 	r = gfx_v10_0_mec_init(adev);
@@ -7778,6 +7665,7 @@ static int gfx_v10_0_early_init(void *handle)
 	case IP_VERSION(10, 1, 1):
 	case IP_VERSION(10, 1, 2):
 	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 1, 4):
 		adev->gfx.num_gfx_rings = GFX10_NUM_GFX_RINGS_NV1X;
 		break;
 	case IP_VERSION(10, 3, 0):
@@ -7800,6 +7688,9 @@ static int gfx_v10_0_early_init(void *handle)
 	gfx_v10_0_set_irq_funcs(adev);
 	gfx_v10_0_set_gds_init(adev);
 	gfx_v10_0_set_rlc_funcs(adev);
+
+	/* init rlcg reg access ctrl */
+	gfx_v10_0_init_rlcg_reg_access_ctrl(adev);
 
 	return 0;
 }
@@ -8377,8 +8268,6 @@ static const struct amdgpu_rlc_funcs gfx_v10_0_rlc_funcs_sriov = {
 	.reset = gfx_v10_0_rlc_reset,
 	.start = gfx_v10_0_rlc_start,
 	.update_spm_vmid = gfx_v10_0_update_spm_vmid,
-	.sriov_wreg = gfx_v10_sriov_wreg,
-	.sriov_rreg = gfx_v10_sriov_rreg,
 	.is_rlcg_access_range = gfx_v10_0_is_rlcg_access_range,
 };
 
@@ -9537,6 +9426,7 @@ static void gfx_v10_0_set_rlc_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(10, 1, 10):
 	case IP_VERSION(10, 1, 1):
 	case IP_VERSION(10, 1, 3):
+	case IP_VERSION(10, 1, 4):
 	case IP_VERSION(10, 3, 2):
 	case IP_VERSION(10, 3, 1):
 	case IP_VERSION(10, 3, 4):

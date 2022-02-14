@@ -159,7 +159,7 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
-static bool needs_dsc_aux_workaround(struct dc_link *link)
+bool needs_dsc_aux_workaround(struct dc_link *link)
 {
 	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
 	    (link->dpcd_caps.dpcd_rev.raw == DPCD_REV_14 || link->dpcd_caps.dpcd_rev.raw == DPCD_REV_12) &&
@@ -206,6 +206,25 @@ static bool validate_dsc_caps_on_connector(struct amdgpu_dm_connector *aconnecto
 				  dsc_caps, dsc_branch_dec_caps,
 				  &dc_sink->dsc_caps.dsc_dec_caps))
 		return false;
+
+	return true;
+}
+
+bool retrieve_downstream_port_device(struct amdgpu_dm_connector *aconnector)
+{
+	union dp_downstream_port_present ds_port_present;
+
+	if (!aconnector->dsc_aux)
+		return false;
+
+	if (drm_dp_dpcd_read(aconnector->dsc_aux, DP_DOWNSTREAMPORT_PRESENT, &ds_port_present, 1) < 0) {
+		DRM_INFO("Failed to read downstream_port_present 0x05 from DFP of branch device\n");
+		return false;
+	}
+
+	aconnector->mst_downstream_port_present = ds_port_present;
+	DRM_INFO("Downstream port present %d, type %d\n",
+			ds_port_present.fields.PORT_PRESENT, ds_port_present.fields.PORT_TYPE);
 
 	return true;
 }
@@ -289,6 +308,10 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			if (!validate_dsc_caps_on_connector(aconnector))
 				memset(&aconnector->dc_sink->dsc_caps,
 				       0, sizeof(aconnector->dc_sink->dsc_caps));
+
+			if (!retrieve_downstream_port_device(aconnector))
+				memset(&aconnector->mst_downstream_port_present,
+					0, sizeof(aconnector->mst_downstream_port_present));
 #endif
 		}
 	}

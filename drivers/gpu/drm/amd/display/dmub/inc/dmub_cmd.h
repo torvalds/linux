@@ -46,10 +46,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xbaf06b95
+#define DMUB_FW_VERSION_GIT_HASH 0x5189adbf
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 98
+#define DMUB_FW_VERSION_REVISION 103
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -367,8 +367,9 @@ union dmub_fw_boot_options {
 		/**< 1 if all root clock gating is enabled and low power memory is enabled*/
 		uint32_t power_optimization: 1;
 		uint32_t diag_env: 1; /* 1 if diagnostic environment */
+		uint32_t gpint_scratch8: 1; /* 1 if GPINT is in scratch8*/
 
-		uint32_t reserved : 19; /**< reserved */
+		uint32_t reserved : 18; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -523,7 +524,7 @@ union dmub_inbox0_cmd_lock_hw {
 		uint32_t command_code: 8;
 
 		/* NOTE: Must be have enough bits to match: enum hw_lock_client */
-		uint32_t hw_lock_client: 1;
+		uint32_t hw_lock_client: 2;
 
 		/* NOTE: Below fields must match with: struct dmub_hw_lock_inst_flags */
 		uint32_t otg_inst: 3;
@@ -538,7 +539,7 @@ union dmub_inbox0_cmd_lock_hw {
 
 		uint32_t lock: 1;				/**< Lock */
 		uint32_t should_release: 1;		/**< Release */
-		uint32_t reserved: 8; 			/**< Reserved for extending more clients, HW, etc. */
+		uint32_t reserved: 7; 			/**< Reserved for extending more clients, HW, etc. */
 	} bits;
 	uint32_t all;
 };
@@ -644,6 +645,7 @@ enum dmub_cmd_type {
 	 * Command type used for OUTBOX1 notification enable
 	 */
 	DMUB_CMD__OUTBOX1_ENABLE = 71,
+
 	/**
 	 * Command type used for all idle optimization commands.
 	 */
@@ -656,6 +658,7 @@ enum dmub_cmd_type {
 	 * Command type used for all panel control commands.
 	 */
 	DMUB_CMD__PANEL_CNTL = 74,
+
 	/**
 	 * Command type used for interfacing with DPIA.
 	 */

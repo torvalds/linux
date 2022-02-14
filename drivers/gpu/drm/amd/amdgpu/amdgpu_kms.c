@@ -87,11 +87,6 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 	if (adev->rmmio == NULL)
 		return;
 
-	if (adev->runpm) {
-		pm_runtime_get_sync(dev->dev);
-		pm_runtime_forbid(dev->dev);
-	}
-
 	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DRV_UNLOAD))
 		DRM_WARN("smart shift update failed\n");
 
@@ -124,22 +119,6 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 	mutex_unlock(&mgpu_info.mutex);
 }
 
-static void amdgpu_get_audio_func(struct amdgpu_device *adev)
-{
-	struct pci_dev *p = NULL;
-
-	p = pci_get_domain_bus_and_slot(pci_domain_nr(adev->pdev->bus),
-			adev->pdev->bus->number, 1);
-	if (p) {
-		pm_runtime_get_sync(&p->dev);
-
-		pm_runtime_mark_last_busy(&p->dev);
-		pm_runtime_put_autosuspend(&p->dev);
-
-		pci_dev_put(p);
-	}
-}
-
 /**
  * amdgpu_driver_load_kms - Main load function for KMS.
  *
@@ -152,20 +131,9 @@ static void amdgpu_get_audio_func(struct amdgpu_device *adev)
 int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 {
 	struct drm_device *dev;
-	struct pci_dev *parent;
 	int r, acpi_status;
 
 	dev = adev_to_drm(adev);
-
-	if (amdgpu_has_atpx() &&
-	    (amdgpu_is_atpx_hybrid() ||
-	     amdgpu_has_atpx_dgpu_power_cntl()) &&
-	    ((flags & AMD_IS_APU) == 0) &&
-	    !pci_is_thunderbolt_attached(to_pci_dev(dev->dev)))
-		flags |= AMD_IS_PX;
-
-	parent = pci_upstream_bridge(adev->pdev);
-	adev->has_pr3 = parent ? pci_pr3_present(parent) : false;
 
 	/* amdgpu_device_init should report only fatal error
 	 * like memory allocation failure or iomapping failure,
@@ -224,58 +192,12 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 	if (acpi_status)
 		dev_dbg(dev->dev, "Error during ACPI methods call\n");
 
-	if (adev->runpm) {
-		/* only need to skip on ATPX */
-		if (amdgpu_device_supports_px(dev))
-			dev_pm_set_driver_flags(dev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
-		/* we want direct complete for BOCO */
-		if (amdgpu_device_supports_boco(dev))
-			dev_pm_set_driver_flags(dev->dev, DPM_FLAG_SMART_PREPARE |
-						DPM_FLAG_SMART_SUSPEND |
-						DPM_FLAG_MAY_SKIP_RESUME);
-		pm_runtime_use_autosuspend(dev->dev);
-		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
-
-		pm_runtime_allow(dev->dev);
-
-		pm_runtime_mark_last_busy(dev->dev);
-		pm_runtime_put_autosuspend(dev->dev);
-
-		/*
-		 * For runpm implemented via BACO, PMFW will handle the
-		 * timing for BACO in and out:
-		 *   - put ASIC into BACO state only when both video and
-		 *     audio functions are in D3 state.
-		 *   - pull ASIC out of BACO state when either video or
-		 *     audio function is in D0 state.
-		 * Also, at startup, PMFW assumes both functions are in
-		 * D0 state.
-		 *
-		 * So if snd driver was loaded prior to amdgpu driver
-		 * and audio function was put into D3 state, there will
-		 * be no PMFW-aware D-state transition(D0->D3) on runpm
-		 * suspend. Thus the BACO will be not correctly kicked in.
-		 *
-		 * Via amdgpu_get_audio_func(), the audio dev is put
-		 * into D0 state. Then there will be a PMFW-aware D-state
-		 * transition(D0->D3) on runpm suspend.
-		 */
-		if (amdgpu_device_supports_baco(dev) &&
-		    !(adev->flags & AMD_IS_APU) &&
-		    (adev->asic_type >= CHIP_NAVI10))
-			amdgpu_get_audio_func(adev);
-	}
-
 	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DRV_LOAD))
 		DRM_WARN("smart shift update failed\n");
 
 out:
-	if (r) {
-		/* balance pm_runtime_get_sync in amdgpu_driver_unload_kms */
-		if (adev->rmmio && adev->runpm)
-			pm_runtime_put_noidle(dev->dev);
+	if (r)
 		amdgpu_driver_unload_kms(dev);
-	}
 
 	return r;
 }
@@ -405,6 +327,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 	case AMDGPU_INFO_FW_TOC:
 		fw_info->ver = adev->psp.toc.fw_version;
 		fw_info->feature = adev->psp.toc.feature_version;
+		break;
+	case AMDGPU_INFO_FW_CAP:
+		fw_info->ver = adev->psp.cap_fw_version;
+		fw_info->feature = adev->psp.cap_feature_version;
 		break;
 	default:
 		return -EINVAL;
@@ -1268,18 +1194,20 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_VCE) != NULL)
 		amdgpu_vce_free_handles(adev, file_priv);
 
-	amdgpu_vm_bo_rmv(adev, fpriv->prt_va);
-
 	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		/* TODO: how to handle reserve failure */
 		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, true));
-		amdgpu_vm_bo_rmv(adev, fpriv->csa_va);
+		amdgpu_vm_bo_del(adev, fpriv->csa_va);
 		fpriv->csa_va = NULL;
 		amdgpu_bo_unreserve(adev->virt.csa_obj);
 	}
 
 	pasid = fpriv->vm.pasid;
 	pd = amdgpu_bo_ref(fpriv->vm.root.bo);
+	if (!WARN_ON(amdgpu_bo_reserve(pd, true))) {
+		amdgpu_vm_bo_del(adev, fpriv->prt_va);
+		amdgpu_bo_unreserve(pd);
+	}
 
 	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
 	amdgpu_vm_fini(adev, &fpriv->vm);
@@ -1427,8 +1355,7 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 	struct drm_amdgpu_info_firmware fw_info;
 	struct drm_amdgpu_query_fw query_fw;
 	struct atom_context *ctx = adev->mode_info.atom_context;
-	uint8_t smu_minor, smu_debug;
-	uint16_t smu_major;
+	uint8_t smu_program, smu_major, smu_minor, smu_debug;
 	int ret, i;
 
 	static const char *ta_fw_name[TA_FW_TYPE_MAX_INDEX] = {
@@ -1574,11 +1501,12 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
 	if (ret)
 		return ret;
-	smu_major = (fw_info.ver >> 16) & 0xffff;
+	smu_program = (fw_info.ver >> 24) & 0xff;
+	smu_major = (fw_info.ver >> 16) & 0xff;
 	smu_minor = (fw_info.ver >> 8) & 0xff;
 	smu_debug = (fw_info.ver >> 0) & 0xff;
-	seq_printf(m, "SMC feature version: %u, firmware version: 0x%08x (%d.%d.%d)\n",
-		   fw_info.feature, fw_info.ver, smu_major, smu_minor, smu_debug);
+	seq_printf(m, "SMC feature version: %u, program: %d, firmware version: 0x%08x (%d.%d.%d)\n",
+		   fw_info.feature, smu_program, fw_info.ver, smu_major, smu_minor, smu_debug);
 
 	/* SDMA */
 	query_fw.fw_type = AMDGPU_INFO_FW_SDMA;
@@ -1622,6 +1550,16 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 		return ret;
 	seq_printf(m, "TOC feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
+
+	/* CAP */
+	if (adev->psp.cap_fw) {
+		query_fw.fw_type = AMDGPU_INFO_FW_CAP;
+		ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+		if (ret)
+			return ret;
+		seq_printf(m, "CAP feature version: %u, firmware version: 0x%08x\n",
+				fw_info.feature, fw_info.ver);
+	}
 
 	seq_printf(m, "VBIOS version: %s\n", ctx->vbios_version);
 

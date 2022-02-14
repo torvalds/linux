@@ -1202,7 +1202,7 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_VG20;
 		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
-		adev->umc.ras_funcs = &umc_v6_1_ras_funcs;
+		adev->umc.ras = &umc_v6_1_ras;
 		break;
 	case IP_VERSION(6, 1, 2):
 		adev->umc.max_ras_err_cnt_per_query = UMC_V6_1_TOTAL_CHANNEL_NUM;
@@ -1210,15 +1210,16 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.umc_inst_num = UMC_V6_1_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V6_1_PER_CHANNEL_OFFSET_ARCT;
 		adev->umc.channel_idx_tbl = &umc_v6_1_channel_idx_tbl[0][0];
-		adev->umc.ras_funcs = &umc_v6_1_ras_funcs;
+		adev->umc.ras = &umc_v6_1_ras;
 		break;
 	case IP_VERSION(6, 7, 0):
-		adev->umc.max_ras_err_cnt_per_query = UMC_V6_7_TOTAL_CHANNEL_NUM;
+		adev->umc.max_ras_err_cnt_per_query =
+			UMC_V6_7_TOTAL_CHANNEL_NUM * UMC_V6_7_BAD_PAGE_NUM_PER_CHANNEL;
 		adev->umc.channel_inst_num = UMC_V6_7_CHANNEL_INSTANCE_NUM;
 		adev->umc.umc_inst_num = UMC_V6_7_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V6_7_PER_CHANNEL_OFFSET;
 		if (!adev->gmc.xgmi.connected_to_cpu)
-			adev->umc.ras_funcs = &umc_v6_7_ras_funcs;
+			adev->umc.ras = &umc_v6_7_ras;
 		if (1 & adev->smuio.funcs->get_die_id(adev))
 			adev->umc.channel_idx_tbl = &umc_v6_7_channel_idx_tbl_first[0][0];
 		else
@@ -1226,6 +1227,21 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		break;
 	default:
 		break;
+	}
+
+	if (adev->umc.ras) {
+		amdgpu_ras_register_ras_block(adev, &adev->umc.ras->ras_block);
+
+		strcpy(adev->umc.ras->ras_block.name, "umc");
+		adev->umc.ras->ras_block.block = AMDGPU_RAS_BLOCK__UMC;
+
+		/* If don't define special ras_late_init function, use default ras_late_init */
+		if (!adev->umc.ras->ras_block.ras_late_init)
+				adev->umc.ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
+
+		/* If don't define special ras_fini function, use default ras_fini */
+		if (!adev->umc.ras->ras_block.ras_fini)
+				adev->umc.ras->ras_block.ras_fini = amdgpu_umc_ras_fini;
 	}
 }
 
@@ -1248,17 +1264,32 @@ static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[MMHUB_HWIP][0]) {
 	case IP_VERSION(9, 4, 0):
-		adev->mmhub.ras_funcs = &mmhub_v1_0_ras_funcs;
+		adev->mmhub.ras = &mmhub_v1_0_ras;
 		break;
 	case IP_VERSION(9, 4, 1):
-		adev->mmhub.ras_funcs = &mmhub_v9_4_ras_funcs;
+		adev->mmhub.ras = &mmhub_v9_4_ras;
 		break;
 	case IP_VERSION(9, 4, 2):
-		adev->mmhub.ras_funcs = &mmhub_v1_7_ras_funcs;
+		adev->mmhub.ras = &mmhub_v1_7_ras;
 		break;
 	default:
 		/* mmhub ras is not available */
 		break;
+	}
+
+	if (adev->mmhub.ras) {
+		amdgpu_ras_register_ras_block(adev, &adev->mmhub.ras->ras_block);
+
+		strcpy(adev->mmhub.ras->ras_block.name,"mmhub");
+		adev->mmhub.ras->ras_block.block = AMDGPU_RAS_BLOCK__MMHUB;
+
+		/* If don't define special ras_late_init function, use default ras_late_init */
+		if (!adev->mmhub.ras->ras_block.ras_late_init)
+			adev->mmhub.ras->ras_block.ras_late_init = amdgpu_mmhub_ras_late_init;
+
+		/* If don't define special ras_fini function, use default ras_fini */
+		if (!adev->mmhub.ras->ras_block.ras_fini)
+			adev->mmhub.ras->ras_block.ras_fini = amdgpu_mmhub_ras_fini;
 	}
 }
 
@@ -1269,7 +1300,8 @@ static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 
 static void gmc_v9_0_set_hdp_ras_funcs(struct amdgpu_device *adev)
 {
-	adev->hdp.ras_funcs = &hdp_v4_0_ras_funcs;
+	adev->hdp.ras = &hdp_v4_0_ras;
+	amdgpu_ras_register_ras_block(adev, &adev->hdp.ras->ras_block);
 }
 
 static void gmc_v9_0_set_mca_funcs(struct amdgpu_device *adev)
@@ -1287,6 +1319,7 @@ static void gmc_v9_0_set_mca_funcs(struct amdgpu_device *adev)
 
 static int gmc_v9_0_early_init(void *handle)
 {
+	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* ARCT and VEGA20 don't have XGMI defined in their IP discovery tables */
@@ -1316,6 +1349,10 @@ static int gmc_v9_0_early_init(void *handle)
 	adev->gmc.private_aperture_end =
 		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
 
+	r = amdgpu_gmc_ras_early_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -1342,13 +1379,13 @@ static int gmc_v9_0_late_init(void *handle)
 	}
 
 	if (!amdgpu_persistent_edc_harvesting_supported(adev)) {
-		if (adev->mmhub.ras_funcs &&
-		    adev->mmhub.ras_funcs->reset_ras_error_count)
-			adev->mmhub.ras_funcs->reset_ras_error_count(adev);
+		if (adev->mmhub.ras && adev->mmhub.ras->ras_block.hw_ops &&
+		    adev->mmhub.ras->ras_block.hw_ops->reset_ras_error_count)
+			adev->mmhub.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 
-		if (adev->hdp.ras_funcs &&
-		    adev->hdp.ras_funcs->reset_ras_error_count)
-			adev->hdp.ras_funcs->reset_ras_error_count(adev);
+		if (adev->hdp.ras && adev->hdp.ras->ras_block.hw_ops &&
+		    adev->hdp.ras->ras_block.hw_ops->reset_ras_error_count)
+			adev->hdp.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 	}
 
 	r = amdgpu_gmc_ras_late_init(adev);
@@ -1752,14 +1789,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))
-		goto skip_pin_bo;
-
-	r = amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
-	if (r)
-		return r;
-
-skip_pin_bo:
+	amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
 	r = adev->gfxhub.funcs->gart_enable(adev);
 	if (r)
 		return r;
@@ -1776,7 +1806,6 @@ skip_pin_bo:
 	DRM_INFO("PTB located at 0x%016llX\n",
 			(unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
 
-	adev->gart.ready = true;
 	return 0;
 }
 
@@ -1784,7 +1813,7 @@ static int gmc_v9_0_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool value;
-	int i;
+	int i, r;
 
 	/* The sequence of these two function calls matters.*/
 	gmc_v9_0_init_golden_registers(adev);
@@ -1819,7 +1848,14 @@ static int gmc_v9_0_hw_init(void *handle)
 	if (adev->umc.funcs && adev->umc.funcs->init_registers)
 		adev->umc.funcs->init_registers(adev);
 
-	return gmc_v9_0_gart_enable(adev);
+	r = gmc_v9_0_gart_enable(adev);
+	if (r)
+		return r;
+
+	if (amdgpu_emu_mode == 1)
+		return amdgpu_gmc_vram_checking(adev);
+	else
+		return r;
 }
 
 /**

@@ -38,10 +38,8 @@
 #define MAX_PIPES 6
 #define MAX_DIG_LINK_ENCODERS 7
 #define MAX_DWB_PIPES	1
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 #define MAX_HPO_DP2_ENCODERS	4
 #define MAX_HPO_DP2_LINK_ENCODERS	2
-#endif
 
 struct gamma_curve {
 	uint32_t offset;

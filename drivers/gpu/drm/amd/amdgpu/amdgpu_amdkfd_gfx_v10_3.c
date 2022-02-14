@@ -582,21 +582,6 @@ static int hqd_sdma_destroy_v10_3(struct amdgpu_device *adev, void *mqd,
 	return 0;
 }
 
-
-static int address_watch_disable_v10_3(struct amdgpu_device *adev)
-{
-	return 0;
-}
-
-static int address_watch_execute_v10_3(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					uint32_t cntl_val,
-					uint32_t addr_hi,
-					uint32_t addr_lo)
-{
-	return 0;
-}
-
 static int wave_control_execute_v10_3(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd)
@@ -618,13 +603,6 @@ static int wave_control_execute_v10_3(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, data);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
-	return 0;
-}
-
-static uint32_t address_watch_get_offset_v10_3(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					unsigned int reg_offset)
-{
 	return 0;
 }
 
@@ -809,10 +787,7 @@ const struct kfd2kgd_calls gfx_v10_3_kfd2kgd = {
 	.hqd_sdma_is_occupied = hqd_sdma_is_occupied_v10_3,
 	.hqd_destroy = hqd_destroy_v10_3,
 	.hqd_sdma_destroy = hqd_sdma_destroy_v10_3,
-	.address_watch_disable = address_watch_disable_v10_3,
-	.address_watch_execute = address_watch_execute_v10_3,
 	.wave_control_execute = wave_control_execute_v10_3,
-	.address_watch_get_offset = address_watch_get_offset_v10_3,
 	.get_atc_vmid_pasid_mapping_info = NULL,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base_v10_3,
 	.program_trap_handler_settings = program_trap_handler_settings_v10_3,

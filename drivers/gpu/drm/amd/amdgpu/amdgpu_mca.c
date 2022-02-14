@@ -74,20 +74,23 @@ void amdgpu_mca_query_ras_error_count(struct amdgpu_device *adev,
 int amdgpu_mca_ras_late_init(struct amdgpu_device *adev,
 			     struct amdgpu_mca_ras *mca_dev)
 {
+	char sysfs_name[32] = {0};
 	int r;
 	struct ras_ih_if ih_info = {
 		.cb = NULL,
 	};
-	struct ras_fs_if fs_info = {
-		.sysfs_name = mca_dev->ras_funcs->sysfs_name,
+	struct ras_fs_if fs_info= {
+		.sysfs_name = sysfs_name,
 	};
+
+	snprintf(sysfs_name, sizeof(sysfs_name), "%s_err_count", mca_dev->ras->ras_block.name);
 
 	if (!mca_dev->ras_if) {
 		mca_dev->ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
 		if (!mca_dev->ras_if)
 			return -ENOMEM;
-		mca_dev->ras_if->block = mca_dev->ras_funcs->ras_block;
-		mca_dev->ras_if->sub_block_index = mca_dev->ras_funcs->ras_sub_block;
+		mca_dev->ras_if->block = mca_dev->ras->ras_block.block;
+		mca_dev->ras_if->sub_block_index = mca_dev->ras->ras_block.sub_block_index;
 		mca_dev->ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 	}
 	ih_info.head = fs_info.head = *mca_dev->ras_if;

@@ -732,7 +732,7 @@ int amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 	return psp_xgmi_terminate(&adev->psp);
 }
 
-static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
+static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev, void *ras_info)
 {
 	int r;
 	struct ras_ih_if ih_info = {
@@ -746,7 +746,7 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 	    adev->gmc.xgmi.num_physical_nodes == 0)
 		return 0;
 
-	adev->gmc.xgmi.ras_funcs->reset_ras_error_count(adev);
+	adev->gmc.xgmi.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 
 	if (!adev->gmc.xgmi.ras_if) {
 		adev->gmc.xgmi.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
@@ -865,7 +865,7 @@ static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
+static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 					     void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
@@ -874,7 +874,7 @@ static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 	uint32_t ue_cnt = 0, ce_cnt = 0;
 
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL))
-		return -EINVAL;
+		return ;
 
 	err_data->ue_count = 0;
 	err_data->ce_count = 0;
@@ -940,17 +940,51 @@ static int amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		break;
 	}
 
-	adev->gmc.xgmi.ras_funcs->reset_ras_error_count(adev);
+	adev->gmc.xgmi.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 
 	err_data->ue_count += ue_cnt;
 	err_data->ce_count += ce_cnt;
-
-	return 0;
 }
 
-const struct amdgpu_xgmi_ras_funcs xgmi_ras_funcs = {
-	.ras_late_init = amdgpu_xgmi_ras_late_init,
-	.ras_fini = amdgpu_xgmi_ras_fini,
+/* Trigger XGMI/WAFL error */
+static int amdgpu_ras_error_inject_xgmi(struct amdgpu_device *adev,  void *inject_if)
+{
+	int ret = 0;
+	struct ta_ras_trigger_error_input *block_info =
+				(struct ta_ras_trigger_error_input *)inject_if;
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_DISALLOW))
+		dev_warn(adev->dev, "Failed to disallow df cstate");
+
+	if (amdgpu_dpm_allow_xgmi_power_down(adev, false))
+		dev_warn(adev->dev, "Failed to disallow XGMI power down");
+
+	ret = psp_ras_trigger_error(&adev->psp, block_info);
+
+	if (amdgpu_ras_intr_triggered())
+		return ret;
+
+	if (amdgpu_dpm_allow_xgmi_power_down(adev, true))
+		dev_warn(adev->dev, "Failed to allow XGMI power down");
+
+	if (amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW))
+		dev_warn(adev->dev, "Failed to allow df cstate");
+
+	return ret;
+}
+
+struct amdgpu_ras_block_hw_ops  xgmi_ras_hw_ops = {
 	.query_ras_error_count = amdgpu_xgmi_query_ras_error_count,
 	.reset_ras_error_count = amdgpu_xgmi_reset_ras_error_count,
+	.ras_error_inject = amdgpu_ras_error_inject_xgmi,
+};
+
+struct amdgpu_xgmi_ras xgmi_ras = {
+	.ras_block = {
+		.name = "xgmi",
+		.block = AMDGPU_RAS_BLOCK__XGMI_WAFL,
+		.hw_ops = &xgmi_ras_hw_ops,
+		.ras_late_init = amdgpu_xgmi_ras_late_init,
+		.ras_fini = amdgpu_xgmi_ras_fini,
+	},
 };

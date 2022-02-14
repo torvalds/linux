@@ -42,8 +42,8 @@
 
 #include "nbio/nbio_7_4_offset.h"
 
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
@@ -184,6 +184,7 @@ void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn3_init_single_clock(clk_mgr, PPCLK_DCEFCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
 			&num_levels);
+	dcn30_smu_set_min_deep_sleep_dcef_clk(clk_mgr, 0);
 
 	/* DTBCLK */
 	dcn3_init_single_clock(clk_mgr, PPCLK_DTBCLK,

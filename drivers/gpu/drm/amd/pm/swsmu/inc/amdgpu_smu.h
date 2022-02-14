@@ -241,11 +241,6 @@ struct smu_user_dpm_profile {
 	uint32_t clk_dependency;
 };
 
-enum smu_event_type {
-
-	SMU_EVENT_RESET_COMPLETE = 0,
-};
-
 #define SMU_TABLE_INIT(tables, table_id, s, a, d)	\
 	do {						\
 		tables[table_id].size = s;		\
@@ -342,6 +337,7 @@ struct smu_table_context
 	struct smu_bios_boot_up_values	boot_values;
 	void                            *driver_pptable;
 	void                            *ecc_table;
+	void				*driver_smu_config_table;
 	struct smu_table		tables[SMU_TABLE_COUNT];
 	/*
 	 * The driver table is just a staging buffer for
@@ -368,7 +364,6 @@ struct smu_dpm_context {
 	uint32_t dpm_context_size;
 	void *dpm_context;
 	void *golden_dpm_context;
-	bool enable_umd_pstate;
 	enum amd_dpm_forced_level dpm_level;
 	enum amd_dpm_forced_level saved_dpm_level;
 	enum amd_dpm_forced_level requested_dpm_level;
@@ -382,8 +377,6 @@ struct smu_power_gate {
 	bool vce_gated;
 	atomic_t vcn_gated;
 	atomic_t jpeg_gated;
-	struct mutex vcn_gate_lock;
-	struct mutex jpeg_gate_lock;
 };
 
 struct smu_power_context {
@@ -398,8 +391,6 @@ struct smu_feature
 	uint32_t feature_num;
 	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(allowed, SMU_FEATURE_MAX);
-	DECLARE_BITMAP(enabled, SMU_FEATURE_MAX);
-	struct mutex mutex;
 };
 
 struct smu_clocks {
@@ -436,7 +427,6 @@ enum smu_baco_state
 
 struct smu_baco_context
 {
-	struct mutex mutex;
 	uint32_t state;
 	bool platform_support;
 };
@@ -494,9 +484,6 @@ struct smu_context
 	const struct cmn2asic_mapping	*table_map;
 	const struct cmn2asic_mapping	*pwr_src_map;
 	const struct cmn2asic_mapping	*workload_map;
-	struct mutex			mutex;
-	struct mutex			sensor_lock;
-	struct mutex			metrics_lock;
 	struct mutex			message_lock;
 	uint64_t pool_size;
 
@@ -618,8 +605,22 @@ struct pptable_funcs {
 	 *                    to buffer. Star current level.
 	 *
 	 * Used for sysfs interfaces.
+	 * Return: Number of characters written to the buffer
 	 */
 	int (*print_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
+
+	/**
+	 * @emit_clk_levels: Print DPM clock levels for a clock domain
+	 *                    to buffer using sysfs_emit_at. Star current level.
+	 *
+	 * Used for sysfs interfaces.
+	 * &buf: sysfs buffer
+	 * &offset: offset within buffer to start printing, which is updated by the
+	 * function.
+	 *
+	 * Return: 0 on Success or Negative to indicate an error occurred.
+	 */
+	int (*emit_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf, int *offset);
 
 	/**
 	 * @force_clk_levels: Set a range of allowed DPM levels for a clock
@@ -829,12 +830,12 @@ struct pptable_funcs {
 	 * other devices. The i2c's EEPROM also stores bad page tables on boards
 	 * with ECC.
 	 */
-	int (*i2c_init)(struct smu_context *smu, struct i2c_adapter *control);
+	int (*i2c_init)(struct smu_context *smu);
 
 	/**
 	 * @i2c_fini: Tear down i2c.
 	 */
-	void (*i2c_fini)(struct smu_context *smu, struct i2c_adapter *control);
+	void (*i2c_fini)(struct smu_context *smu);
 
 	/**
 	 * @get_unique_id: Get the GPU's unique id. Used for asset tracking.
@@ -988,10 +989,9 @@ struct pptable_funcs {
 	/**
 	 * @get_enabled_mask: Get a mask of features that are currently enabled
 	 *                    on the SMU.
-	 * &feature_mask: Array representing enabled feature mask.
-	 * &num: Elements in &feature_mask.
+	 * &feature_mask: Enabled feature mask.
 	 */
-	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+	int (*get_enabled_mask)(struct smu_context *smu, uint64_t *feature_mask);
 
 	/**
 	 * @feature_is_enabled: Test if a feature is enabled.
@@ -1005,7 +1005,6 @@ struct pptable_funcs {
 	 *                                       exception to those in &mask.
 	 */
 	int (*disable_all_features_with_exception)(struct smu_context *smu,
-						   bool no_hw_disablement,
 						   enum smu_feature_mask mask);
 
 	/**
@@ -1395,10 +1394,6 @@ int smu_mode1_reset(struct smu_context *smu);
 
 extern const struct amd_ip_funcs smu_ip_funcs;
 
-extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
-extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
-extern const struct amdgpu_ip_block_version smu_v13_0_ip_block;
-
 bool is_support_sw_smu(struct amdgpu_device *adev);
 bool is_support_cclk_dpm(struct amdgpu_device *adev);
 int smu_write_watermarks_table(struct smu_context *smu);
@@ -1413,15 +1408,15 @@ int smu_set_ac_dc(struct smu_context *smu);
 
 int smu_allow_xgmi_power_down(struct smu_context *smu, bool en);
 
-int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
+int smu_get_status_gfxoff(struct smu_context *smu, uint32_t *value);
 
 int smu_handle_passthrough_sbr(struct smu_context *smu, bool enable);
 
-int smu_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
+int smu_wait_for_event(struct smu_context *smu, enum smu_event_type event,
 		       uint64_t event_arg);
 int smu_get_ecc_info(struct smu_context *smu, void *umc_ecc);
 int smu_stb_collect_info(struct smu_context *smu, void *buff, uint32_t size);
 void amdgpu_smu_stb_debug_fs_init(struct amdgpu_device *adev);
-
+int smu_send_hbm_bad_pages_num(struct smu_context *smu, uint32_t size);
 #endif
 #endif

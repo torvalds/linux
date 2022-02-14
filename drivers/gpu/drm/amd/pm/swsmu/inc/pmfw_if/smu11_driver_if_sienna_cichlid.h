@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x3B
+#define SMU11_DRIVER_IF_VERSION 0x40
 
 #define PPTABLE_Sienna_Cichlid_SMU_VERSION 7
 
@@ -172,6 +172,7 @@ typedef enum {
 #define DPM_OVERRIDE_DISABLE_FAST_FCLK_TIMER         0x00001000
 #define DPM_OVERRIDE_DISABLE_VCN_PG                  0x00002000
 #define DPM_OVERRIDE_DISABLE_FMAX_VMAX               0x00004000
+#define DPM_OVERRIDE_ENABLE_eGPU_USB_WA              0x00008000
 
 // VR Mapping Bit Defines
 #define VR_MAPPING_VR_SELECT_MASK  0x01
@@ -263,7 +264,22 @@ typedef enum {
 #define LED_DISPLAY_ERROR_BIT              2
 
 //RLC Pace Table total number of levels
-#define RLC_PACE_TABLE_NUM_LEVELS 16
+#define RLC_PACE_TABLE_NUM_LEVELS          16
+#define SIENNA_CICHLID_UMC_CHANNEL_NUM     16
+
+typedef struct {
+  uint64_t mca_umc_status;
+  uint64_t mca_umc_addr;
+
+  uint16_t ce_count_lo_chip;
+  uint16_t ce_count_hi_chip;
+
+  uint32_t eccPadding;
+} EccInfo_t;
+
+typedef struct {
+  EccInfo_t  EccInfo[SIENNA_CICHLID_UMC_CHANNEL_NUM];
+} EccInfoTable_t;
 
 typedef enum {
   DRAM_BIT_WIDTH_DISABLED = 0,
@@ -282,6 +298,7 @@ typedef enum {
 #define I2C_CONTROLLER_DISABLED            0
 
 #define MAX_SW_I2C_COMMANDS                24
+
 
 typedef enum {
   I2C_CONTROLLER_PORT_0 = 0,  //CKSVII2C0
@@ -1672,7 +1689,8 @@ typedef struct {
 #define TABLE_OVERDRIVE               8
 #define TABLE_I2C_COMMANDS            9
 #define TABLE_PACE                   10
-#define TABLE_COUNT                  11
+#define TABLE_ECCINFO                11
+#define TABLE_COUNT                  12
 
 typedef struct {
   float FlopsPerByteTable[RLC_PACE_TABLE_NUM_LEVELS];

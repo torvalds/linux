@@ -109,8 +109,7 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 
 	switch (source_id) {
 	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
-		if (dev->dqm->ops.reset_queues)
-			ret = dev->dqm->ops.reset_queues(dev->dqm, pasid);
+		kfd_dqm_evict_pasid(dev->dqm, pasid);
 		break;
 	case SOC15_INTSRC_SDMA_ECC:
 	default:
@@ -308,7 +307,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 		info.prot_write = ring_id & 0x20;
 
 		kfd_smi_event_update_vmfault(dev, pasid);
-		kfd_process_vm_fault(dev->dqm, pasid);
+		kfd_dqm_evict_pasid(dev->dqm, pasid);
 		kfd_signal_vm_fault_event(dev, pasid, &info);
 	}
 }

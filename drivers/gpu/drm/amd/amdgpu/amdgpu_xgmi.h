@@ -24,7 +24,7 @@
 
 #include <drm/task_barrier.h>
 #include "amdgpu_psp.h"
-
+#include "amdgpu_ras.h"
 
 struct amdgpu_hive_info {
 	struct kobject kobj;
@@ -50,7 +50,7 @@ struct amdgpu_pcs_ras_field {
 	uint32_t pcs_err_shift;
 };
 
-extern const struct amdgpu_xgmi_ras_funcs xgmi_ras_funcs;
+extern struct amdgpu_xgmi_ras  xgmi_ras;
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev);
 void amdgpu_put_xgmi_hive(struct amdgpu_hive_info *hive);
 int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev);

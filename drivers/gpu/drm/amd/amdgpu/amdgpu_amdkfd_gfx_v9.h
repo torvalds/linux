@@ -46,19 +46,9 @@ int kgd_gfx_v9_hqd_destroy(struct amdgpu_device *adev, void *mqd,
 				enum kfd_preempt_type reset_type,
 				unsigned int utimeout, uint32_t pipe_id,
 				uint32_t queue_id);
-int kgd_gfx_v9_address_watch_disable(struct amdgpu_device *adev);
-int kgd_gfx_v9_address_watch_execute(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					uint32_t cntl_val,
-					uint32_t addr_hi,
-					uint32_t addr_lo);
 int kgd_gfx_v9_wave_control_execute(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd);
-uint32_t kgd_gfx_v9_address_watch_get_offset(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					unsigned int reg_offset);
-
 bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
 					uint8_t vmid, uint16_t *p_pasid);
 

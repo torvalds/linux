@@ -1892,13 +1892,13 @@ static int sdma_v4_0_late_init(void *handle)
 	sdma_v4_0_setup_ulv(adev);
 
 	if (!amdgpu_persistent_edc_harvesting_supported(adev)) {
-		if (adev->sdma.funcs &&
-		    adev->sdma.funcs->reset_ras_error_count)
-			adev->sdma.funcs->reset_ras_error_count(adev);
+		if (adev->sdma.ras && adev->sdma.ras->ras_block.hw_ops &&
+		    adev->sdma.ras->ras_block.hw_ops->reset_ras_error_count)
+			adev->sdma.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 	}
 
-	if (adev->sdma.funcs && adev->sdma.funcs->ras_late_init)
-		return adev->sdma.funcs->ras_late_init(adev, &ih_info);
+	if (adev->sdma.ras && adev->sdma.ras->ras_block.ras_late_init)
+		return adev->sdma.ras->ras_block.ras_late_init(adev, &ih_info);
 	else
 		return 0;
 }
@@ -2001,8 +2001,9 @@ static int sdma_v4_0_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i;
 
-	if (adev->sdma.funcs && adev->sdma.funcs->ras_fini)
-		adev->sdma.funcs->ras_fini(adev);
+	if (adev->sdma.ras && adev->sdma.ras->ras_block.hw_ops &&
+		adev->sdma.ras->ras_block.ras_fini)
+		adev->sdma.ras->ras_block.ras_fini(adev);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
@@ -2057,12 +2058,20 @@ static int sdma_v4_0_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	/* SMU saves SDMA state for us */
+	if (adev->in_s0ix)
+		return 0;
+
 	return sdma_v4_0_hw_fini(adev);
 }
 
 static int sdma_v4_0_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	/* SMU restores SDMA state for us */
+	if (adev->in_s0ix)
+		return 0;
 
 	return sdma_v4_0_hw_init(adev);
 }
@@ -2740,7 +2749,7 @@ static void sdma_v4_0_get_ras_error_count(uint32_t value,
 	}
 }
 
-static int sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,
+static int sdma_v4_0_query_ras_error_count_by_instance(struct amdgpu_device *adev,
 			uint32_t instance, void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
@@ -2762,6 +2771,18 @@ static int sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 };
 
+static void sdma_v4_0_query_ras_error_count(struct amdgpu_device *adev,  void *ras_error_status)
+{
+	int i = 0;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		if (sdma_v4_0_query_ras_error_count_by_instance(adev, i, ras_error_status)) {
+			dev_err(adev->dev, "Query ras error count failed in SDMA%d\n", i);
+			return;
+		}
+	}
+}
+
 static void sdma_v4_0_reset_ras_error_count(struct amdgpu_device *adev)
 {
 	int i;
@@ -2773,11 +2794,15 @@ static void sdma_v4_0_reset_ras_error_count(struct amdgpu_device *adev)
 	}
 }
 
-static const struct amdgpu_sdma_ras_funcs sdma_v4_0_ras_funcs = {
-	.ras_late_init = amdgpu_sdma_ras_late_init,
-	.ras_fini = amdgpu_sdma_ras_fini,
+const struct amdgpu_ras_block_hw_ops sdma_v4_0_ras_hw_ops = {
 	.query_ras_error_count = sdma_v4_0_query_ras_error_count,
 	.reset_ras_error_count = sdma_v4_0_reset_ras_error_count,
+};
+
+static struct amdgpu_sdma_ras sdma_v4_0_ras = {
+	.ras_block = {
+		.hw_ops = &sdma_v4_0_ras_hw_ops,
+	},
 };
 
 static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
@@ -2785,13 +2810,28 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 	switch (adev->ip_versions[SDMA0_HWIP][0]) {
 	case IP_VERSION(4, 2, 0):
 	case IP_VERSION(4, 2, 2):
-		adev->sdma.funcs = &sdma_v4_0_ras_funcs;
+		adev->sdma.ras = &sdma_v4_0_ras;
 		break;
 	case IP_VERSION(4, 4, 0):
-		adev->sdma.funcs = &sdma_v4_4_ras_funcs;
+		adev->sdma.ras = &sdma_v4_4_ras;
 		break;
 	default:
 		break;
+	}
+
+	if (adev->sdma.ras) {
+		amdgpu_ras_register_ras_block(adev, &adev->sdma.ras->ras_block);
+
+		strcpy(adev->sdma.ras->ras_block.name, "sdma");
+		adev->sdma.ras->ras_block.block = AMDGPU_RAS_BLOCK__SDMA;
+
+		/* If don't define special ras_late_init function, use default ras_late_init */
+		if (!adev->sdma.ras->ras_block.ras_late_init)
+			adev->sdma.ras->ras_block.ras_late_init = amdgpu_sdma_ras_late_init;
+
+		/* If don't define special ras_fini function, use default ras_fini */
+		if (!adev->sdma.ras->ras_block.ras_fini)
+			adev->sdma.ras->ras_block.ras_fini = amdgpu_sdma_ras_fini;
 	}
 }
 

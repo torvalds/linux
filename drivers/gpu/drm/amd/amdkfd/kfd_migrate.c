@@ -36,7 +36,7 @@
 #ifdef dev_fmt
 #undef dev_fmt
 #endif
-#define dev_fmt(fmt) "kfd_migrate: %s: " fmt, __func__
+#define dev_fmt(fmt) "kfd_migrate: " fmt
 
 static uint64_t
 svm_migrate_direct_mapping_addr(struct amdgpu_device *adev, uint64_t addr)
@@ -86,10 +86,7 @@ svm_migrate_gart_map(struct amdgpu_ring *ring, uint64_t npages,
 
 	cpu_addr = &job->ibs[0].ptr[num_dw];
 
-	r = amdgpu_gart_map(adev, 0, npages, addr, pte_flags, cpu_addr);
-	if (r)
-		goto error_free;
-
+	amdgpu_gart_map(adev, 0, npages, addr, pte_flags, cpu_addr);
 	r = amdgpu_job_submit(job, &adev->mman.entity,
 			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
 	if (r)
@@ -315,7 +312,7 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	r = svm_range_vram_node_new(adev, prange, true);
 	if (r) {
-		dev_err(adev->dev, "fail %d to alloc vram\n", r);
+		dev_dbg(adev->dev, "fail %d to alloc vram\n", r);
 		goto out;
 	}
 
@@ -334,7 +331,8 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 					      DMA_TO_DEVICE);
 			r = dma_mapping_error(dev, src[i]);
 			if (r) {
-				dev_err(adev->dev, "fail %d dma_map_page\n", r);
+				dev_err(adev->dev, "%s: fail %d dma_map_page\n",
+					__func__, r);
 				goto out_free_vram_pages;
 			}
 		} else {
@@ -435,8 +433,8 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	r = migrate_vma_setup(&migrate);
 	if (r) {
-		dev_err(adev->dev, "vma setup fail %d range [0x%lx 0x%lx]\n", r,
-			prange->start, prange->last);
+		dev_err(adev->dev, "%s: vma setup fail %d range [0x%lx 0x%lx]\n",
+			__func__, r, prange->start, prange->last);
 		goto out_free;
 	}
 
@@ -614,7 +612,7 @@ svm_migrate_copy_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 		dst[i] = dma_map_page(dev, dpage, 0, PAGE_SIZE, DMA_FROM_DEVICE);
 		r = dma_mapping_error(dev, dst[i]);
 		if (r) {
-			dev_err(adev->dev, "fail %d dma_map_page\n", r);
+			dev_err(adev->dev, "%s: fail %d dma_map_page\n", __func__, r);
 			goto out_oom;
 		}
 
@@ -674,8 +672,8 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	r = migrate_vma_setup(&migrate);
 	if (r) {
-		dev_err(adev->dev, "vma setup fail %d range [0x%lx 0x%lx]\n", r,
-			prange->start, prange->last);
+		dev_err(adev->dev, "%s: vma setup fail %d range [0x%lx 0x%lx]\n",
+			__func__, r, prange->start, prange->last);
 		goto out_free;
 	}
 
