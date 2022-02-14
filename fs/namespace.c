@@ -2069,22 +2069,23 @@ static int invent_group_ids(struct mount *mnt, bool recurse)
 int count_mounts(struct mnt_namespace *ns, struct mount *mnt)
 {
 	unsigned int max = READ_ONCE(sysctl_mount_max);
-	unsigned int mounts = 0, old, pending, sum;
+	unsigned int mounts = 0;
 	struct mount *p;
+
+	if (ns->mounts >= max)
+		return -ENOSPC;
+	max -= ns->mounts;
+	if (ns->pending_mounts >= max)
+		return -ENOSPC;
+	max -= ns->pending_mounts;
 
 	for (p = mnt; p; p = next_mnt(p, mnt))
 		mounts++;
 
-	old = ns->mounts;
-	pending = ns->pending_mounts;
-	sum = old + pending;
-	if ((old > sum) ||
-	    (pending > sum) ||
-	    (max < sum) ||
-	    (mounts > (max - sum)))
+	if (mounts > max)
 		return -ENOSPC;
 
-	ns->pending_mounts = pending + mounts;
+	ns->pending_mounts += mounts;
 	return 0;
 }
 
