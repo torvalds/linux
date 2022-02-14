@@ -121,7 +121,7 @@ extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
 				 u16 segment, struct dmar_dev_scope *devices,
 				 int count);
 /* Intel IOMMU detection */
-extern int detect_intel_iommu(void);
+void detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
 extern int dmar_device_add(acpi_handle handle);
 extern int dmar_device_remove(acpi_handle handle);
@@ -195,6 +195,10 @@ static inline int dmar_device_remove(void *handle)
 static inline bool dmar_platform_optin(void)
 {
 	return false;
+}
+
+static inline void detect_intel_iommu(void)
+{
 }
 
 #endif /* CONFIG_DMAR_TABLE */

@@ -9,6 +9,12 @@
 extern int force_iommu, no_iommu;
 extern int iommu_detected;
 
+#ifdef CONFIG_SWIOTLB
+extern bool x86_swiotlb_enable;
+#else
+#define x86_swiotlb_enable false
+#endif
+
 /* 10 seconds */
 #define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000)
 

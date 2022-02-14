@@ -9,7 +9,6 @@
 
 #include <linux/scatterlist.h>
 #include <asm/io.h>
-#include <asm/swiotlb.h>
 
 extern int iommu_merge;
 extern int panic_on_overflow;

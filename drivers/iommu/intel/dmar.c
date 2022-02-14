@@ -30,7 +30,6 @@
 #include <linux/numa.h>
 #include <linux/limits.h>
 #include <asm/irq_remapping.h>
-#include <asm/iommu_table.h>
 #include <trace/events/intel_iommu.h>
 
 #include "../irq_remapping.h"
@@ -912,7 +911,7 @@ dmar_validate_one_drhd(struct acpi_dmar_header *entry, void *arg)
 	return 0;
 }
 
-int __init detect_intel_iommu(void)
+void __init detect_intel_iommu(void)
 {
 	int ret;
 	struct dmar_res_callback validate_drhd_cb = {
@@ -945,8 +944,6 @@ int __init detect_intel_iommu(void)
 		dmar_tbl = NULL;
 	}
 	up_write(&dmar_global_lock);
-
-	return ret ? ret : 1;
 }
 
 static void unmap_iommu(struct intel_iommu *iommu)
@@ -2164,7 +2161,6 @@ static int __init dmar_free_unused_resources(void)
 }
 
 late_initcall(dmar_free_unused_resources);
-IOMMU_INIT_POST(detect_intel_iommu);
 
 /*
  * DMAR Hotplug Support
