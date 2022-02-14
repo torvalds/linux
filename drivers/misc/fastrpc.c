@@ -72,6 +72,8 @@
 #define FASTRPC_RMID_INIT_CREATE	6
 #define FASTRPC_RMID_INIT_CREATE_ATTR	7
 #define FASTRPC_RMID_INIT_CREATE_STATIC	8
+#define FASTRPC_RMID_INIT_MEM_MAP      10
+#define FASTRPC_RMID_INIT_MEM_UNMAP    11
 
 /* Protection Domain(PD) ids */
 #define AUDIO_PD	(0) /* also GUEST_OS PD? */
@@ -108,10 +110,27 @@ struct fastrpc_mmap_req_msg {
 	s32 num;
 };
 
+struct fastrpc_mem_map_req_msg {
+	s32 pgid;
+	s32 fd;
+	s32 offset;
+	u32 flags;
+	u64 vaddrin;
+	s32 num;
+	s32 data_len;
+};
+
 struct fastrpc_munmap_req_msg {
 	s32 pgid;
 	u64 vaddr;
 	u64 size;
+};
+
+struct fastrpc_mem_unmap_req_msg {
+	s32 pgid;
+	s32 fd;
+	u64 vaddrin;
+	u64 len;
 };
 
 struct fastrpc_msg {
@@ -170,6 +189,7 @@ struct fastrpc_map {
 	u64 size;
 	void *va;
 	u64 len;
+	u64 raddr;
 	struct kref refcount;
 };
 
@@ -1500,6 +1520,134 @@ err_invoke:
 	return err;
 }
 
+static int fastrpc_req_mem_unmap_impl(struct fastrpc_user *fl, struct fastrpc_mem_unmap *req)
+{
+	struct fastrpc_invoke_args args[1] = { [0] = { 0 } };
+	struct fastrpc_map *map = NULL, *m;
+	struct fastrpc_mem_unmap_req_msg req_msg = { 0 };
+	int err = 0;
+	u32 sc;
+	struct device *dev = fl->sctx->dev;
+
+	spin_lock(&fl->lock);
+	list_for_each_entry_safe(map, m, &fl->maps, node) {
+		if ((req->fd < 0 || map->fd == req->fd) && (map->raddr == req->vaddr))
+			break;
+		map = NULL;
+	}
+
+	spin_unlock(&fl->lock);
+
+	if (!map) {
+		dev_err(dev, "map not in list\n");
+		return -EINVAL;
+	}
+
+	req_msg.pgid = fl->tgid;
+	req_msg.len = map->len;
+	req_msg.vaddrin = map->raddr;
+	req_msg.fd = map->fd;
+
+	args[0].ptr = (u64) (uintptr_t) &req_msg;
+	args[0].length = sizeof(req_msg);
+
+	sc = FASTRPC_SCALARS(FASTRPC_RMID_INIT_MEM_UNMAP, 1, 0);
+	err = fastrpc_internal_invoke(fl, true, FASTRPC_INIT_HANDLE, sc,
+				      &args[0]);
+	fastrpc_map_put(map);
+	if (err)
+		dev_err(dev, "unmmap\tpt fd = %d, 0x%09llx error\n",  map->fd, map->raddr);
+
+	return err;
+}
+
+static int fastrpc_req_mem_unmap(struct fastrpc_user *fl, char __user *argp)
+{
+	struct fastrpc_mem_unmap req;
+
+	if (copy_from_user(&req, argp, sizeof(req)))
+		return -EFAULT;
+
+	return fastrpc_req_mem_unmap_impl(fl, &req);
+}
+
+static int fastrpc_req_mem_map(struct fastrpc_user *fl, char __user *argp)
+{
+	struct fastrpc_invoke_args args[4] = { [0 ... 3] = { 0 } };
+	struct fastrpc_mem_map_req_msg req_msg = { 0 };
+	struct fastrpc_mmap_rsp_msg rsp_msg = { 0 };
+	struct fastrpc_mem_unmap req_unmap = { 0 };
+	struct fastrpc_phy_page pages = { 0 };
+	struct fastrpc_mem_map req;
+	struct device *dev = fl->sctx->dev;
+	struct fastrpc_map *map = NULL;
+	int err;
+	u32 sc;
+
+	if (copy_from_user(&req, argp, sizeof(req)))
+		return -EFAULT;
+
+	/* create SMMU mapping */
+	err = fastrpc_map_create(fl, req.fd, req.length, &map);
+	if (err) {
+		dev_err(dev, "failed to map buffer, fd = %d\n", req.fd);
+		return err;
+	}
+
+	req_msg.pgid = fl->tgid;
+	req_msg.fd = req.fd;
+	req_msg.offset = req.offset;
+	req_msg.vaddrin = req.vaddrin;
+	map->va = (void *) (uintptr_t) req.vaddrin;
+	req_msg.flags = req.flags;
+	req_msg.num = sizeof(pages);
+	req_msg.data_len = 0;
+
+	args[0].ptr = (u64) (uintptr_t) &req_msg;
+	args[0].length = sizeof(req_msg);
+
+	pages.addr = map->phys;
+	pages.size = map->size;
+
+	args[1].ptr = (u64) (uintptr_t) &pages;
+	args[1].length = sizeof(pages);
+
+	args[2].ptr = (u64) (uintptr_t) &pages;
+	args[2].length = 0;
+
+	args[3].ptr = (u64) (uintptr_t) &rsp_msg;
+	args[3].length = sizeof(rsp_msg);
+
+	sc = FASTRPC_SCALARS(FASTRPC_RMID_INIT_MEM_MAP, 3, 1);
+	err = fastrpc_internal_invoke(fl, true, FASTRPC_INIT_HANDLE, sc, &args[0]);
+	if (err) {
+		dev_err(dev, "mem mmap error, fd %d, vaddr %llx, size %lld\n",
+			req.fd, req.vaddrin, map->size);
+		goto err_invoke;
+	}
+
+	/* update the buffer to be able to deallocate the memory on the DSP */
+	map->raddr = rsp_msg.vaddr;
+
+	/* let the client know the address to use */
+	req.vaddrout = rsp_msg.vaddr;
+
+	if (copy_to_user((void __user *)argp, &req, sizeof(req))) {
+		/* unmap the memory and release the buffer */
+		req_unmap.vaddr = (uintptr_t) rsp_msg.vaddr;
+		req_unmap.length = map->size;
+		fastrpc_req_mem_unmap_impl(fl, &req_unmap);
+		return -EFAULT;
+	}
+
+	return 0;
+
+err_invoke:
+	fastrpc_map_put(map);
+
+	return err;
+}
+
 static long fastrpc_device_ioctl(struct file *file, unsigned int cmd,
 				 unsigned long arg)
 {
@@ -1528,6 +1676,12 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case FASTRPC_IOCTL_MUNMAP:
 		err = fastrpc_req_munmap(fl, argp);
+		break;
+	case FASTRPC_IOCTL_MEM_MAP:
+		err = fastrpc_req_mem_map(fl, argp);
+		break;
+	case FASTRPC_IOCTL_MEM_UNMAP:
+		err = fastrpc_req_mem_unmap(fl, argp);
 		break;
 	default:
 		err = -ENOTTY;

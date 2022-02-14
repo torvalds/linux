@@ -13,6 +13,37 @@
 #define FASTRPC_IOCTL_MMAP		_IOWR('R', 6, struct fastrpc_req_mmap)
 #define FASTRPC_IOCTL_MUNMAP		_IOWR('R', 7, struct fastrpc_req_munmap)
 #define FASTRPC_IOCTL_INIT_ATTACH_SNS	_IO('R', 8)
+#define FASTRPC_IOCTL_MEM_MAP		_IOWR('R', 10, struct fastrpc_mem_map)
+#define FASTRPC_IOCTL_MEM_UNMAP		_IOWR('R', 11, struct fastrpc_mem_unmap)
+
+/**
+ * enum fastrpc_map_flags - control flags for mapping memory on DSP user process
+ * @FASTRPC_MAP_STATIC: Map memory pages with RW- permission and CACHE WRITEBACK.
+ * The driver is responsible for cache maintenance when passed
+ * the buffer to FastRPC calls. Same virtual address will be
+ * assigned for subsequent FastRPC calls.
+ * @FASTRPC_MAP_RESERVED: Reserved
+ * @FASTRPC_MAP_FD: Map memory pages with RW- permission and CACHE WRITEBACK.
+ * Mapping tagged with a file descriptor. User is responsible for
+ * CPU and DSP cache maintenance for the buffer. Get virtual address
+ * of buffer on DSP using HAP_mmap_get() and HAP_mmap_put() APIs.
+ * @FASTRPC_MAP_FD_DELAYED: Mapping delayed until user call HAP_mmap() and HAP_munmap()
+ * functions on DSP. It is useful to map a buffer with cache modes
+ * other than default modes. User is responsible for CPU and DSP
+ * cache maintenance for the buffer.
+ * @FASTRPC_MAP_FD_NOMAP: This flag is used to skip CPU mapping,
+ * otherwise behaves similar to FASTRPC_MAP_FD_DELAYED flag.
+ * @FASTRPC_MAP_MAX: max count for flags
+ *
+ */
+enum fastrpc_map_flags {
+	FASTRPC_MAP_STATIC = 0,
+	FASTRPC_MAP_RESERVED,
+	FASTRPC_MAP_FD = 2,
+	FASTRPC_MAP_FD_DELAYED,
+	FASTRPC_MAP_FD_NOMAP = 16,
+	FASTRPC_MAP_MAX,
+};
 
 struct fastrpc_invoke_args {
 	__u64 ptr;
@@ -49,9 +80,29 @@ struct fastrpc_req_mmap {
 	__u64 vaddrout;	/* dsp virtual address */
 };
 
+struct fastrpc_mem_map {
+	__s32 version;
+	__s32 fd;		/* fd */
+	__s32 offset;		/* buffer offset */
+	__u32 flags;		/* flags defined in enum fastrpc_map_flags */
+	__u64 vaddrin;		/* buffer virtual address */
+	__u64 length;		/* buffer length */
+	__u64 vaddrout;		/* [out] remote virtual address */
+	__s32 attrs;		/* buffer attributes used for SMMU mapping */
+	__s32 reserved[4];
+};
+
 struct fastrpc_req_munmap {
 	__u64 vaddrout;	/* address to unmap */
 	__u64 size;	/* size */
+};
+
+struct fastrpc_mem_unmap {
+	__s32 vesion;
+	__s32 fd;		/* fd */
+	__u64 vaddr;		/* remote process (dsp) virtual address */
+	__u64 length;		/* buffer size */
+	__s32 reserved[5];
 };
 
 #endif /* __QCOM_FASTRPC_H__ */
