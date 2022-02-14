@@ -1995,10 +1995,6 @@ static int sdma_v4_0_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i;
 
-	if (adev->sdma.ras && adev->sdma.ras->ras_block.hw_ops &&
-		adev->sdma.ras->ras_block.ras_fini)
-		adev->sdma.ras->ras_block.ras_fini(adev, adev->sdma.ras_if);
-
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 		if (adev->sdma.has_page_queue)

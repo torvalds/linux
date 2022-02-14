@@ -2572,10 +2572,24 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 int amdgpu_ras_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_block_list *ras_node, *tmp;
+	struct amdgpu_ras_block_object *obj = NULL;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
 	if (!adev->ras_enabled || !con)
 		return 0;
+
+	list_for_each_entry_safe(ras_node, tmp, &adev->ras_list, node) {
+		if (ras_node->ras_obj) {
+			obj = ras_node->ras_obj;
+			if (amdgpu_ras_is_supported(adev, obj->ras_comm.block) &&
+			    obj->ras_fini)
+				obj->ras_fini(adev, &obj->ras_comm);
+		}
+
+		/* Clear ras blocks from ras_list and free ras block list node */
+		list_del(&ras_node->node);
+		kfree(ras_node);
+	}
 
 	amdgpu_ras_fs_fini(adev);
 	amdgpu_ras_interrupt_remove_all(adev);
@@ -2589,12 +2603,6 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 	amdgpu_ras_set_context(adev, NULL);
 	kfree(con);
-
-	/* Clear ras blocks from ras_list and free ras block list node */
-	list_for_each_entry_safe(ras_node, tmp, &adev->ras_list, node) {
-		list_del(&ras_node->node);
-		kfree(ras_node);
-	}
 
 	return 0;
 }
