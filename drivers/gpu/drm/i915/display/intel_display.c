@@ -7492,18 +7492,24 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 	if (!new_crtc_state->uapi.async_flip)
 		return 0;
 
-	if (intel_crtc_needs_modeset(new_crtc_state)) {
-		drm_dbg_kms(&i915->drm, "Modeset Required. Async flip not supported\n");
+	if (!new_crtc_state->hw.active) {
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] not active\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
-	if (!new_crtc_state->hw.active) {
-		drm_dbg_kms(&i915->drm, "CRTC inactive\n");
+	if (intel_crtc_needs_modeset(new_crtc_state)) {
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] modeset required\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
+
 	if (old_crtc_state->active_planes != new_crtc_state->active_planes) {
 		drm_dbg_kms(&i915->drm,
-			    "Active planes cannot be changed during async flip\n");
+			    "[CRTC:%d:%s] Active planes cannot be in async flip\n",
+			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
 
@@ -7545,75 +7551,94 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 			break;
 		default:
 			drm_dbg_kms(&i915->drm,
-				    "Linear memory/CCS does not support async flips\n");
+				    "[PLANE:%d:%s] Modifier does not support async flips\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (new_plane_state->hw.fb->format->num_planes > 1) {
 			drm_dbg_kms(&i915->drm,
-				    "Planar formats not supported with async flips\n");
+				    "[PLANE:%d:%s] Planar formats do not support async flips\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->view.color_plane[0].mapping_stride !=
 		    new_plane_state->view.color_plane[0].mapping_stride) {
-			drm_dbg_kms(&i915->drm, "Stride cannot be changed in async flip\n");
+			drm_dbg_kms(&i915->drm,
+				    "[PLANE:%d:%s] Stride cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.fb->modifier !=
 		    new_plane_state->hw.fb->modifier) {
 			drm_dbg_kms(&i915->drm,
-				    "Framebuffer modifiers cannot be changed in async flip\n");
+				    "[PLANE:%d:%s] Modifier cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.fb->format !=
 		    new_plane_state->hw.fb->format) {
 			drm_dbg_kms(&i915->drm,
-				    "Framebuffer format cannot be changed in async flip\n");
+				    "[PLANE:%d:%s] Pixel format cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.rotation !=
 		    new_plane_state->hw.rotation) {
-			drm_dbg_kms(&i915->drm, "Rotation cannot be changed in async flip\n");
+			drm_dbg_kms(&i915->drm,
+				    "[PLANE:%d:%s] Rotation cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (!drm_rect_equals(&old_plane_state->uapi.src, &new_plane_state->uapi.src) ||
 		    !drm_rect_equals(&old_plane_state->uapi.dst, &new_plane_state->uapi.dst)) {
 			drm_dbg_kms(&i915->drm,
-				    "Plane size/co-ordinates cannot be changed in async flip\n");
+				    "[PLANE:%d:%s] Size/co-ordinates cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.alpha != new_plane_state->hw.alpha) {
-			drm_dbg_kms(&i915->drm, "Alpha value cannot be changed in async flip\n");
+			drm_dbg_kms(&i915->drm,
+				    "[PLANES:%d:%s] Alpha value cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.pixel_blend_mode !=
 		    new_plane_state->hw.pixel_blend_mode) {
 			drm_dbg_kms(&i915->drm,
-				    "Pixel blend mode cannot be changed in async flip\n");
+				    "[PLANE:%d:%s] Pixel blend mode cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.color_encoding != new_plane_state->hw.color_encoding) {
 			drm_dbg_kms(&i915->drm,
-				    "Color encoding cannot be changed in async flip\n");
+				    "[PLANE:%d:%s] Color encoding cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		if (old_plane_state->hw.color_range != new_plane_state->hw.color_range) {
-			drm_dbg_kms(&i915->drm, "Color range cannot be changed in async flip\n");
+			drm_dbg_kms(&i915->drm,
+				    "[PLANE:%d:%s] Color range cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
 		/* plane decryption is allow to change only in synchronous flips */
-		if (old_plane_state->decrypt != new_plane_state->decrypt)
+		if (old_plane_state->decrypt != new_plane_state->decrypt) {
+			drm_dbg_kms(&i915->drm,
+				    "[PLANE:%d:%s] Decryption cannot be changed in async flip\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
+		}
 	}
 
 	return 0;
