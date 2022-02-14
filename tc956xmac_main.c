@@ -105,6 +105,8 @@
  *  VERSION     : 01-00-39
  *  04 Feb 2022 : 1. DMA channel status cleared only for SW path allocated DMA channels. IPA path DMA channel status clearing is skipped.
  *  VERSION     : 01-00-41
+ *  14 Feb 2022 : 1. Reset assert and clock disable support during Link Down.
+ *  VERSION     : 01-00-42
 */
 
 #include <linux/clk.h>
@@ -217,6 +219,9 @@ static const struct net_device_ops tc956xmac_netdev_ops;
 static void tc956xmac_init_fs(struct net_device *dev);
 static void tc956xmac_exit_fs(struct net_device *dev);
 #endif
+
+static u32 tc956xmac_link_down_counter = 0; /* Counter to count Link Down/Up for both port */
+static void tc956xmac_link_change_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT_LINK_CHANGE_STATE state);
 
 #define TC956XMAC_COAL_TIMER(x) (jiffies + usecs_to_jiffies(x))
 
@@ -2383,6 +2388,9 @@ static void tc956xmac_mac_link_down(struct phylink_config *config,
 #ifdef TC956X_PM_DEBUG
 	pm_generic_suspend(priv->device);
 #endif
+	tc956xmac_link_down_counter++; /* Increment counter only when Link Down */
+	tc956xmac_link_change_set_power(priv, LINK_DOWN); /* Save, Assert and Disable Reset and Clock */
+	priv->port_link_down = true; /* Set per port flag to true */
 }
 
 #ifdef TC956X_5_G_2_5_G_EEE_SUPPORT
@@ -2592,6 +2600,9 @@ static void tc956xmac_mac_link_up(struct phylink_config *config,
 			       struct phy_device *phy)
 {
 	struct tc956xmac_priv *priv = netdev_priv(to_net_dev(config->dev));
+
+	if (priv->port_link_down == true)
+		tc956xmac_link_change_set_power(priv, LINK_UP); /* Restore, De-assert and Enable Reset and Clock */
 
 	tc956xmac_mac_set_rx(priv, priv->ioaddr, true);
 #ifdef EEE
@@ -4811,7 +4822,11 @@ static int tc956xmac_open(struct net_device *dev)
 
 	KPRINT_INFO("---> %s : Port %d", __func__, priv->port_num);
 	phydev = mdiobus_get_phy(priv->mii, addr);
-  
+
+	if (priv->port_link_down == true) {
+		tc956xmac_link_change_set_power(priv, LINK_UP); /* Restore, De-assert and Enable Reset and Clock */
+	}
+
 	if (!phydev) {
 		netdev_err(priv->dev, "no phy at addr %d\n", addr);
 		return -ENODEV;
@@ -6587,6 +6602,10 @@ static irqreturn_t tc956xmac_interrupt(int irq, void *dev_id)
 	val = readl(priv->ioaddr + TC956X_MSI_INT_STS_OFFSET(priv->port_num));
 	if (val & TC956X_EXT_PHY_ETH_INT) {
 		KPRINT_INFO("PHY Interrupt %s \n", __func__);
+
+		if (priv->port_link_down == true)
+			tc956xmac_link_change_set_power(priv, LINK_UP); /* Restore, De-assert and Enable Reset and Clock */
+
 		/* Queue the work in system_wq */
 		if (priv->tc956x_port_pm_suspend == true) {
 			KPRINT_INFO("%s : (Do not queue PHY Work during suspend. Set WOL Interrupt flag) \n", __func__);
@@ -10956,7 +10975,9 @@ int tc956xmac_dvr_probe(struct device *device,
 	priv->port_interface = res->port_interface;
 	priv->eee_enabled = res->eee_enabled;
 	priv->tx_lpi_timer = res->tx_lpi_timer;
-
+	priv->pm_saved_linkdown_rst = 0;
+	priv->pm_saved_linkdown_clk = 0;
+	priv->port_link_down = false;
 #ifdef DMA_OFFLOAD_ENABLE
 	priv->client_priv = NULL;
 	memset(priv->cm3_tamap, 0, sizeof(struct tc956xmac_cm3_tamap) * MAX_CM3_TAMAP_ENTRIES);
@@ -11610,6 +11631,108 @@ clean_exit:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tc956xmac_resume);
+
+/*!
+ * \brief API to save and restore clock and reset during link down and link up.
+ *
+ * \details This fucntion saves the EMAC clock and reset bits before
+ * link down. And restores the same settings after link up.
+ *
+ * \param[in] priv - pointer to device private structure.
+ * \param[in] state - identify LINK DOWN and LINK DOWN operation.
+ *
+ * \return None
+ */
+static void tc956xmac_link_change_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT_LINK_CHANGE_STATE state)
+{
+	void *nrst_reg = NULL, *nclk_reg = NULL, *commonrst_reg = NULL, *commonclk_reg = NULL;
+	u32 nrst_val = 0, nclk_val = 0, commonrst_val = 0, commonclk_val = 0;
+	static u32 pm_saved_cmn_linkdown_rst = 0, pm_saved_cmn_linkdown_clk = 0;
+	KPRINT_INFO("-->%s : Port %d", __func__, priv->port_num);
+	/* Select register address by port */
+	if (priv->port_num == 0) {
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+	} else {
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL1_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL1_OFFSET;
+	}
+	if (state == LINK_DOWN) {
+		KPRINT_INFO("%s : Port %d Set Power for Link Down", __func__, priv->port_num);
+		nrst_val = readl(nrst_reg);
+		nclk_val = readl(nclk_reg);
+		KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+			nrst_val, nclk_val);
+		/* Save register values before Asserting reset and Clock Disable */
+		priv->pm_saved_linkdown_rst = ((~nrst_val) & NRSTCTRL_LINK_DOWN_SAVE); /* Save Non-Common De-Asserted Resets */
+		priv->pm_saved_linkdown_clk = (nclk_val & NCLKCTRL_LINK_DOWN_SAVE); /* Save Non-Common Enabled Clocks */
+		KPRINT_INFO("%s : Port %d priv->pm_saved_linkdown_rst %x priv->pm_saved_linkdown_clk %x", __func__, 
+			priv->port_num, priv->pm_saved_linkdown_rst, priv->pm_saved_linkdown_clk);
+		/* Assert Reset and Disable Clock */
+		nrst_val = nrst_val | NRSTCTRL_LINK_DOWN;
+		nclk_val = nclk_val & ~NCLKCTRL_LINK_DOWN;
+		KPRINT_INFO("%s : Port %d Wr RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+			nrst_val, nclk_val);
+		writel(nrst_val, nrst_reg);
+		writel(nclk_val, nclk_reg);
+		if (tc956xmac_link_down_counter == TC956X_ALL_MAC_PORT_LINK_DOWN) {
+			/* Save Common register values */
+			commonrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
+			commonclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+			commonrst_val = readl(commonrst_reg);
+			commonclk_val = readl(commonclk_reg);
+			KPRINT_INFO("%s : Port %d Common Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+				commonrst_val, commonclk_val);
+			pm_saved_cmn_linkdown_rst = ((~commonrst_val) & NRSTCTRL_LINK_DOWN_CMN_SAVE); /* Save Common De-Asserted Resets */
+			pm_saved_cmn_linkdown_clk = commonclk_val & NCLKCTRL_LINK_DOWN_CMN_SAVE; /* Save Common Enabled Clocks */
+			KPRINT_INFO("%s : Port %d pm_saved_cmn_linkdown_rst %x pm_saved_cmn_linkdown_clk %x", __func__, 
+				priv->port_num, pm_saved_cmn_linkdown_rst, pm_saved_cmn_linkdown_clk);
+		}
+	} else if (state == LINK_UP) {
+		KPRINT_INFO("%s : Port %d Set Power for Link Up", __func__, priv->port_num);
+		if (tc956xmac_link_down_counter == TC956X_ALL_MAC_PORT_LINK_DOWN) {
+			/* Restore Common register values */
+			KPRINT_INFO("%s : Port %d pm_saved_cmn_linkdown_clk %x, pm_saved_cmn_linkdown_rst %x", __func__, 
+				priv->port_num, pm_saved_cmn_linkdown_clk, pm_saved_cmn_linkdown_rst);
+			/* Enable Common Clock and De-Assert Common Resets */
+			commonclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+			commonrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
+			commonclk_val = readl(commonclk_reg);
+			commonrst_val = readl(commonrst_reg);
+			KPRINT_INFO("%s : Port %d Common Rd CLK Reg:%x, RST Reg:%x ", __func__, priv->port_num, 
+				commonclk_val, commonrst_val);
+			/* Clear Common Clocks only when both port suspends */
+			commonclk_val = (commonclk_val | pm_saved_cmn_linkdown_clk); /* Enable Common Saved Clock */
+			commonrst_val = (commonrst_val & (~pm_saved_cmn_linkdown_rst)); /* De-assert Common Saved Reset */
+			writel(commonclk_val, commonclk_reg);
+			writel(commonrst_val, commonrst_reg);
+			KPRINT_INFO("%s : Port %d Common Wr CLK Reg:%x, RST Reg:%x ", __func__, priv->port_num, 
+				commonclk_val, commonrst_val);
+			KPRINT_INFO("%s : Port %d Common Rd CLK Reg:%x, RST Reg:%x", __func__, priv->port_num, 
+				readl(commonclk_reg), readl(commonrst_reg));
+		}
+		/* Restore register values */
+		KPRINT_INFO("%s : Port %d pm_saved_linkdown_clk %x, pm_saved_linkdown_rst %x", __func__, 
+			priv->port_num, priv->pm_saved_linkdown_clk, priv->pm_saved_linkdown_rst);
+		nclk_val = readl(nclk_reg);
+		nrst_val = readl(nrst_reg);
+		KPRINT_INFO("%s : Port %d Rd CLK Reg:%x, RST Reg:%x", __func__, priv->port_num, 
+			nrst_val, nclk_val);
+		/* Restore values same as before link down */
+		nclk_val = (nclk_val | priv->pm_saved_linkdown_clk); /* Enable Saved Clock */
+		nrst_val = (nrst_val & (~(priv->pm_saved_linkdown_rst))); /* De-assert Saved Reset */
+		writel(nclk_val, nclk_reg);
+		writel(nrst_val, nrst_reg);
+		KPRINT_INFO("%s : Port %d Wr CLK Reg:%x, RST Reg:%x ", __func__, priv->port_num, 
+			nclk_val, nrst_val);
+
+		tc956xmac_link_down_counter--; /* Decrement Counter Only when this api called */
+		priv->port_link_down = false;
+	}
+	KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+		readl(nrst_reg), readl(nclk_reg));
+	KPRINT_INFO("<--%s : Port %d", __func__, priv->port_num);
+}
 
 #ifndef MODULE
 static int __init tc956xmac_cmdline_opt(char *str)

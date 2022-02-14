@@ -129,6 +129,9 @@
  *  VERSION     : 01-00-40
  *  04 Feb 2022 : 1. Version update
  *  VERSION     : 01-00-41
+ *  14 Feb 2022 : 1. Reset assert and clock disable support during Link Down.
+ *		  2. Version update.
+ *  VERSION     : 01-00-42
  */
 
 #ifndef __TC956XMAC_H__
@@ -184,7 +187,7 @@
 #define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
 #define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
 
-#define DRV_MODULE_VERSION	"V_01-00-41"
+#define DRV_MODULE_VERSION	"V_01-00-42"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -662,7 +665,9 @@ struct tc956xmac_priv {
 	struct work_struct emac_phy_work;
 	u32 pm_saved_emac_rst; /* Save and restore EMAC Resets during suspend-resume sequence */
 	u32 pm_saved_emac_clk; /* Save and restore EMAC Clocks during suspend-resume sequence */
-
+	u32 pm_saved_linkdown_rst; /* Save and restore Resets during link-down sequence */
+	u32 pm_saved_linkdown_clk; /* Save and restore Clocks during link-down sequence */
+	bool port_link_down; /* Flag to save per port link down state */
 };
 
 struct tc956x_version {

@@ -76,7 +76,9 @@
  *  31 Jan 2022 : 1. Additional macros defined for debug dump API usage.
  *  VERSION     : 01-00-39
  *  04 Feb 2021 : 1. Ethtool statistics added to print doorbell SRAM area for all the channels.
- *  VERSION     : 01-00-41 
+ *  VERSION     : 01-00-41
+ *  14 Feb 2021 : 1. Reset assert and clock disable support during Link Down.
+ *  VERSION     : 01-00-42
  */
 
 #ifndef __COMMON_H__
@@ -108,12 +110,19 @@
 #define TC956X_MAX_PORT			2
 #define TC956X_ALL_MAC_PORT_SUSPENDED 	0 /* All EMAC Port Suspended. To be used just after suspend and before resume. */
 #define TC956X_NO_MAC_DEVICE_IN_USE	0 /* No EMAC Port in use. To be used at probe and remove. */
-
+#define TC956X_ALL_MAC_PORT_LINK_DOWN	2 /* All ports are Link Down */
 /* Suspend-Resume Arguments */
 enum TC956X_PORT_PM_STATE {
 	SUSPEND = 0,
 	RESUME,
 };
+
+/* Link Down Change Power State Arguments */
+enum TC956X_PORT_LINK_CHANGE_STATE {
+	LINK_DOWN = 0,
+	LINK_UP,
+};
+
 //#define TC956X_PCIE_LINK_STATE_LATENCY_CTRL
 
 #define DISABLE		0
@@ -730,6 +739,16 @@ enum packets_types {
 #define NCLKCTRL0_DEFAULT 	(NCLKCTRL0_SRMCEM | NCLKCTRL0_I2SSPIEN | \
 					NCLKCTRL0_PCIECEN | NCLKCTRL0_MCUCEN)
 #define NBUSCTRL_OFFSET		(0x1014)
+
+#define NRSTCTRL_LINK_DOWN		(NRSTCTRL0_MAC0PMARST | NRSTCTRL0_MAC0PONRST)
+#define NCLKCTRL_LINK_DOWN		(NCLKCTRL0_MAC0TXCEN | NCLKCTRL0_MAC0RXCEN | \
+						NCLKCTRL0_MAC0125CLKEN | NCLKCTRL0_MAC0312CLKEN | \
+						NCLKCTRL1_MAC1RMCEN)
+#define NRSTCTRL_LINK_DOWN_SAVE			(0xC0000080U) /* Save Non-Common Reset Register Bits Between Port 0 and Port 1 */
+#define NCLKCTRL_LINK_DOWN_SAVE			(0xE000C080U) /* Save Non-Common Clock Register Bits Between Port 0 and Port 1 */
+#define NRSTCTRL_LINK_DOWN_CMN_SAVE		(0x00051213U) /* Save Common Reset Register Bits Between Port 0 and Port 1 */
+#define NCLKCTRL_LINK_DOWN_CMN_SAVE		(0x07053211U) /* Save Common Clock Register Bits Between Port 0 and Port 1 */
+
 #endif
 
 #define NSPLLPARAM_OFFSET	(0x1020) /* TC956X System PLL parameters */
