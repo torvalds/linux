@@ -34,9 +34,9 @@
 		EMIT(PPC_RAW_BRANCH(offset));				      \
 	} while (0)
 
-/* blr; (unconditional 'branch' with link) to absolute address */
-#define PPC_BL_ABS(dest)	EMIT(PPC_INST_BL |			      \
-				     (((dest) - (unsigned long)(image + ctx->idx)) & 0x03fffffc))
+/* bl (unconditional 'branch' with link) */
+#define PPC_BL(dest)	EMIT(PPC_INST_BL | (((dest) - (unsigned long)(image + ctx->idx)) & 0x03fffffc))
+
 /* "cond" here covers BO:BI fields. */
 #define PPC_BCC_SHORT(cond, dest)					      \
 	do {								      \
