@@ -78,7 +78,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 	skb_orphan(skb);
 
-	/* Before queueing this packet to netif_rx(),
+	/* Before queueing this packet to __netif_rx(),
 	 * make sure dst is refcounted.
 	 */
 	skb_dst_force(skb);
@@ -86,7 +86,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 	skb->protocol = eth_type_trans(skb, dev);
 
 	len = skb->len;
-	if (likely(netif_rx(skb) == NET_RX_SUCCESS))
+	if (likely(__netif_rx(skb) == NET_RX_SUCCESS))
 		dev_lstats_add(dev, len);
 
 	return NETDEV_TX_OK;

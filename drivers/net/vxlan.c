@@ -2541,7 +2541,7 @@ static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 	tx_stats->tx_bytes += len;
 	u64_stats_update_end(&tx_stats->syncp);
 
-	if (netif_rx(skb) == NET_RX_SUCCESS) {
+	if (__netif_rx(skb) == NET_RX_SUCCESS) {
 		u64_stats_update_begin(&rx_stats->syncp);
 		rx_stats->rx_packets++;
 		rx_stats->rx_bytes += len;

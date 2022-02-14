@@ -207,7 +207,7 @@ static int gtp_rx(struct pdp_ctx *pctx, struct sk_buff *skb,
 
 	dev_sw_netstats_rx_add(pctx->dev, skb->len);
 
-	netif_rx(skb);
+	__netif_rx(skb);
 	return 0;
 
 err:

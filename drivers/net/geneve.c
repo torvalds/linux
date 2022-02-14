@@ -925,7 +925,7 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		skb->protocol = eth_type_trans(skb, geneve->dev);
-		netif_rx(skb);
+		__netif_rx(skb);
 		dst_release(&rt->dst);
 		return -EMSGSIZE;
 	}
@@ -1021,7 +1021,7 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		skb->protocol = eth_type_trans(skb, geneve->dev);
-		netif_rx(skb);
+		__netif_rx(skb);
 		dst_release(dst);
 		return -EMSGSIZE;
 	}

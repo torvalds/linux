@@ -1033,7 +1033,7 @@ static enum rx_handler_result handle_not_macsec(struct sk_buff *skb)
 				else
 					nskb->pkt_type = PACKET_MULTICAST;
 
-				netif_rx(nskb);
+				__netif_rx(nskb);
 			}
 			continue;
 		}
@@ -1056,7 +1056,7 @@ static enum rx_handler_result handle_not_macsec(struct sk_buff *skb)
 
 		nskb->dev = ndev;
 
-		if (netif_rx(nskb) == NET_RX_SUCCESS) {
+		if (__netif_rx(nskb) == NET_RX_SUCCESS) {
 			u64_stats_update_begin(&secy_stats->syncp);
 			secy_stats->stats.InPktsUntagged++;
 			u64_stats_update_end(&secy_stats->syncp);
@@ -1288,7 +1288,7 @@ nosci:
 
 		macsec_reset_skb(nskb, macsec->secy.netdev);
 
-		ret = netif_rx(nskb);
+		ret = __netif_rx(nskb);
 		if (ret == NET_RX_SUCCESS) {
 			u64_stats_update_begin(&secy_stats->syncp);
 			secy_stats->stats.InPktsUnknownSCI++;
