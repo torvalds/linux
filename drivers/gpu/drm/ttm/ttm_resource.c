@@ -153,19 +153,19 @@ void ttm_resource_set_bo(struct ttm_resource *res,
  *
  * @man: memory manager object to init
  * @bdev: ttm device this manager belongs to
- * @p_size: size managed area in pages.
+ * @size: size of managed resources in arbitrary units
  *
  * Initialise core parts of a manager object.
  */
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       struct ttm_device *bdev,
-			       unsigned long p_size)
+			       uint64_t size)
 {
 	unsigned i;
 
 	spin_lock_init(&man->move_lock);
 	man->bdev = bdev;
-	man->size = p_size;
+	man->size = size;
 
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
 		INIT_LIST_HEAD(&man->lru[i]);

@@ -278,7 +278,7 @@ void ttm_resource_set_bo(struct ttm_resource *res,
 
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       struct ttm_device *bdev,
-			       unsigned long p_size);
+			       uint64_t size);
 
 int ttm_resource_manager_evict_all(struct ttm_device *bdev,
 				   struct ttm_resource_manager *man);
