@@ -225,7 +225,7 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 	EMIT(PPC_RAW_LWZ(b2p[TMP_REG_1], b2p_bpf_array, offsetof(struct bpf_array, map.max_entries)));
 	EMIT(PPC_RAW_RLWINM(b2p_index, b2p_index, 0, 0, 31));
 	EMIT(PPC_RAW_CMPLW(b2p_index, b2p[TMP_REG_1]));
-	PPC_BCC(COND_GE, out);
+	PPC_BCC_SHORT(COND_GE, out);
 
 	/*
 	 * if (tail_call_cnt >= MAX_TAIL_CALL_CNT)
@@ -233,7 +233,7 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 	 */
 	PPC_BPF_LL(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
 	EMIT(PPC_RAW_CMPLWI(b2p[TMP_REG_1], MAX_TAIL_CALL_CNT));
-	PPC_BCC(COND_GE, out);
+	PPC_BCC_SHORT(COND_GE, out);
 
 	/*
 	 * tail_call_cnt++;
@@ -251,7 +251,7 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 	 *   goto out;
 	 */
 	EMIT(PPC_RAW_CMPLDI(b2p[TMP_REG_1], 0));
-	PPC_BCC(COND_EQ, out);
+	PPC_BCC_SHORT(COND_EQ, out);
 
 	/* goto *(prog->bpf_func + prologue_size); */
 	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_prog, bpf_func));
@@ -807,7 +807,7 @@ emit_clear:
 				else /* BOOK3S_64 */
 					PPC_LI64(b2p[TMP_REG_2], PAGE_OFFSET);
 				EMIT(PPC_RAW_CMPLD(b2p[TMP_REG_1], b2p[TMP_REG_2]));
-				PPC_BCC(COND_GT, (ctx->idx + 4) * 4);
+				PPC_BCC_SHORT(COND_GT, (ctx->idx + 3) * 4);
 				EMIT(PPC_RAW_LI(dst_reg, 0));
 				/*
 				 * Check if 'off' is word aligned because PPC_BPF_LL()
