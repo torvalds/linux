@@ -1278,6 +1278,10 @@ Description:
 		Actually start the buffer capture up.  Will start trigger
 		if first device and appropriate.
 
+		Note that it might be impossible to configure other attributes,
+		(e.g.: events, scale, sampling rate) if they impact the currently
+		active buffer capture session.
+
 What:		/sys/bus/iio/devices/iio:deviceX/bufferY
 KernelVersion:	5.11
 Contact:	linux-iio@vger.kernel.org
