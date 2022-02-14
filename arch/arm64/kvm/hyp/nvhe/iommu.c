@@ -63,6 +63,8 @@ static inline struct pkvm_iommu_driver *get_driver(enum pkvm_iommu_driver_id id)
 static const struct pkvm_iommu_ops *get_driver_ops(enum pkvm_iommu_driver_id id)
 {
 	switch (id) {
+	case PKVM_IOMMU_DRIVER_S2MPU:
+		return IS_ENABLED(CONFIG_KVM_S2MPU) ? &pkvm_s2mpu_ops : NULL;
 	default:
 		return NULL;
 	}

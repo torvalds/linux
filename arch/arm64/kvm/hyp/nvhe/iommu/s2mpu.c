@@ -470,50 +470,72 @@ static bool s2mpu_host_mmio_dabt_handler(struct kvm_cpu_context *host_ctxt,
 	return true;
 }
 
-static int s2mpu_init(void)
+static int s2mpu_init(void *data, size_t size)
 {
-	struct pkvm_iommu *dev;
+	struct mpt in_mpt;
+	u32 *smpt;
+	phys_addr_t pa;
 	unsigned int gb;
-	int ret;
+	int ret = 0;
 
-	/* Map data structures in EL2 stage-1. */
-	ret = pkvm_create_mappings(s2mpus,
-				   s2mpus + nr_s2mpus,
-				   PAGE_HYP);
-	if (ret)
-		return ret;
+	if (size != sizeof(in_mpt))
+		return -EINVAL;
 
+	/* The host can concurrently modify 'data'. Copy it to avoid TOCTOU. */
+	memcpy(&in_mpt, data, sizeof(in_mpt));
+
+	/* Take ownership of all SMPT buffers. This will also map them in. */
 	for_each_gb(gb) {
-		ret = pkvm_create_mappings(
-			host_mpt.fmpt[gb].smpt,
-			host_mpt.fmpt[gb].smpt + SMPT_NUM_WORDS,
-			PAGE_HYP);
+		smpt = kern_hyp_va(in_mpt.fmpt[gb].smpt);
+		pa = __hyp_pa(smpt);
+
+		if (!IS_ALIGNED(pa, SMPT_SIZE)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		ret = __pkvm_host_donate_hyp(pa >> PAGE_SHIFT, SMPT_NUM_PAGES);
 		if (ret)
-			return ret;
+			break;
+
+		host_mpt.fmpt[gb] = (struct fmpt){
+			.smpt = smpt,
+			.gran_1g = true,
+			.prot = MPT_PROT_NONE,
+		};
 	}
 
-	/* Map S2MPU MMIO regions in EL2 stage-1. */
-	for_each_s2mpu(dev) {
-		ret = __pkvm_create_private_mapping(
-			dev->pa, S2MPU_MMIO_SIZE, PAGE_HYP_DEVICE,(unsigned long *)(&dev->va));
-		if (ret)
-			return ret;
+	/* Try to return memory back if there was an error. */
+	if (ret) {
+		for_each_gb(gb) {
+			smpt = host_mpt.fmpt[gb].smpt;
+			if (!smpt)
+				break;
+
+			WARN_ON(__pkvm_hyp_donate_host(__hyp_pa(smpt) >> PAGE_SHIFT,
+						       SMPT_NUM_PAGES));
+		}
+		memset(&host_mpt, 0, sizeof(host_mpt));
 	}
 
-	/*
-	 * Program all S2MPUs powered on at boot. Note that they may not be in
-	 * the blocking reset state as the bootloader may have programmed them.
-	 */
-	for_each_powered_s2mpu(dev) {
-		ret = initialize_with_mpt(dev, &host_mpt);
-		if (ret)
-			return ret;
-	}
+	return ret;
+}
+
+static int s2mpu_validate(phys_addr_t pa, size_t size)
+{
+	if (size != S2MPU_MMIO_SIZE)
+		return -EINVAL;
+
 	return 0;
 }
 
-const struct kvm_iommu_ops kvm_s2mpu_ops = (struct kvm_iommu_ops){
+const struct pkvm_iommu_ops pkvm_s2mpu_ops = (struct pkvm_iommu_ops){
 	.init = s2mpu_init,
+	.validate = s2mpu_validate,
+	.data_size = sizeof(struct s2mpu_drv_data),
+};
+
+const struct kvm_iommu_ops kvm_s2mpu_ops = (struct kvm_iommu_ops){
 	.host_smc_handler = s2mpu_host_smc_handler,
 	.host_mmio_dabt_handler = s2mpu_host_mmio_dabt_handler,
 	.host_stage2_set_owner = s2mpu_host_stage2_set_owner,
