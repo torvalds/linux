@@ -24,36 +24,28 @@
 
 #define PA_MAX				((phys_addr_t)SZ_1G * NR_GIGABYTES)
 
-#define for_each_s2mpu(i) \
-	for ((i) = &s2mpus[0]; (i) != &s2mpus[nr_s2mpus]; (i)++)
-
-#define for_each_powered_s2mpu(i) \
-	for_each_s2mpu((i)) if (is_powered_on((i)))
-
 #define CTX_CFG_ENTRY(ctxid, nr_ctx, vid) \
 	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
 	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
-
-static size_t __ro_after_init			nr_s2mpus;
-static struct pkvm_iommu __ro_after_init	*s2mpus;
-static struct mpt				host_mpt;
-static hyp_spinlock_t				s2mpu_lock;
 
 struct s2mpu_drv_data {
 	u32 version;
 	u32 context_cfg_valid_vid;
 };
 
+static struct mpt host_mpt;
+
+static inline enum mpt_prot prot_to_mpt(enum kvm_pgtable_prot prot)
+{
+	return ((prot & KVM_PGTABLE_PROT_R) ? MPT_PROT_R : 0) |
+	       ((prot & KVM_PGTABLE_PROT_W) ? MPT_PROT_W : 0);
+}
+
 static bool is_version(struct pkvm_iommu *dev, u32 version)
 {
 	struct s2mpu_drv_data *data = (struct s2mpu_drv_data *)dev->data;
 
 	return (data->version & VERSION_CHECK_MASK) == version;
-}
-
-static bool is_powered_on(struct pkvm_iommu *dev)
-{
-	return dev->powered;
 }
 
 static u32 __context_cfg_valid_vid(struct pkvm_iommu *dev, u32 vid_bmap)
@@ -272,18 +264,32 @@ static int initialize_with_mpt(struct pkvm_iommu *dev, struct mpt *mpt)
 	return 0;
 }
 
-/*
- * Set MPT protection bits set to 'prot' in the give byte range (page-aligned).
- * Update currently powered S2MPUs.
- */
-static void set_mpt_range_locked(struct mpt *mpt, phys_addr_t first_byte,
-				 phys_addr_t last_byte, enum mpt_prot prot)
+static bool to_valid_range(phys_addr_t *start, phys_addr_t *end)
+{
+	phys_addr_t new_start = *start;
+	phys_addr_t new_end = *end;
+
+	if (new_end > PA_MAX)
+		new_end = PA_MAX;
+
+	new_start = ALIGN_DOWN(new_start, SMPT_GRAN);
+	new_end = ALIGN(new_end, SMPT_GRAN);
+
+	if (new_start >= new_end)
+		return false;
+
+	*start = new_start;
+	*end = new_end;
+	return true;
+}
+
+static void __mpt_idmap_prepare(struct mpt *mpt, phys_addr_t first_byte,
+				phys_addr_t last_byte, enum mpt_prot prot)
 {
 	unsigned int first_gb = first_byte / SZ_1G;
 	unsigned int last_gb = last_byte / SZ_1G;
 	size_t start_gb_byte, end_gb_byte;
-	unsigned int gb, vid;
-	struct pkvm_iommu *dev;
+	unsigned int gb;
 	struct fmpt *fmpt;
 
 	for_each_gb_in_range(gb, first_gb, last_gb) {
@@ -295,52 +301,44 @@ static void set_mpt_range_locked(struct mpt *mpt, phys_addr_t first_byte,
 
 		if (fmpt->flags & MPT_UPDATE_L2)
 			kvm_flush_dcache_to_poc(fmpt->smpt, SMPT_SIZE);
-
-		if (fmpt->flags & MPT_UPDATE_L1) {
-			for_each_powered_s2mpu(dev) {
-				for_each_vid(vid)
-					__set_l1entry_attr_with_fmpt(dev, gb, vid, fmpt);
-			}
-		}
 	}
-
-	/* Invalidate range in all powered S2MPUs. */
-	for_each_powered_s2mpu(dev)
-		__range_invalidation(dev, first_byte, last_byte);
 }
 
-static void s2mpu_host_stage2_set_owner(phys_addr_t addr, size_t size,
-					enum pkvm_component_id owner_id)
+static void __mpt_idmap_apply(struct pkvm_iommu *dev, struct mpt *mpt,
+			      phys_addr_t first_byte, phys_addr_t last_byte)
 {
-	/* Grant access only to the default owner of the page table (ID=0). */
-	enum mpt_prot prot = owner_id ? MPT_PROT_NONE : MPT_PROT_RW;
+	unsigned int first_gb = first_byte / SZ_1G;
+	unsigned int last_gb = last_byte / SZ_1G;
+	unsigned int gb, vid;
+	struct fmpt *fmpt;
 
-	/*
-	 * NOTE: The following code refers to 'end' as the exclusive upper
-	 * bound and 'last' as the inclusive one.
-	 */
+	for_each_gb_in_range(gb, first_gb, last_gb) {
+		fmpt = &mpt->fmpt[gb];
 
-	/*
-	 * Sanitize inputs with S2MPU-specific physical address space bounds.
-	 * Ownership change requests outside this boundary will be ignored.
-	 * The S2MPU also specifies that the PA region 4-34GB always maps to
-	 * PROT_NONE and the corresponding MMIO registers are read-only.
-	 * Ownership changes in this region will have no effect.
-	 */
+		if (fmpt->flags & MPT_UPDATE_L1) {
+			for_each_vid(vid)
+				__set_l1entry_attr_with_fmpt(dev, gb, vid, fmpt);
+		}
+	}
+	__range_invalidation(dev, first_byte, last_byte);
+}
 
-	if (addr >= PA_MAX)
+static void s2mpu_host_stage2_idmap_prepare(phys_addr_t start, phys_addr_t end,
+					    enum kvm_pgtable_prot prot)
+{
+	if (!to_valid_range(&start, &end))
 		return;
 
-	size = min(size, (size_t)(PA_MAX - addr));
-	if (size == 0)
+	__mpt_idmap_prepare(&host_mpt, start, end - 1, prot_to_mpt(prot));
+}
+
+static void s2mpu_host_stage2_idmap_apply(struct pkvm_iommu *dev,
+					  phys_addr_t start, phys_addr_t end)
+{
+	if (!to_valid_range(&start, &end))
 		return;
 
-	hyp_spin_lock(&s2mpu_lock);
-	set_mpt_range_locked(&host_mpt,
-			     ALIGN_DOWN(addr, SMPT_GRAN),
-			     ALIGN(addr + size, SMPT_GRAN) - 1,
-			     prot);
-	hyp_spin_unlock(&s2mpu_lock);
+	__mpt_idmap_apply(dev, &host_mpt, start, end - 1);
 }
 
 static int s2mpu_resume(struct pkvm_iommu *dev)
@@ -480,10 +478,8 @@ const struct pkvm_iommu_ops pkvm_s2mpu_ops = (struct pkvm_iommu_ops){
 	.validate = s2mpu_validate,
 	.resume = s2mpu_resume,
 	.suspend = s2mpu_suspend,
+	.host_stage2_idmap_prepare = s2mpu_host_stage2_idmap_prepare,
+	.host_stage2_idmap_apply = s2mpu_host_stage2_idmap_apply,
 	.host_dabt_handler = s2mpu_host_dabt_handler,
 	.data_size = sizeof(struct s2mpu_drv_data),
-};
-
-const struct kvm_iommu_ops kvm_s2mpu_ops = (struct kvm_iommu_ops){
-	.host_stage2_set_owner = s2mpu_host_stage2_set_owner,
 };
