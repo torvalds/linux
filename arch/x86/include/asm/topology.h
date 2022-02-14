@@ -225,12 +225,10 @@ static inline void init_freq_invariance(bool secondary, bool cppc_ready)
 }
 #endif
 
-#if defined(CONFIG_ACPI_CPPC_LIB) && defined(CONFIG_SMP)
+#ifdef CONFIG_ACPI_CPPC_LIB
 void init_freq_invariance_cppc(void);
 #define init_freq_invariance_cppc init_freq_invariance_cppc
-#endif
 
-#ifdef CONFIG_ACPI_CPPC_LIB
 bool amd_set_max_freq_ratio(u64 *ratio);
 #else
 static inline bool amd_set_max_freq_ratio(u64 *ratio)
