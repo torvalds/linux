@@ -1,6 +1,4 @@
 /******************************************************************************
- * evtchn.h
- *
  * Interface to /dev/xen/xenbus_backend.
  *
  * Copyright (c) 2011 Bastian Blank <waldi@debian.org>

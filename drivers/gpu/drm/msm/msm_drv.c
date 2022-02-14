@@ -461,7 +461,7 @@ static int msm_init_vram(struct drm_device *dev)
 		of_node_put(node);
 		if (ret)
 			return ret;
-		size = r.end - r.start;
+		size = r.end - r.start + 1;
 		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
 
 		/* if we have no IOMMU, then we need to use carveout allocator.
@@ -510,7 +510,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	struct msm_drm_private *priv = dev_get_drvdata(dev);
 	struct drm_device *ddev;
 	struct msm_kms *kms;
-	struct msm_mdss *mdss;
 	int ret, i;
 
 	ddev = drm_dev_alloc(drv, dev);
@@ -520,8 +519,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	}
 	ddev->dev_private = priv;
 	priv->dev = ddev;
-
-	mdss = priv->mdss;
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
 	priv->hangcheck_period = DRM_MSM_HANGCHECK_DEFAULT_PERIOD;

@@ -462,15 +462,6 @@ xfs_itruncate_extents(
 }
 
 /* from xfs_file.c */
-enum xfs_prealloc_flags {
-	XFS_PREALLOC_SET	= (1 << 1),
-	XFS_PREALLOC_CLEAR	= (1 << 2),
-	XFS_PREALLOC_SYNC	= (1 << 3),
-	XFS_PREALLOC_INVISIBLE	= (1 << 4),
-};
-
-int	xfs_update_prealloc_flags(struct xfs_inode *ip,
-				  enum xfs_prealloc_flags flags);
 int	xfs_break_layouts(struct inode *inode, uint *iolock,
 		enum layout_break_reason reason);
 
