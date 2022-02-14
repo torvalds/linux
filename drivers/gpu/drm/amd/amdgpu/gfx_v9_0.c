@@ -2206,7 +2206,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 
 		/* If not define special ras_fini function, use gfx default ras_fini */
 		if (!adev->gfx.ras->ras_block.ras_fini)
-			adev->gfx.ras->ras_block.ras_fini = amdgpu_gfx_ras_fini;
+			adev->gfx.ras->ras_block.ras_fini = amdgpu_ras_block_late_fini;
 
 		/* If not defined special ras_cb function, use default ras_cb */
 		if (!adev->gfx.ras->ras_block.ras_cb)
