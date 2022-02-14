@@ -41,23 +41,23 @@
 /* BPF to ppc register mappings */
 const int b2p[MAX_BPF_JIT_REG + 1] = {
 	/* function return value */
-	[BPF_REG_0] = 12,
+	[BPF_REG_0] = _R12,
 	/* function arguments */
-	[BPF_REG_1] = 4,
-	[BPF_REG_2] = 6,
-	[BPF_REG_3] = 8,
-	[BPF_REG_4] = 10,
-	[BPF_REG_5] = 22,
+	[BPF_REG_1] = _R4,
+	[BPF_REG_2] = _R6,
+	[BPF_REG_3] = _R8,
+	[BPF_REG_4] = _R10,
+	[BPF_REG_5] = _R22,
 	/* non volatile registers */
-	[BPF_REG_6] = 24,
-	[BPF_REG_7] = 26,
-	[BPF_REG_8] = 28,
-	[BPF_REG_9] = 30,
+	[BPF_REG_6] = _R24,
+	[BPF_REG_7] = _R26,
+	[BPF_REG_8] = _R28,
+	[BPF_REG_9] = _R30,
 	/* frame pointer aka BPF_REG_10 */
-	[BPF_REG_FP] = 18,
+	[BPF_REG_FP] = _R18,
 	/* eBPF jit internal registers */
-	[BPF_REG_AX] = 20,
-	[TMP_REG] = 31,		/* 32 bits */
+	[BPF_REG_AX] = _R20,
+	[TMP_REG] = _R31,		/* 32 bits */
 };
 
 static int bpf_to_ppc(struct codegen_context *ctx, int reg)
@@ -66,8 +66,8 @@ static int bpf_to_ppc(struct codegen_context *ctx, int reg)
 }
 
 /* PPC NVR range -- update this if we ever use NVRs below r17 */
-#define BPF_PPC_NVR_MIN		17
-#define BPF_PPC_TC		16
+#define BPF_PPC_NVR_MIN		_R17
+#define BPF_PPC_TC		_R16
 
 static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 {

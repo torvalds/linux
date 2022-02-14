@@ -48,28 +48,28 @@
 /* BPF to ppc register mappings */
 const int b2p[MAX_BPF_JIT_REG + 2] = {
 	/* function return value */
-	[BPF_REG_0] = 8,
+	[BPF_REG_0] = _R8,
 	/* function arguments */
-	[BPF_REG_1] = 3,
-	[BPF_REG_2] = 4,
-	[BPF_REG_3] = 5,
-	[BPF_REG_4] = 6,
-	[BPF_REG_5] = 7,
+	[BPF_REG_1] = _R3,
+	[BPF_REG_2] = _R4,
+	[BPF_REG_3] = _R5,
+	[BPF_REG_4] = _R6,
+	[BPF_REG_5] = _R7,
 	/* non volatile registers */
-	[BPF_REG_6] = 27,
-	[BPF_REG_7] = 28,
-	[BPF_REG_8] = 29,
-	[BPF_REG_9] = 30,
+	[BPF_REG_6] = _R27,
+	[BPF_REG_7] = _R28,
+	[BPF_REG_8] = _R29,
+	[BPF_REG_9] = _R30,
 	/* frame pointer aka BPF_REG_10 */
-	[BPF_REG_FP] = 31,
+	[BPF_REG_FP] = _R31,
 	/* eBPF jit internal registers */
-	[BPF_REG_AX] = 12,
-	[TMP_REG_1] = 9,
-	[TMP_REG_2] = 10
+	[BPF_REG_AX] = _R12,
+	[TMP_REG_1] = _R9,
+	[TMP_REG_2] = _R10
 };
 
 /* PPC NVR range -- update this if we ever use NVRs below r27 */
-#define BPF_PPC_NVR_MIN		27
+#define BPF_PPC_NVR_MIN		_R27
 
 static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
 {
@@ -136,7 +136,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	if (ctx->seen & SEEN_TAILCALL) {
 		EMIT(PPC_RAW_LI(b2p[TMP_REG_1], 0));
 		/* this goes in the redzone */
-		EMIT(PPC_RAW_STD(b2p[TMP_REG_1], 1, -(BPF_PPC_STACK_SAVE + 8)));
+		EMIT(PPC_RAW_STD(b2p[TMP_REG_1], _R1, -(BPF_PPC_STACK_SAVE + 8)));
 	} else {
 		EMIT(PPC_RAW_NOP());
 		EMIT(PPC_RAW_NOP());
@@ -149,10 +149,10 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 		 */
 		if (ctx->seen & SEEN_FUNC) {
 			EMIT(PPC_RAW_MFLR(_R0));
-			EMIT(PPC_RAW_STD(0, 1, PPC_LR_STKOFF));
+			EMIT(PPC_RAW_STD(_R0, _R1, PPC_LR_STKOFF));
 		}
 
-		EMIT(PPC_RAW_STDU(1, 1, -(BPF_PPC_STACKFRAME + ctx->stack_size)));
+		EMIT(PPC_RAW_STDU(_R1, _R1, -(BPF_PPC_STACKFRAME + ctx->stack_size)));
 	}
 
 	/*
@@ -162,11 +162,11 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	 */
 	for (i = BPF_REG_6; i <= BPF_REG_10; i++)
 		if (bpf_is_seen_register(ctx, b2p[i]))
-			EMIT(PPC_RAW_STD(b2p[i], 1, bpf_jit_stack_offsetof(ctx, b2p[i])));
+			EMIT(PPC_RAW_STD(b2p[i], _R1, bpf_jit_stack_offsetof(ctx, b2p[i])));
 
 	/* Setup frame pointer to point to the bpf stack area */
 	if (bpf_is_seen_register(ctx, b2p[BPF_REG_FP]))
-		EMIT(PPC_RAW_ADDI(b2p[BPF_REG_FP], 1,
+		EMIT(PPC_RAW_ADDI(b2p[BPF_REG_FP], _R1,
 				STACK_FRAME_MIN_SIZE + ctx->stack_size));
 }
 
@@ -177,14 +177,14 @@ static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx
 	/* Restore NVRs */
 	for (i = BPF_REG_6; i <= BPF_REG_10; i++)
 		if (bpf_is_seen_register(ctx, b2p[i]))
-			EMIT(PPC_RAW_LD(b2p[i], 1, bpf_jit_stack_offsetof(ctx, b2p[i])));
+			EMIT(PPC_RAW_LD(b2p[i], _R1, bpf_jit_stack_offsetof(ctx, b2p[i])));
 
 	/* Tear down our stack frame */
 	if (bpf_has_stack_frame(ctx)) {
-		EMIT(PPC_RAW_ADDI(1, 1, BPF_PPC_STACKFRAME + ctx->stack_size));
+		EMIT(PPC_RAW_ADDI(_R1, _R1, BPF_PPC_STACKFRAME + ctx->stack_size));
 		if (ctx->seen & SEEN_FUNC) {
-			EMIT(PPC_RAW_LD(0, 1, PPC_LR_STKOFF));
-			EMIT(PPC_RAW_MTLR(0));
+			EMIT(PPC_RAW_LD(_R0, _R1, PPC_LR_STKOFF));
+			EMIT(PPC_RAW_MTLR(_R0));
 		}
 	}
 }
@@ -194,7 +194,7 @@ void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 	bpf_jit_emit_common_epilogue(image, ctx);
 
 	/* Move result to r3 */
-	EMIT(PPC_RAW_MR(3, b2p[BPF_REG_0]));
+	EMIT(PPC_RAW_MR(_R3, b2p[BPF_REG_0]));
 
 	EMIT(PPC_RAW_BLR());
 }
@@ -232,7 +232,7 @@ int bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func
 	func += FUNCTION_DESCR_SIZE;
 
 	/* Load function address into r12 */
-	PPC_LI64(12, func);
+	PPC_LI64(_R12, func);
 
 	/* For bpf-to-bpf function calls, the callee's address is unknown
 	 * until the last extra pass. As seen above, we use PPC_LI64() to
@@ -247,7 +247,7 @@ int bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func
 	for (i = ctx->idx - ctx_idx; i < 5; i++)
 		EMIT(PPC_RAW_NOP());
 
-	EMIT(PPC_RAW_MTCTR(12));
+	EMIT(PPC_RAW_MTCTR(_R12));
 	EMIT(PPC_RAW_BCTRL());
 
 	return 0;
@@ -281,7 +281,7 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 	 * if (tail_call_cnt >= MAX_TAIL_CALL_CNT)
 	 *   goto out;
 	 */
-	EMIT(PPC_RAW_LD(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx)));
+	EMIT(PPC_RAW_LD(b2p[TMP_REG_1], _R1, bpf_jit_stack_tailcallcnt(ctx)));
 	EMIT(PPC_RAW_CMPLWI(b2p[TMP_REG_1], MAX_TAIL_CALL_CNT));
 	PPC_BCC_SHORT(COND_GE, out);
 
@@ -289,7 +289,7 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 	 * tail_call_cnt++;
 	 */
 	EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], 1));
-	EMIT(PPC_RAW_STD(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx)));
+	EMIT(PPC_RAW_STD(b2p[TMP_REG_1], _R1, bpf_jit_stack_tailcallcnt(ctx)));
 
 	/* prog = array->ptrs[index]; */
 	EMIT(PPC_RAW_MULI(b2p[TMP_REG_1], b2p_index, 8));
@@ -680,8 +680,8 @@ bpf_alu32_trunc:
 				break;
 			case 64:
 				/* Store the value to stack and then use byte-reverse loads */
-				EMIT(PPC_RAW_STD(dst_reg, 1, bpf_jit_stack_local(ctx)));
-				EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], 1, bpf_jit_stack_local(ctx)));
+				EMIT(PPC_RAW_STD(dst_reg, _R1, bpf_jit_stack_local(ctx)));
+				EMIT(PPC_RAW_ADDI(b2p[TMP_REG_1], _R1, bpf_jit_stack_local(ctx)));
 				if (cpu_has_feature(CPU_FTR_ARCH_206)) {
 					EMIT(PPC_RAW_LDBRX(dst_reg, 0, b2p[TMP_REG_1]));
 				} else {
@@ -736,8 +736,8 @@ emit_clear:
 				break;
 			case STF_BARRIER_FALLBACK:
 				ctx->seen |= SEEN_FUNC;
-				PPC_LI64(12, dereference_kernel_function_descriptor(bpf_stf_barrier));
-				EMIT(PPC_RAW_MTCTR(12));
+				PPC_LI64(_R12, dereference_kernel_function_descriptor(bpf_stf_barrier));
+				EMIT(PPC_RAW_MTCTR(_R12));
 				EMIT(PPC_RAW_BCTRL());
 				break;
 			case STF_BARRIER_NONE:
@@ -952,7 +952,7 @@ emit_clear:
 				return ret;
 
 			/* move return value from r3 to BPF_REG_0 */
-			EMIT(PPC_RAW_MR(b2p[BPF_REG_0], 3));
+			EMIT(PPC_RAW_MR(b2p[BPF_REG_0], _R3));
 			break;
 
 		/*
