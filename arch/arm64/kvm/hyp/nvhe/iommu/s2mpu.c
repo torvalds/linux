@@ -56,11 +56,6 @@ static bool is_powered_on(struct pkvm_iommu *dev)
 	return dev->powered;
 }
 
-static bool is_in_power_domain(struct pkvm_iommu *dev, u64 power_domain_id)
-{
-	return false;
-}
-
 static u32 __context_cfg_valid_vid(struct pkvm_iommu *dev, u32 vid_bmap)
 {
 	struct s2mpu_drv_data *data = (struct s2mpu_drv_data *)dev->data;
@@ -349,60 +344,27 @@ static void s2mpu_host_stage2_set_owner(phys_addr_t addr, size_t size,
 	hyp_spin_unlock(&s2mpu_lock);
 }
 
-static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
+static int s2mpu_resume(struct pkvm_iommu *dev)
 {
-	DECLARE_REG(u64, fn, host_ctxt, 0);
-	DECLARE_REG(u64, mode, host_ctxt, 1);
-	DECLARE_REG(u64, domain_id, host_ctxt, 2);
-	DECLARE_REG(u64, group, host_ctxt, 3);
-
-	struct arm_smccc_res res;
-	struct pkvm_iommu *dev;
-	int ret;
-
-	if (fn != SMC_CMD_PREPARE_PD_ONOFF)
-		return false; /* SMC not handled */
-
 	/*
-	 * Host is notifying EL3 that a power domain was turned on/off.
-	 * Use this SMC as a trigger to program the S2MPUs.
-	 * Note that the host may be malicious and issue this SMC arbitrarily.
-	 *
-	 * Power on:
-	 * It is paramount that the S2MPU reset state is enabled and blocking
-	 * all traffic. That way the host is forced to issue a power-on SMC to
-	 * unblock the S2MPUs.
-	 *
-	 * Power down:
-	 * A power-down SMC is a hint for hyp to stop updating the S2MPU, lest
-	 * writes to powered-down MMIO registers produce SErrors in the host.
-	 * However, hyp must perform one last update - putting the S2MPUs back
-	 * to their blocking reset state - in case the host does not actually
-	 * power them down and continues issuing DMA traffic.
+	 * Initialize the S2MPU with the host stage-2 MPT. It is paramount
+	 * that the S2MPU reset state is enabled and blocking all traffic,
+	 * otherwise the host would not be forced to call the resume HVC
+	 * before issuing DMA traffic.
 	 */
+	return initialize_with_mpt(dev, &host_mpt);
+}
 
-	hyp_spin_lock(&s2mpu_lock);
-	arm_smccc_1_1_smc(fn, mode, domain_id, group, &res);
-	ret = res.a0;
-
-	if (ret == SMCCC_RET_SUCCESS) {
-		for_each_s2mpu(dev) {
-			if (!is_in_power_domain(dev, domain_id))
-				continue;
-
-			if (mode == SMC_MODE_POWER_UP) {
-				dev->powered = true;
-				ret = initialize_with_mpt(dev, &host_mpt);
-			} else {
-				ret = initialize_with_prot(dev, MPT_PROT_NONE);
-				dev->powered = false;
-			}
-		}
-	}
-	hyp_spin_unlock(&s2mpu_lock);
-
-	cpu_reg(host_ctxt, 0) = ret;
-	return true;  /* SMC handled */
+static int s2mpu_suspend(struct pkvm_iommu *dev)
+{
+	/*
+	 * Stop updating the S2MPU when the host informs us about the intention
+	 * to suspend it. Writes to powered-down MMIO registers would trigger
+	 * SErrors in EL1 otherwise. However, hyp must put S2MPU back to
+	 * blocking state first, in case the host does not actually power it
+	 * down and continues issuing DMA traffic.
+	 */
+	return initialize_with_prot(dev, MPT_PROT_NONE);
 }
 
 static struct pkvm_iommu *find_s2mpu_by_addr(phys_addr_t addr)
@@ -532,11 +494,12 @@ static int s2mpu_validate(phys_addr_t pa, size_t size)
 const struct pkvm_iommu_ops pkvm_s2mpu_ops = (struct pkvm_iommu_ops){
 	.init = s2mpu_init,
 	.validate = s2mpu_validate,
+	.resume = s2mpu_resume,
+	.suspend = s2mpu_suspend,
 	.data_size = sizeof(struct s2mpu_drv_data),
 };
 
 const struct kvm_iommu_ops kvm_s2mpu_ops = (struct kvm_iommu_ops){
-	.host_smc_handler = s2mpu_host_smc_handler,
 	.host_mmio_dabt_handler = s2mpu_host_mmio_dabt_handler,
 	.host_stage2_set_owner = s2mpu_host_stage2_set_owner,
 };
