@@ -341,6 +341,7 @@ enum ipc_phase {
  * @ev_mux_net_transmit_pending:0 means inform the IPC tasklet to pass
  * @reset_det_n:		Reset detect flag
  * @pcie_wake_n:		Pcie wake flag
+ * @debugfs_wwan_dir:		WWAN Debug FS directory entry
  * @debugfs_dir:		Debug FS directory for driver-specific entries
  */
 struct iosm_imem {
@@ -384,6 +385,7 @@ struct iosm_imem {
 	   reset_det_n:1,
 	   pcie_wake_n:1;
 #ifdef CONFIG_WWAN_DEBUGFS
+	struct dentry *debugfs_wwan_dir;
 	struct dentry *debugfs_dir;
 #endif
 };
