@@ -102,6 +102,8 @@ static int fch_misc_setup(struct apd_private_data *pdata)
 					      resource_size(rentry->res));
 		break;
 	}
+	if (!clk_data->base)
+		return -ENOMEM;
 
 	acpi_dev_free_resource_list(&resource_list);
 

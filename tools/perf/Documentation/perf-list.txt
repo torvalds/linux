@@ -81,7 +81,11 @@ On AMD systems it is implemented using IBS (up to precise-level 2).
 The precise modifier works with event types 0x76 (cpu-cycles, CPU
 clocks not halted) and 0xC1 (micro-ops retired). Both events map to
 IBS execution sampling (IBS op) with the IBS Op Counter Control bit
-(IbsOpCntCtl) set respectively (see AMD64 Architecture Programmer’s
+(IbsOpCntCtl) set respectively (see the
+Core Complex (CCX) -> Processor x86 Core -> Instruction Based Sampling (IBS)
+section of the [AMD Processor Programming Reference (PPR)] relevant to the
+family, model and stepping of the processor being used).
+
 Manual Volume 2: System Programming, 13.3 Instruction-Based
 Sampling). Examples to use IBS:
 
@@ -94,10 +98,12 @@ RAW HARDWARE EVENT DESCRIPTOR
 Even when an event is not available in a symbolic form within perf right now,
 it can be encoded in a per processor specific way.
 
-For instance For x86 CPUs NNN represents the raw register encoding with the
+For instance on x86 CPUs, N is a hexadecimal value that represents the raw register encoding with the
 layout of IA32_PERFEVTSELx MSRs (see [Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide] Figure 30-1 Layout
-of IA32_PERFEVTSELx MSRs) or AMD's PerfEvtSeln (see [AMD64 Architecture Programmer’s Manual Volume 2: System Programming], Page 344,
-Figure 13-7 Performance Event-Select Register (PerfEvtSeln)).
+of IA32_PERFEVTSELx MSRs) or AMD's PERF_CTL MSRs (see the
+Core Complex (CCX) -> Processor x86 Core -> MSR Registers section of the
+[AMD Processor Programming Reference (PPR)] relevant to the family, model
+and stepping of the processor being used).
 
 Note: Only the following bit fields can be set in x86 counter
 registers: event, umask, edge, inv, cmask. Esp. guest/host only and
@@ -125,6 +131,38 @@ It's also possible to use pmu syntax:
  perf record -e r1a8 -a sleep 1
  perf record -e cpu/r1a8/ ...
  perf record -e cpu/r0x1a8/ ...
+
+Some processors, like those from AMD, support event codes and unit masks
+larger than a byte. In such cases, the bits corresponding to the event
+configuration parameters can be seen with:
+
+  cat /sys/bus/event_source/devices/<pmu>/format/<config>
+
+Example:
+
+If the AMD docs for an EPYC 7713 processor describe an event as:
+
+  Event  Umask  Event Mask
+  Num.   Value  Mnemonic                        Description
+
+  28FH     03H  op_cache_hit_miss.op_cache_hit  Counts Op Cache micro-tag
+                                                hit events.
+
+raw encoding of 0x0328F cannot be used since the upper nibble of the
+EventSelect bits have to be specified via bits 32-35 as can be seen with:
+
+  cat /sys/bus/event_source/devices/cpu/format/event
+
+raw encoding of 0x20000038F should be used instead:
+
+ perf stat -e r20000038f -a sleep 1
+ perf record -e r20000038f ...
+
+It's also possible to use pmu syntax:
+
+ perf record -e r20000038f -a sleep 1
+ perf record -e cpu/r20000038f/ ...
+ perf record -e cpu/r0x20000038f/ ...
 
 You should refer to the processor specific documentation for getting these
 details. Some of them are referenced in the SEE ALSO section below.
@@ -316,4 +354,4 @@ SEE ALSO
 linkperf:perf-stat[1], linkperf:perf-top[1],
 linkperf:perf-record[1],
 http://www.intel.com/sdm/[Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide],
-http://support.amd.com/us/Processor_TechDocs/24593_APM_v2.pdf[AMD64 Architecture Programmer’s Manual Volume 2: System Programming]
+https://bugzilla.kernel.org/show_bug.cgi?id=206537[AMD Processor Programming Reference (PPR)]

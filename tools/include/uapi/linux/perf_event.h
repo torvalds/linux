@@ -1332,7 +1332,10 @@ union perf_mem_data_src {
 
 /* hop level */
 #define PERF_MEM_HOPS_0		0x01 /* remote core, same node */
-/* 2-7 available */
+#define PERF_MEM_HOPS_1         0x02 /* remote node, same socket */
+#define PERF_MEM_HOPS_2         0x03 /* remote socket, same board */
+#define PERF_MEM_HOPS_3         0x04 /* remote board */
+/* 5-7 available */
 #define PERF_MEM_HOPS_SHIFT	43
 
 #define PERF_MEM_S(a, s) \

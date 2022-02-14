@@ -17,7 +17,9 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 /* Master Mode Registers */
 #define SVC_I3C_MCONFIG      0x000
@@ -119,6 +121,7 @@
 #define   SVC_MDYNADDR_ADDR(x) FIELD_PREP(GENMASK(7, 1), (x))
 
 #define SVC_I3C_MAX_DEVS 32
+#define SVC_I3C_PM_TIMEOUT_MS 1000
 
 /* This parameter depends on the implementation and may be tuned */
 #define SVC_I3C_FIFO_SIZE 16
@@ -236,6 +239,40 @@ static void svc_i3c_master_disable_interrupts(struct svc_i3c_master *master)
 	writel(mask, master->regs + SVC_I3C_MINTCLR);
 }
 
+static void svc_i3c_master_clear_merrwarn(struct svc_i3c_master *master)
+{
+	/* Clear pending warnings */
+	writel(readl(master->regs + SVC_I3C_MERRWARN),
+	       master->regs + SVC_I3C_MERRWARN);
+}
+
+static void svc_i3c_master_flush_fifo(struct svc_i3c_master *master)
+{
+	/* Flush FIFOs */
+	writel(SVC_I3C_MDATACTRL_FLUSHTB | SVC_I3C_MDATACTRL_FLUSHRB,
+	       master->regs + SVC_I3C_MDATACTRL);
+}
+
+static void svc_i3c_master_reset_fifo_trigger(struct svc_i3c_master *master)
+{
+	u32 reg;
+
+	/* Set RX and TX tigger levels, flush FIFOs */
+	reg = SVC_I3C_MDATACTRL_FLUSHTB |
+	      SVC_I3C_MDATACTRL_FLUSHRB |
+	      SVC_I3C_MDATACTRL_UNLOCK_TRIG |
+	      SVC_I3C_MDATACTRL_TXTRIG_FIFO_NOT_FULL |
+	      SVC_I3C_MDATACTRL_RXTRIG_FIFO_NOT_EMPTY;
+	writel(reg, master->regs + SVC_I3C_MDATACTRL);
+}
+
+static void svc_i3c_master_reset(struct svc_i3c_master *master)
+{
+	svc_i3c_master_clear_merrwarn(master);
+	svc_i3c_master_reset_fifo_trigger(master);
+	svc_i3c_master_disable_interrupts(master);
+}
+
 static inline struct svc_i3c_master *
 to_svc_i3c_master(struct i3c_master_controller *master)
 {
@@ -277,12 +314,6 @@ static void svc_i3c_master_emit_stop(struct svc_i3c_master *master)
 	 * correctly if a start condition follows too rapidly.
 	 */
 	udelay(1);
-}
-
-static void svc_i3c_master_clear_merrwarn(struct svc_i3c_master *master)
-{
-	writel(readl(master->regs + SVC_I3C_MERRWARN),
-	       master->regs + SVC_I3C_MERRWARN);
 }
 
 static int svc_i3c_master_handle_ibi(struct svc_i3c_master *master,
@@ -449,13 +480,23 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 	struct i3c_device_info info = {};
 	unsigned long fclk_rate, fclk_period_ns;
 	unsigned int high_period_ns, od_low_period_ns;
-	u32 ppbaud, pplow, odhpp, odbaud, i2cbaud, reg;
+	u32 ppbaud, pplow, odhpp, odbaud, odstop, i2cbaud, reg;
 	int ret;
+
+	ret = pm_runtime_resume_and_get(master->dev);
+	if (ret < 0) {
+		dev_err(master->dev,
+			"<%s> cannot resume i3c bus master, err: %d\n",
+			__func__, ret);
+		return ret;
+	}
 
 	/* Timings derivation */
 	fclk_rate = clk_get_rate(master->fclk);
-	if (!fclk_rate)
-		return -EINVAL;
+	if (!fclk_rate) {
+		ret = -EINVAL;
+		goto rpm_out;
+	}
 
 	fclk_period_ns = DIV_ROUND_UP(1000000000, fclk_rate);
 
@@ -479,6 +520,7 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 	switch (bus->mode) {
 	case I3C_BUS_MODE_PURE:
 		i2cbaud = 0;
+		odstop = 0;
 		break;
 	case I3C_BUS_MODE_MIXED_FAST:
 	case I3C_BUS_MODE_MIXED_LIMITED:
@@ -487,6 +529,7 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 		 * between the high and low period does not really matter.
 		 */
 		i2cbaud = DIV_ROUND_UP(1000, od_low_period_ns) - 2;
+		odstop = 1;
 		break;
 	case I3C_BUS_MODE_MIXED_SLOW:
 		/*
@@ -494,15 +537,16 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 		 * constraints as the FM+ mode.
 		 */
 		i2cbaud = DIV_ROUND_UP(2500, od_low_period_ns) - 2;
+		odstop = 1;
 		break;
 	default:
-		return -EINVAL;
+		goto rpm_out;
 	}
 
 	reg = SVC_I3C_MCONFIG_MASTER_EN |
 	      SVC_I3C_MCONFIG_DISTO(0) |
 	      SVC_I3C_MCONFIG_HKEEP(0) |
-	      SVC_I3C_MCONFIG_ODSTOP(0) |
+	      SVC_I3C_MCONFIG_ODSTOP(odstop) |
 	      SVC_I3C_MCONFIG_PPBAUD(ppbaud) |
 	      SVC_I3C_MCONFIG_PPLOW(pplow) |
 	      SVC_I3C_MCONFIG_ODBAUD(odbaud) |
@@ -514,7 +558,7 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 	/* Master core's registration */
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
-		return ret;
+		goto rpm_out;
 
 	info.dyn_addr = ret;
 
@@ -523,21 +567,33 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 
 	ret = i3c_master_set_info(&master->base, &info);
 	if (ret)
-		return ret;
+		goto rpm_out;
 
-	svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);
+rpm_out:
+	pm_runtime_mark_last_busy(master->dev);
+	pm_runtime_put_autosuspend(master->dev);
 
-	return 0;
+	return ret;
 }
 
 static void svc_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 {
 	struct svc_i3c_master *master = to_svc_i3c_master(m);
+	int ret;
+
+	ret = pm_runtime_resume_and_get(master->dev);
+	if (ret < 0) {
+		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		return;
+	}
 
 	svc_i3c_master_disable_interrupts(master);
 
 	/* Disable master */
 	writel(0, master->regs + SVC_I3C_MCONFIG);
+
+	pm_runtime_mark_last_busy(master->dev);
+	pm_runtime_put_autosuspend(master->dev);
 }
 
 static int svc_i3c_master_reserve_slot(struct svc_i3c_master *master)
@@ -656,8 +712,10 @@ static int svc_i3c_master_readb(struct svc_i3c_master *master, u8 *dst,
 	u32 reg;
 
 	for (i = 0; i < len; i++) {
-		ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
-					 SVC_I3C_MSTATUS_RXPEND(reg), 0, 1000);
+		ret = readl_poll_timeout_atomic(master->regs + SVC_I3C_MSTATUS,
+						reg,
+						SVC_I3C_MSTATUS_RXPEND(reg),
+						0, 1000);
 		if (ret)
 			return ret;
 
@@ -687,10 +745,11 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 		 * Either one slave will send its ID, or the assignment process
 		 * is done.
 		 */
-		ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
-					 SVC_I3C_MSTATUS_RXPEND(reg) |
-					 SVC_I3C_MSTATUS_MCTRLDONE(reg),
-					 1, 1000);
+		ret = readl_poll_timeout_atomic(master->regs + SVC_I3C_MSTATUS,
+						reg,
+						SVC_I3C_MSTATUS_RXPEND(reg) |
+						SVC_I3C_MSTATUS_MCTRLDONE(reg),
+						1, 1000);
 		if (ret)
 			return ret;
 
@@ -744,11 +803,12 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 		}
 
 		/* Wait for the slave to be ready to receive its address */
-		ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
-					 SVC_I3C_MSTATUS_MCTRLDONE(reg) &&
-					 SVC_I3C_MSTATUS_STATE_DAA(reg) &&
-					 SVC_I3C_MSTATUS_BETWEEN(reg),
-					 0, 1000);
+		ret = readl_poll_timeout_atomic(master->regs + SVC_I3C_MSTATUS,
+						reg,
+						SVC_I3C_MSTATUS_MCTRLDONE(reg) &&
+						SVC_I3C_MSTATUS_STATE_DAA(reg) &&
+						SVC_I3C_MSTATUS_BETWEEN(reg),
+						0, 1000);
 		if (ret)
 			return ret;
 
@@ -832,31 +892,36 @@ static int svc_i3c_master_do_daa(struct i3c_master_controller *m)
 	unsigned int dev_nb;
 	int ret, i;
 
+	ret = pm_runtime_resume_and_get(master->dev);
+	if (ret < 0) {
+		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		return ret;
+	}
+
 	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	ret = svc_i3c_master_do_daa_locked(master, addrs, &dev_nb);
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
-	if (ret)
-		goto emit_stop;
+	if (ret) {
+		svc_i3c_master_emit_stop(master);
+		svc_i3c_master_clear_merrwarn(master);
+		goto rpm_out;
+	}
 
 	/* Register all devices who participated to the core */
 	for (i = 0; i < dev_nb; i++) {
 		ret = i3c_master_add_i3c_dev_locked(m, addrs[i]);
 		if (ret)
-			return ret;
+			goto rpm_out;
 	}
 
 	/* Configure IBI auto-rules */
 	ret = svc_i3c_update_ibirules(master);
-	if (ret) {
+	if (ret)
 		dev_err(master->dev, "Cannot handle such a list of devices");
-		return ret;
-	}
 
-	return 0;
-
-emit_stop:
-	svc_i3c_master_emit_stop(master);
-	svc_i3c_master_clear_merrwarn(master);
+rpm_out:
+	pm_runtime_mark_last_busy(master->dev);
+	pm_runtime_put_autosuspend(master->dev);
 
 	return ret;
 }
@@ -864,27 +929,35 @@ emit_stop:
 static int svc_i3c_master_read(struct svc_i3c_master *master,
 			       u8 *in, unsigned int len)
 {
-	int offset = 0, i, ret;
-	u32 mdctrl;
+	int offset = 0, i;
+	u32 mdctrl, mstatus;
+	bool completed = false;
+	unsigned int count;
+	unsigned long start = jiffies;
 
-	while (offset < len) {
-		unsigned int count;
+	while (!completed) {
+		mstatus = readl(master->regs + SVC_I3C_MSTATUS);
+		if (SVC_I3C_MSTATUS_COMPLETE(mstatus) != 0)
+			completed = true;
 
-		ret = readl_poll_timeout(master->regs + SVC_I3C_MDATACTRL,
-					 mdctrl,
-					 !(mdctrl & SVC_I3C_MDATACTRL_RXEMPTY),
-					 0, 1000);
-		if (ret)
-			return ret;
+		if (time_after(jiffies, start + msecs_to_jiffies(1000))) {
+			dev_dbg(master->dev, "I3C read timeout\n");
+			return -ETIMEDOUT;
+		}
 
+		mdctrl = readl(master->regs + SVC_I3C_MDATACTRL);
 		count = SVC_I3C_MDATACTRL_RXCOUNT(mdctrl);
+		if (offset + count > len) {
+			dev_err(master->dev, "I3C receive length too long!\n");
+			return -EINVAL;
+		}
 		for (i = 0; i < count; i++)
 			in[offset + i] = readl(master->regs + SVC_I3C_MRDATAB);
 
 		offset += count;
 	}
 
-	return 0;
+	return offset;
 }
 
 static int svc_i3c_master_write(struct svc_i3c_master *master,
@@ -917,7 +990,7 @@ static int svc_i3c_master_write(struct svc_i3c_master *master,
 static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 			       bool rnw, unsigned int xfer_type, u8 addr,
 			       u8 *in, const u8 *out, unsigned int xfer_len,
-			       unsigned int read_len, bool continued)
+			       unsigned int *read_len, bool continued)
 {
 	u32 reg;
 	int ret;
@@ -927,7 +1000,7 @@ static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 	       SVC_I3C_MCTRL_IBIRESP_NACK |
 	       SVC_I3C_MCTRL_DIR(rnw) |
 	       SVC_I3C_MCTRL_ADDR(addr) |
-	       SVC_I3C_MCTRL_RDTERM(read_len),
+	       SVC_I3C_MCTRL_RDTERM(*read_len),
 	       master->regs + SVC_I3C_MCTRL);
 
 	ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
@@ -939,16 +1012,26 @@ static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 		ret = svc_i3c_master_read(master, in, xfer_len);
 	else
 		ret = svc_i3c_master_write(master, out, xfer_len);
-	if (ret)
+	if (ret < 0)
 		goto emit_stop;
+
+	if (rnw)
+		*read_len = ret;
 
 	ret = readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
 				 SVC_I3C_MSTATUS_COMPLETE(reg), 0, 1000);
 	if (ret)
 		goto emit_stop;
 
-	if (!continued)
+	writel(SVC_I3C_MINT_COMPLETE, master->regs + SVC_I3C_MSTATUS);
+
+	if (!continued) {
 		svc_i3c_master_emit_stop(master);
+
+		/* Wait idle if stop is sent. */
+		readl_poll_timeout(master->regs + SVC_I3C_MSTATUS, reg,
+				   SVC_I3C_MSTATUS_STATE_IDLE(reg), 0, 1000);
+	}
 
 	return 0;
 
@@ -1007,16 +1090,28 @@ static void svc_i3c_master_start_xfer_locked(struct svc_i3c_master *master)
 	if (!xfer)
 		return;
 
+	ret = pm_runtime_resume_and_get(master->dev);
+	if (ret < 0) {
+		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		return;
+	}
+
+	svc_i3c_master_clear_merrwarn(master);
+	svc_i3c_master_flush_fifo(master);
+
 	for (i = 0; i < xfer->ncmds; i++) {
 		struct svc_i3c_cmd *cmd = &xfer->cmds[i];
 
 		ret = svc_i3c_master_xfer(master, cmd->rnw, xfer->type,
 					  cmd->addr, cmd->in, cmd->out,
-					  cmd->len, cmd->read_len,
+					  cmd->len, &cmd->read_len,
 					  cmd->continued);
 		if (ret)
 			break;
 	}
+
+	pm_runtime_mark_last_busy(master->dev);
+	pm_runtime_put_autosuspend(master->dev);
 
 	xfer->ret = ret;
 	complete(&xfer->comp);
@@ -1140,6 +1235,9 @@ static int svc_i3c_master_send_direct_ccc_cmd(struct svc_i3c_master *master,
 	svc_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(1000)))
 		svc_i3c_master_dequeue_xfer(master, xfer);
+
+	if (cmd->read_len != xfer_len)
+		ccc->dests[0].payload.len = cmd->read_len;
 
 	ret = xfer->ret;
 	svc_i3c_master_free_xfer(xfer);
@@ -1291,6 +1389,16 @@ static void svc_i3c_master_free_ibi(struct i3c_dev_desc *dev)
 static int svc_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct svc_i3c_master *master = to_svc_i3c_master(m);
+	int ret;
+
+	ret = pm_runtime_resume_and_get(master->dev);
+	if (ret < 0) {
+		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		return ret;
+	}
+
+	svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);
 
 	return i3c_master_enec_locked(m, dev->info.dyn_addr, I3C_CCC_EVENT_SIR);
 }
@@ -1298,8 +1406,17 @@ static int svc_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 static int svc_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct svc_i3c_master *master = to_svc_i3c_master(m);
+	int ret;
 
-	return i3c_master_disec_locked(m, dev->info.dyn_addr, I3C_CCC_EVENT_SIR);
+	svc_i3c_master_disable_interrupts(master);
+
+	ret = i3c_master_disec_locked(m, dev->info.dyn_addr, I3C_CCC_EVENT_SIR);
+
+	pm_runtime_mark_last_busy(master->dev);
+	pm_runtime_put_autosuspend(master->dev);
+
+	return ret;
 }
 
 static void svc_i3c_master_recycle_ibi_slot(struct i3c_dev_desc *dev,
@@ -1330,23 +1447,35 @@ static const struct i3c_master_controller_ops svc_i3c_master_ops = {
 	.disable_ibi = svc_i3c_master_disable_ibi,
 };
 
-static void svc_i3c_master_reset(struct svc_i3c_master *master)
+static int svc_i3c_master_prepare_clks(struct svc_i3c_master *master)
 {
-	u32 reg;
+	int ret = 0;
 
-	/* Clear pending warnings */
-	writel(readl(master->regs + SVC_I3C_MERRWARN),
-	       master->regs + SVC_I3C_MERRWARN);
+	ret = clk_prepare_enable(master->pclk);
+	if (ret)
+		return ret;
 
-	/* Set RX and TX tigger levels, flush FIFOs */
-	reg = SVC_I3C_MDATACTRL_FLUSHTB |
-	      SVC_I3C_MDATACTRL_FLUSHRB |
-	      SVC_I3C_MDATACTRL_UNLOCK_TRIG |
-	      SVC_I3C_MDATACTRL_TXTRIG_FIFO_NOT_FULL |
-	      SVC_I3C_MDATACTRL_RXTRIG_FIFO_NOT_EMPTY;
-	writel(reg, master->regs + SVC_I3C_MDATACTRL);
+	ret = clk_prepare_enable(master->fclk);
+	if (ret) {
+		clk_disable_unprepare(master->pclk);
+		return ret;
+	}
 
-	svc_i3c_master_disable_interrupts(master);
+	ret = clk_prepare_enable(master->sclk);
+	if (ret) {
+		clk_disable_unprepare(master->pclk);
+		clk_disable_unprepare(master->fclk);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void svc_i3c_master_unprepare_clks(struct svc_i3c_master *master)
+{
+	clk_disable_unprepare(master->pclk);
+	clk_disable_unprepare(master->fclk);
+	clk_disable_unprepare(master->sclk);
 }
 
 static int svc_i3c_master_probe(struct platform_device *pdev)
@@ -1381,26 +1510,16 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 
 	master->dev = dev;
 
-	svc_i3c_master_reset(master);
-
-	ret = clk_prepare_enable(master->pclk);
+	ret = svc_i3c_master_prepare_clks(master);
 	if (ret)
 		return ret;
-
-	ret = clk_prepare_enable(master->fclk);
-	if (ret)
-		goto err_disable_pclk;
-
-	ret = clk_prepare_enable(master->sclk);
-	if (ret)
-		goto err_disable_fclk;
 
 	INIT_WORK(&master->hj_work, svc_i3c_master_hj_work);
 	INIT_WORK(&master->ibi_work, svc_i3c_master_ibi_work);
 	ret = devm_request_irq(dev, master->irq, svc_i3c_master_irq_handler,
 			       IRQF_NO_SUSPEND, "svc-i3c-irq", master);
 	if (ret)
-		goto err_disable_sclk;
+		goto err_disable_clks;
 
 	master->free_slots = GENMASK(SVC_I3C_MAX_DEVS - 1, 0);
 
@@ -1414,27 +1533,38 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 					 GFP_KERNEL);
 	if (!master->ibi.slots) {
 		ret = -ENOMEM;
-		goto err_disable_sclk;
+		goto err_disable_clks;
 	}
 
 	platform_set_drvdata(pdev, master);
+
+	pm_runtime_set_autosuspend_delay(&pdev->dev, SVC_I3C_PM_TIMEOUT_MS);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
+	svc_i3c_master_reset(master);
 
 	/* Register the master */
 	ret = i3c_master_register(&master->base, &pdev->dev,
 				  &svc_i3c_master_ops, false);
 	if (ret)
-		goto err_disable_sclk;
+		goto rpm_disable;
+
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
 
-err_disable_sclk:
-	clk_disable_unprepare(master->sclk);
+rpm_disable:
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
-err_disable_fclk:
-	clk_disable_unprepare(master->fclk);
-
-err_disable_pclk:
-	clk_disable_unprepare(master->pclk);
+err_disable_clks:
+	svc_i3c_master_unprepare_clks(master);
 
 	return ret;
 }
@@ -1448,17 +1578,45 @@ static int svc_i3c_master_remove(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	clk_disable_unprepare(master->pclk);
-	clk_disable_unprepare(master->fclk);
-	clk_disable_unprepare(master->sclk);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
+
+static int __maybe_unused svc_i3c_runtime_suspend(struct device *dev)
+{
+	struct svc_i3c_master *master = dev_get_drvdata(dev);
+
+	svc_i3c_master_unprepare_clks(master);
+	pinctrl_pm_select_sleep_state(dev);
+
+	return 0;
+}
+
+static int __maybe_unused svc_i3c_runtime_resume(struct device *dev)
+{
+	struct svc_i3c_master *master = dev_get_drvdata(dev);
+	int ret = 0;
+
+	pinctrl_pm_select_default_state(dev);
+	svc_i3c_master_prepare_clks(master);
+
+	return ret;
+}
+
+static const struct dev_pm_ops svc_i3c_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				      pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(svc_i3c_runtime_suspend,
+			   svc_i3c_runtime_resume, NULL)
+};
 
 static const struct of_device_id svc_i3c_master_of_match_tbl[] = {
 	{ .compatible = "silvaco,i3c-master" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, svc_i3c_master_of_match_tbl);
 
 static struct platform_driver svc_i3c_master = {
 	.probe = svc_i3c_master_probe,
@@ -1466,6 +1624,7 @@ static struct platform_driver svc_i3c_master = {
 	.driver = {
 		.name = "silvaco-i3c-master",
 		.of_match_table = svc_i3c_master_of_match_tbl,
+		.pm = &svc_i3c_pm_ops,
 	},
 };
 module_platform_driver(svc_i3c_master);

@@ -920,43 +920,6 @@ extern bool is_free_buddy_page(struct page *page);
 
 __PAGEFLAG(Isolated, isolated, PF_ANY);
 
-/*
- * If network-based swap is enabled, sl*b must keep track of whether pages
- * were allocated from pfmemalloc reserves.
- */
-static inline int PageSlabPfmemalloc(struct page *page)
-{
-	VM_BUG_ON_PAGE(!PageSlab(page), page);
-	return PageActive(page);
-}
-
-/*
- * A version of PageSlabPfmemalloc() for opportunistic checks where the page
- * might have been freed under us and not be a PageSlab anymore.
- */
-static inline int __PageSlabPfmemalloc(struct page *page)
-{
-	return PageActive(page);
-}
-
-static inline void SetPageSlabPfmemalloc(struct page *page)
-{
-	VM_BUG_ON_PAGE(!PageSlab(page), page);
-	SetPageActive(page);
-}
-
-static inline void __ClearPageSlabPfmemalloc(struct page *page)
-{
-	VM_BUG_ON_PAGE(!PageSlab(page), page);
-	__ClearPageActive(page);
-}
-
-static inline void ClearPageSlabPfmemalloc(struct page *page)
-{
-	VM_BUG_ON_PAGE(!PageSlab(page), page);
-	ClearPageActive(page);
-}
-
 #ifdef CONFIG_MMU
 #define __PG_MLOCKED		(1UL << PG_mlocked)
 #else

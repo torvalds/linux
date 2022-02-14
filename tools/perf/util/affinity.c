@@ -11,7 +11,7 @@
 
 static int get_cpu_set_size(void)
 {
-	int sz = cpu__max_cpu() + 8 - 1;
+	int sz = cpu__max_cpu().cpu + 8 - 1;
 	/*
 	 * sched_getaffinity doesn't like masks smaller than the kernel.
 	 * Hopefully that's big enough.

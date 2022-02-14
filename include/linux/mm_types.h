@@ -119,31 +119,6 @@ struct page {
 				atomic_long_t pp_frag_count;
 			};
 		};
-		struct {	/* slab, slob and slub */
-			union {
-				struct list_head slab_list;
-				struct {	/* Partial pages */
-					struct page *next;
-#ifdef CONFIG_64BIT
-					int pages;	/* Nr of pages left */
-#else
-					short int pages;
-#endif
-				};
-			};
-			struct kmem_cache *slab_cache; /* not slob */
-			/* Double-word boundary */
-			void *freelist;		/* first free object */
-			union {
-				void *s_mem;	/* slab: first object */
-				unsigned long counters;		/* SLUB */
-				struct {			/* SLUB */
-					unsigned inuse:16;
-					unsigned objects:15;
-					unsigned frozen:1;
-				};
-			};
-		};
 		struct {	/* Tail pages of compound page */
 			unsigned long compound_head;	/* Bit zero is set */
 
@@ -207,9 +182,6 @@ struct page {
 		 * which are currently stored here.
 		 */
 		unsigned int page_type;
-
-		unsigned int active;		/* SLAB */
-		int units;			/* SLOB */
 	};
 
 	/* Usage count. *DO NOT USE DIRECTLY*. See page_ref.h */

@@ -59,6 +59,8 @@ void nsinfo__mountns_exit(struct nscookie *nc);
 char *nsinfo__realpath(const char *path, struct nsinfo *nsi);
 int nsinfo__stat(const char *filename, struct stat *st, struct nsinfo *nsi);
 
+bool nsinfo__is_in_root_namespace(void);
+
 static inline void __nsinfo__zput(struct nsinfo **nsip)
 {
 	if (nsip) {
