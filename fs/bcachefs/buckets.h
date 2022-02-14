@@ -15,20 +15,16 @@
 	for (_b = (_buckets)->b + (_buckets)->first_bucket;	\
 	     _b < (_buckets)->b + (_buckets)->nbuckets; _b++)
 
-#define bucket_cmpxchg(g, new, expr)				\
-({								\
-	struct bucket *_g = g;					\
-	u64 _v = atomic64_read(&(g)->_mark.v);			\
-	struct bucket_mark _old;				\
-								\
-	do {							\
-		(new).v.counter = _old.v.counter = _v;		\
-		expr;						\
-	} while ((_v = atomic64_cmpxchg(&(_g)->_mark.v,		\
-			       _old.v.counter,			\
-			       (new).v.counter)) != _old.v.counter);\
-	_old;							\
-})
+static inline void bucket_unlock(struct bucket *b)
+{
+	smp_store_release(&b->lock, 0);
+}
+
+static inline void bucket_lock(struct bucket *b)
+{
+	while (xchg(&b->lock, 1))
+		cpu_relax();
+}
 
 static inline struct bucket_array *gc_bucket_array(struct bch_dev *ca)
 {

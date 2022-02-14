@@ -7,29 +7,15 @@
 
 #define BUCKET_JOURNAL_SEQ_BITS		16
 
-struct bucket_mark {
-	union {
-	atomic64_t	v;
-
-	struct {
-	u8		gen;
-	u8		data_type:3,
-			stripe:1;
-	u16		dirty_sectors;
-	u16		cached_sectors;
-	};
-	};
-};
-
 struct bucket {
-	union {
-		struct bucket_mark	_mark;
-		const struct bucket_mark mark;
-	};
-
-	unsigned			gen_valid:1;
-	u8				stripe_redundancy;
-	u32				stripe;
+	u8			lock;
+	u8			gen_valid:1;
+	u8			data_type:7;
+	u8			gen;
+	u8			stripe_redundancy;
+	u32			stripe;
+	u32			dirty_sectors;
+	u32			cached_sectors;
 };
 
 struct bucket_array {

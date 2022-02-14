@@ -903,8 +903,8 @@ struct bch_alloc_v2 {
 #define BCH_ALLOC_FIELDS_V2()			\
 	x(read_time,		64)		\
 	x(write_time,		64)		\
-	x(dirty_sectors,	16)		\
-	x(cached_sectors,	16)		\
+	x(dirty_sectors,	32)		\
+	x(cached_sectors,	32)		\
 	x(stripe,		32)		\
 	x(stripe_redundancy,	8)
 
