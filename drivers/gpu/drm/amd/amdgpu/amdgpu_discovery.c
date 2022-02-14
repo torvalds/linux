@@ -393,6 +393,7 @@ struct ip_hw_instance {
 	int hw_id;
 	u8  num_instance;
 	u8  major, minor, revision;
+	u8  harvest;
 
 	int num_base_addresses;
 	u32 base_addr[];
@@ -440,6 +441,11 @@ static ssize_t revision_show(struct ip_hw_instance *ip_hw_instance, char *buf)
 	return sysfs_emit(buf, "%d\n", ip_hw_instance->revision);
 }
 
+static ssize_t harvest_show(struct ip_hw_instance *ip_hw_instance, char *buf)
+{
+	return sysfs_emit(buf, "0x%01X\n", ip_hw_instance->harvest);
+}
+
 static ssize_t num_base_addresses_show(struct ip_hw_instance *ip_hw_instance, char *buf)
 {
 	return sysfs_emit(buf, "%d\n", ip_hw_instance->num_base_addresses);
@@ -471,6 +477,7 @@ static struct ip_hw_instance_attr ip_hw_attr[] = {
 	__ATTR_RO(major),
 	__ATTR_RO(minor),
 	__ATTR_RO(revision),
+	__ATTR_RO(harvest),
 	__ATTR_RO(num_base_addresses),
 	__ATTR_RO(base_addr),
 };
@@ -708,6 +715,7 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			ip_hw_instance->major = ip->major;
 			ip_hw_instance->minor = ip->minor;
 			ip_hw_instance->revision = ip->revision;
+			ip_hw_instance->harvest = ip->harvest;
 			ip_hw_instance->num_base_addresses = ip->num_base_address;
 
 			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++)
