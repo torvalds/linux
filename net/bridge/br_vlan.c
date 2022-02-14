@@ -404,6 +404,7 @@ static void __vlan_flush(const struct net_bridge *br,
 {
 	struct net_bridge_vlan *vlan, *tmp;
 	u16 v_start = 0, v_end = 0;
+	int err;
 
 	__vlan_delete_pvid(vg, vg->pvid);
 	list_for_each_entry_safe(vlan, tmp, &vg->vlan_list, vlist) {
@@ -417,7 +418,13 @@ static void __vlan_flush(const struct net_bridge *br,
 		}
 		v_end = vlan->vid;
 
-		__vlan_del(vlan);
+		err = __vlan_del(vlan);
+		if (err) {
+			br_err(br,
+			       "port %u(%s) failed to delete vlan %d: %pe\n",
+			       (unsigned int) p->port_no, p->dev->name,
+			       vlan->vid, ERR_PTR(err));
+		}
 	}
 
 	/* notify about the last/whole vlan range */
