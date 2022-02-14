@@ -59,7 +59,9 @@ static int bpf_jit_fixup_addresses(struct bpf_prog *fp, u32 *image,
 			 */
 			tmp_idx = ctx->idx;
 			ctx->idx = addrs[i] / 4;
-			bpf_jit_emit_func_call_rel(image, ctx, func_addr);
+			ret = bpf_jit_emit_func_call_rel(image, ctx, func_addr);
+			if (ret)
+				return ret;
 
 			/*
 			 * Restore ctx->idx here. This is safe as the length

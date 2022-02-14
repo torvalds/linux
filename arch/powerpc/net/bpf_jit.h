@@ -178,7 +178,7 @@ static inline void bpf_clear_seen_register(struct codegen_context *ctx, int i)
 	ctx->seen &= ~(1 << (31 - i));
 }
 
-void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func);
+int bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func);
 int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *ctx,
 		       u32 *addrs, int pass);
 void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx);

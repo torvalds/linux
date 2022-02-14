@@ -147,9 +147,13 @@ void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 	EMIT(PPC_RAW_BLR());
 }
 
-static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
-				       u64 func)
+static int bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx, u64 func)
 {
+	unsigned long func_addr = func ? ppc_function_entry((void *)func) : 0;
+
+	if (WARN_ON_ONCE(!core_kernel_text(func_addr)))
+		return -EINVAL;
+
 #ifdef PPC64_ELF_ABI_v1
 	/* func points to the function descriptor */
 	PPC_LI64(b2p[TMP_REG_2], func);
@@ -157,24 +161,22 @@ static void bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx,
 	PPC_BPF_LL(b2p[TMP_REG_1], b2p[TMP_REG_2], 0);
 	/* ... and move it to CTR */
 	EMIT(PPC_RAW_MTCTR(b2p[TMP_REG_1]));
-	/*
-	 * Load TOC from function descriptor at offset 8.
-	 * We can clobber r2 since we get called through a
-	 * function pointer (so caller will save/restore r2)
-	 * and since we don't use a TOC ourself.
-	 */
-	PPC_BPF_LL(2, b2p[TMP_REG_2], 8);
 #else
 	/* We can clobber r12 */
 	PPC_FUNC_ADDR(12, func);
 	EMIT(PPC_RAW_MTCTR(12));
 #endif
 	EMIT(PPC_RAW_BCTRL());
+
+	return 0;
 }
 
-void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func)
+int bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func)
 {
 	unsigned int i, ctx_idx = ctx->idx;
+
+	if (WARN_ON_ONCE(func && is_module_text_address(func)))
+		return -EINVAL;
 
 	/* Load function address into r12 */
 	PPC_LI64(12, func);
@@ -193,19 +195,14 @@ void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 fun
 		EMIT(PPC_RAW_NOP());
 
 #ifdef PPC64_ELF_ABI_v1
-	/*
-	 * Load TOC from function descriptor at offset 8.
-	 * We can clobber r2 since we get called through a
-	 * function pointer (so caller will save/restore r2)
-	 * and since we don't use a TOC ourself.
-	 */
-	PPC_BPF_LL(2, 12, 8);
 	/* Load actual entry point from function descriptor */
 	PPC_BPF_LL(12, 12, 0);
 #endif
 
 	EMIT(PPC_RAW_MTCTR(12));
 	EMIT(PPC_RAW_BCTRL());
+
+	return 0;
 }
 
 static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
@@ -890,9 +887,13 @@ emit_clear:
 				return ret;
 
 			if (func_addr_fixed)
-				bpf_jit_emit_func_call_hlp(image, ctx, func_addr);
+				ret = bpf_jit_emit_func_call_hlp(image, ctx, func_addr);
 			else
-				bpf_jit_emit_func_call_rel(image, ctx, func_addr);
+				ret = bpf_jit_emit_func_call_rel(image, ctx, func_addr);
+
+			if (ret)
+				return ret;
+
 			/* move return value from r3 to BPF_REG_0 */
 			EMIT(PPC_RAW_MR(b2p[BPF_REG_0], 3));
 			break;
