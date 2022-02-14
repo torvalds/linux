@@ -443,6 +443,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 1,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUVINT,
+		.output_format = ISP32_MI_OUTPUT_YUV422,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YUV422P,
 		.fmt_type = FMT_YUV,
@@ -451,6 +452,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 1,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.output_format = ISP32_MI_OUTPUT_YUV422,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV16,
 		.fmt_type = FMT_YUV,
@@ -459,6 +461,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 1,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
+		.output_format = ISP32_MI_OUTPUT_YUV422,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV61,
 		.fmt_type = FMT_YUV,
@@ -467,6 +470,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 1,
 		.uv_swap = 1,
 		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
+		.output_format = ISP32_MI_OUTPUT_YUV422,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YUV422M,
 		.fmt_type = FMT_YUV,
@@ -475,6 +479,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 3,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.output_format = ISP32_MI_OUTPUT_YUV422,
 	},
 	/* yuv420 */
 	{
@@ -485,6 +490,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 1,
 		.uv_swap = 1,
 		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
+		.output_format = ISP32_MI_OUTPUT_YUV420,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV12,
 		.fmt_type = FMT_YUV,
@@ -493,6 +499,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 1,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
+		.output_format = ISP32_MI_OUTPUT_YUV420,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV21M,
 		.fmt_type = FMT_YUV,
@@ -501,6 +508,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 2,
 		.uv_swap = 1,
 		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
+		.output_format = ISP32_MI_OUTPUT_YUV420,
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV12M,
 		.fmt_type = FMT_YUV,
@@ -509,6 +517,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 2,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
+		.output_format = ISP32_MI_OUTPUT_YUV420,
 	}, {
 		.fourcc = V4L2_PIX_FMT_YUV420,
 		.fmt_type = FMT_YUV,
@@ -517,6 +526,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 1,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.output_format = ISP32_MI_OUTPUT_YUV420,
 	},
 	/* yuv444 */
 	{
@@ -527,6 +537,7 @@ static const struct capture_fmt mp_fmts[] = {
 		.mplanes = 3,
 		.uv_swap = 0,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.output_format = 0,
 	},
 	/* raw */
 	{
@@ -535,72 +546,84 @@ static const struct capture_fmt mp_fmts[] = {
 		.bpp = { 8 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG8,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 8 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG8,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 8 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR8,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 8 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_RAW12,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_RAW12,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_RAW12,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_RAW12,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB12,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 12 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_RAW12,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG12,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 12 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_RAW12,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG12,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 12 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_RAW12,
+		.output_format = 0,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR12,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 12 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_MP_WRITE_RAW12,
+		.output_format = 0,
 	},
 };
 
@@ -804,6 +827,7 @@ struct stream_config rkisp_mp_stream_config = {
 		.cb_offs_cnt_init = CIF_MI_MP_CB_OFFS_CNT_INIT,
 		.cr_offs_cnt_init = CIF_MI_MP_CR_OFFS_CNT_INIT,
 		.y_base_ad_shd = CIF_MI_MP_Y_BASE_AD_SHD,
+		.y_pic_size = ISP3X_MI_MP_WR_Y_PIC_SIZE,
 	},
 };
 
@@ -861,6 +885,7 @@ struct stream_config rkisp_sp_stream_config = {
 		.cb_offs_cnt_init = CIF_MI_SP_CB_OFFS_CNT_INIT,
 		.cr_offs_cnt_init = CIF_MI_SP_CR_OFFS_CNT_INIT,
 		.y_base_ad_shd = CIF_MI_SP_Y_BASE_AD_SHD,
+		.y_pic_size = ISP3X_MI_SP_WR_Y_PIC_SIZE,
 	},
 };
 
@@ -1339,6 +1364,33 @@ static int rkisp_get_stream_info(struct rkisp_stream *stream,
 	return 0;
 }
 
+static int rkisp_get_mirror_flip(struct rkisp_stream *stream,
+				 struct rkisp_mirror_flip *cfg)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (dev->isp_ver != ISP_V32)
+		return -EINVAL;
+
+	cfg->mirror = dev->cap_dev.is_mirror;
+	cfg->flip = stream->is_flip;
+	return 0;
+}
+
+static int rkisp_set_mirror_flip(struct rkisp_stream *stream,
+				 struct rkisp_mirror_flip *cfg)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (dev->isp_ver != ISP_V32)
+		return -EINVAL;
+
+	dev->cap_dev.is_mirror = cfg->mirror;
+	stream->is_flip = cfg->flip;
+	stream->is_mf_upd = true;
+	return 0;
+}
+
 static long rkisp_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -1384,6 +1436,12 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKISP_CMD_GET_STREAM_INFO:
 		ret = rkisp_get_stream_info(stream, arg);
+		break;
+	case RKISP_CMD_GET_MIRROR_FLIP:
+		ret = rkisp_get_mirror_flip(stream, arg);
+		break;
+	case RKISP_CMD_SET_MIRROR_FLIP:
+		ret = rkisp_set_mirror_flip(stream, arg);
 		break;
 	default:
 		ret = -EINVAL;

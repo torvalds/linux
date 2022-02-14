@@ -192,6 +192,7 @@ struct stream_config {
 		u32 y_base_ad_shd;
 		u32 length;
 		u32 ctrl;
+		u32 y_pic_size;
 	} mi;
 	struct {
 		u32 ctrl;
@@ -253,6 +254,8 @@ struct rkisp_stream {
 	bool frame_end;
 	bool linked;
 	bool start_stream;
+	bool is_mf_upd;
+	bool is_flip;
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;
@@ -283,6 +286,7 @@ struct rkisp_capture_device {
 	u32 wait_line;
 	u32 wrap_line;
 	bool is_done_early;
+	bool is_mirror;
 };
 
 extern struct stream_config rkisp_mp_stream_config;

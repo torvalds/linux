@@ -58,6 +58,12 @@
 #define RKISP_CMD_GET_STREAM_INFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 104, struct rkisp_stream_info)
 
+#define RKISP_CMD_GET_MIRROR_FLIP \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 105, struct rkisp_mirror_flip)
+
+#define RKISP_CMD_SET_MIRROR_FLIP \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 106, struct rkisp_mirror_flip)
+
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)
@@ -309,6 +315,15 @@ struct rkisp_stream_info {
 	unsigned int input_frame_loss;
 	unsigned int output_frame_loss;
 	unsigned char stream_on;
+} __attribute__ ((packed));
+
+/* struct rkisp_mirror_flip
+ * mirror: global for all output stream
+ * flip: independent for all output stream
+ */
+struct rkisp_mirror_flip {
+	unsigned char mirror;
+	unsigned char flip;
 } __attribute__ ((packed));
 
 /* trigger event mode
