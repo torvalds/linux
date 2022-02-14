@@ -10,6 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/hugetlb.h>
 #include <linux/pgtable.h>
+#include <linux/mm_inline.h>
 #include <asm/tlb.h>
 
 /*
