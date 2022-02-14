@@ -285,19 +285,18 @@ static void set_mpt_range_locked(struct mpt *mpt, phys_addr_t first_byte,
 	unsigned int gb, vid;
 	struct pkvm_iommu *dev;
 	struct fmpt *fmpt;
-	enum mpt_update_flags flags;
 
 	for_each_gb_in_range(gb, first_gb, last_gb) {
 		fmpt = &mpt->fmpt[gb];
 		start_gb_byte = (gb == first_gb) ? first_byte % SZ_1G : 0;
 		end_gb_byte = (gb == last_gb) ? (last_byte % SZ_1G) + 1 : SZ_1G;
 
-		flags = __set_fmpt_range(fmpt, start_gb_byte, end_gb_byte, prot);
+		__set_fmpt_range(fmpt, start_gb_byte, end_gb_byte, prot);
 
-		if (flags & MPT_UPDATE_L2)
+		if (fmpt->flags & MPT_UPDATE_L2)
 			kvm_flush_dcache_to_poc(fmpt->smpt, SMPT_SIZE);
 
-		if (flags & MPT_UPDATE_L1) {
+		if (fmpt->flags & MPT_UPDATE_L1) {
 			for_each_powered_s2mpu(dev) {
 				for_each_vid(vid)
 					__set_l1entry_attr_with_fmpt(dev, gb, vid, fmpt);
