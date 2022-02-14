@@ -69,12 +69,6 @@
 #define SP7021_SPI_DATA_SIZE		(255)
 #define SP7021_FIFO_DATA_LEN		(16)
 
-enum SP_SPI_MODE {
-	SP7021_SLAVE_READ = 0,
-	SP7021_SLAVE_WRITE = 1,
-	SP7021_SPI_IDLE = 2,
-};
-
 enum {
 	SP7021_MASTER_MODE = 0,
 	SP7021_SLAVE_MODE = 1,
@@ -375,40 +369,26 @@ static int sp7021_spi_slave_transfer_one(struct spi_controller *ctlr, struct spi
 {
 	struct sp7021_spi_ctlr *pspim = spi_master_get_devdata(ctlr);
 	struct device *dev = pspim->dev;
-	int mode, ret;
+	int ret;
 
-	mode = SP7021_SPI_IDLE;
-	if (xfer->tx_buf && xfer->rx_buf) {
-		dev_dbg(&ctlr->dev, "%s() wrong command\n", __func__);
-		return -EINVAL;
-	} else if (xfer->tx_buf) {
+	if (xfer->tx_buf && !xfer->rx_buf) {
 		xfer->tx_dma = dma_map_single(dev, (void *)xfer->tx_buf,
 					      xfer->len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, xfer->tx_dma))
 			return -ENOMEM;
-		mode = SP7021_SLAVE_WRITE;
-	} else if (xfer->rx_buf) {
+		 ret = sp7021_spi_slave_tx(spi, xfer);
+		 dma_unmap_single(dev, xfer->tx_dma, xfer->len, DMA_TO_DEVICE);
+	} else if (xfer->rx_buf && !xfer->tx_buf) {
 		xfer->rx_dma = dma_map_single(dev, xfer->rx_buf, xfer->len,
 					      DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, xfer->rx_dma))
 			return -ENOMEM;
-		mode = SP7021_SLAVE_READ;
-	}
-
-	switch (mode) {
-	case SP7021_SLAVE_WRITE:
-		ret = sp7021_spi_slave_tx(spi, xfer);
-		break;
-	case SP7021_SLAVE_READ:
 		ret = sp7021_spi_slave_rx(spi, xfer);
-		break;
-	default:
-		break;
-	}
-	if (xfer->tx_buf)
-		dma_unmap_single(dev, xfer->tx_dma, xfer->len, DMA_TO_DEVICE);
-	if (xfer->rx_buf)
 		dma_unmap_single(dev, xfer->rx_dma, xfer->len, DMA_FROM_DEVICE);
+	} else {
+		dev_dbg(&ctlr->dev, "%s() wrong command\n", __func__);
+		return -EINVAL;
+	}
 
 	spi_finalize_current_transfer(ctlr);
 	return ret;
