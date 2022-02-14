@@ -8,11 +8,12 @@
 
 #include <linux/types.h>
 
-#include "intel_context.h"
-
 struct drm_i915_gem_object;
+struct i915_gem_ww_ctx;
+struct intel_context;
 struct intel_engine_cs;
 struct intel_ring;
+struct kref;
 
 /* At the start of the context image is its per-process HWS page */
 #define LRC_PPHWSP_PN	(0)

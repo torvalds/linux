@@ -8,6 +8,8 @@
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
 #include "i915_perf.h"
+#include "i915_reg.h"
+#include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
