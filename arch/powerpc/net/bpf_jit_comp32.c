@@ -33,41 +33,37 @@
 /* stack frame, ensure this is quadword aligned */
 #define BPF_PPC_STACKFRAME(ctx)	(STACK_FRAME_MIN_SIZE + BPF_PPC_STACK_SAVE + (ctx)->stack_size)
 
-/* BPF register usage */
-#define TMP_REG	(MAX_BPF_JIT_REG + 0)
-
 #define PPC_EX32(r, i)		EMIT(PPC_RAW_LI((r), (i) < 0 ? -1 : 0))
-
-/* BPF to ppc register mappings */
-const int b2p[MAX_BPF_JIT_REG + 1] = {
-	/* function return value */
-	[BPF_REG_0] = _R12,
-	/* function arguments */
-	[BPF_REG_1] = _R4,
-	[BPF_REG_2] = _R6,
-	[BPF_REG_3] = _R8,
-	[BPF_REG_4] = _R10,
-	[BPF_REG_5] = _R22,
-	/* non volatile registers */
-	[BPF_REG_6] = _R24,
-	[BPF_REG_7] = _R26,
-	[BPF_REG_8] = _R28,
-	[BPF_REG_9] = _R30,
-	/* frame pointer aka BPF_REG_10 */
-	[BPF_REG_FP] = _R18,
-	/* eBPF jit internal registers */
-	[BPF_REG_AX] = _R20,
-	[TMP_REG] = _R31,		/* 32 bits */
-};
-
-static int bpf_to_ppc(struct codegen_context *ctx, int reg)
-{
-	return ctx->b2p[reg];
-}
 
 /* PPC NVR range -- update this if we ever use NVRs below r17 */
 #define BPF_PPC_NVR_MIN		_R17
 #define BPF_PPC_TC		_R16
+
+/* BPF register usage */
+#define TMP_REG			(MAX_BPF_JIT_REG + 0)
+
+/* BPF to ppc register mappings */
+void bpf_jit_init_reg_mapping(struct codegen_context *ctx)
+{
+	/* function return value */
+	ctx->b2p[BPF_REG_0] = _R12;
+	/* function arguments */
+	ctx->b2p[BPF_REG_1] = _R4;
+	ctx->b2p[BPF_REG_2] = _R6;
+	ctx->b2p[BPF_REG_3] = _R8;
+	ctx->b2p[BPF_REG_4] = _R10;
+	ctx->b2p[BPF_REG_5] = _R22;
+	/* non volatile registers */
+	ctx->b2p[BPF_REG_6] = _R24;
+	ctx->b2p[BPF_REG_7] = _R26;
+	ctx->b2p[BPF_REG_8] = _R28;
+	ctx->b2p[BPF_REG_9] = _R30;
+	/* frame pointer aka BPF_REG_10 */
+	ctx->b2p[BPF_REG_FP] = _R18;
+	/* eBPF jit internal registers */
+	ctx->b2p[BPF_REG_AX] = _R20;
+	ctx->b2p[TMP_REG] = _R31;		/* 32 bits */
+}
 
 static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 {
@@ -118,8 +114,8 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	int i;
 
 	/* First arg comes in as a 32 bits pointer. */
-	EMIT(PPC_RAW_MR(bpf_to_ppc(ctx, BPF_REG_1), _R3));
-	EMIT(PPC_RAW_LI(bpf_to_ppc(ctx, BPF_REG_1) - 1, 0));
+	EMIT(PPC_RAW_MR(bpf_to_ppc(BPF_REG_1), _R3));
+	EMIT(PPC_RAW_LI(bpf_to_ppc(BPF_REG_1) - 1, 0));
 	EMIT(PPC_RAW_STWU(_R1, _R1, -BPF_PPC_STACKFRAME(ctx)));
 
 	/*
@@ -128,7 +124,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	 * invoked through a tail call.
 	 */
 	if (ctx->seen & SEEN_TAILCALL)
-		EMIT(PPC_RAW_STW(bpf_to_ppc(ctx, BPF_REG_1) - 1, _R1,
+		EMIT(PPC_RAW_STW(bpf_to_ppc(BPF_REG_1) - 1, _R1,
 				 bpf_jit_stack_offsetof(ctx, BPF_PPC_TC)));
 	else
 		EMIT(PPC_RAW_NOP());
@@ -150,15 +146,15 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 			EMIT(PPC_RAW_STW(i, _R1, bpf_jit_stack_offsetof(ctx, i)));
 
 	/* If needed retrieve arguments 9 and 10, ie 5th 64 bits arg.*/
-	if (bpf_is_seen_register(ctx, bpf_to_ppc(ctx, BPF_REG_5))) {
-		EMIT(PPC_RAW_LWZ(bpf_to_ppc(ctx, BPF_REG_5) - 1, _R1, BPF_PPC_STACKFRAME(ctx)) + 8);
-		EMIT(PPC_RAW_LWZ(bpf_to_ppc(ctx, BPF_REG_5), _R1, BPF_PPC_STACKFRAME(ctx)) + 12);
+	if (bpf_is_seen_register(ctx, bpf_to_ppc(BPF_REG_5))) {
+		EMIT(PPC_RAW_LWZ(bpf_to_ppc(BPF_REG_5) - 1, _R1, BPF_PPC_STACKFRAME(ctx)) + 8);
+		EMIT(PPC_RAW_LWZ(bpf_to_ppc(BPF_REG_5), _R1, BPF_PPC_STACKFRAME(ctx)) + 12);
 	}
 
 	/* Setup frame pointer to point to the bpf stack area */
-	if (bpf_is_seen_register(ctx, bpf_to_ppc(ctx, BPF_REG_FP))) {
-		EMIT(PPC_RAW_LI(bpf_to_ppc(ctx, BPF_REG_FP) - 1, 0));
-		EMIT(PPC_RAW_ADDI(bpf_to_ppc(ctx, BPF_REG_FP), _R1,
+	if (bpf_is_seen_register(ctx, bpf_to_ppc(BPF_REG_FP))) {
+		EMIT(PPC_RAW_LI(bpf_to_ppc(BPF_REG_FP) - 1, 0));
+		EMIT(PPC_RAW_ADDI(bpf_to_ppc(BPF_REG_FP), _R1,
 				  STACK_FRAME_MIN_SIZE + ctx->stack_size));
 	}
 
@@ -178,7 +174,7 @@ static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx
 
 void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 {
-	EMIT(PPC_RAW_MR(_R3, bpf_to_ppc(ctx, BPF_REG_0)));
+	EMIT(PPC_RAW_MR(_R3, bpf_to_ppc(BPF_REG_0)));
 
 	bpf_jit_emit_common_epilogue(image, ctx);
 
@@ -223,8 +219,8 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 	 * r5-r6/BPF_REG_2 - pointer to bpf_array
 	 * r7-r8/BPF_REG_3 - index in bpf_array
 	 */
-	int b2p_bpf_array = bpf_to_ppc(ctx, BPF_REG_2);
-	int b2p_index = bpf_to_ppc(ctx, BPF_REG_3);
+	int b2p_bpf_array = bpf_to_ppc(BPF_REG_2);
+	int b2p_index = bpf_to_ppc(BPF_REG_3);
 
 	/*
 	 * if (index >= array->map.max_entries)
@@ -270,7 +266,7 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 
 	EMIT(PPC_RAW_MTCTR(_R3));
 
-	EMIT(PPC_RAW_MR(_R3, bpf_to_ppc(ctx, BPF_REG_1)));
+	EMIT(PPC_RAW_MR(_R3, bpf_to_ppc(BPF_REG_1)));
 
 	/* tear restore NVRs, ... */
 	bpf_jit_emit_common_epilogue(image, ctx);
@@ -294,11 +290,11 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 
 	for (i = 0; i < flen; i++) {
 		u32 code = insn[i].code;
-		u32 dst_reg = bpf_to_ppc(ctx, insn[i].dst_reg);
+		u32 dst_reg = bpf_to_ppc(insn[i].dst_reg);
 		u32 dst_reg_h = dst_reg - 1;
-		u32 src_reg = bpf_to_ppc(ctx, insn[i].src_reg);
+		u32 src_reg = bpf_to_ppc(insn[i].src_reg);
 		u32 src_reg_h = src_reg - 1;
-		u32 tmp_reg = bpf_to_ppc(ctx, TMP_REG);
+		u32 tmp_reg = bpf_to_ppc(TMP_REG);
 		u32 size = BPF_SIZE(code);
 		s16 off = insn[i].off;
 		s32 imm = insn[i].imm;
@@ -960,17 +956,17 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 			if (ret < 0)
 				return ret;
 
-			if (bpf_is_seen_register(ctx, bpf_to_ppc(ctx, BPF_REG_5))) {
-				EMIT(PPC_RAW_STW(bpf_to_ppc(ctx, BPF_REG_5) - 1, _R1, 8));
-				EMIT(PPC_RAW_STW(bpf_to_ppc(ctx, BPF_REG_5), _R1, 12));
+			if (bpf_is_seen_register(ctx, bpf_to_ppc(BPF_REG_5))) {
+				EMIT(PPC_RAW_STW(bpf_to_ppc(BPF_REG_5) - 1, _R1, 8));
+				EMIT(PPC_RAW_STW(bpf_to_ppc(BPF_REG_5), _R1, 12));
 			}
 
 			ret = bpf_jit_emit_func_call_rel(image, ctx, func_addr);
 			if (ret)
 				return ret;
 
-			EMIT(PPC_RAW_MR(bpf_to_ppc(ctx, BPF_REG_0) - 1, _R3));
-			EMIT(PPC_RAW_MR(bpf_to_ppc(ctx, BPF_REG_0), _R4));
+			EMIT(PPC_RAW_MR(bpf_to_ppc(BPF_REG_0) - 1, _R3));
+			EMIT(PPC_RAW_MR(bpf_to_ppc(BPF_REG_0), _R4));
 			break;
 
 		/*

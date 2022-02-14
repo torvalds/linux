@@ -72,13 +72,13 @@ static int bpf_jit_fixup_addresses(struct bpf_prog *fp, u32 *image,
 			tmp_idx = ctx->idx;
 			ctx->idx = addrs[i] / 4;
 #ifdef CONFIG_PPC32
-			PPC_LI32(ctx->b2p[insn[i].dst_reg] - 1, (u32)insn[i + 1].imm);
-			PPC_LI32(ctx->b2p[insn[i].dst_reg], (u32)insn[i].imm);
+			PPC_LI32(bpf_to_ppc(insn[i].dst_reg) - 1, (u32)insn[i + 1].imm);
+			PPC_LI32(bpf_to_ppc(insn[i].dst_reg), (u32)insn[i].imm);
 			for (j = ctx->idx - addrs[i] / 4; j < 4; j++)
 				EMIT(PPC_RAW_NOP());
 #else
 			func_addr = ((u64)(u32)insn[i].imm) | (((u64)(u32)insn[i + 1].imm) << 32);
-			PPC_LI64(b2p[insn[i].dst_reg], func_addr);
+			PPC_LI64(bpf_to_ppc(insn[i].dst_reg), func_addr);
 			/* overwrite rest with nops */
 			for (j = ctx->idx - addrs[i] / 4; j < 5; j++)
 				EMIT(PPC_RAW_NOP());
@@ -179,7 +179,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	}
 
 	memset(&cgctx, 0, sizeof(struct codegen_context));
-	memcpy(cgctx.b2p, b2p, sizeof(cgctx.b2p));
+	bpf_jit_init_reg_mapping(&cgctx);
 
 	/* Make sure that the stack is quadword aligned. */
 	cgctx.stack_size = round_up(fp->aux->stack_depth, 16);

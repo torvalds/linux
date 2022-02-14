@@ -119,12 +119,6 @@
 #define SEEN_FUNC	0x20000000 /* might call external helpers */
 #define SEEN_TAILCALL	0x40000000 /* uses tail calls */
 
-#ifdef CONFIG_PPC64
-extern const int b2p[MAX_BPF_JIT_REG + 2];
-#else
-extern const int b2p[MAX_BPF_JIT_REG + 1];
-#endif
-
 struct codegen_context {
 	/*
 	 * This is used to track register usage as well
@@ -138,10 +132,12 @@ struct codegen_context {
 	unsigned int seen;
 	unsigned int idx;
 	unsigned int stack_size;
-	int b2p[ARRAY_SIZE(b2p)];
+	int b2p[MAX_BPF_JIT_REG + 2];
 	unsigned int exentry_idx;
 	unsigned int alt_exit_addr;
 };
+
+#define bpf_to_ppc(r)	(ctx->b2p[r])
 
 #ifdef CONFIG_PPC32
 #define BPF_FIXUP_LEN	3 /* Three instructions => 12 bytes */
@@ -170,6 +166,7 @@ static inline void bpf_clear_seen_register(struct codegen_context *ctx, int i)
 	ctx->seen &= ~(1 << (31 - i));
 }
 
+void bpf_jit_init_reg_mapping(struct codegen_context *ctx);
 int bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx, u64 func);
 int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *ctx,
 		       u32 *addrs, int pass);
