@@ -413,7 +413,7 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	tipc_uaddr(&ua, TIPC_SERVICE_RANGE, TIPC_NODE_SCOPE,
 		   TIPC_LINK_STATE, n->addr, n->addr);
 	sk.ref = n->link_id;
-	sk.node = n->addr;
+	sk.node = tipc_own_addr(net);
 	bearer_id = n->link_id & 0xffff;
 	publ_list = &n->publ_list;
 
