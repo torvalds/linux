@@ -10,9 +10,14 @@ maintainers:
   - Conor Dooley <conor.dooley@microchip.com>
 
 description: |
-  The PolarFire SoC system controller is communicated with via a mailbox.
-  This document describes the bindings for the client portion of that mailbox.
+  PolarFire SoC devices include a microcontroller acting as the system controller,
+  which provides "services" to the main processor and to the FPGA fabric. These
+  services include hardware rng, reprogramming of the FPGA and verfification of the
+  eNVM contents etc. More information on these services can be found online, at
+  https://onlinedocs.microchip.com/pr/GUID-1409CF11-8EF9-4C24-A94E-70979A688632-en-US-1/index.html
 
+  Communication with the system controller is done via a mailbox, of which the client
+  portion is documented here.
 
 properties:
   mboxes:
@@ -29,7 +34,7 @@ additionalProperties: false
 
 examples:
   - |
-    syscontroller: syscontroller {
+    syscontroller {
       compatible = "microchip,mpfs-sys-controller";
       mboxes = <&mbox 0>;
     };
