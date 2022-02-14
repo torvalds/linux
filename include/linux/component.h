@@ -82,6 +82,12 @@ struct component_master_ops {
 	void (*unbind)(struct device *master);
 };
 
+/* A set helper functions for component compare/release */
+int component_compare_of(struct device *dev, void *data);
+void component_release_of(struct device *dev, void *data);
+int component_compare_dev(struct device *dev, void *data);
+int component_compare_dev_name(struct device *dev, void *data);
+
 void component_master_del(struct device *,
 	const struct component_master_ops *);
 

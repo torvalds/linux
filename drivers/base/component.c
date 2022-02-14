@@ -6,6 +6,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 
@@ -282,6 +283,63 @@ static void take_down_aggregate_device(struct aggregate_device *adev)
 		adev->bound = false;
 	}
 }
+
+/**
+ * component_compare_of - A common component compare function for of_node
+ * @dev: component device
+ * @data: @compare_data from component_match_add_release()
+ *
+ * A common compare function when compare_data is device of_node. e.g.
+ * component_match_add_release(masterdev, &match, component_release_of,
+ * component_compare_of, component_dev_of_node)
+ */
+int component_compare_of(struct device *dev, void *data)
+{
+	return device_match_of_node(dev, data);
+}
+EXPORT_SYMBOL_GPL(component_compare_of);
+
+/**
+ * component_release_of - A common component release function for of_node
+ * @dev: component device
+ * @data: @compare_data from component_match_add_release()
+ *
+ * About the example, Please see component_compare_of().
+ */
+void component_release_of(struct device *dev, void *data)
+{
+	of_node_put(data);
+}
+EXPORT_SYMBOL_GPL(component_release_of);
+
+/**
+ * component_compare_dev - A common component compare function for dev
+ * @dev: component device
+ * @data: @compare_data from component_match_add_release()
+ *
+ * A common compare function when compare_data is struce device. e.g.
+ * component_match_add(masterdev, &match, component_compare_dev, component_dev)
+ */
+int component_compare_dev(struct device *dev, void *data)
+{
+	return dev == data;
+}
+EXPORT_SYMBOL_GPL(component_compare_dev);
+
+/**
+ * component_compare_dev_name - A common component compare function for device name
+ * @dev: component device
+ * @data: @compare_data from component_match_add_release()
+ *
+ * A common compare function when compare_data is device name string. e.g.
+ * component_match_add(masterdev, &match, component_compare_dev_name,
+ * "component_dev_name")
+ */
+int component_compare_dev_name(struct device *dev, void *data)
+{
+	return device_match_name(dev, data);
+}
+EXPORT_SYMBOL_GPL(component_compare_dev_name);
 
 static void devm_component_match_release(struct device *parent, void *res)
 {
