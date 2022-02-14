@@ -1688,6 +1688,17 @@ static void st_update_runtime_underflow(struct intel_context *ce, s32 dt)
 #endif
 }
 
+static u32 lrc_get_runtime(const struct intel_context *ce)
+{
+	/*
+	 * We can use either ppHWSP[16] which is recorded before the context
+	 * switch (and so excludes the cost of context switches) or use the
+	 * value from the context image itself, which is saved/restored earlier
+	 * and so includes the cost of the save.
+	 */
+	return READ_ONCE(ce->lrc_reg_state[CTX_TIMESTAMP]);
+}
+
 void lrc_update_runtime(struct intel_context *ce)
 {
 	u32 old;
