@@ -160,7 +160,7 @@
 		target-module@48210000 {
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
 			power-domains = <&prm_mpu>;
-			clocks = <&mpu_clkctrl DRA7_MPU_CLKCTRL 0>;
+			clocks = <&mpu_clkctrl DRA7_MPU_MPU_CLKCTRL 0>;
 			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -875,10 +875,10 @@
 			      <0x58000014 4>;
 			reg-names = "rev", "syss";
 			ti,syss-mask = <1>;
-			clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 0>,
-				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 9>,
-				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 10>,
-				 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 11>;
+			clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 0>,
+				 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 9>,
+				 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 10>,
+				 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 11>;
 			clock-names = "fck", "hdmi_clk", "sys_clk", "tv_clk";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -912,7 +912,7 @@
 							 SYSC_OMAP2_SOFTRESET |
 							 SYSC_OMAP2_AUTOIDLE)>;
 					ti,syss-mask = <1>;
-					clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>;
+					clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
 					clock-names = "fck";
 					#address-cells = <1>;
 					#size-cells = <1>;
@@ -939,8 +939,8 @@
 							<SYSC_IDLE_SMART>,
 							<SYSC_IDLE_SMART_WKUP>;
 					ti,sysc-mask = <(SYSC_OMAP4_SOFTRESET)>;
-					clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 9>,
-						 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>;
+					clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 9>,
+						 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>;
 					clock-names = "fck", "dss_clk";
 					#address-cells = <1>;
 					#size-cells = <1>;
@@ -979,7 +979,7 @@
 				compatible = "vivante,gc";
 				reg = <0x0 0x700>;
 				interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&dss_clkctrl DRA7_BB2D_CLKCTRL 0>;
+				clocks = <&dss_clkctrl DRA7_DSS_BB2D_CLKCTRL 0>;
 				clock-names = "core";
 			};
 		};
@@ -1333,7 +1333,7 @@
 	ti,no-reset-on-init;
 	ti,no-idle;
 	timer@0 {
-		assigned-clocks = <&wkupaon_clkctrl DRA7_TIMER1_CLKCTRL 24>;
+		assigned-clocks = <&wkupaon_clkctrl DRA7_WKUPAON_TIMER1_CLKCTRL 24>;
 		assigned-clock-parents = <&sys_32k_ck>;
 	};
 };
