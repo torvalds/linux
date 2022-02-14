@@ -134,7 +134,7 @@ static void quota2_log(unsigned int hooknum,
 static ssize_t quota_proc_read(struct file *file, char __user *buf,
 			   size_t size, loff_t *ppos)
 {
-	struct xt_quota_counter *e = PDE_DATA(file_inode(file));
+	struct xt_quota_counter *e = pde_data(file_inode(file));
 	char tmp[24];
 	size_t tmp_size;
 
@@ -147,7 +147,7 @@ static ssize_t quota_proc_read(struct file *file, char __user *buf,
 static ssize_t quota_proc_write(struct file *file, const char __user *input,
                             size_t size, loff_t *ppos)
 {
-	struct xt_quota_counter *e = PDE_DATA(file_inode(file));
+	struct xt_quota_counter *e = pde_data(file_inode(file));
 	char buf[sizeof("18446744073709551616")];
 
 	if (size > sizeof(buf))
