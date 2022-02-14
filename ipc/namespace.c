@@ -63,6 +63,9 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	if (!setup_mq_sysctls(ns))
 		goto fail_put;
 
+	if (!setup_ipc_sysctls(ns))
+		goto fail_put;
+
 	sem_init_ns(ns);
 	msg_init_ns(ns);
 	shm_init_ns(ns);
@@ -130,6 +133,7 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 	shm_exit_ns(ns);
 
 	retire_mq_sysctls(ns);
+	retire_ipc_sysctls(ns);
 
 	dec_ipc_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
