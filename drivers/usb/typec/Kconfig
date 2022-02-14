@@ -100,6 +100,16 @@ config TYPEC_QCOM_PMIC
 	  It will also enable the VBUS output to connected devices when a
 	  DFP connection is made.
 
+config TYPEC_WUSB3801
+	tristate "Willsemi WUSB3801 Type-C port controller driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y or M here if your system has a WUSB3801 Type-C port controller.
+
+	  If you choose to build this driver as a dynamically linked module, the
+	  module will be called wusb3801.ko.
+
 source "drivers/usb/typec/mux/Kconfig"
 
 source "drivers/usb/typec/altmodes/Kconfig"
