@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
@@ -1961,7 +1962,6 @@ MODULE_DEVICE_TABLE(of, aspeed_video_of_match);
 static int aspeed_video_probe(struct platform_device *pdev)
 {
 	const struct aspeed_video_config *config;
-	const struct of_device_id *match;
 	struct aspeed_video *video;
 	int rc;
 
@@ -1973,11 +1973,10 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	if (IS_ERR(video->base))
 		return PTR_ERR(video->base);
 
-	match = of_match_node(aspeed_video_of_match, pdev->dev.of_node);
-	if (!match)
-		return -EINVAL;
+	config = of_device_get_match_data(&pdev->dev);
+	if (!config)
+		return -ENODEV;
 
-	config = match->data;
 	video->jpeg_mode = config->jpeg_mode;
 	video->comp_size_read = config->comp_size_read;
 
