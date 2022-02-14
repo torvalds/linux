@@ -54,11 +54,6 @@ struct amdgpu_gtt_mgr {
 	spinlock_t lock;
 };
 
-struct amdgpu_preempt_mgr {
-	struct ttm_resource_manager manager;
-	atomic64_t used;
-};
-
 struct amdgpu_mman {
 	struct ttm_device		bdev;
 	bool				initialized;
@@ -75,7 +70,7 @@ struct amdgpu_mman {
 
 	struct amdgpu_vram_mgr vram_mgr;
 	struct amdgpu_gtt_mgr gtt_mgr;
-	struct amdgpu_preempt_mgr preempt_mgr;
+	struct ttm_resource_manager preempt_mgr;
 
 	uint64_t		stolen_vga_size;
 	struct amdgpu_bo	*stolen_vga_memory;
