@@ -871,8 +871,11 @@ emit_clear:
 			 * the epilogue. If we _are_ the last instruction,
 			 * we'll just fall through to the epilogue.
 			 */
-			if (i != flen - 1)
-				PPC_JMP(exit_addr);
+			if (i != flen - 1) {
+				ret = bpf_jit_emit_exit_insn(image, ctx, b2p[TMP_REG_1], exit_addr);
+				if (ret)
+					return ret;
+			}
 			/* else fall through to the epilogue */
 			break;
 

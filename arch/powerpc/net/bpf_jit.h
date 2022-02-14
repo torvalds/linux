@@ -148,6 +148,7 @@ struct codegen_context {
 	unsigned int stack_size;
 	int b2p[ARRAY_SIZE(b2p)];
 	unsigned int exentry_idx;
+	unsigned int alt_exit_addr;
 };
 
 #ifdef CONFIG_PPC32
@@ -183,6 +184,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx);
 void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx);
 void bpf_jit_realloc_regs(struct codegen_context *ctx);
+int bpf_jit_emit_exit_insn(u32 *image, struct codegen_context *ctx, int tmp_reg, long exit_addr);
 
 int bpf_add_extable_entry(struct bpf_prog *fp, u32 *image, int pass, struct codegen_context *ctx,
 			  int insn_idx, int jmp_off, int dst_reg);
