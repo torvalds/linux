@@ -16,15 +16,32 @@ struct pkvm_iommu_ops {
 	 * Driver initialization lock held during callback.
 	 */
 	int (*init)(void *data, size_t size);
+
+	/*
+	 * Driver-specific validation of device registration inputs.
+	 * This should be stateless. No locks are held at entry.
+	 */
+	int (*validate)(phys_addr_t base, size_t size);
+
+	/* Amount of memory allocated per-device for use by the driver. */
+	size_t data_size;
 };
 
 struct pkvm_iommu {
 	struct list_head list;
+	unsigned long id;
+	const struct pkvm_iommu_ops *ops;
 	phys_addr_t pa;
+	void *va;
 	size_t size;
+	char data[];
 };
 
 int __pkvm_iommu_driver_init(enum pkvm_iommu_driver_id id, void *data, size_t size);
+int __pkvm_iommu_register(unsigned long dev_id,
+			  enum pkvm_iommu_driver_id drv_id,
+			  phys_addr_t dev_pa, size_t dev_size,
+			  void *kern_mem_va, size_t mem_size);
 int pkvm_iommu_host_stage2_adjust_range(phys_addr_t addr, phys_addr_t *start,
 					phys_addr_t *end);
 

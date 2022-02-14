@@ -395,6 +395,8 @@ enum pkvm_iommu_driver_id {
 };
 
 int pkvm_iommu_driver_init(enum pkvm_iommu_driver_id drv_id, void *data, size_t size);
+int pkvm_iommu_register(struct device *dev, enum pkvm_iommu_driver_id drv_id,
+			phys_addr_t pa, size_t size);
 
 struct vcpu_reset_state {
 	unsigned long	pc;

@@ -1123,6 +1123,19 @@ static void handle___pkvm_iommu_driver_init(struct kvm_cpu_context *host_ctxt)
 	cpu_reg(host_ctxt, 1) = __pkvm_iommu_driver_init(id, data, size);
 }
 
+static void handle___pkvm_iommu_register(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(unsigned long, dev_id, host_ctxt, 1);
+	DECLARE_REG(enum pkvm_iommu_driver_id, drv_id, host_ctxt, 2);
+	DECLARE_REG(phys_addr_t, dev_pa, host_ctxt, 3);
+	DECLARE_REG(size_t, dev_size, host_ctxt, 4);
+	DECLARE_REG(void *, mem, host_ctxt, 5);
+	DECLARE_REG(size_t, mem_size, host_ctxt, 6);
+
+	cpu_reg(host_ctxt, 1) = __pkvm_iommu_register(dev_id, drv_id, dev_pa,
+						      dev_size, mem, mem_size);
+}
+
 typedef void (*hcall_t)(struct kvm_cpu_context *);
 
 #define HANDLE_FUNC(x)	[__KVM_HOST_SMCCC_FUNC_##x] = (hcall_t)handle_##x
@@ -1158,6 +1171,7 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_vcpu_put),
 	HANDLE_FUNC(__pkvm_vcpu_sync_state),
 	HANDLE_FUNC(__pkvm_iommu_driver_init),
+	HANDLE_FUNC(__pkvm_iommu_register),
 };
 
 static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)

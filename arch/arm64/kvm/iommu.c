@@ -6,7 +6,37 @@
 
 #include <linux/kvm_host.h>
 
+static unsigned long dev_to_id(struct device *dev)
+{
+	/* Use the struct device pointer as a unique identifier. */
+	return (unsigned long)dev;
+}
+
 int pkvm_iommu_driver_init(enum pkvm_iommu_driver_id id, void *data, size_t size)
 {
 	return kvm_call_hyp_nvhe(__pkvm_iommu_driver_init, id, data, size);
+}
+
+int pkvm_iommu_register(struct device *dev, enum pkvm_iommu_driver_id drv_id,
+			phys_addr_t pa, size_t size)
+{
+	void *mem;
+	int ret;
+
+	/*
+	 * Hypcall to register the device. It will return -ENOMEM if it needs
+	 * more memory. In that case allocate a page and retry.
+	 * We assume that hyp never allocates more than a page per hypcall.
+	 */
+	ret = kvm_call_hyp_nvhe(__pkvm_iommu_register, dev_to_id(dev),
+				drv_id, pa, size, NULL, 0);
+	if (ret == -ENOMEM) {
+		mem = (void *)__get_free_page(GFP_KERNEL);
+		if (!mem)
+			return -ENOMEM;
+
+		ret = kvm_call_hyp_nvhe(__pkvm_iommu_register, dev_to_id(dev),
+					drv_id, pa, size, mem, PAGE_SIZE);
+	}
+	return ret;
 }
