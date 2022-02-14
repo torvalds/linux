@@ -91,11 +91,11 @@ int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
 {
 	int r, i;
 
-	r = amdgpu_ras_block_late_init(adev, adev->sdma.ras_if);
+	r = amdgpu_ras_block_late_init(adev, ras_block);
 	if (r)
 		return r;
 
-	if (amdgpu_ras_is_supported(adev, adev->sdma.ras_if->block)) {
+	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
 		for (i = 0; i < adev->sdma.num_instances; i++) {
 			r = amdgpu_irq_get(adev, &adev->sdma.ecc_irq,
 				AMDGPU_SDMA_IRQ_INSTANCE0 + i);
@@ -107,7 +107,7 @@ int amdgpu_sdma_ras_late_init(struct amdgpu_device *adev,
 	return 0;
 
 late_fini:
-	amdgpu_ras_block_late_fini(adev, adev->sdma.ras_if);
+	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
 }
 

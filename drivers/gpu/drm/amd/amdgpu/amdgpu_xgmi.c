@@ -740,7 +740,7 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev, struct ras_comm
 
 	adev->gmc.xgmi.ras->ras_block.hw_ops->reset_ras_error_count(adev);
 
-	return amdgpu_ras_block_late_init(adev, adev->gmc.xgmi.ras_if);
+	return amdgpu_ras_block_late_init(adev, ras_block);
 }
 
 static void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)

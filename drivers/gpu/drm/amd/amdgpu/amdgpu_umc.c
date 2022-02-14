@@ -140,11 +140,11 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *r
 {
 	int r;
 
-	r = amdgpu_ras_block_late_init(adev, adev->umc.ras_if);
+	r = amdgpu_ras_block_late_init(adev, ras_block);
 	if (r)
 		return r;
 
-	if (amdgpu_ras_is_supported(adev, adev->umc.ras_if->block)) {
+	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
 		r = amdgpu_irq_get(adev, &adev->gmc.ecc_irq, 0);
 		if (r)
 			goto late_fini;
@@ -158,7 +158,7 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *r
 	return 0;
 
 late_fini:
-	amdgpu_ras_block_late_fini(adev, adev->umc.ras_if);
+	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
 }
 

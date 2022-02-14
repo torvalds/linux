@@ -25,11 +25,11 @@
 int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	int r;
-	r = amdgpu_ras_block_late_init(adev, adev->nbio.ras_if);
+	r = amdgpu_ras_block_late_init(adev, ras_block);
 	if (r)
 		return r;
 
-	if (amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
+	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
 		r = amdgpu_irq_get(adev, &adev->nbio.ras_controller_irq, 0);
 		if (r)
 			goto late_fini;
@@ -40,7 +40,7 @@ int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *
 
 	return 0;
 late_fini:
-	amdgpu_ras_block_late_fini(adev, adev->nbio.ras_if);
+	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
 }
 

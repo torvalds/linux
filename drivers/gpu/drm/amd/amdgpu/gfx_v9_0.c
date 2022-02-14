@@ -4792,7 +4792,7 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 		return r;
 
 	if (adev->gfx.ras && adev->gfx.ras->ras_block.ras_late_init) {
-		r = adev->gfx.ras->ras_block.ras_late_init(adev, NULL);
+		r = adev->gfx.ras->ras_block.ras_late_init(adev, adev->gfx.ras_if);
 		if (r)
 			return r;
 	}

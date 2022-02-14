@@ -452,7 +452,7 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->umc.ras && adev->umc.ras->ras_block.ras_late_init) {
-		r = adev->umc.ras->ras_block.ras_late_init(adev, NULL);
+		r = adev->umc.ras->ras_block.ras_late_init(adev, adev->umc.ras_if);
 		if (r)
 			return r;
 	}
@@ -464,7 +464,7 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 	}
 
 	if (adev->gmc.xgmi.ras && adev->gmc.xgmi.ras->ras_block.ras_late_init) {
-		r = adev->gmc.xgmi.ras->ras_block.ras_late_init(adev, NULL);
+		r = adev->gmc.xgmi.ras->ras_block.ras_late_init(adev, adev->gmc.xgmi.ras_if);
 		if (r)
 			return r;
 	}
