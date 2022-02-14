@@ -100,7 +100,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 			EMIT(PPC_RAW_STD(0, 1, PPC_LR_STKOFF));
 		}
 
-		PPC_BPF_STLU(1, 1, -(BPF_PPC_STACKFRAME + ctx->stack_size));
+		EMIT(PPC_RAW_STDU(1, 1, -(BPF_PPC_STACKFRAME + ctx->stack_size)));
 	}
 
 	/*
@@ -726,7 +726,12 @@ emit_clear:
 				PPC_LI32(b2p[TMP_REG_1], imm);
 				src_reg = b2p[TMP_REG_1];
 			}
-			PPC_BPF_STL(src_reg, dst_reg, off);
+			if (off % 4) {
+				EMIT(PPC_RAW_LI(b2p[TMP_REG_2], off));
+				EMIT(PPC_RAW_STDX(src_reg, dst_reg, b2p[TMP_REG_2]));
+			} else {
+				EMIT(PPC_RAW_STD(src_reg, dst_reg, off));
+			}
 			break;
 
 		/*
@@ -802,9 +807,8 @@ emit_clear:
 				PPC_BCC_SHORT(COND_GT, (ctx->idx + 3) * 4);
 				EMIT(PPC_RAW_LI(dst_reg, 0));
 				/*
-				 * Check if 'off' is word aligned because PPC_BPF_LL()
-				 * (BPF_DW case) generates two instructions if 'off' is not
-				 * word-aligned and one instruction otherwise.
+				 * Check if 'off' is word aligned for BPF_DW, because
+				 * we might generate two instructions.
 				 */
 				if (BPF_SIZE(code) == BPF_DW && (off & 3))
 					PPC_JMP((ctx->idx + 3) * 4);
@@ -823,7 +827,12 @@ emit_clear:
 				EMIT(PPC_RAW_LWZ(dst_reg, src_reg, off));
 				break;
 			case BPF_DW:
-				PPC_BPF_LL(dst_reg, src_reg, off);
+				if (off % 4) {
+					EMIT(PPC_RAW_LI(b2p[TMP_REG_1], off));
+					EMIT(PPC_RAW_LDX(dst_reg, src_reg, b2p[TMP_REG_1]));
+				} else {
+					EMIT(PPC_RAW_LD(dst_reg, src_reg, off));
+				}
 				break;
 			}
 

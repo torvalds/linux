@@ -64,28 +64,6 @@ const int b2p[MAX_BPF_JIT_REG + 2] = {
 /* PPC NVR range -- update this if we ever use NVRs below r27 */
 #define BPF_PPC_NVR_MIN		27
 
-/*
- * WARNING: These can use TMP_REG_2 if the offset is not at word boundary,
- * so ensure that it isn't in use already.
- */
-#define PPC_BPF_LL(r, base, i) do {					      \
-				if ((i) % 4) {				      \
-					EMIT(PPC_RAW_LI(b2p[TMP_REG_2], (i)));\
-					EMIT(PPC_RAW_LDX(r, base,	      \
-							b2p[TMP_REG_2]));     \
-				} else					      \
-					EMIT(PPC_RAW_LD(r, base, i));	      \
-				} while(0)
-#define PPC_BPF_STL(r, base, i) do {					      \
-				if ((i) % 4) {				      \
-					EMIT(PPC_RAW_LI(b2p[TMP_REG_2], (i)));\
-					EMIT(PPC_RAW_STDX(r, base,	      \
-							b2p[TMP_REG_2]));     \
-				} else					      \
-					EMIT(PPC_RAW_STD(r, base, i));	      \
-				} while(0)
-#define PPC_BPF_STLU(r, base, i) do { EMIT(PPC_RAW_STDU(r, base, i)); } while(0)
-
 #endif /* !__ASSEMBLY__ */
 
 #endif
