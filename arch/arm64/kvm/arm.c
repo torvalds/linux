@@ -1921,13 +1921,7 @@ static bool init_psci_relay(void)
 
 static int init_stage2_iommu(void)
 {
-	int ret;
-
-	ret = kvm_s2mpu_init();
-	if (!ret)
-		return KVM_IOMMU_DRIVER_S2MPU;
-
-	return (ret == -ENODEV) ? KVM_IOMMU_DRIVER_NONE : ret;
+	return KVM_IOMMU_DRIVER_NONE;
 }
 
 static int init_subsystems(void)

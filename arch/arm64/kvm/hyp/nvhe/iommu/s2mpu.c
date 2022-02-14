@@ -25,7 +25,7 @@
 #define PA_MAX				((phys_addr_t)SZ_1G * NR_GIGABYTES)
 
 #define for_each_s2mpu(i) \
-	for ((i) = &kvm_hyp_s2mpus[0]; (i) != &kvm_hyp_s2mpus[kvm_hyp_nr_s2mpus]; (i)++)
+	for ((i) = &s2mpus[0]; (i) != &s2mpus[nr_s2mpus]; (i)++)
 
 #define for_each_powered_s2mpu(i) \
 	for_each_s2mpu((i)) if (is_powered_on((i)))
@@ -34,11 +34,10 @@
 	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
 	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
 
-size_t __ro_after_init		kvm_hyp_nr_s2mpus;
-struct s2mpu __ro_after_init	*kvm_hyp_s2mpus;
-struct mpt			kvm_hyp_host_mpt;
-
-static hyp_spinlock_t		s2mpu_lock;
+static size_t __ro_after_init		nr_s2mpus;
+static struct s2mpu __ro_after_init	*s2mpus;
+static struct mpt			host_mpt;
+static hyp_spinlock_t			s2mpu_lock;
 
 static bool is_version(struct s2mpu *dev, u32 version)
 {
@@ -349,7 +348,7 @@ static void s2mpu_host_stage2_set_owner(phys_addr_t addr, size_t size,
 		return;
 
 	hyp_spin_lock(&s2mpu_lock);
-	set_mpt_range_locked(&kvm_hyp_host_mpt,
+	set_mpt_range_locked(&host_mpt,
 			     ALIGN_DOWN(addr, SMPT_GRAN),
 			     ALIGN(addr + size, SMPT_GRAN) - 1,
 			     prot);
@@ -427,7 +426,7 @@ static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 
 			if (mode == SMC_MODE_POWER_UP) {
 				dev->power_state = S2MPU_POWER_ON;
-				ret = initialize_with_mpt(dev, &kvm_hyp_host_mpt);
+				ret = initialize_with_mpt(dev, &host_mpt);
 			} else {
 				ret = initialize_with_prot(dev, MPT_PROT_NONE);
 				dev->power_state = S2MPU_POWER_OFF;
@@ -512,16 +511,16 @@ static int s2mpu_init(void)
 	int ret;
 
 	/* Map data structures in EL2 stage-1. */
-	ret = pkvm_create_mappings(kvm_hyp_s2mpus,
-				   kvm_hyp_s2mpus + kvm_hyp_nr_s2mpus,
+	ret = pkvm_create_mappings(s2mpus,
+				   s2mpus + nr_s2mpus,
 				   PAGE_HYP);
 	if (ret)
 		return ret;
 
 	for_each_gb(gb) {
 		ret = pkvm_create_mappings(
-			kvm_hyp_host_mpt.fmpt[gb].smpt,
-			kvm_hyp_host_mpt.fmpt[gb].smpt + SMPT_NUM_WORDS,
+			host_mpt.fmpt[gb].smpt,
+			host_mpt.fmpt[gb].smpt + SMPT_NUM_WORDS,
 			PAGE_HYP);
 		if (ret)
 			return ret;
@@ -540,7 +539,7 @@ static int s2mpu_init(void)
 	 * the blocking reset state as the bootloader may have programmed them.
 	 */
 	for_each_powered_s2mpu(dev) {
-		ret = initialize_with_mpt(dev, &kvm_hyp_host_mpt);
+		ret = initialize_with_mpt(dev, &host_mpt);
 		if (ret)
 			return ret;
 	}

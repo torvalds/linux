@@ -189,15 +189,6 @@ enum mpt_update_flags {
 	MPT_UPDATE_L2 = BIT(1),
 };
 
-extern size_t kvm_nvhe_sym(kvm_hyp_nr_s2mpus);
-#define kvm_hyp_nr_s2mpus kvm_nvhe_sym(kvm_hyp_nr_s2mpus)
-
-extern struct s2mpu *kvm_nvhe_sym(kvm_hyp_s2mpus);
-#define kvm_hyp_s2mpus kvm_nvhe_sym(kvm_hyp_s2mpus)
-
-extern struct mpt kvm_nvhe_sym(kvm_hyp_host_mpt);
-#define kvm_hyp_host_mpt kvm_nvhe_sym(kvm_hyp_host_mpt)
-
 /* Set protection bits of SMPT in a given range without using memset. */
 static inline void __set_smpt_range_slow(u32 *smpt, size_t start_gb_byte,
 					 size_t end_gb_byte, enum mpt_prot prot)
