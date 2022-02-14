@@ -1116,98 +1116,101 @@ union hl_wait_cs_args {
 #define HL_MEM_USERPTR		0x4
 #define HL_MEM_FORCE_HINT	0x8
 
+/**
+ * structure hl_mem_in - structure that handle input args for memory IOCTL
+ * @union arg: union of structures to be used based on the input operation
+ * @op: specify the requested memory operation (one of the HL_MEM_OP_* definitions).
+ * @flags: flags for the memory operation (one of the HL_MEM_* definitions).
+ *         For the HL_MEM_OP_EXPORT_DMABUF_FD opcode, this field holds the DMA-BUF file/FD flags.
+ * @ctx_id: context ID - currently not in use.
+ * @num_of_elements: number of timestamp elements used only with HL_MEM_OP_TS_ALLOC opcode.
+ */
 struct hl_mem_in {
 	union {
-		/* HL_MEM_OP_ALLOC- allocate device memory */
+		/**
+		 * structure for device memory allocation (used with the HL_MEM_OP_ALLOC op)
+		 * @mem_size: memory size to allocate
+		 */
 		struct {
-			/* Size to alloc */
 			__u64 mem_size;
 		} alloc;
 
-		/* HL_MEM_OP_FREE - free device memory */
+		/**
+		 * structure for free-ing device memory (used with the HL_MEM_OP_FREE op)
+		 * @handle: handle returned from HL_MEM_OP_ALLOC
+		 */
 		struct {
-			/* Handle returned from HL_MEM_OP_ALLOC */
 			__u64 handle;
 		} free;
 
-		/* HL_MEM_OP_MAP - map device memory */
+		/**
+		 * structure for mapping device memory (used with the HL_MEM_OP_MAP op)
+		 * @hint_addr: requested virtual address of mapped memory.
+		 *             the driver will try to map the requested region to this hint
+		 *             address, as long as the address is valid and not already mapped.
+		 *             the user should check the returned address of the IOCTL to make
+		 *             sure he got the hint address.
+		 *             passing 0 here means that the driver will choose the address itself.
+		 * @handle: handle returned from HL_MEM_OP_ALLOC.
+		 */
 		struct {
-			/*
-			 * Requested virtual address of mapped memory.
-			 * The driver will try to map the requested region to
-			 * this hint address, as long as the address is valid
-			 * and not already mapped. The user should check the
-			 * returned address of the IOCTL to make sure he got
-			 * the hint address. Passing 0 here means that the
-			 * driver will choose the address itself.
-			 */
 			__u64 hint_addr;
-			/* Handle returned from HL_MEM_OP_ALLOC */
 			__u64 handle;
 		} map_device;
 
-		/* HL_MEM_OP_MAP - map host memory */
+		/**
+		 * structure for mapping host memory (used with the HL_MEM_OP_MAP op)
+		 * @host_virt_addr: address of allocated host memory.
+		 * @hint_addr: requested virtual address of mapped memory.
+		 *             the driver will try to map the requested region to this hint
+		 *             address, as long as the address is valid and not already mapped.
+		 *             the user should check the returned address of the IOCTL to make
+		 *             sure he got the hint address.
+		 *             passing 0 here means that the driver will choose the address itself.
+		 * @size: size of allocated host memory.
+		 */
 		struct {
-			/* Address of allocated host memory */
 			__u64 host_virt_addr;
-			/*
-			 * Requested virtual address of mapped memory.
-			 * The driver will try to map the requested region to
-			 * this hint address, as long as the address is valid
-			 * and not already mapped. The user should check the
-			 * returned address of the IOCTL to make sure he got
-			 * the hint address. Passing 0 here means that the
-			 * driver will choose the address itself.
-			 */
 			__u64 hint_addr;
-			/* Size of allocated host memory */
 			__u64 mem_size;
 		} map_host;
 
-		/* HL_MEM_OP_MAP_BLOCK - map a hw block */
+		/**
+		 * structure for mapping hw block (used with the HL_MEM_OP_MAP_BLOCK op)
+		 * @block_addr:HW block address to map, a handle and size will be returned
+		 *             to the user and will be used to mmap the relevant block.
+		 *             only addresses from configuration space are allowed.
+		 */
 		struct {
-			/*
-			 * HW block address to map, a handle and size will be
-			 * returned to the user and will be used to mmap the
-			 * relevant block. Only addresses from configuration
-			 * space are allowed.
-			 */
 			__u64 block_addr;
 		} map_block;
 
-		/* HL_MEM_OP_UNMAP - unmap host memory */
+		/**
+		 * structure for unmapping host memory (used with the HL_MEM_OP_UNMAP op)
+		 * @device_virt_addr: virtual address returned from HL_MEM_OP_MAP
+		 */
 		struct {
-			/* Virtual address returned from HL_MEM_OP_MAP */
 			__u64 device_virt_addr;
 		} unmap;
 
-		/* HL_MEM_OP_EXPORT_DMABUF_FD */
+		/**
+		 * structure for exporting DMABUF object (used with
+		 * the HL_MEM_OP_EXPORT_DMABUF_FD op)
+		 * @handle: handle returned from HL_MEM_OP_ALLOC.
+		 *          in Gaudi, where we don't have MMU for the device memory, the
+		 *          driver expects a physical address (instead of a handle) in the
+		 *          device memory space.
+		 * @mem_size: size of memory allocation. Relevant only for GAUDI
+		 */
 		struct {
-			/* Handle returned from HL_MEM_OP_ALLOC. In Gaudi,
-			 * where we don't have MMU for the device memory, the
-			 * driver expects a physical address (instead of
-			 * a handle) in the device memory space.
-			 */
 			__u64 handle;
-			/* Size of memory allocation. Relevant only for GAUDI */
 			__u64 mem_size;
 		} export_dmabuf_fd;
 	};
 
-	/* HL_MEM_OP_* */
 	__u32 op;
-	/* HL_MEM_* flags.
-	 * For the HL_MEM_OP_EXPORT_DMABUF_FD opcode, this field holds the
-	 * DMA-BUF file/FD flags.
-	 */
 	__u32 flags;
-
-	/* Context ID - Currently not in use */
 	__u32 ctx_id;
-
-	/* number of timestamp elements
-	 * used only when HL_MEM_OP_TS_ALLOC opcode
-	 */
 	__u32 num_of_elements;
 };
 
