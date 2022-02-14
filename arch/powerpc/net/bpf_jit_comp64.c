@@ -690,11 +690,10 @@ emit_clear:
 				EMIT(PPC_RAW_ORI(_R31, _R31, 0));
 				break;
 			case STF_BARRIER_FALLBACK:
-				EMIT(PPC_RAW_MFLR(b2p[TMP_REG_1]));
+				ctx->seen |= SEEN_FUNC;
 				PPC_LI64(12, dereference_kernel_function_descriptor(bpf_stf_barrier));
 				EMIT(PPC_RAW_MTCTR(12));
 				EMIT(PPC_RAW_BCTRL());
-				EMIT(PPC_RAW_MTLR(b2p[TMP_REG_1]));
 				break;
 			case STF_BARRIER_NONE:
 				break;
