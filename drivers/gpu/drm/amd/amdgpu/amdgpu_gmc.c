@@ -470,7 +470,7 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 	}
 
 	if (adev->hdp.ras && adev->hdp.ras->ras_block.ras_late_init) {
-		r = adev->hdp.ras->ras_block.ras_late_init(adev, NULL);
+		r = adev->hdp.ras->ras_block.ras_late_init(adev, adev->hdp.ras_if);
 		if (r)
 			return r;
 	}
