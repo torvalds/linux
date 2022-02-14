@@ -836,6 +836,8 @@ static int hwsim_get_chanwidth(enum nl80211_chan_width bw)
 	case NL80211_CHAN_WIDTH_80P80:
 	case NL80211_CHAN_WIDTH_160:
 		return 160;
+	case NL80211_CHAN_WIDTH_320:
+		return 320;
 	case NL80211_CHAN_WIDTH_5:
 		return 5;
 	case NL80211_CHAN_WIDTH_10:
