@@ -563,6 +563,7 @@ struct hl_hints_range {
  *                              devices)
  * @configurable_stop_on_err: is stop-on-error option configurable via debugfs.
  * @set_max_power_on_device_init: true if need to set max power in F/W on device init.
+ * @supports_user_set_page_size: true if user can set the allocation page size.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -648,6 +649,7 @@ struct asic_fixed_properties {
 	u8				allow_inference_soft_reset;
 	u8				configurable_stop_on_err;
 	u8				set_max_power_on_device_init;
+	u8				supports_user_set_page_size;
 };
 
 /**
@@ -1311,6 +1313,8 @@ struct fw_load_mgr {
  * @get_sob_addr: get SOB base address offset.
  * @set_pci_memory_regions: setting properties of PCI memory regions
  * @get_stream_master_qid_arr: get pointer to stream masters QID array
+ * @is_valid_dram_page_size: return true if page size is supported in device
+ *                           memory allocation, otherwise false.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1436,6 +1440,7 @@ struct hl_asic_funcs {
 	u32 (*get_sob_addr)(struct hl_device *hdev, u32 sob_id);
 	void (*set_pci_memory_regions)(struct hl_device *hdev);
 	u32* (*get_stream_master_qid_arr)(void);
+	bool (*is_valid_dram_page_size)(u32 page_size);
 };
 
 

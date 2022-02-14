@@ -9432,7 +9432,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.state_dump_init = gaudi_state_dump_init,
 	.get_sob_addr = gaudi_get_sob_addr,
 	.set_pci_memory_regions = gaudi_set_pci_memory_regions,
-	.get_stream_master_qid_arr = gaudi_get_stream_master_qid_arr
+	.get_stream_master_qid_arr = gaudi_get_stream_master_qid_arr,
+	.is_valid_dram_page_size = NULL
 };
 
 /**

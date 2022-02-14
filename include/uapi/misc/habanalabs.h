@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -1130,9 +1130,12 @@ struct hl_mem_in {
 		/**
 		 * structure for device memory allocation (used with the HL_MEM_OP_ALLOC op)
 		 * @mem_size: memory size to allocate
+		 * @page_size: page size to use on allocation. when the value is 0 the default page
+		 *             size will be taken.
 		 */
 		struct {
 			__u64 mem_size;
+			__u64 page_size;
 		} alloc;
 
 		/**

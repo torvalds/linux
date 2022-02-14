@@ -24,6 +24,31 @@ MODULE_IMPORT_NS(DMA_BUF);
 static int allocate_timestamps_buffers(struct hl_fpriv *hpriv,
 			struct hl_mem_in *args, u64 *handle);
 
+static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u32 *page_size)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 psize;
+
+	/*
+	 * for ASIC that supports setting the allocation page size by user we will address
+	 * user's choice only if it is not 0 (as 0 means taking the default page size)
+	 */
+	if (prop->supports_user_set_page_size && args->alloc.page_size) {
+		psize = args->alloc.page_size;
+
+		if (!hdev->asic_funcs->is_valid_dram_page_size(psize)) {
+			dev_err(hdev->dev, "user page size (%#x) is not valid\n", psize);
+			return -EINVAL;
+		}
+	} else {
+		psize = hdev->asic_prop.dram_page_size;
+	}
+
+	*page_size = psize;
+
+	return 0;
+}
+
 /*
  * The va ranges in context object contain a list with the available chunks of
  * device virtual memory.
@@ -69,7 +94,11 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 	bool contiguous;
 
 	num_curr_pgs = 0;
-	page_size = hdev->asic_prop.dram_page_size;
+
+	rc = set_alloc_page_size(hdev, args, &page_size);
+	if (rc)
+		return rc;
+
 	num_pgs = DIV_ROUND_UP_ULL(args->alloc.mem_size, page_size);
 	total_size = num_pgs * page_size;
 
