@@ -2195,6 +2195,7 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 	C(40);
 	C(80);
 	C(160);
+	C(320);
 #undef C
 	}
 
