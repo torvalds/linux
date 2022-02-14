@@ -63,11 +63,14 @@ enum fastrpc_proc_attr {
 	FASTRPC_MODE_PRIVILEGED		= (1 << 6),
 };
 
+/* Fastrpc attribute for memory protection of buffers */
+#define FASTRPC_ATTR_SECUREMAP	(1)
+
 struct fastrpc_invoke_args {
 	__u64 ptr;
 	__u64 length;
 	__s32 fd;
-	__u32 reserved;
+	__u32 attr;
 };
 
 struct fastrpc_invoke {

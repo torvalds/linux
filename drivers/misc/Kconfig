@@ -259,6 +259,7 @@ config QCOM_FASTRPC
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on RPMSG
 	select DMA_SHARED_BUFFER
+	select QCOM_SCM
 	help
 	  Provides a communication mechanism that allows for clients to
 	  make remote method invocations across processor boundary to

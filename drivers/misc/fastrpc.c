@@ -17,6 +17,7 @@
 #include <linux/rpmsg.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/qcom_scm.h>
 #include <uapi/misc/fastrpc.h>
 
 #define ADSP_DOMAIN_ID (0)
@@ -25,6 +26,7 @@
 #define CDSP_DOMAIN_ID (3)
 #define FASTRPC_DEV_MAX		4 /* adsp, mdsp, slpi, cdsp*/
 #define FASTRPC_MAX_SESSIONS	13 /*12 compute, 1 cpz*/
+#define FASTRPC_MAX_VMIDS	16
 #define FASTRPC_ALIGN		128
 #define FASTRPC_MAX_FDLIST	16
 #define FASTRPC_MAX_CRCLIST	64
@@ -195,6 +197,7 @@ struct fastrpc_map {
 	void *va;
 	u64 len;
 	u64 raddr;
+	u32 attr;
 	struct kref refcount;
 };
 
@@ -232,6 +235,9 @@ struct fastrpc_session_ctx {
 struct fastrpc_channel_ctx {
 	int domain_id;
 	int sesscount;
+	int vmcount;
+	u32 perms;
+	struct qcom_scm_vmperm vmperms[FASTRPC_MAX_VMIDS];
 	struct rpmsg_device *rpdev;
 	struct fastrpc_session_ctx session[FASTRPC_MAX_SESSIONS];
 	spinlock_t lock;
@@ -279,6 +285,20 @@ static void fastrpc_free_map(struct kref *ref)
 	map = container_of(ref, struct fastrpc_map, refcount);
 
 	if (map->table) {
+		if (map->attr & FASTRPC_ATTR_SECUREMAP) {
+			struct qcom_scm_vmperm perm;
+			int err = 0;
+
+			perm.vmid = QCOM_SCM_VMID_HLOS;
+			perm.perm = QCOM_SCM_PERM_RWX;
+			err = qcom_scm_assign_mem(map->phys, map->size,
+				&(map->fl->cctx->vmperms[0].vmid), &perm, 1);
+			if (err) {
+				dev_err(map->fl->sctx->dev, "Failed to assign memory phys 0x%llx size 0x%llx err %d",
+						map->phys, map->size, err);
+				return;
+			}
+		}
 		dma_buf_unmap_attachment(map->attach, map->table,
 					 DMA_BIDIRECTIONAL);
 		dma_buf_detach(map->buf, map->attach);
@@ -655,7 +675,7 @@ static const struct dma_buf_ops fastrpc_dma_buf_ops = {
 };
 
 static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
-			      u64 len, struct fastrpc_map **ppmap)
+			      u64 len, u32 attr, struct fastrpc_map **ppmap)
 {
 	struct fastrpc_session_ctx *sess = fl->sctx;
 	struct fastrpc_map *map = NULL;
@@ -697,6 +717,22 @@ static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
 	map->len = len;
 	kref_init(&map->refcount);
 
+	if (attr & FASTRPC_ATTR_SECUREMAP) {
+		/*
+		 * If subsystem VMIDs are defined in DTSI, then do
+		 * hyp_assign from HLOS to those VM(s)
+		 */
+		unsigned int perms = BIT(QCOM_SCM_VMID_HLOS);
+
+		map->attr = attr;
+		err = qcom_scm_assign_mem(map->phys, (u64)map->size, &perms,
+				fl->cctx->vmperms, fl->cctx->vmcount);
+		if (err) {
+			dev_err(sess->dev, "Failed to assign memory with phys 0x%llx size 0x%llx err %d",
+					map->phys, map->size, err);
+			goto map_err;
+		}
+	}
 	spin_lock(&fl->lock);
 	list_add_tail(&map->node, &fl->maps);
 	spin_unlock(&fl->lock);
@@ -781,16 +817,13 @@ static int fastrpc_create_maps(struct fastrpc_invoke_ctx *ctx)
 	int i, err;
 
 	for (i = 0; i < ctx->nscalars; ++i) {
-		/* Make sure reserved field is set to 0 */
-		if (ctx->args[i].reserved)
-			return -EINVAL;
 
 		if (ctx->args[i].fd == 0 || ctx->args[i].fd == -1 ||
 		    ctx->args[i].length == 0)
 			continue;
 
 		err = fastrpc_map_create(ctx->fl, ctx->args[i].fd,
-					 ctx->args[i].length, &ctx->maps[i]);
+			 ctx->args[i].length, ctx->args[i].attr, &ctx->maps[i]);
 		if (err) {
 			dev_err(dev, "Error Creating map %d\n", err);
 			return -EINVAL;
@@ -1124,7 +1157,7 @@ static int fastrpc_init_create_process(struct fastrpc_user *fl,
 	fl->pd = USER_PD;
 
 	if (init.filelen && init.filefd) {
-		err = fastrpc_map_create(fl, init.filefd, init.filelen, &map);
+		err = fastrpc_map_create(fl, init.filefd, init.filelen, 0, &map);
 		if (err)
 			goto err;
 	}
@@ -1233,7 +1266,6 @@ static int fastrpc_release_current_dsp_process(struct fastrpc_user *fl)
 	args[0].ptr = (u64)(uintptr_t) &tgid;
 	args[0].length = sizeof(tgid);
 	args[0].fd = -1;
-	args[0].reserved = 0;
 	sc = FASTRPC_SCALARS(FASTRPC_RMID_INIT_RELEASE, 1, 0);
 
 	return fastrpc_internal_invoke(fl, true, FASTRPC_INIT_HANDLE,
@@ -1381,7 +1413,6 @@ static int fastrpc_init_attach(struct fastrpc_user *fl, int pd)
 	args[0].ptr = (u64)(uintptr_t) &tgid;
 	args[0].length = sizeof(tgid);
 	args[0].fd = -1;
-	args[0].reserved = 0;
 	sc = FASTRPC_SCALARS(FASTRPC_RMID_INIT_ATTACH, 1, 0);
 	fl->pd = pd;
 
@@ -1954,9 +1985,10 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 {
 	struct device *rdev = &rpdev->dev;
 	struct fastrpc_channel_ctx *data;
-	int i, err, domain_id = -1;
+	int i, err, domain_id = -1, vmcount;
 	const char *domain;
 	bool secure_dsp;
+	unsigned int vmids[FASTRPC_MAX_VMIDS];
 
 	err = of_property_read_string(rdev->of_node, "label", &domain);
 	if (err) {
@@ -1976,10 +2008,25 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 		return -EINVAL;
 	}
 
+	vmcount = of_property_read_variable_u32_array(rdev->of_node,
+				"qcom,vmids", &vmids[0], 0, FASTRPC_MAX_VMIDS);
+	if (vmcount < 0)
+		vmcount = 0;
+	else if (!qcom_scm_is_available())
+		return -EPROBE_DEFER;
+
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
+	if (vmcount) {
+		data->vmcount = vmcount;
+		data->perms = BIT(QCOM_SCM_VMID_HLOS);
+		for (i = 0; i < data->vmcount; i++) {
+			data->vmperms[i].vmid = vmids[i];
+			data->vmperms[i].perm = QCOM_SCM_PERM_RWX;
+		}
+	}
 
 	secure_dsp = !(of_property_read_bool(rdev->of_node, "qcom,non-secure-domain"));
 	data->secure = secure_dsp;
