@@ -28,7 +28,7 @@ Linux system calls implementation
 
 At a high level system calls are "services" offered by the kernel to
 user applications and they resemble library APIs in that they are
-described as a function call with a name, parameters and return value.
+described as a function call with a name, parameters, and return value.
 
 .. slide:: System Calls as Kernel services
    :inline-contents: True
@@ -90,8 +90,8 @@ actual system calls in order to make it easier for applications to use
 them.
 
 When a user to kernel mode transition occurs, the execution flow is
-interrupted and it is transfered to a kernel entry point. This is
-similar with how interrupts and exception are handled (in fact on some
+interrupted and it is transferred to a kernel entry point. This is
+similar to how interrupts and exceptions are handled (in fact on some
 architectures this transition happens as a result of an exception).
 
 The system call entry point will save registers (which contains values
@@ -100,7 +100,7 @@ parameters) on stack and then it will continue with executing the
 system call dispatcher.
 
 .. note:: During the user - kernel mode transition the stack is also
-          switched from ther user stack to the kernel stack. This is
+          switched from the user stack to the kernel stack. This is
           explained in more details in the interrupts lecture.
 
 .. slide:: Example of Linux system call setup and handling
@@ -247,7 +247,7 @@ System call parameters handling
 
 Handling system call parameters is tricky. Since these values are
 setup by user space, the kernel can not assume correctness and must
-always verify them throughly.
+always verify them thoroughly.
 
 Pointers have a few important special cases that must be checked:
 
@@ -264,7 +264,7 @@ Since system calls are executed in kernel mode, they have access to
 kernel space and if pointers are not properly checked user
 applications might get read or write access to kernel space.
 
-For example, lets consider the case where such a check is not made for
+For example, let's consider the case where such a check is not made for
 the read or write system calls. If the user passes a kernel-space
 pointer to a write system call then it can get access to kernel data
 by later reading the file. If it passes a kernel-space pointer to a
@@ -281,7 +281,7 @@ read system call then it can corrupt kernel memory.
 
 Likewise, if a pointer passed by the application is invalid
 (e.g. unmapped, read-only for cases where it is used for writing), it
-could "crash" the kernel. There two approaches that could be used:
+could "crash" the kernel. Two approaches could be used:
 
 .. slide:: Invalid pointers handling approaches
    :inline-contents: True
@@ -318,7 +318,7 @@ space to determine the cause:
 But in the last two cases we don't have enough information to
 determine the cause of the fault.
 
-In order to solve this issue Linux uses special APIs (e.g
+In order to solve this issue, Linux uses special APIs (e.g
 :c:func:`copy_to_user`) to accesses user space that are specially
 crafted:
 
@@ -360,8 +360,8 @@ system call implementation, in a way that does not impact libc with
 having to track the CPU capabilities in conjunction with the kernel
 version.
 
-For example: x86 has two ways of issuing system calls: int 0x80 and
-sysenter. The later is significantly faster so it should be used when
+For example, x86 has two ways of issuing system calls: int 0x80 and
+sysenter. The latter is significantly faster so it should be used when
 available. However, it is only available for processors newer than
 Pentium II and only for kernel versions greater than 2.6.
 
@@ -392,7 +392,7 @@ With VDSO the system call interface is decided by the kernel:
 
 
 
-An interesting development of the VDSO are the virtual system calls
+An interesting development of the VDSO is the virtual system calls
 (vsyscalls) which run directly from user space. These vsyscalls are
 also part of VDSO and they are accessing data from the VDSO page that
 is either static or modified by the kernel in a separate read-write
@@ -417,9 +417,9 @@ Accessing user space from system calls
 
 As we mentioned earlier, user space must be accessed with special APIs
 (:c:func:`get_user`, :c:func:`put_user`, :c:func:`copy_from_user`,
-:c:func:`copy_to_user`) that check wether the pointer is in user space
+:c:func:`copy_to_user`) that check whether the pointer is in user space
 and also handle the fault if the pointer is invalid. In case of invalid
-pointers they return a non zero value.
+pointers, they return a non-zero value.
 
 .. slide:: Accessing user space from system calls
    :inline-contents: True
@@ -458,8 +458,8 @@ Let's examine the simplest API, get_user, as implemented for x86:
       })
 
 
-The implementation uses inline assembly, that allows inserting ASM
-sequences in C code and also handles access to / from variables in the
+The implementation uses inline assembly, which allows inserting ASM
+sequences in C code and also handles access to/from variables in the
 ASM code.
 
 Based on the type size of the x variable, one of __get_user_1,
@@ -603,7 +603,7 @@ is accessed by the fault handler:
       }
 
 
-All it does is to set the return address to the one in the to field of
+All it does is to set the return address to the one in the field of
 the exception table entry which, in case of the get_user exception
 table entry, is bad_get_user which return -EFAULT to the caller.
 

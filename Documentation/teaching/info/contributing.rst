@@ -12,8 +12,8 @@ All information required for making a contribution can be found in the
 `linux-kernel-labs Linux repo <https://github.com/linux-kernel-labs/linux>`_.
 In order to change anything, you need to create a Pull Request (``PR``)
 from your own fork to this repository.
-The PR will be reviewed by ther members of the team and will be merged once
-any pottential issue is fixed.
+The PR will be reviewed by the members of the team and will be merged once
+any potential issue is fixed.
 
 ********************
 Repository structure
@@ -79,7 +79,7 @@ Forking the repository
 
    .. code-block:: bash
 
-     $ git remote add my_fork git@github.com:<your_user>/linux.git
+     $ git remote add my_fork git@github.com:<your_username>/linux.git
 
 Now, you can push to your fork by using ``my_fork`` instead of ``origin``
 (e.g. ``git push my_fork master``).
@@ -89,7 +89,7 @@ Creating a pull request
 
 .. warning::
 
-  Pull requests must be created from their own branches, wich are started from
+  Pull requests must be created from their own branches, which are started from
   ``master``.
 
 1. Go to the master branch and make sure you have no local changes:
@@ -148,7 +148,7 @@ Creating a pull request
 
     student@eg106:~/src/linux$ git push my_fork <your_branch_name>
 
-6. Open the Pull Pequest
+6. Open the Pull Request
 
   * Go to https://github.com and open your forked repository page
   * Click ``New pull request``.

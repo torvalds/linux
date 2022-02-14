@@ -6,7 +6,7 @@ Lab objectives
 ==============
 
 * get a feeling of what System on a Chip (SoC) means
-* get familiar with embedded world using ARM as support architecture
+* get familiar with embedded world using ARM as a supported architecture
 * understand what a Board Support Package means (BSP)
 * compile and boot an ARM kernel with Qemu using i.MX6UL platform as an example
 * get familiar with hardware description using Device Trees
