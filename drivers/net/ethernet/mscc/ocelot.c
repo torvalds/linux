@@ -549,14 +549,18 @@ EXPORT_SYMBOL(ocelot_vlan_add);
 int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	bool del_pvid = false;
 	int err;
+
+	if (ocelot_port->pvid_vlan && ocelot_port->pvid_vlan->vid == vid)
+		del_pvid = true;
 
 	err = ocelot_vlan_member_del(ocelot, port, vid);
 	if (err)
 		return err;
 
 	/* Ingress */
-	if (ocelot_port->pvid_vlan && ocelot_port->pvid_vlan->vid == vid)
+	if (del_pvid)
 		ocelot_port_set_pvid(ocelot, port, NULL);
 
 	/* Egress */
