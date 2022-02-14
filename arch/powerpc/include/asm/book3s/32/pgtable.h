@@ -372,8 +372,8 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HASHPTE) == 0)
 
-#define pmd_page(pmd)		\
-	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
+#define pmd_pfn(pmd)		(pmd_val(pmd) >> PAGE_SHIFT)
+#define pmd_page(pmd)		pfn_to_page(pmd_pfn(pmd))
 
 /*
  * Encode and decode a swap entry.
