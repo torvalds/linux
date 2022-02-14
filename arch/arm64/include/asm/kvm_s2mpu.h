@@ -144,21 +144,6 @@ enum s2mpu_version {
 	S2MPU_VERSION_9 = 0x20000000,
 };
 
-enum s2mpu_power_state {
-	S2MPU_POWER_ALWAYS_ON = 0,
-	S2MPU_POWER_ON,
-	S2MPU_POWER_OFF,
-};
-
-struct s2mpu {
-	phys_addr_t pa;
-	void __iomem *va;
-	u32 version;
-	enum s2mpu_power_state power_state;
-	u32 power_domain_id;
-	u32 context_cfg_valid_vid;
-};
-
 enum mpt_prot {
 	MPT_PROT_NONE	= 0,
 	MPT_PROT_R	= BIT(0),

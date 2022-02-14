@@ -34,52 +34,44 @@
 	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
 	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
 
-static size_t __ro_after_init		nr_s2mpus;
-static struct s2mpu __ro_after_init	*s2mpus;
-static struct mpt			host_mpt;
-static hyp_spinlock_t			s2mpu_lock;
+static size_t __ro_after_init			nr_s2mpus;
+static struct pkvm_iommu __ro_after_init	*s2mpus;
+static struct mpt				host_mpt;
+static hyp_spinlock_t				s2mpu_lock;
 
-static bool is_version(struct s2mpu *dev, u32 version)
+struct s2mpu_drv_data {
+	u32 version;
+	u32 context_cfg_valid_vid;
+};
+
+static bool is_version(struct pkvm_iommu *dev, u32 version)
 {
-	return (dev->version & VERSION_CHECK_MASK) == version;
+	struct s2mpu_drv_data *data = (struct s2mpu_drv_data *)dev->data;
+
+	return (data->version & VERSION_CHECK_MASK) == version;
 }
 
-static bool is_powered_on(struct s2mpu *dev)
+static bool is_powered_on(struct pkvm_iommu *dev)
 {
-	switch (dev->power_state) {
-	case S2MPU_POWER_ALWAYS_ON:
-	case S2MPU_POWER_ON:
-		return true;
-	case S2MPU_POWER_OFF:
-		return false;
-	default:
-		BUG();
-	}
+	return dev->powered;
 }
 
-static bool is_in_power_domain(struct s2mpu *dev, u64 power_domain_id)
+static bool is_in_power_domain(struct pkvm_iommu *dev, u64 power_domain_id)
 {
-	switch (dev->power_state) {
-	case S2MPU_POWER_ALWAYS_ON:
-		return false;
-	case S2MPU_POWER_ON:
-	case S2MPU_POWER_OFF:
-		return dev->power_domain_id == power_domain_id;
-	default:
-		BUG();
-	}
+	return false;
 }
 
-static u32 __context_cfg_valid_vid(struct s2mpu *dev, u32 vid_bmap)
+static u32 __context_cfg_valid_vid(struct pkvm_iommu *dev, u32 vid_bmap)
 {
+	struct s2mpu_drv_data *data = (struct s2mpu_drv_data *)dev->data;
 	u8 ctx_vid[NR_CTX_IDS] = { 0 };
 	unsigned int vid, ctx = 0;
 	unsigned int num_ctx;
 	u32 res;
 
 	/* Only initialize once. */
-	if (dev->context_cfg_valid_vid)
-		return dev->context_cfg_valid_vid;
+	if (data->context_cfg_valid_vid)
+		return data->context_cfg_valid_vid;
 
 	num_ctx = readl_relaxed(dev->va + REG_NS_NUM_CONTEXT) & NUM_CONTEXT_MASK;
 	while (vid_bmap) {
@@ -103,11 +95,11 @@ static u32 __context_cfg_valid_vid(struct s2mpu *dev, u32 vid_bmap)
 	    | CTX_CFG_ENTRY(6, ctx, ctx_vid[6])
 	    | CTX_CFG_ENTRY(7, ctx, ctx_vid[7]);
 
-	dev->context_cfg_valid_vid = res;
+	data->context_cfg_valid_vid = res;
 	return res;
 }
 
-static int __initialize_v9(struct s2mpu *dev)
+static int __initialize_v9(struct pkvm_iommu *dev)
 {
 	u32 ssmt_valid_vid_bmap, ctx_cfg;
 
@@ -126,12 +118,14 @@ static int __initialize_v9(struct s2mpu *dev)
 	return 0;
 }
 
-static int __initialize(struct s2mpu *dev)
+static int __initialize(struct pkvm_iommu *dev)
 {
-	if (!dev->version)
-		dev->version = readl_relaxed(dev->va + REG_NS_VERSION);
+	struct s2mpu_drv_data *data = (struct s2mpu_drv_data *)dev->data;
 
-	switch (dev->version & VERSION_CHECK_MASK) {
+	if (!data->version)
+		data->version = readl_relaxed(dev->va + REG_NS_VERSION);
+
+	switch (data->version & VERSION_CHECK_MASK) {
 	case S2MPU_VERSION_8:
 		return 0;
 	case S2MPU_VERSION_9:
@@ -141,7 +135,7 @@ static int __initialize(struct s2mpu *dev)
 	}
 }
 
-static void __set_control_regs(struct s2mpu *dev)
+static void __set_control_regs(struct pkvm_iommu *dev)
 {
 	u32 ctrl0 = 0, irq_vids;
 
@@ -181,7 +175,7 @@ static void __wait_while(void __iomem *addr, u32 mask)
 		continue;
 }
 
-static void __wait_for_invalidation_complete(struct s2mpu *dev)
+static void __wait_for_invalidation_complete(struct pkvm_iommu *dev)
 {
 	/* Must not access SFRs while S2MPU is busy invalidating (v9 only). */
 	if (is_version(dev, S2MPU_VERSION_9)) {
@@ -190,13 +184,13 @@ static void __wait_for_invalidation_complete(struct s2mpu *dev)
 	}
 }
 
-static void __all_invalidation(struct s2mpu *dev)
+static void __all_invalidation(struct pkvm_iommu *dev)
 {
 	writel_relaxed(INVALIDATION_INVALIDATE, dev->va + REG_NS_ALL_INVALIDATION);
 	__wait_for_invalidation_complete(dev);
 }
 
-static void __range_invalidation(struct s2mpu *dev, phys_addr_t first_byte,
+static void __range_invalidation(struct pkvm_iommu *dev, phys_addr_t first_byte,
 				 phys_addr_t last_byte)
 {
 	u32 start_ppn = first_byte >> RANGE_INVALIDATION_PPN_SHIFT;
@@ -208,14 +202,14 @@ static void __range_invalidation(struct s2mpu *dev, phys_addr_t first_byte,
 	__wait_for_invalidation_complete(dev);
 }
 
-static void __set_l1entry_attr_with_prot(struct s2mpu *dev, unsigned int gb,
+static void __set_l1entry_attr_with_prot(struct pkvm_iommu *dev, unsigned int gb,
 					 unsigned int vid, enum mpt_prot prot)
 {
 	writel_relaxed(L1ENTRY_ATTR_1G(prot),
 		       dev->va + REG_NS_L1ENTRY_ATTR(vid, gb));
 }
 
-static void __set_l1entry_attr_with_fmpt(struct s2mpu *dev, unsigned int gb,
+static void __set_l1entry_attr_with_fmpt(struct pkvm_iommu *dev, unsigned int gb,
 					 unsigned int vid, struct fmpt *fmpt)
 {
 	if (fmpt->gran_1g) {
@@ -227,7 +221,7 @@ static void __set_l1entry_attr_with_fmpt(struct s2mpu *dev, unsigned int gb,
 	}
 }
 
-static void __set_l1entry_l2table_addr(struct s2mpu *dev, unsigned int gb,
+static void __set_l1entry_l2table_addr(struct pkvm_iommu *dev, unsigned int gb,
 				       unsigned int vid, phys_addr_t addr)
 {
 	/* Order against writes to the SMPT. */
@@ -239,7 +233,7 @@ static void __set_l1entry_l2table_addr(struct s2mpu *dev, unsigned int gb,
  * Initialize S2MPU device and set all GB regions to 1G granularity with
  * given protection bits.
  */
-static int initialize_with_prot(struct s2mpu *dev, enum mpt_prot prot)
+static int initialize_with_prot(struct pkvm_iommu *dev, enum mpt_prot prot)
 {
 	unsigned int gb, vid;
 	int ret;
@@ -261,7 +255,7 @@ static int initialize_with_prot(struct s2mpu *dev, enum mpt_prot prot)
  * Initialize S2MPU device, set L2 table addresses and configure L1TABLE_ATTR
  * registers according to the given MPT struct.
  */
-static int initialize_with_mpt(struct s2mpu *dev, struct mpt *mpt)
+static int initialize_with_mpt(struct pkvm_iommu *dev, struct mpt *mpt)
 {
 	unsigned int gb, vid;
 	struct fmpt *fmpt;
@@ -294,7 +288,7 @@ static void set_mpt_range_locked(struct mpt *mpt, phys_addr_t first_byte,
 	unsigned int last_gb = last_byte / SZ_1G;
 	size_t start_gb_byte, end_gb_byte;
 	unsigned int gb, vid;
-	struct s2mpu *dev;
+	struct pkvm_iommu *dev;
 	struct fmpt *fmpt;
 	enum mpt_update_flags flags;
 
@@ -358,7 +352,7 @@ static void s2mpu_host_stage2_set_owner(phys_addr_t addr, size_t size,
 static int s2mpu_host_stage2_adjust_mmio_range(phys_addr_t addr, phys_addr_t *start,
 					       phys_addr_t *end)
 {
-	struct s2mpu *dev;
+	struct pkvm_iommu *dev;
 	phys_addr_t dev_start, dev_end, int_start, int_end;
 
 	/* Find the PA interval in the non-empty, sorted list of S2MPUs. */
@@ -391,7 +385,7 @@ static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(u64, group, host_ctxt, 3);
 
 	struct arm_smccc_res res;
-	struct s2mpu *dev;
+	struct pkvm_iommu *dev;
 	int ret;
 
 	if (fn != SMC_CMD_PREPARE_PD_ONOFF)
@@ -425,11 +419,11 @@ static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 				continue;
 
 			if (mode == SMC_MODE_POWER_UP) {
-				dev->power_state = S2MPU_POWER_ON;
+				dev->powered = true;
 				ret = initialize_with_mpt(dev, &host_mpt);
 			} else {
 				ret = initialize_with_prot(dev, MPT_PROT_NONE);
-				dev->power_state = S2MPU_POWER_OFF;
+				dev->powered = false;
 			}
 		}
 	}
@@ -439,9 +433,9 @@ static bool s2mpu_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 	return true;  /* SMC handled */
 }
 
-static struct s2mpu *find_s2mpu_by_addr(phys_addr_t addr)
+static struct pkvm_iommu *find_s2mpu_by_addr(phys_addr_t addr)
 {
-	struct s2mpu *dev;
+	struct pkvm_iommu *dev;
 
 	for_each_s2mpu(dev) {
 		if (dev->pa <= addr && addr < (dev->pa + S2MPU_MMIO_SIZE))
@@ -480,7 +474,7 @@ static bool s2mpu_host_mmio_dabt_handler(struct kvm_cpu_context *host_ctxt,
 					 phys_addr_t fault_pa, unsigned int len,
 					 bool is_write, int rd)
 {
-	struct s2mpu *dev;
+	struct pkvm_iommu *dev;
 	size_t off;
 	u32 mask;
 
@@ -506,7 +500,7 @@ static bool s2mpu_host_mmio_dabt_handler(struct kvm_cpu_context *host_ctxt,
 
 static int s2mpu_init(void)
 {
-	struct s2mpu *dev;
+	struct pkvm_iommu *dev;
 	unsigned int gb;
 	int ret;
 
