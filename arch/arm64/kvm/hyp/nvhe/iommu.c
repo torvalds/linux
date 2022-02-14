@@ -25,6 +25,14 @@ struct pkvm_iommu_driver {
 
 static struct pkvm_iommu_driver iommu_drivers[PKVM_IOMMU_NR_DRIVERS];
 
+/* IOMMU device list. Must only be accessed with host_mmu.lock held. */
+static LIST_HEAD(iommu_list);
+
+static void assert_host_component_locked(void)
+{
+	hyp_assert_lock_held(&host_mmu.lock);
+}
+
 /*
  * Find IOMMU driver by its ID. The input ID is treated as unstrusted
  * and is properly validated.
@@ -100,4 +108,37 @@ int __pkvm_iommu_driver_init(enum pkvm_iommu_driver_id id, void *data, size_t si
 out:
 	driver_release_init(drv, /*success=*/!ret);
 	return ret;
+}
+
+/*
+ * Check host memory access against IOMMUs' MMIO regions.
+ * Returns -EPERM if the address is within the bounds of a registered device.
+ * Otherwise returns zero and adjusts boundaries of the new mapping to avoid
+ * MMIO regions of registered IOMMUs.
+ */
+int pkvm_iommu_host_stage2_adjust_range(phys_addr_t addr, phys_addr_t *start,
+					phys_addr_t *end)
+{
+	struct pkvm_iommu *dev;
+	phys_addr_t new_start = *start;
+	phys_addr_t new_end = *end;
+	phys_addr_t dev_start, dev_end;
+
+	assert_host_component_locked();
+
+	list_for_each_entry(dev, &iommu_list, list) {
+		dev_start = dev->pa;
+		dev_end = dev_start + dev->size;
+
+		if (addr < dev_start)
+			new_end = min(new_end, dev_start);
+		else if (addr >= dev_end)
+			new_start = max(new_start, dev_end);
+		else
+			return -EPERM;
+	}
+
+	*start = new_start;
+	*end = new_end;
+	return 0;
 }

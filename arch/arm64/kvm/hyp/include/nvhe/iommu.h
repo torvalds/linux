@@ -18,7 +18,15 @@ struct pkvm_iommu_ops {
 	int (*init)(void *data, size_t size);
 };
 
+struct pkvm_iommu {
+	struct list_head list;
+	phys_addr_t pa;
+	size_t size;
+};
+
 int __pkvm_iommu_driver_init(enum pkvm_iommu_driver_id id, void *data, size_t size);
+int pkvm_iommu_host_stage2_adjust_range(phys_addr_t addr, phys_addr_t *start,
+					phys_addr_t *end);
 
 struct kvm_iommu_ops {
 	int (*init)(void);
