@@ -458,7 +458,7 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 	}
 
 	if (adev->mmhub.ras && adev->mmhub.ras->ras_block.ras_late_init) {
-		r = adev->mmhub.ras->ras_block.ras_late_init(adev, NULL);
+		r = adev->mmhub.ras->ras_block.ras_late_init(adev, adev->mmhub.ras_if);
 		if (r)
 			return r;
 	}
