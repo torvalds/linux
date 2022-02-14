@@ -31,10 +31,15 @@
 #define FASTRPC_PHYS(p)	((p) & 0xffffffff)
 #define FASTRPC_CTX_MAX (256)
 #define FASTRPC_INIT_HANDLE	1
+#define FASTRPC_DSP_UTILITIES_HANDLE	2
 #define FASTRPC_CTXID_MASK (0xFF0)
 #define INIT_FILELEN_MAX (2 * 1024 * 1024)
 #define FASTRPC_DEVICE_NAME	"fastrpc"
 #define ADSP_MMAP_ADD_PAGES 0x1000
+#define DSP_UNSUPPORTED_API (0x80000414)
+/* MAX NUMBER of DSP ATTRIBUTES SUPPORTED */
+#define FASTRPC_MAX_DSP_ATTRIBUTES (256)
+#define FASTRPC_MAX_DSP_ATTRIBUTES_LEN (sizeof(u32) * FASTRPC_MAX_DSP_ATTRIBUTES)
 
 /* Retrives number of input buffers from the scalars parameter */
 #define REMOTE_SCALARS_INBUFS(sc)	(((sc) >> 16) & 0x0ff)
@@ -233,6 +238,9 @@ struct fastrpc_channel_ctx {
 	struct idr ctx_idr;
 	struct list_head users;
 	struct kref refcount;
+	/* Flag if dsp attributes are cached */
+	bool valid_attributes;
+	u32 dsp_attributes[FASTRPC_MAX_DSP_ATTRIBUTES];
 	struct fastrpc_device *fdevice;
 };
 
@@ -1378,6 +1386,107 @@ static int fastrpc_invoke(struct fastrpc_user *fl, char __user *argp)
 	return err;
 }
 
+static int fastrpc_get_info_from_dsp(struct fastrpc_user *fl, uint32_t *dsp_attr_buf,
+				     uint32_t dsp_attr_buf_len)
+{
+	struct fastrpc_invoke_args args[2] = { 0 };
+
+	/* Capability filled in userspace */
+	dsp_attr_buf[0] = 0;
+
+	args[0].ptr = (u64)(uintptr_t)&dsp_attr_buf_len;
+	args[0].length = sizeof(dsp_attr_buf_len);
+	args[0].fd = -1;
+	args[1].ptr = (u64)(uintptr_t)&dsp_attr_buf[1];
+	args[1].length = dsp_attr_buf_len;
+	args[1].fd = -1;
+	fl->pd = 1;
+
+	return fastrpc_internal_invoke(fl, true, FASTRPC_DSP_UTILITIES_HANDLE,
+				       FASTRPC_SCALARS(0, 1, 1), args);
+}
+
+static int fastrpc_get_info_from_kernel(struct fastrpc_ioctl_capability *cap,
+					struct fastrpc_user *fl)
+{
+	struct fastrpc_channel_ctx *cctx = fl->cctx;
+	uint32_t attribute_id = cap->attribute_id;
+	uint32_t *dsp_attributes;
+	unsigned long flags;
+	uint32_t domain = cap->domain;
+	int err;
+
+	spin_lock_irqsave(&cctx->lock, flags);
+	/* check if we already have queried dsp for attributes */
+	if (cctx->valid_attributes) {
+		spin_unlock_irqrestore(&cctx->lock, flags);
+		goto done;
+	}
+	spin_unlock_irqrestore(&cctx->lock, flags);
+
+	dsp_attributes = kzalloc(FASTRPC_MAX_DSP_ATTRIBUTES_LEN, GFP_KERNEL);
+	if (!dsp_attributes)
+		return -ENOMEM;
+
+	err = fastrpc_get_info_from_dsp(fl, dsp_attributes, FASTRPC_MAX_DSP_ATTRIBUTES_LEN);
+	if (err == DSP_UNSUPPORTED_API) {
+		dev_info(&cctx->rpdev->dev,
+			 "Warning: DSP capabilities not supported on domain: %d\n", domain);
+		kfree(dsp_attributes);
+		return -EOPNOTSUPP;
+	} else if (err) {
+		dev_err(&cctx->rpdev->dev, "Error: dsp information is incorrect err: %d\n", err);
+		kfree(dsp_attributes);
+		return err;
+	}
+
+	spin_lock_irqsave(&cctx->lock, flags);
+	memcpy(cctx->dsp_attributes, dsp_attributes, FASTRPC_MAX_DSP_ATTRIBUTES_LEN);
+	cctx->valid_attributes = true;
+	spin_unlock_irqrestore(&cctx->lock, flags);
+	kfree(dsp_attributes);
+done:
+	cap->capability = cctx->dsp_attributes[attribute_id];
+	return 0;
+}
+
+static int fastrpc_get_dsp_info(struct fastrpc_user *fl, char __user *argp)
+{
+	struct fastrpc_ioctl_capability cap = {0};
+	int err = 0;
+
+	if (copy_from_user(&cap, argp, sizeof(cap)))
+		return  -EFAULT;
+
+	cap.capability = 0;
+	if (cap.domain >= FASTRPC_DEV_MAX) {
+		dev_err(&fl->cctx->rpdev->dev, "Error: Invalid domain id:%d, err:%d\n",
+			cap.domain, err);
+		return -ECHRNG;
+	}
+
+	/* Fastrpc Capablities does not support modem domain */
+	if (cap.domain == MDSP_DOMAIN_ID) {
+		dev_err(&fl->cctx->rpdev->dev, "Error: modem not supported %d\n", err);
+		return -ECHRNG;
+	}
+
+	if (cap.attribute_id >= FASTRPC_MAX_DSP_ATTRIBUTES) {
+		dev_err(&fl->cctx->rpdev->dev, "Error: invalid attribute: %d, err: %d\n",
+			cap.attribute_id, err);
+		return -EOVERFLOW;
+	}
+
+	err = fastrpc_get_info_from_kernel(&cap, fl);
+	if (err)
+		return err;
+
+	if (copy_to_user(argp, &cap.capability, sizeof(cap.capability)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int fastrpc_req_munmap_impl(struct fastrpc_user *fl,
 				   struct fastrpc_req_munmap *req)
 {
@@ -1682,6 +1791,9 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case FASTRPC_IOCTL_MEM_UNMAP:
 		err = fastrpc_req_mem_unmap(fl, argp);
+		break;
+	case FASTRPC_IOCTL_GET_DSP_INFO:
+		err = fastrpc_get_dsp_info(fl, argp);
 		break;
 	default:
 		err = -ENOTTY;

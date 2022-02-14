@@ -15,6 +15,7 @@
 #define FASTRPC_IOCTL_INIT_ATTACH_SNS	_IO('R', 8)
 #define FASTRPC_IOCTL_MEM_MAP		_IOWR('R', 10, struct fastrpc_mem_map)
 #define FASTRPC_IOCTL_MEM_UNMAP		_IOWR('R', 11, struct fastrpc_mem_unmap)
+#define FASTRPC_IOCTL_GET_DSP_INFO	_IOWR('R', 13, struct fastrpc_ioctl_capability)
 
 /**
  * enum fastrpc_map_flags - control flags for mapping memory on DSP user process
@@ -103,6 +104,13 @@ struct fastrpc_mem_unmap {
 	__u64 vaddr;		/* remote process (dsp) virtual address */
 	__u64 length;		/* buffer size */
 	__s32 reserved[5];
+};
+
+struct fastrpc_ioctl_capability {
+	__u32 domain;
+	__u32 attribute_id;
+	__u32 capability;   /* dsp capability */
+	__u32 reserved[4];
 };
 
 #endif /* __QCOM_FASTRPC_H__ */
