@@ -95,7 +95,7 @@ static inline struct brcmstb_pwm *to_brcmstb_pwm(struct pwm_chip *chip)
  * "on" time, so this translates directly into our HW programming here.
  */
 static int brcmstb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			      int duty_ns, int period_ns)
+			      u64 duty_ns, u64 period_ns)
 {
 	struct brcmstb_pwm *p = to_brcmstb_pwm(chip);
 	unsigned long pc, dc, cword = CONST_VAR_F_MAX;
@@ -114,22 +114,17 @@ static int brcmstb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	while (1) {
-		u64 rate, tmp;
+		u64 rate;
 
 		/*
 		 * Calculate the base rate from base frequency and current
 		 * cword
 		 */
 		rate = (u64)clk_get_rate(p->clk) * (u64)cword;
-		do_div(rate, 1 << CWORD_BIT_SIZE);
+		rate >>= CWORD_BIT_SIZE;
 
-		tmp = period_ns * rate;
-		do_div(tmp, NSEC_PER_SEC);
-		pc = tmp;
-
-		tmp = (duty_ns + 1) * rate;
-		do_div(tmp, NSEC_PER_SEC);
-		dc = tmp;
+		pc = mul_u64_u64_div_u64(period_ns, rate, NSEC_PER_SEC);
+		dc = mul_u64_u64_div_u64(duty_ns + 1, rate, NSEC_PER_SEC);
 
 		/*
 		 * We can be called with separate duty and period updates,
@@ -202,26 +197,34 @@ static inline void brcmstb_pwm_enable_set(struct brcmstb_pwm *p,
 	spin_unlock(&p->lock);
 }
 
-static int brcmstb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
+static int brcmstb_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			     const struct pwm_state *state)
 {
 	struct brcmstb_pwm *p = to_brcmstb_pwm(chip);
+	int err;
 
-	brcmstb_pwm_enable_set(p, pwm->hwpwm, true);
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			brcmstb_pwm_enable_set(p, pwm->hwpwm, false);
+
+		return 0;
+	}
+
+	err = brcmstb_pwm_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		brcmstb_pwm_enable_set(p, pwm->hwpwm, true);
 
 	return 0;
 }
 
-static void brcmstb_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct brcmstb_pwm *p = to_brcmstb_pwm(chip);
-
-	brcmstb_pwm_enable_set(p, pwm->hwpwm, false);
-}
-
 static const struct pwm_ops brcmstb_pwm_ops = {
-	.config = brcmstb_pwm_config,
-	.enable = brcmstb_pwm_enable,
-	.disable = brcmstb_pwm_disable,
+	.apply = brcmstb_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
