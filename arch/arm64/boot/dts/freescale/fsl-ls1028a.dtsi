@@ -224,6 +224,17 @@
 			little-endian;
 		};
 
+		efuse@1e80000 {
+			compatible = "fsl,ls1028a-sfp";
+			reg = <0x0 0x1e80000 0x0 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			ls1028a_uid: unique-id@1c {
+				reg = <0x1c 0x8>;
+			};
+		};
+
 		scfg: syscon@1fc0000 {
 			compatible = "fsl,ls1028a-scfg", "syscon";
 			reg = <0x0 0x1fc0000 0x0 0x10000>;
