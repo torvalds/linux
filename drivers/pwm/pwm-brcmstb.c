@@ -53,7 +53,6 @@
 
 struct brcmstb_pwm {
 	void __iomem *base;
-	spinlock_t lock;
 	struct clk *clk;
 	struct pwm_chip chip;
 };
@@ -159,7 +158,6 @@ done:
 	 * generator output a base frequency for the constant frequency
 	 * generator to derive from.
 	 */
-	spin_lock(&p->lock);
 	brcmstb_pwm_writel(p, cword >> 8, PWM_CWORD_MSB(channel));
 	brcmstb_pwm_writel(p, cword & 0xff, PWM_CWORD_LSB(channel));
 
@@ -171,7 +169,6 @@ done:
 	/* Configure on and period value */
 	brcmstb_pwm_writel(p, pc, PWM_PERIOD(channel));
 	brcmstb_pwm_writel(p, dc, PWM_ON(channel));
-	spin_unlock(&p->lock);
 
 	return 0;
 }
@@ -182,7 +179,6 @@ static inline void brcmstb_pwm_enable_set(struct brcmstb_pwm *p,
 	unsigned int shift = channel * CTRL_CHAN_OFFS;
 	u32 value;
 
-	spin_lock(&p->lock);
 	value = brcmstb_pwm_readl(p, PWM_CTRL);
 
 	if (enable) {
@@ -194,7 +190,6 @@ static inline void brcmstb_pwm_enable_set(struct brcmstb_pwm *p,
 	}
 
 	brcmstb_pwm_writel(p, value, PWM_CTRL);
-	spin_unlock(&p->lock);
 }
 
 static int brcmstb_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -242,8 +237,6 @@ static int brcmstb_pwm_probe(struct platform_device *pdev)
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
-
-	spin_lock_init(&p->lock);
 
 	p->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(p->clk)) {
