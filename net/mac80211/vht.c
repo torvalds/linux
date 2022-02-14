@@ -329,15 +329,27 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-/* FIXME: move this to some better location - parses HE now */
+/* FIXME: move this to some better location - parses HE/EHT now */
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
 {
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
 	struct ieee80211_sta_he_cap *he_cap = &sta->sta.he_cap;
+	struct ieee80211_sta_eht_cap *eht_cap = &sta->sta.eht_cap;
 	u32 cap_width;
 
 	if (he_cap->has_he) {
-		u8 info = he_cap->he_cap_elem.phy_cap_info[0];
+		u8 info;
+
+		if (eht_cap->has_eht &&
+		    sta->sdata->vif.bss_conf.chandef.chan->band ==
+		    NL80211_BAND_6GHZ) {
+			info = eht_cap->eht_cap_elem.phy_cap_info[0];
+
+			if (info & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ)
+				return IEEE80211_STA_RX_BW_320;
+		}
+
+		info = he_cap->he_cap_elem.phy_cap_info[0];
 
 		if (sta->sdata->vif.bss_conf.chandef.chan->band ==
 				NL80211_BAND_2GHZ) {
