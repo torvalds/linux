@@ -400,16 +400,16 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 	/* We refer to the device */
 	dev_hold_track(dev, &ndev->dev_tracker, GFP_KERNEL);
 
-	if (dev != blackhole_netdev) {
-		if (snmp6_alloc_dev(ndev) < 0) {
-			netdev_dbg(dev, "%s: cannot allocate memory for statistics\n",
-				   __func__);
-			neigh_parms_release(&nd_tbl, ndev->nd_parms);
-			dev_put_track(dev, &ndev->dev_tracker);
-			kfree(ndev);
-			return ERR_PTR(err);
-		}
+	if (snmp6_alloc_dev(ndev) < 0) {
+		netdev_dbg(dev, "%s: cannot allocate memory for statistics\n",
+			   __func__);
+		neigh_parms_release(&nd_tbl, ndev->nd_parms);
+		dev_put_track(dev, &ndev->dev_tracker);
+		kfree(ndev);
+		return ERR_PTR(err);
+	}
 
+	if (dev != blackhole_netdev) {
 		if (snmp6_register_dev(ndev) < 0) {
 			netdev_dbg(dev, "%s: cannot create /proc/net/dev_snmp6/%s\n",
 				   __func__, dev->name);
