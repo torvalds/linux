@@ -380,3 +380,24 @@ bool pkvm_iommu_host_dabt_handler(struct kvm_cpu_context *host_ctxt, u32 esr,
 	}
 	return false;
 }
+
+void pkvm_iommu_host_stage2_idmap(phys_addr_t start, phys_addr_t end,
+				  enum kvm_pgtable_prot prot)
+{
+	struct pkvm_iommu_driver *drv;
+	struct pkvm_iommu *dev;
+	size_t i;
+
+	assert_host_component_locked();
+
+	for (i = 0; i < ARRAY_SIZE(iommu_drivers); i++) {
+		drv = get_driver(i);
+		if (drv && is_driver_ready(drv) && drv->ops->host_stage2_idmap_prepare)
+			drv->ops->host_stage2_idmap_prepare(start, end, prot);
+	}
+
+	list_for_each_entry(dev, &iommu_list, list) {
+		if (dev->powered && dev->ops->host_stage2_idmap_apply)
+			dev->ops->host_stage2_idmap_apply(dev, start, end);
+	}
+}
