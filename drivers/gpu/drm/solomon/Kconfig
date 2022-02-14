@@ -1,0 +1,12 @@
+config DRM_SSD130X
+	tristate "DRM support for Solomon SSD130x OLED displays"
+	depends on DRM
+	select BACKLIGHT_CLASS_DEVICE
+	select DRM_GEM_SHMEM_HELPER
+	select DRM_KMS_HELPER
+	help
+	  DRM driver for the SSD1305, SSD1306, SSD1307 and SSD1309 Solomon
+	  OLED controllers. This is only for the core driver, a driver for
+	  the appropriate bus transport in your chip also must be selected.
+
+	  If M is selected the module will be called ssd130x.

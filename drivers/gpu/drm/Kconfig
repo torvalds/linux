@@ -403,6 +403,8 @@ source "drivers/gpu/drm/xlnx/Kconfig"
 
 source "drivers/gpu/drm/gud/Kconfig"
 
+source "drivers/gpu/drm/solomon/Kconfig"
+
 source "drivers/gpu/drm/sprd/Kconfig"
 
 config DRM_HYPERV
