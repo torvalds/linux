@@ -2824,7 +2824,7 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 
 		/* If don't define special ras_fini function, use default ras_fini */
 		if (!adev->sdma.ras->ras_block.ras_fini)
-			adev->sdma.ras->ras_block.ras_fini = amdgpu_sdma_ras_fini;
+			adev->sdma.ras->ras_block.ras_fini = amdgpu_ras_block_late_fini;
 
 		/* If not defined special ras_cb function, use default ras_cb */
 		if (!adev->sdma.ras->ras_block.ras_cb)
