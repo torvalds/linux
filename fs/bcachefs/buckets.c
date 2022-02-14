@@ -2136,9 +2136,10 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 					    GFP_KERNEL|__GFP_ZERO)) ||
 	    !(bucket_gens	= kvpmalloc(sizeof(struct bucket_gens) + nbuckets,
 					    GFP_KERNEL|__GFP_ZERO)) ||
-	    !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
+	    (c->opts.buckets_nouse &&
+	     !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
 					    sizeof(unsigned long),
-					    GFP_KERNEL|__GFP_ZERO)) ||
+					    GFP_KERNEL|__GFP_ZERO))) ||
 	    !init_fifo(&free[RESERVE_MOVINGGC],
 		       copygc_reserve, GFP_KERNEL) ||
 	    !init_fifo(&free[RESERVE_NONE], reserve_none, GFP_KERNEL) ||
@@ -2171,9 +2172,10 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		memcpy(bucket_gens->b,
 		       old_bucket_gens->b,
 		       n);
-		memcpy(buckets_nouse,
-		       ca->buckets_nouse,
-		       BITS_TO_LONGS(n) * sizeof(unsigned long));
+		if (buckets_nouse)
+			memcpy(buckets_nouse,
+			       ca->buckets_nouse,
+			       BITS_TO_LONGS(n) * sizeof(unsigned long));
 	}
 
 	rcu_assign_pointer(ca->buckets[0], buckets);

@@ -365,6 +365,11 @@ enum opt_type {
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Set superblock to latest version,\n"		\
 			"allowing any new features to be used")		\
+	x(buckets_nouse,		u8,				\
+	  0,								\
+	  OPT_BOOL(),							\
+	  NO_SB_OPT,			false,				\
+	  NULL,		"Allocate the buckets_nouse bitmap")		\
 	x(project,			u8,				\
 	  OPT_INODE,							\
 	  OPT_BOOL(),							\
