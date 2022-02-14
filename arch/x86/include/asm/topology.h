@@ -215,8 +215,12 @@ extern void arch_scale_freq_tick(void);
 #define arch_scale_freq_tick arch_scale_freq_tick
 
 extern void arch_set_max_freq_ratio(bool turbo_disabled);
+void init_freq_invariance(bool secondary, bool cppc_ready);
 #else
 static inline void arch_set_max_freq_ratio(bool turbo_disabled)
+{
+}
+static inline void init_freq_invariance(bool secondary, bool cppc_ready)
 {
 }
 #endif
