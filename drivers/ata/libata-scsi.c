@@ -1362,19 +1362,22 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc)
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = ATA_PROT_NODATA;
 
-	if (cdb[0] == VERIFY) {
+	switch (cdb[0]) {
+	case VERIFY:
 		if (scmd->cmd_len < 10) {
 			fp = 9;
 			goto invalid_fld;
 		}
 		scsi_10_lba_len(cdb, &block, &n_block);
-	} else if (cdb[0] == VERIFY_16) {
+		break;
+	case VERIFY_16:
 		if (scmd->cmd_len < 16) {
 			fp = 15;
 			goto invalid_fld;
 		}
 		scsi_16_lba_len(cdb, &block, &n_block);
-	} else {
+		break;
+	default:
 		fp = 0;
 		goto invalid_fld;
 	}
@@ -1506,8 +1509,13 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	int rc;
 	u16 fp = 0;
 
-	if (cdb[0] == WRITE_10 || cdb[0] == WRITE_6 || cdb[0] == WRITE_16)
+	switch (cdb[0]) {
+	case WRITE_6:
+	case WRITE_10:
+	case WRITE_16:
 		tf_flags |= ATA_TFLAG_WRITE;
+		break;
+	}
 
 	/* Calculate the SCSI LBA, transfer length and FUA. */
 	switch (cdb[0]) {
@@ -2817,7 +2825,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * 12 and 16 byte CDBs use different offsets to
 	 * provide the various register values.
 	 */
-	if (cdb[0] == ATA_16) {
+	switch (cdb[0]) {
+	case ATA_16:
 		/*
 		 * 16-byte CDB - may contain extended commands.
 		 *
@@ -2843,7 +2852,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->lbah = cdb[12];
 		tf->device = cdb[13];
 		tf->command = cdb[14];
-	} else if (cdb[0] == ATA_12) {
+		break;
+	case ATA_12:
 		/*
 		 * 12-byte CDB - incapable of extended commands.
 		 */
@@ -2856,7 +2866,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->lbah = cdb[7];
 		tf->device = cdb[8];
 		tf->command = cdb[9];
-	} else {
+		break;
+	default:
 		/*
 		 * 32-byte CDB - may contain extended command fields.
 		 *
@@ -2880,6 +2891,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->device = cdb[24];
 		tf->command = cdb[25];
 		tf->auxiliary = get_unaligned_be32(&cdb[28]);
+		break;
 	}
 
 	/* For NCQ commands copy the tag value */
