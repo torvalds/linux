@@ -1238,6 +1238,8 @@ unsigned int reg_get_max_bandwidth(const struct ieee80211_regdomain *rd,
 {
 	unsigned int bw = reg_get_max_bandwidth_from_range(rd, rule);
 
+	if (rule->flags & NL80211_RRF_NO_320MHZ)
+		bw = min_t(unsigned int, bw, MHZ_TO_KHZ(160));
 	if (rule->flags & NL80211_RRF_NO_160MHZ)
 		bw = min_t(unsigned int, bw, MHZ_TO_KHZ(80));
 	if (rule->flags & NL80211_RRF_NO_80MHZ)
@@ -1611,6 +1613,8 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_NO_160MHZ;
 	if (rd_flags & NL80211_RRF_NO_HE)
 		channel_flags |= IEEE80211_CHAN_NO_HE;
+	if (rd_flags & NL80211_RRF_NO_320MHZ)
+		channel_flags |= IEEE80211_CHAN_NO_320MHZ;
 	return channel_flags;
 }
 
@@ -1773,6 +1777,8 @@ static uint32_t reg_rule_to_chan_bw_flags(const struct ieee80211_regdomain *regd
 			bw_flags |= IEEE80211_CHAN_NO_80MHZ;
 		if (max_bandwidth_khz < MHZ_TO_KHZ(160))
 			bw_flags |= IEEE80211_CHAN_NO_160MHZ;
+		if (max_bandwidth_khz < MHZ_TO_KHZ(320))
+			bw_flags |= IEEE80211_CHAN_NO_320MHZ;
 	}
 	return bw_flags;
 }
