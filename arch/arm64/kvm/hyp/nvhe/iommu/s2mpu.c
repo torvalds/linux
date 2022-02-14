@@ -367,17 +367,6 @@ static int s2mpu_suspend(struct pkvm_iommu *dev)
 	return initialize_with_prot(dev, MPT_PROT_NONE);
 }
 
-static struct pkvm_iommu *find_s2mpu_by_addr(phys_addr_t addr)
-{
-	struct pkvm_iommu *dev;
-
-	for_each_s2mpu(dev) {
-		if (dev->pa <= addr && addr < (dev->pa + S2MPU_MMIO_SIZE))
-			return dev;
-	}
-	return NULL;
-}
-
 static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 {
 	const u32 no_access  = 0;
@@ -404,23 +393,19 @@ static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 	return no_access;
 }
 
-static bool s2mpu_host_mmio_dabt_handler(struct kvm_cpu_context *host_ctxt,
-					 phys_addr_t fault_pa, unsigned int len,
-					 bool is_write, int rd)
+static bool s2mpu_host_dabt_handler(struct pkvm_iommu *dev,
+				    struct kvm_cpu_context *host_ctxt,
+				    u32 esr, size_t off)
 {
-	struct pkvm_iommu *dev;
-	size_t off;
+	bool is_write = esr & ESR_ELx_WNR;
+	unsigned int len = BIT((esr & ESR_ELx_SAS) >> ESR_ELx_SAS_SHIFT);
+	int rd = (esr & ESR_ELx_SRT_MASK) >> ESR_ELx_SRT_SHIFT;
 	u32 mask;
 
 	/* Only handle MMIO access with u32 size and alignment. */
-	if ((len != sizeof(u32)) || (fault_pa & (sizeof(u32) - 1)))
+	if ((len != sizeof(u32)) || (off & (sizeof(u32) - 1)))
 		return false;
 
-	dev = find_s2mpu_by_addr(fault_pa);
-	if (!dev || !is_powered_on(dev))
-		return false;
-
-	off = fault_pa - dev->pa;
 	mask = host_mmio_reg_access_mask(off, is_write);
 	if (!mask)
 		return false;
@@ -496,10 +481,10 @@ const struct pkvm_iommu_ops pkvm_s2mpu_ops = (struct pkvm_iommu_ops){
 	.validate = s2mpu_validate,
 	.resume = s2mpu_resume,
 	.suspend = s2mpu_suspend,
+	.host_dabt_handler = s2mpu_host_dabt_handler,
 	.data_size = sizeof(struct s2mpu_drv_data),
 };
 
 const struct kvm_iommu_ops kvm_s2mpu_ops = (struct kvm_iommu_ops){
-	.host_mmio_dabt_handler = s2mpu_host_mmio_dabt_handler,
 	.host_stage2_set_owner = s2mpu_host_stage2_set_owner,
 };
