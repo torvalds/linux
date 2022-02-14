@@ -56,7 +56,7 @@ const int b2p[MAX_BPF_JIT_REG + 2] = {
 	/* frame pointer aka BPF_REG_10 */
 	[BPF_REG_FP] = 31,
 	/* eBPF jit internal registers */
-	[BPF_REG_AX] = 2,
+	[BPF_REG_AX] = 12,
 	[TMP_REG_1] = 9,
 	[TMP_REG_2] = 10
 };
