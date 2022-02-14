@@ -630,9 +630,9 @@ static int host_stage2_idmap(u64 addr)
 	enum kvm_pgtable_prot prot;
 	int ret;
 
-	prot = is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
+	hyp_assert_lock_held(&host_mmu.lock);
 
-	host_lock_component();
+	prot = is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
 	/*
 	 * Adjust against IOMMU devices first. host_stage2_adjust_range() should
 	 * be called last for proper alignment.
@@ -641,18 +641,14 @@ static int host_stage2_idmap(u64 addr)
 		ret = pkvm_iommu_host_stage2_adjust_range(addr, &range.start,
 							  &range.end);
 		if (ret)
-			goto unlock;
+			return ret;
 	}
 
 	ret = host_stage2_adjust_range(addr, &range);
 	if (ret)
-		goto unlock;
+		return ret;
 
-	ret = host_stage2_idmap_locked(range.start, range.end - range.start, prot);
-unlock:
-	host_unlock_component();
-
-	return ret;
+	return host_stage2_idmap_locked(range.start, range.end - range.start, prot);
 }
 
 static void host_inject_abort(struct kvm_cpu_context *host_ctxt)
@@ -699,26 +695,6 @@ static void host_inject_abort(struct kvm_cpu_context *host_ctxt)
 	write_sysreg_el2(spsr, SYS_SPSR);
 }
 
-static int host_mmio_dabt_handler(struct kvm_cpu_context *host_ctxt, u32 esr,
-				  phys_addr_t addr)
-{
-	bool wnr = esr & ESR_ELx_WNR;
-	unsigned int len = BIT((esr & ESR_ELx_SAS) >> ESR_ELx_SAS_SHIFT);
-	int rd = (esr & ESR_ELx_SRT_MASK) >> ESR_ELx_SRT_SHIFT;
-	bool handled = false;
-
-	if (kvm_iommu_ops.host_mmio_dabt_handler) {
-		handled = kvm_iommu_ops.host_mmio_dabt_handler(host_ctxt, addr,
-							       len, wnr, rd);
-	}
-
-	if (!handled)
-		return -EPERM;
-
-	kvm_skip_host_instr();
-	return 0;
-}
-
 static bool is_dabt(u64 esr)
 {
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_DABT_LOW;
@@ -736,13 +712,18 @@ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 	addr = (fault.hpfar_el2 & HPFAR_MASK) << 8;
 	addr |= fault.far_el2 & FAR_MASK;
 
-	/* See if any subsystem can handle this abort. */
-	if (is_dabt(esr) && !addr_is_memory(addr))
-		ret = host_mmio_dabt_handler(host_ctxt, esr, addr);
+	host_lock_component();
+
+	/* Check if an IOMMU device can handle the DABT. */
+	if (is_dabt(esr) && !addr_is_memory(addr) &&
+	    pkvm_iommu_host_dabt_handler(host_ctxt, esr, addr))
+		ret = 0;
 
 	/* If not handled, attempt to map the page. */
 	if (ret == -EPERM)
 		ret = host_stage2_idmap(addr);
+
+	host_unlock_component();
 
 	if (ret == -EPERM)
 		host_inject_abort(host_ctxt);

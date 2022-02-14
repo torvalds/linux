@@ -11,6 +11,7 @@
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_pkvm.h>
 
+#include <hyp/adjust_pc.h>
 #include <nvhe/iommu.h>
 #include <nvhe/mm.h>
 
@@ -357,4 +358,25 @@ int pkvm_iommu_host_stage2_adjust_range(phys_addr_t addr, phys_addr_t *start,
 	*start = new_start;
 	*end = new_end;
 	return 0;
+}
+
+bool pkvm_iommu_host_dabt_handler(struct kvm_cpu_context *host_ctxt, u32 esr,
+				  phys_addr_t pa)
+{
+	struct pkvm_iommu *dev;
+
+	assert_host_component_locked();
+
+	list_for_each_entry(dev, &iommu_list, list) {
+		if (pa < dev->pa || pa >= dev->pa + dev->size)
+			continue;
+
+		if (!dev->powered || !dev->ops->host_dabt_handler ||
+		    !dev->ops->host_dabt_handler(dev, host_ctxt, esr, pa - dev->pa))
+			return false;
+
+		kvm_skip_host_instr();
+		return true;
+	}
+	return false;
 }
