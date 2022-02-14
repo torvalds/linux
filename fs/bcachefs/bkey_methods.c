@@ -212,22 +212,6 @@ const char *bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k)
 	return NULL;
 }
 
-void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
-{
-	const char *invalid;
-
-	BUG_ON(!k.k->u64s);
-
-	invalid = bch2_bkey_invalid(c, k, btree_node_type(b)) ?:
-		bch2_bkey_in_btree_node(b, k);
-	if (invalid) {
-		char buf[160];
-
-		bch2_bkey_val_to_text(&PBUF(buf), c, k);
-		bch2_fs_inconsistent(c, "invalid bkey %s: %s", buf, invalid);
-	}
-}
-
 void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 {
 	if (!bpos_cmp(pos, POS_MIN))

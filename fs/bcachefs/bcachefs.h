@@ -281,9 +281,6 @@ do {									\
 		"significantly affect performance")			\
 	BCH_DEBUG_PARAM(debug_check_iterators,				\
 		"Enables extra verification for btree iterators")	\
-	BCH_DEBUG_PARAM(debug_check_bkeys,				\
-		"Run bkey_debugcheck (primarily checking GC/allocation "\
-		"information) when iterating over keys")		\
 	BCH_DEBUG_PARAM(debug_check_btree_accounting,			\
 		"Verify btree accounting for keys within a node")	\
 	BCH_DEBUG_PARAM(journal_seq_verify,				\

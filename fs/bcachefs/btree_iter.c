@@ -990,8 +990,6 @@ static inline struct bkey_s_c __btree_iter_unpack(struct bch_fs *c,
 						  struct bkey *u,
 						  struct bkey_packed *k)
 {
-	struct bkey_s_c ret;
-
 	if (unlikely(!k)) {
 		/*
 		 * signal to bch2_btree_iter_peek_slot() that we're currently at
@@ -1001,19 +999,7 @@ static inline struct bkey_s_c __btree_iter_unpack(struct bch_fs *c,
 		return bkey_s_c_null;
 	}
 
-	ret = bkey_disassemble(l->b, k, u);
-
-	/*
-	 * XXX: bch2_btree_bset_insert_key() generates invalid keys when we
-	 * overwrite extents - it sets k->type = KEY_TYPE_deleted on the key
-	 * being overwritten but doesn't change k->size. But this is ok, because
-	 * those keys are never written out, we just have to avoid a spurious
-	 * assertion here:
-	 */
-	if (bch2_debug_check_bkeys && !bkey_deleted(ret.k))
-		bch2_bkey_debugcheck(c, l->b, ret);
-
-	return ret;
+	return bkey_disassemble(l->b, k, u);
 }
 
 static inline struct bkey_s_c btree_path_level_peek_all(struct bch_fs *c,
