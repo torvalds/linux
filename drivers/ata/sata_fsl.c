@@ -322,7 +322,7 @@ static void fsl_sata_set_irq_coalescing(struct ata_host *host,
 static ssize_t fsl_sata_intr_coalescing_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%d	%d\n",
+	return sysfs_emit(buf, "%u	%u\n",
 			intr_coalescing_count, intr_coalescing_ticks);
 }
 
@@ -332,10 +332,8 @@ static ssize_t fsl_sata_intr_coalescing_store(struct device *dev,
 {
 	unsigned int coalescing_count,	coalescing_ticks;
 
-	if (sscanf(buf, "%d%d",
-				&coalescing_count,
-				&coalescing_ticks) != 2) {
-		printk(KERN_ERR "fsl-sata: wrong parameter format.\n");
+	if (sscanf(buf, "%u%u", &coalescing_count, &coalescing_ticks) != 2) {
+		dev_err(dev, "fsl-sata: wrong parameter format.\n");
 		return -EINVAL;
 	}
 
@@ -359,7 +357,7 @@ static ssize_t fsl_sata_rx_watermark_show(struct device *dev,
 	rx_watermark &= 0x1f;
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	return sysfs_emit(buf, "%d\n", rx_watermark);
+	return sysfs_emit(buf, "%u\n", rx_watermark);
 }
 
 static ssize_t fsl_sata_rx_watermark_store(struct device *dev,
@@ -373,8 +371,8 @@ static ssize_t fsl_sata_rx_watermark_store(struct device *dev,
 	void __iomem *csr_base = host_priv->csr_base;
 	u32 temp;
 
-	if (sscanf(buf, "%d", &rx_watermark) != 1) {
-		printk(KERN_ERR "fsl-sata: wrong parameter format.\n");
+	if (kstrtouint(buf, 10, &rx_watermark) < 0) {
+		dev_err(dev, "fsl-sata: wrong parameter format.\n");
 		return -EINVAL;
 	}
 
@@ -382,8 +380,8 @@ static ssize_t fsl_sata_rx_watermark_store(struct device *dev,
 	temp = ioread32(csr_base + TRANSCFG);
 	temp &= 0xffffffe0;
 	iowrite32(temp | rx_watermark, csr_base + TRANSCFG);
-
 	spin_unlock_irqrestore(&host->lock, flags);
+
 	return strlen(buf);
 }
 

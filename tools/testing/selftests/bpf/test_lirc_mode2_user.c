@@ -28,7 +28,6 @@
 // 5. We can read keycode from same /dev/lirc device
 
 #include <linux/bpf.h>
-#include <linux/lirc.h>
 #include <linux/input.h>
 #include <errno.h>
 #include <stdio.h>
