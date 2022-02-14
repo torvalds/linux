@@ -1144,12 +1144,12 @@ use_clean:
 	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
 		bool metadata_only = c->opts.norecovery;
 
-		bch_info(c, "starting mark and sweep");
+		bch_info(c, "checking allocations");
 		err = "error in mark and sweep";
 		ret = bch2_gc(c, true, metadata_only);
 		if (ret)
 			goto err;
-		bch_verbose(c, "mark and sweep done");
+		bch_verbose(c, "done checking allocations");
 	}
 
 	bch2_stripes_heap_start(c);
