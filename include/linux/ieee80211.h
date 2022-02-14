@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2021 Intel Corporation
+ * Copyright (c) 2018 - 2022 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -2336,6 +2336,29 @@ ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
 	n = DIV_ROUND_UP(n, 8);
 
 	return n;
+}
+
+static inline bool ieee80211_he_capa_size_ok(const u8 *data, u8 len)
+{
+	const struct ieee80211_he_cap_elem *he_cap_ie_elem = (const void *)data;
+	u8 needed = sizeof(*he_cap_ie_elem);
+
+	if (len < needed)
+		return false;
+
+	needed += ieee80211_he_mcs_nss_size(he_cap_ie_elem);
+	if (len < needed)
+		return false;
+
+	if (he_cap_ie_elem->phy_cap_info[6] &
+			IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
+		if (len < needed + 1)
+			return false;
+		needed += ieee80211_he_ppe_size(data[needed],
+						he_cap_ie_elem->phy_cap_info);
+	}
+
+	return len >= needed;
 }
 
 /* HE Operation defines */
