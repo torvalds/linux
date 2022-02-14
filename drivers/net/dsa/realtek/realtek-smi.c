@@ -43,8 +43,6 @@
 #include "realtek.h"
 
 #define REALTEK_SMI_ACK_RETRY_COUNT		5
-#define REALTEK_SMI_HW_STOP_DELAY		25	/* msecs */
-#define REALTEK_SMI_HW_START_DELAY		100	/* msecs */
 
 static inline void realtek_smi_clk_delay(struct realtek_priv *priv)
 {
@@ -420,16 +418,19 @@ static int realtek_smi_probe(struct platform_device *pdev)
 
 	/* TODO: if power is software controlled, set up any regulators here */
 
-	/* Assert then deassert RESET */
-	priv->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	priv->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->reset)) {
 		dev_err(dev, "failed to get RESET GPIO\n");
 		return PTR_ERR(priv->reset);
 	}
-	msleep(REALTEK_SMI_HW_STOP_DELAY);
-	gpiod_set_value(priv->reset, 0);
-	msleep(REALTEK_SMI_HW_START_DELAY);
-	dev_info(dev, "deasserted RESET\n");
+	if (priv->reset) {
+		gpiod_set_value(priv->reset, 1);
+		dev_dbg(dev, "asserted RESET\n");
+		msleep(REALTEK_HW_STOP_DELAY);
+		gpiod_set_value(priv->reset, 0);
+		msleep(REALTEK_HW_START_DELAY);
+		dev_dbg(dev, "deasserted RESET\n");
+	}
 
 	/* Fetch MDIO pins */
 	priv->mdc = devm_gpiod_get_optional(dev, "mdc", GPIOD_OUT_LOW);
@@ -474,7 +475,10 @@ static int realtek_smi_remove(struct platform_device *pdev)
 	dsa_unregister_switch(priv->ds);
 	if (priv->slave_mii_bus)
 		of_node_put(priv->slave_mii_bus->dev.of_node);
-	gpiod_set_value(priv->reset, 1);
+
+	/* leave the device reset asserted */
+	if (priv->reset)
+		gpiod_set_value(priv->reset, 1);
 
 	platform_set_drvdata(pdev, NULL);
 

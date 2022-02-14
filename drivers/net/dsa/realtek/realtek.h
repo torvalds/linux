@@ -13,6 +13,9 @@
 #include <linux/gpio/consumer.h>
 #include <net/dsa.h>
 
+#define REALTEK_HW_STOP_DELAY		25	/* msecs */
+#define REALTEK_HW_START_DELAY		100	/* msecs */
+
 struct realtek_ops;
 struct dentry;
 struct inode;
