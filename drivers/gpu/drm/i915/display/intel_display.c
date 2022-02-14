@@ -1263,10 +1263,8 @@ static void intel_crtc_enable_flip_done(struct intel_atomic_state *state,
 	int i;
 
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		if (plane->enable_flip_done &&
-		    plane->pipe == crtc->pipe &&
-		    update_planes & BIT(plane->id) &&
-		    plane_state->do_async_flip)
+		if (plane->pipe == crtc->pipe &&
+		    update_planes & BIT(plane->id))
 			plane->enable_flip_done(plane);
 	}
 }
@@ -1282,10 +1280,8 @@ static void intel_crtc_disable_flip_done(struct intel_atomic_state *state,
 	int i;
 
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		if (plane->disable_flip_done &&
-		    plane->pipe == crtc->pipe &&
-		    update_planes & BIT(plane->id) &&
-		    plane_state->do_async_flip)
+		if (plane->pipe == crtc->pipe &&
+		    update_planes & BIT(plane->id))
 			plane->disable_flip_done(plane);
 	}
 }
@@ -7504,14 +7500,24 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 			continue;
 
 		/*
-		 * TODO: Async flip is only supported through the page flip IOCTL
-		 * as of now. So support currently added for primary plane only.
-		 * Support for other planes on platforms on which supports
-		 * this(vlv/chv and icl+) should be added when async flip is
-		 * enabled in the atomic IOCTL path.
+		 * Only async flip capable planes should be in the state
+		 * if we're really about to ask the hardware to perform
+		 * an async flip. We should never get this far otherwise.
+		 */
+		if (drm_WARN_ON(&i915->drm,
+				new_crtc_state->do_async_flip && !plane->async_flip))
+			return -EINVAL;
+
+		/*
+		 * Only check async flip capable planes other planes
+		 * may be involved in the initial commit due to
+		 * the wm0/ddb optimization.
+		 *
+		 * TODO maybe should track which planes actually
+		 * were requested to do the async flip...
 		 */
 		if (!plane->async_flip)
-			return -EINVAL;
+			continue;
 
 		/*
 		 * FIXME: This check is kept generic for all platforms.
@@ -8463,7 +8469,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	intel_dbuf_pre_plane_update(state);
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
-		if (new_crtc_state->uapi.async_flip)
+		if (new_crtc_state->do_async_flip)
 			intel_crtc_enable_flip_done(state, crtc);
 	}
 
@@ -8489,7 +8495,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	drm_atomic_helper_wait_for_flip_done(dev, &state->base);
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
-		if (new_crtc_state->uapi.async_flip)
+		if (new_crtc_state->do_async_flip)
 			intel_crtc_disable_flip_done(state, crtc);
 	}
 
