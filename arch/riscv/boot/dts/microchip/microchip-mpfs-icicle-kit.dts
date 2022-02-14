@@ -68,6 +68,10 @@
 	sd-uhs-sdr104;
 };
 
+&i2c2 {
+	status = "okay";
+};
+
 &emac0 {
 	phy-mode = "sgmii";
 	phy-handle = <&phy0>;
@@ -85,4 +89,8 @@
 		reg = <9>;
 		ti,fifo-depth = <0x01>;
 	};
+};
+
+&core_pwm0 {
+	status = "okay";
 };
