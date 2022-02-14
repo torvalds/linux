@@ -313,14 +313,14 @@ static int meson_pcie_rd_own_conf(struct pci_bus *bus, u32 devfn,
 	 * cannot program the PCI_CLASS_DEVICE register, so we must fabricate
 	 * the return value in the config accessors.
 	 */
-	if (where == PCI_CLASS_REVISION && size == 4)
-		*val = (PCI_CLASS_BRIDGE_PCI << 16) | (*val & 0xffff);
-	else if (where == PCI_CLASS_DEVICE && size == 2)
-		*val = PCI_CLASS_BRIDGE_PCI;
-	else if (where == PCI_CLASS_DEVICE && size == 1)
-		*val = PCI_CLASS_BRIDGE_PCI & 0xff;
-	else if (where == PCI_CLASS_DEVICE + 1 && size == 1)
-		*val = (PCI_CLASS_BRIDGE_PCI >> 8) & 0xff;
+	if ((where & ~3) == PCI_CLASS_REVISION) {
+		if (size <= 2)
+			*val = (*val & ((1 << (size * 8)) - 1)) << (8 * (where & 3));
+		*val &= ~0xffffff00;
+		*val |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
+		if (size <= 2)
+			*val = (*val >> (8 * (where & 3))) & ((1 << (size * 8)) - 1);
+	}
 
 	return PCIBIOS_SUCCESSFUL;
 }

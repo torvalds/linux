@@ -268,7 +268,7 @@ static void mvebu_pcie_setup_hw(struct mvebu_pcie_port *port)
 	 */
 	dev_rev = mvebu_readl(port, PCIE_DEV_REV_OFF);
 	dev_rev &= ~0xffffff00;
-	dev_rev |= (PCI_CLASS_BRIDGE_PCI << 8) << 8;
+	dev_rev |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
 	mvebu_writel(port, dev_rev, PCIE_DEV_REV_OFF);
 
 	/* Point PCIe unit MBUS decode windows to DRAM space. */

@@ -1581,7 +1581,7 @@ static void quirk_paxc_bridge(struct pci_dev *pdev)
 	 * code that the bridge is not an Ethernet device.
 	 */
 	if (pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
-		pdev->class = PCI_CLASS_BRIDGE_PCI << 8;
+		pdev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 
 	/*
 	 * MPSS is not being set properly (as it is currently 0).  This is
