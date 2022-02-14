@@ -226,4 +226,13 @@ void init_freq_invariance_cppc(void);
 #define init_freq_invariance_cppc init_freq_invariance_cppc
 #endif
 
+#ifdef CONFIG_ACPI_CPPC_LIB
+bool amd_set_max_freq_ratio(u64 *ratio);
+#else
+static inline bool amd_set_max_freq_ratio(u64 *ratio)
+{
+	return false;
+}
+#endif
+
 #endif /* _ASM_X86_TOPOLOGY_H */

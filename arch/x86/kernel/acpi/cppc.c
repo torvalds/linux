@@ -6,6 +6,8 @@
 
 #include <acpi/cppc_acpi.h>
 #include <asm/msr.h>
+#include <asm/processor.h>
+#include <asm/topology.h>
 
 /* Refer to drivers/acpi/cppc_acpi.c for the description of functions */
 
@@ -46,4 +48,42 @@ int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 		err = wrmsrl_safe_on_cpu(cpunum, reg->address, rd_val);
 	}
 	return err;
+}
+
+bool amd_set_max_freq_ratio(u64 *ratio)
+{
+	struct cppc_perf_caps perf_caps;
+	u64 highest_perf, nominal_perf;
+	u64 perf_ratio;
+	int rc;
+
+	if (!ratio)
+		return false;
+
+	rc = cppc_get_perf_caps(0, &perf_caps);
+	if (rc) {
+		pr_debug("Could not retrieve perf counters (%d)\n", rc);
+		return false;
+	}
+
+	highest_perf = amd_get_highest_perf();
+	nominal_perf = perf_caps.nominal_perf;
+
+	if (!highest_perf || !nominal_perf) {
+		pr_debug("Could not retrieve highest or nominal performance\n");
+		return false;
+	}
+
+	perf_ratio = div_u64(highest_perf * SCHED_CAPACITY_SCALE, nominal_perf);
+	/* midpoint between max_boost and max_P */
+	perf_ratio = (perf_ratio + SCHED_CAPACITY_SCALE) >> 1;
+	if (!perf_ratio) {
+		pr_debug("Non-zero highest/nominal perf values led to a 0 ratio\n");
+		return false;
+	}
+
+	*ratio = perf_ratio;
+	arch_set_max_freq_ratio(false);
+
+	return true;
 }
