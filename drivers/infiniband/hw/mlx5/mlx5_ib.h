@@ -788,7 +788,6 @@ struct mlx5_cache_ent {
 	u32                     miss;
 
 	struct mlx5_ib_dev     *dev;
-	struct work_struct	work;
 	struct delayed_work	dwork;
 };
 

@@ -465,14 +465,14 @@ static void queue_adjust_cache_locked(struct mlx5_cache_ent *ent)
 		return;
 	if (ent->available_mrs < ent->limit) {
 		ent->fill_to_high_water = true;
-		queue_work(ent->dev->cache.wq, &ent->work);
+		mod_delayed_work(ent->dev->cache.wq, &ent->dwork, 0);
 	} else if (ent->fill_to_high_water &&
 		   ent->available_mrs + ent->pending < 2 * ent->limit) {
 		/*
 		 * Once we start populating due to hitting a low water mark
 		 * continue until we pass the high water mark.
 		 */
-		queue_work(ent->dev->cache.wq, &ent->work);
+		mod_delayed_work(ent->dev->cache.wq, &ent->dwork, 0);
 	} else if (ent->available_mrs == 2 * ent->limit) {
 		ent->fill_to_high_water = false;
 	} else if (ent->available_mrs > 2 * ent->limit) {
@@ -482,7 +482,7 @@ static void queue_adjust_cache_locked(struct mlx5_cache_ent *ent)
 			queue_delayed_work(ent->dev->cache.wq, &ent->dwork,
 					   msecs_to_jiffies(1000));
 		else
-			queue_work(ent->dev->cache.wq, &ent->work);
+			mod_delayed_work(ent->dev->cache.wq, &ent->dwork, 0);
 	}
 }
 
@@ -555,14 +555,6 @@ static void delayed_cache_work_func(struct work_struct *work)
 	struct mlx5_cache_ent *ent;
 
 	ent = container_of(work, struct mlx5_cache_ent, dwork.work);
-	__cache_work_func(ent);
-}
-
-static void cache_work_func(struct work_struct *work)
-{
-	struct mlx5_cache_ent *ent;
-
-	ent = container_of(work, struct mlx5_cache_ent, work);
 	__cache_work_func(ent);
 }
 
@@ -726,7 +718,6 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		ent->dev = dev;
 		ent->limit = 0;
 
-		INIT_WORK(&ent->work, cache_work_func);
 		INIT_DELAYED_WORK(&ent->dwork, delayed_cache_work_func);
 
 		if (i > MR_CACHE_LAST_STD_ENTRY) {
@@ -770,7 +761,6 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 		spin_lock_irq(&ent->lock);
 		ent->disabled = true;
 		spin_unlock_irq(&ent->lock);
-		cancel_work_sync(&ent->work);
 		cancel_delayed_work_sync(&ent->dwork);
 	}
 
