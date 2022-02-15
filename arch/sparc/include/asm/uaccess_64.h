@@ -31,7 +31,7 @@
 
 #define get_fs() ((mm_segment_t){(current_thread_info()->current_ds)})
 
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
+#include <asm-generic/access_ok.h>
 
 #define set_fs(val)								\
 do {										\
@@ -60,16 +60,6 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
 	__chk_user_ptr(addr);                                           \
 	__chk_range_not_ok((unsigned long __force)(addr), size, limit); \
 })
-
-static inline int __access_ok(const void __user * addr, unsigned long size)
-{
-	return 1;
-}
-
-static inline int access_ok(const void __user * addr, unsigned long size)
-{
-	return 1;
-}
 
 void __retl_efault(void);
 

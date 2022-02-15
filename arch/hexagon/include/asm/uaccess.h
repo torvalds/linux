@@ -13,31 +13,6 @@
 #include <asm/sections.h>
 
 /*
- * access_ok: - Checks if a user space pointer is valid
- * @addr: User space pointer to start of block to check
- * @size: Size of block to check
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Checks if a pointer to a block of memory in user space is valid.
- *
- * Returns true (nonzero) if the memory block *may* be valid, false (zero)
- * if it is definitely invalid.
- *
- */
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
-#define user_addr_max() (uaccess_kernel() ? ~0UL : TASK_SIZE)
-
-static inline int __access_ok(unsigned long addr, unsigned long size)
-{
-	unsigned long limit = TASK_SIZE;
-
-	return (size <= limit) && (addr <= (limit - size));
-}
-#define __access_ok __access_ok
-
-/*
  * When a kernel-mode page fault is taken, the faulting instruction
  * address is checked against a table of exception_table_entries.
  * Each entry is a tuple of the address of an instruction that may

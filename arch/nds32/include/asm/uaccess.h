@@ -38,18 +38,15 @@ extern int fixup_exception(struct pt_regs *regs);
 
 #define get_fs()	(current_thread_info()->addr_limit)
 #define user_addr_max	get_fs
+#define uaccess_kernel() (get_fs() == KERNEL_DS)
 
 static inline void set_fs(mm_segment_t fs)
 {
 	current_thread_info()->addr_limit = fs;
 }
 
-#define uaccess_kernel()	(get_fs() == KERNEL_DS)
+#include <asm-generic/access_ok.h>
 
-#define __range_ok(addr, size) (size <= get_fs() && addr <= (get_fs() -size))
-
-#define access_ok(addr, size)	\
-	__range_ok((unsigned long)addr, (unsigned long)size)
 /*
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions

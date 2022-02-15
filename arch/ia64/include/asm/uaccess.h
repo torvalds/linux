@@ -50,8 +50,6 @@
 #define get_fs()  (current_thread_info()->addr_limit)
 #define set_fs(x) (current_thread_info()->addr_limit = (x))
 
-#define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
-
 /*
  * When accessing user memory, we need to make sure the entire area really is in
  * user-level space.  In order to do this efficiently, we make sure that the page at
@@ -65,7 +63,8 @@ static inline int __access_ok(const void __user *p, unsigned long size)
 	return likely(addr <= seg) &&
 	 (seg == KERNEL_DS.seg || likely(REGION_OFFSET(addr) < RGN_MAP_LIMIT));
 }
-#define access_ok(addr, size)	__access_ok((addr), (size))
+#define __access_ok __access_ok
+#include <asm-generic/access_ok.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically

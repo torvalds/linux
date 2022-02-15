@@ -23,35 +23,6 @@
 
 #include <linux/string.h>	/* for generic string functions */
 
-
-#define __kernel_ok		(uaccess_kernel())
-
-/*
- * Algorithmically, for __user_ok() we want do:
- * 	(start < TASK_SIZE) && (start+len < TASK_SIZE)
- * where TASK_SIZE could either be retrieved from thread_info->addr_limit or
- * emitted directly in code.
- *
- * This can however be rewritten as follows:
- *	(len <= TASK_SIZE) && (start+len < TASK_SIZE)
- *
- * Because it essentially checks if buffer end is within limit and @len is
- * non-ngeative, which implies that buffer start will be within limit too.
- *
- * The reason for rewriting being, for majority of cases, @len is generally
- * compile time constant, causing first sub-expression to be compile time
- * subsumed.
- *
- * The second part would generate weird large LIMMs e.g. (0x6000_0000 - 0x10),
- * so we check for TASK_SIZE using get_fs() since the addr_limit load from mem
- * would already have been done at this call site for __kernel_ok()
- *
- */
-#define __user_ok(addr, sz)	(((sz) <= TASK_SIZE) && \
-				 ((addr) <= (get_fs() - (sz))))
-#define __access_ok(addr, sz)	(unlikely(__kernel_ok) || \
-				 likely(__user_ok((addr), (sz))))
-
 /*********** Single byte/hword/word copies ******************/
 
 #define __get_user_fn(sz, u, k)					\

@@ -39,13 +39,7 @@
 
 # define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
 
-static inline int __access_ok(unsigned long addr, unsigned long size)
-{
-	unsigned long limit = user_addr_max();
-
-	return (size <= limit) && (addr <= (limit - size));
-}
-#define access_ok(addr, size) __access_ok((unsigned long)addr, size)
+#include <asm-generic/access_ok.h>
 
 # define __FIXUP_SECTION	".section .fixup,\"ax\"\n"
 # define __EX_TABLE_SECTION	".section __ex_table,\"a\"\n"

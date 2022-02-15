@@ -11,18 +11,9 @@
 #ifdef __powerpc64__
 /* We use TASK_SIZE_USER64 as TASK_SIZE is not constant */
 #define TASK_SIZE_MAX		TASK_SIZE_USER64
-#else
-#define TASK_SIZE_MAX		TASK_SIZE
 #endif
 
-static inline bool __access_ok(unsigned long addr, unsigned long size)
-{
-	return addr < TASK_SIZE_MAX && size <= TASK_SIZE_MAX - addr;
-}
-
-#define access_ok(addr, size)		\
-	(__chk_user_ptr(addr),		\
-	 __access_ok((unsigned long)(addr), (size)))
+#include <asm-generic/access_ok.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically

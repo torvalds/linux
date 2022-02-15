@@ -453,6 +453,7 @@ config CPU_HAS_NO_UNALIGNED
 
 config CPU_HAS_ADDRESS_SPACES
 	bool
+	select ALTERNATE_USER_ADDRESS_SPACE
 
 config FPU
 	bool

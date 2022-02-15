@@ -33,13 +33,6 @@ typedef struct {
 	/* empty dummy */
 } mm_segment_t;
 
-#ifndef TASK_SIZE_MAX
-#define TASK_SIZE_MAX			TASK_SIZE
-#endif
-
-#define uaccess_kernel()		(false)
-#define user_addr_max()			(TASK_SIZE_MAX)
-
 static inline mm_segment_t force_uaccess_begin(void)
 {
 	return (mm_segment_t) { };

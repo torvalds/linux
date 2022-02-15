@@ -5,14 +5,6 @@
 
 #define user_addr_max() (current_thread_info()->addr_limit.seg)
 
-static inline int __access_ok(unsigned long addr, unsigned long size)
-{
-	unsigned long limit = user_addr_max();
-
-	return (size <= limit) && (addr <= (limit - size));
-}
-#define __access_ok __access_ok
-
 /*
  * __put_user_fn
  */

@@ -12,18 +12,6 @@
 #include <asm/smap.h>
 #include <asm/extable.h>
 
-/*
- * Test whether a block of memory is a valid user space address.
- * Returns 0 if the range is valid, nonzero otherwise.
- */
-static inline bool __access_ok(void __user *ptr, unsigned long size)
-{
-	unsigned long limit = TASK_SIZE_MAX;
-	unsigned long addr = ptr;
-
-	return (size <= limit) && (addr <= (limit - size));
-}
-
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 static inline bool pagefault_disabled(void);
 # define WARN_ON_IN_IRQ()	\
@@ -54,6 +42,8 @@ static inline bool pagefault_disabled(void);
 	WARN_ON_IN_IRQ();						\
 	likely(__access_ok(addr, size));				\
 })
+
+#include <asm-generic/access_ok.h>
 
 extern int __get_user_1(void);
 extern int __get_user_2(void);

@@ -26,13 +26,7 @@
 #include <asm/memory.h>
 #include <asm/extable.h>
 
-static inline int __access_ok(const void __user *ptr, unsigned long size)
-{
-	unsigned long limit = TASK_SIZE_MAX;
-	unsigned long addr = (unsigned long)ptr;
-
-	return (size <= limit) && (addr <= (limit - size));
-}
+static inline int __access_ok(const void __user *ptr, unsigned long size);
 
 /*
  * Test whether a block of memory is a valid user space address.
@@ -54,6 +48,9 @@ static inline int access_ok(const void __user *addr, unsigned long size)
 
 	return likely(__access_ok(addr, size));
 }
+#define access_ok access_ok
+
+#include <asm-generic/access_ok.h>
 
 /*
  * User access enabling/disabling.

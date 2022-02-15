@@ -114,28 +114,9 @@ static inline void set_fs(mm_segment_t fs)
 }
 #endif
 
-#ifndef uaccess_kernel
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
-#endif
-
-#ifndef user_addr_max
-#define user_addr_max() (uaccess_kernel() ? ~0UL : TASK_SIZE)
-#endif
-
 #endif /* CONFIG_SET_FS */
 
-#define access_ok(addr, size) __access_ok((unsigned long)(addr),(size))
-
-/*
- * The architecture should really override this if possible, at least
- * doing a check on the get_fs()
- */
-#ifndef __access_ok
-static inline int __access_ok(unsigned long addr, unsigned long size)
-{
-	return 1;
-}
-#endif
+#include <asm-generic/access_ok.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically

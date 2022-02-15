@@ -45,21 +45,7 @@
 
 #define uaccess_kernel()	(get_fs() == KERNEL_DS)
 
-/* Ensure that the range from addr to addr+size is all within the process'
- * address space
- */
-static inline int __range_ok(unsigned long addr, unsigned long size)
-{
-	const mm_segment_t fs = get_fs();
-
-	return size <= fs && addr <= (fs - size);
-}
-
-#define access_ok(addr, size)						\
-({ 									\
-	__chk_user_ptr(addr);						\
-	__range_ok((unsigned long)(addr), (size));			\
-})
+#include <asm-generic/access_ok.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -267,9 +253,6 @@ clear_user(void __user *addr, unsigned long size)
 		size = __clear_user(addr, size);
 	return size;
 }
-
-#define user_addr_max() \
-	(uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 

@@ -17,21 +17,9 @@
 #include <asm/ctl_reg.h>
 #include <asm/extable.h>
 #include <asm/facility.h>
+#include <asm-generic/access_ok.h>
 
 void debug_user_asce(int exit);
-
-static inline int __range_ok(unsigned long addr, unsigned long size)
-{
-	return 1;
-}
-
-#define __access_ok(addr, size)				\
-({							\
-	__chk_user_ptr(addr);				\
-	__range_ok((unsigned long)(addr), (size));	\
-})
-
-#define access_ok(addr, size) __access_ok(addr, size)
 
 unsigned long __must_check
 raw_copy_from_user(void *to, const void __user *from, unsigned long n);
