@@ -790,6 +790,7 @@ static int nvme_get_stream_params(struct nvme_ctrl *ctrl,
 static int nvme_configure_directives(struct nvme_ctrl *ctrl)
 {
 	struct streams_directive_params s;
+	u16 nssa;
 	int ret;
 
 	if (!(ctrl->oacs & NVME_CTRL_OACS_DIRECTIVES))
@@ -805,16 +806,16 @@ static int nvme_configure_directives(struct nvme_ctrl *ctrl)
 	if (ret)
 		goto out_disable_stream;
 
-	ctrl->nssa = le16_to_cpu(s.nssa);
-	if (ctrl->nssa < BLK_MAX_WRITE_HINTS - 1) {
+	nssa = le16_to_cpu(s.nssa);
+	if (nssa < BLK_MAX_WRITE_HINTS - 1) {
 		dev_info(ctrl->device, "too few streams (%u) available\n",
-					ctrl->nssa);
+					nssa);
 		/* this condition is not an error: streams are optional */
 		ret = 0;
 		goto out_disable_stream;
 	}
 
-	ctrl->nr_streams = min_t(u16, ctrl->nssa, BLK_MAX_WRITE_HINTS - 1);
+	ctrl->nr_streams = min_t(u16, nssa, BLK_MAX_WRITE_HINTS - 1);
 	dev_info(ctrl->device, "Using %u streams\n", ctrl->nr_streams);
 	return 0;
 
