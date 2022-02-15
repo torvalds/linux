@@ -167,18 +167,19 @@ struct anon_vma *page_get_anon_vma(struct page *page);
  */
 void page_move_anon_rmap(struct page *, struct vm_area_struct *);
 void page_add_anon_rmap(struct page *, struct vm_area_struct *,
-		unsigned long, bool);
+		unsigned long address, bool compound);
 void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
-			   unsigned long, int);
+		unsigned long address, int flags);
 void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
-		unsigned long, bool);
-void page_add_file_rmap(struct page *, bool);
-void page_remove_rmap(struct page *, bool);
-
+		unsigned long address, bool compound);
+void page_add_file_rmap(struct page *, struct vm_area_struct *,
+		bool compound);
+void page_remove_rmap(struct page *, struct vm_area_struct *,
+		bool compound);
 void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
-			    unsigned long);
+		unsigned long address);
 void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
-				unsigned long);
+		unsigned long address);
 
 static inline void page_dup_rmap(struct page *page, bool compound)
 {

@@ -78,17 +78,13 @@ void clear_page_mlock(struct page *page)
 	}
 }
 
-/*
- * Mark page as mlocked if not already.
- * If page on LRU, isolate and putback to move to unevictable list.
+/**
+ * mlock_page - mlock a page
+ * @page: page to be mlocked, either a normal page or a THP head.
  */
-void mlock_vma_page(struct page *page)
+void mlock_page(struct page *page)
 {
-	/* Serialize with page migration */
-	BUG_ON(!PageLocked(page));
-
 	VM_BUG_ON_PAGE(PageTail(page), page);
-	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
 
 	if (!TestSetPageMlocked(page)) {
 		int nr_pages = thp_nr_pages(page);
@@ -101,14 +97,11 @@ void mlock_vma_page(struct page *page)
 }
 
 /**
- * munlock_vma_page - munlock a vma page
- * @page: page to be unlocked, either a normal page or THP page head
+ * munlock_page - munlock a page
+ * @page: page to be munlocked, either a normal page or a THP head.
  */
-void munlock_vma_page(struct page *page)
+void munlock_page(struct page *page)
 {
-	/* Serialize with page migration */
-	BUG_ON(!PageLocked(page));
-
 	VM_BUG_ON_PAGE(PageTail(page), page);
 
 	if (TestClearPageMlocked(page)) {

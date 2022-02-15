@@ -1177,7 +1177,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	ptep_clear_flush(vma, addr, ptep);
 	set_pte_at_notify(mm, addr, ptep, newpte);
 
-	page_remove_rmap(page, false);
+	page_remove_rmap(page, vma, false);
 	if (!page_mapped(page))
 		try_to_free_swap(page);
 	put_page(page);
@@ -1250,16 +1250,6 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
 			err = 0;
 		} else if (pages_identical(page, kpage))
 			err = replace_page(vma, page, kpage, orig_pte);
-	}
-
-	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
-		munlock_vma_page(page);
-		if (!PageMlocked(kpage)) {
-			unlock_page(page);
-			lock_page(kpage);
-			mlock_vma_page(kpage);
-			page = kpage;		/* for final unlock */
-		}
 	}
 
 out_unlock:
