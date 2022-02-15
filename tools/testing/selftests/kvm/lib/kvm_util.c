@@ -1826,22 +1826,22 @@ void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
 		ret, errno);
 }
 
-int vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
-			  struct kvm_nested_state *state, bool ignore_error)
+int __vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+			    struct kvm_nested_state *state)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret;
 
 	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
-	ret = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, state);
-	if (!ignore_error) {
-		TEST_ASSERT(ret == 0,
-			"KVM_SET_NESTED_STATE failed, ret: %i errno: %i",
-			ret, errno);
-	}
+	return ioctl(vcpu->fd, KVM_SET_NESTED_STATE, state);
+}
 
-	return ret;
+void vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+			   struct kvm_nested_state *state)
+{
+	int ret = __vcpu_nested_state_set(vm, vcpuid, state);
+
+	TEST_ASSERT(!ret, "KVM_SET_NESTED_STATE failed, ret: %i errno: %i", ret, errno);
 }
 #endif
 

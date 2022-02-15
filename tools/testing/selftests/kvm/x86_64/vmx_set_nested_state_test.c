@@ -29,7 +29,7 @@ bool have_evmcs;
 
 void test_nested_state(struct kvm_vm *vm, struct kvm_nested_state *state)
 {
-	vcpu_nested_state_set(vm, VCPU_ID, state, false);
+	vcpu_nested_state_set(vm, VCPU_ID, state);
 }
 
 void test_nested_state_expect_errno(struct kvm_vm *vm,
@@ -38,7 +38,7 @@ void test_nested_state_expect_errno(struct kvm_vm *vm,
 {
 	int rv;
 
-	rv = vcpu_nested_state_set(vm, VCPU_ID, state, true);
+	rv = __vcpu_nested_state_set(vm, VCPU_ID, state);
 	TEST_ASSERT(rv == -1 && errno == expected_errno,
 		"Expected %s (%d) from vcpu_nested_state_set but got rv: %i errno: %s (%d)",
 		strerror(expected_errno), expected_errno, rv, strerror(errno),
