@@ -524,34 +524,8 @@ ssize_t ttm_bo_io(struct ttm_device *bdev, struct file *filp,
 int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 		   gfp_t gfp_flags);
 
-/**
- * ttm_bo_pin - Pin the buffer object.
- * @bo: The buffer object to pin
- *
- * Make sure the buffer is not evicted any more during memory pressure.
- */
-static inline void ttm_bo_pin(struct ttm_buffer_object *bo)
-{
-	dma_resv_assert_held(bo->base.resv);
-	WARN_ON_ONCE(!kref_read(&bo->kref));
-	++bo->pin_count;
-}
-
-/**
- * ttm_bo_unpin - Unpin the buffer object.
- * @bo: The buffer object to unpin
- *
- * Allows the buffer object to be evicted again during memory pressure.
- */
-static inline void ttm_bo_unpin(struct ttm_buffer_object *bo)
-{
-	dma_resv_assert_held(bo->base.resv);
-	WARN_ON_ONCE(!kref_read(&bo->kref));
-	if (bo->pin_count)
-		--bo->pin_count;
-	else
-		WARN_ON_ONCE(true);
-}
+void ttm_bo_pin(struct ttm_buffer_object *bo);
+void ttm_bo_unpin(struct ttm_buffer_object *bo);
 
 int ttm_mem_evict_first(struct ttm_device *bdev,
 			struct ttm_resource_manager *man,

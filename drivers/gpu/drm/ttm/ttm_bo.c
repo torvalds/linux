@@ -633,6 +633,38 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 	return ret;
 }
 
+/**
+ * ttm_bo_pin - Pin the buffer object.
+ * @bo: The buffer object to pin
+ *
+ * Make sure the buffer is not evicted any more during memory pressure.
+ * @bo must be unpinned again by calling ttm_bo_unpin().
+ */
+void ttm_bo_pin(struct ttm_buffer_object *bo)
+{
+	dma_resv_assert_held(bo->base.resv);
+	WARN_ON_ONCE(!kref_read(&bo->kref));
+	++bo->pin_count;
+}
+EXPORT_SYMBOL(ttm_bo_pin);
+
+/**
+ * ttm_bo_unpin - Unpin the buffer object.
+ * @bo: The buffer object to unpin
+ *
+ * Allows the buffer object to be evicted again during memory pressure.
+ */
+void ttm_bo_unpin(struct ttm_buffer_object *bo)
+{
+	dma_resv_assert_held(bo->base.resv);
+	WARN_ON_ONCE(!kref_read(&bo->kref));
+	if (bo->pin_count)
+		--bo->pin_count;
+	else
+		WARN_ON_ONCE(true);
+}
+EXPORT_SYMBOL(ttm_bo_unpin);
+
 /*
  * Add the last move fence to the BO and reserve a new shared slot. We only use
  * a shared slot to avoid unecessary sync and rely on the subsequent bo move to
