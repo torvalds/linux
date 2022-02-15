@@ -35,7 +35,7 @@ struct ioam6_schema {
 	int len;
 	__be32 hdr;
 
-	u8 data[0];
+	u8 data[];
 };
 
 struct ioam6_pernet_data {

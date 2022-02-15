@@ -121,7 +121,7 @@ struct app_pinfo {
 struct app_pinfo_reply {
 	uint8_t		port_count;
 	uint8_t		reserved[VND_CMD_APP_RESERVED_SIZE];
-	struct app_pinfo ports[0];
+	struct app_pinfo ports[];
 } __packed;
 
 struct app_sinfo_req {
@@ -140,7 +140,7 @@ struct app_sinfo {
 
 struct app_stats_reply {
 	uint8_t		elem_count;
-	struct app_sinfo elem[0];
+	struct app_sinfo elem[];
 } __packed;
 
 struct qla_sa_update_frame {

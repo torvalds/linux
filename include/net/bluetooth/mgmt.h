@@ -696,7 +696,7 @@ struct mgmt_cp_set_blocked_keys {
 #define MGMT_READ_CONTROLLER_CAP_SIZE	0
 struct mgmt_rp_read_controller_cap {
 	__le16   cap_len;
-	__u8     cap[0];
+	__u8     cap[];
 } __packed;
 
 #define MGMT_OP_READ_EXP_FEATURES_INFO	0x0049

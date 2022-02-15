@@ -455,7 +455,7 @@ struct npc_coalesced_kpu_prfl {
 	u8 name[NPC_NAME_LEN]; /* KPU Profile name */
 	u64 version; /* KPU firmware/profile version */
 	u8 num_prfl; /* No of NPC profiles. */
-	u16 prfl_sz[0];
+	u16 prfl_sz[];
 };
 
 struct npc_mcam_kex {
@@ -482,7 +482,7 @@ struct npc_kpu_fwdata {
 	 * struct npc_kpu_profile_cam[entries];
 	 * struct npc_kpu_profile_action[entries];
 	 */
-	u8	data[0];
+	u8	data[];
 } __packed;
 
 struct npc_lt_def {
@@ -572,7 +572,7 @@ struct npc_kpu_profile_fwdata {
 	 *  Custom KPU CAM and ACTION configuration entries.
 	 * struct npc_kpu_fwdata kpu[kpus];
 	 */
-	u8	data[0];
+	u8	data[];
 } __packed;
 
 struct rvu_npc_mcam_rule {

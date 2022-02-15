@@ -108,7 +108,7 @@ clear_normalized_cda(struct ccw1 * ccw)
 struct idal_buffer {
 	size_t size;
 	size_t page_order;
-	void *data[0];
+	void *data[];
 };
 
 /*

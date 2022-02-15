@@ -132,7 +132,7 @@ struct i3c_ccc_dev_desc {
 struct i3c_ccc_defslvs {
 	u8 count;
 	struct i3c_ccc_dev_desc master;
-	struct i3c_ccc_dev_desc slaves[0];
+	struct i3c_ccc_dev_desc slaves[];
 } __packed;
 
 /**
@@ -240,7 +240,7 @@ struct i3c_ccc_bridged_slave_desc {
  */
 struct i3c_ccc_setbrgtgt {
 	u8 count;
-	struct i3c_ccc_bridged_slave_desc bslaves[0];
+	struct i3c_ccc_bridged_slave_desc bslaves[];
 } __packed;
 
 /**
@@ -318,7 +318,7 @@ enum i3c_ccc_setxtime_subcmd {
  */
 struct i3c_ccc_setxtime {
 	u8 subcmd;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define I3C_CCC_GETXTIME_SYNC_MODE	BIT(0)

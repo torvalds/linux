@@ -878,7 +878,7 @@ struct mpi3mr_fwevt {
 	bool process_evt;
 	u32 evt_ctx;
 	struct kref ref_count;
-	char event_data[0] __aligned(4);
+	char event_data[] __aligned(4);
 };
 
 

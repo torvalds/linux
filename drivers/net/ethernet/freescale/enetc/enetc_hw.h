@@ -881,7 +881,7 @@ struct sgcl_data {
 	u32		bth;
 	u32		ct;
 	u32		cte;
-	struct sgce	sgcl[0];
+	struct sgce	sgcl[];
 };
 
 #define ENETC_CBDR_FMI_MR	BIT(0)
