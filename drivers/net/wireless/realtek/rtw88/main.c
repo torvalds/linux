@@ -1135,7 +1135,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 			ldpc_en = HT_LDPC_EN;
 	}
 
-	if (efuse->hw_cap.nss == 1)
+	if (efuse->hw_cap.nss == 1 || rtwdev->hal.txrx_1ss)
 		ra_mask &= RA_MASK_VHT_RATES_1SS | RA_MASK_HT_RATES_1SS;
 
 	if (hal->current_band_type == RTW_BAND_5G) {
@@ -1568,6 +1568,37 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 {
 	kfree(hw->wiphy->bands[NL80211_BAND_2GHZ]);
 	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]);
+}
+
+static void rtw_vif_smps_iter(void *data, u8 *mac,
+			      struct ieee80211_vif *vif)
+{
+	struct rtw_dev *rtwdev = (struct rtw_dev *)data;
+
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc)
+		return;
+
+	if (rtwdev->hal.txrx_1ss)
+		ieee80211_request_smps(vif, IEEE80211_SMPS_STATIC);
+	else
+		ieee80211_request_smps(vif, IEEE80211_SMPS_OFF);
+}
+
+void rtw_set_txrx_1ss(struct rtw_dev *rtwdev, bool txrx_1ss)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_hal *hal = &rtwdev->hal;
+
+	if (!chip->ops->config_txrx_mode || rtwdev->hal.txrx_1ss == txrx_1ss)
+		return;
+
+	rtwdev->hal.txrx_1ss = txrx_1ss;
+	if (txrx_1ss)
+		chip->ops->config_txrx_mode(rtwdev, BB_PATH_A, BB_PATH_A, false);
+	else
+		chip->ops->config_txrx_mode(rtwdev, hal->antenna_tx,
+					    hal->antenna_rx, false);
+	rtw_iterate_vifs_atomic(rtwdev, rtw_vif_smps_iter, rtwdev);
 }
 
 static void __update_firmware_feature(struct rtw_dev *rtwdev,

@@ -4962,6 +4962,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.cfo_init		= rtw8822c_cfo_init,
 	.cfo_track		= rtw8822c_cfo_track,
 	.config_tx_path		= rtw8822c_config_tx_path,
+	.config_txrx_mode	= rtw8822c_config_trx_mode,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,

@@ -715,8 +715,10 @@ static int rtw_debugfs_get_phy_info(struct seq_file *m, void *v)
 	seq_printf(m, "Current CH(fc) = %u\n", rtwdev->hal.current_channel);
 	seq_printf(m, "Current BW = %u\n", rtwdev->hal.current_band_width);
 	seq_printf(m, "Current IGI = 0x%x\n", dm_info->igi_history[0]);
-	seq_printf(m, "TP {Tx, Rx} = {%u, %u}Mbps\n\n",
+	seq_printf(m, "TP {Tx, Rx} = {%u, %u}Mbps\n",
 		   stats->tx_throughput, stats->rx_throughput);
+	seq_printf(m, "1SS for TX and RX = %c\n\n", rtwdev->hal.txrx_1ss ?
+		   'Y' : 'N');
 
 	seq_puts(m, "==========[Tx Phy Info]========\n");
 	seq_puts(m, "[Tx Rate] = ");
