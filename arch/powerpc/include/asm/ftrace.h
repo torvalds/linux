@@ -30,7 +30,8 @@ struct ftrace_regs {
 
 static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *fregs)
 {
-	return &fregs->regs;
+	/* We clear regs.msr in ftrace_call */
+	return fregs->regs.msr ? &fregs->regs : NULL;
 }
 
 static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *fregs,

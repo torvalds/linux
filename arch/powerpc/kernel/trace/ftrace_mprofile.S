@@ -205,6 +205,10 @@ _GLOBAL(ftrace_caller)
 	PPC_STL	r0, _LINK(r1)
 	mr	r4, r0
 
+	/* Clear MSR to flag as ftrace_caller versus frace_regs_caller */
+	li	r8, 0
+	PPC_STL	r8, _MSR(r1)
+
 	/* Load &pt_regs in r6 for call below */
 	addi    r6, r1 ,STACK_FRAME_OVERHEAD
 
