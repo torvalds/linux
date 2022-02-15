@@ -30,7 +30,7 @@
 #  US6,570,884, US6,115,776, and US6,327,625.
 ################################################################################
 
-CONFIG_SOC_LAN = y
+CONFIG_SOC_LAN = n
 ENABLE_FIBER_SUPPORT = n
 ENABLE_REALWOW_SUPPORT = n
 ENABLE_DASH_SUPPORT = n
