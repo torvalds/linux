@@ -1025,37 +1025,18 @@ static void __pagevec_lru_add_fn(struct folio *folio, struct lruvec *lruvec)
 
 	VM_BUG_ON_FOLIO(folio_test_lru(folio), folio);
 
-	/*
-	 * A folio becomes evictable in two ways:
-	 * 1) Within LRU lock [munlock_vma_page() and __munlock_pagevec()].
-	 * 2) Before acquiring LRU lock to put the folio on the correct LRU
-	 *    and then
-	 *   a) do PageLRU check with lock [check_move_unevictable_pages]
-	 *   b) do PageLRU check before lock [clear_page_mlock]
-	 *
-	 * (1) & (2a) are ok as LRU lock will serialize them. For (2b), we need
-	 * following strict ordering:
-	 *
-	 * #0: __pagevec_lru_add_fn		#1: clear_page_mlock
-	 *
-	 * folio_set_lru()			folio_test_clear_mlocked()
-	 * smp_mb() // explicit ordering	// above provides strict
-	 *					// ordering
-	 * folio_test_mlocked()			folio_test_lru()
-	 *
-	 *
-	 * if '#1' does not observe setting of PG_lru by '#0' and
-	 * fails isolation, the explicit barrier will make sure that
-	 * folio_evictable check will put the folio on the correct
-	 * LRU. Without smp_mb(), folio_set_lru() can be reordered
-	 * after folio_test_mlocked() check and can make '#1' fail the
-	 * isolation of the folio whose mlocked bit is cleared (#0 is
-	 * also looking at the same folio) and the evictable folio will
-	 * be stranded on an unevictable LRU.
-	 */
 	folio_set_lru(folio);
-	smp_mb__after_atomic();
-
+	/*
+	 * Is an smp_mb__after_atomic() still required here, before
+	 * folio_evictable() tests PageMlocked, to rule out the possibility
+	 * of stranding an evictable folio on an unevictable LRU?  I think
+	 * not, because munlock_page() only clears PageMlocked while the LRU
+	 * lock is held.
+	 *
+	 * (That is not true of __page_cache_release(), and not necessarily
+	 * true of release_pages(): but those only clear PageMlocked after
+	 * put_page_testzero() has excluded any other users of the page.)
+	 */
 	if (folio_evictable(folio)) {
 		if (was_unevictable)
 			__count_vm_events(UNEVICTABLE_PGRESCUED, nr_pages);
