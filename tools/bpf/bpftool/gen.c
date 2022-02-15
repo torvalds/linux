@@ -831,6 +831,16 @@ static int do_skeleton(int argc, char **argv)
 
 	codegen("\
 		\n\
+									    \n\
+		#ifdef __cplusplus					    \n\
+			static struct %1$s *open(const struct bpf_object_open_opts *opts = nullptr);\n\
+			static struct %1$s *open_and_load();		    \n\
+			static int load(struct %1$s *skel);		    \n\
+			static int attach(struct %1$s *skel);		    \n\
+			static void detach(struct %1$s *skel);		    \n\
+			static void destroy(struct %1$s *skel);		    \n\
+			static const void *elf_bytes(size_t *sz);	    \n\
+		#endif /* __cplusplus */				    \n\
 		};							    \n\
 									    \n\
 		static void						    \n\
@@ -1025,9 +1035,19 @@ static int do_skeleton(int argc, char **argv)
 		\";							    \n\
 		}							    \n\
 									    \n\
-		#endif /* %s */						    \n\
+		#ifdef __cplusplus					    \n\
+		struct %1$s *%1$s::open(const struct bpf_object_open_opts *opts) { return %1$s__open_opts(opts); }\n\
+		struct %1$s *%1$s::open_and_load() { return %1$s__open_and_load(); }	\n\
+		int %1$s::load(struct %1$s *skel) { return %1$s__load(skel); }		\n\
+		int %1$s::attach(struct %1$s *skel) { return %1$s__attach(skel); }	\n\
+		void %1$s::detach(struct %1$s *skel) { %1$s__detach(skel); }		\n\
+		void %1$s::destroy(struct %1$s *skel) { %1$s__destroy(skel); }		\n\
+		const void *%1$s::elf_bytes(size_t *sz) { return %1$s__elf_bytes(sz); } \n\
+		#endif /* __cplusplus */				    \n\
+									    \n\
+		#endif /* %2$s */					    \n\
 		",
-		header_guard);
+		obj_name, header_guard);
 	err = 0;
 out:
 	bpf_object__close(obj);
