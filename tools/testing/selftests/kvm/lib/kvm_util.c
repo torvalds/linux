@@ -85,56 +85,6 @@ int kvm_check_cap(long cap)
 	return ret;
 }
 
-/* VM Check Capability
- *
- * Input Args:
- *   vm - Virtual Machine
- *   cap - Capability
- *
- * Output Args: None
- *
- * Return:
- *   On success, the Value corresponding to the capability (KVM_CAP_*)
- *   specified by the value of cap.  On failure a TEST_ASSERT failure
- *   is produced.
- *
- * Looks up and returns the value corresponding to the capability
- * (KVM_CAP_*) given by cap.
- */
-int vm_check_cap(struct kvm_vm *vm, long cap)
-{
-	int ret;
-
-	ret = ioctl(vm->fd, KVM_CHECK_EXTENSION, cap);
-	TEST_ASSERT(ret >= 0, "KVM_CHECK_EXTENSION VM IOCTL failed,\n"
-		"  rc: %i errno: %i", ret, errno);
-
-	return ret;
-}
-
-/* VM Enable Capability
- *
- * Input Args:
- *   vm - Virtual Machine
- *   cap - Capability
- *
- * Output Args: None
- *
- * Return: On success, 0. On failure a TEST_ASSERT failure is produced.
- *
- * Enables a capability (KVM_CAP_*) on the VM.
- */
-int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
-{
-	int ret;
-
-	ret = ioctl(vm->fd, KVM_ENABLE_CAP, cap);
-	TEST_ASSERT(ret == 0, "KVM_ENABLE_CAP IOCTL failed,\n"
-		"  rc: %i errno: %i", ret, errno);
-
-	return ret;
-}
-
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size)
 {
 	struct kvm_enable_cap cap = { 0 };
@@ -460,36 +410,6 @@ void kvm_vm_restart(struct kvm_vm *vmp)
 	}
 }
 
-void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
-{
-	struct kvm_dirty_log args = { .dirty_bitmap = log, .slot = slot };
-	int ret;
-
-	ret = ioctl(vm->fd, KVM_GET_DIRTY_LOG, &args);
-	TEST_ASSERT(ret == 0, "%s: KVM_GET_DIRTY_LOG failed: %s",
-		    __func__, strerror(-ret));
-}
-
-void kvm_vm_clear_dirty_log(struct kvm_vm *vm, int slot, void *log,
-			    uint64_t first_page, uint32_t num_pages)
-{
-	struct kvm_clear_dirty_log args = {
-		.dirty_bitmap = log, .slot = slot,
-		.first_page = first_page,
-		.num_pages = num_pages
-	};
-	int ret;
-
-	ret = ioctl(vm->fd, KVM_CLEAR_DIRTY_LOG, &args);
-	TEST_ASSERT(ret == 0, "%s: KVM_CLEAR_DIRTY_LOG failed: %s",
-		    __func__, strerror(-ret));
-}
-
-uint32_t kvm_vm_reset_dirty_ring(struct kvm_vm *vm)
-{
-	return ioctl(vm->fd, KVM_RESET_DIRTY_RINGS);
-}
-
 /*
  * Userspace Memory Region Find
  *
@@ -645,9 +565,7 @@ static void __vm_mem_region_delete(struct kvm_vm *vm,
 	}
 
 	region->region.memory_size = 0;
-	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
-	TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed, "
-		    "rc: %i errno: %i", ret, errno);
+	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION, &region->region);
 
 	sparsebit_free(&region->unused_phy_pages);
 	ret = munmap(region->mmap_start, region->mmap_size);
@@ -993,7 +911,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	region->region.guest_phys_addr = guest_paddr;
 	region->region.memory_size = npages * vm->page_size;
 	region->region.userspace_addr = (uintptr_t) region->host_mem;
-	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
+	ret = __vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION, &region->region);
 	TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
 		"  rc: %i errno: %i\n"
 		"  slot: %u flags: 0x%x\n"
@@ -1076,7 +994,7 @@ void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags)
 
 	region->region.flags = flags;
 
-	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
+	ret = __vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION, &region->region);
 
 	TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
 		"  rc: %i errno: %i slot: %u flags: 0x%x",
@@ -1106,7 +1024,7 @@ void vm_mem_region_move(struct kvm_vm *vm, uint32_t slot, uint64_t new_gpa)
 
 	region->region.guest_phys_addr = new_gpa;
 
-	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
+	ret = __vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION, &region->region);
 
 	TEST_ASSERT(!ret, "KVM_SET_USER_MEMORY_REGION failed\n"
 		    "ret: %i errno: %i slot: %u new_gpa: 0x%lx",
@@ -1190,10 +1108,10 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
 	/* Allocate and initialize new vcpu structure. */
 	vcpu = calloc(1, sizeof(*vcpu));
 	TEST_ASSERT(vcpu != NULL, "Insufficient Memory");
+
 	vcpu->id = vcpuid;
-	vcpu->fd = ioctl(vm->fd, KVM_CREATE_VCPU, vcpuid);
-	TEST_ASSERT(vcpu->fd >= 0, "KVM_CREATE_VCPU failed, rc: %i errno: %i",
-		vcpu->fd, errno);
+	vcpu->fd = __vm_ioctl(vm, KVM_CREATE_VCPU, (void *)(unsigned long)vcpuid);
+	TEST_ASSERT(vcpu->fd >= 0, KVM_IOCTL_ERROR(KVM_CREATE_VCPU, vcpu->fd));
 
 	TEST_ASSERT(vcpu_mmap_sz() >= sizeof(*vcpu->state), "vcpu mmap size "
 		"smaller than expected, vcpu_mmap_sz: %i expected_min: %zi",
@@ -1534,11 +1452,7 @@ void *addr_gpa2alias(struct kvm_vm *vm, vm_paddr_t gpa)
  */
 void vm_create_irqchip(struct kvm_vm *vm)
 {
-	int ret;
-
-	ret = ioctl(vm->fd, KVM_CREATE_IRQCHIP, 0);
-	TEST_ASSERT(ret == 0, "KVM_CREATE_IRQCHIP IOCTL failed, "
-		"rc: %i errno: %i", ret, errno);
+	vm_ioctl(vm, KVM_CREATE_IRQCHIP, NULL);
 
 	vm->has_irqchip = true;
 }
@@ -1759,7 +1673,7 @@ int _kvm_create_device(struct kvm_vm *vm, uint64_t type, bool test, int *fd)
 	create_dev.type = type;
 	create_dev.fd = -1;
 	create_dev.flags = test ? KVM_CREATE_DEVICE_TEST : 0;
-	ret = ioctl(vm_get_fd(vm), KVM_CREATE_DEVICE, &create_dev);
+	ret = __vm_ioctl(vm, KVM_CREATE_DEVICE, &create_dev);
 	*fd = create_dev.fd;
 	return ret;
 }
@@ -1855,7 +1769,7 @@ void kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level)
 {
 	int ret = _kvm_irq_line(vm, irq, level);
 
-	TEST_ASSERT(ret >= 0, "KVM_IRQ_LINE failed, rc: %i errno: %i", ret, errno);
+	TEST_ASSERT(ret >= 0, KVM_IOCTL_ERROR(KVM_IRQ_LINE, ret));
 }
 
 struct kvm_irq_routing *kvm_gsi_routing_create(void)
@@ -1894,7 +1808,7 @@ int _kvm_gsi_routing_write(struct kvm_vm *vm, struct kvm_irq_routing *routing)
 	int ret;
 
 	assert(routing);
-	ret = ioctl(vm_get_fd(vm), KVM_SET_GSI_ROUTING, routing);
+	ret = __vm_ioctl(vm, KVM_SET_GSI_ROUTING, routing);
 	free(routing);
 
 	return ret;
@@ -1905,8 +1819,7 @@ void kvm_gsi_routing_write(struct kvm_vm *vm, struct kvm_irq_routing *routing)
 	int ret;
 
 	ret = _kvm_gsi_routing_write(vm, routing);
-	TEST_ASSERT(ret == 0, "KVM_SET_GSI_ROUTING failed, rc: %i errno: %i",
-				ret, errno);
+	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_SET_GSI_ROUTING, ret));
 }
 
 /*
@@ -2204,9 +2117,4 @@ unsigned int vm_calc_num_guest_pages(enum vm_guest_mode mode, size_t size)
 	unsigned int n;
 	n = DIV_ROUND_UP(size, vm_guest_mode_params[mode].page_size);
 	return vm_adjust_num_guest_pages(mode, n);
-}
-
-int vm_get_stats_fd(struct kvm_vm *vm)
-{
-	return ioctl(vm->fd, KVM_GET_STATS_FD, NULL);
 }

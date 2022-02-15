@@ -370,7 +370,7 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 
 	cap.cap = KVM_CAP_PMU_CAPABILITY;
 	cap.args[0] = KVM_PMU_CAP_DISABLE;
-	TEST_ASSERT(!vm_enable_cap(vm, &cap), "Failed to set KVM_PMU_CAP_DISABLE.");
+	vm_enable_cap(vm, &cap);
 
 	vm_vcpu_add_default(vm, VCPU_ID, guest_code);
 	vm_init_descriptor_tables(vm);

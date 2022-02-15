@@ -103,8 +103,6 @@ extern const struct vm_guest_mode_params vm_guest_mode_params[];
 int open_path_or_exit(const char *path, int flags);
 int open_kvm_dev_path_or_exit(void);
 int kvm_check_cap(long cap);
-int vm_check_cap(struct kvm_vm *vm, long cap);
-int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap);
 
 #define __KVM_SYSCALL_ERROR(_name, _ret) \
 	"%s failed, rc: %i errno: %i (%s)", (_name), (_ret), errno, strerror(errno)
@@ -126,6 +124,23 @@ void _vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid, unsigned long cmd,
 #define vcpu_ioctl(vm, vcpuid, cmd, arg) \
 	_vcpu_ioctl(vm, vcpuid, cmd, #cmd, arg)
 
+/*
+ * Looks up and returns the value corresponding to the capability
+ * (KVM_CAP_*) given by cap.
+ */
+static inline int vm_check_cap(struct kvm_vm *vm, long cap)
+{
+	int ret =  __vm_ioctl(vm, KVM_CHECK_EXTENSION, (void *)cap);
+
+	TEST_ASSERT(ret >= 0, KVM_IOCTL_ERROR(KVM_CHECK_EXTENSION, ret));
+	return ret;
+}
+
+static inline void vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
+{
+	vm_ioctl(vm, KVM_ENABLE_CAP, cap);
+}
+
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size);
 const char *vm_guest_mode_string(uint32_t i);
 
@@ -134,18 +149,45 @@ struct kvm_vm *vm_create(uint64_t phy_pages);
 void kvm_vm_free(struct kvm_vm *vmp);
 void kvm_vm_restart(struct kvm_vm *vmp);
 void kvm_vm_release(struct kvm_vm *vmp);
-void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log);
-void kvm_vm_clear_dirty_log(struct kvm_vm *vm, int slot, void *log,
-			    uint64_t first_page, uint32_t num_pages);
-uint32_t kvm_vm_reset_dirty_ring(struct kvm_vm *vm);
-
 int kvm_memcmp_hva_gva(void *hva, struct kvm_vm *vm, const vm_vaddr_t gva,
 		       size_t len);
-
 void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename);
 int kvm_memfd_alloc(size_t size, bool hugepages);
 
 void vm_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
+
+static inline void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
+{
+	struct kvm_dirty_log args = { .dirty_bitmap = log, .slot = slot };
+
+	vm_ioctl(vm, KVM_GET_DIRTY_LOG, &args);
+}
+
+static inline void kvm_vm_clear_dirty_log(struct kvm_vm *vm, int slot, void *log,
+					  uint64_t first_page, uint32_t num_pages)
+{
+	struct kvm_clear_dirty_log args = {
+		.dirty_bitmap = log,
+		.slot = slot,
+		.first_page = first_page,
+		.num_pages = num_pages
+	};
+
+	vm_ioctl(vm, KVM_CLEAR_DIRTY_LOG, &args);
+}
+
+static inline uint32_t kvm_vm_reset_dirty_ring(struct kvm_vm *vm)
+{
+	return __vm_ioctl(vm, KVM_RESET_DIRTY_RINGS, NULL);
+}
+
+static inline int vm_get_stats_fd(struct kvm_vm *vm)
+{
+	int fd = __vm_ioctl(vm, KVM_GET_STATS_FD, NULL);
+
+	TEST_ASSERT(fd >= 0, KVM_IOCTL_ERROR(KVM_GET_STATS_FD, fd));
+	return fd;
+}
 
 /*
  * VM VCPU Dump
@@ -482,8 +524,6 @@ kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
 })
 
 void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid);
-
-int vm_get_stats_fd(struct kvm_vm *vm);
 
 uint32_t guest_get_vcpuid(void);
 

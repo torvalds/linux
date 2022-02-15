@@ -165,11 +165,7 @@ static void stats_test(int stats_fd)
 
 static void vm_stats_test(struct kvm_vm *vm)
 {
-	int stats_fd;
-
-	/* Get fd for VM stats */
-	stats_fd = vm_get_stats_fd(vm);
-	TEST_ASSERT(stats_fd >= 0, "Get VM stats fd");
+	int stats_fd = vm_get_stats_fd(vm);
 
 	stats_test(stats_fd);
 	close(stats_fd);

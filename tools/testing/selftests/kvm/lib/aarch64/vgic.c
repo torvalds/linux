@@ -104,8 +104,7 @@ void kvm_irq_set_level_info(int gic_fd, uint32_t intid, int level)
 {
 	int ret = _kvm_irq_set_level_info(gic_fd, intid, level);
 
-	TEST_ASSERT(ret == 0, "KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO failed, "
-			"rc: %i errno: %i", ret, errno);
+	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO, ret));
 }
 
 int _kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level)
@@ -127,8 +126,7 @@ void kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level)
 {
 	int ret = _kvm_arm_irq_line(vm, intid, level);
 
-	TEST_ASSERT(ret == 0, "KVM_IRQ_LINE failed, rc: %i errno: %i",
-			ret, errno);
+	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_IRQ_LINE, ret));
 }
 
 static void vgic_poke_irq(int gic_fd, uint32_t intid,
