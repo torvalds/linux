@@ -400,7 +400,7 @@ int __init_or_acpilib acpi_table_parse_entries_array(
 
 	acpi_get_table(id, instance, &table_header);
 	if (!table_header) {
-		pr_warn("%4.4s not present\n", id);
+		pr_debug("%4.4s not present\n", id);
 		return -ENODEV;
 	}
 
