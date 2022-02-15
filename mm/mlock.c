@@ -137,8 +137,8 @@ void munlock_vma_page(struct page *page)
  * Returns with VM_LOCKED cleared.  Callers must be prepared to
  * deal with this.
  */
-void munlock_vma_pages_range(struct vm_area_struct *vma,
-			     unsigned long start, unsigned long end)
+static void munlock_vma_pages_range(struct vm_area_struct *vma,
+				    unsigned long start, unsigned long end)
 {
 	vma->vm_flags &= VM_LOCKED_CLEAR_MASK;
 
