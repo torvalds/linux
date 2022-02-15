@@ -32,7 +32,7 @@
 			<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
 
-	spi_gpio: spi-gpio {
+	spi1_gpio: spi1-gpio {
 		compatible = "spi-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -47,6 +47,26 @@
 			compatible = "tcg,tpm_tis-spi";
 			spi-max-frequency = <33000000>;
 			reg = <0>;
+		};
+	};
+
+	spi2_gpio: spi2-gpio {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpio-sck = <&gpio0 ASPEED_GPIO(X, 3) GPIO_ACTIVE_HIGH>;
+		gpio-mosi = <&gpio0 ASPEED_GPIO(X, 4) GPIO_ACTIVE_HIGH>;
+		gpio-miso = <&gpio0 ASPEED_GPIO(X, 5) GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
+		cs-gpios = <&gpio0 ASPEED_GPIO(X, 0) GPIO_ACTIVE_LOW>;
+
+		flash@0 {
+			reg = <0>;
+			compatible = "jedec,spi-nor";
+			m25p,fast-read;
+			label = "pnor";
+			spi-max-frequency = <100000000>;
 		};
 	};
 
@@ -222,19 +242,6 @@
 		m25p,fast-read;
 		label = "flash1";
 		spi-max-frequency = <50000000>;
-	};
-};
-
-&spi2 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_spi2_default>;
-
-	flash@0 {
-		status = "okay";
-		m25p,fast-read;
-		label = "pnor";
-		spi-max-frequency = <100000000>;
 	};
 };
 
