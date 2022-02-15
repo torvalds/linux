@@ -148,7 +148,7 @@ static int set_fw_reg(struct kvm_vm *vm, uint64_t id, uint64_t val)
 		.addr = (uint64_t)&val,
 	};
 
-	return _vcpu_ioctl(vm, 0, KVM_SET_ONE_REG, &reg);
+	return __vcpu_ioctl(vm, 0, KVM_SET_ONE_REG, &reg);
 }
 
 static void get_fw_reg(struct kvm_vm *vm, uint64_t id, uint64_t *addr)

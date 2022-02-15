@@ -27,12 +27,12 @@ static int add_init_2vcpus(struct kvm_vcpu_init *init1,
 	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES);
 
 	vm_vcpu_add(vm, 0);
-	ret = _vcpu_ioctl(vm, 0, KVM_ARM_VCPU_INIT, init1);
+	ret = __vcpu_ioctl(vm, 0, KVM_ARM_VCPU_INIT, init1);
 	if (ret)
 		goto free_exit;
 
 	vm_vcpu_add(vm, 1);
-	ret = _vcpu_ioctl(vm, 1, KVM_ARM_VCPU_INIT, init2);
+	ret = __vcpu_ioctl(vm, 1, KVM_ARM_VCPU_INIT, init2);
 
 free_exit:
 	kvm_vm_free(vm);
@@ -54,11 +54,11 @@ static int add_2vcpus_init_2vcpus(struct kvm_vcpu_init *init1,
 	vm_vcpu_add(vm, 0);
 	vm_vcpu_add(vm, 1);
 
-	ret = _vcpu_ioctl(vm, 0, KVM_ARM_VCPU_INIT, init1);
+	ret = __vcpu_ioctl(vm, 0, KVM_ARM_VCPU_INIT, init1);
 	if (ret)
 		goto free_exit;
 
-	ret = _vcpu_ioctl(vm, 1, KVM_ARM_VCPU_INIT, init2);
+	ret = __vcpu_ioctl(vm, 1, KVM_ARM_VCPU_INIT, init2);
 
 free_exit:
 	kvm_vm_free(vm);

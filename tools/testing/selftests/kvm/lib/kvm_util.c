@@ -1719,7 +1719,7 @@ struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vm *vm, uint32_t vcpuid)
 	struct kvm_reg_list reg_list_n = { .n = 0 }, *reg_list;
 	int ret;
 
-	ret = _vcpu_ioctl(vm, vcpuid, KVM_GET_REG_LIST, &reg_list_n);
+	ret = __vcpu_ioctl(vm, vcpuid, KVM_GET_REG_LIST, &reg_list_n);
 	TEST_ASSERT(ret == -1 && errno == E2BIG, "KVM_GET_REG_LIST n=0");
 	reg_list = calloc(1, sizeof(*reg_list) + reg_list_n.n * sizeof(__u64));
 	reg_list->n = reg_list_n.n;
@@ -1905,7 +1905,7 @@ void vcpu_fpu_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_fpu *fpu)
 {
 	int ret;
 
-	ret = _vcpu_ioctl(vm, vcpuid, KVM_GET_FPU, fpu);
+	ret = __vcpu_ioctl(vm, vcpuid, KVM_GET_FPU, fpu);
 	TEST_ASSERT(ret == 0, "KVM_GET_FPU failed, rc: %i errno: %i (%s)",
 		    ret, errno, strerror(errno));
 }
@@ -1914,7 +1914,7 @@ void vcpu_fpu_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_fpu *fpu)
 {
 	int ret;
 
-	ret = _vcpu_ioctl(vm, vcpuid, KVM_SET_FPU, fpu);
+	ret = __vcpu_ioctl(vm, vcpuid, KVM_SET_FPU, fpu);
 	TEST_ASSERT(ret == 0, "KVM_SET_FPU failed, rc: %i errno: %i (%s)",
 		    ret, errno, strerror(errno));
 }
@@ -1923,7 +1923,7 @@ void vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_one_reg *reg)
 {
 	int ret;
 
-	ret = _vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, reg);
+	ret = __vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, reg);
 	TEST_ASSERT(ret == 0, "KVM_GET_ONE_REG failed, rc: %i errno: %i (%s)",
 		    ret, errno, strerror(errno));
 }
@@ -1932,7 +1932,7 @@ void vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_one_reg *reg)
 {
 	int ret;
 
-	ret = _vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, reg);
+	ret = __vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, reg);
 	TEST_ASSERT(ret == 0, "KVM_SET_ONE_REG failed, rc: %i errno: %i (%s)",
 		    ret, errno, strerror(errno));
 }
@@ -1955,13 +1955,13 @@ void vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
 {
 	int ret;
 
-	ret = _vcpu_ioctl(vm, vcpuid, cmd, arg);
+	ret = __vcpu_ioctl(vm, vcpuid, cmd, arg);
 	TEST_ASSERT(ret == 0, "vcpu ioctl %lu failed, rc: %i errno: %i (%s)",
 		cmd, ret, errno, strerror(errno));
 }
 
-int _vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
-		unsigned long cmd, void *arg)
+int __vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
+		 unsigned long cmd, void *arg)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
@@ -2025,12 +2025,12 @@ void vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
 {
 	int ret;
 
-	ret = _vm_ioctl(vm, cmd, arg);
+	ret = __vm_ioctl(vm, cmd, arg);
 	TEST_ASSERT(ret == 0, "vm ioctl %lu failed, rc: %i errno: %i (%s)",
 		cmd, ret, errno, strerror(errno));
 }
 
-int _vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
+int __vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
 {
 	return ioctl(vm->fd, cmd, arg);
 }
@@ -2056,7 +2056,7 @@ void kvm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
 		cmd, ret, errno, strerror(errno));
 }
 
-int _kvm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
+int __kvm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
 {
 	return ioctl(vm->kvm_fd, cmd, arg);
 }
@@ -2185,7 +2185,7 @@ int _kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level)
 		.level  = level,
 	};
 
-	return _vm_ioctl(vm, KVM_IRQ_LINE, &irq_level);
+	return __vm_ioctl(vm, KVM_IRQ_LINE, &irq_level);
 }
 
 void kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level)

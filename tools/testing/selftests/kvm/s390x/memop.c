@@ -159,9 +159,9 @@ static void memop_ioctl(struct test_vcpu vcpu, struct kvm_s390_mem_op *ksmo)
 static int err_memop_ioctl(struct test_vcpu vcpu, struct kvm_s390_mem_op *ksmo)
 {
 	if (vcpu.id == VM_VCPU_ID)
-		return _vm_ioctl(vcpu.vm, KVM_S390_MEM_OP, ksmo);
+		return __vm_ioctl(vcpu.vm, KVM_S390_MEM_OP, ksmo);
 	else
-		return _vcpu_ioctl(vcpu.vm, vcpu.id, KVM_S390_MEM_OP, ksmo);
+		return __vcpu_ioctl(vcpu.vm, vcpu.id, KVM_S390_MEM_OP, ksmo);
 }
 
 #define MEMOP(err, vcpu_p, mop_target_p, access_mode_p, buf_p, size_p, ...)	\

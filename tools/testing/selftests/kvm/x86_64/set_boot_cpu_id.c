@@ -42,7 +42,7 @@ static void test_set_boot_busy(struct kvm_vm *vm)
 {
 	int res;
 
-	res = _vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID0);
+	res = __vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID0);
 	TEST_ASSERT(res == -1 && errno == EBUSY,
 			"KVM_SET_BOOT_CPU_ID set while running vm");
 }
@@ -133,13 +133,13 @@ static void check_set_bsp_busy(void)
 	add_x86_vcpu(vm, VCPU_ID0, true);
 	add_x86_vcpu(vm, VCPU_ID1, false);
 
-	res = _vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID1);
+	res = __vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID1);
 	TEST_ASSERT(res == -1 && errno == EBUSY, "KVM_SET_BOOT_CPU_ID set after adding vcpu");
 
 	run_vcpu(vm, VCPU_ID0);
 	run_vcpu(vm, VCPU_ID1);
 
-	res = _vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID1);
+	res = __vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID1);
 	TEST_ASSERT(res == -1 && errno == EBUSY, "KVM_SET_BOOT_CPU_ID set to a terminated vcpu");
 
 	kvm_vm_free(vm);

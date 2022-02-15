@@ -55,7 +55,7 @@ static void guest_code(void)
 static int run_vcpu(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	ucall_init(vm, NULL);
-	int ret = _vcpu_ioctl(vm, vcpuid, KVM_RUN, NULL);
+	int ret = __vcpu_ioctl(vm, vcpuid, KVM_RUN, NULL);
 	if (ret)
 		return -errno;
 	return 0;

@@ -166,7 +166,7 @@ static void steal_time_init(struct kvm_vm *vm)
 	};
 	int i, ret;
 
-	ret = _vcpu_ioctl(vm, 0, KVM_HAS_DEVICE_ATTR, &dev);
+	ret = __vcpu_ioctl(vm, 0, KVM_HAS_DEVICE_ATTR, &dev);
 	if (ret != 0 && errno == ENXIO) {
 		print_skip("steal-time not supported");
 		exit(KSFT_SKIP);
@@ -184,13 +184,13 @@ static void steal_time_init(struct kvm_vm *vm)
 		sync_global_to_guest(vm, st_gva[i]);
 
 		st_ipa = (ulong)st_gva[i] | 1;
-		ret = _vcpu_ioctl(vm, i, KVM_SET_DEVICE_ATTR, &dev);
+		ret = __vcpu_ioctl(vm, i, KVM_SET_DEVICE_ATTR, &dev);
 		TEST_ASSERT(ret == -1 && errno == EINVAL, "Bad IPA didn't report EINVAL");
 
 		st_ipa = (ulong)st_gva[i];
 		vcpu_ioctl(vm, i, KVM_SET_DEVICE_ATTR, &dev);
 
-		ret = _vcpu_ioctl(vm, i, KVM_SET_DEVICE_ATTR, &dev);
+		ret = __vcpu_ioctl(vm, i, KVM_SET_DEVICE_ATTR, &dev);
 		TEST_ASSERT(ret == -1 && errno == EEXIST, "Set IPA twice without EEXIST");
 
 	}
