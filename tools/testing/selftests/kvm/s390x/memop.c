@@ -160,6 +160,21 @@ int main(int argc, char *argv[])
 	run->psw_mask &= ~(3UL << (63 - 17));   /* Disable AR mode */
 	vcpu_run(vm, VCPU_ID);                  /* Run to sync new state */
 
+	/* Check that the SIDA calls are rejected for non-protected guests */
+	ksmo.gaddr = 0;
+	ksmo.flags = 0;
+	ksmo.size = 8;
+	ksmo.op = KVM_S390_MEMOP_SIDA_READ;
+	ksmo.buf = (uintptr_t)mem1;
+	ksmo.sida_offset = 0x1c0;
+	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
+	TEST_ASSERT(rv == -1 && errno == EINVAL,
+		    "ioctl does not reject SIDA_READ in non-protected mode");
+	ksmo.op = KVM_S390_MEMOP_SIDA_WRITE;
+	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
+	TEST_ASSERT(rv == -1 && errno == EINVAL,
+		    "ioctl does not reject SIDA_WRITE in non-protected mode");
+
 	kvm_vm_free(vm);
 
 	return 0;
