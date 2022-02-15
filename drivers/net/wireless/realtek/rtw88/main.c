@@ -208,6 +208,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 		clear_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 
 	rtw_coex_wl_status_check(rtwdev);
+	rtw_coex_query_bt_hid_list(rtwdev);
 
 	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
 		rtw_coex_wl_status_change_notify(rtwdev, 0);

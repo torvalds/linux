@@ -2375,6 +2375,7 @@ static void rtw_coex_action_wl_native_lps(struct rtw_dev *rtwdev)
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
 	u8 table_case, tdma_case;
 
 	if (coex->under_5g)
@@ -2383,7 +2384,6 @@ static void rtw_coex_action_wl_native_lps(struct rtw_dev *rtwdev)
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
 
 	rtw_coex_set_ant_path(rtwdev, false, COEX_SET_ANT_2G);
-	rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[0]);
 
 	if (efuse->share_ant) {
 		/* Shared-Ant */
@@ -2393,6 +2393,16 @@ static void rtw_coex_action_wl_native_lps(struct rtw_dev *rtwdev)
 		/* Non-Shared-Ant */
 		table_case = 100;
 		tdma_case = 100;
+	}
+
+	if (coex_stat->bt_game_hid_exist) {
+		coex_stat->wl_coex_mode = COEX_WLINK_2GFREE;
+		if (coex_stat->wl_tput_dir == COEX_WL_TPUT_TX)
+			rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_tx[6]);
+		else
+			rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[5]);
+	} else {
+		rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[0]);
 	}
 
 	rtw_coex_table(rtwdev, false, table_case);
@@ -3249,20 +3259,138 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 		coex_stat->bt_a2dp_bitpool = 0;
 
 	coex_stat->bt_a2dp_sink = ((coex_stat->bt_info_hb3 & BIT(7)) == BIT(7));
-	if (chip->wl_mimo_ps_support && !coex_stat->bt_inq_page) {
-		if ((coex_stat->bt_info_lb2 & COEX_INFO_CONNECTION) &&
-		    (coex_stat->hi_pri_tx + coex_stat->hi_pri_rx >
-		     COEX_BT_GAMEHID_CNT) && !coex_stat->bt_slave) {
-			coex_stat->bt_game_hid_exist = true;
-			rtw_dbg(rtwdev, RTW_DBG_COEX,
-				"[BTCoex], BT game controller exisit!!\n");
-		} else {
-			coex_stat->bt_game_hid_exist = false;
-		}
-	}
 
 	rtw_coex_update_bt_link_info(rtwdev);
 	rtw_coex_run_coex(rtwdev, COEX_RSN_BTINFO);
+}
+
+#define COEX_BT_HIDINFO_MTK	0x46
+static const u8 coex_bt_hidinfo_ps[] = {0x57, 0x69, 0x72};
+static const u8 coex_bt_hidinfo_xb[] = {0x58, 0x62, 0x6f};
+
+void rtw_coex_bt_hid_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
+{
+	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
+	struct rtw_coex_hid *hidinfo;
+	struct rtw_coex_hid_info_a *hida;
+	struct rtw_coex_hid_handle_list *hl, *bhl;
+	u8 sub_id = buf[2], gamehid_cnt = 0, handle, i;
+	bool cur_game_hid_exist, complete;
+
+	if (!chip->wl_mimo_ps_support &&
+	    (sub_id == COEX_BT_HIDINFO_LIST || sub_id == COEX_BT_HIDINFO_A))
+		return;
+
+	rtw_dbg(rtwdev, RTW_DBG_COEX,
+		"[BTCoex], HID info notify, sub_id = 0x%x\n", sub_id);
+
+	switch (sub_id) {
+	case COEX_BT_HIDINFO_LIST:
+		hl = &coex_stat->hid_handle_list;
+		bhl = (struct rtw_coex_hid_handle_list *)buf;
+		if (!memcmp(hl, bhl, sizeof(*hl)))
+			return;
+		coex_stat->hid_handle_list = *bhl;
+		memset(&coex_stat->hid_info, 0, sizeof(coex_stat->hid_info));
+		for (i = 0; i < COEX_BT_HIDINFO_HANDLE_NUM; i++) {
+			hidinfo = &coex_stat->hid_info[i];
+			if (hl->handle[i] != COEX_BT_HIDINFO_NOTCON &&
+			    hl->handle[i] != 0)
+				hidinfo->hid_handle = hl->handle[i];
+		}
+		break;
+	case COEX_BT_HIDINFO_A:
+		hida = (struct rtw_coex_hid_info_a *)buf;
+		handle = hida->handle;
+		for (i = 0; i < COEX_BT_HIDINFO_HANDLE_NUM; i++) {
+			hidinfo = &coex_stat->hid_info[i];
+			if (hidinfo->hid_handle == handle) {
+				hidinfo->hid_vendor = hida->vendor;
+				memcpy(hidinfo->hid_name, hida->name,
+				       sizeof(hidinfo->hid_name));
+				hidinfo->hid_info_completed = true;
+				break;
+			}
+		}
+		break;
+	}
+	for (i = 0; i < COEX_BT_HIDINFO_HANDLE_NUM; i++) {
+		hidinfo = &coex_stat->hid_info[i];
+		complete = hidinfo->hid_info_completed;
+		handle = hidinfo->hid_handle;
+		if (!complete || handle == COEX_BT_HIDINFO_NOTCON ||
+		    handle == 0 || handle >= COEX_BT_BLE_HANDLE_THRS) {
+			hidinfo->is_game_hid = false;
+			continue;
+		}
+
+		if (hidinfo->hid_vendor == COEX_BT_HIDINFO_MTK) {
+			if ((memcmp(hidinfo->hid_name,
+				    coex_bt_hidinfo_ps,
+				    COEX_BT_HIDINFO_NAME)) == 0)
+				hidinfo->is_game_hid = true;
+			else if ((memcmp(hidinfo->hid_name,
+					 coex_bt_hidinfo_xb,
+					 COEX_BT_HIDINFO_NAME)) == 0)
+				hidinfo->is_game_hid = true;
+			else
+				hidinfo->is_game_hid = false;
+		} else {
+			hidinfo->is_game_hid = false;
+		}
+		if (hidinfo->is_game_hid)
+			gamehid_cnt++;
+	}
+
+	if (gamehid_cnt > 0)
+		cur_game_hid_exist = true;
+	else
+		cur_game_hid_exist = false;
+
+	if (cur_game_hid_exist != coex_stat->bt_game_hid_exist) {
+		coex_stat->bt_game_hid_exist = cur_game_hid_exist;
+		rtw_dbg(rtwdev, RTW_DBG_COEX,
+			"[BTCoex], HID info changed!bt_game_hid_exist = %d!\n",
+			coex_stat->bt_game_hid_exist);
+		rtw_coex_run_coex(rtwdev, COEX_RSN_BTSTATUS);
+	}
+}
+
+void rtw_coex_query_bt_hid_list(struct rtw_dev *rtwdev)
+{
+	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
+	struct rtw_coex_hid *hidinfo;
+	u8 i, handle;
+	bool complete;
+
+	if (!chip->wl_mimo_ps_support || coex_stat->wl_under_ips ||
+	    (coex_stat->wl_under_lps && !coex_stat->wl_force_lps_ctrl))
+		return;
+
+	if (!coex_stat->bt_hid_exist &&
+	    !((coex_stat->bt_info_lb2 & COEX_INFO_CONNECTION) &&
+	      (coex_stat->hi_pri_tx + coex_stat->hi_pri_rx >
+	       COEX_BT_GAMEHID_CNT)))
+		return;
+
+	rtw_fw_coex_query_hid_info(rtwdev, COEX_BT_HIDINFO_LIST, 0);
+
+	for (i = 0; i < COEX_BT_HIDINFO_HANDLE_NUM; i++) {
+		hidinfo = &coex_stat->hid_info[i];
+		complete = hidinfo->hid_info_completed;
+		handle = hidinfo->hid_handle;
+		if (handle == 0 || handle == COEX_BT_HIDINFO_NOTCON ||
+		    handle >= COEX_BT_BLE_HANDLE_THRS || complete)
+			continue;
+
+		rtw_fw_coex_query_hid_info(rtwdev,
+					   COEX_BT_HIDINFO_A,
+					   handle);
+	}
 }
 
 void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)

@@ -1355,6 +1355,42 @@ struct rtw_coex_dm {
 #define COEX_BTINFO_LENGTH_MAX	10
 #define COEX_BTINFO_LENGTH	7
 
+#define COEX_BT_HIDINFO_LIST	0x0
+#define COEX_BT_HIDINFO_A	0x1
+#define COEX_BT_HIDINFO_NAME	3
+
+#define COEX_BT_HIDINFO_LENGTH	6
+#define COEX_BT_HIDINFO_HANDLE_NUM	4
+#define COEX_BT_HIDINFO_C2H_HANDLE	0
+#define COEX_BT_HIDINFO_C2H_VENDOR	1
+#define COEX_BT_BLE_HANDLE_THRS	0x10
+#define COEX_BT_HIDINFO_NOTCON	0xff
+
+struct rtw_coex_hid {
+	u8 hid_handle;
+	u8 hid_vendor;
+	u8 hid_name[COEX_BT_HIDINFO_NAME];
+	bool hid_info_completed;
+	bool is_game_hid;
+};
+
+struct rtw_coex_hid_handle_list {
+	u8 cmd_id;
+	u8 len;
+	u8 subid;
+	u8 handle_cnt;
+	u8 handle[COEX_BT_HIDINFO_HANDLE_NUM];
+} __packed;
+
+struct rtw_coex_hid_info_a {
+	u8 cmd_id;
+	u8 len;
+	u8 subid;
+	u8 handle;
+	u8 vendor;
+	u8 name[COEX_BT_HIDINFO_NAME];
+} __packed;
+
 struct rtw_coex_stat {
 	bool bt_disabled;
 	bool bt_disabled_pre;
@@ -1386,6 +1422,7 @@ struct rtw_coex_stat {
 	bool bt_418_hid_exist;
 	bool bt_ble_hid_exist;
 	bool bt_game_hid_exist;
+	bool bt_hid_handle_cnt;
 	bool bt_mailbox_reply;
 
 	bool wl_under_lps;
@@ -1464,6 +1501,9 @@ struct rtw_coex_stat {
 
 	u32 darfrc;
 	u32 darfrch;
+
+	struct rtw_coex_hid hid_info[COEX_BT_HIDINFO_HANDLE_NUM];
+	struct rtw_coex_hid_handle_list hid_handle_list;
 };
 
 struct rtw_coex {
