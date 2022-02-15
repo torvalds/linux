@@ -1941,6 +1941,7 @@ static int azx_first_init(struct azx *chip)
 		dma_bits = 32;
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(dma_bits)))
 		dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32));
+	dma_set_max_seg_size(&pci->dev, UINT_MAX);
 
 	/* read number of streams from GCAP register instead of using
 	 * hardcoded value
