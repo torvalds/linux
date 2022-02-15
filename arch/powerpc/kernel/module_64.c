@@ -33,19 +33,17 @@
 #ifdef PPC64_ELF_ABI_v2
 
 /* An address is simply the address of the function. */
-typedef unsigned long func_desc_t;
+typedef struct {
+	unsigned long addr;
+} func_desc_t;
 
 static func_desc_t func_desc(unsigned long addr)
 {
-	return addr;
-}
-static unsigned long func_addr(unsigned long addr)
-{
-	return addr;
-}
-static unsigned long stub_func_addr(func_desc_t func)
-{
-	return func;
+	func_desc_t desc = {
+		.addr = addr,
+	};
+
+	return desc;
 }
 
 /* PowerPC64 specific values for the Elf64_Sym st_other field.  */
@@ -70,14 +68,6 @@ static func_desc_t func_desc(unsigned long addr)
 {
 	return *(struct func_desc *)addr;
 }
-static unsigned long func_addr(unsigned long addr)
-{
-	return func_desc(addr).addr;
-}
-static unsigned long stub_func_addr(func_desc_t func)
-{
-	return func.addr;
-}
 static unsigned int local_entry_offset(const Elf64_Sym *sym)
 {
 	return 0;
@@ -92,6 +82,16 @@ void *dereference_module_function_descriptor(struct module *mod, void *ptr)
 	return dereference_function_descriptor(ptr);
 }
 #endif
+
+static unsigned long func_addr(unsigned long addr)
+{
+	return func_desc(addr).addr;
+}
+
+static unsigned long stub_func_addr(func_desc_t func)
+{
+	return func.addr;
+}
 
 #define STUB_MAGIC 0x73747562 /* stub */
 
