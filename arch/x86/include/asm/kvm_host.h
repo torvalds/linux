@@ -1541,6 +1541,7 @@ extern struct kvm_x86_ops kvm_x86_ops;
 #define KVM_X86_OP(func) \
 	DECLARE_STATIC_CALL(kvm_x86_##func, *(((struct kvm_x86_ops *)0)->func));
 #define KVM_X86_OP_OPTIONAL KVM_X86_OP
+#define KVM_X86_OP_OPTIONAL_RET0 KVM_X86_OP
 #include <asm/kvm-x86-ops.h>
 
 static inline void kvm_ops_static_call_update(void)
@@ -1550,6 +1551,9 @@ static inline void kvm_ops_static_call_update(void)
 #define KVM_X86_OP(func) \
 	WARN_ON(!kvm_x86_ops.func); __KVM_X86_OP(func)
 #define KVM_X86_OP_OPTIONAL __KVM_X86_OP
+#define KVM_X86_OP_OPTIONAL_RET0(func) \
+	static_call_update(kvm_x86_##func, kvm_x86_ops.func ? : \
+			   (void *) __static_call_return0);
 #include <asm/kvm-x86-ops.h>
 #undef __KVM_X86_OP
 }

@@ -3528,16 +3528,6 @@ static void svm_enable_nmi_window(struct kvm_vcpu *vcpu)
 	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
 }
 
-static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
-{
-	return 0;
-}
-
-static int svm_set_identity_map_addr(struct kvm *kvm, u64 ident_addr)
-{
-	return 0;
-}
-
 static void svm_flush_tlb_current(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -3932,11 +3922,6 @@ static bool svm_has_emulated_msr(struct kvm *kvm, u32 index)
 	}
 
 	return true;
-}
-
-static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
-{
-	return 0;
 }
 
 static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
@@ -4593,10 +4578,6 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.check_apicv_inhibit_reasons = avic_check_apicv_inhibit_reasons,
 	.apicv_post_state_restore = avic_apicv_post_state_restore,
 
-	.set_tss_addr = svm_set_tss_addr,
-	.set_identity_map_addr = svm_set_identity_map_addr,
-	.get_mt_mask = svm_get_mt_mask,
-
 	.get_exit_info = svm_get_exit_info,
 
 	.vcpu_after_set_cpuid = svm_vcpu_after_set_cpuid,
@@ -4621,7 +4602,6 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.nested_ops = &svm_nested_ops,
 
 	.deliver_interrupt = svm_deliver_interrupt,
-	.dy_apicv_has_pending_interrupt = avic_dy_apicv_has_pending_interrupt,
 	.pi_update_irte = avic_pi_update_irte,
 	.setup_mce = svm_setup_mce,
 
