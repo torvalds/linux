@@ -9811,8 +9811,8 @@ int netdev_unregister_timeout_secs __read_mostly = 10;
 #define WAIT_REFS_MIN_MSECS 1
 #define WAIT_REFS_MAX_MSECS 250
 /**
- * netdev_wait_allrefs - wait until all references are gone.
- * @dev: target net_device
+ * netdev_wait_allrefs_any - wait until all references are gone.
+ * @list: list of net_devices to wait on
  *
  * This is called when unregistering network devices.
  *
@@ -9822,37 +9822,45 @@ int netdev_unregister_timeout_secs __read_mostly = 10;
  * We can get stuck here if buggy protocols don't correctly
  * call dev_put.
  */
-static void netdev_wait_allrefs(struct net_device *dev)
+static struct net_device *netdev_wait_allrefs_any(struct list_head *list)
 {
 	unsigned long rebroadcast_time, warning_time;
-	int wait = 0, refcnt;
+	struct net_device *dev;
+	int wait = 0;
 
-	linkwatch_forget_dev(dev);
+	list_for_each_entry(dev, list, todo_list)
+		linkwatch_forget_dev(dev);
 
 	rebroadcast_time = warning_time = jiffies;
-	refcnt = netdev_refcnt_read(dev);
 
-	while (refcnt != 1) {
+	list_for_each_entry(dev, list, todo_list)
+		if (netdev_refcnt_read(dev) == 1)
+			return dev;
+
+	while (true) {
 		if (time_after(jiffies, rebroadcast_time + 1 * HZ)) {
 			rtnl_lock();
 
 			/* Rebroadcast unregister notification */
-			call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+			list_for_each_entry(dev, list, todo_list)
+				call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
 
 			__rtnl_unlock();
 			rcu_barrier();
 			rtnl_lock();
 
-			if (test_bit(__LINK_STATE_LINKWATCH_PENDING,
-				     &dev->state)) {
-				/* We must not have linkwatch events
-				 * pending on unregister. If this
-				 * happens, we simply run the queue
-				 * unscheduled, resulting in a noop
-				 * for this device.
-				 */
-				linkwatch_run_queue();
-			}
+			list_for_each_entry(dev, list, todo_list)
+				if (test_bit(__LINK_STATE_LINKWATCH_PENDING,
+					     &dev->state)) {
+					/* We must not have linkwatch events
+					 * pending on unregister. If this
+					 * happens, we simply run the queue
+					 * unscheduled, resulting in a noop
+					 * for this device.
+					 */
+					linkwatch_run_queue();
+					break;
+				}
 
 			__rtnl_unlock();
 
@@ -9867,14 +9875,18 @@ static void netdev_wait_allrefs(struct net_device *dev)
 			wait = min(wait << 1, WAIT_REFS_MAX_MSECS);
 		}
 
-		refcnt = netdev_refcnt_read(dev);
+		list_for_each_entry(dev, list, todo_list)
+			if (netdev_refcnt_read(dev) == 1)
+				return dev;
 
-		if (refcnt != 1 &&
-		    time_after(jiffies, warning_time +
+		if (time_after(jiffies, warning_time +
 			       netdev_unregister_timeout_secs * HZ)) {
-			pr_emerg("unregister_netdevice: waiting for %s to become free. Usage count = %d\n",
-				 dev->name, refcnt);
-			ref_tracker_dir_print(&dev->refcnt_tracker, 10);
+			list_for_each_entry(dev, list, todo_list) {
+				pr_emerg("unregister_netdevice: waiting for %s to become free. Usage count = %d\n",
+					 dev->name, netdev_refcnt_read(dev));
+				ref_tracker_dir_print(&dev->refcnt_tracker, 10);
+			}
+
 			warning_time = jiffies;
 		}
 	}
@@ -9942,10 +9954,8 @@ void netdev_run_todo(void)
 	}
 
 	while (!list_empty(&list)) {
-		dev = list_first_entry(&list, struct net_device, todo_list);
+		dev = netdev_wait_allrefs_any(&list);
 		list_del(&dev->todo_list);
-
-		netdev_wait_allrefs(dev);
 
 		/* paranoia */
 		BUG_ON(netdev_refcnt_read(dev) != 1);
