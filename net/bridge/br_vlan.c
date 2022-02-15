@@ -284,9 +284,12 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags,
 		}
 		br_multicast_port_ctx_init(p, v, &v->port_mcast_ctx);
 	} else {
-		err = br_switchdev_port_vlan_add(dev, v->vid, flags, extack);
-		if (err && err != -EOPNOTSUPP)
-			goto out;
+		if (br_vlan_should_use(v)) {
+			err = br_switchdev_port_vlan_add(dev, v->vid, flags,
+							 extack);
+			if (err && err != -EOPNOTSUPP)
+				goto out;
+		}
 		br_multicast_ctx_init(br, v, &v->br_mcast_ctx);
 		v->priv_flags |= BR_VLFLAG_GLOBAL_MCAST_ENABLED;
 	}
