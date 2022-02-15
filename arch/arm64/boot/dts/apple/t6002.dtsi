@@ -23,6 +23,47 @@
 	#size-cells = <2>;
 
 	cpus {
+		cpu-map {
+			cluster3 {
+				core0 {
+					cpu = <&cpu_e10>;
+				};
+				core1 {
+					cpu = <&cpu_e11>;
+				};
+			};
+
+			cluster4 {
+				core0 {
+					cpu = <&cpu_p20>;
+				};
+				core1 {
+					cpu = <&cpu_p21>;
+				};
+				core2 {
+					cpu = <&cpu_p22>;
+				};
+				core3 {
+					cpu = <&cpu_p23>;
+				};
+			};
+
+			cluster5 {
+				core0 {
+					cpu = <&cpu_p30>;
+				};
+				core1 {
+					cpu = <&cpu_p31>;
+				};
+				core2 {
+					cpu = <&cpu_p32>;
+				};
+				core3 {
+					cpu = <&cpu_p33>;
+				};
+			};
+		};
+
 		cpu_e10: cpu@800 {
 			compatible = "apple,icestorm";
 			device_type = "cpu";
@@ -32,6 +73,9 @@
 			next-level-cache = <&l2_cache_3>;
 			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
+			operating-points-v2 = <&icestorm_opp>;
+			capacity-dmips-mhz = <714>;
+			performance-domains = <&cpufreq_e_die1>;
 		};
 
 		cpu_e11: cpu@801 {
@@ -43,6 +87,9 @@
 			next-level-cache = <&l2_cache_3>;
 			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
+			operating-points-v2 = <&icestorm_opp>;
+			capacity-dmips-mhz = <714>;
+			performance-domains = <&cpufreq_e_die1>;
 		};
 
 		cpu_p20: cpu@10900 {
@@ -54,6 +101,9 @@
 			next-level-cache = <&l2_cache_4>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
+			operating-points-v2 = <&firestorm_opp>;
+			capacity-dmips-mhz = <1024>;
+			performance-domains = <&cpufreq_p0_die1>;
 		};
 
 		cpu_p21: cpu@10901 {
@@ -65,6 +115,9 @@
 			next-level-cache = <&l2_cache_4>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
+			operating-points-v2 = <&firestorm_opp>;
+			capacity-dmips-mhz = <1024>;
+			performance-domains = <&cpufreq_p0_die1>;
 		};
 
 		cpu_p22: cpu@10902 {
@@ -76,6 +129,9 @@
 			next-level-cache = <&l2_cache_4>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
+			operating-points-v2 = <&firestorm_opp>;
+			capacity-dmips-mhz = <1024>;
+			performance-domains = <&cpufreq_p0_die1>;
 		};
 
 		cpu_p23: cpu@10903 {
@@ -87,6 +143,9 @@
 			next-level-cache = <&l2_cache_4>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
+			operating-points-v2 = <&firestorm_opp>;
+			capacity-dmips-mhz = <1024>;
+			performance-domains = <&cpufreq_p0_die1>;
 		};
 
 		cpu_p30: cpu@10a00 {
@@ -98,6 +157,9 @@
 			next-level-cache = <&l2_cache_5>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
+			operating-points-v2 = <&firestorm_opp>;
+			capacity-dmips-mhz = <1024>;
+			performance-domains = <&cpufreq_p1_die1>;
 		};
 
 		cpu_p31: cpu@10a01 {
@@ -109,6 +171,9 @@
 			next-level-cache = <&l2_cache_5>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
+			operating-points-v2 = <&firestorm_opp>;
+			capacity-dmips-mhz = <1024>;
+			performance-domains = <&cpufreq_p1_die1>;
 		};
 
 		cpu_p32: cpu@10a02 {
@@ -120,6 +185,9 @@
 			next-level-cache = <&l2_cache_5>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
+			operating-points-v2 = <&firestorm_opp>;
+			capacity-dmips-mhz = <1024>;
+			performance-domains = <&cpufreq_p1_die1>;
 		};
 
 		cpu_p33: cpu@10a03 {
@@ -131,6 +199,9 @@
 			next-level-cache = <&l2_cache_5>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
+			operating-points-v2 = <&firestorm_opp>;
+			capacity-dmips-mhz = <1024>;
+			performance-domains = <&cpufreq_p1_die1>;
 		};
 
 		l2_cache_3: l2-cache-3 {
@@ -205,7 +276,6 @@
 
 #undef DIE
 #undef DIE_NO
-
 
 &aic {
 	affinities {
