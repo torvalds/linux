@@ -225,6 +225,13 @@ static irqreturn_t ps2_gpio_irq_rx(struct ps2_gpio_data *drvdata)
 			if (!drvdata->write_enable)
 				goto err;
 		}
+		break;
+	case PS2_STOP_BIT:
+		/* stop bit should be high */
+		if (unlikely(!data)) {
+			dev_err(drvdata->dev, "RX: stop bit should be high\n");
+			goto err;
+		}
 
 		/*
 		 * Do not send spurious ACK's and NACK's when write fn is
@@ -237,22 +244,9 @@ static irqreturn_t ps2_gpio_irq_rx(struct ps2_gpio_data *drvdata)
 				break;
 		}
 
-		/*
-		 * Let's send the data without waiting for the stop bit to be
-		 * sent. It may happen that we miss the stop bit. When this
-		 * happens we have no way to recover from this, certainly
-		 * missing the parity bit would be recognized when processing
-		 * the stop bit. When missing both, data is lost.
-		 */
 		serio_interrupt(drvdata->serio, byte, rxflags);
 		dev_dbg(drvdata->dev, "RX: sending byte 0x%x\n", byte);
-		break;
-	case PS2_STOP_BIT:
-		/* stop bit should be high */
-		if (unlikely(!data)) {
-			dev_err(drvdata->dev, "RX: stop bit should be high\n");
-			goto err;
-		}
+
 		cnt = byte = 0;
 
 		goto end; /* success */
