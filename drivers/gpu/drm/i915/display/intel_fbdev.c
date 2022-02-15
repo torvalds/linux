@@ -680,3 +680,11 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 	if (drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper) == 0)
 		intel_fbdev_invalidate(ifbdev);
 }
+
+struct intel_framebuffer *intel_fbdev_framebuffer(struct intel_fbdev *fbdev)
+{
+	if (!fbdev || !fbdev->helper.fb)
+		return NULL;
+
+	return to_intel_framebuffer(fbdev->helper.fb);
+}
