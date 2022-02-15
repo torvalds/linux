@@ -37,8 +37,7 @@
 #define PS2_DATA_BIT7		8
 #define PS2_PARITY_BIT		9
 #define PS2_STOP_BIT		10
-#define PS2_TX_TIMEOUT		11
-#define PS2_ACK_BIT		12
+#define PS2_ACK_BIT		11
 
 #define PS2_DEV_RET_ACK		0xfa
 #define PS2_DEV_RET_NACK	0xfe
@@ -333,14 +332,7 @@ static irqreturn_t ps2_gpio_irq_tx(struct ps2_gpio_data *drvdata)
 		/* release data line to generate stop bit */
 		gpiod_direction_input(drvdata->gpio_data);
 		break;
-	case PS2_TX_TIMEOUT:
-		/*
-		 * Devices generate one extra clock pulse before sending the
-		 * acknowledgment.
-		 */
-		break;
 	case PS2_ACK_BIT:
-		gpiod_direction_input(drvdata->gpio_data);
 		data = gpiod_get_value(drvdata->gpio_data);
 		if (data) {
 			dev_warn(drvdata->dev, "TX: received NACK, retry\n");
