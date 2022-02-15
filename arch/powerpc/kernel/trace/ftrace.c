@@ -944,6 +944,7 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
 						unsigned long sp)
 {
 	unsigned long return_hooker;
+	int bit;
 
 	if (unlikely(ftrace_graph_is_dead()))
 		goto out;
@@ -951,10 +952,16 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
 
+	bit = ftrace_test_recursion_trylock(ip, parent);
+	if (bit < 0)
+		goto out;
+
 	return_hooker = ppc_function_entry(return_to_handler);
 
 	if (!function_graph_enter(parent, ip, 0, (unsigned long *)sp))
 		parent = return_hooker;
+
+	ftrace_test_recursion_unlock(bit);
 out:
 	return parent;
 }
