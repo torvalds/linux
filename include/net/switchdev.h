@@ -81,6 +81,13 @@ struct switchdev_obj_port_vlan {
 	struct switchdev_obj obj;
 	u16 flags;
 	u16 vid;
+	/* If set, the notifier signifies a change of one of the following
+	 * flags for a VLAN that already exists:
+	 * - BRIDGE_VLAN_INFO_PVID
+	 * - BRIDGE_VLAN_INFO_UNTAGGED
+	 * Entries with BRIDGE_VLAN_INFO_BRENTRY unset are not notified at all.
+	 */
+	bool changed;
 };
 
 #define SWITCHDEV_OBJ_PORT_VLAN(OBJ) \

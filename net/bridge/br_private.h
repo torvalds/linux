@@ -1985,7 +1985,7 @@ void br_switchdev_mdb_notify(struct net_device *dev,
 			     struct net_bridge_port_group *pg,
 			     int type);
 int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags,
-			       struct netlink_ext_ack *extack);
+			       bool changed, struct netlink_ext_ack *extack);
 int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid);
 void br_switchdev_init(struct net_bridge *br);
 
@@ -2052,8 +2052,8 @@ static inline int br_switchdev_set_port_flag(struct net_bridge_port *p,
 	return 0;
 }
 
-static inline int br_switchdev_port_vlan_add(struct net_device *dev,
-					     u16 vid, u16 flags,
+static inline int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid,
+					     u16 flags, bool changed,
 					     struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
