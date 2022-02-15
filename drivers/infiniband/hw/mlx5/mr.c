@@ -176,6 +176,25 @@ static void create_mkey_callback(int status, struct mlx5_async_work *context)
 	spin_unlock_irqrestore(&ent->lock, flags);
 }
 
+static int get_mkc_octo_size(unsigned int access_mode, unsigned int ndescs)
+{
+	int ret = 0;
+
+	switch (access_mode) {
+	case MLX5_MKC_ACCESS_MODE_MTT:
+		ret = DIV_ROUND_UP(ndescs, MLX5_IB_UMR_OCTOWORD /
+						   sizeof(struct mlx5_mtt));
+		break;
+	case MLX5_MKC_ACCESS_MODE_KSM:
+		ret = DIV_ROUND_UP(ndescs, MLX5_IB_UMR_OCTOWORD /
+						   sizeof(struct mlx5_klm));
+		break;
+	default:
+		WARN_ON(1);
+	}
+	return ret;
+}
+
 static struct mlx5_ib_mr *alloc_cache_mr(struct mlx5_cache_ent *ent, void *mkc)
 {
 	struct mlx5_ib_mr *mr;
@@ -191,7 +210,8 @@ static struct mlx5_ib_mr *alloc_cache_mr(struct mlx5_cache_ent *ent, void *mkc)
 	MLX5_SET(mkc, mkc, access_mode_1_0, ent->access_mode & 0x3);
 	MLX5_SET(mkc, mkc, access_mode_4_2, (ent->access_mode >> 2) & 0x7);
 
-	MLX5_SET(mkc, mkc, translations_octword_size, ent->xlt);
+	MLX5_SET(mkc, mkc, translations_octword_size,
+		 get_mkc_octo_size(ent->access_mode, ent->ndescs));
 	MLX5_SET(mkc, mkc, log_page_size, ent->page);
 	return mr;
 }
@@ -701,8 +721,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 			continue;
 
 		ent->page = PAGE_SHIFT;
-		ent->xlt = (1 << ent->order) * sizeof(struct mlx5_mtt) /
-			   MLX5_IB_UMR_OCTOWORD;
+		ent->ndescs = 1 << ent->order;
 		ent->access_mode = MLX5_MKC_ACCESS_MODE_MTT;
 		if ((dev->mdev->profile.mask & MLX5_PROF_MASK_MR_CACHE) &&
 		    !dev->is_rep && mlx5_core_is_pf(dev->mdev) &&

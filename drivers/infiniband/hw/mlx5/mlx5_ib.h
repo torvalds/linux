@@ -763,9 +763,9 @@ struct mlx5_cache_ent {
 
 	char                    name[4];
 	u32                     order;
-	u32			xlt;
 	u32			access_mode;
 	u32			page;
+	unsigned int		ndescs;
 
 	u8 disabled:1;
 	u8 fill_to_high_water:1;
