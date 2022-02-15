@@ -456,6 +456,15 @@
 			};
 		};
 
+		i2c@2100 {
+			compatible = "brcm,brcmper-i2c";
+			reg = <0x2100 0x58>;
+			clock-frequency = <97500>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_i2c_a>;
+			status = "disabled";
+		};
+
 		misc@2600 {
 			compatible = "brcm,misc", "simple-mfd";
 			reg = <0x2600 0xe4>;
