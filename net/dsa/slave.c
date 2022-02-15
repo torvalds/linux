@@ -376,12 +376,19 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	return dsa_port_vlan_add(dp, vlan, extack);
 }
 
+/* Offload a VLAN installed on the bridge or on a foreign interface by
+ * installing it as a VLAN towards the CPU port.
+ */
 static int dsa_slave_host_vlan_add(struct net_device *dev,
 				   const struct switchdev_obj *obj,
 				   struct netlink_ext_ack *extack)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan vlan;
+
+	/* Do nothing if this is a software bridge */
+	if (!dp->bridge)
+		return -EOPNOTSUPP;
 
 	if (dsa_port_skip_vlan_configuration(dp)) {
 		NL_SET_ERR_MSG_MOD(extack, "skipping configuration of VLAN");
@@ -422,17 +429,10 @@ static int dsa_slave_port_obj_add(struct net_device *dev, const void *ctx,
 		err = dsa_port_host_mdb_add(dp, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		if (netif_is_bridge_master(obj->orig_dev)) {
-			if (!dsa_port_offloads_bridge_dev(dp, obj->orig_dev))
-				return -EOPNOTSUPP;
-
-			err = dsa_slave_host_vlan_add(dev, obj, extack);
-		} else {
-			if (!dsa_port_offloads_bridge_port(dp, obj->orig_dev))
-				return -EOPNOTSUPP;
-
+		if (dsa_port_offloads_bridge_port(dp, obj->orig_dev))
 			err = dsa_slave_vlan_add(dev, obj, extack);
-		}
+		else
+			err = dsa_slave_host_vlan_add(dev, obj, extack);
 		break;
 	case SWITCHDEV_OBJ_ID_MRP:
 		if (!dsa_port_offloads_bridge_dev(dp, obj->orig_dev))
@@ -475,6 +475,10 @@ static int dsa_slave_host_vlan_del(struct net_device *dev,
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct switchdev_obj_port_vlan *vlan;
 
+	/* Do nothing if this is a software bridge */
+	if (!dp->bridge)
+		return -EOPNOTSUPP;
+
 	if (dsa_port_skip_vlan_configuration(dp))
 		return 0;
 
@@ -506,17 +510,10 @@ static int dsa_slave_port_obj_del(struct net_device *dev, const void *ctx,
 		err = dsa_port_host_mdb_del(dp, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		if (netif_is_bridge_master(obj->orig_dev)) {
-			if (!dsa_port_offloads_bridge_dev(dp, obj->orig_dev))
-				return -EOPNOTSUPP;
-
-			err = dsa_slave_host_vlan_del(dev, obj);
-		} else {
-			if (!dsa_port_offloads_bridge_port(dp, obj->orig_dev))
-				return -EOPNOTSUPP;
-
+		if (dsa_port_offloads_bridge_port(dp, obj->orig_dev))
 			err = dsa_slave_vlan_del(dev, obj);
-		}
+		else
+			err = dsa_slave_host_vlan_del(dev, obj);
 		break;
 	case SWITCHDEV_OBJ_ID_MRP:
 		if (!dsa_port_offloads_bridge_dev(dp, obj->orig_dev))
@@ -2547,14 +2544,16 @@ static int dsa_slave_switchdev_blocking_event(struct notifier_block *unused,
 
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
-		err = switchdev_handle_port_obj_add(dev, ptr,
-						    dsa_slave_dev_check,
-						    dsa_slave_port_obj_add);
+		err = switchdev_handle_port_obj_add_foreign(dev, ptr,
+							    dsa_slave_dev_check,
+							    dsa_foreign_dev_check,
+							    dsa_slave_port_obj_add);
 		return notifier_from_errno(err);
 	case SWITCHDEV_PORT_OBJ_DEL:
-		err = switchdev_handle_port_obj_del(dev, ptr,
-						    dsa_slave_dev_check,
-						    dsa_slave_port_obj_del);
+		err = switchdev_handle_port_obj_del_foreign(dev, ptr,
+							    dsa_slave_dev_check,
+							    dsa_foreign_dev_check,
+							    dsa_slave_port_obj_del);
 		return notifier_from_errno(err);
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
