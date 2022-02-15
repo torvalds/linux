@@ -1196,7 +1196,7 @@ static int dpaa2_eth_build_gso_fd(struct dpaa2_eth_priv *priv,
 		/* Setup the SG entry for the header */
 		dpaa2_sg_set_addr(sgt, tso_hdr_dma);
 		dpaa2_sg_set_len(sgt, hdr_len);
-		dpaa2_sg_set_final(sgt, data_left > 0 ? false : true);
+		dpaa2_sg_set_final(sgt, data_left <= 0);
 
 		/* Compose the SG entries for each fragment of data */
 		num_sge = 1;
@@ -1215,7 +1215,7 @@ static int dpaa2_eth_build_gso_fd(struct dpaa2_eth_priv *priv,
 			}
 			dpaa2_sg_set_addr(sgt, addr);
 			dpaa2_sg_set_len(sgt, size);
-			dpaa2_sg_set_final(sgt, size == data_left ? true : false);
+			dpaa2_sg_set_final(sgt, size == data_left);
 
 			num_sge++;
 
