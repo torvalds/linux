@@ -149,6 +149,7 @@ void *dereference_function_descriptor(void *ptr)
 		ptr = p;
 	return ptr;
 }
+EXPORT_SYMBOL_GPL(dereference_function_descriptor);
 
 void *dereference_kernel_function_descriptor(void *ptr)
 {
