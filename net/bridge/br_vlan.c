@@ -679,16 +679,15 @@ static int br_vlan_add_existing(struct net_bridge *br,
 {
 	int err;
 
+	/* Trying to change flags of non-existent bridge vlan */
+	if (!br_vlan_is_brentry(vlan) && !(flags & BRIDGE_VLAN_INFO_BRENTRY))
+		return -EINVAL;
+
 	err = br_switchdev_port_vlan_add(br->dev, vlan->vid, flags, extack);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
 	if (!br_vlan_is_brentry(vlan)) {
-		/* Trying to change flags of non-existent bridge vlan */
-		if (!(flags & BRIDGE_VLAN_INFO_BRENTRY)) {
-			err = -EINVAL;
-			goto err_flags;
-		}
 		/* It was only kept for port vlans, now make it real */
 		err = br_fdb_add_local(br, NULL, br->dev->dev_addr, vlan->vid);
 		if (err) {
@@ -709,7 +708,6 @@ static int br_vlan_add_existing(struct net_bridge *br,
 	return 0;
 
 err_fdb_insert:
-err_flags:
 	br_switchdev_port_vlan_del(br->dev, vlan->vid);
 	return err;
 }
