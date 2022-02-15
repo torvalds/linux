@@ -218,23 +218,23 @@ bool need_mlock_page_drain(int cpu)
 }
 
 /**
- * mlock_page - mlock a page already on (or temporarily off) LRU
- * @page: page to be mlocked, either a normal page or a THP head.
+ * mlock_folio - mlock a folio already on (or temporarily off) LRU
+ * @folio: folio to be mlocked.
  */
-void mlock_page(struct page *page)
+void mlock_folio(struct folio *folio)
 {
 	struct pagevec *pvec = &get_cpu_var(mlock_pvec);
 
-	if (!TestSetPageMlocked(page)) {
-		int nr_pages = thp_nr_pages(page);
+	if (!folio_test_set_mlocked(folio)) {
+		int nr_pages = folio_nr_pages(folio);
 
-		mod_zone_page_state(page_zone(page), NR_MLOCK, nr_pages);
+		zone_stat_mod_folio(folio, NR_MLOCK, nr_pages);
 		__count_vm_events(UNEVICTABLE_PGMLOCKED, nr_pages);
 	}
 
-	get_page(page);
-	if (!pagevec_add(pvec, mlock_lru(page)) ||
-	    PageHead(page) || lru_cache_disabled())
+	folio_get(folio);
+	if (!pagevec_add(pvec, mlock_lru(&folio->page)) ||
+	    folio_test_large(folio) || lru_cache_disabled())
 		mlock_pagevec(pvec);
 	put_cpu_var(mlock_pvec);
 }
@@ -296,7 +296,7 @@ static int mlock_pte_range(pmd_t *pmd, unsigned long addr,
 			goto out;
 		page = pmd_page(*pmd);
 		if (vma->vm_flags & VM_LOCKED)
-			mlock_page(page);
+			mlock_folio(page_folio(page));
 		else
 			munlock_page(page);
 		goto out;
@@ -312,7 +312,7 @@ static int mlock_pte_range(pmd_t *pmd, unsigned long addr,
 		if (PageTransCompound(page))
 			continue;
 		if (vma->vm_flags & VM_LOCKED)
-			mlock_page(page);
+			mlock_folio(page_folio(page));
 		else
 			munlock_page(page);
 	}
