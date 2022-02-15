@@ -2996,19 +2996,34 @@ static void rtw8822c_coex_cfg_gnt_fix(struct rtw_dev *rtwdev)
 	 * enable "DAC off if GNT_WL = 0" for non-shared-antenna
 	 * disable 0x1c30[22] = 0,
 	 * enable: 0x1c30[22] = 1, 0x1c38[12] = 0, 0x1c38[28] = 1
-	 *
-	 * disable WL-S1 BB chage RF mode if GNT_BT
+	 */
+	if (coex_stat->wl_coex_mode == COEX_WLINK_2GFREE) {
+		rtw_write8_mask(rtwdev, REG_ANAPAR + 2,
+				BIT_ANAPAR_BTPS >> 16, 0);
+	} else {
+		rtw_write8_mask(rtwdev, REG_ANAPAR + 2,
+				BIT_ANAPAR_BTPS >> 16, 1);
+		rtw_write8_mask(rtwdev, REG_RSTB_SEL + 1,
+				BIT_DAC_OFF_ENABLE, 0);
+		rtw_write8_mask(rtwdev, REG_RSTB_SEL + 3,
+				BIT_DAC_OFF_ENABLE, 1);
+	}
+
+	/* disable WL-S1 BB chage RF mode if GNT_BT
 	 * since RF TRx mask can do it
 	 */
-	rtw_write8_mask(rtwdev, REG_ANAPAR + 2, BIT_ANAPAR_BTPS >> 16, 1);
-	rtw_write8_mask(rtwdev, REG_RSTB_SEL + 1, BIT_DAC_OFF_ENABLE, 0);
-	rtw_write8_mask(rtwdev, REG_RSTB_SEL + 3, BIT_DAC_OFF_ENABLE, 1);
-	rtw_write8_mask(rtwdev, REG_IGN_GNTBT4, BIT_PI_IGNORE_GNT_BT, 1);
+	rtw_write8_mask(rtwdev, REG_IGN_GNTBT4,
+			BIT_PI_IGNORE_GNT_BT, 1);
 
 	/* disable WL-S0 BB chage RF mode if wifi is at 5G,
 	 * or antenna path is separated
 	 */
-	if (coex_stat->wl_coex_mode == COEX_WLINK_5G ||
+	if (coex_stat->wl_coex_mode == COEX_WLINK_2GFREE) {
+		rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
+				BIT_PI_IGNORE_GNT_BT, 1);
+		rtw_write8_mask(rtwdev, REG_NOMASK_TXBT,
+				BIT_NOMASK_TXBT_ENABLE, 1);
+	} else if (coex_stat->wl_coex_mode == COEX_WLINK_5G ||
 	    coex->under_5g || !efuse->share_ant) {
 		if (coex_stat->kt_ver >= 3) {
 			rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
@@ -5008,6 +5023,8 @@ static const struct coex_table_para table_sant_8822c[] = {
 	{0x66556aaa, 0x6a5a6aaa}, /*case-30*/
 	{0xffffffff, 0x5aaa5aaa},
 	{0x56555555, 0x5a5a5aaa},
+	{0xdaffdaff, 0xdaffdaff},
+	{0xddffddff, 0xddffddff},
 };
 
 /* Non-Shared-Antenna Coex Table */
@@ -5108,7 +5125,8 @@ static const struct coex_rf_para rf_para_tx_8822c[] = {
 	{8, 17, true, 4},
 	{7, 18, true, 4},
 	{6, 19, true, 4},
-	{5, 20, true, 4}
+	{5, 20, true, 4},
+	{0, 21, true, 4}   /* for gamg hid */
 };
 
 static const struct coex_rf_para rf_para_rx_8822c[] = {
@@ -5117,7 +5135,8 @@ static const struct coex_rf_para rf_para_rx_8822c[] = {
 	{3, 24, true, 5},
 	{2, 26, true, 5},
 	{1, 27, true, 5},
-	{0, 28, true, 5}
+	{0, 28, true, 5},
+	{0, 28, true, 5}   /* for gamg hid */
 };
 
 static_assert(ARRAY_SIZE(rf_para_tx_8822c) == ARRAY_SIZE(rf_para_rx_8822c));
@@ -5360,6 +5379,7 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.scbd_support = true,
 	.new_scbd10_def = true,
 	.ble_hid_profile_support = true,
+	.wl_mimo_ps_support = true,
 	.pstdma_type = COEX_PSTDMA_FORCE_LPSOFF,
 	.bt_rssi_type = COEX_BTRSSI_DBM,
 	.ant_isolation = 15,

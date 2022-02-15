@@ -211,6 +211,10 @@ static void rtw_coex_wl_ccklock_detect(struct rtw_dev *rtwdev)
 
 	bool is_cck_lock_rate = false;
 
+	if (coex_stat->wl_coex_mode != COEX_WLINK_2G1PORT &&
+	    coex_stat->wl_coex_mode != COEX_WLINK_2GFREE)
+		return;
+
 	if (coex_dm->bt_status == COEX_BTSTATUS_INQ_PAGE ||
 	    coex_stat->bt_setup_link) {
 		coex_stat->wl_cck_lock = false;
@@ -803,7 +807,9 @@ static void rtw_coex_update_bt_link_info(struct rtw_dev *rtwdev)
 static void rtw_coex_update_wl_ch_info(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_coex_dm *coex_dm = &rtwdev->coex.dm;
+	struct rtw_coex_stat *coex_stat = &rtwdev->coex.stat;
 	u8 link = 0;
 	u8 center_chan = 0;
 	u8 bw;
@@ -814,7 +820,9 @@ static void rtw_coex_update_wl_ch_info(struct rtw_dev *rtwdev, u8 type)
 	if (type != COEX_MEDIA_DISCONNECT)
 		center_chan = rtwdev->hal.current_channel;
 
-	if (center_chan == 0) {
+	if (center_chan == 0 ||
+	    (efuse->share_ant && center_chan <= 14 &&
+	     coex_stat->wl_coex_mode != COEX_WLINK_2GFREE)) {
 		link = 0;
 		center_chan = 0;
 		bw = 0;
@@ -951,6 +959,23 @@ static void rtw_coex_set_gnt_wl(struct rtw_dev *rtwdev, u8 state)
 {
 	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x3000, state);
 	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x0300, state);
+}
+
+static void rtw_coex_mimo_ps(struct rtw_dev *rtwdev, bool force, bool state)
+{
+	struct rtw_coex_stat *coex_stat = &rtwdev->coex.stat;
+
+	if (!force && state == coex_stat->wl_mimo_ps)
+		return;
+
+	coex_stat->wl_mimo_ps = state;
+
+	rtw_set_txrx_1ss(rtwdev, state);
+
+	rtw_coex_update_wl_ch_info(rtwdev, (u8)coex_stat->wl_connected);
+
+	rtw_dbg(rtwdev, RTW_DBG_COEX,
+		"[BTCoex], %s(): state = %d\n", __func__, state);
 }
 
 static void rtw_btc_wltoggle_table_a(struct rtw_dev *rtwdev, bool force,
@@ -1129,7 +1154,8 @@ static void rtw_coex_set_tdma(struct rtw_dev *rtwdev, u8 byte1, u8 byte2,
 
 		ps_type = COEX_PS_WIFI_NATIVE;
 		rtw_coex_power_save_state(rtwdev, ps_type, 0x0, 0x0);
-	} else if (byte1 & BIT(4) && !(byte1 & BIT(5))) {
+	} else if ((byte1 & BIT(4) && !(byte1 & BIT(5))) ||
+		   coex_stat->wl_coex_mode == COEX_WLINK_2GFREE) {
 		rtw_dbg(rtwdev, RTW_DBG_COEX,
 			"[BTCoex], %s(): Force LPS (byte1 = 0x%x)\n", __func__,
 			byte1);
@@ -1825,6 +1851,54 @@ static void rtw_coex_action_bt_inquiry(struct rtw_dev *rtwdev)
 	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
+static void rtw_coex_action_bt_game_hid(struct rtw_dev *rtwdev)
+{
+	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+	struct rtw_coex_dm *coex_dm = &coex->dm;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	u8 table_case, tdma_case;
+
+	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
+	rtw_coex_set_ant_path(rtwdev, false, COEX_SET_ANT_2G);
+
+	if (efuse->share_ant) {
+		coex_stat->wl_coex_mode = COEX_WLINK_2GFREE;
+		if (coex_stat->bt_whck_test)
+			table_case = 2;
+		else if (coex_stat->wl_linkscan_proc || coex_stat->bt_hid_exist)
+			table_case = 33;
+		else if (coex_stat->bt_setup_link || coex_stat->bt_inq_page)
+			table_case = 0;
+		else if (coex_stat->bt_a2dp_exist)
+			table_case = 34;
+		else
+			table_case = 33;
+
+		tdma_case = 0;
+	} else {
+		if (COEX_RSSI_HIGH(coex_dm->wl_rssi_state[1]))
+			tdma_case = 112;
+		else
+			tdma_case = 113;
+
+		table_case = 121;
+	}
+
+	if (coex_stat->wl_coex_mode == COEX_WLINK_2GFREE) {
+		if (coex_stat->wl_tput_dir == COEX_WL_TPUT_TX)
+			rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_tx[6]);
+		else
+			rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[5]);
+	} else {
+		rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[0]);
+	}
+
+	rtw_coex_table(rtwdev, false, table_case);
+	rtw_coex_tdma(rtwdev, false, tdma_case);
+}
+
 static void rtw_coex_action_bt_hfp(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
@@ -2242,8 +2316,10 @@ static void rtw_coex_action_bt_a2dp_pan_hid(struct rtw_dev *rtwdev)
 
 static void rtw_coex_action_wl_under5g(struct rtw_dev *rtwdev)
 {
+	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
 	u8 table_case, tdma_case;
 
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
@@ -2252,6 +2328,9 @@ static void rtw_coex_action_wl_under5g(struct rtw_dev *rtwdev)
 	rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[0]);
 
 	rtw_coex_write_scbd(rtwdev, COEX_SCBD_FIX2M, false);
+
+	if (coex_stat->bt_game_hid_exist && coex_stat->wl_linkscan_proc)
+		coex_stat->wl_coex_mode = COEX_WLINK_2GFREE;
 
 	if (efuse->share_ant) {
 		/* Shared-Ant */
@@ -2440,6 +2519,7 @@ static void rtw_coex_action_wl_connected(struct rtw_dev *rtwdev)
 static void rtw_coex_run_coex(struct rtw_dev *rtwdev, u8 reason)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_coex_dm *coex_dm = &coex->dm;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	bool rf4ce_en = false;
@@ -2512,6 +2592,11 @@ static void rtw_coex_run_coex(struct rtw_dev *rtwdev, u8 reason)
 		goto exit;
 	}
 
+	if (coex_stat->bt_game_hid_exist && coex_stat->wl_connected) {
+		rtw_coex_action_bt_game_hid(rtwdev);
+		goto exit;
+	}
+
 	if (coex_stat->bt_whck_test) {
 		rtw_coex_action_bt_whql_test(rtwdev);
 		goto exit;
@@ -2548,6 +2633,18 @@ static void rtw_coex_run_coex(struct rtw_dev *rtwdev, u8 reason)
 	}
 
 exit:
+
+	if (chip->wl_mimo_ps_support) {
+		if (coex_stat->wl_coex_mode == COEX_WLINK_2GFREE) {
+			if (coex_dm->reason == COEX_RSN_2GMEDIA)
+				rtw_coex_mimo_ps(rtwdev, true, true);
+			else
+				rtw_coex_mimo_ps(rtwdev, false, true);
+		} else {
+			rtw_coex_mimo_ps(rtwdev, false, false);
+		}
+	}
+
 	rtw_coex_gnt_workaround(rtwdev, false, coex_stat->wl_coex_mode);
 	rtw_coex_limited_wl(rtwdev);
 }
@@ -3152,6 +3249,17 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 		coex_stat->bt_a2dp_bitpool = 0;
 
 	coex_stat->bt_a2dp_sink = ((coex_stat->bt_info_hb3 & BIT(7)) == BIT(7));
+	if (chip->wl_mimo_ps_support && !coex_stat->bt_inq_page) {
+		if ((coex_stat->bt_info_lb2 & COEX_INFO_CONNECTION) &&
+		    (coex_stat->hi_pri_tx + coex_stat->hi_pri_rx >
+		     COEX_BT_GAMEHID_CNT) && !coex_stat->bt_slave) {
+			coex_stat->bt_game_hid_exist = true;
+			rtw_dbg(rtwdev, RTW_DBG_COEX,
+				"[BTCoex], BT game controller exisit!!\n");
+		} else {
+			coex_stat->bt_game_hid_exist = false;
+		}
+	}
 
 	rtw_coex_update_bt_link_info(rtwdev);
 	rtw_coex_run_coex(rtwdev, COEX_RSN_BTINFO);
@@ -3666,6 +3774,7 @@ static const char *rtw_coex_get_wl_coex_mode(u8 coex_wl_link_mode)
 	switch (coex_wl_link_mode) {
 	case_WLINK(2G1PORT);
 	case_WLINK(5G);
+	case_WLINK(2GFREE);
 	default:
 		return "Unknown";
 	}

@@ -1242,6 +1242,7 @@ struct rtw_chip_info {
 	bool scbd_support;
 	bool new_scbd10_def; /* true: fix 2M(8822c) */
 	bool ble_hid_profile_support;
+	bool wl_mimo_ps_support;
 	u8 pstdma_type; /* 0: LPSoff, 1:LPSon */
 	u8 bt_rssi_type;
 	u8 ant_isolation;
@@ -1384,6 +1385,7 @@ struct rtw_coex_stat {
 	bool bt_slave;
 	bool bt_418_hid_exist;
 	bool bt_ble_hid_exist;
+	bool bt_game_hid_exist;
 	bool bt_mailbox_reply;
 
 	bool wl_under_lps;
@@ -1404,6 +1406,7 @@ struct rtw_coex_stat {
 	bool wl_connecting;
 	bool wl_slot_toggle;
 	bool wl_slot_toggle_change; /* if toggle to no-toggle */
+	bool wl_mimo_ps;
 
 	u32 bt_supported_version;
 	u32 bt_supported_feature;
