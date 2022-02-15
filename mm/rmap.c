@@ -1315,9 +1315,6 @@ static void page_remove_file_rmap(struct page *page, bool compound)
 	 * pte lock(a spinlock) is held, which implies preemption disabled.
 	 */
 	__mod_lruvec_page_state(page, NR_FILE_MAPPED, -nr);
-
-	if (unlikely(PageMlocked(page)))
-		clear_page_mlock(page);
 }
 
 static void page_remove_anon_compound_rmap(struct page *page)
@@ -1357,9 +1354,6 @@ static void page_remove_anon_compound_rmap(struct page *page)
 		nr = thp_nr_pages(page);
 	}
 
-	if (unlikely(PageMlocked(page)))
-		clear_page_mlock(page);
-
 	if (nr)
 		__mod_lruvec_page_state(page, NR_ANON_MAPPED, -nr);
 }
@@ -1397,9 +1391,6 @@ void page_remove_rmap(struct page *page,
 	 * pte lock(a spinlock) is held, which implies preemption disabled.
 	 */
 	__dec_lruvec_page_state(page, NR_ANON_MAPPED);
-
-	if (unlikely(PageMlocked(page)))
-		clear_page_mlock(page);
 
 	if (PageTransCompound(page))
 		deferred_split_huge_page(compound_head(page));

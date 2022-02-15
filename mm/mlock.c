@@ -48,36 +48,6 @@ EXPORT_SYMBOL(can_do_mlock);
  * PageUnevictable is set to indicate the unevictable state.
  */
 
-/*
- *  LRU accounting for clear_page_mlock()
- */
-void clear_page_mlock(struct page *page)
-{
-	int nr_pages;
-
-	if (!TestClearPageMlocked(page))
-		return;
-
-	nr_pages = thp_nr_pages(page);
-	mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-	count_vm_events(UNEVICTABLE_PGCLEARED, nr_pages);
-	/*
-	 * The previous TestClearPageMlocked() corresponds to the smp_mb()
-	 * in __pagevec_lru_add_fn().
-	 *
-	 * See __pagevec_lru_add_fn for more explanation.
-	 */
-	if (!isolate_lru_page(page)) {
-		putback_lru_page(page);
-	} else {
-		/*
-		 * We lost the race. the page already moved to evictable list.
-		 */
-		if (PageUnevictable(page))
-			count_vm_events(UNEVICTABLE_PGSTRANDED, nr_pages);
-	}
-}
-
 /**
  * mlock_page - mlock a page
  * @page: page to be mlocked, either a normal page or a THP head.
