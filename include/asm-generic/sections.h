@@ -59,10 +59,16 @@ extern char __noinstr_text_start[], __noinstr_text_end[];
 extern __visible const void __nosave_begin, __nosave_end;
 
 /* Function descriptor handling (if any).  Override in asm/sections.h */
-#ifndef dereference_function_descriptor
+#ifdef CONFIG_HAVE_FUNCTION_DESCRIPTORS
+#else
 #define dereference_function_descriptor(p) ((void *)(p))
 #define dereference_kernel_function_descriptor(p) ((void *)(p))
 #endif
+
+static inline bool have_function_descriptors(void)
+{
+	return IS_ENABLED(CONFIG_HAVE_FUNCTION_DESCRIPTORS);
+}
 
 /**
  * memory_contains - checks if an object is contained within a memory region
