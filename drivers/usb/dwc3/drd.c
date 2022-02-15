@@ -560,7 +560,7 @@ static int dwc3_setup_role_switch(struct dwc3 *dwc)
 	if (IS_ERR(dwc->role_sw))
 		return PTR_ERR(dwc->role_sw);
 
-	if (IS_ENABLED(CONFIG_OF)) {
+	if (dwc->dev->of_node) {
 		/* populate connector entry */
 		int ret = devm_of_platform_populate(dwc->dev);
 
