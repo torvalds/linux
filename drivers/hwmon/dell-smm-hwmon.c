@@ -651,6 +651,11 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
+			/* _i8k_get_temp() is fine since we do not care about the actual value */
+			if (data->temp_type[channel] >= 0 || _i8k_get_temp(channel) >= 0)
+				return 0444;
+
+			break;
 		case hwmon_temp_label:
 			if (data->temp_type[channel] >= 0)
 				return 0444;
