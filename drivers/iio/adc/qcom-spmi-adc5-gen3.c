@@ -1300,13 +1300,13 @@ static int adc_tm_register_tzd(struct adc5_chip *adc)
 		default:
 			pr_err("Invalid ADC_TM type:%d for dt_ch:%d\n",
 					adc->chan_props[i].adc_tm, adc->chan_props[i].channel);
-			continue;
+			return -EINVAL;
 		}
 
 		if (IS_ERR(tzd)) {
 			pr_err("Error registering TZ zone:%ld for dt_ch:%d\n",
 				PTR_ERR(tzd), adc->chan_props[i].channel);
-			continue;
+			return PTR_ERR(tzd);
 		}
 		adc->chan_props[i].tzd = tzd;
 	}
@@ -1700,14 +1700,16 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	adc_tm_register_tzd(adc);
-
 	for (i = 0; i < adc->num_sdams; i++) {
 		ret = devm_request_irq(dev, adc->base[i].irq, adc5_gen3_isr,
 					0, adc->base[i].irq_name, adc);
 		if (ret < 0)
 			goto fail;
 	}
+
+	ret = adc_tm_register_tzd(adc);
+	if (ret < 0)
+		goto fail;
 
 	if (adc->n_tm_channels)
 		INIT_WORK(&adc->tm_handler_work, tm_handler_work);
