@@ -32,11 +32,6 @@
 
 #ifdef PPC64_ELF_ABI_v2
 
-/* An address is simply the address of the function. */
-typedef struct {
-	unsigned long addr;
-} func_desc_t;
-
 static func_desc_t func_desc(unsigned long addr)
 {
 	func_desc_t desc = {
@@ -60,9 +55,6 @@ static unsigned int local_entry_offset(const Elf64_Sym *sym)
 	return PPC64_LOCAL_ENTRY_OFFSET(sym->st_other);
 }
 #else
-
-/* An address is address of the OPD entry, which contains address of fn. */
-typedef struct func_desc func_desc_t;
 
 static func_desc_t func_desc(unsigned long addr)
 {
