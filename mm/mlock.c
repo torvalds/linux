@@ -46,12 +46,6 @@ EXPORT_SYMBOL(can_do_mlock);
  * be placed on the LRU "unevictable" list, rather than the [in]active lists.
  * The unevictable list is an LRU sibling list to the [in]active lists.
  * PageUnevictable is set to indicate the unevictable state.
- *
- * When lazy mlocking via vmscan, it is important to ensure that the
- * vma's VM_LOCKED status is not concurrently being modified, otherwise we
- * may have mlocked a page that is being munlocked. So lazy mlock must take
- * the mmap_lock for read, and verify that the vma really is locked
- * (see mm/rmap.c).
  */
 
 /*
@@ -106,299 +100,28 @@ void mlock_vma_page(struct page *page)
 	}
 }
 
-/*
- * Finish munlock after successful page isolation
- *
- * Page must be locked. This is a wrapper for page_mlock()
- * and putback_lru_page() with munlock accounting.
- */
-static void __munlock_isolated_page(struct page *page)
-{
-	/*
-	 * Optimization: if the page was mapped just once, that's our mapping
-	 * and we don't need to check all the other vmas.
-	 */
-	if (page_mapcount(page) > 1)
-		page_mlock(page);
-
-	/* Did try_to_unlock() succeed or punt? */
-	if (!PageMlocked(page))
-		count_vm_events(UNEVICTABLE_PGMUNLOCKED, thp_nr_pages(page));
-
-	putback_lru_page(page);
-}
-
-/*
- * Accounting for page isolation fail during munlock
- *
- * Performs accounting when page isolation fails in munlock. There is nothing
- * else to do because it means some other task has already removed the page
- * from the LRU. putback_lru_page() will take care of removing the page from
- * the unevictable list, if necessary. vmscan [page_referenced()] will move
- * the page back to the unevictable list if some other vma has it mlocked.
- */
-static void __munlock_isolation_failed(struct page *page)
-{
-	int nr_pages = thp_nr_pages(page);
-
-	if (PageUnevictable(page))
-		__count_vm_events(UNEVICTABLE_PGSTRANDED, nr_pages);
-	else
-		__count_vm_events(UNEVICTABLE_PGMUNLOCKED, nr_pages);
-}
-
 /**
  * munlock_vma_page - munlock a vma page
  * @page: page to be unlocked, either a normal page or THP page head
- *
- * returns the size of the page as a page mask (0 for normal page,
- *         HPAGE_PMD_NR - 1 for THP head page)
- *
- * called from munlock()/munmap() path with page supposedly on the LRU.
- * When we munlock a page, because the vma where we found the page is being
- * munlock()ed or munmap()ed, we want to check whether other vmas hold the
- * page locked so that we can leave it on the unevictable lru list and not
- * bother vmscan with it.  However, to walk the page's rmap list in
- * page_mlock() we must isolate the page from the LRU.  If some other
- * task has removed the page from the LRU, we won't be able to do that.
- * So we clear the PageMlocked as we might not get another chance.  If we
- * can't isolate the page, we leave it for putback_lru_page() and vmscan
- * [page_referenced()/try_to_unmap()] to deal with.
  */
-unsigned int munlock_vma_page(struct page *page)
+void munlock_vma_page(struct page *page)
 {
-	int nr_pages;
-
-	/* For page_mlock() and to serialize with page migration */
+	/* Serialize with page migration */
 	BUG_ON(!PageLocked(page));
+
 	VM_BUG_ON_PAGE(PageTail(page), page);
 
-	if (!TestClearPageMlocked(page)) {
-		/* Potentially, PTE-mapped THP: do not skip the rest PTEs */
-		return 0;
-	}
+	if (TestClearPageMlocked(page)) {
+		int nr_pages = thp_nr_pages(page);
 
-	nr_pages = thp_nr_pages(page);
-	mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-
-	if (!isolate_lru_page(page))
-		__munlock_isolated_page(page);
-	else
-		__munlock_isolation_failed(page);
-
-	return nr_pages - 1;
-}
-
-/*
- * convert get_user_pages() return value to posix mlock() error
- */
-static int __mlock_posix_error_return(long retval)
-{
-	if (retval == -EFAULT)
-		retval = -ENOMEM;
-	else if (retval == -ENOMEM)
-		retval = -EAGAIN;
-	return retval;
-}
-
-/*
- * Prepare page for fast batched LRU putback via putback_lru_evictable_pagevec()
- *
- * The fast path is available only for evictable pages with single mapping.
- * Then we can bypass the per-cpu pvec and get better performance.
- * when mapcount > 1 we need page_mlock() which can fail.
- * when !page_evictable(), we need the full redo logic of putback_lru_page to
- * avoid leaving evictable page in unevictable list.
- *
- * In case of success, @page is added to @pvec and @pgrescued is incremented
- * in case that the page was previously unevictable. @page is also unlocked.
- */
-static bool __putback_lru_fast_prepare(struct page *page, struct pagevec *pvec,
-		int *pgrescued)
-{
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-
-	if (page_mapcount(page) <= 1 && page_evictable(page)) {
-		pagevec_add(pvec, page);
-		if (TestClearPageUnevictable(page))
-			(*pgrescued)++;
-		unlock_page(page);
-		return true;
-	}
-
-	return false;
-}
-
-/*
- * Putback multiple evictable pages to the LRU
- *
- * Batched putback of evictable pages that bypasses the per-cpu pvec. Some of
- * the pages might have meanwhile become unevictable but that is OK.
- */
-static void __putback_lru_fast(struct pagevec *pvec, int pgrescued)
-{
-	count_vm_events(UNEVICTABLE_PGMUNLOCKED, pagevec_count(pvec));
-	/*
-	 *__pagevec_lru_add() calls release_pages() so we don't call
-	 * put_page() explicitly
-	 */
-	__pagevec_lru_add(pvec);
-	count_vm_events(UNEVICTABLE_PGRESCUED, pgrescued);
-}
-
-/*
- * Munlock a batch of pages from the same zone
- *
- * The work is split to two main phases. First phase clears the Mlocked flag
- * and attempts to isolate the pages, all under a single zone lru lock.
- * The second phase finishes the munlock only for pages where isolation
- * succeeded.
- *
- * Note that the pagevec may be modified during the process.
- */
-static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
-{
-	int i;
-	int nr = pagevec_count(pvec);
-	int delta_munlocked = -nr;
-	struct pagevec pvec_putback;
-	struct lruvec *lruvec = NULL;
-	int pgrescued = 0;
-
-	pagevec_init(&pvec_putback);
-
-	/* Phase 1: page isolation */
-	for (i = 0; i < nr; i++) {
-		struct page *page = pvec->pages[i];
-		struct folio *folio = page_folio(page);
-
-		if (TestClearPageMlocked(page)) {
-			/*
-			 * We already have pin from follow_page_mask()
-			 * so we can spare the get_page() here.
-			 */
-			if (TestClearPageLRU(page)) {
-				lruvec = folio_lruvec_relock_irq(folio, lruvec);
-				del_page_from_lru_list(page, lruvec);
-				continue;
-			} else
-				__munlock_isolation_failed(page);
-		} else {
-			delta_munlocked++;
-		}
-
-		/*
-		 * We won't be munlocking this page in the next phase
-		 * but we still need to release the follow_page_mask()
-		 * pin. We cannot do it under lru_lock however. If it's
-		 * the last pin, __page_cache_release() would deadlock.
-		 */
-		pagevec_add(&pvec_putback, pvec->pages[i]);
-		pvec->pages[i] = NULL;
-	}
-	if (lruvec) {
-		__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
-		unlock_page_lruvec_irq(lruvec);
-	} else if (delta_munlocked) {
-		mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
-	}
-
-	/* Now we can release pins of pages that we are not munlocking */
-	pagevec_release(&pvec_putback);
-
-	/* Phase 2: page munlock */
-	for (i = 0; i < nr; i++) {
-		struct page *page = pvec->pages[i];
-
-		if (page) {
-			lock_page(page);
-			if (!__putback_lru_fast_prepare(page, &pvec_putback,
-					&pgrescued)) {
-				/*
-				 * Slow path. We don't want to lose the last
-				 * pin before unlock_page()
-				 */
-				get_page(page); /* for putback_lru_page() */
-				__munlock_isolated_page(page);
-				unlock_page(page);
-				put_page(page); /* from follow_page_mask() */
-			}
+		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
+		if (!isolate_lru_page(page)) {
+			putback_lru_page(page);
+			count_vm_events(UNEVICTABLE_PGMUNLOCKED, nr_pages);
+		} else if (PageUnevictable(page)) {
+			count_vm_events(UNEVICTABLE_PGSTRANDED, nr_pages);
 		}
 	}
-
-	/*
-	 * Phase 3: page putback for pages that qualified for the fast path
-	 * This will also call put_page() to return pin from follow_page_mask()
-	 */
-	if (pagevec_count(&pvec_putback))
-		__putback_lru_fast(&pvec_putback, pgrescued);
-}
-
-/*
- * Fill up pagevec for __munlock_pagevec using pte walk
- *
- * The function expects that the struct page corresponding to @start address is
- * a non-TPH page already pinned and in the @pvec, and that it belongs to @zone.
- *
- * The rest of @pvec is filled by subsequent pages within the same pmd and same
- * zone, as long as the pte's are present and vm_normal_page() succeeds. These
- * pages also get pinned.
- *
- * Returns the address of the next page that should be scanned. This equals
- * @start + PAGE_SIZE when no page could be added by the pte walk.
- */
-static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
-			struct vm_area_struct *vma, struct zone *zone,
-			unsigned long start, unsigned long end)
-{
-	pte_t *pte;
-	spinlock_t *ptl;
-
-	/*
-	 * Initialize pte walk starting at the already pinned page where we
-	 * are sure that there is a pte, as it was pinned under the same
-	 * mmap_lock write op.
-	 */
-	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
-	/* Make sure we do not cross the page table boundary */
-	end = pgd_addr_end(start, end);
-	end = p4d_addr_end(start, end);
-	end = pud_addr_end(start, end);
-	end = pmd_addr_end(start, end);
-
-	/* The page next to the pinned page is the first we will try to get */
-	start += PAGE_SIZE;
-	while (start < end) {
-		struct page *page = NULL;
-		pte++;
-		if (pte_present(*pte))
-			page = vm_normal_page(vma, start, *pte);
-		/*
-		 * Break if page could not be obtained or the page's node+zone does not
-		 * match
-		 */
-		if (!page || page_zone(page) != zone)
-			break;
-
-		/*
-		 * Do not use pagevec for PTE-mapped THP,
-		 * munlock_vma_pages_range() will handle them.
-		 */
-		if (PageTransCompound(page))
-			break;
-
-		get_page(page);
-		/*
-		 * Increase the address that will be returned *before* the
-		 * eventual break due to pvec becoming full by adding the page
-		 */
-		start += PAGE_SIZE;
-		if (pagevec_add(pvec, page) == 0)
-			break;
-	}
-	pte_unmap_unlock(pte, ptl);
-	return start;
 }
 
 /*
@@ -413,75 +136,13 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
  *
  * Returns with VM_LOCKED cleared.  Callers must be prepared to
  * deal with this.
- *
- * We don't save and restore VM_LOCKED here because pages are
- * still on lru.  In unmap path, pages might be scanned by reclaim
- * and re-mlocked by page_mlock/try_to_unmap before we unmap and
- * free them.  This will result in freeing mlocked pages.
  */
 void munlock_vma_pages_range(struct vm_area_struct *vma,
 			     unsigned long start, unsigned long end)
 {
 	vma->vm_flags &= VM_LOCKED_CLEAR_MASK;
 
-	while (start < end) {
-		struct page *page;
-		unsigned int page_mask = 0;
-		unsigned long page_increm;
-		struct pagevec pvec;
-		struct zone *zone;
-
-		pagevec_init(&pvec);
-		/*
-		 * Although FOLL_DUMP is intended for get_dump_page(),
-		 * it just so happens that its special treatment of the
-		 * ZERO_PAGE (returning an error instead of doing get_page)
-		 * suits munlock very well (and if somehow an abnormal page
-		 * has sneaked into the range, we won't oops here: great).
-		 */
-		page = follow_page(vma, start, FOLL_GET | FOLL_DUMP);
-
-		if (page && !IS_ERR(page)) {
-			if (PageTransTail(page)) {
-				VM_BUG_ON_PAGE(PageMlocked(page), page);
-				put_page(page); /* follow_page_mask() */
-			} else if (PageTransHuge(page)) {
-				lock_page(page);
-				/*
-				 * Any THP page found by follow_page_mask() may
-				 * have gotten split before reaching
-				 * munlock_vma_page(), so we need to compute
-				 * the page_mask here instead.
-				 */
-				page_mask = munlock_vma_page(page);
-				unlock_page(page);
-				put_page(page); /* follow_page_mask() */
-			} else {
-				/*
-				 * Non-huge pages are handled in batches via
-				 * pagevec. The pin from follow_page_mask()
-				 * prevents them from collapsing by THP.
-				 */
-				pagevec_add(&pvec, page);
-				zone = page_zone(page);
-
-				/*
-				 * Try to fill the rest of pagevec using fast
-				 * pte walk. This will also update start to
-				 * the next page to process. Then munlock the
-				 * pagevec.
-				 */
-				start = __munlock_pagevec_fill(&pvec, vma,
-						zone, start, end);
-				__munlock_pagevec(&pvec, zone);
-				goto next;
-			}
-		}
-		page_increm = 1 + page_mask;
-		start += page_increm * PAGE_SIZE;
-next:
-		cond_resched();
-	}
+	/* Reimplementation to follow in later commit */
 }
 
 /*
@@ -643,6 +304,18 @@ static unsigned long count_mm_mlocked_page_nr(struct mm_struct *mm,
 	}
 
 	return count >> PAGE_SHIFT;
+}
+
+/*
+ * convert get_user_pages() return value to posix mlock() error
+ */
+static int __mlock_posix_error_return(long retval)
+{
+	if (retval == -EFAULT)
+		retval = -ENOMEM;
+	else if (retval == -ENOMEM)
+		retval = -EAGAIN;
+	return retval;
 }
 
 static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t flags)

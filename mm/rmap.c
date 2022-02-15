@@ -1996,76 +1996,6 @@ void try_to_migrate(struct page *page, enum ttu_flags flags)
 		rmap_walk(page, &rwc);
 }
 
-/*
- * Walks the vma's mapping a page and mlocks the page if any locked vma's are
- * found. Once one is found the page is locked and the scan can be terminated.
- */
-static bool page_mlock_one(struct page *page, struct vm_area_struct *vma,
-				 unsigned long address, void *unused)
-{
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-		.address = address,
-	};
-
-	/* An un-locked vma doesn't have any pages to lock, continue the scan */
-	if (!(vma->vm_flags & VM_LOCKED))
-		return true;
-
-	while (page_vma_mapped_walk(&pvmw)) {
-		/*
-		 * Need to recheck under the ptl to serialise with
-		 * __munlock_pagevec_fill() after VM_LOCKED is cleared in
-		 * munlock_vma_pages_range().
-		 */
-		if (vma->vm_flags & VM_LOCKED) {
-			/*
-			 * PTE-mapped THP are never marked as mlocked; but
-			 * this function is never called on a DoubleMap THP,
-			 * nor on an Anon THP (which may still be PTE-mapped
-			 * after DoubleMap was cleared).
-			 */
-			mlock_vma_page(page);
-			/*
-			 * No need to scan further once the page is marked
-			 * as mlocked.
-			 */
-			page_vma_mapped_walk_done(&pvmw);
-			return false;
-		}
-	}
-
-	return true;
-}
-
-/**
- * page_mlock - try to mlock a page
- * @page: the page to be mlocked
- *
- * Called from munlock code. Checks all of the VMAs mapping the page and mlocks
- * the page if any are found. The page will be returned with PG_mlocked cleared
- * if it is not mapped by any locked vmas.
- */
-void page_mlock(struct page *page)
-{
-	struct rmap_walk_control rwc = {
-		.rmap_one = page_mlock_one,
-		.done = page_not_mapped,
-		.anon_lock = page_lock_anon_vma_read,
-
-	};
-
-	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
-	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
-
-	/* Anon THP are only marked as mlocked when singly mapped */
-	if (PageTransCompound(page) && PageAnon(page))
-		return;
-
-	rmap_walk(page, &rwc);
-}
-
 #ifdef CONFIG_DEVICE_PRIVATE
 struct make_exclusive_args {
 	struct mm_struct *mm;
@@ -2291,11 +2221,6 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
  *
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the anon_vma struct it points to.
- *
- * When called from page_mlock(), the mmap_lock of the mm containing the vma
- * where the page was found will be held for write.  So, we won't recheck
- * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
- * LOCKED.
  */
 static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 		bool locked)
@@ -2344,11 +2269,6 @@ static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
  *
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the address_space struct it points to.
- *
- * When called from page_mlock(), the mmap_lock of the mm containing the vma
- * where the page was found will be held for write.  So, we won't recheck
- * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
- * LOCKED.
  */
 static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 		bool locked)

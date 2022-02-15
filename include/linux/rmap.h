@@ -237,12 +237,6 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
  */
 int folio_mkclean(struct folio *);
 
-/*
- * called in munlock()/munmap() path to check for other vmas holding
- * the page mlocked.
- */
-void page_mlock(struct page *page);
-
 void remove_migration_ptes(struct page *old, struct page *new, bool locked);
 
 /*

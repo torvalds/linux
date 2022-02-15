@@ -409,7 +409,7 @@ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
  * must be called with vma's mmap_lock held for read or write, and page locked.
  */
 extern void mlock_vma_page(struct page *page);
-extern unsigned int munlock_vma_page(struct page *page);
+extern void munlock_vma_page(struct page *page);
 
 extern int mlock_future_check(struct mm_struct *mm, unsigned long flags,
 			      unsigned long len);
