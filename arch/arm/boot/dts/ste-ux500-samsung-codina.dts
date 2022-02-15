@@ -519,10 +519,9 @@
 			pinctrl-0 = <&i2c0_a_1_default>;
 			pinctrl-1 = <&i2c0_a_1_sleep>;
 
-			/* TODO: write bindings and driver for this proximity sensor */
 			proximity@39 {
-				/* Codina has the Mouser TMD2672 */
-				compatible = "mouser,tmd2672";
+				/* Codina has the Amstaos TMD2672 */
+				compatible = "amstaos,tmd2672";
 				clock-frequency = <400000>;
 				reg = <0x39>;
 
