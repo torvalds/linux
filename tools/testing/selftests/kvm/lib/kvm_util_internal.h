@@ -69,7 +69,7 @@ struct kvm_vm {
 	uint32_t dirty_ring_size;
 };
 
-struct vcpu *vcpu_find(struct kvm_vm *vm, uint32_t vcpuid);
+struct vcpu *vcpu_get(struct kvm_vm *vm, uint32_t vcpuid);
 
 /*
  * Virtual Translation Tables Dump
