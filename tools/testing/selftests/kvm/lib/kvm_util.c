@@ -234,25 +234,7 @@ const struct vm_guest_mode_params vm_guest_mode_params[] = {
 _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) == NUM_VM_MODES,
 	       "Missing new mode params?");
 
-/*
- * VM Create
- *
- * Input Args:
- *   mode - VM Mode (e.g. VM_MODE_P52V48_4K)
- *   phy_pages - Physical memory pages
- *
- * Output Args: None
- *
- * Return:
- *   Pointer to opaque structure that describes the created VM.
- *
- * Creates a VM with the mode specified by mode (e.g. VM_MODE_P52V48_4K).
- * When phy_pages is non-zero, a memory region of phy_pages physical pages
- * is created and mapped starting at guest physical address 0.  The file
- * descriptor to control the created VM is created with the permissions
- * given by perm (e.g. O_RDWR).
- */
-struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages)
+struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t phy_pages)
 {
 	struct kvm_vm *vm;
 
@@ -361,11 +343,31 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages)
 	return vm;
 }
 
+/*
+ * VM Create
+ *
+ * Input Args:
+ *   phy_pages - Physical memory pages
+ *
+ * Output Args: None
+ *
+ * Return:
+ *   Pointer to opaque structure that describes the created VM.
+ *
+ * Creates a VM with the default physical/virtual address widths and page size.
+ * When phy_pages is non-zero, a memory region of phy_pages physical pages
+ * is created and mapped starting at guest physical address 0.
+ */
+struct kvm_vm *vm_create(uint64_t phy_pages)
+{
+	return __vm_create(VM_MODE_DEFAULT, phy_pages);
+}
+
 struct kvm_vm *vm_create_without_vcpus(enum vm_guest_mode mode, uint64_t pages)
 {
 	struct kvm_vm *vm;
 
-	vm = vm_create(mode, pages);
+	vm = __vm_create(mode, pages);
 
 	kvm_vm_elf_load(vm, program_invocation_name);
 

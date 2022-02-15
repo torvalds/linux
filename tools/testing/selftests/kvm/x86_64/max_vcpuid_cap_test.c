@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 	struct kvm_enable_cap cap = { 0 };
 	int ret;
 
-	vm = vm_create(VM_MODE_DEFAULT, 0);
+	vm = vm_create(0);
 
 	/* Get KVM_CAP_MAX_VCPU_ID cap supported in KVM */
 	ret = vm_check_cap(vm, KVM_CAP_MAX_VCPU_ID);
