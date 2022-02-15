@@ -225,10 +225,6 @@
 	};
 };
 
-&rtc {
-	status = "okay";
-};
-
 &fmc {
 	status = "okay";
 	flash@0 {
@@ -384,10 +380,6 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
-};
-
-&i2c1 {
-	status = "okay";
 };
 
 &i2c2 {
@@ -679,6 +671,7 @@
 	};
 
 	rtc@51 {
+		/* in-chip rtc disabled, use external rtc (battery-backed) */
 		compatible = "nxp,pcf85263";
 		reg = <0x51>;
 	};
