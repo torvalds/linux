@@ -163,7 +163,6 @@ struct amdgpu_hdp_ras hdp_v4_0_ras = {
 			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 		},
 		.hw_ops = &hdp_v4_0_ras_hw_ops,
-		.ras_late_init = amdgpu_ras_block_late_init,
 		.ras_fini = amdgpu_hdp_ras_fini,
 	},
 };

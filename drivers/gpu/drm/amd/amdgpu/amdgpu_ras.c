@@ -2457,6 +2457,12 @@ interrupt:
 	return r;
 }
 
+int amdgpu_ras_block_late_init_default(struct amdgpu_device *adev,
+			 struct ras_common_if *ras_block)
+{
+	return amdgpu_ras_block_late_init(adev, ras_block);
+}
+
 /* helper function to remove ras fs node and interrupt handler */
 void amdgpu_ras_block_late_fini(struct amdgpu_device *adev,
 			  struct ras_common_if *ras_block)
@@ -2533,6 +2539,7 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 			dev_warn(adev->dev, "Warning: abnormal ras list node.\n");
 			continue;
 		}
+
 		obj = node->ras_obj;
 		if (obj->ras_late_init) {
 			r = obj->ras_late_init(adev, &obj->ras_comm);
@@ -2541,7 +2548,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 					obj->ras_comm.name, r);
 				return r;
 			}
-		}
+		} else
+			amdgpu_ras_block_late_init_default(adev, &obj->ras_comm);
 	}
 
 	return 0;

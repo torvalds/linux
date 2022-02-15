@@ -71,7 +71,6 @@ struct amdgpu_mca_ras_block mca_v3_0_mp0_ras = {
 		},
 		.hw_ops = &mca_v3_0_mp0_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
-		.ras_late_init = amdgpu_ras_block_late_init,
 		.ras_fini = mca_v3_0_mp0_ras_fini,
 	},
 };
@@ -104,7 +103,6 @@ struct amdgpu_mca_ras_block mca_v3_0_mp1_ras = {
 		},
 		.hw_ops = &mca_v3_0_mp1_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
-		.ras_late_init = amdgpu_ras_block_late_init,
 		.ras_fini = mca_v3_0_mp1_ras_fini,
 	},
 };
@@ -137,7 +135,6 @@ struct amdgpu_mca_ras_block mca_v3_0_mpio_ras = {
 		},
 		.hw_ops = &mca_v3_0_mpio_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
-		.ras_late_init = amdgpu_ras_block_late_init,
 		.ras_fini = mca_v3_0_mpio_ras_fini,
 	},
 };
