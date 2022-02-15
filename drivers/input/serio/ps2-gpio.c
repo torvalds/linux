@@ -52,13 +52,17 @@ struct ps2_gpio_data {
 	struct gpio_desc *gpio_data;
 	bool write_enable;
 	int irq;
-	unsigned char rx_cnt;
-	unsigned char rx_byte;
-	unsigned char tx_cnt;
-	unsigned char tx_byte;
-	struct completion tx_done;
-	struct mutex tx_mutex;
-	struct delayed_work tx_work;
+	struct {
+		unsigned char cnt;
+		unsigned char byte;
+	} rx;
+	struct {
+		unsigned char cnt;
+		unsigned char byte;
+		struct completion complete;
+		struct mutex mutex;
+		struct delayed_work work;
+	} tx;
 };
 
 static int ps2_gpio_open(struct serio *serio)
@@ -73,7 +77,7 @@ static void ps2_gpio_close(struct serio *serio)
 {
 	struct ps2_gpio_data *drvdata = serio->port_data;
 
-	flush_delayed_work(&drvdata->tx_work);
+	flush_delayed_work(&drvdata->tx.work);
 	disable_irq(drvdata->irq);
 }
 
@@ -85,9 +89,9 @@ static int __ps2_gpio_write(struct serio *serio, unsigned char val)
 	gpiod_direction_output(drvdata->gpio_clk, 0);
 
 	drvdata->mode = PS2_MODE_TX;
-	drvdata->tx_byte = val;
+	drvdata->tx.byte = val;
 
-	schedule_delayed_work(&drvdata->tx_work, usecs_to_jiffies(200));
+	schedule_delayed_work(&drvdata->tx.work, usecs_to_jiffies(200));
 
 	return 0;
 }
@@ -98,12 +102,12 @@ static int ps2_gpio_write(struct serio *serio, unsigned char val)
 	int ret = 0;
 
 	if (in_task()) {
-		mutex_lock(&drvdata->tx_mutex);
+		mutex_lock(&drvdata->tx.mutex);
 		__ps2_gpio_write(serio, val);
-		if (!wait_for_completion_timeout(&drvdata->tx_done,
+		if (!wait_for_completion_timeout(&drvdata->tx.complete,
 						 msecs_to_jiffies(10000)))
 			ret = SERIO_TIMEOUT;
-		mutex_unlock(&drvdata->tx_mutex);
+		mutex_unlock(&drvdata->tx.mutex);
 	} else {
 		__ps2_gpio_write(serio, val);
 	}
@@ -115,8 +119,8 @@ static void ps2_gpio_tx_work_fn(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct ps2_gpio_data *drvdata = container_of(dwork,
-						    struct ps2_gpio_data,
-						    tx_work);
+						     struct ps2_gpio_data,
+						     tx.work);
 
 	enable_irq(drvdata->irq);
 	gpiod_direction_output(drvdata->gpio_data, 0);
@@ -130,8 +134,8 @@ static irqreturn_t ps2_gpio_irq_rx(struct ps2_gpio_data *drvdata)
 	int rxflags = 0;
 	static unsigned long old_jiffies;
 
-	byte = drvdata->rx_byte;
-	cnt = drvdata->rx_cnt;
+	byte = drvdata->rx.byte;
+	cnt = drvdata->rx.cnt;
 
 	if (old_jiffies == 0)
 		old_jiffies = jiffies;
@@ -220,8 +224,8 @@ err:
 	old_jiffies = 0;
 	__ps2_gpio_write(drvdata->serio, PS2_CMD_RESEND);
 end:
-	drvdata->rx_cnt = cnt;
-	drvdata->rx_byte = byte;
+	drvdata->rx.cnt = cnt;
+	drvdata->rx.byte = byte;
 	return IRQ_HANDLED;
 }
 
@@ -231,8 +235,8 @@ static irqreturn_t ps2_gpio_irq_tx(struct ps2_gpio_data *drvdata)
 	int data;
 	static unsigned long old_jiffies;
 
-	cnt = drvdata->tx_cnt;
-	byte = drvdata->tx_byte;
+	cnt = drvdata->tx.cnt;
+	byte = drvdata->tx.byte;
 
 	if (old_jiffies == 0)
 		old_jiffies = jiffies;
@@ -284,7 +288,7 @@ static irqreturn_t ps2_gpio_irq_tx(struct ps2_gpio_data *drvdata)
 		}
 
 		drvdata->mode = PS2_MODE_RX;
-		complete(&drvdata->tx_done);
+		complete(&drvdata->tx.complete);
 
 		cnt = 1;
 		old_jiffies = 0;
@@ -305,9 +309,9 @@ err:
 	cnt = 1;
 	old_jiffies = 0;
 	gpiod_direction_input(drvdata->gpio_data);
-	__ps2_gpio_write(drvdata->serio, drvdata->tx_byte);
+	__ps2_gpio_write(drvdata->serio, drvdata->tx.byte);
 end:
-	drvdata->tx_cnt = cnt;
+	drvdata->tx.cnt = cnt;
 	return IRQ_HANDLED;
 }
 
@@ -403,11 +407,11 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 	/* Tx count always starts at 1, as the start bit is sent implicitly by
 	 * host-to-device communication initialization.
 	 */
-	drvdata->tx_cnt = 1;
+	drvdata->tx.cnt = 1;
 
-	INIT_DELAYED_WORK(&drvdata->tx_work, ps2_gpio_tx_work_fn);
-	init_completion(&drvdata->tx_done);
-	mutex_init(&drvdata->tx_mutex);
+	INIT_DELAYED_WORK(&drvdata->tx.work, ps2_gpio_tx_work_fn);
+	init_completion(&drvdata->tx.complete);
+	mutex_init(&drvdata->tx.mutex);
 
 	serio_register_port(serio);
 	platform_set_drvdata(pdev, drvdata);
