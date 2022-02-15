@@ -372,14 +372,19 @@ static irqreturn_t ps2_gpio_irq(int irq, void *dev_id)
 static int ps2_gpio_get_props(struct device *dev,
 				 struct ps2_gpio_data *drvdata)
 {
-	drvdata->gpio_data = devm_gpiod_get(dev, "data", GPIOD_IN);
+	enum gpiod_flags gflags;
+
+	/* Enforce open drain, since this is required by the PS/2 bus. */
+	gflags = GPIOD_IN | GPIOD_FLAGS_BIT_OPEN_DRAIN;
+
+	drvdata->gpio_data = devm_gpiod_get(dev, "data", gflags);
 	if (IS_ERR(drvdata->gpio_data)) {
 		dev_err(dev, "failed to request data gpio: %ld",
 			PTR_ERR(drvdata->gpio_data));
 		return PTR_ERR(drvdata->gpio_data);
 	}
 
-	drvdata->gpio_clk = devm_gpiod_get(dev, "clk", GPIOD_IN);
+	drvdata->gpio_clk = devm_gpiod_get(dev, "clk", gflags);
 	if (IS_ERR(drvdata->gpio_clk)) {
 		dev_err(dev, "failed to request clock gpio: %ld",
 			PTR_ERR(drvdata->gpio_clk));
