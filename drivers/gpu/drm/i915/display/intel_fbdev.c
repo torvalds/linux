@@ -50,6 +50,23 @@
 #include "intel_fbdev.h"
 #include "intel_frontbuffer.h"
 
+struct intel_fbdev {
+	struct drm_fb_helper helper;
+	struct intel_framebuffer *fb;
+	struct i915_vma *vma;
+	unsigned long vma_flags;
+	async_cookie_t cookie;
+	int preferred_bpp;
+
+	/* Whether or not fbdev hpd processing is temporarily suspended */
+	bool hpd_suspended: 1;
+	/* Set when a hotplug was received while HPD processing was suspended */
+	bool hpd_waiting: 1;
+
+	/* Protects hpd_suspended */
+	struct mutex hpd_lock;
+};
+
 static struct intel_frontbuffer *to_frontbuffer(struct intel_fbdev *ifbdev)
 {
 	return ifbdev->fb->frontbuffer;
