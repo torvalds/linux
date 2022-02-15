@@ -2404,16 +2404,6 @@ static void atafb_set_disp(struct fb_info *info)
 				atari_stram_to_virt(info->fix.smem_start));
 }
 
-static int atafb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
-			   u_int transp, struct fb_info *info)
-{
-	red >>= 8;
-	green >>= 8;
-	blue >>= 8;
-
-	return info->fbops->fb_setcolreg(regno, red, green, blue, transp, info);
-}
-
 static int
 atafb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -2724,7 +2714,6 @@ static struct fb_ops atafb_ops = {
 	.owner =	THIS_MODULE,
 	.fb_check_var	= atafb_check_var,
 	.fb_set_par	= atafb_set_par,
-	.fb_setcolreg	= atafb_setcolreg,
 	.fb_blank =	atafb_blank,
 	.fb_pan_display	= atafb_pan_display,
 	.fb_fillrect	= atafb_fillrect,
