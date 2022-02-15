@@ -10,7 +10,6 @@
 
 #include "guest_modes.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 
 #define DEFAULT_ARM64_GUEST_STACK_VADDR_MIN	0xac0000

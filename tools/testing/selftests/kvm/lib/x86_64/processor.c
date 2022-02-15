@@ -7,7 +7,6 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 
 #ifndef NUM_INTERRUPTS

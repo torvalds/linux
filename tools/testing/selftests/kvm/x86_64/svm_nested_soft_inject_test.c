@@ -17,7 +17,6 @@
 #include "processor.h"
 #include "svm_util.h"
 #include "test_util.h"
-#include "../lib/kvm_util_internal.h"
 
 #define VCPU_ID		0
 #define INT_NR			0x20

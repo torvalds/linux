@@ -9,7 +9,6 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 #include "svm_util.h"
 

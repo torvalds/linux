@@ -7,7 +7,6 @@
 
 #include "processor.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 
 #define PAGES_PER_REGION 4
 

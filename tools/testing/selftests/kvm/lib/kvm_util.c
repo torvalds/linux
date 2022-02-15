@@ -8,7 +8,6 @@
 #define _GNU_SOURCE /* for program_invocation_name */
 #include "test_util.h"
 #include "kvm_util.h"
-#include "kvm_util_internal.h"
 #include "processor.h"
 
 #include <assert.h>

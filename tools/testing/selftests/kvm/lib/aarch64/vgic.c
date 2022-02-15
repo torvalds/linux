@@ -9,7 +9,6 @@
 #include <asm/kvm.h>
 
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "vgic.h"
 #include "gic.h"
 #include "gic_v3.h"

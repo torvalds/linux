@@ -12,7 +12,6 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "perf_test_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 #include "vmx.h"
 

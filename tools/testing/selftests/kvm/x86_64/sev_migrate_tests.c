@@ -12,7 +12,6 @@
 #include "processor.h"
 #include "svm_util.h"
 #include "kselftest.h"
-#include "../lib/kvm_util_internal.h"
 
 #define SEV_POLICY_ES 0b100
 

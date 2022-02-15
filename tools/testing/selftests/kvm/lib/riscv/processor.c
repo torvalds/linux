@@ -9,7 +9,6 @@
 #include <assert.h>
 
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 
 #define DEFAULT_RISCV_GUEST_STACK_VADDR_MIN	0xac0000

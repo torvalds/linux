@@ -8,7 +8,6 @@
  */
 
 #include "kvm_util.h"
-#include "../lib/kvm_util_internal.h"
 
 #define MAX_VCPU_ID	2
 

@@ -8,7 +8,6 @@
 #include <linux/kvm.h>
 
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 
 void ucall_init(struct kvm_vm *vm, void *arg)

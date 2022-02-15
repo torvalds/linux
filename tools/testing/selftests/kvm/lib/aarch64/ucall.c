@@ -5,7 +5,6 @@
  * Copyright (C) 2018, Red Hat, Inc.
  */
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 
 static vm_vaddr_t *ucall_exit_mmio_addr;
 
