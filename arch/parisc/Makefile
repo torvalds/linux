@@ -15,12 +15,8 @@
 # Mike Shaver, Helge Deller and Martin K. Petersen
 #
 
-ifdef CONFIG_PARISC_SELF_EXTRACT
 boot := arch/parisc/boot
 KBUILD_IMAGE := $(boot)/bzImage
-else
-KBUILD_IMAGE := vmlinuz
-endif
 
 NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
@@ -165,13 +161,8 @@ Image: vmlinux
 bzImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-ifdef CONFIG_PARISC_SELF_EXTRACT
 vmlinuz: bzImage
 	$(OBJCOPY) $(boot)/bzImage $@
-else
-vmlinuz: vmlinux
-	@$(KGZIP) -cf -9 $< > $@
-endif
 
 ifeq ($(KBUILD_EXTMOD),)
 # We need to generate vdso-offsets.h before compiling certain files in kernel/.
