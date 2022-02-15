@@ -809,6 +809,8 @@ static int nvme_configure_directives(struct nvme_ctrl *ctrl)
 	if (ctrl->nssa < BLK_MAX_WRITE_HINTS - 1) {
 		dev_info(ctrl->device, "too few streams (%u) available\n",
 					ctrl->nssa);
+		/* this condition is not an error: streams are optional */
+		ret = 0;
 		goto out_disable_stream;
 	}
 
