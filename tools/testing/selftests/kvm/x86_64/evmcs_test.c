@@ -183,7 +183,7 @@ static void save_restore_vm(struct kvm_vm *vm)
 	kvm_vm_release(vm);
 
 	/* Restore state in a new VM.  */
-	kvm_vm_restart(vm, O_RDWR);
+	kvm_vm_restart(vm);
 	vm_vcpu_add(vm, VCPU_ID);
 	vcpu_set_hv_cpuid(vm, VCPU_ID);
 	vcpu_enable_evmcs(vm, VCPU_ID);

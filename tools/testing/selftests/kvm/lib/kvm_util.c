@@ -173,9 +173,9 @@ void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size)
 	vm->dirty_ring_size = ring_size;
 }
 
-static void vm_open(struct kvm_vm *vm, int perm)
+static void vm_open(struct kvm_vm *vm)
 {
-	vm->kvm_fd = _open_kvm_dev_path_or_exit(perm);
+	vm->kvm_fd = _open_kvm_dev_path_or_exit(O_RDWR);
 
 	if (!kvm_check_cap(KVM_CAP_IMMEDIATE_EXIT)) {
 		print_skip("immediate_exit not available");
@@ -240,7 +240,6 @@ _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) 
  * Input Args:
  *   mode - VM Mode (e.g. VM_MODE_P52V48_4K)
  *   phy_pages - Physical memory pages
- *   perm - permission
  *
  * Output Args: None
  *
@@ -253,12 +252,12 @@ _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) 
  * descriptor to control the created VM is created with the permissions
  * given by perm (e.g. O_RDWR).
  */
-struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
+struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages)
 {
 	struct kvm_vm *vm;
 
-	pr_debug("%s: mode='%s' pages='%ld' perm='%d'\n", __func__,
-		 vm_guest_mode_string(mode), phy_pages, perm);
+	pr_debug("%s: mode='%s' pages='%ld'\n", __func__,
+		 vm_guest_mode_string(mode), phy_pages);
 
 	vm = calloc(1, sizeof(*vm));
 	TEST_ASSERT(vm != NULL, "Insufficient Memory");
@@ -340,7 +339,7 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 		vm->type = KVM_VM_TYPE_ARM_IPA_SIZE(vm->pa_bits);
 #endif
 
-	vm_open(vm, perm);
+	vm_open(vm);
 
 	/* Limit to VA-bit canonical virtual addresses. */
 	vm->vpages_valid = sparsebit_alloc();
@@ -366,7 +365,7 @@ struct kvm_vm *vm_create_without_vcpus(enum vm_guest_mode mode, uint64_t pages)
 {
 	struct kvm_vm *vm;
 
-	vm = vm_create(mode, pages, O_RDWR);
+	vm = vm_create(mode, pages);
 
 	kvm_vm_elf_load(vm, program_invocation_name);
 
@@ -458,7 +457,6 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
  *
  * Input Args:
  *   vm - VM that has been released before
- *   perm - permission
  *
  * Output Args: None
  *
@@ -466,12 +464,12 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
  * global state, such as the irqchip and the memory regions that are mapped
  * into the guest.
  */
-void kvm_vm_restart(struct kvm_vm *vmp, int perm)
+void kvm_vm_restart(struct kvm_vm *vmp)
 {
 	int ctr;
 	struct userspace_mem_region *region;
 
-	vm_open(vmp, perm);
+	vm_open(vmp);
 	if (vmp->has_irqchip)
 		vm_create_irqchip(vmp);
 
