@@ -1084,7 +1084,7 @@ struct kfd_criu_svm_range_priv_data {
 	uint64_t start_addr;
 	uint64_t size;
 	/* Variable length array of attributes */
-	struct kfd_ioctl_svm_attribute attrs[0];
+	struct kfd_ioctl_svm_attribute attrs[];
 };
 
 struct kfd_criu_queue_priv_data {
