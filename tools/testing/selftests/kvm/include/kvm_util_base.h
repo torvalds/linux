@@ -16,6 +16,7 @@
 #include <linux/kvm.h>
 #include "linux/rbtree.h"
 
+
 #include <sys/ioctl.h>
 
 #include "sparsebit.h"
@@ -43,7 +44,7 @@ struct userspace_mem_region {
 	struct hlist_node slot_node;
 };
 
-struct vcpu {
+struct kvm_vcpu {
 	struct list_head list;
 	uint32_t id;
 	int fd;
@@ -92,7 +93,7 @@ struct kvm_vm {
 			continue;			\
 		else
 
-struct vcpu *vcpu_get(struct kvm_vm *vm, uint32_t vcpuid);
+struct kvm_vcpu *vcpu_get(struct kvm_vm *vm, uint32_t vcpuid);
 
 /*
  * Virtual Translation Tables Dump
@@ -644,17 +645,17 @@ struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
  * Create a VM with a single vCPU with reasonable defaults and @extra_mem_pages
  * additional pages of guest memory.  Returns the VM and vCPU (via out param).
  */
-struct kvm_vm *__vm_create_with_one_vcpu(struct vcpu **vcpu,
+struct kvm_vm *__vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 					 uint64_t extra_mem_pages,
 					 void *guest_code);
 
-static inline struct kvm_vm *vm_create_with_one_vcpu(struct vcpu **vcpu,
+static inline struct kvm_vm *vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 						     void *guest_code)
 {
 	return __vm_create_with_one_vcpu(vcpu, 0, guest_code);
 }
 
-struct vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm);
+struct kvm_vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm);
 
 /*
  * Adds a vCPU with reasonable defaults (e.g. a stack)
