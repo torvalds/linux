@@ -34,10 +34,4 @@ extern int sysctl_numa_balancing_mode;
 int sysctl_numa_balancing(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
-#if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
-extern unsigned int sysctl_sched_energy_aware;
-int sched_energy_aware_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos);
-#endif
-
 #endif /* _LINUX_SCHED_SYSCTL_H */
