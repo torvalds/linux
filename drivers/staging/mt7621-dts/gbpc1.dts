@@ -114,6 +114,10 @@
 	};
 };
 
+&ethernet {
+	pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>;
+};
+
 &switch0 {
 	ports {
 		port@0 {
