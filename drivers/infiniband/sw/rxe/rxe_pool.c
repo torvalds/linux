@@ -260,11 +260,12 @@ int __rxe_add_key_locked(struct rxe_pool_elem *elem, void *key)
 int __rxe_add_key(struct rxe_pool_elem *elem, void *key)
 {
 	struct rxe_pool *pool = elem->pool;
+	unsigned long flags;
 	int err;
 
-	write_lock_bh(&pool->pool_lock);
+	write_lock_irqsave(&pool->pool_lock, flags);
 	err = __rxe_add_key_locked(elem, key);
-	write_unlock_bh(&pool->pool_lock);
+	write_unlock_irqrestore(&pool->pool_lock, flags);
 
 	return err;
 }
@@ -279,10 +280,11 @@ void __rxe_drop_key_locked(struct rxe_pool_elem *elem)
 void __rxe_drop_key(struct rxe_pool_elem *elem)
 {
 	struct rxe_pool *pool = elem->pool;
+	unsigned long flags;
 
-	write_lock_bh(&pool->pool_lock);
+	write_lock_irqsave(&pool->pool_lock, flags);
 	__rxe_drop_key_locked(elem);
-	write_unlock_bh(&pool->pool_lock);
+	write_unlock_irqrestore(&pool->pool_lock, flags);
 }
 
 int __rxe_add_index_locked(struct rxe_pool_elem *elem)
@@ -299,11 +301,12 @@ int __rxe_add_index_locked(struct rxe_pool_elem *elem)
 int __rxe_add_index(struct rxe_pool_elem *elem)
 {
 	struct rxe_pool *pool = elem->pool;
+	unsigned long flags;
 	int err;
 
-	write_lock_bh(&pool->pool_lock);
+	write_lock_irqsave(&pool->pool_lock, flags);
 	err = __rxe_add_index_locked(elem);
-	write_unlock_bh(&pool->pool_lock);
+	write_unlock_irqrestore(&pool->pool_lock, flags);
 
 	return err;
 }
@@ -319,10 +322,11 @@ void __rxe_drop_index_locked(struct rxe_pool_elem *elem)
 void __rxe_drop_index(struct rxe_pool_elem *elem)
 {
 	struct rxe_pool *pool = elem->pool;
+	unsigned long flags;
 
-	write_lock_bh(&pool->pool_lock);
+	write_lock_irqsave(&pool->pool_lock, flags);
 	__rxe_drop_index_locked(elem);
-	write_unlock_bh(&pool->pool_lock);
+	write_unlock_irqrestore(&pool->pool_lock, flags);
 }
 
 void *rxe_alloc_locked(struct rxe_pool *pool)
@@ -440,11 +444,12 @@ void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
 
 void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 {
+	unsigned long flags;
 	void *obj;
 
-	read_lock_bh(&pool->pool_lock);
+	read_lock_irqsave(&pool->pool_lock, flags);
 	obj = rxe_pool_get_index_locked(pool, index);
-	read_unlock_bh(&pool->pool_lock);
+	read_unlock_irqrestore(&pool->pool_lock, flags);
 
 	return obj;
 }
@@ -484,11 +489,12 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 
 void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 {
+	unsigned long flags;
 	void *obj;
 
-	read_lock_bh(&pool->pool_lock);
+	read_lock_irqsave(&pool->pool_lock, flags);
 	obj = rxe_pool_get_key_locked(pool, key);
-	read_unlock_bh(&pool->pool_lock);
+	read_unlock_irqrestore(&pool->pool_lock, flags);
 
 	return obj;
 }

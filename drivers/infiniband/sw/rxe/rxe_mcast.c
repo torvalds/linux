@@ -58,11 +58,12 @@ static int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
 	int err;
 	struct rxe_mcg *grp;
 	struct rxe_pool *pool = &rxe->mc_grp_pool;
+	unsigned long flags;
 
 	if (rxe->attr.max_mcast_qp_attach == 0)
 		return -EINVAL;
 
-	write_lock_bh(&pool->pool_lock);
+	write_lock_irqsave(&pool->pool_lock, flags);
 
 	grp = rxe_pool_get_key_locked(pool, mgid);
 	if (grp)
@@ -70,13 +71,13 @@ static int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
 
 	grp = create_grp(rxe, pool, mgid);
 	if (IS_ERR(grp)) {
-		write_unlock_bh(&pool->pool_lock);
+		write_unlock_irqrestore(&pool->pool_lock, flags);
 		err = PTR_ERR(grp);
 		return err;
 	}
 
 done:
-	write_unlock_bh(&pool->pool_lock);
+	write_unlock_irqrestore(&pool->pool_lock, flags);
 	*grp_p = grp;
 	return 0;
 }
@@ -86,9 +87,10 @@ static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 {
 	int err;
 	struct rxe_mca *elem;
+	unsigned long flags;
 
 	/* check to see of the qp is already a member of the group */
-	spin_lock_bh(&grp->mcg_lock);
+	spin_lock_irqsave(&grp->mcg_lock, flags);
 	list_for_each_entry(elem, &grp->qp_list, qp_list) {
 		if (elem->qp == qp) {
 			err = 0;
@@ -118,7 +120,7 @@ static int rxe_mcast_add_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	err = 0;
 out:
-	spin_unlock_bh(&grp->mcg_lock);
+	spin_unlock_irqrestore(&grp->mcg_lock, flags);
 	return err;
 }
 
@@ -127,12 +129,13 @@ static int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 {
 	struct rxe_mcg *grp;
 	struct rxe_mca *elem, *tmp;
+	unsigned long flags;
 
 	grp = rxe_pool_get_key(&rxe->mc_grp_pool, mgid);
 	if (!grp)
 		goto err1;
 
-	spin_lock_bh(&grp->mcg_lock);
+	spin_lock_irqsave(&grp->mcg_lock, flags);
 
 	list_for_each_entry_safe(elem, tmp, &grp->qp_list, qp_list) {
 		if (elem->qp == qp) {
@@ -140,7 +143,7 @@ static int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 			grp->num_qp--;
 			atomic_dec(&qp->mcg_num);
 
-			spin_unlock_bh(&grp->mcg_lock);
+			spin_unlock_irqrestore(&grp->mcg_lock, flags);
 			rxe_drop_ref(elem);
 			rxe_drop_ref(grp);	/* ref held by QP */
 			rxe_drop_ref(grp);	/* ref from get_key */
@@ -148,7 +151,7 @@ static int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 		}
 	}
 
-	spin_unlock_bh(&grp->mcg_lock);
+	spin_unlock_irqrestore(&grp->mcg_lock, flags);
 	rxe_drop_ref(grp);			/* ref from get_key */
 err1:
 	return -EINVAL;
