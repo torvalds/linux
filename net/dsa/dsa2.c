@@ -453,8 +453,10 @@ static int dsa_port_setup(struct dsa_port *dp)
 		return 0;
 
 	mutex_init(&dp->addr_lists_lock);
+	mutex_init(&dp->vlans_lock);
 	INIT_LIST_HEAD(&dp->fdbs);
 	INIT_LIST_HEAD(&dp->mdbs);
+	INIT_LIST_HEAD(&dp->vlans);
 
 	if (ds->ops->port_setup) {
 		err = ds->ops->port_setup(ds, dp->index);

@@ -312,6 +312,10 @@ struct dsa_port {
 	struct mutex		addr_lists_lock;
 	struct list_head	fdbs;
 	struct list_head	mdbs;
+
+	/* List of VLANs that CPU and DSA ports are members of. */
+	struct mutex		vlans_lock;
+	struct list_head	vlans;
 };
 
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
@@ -327,6 +331,12 @@ struct dsa_link {
 
 struct dsa_mac_addr {
 	unsigned char addr[ETH_ALEN];
+	u16 vid;
+	refcount_t refcount;
+	struct list_head list;
+};
+
+struct dsa_vlan {
 	u16 vid;
 	refcount_t refcount;
 	struct list_head list;
