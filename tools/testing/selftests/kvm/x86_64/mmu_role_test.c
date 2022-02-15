@@ -3,8 +3,6 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define VCPU_ID			1
-
 #define MMIO_GPA	0x100000000ull
 
 static void guest_code(void)
@@ -25,22 +23,21 @@ static void guest_pf_handler(struct ex_regs *regs)
 static void mmu_role_test(u32 *cpuid_reg, u32 evil_cpuid_val)
 {
 	u32 good_cpuid_val = *cpuid_reg;
+	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
 	struct kvm_vm *vm;
 	uint64_t cmd;
-	int r;
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
-	run = vcpu_state(vm, VCPU_ID);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	run = vcpu->run;
 
 	/* Map 1gb page without a backing memlot. */
 	__virt_pg_map(vm, MMIO_GPA, MMIO_GPA, PG_LEVEL_1G);
 
-	r = _vcpu_run(vm, VCPU_ID);
+	vcpu_run(vm, vcpu->id);
 
 	/* Guest access to the 1gb page should trigger MMIO. */
-	TEST_ASSERT(r == 0, "vcpu_run failed: %d\n", r);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_MMIO,
 		    "Unexpected exit reason: %u (%s), expected MMIO exit (1gb page w/o memslot)\n",
 		    run->exit_reason, exit_reason_str(run->exit_reason));
@@ -57,7 +54,7 @@ static void mmu_role_test(u32 *cpuid_reg, u32 evil_cpuid_val)
 	 * returns the struct that contains the entry being modified.  Eww.
 	 */
 	*cpuid_reg = evil_cpuid_val;
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
+	vcpu_set_cpuid(vm, vcpu->id, kvm_get_supported_cpuid());
 
 	/*
 	 * Add a dummy memslot to coerce KVM into bumping the MMIO generation.
@@ -70,13 +67,12 @@ static void mmu_role_test(u32 *cpuid_reg, u32 evil_cpuid_val)
 
 	/* Set up a #PF handler to eat the RSVD #PF and signal all done! */
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
+	vcpu_init_descriptor_tables(vm, vcpu->id);
 	vm_install_exception_handler(vm, PF_VECTOR, guest_pf_handler);
 
-	r = _vcpu_run(vm, VCPU_ID);
-	TEST_ASSERT(r == 0, "vcpu_run failed: %d\n", r);
+	vcpu_run(vm, vcpu->id);
 
-	cmd = get_ucall(vm, VCPU_ID, NULL);
+	cmd = get_ucall(vm, vcpu->id, NULL);
 	TEST_ASSERT(cmd == UCALL_DONE,
 		    "Unexpected guest exit, exit_reason=%s, ucall.cmd = %lu\n",
 		    exit_reason_str(run->exit_reason), cmd);
