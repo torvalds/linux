@@ -75,6 +75,8 @@ static void psmouse_smbus_detach_i2c_client(struct i2c_client *client)
 				    "Marking SMBus companion %s as gone\n",
 				    dev_name(&smbdev->client->dev));
 			smbdev->dead = true;
+			device_link_remove(&smbdev->client->dev,
+					   &smbdev->psmouse->ps2dev.serio->dev);
 			serio_rescan(smbdev->psmouse->ps2dev.serio);
 		} else {
 			list_del(&smbdev->node);
@@ -174,6 +176,8 @@ static void psmouse_smbus_disconnect(struct psmouse *psmouse)
 		kfree(smbdev);
 	} else {
 		smbdev->dead = true;
+		device_link_remove(&smbdev->client->dev,
+				   &psmouse->ps2dev.serio->dev);
 		psmouse_dbg(smbdev->psmouse,
 			    "posting removal request for SMBus companion %s\n",
 			    dev_name(&smbdev->client->dev));
@@ -270,6 +274,12 @@ int psmouse_smbus_init(struct psmouse *psmouse,
 
 	if (smbdev->client) {
 		/* We have our companion device */
+		if (!device_link_add(&smbdev->client->dev,
+				     &psmouse->ps2dev.serio->dev,
+				     DL_FLAG_STATELESS))
+			psmouse_warn(psmouse,
+				     "failed to set up link with iSMBus companion %s\n",
+				     dev_name(&smbdev->client->dev));
 		return 0;
 	}
 
