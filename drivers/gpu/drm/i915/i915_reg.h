@@ -1922,16 +1922,16 @@
 #define HPLLVCO                 _MMIO(MCHBAR_MIRROR_BASE + 0xc38)
 #define HPLLVCO_MOBILE          _MMIO(MCHBAR_MIRROR_BASE + 0xc0f)
 
-#define TSC1			_MMIO(0x11001)
+#define TSC1			_MMIO(MCHBAR_MIRROR_BASE + 0x1001)
 #define   TSE			(1 << 0)
-#define TR1			_MMIO(0x11006)
-#define TSFS			_MMIO(0x11020)
+#define TR1			_MMIO(MCHBAR_MIRROR_BASE + 0x1006)
+#define TSFS			_MMIO(MCHBAR_MIRROR_BASE + 0x1020)
 #define   TSFS_SLOPE_MASK	0x0000ff00
 #define   TSFS_SLOPE_SHIFT	8
 #define   TSFS_INTR_MASK	0x000000ff
 
-#define CSIPLL0			_MMIO(0x12c10)
-#define DDRMPLL1		_MMIO(0X12c20)
+#define CSIPLL0			_MMIO(MCHBAR_MIRROR_BASE + 0x2c10)
+#define DDRMPLL1		_MMIO(MCHBAR_MIRROR_BASE + 0x2c20)
 #define PEG_BAND_GAP_DATA	_MMIO(0x14d68)
 
 #define GEN6_GT_PERF_STATUS	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5948)
@@ -4320,7 +4320,7 @@
 	 ((fbc) << WM1_LP_FBC_SHIFT) | ((pri) << WM1_LP_SR_SHIFT) | (cur))
 
 /* Memory latency timer register */
-#define MLTR_ILK		_MMIO(0x11222)
+#define MLTR_ILK		_MMIO(MCHBAR_MIRROR_BASE + 0x1222)
 #define  MLTR_WM1_SHIFT		0
 #define  MLTR_WM2_SHIFT		8
 /* the unit of memory self-refresh latency time is 0.5us */
