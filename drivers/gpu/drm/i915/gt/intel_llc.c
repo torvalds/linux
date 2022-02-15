@@ -10,6 +10,7 @@
 #include "i915_reg.h"
 #include "intel_gt.h"
 #include "intel_llc.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 
 struct ia_constants {

@@ -50,6 +50,7 @@
 #include "i915_drv.h"
 #include "i915_fixed.h"
 #include "i915_irq.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 #include "intel_pm.h"
 #include "vlv_sideband.h"

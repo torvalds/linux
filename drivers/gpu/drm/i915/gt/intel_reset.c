@@ -23,6 +23,7 @@
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pci_config.h"
 #include "intel_reset.h"
 

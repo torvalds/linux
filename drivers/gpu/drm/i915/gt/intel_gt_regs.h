@@ -1315,13 +1315,6 @@
 #define LCFUSE02				_MMIO(0x116c0)
 #define   LCFUSE_HIV_MASK			0x000000ff
 
-#define ILK_GDSR				_MMIO(MCHBAR_MIRROR_BASE + 0x2ca4)
-#define   ILK_GRDOM_FULL			(0 << 1)
-#define   ILK_GRDOM_RENDER			(1 << 1)
-#define   ILK_GRDOM_MEDIA			(3 << 1)
-#define   ILK_GRDOM_MASK			(3 << 1)
-#define   ILK_GRDOM_RESET_ENABLE		(1 << 0)
-
 #define GAC_ECO_BITS				_MMIO(0x14090)
 #define   ECOBITS_SNB_BIT			(1 << 13)
 #define   ECOBITS_PPGTT_CACHE64B		(3 << 8)

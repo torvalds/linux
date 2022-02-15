@@ -10,6 +10,7 @@
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_display_types.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 #include "intel_pm.h"
 
