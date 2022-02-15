@@ -558,23 +558,16 @@ static void delayed_cache_work_func(struct work_struct *work)
 	__cache_work_func(ent);
 }
 
-/* Allocate a special entry from the cache */
 struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
-				       unsigned int entry, int access_flags)
+				       struct mlx5_cache_ent *ent,
+				       int access_flags)
 {
-	struct mlx5_mr_cache *cache = &dev->cache;
-	struct mlx5_cache_ent *ent;
 	struct mlx5_ib_mr *mr;
-
-	if (WARN_ON(entry <= MR_CACHE_LAST_STD_ENTRY ||
-		    entry >= ARRAY_SIZE(cache->ent)))
-		return ERR_PTR(-EINVAL);
 
 	/* Matches access in alloc_cache_mr() */
 	if (!mlx5_ib_can_reconfig_with_umr(dev, 0, access_flags))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	ent = &cache->ent[entry];
 	spin_lock_irq(&ent->lock);
 	if (list_empty(&ent->head)) {
 		queue_adjust_cache_locked(ent);
@@ -592,30 +585,7 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 
 		mlx5_clear_mr(mr);
 	}
-	mr->access_flags = access_flags;
 	return mr;
-}
-
-/* Return a MR already available in the cache */
-static struct mlx5_ib_mr *get_cache_mr(struct mlx5_cache_ent *req_ent)
-{
-	struct mlx5_ib_mr *mr = NULL;
-	struct mlx5_cache_ent *ent = req_ent;
-
-	spin_lock_irq(&ent->lock);
-	if (!list_empty(&ent->head)) {
-		mr = list_first_entry(&ent->head, struct mlx5_ib_mr, list);
-		list_del(&mr->list);
-		ent->available_mrs--;
-		queue_adjust_cache_locked(ent);
-		spin_unlock_irq(&ent->lock);
-		mlx5_clear_mr(mr);
-		return mr;
-	}
-	queue_adjust_cache_locked(ent);
-	spin_unlock_irq(&ent->lock);
-	req_ent->miss++;
-	return NULL;
 }
 
 static void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
@@ -951,16 +921,9 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 		return mr;
 	}
 
-	mr = get_cache_mr(ent);
-	if (!mr) {
-		mr = create_cache_mr(ent);
-		/*
-		 * The above already tried to do the same stuff as reg_create(),
-		 * no reason to try it again.
-		 */
-		if (IS_ERR(mr))
-			return mr;
-	}
+	mr = mlx5_mr_cache_alloc(dev, ent, access_flags);
+	if (IS_ERR(mr))
+		return mr;
 
 	mr->ibmr.pd = pd;
 	mr->umem = umem;
