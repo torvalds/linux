@@ -771,11 +771,11 @@ static int dm9051_loop_rx(struct board_info *db)
 
 			if (db->rxhdr.status & RSR_ERR_BITS) {
 				db->bc.status_err_counter++;
-				netdev_dbg(ndev, "check rxstatus-eror (%02x)\n",
+				netdev_dbg(ndev, "check rxstatus-error (%02x)\n",
 					   db->rxhdr.status);
 			} else {
 				db->bc.large_err_counter++;
-				netdev_dbg(ndev, "check rxlen large-eror (%d > %d)\n",
+				netdev_dbg(ndev, "check rxlen large-error (%d > %d)\n",
 					   rxlen, DM9051_PKT_MAX);
 			}
 			return dm9051_all_restart(db);
