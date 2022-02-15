@@ -1383,55 +1383,54 @@ enum page_references {
 	PAGEREF_ACTIVATE,
 };
 
-static enum page_references page_check_references(struct page *page,
+static enum page_references folio_check_references(struct folio *folio,
 						  struct scan_control *sc)
 {
-	struct folio *folio = page_folio(page);
-	int referenced_ptes, referenced_page;
+	int referenced_ptes, referenced_folio;
 	unsigned long vm_flags;
 
 	referenced_ptes = folio_referenced(folio, 1, sc->target_mem_cgroup,
 					   &vm_flags);
-	referenced_page = TestClearPageReferenced(page);
+	referenced_folio = folio_test_clear_referenced(folio);
 
 	/*
-	 * The supposedly reclaimable page was found to be in a VM_LOCKED vma.
-	 * Let the page, now marked Mlocked, be moved to the unevictable list.
+	 * The supposedly reclaimable folio was found to be in a VM_LOCKED vma.
+	 * Let the folio, now marked Mlocked, be moved to the unevictable list.
 	 */
 	if (vm_flags & VM_LOCKED)
 		return PAGEREF_ACTIVATE;
 
 	if (referenced_ptes) {
 		/*
-		 * All mapped pages start out with page table
+		 * All mapped folios start out with page table
 		 * references from the instantiating fault, so we need
-		 * to look twice if a mapped file page is used more
+		 * to look twice if a mapped file folio is used more
 		 * than once.
 		 *
 		 * Mark it and spare it for another trip around the
 		 * inactive list.  Another page table reference will
 		 * lead to its activation.
 		 *
-		 * Note: the mark is set for activated pages as well
-		 * so that recently deactivated but used pages are
+		 * Note: the mark is set for activated folios as well
+		 * so that recently deactivated but used folios are
 		 * quickly recovered.
 		 */
-		SetPageReferenced(page);
+		folio_set_referenced(folio);
 
-		if (referenced_page || referenced_ptes > 1)
+		if (referenced_folio || referenced_ptes > 1)
 			return PAGEREF_ACTIVATE;
 
 		/*
-		 * Activate file-backed executable pages after first usage.
+		 * Activate file-backed executable folios after first usage.
 		 */
-		if ((vm_flags & VM_EXEC) && !PageSwapBacked(page))
+		if ((vm_flags & VM_EXEC) && !folio_test_swapbacked(folio))
 			return PAGEREF_ACTIVATE;
 
 		return PAGEREF_KEEP;
 	}
 
-	/* Reclaim if clean, defer dirty pages to writeback */
-	if (referenced_page && !PageSwapBacked(page))
+	/* Reclaim if clean, defer dirty folios to writeback */
+	if (referenced_folio && !folio_test_swapbacked(folio))
 		return PAGEREF_RECLAIM_CLEAN;
 
 	return PAGEREF_RECLAIM;
@@ -1671,7 +1670,7 @@ retry:
 		}
 
 		if (!ignore_references)
-			references = page_check_references(page, sc);
+			references = folio_check_references(folio, sc);
 
 		switch (references) {
 		case PAGEREF_ACTIVATE:
