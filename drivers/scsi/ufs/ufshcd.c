@@ -83,8 +83,6 @@
 /* Polling time to wait for fDeviceInit */
 #define FDEVICEINIT_COMPL_TIMEOUT 1500 /* millisecs */
 
-#define wlun_dev_to_hba(dv) shost_priv(to_scsi_device(dv)->host)
-
 #define ufshcd_toggle_vreg(_dev, _vreg, _on)				\
 	({                                                              \
 		int _ret;                                               \
