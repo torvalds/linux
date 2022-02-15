@@ -2840,6 +2840,7 @@ void blk_mq_submit_bio(struct bio *bio)
 				blk_mq_try_issue_directly(rq->mq_hctx, rq));
 }
 
+#ifdef CONFIG_BLK_MQ_STACKING
 /**
  * blk_cloned_rq_check_limits - Helper function to check a cloned request
  *                              for the new queue limits
@@ -3017,6 +3018,7 @@ free_and_out:
 	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(blk_rq_prep_clone);
+#endif /* CONFIG_BLK_MQ_STACKING */
 
 /*
  * Steal bios from a request and add them to a bio list.

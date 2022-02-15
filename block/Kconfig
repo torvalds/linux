@@ -230,6 +230,9 @@ config BLK_PM
 config BLOCK_HOLDER_DEPRECATED
 	bool
 
+config BLK_MQ_STACKING
+	bool
+
 source "block/Kconfig.iosched"
 
 endif # BLOCK
