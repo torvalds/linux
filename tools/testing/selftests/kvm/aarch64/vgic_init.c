@@ -55,10 +55,8 @@ static void guest_code(void)
 static int run_vcpu(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	ucall_init(vm, NULL);
-	int ret = __vcpu_ioctl(vm, vcpuid, KVM_RUN, NULL);
-	if (ret)
-		return -errno;
-	return 0;
+
+	return __vcpu_run(vm, vcpuid) ? -errno : 0;
 }
 
 static struct vm_gic vm_gic_create_with_vcpus(uint32_t gic_dev_type, uint32_t nr_vcpus)

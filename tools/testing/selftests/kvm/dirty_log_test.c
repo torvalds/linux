@@ -509,15 +509,13 @@ static void generate_random_array(uint64_t *guest_array, uint64_t size)
 
 static void *vcpu_worker(void *data)
 {
-	int ret, vcpu_fd;
+	int ret;
 	struct kvm_vm *vm = data;
 	uint64_t *guest_array;
 	uint64_t pages_count = 0;
 	struct kvm_signal_mask *sigmask = alloca(offsetof(struct kvm_signal_mask, sigset)
 						 + sizeof(sigset_t));
 	sigset_t *sigset = (sigset_t *) &sigmask->sigset;
-
-	vcpu_fd = vcpu_get_fd(vm, VCPU_ID);
 
 	/*
 	 * SIG_IPI is unblocked atomically while in KVM_RUN.  It causes the
@@ -539,7 +537,7 @@ static void *vcpu_worker(void *data)
 		generate_random_array(guest_array, TEST_PAGES_PER_LOOP);
 		pages_count += TEST_PAGES_PER_LOOP;
 		/* Let the guest dirty the random pages */
-		ret = ioctl(vcpu_fd, KVM_RUN, NULL);
+		ret = __vcpu_run(vm, VCPU_ID);
 		if (ret == -1 && errno == EINTR) {
 			int sig = -1;
 			sigwait(sigset, &sig);
