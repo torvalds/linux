@@ -34,7 +34,7 @@ static int kvm_num_index_msrs(int kvm_fd, int nmsrs)
 
 static void test_get_msr_index(void)
 {
-	int old_res, res, kvm_fd, r;
+	int old_res, res, kvm_fd;
 	struct kvm_msr_list *list;
 
 	kvm_fd = open_kvm_dev_path_or_exit();
@@ -50,11 +50,8 @@ static void test_get_msr_index(void)
 
 	list = malloc(sizeof(*list) + old_res * sizeof(list->indices[0]));
 	list->nmsrs = old_res;
-	r = ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
+	kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
 
-	TEST_ASSERT(r == 0,
-		    "Unexpected result from KVM_GET_MSR_FEATURE_INDEX_LIST, r: %i",
-		    r);
 	TEST_ASSERT(list->nmsrs == old_res, "Expecting nmsrs to be identical");
 	free(list);
 
@@ -68,7 +65,7 @@ static int kvm_num_feature_msrs(int kvm_fd, int nmsrs)
 
 	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
 	list->nmsrs = nmsrs;
-	r = ioctl(kvm_fd, KVM_GET_MSR_FEATURE_INDEX_LIST, list);
+	r = __kvm_ioctl(kvm_fd, KVM_GET_MSR_FEATURE_INDEX_LIST, list);
 	TEST_ASSERT(r == -1 && errno == E2BIG,
 		"Unexpected result from KVM_GET_MSR_FEATURE_INDEX_LIST probe, r: %i",
 				r);
@@ -81,15 +78,10 @@ static int kvm_num_feature_msrs(int kvm_fd, int nmsrs)
 struct kvm_msr_list *kvm_get_msr_feature_list(int kvm_fd, int nmsrs)
 {
 	struct kvm_msr_list *list;
-	int r;
 
 	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
 	list->nmsrs = nmsrs;
-	r = ioctl(kvm_fd, KVM_GET_MSR_FEATURE_INDEX_LIST, list);
-
-	TEST_ASSERT(r == 0,
-		"Unexpected result from KVM_GET_MSR_FEATURE_INDEX_LIST, r: %i",
-		r);
+	kvm_ioctl(kvm_fd, KVM_GET_MSR_FEATURE_INDEX_LIST, list);
 
 	return list;
 }

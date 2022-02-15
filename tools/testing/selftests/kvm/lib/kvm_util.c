@@ -76,9 +76,8 @@ int kvm_check_cap(long cap)
 	int kvm_fd;
 
 	kvm_fd = open_kvm_dev_path_or_exit();
-	ret = ioctl(kvm_fd, KVM_CHECK_EXTENSION, cap);
-	TEST_ASSERT(ret >= 0, "KVM_CHECK_EXTENSION IOCTL failed,\n"
-		"  rc: %i errno: %i", ret, errno);
+	ret = __kvm_ioctl(kvm_fd, KVM_CHECK_EXTENSION, cap);
+	TEST_ASSERT(ret >= 0, KVM_IOCTL_ERROR(KVM_CHECK_EXTENSION, ret));
 
 	close(kvm_fd);
 
@@ -104,9 +103,8 @@ static void vm_open(struct kvm_vm *vm)
 		exit(KSFT_SKIP);
 	}
 
-	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, vm->type);
-	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
-		"rc: %i errno: %i", vm->fd, errno);
+	vm->fd = __kvm_ioctl(vm->kvm_fd, KVM_CREATE_VM, vm->type);
+	TEST_ASSERT(vm->fd >= 0, KVM_IOCTL_ERROR(KVM_CREATE_VM, vm->fd));
 }
 
 const char *vm_guest_mode_string(uint32_t i)
@@ -1070,8 +1068,7 @@ static int vcpu_mmap_sz(void)
 
 	ret = ioctl(dev_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
 	TEST_ASSERT(ret >= sizeof(struct kvm_run),
-		"%s KVM_GET_VCPU_MMAP_SIZE ioctl failed, rc: %i errno: %i",
-		__func__, ret, errno);
+		    KVM_IOCTL_ERROR(KVM_GET_VCPU_MMAP_SIZE, ret));
 
 	close(dev_fd);
 

@@ -59,10 +59,10 @@ void test(void)
 
 	kvm = open("/dev/kvm", O_RDWR);
 	TEST_ASSERT(kvm != -1, "failed to open /dev/kvm");
-	kvmvm = ioctl(kvm, KVM_CREATE_VM, 0);
-	TEST_ASSERT(kvmvm != -1, "KVM_CREATE_VM failed");
+	kvmvm = __kvm_ioctl(kvm, KVM_CREATE_VM, 0);
+	TEST_ASSERT(kvmvm > 0, KVM_IOCTL_ERROR(KVM_CREATE_VM, kvmvm));
 	kvmcpu = ioctl(kvmvm, KVM_CREATE_VCPU, 0);
-	TEST_ASSERT(kvmcpu != -1, "KVM_CREATE_VCPU failed");
+	TEST_ASSERT(kvmcpu != -1, KVM_IOCTL_ERROR(KVM_CREATE_VCPU, kvmcpu));
 	run = (struct kvm_run *)mmap(0, 4096, PROT_READ|PROT_WRITE, MAP_SHARED,
 				    kvmcpu, 0);
 	tc.kvmcpu = kvmcpu;

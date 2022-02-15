@@ -638,7 +638,7 @@ void vm_xsave_req_perm(int bit)
 	};
 
 	kvm_fd = open_kvm_dev_path_or_exit();
-	rc = ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
+	rc = __kvm_ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
 	close(kvm_fd);
 	if (rc == -1 && (errno == ENXIO || errno == EINVAL))
 		exit(KSFT_SKIP);
@@ -738,7 +738,6 @@ static struct kvm_cpuid2 *allocate_kvm_cpuid2(void)
 struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 {
 	static struct kvm_cpuid2 *cpuid;
-	int ret;
 	int kvm_fd;
 
 	if (cpuid)
@@ -747,9 +746,7 @@ struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 	cpuid = allocate_kvm_cpuid2();
 	kvm_fd = open_kvm_dev_path_or_exit();
 
-	ret = ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
-	TEST_ASSERT(ret == 0, "KVM_GET_SUPPORTED_CPUID failed %d %d\n",
-		    ret, errno);
+	kvm_ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
 
 	close(kvm_fd);
 	return cpuid;
@@ -779,9 +776,8 @@ uint64_t kvm_get_feature_msr(uint64_t msr_index)
 	buffer.entry.index = msr_index;
 	kvm_fd = open_kvm_dev_path_or_exit();
 
-	r = ioctl(kvm_fd, KVM_GET_MSRS, &buffer.header);
-	TEST_ASSERT(r == 1, "KVM_GET_MSRS IOCTL failed,\n"
-		"  rc: %i errno: %i", r, errno);
+	r = __kvm_ioctl(kvm_fd, KVM_GET_MSRS, &buffer.header);
+	TEST_ASSERT(r == 1, KVM_IOCTL_ERROR(KVM_GET_MSRS, r));
 
 	close(kvm_fd);
 	return buffer.entry.data;
@@ -946,9 +942,9 @@ static int kvm_get_num_msrs_fd(int kvm_fd)
 	int r;
 
 	nmsrs.nmsrs = 0;
-	r = ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, &nmsrs);
-	TEST_ASSERT(r == -1 && errno == E2BIG, "Unexpected result from KVM_GET_MSR_INDEX_LIST probe, r: %i",
-		r);
+	r = __kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, &nmsrs);
+	TEST_ASSERT(r == -1 && errno == E2BIG,
+		    "Unexpected result from KVM_GET_MSR_INDEX_LIST probe, r: %i", r);
 
 	return nmsrs.nmsrs;
 }
@@ -961,18 +957,15 @@ static int kvm_get_num_msrs(struct kvm_vm *vm)
 struct kvm_msr_list *kvm_get_msr_index_list(void)
 {
 	struct kvm_msr_list *list;
-	int nmsrs, r, kvm_fd;
+	int nmsrs, kvm_fd;
 
 	kvm_fd = open_kvm_dev_path_or_exit();
 
 	nmsrs = kvm_get_num_msrs_fd(kvm_fd);
 	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
 	list->nmsrs = nmsrs;
-	r = ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
+	kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
 	close(kvm_fd);
-
-	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MSR_INDEX_LIST, r: %i",
-		r);
 
 	return list;
 }
@@ -1019,9 +1012,7 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	nmsrs = kvm_get_num_msrs(vm);
 	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
 	list->nmsrs = nmsrs;
-	r = ioctl(vm->kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
-	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MSR_INDEX_LIST, r: %i",
-		    r);
+	kvm_ioctl(vm->kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
 
 	state = malloc(sizeof(*state) + nmsrs * sizeof(state->msrs.entries[0]));
 	r = ioctl(vcpu->fd, KVM_GET_VCPU_EVENTS, &state->events);
@@ -1329,7 +1320,6 @@ uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void)
 {
 	static struct kvm_cpuid2 *cpuid;
-	int ret;
 	int kvm_fd;
 
 	if (cpuid)
@@ -1338,9 +1328,7 @@ struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void)
 	cpuid = allocate_kvm_cpuid2();
 	kvm_fd = open_kvm_dev_path_or_exit();
 
-	ret = ioctl(kvm_fd, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
-	TEST_ASSERT(ret == 0, "KVM_GET_SUPPORTED_HV_CPUID failed %d %d\n",
-		    ret, errno);
+	kvm_ioctl(kvm_fd, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
 
 	close(kvm_fd);
 	return cpuid;

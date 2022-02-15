@@ -65,7 +65,7 @@ void guest_modes_append_default(void)
 		struct kvm_s390_vm_cpu_processor info;
 
 		kvm_fd = open_kvm_dev_path_or_exit();
-		vm_fd = ioctl(kvm_fd, KVM_CREATE_VM, 0);
+		vm_fd = __kvm_ioctl(kvm_fd, KVM_CREATE_VM, 0);
 		kvm_device_access(vm_fd, KVM_S390_VM_CPU_MODEL,
 				  KVM_S390_VM_CPU_PROCESSOR, &info, false);
 		close(vm_fd);
