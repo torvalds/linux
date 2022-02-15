@@ -49,7 +49,6 @@ union cpuid10_ebx {
 /* Oddly, this isn't in perf_event.h. */
 #define ARCH_PERFMON_BRANCHES_RETIRED		5
 
-#define VCPU_ID 0
 #define NUM_BRANCHES 42
 
 /*
@@ -173,17 +172,17 @@ static void amd_guest_code(void)
  * Run the VM to the next GUEST_SYNC(value), and return the value passed
  * to the sync. Any other exit from the guest is fatal.
  */
-static uint64_t run_vm_to_sync(struct kvm_vm *vm)
+static uint64_t run_vcpu_to_sync(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
-	vcpu_run(vm, VCPU_ID);
+	vcpu_run(vcpu->vm, vcpu->id);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
-	get_ucall(vm, VCPU_ID, &uc);
+	get_ucall(vcpu->vm, vcpu->id, &uc);
 	TEST_ASSERT(uc.cmd == UCALL_SYNC,
 		    "Received ucall other than UCALL_SYNC: %lu", uc.cmd);
 	return uc.args[1];
@@ -197,13 +196,13 @@ static uint64_t run_vm_to_sync(struct kvm_vm *vm)
  * a sanity check and then GUEST_SYNC(success). In the case of failure,
  * the behavior of the guest on resumption is undefined.
  */
-static bool sanity_check_pmu(struct kvm_vm *vm)
+static bool sanity_check_pmu(struct kvm_vcpu *vcpu)
 {
 	bool success;
 
-	vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
-	success = run_vm_to_sync(vm);
-	vm_install_exception_handler(vm, GP_VECTOR, NULL);
+	vm_install_exception_handler(vcpu->vm, GP_VECTOR, guest_gp_handler);
+	success = run_vcpu_to_sync(vcpu);
+	vm_install_exception_handler(vcpu->vm, GP_VECTOR, NULL);
 
 	return success;
 }
@@ -264,9 +263,9 @@ static struct kvm_pmu_event_filter *remove_event(struct kvm_pmu_event_filter *f,
 	return f;
 }
 
-static void test_without_filter(struct kvm_vm *vm)
+static void test_without_filter(struct kvm_vcpu *vcpu)
 {
-	uint64_t count = run_vm_to_sync(vm);
+	uint64_t count = run_vcpu_to_sync(vcpu);
 
 	if (count != NUM_BRANCHES)
 		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",
@@ -274,21 +273,21 @@ static void test_without_filter(struct kvm_vm *vm)
 	TEST_ASSERT(count, "Allowed PMU event is not counting");
 }
 
-static uint64_t test_with_filter(struct kvm_vm *vm,
+static uint64_t test_with_filter(struct kvm_vcpu *vcpu,
 				 struct kvm_pmu_event_filter *f)
 {
-	vm_ioctl(vm, KVM_SET_PMU_EVENT_FILTER, (void *)f);
-	return run_vm_to_sync(vm);
+	vm_ioctl(vcpu->vm, KVM_SET_PMU_EVENT_FILTER, (void *)f);
+	return run_vcpu_to_sync(vcpu);
 }
 
-static void test_amd_deny_list(struct kvm_vm *vm)
+static void test_amd_deny_list(struct kvm_vcpu *vcpu)
 {
 	uint64_t event = EVENT(0x1C2, 0);
 	struct kvm_pmu_event_filter *f;
 	uint64_t count;
 
 	f = create_pmu_event_filter(&event, 1, KVM_PMU_EVENT_DENY);
-	count = test_with_filter(vm, f);
+	count = test_with_filter(vcpu, f);
 
 	free(f);
 	if (count != NUM_BRANCHES)
@@ -297,10 +296,10 @@ static void test_amd_deny_list(struct kvm_vm *vm)
 	TEST_ASSERT(count, "Allowed PMU event is not counting");
 }
 
-static void test_member_deny_list(struct kvm_vm *vm)
+static void test_member_deny_list(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_event_filter *f = event_filter(KVM_PMU_EVENT_DENY);
-	uint64_t count = test_with_filter(vm, f);
+	uint64_t count = test_with_filter(vcpu, f);
 
 	free(f);
 	if (count)
@@ -309,10 +308,10 @@ static void test_member_deny_list(struct kvm_vm *vm)
 	TEST_ASSERT(!count, "Disallowed PMU Event is counting");
 }
 
-static void test_member_allow_list(struct kvm_vm *vm)
+static void test_member_allow_list(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_event_filter *f = event_filter(KVM_PMU_EVENT_ALLOW);
-	uint64_t count = test_with_filter(vm, f);
+	uint64_t count = test_with_filter(vcpu, f);
 
 	free(f);
 	if (count != NUM_BRANCHES)
@@ -321,14 +320,14 @@ static void test_member_allow_list(struct kvm_vm *vm)
 	TEST_ASSERT(count, "Allowed PMU event is not counting");
 }
 
-static void test_not_member_deny_list(struct kvm_vm *vm)
+static void test_not_member_deny_list(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_event_filter *f = event_filter(KVM_PMU_EVENT_DENY);
 	uint64_t count;
 
 	remove_event(f, INTEL_BR_RETIRED);
 	remove_event(f, AMD_ZEN_BR_RETIRED);
-	count = test_with_filter(vm, f);
+	count = test_with_filter(vcpu, f);
 	free(f);
 	if (count != NUM_BRANCHES)
 		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",
@@ -336,14 +335,14 @@ static void test_not_member_deny_list(struct kvm_vm *vm)
 	TEST_ASSERT(count, "Allowed PMU event is not counting");
 }
 
-static void test_not_member_allow_list(struct kvm_vm *vm)
+static void test_not_member_allow_list(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_event_filter *f = event_filter(KVM_PMU_EVENT_ALLOW);
 	uint64_t count;
 
 	remove_event(f, INTEL_BR_RETIRED);
 	remove_event(f, AMD_ZEN_BR_RETIRED);
-	count = test_with_filter(vm, f);
+	count = test_with_filter(vcpu, f);
 	free(f);
 	if (count)
 		pr_info("%s: Branch instructions retired = %lu (expected 0)\n",
@@ -358,6 +357,7 @@ static void test_not_member_allow_list(struct kvm_vm *vm)
  */
 static void test_pmu_config_disable(void (*guest_code)(void))
 {
+	struct kvm_vcpu *vcpu;
 	int r;
 	struct kvm_vm *vm;
 
@@ -369,11 +369,13 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 
 	vm_enable_cap(vm, KVM_CAP_PMU_CAPABILITY, KVM_PMU_CAP_DISABLE);
 
-	vm_vcpu_add_default(vm, VCPU_ID, guest_code);
+	vm_vcpu_add_default(vm, 0, guest_code);
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
 
-	TEST_ASSERT(!sanity_check_pmu(vm),
+	vcpu = vcpu_get(vm, 0);
+	vcpu_init_descriptor_tables(vm, vcpu->id);
+
+	TEST_ASSERT(!sanity_check_pmu(vcpu),
 		    "Guest should not be able to use disabled PMU.");
 
 	kvm_vm_free(vm);
@@ -444,6 +446,7 @@ static bool use_amd_pmu(void)
 int main(int argc, char *argv[])
 {
 	void (*guest_code)(void) = NULL;
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	int r;
 
@@ -466,24 +469,24 @@ int main(int argc, char *argv[])
 		exit(KSFT_SKIP);
 	}
 
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
+	vcpu_init_descriptor_tables(vm, vcpu->id);
 
-	if (!sanity_check_pmu(vm)) {
+	if (!sanity_check_pmu(vcpu)) {
 		print_skip("Guest PMU is not functional");
 		exit(KSFT_SKIP);
 	}
 
 	if (use_amd_pmu())
-		test_amd_deny_list(vm);
+		test_amd_deny_list(vcpu);
 
-	test_without_filter(vm);
-	test_member_deny_list(vm);
-	test_member_allow_list(vm);
-	test_not_member_deny_list(vm);
-	test_not_member_allow_list(vm);
+	test_without_filter(vcpu);
+	test_member_deny_list(vcpu);
+	test_member_allow_list(vcpu);
+	test_not_member_deny_list(vcpu);
+	test_not_member_allow_list(vcpu);
 
 	kvm_vm_free(vm);
 
