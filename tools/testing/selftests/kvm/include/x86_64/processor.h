@@ -430,12 +430,19 @@ void kvm_x86_state_cleanup(struct kvm_x86_state *state);
 struct kvm_msr_list *kvm_get_msr_index_list(void);
 uint64_t kvm_get_feature_msr(uint64_t msr_index);
 struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
-
 struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
-int __vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
-		     struct kvm_cpuid2 *cpuid);
-void vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
-		    struct kvm_cpuid2 *cpuid);
+
+static inline int __vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
+				   struct kvm_cpuid2 *cpuid)
+{
+	return __vcpu_ioctl(vm, vcpuid, KVM_SET_CPUID2, cpuid);
+}
+
+static inline void vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
+				  struct kvm_cpuid2 *cpuid)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_CPUID2, cpuid);
+}
 
 struct kvm_cpuid_entry2 *
 kvm_get_supported_cpuid_index(uint32_t function, uint32_t index);
@@ -449,8 +456,15 @@ kvm_get_supported_cpuid_entry(uint32_t function)
 uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
 int _vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 		  uint64_t msr_value);
-void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
-	  	  uint64_t msr_value);
+
+static inline void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid,
+				uint64_t msr_index, uint64_t msr_value)
+{
+	int r = _vcpu_set_msr(vm, vcpuid, msr_index, msr_value);
+
+	TEST_ASSERT(r == 1, KVM_IOCTL_ERROR(KVM_SET_MSRS, r));
+}
+
 
 uint32_t kvm_get_cpuid_max_basic(void);
 uint32_t kvm_get_cpuid_max_extended(void);

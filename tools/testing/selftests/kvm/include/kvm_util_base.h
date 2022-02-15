@@ -105,8 +105,6 @@ int open_kvm_dev_path_or_exit(void);
 int kvm_check_cap(long cap);
 int vm_check_cap(struct kvm_vm *vm, long cap);
 int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap);
-int vcpu_enable_cap(struct kvm_vm *vm, uint32_t vcpu_id,
-		    struct kvm_enable_cap *cap);
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size);
 const char *vm_guest_mode_string(uint32_t i);
 
@@ -212,13 +210,112 @@ void vcpu_run(struct kvm_vm *vm, uint32_t vcpuid);
 int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid);
 int vcpu_get_fd(struct kvm_vm *vm, uint32_t vcpuid);
 void vcpu_run_complete_io(struct kvm_vm *vm, uint32_t vcpuid);
-void vcpu_set_guest_debug(struct kvm_vm *vm, uint32_t vcpuid,
-			  struct kvm_guest_debug *debug);
-void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
-		       struct kvm_mp_state *mp_state);
 struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vm *vm, uint32_t vcpuid);
-void vcpu_regs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs);
-void vcpu_regs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs);
+
+static inline void vcpu_enable_cap(struct kvm_vm *vm, uint32_t vcpu_id,
+				   struct kvm_enable_cap *cap)
+{
+	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, cap);
+}
+
+static inline void vcpu_set_guest_debug(struct kvm_vm *vm, uint32_t vcpuid,
+					struct kvm_guest_debug *debug)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_GUEST_DEBUG, debug);
+}
+
+static inline void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
+				     struct kvm_mp_state *mp_state)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_MP_STATE, mp_state);
+}
+
+static inline void vcpu_regs_get(struct kvm_vm *vm, uint32_t vcpuid,
+				 struct kvm_regs *regs)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_REGS, regs);
+}
+
+static inline void vcpu_regs_set(struct kvm_vm *vm, uint32_t vcpuid,
+				 struct kvm_regs *regs)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_REGS, regs);
+}
+static inline void vcpu_sregs_get(struct kvm_vm *vm, uint32_t vcpuid,
+				  struct kvm_sregs *sregs)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_SREGS, sregs);
+
+}
+static inline void vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid,
+				  struct kvm_sregs *sregs)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_SREGS, sregs);
+}
+static inline int _vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid,
+				  struct kvm_sregs *sregs)
+{
+	return __vcpu_ioctl(vm, vcpuid, KVM_SET_SREGS, sregs);
+}
+static inline void vcpu_fpu_get(struct kvm_vm *vm, uint32_t vcpuid,
+				struct kvm_fpu *fpu)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_FPU, fpu);
+}
+static inline void vcpu_fpu_set(struct kvm_vm *vm, uint32_t vcpuid,
+				struct kvm_fpu *fpu)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_FPU, fpu);
+}
+static inline void vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid,
+				struct kvm_one_reg *reg)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, reg);
+}
+static inline void vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid,
+				struct kvm_one_reg *reg)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, reg);
+}
+#ifdef __KVM_HAVE_VCPU_EVENTS
+static inline void vcpu_events_get(struct kvm_vm *vm, uint32_t vcpuid,
+				   struct kvm_vcpu_events *events)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_VCPU_EVENTS, events);
+}
+static inline void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
+				   struct kvm_vcpu_events *events)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_VCPU_EVENTS, events);
+}
+#endif
+#ifdef __x86_64__
+static inline void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
+					 struct kvm_nested_state *state)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_NESTED_STATE, state);
+}
+static inline int __vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+					  struct kvm_nested_state *state)
+{
+	return __vcpu_ioctl(vm, vcpuid, KVM_SET_NESTED_STATE, state);
+}
+
+static inline void vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+					 struct kvm_nested_state *state)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_NESTED_STATE, state);
+}
+#endif
+static inline int vcpu_get_stats_fd(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	int fd = __vcpu_ioctl(vm, vcpuid, KVM_GET_STATS_FD, NULL);
+
+	TEST_ASSERT(fd >= 0, KVM_IOCTL_ERROR(KVM_GET_STATS_FD, fd));
+	return fd;
+}
+
+void *vcpu_map_dirty_ring(struct kvm_vm *vm, uint32_t vcpuid);
 
 /*
  * VM VCPU Args Set
@@ -239,34 +336,6 @@ void vcpu_regs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs);
  * uint64_t. The maximum @num can be is specific to the architecture.
  */
 void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...);
-
-void vcpu_sregs_get(struct kvm_vm *vm, uint32_t vcpuid,
-		    struct kvm_sregs *sregs);
-void vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid,
-		    struct kvm_sregs *sregs);
-int _vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid,
-		    struct kvm_sregs *sregs);
-void vcpu_fpu_get(struct kvm_vm *vm, uint32_t vcpuid,
-		  struct kvm_fpu *fpu);
-void vcpu_fpu_set(struct kvm_vm *vm, uint32_t vcpuid,
-		  struct kvm_fpu *fpu);
-void vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_one_reg *reg);
-void vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_one_reg *reg);
-#ifdef __KVM_HAVE_VCPU_EVENTS
-void vcpu_events_get(struct kvm_vm *vm, uint32_t vcpuid,
-		     struct kvm_vcpu_events *events);
-void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
-		     struct kvm_vcpu_events *events);
-#endif
-#ifdef __x86_64__
-void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
-			   struct kvm_nested_state *state);
-int __vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
-			    struct kvm_nested_state *state);
-void vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
-			   struct kvm_nested_state *state);
-#endif
-void *vcpu_map_dirty_ring(struct kvm_vm *vm, uint32_t vcpuid);
 
 int _kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr);
 int kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr);
@@ -406,7 +475,6 @@ kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
 void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid);
 
 int vm_get_stats_fd(struct kvm_vm *vm);
-int vcpu_get_stats_fd(struct kvm_vm *vm, uint32_t vcpuid);
 
 uint32_t guest_get_vcpuid(void);
 

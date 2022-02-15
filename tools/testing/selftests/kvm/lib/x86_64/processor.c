@@ -802,18 +802,15 @@ uint64_t kvm_get_feature_msr(uint64_t msr_index)
  */
 struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vm *vm, uint32_t vcpuid)
 {
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	struct kvm_cpuid2 *cpuid;
 	int max_ent;
 	int rc = -1;
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 
 	cpuid = allocate_kvm_cpuid2();
 	max_ent = cpuid->nent;
 
 	for (cpuid->nent = 1; cpuid->nent <= max_ent; cpuid->nent++) {
-		rc = ioctl(vcpu->fd, KVM_GET_CPUID2, cpuid);
+		rc = __vcpu_ioctl(vm, vcpuid, KVM_GET_CPUID2, cpuid);
 		if (!rc)
 			break;
 
@@ -822,9 +819,7 @@ struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vm *vm, uint32_t vcpuid)
 			    rc, errno);
 	}
 
-	TEST_ASSERT(rc == 0, "KVM_GET_CPUID2 failed, rc: %i errno: %i",
-		    rc, errno);
-
+	TEST_ASSERT(!rc, KVM_IOCTL_ERROR(KVM_GET_CPUID2, rc));
 	return cpuid;
 }
 
@@ -862,132 +857,37 @@ kvm_get_supported_cpuid_index(uint32_t function, uint32_t index)
 	return entry;
 }
 
-
-int __vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
-		     struct kvm_cpuid2 *cpuid)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	return ioctl(vcpu->fd, KVM_SET_CPUID2, cpuid);
-}
-
-/*
- * VM VCPU CPUID Set
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU id
- *   cpuid - The CPUID values to set.
- *
- * Output Args: None
- *
- * Return: void
- *
- * Set the VCPU's CPUID.
- */
-void vcpu_set_cpuid(struct kvm_vm *vm,
-		uint32_t vcpuid, struct kvm_cpuid2 *cpuid)
-{
-	int rc;
-
-	rc = __vcpu_set_cpuid(vm, vcpuid, cpuid);
-	TEST_ASSERT(rc == 0, "KVM_SET_CPUID2 failed, rc: %i errno: %i",
-		    rc, errno);
-
-}
-
-/*
- * VCPU Get MSR
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   msr_index - Index of MSR
- *
- * Output Args: None
- *
- * Return: On success, value of the MSR. On failure a TEST_ASSERT is produced.
- *
- * Get value of MSR for VCPU.
- */
 uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index)
 {
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	struct {
 		struct kvm_msrs header;
 		struct kvm_msr_entry entry;
 	} buffer = {};
 	int r;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 	buffer.header.nmsrs = 1;
 	buffer.entry.index = msr_index;
-	r = ioctl(vcpu->fd, KVM_GET_MSRS, &buffer.header);
-	TEST_ASSERT(r == 1, "KVM_GET_MSRS IOCTL failed,\n"
-		"  rc: %i errno: %i", r, errno);
+
+	r = __vcpu_ioctl(vm, vcpuid, KVM_GET_MSRS, &buffer.header);
+	TEST_ASSERT(r == 1, KVM_IOCTL_ERROR(KVM_GET_MSRS, r));
 
 	return buffer.entry.data;
 }
 
-/*
- * _VCPU Set MSR
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   msr_index - Index of MSR
- *   msr_value - New value of MSR
- *
- * Output Args: None
- *
- * Return: The result of KVM_SET_MSRS.
- *
- * Sets the value of an MSR for the given VCPU.
- */
 int _vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 		  uint64_t msr_value)
 {
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	struct {
 		struct kvm_msrs header;
 		struct kvm_msr_entry entry;
 	} buffer = {};
-	int r;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
 	memset(&buffer, 0, sizeof(buffer));
 	buffer.header.nmsrs = 1;
 	buffer.entry.index = msr_index;
 	buffer.entry.data = msr_value;
-	r = ioctl(vcpu->fd, KVM_SET_MSRS, &buffer.header);
-	return r;
-}
 
-/*
- * VCPU Set MSR
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   msr_index - Index of MSR
- *   msr_value - New value of MSR
- *
- * Output Args: None
- *
- * Return: On success, nothing. On failure a TEST_ASSERT is produced.
- *
- * Set value of MSR for VCPU.
- */
-void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
-	uint64_t msr_value)
-{
-	int r;
-
-	r = _vcpu_set_msr(vm, vcpuid, msr_index, msr_value);
-	TEST_ASSERT(r == 1, "KVM_SET_MSRS IOCTL failed,\n"
-		"  rc: %i errno: %i", r, errno);
+	return __vcpu_ioctl(vm, vcpuid, KVM_SET_MSRS, &buffer.header);
 }
 
 void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)

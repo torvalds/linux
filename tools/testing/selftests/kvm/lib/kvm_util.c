@@ -135,34 +135,6 @@ int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
 	return ret;
 }
 
-/* VCPU Enable Capability
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpu_id - VCPU
- *   cap - Capability
- *
- * Output Args: None
- *
- * Return: On success, 0. On failure a TEST_ASSERT failure is produced.
- *
- * Enables a capability (KVM_CAP_*) on the VCPU.
- */
-int vcpu_enable_cap(struct kvm_vm *vm, uint32_t vcpu_id,
-		    struct kvm_enable_cap *cap)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpu_id);
-	int r;
-
-	TEST_ASSERT(vcpu, "cannot find vcpu %d", vcpu_id);
-
-	r = ioctl(vcpu->fd, KVM_ENABLE_CAP, cap);
-	TEST_ASSERT(!r, "KVM_ENABLE_CAP vCPU ioctl failed,\n"
-			"  rc: %i, errno: %i", r, errno);
-
-	return r;
-}
-
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size)
 {
 	struct kvm_enable_cap cap = { 0 };
@@ -1619,8 +1591,8 @@ struct kvm_run *vcpu_state(struct kvm_vm *vm, uint32_t vcpuid)
 void vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	int ret = _vcpu_run(vm, vcpuid);
-	TEST_ASSERT(ret == 0, "KVM_RUN IOCTL failed, "
-		"rc: %i errno: %i", ret, errno);
+
+	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_RUN, ret));
 }
 
 int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
@@ -1663,43 +1635,6 @@ void vcpu_run_complete_io(struct kvm_vm *vm, uint32_t vcpuid)
 		    ret, errno);
 }
 
-void vcpu_set_guest_debug(struct kvm_vm *vm, uint32_t vcpuid,
-			  struct kvm_guest_debug *debug)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret = ioctl(vcpu->fd, KVM_SET_GUEST_DEBUG, debug);
-
-	TEST_ASSERT(ret == 0, "KVM_SET_GUEST_DEBUG failed: %d", ret);
-}
-
-/*
- * VM VCPU Set MP State
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   mp_state - mp_state to be set
- *
- * Output Args: None
- *
- * Return: None
- *
- * Sets the MP state of the VCPU given by vcpuid, to the state given
- * by mp_state.
- */
-void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
-		       struct kvm_mp_state *mp_state)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret;
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	ret = ioctl(vcpu->fd, KVM_SET_MP_STATE, mp_state);
-	TEST_ASSERT(ret == 0, "KVM_SET_MP_STATE IOCTL failed, "
-		"rc: %i errno: %i", ret, errno);
-}
-
 /*
  * VM VCPU Get Reg List
  *
@@ -1727,216 +1662,6 @@ struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vm *vm, uint32_t vcpuid)
 	reg_list->n = reg_list_n.n;
 	vcpu_ioctl(vm, vcpuid, KVM_GET_REG_LIST, reg_list);
 	return reg_list;
-}
-
-/*
- * VM VCPU Regs Get
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *
- * Output Args:
- *   regs - current state of VCPU regs
- *
- * Return: None
- *
- * Obtains the current register state for the VCPU specified by vcpuid
- * and stores it at the location given by regs.
- */
-void vcpu_regs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret;
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	ret = ioctl(vcpu->fd, KVM_GET_REGS, regs);
-	TEST_ASSERT(ret == 0, "KVM_GET_REGS failed, rc: %i errno: %i",
-		ret, errno);
-}
-
-/*
- * VM VCPU Regs Set
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   regs - Values to set VCPU regs to
- *
- * Output Args: None
- *
- * Return: None
- *
- * Sets the regs of the VCPU specified by vcpuid to the values
- * given by regs.
- */
-void vcpu_regs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret;
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	ret = ioctl(vcpu->fd, KVM_SET_REGS, regs);
-	TEST_ASSERT(ret == 0, "KVM_SET_REGS failed, rc: %i errno: %i",
-		ret, errno);
-}
-
-#ifdef __KVM_HAVE_VCPU_EVENTS
-void vcpu_events_get(struct kvm_vm *vm, uint32_t vcpuid,
-		     struct kvm_vcpu_events *events)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret;
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	ret = ioctl(vcpu->fd, KVM_GET_VCPU_EVENTS, events);
-	TEST_ASSERT(ret == 0, "KVM_GET_VCPU_EVENTS, failed, rc: %i errno: %i",
-		ret, errno);
-}
-
-void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
-		     struct kvm_vcpu_events *events)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret;
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	ret = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, events);
-	TEST_ASSERT(ret == 0, "KVM_SET_VCPU_EVENTS, failed, rc: %i errno: %i",
-		ret, errno);
-}
-#endif
-
-#ifdef __x86_64__
-void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
-			   struct kvm_nested_state *state)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret;
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	ret = ioctl(vcpu->fd, KVM_GET_NESTED_STATE, state);
-	TEST_ASSERT(ret == 0,
-		"KVM_SET_NESTED_STATE failed, ret: %i errno: %i",
-		ret, errno);
-}
-
-int __vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
-			    struct kvm_nested_state *state)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	return ioctl(vcpu->fd, KVM_SET_NESTED_STATE, state);
-}
-
-void vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
-			   struct kvm_nested_state *state)
-{
-	int ret = __vcpu_nested_state_set(vm, vcpuid, state);
-
-	TEST_ASSERT(!ret, "KVM_SET_NESTED_STATE failed, ret: %i errno: %i", ret, errno);
-}
-#endif
-
-/*
- * VM VCPU System Regs Get
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *
- * Output Args:
- *   sregs - current state of VCPU system regs
- *
- * Return: None
- *
- * Obtains the current system register state for the VCPU specified by
- * vcpuid and stores it at the location given by sregs.
- */
-void vcpu_sregs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	int ret;
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	ret = ioctl(vcpu->fd, KVM_GET_SREGS, sregs);
-	TEST_ASSERT(ret == 0, "KVM_GET_SREGS failed, rc: %i errno: %i",
-		ret, errno);
-}
-
-/*
- * VM VCPU System Regs Set
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   sregs - Values to set VCPU system regs to
- *
- * Output Args: None
- *
- * Return: None
- *
- * Sets the system regs of the VCPU specified by vcpuid to the values
- * given by sregs.
- */
-void vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
-{
-	int ret = _vcpu_sregs_set(vm, vcpuid, sregs);
-	TEST_ASSERT(ret == 0, "KVM_SET_SREGS IOCTL failed, "
-		"rc: %i errno: %i", ret, errno);
-}
-
-int _vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
-
-	return ioctl(vcpu->fd, KVM_SET_SREGS, sregs);
-}
-
-void vcpu_fpu_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_fpu *fpu)
-{
-	int ret;
-
-	ret = __vcpu_ioctl(vm, vcpuid, KVM_GET_FPU, fpu);
-	TEST_ASSERT(ret == 0, "KVM_GET_FPU failed, rc: %i errno: %i (%s)",
-		    ret, errno, strerror(errno));
-}
-
-void vcpu_fpu_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_fpu *fpu)
-{
-	int ret;
-
-	ret = __vcpu_ioctl(vm, vcpuid, KVM_SET_FPU, fpu);
-	TEST_ASSERT(ret == 0, "KVM_SET_FPU failed, rc: %i errno: %i (%s)",
-		    ret, errno, strerror(errno));
-}
-
-void vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_one_reg *reg)
-{
-	int ret;
-
-	ret = __vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, reg);
-	TEST_ASSERT(ret == 0, "KVM_GET_ONE_REG failed, rc: %i errno: %i (%s)",
-		    ret, errno, strerror(errno));
-}
-
-void vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_one_reg *reg)
-{
-	int ret;
-
-	ret = __vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, reg);
-	TEST_ASSERT(ret == 0, "KVM_SET_ONE_REG failed, rc: %i errno: %i (%s)",
-		    ret, errno, strerror(errno));
 }
 
 int __vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
@@ -2533,11 +2258,4 @@ unsigned int vm_calc_num_guest_pages(enum vm_guest_mode mode, size_t size)
 int vm_get_stats_fd(struct kvm_vm *vm)
 {
 	return ioctl(vm->fd, KVM_GET_STATS_FD, NULL);
-}
-
-int vcpu_get_stats_fd(struct kvm_vm *vm, uint32_t vcpuid)
-{
-	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-
-	return ioctl(vcpu->fd, KVM_GET_STATS_FD, NULL);
 }

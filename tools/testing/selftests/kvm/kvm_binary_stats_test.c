@@ -178,11 +178,7 @@ static void vm_stats_test(struct kvm_vm *vm)
 
 static void vcpu_stats_test(struct kvm_vm *vm, int vcpu_id)
 {
-	int stats_fd;
-
-	/* Get fd for VCPU stats */
-	stats_fd = vcpu_get_stats_fd(vm, vcpu_id);
-	TEST_ASSERT(stats_fd >= 0, "Get VCPU stats fd");
+	int stats_fd = vcpu_get_stats_fd(vm, vcpu_id);
 
 	stats_test(stats_fd);
 	close(stats_fd);
