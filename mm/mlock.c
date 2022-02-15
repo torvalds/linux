@@ -28,6 +28,8 @@
 
 #include "internal.h"
 
+static DEFINE_PER_CPU(struct pagevec, mlock_pvec);
+
 bool can_do_mlock(void)
 {
 	if (rlimit(RLIMIT_MEMLOCK) != 0)
@@ -49,57 +51,79 @@ EXPORT_SYMBOL(can_do_mlock);
  * PageUnevictable is set to indicate the unevictable state.
  */
 
-/**
- * mlock_page - mlock a page
- * @page: page to be mlocked, either a normal page or a THP head.
- */
-void mlock_page(struct page *page)
+static struct lruvec *__mlock_page(struct page *page, struct lruvec *lruvec)
 {
-	struct lruvec *lruvec;
-	int nr_pages = thp_nr_pages(page);
-
-	VM_BUG_ON_PAGE(PageTail(page), page);
-
-	if (!TestSetPageMlocked(page)) {
-		mod_zone_page_state(page_zone(page), NR_MLOCK, nr_pages);
-		__count_vm_events(UNEVICTABLE_PGMLOCKED, nr_pages);
-	}
-
 	/* There is nothing more we can do while it's off LRU */
 	if (!TestClearPageLRU(page))
-		return;
+		return lruvec;
 
-	lruvec = folio_lruvec_lock_irq(page_folio(page));
+	lruvec = folio_lruvec_relock_irq(page_folio(page), lruvec);
+
+	if (unlikely(page_evictable(page))) {
+		/*
+		 * This is a little surprising, but quite possible:
+		 * PageMlocked must have got cleared already by another CPU.
+		 * Could this page be on the Unevictable LRU?  I'm not sure,
+		 * but move it now if so.
+		 */
+		if (PageUnevictable(page)) {
+			del_page_from_lru_list(page, lruvec);
+			ClearPageUnevictable(page);
+			add_page_to_lru_list(page, lruvec);
+			__count_vm_events(UNEVICTABLE_PGRESCUED,
+					  thp_nr_pages(page));
+		}
+		goto out;
+	}
+
 	if (PageUnevictable(page)) {
-		page->mlock_count++;
+		if (PageMlocked(page))
+			page->mlock_count++;
 		goto out;
 	}
 
 	del_page_from_lru_list(page, lruvec);
 	ClearPageActive(page);
 	SetPageUnevictable(page);
-	page->mlock_count = 1;
+	page->mlock_count = !!PageMlocked(page);
 	add_page_to_lru_list(page, lruvec);
-	__count_vm_events(UNEVICTABLE_PGCULLED, nr_pages);
+	__count_vm_events(UNEVICTABLE_PGCULLED, thp_nr_pages(page));
 out:
 	SetPageLRU(page);
-	unlock_page_lruvec_irq(lruvec);
+	return lruvec;
 }
 
-/**
- * munlock_page - munlock a page
- * @page: page to be munlocked, either a normal page or a THP head.
- */
-void munlock_page(struct page *page)
+static struct lruvec *__mlock_new_page(struct page *page, struct lruvec *lruvec)
 {
-	struct lruvec *lruvec;
+	VM_BUG_ON_PAGE(PageLRU(page), page);
+
+	lruvec = folio_lruvec_relock_irq(page_folio(page), lruvec);
+
+	/* As above, this is a little surprising, but possible */
+	if (unlikely(page_evictable(page)))
+		goto out;
+
+	SetPageUnevictable(page);
+	page->mlock_count = !!PageMlocked(page);
+	__count_vm_events(UNEVICTABLE_PGCULLED, thp_nr_pages(page));
+out:
+	add_page_to_lru_list(page, lruvec);
+	SetPageLRU(page);
+	return lruvec;
+}
+
+static struct lruvec *__munlock_page(struct page *page, struct lruvec *lruvec)
+{
 	int nr_pages = thp_nr_pages(page);
+	bool isolated = false;
 
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	if (!TestClearPageLRU(page))
+		goto munlock;
 
-	lock_page_memcg(page);
-	lruvec = folio_lruvec_lock_irq(page_folio(page));
-	if (PageLRU(page) && PageUnevictable(page)) {
+	isolated = true;
+	lruvec = folio_lruvec_relock_irq(page_folio(page), lruvec);
+
+	if (PageUnevictable(page)) {
 		/* Then mlock_count is maintained, but might undercount */
 		if (page->mlock_count)
 			page->mlock_count--;
@@ -108,24 +132,151 @@ void munlock_page(struct page *page)
 	}
 	/* else assume that was the last mlock: reclaim will fix it if not */
 
+munlock:
 	if (TestClearPageMlocked(page)) {
 		__mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-		if (PageLRU(page) || !PageUnevictable(page))
+		if (isolated || !PageUnevictable(page))
 			__count_vm_events(UNEVICTABLE_PGMUNLOCKED, nr_pages);
 		else
 			__count_vm_events(UNEVICTABLE_PGSTRANDED, nr_pages);
 	}
 
 	/* page_evictable() has to be checked *after* clearing Mlocked */
-	if (PageLRU(page) && PageUnevictable(page) && page_evictable(page)) {
+	if (isolated && PageUnevictable(page) && page_evictable(page)) {
 		del_page_from_lru_list(page, lruvec);
 		ClearPageUnevictable(page);
 		add_page_to_lru_list(page, lruvec);
 		__count_vm_events(UNEVICTABLE_PGRESCUED, nr_pages);
 	}
 out:
-	unlock_page_lruvec_irq(lruvec);
-	unlock_page_memcg(page);
+	if (isolated)
+		SetPageLRU(page);
+	return lruvec;
+}
+
+/*
+ * Flags held in the low bits of a struct page pointer on the mlock_pvec.
+ */
+#define LRU_PAGE 0x1
+#define NEW_PAGE 0x2
+static inline struct page *mlock_lru(struct page *page)
+{
+	return (struct page *)((unsigned long)page + LRU_PAGE);
+}
+
+static inline struct page *mlock_new(struct page *page)
+{
+	return (struct page *)((unsigned long)page + NEW_PAGE);
+}
+
+/*
+ * mlock_pagevec() is derived from pagevec_lru_move_fn():
+ * perhaps that can make use of such page pointer flags in future,
+ * but for now just keep it for mlock.  We could use three separate
+ * pagevecs instead, but one feels better (munlocking a full pagevec
+ * does not need to drain mlocking pagevecs first).
+ */
+static void mlock_pagevec(struct pagevec *pvec)
+{
+	struct lruvec *lruvec = NULL;
+	unsigned long mlock;
+	struct page *page;
+	int i;
+
+	for (i = 0; i < pagevec_count(pvec); i++) {
+		page = pvec->pages[i];
+		mlock = (unsigned long)page & (LRU_PAGE | NEW_PAGE);
+		page = (struct page *)((unsigned long)page - mlock);
+		pvec->pages[i] = page;
+
+		if (mlock & LRU_PAGE)
+			lruvec = __mlock_page(page, lruvec);
+		else if (mlock & NEW_PAGE)
+			lruvec = __mlock_new_page(page, lruvec);
+		else
+			lruvec = __munlock_page(page, lruvec);
+	}
+
+	if (lruvec)
+		unlock_page_lruvec_irq(lruvec);
+	release_pages(pvec->pages, pvec->nr);
+	pagevec_reinit(pvec);
+}
+
+void mlock_page_drain(int cpu)
+{
+	struct pagevec *pvec;
+
+	pvec = &per_cpu(mlock_pvec, cpu);
+	if (pagevec_count(pvec))
+		mlock_pagevec(pvec);
+}
+
+bool need_mlock_page_drain(int cpu)
+{
+	return pagevec_count(&per_cpu(mlock_pvec, cpu));
+}
+
+/**
+ * mlock_page - mlock a page already on (or temporarily off) LRU
+ * @page: page to be mlocked, either a normal page or a THP head.
+ */
+void mlock_page(struct page *page)
+{
+	struct pagevec *pvec = &get_cpu_var(mlock_pvec);
+
+	if (!TestSetPageMlocked(page)) {
+		int nr_pages = thp_nr_pages(page);
+
+		mod_zone_page_state(page_zone(page), NR_MLOCK, nr_pages);
+		__count_vm_events(UNEVICTABLE_PGMLOCKED, nr_pages);
+	}
+
+	get_page(page);
+	if (!pagevec_add(pvec, mlock_lru(page)) ||
+	    PageHead(page) || lru_cache_disabled())
+		mlock_pagevec(pvec);
+	put_cpu_var(mlock_pvec);
+}
+
+/**
+ * mlock_new_page - mlock a newly allocated page not yet on LRU
+ * @page: page to be mlocked, either a normal page or a THP head.
+ */
+void mlock_new_page(struct page *page)
+{
+	struct pagevec *pvec = &get_cpu_var(mlock_pvec);
+	int nr_pages = thp_nr_pages(page);
+
+	SetPageMlocked(page);
+	mod_zone_page_state(page_zone(page), NR_MLOCK, nr_pages);
+	__count_vm_events(UNEVICTABLE_PGMLOCKED, nr_pages);
+
+	get_page(page);
+	if (!pagevec_add(pvec, mlock_new(page)) ||
+	    PageHead(page) || lru_cache_disabled())
+		mlock_pagevec(pvec);
+	put_cpu_var(mlock_pvec);
+}
+
+/**
+ * munlock_page - munlock a page
+ * @page: page to be munlocked, either a normal page or a THP head.
+ */
+void munlock_page(struct page *page)
+{
+	struct pagevec *pvec = &get_cpu_var(mlock_pvec);
+
+	/*
+	 * TestClearPageMlocked(page) must be left to __munlock_page(),
+	 * which will check whether the page is multiply mlocked.
+	 */
+
+	get_page(page);
+	if (!pagevec_add(pvec, page) ||
+	    PageHead(page) || lru_cache_disabled())
+		mlock_pagevec(pvec);
+	put_cpu_var(mlock_pvec);
 }
 
 static int mlock_pte_range(pmd_t *pmd, unsigned long addr,
