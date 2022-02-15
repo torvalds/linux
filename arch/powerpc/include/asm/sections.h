@@ -61,10 +61,10 @@ static inline int overlaps_kernel_text(unsigned long start, unsigned long end)
 #undef dereference_function_descriptor
 static inline void *dereference_function_descriptor(void *ptr)
 {
-	struct ppc64_opd_entry *desc = ptr;
+	struct func_desc *desc = ptr;
 	void *p;
 
-	if (!get_kernel_nofault(p, (void *)&desc->funcaddr))
+	if (!get_kernel_nofault(p, (void *)&desc->addr))
 		ptr = p;
 	return ptr;
 }
