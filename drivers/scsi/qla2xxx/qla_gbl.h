@@ -893,7 +893,7 @@ extern void qla82xx_chip_reset_cleanup(scsi_qla_host_t *);
 extern int qla81xx_set_led_config(scsi_qla_host_t *, uint16_t *);
 extern int qla81xx_get_led_config(scsi_qla_host_t *, uint16_t *);
 extern int qla82xx_mbx_beacon_ctl(scsi_qla_host_t *, int);
-extern char *qdev_state(uint32_t);
+extern const char *qdev_state(uint32_t);
 extern void qla82xx_clear_pending_mbx(scsi_qla_host_t *);
 extern int qla82xx_read_temperature(scsi_qla_host_t *);
 extern int qla8044_read_temperature(scsi_qla_host_t *);

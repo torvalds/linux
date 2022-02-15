@@ -6796,29 +6796,6 @@ __qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
 	return rval;
 }
 
-static const char *
-qla83xx_dev_state_to_string(uint32_t dev_state)
-{
-	switch (dev_state) {
-	case QLA8XXX_DEV_COLD:
-		return "COLD/RE-INIT";
-	case QLA8XXX_DEV_INITIALIZING:
-		return "INITIALIZING";
-	case QLA8XXX_DEV_READY:
-		return "READY";
-	case QLA8XXX_DEV_NEED_RESET:
-		return "NEED RESET";
-	case QLA8XXX_DEV_NEED_QUIESCENT:
-		return "NEED QUIESCENT";
-	case QLA8XXX_DEV_FAILED:
-		return "FAILED";
-	case QLA8XXX_DEV_QUIESCENT:
-		return "QUIESCENT";
-	default:
-		return "Unknown";
-	}
-}
-
 /* Assumes idc-lock always held on entry */
 void
 qla83xx_idc_audit(scsi_qla_host_t *vha, int audit_type)
@@ -6872,9 +6849,8 @@ qla83xx_initiating_reset(scsi_qla_host_t *vha)
 		ql_log(ql_log_info, vha, 0xb056, "HW State: NEED RESET.\n");
 		qla83xx_idc_audit(vha, IDC_AUDIT_TIMESTAMP);
 	} else {
-		const char *state = qla83xx_dev_state_to_string(dev_state);
-
-		ql_log(ql_log_info, vha, 0xb057, "HW State: %s.\n", state);
+		ql_log(ql_log_info, vha, 0xb057, "HW State: %s.\n",
+				qdev_state(dev_state));
 
 		/* SV: XXX: Is timeout required here? */
 		/* Wait for IDC state change READY -> NEED_RESET */
