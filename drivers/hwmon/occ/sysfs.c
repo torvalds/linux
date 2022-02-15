@@ -66,6 +66,9 @@ static ssize_t occ_sysfs_show(struct device *dev,
 	case 8:
 		val = header->ips_status;
 		break;
+	case 9:
+		val = header->mode;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -92,6 +95,7 @@ static SENSOR_DEVICE_ATTR(occ_quick_pwr_drop, 0444, occ_sysfs_show, NULL, 5);
 static SENSOR_DEVICE_ATTR(occ_state, 0444, occ_sysfs_show, NULL, 6);
 static SENSOR_DEVICE_ATTR(occs_present, 0444, occ_sysfs_show, NULL, 7);
 static SENSOR_DEVICE_ATTR(occ_ips_status, 0444, occ_sysfs_show, NULL, 8);
+static SENSOR_DEVICE_ATTR(occ_mode, 0444, occ_sysfs_show, NULL, 9);
 static DEVICE_ATTR_RO(occ_error);
 
 static struct attribute *occ_attributes[] = {
@@ -104,6 +108,7 @@ static struct attribute *occ_attributes[] = {
 	&sensor_dev_attr_occ_state.dev_attr.attr,
 	&sensor_dev_attr_occs_present.dev_attr.attr,
 	&sensor_dev_attr_occ_ips_status.dev_attr.attr,
+	&sensor_dev_attr_occ_mode.dev_attr.attr,
 	&dev_attr_occ_error.attr,
 	NULL
 };
@@ -172,6 +177,11 @@ void occ_sysfs_poll_done(struct occ *occ)
 		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
 	}
 
+	if (header->mode != occ->prev_mode) {
+		name = sensor_dev_attr_occ_mode.dev_attr.attr.name;
+		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+	}
+
 	if (occ->error && occ->error != occ->prev_error) {
 		name = dev_attr_occ_error.attr.name;
 		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
@@ -185,6 +195,7 @@ done:
 	occ->prev_ext_stat = header->ext_status;
 	occ->prev_occs_present = header->occs_present;
 	occ->prev_ips_status = header->ips_status;
+	occ->prev_mode = header->mode;
 }
 
 int occ_setup_sysfs(struct occ *occ)
