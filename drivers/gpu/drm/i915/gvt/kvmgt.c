@@ -46,6 +46,8 @@
 
 #include <linux/nospec.h>
 
+#include <drm/drm_edid.h>
+
 #include "i915_drv.h"
 #include "gvt.h"
 
