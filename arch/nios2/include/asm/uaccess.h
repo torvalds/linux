@@ -167,34 +167,44 @@ do {									\
 	: "r" (val), "r" (ptr), "i" (-EFAULT));				\
 }
 
-#define put_user(x, ptr)						\
+#define __put_user_common(__pu_val, __pu_ptr)				\
 ({									\
 	long __pu_err = -EFAULT;					\
-	__typeof__(*(ptr)) __user *__pu_ptr = (ptr);			\
-	__typeof__(*(ptr)) __pu_val = (__typeof(*ptr))(x);		\
-	if (access_ok(__pu_ptr, sizeof(*__pu_ptr))) {	\
-		switch (sizeof(*__pu_ptr)) {				\
-		case 1:							\
-			__put_user_asm(__pu_val, "stb", __pu_ptr, __pu_err); \
-			break;						\
-		case 2:							\
-			__put_user_asm(__pu_val, "sth", __pu_ptr, __pu_err); \
-			break;						\
-		case 4:							\
-			__put_user_asm(__pu_val, "stw", __pu_ptr, __pu_err); \
-			break;						\
-		default:						\
-			/* XXX: This looks wrong... */			\
-			__pu_err = 0;					\
-			if (copy_to_user(__pu_ptr, &(__pu_val),		\
-				sizeof(*__pu_ptr)))			\
-				__pu_err = -EFAULT;			\
-			break;						\
-		}							\
+	switch (sizeof(*__pu_ptr)) {					\
+	case 1:								\
+		__put_user_asm(__pu_val, "stb", __pu_ptr, __pu_err);	\
+		break;							\
+	case 2:								\
+		__put_user_asm(__pu_val, "sth", __pu_ptr, __pu_err);	\
+		break;							\
+	case 4:								\
+		__put_user_asm(__pu_val, "stw", __pu_ptr, __pu_err);	\
+		break;							\
+	default:							\
+		/* XXX: This looks wrong... */				\
+		__pu_err = 0;						\
+		if (__copy_to_user(__pu_ptr, &(__pu_val),		\
+			sizeof(*__pu_ptr)))				\
+			__pu_err = -EFAULT;				\
+		break;							\
 	}								\
 	__pu_err;							\
 })
 
-#define __put_user(x, ptr) put_user(x, ptr)
+#define __put_user(x, ptr)						\
+({									\
+	__auto_type __pu_ptr = (ptr);					\
+	typeof(*__pu_ptr) __pu_val = (typeof(*__pu_ptr))(x);		\
+	__put_user_common(__pu_val, __pu_ptr);				\
+})
+
+#define put_user(x, ptr)						\
+({									\
+	__auto_type __pu_ptr = (ptr);					\
+	typeof(*__pu_ptr) __pu_val = (typeof(*__pu_ptr))(x);		\
+	access_ok(__pu_ptr, sizeof(*__pu_ptr)) ?			\
+		__put_user_common(__pu_val, __pu_ptr) :			\
+		-EFAULT;						\
+})
 
 #endif /* _ASM_NIOS2_UACCESS_H */
