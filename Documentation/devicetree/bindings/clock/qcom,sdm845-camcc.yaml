@@ -56,6 +56,8 @@ examples:
     clock-controller@ad00000 {
       compatible = "qcom,sdm845-camcc";
       reg = <0x0ad00000 0x10000>;
+      clocks = <&rpmhcc RPMH_CXO_CLK>;
+      clock-names = "bi_tcxo";
       #clock-cells = <1>;
       #reset-cells = <1>;
       #power-domain-cells = <1>;
