@@ -194,7 +194,7 @@ int folio_referenced(struct folio *, int is_locked,
 			struct mem_cgroup *memcg, unsigned long *vm_flags);
 
 void try_to_migrate(struct page *page, enum ttu_flags flags);
-void try_to_unmap(struct page *, enum ttu_flags flags);
+void try_to_unmap(struct folio *, enum ttu_flags flags);
 
 int make_device_exclusive_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, struct page **pages,
@@ -309,7 +309,7 @@ static inline int folio_referenced(struct folio *folio, int is_locked,
 	return 0;
 }
 
-static inline void try_to_unmap(struct page *page, enum ttu_flags flags)
+static inline void try_to_unmap(struct folio *folio, enum ttu_flags flags)
 {
 }
 

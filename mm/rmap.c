@@ -1412,7 +1412,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 {
 	struct folio *folio = page_folio(page);
 	struct mm_struct *mm = vma->vm_mm;
-	DEFINE_PAGE_VMA_WALK(pvmw, page, vma, address, 0);
+	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	pte_t pteval;
 	struct page *subpage;
 	bool ret = true;
@@ -1436,13 +1436,13 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	 * For hugetlb, it could be much worse if we need to do pud
 	 * invalidation in the case of pmd sharing.
 	 *
-	 * Note that the page can not be free in this function as call of
-	 * try_to_unmap() must hold a reference on the page.
+	 * Note that the folio can not be freed in this function as call of
+	 * try_to_unmap() must hold a reference on the folio.
 	 */
 	range.end = vma_address_end(&pvmw);
 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, vma->vm_mm,
 				address, range.end);
-	if (PageHuge(page)) {
+	if (folio_test_hugetlb(folio)) {
 		/*
 		 * If sharing is possible, start and end will be adjusted
 		 * accordingly.
@@ -1454,24 +1454,25 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		/* Unexpected PMD-mapped THP? */
-		VM_BUG_ON_PAGE(!pvmw.pte, page);
+		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
 
 		/*
-		 * If the page is in an mlock()d vma, we must not swap it out.
+		 * If the folio is in an mlock()d vma, we must not swap it out.
 		 */
 		if (!(flags & TTU_IGNORE_MLOCK) &&
 		    (vma->vm_flags & VM_LOCKED)) {
 			/* Restore the mlock which got missed */
-			mlock_vma_page(page, vma, false);
+			mlock_vma_folio(folio, vma, false);
 			page_vma_mapped_walk_done(&pvmw);
 			ret = false;
 			break;
 		}
 
-		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+		subpage = folio_page(folio,
+					pte_pfn(*pvmw.pte) - folio_pfn(folio));
 		address = pvmw.address;
 
-		if (PageHuge(page) && !PageAnon(page)) {
+		if (folio_test_hugetlb(folio) && !folio_test_anon(folio)) {
 			/*
 			 * To call huge_pmd_unshare, i_mmap_rwsem must be
 			 * held in write mode.  Caller needs to explicitly
@@ -1510,7 +1511,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		if (should_defer_flush(mm, flags)) {
 			/*
 			 * We clear the PTE but do not flush so potentially
-			 * a remote CPU could still be writing to the page.
+			 * a remote CPU could still be writing to the folio.
 			 * If the entry was previously clean then the
 			 * architecture must guarantee that a clear->dirty
 			 * transition on a cached TLB entry is written through
@@ -1523,22 +1524,22 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			pteval = ptep_clear_flush(vma, address, pvmw.pte);
 		}
 
-		/* Move the dirty bit to the page. Now the pte is gone. */
+		/* Set the dirty flag on the folio now the pte is gone. */
 		if (pte_dirty(pteval))
-			set_page_dirty(page);
+			folio_mark_dirty(folio);
 
 		/* Update high watermark before we lower rss */
 		update_hiwater_rss(mm);
 
-		if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
+		if (PageHWPoison(subpage) && !(flags & TTU_IGNORE_HWPOISON)) {
 			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
-			if (PageHuge(page)) {
-				hugetlb_count_sub(compound_nr(page), mm);
+			if (folio_test_hugetlb(folio)) {
+				hugetlb_count_sub(folio_nr_pages(folio), mm);
 				set_huge_swap_pte_at(mm, address,
 						     pvmw.pte, pteval,
 						     vma_mmu_pagesize(vma));
 			} else {
-				dec_mm_counter(mm, mm_counter(page));
+				dec_mm_counter(mm, mm_counter(&folio->page));
 				set_pte_at(mm, address, pvmw.pte, pteval);
 			}
 
@@ -1553,18 +1554,19 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			 * migration) will not expect userfaults on already
 			 * copied pages.
 			 */
-			dec_mm_counter(mm, mm_counter(page));
+			dec_mm_counter(mm, mm_counter(&folio->page));
 			/* We have to invalidate as we cleared the pte */
 			mmu_notifier_invalidate_range(mm, address,
 						      address + PAGE_SIZE);
-		} else if (PageAnon(page)) {
+		} else if (folio_test_anon(folio)) {
 			swp_entry_t entry = { .val = page_private(subpage) };
 			pte_t swp_pte;
 			/*
 			 * Store the swap location in the pte.
 			 * See handle_pte_fault() ...
 			 */
-			if (unlikely(PageSwapBacked(page) != PageSwapCache(page))) {
+			if (unlikely(folio_test_swapbacked(folio) !=
+					folio_test_swapcache(folio))) {
 				WARN_ON_ONCE(1);
 				ret = false;
 				/* We have to invalidate as we cleared the pte */
@@ -1575,8 +1577,8 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			}
 
 			/* MADV_FREE page check */
-			if (!PageSwapBacked(page)) {
-				if (!PageDirty(page)) {
+			if (!folio_test_swapbacked(folio)) {
+				if (!folio_test_dirty(folio)) {
 					/* Invalidate as we cleared the pte */
 					mmu_notifier_invalidate_range(mm,
 						address, address + PAGE_SIZE);
@@ -1585,11 +1587,11 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 				}
 
 				/*
-				 * If the page was redirtied, it cannot be
+				 * If the folio was redirtied, it cannot be
 				 * discarded. Remap the page to page table.
 				 */
 				set_pte_at(mm, address, pvmw.pte, pteval);
-				SetPageSwapBacked(page);
+				folio_set_swapbacked(folio);
 				ret = false;
 				page_vma_mapped_walk_done(&pvmw);
 				break;
@@ -1626,16 +1628,17 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 						      address + PAGE_SIZE);
 		} else {
 			/*
-			 * This is a locked file-backed page, thus it cannot
-			 * be removed from the page cache and replaced by a new
-			 * page before mmu_notifier_invalidate_range_end, so no
-			 * concurrent thread might update its page table to
-			 * point at new page while a device still is using this
-			 * page.
+			 * This is a locked file-backed folio,
+			 * so it cannot be removed from the page
+			 * cache and replaced by a new folio before
+			 * mmu_notifier_invalidate_range_end, so no
+			 * concurrent thread might update its page table
+			 * to point at a new folio while a device is
+			 * still using this folio.
 			 *
 			 * See Documentation/vm/mmu_notifier.rst
 			 */
-			dec_mm_counter(mm, mm_counter_file(page));
+			dec_mm_counter(mm, mm_counter_file(&folio->page));
 		}
 discard:
 		/*
@@ -1645,10 +1648,10 @@ discard:
 		 *
 		 * See Documentation/vm/mmu_notifier.rst
 		 */
-		page_remove_rmap(subpage, vma, PageHuge(page));
+		page_remove_rmap(subpage, vma, folio_test_hugetlb(folio));
 		if (vma->vm_flags & VM_LOCKED)
 			mlock_page_drain(smp_processor_id());
-		put_page(page);
+		folio_put(folio);
 	}
 
 	mmu_notifier_invalidate_range_end(&range);
@@ -1667,17 +1670,17 @@ static int page_not_mapped(struct page *page)
 }
 
 /**
- * try_to_unmap - try to remove all page table mappings to a page
- * @page: the page to get unmapped
+ * try_to_unmap - Try to remove all page table mappings to a folio.
+ * @folio: The folio to unmap.
  * @flags: action and flags
  *
  * Tries to remove all the page table entries which are mapping this
- * page, used in the pageout path.  Caller must hold the page lock.
+ * folio.  It is the caller's responsibility to check if the folio is
+ * still mapped if needed (use TTU_SYNC to prevent accounting races).
  *
- * It is the caller's responsibility to check if the page is still
- * mapped when needed (use TTU_SYNC to prevent accounting races).
+ * Context: Caller must hold the folio lock.
  */
-void try_to_unmap(struct page *page, enum ttu_flags flags)
+void try_to_unmap(struct folio *folio, enum ttu_flags flags)
 {
 	struct rmap_walk_control rwc = {
 		.rmap_one = try_to_unmap_one,
@@ -1687,9 +1690,9 @@ void try_to_unmap(struct page *page, enum ttu_flags flags)
 	};
 
 	if (flags & TTU_RMAP_LOCKED)
-		rmap_walk_locked(page, &rwc);
+		rmap_walk_locked(&folio->page, &rwc);
 	else
-		rmap_walk(page, &rwc);
+		rmap_walk(&folio->page, &rwc);
 }
 
 /*

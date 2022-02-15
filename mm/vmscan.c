@@ -1768,7 +1768,7 @@ retry:
 			if (unlikely(PageTransHuge(page)))
 				flags |= TTU_SPLIT_HUGE_PMD;
 
-			try_to_unmap(page, flags);
+			try_to_unmap(folio, flags);
 			if (page_mapped(page)) {
 				stat->nr_unmap_fail += nr_pages;
 				if (!was_swapbacked && PageSwapBacked(page))

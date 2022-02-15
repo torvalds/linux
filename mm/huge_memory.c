@@ -2251,6 +2251,7 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
 
 static void unmap_page(struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	enum ttu_flags ttu_flags = TTU_RMAP_LOCKED | TTU_SPLIT_HUGE_PMD |
 		TTU_SYNC;
 
@@ -2264,7 +2265,7 @@ static void unmap_page(struct page *page)
 	if (PageAnon(page))
 		try_to_migrate(page, ttu_flags);
 	else
-		try_to_unmap(page, ttu_flags | TTU_IGNORE_MLOCK);
+		try_to_unmap(folio, ttu_flags | TTU_IGNORE_MLOCK);
 
 	VM_WARN_ON_ONCE_PAGE(page_mapped(page), page);
 }

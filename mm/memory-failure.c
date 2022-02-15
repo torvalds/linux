@@ -1347,6 +1347,7 @@ static int get_hwpoison_page(struct page *p, unsigned long flags)
 static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 				  int flags, struct page *hpage)
 {
+	struct folio *folio = page_folio(hpage);
 	enum ttu_flags ttu = TTU_IGNORE_MLOCK | TTU_SYNC;
 	struct address_space *mapping;
 	LIST_HEAD(tokill);
@@ -1412,7 +1413,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
 
 	if (!PageHuge(hpage)) {
-		try_to_unmap(hpage, ttu);
+		try_to_unmap(folio, ttu);
 	} else {
 		if (!PageAnon(hpage)) {
 			/*
@@ -1424,12 +1425,12 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 			 */
 			mapping = hugetlb_page_mapping_lock_write(hpage);
 			if (mapping) {
-				try_to_unmap(hpage, ttu|TTU_RMAP_LOCKED);
+				try_to_unmap(folio, ttu|TTU_RMAP_LOCKED);
 				i_mmap_unlock_write(mapping);
 			} else
 				pr_info("Memory failure: %#lx: could not lock mapping for mapped huge page\n", pfn);
 		} else {
-			try_to_unmap(hpage, ttu);
+			try_to_unmap(folio, ttu);
 		}
 	}
 

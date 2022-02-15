@@ -1690,10 +1690,13 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 				      DEFAULT_RATELIMIT_BURST);
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+		struct folio *folio;
+
 		if (!pfn_valid(pfn))
 			continue;
 		page = pfn_to_page(pfn);
-		head = compound_head(page);
+		folio = page_folio(page);
+		head = &folio->page;
 
 		if (PageHuge(page)) {
 			pfn = page_to_pfn(head) + compound_nr(head) - 1;
@@ -1710,10 +1713,10 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		 * the unmap as the catch all safety net).
 		 */
 		if (PageHWPoison(page)) {
-			if (WARN_ON(PageLRU(page)))
-				isolate_lru_page(page);
-			if (page_mapped(page))
-				try_to_unmap(page, TTU_IGNORE_MLOCK);
+			if (WARN_ON(folio_test_lru(folio)))
+				folio_isolate_lru(folio);
+			if (folio_mapped(folio))
+				try_to_unmap(folio, TTU_IGNORE_MLOCK);
 			continue;
 		}
 
