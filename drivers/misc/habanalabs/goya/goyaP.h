@@ -153,9 +153,15 @@
 #define HW_CAP_GOLDEN		0x00000400
 #define HW_CAP_TPC		0x00000800
 
+struct goya_work_freq {
+	struct hl_device *hdev;
+	struct delayed_work work_freq;
+};
+
 struct goya_device {
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;
+	struct goya_work_freq	*goya_work;
 
 	u64		mme_clk;
 	u64		tpc_clk;
@@ -166,6 +172,9 @@ struct goya_device {
 	u32		events_stat_aggregate[GOYA_ASYNC_EVENT_ID_SIZE];
 	u32		hw_cap_initialized;
 	u8		device_cpu_mmu_mappings_done;
+
+	enum hl_pll_frequency		curr_pll_profile;
+	enum hl_pm_mng_profile		pm_mng_profile;
 };
 
 int goya_set_fixed_properties(struct hl_device *hdev);
@@ -211,8 +220,8 @@ void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
 void goya_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);
 int goya_cpucp_info_get(struct hl_device *hdev);
-int goya_debug_coresight(struct hl_device *hdev, void *data);
-void goya_halt_coresight(struct hl_device *hdev);
+int goya_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
+void goya_halt_coresight(struct hl_device *hdev, struct hl_ctx *ctx);
 
 int goya_suspend(struct hl_device *hdev);
 int goya_resume(struct hl_device *hdev);
@@ -237,5 +246,6 @@ void goya_mmu_remove_device_cpu_mappings(struct hl_device *hdev);
 
 u32 goya_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx);
 u64 goya_get_device_time(struct hl_device *hdev);
+int goya_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);
 
 #endif /* GOYAP_H_ */

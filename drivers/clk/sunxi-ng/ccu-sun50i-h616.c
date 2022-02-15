@@ -7,7 +7,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include "ccu_common.h"
@@ -1082,17 +1082,15 @@ static const u32 usb2_clk_regs[] = {
 	SUN50I_H616_USB3_CLK_REG,
 };
 
-static void __init sun50i_h616_ccu_setup(struct device_node *node)
+static int sun50i_h616_ccu_probe(struct platform_device *pdev)
 {
 	void __iomem *reg;
 	u32 val;
 	int i;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map clock registers\n", node);
-		return;
-	}
+	reg = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	/* Enable the lock bits and the output enable bits on all PLLs */
 	for (i = 0; i < ARRAY_SIZE(pll_regs); i++) {
@@ -1141,8 +1139,23 @@ static void __init sun50i_h616_ccu_setup(struct device_node *node)
 	val |= BIT(24);
 	writel(val, reg + SUN50I_H616_HDMI_CEC_CLK_REG);
 
-	of_sunxi_ccu_probe(node, reg, &sun50i_h616_ccu_desc);
+	return devm_sunxi_ccu_probe(&pdev->dev, reg, &sun50i_h616_ccu_desc);
 }
 
-CLK_OF_DECLARE(sun50i_h616_ccu, "allwinner,sun50i-h616-ccu",
-	       sun50i_h616_ccu_setup);
+static const struct of_device_id sun50i_h616_ccu_ids[] = {
+	{ .compatible = "allwinner,sun50i-h616-ccu" },
+	{ }
+};
+
+static struct platform_driver sun50i_h616_ccu_driver = {
+	.probe	= sun50i_h616_ccu_probe,
+	.driver	= {
+		.name			= "sun50i-h616-ccu",
+		.suppress_bind_attrs	= true,
+		.of_match_table		= sun50i_h616_ccu_ids,
+	},
+};
+module_platform_driver(sun50i_h616_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

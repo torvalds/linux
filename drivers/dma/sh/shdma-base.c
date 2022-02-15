@@ -787,14 +787,6 @@ static int shdma_config(struct dma_chan *chan,
 		return -EINVAL;
 
 	/*
-	 * overriding the slave_id through dma_slave_config is deprecated,
-	 * but possibly some out-of-tree drivers still do it.
-	 */
-	if (WARN_ON_ONCE(config->slave_id &&
-			 config->slave_id != schan->real_slave_id))
-		schan->real_slave_id = config->slave_id;
-
-	/*
 	 * We could lock this, but you shouldn't be configuring the
 	 * channel, while using it...
 	 */

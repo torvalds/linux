@@ -341,7 +341,7 @@ struct wcd9335_codec {
 	int reset_gpio;
 	struct regulator_bulk_data supplies[WCD9335_MAX_SUPPLY];
 
-	unsigned int rx_port_value;
+	unsigned int rx_port_value[WCD9335_RX_MAX];
 	unsigned int tx_port_value;
 	int hph_l_gain;
 	int hph_r_gain;
@@ -1269,10 +1269,11 @@ static const struct snd_kcontrol_new sb_tx8_mux =
 static int slim_rx_mux_get(struct snd_kcontrol *kc,
 			   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kc);
-	struct wcd9335_codec *wcd = dev_get_drvdata(dapm->dev);
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kc);
+	struct wcd9335_codec *wcd = dev_get_drvdata(w->dapm->dev);
+	u32 port_id = w->shift;
 
-	ucontrol->value.enumerated.item[0] = wcd->rx_port_value;
+	ucontrol->value.enumerated.item[0] = wcd->rx_port_value[port_id];
 
 	return 0;
 }
@@ -1286,9 +1287,9 @@ static int slim_rx_mux_put(struct snd_kcontrol *kc,
 	struct snd_soc_dapm_update *update = NULL;
 	u32 port_id = w->shift;
 
-	wcd->rx_port_value = ucontrol->value.enumerated.item[0];
+	wcd->rx_port_value[port_id] = ucontrol->value.enumerated.item[0];
 
-	switch (wcd->rx_port_value) {
+	switch (wcd->rx_port_value[port_id]) {
 	case 0:
 		list_del_init(&wcd->rx_chs[port_id].list);
 		break;
@@ -1309,11 +1310,11 @@ static int slim_rx_mux_put(struct snd_kcontrol *kc,
 			      &wcd->dai[AIF4_PB].slim_ch_list);
 		break;
 	default:
-		dev_err(wcd->dev, "Unknown AIF %d\n", wcd->rx_port_value);
+		dev_err(wcd->dev, "Unknown AIF %d\n", wcd->rx_port_value[port_id]);
 		goto err;
 	}
 
-	snd_soc_dapm_mux_update_power(w->dapm, kc, wcd->rx_port_value,
+	snd_soc_dapm_mux_update_power(w->dapm, kc, wcd->rx_port_value[port_id],
 				      e, update);
 
 	return 0;

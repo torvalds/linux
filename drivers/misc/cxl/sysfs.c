@@ -570,6 +570,7 @@ static struct attribute *afu_cr_attrs[] = {
 	&class_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(afu_cr);
 
 static void release_afu_config_record(struct kobject *kobj)
 {
@@ -581,7 +582,7 @@ static void release_afu_config_record(struct kobject *kobj)
 static struct kobj_type afu_config_record_type = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = release_afu_config_record,
-	.default_attrs = afu_cr_attrs,
+	.default_groups = afu_cr_groups,
 };
 
 static struct afu_config_record *cxl_sysfs_afu_new_cr(struct cxl_afu *afu, int cr_idx)

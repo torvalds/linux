@@ -41,8 +41,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-
-#include "../comedi_pcmcia.h"
+#include <linux/comedi/comedi_pcmcia.h>
 
 /* daqcard700 registers */
 #define DIO_W		0x04	/* WO 8bit */

@@ -400,7 +400,7 @@ static int exynos5433_cpuclk_notifier_cb(struct notifier_block *nb,
 }
 
 /* helper function to register a CPU clock */
-int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
+static int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 		unsigned int lookup_id, const char *name,
 		const struct clk_hw *parent, const struct clk_hw *alt_parent,
 		unsigned long offset, const struct exynos_cpuclk_cfg_data *cfg,

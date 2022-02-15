@@ -20,6 +20,7 @@
 #include <linux/clockchips.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/of_clk.h>
 
 #include <asm/cpuinfo.h>
 
@@ -169,4 +170,7 @@ void __init time_init(void)
 
 	openrisc_timer_init();
 	openrisc_clockevent_init();
+
+	of_clk_init(NULL);
+	timer_probe();
 }

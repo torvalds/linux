@@ -313,6 +313,12 @@ extern int __meminit vmemmap_create_mapping(unsigned long start,
 					    unsigned long phys);
 extern void vmemmap_remove_mapping(unsigned long start,
 				   unsigned long page_size);
+void __patch_exception(int exc, unsigned long addr);
+#define patch_exception(exc, name) do { \
+	extern unsigned int name; \
+	__patch_exception((exc), (unsigned long)&name); \
+} while (0)
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_NOHASH_64_PGTABLE_H */

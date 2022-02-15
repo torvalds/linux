@@ -559,6 +559,7 @@ static struct platform_driver imx8ulp_clk_driver = {
 	.probe	= imx8ulp_clk_probe,
 	.driver = {
 		.name		= KBUILD_MODNAME,
+		.suppress_bind_attrs = true,
 		.of_match_table	= imx8ulp_clk_dt_ids,
 	},
 };

@@ -371,6 +371,7 @@ static const struct of_device_id sram_dt_ids[] = {
 	{ .compatible = "atmel,sama5d2-securam", .data = &atmel_securam_config },
 	{ .compatible = "nvidia,tegra186-sysram", .data = &tegra_sysram_config },
 	{ .compatible = "nvidia,tegra194-sysram", .data = &tegra_sysram_config },
+	{ .compatible = "nvidia,tegra234-sysram", .data = &tegra_sysram_config },
 	{}
 };
 

@@ -146,17 +146,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_srq = le16_to_cpu(sb->max_srq);
 	attr->max_srq_wqes = le32_to_cpu(sb->max_srq_wr) - 1;
 	attr->max_srq_sges = sb->max_srq_sge;
-	attr->max_pkey = le32_to_cpu(sb->max_pkeys);
-	/*
-	 * Some versions of FW reports more than 0xFFFF.
-	 * Restrict it for now to 0xFFFF to avoid
-	 * reporting trucated value
-	 */
-	if (attr->max_pkey > 0xFFFF) {
-		/* ib_port_attr::pkey_tbl_len is u16 */
-		attr->max_pkey = 0xFFFF;
-	}
-
+	attr->max_pkey = 1;
 	attr->max_inline_data = le32_to_cpu(sb->max_inline_data);
 	attr->l2_db_size = (sb->l2_db_space_size + 1) *
 			    (0x01 << RCFW_DBR_BASE_PAGE_SHIFT);
@@ -411,93 +401,6 @@ int bnxt_qplib_update_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 
 	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
 					  (void *)&resp, NULL, 0);
-	return rc;
-}
-
-/* pkeys */
-int bnxt_qplib_get_pkey(struct bnxt_qplib_res *res,
-			struct bnxt_qplib_pkey_tbl *pkey_tbl, u16 index,
-			u16 *pkey)
-{
-	if (index == 0xFFFF) {
-		*pkey = 0xFFFF;
-		return 0;
-	}
-	if (index >= pkey_tbl->max) {
-		dev_err(&res->pdev->dev,
-			"Index %d exceeded PKEY table max (%d)\n",
-			index, pkey_tbl->max);
-		return -EINVAL;
-	}
-	memcpy(pkey, &pkey_tbl->tbl[index], sizeof(*pkey));
-	return 0;
-}
-
-int bnxt_qplib_del_pkey(struct bnxt_qplib_res *res,
-			struct bnxt_qplib_pkey_tbl *pkey_tbl, u16 *pkey,
-			bool update)
-{
-	int i, rc = 0;
-
-	if (!pkey_tbl) {
-		dev_err(&res->pdev->dev, "PKEY table not allocated\n");
-		return -EINVAL;
-	}
-
-	/* Do we need a pkey_lock here? */
-	if (!pkey_tbl->active) {
-		dev_err(&res->pdev->dev, "PKEY table has no active entries\n");
-		return -ENOMEM;
-	}
-	for (i = 0; i < pkey_tbl->max; i++) {
-		if (!memcmp(&pkey_tbl->tbl[i], pkey, sizeof(*pkey)))
-			break;
-	}
-	if (i == pkey_tbl->max) {
-		dev_err(&res->pdev->dev,
-			"PKEY 0x%04x not found in the pkey table\n", *pkey);
-		return -ENOMEM;
-	}
-	memset(&pkey_tbl->tbl[i], 0, sizeof(*pkey));
-	pkey_tbl->active--;
-
-	/* unlock */
-	return rc;
-}
-
-int bnxt_qplib_add_pkey(struct bnxt_qplib_res *res,
-			struct bnxt_qplib_pkey_tbl *pkey_tbl, u16 *pkey,
-			bool update)
-{
-	int i, free_idx, rc = 0;
-
-	if (!pkey_tbl) {
-		dev_err(&res->pdev->dev, "PKEY table not allocated\n");
-		return -EINVAL;
-	}
-
-	/* Do we need a pkey_lock here? */
-	if (pkey_tbl->active == pkey_tbl->max) {
-		dev_err(&res->pdev->dev, "PKEY table is full\n");
-		return -ENOMEM;
-	}
-	free_idx = pkey_tbl->max;
-	for (i = 0; i < pkey_tbl->max; i++) {
-		if (!memcmp(&pkey_tbl->tbl[i], pkey, sizeof(*pkey)))
-			return -EALREADY;
-		else if (!pkey_tbl->tbl[i] && free_idx == pkey_tbl->max)
-			free_idx = i;
-	}
-	if (free_idx == pkey_tbl->max) {
-		dev_err(&res->pdev->dev,
-			"PKEY table is FULL but count is not MAX??\n");
-		return -ENOMEM;
-	}
-	/* Add PKEY to the pkey_tbl */
-	memcpy(&pkey_tbl->tbl[free_idx], pkey, sizeof(*pkey));
-	pkey_tbl->active++;
-
-	/* unlock */
 	return rc;
 }
 

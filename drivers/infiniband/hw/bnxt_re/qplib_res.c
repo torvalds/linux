@@ -649,31 +649,6 @@ static void bnxt_qplib_init_sgid_tbl(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	memset(sgid_tbl->hw_id, -1, sizeof(u16) * sgid_tbl->max);
 }
 
-static void bnxt_qplib_free_pkey_tbl(struct bnxt_qplib_res *res,
-				     struct bnxt_qplib_pkey_tbl *pkey_tbl)
-{
-	if (!pkey_tbl->tbl)
-		dev_dbg(&res->pdev->dev, "PKEY tbl not present\n");
-	else
-		kfree(pkey_tbl->tbl);
-
-	pkey_tbl->tbl = NULL;
-	pkey_tbl->max = 0;
-	pkey_tbl->active = 0;
-}
-
-static int bnxt_qplib_alloc_pkey_tbl(struct bnxt_qplib_res *res,
-				     struct bnxt_qplib_pkey_tbl *pkey_tbl,
-				     u16 max)
-{
-	pkey_tbl->tbl = kcalloc(max, sizeof(u16), GFP_KERNEL);
-	if (!pkey_tbl->tbl)
-		return -ENOMEM;
-
-	pkey_tbl->max = max;
-	return 0;
-};
-
 /* PDs */
 int bnxt_qplib_alloc_pd(struct bnxt_qplib_pd_tbl *pdt, struct bnxt_qplib_pd *pd)
 {
@@ -843,24 +818,6 @@ unmap_io:
 	return -ENOMEM;
 }
 
-/* PKEYs */
-static void bnxt_qplib_cleanup_pkey_tbl(struct bnxt_qplib_pkey_tbl *pkey_tbl)
-{
-	memset(pkey_tbl->tbl, 0, sizeof(u16) * pkey_tbl->max);
-	pkey_tbl->active = 0;
-}
-
-static void bnxt_qplib_init_pkey_tbl(struct bnxt_qplib_res *res,
-				     struct bnxt_qplib_pkey_tbl *pkey_tbl)
-{
-	u16 pkey = 0xFFFF;
-
-	memset(pkey_tbl->tbl, 0, sizeof(u16) * pkey_tbl->max);
-
-	/* pkey default = 0xFFFF */
-	bnxt_qplib_add_pkey(res, pkey_tbl, &pkey, false);
-}
-
 /* Stats */
 static void bnxt_qplib_free_stats_ctx(struct pci_dev *pdev,
 				      struct bnxt_qplib_stats *stats)
@@ -891,21 +848,18 @@ static int bnxt_qplib_alloc_stats_ctx(struct pci_dev *pdev,
 
 void bnxt_qplib_cleanup_res(struct bnxt_qplib_res *res)
 {
-	bnxt_qplib_cleanup_pkey_tbl(&res->pkey_tbl);
 	bnxt_qplib_cleanup_sgid_tbl(res, &res->sgid_tbl);
 }
 
 int bnxt_qplib_init_res(struct bnxt_qplib_res *res)
 {
 	bnxt_qplib_init_sgid_tbl(&res->sgid_tbl, res->netdev);
-	bnxt_qplib_init_pkey_tbl(res, &res->pkey_tbl);
 
 	return 0;
 }
 
 void bnxt_qplib_free_res(struct bnxt_qplib_res *res)
 {
-	bnxt_qplib_free_pkey_tbl(res, &res->pkey_tbl);
 	bnxt_qplib_free_sgid_tbl(res, &res->sgid_tbl);
 	bnxt_qplib_free_pd_tbl(&res->pd_tbl);
 	bnxt_qplib_free_dpi_tbl(res, &res->dpi_tbl);
@@ -921,10 +875,6 @@ int bnxt_qplib_alloc_res(struct bnxt_qplib_res *res, struct pci_dev *pdev,
 	res->netdev = netdev;
 
 	rc = bnxt_qplib_alloc_sgid_tbl(res, &res->sgid_tbl, dev_attr->max_sgid);
-	if (rc)
-		goto fail;
-
-	rc = bnxt_qplib_alloc_pkey_tbl(res, &res->pkey_tbl, dev_attr->max_pkey);
 	if (rc)
 		goto fail;
 

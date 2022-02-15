@@ -34,12 +34,6 @@ properties:
   power-domains:
     maxItems: 1
 
-  assigned-clocks:
-    maxItems: 1
-
-  assigned-clocks-parents:
-    maxItems: 1
-
 required:
   - compatible
   - reg

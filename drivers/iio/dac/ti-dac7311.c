@@ -146,7 +146,7 @@ static const struct iio_chan_spec_ext_info ti_dac_ext_info[] = {
 		.shared	   = IIO_SHARED_BY_TYPE,
 	},
 	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE, &ti_dac_powerdown_mode),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &ti_dac_powerdown_mode),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ti_dac_powerdown_mode),
 	{ },
 };
 

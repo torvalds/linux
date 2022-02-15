@@ -75,7 +75,7 @@ struct rnbd_cpu_qlist {
 
 struct rnbd_clt_session {
 	struct list_head        list;
-	struct rtrs_clt        *rtrs;
+	struct rtrs_clt_sess        *rtrs;
 	wait_queue_head_t       rtrs_waitq;
 	bool                    rtrs_ready;
 	struct rnbd_cpu_qlist	__percpu

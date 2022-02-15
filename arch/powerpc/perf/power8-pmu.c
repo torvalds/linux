@@ -378,7 +378,7 @@ static struct power_pmu power8_pmu = {
 	.bhrb_nr		= 32,
 };
 
-int init_power8_pmu(void)
+int __init init_power8_pmu(void)
 {
 	int rc;
 

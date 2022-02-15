@@ -375,10 +375,8 @@ int led_classdev_register_ext(struct device *parent,
 		mutex_unlock(&led_cdev->led_access);
 		return PTR_ERR(led_cdev->dev);
 	}
-	if (init_data && init_data->fwnode) {
-		led_cdev->dev->fwnode = init_data->fwnode;
-		led_cdev->dev->of_node = to_of_node(init_data->fwnode);
-	}
+	if (init_data && init_data->fwnode)
+		device_set_node(led_cdev->dev, init_data->fwnode);
 
 	if (ret)
 		dev_warn(parent, "Led %s renamed to %s due to name collision",

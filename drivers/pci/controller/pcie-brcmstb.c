@@ -118,6 +118,7 @@
 #define PCIE_MISC_HARD_PCIE_HARD_DEBUG					0x4204
 #define  PCIE_MISC_HARD_PCIE_HARD_DEBUG_CLKREQ_DEBUG_ENABLE_MASK	0x2
 #define  PCIE_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK		0x08000000
+#define  PCIE_BMIPS_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK		0x00800000
 
 
 #define PCIE_INTR2_CPU_BASE		0x4300
@@ -205,6 +206,8 @@ enum {
 
 enum pcie_type {
 	GENERIC,
+	BCM7425,
+	BCM7435,
 	BCM4908,
 	BCM7278,
 	BCM2711,
@@ -223,9 +226,29 @@ static const int pcie_offsets[] = {
 	[EXT_CFG_DATA]   = 0x9004,
 };
 
+static const int pcie_offsets_bmips_7425[] = {
+	[RGR1_SW_INIT_1] = 0x8010,
+	[EXT_CFG_INDEX]  = 0x8300,
+	[EXT_CFG_DATA]   = 0x8304,
+};
+
 static const struct pcie_cfg_data generic_cfg = {
 	.offsets	= pcie_offsets,
 	.type		= GENERIC,
+	.perst_set	= brcm_pcie_perst_set_generic,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
+};
+
+static const struct pcie_cfg_data bcm7425_cfg = {
+	.offsets	= pcie_offsets_bmips_7425,
+	.type		= BCM7425,
+	.perst_set	= brcm_pcie_perst_set_generic,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
+};
+
+static const struct pcie_cfg_data bcm7435_cfg = {
+	.offsets	= pcie_offsets,
+	.type		= BCM7435,
 	.perst_set	= brcm_pcie_perst_set_generic,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 };
@@ -296,6 +319,11 @@ struct brcm_pcie {
 	void			(*perst_set)(struct brcm_pcie *pcie, u32 val);
 	void			(*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
 };
+
+static inline bool is_bmips(const struct brcm_pcie *pcie)
+{
+	return pcie->type == BCM7435 || pcie->type == BCM7425;
+}
 
 /*
  * This is to convert the size of the inbound "BAR" region to the
@@ -442,6 +470,9 @@ static void brcm_pcie_set_outbound_win(struct brcm_pcie *pcie,
 	u32p_replace_bits(&tmp, limit_addr_mb,
 			  PCIE_MISC_CPU_2_PCIE_MEM_WIN0_BASE_LIMIT_LIMIT_MASK);
 	writel(tmp, pcie->base + PCIE_MEM_WIN0_BASE_LIMIT(win));
+
+	if (is_bmips(pcie))
+		return;
 
 	/* Write the cpu & limit addr upper bits */
 	high_addr_shift =
@@ -718,10 +749,33 @@ static void __iomem *brcm_pcie_map_conf(struct pci_bus *bus, unsigned int devfn,
 	return base + PCIE_EXT_CFG_DATA + where;
 }
 
+static void __iomem *brcm_pcie_map_conf32(struct pci_bus *bus, unsigned int devfn,
+					 int where)
+{
+	struct brcm_pcie *pcie = bus->sysdata;
+	void __iomem *base = pcie->base;
+	int idx;
+
+	/* Accesses to the RC go right to the RC registers if slot==0 */
+	if (pci_is_root_bus(bus))
+		return PCI_SLOT(devfn) ? NULL : base + (where & ~0x3);
+
+	/* For devices, write to the config space index register */
+	idx = PCIE_ECAM_OFFSET(bus->number, devfn, (where & ~3));
+	writel(idx, base + IDX_ADDR(pcie));
+	return base + DATA_ADDR(pcie);
+}
+
 static struct pci_ops brcm_pcie_ops = {
 	.map_bus = brcm_pcie_map_conf,
 	.read = pci_generic_config_read,
 	.write = pci_generic_config_write,
+};
+
+static struct pci_ops brcm_pcie_ops32 = {
+	.map_bus = brcm_pcie_map_conf32,
+	.read = pci_generic_config_read32,
+	.write = pci_generic_config_write32,
 };
 
 static inline void brcm_pcie_bridge_sw_init_set_generic(struct brcm_pcie *pcie, u32 val)
@@ -883,7 +937,10 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	pcie->bridge_sw_init_set(pcie, 0);
 
 	tmp = readl(base + PCIE_MISC_HARD_PCIE_HARD_DEBUG);
-	tmp &= ~PCIE_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK;
+	if (is_bmips(pcie))
+		tmp &= ~PCIE_BMIPS_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK;
+	else
+		tmp &= ~PCIE_MISC_HARD_PCIE_HARD_DEBUG_SERDES_IDDQ_MASK;
 	writel(tmp, base + PCIE_MISC_HARD_PCIE_HARD_DEBUG);
 	/* Wait for SerDes to be stable */
 	usleep_range(100, 200);
@@ -893,8 +950,10 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	 * is encoded as 0=128, 1=256, 2=512, 3=Rsvd, for BCM7278 it
 	 * is encoded as 0=Rsvd, 1=128, 2=256, 3=512.
 	 */
-	if (pcie->type == BCM2711)
-		burst = 0x0; /* 128B */
+	if (is_bmips(pcie))
+		burst = 0x1; /* 256 bytes */
+	else if (pcie->type == BCM2711)
+		burst = 0x0; /* 128 bytes */
 	else if (pcie->type == BCM7278)
 		burst = 0x3; /* 512 bytes */
 	else
@@ -988,6 +1047,19 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 			return -EINVAL;
 		}
 
+		if (is_bmips(pcie)) {
+			u64 start = res->start;
+			unsigned int j, nwins = resource_size(res) / SZ_128M;
+
+			/* bmips PCIe outbound windows have a 128MB max size */
+			if (nwins > BRCM_NUM_PCIE_OUT_WINS)
+				nwins = BRCM_NUM_PCIE_OUT_WINS;
+			for (j = 0; j < nwins; j++, start += SZ_128M)
+				brcm_pcie_set_outbound_win(pcie, j, start,
+							   start - entry->offset,
+							   SZ_128M);
+			break;
+		}
 		brcm_pcie_set_outbound_win(pcie, num_out_wins, res->start,
 					   res->start - entry->offset,
 					   resource_size(res));
@@ -1226,6 +1298,8 @@ static const struct of_device_id brcm_pcie_match[] = {
 	{ .compatible = "brcm,bcm7278-pcie", .data = &bcm7278_cfg },
 	{ .compatible = "brcm,bcm7216-pcie", .data = &bcm7278_cfg },
 	{ .compatible = "brcm,bcm7445-pcie", .data = &generic_cfg },
+	{ .compatible = "brcm,bcm7435-pcie", .data = &bcm7435_cfg },
+	{ .compatible = "brcm,bcm7425-pcie", .data = &bcm7425_cfg },
 	{},
 };
 
@@ -1315,7 +1389,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	bridge->ops = &brcm_pcie_ops;
+	bridge->ops = pcie->type == BCM7425 ? &brcm_pcie_ops32 : &brcm_pcie_ops;
 	bridge->sysdata = pcie;
 
 	platform_set_drvdata(pdev, pcie);

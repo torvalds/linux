@@ -43,7 +43,8 @@ static int dir_link(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *new_dentry);
 static int dir_rmdir(struct inode *dir, struct dentry *dentry);
 static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry);
+		struct inode *new_dir, struct dentry *new_dentry,
+		unsigned int flags);
 
 static int file_open(struct inode *inode, struct file *file);
 static int file_release(struct inode *inode, struct file *file);
@@ -86,7 +87,7 @@ static int dir_rename_wrap(struct user_namespace *ns, struct inode *old_dir,
 			   struct dentry *old_dentry, struct inode *new_dir,
 			   struct dentry *new_dentry, unsigned int flags)
 {
-	return dir_rename(old_dir, old_dentry, new_dir, new_dentry);
+	return dir_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
 }
 
 static const struct inode_operations incfs_dir_inode_ops = {
@@ -1330,7 +1331,8 @@ path_err:
 }
 
 static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+		struct inode *new_dir, struct dentry *new_dentry,
+		unsigned int flags)
 {
 	struct mount_info *mi = get_mount_info(old_dir->i_sb);
 	struct dentry *backing_old_dentry;
@@ -1388,6 +1390,11 @@ static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
 	rd.old_dentry	= backing_old_dentry;
 	rd.new_dir	= d_inode(backing_new_dir_dentry);
 	rd.new_dentry	= backing_new_dentry;
+	rd.flags	= flags;
+	rd.old_mnt_userns = &init_user_ns;
+	rd.new_mnt_userns = &init_user_ns;
+	rd.delegated_inode = NULL;
+
 	error = vfs_rename(&rd);
 	if (error)
 		goto unlock_out;
@@ -1865,10 +1872,11 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 			goto err;
 	}
 
-	path_put(&backing_dir_path);
+	mi->mi_backing_dir_path = backing_dir_path;
 	sb->s_flags |= SB_ACTIVE;
 
 	pr_debug("incfs: mount\n");
+	free_options(&options);
 	return dget(sb->s_root);
 err:
 	sb->s_fs_info = NULL;
@@ -1915,7 +1923,12 @@ void incfs_kill_sb(struct super_block *sb)
 	struct mount_info *mi = sb->s_fs_info;
 
 	pr_debug("incfs: unmount\n");
-	generic_shutdown_super(sb);
+	vfs_rmdir(&init_user_ns, d_inode(mi->mi_backing_dir_path.dentry),
+		  mi->mi_index_dir);
+	vfs_rmdir(&init_user_ns, d_inode(mi->mi_backing_dir_path.dentry),
+		  mi->mi_incomplete_dir);
+
+	kill_anon_super(sb);
 	incfs_free_mount_info(mi);
 	sb->s_fs_info = NULL;
 }

@@ -292,14 +292,6 @@ vduse_domain_alloc_iova(struct iova_domain *iovad,
 	unsigned long iova_len = iova_align(iovad, size) >> shift;
 	unsigned long iova_pfn;
 
-	/*
-	 * Freeing non-power-of-two-sized allocations back into the IOVA caches
-	 * will come back to bite us badly, so we have to waste a bit of space
-	 * rounding up anything cacheable to make sure that can't happen. The
-	 * order of the unadjusted size will still match upon freeing.
-	 */
-	if (iova_len < (1 << (IOVA_RANGE_CACHE_MAX_SIZE - 1)))
-		iova_len = roundup_pow_of_two(iova_len);
 	iova_pfn = alloc_iova_fast(iovad, iova_len, limit >> shift, true);
 
 	return iova_pfn << shift;

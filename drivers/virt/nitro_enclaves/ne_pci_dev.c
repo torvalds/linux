@@ -376,7 +376,6 @@ static void ne_teardown_msix(struct pci_dev *pdev)
 	free_irq(pci_irq_vector(pdev, NE_VEC_EVENT), ne_pci_dev);
 
 	flush_work(&ne_pci_dev->notify_work);
-	flush_workqueue(ne_pci_dev->event_wq);
 	destroy_workqueue(ne_pci_dev->event_wq);
 
 	free_irq(pci_irq_vector(pdev, NE_VEC_REPLY), ne_pci_dev);
