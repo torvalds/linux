@@ -3470,7 +3470,8 @@ static enum dc_lane_count increase_lane_count(enum dc_lane_count lane_count)
 	}
 }
 
-static enum dc_link_rate increase_link_rate(enum dc_link_rate link_rate)
+static enum dc_link_rate increase_link_rate(struct dc_link *link,
+		enum dc_link_rate link_rate)
 {
 	switch (link_rate) {
 	case LINK_RATE_LOW:
@@ -3482,7 +3483,15 @@ static enum dc_link_rate increase_link_rate(enum dc_link_rate link_rate)
 	case LINK_RATE_HIGH3:
 		return LINK_RATE_UHBR10;
 	case LINK_RATE_UHBR10:
-		return LINK_RATE_UHBR13_5;
+		/* upto DP2.x specs UHBR13.5 is the only link rate that could be
+		 * not supported by DPRX when higher link rate is supported.
+		 * so we treat it as a special case for code simplicity. When we
+		 * have new specs with more link rates like this, we should
+		 * consider a more generic solution to handle discrete link
+		 * rate capabilities.
+		 */
+		return link->dpcd_caps.dp_128b_132b_supported_link_rates.bits.UHBR13_5 ?
+				LINK_RATE_UHBR13_5 : LINK_RATE_UHBR20;
 	case LINK_RATE_UHBR13_5:
 		return LINK_RATE_UHBR20;
 	default:
@@ -3491,11 +3500,16 @@ static enum dc_link_rate increase_link_rate(enum dc_link_rate link_rate)
 }
 
 static bool decide_fallback_link_setting_max_bw_policy(
+		struct dc_link *link,
 		const struct dc_link_settings *max,
-		struct dc_link_settings *cur)
+		struct dc_link_settings *cur,
+		enum link_training_result training_result)
 {
 	uint8_t cur_idx = 0, next_idx;
 	bool found = false;
+
+	if (training_result == LINK_TRAINING_ABORT)
+		return false;
 
 	while (cur_idx < ARRAY_SIZE(dp_lt_fallbacks))
 		/* find current index */
@@ -3509,11 +3523,22 @@ static bool decide_fallback_link_setting_max_bw_policy(
 
 	while (next_idx < ARRAY_SIZE(dp_lt_fallbacks))
 		/* find next index */
-		if (dp_lt_fallbacks[next_idx].lane_count <= max->lane_count &&
-				dp_lt_fallbacks[next_idx].link_rate <= max->link_rate)
-			break;
-		else
+		if (dp_lt_fallbacks[next_idx].lane_count > max->lane_count ||
+				dp_lt_fallbacks[next_idx].link_rate > max->link_rate)
 			next_idx++;
+		else if (dp_lt_fallbacks[next_idx].link_rate == LINK_RATE_UHBR13_5 &&
+				link->dpcd_caps.dp_128b_132b_supported_link_rates.bits.UHBR13_5 == 0)
+			/* upto DP2.x specs UHBR13.5 is the only link rate that
+			 * could be not supported by DPRX when higher link rate
+			 * is supported. so we treat it as a special case for
+			 * code simplicity. When we have new specs with more
+			 * link rates like this, we should consider a more
+			 * generic solution to handle discrete link rate
+			 * capabilities.
+			 */
+			next_idx++;
+		else
+			break;
 
 	if (next_idx < ARRAY_SIZE(dp_lt_fallbacks)) {
 		cur->lane_count = dp_lt_fallbacks[next_idx].lane_count;
@@ -3542,8 +3567,8 @@ static bool decide_fallback_link_setting(
 		return false;
 	if (dp_get_link_encoding_format(&initial_link_settings) == DP_128b_132b_ENCODING ||
 			link->dc->debug.force_dp2_lt_fallback_method)
-		return decide_fallback_link_setting_max_bw_policy(&initial_link_settings,
-				current_link_setting);
+		return decide_fallback_link_setting_max_bw_policy(link, &initial_link_settings,
+				current_link_setting, training_result);
 
 	switch (training_result) {
 	case LINK_TRAINING_CR_FAIL_LANE0:
@@ -3698,7 +3723,7 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 							current_link_setting.lane_count);
 		} else {
 			current_link_setting.link_rate =
-					increase_link_rate(
+					increase_link_rate(link,
 							current_link_setting.link_rate);
 			current_link_setting.lane_count =
 					initial_link_setting.lane_count;
@@ -3813,7 +3838,7 @@ static bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 				/* minimize lane */
 				if (current_link_setting.link_rate < max_link_rate) {
 					current_link_setting.link_rate =
-							increase_link_rate(
+							increase_link_rate(link,
 									current_link_setting.link_rate);
 				} else {
 					if (current_link_setting.lane_count <
@@ -3834,7 +3859,7 @@ static bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 									current_link_setting.lane_count);
 				} else {
 					current_link_setting.link_rate =
-							increase_link_rate(
+							increase_link_rate(link,
 									current_link_setting.link_rate);
 					current_link_setting.lane_count =
 							initial_link_setting.lane_count;
