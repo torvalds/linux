@@ -785,22 +785,6 @@ struct dpu_mdss_hw_cfg_handler {
 	void (*cfg_init)(struct dpu_mdss_cfg *dpu_cfg);
 };
 
-/*
- * Access Macros
- */
-#define BLK_MDP(s) ((s)->mdp)
-#define BLK_CTL(s) ((s)->ctl)
-#define BLK_VIG(s) ((s)->vig)
-#define BLK_RGB(s) ((s)->rgb)
-#define BLK_DMA(s) ((s)->dma)
-#define BLK_CURSOR(s) ((s)->cursor)
-#define BLK_MIXER(s) ((s)->mixer)
-#define BLK_PINGPONG(s) ((s)->pingpong)
-#define BLK_INTF(s) ((s)->intf)
-#define BLK_AD(s) ((s)->ad)
-#define BLK_DSPP(s) ((s)->dspp)
-#define BLK_MERGE3d(s) ((s)->merge_3d)
-
 /**
  * dpu_hw_catalog_init - dpu hardware catalog init API retrieves
  * hardcoded target specific catalog information in config structure
