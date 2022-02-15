@@ -877,7 +877,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 		dev_err(&data->master->dev,
 			"ERROR: dma_request_channel FAILS(Tx)\n");
 		data->use_dma = 0;
-		return;
+		goto out;
 	}
 	dma->chan_tx = chan;
 
@@ -894,9 +894,12 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 		dma_release_channel(dma->chan_tx);
 		dma->chan_tx = NULL;
 		data->use_dma = 0;
-		return;
+		goto out;
 	}
 	dma->chan_rx = chan;
+
+out:
+	pci_dev_put(dma_dev);
 }
 
 static void pch_spi_release_dma(struct pch_spi_data *data)
