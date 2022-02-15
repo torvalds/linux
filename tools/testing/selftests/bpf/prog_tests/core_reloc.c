@@ -2,6 +2,7 @@
 #include <test_progs.h>
 #include "progs/core_reloc_types.h"
 #include "bpf_testmod/bpf_testmod.h"
+#include <linux/limits.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <bpf/btf.h>
@@ -836,13 +837,27 @@ static size_t roundup_page(size_t sz)
 	return (sz + page_size - 1) / page_size * page_size;
 }
 
-void test_core_reloc(void)
+static int run_btfgen(const char *src_btf, const char *dst_btf, const char *objpath)
+{
+	char command[4096];
+	int n;
+
+	n = snprintf(command, sizeof(command),
+		     "./tools/build/bpftool/bpftool gen min_core_btf %s %s %s",
+		     src_btf, dst_btf, objpath);
+	if (n < 0 || n >= sizeof(command))
+		return -1;
+
+	return system(command);
+}
+
+static void run_core_reloc_tests(bool use_btfgen)
 {
 	const size_t mmap_sz = roundup_page(sizeof(struct data));
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, open_opts);
 	struct core_reloc_test_case *test_case;
 	const char *tp_name, *probe_name;
-	int err, i, equal;
+	int err, i, equal, fd;
 	struct bpf_link *link = NULL;
 	struct bpf_map *data_map;
 	struct bpf_program *prog;
@@ -854,6 +869,7 @@ void test_core_reloc(void)
 	my_pid_tgid = getpid() | ((uint64_t)syscall(SYS_gettid) << 32);
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
+		char btf_file[] = "/tmp/core_reloc.btf.XXXXXX";
 		test_case = &test_cases[i];
 		if (!test__start_subtest(test_case->case_name))
 			continue;
@@ -861,6 +877,25 @@ void test_core_reloc(void)
 		if (test_case->needs_testmod && !env.has_testmod) {
 			test__skip();
 			continue;
+		}
+
+		/* generate a "minimal" BTF file and use it as source */
+		if (use_btfgen) {
+			if (!test_case->btf_src_file || test_case->fails) {
+				test__skip();
+				continue;
+			}
+
+			fd = mkstemp(btf_file);
+			if (!ASSERT_GE(fd, 0, "btf_tmp"))
+				goto cleanup;
+			close(fd); /* we only need the path */
+			err = run_btfgen(test_case->btf_src_file, btf_file,
+					 test_case->bpf_obj_file);
+			if (!ASSERT_OK(err, "run_btfgen"))
+				goto cleanup;
+
+			test_case->btf_src_file = btf_file;
 		}
 
 		if (test_case->setup) {
@@ -954,8 +989,19 @@ cleanup:
 			CHECK_FAIL(munmap(mmap_data, mmap_sz));
 			mmap_data = NULL;
 		}
+		remove(btf_file);
 		bpf_link__destroy(link);
 		link = NULL;
 		bpf_object__close(obj);
 	}
+}
+
+void test_core_reloc(void)
+{
+	run_core_reloc_tests(false);
+}
+
+void test_core_btfgen(void)
+{
+	run_core_reloc_tests(true);
 }
