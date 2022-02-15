@@ -19,6 +19,8 @@
 #define OCC_EXT_STAT_DVFS_POWER		BIT(6)
 #define OCC_EXT_STAT_MEM_THROTTLE	BIT(5)
 #define OCC_EXT_STAT_QUICK_DROP		BIT(4)
+#define OCC_EXT_STAT_DVFS_VDD		BIT(3)
+#define OCC_EXT_STAT_GPU_THROTTLE	GENMASK(2, 0)
 
 static ssize_t occ_sysfs_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -69,6 +71,12 @@ static ssize_t occ_sysfs_show(struct device *dev,
 	case 9:
 		val = header->mode;
 		break;
+	case 10:
+		val = !!(header->ext_status & OCC_EXT_STAT_DVFS_VDD);
+		break;
+	case 11:
+		val = header->ext_status & OCC_EXT_STAT_GPU_THROTTLE;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -96,6 +104,8 @@ static SENSOR_DEVICE_ATTR(occ_state, 0444, occ_sysfs_show, NULL, 6);
 static SENSOR_DEVICE_ATTR(occs_present, 0444, occ_sysfs_show, NULL, 7);
 static SENSOR_DEVICE_ATTR(occ_ips_status, 0444, occ_sysfs_show, NULL, 8);
 static SENSOR_DEVICE_ATTR(occ_mode, 0444, occ_sysfs_show, NULL, 9);
+static SENSOR_DEVICE_ATTR(occ_dvfs_vdd, 0444, occ_sysfs_show, NULL, 10);
+static SENSOR_DEVICE_ATTR(occ_gpu_throttle, 0444, occ_sysfs_show, NULL, 11);
 static DEVICE_ATTR_RO(occ_error);
 
 static struct attribute *occ_attributes[] = {
@@ -109,6 +119,8 @@ static struct attribute *occ_attributes[] = {
 	&sensor_dev_attr_occs_present.dev_attr.attr,
 	&sensor_dev_attr_occ_ips_status.dev_attr.attr,
 	&sensor_dev_attr_occ_mode.dev_attr.attr,
+	&sensor_dev_attr_occ_dvfs_vdd.dev_attr.attr,
+	&sensor_dev_attr_occ_gpu_throttle.dev_attr.attr,
 	&dev_attr_occ_error.attr,
 	NULL
 };
@@ -163,6 +175,18 @@ void occ_sysfs_poll_done(struct occ *occ)
 	if ((header->ext_status & OCC_EXT_STAT_QUICK_DROP) !=
 	    (occ->prev_ext_stat & OCC_EXT_STAT_QUICK_DROP)) {
 		name = sensor_dev_attr_occ_quick_pwr_drop.dev_attr.attr.name;
+		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+	}
+
+	if ((header->ext_status & OCC_EXT_STAT_DVFS_VDD) !=
+	    (occ->prev_ext_stat & OCC_EXT_STAT_DVFS_VDD)) {
+		name = sensor_dev_attr_occ_dvfs_vdd.dev_attr.attr.name;
+		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
+	}
+
+	if ((header->ext_status & OCC_EXT_STAT_GPU_THROTTLE) !=
+	    (occ->prev_ext_stat & OCC_EXT_STAT_GPU_THROTTLE)) {
+		name = sensor_dev_attr_occ_gpu_throttle.dev_attr.attr.name;
 		sysfs_notify(&occ->bus_dev->kobj, NULL, name);
 	}
 
