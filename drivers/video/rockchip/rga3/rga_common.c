@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) "rga_common: " fmt
 
 #include "rga.h"
+#include "rga_common.h"
 
 void rga_user_format_convert(uint32_t *df, uint32_t sf)
 {

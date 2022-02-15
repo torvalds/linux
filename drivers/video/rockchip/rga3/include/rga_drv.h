@@ -376,4 +376,6 @@ static inline void rga_write(int value, int offset, struct rga_scheduler_t *rga_
 int rga_power_enable(struct rga_scheduler_t *rga_scheduler);
 int rga_power_disable(struct rga_scheduler_t *rga_scheduler);
 
+int rga_kernel_commit(struct rga_req *cmd);
+
 #endif /* __LINUX_RGA_FENCE_H_ */

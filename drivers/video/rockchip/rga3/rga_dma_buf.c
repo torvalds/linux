@@ -17,7 +17,6 @@
  *                    page flags.
  * @dir: Direction of DMA transfer
  * @coherent: Is the DMA master cache-coherent?
- * @attrs: DMA attributes for the mapping
  *
  * Return: corresponding IOMMU API page protection flags
  */
