@@ -2843,11 +2843,11 @@ void blk_mq_submit_bio(struct bio *bio)
 #ifdef CONFIG_BLK_MQ_STACKING
 /**
  * blk_insert_cloned_request - Helper for stacking drivers to submit a request
- * @q:  the queue to submit the request
  * @rq: the request being queued
  */
-blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *rq)
+blk_status_t blk_insert_cloned_request(struct request *rq)
 {
+	struct request_queue *q = rq->q;
 	unsigned int max_sectors = blk_queue_get_max_sectors(q, req_op(rq));
 	blk_status_t ret;
 
@@ -2881,8 +2881,7 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 		return BLK_STS_IOERR;
 	}
 
-	if (rq->q->disk &&
-	    should_fail_request(rq->q->disk->part0, blk_rq_bytes(rq)))
+	if (q->disk && should_fail_request(q->disk->part0, blk_rq_bytes(rq)))
 		return BLK_STS_IOERR;
 
 	if (blk_crypto_insert_cloned_request(rq))
@@ -2895,7 +2894,7 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 	 * bypass a potential scheduler on the bottom device for
 	 * insert.
 	 */
-	blk_mq_run_dispatch_ops(rq->q,
+	blk_mq_run_dispatch_ops(q,
 			ret = blk_mq_request_issue_directly(rq, true));
 	if (ret)
 		blk_account_io_done(rq, ktime_get_ns());
