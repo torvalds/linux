@@ -58,7 +58,9 @@ static bool __vlan_delete_pvid(struct net_bridge_vlan_group *vg, u16 vid)
 	return true;
 }
 
-/* return true if anything changed, false otherwise */
+/* Returns true if the BRIDGE_VLAN_INFO_PVID and BRIDGE_VLAN_INFO_UNTAGGED bits
+ * of @flags produced any change onto @v, false otherwise
+ */
 static bool __vlan_add_flags(struct net_bridge_vlan *v, u16 flags)
 {
 	struct net_bridge_vlan_group *vg;
@@ -80,7 +82,7 @@ static bool __vlan_add_flags(struct net_bridge_vlan *v, u16 flags)
 	else
 		v->flags &= ~BRIDGE_VLAN_INFO_UNTAGGED;
 
-	return ret || !!(old_flags ^ v->flags);
+	return ret || !!((old_flags ^ v->flags) & BRIDGE_VLAN_INFO_UNTAGGED);
 }
 
 static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
