@@ -1585,6 +1585,7 @@ void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 hcr0 = cr0;
+	bool old_paging = is_paging(vcpu);
 
 #ifdef CONFIG_X86_64
 	if (vcpu->arch.efer & EFER_LME && !vcpu->arch.guest_state_protected) {
@@ -1601,8 +1602,11 @@ void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 #endif
 	vcpu->arch.cr0 = cr0;
 
-	if (!npt_enabled)
+	if (!npt_enabled) {
 		hcr0 |= X86_CR0_PG | X86_CR0_WP;
+		if (old_paging != is_paging(vcpu))
+			svm_set_cr4(vcpu, kvm_read_cr4(vcpu));
+	}
 
 	/*
 	 * re-enable caching here because the QEMU bios
@@ -1646,8 +1650,12 @@ void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		svm_flush_tlb(vcpu);
 
 	vcpu->arch.cr4 = cr4;
-	if (!npt_enabled)
+	if (!npt_enabled) {
 		cr4 |= X86_CR4_PAE;
+
+		if (!is_paging(vcpu))
+			cr4 &= ~(X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE);
+	}
 	cr4 |= host_cr4_mce;
 	to_svm(vcpu)->vmcb->save.cr4 = cr4;
 	vmcb_mark_dirty(to_svm(vcpu)->vmcb, VMCB_CR);
@@ -3291,19 +3299,53 @@ static void svm_set_irq(struct kvm_vcpu *vcpu)
 		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
 }
 
-static void svm_deliver_interrupt(struct kvm_lapic *apic, int delivery_mode,
-				  int trig_mode, int vector)
+void svm_complete_interrupt_delivery(struct kvm_vcpu *vcpu, int delivery_mode,
+				     int trig_mode, int vector)
 {
-	struct kvm_vcpu *vcpu = apic->vcpu;
+	/*
+	 * vcpu->arch.apicv_active must be read after vcpu->mode.
+	 * Pairs with smp_store_release in vcpu_enter_guest.
+	 */
+	bool in_guest_mode = (smp_load_acquire(&vcpu->mode) == IN_GUEST_MODE);
 
-	if (svm_deliver_avic_intr(vcpu, vector)) {
-		kvm_lapic_set_irr(vector, apic);
+	if (!READ_ONCE(vcpu->arch.apicv_active)) {
+		/* Process the interrupt via inject_pending_event */
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 		kvm_vcpu_kick(vcpu);
-	} else {
-		trace_kvm_apicv_accept_irq(vcpu->vcpu_id, delivery_mode,
-					   trig_mode, vector);
+		return;
 	}
+
+	trace_kvm_apicv_accept_irq(vcpu->vcpu_id, delivery_mode, trig_mode, vector);
+	if (in_guest_mode) {
+		/*
+		 * Signal the doorbell to tell hardware to inject the IRQ.  If
+		 * the vCPU exits the guest before the doorbell chimes, hardware
+		 * will automatically process AVIC interrupts at the next VMRUN.
+		 */
+		avic_ring_doorbell(vcpu);
+	} else {
+		/*
+		 * Wake the vCPU if it was blocking.  KVM will then detect the
+		 * pending IRQ when checking if the vCPU has a wake event.
+		 */
+		kvm_vcpu_wake_up(vcpu);
+	}
+}
+
+static void svm_deliver_interrupt(struct kvm_lapic *apic,  int delivery_mode,
+				  int trig_mode, int vector)
+{
+	kvm_lapic_set_irr(vector, apic);
+
+	/*
+	 * Pairs with the smp_mb_*() after setting vcpu->guest_mode in
+	 * vcpu_enter_guest() to ensure the write to the vIRR is ordered before
+	 * the read of guest_mode.  This guarantees that either VMRUN will see
+	 * and process the new vIRR entry, or that svm_complete_interrupt_delivery
+	 * will signal the doorbell if the CPU has already entered the guest.
+	 */
+	smp_mb__after_atomic();
+	svm_complete_interrupt_delivery(apic->vcpu, delivery_mode, trig_mode, vector);
 }
 
 static void svm_update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
@@ -3353,11 +3395,13 @@ static int svm_nmi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 	if (svm->nested.nested_run_pending)
 		return -EBUSY;
 
+	if (svm_nmi_blocked(vcpu))
+		return 0;
+
 	/* An NMI must not be injected into L2 if it's supposed to VM-Exit.  */
 	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_nmi(svm))
 		return -EBUSY;
-
-	return !svm_nmi_blocked(vcpu);
+	return 1;
 }
 
 static bool svm_get_nmi_mask(struct kvm_vcpu *vcpu)
@@ -3409,8 +3453,12 @@ bool svm_interrupt_blocked(struct kvm_vcpu *vcpu)
 static int svm_interrupt_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
 	if (svm->nested.nested_run_pending)
 		return -EBUSY;
+
+	if (svm_interrupt_blocked(vcpu))
+		return 0;
 
 	/*
 	 * An IRQ must not be injected into L2 if it's supposed to VM-Exit,
@@ -3419,7 +3467,7 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_intr(svm))
 		return -EBUSY;
 
-	return !svm_interrupt_blocked(vcpu);
+	return 1;
 }
 
 static void svm_enable_irq_window(struct kvm_vcpu *vcpu)
@@ -4150,11 +4198,14 @@ static int svm_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 	if (svm->nested.nested_run_pending)
 		return -EBUSY;
 
+	if (svm_smi_blocked(vcpu))
+		return 0;
+
 	/* An SMI must not be injected into L2 if it's supposed to VM-Exit.  */
 	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_smi(svm))
 		return -EBUSY;
 
-	return !svm_smi_blocked(vcpu);
+	return 1;
 }
 
 static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
@@ -4248,10 +4299,17 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 	 * Enter the nested guest now
 	 */
 
+	vmcb_mark_all_dirty(svm->vmcb01.ptr);
+
 	vmcb12 = map.hva;
 	nested_copy_vmcb_control_to_cache(svm, &vmcb12->control);
 	nested_copy_vmcb_save_to_cache(svm, &vmcb12->save);
 	ret = enter_svm_guest_mode(vcpu, vmcb12_gpa, vmcb12, false);
+
+	if (ret)
+		goto unmap_save;
+
+	svm->nested.nested_run_pending = 1;
 
 unmap_save:
 	kvm_vcpu_unmap(vcpu, &map_save, true);
@@ -4637,6 +4695,7 @@ static __init void svm_set_cpu_caps(void)
 	/* CPUID 0x80000001 and 0x8000000A (SVM features) */
 	if (nested) {
 		kvm_cpu_cap_set(X86_FEATURE_SVM);
+		kvm_cpu_cap_set(X86_FEATURE_VMCBCLEAN);
 
 		if (nrips)
 			kvm_cpu_cap_set(X86_FEATURE_NRIPS);
