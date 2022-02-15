@@ -679,8 +679,10 @@
 			#power-domain-cells = <1>;
 			reg = <0x00300000 0x90000>;
 
-			clocks = <&rpmcc RPM_SMD_LN_BB_CLK>;
-			clock-names = "cxo2";
+			clocks = <&rpmcc RPM_SMD_BB_CLK1>,
+				 <&rpmcc RPM_SMD_LN_BB_CLK>,
+				 <&sleep_clk>;
+			clock-names = "cxo", "cxo2", "sleep_clk";
 		};
 
 		tsens0: thermal-sensor@4a9000 {
