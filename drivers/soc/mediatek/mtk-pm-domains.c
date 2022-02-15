@@ -19,6 +19,7 @@
 #include "mt8167-pm-domains.h"
 #include "mt8173-pm-domains.h"
 #include "mt8183-pm-domains.h"
+#include "mt8186-pm-domains.h"
 #include "mt8192-pm-domains.h"
 #include "mt8195-pm-domains.h"
 
@@ -565,6 +566,10 @@ static const struct of_device_id scpsys_of_match[] = {
 	{
 		.compatible = "mediatek,mt8183-power-controller",
 		.data = &mt8183_scpsys_data,
+	},
+	{
+		.compatible = "mediatek,mt8186-power-controller",
+		.data = &mt8186_scpsys_data,
 	},
 	{
 		.compatible = "mediatek,mt8192-power-controller",
