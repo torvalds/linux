@@ -5838,7 +5838,8 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 		snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
 		dclk = vop2_clk_get(vop2, clk_name);
 		if (v_pixclk <= (VOP2_MAX_DCLK_RATE * 1000)) {
-			if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)
+			if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420 ||
+			    (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE))
 				v_pixclk = v_pixclk >> 1;
 			clk_set_rate(dclk->hw.clk, v_pixclk);
 		}
