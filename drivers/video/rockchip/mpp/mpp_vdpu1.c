@@ -802,6 +802,8 @@ static int vdpu_probe(struct platform_device *pdev)
 		match = of_match_node(mpp_vdpu1_dt_match, pdev->dev.of_node);
 		if (match)
 			mpp->var = (struct mpp_dev_var *)match->data;
+
+		mpp->core_id = of_alias_get_id(pdev->dev.of_node, "vdpu");
 	}
 
 	ret = mpp_dev_probe(mpp, pdev);
