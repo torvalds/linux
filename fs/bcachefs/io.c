@@ -2032,6 +2032,33 @@ err:
 	return ret;
 }
 
+static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
+						   struct bkey_s_c k,
+						   struct bch_extent_ptr ptr)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr.dev);
+	struct btree_iter iter;
+	char buf[200];
+	int ret;
+
+	bch2_bkey_val_to_text(&PBUF(buf), c, k);
+	bch2_fs_inconsistent(c, "Attempting to read from stale dirty pointer: %s", buf);
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
+			     POS(ptr.dev, PTR_BUCKET_NR(ca, &ptr)),
+			     BTREE_ITER_CACHED);
+
+	ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
+	if (ret)
+		return;
+
+	bch2_bkey_val_to_text(&PBUF(buf), c, k);
+	bch_err(c, "%s", buf);
+	bch_err(c, "memory gen: %u", *bucket_gen(ca, iter.pos.offset));
+	bch2_trans_iter_exit(trans, &iter);
+}
+
 int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 		       struct bvec_iter iter, struct bpos read_pos,
 		       enum btree_id data_btree, struct bkey_s_c k,
@@ -2041,7 +2068,7 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 	struct bch_fs *c = trans->c;
 	struct extent_ptr_decoded pick;
 	struct bch_read_bio *rbio = NULL;
-	struct bch_dev *ca;
+	struct bch_dev *ca = NULL;
 	struct promote_op *promote = NULL;
 	bool bounce = false, read_full = false, narrow_crcs = false;
 	struct bpos data_pos = bkey_start_pos(k.k);
@@ -2058,7 +2085,7 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 		zero_fill_bio_iter(&orig->bio, iter);
 		goto out_read_done;
 	}
-
+retry_pick:
 	pick_ret = bch2_bkey_pick_read_device(c, k, failed, &pick);
 
 	/* hole or reservation - just zero fill: */
@@ -2071,8 +2098,27 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 		goto err;
 	}
 
-	if (pick_ret > 0)
-		ca = bch_dev_bkey_exists(c, pick.ptr.dev);
+	ca = bch_dev_bkey_exists(c, pick.ptr.dev);
+
+	/*
+	 * Stale dirty pointers are treated as IO errors, but @failed isn't
+	 * allocated unless we're in the retry path - so if we're not in the
+	 * retry path, don't check here, it'll be caught in bch2_read_endio()
+	 * and we'll end up in the retry path:
+	 */
+	if ((flags & BCH_READ_IN_RETRY) &&
+	    !pick.ptr.cached &&
+	    unlikely(ptr_stale(ca, &pick.ptr))) {
+		read_from_stale_dirty_pointer(trans, k, pick.ptr);
+		bch2_mark_io_failure(failed, &pick);
+		goto retry_pick;
+	}
+
+	/*
+	 * Unlock the iterator while the btree node's lock is still in
+	 * cache, before doing the IO:
+	 */
+	bch2_trans_unlock(trans);
 
 	if (flags & BCH_READ_NODECODE) {
 		/*
@@ -2366,12 +2412,6 @@ retry:
 		 * of the original extent and the indirect extent:
 		 */
 		sectors = min(sectors, k.k->size - offset_into_extent);
-
-		/*
-		 * Unlock the iterator while the btree node's lock is still in
-		 * cache, before doing the IO:
-		 */
-		bch2_trans_unlock(&trans);
 
 		bytes = min(sectors, bvec_iter_sectors(bvec_iter)) << 9;
 		swap(bvec_iter.bi_size, bytes);

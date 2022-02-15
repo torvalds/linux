@@ -752,10 +752,12 @@ static int __bch2_move_data(struct bch_fs *c,
 			BUG();
 		}
 
-		/* unlock before doing IO: */
+		/*
+		 * The iterator gets unlocked by __bch2_read_extent - need to
+		 * save a copy of @k elsewhere:
+		  */
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
-		bch2_trans_unlock(&trans);
 
 		ret2 = bch2_move_extent(&trans, ctxt, wp, io_opts, btree_id, k,
 					data_cmd, data_opts);

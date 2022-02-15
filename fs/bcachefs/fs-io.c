@@ -1043,8 +1043,6 @@ retry:
 
 		sectors = min(sectors, k.k->size - offset_into_extent);
 
-		bch2_trans_unlock(trans);
-
 		if (readpages_iter)
 			readpage_bio_extend(readpages_iter, &rbio->bio, sectors,
 					    extent_partial_reads_expensive(k));
