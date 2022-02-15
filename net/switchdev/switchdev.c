@@ -409,10 +409,10 @@ static int switchdev_lower_dev_walk(struct net_device *lower_dev,
 }
 
 static struct net_device *
-switchdev_lower_dev_find(struct net_device *dev,
-			 bool (*check_cb)(const struct net_device *dev),
-			 bool (*foreign_dev_check_cb)(const struct net_device *dev,
-						      const struct net_device *foreign_dev))
+switchdev_lower_dev_find_rcu(struct net_device *dev,
+			     bool (*check_cb)(const struct net_device *dev),
+			     bool (*foreign_dev_check_cb)(const struct net_device *dev,
+							  const struct net_device *foreign_dev))
 {
 	struct switchdev_nested_priv switchdev_priv = {
 		.check_cb = check_cb,
@@ -451,7 +451,7 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 		return mod_cb(dev, orig_dev, event, info->ctx, fdb_info);
 
 	if (netif_is_lag_master(dev)) {
-		if (!switchdev_lower_dev_find(dev, check_cb, foreign_dev_check_cb))
+		if (!switchdev_lower_dev_find_rcu(dev, check_cb, foreign_dev_check_cb))
 			goto maybe_bridged_with_us;
 
 		/* This is a LAG interface that we offload */
@@ -465,7 +465,7 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 	 * towards a bridge device.
 	 */
 	if (netif_is_bridge_master(dev)) {
-		if (!switchdev_lower_dev_find(dev, check_cb, foreign_dev_check_cb))
+		if (!switchdev_lower_dev_find_rcu(dev, check_cb, foreign_dev_check_cb))
 			return 0;
 
 		/* This is a bridge interface that we offload */
@@ -478,8 +478,8 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 			 * that we offload.
 			 */
 			if (!check_cb(lower_dev) &&
-			    !switchdev_lower_dev_find(lower_dev, check_cb,
-						      foreign_dev_check_cb))
+			    !switchdev_lower_dev_find_rcu(lower_dev, check_cb,
+							  foreign_dev_check_cb))
 				continue;
 
 			err = __switchdev_handle_fdb_event_to_device(lower_dev, orig_dev,
@@ -501,7 +501,7 @@ maybe_bridged_with_us:
 	if (!br || !netif_is_bridge_master(br))
 		return 0;
 
-	if (!switchdev_lower_dev_find(br, check_cb, foreign_dev_check_cb))
+	if (!switchdev_lower_dev_find_rcu(br, check_cb, foreign_dev_check_cb))
 		return 0;
 
 	return __switchdev_handle_fdb_event_to_device(br, orig_dev, event, fdb_info,
