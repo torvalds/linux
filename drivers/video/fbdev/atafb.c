@@ -76,8 +76,6 @@
 #define SWITCH_SND7 0x80
 #define SWITCH_NONE 0x00
 
-#define up(x, r) (((x) + (r) - 1) & ~((r)-1))
-
 
 static int default_par;		/* default resolution (0=none) */
 
@@ -1649,12 +1647,12 @@ static int falcon_pan_display(struct fb_var_screeninfo *var,
 	int bpp = info->var.bits_per_pixel;
 
 	if (bpp == 1)
-		var->xoffset = up(var->xoffset, 32);
+		var->xoffset = round_up(var->xoffset, 32);
 	if (bpp != 16)
 		par->hw.falcon.xoffset = var->xoffset & 15;
 	else {
 		par->hw.falcon.xoffset = 0;
-		var->xoffset = up(var->xoffset, 2);
+		var->xoffset = round_up(var->xoffset, 2);
 	}
 	par->hw.falcon.line_offset = bpp *
 		(info->var.xres_virtual - info->var.xres) / 16;
@@ -2268,7 +2266,7 @@ static int pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (!fbhw->set_screen_base ||
 	    (!ATARIHW_PRESENT(EXTD_SHIFTER) && var->xoffset))
 		return -EINVAL;
-	var->xoffset = up(var->xoffset, 16);
+	var->xoffset = round_up(var->xoffset, 16);
 	par->screen_base = screen_base +
 	        (var->yoffset * info->var.xres_virtual + var->xoffset)
 	        * info->var.bits_per_pixel / 8;
