@@ -202,6 +202,7 @@
 #define HAP_PTN_FIFO_DIN_NUM			4
 
 #define HAP_PTN_FIFO_PLAY_RATE_REG		0x24
+#define PAT_MEM_PLAY_RATE_MASK			GENMASK(7, 4)
 #define FIFO_PLAY_RATE_MASK			GENMASK(3, 0)
 
 #define HAP_PTN_FIFO_EMPTY_CFG_REG		0x2A
@@ -470,6 +471,7 @@ struct mmap_partition {
 struct haptics_mmap {
 	struct mmap_partition	fifo_mmap;
 	struct mmap_partition	pat_sel_mmap[PAT_MEM_MAX];
+	enum s_period		pat_play_rate;
 };
 
 /**
@@ -2599,6 +2601,15 @@ static int haptics_mmap_config(struct haptics_chip *chip)
 	if (rc < 0)
 		return rc;
 
+	/* config PATx_PLAY_RATE */
+	rc = haptics_masked_write(chip, chip->ptn_addr_base,
+			HAP_PTN_FIFO_PLAY_RATE_REG, PAT_MEM_PLAY_RATE_MASK,
+			FIELD_PREP(PAT_MEM_PLAY_RATE_MASK, chip->mmap.pat_play_rate));
+	if (rc < 0) {
+		dev_err(chip->dev, "Set pat_mem play rate failed, rc=%d\n", rc);
+		return rc;
+	}
+
 	dev_dbg(chip->dev, "haptics memory map configured with FIFO: %d, PAT1:%d, PAT2: %d, PAT3: %d, PAT4: %d\n",
 			chip->mmap.fifo_mmap.length,
 			chip->mmap.pat_sel_mmap[PAT1_MEM].length,
@@ -2617,6 +2628,13 @@ static int haptics_mmap_preload_fifo_effect(struct haptics_chip *chip,
 	if (!effect->fifo->preload) {
 		dev_err(chip->dev, "effect %d doesn't support preload\n");
 		return -EINVAL;
+	}
+
+	if (chip->mmap.pat_play_rate == F_RESERVED) {
+		chip->mmap.pat_play_rate = effect->fifo->period_per_s;
+	} else if (chip->mmap.pat_play_rate != effect->fifo->period_per_s) {
+		dev_warn(chip->dev, "PATx_MEM sources only support one play rate\n");
+		goto mmap_failed;
 	}
 
 	length = effect->fifo->num_s;
@@ -2675,6 +2693,7 @@ static void haptics_mmap_init(struct haptics_chip *chip)
 			(u32)MMAP_PAT3_PAT4_LEN_MASK * MMAP_PAT_LEN_PER_LSB);
 	chip->mmap.pat_sel_mmap[PAT4_MEM].max_size = min(max_pat_mem_size,
 			(u32)MMAP_PAT3_PAT4_LEN_MASK * MMAP_PAT_LEN_PER_LSB);
+	chip->mmap.pat_play_rate = F_RESERVED;
 }
 
 static int haptics_init_fifo_memory(struct haptics_chip *chip)
