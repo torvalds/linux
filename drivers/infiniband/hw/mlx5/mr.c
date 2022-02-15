@@ -68,7 +68,6 @@ static void set_mkc_access_pd_addr_fields(void *mkc, int acc, u64 start_addr,
 					  struct ib_pd *pd)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	bool ro_pci_enabled = pcie_relaxed_ordering_enabled(dev->mdev->pdev);
 
 	MLX5_SET(mkc, mkc, a, !!(acc & IB_ACCESS_REMOTE_ATOMIC));
 	MLX5_SET(mkc, mkc, rw, !!(acc & IB_ACCESS_REMOTE_WRITE));
@@ -76,12 +75,13 @@ static void set_mkc_access_pd_addr_fields(void *mkc, int acc, u64 start_addr,
 	MLX5_SET(mkc, mkc, lw, !!(acc & IB_ACCESS_LOCAL_WRITE));
 	MLX5_SET(mkc, mkc, lr, 1);
 
-	if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write))
-		MLX5_SET(mkc, mkc, relaxed_ordering_write,
-			 (acc & IB_ACCESS_RELAXED_ORDERING) && ro_pci_enabled);
-	if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read))
-		MLX5_SET(mkc, mkc, relaxed_ordering_read,
-			 (acc & IB_ACCESS_RELAXED_ORDERING) && ro_pci_enabled);
+	if ((acc & IB_ACCESS_RELAXED_ORDERING) &&
+	    pcie_relaxed_ordering_enabled(dev->mdev->pdev)) {
+		if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write))
+			MLX5_SET(mkc, mkc, relaxed_ordering_write, 1);
+		if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read))
+			MLX5_SET(mkc, mkc, relaxed_ordering_read, 1);
+	}
 
 	MLX5_SET(mkc, mkc, pd, to_mpd(pd)->pdn);
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
