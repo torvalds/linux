@@ -1306,10 +1306,10 @@ static void set_load_weight(struct task_struct *p, bool update_load)
 static DEFINE_MUTEX(uclamp_mutex);
 
 /* Max allowed minimum utilization */
-unsigned int sysctl_sched_uclamp_util_min = SCHED_CAPACITY_SCALE;
+static unsigned int sysctl_sched_uclamp_util_min = SCHED_CAPACITY_SCALE;
 
 /* Max allowed maximum utilization */
-unsigned int sysctl_sched_uclamp_util_max = SCHED_CAPACITY_SCALE;
+static unsigned int sysctl_sched_uclamp_util_max = SCHED_CAPACITY_SCALE;
 
 /*
  * By default RT tasks run at the maximum performance point/capacity of the
@@ -1326,7 +1326,7 @@ unsigned int sysctl_sched_uclamp_util_max = SCHED_CAPACITY_SCALE;
  * This knob will not override the system default sched_util_clamp_min defined
  * above.
  */
-unsigned int sysctl_sched_uclamp_util_min_rt_default = SCHED_CAPACITY_SCALE;
+static unsigned int sysctl_sched_uclamp_util_min_rt_default = SCHED_CAPACITY_SCALE;
 
 /* All clamps are required to be less or equal than these values */
 static struct uclamp_se uclamp_default[UCLAMP_CNT];
@@ -1779,7 +1779,7 @@ static void uclamp_update_root_tg(void)
 static void uclamp_update_root_tg(void) { }
 #endif
 
-int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
+static int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	bool update_root_tg = false;
@@ -4436,8 +4436,12 @@ static int sysctl_schedstats(struct ctl_table *table, int write, void *buffer,
 		set_schedstats(state);
 	return err;
 }
+#endif /* CONFIG_PROC_SYSCTL */
+#endif /* CONFIG_SCHEDSTATS */
 
-static struct ctl_table sched_schedstats_sysctls[] = {
+#ifdef CONFIG_SYSCTL
+static struct ctl_table sched_core_sysctls[] = {
+#ifdef CONFIG_SCHEDSTATS
 	{
 		.procname       = "sched_schedstats",
 		.data           = NULL,
@@ -4447,17 +4451,39 @@ static struct ctl_table sched_schedstats_sysctls[] = {
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},
+#endif /* CONFIG_SCHEDSTATS */
+#ifdef CONFIG_UCLAMP_TASK
+	{
+		.procname       = "sched_util_clamp_min",
+		.data           = &sysctl_sched_uclamp_util_min,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = sysctl_sched_uclamp_handler,
+	},
+	{
+		.procname       = "sched_util_clamp_max",
+		.data           = &sysctl_sched_uclamp_util_max,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = sysctl_sched_uclamp_handler,
+	},
+	{
+		.procname       = "sched_util_clamp_min_rt_default",
+		.data           = &sysctl_sched_uclamp_util_min_rt_default,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = sysctl_sched_uclamp_handler,
+	},
+#endif /* CONFIG_UCLAMP_TASK */
 	{}
 };
-
-static int __init sched_schedstats_sysctl_init(void)
+static int __init sched_core_sysctl_init(void)
 {
-	register_sysctl_init("kernel", sched_schedstats_sysctls);
+	register_sysctl_init("kernel", sched_core_sysctls);
 	return 0;
 }
-late_initcall(sched_schedstats_sysctl_init);
-#endif /* CONFIG_PROC_SYSCTL */
-#endif /* CONFIG_SCHEDSTATS */
+late_initcall(sched_core_sysctl_init);
+#endif /* CONFIG_SYSCTL */
 
 /*
  * fork()/clone()-time setup:
