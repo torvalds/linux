@@ -1818,24 +1818,11 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	 */
 	GEM_BUG_ON(!guc->lrc_desc_pool);
 
-	xa_init_flags(&guc->context_lookup, XA_FLAGS_LOCK_IRQ);
-
-	spin_lock_init(&guc->submission_state.lock);
-	INIT_LIST_HEAD(&guc->submission_state.guc_id_list);
-	ida_init(&guc->submission_state.guc_ids);
-	INIT_LIST_HEAD(&guc->submission_state.destroyed_contexts);
-	INIT_WORK(&guc->submission_state.destroyed_worker,
-		  destroyed_worker_func);
-	INIT_WORK(&guc->submission_state.reset_fail_worker,
-		  reset_fail_worker_func);
-
 	guc->submission_state.guc_ids_bitmap =
 		bitmap_zalloc(NUMBER_MULTI_LRC_GUC_ID(guc), GFP_KERNEL);
 	if (!guc->submission_state.guc_ids_bitmap)
 		return -ENOMEM;
 
-	spin_lock_init(&guc->timestamp.lock);
-	INIT_DELAYED_WORK(&guc->timestamp.work, guc_timestamp_ping);
 	guc->timestamp.ping_delay = (POLL_TIME_CLKS / gt->clock_frequency + 1) * HZ;
 	guc->timestamp.shift = gpm_timestamp_shift(gt);
 
@@ -3831,6 +3818,20 @@ static bool __guc_submission_selected(struct intel_guc *guc)
 
 void intel_guc_submission_init_early(struct intel_guc *guc)
 {
+	xa_init_flags(&guc->context_lookup, XA_FLAGS_LOCK_IRQ);
+
+	spin_lock_init(&guc->submission_state.lock);
+	INIT_LIST_HEAD(&guc->submission_state.guc_id_list);
+	ida_init(&guc->submission_state.guc_ids);
+	INIT_LIST_HEAD(&guc->submission_state.destroyed_contexts);
+	INIT_WORK(&guc->submission_state.destroyed_worker,
+		  destroyed_worker_func);
+	INIT_WORK(&guc->submission_state.reset_fail_worker,
+		  reset_fail_worker_func);
+
+	spin_lock_init(&guc->timestamp.lock);
+	INIT_DELAYED_WORK(&guc->timestamp.work, guc_timestamp_ping);
+
 	guc->submission_state.num_guc_ids = GUC_MAX_LRC_DESCRIPTORS;
 	guc->submission_supported = __guc_submission_supported(guc);
 	guc->submission_selected = __guc_submission_selected(guc);
