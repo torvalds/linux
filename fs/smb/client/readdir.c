@@ -141,7 +141,7 @@ retry:
 					if (likely(reparse_inode_match(inode, fattr))) {
 						fattr->cf_mode = inode->i_mode;
 						fattr->cf_rdev = inode->i_rdev;
-						fattr->cf_eof = CIFS_I(inode)->server_eof;
+						fattr->cf_eof = CIFS_I(inode)->netfs.remote_i_size;
 						fattr->cf_symlink_target = NULL;
 					} else {
 						CIFS_I(inode)->time = 0;
