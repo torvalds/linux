@@ -173,6 +173,10 @@ _GLOBAL(ftrace_caller)
 	beq	ftrace_no_trace
 #endif
 
+	/* Save previous stack pointer (r1) */
+	addi	r8, r1, SWITCH_FRAME_SIZE
+	PPC_STL	r8, GPR1(r1)
+
 	/* Get the _mcount() call site out of LR */
 	mflr	r7
 	PPC_STL     r7, _NIP(r1)
