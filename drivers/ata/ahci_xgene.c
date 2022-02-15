@@ -365,7 +365,7 @@ static int xgene_ahci_do_hardreset(struct ata_link *link,
 	do {
 		/* clear D2H reception area to properly wait for D2H FIS */
 		ata_tf_init(link->device, &tf);
-		tf.command = ATA_BUSY;
+		tf.status = ATA_BUSY;
 		ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 		rc = sata_link_hardreset(link, timing, deadline, online,
 				 ahci_check_ready);

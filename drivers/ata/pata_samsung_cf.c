@@ -213,7 +213,7 @@ static void pata_s3c_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
-	tf->feature = ata_inb(ap->host, ioaddr->error_addr);
+	tf->error = ata_inb(ap->host, ioaddr->error_addr);
 	tf->nsect = ata_inb(ap->host, ioaddr->nsect_addr);
 	tf->lbal = ata_inb(ap->host, ioaddr->lbal_addr);
 	tf->lbam = ata_inb(ap->host, ioaddr->lbam_addr);

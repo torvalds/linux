@@ -382,7 +382,7 @@ static void octeon_cf_tf_read16(struct ata_port *ap, struct ata_taskfile *tf)
 	void __iomem *base = ap->ioaddr.data_addr;
 
 	blob = __raw_readw(base + 0xc);
-	tf->feature = blob >> 8;
+	tf->error = blob >> 8;
 
 	blob = __raw_readw(base + 2);
 	tf->nsect = blob & 0xff;
@@ -394,7 +394,7 @@ static void octeon_cf_tf_read16(struct ata_port *ap, struct ata_taskfile *tf)
 
 	blob = __raw_readw(base + 6);
 	tf->device = blob & 0xff;
-	tf->command = blob >> 8;
+	tf->status = blob >> 8;
 
 	if (tf->flags & ATA_TFLAG_LBA48) {
 		if (likely(ap->ioaddr.ctl_addr)) {
