@@ -77,11 +77,12 @@ int mgmt_send_event_skb(unsigned short channel, struct sk_buff *skb, int flag,
 {
 	struct hci_dev *hdev;
 	struct mgmt_hdr *hdr;
-	int len = skb->len;
+	int len;
 
 	if (!skb)
 		return -EINVAL;
 
+	len = skb->len;
 	hdev = bt_cb(skb)->mgmt.hdev;
 
 	/* Time stamp */
