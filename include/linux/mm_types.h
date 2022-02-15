@@ -85,7 +85,16 @@ struct page {
 			 * lruvec->lru_lock.  Sometimes used as a generic list
 			 * by the page owner.
 			 */
-			struct list_head lru;
+			union {
+				struct list_head lru;
+				/* Or, for the Unevictable "LRU list" slot */
+				struct {
+					/* Always even, to negate PageTail */
+					void *__filler;
+					/* Count page's or folio's mlocks */
+					unsigned int mlock_count;
+				};
+			};
 			/* See page-flags.h for PAGE_MAPPING_FLAGS */
 			struct address_space *mapping;
 			pgoff_t index;		/* Our offset within mapping. */
@@ -241,7 +250,13 @@ struct folio {
 		struct {
 	/* public: */
 			unsigned long flags;
-			struct list_head lru;
+			union {
+				struct list_head lru;
+				struct {
+					void *__filler;
+					unsigned int mlock_count;
+				};
+			};
 			struct address_space *mapping;
 			pgoff_t index;
 			void *private;

@@ -2300,8 +2300,11 @@ static void lru_add_page_tail(struct page *head, struct page *tail,
 	} else {
 		/* head is still on lru (and we have it frozen) */
 		VM_WARN_ON(!PageLRU(head));
+		if (PageUnevictable(tail))
+			tail->mlock_count = 0;
+		else
+			list_add_tail(&tail->lru, &head->lru);
 		SetPageLRU(tail);
-		list_add_tail(&tail->lru, &head->lru);
 	}
 }
 

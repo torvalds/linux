@@ -54,16 +54,35 @@ EXPORT_SYMBOL(can_do_mlock);
  */
 void mlock_page(struct page *page)
 {
+	struct lruvec *lruvec;
+	int nr_pages = thp_nr_pages(page);
+
 	VM_BUG_ON_PAGE(PageTail(page), page);
 
 	if (!TestSetPageMlocked(page)) {
-		int nr_pages = thp_nr_pages(page);
-
 		mod_zone_page_state(page_zone(page), NR_MLOCK, nr_pages);
-		count_vm_events(UNEVICTABLE_PGMLOCKED, nr_pages);
-		if (!isolate_lru_page(page))
-			putback_lru_page(page);
+		__count_vm_events(UNEVICTABLE_PGMLOCKED, nr_pages);
 	}
+
+	/* There is nothing more we can do while it's off LRU */
+	if (!TestClearPageLRU(page))
+		return;
+
+	lruvec = folio_lruvec_lock_irq(page_folio(page));
+	if (PageUnevictable(page)) {
+		page->mlock_count++;
+		goto out;
+	}
+
+	del_page_from_lru_list(page, lruvec);
+	ClearPageActive(page);
+	SetPageUnevictable(page);
+	page->mlock_count = 1;
+	add_page_to_lru_list(page, lruvec);
+	__count_vm_events(UNEVICTABLE_PGCULLED, nr_pages);
+out:
+	SetPageLRU(page);
+	unlock_page_lruvec_irq(lruvec);
 }
 
 /**
@@ -72,19 +91,40 @@ void mlock_page(struct page *page)
  */
 void munlock_page(struct page *page)
 {
+	struct lruvec *lruvec;
+	int nr_pages = thp_nr_pages(page);
+
 	VM_BUG_ON_PAGE(PageTail(page), page);
 
-	if (TestClearPageMlocked(page)) {
-		int nr_pages = thp_nr_pages(page);
-
-		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-		if (!isolate_lru_page(page)) {
-			putback_lru_page(page);
-			count_vm_events(UNEVICTABLE_PGMUNLOCKED, nr_pages);
-		} else if (PageUnevictable(page)) {
-			count_vm_events(UNEVICTABLE_PGSTRANDED, nr_pages);
-		}
+	lock_page_memcg(page);
+	lruvec = folio_lruvec_lock_irq(page_folio(page));
+	if (PageLRU(page) && PageUnevictable(page)) {
+		/* Then mlock_count is maintained, but might undercount */
+		if (page->mlock_count)
+			page->mlock_count--;
+		if (page->mlock_count)
+			goto out;
 	}
+	/* else assume that was the last mlock: reclaim will fix it if not */
+
+	if (TestClearPageMlocked(page)) {
+		__mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
+		if (PageLRU(page) || !PageUnevictable(page))
+			__count_vm_events(UNEVICTABLE_PGMUNLOCKED, nr_pages);
+		else
+			__count_vm_events(UNEVICTABLE_PGSTRANDED, nr_pages);
+	}
+
+	/* page_evictable() has to be checked *after* clearing Mlocked */
+	if (PageLRU(page) && PageUnevictable(page) && page_evictable(page)) {
+		del_page_from_lru_list(page, lruvec);
+		ClearPageUnevictable(page);
+		add_page_to_lru_list(page, lruvec);
+		__count_vm_events(UNEVICTABLE_PGRESCUED, nr_pages);
+	}
+out:
+	unlock_page_lruvec_irq(lruvec);
+	unlock_page_memcg(page);
 }
 
 /*
