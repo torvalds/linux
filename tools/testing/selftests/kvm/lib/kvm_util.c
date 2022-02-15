@@ -1690,30 +1690,16 @@ void *vcpu_map_dirty_ring(struct kvm_vm *vm, uint32_t vcpuid)
 	return vcpu->dirty_gfns;
 }
 
-/*
- * VM Ioctl
- *
- * Input Args:
- *   vm - Virtual Machine
- *   cmd - Ioctl number
- *   arg - Argument to pass to the ioctl
- *
- * Return: None
- *
- * Issues an arbitrary ioctl on a VM fd.
- */
-void vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
-{
-	int ret;
-
-	ret = __vm_ioctl(vm, cmd, arg);
-	TEST_ASSERT(ret == 0, "vm ioctl %lu failed, rc: %i errno: %i (%s)",
-		cmd, ret, errno, strerror(errno));
-}
-
 int __vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
 {
 	return ioctl(vm->fd, cmd, arg);
+}
+
+void _vm_ioctl(struct kvm_vm *vm, unsigned long cmd, const char *name, void *arg)
+{
+	int ret = __vm_ioctl(vm, cmd, arg);
+
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));
 }
 
 /*
