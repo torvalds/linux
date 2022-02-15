@@ -1816,13 +1816,8 @@ static void rtw_coex_action_bt_hfp(struct rtw_dev *rtwdev)
 
 	if (efuse->share_ant) {
 		/* Shared-Ant */
-		if (coex_stat->bt_multi_link) {
-			table_case = 10;
-			tdma_case = 17;
-		} else {
-			table_case = 10;
-			tdma_case = 5;
-		}
+		table_case = 10;
+		tdma_case = 5;
 	} else {
 		/* Non-Shared-Ant */
 		if (coex_stat->bt_multi_link) {
