@@ -673,7 +673,7 @@ struct kfd_ioctl_svm_args {
 	__u32 op;
 	__u32 nattr;
 	/* Variable length array of attributes */
-	struct kfd_ioctl_svm_attribute attrs[0];
+	struct kfd_ioctl_svm_attribute attrs[];
 };
 
 /**
