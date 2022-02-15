@@ -9906,6 +9906,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
  */
 void netdev_run_todo(void)
 {
+	struct net_device *dev, *tmp;
 	struct list_head list;
 #ifdef CONFIG_LOCKDEP
 	struct list_head unlink_list;
@@ -9926,24 +9927,23 @@ void netdev_run_todo(void)
 
 	__rtnl_unlock();
 
-
 	/* Wait for rcu callbacks to finish before next phase */
 	if (!list_empty(&list))
 		rcu_barrier();
 
-	while (!list_empty(&list)) {
-		struct net_device *dev
-			= list_first_entry(&list, struct net_device, todo_list);
-		list_del(&dev->todo_list);
-
+	list_for_each_entry_safe(dev, tmp, &list, todo_list) {
 		if (unlikely(dev->reg_state != NETREG_UNREGISTERING)) {
-			pr_err("network todo '%s' but state %d\n",
-			       dev->name, dev->reg_state);
-			dump_stack();
+			netdev_WARN(dev, "run_todo but not unregistering\n");
+			list_del(&dev->todo_list);
 			continue;
 		}
 
 		dev->reg_state = NETREG_UNREGISTERED;
+	}
+
+	while (!list_empty(&list)) {
+		dev = list_first_entry(&list, struct net_device, todo_list);
+		list_del(&dev->todo_list);
 
 		netdev_wait_allrefs(dev);
 
