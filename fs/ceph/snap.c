@@ -482,7 +482,7 @@ static void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	struct ceph_buffer *old_blob = NULL;
 	int used, dirty;
 
-	capsnap = kzalloc(sizeof(*capsnap), GFP_NOFS);
+	capsnap = kmem_cache_zalloc(ceph_cap_snap_cachep, GFP_NOFS);
 	if (!capsnap) {
 		pr_err("ENOMEM allocating ceph_cap_snap on %p\n", inode);
 		return;
@@ -603,7 +603,8 @@ update_snapc:
 	spin_unlock(&ci->i_ceph_lock);
 
 	ceph_buffer_put(old_blob);
-	kfree(capsnap);
+	if (capsnap)
+		kmem_cache_free(ceph_cap_snap_cachep, capsnap);
 	ceph_put_snap_context(old_snapc);
 }
 
