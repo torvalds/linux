@@ -837,29 +837,6 @@ TRACE_EVENT(afs_dir_check_failed,
 		      __entry->vnode, __entry->off, __entry->i_size)
 	    );
 
-TRACE_EVENT(afs_folio_dirty,
-	    TP_PROTO(struct afs_vnode *vnode, const char *where, struct folio *folio),
-
-	    TP_ARGS(vnode, where, folio),
-
-	    TP_STRUCT__entry(
-		    __field(struct afs_vnode *,		vnode)
-		    __field(const char *,		where)
-		    __field(pgoff_t,			index)
-		    __field(size_t,			size)
-			     ),
-
-	    TP_fast_assign(
-		    __entry->vnode = vnode;
-		    __entry->where = where;
-		    __entry->index = folio_index(folio);
-		    __entry->size = folio_size(folio);
-			   ),
-
-	    TP_printk("vn=%p ix=%05lx s=%05lx %s",
-		      __entry->vnode, __entry->index, __entry->size, __entry->where)
-	    );
-
 TRACE_EVENT(afs_call_state,
 	    TP_PROTO(struct afs_call *call,
 		     enum afs_call_state from,

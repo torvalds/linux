@@ -34,7 +34,7 @@ const struct file_operations afs_file_operations = {
 	.release	= afs_release,
 	.llseek		= generic_file_llseek,
 	.read_iter	= afs_file_read_iter,
-	.write_iter	= afs_file_write,
+	.write_iter	= netfs_file_write_iter,
 	.mmap		= afs_file_mmap,
 	.splice_read	= afs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
@@ -50,16 +50,15 @@ const struct inode_operations afs_file_inode_operations = {
 };
 
 const struct address_space_operations afs_file_aops = {
+	.direct_IO	= noop_direct_IO,
 	.read_folio	= netfs_read_folio,
 	.readahead	= netfs_readahead,
 	.dirty_folio	= netfs_dirty_folio,
-	.launder_folio	= afs_launder_folio,
+	.launder_folio	= netfs_launder_folio,
 	.release_folio	= netfs_release_folio,
 	.invalidate_folio = netfs_invalidate_folio,
-	.write_begin	= afs_write_begin,
-	.write_end	= afs_write_end,
-	.writepages	= afs_writepages,
 	.migrate_folio	= filemap_migrate_folio,
+	.writepages	= afs_writepages,
 };
 
 const struct address_space_operations afs_symlink_aops = {
@@ -355,7 +354,10 @@ static int afs_symlink_read_folio(struct file *file, struct folio *folio)
 
 static int afs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
-	rreq->netfs_priv = key_get(afs_file_key(file));
+	if (file)
+		rreq->netfs_priv = key_get(afs_file_key(file));
+	rreq->rsize = 256 * 1024;
+	rreq->wsize = 256 * 1024;
 	return 0;
 }
 
@@ -372,11 +374,36 @@ static void afs_free_request(struct netfs_io_request *rreq)
 	key_put(rreq->netfs_priv);
 }
 
+static void afs_update_i_size(struct inode *inode, loff_t new_i_size)
+{
+	struct afs_vnode *vnode = AFS_FS_I(inode);
+	loff_t i_size;
+
+	write_seqlock(&vnode->cb_lock);
+	i_size = i_size_read(&vnode->netfs.inode);
+	if (new_i_size > i_size) {
+		i_size_write(&vnode->netfs.inode, new_i_size);
+		inode_set_bytes(&vnode->netfs.inode, new_i_size);
+	}
+	write_sequnlock(&vnode->cb_lock);
+	fscache_update_cookie(afs_vnode_cache(vnode), NULL, &new_i_size);
+}
+
+static void afs_netfs_invalidate_cache(struct netfs_io_request *wreq)
+{
+	struct afs_vnode *vnode = AFS_FS_I(wreq->inode);
+
+	afs_invalidate_cache(vnode, 0);
+}
+
 const struct netfs_request_ops afs_req_ops = {
 	.init_request		= afs_init_request,
 	.free_request		= afs_free_request,
 	.check_write_begin	= afs_check_write_begin,
 	.issue_read		= afs_issue_read,
+	.update_i_size		= afs_update_i_size,
+	.invalidate_cache	= afs_netfs_invalidate_cache,
+	.create_write_requests	= afs_create_write_requests,
 };
 
 static void afs_add_open_mmap(struct afs_vnode *vnode)
@@ -445,28 +472,39 @@ static vm_fault_t afs_vm_map_pages(struct vm_fault *vmf, pgoff_t start_pgoff, pg
 
 static ssize_t afs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file_inode(iocb->ki_filp));
+	struct inode *inode = file_inode(iocb->ki_filp);
+	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct afs_file *af = iocb->ki_filp->private_data;
-	int ret;
+	ssize_t ret;
 
-	ret = afs_validate(vnode, af->key);
+	if (iocb->ki_flags & IOCB_DIRECT)
+		return netfs_unbuffered_read_iter(iocb, iter);
+
+	ret = netfs_start_io_read(inode);
 	if (ret < 0)
 		return ret;
-
-	return generic_file_read_iter(iocb, iter);
+	ret = afs_validate(vnode, af->key);
+	if (ret == 0)
+		ret = filemap_read(iocb, iter, 0);
+	netfs_end_io_read(inode);
+	return ret;
 }
 
 static ssize_t afs_file_splice_read(struct file *in, loff_t *ppos,
 				    struct pipe_inode_info *pipe,
 				    size_t len, unsigned int flags)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file_inode(in));
+	struct inode *inode = file_inode(in);
+	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct afs_file *af = in->private_data;
-	int ret;
+	ssize_t ret;
 
-	ret = afs_validate(vnode, af->key);
+	ret = netfs_start_io_read(inode);
 	if (ret < 0)
 		return ret;
-
-	return filemap_splice_read(in, ppos, pipe, len, flags);
+	ret = afs_validate(vnode, af->key);
+	if (ret == 0)
+		ret = filemap_splice_read(in, ppos, pipe, len, flags);
+	netfs_end_io_read(inode);
+	return ret;
 }
