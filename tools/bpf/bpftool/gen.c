@@ -1505,10 +1505,108 @@ out:
 	return err;
 }
 
+static int btfgen_remap_id(__u32 *type_id, void *ctx)
+{
+	unsigned int *ids = ctx;
+
+	*type_id = ids[*type_id];
+
+	return 0;
+}
+
 /* Generate BTF from relocation information previously recorded */
 static struct btf *btfgen_get_btf(struct btfgen_info *info)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	struct btf *btf_new = NULL;
+	unsigned int *ids = NULL;
+	unsigned int i, n = btf__type_cnt(info->marked_btf);
+	int err = 0;
+
+	btf_new = btf__new_empty();
+	if (!btf_new) {
+		err = -errno;
+		goto err_out;
+	}
+
+	ids = calloc(n, sizeof(*ids));
+	if (!ids) {
+		err = -errno;
+		goto err_out;
+	}
+
+	/* first pass: add all marked types to btf_new and add their new ids to the ids map */
+	for (i = 1; i < n; i++) {
+		const struct btf_type *cloned_type, *type;
+		const char *name;
+		int new_id;
+
+		cloned_type = btf__type_by_id(info->marked_btf, i);
+
+		if (cloned_type->name_off != MARKED)
+			continue;
+
+		type = btf__type_by_id(info->src_btf, i);
+
+		/* add members for struct and union */
+		if (btf_is_composite(type)) {
+			struct btf_member *cloned_m, *m;
+			unsigned short vlen;
+			int idx_src;
+
+			name = btf__str_by_offset(info->src_btf, type->name_off);
+
+			if (btf_is_struct(type))
+				err = btf__add_struct(btf_new, name, type->size);
+			else
+				err = btf__add_union(btf_new, name, type->size);
+
+			if (err < 0)
+				goto err_out;
+			new_id = err;
+
+			cloned_m = btf_members(cloned_type);
+			m = btf_members(type);
+			vlen = btf_vlen(cloned_type);
+			for (idx_src = 0; idx_src < vlen; idx_src++, cloned_m++, m++) {
+				/* add only members that are marked as used */
+				if (cloned_m->name_off != MARKED)
+					continue;
+
+				name = btf__str_by_offset(info->src_btf, m->name_off);
+				err = btf__add_field(btf_new, name, m->type,
+						     btf_member_bit_offset(cloned_type, idx_src),
+						     btf_member_bitfield_size(cloned_type, idx_src));
+				if (err < 0)
+					goto err_out;
+			}
+		} else {
+			err = btf__add_type(btf_new, info->src_btf, type);
+			if (err < 0)
+				goto err_out;
+			new_id = err;
+		}
+
+		/* add ID mapping */
+		ids[i] = new_id;
+	}
+
+	/* second pass: fix up type ids */
+	for (i = 1; i < btf__type_cnt(btf_new); i++) {
+		struct btf_type *btf_type = (struct btf_type *) btf__type_by_id(btf_new, i);
+
+		err = btf_type_visit_type_ids(btf_type, btfgen_remap_id, ids);
+		if (err)
+			goto err_out;
+	}
+
+	free(ids);
+	return btf_new;
+
+err_out:
+	btf__free(btf_new);
+	free(ids);
+	errno = -err;
+	return NULL;
 }
 
 /* Create minimized BTF file for a set of BPF objects.
