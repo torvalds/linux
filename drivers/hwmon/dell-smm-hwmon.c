@@ -86,8 +86,8 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("i8k");
 
 static bool force;
-module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force loading without checking for supported models");
+module_param_unsafe(force, bool, 0);
+MODULE_PARM_DESC(force, "Force loading without checking for supported models and features");
 
 static bool ignore_dmi;
 module_param(ignore_dmi, bool, 0);
