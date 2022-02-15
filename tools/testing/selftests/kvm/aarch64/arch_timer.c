@@ -349,12 +349,10 @@ static void test_run(struct kvm_vm *vm)
 static void test_init_timer_irq(struct kvm_vm *vm)
 {
 	/* Timer initid should be same for all the vCPUs, so query only vCPU-0 */
-	int vcpu0_fd = vcpu_get_fd(vm, 0);
-
-	kvm_device_access(vcpu0_fd, KVM_ARM_VCPU_TIMER_CTRL,
-			KVM_ARM_VCPU_TIMER_IRQ_PTIMER, &ptimer_irq, false);
-	kvm_device_access(vcpu0_fd, KVM_ARM_VCPU_TIMER_CTRL,
-			KVM_ARM_VCPU_TIMER_IRQ_VTIMER, &vtimer_irq, false);
+	vcpu_access_device_attr(vm, 0, KVM_ARM_VCPU_TIMER_CTRL,
+				KVM_ARM_VCPU_TIMER_IRQ_PTIMER, &ptimer_irq, false);
+	vcpu_access_device_attr(vm, 0, KVM_ARM_VCPU_TIMER_CTRL,
+				KVM_ARM_VCPU_TIMER_IRQ_VTIMER, &vtimer_irq, false);
 
 	sync_global_to_guest(vm, ptimer_irq);
 	sync_global_to_guest(vm, vtimer_irq);
