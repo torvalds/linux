@@ -460,6 +460,29 @@ static void rtw_coex_gnt_workaround(struct rtw_dev *rtwdev, bool force, u8 mode)
 	rtw_coex_set_gnt_fix(rtwdev);
 }
 
+static void rtw_coex_monitor_bt_ctr(struct rtw_dev *rtwdev)
+{
+	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
+	u32 tmp;
+
+	tmp = rtw_read32(rtwdev, REG_BT_ACT_STATISTICS);
+	coex_stat->hi_pri_tx = FIELD_GET(MASKLWORD, tmp);
+	coex_stat->hi_pri_rx = FIELD_GET(MASKHWORD, tmp);
+
+	tmp = rtw_read32(rtwdev, REG_BT_ACT_STATISTICS_1);
+	coex_stat->lo_pri_tx = FIELD_GET(MASKLWORD, tmp);
+	coex_stat->lo_pri_rx = FIELD_GET(MASKHWORD, tmp);
+
+	rtw_write8(rtwdev, REG_BT_COEX_ENH_INTR_CTRL,
+		   BIT_R_GRANTALL_WLMASK | BIT_STATIS_BT_EN);
+
+	rtw_dbg(rtwdev, RTW_DBG_COEX,
+		"[BTCoex], Hi-Pri Rx/Tx: %d/%d, Lo-Pri Rx/Tx: %d/%d\n",
+		coex_stat->hi_pri_rx, coex_stat->hi_pri_tx,
+		coex_stat->lo_pri_rx, coex_stat->lo_pri_tx);
+}
+
 static void rtw_coex_monitor_bt_enable(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -3170,6 +3193,17 @@ void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev, u32 type)
 	rtw_coex_run_coex(rtwdev, COEX_RSN_WLSTATUS);
 }
 
+void rtw_coex_wl_status_check(struct rtw_dev *rtwdev)
+{
+	struct rtw_coex_stat *coex_stat = &rtwdev->coex.stat;
+
+	if ((coex_stat->wl_under_lps && !coex_stat->wl_force_lps_ctrl) ||
+	    coex_stat->wl_under_ips)
+		return;
+
+	rtw_coex_monitor_bt_ctr(rtwdev);
+}
+
 void rtw_coex_bt_relink_work(struct work_struct *work)
 {
 	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
@@ -3653,7 +3687,6 @@ void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m)
 	u16 score_board_WB, score_board_BW;
 	u32 wl_reg_6c0, wl_reg_6c4, wl_reg_6c8, wl_reg_778, wl_reg_6cc;
 	u32 lte_coex, bt_coex;
-	u32 bt_hi_pri, bt_lo_pri;
 	int i;
 
 	score_board_BW = rtw_coex_read_scbd(rtwdev);
@@ -3663,17 +3696,6 @@ void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m)
 	wl_reg_6c8 = rtw_read32(rtwdev, REG_BT_COEX_BRK_TABLE);
 	wl_reg_6cc = rtw_read32(rtwdev, REG_BT_COEX_TABLE_H);
 	wl_reg_778 = rtw_read8(rtwdev, REG_BT_STAT_CTRL);
-
-	bt_hi_pri = rtw_read32(rtwdev, REG_BT_ACT_STATISTICS);
-	bt_lo_pri = rtw_read32(rtwdev, REG_BT_ACT_STATISTICS_1);
-	rtw_write8(rtwdev, REG_BT_COEX_ENH_INTR_CTRL,
-		   BIT_R_GRANTALL_WLMASK | BIT_STATIS_BT_EN);
-
-	coex_stat->hi_pri_tx = FIELD_GET(MASKLWORD, bt_hi_pri);
-	coex_stat->hi_pri_rx = FIELD_GET(MASKHWORD, bt_hi_pri);
-
-	coex_stat->lo_pri_tx = FIELD_GET(MASKLWORD, bt_lo_pri);
-	coex_stat->lo_pri_rx = FIELD_GET(MASKHWORD, bt_lo_pri);
 
 	sys_lte = rtw_read8(rtwdev, 0x73);
 	lte_coex = rtw_coex_read_indirect_reg(rtwdev, 0x38);
