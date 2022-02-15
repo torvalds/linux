@@ -1937,29 +1937,6 @@ void vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_one_reg *reg)
 		    ret, errno, strerror(errno));
 }
 
-/*
- * VCPU Ioctl
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU ID
- *   cmd - Ioctl number
- *   arg - Argument to pass to the ioctl
- *
- * Return: None
- *
- * Issues an arbitrary ioctl on a VCPU fd.
- */
-void vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
-		unsigned long cmd, void *arg)
-{
-	int ret;
-
-	ret = __vcpu_ioctl(vm, vcpuid, cmd, arg);
-	TEST_ASSERT(ret == 0, "vcpu ioctl %lu failed, rc: %i errno: %i (%s)",
-		cmd, ret, errno, strerror(errno));
-}
-
 int __vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
 		 unsigned long cmd, void *arg)
 {
@@ -1971,6 +1948,14 @@ int __vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
 	ret = ioctl(vcpu->fd, cmd, arg);
 
 	return ret;
+}
+
+void _vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid, unsigned long cmd,
+		 const char *name, void *arg)
+{
+	int ret = __vcpu_ioctl(vm, vcpuid, cmd, arg);
+
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));
 }
 
 void *vcpu_map_dirty_ring(struct kvm_vm *vm, uint32_t vcpuid)
