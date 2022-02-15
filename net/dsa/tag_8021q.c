@@ -577,14 +577,14 @@ void dsa_8021q_rcv(struct sk_buff *skb, int *source_port, int *switch_id)
 {
 	u16 vid, tci;
 
-	skb_push_rcsum(skb, ETH_HLEN);
 	if (skb_vlan_tag_present(skb)) {
 		tci = skb_vlan_tag_get(skb);
 		__vlan_hwaccel_clear_tag(skb);
 	} else {
+		skb_push_rcsum(skb, ETH_HLEN);
 		__skb_vlan_pop(skb, &tci);
+		skb_pull_rcsum(skb, ETH_HLEN);
 	}
-	skb_pull_rcsum(skb, ETH_HLEN);
 
 	vid = tci & VLAN_VID_MASK;
 
