@@ -199,7 +199,7 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 	struct mlx5e_tx_wqe *wqe;
 	u16 pi;
 
-	pi = mlx5e_xdpsq_get_next_pi(sq, MLX5E_TX_MPW_MAX_WQEBBS);
+	pi = mlx5e_xdpsq_get_next_pi(sq, sq->max_sq_mpw_wqebbs);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 	net_prefetchw(wqe->data);
 
@@ -245,10 +245,8 @@ enum {
 INDIRECT_CALLABLE_SCOPE int mlx5e_xmit_xdp_frame_check_mpwqe(struct mlx5e_xdpsq *sq)
 {
 	if (unlikely(!sq->mpwqe.wqe)) {
-		const u16 stop_room = mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
-
 		if (unlikely(!mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc,
-						     stop_room))) {
+						     sq->stop_room))) {
 			/* SQ is full, ring doorbell */
 			mlx5e_xmit_xdp_doorbell(sq);
 			sq->stats->full++;
@@ -288,7 +286,7 @@ mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptx
 
 	mlx5e_xdp_mpwqe_add_dseg(sq, xdptxd, stats);
 
-	if (unlikely(mlx5e_xdp_mpqwe_is_full(session)))
+	if (unlikely(mlx5e_xdp_mpqwe_is_full(session, sq->max_sq_mpw_wqebbs)))
 		mlx5e_xdp_mpwqe_complete(sq);
 
 	mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, xdpi);

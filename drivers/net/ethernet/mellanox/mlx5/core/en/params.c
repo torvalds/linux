@@ -196,13 +196,13 @@ u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *par
 	u16 stop_room;
 
 	stop_room  = mlx5e_tls_get_stop_room(mdev, params);
-	stop_room += mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+	stop_room += mlx5e_stop_room_for_max_wqe(mdev);
 	if (is_mpwqe)
 		/* A MPWQE can take up to the maximum-sized WQE + all the normal
 		 * stop room can be taken if a new packet breaks the active
 		 * MPWQE session and allocates its WQEs right away.
 		 */
-		stop_room += mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+		stop_room += mlx5e_stop_room_for_max_wqe(mdev);
 
 	return stop_room;
 }
@@ -717,7 +717,7 @@ static u32 mlx5e_shampo_icosq_sz(struct mlx5_core_dev *mdev,
 	int wq_size = BIT(MLX5_GET(wq, wqc, log_wq_sz));
 	u32 wqebbs;
 
-	max_klm_per_umr = MLX5E_MAX_KLM_PER_WQE;
+	max_klm_per_umr = MLX5E_MAX_KLM_PER_WQE(mdev);
 	max_hd_per_wqe = mlx5e_shampo_hd_per_wqe(mdev, params, rq_param);
 	max_num_of_umr_per_wqe = max_hd_per_wqe / max_klm_per_umr;
 	rest = max_hd_per_wqe % max_klm_per_umr;
@@ -774,10 +774,10 @@ static void mlx5e_build_async_icosq_param(struct mlx5_core_dev *mdev,
 	void *wq = MLX5_ADDR_OF(sqc, sqc, wq);
 
 	mlx5e_build_sq_param_common(mdev, param);
-	param->stop_room = mlx5e_stop_room_for_wqe(1); /* for XSK NOP */
+	param->stop_room = mlx5e_stop_room_for_wqe(mdev, 1); /* for XSK NOP */
 	param->is_tls = mlx5e_accel_is_ktls_rx(mdev);
 	if (param->is_tls)
-		param->stop_room += mlx5e_stop_room_for_wqe(1); /* for TLS RX resync NOP */
+		param->stop_room += mlx5e_stop_room_for_wqe(mdev, 1); /* for TLS RX resync NOP */
 	MLX5_SET(sqc, sqc, reg_umr, MLX5_CAP_ETH(mdev, reg_umr_sq));
 	MLX5_SET(wq, wq, log_wq_sz, log_wq_size);
 	mlx5e_build_ico_cq_param(mdev, log_wq_size, &param->cqp);

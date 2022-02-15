@@ -9,19 +9,6 @@
 
 #define MLX5E_TX_WQE_EMPTY_DS_COUNT (sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
 
-/* The mult of MLX5_SEND_WQE_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS
- * (16 * 4 == 64) does not fit in the 6-bit DS field of Ctrl Segment.
- * We use a bound lower that MLX5_SEND_WQE_MAX_WQEBBS to let a
- * full-session WQE be cache-aligned.
- */
-#if L1_CACHE_BYTES < 128
-#define MLX5E_TX_MPW_MAX_WQEBBS (MLX5_SEND_WQE_MAX_WQEBBS - 1)
-#else
-#define MLX5E_TX_MPW_MAX_WQEBBS (MLX5_SEND_WQE_MAX_WQEBBS - 2)
-#endif
-
-#define MLX5E_TX_MPW_MAX_NUM_DS (MLX5E_TX_MPW_MAX_WQEBBS * MLX5_SEND_WQEBB_NUM_DS)
-
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
 #define MLX5E_RX_ERR_CQE(cqe) (get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)
@@ -68,8 +55,6 @@ void mlx5e_free_rx_descs(struct mlx5e_rq *rq);
 void mlx5e_free_rx_in_progress_descs(struct mlx5e_rq *rq);
 
 /* TX */
-u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq);
@@ -308,9 +293,9 @@ mlx5e_tx_dma_unmap(struct device *pdev, struct mlx5e_sq_dma *dma)
 void mlx5e_sq_xmit_simple(struct mlx5e_txqsq *sq, struct sk_buff *skb, bool xmit_more);
 void mlx5e_tx_mpwqe_ensure_complete(struct mlx5e_txqsq *sq);
 
-static inline bool mlx5e_tx_mpwqe_is_full(struct mlx5e_tx_mpwqe *session)
+static inline bool mlx5e_tx_mpwqe_is_full(struct mlx5e_tx_mpwqe *session, u8 max_sq_mpw_wqebbs)
 {
-	return session->ds_count == MLX5E_TX_MPW_MAX_NUM_DS;
+	return session->ds_count == max_sq_mpw_wqebbs * MLX5_SEND_WQEBB_NUM_DS;
 }
 
 static inline void mlx5e_rqwq_reset(struct mlx5e_rq *rq)
@@ -431,10 +416,10 @@ mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 	}
 }
 
-static inline u16 mlx5e_stop_room_for_wqe(u16 wqe_size)
-{
-	BUILD_BUG_ON(PAGE_SIZE / MLX5_SEND_WQE_BB < MLX5_SEND_WQE_MAX_WQEBBS);
+#define MLX5E_STOP_ROOM(wqebbs) ((wqebbs) * 2 - 1)
 
+static inline u16 mlx5e_stop_room_for_wqe(struct mlx5_core_dev *mdev, u16 wqe_size)
+{
 	/* A WQE must not cross the page boundary, hence two conditions:
 	 * 1. Its size must not exceed the page size.
 	 * 2. If the WQE size is X, and the space remaining in a page is less
@@ -443,18 +428,28 @@ static inline u16 mlx5e_stop_room_for_wqe(u16 wqe_size)
 	 *    stop room of X-1 + X.
 	 * WQE size is also limited by the hardware limit.
 	 */
+	WARN_ONCE(wqe_size > mlx5e_get_max_sq_wqebbs(mdev),
+		  "wqe_size %u is greater than max SQ WQEBBs %u",
+		  wqe_size, mlx5e_get_max_sq_wqebbs(mdev));
 
-	if (__builtin_constant_p(wqe_size))
-		BUILD_BUG_ON(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
-	else
-		WARN_ON_ONCE(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
 
-	return wqe_size * 2 - 1;
+	return MLX5E_STOP_ROOM(wqe_size);
+}
+
+static inline u16 mlx5e_stop_room_for_max_wqe(struct mlx5_core_dev *mdev)
+{
+	return MLX5E_STOP_ROOM(mlx5e_get_max_sq_wqebbs(mdev));
 }
 
 static inline bool mlx5e_icosq_can_post_wqe(struct mlx5e_icosq *sq, u16 wqe_size)
 {
-	u16 room = sq->reserved_room + mlx5e_stop_room_for_wqe(wqe_size);
+	u16 room = sq->reserved_room;
+
+	WARN_ONCE(wqe_size > sq->max_sq_wqebbs,
+		  "wqe_size %u is greater than max SQ WQEBBs %u",
+		  wqe_size, sq->max_sq_wqebbs);
+
+	room += MLX5E_STOP_ROOM(wqe_size);
 
 	return mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, room);
 }

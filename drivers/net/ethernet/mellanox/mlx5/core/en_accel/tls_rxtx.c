@@ -386,5 +386,5 @@ u16 mlx5e_tls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *par
 
 	/* FPGA */
 	/* Resync SKB. */
-	return mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+	return mlx5e_stop_room_for_max_wqe(mdev);
 }
