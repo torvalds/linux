@@ -227,12 +227,8 @@ mt7915_tm_set_ipg_params(struct mt7915_phy *phy, u32 ipg, u8 mode)
 
 		ipg -= aifsn * slot_time;
 
-		if (ipg > TM_DEFAULT_SIFS) {
-			if (ipg < TM_MAX_SIFS)
-				sifs = ipg;
-			else
-				sifs = TM_MAX_SIFS;
-		}
+		if (ipg > TM_DEFAULT_SIFS)
+			sifs = min_t(u32, ipg, TM_MAX_SIFS);
 	}
 done:
 	txv_time = mt76_get_field(dev, MT_TMAC_ATCR(phy->band_idx),
