@@ -1108,6 +1108,7 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %1$s %2$s object OUTPUT_FILE INPUT_FILE [INPUT_FILE...]\n"
 		"       %1$s %2$s skeleton FILE [name OBJECT_NAME]\n"
+		"       %1$s %2$s min_core_btf INPUT OUTPUT OBJECT [OBJECT...]\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
@@ -1118,10 +1119,45 @@ static int do_help(int argc, char **argv)
 	return 0;
 }
 
+/* Create minimized BTF file for a set of BPF objects */
+static int minimize_btf(const char *src_btf, const char *dst_btf, const char *objspaths[])
+{
+	return -EOPNOTSUPP;
+}
+
+static int do_min_core_btf(int argc, char **argv)
+{
+	const char *input, *output, **objs;
+	int i, err;
+
+	if (!REQ_ARGS(3)) {
+		usage();
+		return -1;
+	}
+
+	input = GET_ARG();
+	output = GET_ARG();
+
+	objs = (const char **) calloc(argc + 1, sizeof(*objs));
+	if (!objs) {
+		p_err("failed to allocate array for object names");
+		return -ENOMEM;
+	}
+
+	i = 0;
+	while (argc)
+		objs[i++] = GET_ARG();
+
+	err = minimize_btf(input, output, objs);
+	free(objs);
+	return err;
+}
+
 static const struct cmd cmds[] = {
-	{ "object",	do_object },
-	{ "skeleton",	do_skeleton },
-	{ "help",	do_help },
+	{ "object",		do_object },
+	{ "skeleton",		do_skeleton },
+	{ "min_core_btf",	do_min_core_btf},
+	{ "help",		do_help },
 	{ 0 }
 };
 
