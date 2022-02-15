@@ -87,8 +87,9 @@ _GLOBAL(ftrace_regs_caller)
 #endif
 
 #ifdef CONFIG_LIVEPATCH_64
-	mr	r14,r7		/* remember old NIP */
+	mr	r14, r7		/* remember old NIP */
 #endif
+
 	/* Calculate ip from nip-4 into r3 for call below */
 	subi    r3, r7, MCOUNT_INSN_SIZE
 
@@ -102,7 +103,7 @@ _GLOBAL(ftrace_regs_caller)
 	PPC_STL	r11, _CCR(r1)
 
 	/* Load &pt_regs in r6 for call below */
-	addi    r6, r1 ,STACK_FRAME_OVERHEAD
+	addi    r6, r1, STACK_FRAME_OVERHEAD
 
 	/* ftrace_call(r3, r4, r5, r6) */
 .globl ftrace_regs_call
@@ -113,6 +114,7 @@ ftrace_regs_call:
 	/* Load ctr with the possibly modified NIP */
 	PPC_LL	r3, _NIP(r1)
 	mtctr	r3
+
 #ifdef CONFIG_LIVEPATCH_64
 	cmpd	r14, r3		/* has NIP been altered? */
 #endif
@@ -196,7 +198,7 @@ _GLOBAL(ftrace_caller)
 
 #ifdef CONFIG_LIVEPATCH_64
 	SAVE_GPR(14, r1)
-	mr	r14,r7		/* remember old NIP */
+	mr	r14, r7		/* remember old NIP */
 #endif
 	/* Calculate ip from nip-4 into r3 for call below */
 	subi    r3, r7, MCOUNT_INSN_SIZE
@@ -210,7 +212,7 @@ _GLOBAL(ftrace_caller)
 	PPC_STL	r8, _MSR(r1)
 
 	/* Load &pt_regs in r6 for call below */
-	addi    r6, r1 ,STACK_FRAME_OVERHEAD
+	addi    r6, r1, STACK_FRAME_OVERHEAD
 
 	/* ftrace_call(r3, r4, r5, r6) */
 .globl ftrace_call
@@ -220,6 +222,7 @@ ftrace_call:
 
 	PPC_LL	r3, _NIP(r1)
 	mtctr	r3
+
 #ifdef CONFIG_LIVEPATCH_64
 	cmpd	r14, r3		/* has NIP been altered? */
 	REST_GPR(14, r1)
@@ -244,6 +247,7 @@ ftrace_call:
         /* Based on the cmpd above, if the NIP was altered handle livepatch */
 	bne-	livepatch_handler
 #endif
+
 	bctr			/* jump after _mcount site */
 
 #ifdef CONFIG_LIVEPATCH_64
