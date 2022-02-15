@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"core_ctl: " fmt
@@ -50,7 +51,7 @@ struct cluster_data {
 
 struct cpu_data {
 	bool			is_busy;
-	unsigned int		busy;
+	unsigned int		busy_pct;
 	unsigned int		cpu;
 	bool			not_preferred;
 	struct cluster_data	*cluster;
@@ -328,7 +329,7 @@ static ssize_t show_global_state(const struct cluster_data *state, char *buf)
 					"\tFirst CPU: %u\n",
 						cluster->first_cpu);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-					"\tBusy%%: %u\n", c->busy);
+					"\tBusy%%: %u\n", c->busy_pct);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 					"\tIs busy: %u\n", c->is_busy);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
@@ -811,13 +812,13 @@ static bool eval_need(struct cluster_data *cluster)
 		list_for_each_entry(c, &cluster->lru, sib) {
 			bool old_is_busy = c->is_busy;
 
-			if (c->busy >= cluster->busy_up_thres[thres_idx] ||
+			if (c->busy_pct >= cluster->busy_up_thres[thres_idx] ||
 			    sched_cpu_high_irqload(c->cpu))
 				c->is_busy = true;
-			else if (c->busy < cluster->busy_down_thres[thres_idx])
+			else if (c->busy_pct < cluster->busy_down_thres[thres_idx])
 				c->is_busy = false;
 
-			trace_core_ctl_set_busy(c->cpu, c->busy, old_is_busy,
+			trace_core_ctl_set_busy(c->cpu, c->busy_pct, old_is_busy,
 						c->is_busy);
 			need_cpus += c->is_busy;
 		}
@@ -984,7 +985,7 @@ void core_ctl_check(u64 window_start)
 		if (!cluster || !cluster->inited)
 			continue;
 
-		c->busy = sched_get_cpu_util(cpu);
+		c->busy_pct = sched_get_cpu_util_pct(cpu);
 	}
 	spin_unlock_irqrestore(&state_lock, flags);
 

@@ -161,7 +161,7 @@ extern void walt_boost_init(void);
 extern int sched_pause_cpus(struct cpumask *pause_cpus);
 extern int sched_unpause_cpus(struct cpumask *unpause_cpus);
 
-extern unsigned int sched_get_cpu_util(int cpu);
+extern unsigned int sched_get_cpu_util_pct(int cpu);
 extern void sched_update_hyst_times(void);
 extern int sched_boost_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);

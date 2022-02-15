@@ -248,7 +248,7 @@ void sched_update_nr_prod(int cpu, int enq)
 /*
  * Returns the CPU utilization % in the last window.
  */
-unsigned int sched_get_cpu_util(int cpu)
+unsigned int sched_get_cpu_util_pct(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	u64 util;
