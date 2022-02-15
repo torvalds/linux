@@ -109,6 +109,25 @@ static unsigned int sched_nr_latency = 8;
  * parent will (try to) run first.
  */
 unsigned int sysctl_sched_child_runs_first __read_mostly;
+#ifdef CONFIG_SYSCTL
+static struct ctl_table sched_child_runs_first_sysctls[] = {
+	{
+		.procname       = "sched_child_runs_first",
+		.data           = &sysctl_sched_child_runs_first,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	{}
+};
+
+static int __init sched_child_runs_first_sysctl_init(void)
+{
+	register_sysctl_init("kernel", sched_child_runs_first_sysctls);
+	return 0;
+}
+late_initcall(sched_child_runs_first_sysctl_init);
+#endif
 
 /*
  * SCHED_OTHER wake-up granularity.
