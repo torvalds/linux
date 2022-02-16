@@ -2947,27 +2947,27 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		u64 sskpd = intel_uncore_read64(uncore, MCH_SSKPD);
 
-		wm[0] = (sskpd >> 56) & 0xFF;
+		wm[0] = REG_FIELD_GET64(SSKPD_NEW_WM0_MASK_HSW, sskpd);
 		if (wm[0] == 0)
-			wm[0] = sskpd & 0xF;
-		wm[1] = (sskpd >> 4) & 0xFF;
-		wm[2] = (sskpd >> 12) & 0xFF;
-		wm[3] = (sskpd >> 20) & 0x1FF;
-		wm[4] = (sskpd >> 32) & 0x1FF;
+			wm[0] = REG_FIELD_GET64(SSKPD_OLD_WM0_MASK_HSW, sskpd);
+		wm[1] = REG_FIELD_GET64(SSKPD_WM1_MASK_HSW, sskpd);
+		wm[2] = REG_FIELD_GET64(SSKPD_WM2_MASK_HSW, sskpd);
+		wm[3] = REG_FIELD_GET64(SSKPD_WM3_MASK_HSW, sskpd);
+		wm[4] = REG_FIELD_GET64(SSKPD_WM4_MASK_HSW, sskpd);
 	} else if (DISPLAY_VER(dev_priv) >= 6) {
 		u32 sskpd = intel_uncore_read(uncore, MCH_SSKPD);
 
-		wm[0] = (sskpd >> SSKPD_WM0_SHIFT) & SSKPD_WM_MASK;
-		wm[1] = (sskpd >> SSKPD_WM1_SHIFT) & SSKPD_WM_MASK;
-		wm[2] = (sskpd >> SSKPD_WM2_SHIFT) & SSKPD_WM_MASK;
-		wm[3] = (sskpd >> SSKPD_WM3_SHIFT) & SSKPD_WM_MASK;
+		wm[0] = REG_FIELD_GET(SSKPD_WM0_MASK_SNB, sskpd);
+		wm[1] = REG_FIELD_GET(SSKPD_WM1_MASK_SNB, sskpd);
+		wm[2] = REG_FIELD_GET(SSKPD_WM2_MASK_SNB, sskpd);
+		wm[3] = REG_FIELD_GET(SSKPD_WM3_MASK_SNB, sskpd);
 	} else if (DISPLAY_VER(dev_priv) >= 5) {
 		u32 mltr = intel_uncore_read(uncore, MLTR_ILK);
 
 		/* ILK primary LP0 latency is 700 ns */
 		wm[0] = 7;
-		wm[1] = (mltr >> MLTR_WM1_SHIFT) & ILK_SRLT_MASK;
-		wm[2] = (mltr >> MLTR_WM2_SHIFT) & ILK_SRLT_MASK;
+		wm[1] = REG_FIELD_GET(MLTR_WM1_MASK, mltr);
+		wm[2] = REG_FIELD_GET(MLTR_WM2_MASK, mltr);
 	} else {
 		MISSING_CASE(INTEL_DEVID(dev_priv));
 	}
@@ -7394,7 +7394,7 @@ static void gen6_check_mch_setup(struct drm_i915_private *dev_priv)
 	u32 tmp;
 
 	tmp = intel_uncore_read(&dev_priv->uncore, MCH_SSKPD);
-	if ((tmp & MCH_SSKPD_WM0_MASK) != MCH_SSKPD_WM0_VAL)
+	if (REG_FIELD_GET(SSKPD_WM0_MASK_SNB, tmp) != 12)
 		drm_dbg_kms(&dev_priv->drm,
 			    "Wrong MCH_SSKPD value: 0x%08x This can cause underruns.\n",
 			    tmp);

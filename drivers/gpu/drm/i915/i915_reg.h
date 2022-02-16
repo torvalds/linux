@@ -4210,14 +4210,6 @@
 	(WM3_LP_EN | ((lat) << WM1_LP_LATENCY_SHIFT) | \
 	 ((fbc) << WM1_LP_FBC_SHIFT) | ((pri) << WM1_LP_SR_SHIFT) | (cur))
 
-/* the address where we get all kinds of latency value */
-#define SSKPD			_MMIO(0x5d10)
-#define SSKPD_WM_MASK		0x3f
-#define SSKPD_WM0_SHIFT		0
-#define SSKPD_WM1_SHIFT		8
-#define SSKPD_WM2_SHIFT		16
-#define SSKPD_WM3_SHIFT		24
-
 /*
  * The two pipe frame counter registers are not synchronized, so
  * reading a stable value is somewhat tricky. The following code

@@ -78,10 +78,9 @@
 
 /* Memory latency timer register */
 #define MLTR_ILK				_MMIO(MCHBAR_MIRROR_BASE + 0x1222)
-#define   MLTR_WM1_SHIFT			0
-#define   MLTR_WM2_SHIFT			8
 /* the unit of memory self-refresh latency time is 0.5us */
-#define   ILK_SRLT_MASK				0x3f
+#define   MLTR_WM2_MASK				REG_GENMASK(13, 8)
+#define   MLTR_WM1_MASK				REG_GENMASK(5, 0)
 
 #define CSIPLL0					_MMIO(MCHBAR_MIRROR_BASE + 0x2c10)
 #define DDRMPLL1				_MMIO(MCHBAR_MIRROR_BASE + 0x2c20)
@@ -199,8 +198,16 @@
 
 /* snb MCH registers for priority tuning */
 #define MCH_SSKPD				_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5d10)
-#define   MCH_SSKPD_WM0_MASK			0x3f
-#define   MCH_SSKPD_WM0_VAL			0xc
+#define   SSKPD_NEW_WM0_MASK_HSW		REG_GENMASK64(63, 56)
+#define   SSKPD_WM4_MASK_HSW			REG_GENMASK64(40, 32)
+#define   SSKPD_WM3_MASK_HSW			REG_GENMASK64(28, 20)
+#define   SSKPD_WM2_MASK_HSW			REG_GENMASK64(19, 12)
+#define   SSKPD_WM1_MASK_HSW			REG_GENMASK64(11, 4)
+#define   SSKPD_OLD_WM0_MASK_HSW		REG_GENMASK64(3, 0)
+#define   SSKPD_WM3_MASK_SNB			REG_GENMASK(29, 24)
+#define   SSKPD_WM2_MASK_SNB			REG_GENMASK(21, 16)
+#define   SSKPD_WM1_MASK_SNB			REG_GENMASK(13, 8)
+#define   SSKPD_WM0_MASK_SNB			REG_GENMASK(5, 0)
 
 /* Memory controller frequency in MCHBAR for Haswell (possible SNB+) */
 #define DCLK					_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5e04)
