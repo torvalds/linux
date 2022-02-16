@@ -1090,7 +1090,7 @@ static inline bool is_zone_movable_page(const struct page *page)
 	return page_zonenum(page) == ZONE_MOVABLE;
 }
 
-#ifdef CONFIG_DEV_PAGEMAP_OPS
+#if defined(CONFIG_ZONE_DEVICE) && defined(CONFIG_FS_DAX)
 DECLARE_STATIC_KEY_FALSE(devmap_managed_key);
 
 bool __put_devmap_managed_page(struct page *page);
@@ -1103,12 +1103,12 @@ static inline bool put_devmap_managed_page(struct page *page)
 	return __put_devmap_managed_page(page);
 }
 
-#else /* CONFIG_DEV_PAGEMAP_OPS */
+#else /* CONFIG_ZONE_DEVICE && CONFIG_FS_DAX */
 static inline bool put_devmap_managed_page(struct page *page)
 {
 	return false;
 }
-#endif /* CONFIG_DEV_PAGEMAP_OPS */
+#endif /* CONFIG_ZONE_DEVICE && CONFIG_FS_DAX */
 
 /* 127: arbitrary random number, small enough to assemble well */
 #define folio_ref_zero_or_close_to_overflow(folio) \
