@@ -2749,7 +2749,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		delay = le32_to_cpu(trigger->stop_delay) * USEC_PER_MSEC;
 	}
 
-	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
+	desc = kzalloc(struct_size(desc, trig_desc.data, len), GFP_ATOMIC);
 	if (!desc)
 		return -ENOMEM;
 
