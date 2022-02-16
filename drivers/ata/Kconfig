@@ -283,7 +283,7 @@ config SATA_FSL
 
 config SATA_GEMINI
 	tristate "Gemini SATA bridge support"
-	depends on ARCH_GEMINI || COMPILE_TEST
+	depends on ARCH_GEMINI || (OF && COMPILE_TEST)
 	select SATA_HOST
 	default ARCH_GEMINI
 	help
