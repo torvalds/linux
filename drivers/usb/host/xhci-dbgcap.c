@@ -924,49 +924,6 @@ static void xhci_do_dbc_exit(struct xhci_hcd *xhci)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 }
 
-static int xhci_do_dbc_init(struct xhci_hcd *xhci)
-{
-	u32			reg;
-	struct xhci_dbc		*dbc;
-	unsigned long		flags;
-	void __iomem		*base;
-	int			dbc_cap_offs;
-
-	base = &xhci->cap_regs->hc_capbase;
-	dbc_cap_offs = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_DEBUG);
-	if (!dbc_cap_offs)
-		return -ENODEV;
-
-	dbc = kzalloc(sizeof(*dbc), GFP_KERNEL);
-	if (!dbc)
-		return -ENOMEM;
-
-	dbc->regs = base + dbc_cap_offs;
-
-	/* We will avoid using DbC in xhci driver if it's in use. */
-	reg = readl(&dbc->regs->control);
-	if (reg & DBC_CTRL_DBC_ENABLE) {
-		kfree(dbc);
-		return -EBUSY;
-	}
-
-	spin_lock_irqsave(&xhci->lock, flags);
-	if (xhci->dbc) {
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		kfree(dbc);
-		return -EBUSY;
-	}
-	xhci->dbc = dbc;
-	spin_unlock_irqrestore(&xhci->lock, flags);
-
-	dbc->xhci = xhci;
-	dbc->dev = xhci_to_hcd(xhci)->self.sysdev;
-	INIT_DELAYED_WORK(&dbc->event_work, xhci_dbc_handle_events);
-	spin_lock_init(&dbc->lock);
-
-	return 0;
-}
-
 static ssize_t dbc_show(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
@@ -1026,44 +983,95 @@ static ssize_t dbc_store(struct device *dev,
 
 static DEVICE_ATTR_RW(dbc);
 
+struct xhci_dbc *
+xhci_alloc_dbc(struct device *dev, void __iomem *base)
+{
+	struct xhci_dbc		*dbc;
+	int			ret;
+
+	dbc = kzalloc(sizeof(*dbc), GFP_KERNEL);
+	if (!dbc)
+		return NULL;
+
+	dbc->regs = base;
+	dbc->dev = dev;
+
+	if (readl(&dbc->regs->control) & DBC_CTRL_DBC_ENABLE)
+		return NULL;
+
+	INIT_DELAYED_WORK(&dbc->event_work, xhci_dbc_handle_events);
+	spin_lock_init(&dbc->lock);
+
+	ret = device_create_file(dev, &dev_attr_dbc);
+	if (ret)
+		goto err;
+
+	return dbc;
+err:
+	kfree(dbc);
+	return NULL;
+}
+
+/* undo what xhci_alloc_dbc() did */
+void xhci_dbc_remove(struct xhci_dbc *dbc)
+{
+	if (!dbc)
+		return;
+	/* stop hw, stop wq and call dbc->ops->stop() */
+	xhci_dbc_stop(dbc);
+
+	/* remove sysfs files */
+	device_remove_file(dbc->dev, &dev_attr_dbc);
+
+	kfree(dbc);
+}
+
 int xhci_dbc_init(struct xhci_hcd *xhci)
 {
+	struct device		*dev;
+	void __iomem		*base;
 	int			ret;
-	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
+	int			dbc_cap_offs;
 
-	ret = xhci_do_dbc_init(xhci);
-	if (ret)
-		goto init_err3;
+	/* create all parameters needed resembling a dbc device */
+	dev = xhci_to_hcd(xhci)->self.controller;
+	base = &xhci->cap_regs->hc_capbase;
+
+	dbc_cap_offs = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_DEBUG);
+	if (!dbc_cap_offs)
+		return -ENODEV;
+
+	/* already allocated and in use */
+	if (xhci->dbc)
+		return -EBUSY;
+
+	xhci->dbc = xhci_alloc_dbc(dev, base);
+	if (!xhci->dbc)
+		return -ENOMEM;
 
 	ret = xhci_dbc_tty_probe(xhci);
 	if (ret)
 		goto init_err2;
 
-	ret = device_create_file(dev, &dev_attr_dbc);
-	if (ret)
-		goto init_err1;
-
 	return 0;
 
-init_err1:
-	xhci_dbc_tty_remove(xhci->dbc);
 init_err2:
 	xhci_do_dbc_exit(xhci);
-init_err3:
 	return ret;
 }
 
 void xhci_dbc_exit(struct xhci_hcd *xhci)
 {
-	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
+	unsigned long		flags;
 
 	if (!xhci->dbc)
 		return;
 
-	device_remove_file(dev, &dev_attr_dbc);
 	xhci_dbc_tty_remove(xhci->dbc);
-	xhci_dbc_stop(xhci->dbc);
-	xhci_do_dbc_exit(xhci);
+	xhci_dbc_remove(xhci->dbc);
+	spin_lock_irqsave(&xhci->lock, flags);
+	xhci->dbc = NULL;
+	spin_unlock_irqrestore(&xhci->lock, flags);
 }
 
 #ifdef CONFIG_PM
