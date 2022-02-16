@@ -97,7 +97,7 @@ int __read_mostly suppress_printk;
  * During panic, heavy printk by other CPUs can delay the
  * panic and risk deadlock on console resources.
  */
-int __read_mostly suppress_panic_printk;
+static int __read_mostly suppress_panic_printk;
 
 #ifdef CONFIG_LOCKDEP
 static struct lockdep_map console_lock_dep_map = {
