@@ -695,6 +695,7 @@ struct ocelot_vcap_filter {
 	struct ocelot_vcap_action action;
 	struct ocelot_vcap_stats stats;
 	/* For VCAP IS1 and IS2 */
+	bool take_ts;
 	unsigned long ingress_port_mask;
 	/* For VCAP ES0 */
 	struct ocelot_vcap_port ingress_port;

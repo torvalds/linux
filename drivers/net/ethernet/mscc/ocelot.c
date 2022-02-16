@@ -1468,7 +1468,8 @@ ocelot_populate_ipv6_ptp_general_trap_key(struct ocelot_vcap_filter *trap)
 	trap->key.ipv6.dport.mask = 0xffff;
 }
 
-int ocelot_trap_add(struct ocelot *ocelot, int port, unsigned long cookie,
+int ocelot_trap_add(struct ocelot *ocelot, int port,
+		    unsigned long cookie, bool take_ts,
 		    void (*populate)(struct ocelot_vcap_filter *f))
 {
 	struct ocelot_vcap_block *block_vcap_is2;
@@ -1495,6 +1496,7 @@ int ocelot_trap_add(struct ocelot *ocelot, int port, unsigned long cookie,
 		trap->action.cpu_copy_ena = true;
 		trap->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
 		trap->action.port_mask = 0;
+		trap->take_ts = take_ts;
 		list_add_tail(&trap->trap_list, &ocelot->traps);
 		new = true;
 	}
@@ -1543,7 +1545,7 @@ static int ocelot_l2_ptp_trap_add(struct ocelot *ocelot, int port)
 {
 	unsigned long l2_cookie = OCELOT_VCAP_IS2_L2_PTP_TRAP(ocelot);
 
-	return ocelot_trap_add(ocelot, port, l2_cookie,
+	return ocelot_trap_add(ocelot, port, l2_cookie, true,
 			       ocelot_populate_l2_ptp_trap_key);
 }
 
@@ -1560,12 +1562,12 @@ static int ocelot_ipv4_ptp_trap_add(struct ocelot *ocelot, int port)
 	unsigned long ipv4_ev_cookie = OCELOT_VCAP_IS2_IPV4_EV_PTP_TRAP(ocelot);
 	int err;
 
-	err = ocelot_trap_add(ocelot, port, ipv4_ev_cookie,
+	err = ocelot_trap_add(ocelot, port, ipv4_ev_cookie, true,
 			      ocelot_populate_ipv4_ptp_event_trap_key);
 	if (err)
 		return err;
 
-	err = ocelot_trap_add(ocelot, port, ipv4_gen_cookie,
+	err = ocelot_trap_add(ocelot, port, ipv4_gen_cookie, false,
 			      ocelot_populate_ipv4_ptp_general_trap_key);
 	if (err)
 		ocelot_trap_del(ocelot, port, ipv4_ev_cookie);
@@ -1590,12 +1592,12 @@ static int ocelot_ipv6_ptp_trap_add(struct ocelot *ocelot, int port)
 	unsigned long ipv6_ev_cookie = OCELOT_VCAP_IS2_IPV6_EV_PTP_TRAP(ocelot);
 	int err;
 
-	err = ocelot_trap_add(ocelot, port, ipv6_ev_cookie,
+	err = ocelot_trap_add(ocelot, port, ipv6_ev_cookie, true,
 			      ocelot_populate_ipv6_ptp_event_trap_key);
 	if (err)
 		return err;
 
-	err = ocelot_trap_add(ocelot, port, ipv6_gen_cookie,
+	err = ocelot_trap_add(ocelot, port, ipv6_gen_cookie, false,
 			      ocelot_populate_ipv6_ptp_general_trap_key);
 	if (err)
 		ocelot_trap_del(ocelot, port, ipv6_ev_cookie);

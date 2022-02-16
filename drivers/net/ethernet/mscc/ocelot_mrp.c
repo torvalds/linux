@@ -92,7 +92,7 @@ static int ocelot_mrp_trap_add(struct ocelot *ocelot, int port)
 {
 	unsigned long cookie = OCELOT_VCAP_IS2_MRP_TRAP(ocelot);
 
-	return ocelot_trap_add(ocelot, port, cookie,
+	return ocelot_trap_add(ocelot, port, cookie, false,
 			       ocelot_populate_mrp_trap_key);
 }
 
