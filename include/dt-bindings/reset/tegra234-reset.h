@@ -10,6 +10,8 @@
  * @brief Identifiers for Resets controllable by firmware
  * @{
  */
+#define TEGRA234_RESET_HDA			20U
+#define TEGRA234_RESET_HDACODEC			21U
 #define TEGRA234_RESET_I2C1			24U
 #define TEGRA234_RESET_I2C2			29U
 #define TEGRA234_RESET_I2C3			30U
