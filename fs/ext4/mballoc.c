@@ -3918,6 +3918,14 @@ void ext4_mb_mark_bb(struct super_block *sb, ext4_fsblk_t block,
 			EXT4_BLOCKS_PER_GROUP(sb) - EXT4_C2B(sbi, blkoff));
 		clen = EXT4_NUM_B2C(sbi, thisgrp_len);
 
+		if (!ext4_sb_block_valid(sb, NULL, block, thisgrp_len)) {
+			ext4_error(sb, "Marking blocks in system zone - "
+				   "Block = %llu, len = %u",
+				   block, thisgrp_len);
+			bitmap_bh = NULL;
+			break;
+		}
+
 		bitmap_bh = ext4_read_block_bitmap(sb, group);
 		if (IS_ERR(bitmap_bh)) {
 			err = PTR_ERR(bitmap_bh);
