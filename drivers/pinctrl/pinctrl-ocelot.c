@@ -1890,6 +1890,7 @@ static struct regmap *ocelot_pinctrl_create_pincfg(struct platform_device *pdev)
 		.val_bits = 32,
 		.reg_stride = 4,
 		.max_register = 32,
+		.name = "pincfg",
 	};
 
 	base = devm_platform_ioremap_resource(pdev, 1);
