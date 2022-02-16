@@ -274,7 +274,8 @@ static void __aligned(16) guest_unexp_trap(void)
 		  0, 0, 0, 0, 0, 0);
 }
 
-void vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
+struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
+				  void *guest_code)
 {
 	int r;
 	size_t stack_size = vm->page_size == 4096 ?
@@ -284,9 +285,10 @@ void vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 					DEFAULT_RISCV_GUEST_STACK_VADDR_MIN);
 	unsigned long current_gp = 0;
 	struct kvm_mp_state mps;
+	struct kvm_vcpu *vcpu;
 
-	vm_vcpu_add(vm, vcpuid);
-	riscv_vcpu_mmu_setup(vm, vcpuid);
+	vcpu = vm_vcpu_add(vm, vcpu_id);
+	riscv_vcpu_mmu_setup(vm, vcpu_id);
 
 	/*
 	 * With SBI HSM support in KVM RISC-V, all secondary VCPUs are
@@ -294,23 +296,25 @@ void vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 	 * are powered-on using KVM_SET_MP_STATE ioctl().
 	 */
 	mps.mp_state = KVM_MP_STATE_RUNNABLE;
-	r = __vcpu_ioctl(vm, vcpuid, KVM_SET_MP_STATE, &mps);
+	r = __vcpu_ioctl(vm, vcpu_id, KVM_SET_MP_STATE, &mps);
 	TEST_ASSERT(!r, "IOCTL KVM_SET_MP_STATE failed (error %d)", r);
 
 	/* Setup global pointer of guest to be same as the host */
 	asm volatile (
 		"add %0, gp, zero" : "=r" (current_gp) : : "memory");
-	set_reg(vm, vcpuid, RISCV_CORE_REG(regs.gp), current_gp);
+	set_reg(vm, vcpu_id, RISCV_CORE_REG(regs.gp), current_gp);
 
 	/* Setup stack pointer and program counter of guest */
-	set_reg(vm, vcpuid, RISCV_CORE_REG(regs.sp),
+	set_reg(vm, vcpu_id, RISCV_CORE_REG(regs.sp),
 		stack_vaddr + stack_size);
-	set_reg(vm, vcpuid, RISCV_CORE_REG(regs.pc),
+	set_reg(vm, vcpu_id, RISCV_CORE_REG(regs.pc),
 		(unsigned long)guest_code);
 
 	/* Setup default exception vector of guest */
-	set_reg(vm, vcpuid, RISCV_CSR_REG(stvec),
+	set_reg(vm, vcpu_id, RISCV_CSR_REG(stvec),
 		(unsigned long)guest_unexp_trap);
+
+	return vcpu;
 }
 
 void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)

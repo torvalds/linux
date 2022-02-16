@@ -656,12 +656,14 @@ static inline void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid,
  *   vcpuid - The id of the VCPU to add to the VM.
  *   guest_code - The vCPU's entry point
  */
-void vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code);
+struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
+				  void *guest_code);
 
-static inline void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid,
-				       void *guest_code)
+static inline struct kvm_vcpu *vm_vcpu_add_default(struct kvm_vm *vm,
+						   uint32_t vcpu_id,
+						   void *guest_code)
 {
-	vm_arch_vcpu_add(vm, vcpuid, guest_code);
+	return vm_arch_vcpu_add(vm, vcpu_id, guest_code);
 }
 
 void virt_arch_pgd_alloc(struct kvm_vm *vm);

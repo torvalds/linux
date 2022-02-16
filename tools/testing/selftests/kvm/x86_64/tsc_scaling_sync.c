@@ -54,8 +54,7 @@ static void *run_vcpu(void *_cpu_nr)
 	/* The kernel is fine, but vm_vcpu_add_default() needs locking */
 	pthread_spin_lock(&create_lock);
 
-	vm_vcpu_add_default(vm, vcpu_id, guest_code);
-	vcpu = vcpu_get(vm, vcpu_id);
+	vcpu = vm_vcpu_add_default(vm, vcpu_id, guest_code);
 
 	if (!first_cpu_done) {
 		first_cpu_done = true;

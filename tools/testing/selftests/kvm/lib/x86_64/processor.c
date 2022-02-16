@@ -632,29 +632,33 @@ void vm_xsave_req_perm(int bit)
 		    bitmask);
 }
 
-void vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
+struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
+				  void *guest_code)
 {
 	struct kvm_mp_state mp_state;
 	struct kvm_regs regs;
 	vm_vaddr_t stack_vaddr;
+	struct kvm_vcpu *vcpu;
+
 	stack_vaddr = vm_vaddr_alloc(vm, DEFAULT_STACK_PGS * getpagesize(),
 				     DEFAULT_GUEST_STACK_VADDR_MIN);
 
-	/* Create VCPU */
-	vm_vcpu_add(vm, vcpuid);
-	vcpu_set_cpuid(vm, vcpuid, kvm_get_supported_cpuid());
-	vcpu_setup(vm, vcpuid);
+	vcpu = vm_vcpu_add(vm, vcpu_id);
+	vcpu_set_cpuid(vm, vcpu_id, kvm_get_supported_cpuid());
+	vcpu_setup(vm, vcpu_id);
 
 	/* Setup guest general purpose registers */
-	vcpu_regs_get(vm, vcpuid, &regs);
+	vcpu_regs_get(vm, vcpu_id, &regs);
 	regs.rflags = regs.rflags | 0x2;
 	regs.rsp = stack_vaddr + (DEFAULT_STACK_PGS * getpagesize());
 	regs.rip = (unsigned long) guest_code;
-	vcpu_regs_set(vm, vcpuid, &regs);
+	vcpu_regs_set(vm, vcpu_id, &regs);
 
 	/* Setup the MP state */
 	mp_state.mp_state = 0;
-	vcpu_mp_state_set(vm, vcpuid, &mp_state);
+	vcpu_mp_state_set(vm, vcpu_id, &mp_state);
+
+	return vcpu;
 }
 
 /*
