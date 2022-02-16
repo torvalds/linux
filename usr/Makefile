@@ -3,11 +3,6 @@
 # kbuild file for usr/ - including initramfs image
 #
 
-# cmd_bzip2, cmd_lzma, cmd_lzo, cmd_lz4 from scripts/Makefile.lib appends the
-# size at the end of the compressed file, which unfortunately does not work
-# with unpack_to_rootfs(). Make size_append no-op.
-override size_append := :
-
 compress-y					:= shipped
 compress-$(CONFIG_INITRAMFS_COMPRESSION_GZIP)	:= gzip
 compress-$(CONFIG_INITRAMFS_COMPRESSION_BZIP2)	:= bzip2
