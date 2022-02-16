@@ -1210,8 +1210,15 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 			peer_pdd->dev->adev, (struct kgd_mem *)mem,
 			peer_pdd->drm_priv, &table_freed);
 		if (err) {
-			pr_err("Failed to map to gpu %d/%d\n",
-			       i, args->n_devices);
+			struct pci_dev *pdev = peer_pdd->dev->adev->pdev;
+
+			dev_err(dev->adev->dev,
+			       "Failed to map peer:%04x:%02x:%02x.%d mem_domain:%d\n",
+			       pci_domain_nr(pdev->bus),
+			       pdev->bus->number,
+			       PCI_SLOT(pdev->devfn),
+			       PCI_FUNC(pdev->devfn),
+			       ((struct kgd_mem *)mem)->domain);
 			goto map_memory_to_gpu_failed;
 		}
 		args->n_success = i+1;
