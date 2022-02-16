@@ -1841,72 +1841,79 @@ static long check_and_migrate_movable_pages(unsigned long nr_pages,
 					    struct page **pages,
 					    unsigned int gup_flags)
 {
-	unsigned long i;
-	unsigned long isolation_error_count = 0;
-	bool drain_allow = true;
-	LIST_HEAD(movable_page_list);
-	long ret = 0;
+	unsigned long isolation_error_count = 0, i;
 	struct page *prev_head = NULL;
-	struct page *head;
-	struct migration_target_control mtc = {
-		.nid = NUMA_NO_NODE,
-		.gfp_mask = GFP_USER | __GFP_NOWARN,
-	};
+	LIST_HEAD(movable_page_list);
+	bool drain_allow = true;
+	int ret = 0;
 
 	for (i = 0; i < nr_pages; i++) {
-		head = compound_head(pages[i]);
+		struct page *head = compound_head(pages[i]);
+
 		if (head == prev_head)
 			continue;
 		prev_head = head;
-		/*
-		 * If we get a movable page, since we are going to be pinning
-		 * these entries, try to move them out if possible.
-		 */
-		if (!is_pinnable_page(head)) {
-			if (PageHuge(head)) {
-				if (!isolate_huge_page(head, &movable_page_list))
-					isolation_error_count++;
-			} else {
-				if (!PageLRU(head) && drain_allow) {
-					lru_add_drain_all();
-					drain_allow = false;
-				}
 
-				if (isolate_lru_page(head)) {
-					isolation_error_count++;
-					continue;
-				}
-				list_add_tail(&head->lru, &movable_page_list);
-				mod_node_page_state(page_pgdat(head),
-						    NR_ISOLATED_ANON +
-						    page_is_file_lru(head),
-						    thp_nr_pages(head));
-			}
+		if (is_pinnable_page(head))
+			continue;
+
+		/*
+		 * Try to move out any movable page before pinning the range.
+		 */
+		if (PageHuge(head)) {
+			if (!isolate_huge_page(head, &movable_page_list))
+				isolation_error_count++;
+			continue;
 		}
+
+		if (!PageLRU(head) && drain_allow) {
+			lru_add_drain_all();
+			drain_allow = false;
+		}
+
+		if (isolate_lru_page(head)) {
+			isolation_error_count++;
+			continue;
+		}
+		list_add_tail(&head->lru, &movable_page_list);
+		mod_node_page_state(page_pgdat(head),
+				    NR_ISOLATED_ANON + page_is_file_lru(head),
+				    thp_nr_pages(head));
 	}
+
+	if (!list_empty(&movable_page_list) || isolation_error_count)
+		goto unpin_pages;
 
 	/*
 	 * If list is empty, and no isolation errors, means that all pages are
 	 * in the correct zone.
 	 */
-	if (list_empty(&movable_page_list) && !isolation_error_count)
-		return nr_pages;
+	return nr_pages;
 
+unpin_pages:
 	if (gup_flags & FOLL_PIN) {
 		unpin_user_pages(pages, nr_pages);
 	} else {
 		for (i = 0; i < nr_pages; i++)
 			put_page(pages[i]);
 	}
+
 	if (!list_empty(&movable_page_list)) {
+		struct migration_target_control mtc = {
+			.nid = NUMA_NO_NODE,
+			.gfp_mask = GFP_USER | __GFP_NOWARN,
+		};
+
 		ret = migrate_pages(&movable_page_list, alloc_migration_target,
 				    NULL, (unsigned long)&mtc, MIGRATE_SYNC,
 				    MR_LONGTERM_PIN, NULL);
-		if (ret && !list_empty(&movable_page_list))
-			putback_movable_pages(&movable_page_list);
+		if (ret > 0) /* number of pages not migrated */
+			ret = -ENOMEM;
 	}
 
-	return ret > 0 ? -ENOMEM : ret;
+	if (ret && !list_empty(&movable_page_list))
+		putback_movable_pages(&movable_page_list);
+	return ret;
 }
 #else
 static long check_and_migrate_movable_pages(unsigned long nr_pages,
