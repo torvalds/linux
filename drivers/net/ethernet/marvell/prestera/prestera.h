@@ -282,8 +282,10 @@ struct prestera_router {
 	struct list_head vr_list;
 	struct list_head rif_entry_list;
 	struct rhashtable fib_ht;
+	struct rhashtable kern_fib_cache_ht;
 	struct notifier_block inetaddr_nb;
 	struct notifier_block inetaddr_valid_nb;
+	struct notifier_block fib_nb;
 };
 
 struct prestera_rxtx_params {
@@ -325,6 +327,8 @@ int prestera_port_cfg_mac_write(struct prestera_port *port,
 				struct prestera_port_mac_config *cfg);
 
 struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev);
+
+void prestera_queue_work(struct work_struct *work);
 
 int prestera_port_pvid_set(struct prestera_port *port, u16 vid);
 
