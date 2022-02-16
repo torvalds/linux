@@ -349,10 +349,6 @@ static struct notifier_block lockd_inet6addr_notifier = {
 };
 #endif
 
-static const struct svc_serv_ops lockd_sv_ops = {
-	.svo_function		= lockd,
-};
-
 static int lockd_get(void)
 {
 	struct svc_serv *serv;
@@ -376,7 +372,7 @@ static int lockd_get(void)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
 	nlmsvc_timeout = nlm_timeout * HZ;
 
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, &lockd_sv_ops);
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, lockd);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return -ENOMEM;
