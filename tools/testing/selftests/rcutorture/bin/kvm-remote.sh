@@ -139,13 +139,13 @@ chmod +x $T/bin/kvm-remote-*.sh
 for i in $systems
 do
 	ncpus="`ssh $i getconf _NPROCESSORS_ONLN 2> /dev/null`"
-	echo $i: $ncpus CPUs " " `date` | tee -a "$oldrun/remote-log"
 	ret=$?
 	if test "$ret" -ne 0
 	then
 		echo System $i unreachable, giving up. | tee -a "$oldrun/remote-log"
 		exit 4
 	fi
+	echo $i: $ncpus CPUs " " `date` | tee -a "$oldrun/remote-log"
 done
 
 # Download and expand the tarball on all systems.
