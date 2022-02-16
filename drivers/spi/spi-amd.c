@@ -330,7 +330,7 @@ MODULE_DEVICE_TABLE(acpi, spi_acpi_match);
 static struct platform_driver amd_spi_driver = {
 	.driver = {
 		.name = "amd_spi",
-		.acpi_match_table = spi_acpi_match,
+		.acpi_match_table = ACPI_PTR(spi_acpi_match),
 	},
 	.probe = amd_spi_probe,
 };
