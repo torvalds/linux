@@ -536,6 +536,14 @@ void ice_free_vfs(struct ice_pf *pf)
 			ice_free_vf_res(vf);
 		}
 
+		if (!pci_vfs_assigned(pf->pdev)) {
+			u32 reg_idx, bit_idx;
+
+			reg_idx = (hw->func_caps.vf_base_id + vf->vf_id) / 32;
+			bit_idx = (hw->func_caps.vf_base_id + vf->vf_id) % 32;
+			wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
+		}
+
 		/* clear malicious info since the VF is getting released */
 		if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->malvfs,
 					ICE_MAX_VF_COUNT, vf->vf_id))
@@ -552,25 +560,6 @@ void ice_free_vfs(struct ice_pf *pf)
 
 	devm_kfree(dev, pf->vf);
 	pf->vf = NULL;
-
-	/* This check is for when the driver is unloaded while VFs are
-	 * assigned. Setting the number of VFs to 0 through sysfs is caught
-	 * before this function ever gets called.
-	 */
-	if (!pci_vfs_assigned(pf->pdev)) {
-		unsigned int vf_id;
-
-		/* Acknowledge VFLR for all VFs. Without this, VFs will fail to
-		 * work correctly when SR-IOV gets re-enabled.
-		 */
-		for (vf_id = 0; vf_id < tmp; vf_id++) {
-			u32 reg_idx, bit_idx;
-
-			reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
-			bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
-			wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
-		}
-	}
 
 	clear_bit(ICE_VF_DIS, pf->state);
 	clear_bit(ICE_FLAG_SRIOV_ENA, pf->flags);
