@@ -783,24 +783,19 @@ end_io:
 	return false;
 }
 
-static void __submit_bio_fops(struct gendisk *disk, struct bio *bio)
-{
-	if (blk_crypto_bio_prep(&bio)) {
-		if (likely(bio_queue_enter(bio) == 0)) {
-			disk->fops->submit_bio(bio);
-			blk_queue_exit(disk->queue);
-		}
-	}
-}
-
 static void __submit_bio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
 
-	if (!disk->fops->submit_bio)
+	if (unlikely(!blk_crypto_bio_prep(&bio)))
+		return;
+
+	if (!disk->fops->submit_bio) {
 		blk_mq_submit_bio(bio);
-	else
-		__submit_bio_fops(disk, bio);
+	} else if (likely(bio_queue_enter(bio) == 0)) {
+		disk->fops->submit_bio(bio);
+		blk_queue_exit(disk->queue);
+	}
 }
 
 /*
