@@ -25,7 +25,7 @@
 #endif
 
 #define VMALLOC_SIZE     (KERN_VIRT_SIZE >> 1)
-#define VMALLOC_END      (PAGE_OFFSET - 1)
+#define VMALLOC_END      PAGE_OFFSET
 #define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)
 
 #define BPF_JIT_REGION_SIZE	(SZ_128M)
@@ -51,7 +51,7 @@
 #define VMEMMAP_SHIFT \
 	(CONFIG_VA_BITS - PAGE_SHIFT - 1 + STRUCT_PAGE_MAX_SHIFT)
 #define VMEMMAP_SIZE	BIT(VMEMMAP_SHIFT)
-#define VMEMMAP_END	(VMALLOC_START - 1)
+#define VMEMMAP_END	VMALLOC_START
 #define VMEMMAP_START	(VMALLOC_START - VMEMMAP_SIZE)
 
 /*
@@ -119,7 +119,7 @@
 /* Page protection bits */
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_USER)
 
-#define PAGE_NONE		__pgprot(_PAGE_PROT_NONE)
+#define PAGE_NONE		__pgprot(_PAGE_PROT_NONE | _PAGE_READ)
 #define PAGE_READ		__pgprot(_PAGE_BASE | _PAGE_READ)
 #define PAGE_WRITE		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE)
 #define PAGE_EXEC		__pgprot(_PAGE_BASE | _PAGE_EXEC)
@@ -628,11 +628,12 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
  *
  * Format of swap PTE:
  *	bit            0:	_PAGE_PRESENT (zero)
- *	bit            1:	_PAGE_PROT_NONE (zero)
- *	bits      2 to 6:	swap type
- *	bits 7 to XLEN-1:	swap offset
+ *	bit       1 to 3:       _PAGE_LEAF (zero)
+ *	bit            5:	_PAGE_PROT_NONE (zero)
+ *	bits      6 to 10:	swap type
+ *	bits 10 to XLEN-1:	swap offset
  */
-#define __SWP_TYPE_SHIFT	2
+#define __SWP_TYPE_SHIFT	6
 #define __SWP_TYPE_BITS		5
 #define __SWP_TYPE_MASK		((1UL << __SWP_TYPE_BITS) - 1)
 #define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
@@ -647,6 +648,11 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+
+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+#define __pmd_to_swp_entry(pmd) ((swp_entry_t) { pmd_val(pmd) })
+#define __swp_entry_to_pmd(swp) __pmd((swp).val)
+#endif /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
 
 /*
  * In the RV64 Linux scheme, we give the user half of the virtual-address space
