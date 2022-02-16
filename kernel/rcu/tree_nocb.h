@@ -1266,22 +1266,6 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
 }
 
-/*
- * Once the scheduler is running, spawn rcuo kthreads for all online
- * no-CBs CPUs.  This assumes that the early_initcall()s happen before
- * non-boot CPUs come online -- if this changes, we will need to add
- * some mutual exclusion.
- */
-static void __init rcu_spawn_nocb_kthreads(void)
-{
-	int cpu;
-
-	if (rcu_state.nocb_is_setup) {
-		for_each_online_cpu(cpu)
-			rcu_spawn_cpu_nocb_kthread(cpu);
-	}
-}
-
 /* How many CB CPU IDs per GP kthread?  Default of -1 for sqrt(nr_cpu_ids). */
 static int rcu_nocb_gp_stride = -1;
 module_param(rcu_nocb_gp_stride, int, 0444);
@@ -1535,10 +1519,6 @@ static bool do_nocb_deferred_wakeup(struct rcu_data *rdp)
 }
 
 static void rcu_spawn_cpu_nocb_kthread(int cpu)
-{
-}
-
-static void __init rcu_spawn_nocb_kthreads(void)
 {
 }
 
