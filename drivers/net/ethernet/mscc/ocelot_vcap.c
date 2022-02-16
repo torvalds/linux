@@ -1401,6 +1401,7 @@ int ocelot_vcap_init(struct ocelot *ocelot)
 	}
 
 	INIT_LIST_HEAD(&ocelot->dummy_rules);
+	INIT_LIST_HEAD(&ocelot->traps);
 	INIT_LIST_HEAD(&ocelot->vcap_pol.pol_list);
 
 	return 0;

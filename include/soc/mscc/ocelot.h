@@ -689,6 +689,7 @@ struct ocelot {
 	u8				base_mac[ETH_ALEN];
 
 	struct list_head		vlans;
+	struct list_head		traps;
 
 	/* Switches like VSC9959 have flooding per traffic class */
 	int				num_flooding_pgids;

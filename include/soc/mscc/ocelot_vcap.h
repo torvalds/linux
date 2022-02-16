@@ -682,6 +682,7 @@ struct ocelot_vcap_id {
 
 struct ocelot_vcap_filter {
 	struct list_head list;
+	struct list_head trap_list;
 
 	enum ocelot_vcap_filter_type type;
 	int block_id;
