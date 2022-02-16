@@ -6,6 +6,7 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
 #include <linux/component.h>
@@ -194,7 +195,7 @@ struct wcd938x_priv {
 	int ear_rx_path;
 	int variant;
 	int reset_gpio;
-	int us_euro_gpio;
+	struct gpio_desc *us_euro_gpio;
 	u32 micb1_mv;
 	u32 micb2_mv;
 	u32 micb3_mv;
@@ -4203,22 +4204,11 @@ static bool wcd938x_swap_gnd_mic(struct snd_soc_component *component, bool activ
 
 	struct wcd938x_priv *wcd938x;
 
-	if (!component) {
-		dev_err(component->dev, "%s component is NULL\n", __func__);
-		return false;
-	}
-
 	wcd938x = snd_soc_component_get_drvdata(component);
-	if (!wcd938x) {
-		dev_err(component->dev, "%s private data is NULL\n", __func__);
-		return false;
-	}
 
-	value = gpio_get_value(wcd938x->us_euro_gpio);
+	value = gpiod_get_value(wcd938x->us_euro_gpio);
 
-	gpio_set_value(wcd938x->us_euro_gpio, !value);
-	/* 20us sleep required after changing the gpio state*/
-	usleep_range(20, 30);
+	gpiod_set_value(wcd938x->us_euro_gpio, !value);
 
 	return true;
 }
@@ -4236,15 +4226,14 @@ static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device 
 		return wcd938x->reset_gpio;
 	}
 
-	wcd938x->us_euro_gpio = of_get_named_gpio(dev->of_node, "us-euro-gpios", 0);
-	if (wcd938x->us_euro_gpio < 0) {
-		dev_err(dev, "Failed to get us-euro-gpios gpio: err = %d\n", wcd938x->us_euro_gpio);
-	} else {
-		cfg->swap_gnd_mic = wcd938x_swap_gnd_mic;
-		gpio_direction_output(wcd938x->us_euro_gpio, 0);
-		/* 20us sleep required after pulling the reset gpio to LOW */
-		usleep_range(20, 30);
+	wcd938x->us_euro_gpio = devm_gpiod_get_optional(dev, "us-euro",
+						GPIOD_OUT_LOW);
+	if (IS_ERR(wcd938x->us_euro_gpio)) {
+		dev_err(dev, "us-euro swap Control GPIO not found\n");
+		return PTR_ERR(wcd938x->us_euro_gpio);
 	}
+
+	cfg->swap_gnd_mic = wcd938x_swap_gnd_mic;
 
 	wcd938x->supplies[0].supply = "vdd-rxtx";
 	wcd938x->supplies[1].supply = "vdd-io";
