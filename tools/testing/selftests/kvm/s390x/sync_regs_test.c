@@ -23,8 +23,6 @@
 #include "diag318_test_handler.h"
 #include "kselftest.h"
 
-#define VCPU_ID 5
-
 static void guest_code(void)
 {
 	/*
@@ -75,55 +73,58 @@ static void compare_sregs(struct kvm_sregs *left, struct kvm_sync_regs *right)
 #define TEST_SYNC_FIELDS   (KVM_SYNC_GPRS|KVM_SYNC_ACRS|KVM_SYNC_CRS|KVM_SYNC_DIAG318)
 #define INVALID_SYNC_FIELD 0x80000000
 
-void test_read_invalid(struct kvm_vm *vm, struct kvm_run *run)
+void test_read_invalid(struct kvm_vcpu *vcpu)
 {
+	struct kvm_run *run = vcpu->run;
 	int rv;
 
 	/* Request reading invalid register set from VCPU. */
 	run->kvm_valid_regs = INVALID_SYNC_FIELD;
-	rv = _vcpu_run(vm, VCPU_ID);
+	rv = _vcpu_run(vcpu->vm, vcpu->id);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
-	vcpu_state(vm, VCPU_ID)->kvm_valid_regs = 0;
+	run->kvm_valid_regs = 0;
 
 	run->kvm_valid_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
-	rv = _vcpu_run(vm, VCPU_ID);
+	rv = _vcpu_run(vcpu->vm, vcpu->id);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
-	vcpu_state(vm, VCPU_ID)->kvm_valid_regs = 0;
+	run->kvm_valid_regs = 0;
 }
 
-void test_set_invalid(struct kvm_vm *vm, struct kvm_run *run)
+void test_set_invalid(struct kvm_vcpu *vcpu)
 {
+	struct kvm_run *run = vcpu->run;
 	int rv;
 
 	/* Request setting invalid register set into VCPU. */
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD;
-	rv = _vcpu_run(vm, VCPU_ID);
+	rv = _vcpu_run(vcpu->vm, vcpu->id);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
-	vcpu_state(vm, VCPU_ID)->kvm_dirty_regs = 0;
+	run->kvm_dirty_regs = 0;
 
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
-	rv = _vcpu_run(vm, VCPU_ID);
+	rv = _vcpu_run(vcpu->vm, vcpu->id);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
-	vcpu_state(vm, VCPU_ID)->kvm_dirty_regs = 0;
+	run->kvm_dirty_regs = 0;
 }
 
-void test_req_and_verify_all_valid_regs(struct kvm_vm *vm, struct kvm_run *run)
+void test_req_and_verify_all_valid_regs(struct kvm_vcpu *vcpu)
 {
+	struct kvm_run *run = vcpu->run;
 	struct kvm_sregs sregs;
 	struct kvm_regs regs;
 	int rv;
 
 	/* Request and verify all valid register sets. */
 	run->kvm_valid_regs = TEST_SYNC_FIELDS;
-	rv = _vcpu_run(vm, VCPU_ID);
+	rv = _vcpu_run(vcpu->vm, vcpu->id);
 	TEST_ASSERT(rv == 0, "vcpu_run failed: %d\n", rv);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_S390_SIEIC,
 		    "Unexpected exit reason: %u (%s)\n",
@@ -136,15 +137,16 @@ void test_req_and_verify_all_valid_regs(struct kvm_vm *vm, struct kvm_run *run)
 		    run->s390_sieic.icptcode, run->s390_sieic.ipa,
 		    run->s390_sieic.ipb);
 
-	vcpu_regs_get(vm, VCPU_ID, &regs);
+	vcpu_regs_get(vcpu->vm, vcpu->id, &regs);
 	compare_regs(&regs, &run->s.regs);
 
-	vcpu_sregs_get(vm, VCPU_ID, &sregs);
+	vcpu_sregs_get(vcpu->vm, vcpu->id, &sregs);
 	compare_sregs(&sregs, &run->s.regs);
 }
 
-void test_set_and_verify_various_reg_values(struct kvm_vm *vm, struct kvm_run *run)
+void test_set_and_verify_various_reg_values(struct kvm_vcpu *vcpu)
 {
+	struct kvm_run *run = vcpu->run;
 	struct kvm_sregs sregs;
 	struct kvm_regs regs;
 	int rv;
@@ -161,7 +163,7 @@ void test_set_and_verify_various_reg_values(struct kvm_vm *vm, struct kvm_run *r
 		run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
 	}
 
-	rv = _vcpu_run(vm, VCPU_ID);
+	rv = _vcpu_run(vcpu->vm, vcpu->id);
 	TEST_ASSERT(rv == 0, "vcpu_run failed: %d\n", rv);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_S390_SIEIC,
 		    "Unexpected exit reason: %u (%s)\n",
@@ -177,15 +179,16 @@ void test_set_and_verify_various_reg_values(struct kvm_vm *vm, struct kvm_run *r
 		    "diag318 sync regs value incorrect 0x%llx.",
 		    run->s.regs.diag318);
 
-	vcpu_regs_get(vm, VCPU_ID, &regs);
+	vcpu_regs_get(vcpu->vm, vcpu->id, &regs);
 	compare_regs(&regs, &run->s.regs);
 
-	vcpu_sregs_get(vm, VCPU_ID, &sregs);
+	vcpu_sregs_get(vcpu->vm, vcpu->id, &sregs);
 	compare_sregs(&sregs, &run->s.regs);
 }
 
-void test_clear_kvm_dirty_regs_bits(struct kvm_vm *vm, struct kvm_run *run)
+void test_clear_kvm_dirty_regs_bits(struct kvm_vcpu *vcpu)
 {
+	struct kvm_run *run = vcpu->run;
 	int rv;
 
 	/* Clear kvm_dirty_regs bits, verify new s.regs values are
@@ -195,7 +198,7 @@ void test_clear_kvm_dirty_regs_bits(struct kvm_vm *vm, struct kvm_run *run)
 	run->kvm_dirty_regs = 0;
 	run->s.regs.gprs[11] = 0xDEADBEEF;
 	run->s.regs.diag318 = 0x4B1D;
-	rv = _vcpu_run(vm, VCPU_ID);
+	rv = _vcpu_run(vcpu->vm, vcpu->id);
 	TEST_ASSERT(rv == 0, "vcpu_run failed: %d\n", rv);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_S390_SIEIC,
 		    "Unexpected exit reason: %u (%s)\n",
@@ -211,7 +214,7 @@ void test_clear_kvm_dirty_regs_bits(struct kvm_vm *vm, struct kvm_run *run)
 
 struct testdef {
 	const char *name;
-	void (*test)(struct kvm_vm *vm, struct kvm_run *run);
+	void (*test)(struct kvm_vcpu *vcpu);
 } testlist[] = {
 	{ "read invalid", test_read_invalid },
 	{ "set invalid", test_set_invalid },
@@ -222,8 +225,8 @@ struct testdef {
 
 int main(int argc, char *argv[])
 {
-	static struct kvm_run *run;
-	static struct kvm_vm *vm;
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
 	int idx;
 
 	/* Tell stdout not to buffer its content */
@@ -237,12 +240,10 @@ int main(int argc, char *argv[])
 	ksft_set_plan(ARRAY_SIZE(testlist));
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
-
-	run = vcpu_state(vm, VCPU_ID);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	for (idx = 0; idx < ARRAY_SIZE(testlist); idx++) {
-		testlist[idx].test(vm, run);
+		testlist[idx].test(vcpu);
 		ksft_test_result_pass("%s\n", testlist[idx].name);
 	}
 
