@@ -439,8 +439,10 @@ static irqreturn_t ice_eswitch_msix_clean_rings(int __always_unused irq, void *d
 	if (!q_vector->tx.tx_ring && !q_vector->rx.rx_ring)
 		return IRQ_HANDLED;
 
-	ice_for_each_vf(pf, bkt, vf)
+	rcu_read_lock();
+	ice_for_each_vf_rcu(pf, bkt, vf)
 		napi_schedule(&vf->repr->q_vector->napi);
+	rcu_read_unlock();
 
 	return IRQ_HANDLED;
 }
@@ -1345,11 +1347,17 @@ static int ice_get_vf_ctrl_res(struct ice_pf *pf, struct ice_vsi *vsi)
 {
 	struct ice_vf *vf;
 	unsigned int bkt;
+	int base;
 
-	ice_for_each_vf(pf, bkt, vf) {
-		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI)
-			return pf->vsi[vf->ctrl_vsi_idx]->base_vector;
+	rcu_read_lock();
+	ice_for_each_vf_rcu(pf, bkt, vf) {
+		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI) {
+			base = pf->vsi[vf->ctrl_vsi_idx]->base_vector;
+			rcu_read_unlock();
+			return base;
+		}
 	}
+	rcu_read_unlock();
 
 	return ice_get_res(pf, pf->irq_tracker, vsi->num_q_vectors,
 			   ICE_RES_VF_CTRL_VEC_ID);
@@ -2894,10 +2902,14 @@ static void ice_free_vf_ctrl_res(struct ice_pf *pf,  struct ice_vsi *vsi)
 	struct ice_vf *vf;
 	unsigned int bkt;
 
-	ice_for_each_vf(pf, bkt, vf) {
-		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI)
+	rcu_read_lock();
+	ice_for_each_vf_rcu(pf, bkt, vf) {
+		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI) {
+			rcu_read_unlock();
 			return;
+		}
 	}
+	rcu_read_unlock();
 
 	/* No other VFs left that have control VSI. It is now safe to reclaim
 	 * SW interrupts back to the common pool.

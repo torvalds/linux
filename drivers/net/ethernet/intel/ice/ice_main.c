@@ -521,8 +521,10 @@ ice_prepare_for_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 		ice_vc_notify_reset(pf);
 
 	/* Disable VFs until reset is completed */
+	mutex_lock(&pf->vfs.table_lock);
 	ice_for_each_vf(pf, bkt, vf)
 		ice_set_vf_state_qs_dis(vf);
+	mutex_unlock(&pf->vfs.table_lock);
 
 	if (ice_is_eswitch_mode_switchdev(pf)) {
 		if (reset_type != ICE_RESET_PFR)
@@ -1756,6 +1758,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 	/* Check to see if one of the VFs caused an MDD event, and then
 	 * increment counters and set print pending
 	 */
+	mutex_lock(&pf->vfs.table_lock);
 	ice_for_each_vf(pf, bkt, vf) {
 		reg = rd32(hw, VP_MDET_TX_PQM(vf->vf_id));
 		if (reg & VP_MDET_TX_PQM_VALID_M) {
@@ -1811,6 +1814,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 			}
 		}
 	}
+	mutex_unlock(&pf->vfs.table_lock);
 
 	ice_print_vfs_mdd_events(pf);
 }
@@ -3680,6 +3684,7 @@ static void ice_deinit_pf(struct ice_pf *pf)
 	mutex_destroy(&pf->sw_mutex);
 	mutex_destroy(&pf->tc_mutex);
 	mutex_destroy(&pf->avail_q_mutex);
+	mutex_destroy(&pf->vfs.table_lock);
 
 	if (pf->avail_txqs) {
 		bitmap_free(pf->avail_txqs);
@@ -3778,6 +3783,9 @@ static int ice_init_pf(struct ice_pf *pf)
 		pf->avail_txqs = NULL;
 		return -ENOMEM;
 	}
+
+	mutex_init(&pf->vfs.table_lock);
+	hash_init(pf->vfs.table);
 
 	return 0;
 }

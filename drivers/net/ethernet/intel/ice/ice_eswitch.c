@@ -209,6 +209,8 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 		rx_ring->q_vector = q_vector;
 		rx_ring->next = NULL;
 		rx_ring->netdev = repr->netdev;
+
+		ice_put_vf(vf);
 	}
 }
 
@@ -222,6 +224,8 @@ ice_eswitch_release_reprs(struct ice_pf *pf, struct ice_vsi *ctrl_vsi)
 {
 	struct ice_vf *vf;
 	unsigned int bkt;
+
+	lockdep_assert_held(&pf->vfs.table_lock);
 
 	ice_for_each_vf(pf, bkt, vf) {
 		struct ice_vsi *vsi = vf->repr->src_vsi;
@@ -250,6 +254,8 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 	int max_vsi_num = 0;
 	struct ice_vf *vf;
 	unsigned int bkt;
+
+	lockdep_assert_held(&pf->vfs.table_lock);
 
 	ice_for_each_vf(pf, bkt, vf) {
 		struct ice_vsi *vsi = vf->repr->src_vsi;
@@ -430,6 +436,8 @@ static void ice_eswitch_napi_del(struct ice_pf *pf)
 	struct ice_vf *vf;
 	unsigned int bkt;
 
+	lockdep_assert_held(&pf->vfs.table_lock);
+
 	ice_for_each_vf(pf, bkt, vf)
 		netif_napi_del(&vf->repr->q_vector->napi);
 }
@@ -443,6 +451,8 @@ static void ice_eswitch_napi_enable(struct ice_pf *pf)
 	struct ice_vf *vf;
 	unsigned int bkt;
 
+	lockdep_assert_held(&pf->vfs.table_lock);
+
 	ice_for_each_vf(pf, bkt, vf)
 		napi_enable(&vf->repr->q_vector->napi);
 }
@@ -455,6 +465,8 @@ static void ice_eswitch_napi_disable(struct ice_pf *pf)
 {
 	struct ice_vf *vf;
 	unsigned int bkt;
+
+	lockdep_assert_held(&pf->vfs.table_lock);
 
 	ice_for_each_vf(pf, bkt, vf)
 		napi_disable(&vf->repr->q_vector->napi);
@@ -629,6 +641,8 @@ static void ice_eswitch_start_all_tx_queues(struct ice_pf *pf)
 	struct ice_vf *vf;
 	unsigned int bkt;
 
+	lockdep_assert_held(&pf->vfs.table_lock);
+
 	if (test_bit(ICE_DOWN, pf->state))
 		return;
 
@@ -646,6 +660,8 @@ void ice_eswitch_stop_all_tx_queues(struct ice_pf *pf)
 {
 	struct ice_vf *vf;
 	unsigned int bkt;
+
+	lockdep_assert_held(&pf->vfs.table_lock);
 
 	if (test_bit(ICE_DOWN, pf->state))
 		return;

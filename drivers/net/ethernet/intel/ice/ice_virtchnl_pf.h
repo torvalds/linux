@@ -44,22 +44,45 @@
  * These functions provide abstraction for interacting with the VF hash table.
  * In general, direct access to the hash table should be avoided outside of
  * these functions where possible.
+ *
+ * The VF entries in the hash table are protected by reference counting to
+ * track lifetime of accesses from the table. The ice_get_vf_by_id() function
+ * obtains a reference to the VF structure which must be dropped by using
+ * ice_put_vf().
  */
 
 /**
  * ice_for_each_vf - Iterate over each VF entry
  * @pf: pointer to the PF private structure
  * @bkt: bucket index used for iteration
- * @entry: pointer to the VF entry currently being processed in the loop.
+ * @vf: pointer to the VF entry currently being processed in the loop.
  *
  * The bkt variable is an unsigned integer iterator used to traverse the VF
  * entries. It is *not* guaranteed to be the VF's vf_id. Do not assume it is.
  * Use vf->vf_id to get the id number if needed.
+ *
+ * The caller is expected to be under the table_lock mutex for the entire
+ * loop. Use this iterator if your loop is long or if it might sleep.
  */
-#define ice_for_each_vf(pf, bkt, entry)					\
-	for ((bkt) = 0, (entry) = &(pf)->vfs.table[0];			\
-	     (bkt) < (pf)->vfs.num_alloc;				\
-	     (bkt)++, (entry)++)
+#define ice_for_each_vf(pf, bkt, vf) \
+	hash_for_each((pf)->vfs.table, (bkt), (vf), entry)
+
+/**
+ * ice_for_each_vf_rcu - Iterate over each VF entry protected by RCU
+ * @pf: pointer to the PF private structure
+ * @bkt: bucket index used for iteration
+ * @vf: pointer to the VF entry currently being processed in the loop.
+ *
+ * The bkt variable is an unsigned integer iterator used to traverse the VF
+ * entries. It is *not* guaranteed to be the VF's vf_id. Do not assume it is.
+ * Use vf->vf_id to get the id number if needed.
+ *
+ * The caller is expected to be under rcu_read_lock() for the entire loop.
+ * Only use this iterator if your loop is short and you can guarantee it does
+ * not sleep.
+ */
+#define ice_for_each_vf_rcu(pf, bkt, vf) \
+	hash_for_each_rcu((pf)->vfs.table, (bkt), (vf), entry)
 
 /* Specific VF states */
 enum ice_vf_states {
@@ -125,8 +148,8 @@ struct ice_vc_vf_ops {
 
 /* Virtchnl/SR-IOV config info */
 struct ice_vfs {
-	struct ice_vf *table;		/* table of VF entries */
-	u16 num_alloc;			/* number of allocated VFs */
+	DECLARE_HASHTABLE(table, 8);	/* table of VF entries */
+	struct mutex table_lock;	/* Lock for protecting the hash table */
 	u16 num_supported;		/* max supported VFs on this PF */
 	u16 num_qps_per;		/* number of queue pairs per VF */
 	u16 num_msix_per;		/* number of MSI-X vectors per VF */
@@ -136,6 +159,9 @@ struct ice_vfs {
 
 /* VF information structure */
 struct ice_vf {
+	struct hlist_node entry;
+	struct rcu_head rcu;
+	struct kref refcnt;
 	struct ice_pf *pf;
 
 	/* Used during virtchnl message handling and NDO ops against the VF
@@ -193,6 +219,7 @@ struct ice_vf {
 
 #ifdef CONFIG_PCI_IOV
 struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id);
+void ice_put_vf(struct ice_vf *vf);
 bool ice_has_vfs(struct ice_pf *pf);
 u16 ice_get_num_vfs(struct ice_pf *pf);
 struct ice_vsi *ice_get_vf_vsi(struct ice_vf *vf);
@@ -257,6 +284,10 @@ bool ice_vf_is_port_vlan_ena(struct ice_vf *vf);
 static inline struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id)
 {
 	return NULL;
+}
+
+static inline void ice_put_vf(struct ice_vf *vf)
+{
 }
 
 static inline bool ice_has_vfs(struct ice_pf *pf)

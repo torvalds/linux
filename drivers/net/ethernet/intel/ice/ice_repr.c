@@ -341,6 +341,8 @@ void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
 	struct ice_vf *vf;
 	unsigned int bkt;
 
+	lockdep_assert_held(&pf->vfs.table_lock);
+
 	ice_for_each_vf(pf, bkt, vf)
 		ice_repr_rem(vf);
 }
@@ -354,6 +356,8 @@ int ice_repr_add_for_all_vfs(struct ice_pf *pf)
 	struct ice_vf *vf;
 	unsigned int bkt;
 	int err;
+
+	lockdep_assert_held(&pf->vfs.table_lock);
 
 	ice_for_each_vf(pf, bkt, vf) {
 		err = ice_repr_add(vf);

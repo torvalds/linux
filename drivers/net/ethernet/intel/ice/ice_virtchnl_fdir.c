@@ -1578,6 +1578,7 @@ void ice_flush_fdir_ctx(struct ice_pf *pf)
 	if (!test_and_clear_bit(ICE_FD_VF_FLUSH_CTX, pf->state))
 		return;
 
+	mutex_lock(&pf->vfs.table_lock);
 	ice_for_each_vf(pf, bkt, vf) {
 		struct device *dev = ice_pf_to_dev(pf);
 		enum virtchnl_fdir_prgm_status status;
@@ -1634,6 +1635,7 @@ err_exit:
 		ctx->flags &= ~ICE_VF_FDIR_CTX_VALID;
 		spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
 	}
+	mutex_unlock(&pf->vfs.table_lock);
 }
 
 /**
