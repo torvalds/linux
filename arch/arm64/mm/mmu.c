@@ -295,18 +295,6 @@ static void alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,
 	} while (addr = next, addr != end);
 }
 
-static inline bool use_1G_block(unsigned long addr, unsigned long next,
-			unsigned long phys)
-{
-	if (PAGE_SHIFT != 12)
-		return false;
-
-	if (((addr | next | phys) & ~PUD_MASK) != 0)
-		return false;
-
-	return true;
-}
-
 static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 			   phys_addr_t phys, pgprot_t prot,
 			   phys_addr_t (*pgtable_alloc)(int),
@@ -345,7 +333,8 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 		/*
 		 * For 4K granule only, attempt to put down a 1GB block
 		 */
-		if (use_1G_block(addr, next, phys) &&
+		if (pud_sect_supported() &&
+		   ((addr | next | phys) & ~PUD_MASK) == 0 &&
 		    (flags & NO_BLOCK_MAPPINGS) == 0) {
 			pud_set_huge(pudp, phys, prot);
 
