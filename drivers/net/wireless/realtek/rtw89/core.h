@@ -2879,7 +2879,7 @@ struct rtw89_dev {
 	int napi_budget_countdown;
 
 	/* HCI related data, keep last */
-	u8 priv[0] __aligned(sizeof(void *));
+	u8 priv[] __aligned(sizeof(void *));
 };
 
 static inline int rtw89_hci_tx_write(struct rtw89_dev *rtwdev,
