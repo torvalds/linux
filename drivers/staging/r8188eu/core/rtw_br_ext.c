@@ -72,7 +72,6 @@ static int __nat25_add_pppoe_tag(struct sk_buff *skb, struct pppoe_tag *tag)
 
 	data_len = tag->tag_len + TAG_HDR_LEN;
 	if (skb_tailroom(skb) < data_len) {
-		_DEBUG_ERR("skb_tailroom() failed in add SID tag!\n");
 		return -1;
 	}
 
@@ -162,9 +161,6 @@ static int update_nd_link_layer_addr(unsigned char *data, int len, unsigned char
 		if (len >= 8) {
 			mac = scan_tlv(&data[8], len-8, 1, 1);
 			if (mac) {
-				_DEBUG_INFO("Router Solicitation, replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
@@ -173,9 +169,6 @@ static int update_nd_link_layer_addr(unsigned char *data, int len, unsigned char
 		if (len >= 16) {
 			mac = scan_tlv(&data[16], len-16, 1, 1);
 			if (mac) {
-				_DEBUG_INFO("Router Advertisement, replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
@@ -184,9 +177,6 @@ static int update_nd_link_layer_addr(unsigned char *data, int len, unsigned char
 		if (len >= 24) {
 			mac = scan_tlv(&data[24], len-24, 1, 1);
 			if (mac) {
-				_DEBUG_INFO("Neighbor Solicitation, replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
@@ -195,9 +185,6 @@ static int update_nd_link_layer_addr(unsigned char *data, int len, unsigned char
 		if (len >= 24) {
 			mac = scan_tlv(&data[24], len-24, 2, 1);
 			if (mac) {
-				_DEBUG_INFO("Neighbor Advertisement, replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
@@ -206,9 +193,6 @@ static int update_nd_link_layer_addr(unsigned char *data, int len, unsigned char
 		if (len >= 40) {
 			mac = scan_tlv(&data[40], len-40, 2, 1);
 			if (mac) {
-				_DEBUG_INFO("Redirect,  replace MAC From: %02x:%02x:%02x:%02x:%02x:%02x, To: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-					replace_mac[0], replace_mac[1], replace_mac[2], replace_mac[3], replace_mac[4], replace_mac[5]);
 				memcpy(mac, replace_mac, 6);
 				return 1;
 			}
@@ -400,7 +384,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		struct iphdr *iph = (struct iphdr *)(skb->data + ETH_HLEN);
 
 		if (((unsigned char *)(iph) + (iph->ihl<<2)) >= (skb->data + ETH_HLEN + skb->len)) {
-			DEBUG_WARN("NAT25: malformed IP packet !\n");
 			return -1;
 		}
 
@@ -413,7 +396,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 			if (iph->saddr == 0)
 				return 0;
 			tmp = be32_to_cpu(iph->saddr);
-			DEBUG_INFO("NAT25: Insert IP, SA =%08x, DA =%08x\n", tmp, iph->daddr);
 			__nat25_generate_ipv4_network_addr(networkAddr, &tmp);
 			/* record source IP address and , source mac address into db */
 			__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
@@ -430,7 +412,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		unsigned int *sender;
 
 		if (arp->ar_pro != __constant_htons(ETH_P_IP)) {
-			DEBUG_WARN("NAT25: arp protocol unknown (%4x)!\n", be16_to_cpu(arp->ar_pro));
 			return -1;
 		}
 
@@ -438,9 +419,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		case NAT25_CHECK:
 			return 0;	/*  skb_copy for all ARP frame */
 		case NAT25_INSERT:
-			DEBUG_INFO("NAT25: Insert ARP, MAC =%02x%02x%02x%02x%02x%02x\n", arp_ptr[0],
-				arp_ptr[1], arp_ptr[2], arp_ptr[3], arp_ptr[4], arp_ptr[5]);
-
 			/*  change to ARP sender mac address to wlan STA address */
 			memcpy(arp_ptr, GET_MY_HWADDR(priv), ETH_ALEN);
 			arp_ptr += arp->ar_hln;
@@ -477,7 +455,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 						if (pOldTag) { /*  if SID existed, copy old value and delete it */
 							old_tag_len = ntohs(pOldTag->tag_len);
 							if (old_tag_len+TAG_HDR_LEN+MAGIC_CODE_LEN+RTL_RELAY_TAG_LEN > sizeof(tag_buf)) {
-								DEBUG_ERR("SID tag length too long!\n");
 								return -1;
 							}
 
@@ -485,7 +462,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 								pOldTag->tag_data, old_tag_len);
 
 							if (skb_pull_and_merge(skb, (unsigned char *)pOldTag, TAG_HDR_LEN+old_tag_len) < 0) {
-								DEBUG_ERR("call skb_pull_and_merge() failed in PADI/R packet!\n");
 								return -1;
 							}
 							ph->length = htons(ntohs(ph->length)-TAG_HDR_LEN-old_tag_len);
@@ -502,13 +478,9 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 						/* Add relay tag */
 						if (__nat25_add_pppoe_tag(skb, tag) < 0)
 							return -1;
-
-						DEBUG_INFO("NAT25: Insert PPPoE, forward %s packet\n",
-										(ph->code == PADI_CODE ? "PADI" : "PADR"));
 					} else { /*  not add relay tag */
 						if (priv->pppoe_connection_in_progress &&
 								memcmp(skb->data+ETH_ALEN, priv->pppoe_addr, ETH_ALEN))	 {
-							DEBUG_ERR("Discard PPPoE packet due to another PPPoE connection is in progress!\n");
 							return -2;
 						}
 
@@ -521,8 +493,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 					return -1;
 				}
 			} else {	/*  session phase */
-				DEBUG_INFO("NAT25: Insert PPPoE, insert session packet to %s\n", skb->dev->name);
-
 				__nat25_generate_pppoe_network_addr(networkAddr, skb->data, &ph->sid);
 
 				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
@@ -567,7 +537,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 		struct ipv6hdr *iph = (struct ipv6hdr *)(skb->data + ETH_HLEN);
 
 		if (sizeof(*iph) >= (skb->len - ETH_HLEN)) {
-			DEBUG_WARN("NAT25: malformed IPv6 packet !\n");
 			return -1;
 		}
 
@@ -577,13 +546,6 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 				return 0;
 			return -1;
 		case NAT25_INSERT:
-			DEBUG_INFO("NAT25: Insert IP, SA =%4x:%4x:%4x:%4x:%4x:%4x:%4x:%4x,"
-							" DA =%4x:%4x:%4x:%4x:%4x:%4x:%4x:%4x\n",
-				iph->saddr.s6_addr16[0], iph->saddr.s6_addr16[1], iph->saddr.s6_addr16[2], iph->saddr.s6_addr16[3],
-				iph->saddr.s6_addr16[4], iph->saddr.s6_addr16[5], iph->saddr.s6_addr16[6], iph->saddr.s6_addr16[7],
-				iph->daddr.s6_addr16[0], iph->daddr.s6_addr16[1], iph->daddr.s6_addr16[2], iph->daddr.s6_addr16[3],
-				iph->daddr.s6_addr16[4], iph->daddr.s6_addr16[5], iph->daddr.s6_addr16[6], iph->daddr.s6_addr16[7]);
-
 			if (memcmp(&iph->saddr, "\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0\x0", 16)) {
 				__nat25_generate_ipv6_network_addr(networkAddr, (unsigned int *)&iph->saddr);
 				__nat25_db_network_insert(priv, skb->data+ETH_ALEN, networkAddr);
@@ -658,7 +620,6 @@ void dhcp_flag_bcast(struct adapter *priv, struct sk_buff *skb)
 							/*  if not broadcast */
 							register int sum = 0;
 
-							DEBUG_INFO("DHCP: change flag of DHCP request to broadcast.\n");
 							/*  or BROADCAST flag */
 							dhcph->flags |= htons(BROADCAST_FLAG);
 							/*  recalculate checksum */
