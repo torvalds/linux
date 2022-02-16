@@ -1462,17 +1462,17 @@ retry_all:
 	while (i < trans->nr_sorted) {
 		path = trans->paths + trans->sorted[i];
 
-		EBUG_ON(!(trans->paths_allocated & (1ULL << path->idx)));
-
-		ret = btree_path_traverse_one(trans, path, 0, _THIS_IP_);
-		if (ret)
-			goto retry_all;
-
-		EBUG_ON(!(trans->paths_allocated & (1ULL << path->idx)));
-
-		if (path->nodes_locked ||
-		    !btree_path_node(path, path->level))
+		/*
+		 * Traversing a path can cause another path to be added at about
+		 * the same position:
+		 */
+		if (path->uptodate) {
+			ret = btree_path_traverse_one(trans, path, 0, _THIS_IP_);
+			if (ret)
+				goto retry_all;
+		} else {
 			i++;
+		}
 	}
 
 	/*
