@@ -50,7 +50,18 @@
 #ifndef SYM_END
 #define SYM_END(name, sym_type)				\
 	.type name sym_type ASM_NL			\
+	.set .L__sym_size_##name, .-name ASM_NL		\
 	.size name, .-name
+#endif
+
+/* SYM_ALIAS -- use only if you have to */
+#ifndef SYM_ALIAS
+#define SYM_ALIAS(alias, name, sym_type, linkage)			\
+	linkage(alias) ASM_NL						\
+	.set alias, name ASM_NL						\
+	.type alias sym_type ASM_NL					\
+	.set .L__sym_size_##alias, .L__sym_size_##name ASM_NL		\
+	.size alias, .L__sym_size_##alias
 #endif
 
 /*
@@ -99,6 +110,30 @@
 /* the same as SYM_FUNC_END_ALIAS, see comment near SYM_FUNC_START */
 #define SYM_FUNC_END(name)				\
 	SYM_END(name, SYM_T_FUNC)
+#endif
+
+/*
+ * SYM_FUNC_ALIAS -- define a global alias for an existing function
+ */
+#ifndef SYM_FUNC_ALIAS
+#define SYM_FUNC_ALIAS(alias, name)					\
+	SYM_ALIAS(alias, name, SYM_T_FUNC, SYM_L_GLOBAL)
+#endif
+
+/*
+ * SYM_FUNC_ALIAS_LOCAL -- define a local alias for an existing function
+ */
+#ifndef SYM_FUNC_ALIAS_LOCAL
+#define SYM_FUNC_ALIAS_LOCAL(alias, name)				\
+	SYM_ALIAS(alias, name, SYM_T_FUNC, SYM_L_LOCAL)
+#endif
+
+/*
+ * SYM_FUNC_ALIAS_WEAK -- define a weak global alias for an existing function
+ */
+#ifndef SYM_FUNC_ALIAS_WEAK
+#define SYM_FUNC_ALIAS_WEAK(alias, name)				\
+	SYM_ALIAS(alias, name, SYM_T_FUNC, SYM_L_WEAK)
 #endif
 
 #endif	/* PERF_LINUX_LINKAGE_H_ */
