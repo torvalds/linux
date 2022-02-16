@@ -57,11 +57,6 @@ struct svc_serv;
 struct svc_serv_ops {
 	/* function for service threads to run */
 	int		(*svo_function)(void *);
-
-	/* optional module to count when adding threads.
-	 * Thread function must call module_put_and_kthread_exit() to exit.
-	 */
-	struct module	*svo_module;
 };
 
 /*

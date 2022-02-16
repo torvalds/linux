@@ -184,8 +184,7 @@ lockd(void *vrqstp)
 	dprintk("lockd_down: service stopped\n");
 
 	svc_exit_thread(rqstp);
-
-	module_put_and_kthread_exit(0);
+	return 0;
 }
 
 static int create_lockd_listener(struct svc_serv *serv, const char *name,
@@ -352,7 +351,6 @@ static struct notifier_block lockd_inet6addr_notifier = {
 
 static const struct svc_serv_ops lockd_sv_ops = {
 	.svo_function		= lockd,
-	.svo_module		= THIS_MODULE,
 };
 
 static int lockd_get(void)

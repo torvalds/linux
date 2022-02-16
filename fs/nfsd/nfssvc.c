@@ -614,7 +614,6 @@ static int nfsd_get_default_max_blksize(void)
 
 static const struct svc_serv_ops nfsd_thread_sv_ops = {
 	.svo_function		= nfsd,
-	.svo_module		= THIS_MODULE,
 };
 
 void nfsd_shutdown_threads(struct net *net)
@@ -1018,8 +1017,6 @@ out:
 		msleep(20);
 	}
 
-	/* Release module */
-	module_put_and_kthread_exit(0);
 	return 0;
 }
 

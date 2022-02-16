@@ -17,7 +17,6 @@
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
-#include <linux/kthread.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/bc_xprt.h>
 
@@ -92,8 +91,8 @@ nfs4_callback_svc(void *vrqstp)
 			continue;
 		svc_process(rqstp);
 	}
+
 	svc_exit_thread(rqstp);
-	module_put_and_kthread_exit(0);
 	return 0;
 }
 
@@ -136,8 +135,8 @@ nfs41_callback_svc(void *vrqstp)
 			finish_wait(&serv->sv_cb_waitq, &wq);
 		}
 	}
+
 	svc_exit_thread(rqstp);
-	module_put_and_kthread_exit(0);
 	return 0;
 }
 
@@ -234,12 +233,10 @@ err_bind:
 
 static const struct svc_serv_ops nfs40_cb_sv_ops = {
 	.svo_function		= nfs4_callback_svc,
-	.svo_module		= THIS_MODULE,
 };
 #if defined(CONFIG_NFS_V4_1)
 static const struct svc_serv_ops nfs41_cb_sv_ops = {
 	.svo_function		= nfs41_callback_svc,
-	.svo_module		= THIS_MODULE,
 };
 
 static const struct svc_serv_ops *nfs4_cb_sv_ops[] = {
