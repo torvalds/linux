@@ -216,9 +216,6 @@ static int wfx_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
 	bus->func = func;
 	bus->of_irq = irq_of_parse_and_map(np, 0);
 	sdio_set_drvdata(func, bus);
-	func->card->quirks |= MMC_QUIRK_LENIENT_FN0 |
-			      MMC_QUIRK_BLKSZ_FOR_BYTE_MODE |
-			      MMC_QUIRK_BROKEN_BYTE_MODE_512;
 
 	sdio_claim_host(func);
 	ret = sdio_enable_func(func);
