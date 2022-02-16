@@ -834,13 +834,13 @@ static int do_skeleton(int argc, char **argv)
 		\n\
 									    \n\
 		#ifdef __cplusplus					    \n\
-			static struct %1$s *open(const struct bpf_object_open_opts *opts = nullptr);\n\
-			static struct %1$s *open_and_load();		    \n\
-			static int load(struct %1$s *skel);		    \n\
-			static int attach(struct %1$s *skel);		    \n\
-			static void detach(struct %1$s *skel);		    \n\
-			static void destroy(struct %1$s *skel);		    \n\
-			static const void *elf_bytes(size_t *sz);	    \n\
+			static inline struct %1$s *open(const struct bpf_object_open_opts *opts = nullptr);\n\
+			static inline struct %1$s *open_and_load();	    \n\
+			static inline int load(struct %1$s *skel);	    \n\
+			static inline int attach(struct %1$s *skel);	    \n\
+			static inline void detach(struct %1$s *skel);	    \n\
+			static inline void destroy(struct %1$s *skel);	    \n\
+			static inline const void *elf_bytes(size_t *sz);    \n\
 		#endif /* __cplusplus */				    \n\
 		};							    \n\
 									    \n\
