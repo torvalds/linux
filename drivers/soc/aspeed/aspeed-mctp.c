@@ -888,8 +888,8 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 				rx_cmd_64->rx_hi |= RX_LAST_CMD;
 			rx_cmd_64++;
 		}
-		rx->wr_ptr = 0;
 	}
+	rx->wr_ptr = 0;
 	rx->buffer_count = RX_PACKET_COUNT;
 	if (priv->match_data->fifo_auto_surround) {
 		/*
