@@ -13,7 +13,6 @@
 #include "processor.h"
 #include "hyperv.h"
 
-#define VCPU_ID 0
 #define LINUX_OS_ID ((u64)0x8100 << 48)
 
 extern unsigned char rdmsr_start;
@@ -151,7 +150,7 @@ static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 	GUEST_DONE();
 }
 
-static void hv_set_cpuid(struct kvm_vm *vm, struct kvm_cpuid2 *cpuid,
+static void hv_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 			 struct kvm_cpuid_entry2 *feat,
 			 struct kvm_cpuid_entry2 *recomm,
 			 struct kvm_cpuid_entry2 *dbg)
@@ -162,15 +161,16 @@ static void hv_set_cpuid(struct kvm_vm *vm, struct kvm_cpuid2 *cpuid,
 		    "failed to set HYPERV_CPUID_ENLIGHTMENT_INFO leaf");
 	TEST_ASSERT(set_cpuid(cpuid, dbg),
 		    "failed to set HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES leaf");
-	vcpu_set_cpuid(vm, VCPU_ID, cpuid);
+	vcpu_set_cpuid(vcpu->vm, vcpu->id, cpuid);
 }
 
 static void guest_test_msrs_access(void)
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
 	struct kvm_vm *vm;
 	struct ucall uc;
-	int stage = 0, r;
+	int stage = 0;
 	struct kvm_cpuid_entry2 feat = {
 		.function = HYPERV_CPUID_FEATURES
 	};
@@ -185,24 +185,24 @@ static void guest_test_msrs_access(void)
 	struct msr_data *msr;
 
 	while (true) {
-		vm = vm_create_default(VCPU_ID, 0, guest_msr);
+		vm = vm_create_with_one_vcpu(&vcpu, guest_msr);
 
 		msr_gva = vm_vaddr_alloc_page(vm);
 		memset(addr_gva2hva(vm, msr_gva), 0x0, getpagesize());
 		msr = addr_gva2hva(vm, msr_gva);
 
-		vcpu_args_set(vm, VCPU_ID, 1, msr_gva);
-		vcpu_enable_cap(vm, VCPU_ID, KVM_CAP_HYPERV_ENFORCE_CPUID, 1);
+		vcpu_args_set(vm, vcpu->id, 1, msr_gva);
+		vcpu_enable_cap(vm, vcpu->id, KVM_CAP_HYPERV_ENFORCE_CPUID, 1);
 
-		vcpu_set_hv_cpuid(vm, VCPU_ID);
+		vcpu_set_hv_cpuid(vm, vcpu->id);
 
 		best = kvm_get_supported_hv_cpuid();
 
 		vm_init_descriptor_tables(vm);
-		vcpu_init_descriptor_tables(vm, VCPU_ID);
+		vcpu_init_descriptor_tables(vm, vcpu->id);
 		vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
 
-		run = vcpu_state(vm, VCPU_ID);
+		run = vcpu->run;
 
 		switch (stage) {
 		case 0:
@@ -333,7 +333,7 @@ static void guest_test_msrs_access(void)
 			 * Remains unavailable even with KVM_CAP_HYPERV_SYNIC2
 			 * capability enabled and guest visible CPUID bit unset.
 			 */
-			vcpu_enable_cap(vm, VCPU_ID, KVM_CAP_HYPERV_SYNIC2, 0);
+			vcpu_enable_cap(vm, vcpu->id, KVM_CAP_HYPERV_SYNIC2, 0);
 			break;
 		case 22:
 			feat.eax |= HV_MSR_SYNIC_AVAILABLE;
@@ -463,7 +463,7 @@ static void guest_test_msrs_access(void)
 			break;
 		}
 
-		hv_set_cpuid(vm, best, &feat, &recomm, &dbg);
+		hv_set_cpuid(vcpu, best, &feat, &recomm, &dbg);
 
 		if (msr->idx)
 			pr_debug("Stage %d: testing msr: 0x%x for %s\n", stage,
@@ -471,13 +471,12 @@ static void guest_test_msrs_access(void)
 		else
 			pr_debug("Stage %d: finish\n", stage);
 
-		r = _vcpu_run(vm, VCPU_ID);
-		TEST_ASSERT(!r, "vcpu_run failed: %d\n", r);
+		vcpu_run(vm, vcpu->id);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "unexpected exit reason: %u (%s)",
 			    run->exit_reason, exit_reason_str(run->exit_reason));
 
-		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		switch (get_ucall(vm, vcpu->id, &uc)) {
 		case UCALL_SYNC:
 			TEST_ASSERT(uc.args[1] == 0,
 				    "Unexpected stage: %ld (0 expected)\n",
@@ -498,10 +497,11 @@ static void guest_test_msrs_access(void)
 
 static void guest_test_hcalls_access(void)
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
 	struct kvm_vm *vm;
 	struct ucall uc;
-	int stage = 0, r;
+	int stage = 0;
 	struct kvm_cpuid_entry2 feat = {
 		.function = HYPERV_CPUID_FEATURES,
 		.eax = HV_MSR_HYPERCALL_AVAILABLE
@@ -517,10 +517,10 @@ static void guest_test_hcalls_access(void)
 	struct kvm_cpuid2 *best;
 
 	while (true) {
-		vm = vm_create_default(VCPU_ID, 0, guest_hcall);
+		vm = vm_create_with_one_vcpu(&vcpu, guest_hcall);
 
 		vm_init_descriptor_tables(vm);
-		vcpu_init_descriptor_tables(vm, VCPU_ID);
+		vcpu_init_descriptor_tables(vm, vcpu->id);
 		vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
 
 		/* Hypercall input/output */
@@ -531,14 +531,14 @@ static void guest_test_hcalls_access(void)
 		hcall_params = vm_vaddr_alloc_page(vm);
 		memset(addr_gva2hva(vm, hcall_params), 0x0, getpagesize());
 
-		vcpu_args_set(vm, VCPU_ID, 2, addr_gva2gpa(vm, hcall_page), hcall_params);
-		vcpu_enable_cap(vm, VCPU_ID, KVM_CAP_HYPERV_ENFORCE_CPUID, 1);
+		vcpu_args_set(vm, vcpu->id, 2, addr_gva2gpa(vm, hcall_page), hcall_params);
+		vcpu_enable_cap(vm, vcpu->id, KVM_CAP_HYPERV_ENFORCE_CPUID, 1);
 
-		vcpu_set_hv_cpuid(vm, VCPU_ID);
+		vcpu_set_hv_cpuid(vm, vcpu->id);
 
 		best = kvm_get_supported_hv_cpuid();
 
-		run = vcpu_state(vm, VCPU_ID);
+		run = vcpu->run;
 
 		switch (stage) {
 		case 0:
@@ -633,7 +633,7 @@ static void guest_test_hcalls_access(void)
 			break;
 		}
 
-		hv_set_cpuid(vm, best, &feat, &recomm, &dbg);
+		hv_set_cpuid(vcpu, best, &feat, &recomm, &dbg);
 
 		if (hcall->control)
 			pr_debug("Stage %d: testing hcall: 0x%lx\n", stage,
@@ -641,13 +641,12 @@ static void guest_test_hcalls_access(void)
 		else
 			pr_debug("Stage %d: finish\n", stage);
 
-		r = _vcpu_run(vm, VCPU_ID);
-		TEST_ASSERT(!r, "vcpu_run failed: %d\n", r);
+		vcpu_run(vm, vcpu->id);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "unexpected exit reason: %u (%s)",
 			    run->exit_reason, exit_reason_str(run->exit_reason));
 
-		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		switch (get_ucall(vm, vcpu->id, &uc)) {
 		case UCALL_SYNC:
 			TEST_ASSERT(uc.args[1] == 0,
 				    "Unexpected stage: %ld (0 expected)\n",
