@@ -409,6 +409,27 @@ static int switchdev_lower_dev_walk(struct net_device *lower_dev,
 }
 
 static struct net_device *
+switchdev_lower_dev_find_rcu(struct net_device *dev,
+			     bool (*check_cb)(const struct net_device *dev),
+			     bool (*foreign_dev_check_cb)(const struct net_device *dev,
+							  const struct net_device *foreign_dev))
+{
+	struct switchdev_nested_priv switchdev_priv = {
+		.check_cb = check_cb,
+		.foreign_dev_check_cb = foreign_dev_check_cb,
+		.dev = dev,
+		.lower_dev = NULL,
+	};
+	struct netdev_nested_priv priv = {
+		.data = &switchdev_priv,
+	};
+
+	netdev_walk_all_lower_dev_rcu(dev, switchdev_lower_dev_walk, &priv);
+
+	return switchdev_priv.lower_dev;
+}
+
+static struct net_device *
 switchdev_lower_dev_find(struct net_device *dev,
 			 bool (*check_cb)(const struct net_device *dev),
 			 bool (*foreign_dev_check_cb)(const struct net_device *dev,
@@ -424,7 +445,7 @@ switchdev_lower_dev_find(struct net_device *dev,
 		.data = &switchdev_priv,
 	};
 
-	netdev_walk_all_lower_dev_rcu(dev, switchdev_lower_dev_walk, &priv);
+	netdev_walk_all_lower_dev(dev, switchdev_lower_dev_walk, &priv);
 
 	return switchdev_priv.lower_dev;
 }
@@ -451,7 +472,7 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 		return mod_cb(dev, orig_dev, event, info->ctx, fdb_info);
 
 	if (netif_is_lag_master(dev)) {
-		if (!switchdev_lower_dev_find(dev, check_cb, foreign_dev_check_cb))
+		if (!switchdev_lower_dev_find_rcu(dev, check_cb, foreign_dev_check_cb))
 			goto maybe_bridged_with_us;
 
 		/* This is a LAG interface that we offload */
@@ -465,7 +486,7 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 	 * towards a bridge device.
 	 */
 	if (netif_is_bridge_master(dev)) {
-		if (!switchdev_lower_dev_find(dev, check_cb, foreign_dev_check_cb))
+		if (!switchdev_lower_dev_find_rcu(dev, check_cb, foreign_dev_check_cb))
 			return 0;
 
 		/* This is a bridge interface that we offload */
@@ -478,8 +499,8 @@ static int __switchdev_handle_fdb_event_to_device(struct net_device *dev,
 			 * that we offload.
 			 */
 			if (!check_cb(lower_dev) &&
-			    !switchdev_lower_dev_find(lower_dev, check_cb,
-						      foreign_dev_check_cb))
+			    !switchdev_lower_dev_find_rcu(lower_dev, check_cb,
+							  foreign_dev_check_cb))
 				continue;
 
 			err = __switchdev_handle_fdb_event_to_device(lower_dev, orig_dev,
@@ -501,7 +522,7 @@ maybe_bridged_with_us:
 	if (!br || !netif_is_bridge_master(br))
 		return 0;
 
-	if (!switchdev_lower_dev_find(br, check_cb, foreign_dev_check_cb))
+	if (!switchdev_lower_dev_find_rcu(br, check_cb, foreign_dev_check_cb))
 		return 0;
 
 	return __switchdev_handle_fdb_event_to_device(br, orig_dev, event, fdb_info,
@@ -536,13 +557,15 @@ EXPORT_SYMBOL_GPL(switchdev_handle_fdb_event_to_device);
 static int __switchdev_handle_port_obj_add(struct net_device *dev,
 			struct switchdev_notifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
+			bool (*foreign_dev_check_cb)(const struct net_device *dev,
+						     const struct net_device *foreign_dev),
 			int (*add_cb)(struct net_device *dev, const void *ctx,
 				      const struct switchdev_obj *obj,
 				      struct netlink_ext_ack *extack))
 {
 	struct switchdev_notifier_info *info = &port_obj_info->info;
+	struct net_device *br, *lower_dev;
 	struct netlink_ext_ack *extack;
-	struct net_device *lower_dev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
@@ -566,15 +589,42 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 		if (netif_is_bridge_master(lower_dev))
 			continue;
 
+		/* When searching for switchdev interfaces that are neighbors
+		 * of foreign ones, and @dev is a bridge, do not recurse on the
+		 * foreign interface again, it was already visited.
+		 */
+		if (foreign_dev_check_cb && !check_cb(lower_dev) &&
+		    !switchdev_lower_dev_find(lower_dev, check_cb, foreign_dev_check_cb))
+			continue;
+
 		err = __switchdev_handle_port_obj_add(lower_dev, port_obj_info,
-						      check_cb, add_cb);
+						      check_cb, foreign_dev_check_cb,
+						      add_cb);
 		if (err && err != -EOPNOTSUPP)
 			return err;
 	}
 
-	return err;
+	/* Event is neither on a bridge nor a LAG. Check whether it is on an
+	 * interface that is in a bridge with us.
+	 */
+	if (!foreign_dev_check_cb)
+		return err;
+
+	br = netdev_master_upper_dev_get(dev);
+	if (!br || !netif_is_bridge_master(br))
+		return err;
+
+	if (!switchdev_lower_dev_find(br, check_cb, foreign_dev_check_cb))
+		return err;
+
+	return __switchdev_handle_port_obj_add(br, port_obj_info, check_cb,
+					       foreign_dev_check_cb, add_cb);
 }
 
+/* Pass through a port object addition, if @dev passes @check_cb, or replicate
+ * it towards all lower interfaces of @dev that pass @check_cb, if @dev is a
+ * bridge or a LAG.
+ */
 int switchdev_handle_port_obj_add(struct net_device *dev,
 			struct switchdev_notifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
@@ -585,21 +635,46 @@ int switchdev_handle_port_obj_add(struct net_device *dev,
 	int err;
 
 	err = __switchdev_handle_port_obj_add(dev, port_obj_info, check_cb,
-					      add_cb);
+					      NULL, add_cb);
 	if (err == -EOPNOTSUPP)
 		err = 0;
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_add);
 
+/* Same as switchdev_handle_port_obj_add(), except if object is notified on a
+ * @dev that passes @foreign_dev_check_cb, it is replicated towards all devices
+ * that pass @check_cb and are in the same bridge as @dev.
+ */
+int switchdev_handle_port_obj_add_foreign(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			bool (*foreign_dev_check_cb)(const struct net_device *dev,
+						     const struct net_device *foreign_dev),
+			int (*add_cb)(struct net_device *dev, const void *ctx,
+				      const struct switchdev_obj *obj,
+				      struct netlink_ext_ack *extack))
+{
+	int err;
+
+	err = __switchdev_handle_port_obj_add(dev, port_obj_info, check_cb,
+					      foreign_dev_check_cb, add_cb);
+	if (err == -EOPNOTSUPP)
+		err = 0;
+	return err;
+}
+EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_add_foreign);
+
 static int __switchdev_handle_port_obj_del(struct net_device *dev,
 			struct switchdev_notifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
+			bool (*foreign_dev_check_cb)(const struct net_device *dev,
+						     const struct net_device *foreign_dev),
 			int (*del_cb)(struct net_device *dev, const void *ctx,
 				      const struct switchdev_obj *obj))
 {
 	struct switchdev_notifier_info *info = &port_obj_info->info;
-	struct net_device *lower_dev;
+	struct net_device *br, *lower_dev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
@@ -621,15 +696,42 @@ static int __switchdev_handle_port_obj_del(struct net_device *dev,
 		if (netif_is_bridge_master(lower_dev))
 			continue;
 
+		/* When searching for switchdev interfaces that are neighbors
+		 * of foreign ones, and @dev is a bridge, do not recurse on the
+		 * foreign interface again, it was already visited.
+		 */
+		if (foreign_dev_check_cb && !check_cb(lower_dev) &&
+		    !switchdev_lower_dev_find(lower_dev, check_cb, foreign_dev_check_cb))
+			continue;
+
 		err = __switchdev_handle_port_obj_del(lower_dev, port_obj_info,
-						      check_cb, del_cb);
+						      check_cb, foreign_dev_check_cb,
+						      del_cb);
 		if (err && err != -EOPNOTSUPP)
 			return err;
 	}
 
-	return err;
+	/* Event is neither on a bridge nor a LAG. Check whether it is on an
+	 * interface that is in a bridge with us.
+	 */
+	if (!foreign_dev_check_cb)
+		return err;
+
+	br = netdev_master_upper_dev_get(dev);
+	if (!br || !netif_is_bridge_master(br))
+		return err;
+
+	if (!switchdev_lower_dev_find(br, check_cb, foreign_dev_check_cb))
+		return err;
+
+	return __switchdev_handle_port_obj_del(br, port_obj_info, check_cb,
+					       foreign_dev_check_cb, del_cb);
 }
 
+/* Pass through a port object deletion, if @dev passes @check_cb, or replicate
+ * it towards all lower interfaces of @dev that pass @check_cb, if @dev is a
+ * bridge or a LAG.
+ */
 int switchdev_handle_port_obj_del(struct net_device *dev,
 			struct switchdev_notifier_port_obj_info *port_obj_info,
 			bool (*check_cb)(const struct net_device *dev),
@@ -639,12 +741,34 @@ int switchdev_handle_port_obj_del(struct net_device *dev,
 	int err;
 
 	err = __switchdev_handle_port_obj_del(dev, port_obj_info, check_cb,
-					      del_cb);
+					      NULL, del_cb);
 	if (err == -EOPNOTSUPP)
 		err = 0;
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_del);
+
+/* Same as switchdev_handle_port_obj_del(), except if object is notified on a
+ * @dev that passes @foreign_dev_check_cb, it is replicated towards all devices
+ * that pass @check_cb and are in the same bridge as @dev.
+ */
+int switchdev_handle_port_obj_del_foreign(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			bool (*foreign_dev_check_cb)(const struct net_device *dev,
+						     const struct net_device *foreign_dev),
+			int (*del_cb)(struct net_device *dev, const void *ctx,
+				      const struct switchdev_obj *obj))
+{
+	int err;
+
+	err = __switchdev_handle_port_obj_del(dev, port_obj_info, check_cb,
+					      foreign_dev_check_cb, del_cb);
+	if (err == -EOPNOTSUPP)
+		err = 0;
+	return err;
+}
+EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_del_foreign);
 
 static int __switchdev_handle_port_attr_set(struct net_device *dev,
 			struct switchdev_notifier_port_attr_info *port_attr_info,

@@ -160,13 +160,14 @@ br_switchdev_fdb_notify(struct net_bridge *br,
 }
 
 int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags,
-			       struct netlink_ext_ack *extack)
+			       bool changed, struct netlink_ext_ack *extack)
 {
 	struct switchdev_obj_port_vlan v = {
 		.obj.orig_dev = dev,
 		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
 		.flags = flags,
 		.vid = vid,
+		.changed = changed,
 	};
 
 	return switchdev_port_obj_add(dev, &v.obj, extack);
@@ -351,50 +352,18 @@ br_switchdev_vlan_replay_one(struct notifier_block *nb,
 	return notifier_to_errno(err);
 }
 
-static int br_switchdev_vlan_replay(struct net_device *br_dev,
-				    struct net_device *dev,
-				    const void *ctx, bool adding,
-				    struct notifier_block *nb,
-				    struct netlink_ext_ack *extack)
+static int br_switchdev_vlan_replay_group(struct notifier_block *nb,
+					  struct net_device *dev,
+					  struct net_bridge_vlan_group *vg,
+					  const void *ctx, unsigned long action,
+					  struct netlink_ext_ack *extack)
 {
-	struct net_bridge_vlan_group *vg;
 	struct net_bridge_vlan *v;
-	struct net_bridge_port *p;
-	struct net_bridge *br;
-	unsigned long action;
 	int err = 0;
 	u16 pvid;
 
-	ASSERT_RTNL();
-
-	if (!nb)
-		return 0;
-
-	if (!netif_is_bridge_master(br_dev))
-		return -EINVAL;
-
-	if (!netif_is_bridge_master(dev) && !netif_is_bridge_port(dev))
-		return -EINVAL;
-
-	if (netif_is_bridge_master(dev)) {
-		br = netdev_priv(dev);
-		vg = br_vlan_group(br);
-		p = NULL;
-	} else {
-		p = br_port_get_rtnl(dev);
-		if (WARN_ON(!p))
-			return -EINVAL;
-		vg = nbp_vlan_group(p);
-		br = p->br;
-	}
-
 	if (!vg)
 		return 0;
-
-	if (adding)
-		action = SWITCHDEV_PORT_OBJ_ADD;
-	else
-		action = SWITCHDEV_PORT_OBJ_DEL;
 
 	pvid = br_get_pvid(vg);
 
@@ -415,7 +384,48 @@ static int br_switchdev_vlan_replay(struct net_device *br_dev,
 			return err;
 	}
 
-	return err;
+	return 0;
+}
+
+static int br_switchdev_vlan_replay(struct net_device *br_dev,
+				    const void *ctx, bool adding,
+				    struct notifier_block *nb,
+				    struct netlink_ext_ack *extack)
+{
+	struct net_bridge *br = netdev_priv(br_dev);
+	struct net_bridge_port *p;
+	unsigned long action;
+	int err;
+
+	ASSERT_RTNL();
+
+	if (!nb)
+		return 0;
+
+	if (!netif_is_bridge_master(br_dev))
+		return -EINVAL;
+
+	if (adding)
+		action = SWITCHDEV_PORT_OBJ_ADD;
+	else
+		action = SWITCHDEV_PORT_OBJ_DEL;
+
+	err = br_switchdev_vlan_replay_group(nb, br_dev, br_vlan_group(br),
+					     ctx, action, extack);
+	if (err)
+		return err;
+
+	list_for_each_entry(p, &br->port_list, list) {
+		struct net_device *dev = p->dev;
+
+		err = br_switchdev_vlan_replay_group(nb, dev,
+						     nbp_vlan_group(p),
+						     ctx, action, extack);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
@@ -681,8 +691,7 @@ static int nbp_switchdev_sync_objs(struct net_bridge_port *p, const void *ctx,
 	struct net_device *dev = p->dev;
 	int err;
 
-	err = br_switchdev_vlan_replay(br_dev, dev, ctx, true, blocking_nb,
-				       extack);
+	err = br_switchdev_vlan_replay(br_dev, ctx, true, blocking_nb, extack);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
@@ -706,11 +715,11 @@ static void nbp_switchdev_unsync_objs(struct net_bridge_port *p,
 	struct net_device *br_dev = p->br->dev;
 	struct net_device *dev = p->dev;
 
-	br_switchdev_vlan_replay(br_dev, dev, ctx, false, blocking_nb, NULL);
+	br_switchdev_fdb_replay(br_dev, ctx, false, atomic_nb);
 
 	br_switchdev_mdb_replay(br_dev, dev, ctx, false, blocking_nb, NULL);
 
-	br_switchdev_fdb_replay(br_dev, ctx, false, atomic_nb);
+	br_switchdev_vlan_replay(br_dev, ctx, false, blocking_nb, NULL);
 }
 
 /* Let the bridge know that this port is offloaded, so that it can assign a
