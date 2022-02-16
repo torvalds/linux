@@ -1068,11 +1068,6 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 	return tqp->index;
 }
 
-static inline bool hclge_is_reset_pending(struct hclge_dev *hdev)
-{
-	return !!hdev->reset_pending;
-}
-
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);
 int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
 int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
