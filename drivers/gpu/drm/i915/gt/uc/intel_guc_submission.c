@@ -1139,6 +1139,9 @@ __extend_last_switch(struct intel_guc *guc, u64 *prev_start, u32 new_start)
 	*prev_start = ((u64)gt_stamp_hi << 32) | new_start;
 }
 
+#define record_read(map_, field_) \
+	iosys_map_rd_field(map_, 0, struct guc_engine_usage_record, field_)
+
 /*
  * GuC updates shared memory and KMD reads it. Since this is not synchronized,
  * we run into a race where the value read is inconsistent. Sometimes the
@@ -1153,17 +1156,17 @@ __extend_last_switch(struct intel_guc *guc, u64 *prev_start, u32 new_start)
 static void __get_engine_usage_record(struct intel_engine_cs *engine,
 				      u32 *last_in, u32 *id, u32 *total)
 {
-	struct guc_engine_usage_record *rec = intel_guc_engine_usage(engine);
+	struct iosys_map rec_map = intel_guc_engine_usage_record_map(engine);
 	int i = 0;
 
 	do {
-		*last_in = READ_ONCE(rec->last_switch_in_stamp);
-		*id = READ_ONCE(rec->current_context_index);
-		*total = READ_ONCE(rec->total_runtime);
+		*last_in = record_read(&rec_map, last_switch_in_stamp);
+		*id = record_read(&rec_map, current_context_index);
+		*total = record_read(&rec_map, total_runtime);
 
-		if (READ_ONCE(rec->last_switch_in_stamp) == *last_in &&
-		    READ_ONCE(rec->current_context_index) == *id &&
-		    READ_ONCE(rec->total_runtime) == *total)
+		if (record_read(&rec_map, last_switch_in_stamp) == *last_in &&
+		    record_read(&rec_map, current_context_index) == *id &&
+		    record_read(&rec_map, total_runtime) == *total)
 			break;
 	} while (++i < 6);
 }
