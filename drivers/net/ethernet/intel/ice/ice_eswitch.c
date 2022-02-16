@@ -315,7 +315,7 @@ void ice_eswitch_update_repr(struct ice_vsi *vsi)
 	if (!ice_is_switchdev_running(pf))
 		return;
 
-	vf = &pf->vf[vsi->vf_id];
+	vf = vsi->vf;
 	repr = vf->repr;
 	repr->src_vsi = vsi;
 	repr->dst->u.port_info.port_id = vsi->vsi_num;
@@ -323,7 +323,8 @@ void ice_eswitch_update_repr(struct ice_vsi *vsi)
 	ret = ice_vsi_update_security(vsi, ice_vsi_ctx_clear_antispoof);
 	if (ret) {
 		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr.addr, ICE_FWD_TO_VSI);
-		dev_err(ice_pf_to_dev(pf), "Failed to update VF %d port representor", vsi->vf_id);
+		dev_err(ice_pf_to_dev(pf), "Failed to update VF %d port representor",
+			vsi->vf->vf_id);
 	}
 }
 
@@ -407,7 +408,7 @@ static void ice_eswitch_release_env(struct ice_pf *pf)
 static struct ice_vsi *
 ice_eswitch_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
 {
-	return ice_vsi_setup(pf, pi, ICE_VSI_SWITCHDEV_CTRL, ICE_INVAL_VFID, NULL);
+	return ice_vsi_setup(pf, pi, ICE_VSI_SWITCHDEV_CTRL, NULL, NULL);
 }
 
 /**

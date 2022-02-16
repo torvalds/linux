@@ -166,21 +166,19 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 /**
  * ice_vsi_set_num_qs - Set number of queues, descriptors and vectors for a VSI
  * @vsi: the VSI being configured
- * @vf_id: ID of the VF being configured
+ * @vf: the VF associated with this VSI, if any
  *
  * Return 0 on success and a negative value on error
  */
-static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
+static void ice_vsi_set_num_qs(struct ice_vsi *vsi, struct ice_vf *vf)
 {
+	enum ice_vsi_type vsi_type = vsi->type;
 	struct ice_pf *pf = vsi->back;
-	struct ice_vf *vf = NULL;
 
-	if (vsi->type == ICE_VSI_VF)
-		vsi->vf_id = vf_id;
-	else
-		vsi->vf_id = ICE_INVAL_VFID;
+	if (WARN_ON(vsi_type == ICE_VSI_VF && !vf))
+		return;
 
-	switch (vsi->type) {
+	switch (vsi_type) {
 	case ICE_VSI_PF:
 		if (vsi->req_txq) {
 			vsi->alloc_txq = vsi->req_txq;
@@ -222,7 +220,6 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 		vsi->num_q_vectors = 1;
 		break;
 	case ICE_VSI_VF:
-		vf = &pf->vf[vsi->vf_id];
 		if (vf->num_req_qs)
 			vf->num_vf_qs = vf->num_req_qs;
 		vsi->alloc_txq = vf->num_vf_qs;
@@ -248,7 +245,7 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 		vsi->alloc_rxq = 1;
 		break;
 	default:
-		dev_warn(ice_pf_to_dev(pf), "Unknown VSI type %d\n", vsi->type);
+		dev_warn(ice_pf_to_dev(pf), "Unknown VSI type %d\n", vsi_type);
 		break;
 	}
 
@@ -299,7 +296,7 @@ void ice_vsi_delete(struct ice_vsi *vsi)
 		return;
 
 	if (vsi->type == ICE_VSI_VF)
-		ctxt->vf_num = vsi->vf_id;
+		ctxt->vf_num = vsi->vf->vf_id;
 	ctxt->vsi_num = vsi->vsi_num;
 
 	memcpy(&ctxt->info, &vsi->info, sizeof(ctxt->info));
@@ -384,8 +381,7 @@ int ice_vsi_clear(struct ice_vsi *vsi)
 	pf->vsi[vsi->idx] = NULL;
 	if (vsi->idx < pf->next_vsi && vsi->type != ICE_VSI_CTRL)
 		pf->next_vsi = vsi->idx;
-	if (vsi->idx < pf->next_vsi && vsi->type == ICE_VSI_CTRL &&
-	    vsi->vf_id != ICE_INVAL_VFID)
+	if (vsi->idx < pf->next_vsi && vsi->type == ICE_VSI_CTRL && vsi->vf)
 		pf->next_vsi = vsi->idx;
 
 	ice_vsi_free_arrays(vsi);
@@ -453,16 +449,23 @@ static irqreturn_t ice_eswitch_msix_clean_rings(int __always_unused irq, void *d
  * @pf: board private structure
  * @vsi_type: type of VSI
  * @ch: ptr to channel
- * @vf_id: ID of the VF being configured
+ * @vf: VF for ICE_VSI_VF and ICE_VSI_CTRL
+ *
+ * The VF pointer is used for ICE_VSI_VF and ICE_VSI_CTRL. For ICE_VSI_CTRL,
+ * it may be NULL in the case there is no association with a VF. For
+ * ICE_VSI_VF the VF pointer *must not* be NULL.
  *
  * returns a pointer to a VSI on success, NULL on failure.
  */
 static struct ice_vsi *
 ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type vsi_type,
-	      struct ice_channel *ch, u16 vf_id)
+	      struct ice_channel *ch, struct ice_vf *vf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_vsi *vsi = NULL;
+
+	if (WARN_ON(vsi_type == ICE_VSI_VF && !vf))
+		return NULL;
 
 	/* Need to protect the allocation of the VSIs at the PF level */
 	mutex_lock(&pf->sw_mutex);
@@ -485,9 +488,9 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type vsi_type,
 	set_bit(ICE_VSI_DOWN, vsi->state);
 
 	if (vsi_type == ICE_VSI_VF)
-		ice_vsi_set_num_qs(vsi, vf_id);
+		ice_vsi_set_num_qs(vsi, vf);
 	else if (vsi_type != ICE_VSI_CHNL)
-		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
+		ice_vsi_set_num_qs(vsi, NULL);
 
 	switch (vsi->type) {
 	case ICE_VSI_SWITCHDEV_CTRL:
@@ -510,10 +513,16 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type vsi_type,
 
 		/* Setup ctrl VSI MSIX irq handler */
 		vsi->irq_handler = ice_msix_clean_ctrl_vsi;
+
+		/* For the PF control VSI this is NULL, for the VF control VSI
+		 * this will be the first VF to allocate it.
+		 */
+		vsi->vf = vf;
 		break;
 	case ICE_VSI_VF:
 		if (ice_vsi_alloc_arrays(vsi))
 			goto err_rings;
+		vsi->vf = vf;
 		break;
 	case ICE_VSI_CHNL:
 		if (!ch)
@@ -531,7 +540,7 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type vsi_type,
 		goto unlock_pf;
 	}
 
-	if (vsi->type == ICE_VSI_CTRL && vf_id == ICE_INVAL_VFID) {
+	if (vsi->type == ICE_VSI_CTRL && !vf) {
 		/* Use the last VSI slot as the index for PF control VSI */
 		vsi->idx = pf->num_alloc_vsi - 1;
 		pf->ctrl_vsi_idx = vsi->idx;
@@ -546,8 +555,8 @@ ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type vsi_type,
 						 pf->next_vsi);
 	}
 
-	if (vsi->type == ICE_VSI_CTRL && vf_id != ICE_INVAL_VFID)
-		pf->vf[vf_id].ctrl_vsi_idx = vsi->idx;
+	if (vsi->type == ICE_VSI_CTRL && vf)
+		vf->ctrl_vsi_idx = vsi->idx;
 	goto unlock_pf;
 
 err_rings:
@@ -1130,7 +1139,7 @@ static int ice_vsi_init(struct ice_vsi *vsi, bool init_vsi)
 	case ICE_VSI_VF:
 		ctxt->flags = ICE_AQ_VSI_TYPE_VF;
 		/* VF number here is the absolute VF number (0-255) */
-		ctxt->vf_num = vsi->vf_id + hw->func_caps.vf_base_id;
+		ctxt->vf_num = vsi->vf->vf_id + hw->func_caps.vf_base_id;
 		break;
 	default:
 		ret = -ENODEV;
@@ -1322,6 +1331,31 @@ ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id)
 }
 
 /**
+ * ice_get_vf_ctrl_res - Get VF control VSI resource
+ * @pf: pointer to the PF structure
+ * @vsi: the VSI to allocate a resource for
+ *
+ * Look up whether another VF has already allocated the control VSI resource.
+ * If so, re-use this resource so that we share it among all VFs.
+ *
+ * Otherwise, allocate the resource and return it.
+ */
+static int ice_get_vf_ctrl_res(struct ice_pf *pf, struct ice_vsi *vsi)
+{
+	int i;
+
+	ice_for_each_vf(pf, i) {
+		struct ice_vf *vf = &pf->vf[i];
+
+		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI)
+			return pf->vsi[vf->ctrl_vsi_idx]->base_vector;
+	}
+
+	return ice_get_res(pf, pf->irq_tracker, vsi->num_q_vectors,
+			   ICE_RES_VF_CTRL_VEC_ID);
+}
+
+/**
  * ice_vsi_setup_vector_base - Set up the base vector for the given VSI
  * @vsi: ptr to the VSI
  *
@@ -1353,20 +1387,8 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 
 	num_q_vectors = vsi->num_q_vectors;
 	/* reserve slots from OS requested IRQs */
-	if (vsi->type == ICE_VSI_CTRL && vsi->vf_id != ICE_INVAL_VFID) {
-		int i;
-
-		ice_for_each_vf(pf, i) {
-			struct ice_vf *vf = &pf->vf[i];
-
-			if (i != vsi->vf_id && vf->ctrl_vsi_idx != ICE_NO_VSI) {
-				base = pf->vsi[vf->ctrl_vsi_idx]->base_vector;
-				break;
-			}
-		}
-		if (i == pf->num_alloc_vfs)
-			base = ice_get_res(pf, pf->irq_tracker, num_q_vectors,
-					   ICE_RES_VF_CTRL_VEC_ID);
+	if (vsi->type == ICE_VSI_CTRL && vsi->vf) {
+		base = ice_get_vf_ctrl_res(pf, vsi);
 	} else {
 		base = ice_get_res(pf, pf->irq_tracker, num_q_vectors,
 				   vsi->idx);
@@ -2218,7 +2240,7 @@ ice_vsi_set_q_vectors_reg_idx(struct ice_vsi *vsi)
 		}
 
 		if (vsi->type == ICE_VSI_VF) {
-			struct ice_vf *vf = &vsi->back->vf[vsi->vf_id];
+			struct ice_vf *vf = vsi->vf;
 
 			q_vector->reg_idx = ice_calc_vf_reg_idx(vf, q_vector);
 		} else {
@@ -2403,9 +2425,8 @@ static void ice_set_agg_vsi(struct ice_vsi *vsi)
  * @pf: board private structure
  * @pi: pointer to the port_info instance
  * @vsi_type: VSI type
- * @vf_id: defines VF ID to which this VSI connects. This field is meant to be
- *         used only for ICE_VSI_VF VSI type. For other VSI types, should
- *         fill-in ICE_INVAL_VFID as input.
+ * @vf: pointer to VF to which this VSI connects. This field is used primarily
+ *      for the ICE_VSI_VF type. Other VSI types should pass NULL.
  * @ch: ptr to channel
  *
  * This allocates the sw VSI structure and its queue resources.
@@ -2415,7 +2436,8 @@ static void ice_set_agg_vsi(struct ice_vsi *vsi)
  */
 struct ice_vsi *
 ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
-	      enum ice_vsi_type vsi_type, u16 vf_id, struct ice_channel *ch)
+	      enum ice_vsi_type vsi_type, struct ice_vf *vf,
+	      struct ice_channel *ch)
 {
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	struct device *dev = ice_pf_to_dev(pf);
@@ -2423,11 +2445,11 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	int ret, i;
 
 	if (vsi_type == ICE_VSI_CHNL)
-		vsi = ice_vsi_alloc(pf, vsi_type, ch, ICE_INVAL_VFID);
+		vsi = ice_vsi_alloc(pf, vsi_type, ch, NULL);
 	else if (vsi_type == ICE_VSI_VF || vsi_type == ICE_VSI_CTRL)
-		vsi = ice_vsi_alloc(pf, vsi_type, NULL, vf_id);
+		vsi = ice_vsi_alloc(pf, vsi_type, NULL, vf);
 	else
-		vsi = ice_vsi_alloc(pf, vsi_type, NULL, ICE_INVAL_VFID);
+		vsi = ice_vsi_alloc(pf, vsi_type, NULL, NULL);
 
 	if (!vsi) {
 		dev_err(dev, "could not allocate VSI\n");
@@ -2438,9 +2460,6 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	vsi->vsw = pf->first_sw;
 	if (vsi->type == ICE_VSI_PF)
 		vsi->ethtype = ETH_P_PAUSE;
-
-	if (vsi->type == ICE_VSI_VF || vsi->type == ICE_VSI_CTRL)
-		vsi->vf_id = vf_id;
 
 	ice_alloc_fd_res(vsi);
 
@@ -2862,6 +2881,34 @@ void ice_napi_del(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_free_vf_ctrl_res - Free the VF control VSI resource
+ * @pf: pointer to PF structure
+ * @vsi: the VSI to free resources for
+ *
+ * Check if the VF control VSI resource is still in use. If no VF is using it
+ * any more, release the VSI resource. Otherwise, leave it to be cleaned up
+ * once no other VF uses it.
+ */
+static void ice_free_vf_ctrl_res(struct ice_pf *pf,  struct ice_vsi *vsi)
+{
+	int i;
+
+	ice_for_each_vf(pf, i) {
+		struct ice_vf *vf = &pf->vf[i];
+
+		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI)
+			return;
+	}
+
+	/* No other VFs left that have control VSI. It is now safe to reclaim
+	 * SW interrupts back to the common pool.
+	 */
+	ice_free_res(pf->irq_tracker, vsi->base_vector,
+		     ICE_RES_VF_CTRL_VEC_ID);
+	pf->num_avail_sw_msix += vsi->num_q_vectors;
+}
+
+/**
  * ice_vsi_release - Delete a VSI and free its resources
  * @vsi: the VSI being removed
  *
@@ -2904,23 +2951,8 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	 * many interrupts each VF needs. SR-IOV MSIX resources are also
 	 * cleared in the same manner.
 	 */
-	if (vsi->type == ICE_VSI_CTRL && vsi->vf_id != ICE_INVAL_VFID) {
-		int i;
-
-		ice_for_each_vf(pf, i) {
-			struct ice_vf *vf = &pf->vf[i];
-
-			if (i != vsi->vf_id && vf->ctrl_vsi_idx != ICE_NO_VSI)
-				break;
-		}
-		if (i == pf->num_alloc_vfs) {
-			/* No other VFs left that have control VSI, reclaim SW
-			 * interrupts back to the common pool
-			 */
-			ice_free_res(pf->irq_tracker, vsi->base_vector,
-				     ICE_RES_VF_CTRL_VEC_ID);
-			pf->num_avail_sw_msix += vsi->num_q_vectors;
-		}
+	if (vsi->type == ICE_VSI_CTRL && vsi->vf) {
+		ice_free_vf_ctrl_res(pf, vsi);
 	} else if (vsi->type != ICE_VSI_VF) {
 		/* reclaim SW interrupts back to the common pool */
 		ice_free_res(pf->irq_tracker, vsi->base_vector, vsi->idx);
@@ -3104,7 +3136,6 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	struct ice_coalesce_stored *coalesce;
 	int prev_num_q_vectors = 0;
-	struct ice_vf *vf = NULL;
 	enum ice_vsi_type vtype;
 	struct ice_pf *pf;
 	int ret, i;
@@ -3114,8 +3145,8 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 
 	pf = vsi->back;
 	vtype = vsi->type;
-	if (vtype == ICE_VSI_VF)
-		vf = &pf->vf[vsi->vf_id];
+	if (WARN_ON(vtype == ICE_VSI_VF) && !vsi->vf)
+		return -EINVAL;
 
 	ice_vsi_init_vlan_ops(vsi);
 
@@ -3154,9 +3185,9 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 	ice_vsi_clear_rings(vsi);
 	ice_vsi_free_arrays(vsi);
 	if (vtype == ICE_VSI_VF)
-		ice_vsi_set_num_qs(vsi, vf->vf_id);
+		ice_vsi_set_num_qs(vsi, vsi->vf);
 	else
-		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
+		ice_vsi_set_num_qs(vsi, NULL);
 
 	ret = ice_vsi_alloc_arrays(vsi);
 	if (ret < 0)
@@ -4013,9 +4044,14 @@ static u16 ice_vsi_num_zero_vlans(struct ice_vsi *vsi)
 #define ICE_DVM_NUM_ZERO_VLAN_FLTRS	2
 #define ICE_SVM_NUM_ZERO_VLAN_FLTRS	1
 	/* no VLAN 0 filter is created when a port VLAN is active */
-	if (vsi->type == ICE_VSI_VF &&
-	    ice_vf_is_port_vlan_ena(&vsi->back->vf[vsi->vf_id]))
-		return 0;
+	if (vsi->type == ICE_VSI_VF) {
+		if (WARN_ON(!vsi->vf))
+			return 0;
+
+		if (ice_vf_is_port_vlan_ena(vsi->vf))
+			return 0;
+	}
+
 	if (ice_is_dvm_ena(&vsi->back->hw))
 		return ICE_DVM_NUM_ZERO_VLAN_FLTRS;
 	else

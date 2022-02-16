@@ -323,7 +323,7 @@ ice_setup_tx_ctx(struct ice_tx_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf
 		break;
 	case ICE_VSI_VF:
 		/* Firmware expects vmvf_num to be absolute VF ID */
-		tlan_ctx->vmvf_num = hw->func_caps.vf_base_id + vsi->vf_id;
+		tlan_ctx->vmvf_num = hw->func_caps.vf_base_id + vsi->vf->vf_id;
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VF;
 		break;
 	case ICE_VSI_SWITCHDEV_CTRL:
@@ -429,7 +429,7 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	 */
 	if (ice_is_dvm_ena(hw))
 		if (vsi->type == ICE_VSI_VF &&
-		    ice_vf_is_port_vlan_ena(&vsi->back->vf[vsi->vf_id]))
+		    ice_vf_is_port_vlan_ena(vsi->vf))
 			rlan_ctx.l2tsel = 1;
 		else
 			rlan_ctx.l2tsel = 0;

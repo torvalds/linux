@@ -34,9 +34,10 @@ void ice_vf_vsi_init_vlan_ops(struct ice_vsi *vsi)
 {
 	struct ice_vsi_vlan_ops *vlan_ops;
 	struct ice_pf *pf = vsi->back;
-	struct ice_vf *vf;
+	struct ice_vf *vf = vsi->vf;
 
-	vf = &pf->vf[vsi->vf_id];
+	if (WARN_ON(!vf))
+		return;
 
 	if (ice_is_dvm_ena(&pf->hw)) {
 		vlan_ops = &vsi->outer_vlan_ops;
@@ -126,9 +127,14 @@ void ice_vf_vsi_init_vlan_ops(struct ice_vsi *vsi)
  */
 void ice_vf_vsi_cfg_dvm_legacy_vlan_mode(struct ice_vsi *vsi)
 {
-	struct ice_vf *vf = &vsi->back->vf[vsi->vf_id];
-	struct device *dev = ice_pf_to_dev(vf->pf);
 	struct ice_vsi_vlan_ops *vlan_ops;
+	struct ice_vf *vf = vsi->vf;
+	struct device *dev;
+
+	if (WARN_ON(!vf))
+		return;
+
+	dev = ice_pf_to_dev(vf->pf);
 
 	if (!ice_is_dvm_ena(&vsi->back->hw) || ice_vf_is_port_vlan_ena(vf))
 		return;
@@ -192,7 +198,10 @@ void ice_vf_vsi_cfg_dvm_legacy_vlan_mode(struct ice_vsi *vsi)
  */
 void ice_vf_vsi_cfg_svm_legacy_vlan_mode(struct ice_vsi *vsi)
 {
-	struct ice_vf *vf = &vsi->back->vf[vsi->vf_id];
+	struct ice_vf *vf = vsi->vf;
+
+	if (WARN_ON(!vf))
+		return;
 
 	if (ice_is_dvm_ena(&vsi->back->hw) || ice_vf_is_port_vlan_ena(vf))
 		return;
