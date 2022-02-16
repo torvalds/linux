@@ -257,9 +257,14 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will not submit
 	 * more than (EOP entry count - 1) so a queue size of 0x800 dwords
 	 * is safe, giving a maximum field value of 0xA.
+	 *
+	 * Also, do calculation only if EOP is used (size > 0), otherwise
+	 * the order_base_2 calculation provides incorrect result.
+	 *
 	 */
-	m->cp_hqd_eop_control = min(0xA,
-		order_base_2(q->eop_ring_buffer_size / 4) - 1);
+	m->cp_hqd_eop_control = q->eop_ring_buffer_size ?
+		min(0xA, order_base_2(q->eop_ring_buffer_size / 4) - 1) : 0;
+
 	m->cp_hqd_eop_base_addr_lo =
 			lower_32_bits(q->eop_ring_buffer_address >> 8);
 	m->cp_hqd_eop_base_addr_hi =
