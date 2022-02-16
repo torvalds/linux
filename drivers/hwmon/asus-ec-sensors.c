@@ -611,23 +611,31 @@ get_board_sensors(const struct device *dev)
 	return (unsigned long)dmi_entry->driver_data;
 }
 
-static int __init configure_sensor_setup(struct device *dev)
+static int __init asus_ec_probe(struct platform_device *pdev)
 {
-	struct ec_sensors_data *ec_data = dev_get_drvdata(dev);
-	int nr_count[hwmon_max] = { 0 }, nr_types = 0;
-	struct device *hwdev;
-	struct hwmon_channel_info *asus_ec_hwmon_chan;
 	const struct hwmon_channel_info **ptr_asus_ec_ci;
+	int nr_count[hwmon_max] = { 0 }, nr_types = 0;
+	struct hwmon_channel_info *asus_ec_hwmon_chan;
 	const struct hwmon_chip_info *chip_info;
+	struct device *dev = &pdev->dev;
+	struct ec_sensors_data *ec_data;
 	const struct ec_sensor_info *si;
 	enum hwmon_sensor_types type;
+	unsigned long board_sensors;
+	struct device *hwdev;
 	unsigned int i;
 
-	ec_data->board_sensors = get_board_sensors(dev);
-	if (!ec_data->board_sensors) {
+	board_sensors = get_board_sensors(dev);
+	if (!board_sensors)
 		return -ENODEV;
-	}
 
+	ec_data = devm_kzalloc(dev, sizeof(struct ec_sensors_data),
+			       GFP_KERNEL);
+	if (!ec_data)
+		return -ENOMEM;
+
+	dev_set_drvdata(dev, ec_data);
+	ec_data->board_sensors = board_sensors;
 	ec_data->nr_sensors = board_sensors_count(ec_data->board_sensors);
 	ec_data->sensors = devm_kcalloc(dev, ec_data->nr_sensors,
 					sizeof(struct ec_sensor), GFP_KERNEL);
@@ -638,9 +646,8 @@ static int __init configure_sensor_setup(struct device *dev)
 	ec_data->read_buffer = devm_kcalloc(dev, ec_data->nr_registers,
 					    sizeof(u8), GFP_KERNEL);
 
-	if (!ec_data->registers || !ec_data->read_buffer) {
+	if (!ec_data->registers || !ec_data->read_buffer)
 		return -ENOMEM;
-	}
 
 	fill_ec_registers(ec_data);
 
@@ -688,22 +695,6 @@ static int __init configure_sensor_setup(struct device *dev)
 	return PTR_ERR_OR_ZERO(hwdev);
 }
 
-static int __init asus_ec_probe(struct platform_device *pdev)
-{
-	struct ec_sensors_data *state;
-	int status = 0;
-
-	state = devm_kzalloc(&pdev->dev, sizeof(struct ec_sensors_data),
-			     GFP_KERNEL);
-
-	if (!state) {
-		return -ENOMEM;
-	}
-
-	dev_set_drvdata(&pdev->dev, state);
-	status = configure_sensor_setup(&pdev->dev);
-	return status;
-}
 
 static const struct acpi_device_id acpi_ec_ids[] = {
 	/* Embedded Controller Device */
