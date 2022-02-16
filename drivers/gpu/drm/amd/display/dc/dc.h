@@ -710,6 +710,7 @@ struct dc_debug_options {
 #endif
 	bool apply_vendor_specific_lttpr_wa;
 	bool ignore_dpref_ss;
+	uint8_t psr_power_use_phy_fsm;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

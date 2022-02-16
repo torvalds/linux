@@ -1560,10 +1560,14 @@ struct dmub_cmd_psr_copy_settings_data {
 	 * DSC enable status in driver
 	 */
 	uint8_t dsc_enable_status;
-	/**
-	 * Explicit padding to 3 byte boundary.
+	/*
+	 * Use FSM state for PSR power up/down
 	 */
-	uint8_t pad3[3];
+	uint8_t use_phy_fsm;
+	/**
+	 * Explicit padding to 2 byte boundary.
+	 */
+	uint8_t pad3[2];
 };
 
 /**
