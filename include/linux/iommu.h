@@ -37,6 +37,7 @@ struct iommu_group;
 struct bus_type;
 struct device;
 struct iommu_domain;
+struct iommu_domain_ops;
 struct notifier_block;
 struct iommu_sva;
 struct iommu_fault_event;
@@ -88,7 +89,7 @@ struct iommu_domain_geometry {
 
 struct iommu_domain {
 	unsigned type;
-	const struct iommu_ops *ops;
+	const struct iommu_domain_ops *ops;
 	unsigned long pgsize_bitmap;	/* Bitmap of page sizes in use */
 	iommu_fault_handler_t handler;
 	void *handler_token;
@@ -192,26 +193,11 @@ struct iommu_iotlb_gather {
  * struct iommu_ops - iommu ops and capabilities
  * @capable: check capability
  * @domain_alloc: allocate iommu domain
- * @domain_free: free iommu domain
- * @attach_dev: attach device to an iommu domain
- * @detach_dev: detach device from an iommu domain
- * @map: map a physically contiguous memory region to an iommu domain
- * @map_pages: map a physically contiguous set of pages of the same size to
- *             an iommu domain.
- * @unmap: unmap a physically contiguous memory region from an iommu domain
- * @unmap_pages: unmap a number of pages of the same size from an iommu domain
- * @flush_iotlb_all: Synchronously flush all hardware TLBs for this domain
- * @iotlb_sync_map: Sync mappings created recently using @map to the hardware
- * @iotlb_sync: Flush all queued ranges from the hardware TLBs and empty flush
- *            queue
- * @iova_to_phys: translate iova to physical address
  * @probe_device: Add device to iommu driver handling
  * @release_device: Remove device from iommu driver handling
  * @probe_finalize: Do final setup work after the device is added to an IOMMU
  *                  group and attached to the groups domain
  * @device_group: find iommu group for a particular device
- * @enable_nesting: Enable nesting
- * @set_pgtable_quirks: Set io page table quirks (IO_PGTABLE_QUIRK_*)
  * @get_resv_regions: Request list of reserved regions for a device
  * @put_resv_regions: Free list of reserved regions for a device
  * @of_xlate: add OF master IDs to iommu grouping
@@ -228,6 +214,7 @@ struct iommu_iotlb_gather {
  *		- IOMMU_DOMAIN_IDENTITY: must use an identity domain
  *		- IOMMU_DOMAIN_DMA: must use a dma domain
  *		- 0: use the default setting
+ * @default_domain_ops: the default ops for domains
  * @pgsize_bitmap: bitmap of all possible supported page sizes
  * @owner: Driver module providing these ops
  */
@@ -236,33 +223,11 @@ struct iommu_ops {
 
 	/* Domain allocation and freeing by the iommu driver */
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
-	void (*domain_free)(struct iommu_domain *);
 
-	int (*attach_dev)(struct iommu_domain *domain, struct device *dev);
-	void (*detach_dev)(struct iommu_domain *domain, struct device *dev);
-	int (*map)(struct iommu_domain *domain, unsigned long iova,
-		   phys_addr_t paddr, size_t size, int prot, gfp_t gfp);
-	int (*map_pages)(struct iommu_domain *domain, unsigned long iova,
-			 phys_addr_t paddr, size_t pgsize, size_t pgcount,
-			 int prot, gfp_t gfp, size_t *mapped);
-	size_t (*unmap)(struct iommu_domain *domain, unsigned long iova,
-		     size_t size, struct iommu_iotlb_gather *iotlb_gather);
-	size_t (*unmap_pages)(struct iommu_domain *domain, unsigned long iova,
-			      size_t pgsize, size_t pgcount,
-			      struct iommu_iotlb_gather *iotlb_gather);
-	void (*flush_iotlb_all)(struct iommu_domain *domain);
-	void (*iotlb_sync_map)(struct iommu_domain *domain, unsigned long iova,
-			       size_t size);
-	void (*iotlb_sync)(struct iommu_domain *domain,
-			   struct iommu_iotlb_gather *iotlb_gather);
-	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
 	struct iommu_device *(*probe_device)(struct device *dev);
 	void (*release_device)(struct device *dev);
 	void (*probe_finalize)(struct device *dev);
 	struct iommu_group *(*device_group)(struct device *dev);
-	int (*enable_nesting)(struct iommu_domain *domain);
-	int (*set_pgtable_quirks)(struct iommu_domain *domain,
-				  unsigned long quirks);
 
 	/* Request/Free a list of reserved regions for a device */
 	void (*get_resv_regions)(struct device *dev, struct list_head *list);
@@ -288,8 +253,58 @@ struct iommu_ops {
 
 	int (*def_domain_type)(struct device *dev);
 
+	const struct iommu_domain_ops *default_domain_ops;
 	unsigned long pgsize_bitmap;
 	struct module *owner;
+};
+
+/**
+ * struct iommu_domain_ops - domain specific operations
+ * @attach_dev: attach an iommu domain to a device
+ * @detach_dev: detach an iommu domain from a device
+ * @map: map a physically contiguous memory region to an iommu domain
+ * @map_pages: map a physically contiguous set of pages of the same size to
+ *             an iommu domain.
+ * @unmap: unmap a physically contiguous memory region from an iommu domain
+ * @unmap_pages: unmap a number of pages of the same size from an iommu domain
+ * @flush_iotlb_all: Synchronously flush all hardware TLBs for this domain
+ * @iotlb_sync_map: Sync mappings created recently using @map to the hardware
+ * @iotlb_sync: Flush all queued ranges from the hardware TLBs and empty flush
+ *            queue
+ * @iova_to_phys: translate iova to physical address
+ * @enable_nesting: Enable nesting
+ * @set_pgtable_quirks: Set io page table quirks (IO_PGTABLE_QUIRK_*)
+ * @free: Release the domain after use.
+ */
+struct iommu_domain_ops {
+	int (*attach_dev)(struct iommu_domain *domain, struct device *dev);
+	void (*detach_dev)(struct iommu_domain *domain, struct device *dev);
+
+	int (*map)(struct iommu_domain *domain, unsigned long iova,
+		   phys_addr_t paddr, size_t size, int prot, gfp_t gfp);
+	int (*map_pages)(struct iommu_domain *domain, unsigned long iova,
+			 phys_addr_t paddr, size_t pgsize, size_t pgcount,
+			 int prot, gfp_t gfp, size_t *mapped);
+	size_t (*unmap)(struct iommu_domain *domain, unsigned long iova,
+			size_t size, struct iommu_iotlb_gather *iotlb_gather);
+	size_t (*unmap_pages)(struct iommu_domain *domain, unsigned long iova,
+			      size_t pgsize, size_t pgcount,
+			      struct iommu_iotlb_gather *iotlb_gather);
+
+	void (*flush_iotlb_all)(struct iommu_domain *domain);
+	void (*iotlb_sync_map)(struct iommu_domain *domain, unsigned long iova,
+			       size_t size);
+	void (*iotlb_sync)(struct iommu_domain *domain,
+			   struct iommu_iotlb_gather *iotlb_gather);
+
+	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain,
+				    dma_addr_t iova);
+
+	int (*enable_nesting)(struct iommu_domain *domain);
+	int (*set_pgtable_quirks)(struct iommu_domain *domain,
+				  unsigned long quirks);
+
+	void (*free)(struct iommu_domain *domain);
 };
 
 /**

@@ -868,14 +868,6 @@ static struct iommu_group *ipmmu_find_group(struct device *dev)
 
 static const struct iommu_ops ipmmu_ops = {
 	.domain_alloc = ipmmu_domain_alloc,
-	.domain_free = ipmmu_domain_free,
-	.attach_dev = ipmmu_attach_device,
-	.detach_dev = ipmmu_detach_device,
-	.map = ipmmu_map,
-	.unmap = ipmmu_unmap,
-	.flush_iotlb_all = ipmmu_flush_iotlb_all,
-	.iotlb_sync = ipmmu_iotlb_sync,
-	.iova_to_phys = ipmmu_iova_to_phys,
 	.probe_device = ipmmu_probe_device,
 	.release_device = ipmmu_release_device,
 	.probe_finalize = ipmmu_probe_finalize,
@@ -883,6 +875,16 @@ static const struct iommu_ops ipmmu_ops = {
 			? generic_device_group : ipmmu_find_group,
 	.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K,
 	.of_xlate = ipmmu_of_xlate,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= ipmmu_attach_device,
+		.detach_dev	= ipmmu_detach_device,
+		.map		= ipmmu_map,
+		.unmap		= ipmmu_unmap,
+		.flush_iotlb_all = ipmmu_flush_iotlb_all,
+		.iotlb_sync	= ipmmu_iotlb_sync,
+		.iova_to_phys	= ipmmu_iova_to_phys,
+		.free		= ipmmu_domain_free,
+	}
 };
 
 /* -----------------------------------------------------------------------------

@@ -1734,16 +1734,18 @@ static struct iommu_group *omap_iommu_device_group(struct device *dev)
 
 static const struct iommu_ops omap_iommu_ops = {
 	.domain_alloc	= omap_iommu_domain_alloc,
-	.domain_free	= omap_iommu_domain_free,
-	.attach_dev	= omap_iommu_attach_dev,
-	.detach_dev	= omap_iommu_detach_dev,
-	.map		= omap_iommu_map,
-	.unmap		= omap_iommu_unmap,
-	.iova_to_phys	= omap_iommu_iova_to_phys,
 	.probe_device	= omap_iommu_probe_device,
 	.release_device	= omap_iommu_release_device,
 	.device_group	= omap_iommu_device_group,
 	.pgsize_bitmap	= OMAP_IOMMU_PGSIZES,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= omap_iommu_attach_dev,
+		.detach_dev	= omap_iommu_detach_dev,
+		.map		= omap_iommu_map,
+		.unmap		= omap_iommu_unmap,
+		.iova_to_phys	= omap_iommu_iova_to_phys,
+		.free		= omap_iommu_domain_free,
+	}
 };
 
 static int __init omap_iommu_init(void)
