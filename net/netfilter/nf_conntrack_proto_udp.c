@@ -63,10 +63,8 @@ static bool udp_error(struct sk_buff *skb,
 	}
 
 	/* Packet with no checksum */
-	if (!hdr->check) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	if (!hdr->check)
 		return false;
-	}
 
 	/* Checksum invalid? Ignore.
 	 * We skip checking packets on the outgoing path
