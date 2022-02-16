@@ -20,8 +20,6 @@
 #include "processor.h"
 #include "vmx.h"
 
-#define VCPU_ID 0
-
 static void guest_code(void)
 {
 }
@@ -115,25 +113,26 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 	}
 }
 
-void test_hv_cpuid_e2big(struct kvm_vm *vm, bool system)
+void test_hv_cpuid_e2big(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 {
 	static struct kvm_cpuid2 cpuid = {.nent = 0};
 	int ret;
 
-	if (!system)
-		ret = __vcpu_ioctl(vm, VCPU_ID, KVM_GET_SUPPORTED_HV_CPUID, &cpuid);
+	if (vcpu)
+		ret = __vcpu_ioctl(vm, vcpu->id, KVM_GET_SUPPORTED_HV_CPUID, &cpuid);
 	else
 		ret = __kvm_ioctl(vm_get_kvm_fd(vm), KVM_GET_SUPPORTED_HV_CPUID, &cpuid);
 
 	TEST_ASSERT(ret == -1 && errno == E2BIG,
 		    "%s KVM_GET_SUPPORTED_HV_CPUID didn't fail with -E2BIG when"
-		    " it should have: %d %d", system ? "KVM" : "vCPU", ret, errno);
+		    " it should have: %d %d", !vcpu ? "KVM" : "vCPU", ret, errno);
 }
 
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
 	struct kvm_cpuid2 *hv_cpuid_entries;
+	struct kvm_vcpu *vcpu;
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
@@ -143,12 +142,12 @@ int main(int argc, char *argv[])
 		exit(KSFT_SKIP);
 	}
 
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	/* Test vCPU ioctl version */
-	test_hv_cpuid_e2big(vm, false);
+	test_hv_cpuid_e2big(vm, vcpu);
 
-	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vm, VCPU_ID);
+	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vm, vcpu->id);
 	test_hv_cpuid(hv_cpuid_entries, false);
 	free(hv_cpuid_entries);
 
@@ -157,8 +156,8 @@ int main(int argc, char *argv[])
 		print_skip("Enlightened VMCS is unsupported");
 		goto do_sys;
 	}
-	vcpu_enable_evmcs(vm, VCPU_ID);
-	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vm, VCPU_ID);
+	vcpu_enable_evmcs(vm, vcpu->id);
+	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vm, vcpu->id);
 	test_hv_cpuid(hv_cpuid_entries, true);
 	free(hv_cpuid_entries);
 
@@ -169,7 +168,7 @@ do_sys:
 		goto out;
 	}
 
-	test_hv_cpuid_e2big(vm, true);
+	test_hv_cpuid_e2big(vm, NULL);
 
 	hv_cpuid_entries = kvm_get_supported_hv_cpuid();
 	test_hv_cpuid(hv_cpuid_entries, nested_vmx_supported());
