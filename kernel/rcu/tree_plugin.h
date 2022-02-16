@@ -1226,18 +1226,6 @@ static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
 	free_cpumask_var(cm);
 }
 
-/*
- * Spawn boost kthreads -- called as soon as the scheduler is running.
- */
-static void __init rcu_spawn_boost_kthreads(void)
-{
-	struct rcu_node *rnp;
-
-	rcu_for_each_leaf_node(rnp)
-		if (rcu_rnp_online_cpus(rnp))
-			rcu_spawn_one_boost_kthread(rnp);
-}
-
 #else /* #ifdef CONFIG_RCU_BOOST */
 
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
@@ -1260,10 +1248,6 @@ static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
 }
 
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
-{
-}
-
-static void __init rcu_spawn_boost_kthreads(void)
 {
 }
 

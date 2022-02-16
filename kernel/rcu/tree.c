@@ -4480,6 +4480,7 @@ static int __init rcu_spawn_gp_kthread(void)
 	struct rcu_node *rnp;
 	struct sched_param sp;
 	struct task_struct *t;
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 
 	rcu_scheduler_fully_active = 1;
 	t = kthread_create(rcu_gp_kthread, NULL, "%s", rcu_state.name);
@@ -4498,7 +4499,9 @@ static int __init rcu_spawn_gp_kthread(void)
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	wake_up_process(t);
 	rcu_spawn_nocb_kthreads();
-	rcu_spawn_boost_kthreads();
+	/* This is a pre-SMP initcall, we expect a single CPU */
+	WARN_ON(num_online_cpus() > 1);
+	rcu_spawn_one_boost_kthread(rdp->mynode);
 	rcu_spawn_core_kthreads();
 	return 0;
 }
