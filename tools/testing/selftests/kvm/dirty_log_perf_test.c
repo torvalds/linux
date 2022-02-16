@@ -68,44 +68,45 @@ static int vcpu_last_completed_iteration[KVM_MAX_VCPUS];
 
 static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 {
-	int ret;
+	struct kvm_vcpu *vcpu = vcpu_args->vcpu;
 	struct kvm_vm *vm = perf_test_args.vm;
+	int vcpu_idx = vcpu_args->vcpu_idx;
 	uint64_t pages_count = 0;
 	struct kvm_run *run;
 	struct timespec start;
 	struct timespec ts_diff;
 	struct timespec total = (struct timespec){0};
 	struct timespec avg;
-	int vcpu_id = vcpu_args->vcpu_id;
+	int ret;
 
-	run = vcpu_state(vm, vcpu_id);
+	run = vcpu->run;
 
 	while (!READ_ONCE(host_quit)) {
 		int current_iteration = READ_ONCE(iteration);
 
 		clock_gettime(CLOCK_MONOTONIC, &start);
-		ret = _vcpu_run(vm, vcpu_id);
+		ret = _vcpu_run(vm, vcpu->id);
 		ts_diff = timespec_elapsed(start);
 
 		TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
-		TEST_ASSERT(get_ucall(vm, vcpu_id, NULL) == UCALL_SYNC,
+		TEST_ASSERT(get_ucall(vm, vcpu->id, NULL) == UCALL_SYNC,
 			    "Invalid guest sync status: exit_reason=%s\n",
 			    exit_reason_str(run->exit_reason));
 
-		pr_debug("Got sync event from vCPU %d\n", vcpu_id);
-		vcpu_last_completed_iteration[vcpu_id] = current_iteration;
+		pr_debug("Got sync event from vCPU %d\n", vcpu_idx);
+		vcpu_last_completed_iteration[vcpu_idx] = current_iteration;
 		pr_debug("vCPU %d updated last completed iteration to %d\n",
-			 vcpu_id, vcpu_last_completed_iteration[vcpu_id]);
+			 vcpu->id, vcpu_last_completed_iteration[vcpu_idx]);
 
 		if (current_iteration) {
 			pages_count += vcpu_args->pages;
 			total = timespec_add(total, ts_diff);
 			pr_debug("vCPU %d iteration %d dirty memory time: %ld.%.9lds\n",
-				vcpu_id, current_iteration, ts_diff.tv_sec,
+				vcpu_idx, current_iteration, ts_diff.tv_sec,
 				ts_diff.tv_nsec);
 		} else {
 			pr_debug("vCPU %d iteration %d populate memory time: %ld.%.9lds\n",
-				vcpu_id, current_iteration, ts_diff.tv_sec,
+				vcpu_idx, current_iteration, ts_diff.tv_sec,
 				ts_diff.tv_nsec);
 		}
 
@@ -113,9 +114,9 @@ static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 		       !READ_ONCE(host_quit)) {}
 	}
 
-	avg = timespec_div(total, vcpu_last_completed_iteration[vcpu_id]);
+	avg = timespec_div(total, vcpu_last_completed_iteration[vcpu_idx]);
 	pr_debug("\nvCPU %d dirtied 0x%lx pages over %d iterations in %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
-		vcpu_id, pages_count, vcpu_last_completed_iteration[vcpu_id],
+		vcpu_idx, pages_count, vcpu_last_completed_iteration[vcpu_idx],
 		total.tv_sec, total.tv_nsec, avg.tv_sec, avg.tv_nsec);
 }
 
@@ -207,13 +208,13 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	uint64_t guest_num_pages;
 	uint64_t host_num_pages;
 	uint64_t pages_per_slot;
-	int vcpu_id;
 	struct timespec start;
 	struct timespec ts_diff;
 	struct timespec get_dirty_log_total = (struct timespec){0};
 	struct timespec vcpu_dirty_total = (struct timespec){0};
 	struct timespec avg;
 	struct timespec clear_dirty_log_total = (struct timespec){0};
+	int i;
 
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
 				 p->slots, p->backing_src,
@@ -239,15 +240,15 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	host_quit = false;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++)
-		vcpu_last_completed_iteration[vcpu_id] = -1;
+	for (i = 0; i < nr_vcpus; i++)
+		vcpu_last_completed_iteration[i] = -1;
 
 	perf_test_start_vcpu_threads(nr_vcpus, vcpu_worker);
 
 	/* Allow the vCPUs to populate memory */
 	pr_debug("Starting iteration %d - Populating\n", iteration);
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-		while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id]) !=
+	for (i = 0; i < nr_vcpus; i++) {
+		while (READ_ONCE(vcpu_last_completed_iteration[i]) !=
 		       iteration)
 			;
 	}
@@ -272,8 +273,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		iteration++;
 
 		pr_debug("Starting iteration %d\n", iteration);
-		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-			while (READ_ONCE(vcpu_last_completed_iteration[vcpu_id])
+		for (i = 0; i < nr_vcpus; i++) {
+			while (READ_ONCE(vcpu_last_completed_iteration[i])
 			       != iteration)
 				;
 		}

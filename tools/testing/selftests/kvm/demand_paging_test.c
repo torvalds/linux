@@ -44,28 +44,27 @@ static char *guest_data_prototype;
 
 static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 {
-	int ret;
-	int vcpu_id = vcpu_args->vcpu_id;
+	struct kvm_vcpu *vcpu = vcpu_args->vcpu;
 	struct kvm_vm *vm = perf_test_args.vm;
-	struct kvm_run *run;
+	int vcpu_idx = vcpu_args->vcpu_idx;
+	struct kvm_run *run = vcpu->run;
 	struct timespec start;
 	struct timespec ts_diff;
-
-	run = vcpu_state(vm, vcpu_id);
+	int ret;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 
 	/* Let the guest access its memory */
-	ret = _vcpu_run(vm, vcpu_id);
+	ret = _vcpu_run(vm, vcpu->id);
 	TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
-	if (get_ucall(vm, vcpu_id, NULL) != UCALL_SYNC) {
+	if (get_ucall(vm, vcpu->id, NULL) != UCALL_SYNC) {
 		TEST_ASSERT(false,
 			    "Invalid guest sync status: exit_reason=%s\n",
 			    exit_reason_str(run->exit_reason));
 	}
 
 	ts_diff = timespec_elapsed(start);
-	PER_VCPU_DEBUG("vCPU %d execution time: %ld.%.9lds\n", vcpu_id,
+	PER_VCPU_DEBUG("vCPU %d execution time: %ld.%.9lds\n", vcpu_idx,
 		       ts_diff.tv_sec, ts_diff.tv_nsec);
 }
 
@@ -285,8 +284,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct timespec ts_diff;
 	int *pipefds = NULL;
 	struct kvm_vm *vm;
-	int vcpu_id;
-	int r;
+	int r, i;
 
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
 				 p->src_type, p->partition_vcpu_memory_access);
@@ -309,12 +307,12 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		pipefds = malloc(sizeof(int) * nr_vcpus * 2);
 		TEST_ASSERT(pipefds, "Unable to allocate memory for pipefd");
 
-		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
+		for (i = 0; i < nr_vcpus; i++) {
 			struct perf_test_vcpu_args *vcpu_args;
 			void *vcpu_hva;
 			void *vcpu_alias;
 
-			vcpu_args = &perf_test_args.vcpu_args[vcpu_id];
+			vcpu_args = &perf_test_args.vcpu_args[i];
 
 			/* Cache the host addresses of the region */
 			vcpu_hva = addr_gpa2hva(vm, vcpu_args->gpa);
@@ -324,13 +322,13 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 			 * Set up user fault fd to handle demand paging
 			 * requests.
 			 */
-			r = pipe2(&pipefds[vcpu_id * 2],
+			r = pipe2(&pipefds[i * 2],
 				  O_CLOEXEC | O_NONBLOCK);
 			TEST_ASSERT(!r, "Failed to set up pipefd");
 
-			setup_demand_paging(vm, &uffd_handler_threads[vcpu_id],
-					    pipefds[vcpu_id * 2], p->uffd_mode,
-					    p->uffd_delay, &uffd_args[vcpu_id],
+			setup_demand_paging(vm, &uffd_handler_threads[i],
+					    pipefds[i * 2], p->uffd_mode,
+					    p->uffd_delay, &uffd_args[i],
 					    vcpu_hva, vcpu_alias,
 					    vcpu_args->pages * perf_test_args.guest_page_size);
 		}
@@ -350,11 +348,11 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		char c;
 
 		/* Tell the user fault fd handler threads to quit */
-		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
-			r = write(pipefds[vcpu_id * 2 + 1], &c, 1);
+		for (i = 0; i < nr_vcpus; i++) {
+			r = write(pipefds[i * 2 + 1], &c, 1);
 			TEST_ASSERT(r == 1, "Unable to write to pipefd");
 
-			pthread_join(uffd_handler_threads[vcpu_id], NULL);
+			pthread_join(uffd_handler_threads[i], NULL);
 		}
 	}
 
