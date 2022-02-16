@@ -210,11 +210,11 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 static void
 ice_eswitch_release_reprs(struct ice_pf *pf, struct ice_vsi *ctrl_vsi)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vsi *vsi = pf->vf[i].repr->src_vsi;
-		struct ice_vf *vf = &pf->vf[i];
+	ice_for_each_vf(pf, bkt, vf) {
+		struct ice_vsi *vsi = vf->repr->src_vsi;
 
 		/* Skip VFs that aren't configured */
 		if (!vf->repr->dst)
@@ -238,11 +238,11 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 {
 	struct ice_vsi *ctrl_vsi = pf->switchdev.control_vsi;
 	int max_vsi_num = 0;
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vsi *vsi = pf->vf[i].repr->src_vsi;
-		struct ice_vf *vf = &pf->vf[i];
+	ice_for_each_vf(pf, bkt, vf) {
+		struct ice_vsi *vsi = vf->repr->src_vsi;
 
 		ice_remove_vsi_fltr(&pf->hw, vsi->idx);
 		vf->repr->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX,
@@ -282,8 +282,8 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 		netif_keep_dst(vf->repr->netdev);
 	}
 
-	ice_for_each_vf(pf, i) {
-		struct ice_repr *repr = pf->vf[i].repr;
+	ice_for_each_vf(pf, bkt, vf) {
+		struct ice_repr *repr = vf->repr;
 		struct ice_vsi *vsi = repr->src_vsi;
 		struct metadata_dst *dst;
 
@@ -417,10 +417,11 @@ ice_eswitch_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
  */
 static void ice_eswitch_napi_del(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i)
-		netif_napi_del(&pf->vf[i].repr->q_vector->napi);
+	ice_for_each_vf(pf, bkt, vf)
+		netif_napi_del(&vf->repr->q_vector->napi);
 }
 
 /**
@@ -429,10 +430,11 @@ static void ice_eswitch_napi_del(struct ice_pf *pf)
  */
 static void ice_eswitch_napi_enable(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i)
-		napi_enable(&pf->vf[i].repr->q_vector->napi);
+	ice_for_each_vf(pf, bkt, vf)
+		napi_enable(&vf->repr->q_vector->napi);
 }
 
 /**
@@ -441,10 +443,11 @@ static void ice_eswitch_napi_enable(struct ice_pf *pf)
  */
 static void ice_eswitch_napi_disable(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i)
-		napi_disable(&pf->vf[i].repr->q_vector->napi);
+	ice_for_each_vf(pf, bkt, vf)
+		napi_disable(&vf->repr->q_vector->napi);
 }
 
 /**
@@ -613,16 +616,15 @@ int ice_eswitch_configure(struct ice_pf *pf)
  */
 static void ice_eswitch_start_all_tx_queues(struct ice_pf *pf)
 {
-	struct ice_repr *repr;
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
 	if (test_bit(ICE_DOWN, pf->state))
 		return;
 
-	ice_for_each_vf(pf, i) {
-		repr = pf->vf[i].repr;
-		if (repr)
-			ice_repr_start_tx_queues(repr);
+	ice_for_each_vf(pf, bkt, vf) {
+		if (vf->repr)
+			ice_repr_start_tx_queues(vf->repr);
 	}
 }
 
@@ -632,16 +634,15 @@ static void ice_eswitch_start_all_tx_queues(struct ice_pf *pf)
  */
 void ice_eswitch_stop_all_tx_queues(struct ice_pf *pf)
 {
-	struct ice_repr *repr;
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
 	if (test_bit(ICE_DOWN, pf->state))
 		return;
 
-	ice_for_each_vf(pf, i) {
-		repr = pf->vf[i].repr;
-		if (repr)
-			ice_repr_stop_tx_queues(repr);
+	ice_for_each_vf(pf, bkt, vf) {
+		if (vf->repr)
+			ice_repr_stop_tx_queues(vf->repr);
 	}
 }
 

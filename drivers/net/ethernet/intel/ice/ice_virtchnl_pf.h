@@ -39,8 +39,20 @@
 #define ICE_MAX_VF_RESET_TRIES		40
 #define ICE_MAX_VF_RESET_SLEEP_MS	20
 
-#define ice_for_each_vf(pf, i) \
-	for ((i) = 0; (i) < (pf)->num_alloc_vfs; (i)++)
+/**
+ * ice_for_each_vf - Iterate over each VF entry
+ * @pf: pointer to the PF private structure
+ * @bkt: bucket index used for iteration
+ * @entry: pointer to the VF entry currently being processed in the loop.
+ *
+ * The bkt variable is an unsigned integer iterator used to traverse the VF
+ * entries. It is *not* guaranteed to be the VF's vf_id. Do not assume it is.
+ * Use vf->vf_id to get the id number if needed.
+ */
+#define ice_for_each_vf(pf, bkt, entry)					\
+	for ((bkt) = 0, (entry) = &(pf)->vf[0];				\
+	     (bkt) < (pf)->num_alloc_vfs;				\
+	     (bkt)++, (entry)++)
 
 /* Specific VF states */
 enum ice_vf_states {

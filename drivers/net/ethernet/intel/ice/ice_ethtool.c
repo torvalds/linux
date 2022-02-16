@@ -316,11 +316,10 @@ out:
  */
 static bool ice_active_vfs(struct ice_pf *pf)
 {
-	unsigned int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		if (test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
 			return true;
 	}

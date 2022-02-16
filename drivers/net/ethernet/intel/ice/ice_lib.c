@@ -433,13 +433,14 @@ static irqreturn_t ice_eswitch_msix_clean_rings(int __always_unused irq, void *d
 {
 	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
 	struct ice_pf *pf = q_vector->vsi->back;
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
 	if (!q_vector->tx.tx_ring && !q_vector->rx.rx_ring)
 		return IRQ_HANDLED;
 
-	ice_for_each_vf(pf, i)
-		napi_schedule(&pf->vf[i].repr->q_vector->napi);
+	ice_for_each_vf(pf, bkt, vf)
+		napi_schedule(&vf->repr->q_vector->napi);
 
 	return IRQ_HANDLED;
 }
@@ -1342,11 +1343,10 @@ ice_get_res(struct ice_pf *pf, struct ice_res_tracker *res, u16 needed, u16 id)
  */
 static int ice_get_vf_ctrl_res(struct ice_pf *pf, struct ice_vsi *vsi)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI)
 			return pf->vsi[vf->ctrl_vsi_idx]->base_vector;
 	}
@@ -2891,11 +2891,10 @@ void ice_napi_del(struct ice_vsi *vsi)
  */
 static void ice_free_vf_ctrl_res(struct ice_pf *pf,  struct ice_vsi *vsi)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		if (vf != vsi->vf && vf->ctrl_vsi_idx != ICE_NO_VSI)
 			return;
 	}

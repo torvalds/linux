@@ -217,11 +217,10 @@ ice_vc_vf_broadcast(struct ice_pf *pf, enum virtchnl_ops v_opcode,
 		    enum virtchnl_status_code v_retval, u8 *msg, u16 msglen)
 {
 	struct ice_hw *hw = &pf->hw;
-	unsigned int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		/* Not all vfs are enabled so skip the ones that are not */
 		if (!test_bit(ICE_VF_STATE_INIT, vf->vf_states) &&
 		    !test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
@@ -500,7 +499,8 @@ void ice_free_vfs(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	unsigned int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
 	if (!pf->vf)
 		return;
@@ -519,9 +519,7 @@ void ice_free_vfs(struct ice_pf *pf)
 	else
 		dev_warn(dev, "VFs are assigned - not disabling SR-IOV\n");
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		mutex_lock(&vf->cfg_lock);
 
 		ice_dis_vf_qs(vf);
@@ -1462,24 +1460,26 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
 	struct ice_vf *vf;
-	int v, i;
+	unsigned int bkt;
 
 	/* If we don't have any VFs, then there is nothing to reset */
 	if (!pf->num_alloc_vfs)
 		return false;
 
 	/* clear all malicious info if the VFs are getting reset */
-	ice_for_each_vf(pf, i)
-		if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->malvfs, ICE_MAX_VF_COUNT, i))
-			dev_dbg(dev, "failed to clear malicious VF state for VF %u\n", i);
+	ice_for_each_vf(pf, bkt, vf)
+		if (ice_mbx_clear_malvf(&hw->mbx_snapshot, pf->malvfs,
+					ICE_MAX_VF_COUNT, vf->vf_id))
+			dev_dbg(dev, "failed to clear malicious VF state for VF %u\n",
+				vf->vf_id);
 
 	/* If VFs have been disabled, there is no need to reset */
 	if (test_and_set_bit(ICE_VF_DIS, pf->state))
 		return false;
 
 	/* Begin reset on all VFs at once */
-	ice_for_each_vf(pf, v)
-		ice_trigger_vf_reset(&pf->vf[v], is_vflr, true);
+	ice_for_each_vf(pf, bkt, vf)
+		ice_trigger_vf_reset(vf, is_vflr, true);
 
 	/* HW requires some time to make sure it can flush the FIFO for a VF
 	 * when it resets it. Poll the VPGEN_VFRSTAT register for each VF in
@@ -1487,36 +1487,34 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	 * the VFs using a simple iterator that increments once that VF has
 	 * finished resetting.
 	 */
-	for (i = 0, v = 0; i < 10 && v < pf->num_alloc_vfs; i++) {
-		/* Check each VF in sequence */
-		while (v < pf->num_alloc_vfs) {
-			u32 reg;
+	ice_for_each_vf(pf, bkt, vf) {
+		bool done = false;
+		unsigned int i;
+		u32 reg;
 
-			vf = &pf->vf[v];
-			reg = rd32(hw, VPGEN_VFRSTAT(vf->vf_id));
-			if (!(reg & VPGEN_VFRSTAT_VFRD_M)) {
-				/* only delay if the check failed */
-				usleep_range(10, 20);
+		for (i = 0; i < 10; i++) {
+			reg = rd32(&pf->hw, VPGEN_VFRSTAT(vf->vf_id));
+			if (reg & VPGEN_VFRSTAT_VFRD_M) {
+				done = true;
 				break;
 			}
 
-			/* If the current VF has finished resetting, move on
-			 * to the next VF in sequence.
+			/* only delay if check failed */
+			usleep_range(10, 20);
+		}
+
+		if (!done) {
+			/* Display a warning if at least one VF didn't manage
+			 * to reset in time, but continue on with the
+			 * operation.
 			 */
-			v++;
+			dev_warn(dev, "VF %u reset check timeout\n", vf->vf_id);
+			break;
 		}
 	}
 
-	/* Display a warning if at least one VF didn't manage to reset in
-	 * time, but continue on with the operation.
-	 */
-	if (v < pf->num_alloc_vfs)
-		dev_warn(dev, "VF reset check timeout\n");
-
 	/* free VF resources to begin resetting the VSI state */
-	ice_for_each_vf(pf, v) {
-		vf = &pf->vf[v];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		mutex_lock(&vf->cfg_lock);
 
 		vf->driver_caps = 0;
@@ -1692,10 +1690,11 @@ bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
  */
 void ice_vc_notify_link_state(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, i)
-		ice_vc_notify_vf_link_state(&pf->vf[i]);
+	ice_for_each_vf(pf, bkt, vf)
+		ice_vc_notify_vf_link_state(vf);
 }
 
 /**
@@ -1817,11 +1816,12 @@ release_vsi:
 static int ice_start_vfs(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
-	int retval, i;
+	unsigned int bkt, it_cnt;
+	struct ice_vf *vf;
+	int retval;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
+	it_cnt = 0;
+	ice_for_each_vf(pf, bkt, vf) {
 		ice_clear_vf_reset_trigger(vf);
 
 		retval = ice_init_vf_vsi_res(vf);
@@ -1834,17 +1834,20 @@ static int ice_start_vfs(struct ice_pf *pf)
 		set_bit(ICE_VF_STATE_INIT, vf->vf_states);
 		ice_ena_vf_mappings(vf);
 		wr32(hw, VFGEN_RSTAT(vf->vf_id), VIRTCHNL_VFR_VFACTIVE);
+		it_cnt++;
 	}
 
 	ice_flush(hw);
 	return 0;
 
 teardown:
-	for (i = i - 1; i >= 0; i--) {
-		struct ice_vf *vf = &pf->vf[i];
+	ice_for_each_vf(pf, bkt, vf) {
+		if (it_cnt == 0)
+			break;
 
 		ice_dis_vf_mappings(vf);
 		ice_vf_vsi_release(vf);
+		it_cnt--;
 	}
 
 	return retval;
@@ -1856,13 +1859,13 @@ teardown:
  */
 static void ice_set_dflt_settings_vfs(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
+	u16 vf_id = 0;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		vf->pf = pf;
-		vf->vf_id = i;
+		vf->vf_id = vf_id++;
 		vf->vf_sw_id = pf->first_sw;
 		/* assign default capabilities */
 		set_bit(ICE_VIRTCHNL_VF_CAP_L2, &vf->vf_caps);
@@ -2087,19 +2090,19 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
 void ice_process_vflr_event(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
-	unsigned int vf_id;
+	struct ice_vf *vf;
+	unsigned int bkt;
 	u32 reg;
 
 	if (!test_and_clear_bit(ICE_VFLR_EVENT_PENDING, pf->state) ||
 	    !pf->num_alloc_vfs)
 		return;
 
-	ice_for_each_vf(pf, vf_id) {
-		struct ice_vf *vf = &pf->vf[vf_id];
+	ice_for_each_vf(pf, bkt, vf) {
 		u32 reg_idx, bit_idx;
 
-		reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
-		bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
+		reg_idx = (hw->func_caps.vf_base_id + vf->vf_id) / 32;
+		bit_idx = (hw->func_caps.vf_base_id + vf->vf_id) % 32;
 		/* read GLGEN_VFLRSTAT register to find out the flr VFs */
 		reg = rd32(hw, GLGEN_VFLRSTAT(reg_idx));
 		if (reg & BIT(bit_idx)) {
@@ -2131,10 +2134,10 @@ static void ice_vc_reset_vf(struct ice_vf *vf)
  */
 static struct ice_vf *ice_get_vf_from_pfq(struct ice_pf *pf, u16 pfq)
 {
-	unsigned int vf_id;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, vf_id) {
-		struct ice_vf *vf = &pf->vf[vf_id];
+	ice_for_each_vf(pf, bkt, vf) {
 		struct ice_vsi *vsi;
 		u16 rxq_idx;
 
@@ -3011,11 +3014,10 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
  */
 bool ice_is_any_vf_in_promisc(struct ice_pf *pf)
 {
-	int vf_idx;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
-	ice_for_each_vf(pf, vf_idx) {
-		struct ice_vf *vf = &pf->vf[vf_idx];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		/* found a VF that has promiscuous mode configured */
 		if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
 		    test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states))
@@ -6112,10 +6114,12 @@ int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state)
  */
 static int ice_calc_all_vfs_min_tx_rate(struct ice_pf *pf)
 {
-	int rate = 0, i;
+	struct ice_vf *vf;
+	unsigned int bkt;
+	int rate = 0;
 
-	ice_for_each_vf(pf, i)
-		rate += pf->vf[i].min_tx_rate;
+	ice_for_each_vf(pf, bkt, vf)
+		rate += vf->min_tx_rate;
 
 	return rate;
 }
@@ -6296,7 +6300,8 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
 	/* check that there are pending MDD events to print */
 	if (!test_and_clear_bit(ICE_MDD_VF_PRINT_PENDING, pf->state))
@@ -6308,9 +6313,7 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf)
 
 	pf->last_printed_mdd_jiffies = jiffies;
 
-	ice_for_each_vf(pf, i) {
-		struct ice_vf *vf = &pf->vf[i];
-
+	ice_for_each_vf(pf, bkt, vf) {
 		/* only print Rx MDD event message if there are new events */
 		if (vf->mdd_rx_events.count != vf->mdd_rx_events.last_printed) {
 			vf->mdd_rx_events.last_printed =
@@ -6324,7 +6327,7 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf)
 							vf->mdd_tx_events.count;
 
 			dev_info(dev, "%d Tx Malicious Driver Detection events detected on PF %d VF %d MAC %pM.\n",
-				 vf->mdd_tx_events.count, hw->pf_id, i,
+				 vf->mdd_tx_events.count, hw->pf_id, vf->vf_id,
 				 vf->dev_lan_addr.addr);
 		}
 	}

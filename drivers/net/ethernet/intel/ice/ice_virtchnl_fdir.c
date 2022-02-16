@@ -1572,15 +1572,15 @@ err_exit:
  */
 void ice_flush_fdir_ctx(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
 	if (!test_and_clear_bit(ICE_FD_VF_FLUSH_CTX, pf->state))
 		return;
 
-	ice_for_each_vf(pf, i) {
+	ice_for_each_vf(pf, bkt, vf) {
 		struct device *dev = ice_pf_to_dev(pf);
 		enum virtchnl_fdir_prgm_status status;
-		struct ice_vf *vf = &pf->vf[i];
 		struct ice_vf_fdir_ctx *ctx;
 		unsigned long flags;
 		int ret;
