@@ -257,10 +257,9 @@ static void wfx_sdio_remove(struct sdio_func *func)
 	sdio_release_host(func);
 }
 
-#define SDIO_VENDOR_ID_SILABS        0x0000
-#define SDIO_DEVICE_ID_SILABS_WF200  0x1000
 static const struct sdio_device_id wfx_sdio_ids[] = {
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_SILABS, SDIO_DEVICE_ID_SILABS_WF200) },
+	/* WF200 does not have official VID/PID */
+	{ SDIO_DEVICE(0x0000, 0x1000) },
 	{ },
 };
 MODULE_DEVICE_TABLE(sdio, wfx_sdio_ids);
