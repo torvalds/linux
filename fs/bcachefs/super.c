@@ -1883,20 +1883,14 @@ err:
 }
 
 /* return with ref on ca->ref: */
-struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *path)
+struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *name)
 {
 	struct bch_dev *ca;
-	dev_t dev;
 	unsigned i;
-	int ret;
-
-	ret = lookup_bdev(path, &dev);
-	if (ret)
-		return ERR_PTR(ret);
 
 	rcu_read_lock();
 	for_each_member_device_rcu(ca, c, i, NULL)
-		if (ca->dev == dev)
+		if (!strcmp(name, ca->name))
 			goto found;
 	ca = ERR_PTR(-ENOENT);
 found:
