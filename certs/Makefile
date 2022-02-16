@@ -12,25 +12,17 @@ else
 obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_nohashes.o
 endif
 
-ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
-
-$(eval $(call config_filename,SYSTEM_TRUSTED_KEYS))
-
-# GCC doesn't include .incbin files in -MD generated dependencies (PR#66871)
-$(obj)/system_certificates.o: $(obj)/x509_certificate_list
-
-# Cope with signing_key.x509 existing in $(srctree) not $(objtree)
-AFLAGS_system_certificates.o := -I$(srctree)
-
-quiet_cmd_extract_certs  = EXTRACT_CERTS   $(patsubst "%",%,$(2))
+quiet_cmd_extract_certs  = CERT    $@
       cmd_extract_certs  = scripts/extract-cert $(2) $@
 
-targets += x509_certificate_list
-$(obj)/x509_certificate_list: scripts/extract-cert $(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(SYSTEM_TRUSTED_KEYS_FILENAME) FORCE
-	$(call if_changed,extract_certs,$(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(CONFIG_SYSTEM_TRUSTED_KEYS))
-endif # CONFIG_SYSTEM_TRUSTED_KEYRING
+$(obj)/system_certificates.o: $(obj)/x509_certificate_list
 
-clean-files := x509_certificate_list .x509.list x509_revocation_list
+CONFIG_SYSTEM_TRUSTED_KEYS := $(CONFIG_SYSTEM_TRUSTED_KEYS:"%"=%)
+
+$(obj)/x509_certificate_list: $(CONFIG_SYSTEM_TRUSTED_KEYS) scripts/extract-cert FORCE
+	$(call if_changed,extract_certs,$(if $(CONFIG_SYSTEM_TRUSTED_KEYS),$<,""))
+
+targets += x509_certificate_list
 
 ifeq ($(CONFIG_MODULE_SIG),y)
 	SIGN_KEY = y
@@ -60,9 +52,8 @@ keytype-$(CONFIG_MODULE_SIG_KEY_TYPE_ECDSA) := -newkey ec -pkeyopt ec_paramgen_c
 
 quiet_cmd_gen_key = GENKEY  $@
       cmd_gen_key = openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
-		-batch -x509 -config $(obj)/x509.genkey \
-		-outform PEM -out $(obj)/signing_key.pem \
-		-keyout $(obj)/signing_key.pem $(keytype-y) 2>&1
+		-batch -x509 -config $< \
+		-outform PEM -out $@ -keyout $@ $(keytype-y) 2>&1
 
 $(obj)/signing_key.pem: $(obj)/x509.genkey FORCE
 	$(call if_changed,gen_key)
@@ -78,31 +69,26 @@ $(obj)/x509.genkey:
 
 endif # CONFIG_MODULE_SIG_KEY
 
-$(eval $(call config_filename,MODULE_SIG_KEY))
+CONFIG_MODULE_SIG_KEY := $(CONFIG_MODULE_SIG_KEY:"%"=%)
 
 # If CONFIG_MODULE_SIG_KEY isn't a PKCS#11 URI, depend on it
-ifeq ($(patsubst pkcs11:%,%,$(firstword $(MODULE_SIG_KEY_FILENAME))),$(firstword $(MODULE_SIG_KEY_FILENAME)))
-X509_DEP := $(MODULE_SIG_KEY_SRCPREFIX)$(MODULE_SIG_KEY_FILENAME)
+ifneq ($(filter-out pkcs11:%, %(CONFIG_MODULE_SIG_KEY)),)
+X509_DEP := $(CONFIG_MODULE_SIG_KEY)
 endif
 
-# GCC PR#66871 again.
 $(obj)/system_certificates.o: $(obj)/signing_key.x509
 
-targets += signing_key.x509
-$(obj)/signing_key.x509: scripts/extract-cert $(X509_DEP) FORCE
-	$(call if_changed,extract_certs,$(MODULE_SIG_KEY_SRCPREFIX)$(CONFIG_MODULE_SIG_KEY))
+$(obj)/signing_key.x509: $(X509_DEP) scripts/extract-cert FORCE
+	$(call if_changed,extract_certs,$(if $(X509_DEP),$<,$(CONFIG_MODULE_SIG_KEY)))
 endif # CONFIG_MODULE_SIG
 
-ifeq ($(CONFIG_SYSTEM_REVOCATION_LIST),y)
-
-$(eval $(call config_filename,SYSTEM_REVOCATION_KEYS))
+targets += signing_key.x509
 
 $(obj)/revocation_certificates.o: $(obj)/x509_revocation_list
 
-quiet_cmd_extract_certs  = EXTRACT_CERTS   $(patsubst "%",%,$(2))
-      cmd_extract_certs  = scripts/extract-cert $(2) $@
+CONFIG_SYSTEM_REVOCATION_KEYS := $(CONFIG_SYSTEM_REVOCATION_KEYS:"%"=%)
+
+$(obj)/x509_revocation_list: $(CONFIG_SYSTEM_REVOCATION_KEYS) scripts/extract-cert FORCE
+	$(call if_changed,extract_certs,$(if $(CONFIG_SYSTEM_REVOCATION_KEYS),$<,""))
 
 targets += x509_revocation_list
-$(obj)/x509_revocation_list: scripts/extract-cert $(SYSTEM_REVOCATION_KEYS_SRCPREFIX)$(SYSTEM_REVOCATION_KEYS_FILENAME) FORCE
-	$(call if_changed,extract_certs,$(SYSTEM_REVOCATION_KEYS_SRCPREFIX)$(CONFIG_SYSTEM_REVOCATION_KEYS))
-endif
