@@ -215,8 +215,8 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, struct ice_vf *vf)
 		/* The number of queues for ctrl VSI is equal to number of VFs.
 		 * Each ring is associated to the corresponding VF_PR netdev.
 		 */
-		vsi->alloc_txq = pf->vfs.num_alloc;
-		vsi->alloc_rxq = pf->vfs.num_alloc;
+		vsi->alloc_txq = ice_get_num_vfs(pf);
+		vsi->alloc_rxq = vsi->alloc_txq;
 		vsi->num_q_vectors = 1;
 		break;
 	case ICE_VSI_VF:

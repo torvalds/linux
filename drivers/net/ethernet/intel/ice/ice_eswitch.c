@@ -182,10 +182,10 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 		struct ice_repr *repr;
 		struct ice_vf *vf;
 
-		if (WARN_ON(q_id >= pf->vfs.num_alloc))
+		vf = ice_get_vf_by_id(pf, q_id);
+		if (WARN_ON(!vf))
 			continue;
 
-		vf = &pf->vfs.table[q_id];
 		repr = vf->repr;
 		q_vector = repr->q_vector;
 		tx_ring = vsi->tx_rings[q_id];
@@ -535,7 +535,7 @@ ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	if (pf->eswitch_mode == mode)
 		return 0;
 
-	if (pf->vfs.num_alloc) {
+	if (ice_has_vfs(pf)) {
 		dev_info(ice_pf_to_dev(pf), "Changing eswitch mode is allowed only if there is no VFs created");
 		NL_SET_ERR_MSG_MOD(extack, "Changing eswitch mode is allowed only if there is no VFs created");
 		return -EOPNOTSUPP;

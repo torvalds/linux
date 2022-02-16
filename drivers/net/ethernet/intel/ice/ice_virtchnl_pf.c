@@ -175,18 +175,58 @@ struct ice_vsi *ice_get_vf_vsi(struct ice_vf *vf)
 }
 
 /**
- * ice_validate_vf_id - helper to check if VF ID is valid
- * @pf: pointer to the PF structure
- * @vf_id: the ID of the VF to check
+ * ice_get_vf_by_id - Get pointer to VF by ID
+ * @pf: the PF private structure
+ * @vf_id: the VF ID to locate
+ *
+ * Locate and return a pointer to the VF structure associated with a given ID.
+ * Returns NULL if the ID does not have a valid VF structure associated with
+ * it.
  */
-static int ice_validate_vf_id(struct ice_pf *pf, u16 vf_id)
+struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id)
 {
-	/* vf_id range is only valid for 0-255, and should always be unsigned */
-	if (vf_id >= pf->vfs.num_alloc) {
-		dev_err(ice_pf_to_dev(pf), "Invalid VF ID: %u\n", vf_id);
-		return -EINVAL;
+	if (!pf->vfs.table) {
+		dev_err(ice_pf_to_dev(pf), "VF table not allocated\n");
+		return NULL;
 	}
-	return 0;
+
+	if (vf_id >= pf->vfs.num_alloc) {
+		dev_err(ice_pf_to_dev(pf), "Out of range VF ID: %u\n",
+			vf_id);
+		return NULL;
+	}
+
+	return &pf->vfs.table[vf_id];
+}
+
+/**
+ * ice_has_vfs - Return true if the PF has any associated VFs
+ * @pf: the PF private structure
+ *
+ * Return whether or not the PF has any allocated VFs.
+ *
+ * Note that this function only guarantees that there are no VFs at the point
+ * of calling it. It does not guarantee that no more VFs will be added.
+ */
+bool ice_has_vfs(struct ice_pf *pf)
+{
+	return pf->vfs.table && pf->vfs.num_alloc > 0;
+}
+
+/**
+ * ice_get_num_vfs - Get number of allocated VFs
+ * @pf: the PF private structure
+ *
+ * Return the total number of allocated VFs. NOTE: VF IDs are not guaranteed
+ * to be contiguous. Do not assume that a VF ID is guaranteed to be less than
+ * the output of this function.
+ */
+u16 ice_get_num_vfs(struct ice_pf *pf)
+{
+	if (!pf->vfs.table)
+		return 0;
+
+	return pf->vfs.num_alloc;
 }
 
 /**
@@ -503,7 +543,7 @@ void ice_free_vfs(struct ice_pf *pf)
 	struct ice_vf *vf;
 	unsigned int bkt;
 
-	if (!vfs->table)
+	if (!ice_has_vfs(pf))
 		return;
 
 	ice_eswitch_release(pf);
@@ -1464,7 +1504,7 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	unsigned int bkt;
 
 	/* If we don't have any VFs, then there is nothing to reset */
-	if (!pf->vfs.num_alloc)
+	if (!ice_has_vfs(pf))
 		return false;
 
 	/* clear all malicious info if the VFs are getting reset */
@@ -1709,7 +1749,7 @@ void ice_vc_notify_reset(struct ice_pf *pf)
 {
 	struct virtchnl_pf_event pfe;
 
-	if (!pf->vfs.num_alloc)
+	if (!ice_has_vfs(pf))
 		return;
 
 	pfe.event = VIRTCHNL_EVENT_RESET_IMPENDING;
@@ -1725,14 +1765,7 @@ void ice_vc_notify_reset(struct ice_pf *pf)
 static void ice_vc_notify_vf_reset(struct ice_vf *vf)
 {
 	struct virtchnl_pf_event pfe;
-	struct ice_pf *pf;
-
-	if (!vf)
-		return;
-
-	pf = vf->pf;
-	if (ice_validate_vf_id(pf, vf->vf_id))
-		return;
+	struct ice_pf *pf = vf->pf;
 
 	/* Bail out if VF is in disabled state, neither initialized, nor active
 	 * state - otherwise proceed with notifications
@@ -2097,7 +2130,7 @@ void ice_process_vflr_event(struct ice_pf *pf)
 	u32 reg;
 
 	if (!test_and_clear_bit(ICE_VFLR_EVENT_PENDING, pf->state) ||
-	    !pf->vfs.num_alloc)
+	    !ice_has_vfs(pf))
 		return;
 
 	ice_for_each_vf(pf, bkt, vf) {
@@ -2968,10 +3001,11 @@ int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena)
 	int ret;
 
 	dev = ice_pf_to_dev(pf);
-	if (ice_validate_vf_id(pf, vf_id))
+
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
 		return -EINVAL;
 
-	vf = &pf->vfs.table[vf_id];
 	ret = ice_check_vf_ready_for_cfg(vf);
 	if (ret)
 		return ret;
@@ -4159,8 +4193,6 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 	int ret;
 
 	dev = ice_pf_to_dev(pf);
-	if (ice_validate_vf_id(pf, vf_id))
-		return -EINVAL;
 
 	if (vlan_id >= VLAN_N_VID || qos > 7) {
 		dev_err(dev, "Invalid Port VLAN parameters for VF %d, ID %d, QoS %d\n",
@@ -4174,7 +4206,10 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 		return -EPROTONOSUPPORT;
 	}
 
-	vf = &pf->vfs.table[vf_id];
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
+		return -EINVAL;
+
 	ret = ice_check_vf_ready_for_cfg(vf);
 	if (ret)
 		return ret;
@@ -5722,13 +5757,13 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event)
 	int err = 0;
 
 	dev = ice_pf_to_dev(pf);
-	if (ice_validate_vf_id(pf, vf_id)) {
+
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf) {
 		dev_err(dev, "Unable to locate VF for message from VF ID %d, opcode %d, len %d\n",
 			vf_id, v_opcode, msglen);
 		return;
 	}
-
-	vf = &pf->vfs.table[vf_id];
 
 	/* Check if VF is disabled. */
 	if (test_bit(ICE_VF_STATE_DIS, vf->vf_states)) {
@@ -5898,14 +5933,15 @@ ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
 	struct ice_vf *vf;
+	int ret;
 
-	if (ice_validate_vf_id(pf, vf_id))
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
 		return -EINVAL;
 
-	vf = &pf->vfs.table[vf_id];
-
-	if (ice_check_vf_init(pf, vf))
-		return -EBUSY;
+	ret = ice_check_vf_ready_for_cfg(vf);
+	if (ret)
+		return ret;
 
 	ivi->vf = vf_id;
 	ether_addr_copy(ivi->mac, vf->hw_lan_addr.addr);
@@ -5976,15 +6012,15 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	struct ice_vf *vf;
 	int ret;
 
-	if (ice_validate_vf_id(pf, vf_id))
-		return -EINVAL;
-
 	if (is_multicast_ether_addr(mac)) {
 		netdev_err(netdev, "%pM not a valid unicast address\n", mac);
 		return -EINVAL;
 	}
 
-	vf = &pf->vfs.table[vf_id];
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
+		return -EINVAL;
+
 	/* nothing left to do, unicast MAC already set */
 	if (ether_addr_equal(vf->dev_lan_addr.addr, mac) &&
 	    ether_addr_equal(vf->hw_lan_addr.addr, mac))
@@ -6043,10 +6079,10 @@ int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted)
 		return -EOPNOTSUPP;
 	}
 
-	if (ice_validate_vf_id(pf, vf_id))
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
 		return -EINVAL;
 
-	vf = &pf->vfs.table[vf_id];
 	ret = ice_check_vf_ready_for_cfg(vf);
 	if (ret)
 		return ret;
@@ -6081,10 +6117,10 @@ int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state)
 	struct ice_vf *vf;
 	int ret;
 
-	if (ice_validate_vf_id(pf, vf_id))
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
 		return -EINVAL;
 
-	vf = &pf->vfs.table[vf_id];
 	ret = ice_check_vf_ready_for_cfg(vf);
 	if (ret)
 		return ret;
@@ -6176,10 +6212,11 @@ ice_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	int ret;
 
 	dev = ice_pf_to_dev(pf);
-	if (ice_validate_vf_id(pf, vf_id))
+
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
 		return -EINVAL;
 
-	vf = &pf->vfs.table[vf_id];
 	ret = ice_check_vf_ready_for_cfg(vf);
 	if (ret)
 		return ret;
@@ -6243,10 +6280,10 @@ int ice_get_vf_stats(struct net_device *netdev, int vf_id,
 	struct ice_vf *vf;
 	int ret;
 
-	if (ice_validate_vf_id(pf, vf_id))
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
 		return -EINVAL;
 
-	vf = &pf->vfs.table[vf_id];
 	ret = ice_check_vf_ready_for_cfg(vf);
 	if (ret)
 		return ret;
@@ -6384,10 +6421,10 @@ ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
 	struct ice_vf *vf;
 	int status;
 
-	if (ice_validate_vf_id(pf, vf_id))
+	vf = ice_get_vf_by_id(pf, vf_id);
+	if (!vf)
 		return false;
 
-	vf = &pf->vfs.table[vf_id];
 	/* Check if VF is disabled. */
 	if (test_bit(ICE_VF_STATE_DIS, vf->vf_states))
 		return false;

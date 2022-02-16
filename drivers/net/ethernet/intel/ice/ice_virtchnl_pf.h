@@ -39,6 +39,13 @@
 #define ICE_MAX_VF_RESET_TRIES		40
 #define ICE_MAX_VF_RESET_SLEEP_MS	20
 
+/* VF Hash Table access functions
+ *
+ * These functions provide abstraction for interacting with the VF hash table.
+ * In general, direct access to the hash table should be avoided outside of
+ * these functions where possible.
+ */
+
 /**
  * ice_for_each_vf - Iterate over each VF entry
  * @pf: pointer to the PF private structure
@@ -185,6 +192,9 @@ struct ice_vf {
 };
 
 #ifdef CONFIG_PCI_IOV
+struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id);
+bool ice_has_vfs(struct ice_pf *pf);
+u16 ice_get_num_vfs(struct ice_pf *pf);
 struct ice_vsi *ice_get_vf_vsi(struct ice_vf *vf);
 void ice_process_vflr_event(struct ice_pf *pf);
 int ice_sriov_configure(struct pci_dev *pdev, int num_vfs);
@@ -244,6 +254,21 @@ ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 bool ice_vc_isvalid_vsi_id(struct ice_vf *vf, u16 vsi_id);
 bool ice_vf_is_port_vlan_ena(struct ice_vf *vf);
 #else /* CONFIG_PCI_IOV */
+static inline struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id)
+{
+	return NULL;
+}
+
+static inline bool ice_has_vfs(struct ice_pf *pf)
+{
+	return false;
+}
+
+static inline u16 ice_get_num_vfs(struct ice_pf *pf)
+{
+	return 0;
+}
+
 static inline void ice_process_vflr_event(struct ice_pf *pf) { }
 static inline void ice_free_vfs(struct ice_pf *pf) { }
 static inline
