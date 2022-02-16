@@ -448,7 +448,7 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 			divisor = DIV_ROUND_UP(base_clk2, i2c_bus->bus_frequency);
 		} else if ((base_clk3 / i2c_bus->bus_frequency) <= 32) {
 			baseclk_idx = 3;
-			divisor = base_clk3 / i2c_bus->bus_frequency;
+			divisor = DIV_ROUND_UP(base_clk3, i2c_bus->bus_frequency);
 		} else {
 			baseclk_idx = 4;
 			divisor = DIV_ROUND_UP(base_clk4, i2c_bus->bus_frequency);
@@ -460,6 +460,7 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 			}
 			divisor += inc;
 		}
+		divisor = min_t(int, divisor, 32);
 		baseclk_idx &= 0xf;
 		scl_low = ((divisor * 9) / 16) - 1;
 		scl_low = min_t(u32, scl_low, 0xf);

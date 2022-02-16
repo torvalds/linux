@@ -43,6 +43,13 @@ struct aspeed_i2c_base_clk {
 
 #define BASE_CLK_COUNT 4
 
+/*
+ * 100khz base clk1 table
+ * base clk:3250000, val:0x3c, scl:100.8Khz, tbuf:4.96us
+ * base clk:3200000, val:0x3d, scl: 99.2Khz, tbuf:5.04us
+ * base clk:3125000, val:0x3e, scl: 97.6Khz, tbuf:5.12us
+ * base clk:3076000, val:0x40, scl: 97.7Khz, tbuf:5.28us
+ */
 static const struct aspeed_i2c_base_clk i2c_base_clk[BASE_CLK_COUNT] = {
 	/* name	target_freq */
 	{  "base_clk3",	20000000 },	/* 20M */
