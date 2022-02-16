@@ -95,23 +95,6 @@ struct kvm_vm {
 
 struct kvm_vcpu *vcpu_get(struct kvm_vm *vm, uint32_t vcpuid);
 
-/*
- * Virtual Translation Tables Dump
- *
- * Input Args:
- *   stream - Output FILE stream
- *   vm     - Virtual Machine
- *   indent - Left margin indent amount
- *
- * Output Args: None
- *
- * Return: None
- *
- * Dumps to the FILE stream given by @stream, the contents of all the
- * virtual translation tables for the VM given by @vm.
- */
-void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
-
 struct userspace_mem_region *
 memslot2region(struct kvm_vm *vm, uint32_t memslot);
 
@@ -291,25 +274,6 @@ static inline int vm_get_stats_fd(struct kvm_vm *vm)
 	return fd;
 }
 
-/*
- * VM VCPU Dump
- *
- * Input Args:
- *   stream - Output FILE stream
- *   vm     - Virtual Machine
- *   vcpuid - VCPU ID
- *   indent - Left margin indent amount
- *
- * Output Args: None
- *
- * Return: None
- *
- * Dumps the current state of the VCPU specified by @vcpuid, within the VM
- * given by @vm, to the FILE stream given by @stream.
- */
-void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid,
-	       uint8_t indent);
-
 void vm_create_irqchip(struct kvm_vm *vm);
 
 void vm_set_user_memory_region(struct kvm_vm *vm, uint32_t slot, uint32_t flags,
@@ -335,23 +299,6 @@ void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa);
 void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva);
 vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva);
 void *addr_gpa2alias(struct kvm_vm *vm, vm_paddr_t gpa);
-
-/*
- * Address Guest Virtual to Guest Physical
- *
- * Input Args:
- *   vm - Virtual Machine
- *   gva - VM virtual address
- *
- * Output Args: None
- *
- * Return:
- *   Equivalent VM physical address
- *
- * Returns the VM physical address of the translated VM virtual
- * address given by @gva.
- */
-vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva);
 
 struct kvm_run *vcpu_state(struct kvm_vm *vm, uint32_t vcpuid);
 void vcpu_run(struct kvm_vm *vm, uint32_t vcpuid);
@@ -569,26 +516,6 @@ void kvm_gsi_routing_write(struct kvm_vm *vm, struct kvm_irq_routing *routing);
 
 const char *exit_reason_str(unsigned int exit_reason);
 
-void virt_pgd_alloc(struct kvm_vm *vm);
-
-/*
- * VM Virtual Page Map
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vaddr - VM Virtual Address
- *   paddr - VM Physical Address
- *   memslot - Memory region slot for new virtual translation tables
- *
- * Output Args: None
- *
- * Return: None
- *
- * Within @vm, creates a virtual translation for the page starting
- * at @vaddr to the page starting at @paddr.
- */
-void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr);
-
 vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm, vm_paddr_t paddr_min,
 			     uint32_t memslot);
 vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
@@ -657,16 +584,6 @@ static inline struct kvm_vm *vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 
 struct kvm_vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm);
 
-/*
- * Adds a vCPU with reasonable defaults (e.g. a stack)
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - The id of the VCPU to add to the VM.
- *   guest_code - The vCPU's entry point
- */
-void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code);
-
 unsigned int vm_get_page_size(struct kvm_vm *vm);
 unsigned int vm_get_page_shift(struct kvm_vm *vm);
 unsigned long vm_compute_max_gfn(struct kvm_vm *vm);
@@ -704,5 +621,122 @@ kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
 })
 
 void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid);
+
+/*
+ * VM VCPU Dump
+ *
+ * Input Args:
+ *   stream - Output FILE stream
+ *   vm     - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   indent - Left margin indent amount
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Dumps the current state of the VCPU specified by @vcpuid, within the VM
+ * given by @vm, to the FILE stream given by @stream.
+ */
+
+void vcpu_arch_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid,
+		    uint8_t indent);
+
+static inline void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid,
+			     uint8_t indent)
+{
+	vcpu_arch_dump(stream, vm, vcpuid, indent);
+}
+
+/*
+ * Adds a vCPU with reasonable defaults (e.g. a stack)
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - The id of the VCPU to add to the VM.
+ *   guest_code - The vCPU's entry point
+ */
+void vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code);
+
+static inline void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid,
+				       void *guest_code)
+{
+	vm_arch_vcpu_add(vm, vcpuid, guest_code);
+}
+
+void virt_arch_pgd_alloc(struct kvm_vm *vm);
+
+static inline void virt_pgd_alloc(struct kvm_vm *vm)
+{
+	virt_arch_pgd_alloc(vm);
+}
+
+/*
+ * VM Virtual Page Map
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vaddr - VM Virtual Address
+ *   paddr - VM Physical Address
+ *   memslot - Memory region slot for new virtual translation tables
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Within @vm, creates a virtual translation for the page starting
+ * at @vaddr to the page starting at @paddr.
+ */
+void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr);
+
+static inline void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
+{
+	virt_arch_pg_map(vm, vaddr, paddr);
+}
+
+
+/*
+ * Address Guest Virtual to Guest Physical
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   gva - VM virtual address
+ *
+ * Output Args: None
+ *
+ * Return:
+ *   Equivalent VM physical address
+ *
+ * Returns the VM physical address of the translated VM virtual
+ * address given by @gva.
+ */
+vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva);
+
+static inline vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
+{
+	return addr_arch_gva2gpa(vm, gva);
+}
+
+/*
+ * Virtual Translation Tables Dump
+ *
+ * Input Args:
+ *   stream - Output FILE stream
+ *   vm     - Virtual Machine
+ *   indent - Left margin indent amount
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Dumps to the FILE stream given by @stream, the contents of all the
+ * virtual translation tables for the VM given by @vm.
+ */
+void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent);
+
+static inline void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
+{
+	virt_arch_dump(stream, vm, indent);
+}
 
 #endif /* SELFTEST_KVM_UTIL_BASE_H */

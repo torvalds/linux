@@ -53,7 +53,7 @@ static uint64_t pte_index(struct kvm_vm *vm, vm_vaddr_t gva, int level)
 	return (gva & pte_index_mask[level]) >> pte_index_shift[level];
 }
 
-void virt_pgd_alloc(struct kvm_vm *vm)
+void virt_arch_pgd_alloc(struct kvm_vm *vm)
 {
 	if (!vm->pgd_created) {
 		vm_paddr_t paddr = vm_phy_pages_alloc(vm,
@@ -64,7 +64,7 @@ void virt_pgd_alloc(struct kvm_vm *vm)
 	}
 }
 
-void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
+void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
 	uint64_t *ptep, next_ppn;
 	int level = vm->pgtable_levels - 1;
@@ -108,7 +108,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 		PGTBL_PTE_PERM_MASK | PGTBL_PTE_VALID_MASK;
 }
 
-vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
+vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	uint64_t *ptep;
 	int level = vm->pgtable_levels - 1;
@@ -159,7 +159,7 @@ static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent,
 #endif
 }
 
-void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
+void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
 	int level = vm->pgtable_levels - 1;
 	uint64_t pgd, *ptep;
@@ -201,7 +201,7 @@ void riscv_vcpu_mmu_setup(struct kvm_vm *vm, int vcpuid)
 	set_reg(vm, vcpuid, RISCV_CSR_REG(satp), satp);
 }
 
-void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
+void vcpu_arch_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
 {
 	struct kvm_riscv_core core;
 
@@ -274,7 +274,7 @@ static void __aligned(16) guest_unexp_trap(void)
 		  0, 0, 0, 0, 0, 0);
 }
 
-void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
+void vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 {
 	int r;
 	size_t stack_size = vm->page_size == 4096 ?
