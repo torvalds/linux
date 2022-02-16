@@ -797,9 +797,6 @@ static void __submit_bio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
 
-	if (unlikely(!submit_bio_checks(bio)))
-		return;
-
 	if (!disk->fops->submit_bio)
 		blk_mq_submit_bio(bio);
 	else
@@ -893,6 +890,9 @@ static void __submit_bio_noacct_mq(struct bio *bio)
  */
 void submit_bio_noacct(struct bio *bio)
 {
+	if (unlikely(!submit_bio_checks(bio)))
+		return;
+
 	/*
 	 * We only want one ->submit_bio to be active at a time, else stack
 	 * usage with stacked devices could be a problem.  Use current->bio_list
