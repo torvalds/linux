@@ -676,113 +676,6 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 	return BLK_STS_OK;
 }
 
-static noinline_for_stack bool submit_bio_checks(struct bio *bio)
-{
-	struct block_device *bdev = bio->bi_bdev;
-	struct request_queue *q = bdev_get_queue(bdev);
-	blk_status_t status = BLK_STS_IOERR;
-	struct blk_plug *plug;
-
-	might_sleep();
-
-	plug = blk_mq_plug(q, bio);
-	if (plug && plug->nowait)
-		bio->bi_opf |= REQ_NOWAIT;
-
-	/*
-	 * For a REQ_NOWAIT based request, return -EOPNOTSUPP
-	 * if queue does not support NOWAIT.
-	 */
-	if ((bio->bi_opf & REQ_NOWAIT) && !blk_queue_nowait(q))
-		goto not_supported;
-
-	if (should_fail_bio(bio))
-		goto end_io;
-	if (unlikely(bio_check_ro(bio)))
-		goto end_io;
-	if (!bio_flagged(bio, BIO_REMAPPED)) {
-		if (unlikely(bio_check_eod(bio)))
-			goto end_io;
-		if (bdev->bd_partno && unlikely(blk_partition_remap(bio)))
-			goto end_io;
-	}
-
-	/*
-	 * Filter flush bio's early so that bio based drivers without flush
-	 * support don't have to worry about them.
-	 */
-	if (op_is_flush(bio->bi_opf) &&
-	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
-		bio->bi_opf &= ~(REQ_PREFLUSH | REQ_FUA);
-		if (!bio_sectors(bio)) {
-			status = BLK_STS_OK;
-			goto end_io;
-		}
-	}
-
-	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
-		bio_clear_polled(bio);
-
-	switch (bio_op(bio)) {
-	case REQ_OP_DISCARD:
-		if (!blk_queue_discard(q))
-			goto not_supported;
-		break;
-	case REQ_OP_SECURE_ERASE:
-		if (!blk_queue_secure_erase(q))
-			goto not_supported;
-		break;
-	case REQ_OP_WRITE_SAME:
-		if (!q->limits.max_write_same_sectors)
-			goto not_supported;
-		break;
-	case REQ_OP_ZONE_APPEND:
-		status = blk_check_zone_append(q, bio);
-		if (status != BLK_STS_OK)
-			goto end_io;
-		break;
-	case REQ_OP_ZONE_RESET:
-	case REQ_OP_ZONE_OPEN:
-	case REQ_OP_ZONE_CLOSE:
-	case REQ_OP_ZONE_FINISH:
-		if (!blk_queue_is_zoned(q))
-			goto not_supported;
-		break;
-	case REQ_OP_ZONE_RESET_ALL:
-		if (!blk_queue_is_zoned(q) || !blk_queue_zone_resetall(q))
-			goto not_supported;
-		break;
-	case REQ_OP_WRITE_ZEROES:
-		if (!q->limits.max_write_zeroes_sectors)
-			goto not_supported;
-		break;
-	default:
-		break;
-	}
-
-	if (blk_throtl_bio(bio))
-		return false;
-
-	blk_cgroup_bio_start(bio);
-	blkcg_bio_issue_init(bio);
-
-	if (!bio_flagged(bio, BIO_TRACE_COMPLETION)) {
-		trace_block_bio_queue(bio);
-		/* Now that enqueuing has been traced, we need to trace
-		 * completion as well.
-		 */
-		bio_set_flag(bio, BIO_TRACE_COMPLETION);
-	}
-	return true;
-
-not_supported:
-	status = BLK_STS_NOTSUPP;
-end_io:
-	bio->bi_status = status;
-	bio_endio(bio);
-	return false;
-}
-
 static void __submit_bio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
@@ -901,9 +794,109 @@ void submit_bio_noacct_nocheck(struct bio *bio)
  */
 void submit_bio_noacct(struct bio *bio)
 {
-	if (unlikely(!submit_bio_checks(bio)))
+	struct block_device *bdev = bio->bi_bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
+	blk_status_t status = BLK_STS_IOERR;
+	struct blk_plug *plug;
+
+	might_sleep();
+
+	plug = blk_mq_plug(q, bio);
+	if (plug && plug->nowait)
+		bio->bi_opf |= REQ_NOWAIT;
+
+	/*
+	 * For a REQ_NOWAIT based request, return -EOPNOTSUPP
+	 * if queue does not support NOWAIT.
+	 */
+	if ((bio->bi_opf & REQ_NOWAIT) && !blk_queue_nowait(q))
+		goto not_supported;
+
+	if (should_fail_bio(bio))
+		goto end_io;
+	if (unlikely(bio_check_ro(bio)))
+		goto end_io;
+	if (!bio_flagged(bio, BIO_REMAPPED)) {
+		if (unlikely(bio_check_eod(bio)))
+			goto end_io;
+		if (bdev->bd_partno && unlikely(blk_partition_remap(bio)))
+			goto end_io;
+	}
+
+	/*
+	 * Filter flush bio's early so that bio based drivers without flush
+	 * support don't have to worry about them.
+	 */
+	if (op_is_flush(bio->bi_opf) &&
+	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
+		bio->bi_opf &= ~(REQ_PREFLUSH | REQ_FUA);
+		if (!bio_sectors(bio)) {
+			status = BLK_STS_OK;
+			goto end_io;
+		}
+	}
+
+	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+		bio_clear_polled(bio);
+
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+		if (!blk_queue_discard(q))
+			goto not_supported;
+		break;
+	case REQ_OP_SECURE_ERASE:
+		if (!blk_queue_secure_erase(q))
+			goto not_supported;
+		break;
+	case REQ_OP_WRITE_SAME:
+		if (!q->limits.max_write_same_sectors)
+			goto not_supported;
+		break;
+	case REQ_OP_ZONE_APPEND:
+		status = blk_check_zone_append(q, bio);
+		if (status != BLK_STS_OK)
+			goto end_io;
+		break;
+	case REQ_OP_ZONE_RESET:
+	case REQ_OP_ZONE_OPEN:
+	case REQ_OP_ZONE_CLOSE:
+	case REQ_OP_ZONE_FINISH:
+		if (!blk_queue_is_zoned(q))
+			goto not_supported;
+		break;
+	case REQ_OP_ZONE_RESET_ALL:
+		if (!blk_queue_is_zoned(q) || !blk_queue_zone_resetall(q))
+			goto not_supported;
+		break;
+	case REQ_OP_WRITE_ZEROES:
+		if (!q->limits.max_write_zeroes_sectors)
+			goto not_supported;
+		break;
+	default:
+		break;
+	}
+
+	if (blk_throtl_bio(bio))
 		return;
+
+	blk_cgroup_bio_start(bio);
+	blkcg_bio_issue_init(bio);
+
+	if (!bio_flagged(bio, BIO_TRACE_COMPLETION)) {
+		trace_block_bio_queue(bio);
+		/* Now that enqueuing has been traced, we need to trace
+		 * completion as well.
+		 */
+		bio_set_flag(bio, BIO_TRACE_COMPLETION);
+	}
 	submit_bio_noacct_nocheck(bio);
+	return;
+
+not_supported:
+	status = BLK_STS_NOTSUPP;
+end_io:
+	bio->bi_status = status;
+	bio_endio(bio);
 }
 EXPORT_SYMBOL(submit_bio_noacct);
 
