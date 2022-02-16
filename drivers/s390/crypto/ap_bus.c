@@ -1472,7 +1472,17 @@ static ssize_t scans_show(struct bus_type *bus, char *buf)
 			 atomic64_read(&ap_scan_bus_count));
 }
 
-static BUS_ATTR_RO(scans);
+static ssize_t scans_store(struct bus_type *bus, const char *buf,
+			   size_t count)
+{
+	AP_DBF_INFO("%s force AP bus rescan\n", __func__);
+
+	ap_bus_force_rescan();
+
+	return count;
+}
+
+static BUS_ATTR_RW(scans);
 
 static ssize_t bindings_show(struct bus_type *bus, char *buf)
 {
