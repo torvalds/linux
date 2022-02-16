@@ -191,10 +191,8 @@ static int fw_free_to_go(struct adapter *padapter)
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
 	if (counter >= POLLING_READY_TIMEOUT_COUNT) {
-		DBG_88E("%s: chksum report fail! REG_MCUFWDL:0x%08x\n", __func__, value32);
 		return _FAIL;
 	}
-	DBG_88E("%s: Checksum report OK! REG_MCUFWDL:0x%08x\n", __func__, value32);
 
 	value32 = rtw_read32(padapter, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
@@ -208,13 +206,11 @@ static int fw_free_to_go(struct adapter *padapter)
 	do {
 		value32 = rtw_read32(padapter, REG_MCUFWDL);
 		if (value32 & WINTINI_RDY) {
-			DBG_88E("%s: Polling FW ready success!! REG_MCUFWDL:0x%08x\n", __func__, value32);
 			return _SUCCESS;
 		}
 		udelay(5);
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
-	DBG_88E("%s: Polling FW ready fail!! REG_MCUFWDL:0x%08x\n", __func__, value32);
 	return _FAIL;
 }
 
@@ -306,20 +302,14 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 		if (ret == _SUCCESS ||
 		    (rtw_get_passing_time_ms(fwdl_start_time) > 500 && write_fw_retry++ >= 3))
 			break;
-
-		DBG_88E("%s write_fw_retry:%u, time after fwdl_start_time:%ums\n",
-			__func__, write_fw_retry, rtw_get_passing_time_ms(fwdl_start_time)
-		);
 	}
 	fw_download_enable(padapter, false);
 	if (ret != _SUCCESS) {
-		DBG_88E("DL Firmware failed!\n");
 		goto exit;
 	}
 
 	ret = fw_free_to_go(padapter);
 	if (ret != _SUCCESS) {
-		DBG_88E("DL Firmware failed!\n");
 		goto exit;
 	}
 
