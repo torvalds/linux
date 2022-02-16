@@ -22,9 +22,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define VCPU_ID                  5
-
-static void test_cr4_feature_bit(struct kvm_vm *vm, struct kvm_sregs *orig,
+static void test_cr4_feature_bit(struct kvm_vcpu *vcpu, struct kvm_sregs *orig,
 				 uint64_t feature_bit)
 {
 	struct kvm_sregs sregs;
@@ -37,11 +35,11 @@ static void test_cr4_feature_bit(struct kvm_vm *vm, struct kvm_sregs *orig,
 	memcpy(&sregs, orig, sizeof(sregs));
 	sregs.cr4 |= feature_bit;
 
-	rc = _vcpu_sregs_set(vm, VCPU_ID, &sregs);
+	rc = _vcpu_sregs_set(vcpu->vm, vcpu->id, &sregs);
 	TEST_ASSERT(rc, "KVM allowed unsupported CR4 bit (0x%lx)", feature_bit);
 
 	/* Sanity check that KVM didn't change anything. */
-	vcpu_sregs_get(vm, VCPU_ID, &sregs);
+	vcpu_sregs_get(vcpu->vm, vcpu->id, &sregs);
 	TEST_ASSERT(!memcmp(&sregs, orig, sizeof(sregs)), "KVM modified sregs");
 }
 
@@ -83,6 +81,7 @@ static uint64_t calc_cr4_feature_bits(struct kvm_vm *vm)
 int main(int argc, char *argv[])
 {
 	struct kvm_sregs sregs;
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	uint64_t cr4;
 	int rc;
@@ -96,43 +95,43 @@ int main(int argc, char *argv[])
 	 * the vCPU model, i.e. without doing KVM_SET_CPUID2.
 	 */
 	vm = vm_create_barebones();
-	vm_vcpu_add(vm, VCPU_ID);
+	vcpu = vm_vcpu_add(vm, 0);
 
-	vcpu_sregs_get(vm, VCPU_ID, &sregs);
+	vcpu_sregs_get(vm, vcpu->id, &sregs);
 
 	sregs.cr4 |= calc_cr4_feature_bits(vm);
 	cr4 = sregs.cr4;
 
-	rc = _vcpu_sregs_set(vm, VCPU_ID, &sregs);
+	rc = _vcpu_sregs_set(vm, vcpu->id, &sregs);
 	TEST_ASSERT(!rc, "Failed to set supported CR4 bits (0x%lx)", cr4);
 
-	vcpu_sregs_get(vm, VCPU_ID, &sregs);
+	vcpu_sregs_get(vm, vcpu->id, &sregs);
 	TEST_ASSERT(sregs.cr4 == cr4, "sregs.CR4 (0x%llx) != CR4 (0x%lx)",
 		    sregs.cr4, cr4);
 
 	/* Verify all unsupported features are rejected by KVM. */
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_UMIP);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_LA57);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_VMXE);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_SMXE);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_FSGSBASE);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_PCIDE);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_OSXSAVE);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_SMEP);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_SMAP);
-	test_cr4_feature_bit(vm, &sregs, X86_CR4_PKE);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_UMIP);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_LA57);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_VMXE);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_SMXE);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_FSGSBASE);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_PCIDE);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_OSXSAVE);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_SMEP);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_SMAP);
+	test_cr4_feature_bit(vcpu, &sregs, X86_CR4_PKE);
 	kvm_vm_free(vm);
 
 	/* Create a "real" VM and verify APIC_BASE can be set. */
-	vm = vm_create_default(VCPU_ID, 0, NULL);
+	vm = vm_create_with_one_vcpu(&vcpu, NULL);
 
-	vcpu_sregs_get(vm, VCPU_ID, &sregs);
+	vcpu_sregs_get(vm, vcpu->id, &sregs);
 	sregs.apic_base = 1 << 10;
-	rc = _vcpu_sregs_set(vm, VCPU_ID, &sregs);
+	rc = _vcpu_sregs_set(vm, vcpu->id, &sregs);
 	TEST_ASSERT(rc, "Set IA32_APIC_BASE to %llx (invalid)",
 		    sregs.apic_base);
 	sregs.apic_base = 1 << 11;
-	rc = _vcpu_sregs_set(vm, VCPU_ID, &sregs);
+	rc = _vcpu_sregs_set(vm, vcpu->id, &sregs);
 	TEST_ASSERT(!rc, "Couldn't set IA32_APIC_BASE to %llx (valid)",
 		    sregs.apic_base);
 
