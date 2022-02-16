@@ -351,8 +351,7 @@ static int show_device_domain_translation(struct device *dev, void *data)
 	if (!domain)
 		return 0;
 
-	seq_printf(m, "Device %s with pasid %d @0x%llx\n",
-		   dev_name(dev), domain->default_pasid,
+	seq_printf(m, "Device %s @0x%llx\n", dev_name(dev),
 		   (u64)virt_to_phys(domain->pgd));
 	seq_puts(m, "IOVA_PFN\t\tPML5E\t\t\tPML4E\t\t\tPDPE\t\t\tPDE\t\t\tPTE\n");
 
