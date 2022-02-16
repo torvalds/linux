@@ -249,6 +249,9 @@ config MIGRATION
 	  pages as migration can relocate pages to satisfy a huge page
 	  allocation instead of reclaiming.
 
+config DEVICE_MIGRATION
+	def_bool MIGRATION && DEVICE_PRIVATE
+
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	bool
 
