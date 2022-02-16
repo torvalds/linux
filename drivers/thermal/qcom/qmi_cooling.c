@@ -19,12 +19,11 @@
 
 #define QMI_CDEV_DRIVER		"qmi-cooling-device"
 #define QMI_TMD_RESP_TOUT	msecs_to_jiffies(100)
-#define QMI_CLIENT_NAME_LENGTH	40
 
 struct qmi_cooling_device {
 	struct device_node		*np;
-	char				cdev_name[THERMAL_NAME_LENGTH];
-	char				qmi_name[QMI_CLIENT_NAME_LENGTH];
+	char				cdev_name[QMI_TMD_MITIGATION_DEV_ID_LENGTH_MAX_V01];
+	char				qmi_name[QMI_TMD_MITIGATION_DEV_ID_LENGTH_MAX_V01];
 	bool                            connection_active;
 	struct list_head		qmi_node;
 	struct thermal_cooling_device	*cdev;
@@ -45,7 +44,7 @@ struct qmi_tmd_instance {
 static struct qmi_tmd_instance *tmd_instances;
 static int tmd_inst_cnt;
 
-static char  device_clients[][QMI_CLIENT_NAME_LENGTH] = {
+static char  device_clients[][QMI_TMD_MITIGATION_DEV_ID_LENGTH_MAX_V01] = {
 	{"pa"},
 	{"pa_fr1"},
 	{"cx_vdd_limit"},
@@ -493,13 +492,13 @@ static int of_get_qmi_tmd_platform_data(struct device *dev)
 			}
 
 			strscpy(qmi_cdev->cdev_name, cdev_np->name,
-				THERMAL_NAME_LENGTH);
+				QMI_TMD_MITIGATION_DEV_ID_LENGTH_MAX_V01);
 
 			if (!of_property_read_string(cdev_np,
 					"qcom,qmi-dev-name",
 					&qmi_name)) {
 				strscpy(qmi_cdev->qmi_name, qmi_name,
-						QMI_CLIENT_NAME_LENGTH);
+				   QMI_TMD_MITIGATION_DEV_ID_LENGTH_MAX_V01);
 			} else {
 				dev_err(dev, "Fail to parse dev name for %s\n",
 					cdev_np->name);
