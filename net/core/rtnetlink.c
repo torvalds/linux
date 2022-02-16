@@ -5405,8 +5405,10 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENODEV;
 
 	filter_mask = ifsm->filter_mask;
-	if (!filter_mask)
+	if (!filter_mask) {
+		NL_SET_ERR_MSG(extack, "Filter mask must be set for stats get");
 		return -EINVAL;
+	}
 
 	nskb = nlmsg_new(if_nlmsg_stats_size(dev, filter_mask), GFP_KERNEL);
 	if (!nskb)
