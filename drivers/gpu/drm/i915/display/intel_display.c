@@ -6314,6 +6314,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr1);
 		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr2);
 		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr0);
+		PIPE_CONF_CHECK_X(dpll_hw_state.div0);
 		PIPE_CONF_CHECK_X(dpll_hw_state.ebb0);
 		PIPE_CONF_CHECK_X(dpll_hw_state.ebb4);
 		PIPE_CONF_CHECK_X(dpll_hw_state.pll0);

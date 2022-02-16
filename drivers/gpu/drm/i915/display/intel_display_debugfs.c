@@ -1014,6 +1014,7 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 		seq_printf(m, " wrpll:   0x%08x\n", pll->state.hw_state.wrpll);
 		seq_printf(m, " cfgcr0:  0x%08x\n", pll->state.hw_state.cfgcr0);
 		seq_printf(m, " cfgcr1:  0x%08x\n", pll->state.hw_state.cfgcr1);
+		seq_printf(m, " div0:    0x%08x\n", pll->state.hw_state.div0);
 		seq_printf(m, " mg_refclkin_ctl:        0x%08x\n",
 			   pll->state.hw_state.mg_refclkin_ctl);
 		seq_printf(m, " mg_clktop2_coreclkctl1: 0x%08x\n",

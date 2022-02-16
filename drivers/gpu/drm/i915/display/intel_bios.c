@@ -596,6 +596,12 @@ parse_general_features(struct drm_i915_private *i915,
 	} else {
 		i915->vbt.orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 	}
+
+	if (bdb->version >= 249 && general->afc_startup_config) {
+		i915->vbt.override_afc_startup = true;
+		i915->vbt.override_afc_startup_val = general->afc_startup_config == 0x1 ? 0x0 : 0x7;
+	}
+
 	drm_dbg_kms(&i915->drm,
 		    "BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
 		    i915->vbt.int_tv_support,
