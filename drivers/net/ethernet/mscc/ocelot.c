@@ -1537,7 +1537,7 @@ static int ocelot_trap_del(struct ocelot *ocelot, int port,
 
 static int ocelot_l2_ptp_trap_add(struct ocelot *ocelot, int port)
 {
-	unsigned long l2_cookie = ocelot->num_phys_ports + 1;
+	unsigned long l2_cookie = OCELOT_VCAP_IS2_L2_PTP_TRAP(ocelot);
 
 	return ocelot_trap_add(ocelot, port, l2_cookie,
 			       ocelot_populate_l2_ptp_trap_key);
@@ -1545,15 +1545,15 @@ static int ocelot_l2_ptp_trap_add(struct ocelot *ocelot, int port)
 
 static int ocelot_l2_ptp_trap_del(struct ocelot *ocelot, int port)
 {
-	unsigned long l2_cookie = ocelot->num_phys_ports + 1;
+	unsigned long l2_cookie = OCELOT_VCAP_IS2_L2_PTP_TRAP(ocelot);
 
 	return ocelot_trap_del(ocelot, port, l2_cookie);
 }
 
 static int ocelot_ipv4_ptp_trap_add(struct ocelot *ocelot, int port)
 {
-	unsigned long ipv4_gen_cookie = ocelot->num_phys_ports + 2;
-	unsigned long ipv4_ev_cookie = ocelot->num_phys_ports + 3;
+	unsigned long ipv4_gen_cookie = OCELOT_VCAP_IS2_IPV4_GEN_PTP_TRAP(ocelot);
+	unsigned long ipv4_ev_cookie = OCELOT_VCAP_IS2_IPV4_EV_PTP_TRAP(ocelot);
 	int err;
 
 	err = ocelot_trap_add(ocelot, port, ipv4_ev_cookie,
@@ -1571,8 +1571,8 @@ static int ocelot_ipv4_ptp_trap_add(struct ocelot *ocelot, int port)
 
 static int ocelot_ipv4_ptp_trap_del(struct ocelot *ocelot, int port)
 {
-	unsigned long ipv4_gen_cookie = ocelot->num_phys_ports + 2;
-	unsigned long ipv4_ev_cookie = ocelot->num_phys_ports + 3;
+	unsigned long ipv4_gen_cookie = OCELOT_VCAP_IS2_IPV4_GEN_PTP_TRAP(ocelot);
+	unsigned long ipv4_ev_cookie = OCELOT_VCAP_IS2_IPV4_EV_PTP_TRAP(ocelot);
 	int err;
 
 	err = ocelot_trap_del(ocelot, port, ipv4_ev_cookie);
@@ -1582,8 +1582,8 @@ static int ocelot_ipv4_ptp_trap_del(struct ocelot *ocelot, int port)
 
 static int ocelot_ipv6_ptp_trap_add(struct ocelot *ocelot, int port)
 {
-	unsigned long ipv6_gen_cookie = ocelot->num_phys_ports + 4;
-	unsigned long ipv6_ev_cookie = ocelot->num_phys_ports + 5;
+	unsigned long ipv6_gen_cookie = OCELOT_VCAP_IS2_IPV6_GEN_PTP_TRAP(ocelot);
+	unsigned long ipv6_ev_cookie = OCELOT_VCAP_IS2_IPV6_EV_PTP_TRAP(ocelot);
 	int err;
 
 	err = ocelot_trap_add(ocelot, port, ipv6_ev_cookie,
@@ -1601,8 +1601,8 @@ static int ocelot_ipv6_ptp_trap_add(struct ocelot *ocelot, int port)
 
 static int ocelot_ipv6_ptp_trap_del(struct ocelot *ocelot, int port)
 {
-	unsigned long ipv6_gen_cookie = ocelot->num_phys_ports + 4;
-	unsigned long ipv6_ev_cookie = ocelot->num_phys_ports + 5;
+	unsigned long ipv6_gen_cookie = OCELOT_VCAP_IS2_IPV6_GEN_PTP_TRAP(ocelot);
+	unsigned long ipv6_ev_cookie = OCELOT_VCAP_IS2_IPV6_EV_PTP_TRAP(ocelot);
 	int err;
 
 	err = ocelot_trap_del(ocelot, port, ipv6_ev_cookie);

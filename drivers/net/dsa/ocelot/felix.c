@@ -50,7 +50,7 @@ static int felix_tag_8021q_rxvlan_add(struct felix *felix, int port, u16 vid,
 
 	outer_tagging_rule->key_type = OCELOT_VCAP_KEY_ANY;
 	outer_tagging_rule->prio = 1;
-	outer_tagging_rule->id.cookie = port;
+	outer_tagging_rule->id.cookie = OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port);
 	outer_tagging_rule->id.tc_offload = false;
 	outer_tagging_rule->block_id = VCAP_ES0;
 	outer_tagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -103,7 +103,7 @@ static int felix_tag_8021q_txvlan_add(struct felix *felix, int port, u16 vid,
 	untagging_rule->vlan.vid.value = vid;
 	untagging_rule->vlan.vid.mask = VLAN_VID_MASK;
 	untagging_rule->prio = 1;
-	untagging_rule->id.cookie = port;
+	untagging_rule->id.cookie = OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port);
 	untagging_rule->id.tc_offload = false;
 	untagging_rule->block_id = VCAP_IS1;
 	untagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -124,7 +124,7 @@ static int felix_tag_8021q_txvlan_add(struct felix *felix, int port, u16 vid,
 	redirect_rule->ingress_port_mask = BIT(upstream);
 	redirect_rule->pag = port;
 	redirect_rule->prio = 1;
-	redirect_rule->id.cookie = port;
+	redirect_rule->id.cookie = OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port);
 	redirect_rule->id.tc_offload = false;
 	redirect_rule->block_id = VCAP_IS2;
 	redirect_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -308,7 +308,7 @@ static int felix_setup_mmio_filtering(struct felix *felix)
 	*(__be16 *)tagging_rule->key.etype.etype.mask = htons(0xffff);
 	tagging_rule->ingress_port_mask = user_ports;
 	tagging_rule->prio = 1;
-	tagging_rule->id.cookie = ocelot->num_phys_ports;
+	tagging_rule->id.cookie = OCELOT_VCAP_IS1_TAG_8021Q_PTP_MMIO(ocelot);
 	tagging_rule->id.tc_offload = false;
 	tagging_rule->block_id = VCAP_IS1;
 	tagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -327,7 +327,7 @@ static int felix_setup_mmio_filtering(struct felix *felix)
 	redirect_rule->ingress_port_mask = user_ports;
 	redirect_rule->pag = ocelot->num_phys_ports;
 	redirect_rule->prio = 1;
-	redirect_rule->id.cookie = ocelot->num_phys_ports;
+	redirect_rule->id.cookie = OCELOT_VCAP_IS2_TAG_8021Q_PTP_MMIO(ocelot);
 	redirect_rule->id.tc_offload = false;
 	redirect_rule->block_id = VCAP_IS2;
 	redirect_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
