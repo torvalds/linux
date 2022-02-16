@@ -2208,13 +2208,7 @@ ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
 	struct ice_pf *pf;
 	int aq_ret;
 
-	if (!vf)
-		return -EINVAL;
-
 	pf = vf->pf;
-	if (ice_validate_vf_id(pf, vf->vf_id))
-		return -EINVAL;
-
 	dev = ice_pf_to_dev(pf);
 
 	/* single place to detect unsuccessful return values */
@@ -5726,8 +5720,9 @@ void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event)
 
 	dev = ice_pf_to_dev(pf);
 	if (ice_validate_vf_id(pf, vf_id)) {
-		err = -EINVAL;
-		goto error_handler;
+		dev_err(dev, "Unable to locate VF for message from VF ID %d, opcode %d, len %d\n",
+			vf_id, v_opcode, msglen);
+		return;
 	}
 
 	vf = &pf->vf[vf_id];
