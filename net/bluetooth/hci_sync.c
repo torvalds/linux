@@ -4106,9 +4106,9 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 	hci_inquiry_cache_flush(hdev);
 	hci_pend_le_actions_clear(hdev);
 	hci_conn_hash_flush(hdev);
-	hci_dev_unlock(hdev);
-
+	/* Prevent data races on hdev->smp_data or hdev->smp_bredr_data */
 	smp_unregister(hdev);
+	hci_dev_unlock(hdev);
 
 	hci_sock_dev_event(hdev, HCI_DEV_DOWN);
 
