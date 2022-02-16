@@ -16,10 +16,6 @@
 #include "processor.h"
 #include "apic.h"
 
-#define N_VCPU 2
-#define VCPU_ID0 0
-#define VCPU_ID1 1
-
 static void guest_bsp_vcpu(void *arg)
 {
 	GUEST_SYNC(1);
@@ -38,31 +34,30 @@ static void guest_not_bsp_vcpu(void *arg)
 	GUEST_DONE();
 }
 
-static void test_set_boot_busy(struct kvm_vm *vm)
+static void test_set_bsp_busy(struct kvm_vcpu *vcpu, const char *msg)
 {
-	int res;
+	int r = __vm_ioctl(vcpu->vm, KVM_SET_BOOT_CPU_ID,
+			   (void *)(unsigned long)vcpu->id);
 
-	res = __vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID0);
-	TEST_ASSERT(res == -1 && errno == EBUSY,
-			"KVM_SET_BOOT_CPU_ID set while running vm");
+	TEST_ASSERT(r == -1 && errno == EBUSY, "KVM_SET_BOOT_CPU_ID set %s", msg);
 }
 
-static void run_vcpu(struct kvm_vm *vm, uint32_t vcpuid)
+static void run_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 	int stage;
 
 	for (stage = 0; stage < 2; stage++) {
 
-		vcpu_run(vm, vcpuid);
+		vcpu_run(vcpu->vm, vcpu->id);
 
-		switch (get_ucall(vm, vcpuid, &uc)) {
+		switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
 		case UCALL_SYNC:
 			TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
 					uc.args[1] == stage + 1,
 					"Stage %d: Unexpected register values vmexit, got %lx",
 					stage + 1, (ulong)uc.args[1]);
-			test_set_boot_busy(vm);
+			test_set_bsp_busy(vcpu, "while running vm");
 			break;
 		case UCALL_DONE:
 			TEST_ASSERT(stage == 1,
@@ -75,65 +70,56 @@ static void run_vcpu(struct kvm_vm *vm, uint32_t vcpuid)
 						uc.args[1], uc.args[2], uc.args[3]);
 		default:
 			TEST_ASSERT(false, "Unexpected exit: %s",
-					exit_reason_str(vcpu_state(vm, vcpuid)->exit_reason));
+				    exit_reason_str(vcpu->run->exit_reason));
 		}
 	}
 }
 
-static struct kvm_vm *create_vm(void)
+static struct kvm_vm *create_vm(uint32_t nr_vcpus, uint32_t bsp_vcpu_id,
+				struct kvm_vcpu *vcpus[])
 {
-	uint64_t vcpu_pages = (DEFAULT_STACK_PGS) * 2;
-	uint64_t extra_pg_pages = vcpu_pages / PTES_PER_MIN_PAGE * N_VCPU;
+	uint64_t vcpu_pages = (DEFAULT_STACK_PGS) * nr_vcpus;
+	uint64_t extra_pg_pages = vcpu_pages / PTES_PER_MIN_PAGE * nr_vcpus;
 	uint64_t pages = DEFAULT_GUEST_PHY_PAGES + vcpu_pages + extra_pg_pages;
-
-	return vm_create(pages);
-}
-
-static void add_x86_vcpu(struct kvm_vm *vm, uint32_t vcpuid, bool bsp_code)
-{
-	if (bsp_code)
-		vm_vcpu_add(vm, vcpuid, guest_bsp_vcpu);
-	else
-		vm_vcpu_add(vm, vcpuid, guest_not_bsp_vcpu);
-}
-
-static void run_vm_bsp(uint32_t bsp_vcpu)
-{
 	struct kvm_vm *vm;
-	bool is_bsp_vcpu1 = bsp_vcpu == VCPU_ID1;
+	uint32_t i;
 
-	vm = create_vm();
+	vm = vm_create(pages);
 
-	if (is_bsp_vcpu1)
-		vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID1);
+	vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *)(unsigned long)bsp_vcpu_id);
 
-	add_x86_vcpu(vm, VCPU_ID0, !is_bsp_vcpu1);
-	add_x86_vcpu(vm, VCPU_ID1, is_bsp_vcpu1);
+	for (i = 0; i < nr_vcpus; i++)
+		vcpus[i] = vm_vcpu_add(vm, i, i == bsp_vcpu_id ? guest_bsp_vcpu :
+								 guest_not_bsp_vcpu);
+	return vm;
+}
 
-	run_vcpu(vm, VCPU_ID0);
-	run_vcpu(vm, VCPU_ID1);
+static void run_vm_bsp(uint32_t bsp_vcpu_id)
+{
+	struct kvm_vcpu *vcpus[2];
+	struct kvm_vm *vm;
+
+	vm = create_vm(ARRAY_SIZE(vcpus), bsp_vcpu_id, vcpus);
+
+	run_vcpu(vcpus[0]);
+	run_vcpu(vcpus[1]);
 
 	kvm_vm_free(vm);
 }
 
 static void check_set_bsp_busy(void)
 {
+	struct kvm_vcpu *vcpus[2];
 	struct kvm_vm *vm;
-	int res;
 
-	vm = create_vm();
+	vm = create_vm(ARRAY_SIZE(vcpus), 0, vcpus);
 
-	add_x86_vcpu(vm, VCPU_ID0, true);
-	add_x86_vcpu(vm, VCPU_ID1, false);
+	test_set_bsp_busy(vcpus[1], "after adding vcpu");
 
-	res = __vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID1);
-	TEST_ASSERT(res == -1 && errno == EBUSY, "KVM_SET_BOOT_CPU_ID set after adding vcpu");
+	run_vcpu(vcpus[0]);
+	run_vcpu(vcpus[1]);
 
-	run_vcpu(vm, VCPU_ID0);
-	run_vcpu(vm, VCPU_ID1);
-
-	res = __vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *) VCPU_ID1);
-	TEST_ASSERT(res == -1 && errno == EBUSY, "KVM_SET_BOOT_CPU_ID set to a terminated vcpu");
+	test_set_bsp_busy(vcpus[1], "to a terminated vcpu");
 
 	kvm_vm_free(vm);
 }
@@ -145,9 +131,9 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	run_vm_bsp(VCPU_ID0);
-	run_vm_bsp(VCPU_ID1);
-	run_vm_bsp(VCPU_ID0);
+	run_vm_bsp(0);
+	run_vm_bsp(1);
+	run_vm_bsp(0);
 
 	check_set_bsp_busy();
 }
