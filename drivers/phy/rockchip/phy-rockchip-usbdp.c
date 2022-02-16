@@ -133,6 +133,8 @@ struct rockchip_udphy {
 	u32 dp_lane_sel[4];
 	u32 dp_aux_dout_sel;
 	u32 dp_aux_din_sel;
+	bool dp_sink_hpd_sel;
+	bool dp_sink_hpd_cfg;
 	u8 bw;
 	int id;
 
@@ -1384,6 +1386,9 @@ static int rk3588_udphy_hpd_event_trigger(struct rockchip_udphy *udphy, bool hpd
 {
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 
+	udphy->dp_sink_hpd_sel = true;
+	udphy->dp_sink_hpd_cfg = hpd;
+
 	grfreg_write(udphy->vogrf, &cfg->vogrfcfg[udphy->id].hpd_trigger, hpd);
 
 	return 0;
@@ -1530,6 +1535,21 @@ static int rk3588_dp_phy_set_voltages(struct rockchip_udphy *udphy,
 	return 0;
 }
 
+static int __maybe_unused udphy_resume(struct device *dev)
+{
+	struct rockchip_udphy *udphy = dev_get_drvdata(dev);
+	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+
+	if (udphy->dp_sink_hpd_sel)
+		cfg->hpd_event_trigger(udphy, udphy->dp_sink_hpd_cfg);
+
+	return 0;
+}
+
+static const struct dev_pm_ops udphy_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(NULL, udphy_resume)
+};
+
 static const char * const rk3588_udphy_rst_l[] = {
 	"init", "cmn", "lane", "pcs_apb", "pma_apb"
 };
@@ -1593,6 +1613,7 @@ static struct platform_driver rockchip_udphy_driver = {
 	.driver		= {
 		.name	= "rockchip-usbdp-phy",
 		.of_match_table = rockchip_udphy_dt_match,
+		.pm = &udphy_pm_ops,
 	},
 };
 
