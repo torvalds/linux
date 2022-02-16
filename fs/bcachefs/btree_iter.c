@@ -46,6 +46,9 @@ static inline int __btree_path_cmp(const struct btree_path *l,
 				   struct bpos		r_pos,
 				   unsigned		r_level)
 {
+	/*
+	 * Must match lock ordering as defined by __bch2_btree_node_lock:
+	 */
 	return   cmp_int(l->btree_id,	r_btree_id) ?:
 		 cmp_int((int) l->cached,	(int) r_cached) ?:
 		 bpos_cmp(l->pos,	r_pos) ?:
@@ -288,8 +291,8 @@ bool __bch2_btree_node_lock(struct btree_trans *trans,
 			    six_lock_should_sleep_fn should_sleep_fn, void *p,
 			    unsigned long ip)
 {
-	struct btree_path *linked, *deadlock_path = NULL;
-	unsigned reason = 9;
+	struct btree_path *linked;
+	unsigned reason;
 
 	/* Check if it's safe to block: */
 	trans_for_each_path(trans, linked) {
@@ -310,28 +313,28 @@ bool __bch2_btree_node_lock(struct btree_trans *trans,
 		 */
 		if (type == SIX_LOCK_intent &&
 		    linked->nodes_locked != linked->nodes_intent_locked) {
-			deadlock_path = linked;
 			reason = 1;
+			goto deadlock;
 		}
 
 		if (linked->btree_id != path->btree_id) {
-			if (linked->btree_id > path->btree_id) {
-				deadlock_path = linked;
-				reason = 3;
-			}
-			continue;
+			if (linked->btree_id < path->btree_id)
+				continue;
+
+			reason = 3;
+			goto deadlock;
 		}
 
 		/*
-		 * Within the same btree, cached paths come before non
-		 * cached paths:
+		 * Within the same btree, non-cached paths come before cached
+		 * paths:
 		 */
 		if (linked->cached != path->cached) {
-			if (path->cached) {
-				deadlock_path = linked;
-				reason = 4;
-			}
-			continue;
+			if (!linked->cached)
+				continue;
+
+			reason = 4;
+			goto deadlock;
 		}
 
 		/*
@@ -340,34 +343,32 @@ bool __bch2_btree_node_lock(struct btree_trans *trans,
 		 * we're about to lock, it must have the ancestors locked too:
 		 */
 		if (level > __fls(linked->nodes_locked)) {
-			deadlock_path = linked;
 			reason = 5;
+			goto deadlock;
 		}
 
 		/* Must lock btree nodes in key order: */
 		if (btree_node_locked(linked, level) &&
 		    bpos_cmp(pos, btree_node_pos((void *) linked->l[level].b,
 						 linked->cached)) <= 0) {
-			deadlock_path = linked;
 			reason = 7;
+			goto deadlock;
 		}
-	}
-
-	if (unlikely(deadlock_path)) {
-		trace_trans_restart_would_deadlock(trans->fn, ip,
-				trans->in_traverse_all, reason,
-				deadlock_path->btree_id,
-				deadlock_path->cached,
-				&deadlock_path->pos,
-				path->btree_id,
-				path->cached,
-				&pos);
-		btree_trans_restart(trans);
-		return false;
 	}
 
 	return btree_node_lock_type(trans, path, b, pos, level,
 				    type, should_sleep_fn, p);
+deadlock:
+	trace_trans_restart_would_deadlock(trans->fn, ip,
+			trans->in_traverse_all, reason,
+			linked->btree_id,
+			linked->cached,
+			&linked->pos,
+			path->btree_id,
+			path->cached,
+			&pos);
+	btree_trans_restart(trans);
+	return false;
 }
 
 /* Btree iterator locking: */
