@@ -102,7 +102,6 @@ static int ocelot_mrp_copy_add_vcap(struct ocelot *ocelot, int port, int prio)
 	filter->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
 	filter->action.port_mask = 0x0;
 	filter->action.cpu_copy_ena = true;
-	filter->action.cpu_qu_num = OCELOT_MRP_CPUQ;
 
 	err = ocelot_vcap_filter_add(ocelot, filter, NULL);
 	if (err)
