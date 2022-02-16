@@ -426,8 +426,9 @@ static void test_v3_typer_accesses(void)
 			  KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
 
 	for (i = 0; i < NR_VCPUS ; i++) {
-		ret = access_v3_redist_reg(v.gic_fd, 0, GICR_TYPER, &val, false);
-		TEST_ASSERT(!ret && !val, "read GICR_TYPER before rdist region setting");
+		ret = access_v3_redist_reg(v.gic_fd, i, GICR_TYPER, &val, false);
+		TEST_ASSERT(!ret && val == i * 0x100,
+			    "read GICR_TYPER before rdist region setting");
 	}
 
 	addr = REDIST_REGION_ATTR_ADDR(2, 0x200000, 0, 0);
