@@ -744,6 +744,15 @@ config IDLE_PAGE_TRACKING
 config ARCH_HAS_CACHE_LINE_SIZE
 	bool
 
+config ARCH_HAS_CURRENT_STACK_POINTER
+	bool
+	help
+	  In support of HARDENED_USERCOPY performing stack variable lifetime
+	  checking, an architecture-agnostic way to find the stack pointer
+	  is needed. Once an architecture defines an unsigned long global
+	  register alias named "current_stack_pointer", this config can be
+	  selected.
+
 config ARCH_HAS_PTE_DEVMAP
 	bool
 
