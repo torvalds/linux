@@ -214,6 +214,18 @@ your report on the radar of these people by CCing or forwarding each report to
 the regressions mailing list, ideally with a "regzbot command" in your mail to
 get it tracked immediately.
 
+How quickly are regressions normally fixed?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Developers should fix any reported regression as quickly as possible, to provide
+affected users with a solution in a timely manner and prevent more users from
+running into the issue; nevertheless developers need to take enough time and
+care to ensure regression fixes do not cause additional damage.
+
+The answer thus depends on various factors like the impact of a regression, its
+age, or the Linux series in which it occurs. In the end though, most regressions
+should be fixed within two weeks.
+
 Is it a regression, if the issue can be avoided by updating some software?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
