@@ -4860,7 +4860,9 @@ EXPORT_SYMBOL(__netif_rx);
  *	congestion control or by the protocol layers.
  *	The network buffer is passed via the backlog NAPI device. Modern NIC
  *	driver should use NAPI and GRO.
- *	This function can used from any context.
+ *	This function can used from interrupt and from process context. The
+ *	caller from process context must not disable interrupts before invoking
+ *	this function.
  *
  *	return values:
  *	NET_RX_SUCCESS	(no congestion)
@@ -4869,13 +4871,16 @@ EXPORT_SYMBOL(__netif_rx);
  */
 int netif_rx(struct sk_buff *skb)
 {
+	bool need_bh_off = !(hardirq_count() | softirq_count());
 	int ret;
 
-	local_bh_disable();
+	if (need_bh_off)
+		local_bh_disable();
 	trace_netif_rx_entry(skb);
 	ret = netif_rx_internal(skb);
 	trace_netif_rx_exit(ret);
-	local_bh_enable();
+	if (need_bh_off)
+		local_bh_enable();
 	return ret;
 }
 EXPORT_SYMBOL(netif_rx);
