@@ -16,6 +16,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart3;
+		serial1 = &blsp1_uart4;
 	};
 
 	chosen {
@@ -78,6 +79,26 @@
 
 &blsp1_uart3 {
 	status = "okay";
+};
+
+&blsp1_uart4 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&blsp1_uart4_default_state>;
+
+	bluetooth {
+		compatible = "brcm,bcm43430a0-bt";
+
+		max-speed = <3000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&bluetooth_default_state>;
+
+		host-wakeup-gpios = <&tlmm 48 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&tlmm 47 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&tlmm 45 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &rpm_requests {
@@ -254,6 +275,21 @@
 };
 
 &tlmm {
+	blsp1_uart4_default_state: blsp1-uart4-default-state {
+		pins = "gpio12", "gpio13", "gpio14", "gpio15";
+		function = "blsp_uart4";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	bluetooth_default_state: bluetooth-default-state {
+		pins = "gpio47", "gpio48";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+
 	touch_pins: touch {
 		irq {
 			pins = "gpio17";
