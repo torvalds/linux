@@ -127,8 +127,8 @@ void kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level)
 	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_IRQ_LINE, ret));
 }
 
-static void vgic_poke_irq(int gic_fd, uint32_t intid,
-		uint32_t vcpu, uint64_t reg_off)
+static void vgic_poke_irq(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu,
+			  uint64_t reg_off)
 {
 	uint64_t reg = intid / 32;
 	uint64_t index = intid % 32;
@@ -141,7 +141,7 @@ static void vgic_poke_irq(int gic_fd, uint32_t intid,
 
 	if (intid_is_private) {
 		/* TODO: only vcpu 0 implemented for now. */
-		assert(vcpu == 0);
+		assert(vcpu->id == 0);
 		attr += SZ_64K;
 	}
 
@@ -159,12 +159,12 @@ static void vgic_poke_irq(int gic_fd, uint32_t intid,
 	kvm_device_attr_set(gic_fd, group, attr, &val);
 }
 
-void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, uint32_t vcpu)
+void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu)
 {
 	vgic_poke_irq(gic_fd, intid, vcpu, GICD_ISPENDR);
 }
 
-void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, uint32_t vcpu)
+void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu)
 {
 	vgic_poke_irq(gic_fd, intid, vcpu, GICD_ISACTIVER);
 }
