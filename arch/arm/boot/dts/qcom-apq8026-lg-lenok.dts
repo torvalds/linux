@@ -21,6 +21,20 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	vreg_wlan: wlan-regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wl-reg";
+		regulator-min-microvolt = <2950000>;
+		regulator-max-microvolt = <2950000>;
+
+		gpio = <&tlmm 46 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_regulator_default_state>;
+	};
 };
 
 &blsp1_i2c1 {
@@ -206,6 +220,30 @@
 	non-removable;
 };
 
+&sdhc_3 {
+	status = "okay";
+
+	max-frequency = <100000000>;
+	non-removable;
+
+	vmmc-supply = <&vreg_wlan>;
+	vqmmc-supply = <&pm8226_l6>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wifi@1 {
+		compatible = "brcm,bcm43430a0-fmac", "brcm,bcm4329-fmac";
+		reg = <1>;
+
+		interrupts-extended = <&tlmm 37 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-names = "host-wake";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_hostwake_default_state>;
+	};
+};
+
 &smbb {
 	qcom,fast-charge-safe-current = <450000>;
 	qcom,fast-charge-current-limit = <400000>;
@@ -234,6 +272,21 @@
 			bias-disable;
 			output-high;
 		};
+	};
+
+	wlan_hostwake_default_state: wlan-hostwake-default-state {
+		pins = "gpio37";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+
+	wlan_regulator_default_state: wlan-regulator-default-state {
+		pins = "gpio46";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 };
 
