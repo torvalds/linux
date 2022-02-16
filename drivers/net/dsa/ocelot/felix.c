@@ -267,30 +267,26 @@ static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
 	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 
-/* Set up a VCAP IS2 rule for delivering PTP frames to the CPU port module.
- * If the quirk_no_xtr_irq is in place, then also copy those PTP frames to the
- * tag_8021q CPU port.
+/* On switches with no extraction IRQ wired, trapped packets need to be
+ * replicated over Ethernet as well, otherwise we'd get no notification of
+ * their arrival when using the ocelot-8021q tagging protocol.
  */
-static int felix_setup_mmio_filtering(struct felix *felix)
+static int felix_update_trapping_destinations(struct dsa_switch *ds,
+					      bool using_tag_8021q)
 {
-	unsigned long user_ports = dsa_user_ports(felix->ds);
-	struct ocelot_vcap_filter *redirect_rule;
-	struct ocelot_vcap_filter *tagging_rule;
-	struct ocelot *ocelot = &felix->ocelot;
-	struct dsa_switch *ds = felix->ds;
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+	struct ocelot_vcap_filter *trap;
+	enum ocelot_mask_mode mask_mode;
+	unsigned long port_mask;
 	struct dsa_port *dp;
-	int cpu = -1, ret;
+	bool cpu_copy_ena;
+	int cpu = -1, err;
 
-	tagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
-	if (!tagging_rule)
-		return -ENOMEM;
+	if (!felix->info->quirk_no_xtr_irq)
+		return 0;
 
-	redirect_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
-	if (!redirect_rule) {
-		kfree(tagging_rule);
-		return -ENOMEM;
-	}
-
+	/* Figure out the current CPU port */
 	dsa_switch_for_each_cpu_port(dp, ds) {
 		cpu = dp->index;
 		break;
@@ -300,103 +296,46 @@ static int felix_setup_mmio_filtering(struct felix *felix)
 	 * dsa_tree_setup_default_cpu() would have failed earlier.
 	 */
 
-	tagging_rule->key_type = OCELOT_VCAP_KEY_ETYPE;
-	*(__be16 *)tagging_rule->key.etype.etype.value = htons(ETH_P_1588);
-	*(__be16 *)tagging_rule->key.etype.etype.mask = htons(0xffff);
-	tagging_rule->ingress_port_mask = user_ports;
-	tagging_rule->prio = 1;
-	tagging_rule->id.cookie = OCELOT_VCAP_IS1_TAG_8021Q_PTP_MMIO(ocelot);
-	tagging_rule->id.tc_offload = false;
-	tagging_rule->block_id = VCAP_IS1;
-	tagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
-	tagging_rule->lookup = 0;
-	tagging_rule->action.pag_override_mask = 0xff;
-	tagging_rule->action.pag_val = ocelot->num_phys_ports;
+	/* Make sure all traps are set up for that destination */
+	list_for_each_entry(trap, &ocelot->traps, trap_list) {
+		/* Figure out the current trapping destination */
+		if (using_tag_8021q) {
+			/* Redirect to the tag_8021q CPU port. If timestamps
+			 * are necessary, also copy trapped packets to the CPU
+			 * port module.
+			 */
+			mask_mode = OCELOT_MASK_MODE_REDIRECT;
+			port_mask = BIT(cpu);
+			cpu_copy_ena = !!trap->take_ts;
+		} else {
+			/* Trap packets only to the CPU port module, which is
+			 * redirected to the NPI port (the DSA CPU port)
+			 */
+			mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
+			port_mask = 0;
+			cpu_copy_ena = true;
+		}
 
-	ret = ocelot_vcap_filter_add(ocelot, tagging_rule, NULL);
-	if (ret) {
-		kfree(tagging_rule);
-		kfree(redirect_rule);
-		return ret;
+		if (trap->action.mask_mode == mask_mode &&
+		    trap->action.port_mask == port_mask &&
+		    trap->action.cpu_copy_ena == cpu_copy_ena)
+			continue;
+
+		trap->action.mask_mode = mask_mode;
+		trap->action.port_mask = port_mask;
+		trap->action.cpu_copy_ena = cpu_copy_ena;
+
+		err = ocelot_vcap_filter_replace(ocelot, trap);
+		if (err)
+			return err;
 	}
-
-	redirect_rule->key_type = OCELOT_VCAP_KEY_ANY;
-	redirect_rule->ingress_port_mask = user_ports;
-	redirect_rule->pag = ocelot->num_phys_ports;
-	redirect_rule->prio = 1;
-	redirect_rule->id.cookie = OCELOT_VCAP_IS2_TAG_8021Q_PTP_MMIO(ocelot);
-	redirect_rule->id.tc_offload = false;
-	redirect_rule->block_id = VCAP_IS2;
-	redirect_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
-	redirect_rule->lookup = 0;
-	redirect_rule->action.cpu_copy_ena = true;
-	if (felix->info->quirk_no_xtr_irq) {
-		/* Redirect to the tag_8021q CPU but also copy PTP packets to
-		 * the CPU port module
-		 */
-		redirect_rule->action.mask_mode = OCELOT_MASK_MODE_REDIRECT;
-		redirect_rule->action.port_mask = BIT(cpu);
-	} else {
-		/* Trap PTP packets only to the CPU port module (which is
-		 * redirected to the NPI port)
-		 */
-		redirect_rule->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
-		redirect_rule->action.port_mask = 0;
-	}
-
-	ret = ocelot_vcap_filter_add(ocelot, redirect_rule, NULL);
-	if (ret) {
-		ocelot_vcap_filter_del(ocelot, tagging_rule);
-		kfree(redirect_rule);
-		return ret;
-	}
-
-	/* The ownership of the CPU port module's queues might have just been
-	 * transferred to the tag_8021q tagger from the NPI-based tagger.
-	 * So there might still be all sorts of crap in the queues. On the
-	 * other hand, the MMIO-based matching of PTP frames is very brittle,
-	 * so we need to be careful that there are no extra frames to be
-	 * dequeued over MMIO, since we would never know to discard them.
-	 */
-	ocelot_drain_cpu_queue(ocelot, 0);
 
 	return 0;
-}
-
-static int felix_teardown_mmio_filtering(struct felix *felix)
-{
-	struct ocelot_vcap_filter *tagging_rule, *redirect_rule;
-	struct ocelot_vcap_block *block_vcap_is1;
-	struct ocelot_vcap_block *block_vcap_is2;
-	struct ocelot *ocelot = &felix->ocelot;
-	int err;
-
-	block_vcap_is1 = &ocelot->block[VCAP_IS1];
-	block_vcap_is2 = &ocelot->block[VCAP_IS2];
-
-	tagging_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_is1,
-							   ocelot->num_phys_ports,
-							   false);
-	if (!tagging_rule)
-		return -ENOENT;
-
-	err = ocelot_vcap_filter_del(ocelot, tagging_rule);
-	if (err)
-		return err;
-
-	redirect_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_is2,
-							    ocelot->num_phys_ports,
-							    false);
-	if (!redirect_rule)
-		return -ENOENT;
-
-	return ocelot_vcap_filter_del(ocelot, redirect_rule);
 }
 
 static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 {
 	struct ocelot *ocelot = ds->priv;
-	struct felix *felix = ocelot_to_felix(ocelot);
 	unsigned long cpu_flood;
 	struct dsa_port *dp;
 	int err;
@@ -432,9 +371,18 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 	if (err)
 		return err;
 
-	err = felix_setup_mmio_filtering(felix);
+	err = felix_update_trapping_destinations(ds, true);
 	if (err)
 		goto out_tag_8021q_unregister;
+
+	/* The ownership of the CPU port module's queues might have just been
+	 * transferred to the tag_8021q tagger from the NPI-based tagger.
+	 * So there might still be all sorts of crap in the queues. On the
+	 * other hand, the MMIO-based matching of PTP frames is very brittle,
+	 * so we need to be careful that there are no extra frames to be
+	 * dequeued over MMIO, since we would never know to discard them.
+	 */
+	ocelot_drain_cpu_queue(ocelot, 0);
 
 	return 0;
 
@@ -446,11 +394,10 @@ out_tag_8021q_unregister:
 static void felix_teardown_tag_8021q(struct dsa_switch *ds, int cpu)
 {
 	struct ocelot *ocelot = ds->priv;
-	struct felix *felix = ocelot_to_felix(ocelot);
 	struct dsa_port *dp;
 	int err;
 
-	err = felix_teardown_mmio_filtering(felix);
+	err = felix_update_trapping_destinations(ds, false);
 	if (err)
 		dev_err(ds->dev, "felix_teardown_mmio_filtering returned %d",
 			err);
@@ -1279,8 +1226,17 @@ static int felix_hwtstamp_set(struct dsa_switch *ds, int port,
 			      struct ifreq *ifr)
 {
 	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+	bool using_tag_8021q;
+	int err;
 
-	return ocelot_hwstamp_set(ocelot, port, ifr);
+	err = ocelot_hwstamp_set(ocelot, port, ifr);
+	if (err)
+		return err;
+
+	using_tag_8021q = felix->tag_proto == DSA_TAG_PROTO_OCELOT_8021Q;
+
+	return felix_update_trapping_destinations(ds, using_tag_8021q);
 }
 
 static bool felix_check_xtr_pkt(struct ocelot *ocelot, unsigned int ptp_type)
@@ -1407,8 +1363,17 @@ static int felix_cls_flower_add(struct dsa_switch *ds, int port,
 				struct flow_cls_offload *cls, bool ingress)
 {
 	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+	bool using_tag_8021q;
+	int err;
 
-	return ocelot_cls_flower_replace(ocelot, port, cls, ingress);
+	err = ocelot_cls_flower_replace(ocelot, port, cls, ingress);
+	if (err)
+		return err;
+
+	using_tag_8021q = felix->tag_proto == DSA_TAG_PROTO_OCELOT_8021Q;
+
+	return felix_update_trapping_destinations(ds, using_tag_8021q);
 }
 
 static int felix_cls_flower_del(struct dsa_switch *ds, int port,
