@@ -70,6 +70,7 @@
 
 struct hda_tegra_soc {
 	bool has_hda2codec_2x_reset;
+	bool has_hda2hdmi;
 };
 
 struct hda_tegra {
@@ -435,15 +436,23 @@ static int hda_tegra_create(struct snd_card *card,
 
 static const struct hda_tegra_soc tegra30_data = {
 	.has_hda2codec_2x_reset = true,
+	.has_hda2hdmi = true,
 };
 
 static const struct hda_tegra_soc tegra194_data = {
 	.has_hda2codec_2x_reset = false,
+	.has_hda2hdmi = true,
+};
+
+static const struct hda_tegra_soc tegra234_data = {
+	.has_hda2codec_2x_reset = true,
+	.has_hda2hdmi = false,
 };
 
 static const struct of_device_id hda_tegra_match[] = {
 	{ .compatible = "nvidia,tegra30-hda", .data = &tegra30_data },
 	{ .compatible = "nvidia,tegra194-hda", .data = &tegra194_data },
+	{ .compatible = "nvidia,tegra234-hda", .data = &tegra234_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, hda_tegra_match);
@@ -473,7 +482,14 @@ static int hda_tegra_probe(struct platform_device *pdev)
 	}
 
 	hda->resets[hda->nresets++].id = "hda";
-	hda->resets[hda->nresets++].id = "hda2hdmi";
+
+	/*
+	 * "hda2hdmi" is not applicable for Tegra234. This is because the
+	 * codec is separate IP and not under display SOR partition now.
+	 */
+	if (hda->soc->has_hda2hdmi)
+		hda->resets[hda->nresets++].id = "hda2hdmi";
+
 	/*
 	 * "hda2codec_2x" reset is not present on Tegra194. Though DT would
 	 * be updated to reflect this, but to have backward compatibility
@@ -488,7 +504,8 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	hda->clocks[hda->nclocks++].id = "hda";
-	hda->clocks[hda->nclocks++].id = "hda2hdmi";
+	if (hda->soc->has_hda2hdmi)
+		hda->clocks[hda->nclocks++].id = "hda2hdmi";
 	hda->clocks[hda->nclocks++].id = "hda2codec_2x";
 
 	err = devm_clk_bulk_get(&pdev->dev, hda->nclocks, hda->clocks);
