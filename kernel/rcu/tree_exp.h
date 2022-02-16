@@ -496,7 +496,7 @@ static void synchronize_rcu_expedited_wait(void)
 	struct rcu_node *rnp_root = rcu_get_root();
 
 	trace_rcu_exp_grace_period(rcu_state.name, rcu_exp_gp_seq_endval(), TPS("startwait"));
-	jiffies_stall = rcu_jiffies_till_stall_check();
+	jiffies_stall = rcu_exp_jiffies_till_stall_check();
 	jiffies_start = jiffies;
 	if (tick_nohz_full_enabled() && rcu_inkernel_boot_has_ended()) {
 		if (synchronize_rcu_expedited_wait_once(1))
@@ -571,7 +571,7 @@ static void synchronize_rcu_expedited_wait(void)
 				dump_cpu_task(cpu);
 			}
 		}
-		jiffies_stall = 3 * rcu_jiffies_till_stall_check() + 3;
+		jiffies_stall = 3 * rcu_exp_jiffies_till_stall_check() + 3;
 	}
 }
 
