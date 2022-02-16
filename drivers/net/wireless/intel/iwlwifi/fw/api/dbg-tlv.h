@@ -26,7 +26,7 @@ struct iwl_fw_ini_hcmd {
 	u8 id;
 	u8 group;
 	__le16 reserved;
-	u8 data[0];
+	u8 data[];
 } __packed; /* FW_DEBUG_TLV_HCMD_DATA_API_S_VER_1 */
 
 /**
@@ -275,7 +275,7 @@ struct iwl_fw_ini_conf_set_tlv {
 	__le32 time_point;
 	__le32 set_type;
 	__le32 addr_offset;
-	struct iwl_fw_ini_addr_val addr_val[0];
+	struct iwl_fw_ini_addr_val addr_val[];
 } __packed; /* FW_TLV_DEBUG_CONFIG_SET_API_S_VER_1 */
 
 /**
