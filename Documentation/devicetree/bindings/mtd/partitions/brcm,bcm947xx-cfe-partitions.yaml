@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/partitions/brcm,bcm947xx-cfe-partitions.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM47xx Partitions
+
+description: |
+  Broadcom is one of hardware manufacturers providing SoCs (BCM47xx) used in
+  home routers. Their BCM947xx boards using CFE bootloader have several
+  partitions without any on-flash partition table. On some devices their sizes
+  and/or meanings can also vary so fixed partitioning can't be used.
+
+  Discovering partitions on these devices is possible thanks to having a special
+  header and/or magic signature at the beginning of each of them. They are also
+  block aligned which is important for determinig a size.
+
+  Most of partitions use ASCII text based magic for determining a type. More
+  complex partitions (like TRX with its HDR0 magic) may include extra header
+  containing some details, including a length.
+
+  A list of supported partitions includes:
+  1) Bootloader with Broadcom's CFE (Common Firmware Environment)
+  2) NVRAM with configuration/calibration data
+  3) Device manufacturer's data with some default values (e.g. SSIDs)
+  4) TRX firmware container which can hold up to 4 subpartitions
+  5) Backup TRX firmware used after failed upgrade
+
+  As mentioned earlier, role of some partitions may depend on extra
+  configuration. For example both: main firmware and backup firmware use the
+  same TRX format with the same header. To distinguish currently used firmware a
+  CFE's environment variable "bootpartition" is used.
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+properties:
+  compatible:
+    const: brcm,bcm947xx-cfe-partitions
+
+additionalProperties: false
+
+examples:
+  - |
+    partitions {
+        compatible = "brcm,bcm947xx-cfe-partitions";
+    };
