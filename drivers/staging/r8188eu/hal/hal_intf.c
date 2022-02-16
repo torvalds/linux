@@ -21,7 +21,6 @@ uint	 rtw_hal_init(struct adapter *adapt)
 			hal_notch_filter_8188e(adapt, 1);
 	} else {
 		adapt->hw_init_completed = false;
-		DBG_88E("rtw_hal_init: hal__init fail\n");
 	}
 
 	return status;
@@ -36,7 +35,7 @@ uint rtw_hal_deinit(struct adapter *adapt)
 	if (status == _SUCCESS)
 		adapt->hw_init_completed = false;
 	else
-		DBG_88E("\n rtw_hal_deinit: hal_init fail\n");
+		;
 
 	return status;
 }

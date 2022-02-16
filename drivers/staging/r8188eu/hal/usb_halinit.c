@@ -33,7 +33,6 @@ static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
 	default:
 		break;
 	}
-	DBG_88E("%s OutEpQueueSel(0x%02x), OutEpNumber(%d)\n", __func__, haldata->OutEpQueueSel, haldata->OutEpNumber);
 }
 
 static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumOutPipe)
@@ -59,7 +58,6 @@ u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
 		return _SUCCESS;
 
 	if (!HalPwrSeqCmdParsing(adapt, Rtl8188E_NIC_PWR_ON_FLOW)) {
-		DBG_88E(KERN_ERR "%s: run power on flow fail\n", __func__);
 		return _FAIL;
 	}
 
@@ -490,7 +488,6 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
 
 	if (haldata->AntDivCfg == 0)
 		return;
-	DBG_88E("==>  %s ....\n", __func__);
 
 	rtw_write32(Adapter, REG_LEDCFG0, rtw_read32(Adapter, REG_LEDCFG0) | BIT(23));
 	rtl8188e_PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, BIT(13), 0x01);
@@ -499,7 +496,6 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
 		haldata->CurAntenna = Antenna_A;
 	else
 		haldata->CurAntenna = Antenna_B;
-	DBG_88E("%s,Cur_ant:(%x)%s\n", __func__, haldata->CurAntenna, (haldata->CurAntenna == Antenna_A) ? "Antenna_A" : "Antenna_B");
 }
 
 static void hw_var_set_macaddr(struct adapter *Adapter, u8 *val)
@@ -522,7 +518,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	struct hal_data_8188e *haldata = &Adapter->haldata;
 	struct pwrctrl_priv		*pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
-	u32 init_start_time = jiffies;
 
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
 		if (haldata->odmpriv.RFCalibrateInfo.bIQKInitialized) {
@@ -570,7 +565,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	status = rtl8188e_firmware_download(Adapter);
 
 	if (status != _SUCCESS) {
-		DBG_88E("%s: Download Firmware failed!!\n", __func__);
 		Adapter->bFWReady = false;
 		haldata->fw_ractrl = false;
 		return status;
@@ -584,7 +578,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 
 	status = PHY_MACConfig8188E(Adapter);
 	if (status == _FAIL) {
-		DBG_88E(" ### Failed to init MAC ......\n ");
 		goto exit;
 	}
 
@@ -593,19 +586,16 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/*  */
 	status = PHY_BBConfig8188E(Adapter);
 	if (status == _FAIL) {
-		DBG_88E(" ### Failed to init BB ......\n ");
 		goto exit;
 	}
 
 	status = PHY_RFConfig8188E(Adapter);
 	if (status == _FAIL) {
-		DBG_88E(" ### Failed to init RF ......\n ");
 		goto exit;
 	}
 
 	status = rtl8188e_iol_efuse_patch(Adapter);
 	if (status == _FAIL) {
-		DBG_88E("%s  rtl8188e_iol_efuse_patch failed\n", __func__);
 		goto exit;
 	}
 
@@ -726,8 +716,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	rtw_write32(Adapter, REG_FWHW_TXQ_CTRL, rtw_read32(Adapter, REG_FWHW_TXQ_CTRL) | BIT(12));
 
 exit:
-	DBG_88E("%s in %dms\n", __func__, rtw_get_passing_time_ms(init_start_time));
-
 	return status;
 }
 
@@ -789,13 +777,9 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 
 u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 {
-
-	DBG_88E("==> %s\n", __func__);
-
 	rtw_write32(Adapter, REG_HIMR_88E, IMR_DISABLED_88E);
 	rtw_write32(Adapter, REG_HIMRE_88E, IMR_DISABLED_88E);
 
-	DBG_88E("bkeepfwalive(%x)\n", Adapter->pwrctrlpriv.bkeepfwalive);
 	if (!Adapter->pwrctrlpriv.bkeepfwalive) {
 		if (Adapter->hw_init_completed) {
 			CardDisableRTL8188EU(Adapter);
@@ -864,9 +848,6 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 	eeprom->EepromOrEfuse		= (eeValue & BOOT_FROM_EEPROM);
 	eeprom->bautoload_fail_flag	= !(eeValue & EEPROM_EN);
 
-	DBG_88E("Boot from %s, Autoload %s !\n", (eeprom->EepromOrEfuse ? "EEPROM" : "EFUSE"),
-		(eeprom->bautoload_fail_flag ? "Fail" : "OK"));
-
 	if (!is_boot_from_eeprom(Adapter))
 		EFUSE_ShadowMapUpdate(Adapter);
 
@@ -926,8 +907,6 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 *val)
 	val8 = rtw_read8(Adapter, MSR) & 0x0c;
 	val8 |= mode;
 	rtw_write8(Adapter, MSR, val8);
-
-	DBG_88E("%s()-%d mode = %d\n", __func__, __LINE__, mode);
 
 	if ((mode == _HW_STATE_STATION_) || (mode == _HW_STATE_NOLINK_)) {
 		StopTxBeacon(Adapter);
@@ -1005,7 +984,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			/*  For 8190, we select only 24M, 12M, 6M, 11M, 5.5M, 2M, and 1M from the Basic rate. */
 			/*  We do not use other rates. */
 			HalSetBrateCfg(Adapter, val, &BrateCfg);
-			DBG_88E("HW_VAR_BASIC_RATE: BrateCfg(%#x)\n", BrateCfg);
 
 			/* 2011.03.30 add by Luke Lee */
 			/* CCK 2M ACK should be disabled for some BCM and Atheros AP IOT */
@@ -1215,7 +1193,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			else
 				AcmCtrl &= (~AcmHw_BeqEn);
 
-			DBG_88E("[HW_VAR_ACM_CTRL] Write 0x%X\n", AcmCtrl);
 			rtw_write8(Adapter, REG_ACMHWCTRL, AcmCtrl);
 		}
 		break;
@@ -1355,7 +1332,7 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 						break;
 				} while (trycnt--);
 				if (trycnt == 0)
-					DBG_88E("Stop RX DMA failed......\n");
+					;
 
 				/* RQPN Load 0 */
 				rtw_write16(Adapter, REG_RQPN_NPQ, 0x0);
@@ -1367,7 +1344,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_TX_RPT_MAX_MACID:
 		{
 			u8 maxMacid = *val;
-			DBG_88E("### MacID(%d),Set Max Tx RPT MID(%d)\n", maxMacid, maxMacid + 1);
 			rtw_write8(Adapter, REG_TX_RPT_CTRL + 1, maxMacid + 1);
 		}
 		break;
@@ -1451,16 +1427,7 @@ void GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariab
 		break;
 	case HW_DEF_RA_INFO_DUMP:
 		{
-			u8 entry_id = *((u8 *)pValue);
 			if (check_fwstate(&Adapter->mlmepriv, _FW_LINKED)) {
-				DBG_88E("============ RA status check ===================\n");
-				DBG_88E("Mac_id:%d , RateID = %d, RAUseRate = 0x%08x, RateSGI = %d, DecisionRate = 0x%02x ,PTStage = %d\n",
-					entry_id,
-					haldata->odmpriv.RAInfo[entry_id].RateID,
-					haldata->odmpriv.RAInfo[entry_id].RAUseRate,
-					haldata->odmpriv.RAInfo[entry_id].RateSGI,
-					haldata->odmpriv.RAInfo[entry_id].DecisionRate,
-					haldata->odmpriv.RAInfo[entry_id].PTStage);
 			}
 		}
 		break;
@@ -1488,15 +1455,12 @@ void SetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariab
 
 			if (dm_func == 0) { /* disable all dynamic func */
 				podmpriv->SupportAbility = DYNAMIC_FUNC_DISABLE;
-				DBG_88E("==> Disable all dynamic function...\n");
 			} else if (dm_func == 1) {/* disable DIG */
 				podmpriv->SupportAbility  &= (~DYNAMIC_BB_DIG);
-				DBG_88E("==> Disable DIG...\n");
 			} else if (dm_func == 2) {/* disable High power */
 				podmpriv->SupportAbility  &= (~DYNAMIC_BB_DYNAMIC_TXPWR);
 			} else if (dm_func == 3) {/* disable tx power tracking */
 				podmpriv->SupportAbility  &= (~DYNAMIC_RF_CALIBRATION);
-				DBG_88E("==> Disable tx power tracking...\n");
 			} else if (dm_func == 5) {/* disable antenna diversity */
 				podmpriv->SupportAbility  &= (~DYNAMIC_BB_ANT_DIV);
 			} else if (dm_func == 6) {/* turn on all dynamic func */
@@ -1505,7 +1469,6 @@ void SetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariab
 					pDigTable->CurIGValue = rtw_read8(Adapter, 0xc50);
 				}
 				podmpriv->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
-				DBG_88E("==> Turn on all dynamic function...\n");
 			}
 		}
 		break;
@@ -1569,8 +1532,6 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 
 	rate_bitmap = 0x0fffffff;
 	rate_bitmap = ODM_Get_Rate_Bitmap(&haldata->odmpriv, mac_id, mask, rssi_level);
-	DBG_88E("%s => mac_id:%d, networkType:0x%02x, mask:0x%08x\n\t ==> rssi_level:%d, rate_bitmap:0x%08x\n",
-		__func__, mac_id, networkType, mask, rssi_level, rate_bitmap);
 
 	mask &= rate_bitmap;
 
@@ -1584,7 +1545,6 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 		if (shortGIrate)
 			arg |= BIT(5);
 		mask |= ((raid << 28) & 0xf0000000);
-		DBG_88E("update raid entry, mask=0x%x, arg=0x%x\n", mask, arg);
 		psta->ra_mask = mask;
 		mask |= ((raid << 28) & 0xf0000000);
 
