@@ -894,6 +894,7 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-regor-rdk.dtb \
 	am335x-sancloud-bbe.dtb \
 	am335x-sancloud-bbe-lite.dtb \
+	am335x-sancloud-bbe-extended-wifi.dtb \
 	am335x-shc.dtb \
 	am335x-sbc-t335.dtb \
 	am335x-sl50.dtb \
