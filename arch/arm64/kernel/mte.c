@@ -186,6 +186,11 @@ void mte_check_tfsr_el1(void)
 }
 #endif
 
+/*
+ * This is where we actually resolve the system and process MTE mode
+ * configuration into an actual value in SCTLR_EL1 that affects
+ * userspace.
+ */
 static void mte_update_sctlr_user(struct task_struct *task)
 {
 	/*
@@ -199,8 +204,17 @@ static void mte_update_sctlr_user(struct task_struct *task)
 	unsigned long pref, resolved_mte_tcf;
 
 	pref = __this_cpu_read(mte_tcf_preferred);
+	/*
+	 * If there is no overlap between the system preferred and
+	 * program requested values go with what was requested.
+	 */
 	resolved_mte_tcf = (mte_ctrl & pref) ? pref : mte_ctrl;
 	sctlr &= ~SCTLR_EL1_TCF0_MASK;
+	/*
+	 * Pick an actual setting. The order in which we check for
+	 * set bits and map into register values determines our
+	 * default order.
+	 */
 	if (resolved_mte_tcf & MTE_CTRL_TCF_ASYNC)
 		sctlr |= SCTLR_EL1_TCF0_ASYNC;
 	else if (resolved_mte_tcf & MTE_CTRL_TCF_SYNC)
