@@ -116,6 +116,8 @@
 				 <&gcc GCC_SDCC1_AHB_CLK>,
 				 <&xo_board>;
 			clock-names = "core", "iface", "xo";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdhc1_default_state>;
 			status = "disabled";
 		};
 
@@ -130,6 +132,8 @@
 				 <&gcc GCC_SDCC2_AHB_CLK>,
 				 <&xo_board>;
 			clock-names = "core", "iface", "xo";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdhc2_default_state>;
 			status = "disabled";
 		};
 
@@ -144,6 +148,8 @@
 				 <&gcc GCC_SDCC3_AHB_CLK>,
 				 <&xo_board>;
 			clock-names = "core", "iface", "xo";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdhc3_default_state>;
 			status = "disabled";
 		};
 
@@ -319,6 +325,57 @@
 				function = "blsp_i2c5";
 				drive-strength = <2>;
 				bias-disable;
+			};
+
+			sdhc1_default_state: sdhc1-default-state {
+				clk {
+					pins = "sdc1_clk";
+					drive-strength = <10>;
+					bias-disable;
+				};
+
+				cmd-data {
+					pins = "sdc1_cmd", "sdc1_data";
+					drive-strength = <10>;
+					bias-pull-up;
+				};
+			};
+
+			sdhc2_default_state: sdhc2-default-state {
+				clk {
+					pins = "sdc2_clk";
+					drive-strength = <10>;
+					bias-disable;
+				};
+
+				cmd-data {
+					pins = "sdc2_cmd", "sdc2_data";
+					drive-strength = <10>;
+					bias-pull-up;
+				};
+			};
+
+			sdhc3_default_state: sdhc3-default-state {
+				clk {
+					pins = "gpio44";
+					function = "sdc3";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				cmd {
+					pins = "gpio43";
+					function = "sdc3";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+
+				data {
+					pins = "gpio39", "gpio40", "gpio41", "gpio42";
+					function = "sdc3";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
 			};
 		};
 
