@@ -7187,7 +7187,7 @@ static void __net_exit addrconf_exit_net(struct net *net)
 	kfree(net->ipv6.devconf_all);
 	net->ipv6.devconf_all = NULL;
 
-	cancel_delayed_work(&net->ipv6.addr_chk_work);
+	cancel_delayed_work_sync(&net->ipv6.addr_chk_work);
 	/*
 	 *	Check hash table, then free it.
 	 */
