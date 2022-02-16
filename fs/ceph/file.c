@@ -204,6 +204,8 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 					int fmode, bool isdir)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_mount_options *opt =
+		ceph_inode_to_client(&ci->vfs_inode)->mount_options;
 	struct ceph_file_info *fi;
 
 	dout("%s %p %p 0%o (%s)\n", __func__, inode, file,
@@ -224,6 +226,9 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 		fi = kmem_cache_zalloc(ceph_file_cachep, GFP_KERNEL);
 		if (!fi)
 			return -ENOMEM;
+
+		if (opt->flags & CEPH_MOUNT_OPT_NOPAGECACHE)
+			fi->flags |= CEPH_F_SYNC;
 
 		file->private_data = fi;
 	}
@@ -1541,7 +1546,7 @@ static ssize_t ceph_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	bool direct_lock = iocb->ki_flags & IOCB_DIRECT;
 	ssize_t ret;
-	int want, got = 0;
+	int want = 0, got = 0;
 	int retry_op = 0, read = 0;
 
 again:
@@ -1556,13 +1561,14 @@ again:
 	else
 		ceph_start_io_read(inode);
 
+	if (!(fi->flags & CEPH_F_SYNC) && !direct_lock)
+		want |= CEPH_CAP_FILE_CACHE;
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
-		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
-	else
-		want = CEPH_CAP_FILE_CACHE;
+		want |= CEPH_CAP_FILE_LAZYIO;
+
 	ret = ceph_get_caps(filp, CEPH_CAP_FILE_RD, want, -1, &got);
 	if (ret < 0) {
-		if (iocb->ki_flags & IOCB_DIRECT)
+		if (direct_lock)
 			ceph_end_io_direct(inode);
 		else
 			ceph_end_io_read(inode);
@@ -1696,7 +1702,7 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct ceph_osd_client *osdc = &fsc->client->osdc;
 	struct ceph_cap_flush *prealloc_cf;
 	ssize_t count, written = 0;
-	int err, want, got;
+	int err, want = 0, got;
 	bool direct_lock = false;
 	u32 map_flags;
 	u64 pool_flags;
@@ -1771,10 +1777,10 @@ retry_snap:
 
 	dout("aio_write %p %llx.%llx %llu~%zd getting caps. i_size %llu\n",
 	     inode, ceph_vinop(inode), pos, count, i_size_read(inode));
+	if (!(fi->flags & CEPH_F_SYNC) && !direct_lock)
+		want |= CEPH_CAP_FILE_BUFFER;
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
-		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
-	else
-		want = CEPH_CAP_FILE_BUFFER;
+		want |= CEPH_CAP_FILE_LAZYIO;
 	got = 0;
 	err = ceph_get_caps(file, CEPH_CAP_FILE_WR, want, pos + count, &got);
 	if (err < 0)

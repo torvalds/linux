@@ -309,13 +309,14 @@ static ssize_t vfio_pci_igd_cfg_rw(struct vfio_pci_core_device *vdev,
 
 	if ((pos & 3) && size > 2) {
 		u16 val;
+		__le16 lval;
 
 		ret = pci_user_read_config_word(pdev, pos, &val);
 		if (ret)
 			return ret;
 
-		val = cpu_to_le16(val);
-		if (copy_to_user(buf + count - size, &val, 2))
+		lval = cpu_to_le16(val);
+		if (copy_to_user(buf + count - size, &lval, 2))
 			return -EFAULT;
 
 		pos += 2;
@@ -324,13 +325,14 @@ static ssize_t vfio_pci_igd_cfg_rw(struct vfio_pci_core_device *vdev,
 
 	while (size > 3) {
 		u32 val;
+		__le32 lval;
 
 		ret = pci_user_read_config_dword(pdev, pos, &val);
 		if (ret)
 			return ret;
 
-		val = cpu_to_le32(val);
-		if (copy_to_user(buf + count - size, &val, 4))
+		lval = cpu_to_le32(val);
+		if (copy_to_user(buf + count - size, &lval, 4))
 			return -EFAULT;
 
 		pos += 4;
@@ -339,13 +341,14 @@ static ssize_t vfio_pci_igd_cfg_rw(struct vfio_pci_core_device *vdev,
 
 	while (size >= 2) {
 		u16 val;
+		__le16 lval;
 
 		ret = pci_user_read_config_word(pdev, pos, &val);
 		if (ret)
 			return ret;
 
-		val = cpu_to_le16(val);
-		if (copy_to_user(buf + count - size, &val, 2))
+		lval = cpu_to_le16(val);
+		if (copy_to_user(buf + count - size, &lval, 2))
 			return -EFAULT;
 
 		pos += 2;

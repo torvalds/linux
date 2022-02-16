@@ -283,7 +283,6 @@ struct prestera_router {
 	struct list_head rif_entry_list;
 	struct notifier_block inetaddr_nb;
 	struct notifier_block inetaddr_valid_nb;
-	bool aborted;
 };
 
 struct prestera_rxtx_params {
