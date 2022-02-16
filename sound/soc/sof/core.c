@@ -463,9 +463,18 @@ EXPORT_SYMBOL(snd_sof_device_remove);
 int snd_sof_device_shutdown(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
+	struct snd_sof_pdata *pdata = sdev->pdata;
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
 		cancel_work_sync(&sdev->probe_work);
+
+	/*
+	 * make sure clients and machine driver(s) are unregistered to force
+	 * all userspace devices to be closed prior to the DSP shutdown sequence
+	 */
+	sof_unregister_clients(sdev);
+
+	snd_sof_machine_unregister(sdev, pdata);
 
 	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE)
 		return snd_sof_shutdown(sdev);
