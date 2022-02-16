@@ -21,8 +21,8 @@
 #define OCELOT_VCAP_IS2_IPV4_EV_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports + 3)
 #define OCELOT_VCAP_IS2_IPV6_GEN_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports + 4)
 #define OCELOT_VCAP_IS2_IPV6_EV_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports + 5)
+#define OCELOT_VCAP_IS2_MRP_TRAP(ocelot)			((ocelot)->num_phys_ports + 6)
 #define OCELOT_VCAP_IS2_MRP_REDIRECT(ocelot, port)		(port)
-#define OCELOT_VCAP_IS2_MRP_TRAP(ocelot, port)			((ocelot)->num_phys_ports + (port))
 
 /* =================================================================
  *  VCAP Common
