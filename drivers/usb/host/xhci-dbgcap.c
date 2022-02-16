@@ -1017,7 +1017,8 @@ void xhci_dbc_remove(struct xhci_dbc *dbc)
 	kfree(dbc);
 }
 
-int xhci_dbc_init(struct xhci_hcd *xhci)
+
+int xhci_create_dbc_dev(struct xhci_hcd *xhci)
 {
 	struct device		*dev;
 	void __iomem		*base;
@@ -1041,7 +1042,7 @@ int xhci_dbc_init(struct xhci_hcd *xhci)
 	return ret;
 }
 
-void xhci_dbc_exit(struct xhci_hcd *xhci)
+void xhci_remove_dbc_dev(struct xhci_hcd *xhci)
 {
 	unsigned long		flags;
 
