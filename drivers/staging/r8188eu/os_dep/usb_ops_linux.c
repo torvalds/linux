@@ -63,32 +63,21 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped ||
 	    padapter->bWritePortCancel) {
-		netdev_dbg(padapter->pnetdev,
-			   "TX Warning! bDriverStopped(%d) OR bSurpriseRemoved(%d)\n",
-			   padapter->bDriverStopped, padapter->bSurpriseRemoved);
-		netdev_dbg(padapter->pnetdev,
-			   "TX Warning! bWritePortCancel(%d) pxmitbuf->ext_tag(%x)\n",
-			   padapter->bReadPortCancel, pxmitbuf->ext_tag);
-
 		goto check_completion;
 	}
 
 	if (purb->status) {
-		netdev_dbg(padapter->pnetdev, "status(%d)\n", purb->status);
 		if (purb->status == -EINPROGRESS) {
 			goto check_completion;
 		} else if (purb->status == -ENOENT) {
-			netdev_dbg(padapter->pnetdev, "-ENOENT\n");
 			goto check_completion;
 		} else if (purb->status == -ECONNRESET) {
-			netdev_dbg(padapter->pnetdev, "-ECONNRESET\n");
 			goto check_completion;
 		} else if (purb->status == -ESHUTDOWN) {
 			padapter->bDriverStopped = true;
 			goto check_completion;
 		} else if ((purb->status != -EPIPE) && (purb->status != -EPROTO)) {
 			padapter->bSurpriseRemoved = true;
-			netdev_dbg(padapter->pnetdev, "bSurpriseRemoved = true\n");
 
 			goto check_completion;
 		}
@@ -167,7 +156,6 @@ u32 rtw_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem)
 	status = usb_submit_urb(purb, GFP_ATOMIC);
 	if (status) {
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
-		netdev_dbg(padapter->pnetdev, "usb_write_port, status = %d\n", status);
 
 		switch (status) {
 		case -ENODEV:

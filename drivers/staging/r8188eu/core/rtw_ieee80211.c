@@ -655,8 +655,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 	 * sub-type. */
 	if (elen < 4) {
 		if (show_errors) {
-			pr_debug("short vendor specific information element ignored (len=%lu)\n",
-				 (unsigned long)elen);
 		}
 		return -1;
 	}
@@ -675,8 +673,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			break;
 		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
 			if (elen < 5) {
-				pr_debug("short WME information element ignored (len=%lu)\n",
-					 (unsigned long)elen);
 				return -1;
 			}
 			switch (pos[4]) {
@@ -690,8 +686,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 				elems->wme_tspec_len = elen;
 				break;
 			default:
-				pr_debug("unknown WME information element ignored (subtype=%d len=%lu)\n",
-					 pos[4], (unsigned long)elen);
 				return -1;
 			}
 			break;
@@ -701,8 +695,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			elems->wps_ie_len = elen;
 			break;
 		default:
-			pr_debug("Unknown Microsoft information element ignored (type=%d len=%lu)\n",
-				 pos[3], (unsigned long)elen);
 			return -1;
 		}
 		break;
@@ -714,14 +706,10 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 			elems->vendor_ht_cap_len = elen;
 			break;
 		default:
-			pr_debug("Unknown Broadcom information element ignored (type=%d len=%lu)\n",
-				 pos[3], (unsigned long)elen);
 			return -1;
 		}
 		break;
 	default:
-		pr_debug("unknown vendor specific information element ignored (vendor OUI %02x:%02x:%02x len=%lu)\n",
-			 pos[0], pos[1], pos[2], (unsigned long)elen);
 		return -1;
 	}
 	return 0;
@@ -754,8 +742,6 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 
 		if (elen > left) {
 			if (show_errors) {
-				pr_debug("IEEE 802.11 element parse failed (id=%d elen=%d left=%lu)\n",
-					 id, elen, (unsigned long)left);
 			}
 			return ParseFailed;
 		}
@@ -841,8 +827,6 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 			unknown++;
 			if (!show_errors)
 				break;
-			pr_debug("IEEE 802.11 element parse ignored unknown element (id=%d elen=%d)\n",
-				 id, elen);
 			break;
 		}
 		left -= elen;
@@ -892,10 +876,7 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 
 	if (is_broadcast_ether_addr(mac) || is_zero_ether_addr(mac)) {
 		eth_random_addr(mac_addr);
-		pr_debug("MAC Address from efuse error, assign random one !!!\n");
 	}
-
-	pr_debug("MAC Address = %pM\n", mac_addr);
 }
 
 /**

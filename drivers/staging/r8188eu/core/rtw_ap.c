@@ -179,10 +179,6 @@ void	expire_timeout_chk(struct adapter *padapter)
 				list_del_init(&psta->auth_list);
 				pstapriv->auth_list_cnt--;
 
-				netdev_dbg(padapter->pnetdev,
-					   "auth expire %6ph\n",
-					   psta->hwaddr);
-
 				spin_unlock_bh(&pstapriv->auth_list_lock);
 
 				spin_lock_bh(&pstapriv->sta_hash_lock);
@@ -250,19 +246,11 @@ void	expire_timeout_chk(struct adapter *padapter)
 			list_del_init(&psta->asoc_list);
 			pstapriv->asoc_list_cnt--;
 
-			netdev_dbg(padapter->pnetdev,
-				   "asoc expire %pM, state = 0x%x\n",
-				   (psta->hwaddr), psta->state);
 			updated = ap_free_sta(padapter, psta, true, WLAN_REASON_DEAUTH_LEAVING);
 		} else {
 			/* TODO: Aging mechanism to digest frames in sleep_q to avoid running out of xmitframe */
 			if (psta->sleepq_len > (NR_XMITFRAME / pstapriv->asoc_list_cnt) &&
 			    padapter->xmitpriv.free_xmitframe_cnt < (NR_XMITFRAME / pstapriv->asoc_list_cnt / 2)) {
-				netdev_dbg(padapter->pnetdev,
-					   "sta:%pM, sleepq_len:%u, free_xmitframe_cnt:%u, asoc_list_cnt:%u, clear sleep_q\n",
-					   (psta->hwaddr), psta->sleepq_len,
-					   padapter->xmitpriv.free_xmitframe_cnt,
-					   pstapriv->asoc_list_cnt);
 				wakeup_sta_to_xmit(padapter, psta);
 			}
 		}
@@ -292,25 +280,16 @@ void	expire_timeout_chk(struct adapter *padapter)
 
 			psta->keep_alive_trycnt++;
 			if (ret == _SUCCESS) {
-				netdev_dbg(padapter->pnetdev,
-					   "asoc check, sta(%pM) is alive\n",
-					   (psta->hwaddr));
 				psta->expire_to = pstapriv->expire_to;
 				psta->keep_alive_trycnt = 0;
 				continue;
 			} else if (psta->keep_alive_trycnt <= 3) {
-				netdev_dbg(padapter->pnetdev,
-					   "ack check for asoc expire, keep_alive_trycnt =%d\n",
-					   psta->keep_alive_trycnt);
 				psta->expire_to = 1;
 				continue;
 			}
 
 			psta->keep_alive_trycnt = 0;
 
-			netdev_dbg(padapter->pnetdev,
-				   "asoc expire %pM, state = 0x%x\n",
-				   (psta->hwaddr), psta->state);
 			spin_lock_bh(&pstapriv->asoc_list_lock);
 			list_del_init(&psta->asoc_list);
 			pstapriv->asoc_list_cnt--;
@@ -390,10 +369,6 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 
 		tx_ra_bitmap |= ((raid << 28) & 0xf0000000);
 
-		netdev_dbg(padapter->pnetdev,
-			   "mac_id:%d, raid:%d, bitmap = 0x%x, arg = 0x%x\n",
-			   psta->mac_id, raid, tx_ra_bitmap, arg);
-
 		/* bitmap[0:27] = tx_rate_bitmap */
 		/* bitmap[28:31]= Rate Adaptive id */
 		/* arg[0:4] = macid */
@@ -408,9 +383,6 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 		psta->init_rate = init_rate;
 
 	} else {
-		netdev_dbg(padapter->pnetdev,
-			   "station aid %d exceed the max number\n",
-			   psta->aid);
 	}
 }
 
@@ -468,9 +440,6 @@ void update_bmc_sta(struct adapter *padapter)
 			arg = psta->mac_id & 0x1f;
 			arg |= BIT(7);
 			tx_ra_bitmap |= ((raid << 28) & 0xf0000000);
-			netdev_dbg(padapter->pnetdev,
-				   "mask = 0x%x, arg = 0x%x\n",
-				   tx_ra_bitmap, arg);
 
 			/* bitmap[0:27] = tx_rate_bitmap */
 			/* bitmap[28:31]= Rate Adaptive id */
@@ -489,7 +458,6 @@ void update_bmc_sta(struct adapter *padapter)
 		spin_unlock_bh(&psta->lock);
 
 	} else {
-		netdev_dbg(padapter->pnetdev, "add_RATid_bmc_sta error!\n");
 	}
 }
 
@@ -575,8 +543,6 @@ static void update_bcn_erpinfo_ie(struct adapter *padapter)
 	unsigned char *p, *ie = pnetwork->IEs;
 	u32 len = 0;
 
-	netdev_dbg(padapter->pnetdev, "ERP_enable = %d\n", pmlmeinfo->ERP_enable);
-
 	if (!pmlmeinfo->ERP_enable)
 		return;
 
@@ -659,8 +625,6 @@ static void update_bcn_vendor_spec_ie(struct adapter *padapter, u8 *oui)
 		update_bcn_wps_ie(padapter);
 	else if (!memcmp(P2P_OUI, oui, 4))
 		update_bcn_p2p_ie(padapter);
-	else
-		netdev_dbg(padapter->pnetdev, "unknown/unused OUI type!\n");
 }
 
 void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
@@ -723,10 +687,6 @@ static int rtw_ht_operation_update(struct adapter *padapter)
 	if (pmlmepriv->htpriv.ht_option)
 		return 0;
 
-	netdev_dbg(padapter->pnetdev,
-		   "current operation mode = 0x%X\n",
-		   pmlmepriv->ht_op_mode);
-
 	if (!(pmlmepriv->ht_op_mode & HT_INFO_OPERATION_MODE_NON_GF_DEVS_PRESENT) &&
 	    pmlmepriv->num_sta_ht_no_gf) {
 		pmlmepriv->ht_op_mode |=
@@ -775,10 +735,6 @@ static int rtw_ht_operation_update(struct adapter *padapter)
 		pmlmepriv->ht_op_mode |= new_op_mode;
 		op_mode_changes++;
 	}
-
-	netdev_dbg(padapter->pnetdev,
-		   "new operation mode = 0x%X changes = %d\n",
-		   pmlmepriv->ht_op_mode, op_mode_changes);
 
 	return op_mode_changes;
 }
@@ -894,10 +850,6 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 	if (psta->flags & WLAN_STA_HT) {
 		u16 ht_capab = le16_to_cpu(psta->htpriv.ht_cap.cap_info);
 
-		netdev_dbg(padapter->pnetdev,
-			   "HT: STA %pM HT Capabilities Info: 0x%04x\n",
-			   (psta->hwaddr), ht_capab);
-
 		if (psta->no_ht_set) {
 			psta->no_ht_set = 0;
 			pmlmepriv->num_sta_no_ht--;
@@ -908,9 +860,6 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 				psta->no_ht_gf_set = 1;
 				pmlmepriv->num_sta_ht_no_gf++;
 			}
-			netdev_dbg(padapter->pnetdev,
-				   "STA %pM - no greenfield, num of non-gf stations %d\n",
-				   (psta->hwaddr), pmlmepriv->num_sta_ht_no_gf);
 		}
 
 		if ((ht_capab & IEEE80211_HT_CAP_SUP_WIDTH_20_40) == 0) {
@@ -918,9 +867,6 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 				psta->ht_20mhz_set = 1;
 				pmlmepriv->num_sta_ht_20mhz++;
 			}
-			netdev_dbg(padapter->pnetdev,
-				   "STA %pM - 20 MHz HT, num of 20MHz HT STAs %d\n",
-				   (psta->hwaddr), pmlmepriv->num_sta_ht_20mhz);
 		}
 	} else {
 		if (!psta->no_ht_set) {
@@ -928,9 +874,6 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 			pmlmepriv->num_sta_no_ht++;
 		}
 		if (pmlmepriv->htpriv.ht_option) {
-			netdev_dbg(padapter->pnetdev,
-				   "STA %pM - no HT, num of non-HT stations %d\n",
-				   (psta->hwaddr), pmlmepriv->num_sta_no_ht);
 		}
 	}
 
@@ -941,8 +884,6 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 
 	/* update associated stations cap. */
 	associated_clients_update(padapter,  beacon_updated);
-
-	netdev_dbg(padapter->pnetdev, "updated = %d\n", beacon_updated);
 }
 
 u8 bss_cap_update_on_sta_leave(struct adapter *padapter, struct sta_info *psta)
@@ -1004,8 +945,6 @@ u8 bss_cap_update_on_sta_leave(struct adapter *padapter, struct sta_info *psta)
 	}
 
 	/* update associated stations cap. */
-
-	netdev_dbg(padapter->pnetdev, "updated = %d\n", beacon_updated);
 
 	return beacon_updated;
 }
@@ -1200,10 +1139,6 @@ void stop_ap_mode(struct adapter *padapter)
 		}
 	}
 	spin_unlock_bh(&pacl_node_q->lock);
-
-	netdev_dbg(padapter->pnetdev,
-		   "free acl_node_queue, num = %d\n",
-		   pacl_list->num);
 
 	rtw_sta_flush(padapter);
 
