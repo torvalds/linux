@@ -32,7 +32,7 @@ void test_vcpu_creation(int first_vcpu_id, int num_vcpus)
 
 	for (i = first_vcpu_id; i < first_vcpu_id + num_vcpus; i++)
 		/* This asserts that the vCPU was created. */
-		vm_vcpu_add(vm, i);
+		__vm_vcpu_add(vm, i);
 
 	kvm_vm_free(vm);
 }

@@ -51,10 +51,10 @@ static void *run_vcpu(void *_cpu_nr)
 	static bool first_cpu_done;
 	struct kvm_vcpu *vcpu;
 
-	/* The kernel is fine, but vm_vcpu_add_default() needs locking */
+	/* The kernel is fine, but vm_vcpu_add() needs locking */
 	pthread_spin_lock(&create_lock);
 
-	vcpu = vm_vcpu_add_default(vm, vcpu_id, guest_code);
+	vcpu = vm_vcpu_add(vm, vcpu_id, guest_code);
 
 	if (!first_cpu_done) {
 		first_cpu_done = true;

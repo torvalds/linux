@@ -331,7 +331,7 @@ static void test_vgic_then_vcpus(uint32_t gic_dev_type)
 
 	/* Add the rest of the VCPUs */
 	for (i = 1; i < NR_VCPUS; ++i)
-		vm_vcpu_add_default(v.vm, i, guest_code);
+		vm_vcpu_add(v.vm, i, guest_code);
 
 	ret = run_vcpu(v.vm, 3);
 	TEST_ASSERT(ret == -EINVAL, "dist/rdist overlap detected on 1st vcpu run");
@@ -418,17 +418,17 @@ static void test_v3_typer_accesses(void)
 
 	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3);
 
-	vm_vcpu_add_default(v.vm, 3, guest_code);
+	vm_vcpu_add(v.vm, 3, guest_code);
 
 	v3_redist_reg_get_errno(v.gic_fd, 1, GICR_TYPER, EINVAL,
 				"attempting to read GICR_TYPER of non created vcpu");
 
-	vm_vcpu_add_default(v.vm, 1, guest_code);
+	vm_vcpu_add(v.vm, 1, guest_code);
 
 	v3_redist_reg_get_errno(v.gic_fd, 1, GICR_TYPER, EBUSY,
 				"read GICR_TYPER before GIC initialized");
 
-	vm_vcpu_add_default(v.vm, 2, guest_code);
+	vm_vcpu_add(v.vm, 2, guest_code);
 
 	kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
 			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
@@ -559,7 +559,7 @@ static void test_v3_redist_ipa_range_check_at_vcpu_run(void)
 
 	/* Add the rest of the VCPUs */
 	for (i = 1; i < NR_VCPUS; ++i)
-		vm_vcpu_add_default(v.vm, i, guest_code);
+		vm_vcpu_add(v.vm, i, guest_code);
 
 	kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
 			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);

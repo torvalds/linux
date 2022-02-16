@@ -108,7 +108,7 @@ static void run_test(uint32_t run)
 
 	pr_debug("%s: [%d] start vcpus\n", __func__, run);
 	for (i = 0; i < VCPU_NUM; ++i) {
-		vm_vcpu_add_default(vm, i, guest_code);
+		vm_vcpu_add(vm, i, guest_code);
 		payloads[i].vm = vm;
 		payloads[i].index = i;
 

@@ -643,7 +643,7 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 	stack_vaddr = vm_vaddr_alloc(vm, DEFAULT_STACK_PGS * getpagesize(),
 				     DEFAULT_GUEST_STACK_VADDR_MIN);
 
-	vcpu = vm_vcpu_add(vm, vcpu_id);
+	vcpu = __vm_vcpu_add(vm, vcpu_id);
 	vcpu_set_cpuid(vm, vcpu_id, kvm_get_supported_cpuid());
 	vcpu_setup(vm, vcpu_id);
 

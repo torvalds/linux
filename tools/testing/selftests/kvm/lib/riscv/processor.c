@@ -287,7 +287,7 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 	struct kvm_mp_state mps;
 	struct kvm_vcpu *vcpu;
 
-	vcpu = vm_vcpu_add(vm, vcpu_id);
+	vcpu = __vm_vcpu_add(vm, vcpu_id);
 	riscv_vcpu_mmu_setup(vm, vcpu_id);
 
 	/*

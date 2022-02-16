@@ -425,7 +425,7 @@ int main(int argc, char *argv[])
 
 	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
 
-	vm_vcpu_add_default(vm, SENDER_VCPU_ID, sender_guest_code);
+	vm_vcpu_add(vm, SENDER_VCPU_ID, sender_guest_code);
 
 	test_data_page_vaddr = vm_vaddr_alloc_page(vm);
 	data =

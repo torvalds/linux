@@ -84,8 +84,8 @@ static struct kvm_vm *setup_vm(void *guest_code)
 	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init);
 	init.features[0] |= (1 << KVM_ARM_VCPU_PSCI_0_2);
 
-	aarch64_vcpu_add_default(vm, VCPU_ID_SOURCE, &init, guest_code);
-	aarch64_vcpu_add_default(vm, VCPU_ID_TARGET, &init, guest_code);
+	aarch64_vcpu_add(vm, VCPU_ID_SOURCE, &init, guest_code);
+	aarch64_vcpu_add(vm, VCPU_ID_TARGET, &init, guest_code);
 
 	return vm;
 }

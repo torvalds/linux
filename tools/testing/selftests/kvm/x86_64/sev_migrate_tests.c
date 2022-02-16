@@ -56,7 +56,7 @@ static struct kvm_vm *sev_vm_create(bool es)
 	vm = vm_create_barebones();
 	sev_ioctl(vm->fd, es ? KVM_SEV_ES_INIT : KVM_SEV_INIT, NULL);
 	for (i = 0; i < NR_MIGRATE_TEST_VCPUS; ++i)
-		vm_vcpu_add(vm, i);
+		__vm_vcpu_add(vm, i);
 	if (es)
 		start.policy |= SEV_POLICY_ES;
 	sev_ioctl(vm->fd, KVM_SEV_LAUNCH_START, &start);
@@ -75,7 +75,7 @@ static struct kvm_vm *aux_vm_create(bool with_vcpus)
 		return vm;
 
 	for (i = 0; i < NR_MIGRATE_TEST_VCPUS; ++i)
-		vm_vcpu_add(vm, i);
+		__vm_vcpu_add(vm, i);
 
 	return vm;
 }
@@ -182,7 +182,7 @@ static void test_sev_migrate_parameters(void)
 	sev_es_vm = sev_vm_create(/* es= */ true);
 	sev_es_vm_no_vmsa = vm_create_barebones();
 	sev_ioctl(sev_es_vm_no_vmsa->fd, KVM_SEV_ES_INIT, NULL);
-	vm_vcpu_add(sev_es_vm_no_vmsa, 1);
+	__vm_vcpu_add(sev_es_vm_no_vmsa, 1);
 
 	ret = __sev_migrate_from(sev_vm, sev_es_vm);
 	TEST_ASSERT(
@@ -278,7 +278,7 @@ static void test_sev_mirror(bool es)
 
 	/* Check that we can complete creation of the mirror VM.  */
 	for (i = 0; i < NR_MIGRATE_TEST_VCPUS; ++i)
-		vm_vcpu_add(dst_vm, i);
+		__vm_vcpu_add(dst_vm, i);
 
 	if (es)
 		sev_ioctl(dst_vm->fd, KVM_SEV_LAUNCH_UPDATE_VMSA, NULL);

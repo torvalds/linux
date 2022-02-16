@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 	 * the vCPU model, i.e. without doing KVM_SET_CPUID2.
 	 */
 	vm = vm_create_barebones();
-	vcpu = vm_vcpu_add(vm, 0);
+	vcpu = __vm_vcpu_add(vm, 0);
 
 	vcpu_sregs_get(vm, vcpu->id, &sregs);
 

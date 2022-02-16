@@ -418,7 +418,7 @@ static void run_test(struct vcpu_config *c)
 
 	vm = vm_create_barebones();
 	prepare_vcpu_init(c, &init);
-	vm_vcpu_add(vm, 0);
+	__vm_vcpu_add(vm, 0);
 	aarch64_vcpu_setup(vm, 0, &init);
 	finalize_vcpu(vm, 0, c);
 

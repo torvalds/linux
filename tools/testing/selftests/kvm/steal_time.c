@@ -275,7 +275,7 @@ int main(int ac, char **av)
 
 	/* Add the rest of the VCPUs */
 	for (i = 1; i < NR_VCPUS; ++i)
-		vm_vcpu_add_default(vm, i, guest_code);
+		vm_vcpu_add(vm, i, guest_code);
 
 	steal_time_init(vm);
 

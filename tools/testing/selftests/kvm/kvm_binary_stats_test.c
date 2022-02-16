@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < max_vm; ++i) {
 		vms[i] = vm_create_barebones();
 		for (j = 0; j < max_vcpu; ++j)
-			vm_vcpu_add(vms[i], j);
+			__vm_vcpu_add(vms[i], j);
 	}
 
 	/* Check stats read for every VM and VCPU */

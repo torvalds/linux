@@ -92,9 +92,9 @@ static struct kvm_vm *create_vm(void)
 static void add_x86_vcpu(struct kvm_vm *vm, uint32_t vcpuid, bool bsp_code)
 {
 	if (bsp_code)
-		vm_vcpu_add_default(vm, vcpuid, guest_bsp_vcpu);
+		vm_vcpu_add(vm, vcpuid, guest_bsp_vcpu);
 	else
-		vm_vcpu_add_default(vm, vcpuid, guest_not_bsp_vcpu);
+		vm_vcpu_add(vm, vcpuid, guest_not_bsp_vcpu);
 }
 
 static void run_vm_bsp(uint32_t bsp_vcpu)

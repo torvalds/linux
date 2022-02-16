@@ -26,12 +26,12 @@ static int add_init_2vcpus(struct kvm_vcpu_init *init1,
 
 	vm = vm_create_barebones();
 
-	vm_vcpu_add(vm, 0);
+	__vm_vcpu_add(vm, 0);
 	ret = __vcpu_ioctl(vm, 0, KVM_ARM_VCPU_INIT, init1);
 	if (ret)
 		goto free_exit;
 
-	vm_vcpu_add(vm, 1);
+	__vm_vcpu_add(vm, 1);
 	ret = __vcpu_ioctl(vm, 1, KVM_ARM_VCPU_INIT, init2);
 
 free_exit:
@@ -51,8 +51,8 @@ static int add_2vcpus_init_2vcpus(struct kvm_vcpu_init *init1,
 
 	vm = vm_create_barebones();
 
-	vm_vcpu_add(vm, 0);
-	vm_vcpu_add(vm, 1);
+	__vm_vcpu_add(vm, 0);
+	__vm_vcpu_add(vm, 1);
 
 	ret = __vcpu_ioctl(vm, 0, KVM_ARM_VCPU_INIT, init1);
 	if (ret)

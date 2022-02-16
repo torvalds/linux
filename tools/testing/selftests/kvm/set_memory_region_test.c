@@ -315,7 +315,7 @@ static void test_zero_memory_regions(void)
 	pr_info("Testing KVM_RUN with zero added memory regions\n");
 
 	vm = vm_create_barebones();
-	vcpu = vm_vcpu_add(vm, 0);
+	vcpu = __vm_vcpu_add(vm, 0);
 
 	vm_ioctl(vm, KVM_SET_NR_MMU_PAGES, (void *)64ul);
 	vcpu_run(vm, vcpu->id);
