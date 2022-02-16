@@ -107,7 +107,7 @@ struct spectral_search_fft_report {
 	__le32 info1;
 	__le32 info2;
 	__le32 reserve0;
-	u8 bins[0];
+	u8 bins[];
 } __packed;
 
 struct ath11k_spectral_search_report {

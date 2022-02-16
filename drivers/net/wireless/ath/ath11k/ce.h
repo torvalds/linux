@@ -145,7 +145,7 @@ struct ath11k_ce_ring {
 	u32 hal_ring_id;
 
 	/* keep last */
-	struct sk_buff *skb[0];
+	struct sk_buff *skb[];
 };
 
 struct ath11k_ce_pipe {
