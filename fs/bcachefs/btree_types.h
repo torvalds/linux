@@ -383,6 +383,7 @@ struct btree_trans {
 	struct bpos		locking_pos;
 	u8			locking_btree_id;
 	u8			locking_level;
+	u8			locking_lock_type;
 	pid_t			pid;
 	int			srcu_idx;
 

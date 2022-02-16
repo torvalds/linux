@@ -169,7 +169,7 @@ static int __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
 	struct btree_write *w = container_of(pin, struct btree_write, journal);
 	struct btree *b = container_of(w, struct btree, writes[i]);
 
-	btree_node_lock_type(c, b, SIX_LOCK_read);
+	six_lock_read(&b->c.lock, NULL, NULL);
 	bch2_btree_node_write_cond(c, b,
 		(btree_current_write(b) == w && w->journal.seq == seq));
 	six_unlock_read(&b->c.lock);
@@ -626,8 +626,10 @@ static inline int trans_lock_write(struct btree_trans *trans)
 			if (have_conflicting_read_lock(trans, i->path))
 				goto fail;
 
-			__btree_node_lock_type(trans->c, insert_l(i)->b,
-					       SIX_LOCK_write);
+			btree_node_lock_type(trans, i->path,
+					     insert_l(i)->b,
+					     i->path->pos, i->level,
+					     SIX_LOCK_write, NULL, NULL);
 		}
 
 		bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);

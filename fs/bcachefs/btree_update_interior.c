@@ -607,8 +607,8 @@ err:
 		 * we're in journal error state:
 		 */
 
-		btree_node_lock_type(c, b, SIX_LOCK_intent);
-		btree_node_lock_type(c, b, SIX_LOCK_write);
+		six_lock_intent(&b->c.lock, NULL, NULL);
+		six_lock_write(&b->c.lock, NULL, NULL);
 		mutex_lock(&c->btree_interior_update_lock);
 
 		list_del(&as->write_blocked_list);
@@ -662,7 +662,7 @@ err:
 	for (i = 0; i < as->nr_new_nodes; i++) {
 		b = as->new_nodes[i];
 
-		btree_node_lock_type(c, b, SIX_LOCK_read);
+		six_lock_read(&b->c.lock, NULL, NULL);
 		btree_node_write_if_need(c, b, SIX_LOCK_read);
 		six_unlock_read(&b->c.lock);
 	}

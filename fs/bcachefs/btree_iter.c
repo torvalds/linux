@@ -150,7 +150,7 @@ void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
 	else
 		this_cpu_sub(*b->c.lock.readers, readers);
 
-	btree_node_lock_type(trans->c, b, SIX_LOCK_write);
+	six_lock_write(&b->c.lock, NULL, NULL);
 
 	if (!b->c.lock.readers)
 		atomic64_add(__SIX_VAL(read_lock, readers),
@@ -289,9 +289,7 @@ bool __bch2_btree_node_lock(struct btree_trans *trans,
 			    unsigned long ip)
 {
 	struct btree_path *linked, *deadlock_path = NULL;
-	u64 start_time = local_clock();
 	unsigned reason = 9;
-	bool ret;
 
 	/* Check if it's safe to block: */
 	trans_for_each_path(trans, linked) {
@@ -368,23 +366,8 @@ bool __bch2_btree_node_lock(struct btree_trans *trans,
 		return false;
 	}
 
-	if (six_trylock_type(&b->c.lock, type))
-		return true;
-
-	trans->locking_path_idx = path->idx;
-	trans->locking_pos	= pos;
-	trans->locking_btree_id	= path->btree_id;
-	trans->locking_level	= level;
-	trans->locking		= b;
-
-	ret = six_lock_type(&b->c.lock, type, should_sleep_fn, p) == 0;
-
-	trans->locking = NULL;
-
-	if (ret)
-		bch2_time_stats_update(&trans->c->times[lock_to_time_stat(type)],
-				       start_time);
-	return ret;
+	return btree_node_lock_type(trans, path, b, pos, level,
+				    type, should_sleep_fn, p);
 }
 
 /* Btree iterator locking: */
@@ -3191,6 +3174,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 	struct btree_trans *trans;
 	struct btree_path *path;
 	struct btree *b;
+	static char lock_types[] = { 'r', 'i', 'w' };
 	unsigned l;
 
 	mutex_lock(&c->btree_trans_lock);
@@ -3227,10 +3211,11 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 		b = READ_ONCE(trans->locking);
 		if (b) {
 			path = &trans->paths[trans->locking_path_idx];
-			pr_buf(out, "  locking path %u %c l=%u %s:",
+			pr_buf(out, "  locking path %u %c l=%u %c %s:",
 			       trans->locking_path_idx,
 			       path->cached ? 'c' : 'b',
 			       trans->locking_level,
+			       lock_types[trans->locking_lock_type],
 			       bch2_btree_ids[trans->locking_btree_id]);
 			bch2_bpos_to_text(out, trans->locking_pos);
 

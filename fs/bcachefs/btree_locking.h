@@ -127,23 +127,35 @@ static inline enum bch_time_stats lock_to_time_stat(enum six_lock_type type)
 	}
 }
 
-/*
- * wrapper around six locks that just traces lock contended time
- */
-static inline void __btree_node_lock_type(struct bch_fs *c, struct btree *b,
-					  enum six_lock_type type)
+static inline bool btree_node_lock_type(struct btree_trans *trans,
+				       struct btree_path *path,
+				       struct btree *b,
+				       struct bpos pos, unsigned level,
+				       enum six_lock_type type,
+				       six_lock_should_sleep_fn should_sleep_fn, void *p)
 {
-	u64 start_time = local_clock();
+	struct bch_fs *c = trans->c;
+	u64 start_time;
+	bool ret;
 
-	six_lock_type(&b->c.lock, type, NULL, NULL);
-	bch2_time_stats_update(&c->times[lock_to_time_stat(type)], start_time);
-}
+	if (six_trylock_type(&b->c.lock, type))
+		return true;
 
-static inline void btree_node_lock_type(struct bch_fs *c, struct btree *b,
-					enum six_lock_type type)
-{
-	if (!six_trylock_type(&b->c.lock, type))
-		__btree_node_lock_type(c, b, type);
+	start_time = local_clock();
+
+	trans->locking_path_idx = path->idx;
+	trans->locking_pos	= pos;
+	trans->locking_btree_id	= path->btree_id;
+	trans->locking_level	= level;
+	trans->locking_lock_type = type;
+	trans->locking		= b;
+	ret = six_lock_type(&b->c.lock, type, should_sleep_fn, p) == 0;
+	trans->locking = NULL;
+
+	if (ret)
+		bch2_time_stats_update(&c->times[lock_to_time_stat(type)], start_time);
+
+	return ret;
 }
 
 /*
