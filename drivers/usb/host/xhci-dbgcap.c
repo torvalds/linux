@@ -914,16 +914,6 @@ static void xhci_dbc_handle_events(struct work_struct *work)
 	mod_delayed_work(system_wq, &dbc->event_work, 1);
 }
 
-static void xhci_do_dbc_exit(struct xhci_hcd *xhci)
-{
-	unsigned long		flags;
-
-	spin_lock_irqsave(&xhci->lock, flags);
-	kfree(xhci->dbc);
-	xhci->dbc = NULL;
-	spin_unlock_irqrestore(&xhci->lock, flags);
-}
-
 static ssize_t dbc_show(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
@@ -984,7 +974,7 @@ static ssize_t dbc_store(struct device *dev,
 static DEVICE_ATTR_RW(dbc);
 
 struct xhci_dbc *
-xhci_alloc_dbc(struct device *dev, void __iomem *base)
+xhci_alloc_dbc(struct device *dev, void __iomem *base, const struct dbc_driver *driver)
 {
 	struct xhci_dbc		*dbc;
 	int			ret;
@@ -995,6 +985,7 @@ xhci_alloc_dbc(struct device *dev, void __iomem *base)
 
 	dbc->regs = base;
 	dbc->dev = dev;
+	dbc->driver = driver;
 
 	if (readl(&dbc->regs->control) & DBC_CTRL_DBC_ENABLE)
 		return NULL;
@@ -1045,18 +1036,8 @@ int xhci_dbc_init(struct xhci_hcd *xhci)
 	if (xhci->dbc)
 		return -EBUSY;
 
-	xhci->dbc = xhci_alloc_dbc(dev, base);
-	if (!xhci->dbc)
-		return -ENOMEM;
+	ret = xhci_dbc_tty_probe(dev, base + dbc_cap_offs, xhci);
 
-	ret = xhci_dbc_tty_probe(xhci);
-	if (ret)
-		goto init_err2;
-
-	return 0;
-
-init_err2:
-	xhci_do_dbc_exit(xhci);
 	return ret;
 }
 
@@ -1068,7 +1049,6 @@ void xhci_dbc_exit(struct xhci_hcd *xhci)
 		return;
 
 	xhci_dbc_tty_remove(xhci->dbc);
-	xhci_dbc_remove(xhci->dbc);
 	spin_lock_irqsave(&xhci->lock, flags);
 	xhci->dbc = NULL;
 	spin_unlock_irqrestore(&xhci->lock, flags);
