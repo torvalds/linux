@@ -9,8 +9,8 @@
 #include "rv1103-evb-v10.dtsi"
 
 / {
-	model = "Rockchip RV1103 EVB REF V10 Board";
-	compatible = "rockchip,rv1103-evb-ref-v10", "rockchip,rv1103";
+	model = "Rockchip RV1103G EVB V10 Board";
+	compatible = "rockchip,rv1103g-evb-v10", "rockchip,rv1103";
 
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff4c0000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_soc_core.prealloc_buffer_size_kbytes=16";
