@@ -354,7 +354,7 @@ static int i2c_hid_set_or_send_report(struct i2c_hid *ihid,
 		 * With simple "send report" all data goes into the output
 		 * register.
 		 */
-		*(__le16 *)ihid->cmdbuf = ihid->hdesc.wOutputRegister;;
+		*(__le16 *)ihid->cmdbuf = ihid->hdesc.wOutputRegister;
 		length += sizeof(__le16);
 	}
 
