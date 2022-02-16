@@ -3410,29 +3410,28 @@ static void ilk_compute_wm_results(struct drm_i915_private *dev_priv,
 		 * disabled. Doing otherwise could cause underruns.
 		 */
 		results->wm_lp[wm_lp - 1] =
-			(ilk_wm_lp_latency(dev_priv, level) << WM1_LP_LATENCY_SHIFT) |
-			(r->pri_val << WM1_LP_SR_SHIFT) |
-			r->cur_val;
+			WM_LP_LATENCY(ilk_wm_lp_latency(dev_priv, level)) |
+			WM_LP_PRIMARY(r->pri_val) |
+			WM_LP_CURSOR(r->cur_val);
 
 		if (r->enable)
-			results->wm_lp[wm_lp - 1] |= WM1_LP_SR_EN;
+			results->wm_lp[wm_lp - 1] |= WM_LP_ENABLE;
 
 		if (DISPLAY_VER(dev_priv) >= 8)
-			results->wm_lp[wm_lp - 1] |=
-				r->fbc_val << WM1_LP_FBC_SHIFT_BDW;
+			results->wm_lp[wm_lp - 1] |= WM_LP_FBC_BDW(r->fbc_val);
 		else
-			results->wm_lp[wm_lp - 1] |=
-				r->fbc_val << WM1_LP_FBC_SHIFT;
+			results->wm_lp[wm_lp - 1] |= WM_LP_FBC_ILK(r->fbc_val);
+
+		results->wm_lp_spr[wm_lp - 1] = WM_LP_SPRITE(r->spr_val);
 
 		/*
-		 * Always set WM1S_LP_EN when spr_val != 0, even if the
+		 * Always set WM_LP_SPRITE_EN when spr_val != 0, even if the
 		 * level is disabled. Doing otherwise could cause underruns.
 		 */
 		if (DISPLAY_VER(dev_priv) <= 6 && r->spr_val) {
 			drm_WARN_ON(&dev_priv->drm, wm_lp != 1);
-			results->wm_lp_spr[wm_lp - 1] = WM1S_LP_EN | r->spr_val;
-		} else
-			results->wm_lp_spr[wm_lp - 1] = r->spr_val;
+			results->wm_lp_spr[wm_lp - 1] |= WM_LP_SPRITE_ENABLE;
+		}
 	}
 
 	/* LP0 register values */
@@ -3445,9 +3444,9 @@ static void ilk_compute_wm_results(struct drm_i915_private *dev_priv,
 			continue;
 
 		results->wm_pipe[pipe] =
-			(r->pri_val << WM0_PIPE_PLANE_SHIFT) |
-			(r->spr_val << WM0_PIPE_SPRITE_SHIFT) |
-			r->cur_val;
+			WM0_PIPE_PRIMARY(r->pri_val) |
+			WM0_PIPE_SPRITE(r->spr_val) |
+			WM0_PIPE_CURSOR(r->cur_val);
 	}
 }
 
@@ -3539,24 +3538,24 @@ static bool _ilk_disable_lp_wm(struct drm_i915_private *dev_priv,
 	struct ilk_wm_values *previous = &dev_priv->wm.hw;
 	bool changed = false;
 
-	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] & WM1_LP_SR_EN) {
-		previous->wm_lp[2] &= ~WM1_LP_SR_EN;
+	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] & WM_LP_ENABLE) {
+		previous->wm_lp[2] &= ~WM_LP_ENABLE;
 		intel_uncore_write(&dev_priv->uncore, WM3_LP_ILK, previous->wm_lp[2]);
 		changed = true;
 	}
-	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp[1] & WM1_LP_SR_EN) {
-		previous->wm_lp[1] &= ~WM1_LP_SR_EN;
+	if (dirty & WM_DIRTY_LP(2) && previous->wm_lp[1] & WM_LP_ENABLE) {
+		previous->wm_lp[1] &= ~WM_LP_ENABLE;
 		intel_uncore_write(&dev_priv->uncore, WM2_LP_ILK, previous->wm_lp[1]);
 		changed = true;
 	}
-	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] & WM1_LP_SR_EN) {
-		previous->wm_lp[0] &= ~WM1_LP_SR_EN;
+	if (dirty & WM_DIRTY_LP(1) && previous->wm_lp[0] & WM_LP_ENABLE) {
+		previous->wm_lp[0] &= ~WM_LP_ENABLE;
 		intel_uncore_write(&dev_priv->uncore, WM1_LP_ILK, previous->wm_lp[0]);
 		changed = true;
 	}
 
 	/*
-	 * Don't touch WM1S_LP_EN here.
+	 * Don't touch WM_LP_SPRITE_ENABLE here.
 	 * Doing so could cause underruns.
 	 */
 
@@ -6760,9 +6759,9 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 		 * multiple pipes are active.
 		 */
 		active->wm[0].enable = true;
-		active->wm[0].pri_val = (tmp & WM0_PIPE_PLANE_MASK) >> WM0_PIPE_PLANE_SHIFT;
-		active->wm[0].spr_val = (tmp & WM0_PIPE_SPRITE_MASK) >> WM0_PIPE_SPRITE_SHIFT;
-		active->wm[0].cur_val = tmp & WM0_PIPE_CURSOR_MASK;
+		active->wm[0].pri_val = REG_FIELD_GET(WM0_PIPE_PRIMARY_MASK, tmp);
+		active->wm[0].spr_val = REG_FIELD_GET(WM0_PIPE_SPRITE_MASK, tmp);
+		active->wm[0].cur_val = REG_FIELD_GET(WM0_PIPE_CURSOR_MASK, tmp);
 	} else {
 		int level, max_level = ilk_wm_max_level(dev_priv);
 
@@ -7186,12 +7185,12 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
  */
 static void ilk_init_lp_watermarks(struct drm_i915_private *dev_priv)
 {
-	intel_uncore_write(&dev_priv->uncore, WM3_LP_ILK, intel_uncore_read(&dev_priv->uncore, WM3_LP_ILK) & ~WM1_LP_SR_EN);
-	intel_uncore_write(&dev_priv->uncore, WM2_LP_ILK, intel_uncore_read(&dev_priv->uncore, WM2_LP_ILK) & ~WM1_LP_SR_EN);
-	intel_uncore_write(&dev_priv->uncore, WM1_LP_ILK, intel_uncore_read(&dev_priv->uncore, WM1_LP_ILK) & ~WM1_LP_SR_EN);
+	intel_uncore_write(&dev_priv->uncore, WM3_LP_ILK, intel_uncore_read(&dev_priv->uncore, WM3_LP_ILK) & ~WM_LP_ENABLE);
+	intel_uncore_write(&dev_priv->uncore, WM2_LP_ILK, intel_uncore_read(&dev_priv->uncore, WM2_LP_ILK) & ~WM_LP_ENABLE);
+	intel_uncore_write(&dev_priv->uncore, WM1_LP_ILK, intel_uncore_read(&dev_priv->uncore, WM1_LP_ILK) & ~WM_LP_ENABLE);
 
 	/*
-	 * Don't touch WM1S_LP_EN here.
+	 * Don't touch WM_LP_SPRITE_ENABLE here.
 	 * Doing so could cause underruns.
 	 */
 }

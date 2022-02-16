@@ -4182,33 +4182,32 @@
 #define _WM0_PIPEC_IVB		0x45200
 #define WM0_PIPE_ILK(pipe)	_MMIO_PIPE3((pipe), _WM0_PIPEA_ILK, \
 					    _WM0_PIPEB_ILK, _WM0_PIPEC_IVB)
-#define  WM0_PIPE_PLANE_MASK	(0xffff << 16)
-#define  WM0_PIPE_PLANE_SHIFT	16
-#define  WM0_PIPE_SPRITE_MASK	(0xff << 8)
-#define  WM0_PIPE_SPRITE_SHIFT	8
-#define  WM0_PIPE_CURSOR_MASK	(0xff)
+#define  WM0_PIPE_PRIMARY_MASK	REG_GENMASK(31, 16)
+#define  WM0_PIPE_SPRITE_MASK	REG_GENMASK(15, 8)
+#define  WM0_PIPE_CURSOR_MASK	REG_GENMASK(7, 0)
+#define  WM0_PIPE_PRIMARY(x)	REG_FIELD_PREP(WM0_PIPE_PRIMARY_MASK, (x))
+#define  WM0_PIPE_SPRITE(x)	REG_FIELD_PREP(WM0_PIPE_SPRITE_MASK, (x))
+#define  WM0_PIPE_CURSOR(x)	REG_FIELD_PREP(WM0_PIPE_CURSOR_MASK, (x))
 #define WM1_LP_ILK		_MMIO(0x45108)
-#define  WM1_LP_SR_EN		(1 << 31)
-#define  WM1_LP_LATENCY_SHIFT	24
-#define  WM1_LP_LATENCY_MASK	(0x7f << 24)
-#define  WM1_LP_FBC_MASK	(0xf << 20)
-#define  WM1_LP_FBC_SHIFT	20
-#define  WM1_LP_FBC_SHIFT_BDW	19
-#define  WM1_LP_SR_MASK		(0x7ff << 8)
-#define  WM1_LP_SR_SHIFT	8
-#define  WM1_LP_CURSOR_MASK	(0xff)
 #define WM2_LP_ILK		_MMIO(0x4510c)
-#define  WM2_LP_EN		(1 << 31)
 #define WM3_LP_ILK		_MMIO(0x45110)
-#define  WM3_LP_EN		(1 << 31)
+#define  WM_LP_ENABLE		REG_BIT(31)
+#define  WM_LP_LATENCY_MASK	REG_GENMASK(30, 24)
+#define  WM_LP_FBC_MASK_BDW	REG_GENMASK(23, 19)
+#define  WM_LP_FBC_MASK_ILK	REG_GENMASK(23, 20)
+#define  WM_LP_PRIMARY_MASK	REG_GENMASK(18, 8)
+#define  WM_LP_CURSOR_MASK	REG_GENMASK(7, 0)
+#define  WM_LP_LATENCY(x)	REG_FIELD_PREP(WM_LP_LATENCY_MASK, (x))
+#define  WM_LP_FBC_BDW(x)	REG_FIELD_PREP(WM_LP_FBC_MASK_BDW, (x))
+#define  WM_LP_FBC_ILK(x)	REG_FIELD_PREP(WM_LP_FBC_MASK_ILK, (x))
+#define  WM_LP_PRIMARY(x)	REG_FIELD_PREP(WM_LP_PRIMARY_MASK, (x))
+#define  WM_LP_CURSOR(x)	REG_FIELD_PREP(WM_LP_CURSOR_MASK, (x))
 #define WM1S_LP_ILK		_MMIO(0x45120)
 #define WM2S_LP_IVB		_MMIO(0x45124)
 #define WM3S_LP_IVB		_MMIO(0x45128)
-#define  WM1S_LP_EN		(1 << 31)
-
-#define HSW_WM_LP_VAL(lat, fbc, pri, cur) \
-	(WM3_LP_EN | ((lat) << WM1_LP_LATENCY_SHIFT) | \
-	 ((fbc) << WM1_LP_FBC_SHIFT) | ((pri) << WM1_LP_SR_SHIFT) | (cur))
+#define  WM_LP_SPRITE_ENABLE	REG_BIT(31) /* ilk/snb WM1S only */
+#define  WM_LP_SPRITE_MASK	REG_GENMASK(10, 0)
+#define  WM_LP_SPRITE(x)	REG_FIELD_PREP(WM_LP_SPRITE_MASK, (x))
 
 /*
  * The two pipe frame counter registers are not synchronized, so
