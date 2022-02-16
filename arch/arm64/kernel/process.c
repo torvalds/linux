@@ -635,7 +635,10 @@ long set_tagged_addr_ctrl(struct task_struct *task, unsigned long arg)
 		return -EINVAL;
 
 	if (system_supports_mte())
-		valid_mask |= PR_MTE_TCF_MASK | PR_MTE_TAG_MASK;
+		valid_mask |= PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC \
+			| PR_MTE_TAG_MASK;
+	if (cpus_have_cap(ARM64_MTE_ASYMM))
+		valid_mask |= PR_MTE_TCF_ASYMM;
 
 	if (arg & ~valid_mask)
 		return -EINVAL;

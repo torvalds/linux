@@ -215,7 +215,9 @@ static void mte_update_sctlr_user(struct task_struct *task)
 	 * set bits and map into register values determines our
 	 * default order.
 	 */
-	if (resolved_mte_tcf & MTE_CTRL_TCF_ASYNC)
+	if (resolved_mte_tcf & MTE_CTRL_TCF_ASYMM)
+		sctlr |= SCTLR_EL1_TCF0_ASYMM;
+	else if (resolved_mte_tcf & MTE_CTRL_TCF_ASYNC)
 		sctlr |= SCTLR_EL1_TCF0_ASYNC;
 	else if (resolved_mte_tcf & MTE_CTRL_TCF_SYNC)
 		sctlr |= SCTLR_EL1_TCF0_SYNC;
@@ -309,6 +311,8 @@ long set_mte_ctrl(struct task_struct *task, unsigned long arg)
 		mte_ctrl |= MTE_CTRL_TCF_ASYNC;
 	if (arg & PR_MTE_TCF_SYNC)
 		mte_ctrl |= MTE_CTRL_TCF_SYNC;
+	if (arg & PR_MTE_TCF_ASYMM)
+		mte_ctrl |= MTE_CTRL_TCF_ASYMM;
 
 	task->thread.mte_ctrl = mte_ctrl;
 	if (task == current) {
@@ -337,6 +341,8 @@ long get_mte_ctrl(struct task_struct *task)
 		ret |= PR_MTE_TCF_ASYNC;
 	if (mte_ctrl & MTE_CTRL_TCF_SYNC)
 		ret |= PR_MTE_TCF_SYNC;
+	if (mte_ctrl & MTE_CTRL_TCF_ASYMM)
+		ret |= PR_MTE_TCF_ASYMM;
 
 	return ret;
 }
@@ -484,6 +490,8 @@ static ssize_t mte_tcf_preferred_show(struct device *dev,
 		return sysfs_emit(buf, "async\n");
 	case MTE_CTRL_TCF_SYNC:
 		return sysfs_emit(buf, "sync\n");
+	case MTE_CTRL_TCF_ASYMM:
+		return sysfs_emit(buf, "asymm\n");
 	default:
 		return sysfs_emit(buf, "???\n");
 	}
@@ -499,6 +507,8 @@ static ssize_t mte_tcf_preferred_store(struct device *dev,
 		tcf = MTE_CTRL_TCF_ASYNC;
 	else if (sysfs_streq(buf, "sync"))
 		tcf = MTE_CTRL_TCF_SYNC;
+	else if (cpus_have_cap(ARM64_MTE_ASYMM) && sysfs_streq(buf, "asymm"))
+		tcf = MTE_CTRL_TCF_ASYMM;
 	else
 		return -EINVAL;
 
