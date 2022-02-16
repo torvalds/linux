@@ -486,6 +486,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 	t->rcu_read_unlock_special.s = 0;
 	if (special.b.need_qs) {
 		if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD)) {
+			rdp->cpu_no_qs.b.norm = false;
 			rcu_report_qs_rdp(rdp);
 			udelay(rcu_unlock_delay);
 		} else {
