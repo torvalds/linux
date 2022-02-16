@@ -50,8 +50,8 @@
  * Use vf->vf_id to get the id number if needed.
  */
 #define ice_for_each_vf(pf, bkt, entry)					\
-	for ((bkt) = 0, (entry) = &(pf)->vf[0];				\
-	     (bkt) < (pf)->num_alloc_vfs;				\
+	for ((bkt) = 0, (entry) = &(pf)->vfs.table[0];			\
+	     (bkt) < (pf)->vfs.num_alloc;				\
 	     (bkt)++, (entry)++)
 
 /* Specific VF states */
@@ -114,6 +114,17 @@ struct ice_vc_vf_ops {
 	int (*dis_vlan_stripping_v2_msg)(struct ice_vf *vf, u8 *msg);
 	int (*ena_vlan_insertion_v2_msg)(struct ice_vf *vf, u8 *msg);
 	int (*dis_vlan_insertion_v2_msg)(struct ice_vf *vf, u8 *msg);
+};
+
+/* Virtchnl/SR-IOV config info */
+struct ice_vfs {
+	struct ice_vf *table;		/* table of VF entries */
+	u16 num_alloc;			/* number of allocated VFs */
+	u16 num_supported;		/* max supported VFs on this PF */
+	u16 num_qps_per;		/* number of queue pairs per VF */
+	u16 num_msix_per;		/* number of MSI-X vectors per VF */
+	unsigned long last_printed_mdd_jiffies;	/* MDD message rate limit */
+	DECLARE_BITMAP(malvfs, ICE_MAX_VF_COUNT); /* malicious VF indicator */
 };
 
 /* VF information structure */

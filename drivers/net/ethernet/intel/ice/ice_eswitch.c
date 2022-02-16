@@ -176,10 +176,20 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 	int q_id;
 
 	ice_for_each_txq(vsi, q_id) {
-		struct ice_repr *repr = pf->vf[q_id].repr;
-		struct ice_q_vector *q_vector = repr->q_vector;
-		struct ice_tx_ring *tx_ring = vsi->tx_rings[q_id];
-		struct ice_rx_ring *rx_ring = vsi->rx_rings[q_id];
+		struct ice_q_vector *q_vector;
+		struct ice_tx_ring *tx_ring;
+		struct ice_rx_ring *rx_ring;
+		struct ice_repr *repr;
+		struct ice_vf *vf;
+
+		if (WARN_ON(q_id >= pf->vfs.num_alloc))
+			continue;
+
+		vf = &pf->vfs.table[q_id];
+		repr = vf->repr;
+		q_vector = repr->q_vector;
+		tx_ring = vsi->tx_rings[q_id];
+		rx_ring = vsi->rx_rings[q_id];
 
 		q_vector->vsi = vsi;
 		q_vector->reg_idx = vsi->q_vectors[0]->reg_idx;
@@ -525,7 +535,7 @@ ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	if (pf->eswitch_mode == mode)
 		return 0;
 
-	if (pf->num_alloc_vfs) {
+	if (pf->vfs.num_alloc) {
 		dev_info(ice_pf_to_dev(pf), "Changing eswitch mode is allowed only if there is no VFs created");
 		NL_SET_ERR_MSG_MOD(extack, "Changing eswitch mode is allowed only if there is no VFs created");
 		return -EOPNOTSUPP;
