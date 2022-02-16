@@ -14,9 +14,6 @@
 #include "xhci.h"
 #include "xhci-dbgcap.h"
 
-static int dbc_tty_init(void);
-static void dbc_tty_exit(void);
-
 static struct tty_driver *dbc_tty_driver;
 
 static inline struct dbc_port *dbc_to_port(struct xhci_dbc *dbc)
@@ -474,16 +471,12 @@ int xhci_dbc_tty_probe(struct device *dev, void __iomem *base, struct xhci_hcd *
 	struct dbc_port		*port;
 	int			status;
 
-	/* dbc_tty_init will be called by module init() in the future */
-	status = dbc_tty_init();
-	if (status)
-		return status;
+	if (!dbc_tty_driver)
+		return -ENODEV;
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
-	if (!port) {
-		status = -ENOMEM;
-		goto out;
-	}
+	if (!port)
+		return -ENOMEM;
 
 	dbc_tty_driver->driver_state = port;
 
@@ -501,9 +494,7 @@ int xhci_dbc_tty_probe(struct device *dev, void __iomem *base, struct xhci_hcd *
 	return 0;
 out2:
 	kfree(port);
-out:
-	/* dbc_tty_exit will be called by module_exit() in the future */
-	dbc_tty_exit();
+
 	return status;
 }
 
@@ -517,12 +508,9 @@ void xhci_dbc_tty_remove(struct xhci_dbc *dbc)
 
 	xhci_dbc_remove(dbc);
 	kfree(port);
-
-	/* dbc_tty_exit will be called by  module_exit() in the future */
-	dbc_tty_exit();
 }
 
-static int dbc_tty_init(void)
+int dbc_tty_init(void)
 {
 	int		ret;
 
@@ -552,7 +540,7 @@ static int dbc_tty_init(void)
 	return ret;
 }
 
-static void dbc_tty_exit(void)
+void dbc_tty_exit(void)
 {
 	if (dbc_tty_driver) {
 		tty_unregister_driver(dbc_tty_driver);

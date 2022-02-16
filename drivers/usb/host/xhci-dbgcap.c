@@ -1087,3 +1087,13 @@ int xhci_dbc_resume(struct xhci_hcd *xhci)
 	return ret;
 }
 #endif /* CONFIG_PM */
+
+int xhci_dbc_init(void)
+{
+	return dbc_tty_init();
+}
+
+void xhci_dbc_exit(void)
+{
+	dbc_tty_exit();
+}
