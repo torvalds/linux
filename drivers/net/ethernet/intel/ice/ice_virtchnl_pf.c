@@ -500,7 +500,7 @@ void ice_free_vfs(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	unsigned int tmp, i;
+	unsigned int i;
 
 	if (!pf->vf)
 		return;
@@ -519,10 +519,7 @@ void ice_free_vfs(struct ice_pf *pf)
 	else
 		dev_warn(dev, "VFs are assigned - not disabling SR-IOV\n");
 
-	tmp = pf->num_alloc_vfs;
-	pf->num_qps_per_vf = 0;
-	pf->num_alloc_vfs = 0;
-	for (i = 0; i < tmp; i++) {
+	ice_for_each_vf(pf, i) {
 		struct ice_vf *vf = &pf->vf[i];
 
 		mutex_lock(&vf->cfg_lock);
@@ -558,6 +555,8 @@ void ice_free_vfs(struct ice_pf *pf)
 	if (ice_sriov_free_msix_res(pf))
 		dev_err(dev, "Failed to free MSIX resources used by SR-IOV\n");
 
+	pf->num_qps_per_vf = 0;
+	pf->num_alloc_vfs = 0;
 	devm_kfree(dev, pf->vf);
 	pf->vf = NULL;
 
