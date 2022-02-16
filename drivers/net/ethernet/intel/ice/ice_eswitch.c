@@ -203,6 +203,34 @@ static void ice_eswitch_remap_rings_to_vectors(struct ice_pf *pf)
 }
 
 /**
+ * ice_eswitch_release_reprs - clear PR VSIs configuration
+ * @pf: poiner to PF struct
+ * @ctrl_vsi: pointer to switchdev control VSI
+ */
+static void
+ice_eswitch_release_reprs(struct ice_pf *pf, struct ice_vsi *ctrl_vsi)
+{
+	int i;
+
+	ice_for_each_vf(pf, i) {
+		struct ice_vsi *vsi = pf->vf[i].repr->src_vsi;
+		struct ice_vf *vf = &pf->vf[i];
+
+		/* Skip VFs that aren't configured */
+		if (!vf->repr->dst)
+			continue;
+
+		ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
+		metadata_dst_free(vf->repr->dst);
+		vf->repr->dst = NULL;
+		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr.addr,
+					       ICE_FWD_TO_VSI);
+
+		netif_napi_del(&vf->repr->q_vector->napi);
+	}
+}
+
+/**
  * ice_eswitch_setup_reprs - configure port reprs to run in switchdev mode
  * @pf: pointer to PF struct
  */
@@ -231,6 +259,7 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 						       vf->hw_lan_addr.addr,
 						       ICE_FWD_TO_VSI);
 			metadata_dst_free(vf->repr->dst);
+			vf->repr->dst = NULL;
 			goto err;
 		}
 
@@ -239,6 +268,7 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 						       vf->hw_lan_addr.addr,
 						       ICE_FWD_TO_VSI);
 			metadata_dst_free(vf->repr->dst);
+			vf->repr->dst = NULL;
 			ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
 			goto err;
 		}
@@ -266,40 +296,9 @@ static int ice_eswitch_setup_reprs(struct ice_pf *pf)
 	return 0;
 
 err:
-	for (i = i - 1; i >= 0; i--) {
-		struct ice_vsi *vsi = pf->vf[i].repr->src_vsi;
-		struct ice_vf *vf = &pf->vf[i];
-
-		ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
-		metadata_dst_free(vf->repr->dst);
-		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr.addr,
-					       ICE_FWD_TO_VSI);
-	}
+	ice_eswitch_release_reprs(pf, ctrl_vsi);
 
 	return -ENODEV;
-}
-
-/**
- * ice_eswitch_release_reprs - clear PR VSIs configuration
- * @pf: poiner to PF struct
- * @ctrl_vsi: pointer to switchdev control VSI
- */
-static void
-ice_eswitch_release_reprs(struct ice_pf *pf, struct ice_vsi *ctrl_vsi)
-{
-	int i;
-
-	ice_for_each_vf(pf, i) {
-		struct ice_vsi *vsi = pf->vf[i].repr->src_vsi;
-		struct ice_vf *vf = &pf->vf[i];
-
-		ice_vsi_update_security(vsi, ice_vsi_ctx_set_antispoof);
-		metadata_dst_free(vf->repr->dst);
-		ice_fltr_add_mac_and_broadcast(vsi, vf->hw_lan_addr.addr,
-					       ICE_FWD_TO_VSI);
-
-		netif_napi_del(&vf->repr->q_vector->napi);
-	}
 }
 
 /**
