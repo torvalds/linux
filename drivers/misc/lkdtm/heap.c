@@ -22,6 +22,9 @@ static volatile int __offset = 1;
 /*
  * If there aren't guard pages, it's likely that a consecutive allocation will
  * let us overflow into the second allocation without overwriting something real.
+ *
+ * This should always be caught because there is an unconditional unmapped
+ * page after vmap allocations.
  */
 void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
 {
@@ -41,6 +44,9 @@ void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
  * This tries to stay within the next largest power-of-2 kmalloc cache
  * to avoid actually overwriting anything important if it's not detected
  * correctly.
+ *
+ * This should get caught by either memory tagging, KASan, or by using
+ * CONFIG_SLUB_DEBUG=y and slub_debug=ZF (or CONFIG_SLUB_DEBUG_ON=y).
  */
 void lkdtm_SLAB_LINEAR_OVERFLOW(void)
 {
