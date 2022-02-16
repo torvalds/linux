@@ -76,6 +76,9 @@ configurable behaviours:
   with ``.si_code = SEGV_MTEAERR`` and ``.si_addr = 0`` (the faulting
   address is unknown).
 
+- *Asymmetric* - Reads are handled as for synchronous mode while writes
+  are handled as for asynchronous mode.
+
 The user can select the above modes, per thread, using the
 ``prctl(PR_SET_TAGGED_ADDR_CTRL, flags, 0, 0, 0)`` system call where ``flags``
 contains any number of the following values in the ``PR_MTE_TCF_MASK``
@@ -85,6 +88,7 @@ bit-field:
                          (ignored if combined with other options)
 - ``PR_MTE_TCF_SYNC``  - *Synchronous* tag check fault mode
 - ``PR_MTE_TCF_ASYNC`` - *Asynchronous* tag check fault mode
+- ``PR_MTE_TCF_ASYMM`` - *Asymmetric* tag check fault mode
 
 If no modes are specified, tag check faults are ignored. If a single
 mode is specified, the program will run in that mode. If multiple
@@ -139,18 +143,23 @@ tag checking mode as the CPU's preferred tag checking mode.
 
 The preferred tag checking mode for each CPU is controlled by
 ``/sys/devices/system/cpu/cpu<N>/mte_tcf_preferred``, to which a
-privileged user may write the value ``async`` or ``sync``.  The default
-preferred mode for each CPU is ``async``.
+privileged user may write the value ``async``, ``sync`` or ``asymm``.  The
+default preferred mode for each CPU is ``async``.
 
 To allow a program to potentially run in the CPU's preferred tag
 checking mode, the user program may set multiple tag check fault mode
 bits in the ``flags`` argument to the ``prctl(PR_SET_TAGGED_ADDR_CTRL,
 flags, 0, 0, 0)`` system call. If the CPU's preferred tag checking
-mode is in the task's set of provided tag checking modes (this will
-always be the case at present because the kernel only supports two
-tag checking modes, but future kernels may support more modes), that
+mode is in the task's set of provided tag checking modes, that
 mode will be selected. Otherwise, one of the modes in the task's mode
-set will be selected in a currently unspecified manner.
+selected by the kernel using the preference order:
+
+	1. Asynchronous
+	2. Asymmetric
+	3. Synchronous
+
+If asymmetric mode is specified by the program but not supported by
+either the system or the kernel then an error will be returned.
 
 Initial process state
 ---------------------
