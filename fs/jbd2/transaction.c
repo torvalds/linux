@@ -141,20 +141,19 @@ static void jbd2_get_transaction(journal_t *journal,
  * t_max_wait is carefully updated here with use of atomic compare exchange.
  * Note that there could be multiplre threads trying to do this simultaneously
  * hence using cmpxchg to avoid any use of locks in this case.
+ * With this t_max_wait can be updated w/o enabling jbd2_journal_enable_debug.
  */
 static inline void update_t_max_wait(transaction_t *transaction,
 				     unsigned long ts)
 {
-#ifdef CONFIG_JBD2_DEBUG
 	unsigned long oldts, newts;
-	if (jbd2_journal_enable_debug &&
-	    time_after(transaction->t_start, ts)) {
+
+	if (time_after(transaction->t_start, ts)) {
 		newts = jbd2_time_diff(ts, transaction->t_start);
 		oldts = READ_ONCE(transaction->t_max_wait);
 		while (oldts < newts)
 			oldts = cmpxchg(&transaction->t_max_wait, oldts, newts);
 	}
-#endif
 }
 
 /*
