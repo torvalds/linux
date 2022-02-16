@@ -243,7 +243,6 @@ static int load_firmware(struct rt_firmware *rtfw, struct device *device)
 		goto exit;
 	}
 	rtfw->size = fw->size;
-	dev_dbg(device, "!bUsedWoWLANFw, FmrmwareLen:%d+\n", rtfw->size);
 
 exit:
 	release_firmware(fw);
