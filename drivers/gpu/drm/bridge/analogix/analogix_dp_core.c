@@ -1351,7 +1351,8 @@ static
 struct drm_crtc *analogix_dp_get_new_crtc(struct analogix_dp_device *dp,
 					  struct drm_atomic_state *state)
 {
-	struct drm_encoder *encoder = dp->encoder;
+	struct drm_bridge *bridge = &dp->bridge;
+	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 
@@ -1375,16 +1376,14 @@ analogix_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 
-	if (dp->psr_supported) {
-		crtc = analogix_dp_get_new_crtc(dp, old_state);
-		if (!crtc)
-			return;
+	crtc = analogix_dp_get_new_crtc(dp, old_state);
+	if (!crtc)
+		return;
 
-		old_crtc_state = drm_atomic_get_old_crtc_state(old_state, crtc);
-		/* Don't touch the panel if we're coming back from PSR */
-		if (old_crtc_state && old_crtc_state->self_refresh_active)
-			return;
-	}
+	old_crtc_state = drm_atomic_get_old_crtc_state(old_state, crtc);
+	/* Don't touch the panel if we're coming back from PSR */
+	if (old_crtc_state && old_crtc_state->self_refresh_active)
+		return;
 
 	if (dp->plat_data->panel)
 		analogix_dp_panel_prepare(dp);
@@ -1451,19 +1450,17 @@ analogix_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 	int timeout_loop = 0;
 	int ret;
 
-	if (dp->psr_supported) {
-		crtc = analogix_dp_get_new_crtc(dp, old_state);
-		if (!crtc)
-			return;
+	crtc = analogix_dp_get_new_crtc(dp, old_state);
+	if (!crtc)
+		return;
 
-		old_crtc_state = drm_atomic_get_old_crtc_state(old_state, crtc);
-		/* Not a full enable, just disable PSR and continue */
-		if (old_crtc_state && old_crtc_state->self_refresh_active) {
-			ret = analogix_dp_disable_psr(dp);
-			if (ret)
-				DRM_ERROR("Failed to disable psr %d\n", ret);
-			return;
-		}
+	old_crtc_state = drm_atomic_get_old_crtc_state(old_state, crtc);
+	/* Not a full enable, just disable PSR and continue */
+	if (old_crtc_state && old_crtc_state->self_refresh_active) {
+		ret = analogix_dp_disable_psr(dp);
+		if (ret)
+			DRM_ERROR("Failed to disable psr %d\n", ret);
+		return;
 	}
 
 	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
