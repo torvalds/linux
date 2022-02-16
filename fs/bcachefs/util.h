@@ -238,6 +238,7 @@ do {									\
 struct printbuf {
 	char		*pos;
 	char		*end;
+	unsigned	indent;
 };
 
 static inline size_t printbuf_remaining(struct printbuf *buf)
@@ -258,6 +259,27 @@ do {									\
 	(_out)->pos += scnprintf((_out)->pos, printbuf_remaining(_out),	\
 				 __VA_ARGS__);				\
 } while (0)
+
+static inline void printbuf_indent_push(struct printbuf *buf, unsigned spaces)
+{
+	buf->indent += spaces;
+	while (spaces--)
+		pr_buf(buf, " ");
+}
+
+static inline void printbuf_indent_pop(struct printbuf *buf, unsigned spaces)
+{
+	buf->indent -= spaces;
+}
+
+static inline void printbuf_newline(struct printbuf *buf)
+{
+	unsigned i;
+
+	pr_buf(buf, "\n");
+	for (i = 0; i < buf->indent; i++)
+		pr_buf(buf, " ");
+}
 
 void bch_scnmemcpy(struct printbuf *, const char *, size_t);
 

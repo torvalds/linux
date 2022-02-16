@@ -298,11 +298,17 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 					     struct jset_entry *entry)
 {
 	struct bkey_i *k;
+	bool first = true;
 
-	pr_buf(out, "btree=%s l=%u ", bch2_btree_ids[entry->btree_id], entry->level);
-
-	vstruct_for_each(entry, k)
+	vstruct_for_each(entry, k) {
+		if (!first) {
+			printbuf_newline(out);
+			pr_buf(out, "%s: ", bch2_jset_entry_types[entry->type]);
+		}
+		pr_buf(out, "btree=%s l=%u ", bch2_btree_ids[entry->btree_id], entry->level);
 		bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(k));
+		first = false;
+	}
 }
 
 static int journal_entry_btree_root_validate(struct bch_fs *c,
