@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -195,7 +195,7 @@ static void kutf_set_pm_ctx_idle(struct kutf_context *context)
 	kbase_pm_context_idle(data->kbdev);
 }
 
-static char const *kutf_clk_trace_do_change_pm_ctx(struct kutf_context *context,
+static const char *kutf_clk_trace_do_change_pm_ctx(struct kutf_context *context,
 				struct clk_trace_portal_input *cmd)
 {
 	struct kutf_clk_rate_trace_fixture_data *data = context->fixture;
@@ -232,7 +232,7 @@ static char const *kutf_clk_trace_do_change_pm_ctx(struct kutf_context *context,
 	return errmsg;
 }
 
-static char const *kutf_clk_trace_do_get_rate(struct kutf_context *context,
+static const char *kutf_clk_trace_do_get_rate(struct kutf_context *context,
 				struct clk_trace_portal_input *cmd)
 {
 	struct kutf_clk_rate_trace_fixture_data *data = context->fixture;
@@ -293,8 +293,10 @@ static char const *kutf_clk_trace_do_get_rate(struct kutf_context *context,
  * current snapshot record, and the start of the next one. The response
  * message contains the current snapshot record, with each clock's
  * data sequentially placed inside (array marker) [ ].
+ *
+ * Return: generated string
  */
-static char const *kutf_clk_trace_do_get_snapshot(struct kutf_context *context,
+static const char *kutf_clk_trace_do_get_snapshot(struct kutf_context *context,
 				struct clk_trace_portal_input *cmd)
 {
 	struct kutf_clk_rate_trace_fixture_data *data = context->fixture;
@@ -351,8 +353,10 @@ static char const *kutf_clk_trace_do_get_snapshot(struct kutf_context *context,
  *
  * Invokes frequency change notification callbacks with a fake
  * GPU frequency 42 kHz for the top clock domain.
+ *
+ * Return: generated string
  */
-static char const *kutf_clk_trace_do_invoke_notify_42k(
+static const char *kutf_clk_trace_do_invoke_notify_42k(
 	struct kutf_context *context,
 	struct clk_trace_portal_input *cmd)
 {
@@ -392,7 +396,7 @@ static char const *kutf_clk_trace_do_invoke_notify_42k(
 	return errmsg;
 }
 
-static char const *kutf_clk_trace_do_close_portal(struct kutf_context *context,
+static const char *kutf_clk_trace_do_close_portal(struct kutf_context *context,
 				struct clk_trace_portal_input *cmd)
 {
 	struct kutf_clk_rate_trace_fixture_data *data = context->fixture;
@@ -426,7 +430,7 @@ static char const *kutf_clk_trace_do_close_portal(struct kutf_context *context,
  *
  * Return: A string to indicate the platform (PV/PTM/GPU/UNKNOWN)
  */
-static char const *kutf_clk_trace_do_get_platform(
+static const char *kutf_clk_trace_do_get_platform(
 	struct kutf_context *context,
 	struct clk_trace_portal_input *cmd)
 {
@@ -570,6 +574,8 @@ static bool kutf_clk_trace_process_portal_cmd(struct kutf_context *context,
  *
  * This function deal with an erroneous input request, and respond with
  * a proper 'NACK' message.
+ *
+ * Return: 0 on success, non-zero on failure
  */
 static int kutf_clk_trace_do_nack_response(struct kutf_context *context,
 				struct clk_trace_portal_input *cmd)
@@ -871,8 +877,8 @@ static void *mali_kutf_clk_rate_trace_create_fixture(
 }
 
 /**
- * Destroy fixture data previously created by
- * mali_kutf_clk_rate_trace_create_fixture.
+ * mali_kutf_clk_rate_trace_remove_fixture - Destroy fixture data previously created by
+ *                                           mali_kutf_clk_rate_trace_create_fixture.
  *
  * @context:             KUTF context.
  */
@@ -896,6 +902,8 @@ static void mali_kutf_clk_rate_trace_remove_fixture(
 
 /**
  * mali_kutf_clk_rate_trace_test_module_init() - Entry point for test mdoule.
+ *
+ * Return: 0 on success, error code otherwise
  */
 static int __init mali_kutf_clk_rate_trace_test_module_init(void)
 {

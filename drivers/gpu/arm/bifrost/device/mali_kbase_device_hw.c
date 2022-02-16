@@ -63,6 +63,7 @@ static int busy_wait_cache_clean_irq(struct kbase_device *kbdev)
 	}
 
 	/* Clear the interrupt CLEAN_CACHES_COMPLETED bit. */
+	KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ_CLEAR, NULL, CLEAN_CACHES_COMPLETED);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR),
 			CLEAN_CACHES_COMPLETED);
 
@@ -72,7 +73,6 @@ static int busy_wait_cache_clean_irq(struct kbase_device *kbdev)
 int kbase_gpu_cache_flush_and_busy_wait(struct kbase_device *kbdev,
 					u32 flush_op)
 {
-	u32 irq_mask;
 	int need_to_wake_up = 0;
 	int ret = 0;
 
@@ -81,17 +81,18 @@ int kbase_gpu_cache_flush_and_busy_wait(struct kbase_device *kbdev,
 	 */
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	/* 1. Check if CLEAN_CACHES_COMPLETED irq mask bit is set.
+	/* 1. Check if kbdev->cache_clean_in_progress is set.
 	 *    If it is set, it means there are threads waiting for
-	 *    CLEAN_CACHES_COMPLETED irq to be raised.
+	 *    CLEAN_CACHES_COMPLETED irq to be raised and that the
+	 *    corresponding irq mask bit is set.
 	 *    We'll clear the irq mask bit and busy-wait for the cache
 	 *    clean operation to complete before submitting the cache
 	 *    clean command required after the GPU page table update.
 	 *    Pended flush commands will be merged to requested command.
 	 */
-	irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));
-	if (irq_mask & CLEAN_CACHES_COMPLETED) {
+	if (kbdev->cache_clean_in_progress) {
 		/* disable irq first */
+		u32 irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
 				irq_mask & ~CLEAN_CACHES_COMPLETED);
 
@@ -182,22 +183,28 @@ void kbase_clean_caches_done(struct kbase_device *kbdev)
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-	if (kbdev->cache_clean_queued) {
-		u32 pended_flush_op = kbdev->cache_clean_queued;
+	if (kbdev->cache_clean_in_progress) {
+		/* Clear the interrupt CLEAN_CACHES_COMPLETED bit if set.
+		 * It might have already been done by kbase_gpu_cache_flush_and_busy_wait.
+		 */
+		KBASE_KTRACE_ADD(kbdev, CORE_GPU_IRQ_CLEAR, NULL, CLEAN_CACHES_COMPLETED);
+		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR), CLEAN_CACHES_COMPLETED);
 
-		kbdev->cache_clean_queued = 0;
+		if (kbdev->cache_clean_queued) {
+			u32 pended_flush_op = kbdev->cache_clean_queued;
 
-		KBASE_KTRACE_ADD(kbdev, CORE_GPU_CLEAN_INV_CACHES, NULL,
-				 pended_flush_op);
-		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
-				pended_flush_op);
-	} else {
-		/* Disable interrupt */
-		irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));
-		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
-				irq_mask & ~CLEAN_CACHES_COMPLETED);
+			kbdev->cache_clean_queued = 0;
 
-		kbase_gpu_cache_clean_wait_complete(kbdev);
+			KBASE_KTRACE_ADD(kbdev, CORE_GPU_CLEAN_INV_CACHES, NULL, pended_flush_op);
+			kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND), pended_flush_op);
+		} else {
+			/* Disable interrupt */
+			irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));
+			kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
+					irq_mask & ~CLEAN_CACHES_COMPLETED);
+
+			kbase_gpu_cache_clean_wait_complete(kbdev);
+		}
 	}
 
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2011-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -357,6 +357,8 @@ static void kbasep_vinstr_dump_worker(struct work_struct *work)
  * kbasep_vinstr_dump_timer() - Dump timer that schedules the dump worker for
  *                              execution as soon as possible.
  * @timer: Timer structure.
+ *
+ * Return: HRTIMER_NORESTART always.
  */
 static enum hrtimer_restart kbasep_vinstr_dump_timer(struct hrtimer *timer)
 {
@@ -920,7 +922,7 @@ static long kbasep_vinstr_hwcnt_reader_ioctl_get_hwver(
  * @arg:    Command's argument.
  * @size:   Size of arg.
  *
- * @return 0 on success, else error code.
+ * Return: 0 on success, else error code.
  */
 static long kbasep_vinstr_hwcnt_reader_ioctl_get_api_version(
 	struct kbase_vinstr_client *cli, unsigned long arg, size_t size)

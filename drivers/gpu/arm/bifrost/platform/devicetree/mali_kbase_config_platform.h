@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2017, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2017, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,7 +20,7 @@
  */
 
 /**
- * Power management configuration
+ * POWER_MANAGEMENT_CALLBACKS - Power management configuration
  *
  * Attached value: pointer to @ref kbase_pm_callback_conf
  * Default value: See @ref kbase_pm_callback_conf
@@ -28,7 +28,7 @@
 #define POWER_MANAGEMENT_CALLBACKS (&pm_callbacks)
 
 /**
- * Platform specific configuration functions
+ * PLATFORM_FUNCS - Platform specific configuration functions
  *
  * Attached value: pointer to @ref kbase_platform_funcs_conf
  * Default value: See @ref kbase_platform_funcs_conf
@@ -41,7 +41,7 @@ extern struct kbase_pm_callback_conf pm_callbacks;
 extern struct kbase_clk_rate_trace_op_conf clk_rate_trace_ops;
 extern struct kbase_platform_funcs_conf platform_funcs;
 /**
- * Autosuspend delay
+ * AUTO_SUSPEND_DELAY - Autosuspend delay
  *
  * The delay time (in milliseconds) to be used for autosuspend
  */

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2017, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,7 +29,7 @@
  * kbase_gpu_gwt_start - Start the GPU write tracking
  * @kctx: Pointer to kernel context
  *
- * @return 0 on success, error on failure.
+ * Return: 0 on success, error on failure.
  */
 int kbase_gpu_gwt_start(struct kbase_context *kctx);
 
@@ -37,7 +37,7 @@ int kbase_gpu_gwt_start(struct kbase_context *kctx);
  * kbase_gpu_gwt_stop - Stop the GPU write tracking
  * @kctx: Pointer to kernel context
  *
- * @return 0 on success, error on failure.
+ * Return: 0 on success, error on failure.
  */
 int kbase_gpu_gwt_stop(struct kbase_context *kctx);
 
@@ -46,7 +46,7 @@ int kbase_gpu_gwt_stop(struct kbase_context *kctx);
  * @kctx:	Pointer to kernel context
  * @gwt_dump:	User space data to be passed.
  *
- * @return 0 on success, error on failure.
+ * Return: 0 on success, error on failure.
  */
 int kbase_gpu_gwt_dump(struct kbase_context *kctx,
 			union kbase_ioctl_cinstr_gwt_dump *gwt_dump);

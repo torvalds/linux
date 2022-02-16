@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -206,14 +206,16 @@ struct kbase_kcpu_command_group_suspend_info {
  *		indicates that it has been enqueued earlier.
  * @info:	Structure which holds information about the command
  *		dependent on the command type.
- * @info.fence:            Fence
- * @info.cqs_wait:         CQS wait
- * @info.cqs_set:          CQS set
- * @info.import:           import
- * @info.jit_alloc:        jit allocation
- * @info.jit_free:         jit deallocation
- * @info.suspend_buf_copy: suspend buffer copy
- * @info.sample_time:      sample time
+ * @info.fence:              Fence
+ * @info.cqs_wait:           CQS wait
+ * @info.cqs_set:            CQS set
+ * @info.cqs_wait_operation: CQS wait operation
+ * @info.cqs_set_operation:  CQS set operation
+ * @info.import:             import
+ * @info.jit_alloc:          JIT allocation
+ * @info.jit_free:           JIT deallocation
+ * @info.suspend_buf_copy:   suspend buffer copy
+ * @info.sample_time:        sample time
  */
 struct kbase_kcpu_command {
 	enum base_kcpu_command_type type;
@@ -302,8 +304,6 @@ int kbase_csf_kcpu_queue_new(struct kbase_context *kctx,
 
 /**
  * kbase_csf_kcpu_queue_delete - Delete KCPU command queue.
- *
- * Return: 0 if successful, -EINVAL if the queue ID is invalid.
  *
  * @kctx:	Pointer to the kbase context from which the KCPU command
  *		queue is to be deleted.

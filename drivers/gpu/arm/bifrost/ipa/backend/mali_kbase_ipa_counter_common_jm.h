@@ -94,7 +94,10 @@ struct kbase_ipa_model_vinstr_data {
 struct kbase_ipa_group {
 	const char *name;
 	s32 default_value;
-	s64 (*op)(struct kbase_ipa_model_vinstr_data *, s32, u32);
+	s64 (*op)(
+		struct kbase_ipa_model_vinstr_data *model_data,
+		s32 coeff,
+		u32 counter_block_offset);
 	u32 counter_block_offset;
 };
 

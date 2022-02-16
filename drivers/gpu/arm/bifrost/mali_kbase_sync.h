@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2012-2016, 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -66,41 +66,43 @@ struct kbase_sync_fence_info {
  * - dup to add a ref
  * - close to remove a ref
  *
- * return: 0 on success, < 0 on error
+ * Return: 0 on success, < 0 on error
  */
 int kbase_sync_fence_stream_create(const char *name, int *const out_fd);
 
 #if !MALI_USE_CSF
 /**
- * kbase_sync_fence_out_create Create an explicit output fence to specified atom
+ * kbase_sync_fence_out_create - Create an explicit output fence to specified atom
+ *
  * @katom: Atom to assign the new explicit fence to
  * @stream_fd: File descriptor for stream object to create fence on
  *
- * return: Valid file descriptor to fence or < 0 on error
+ * Return: Valid file descriptor to fence or < 0 on error
  */
 int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int stream_fd);
 
 /**
- * kbase_sync_fence_in_from_fd() Assigns an existing fence to specified atom
+ * kbase_sync_fence_in_from_fd() - Assigns an existing fence to specified atom
  * @katom: Atom to assign the existing explicit fence to
  * @fd: File descriptor to an existing fence
  *
  * Assigns an explicit input fence to atom.
  * This can later be waited for by calling @kbase_sync_fence_in_wait
  *
- * return: 0 on success, < 0 on error
+ * Return: 0 on success, < 0 on error
  */
 int kbase_sync_fence_in_from_fd(struct kbase_jd_atom *katom, int fd);
 #endif /* !MALI_USE_CSF */
 
 /**
  * kbase_sync_fence_validate() - Validate a fd to be a valid fence
+ *
  * @fd: File descriptor to check
  *
  * This function is only usable to catch unintentional user errors early,
  * it does not stop malicious code changing the fd after this function returns.
  *
- * return 0: if fd is for a valid fence, < 0 if invalid
+ * Return: 0 if fd is for a valid fence, < 0 if invalid
  */
 int kbase_sync_fence_validate(int fd);
 
@@ -112,7 +114,7 @@ int kbase_sync_fence_validate(int fd);
  *
  * Signal output fence attached on katom and remove the fence from the atom.
  *
- * return: The "next" event code for atom, typically JOB_CANCELLED or EVENT_DONE
+ * Return: The "next" event code for atom, typically JOB_CANCELLED or EVENT_DONE
  */
 enum base_jd_event_code
 kbase_sync_fence_out_trigger(struct kbase_jd_atom *katom, int result);
@@ -127,7 +129,7 @@ kbase_sync_fence_out_trigger(struct kbase_jd_atom *katom, int result);
  * If the fence isn't already signaled, then this kbase_sync framework will
  * take responsibility to continue the processing once the fence is signaled.
  *
- * return: 0 if already signaled, otherwise 1
+ * Return: 0 if already signaled, otherwise 1
  */
 int kbase_sync_fence_in_wait(struct kbase_jd_atom *katom);
 
@@ -163,7 +165,7 @@ void kbase_sync_fence_out_remove(struct kbase_jd_atom *katom);
  * @katom: Atom to get fence information from
  * @info: Struct to be filled with fence information
  *
- * return: 0 on success, < 0 on error
+ * Return: 0 on success, < 0 on error
  */
 int kbase_sync_fence_in_info_get(struct kbase_jd_atom *katom,
 				 struct kbase_sync_fence_info *info);
@@ -173,7 +175,7 @@ int kbase_sync_fence_in_info_get(struct kbase_jd_atom *katom,
  * @katom: Atom to get fence information from
  * @info: Struct to be filled with fence information
  *
- * return: 0 on success, < 0 on error
+ * Return: 0 on success, < 0 on error
  */
 int kbase_sync_fence_out_info_get(struct kbase_jd_atom *katom,
 				  struct kbase_sync_fence_info *info);
@@ -193,7 +195,7 @@ void kbase_sync_fence_info_get(struct dma_fence *fence,
  * kbase_sync_status_string() - Get string matching @status
  * @status: Value of fence status.
  *
- * return: Pointer to string describing @status.
+ * Return: Pointer to string describing @status.
  */
 const char *kbase_sync_status_string(int status);
 
@@ -206,7 +208,8 @@ void kbase_sync_fence_wait_worker(struct work_struct *data);
 
 #ifdef CONFIG_MALI_BIFROST_FENCE_DEBUG
 /**
- * kbase_sync_fence_in_dump() Trigger a debug dump of atoms input fence state
+ * kbase_sync_fence_in_dump() - Trigger a debug dump of atoms input fence state
+ *
  * @katom: Atom to trigger fence debug dump for
  */
 void kbase_sync_fence_in_dump(struct kbase_jd_atom *katom);

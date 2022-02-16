@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014, 2016, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2016, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,7 +20,7 @@
  */
 
 /**
- * Header file for register access history support via debugfs
+ * DOC: Header file for register access history support via debugfs
  *
  * This interface is made available via /sys/kernel/debug/mali#/regs_history*.
  *
@@ -44,7 +44,7 @@ struct kbase_device;
  * @h: The register history to initialize
  * @n: The number of register accesses that the buffer could hold
  *
- * @return 0 if successfully initialized, failure otherwise
+ * Return: 0 if successfully initialized, failure otherwise
  */
 int kbase_io_history_init(struct kbase_io_history *h, u16 n);
 
@@ -71,7 +71,7 @@ void kbasep_regs_history_debugfs_init(struct kbase_device *kbdev);
 
 #else /* !defined(CONFIG_DEBUG_FS) || IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 
-#define kbase_io_history_init(...) ((int)0)
+#define kbase_io_history_init(...) (0)
 
 #define kbase_io_history_term CSTD_NOP
 

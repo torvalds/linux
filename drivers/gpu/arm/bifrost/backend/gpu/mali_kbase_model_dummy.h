@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015, 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -143,7 +143,6 @@ void midgard_model_destroy(void *h);
 u8 midgard_model_write_reg(void *h, u32 addr, u32 value);
 u8 midgard_model_read_reg(void *h, u32 addr,
 							u32 * const value);
-void gpu_generate_error(void);
 void midgard_set_error(int job_slot);
 int job_atom_inject_error(struct kbase_error_params *params);
 int gpu_model_control(void *h,

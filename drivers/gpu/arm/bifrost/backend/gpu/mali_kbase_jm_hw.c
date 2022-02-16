@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -425,6 +425,8 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 					JOB_SLOT_REG(i, JS_STATUS));
 
 				if (completion_code == BASE_JD_EVENT_STOPPED) {
+					u64 job_head;
+
 					KBASE_TLSTREAM_AUX_EVENT_JOB_SLOT(
 						kbdev, NULL,
 						i, 0, TL_JS_EVENT_SOFT_STOP);
@@ -441,6 +443,21 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 						((u64)kbase_reg_read(kbdev,
 						JOB_SLOT_REG(i, JS_TAIL_HI))
 						 << 32);
+					job_head = (u64)kbase_reg_read(kbdev,
+						JOB_SLOT_REG(i, JS_HEAD_LO)) |
+						((u64)kbase_reg_read(kbdev,
+						JOB_SLOT_REG(i, JS_HEAD_HI))
+						 << 32);
+					/* For a soft-stopped job chain js_tail should
+					 * same as the js_head, but if not then the
+					 * job chain was incorrectly marked as
+					 * soft-stopped. In such case we should not
+					 * be resuming the job chain from js_tail and
+					 * report the completion_code as UNKNOWN.
+					 */
+					if (job_tail != job_head)
+						completion_code = BASE_JD_EVENT_UNKNOWN;
+
 				} else if (completion_code ==
 						BASE_JD_EVENT_NOT_STARTED) {
 					/* PRLAM-10673 can cause a TERMINATED
@@ -922,33 +939,12 @@ void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, int js,
 			JS_COMMAND_SOFT_STOP | sw_flags);
 }
 
-/**
- * kbase_job_slot_softstop - Soft-stop the specified job slot
- * @kbdev:         The kbase device
- * @js:            The job slot to soft-stop
- * @target_katom:  The job that should be soft-stopped (or NULL for any job)
- * Context:
- *   The job slot lock must be held when calling this function.
- *   The job slot must not already be in the process of being soft-stopped.
- *
- * Where possible any job in the next register is evicted before the soft-stop.
- */
 void kbase_job_slot_softstop(struct kbase_device *kbdev, int js,
 				struct kbase_jd_atom *target_katom)
 {
 	kbase_job_slot_softstop_swflags(kbdev, js, target_katom, 0u);
 }
 
-/**
- * kbase_job_slot_hardstop - Hard-stop the specified job slot
- * @kctx:         The kbase context that contains the job(s) that should
- *                be hard-stopped
- * @js:           The job slot to hard-stop
- * @target_katom: The job that should be hard-stopped (or NULL for all
- *                jobs from the context)
- * Context:
- *   The job slot lock must be held when calling this function.
- */
 void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 				struct kbase_jd_atom *target_katom)
 {
@@ -961,26 +957,6 @@ void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 	CSTD_UNUSED(stopped);
 }
 
-/**
- * kbase_job_check_enter_disjoint - potentiall enter disjoint mode
- * @kbdev: kbase device
- * @action: the event which has occurred
- * @core_reqs: core requirements of the atom
- * @target_katom: the atom which is being affected
- *
- * For a certain soft-stop action, work out whether to enter disjoint
- * state.
- *
- * This does not register multiple disjoint events if the atom has already
- * started a disjoint period
- *
- * @core_reqs can be supplied as 0 if the atom had not started on the hardware
- * (and so a 'real' soft/hard-stop was not required, but it still interrupted
- * flow, perhaps on another context)
- *
- * kbase_job_check_leave_disjoint() should be used to end the disjoint
- * state when the soft/hard-stop action is complete
- */
 void kbase_job_check_enter_disjoint(struct kbase_device *kbdev, u32 action,
 		base_jd_core_req core_reqs, struct kbase_jd_atom *target_katom)
 {
@@ -1002,14 +978,6 @@ void kbase_job_check_enter_disjoint(struct kbase_device *kbdev, u32 action,
 	kbase_disjoint_state_up(kbdev);
 }
 
-/**
- * kbase_job_check_enter_disjoint - potentially leave disjoint state
- * @kbdev: kbase device
- * @target_katom: atom which is finishing
- *
- * Work out whether to leave disjoint state when finishing an atom that was
- * originated by kbase_job_check_enter_disjoint().
- */
 void kbase_job_check_leave_disjoint(struct kbase_device *kbdev,
 		struct kbase_jd_atom *target_katom)
 {
@@ -1340,8 +1308,7 @@ static void kbasep_try_reset_gpu_early(struct kbase_device *kbdev)
  * This function soft-stops all the slots to ensure that as many jobs as
  * possible are saved.
  *
- * Return:
- *   The function returns a boolean which should be interpreted as follows:
+ * Return: boolean which should be interpreted as follows:
  *   true - Prepared for reset, kbase_reset_gpu_locked should be called.
  *   false - Another thread is performing a reset, kbase_reset_gpu should
  *   not be called.
@@ -1518,9 +1485,9 @@ static u64 kbasep_apply_limited_core_mask(const struct kbase_device *kbdev,
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 	dev_dbg(kbdev->dev,
 				"Limiting affinity due to BASE_JD_REQ_LIMITED_CORE_MASK from 0x%lx to 0x%lx (mask is 0x%lx)\n",
-				(unsigned long int)affinity,
-				(unsigned long int)result,
-				(unsigned long int)limited_core_mask);
+				(unsigned long)affinity,
+				(unsigned long)result,
+				(unsigned long)limited_core_mask);
 #else
 	CSTD_UNUSED(kbdev);
 #endif

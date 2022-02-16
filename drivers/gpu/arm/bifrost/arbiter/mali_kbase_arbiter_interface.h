@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,14 +20,14 @@
  */
 
 /**
- * Defines the Mali arbiter interface
+ * DOC: Defines the Mali arbiter interface
  */
 
 #ifndef _MALI_KBASE_ARBITER_INTERFACE_H_
 #define _MALI_KBASE_ARBITER_INTERFACE_H_
 
 /**
- *  Mali arbiter interface version
+ * DOC: Mali arbiter interface version
  *
  * This specifies the current version of the configuration interface. Whenever
  * the arbiter interface changes, so that integration effort is required, the
@@ -44,7 +44,7 @@
 #define MALI_KBASE_ARBITER_INTERFACE_VERSION 5
 
 /**
- * NO_FREQ is used in case platform doesn't support reporting frequency
+ * DOC: NO_FREQ is used in case platform doesn't support reporting frequency
  */
 #define NO_FREQ 0
 
@@ -52,14 +52,6 @@ struct arbiter_if_dev;
 
 /**
  * struct arbiter_if_arb_vm_ops - Interface to communicate messages to VM
- *
- * This struct contains callbacks used to deliver messages
- * from the arbiter to the corresponding VM.
- *
- * Note that calls into these callbacks may have synchronous calls back into
- * the arbiter arbiter_if_vm_arb_ops callbacks below.
- * For example vm_arb_gpu_stopped() may be called as a side effect of
- * arb_vm_gpu_stop() being called here.
  *
  * @arb_vm_gpu_stop: Callback to ask VM to stop using GPU.
  *                   dev: The arbif kernel module device.
@@ -94,6 +86,13 @@ struct arbiter_if_dev;
  *                      freq: GPU clock frequency value reported from arbiter
  *
  *                      Informs KBase that the GPU clock frequency has been updated.
+ *
+ * This struct contains callbacks used to deliver messages
+ * from the arbiter to the corresponding VM.
+ * Note that calls into these callbacks may have synchronous calls back into
+ * the arbiter arbiter_if_vm_arb_ops callbacks below.
+ * For example vm_arb_gpu_stopped() may be called as a side effect of
+ * arb_vm_gpu_stop() being called here.
  */
 struct arbiter_if_arb_vm_ops {
 	void (*arb_vm_gpu_stop)(struct device *dev);
@@ -106,12 +105,6 @@ struct arbiter_if_arb_vm_ops {
 
 /**
  * struct arbiter_if_vm_arb_ops - Interface to communicate messages to arbiter
- *
- * This struct contains callbacks used to request operations
- * from the VM to the arbiter
- *
- * Note that we must not make any synchronous calls back in to the VM
- * (via arbiter_if_arb_vm_ops above) in the context of these callbacks.
  *
  * @vm_arb_register_dev: Callback to register VM device driver callbacks.
  *                       arbif_dev: The arbiter interface to register
@@ -142,6 +135,11 @@ struct arbiter_if_arb_vm_ops {
  *                      using the GPU
  *                      arbif_dev: The arbiter interface device to notify.
  *                      gpu_required: The GPU is still needed to do more work.
+ *
+ * This struct contains callbacks used to request operations
+ * from the VM to the arbiter.
+ * Note that we must not make any synchronous calls back in to the VM
+ * (via arbiter_if_arb_vm_ops above) in the context of these callbacks.
  */
 struct arbiter_if_vm_arb_ops {
 	int (*vm_arb_register_dev)(struct arbiter_if_dev *arbif_dev,

@@ -29,6 +29,7 @@
 
 /**
  * lock_region() - Generate lockaddr to lock memory region in MMU
+ * @gpu_props: GPU properties for finding the MMU lock region size
  * @pfn:       Starting page frame number of the region to lock
  * @num_pages: Number of pages to lock. It must be greater than 0.
  * @lockaddr:  Address and size of memory region to lock
@@ -62,7 +63,8 @@
  *
  * Return: 0 if success, or an error code on failure.
  */
-static int lock_region(u64 pfn, u32 num_pages, u64 *lockaddr)
+static int lock_region(struct kbase_gpu_props const *gpu_props, u64 pfn, u32 num_pages,
+		       u64 *lockaddr)
 {
 	const u64 lockaddr_base = pfn << PAGE_SHIFT;
 	const u64 lockaddr_end = ((pfn + num_pages) << PAGE_SHIFT) - 1;
@@ -106,7 +108,7 @@ static int lock_region(u64 pfn, u32 num_pages, u64 *lockaddr)
 		return -EINVAL;
 
 	lockaddr_size_log2 =
-		MAX(lockaddr_size_log2, KBASE_LOCK_REGION_MIN_SIZE_LOG2);
+		MAX(lockaddr_size_log2, kbase_get_lock_region_min_size_log2(gpu_props));
 
 	/* Represent the result in a way that is compatible with HW spec.
 	 *
@@ -136,8 +138,10 @@ static int wait_ready(struct kbase_device *kbdev,
 		;
 	}
 
-	if (max_loops == 0) {
-		dev_err(kbdev->dev, "AS_ACTIVE bit stuck, might be caused by slow/unstable GPU clock or possible faulty FPGA connector\n");
+	if (WARN_ON_ONCE(max_loops == 0)) {
+		dev_err(kbdev->dev,
+			"AS_ACTIVE bit stuck for as %u, might be caused by slow/unstable GPU clock or possible faulty FPGA connector",
+			as_nr);
 		return -1;
 	}
 
@@ -152,6 +156,11 @@ static int write_cmd(struct kbase_device *kbdev, int as_nr, u32 cmd)
 	status = wait_ready(kbdev, as_nr);
 	if (status == 0)
 		kbase_reg_write(kbdev, MMU_AS_REG(as_nr, AS_COMMAND), cmd);
+	else {
+		dev_err(kbdev->dev,
+			"Wait for AS_ACTIVE bit failed for as %u, before sending MMU command %u",
+			as_nr, cmd);
+	}
 
 	return status;
 }
@@ -160,6 +169,9 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as)
 {
 	struct kbase_mmu_setup *current_setup = &as->current_setup;
 	u64 transcfg = 0;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+	lockdep_assert_held(&kbdev->mmu_hw_mutex);
 
 	transcfg = current_setup->transcfg;
 
@@ -204,6 +216,10 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as)
 			transcfg);
 
 	write_cmd(kbdev, as->number, AS_COMMAND_UPDATE);
+#if MALI_USE_CSF
+	/* Wait for UPDATE command to complete */
+	wait_ready(kbdev, as->number);
+#endif
 }
 
 int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
@@ -235,7 +251,7 @@ int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
 		}
 	} else if (op_param->op >= KBASE_MMU_OP_FIRST &&
 		   op_param->op < KBASE_MMU_OP_COUNT) {
-		ret = lock_region(op_param->vpfn, op_param->nr, &lock_addr);
+		ret = lock_region(&kbdev->gpu_props, op_param->vpfn, op_param->nr, &lock_addr);
 
 		if (!ret) {
 			/* Lock the region that needs to be updated */

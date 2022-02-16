@@ -42,8 +42,8 @@ DECLARE_EVENT_CLASS(gpu,
 	TP_ARGS(state, gpu_id),
 
 	TP_STRUCT__entry(
-		__field(	u32,		state		)
-		__field(	u32,		gpu_id		)
+		__field(u32, state)
+		__field(u32, gpu_id)
 	),
 
 	TP_fast_assign(

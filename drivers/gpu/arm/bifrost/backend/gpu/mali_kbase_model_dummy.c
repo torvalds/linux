@@ -1470,9 +1470,8 @@ u8 midgard_model_read_reg(void *h, u32 addr, u32 * const value)
 		pr_debug("JS_IRQ_MASK being read %x", *value);
 	}
 #else /* !MALI_USE_CSF */
-	else if (addr == JOB_CONTROL_REG(JOB_IRQ_MASK)) {
-		/* ignore JOB_IRQ_MASK as it is handled by CSFFW */
-	}
+	else if (addr == JOB_CONTROL_REG(JOB_IRQ_MASK))
+		; /* ignore JOB_IRQ_MASK as it is handled by CSFFW */
 #endif /* !MALI_USE_CSF */
 	else if (addr == GPU_CONTROL_REG(GPU_IRQ_MASK)) {
 		*value = (dummy->reset_completed_mask << 8) |

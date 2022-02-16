@@ -40,7 +40,12 @@
  */
 #define KBASEP_USER_DB_NR_INVALID ((s8)-1)
 
-#define FIRMWARE_PING_INTERVAL_MS (8000) /* 8 seconds */
+/* Indicates an invalid value for the scan out sequence number, used to
+ * signify there is no group that has protected mode execution pending.
+ */
+#define KBASEP_TICK_PROTM_PEND_SCAN_SEQ_NR_INVALID (U32_MAX)
+
+#define FIRMWARE_PING_INTERVAL_MS (12000) /* 12 seconds */
 
 #define FIRMWARE_IDLE_HYSTERESIS_TIME_MS (10) /* Default 10 milliseconds */
 
@@ -312,7 +317,7 @@ int kbase_csf_setup_dummy_user_reg_page(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_free_dummy_user_reg_page - Free the dummy page that was used
- *                                 used to replace the User register page
+ *                                      to replace the User register page
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */

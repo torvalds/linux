@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,6 +36,8 @@
  * The struct kbasep_js_device_data sub-structure of kbdev must be zero
  * initialized before passing to the kbasep_js_devdata_init() function. This is
  * to give efficient error path code.
+ *
+ * Return: 0 on success, error code otherwise.
  */
 int kbasep_js_devdata_init(struct kbase_device * const kbdev);
 
@@ -86,6 +88,8 @@ void kbasep_js_devdata_term(struct kbase_device *kbdev);
  *
  * The struct kbase_context must be zero initialized before passing to the
  * kbase_js_init() function. This is to give efficient error path code.
+ *
+ * Return: 0 on success, error code otherwise.
  */
 int kbasep_js_kctx_init(struct kbase_context *const kctx);
 
@@ -206,7 +210,7 @@ bool kbasep_js_add_job(struct kbase_context *kctx, struct kbase_jd_atom *atom);
  * @kbdev: The kbase_device to operate on
  * @kctx:  The kbase_context to operate on
  * @atom: Atom to remove
-*
+ *
  * Completely removing a job requires several calls:
  * * kbasep_js_copy_atom_retained_state(), to capture the 'retained state' of
  *   the atom
@@ -356,9 +360,10 @@ void kbasep_js_runpool_release_ctx(struct kbase_device *kbdev,
 		struct kbase_context *kctx);
 
 /**
- * kbasep_js_runpool_release_ctx_and_katom_retained_state -  Variant of
+ * kbasep_js_runpool_release_ctx_and_katom_retained_state - Variant of
  * kbasep_js_runpool_release_ctx() that handles additional
  * actions from completing an atom.
+ *
  * @kbdev:                KBase device
  * @kctx:                 KBase context
  * @katom_retained_state: Retained state from the atom
@@ -381,8 +386,8 @@ void kbasep_js_runpool_release_ctx_and_katom_retained_state(
 		struct kbasep_js_atom_retained_state *katom_retained_state);
 
 /**
- * kbasep_js_runpool_release_ctx_nolock -
- * Variant of kbase_js_runpool_release_ctx() w/out locks
+ * kbasep_js_runpool_release_ctx_nolock - Variant of kbase_js_runpool_release_ctx()
+ *                                        without locks
  * @kbdev: KBase device
  * @kctx:  KBase context
  *
@@ -396,6 +401,7 @@ void kbasep_js_runpool_release_ctx_nolock(struct kbase_device *kbdev,
 
 /**
  * kbasep_js_schedule_privileged_ctx -  Schedule in a privileged context
+ *
  * @kbdev: KBase device
  * @kctx:  KBase context
  *
@@ -459,7 +465,7 @@ void kbase_js_try_run_jobs(struct kbase_device *kbdev);
  * contexts from (re)entering the runpool.
  *
  * This does not handle suspending the one privileged context: the caller must
- * instead do this by by suspending the GPU HW Counter Instrumentation.
+ * instead do this by suspending the GPU HW Counter Instrumentation.
  *
  * This will eventually cause all Power Management active references held by
  * contexts on the runpool to be released, without running any more atoms.
@@ -688,6 +694,8 @@ void kbase_js_update_ctx_priority(struct kbase_context *kctx);
  * As with any bool, never test the return value with true.
  *
  * The caller must hold hwaccess_lock.
+ *
+ * Return: true if the context is allowed to submit jobs, false otherwise.
  */
 static inline bool kbasep_js_is_submit_allowed(
 		struct kbasep_js_device_data *js_devdata,
@@ -768,8 +776,9 @@ static inline void kbasep_js_clear_submit_allowed(
 }
 
 /**
- * kbasep_js_atom_retained_state_init_invalid -
- * Create an initial 'invalid' atom retained state
+ * kbasep_js_atom_retained_state_init_invalid - Create an initial 'invalid'
+ *                                              atom retained state
+ *
  * @retained_state: pointer where to create and initialize the state
  *
  * Create an initial 'invalid' atom retained state, that requires no

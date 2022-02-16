@@ -570,6 +570,15 @@ int kbase_csf_scheduler_handle_runtime_suspend(struct kbase_device *kbdev);
 #endif
 
 /**
+ * kbase_csf_scheduler_process_gpu_idle_event() - Process GPU idle IRQ
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function is called when a GPU idle IRQ has been raised.
+ */
+void kbase_csf_scheduler_process_gpu_idle_event(struct kbase_device *kbdev);
+
+/**
  * kbase_csf_scheduler_get_nr_active_csgs() - Get the number of active CSGs
  *
  * @kbdev: Pointer to the device

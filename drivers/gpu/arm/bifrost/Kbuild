@@ -71,7 +71,7 @@ endif
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= '"g10p0-01eac0"'
+MALI_RELEASE_NAME ?= '"g11p0-01eac0"'
 # Set up defaults if not defined by build system
 ifeq ($(CONFIG_MALI_BIFROST_DEBUG), y)
     MALI_UNIT_TEST = 1
@@ -164,6 +164,7 @@ bifrost_kbase-y := \
     mali_kbase_hwcnt_gpu_narrow.o \
     mali_kbase_hwcnt_types.o \
     mali_kbase_hwcnt_virtualizer.o \
+    mali_kbase_hwcnt_watchdog_if_timer.o \
     mali_kbase_softjobs.o \
     mali_kbase_hw.o \
     mali_kbase_debug.o \
@@ -201,12 +202,12 @@ bifrost_kbase-$(CONFIG_SYNC_FILE) += \
 ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
     bifrost_kbase-y += \
         mali_kbase_hwcnt_backend_csf.o \
-        mali_kbase_hwcnt_watchdog_if_timer.o \
         mali_kbase_hwcnt_backend_csf_if_fw.o
 else
     bifrost_kbase-y += \
         mali_kbase_jm.o \
         mali_kbase_hwcnt_backend_jm.o \
+        mali_kbase_hwcnt_backend_jm_watchdog.o \
         mali_kbase_dummy_job_wa.o \
         mali_kbase_debug_job_fault.o \
         mali_kbase_event.o \

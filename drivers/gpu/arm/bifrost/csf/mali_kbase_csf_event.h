@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -110,9 +110,9 @@ static inline void kbase_csf_event_signal_cpu_only(struct kbase_context *kctx)
 /**
  * kbase_csf_event_init - Initialize event object
  *
- * This function initializes the event object.
- *
  * @kctx: The kbase context whose event object will be initialized.
+ *
+ * This function initializes the event object.
  */
 void kbase_csf_event_init(struct kbase_context *const kctx);
 

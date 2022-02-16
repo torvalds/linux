@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -115,7 +115,7 @@ static int kbasep_timeline_has_header_data(struct kbase_timeline *timeline)
  * @hdr_size:    Header size.
  * @hdr_btc:     Pointer to the remaining number of bytes to copy.
  *
- * Returns: 0 if success, -1 otherwise.
+ * Return: 0 if success, -1 otherwise.
  */
 static inline int copy_stream_header(char __user *buffer, size_t size,
 				     ssize_t *copy_len, const char *hdr,
@@ -152,7 +152,7 @@ static inline int copy_stream_header(char __user *buffer, size_t size,
  * to the user, and if so, sends them. copy_len is respectively
  * updated.
  *
- * Returns: 0 if success, -1 if copy_to_user has failed.
+ * Return: 0 if success, -1 if copy_to_user has failed.
  */
 static inline int kbasep_timeline_copy_headers(struct kbase_timeline *timeline,
 					       char __user *buffer, size_t size,
@@ -289,6 +289,7 @@ static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer,
  * kbasep_timeline_io_poll - poll timeline stream for packets
  * @filp: Pointer to file structure
  * @wait: Pointer to poll table
+ *
  * Return: POLLIN if data can be read without blocking, otherwise zero
  */
 static unsigned int kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
@@ -320,7 +321,7 @@ static unsigned int kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
  * @inode: Pointer to inode structure
  * @filp:  Pointer to file structure
  *
- * Return always return zero
+ * Return: always return zero
  */
 static int kbasep_timeline_io_release(struct inode *inode, struct file *filp)
 {
@@ -344,7 +345,7 @@ static int kbasep_timeline_io_release(struct inode *inode, struct file *filp)
 	elapsed_time = ktime_sub(ktime_get(), timeline->last_acquire_time);
 	elapsed_time_ms = ktime_to_ms(elapsed_time);
 	time_to_sleep = MIN(TIMELINE_HYSTERESIS_TIMEOUT_MS,
-	                    TIMELINE_HYSTERESIS_TIMEOUT_MS - elapsed_time_ms);
+		TIMELINE_HYSTERESIS_TIMEOUT_MS - elapsed_time_ms);
 	if (time_to_sleep > 0)
 		msleep(time_to_sleep);
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -81,6 +81,7 @@ static int dma_buf_te_attach(struct dma_buf *buf, struct dma_buf_attachment *att
 #endif
 {
 	struct dma_buf_te_alloc	*alloc;
+
 	alloc = buf->priv;
 
 	if (alloc->fail_attach)
@@ -95,6 +96,12 @@ static int dma_buf_te_attach(struct dma_buf *buf, struct dma_buf_attachment *att
 	return 0;
 }
 
+/**
+ * dma_buf_te_detach - The detach callback function to release &attachment
+ *
+ * @buf: buffer for the &attachment
+ * @attachment: attachment data to be released
+ */
 static void dma_buf_te_detach(struct dma_buf *buf, struct dma_buf_attachment *attachment)
 {
 	struct dma_buf_te_alloc *alloc = buf->priv;
@@ -199,6 +206,7 @@ static void dma_buf_te_release(struct dma_buf *buf)
 {
 	size_t i;
 	struct dma_buf_te_alloc *alloc;
+
 	alloc = buf->priv;
 	/* no need for locking */
 
@@ -240,6 +248,7 @@ static int dma_buf_te_sync(struct dma_buf *dmabuf,
 	list_for_each_entry(attachment, &dmabuf->attachments, node) {
 		struct dma_buf_te_attachment *pa = attachment->priv;
 		struct sg_table *sg = pa->sg;
+
 		if (!sg) {
 			dev_dbg(te_device.this_device, "no mapping for device %s\n", dev_name(attachment->dev));
 			continue;
@@ -291,6 +300,7 @@ static void dma_buf_te_mmap_open(struct vm_area_struct *vma)
 {
 	struct dma_buf *dma_buf;
 	struct dma_buf_te_alloc *alloc;
+
 	dma_buf = vma->vm_private_data;
 	alloc = dma_buf->priv;
 
@@ -303,6 +313,7 @@ static void dma_buf_te_mmap_close(struct vm_area_struct *vma)
 {
 	struct dma_buf *dma_buf;
 	struct dma_buf_te_alloc *alloc;
+
 	dma_buf = vma->vm_private_data;
 	alloc = dma_buf->priv;
 
@@ -344,7 +355,7 @@ static vm_fault_t dma_buf_te_mmap_fault(struct vm_fault *vmf)
 	return 0;
 }
 
-struct vm_operations_struct dma_buf_te_vm_ops = {
+static const struct vm_operations_struct dma_buf_te_vm_ops = {
 	.open = dma_buf_te_mmap_open,
 	.close = dma_buf_te_mmap_close,
 	.fault = dma_buf_te_mmap_fault
@@ -353,6 +364,7 @@ struct vm_operations_struct dma_buf_te_vm_ops = {
 static int dma_buf_te_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct dma_buf_te_alloc *alloc;
+
 	alloc = dmabuf->priv;
 
 	if (alloc->fail_mmap)
@@ -398,7 +410,6 @@ static void dma_buf_te_kunmap(struct dma_buf *buf,
 		return;
 
 	kunmap(alloc->pages[page_num]);
-	return;
 }
 
 static struct dma_buf_ops dma_buf_te_ops = {
@@ -798,13 +809,14 @@ static const struct file_operations dma_buf_te_fops = {
 static int __init dma_buf_te_init(void)
 {
 	int res;
+
 	te_device.minor = MISC_DYNAMIC_MINOR;
 	te_device.name = "dma_buf_te";
 	te_device.fops = &dma_buf_te_fops;
 
 	res = misc_register(&te_device);
 	if (res) {
-		printk(KERN_WARNING"Misc device registration failed of 'dma_buf_te'\n");
+		pr_warn("Misc device registration failed of 'dma_buf_te'\n");
 		return res;
 	}
 	te_device.this_device->coherent_dma_mask = DMA_BIT_MASK(32);

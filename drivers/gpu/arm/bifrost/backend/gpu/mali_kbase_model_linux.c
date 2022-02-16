@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010, 2012-2015, 2017-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010, 2012-2015, 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -135,8 +135,12 @@ void gpu_device_raise_irq(void *model,
 	default:
 		dev_warn(kbdev->dev, "Unknown IRQ");
 		kmem_cache_free(kbdev->irq_slab, data);
+		data = NULL;
+		break;
 	}
-	queue_work(kbdev->irq_workq, &data->work);
+
+	if (data != NULL)
+		queue_work(kbdev->irq_workq, &data->work);
 }
 
 void kbase_reg_write(struct kbase_device *kbdev, u32 offset, u32 value)
@@ -248,6 +252,11 @@ int kbase_gpu_device_create(struct kbase_device *kbdev)
 	return 0;
 }
 
+/**
+ * kbase_gpu_device_destroy - Destroy GPU device
+ *
+ * @kbdev: kbase device
+ */
 void kbase_gpu_device_destroy(struct kbase_device *kbdev)
 {
 	midgard_model_destroy(kbdev->model);

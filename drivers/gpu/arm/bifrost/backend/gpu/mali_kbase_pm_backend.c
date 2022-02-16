@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -101,9 +101,8 @@ int kbase_pm_runtime_init(struct kbase_device *kbdev)
 
 void kbase_pm_runtime_term(struct kbase_device *kbdev)
 {
-	if (kbdev->pm.callback_power_runtime_term) {
+	if (kbdev->pm.callback_power_runtime_term)
 		kbdev->pm.callback_power_runtime_term(kbdev);
-	}
 }
 
 void kbase_pm_register_access_enable(struct kbase_device *kbdev)
@@ -202,6 +201,13 @@ int kbase_hwaccess_pm_init(struct kbase_device *kbdev)
 		kbase_pm_hwcnt_disable_worker);
 	kbase_hwcnt_context_disable(kbdev->hwcnt_gpu_ctx);
 
+#if MALI_USE_CSF && defined(KBASE_PM_RUNTIME)
+	kbdev->pm.backend.gpu_sleep_supported =
+		kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_GPU_SLEEP) &&
+		!kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_TURSEHW_1997) &&
+		kbdev->pm.backend.callback_power_runtime_gpu_active &&
+		kbdev->pm.backend.callback_power_runtime_gpu_idle;
+#endif
 
 	if (IS_ENABLED(CONFIG_MALI_HW_ERRATA_1485982_NOT_AFFECTED)) {
 		kbdev->pm.backend.l2_always_on = false;
@@ -288,7 +294,7 @@ static void pm_handle_power_off(struct kbase_device *kbdev)
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 #if MALI_USE_CSF && defined(KBASE_PM_RUNTIME)
-	if (kbdev->pm.backend.gpu_wakeup_override ) {
+	if (kbdev->pm.backend.gpu_wakeup_override) {
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		return;
 	}
@@ -361,11 +367,6 @@ static void kbase_pm_gpu_poweroff_wait_wq(struct work_struct *data)
 #endif
 
 	kbase_pm_lock(kbdev);
-
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
-	if (kbase_pm_is_gpu_lost(kbdev))
-		backend->poweron_required = false;
-#endif
 
 	pm_handle_power_off(kbdev);
 
@@ -683,6 +684,13 @@ void kbase_pm_wait_for_poweroff_work_complete(struct kbase_device *kbdev)
 }
 KBASE_EXPORT_TEST_API(kbase_pm_wait_for_poweroff_work_complete);
 
+/**
+ * is_gpu_powered_down - Check whether GPU is powered down
+ *
+ * @kbdev: kbase device
+ *
+ * Return: true if GPU is powered down, false otherwise
+ */
 static bool is_gpu_powered_down(struct kbase_device *kbdev)
 {
 	bool ret;
@@ -882,7 +890,7 @@ void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev,
 	lockdep_assert_held(&kbdev->pm.lock);
 
 	if (kbase_dummy_job_wa_enabled(kbdev)) {
-		dev_warn(kbdev->dev, "Change of core mask not supported for slot 0 as dummy job WA is enabled");
+		dev_warn_once(kbdev->dev, "Change of core mask not supported for slot 0 as dummy job WA is enabled");
 		new_core_mask_js0 = kbdev->pm.debug_core_mask[0];
 	}
 

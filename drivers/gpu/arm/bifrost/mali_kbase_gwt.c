@@ -82,9 +82,9 @@ int kbase_gpu_gwt_start(struct kbase_context *kctx)
 
 #endif
 	/* Mark gwt enabled before making pages read only in case a
-	   write page fault is triggered while we're still in this loop.
-	   (kbase_gpu_vm_lock() doesn't prevent this!)
-	*/
+	 * write page fault is triggered while we're still in this loop.
+	 * (kbase_gpu_vm_lock() doesn't prevent this!)
+	 */
 	kctx->gwt_enabled = true;
 	kctx->gwt_was_enabled = true;
 

@@ -71,7 +71,7 @@ KBASE_EXPORT_TEST_API(kbase_ipa_model_ops_find);
 
 const char *kbase_ipa_model_name_from_id(u32 gpu_id)
 {
-	const char* model_name =
+	const char *model_name =
 		kbase_ipa_counter_model_name_from_id(gpu_id);
 
 	if (!model_name)
@@ -610,7 +610,7 @@ static unsigned long kbase_get_dynamic_power(unsigned long freq,
 
 		/* Here unlike kbase_get_real_power(), shader core frequency is
 		 * used for the scaling as simple power model is used to obtain
-		 * the value of dynamic coefficient (which is is a fixed value
+		 * the value of dynamic coefficient (which is a fixed value
 		 * retrieved from the device tree).
 		 */
 		power += kbase_scale_dynamic_power(

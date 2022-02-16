@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2015, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,7 +22,7 @@
 #ifndef _UAPI_KBASE_HWCNT_READER_H_
 #define _UAPI_KBASE_HWCNT_READER_H_
 
-#include <stddef.h>
+#include <linux/stddef.h>
 #include <linux/types.h>
 
 /* The ids of ioctl commands. */
@@ -118,11 +118,12 @@ enum prfcnt_list_type {
 };
 
 #define FLEX_LIST_TYPE(type, subtype)                                          \
-	(__u16)(((type & 0xf) << 12) | (subtype & 0xfff))
+	((__u16)(((type & 0xf) << 12) | (subtype & 0xfff)))
 #define FLEX_LIST_TYPE_NONE FLEX_LIST_TYPE(0, 0)
 
 #define PRFCNT_ENUM_TYPE_BLOCK FLEX_LIST_TYPE(PRFCNT_LIST_TYPE_ENUM, 0)
 #define PRFCNT_ENUM_TYPE_REQUEST FLEX_LIST_TYPE(PRFCNT_LIST_TYPE_ENUM, 1)
+#define PRFCNT_ENUM_TYPE_SAMPLE_INFO FLEX_LIST_TYPE(PRFCNT_LIST_TYPE_ENUM, 2)
 
 #define PRFCNT_REQUEST_TYPE_MODE FLEX_LIST_TYPE(PRFCNT_LIST_TYPE_REQUEST, 0)
 #define PRFCNT_REQUEST_TYPE_ENABLE FLEX_LIST_TYPE(PRFCNT_LIST_TYPE_REQUEST, 1)
@@ -183,8 +184,9 @@ enum prfcnt_set {
  * @num_instances: How many instances of this block type exist in the hardware.
  * @num_values:    How many entries in the values array there are for samples
  *                 from this block.
- * @counter_mask:  Bitmask that indicates the availability of counters in this
- *                 block.
+ * @counter_mask:  Bitmask that indicates counter availability in this block.
+ *                 A '0' indicates that a counter is not available at that
+ *                 index and will always return zeroes if requested.
  */
 struct prfcnt_enum_block_counter {
 	__u8 block_type;
@@ -208,11 +210,22 @@ struct prfcnt_enum_request {
 };
 
 /**
+ * struct prfcnt_enum_sample_info - Sample information descriptor.
+ * @num_clock_domains:       Number of clock domains of the GPU.
+ * @pad:                     Padding bytes.
+ */
+struct prfcnt_enum_sample_info {
+	__u32 num_clock_domains;
+	__u32 pad;
+};
+
+/**
  * struct prfcnt_enum_item - Performance counter enumeration item.
  * @hdr:             Header describing the type of item in the list.
  * @u:               Structure containing discriptor for enumeration item type.
  * @u.block_counter: Performance counter block descriptor.
  * @u.request:       Request descriptor.
+ * @u.sample_info:   Performance counter sample information descriptor.
  */
 struct prfcnt_enum_item {
 	struct prfcnt_item_header hdr;
@@ -220,6 +233,7 @@ struct prfcnt_enum_item {
 	union {
 		struct prfcnt_enum_block_counter block_counter;
 		struct prfcnt_enum_request request;
+		struct prfcnt_enum_sample_info sample_info;
 	} u;
 };
 
@@ -237,11 +251,11 @@ enum prfcnt_mode {
 
 /**
  * struct prfcnt_request_mode - Mode request descriptor.
- * @mode:                         Capture mode for the session, either manual or periodic.
- * @pad:                          Padding bytes.
- * @mode_config:                  Structure containing configuration for periodic mode.
- * @mode_config.period:           Periodic config.
- * @mode_config.period.period_ns: Period in nanoseconds, for periodic mode.
+ * @mode:                           Capture mode for the session, either manual or periodic.
+ * @pad:                            Padding bytes.
+ * @mode_config:                    Structure containing configuration for periodic mode.
+ * @mode_config.periodic:           Periodic config.
+ * @mode_config.periodic.period_ns: Period in nanoseconds, for periodic mode.
  */
 struct prfcnt_request_mode {
 	__u8 mode;
@@ -481,4 +495,3 @@ struct prfcnt_sample_access {
 	_IOW(KBASE_KINSTR_PRFCNT_READER, 0x10, struct prfcnt_sample_access)
 
 #endif /* _UAPI_KBASE_HWCNT_READER_H_ */
-

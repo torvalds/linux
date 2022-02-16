@@ -99,7 +99,7 @@ void kbase_as_fault_debugfs_init(struct kbase_device *kbdev)
 	} else {
 		for (i = 0; i < kbdev->nr_hw_address_spaces; i++) {
 			snprintf(as_name, ARRAY_SIZE(as_name), "as%u", i);
-			debugfs_create_file(as_name, S_IRUGO,
+			debugfs_create_file(as_name, 0444,
 					    debugfs_directory,
 					    (void *)(uintptr_t)i,
 					    &as_fault_fops);
@@ -108,5 +108,4 @@ void kbase_as_fault_debugfs_init(struct kbase_device *kbdev)
 
 #endif /* CONFIG_MALI_BIFROST_DEBUG */
 #endif /* CONFIG_DEBUG_FS */
-	return;
 }

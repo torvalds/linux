@@ -491,8 +491,7 @@ static void kbase_pm_metrics_active_calc(struct kbase_device *kbdev)
 					BASE_JD_REQ_SPECIFIC_COHERENT_GROUP)
 						? katom->device_nr : 0;
 				if (!WARN_ON(device_nr >= 2))
-					kbdev->pm.backend.metrics.
-						active_cl_ctx[device_nr] = 1;
+					kbdev->pm.backend.metrics.active_cl_ctx[device_nr] = 1;
 			} else {
 				kbdev->pm.backend.metrics.active_gl_ctx[js] = 1;
 				trace_sysgraph(SGR_ACTIVE, 0, js);

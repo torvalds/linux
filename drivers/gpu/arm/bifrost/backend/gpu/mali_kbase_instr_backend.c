@@ -421,12 +421,12 @@ int kbase_instr_backend_init(struct kbase_device *kbdev)
 #ifdef CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS
 /* Use the build time option for the override default. */
 #if defined(CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY)
-	kbdev->hwcnt.backend.override_counter_set = KBASE_HWCNT_SET_SECONDARY;
+	kbdev->hwcnt.backend.override_counter_set = KBASE_HWCNT_PHYSICAL_SET_SECONDARY;
 #elif defined(CONFIG_MALI_PRFCNT_SET_TERTIARY)
-	kbdev->hwcnt.backend.override_counter_set = KBASE_HWCNT_SET_TERTIARY;
+	kbdev->hwcnt.backend.override_counter_set = KBASE_HWCNT_PHYSICAL_SET_TERTIARY;
 #else
 	/* Default to primary */
-	kbdev->hwcnt.backend.override_counter_set = KBASE_HWCNT_SET_PRIMARY;
+	kbdev->hwcnt.backend.override_counter_set = KBASE_HWCNT_PHYSICAL_SET_PRIMARY;
 #endif
 #endif
 	return 0;
@@ -446,8 +446,8 @@ void kbase_instr_backend_debugfs_init(struct kbase_device *kbdev)
 	 *
 	 * Valid inputs are the values accepted bythe SET_SELECT bits of the
 	 * PRFCNT_CONFIG register as defined in the architecture specification.
-	*/
-	debugfs_create_u8("hwcnt_set_select", S_IRUGO | S_IWUSR,
+	 */
+	debugfs_create_u8("hwcnt_set_select", 0644,
 			  kbdev->mali_debugfs_directory,
 			  (u8 *)&kbdev->hwcnt.backend.override_counter_set);
 }

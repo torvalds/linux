@@ -28,7 +28,7 @@
 #include <device/mali_kbase_device.h>
 #include "mali_kbase_hwcnt_gpu.h"
 #include "mali_kbase_hwcnt_types.h"
-#include <uapi/gpu/arm/bifrost/csf/mali_gpu_csf_registers.h>
+#include <csf/mali_kbase_csf_registers.h>
 
 #include "csf/mali_kbase_csf_firmware.h"
 #include "mali_kbase_hwcnt_backend_csf_if_fw.h"

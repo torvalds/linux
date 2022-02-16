@@ -117,7 +117,7 @@ static void kbasep_jd_debugfs_atom_deps(
 	int i;
 
 	for (i = 0; i < 2; i++)	{
-		deps[i].id = (unsigned)(atom->dep[i].atom ?
+		deps[i].id = (unsigned int)(atom->dep[i].atom ?
 				kbase_jd_atom_id(kctx, atom->dep[i].atom) : 0);
 
 		switch (atom->dep[i].dep_type) {
@@ -231,9 +231,9 @@ static const struct file_operations kbasep_jd_debugfs_atoms_fops = {
 void kbasep_jd_debugfs_ctx_init(struct kbase_context *kctx)
 {
 #if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
-	const mode_t mode = S_IRUGO;
+	const mode_t mode = 0444;
 #else
-	const mode_t mode = S_IRUSR;
+	const mode_t mode = 0400;
 #endif
 
 	/* Caller already ensures this, but we keep the pattern for

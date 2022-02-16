@@ -126,6 +126,7 @@ static void kbase_mem_pool_sync_page(struct kbase_mem_pool *pool,
 		struct page *p)
 {
 	struct device *dev = pool->kbdev->dev;
+
 	dma_sync_single_for_device(dev, kbase_dma_addr(p),
 			(PAGE_SIZE << pool->order), DMA_BIDIRECTIONAL);
 }
@@ -548,6 +549,7 @@ int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_4k_pages,
 	nr_from_pool = min(nr_pages_internal, kbase_mem_pool_size(pool));
 	while (nr_from_pool--) {
 		int j;
+
 		p = kbase_mem_pool_remove_locked(pool);
 		if (pool->order) {
 			pages[i++] = as_tagged_tag(page_to_phys(p),

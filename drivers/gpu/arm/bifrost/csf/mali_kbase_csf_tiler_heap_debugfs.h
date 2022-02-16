@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,14 +28,14 @@ struct kbase_context;
 #define MALI_CSF_TILER_HEAP_DEBUGFS_VERSION 0
 
 /**
- * kbase_csf_tiler_heap_debugfs_init() - Create a debugfs entry for per context tiler heap
+ * kbase_csf_tiler_heap_debugfs_init - Create a debugfs entry for per context tiler heap
  *
  * @kctx: The kbase_context for which to create the debugfs entry
  */
 void kbase_csf_tiler_heap_debugfs_init(struct kbase_context *kctx);
 
 /**
- * kbase_csf_tiler_heap_total_debugfs_init() - Create a debugfs entry for per context tiler heap
+ * kbase_csf_tiler_heap_total_debugfs_init - Create a debugfs entry for per context tiler heap
  *
  * @kctx: The kbase_context for which to create the debugfs entry
  */

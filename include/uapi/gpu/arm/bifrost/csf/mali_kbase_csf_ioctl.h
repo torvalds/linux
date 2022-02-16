@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -50,10 +50,16 @@
  * - Added reserved field to QUEUE_GROUP_CREATE ioctl for future use
  * 1.8:
  * - Removed Kernel legacy HWC interface
+ * 1.9:
+ * - Reorganization of GPU-VA memory zones, including addition of
+ *   FIXED_VA zone and auto-initialization of EXEC_VA zone.
+ * - Added new Base memory allocation interface
+ * 1.10:
+ * - First release of new HW performance counters interface.
  */
 
 #define BASE_UK_VERSION_MAJOR 1
-#define BASE_UK_VERSION_MINOR 8
+#define BASE_UK_VERSION_MINOR 10
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between
@@ -70,7 +76,6 @@ struct kbase_ioctl_version_check {
 #define KBASE_IOCTL_VERSION_CHECK_RESERVED \
 	_IOWR(KBASE_IOCTL_TYPE, 0, struct kbase_ioctl_version_check)
 
-
 /**
  * struct kbase_ioctl_cs_queue_register - Register a GPU command queue with the
  *                                        base back-end
@@ -80,7 +85,7 @@ struct kbase_ioctl_version_check {
  * @priority: Priority of the queue within a group when run within a process
  * @padding: Currently unused, must be zero
  *
- * @Note: There is an identical sub-section in kbase_ioctl_cs_queue_register_ex.
+ * Note: There is an identical sub-section in kbase_ioctl_cs_queue_register_ex.
  *        Any change of this struct should also be mirrored to the latter.
  */
 struct kbase_ioctl_cs_queue_register {
@@ -149,7 +154,7 @@ union kbase_ioctl_cs_queue_bind {
  * @ex_event_state: Trace event states configuration
  * @ex_padding: Currently unused, must be zero
  *
- * @Note: There is an identical sub-section at the start of this struct to that
+ * Note: There is an identical sub-section at the start of this struct to that
  *        of @ref kbase_ioctl_cs_queue_register. Any change of this sub-section
  *        must also be mirrored to the latter. Following the said sub-section,
  *        the remaining fields forms the extension, marked with ex_*.
@@ -257,6 +262,9 @@ union kbase_ioctl_cs_queue_group_create {
 		__u8 fragment_max;
 		__u8 compute_max;
 		__u8 padding[3];
+		/**
+		 * @reserved: Reserved
+		 */
 		__u64 reserved;
 	} in;
 	struct {
@@ -390,7 +398,7 @@ struct kbase_ioctl_cs_tiler_heap_term {
  * @in:                    Input parameters
  * @in.max_group_num:      The maximum number of groups to be read. Can be 0, in
  *                         which case groups_ptr is unused.
- * @in.max_total_stream    _num: The maximum number of CSs to be read. Can be 0, in
+ * @in.max_total_stream_num: The maximum number of CSs to be read. Can be 0, in
  *                         which case streams_ptr is unused.
  * @in.groups_ptr:         Pointer where to store all the group data (sequentially).
  * @in.streams_ptr:        Pointer where to store all the CS data (sequentially).
@@ -439,6 +447,37 @@ struct kbase_ioctl_cs_cpu_queue_info {
 
 #define KBASE_IOCTL_CS_CPU_QUEUE_DUMP \
 	_IOW(KBASE_IOCTL_TYPE, 53, struct kbase_ioctl_cs_cpu_queue_info)
+
+/**
+ * union kbase_ioctl_mem_alloc_ex - Allocate memory on the GPU
+ * @in: Input parameters
+ * @in.va_pages: The number of pages of virtual address space to reserve
+ * @in.commit_pages: The number of physical pages to allocate
+ * @in.extension: The number of extra pages to allocate on each GPU fault which grows the region
+ * @in.flags: Flags
+ * @in.fixed_address: The GPU virtual address requested for the allocation,
+ *                    if the allocation is using the BASE_MEM_FIXED flag.
+ * @in.extra: Space for extra parameters that may be added in the future.
+ * @out: Output parameters
+ * @out.flags: Flags
+ * @out.gpu_va: The GPU virtual address which is allocated
+ */
+union kbase_ioctl_mem_alloc_ex {
+	struct {
+		__u64 va_pages;
+		__u64 commit_pages;
+		__u64 extension;
+		__u64 flags;
+		__u64 fixed_address;
+		__u64 extra[3];
+	} in;
+	struct {
+		__u64 flags;
+		__u64 gpu_va;
+	} out;
+};
+
+#define KBASE_IOCTL_MEM_ALLOC_EX _IOWR(KBASE_IOCTL_TYPE, 59, union kbase_ioctl_mem_alloc_ex)
 
 /***************
  * test ioctls *

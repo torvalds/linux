@@ -174,17 +174,15 @@ u64 kbase_csf_heap_context_allocator_alloc(
 	 * allocate it.
 	 */
 	if (!ctx_alloc->region) {
-		ctx_alloc->region =
-			kbase_mem_alloc(kctx, nr_pages, nr_pages, 0, &flags,
-					&ctx_alloc->gpu_va, mmu_sync_info);
+		ctx_alloc->region = kbase_mem_alloc(kctx, nr_pages, nr_pages, 0, &flags,
+						    &ctx_alloc->gpu_va, mmu_sync_info);
 	}
 
 	/* If the pool still isn't allocated then an error occurred. */
-	if (unlikely(!ctx_alloc->region)) {
+	if (unlikely(!ctx_alloc->region))
 		dev_dbg(kctx->kbdev->dev, "Failed to allocate a pool of tiler heap contexts");
-	} else {
+	else
 		heap_gpu_va = sub_alloc(ctx_alloc);
-	}
 
 	mutex_unlock(&ctx_alloc->lock);
 

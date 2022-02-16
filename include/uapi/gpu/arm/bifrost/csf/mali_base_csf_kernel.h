@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -68,7 +68,8 @@
  */
 #define BASEP_MEM_NO_USER_FREE ((base_mem_alloc_flags)1 << 7)
 
-#define BASE_MEM_RESERVED_BIT_8 ((base_mem_alloc_flags)1 << 8)
+/* Must be FIXED memory. */
+#define BASE_MEM_FIXED ((base_mem_alloc_flags)1 << 8)
 
 /* Grow backing store on GPU Page Fault
  */
@@ -160,11 +161,16 @@
 /* Kernel side cache sync ops required */
 #define BASE_MEM_KERNEL_SYNC ((base_mem_alloc_flags)1 << 28)
 
+/* Must be FIXABLE memory: its GPU VA will be determined at a later point,
+ * at which time it will be at a fixed GPU VA.
+ */
+#define BASE_MEM_FIXABLE ((base_mem_alloc_flags)1 << 29)
+
 /* Number of bits used as flags for base memory management
  *
  * Must be kept in sync with the base_mem_alloc_flags flags
  */
-#define BASE_MEM_FLAGS_NR_BITS 29
+#define BASE_MEM_FLAGS_NR_BITS 30
 
 /* A mask of all the flags which are only valid for allocations within kbase,
  * and may not be passed from user space.
@@ -183,8 +189,7 @@
 
 /* A mask of all currently reserved flags
  */
-#define BASE_MEM_FLAGS_RESERVED \
-	BASE_MEM_RESERVED_BIT_8 | BASE_MEM_RESERVED_BIT_20
+#define BASE_MEM_FLAGS_RESERVED BASE_MEM_RESERVED_BIT_20
 
 #define BASEP_MEM_INVALID_HANDLE (0ul)
 #define BASE_MEM_MMU_DUMP_HANDLE (1ul << LOCAL_PAGE_SHIFT)
@@ -540,15 +545,17 @@ struct base_kcpu_command_group_suspend_info {
  * @padding:	padding to a multiple of 64 bits
  * @info:	structure which contains information about the kcpu command;
  *		actual type is determined by @p type
- * @info.fence:            Fence
- * @info.cqs_wait:         CQS wait
- * @info.cqs_set:          CQS set
- * @info.import:           import
- * @info.jit_alloc:        jit allocation
- * @info.jit_free:         jit deallocation
- * @info.suspend_buf_copy: suspend buffer copy
- * @info.sample_time:      sample time
- * @info.padding:          padding
+ * @info.fence:              Fence
+ * @info.cqs_wait:           CQS wait
+ * @info.cqs_set:            CQS set
+ * @info.cqs_wait_operation: CQS wait operation
+ * @info.cqs_set_operation:  CQS set operation
+ * @info.import:             import
+ * @info.jit_alloc:          JIT allocation
+ * @info.jit_free:           JIT deallocation
+ * @info.suspend_buf_copy:   suspend buffer copy
+ * @info.sample_time:        sample time
+ * @info.padding:            padding
  */
 struct base_kcpu_command {
 	__u8 type;

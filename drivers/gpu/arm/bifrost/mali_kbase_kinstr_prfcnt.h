@@ -26,9 +26,11 @@
 #ifndef _KBASE_KINSTR_PRFCNT_H_
 #define _KBASE_KINSTR_PRFCNT_H_
 
+#include "mali_kbase_hwcnt_types.h"
 #include <uapi/gpu/arm/bifrost/mali_kbase_hwcnt_reader.h>
 
 struct kbase_kinstr_prfcnt_context;
+struct kbase_kinstr_prfcnt_client;
 struct kbase_hwcnt_virtualizer;
 struct kbase_ioctl_hwcnt_reader_setup;
 struct kbase_ioctl_kinstr_prfcnt_enum_info;
@@ -98,15 +100,18 @@ int kbasep_kinstr_prfcnt_get_block_info_list(const struct kbase_hwcnt_metadata *
 /**
  * kbasep_kinstr_prfcnt_get_sample_md_count() - Get count of sample
  *                                              metadata items.
- * @metadata: Non-NULL pointer to the hardware counter metadata.
+ * @metadata:   Non-NULL pointer to the hardware counter metadata.
+ * @enable_map: Non-NULL pointer to the map of enabled counters.
  *
  * Return: Number of metadata items for available blocks in each sample.
  */
-size_t kbasep_kinstr_prfcnt_get_sample_md_count(const struct kbase_hwcnt_metadata *metadata);
+size_t kbasep_kinstr_prfcnt_get_sample_md_count(const struct kbase_hwcnt_metadata *metadata,
+						struct kbase_hwcnt_enable_map *enable_map);
 
 /**
  * kbasep_kinstr_prfcnt_set_block_meta_items() - Populate a sample's block meta
  *                                               item array.
+ * @enable_map:      Non-NULL pointer to the map of enabled counters.
  * @dst:             Non-NULL pointer to the sample's dump buffer object.
  * @block_meta_base: Non-NULL double pointer to the start of the block meta
  *                   data items.
@@ -116,9 +121,43 @@ size_t kbasep_kinstr_prfcnt_get_sample_md_count(const struct kbase_hwcnt_metadat
  *
  * Return: 0 on success, else error code.
  */
-int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_dump_buffer *dst,
+int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *enable_map,
+					      struct kbase_hwcnt_dump_buffer *dst,
 					      struct prfcnt_metadata **block_meta_base,
 					      u64 base_addr, u8 counter_set);
+
+/**
+ * kbasep_kinstr_prfcnt_client_create() - Create a kinstr_prfcnt client.
+ *                                        Does not attach to the kinstr_prfcnt
+ *                                        context.
+ * @kinstr_ctx: Non-NULL pointer to kinstr_prfcnt context.
+ * @setup:      Non-NULL pointer to hardware counter ioctl setup structure.
+ * @out_vcli:   Non-NULL pointer to where created client will be stored on
+ *              success.
+ * @req_arr:    Non-NULL pointer to array of request items for client session.
+ *
+ * Return: 0 on success, else error code.
+ */
+int kbasep_kinstr_prfcnt_client_create(struct kbase_kinstr_prfcnt_context *kinstr_ctx,
+				       union kbase_ioctl_kinstr_prfcnt_setup *setup,
+				       struct kbase_kinstr_prfcnt_client **out_vcli,
+				       struct prfcnt_request_item *req_arr);
+
+/**
+ * kbasep_kinstr_prfcnt_cmd() - Execute command for a client session.
+ * @cli:         Non-NULL pointer to kinstr_prfcnt client.
+ * @control_cmd: Control command to execute.
+ *
+ * Return: 0 on success, else error code.
+ */
+int kbasep_kinstr_prfcnt_cmd(struct kbase_kinstr_prfcnt_client *cli,
+			     struct prfcnt_control_cmd *control_cmd);
+
+/**
+ * kbasep_kinstr_prfcnt_client_destroy() - Destroy a kinstr_prfcnt client.
+ * @cli: kinstr_prfcnt client. Must not be attached to a kinstr_prfcnt context.
+ */
+void kbasep_kinstr_prfcnt_client_destroy(struct kbase_kinstr_prfcnt_client *cli);
 #endif /* MALI_KERNEL_TEST_API */
 
 /**

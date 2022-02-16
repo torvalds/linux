@@ -27,6 +27,9 @@
 #include <mali_kbase_hwaccess_backend.h>
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_reset_gpu.h>
+#include <mali_kbase_hwcnt_watchdog_if_timer.h>
+#include <mali_kbase_hwcnt_backend_jm.h>
+#include <mali_kbase_hwcnt_backend_jm_watchdog.h>
 
 #if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 #include <backend/gpu/mali_kbase_model_linux.h>
@@ -148,73 +151,115 @@ static void kbase_backend_late_term(struct kbase_device *kbdev)
 	kbase_hwaccess_pm_term(kbdev);
 }
 
-static int kbase_device_hwcnt_backend_jm_init(struct kbase_device *kbdev)
+/**
+ * kbase_device_hwcnt_watchdog_if_init - Create hardware counter watchdog
+ *                                       interface.
+ * @kbdev:	Device pointer
+ * Return: 0 on success, or an error code on failure.
+ */
+static int kbase_device_hwcnt_watchdog_if_init(struct kbase_device *kbdev)
 {
-	return kbase_hwcnt_backend_jm_create(kbdev, &kbdev->hwcnt_gpu_iface);
+	return kbase_hwcnt_watchdog_if_timer_create(&kbdev->hwcnt_watchdog_timer);
 }
 
+/**
+ * kbase_device_hwcnt_watchdog_if_term - Terminate hardware counter watchdog
+ *                                       interface.
+ * @kbdev:	Device pointer
+ */
+static void kbase_device_hwcnt_watchdog_if_term(struct kbase_device *kbdev)
+{
+	kbase_hwcnt_watchdog_if_timer_destroy(&kbdev->hwcnt_watchdog_timer);
+}
+
+/**
+ * kbase_device_hwcnt_backend_jm_init - Create hardware counter backend.
+ * @kbdev:	Device pointer
+ * Return: 0 on success, or an error code on failure.
+ */
+static int kbase_device_hwcnt_backend_jm_init(struct kbase_device *kbdev)
+{
+	return kbase_hwcnt_backend_jm_create(kbdev, &kbdev->hwcnt_gpu_jm_backend);
+}
+
+/**
+ * kbase_device_hwcnt_backend_jm_term - Terminate hardware counter backend.
+ * @kbdev:	Device pointer
+ */
 static void kbase_device_hwcnt_backend_jm_term(struct kbase_device *kbdev)
 {
-	kbase_hwcnt_backend_jm_destroy(&kbdev->hwcnt_gpu_iface);
+	kbase_hwcnt_backend_jm_destroy(&kbdev->hwcnt_gpu_jm_backend);
+}
+
+/**
+ * kbase_device_hwcnt_backend_jm_watchdog_init - Create hardware counter watchdog backend.
+ * @kbdev:	Device pointer
+ * Return: 0 on success, or an error code on failure.
+ */
+static int kbase_device_hwcnt_backend_jm_watchdog_init(struct kbase_device *kbdev)
+{
+	return kbase_hwcnt_backend_jm_watchdog_create(&kbdev->hwcnt_gpu_jm_backend,
+						      &kbdev->hwcnt_watchdog_timer,
+						      &kbdev->hwcnt_gpu_iface);
+}
+
+/**
+ * kbase_device_hwcnt_backend_jm_watchdog_term - Terminate hardware counter watchdog backend.
+ * @kbdev:	Device pointer
+ */
+static void kbase_device_hwcnt_backend_jm_watchdog_term(struct kbase_device *kbdev)
+{
+	kbase_hwcnt_backend_jm_watchdog_destroy(&kbdev->hwcnt_gpu_iface);
 }
 
 static const struct kbase_device_init dev_init[] = {
 #if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-	{ kbase_gpu_device_create, kbase_gpu_device_destroy,
-	  "Dummy model initialization failed" },
+	{ kbase_gpu_device_create, kbase_gpu_device_destroy, "Dummy model initialization failed" },
 #else
 	{ assign_irqs, NULL, "IRQ search failed" },
 	{ registers_map, registers_unmap, "Register map failed" },
 #endif
 	{ kbase_device_io_history_init, kbase_device_io_history_term,
 	  "Register access history initialization failed" },
-	{ kbase_device_pm_init, kbase_device_pm_term,
-	  "Power management initialization failed" },
-	{ kbase_device_early_init, kbase_device_early_term,
-	  "Early device initialization failed" },
-	{ kbase_device_populate_max_freq, NULL,
-	  "Populating max frequency failed" },
+	{ kbase_device_pm_init, kbase_device_pm_term, "Power management initialization failed" },
+	{ kbase_device_early_init, kbase_device_early_term, "Early device initialization failed" },
+	{ kbase_device_populate_max_freq, NULL, "Populating max frequency failed" },
 	{ kbase_device_misc_init, kbase_device_misc_term,
 	  "Miscellaneous device initialization failed" },
 	{ kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
 	  "Priority control manager initialization failed" },
-	{ kbase_ctx_sched_init, kbase_ctx_sched_term,
-	  "Context scheduler initialization failed" },
-	{ kbase_mem_init, kbase_mem_term,
-	  "Memory subsystem initialization failed" },
+	{ kbase_ctx_sched_init, kbase_ctx_sched_term, "Context scheduler initialization failed" },
+	{ kbase_mem_init, kbase_mem_term, "Memory subsystem initialization failed" },
 	{ kbase_device_coherency_init, NULL, "Device coherency init failed" },
 	{ kbase_protected_mode_init, kbase_protected_mode_term,
 	  "Protected mode subsystem initialization failed" },
-	{ kbase_device_list_init, kbase_device_list_term,
-	  "Device list setup failed" },
-	{ kbasep_js_devdata_init, kbasep_js_devdata_term,
-	  "Job JS devdata initialization failed" },
+	{ kbase_device_list_init, kbase_device_list_term, "Device list setup failed" },
+	{ kbasep_js_devdata_init, kbasep_js_devdata_term, "Job JS devdata initialization failed" },
 	{ kbase_device_timeline_init, kbase_device_timeline_term,
 	  "Timeline stream initialization failed" },
 	{ kbase_clk_rate_trace_manager_init, kbase_clk_rate_trace_manager_term,
 	  "Clock rate trace manager initialization failed" },
-	{ kbase_lowest_gpu_freq_init, NULL,
-	  "Lowest freq initialization failed" },
+	{ kbase_lowest_gpu_freq_init, NULL, "Lowest freq initialization failed" },
 	{ kbase_instr_backend_init, kbase_instr_backend_term,
 	  "Instrumentation backend initialization failed" },
-	{ kbase_device_hwcnt_backend_jm_init,
-	  kbase_device_hwcnt_backend_jm_term,
+	{ kbase_device_hwcnt_watchdog_if_init, kbase_device_hwcnt_watchdog_if_term,
+	  "GPU hwcnt backend watchdog interface creation failed" },
+	{ kbase_device_hwcnt_backend_jm_init, kbase_device_hwcnt_backend_jm_term,
 	  "GPU hwcnt backend creation failed" },
+	{ kbase_device_hwcnt_backend_jm_watchdog_init, kbase_device_hwcnt_backend_jm_watchdog_term,
+	  "GPU hwcnt watchdog backend creation failed" },
 	{ kbase_device_hwcnt_context_init, kbase_device_hwcnt_context_term,
 	  "GPU hwcnt context initialization failed" },
-	{ kbase_device_hwcnt_virtualizer_init,
-	  kbase_device_hwcnt_virtualizer_term,
+	{ kbase_device_hwcnt_virtualizer_init, kbase_device_hwcnt_virtualizer_term,
 	  "GPU hwcnt virtualizer initialization failed" },
 	{ kbase_device_vinstr_init, kbase_device_vinstr_term,
 	  "Virtual instrumentation initialization failed" },
 	{ kbase_device_kinstr_prfcnt_init, kbase_device_kinstr_prfcnt_term,
 	  "Performance counter instrumentation initialization failed" },
-	{ kbase_backend_late_init, kbase_backend_late_term,
-	  "Late backend initialization failed" },
+	{ kbase_backend_late_init, kbase_backend_late_term, "Late backend initialization failed" },
 	{ kbase_debug_job_fault_dev_init, kbase_debug_job_fault_dev_term,
 	  "Job fault debug initialization failed" },
-	{ kbase_device_debugfs_init, kbase_device_debugfs_term,
-	  "DebugFS initialization failed" },
+	{ kbase_device_debugfs_init, kbase_device_debugfs_term, "DebugFS initialization failed" },
 	/* Sysfs init needs to happen before registering the device with
 	 * misc_register(), otherwise it causes a race condition between
 	 * registering the device and a uevent event being generated for
@@ -233,8 +278,7 @@ static const struct kbase_device_init dev_init[] = {
 	{ kbase_gpuprops_populate_user_buffer, kbase_gpuprops_free_user_buffer,
 	  "GPU property population failed" },
 	{ NULL, kbase_dummy_job_wa_cleanup, NULL },
-	{ kbase_device_late_init, kbase_device_late_term,
-	  "Late device initialization failed" },
+	{ kbase_device_late_init, kbase_device_late_term, "Late device initialization failed" },
 };
 
 static void kbase_device_term_partial(struct kbase_device *kbdev,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -51,6 +51,8 @@ struct kbase_dma_buf {
  * rb_tree is maintained at kbase_device level and kbase_process level
  * by passing the root of kbase_device or kbase_process we can remove
  * the node from the tree.
+ *
+ * Return: true on success.
  */
 static bool kbase_delete_dma_buf_mapping(struct kbase_context *kctx,
 					 struct dma_buf *dma_buf,
@@ -100,6 +102,8 @@ static bool kbase_delete_dma_buf_mapping(struct kbase_context *kctx,
  * of all unique dma_buf's mapped to gpu memory. So when attach any
  * dma_buf add it the rb_tree's. To add the unique mapping we need
  * check if the mapping is not a duplicate and then add them.
+ *
+ * Return: true on success
  */
 static bool kbase_capture_dma_buf_mapping(struct kbase_context *kctx,
 					  struct dma_buf *dma_buf,

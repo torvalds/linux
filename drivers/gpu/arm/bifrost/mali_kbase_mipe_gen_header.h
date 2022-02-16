@@ -98,7 +98,7 @@
  *
  * Where the first argument is tracepoints name, the second
  * argument is a short tracepoint description, the third argument
- * argument types (see MIPE documentation), and the fourth argument
+ * types (see MIPE documentation), and the fourth argument
  * is comma separated argument names.
  */
 #if !defined(MIPE_HEADER_TRACEPOINT_LIST)

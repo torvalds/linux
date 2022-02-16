@@ -47,12 +47,12 @@ const char *kutf_dsprintf(struct kutf_mempool *pool,
 	va_end(args);
 
 	if (len < 0) {
-		pr_err("kutf_dsprintf: Bad format dsprintf format %s\n", fmt);
+		pr_err("%s: Bad format dsprintf format %s\n", __func__, fmt);
 		goto fail_format;
 	}
 
 	if (len >= sizeof(tmp_buffer)) {
-		pr_warn("kutf_dsprintf: Truncated dsprintf message %s\n", fmt);
+		pr_warn("%s: Truncated dsprintf message %s\n", __func__, fmt);
 		size = sizeof(tmp_buffer);
 	} else {
 		size = len + 1;

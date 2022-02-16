@@ -179,13 +179,13 @@ int kbase_csf_firmware_trace_buffers_init(struct kbase_device *kbdev)
 		extract_gpu_va =
 			(kbdev->csf.firmware_trace_buffers.mcu_rw.va_reg->start_pfn << PAGE_SHIFT) +
 			mcu_rw_offset;
-		extract_cpu_va = (u32*)(
+		extract_cpu_va = (u32 *)(
 			kbdev->csf.firmware_trace_buffers.mcu_rw.cpu_addr +
 			mcu_rw_offset);
 		insert_gpu_va =
 			(kbdev->csf.firmware_trace_buffers.mcu_write.va_reg->start_pfn << PAGE_SHIFT) +
 			mcu_write_offset;
-		insert_cpu_va = (u32*)(
+		insert_cpu_va = (u32 *)(
 			kbdev->csf.firmware_trace_buffers.mcu_write.cpu_addr +
 			mcu_write_offset);
 		data_buffer_gpu_va =
@@ -323,13 +323,13 @@ void kbase_csf_firmware_reload_trace_buffers_data(struct kbase_device *kbdev)
 		extract_gpu_va =
 			(kbdev->csf.firmware_trace_buffers.mcu_rw.va_reg->start_pfn << PAGE_SHIFT) +
 			mcu_rw_offset;
-		extract_cpu_va = (u32*)(
+		extract_cpu_va = (u32 *)(
 			kbdev->csf.firmware_trace_buffers.mcu_rw.cpu_addr +
 			mcu_rw_offset);
 		insert_gpu_va =
 			(kbdev->csf.firmware_trace_buffers.mcu_write.va_reg->start_pfn << PAGE_SHIFT) +
 			mcu_write_offset;
-		insert_cpu_va = (u32*)(
+		insert_cpu_va = (u32 *)(
 			kbdev->csf.firmware_trace_buffers.mcu_write.cpu_addr +
 			mcu_write_offset);
 		data_buffer_gpu_va =

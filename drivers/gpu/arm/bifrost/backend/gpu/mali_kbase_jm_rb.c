@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -37,14 +37,23 @@
 #include <backend/gpu/mali_kbase_jm_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
-/* Return whether the specified ringbuffer is empty. HW access lock must be
- * held
+/**
+ * SLOT_RB_EMPTY - Return whether the specified ringbuffer is empty.
+ *
+ * @rb: ring buffer
+ *
+ * Note: HW access lock must be held
  */
 #define SLOT_RB_EMPTY(rb)   (rb->write_idx == rb->read_idx)
-/* Return number of atoms currently in the specified ringbuffer. HW access lock
- * must be held
+
+/**
+ * SLOT_RB_ENTRIES - Return number of atoms currently in the specified ringbuffer.
+ *
+ * @rb: ring buffer
+ *
+ * Note: HW access lock must be held
  */
-#define SLOT_RB_ENTRIES(rb) (int)(s8)(rb->write_idx - rb->read_idx)
+#define SLOT_RB_ENTRIES(rb) ((int)(s8)(rb->write_idx - rb->read_idx))
 
 static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 					struct kbase_jd_atom *katom,
@@ -304,10 +313,10 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 				[katom->slot_nr]);
 
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
-
+		fallthrough;
 	case KBASE_ATOM_GPU_RB_READY:
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
-
+		fallthrough;
 	case KBASE_ATOM_GPU_RB_WAITING_FOR_CORE_AVAILABLE:
 		break;
 
@@ -367,13 +376,13 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 		}
 
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
-
+		fallthrough;
 	case KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_PREV:
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
-
+		fallthrough;
 	case KBASE_ATOM_GPU_RB_WAITING_BLOCKED:
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
-
+		fallthrough;
 	case KBASE_ATOM_GPU_RB_RETURN_TO_JS:
 		break;
 	}
@@ -1813,7 +1822,7 @@ void kbase_gpu_dump_slots(struct kbase_device *kbdev)
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-	dev_info(kbdev->dev, "kbase_gpu_dump_slots:\n");
+	dev_info(kbdev->dev, "%s:\n", __func__);
 
 	for (js = 0; js < kbdev->gpu_props.num_job_slots; js++) {
 		int idx;

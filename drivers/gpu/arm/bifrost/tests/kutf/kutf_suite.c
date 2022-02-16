@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014, 2017-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -319,7 +319,8 @@ static void kutf_run_test(struct work_struct *data)
 }
 
 /**
- * kutf_debugfs_run_open() Debugfs open callback for the "run" entry.
+ * kutf_debugfs_run_open() - Debugfs open callback for the "run" entry.
+ *
  * @inode:	inode of the opened file
  * @file:	Opened file to read from
  *
@@ -493,7 +494,7 @@ exit:
 }
 
 /**
- * kutf_debugfs_run_write() Debugfs write callback for the "run" entry.
+ * kutf_debugfs_run_write() - Debugfs write callback for the "run" entry.
  * @file:	Opened file to write to
  * @buf:	User buffer to read the data from
  * @len:	Amount of data to write
@@ -589,7 +590,7 @@ static int create_fixture_variant(struct kutf_test_function *test_func,
 		goto fail_dir;
 	}
 
-	tmp = debugfs_create_file("type", S_IROTH, test_fix->dir, "fixture\n",
+	tmp = debugfs_create_file("type", 0004, test_fix->dir, "fixture\n",
 				  &kutf_debugfs_const_string_ops);
 	if (IS_ERR_OR_NULL(tmp)) {
 		pr_err("Failed to create debugfs file \"type\" when adding fixture\n");
@@ -671,7 +672,7 @@ void kutf_add_test_with_filters_and_data(
 		goto fail_dir;
 	}
 
-	tmp = debugfs_create_file("type", S_IROTH, test_func->dir, "test\n",
+	tmp = debugfs_create_file("type", 0004, test_func->dir, "test\n",
 				  &kutf_debugfs_const_string_ops);
 	if (IS_ERR_OR_NULL(tmp)) {
 		pr_err("Failed to create debugfs file \"type\" when adding test %s\n", name);
@@ -680,10 +681,10 @@ void kutf_add_test_with_filters_and_data(
 
 	test_func->filters = filters;
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
-	tmp = debugfs_create_file_unsafe("filters", S_IROTH, test_func->dir,
+	tmp = debugfs_create_file_unsafe("filters", 0004, test_func->dir,
 					 &test_func->filters, &kutfp_fops_x32_ro);
 #else
-	tmp = debugfs_create_x32("filters", S_IROTH, test_func->dir,
+	tmp = debugfs_create_x32("filters", 0004, test_func->dir,
 				 &test_func->filters);
 #endif
 	if (IS_ERR_OR_NULL(tmp)) {
@@ -693,10 +694,10 @@ void kutf_add_test_with_filters_and_data(
 
 	test_func->test_id = id;
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
-	debugfs_create_u32("test_id", S_IROTH, test_func->dir,
-                       &test_func->test_id);
+	debugfs_create_u32("test_id", 0004, test_func->dir,
+		&test_func->test_id);
 #else
-	tmp = debugfs_create_u32("test_id", S_IROTH, test_func->dir,
+	tmp = debugfs_create_u32("test_id", 0004, test_func->dir,
 				 &test_func->test_id);
 	if (IS_ERR_OR_NULL(tmp)) {
 		pr_err("Failed to create debugfs file \"test_id\" when adding test %s\n", name);
@@ -766,7 +767,7 @@ void kutf_add_test(struct kutf_suite *suite,
 EXPORT_SYMBOL(kutf_add_test);
 
 /**
- * kutf_remove_test(): Remove a previously added test function.
+ * kutf_remove_test() - Remove a previously added test function.
  * @test_func: Test function
  */
 static void kutf_remove_test(struct kutf_test_function *test_func)
@@ -810,7 +811,7 @@ struct kutf_suite *kutf_create_suite_with_filters_and_data(
 		goto fail_debugfs;
 	}
 
-	tmp = debugfs_create_file("type", S_IROTH, suite->dir, "suite\n",
+	tmp = debugfs_create_file("type", 0004, suite->dir, "suite\n",
 				  &kutf_debugfs_const_string_ops);
 	if (IS_ERR_OR_NULL(tmp)) {
 		pr_err("Failed to create debugfs file \"type\" when adding test %s\n", name);
@@ -918,7 +919,7 @@ struct kutf_application *kutf_create_application(const char *name)
 		goto fail_debugfs;
 	}
 
-	tmp = debugfs_create_file("type", S_IROTH, app->dir, "application\n",
+	tmp = debugfs_create_file("type", 0004, app->dir, "application\n",
 				  &kutf_debugfs_const_string_ops);
 	if (IS_ERR_OR_NULL(tmp)) {
 		pr_err("Failed to create debugfs file \"type\" when creating application %s\n", name);
@@ -1162,8 +1163,9 @@ EXPORT_SYMBOL(kutf_test_abort);
 
 /**
  * init_kutf_core() - Module entry point.
- *
  * Create the base entry point in debugfs.
+ *
+ * Return: 0 on success, error code otherwise.
  */
 static int __init init_kutf_core(void)
 {
@@ -1197,9 +1199,10 @@ static void __exit exit_kutf_core(void)
 #else	/* CONFIG_DEBUG_FS */
 
 /**
- * init_kutf_core() - Module entry point.
+ * init_kutf_core - Module entry point
+ * Stub for when build against a kernel without debugfs support.
  *
- * Stub for when build against a kernel without debugfs support
+ * Return: -ENODEV
  */
 static int __init init_kutf_core(void)
 {

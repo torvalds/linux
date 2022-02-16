@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,10 +28,10 @@
  * kbasep_pbha_supported - check whether PBHA registers are
  * available
  *
+ * @kbdev: Device pointer
+ *
  * Should only be used in mali_kbase_pbha* files - thus the
  * kbase[p] prefix.
- *
- * @kbdev: Device pointer
  *
  * Return: True if pbha is supported, false otherwise
  */
@@ -57,10 +57,10 @@ int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime,
  * kbase_pbha_write_settings - write recorded PBHA settings to GPU
  * registers
  *
+ * @kbdev: Device pointer
+ *
  * Only valid to call this function when L2 is powered down, otherwise
  * this will not affect PBHA settings.
- *
- * @kbdev: Device pointer
  */
 void kbase_pbha_write_settings(struct kbase_device *kbdev);
 

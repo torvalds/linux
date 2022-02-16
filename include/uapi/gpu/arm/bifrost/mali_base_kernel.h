@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -150,7 +150,7 @@ struct base_mem_import_user_buffer {
 #define BASE_MEM_TILER_ALIGN_TOP_EXTENSION_MAX_PAGES                           \
 	(1ull << (BASE_MEM_TILER_ALIGN_TOP_EXTENSION_MAX_PAGES_LOG2))
 
-/* Bit mask of cookies used for for memory allocation setup */
+/* Bit mask of cookies used for memory allocation setup */
 #define KBASE_COOKIE_MASK  ~1UL /* bit 0 is reserved */
 
 /* Maximum size allowed in a single KBASE_IOCTL_MEM_ALLOC call */
@@ -173,6 +173,12 @@ struct base_fence {
 /**
  * struct base_mem_aliasing_info - Memory aliasing info
  *
+ * @handle: Handle to alias, can be BASE_MEM_WRITE_ALLOC_PAGES_HANDLE
+ * @offset: Offset within the handle to start aliasing from, in pages.
+ *          Not used with BASE_MEM_WRITE_ALLOC_PAGES_HANDLE.
+ * @length: Length to alias, in pages. For BASE_MEM_WRITE_ALLOC_PAGES_HANDLE
+ *          specifies the number of times the special page is needed.
+ *
  * Describes a memory handle to be aliased.
  * A subset of the handle can be chosen for aliasing, given an offset and a
  * length.
@@ -184,12 +190,6 @@ struct base_fence {
  * Offset and length are specified in pages.
  * Offset must be within the size of the handle.
  * Offset+length must not overrun the size of the handle.
- *
- * @handle: Handle to alias, can be BASE_MEM_WRITE_ALLOC_PAGES_HANDLE
- * @offset: Offset within the handle to start aliasing from, in pages.
- *          Not used with BASE_MEM_WRITE_ALLOC_PAGES_HANDLE.
- * @length: Length to alias, in pages. For BASE_MEM_WRITE_ALLOC_PAGES_HANDLE
- *          specifies the number of times the special page is needed.
  */
 struct base_mem_aliasing_info {
 	struct base_mem_handle handle;
@@ -320,10 +320,9 @@ struct base_external_resource {
 	__u64 ext_resource;
 };
 
-
 /**
- * The maximum number of external resources which can be mapped/unmapped
- * in a single request.
+ * BASE_EXT_RES_COUNT_MAX - The maximum number of external resources
+ * which can be mapped/unmapped in a single request.
  */
 #define BASE_EXT_RES_COUNT_MAX 10
 
@@ -348,7 +347,7 @@ struct base_jd_debug_copy_buffer {
 #define GPU_MAX_JOB_SLOTS 16
 
 /**
- * User-side Base GPU Property Queries
+ * DOC: User-side Base GPU Property Queries
  *
  * The User-side Base GPU Property Query interface encapsulates two
  * sub-modules:
@@ -459,36 +458,34 @@ struct base_jd_debug_copy_buffer {
  * 16 coherent groups, since core groups are typically 4 cores.
  */
 
-#define BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS 4
-
-#define BASE_MAX_COHERENT_GROUPS 16
 /**
  * struct mali_base_gpu_core_props - GPU core props info
+ *
  * @product_id: Pro specific value.
  * @version_status: Status of the GPU release. No defined values, but starts at
- * 	0 and increases by one for each release status (alpha, beta, EAC, etc.).
- * 	4 bit values (0-15).
+ *   0 and increases by one for each release status (alpha, beta, EAC, etc.).
+ *   4 bit values (0-15).
  * @minor_revision: Minor release number of the GPU. "P" part of an "RnPn"
- * 	release number.
- * 	8 bit values (0-255).
+ *   release number.
+ *   8 bit values (0-255).
  * @major_revision: Major release number of the GPU. "R" part of an "RnPn"
- * 	release number.
- * 	4 bit values (0-15).
+ *   release number.
+ *   4 bit values (0-15).
  * @padding: padding to allign to 8-byte
  * @gpu_freq_khz_max: The maximum GPU frequency. Reported to applications by
- * 	clGetDeviceInfo()
+ *   clGetDeviceInfo()
  * @log2_program_counter_size: Size of the shader program counter, in bits.
  * @texture_features: TEXTURE_FEATURES_x registers, as exposed by the GPU. This
- * 	is a bitpattern where a set bit indicates that the format is supported.
- * 	Before using a texture format, it is recommended that the corresponding
- * 	bit be checked.
+ *   is a bitpattern where a set bit indicates that the format is supported.
+ *   Before using a texture format, it is recommended that the corresponding
+ *   bit be checked.
  * @gpu_available_memory_size: Theoretical maximum memory available to the GPU.
- * 	It is unlikely that a client will be able to allocate all of this memory
- * 	for their own purposes, but this at least provides an upper bound on the
- * 	memory available to the GPU.
- * 	This is required for OpenCL's clGetDeviceInfo() call when
- * 	CL_DEVICE_GLOBAL_MEM_SIZE is requested, for OpenCL GPU devices. The
- * 	client will not be expecting to allocate anywhere near this value.
+ *   It is unlikely that a client will be able to allocate all of this memory
+ *   for their own purposes, but this at least provides an upper bound on the
+ *   memory available to the GPU.
+ *   This is required for OpenCL's clGetDeviceInfo() call when
+ *   CL_DEVICE_GLOBAL_MEM_SIZE is requested, for OpenCL GPU devices. The
+ *   client will not be expecting to allocate anywhere near this value.
  * @num_exec_engines: The number of execution engines.
  */
 struct mali_base_gpu_core_props {
@@ -557,13 +554,13 @@ struct mali_base_gpu_thread_props {
  * @padding:   padding to allign to 8-byte
  *
  * \c core_mask exposes all cores in that coherent group, and \c num_cores
- * 	provides a cached population-count for that mask.
+ * provides a cached population-count for that mask.
  *
  * @note Whilst all cores are exposed in the mask, not all may be available to
- * 	the application, depending on the Kernel Power policy.
+ *       the application, depending on the Kernel Power policy.
  *
  * @note if u64s must be 8-byte aligned, then this structure has 32-bits of
- * 	wastage.
+ *       wastage.
  */
 struct mali_base_gpu_coherent_group {
 	__u64 core_mask;
@@ -575,14 +572,15 @@ struct mali_base_gpu_coherent_group {
  * struct mali_base_gpu_coherent_group_info - Coherency group information
  * @num_groups: Number of coherent groups in the GPU.
  * @num_core_groups: Number of core groups (coherent or not) in the GPU.
- * 	Equivalent to the number of L2 Caches.
- * 	  The GPU Counter dumping writes 2048 bytes per core group, regardless
- * 	of whether the core groups are coherent or not. Hence this member is
- * 	needed to calculate how much memory is required for dumping.
- * 	  @note Do not use it to work out how many valid elements are in the
- * 	group[] member. Use num_groups instead.
+ *                   Equivalent to the number of L2 Caches.
+ *                   The GPU Counter dumping writes 2048 bytes per core group,
+ *                   regardless of whether the core groups are coherent or not.
+ *                   Hence this member is needed to calculate how much memory
+ *                   is required for dumping.
+ *                   @note Do not use it to work out how many valid elements
+ *                         are in the group[] member. Use num_groups instead.
  * @coherency: Coherency features of the memory, accessed by gpu_mem_features
- * 	methods
+ *             methods
  * @padding: padding to allign to 8-byte
  * @group: Descriptors of coherent groups
  *

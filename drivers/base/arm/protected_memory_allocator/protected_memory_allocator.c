@@ -107,20 +107,20 @@ static void small_granularity_alloc(struct simple_pma_device *const epma_dev,
 	alloc_pages_bitfield_size = ALLOC_PAGES_BITFIELD_ARR_SIZE(epma_dev->rmem_size);
 
 	WARN(alloc_bitfield_idx >= alloc_pages_bitfield_size,
-	     "%s: idx>bf_size: %zu %zu", __FUNCTION__,
+	     "%s: idx>bf_size: %zu %zu", __func__,
 	     alloc_bitfield_idx, alloc_pages_bitfield_size);
 
 	WARN((start_bit + (1 << order)) > PAGES_PER_BITFIELD_ELEM,
 	     "%s: start=%zu order=%zu ppbe=%zu",
-	     __FUNCTION__, start_bit, order, PAGES_PER_BITFIELD_ELEM);
+	     __func__, start_bit, order, PAGES_PER_BITFIELD_ELEM);
 
 	bitfield = &epma_dev->allocated_pages_bitfield_arr[alloc_bitfield_idx];
 
 	for (i = 0; i < (1 << order); i++) {
 		/* Check the pages represented by this bit are actually free */
-		WARN (*bitfield & (1ULL << (start_bit + i)),
+		WARN(*bitfield & (1ULL << (start_bit + i)),
 		      "in %s: page not free: %zu %zu %.16llx %zu\n",
-		      __FUNCTION__, i, order, *bitfield, alloc_pages_bitfield_size);
+		      __func__, i, order, *bitfield, alloc_pages_bitfield_size);
 
 		/* Mark the pages as now allocated */
 		*bitfield |= (1ULL << (start_bit + i));
@@ -172,7 +172,7 @@ static void large_granularity_alloc(struct simple_pma_device *const epma_dev,
 	 */
 	WARN((start_alloc_bitfield_idx + order) >= ALLOC_PAGES_BITFIELD_ARR_SIZE(epma_dev->rmem_size),
 	     "%s: start=%zu order=%zu ms=%zu",
-	     __FUNCTION__, start_alloc_bitfield_idx, order, epma_dev->rmem_size);
+	     __func__, start_alloc_bitfield_idx, order, epma_dev->rmem_size);
 
 	for (i = 0; i < num_bitfield_elements_needed; i++) {
 		u64 *bitfield = &epma_dev->allocated_pages_bitfield_arr[start_alloc_bitfield_idx + i];
@@ -180,7 +180,7 @@ static void large_granularity_alloc(struct simple_pma_device *const epma_dev,
 		/* We expect all pages that relate to this bitfield element to be free */
 		WARN((*bitfield != 0),
 		     "in %s: pages not free: i=%zu o=%zu bf=%.16llx\n",
-		     __FUNCTION__, i, order, *bitfield);
+		     __func__, i, order, *bitfield);
 
 		/* Mark all the pages for this element as not free */
 		*bitfield = ~0ULL;
@@ -318,9 +318,7 @@ static struct protected_memory_allocation *simple_pma_alloc_page(
 					spin_unlock(&epma_dev->rmem_lock);
 					return pma;
 				}
-			}
-			else
-			{
+			} else {
 				count = 0;
 			}
 		}
@@ -402,11 +400,10 @@ static void simple_pma_free_page(
 
 		/* Clear the bits for the pages we're now freeing */
 		*bitfield &= ~(((1ULL << num_pages_in_allocation) - 1) << bitfield_start_bit);
-	}
-	else {
+	} else {
 		WARN(page_num % PAGES_PER_BITFIELD_ELEM,
 		     "%s: Expecting allocs of order >= %d to be %zu-page aligned\n",
-		     __FUNCTION__, ORDER_OF_PAGES_PER_BITFIELD_ELEM, PAGES_PER_BITFIELD_ELEM);
+		     __func__, ORDER_OF_PAGES_PER_BITFIELD_ELEM, PAGES_PER_BITFIELD_ELEM);
 
 		for (i = 0; i < num_bitfield_elems_used_by_alloc; i++) {
 			bitfield = &epma_dev->allocated_pages_bitfield_arr[bitfield_idx + i];
@@ -414,7 +411,7 @@ static void simple_pma_free_page(
 			/* We expect all bits to be set (all pages allocated) */
 			WARN((*bitfield != ~0),
 			     "%s: alloc being freed is not fully allocated: of=%zu np=%zu bf=%.16llx\n",
-			     __FUNCTION__, offset, num_pages_in_allocation, *bitfield);
+			     __func__, offset, num_pages_in_allocation, *bitfield);
 
 			/*
 			 * Now clear all the bits in the bitfield element to mark all the pages

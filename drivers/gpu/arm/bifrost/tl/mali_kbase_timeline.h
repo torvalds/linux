@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2015-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -76,9 +76,9 @@ int kbase_timeline_streams_flush(struct kbase_timeline *timeline);
 
 /**
  * kbase_timeline_streams_body_reset - reset timeline body streams.
+ * @timeline:     Timeline instance
  *
  * Function will discard pending data in all timeline body streams.
- * @timeline:     Timeline instance
  */
 void kbase_timeline_streams_body_reset(struct kbase_timeline *timeline);
 

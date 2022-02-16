@@ -164,7 +164,7 @@ void kbase_create_timeline_objects(struct kbase_device *kbdev)
 
 			if (kcpu_queue)
 				__kbase_tlstream_tl_kbase_new_kcpuqueue(
-					body, kcpu_queue, kcpu_queue->kctx->id,
+					body, kcpu_queue, kcpu_queue->id, kcpu_queue->kctx->id,
 					kcpu_queue->num_pending_cmds);
 		}
 

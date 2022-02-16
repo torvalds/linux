@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -301,6 +301,8 @@ void kbase_pm_update_state(struct kbase_device *kbdev);
  * kbase_pm_state_machine_init - Initialize the state machines, primarily the
  *                               shader poweroff timer
  * @kbdev: Device pointer
+ *
+ * Return: 0 on success, error code on error
  */
 int kbase_pm_state_machine_init(struct kbase_device *kbdev);
 
@@ -453,6 +455,8 @@ void kbase_pm_wait_for_gpu_power_down(struct kbase_device *kbdev);
  * Setup the power management callbacks and initialize/enable the runtime-pm
  * for the Mali GPU platform device, using the callback function. This must be
  * called before the kbase_pm_register_access_enable() function.
+ *
+ * Return: 0 on success, error code on error
  */
 int kbase_pm_runtime_init(struct kbase_device *kbdev);
 
@@ -810,7 +814,48 @@ static inline bool kbase_pm_no_mcu_core_pwroff(struct kbase_device *kbdev)
 	return kbdev->pm.backend.csf_pm_sched_flags &
 		CSF_DYNAMIC_PM_CORE_KEEP_ON;
 }
+
+/**
+ * kbase_pm_mcu_is_in_desired_state - Check if MCU is in stable ON/OFF state.
+ *
+ * @kbdev: Device pointer
+ *
+ * Return: true if MCU is in stable ON/OFF state.
+ */
+static inline bool kbase_pm_mcu_is_in_desired_state(struct kbase_device *kbdev)
+{
+	bool in_desired_state = true;
+
+	if (kbase_pm_is_mcu_desired(kbdev) && kbdev->pm.backend.mcu_state != KBASE_MCU_ON)
+		in_desired_state = false;
+	else if (!kbase_pm_is_mcu_desired(kbdev) &&
+		 (kbdev->pm.backend.mcu_state != KBASE_MCU_OFF) &&
+		 (kbdev->pm.backend.mcu_state != KBASE_MCU_IN_SLEEP))
+		in_desired_state = false;
+
+	return in_desired_state;
+}
+
 #endif
+
+/**
+ * kbase_pm_l2_is_in_desired_state - Check if L2 is in stable ON/OFF state.
+ *
+ * @kbdev: Device pointer
+ *
+ * Return: true if L2 is in stable ON/OFF state.
+ */
+static inline bool kbase_pm_l2_is_in_desired_state(struct kbase_device *kbdev)
+{
+	bool in_desired_state = true;
+
+	if (kbase_pm_is_l2_desired(kbdev) && kbdev->pm.backend.l2_state != KBASE_L2_ON)
+		in_desired_state = false;
+	else if (!kbase_pm_is_l2_desired(kbdev) && kbdev->pm.backend.l2_state != KBASE_L2_OFF)
+		in_desired_state = false;
+
+	return in_desired_state;
+}
 
 /**
  * kbase_pm_lock - Lock all necessary mutexes to perform PM actions

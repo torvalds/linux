@@ -113,39 +113,60 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 	 */
 
 	u64 timeout, nr_cycles = 0;
+	/* Default value to mean 'no cap' */
+	u64 timeout_cap = U64_MAX;
 	u64 freq_khz = kbdev->lowest_gpu_freq_khz;
+	/* Only for debug messages, safe default in case it's mis-maintained */
+	const char *selector_str = "(unknown)";
 
 	WARN_ON(!freq_khz);
 
 	switch (selector) {
-	/* use Firmware timeout if invalid selection */
+	case KBASE_TIMEOUT_SELECTOR_COUNT:
 	default:
 #if !MALI_USE_CSF
 		WARN(1, "Invalid timeout selector used! Using default value");
-		timeout = JM_DEFAULT_TIMEOUT_CYCLES;
-		CSTD_UNUSED(nr_cycles);
+		nr_cycles = JM_DEFAULT_TIMEOUT_CYCLES;
+		break;
 #else
+		/* Use Firmware timeout if invalid selection */
 		WARN(1,
 		     "Invalid timeout selector used! Using CSF Firmware timeout");
 		fallthrough;
 	case CSF_FIRMWARE_TIMEOUT:
+		selector_str = "CSF_FIRMWARE_TIMEOUT";
 		nr_cycles = CSF_FIRMWARE_TIMEOUT_CYCLES;
-		timeout = div_u64(nr_cycles, freq_khz);
-		/* cap CSF FW timeout to FIRMWARE_PING_INTERVAL_MS
-		 * if calculated timeout exceeds it. This should be adapted to a
-		 * direct timeout comparison once the FIRMWARE_PING_INTERVAL_MS
-		 * option is added to this timeout function. A compile-time check
-		 * such as BUILD_BUG_ON can also be done once the firmware ping
-		 * interval in cycles becomes available as a macro.
+		/* Setup a cap on CSF FW timeout to FIRMWARE_PING_INTERVAL_MS,
+		 * if calculated timeout exceeds it. This should be adapted to
+		 * a direct timeout comparison once the
+		 * FIRMWARE_PING_INTERVAL_MS option is added to this timeout
+		 * function. A compile-time check such as BUILD_BUG_ON can also
+		 * be done once the firmware ping interval in cycles becomes
+		 * available as a macro.
 		 */
-		if (timeout > FIRMWARE_PING_INTERVAL_MS) {
-			dev_dbg(kbdev->dev, "Capped CSF_FIRMWARE_TIMEOUT %llu to %d",
-				timeout, FIRMWARE_PING_INTERVAL_MS);
-			timeout = FIRMWARE_PING_INTERVAL_MS;
-		}
-#endif
+		timeout_cap = FIRMWARE_PING_INTERVAL_MS;
 		break;
+	case CSF_PM_TIMEOUT:
+		selector_str = "CSF_PM_TIMEOUT";
+		nr_cycles = CSF_PM_TIMEOUT_CYCLES;
+		break;
+	case CSF_GPU_RESET_TIMEOUT:
+		selector_str = "CSF_GPU_RESET_TIMEOUT";
+		nr_cycles = CSF_GPU_RESET_TIMEOUT_CYCLES;
+		break;
+#endif
 	}
+
+	timeout = div_u64(nr_cycles, freq_khz);
+	if (timeout > timeout_cap) {
+		dev_dbg(kbdev->dev, "Capped %s %llu to %llu", selector_str,
+			(unsigned long long)timeout, (unsigned long long)timeout_cap);
+		timeout = timeout_cap;
+	}
+	if (WARN(timeout > UINT_MAX,
+		 "Capping excessive timeout %llums for %s at freq %llukHz to UINT_MAX ms",
+		 (unsigned long long)timeout, selector_str, (unsigned long long)freq_khz))
+		timeout = UINT_MAX;
 	return (unsigned int)timeout;
 }
 

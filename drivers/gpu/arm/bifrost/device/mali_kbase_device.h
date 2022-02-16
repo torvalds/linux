@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,7 +23,6 @@
 
 /**
  * kbase_device_get_list - get device list.
- *
  * Get access to device list.
  *
  * Return: Pointer to the linked list head.
@@ -55,17 +54,17 @@ void kbase_increment_device_id(void);
  * When a device file is opened for the first time,
  * load firmware and initialize hardware counter components.
  *
- * @return 0 on success. An error code on failure.
+ * Return: 0 on success. An error code on failure.
  */
 int kbase_device_firmware_init_once(struct kbase_device *kbdev);
 
 /**
  * kbase_device_init - Device initialisation.
  *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
  * This is called from device probe to initialise various other
  * components needed.
- *
- * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
  * Return: 0 on success and non-zero value on failure.
  */
@@ -74,11 +73,10 @@ int kbase_device_init(struct kbase_device *kbdev);
 /**
  * kbase_device_term - Device termination.
  *
- * This is called from device remove to terminate various components that
- * were initialised during kbase_device_init.
- *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
+ * This is called from device remove to terminate various components that
+ * were initialised during kbase_device_init.
  */
 void kbase_device_term(struct kbase_device *kbdev);
 

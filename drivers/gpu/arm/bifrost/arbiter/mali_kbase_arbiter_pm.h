@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,7 +20,7 @@
  */
 
 /**
- * Mali arbiter power manager state machine and APIs
+ * DOC: Mali arbiter power manager state machine and APIs
  */
 
 #ifndef _MALI_KBASE_ARBITER_PM_H_
@@ -101,6 +101,8 @@ void kbase_arbiter_pm_release_interrupts(struct kbase_device *kbdev);
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
  * Install interrupts and set the interrupt_install flag to true.
+ *
+ * Return: 0 if success, or a Linux error code
  */
 int kbase_arbiter_pm_install_interrupts(struct kbase_device *kbdev);
 

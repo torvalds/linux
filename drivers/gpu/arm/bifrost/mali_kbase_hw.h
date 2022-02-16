@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2012-2017, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,7 +29,7 @@
 #include "mali_kbase_defs.h"
 
 /**
- * Tell whether a work-around should be enabled
+ * kbase_hw_has_issue - Tell whether a work-around should be enabled
  * @kbdev: Device pointer
  * @issue: issue to be checked
  */
@@ -37,7 +37,7 @@
 	test_bit(issue, &(kbdev)->hw_issues_mask[0])
 
 /**
- * Tell whether a feature is supported
+ * kbase_hw_has_feature - Tell whether a feature is supported
  * @kbdev: Device pointer
  * @feature: feature to be checked
  */
@@ -63,7 +63,7 @@
 int kbase_hw_set_issues_mask(struct kbase_device *kbdev);
 
 /**
- * Set the features mask depending on the GPU ID
+ * kbase_hw_set_features_mask - Set the features mask depending on the GPU ID
  * @kbdev: Device pointer
  */
 void kbase_hw_set_features_mask(struct kbase_device *kbdev);

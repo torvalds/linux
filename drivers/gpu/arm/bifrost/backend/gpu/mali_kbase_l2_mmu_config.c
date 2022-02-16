@@ -121,9 +121,9 @@ int kbase_set_mmu_quirks(struct kbase_device *kbdev)
 
 	if (kbdev->system_coherency == COHERENCY_ACE) {
 		/* Allow memory configuration disparity to be ignored,
-		* we optimize the use of shared memory and thus we
-		* expect some disparity in the memory configuration.
-		*/
+		 * we optimize the use of shared memory and thus we
+		 * expect some disparity in the memory configuration.
+		 */
 		kbdev->hw_quirks_mmu |= L2_MMU_CONFIG_ALLOW_SNOOP_DISPARITY;
 	}
 

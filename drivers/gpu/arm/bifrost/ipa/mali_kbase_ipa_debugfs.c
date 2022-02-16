@@ -128,8 +128,14 @@ static ssize_t param_string_set(struct file *file, const char __user *user_buf,
 
 	err = kbase_ipa_model_recalculate(model);
 	if (err < 0) {
+		u32 string_len = strscpy(param->addr.str, old_str, param->size);
+
+		string_len += sizeof(char);
+		/* Make sure that the source string fit into the buffer. */
+		KBASE_DEBUG_ASSERT(string_len <= param->size);
+		CSTD_UNUSED(string_len);
+
 		ret = err;
-		strlcpy(param->addr.str, old_str, param->size);
 	}
 
 end:
@@ -275,7 +281,7 @@ static void kbase_ipa_model_debugfs_init(struct kbase_ipa_model *model)
 				"Type not set for %s parameter %s\n",
 				model->ops->name, param->name);
 		} else {
-			debugfs_create_file(param->name, S_IRUGO | S_IWUSR,
+			debugfs_create_file(param->name, 0644,
 					    dir, param, fops);
 		}
 	}

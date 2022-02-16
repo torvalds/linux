@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -184,8 +184,9 @@ enum memory_group_manager_import_type {
  * struct memory_group_manager_import_data - Structure describing the imported
  *                                           memory
  *
- * @type:  - type of imported memory
- * @u:     - Union describing the imported memory
+ * @type:      type of imported memory
+ * @u:         Union describing the imported memory
+ * @u.dma_buf: imported memory
  *
  */
 struct memory_group_manager_import_data {

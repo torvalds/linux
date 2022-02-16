@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -48,6 +48,7 @@ struct rb_entry {
 /**
  * SLOT_RB_TAG_KCTX() - a function-like macro for converting a pointer to a
  *			u64 for serving as tagged value.
+ * @kctx: Pointer to kbase context.
  */
 #define SLOT_RB_TAG_KCTX(kctx) (u64)((uintptr_t)(kctx))
 /**

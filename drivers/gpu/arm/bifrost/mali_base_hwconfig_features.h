@@ -168,6 +168,7 @@ __attribute__((unused)) static const enum base_hw_feature base_hw_features_tTUx[
 	BASE_HW_FEATURE_L2_CONFIG,
 	BASE_HW_FEATURE_CLEAN_ONLY_SAFE,
 	BASE_HW_FEATURE_ASN_HASH,
+	BASE_HW_FEATURE_GPU_SLEEP,
 	BASE_HW_FEATURE_END
 };
 

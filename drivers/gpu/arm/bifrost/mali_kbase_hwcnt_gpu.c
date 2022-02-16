@@ -25,6 +25,13 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 
+/** enum enable_map_idx - index into a block enable map that spans multiple u64 array elements
+ */
+enum enable_map_idx {
+	EM_LO,
+	EM_HI,
+	EM_COUNT,
+};
 
 static void kbasep_get_fe_block_type(u64 *dst, enum kbase_hwcnt_set counter_set,
 				     bool is_csf)
@@ -34,18 +41,16 @@ static void kbasep_get_fe_block_type(u64 *dst, enum kbase_hwcnt_set counter_set,
 		*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE;
 		break;
 	case KBASE_HWCNT_SET_SECONDARY:
-		if (is_csf) {
+		if (is_csf)
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE2;
-		} else {
+		else
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED;
-		}
 		break;
 	case KBASE_HWCNT_SET_TERTIARY:
-		if (is_csf) {
+		if (is_csf)
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE3;
-		} else {
+		else
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED;
-		}
 		break;
 	default:
 		WARN_ON(true);
@@ -79,11 +84,10 @@ static void kbasep_get_sc_block_type(u64 *dst, enum kbase_hwcnt_set counter_set,
 		*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC2;
 		break;
 	case KBASE_HWCNT_SET_TERTIARY:
-		if (is_csf) {
+		if (is_csf)
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3;
-		} else {
+		else
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED;
-		}
 		break;
 	default:
 		WARN_ON(true);
@@ -399,9 +403,8 @@ int kbase_hwcnt_jm_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
 		 * will always have a matching set of blk instances available to
 		 * accumulate them.
 		 */
-		else {
+		else
 			hw_res_available = true;
-		}
 
 		/*
 		 * Skip block if no values in the destination block are enabled.
@@ -530,12 +533,10 @@ void kbase_hwcnt_gpu_enable_map_to_physical(
 	const struct kbase_hwcnt_enable_map *src)
 {
 	const struct kbase_hwcnt_metadata *metadata;
-
-	u64 fe_bm = 0;
-	u64 shader_bm = 0;
-	u64 tiler_bm = 0;
-	u64 mmu_l2_bm = 0;
-
+	u64 fe_bm[EM_COUNT] = { 0 };
+	u64 shader_bm[EM_COUNT] = { 0 };
+	u64 tiler_bm[EM_COUNT] = { 0 };
+	u64 mmu_l2_bm[EM_COUNT] = { 0 };
 	size_t grp, blk, blk_inst;
 
 	if (WARN_ON(!src) || WARN_ON(!dst))
@@ -554,42 +555,51 @@ void kbase_hwcnt_gpu_enable_map_to_physical(
 
 		if ((enum kbase_hwcnt_gpu_group_type)grp_type ==
 		    KBASE_HWCNT_GPU_GROUP_TYPE_V5) {
-			switch ((enum kbase_hwcnt_gpu_v5_block_type)blk_type) {
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
-				/* Nothing to do in this case. */
-				break;
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE2:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE3:
-				fe_bm |= *blk_map;
-				break;
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER:
-				tiler_bm |= *blk_map;
-				break;
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC2:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3:
-				shader_bm |= *blk_map;
-				break;
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2:
-				mmu_l2_bm |= *blk_map;
-				break;
-			default:
-				WARN_ON(true);
+			const size_t map_stride =
+				kbase_hwcnt_metadata_block_enable_map_stride(metadata, grp, blk);
+			size_t map_idx;
+
+			for (map_idx = 0; map_idx < map_stride; ++map_idx) {
+				if (WARN_ON(map_idx >= EM_COUNT))
+					break;
+
+				switch ((enum kbase_hwcnt_gpu_v5_block_type)blk_type) {
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
+					/* Nothing to do in this case. */
+					break;
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE2:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE3:
+					fe_bm[map_idx] |= blk_map[map_idx];
+					break;
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER:
+					tiler_bm[map_idx] |= blk_map[map_idx];
+					break;
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC2:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3:
+					shader_bm[map_idx] |= blk_map[map_idx];
+					break;
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2:
+					mmu_l2_bm[map_idx] |= blk_map[map_idx];
+					break;
+				default:
+					WARN_ON(true);
+				}
 			}
 		} else {
 			WARN_ON(true);
 		}
 	}
 
-	dst->fe_bm = kbase_hwcnt_backend_gpu_block_map_to_physical(fe_bm, 0);
+	dst->fe_bm = kbase_hwcnt_backend_gpu_block_map_to_physical(fe_bm[EM_LO], fe_bm[EM_HI]);
 	dst->shader_bm =
-		kbase_hwcnt_backend_gpu_block_map_to_physical(shader_bm, 0);
+		kbase_hwcnt_backend_gpu_block_map_to_physical(shader_bm[EM_LO], shader_bm[EM_HI]);
 	dst->tiler_bm =
-		kbase_hwcnt_backend_gpu_block_map_to_physical(tiler_bm, 0);
+		kbase_hwcnt_backend_gpu_block_map_to_physical(tiler_bm[EM_LO], tiler_bm[EM_HI]);
 	dst->mmu_l2_bm =
-		kbase_hwcnt_backend_gpu_block_map_to_physical(mmu_l2_bm, 0);
+		kbase_hwcnt_backend_gpu_block_map_to_physical(mmu_l2_bm[EM_LO], mmu_l2_bm[EM_HI]);
 }
 
 void kbase_hwcnt_gpu_set_to_physical(enum kbase_hwcnt_physical_set *dst,
@@ -616,11 +626,10 @@ void kbase_hwcnt_gpu_enable_map_from_physical(
 {
 	const struct kbase_hwcnt_metadata *metadata;
 
-	u64 ignored_hi;
-	u64 fe_bm;
-	u64 shader_bm;
-	u64 tiler_bm;
-	u64 mmu_l2_bm;
+	u64 fe_bm[EM_COUNT] = { 0 };
+	u64 shader_bm[EM_COUNT] = { 0 };
+	u64 tiler_bm[EM_COUNT] = { 0 };
+	u64 mmu_l2_bm[EM_COUNT] = { 0 };
 	size_t grp, blk, blk_inst;
 
 	if (WARN_ON(!src) || WARN_ON(!dst))
@@ -628,14 +637,13 @@ void kbase_hwcnt_gpu_enable_map_from_physical(
 
 	metadata = dst->metadata;
 
-	kbasep_hwcnt_backend_gpu_block_map_from_physical(
-		src->fe_bm, &fe_bm, &ignored_hi);
-	kbasep_hwcnt_backend_gpu_block_map_from_physical(
-		src->shader_bm, &shader_bm, &ignored_hi);
-	kbasep_hwcnt_backend_gpu_block_map_from_physical(
-		src->tiler_bm, &tiler_bm, &ignored_hi);
-	kbasep_hwcnt_backend_gpu_block_map_from_physical(
-		src->mmu_l2_bm, &mmu_l2_bm, &ignored_hi);
+	kbasep_hwcnt_backend_gpu_block_map_from_physical(src->fe_bm, &fe_bm[EM_LO], &fe_bm[EM_HI]);
+	kbasep_hwcnt_backend_gpu_block_map_from_physical(src->shader_bm, &shader_bm[EM_LO],
+							 &shader_bm[EM_HI]);
+	kbasep_hwcnt_backend_gpu_block_map_from_physical(src->tiler_bm, &tiler_bm[EM_LO],
+							 &tiler_bm[EM_HI]);
+	kbasep_hwcnt_backend_gpu_block_map_from_physical(src->mmu_l2_bm, &mmu_l2_bm[EM_LO],
+							 &mmu_l2_bm[EM_HI]);
 
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
 		const u64 grp_type = kbase_hwcnt_metadata_group_type(
@@ -647,29 +655,38 @@ void kbase_hwcnt_gpu_enable_map_from_physical(
 
 		if ((enum kbase_hwcnt_gpu_group_type)grp_type ==
 		    KBASE_HWCNT_GPU_GROUP_TYPE_V5) {
-			switch ((enum kbase_hwcnt_gpu_v5_block_type)blk_type) {
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
-				/* Nothing to do in this case. */
-				break;
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE2:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE3:
-				*blk_map = fe_bm;
-				break;
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER:
-				*blk_map = tiler_bm;
-				break;
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC2:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3:
-				*blk_map = shader_bm;
-				break;
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS:
-			case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2:
-				*blk_map = mmu_l2_bm;
-				break;
-			default:
-				WARN_ON(true);
+			const size_t map_stride =
+				kbase_hwcnt_metadata_block_enable_map_stride(metadata, grp, blk);
+			size_t map_idx;
+
+			for (map_idx = 0; map_idx < map_stride; ++map_idx) {
+				if (WARN_ON(map_idx >= EM_COUNT))
+					break;
+
+				switch ((enum kbase_hwcnt_gpu_v5_block_type)blk_type) {
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
+					/* Nothing to do in this case. */
+					break;
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE2:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE3:
+					blk_map[map_idx] = fe_bm[map_idx];
+					break;
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER:
+					blk_map[map_idx] = tiler_bm[map_idx];
+					break;
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC2:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3:
+					blk_map[map_idx] = shader_bm[map_idx];
+					break;
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2:
+					blk_map[map_idx] = mmu_l2_bm[map_idx];
+					break;
+				default:
+					WARN_ON(true);
+				}
 			}
 		} else {
 			WARN_ON(true);
@@ -697,12 +714,25 @@ void kbase_hwcnt_gpu_patch_dump_headers(
 			buf, grp, blk, blk_inst);
 		const u64 *blk_map = kbase_hwcnt_enable_map_block_instance(
 			enable_map, grp, blk, blk_inst);
-		const u32 prfcnt_en =
-			kbase_hwcnt_backend_gpu_block_map_to_physical(
-				blk_map[0], 0);
 
 		if ((enum kbase_hwcnt_gpu_group_type)grp_type ==
 		    KBASE_HWCNT_GPU_GROUP_TYPE_V5) {
+			const size_t map_stride =
+				kbase_hwcnt_metadata_block_enable_map_stride(metadata, grp, blk);
+			u64 prfcnt_bm[EM_COUNT] = { 0 };
+			u32 prfcnt_en = 0;
+			size_t map_idx;
+
+			for (map_idx = 0; map_idx < map_stride; ++map_idx) {
+				if (WARN_ON(map_idx >= EM_COUNT))
+					break;
+
+				prfcnt_bm[map_idx] = blk_map[map_idx];
+			}
+
+			prfcnt_en = kbase_hwcnt_backend_gpu_block_map_to_physical(prfcnt_bm[EM_LO],
+										  prfcnt_bm[EM_HI]);
+
 			buf_blk[KBASE_HWCNT_V5_PRFCNT_EN_HEADER] = prfcnt_en;
 		} else {
 			WARN_ON(true);

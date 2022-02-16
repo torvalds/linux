@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2017, 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,13 +24,13 @@
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 
 /**
- * Show callback for the @c mem_profile debugfs file.
- *
- * This function is called to get the contents of the @c mem_profile debugfs
- * file. This is a report of current memory usage and distribution in userspace.
+ * kbasep_mem_profile_seq_show - Show callback for the @c mem_profile debugfs file.
  *
  * @sfile: The debugfs entry
  * @data:  Data associated with the entry
+ *
+ * This function is called to get the contents of the @c mem_profile debugfs
+ * file. This is a report of current memory usage and distribution in userspace.
  *
  * Return: 0 if it successfully prints data in debugfs entry file, non-zero
  * otherwise

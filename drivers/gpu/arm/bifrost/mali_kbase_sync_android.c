@@ -445,7 +445,7 @@ void kbase_sync_fence_in_cancel_wait(struct kbase_jd_atom *katom)
 	kbasep_remove_waiting_soft_job(katom);
 	kbase_finish_soft_job(katom);
 
-	if (jd_done_nolock(katom, NULL))
+	if (jd_done_nolock(katom, true))
 		kbase_js_sched_all(katom->kctx->kbdev);
 }
 
@@ -468,12 +468,19 @@ void kbase_sync_fence_in_remove(struct kbase_jd_atom *katom)
 int kbase_sync_fence_in_info_get(struct kbase_jd_atom *katom,
 				 struct kbase_sync_fence_info *info)
 {
+	u32 string_len;
+
 	if (!katom->fence)
 		return -ENOENT;
 
 	info->fence = katom->fence;
 	info->status = kbase_fence_get_status(katom->fence);
-	strlcpy(info->name, katom->fence->name, sizeof(info->name));
+
+	string_len = strscpy(info->name, katom->fence->name, sizeof(info->name));
+	string_len += sizeof(char);
+	/* Make sure that the source string fit into the buffer. */
+	KBASE_DEBUG_ASSERT(string_len <= sizeof(info->name));
+	CSTD_UNUSED(string_len);
 
 	return 0;
 }
@@ -481,12 +488,19 @@ int kbase_sync_fence_in_info_get(struct kbase_jd_atom *katom,
 int kbase_sync_fence_out_info_get(struct kbase_jd_atom *katom,
 				 struct kbase_sync_fence_info *info)
 {
+	u32 string_len;
+
 	if (!katom->fence)
 		return -ENOENT;
 
 	info->fence = katom->fence;
 	info->status = kbase_fence_get_status(katom->fence);
-	strlcpy(info->name, katom->fence->name, sizeof(info->name));
+
+	string_len = strscpy(info->name, katom->fence->name, sizeof(info->name));
+	string_len += sizeof(char);
+	/* Make sure that the source string fit into the buffer. */
+	KBASE_DEBUG_ASSERT(string_len <= sizeof(info->name));
+	CSTD_UNUSED(string_len);
 
 	return 0;
 }

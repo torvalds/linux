@@ -115,8 +115,8 @@ static const struct kbase_ipa_counter ipa_top_level_cntrs_def_ttux[] = {
 };
 
 /* These tables provide a description of each performance counter
-  * used by the shader cores counter model for energy estimation.
-  */
+ * used by the shader cores counter model for energy estimation.
+ */
 static const struct kbase_ipa_counter ipa_shader_core_cntrs_def_todx[] = {
 	SC_COUNTER_DEF("exec_instr_fma", 505449, EXEC_INSTR_FMA),
 	SC_COUNTER_DEF("tex_filt_num_operations", 574869, TEX_FILT_NUM_OPS),
@@ -150,7 +150,7 @@ static const struct kbase_ipa_counter ipa_shader_core_cntrs_def_ttux[] = {
 	SC_COUNTER_DEF("ls_mem_read_short", 322525, LS_MEM_READ_SHORT),
 	SC_COUNTER_DEF("full_quad_warps", 844124, FULL_QUAD_WARPS),
 	SC_COUNTER_DEF("exec_instr_cvt", 226411, EXEC_INSTR_CVT),
-	SC_COUNTER_DEF("frag_quads_ezs_update",372032, FRAG_QUADS_EZS_UPDATE),
+	SC_COUNTER_DEF("frag_quads_ezs_update", 372032, FRAG_QUADS_EZS_UPDATE),
 };
 
 #define IPA_POWER_MODEL_OPS(gpu, init_token) \
@@ -224,8 +224,8 @@ const struct kbase_ipa_model_ops *kbase_ipa_counter_model_ops_find(
 
 const char *kbase_ipa_counter_model_name_from_id(u32 gpu_id)
 {
-	const u32 prod_id = (gpu_id & GPU_ID_VERSION_PRODUCT_ID) >>
-			GPU_ID_VERSION_PRODUCT_ID_SHIFT;
+	const u32 prod_id =
+		(gpu_id & GPU_ID_VERSION_PRODUCT_ID) >> KBASE_GPU_ID_VERSION_PRODUCT_ID_SHIFT;
 
 	switch (GPU_ID2_MODEL_MATCH_VALUE(prod_id)) {
 	case GPU_ID2_PRODUCT_TODX:

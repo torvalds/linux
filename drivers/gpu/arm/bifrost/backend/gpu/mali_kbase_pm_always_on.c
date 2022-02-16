@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2015, 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -41,6 +41,11 @@ static void always_on_init(struct kbase_device *kbdev)
 	CSTD_UNUSED(kbdev);
 }
 
+/**
+ * always_on_term - Term callback function for always-on power policy
+ *
+ * @kbdev: kbase device
+ */
 static void always_on_term(struct kbase_device *kbdev)
 {
 	CSTD_UNUSED(kbdev);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,24 +36,26 @@ struct kbase_mmu_table;
  * nature of the call flow, with respect to MMU operations. ie - does the call flow relate to
  * existing GPU work does it come from requests (like ioctl) from user-space, power management,
  * etc.
+ *
+ * @CALLER_MMU_UNSET_SYNCHRONICITY: default value must be invalid to avoid accidental choice
+ *                                  of a 'valid' value
+ * @CALLER_MMU_SYNC: Arbitrary value for 'synchronous that isn't easy to choose by accident
+ * @CALLER_MMU_ASYNC: Also hard to choose by accident
  */
 enum kbase_caller_mmu_sync_info {
-	/* default value must be invalid to avoid accidental choice ov a 'valid' value. */
 	CALLER_MMU_UNSET_SYNCHRONICITY,
-	/* Arbitrary value for 'synchronous that isn't easy to choose by accident. */
 	CALLER_MMU_SYNC = 0x02,
-	/* Also hard to choose by accident */
 	CALLER_MMU_ASYNC
 };
 
 /**
  * kbase_mmu_as_init() - Initialising GPU address space object.
  *
- * This is called from device probe to initialise an address space object
- * of the device.
- *
  * @kbdev: The kbase device structure for the device (must be a valid pointer).
  * @i:     Array index of address space object.
+ *
+ * This is called from device probe to initialise an address space object
+ * of the device.
  *
  * Return: 0 on success and non-zero value on failure.
  */
@@ -62,18 +64,16 @@ int kbase_mmu_as_init(struct kbase_device *kbdev, int i);
 /**
  * kbase_mmu_as_term() - Terminate address space object.
  *
- * This is called upon device termination to destroy
- * the address space object of the device.
- *
  * @kbdev: The kbase device structure for the device (must be a valid pointer).
  * @i:     Array index of address space object.
+ *
+ * This is called upon device termination to destroy
+ * the address space object of the device.
  */
 void kbase_mmu_as_term(struct kbase_device *kbdev, int i);
 
 /**
  * kbase_mmu_init - Initialise an object representing GPU page tables
- *
- * The structure should be terminated using kbase_mmu_term()
  *
  * @kbdev:    Instance of GPU platform device, allocated from the probe method.
  * @mmut:     GPU page tables to be initialized.
@@ -81,6 +81,8 @@ void kbase_mmu_as_term(struct kbase_device *kbdev, int i);
  *            is not associated with a context.
  * @group_id: The physical group ID from which to allocate GPU page tables.
  *            Valid range is 0..(MEMORY_GROUP_MANAGER_NR_GROUPS-1).
+ *
+ * The structure should be terminated using kbase_mmu_term()
  *
  * Return:    0 if successful, otherwise a negative error code.
  */
@@ -90,20 +92,20 @@ int kbase_mmu_init(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
 /**
  * kbase_mmu_interrupt - Process an MMU interrupt.
  *
- * Process the MMU interrupt that was reported by the &kbase_device.
- *
  * @kbdev:       Pointer to the kbase device for which the interrupt happened.
  * @irq_stat:    Value of the MMU_IRQ_STATUS register.
+ *
+ * Process the MMU interrupt that was reported by the &kbase_device.
  */
 void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat);
 
 /**
  * kbase_mmu_term - Terminate an object representing GPU page tables
  *
- * This will free any page tables that have been allocated
- *
  * @kbdev: Instance of GPU platform device, allocated from the probe method.
  * @mmut:  GPU page tables to be destroyed.
+ *
+ * This will free any page tables that have been allocated
  */
 void kbase_mmu_term(struct kbase_device *kbdev, struct kbase_mmu_table *mmut);
 
@@ -152,12 +154,12 @@ int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn,
 /**
  * kbase_mmu_bus_fault_interrupt - Process a bus fault interrupt.
  *
- * Process the bus fault interrupt that was reported for a particular GPU
- * address space.
- *
  * @kbdev:       Pointer to the kbase device for which bus fault was reported.
  * @status:      Value of the GPU_FAULTSTATUS register.
  * @as_nr:       GPU address space for which the bus fault occurred.
+ *
+ * Process the bus fault interrupt that was reported for a particular GPU
+ * address space.
  *
  * Return: zero if the operation was successful, non-zero otherwise.
  */
@@ -166,6 +168,7 @@ int kbase_mmu_bus_fault_interrupt(struct kbase_device *kbdev, u32 status,
 
 /**
  * kbase_mmu_gpu_fault_interrupt() - Report a GPU fault.
+ *
  * @kbdev:    Kbase device pointer
  * @status:   GPU fault status
  * @as_nr:    Faulty address space
@@ -182,9 +185,9 @@ void kbase_mmu_gpu_fault_interrupt(struct kbase_device *kbdev, u32 status,
  * kbase_context_mmu_group_id_get - Decode a memory group ID from
  *                                 base_context_create_flags
  *
- * Memory allocated for GPU page tables will come from the returned group.
- *
  * @flags: Bitmask of flags to pass to base_context_init.
+ *
+ * Memory allocated for GPU page tables will come from the returned group.
  *
  * Return: Physical memory group ID. Valid range is 0..(BASE_MEM_GROUP_COUNT-1).
  */

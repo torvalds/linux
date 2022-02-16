@@ -367,7 +367,7 @@ static vm_fault_t example_mgm_vmf_insert_pfn_prot(
 	dev_dbg(data->dev,
 		"%s(mgm_dev=%p, group_id=%d, vma=%p, addr=0x%lx, pfn=0x%lx, prot=0x%llx)\n",
 		__func__, (void *)mgm_dev, group_id, (void *)vma, addr, pfn,
-		(unsigned long long int) pgprot_val(prot));
+		(unsigned long long) pgprot_val(prot));
 
 	if (WARN_ON(group_id < 0) ||
 		WARN_ON(group_id >= MEMORY_GROUP_MANAGER_NR_GROUPS))

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,7 +23,7 @@
 #define _KBASE_CSF_FIRMWARE_H_
 
 #include "device/mali_kbase_device.h"
-#include <uapi/gpu/arm/bifrost/csf/mali_gpu_csf_registers.h>
+#include <csf/mali_kbase_csf_registers.h>
 
 /*
  * PAGE_KERNEL_RO was only defined on 32bit ARM in 4.19 in:
@@ -75,7 +75,7 @@
 #define MAX_SUPPORTED_CSGS 31
 /* GROUP_STREAM_NUM: At least 8 CSs per CSG, but no more than 32 */
 #define MIN_SUPPORTED_STREAMS_PER_GROUP 8
-/* Maximum CSs per csg. */
+/* MAX_SUPPORTED_STREAMS_PER_GROUP: Maximum CSs per csg. */
 #define MAX_SUPPORTED_STREAMS_PER_GROUP 32
 
 struct kbase_device;
@@ -777,7 +777,7 @@ u32 kbase_csf_firmware_set_mcu_core_pwroff_time(struct kbase_device *kbdev, u32 
 /**
  * kbase_csf_interface_version - Helper function to build the full firmware
  *                               interface version in a format compatible with
- *                               with GLB_VERSION register
+ *                               GLB_VERSION register
  *
  * @major:     major version of csf interface
  * @minor:     minor version of csf interface

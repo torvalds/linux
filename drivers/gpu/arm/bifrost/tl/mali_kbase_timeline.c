@@ -197,8 +197,7 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 		if (flags & BASE_TLSTREAM_ENABLE_CSFFW_TRACEPOINTS) {
 			ret = kbase_csf_tl_reader_start(
 				&timeline->csf_tl_reader, kbdev);
-			if (ret)
-			{
+			if (ret) {
 				atomic_set(timeline->timeline_flags, 0);
 				return ret;
 			}

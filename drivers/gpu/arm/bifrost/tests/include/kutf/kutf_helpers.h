@@ -81,17 +81,4 @@ int kutf_helper_input_enqueue(struct kutf_context *context,
  */
 void kutf_helper_input_enqueue_end_of_data(struct kutf_context *context);
 
-/* kutf_helper_external_reset_gpu() - Mimic power-on-reset using external reset
- *
- * Reset GPU using FPGA SYSCTL register.
- *
- * Note that
- * - It must be called on the platform that has FPGA SYSCTL
- *   register available such as Juno board.
- * - It won't reinitialize GPU related settings such as interrupt for kbase.
- *
- * Return:  0 on success, negative value otherwise.
- */
-int kutf_helper_external_reset_gpu(void);
-
 #endif	/* _KERNEL_UTF_HELPERS_H_ */

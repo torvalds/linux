@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef _UAPI_KBASE_GPU_REGMAP_CSF_H_
-#define _UAPI_KBASE_GPU_REGMAP_CSF_H_
+#ifndef _KBASE_GPU_REGMAP_CSF_H_
+#define _KBASE_GPU_REGMAP_CSF_H_
 
 #include <linux/types.h>
 
@@ -365,4 +365,4 @@
 /* GPU_CONTROL_MCU.GPU_IRQ_RAWSTAT */
 #define PRFCNT_SAMPLE_COMPLETED (1 << 16)   /* Set when performance count sample has completed */
 
-#endif /* _UAPI_KBASE_GPU_REGMAP_CSF_H_ */
+#endif /* _KBASE_GPU_REGMAP_CSF_H_ */

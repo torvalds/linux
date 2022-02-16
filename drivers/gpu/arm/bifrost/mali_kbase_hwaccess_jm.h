@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -181,7 +181,7 @@ void kbase_backend_reset(struct kbase_device *kbdev, ktime_t *end_timestamp);
  * @kbdev: Device pointer
  * @js:    Job slot to inspect
  *
- * Return : Atom currently at the head of slot @js, or NULL
+ * Return: Atom currently at the head of slot @js, or NULL
  */
 struct kbase_jd_atom *kbase_backend_inspect_tail(struct kbase_device *kbdev,
 					int js);
@@ -192,7 +192,7 @@ struct kbase_jd_atom *kbase_backend_inspect_tail(struct kbase_device *kbdev,
  * @kbdev:	Device pointer
  * @js:		Job slot to inspect
  *
- * Return : Number of atoms currently on slot
+ * Return: Number of atoms currently on slot
  */
 int kbase_backend_nr_atoms_on_slot(struct kbase_device *kbdev, int js);
 
@@ -202,7 +202,7 @@ int kbase_backend_nr_atoms_on_slot(struct kbase_device *kbdev, int js);
  * @kbdev:	Device pointer
  * @js:		Job slot to inspect
  *
- * Return : Number of atoms currently on slot @js that are currently on the GPU.
+ * Return: Number of atoms currently on slot @js that are currently on the GPU.
  */
 int kbase_backend_nr_atoms_submitted(struct kbase_device *kbdev, int js);
 
@@ -231,7 +231,7 @@ void kbase_backend_timeouts_changed(struct kbase_device *kbdev);
  * @kbdev:	Device pointer
  * @js:		Job slot to inspect
  *
- * Return : Number of jobs that can be submitted.
+ * Return: Number of jobs that can be submitted.
  */
 int kbase_backend_slot_free(struct kbase_device *kbdev, int js);
 

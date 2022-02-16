@@ -20,7 +20,7 @@
  */
 
 #include <mali_kbase.h>
-#include <uapi/gpu/arm/bifrost/csf/mali_gpu_csf_registers.h>
+#include <csf/mali_kbase_csf_registers.h>
 #include <gpu/mali_kbase_gpu_fault.h>
 
 const char *kbase_gpu_exception_name(u32 const exception_code)

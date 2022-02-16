@@ -2528,11 +2528,10 @@ bool kbase_js_dep_resolved_submit(struct kbase_context *kctx,
 	/* If slot will transition from unpullable to pullable then add to
 	 * pullable list
 	 */
-	if (jsctx_rb_none_to_pull(kctx, katom->slot_nr)) {
+	if (jsctx_rb_none_to_pull(kctx, katom->slot_nr))
 		enqueue_required = true;
-	} else {
+	else
 		enqueue_required = false;
-	}
 
 	if ((katom->atom_flags & KBASE_KATOM_FLAG_X_DEP_BLOCKED) ||
 			(katom->pre_dep && (katom->pre_dep->atom_flags &
@@ -2658,9 +2657,9 @@ static void kbase_js_evict_deps(struct kbase_context *kctx,
 			(void *)x_dep);
 
 		/* Fail if it had a data dependency. */
-		if (x_dep->atom_flags & KBASE_KATOM_FLAG_FAIL_BLOCKER) {
+		if (x_dep->atom_flags & KBASE_KATOM_FLAG_FAIL_BLOCKER)
 			x_dep->will_fail_event_code = katom->event_code;
-		}
+
 		if (x_dep->atom_flags & KBASE_KATOM_FLAG_JSCTX_IN_X_DEP_LIST)
 			kbase_js_move_to_tree(x_dep);
 	}
@@ -3926,7 +3925,7 @@ void kbase_js_zap_context(struct kbase_context *kctx)
 
 		kbasep_js_clear_submit_allowed(js_devdata, kctx);
 
-		/* Retain and (later) release the context whilst it is is now
+		/* Retain and (later) release the context whilst it is now
 		 * disallowed from submitting jobs - ensures that someone
 		 * somewhere will be removing the context later on
 		 */

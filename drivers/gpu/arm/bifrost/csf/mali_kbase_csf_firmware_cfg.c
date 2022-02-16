@@ -67,9 +67,9 @@ struct firmware_config {
 			.mode = VERIFY_OCTAL_PERMISSIONS(_mode),	\
 	}
 
-static FW_CFG_ATTR(min, S_IRUGO);
-static FW_CFG_ATTR(max, S_IRUGO);
-static FW_CFG_ATTR(cur, S_IRUGO | S_IWUSR);
+static FW_CFG_ATTR(min, 0444);
+static FW_CFG_ATTR(max, 0444);
+static FW_CFG_ATTR(cur, 0644);
 
 static void fw_cfg_kobj_release(struct kobject *kobj)
 {

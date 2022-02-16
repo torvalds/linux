@@ -55,10 +55,11 @@ typedef void kbasep_js_ctx_job_cb(struct kbase_device *kbdev,
  * @KBASEP_JS_CTX_ATTR_COMPUTE: Attribute indicating a context that contains
  *                              Compute jobs.
  * @KBASEP_JS_CTX_ATTR_NON_COMPUTE: Attribute indicating a context that contains
- * 	Non-Compute jobs.
+ *                                  Non-Compute jobs.
  * @KBASEP_JS_CTX_ATTR_COMPUTE_ALL_CORES: Attribute indicating that a context
- * 	contains compute-job atoms that aren't restricted to a coherent group,
- * 	and can run on all cores.
+ *                                        contains compute-job atoms that aren't
+ *                                        restricted to a coherent group,
+ *                                        and can run on all cores.
  * @KBASEP_JS_CTX_ATTR_COUNT: Must be the last in the enum
  *
  * Each context attribute can be thought of as a boolean value that caches some
@@ -114,7 +115,6 @@ typedef void kbasep_js_ctx_job_cb(struct kbase_device *kbdev,
  * BASE_JD_REQ_COHERENT_GROUP, it is possible to send such atoms without
  * BASE_JD_REQ_COHERENT_GROUP set. This is an unlikely case, but it's easy
  * enough to handle anyway.
- *
  *
  */
 enum kbasep_js_ctx_attr {
@@ -217,44 +217,46 @@ typedef u32 kbase_atom_ordering_flag_t;
 /**
  * struct kbasep_js_device_data - KBase Device Data Job Scheduler sub-structure
  * @runpool_irq: Sub-structure to collect together Job Scheduling data used in
- *	IRQ context. The hwaccess_lock must be held when accessing.
+ *               IRQ context. The hwaccess_lock must be held when accessing.
  * @runpool_irq.submit_allowed: Bitvector indicating whether a currently
- * 	scheduled context is allowed to submit jobs. When bit 'N' is set in
- * 	this, it indicates whether the context bound to address space 'N' is
- * 	allowed to submit jobs.
+ *                              scheduled context is allowed to submit jobs.
+ *                              When bit 'N' is set in this, it indicates whether
+ *                              the context bound to address space 'N' is
+ *                              allowed to submit jobs.
  * @runpool_irq.ctx_attr_ref_count: Array of Context Attributes Ref_counters:
- * 	  Each is large enough to hold a refcount of the number of contexts
- * 	that can fit into the runpool. This is currently BASE_MAX_NR_AS.
- * 	  Note that when BASE_MAX_NR_AS==16 we need 5 bits (not 4) to store
- * 	the refcount. Hence, it's not worthwhile reducing this to
- * 	bit-manipulation on u32s to save space (where in contrast, 4 bit
- * 	sub-fields would be easy to do and would save space).
- * 	  Whilst this must not become negative, the sign bit is used for:
- * 	- error detection in debug builds
- * 	- Optimization: it is undefined for a signed int to overflow, and so
- * 	the compiler can optimize for that never happening (thus, no masking
- * 	is required on updating the variable)
+ *     Each is large enough to hold a refcount of the number of contexts
+ *     that can fit into the runpool. This is currently BASE_MAX_NR_AS.
+ *     Note that when BASE_MAX_NR_AS==16 we need 5 bits (not 4) to store
+ *     the refcount. Hence, it's not worthwhile reducing this to
+ *     bit-manipulation on u32s to save space (where in contrast, 4 bit
+ *     sub-fields would be easy to do and would save space).
+ *     Whilst this must not become negative, the sign bit is used for:
+ *       - error detection in debug builds
+ *       - Optimization: it is undefined for a signed int to overflow, and so
+ *         the compiler can optimize for that never happening (thus, no masking
+ *         is required on updating the variable)
  * @runpool_irq.slot_affinities: Affinity management and tracking. Bitvector
- *	to aid affinity checking. Element 'n' bit 'i' indicates that slot 'n'
- *	is using core i (i.e. slot_affinity_refcount[n][i] > 0)
+ *                               to aid affinity checking.
+ *                               Element 'n' bit 'i' indicates that slot 'n'
+ *                               is using core i (i.e. slot_affinity_refcount[n][i] > 0)
  * @runpool_irq.slot_affinity_refcount: Array of fefcount for each core owned
- *	by each slot. Used to generate the slot_affinities array of bitvectors.
- *	  The value of the refcount will not exceed BASE_JM_SUBMIT_SLOTS,
- *	because it is refcounted only when a job is definitely about to be
- *	submitted to a slot, and is de-refcounted immediately after a job
- *	finishes
+ *     by each slot. Used to generate the slot_affinities array of bitvectors.
+ *     The value of the refcount will not exceed BASE_JM_SUBMIT_SLOTS,
+ *     because it is refcounted only when a job is definitely about to be
+ *     submitted to a slot, and is de-refcounted immediately after a job
+ *     finishes
  * @schedule_sem: Scheduling semaphore. This must be held when calling
- *	kbase_jm_kick()
+ *                kbase_jm_kick()
  * @ctx_list_pullable: List of contexts that can currently be pulled from
  * @ctx_list_unpullable: List of contexts that can not currently be pulled
- *	from, but have jobs currently running.
+ *                       from, but have jobs currently running.
  * @nr_user_contexts_running: Number of currently scheduled user contexts
- *	(excluding ones that are not submitting jobs)
+ *                            (excluding ones that are not submitting jobs)
  * @nr_all_contexts_running: Number of currently scheduled contexts (including
- *	ones that are not submitting jobs)
+ *                           ones that are not submitting jobs)
  * @js_reqs: Core Requirements to match up with base_js_atom's core_req memeber
- *	@note This is a write-once member, and so no locking is required to
- *	read
+ *           @note This is a write-once member, and so no locking is required to
+ *           read
  * @scheduling_period_ns:	Value for JS_SCHEDULING_PERIOD_NS
  * @soft_stop_ticks:		Value for JS_SOFT_STOP_TICKS
  * @soft_stop_ticks_cl:		Value for JS_SOFT_STOP_TICKS_CL
@@ -268,16 +270,16 @@ typedef u32 kbase_atom_ordering_flag_t;
  * @suspended_soft_jobs_list:	List of suspended soft jobs
  * @softstop_always:		Support soft-stop on a single context
  * @init_status:The initialized-flag is placed at the end, to avoid
- * 	cache-pollution (we should only be using this during init/term paths).
- * 	@note This is a write-once member, and so no locking is required to
- * 	read
+ *              cache-pollution (we should only be using this during init/term paths).
+ *              @note This is a write-once member, and so no locking is required to
+ *              read
  * @nr_contexts_pullable:Number of contexts that can currently be pulled from
  * @nr_contexts_runnable:Number of contexts that can either be pulled from or
- * 	arecurrently running
+ *                       arecurrently running
  * @soft_job_timeout_ms:Value for JS_SOFT_JOB_TIMEOUT
  * @queue_mutex: Queue Lock, used to access the Policy's queue of contexts
- * 	independently of the Run Pool.
- *	Of course, you don't need the Run Pool lock to access this.
+ *               independently of the Run Pool.
+ *               Of course, you don't need the Run Pool lock to access this.
  * @runpool_mutex: Run Pool mutex, for managing contexts within the runpool.
  *
  * This encapsulates the current context of the Job Scheduler on a particular

@@ -47,6 +47,14 @@ config MALI_REAL_HW
 	default y
 	default n if NO_MALI
 
+config MALI_PLATFORM_DT_PIN_RST
+	bool "Enable Juno GPU Pin reset"
+	depends on MALI_BIFROST
+	default n
+	default y if BUSLOG
+	help
+	  Enables support for GPUs pin reset on Juno platforms.
+
 config MALI_CSF_SUPPORT
 	bool "Enable Mali CSF based GPU support"
 	depends on MALI_BIFROST

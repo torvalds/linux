@@ -204,7 +204,7 @@ static void entry_invalidate(u64 *entry)
 	page_table_entry_set(entry, ENTRY_IS_INVAL);
 }
 
-static struct kbase_mmu_mode const aarch64_mode = {
+static const struct kbase_mmu_mode aarch64_mode = {
 	.update = mmu_update,
 	.get_as_setup = kbase_mmu_get_as_setup,
 	.disable_as = mmu_disable_as,

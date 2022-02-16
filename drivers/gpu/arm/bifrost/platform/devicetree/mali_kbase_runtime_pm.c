@@ -21,6 +21,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
+#include <device/mali_kbase_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -49,6 +50,7 @@ static void enable_gpu_power_control(struct kbase_device *kbdev)
 	}
 }
 
+
 static void disable_gpu_power_control(struct kbase_device *kbdev)
 {
 	unsigned int i;
@@ -71,6 +73,7 @@ static void disable_gpu_power_control(struct kbase_device *kbdev)
 			WARN_ON(regulator_disable(kbdev->regulators[i]));
 	}
 #endif
+
 }
 
 static int pm_callback_power_on(struct kbase_device *kbdev)
@@ -96,8 +99,8 @@ static int pm_callback_power_on(struct kbase_device *kbdev)
 #else
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
-	enable_gpu_power_control(kbdev);
 	error = pm_runtime_get_sync(kbdev->dev);
+	enable_gpu_power_control(kbdev);
 
 	if (error == 1) {
 		/*
@@ -200,7 +203,7 @@ static int kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	int ret = 0;
 
-	dev_dbg(kbdev->dev, "kbase_device_runtime_init\n");
+	dev_dbg(kbdev->dev, "%s\n", __func__);
 
 	pm_runtime_set_autosuspend_delay(kbdev->dev, AUTO_SUSPEND_DELAY);
 	pm_runtime_use_autosuspend(kbdev->dev);
@@ -223,7 +226,7 @@ static int kbase_device_runtime_init(struct kbase_device *kbdev)
 
 static void kbase_device_runtime_disable(struct kbase_device *kbdev)
 {
-	dev_dbg(kbdev->dev, "kbase_device_runtime_disable\n");
+	dev_dbg(kbdev->dev, "%s\n", __func__);
 
 	if (atomic_read(&kbdev->dev->power.usage_count))
 		dev_warn(kbdev->dev,
@@ -236,7 +239,7 @@ static void kbase_device_runtime_disable(struct kbase_device *kbdev)
 
 static int pm_callback_runtime_on(struct kbase_device *kbdev)
 {
-	dev_dbg(kbdev->dev, "pm_callback_runtime_on\n");
+	dev_dbg(kbdev->dev, "%s\n", __func__);
 
 	enable_gpu_power_control(kbdev);
 	return 0;
@@ -244,7 +247,7 @@ static int pm_callback_runtime_on(struct kbase_device *kbdev)
 
 static void pm_callback_runtime_off(struct kbase_device *kbdev)
 {
-	dev_dbg(kbdev->dev, "pm_callback_runtime_off\n");
+	dev_dbg(kbdev->dev, "%s\n", __func__);
 
 	disable_gpu_power_control(kbdev);
 }
@@ -260,6 +263,7 @@ static void pm_callback_suspend(struct kbase_device *kbdev)
 {
 	pm_callback_runtime_off(kbdev);
 }
+
 
 struct kbase_pm_callback_conf pm_callbacks = {
 	.power_on_callback = pm_callback_power_on,

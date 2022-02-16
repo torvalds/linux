@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -102,17 +102,28 @@ static bool write_setting_valid(unsigned int id, unsigned int write_setting)
 	return false;
 }
 
-static bool settings_valid(unsigned int id, unsigned int read_setting,
-			   unsigned int write_setting)
-{
-	bool settings_valid = false;
+/* Private structure to be returned as setting validity status */
+struct settings_status {
+	/* specifies whether id and either one of settings is valid */
+	bool overall;
+	/* specifies whether read setting is valid */
+	bool read;
+	/* specifies whether write setting is valid*/
+	bool write;
+};
 
-	if (id < SYSC_ALLOC_COUNT * sizeof(u32)) {
-		settings_valid = read_setting_valid(id, read_setting) &&
-				 write_setting_valid(id, write_setting);
+static struct settings_status settings_valid(unsigned int id, unsigned int read_setting,
+					     unsigned int write_setting)
+{
+	struct settings_status valid = { .overall = (id < SYSC_ALLOC_COUNT * sizeof(u32)) };
+
+	if (valid.overall) {
+		valid.read = read_setting_valid(id, read_setting);
+		valid.write = write_setting_valid(id, write_setting);
+		valid.overall = valid.read || valid.write;
 	}
 
-	return settings_valid;
+	return valid;
 }
 
 bool kbasep_pbha_supported(struct kbase_device *kbdev)
@@ -127,11 +138,12 @@ int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime,
 			       unsigned int id, unsigned int read_setting,
 			       unsigned int write_setting)
 {
-	bool const valid = settings_valid(id, read_setting, write_setting);
+	struct settings_status const valid = settings_valid(id, read_setting, write_setting);
 
-	if (valid) {
+	if (valid.overall) {
 		unsigned int const sysc_alloc_num = id / sizeof(u32);
 		u32 modified_reg;
+
 		if (runtime) {
 			int i;
 
@@ -147,41 +159,50 @@ int kbase_pbha_record_settings(struct kbase_device *kbdev, bool runtime,
 
 		switch (id % sizeof(u32)) {
 		case 0:
-			modified_reg = SYSC_ALLOC_R_SYSC_ALLOC0_SET(
-				modified_reg, read_setting);
-			modified_reg = SYSC_ALLOC_W_SYSC_ALLOC0_SET(
-				modified_reg, write_setting);
+			modified_reg = valid.read ? SYSC_ALLOC_R_SYSC_ALLOC0_SET(modified_reg,
+										 read_setting) :
+						    modified_reg;
+			modified_reg = valid.write ? SYSC_ALLOC_W_SYSC_ALLOC0_SET(modified_reg,
+										  write_setting) :
+						     modified_reg;
 			break;
 		case 1:
-			modified_reg = SYSC_ALLOC_R_SYSC_ALLOC1_SET(
-				modified_reg, read_setting);
-			modified_reg = SYSC_ALLOC_W_SYSC_ALLOC1_SET(
-				modified_reg, write_setting);
+			modified_reg = valid.read ? SYSC_ALLOC_R_SYSC_ALLOC1_SET(modified_reg,
+										 read_setting) :
+						    modified_reg;
+			modified_reg = valid.write ? SYSC_ALLOC_W_SYSC_ALLOC1_SET(modified_reg,
+										  write_setting) :
+						     modified_reg;
 			break;
 		case 2:
-			modified_reg = SYSC_ALLOC_R_SYSC_ALLOC2_SET(
-				modified_reg, read_setting);
-			modified_reg = SYSC_ALLOC_W_SYSC_ALLOC2_SET(
-				modified_reg, write_setting);
+			modified_reg = valid.read ? SYSC_ALLOC_R_SYSC_ALLOC2_SET(modified_reg,
+										 read_setting) :
+						    modified_reg;
+			modified_reg = valid.write ? SYSC_ALLOC_W_SYSC_ALLOC2_SET(modified_reg,
+										  write_setting) :
+						     modified_reg;
 			break;
 		case 3:
-			modified_reg = SYSC_ALLOC_R_SYSC_ALLOC3_SET(
-				modified_reg, read_setting);
-			modified_reg = SYSC_ALLOC_W_SYSC_ALLOC3_SET(
-				modified_reg, write_setting);
+			modified_reg = valid.read ? SYSC_ALLOC_R_SYSC_ALLOC3_SET(modified_reg,
+										 read_setting) :
+						    modified_reg;
+			modified_reg = valid.write ? SYSC_ALLOC_W_SYSC_ALLOC3_SET(modified_reg,
+										  write_setting) :
+						     modified_reg;
 			break;
 		}
 
 		kbdev->sysc_alloc[sysc_alloc_num] = modified_reg;
 	}
 
-	return valid ? 0 : -EINVAL;
+	return valid.overall ? 0 : -EINVAL;
 }
 
 void kbase_pbha_write_settings(struct kbase_device *kbdev)
 {
 	if (kbasep_pbha_supported(kbdev)) {
 		int i;
+
 		for (i = 0; i < SYSC_ALLOC_COUNT; ++i)
 			kbase_reg_write(kbdev, GPU_CONTROL_REG(SYSC_ALLOC(i)),
 					kbdev->sysc_alloc[i]);

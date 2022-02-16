@@ -33,7 +33,7 @@ int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 					struct kbase_gpuprops_regdump *regdump)
 {
 	int i;
-	struct kbase_gpuprops_regdump registers;
+	struct kbase_gpuprops_regdump registers = { 0 };
 
 	/* Fill regdump with the content of the relevant registers */
 	registers.gpu_id = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_ID));

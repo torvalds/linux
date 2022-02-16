@@ -172,16 +172,18 @@ static void kbasep_csf_scheduler_dump_active_queue(struct seq_file *file,
 	cs_active = addr[CS_ACTIVE/4];
 
 #define KBASEP_CSF_DEBUGFS_CS_HEADER_USER_IO \
-	"Bind Idx,     Ringbuf addr, Prio,    Insert offset,   Extract offset, Active, Doorbell\n"
+	"Bind Idx,     Ringbuf addr,     Size, Prio,    Insert offset,   Extract offset, Active, Doorbell\n"
 
-	seq_printf(file, KBASEP_CSF_DEBUGFS_CS_HEADER_USER_IO "%8d, %16llx, %4u, %16llx, %16llx, %6u, %8d\n",
-			queue->csi_index, queue->base_addr, queue->priority,
-			cs_insert, cs_extract, cs_active, queue->doorbell_nr);
+	seq_printf(file, KBASEP_CSF_DEBUGFS_CS_HEADER_USER_IO "%8d, %16llx, %8x, %4u, %16llx, %16llx, %6u, %8d\n",
+			queue->csi_index, queue->base_addr,
+			queue->size,
+			queue->priority, cs_insert, cs_extract, cs_active, queue->doorbell_nr);
 
 	/* Print status information for blocked group waiting for sync object. For on-slot queues,
 	 * if cs_trace is enabled, dump the interface's cs_trace configuration.
 	 */
 	if (kbase_csf_scheduler_group_get_slot(queue->group) < 0) {
+		seq_printf(file, "SAVED_CMD_PTR: 0x%llx\n", queue->saved_cmd_ptr);
 		if (CS_STATUS_WAIT_SYNC_WAIT_GET(queue->status_wait)) {
 			wait_status = queue->status_wait;
 			wait_sync_value = queue->sync_value;
@@ -268,17 +270,13 @@ static void kbasep_csf_scheduler_dump_active_queue(struct seq_file *file,
 	seq_puts(file, "\n");
 }
 
-/* Waiting timeout for STATUS_UPDATE acknowledgment, in milliseconds */
-#define CSF_STATUS_UPDATE_TO_MS (100)
-
 static void update_active_group_status(struct seq_file *file,
 		struct kbase_queue_group *const group)
 {
 	struct kbase_device *const kbdev = group->kctx->kbdev;
 	struct kbase_csf_cmd_stream_group_info const *const ginfo =
 		&kbdev->csf.global_iface.groups[group->csg_nr];
-	long remaining =
-		kbase_csf_timeout_in_jiffies(CSF_STATUS_UPDATE_TO_MS);
+	long remaining = kbase_csf_timeout_in_jiffies(kbdev->csf.fw_timeout_ms);
 	unsigned long flags;
 
 	/* Global doorbell ring for CSG STATUS_UPDATE request or User doorbell
@@ -327,6 +325,7 @@ static void kbasep_csf_scheduler_dump_active_group(struct seq_file *file,
 		struct kbase_device *const kbdev = group->kctx->kbdev;
 		u32 ep_c, ep_r;
 		char exclusive;
+		char idle = 'N';
 		struct kbase_csf_cmd_stream_group_info const *const ginfo =
 			&kbdev->csf.global_iface.groups[group->csg_nr];
 		u8 slot_priority =
@@ -345,8 +344,12 @@ static void kbasep_csf_scheduler_dump_active_group(struct seq_file *file,
 		else
 			exclusive = '0';
 
-		seq_puts(file, "GroupID, CSG NR, CSG Prio, Run State, Priority, C_EP(Alloc/Req), F_EP(Alloc/Req), T_EP(Alloc/Req), Exclusive\n");
-		seq_printf(file, "%7d, %6d, %8d, %9d, %8d, %11d/%3d, %11d/%3d, %11d/%3d, %9c\n",
+		if (kbase_csf_firmware_csg_output(ginfo, CSG_STATUS_STATE) &
+				CSG_STATUS_STATE_IDLE_MASK)
+			idle = 'Y';
+
+		seq_puts(file, "GroupID, CSG NR, CSG Prio, Run State, Priority, C_EP(Alloc/Req), F_EP(Alloc/Req), T_EP(Alloc/Req), Exclusive, Idle\n");
+		seq_printf(file, "%7d, %6d, %8d, %9d, %8d, %11d/%3d, %11d/%3d, %11d/%3d, %9c, %4c\n",
 			group->handle,
 			group->csg_nr,
 			slot_priority,
@@ -358,7 +361,8 @@ static void kbasep_csf_scheduler_dump_active_group(struct seq_file *file,
 			CSG_STATUS_EP_REQ_FRAGMENT_EP_GET(ep_r),
 			CSG_STATUS_EP_CURRENT_TILER_EP_GET(ep_c),
 			CSG_STATUS_EP_REQ_TILER_EP_GET(ep_r),
-			exclusive);
+			exclusive,
+			idle);
 
 		/* Wait for the User doobell ring to take effect */
 		if (kbdev->csf.scheduler.state != SCHED_SLEEPING)

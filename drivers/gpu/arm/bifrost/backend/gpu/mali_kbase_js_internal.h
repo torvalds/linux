@@ -62,7 +62,7 @@ void kbase_backend_timer_suspend(struct kbase_device *kbdev);
  *                              scheduling timer
  * @kbdev: Device pointer
  *
- * This function should be called on resume. Note that is is not guaranteed to
+ * This function should be called on resume. Note that is not guaranteed to
  * re-start the timer, only evalute whether it should be re-started.
  *
  * Caller must hold runpool_mutex.

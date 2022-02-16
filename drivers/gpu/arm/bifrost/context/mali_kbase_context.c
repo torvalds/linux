@@ -152,11 +152,17 @@ int kbase_context_common_init(struct kbase_context *kctx)
 
 	init_waitqueue_head(&kctx->event_queue);
 	atomic_set(&kctx->event_count, 0);
+
 #if !MALI_USE_CSF
 	atomic_set(&kctx->event_closed, false);
 #if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 	atomic_set(&kctx->jctx.work_id, 0);
 #endif
+#endif
+
+#if MALI_USE_CSF
+	atomic64_set(&kctx->num_fixable_allocs, 0);
+	atomic64_set(&kctx->num_fixed_allocs, 0);
 #endif
 
 	bitmap_copy(kctx->cookies, &cookies_mask, BITS_PER_LONG);

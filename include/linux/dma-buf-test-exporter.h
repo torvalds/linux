@@ -30,20 +30,17 @@
 #define DMA_BUF_TE_ENQ 0x642d7465
 #define DMA_BUF_TE_ACK 0x68692100
 
-struct dma_buf_te_ioctl_version
-{
+struct dma_buf_te_ioctl_version {
 	int op;    /**< Must be set to DMA_BUF_TE_ENQ by client, driver will set it to DMA_BUF_TE_ACK */
 	int major; /**< Major version */
 	int minor; /**< Minor version */
 };
 
-struct dma_buf_te_ioctl_alloc
-{
+struct dma_buf_te_ioctl_alloc {
 	__u64 size; /* size of buffer to allocate, in pages */
 };
 
-struct dma_buf_te_ioctl_status
-{
+struct dma_buf_te_ioctl_status {
 	/* in */
 	int fd; /* the dma_buf to query, only dma_buf objects exported by this driver is supported */
 	/* out */
@@ -52,8 +49,7 @@ struct dma_buf_te_ioctl_status
 	int cpu_mappings;    /* number of cpu mappings (active 'mmap's) */
 };
 
-struct dma_buf_te_ioctl_set_failing
-{
+struct dma_buf_te_ioctl_set_failing {
 	/* in */
 	int fd; /* the dma_buf to set failure mode for, only dma_buf objects exported by this driver is supported */
 
@@ -63,8 +59,7 @@ struct dma_buf_te_ioctl_set_failing
 	int fail_mmap;
 };
 
-struct dma_buf_te_ioctl_fill
-{
+struct dma_buf_te_ioctl_fill {
 	int fd;
 	unsigned int value;
 };

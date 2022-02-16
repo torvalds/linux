@@ -52,7 +52,7 @@
 /*
  * Maximum number of loops polling the GPU before we assume the GPU has hung.
  */
-#define IPA_INACTIVE_MAX_LOOPS ((unsigned int)8000000)
+#define IPA_INACTIVE_MAX_LOOPS (8000000U)
 
 /*
  * Number of bits used to configure a performance counter in SELECT registers.
@@ -347,9 +347,8 @@ void kbase_ipa_control_init(struct kbase_device *kbdev)
 
 	spin_lock_init(&ipa_ctrl->lock);
 	ipa_ctrl->num_active_sessions = 0;
-	for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++) {
+	for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++)
 		ipa_ctrl->sessions[i].active = false;
-	}
 
 	listener_data = kmalloc(sizeof(struct kbase_ipa_control_listener_data),
 				GFP_KERNEL);
@@ -514,8 +513,10 @@ int kbase_ipa_control_register(
 	struct kbase_ipa_control_session *session = NULL;
 	unsigned long flags;
 
-	if (WARN_ON(kbdev == NULL) || WARN_ON(perf_counters == NULL) ||
-	    WARN_ON(client == NULL) ||
+	if (WARN_ON(unlikely(kbdev == NULL)))
+		return -ENODEV;
+
+	if (WARN_ON(perf_counters == NULL) || WARN_ON(client == NULL) ||
 	    WARN_ON(num_counters > KBASE_IPA_CONTROL_MAX_COUNTERS)) {
 		dev_err(kbdev->dev, "%s: wrong input arguments", __func__);
 		return -EINVAL;
@@ -697,7 +698,10 @@ int kbase_ipa_control_unregister(struct kbase_device *kbdev, const void *client)
 	unsigned long flags;
 	bool new_config = false, valid_session = false;
 
-	if (WARN_ON(kbdev == NULL) || WARN_ON(client == NULL)) {
+	if (WARN_ON(unlikely(kbdev == NULL)))
+		return -ENODEV;
+
+	if (WARN_ON(client == NULL)) {
 		dev_err(kbdev->dev, "%s: wrong input arguments", __func__);
 		return -EINVAL;
 	}
@@ -779,8 +783,10 @@ int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
 	unsigned long flags;
 	bool gpu_ready;
 
-	if (WARN_ON(kbdev == NULL) || WARN_ON(client == NULL) ||
-	    WARN_ON(values == NULL)) {
+	if (WARN_ON(unlikely(kbdev == NULL)))
+		return -ENODEV;
+
+	if (WARN_ON(client == NULL) || WARN_ON(values == NULL)) {
 		dev_err(kbdev->dev, "%s: wrong input arguments", __func__);
 		return -EINVAL;
 	}

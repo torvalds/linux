@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -51,7 +51,6 @@ struct kbase_ccswe {
  */
 void kbase_ccswe_init(struct kbase_ccswe *self);
 
-
 /**
  * kbase_ccswe_cycle_at() - Estimate cycle count at given timestamp.
  *
@@ -68,7 +67,7 @@ void kbase_ccswe_init(struct kbase_ccswe *self);
  *     u64 ts = ktime_get_raw_ns();
  *     u64 cycle = kbase_ccswe_cycle_at(&ccswe, ts)
  *
- * Returns: estimated value of cycle count at a given time.
+ * Return: estimated value of cycle count at a given time.
  */
 u64 kbase_ccswe_cycle_at(struct kbase_ccswe *self, u64 timestamp_ns);
 

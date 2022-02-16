@@ -34,6 +34,9 @@ bob_defaults {
             "CONFIG_MALI_NO_MALI_DEFAULT_GPU={{.gpu}}",
         ],
     },
+    mali_platform_dt_pin_rst: {
+        kbuild_options: ["CONFIG_MALI_PLATFORM_DT_PIN_RST=y"],
+    },
     gpu_has_csf: {
         kbuild_options: ["CONFIG_MALI_CSF_SUPPORT=y"],
     },

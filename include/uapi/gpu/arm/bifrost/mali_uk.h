@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010, 2012-2015, 2018, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010, 2012-2015, 2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,8 +20,8 @@
  */
 
 /**
- * Types and definitions that are common across OSs for both the user
- * and kernel side of the User-Kernel interface.
+ * DOC: Types and definitions that are common across OSs for both the user
+ *      and kernel side of the User-Kernel interface.
  */
 
 #ifndef _UAPI_UK_H_

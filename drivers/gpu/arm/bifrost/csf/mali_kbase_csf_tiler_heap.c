@@ -82,7 +82,7 @@ static struct kbase_csf_tiler_heap_chunk *get_last_chunk(
  * Unless the @chunk is the first in the kernel's list of chunks belonging to
  * a given tiler heap, this function stores the size and address of the @chunk
  * in the header of the preceding chunk. This requires the GPU memory region
- * containing the header to be be mapped temporarily, which can fail.
+ * containing the header to be mapped temporarily, which can fail.
  *
  * Return: 0 if successful or a negative error code on failure.
  */
@@ -204,8 +204,8 @@ static int create_chunk(struct kbase_csf_tiler_heap *const heap,
 
 	/* Allocate GPU memory for the new chunk. */
 	INIT_LIST_HEAD(&chunk->link);
-	chunk->region = kbase_mem_alloc(kctx, nr_pages, nr_pages, 0, &flags,
-					&chunk->gpu_va, mmu_sync_info);
+	chunk->region =
+		kbase_mem_alloc(kctx, nr_pages, nr_pages, 0, &flags, &chunk->gpu_va, mmu_sync_info);
 
 	if (unlikely(!chunk->region)) {
 		dev_err(kctx->kbdev->dev,
@@ -464,21 +464,18 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx,
 		err = -ENOMEM;
 	} else {
 		err = create_initial_chunks(heap, initial_chunks);
-		if (unlikely(err)) {
-			kbase_csf_heap_context_allocator_free(ctx_alloc,
-				heap->gpu_va);
-		}
+		if (unlikely(err))
+			kbase_csf_heap_context_allocator_free(ctx_alloc, heap->gpu_va);
 	}
 
 	if (unlikely(err)) {
 		kfree(heap);
 	} else {
-		struct kbase_csf_tiler_heap_chunk const *first_chunk =
-			list_first_entry(&heap->chunks_list,
-				struct kbase_csf_tiler_heap_chunk, link);
+		struct kbase_csf_tiler_heap_chunk const *chunk = list_first_entry(
+			&heap->chunks_list, struct kbase_csf_tiler_heap_chunk, link);
 
 		*heap_gpu_va = heap->gpu_va;
-		*first_chunk_va = first_chunk->gpu_va;
+		*first_chunk_va = chunk->gpu_va;
 
 		mutex_lock(&kctx->csf.tiler_heaps.lock);
 		kctx->csf.tiler_heaps.nr_of_heaps++;
@@ -488,17 +485,25 @@ int kbase_csf_tiler_heap_init(struct kbase_context *const kctx,
 		KBASE_TLSTREAM_AUX_TILER_HEAP_STATS(
 			kctx->kbdev, kctx->id, heap->heap_id,
 			PFN_UP(heap->chunk_size * heap->max_chunks),
-			PFN_UP(heap->chunk_size * heap->chunk_count),
-			heap->max_chunks, heap->chunk_size, heap->chunk_count,
-			heap->target_in_flight, 0);
+			PFN_UP(heap->chunk_size * heap->chunk_count), heap->max_chunks,
+			heap->chunk_size, heap->chunk_count, heap->target_in_flight, 0);
 
-		dev_dbg(kctx->kbdev->dev, "Created tiler heap 0x%llX\n",
-			heap->gpu_va);
+#if defined(CONFIG_MALI_VECTOR_DUMP)
+		list_for_each_entry(chunk, &heap->chunks_list, link) {
+			KBASE_TLSTREAM_JD_TILER_HEAP_CHUNK_ALLOC(
+				kctx->kbdev, kctx->id, heap->heap_id, chunk->gpu_va);
+		}
+#endif
+
+		dev_dbg(kctx->kbdev->dev, "Created tiler heap 0x%llX\n", heap->gpu_va);
 		mutex_unlock(&kctx->csf.tiler_heaps.lock);
 		kctx->running_total_tiler_heap_nr_chunks += heap->chunk_count;
-		kctx->running_total_tiler_heap_memory += heap->chunk_size * heap->chunk_count;
-		if (kctx->running_total_tiler_heap_memory > kctx->peak_total_tiler_heap_memory)
-			kctx->peak_total_tiler_heap_memory = kctx->running_total_tiler_heap_memory;
+		kctx->running_total_tiler_heap_memory +=
+			heap->chunk_size * heap->chunk_count;
+		if (kctx->running_total_tiler_heap_memory >
+		    kctx->peak_total_tiler_heap_memory)
+			kctx->peak_total_tiler_heap_memory =
+				kctx->running_total_tiler_heap_memory;
 	}
 	return err;
 }
@@ -609,6 +614,16 @@ int kbase_csf_tiler_heap_alloc_new_chunk(struct kbase_context *kctx,
 	if (likely(heap)) {
 		err = alloc_new_chunk(heap, nr_in_flight, pending_frag_count,
 			new_chunk_ptr);
+		if (likely(!err)) {
+			/* update total and peak tiler heap memory record */
+			kctx->running_total_tiler_heap_nr_chunks++;
+			kctx->running_total_tiler_heap_memory += heap->chunk_size;
+
+			if (kctx->running_total_tiler_heap_memory >
+			    kctx->peak_total_tiler_heap_memory)
+				kctx->peak_total_tiler_heap_memory =
+					kctx->running_total_tiler_heap_memory;
+		}
 
 		KBASE_TLSTREAM_AUX_TILER_HEAP_STATS(
 			kctx->kbdev, kctx->id, heap->heap_id,

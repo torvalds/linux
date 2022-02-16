@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -144,9 +144,10 @@ void kbase_reset_gpu_assert_prevented(struct kbase_device *kbdev);
 void kbase_reset_gpu_assert_failed_or_prevented(struct kbase_device *kbdev);
 
 /**
- * Flags for kbase_prepare_to_reset_gpu
+ * RESET_FLAGS_NONE - Flags for kbase_prepare_to_reset_gpu
  */
-#define RESET_FLAGS_NONE ((unsigned int)0)
+#define RESET_FLAGS_NONE (0U)
+
 /* This reset should be treated as an unrecoverable error by HW counter logic */
 #define RESET_FLAGS_HWC_UNRECOVERABLE_ERROR ((unsigned int)(1 << 0))
 

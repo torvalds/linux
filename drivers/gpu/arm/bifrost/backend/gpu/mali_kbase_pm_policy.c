@@ -180,9 +180,8 @@ void kbase_pm_update_dynamic_cores_onoff(struct kbase_device *kbdev)
 
 	shaders_desired = kbdev->pm.backend.pm_current_policy->shaders_needed(kbdev);
 
-	if (shaders_desired && kbase_pm_is_l2_desired(kbdev)) {
+	if (shaders_desired && kbase_pm_is_l2_desired(kbdev))
 		kbase_pm_update_state(kbdev);
-	}
 #endif
 }
 
@@ -249,9 +248,8 @@ KBASE_EXPORT_TEST_API(kbase_pm_get_policy);
 #if MALI_USE_CSF
 static int policy_change_wait_for_L2_off(struct kbase_device *kbdev)
 {
-#define WAIT_DURATION_MS (3000)
 	long remaining;
-	long timeout = kbase_csf_timeout_in_jiffies(WAIT_DURATION_MS);
+	long timeout = kbase_csf_timeout_in_jiffies(kbase_get_timeout_ms(kbdev, CSF_PM_TIMEOUT));
 	int err = 0;
 
 	/* Wait for L2 becoming off, by which the MCU is also implicitly off

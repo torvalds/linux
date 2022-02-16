@@ -80,9 +80,8 @@ static int kbase_csf_tl_debugfs_poll_interval_write(void *data, u64 val)
 	struct kbase_device *kbdev = (struct kbase_device *)data;
 	struct kbase_csf_tl_reader *self = &kbdev->timeline->csf_tl_reader;
 
-	if (val > KBASE_CSF_TL_READ_INTERVAL_MAX || val < KBASE_CSF_TL_READ_INTERVAL_MIN) {
+	if (val > KBASE_CSF_TL_READ_INTERVAL_MAX || val < KBASE_CSF_TL_READ_INTERVAL_MIN)
 		return -EINVAL;
-	}
 
 	self->timer_interval = (u32)val;
 
@@ -96,7 +95,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(kbase_csf_tl_poll_interval_fops,
 
 void kbase_csf_tl_reader_debugfs_init(struct kbase_device *kbdev)
 {
-	debugfs_create_file("csf_tl_poll_interval_in_ms", S_IRUGO | S_IWUSR,
+	debugfs_create_file("csf_tl_poll_interval_in_ms", 0644,
 		kbdev->debugfs_instr_directory, kbdev,
 		&kbase_csf_tl_poll_interval_fops);
 
@@ -406,9 +405,8 @@ static int tl_reader_init_late(
 		return -1;
 	}
 
-	if (kbase_ts_converter_init(&self->ts_converter, kbdev)) {
+	if (kbase_ts_converter_init(&self->ts_converter, kbdev))
 		return -1;
-	}
 
 	self->kbdev = kbdev;
 	self->trace_buffer = tb;

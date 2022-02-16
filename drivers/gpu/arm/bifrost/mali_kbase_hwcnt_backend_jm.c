@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -133,6 +133,8 @@ struct kbase_hwcnt_backend_jm {
  * @info:  Non-NULL pointer to data structure to be filled in.
  *
  * The initialised info struct will only be valid for use while kbdev is valid.
+ *
+ * Return: 0 on success, else error code.
  */
 static int
 kbasep_hwcnt_backend_jm_gpu_info_init(struct kbase_device *kbdev,
@@ -854,7 +856,7 @@ static void kbasep_hwcnt_backend_jm_info_destroy(
  * @kbdev: Non_NULL pointer to kbase device.
  * @out_info: Non-NULL pointer to where info is stored on success.
  *
- * Return 0 on success, else error code.
+ * Return: 0 on success, else error code.
  */
 static int kbasep_hwcnt_backend_jm_info_create(
 	struct kbase_device *kbdev,

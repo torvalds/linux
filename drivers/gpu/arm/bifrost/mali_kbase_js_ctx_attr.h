@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2012-2015, 2018, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015, 2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,7 +27,8 @@
 #define _KBASE_JS_CTX_ATTR_H_
 
 /**
- * Retain all attributes of a context
+ * kbasep_js_ctx_attr_runpool_retain_ctx - Retain all attributes of a context
+ *
  * @kbdev: KBase device
  * @kctx:  KBase context
  *
@@ -42,7 +43,8 @@
 void kbasep_js_ctx_attr_runpool_retain_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
- * Release all attributes of a context
+ * kbasep_js_ctx_attr_runpool_release_ctx - Release all attributes of a context
+ *
  * @kbdev: KBase device
  * @kctx:  KBase context
  *
@@ -54,16 +56,17 @@ void kbasep_js_ctx_attr_runpool_retain_ctx(struct kbase_device *kbdev, struct kb
  * - runpool_irq spinlock
  * - ctx->is_scheduled is true
  *
- * @return true indicates a change in ctx attributes state of the runpool.
+ * Return: true indicates a change in ctx attributes state of the runpool.
  * In this state, the scheduler might be able to submit more jobs than
  * previously, and so the caller should ensure kbasep_js_try_run_next_job_nolock()
  * or similar is called sometime later.
- * @return false indicates no change in ctx attributes state of the runpool.
+ * false indicates no change in ctx attributes state of the runpool.
  */
 bool kbasep_js_ctx_attr_runpool_release_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
- * Retain all attributes of an atom
+ * kbasep_js_ctx_attr_ctx_retain_atom - Retain all attributes of an atom
+ *
  * @kbdev: KBase device
  * @kctx:  KBase context
  * @katom: Atom
@@ -77,7 +80,9 @@ bool kbasep_js_ctx_attr_runpool_release_ctx(struct kbase_device *kbdev, struct k
 void kbasep_js_ctx_attr_ctx_retain_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom);
 
 /**
- * Release all attributes of an atom, given its retained state.
+ * kbasep_js_ctx_attr_ctx_release_atom - Release all attributes of an atom,
+ * given its retained state.
+ *
  * @kbdev: KBase device
  * @kctx:  KBase context
  * @katom_retained_state: Retained state
@@ -90,11 +95,11 @@ void kbasep_js_ctx_attr_ctx_retain_atom(struct kbase_device *kbdev, struct kbase
  *
  * This is a no-op when \a katom_retained_state is invalid.
  *
- * @return true indicates a change in ctx attributes state of the runpool.
+ * Return: true indicates a change in ctx attributes state of the runpool.
  * In this state, the scheduler might be able to submit more jobs than
  * previously, and so the caller should ensure kbasep_js_try_run_next_job_nolock()
  * or similar is called sometime later.
- * @return false indicates no change in ctx attributes state of the runpool.
+ * false indicates no change in ctx attributes state of the runpool.
  */
 bool kbasep_js_ctx_attr_ctx_release_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbasep_js_atom_retained_state *katom_retained_state);
 

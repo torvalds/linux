@@ -138,10 +138,11 @@ struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
 	if (katom->event_code != BASE_JD_EVENT_STOPPED &&
 			katom->event_code != BASE_JD_EVENT_REMOVED_FROM_NEXT) {
 		return kbase_js_complete_atom(katom, NULL);
-	} else {
-		kbase_js_unpull(katom->kctx, katom);
-		return NULL;
 	}
+
+	kbase_js_unpull(katom->kctx, katom);
+
+	return NULL;
 }
 
 struct kbase_jd_atom *kbase_jm_complete(struct kbase_device *kbdev,

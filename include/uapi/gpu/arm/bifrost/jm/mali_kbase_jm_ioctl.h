@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -123,9 +123,11 @@
  * - Added new HW performance counters interface to all GPUs.
  * 11.33:
  * - Removed Kernel legacy HWC interface
+ * 11.34:
+ * - First release of new HW performance counters interface.
  */
 #define BASE_UK_VERSION_MAJOR 11
-#define BASE_UK_VERSION_MINOR 33
+#define BASE_UK_VERSION_MINOR 34
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between

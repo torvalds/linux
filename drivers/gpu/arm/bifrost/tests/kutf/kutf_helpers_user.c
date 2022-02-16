@@ -368,7 +368,7 @@ int kutf_helper_receive_named_val(
 		named_val->u.val_str = strval;
 		break;
 	default:
-		pr_err("Unreachable, fix kutf_helper_receive_named_val\n");
+		pr_err("Unreachable, fix %s\n", __func__);
 		/* Coding error, report as though 'run' file failed */
 		return -EINVAL;
 	}
