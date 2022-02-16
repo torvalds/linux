@@ -154,7 +154,7 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 		out->async.s = cryptodev_crypto_alloc_blkcipher(alg_name, 0, 0);
 		if (unlikely(IS_ERR(out->async.s))) {
 			ddebug(1, "Failed to load cipher %s", alg_name);
-				return -EINVAL;
+			return PTR_ERR(out->async.s);
 		}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
@@ -358,7 +358,7 @@ int cryptodev_hash_init(struct hash_data *hdata, const char *alg_name,
 	hdata->async.s = crypto_alloc_ahash(alg_name, 0, 0);
 	if (unlikely(IS_ERR(hdata->async.s))) {
 		ddebug(1, "Failed to load transform for %s", alg_name);
-		return -EINVAL;
+		return PTR_ERR(hdata->async.s);
 	}
 
 	/* Copy the key from user and set to TFM. */

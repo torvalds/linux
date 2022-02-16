@@ -275,7 +275,6 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 						keylen, stream, aead);
 		if (ret < 0) {
 			ddebug(1, "Failed to load cipher for %s", alg_name);
-			ret = -EINVAL;
 			goto session_error;
 		}
 	}
@@ -298,7 +297,6 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 							keys.mkey, sop->mackeylen);
 		if (ret != 0) {
 			ddebug(1, "Failed to load hash for %s", hash_name);
-			ret = -EINVAL;
 			goto session_error;
 		}
 

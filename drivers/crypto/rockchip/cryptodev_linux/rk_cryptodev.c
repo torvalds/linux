@@ -887,8 +887,6 @@ static const struct cipher_algo_name_map c_algo_map_tbl[] = {
 	{CRYPTO_RK_SM4_XTS,     "xts-sm4-rk",      0, 0},
 	{CRYPTO_RK_SM4_CCM,     "ccm-sm4-rk",      1, 1},
 	{CRYPTO_RK_SM4_GCM,     "gcm-sm4-rk",      1, 1},
-	{CRYPTO_RK_SM4_CMAC,    NULL,              0, 0},
-	{CRYPTO_RK_SM4_CBC_MAC, NULL,              0, 0},
 	{CRYPTO_RK_AES_ECB,     "ecb-aes-rk",      0, 0},
 	{CRYPTO_RK_AES_CBC,     "cbc-aes-rk",      0, 0},
 	{CRYPTO_RK_AES_CFB,     "cfb-aes-rk",      0, 0},
@@ -898,8 +896,6 @@ static const struct cipher_algo_name_map c_algo_map_tbl[] = {
 	{CRYPTO_RK_AES_XTS,     "xts-aes-rk",      0, 0},
 	{CRYPTO_RK_AES_CCM,     "ccm-aes-rk",      1, 1},
 	{CRYPTO_RK_AES_GCM,     "gcm-aes-rk",      1, 1},
-	{CRYPTO_RK_AES_CMAC,    NULL,              0, 0},
-	{CRYPTO_RK_AES_CBC_MAC, NULL,              0, 0},
 };
 
 static const struct hash_algo_name_map h_algo_map_tbl[] = {
@@ -912,10 +908,16 @@ static const struct hash_algo_name_map h_algo_map_tbl[] = {
 	{CRYPTO_RK_SHA512,      "sha512-rk",      0},
 	{CRYPTO_RK_SHA512_224,  "sha512_224-rk",  0},
 	{CRYPTO_RK_SHA512_256,  "sha512_256-rk",  0},
+	{CRYPTO_RK_SM3,         "sm3-rk",         0},
 	{CRYPTO_RK_MD5_HMAC,    "hmac-md5-rk",    1},
 	{CRYPTO_RK_SHA1_HMAC,   "hmac-sha1-rk",   1},
 	{CRYPTO_RK_SHA256_HMAC, "hmac-sha256-rk", 1},
 	{CRYPTO_RK_SHA512_HMAC, "hmac-sha512-rk", 1},
+	{CRYPTO_RK_SM3_HMAC,    "hmac-sm3-rk",    1},
+	{CRYPTO_RK_SM4_CMAC,    "cmac-sm4-rk",    1},
+	{CRYPTO_RK_SM4_CBC_MAC, "cbcmac-sm4-rk",  1},
+	{CRYPTO_RK_AES_CMAC,    "cmac-aes-rk",    1},
+	{CRYPTO_RK_AES_CBC_MAC, "cbcmac-aes-rk",  1},
 };
 
 const char *rk_get_cipher_name(uint32_t id, int *is_stream, int *is_aead)

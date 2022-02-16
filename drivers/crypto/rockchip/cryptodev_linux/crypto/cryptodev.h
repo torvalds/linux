@@ -98,6 +98,8 @@ enum cryptodev_crypto_op_t {
 	CRYPTO_RK_SHA1_HMAC,
 	CRYPTO_RK_SHA256_HMAC,
 	CRYPTO_RK_SHA512_HMAC,
+	CRYPTO_RK_SM3,
+	CRYPTO_RK_SM3_HMAC,
 
 	CRYPTO_ALGORITHM_ALL, /* Keep updated - see below */
 };
