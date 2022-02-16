@@ -874,6 +874,22 @@ static void __submit_bio_noacct_mq(struct bio *bio)
 	current->bio_list = NULL;
 }
 
+void submit_bio_noacct_nocheck(struct bio *bio)
+{
+	/*
+	 * We only want one ->submit_bio to be active at a time, else stack
+	 * usage with stacked devices could be a problem.  Use current->bio_list
+	 * to collect a list of requests submited by a ->submit_bio method while
+	 * it is active, and then process them after it returned.
+	 */
+	if (current->bio_list)
+		bio_list_add(&current->bio_list[0], bio);
+	else if (!bio->bi_bdev->bd_disk->fops->submit_bio)
+		__submit_bio_noacct_mq(bio);
+	else
+		__submit_bio_noacct(bio);
+}
+
 /**
  * submit_bio_noacct - re-submit a bio to the block device layer for I/O
  * @bio:  The bio describing the location in memory and on the device.
@@ -887,19 +903,7 @@ void submit_bio_noacct(struct bio *bio)
 {
 	if (unlikely(!submit_bio_checks(bio)))
 		return;
-
-	/*
-	 * We only want one ->submit_bio to be active at a time, else stack
-	 * usage with stacked devices could be a problem.  Use current->bio_list
-	 * to collect a list of requests submited by a ->submit_bio method while
-	 * it is active, and then process them after it returned.
-	 */
-	if (current->bio_list)
-		bio_list_add(&current->bio_list[0], bio);
-	else if (!bio->bi_bdev->bd_disk->fops->submit_bio)
-		__submit_bio_noacct_mq(bio);
-	else
-		__submit_bio_noacct(bio);
+	submit_bio_noacct_nocheck(bio);
 }
 EXPORT_SYMBOL(submit_bio_noacct);
 
