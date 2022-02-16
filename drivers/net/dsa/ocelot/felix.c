@@ -296,11 +296,9 @@ static int felix_setup_mmio_filtering(struct felix *felix)
 		break;
 	}
 
-	if (cpu < 0) {
-		kfree(tagging_rule);
-		kfree(redirect_rule);
-		return -EINVAL;
-	}
+	/* We are sure that "cpu" was found, otherwise
+	 * dsa_tree_setup_default_cpu() would have failed earlier.
+	 */
 
 	tagging_rule->key_type = OCELOT_VCAP_KEY_ETYPE;
 	*(__be16 *)tagging_rule->key.etype.etype.value = htons(ETH_P_1588);
