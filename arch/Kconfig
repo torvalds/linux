@@ -997,6 +997,10 @@ config PAGE_SIZE_LESS_THAN_64KB
 	depends on !PAGE_SIZE_64KB
 	depends on !PARISC_PAGE_SIZE_64KB
 	depends on !PPC_64K_PAGES
+	depends on PAGE_SIZE_LESS_THAN_256KB
+
+config PAGE_SIZE_LESS_THAN_256KB
+	def_bool y
 	depends on !PPC_256K_PAGES
 	depends on !PAGE_SIZE_256KB
 

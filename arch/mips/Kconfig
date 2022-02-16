@@ -2674,6 +2674,8 @@ config NUMA
 	bool "NUMA Support"
 	depends on SYS_SUPPORTS_NUMA
 	select SMP
+	select HAVE_SETUP_PER_CPU_AREA
+	select NEED_PER_CPU_EMBED_FIRST_CHUNK
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option improves performance on systems with more
@@ -2683,14 +2685,6 @@ config NUMA
 
 config SYS_SUPPORTS_NUMA
 	bool
-
-config HAVE_SETUP_PER_CPU_AREA
-	def_bool y
-	depends on NUMA
-
-config NEED_PER_CPU_EMBED_FIRST_CHUNK
-	def_bool y
-	depends on NUMA
 
 config RELOCATABLE
 	bool "Relocatable kernel"

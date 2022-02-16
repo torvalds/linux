@@ -432,6 +432,18 @@ config NEED_PER_CPU_KM
 	bool
 	default y
 
+config NEED_PER_CPU_EMBED_FIRST_CHUNK
+	bool
+
+config NEED_PER_CPU_PAGE_FIRST_CHUNK
+	bool
+
+config USE_PERCPU_NUMA_NODE_ID
+	bool
+
+config HAVE_SETUP_PER_CPU_AREA
+	bool
+
 config CLEANCACHE
 	bool "Enable cleancache driver to cache clean pages if tmem is present"
 	help
