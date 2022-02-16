@@ -76,13 +76,8 @@ struct test_vcpu_shared_data {
 	uint64_t xcnt;
 };
 
-struct test_vcpu {
-	uint32_t vcpuid;
-	pthread_t pt_vcpu_run;
-	struct kvm_vm *vm;
-};
-
-static struct test_vcpu test_vcpu[KVM_MAX_VCPUS];
+static struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
+static pthread_t pt_vcpu_run[KVM_MAX_VCPUS];
 static struct test_vcpu_shared_data vcpu_shared_data[KVM_MAX_VCPUS];
 
 static int vtimer_irq, ptimer_irq;
@@ -217,20 +212,20 @@ static void guest_code(void)
 
 static void *test_vcpu_run(void *arg)
 {
+	unsigned int vcpu_idx = (unsigned long)arg;
 	struct ucall uc;
-	struct test_vcpu *vcpu = arg;
+	struct kvm_vcpu *vcpu = vcpus[vcpu_idx];
 	struct kvm_vm *vm = vcpu->vm;
-	uint32_t vcpuid = vcpu->vcpuid;
-	struct test_vcpu_shared_data *shared_data = &vcpu_shared_data[vcpuid];
+	struct test_vcpu_shared_data *shared_data = &vcpu_shared_data[vcpu_idx];
 
-	vcpu_run(vm, vcpuid);
+	vcpu_run(vm, vcpu->id);
 
 	/* Currently, any exit from guest is an indication of completion */
 	pthread_mutex_lock(&vcpu_done_map_lock);
-	set_bit(vcpuid, vcpu_done_map);
+	set_bit(vcpu_idx, vcpu_done_map);
 	pthread_mutex_unlock(&vcpu_done_map_lock);
 
-	switch (get_ucall(vm, vcpuid, &uc)) {
+	switch (get_ucall(vm, vcpu->id, &uc)) {
 	case UCALL_SYNC:
 	case UCALL_DONE:
 		break;
@@ -238,7 +233,7 @@ static void *test_vcpu_run(void *arg)
 		sync_global_from_guest(vm, *shared_data);
 		TEST_FAIL("%s at %s:%ld\n\tvalues: %lu, %lu; %lu, vcpu: %u; stage: %u; iter: %u",
 			(const char *)uc.args[0], __FILE__, uc.args[1],
-			uc.args[2], uc.args[3], uc.args[4], vcpuid,
+			uc.args[2], uc.args[3], uc.args[4], vcpu_idx,
 			shared_data->guest_stage, shared_data->nr_iter);
 		break;
 	default:
@@ -265,7 +260,7 @@ static uint32_t test_get_pcpu(void)
 	return pcpu;
 }
 
-static int test_migrate_vcpu(struct test_vcpu *vcpu)
+static int test_migrate_vcpu(unsigned int vcpu_idx)
 {
 	int ret;
 	cpu_set_t cpuset;
@@ -274,15 +269,15 @@ static int test_migrate_vcpu(struct test_vcpu *vcpu)
 	CPU_ZERO(&cpuset);
 	CPU_SET(new_pcpu, &cpuset);
 
-	pr_debug("Migrating vCPU: %u to pCPU: %u\n", vcpu->vcpuid, new_pcpu);
+	pr_debug("Migrating vCPU: %u to pCPU: %u\n", vcpu_idx, new_pcpu);
 
-	ret = pthread_setaffinity_np(vcpu->pt_vcpu_run,
-					sizeof(cpuset), &cpuset);
+	ret = pthread_setaffinity_np(pt_vcpu_run[vcpu_idx],
+				     sizeof(cpuset), &cpuset);
 
 	/* Allow the error where the vCPU thread is already finished */
 	TEST_ASSERT(ret == 0 || ret == ESRCH,
-			"Failed to migrate the vCPU:%u to pCPU: %u; ret: %d\n",
-			vcpu->vcpuid, new_pcpu, ret);
+		    "Failed to migrate the vCPU:%u to pCPU: %u; ret: %d\n",
+		    vcpu_idx, new_pcpu, ret);
 
 	return ret;
 }
@@ -305,7 +300,7 @@ static void *test_vcpu_migration(void *arg)
 				continue;
 			}
 
-			test_migrate_vcpu(&test_vcpu[i]);
+			test_migrate_vcpu(i);
 		}
 	} while (test_args.nr_vcpus != n_done);
 
@@ -314,16 +309,17 @@ static void *test_vcpu_migration(void *arg)
 
 static void test_run(struct kvm_vm *vm)
 {
-	int i, ret;
 	pthread_t pt_vcpu_migration;
+	unsigned int i;
+	int ret;
 
 	pthread_mutex_init(&vcpu_done_map_lock, NULL);
 	vcpu_done_map = bitmap_zalloc(test_args.nr_vcpus);
 	TEST_ASSERT(vcpu_done_map, "Failed to allocate vcpu done bitmap\n");
 
-	for (i = 0; i < test_args.nr_vcpus; i++) {
-		ret = pthread_create(&test_vcpu[i].pt_vcpu_run, NULL,
-				test_vcpu_run, &test_vcpu[i]);
+	for (i = 0; i < (unsigned long)test_args.nr_vcpus; i++) {
+		ret = pthread_create(&pt_vcpu_run[i], NULL, test_vcpu_run,
+				     (void *)(unsigned long)i);
 		TEST_ASSERT(!ret, "Failed to create vCPU-%d pthread\n", i);
 	}
 
@@ -338,7 +334,7 @@ static void test_run(struct kvm_vm *vm)
 
 
 	for (i = 0; i < test_args.nr_vcpus; i++)
-		pthread_join(test_vcpu[i].pt_vcpu_run, NULL);
+		pthread_join(pt_vcpu_run[i], NULL);
 
 	if (test_args.migration_freq_ms)
 		pthread_join(pt_vcpu_migration, NULL);
@@ -349,9 +345,9 @@ static void test_run(struct kvm_vm *vm)
 static void test_init_timer_irq(struct kvm_vm *vm)
 {
 	/* Timer initid should be same for all the vCPUs, so query only vCPU-0 */
-	vcpu_device_attr_get(vm, 0, KVM_ARM_VCPU_TIMER_CTRL,
+	vcpu_device_attr_get(vm, vcpus[0]->id, KVM_ARM_VCPU_TIMER_CTRL,
 			     KVM_ARM_VCPU_TIMER_IRQ_PTIMER, &ptimer_irq);
-	vcpu_device_attr_get(vm, 0, KVM_ARM_VCPU_TIMER_CTRL,
+	vcpu_device_attr_get(vm, vcpus[0]->id, KVM_ARM_VCPU_TIMER_CTRL,
 			     KVM_ARM_VCPU_TIMER_IRQ_VTIMER, &vtimer_irq);
 
 	sync_global_to_guest(vm, ptimer_irq);
@@ -368,17 +364,13 @@ static struct kvm_vm *test_vm_create(void)
 	unsigned int i;
 	int nr_vcpus = test_args.nr_vcpus;
 
-	vm = vm_create_default_with_vcpus(nr_vcpus, 0, 0, guest_code, NULL);
+	vm = vm_create_with_vcpus(nr_vcpus, guest_code, vcpus);
 
 	vm_init_descriptor_tables(vm);
 	vm_install_exception_handler(vm, VECTOR_IRQ_CURRENT, guest_irq_handler);
 
-	for (i = 0; i < nr_vcpus; i++) {
-		vcpu_init_descriptor_tables(vm, i);
-
-		test_vcpu[i].vcpuid = i;
-		test_vcpu[i].vm = vm;
-	}
+	for (i = 0; i < nr_vcpus; i++)
+		vcpu_init_descriptor_tables(vm, vcpus[i]->id);
 
 	ucall_init(vm, NULL);
 	test_init_timer_irq(vm);
