@@ -382,7 +382,7 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 	if (protocol == ETH_P_IP) {
 		struct iphdr *iph = (struct iphdr *)(skb->data + ETH_HLEN);
 
-		if (((unsigned char *)(iph) + (iph->ihl<<2)) >= (skb->data + ETH_HLEN + skb->len))
+		if (((unsigned char *)(iph) + (iph->ihl << 2)) >= (skb->data + ETH_HLEN + skb->len))
 			return -1;
 
 		switch (method) {
@@ -451,7 +451,11 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 						pOldTag = (struct pppoe_tag *)__nat25_find_pppoe_tag(ph, ntohs(PTT_RELAY_SID));
 						if (pOldTag) { /*  if SID existed, copy old value and delete it */
 							old_tag_len = ntohs(pOldTag->tag_len);
-							if (old_tag_len+TAG_HDR_LEN+MAGIC_CODE_LEN+RTL_RELAY_TAG_LEN > sizeof(tag_buf))
+							if (old_tag_len +
+							    TAG_HDR_LEN +
+							    MAGIC_CODE_LEN +
+							    RTL_RELAY_TAG_LEN >
+							    sizeof(tag_buf))
 								return -1;
 
 							memcpy(tag->tag_data+MAGIC_CODE_LEN+RTL_RELAY_TAG_LEN,
@@ -476,7 +480,9 @@ int nat25_db_handle(struct adapter *priv, struct sk_buff *skb, int method)
 							return -1;
 					} else { /*  not add relay tag */
 						if (priv->pppoe_connection_in_progress &&
-								memcmp(skb->data+ETH_ALEN, priv->pppoe_addr, ETH_ALEN))
+						    memcmp(skb->data + ETH_ALEN,
+							   priv->pppoe_addr,
+							   ETH_ALEN))
 							return -2;
 
 						if (priv->pppoe_connection_in_progress == 0)

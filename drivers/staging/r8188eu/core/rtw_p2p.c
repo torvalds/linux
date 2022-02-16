@@ -1154,7 +1154,8 @@ u8 process_p2p_group_negotation_req(struct wifidirect_info *pwdinfo, u8 *pframe,
 						peer_operating_ch = operatingch_info[4];
 
 					if (rtw_p2p_is_channel_list_ok(peer_operating_ch,
-							       ch_list_inclusioned, ch_num_inclusioned))
+								       ch_list_inclusioned,
+								       ch_num_inclusioned))
 						/**
 						 *	Change our operating channel as peer's for compatibility.
 						 */
@@ -1270,7 +1271,11 @@ u8 process_p2p_group_negotation_resp(struct wifidirect_info *pwdinfo, u8 *pframe
 			/*	Try to get the operation channel information */
 
 			attr_contentlen = 0;
-			if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, operatingch_info, &attr_contentlen))
+			if (rtw_get_p2p_attr_content(p2p_ie,
+						     p2p_ielen,
+						     P2P_ATTR_OPERATING_CH,
+						     operatingch_info,
+						     &attr_contentlen))
 				pwdinfo->peer_operating_ch = operatingch_info[4];
 
 			/*	Try to get the channel list information */
@@ -1377,7 +1382,11 @@ u8 process_p2p_group_negotation_confirm(struct wifidirect_info *pwdinfo, u8 *pfr
 		}
 
 		attr_contentlen = 0;
-		if (rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, operatingch_info, &attr_contentlen))
+		if (rtw_get_p2p_attr_content(p2p_ie,
+					     p2p_ielen,
+					     P2P_ATTR_OPERATING_CH,
+					     operatingch_info,
+					     &attr_contentlen))
 			pwdinfo->peer_operating_ch = operatingch_info[4];
 
 		/* Get the next P2P IE */
