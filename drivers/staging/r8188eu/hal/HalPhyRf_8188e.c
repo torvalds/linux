@@ -149,7 +149,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 		TempCCk = dm_odm->RFCalibrateInfo.RegA24;
 
 		for (i = 0; i < CCK_TABLE_SIZE; i++) {
-			if (memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch1_Ch13[i][2], 4)) {
+			if (memcmp((void *)&TempCCk, (void *)&cck_swing_table[i][2], 4)) {
 				CCK_index_old = (u8)i;
 				dm_odm->BbSwingIdxCckBase = (u8)i;
 				break;
