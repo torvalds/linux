@@ -194,7 +194,6 @@ static int process_branch_callback(struct evsel *evsel,
 	};
 
 	struct addr_location a;
-	int ret;
 
 	if (machine__resolve(machine, &a, sample) < 0)
 		return -1;
@@ -207,8 +206,7 @@ static int process_branch_callback(struct evsel *evsel,
 
 	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
 
-	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
-	return ret;
+	return hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
 }
 
 static bool has_annotation(struct perf_annotate *ann)
