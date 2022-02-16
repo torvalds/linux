@@ -84,6 +84,18 @@ enum {
 	KBASE_3BIT_AID_4  = 0x7
 };
 
+#if MALI_USE_CSF
+/*
+ * Default value for the TIMER register of the IPA Control interface,
+ * expressed in milliseconds.
+ *
+ * The chosen value is a trade off between two requirements: the IPA Control
+ * interface should sample counters with a resolution in the order of
+ * milliseconds, while keeping GPU overhead as limited as possible.
+ */
+#define IPA_CONTROL_TIMER_DEFAULT_VALUE_MS ((u32)10) /* 10 milliseconds */
+#endif /* MALI_USE_CSF */
+
 /**
  * Default period for DVFS sampling (can be overridden by platform header)
  */

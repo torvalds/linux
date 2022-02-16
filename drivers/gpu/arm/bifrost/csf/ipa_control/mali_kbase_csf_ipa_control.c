@@ -20,6 +20,7 @@
  */
 
 #include <mali_kbase.h>
+#include <mali_kbase_config_defaults.h>
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 #include "mali_kbase_csf_ipa_control.h"
 
@@ -44,19 +45,9 @@
 #define COMMAND_RESET_ACK ((u32)5)
 
 /*
- * Default value for the TIMER register of the IPA Control interface,
- * expressed in milliseconds.
- *
- * The chosen value is a trade off between two requirements: the IPA Control
- * interface should sample counters with a resolution in the order of
- * milliseconds, while keeping GPU overhead as limited as possible.
- */
-#define TIMER_DEFAULT_VALUE_MS ((u32)10) /* 10 milliseconds */
-
-/*
  * Number of timer events per second.
  */
-#define TIMER_EVENTS_PER_SECOND ((u32)1000 / TIMER_DEFAULT_VALUE_MS)
+#define TIMER_EVENTS_PER_SECOND ((u32)1000 / IPA_CONTROL_TIMER_DEFAULT_VALUE_MS)
 
 /*
  * Maximum number of loops polling the GPU before we assume the GPU has hung.

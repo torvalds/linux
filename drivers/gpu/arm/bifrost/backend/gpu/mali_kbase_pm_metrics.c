@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2011-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,6 +24,7 @@
  */
 
 #include <mali_kbase.h>
+#include <mali_kbase_config_defaults.h>
 #include <mali_kbase_pm.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
@@ -231,11 +232,13 @@ static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev)
 		 * time.
 		 */
 		if (!kbdev->pm.backend.metrics.skip_gpu_active_sanity_check) {
-			/* Use a margin value that is approximately 1% of the time
-			 * difference.
+			/* The margin is scaled to allow for the worst-case
+			 * scenario where the samples are maximally separated,
+			 * plus a small offset for sampling errors.
 			 */
-			u64 margin_ns = diff_ns >> 6;
-			if (gpu_active_counter > (diff_ns + margin_ns)) {
+			u64 const MARGIN_NS =
+				IPA_CONTROL_TIMER_DEFAULT_VALUE_MS * NSEC_PER_MSEC * 3 / 2;
+			if (gpu_active_counter > (diff_ns + MARGIN_NS)) {
 				dev_info(
 					kbdev->dev,
 					"GPU activity takes longer than time interval: %llu ns > %llu ns",
