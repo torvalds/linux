@@ -67,6 +67,12 @@ struct __guc_ads_blob {
 	iosys_map_wr_field(&(guc_)->ads_map, 0, struct __guc_ads_blob,	\
 			   field_, val_)
 
+#define info_map_write(map_, field_, val_) \
+	iosys_map_wr_field(map_, 0, struct guc_gt_system_info, field_, val_)
+
+#define info_map_read(map_, field_) \
+	iosys_map_rd_field(map_, 0, struct guc_gt_system_info, field_)
+
 static u32 guc_ads_regset_size(struct intel_guc *guc)
 {
 	GEM_BUG_ON(!guc->ads_regset_size);
@@ -417,24 +423,24 @@ static void guc_mmio_reg_state_init(struct intel_guc *guc,
 }
 
 static void fill_engine_enable_masks(struct intel_gt *gt,
-				     struct guc_gt_system_info *info)
+				     struct iosys_map *info_map)
 {
-	info->engine_enabled_masks[GUC_RENDER_CLASS] = 1;
-	info->engine_enabled_masks[GUC_BLITTER_CLASS] = 1;
-	info->engine_enabled_masks[GUC_VIDEO_CLASS] = VDBOX_MASK(gt);
-	info->engine_enabled_masks[GUC_VIDEOENHANCE_CLASS] = VEBOX_MASK(gt);
+	info_map_write(info_map, engine_enabled_masks[GUC_RENDER_CLASS], 1);
+	info_map_write(info_map, engine_enabled_masks[GUC_BLITTER_CLASS], 1);
+	info_map_write(info_map, engine_enabled_masks[GUC_VIDEO_CLASS], VDBOX_MASK(gt));
+	info_map_write(info_map, engine_enabled_masks[GUC_VIDEOENHANCE_CLASS], VEBOX_MASK(gt));
 }
 
 #define LR_HW_CONTEXT_SIZE (80 * sizeof(u32))
 #define LRC_SKIP_SIZE (LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE)
-static int guc_prep_golden_context(struct intel_guc *guc,
-				   struct __guc_ads_blob *blob)
+static int guc_prep_golden_context(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	u32 addr_ggtt, offset;
 	u32 total_size = 0, alloc_size, real_size;
 	u8 engine_class, guc_class;
-	struct guc_gt_system_info *info, local_info;
+	struct guc_gt_system_info local_info;
+	struct iosys_map info_map;
 
 	/*
 	 * Reserve the memory for the golden contexts and point GuC at it but
@@ -448,14 +454,15 @@ static int guc_prep_golden_context(struct intel_guc *guc,
 	 * GuC will also validate that the LRC base + size fall within the
 	 * allowed GGTT range.
 	 */
-	if (blob) {
+	if (!iosys_map_is_null(&guc->ads_map)) {
 		offset = guc_ads_golden_ctxt_offset(guc);
 		addr_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma) + offset;
-		info = &blob->system_info;
+		info_map = IOSYS_MAP_INIT_OFFSET(&guc->ads_map,
+						 offsetof(struct __guc_ads_blob, system_info));
 	} else {
 		memset(&local_info, 0, sizeof(local_info));
-		info = &local_info;
-		fill_engine_enable_masks(gt, info);
+		iosys_map_set_vaddr(&info_map, &local_info);
+		fill_engine_enable_masks(gt, &info_map);
 	}
 
 	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
@@ -464,14 +471,14 @@ static int guc_prep_golden_context(struct intel_guc *guc,
 
 		guc_class = engine_class_to_guc_class(engine_class);
 
-		if (!info->engine_enabled_masks[guc_class])
+		if (!info_map_read(&info_map, engine_enabled_masks[guc_class]))
 			continue;
 
 		real_size = intel_engine_context_size(gt, engine_class);
 		alloc_size = PAGE_ALIGN(real_size);
 		total_size += alloc_size;
 
-		if (!blob)
+		if (iosys_map_is_null(&guc->ads_map))
 			continue;
 
 		/*
@@ -485,12 +492,15 @@ static int guc_prep_golden_context(struct intel_guc *guc,
 		 * what comes before it in the context image (which is identical
 		 * on all engines).
 		 */
-		blob->ads.eng_state_size[guc_class] = real_size - LRC_SKIP_SIZE;
-		blob->ads.golden_context_lrca[guc_class] = addr_ggtt;
+		ads_blob_write(guc, ads.eng_state_size[guc_class],
+			       real_size - LRC_SKIP_SIZE);
+		ads_blob_write(guc, ads.golden_context_lrca[guc_class],
+			       addr_ggtt);
+
 		addr_ggtt += alloc_size;
 	}
 
-	if (!blob)
+	if (iosys_map_is_null(&guc->ads_map))
 		return total_size;
 
 	GEM_BUG_ON(guc->ads_golden_ctxt_size != total_size);
@@ -595,13 +605,15 @@ static void __guc_ads_init(struct intel_guc *guc)
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct drm_i915_private *i915 = gt->i915;
 	struct __guc_ads_blob *blob = guc->ads_blob;
+	struct iosys_map info_map = IOSYS_MAP_INIT_OFFSET(&guc->ads_map,
+			offsetof(struct __guc_ads_blob, system_info));
 	u32 base;
 
 	/* GuC scheduling policies */
 	guc_policies_init(guc);
 
 	/* System info */
-	fill_engine_enable_masks(gt, &blob->system_info);
+	fill_engine_enable_masks(gt, &info_map);
 
 	blob->system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_SLICE_ENABLED] =
 		hweight8(gt->info.sseu.slice_mask);
@@ -617,7 +629,7 @@ static void __guc_ads_init(struct intel_guc *guc)
 	}
 
 	/* Golden contexts for re-initialising after a watchdog reset */
-	guc_prep_golden_context(guc, blob);
+	guc_prep_golden_context(guc);
 
 	guc_mapping_table_init(guc_to_gt(guc), &blob->system_info);
 
@@ -663,7 +675,7 @@ int intel_guc_ads_create(struct intel_guc *guc)
 	guc->ads_regset_size = ret;
 
 	/* Likewise the golden contexts: */
-	ret = guc_prep_golden_context(guc, NULL);
+	ret = guc_prep_golden_context(guc);
 	if (ret < 0)
 		return ret;
 	guc->ads_golden_ctxt_size = ret;
