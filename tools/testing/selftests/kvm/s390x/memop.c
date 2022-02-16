@@ -99,21 +99,18 @@ static struct kvm_s390_mem_op ksmo_from_desc(struct mop_desc desc)
 	return ksmo;
 }
 
-/* vcpu dummy id signifying that vm instead of vcpu ioctl is to occur */
-const uint32_t VM_VCPU_ID = (uint32_t)-1;
-
-struct test_vcpu {
+struct test_info {
 	struct kvm_vm *vm;
-	uint32_t id;
+	struct kvm_vcpu *vcpu;
 };
 
 #define PRINT_MEMOP false
-static void print_memop(uint32_t vcpu_id, const struct kvm_s390_mem_op *ksmo)
+static void print_memop(struct kvm_vcpu *vcpu, const struct kvm_s390_mem_op *ksmo)
 {
 	if (!PRINT_MEMOP)
 		return;
 
-	if (vcpu_id == VM_VCPU_ID)
+	if (!vcpu)
 		printf("vm memop(");
 	else
 		printf("vcpu memop(");
@@ -148,25 +145,29 @@ static void print_memop(uint32_t vcpu_id, const struct kvm_s390_mem_op *ksmo)
 	puts(")");
 }
 
-static void memop_ioctl(struct test_vcpu vcpu, struct kvm_s390_mem_op *ksmo)
+static void memop_ioctl(struct test_info info, struct kvm_s390_mem_op *ksmo)
 {
-	if (vcpu.id == VM_VCPU_ID)
-		vm_ioctl(vcpu.vm, KVM_S390_MEM_OP, ksmo);
+	struct kvm_vcpu *vcpu = info.vcpu;
+
+	if (!vcpu)
+		vm_ioctl(info.vm, KVM_S390_MEM_OP, ksmo);
 	else
-		vcpu_ioctl(vcpu.vm, vcpu.id, KVM_S390_MEM_OP, ksmo);
+		vcpu_ioctl(vcpu->vm, vcpu->id, KVM_S390_MEM_OP, ksmo);
 }
 
-static int err_memop_ioctl(struct test_vcpu vcpu, struct kvm_s390_mem_op *ksmo)
+static int err_memop_ioctl(struct test_info info, struct kvm_s390_mem_op *ksmo)
 {
-	if (vcpu.id == VM_VCPU_ID)
-		return __vm_ioctl(vcpu.vm, KVM_S390_MEM_OP, ksmo);
+	struct kvm_vcpu *vcpu = info.vcpu;
+
+	if (!vcpu)
+		return __vm_ioctl(info.vm, KVM_S390_MEM_OP, ksmo);
 	else
-		return __vcpu_ioctl(vcpu.vm, vcpu.id, KVM_S390_MEM_OP, ksmo);
+		return __vcpu_ioctl(vcpu->vm, vcpu->id, KVM_S390_MEM_OP, ksmo);
 }
 
-#define MEMOP(err, vcpu_p, mop_target_p, access_mode_p, buf_p, size_p, ...)	\
+#define MEMOP(err, info_p, mop_target_p, access_mode_p, buf_p, size_p, ...)	\
 ({										\
-	struct test_vcpu __vcpu = (vcpu_p);					\
+	struct test_info __info = (info_p);					\
 	struct mop_desc __desc = {						\
 		.target = (mop_target_p),					\
 		.mode = (access_mode_p),					\
@@ -178,13 +179,13 @@ static int err_memop_ioctl(struct test_vcpu vcpu, struct kvm_s390_mem_op *ksmo)
 										\
 	if (__desc._gaddr_v) {							\
 		if (__desc.target == ABSOLUTE)					\
-			__desc.gaddr = addr_gva2gpa(__vcpu.vm, __desc.gaddr_v);	\
+			__desc.gaddr = addr_gva2gpa(__info.vm, __desc.gaddr_v);	\
 		else								\
 			__desc.gaddr = __desc.gaddr_v;				\
 	}									\
 	__ksmo = ksmo_from_desc(__desc);					\
-	print_memop(__vcpu.id, &__ksmo);					\
-	err##memop_ioctl(__vcpu, &__ksmo);					\
+	print_memop(__info.vcpu, &__ksmo);					\
+	err##memop_ioctl(__info, &__ksmo);					\
 })
 
 #define MOP(...) MEMOP(, __VA_ARGS__)
@@ -201,7 +202,6 @@ static int err_memop_ioctl(struct test_vcpu vcpu, struct kvm_s390_mem_op *ksmo)
 
 #define CHECK_N_DO(f, ...) ({ f(__VA_ARGS__, CHECK_ONLY); f(__VA_ARGS__); })
 
-#define VCPU_ID 1
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1ULL << PAGE_SHIFT)
 #define PAGE_MASK (~(PAGE_SIZE - 1))
@@ -213,21 +213,22 @@ static uint8_t mem2[65536];
 
 struct test_default {
 	struct kvm_vm *kvm_vm;
-	struct test_vcpu vm;
-	struct test_vcpu vcpu;
+	struct test_info vm;
+	struct test_info vcpu;
 	struct kvm_run *run;
 	int size;
 };
 
 static struct test_default test_default_init(void *guest_code)
 {
+	struct kvm_vcpu *vcpu;
 	struct test_default t;
 
 	t.size = min((size_t)kvm_check_cap(KVM_CAP_S390_MEM_OP), sizeof(mem1));
-	t.kvm_vm = vm_create_default(VCPU_ID, 0, guest_code);
-	t.vm = (struct test_vcpu) { t.kvm_vm, VM_VCPU_ID };
-	t.vcpu = (struct test_vcpu) { t.kvm_vm, VCPU_ID };
-	t.run = vcpu_state(t.kvm_vm, VCPU_ID);
+	t.kvm_vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	t.vm = (struct test_info) { t.kvm_vm, NULL };
+	t.vcpu = (struct test_info) { t.kvm_vm, vcpu };
+	t.run = vcpu->run;
 	return t;
 }
 
@@ -242,14 +243,15 @@ enum stage {
 	STAGE_COPIED,
 };
 
-#define HOST_SYNC(vcpu_p, stage)					\
+#define HOST_SYNC(info_p, stage)					\
 ({									\
-	struct test_vcpu __vcpu = (vcpu_p);				\
+	struct test_info __info = (info_p);				\
+	struct kvm_vcpu *__vcpu = __info.vcpu;				\
 	struct ucall uc;						\
 	int __stage = (stage);						\
 									\
-	vcpu_run(__vcpu.vm, __vcpu.id);					\
-	get_ucall(__vcpu.vm, __vcpu.id, &uc);				\
+	vcpu_run(__vcpu->vm, __vcpu->id);				\
+	get_ucall(__vcpu->vm, __vcpu->id, &uc);				\
 	ASSERT_EQ(uc.cmd, UCALL_SYNC);					\
 	ASSERT_EQ(uc.args[1], __stage);					\
 })									\
@@ -268,7 +270,7 @@ static void prepare_mem12(void)
 
 #define DEFAULT_WRITE_READ(copy_cpu, mop_cpu, mop_target_p, size, ...)		\
 ({										\
-	struct test_vcpu __copy_cpu = (copy_cpu), __mop_cpu = (mop_cpu);	\
+	struct test_info __copy_cpu = (copy_cpu), __mop_cpu = (mop_cpu);	\
 	enum mop_target __target = (mop_target_p);				\
 	uint32_t __size = (size);						\
 										\
@@ -283,7 +285,7 @@ static void prepare_mem12(void)
 
 #define DEFAULT_READ(copy_cpu, mop_cpu, mop_target_p, size, ...)		\
 ({										\
-	struct test_vcpu __copy_cpu = (copy_cpu), __mop_cpu = (mop_cpu);	\
+	struct test_info __copy_cpu = (copy_cpu), __mop_cpu = (mop_cpu);	\
 	enum mop_target __target = (mop_target_p);				\
 	uint32_t __size = (size);						\
 										\
@@ -624,34 +626,34 @@ static void guest_idle(void)
 		GUEST_SYNC(STAGE_IDLED);
 }
 
-static void _test_errors_common(struct test_vcpu vcpu, enum mop_target target, int size)
+static void _test_errors_common(struct test_info info, enum mop_target target, int size)
 {
 	int rv;
 
 	/* Bad size: */
-	rv = ERR_MOP(vcpu, target, WRITE, mem1, -1, GADDR_V(mem1));
+	rv = ERR_MOP(info, target, WRITE, mem1, -1, GADDR_V(mem1));
 	TEST_ASSERT(rv == -1 && errno == E2BIG, "ioctl allows insane sizes");
 
 	/* Zero size: */
-	rv = ERR_MOP(vcpu, target, WRITE, mem1, 0, GADDR_V(mem1));
+	rv = ERR_MOP(info, target, WRITE, mem1, 0, GADDR_V(mem1));
 	TEST_ASSERT(rv == -1 && (errno == EINVAL || errno == ENOMEM),
 		    "ioctl allows 0 as size");
 
 	/* Bad flags: */
-	rv = ERR_MOP(vcpu, target, WRITE, mem1, size, GADDR_V(mem1), SET_FLAGS(-1));
+	rv = ERR_MOP(info, target, WRITE, mem1, size, GADDR_V(mem1), SET_FLAGS(-1));
 	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows all flags");
 
 	/* Bad guest address: */
-	rv = ERR_MOP(vcpu, target, WRITE, mem1, size, GADDR((void *)~0xfffUL), CHECK_ONLY);
+	rv = ERR_MOP(info, target, WRITE, mem1, size, GADDR((void *)~0xfffUL), CHECK_ONLY);
 	TEST_ASSERT(rv > 0, "ioctl does not report bad guest memory access");
 
 	/* Bad host address: */
-	rv = ERR_MOP(vcpu, target, WRITE, 0, size, GADDR_V(mem1));
+	rv = ERR_MOP(info, target, WRITE, 0, size, GADDR_V(mem1));
 	TEST_ASSERT(rv == -1 && errno == EFAULT,
 		    "ioctl does not report bad host memory address");
 
 	/* Bad key: */
-	rv = ERR_MOP(vcpu, target, WRITE, mem1, size, GADDR_V(mem1), KEY(17));
+	rv = ERR_MOP(info, target, WRITE, mem1, size, GADDR_V(mem1), KEY(17));
 	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows invalid key");
 }
 
