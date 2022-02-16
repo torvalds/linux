@@ -82,7 +82,7 @@ static int kvm_sbi_ext_rfence_handler(struct kvm_vcpu *vcpu, struct kvm_run *run
 {
 	int ret = 0;
 	unsigned long i;
-	struct cpumask cm, hm;
+	struct cpumask cm;
 	struct kvm_vcpu *tmp;
 	struct kvm_cpu_context *cp = &vcpu->arch.guest_context;
 	unsigned long hmask = cp->a0;
@@ -90,7 +90,6 @@ static int kvm_sbi_ext_rfence_handler(struct kvm_vcpu *vcpu, struct kvm_run *run
 	unsigned long funcid = cp->a6;
 
 	cpumask_clear(&cm);
-	cpumask_clear(&hm);
 	kvm_for_each_vcpu(i, tmp, vcpu->kvm) {
 		if (hbase != -1UL) {
 			if (tmp->vcpu_id < hbase)
@@ -103,17 +102,15 @@ static int kvm_sbi_ext_rfence_handler(struct kvm_vcpu *vcpu, struct kvm_run *run
 		cpumask_set_cpu(tmp->cpu, &cm);
 	}
 
-	riscv_cpuid_to_hartid_mask(&cm, &hm);
-
 	switch (funcid) {
 	case SBI_EXT_RFENCE_REMOTE_FENCE_I:
-		ret = sbi_remote_fence_i(cpumask_bits(&hm));
+		ret = sbi_remote_fence_i(&cm);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_SFENCE_VMA:
-		ret = sbi_remote_hfence_vvma(cpumask_bits(&hm), cp->a2, cp->a3);
+		ret = sbi_remote_hfence_vvma(&cm, cp->a2, cp->a3);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_SFENCE_VMA_ASID:
-		ret = sbi_remote_hfence_vvma_asid(cpumask_bits(&hm), cp->a2,
+		ret = sbi_remote_hfence_vvma_asid(&cm, cp->a2,
 						  cp->a3, cp->a4);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA:

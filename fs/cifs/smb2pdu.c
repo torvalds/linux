@@ -244,10 +244,10 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
+	spin_unlock(&ses->chan_lock);
 	cifs_dbg(FYI, "sess reconnect mask: 0x%lx, tcon reconnect: %d",
 		 tcon->ses->chans_need_reconnect,
 		 tcon->need_reconnect);
-	spin_unlock(&ses->chan_lock);
 
 	nls_codepage = load_nls_default();
 
@@ -289,14 +289,18 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 			rc = -EHOSTDOWN;
 			goto failed;
 		}
-	}
-
-	if (rc || !tcon->need_reconnect) {
+	} else {
 		mutex_unlock(&ses->session_mutex);
 		goto out;
 	}
+	mutex_unlock(&ses->session_mutex);
 
 skip_sess_setup:
+	mutex_lock(&ses->session_mutex);
+	if (!tcon->need_reconnect) {
+		mutex_unlock(&ses->session_mutex);
+		goto out;
+	}
 	cifs_mark_open_files_invalid(tcon);
 	if (tcon->use_persistent)
 		tcon->need_reopen_files = true;
@@ -1382,17 +1386,6 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "SMB2/3 session established successfully\n");
-
-	spin_lock(&ses->chan_lock);
-	cifs_chan_clear_need_reconnect(ses, server);
-	spin_unlock(&ses->chan_lock);
-
-	/* Even if one channel is active, session is in good state */
-	spin_lock(&cifs_tcp_ses_lock);
-	server->tcpStatus = CifsGood;
-	ses->status = CifsGood;
-	spin_unlock(&cifs_tcp_ses_lock);
-
 	return rc;
 }
 
@@ -1513,7 +1506,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	if (rc)
 		goto out_err;
 
-	rc = build_ntlmssp_negotiate_blob(&ntlmssp_blob,
+	rc = build_ntlmssp_smb3_negotiate_blob(&ntlmssp_blob,
 					  &blob_length, ses, server,
 					  sess_data->nls_cp);
 	if (rc)
@@ -1920,10 +1913,6 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	tcon->share_flags = le32_to_cpu(rsp->ShareFlags);
 	tcon->capabilities = rsp->Capabilities; /* we keep caps little endian */
 	tcon->maximal_access = le32_to_cpu(rsp->MaximalAccess);
-	spin_lock(&cifs_tcp_ses_lock);
-	tcon->tidStatus = CifsGood;
-	spin_unlock(&cifs_tcp_ses_lock);
-	tcon->need_reconnect = false;
 	tcon->tid = le32_to_cpu(rsp->hdr.Id.SyncId.TreeId);
 	strlcpy(tcon->treeName, tree, sizeof(tcon->treeName));
 
@@ -2587,8 +2576,13 @@ alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 
 	cp = load_nls_default();
 	cifs_strtoUTF16(*out_path, treename, treename_len, cp);
-	UniStrcat(*out_path, sep);
-	UniStrcat(*out_path, path);
+
+	/* Do not append the separator if the path is empty */
+	if (path[0] != cpu_to_le16(0x0000)) {
+		UniStrcat(*out_path, sep);
+		UniStrcat(*out_path, path);
+	}
+
 	unload_nls(cp);
 
 	return 0;
@@ -3782,27 +3776,35 @@ void smb2_reconnect_server(struct work_struct *work)
 {
 	struct TCP_Server_Info *server = container_of(work,
 					struct TCP_Server_Info, reconnect.work);
-	struct cifs_ses *ses;
+	struct TCP_Server_Info *pserver;
+	struct cifs_ses *ses, *ses2;
 	struct cifs_tcon *tcon, *tcon2;
-	struct list_head tmp_list;
-	int tcon_exist = false;
+	struct list_head tmp_list, tmp_ses_list;
+	bool tcon_exist = false, ses_exist = false;
+	bool tcon_selected = false;
 	int rc;
-	int resched = false;
+	bool resched = false;
 
+	/* If server is a channel, select the primary channel */
+	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
 
 	/* Prevent simultaneous reconnects that can corrupt tcon->rlist list */
-	mutex_lock(&server->reconnect_mutex);
+	mutex_lock(&pserver->reconnect_mutex);
 
 	INIT_LIST_HEAD(&tmp_list);
-	cifs_dbg(FYI, "Need negotiate, reconnecting tcons\n");
+	INIT_LIST_HEAD(&tmp_ses_list);
+	cifs_dbg(FYI, "Reconnecting tcons and channels\n");
 
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+
+		tcon_selected = false;
+
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			if (tcon->need_reconnect || tcon->need_reopen_files) {
 				tcon->tc_count++;
 				list_add_tail(&tcon->rlist, &tmp_list);
-				tcon_exist = true;
+				tcon_selected = tcon_exist = true;
 			}
 		}
 		/*
@@ -3811,15 +3813,27 @@ void smb2_reconnect_server(struct work_struct *work)
 		 */
 		if (ses->tcon_ipc && ses->tcon_ipc->need_reconnect) {
 			list_add_tail(&ses->tcon_ipc->rlist, &tmp_list);
-			tcon_exist = true;
+			tcon_selected = tcon_exist = true;
 			ses->ses_count++;
 		}
+		/*
+		 * handle the case where channel needs to reconnect
+		 * binding session, but tcon is healthy (some other channel
+		 * is active)
+		 */
+		spin_lock(&ses->chan_lock);
+		if (!tcon_selected && cifs_chan_needs_reconnect(ses, server)) {
+			list_add_tail(&ses->rlist, &tmp_ses_list);
+			ses_exist = true;
+			ses->ses_count++;
+		}
+		spin_unlock(&ses->chan_lock);
 	}
 	/*
 	 * Get the reference to server struct to be sure that the last call of
 	 * cifs_put_tcon() in the loop below won't release the server pointer.
 	 */
-	if (tcon_exist)
+	if (tcon_exist || ses_exist)
 		server->srv_count++;
 
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -3837,13 +3851,41 @@ void smb2_reconnect_server(struct work_struct *work)
 			cifs_put_tcon(tcon);
 	}
 
-	cifs_dbg(FYI, "Reconnecting tcons finished\n");
+	if (!ses_exist)
+		goto done;
+
+	/* allocate a dummy tcon struct used for reconnect */
+	tcon = kzalloc(sizeof(struct cifs_tcon), GFP_KERNEL);
+	if (!tcon) {
+		resched = true;
+		list_del_init(&ses->rlist);
+		cifs_put_smb_ses(ses);
+		goto done;
+	}
+
+	tcon->tidStatus = CifsGood;
+	tcon->retry = false;
+	tcon->need_reconnect = false;
+
+	/* now reconnect sessions for necessary channels */
+	list_for_each_entry_safe(ses, ses2, &tmp_ses_list, rlist) {
+		tcon->ses = ses;
+		rc = smb2_reconnect(SMB2_INTERNAL_CMD, tcon, server);
+		if (rc)
+			resched = true;
+		list_del_init(&ses->rlist);
+		cifs_put_smb_ses(ses);
+	}
+	kfree(tcon);
+
+done:
+	cifs_dbg(FYI, "Reconnecting tcons and channels finished\n");
 	if (resched)
 		queue_delayed_work(cifsiod_wq, &server->reconnect, 2 * HZ);
-	mutex_unlock(&server->reconnect_mutex);
+	mutex_unlock(&pserver->reconnect_mutex);
 
 	/* now we can safely release srv struct */
-	if (tcon_exist)
+	if (tcon_exist || ses_exist)
 		cifs_put_tcp_session(server, 1);
 }
 

@@ -1199,7 +1199,7 @@ int pm8001_abort_task(struct sas_task *task)
 	struct pm8001_device *pm8001_dev;
 	struct pm8001_tmf_task tmf_task;
 	int rc = TMF_RESP_FUNC_FAILED, ret;
-	u32 phy_id;
+	u32 phy_id, port_id;
 	struct sas_task_slow slow_task;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
@@ -1246,6 +1246,7 @@ int pm8001_abort_task(struct sas_task *task)
 			DECLARE_COMPLETION_ONSTACK(completion_reset);
 			DECLARE_COMPLETION_ONSTACK(completion);
 			struct pm8001_phy *phy = pm8001_ha->phy + phy_id;
+			port_id = phy->port->port_id;
 
 			/* 1. Set Device state as Recovery */
 			pm8001_dev->setds_completion = &completion;
@@ -1297,6 +1298,10 @@ int pm8001_abort_task(struct sas_task *task)
 						PORT_RESET_TMO);
 				if (phy->port_reset_status == PORT_RESET_TMO) {
 					pm8001_dev_gone_notify(dev);
+					PM8001_CHIP_DISP->hw_event_ack_req(
+						pm8001_ha, 0,
+						0x07, /*HW_EVENT_PHY_DOWN ack*/
+						port_id, phy_id, 0, 0);
 					goto out;
 				}
 			}

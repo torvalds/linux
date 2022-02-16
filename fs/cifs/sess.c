@@ -17,6 +17,8 @@
 #include "nterr.h"
 #include <linux/utsname.h>
 #include <linux/slab.h>
+#include <linux/version.h>
+#include "cifsfs.h"
 #include "cifs_spnego.h"
 #include "smb2proto.h"
 #include "fs_context.h"
@@ -64,6 +66,8 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	spin_unlock(&ses->chan_lock);
 	return false;
 }
+
+/* channel helper functions. assumed that chan_lock is held by caller. */
 
 unsigned int
 cifs_ses_get_chan_index(struct cifs_ses *ses,
@@ -134,10 +138,10 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 	left = ses->chan_max - ses->chan_count;
 
 	if (left <= 0) {
+		spin_unlock(&ses->chan_lock);
 		cifs_dbg(FYI,
 			 "ses already at max_channels (%zu), nothing to open\n",
 			 ses->chan_max);
-		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
 
@@ -362,19 +366,6 @@ out:
 		cifs_put_tcp_session(chan->server, 0);
 
 	return rc;
-}
-
-/* Mark all session channels for reconnect */
-void cifs_ses_mark_for_reconnect(struct cifs_ses *ses)
-{
-	int i;
-
-	for (i = 0; i < ses->chan_count; i++) {
-		spin_lock(&cifs_tcp_ses_lock);
-		if (ses->chans[i].server->tcpStatus != CifsExiting)
-			ses->chans[i].server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&cifs_tcp_ses_lock);
-	}
 }
 
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses,
@@ -820,6 +811,74 @@ setup_ntlm_neg_ret:
 	return rc;
 }
 
+/*
+ * Build ntlmssp blob with additional fields, such as version,
+ * supported by modern servers. For safety limit to SMB3 or later
+ * See notes in MS-NLMP Section 2.2.2.1 e.g.
+ */
+int build_ntlmssp_smb3_negotiate_blob(unsigned char **pbuffer,
+				 u16 *buflen,
+				 struct cifs_ses *ses,
+				 struct TCP_Server_Info *server,
+				 const struct nls_table *nls_cp)
+{
+	int rc = 0;
+	struct negotiate_message *sec_blob;
+	__u32 flags;
+	unsigned char *tmp;
+	int len;
+
+	len = size_of_ntlmssp_blob(ses, sizeof(struct negotiate_message));
+	*pbuffer = kmalloc(len, GFP_KERNEL);
+	if (!*pbuffer) {
+		rc = -ENOMEM;
+		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
+		*buflen = 0;
+		goto setup_ntlm_smb3_neg_ret;
+	}
+	sec_blob = (struct negotiate_message *)*pbuffer;
+
+	memset(*pbuffer, 0, sizeof(struct negotiate_message));
+	memcpy(sec_blob->Signature, NTLMSSP_SIGNATURE, 8);
+	sec_blob->MessageType = NtLmNegotiate;
+
+	/* BB is NTLMV2 session security format easier to use here? */
+	flags = NTLMSSP_NEGOTIATE_56 |	NTLMSSP_REQUEST_TARGET |
+		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
+		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC |
+		NTLMSSP_NEGOTIATE_ALWAYS_SIGN | NTLMSSP_NEGOTIATE_SEAL |
+		NTLMSSP_NEGOTIATE_SIGN | NTLMSSP_NEGOTIATE_VERSION;
+	if (!server->session_estab || ses->ntlmssp->sesskey_per_smbsess)
+		flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
+
+	sec_blob->Version.ProductMajorVersion = LINUX_VERSION_MAJOR;
+	sec_blob->Version.ProductMinorVersion = LINUX_VERSION_PATCHLEVEL;
+	sec_blob->Version.ProductBuild = cpu_to_le16(SMB3_PRODUCT_BUILD);
+	sec_blob->Version.NTLMRevisionCurrent = NTLMSSP_REVISION_W2K3;
+
+	tmp = *pbuffer + sizeof(struct negotiate_message);
+	ses->ntlmssp->client_flags = flags;
+	sec_blob->NegotiateFlags = cpu_to_le32(flags);
+
+	/* these fields should be null in negotiate phase MS-NLMP 3.1.5.1.1 */
+	cifs_security_buffer_from_str(&sec_blob->DomainName,
+				      NULL,
+				      CIFS_MAX_DOMAINNAME_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
+
+	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
+				      NULL,
+				      CIFS_MAX_WORKSTATION_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
+
+	*buflen = tmp - *pbuffer;
+setup_ntlm_smb3_neg_ret:
+	return rc;
+}
+
+
 int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 					u16 *buflen,
 				   struct cifs_ses *ses,
@@ -1048,16 +1107,6 @@ sess_establish_session(struct sess_data *sess_data)
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "CIFS session established successfully\n");
-	spin_lock(&ses->chan_lock);
-	cifs_chan_clear_need_reconnect(ses, server);
-	spin_unlock(&ses->chan_lock);
-
-	/* Even if one channel is active, session is in good state */
-	spin_lock(&cifs_tcp_ses_lock);
-	server->tcpStatus = CifsGood;
-	ses->status = CifsGood;
-	spin_unlock(&cifs_tcp_ses_lock);
-
 	return 0;
 }
 
@@ -1413,7 +1462,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 				     &blob_len, ses, server,
 				     sess_data->nls_cp);
 	if (rc)
-		goto out;
+		goto out_free_ntlmsspblob;
 
 	sess_data->iov[1].iov_len = blob_len;
 	sess_data->iov[1].iov_base = ntlmsspblob;
@@ -1421,7 +1470,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 
 	rc = _sess_auth_rawntlmssp_assemble_req(sess_data);
 	if (rc)
-		goto out;
+		goto out_free_ntlmsspblob;
 
 	rc = sess_sendreceive(sess_data);
 
@@ -1435,14 +1484,14 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 		rc = 0;
 
 	if (rc)
-		goto out;
+		goto out_free_ntlmsspblob;
 
 	cifs_dbg(FYI, "rawntlmssp session setup challenge phase\n");
 
 	if (smb_buf->WordCount != 4) {
 		rc = -EIO;
 		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
-		goto out;
+		goto out_free_ntlmsspblob;
 	}
 
 	ses->Suid = smb_buf->Uid;   /* UID left in wire format (le) */
@@ -1456,10 +1505,13 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 		cifs_dbg(VFS, "bad security blob length %d\n",
 				blob_len);
 		rc = -EINVAL;
-		goto out;
+		goto out_free_ntlmsspblob;
 	}
 
 	rc = decode_ntlmssp_challenge(bcc_ptr, blob_len, ses);
+
+out_free_ntlmsspblob:
+	kfree(ntlmsspblob);
 out:
 	sess_free_buffer(sess_data);
 
@@ -1574,7 +1626,7 @@ out_free_ntlmsspblob:
 out:
 	sess_free_buffer(sess_data);
 
-	 if (!rc)
+	if (!rc)
 		rc = sess_establish_session(sess_data);
 
 	/* Cleanup */

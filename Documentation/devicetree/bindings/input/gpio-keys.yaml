@@ -88,12 +88,6 @@ patternProperties:
             which can be disabled to suppress events from the button.
           type: boolean
 
-        pinctrl-0:
-          maxItems: 1
-
-        pinctrl-names:
-          maxItems: 1
-
       required:
         - linux,code
 

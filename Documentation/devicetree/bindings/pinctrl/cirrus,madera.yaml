@@ -30,16 +30,6 @@ description: |
     Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 properties:
-  pinctrl-0:
-    description:
-      A phandle to the node containing the subnodes containing default
-      configurations.
-
-  pinctrl-names:
-    description:
-      A pinctrl state named "default" must be defined.
-    const: default
-
   pin-settings:
     description:
       One subnode is required to contain the default settings. It

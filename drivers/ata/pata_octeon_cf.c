@@ -595,7 +595,7 @@ static unsigned int octeon_cf_dma_finished(struct ata_port *ap,
 	union cvmx_mio_boot_dma_intx dma_int;
 	u8 status;
 
-	trace_ata_bmdma_stop(qc, &qc->tf, qc->tag);
+	trace_ata_bmdma_stop(ap, &qc->tf, qc->tag);
 
 	if (ap->hsm_task_state != HSM_ST_LAST)
 		return 0;

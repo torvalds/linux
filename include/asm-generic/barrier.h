@@ -285,7 +285,7 @@ do {									\
  * write-combining memory accesses before this macro with those after it.
  */
 #ifndef io_stop_wc
-#define io_stop_wc do { } while (0)
+#define io_stop_wc() do { } while (0)
 #endif
 
 #endif /* !__ASSEMBLY__ */

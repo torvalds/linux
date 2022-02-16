@@ -5756,6 +5756,7 @@ static bool __kvm_zap_rmaps(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 				continue;
 
 			flush = slot_handle_level_range(kvm, memslot, kvm_zap_rmapp,
+
 							PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
 							start, end - 1, true, flush);
 		}
@@ -5825,15 +5826,27 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 	}
 
 	/*
-	 * We can flush all the TLBs out of the mmu lock without TLB
-	 * corruption since we just change the spte from writable to
-	 * readonly so that we only need to care the case of changing
-	 * spte from present to present (changing the spte from present
-	 * to nonpresent will flush all the TLBs immediately), in other
-	 * words, the only case we care is mmu_spte_update() where we
-	 * have checked Host-writable | MMU-writable instead of
-	 * PT_WRITABLE_MASK, that means it does not depend on PT_WRITABLE_MASK
-	 * anymore.
+	 * Flush TLBs if any SPTEs had to be write-protected to ensure that
+	 * guest writes are reflected in the dirty bitmap before the memslot
+	 * update completes, i.e. before enabling dirty logging is visible to
+	 * userspace.
+	 *
+	 * Perform the TLB flush outside the mmu_lock to reduce the amount of
+	 * time the lock is held. However, this does mean that another CPU can
+	 * now grab mmu_lock and encounter a write-protected SPTE while CPUs
+	 * still have a writable mapping for the associated GFN in their TLB.
+	 *
+	 * This is safe but requires KVM to be careful when making decisions
+	 * based on the write-protection status of an SPTE. Specifically, KVM
+	 * also write-protects SPTEs to monitor changes to guest page tables
+	 * during shadow paging, and must guarantee no CPUs can write to those
+	 * page before the lock is dropped. As mentioned in the previous
+	 * paragraph, a write-protected SPTE is no guarantee that CPU cannot
+	 * perform writes. So to determine if a TLB flush is truly required, KVM
+	 * will clear a separate software-only bit (MMU-writable) and skip the
+	 * flush if-and-only-if this bit was already clear.
+	 *
+	 * See DEFAULT_SPTE_MMU_WRITEABLE for more details.
 	 */
 	if (flush)
 		kvm_arch_flush_remote_tlbs_memslot(kvm, memslot);

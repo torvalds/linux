@@ -1525,16 +1525,11 @@ static void hisi_sas_send_ata_reset_each_phy(struct hisi_hba *hisi_hba,
 	struct device *dev = hisi_hba->dev;
 	int s = sizeof(struct host_to_dev_fis);
 	int rc = TMF_RESP_FUNC_FAILED;
-	struct asd_sas_phy *sas_phy;
 	struct ata_link *link;
 	u8 fis[20] = {0};
-	u32 state;
 	int i;
 
-	state = hisi_hba->hw->get_phys_state(hisi_hba);
 	for (i = 0; i < hisi_hba->n_phy; i++) {
-		if (!(state & BIT(sas_phy->id)))
-			continue;
 		if (!(sas_port->phy_mask & BIT(i)))
 			continue;
 

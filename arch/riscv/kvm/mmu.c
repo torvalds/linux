@@ -114,7 +114,6 @@ static bool stage2_get_leaf_entry(struct kvm *kvm, gpa_t addr,
 
 static void stage2_remote_tlb_flush(struct kvm *kvm, u32 level, gpa_t addr)
 {
-	struct cpumask hmask;
 	unsigned long size = PAGE_SIZE;
 	struct kvm_vmid *vmid = &kvm->arch.vmid;
 
@@ -127,8 +126,7 @@ static void stage2_remote_tlb_flush(struct kvm *kvm, u32 level, gpa_t addr)
 	 * where the Guest/VM is running.
 	 */
 	preempt_disable();
-	riscv_cpuid_to_hartid_mask(cpu_online_mask, &hmask);
-	sbi_remote_hfence_gvma_vmid(cpumask_bits(&hmask), addr, size,
+	sbi_remote_hfence_gvma_vmid(cpu_online_mask, addr, size,
 				    READ_ONCE(vmid->vmid));
 	preempt_enable();
 }

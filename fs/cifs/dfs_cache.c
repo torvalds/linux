@@ -1355,7 +1355,7 @@ static void mark_for_reconnect_if_needed(struct cifs_tcon *tcon, struct dfs_cach
 	}
 
 	cifs_dbg(FYI, "%s: no cached or matched targets. mark dfs share for reconnect.\n", __func__);
-	cifs_ses_mark_for_reconnect(tcon->ses);
+	cifs_reconnect(tcon->ses->server, true);
 }
 
 /* Refresh dfs referral of tcon and mark it for reconnect if needed */
