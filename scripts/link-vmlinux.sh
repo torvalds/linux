@@ -143,7 +143,7 @@ objtool_link()
 		if is_enabled CONFIG_X86_SMAP; then
 			objtoolopt="${objtoolopt} --uaccess"
 		fi
-		if [ -n "${CONFIG_SLS}" ]; then
+		if is_enabled CONFIG_SLS; then
 			objtoolopt="${objtoolopt} --sls"
 		fi
 		info OBJTOOL ${1}
