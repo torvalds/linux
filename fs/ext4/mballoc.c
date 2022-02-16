@@ -3941,7 +3941,7 @@ void ext4_mb_mark_bb(struct super_block *sb, ext4_fsblk_t block,
 		if (state)
 			mb_set_bits(bitmap_bh->b_data, blkoff, clen);
 		else
-			mb_test_and_clear_bits(bitmap_bh->b_data, blkoff, clen);
+			mb_clear_bits(bitmap_bh->b_data, blkoff, clen);
 		if (ext4_has_group_desc_csum(sb) &&
 		    (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT))) {
 			gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
