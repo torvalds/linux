@@ -358,7 +358,7 @@ TRACE_EVENT(btree_node_relock_fail,
 
 	TP_STRUCT__entry(
 		__array(char,			trans_fn, 24	)
-		__array(char,			caller, 32	)
+		__field(unsigned long,		caller_ip	)
 		__field(u8,			btree_id	)
 		__field(u64,			pos_inode	)
 		__field(u64,			pos_offset	)
@@ -370,7 +370,7 @@ TRACE_EVENT(btree_node_relock_fail,
 
 	TP_fast_assign(
 		strncpy(__entry->trans_fn, trans_fn, sizeof(__entry->trans_fn));
-		snprintf(__entry->caller, sizeof(__entry->caller), "%pS", (void *) caller_ip);
+		__entry->caller_ip		= caller_ip;
 		__entry->btree_id		= btree_id;
 		__entry->pos_inode		= pos->inode;
 		__entry->pos_offset		= pos->offset;
@@ -380,9 +380,9 @@ TRACE_EVENT(btree_node_relock_fail,
 		__entry->node_lock_seq		= node_lock_seq;
 	),
 
-	TP_printk("%s %s btree %u pos %llu:%llu:%u, node %lu iter seq %u lock seq %u",
+	TP_printk("%s %pS btree %u pos %llu:%llu:%u, node %lu iter seq %u lock seq %u",
 		  __entry->trans_fn,
-		  __entry->caller,
+		  (void *) __entry->caller_ip,
 		  __entry->btree_id,
 		  __entry->pos_inode,
 		  __entry->pos_offset,
@@ -673,7 +673,7 @@ DECLARE_EVENT_CLASS(transaction_restart_iter,
 
 	TP_STRUCT__entry(
 		__array(char,			trans_fn, 24	)
-		__array(char,			caller, 32	)
+		__field(unsigned long,		caller_ip	)
 		__field(u8,			btree_id	)
 		__field(u64,			pos_inode	)
 		__field(u64,			pos_offset	)
@@ -682,16 +682,16 @@ DECLARE_EVENT_CLASS(transaction_restart_iter,
 
 	TP_fast_assign(
 		strncpy(__entry->trans_fn, trans_fn, sizeof(__entry->trans_fn));
-		snprintf(__entry->caller, sizeof(__entry->caller), "%pS", (void *) caller_ip);
+		__entry->caller_ip		= caller_ip;
 		__entry->btree_id		= btree_id;
 		__entry->pos_inode		= pos->inode;
 		__entry->pos_offset		= pos->offset;
 		__entry->pos_snapshot		= pos->snapshot;
 	),
 
-	TP_printk("%s %s btree %u pos %llu:%llu:%u",
+	TP_printk("%s %pS btree %u pos %llu:%llu:%u",
 		  __entry->trans_fn,
-		  __entry->caller,
+		  (void *) __entry->caller_ip,
 		  __entry->btree_id,
 		  __entry->pos_inode,
 		  __entry->pos_offset,
