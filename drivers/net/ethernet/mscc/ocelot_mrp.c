@@ -186,7 +186,8 @@ int ocelot_mrp_add_ring_role(struct ocelot *ocelot, int port,
 	ocelot_mrp_save_mac(ocelot, ocelot_port);
 
 	if (mrp->ring_role != BR_MRP_RING_ROLE_MRC)
-		return ocelot_mrp_copy_add_vcap(ocelot, port, 1, port);
+		return ocelot_mrp_copy_add_vcap(ocelot, port, 1,
+						port + ocelot->num_phys_ports);
 
 	dst_port = ocelot_mrp_find_partner_port(ocelot, ocelot_port);
 	if (dst_port == -1)
