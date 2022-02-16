@@ -34,8 +34,6 @@ uint rtw_hal_deinit(struct adapter *adapt)
 
 	if (status == _SUCCESS)
 		adapt->hw_init_completed = false;
-	else
-		;
 
 	return status;
 }

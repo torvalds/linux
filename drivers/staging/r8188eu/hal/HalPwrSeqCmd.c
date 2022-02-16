@@ -63,9 +63,8 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, struct wl_pwr_cfg pwrseqcmd[])
 				else
 					udelay(10);
 
-				if (poll_count++ > max_poll_count) {
+				if (poll_count++ > max_poll_count)
 					return false;
-				}
 			} while (!poll_bit);
 			break;
 		case PWR_CMD_DELAY:

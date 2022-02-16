@@ -106,12 +106,7 @@ void rtl8188eu_free_recv_priv(struct adapter *padapter)
 
 	kfree(precvpriv->pallocated_recv_buf);
 
-	if (skb_queue_len(&precvpriv->rx_skb_queue))
-		;
 	skb_queue_purge(&precvpriv->rx_skb_queue);
-
-	if (skb_queue_len(&precvpriv->free_recv_skb_queue))
-		;
 
 	skb_queue_purge(&precvpriv->free_recv_skb_queue);
 }

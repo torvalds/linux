@@ -19,9 +19,8 @@ static void iol_mode_enable(struct adapter *padapter, u8 enable)
 		reg_0xf0 = rtw_read8(padapter, REG_SYS_CFG);
 		rtw_write8(padapter, REG_SYS_CFG, reg_0xf0 | SW_OFFLOAD_EN);
 
-		if (!padapter->bFWReady) {
+		if (!padapter->bFWReady)
 			rtw_reset_8051(padapter);
-		}
 
 	} else {
 		/* disable initial offload */
@@ -76,14 +75,12 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	u8 u1temp = 0;
 
 	efuseTbl = kzalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
-	if (!efuseTbl) {
+	if (!efuseTbl)
 		goto exit;
-	}
 
 	eFuseWord = rtw_malloc2d(EFUSE_MAX_SECTION_88E, EFUSE_MAX_WORD_UNIT, sizeof(u16));
-	if (!eFuseWord) {
+	if (!eFuseWord)
 		goto exit;
-	}
 
 	/*  0. Refresh efuse init map as all oxFF. */
 	for (i = 0; i < EFUSE_MAX_SECTION_88E; i++)
@@ -213,9 +210,8 @@ static void efuse_read_phymap_from_txpktbuf(
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
 		start = jiffies;
 		while (!(reg_0x143 = rtw_read8(adapter, REG_TXPKTBUF_DBG)) &&
-		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
+		       (passing_time = rtw_get_passing_time_ms(start)) < 1000)
 			rtw_usleep_os(100);
-		}
 
 		/* data from EEPROM needs to be in LE */
 		lo32 = cpu_to_le32(rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L));
@@ -373,19 +369,16 @@ static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 	/*  */
 	/*  Do NOT excess total size of EFuse table. Added by Roger, 2008.11.10. */
 	/*  */
-	if ((_offset + _size_byte) > EFUSE_MAP_LEN_88E) {/*  total E-Fuse table is 512bytes */
+	if ((_offset + _size_byte) > EFUSE_MAP_LEN_88E) /*  total E-Fuse table is 512bytes */
 		goto exit;
-	}
 
 	efuseTbl = kzalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
-	if (!efuseTbl) {
+	if (!efuseTbl)
 		goto exit;
-	}
 
 	eFuseWord = rtw_malloc2d(EFUSE_MAX_SECTION_88E, EFUSE_MAX_WORD_UNIT, sizeof(u16));
-	if (!eFuseWord) {
+	if (!eFuseWord)
 		goto exit;
-	}
 
 	/*  0. Refresh efuse init map as all oxFF. */
 	for (i = 0; i < EFUSE_MAX_SECTION_88E; i++)
@@ -536,11 +529,10 @@ void rtl8188e_SetHalODMVar(struct adapter *Adapter, void *pValue1, bool bSet)
 
 void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 {
-	if (enable) {
+	if (enable)
 		rtw_write8(adapter, rOFDM0_RxDSP + 1, rtw_read8(adapter, rOFDM0_RxDSP + 1) | BIT(1));
-	} else {
+	else
 		rtw_write8(adapter, rOFDM0_RxDSP + 1, rtw_read8(adapter, rOFDM0_RxDSP + 1) & ~BIT(1));
-	}
 }
 
 u8 GetEEPROMSize8188E(struct adapter *padapter)
@@ -764,15 +756,14 @@ static void hal_get_chnl_group_88e(u8 chnl, u8 *group)
 
 void Hal_ReadPowerSavingMode88E(struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail)
 {
-	if (AutoLoadFail) {
+	if (AutoLoadFail)
 		padapter->pwrctrlpriv.bSupportRemoteWakeup = false;
-	} else {
+	else
 		/* hw power down mode selection , 0:rf-off / 1:power down */
 
 		/*  decide hw if support remote wakeup function */
 		/*  if hw supported, 8051 (SIE) will generate WeakUP signal(D+/D- toggle) when autoresume */
 		padapter->pwrctrlpriv.bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0] & BIT(1)) ? true : false;
-	}
 }
 
 void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool AutoLoadFail)

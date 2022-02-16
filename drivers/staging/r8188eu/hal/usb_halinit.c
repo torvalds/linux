@@ -57,9 +57,8 @@ u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
 	if (haldata->bMacPwrCtrlOn)
 		return _SUCCESS;
 
-	if (!HalPwrSeqCmdParsing(adapt, Rtl8188E_NIC_PWR_ON_FLOW)) {
+	if (!HalPwrSeqCmdParsing(adapt, Rtl8188E_NIC_PWR_ON_FLOW))
 		return _FAIL;
-	}
 
 	/*  Enable MAC DMA/WMAC/SCHEDULE/SEC block */
 	/*  Set CR bit10 to enable 32k calibration. Suggested by SD1 Gimmy. Added by tynli. 2011.08.31. */
@@ -577,27 +576,23 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	haldata->LastHMEBoxNum = 0;
 
 	status = PHY_MACConfig8188E(Adapter);
-	if (status == _FAIL) {
+	if (status == _FAIL)
 		goto exit;
-	}
 
 	/*  */
 	/* d. Initialize BB related configurations. */
 	/*  */
 	status = PHY_BBConfig8188E(Adapter);
-	if (status == _FAIL) {
+	if (status == _FAIL)
 		goto exit;
-	}
 
 	status = PHY_RFConfig8188E(Adapter);
-	if (status == _FAIL) {
+	if (status == _FAIL)
 		goto exit;
-	}
 
 	status = rtl8188e_iol_efuse_patch(Adapter);
-	if (status == _FAIL) {
+	if (status == _FAIL)
 		goto exit;
-	}
 
 	_InitTxBufferBoundary(Adapter, txpktbuf_bndy);
 
@@ -1331,8 +1326,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 					if (!(rtw_read32(Adapter, REG_RXPKT_NUM) & RXDMA_IDLE))
 						break;
 				} while (trycnt--);
-				if (trycnt == 0)
-					;
 
 				/* RQPN Load 0 */
 				rtw_write16(Adapter, REG_RQPN_NPQ, 0x0);
@@ -1426,10 +1419,7 @@ void GetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eVariab
 		*((u32 *)pValue) = haldata->odmpriv.SupportAbility;
 		break;
 	case HW_DEF_RA_INFO_DUMP:
-		{
-			if (check_fwstate(&Adapter->mlmepriv, _FW_LINKED)) {
-			}
-		}
+		check_fwstate(&Adapter->mlmepriv, _FW_LINKED);
 		break;
 	case HAL_DEF_DBG_DUMP_RXPKT:
 		*((u8 *)pValue) = haldata->bDumpRxPkt;

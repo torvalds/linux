@@ -14,9 +14,8 @@ void ips_enter(struct adapter *padapter)
 	struct xmit_priv *pxmit_priv = &padapter->xmitpriv;
 
 	if (pxmit_priv->free_xmitbuf_cnt != NR_XMITBUFF ||
-	    pxmit_priv->free_xmit_extbuf_cnt != NR_XMIT_EXTBUFF) {
+	    pxmit_priv->free_xmit_extbuf_cnt != NR_XMIT_EXTBUFF)
 		return;
-	}
 
 	mutex_lock(&pwrpriv->lock);
 
@@ -172,9 +171,8 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 		return false;
 	if (pwrpriv->bInSuspend)
 		return false;
-	if (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X && !padapter->securitypriv.binstallGrpkey) {
+	if (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X && !padapter->securitypriv.binstallGrpkey)
 		return false;
-	}
 	return true;
 }
 
@@ -367,10 +365,6 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	if (pwrpriv->ps_processing) {
 		while (pwrpriv->ps_processing && rtw_get_passing_time_ms(start) <= 3000)
 			msleep(10);
-		if (pwrpriv->ps_processing)
-			;
-		else
-			;
 	}
 
 	/* System suspend is not allowed to wakeup */
@@ -379,10 +373,6 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 		       (rtw_get_passing_time_ms(start) <= 3000 ||
 		       (rtw_get_passing_time_ms(start) <= 500)))
 				msleep(10);
-		if (pwrpriv->bInSuspend)
-			;
-		else
-			;
 	}
 
 	/* I think this should be check in IPS, LPS, autosuspend functions... */

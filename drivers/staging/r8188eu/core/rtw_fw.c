@@ -190,9 +190,8 @@ static int fw_free_to_go(struct adapter *padapter)
 			break;
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
-	if (counter >= POLLING_READY_TIMEOUT_COUNT) {
+	if (counter >= POLLING_READY_TIMEOUT_COUNT)
 		return _FAIL;
-	}
 
 	value32 = rtw_read32(padapter, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
@@ -205,9 +204,8 @@ static int fw_free_to_go(struct adapter *padapter)
 	counter = 0;
 	do {
 		value32 = rtw_read32(padapter, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY) {
+		if (value32 & WINTINI_RDY)
 			return _SUCCESS;
-		}
 		udelay(5);
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
@@ -304,14 +302,12 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 			break;
 	}
 	fw_download_enable(padapter, false);
-	if (ret != _SUCCESS) {
+	if (ret != _SUCCESS)
 		goto exit;
-	}
 
 	ret = fw_free_to_go(padapter);
-	if (ret != _SUCCESS) {
+	if (ret != _SUCCESS)
 		goto exit;
-	}
 
 exit:
 	return ret;

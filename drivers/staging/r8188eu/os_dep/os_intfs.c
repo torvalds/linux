@@ -487,17 +487,14 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	if (init_mlme_ext_priv(padapter) == _FAIL)
 		return _FAIL;
 
-	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL) {
+	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL)
 		return _FAIL;
-	}
 
-	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter) == _FAIL) {
+	if (_rtw_init_recv_priv(&padapter->recvpriv, padapter) == _FAIL)
 		return _FAIL;
-	}
 
-	if (_rtw_init_sta_priv(&padapter->stapriv) == _FAIL) {
+	if (_rtw_init_sta_priv(&padapter->stapriv) == _FAIL)
 		return _FAIL;
-	}
 
 	padapter->stapriv.padapter = padapter;
 

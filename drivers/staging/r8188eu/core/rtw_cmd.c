@@ -251,9 +251,8 @@ int rtw_cmd_thread(void *context)
 
 _next:
 		if (padapter->bDriverStopped ||
-		    padapter->bSurpriseRemoved) {
+		    padapter->bSurpriseRemoved)
 			break;
-		}
 
 		pcmd = rtw_dequeue_cmd(pcmdpriv);
 		if (!pcmd)
@@ -937,9 +936,8 @@ static void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 	u32 txdma_status;
 
 	txdma_status = rtw_read32(padapter, REG_TXDMA_STATUS);
-	if (txdma_status != 0x00) {
+	if (txdma_status != 0x00)
 		rtw_write32(padapter, REG_TXDMA_STATUS, txdma_status);
-	}
 	/* total xmit irp = 4 */
 }
 

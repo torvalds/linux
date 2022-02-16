@@ -209,9 +209,8 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		prxstat = (struct recv_stat *)pbuf;
 
 		precvframe = rtw_alloc_recvframe(pfree_recv_queue);
-		if (!precvframe) {
+		if (!precvframe)
 			goto _exit_recvbuf2recvframe;
-		}
 
 		INIT_LIST_HEAD(&precvframe->list);
 		precvframe->precvbuf = NULL;	/* can't access the precvbuf for new arch. */
@@ -435,9 +434,8 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 	/* re-assign for linux based on skb */
 	if (!precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-		if (!precvbuf->pskb) {
+		if (!precvbuf->pskb)
 			return _FAIL;
-		}
 
 		tmpaddr = (size_t)precvbuf->pskb->data;
 		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
@@ -472,9 +470,8 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 			  precvbuf);/* context is precvbuf */
 
 	err = usb_submit_urb(purb, GFP_ATOMIC);
-	if ((err) && (err != (-EPERM))) {
+	if ((err) && (err != (-EPERM)))
 		ret = _FAIL;
-	}
 
 	return ret;
 }
@@ -491,9 +488,8 @@ void rtl8188eu_xmit_tasklet(unsigned long priv)
 	while (1) {
 		if ((adapt->bDriverStopped) ||
 		    (adapt->bSurpriseRemoved) ||
-		    (adapt->bWritePortCancel)) {
+		    (adapt->bWritePortCancel))
 			break;
-		}
 
 		ret = rtl8188eu_xmitframe_complete(adapt, pxmitpriv, NULL);
 

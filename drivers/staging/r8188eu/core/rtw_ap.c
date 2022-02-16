@@ -382,7 +382,6 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 		psta->raid = raid;
 		psta->init_rate = init_rate;
 
-	} else {
 	}
 }
 
@@ -457,7 +456,6 @@ void update_bmc_sta(struct adapter *padapter)
 		psta->state = _FW_LINKED;
 		spin_unlock_bh(&psta->lock);
 
-	} else {
 	}
 }
 
@@ -872,8 +870,6 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 		if (!psta->no_ht_set) {
 			psta->no_ht_set = 1;
 			pmlmepriv->num_sta_no_ht++;
-		}
-		if (pmlmepriv->htpriv.ht_option) {
 		}
 	}
 

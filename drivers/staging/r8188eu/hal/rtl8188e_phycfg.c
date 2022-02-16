@@ -684,9 +684,6 @@ static void _PHY_SwChnl8192C(struct adapter *Adapter, u8 channel)
 	u32 param1, param2;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
-	if (Adapter->bNotifyChannelChange)
-		;
-
 	/* s1. pre common command - CmdID_SetTxPowerLevel */
 	PHY_SetTxPowerLevel8188E(Adapter, channel);
 

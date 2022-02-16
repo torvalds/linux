@@ -62,9 +62,8 @@ static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 	}
 
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped ||
-	    padapter->bWritePortCancel) {
+	    padapter->bWritePortCancel)
 		goto check_completion;
-	}
 
 	if (purb->status) {
 		if (purb->status == -EINPROGRESS) {
