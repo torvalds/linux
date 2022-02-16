@@ -1300,63 +1300,6 @@ void dsa_port_link_unregister_of(struct dsa_port *dp)
 		dsa_port_setup_phy_of(dp, false);
 }
 
-int dsa_port_get_phy_strings(struct dsa_port *dp, uint8_t *data)
-{
-	struct phy_device *phydev;
-	int ret = -EOPNOTSUPP;
-
-	if (of_phy_is_fixed_link(dp->dn))
-		return ret;
-
-	phydev = dsa_port_get_phy_device(dp);
-	if (IS_ERR_OR_NULL(phydev))
-		return ret;
-
-	ret = phy_ethtool_get_strings(phydev, data);
-	put_device(&phydev->mdio.dev);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dsa_port_get_phy_strings);
-
-int dsa_port_get_ethtool_phy_stats(struct dsa_port *dp, uint64_t *data)
-{
-	struct phy_device *phydev;
-	int ret = -EOPNOTSUPP;
-
-	if (of_phy_is_fixed_link(dp->dn))
-		return ret;
-
-	phydev = dsa_port_get_phy_device(dp);
-	if (IS_ERR_OR_NULL(phydev))
-		return ret;
-
-	ret = phy_ethtool_get_stats(phydev, NULL, data);
-	put_device(&phydev->mdio.dev);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dsa_port_get_ethtool_phy_stats);
-
-int dsa_port_get_phy_sset_count(struct dsa_port *dp)
-{
-	struct phy_device *phydev;
-	int ret = -EOPNOTSUPP;
-
-	if (of_phy_is_fixed_link(dp->dn))
-		return ret;
-
-	phydev = dsa_port_get_phy_device(dp);
-	if (IS_ERR_OR_NULL(phydev))
-		return ret;
-
-	ret = phy_ethtool_get_sset_count(phydev);
-	put_device(&phydev->mdio.dev);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dsa_port_get_phy_sset_count);
-
 int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr)
 {
 	struct dsa_switch *ds = dp->ds;

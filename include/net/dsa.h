@@ -1257,9 +1257,6 @@ static inline bool dsa_slave_dev_check(const struct net_device *dev)
 #endif
 
 netdev_tx_t dsa_enqueue_skb(struct sk_buff *skb, struct net_device *dev);
-int dsa_port_get_phy_strings(struct dsa_port *dp, uint8_t *data);
-int dsa_port_get_ethtool_phy_stats(struct dsa_port *dp, uint64_t *data);
-int dsa_port_get_phy_sset_count(struct dsa_port *dp);
 void dsa_port_phylink_mac_change(struct dsa_switch *ds, int port, bool up);
 
 struct dsa_tag_driver {
