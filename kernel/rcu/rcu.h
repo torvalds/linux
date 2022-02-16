@@ -538,10 +538,8 @@ extern struct workqueue_struct *rcu_par_gp_wq;
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_RCU_NOCB_CPU
-bool rcu_is_nocb_cpu(int cpu);
 void rcu_bind_current_to_nocb(void);
 #else
-static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
 static inline void rcu_bind_current_to_nocb(void) { }
 #endif
 
