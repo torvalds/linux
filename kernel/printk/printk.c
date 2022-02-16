@@ -2323,6 +2323,20 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
 }
 #endif
 
+static void set_user_specified(struct console_cmdline *c, bool user_specified)
+{
+	if (!user_specified)
+		return;
+
+	/*
+	 * @c console was defined by the user on the command line.
+	 * Do not clear when added twice also by SPCR or the device tree.
+	 */
+	c->user_specified = true;
+	/* At least one console defined by the user on the command line. */
+	console_set_on_cmdline = 1;
+}
+
 static int __add_preferred_console(char *name, int idx, char *options,
 				   char *brl_options, bool user_specified)
 {
@@ -2339,8 +2353,7 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		if (strcmp(c->name, name) == 0 && c->index == idx) {
 			if (!brl_options)
 				preferred_console = i;
-			if (user_specified)
-				c->user_specified = true;
+			set_user_specified(c, user_specified);
 			return 0;
 		}
 	}
@@ -2350,7 +2363,7 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		preferred_console = i;
 	strlcpy(c->name, name, sizeof(c->name));
 	c->options = options;
-	c->user_specified = user_specified;
+	set_user_specified(c, user_specified);
 	braille_set_options(c, brl_options);
 
 	c->index = idx;
@@ -2416,7 +2429,6 @@ static int __init console_setup(char *str)
 	*s = 0;
 
 	__add_preferred_console(buf, idx, options, brl_options, true);
-	console_set_on_cmdline = 1;
 	return 1;
 }
 __setup("console=", console_setup);
