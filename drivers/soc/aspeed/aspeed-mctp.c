@@ -1086,14 +1086,9 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_pcie_packet *rx_packet;
 	u32 mctp_ctrl;
-	u16 bdf;
 
 	if (count < PCIE_MCTP_MIN_PACKET_SIZE)
 		return -EINVAL;
-
-	bdf = _get_bdf(priv);
-	if (bdf == 0)
-		return -EIO;
 
 	if (count > sizeof(rx_packet->data))
 		count = sizeof(rx_packet->data);
