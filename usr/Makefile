@@ -21,7 +21,7 @@ obj-$(CONFIG_BLK_DEV_INITRD) := initramfs_data.o
 
 $(obj)/initramfs_data.o: $(obj)/initramfs_inc_data
 
-ramfs-input := $(strip $(shell echo $(CONFIG_INITRAMFS_SOURCE)))
+ramfs-input := $(CONFIG_INITRAMFS_SOURCE)
 cpio-data :=
 
 # If CONFIG_INITRAMFS_SOURCE is empty, generate a small initramfs with the
