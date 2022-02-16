@@ -252,7 +252,6 @@ struct odm_rf_cal {
 	bool	bReloadtxpowerindex;
 	u8	bRfPiEnable;
 
-	u8	bCCKinCH14;
 	u8	CCK_index;
 	u8	OFDM_index;
 	bool bDoneTxpower;
@@ -449,7 +448,6 @@ enum dm_swas {
 
 extern	u32 OFDMSwingTable[OFDM_TABLE_SIZE_92D];
 extern	u8 CCKSwingTable_Ch1_Ch13[CCK_TABLE_SIZE][8];
-extern	u8 CCKSwingTable_Ch14 [CCK_TABLE_SIZE][8];
 
 /*  check Sta pointer valid or not */
 #define IS_STA_VALID(pSta)		(pSta)
