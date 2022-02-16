@@ -250,7 +250,7 @@ config MIGRATION
 	  allocation instead of reclaiming.
 
 config DEVICE_MIGRATION
-	def_bool MIGRATION && DEVICE_PRIVATE
+	def_bool MIGRATION && ZONE_DEVICE
 
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	bool
