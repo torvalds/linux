@@ -123,18 +123,6 @@ enum RFINTFS {
 };
 
 /*
-Caller Mode: Infra, Ad-HoC(C)
-
-Notes: To enter USB suspend mode
-
-Command Mode
-
-*/
-struct usb_suspend_parm {
-	u32 action;/*  1: sleep, 0:resume */
-};
-
-/*
 Caller Mode: Infra, Ad-HoC
 
 Notes: To join a known BSS.
