@@ -6,8 +6,9 @@
 #ifndef _INTEL_GUC_H_
 #define _INTEL_GUC_H_
 
-#include <linux/xarray.h>
 #include <linux/delay.h>
+#include <linux/iosys-map.h>
+#include <linux/xarray.h>
 
 #include "intel_uncore.h"
 #include "intel_guc_fw.h"
@@ -148,6 +149,7 @@ struct intel_guc {
 	struct i915_vma *ads_vma;
 	/** @ads_blob: contents of the GuC ADS */
 	struct __guc_ads_blob *ads_blob;
+	struct iosys_map ads_map;
 	/** @ads_regset_size: size of the save/restore regsets in the ADS */
 	u32 ads_regset_size;
 	/**
