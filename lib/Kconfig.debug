@@ -2511,6 +2511,17 @@ config OVERFLOW_KUNIT_TEST
 
 	  If unsure, say N.
 
+config STACKINIT_KUNIT_TEST
+	tristate "Test level of stack variable initialization" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Test if the kernel is zero-initializing stack variables and
+	  padding. Coverage is controlled by compiler flags,
+	  CONFIG_INIT_STACK_ALL_PATTERN, CONFIG_INIT_STACK_ALL_ZERO,
+	  CONFIG_GCC_PLUGIN_STRUCTLEAK, CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF,
+	  or CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
+
 config TEST_UDELAY
 	tristate "udelay test driver"
 	help
@@ -2601,17 +2612,6 @@ config TEST_OBJAGG
 	help
 	  Enable this option to test object aggregation manager on boot
 	  (or module load).
-
-
-config TEST_STACKINIT
-	tristate "Test level of stack variable initialization"
-	help
-	  Test if the kernel is zero-initializing stack variables and
-	  padding. Coverage is controlled by compiler flags,
-	  CONFIG_GCC_PLUGIN_STRUCTLEAK, CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF,
-	  or CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
-
-	  If unsure, say N.
 
 config TEST_MEMINIT
 	tristate "Test heap/page initialization"
