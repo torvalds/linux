@@ -5760,11 +5760,11 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 	}
 
 	if (!dst) {
-		if (rt->offload)
+		if (READ_ONCE(rt->offload))
 			rtm->rtm_flags |= RTM_F_OFFLOAD;
-		if (rt->trap)
+		if (READ_ONCE(rt->trap))
 			rtm->rtm_flags |= RTM_F_TRAP;
-		if (rt->offload_failed)
+		if (READ_ONCE(rt->offload_failed))
 			rtm->rtm_flags |= RTM_F_OFFLOAD_FAILED;
 	}
 
@@ -6222,19 +6222,20 @@ void fib6_info_hw_flags_set(struct net *net, struct fib6_info *f6i,
 	struct sk_buff *skb;
 	int err;
 
-	if (f6i->offload == offload && f6i->trap == trap &&
-	    f6i->offload_failed == offload_failed)
+	if (READ_ONCE(f6i->offload) == offload &&
+	    READ_ONCE(f6i->trap) == trap &&
+	    READ_ONCE(f6i->offload_failed) == offload_failed)
 		return;
 
-	f6i->offload = offload;
-	f6i->trap = trap;
+	WRITE_ONCE(f6i->offload, offload);
+	WRITE_ONCE(f6i->trap, trap);
 
 	/* 2 means send notifications only if offload_failed was changed. */
 	if (net->ipv6.sysctl.fib_notify_on_flag_change == 2 &&
-	    f6i->offload_failed == offload_failed)
+	    READ_ONCE(f6i->offload_failed) == offload_failed)
 		return;
 
-	f6i->offload_failed = offload_failed;
+	WRITE_ONCE(f6i->offload_failed, offload_failed);
 
 	if (!rcu_access_pointer(f6i->fib6_node))
 		/* The route was removed from the tree, do not send

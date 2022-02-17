@@ -1115,8 +1115,8 @@
 	status = "okay";
 
 	ports {
-		port@1 {
-			reg = <1>;
+		port@0 {
+			reg = <0>;
 
 			mipi1_sensor_ep: endpoint {
 				remote-endpoint = <&camera1_ep>;

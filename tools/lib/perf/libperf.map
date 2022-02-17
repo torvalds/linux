@@ -2,6 +2,7 @@ LIBPERF_0.0.1 {
 	global:
 		libperf_init;
 		perf_cpu_map__dummy_new;
+		perf_cpu_map__default_new;
 		perf_cpu_map__get;
 		perf_cpu_map__put;
 		perf_cpu_map__new;

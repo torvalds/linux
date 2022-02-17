@@ -437,6 +437,9 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		if (net->ipv4.fib_has_custom_local_routes ||
 		    fib4_has_custom_rules(net))
 			goto full_check;
+		/* Within the same container, it is regarded as a martian source,
+		 * and the same host but different containers are not.
+		 */
 		if (inet_lookup_ifaddr_rcu(net, src))
 			return -EINVAL;
 

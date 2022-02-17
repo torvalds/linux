@@ -228,9 +228,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 
 	if (reconnect) {
-		spin_lock(&cifs_tcp_ses_lock);
-		server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&cifs_tcp_ses_lock);
+		cifs_mark_tcp_ses_conns_for_reconnect(server, false);
 	}
 
 	return mid;

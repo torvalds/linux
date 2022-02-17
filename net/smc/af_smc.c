@@ -752,14 +752,17 @@ static void smc_fback_error_report(struct sock *clcsk)
 static int smc_switch_to_fallback(struct smc_sock *smc, int reason_code)
 {
 	struct sock *clcsk;
+	int rc = 0;
 
 	mutex_lock(&smc->clcsock_release_lock);
 	if (!smc->clcsock) {
-		mutex_unlock(&smc->clcsock_release_lock);
-		return -EBADF;
+		rc = -EBADF;
+		goto out;
 	}
 	clcsk = smc->clcsock->sk;
 
+	if (smc->use_fallback)
+		goto out;
 	smc->use_fallback = true;
 	smc->fallback_rsn = reason_code;
 	smc_stat_fallback(smc);
@@ -787,8 +790,9 @@ static int smc_switch_to_fallback(struct smc_sock *smc, int reason_code)
 		smc->clcsock->sk->sk_user_data =
 			(void *)((uintptr_t)smc | SK_USER_DATA_NOCOPY);
 	}
+out:
 	mutex_unlock(&smc->clcsock_release_lock);
-	return 0;
+	return rc;
 }
 
 /* fall back during connect */

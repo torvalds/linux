@@ -1052,19 +1052,23 @@ void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 	if (!fa_match)
 		goto out;
 
-	if (fa_match->offload == fri->offload && fa_match->trap == fri->trap &&
-	    fa_match->offload_failed == fri->offload_failed)
+	/* These are paired with the WRITE_ONCE() happening in this function.
+	 * The reason is that we are only protected by RCU at this point.
+	 */
+	if (READ_ONCE(fa_match->offload) == fri->offload &&
+	    READ_ONCE(fa_match->trap) == fri->trap &&
+	    READ_ONCE(fa_match->offload_failed) == fri->offload_failed)
 		goto out;
 
-	fa_match->offload = fri->offload;
-	fa_match->trap = fri->trap;
+	WRITE_ONCE(fa_match->offload, fri->offload);
+	WRITE_ONCE(fa_match->trap, fri->trap);
 
 	/* 2 means send notifications only if offload_failed was changed. */
 	if (net->ipv4.sysctl_fib_notify_on_flag_change == 2 &&
-	    fa_match->offload_failed == fri->offload_failed)
+	    READ_ONCE(fa_match->offload_failed) == fri->offload_failed)
 		goto out;
 
-	fa_match->offload_failed = fri->offload_failed;
+	WRITE_ONCE(fa_match->offload_failed, fri->offload_failed);
 
 	if (!net->ipv4.sysctl_fib_notify_on_flag_change)
 		goto out;
@@ -2306,9 +2310,9 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 				fri.dst_len = KEYLENGTH - fa->fa_slen;
 				fri.tos = inet_dscp_to_dsfield(fa->fa_dscp);
 				fri.type = fa->fa_type;
-				fri.offload = fa->offload;
-				fri.trap = fa->trap;
-				fri.offload_failed = fa->offload_failed;
+				fri.offload = READ_ONCE(fa->offload);
+				fri.trap = READ_ONCE(fa->trap);
+				fri.offload_failed = READ_ONCE(fa->offload_failed);
 				err = fib_dump_info(skb,
 						    NETLINK_CB(cb->skb).portid,
 						    cb->nlh->nlmsg_seq,
