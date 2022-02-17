@@ -10,7 +10,6 @@
 #include "ionic_lif.h"
 #include "ionic_txrx.h"
 
-
 static inline void ionic_txq_post(struct ionic_queue *q, bool ring_dbell,
 				  ionic_desc_cb cb_func, void *cb_arg)
 {
