@@ -137,6 +137,15 @@ for ovr in setsock cmsg both diff; do
     done
 done
 
+# IPV6 exthdr
+for p in u i r; do
+    # Very basic "does it crash" test
+    for h in h d r; do
+	$NSEXE ./cmsg_sender -p $p -6 -H $h $TGT6 1234
+	check_result $? 0 "ExtHdr $prot $ovr - pass"
+    done
+done
+
 # Summary
 if [ $BAD -ne 0 ]; then
     echo "FAIL - $BAD/$TOTAL cases failed"

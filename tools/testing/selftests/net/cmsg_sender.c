@@ -66,6 +66,7 @@ struct options {
 		struct option_cmsg_u32 dontfrag;
 		struct option_cmsg_u32 tclass;
 		struct option_cmsg_u32 hlimit;
+		struct option_cmsg_u32 exthdr;
 	} v6;
 } opt = {
 	.size = 13,
@@ -99,6 +100,8 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\t\t-C val  Set TCLASS via setsockopt\n"
 	       "\t\t-l val  Set HOPLIMIT via cmsg\n"
 	       "\t\t-L val  Set HOPLIMIT via setsockopt\n"
+	       "\t\t-H type Add an IPv6 header option\n"
+	       "\t\t        (h = HOP; d = DST; r = RTDST)"
 	       "");
 	exit(ERN_HELP);
 }
@@ -107,7 +110,7 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	char o;
 
-	while ((o = getopt(argc, argv, "46sS:p:m:M:d:tf:F:c:C:l:L:")) != -1) {
+	while ((o = getopt(argc, argv, "46sS:p:m:M:d:tf:F:c:C:l:L:H:")) != -1) {
 		switch (o) {
 		case 's':
 			opt.silent_send = true;
@@ -168,6 +171,23 @@ static void cs_parse_args(int argc, char *argv[])
 			break;
 		case 'L':
 			opt.sockopt.hlimit = atoi(optarg);
+			break;
+		case 'H':
+			opt.v6.exthdr.ena = true;
+			switch (optarg[0]) {
+			case 'h':
+				opt.v6.exthdr.val = IPV6_HOPOPTS;
+				break;
+			case 'd':
+				opt.v6.exthdr.val = IPV6_DSTOPTS;
+				break;
+			case 'r':
+				opt.v6.exthdr.val = IPV6_RTHDRDSTOPTS;
+				break;
+			default:
+				printf("Error: hdr type: %s\n", optarg);
+				break;
+			}
 			break;
 		}
 	}
@@ -271,6 +291,17 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 		cmsg->cmsg_len = CMSG_LEN(sizeof(__u32));
 		*(__u32 *)CMSG_DATA(cmsg) = SOF_TIMESTAMPING_TX_SCHED |
 					    SOF_TIMESTAMPING_TX_SOFTWARE;
+	}
+	if (opt.v6.exthdr.ena) {
+		cmsg = (struct cmsghdr *)(cbuf + cmsg_len);
+		cmsg_len += CMSG_SPACE(8);
+		if (cbuf_sz < cmsg_len)
+			error(ERN_CMSG_WR, EFAULT, "cmsg buffer too small");
+
+		cmsg->cmsg_level = SOL_IPV6;
+		cmsg->cmsg_type = opt.v6.exthdr.val;
+		cmsg->cmsg_len = CMSG_LEN(8);
+		*(__u64 *)CMSG_DATA(cmsg) = 0;
 	}
 
 	if (cmsg_len)
