@@ -369,13 +369,11 @@ static int sparx5_handle_port_vlan_add(struct net_device *dev,
 	struct sparx5_port *port = netdev_priv(dev);
 
 	if (netif_is_bridge_master(dev)) {
-		if (v->flags & BRIDGE_VLAN_INFO_BRENTRY) {
-			struct sparx5 *sparx5 =
-				container_of(nb, struct sparx5,
-					     switchdev_blocking_nb);
+		struct sparx5 *sparx5 =
+			container_of(nb, struct sparx5,
+				     switchdev_blocking_nb);
 
-			sparx5_sync_bridge_dev_addr(dev, sparx5, v->vid, true);
-		}
+		sparx5_sync_bridge_dev_addr(dev, sparx5, v->vid, true);
 		return 0;
 	}
 

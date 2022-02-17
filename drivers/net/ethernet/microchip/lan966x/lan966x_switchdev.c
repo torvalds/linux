@@ -463,18 +463,6 @@ static int lan966x_handle_port_vlan_add(struct lan966x_port *port,
 	const struct switchdev_obj_port_vlan *v = SWITCHDEV_OBJ_PORT_VLAN(obj);
 	struct lan966x *lan966x = port->lan966x;
 
-	/* When adding a port to a vlan, we get a callback for the port but
-	 * also for the bridge. When get the callback for the bridge just bail
-	 * out. Then when the bridge is added to the vlan, then we get a
-	 * callback here but in this case the flags has set:
-	 * BRIDGE_VLAN_INFO_BRENTRY. In this case it means that the CPU
-	 * port is added to the vlan, so the broadcast frames and unicast frames
-	 * with dmac of the bridge should be foward to CPU.
-	 */
-	if (netif_is_bridge_master(obj->orig_dev) &&
-	    !(v->flags & BRIDGE_VLAN_INFO_BRENTRY))
-		return 0;
-
 	if (!netif_is_bridge_master(obj->orig_dev))
 		lan966x_vlan_port_add_vlan(port, v->vid,
 					   v->flags & BRIDGE_VLAN_INFO_PVID,
