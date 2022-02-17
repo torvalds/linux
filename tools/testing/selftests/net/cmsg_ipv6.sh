@@ -1,18 +1,28 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+ksft_skip=4
+
 NS=ns
 IP6=2001:db8:1::1/64
 TGT6=2001:db8:1::2
+TMPF=`mktemp`
 
 cleanup()
 {
+    rm -f $TMPF
     ip netns del $NS
 }
 
 trap cleanup EXIT
 
 NSEXE="ip netns exec $NS"
+
+tcpdump -h | grep immediate-mode >> /dev/null
+if [ $? -ne 0 ]; then
+    echo "SKIP - tcpdump with --immediate-mode option required"
+    exit $ksft_skip
+fi
 
 # Namespaces
 ip netns add $NS
@@ -52,6 +62,47 @@ for ovr in setsock cmsg both diff; do
 	    $NSEXE ./cmsg_sender -s -S 2000 -6 -p $p $m $TGT6 1234
 	    check_result $? $df "DONTFRAG $prot $ovr"
 	done
+    done
+done
+
+# IPV6_TCLASS
+TOS=0x10
+TOS2=0x20
+
+ip -6 -netns $NS rule add tos $TOS lookup 300
+ip -6 -netns $NS route add table 300 prohibit any
+
+for ovr in setsock cmsg both diff; do
+    for p in u i r; do
+	[ $p == "u" ] && prot=UDP
+	[ $p == "i" ] && prot=ICMP
+	[ $p == "r" ] && prot=RAW
+
+	[ $ovr == "setsock" ] && m="-C"
+	[ $ovr == "cmsg" ]    && m="-c"
+	[ $ovr == "both" ]    && m="-C $((TOS2)) -c"
+	[ $ovr == "diff" ]    && m="-C $((TOS )) -c"
+
+	$NSEXE nohup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
+	BG=$!
+	sleep 0.05
+
+	$NSEXE ./cmsg_sender -6 -p $p $m $((TOS2)) $TGT6 1234
+	check_result $? 0 "TCLASS $prot $ovr - pass"
+
+	while [ -d /proc/$BG ]; do
+	    $NSEXE ./cmsg_sender -6 -p u $TGT6 1234
+	done
+
+	tcpdump -r $TMPF -v 2>&1 | grep "class $TOS2" >> /dev/null
+	check_result $? 0 "TCLASS $prot $ovr - packet data"
+	rm $TMPF
+
+	[ $ovr == "both" ]    && m="-C $((TOS )) -c"
+	[ $ovr == "diff" ]    && m="-C $((TOS2)) -c"
+
+	$NSEXE ./cmsg_sender -6 -p $p $m $((TOS)) -s $TGT6 1234
+	check_result $? 1 "TCLASS $prot $ovr - rejection"
     done
 done
 

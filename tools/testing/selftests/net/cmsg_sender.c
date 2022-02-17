@@ -46,6 +46,7 @@ struct options {
 	struct {
 		unsigned int mark;
 		unsigned int dontfrag;
+		unsigned int tclass;
 	} sockopt;
 	struct {
 		unsigned int family;
@@ -62,6 +63,7 @@ struct options {
 	} ts;
 	struct {
 		struct option_cmsg_u32 dontfrag;
+		struct option_cmsg_u32 tclass;
 	} v6;
 } opt = {
 	.size = 13,
@@ -91,6 +93,8 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\t\t-t      Enable time stamp reporting\n"
 	       "\t\t-f val  Set don't fragment via cmsg\n"
 	       "\t\t-F val  Set don't fragment via setsockopt\n"
+	       "\t\t-c val  Set TCLASS via cmsg\n"
+	       "\t\t-C val  Set TCLASS via setsockopt\n"
 	       "");
 	exit(ERN_HELP);
 }
@@ -99,7 +103,7 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	char o;
 
-	while ((o = getopt(argc, argv, "46sS:p:m:M:d:tf:F:")) != -1) {
+	while ((o = getopt(argc, argv, "46sS:p:m:M:d:tf:F:c:C:")) != -1) {
 		switch (o) {
 		case 's':
 			opt.silent_send = true;
@@ -146,6 +150,13 @@ static void cs_parse_args(int argc, char *argv[])
 			break;
 		case 'F':
 			opt.sockopt.dontfrag = atoi(optarg);
+			break;
+		case 'c':
+			opt.v6.tclass.ena = true;
+			opt.v6.tclass.val = atoi(optarg);
+			break;
+		case 'C':
+			opt.sockopt.tclass = atoi(optarg);
 			break;
 		}
 	}
@@ -202,6 +213,8 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 			  SOL_SOCKET, SO_MARK, &opt.mark);
 	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
 			  SOL_IPV6, IPV6_DONTFRAG, &opt.v6.dontfrag);
+	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
+			  SOL_IPV6, IPV6_TCLASS, &opt.v6.tclass);
 
 	if (opt.txtime.ena) {
 		struct sock_txtime so_txtime = {
@@ -343,6 +356,10 @@ static void ca_set_sockopts(int fd)
 	    setsockopt(fd, SOL_IPV6, IPV6_DONTFRAG,
 		       &opt.sockopt.dontfrag, sizeof(opt.sockopt.dontfrag)))
 		error(ERN_SOCKOPT, errno, "setsockopt IPV6_DONTFRAG");
+	if (opt.sockopt.tclass &&
+	    setsockopt(fd, SOL_IPV6, IPV6_TCLASS,
+		       &opt.sockopt.tclass, sizeof(opt.sockopt.tclass)))
+		error(ERN_SOCKOPT, errno, "setsockopt IPV6_TCLASS");
 }
 
 int main(int argc, char *argv[])
