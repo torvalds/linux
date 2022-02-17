@@ -649,24 +649,24 @@ int test_kvm_device(uint32_t gic_dev_type)
 	v.vm = vm_create_default_with_vcpus(NR_VCPUS, 0, 0, guest_code, NULL);
 
 	/* try to create a non existing KVM device */
-	ret = _kvm_create_device(v.vm, 0, true, &fd);
+	ret = __kvm_test_create_device(v.vm, 0);
 	TEST_ASSERT(ret && errno == ENODEV, "unsupported device");
 
 	/* trial mode */
-	ret = _kvm_create_device(v.vm, gic_dev_type, true, &fd);
+	ret = __kvm_test_create_device(v.vm, gic_dev_type);
 	if (ret)
 		return ret;
 	v.gic_fd = kvm_create_device(v.vm, gic_dev_type);
 
-	ret = _kvm_create_device(v.vm, gic_dev_type, false, &fd);
+	ret = __kvm_create_device(v.vm, gic_dev_type, &fd);
 	TEST_ASSERT(ret && errno == EEXIST, "create GIC device twice");
 
 	/* try to create the other gic_dev_type */
 	other = VGIC_DEV_IS_V2(gic_dev_type) ? KVM_DEV_TYPE_ARM_VGIC_V3
 					     : KVM_DEV_TYPE_ARM_VGIC_V2;
 
-	if (!_kvm_create_device(v.vm, other, true, &fd)) {
-		ret = _kvm_create_device(v.vm, other, false, &fd);
+	if (!__kvm_test_create_device(v.vm, other)) {
+		ret = __kvm_test_create_device(v.vm, other);
 		TEST_ASSERT(ret && errno == EINVAL,
 				"create GIC device while other version exists");
 	}

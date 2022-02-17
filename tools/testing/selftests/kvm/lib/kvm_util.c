@@ -1629,14 +1629,25 @@ int kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
 	return ret;
 }
 
-int _kvm_create_device(struct kvm_vm *vm, uint64_t type, bool test, int *fd)
+int __kvm_test_create_device(struct kvm_vm *vm, uint64_t type)
 {
-	struct kvm_create_device create_dev;
+	struct kvm_create_device create_dev = {
+		.type = type,
+		.flags = KVM_CREATE_DEVICE_TEST,
+	};
+
+	return __vm_ioctl(vm, KVM_CREATE_DEVICE, &create_dev);
+}
+
+int __kvm_create_device(struct kvm_vm *vm, uint64_t type, int *fd)
+{
+	struct kvm_create_device create_dev = {
+		.type = type,
+		.fd = -1,
+		.flags = 0,
+	};
 	int ret;
 
-	create_dev.type = type;
-	create_dev.fd = -1;
-	create_dev.flags = test ? KVM_CREATE_DEVICE_TEST : 0;
 	ret = __vm_ioctl(vm, KVM_CREATE_DEVICE, &create_dev);
 	*fd = create_dev.fd;
 	return ret;
@@ -1646,7 +1657,7 @@ int kvm_create_device(struct kvm_vm *vm, uint64_t type)
 {
 	int fd, ret;
 
-	ret = _kvm_create_device(vm, type, false, &fd);
+	ret = __kvm_create_device(vm, type, &fd);
 
 	TEST_ASSERT(!ret, "KVM_CREATE_DEVICE IOCTL failed, rc: %i errno: %i", ret, errno);
 	return fd;
