@@ -513,12 +513,10 @@ static struct monitor_dev_profile npu_mdevp = {
 
 static int rknpu_set_read_margin(struct device *dev,
 				 struct rockchip_opp_info *opp_info,
-				 unsigned long volt)
+				 u32 rm)
 {
-	if (opp_info->data && opp_info->data->set_read_margin) {
-		opp_info->data->set_read_margin(dev, opp_info, volt);
-		opp_info->volt_rm = volt;
-	}
+	if (opp_info->data && opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(dev, opp_info, rm);
 
 	return 0;
 }
@@ -537,6 +535,7 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
+	u32 target_rm = UINT_MAX;
 	int ret = 0;
 
 	ret = clk_bulk_prepare_enable(opp_info->num_clks,  opp_info->clks);
@@ -544,6 +543,8 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 		LOG_DEV_ERROR(dev, "failed to enable opp clks\n");
 		return ret;
 	}
+	rockchip_get_read_margin(dev, opp_info, new_supply_vdd->u_volt,
+				 &target_rm);
 
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
@@ -563,7 +564,7 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 				      new_supply_vdd->u_volt);
 			goto restore_voltage;
 		}
-		rknpu_set_read_margin(dev, opp_info, new_supply_vdd->u_volt);
+		rknpu_set_read_margin(dev, opp_info, target_rm);
 	}
 
 	/* Change frequency */
@@ -577,7 +578,7 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 
 	/* Scaling down? Scale voltage after frequency */
 	if (new_freq < old_freq) {
-		rknpu_set_read_margin(dev, opp_info, new_supply_vdd->u_volt);
+		rknpu_set_read_margin(dev, opp_info, target_rm);
 		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -605,7 +606,9 @@ restore_freq:
 		LOG_DEV_ERROR(dev, "failed to restore old-freq %lu Hz\n",
 			      old_freq);
 restore_rm:
-	rknpu_set_read_margin(dev, opp_info, old_supply_vdd->u_volt);
+	rockchip_get_read_margin(dev, opp_info, old_supply_vdd->u_volt,
+				 &target_rm);
+	rknpu_set_read_margin(dev, opp_info, target_rm);
 restore_voltage:
 	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
@@ -685,26 +688,15 @@ static struct devfreq_cooling_power npu_cooling_power = {
 
 static int rk3588_npu_set_read_margin(struct device *dev,
 				      struct rockchip_opp_info *opp_info,
-				      unsigned long volt)
+				      u32 rm)
 {
-	bool is_found = false;
-	u32 rm = 0, offset = 0, val = 0;
+	u32 offset = 0, val = 0;
 	int i, ret = 0;
 
 	if (!opp_info->grf || !opp_info->volt_rm_tbl)
 		return 0;
 
-	for (i = 0; opp_info->volt_rm_tbl[i].rm != VOLT_RM_TABLE_END; i++) {
-		if (volt >= opp_info->volt_rm_tbl[i].volt) {
-			rm = opp_info->volt_rm_tbl[i].rm;
-			is_found = true;
-			break;
-		}
-	}
-
-	if (!is_found)
-		return 0;
-	if (rm == opp_info->current_rm)
+	if (rm == opp_info->current_rm || rm == UINT_MAX)
 		return 0;
 
 	LOG_DEV_DEBUG(dev, "set rm to %d\n", rm);
@@ -933,7 +925,7 @@ static int rknpu_probe(struct platform_device *pdev)
 
 	rknpu_dev->num_clks = devm_clk_bulk_get_all(dev, &rknpu_dev->clks);
 	if (strstr(__clk_get_name(rknpu_dev->clks[0].clk), "scmi"))
-		rknpu_dev->scmi_clk = rknpu_dev->clks[0].clk;
+		rknpu_dev->opp_info.scmi_clk = rknpu_dev->clks[0].clk;
 
 #ifndef FPGA_PLATFORM
 	rknpu_dev->vdd = devm_regulator_get_optional(dev, "rknpu");
@@ -1085,8 +1077,8 @@ static int rknpu_runtime_suspend(struct device *dev)
 	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
 	struct rockchip_opp_info *opp_info = &rknpu_dev->opp_info;
 
-	if (rknpu_dev->scmi_clk) {
-		if (clk_set_rate(rknpu_dev->scmi_clk, POWER_DOWN_FREQ))
+	if (opp_info->scmi_clk) {
+		if (clk_set_rate(opp_info->scmi_clk, POWER_DOWN_FREQ))
 			LOG_DEV_ERROR(dev, "failed to restore clk rate\n");
 	}
 	opp_info->current_rm = UINT_MAX;
@@ -1109,14 +1101,14 @@ static int rknpu_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	if (rknpu_dev->scmi_clk) {
-		if (clk_set_rate(rknpu_dev->scmi_clk, rknpu_dev->current_freq))
+	if (opp_info->scmi_clk) {
+		if (clk_set_rate(opp_info->scmi_clk, rknpu_dev->current_freq))
 			LOG_DEV_ERROR(dev, "failed to set power down rate\n");
 	}
 
 	if (opp_info->data && opp_info->data->set_read_margin)
 		opp_info->data->set_read_margin(dev, opp_info,
-						opp_info->volt_rm);
+						opp_info->target_rm);
 
 	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 

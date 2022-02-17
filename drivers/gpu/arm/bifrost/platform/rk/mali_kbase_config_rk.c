@@ -202,13 +202,14 @@ static int rk_pm_callback_runtime_on(struct kbase_device *kbdev)
 		dev_err(kbdev->dev, "failed to enable opp clks\n");
 		return ret;
 	}
-	if (kbdev->scmi_clk) {
-		if (clk_set_rate(kbdev->scmi_clk, kbdev->current_nominal_freq))
+	if (opp_info->scmi_clk) {
+		if (clk_set_rate(opp_info->scmi_clk,
+				 kbdev->current_nominal_freq))
 			dev_err(kbdev->dev, "failed to restore clk rate\n");
 	}
 	if (opp_info->data && opp_info->data->set_read_margin)
 		opp_info->data->set_read_margin(kbdev->dev, opp_info,
-						opp_info->volt_rm);
+						opp_info->target_rm);
 	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 
 	return 0;
@@ -218,8 +219,8 @@ static void rk_pm_callback_runtime_off(struct kbase_device *kbdev)
 {
 	struct rockchip_opp_info *opp_info = &kbdev->opp_info;
 
-	if (kbdev->scmi_clk) {
-		if (clk_set_rate(kbdev->scmi_clk, POWER_DOWN_FREQ))
+	if (opp_info->scmi_clk) {
+		if (clk_set_rate(opp_info->scmi_clk, POWER_DOWN_FREQ))
 			dev_err(kbdev->dev, "failed to set power down rate\n");
 	}
 	opp_info->current_rm = UINT_MAX;
@@ -500,26 +501,14 @@ static void kbase_platform_rk_remove_sysfs_files(struct device *dev)
 
 static int rk3588_gpu_set_read_margin(struct device *dev,
 				      struct rockchip_opp_info *opp_info,
-				      unsigned long volt)
+				      u32 rm)
 {
-	bool is_found = false;
-	int i, ret = 0;
-	u32 rm, val;
+	int ret = 0;
+	u32 val;
 
 	if (!opp_info->grf || !opp_info->volt_rm_tbl)
 		return 0;
-
-	for (i = 0; opp_info->volt_rm_tbl[i].rm != VOLT_RM_TABLE_END; i++) {
-		if (volt >= opp_info->volt_rm_tbl[i].volt) {
-			rm = opp_info->volt_rm_tbl[i].rm;
-			is_found = true;
-			break;
-		}
-	}
-
-	if (!is_found)
-		return 0;
-	if (rm == opp_info->current_rm)
+	if (rm == opp_info->current_rm || rm == UINT_MAX)
 		return 0;
 
 	dev_dbg(dev, "set rm to %d\n", rm);

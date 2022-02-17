@@ -1092,13 +1092,12 @@ EXPORT_SYMBOL(rockchip_monitor_volt_adjust_unlock);
 
 static int rockchip_monitor_set_read_margin(struct device *dev,
 					    struct rockchip_opp_info *opp_info,
-					    unsigned long volt)
+					    u32 rm)
 {
 
 	if (opp_info && opp_info->data && opp_info->data->set_read_margin) {
 		if (pm_runtime_active(dev))
-			opp_info->data->set_read_margin(dev, opp_info, volt);
-		opp_info->volt_rm = volt;
+			opp_info->data->set_read_margin(dev, opp_info, rm);
 	}
 
 	return 0;
@@ -1114,6 +1113,7 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
 	struct dev_pm_opp *opp;
 	unsigned long old_rate, new_rate, new_volt, new_mem_volt;
 	int old_volt, old_mem_volt;
+	u32 target_rm = UINT_MAX;
 	int ret = 0;
 
 	if (!info->regulators || !info->clk)
@@ -1168,6 +1168,8 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
 	if (!new_volt || (info->regulator_count > 1 && !new_mem_volt))
 		goto unlock;
 
+	rockchip_get_read_margin(dev, opp_info, new_volt, &target_rm);
+
 	dev_dbg(dev, "%s: %lu Hz --> %lu Hz\n", __func__, old_rate, new_rate);
 	if (new_rate >= old_rate) {
 		if (info->regulator_count > 1) {
@@ -1185,7 +1187,7 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
 				__func__, new_volt);
 			goto restore_voltage;
 		}
-		rockchip_monitor_set_read_margin(dev, opp_info, new_volt);
+		rockchip_monitor_set_read_margin(dev, opp_info, target_rm);
 		if (new_rate == old_rate)
 			goto unlock;
 	}
@@ -1197,7 +1199,7 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
 	}
 
 	if (new_rate < old_rate) {
-		rockchip_monitor_set_read_margin(dev, opp_info, new_volt);
+		rockchip_monitor_set_read_margin(dev, opp_info, target_rm);
 		ret = regulator_set_voltage(vdd_reg, new_volt,
 					    INT_MAX);
 		if (ret) {
@@ -1222,7 +1224,8 @@ restore_freq:
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_rate);
 restore_rm:
-	rockchip_monitor_set_read_margin(dev, opp_info, old_volt);
+	rockchip_get_read_margin(dev, opp_info, old_volt, &target_rm);
+	rockchip_monitor_set_read_margin(dev, opp_info, target_rm);
 restore_voltage:
 	if (info->regulator_count > 1)
 		regulator_set_voltage(mem_reg, old_mem_volt, INT_MAX);

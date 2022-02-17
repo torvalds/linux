@@ -982,7 +982,6 @@ struct kbase_device {
 	} irqs[3];
 
 	struct clk *clocks[BASE_MAX_NR_CLOCKS_REGULATORS];
-	struct clk *scmi_clk;
 	unsigned int nr_clocks;
 #if IS_ENABLED(CONFIG_REGULATOR)
 	struct regulator *regulators[BASE_MAX_NR_CLOCKS_REGULATORS];

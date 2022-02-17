@@ -185,26 +185,11 @@ out:
 
 static int rk3588_cpu_set_read_margin(struct device *dev,
 				      struct rockchip_opp_info *opp_info,
-				      unsigned long volt)
+				      u32 rm)
 {
-	bool is_found = false;
-	u32 rm;
-	int i;
-
 	if (!opp_info->volt_rm_tbl)
 		return 0;
-
-	for (i = 0; opp_info->volt_rm_tbl[i].rm != VOLT_RM_TABLE_END; i++) {
-		if (volt >= opp_info->volt_rm_tbl[i].volt) {
-			rm = opp_info->volt_rm_tbl[i].rm;
-			is_found = true;
-			break;
-		}
-	}
-
-	if (!is_found)
-		return 0;
-	if (rm == opp_info->current_rm)
+	if (rm == opp_info->current_rm || rm  == UINT_MAX)
 		return 0;
 
 	dev_dbg(dev, "set rm to %d\n", rm);
@@ -345,12 +330,10 @@ static int rockchip_cpufreq_set_volt(struct device *dev,
 
 static int rockchip_cpufreq_set_read_margin(struct device *dev,
 					    struct rockchip_opp_info *opp_info,
-					    unsigned long volt)
+					    u32 rm)
 {
-	if (opp_info->data && opp_info->data->set_read_margin) {
-		opp_info->data->set_read_margin(dev, opp_info, volt);
-		opp_info->volt_rm = volt;
-	}
+	if (opp_info->data && opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(dev, opp_info, rm);
 
 	return 0;
 }
@@ -379,12 +362,15 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 	struct rockchip_opp_info *opp_info;
 	unsigned long old_freq = data->old_opp.rate;
 	unsigned long new_freq = data->new_opp.rate;
+	u32 target_rm = UINT_MAX;
 	int ret = 0;
 
 	cluster = rockchip_cluster_info_lookup(dev->id);
 	if (!cluster)
 		return -EINVAL;
 	opp_info = &cluster->opp_info;
+	rockchip_get_read_margin(dev, opp_info, new_supply_vdd->u_volt,
+				 &target_rm);
 
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
@@ -403,8 +389,7 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 						"vdd");
 		if (ret)
 			goto restore_voltage;
-		rockchip_cpufreq_set_read_margin(dev, opp_info,
-						 new_supply_vdd->u_volt);
+		rockchip_cpufreq_set_read_margin(dev, opp_info, target_rm);
 	}
 
 	/* Change frequency */
@@ -418,8 +403,7 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 
 	/* Scaling down? Scale voltage after frequency */
 	if (new_freq < old_freq) {
-		rockchip_cpufreq_set_read_margin(dev, opp_info,
-						 new_supply_vdd->u_volt);
+		rockchip_cpufreq_set_read_margin(dev, opp_info, target_rm);
 		ret = rockchip_cpufreq_set_volt(dev, vdd_reg, new_supply_vdd,
 						"vdd");
 		if (ret)
@@ -437,8 +421,9 @@ restore_freq:
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_freq);
 restore_rm:
-	rockchip_cpufreq_set_read_margin(dev, opp_info,
-					 old_supply_vdd->u_volt);
+	rockchip_get_read_margin(dev, opp_info, old_supply_vdd->u_volt,
+				 &target_rm);
+	rockchip_cpufreq_set_read_margin(dev, opp_info, target_rm);
 restore_voltage:
 	rockchip_cpufreq_set_volt(dev, mem_reg, old_supply_mem, "mem");
 	rockchip_cpufreq_set_volt(dev, vdd_reg, old_supply_vdd, "vdd");
@@ -487,6 +472,7 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	rockchip_get_opp_data(rockchip_cpufreq_of_match, opp_info);
 	if (opp_info->data && opp_info->data->set_read_margin) {
 		opp_info->current_rm = UINT_MAX;
+		opp_info->target_rm = UINT_MAX;
 		opp_info->grf = syscon_regmap_lookup_by_phandle(np,
 								"rockchip,grf");
 		if (IS_ERR(opp_info->grf))

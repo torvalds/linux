@@ -1143,6 +1143,27 @@ out_np:
 }
 EXPORT_SYMBOL(rockchip_adjust_power_scale);
 
+int rockchip_get_read_margin(struct device *dev,
+			     struct rockchip_opp_info *opp_info,
+			     unsigned long volt, u32 *target_rm)
+{
+	int i;
+
+	if (!opp_info || !opp_info->volt_rm_tbl)
+		return 0;
+
+	for (i = 0; opp_info->volt_rm_tbl[i].rm != VOLT_RM_TABLE_END; i++) {
+		if (volt >= opp_info->volt_rm_tbl[i].volt) {
+			opp_info->target_rm = opp_info->volt_rm_tbl[i].rm;
+			break;
+		}
+	}
+	*target_rm = opp_info->target_rm;
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_get_read_margin);
+
 int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 			    char *lkg_name, char *reg_name)
 {
