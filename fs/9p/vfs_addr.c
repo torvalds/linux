@@ -31,9 +31,9 @@
  * v9fs_req_issue_op - Issue a read from 9P
  * @subreq: The read to make
  */
-static void v9fs_req_issue_op(struct netfs_read_subrequest *subreq)
+static void v9fs_req_issue_op(struct netfs_io_subrequest *subreq)
 {
-	struct netfs_read_request *rreq = subreq->rreq;
+	struct netfs_io_request *rreq = subreq->rreq;
 	struct p9_fid *fid = rreq->netfs_priv;
 	struct iov_iter to;
 	loff_t pos = subreq->start + subreq->transferred;
@@ -52,11 +52,11 @@ static void v9fs_req_issue_op(struct netfs_read_subrequest *subreq)
 }
 
 /**
- * v9fs_init_rreq - Initialise a read request
+ * v9fs_init_request - Initialise a read request
  * @rreq: The read request
  * @file: The file being read from
  */
-static void v9fs_init_rreq(struct netfs_read_request *rreq, struct file *file)
+static void v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
 	struct p9_fid *fid = file->private_data;
 
@@ -65,7 +65,7 @@ static void v9fs_init_rreq(struct netfs_read_request *rreq, struct file *file)
 }
 
 /**
- * v9fs_req_cleanup - Cleanup request initialized by v9fs_init_rreq
+ * v9fs_req_cleanup - Cleanup request initialized by v9fs_init_request
  * @mapping: unused mapping of request to cleanup
  * @priv: private data to cleanup, a fid, guaranted non-null.
  */
@@ -91,7 +91,7 @@ static bool v9fs_is_cache_enabled(struct inode *inode)
  * v9fs_begin_cache_operation - Begin a cache operation for a read
  * @rreq: The read request
  */
-static int v9fs_begin_cache_operation(struct netfs_read_request *rreq)
+static int v9fs_begin_cache_operation(struct netfs_io_request *rreq)
 {
 #ifdef CONFIG_9P_FSCACHE
 	struct fscache_cookie *cookie = v9fs_inode_cookie(V9FS_I(rreq->inode));
@@ -102,8 +102,8 @@ static int v9fs_begin_cache_operation(struct netfs_read_request *rreq)
 #endif
 }
 
-static const struct netfs_read_request_ops v9fs_req_ops = {
-	.init_rreq		= v9fs_init_rreq,
+static const struct netfs_request_ops v9fs_req_ops = {
+	.init_request		= v9fs_init_request,
 	.is_cache_enabled	= v9fs_is_cache_enabled,
 	.begin_cache_operation	= v9fs_begin_cache_operation,
 	.issue_op		= v9fs_req_issue_op,

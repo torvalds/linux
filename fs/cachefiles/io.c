@@ -382,18 +382,18 @@ presubmission_error:
  * Prepare a read operation, shortening it to a cached/uncached
  * boundary as appropriate.
  */
-static enum netfs_read_source cachefiles_prepare_read(struct netfs_read_subrequest *subreq,
+static enum netfs_io_source cachefiles_prepare_read(struct netfs_io_subrequest *subreq,
 						      loff_t i_size)
 {
 	enum cachefiles_prepare_read_trace why;
-	struct netfs_read_request *rreq = subreq->rreq;
+	struct netfs_io_request *rreq = subreq->rreq;
 	struct netfs_cache_resources *cres = &rreq->cache_resources;
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;
 	struct fscache_cookie *cookie = fscache_cres_cookie(cres);
 	const struct cred *saved_cred;
 	struct file *file = cachefiles_cres_file(cres);
-	enum netfs_read_source ret = NETFS_DOWNLOAD_FROM_SERVER;
+	enum netfs_io_source ret = NETFS_DOWNLOAD_FROM_SERVER;
 	loff_t off, to;
 	ino_t ino = file ? file_inode(file)->i_ino : 0;
 

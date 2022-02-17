@@ -94,7 +94,7 @@ netfs_failures;
 #define E_(a, b)	{ a, b }
 
 TRACE_EVENT(netfs_read,
-	    TP_PROTO(struct netfs_read_request *rreq,
+	    TP_PROTO(struct netfs_io_request *rreq,
 		     loff_t start, size_t len,
 		     enum netfs_read_trace what),
 
@@ -127,7 +127,7 @@ TRACE_EVENT(netfs_read,
 	    );
 
 TRACE_EVENT(netfs_rreq,
-	    TP_PROTO(struct netfs_read_request *rreq,
+	    TP_PROTO(struct netfs_io_request *rreq,
 		     enum netfs_rreq_trace what),
 
 	    TP_ARGS(rreq, what),
@@ -151,7 +151,7 @@ TRACE_EVENT(netfs_rreq,
 	    );
 
 TRACE_EVENT(netfs_sreq,
-	    TP_PROTO(struct netfs_read_subrequest *sreq,
+	    TP_PROTO(struct netfs_io_subrequest *sreq,
 		     enum netfs_sreq_trace what),
 
 	    TP_ARGS(sreq, what),
@@ -161,7 +161,7 @@ TRACE_EVENT(netfs_sreq,
 		    __field(unsigned short,		index		)
 		    __field(short,			error		)
 		    __field(unsigned short,		flags		)
-		    __field(enum netfs_read_source,	source		)
+		    __field(enum netfs_io_source,	source		)
 		    __field(enum netfs_sreq_trace,	what		)
 		    __field(size_t,			len		)
 		    __field(size_t,			transferred	)
@@ -190,8 +190,8 @@ TRACE_EVENT(netfs_sreq,
 	    );
 
 TRACE_EVENT(netfs_failure,
-	    TP_PROTO(struct netfs_read_request *rreq,
-		     struct netfs_read_subrequest *sreq,
+	    TP_PROTO(struct netfs_io_request *rreq,
+		     struct netfs_io_subrequest *sreq,
 		     int error, enum netfs_failure what),
 
 	    TP_ARGS(rreq, sreq, error, what),
@@ -201,7 +201,7 @@ TRACE_EVENT(netfs_failure,
 		    __field(unsigned short,		index		)
 		    __field(short,			error		)
 		    __field(unsigned short,		flags		)
-		    __field(enum netfs_read_source,	source		)
+		    __field(enum netfs_io_source,	source		)
 		    __field(enum netfs_failure,		what		)
 		    __field(size_t,			len		)
 		    __field(size_t,			transferred	)

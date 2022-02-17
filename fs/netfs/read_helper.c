@@ -28,23 +28,23 @@ module_param_named(debug, netfs_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(netfs_debug, "Netfs support debugging mask");
 
 static void netfs_rreq_work(struct work_struct *);
-static void __netfs_put_subrequest(struct netfs_read_subrequest *, bool);
+static void __netfs_put_subrequest(struct netfs_io_subrequest *, bool);
 
-static void netfs_put_subrequest(struct netfs_read_subrequest *subreq,
+static void netfs_put_subrequest(struct netfs_io_subrequest *subreq,
 				 bool was_async)
 {
 	if (refcount_dec_and_test(&subreq->usage))
 		__netfs_put_subrequest(subreq, was_async);
 }
 
-static struct netfs_read_request *netfs_alloc_read_request(
-	const struct netfs_read_request_ops *ops, void *netfs_priv,
+static struct netfs_io_request *netfs_alloc_read_request(
+	const struct netfs_request_ops *ops, void *netfs_priv,
 	struct file *file)
 {
 	static atomic_t debug_ids;
-	struct netfs_read_request *rreq;
+	struct netfs_io_request *rreq;
 
-	rreq = kzalloc(sizeof(struct netfs_read_request), GFP_KERNEL);
+	rreq = kzalloc(sizeof(struct netfs_io_request), GFP_KERNEL);
 	if (rreq) {
 		rreq->netfs_ops	= ops;
 		rreq->netfs_priv = netfs_priv;
@@ -55,27 +55,27 @@ static struct netfs_read_request *netfs_alloc_read_request(
 		INIT_WORK(&rreq->work, netfs_rreq_work);
 		refcount_set(&rreq->usage, 1);
 		__set_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags);
-		if (ops->init_rreq)
-			ops->init_rreq(rreq, file);
+		if (ops->init_request)
+			ops->init_request(rreq, file);
 		netfs_stat(&netfs_n_rh_rreq);
 	}
 
 	return rreq;
 }
 
-static void netfs_get_read_request(struct netfs_read_request *rreq)
+static void netfs_get_read_request(struct netfs_io_request *rreq)
 {
 	refcount_inc(&rreq->usage);
 }
 
-static void netfs_rreq_clear_subreqs(struct netfs_read_request *rreq,
+static void netfs_rreq_clear_subreqs(struct netfs_io_request *rreq,
 				     bool was_async)
 {
-	struct netfs_read_subrequest *subreq;
+	struct netfs_io_subrequest *subreq;
 
 	while (!list_empty(&rreq->subrequests)) {
 		subreq = list_first_entry(&rreq->subrequests,
-					  struct netfs_read_subrequest, rreq_link);
+					  struct netfs_io_subrequest, rreq_link);
 		list_del(&subreq->rreq_link);
 		netfs_put_subrequest(subreq, was_async);
 	}
@@ -83,8 +83,8 @@ static void netfs_rreq_clear_subreqs(struct netfs_read_request *rreq,
 
 static void netfs_free_read_request(struct work_struct *work)
 {
-	struct netfs_read_request *rreq =
-		container_of(work, struct netfs_read_request, work);
+	struct netfs_io_request *rreq =
+		container_of(work, struct netfs_io_request, work);
 	netfs_rreq_clear_subreqs(rreq, false);
 	if (rreq->netfs_priv)
 		rreq->netfs_ops->cleanup(rreq->mapping, rreq->netfs_priv);
@@ -95,7 +95,7 @@ static void netfs_free_read_request(struct work_struct *work)
 	netfs_stat_d(&netfs_n_rh_rreq);
 }
 
-static void netfs_put_read_request(struct netfs_read_request *rreq, bool was_async)
+static void netfs_put_read_request(struct netfs_io_request *rreq, bool was_async)
 {
 	if (refcount_dec_and_test(&rreq->usage)) {
 		if (was_async) {
@@ -111,12 +111,12 @@ static void netfs_put_read_request(struct netfs_read_request *rreq, bool was_asy
 /*
  * Allocate and partially initialise an I/O request structure.
  */
-static struct netfs_read_subrequest *netfs_alloc_subrequest(
-	struct netfs_read_request *rreq)
+static struct netfs_io_subrequest *netfs_alloc_subrequest(
+	struct netfs_io_request *rreq)
 {
-	struct netfs_read_subrequest *subreq;
+	struct netfs_io_subrequest *subreq;
 
-	subreq = kzalloc(sizeof(struct netfs_read_subrequest), GFP_KERNEL);
+	subreq = kzalloc(sizeof(struct netfs_io_subrequest), GFP_KERNEL);
 	if (subreq) {
 		INIT_LIST_HEAD(&subreq->rreq_link);
 		refcount_set(&subreq->usage, 2);
@@ -128,15 +128,15 @@ static struct netfs_read_subrequest *netfs_alloc_subrequest(
 	return subreq;
 }
 
-static void netfs_get_read_subrequest(struct netfs_read_subrequest *subreq)
+static void netfs_get_read_subrequest(struct netfs_io_subrequest *subreq)
 {
 	refcount_inc(&subreq->usage);
 }
 
-static void __netfs_put_subrequest(struct netfs_read_subrequest *subreq,
+static void __netfs_put_subrequest(struct netfs_io_subrequest *subreq,
 				   bool was_async)
 {
-	struct netfs_read_request *rreq = subreq->rreq;
+	struct netfs_io_request *rreq = subreq->rreq;
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_free);
 	kfree(subreq);
@@ -147,7 +147,7 @@ static void __netfs_put_subrequest(struct netfs_read_subrequest *subreq,
 /*
  * Clear the unread part of an I/O request.
  */
-static void netfs_clear_unread(struct netfs_read_subrequest *subreq)
+static void netfs_clear_unread(struct netfs_io_subrequest *subreq)
 {
 	struct iov_iter iter;
 
@@ -160,7 +160,7 @@ static void netfs_clear_unread(struct netfs_read_subrequest *subreq)
 static void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error,
 					bool was_async)
 {
-	struct netfs_read_subrequest *subreq = priv;
+	struct netfs_io_subrequest *subreq = priv;
 
 	netfs_subreq_terminated(subreq, transferred_or_error, was_async);
 }
@@ -169,8 +169,8 @@ static void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error
  * Issue a read against the cache.
  * - Eats the caller's ref on subreq.
  */
-static void netfs_read_from_cache(struct netfs_read_request *rreq,
-				  struct netfs_read_subrequest *subreq,
+static void netfs_read_from_cache(struct netfs_io_request *rreq,
+				  struct netfs_io_subrequest *subreq,
 				  enum netfs_read_from_hole read_hole)
 {
 	struct netfs_cache_resources *cres = &rreq->cache_resources;
@@ -188,8 +188,8 @@ static void netfs_read_from_cache(struct netfs_read_request *rreq,
 /*
  * Fill a subrequest region with zeroes.
  */
-static void netfs_fill_with_zeroes(struct netfs_read_request *rreq,
-				   struct netfs_read_subrequest *subreq)
+static void netfs_fill_with_zeroes(struct netfs_io_request *rreq,
+				   struct netfs_io_subrequest *subreq)
 {
 	netfs_stat(&netfs_n_rh_zero);
 	__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
@@ -212,8 +212,8 @@ static void netfs_fill_with_zeroes(struct netfs_read_request *rreq,
  * - NETFS_SREQ_CLEAR_TAIL: A short read - the rest of the buffer will be
  *   cleared.
  */
-static void netfs_read_from_server(struct netfs_read_request *rreq,
-				   struct netfs_read_subrequest *subreq)
+static void netfs_read_from_server(struct netfs_io_request *rreq,
+				   struct netfs_io_subrequest *subreq)
 {
 	netfs_stat(&netfs_n_rh_download);
 	rreq->netfs_ops->issue_op(subreq);
@@ -222,7 +222,7 @@ static void netfs_read_from_server(struct netfs_read_request *rreq,
 /*
  * Release those waiting.
  */
-static void netfs_rreq_completed(struct netfs_read_request *rreq, bool was_async)
+static void netfs_rreq_completed(struct netfs_io_request *rreq, bool was_async)
 {
 	trace_netfs_rreq(rreq, netfs_rreq_trace_done);
 	netfs_rreq_clear_subreqs(rreq, was_async);
@@ -235,10 +235,10 @@ static void netfs_rreq_completed(struct netfs_read_request *rreq, bool was_async
  *
  * May be called in softirq mode and we inherit a ref from the caller.
  */
-static void netfs_rreq_unmark_after_write(struct netfs_read_request *rreq,
+static void netfs_rreq_unmark_after_write(struct netfs_io_request *rreq,
 					  bool was_async)
 {
-	struct netfs_read_subrequest *subreq;
+	struct netfs_io_subrequest *subreq;
 	struct folio *folio;
 	pgoff_t unlocked = 0;
 	bool have_unlocked = false;
@@ -267,8 +267,8 @@ static void netfs_rreq_unmark_after_write(struct netfs_read_request *rreq,
 static void netfs_rreq_copy_terminated(void *priv, ssize_t transferred_or_error,
 				       bool was_async)
 {
-	struct netfs_read_subrequest *subreq = priv;
-	struct netfs_read_request *rreq = subreq->rreq;
+	struct netfs_io_subrequest *subreq = priv;
+	struct netfs_io_request *rreq = subreq->rreq;
 
 	if (IS_ERR_VALUE(transferred_or_error)) {
 		netfs_stat(&netfs_n_rh_write_failed);
@@ -280,8 +280,8 @@ static void netfs_rreq_copy_terminated(void *priv, ssize_t transferred_or_error,
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_write_term);
 
-	/* If we decrement nr_wr_ops to 0, the ref belongs to us. */
-	if (atomic_dec_and_test(&rreq->nr_wr_ops))
+	/* If we decrement nr_copy_ops to 0, the ref belongs to us. */
+	if (atomic_dec_and_test(&rreq->nr_copy_ops))
 		netfs_rreq_unmark_after_write(rreq, was_async);
 
 	netfs_put_subrequest(subreq, was_async);
@@ -291,10 +291,10 @@ static void netfs_rreq_copy_terminated(void *priv, ssize_t transferred_or_error,
  * Perform any outstanding writes to the cache.  We inherit a ref from the
  * caller.
  */
-static void netfs_rreq_do_write_to_cache(struct netfs_read_request *rreq)
+static void netfs_rreq_do_write_to_cache(struct netfs_io_request *rreq)
 {
 	struct netfs_cache_resources *cres = &rreq->cache_resources;
-	struct netfs_read_subrequest *subreq, *next, *p;
+	struct netfs_io_subrequest *subreq, *next, *p;
 	struct iov_iter iter;
 	int ret;
 
@@ -303,7 +303,7 @@ static void netfs_rreq_do_write_to_cache(struct netfs_read_request *rreq)
 	/* We don't want terminating writes trying to wake us up whilst we're
 	 * still going through the list.
 	 */
-	atomic_inc(&rreq->nr_wr_ops);
+	atomic_inc(&rreq->nr_copy_ops);
 
 	list_for_each_entry_safe(subreq, p, &rreq->subrequests, rreq_link) {
 		if (!test_bit(NETFS_SREQ_WRITE_TO_CACHE, &subreq->flags)) {
@@ -334,7 +334,7 @@ static void netfs_rreq_do_write_to_cache(struct netfs_read_request *rreq)
 		iov_iter_xarray(&iter, WRITE, &rreq->mapping->i_pages,
 				subreq->start, subreq->len);
 
-		atomic_inc(&rreq->nr_wr_ops);
+		atomic_inc(&rreq->nr_copy_ops);
 		netfs_stat(&netfs_n_rh_write);
 		netfs_get_read_subrequest(subreq);
 		trace_netfs_sreq(subreq, netfs_sreq_trace_write);
@@ -342,20 +342,20 @@ static void netfs_rreq_do_write_to_cache(struct netfs_read_request *rreq)
 				 netfs_rreq_copy_terminated, subreq);
 	}
 
-	/* If we decrement nr_wr_ops to 0, the usage ref belongs to us. */
-	if (atomic_dec_and_test(&rreq->nr_wr_ops))
+	/* If we decrement nr_copy_ops to 0, the usage ref belongs to us. */
+	if (atomic_dec_and_test(&rreq->nr_copy_ops))
 		netfs_rreq_unmark_after_write(rreq, false);
 }
 
 static void netfs_rreq_write_to_cache_work(struct work_struct *work)
 {
-	struct netfs_read_request *rreq =
-		container_of(work, struct netfs_read_request, work);
+	struct netfs_io_request *rreq =
+		container_of(work, struct netfs_io_request, work);
 
 	netfs_rreq_do_write_to_cache(rreq);
 }
 
-static void netfs_rreq_write_to_cache(struct netfs_read_request *rreq)
+static void netfs_rreq_write_to_cache(struct netfs_io_request *rreq)
 {
 	rreq->work.func = netfs_rreq_write_to_cache_work;
 	if (!queue_work(system_unbound_wq, &rreq->work))
@@ -366,9 +366,9 @@ static void netfs_rreq_write_to_cache(struct netfs_read_request *rreq)
  * Unlock the folios in a read operation.  We need to set PG_fscache on any
  * folios we're going to write back before we unlock them.
  */
-static void netfs_rreq_unlock(struct netfs_read_request *rreq)
+static void netfs_rreq_unlock(struct netfs_io_request *rreq)
 {
-	struct netfs_read_subrequest *subreq;
+	struct netfs_io_subrequest *subreq;
 	struct folio *folio;
 	unsigned int iopos, account = 0;
 	pgoff_t start_page = rreq->start / PAGE_SIZE;
@@ -391,7 +391,7 @@ static void netfs_rreq_unlock(struct netfs_read_request *rreq)
 	 * mixture inside.
 	 */
 	subreq = list_first_entry(&rreq->subrequests,
-				  struct netfs_read_subrequest, rreq_link);
+				  struct netfs_io_subrequest, rreq_link);
 	iopos = 0;
 	subreq_failed = (subreq->error < 0);
 
@@ -450,8 +450,8 @@ static void netfs_rreq_unlock(struct netfs_read_request *rreq)
 /*
  * Handle a short read.
  */
-static void netfs_rreq_short_read(struct netfs_read_request *rreq,
-				  struct netfs_read_subrequest *subreq)
+static void netfs_rreq_short_read(struct netfs_io_request *rreq,
+				  struct netfs_io_subrequest *subreq)
 {
 	__clear_bit(NETFS_SREQ_SHORT_READ, &subreq->flags);
 	__set_bit(NETFS_SREQ_SEEK_DATA_READ, &subreq->flags);
@@ -460,7 +460,7 @@ static void netfs_rreq_short_read(struct netfs_read_request *rreq,
 	trace_netfs_sreq(subreq, netfs_sreq_trace_resubmit_short);
 
 	netfs_get_read_subrequest(subreq);
-	atomic_inc(&rreq->nr_rd_ops);
+	atomic_inc(&rreq->nr_outstanding);
 	if (subreq->source == NETFS_READ_FROM_CACHE)
 		netfs_read_from_cache(rreq, subreq, NETFS_READ_HOLE_CLEAR);
 	else
@@ -471,9 +471,9 @@ static void netfs_rreq_short_read(struct netfs_read_request *rreq,
  * Resubmit any short or failed operations.  Returns true if we got the rreq
  * ref back.
  */
-static bool netfs_rreq_perform_resubmissions(struct netfs_read_request *rreq)
+static bool netfs_rreq_perform_resubmissions(struct netfs_io_request *rreq)
 {
-	struct netfs_read_subrequest *subreq;
+	struct netfs_io_subrequest *subreq;
 
 	WARN_ON(in_interrupt());
 
@@ -482,7 +482,7 @@ static bool netfs_rreq_perform_resubmissions(struct netfs_read_request *rreq)
 	/* We don't want terminating submissions trying to wake us up whilst
 	 * we're still going through the list.
 	 */
-	atomic_inc(&rreq->nr_rd_ops);
+	atomic_inc(&rreq->nr_outstanding);
 
 	__clear_bit(NETFS_RREQ_INCOMPLETE_IO, &rreq->flags);
 	list_for_each_entry(subreq, &rreq->subrequests, rreq_link) {
@@ -494,27 +494,27 @@ static bool netfs_rreq_perform_resubmissions(struct netfs_read_request *rreq)
 			netfs_stat(&netfs_n_rh_download_instead);
 			trace_netfs_sreq(subreq, netfs_sreq_trace_download_instead);
 			netfs_get_read_subrequest(subreq);
-			atomic_inc(&rreq->nr_rd_ops);
+			atomic_inc(&rreq->nr_outstanding);
 			netfs_read_from_server(rreq, subreq);
 		} else if (test_bit(NETFS_SREQ_SHORT_READ, &subreq->flags)) {
 			netfs_rreq_short_read(rreq, subreq);
 		}
 	}
 
-	/* If we decrement nr_rd_ops to 0, the usage ref belongs to us. */
-	if (atomic_dec_and_test(&rreq->nr_rd_ops))
+	/* If we decrement nr_outstanding to 0, the usage ref belongs to us. */
+	if (atomic_dec_and_test(&rreq->nr_outstanding))
 		return true;
 
-	wake_up_var(&rreq->nr_rd_ops);
+	wake_up_var(&rreq->nr_outstanding);
 	return false;
 }
 
 /*
  * Check to see if the data read is still valid.
  */
-static void netfs_rreq_is_still_valid(struct netfs_read_request *rreq)
+static void netfs_rreq_is_still_valid(struct netfs_io_request *rreq)
 {
-	struct netfs_read_subrequest *subreq;
+	struct netfs_io_subrequest *subreq;
 
 	if (!rreq->netfs_ops->is_still_valid ||
 	    rreq->netfs_ops->is_still_valid(rreq))
@@ -534,7 +534,7 @@ static void netfs_rreq_is_still_valid(struct netfs_read_request *rreq)
  * Note that we could be in an ordinary kernel thread, on a workqueue or in
  * softirq context at this point.  We inherit a ref from the caller.
  */
-static void netfs_rreq_assess(struct netfs_read_request *rreq, bool was_async)
+static void netfs_rreq_assess(struct netfs_io_request *rreq, bool was_async)
 {
 	trace_netfs_rreq(rreq, netfs_rreq_trace_assess);
 
@@ -561,8 +561,8 @@ again:
 
 static void netfs_rreq_work(struct work_struct *work)
 {
-	struct netfs_read_request *rreq =
-		container_of(work, struct netfs_read_request, work);
+	struct netfs_io_request *rreq =
+		container_of(work, struct netfs_io_request, work);
 	netfs_rreq_assess(rreq, false);
 }
 
@@ -570,7 +570,7 @@ static void netfs_rreq_work(struct work_struct *work)
  * Handle the completion of all outstanding I/O operations on a read request.
  * We inherit a ref from the caller.
  */
-static void netfs_rreq_terminated(struct netfs_read_request *rreq,
+static void netfs_rreq_terminated(struct netfs_io_request *rreq,
 				  bool was_async)
 {
 	if (test_bit(NETFS_RREQ_INCOMPLETE_IO, &rreq->flags) &&
@@ -600,11 +600,11 @@ static void netfs_rreq_terminated(struct netfs_read_request *rreq,
  * If @was_async is true, the caller might be running in softirq or interrupt
  * context and we can't sleep.
  */
-void netfs_subreq_terminated(struct netfs_read_subrequest *subreq,
+void netfs_subreq_terminated(struct netfs_io_subrequest *subreq,
 			     ssize_t transferred_or_error,
 			     bool was_async)
 {
-	struct netfs_read_request *rreq = subreq->rreq;
+	struct netfs_io_request *rreq = subreq->rreq;
 	int u;
 
 	_enter("[%u]{%llx,%lx},%zd",
@@ -648,12 +648,12 @@ complete:
 out:
 	trace_netfs_sreq(subreq, netfs_sreq_trace_terminated);
 
-	/* If we decrement nr_rd_ops to 0, the ref belongs to us. */
-	u = atomic_dec_return(&rreq->nr_rd_ops);
+	/* If we decrement nr_outstanding to 0, the ref belongs to us. */
+	u = atomic_dec_return(&rreq->nr_outstanding);
 	if (u == 0)
 		netfs_rreq_terminated(rreq, was_async);
 	else if (u == 1)
-		wake_up_var(&rreq->nr_rd_ops);
+		wake_up_var(&rreq->nr_outstanding);
 
 	netfs_put_subrequest(subreq, was_async);
 	return;
@@ -691,10 +691,10 @@ failed:
 }
 EXPORT_SYMBOL(netfs_subreq_terminated);
 
-static enum netfs_read_source netfs_cache_prepare_read(struct netfs_read_subrequest *subreq,
+static enum netfs_io_source netfs_cache_prepare_read(struct netfs_io_subrequest *subreq,
 						       loff_t i_size)
 {
-	struct netfs_read_request *rreq = subreq->rreq;
+	struct netfs_io_request *rreq = subreq->rreq;
 	struct netfs_cache_resources *cres = &rreq->cache_resources;
 
 	if (cres->ops)
@@ -707,11 +707,11 @@ static enum netfs_read_source netfs_cache_prepare_read(struct netfs_read_subrequ
 /*
  * Work out what sort of subrequest the next one will be.
  */
-static enum netfs_read_source
-netfs_rreq_prepare_read(struct netfs_read_request *rreq,
-			struct netfs_read_subrequest *subreq)
+static enum netfs_io_source
+netfs_rreq_prepare_read(struct netfs_io_request *rreq,
+			struct netfs_io_subrequest *subreq)
 {
-	enum netfs_read_source source;
+	enum netfs_io_source source;
 
 	_enter("%llx-%llx,%llx", subreq->start, subreq->start + subreq->len, rreq->i_size);
 
@@ -748,11 +748,11 @@ out:
 /*
  * Slice off a piece of a read request and submit an I/O request for it.
  */
-static bool netfs_rreq_submit_slice(struct netfs_read_request *rreq,
+static bool netfs_rreq_submit_slice(struct netfs_io_request *rreq,
 				    unsigned int *_debug_index)
 {
-	struct netfs_read_subrequest *subreq;
-	enum netfs_read_source source;
+	struct netfs_io_subrequest *subreq;
+	enum netfs_io_source source;
 
 	subreq = netfs_alloc_subrequest(rreq);
 	if (!subreq)
@@ -777,7 +777,7 @@ static bool netfs_rreq_submit_slice(struct netfs_read_request *rreq,
 	if (source == NETFS_INVALID_READ)
 		goto subreq_failed;
 
-	atomic_inc(&rreq->nr_rd_ops);
+	atomic_inc(&rreq->nr_outstanding);
 
 	rreq->submitted += subreq->len;
 
@@ -804,7 +804,7 @@ subreq_failed:
 	return false;
 }
 
-static void netfs_cache_expand_readahead(struct netfs_read_request *rreq,
+static void netfs_cache_expand_readahead(struct netfs_io_request *rreq,
 					 loff_t *_start, size_t *_len, loff_t i_size)
 {
 	struct netfs_cache_resources *cres = &rreq->cache_resources;
@@ -813,7 +813,7 @@ static void netfs_cache_expand_readahead(struct netfs_read_request *rreq,
 		cres->ops->expand_readahead(cres, _start, _len, i_size);
 }
 
-static void netfs_rreq_expand(struct netfs_read_request *rreq,
+static void netfs_rreq_expand(struct netfs_io_request *rreq,
 			      struct readahead_control *ractl)
 {
 	/* Give the cache a chance to change the request parameters.  The
@@ -866,10 +866,10 @@ static void netfs_rreq_expand(struct netfs_read_request *rreq,
  * This is usable whether or not caching is enabled.
  */
 void netfs_readahead(struct readahead_control *ractl,
-		     const struct netfs_read_request_ops *ops,
+		     const struct netfs_request_ops *ops,
 		     void *netfs_priv)
 {
-	struct netfs_read_request *rreq;
+	struct netfs_io_request *rreq;
 	unsigned int debug_index = 0;
 	int ret;
 
@@ -897,7 +897,7 @@ void netfs_readahead(struct readahead_control *ractl,
 
 	netfs_rreq_expand(rreq, ractl);
 
-	atomic_set(&rreq->nr_rd_ops, 1);
+	atomic_set(&rreq->nr_outstanding, 1);
 	do {
 		if (!netfs_rreq_submit_slice(rreq, &debug_index))
 			break;
@@ -910,8 +910,8 @@ void netfs_readahead(struct readahead_control *ractl,
 	while (readahead_folio(ractl))
 		;
 
-	/* If we decrement nr_rd_ops to 0, the ref belongs to us. */
-	if (atomic_dec_and_test(&rreq->nr_rd_ops))
+	/* If we decrement nr_outstanding to 0, the ref belongs to us. */
+	if (atomic_dec_and_test(&rreq->nr_outstanding))
 		netfs_rreq_assess(rreq, false);
 	return;
 
@@ -944,10 +944,10 @@ EXPORT_SYMBOL(netfs_readahead);
  */
 int netfs_readpage(struct file *file,
 		   struct folio *folio,
-		   const struct netfs_read_request_ops *ops,
+		   const struct netfs_request_ops *ops,
 		   void *netfs_priv)
 {
-	struct netfs_read_request *rreq;
+	struct netfs_io_request *rreq;
 	unsigned int debug_index = 0;
 	int ret;
 
@@ -977,19 +977,19 @@ int netfs_readpage(struct file *file,
 
 	netfs_get_read_request(rreq);
 
-	atomic_set(&rreq->nr_rd_ops, 1);
+	atomic_set(&rreq->nr_outstanding, 1);
 	do {
 		if (!netfs_rreq_submit_slice(rreq, &debug_index))
 			break;
 
 	} while (rreq->submitted < rreq->len);
 
-	/* Keep nr_rd_ops incremented so that the ref always belongs to us, and
+	/* Keep nr_outstanding incremented so that the ref always belongs to us, and
 	 * the service code isn't punted off to a random thread pool to
 	 * process.
 	 */
 	do {
-		wait_var_event(&rreq->nr_rd_ops, atomic_read(&rreq->nr_rd_ops) == 1);
+		wait_var_event(&rreq->nr_outstanding, atomic_read(&rreq->nr_outstanding) == 1);
 		netfs_rreq_assess(rreq, false);
 	} while (test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags));
 
@@ -1076,10 +1076,10 @@ zero_out:
 int netfs_write_begin(struct file *file, struct address_space *mapping,
 		      loff_t pos, unsigned int len, unsigned int aop_flags,
 		      struct folio **_folio, void **_fsdata,
-		      const struct netfs_read_request_ops *ops,
+		      const struct netfs_request_ops *ops,
 		      void *netfs_priv)
 {
-	struct netfs_read_request *rreq;
+	struct netfs_io_request *rreq;
 	struct folio *folio;
 	struct inode *inode = file_inode(file);
 	unsigned int debug_index = 0, fgp_flags;
@@ -1153,19 +1153,19 @@ retry:
 	while (readahead_folio(&ractl))
 		;
 
-	atomic_set(&rreq->nr_rd_ops, 1);
+	atomic_set(&rreq->nr_outstanding, 1);
 	do {
 		if (!netfs_rreq_submit_slice(rreq, &debug_index))
 			break;
 
 	} while (rreq->submitted < rreq->len);
 
-	/* Keep nr_rd_ops incremented so that the ref always belongs to us, and
+	/* Keep nr_outstanding incremented so that the ref always belongs to us, and
 	 * the service code isn't punted off to a random thread pool to
 	 * process.
 	 */
 	for (;;) {
-		wait_var_event(&rreq->nr_rd_ops, atomic_read(&rreq->nr_rd_ops) == 1);
+		wait_var_event(&rreq->nr_outstanding, atomic_read(&rreq->nr_outstanding) == 1);
 		netfs_rreq_assess(rreq, false);
 		if (!test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags))
 			break;

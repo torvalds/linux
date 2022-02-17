@@ -106,7 +106,7 @@ static inline int wait_on_page_fscache_killable(struct page *page)
 	return folio_wait_private_2_killable(page_folio(page));
 }
 
-enum netfs_read_source {
+enum netfs_io_source {
 	NETFS_FILL_WITH_ZEROES,
 	NETFS_DOWNLOAD_FROM_SERVER,
 	NETFS_READ_FROM_CACHE,
@@ -130,8 +130,8 @@ struct netfs_cache_resources {
 /*
  * Descriptor for a single component subrequest.
  */
-struct netfs_read_subrequest {
-	struct netfs_read_request *rreq;	/* Supervising read request */
+struct netfs_io_subrequest {
+	struct netfs_io_request *rreq;	/* Supervising read request */
 	struct list_head	rreq_link;	/* Link in rreq->subrequests */
 	loff_t			start;		/* Where to start the I/O */
 	size_t			len;		/* Size of the I/O */
@@ -139,7 +139,7 @@ struct netfs_read_subrequest {
 	refcount_t		usage;
 	short			error;		/* 0 or error that occurred */
 	unsigned short		debug_index;	/* Index in list (for debugging output) */
-	enum netfs_read_source	source;		/* Where to read from */
+	enum netfs_io_source	source;		/* Where to read from */
 	unsigned long		flags;
 #define NETFS_SREQ_WRITE_TO_CACHE	0	/* Set if should write to cache */
 #define NETFS_SREQ_CLEAR_TAIL		1	/* Set if the rest of the read should be cleared */
@@ -152,7 +152,7 @@ struct netfs_read_subrequest {
  * Descriptor for a read helper request.  This is used to make multiple I/O
  * requests on a variety of sources and then stitch the result together.
  */
-struct netfs_read_request {
+struct netfs_io_request {
 	struct work_struct	work;
 	struct inode		*inode;		/* The file being accessed */
 	struct address_space	*mapping;	/* The mapping being accessed */
@@ -160,8 +160,8 @@ struct netfs_read_request {
 	struct list_head	subrequests;	/* Requests to fetch I/O from disk or net */
 	void			*netfs_priv;	/* Private data for the netfs */
 	unsigned int		debug_id;
-	atomic_t		nr_rd_ops;	/* Number of read ops in progress */
-	atomic_t		nr_wr_ops;	/* Number of write ops in progress */
+	atomic_t		nr_outstanding;	/* Number of read ops in progress */
+	atomic_t		nr_copy_ops;	/* Number of write ops in progress */
 	size_t			submitted;	/* Amount submitted for I/O so far */
 	size_t			len;		/* Length of the request */
 	short			error;		/* 0 or error that occurred */
@@ -176,23 +176,23 @@ struct netfs_read_request {
 #define NETFS_RREQ_DONT_UNLOCK_FOLIOS	3	/* Don't unlock the folios on completion */
 #define NETFS_RREQ_FAILED		4	/* The request failed */
 #define NETFS_RREQ_IN_PROGRESS		5	/* Unlocked when the request completes */
-	const struct netfs_read_request_ops *netfs_ops;
+	const struct netfs_request_ops *netfs_ops;
 };
 
 /*
  * Operations the network filesystem can/must provide to the helpers.
  */
-struct netfs_read_request_ops {
+struct netfs_request_ops {
 	bool (*is_cache_enabled)(struct inode *inode);
-	void (*init_rreq)(struct netfs_read_request *rreq, struct file *file);
-	int (*begin_cache_operation)(struct netfs_read_request *rreq);
-	void (*expand_readahead)(struct netfs_read_request *rreq);
-	bool (*clamp_length)(struct netfs_read_subrequest *subreq);
-	void (*issue_op)(struct netfs_read_subrequest *subreq);
-	bool (*is_still_valid)(struct netfs_read_request *rreq);
+	void (*init_request)(struct netfs_io_request *rreq, struct file *file);
+	int (*begin_cache_operation)(struct netfs_io_request *rreq);
+	void (*expand_readahead)(struct netfs_io_request *rreq);
+	bool (*clamp_length)(struct netfs_io_subrequest *subreq);
+	void (*issue_op)(struct netfs_io_subrequest *subreq);
+	bool (*is_still_valid)(struct netfs_io_request *rreq);
 	int (*check_write_begin)(struct file *file, loff_t pos, unsigned len,
 				 struct folio *folio, void **_fsdata);
-	void (*done)(struct netfs_read_request *rreq);
+	void (*done)(struct netfs_io_request *rreq);
 	void (*cleanup)(struct address_space *mapping, void *netfs_priv);
 };
 
@@ -235,7 +235,7 @@ struct netfs_cache_ops {
 	/* Prepare a read operation, shortening it to a cached/uncached
 	 * boundary as appropriate.
 	 */
-	enum netfs_read_source (*prepare_read)(struct netfs_read_subrequest *subreq,
+	enum netfs_io_source (*prepare_read)(struct netfs_io_subrequest *subreq,
 					       loff_t i_size);
 
 	/* Prepare a write operation, working out what part of the write we can
@@ -255,19 +255,19 @@ struct netfs_cache_ops {
 
 struct readahead_control;
 extern void netfs_readahead(struct readahead_control *,
-			    const struct netfs_read_request_ops *,
+			    const struct netfs_request_ops *,
 			    void *);
 extern int netfs_readpage(struct file *,
 			  struct folio *,
-			  const struct netfs_read_request_ops *,
+			  const struct netfs_request_ops *,
 			  void *);
 extern int netfs_write_begin(struct file *, struct address_space *,
 			     loff_t, unsigned int, unsigned int, struct folio **,
 			     void **,
-			     const struct netfs_read_request_ops *,
+			     const struct netfs_request_ops *,
 			     void *);
 
-extern void netfs_subreq_terminated(struct netfs_read_subrequest *, ssize_t, bool);
+extern void netfs_subreq_terminated(struct netfs_io_subrequest *, ssize_t, bool);
 extern void netfs_stats_show(struct seq_file *);
 
 #endif /* _LINUX_NETFS_H */
