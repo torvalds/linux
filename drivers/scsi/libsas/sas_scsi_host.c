@@ -67,9 +67,6 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 		case SAS_DEVICE_UNKNOWN:
 			hs = DID_BAD_TARGET;
 			break;
-		case SAS_SG_ERR:
-			hs = DID_PARITY;
-			break;
 		case SAS_OPEN_REJECT:
 			if (ts->open_rej_reason == SAS_OREJ_RSVD_RETRY)
 				hs = DID_SOFT_ERROR; /* retry */
