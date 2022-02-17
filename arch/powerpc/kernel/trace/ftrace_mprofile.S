@@ -43,18 +43,16 @@ _GLOBAL(ftrace_regs_caller)
 
 	/* Save all gprs to pt_regs */
 	SAVE_GPR(0, r1)
-#ifdef CONFIG_PPC64
 	SAVE_GPRS(2, 11, r1)
 
+#ifdef CONFIG_PPC64
 	/* Ok to continue? */
 	lbz	r3, PACA_FTRACE_ENABLED(r13)
 	cmpdi	r3, 0
 	beq	ftrace_no_trace
+#endif
 
 	SAVE_GPRS(12, 31, r1)
-#else
-	stmw	r2, GPR2(r1)
-#endif
 
 	/* Save previous stack pointer (r1) */
 	addi	r8, r1, SWITCH_FRAME_SIZE
@@ -120,11 +118,7 @@ ftrace_regs_call:
 #endif
 
 	/* Restore gprs */
-#ifdef CONFIG_PPC64
 	REST_GPRS(2, 31, r1)
-#else
-	lmw	r2, GPR2(r1)
-#endif
 
 	/* Restore possibly modified LR */
 	PPC_LL	r0, _LINK(r1)
