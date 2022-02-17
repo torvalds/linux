@@ -7627,15 +7627,17 @@ static int intel_atomic_check(struct drm_device *dev,
 			continue;
 		}
 
-		if (!new_crtc_state->uapi.enable) {
-			if (!intel_crtc_is_bigjoiner_slave(new_crtc_state))
-				intel_crtc_copy_uapi_to_hw_state_modeset(state, crtc);
+		if (intel_crtc_is_bigjoiner_slave(new_crtc_state)) {
+			drm_WARN_ON(&dev_priv->drm, new_crtc_state->uapi.enable);
 			continue;
 		}
 
 		ret = intel_crtc_prepare_cleared_state(state, crtc);
 		if (ret)
 			goto fail;
+
+		if (!new_crtc_state->hw.enable)
+			continue;
 
 		ret = intel_modeset_pipe_config(state, new_crtc_state);
 		if (ret)
