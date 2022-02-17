@@ -1620,6 +1620,7 @@ M:	Olof Johansson <olof@lixom.net>
 M:	soc@kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+C:	irc://irc.libera.chat/armlinux
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/soc/soc.git
 F:	arch/arm/boot/dts/Makefile
 F:	arch/arm64/boot/dts/Makefile
@@ -1627,6 +1628,7 @@ F:	arch/arm64/boot/dts/Makefile
 ARM SUB-ARCHITECTURES
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+C:	irc://irc.libera.chat/armlinux
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/soc/soc.git
 F:	arch/arm/mach-*/
 F:	arch/arm/plat-*/
@@ -1780,6 +1782,7 @@ F:	drivers/irqchip/irq-apple-aic.c
 F:	drivers/mailbox/apple-mailbox.c
 F:	drivers/pinctrl/pinctrl-apple-gpio.c
 F:	drivers/soc/apple/*
+F:	drivers/watchdog/apple_wdt.c
 F:	include/dt-bindings/interrupt-controller/apple-aic.h
 F:	include/dt-bindings/pinctrl/apple.h
 F:	include/linux/apple-mailbox.h
@@ -2570,10 +2573,13 @@ N:	rockchip
 
 ARM/SAMSUNG S3C, S5P AND EXYNOS ARM ARCHITECTURES
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+R:	Alim Akhtar <alim.akhtar@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org
 S:	Maintained
+C:	irc://irc.libera.chat/linux-exynos
 Q:	https://patchwork.kernel.org/project/linux-samsung-soc/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux.git
 F:	Documentation/arm/samsung/
 F:	Documentation/devicetree/bindings/arm/samsung/
 F:	Documentation/devicetree/bindings/power/pd-samsung.yaml
@@ -3133,11 +3139,9 @@ W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath5k
 F:	drivers/net/wireless/ath/ath5k/
 
 ATHEROS ATH6KL WIRELESS DRIVER
-M:	Kalle Valo <kvalo@kernel.org>
 L:	linux-wireless@vger.kernel.org
-S:	Supported
+S:	Orphan
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath6kl
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 F:	drivers/net/wireless/ath/ath6kl/
 
 ATI_REMOTE2 DRIVER
@@ -5772,7 +5776,7 @@ F:	tools/testing/selftests/dma/
 
 DMA-BUF HEAPS FRAMEWORK
 M:	Sumit Semwal <sumit.semwal@linaro.org>
-R:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
+R:	Benjamin Gaignard <benjamin.gaignard@collabora.com>
 R:	Liam Mark <lmark@codeaurora.org>
 R:	Laura Abbott <labbott@redhat.com>
 R:	Brian Starkey <Brian.Starkey@arm.com>
@@ -6502,7 +6506,7 @@ F:	Documentation/devicetree/bindings/display/rockchip/
 F:	drivers/gpu/drm/rockchip/
 
 DRM DRIVERS FOR STI
-M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
+M:	Alain Volmat <alain.volmat@foss.st.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
@@ -6511,8 +6515,8 @@ F:	drivers/gpu/drm/sti
 
 DRM DRIVERS FOR STM
 M:	Yannick Fertre <yannick.fertre@foss.st.com>
+M:	Raphael Gallais-Pou <raphael.gallais-pou@foss.st.com>
 M:	Philippe Cornu <philippe.cornu@foss.st.com>
-M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
@@ -7182,7 +7186,7 @@ F:	drivers/net/can/usb/etas_es58x/
 
 ETHERNET BRIDGE
 M:	Roopa Prabhu <roopa@nvidia.com>
-M:	Nikolay Aleksandrov <nikolay@nvidia.com>
+M:	Nikolay Aleksandrov <razor@blackwall.org>
 L:	bridge@lists.linux-foundation.org (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -7574,6 +7578,12 @@ M:	Bill Metzenthen <billm@melbpc.org.au>
 S:	Maintained
 W:	http://floatingpoint.sourceforge.net/emulator/index.html
 F:	arch/x86/math-emu/
+
+FRAMEBUFFER CORE
+M:	Daniel Vetter <daniel@ffwll.ch>
+F:	drivers/video/fbdev/core/
+S:	Odd Fixes
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 FRAMEBUFFER LAYER
 M:	Helge Deller <deller@gmx.de>
@@ -13303,8 +13313,8 @@ W:	http://www.iptables.org/
 W:	http://www.nftables.org/
 Q:	http://patchwork.ozlabs.org/project/netfilter-devel/list/
 C:	irc://irc.libera.chat/netfilter
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pablo/nf.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pablo/nf-next.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf-next.git
 F:	include/linux/netfilter*
 F:	include/linux/netfilter/
 F:	include/net/netfilter/
@@ -14389,6 +14399,7 @@ M:	Rob Herring <robh+dt@kernel.org>
 M:	Frank Rowand <frowand.list@gmail.com>
 L:	devicetree@vger.kernel.org
 S:	Maintained
+C:	irc://irc.libera.chat/devicetree
 W:	http://www.devicetree.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/robh/linux.git
 F:	Documentation/ABI/testing/sysfs-firmware-ofw
@@ -14400,6 +14411,7 @@ OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
 M:	Rob Herring <robh+dt@kernel.org>
 L:	devicetree@vger.kernel.org
 S:	Maintained
+C:	irc://irc.libera.chat/devicetree
 Q:	http://patchwork.ozlabs.org/project/devicetree-bindings/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/robh/linux.git
 F:	Documentation/devicetree/
@@ -15133,7 +15145,7 @@ M:	Ingo Molnar <mingo@redhat.com>
 M:	Arnaldo Carvalho de Melo <acme@kernel.org>
 R:	Mark Rutland <mark.rutland@arm.com>
 R:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
-R:	Jiri Olsa <jolsa@redhat.com>
+R:	Jiri Olsa <jolsa@kernel.org>
 R:	Namhyung Kim <namhyung@kernel.org>
 L:	linux-perf-users@vger.kernel.org
 L:	linux-kernel@vger.kernel.org
@@ -15290,9 +15302,11 @@ PIN CONTROLLER - SAMSUNG
 M:	Tomasz Figa <tomasz.figa@gmail.com>
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
 M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+R:	Alim Akhtar <alim.akhtar@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org
 S:	Maintained
+C:	irc://irc.libera.chat/linux-exynos
 Q:	https://patchwork.kernel.org/project/linux-samsung-soc/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pinctrl/samsung.git
 F:	Documentation/devicetree/bindings/pinctrl/samsung-pinctrl.txt
@@ -15896,6 +15910,7 @@ S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath10k
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 F:	drivers/net/wireless/ath/ath10k/
+F:	Documentation/devicetree/bindings/net/wireless/qcom,ath10k.txt
 
 QUALCOMM ATHEROS ATH11K WIRELESS DRIVER
 M:	Kalle Valo <kvalo@kernel.org>
@@ -15903,11 +15918,12 @@ L:	ath11k@lists.infradead.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 F:	drivers/net/wireless/ath/ath11k/
+F:	Documentation/devicetree/bindings/net/wireless/qcom,ath11k.txt
 
 QUALCOMM ATHEROS ATH9K WIRELESS DRIVER
-M:	ath9k-devel@qca.qualcomm.com
+M:	Toke Høiland-Jørgensen <toke@toke.dk>
 L:	linux-wireless@vger.kernel.org
-S:	Supported
+S:	Maintained
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath9k
 F:	Documentation/devicetree/bindings/net/wireless/qca,ath9k.yaml
 F:	drivers/net/wireless/ath/ath9k/
@@ -16088,11 +16104,10 @@ F:	Documentation/devicetree/bindings/media/*venus*
 F:	drivers/media/platform/qcom/venus/
 
 QUALCOMM WCN36XX WIRELESS DRIVER
-M:	Kalle Valo <kvalo@kernel.org>
+M:	Loic Poulain <loic.poulain@linaro.org>
 L:	wcn36xx@lists.infradead.org
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/wcn36xx
-T:	git git://github.com/KrasnikovEugene/wcn36xx.git
 F:	drivers/net/wireless/ath/wcn36xx/
 
 QUANTENNA QTNFMAC WIRELESS DRIVER
@@ -16817,8 +16832,8 @@ F:	drivers/video/fbdev/savage/
 S390
 M:	Heiko Carstens <hca@linux.ibm.com>
 M:	Vasily Gorbik <gor@linux.ibm.com>
-M:	Christian Borntraeger <borntraeger@linux.ibm.com>
-R:	Alexander Gordeev <agordeev@linux.ibm.com>
+M:	Alexander Gordeev <agordeev@linux.ibm.com>
+R:	Christian Borntraeger <borntraeger@linux.ibm.com>
 R:	Sven Schnelle <svens@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 S:	Supported
@@ -17089,6 +17104,7 @@ SAMSUNG SOC CLOCK DRIVERS
 M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
 M:	Tomasz Figa <tomasz.figa@gmail.com>
 M:	Chanwoo Choi <cw00.choi@samsung.com>
+R:	Alim Akhtar <alim.akhtar@samsung.com>
 L:	linux-samsung-soc@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/snawrocki/clk.git
@@ -17724,6 +17740,21 @@ M:	Thomas Winischhofer <thomas@winischhofer.net>
 S:	Maintained
 W:	http://www.winischhofer.at/linuxsisusbvga.shtml
 F:	drivers/usb/misc/sisusbvga/
+
+SL28 CPLD MFD DRIVER
+M:	Michael Walle <michael@walle.cc>
+S:	Maintained
+F:	Documentation/devicetree/bindings/gpio/kontron,sl28cpld-gpio.yaml
+F:	Documentation/devicetree/bindings/hwmon/kontron,sl28cpld-hwmon.yaml
+F:	Documentation/devicetree/bindings/interrupt-controller/kontron,sl28cpld-intc.yaml
+F:	Documentation/devicetree/bindings/mfd/kontron,sl28cpld.yaml
+F:	Documentation/devicetree/bindings/pwm/kontron,sl28cpld-pwm.yaml
+F:	Documentation/devicetree/bindings/watchdog/kontron,sl28cpld-wdt.yaml
+F:	drivers/gpio/gpio-sl28cpld.c
+F:	drivers/hwmon/sl28cpld-hwmon.c
+F:	drivers/irqchip/irq-sl28cpld.c
+F:	drivers/pwm/pwm-sl28cpld.c
+F:	drivers/watchdog/sl28cpld_wdt.c
 
 SLAB ALLOCATOR
 M:	Christoph Lameter <cl@linux.com>
@@ -18441,7 +18472,7 @@ F:	Documentation/devicetree/bindings/sound/st,sti-asoc-card.txt
 F:	sound/soc/sti/
 
 STI CEC DRIVER
-M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
+M:	Alain Volmat <alain.volmat@foss.st.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/stih-cec.txt
 F:	drivers/media/cec/platform/sti/
@@ -19594,6 +19625,14 @@ F:	Documentation/trace/osnoise-tracer.rst
 F:	Documentation/trace/timerlat-tracer.rst
 F:	Documentation/trace/hwlat_detector.rst
 F:	arch/*/kernel/trace.c
+
+Real-time Linux Analysis (RTLA) tools
+M:	Daniel Bristot de Oliveira <bristot@kernel.org>
+M:	Steven Rostedt <rostedt@goodmis.org>
+L:	linux-trace-devel@vger.kernel.org
+S:	Maintained
+F:	Documentation/tools/rtla/
+F:	tools/tracing/rtla/
 
 TRADITIONAL CHINESE DOCUMENTATION
 M:	Hu Haowen <src.res@email.cn>
