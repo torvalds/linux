@@ -923,9 +923,12 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 		   yesno(crtc_state->uapi.active),
 		   DRM_MODE_ARG(&crtc_state->uapi.mode));
 
-	seq_printf(m, "\thw: active=%s, adjusted_mode=" DRM_MODE_FMT "\n",
-		   yesno(crtc_state->hw.active),
+	seq_printf(m, "\thw: enable=%s, active=%s\n",
+		   yesno(crtc_state->hw.enable), yesno(crtc_state->hw.active));
+	seq_printf(m, "\tadjusted_mode=" DRM_MODE_FMT "\n",
 		   DRM_MODE_ARG(&crtc_state->hw.adjusted_mode));
+	seq_printf(m, "\tpipe__mode=" DRM_MODE_FMT "\n",
+		   DRM_MODE_ARG(&crtc_state->hw.pipe_mode));
 
 	seq_printf(m, "\tpipe src size=%dx%d, dither=%s, bpp=%d\n",
 		   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
