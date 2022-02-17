@@ -2432,12 +2432,12 @@ int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 	if (ras_obj->ras_cb) {
 		r = amdgpu_ras_interrupt_add_handler(adev, ras_block);
 		if (r)
-			goto interrupt;
+			goto cleanup;
 	}
 
 	r = amdgpu_ras_sysfs_create(adev, ras_block);
 	if (r)
-		goto sysfs;
+		goto interrupt;
 
 	/* Those are the cached values at init.
 	 */
@@ -2447,12 +2447,11 @@ int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 	}
 
 	return 0;
-cleanup:
-	amdgpu_ras_sysfs_remove(adev, ras_block);
-sysfs:
+
+interrupt:
 	if (ras_obj->ras_cb)
 		amdgpu_ras_interrupt_remove_handler(adev, ras_block);
-interrupt:
+cleanup:
 	amdgpu_ras_feature_enable(adev, ras_block, 0);
 	return r;
 }
