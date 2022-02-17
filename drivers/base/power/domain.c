@@ -636,6 +636,18 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 			atomic_read(&genpd->sd_count) > 0)
 		return -EBUSY;
 
+	/*
+	 * The children must be in their deepest (powered-off) states to allow
+	 * the parent to be powered off. Note that, there's no need for
+	 * additional locking, as powering on a child, requires the parent's
+	 * lock to be acquired first.
+	 */
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
+		struct generic_pm_domain *child = link->child;
+		if (child->state_idx < child->state_count - 1)
+			return -EBUSY;
+	}
+
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
 		enum pm_qos_flags_status stat;
 
@@ -1072,6 +1084,13 @@ static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
 	if (genpd->suspended_count != genpd->device_count
 	    || atomic_read(&genpd->sd_count) > 0)
 		return;
+
+	/* Check that the children are in their deepest (powered-off) state. */
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
+		struct generic_pm_domain *child = link->child;
+		if (child->state_idx < child->state_count - 1)
+			return;
+	}
 
 	/* Choose the deepest state when suspending */
 	genpd->state_idx = genpd->state_count - 1;
