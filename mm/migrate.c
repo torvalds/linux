@@ -291,7 +291,6 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 {
 	pte_t pte;
 	swp_entry_t entry;
-	struct folio *folio;
 
 	spin_lock(ptl);
 	pte = *ptep;
@@ -302,17 +301,7 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 	if (!is_migration_entry(entry))
 		goto out;
 
-	folio = page_folio(pfn_swap_entry_to_page(entry));
-
-	/*
-	 * Once page cache replacement of page migration started, page_count
-	 * is zero; but we must not call folio_put_wait_locked() without
-	 * a ref. Use folio_try_get(), and just fault again if it fails.
-	 */
-	if (!folio_try_get(folio))
-		goto out;
-	pte_unmap_unlock(ptep, ptl);
-	folio_put_wait_locked(folio, TASK_UNINTERRUPTIBLE);
+	migration_entry_wait_on_locked(entry, ptep, ptl);
 	return;
 out:
 	pte_unmap_unlock(ptep, ptl);
@@ -337,16 +326,11 @@ void migration_entry_wait_huge(struct vm_area_struct *vma,
 void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd)
 {
 	spinlock_t *ptl;
-	struct folio *folio;
 
 	ptl = pmd_lock(mm, pmd);
 	if (!is_pmd_migration_entry(*pmd))
 		goto unlock;
-	folio = page_folio(pfn_swap_entry_to_page(pmd_to_swp_entry(*pmd)));
-	if (!folio_try_get(folio))
-		goto unlock;
-	spin_unlock(ptl);
-	folio_put_wait_locked(folio, TASK_UNINTERRUPTIBLE);
+	migration_entry_wait_on_locked(pmd_to_swp_entry(*pmd), NULL, ptl);
 	return;
 unlock:
 	spin_unlock(ptl);
@@ -2431,22 +2415,8 @@ static bool migrate_vma_check_page(struct page *page)
 		return false;
 
 	/* Page from ZONE_DEVICE have one extra reference */
-	if (is_zone_device_page(page)) {
-		/*
-		 * Private page can never be pin as they have no valid pte and
-		 * GUP will fail for those. Yet if there is a pending migration
-		 * a thread might try to wait on the pte migration entry and
-		 * will bump the page reference count. Sadly there is no way to
-		 * differentiate a regular pin from migration wait. Hence to
-		 * avoid 2 racing thread trying to migrate back to CPU to enter
-		 * infinite loop (one stopping migration because the other is
-		 * waiting on pte migration entry). We always return true here.
-		 *
-		 * FIXME proper solution is to rework migration_entry_wait() so
-		 * it does not need to take a reference on page.
-		 */
-		return is_device_private_page(page);
-	}
+	if (is_zone_device_page(page))
+		extra++;
 
 	/* For file back page */
 	if (page_mapping(page))
