@@ -1665,6 +1665,9 @@ static void serial8250_start_tx(struct uart_port *port)
 
 	serial8250_rpm_get_tx(up);
 
+	if (!port->x_char && uart_circ_empty(&port->state->xmit))
+		return;
+
 	if (em485 &&
 	    em485->active_timer == &em485->start_tx_timer)
 		return;
