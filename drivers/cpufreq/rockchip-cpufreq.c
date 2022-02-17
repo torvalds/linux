@@ -36,11 +36,6 @@
 #include "cpufreq-dt.h"
 #include "rockchip-cpufreq.h"
 
-#define CPUFREQ_INTERNAL_VERSION	0x80
-#define CPUFREQ_LENGTH_MARGIN		0x1
-#define CPUFREQ_INTERMEDIATE_RATE	(CPUFREQ_INTERNAL_VERSION | \
-					 CPUFREQ_LENGTH_MARGIN)
-
 struct cluster_info {
 	struct list_head list_head;
 	struct monitor_dev_info *mdev_info;
@@ -328,26 +323,6 @@ static int rockchip_cpufreq_set_volt(struct device *dev,
 	return ret;
 }
 
-static int rockchip_cpufreq_set_read_margin(struct device *dev,
-					    struct rockchip_opp_info *opp_info,
-					    u32 rm)
-{
-	if (opp_info->data && opp_info->data->set_read_margin)
-		opp_info->data->set_read_margin(dev, opp_info, rm);
-
-	return 0;
-}
-
-static int
-rockchip_cpufreq_set_intermediate_rate(struct rockchip_opp_info *opp_info,
-				       struct clk *clk, unsigned long new_freq)
-{
-	if (opp_info->data && opp_info->data->set_read_margin)
-		return clk_set_rate(clk, new_freq | CPUFREQ_INTERMEDIATE_RATE);
-
-	return 0;
-}
-
 static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 {
 	struct dev_pm_opp_supply *old_supply_vdd = &data->old_opp.supplies[0];
@@ -372,10 +347,14 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 	rockchip_get_read_margin(dev, opp_info, new_supply_vdd->u_volt,
 				 &target_rm);
 
+	/* Change frequency */
+	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n", __func__,
+		old_freq, new_freq);
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
-		ret = rockchip_cpufreq_set_intermediate_rate(opp_info, clk,
-							     new_freq);
+		ret = rockchip_set_intermediate_rate(dev, opp_info, clk,
+						     old_freq, new_freq,
+						     true, true);
 		if (ret) {
 			dev_err(dev, "%s: failed to set clk rate: %lu\n",
 				__func__, new_freq);
@@ -389,21 +368,32 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 						"vdd");
 		if (ret)
 			goto restore_voltage;
-		rockchip_cpufreq_set_read_margin(dev, opp_info, target_rm);
-	}
-
-	/* Change frequency */
-	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n", __func__,
-		old_freq, new_freq);
-	ret = clk_set_rate(clk, new_freq);
-	if (ret) {
-		dev_err(dev, "%s: failed to set clk rate: %d\n", __func__, ret);
-		goto restore_rm;
-	}
-
+		rockchip_set_read_margin(dev, opp_info, target_rm, true);
+		ret = clk_set_rate(clk, new_freq);
+		if (ret) {
+			dev_err(dev,
+				"%s: failed to set clk rate: %d\n", __func__,
+				ret);
+			goto restore_rm;
+		}
 	/* Scaling down? Scale voltage after frequency */
-	if (new_freq < old_freq) {
-		rockchip_cpufreq_set_read_margin(dev, opp_info, target_rm);
+	} else {
+		ret = rockchip_set_intermediate_rate(dev, opp_info, clk,
+						     old_freq, new_freq,
+						     false, true);
+		if (ret) {
+			dev_err(dev, "%s: failed to set clk rate: %lu\n",
+				__func__, new_freq);
+			return -EINVAL;
+		}
+		rockchip_set_read_margin(dev, opp_info, target_rm, true);
+		ret = clk_set_rate(clk, new_freq);
+		if (ret) {
+			dev_err(dev,
+				"%s: failed to set clk rate: %d\n", __func__,
+				ret);
+			goto restore_rm;
+		}
 		ret = rockchip_cpufreq_set_volt(dev, vdd_reg, new_supply_vdd,
 						"vdd");
 		if (ret)
@@ -423,7 +413,7 @@ restore_freq:
 restore_rm:
 	rockchip_get_read_margin(dev, opp_info, old_supply_vdd->u_volt,
 				 &target_rm);
-	rockchip_cpufreq_set_read_margin(dev, opp_info, target_rm);
+	rockchip_set_read_margin(dev, opp_info, target_rm, true);
 restore_voltage:
 	rockchip_cpufreq_set_volt(dev, mem_reg, old_supply_mem, "mem");
 	rockchip_cpufreq_set_volt(dev, vdd_reg, old_supply_vdd, "vdd");
@@ -445,6 +435,7 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	int process = -EINVAL;
 	int volt_sel = -EINVAL;
 	int ret = 0;
+	u32 freq = 0;
 
 	dev = get_cpu_device(cpu);
 	if (!dev)
@@ -483,6 +474,10 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 			opp_info->dsu_grf = NULL;
 		rockchip_get_volt_rm_table(dev, np, "volt-mem-read-margin",
 					   &opp_info->volt_rm_tbl);
+		of_property_read_u32(np, "low-volt-mem-read-margin",
+				     &opp_info->low_rm);
+		if (!of_property_read_u32(np, "intermediate-threshold-freq", &freq))
+			opp_info->intermediate_threshold_freq = freq * 1000;
 	}
 	if (opp_info->data && opp_info->data->get_soc_info)
 		opp_info->data->get_soc_info(dev, np, &bin, &process);
