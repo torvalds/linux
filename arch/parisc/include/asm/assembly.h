@@ -47,6 +47,12 @@
 #define PRIV_USER	3
 #define PRIV_KERNEL	0
 
+/* Space register used inside kernel */
+#define SR_KERNEL	0
+#define SR_TEMP1	1
+#define SR_TEMP2	2
+#define SR_USER		3
+
 #ifdef __ASSEMBLY__
 
 #ifdef CONFIG_64BIT
