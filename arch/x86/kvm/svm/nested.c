@@ -942,9 +942,9 @@ void svm_free_nested(struct vcpu_svm *svm)
 /*
  * Forcibly leave nested mode in order to be able to reset the VCPU later on.
  */
-void svm_leave_nested(struct vcpu_svm *svm)
+void svm_leave_nested(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (is_guest_mode(vcpu)) {
 		svm->nested.nested_run_pending = 0;
@@ -1313,7 +1313,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	if (!(kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE)) {
-		svm_leave_nested(svm);
+		svm_leave_nested(vcpu);
 		svm_set_gif(svm, !!(kvm_state->flags & KVM_STATE_NESTED_GIF_SET));
 		return 0;
 	}
@@ -1378,7 +1378,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	 */
 
 	if (is_guest_mode(vcpu))
-		svm_leave_nested(svm);
+		svm_leave_nested(vcpu);
 	else
 		svm->nested.vmcb02.ptr->save = svm->vmcb01.ptr->save;
 
@@ -1432,6 +1432,7 @@ static bool svm_get_nested_state_pages(struct kvm_vcpu *vcpu)
 }
 
 struct kvm_x86_nested_ops svm_nested_ops = {
+	.leave_nested = svm_leave_nested,
 	.check_events = svm_check_nested_events,
 	.triple_fault = nested_svm_triple_fault,
 	.get_nested_state_pages = svm_get_nested_state_pages,

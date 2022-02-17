@@ -251,22 +251,19 @@ int rpm_lmac_internal_loopback(void *rpmd, int lmac_id, bool enable)
 	if (!rpm || lmac_id >= rpm->lmac_count)
 		return -ENODEV;
 	lmac_type = rpm->mac_ops->get_lmac_type(rpm, lmac_id);
-	if (lmac_type == LMAC_MODE_100G_R) {
-		cfg = rpm_read(rpm, lmac_id, RPMX_MTI_PCS100X_CONTROL1);
 
-		if (enable)
-			cfg |= RPMX_MTI_PCS_LBK;
-		else
-			cfg &= ~RPMX_MTI_PCS_LBK;
-		rpm_write(rpm, lmac_id, RPMX_MTI_PCS100X_CONTROL1, cfg);
-	} else {
-		cfg = rpm_read(rpm, lmac_id, RPMX_MTI_LPCSX_CONTROL1);
-		if (enable)
-			cfg |= RPMX_MTI_PCS_LBK;
-		else
-			cfg &= ~RPMX_MTI_PCS_LBK;
-		rpm_write(rpm, lmac_id, RPMX_MTI_LPCSX_CONTROL1, cfg);
+	if (lmac_type == LMAC_MODE_QSGMII || lmac_type == LMAC_MODE_SGMII) {
+		dev_err(&rpm->pdev->dev, "loopback not supported for LPC mode\n");
+		return 0;
 	}
+
+	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_PCS100X_CONTROL1);
+
+	if (enable)
+		cfg |= RPMX_MTI_PCS_LBK;
+	else
+		cfg &= ~RPMX_MTI_PCS_LBK;
+	rpm_write(rpm, lmac_id, RPMX_MTI_PCS100X_CONTROL1, cfg);
 
 	return 0;
 }

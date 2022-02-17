@@ -132,7 +132,7 @@ static int idt_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *girq;
 	struct idt_gpio_ctrl *ctrl;
-	unsigned int parent_irq;
+	int parent_irq;
 	int ngpios;
 	int ret;
 

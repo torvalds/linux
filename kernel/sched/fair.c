@@ -3422,7 +3422,6 @@ void set_task_rq_fair(struct sched_entity *se,
 	se->avg.last_update_time = n_last_update_time;
 }
 
-
 /*
  * When on migration a sched_entity joins/leaves the PELT hierarchy, we need to
  * propagate its contribution. The key to this propagation is the invariant
@@ -3490,7 +3489,6 @@ void set_task_rq_fair(struct sched_entity *se,
  * XXX: only do this for the part of runnable > running ?
  *
  */
-
 static inline void
 update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq *gcfs_rq)
 {
@@ -3722,7 +3720,19 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
 
 		r = removed_util;
 		sub_positive(&sa->util_avg, r);
-		sa->util_sum = sa->util_avg * divider;
+		sub_positive(&sa->util_sum, r * divider);
+		/*
+		 * Because of rounding, se->util_sum might ends up being +1 more than
+		 * cfs->util_sum. Although this is not a problem by itself, detaching
+		 * a lot of tasks with the rounding problem between 2 updates of
+		 * util_avg (~1ms) can make cfs->util_sum becoming null whereas
+		 * cfs_util_avg is not.
+		 * Check that util_sum is still above its lower bound for the new
+		 * util_avg. Given that period_contrib might have moved since the last
+		 * sync, we are only sure that util_sum must be above or equal to
+		 *    util_avg * minimum possible divider
+		 */
+		sa->util_sum = max_t(u32, sa->util_sum, sa->util_avg * PELT_MIN_DIVIDER);
 
 		r = removed_runnable;
 		sub_positive(&sa->runnable_avg, r);

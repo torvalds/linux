@@ -814,6 +814,7 @@ struct kvm_vcpu_arch {
 
 	/* For support of nested guests */
 	struct kvm_nested_guest *nested;
+	u64 nested_hfscr;	/* HFSCR that the L1 requested for the nested guest */
 	u32 nested_vcpu_id;
 	gpa_t nested_io_gpr;
 #endif

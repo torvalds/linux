@@ -7749,7 +7749,8 @@ static struct tracing_log_err *get_tracing_log_err(struct trace_array *tr)
 		err = kzalloc(sizeof(*err), GFP_KERNEL);
 		if (!err)
 			err = ERR_PTR(-ENOMEM);
-		tr->n_err_log_entries++;
+		else
+			tr->n_err_log_entries++;
 
 		return err;
 	}

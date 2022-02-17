@@ -378,7 +378,7 @@ static int ar9331_sw_mbus_init(struct ar9331_sw_priv *priv)
 	if (!mnp)
 		return -ENODEV;
 
-	ret = of_mdiobus_register(mbus, mnp);
+	ret = devm_of_mdiobus_register(dev, mbus, mnp);
 	of_node_put(mnp);
 	if (ret)
 		return ret;
@@ -1093,7 +1093,6 @@ static void ar9331_sw_remove(struct mdio_device *mdiodev)
 	}
 
 	irq_domain_remove(priv->irqdomain);
-	mdiobus_unregister(priv->mbus);
 	dsa_unregister_switch(&priv->ds);
 
 	reset_control_assert(priv->sw_reset);
