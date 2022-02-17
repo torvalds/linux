@@ -17652,6 +17652,7 @@ F:	drivers/platform/x86/touchscreen_dmi.c
 SILICON LABS WIRELESS DRIVERS (for WFxxx series)
 M:	Jérôme Pouiller <jerome.pouiller@silabs.com>
 S:	Supported
+F:	Documentation/devicetree/bindings/staging/net/wireless/silabs,wfx.yaml
 F:	drivers/staging/wfx/
 
 SILICON MOTION SM712 FRAME BUFFER DRIVER
