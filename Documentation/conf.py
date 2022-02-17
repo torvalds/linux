@@ -409,6 +409,37 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     'preamble': '''
+	% Custom width parameters for TOC --- Redefine low-level commands
+	% defined in report.cls
+	\\makeatletter
+	%% Redefine \\@pnumwidth (page number width)
+	\\renewcommand*\\@pnumwidth{2.7em}
+	%% Redefine \\l@chapter (chapter list entry)
+	\\renewcommand*\\l@chapter[2]{%
+	  \\ifnum \\c@tocdepth >\\m@ne
+	    \\addpenalty{-\\@highpenalty}%
+	    \\vskip 1.0em \\@plus\\p@
+	    \\setlength\\@tempdima{1.8em}%
+	    \\begingroup
+	      \\parindent \\z@ \\rightskip \\@pnumwidth
+	      \\parfillskip -\\@pnumwidth
+	      \\leavevmode \\bfseries
+	      \\advance\\leftskip\\@tempdima
+	      \\hskip -\\leftskip
+	      #1\\nobreak\\hfil
+	      \\nobreak\\hb@xt@\\@pnumwidth{\\hss #2%
+	                                 \\kern-\\p@\\kern\\p@}\\par
+	      \\penalty\\@highpenalty
+	    \\endgroup
+	  \\fi}
+	%% Redefine \\l@section and \\l@subsection
+	\\renewcommand*\\l@section{\\@dottedtocline{1}{1.8em}{3.2em}}
+	\\renewcommand*\\l@subsection{\\@dottedtocline{2}{5em}{4.3em}}
+	\\makeatother
+	%% Sphinx < 1.8 doesn't have \\sphinxtableofcontentshook
+	\\providecommand{\\sphinxtableofcontentshook}{}
+	%% Undefine it for compatibility with Sphinx 1.7.9
+	\\renewcommand{\\sphinxtableofcontentshook}{} % Empty the hook
 	% Prevent column squeezing of tabulary.
 	\\setlength{\\tymin}{20em}
         % Use some font with UTF-8 support with XeLaTeX
@@ -429,13 +460,15 @@ latex_elements['preamble']  += '''
     \\IfFontExistsTF{Noto Sans CJK SC}{
 	% This is needed for translations
 	\\usepackage{xeCJK}
-	\\IfFontExistsTF{Noto Serif CJK SC}{
-	    \\setCJKmainfont{Noto Serif CJK SC}[AutoFakeSlant]
+	\\IfFontExistsTF{Noto Serif CJK KR}{
+	    \\setCJKmainfont{Noto Serif CJK KR}[AutoFakeSlant]
 	}{
-	    \\setCJKmainfont{Noto Sans CJK SC}[AutoFakeSlant]
+	    \\setCJKmainfont{Noto Sans CJK KR}[AutoFakeSlant]
 	}
-	\\setCJKsansfont{Noto Sans CJK SC}[AutoFakeSlant]
-	\\setCJKmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]
+	\\setCJKsansfont{Noto Sans CJK KR}[AutoFakeSlant]
+	\\setCJKmonofont{Noto Sans Mono CJK KR}[AutoFakeSlant]
+	\\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}
+	\\xeCJKDeclareCharClass{HalfRight}{`”,`’}
 	% CJK Language-specific font choices
 	\\IfFontExistsTF{Noto Serif CJK SC}{
 	    \\newCJKfontfamily[SCmain]\\scmain{Noto Serif CJK SC}[AutoFakeSlant]
@@ -482,35 +515,49 @@ latex_elements['preamble']  += '''
 	\\newcommand{\\kerneldocBeginSC}{%
 	    \\begingroup%
 	    \\scmain%
+	    \\xeCJKDeclareCharClass{FullLeft}{`“,`‘}%
+	    \\xeCJKDeclareCharClass{FullRight}{`”,`’}%
+	    \\renewcommand{\\CJKrmdefault}{SCserif}%
+	    \\renewcommand{\\CJKsfdefault}{SCsans}%
+	    \\renewcommand{\\CJKttdefault}{SCmono}%
+	    \\xeCJKsetup{CJKspace = false}%
+	    % For CJK ascii-art alignment
+	    \\setmonofont{Noto Sans Mono CJK SC}[AutoFakeSlant]%
 	}
 	\\newcommand{\\kerneldocEndSC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginTC}{%
 	    \\begingroup%
 	    \\tcmain%
+	    \\xeCJKDeclareCharClass{FullLeft}{`“,`‘}%
+	    \\xeCJKDeclareCharClass{FullRight}{`”,`’}%
 	    \\renewcommand{\\CJKrmdefault}{TCserif}%
 	    \\renewcommand{\\CJKsfdefault}{TCsans}%
 	    \\renewcommand{\\CJKttdefault}{TCmono}%
+	    \\xeCJKsetup{CJKspace = false}%
+	    % For CJK ascii-art alignment
+	    \\setmonofont{Noto Sans Mono CJK TC}[AutoFakeSlant]%
 	}
 	\\newcommand{\\kerneldocEndTC}{\\endgroup}
 	\\newcommand{\\kerneldocBeginKR}{%
 	    \\begingroup%
-	    \\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}%
-	    \\xeCJKDeclareCharClass{HalfRight}{`”,`’}%
 	    \\krmain%
 	    \\renewcommand{\\CJKrmdefault}{KRserif}%
 	    \\renewcommand{\\CJKsfdefault}{KRsans}%
 	    \\renewcommand{\\CJKttdefault}{KRmono}%
-	    \\xeCJKsetup{CJKspace = true} % For inter-phrase space
+	    % \\xeCJKsetup{CJKspace = true} % true by default
+	    % For CJK ascii-art alignment (still misaligned for Hangul)
+	    \\setmonofont{Noto Sans Mono CJK KR}[AutoFakeSlant]%
 	}
 	\\newcommand{\\kerneldocEndKR}{\\endgroup}
 	\\newcommand{\\kerneldocBeginJP}{%
 	    \\begingroup%
-	    \\xeCJKDeclareCharClass{HalfLeft}{`“,`‘}%
-	    \\xeCJKDeclareCharClass{HalfRight}{`”,`’}%
 	    \\jpmain%
 	    \\renewcommand{\\CJKrmdefault}{JPserif}%
 	    \\renewcommand{\\CJKsfdefault}{JPsans}%
 	    \\renewcommand{\\CJKttdefault}{JPmono}%
+	    \\xeCJKsetup{CJKspace = false}%
+	    % For CJK ascii-art alignment
+	    \\setmonofont{Noto Sans Mono CJK JP}[AutoFakeSlant]%
 	}
 	\\newcommand{\\kerneldocEndJP}{\\endgroup}
 	% Single spacing in literal blocks
@@ -519,17 +566,23 @@ latex_elements['preamble']  += '''
 	\\usepackage{etoolbox}
 	% Inactivate CJK after tableofcontents
 	\\apptocmd{\\sphinxtableofcontents}{\\kerneldocCJKoff}{}{}
+	\\xeCJKsetup{CJKspace = true} % For inter-phrase space of Korean TOC
     }{ % No CJK font found
 	% Custom macros to on/off CJK (Dummy)
 	\\newcommand{\\kerneldocCJKon}{}
 	\\newcommand{\\kerneldocCJKoff}{}
-	\\newcommand{\\kerneldocBeginSC}{}
+	\\newcommand{\\kerneldocBeginSC}[1]{%
+	    \\begin{sphinxadmonition}{note}{Note:}
+		``Noto Sans CJK'' fonts are not found while building this PDF\\@.
+		Translations of zh\\_CN, zh\\_TW, ko\\_KR, and ja\\_JP are
+		skipped.
+	    \\end{sphinxadmonition}}
 	\\newcommand{\\kerneldocEndSC}{}
-	\\newcommand{\\kerneldocBeginTC}{}
+	\\newcommand{\\kerneldocBeginTC}[1]{}
 	\\newcommand{\\kerneldocEndTC}{}
-	\\newcommand{\\kerneldocBeginKR}{}
+	\\newcommand{\\kerneldocBeginKR}[1]{}
 	\\newcommand{\\kerneldocEndKR}{}
-	\\newcommand{\\kerneldocBeginJP}{}
+	\\newcommand{\\kerneldocBeginJP}[1]{}
 	\\newcommand{\\kerneldocEndJP}{}
     }
 '''
