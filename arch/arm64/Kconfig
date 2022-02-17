@@ -672,6 +672,7 @@ config ARM64_WORKAROUND_TRBE_OVERWRITE_FILL_MODE
 
 config ARM64_ERRATUM_2051678
 	bool "Cortex-A510: 2051678: disable Hardware Update of the page table dirty bit"
+	default y
 	help
 	  This options adds the workaround for ARM Cortex-A510 erratum ARM64_ERRATUM_2051678.
 	  Affected Coretex-A510 might not respect the ordering rules for
