@@ -2960,7 +2960,7 @@ static struct sock *udp_get_first(struct seq_file *seq, int start)
 	if (state->bpf_seq_afinfo)
 		afinfo = state->bpf_seq_afinfo;
 	else
-		afinfo = PDE_DATA(file_inode(seq->file));
+		afinfo = pde_data(file_inode(seq->file));
 
 	for (state->bucket = start; state->bucket <= afinfo->udp_table->mask;
 	     ++state->bucket) {
@@ -2993,7 +2993,7 @@ static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 	if (state->bpf_seq_afinfo)
 		afinfo = state->bpf_seq_afinfo;
 	else
-		afinfo = PDE_DATA(file_inode(seq->file));
+		afinfo = pde_data(file_inode(seq->file));
 
 	do {
 		sk = sk_next(sk);
@@ -3050,7 +3050,7 @@ void udp_seq_stop(struct seq_file *seq, void *v)
 	if (state->bpf_seq_afinfo)
 		afinfo = state->bpf_seq_afinfo;
 	else
-		afinfo = PDE_DATA(file_inode(seq->file));
+		afinfo = pde_data(file_inode(seq->file));
 
 	if (state->bucket <= afinfo->udp_table->mask)
 		spin_unlock_bh(&afinfo->udp_table->hash[state->bucket].lock);

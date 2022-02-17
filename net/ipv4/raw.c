@@ -971,7 +971,7 @@ struct proto raw_prot = {
 static struct sock *raw_get_first(struct seq_file *seq)
 {
 	struct sock *sk;
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
 
 	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
@@ -987,7 +987,7 @@ found:
 
 static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
 
 	do {
@@ -1016,7 +1016,7 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 void *raw_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(&h->lock)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 
 	read_lock(&h->lock);
 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -1039,7 +1039,7 @@ EXPORT_SYMBOL_GPL(raw_seq_next);
 void raw_seq_stop(struct seq_file *seq, void *v)
 	__releases(&h->lock)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 
 	read_unlock(&h->lock);
 }

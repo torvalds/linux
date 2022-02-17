@@ -894,7 +894,7 @@ static int sysvipc_proc_open(struct inode *inode, struct file *file)
 	if (!iter)
 		return -ENOMEM;
 
-	iter->iface = PDE_DATA(inode);
+	iter->iface = pde_data(inode);
 	iter->ns    = get_ipc_ns(current->nsproxy->ipc_ns);
 	iter->pid_ns = get_pid_ns(task_active_pid_ns(current));
 
