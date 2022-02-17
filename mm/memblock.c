@@ -1278,11 +1278,10 @@ __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
 {
 	int zone_nid = zone_to_nid(zone);
 	phys_addr_t spa, epa;
-	int nid;
 
 	__next_mem_range(idx, zone_nid, MEMBLOCK_NONE,
 			 &memblock.memory, &memblock.reserved,
-			 &spa, &epa, &nid);
+			 &spa, &epa, NULL);
 
 	while (*idx != U64_MAX) {
 		unsigned long epfn = PFN_DOWN(epa);
@@ -1309,7 +1308,7 @@ __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
 
 		__next_mem_range(idx, zone_nid, MEMBLOCK_NONE,
 				 &memblock.memory, &memblock.reserved,
-				 &spa, &epa, &nid);
+				 &spa, &epa, NULL);
 	}
 
 	/* signal end of iteration */
