@@ -81,6 +81,14 @@ properties:
   '#size-cells':
     const: 0
 
+  atomic-threshold-us:
+    description:
+      An optional time value, expressed in microseconds, representing, on this
+      platform, the threshold above which any SCMI command, advertised to have
+      an higher-than-threshold execution latency, should not be considered for
+      atomic mode of operation, even if requested.
+    default: 0
+
   arm,smc-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -263,6 +271,8 @@ examples:
 
             #address-cells = <1>;
             #size-cells = <0>;
+
+            atomic-threshold-us = <10000>;
 
             scmi_devpd: protocol@11 {
                 reg = <0x11>;
