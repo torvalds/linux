@@ -307,7 +307,7 @@ module_param_named(dpm, amdgpu_dpm, int, 0444);
  * to -1 to select the default loading mode for the ASIC, as defined
  * by the driver.  The default is -1 (auto).
  */
-MODULE_PARM_DESC(fw_load_type, "firmware loading type (0 = force direct if supported, -1 = auto)");
+MODULE_PARM_DESC(fw_load_type, "firmware loading type (3 = rlc backdoor autoload if supported, 2 = smu load if supported, 1 = psp load, 0 = force direct if supported, -1 = auto)");
 module_param_named(fw_load_type, amdgpu_fw_load_type, int, 0444);
 
 /**
