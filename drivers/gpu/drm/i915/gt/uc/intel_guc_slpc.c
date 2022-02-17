@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "intel_guc_slpc.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_rps.h"
 
 static inline struct intel_guc *slpc_to_guc(struct intel_guc_slpc *slpc)
 {
@@ -574,10 +575,10 @@ static int slpc_use_fused_rp0(struct intel_guc_slpc *slpc)
 
 static void slpc_get_rp_values(struct intel_guc_slpc *slpc)
 {
+	struct intel_rps *rps = &slpc_to_gt(slpc)->rps;
 	u32 rp_state_cap;
 
-	rp_state_cap = intel_uncore_read(slpc_to_gt(slpc)->uncore,
-					 GEN6_RP_STATE_CAP);
+	rp_state_cap = intel_rps_read_state_cap(rps);
 
 	slpc->rp0_freq = REG_FIELD_GET(RP0_CAP_MASK, rp_state_cap) *
 					GT_FREQUENCY_MULTIPLIER;
