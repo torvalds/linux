@@ -1997,7 +1997,7 @@ static int sdma_v4_0_sw_fini(void *handle)
 
 	if (adev->sdma.ras && adev->sdma.ras->ras_block.hw_ops &&
 		adev->sdma.ras->ras_block.ras_fini)
-		adev->sdma.ras->ras_block.ras_fini(adev);
+		adev->sdma.ras->ras_block.ras_fini(adev, NULL);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);

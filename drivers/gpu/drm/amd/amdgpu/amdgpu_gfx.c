@@ -644,7 +644,7 @@ late_fini:
 	return r;
 }
 
-void amdgpu_gfx_ras_fini(struct amdgpu_device *adev)
+void amdgpu_gfx_ras_fini(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX) &&
 			adev->gfx.ras_if)

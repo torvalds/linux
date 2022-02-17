@@ -768,7 +768,7 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev, struct ras_comm
 	return amdgpu_ras_block_late_init(adev, ras_block);
 }
 
-static void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
+static void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL) &&
 			adev->gmc.xgmi.ras_if)
