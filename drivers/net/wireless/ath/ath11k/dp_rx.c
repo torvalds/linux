@@ -4940,28 +4940,43 @@ ath11k_dp_rx_update_radiotap_he_mu(struct hal_rx_mon_ppdu_info *rx_status,
 	rtap_buf[rtap_len] = rx_status->he_RU[3];
 }
 
-static void ath11k_update_radiotap(struct hal_rx_mon_ppdu_info *ppduinfo,
+static void ath11k_update_radiotap(struct ath11k *ar,
+				   struct hal_rx_mon_ppdu_info *ppduinfo,
 				   struct sk_buff *mon_skb,
 				   struct ieee80211_rx_status *rxs)
 {
+	struct ieee80211_supported_band *sband;
 	u8 *ptr = NULL;
+
+	rxs->flag |= RX_FLAG_MACTIME_START;
+	rxs->signal = ppduinfo->rssi_comb + ATH11K_DEFAULT_NOISE_FLOOR;
+
+	if (ppduinfo->nss)
+		rxs->nss = ppduinfo->nss;
 
 	if (ppduinfo->he_mu_flags) {
 		rxs->flag |= RX_FLAG_RADIOTAP_HE_MU;
 		rxs->encoding = RX_ENC_HE;
 		ptr = skb_push(mon_skb, sizeof(struct ieee80211_radiotap_he_mu));
 		ath11k_dp_rx_update_radiotap_he_mu(ppduinfo, ptr);
-	}
-	if (ppduinfo->he_flags) {
+	} else if (ppduinfo->he_flags) {
 		rxs->flag |= RX_FLAG_RADIOTAP_HE;
 		rxs->encoding = RX_ENC_HE;
 		ptr = skb_push(mon_skb, sizeof(struct ieee80211_radiotap_he));
 		ath11k_dp_rx_update_radiotap_he(ppduinfo, ptr);
+		rxs->rate_idx = ppduinfo->rate;
+	} else if (ppduinfo->vht_flags) {
+		rxs->encoding = RX_ENC_VHT;
+		rxs->rate_idx = ppduinfo->rate;
+	} else if (ppduinfo->ht_flags) {
+		rxs->encoding = RX_ENC_HT;
+		rxs->rate_idx = ppduinfo->rate;
+	} else {
+		rxs->encoding = RX_ENC_LEGACY;
+		sband = &ar->mac.sbands[rxs->band];
+		rxs->rate_idx = ath11k_mac_hw_rate_to_idx(sband, ppduinfo->rate,
+							  ppduinfo->cck_flag);
 	}
-
-	rxs->flag |= RX_FLAG_MACTIME_START;
-	rxs->signal = ppduinfo->rssi_comb + ATH11K_DEFAULT_NOISE_FLOOR;
-	rxs->nss = ppduinfo->nss;
 
 	rxs->mactime = ppduinfo->tsft;
 }
@@ -5003,7 +5018,7 @@ static int ath11k_dp_rx_mon_deliver(struct ath11k *ar, u32 mac_id,
 		} else {
 			rxs->flag |= RX_FLAG_ALLOW_SAME_PN;
 		}
-		ath11k_update_radiotap(ppduinfo, mon_skb, rxs);
+		ath11k_update_radiotap(ar, ppduinfo, mon_skb, rxs);
 
 		ath11k_dp_rx_deliver_msdu(ar, napi, mon_skb, rxs);
 		mon_skb = skb_next;
