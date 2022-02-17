@@ -11,11 +11,13 @@
 
 #include "rga_drv.h"
 
-enum memory_flag {
+enum rga_mm_flag {
 	/* It will identify whether the buffer is within 0 ~ 4G. */
-	RGA_MM_UNDER_4G		= 1 << 0,
+	RGA_MEM_UNDER_4G		= 1 << 0,
 	/* Logo enable IOMMU */
-	RGA_MM_NEED_USE_IOMMU	= 1 << 1,
+	RGA_MEM_NEED_USE_IOMMU		= 1 << 1,
+	/* Flag this is a physical contiguous memory. */
+	RGA_MEM_PHYSICAL_CONTIGUOUS	= 1 << 2,
 };
 
 struct rga_mm {

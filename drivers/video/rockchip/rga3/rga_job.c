@@ -164,7 +164,7 @@ static int rga_job_judgment_support_core(struct rga_job *job)
 		else
 			mm_flag = (uint32_t)ret;
 
-		if (~mm_flag & RGA_MM_UNDER_4G) {
+		if (~mm_flag & RGA_MEM_UNDER_4G) {
 			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
 			goto out_finish;
 		}
@@ -177,7 +177,7 @@ static int rga_job_judgment_support_core(struct rga_job *job)
 		else
 			mm_flag = (uint32_t)ret;
 
-		if (~mm_flag & RGA_MM_UNDER_4G) {
+		if (~mm_flag & RGA_MEM_UNDER_4G) {
 			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
 			goto out_finish;
 		}
@@ -190,7 +190,7 @@ static int rga_job_judgment_support_core(struct rga_job *job)
 		else
 			mm_flag = (uint32_t)ret;
 
-		if (~mm_flag & RGA_MM_UNDER_4G) {
+		if (~mm_flag & RGA_MEM_UNDER_4G) {
 			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
 			goto out_finish;
 		}

@@ -302,12 +302,28 @@ static int rga_mm_check_range_sgt(struct sg_table *sgt)
 	return 1;
 }
 
+static inline bool rga_mm_check_contiguous_sgt(struct sg_table *sgt)
+{
+	if (sgt->orig_nents == 1)
+		return true;
+
+	return false;
+}
+
 static void rga_mm_unmap_dma_buffer(struct rga_internal_buffer *internal_buffer)
 {
 	int i;
 
-	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		rga_dma_unmap_fd(&internal_buffer->dma_buffer[i]);
+
+		if (i == 0 &&
+		    internal_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
+		    internal_buffer->phys_addr > 0) {
+			internal_buffer->phys_addr = 0;
+			break;
+		}
+	}
 
 	kfree(internal_buffer->dma_buffer);
 	internal_buffer->dma_buffer = NULL;
@@ -329,7 +345,7 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		/* If the physical address is greater than 4G, there is no need to map RGA2. */
 		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
-		    (~internal_buffer->mm_flag & RGA_MM_UNDER_4G) &&
+		    (~internal_buffer->mm_flag & RGA_MEM_UNDER_4G) &&
 		    i != 0)
 			continue;
 
@@ -345,10 +361,24 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 
 		internal_buffer->dma_buffer[i].core = rga_drvdata->rga_scheduler[i]->core;
 
-		/* At first, check whether the physical address is greater than 4G. */
-		if (i == 0)
+		/* At first, check whether the physical address. */
+		if (i == 0) {
 			if (rga_mm_check_range_sgt(internal_buffer->dma_buffer[0].sgt))
-				internal_buffer->mm_flag |= RGA_MM_UNDER_4G;
+				internal_buffer->mm_flag |= RGA_MEM_UNDER_4G;
+
+			/* If it's physically contiguous, there is no need to continue dma_map. */
+			if (rga_mm_check_contiguous_sgt(internal_buffer->dma_buffer[0].sgt)) {
+				internal_buffer->mm_flag |= RGA_MEM_PHYSICAL_CONTIGUOUS;
+				internal_buffer->phys_addr =
+					sg_phys(internal_buffer->dma_buffer[0].sgt->sgl);
+				if (internal_buffer->phys_addr == 0) {
+					pr_err("%s get physical address error!", __func__);
+					goto FREE_RGA_DMA_BUF;
+				}
+
+				break;
+			}
+		}
 	}
 
 	return 0;
@@ -423,7 +453,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		/* If the physical address is greater than 4G, there is no need to map RGA2. */
 		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
-		    (~internal_buffer->mm_flag & RGA_MM_UNDER_4G) &&
+		    (~internal_buffer->mm_flag & RGA_MEM_UNDER_4G) &&
 		    i != 0)
 			continue;
 
@@ -437,12 +467,12 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 
 		if (i == 0)
 			if (rga_mm_check_range_sgt(internal_buffer->dma_buffer[0].sgt))
-				internal_buffer->mm_flag |= RGA_MM_UNDER_4G;
+				internal_buffer->mm_flag |= RGA_MEM_UNDER_4G;
 	}
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		if ((rga_drvdata->rga_scheduler[i]->core == RGA2_SCHEDULER_CORE0) &&
-		    (~internal_buffer->mm_flag & RGA_MM_UNDER_4G))
+		    (~internal_buffer->mm_flag & RGA_MEM_UNDER_4G))
 			continue;
 
 		if (rga_drvdata->rga_scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
@@ -537,7 +567,7 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 			return ret;
 		}
 
-		internal_buffer->mm_flag |= RGA_MM_NEED_USE_IOMMU;
+		internal_buffer->mm_flag |= RGA_MEM_NEED_USE_IOMMU;
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		internal_buffer->type = RGA_VIRTUAL_ADDRESS;
@@ -548,7 +578,7 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 			return ret;
 		}
 
-		internal_buffer->mm_flag |= RGA_MM_NEED_USE_IOMMU;
+		internal_buffer->mm_flag |= RGA_MEM_NEED_USE_IOMMU;
 		break;
 	case RGA_PHYSICAL_ADDRESS:
 		internal_buffer->type = RGA_PHYSICAL_ADDRESS;
@@ -746,6 +776,20 @@ void rga_mm_dump_info(struct rga_mm *mm_session)
 	}
 }
 
+static bool rga_mm_is_need_mmu(int core, struct rga_internal_buffer *buffer)
+{
+	if (buffer == NULL)
+		return false;
+
+	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
+	    core == RGA2_SCHEDULER_CORE0)
+		return false;
+	else if (buffer->mm_flag & RGA_MEM_NEED_USE_IOMMU)
+		return true;
+
+	return false;
+}
+
 static int rga_mm_set_mmu_flag(struct rga_job *job)
 {
 	struct rga_mmu_t *mmu_info;
@@ -754,10 +798,10 @@ static int rga_mm_set_mmu_flag(struct rga_job *job)
 	int dst_mmu_en;
 	int els_mmu_en;
 
-	src_mmu_en = job->src_buffer ? job->src_buffer->mm_flag & RGA_MM_NEED_USE_IOMMU : 0;
-	src1_mmu_en = job->src1_buffer ? job->src1_buffer->mm_flag & RGA_MM_NEED_USE_IOMMU : 0;
-	dst_mmu_en = job->dst_buffer ? job->dst_buffer->mm_flag & RGA_MM_NEED_USE_IOMMU : 0;
-	els_mmu_en = job->els_buffer ? job->els_buffer->mm_flag & RGA_MM_NEED_USE_IOMMU : 0;
+	src_mmu_en = rga_mm_is_need_mmu(job->core, job->src_buffer);
+	src1_mmu_en = rga_mm_is_need_mmu(job->core, job->src1_buffer);
+	dst_mmu_en = rga_mm_is_need_mmu(job->core, job->dst_buffer);
+	els_mmu_en = rga_mm_is_need_mmu(job->core, job->els_buffer);
 
 	mmu_info = &job->rga_command_base.mmu_info;
 	if (src_mmu_en)
@@ -867,6 +911,9 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 				ret = -EINVAL;
 				goto unlock_mm_and_return;
 			}
+		} else if (job->core == RGA2_SCHEDULER_CORE0 &&
+			   internal_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
+			img->yrgb_addr = internal_buffer->phys_addr;
 		} else {
 			img->yrgb_addr = 0;
 		}
