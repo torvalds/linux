@@ -237,14 +237,12 @@ static int dp_parser_clock(struct dp_parser *parser)
 			struct dss_clk *clk =
 				&core_power->clk_config[core_clk_index];
 			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
-			clk->type = DSS_CLK_AHB;
 			core_clk_index++;
 		} else if (dp_parser_check_prefix("stream", clk_name) &&
 				stream_clk_index < stream_clk_count) {
 			struct dss_clk *clk =
 				&stream_power->clk_config[stream_clk_index];
 			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
-			clk->type = DSS_CLK_PCLK;
 			stream_clk_index++;
 		} else if (dp_parser_check_prefix("ctrl", clk_name) &&
 			   ctrl_clk_index < ctrl_clk_count) {
@@ -252,11 +250,6 @@ static int dp_parser_clock(struct dp_parser *parser)
 				&ctrl_power->clk_config[ctrl_clk_index];
 			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
 			ctrl_clk_index++;
-			if (dp_parser_check_prefix("ctrl_link", clk_name) ||
-			    dp_parser_check_prefix("stream_pixel", clk_name))
-				clk->type = DSS_CLK_PCLK;
-			else
-				clk->type = DSS_CLK_AHB;
 		}
 	}
 

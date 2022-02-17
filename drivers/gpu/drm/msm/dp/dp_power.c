@@ -157,16 +157,6 @@ static int dp_power_clk_set_rate(struct dp_power_private *power,
 	int rc = 0;
 	struct dss_module_power *mp = &power->parser->mp[module];
 
-	if (module != DP_CTRL_PM) {
-		if (enable) {
-			rc = msm_dss_clk_set_rate(mp->clk_config, mp->num_clk);
-			if (rc) {
-				DRM_ERROR("failed to set clks rate\n");
-				return rc;
-			}
-		}
-	}
-
 	rc = msm_dss_enable_clk(mp->clk_config, mp->num_clk, enable);
 	if (rc) {
 		DRM_ERROR("failed to %d clks, err: %d\n", enable, rc);

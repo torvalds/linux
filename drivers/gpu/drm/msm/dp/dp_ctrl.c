@@ -1332,7 +1332,7 @@ static void dp_ctrl_set_clock_rate(struct dp_ctrl_private *ctrl,
 						rate, name);
 
 	if (num)
-		cfg->rate = rate;
+		clk_set_rate(cfg->clk, rate);
 	else
 		DRM_ERROR("%s clock doesn't exit to set rate %lu\n",
 				name, rate);
