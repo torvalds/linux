@@ -189,7 +189,6 @@ struct isp32_bls_cfg {
 	u8 enable_auto;
 	u8 en_windows;
 	u8 bls1_en;
-	u8 bls2_en;
 
 	u8 bls_samples;
 
@@ -731,6 +730,8 @@ struct isp32_hdrmge_cfg {
 } __attribute__ ((packed));
 
 struct isp32_rawawb_meas_cfg {
+	u8 bls2_en;
+
 	u8 rawawb_sel;
 	u8 bnr2awb_sel;
 	u8 drc2awb_sel;
@@ -1130,6 +1131,8 @@ struct isp32_rawawb_meas_cfg {
 	u32 islope12_3;
 	u32 islope23_3;
 	u32 islope30_3;
+
+	struct isp2x_bls_fixed_val bls2_val;
 } __attribute__ ((packed));
 
 struct isp32_rawaf_meas_cfg {

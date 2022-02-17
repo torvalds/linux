@@ -310,7 +310,7 @@ isp_bls_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 new_control, value;
 
 	new_control = isp3_param_read(params_vdev, ISP3X_BLS_CTRL);
-	new_control &= ISP_BLS_ENA;
+	new_control &= (ISP_BLS_ENA | ISP32_BLS_BLS2_EN);
 
 	pval = &arg->bls1_val;
 	if (arg->bls1_en) {
@@ -341,39 +341,6 @@ isp_bls_config(struct rkisp_isp_params_vdev *params_vdev,
 			isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_B_FIXED);
 			isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_C_FIXED);
 			isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_D_FIXED);
-			break;
-		}
-	}
-
-	pval = &arg->bls2_val;
-	if (arg->bls2_en) {
-		new_control |= ISP32_BLS_BLS2_EN;
-
-		switch (params_vdev->raw_type) {
-		case RAW_BGGR:
-			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_D_FIXED);
-			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_C_FIXED);
-			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_B_FIXED);
-			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_A_FIXED);
-			break;
-		case RAW_GBRG:
-			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_C_FIXED);
-			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_D_FIXED);
-			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_A_FIXED);
-			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_B_FIXED);
-			break;
-		case RAW_GRBG:
-			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_B_FIXED);
-			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_A_FIXED);
-			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_D_FIXED);
-			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_C_FIXED);
-			break;
-		case RAW_RGGB:
-		default:
-			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_A_FIXED);
-			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_B_FIXED);
-			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_C_FIXED);
-			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_D_FIXED);
 			break;
 		}
 	}
@@ -1426,7 +1393,41 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct isp32_isp_params_cfg *params_rec = params_vdev->isp32_params;
 	struct isp32_rawawb_meas_cfg *arg_rec = &params_rec->meas.rawawb;
+	const struct isp2x_bls_fixed_val *pval = &arg->bls2_val;
 	u32 value;
+
+	value = isp3_param_read(params_vdev, ISP3X_BLS_CTRL);
+	value &= ~ISP32_BLS_BLS2_EN;
+	if (arg->bls2_en) {
+		switch (params_vdev->raw_type) {
+		case RAW_BGGR:
+			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_D_FIXED);
+			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_C_FIXED);
+			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_B_FIXED);
+			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_A_FIXED);
+			break;
+		case RAW_GBRG:
+			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_C_FIXED);
+			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_D_FIXED);
+			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_A_FIXED);
+			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_B_FIXED);
+			break;
+		case RAW_GRBG:
+			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_B_FIXED);
+			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_A_FIXED);
+			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_D_FIXED);
+			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_C_FIXED);
+			break;
+		case RAW_RGGB:
+		default:
+			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_A_FIXED);
+			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_B_FIXED);
+			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_C_FIXED);
+			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_D_FIXED);
+		}
+		value |= ISP32_BLS_BLS2_EN;
+	}
+	isp3_param_write(params_vdev, value, ISP3X_BLS_CTRL);
 
 	value = arg->in_overexposure_threshold << 16 |
 		!!arg->blk_with_luma_wei_en << 8 |
