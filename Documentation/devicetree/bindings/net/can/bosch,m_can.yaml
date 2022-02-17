@@ -9,7 +9,7 @@ title: Bosch MCAN controller Bindings
 description: Bosch MCAN controller for CAN bus
 
 maintainers:
-  - Sriram Dash <sriram.dash@samsung.com>
+  - Chandrasekar Ramakrishnan <rcsekar@samsung.com>
 
 properties:
   compatible:
