@@ -101,11 +101,21 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	ipc6.sockc.tsflags = sk->sk_tsflags;
 	ipc6.sockc.mark = sk->sk_mark;
 
-	err = sock_cmsg_send(sk, msg, &ipc6.sockc);
-	if (err)
-		return err;
+	if (msg->msg_controllen) {
+		struct ipv6_txoptions opt = {};
 
-	/* TODO: use ip6_datagram_send_ctl to get options from cmsg */
+		opt.tot_len = sizeof(opt);
+		ipc6.opt = &opt;
+
+		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, &ipc6);
+		if (err < 0)
+			return err;
+
+		/* Changes to txoptions and flow info are not implemented, yet.
+		 * Drop the options, fl6 is wiped below.
+		 */
+		ipc6.opt = NULL;
+	}
 
 	memset(&fl6, 0, sizeof(fl6));
 
@@ -140,7 +150,8 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	pfh.wcheck = 0;
 	pfh.family = AF_INET6;
 
-	ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
+	if (ipc6.hlimit < 0)
+		ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
 
 	lock_sock(sk);
 	err = ip6_append_data(sk, ping_getfrag, &pfh, len,
