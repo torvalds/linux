@@ -788,14 +788,14 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		/* program DSI operation mode */
 		if (is_vid_mode(intel_dsi)) {
 			tmp &= ~OP_MODE_MASK;
-			switch (intel_dsi->video_mode_format) {
+			switch (intel_dsi->video_mode) {
 			default:
-				MISSING_CASE(intel_dsi->video_mode_format);
+				MISSING_CASE(intel_dsi->video_mode);
 				fallthrough;
-			case VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS:
+			case NON_BURST_SYNC_EVENTS:
 				tmp |= VIDEO_MODE_SYNC_EVENT;
 				break;
-			case VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE:
+			case NON_BURST_SYNC_PULSE:
 				tmp |= VIDEO_MODE_SYNC_PULSE;
 				break;
 			}
@@ -960,8 +960,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 
 	/* TRANS_HSYNC register to be programmed only for video mode */
 	if (is_vid_mode(intel_dsi)) {
-		if (intel_dsi->video_mode_format ==
-		    VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE) {
+		if (intel_dsi->video_mode == NON_BURST_SYNC_PULSE) {
 			/* BSPEC: hsync size should be atleast 16 pixels */
 			if (hsync_size < 16)
 				drm_err(&dev_priv->drm,
