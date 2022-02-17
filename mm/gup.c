@@ -1784,43 +1784,44 @@ static long check_and_migrate_movable_pages(unsigned long nr_pages,
 					    unsigned int gup_flags)
 {
 	unsigned long isolation_error_count = 0, i;
-	struct page *prev_head = NULL;
+	struct folio *prev_folio = NULL;
 	LIST_HEAD(movable_page_list);
 	bool drain_allow = true;
 	int ret = 0;
 
 	for (i = 0; i < nr_pages; i++) {
-		struct page *head = compound_head(pages[i]);
+		struct folio *folio = page_folio(pages[i]);
 
-		if (head == prev_head)
+		if (folio == prev_folio)
 			continue;
-		prev_head = head;
+		prev_folio = folio;
 
-		if (is_pinnable_page(head))
+		if (folio_is_pinnable(folio))
 			continue;
 
 		/*
 		 * Try to move out any movable page before pinning the range.
 		 */
-		if (PageHuge(head)) {
-			if (!isolate_huge_page(head, &movable_page_list))
+		if (folio_test_hugetlb(folio)) {
+			if (!isolate_huge_page(&folio->page,
+						&movable_page_list))
 				isolation_error_count++;
 			continue;
 		}
 
-		if (!PageLRU(head) && drain_allow) {
+		if (!folio_test_lru(folio) && drain_allow) {
 			lru_add_drain_all();
 			drain_allow = false;
 		}
 
-		if (isolate_lru_page(head)) {
+		if (folio_isolate_lru(folio)) {
 			isolation_error_count++;
 			continue;
 		}
-		list_add_tail(&head->lru, &movable_page_list);
-		mod_node_page_state(page_pgdat(head),
-				    NR_ISOLATED_ANON + page_is_file_lru(head),
-				    thp_nr_pages(head));
+		list_add_tail(&folio->lru, &movable_page_list);
+		node_stat_mod_folio(folio,
+				    NR_ISOLATED_ANON + folio_is_file_lru(folio),
+				    folio_nr_pages(folio));
 	}
 
 	if (!list_empty(&movable_page_list) || isolation_error_count)
