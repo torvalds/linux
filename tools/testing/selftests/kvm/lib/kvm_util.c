@@ -459,26 +459,6 @@ kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
 	return &region->region;
 }
 
-static struct kvm_vcpu *vcpu_find(struct kvm_vm *vm, uint32_t vcpu_id)
-{
-	struct kvm_vcpu *vcpu;
-
-	list_for_each_entry(vcpu, &vm->vcpus, list) {
-		if (vcpu->id == vcpu_id)
-			return vcpu;
-	}
-
-	return NULL;
-}
-
-struct kvm_vcpu *vcpu_get(struct kvm_vm *vm, uint32_t vcpu_id)
-{
-	struct kvm_vcpu *vcpu = vcpu_find(vm, vcpu_id);
-
-	TEST_ASSERT(vcpu, "vCPU %d does not exist", vcpu_id);
-	return vcpu;
-}
-
 /*
  * VM VCPU Remove
  *
@@ -1049,6 +1029,18 @@ static int vcpu_mmap_sz(void)
 	return ret;
 }
 
+static bool vcpu_exists(struct kvm_vm *vm, uint32_t vcpu_id)
+{
+	struct kvm_vcpu *vcpu;
+
+	list_for_each_entry(vcpu, &vm->vcpus, list) {
+		if (vcpu->id == vcpu_id)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * Adds a virtual CPU to the VM specified by vm with the ID given by vcpu_id.
  * No additional vCPU setup is done.  Returns the vCPU.
@@ -1058,7 +1050,7 @@ struct kvm_vcpu *__vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
 	struct kvm_vcpu *vcpu;
 
 	/* Confirm a vcpu with the specified id doesn't already exist. */
-	TEST_ASSERT(!vcpu_find(vm, vcpu_id), "vCPU%d already exists\n", vcpu_id);
+	TEST_ASSERT(!vcpu_exists(vm, vcpu_id), "vCPU%d already exists\n", vcpu_id);
 
 	/* Allocate and initialize new vcpu structure. */
 	vcpu = calloc(1, sizeof(*vcpu));
