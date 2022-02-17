@@ -65,7 +65,7 @@ static struct vm_gic vm_gic_create_with_vcpus(uint32_t gic_dev_type, uint32_t nr
 
 	v.gic_dev_type = gic_dev_type;
 	v.vm = vm_create_default_with_vcpus(nr_vcpus, 0, 0, guest_code, NULL);
-	v.gic_fd = kvm_create_device(v.vm, gic_dev_type, false);
+	v.gic_fd = kvm_create_device(v.vm, gic_dev_type);
 
 	return v;
 }
@@ -406,7 +406,7 @@ static void test_v3_typer_accesses(void)
 
 	v.vm = vm_create_default(0, 0, guest_code);
 
-	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3, false);
+	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3);
 
 	vm_vcpu_add_default(v.vm, 3, guest_code);
 
@@ -487,7 +487,7 @@ static void test_v3_last_bit_redist_regions(void)
 
 	v.vm = vm_create_default_with_vcpus(6, 0, 0, guest_code, vcpuids);
 
-	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3, false);
+	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3);
 
 	kvm_device_access(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
 			  KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
@@ -536,7 +536,7 @@ static void test_v3_last_bit_single_rdist(void)
 
 	v.vm = vm_create_default_with_vcpus(6, 0, 0, guest_code, vcpuids);
 
-	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3, false);
+	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3);
 
 	kvm_device_access(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
 			  KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
@@ -603,7 +603,7 @@ static void test_v3_its_region(void)
 	int its_fd, ret;
 
 	v = vm_gic_create_with_vcpus(KVM_DEV_TYPE_ARM_VGIC_V3, NR_VCPUS);
-	its_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_ITS, false);
+	its_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_ITS);
 
 	addr = 0x401000;
 	ret = _kvm_device_access(its_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -656,12 +656,10 @@ int test_kvm_device(uint32_t gic_dev_type)
 	ret = _kvm_create_device(v.vm, gic_dev_type, true, &fd);
 	if (ret)
 		return ret;
-	v.gic_fd = kvm_create_device(v.vm, gic_dev_type, false);
+	v.gic_fd = kvm_create_device(v.vm, gic_dev_type);
 
 	ret = _kvm_create_device(v.vm, gic_dev_type, false, &fd);
 	TEST_ASSERT(ret && errno == EEXIST, "create GIC device twice");
-
-	kvm_create_device(v.vm, gic_dev_type, true);
 
 	/* try to create the other gic_dev_type */
 	other = VGIC_DEV_IS_V2(gic_dev_type) ? KVM_DEV_TYPE_ARM_VGIC_V3
