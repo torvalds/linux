@@ -1390,3 +1390,11 @@ void pm8001_setds_completion(struct domain_device *dev)
 		wait_for_completion(&completion_setstate);
 	}
 }
+
+void pm8001_tmf_aborted(struct sas_task *task)
+{
+	struct pm8001_ccb_info *ccb = task->lldd_task;
+
+	if (ccb)
+		ccb->task = NULL;
+}

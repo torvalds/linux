@@ -666,6 +666,25 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 	return sas_dev;
 }
 
+static void hisi_sas_tmf_aborted(struct sas_task *task)
+{
+	struct hisi_sas_slot *slot = task->lldd_task;
+	struct domain_device *device = task->dev;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
+
+	if (slot) {
+		struct hisi_sas_cq *cq =
+			   &hisi_hba->cq[slot->dlvry_queue];
+		/*
+		 * sync irq to avoid free'ing task
+		 * before using task in IO completion
+		 */
+		synchronize_irq(cq->irq_no);
+		slot->task = NULL;
+	}
+}
+
 #define HISI_SAS_DISK_RECOVER_CNT 3
 static int hisi_sas_init_device(struct domain_device *device)
 {
@@ -2322,6 +2341,7 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_clear_nexus_ha	= hisi_sas_clear_nexus_ha,
 	.lldd_port_formed	= hisi_sas_port_formed,
 	.lldd_write_gpio	= hisi_sas_write_gpio,
+	.lldd_tmf_aborted	= hisi_sas_tmf_aborted,
 };
 
 void hisi_sas_init_mem(struct hisi_hba *hisi_hba)

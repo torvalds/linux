@@ -966,6 +966,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 				pr_err("TMF task timeout for %016llx and not done\n",
 				       SAS_ADDR(device->sas_addr));
+				if (i->dft->lldd_tmf_aborted)
+					i->dft->lldd_tmf_aborted(task);
 				break;
 			}
 			pr_warn("TMF task timeout for %016llx and done\n",
