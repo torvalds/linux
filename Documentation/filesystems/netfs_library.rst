@@ -250,7 +250,7 @@ through which it can issue requests and negotiate::
 		int (*begin_cache_operation)(struct netfs_io_request *rreq);
 		void (*expand_readahead)(struct netfs_io_request *rreq);
 		bool (*clamp_length)(struct netfs_io_subrequest *subreq);
-		void (*issue_op)(struct netfs_io_subrequest *subreq);
+		void (*issue_read)(struct netfs_io_subrequest *subreq);
 		bool (*is_still_valid)(struct netfs_io_request *rreq);
 		int (*check_write_begin)(struct file *file, loff_t pos, unsigned len,
 					 struct folio *folio, void **_fsdata);
@@ -305,7 +305,7 @@ The operations are as follows:
 
    This should return 0 on success and an error code on error.
 
- * ``issue_op()``
+ * ``issue_read()``
 
    [Required] The helpers use this to dispatch a subrequest to the server for
    reading.  In the subrequest, ->start, ->len and ->transferred indicate what

@@ -131,7 +131,7 @@ struct netfs_cache_resources {
  * Descriptor for a single component subrequest.
  */
 struct netfs_io_subrequest {
-	struct netfs_io_request *rreq;	/* Supervising read request */
+	struct netfs_io_request *rreq;		/* Supervising I/O request */
 	struct list_head	rreq_link;	/* Link in rreq->subrequests */
 	loff_t			start;		/* Where to start the I/O */
 	size_t			len;		/* Size of the I/O */
@@ -139,29 +139,29 @@ struct netfs_io_subrequest {
 	refcount_t		usage;
 	short			error;		/* 0 or error that occurred */
 	unsigned short		debug_index;	/* Index in list (for debugging output) */
-	enum netfs_io_source	source;		/* Where to read from */
+	enum netfs_io_source	source;		/* Where to read from/write to */
 	unsigned long		flags;
-#define NETFS_SREQ_WRITE_TO_CACHE	0	/* Set if should write to cache */
+#define NETFS_SREQ_COPY_TO_CACHE	0	/* Set if should copy the data to the cache */
 #define NETFS_SREQ_CLEAR_TAIL		1	/* Set if the rest of the read should be cleared */
-#define NETFS_SREQ_SHORT_READ		2	/* Set if there was a short read from the cache */
+#define NETFS_SREQ_SHORT_IO		2	/* Set if the I/O was short */
 #define NETFS_SREQ_SEEK_DATA_READ	3	/* Set if ->read() should SEEK_DATA first */
 #define NETFS_SREQ_NO_PROGRESS		4	/* Set if we didn't manage to read any data */
 };
 
 /*
- * Descriptor for a read helper request.  This is used to make multiple I/O
- * requests on a variety of sources and then stitch the result together.
+ * Descriptor for an I/O helper request.  This is used to make multiple I/O
+ * operations to a variety of data stores and then stitch the result together.
  */
 struct netfs_io_request {
 	struct work_struct	work;
 	struct inode		*inode;		/* The file being accessed */
 	struct address_space	*mapping;	/* The mapping being accessed */
 	struct netfs_cache_resources cache_resources;
-	struct list_head	subrequests;	/* Requests to fetch I/O from disk or net */
+	struct list_head	subrequests;	/* Contributory I/O operations */
 	void			*netfs_priv;	/* Private data for the netfs */
 	unsigned int		debug_id;
-	atomic_t		nr_outstanding;	/* Number of read ops in progress */
-	atomic_t		nr_copy_ops;	/* Number of write ops in progress */
+	atomic_t		nr_outstanding;	/* Number of ops in progress */
+	atomic_t		nr_copy_ops;	/* Number of copy-to-cache ops in progress */
 	size_t			submitted;	/* Amount submitted for I/O so far */
 	size_t			len;		/* Length of the request */
 	short			error;		/* 0 or error that occurred */
@@ -171,7 +171,7 @@ struct netfs_io_request {
 	refcount_t		usage;
 	unsigned long		flags;
 #define NETFS_RREQ_INCOMPLETE_IO	0	/* Some ioreqs terminated short or with error */
-#define NETFS_RREQ_WRITE_TO_CACHE	1	/* Need to write to the cache */
+#define NETFS_RREQ_COPY_TO_CACHE	1	/* Need to write to the cache */
 #define NETFS_RREQ_NO_UNLOCK_FOLIO	2	/* Don't unlock no_unlock_folio on completion */
 #define NETFS_RREQ_DONT_UNLOCK_FOLIOS	3	/* Don't unlock the folios on completion */
 #define NETFS_RREQ_FAILED		4	/* The request failed */
@@ -188,7 +188,7 @@ struct netfs_request_ops {
 	int (*begin_cache_operation)(struct netfs_io_request *rreq);
 	void (*expand_readahead)(struct netfs_io_request *rreq);
 	bool (*clamp_length)(struct netfs_io_subrequest *subreq);
-	void (*issue_op)(struct netfs_io_subrequest *subreq);
+	void (*issue_read)(struct netfs_io_subrequest *subreq);
 	bool (*is_still_valid)(struct netfs_io_request *rreq);
 	int (*check_write_begin)(struct file *file, loff_t pos, unsigned len,
 				 struct folio *folio, void **_fsdata);

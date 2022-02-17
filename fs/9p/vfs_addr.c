@@ -28,10 +28,10 @@
 #include "fid.h"
 
 /**
- * v9fs_req_issue_op - Issue a read from 9P
+ * v9fs_issue_read - Issue a read from 9P
  * @subreq: The read to make
  */
-static void v9fs_req_issue_op(struct netfs_io_subrequest *subreq)
+static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 {
 	struct netfs_io_request *rreq = subreq->rreq;
 	struct p9_fid *fid = rreq->netfs_priv;
@@ -106,7 +106,7 @@ static const struct netfs_request_ops v9fs_req_ops = {
 	.init_request		= v9fs_init_request,
 	.is_cache_enabled	= v9fs_is_cache_enabled,
 	.begin_cache_operation	= v9fs_begin_cache_operation,
-	.issue_op		= v9fs_req_issue_op,
+	.issue_read		= v9fs_issue_read,
 	.cleanup		= v9fs_req_cleanup,
 };
 

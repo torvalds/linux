@@ -310,7 +310,7 @@ int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
 	return afs_do_sync_operation(op);
 }
 
-static void afs_req_issue_op(struct netfs_io_subrequest *subreq)
+static void afs_issue_read(struct netfs_io_subrequest *subreq)
 {
 	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
 	struct afs_read *fsreq;
@@ -401,7 +401,7 @@ const struct netfs_request_ops afs_req_ops = {
 	.is_cache_enabled	= afs_is_cache_enabled,
 	.begin_cache_operation	= afs_begin_cache_operation,
 	.check_write_begin	= afs_check_write_begin,
-	.issue_op		= afs_req_issue_op,
+	.issue_read		= afs_issue_read,
 	.cleanup		= afs_priv_cleanup,
 };
 
