@@ -42,6 +42,7 @@ struct scmi_revision_info {
 
 struct scmi_clock_info {
 	char name[SCMI_MAX_STR_SIZE];
+	unsigned int enable_latency;
 	bool rate_discrete;
 	union {
 		struct {
