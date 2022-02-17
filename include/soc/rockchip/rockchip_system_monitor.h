@@ -117,7 +117,7 @@ struct monitor_dev_profile {
 	bool is_checked;
 	int (*low_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*high_temp_adjust)(struct monitor_dev_info *info, bool is_low);
-	int (*update_volt)(struct monitor_dev_info *info, bool is_set_clk);
+	int (*update_volt)(struct monitor_dev_info *info);
 	struct cpumask allowed_cpus;
 	struct rockchip_opp_info *opp_info;
 };
@@ -133,8 +133,7 @@ int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
 void rockchip_monitor_volt_adjust_lock(struct monitor_dev_info *info);
 void rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info);
-int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
-				     bool is_set_clk);
+int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info);
 int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low);
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
@@ -177,7 +176,7 @@ rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info)
 }
 
 static inline int
-rockchip_monitor_check_rate_volt(struct monitor_dev_info *info, bool is_set_clk)
+rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 {
 	return 0;
 }

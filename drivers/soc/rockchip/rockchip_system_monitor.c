@@ -842,7 +842,7 @@ static void rockchip_low_temp_adjust(struct monitor_dev_info *info,
 		info->is_low_temp = is_low;
 
 	if (devp->update_volt)
-		devp->update_volt(info, false);
+		devp->update_volt(info);
 }
 
 static void rockchip_high_temp_adjust(struct monitor_dev_info *info,
@@ -1090,21 +1090,32 @@ void rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info)
 }
 EXPORT_SYMBOL(rockchip_monitor_volt_adjust_unlock);
 
-static int rockchip_monitor_set_read_margin(struct device *dev,
-					    struct rockchip_opp_info *opp_info,
-					    u32 rm)
+static int rockchip_monitor_enable_opp_clk(struct device *dev,
+					   struct rockchip_opp_info *opp_info)
 {
+	int ret = 0;
 
-	if (opp_info && opp_info->data && opp_info->data->set_read_margin) {
-		if (pm_runtime_active(dev))
-			opp_info->data->set_read_margin(dev, opp_info, rm);
+	if (!opp_info)
+		return 0;
+
+	ret = clk_bulk_prepare_enable(opp_info->num_clks, opp_info->clks);
+	if (ret) {
+		dev_err(dev, "failed to enable opp clks\n");
+		return ret;
 	}
 
 	return 0;
 }
 
-int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
-				     bool is_set_clk)
+static void rockchip_monitor_disable_opp_clk(struct device *dev,
+					     struct rockchip_opp_info *opp_info)
+{
+	if (!opp_info)
+		return;
+
+	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
+}
+int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 {
 	struct device *dev = info->dev;
 	struct regulator *vdd_reg = NULL;
@@ -1114,20 +1125,14 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
 	unsigned long old_rate, new_rate, new_volt, new_mem_volt;
 	int old_volt, old_mem_volt;
 	u32 target_rm = UINT_MAX;
+	bool is_set_clk = true;
+	bool is_set_rm = false;
 	int ret = 0;
 
 	if (!info->regulators || !info->clk)
 		return 0;
 
 	mutex_lock(&info->volt_adjust_mutex);
-	if (opp_info) {
-		ret = clk_bulk_prepare_enable(opp_info->num_clks,
-					      opp_info->clks);
-		if (ret) {
-			dev_err(dev, "failed to enable opp clks\n");
-			goto unlock;
-		}
-	}
 
 	vdd_reg = info->regulators[0];
 	old_rate = clk_get_rate(info->clk);
@@ -1168,10 +1173,24 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
 	if (!new_volt || (info->regulator_count > 1 && !new_mem_volt))
 		goto unlock;
 
+	if (opp_info && opp_info->data && opp_info->data->set_read_margin) {
+		is_set_rm = true;
+		if (info->devp->type == MONITOR_TPYE_DEV) {
+			if (!pm_runtime_active(dev)) {
+				is_set_rm = false;
+				if (opp_info->scmi_clk)
+					is_set_clk = false;
+			}
+		}
+	}
+	rockchip_monitor_enable_opp_clk(dev, opp_info);
 	rockchip_get_read_margin(dev, opp_info, new_volt, &target_rm);
 
 	dev_dbg(dev, "%s: %lu Hz --> %lu Hz\n", __func__, old_rate, new_rate);
 	if (new_rate >= old_rate) {
+		rockchip_set_intermediate_rate(dev, opp_info, info->clk,
+					       old_rate, new_rate,
+					       true, is_set_clk);
 		if (info->regulator_count > 1) {
 			ret = regulator_set_voltage(mem_reg, new_mem_volt,
 						    INT_MAX);
@@ -1187,19 +1206,22 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
 				__func__, new_volt);
 			goto restore_voltage;
 		}
-		rockchip_monitor_set_read_margin(dev, opp_info, target_rm);
-		if (new_rate == old_rate)
-			goto unlock;
-	}
-
-	if (is_set_clk && clk_set_rate(info->clk, new_rate)) {
-		dev_err(dev, "%s: failed to set clock rate: %lu\n",
-			__func__, new_rate);
-		goto restore_rm;
-	}
-
-	if (new_rate < old_rate) {
-		rockchip_monitor_set_read_margin(dev, opp_info, target_rm);
+		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
+		if (is_set_clk && clk_set_rate(info->clk, new_rate)) {
+			dev_err(dev, "%s: failed to set clock rate: %lu\n",
+				__func__, new_rate);
+			goto restore_rm;
+		}
+	} else {
+		rockchip_set_intermediate_rate(dev, opp_info, info->clk,
+					       old_rate, new_rate,
+					       false, is_set_clk);
+		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
+		if (is_set_clk && clk_set_rate(info->clk, new_rate)) {
+			dev_err(dev, "%s: failed to set clock rate: %lu\n",
+				__func__, new_rate);
+			goto restore_rm;
+		}
 		ret = regulator_set_voltage(vdd_reg, new_volt,
 					    INT_MAX);
 		if (ret) {
@@ -1225,14 +1247,13 @@ restore_freq:
 			__func__, old_rate);
 restore_rm:
 	rockchip_get_read_margin(dev, opp_info, old_volt, &target_rm);
-	rockchip_monitor_set_read_margin(dev, opp_info, target_rm);
+	rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
 restore_voltage:
 	if (info->regulator_count > 1)
 		regulator_set_voltage(mem_reg, old_mem_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
 disable_clk:
-	if (opp_info)
-		clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
+	rockchip_monitor_disable_opp_clk(dev, opp_info);
 unlock:
 	mutex_unlock(&info->volt_adjust_mutex);
 
@@ -1259,14 +1280,14 @@ rockchip_system_monitor_register(struct device *dev,
 
 	rockchip_system_monitor_parse_supplies(dev, info);
 	if (monitor_device_parse_dt(dev, info)) {
-		rockchip_monitor_check_rate_volt(info, true);
+		rockchip_monitor_check_rate_volt(info);
 		kfree(info);
 		return ERR_PTR(-EINVAL);
 	}
 
 	rockchip_system_monitor_early_regulator_init(info);
 	rockchip_system_monitor_wide_temp_init(info);
-	rockchip_monitor_check_rate_volt(info, true);
+	rockchip_monitor_check_rate_volt(info);
 	devp->is_checked = true;
 	rockchip_system_monitor_freq_qos_requset(info);
 
