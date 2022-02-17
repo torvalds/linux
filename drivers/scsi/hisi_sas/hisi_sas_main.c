@@ -1793,8 +1793,6 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 	return rc;
 }
 
-#define I_T_NEXUS_RESET_PHYUP_TIMEOUT  (2 * HZ)
-
 static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 {
 	struct sas_phy *local_phy = sas_get_local_phy(device);
