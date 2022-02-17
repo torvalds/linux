@@ -376,8 +376,8 @@ static int sp7021_spi_slave_transfer_one(struct spi_controller *ctlr, struct spi
 					      xfer->len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, xfer->tx_dma))
 			return -ENOMEM;
-		 ret = sp7021_spi_slave_tx(spi, xfer);
-		 dma_unmap_single(dev, xfer->tx_dma, xfer->len, DMA_TO_DEVICE);
+		ret = sp7021_spi_slave_tx(spi, xfer);
+		dma_unmap_single(dev, xfer->tx_dma, xfer->len, DMA_TO_DEVICE);
 	} else if (xfer->rx_buf && !xfer->tx_buf) {
 		xfer->rx_dma = dma_map_single(dev, xfer->rx_buf, xfer->len,
 					      DMA_FROM_DEVICE);
