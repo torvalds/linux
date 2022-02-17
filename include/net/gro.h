@@ -35,6 +35,9 @@ struct napi_gro_cb {
 	/* jiffies when first packet was created/queued */
 	unsigned long age;
 
+/* Used in napi_gro_cb::free */
+#define NAPI_GRO_FREE             1
+#define NAPI_GRO_FREE_STOLEN_HEAD 2
 	/* portion of the cb set to zero at every gro iteration */
 	struct_group(zeroed,
 
@@ -55,8 +58,6 @@ struct napi_gro_cb {
 
 		/* Free the skb? */
 		u8	free:2;
-#define NAPI_GRO_FREE		  1
-#define NAPI_GRO_FREE_STOLEN_HEAD 2
 
 		/* Used in foo-over-udp, set in udp[46]_gro_receive */
 		u8	is_ipv6:1;
