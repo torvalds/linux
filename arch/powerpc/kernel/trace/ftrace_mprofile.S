@@ -82,7 +82,7 @@
 
 #ifdef CONFIG_PPC64
 	/* Save callee's TOC in the ABI compliant location */
-	std	r2, 24(r1)
+	std	r2, STK_GOT(r1)
 	ld	r2,PACATOC(r13)	/* get kernel TOC in r2 */
 
 	addis	r3,r2,function_trace_op@toc@ha
@@ -140,7 +140,7 @@
 
 #ifdef CONFIG_PPC64
 	/* Restore callee's TOC */
-	ld	r2, 24(r1)
+	ld	r2, STK_GOT(r1)
 #endif
 
 	/* Pop our stack frame */
