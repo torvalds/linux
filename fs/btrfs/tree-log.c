@@ -6013,6 +6013,14 @@ log_extents:
 	if (inode_only != LOG_INODE_EXISTS)
 		inode->last_log_commit = inode->last_sub_trans;
 	spin_unlock(&inode->lock);
+
+	/*
+	 * Reset the last_reflink_trans so that the next fsync does not need to
+	 * go through the slower path when logging extents and their checksums.
+	 */
+	if (inode_only == LOG_INODE_ALL)
+		inode->last_reflink_trans = 0;
+
 out_unlock:
 	mutex_unlock(&inode->log_mutex);
 out:
