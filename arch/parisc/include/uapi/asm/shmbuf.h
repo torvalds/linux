@@ -3,6 +3,8 @@
 #define _PARISC_SHMBUF_H
 
 #include <asm/bitsperlong.h>
+#include <asm/ipcbuf.h>
+#include <asm/posix_types.h>
 
 /* 
  * The shmid64_ds structure for parisc architecture.

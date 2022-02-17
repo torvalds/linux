@@ -5,6 +5,10 @@
 #if !defined(__x86_64__) || !defined(__ILP32__)
 #include <asm-generic/shmbuf.h>
 #else
+
+#include <asm/ipcbuf.h>
+#include <asm/posix_types.h>
+
 /*
  * The shmid64_ds structure for x86 architecture with x32 ABI.
  *
@@ -15,7 +19,7 @@
 
 struct shmid64_ds {
 	struct ipc64_perm	shm_perm;	/* operation perms */
-	size_t			shm_segsz;	/* size of segment (bytes) */
+	__kernel_size_t		shm_segsz;	/* size of segment (bytes) */
 	__kernel_long_t		shm_atime;	/* last attach time */
 	__kernel_long_t		shm_dtime;	/* last detach time */
 	__kernel_long_t		shm_ctime;	/* last change time */
