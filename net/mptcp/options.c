@@ -355,8 +355,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 	}
 }
 
-void mptcp_get_options(const struct sock *sk,
-		       const struct sk_buff *skb,
+void mptcp_get_options(const struct sk_buff *skb,
 		       struct mptcp_options_received *mp_opt)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
@@ -653,7 +652,6 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	bool drop_other_suboptions = false;
 	unsigned int opt_size = *size;
 	bool echo;
-	bool port;
 	int len;
 
 	/* add addr will strip the existing options, be sure to avoid breaking
@@ -662,12 +660,12 @@ static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *
 	if (!mptcp_pm_should_add_signal(msk) ||
 	    (opts->suboptions & (OPTION_MPTCP_MPJ_ACK | OPTION_MPTCP_MPC_ACK)) ||
 	    !mptcp_pm_add_addr_signal(msk, skb, opt_size, remaining, &opts->addr,
-		    &echo, &port, &drop_other_suboptions))
+		    &echo, &drop_other_suboptions))
 		return false;
 
 	if (drop_other_suboptions)
 		remaining += opt_size;
-	len = mptcp_add_addr_len(opts->addr.family, echo, port);
+	len = mptcp_add_addr_len(opts->addr.family, echo, !!opts->addr.port);
 	if (remaining < len)
 		return false;
 
@@ -1086,8 +1084,7 @@ static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 				      &mp_opt->addr);
 
 	pr_debug("msk=%p, ahmac=%llu, mp_opt->ahmac=%llu\n",
-		 msk, (unsigned long long)hmac,
-		 (unsigned long long)mp_opt->ahmac);
+		 msk, hmac, mp_opt->ahmac);
 
 	return hmac == mp_opt->ahmac;
 }
@@ -1114,7 +1111,7 @@ bool mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 		return true;
 	}
 
-	mptcp_get_options(sk, skb, &mp_opt);
+	mptcp_get_options(skb, &mp_opt);
 
 	/* The subflow can be in close state only if check_fully_established()
 	 * just sent a reset. If so, tell the caller to ignore the current packet.
