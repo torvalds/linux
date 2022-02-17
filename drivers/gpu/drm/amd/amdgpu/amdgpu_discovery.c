@@ -482,16 +482,7 @@ static struct ip_hw_instance_attr ip_hw_attr[] = {
 	__ATTR_RO(base_addr),
 };
 
-static struct attribute *ip_hw_instance_attrs[] = {
-	&ip_hw_attr[0].attr,
-	&ip_hw_attr[1].attr,
-	&ip_hw_attr[2].attr,
-	&ip_hw_attr[3].attr,
-	&ip_hw_attr[4].attr,
-	&ip_hw_attr[5].attr,
-	&ip_hw_attr[6].attr,
-	NULL,
-};
+static struct attribute *ip_hw_instance_attrs[ARRAY_SIZE(ip_hw_attr) + 1];
 ATTRIBUTE_GROUPS(ip_hw_instance);
 
 #define to_ip_hw_instance(x) container_of(x, struct ip_hw_instance, kobj)
@@ -789,7 +780,7 @@ static int amdgpu_discovery_sysfs_recurse(struct amdgpu_device *adev)
 static int amdgpu_discovery_sysfs_init(struct amdgpu_device *adev)
 {
 	struct kset *die_kset;
-	int res;
+	int res, ii;
 
 	adev->ip_top = kzalloc(sizeof(*adev->ip_top), GFP_KERNEL);
 	if (!adev->ip_top)
@@ -813,6 +804,10 @@ static int amdgpu_discovery_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("Couldn't register die_kset");
 		goto Err;
 	}
+
+	for (ii = 0; ii < ARRAY_SIZE(ip_hw_attr); ii++)
+		ip_hw_instance_attrs[ii] = &ip_hw_attr[ii].attr;
+	ip_hw_instance_attrs[ii] = NULL;
 
 	res = amdgpu_discovery_sysfs_recurse(adev);
 
