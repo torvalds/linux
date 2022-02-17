@@ -260,8 +260,6 @@ static int dp_parser_clock(struct dp_parser *parser)
 		}
 	}
 
-	DRM_DEBUG_DP("clock parsing successful\n");
-
 	return 0;
 }
 

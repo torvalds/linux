@@ -24,7 +24,7 @@ static enum drm_connector_status dp_bridge_detect(struct drm_bridge *bridge)
 
 	dp = to_dp_bridge(bridge)->dp_display;
 
-	DRM_DEBUG_DP("is_connected = %s\n",
+	drm_dbg_dp(dp->drm_dev, "is_connected = %s\n",
 		(dp->is_connected) ? "true" : "false");
 
 	return (dp->is_connected) ? connector_status_connected :
@@ -81,7 +81,7 @@ static int dp_bridge_get_modes(struct drm_bridge *bridge, struct drm_connector *
 			drm_mode_probed_add(connector, m);
 		}
 	} else {
-		DRM_DEBUG_DP("No sink connected\n");
+		drm_dbg_dp(connector->dev, "No sink connected\n");
 	}
 	kfree(dp_mode);
 	return rc;
