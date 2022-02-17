@@ -917,6 +917,111 @@ void sas_task_internal_timedout(struct timer_list *t)
 		complete(&task->slow_task->completion);
 }
 
+#define TASK_TIMEOUT			(20 * HZ)
+#define TASK_RETRY			3
+
+int sas_execute_tmf(struct domain_device *device, void *parameter,
+		    int para_len, int force_phy_id,
+		    struct sas_tmf_task *tmf)
+{
+	struct sas_task *task;
+	struct sas_internal *i =
+		to_sas_internal(device->port->ha->core.shost->transportt);
+	int res, retry;
+
+	for (retry = 0; retry < TASK_RETRY; retry++) {
+		task = sas_alloc_slow_task(GFP_KERNEL);
+		if (!task)
+			return -ENOMEM;
+
+		task->dev = device;
+		task->task_proto = device->tproto;
+
+		task->task_done = sas_task_internal_done;
+		task->tmf = tmf;
+
+		task->slow_task->timer.function = sas_task_internal_timedout;
+		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
+		add_timer(&task->slow_task->timer);
+
+		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+		if (res) {
+			del_timer_sync(&task->slow_task->timer);
+			pr_err("executing TMF task failed %016llx (%d)\n",
+			       SAS_ADDR(device->sas_addr), res);
+			break;
+		}
+
+		wait_for_completion(&task->slow_task->completion);
+
+		res = TMF_RESP_FUNC_FAILED;
+
+		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+				pr_err("TMF task timeout for %016llx and not done\n",
+				       SAS_ADDR(device->sas_addr));
+				break;
+			}
+			pr_warn("TMF task timeout for %016llx and done\n",
+				SAS_ADDR(device->sas_addr));
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
+			res = TMF_RESP_FUNC_COMPLETE;
+			break;
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+			res = TMF_RESP_FUNC_SUCC;
+			break;
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == SAS_DATA_UNDERRUN) {
+			/* no error, but return the number of bytes of
+			 * underrun
+			 */
+			pr_warn("TMF task to dev %016llx resp: 0x%x sts 0x%x underrun\n",
+				SAS_ADDR(device->sas_addr),
+				task->task_status.resp,
+				task->task_status.stat);
+			res = task->task_status.residual;
+			break;
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == SAS_DATA_OVERRUN) {
+			pr_warn("TMF task blocked task error %016llx\n",
+				SAS_ADDR(device->sas_addr));
+			res = -EMSGSIZE;
+			break;
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == SAS_OPEN_REJECT) {
+			pr_warn("TMF task open reject failed  %016llx\n",
+				SAS_ADDR(device->sas_addr));
+			res = -EIO;
+		} else {
+			pr_warn("TMF task to dev %016llx resp: 0x%x status 0x%x\n",
+				SAS_ADDR(device->sas_addr),
+				task->task_status.resp,
+				task->task_status.stat);
+		}
+		sas_free_task(task);
+		task = NULL;
+	}
+
+	if (retry == TASK_RETRY)
+		pr_warn("executing TMF for %016llx failed after %d attempts!\n",
+			SAS_ADDR(device->sas_addr), TASK_RETRY);
+	sas_free_task(task);
+
+	return res;
+}
+
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
  * This should only ever be called by an LLDD.

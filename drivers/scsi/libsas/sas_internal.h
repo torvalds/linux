@@ -97,6 +97,9 @@ extern const work_func_t sas_port_event_fns[PORT_NUM_EVENTS];
 
 void sas_task_internal_done(struct sas_task *task);
 void sas_task_internal_timedout(struct timer_list *t);
+int sas_execute_tmf(struct domain_device *device, void *parameter,
+		    int para_len, int force_phy_id,
+		    struct sas_tmf_task *tmf);
 
 #ifdef CONFIG_SCSI_SAS_HOST_SMP
 extern void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost);
