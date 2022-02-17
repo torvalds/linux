@@ -845,6 +845,7 @@ void __noreturn do_exit(long code)
 		put_page(tsk->task_frag.page);
 
 	validate_creds_for_do_exit(tsk);
+	exit_task_stack_account(tsk);
 
 	check_stack_usage();
 	preempt_disable();
