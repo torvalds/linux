@@ -685,7 +685,8 @@ static void take_release_locks(struct hl_device *hdev)
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }
 
-static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_reset)
+static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_reset,
+				bool skip_wq_flush)
 {
 	if (hard_reset)
 		device_late_fini(hdev);
@@ -698,7 +699,7 @@ static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_r
 	hdev->asic_funcs->halt_engines(hdev, hard_reset, fw_reset);
 
 	/* Go over all the queues, release all CS and their jobs */
-	hl_cs_rollback_all(hdev);
+	hl_cs_rollback_all(hdev, skip_wq_flush);
 
 	/* Release all pending user interrupts, each pending user interrupt
 	 * holds a reference to user context
@@ -978,7 +979,8 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
 	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false,
-			reset_upon_device_release = false, schedule_hard_reset = false;
+			reset_upon_device_release = false, schedule_hard_reset = false,
+			skip_wq_flush = false;
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	struct hl_ctx *ctx;
 	int i, rc;
@@ -991,6 +993,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	hard_reset = !!(flags & HL_DRV_RESET_HARD);
 	from_hard_reset_thread = !!(flags & HL_DRV_RESET_FROM_RESET_THR);
 	fw_reset = !!(flags & HL_DRV_RESET_BYPASS_REQ_TO_FW);
+	skip_wq_flush = !!(flags & HL_DRV_RESET_DEV_RELEASE);
 
 	if (!hard_reset && !hdev->asic_prop.supports_soft_reset) {
 		hard_instead_soft = true;
@@ -1076,7 +1079,7 @@ again:
 		return 0;
 	}
 
-	cleanup_resources(hdev, hard_reset, fw_reset);
+	cleanup_resources(hdev, hard_reset, fw_reset, skip_wq_flush);
 
 kill_processes:
 	if (hard_reset) {
@@ -1686,7 +1689,7 @@ void hl_device_fini(struct hl_device *hdev)
 
 	hl_hwmon_fini(hdev);
 
-	cleanup_resources(hdev, true, false);
+	cleanup_resources(hdev, true, false, false);
 
 	/* Kill processes here after CS rollback. This is because the process
 	 * can't really exit until all its CSs are done, which is what we

@@ -3054,7 +3054,7 @@ int hl_cb_pool_fini(struct hl_device *hdev);
 int hl_cb_va_pool_init(struct hl_ctx *ctx);
 void hl_cb_va_pool_fini(struct hl_ctx *ctx);
 
-void hl_cs_rollback_all(struct hl_device *hdev);
+void hl_cs_rollback_all(struct hl_device *hdev, bool skip_wq_flush);
 struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
 		enum hl_queue_type queue_type, bool is_kernel_allocated_cb);
 void hl_sob_reset_error(struct kref *ref);

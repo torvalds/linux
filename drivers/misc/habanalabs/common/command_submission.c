@@ -921,18 +921,21 @@ static void cs_rollback(struct hl_device *hdev, struct hl_cs *cs)
 		complete_job(hdev, job);
 }
 
-void hl_cs_rollback_all(struct hl_device *hdev)
+void hl_cs_rollback_all(struct hl_device *hdev, bool skip_wq_flush)
 {
 	int i;
 	struct hl_cs *cs, *tmp;
 
-	flush_workqueue(hdev->ts_free_obj_wq);
+	if (!skip_wq_flush) {
+		flush_workqueue(hdev->ts_free_obj_wq);
 
-	/* flush all completions before iterating over the CS mirror list in
-	 * order to avoid a race with the release functions
-	 */
-	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
-		flush_workqueue(hdev->cq_wq[i]);
+		/* flush all completions before iterating over the CS mirror list in
+		 * order to avoid a race with the release functions
+		 */
+		for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+			flush_workqueue(hdev->cq_wq[i]);
+
+	}
 
 	/* Make sure we don't have leftovers in the CS mirror list */
 	list_for_each_entry_safe(cs, tmp, &hdev->cs_mirror_list, mirror_node) {
