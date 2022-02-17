@@ -1617,32 +1617,6 @@ void _vm_ioctl(struct kvm_vm *vm, unsigned long cmd, const char *name, void *arg
 }
 
 /*
- * KVM system ioctl
- *
- * Input Args:
- *   vm - Virtual Machine
- *   cmd - Ioctl number
- *   arg - Argument to pass to the ioctl
- *
- * Return: None
- *
- * Issues an arbitrary ioctl on a KVM fd.
- */
-void kvm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
-{
-	int ret;
-
-	ret = ioctl(vm->kvm_fd, cmd, arg);
-	TEST_ASSERT(ret == 0, "KVM ioctl %lu failed, rc: %i errno: %i (%s)",
-		cmd, ret, errno, strerror(errno));
-}
-
-int __kvm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
-{
-	return ioctl(vm->kvm_fd, cmd, arg);
-}
-
-/*
  * Device Ioctl
  */
 
@@ -2072,6 +2046,11 @@ unsigned long __attribute__((weak)) vm_compute_max_gfn(struct kvm_vm *vm)
 uint64_t vm_get_max_gfn(struct kvm_vm *vm)
 {
 	return vm->max_gfn;
+}
+
+int vm_get_kvm_fd(struct kvm_vm *vm)
+{
+	return vm->kvm_fd;
 }
 
 int vm_get_fd(struct kvm_vm *vm)

@@ -110,8 +110,19 @@ int kvm_check_cap(long cap);
 #define __KVM_IOCTL_ERROR(_name, _ret)	__KVM_SYSCALL_ERROR(_name, _ret)
 #define KVM_IOCTL_ERROR(_ioctl, _ret) __KVM_IOCTL_ERROR(#_ioctl, _ret)
 
-int __kvm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg);
-void kvm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg);
+#define __kvm_ioctl(kvm_fd, cmd, arg) \
+	ioctl(kvm_fd, cmd, arg)
+
+static inline void _kvm_ioctl(int kvm_fd, unsigned long cmd, const char *name,
+			      void *arg)
+{
+	int ret = __kvm_ioctl(kvm_fd, cmd, arg);
+
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));
+}
+
+#define kvm_ioctl(kvm_fd, cmd, arg) \
+	_kvm_ioctl(kvm_fd, cmd, #cmd, arg)
 
 int __vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg);
 void _vm_ioctl(struct kvm_vm *vm, unsigned long cmd, const char *name, void *arg);
@@ -492,6 +503,7 @@ unsigned int vm_get_page_size(struct kvm_vm *vm);
 unsigned int vm_get_page_shift(struct kvm_vm *vm);
 unsigned long vm_compute_max_gfn(struct kvm_vm *vm);
 uint64_t vm_get_max_gfn(struct kvm_vm *vm);
+int vm_get_kvm_fd(struct kvm_vm *vm);
 int vm_get_fd(struct kvm_vm *vm);
 
 unsigned int vm_calc_num_guest_pages(enum vm_guest_mode mode, size_t size);
