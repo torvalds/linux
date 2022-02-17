@@ -713,7 +713,11 @@ static int size_of_ntlmssp_blob(struct cifs_ses *ses, int base_size)
 	else
 		sz += sizeof(__le16);
 
-	sz += sizeof(__le16) * strnlen(ses->workstation_name, CIFS_MAX_WORKSTATION_LEN);
+	if (ses->workstation_name)
+		sz += sizeof(__le16) * strnlen(ses->workstation_name,
+			CIFS_MAX_WORKSTATION_LEN);
+	else
+		sz += sizeof(__le16);
 
 	return sz;
 }
