@@ -206,6 +206,8 @@ do_check_time:
 	if (fw_status_ready != idev->fw_status_ready) {
 		bool trigger = false;
 
+		idev->fw_status_ready = fw_status_ready;
+
 		if (!fw_status_ready && lif &&
 		    !test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
 		    !test_and_set_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
@@ -221,8 +223,6 @@ do_check_time:
 
 		if (trigger) {
 			struct ionic_deferred_work *work;
-
-			idev->fw_status_ready = fw_status_ready;
 
 			work = kzalloc(sizeof(*work), GFP_ATOMIC);
 			if (work) {
