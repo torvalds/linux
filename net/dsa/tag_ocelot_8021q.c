@@ -32,6 +32,13 @@ static struct sk_buff *ocelot_defer_xmit(struct dsa_port *dp,
 	if (!xmit_work_fn || !xmit_worker)
 		return NULL;
 
+	/* PTP over IP packets need UDP checksumming. We may have inherited
+	 * NETIF_F_HW_CSUM from the DSA master, but these packets are not sent
+	 * through the DSA master, so calculate the checksum here.
+	 */
+	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb))
+		return NULL;
+
 	xmit_work = kzalloc(sizeof(*xmit_work), GFP_ATOMIC);
 	if (!xmit_work)
 		return NULL;

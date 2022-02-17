@@ -105,8 +105,6 @@
 #define REG_RESERVED_ADDR		0xffffffff
 #define REG_RESERVED(reg)		REG(reg, REG_RESERVED_ADDR)
 
-#define OCELOT_MRP_CPUQ			7
-
 enum ocelot_target {
 	ANA = 1,
 	QS,
@@ -691,6 +689,7 @@ struct ocelot {
 	u8				base_mac[ETH_ALEN];
 
 	struct list_head		vlans;
+	struct list_head		traps;
 
 	/* Switches like VSC9959 have flooding per traffic class */
 	int				num_flooding_pgids;
