@@ -937,6 +937,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		task->dev = device;
 		task->task_proto = device->tproto;
 
+		if (!dev_is_sata(device))
+			memcpy(&task->ssp_task, parameter, para_len);
+
 		task->task_done = sas_task_internal_done;
 		task->tmf = tmf;
 
@@ -1020,6 +1023,21 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	sas_free_task(task);
 
 	return res;
+}
+
+int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
+			struct sas_tmf_task *tmf);
+int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
+			struct sas_tmf_task *tmf)
+{
+	struct sas_ssp_task ssp_task;
+
+	if (!(device->tproto & SAS_PROTOCOL_SSP))
+		return TMF_RESP_FUNC_ESUPP;
+
+	memcpy(ssp_task.LUN, lun, 8);
+
+	return sas_execute_tmf(device, &ssp_task, sizeof(ssp_task), -1, tmf);
 }
 
 /*
