@@ -494,7 +494,8 @@ process_slot:
 					&clone_info, &trans);
 			if (ret)
 				goto out;
-		} else if (type == BTRFS_FILE_EXTENT_INLINE) {
+		} else {
+			ASSERT(type == BTRFS_FILE_EXTENT_INLINE);
 			/*
 			 * Inline extents always have to start at file offset 0
 			 * and can never be bigger then the sector size. We can
@@ -505,7 +506,8 @@ process_slot:
 			 */
 			ASSERT(key.offset == 0);
 			ASSERT(datal <= fs_info->sectorsize);
-			if (WARN_ON(key.offset != 0) ||
+			if (WARN_ON(type != BTRFS_FILE_EXTENT_INLINE) ||
+			    WARN_ON(key.offset != 0) ||
 			    WARN_ON(datal > fs_info->sectorsize)) {
 				ret = -EUCLEAN;
 				goto out;
