@@ -159,7 +159,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 	pta->vm = vm;
 
 	/* Put the test region at the top guest physical memory. */
-	region_end_gfn = vm_get_max_gfn(vm) + 1;
+	region_end_gfn = vm->max_gfn + 1;
 
 #ifdef __x86_64__
 	/*
