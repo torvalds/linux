@@ -1271,6 +1271,16 @@ preempt:
 	trace_walt_cfs_mvp_wakeup_preempt(p, wts_p, walt_cfs_mvp_task_limit(p));
 }
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
+/* Walk up scheduling entities hierarchy */
+#define for_each_sched_entity(se) \
+		for (; se; se = se->parent)
+#else	/* !CONFIG_FAIR_GROUP_SCHED */
+#define for_each_sched_entity(se) \
+		for (; se; se = NULL)
+#endif
+
+extern void set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se);
 static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct task_struct **p,
 					    struct sched_entity **se, bool *repick, bool simple,
 					    struct task_struct *prev)
@@ -1278,6 +1288,7 @@ static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct 
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts;
 	struct task_struct *mvp;
+	struct cfs_rq *cfs_rq;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -1301,6 +1312,17 @@ static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct 
 	*p = mvp;
 	*se = &mvp->se;
 	*repick = true;
+
+	if (simple) {
+		for_each_sched_entity((*se)) {
+			/*
+			 * TODO If CFS_BANDWIDTH is enabled, we might pick
+			 * from a throttled cfs_rq
+			 */
+			cfs_rq = cfs_rq_of(*se);
+			set_next_entity(cfs_rq, *se);
+		}
+	}
 
 	if ((*p) && (*p) != prev && ((*p)->on_cpu == 1 || (*p)->on_rq == 0 ||
 				     (*p)->on_rq == TASK_ON_RQ_MIGRATING ||
