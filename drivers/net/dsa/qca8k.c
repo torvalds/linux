@@ -1852,48 +1852,6 @@ static void qca8k_phylink_get_caps(struct dsa_switch *ds, int port,
 		MAC_10 | MAC_100 | MAC_1000FD;
 }
 
-static int
-qca8k_phylink_mac_link_state(struct dsa_switch *ds, int port,
-			     struct phylink_link_state *state)
-{
-	struct qca8k_priv *priv = ds->priv;
-	u32 reg;
-	int ret;
-
-	ret = qca8k_read(priv, QCA8K_REG_PORT_STATUS(port), &reg);
-	if (ret < 0)
-		return ret;
-
-	state->link = !!(reg & QCA8K_PORT_STATUS_LINK_UP);
-	state->an_complete = state->link;
-	state->an_enabled = !!(reg & QCA8K_PORT_STATUS_LINK_AUTO);
-	state->duplex = (reg & QCA8K_PORT_STATUS_DUPLEX) ? DUPLEX_FULL :
-							   DUPLEX_HALF;
-
-	switch (reg & QCA8K_PORT_STATUS_SPEED) {
-	case QCA8K_PORT_STATUS_SPEED_10:
-		state->speed = SPEED_10;
-		break;
-	case QCA8K_PORT_STATUS_SPEED_100:
-		state->speed = SPEED_100;
-		break;
-	case QCA8K_PORT_STATUS_SPEED_1000:
-		state->speed = SPEED_1000;
-		break;
-	default:
-		state->speed = SPEED_UNKNOWN;
-		break;
-	}
-
-	state->pause = MLO_PAUSE_NONE;
-	if (reg & QCA8K_PORT_STATUS_RXFLOW)
-		state->pause |= MLO_PAUSE_RX;
-	if (reg & QCA8K_PORT_STATUS_TXFLOW)
-		state->pause |= MLO_PAUSE_TX;
-
-	return 1;
-}
-
 static void
 qca8k_phylink_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
 			    phy_interface_t interface)
@@ -1942,6 +1900,48 @@ qca8k_phylink_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 	reg |= QCA8K_PORT_STATUS_TXMAC | QCA8K_PORT_STATUS_RXMAC;
 
 	qca8k_write(priv, QCA8K_REG_PORT_STATUS(port), reg);
+}
+
+static int
+qca8k_phylink_mac_link_state(struct dsa_switch *ds, int port,
+			     struct phylink_link_state *state)
+{
+	struct qca8k_priv *priv = ds->priv;
+	u32 reg;
+	int ret;
+
+	ret = qca8k_read(priv, QCA8K_REG_PORT_STATUS(port), &reg);
+	if (ret < 0)
+		return ret;
+
+	state->link = !!(reg & QCA8K_PORT_STATUS_LINK_UP);
+	state->an_complete = state->link;
+	state->an_enabled = !!(reg & QCA8K_PORT_STATUS_LINK_AUTO);
+	state->duplex = (reg & QCA8K_PORT_STATUS_DUPLEX) ? DUPLEX_FULL :
+							   DUPLEX_HALF;
+
+	switch (reg & QCA8K_PORT_STATUS_SPEED) {
+	case QCA8K_PORT_STATUS_SPEED_10:
+		state->speed = SPEED_10;
+		break;
+	case QCA8K_PORT_STATUS_SPEED_100:
+		state->speed = SPEED_100;
+		break;
+	case QCA8K_PORT_STATUS_SPEED_1000:
+		state->speed = SPEED_1000;
+		break;
+	default:
+		state->speed = SPEED_UNKNOWN;
+		break;
+	}
+
+	state->pause = MLO_PAUSE_NONE;
+	if (reg & QCA8K_PORT_STATUS_RXFLOW)
+		state->pause |= MLO_PAUSE_RX;
+	if (reg & QCA8K_PORT_STATUS_TXFLOW)
+		state->pause |= MLO_PAUSE_TX;
+
+	return 1;
 }
 
 static void
