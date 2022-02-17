@@ -23,7 +23,7 @@
  * this indicates whether you can reboot with ctrl-alt-del: the default is yes
  */
 
-int C_A_D = 1;
+static int C_A_D = 1;
 struct pid *cad_pid;
 EXPORT_SYMBOL(cad_pid);
 
@@ -417,8 +417,36 @@ void ctrl_alt_del(void)
 		kill_cad_pid(SIGINT, 1);
 }
 
-char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
+#define POWEROFF_CMD_PATH_LEN  256
+static char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
 static const char reboot_cmd[] = "/sbin/reboot";
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table kern_reboot_table[] = {
+	{
+		.procname       = "poweroff_cmd",
+		.data           = &poweroff_cmd,
+		.maxlen         = POWEROFF_CMD_PATH_LEN,
+		.mode           = 0644,
+		.proc_handler   = proc_dostring,
+	},
+	{
+		.procname       = "ctrl-alt-del",
+		.data           = &C_A_D,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	{ }
+};
+
+static void __init kernel_reboot_sysctls_init(void)
+{
+	register_sysctl_init("kernel", kern_reboot_table);
+}
+#else
+#define kernel_reboot_sysctls_init() do { } while (0)
+#endif /* CONFIG_SYSCTL */
 
 static int run_cmd(const char *cmd)
 {
@@ -885,6 +913,8 @@ static int __init reboot_ksysfs_init(void)
 		kobject_put(reboot_kobj);
 		return ret;
 	}
+
+	kernel_reboot_sysctls_init();
 
 	return 0;
 }
