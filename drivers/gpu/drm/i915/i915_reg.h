@@ -9008,6 +9008,7 @@ enum skl_power_gate {
 #define ICL_DSI_T_INIT_MASTER(port)	_MMIO_PORT(port,	\
 						   _ICL_DSI_T_INIT_MASTER_0,\
 						   _ICL_DSI_T_INIT_MASTER_1)
+#define   DSI_T_INIT_MASTER_MASK	REG_GENMASK(15, 0)
 
 #define _DPHY_CLK_TIMING_PARAM_0	0x162180
 #define _DPHY_CLK_TIMING_PARAM_1	0x6c180

@@ -570,7 +570,7 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 	/* Program T-INIT master registers */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		tmp = intel_de_read(dev_priv, ICL_DSI_T_INIT_MASTER(port));
-		tmp &= ~MASTER_INIT_TIMER_MASK;
+		tmp &= ~DSI_T_INIT_MASTER_MASK;
 		tmp |= intel_dsi->init_count;
 		intel_de_write(dev_priv, ICL_DSI_T_INIT_MASTER(port), tmp);
 	}
