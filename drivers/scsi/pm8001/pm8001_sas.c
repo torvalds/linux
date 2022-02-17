@@ -1342,14 +1342,6 @@ out:
 	return rc;
 }
 
-int pm8001_abort_task_set(struct domain_device *dev, u8 *lun)
-{
-	struct sas_tmf_task tmf_task;
-
-	tmf_task.tmf = TMF_ABORT_TASK_SET;
-	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
-}
-
 int pm8001_clear_task_set(struct domain_device *dev, u8 *lun)
 {
 	struct sas_tmf_task tmf_task;

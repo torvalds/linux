@@ -1030,10 +1030,8 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 	return res;
 }
 
-int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
-			struct sas_tmf_task *tmf);
-int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
-			struct sas_tmf_task *tmf)
+static int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
+			       struct sas_tmf_task *tmf)
 {
 	struct sas_ssp_task ssp_task;
 
@@ -1044,6 +1042,16 @@ int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
 
 	return sas_execute_tmf(device, &ssp_task, sizeof(ssp_task), -1, tmf);
 }
+
+int sas_abort_task_set(struct domain_device *dev, u8 *lun)
+{
+	struct sas_tmf_task tmf_task = {
+		.tmf = TMF_ABORT_TASK_SET,
+	};
+
+	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
+}
+EXPORT_SYMBOL_GPL(sas_abort_task_set);
 
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.

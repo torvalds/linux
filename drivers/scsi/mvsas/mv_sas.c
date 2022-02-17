@@ -1536,17 +1536,6 @@ out:
 	return rc;
 }
 
-int mvs_abort_task_set(struct domain_device *dev, u8 *lun)
-{
-	int rc;
-	struct sas_tmf_task tmf_task;
-
-	tmf_task.tmf = TMF_ABORT_TASK_SET;
-	rc = mvs_debug_issue_ssp_tmf(dev, lun, &tmf_task);
-
-	return rc;
-}
-
 int mvs_clear_task_set(struct domain_device *dev, u8 *lun)
 {
 	int rc = TMF_RESP_FUNC_FAILED;

@@ -1788,7 +1788,6 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 {
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
-	struct sas_tmf_task tmf_task;
 	int rc;
 
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
@@ -1799,9 +1798,7 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 	}
 	hisi_sas_dereg_device(hisi_hba, device);
 
-	tmf_task.tmf = TMF_ABORT_TASK_SET;
-	rc = hisi_sas_debug_issue_ssp_tmf(device, lun, &tmf_task);
-
+	rc = sas_abort_task_set(device, lun);
 	if (rc == TMF_RESP_FUNC_COMPLETE)
 		hisi_sas_release_task(hisi_hba, device);
 
