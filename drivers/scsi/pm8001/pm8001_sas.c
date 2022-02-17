@@ -1344,14 +1344,12 @@ out:
 
 int pm8001_clear_task_set(struct domain_device *dev, u8 *lun)
 {
-	struct sas_tmf_task tmf_task;
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
 
 	pm8001_dbg(pm8001_ha, EH, "I_T_L_Q clear task set[%x]\n",
 		   pm8001_dev->device_id);
-	tmf_task.tmf = TMF_CLEAR_TASK_SET;
-	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+	return sas_clear_task_set(dev, lun);
 }
 
 void pm8001_port_formed(struct asd_sas_phy *sas_phy)

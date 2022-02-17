@@ -1053,6 +1053,16 @@ int sas_abort_task_set(struct domain_device *dev, u8 *lun)
 }
 EXPORT_SYMBOL_GPL(sas_abort_task_set);
 
+int sas_clear_task_set(struct domain_device *dev, u8 *lun)
+{
+	struct sas_tmf_task tmf_task = {
+		.tmf = TMF_CLEAR_TASK_SET,
+	};
+
+	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
+}
+EXPORT_SYMBOL_GPL(sas_clear_task_set);
+
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
  * This should only ever be called by an LLDD.
