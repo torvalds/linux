@@ -4428,11 +4428,8 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	char *ins_data;
 	int i;
 	int dst_index;
-	struct list_head ordered_sums;
 	const bool skip_csum = (inode->flags & BTRFS_INODE_NODATASUM);
 	const u64 i_size = i_size_read(&inode->vfs_inode);
-
-	INIT_LIST_HEAD(&ordered_sums);
 
 	ins_data = kmalloc(nr * sizeof(struct btrfs_key) +
 			   nr * sizeof(u32), GFP_NOFS);
@@ -4450,6 +4447,9 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	for (i = 0; i < nr; i++) {
 		const int src_slot = start_slot + i;
 		struct btrfs_root *csum_root;
+		struct btrfs_ordered_sum *sums;
+		struct btrfs_ordered_sum *sums_next;
+		LIST_HEAD(ordered_sums);
 		u64 disk_bytenr;
 		u64 disk_num_bytes;
 		u64 extent_offset;
@@ -4520,6 +4520,15 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 		ret = btrfs_lookup_csums_range(csum_root, disk_bytenr,
 					       disk_bytenr + extent_num_bytes - 1,
 					       &ordered_sums, 0);
+		if (ret)
+			goto out;
+
+		list_for_each_entry_safe(sums, sums_next, &ordered_sums, list) {
+			if (!ret)
+				ret = log_csums(trans, inode, log, sums);
+			list_del(&sums->list);
+			kfree(sums);
+		}
 		if (ret)
 			goto out;
 
@@ -4595,20 +4604,6 @@ copy_item:
 	btrfs_release_path(dst_path);
 out:
 	kfree(ins_data);
-
-	/*
-	 * we have to do this after the loop above to avoid changing the
-	 * log tree while trying to change the log tree.
-	 */
-	while (!list_empty(&ordered_sums)) {
-		struct btrfs_ordered_sum *sums = list_entry(ordered_sums.next,
-						   struct btrfs_ordered_sum,
-						   list);
-		if (!ret)
-			ret = log_csums(trans, inode, log, sums);
-		list_del(&sums->list);
-		kfree(sums);
-	}
 
 	return ret;
 }
