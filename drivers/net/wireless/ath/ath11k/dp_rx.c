@@ -4807,7 +4807,6 @@ ath11k_dp_rx_mon_merg_msdus(struct ath11k *ar,
 {
 	struct ath11k_base *ab = ar->ab;
 	struct sk_buff *msdu, *prev_buf;
-	u32 wifi_hdr_len;
 	struct hal_rx_desc *rx_desc;
 	char *hdr_desc;
 	u8 *dest, decap_format;
@@ -4849,38 +4848,27 @@ ath11k_dp_rx_mon_merg_msdus(struct ath11k *ar,
 
 		skb_trim(prev_buf, prev_buf->len - HAL_RX_FCS_LEN);
 	} else if (decap_format == DP_RX_DECAP_TYPE_NATIVE_WIFI) {
-		__le16 qos_field;
 		u8 qos_pkt = 0;
 
 		rx_desc = (struct hal_rx_desc *)head_msdu->data;
 		hdr_desc = ath11k_dp_rxdesc_get_80211hdr(ab, rx_desc);
 
 		/* Base size */
-		wifi_hdr_len = sizeof(struct ieee80211_hdr_3addr);
 		wh = (struct ieee80211_hdr_3addr *)hdr_desc;
 
-		if (ieee80211_is_data_qos(wh->frame_control)) {
-			struct ieee80211_qos_hdr *qwh =
-					(struct ieee80211_qos_hdr *)hdr_desc;
-
-			qos_field = qwh->qos_ctrl;
+		if (ieee80211_is_data_qos(wh->frame_control))
 			qos_pkt = 1;
-		}
+
 		msdu = head_msdu;
 
 		while (msdu) {
-			rx_desc = (struct hal_rx_desc *)msdu->data;
-			hdr_desc = ath11k_dp_rxdesc_get_80211hdr(ab, rx_desc);
-
+			ath11k_dp_rx_msdus_set_payload(ar, msdu);
 			if (qos_pkt) {
 				dest = skb_push(msdu, sizeof(__le16));
 				if (!dest)
 					goto err_merge_fail;
-				memcpy(dest, hdr_desc, wifi_hdr_len);
-				memcpy(dest + wifi_hdr_len,
-				       (u8 *)&qos_field, sizeof(__le16));
+				memcpy(dest, hdr_desc, sizeof(struct ieee80211_qos_hdr));
 			}
-			ath11k_dp_rx_msdus_set_payload(ar, msdu);
 			prev_buf = msdu;
 			msdu = msdu->next;
 		}
@@ -4904,8 +4892,83 @@ err_merge_fail:
 	return NULL;
 }
 
+static void
+ath11k_dp_rx_update_radiotap_he(struct hal_rx_mon_ppdu_info *rx_status,
+				u8 *rtap_buf)
+{
+	u32 rtap_len = 0;
+
+	put_unaligned_le16(rx_status->he_data1, &rtap_buf[rtap_len]);
+	rtap_len += 2;
+
+	put_unaligned_le16(rx_status->he_data2, &rtap_buf[rtap_len]);
+	rtap_len += 2;
+
+	put_unaligned_le16(rx_status->he_data3, &rtap_buf[rtap_len]);
+	rtap_len += 2;
+
+	put_unaligned_le16(rx_status->he_data4, &rtap_buf[rtap_len]);
+	rtap_len += 2;
+
+	put_unaligned_le16(rx_status->he_data5, &rtap_buf[rtap_len]);
+	rtap_len += 2;
+
+	put_unaligned_le16(rx_status->he_data6, &rtap_buf[rtap_len]);
+}
+
+static void
+ath11k_dp_rx_update_radiotap_he_mu(struct hal_rx_mon_ppdu_info *rx_status,
+				   u8 *rtap_buf)
+{
+	u32 rtap_len = 0;
+
+	put_unaligned_le16(rx_status->he_flags1, &rtap_buf[rtap_len]);
+	rtap_len += 2;
+
+	put_unaligned_le16(rx_status->he_flags2, &rtap_buf[rtap_len]);
+	rtap_len += 2;
+
+	rtap_buf[rtap_len] = rx_status->he_RU[0];
+	rtap_len += 1;
+
+	rtap_buf[rtap_len] = rx_status->he_RU[1];
+	rtap_len += 1;
+
+	rtap_buf[rtap_len] = rx_status->he_RU[2];
+	rtap_len += 1;
+
+	rtap_buf[rtap_len] = rx_status->he_RU[3];
+}
+
+static void ath11k_update_radiotap(struct hal_rx_mon_ppdu_info *ppduinfo,
+				   struct sk_buff *mon_skb,
+				   struct ieee80211_rx_status *rxs)
+{
+	u8 *ptr = NULL;
+
+	if (ppduinfo->he_mu_flags) {
+		rxs->flag |= RX_FLAG_RADIOTAP_HE_MU;
+		rxs->encoding = RX_ENC_HE;
+		ptr = skb_push(mon_skb, sizeof(struct ieee80211_radiotap_he_mu));
+		ath11k_dp_rx_update_radiotap_he_mu(ppduinfo, ptr);
+	}
+	if (ppduinfo->he_flags) {
+		rxs->flag |= RX_FLAG_RADIOTAP_HE;
+		rxs->encoding = RX_ENC_HE;
+		ptr = skb_push(mon_skb, sizeof(struct ieee80211_radiotap_he));
+		ath11k_dp_rx_update_radiotap_he(ppduinfo, ptr);
+	}
+
+	rxs->flag |= RX_FLAG_MACTIME_START;
+	rxs->signal = ppduinfo->rssi_comb + ATH11K_DEFAULT_NOISE_FLOOR;
+	rxs->nss = ppduinfo->nss;
+
+	rxs->mactime = ppduinfo->tsft;
+}
+
 static int ath11k_dp_rx_mon_deliver(struct ath11k *ar, u32 mac_id,
 				    struct sk_buff *head_msdu,
+				    struct hal_rx_mon_ppdu_info *ppduinfo,
 				    struct sk_buff *tail_msdu,
 				    struct napi_struct *napi)
 {
@@ -4940,7 +5003,7 @@ static int ath11k_dp_rx_mon_deliver(struct ath11k *ar, u32 mac_id,
 		} else {
 			rxs->flag |= RX_FLAG_ALLOW_SAME_PN;
 		}
-		rxs->flag |= RX_FLAG_ONLY_MONITOR;
+		ath11k_update_radiotap(ppduinfo, mon_skb, rxs);
 
 		ath11k_dp_rx_deliver_msdu(ar, napi, mon_skb, rxs);
 		mon_skb = skb_next;
@@ -5045,6 +5108,7 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
 		}
 		if (head_msdu && tail_msdu) {
 			ath11k_dp_rx_mon_deliver(ar, dp->mac_id, head_msdu,
+						 &pmon->mon_ppdu_info,
 						 tail_msdu, napi);
 			rx_mon_stats->dest_mpdu_done++;
 		}
@@ -5114,6 +5178,7 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 		if (log_type != ATH11K_PKTLOG_TYPE_INVALID)
 			trace_ath11k_htt_rxdesc(ar, skb->data, log_type, rx_buf_sz);
 
+		memset(ppdu_info, 0, sizeof(struct hal_rx_mon_ppdu_info));
 		hal_status = ath11k_hal_rx_parse_mon_status(ab, ppdu_info, skb);
 
 		if (test_bit(ATH11K_FLAG_MONITOR_STARTED, &ar->monitor_flags) &&
@@ -5374,6 +5439,7 @@ static int ath11k_dp_rx_full_mon_deliver_ppdu(struct ath11k *ar,
 		tail_msdu = mon_mpdu->tail;
 		if (head_msdu && tail_msdu) {
 			ret = ath11k_dp_rx_mon_deliver(ar, mac_id, head_msdu,
+						       &pmon->mon_ppdu_info,
 						       tail_msdu, napi);
 			rx_mon_stats->dest_mpdu_done++;
 			ath11k_dbg(ar->ab, ATH11K_DBG_DATA, "full mon: deliver ppdu\n");
