@@ -511,16 +511,6 @@ static struct monitor_dev_profile npu_mdevp = {
 	.update_volt = rockchip_monitor_check_rate_volt,
 };
 
-static int rknpu_set_read_margin(struct device *dev,
-				 struct rockchip_opp_info *opp_info,
-				 u32 rm)
-{
-	if (opp_info->data && opp_info->data->set_read_margin)
-		opp_info->data->set_read_margin(dev, opp_info, rm);
-
-	return 0;
-}
-
 static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 {
 	struct device *dev = data->dev;
@@ -546,8 +536,13 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 	rockchip_get_read_margin(dev, opp_info, new_supply_vdd->u_volt,
 				 &target_rm);
 
+	/* Change frequency */
+	LOG_DEV_DEBUG(dev, "switching OPP: %lu Hz --> %lu Hz\n", old_freq,
+		      new_freq);
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
+		rockchip_set_intermediate_rate(dev, opp_info, clk, old_freq,
+					       new_freq, true, true);
 		ret = regulator_set_voltage(mem_reg, new_supply_mem->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -564,21 +559,22 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 				      new_supply_vdd->u_volt);
 			goto restore_voltage;
 		}
-		rknpu_set_read_margin(dev, opp_info, target_rm);
-	}
-
-	/* Change frequency */
-	LOG_DEV_DEBUG(dev, "switching OPP: %lu Hz --> %lu Hz\n", old_freq,
-		      new_freq);
-	ret = clk_set_rate(clk, new_freq);
-	if (ret) {
-		LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
-		goto restore_rm;
-	}
-
+		rockchip_set_read_margin(dev, opp_info, target_rm, true);
+		ret = clk_set_rate(clk, new_freq);
+		if (ret) {
+			LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
+			goto restore_rm;
+		}
 	/* Scaling down? Scale voltage after frequency */
-	if (new_freq < old_freq) {
-		rknpu_set_read_margin(dev, opp_info, target_rm);
+	} else {
+		rockchip_set_intermediate_rate(dev, opp_info, clk, old_freq,
+					       new_freq, false, true);
+		rockchip_set_read_margin(dev, opp_info, target_rm, true);
+		ret = clk_set_rate(clk, new_freq);
+		if (ret) {
+			LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
+			goto restore_rm;
+		}
 		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -608,7 +604,7 @@ restore_freq:
 restore_rm:
 	rockchip_get_read_margin(dev, opp_info, old_supply_vdd->u_volt,
 				 &target_rm);
-	rknpu_set_read_margin(dev, opp_info, target_rm);
+	rockchip_set_read_margin(dev, opp_info, opp_info->current_rm, true);
 restore_voltage:
 	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
@@ -1101,14 +1097,13 @@ static int rknpu_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	if (opp_info->data && opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(dev, opp_info,
+						opp_info->target_rm);
 	if (opp_info->scmi_clk) {
 		if (clk_set_rate(opp_info->scmi_clk, rknpu_dev->current_freq))
 			LOG_DEV_ERROR(dev, "failed to set power down rate\n");
 	}
-
-	if (opp_info->data && opp_info->data->set_read_margin)
-		opp_info->data->set_read_margin(dev, opp_info,
-						opp_info->target_rm);
 
 	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 
