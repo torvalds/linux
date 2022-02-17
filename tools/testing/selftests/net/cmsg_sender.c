@@ -47,6 +47,7 @@ struct options {
 		unsigned int mark;
 		unsigned int dontfrag;
 		unsigned int tclass;
+		unsigned int hlimit;
 	} sockopt;
 	struct {
 		unsigned int family;
@@ -64,6 +65,7 @@ struct options {
 	struct {
 		struct option_cmsg_u32 dontfrag;
 		struct option_cmsg_u32 tclass;
+		struct option_cmsg_u32 hlimit;
 	} v6;
 } opt = {
 	.size = 13,
@@ -95,6 +97,8 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\t\t-F val  Set don't fragment via setsockopt\n"
 	       "\t\t-c val  Set TCLASS via cmsg\n"
 	       "\t\t-C val  Set TCLASS via setsockopt\n"
+	       "\t\t-l val  Set HOPLIMIT via cmsg\n"
+	       "\t\t-L val  Set HOPLIMIT via setsockopt\n"
 	       "");
 	exit(ERN_HELP);
 }
@@ -103,7 +107,7 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	char o;
 
-	while ((o = getopt(argc, argv, "46sS:p:m:M:d:tf:F:c:C:")) != -1) {
+	while ((o = getopt(argc, argv, "46sS:p:m:M:d:tf:F:c:C:l:L:")) != -1) {
 		switch (o) {
 		case 's':
 			opt.silent_send = true;
@@ -157,6 +161,13 @@ static void cs_parse_args(int argc, char *argv[])
 			break;
 		case 'C':
 			opt.sockopt.tclass = atoi(optarg);
+			break;
+		case 'l':
+			opt.v6.hlimit.ena = true;
+			opt.v6.hlimit.val = atoi(optarg);
+			break;
+		case 'L':
+			opt.sockopt.hlimit = atoi(optarg);
 			break;
 		}
 	}
@@ -215,6 +226,8 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 			  SOL_IPV6, IPV6_DONTFRAG, &opt.v6.dontfrag);
 	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
 			  SOL_IPV6, IPV6_TCLASS, &opt.v6.tclass);
+	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
+			  SOL_IPV6, IPV6_HOPLIMIT, &opt.v6.hlimit);
 
 	if (opt.txtime.ena) {
 		struct sock_txtime so_txtime = {
@@ -360,6 +373,10 @@ static void ca_set_sockopts(int fd)
 	    setsockopt(fd, SOL_IPV6, IPV6_TCLASS,
 		       &opt.sockopt.tclass, sizeof(opt.sockopt.tclass)))
 		error(ERN_SOCKOPT, errno, "setsockopt IPV6_TCLASS");
+	if (opt.sockopt.hlimit &&
+	    setsockopt(fd, SOL_IPV6, IPV6_UNICAST_HOPS,
+		       &opt.sockopt.hlimit, sizeof(opt.sockopt.hlimit)))
+		error(ERN_SOCKOPT, errno, "setsockopt IPV6_HOPLIMIT");
 }
 
 int main(int argc, char *argv[])

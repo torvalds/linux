@@ -106,6 +106,37 @@ for ovr in setsock cmsg both diff; do
     done
 done
 
+# IPV6_HOPLIMIT
+LIM=4
+
+for ovr in setsock cmsg both diff; do
+    for p in u i r; do
+	[ $p == "u" ] && prot=UDP
+	[ $p == "i" ] && prot=ICMP
+	[ $p == "r" ] && prot=RAW
+
+	[ $ovr == "setsock" ] && m="-L"
+	[ $ovr == "cmsg" ]    && m="-l"
+	[ $ovr == "both" ]    && m="-L $LIM -l"
+	[ $ovr == "diff" ]    && m="-L $((LIM + 1)) -l"
+
+	$NSEXE nohup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
+	BG=$!
+	sleep 0.05
+
+	$NSEXE ./cmsg_sender -6 -p $p $m $LIM $TGT6 1234
+	check_result $? 0 "HOPLIMIT $prot $ovr - pass"
+
+	while [ -d /proc/$BG ]; do
+	    $NSEXE ./cmsg_sender -6 -p u $TGT6 1234
+	done
+
+	tcpdump -r $TMPF -v 2>&1 | grep "hlim $LIM[^0-9]" >> /dev/null
+	check_result $? 0 "HOPLIMIT $prot $ovr - packet data"
+	rm $TMPF
+    done
+done
+
 # Summary
 if [ $BAD -ne 0 ]; then
     echo "FAIL - $BAD/$TOTAL cases failed"
