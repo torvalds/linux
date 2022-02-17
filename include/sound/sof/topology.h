@@ -237,7 +237,7 @@ struct sof_ipc_comp_process {
 	/* reserved for future use */
 	uint32_t reserved[7];
 
-	uint8_t data[0];
+	uint8_t data[];
 } __packed;
 
 /* frees components, buffers and pipelines

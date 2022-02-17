@@ -2164,7 +2164,7 @@ static int sof_process_load(struct snd_soc_component *scomp, int index,
 	 */
 	if (ipc_data_size) {
 		for (i = 0; i < widget->num_kcontrols; i++) {
-			memcpy(&process->data + offset,
+			memcpy(&process->data[offset],
 			       wdata[i].pdata->data,
 			       wdata[i].pdata->size);
 			offset += wdata[i].pdata->size;
