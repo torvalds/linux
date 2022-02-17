@@ -43,6 +43,7 @@
 #include "intel_mchbar_regs.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fbc.h"
+#include "display/vlv_dsi_pll_regs.h"
 #include "gt/intel_gt_regs.h"
 
 /* XXX FIXME i915 has changed PP_XXX definition */

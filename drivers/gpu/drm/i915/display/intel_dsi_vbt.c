@@ -44,6 +44,7 @@
 #include "intel_dsi.h"
 #include "intel_dsi_vbt.h"
 #include "vlv_dsi.h"
+#include "vlv_dsi_regs.h"
 #include "vlv_sideband.h"
 
 #define MIPI_TRANSFER_MODE_SHIFT	0

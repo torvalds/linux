@@ -44,6 +44,7 @@
 #include "skl_scaler.h"
 #include "vlv_dsi.h"
 #include "vlv_dsi_pll.h"
+#include "vlv_dsi_regs.h"
 #include "vlv_sideband.h"
 
 /* return pixels in terms of txbyteclkhs */
