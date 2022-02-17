@@ -923,17 +923,15 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 		   yesno(crtc_state->uapi.active),
 		   DRM_MODE_ARG(&crtc_state->uapi.mode));
 
-	if (crtc_state->hw.enable) {
-		seq_printf(m, "\thw: active=%s, adjusted_mode=" DRM_MODE_FMT "\n",
-			   yesno(crtc_state->hw.active),
-			   DRM_MODE_ARG(&crtc_state->hw.adjusted_mode));
+	seq_printf(m, "\thw: active=%s, adjusted_mode=" DRM_MODE_FMT "\n",
+		   yesno(crtc_state->hw.active),
+		   DRM_MODE_ARG(&crtc_state->hw.adjusted_mode));
 
-		seq_printf(m, "\tpipe src size=%dx%d, dither=%s, bpp=%d\n",
-			   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
-			   yesno(crtc_state->dither), crtc_state->pipe_bpp);
+	seq_printf(m, "\tpipe src size=%dx%d, dither=%s, bpp=%d\n",
+		   crtc_state->pipe_src_w, crtc_state->pipe_src_h,
+		   yesno(crtc_state->dither), crtc_state->pipe_bpp);
 
-		intel_scaler_info(m, crtc);
-	}
+	intel_scaler_info(m, crtc);
 
 	if (crtc_state->bigjoiner)
 		seq_printf(m, "\tLinked to 0x%x pipes as a %s\n",
