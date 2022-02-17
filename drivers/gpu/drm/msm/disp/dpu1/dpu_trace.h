@@ -871,27 +871,31 @@ TRACE_EVENT(dpu_pp_connect_ext_te,
 	TP_printk("pp:%d cfg:%u", __entry->pp, __entry->cfg)
 );
 
-DECLARE_EVENT_CLASS(dpu_core_irq_callback_template,
-	TP_PROTO(int irq_idx, struct dpu_irq_callback *callback),
+TRACE_EVENT(dpu_core_irq_register_callback,
+	TP_PROTO(int irq_idx, void *callback),
 	TP_ARGS(irq_idx, callback),
 	TP_STRUCT__entry(
 		__field(	int,				irq_idx	)
-		__field(	struct dpu_irq_callback *,	callback)
+		__field(	void *,				callback)
 	),
 	TP_fast_assign(
 		__entry->irq_idx = irq_idx;
 		__entry->callback = callback;
 	),
-	TP_printk("irq_idx:%d callback:%pK", __entry->irq_idx,
+	TP_printk("irq_idx:%d callback:%ps", __entry->irq_idx,
 		  __entry->callback)
 );
-DEFINE_EVENT(dpu_core_irq_callback_template, dpu_core_irq_register_callback,
-	TP_PROTO(int irq_idx, struct dpu_irq_callback *callback),
-	TP_ARGS(irq_idx, callback)
-);
-DEFINE_EVENT(dpu_core_irq_callback_template, dpu_core_irq_unregister_callback,
-	TP_PROTO(int irq_idx, struct dpu_irq_callback *callback),
-	TP_ARGS(irq_idx, callback)
+
+TRACE_EVENT(dpu_core_irq_unregister_callback,
+	TP_PROTO(int irq_idx),
+	TP_ARGS(irq_idx),
+	TP_STRUCT__entry(
+		__field(	int,				irq_idx	)
+	),
+	TP_fast_assign(
+		__entry->irq_idx = irq_idx;
+	),
+	TP_printk("irq_idx:%d", __entry->irq_idx)
 );
 
 TRACE_EVENT(dpu_core_perf_update_clk,
