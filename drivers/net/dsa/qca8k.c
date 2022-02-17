@@ -1673,6 +1673,34 @@ qca8k_mac_config_setup_internal_delay(struct qca8k_priv *priv, int cpu_port_inde
 			cpu_port_index == QCA8K_CPU_PORT0 ? 0 : 6);
 }
 
+static struct phylink_pcs *
+qca8k_phylink_mac_select_pcs(struct dsa_switch *ds, int port,
+			     phy_interface_t interface)
+{
+	struct qca8k_priv *priv = ds->priv;
+	struct phylink_pcs *pcs = NULL;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+		switch (port) {
+		case 0:
+			pcs = &priv->pcs_port_0.pcs;
+			break;
+
+		case 6:
+			pcs = &priv->pcs_port_6.pcs;
+			break;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return pcs;
+}
+
 static void
 qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 			 const struct phylink_link_state *state)
@@ -1902,17 +1930,24 @@ qca8k_phylink_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 	qca8k_write(priv, QCA8K_REG_PORT_STATUS(port), reg);
 }
 
-static int
-qca8k_phylink_mac_link_state(struct dsa_switch *ds, int port,
-			     struct phylink_link_state *state)
+static struct qca8k_pcs *pcs_to_qca8k_pcs(struct phylink_pcs *pcs)
 {
-	struct qca8k_priv *priv = ds->priv;
+	return container_of(pcs, struct qca8k_pcs, pcs);
+}
+
+static void qca8k_pcs_get_state(struct phylink_pcs *pcs,
+				struct phylink_link_state *state)
+{
+	struct qca8k_priv *priv = pcs_to_qca8k_pcs(pcs)->priv;
+	int port = pcs_to_qca8k_pcs(pcs)->port;
 	u32 reg;
 	int ret;
 
 	ret = qca8k_read(priv, QCA8K_REG_PORT_STATUS(port), &reg);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		state->link = false;
+		return;
+	}
 
 	state->link = !!(reg & QCA8K_PORT_STATUS_LINK_UP);
 	state->an_complete = state->link;
@@ -1935,13 +1970,39 @@ qca8k_phylink_mac_link_state(struct dsa_switch *ds, int port,
 		break;
 	}
 
-	state->pause = MLO_PAUSE_NONE;
 	if (reg & QCA8K_PORT_STATUS_RXFLOW)
 		state->pause |= MLO_PAUSE_RX;
 	if (reg & QCA8K_PORT_STATUS_TXFLOW)
 		state->pause |= MLO_PAUSE_TX;
+}
 
-	return 1;
+static int qca8k_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+			    phy_interface_t interface,
+			    const unsigned long *advertising,
+			    bool permit_pause_to_mac)
+{
+	return 0;
+}
+
+static void qca8k_pcs_an_restart(struct phylink_pcs *pcs)
+{
+}
+
+static const struct phylink_pcs_ops qca8k_pcs_ops = {
+	.pcs_get_state = qca8k_pcs_get_state,
+	.pcs_config = qca8k_pcs_config,
+	.pcs_an_restart = qca8k_pcs_an_restart,
+};
+
+static void qca8k_setup_pcs(struct qca8k_priv *priv, struct qca8k_pcs *qpcs,
+			    int port)
+{
+	qpcs->pcs.ops = &qca8k_pcs_ops;
+
+	/* We don't have interrupts for link changes, so we need to poll */
+	qpcs->pcs.poll = true;
+	qpcs->priv = priv;
+	qpcs->port = port;
 }
 
 static void
@@ -2806,6 +2867,9 @@ qca8k_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
+	qca8k_setup_pcs(priv, &priv->pcs_port_0, 0);
+	qca8k_setup_pcs(priv, &priv->pcs_port_6, 6);
+
 	/* Make sure MAC06 is disabled */
 	ret = regmap_clear_bits(priv->regmap, QCA8K_REG_PORT0_PAD_CTRL,
 				QCA8K_PORT0_PAD_MAC06_EXCHANGE_EN);
@@ -2977,9 +3041,6 @@ qca8k_setup(struct dsa_switch *ds)
 	/* Flush the FDB table */
 	qca8k_fdb_flush(priv);
 
-	/* We don't have interrupts for link changes, so we need to poll */
-	ds->pcs_poll = true;
-
 	/* Set min a max ageing value supported */
 	ds->ageing_time_min = 7000;
 	ds->ageing_time_max = 458745000;
@@ -3018,7 +3079,7 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.port_vlan_add		= qca8k_port_vlan_add,
 	.port_vlan_del		= qca8k_port_vlan_del,
 	.phylink_get_caps	= qca8k_phylink_get_caps,
-	.phylink_mac_link_state	= qca8k_phylink_mac_link_state,
+	.phylink_mac_select_pcs	= qca8k_phylink_mac_select_pcs,
 	.phylink_mac_config	= qca8k_phylink_mac_config,
 	.phylink_mac_link_down	= qca8k_phylink_mac_link_down,
 	.phylink_mac_link_up	= qca8k_phylink_mac_link_up,

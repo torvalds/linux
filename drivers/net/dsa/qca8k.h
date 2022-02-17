@@ -376,6 +376,12 @@ struct qca8k_mdio_cache {
 	u16 hi;
 };
 
+struct qca8k_pcs {
+	struct phylink_pcs pcs;
+	struct qca8k_priv *priv;
+	int port;
+};
+
 struct qca8k_priv {
 	u8 switch_id;
 	u8 switch_revision;
@@ -397,6 +403,8 @@ struct qca8k_priv {
 	struct qca8k_mgmt_eth_data mgmt_eth_data;
 	struct qca8k_mib_eth_data mib_eth_data;
 	struct qca8k_mdio_cache mdio_cache;
+	struct qca8k_pcs pcs_port_0;
+	struct qca8k_pcs pcs_port_6;
 };
 
 struct qca8k_mib_desc {
