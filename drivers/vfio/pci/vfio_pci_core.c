@@ -335,6 +335,17 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 	/* For needs_reset */
 	lockdep_assert_held(&vdev->vdev.dev_set->lock);
 
+	/*
+	 * This function can be invoked while the power state is non-D0.
+	 * This function calls __pci_reset_function_locked() which internally
+	 * can use pci_pm_reset() for the function reset. pci_pm_reset() will
+	 * fail if the power state is non-D0. Also, for the devices which
+	 * have NoSoftRst-, the reset function can cause the PCI config space
+	 * reset without restoring the original state (saved locally in
+	 * 'vdev->pm_save').
+	 */
+	vfio_pci_set_power_state(vdev, PCI_D0);
+
 	/* Stop the device from further DMA */
 	pci_clear_master(pdev);
 
@@ -934,6 +945,19 @@ long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 			return -EINVAL;
 
 		vfio_pci_zap_and_down_write_memory_lock(vdev);
+
+		/*
+		 * This function can be invoked while the power state is non-D0.
+		 * If pci_try_reset_function() has been called while the power
+		 * state is non-D0, then pci_try_reset_function() will
+		 * internally set the power state to D0 without vfio driver
+		 * involvement. For the devices which have NoSoftRst-, the
+		 * reset function can cause the PCI config space reset without
+		 * restoring the original state (saved locally in
+		 * 'vdev->pm_save').
+		 */
+		vfio_pci_set_power_state(vdev, PCI_D0);
+
 		ret = pci_try_reset_function(vdev->pdev);
 		up_write(&vdev->memory_lock);
 
@@ -2077,6 +2101,18 @@ static int vfio_pci_dev_set_hot_reset(struct vfio_device_set *dev_set,
 	}
 	cur_mem = NULL;
 
+	/*
+	 * The pci_reset_bus() will reset all the devices in the bus.
+	 * The power state can be non-D0 for some of the devices in the bus.
+	 * For these devices, the pci_reset_bus() will internally set
+	 * the power state to D0 without vfio driver involvement.
+	 * For the devices which have NoSoftRst-, the reset function can
+	 * cause the PCI config space reset without restoring the original
+	 * state (saved locally in 'vdev->pm_save').
+	 */
+	list_for_each_entry(cur, &dev_set->device_list, vdev.dev_set_list)
+		vfio_pci_set_power_state(cur, PCI_D0);
+
 	ret = pci_reset_bus(pdev);
 
 err_undo:
@@ -2129,6 +2165,18 @@ static bool vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set)
 	pdev = vfio_pci_dev_set_resettable(dev_set);
 	if (!pdev)
 		return false;
+
+	/*
+	 * The pci_reset_bus() will reset all the devices in the bus.
+	 * The power state can be non-D0 for some of the devices in the bus.
+	 * For these devices, the pci_reset_bus() will internally set
+	 * the power state to D0 without vfio driver involvement.
+	 * For the devices which have NoSoftRst-, the reset function can
+	 * cause the PCI config space reset without restoring the original
+	 * state (saved locally in 'vdev->pm_save').
+	 */
+	list_for_each_entry(cur, &dev_set->device_list, vdev.dev_set_list)
+		vfio_pci_set_power_state(cur, PCI_D0);
 
 	ret = pci_reset_bus(pdev);
 	if (ret)
