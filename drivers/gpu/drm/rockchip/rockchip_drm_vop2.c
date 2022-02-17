@@ -3505,7 +3505,9 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 	hdmi0_phy_pll = vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll");
 	hdmi1_phy_pll = vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll");
 
-	if (!hdmi0_phy_pll || !hdmi1_phy_pll)
+	if ((!hdmi0_phy_pll && !hdmi1_phy_pll) ||
+	    ((vcstate->output_if & VOP_OUTPUT_IF_HDMI0) && !hdmi0_phy_pll) ||
+	    ((vcstate->output_if & VOP_OUTPUT_IF_HDMI1) && !hdmi1_phy_pll))
 		return 0;
 
 	if (enable) {
@@ -3533,13 +3535,21 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 		} else if ((vcstate->output_if & VOP_OUTPUT_IF_HDMI0) &&
 			   !(vcstate->output_if & VOP_OUTPUT_IF_HDMI1)) {
 			if (hdmi0_phy_pll->vp_mask) {
-				if (hdmi1_phy_pll->vp_mask) {
-					DRM_ERROR("hdmi0:  phy pll is used by vp%d:vp%d\n",
-						  hdmi0_phy_pll->vp_mask, hdmi1_phy_pll->vp_mask);
+				if (hdmi1_phy_pll) {
+					if (hdmi1_phy_pll->vp_mask) {
+						DRM_ERROR("hdmi0: phy pll is used by vp%d:vp%d\n",
+							  hdmi0_phy_pll->vp_mask,
+							  hdmi1_phy_pll->vp_mask);
+						return -EBUSY;
+					}
+
+					vop2_extend_clk_switch_pll(vop2, hdmi0_phy_pll,
+								   hdmi1_phy_pll);
+				} else {
+					DRM_ERROR("hdmi0: phy pll is used by vp%d\n",
+						  hdmi0_phy_pll->vp_mask);
 					return -EBUSY;
 				}
-
-				vop2_extend_clk_switch_pll(vop2, hdmi0_phy_pll, hdmi1_phy_pll);
 			}
 
 			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE)
@@ -3551,13 +3561,21 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 		} else if (!(vcstate->output_if & VOP_OUTPUT_IF_HDMI0) &&
 			   (vcstate->output_if & VOP_OUTPUT_IF_HDMI1)) {
 			if (hdmi1_phy_pll->vp_mask) {
-				if (hdmi0_phy_pll->vp_mask) {
-					DRM_ERROR("hdmi1:  phy pll is used by vp%d:vp%d\n",
-						  hdmi0_phy_pll->vp_mask, hdmi1_phy_pll->vp_mask);
+				if (hdmi0_phy_pll) {
+					if (hdmi0_phy_pll->vp_mask) {
+						DRM_ERROR("hdmi1: phy pll is used by vp%d:vp%d\n",
+							  hdmi0_phy_pll->vp_mask,
+							  hdmi1_phy_pll->vp_mask);
+						return -EBUSY;
+					}
+
+					vop2_extend_clk_switch_pll(vop2, hdmi1_phy_pll,
+								   hdmi0_phy_pll);
+				} else {
+					DRM_ERROR("hdmi1: phy pll is used by vp%d\n",
+						  hdmi1_phy_pll->vp_mask);
 					return -EBUSY;
 				}
-
-				vop2_extend_clk_switch_pll(vop2, hdmi1_phy_pll, hdmi0_phy_pll);
 			}
 
 			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE)
@@ -3572,24 +3590,22 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 				return 0;
 			}
 
-			if (!hdmi0_phy_pll->vp_mask) {
+			if (hdmi0_phy_pll && !hdmi0_phy_pll->vp_mask) {
 				vop2_clk_set_parent(vp->dclk, hdmi0_phy_pll->clk);
 				hdmi0_phy_pll->vp_mask |= BIT(vp->id);
-			} else if (!hdmi1_phy_pll->vp_mask) {
+			} else if (hdmi1_phy_pll && !hdmi1_phy_pll->vp_mask) {
 				vop2_clk_set_parent(vp->dclk, hdmi1_phy_pll->clk);
 				hdmi1_phy_pll->vp_mask |= BIT(vp->id);
 			} else {
 				DRM_ERROR("No free hdmi phy pll for DP\n");
-				DRM_ERROR("hdmi0/1  phy pll is used by vp%d:vp%d\n",
-					  hdmi0_phy_pll->vp_mask, hdmi1_phy_pll->vp_mask);
 				return -EBUSY;
 			}
 		}
 	} else {
-		if (BIT(vp->id) & hdmi0_phy_pll->vp_mask)
+		if (hdmi0_phy_pll && (BIT(vp->id) & hdmi0_phy_pll->vp_mask))
 			hdmi0_phy_pll->vp_mask &= ~BIT(vp->id);
 
-		if (BIT(vp->id) & hdmi1_phy_pll->vp_mask)
+		if (hdmi1_phy_pll && (BIT(vp->id) & hdmi1_phy_pll->vp_mask))
 			hdmi1_phy_pll->vp_mask &= ~BIT(vp->id);
 	}
 
