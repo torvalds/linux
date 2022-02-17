@@ -5712,6 +5712,13 @@ next_key:
 		} else {
 			break;
 		}
+
+		/*
+		 * We may process many leaves full of items for our inode, so
+		 * avoid monopolizing a cpu for too long by rescheduling while
+		 * not holding locks on any tree.
+		 */
+		cond_resched();
 	}
 	if (ins_nr) {
 		ret = copy_items(trans, inode, dst_path, path, ins_start_slot,
