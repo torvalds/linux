@@ -648,7 +648,8 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo,
 
 	unpack_scmi_header(msg_hdr, &xfer->hdr);
 	if (priv)
-		xfer->priv = priv;
+		/* Ensure order between xfer->priv store and following ops */
+		smp_store_mb(xfer->priv, priv);
 	info->desc->ops->fetch_notification(cinfo, info->desc->max_msg_size,
 					    xfer);
 	scmi_notify(cinfo->handle, xfer->hdr.protocol_id,
@@ -680,7 +681,8 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 		xfer->rx.len = info->desc->max_msg_size;
 
 	if (priv)
-		xfer->priv = priv;
+		/* Ensure order between xfer->priv store and following ops */
+		smp_store_mb(xfer->priv, priv);
 	info->desc->ops->fetch_response(cinfo, xfer);
 
 	trace_scmi_rx_done(xfer->transfer_id, xfer->hdr.id,
