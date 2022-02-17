@@ -518,17 +518,22 @@ process_slot:
 		btrfs_release_path(path);
 
 		/*
-		 * If this is a new extent update the last_reflink_trans of both
-		 * inodes. This is used by fsync to make sure it does not log
-		 * multiple checksum items with overlapping ranges. For older
-		 * extents we don't need to do it since inode logging skips the
-		 * checksums for older extents. Also ignore holes and inline
-		 * extents because they don't have checksums in the csum tree.
+		 * Whenever we share an extent we update the last_reflink_trans
+		 * of each inode to the current transaction. This is needed to
+		 * make sure fsync does not log multiple checksum items with
+		 * overlapping ranges (because some extent items might refer
+		 * only to sections of the original extent). For the destination
+		 * inode we do this regardless of the generation of the extents
+		 * or even if they are inline extents or explicit holes, to make
+		 * sure a full fsync does not skip them. For the source inode,
+		 * we only need to update last_reflink_trans in case it's a new
+		 * extent that is not a hole or an inline extent, to deal with
+		 * the checksums problem on fsync.
 		 */
-		if (extent_gen == trans->transid && disko > 0) {
+		if (extent_gen == trans->transid && disko > 0)
 			BTRFS_I(src)->last_reflink_trans = trans->transid;
-			BTRFS_I(inode)->last_reflink_trans = trans->transid;
-		}
+
+		BTRFS_I(inode)->last_reflink_trans = trans->transid;
 
 		last_dest_end = ALIGN(new_key.offset + datal,
 				      fs_info->sectorsize);

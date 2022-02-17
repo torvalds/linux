@@ -4418,21 +4418,19 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 			       int start_slot, int nr, int inode_only,
 			       u64 logged_isize)
 {
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-	unsigned long src_offset;
-	unsigned long dst_offset;
 	struct btrfs_root *log = inode->root->log_root;
 	struct btrfs_file_extent_item *extent;
-	struct btrfs_inode_item *inode_item;
 	struct extent_buffer *src = src_path->nodes[0];
-	int ret;
+	int ret = 0;
 	struct btrfs_key *ins_keys;
 	u32 *ins_sizes;
 	struct btrfs_item_batch batch;
 	char *ins_data;
 	int i;
+	int dst_index;
 	struct list_head ordered_sums;
-	int skip_csum = inode->flags & BTRFS_INODE_NODATASUM;
+	const bool skip_csum = (inode->flags & BTRFS_INODE_NODATASUM);
+	const u64 i_size = i_size_read(&inode->vfs_inode);
 
 	INIT_LIST_HEAD(&ordered_sums);
 
@@ -4446,28 +4444,140 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	batch.keys = ins_keys;
 	batch.data_sizes = ins_sizes;
 	batch.total_data_size = 0;
-	batch.nr = nr;
+	batch.nr = 0;
 
+	dst_index = 0;
 	for (i = 0; i < nr; i++) {
-		ins_sizes[i] = btrfs_item_size(src, i + start_slot);
-		batch.total_data_size += ins_sizes[i];
-		btrfs_item_key_to_cpu(src, ins_keys + i, i + start_slot);
+		const int src_slot = start_slot + i;
+		struct btrfs_root *csum_root;
+		u64 disk_bytenr;
+		u64 disk_num_bytes;
+		u64 extent_offset;
+		u64 extent_num_bytes;
+		bool is_old_extent;
+
+		btrfs_item_key_to_cpu(src, &ins_keys[dst_index], src_slot);
+
+		if (ins_keys[dst_index].type != BTRFS_EXTENT_DATA_KEY)
+			goto add_to_batch;
+
+		extent = btrfs_item_ptr(src, src_slot,
+					struct btrfs_file_extent_item);
+
+		is_old_extent = (btrfs_file_extent_generation(src, extent) <
+				 trans->transid);
+
+		/*
+		 * Don't copy extents from past generations. That would make us
+		 * log a lot more metadata for common cases like doing only a
+		 * few random writes into a file and then fsync it for the first
+		 * time or after the full sync flag is set on the inode. We can
+		 * get leaves full of extent items, most of which are from past
+		 * generations, so we can skip them - as long as the inode has
+		 * not been the target of a reflink operation in this transaction,
+		 * as in that case it might have had file extent items with old
+		 * generations copied into it. We also must always log prealloc
+		 * extents that start at or beyond eof, otherwise we would lose
+		 * them on log replay.
+		 */
+		if (is_old_extent &&
+		    ins_keys[dst_index].offset < i_size &&
+		    inode->last_reflink_trans < trans->transid)
+			continue;
+
+		if (skip_csum)
+			goto add_to_batch;
+
+		/* Only regular extents have checksums. */
+		if (btrfs_file_extent_type(src, extent) != BTRFS_FILE_EXTENT_REG)
+			goto add_to_batch;
+
+		/*
+		 * If it's an extent created in a past transaction, then its
+		 * checksums are already accessible from the committed csum tree,
+		 * no need to log them.
+		 */
+		if (is_old_extent)
+			goto add_to_batch;
+
+		disk_bytenr = btrfs_file_extent_disk_bytenr(src, extent);
+		/* If it's an explicit hole, there are no checksums. */
+		if (disk_bytenr == 0)
+			goto add_to_batch;
+
+		disk_num_bytes = btrfs_file_extent_disk_num_bytes(src, extent);
+
+		if (btrfs_file_extent_compression(src, extent)) {
+			extent_offset = 0;
+			extent_num_bytes = disk_num_bytes;
+		} else {
+			extent_offset = btrfs_file_extent_offset(src, extent);
+			extent_num_bytes = btrfs_file_extent_num_bytes(src, extent);
+		}
+
+		csum_root = btrfs_csum_root(trans->fs_info, disk_bytenr);
+		disk_bytenr += extent_offset;
+		ret = btrfs_lookup_csums_range(csum_root, disk_bytenr,
+					       disk_bytenr + extent_num_bytes - 1,
+					       &ordered_sums, 0);
+		if (ret)
+			goto out;
+
+add_to_batch:
+		ins_sizes[dst_index] = btrfs_item_size(src, src_slot);
+		batch.total_data_size += ins_sizes[dst_index];
+		batch.nr++;
+		dst_index++;
 	}
+
+	/*
+	 * We have a leaf full of old extent items that don't need to be logged,
+	 * so we don't need to do anything.
+	 */
+	if (batch.nr == 0)
+		goto out;
+
 	ret = btrfs_insert_empty_items(trans, log, dst_path, &batch);
-	if (ret) {
-		kfree(ins_data);
-		return ret;
-	}
+	if (ret)
+		goto out;
 
-	for (i = 0; i < nr; i++, dst_path->slots[0]++) {
-		dst_offset = btrfs_item_ptr_offset(dst_path->nodes[0],
-						   dst_path->slots[0]);
+	dst_index = 0;
+	for (i = 0; i < nr; i++) {
+		const int src_slot = start_slot + i;
+		const int dst_slot = dst_path->slots[0] + dst_index;
+		struct btrfs_key key;
+		unsigned long src_offset;
+		unsigned long dst_offset;
 
-		src_offset = btrfs_item_ptr_offset(src, start_slot + i);
+		/*
+		 * We're done, all the remaining items in the source leaf
+		 * correspond to old file extent items.
+		 */
+		if (dst_index >= batch.nr)
+			break;
 
-		if (ins_keys[i].type == BTRFS_INODE_ITEM_KEY) {
-			inode_item = btrfs_item_ptr(dst_path->nodes[0],
-						    dst_path->slots[0],
+		btrfs_item_key_to_cpu(src, &key, src_slot);
+
+		if (key.type != BTRFS_EXTENT_DATA_KEY)
+			goto copy_item;
+
+		extent = btrfs_item_ptr(src, src_slot,
+					struct btrfs_file_extent_item);
+
+		/* See the comment in the previous loop, same logic. */
+		if (btrfs_file_extent_generation(src, extent) < trans->transid &&
+		    key.offset < i_size &&
+		    inode->last_reflink_trans < trans->transid)
+			continue;
+
+copy_item:
+		dst_offset = btrfs_item_ptr_offset(dst_path->nodes[0], dst_slot);
+		src_offset = btrfs_item_ptr_offset(src, src_slot);
+
+		if (key.type == BTRFS_INODE_ITEM_KEY) {
+			struct btrfs_inode_item *inode_item;
+
+			inode_item = btrfs_item_ptr(dst_path->nodes[0], dst_slot,
 						    struct btrfs_inode_item);
 			fill_inode_item(trans, dst_path->nodes[0], inode_item,
 					&inode->vfs_inode,
@@ -4475,55 +4585,15 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 					logged_isize);
 		} else {
 			copy_extent_buffer(dst_path->nodes[0], src, dst_offset,
-					   src_offset, ins_sizes[i]);
+					   src_offset, ins_sizes[dst_index]);
 		}
 
-		/* take a reference on file data extents so that truncates
-		 * or deletes of this inode don't have to relog the inode
-		 * again
-		 */
-		if (ins_keys[i].type == BTRFS_EXTENT_DATA_KEY &&
-		    !skip_csum) {
-			int found_type;
-			extent = btrfs_item_ptr(src, start_slot + i,
-						struct btrfs_file_extent_item);
-
-			if (btrfs_file_extent_generation(src, extent) < trans->transid)
-				continue;
-
-			found_type = btrfs_file_extent_type(src, extent);
-			if (found_type == BTRFS_FILE_EXTENT_REG) {
-				struct btrfs_root *csum_root;
-				u64 ds, dl, cs, cl;
-				ds = btrfs_file_extent_disk_bytenr(src,
-								extent);
-				/* ds == 0 is a hole */
-				if (ds == 0)
-					continue;
-
-				dl = btrfs_file_extent_disk_num_bytes(src,
-								extent);
-				cs = btrfs_file_extent_offset(src, extent);
-				cl = btrfs_file_extent_num_bytes(src,
-								extent);
-				if (btrfs_file_extent_compression(src,
-								  extent)) {
-					cs = 0;
-					cl = dl;
-				}
-
-				csum_root = btrfs_csum_root(fs_info, ds);
-				ret = btrfs_lookup_csums_range(csum_root,
-						ds + cs, ds + cs + cl - 1,
-						&ordered_sums, 0);
-				if (ret)
-					break;
-			}
-		}
+		dst_index++;
 	}
 
 	btrfs_mark_buffer_dirty(dst_path->nodes[0]);
 	btrfs_release_path(dst_path);
+out:
 	kfree(ins_data);
 
 	/*
