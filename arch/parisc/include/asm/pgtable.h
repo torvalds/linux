@@ -70,9 +70,9 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 	unsigned long flags;
 
 	purge_tlb_start(flags);
-	mtsp(mm->context.space_id, 1);
-	pdtlb(addr);
-	pitlb(addr);
+	mtsp(mm->context.space_id, SR_TEMP1);
+	pdtlb(SR_TEMP1, addr);
+	pitlb(SR_TEMP1, addr);
 	purge_tlb_end(flags);
 }
 

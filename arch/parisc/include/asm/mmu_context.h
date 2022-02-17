@@ -43,7 +43,7 @@ static inline unsigned long __space_to_prot(mm_context_t context)
 
 static inline void load_context(mm_context_t context)
 {
-	mtsp(context.space_id, 3);
+	mtsp(context.space_id, SR_USER);
 	mtctl(__space_to_prot(context), 8);
 }
 

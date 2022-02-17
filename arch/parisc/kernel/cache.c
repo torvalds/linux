@@ -457,7 +457,7 @@ void flush_kernel_dcache_page_addr(void *addr)
 
 	flush_kernel_dcache_page_asm(addr);
 	purge_tlb_start(flags);
-	pdtlb_kernel(addr);
+	pdtlb(SR_KERNEL, addr);
 	purge_tlb_end(flags);
 }
 EXPORT_SYMBOL(flush_kernel_dcache_page_addr);
@@ -496,9 +496,9 @@ int __flush_tlb_range(unsigned long sid, unsigned long start,
 	   but cause a purge request to be broadcast to other TLBs.  */
 	while (start < end) {
 		purge_tlb_start(flags);
-		mtsp(sid, 1);
-		pdtlb(start);
-		pitlb(start);
+		mtsp(sid, SR_TEMP1);
+		pdtlb(SR_TEMP1, start);
+		pitlb(SR_TEMP1, start);
 		purge_tlb_end(flags);
 		start += PAGE_SIZE;
 	}
