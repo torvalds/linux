@@ -176,7 +176,7 @@ static int irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
 	ret = ice_add_rdma_qset(pf, &qset);
 	if (ret) {
 		ibdev_dbg(&iwdev->ibdev, "WS: LAN alloc_res for rdma qset failed.\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	tc_node->l2_sched_node_id = qset.teid;
@@ -280,10 +280,9 @@ static int irdma_probe(struct auxiliary_device *aux_dev, const struct auxiliary_
 	irdma_fill_device_info(iwdev, pf, vsi);
 	rf = iwdev->rf;
 
-	if (irdma_ctrl_init_hw(rf)) {
-		err = -EIO;
+	err = irdma_ctrl_init_hw(rf);
+	if (err)
 		goto err_ctrl_init;
-	}
 
 	l2params.mtu = iwdev->netdev->mtu;
 	ice_get_qos_params(pf, &qos_info);
@@ -291,10 +290,9 @@ static int irdma_probe(struct auxiliary_device *aux_dev, const struct auxiliary_
 	if (iwdev->rf->protocol_used != IRDMA_IWARP_PROTOCOL_ONLY)
 		iwdev->dcb_vlan_mode = l2params.num_tc > 1 && !l2params.dscp_mode;
 
-	if (irdma_rt_init_hw(iwdev, &l2params)) {
-		err = -EIO;
+	err = irdma_rt_init_hw(iwdev, &l2params);
+	if (err)
 		goto err_rt_init;
-	}
 
 	err = irdma_ib_register_device(iwdev);
 	if (err)

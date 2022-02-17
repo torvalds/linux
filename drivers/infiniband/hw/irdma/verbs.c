@@ -603,7 +603,7 @@ static int irdma_setup_kmode_qp(struct irdma_device *iwdev,
 	status = irdma_get_sqdepth(uk_attrs, ukinfo->sq_size, sqshift,
 				   &sqdepth);
 	if (status)
-		return -ENOMEM;
+		return status;
 
 	if (uk_attrs->hw_rev == IRDMA_GEN_1)
 		rqshift = IRDMA_MAX_RQ_WQE_SHIFT_GEN1;
@@ -614,7 +614,7 @@ static int irdma_setup_kmode_qp(struct irdma_device *iwdev,
 	status = irdma_get_rqdepth(uk_attrs, ukinfo->rq_size, rqshift,
 				   &rqdepth);
 	if (status)
-		return -ENOMEM;
+		return status;
 
 	iwqp->kqp.sq_wrid_mem =
 		kcalloc(sqdepth, sizeof(*iwqp->kqp.sq_wrid_mem), GFP_KERNEL);
@@ -688,7 +688,7 @@ static int irdma_cqp_create_qp_cmd(struct irdma_qp *iwqp)
 	status = irdma_handle_cqp_op(rf, cqp_request);
 	irdma_put_cqp_request(&rf->cqp, cqp_request);
 
-	return status ? -ENOMEM : 0;
+	return status;
 }
 
 static void irdma_roce_fill_and_set_qpctx_info(struct irdma_qp *iwqp,
@@ -2316,7 +2316,7 @@ static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 		status = irdma_get_pble(rf->pble_rsrc, palloc, iwmr->page_cnt,
 					false);
 		if (status)
-			return -ENOMEM;
+			return status;
 
 		iwpbl->pbl_allocated = true;
 		level = palloc->level;
@@ -2457,7 +2457,7 @@ static int irdma_hw_alloc_mw(struct irdma_device *iwdev, struct irdma_mr *iwmr)
 	status = irdma_handle_cqp_op(iwdev->rf, cqp_request);
 	irdma_put_cqp_request(&iwdev->rf->cqp, cqp_request);
 
-	return status ? -ENOMEM : 0;
+	return status;
 }
 
 /**
@@ -3553,7 +3553,7 @@ error:
 	ibdev_dbg(&iwdev->ibdev, "%s: Error polling CQ, irdma_err: %d\n",
 		  __func__, ret);
 
-	return -EINVAL;
+	return ret;
 }
 
 /**
@@ -3873,10 +3873,8 @@ static int irdma_mcast_cqp_op(struct irdma_device *iwdev,
 	cqp_info->in.u.mc_create.cqp = &iwdev->rf->cqp.sc_cqp;
 	status = irdma_handle_cqp_op(iwdev->rf, cqp_request);
 	irdma_put_cqp_request(&iwdev->rf->cqp, cqp_request);
-	if (status)
-		return -ENOMEM;
 
-	return 0;
+	return status;
 }
 
 /**

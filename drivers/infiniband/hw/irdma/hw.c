@@ -1099,7 +1099,7 @@ static int irdma_cfg_ceq_vector(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
 	irq_update_affinity_hint(msix_vec->irq, &msix_vec->mask);
 	if (status) {
 		ibdev_dbg(&rf->iwdev->ibdev, "ERR: ceq irq config fail\n");
-		return -EINVAL;
+		return status;
 	}
 
 	msix_vec->ceq_id = ceq_id;
