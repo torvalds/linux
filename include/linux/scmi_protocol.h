@@ -619,6 +619,8 @@ struct scmi_notify_ops {
  *			 be interested to know if they can assume SCMI
  *			 command transactions associated to this handle will
  *			 never sleep and act accordingly.
+ *			 An optional atomic threshold value could be returned
+ *			 where configured.
  * @notify_ops: pointer to set of notifications related operations
  */
 struct scmi_handle {
@@ -629,7 +631,8 @@ struct scmi_handle {
 		(*devm_protocol_get)(struct scmi_device *sdev, u8 proto,
 				     struct scmi_protocol_handle **ph);
 	void (*devm_protocol_put)(struct scmi_device *sdev, u8 proto);
-	bool (*is_transport_atomic)(const struct scmi_handle *handle);
+	bool (*is_transport_atomic)(const struct scmi_handle *handle,
+				    unsigned int *atomic_threshold);
 
 	const struct scmi_notify_ops *notify_ops;
 };
