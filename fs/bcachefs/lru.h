@@ -12,4 +12,6 @@ void bch2_lru_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 int bch2_lru_change(struct btree_trans *, u64, u64, u64, u64 *);
 
+int bch2_check_lrus(struct bch_fs *, bool);
+
 #endif /* _BCACHEFS_LRU_H */

@@ -16,6 +16,7 @@
 #include "journal_io.h"
 #include "journal_reclaim.h"
 #include "journal_seq_blacklist.h"
+#include "lru.h"
 #include "move.h"
 #include "quota.h"
 #include "recovery.h"
@@ -1166,11 +1167,24 @@ use_clean:
 		bool metadata_only = c->opts.norecovery;
 
 		bch_info(c, "checking allocations");
-		err = "error in mark and sweep";
+		err = "error checking allocations";
 		ret = bch2_gc(c, true, metadata_only);
 		if (ret)
 			goto err;
 		bch_verbose(c, "done checking allocations");
+	}
+
+	if (c->opts.fsck) {
+		bch_info(c, "checking need_discard and freespace btrees");
+		err = "error checking need_discard and freespace btrees";
+		ret = bch2_check_alloc_info(c, true);
+		if (ret)
+			goto err;
+
+		ret = bch2_check_lrus(c, true);
+		if (ret)
+			goto err;
+		bch_verbose(c, "done checking need_discard and freespace btrees");
 	}
 
 	bch2_stripes_heap_start(c);
@@ -1201,6 +1215,19 @@ use_clean:
 	ret = bch2_fs_freespace_init(c);
 	if (ret)
 		goto err;
+
+	if (c->opts.fsck) {
+		bch_info(c, "checking alloc to lru refs");
+		err = "error checking alloc to lru refs";
+		ret = bch2_check_alloc_to_lru_refs(c);
+		if (ret)
+			goto err;
+
+		ret = bch2_check_lrus(c, true);
+		if (ret)
+			goto err;
+		bch_verbose(c, "done checking alloc to lru refs");
+	}
 
 	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
 		bch2_fs_lazy_rw(c);
