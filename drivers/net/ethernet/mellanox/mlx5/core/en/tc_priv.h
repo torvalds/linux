@@ -109,6 +109,7 @@ struct mlx5e_tc_flow {
 	struct completion init_done;
 	struct completion del_hw_done;
 	struct mlx5_flow_attr *attr;
+	struct list_head attrs;
 };
 
 struct mlx5_flow_handle *
@@ -128,6 +129,12 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 			   struct mlx5e_tc_flow *flow,
 			   struct mlx5_flow_spec *spec,
 			   struct mlx5_flow_attr *attr);
+
+struct mlx5_flow_attr *
+mlx5e_tc_get_encap_attr(struct mlx5e_tc_flow *flow);
+
+void mlx5e_tc_unoffload_flow_post_acts(struct mlx5e_tc_flow *flow);
+int mlx5e_tc_offload_flow_post_acts(struct mlx5e_tc_flow *flow);
 
 bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow);
 bool mlx5e_is_ft_flow(struct mlx5e_tc_flow *flow);

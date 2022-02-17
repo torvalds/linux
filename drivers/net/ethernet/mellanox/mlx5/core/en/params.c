@@ -178,6 +178,12 @@ u8 mlx5e_mpwqe_get_log_num_strides(struct mlx5_core_dev *mdev,
 		mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk);
 }
 
+u8 mlx5e_mpwqe_get_min_wqe_bulk(unsigned int wq_sz)
+{
+#define UMR_WQE_BULK (2)
+	return min_t(unsigned int, UMR_WQE_BULK, wq_sz / 2 - 1);
+}
+
 u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 			  struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk)
@@ -359,12 +365,13 @@ void mlx5e_build_rq_params(struct mlx5_core_dev *mdev,
 {
 	/* Prefer Striding RQ, unless any of the following holds:
 	 * - Striding RQ configuration is not possible/supported.
-	 * - Slow PCI heuristic.
+	 * - CQE compression is ON, and stride_index mini_cqe layout is not supported.
 	 * - Legacy RQ would use linear SKB while Striding RQ would use non-linear.
 	 *
 	 * No XSK params: checking the availability of striding RQ in general.
 	 */
-	if (!slow_pci_heuristic(mdev) &&
+	if ((!MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS) ||
+	     MLX5_CAP_GEN(mdev, mini_cqe_resp_stride_index)) &&
 	    mlx5e_striding_rq_possible(mdev, params) &&
 	    (mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL) ||
 	     !mlx5e_rx_is_linear_skb(params, NULL)))

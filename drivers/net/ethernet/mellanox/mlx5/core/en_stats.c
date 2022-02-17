@@ -2348,7 +2348,7 @@ MLX5E_DEFINE_STATS_GRP(channels, 0);
 MLX5E_DEFINE_STATS_GRP(per_port_buff_congest, 0);
 MLX5E_DEFINE_STATS_GRP(eth_ext, 0);
 static MLX5E_DEFINE_STATS_GRP(tls, 0);
-static MLX5E_DEFINE_STATS_GRP(ptp, 0);
+MLX5E_DEFINE_STATS_GRP(ptp, 0);
 static MLX5E_DEFINE_STATS_GRP(qos, 0);
 
 /* The stats groups order is opposite to the update_stats() order calls */

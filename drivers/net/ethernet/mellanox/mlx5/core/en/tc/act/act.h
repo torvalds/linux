@@ -16,6 +16,7 @@ struct mlx5e_tc_act_parse_state {
 	unsigned int num_actions;
 	struct mlx5e_tc_flow *flow;
 	struct netlink_ext_ack *extack;
+	u32 actions;
 	bool ct;
 	bool encap;
 	bool decap;
@@ -41,6 +42,15 @@ struct mlx5e_tc_act {
 	int (*post_parse)(struct mlx5e_tc_act_parse_state *parse_state,
 			  struct mlx5e_priv *priv,
 			  struct mlx5_flow_attr *attr);
+
+	bool (*is_multi_table_act)(struct mlx5e_priv *priv,
+				   const struct flow_action_entry *act,
+				   struct mlx5_flow_attr *attr);
+};
+
+struct mlx5e_tc_flow_action {
+	unsigned int num_entries;
+	struct flow_action_entry **entries;
 };
 
 extern struct mlx5e_tc_act mlx5e_tc_act_drop;
@@ -72,5 +82,20 @@ mlx5e_tc_act_init_parse_state(struct mlx5e_tc_act_parse_state *parse_state,
 			      struct mlx5e_tc_flow *flow,
 			      struct flow_action *flow_action,
 			      struct netlink_ext_ack *extack);
+
+void
+mlx5e_tc_act_reorder_flow_actions(struct flow_action *flow_action,
+				  struct mlx5e_tc_flow_action *flow_action_reorder);
+
+int
+mlx5e_tc_act_post_parse(struct mlx5e_tc_act_parse_state *parse_state,
+			struct flow_action *flow_action,
+			struct mlx5_flow_attr *attr,
+			enum mlx5_flow_namespace_type ns_type);
+
+int
+mlx5e_tc_act_set_next_post_act(struct mlx5e_tc_flow *flow,
+			       struct mlx5_flow_attr *attr,
+			       struct mlx5_flow_attr *next_attr);
 
 #endif /* __MLX5_EN_TC_ACT_H__ */

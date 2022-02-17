@@ -2,6 +2,7 @@
 // Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 #include "act.h"
+#include "en/tc/post_act.h"
 #include "en/tc_priv.h"
 #include "mlx5_core.h"
 
@@ -100,4 +101,76 @@ mlx5e_tc_act_init_parse_state(struct mlx5e_tc_act_parse_state *parse_state,
 	parse_state->flow = flow;
 	parse_state->num_actions = flow_action->num_entries;
 	parse_state->extack = extack;
+}
+
+void
+mlx5e_tc_act_reorder_flow_actions(struct flow_action *flow_action,
+				  struct mlx5e_tc_flow_action *flow_action_reorder)
+{
+	struct flow_action_entry *act;
+	int i, j = 0;
+
+	flow_action_for_each(i, act, flow_action) {
+		/* Add CT action to be first. */
+		if (act->id == FLOW_ACTION_CT)
+			flow_action_reorder->entries[j++] = act;
+	}
+
+	flow_action_for_each(i, act, flow_action) {
+		if (act->id == FLOW_ACTION_CT)
+			continue;
+		flow_action_reorder->entries[j++] = act;
+	}
+}
+
+int
+mlx5e_tc_act_post_parse(struct mlx5e_tc_act_parse_state *parse_state,
+			struct flow_action *flow_action,
+			struct mlx5_flow_attr *attr,
+			enum mlx5_flow_namespace_type ns_type)
+{
+	struct flow_action_entry *act;
+	struct mlx5e_tc_act *tc_act;
+	struct mlx5e_priv *priv;
+	int err = 0, i;
+
+	priv = parse_state->flow->priv;
+
+	flow_action_for_each(i, act, flow_action) {
+		tc_act = mlx5e_tc_act_get(act->id, ns_type);
+		if (!tc_act || !tc_act->post_parse ||
+		    !tc_act->can_offload(parse_state, act, i, attr))
+			continue;
+
+		err = tc_act->post_parse(parse_state, priv, attr);
+		if (err)
+			goto out;
+	}
+
+out:
+	return err;
+}
+
+int
+mlx5e_tc_act_set_next_post_act(struct mlx5e_tc_flow *flow,
+			       struct mlx5_flow_attr *attr,
+			       struct mlx5_flow_attr *next_attr)
+{
+	struct mlx5_core_dev *mdev = flow->priv->mdev;
+	struct mlx5e_tc_mod_hdr_acts *mod_acts;
+	int err;
+
+	mod_acts = &attr->parse_attr->mod_hdr_acts;
+
+	/* Set handle on current post act rule to next post act rule. */
+	err = mlx5e_tc_post_act_set_handle(mdev, next_attr->post_act_handle, mod_acts);
+	if (err) {
+		mlx5_core_warn(mdev, "Failed setting post action handle");
+		return err;
+	}
+
+	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+			MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+
+	return 0;
 }

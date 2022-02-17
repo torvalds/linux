@@ -53,7 +53,6 @@
 			    ESW_FLOW_ATTR_SZ :\
 			    NIC_FLOW_ATTR_SZ)
 
-
 int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags);
 
 struct mlx5e_tc_update_priv {
@@ -84,6 +83,8 @@ struct mlx5_flow_attr {
 	u8 tun_ip_version;
 	int tunnel_id; /* mapped tunnel id */
 	u32 flags;
+	struct list_head list;
+	struct mlx5e_post_act_handle *post_act_handle;
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
 		struct mlx5_nic_flow_attr nic_attr[0];
@@ -167,8 +168,11 @@ enum {
 
 #define MLX5_TC_FLAG(flag) BIT(MLX5E_TC_FLAG_##flag##_BIT)
 
-int mlx5e_tc_esw_init(struct rhashtable *tc_ht);
-void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht);
+int mlx5e_tc_esw_init(struct mlx5_rep_uplink_priv *uplink_priv);
+void mlx5e_tc_esw_cleanup(struct mlx5_rep_uplink_priv *uplink_priv);
+
+int mlx5e_tc_ht_init(struct rhashtable *tc_ht);
+void mlx5e_tc_ht_cleanup(struct rhashtable *tc_ht);
 
 int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			   struct flow_cls_offload *f, unsigned long flags);
@@ -304,6 +308,8 @@ int mlx5e_set_fwd_to_int_port_actions(struct mlx5e_priv *priv,
 #else /* CONFIG_MLX5_CLS_ACT */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}
+static inline int mlx5e_tc_ht_init(struct rhashtable *tc_ht) { return 0; }
+static inline void mlx5e_tc_ht_cleanup(struct rhashtable *tc_ht) {}
 static inline int
 mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
 { return -EOPNOTSUPP; }

@@ -595,6 +595,7 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		rq->mpwqe.log_stride_sz = mlx5e_mpwqe_get_log_stride_size(mdev, params, xsk);
 		rq->mpwqe.num_strides =
 			BIT(mlx5e_mpwqe_get_log_num_strides(mdev, params, xsk));
+		rq->mpwqe.min_wqe_bulk = mlx5e_mpwqe_get_min_wqe_bulk(wq_sz);
 
 		rq->buff.frame0_sz = (1 << rq->mpwqe.log_stride_sz);
 
