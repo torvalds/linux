@@ -2654,6 +2654,38 @@ synchronize_rcu(), and rcu_barrier(), respectively. In
 three APIs are therefore implemented by separate functions that check
 for voluntary context switches.
 
+Tasks Rude RCU
+~~~~~~~~~~~~~~
+
+Some forms of tracing need to wait for all preemption-disabled regions
+of code running on any online CPU, including those executed when RCU is
+not watching.  This means that synchronize_rcu() is insufficient, and
+Tasks Rude RCU must be used instead.  This flavor of RCU does its work by
+forcing a workqueue to be scheduled on each online CPU, hence the "Rude"
+moniker.  And this operation is considered to be quite rude by real-time
+workloads that don't want their ``nohz_full`` CPUs receiving IPIs and
+by battery-powered systems that don't want their idle CPUs to be awakened.
+
+The tasks-rude-RCU API is also reader-marking-free and thus quite compact,
+consisting of call_rcu_tasks_rude(), synchronize_rcu_tasks_rude(),
+and rcu_barrier_tasks_rude().
+
+Tasks Trace RCU
+~~~~~~~~~~~~~~~
+
+Some forms of tracing need to sleep in readers, but cannot tolerate
+SRCU's read-side overhead, which includes a full memory barrier in both
+srcu_read_lock() and srcu_read_unlock().  This need is handled by a
+Tasks Trace RCU that uses scheduler locking and IPIs to synchronize with
+readers.  Real-time systems that cannot tolerate IPIs may build their
+kernels with ``CONFIG_TASKS_TRACE_RCU_READ_MB=y``, which avoids the IPIs at
+the expense of adding full memory barriers to the read-side primitives.
+
+The tasks-trace-RCU API is also reasonably compact,
+consisting of rcu_read_lock_trace(), rcu_read_unlock_trace(),
+rcu_read_lock_trace_held(), call_rcu_tasks_trace(),
+synchronize_rcu_tasks_trace(), and rcu_barrier_tasks_trace().
+
 Possible Future Changes
 -----------------------
 
