@@ -1115,6 +1115,7 @@ ipv6_add_addr(struct inet6_dev *idev, struct ifa6_config *cfg,
 	ifa->prefix_len = cfg->plen;
 	ifa->rt_priority = cfg->rt_priority;
 	ifa->flags = cfg->ifa_flags;
+	ifa->ifa_proto = cfg->ifa_proto;
 	/* No need to add the TENTATIVE flag for addresses with NODAD */
 	if (!(cfg->ifa_flags & IFA_F_NODAD))
 		ifa->flags |= IFA_F_TENTATIVE;
@@ -2593,6 +2594,7 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
 			.valid_lft = valid_lft,
 			.preferred_lft = prefered_lft,
 			.scope = addr_type & IPV6_ADDR_SCOPE_MASK,
+			.ifa_proto = IFAPROT_KERNEL_RA
 		};
 
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
@@ -3077,7 +3079,7 @@ int addrconf_del_ifaddr(struct net *net, void __user *arg)
 }
 
 static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
-		     int plen, int scope)
+		     int plen, int scope, u8 proto)
 {
 	struct inet6_ifaddr *ifp;
 	struct ifa6_config cfg = {
@@ -3086,7 +3088,8 @@ static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 		.ifa_flags = IFA_F_PERMANENT,
 		.valid_lft = INFINITY_LIFE_TIME,
 		.preferred_lft = INFINITY_LIFE_TIME,
-		.scope = scope
+		.scope = scope,
+		.ifa_proto = proto
 	};
 
 	ifp = ipv6_add_addr(idev, &cfg, true, NULL);
@@ -3131,7 +3134,7 @@ static void add_v4_addrs(struct inet6_dev *idev)
 	}
 
 	if (addr.s6_addr32[3]) {
-		add_addr(idev, &addr, plen, scope);
+		add_addr(idev, &addr, plen, scope, IFAPROT_UNSPEC);
 		addrconf_prefix_route(&addr, plen, 0, idev->dev, 0, pflags,
 				      GFP_KERNEL);
 		return;
@@ -3154,7 +3157,8 @@ static void add_v4_addrs(struct inet6_dev *idev)
 					flag |= IFA_HOST;
 				}
 
-				add_addr(idev, &addr, plen, flag);
+				add_addr(idev, &addr, plen, flag,
+					 IFAPROT_UNSPEC);
 				addrconf_prefix_route(&addr, plen, 0, idev->dev,
 						      0, pflags, GFP_KERNEL);
 			}
@@ -3177,7 +3181,7 @@ static void init_loopback(struct net_device *dev)
 		return;
 	}
 
-	add_addr(idev, &in6addr_loopback, 128, IFA_HOST);
+	add_addr(idev, &in6addr_loopback, 128, IFA_HOST, IFAPROT_KERNEL_LO);
 }
 
 void addrconf_add_linklocal(struct inet6_dev *idev,
@@ -3189,7 +3193,8 @@ void addrconf_add_linklocal(struct inet6_dev *idev,
 		.ifa_flags = flags | IFA_F_PERMANENT,
 		.valid_lft = INFINITY_LIFE_TIME,
 		.preferred_lft = INFINITY_LIFE_TIME,
-		.scope = IFA_LINK
+		.scope = IFA_LINK,
+		.ifa_proto = IFAPROT_KERNEL_LL
 	};
 	struct inet6_ifaddr *ifp;
 
@@ -4627,6 +4632,7 @@ static const struct nla_policy ifa_ipv6_policy[IFA_MAX+1] = {
 	[IFA_FLAGS]		= { .len = sizeof(u32) },
 	[IFA_RT_PRIORITY]	= { .len = sizeof(u32) },
 	[IFA_TARGET_NETNSID]	= { .type = NLA_S32 },
+	[IFA_PROTO]		= { .type = NLA_U8 },
 };
 
 static int
@@ -4752,6 +4758,7 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 	ifp->tstamp = jiffies;
 	ifp->valid_lft = cfg->valid_lft;
 	ifp->prefered_lft = cfg->preferred_lft;
+	ifp->ifa_proto = cfg->ifa_proto;
 
 	if (cfg->rt_priority && cfg->rt_priority != ifp->rt_priority)
 		ifp->rt_priority = cfg->rt_priority;
@@ -4844,6 +4851,9 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	cfg.plen = ifm->ifa_prefixlen;
 	if (tb[IFA_RT_PRIORITY])
 		cfg.rt_priority = nla_get_u32(tb[IFA_RT_PRIORITY]);
+
+	if (tb[IFA_PROTO])
+		cfg.ifa_proto = nla_get_u8(tb[IFA_PROTO]);
 
 	cfg.valid_lft = INFINITY_LIFE_TIME;
 	cfg.preferred_lft = INFINITY_LIFE_TIME;
@@ -4948,6 +4958,7 @@ static inline int inet6_ifaddr_msgsize(void)
 	       + nla_total_size(16) /* IFA_ADDRESS */
 	       + nla_total_size(sizeof(struct ifa_cacheinfo))
 	       + nla_total_size(4)  /* IFA_FLAGS */
+	       + nla_total_size(1)  /* IFA_PROTO */
 	       + nla_total_size(4)  /* IFA_RT_PRIORITY */;
 }
 
@@ -5023,6 +5034,10 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 		goto error;
 
 	if (nla_put_u32(skb, IFA_FLAGS, ifa->flags) < 0)
+		goto error;
+
+	if (ifa->ifa_proto &&
+	    nla_put_u8(skb, IFA_PROTO, ifa->ifa_proto))
 		goto error;
 
 	nlmsg_end(skb, nlh);
