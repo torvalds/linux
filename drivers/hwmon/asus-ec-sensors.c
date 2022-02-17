@@ -597,18 +597,12 @@ static struct hwmon_chip_info asus_ec_chip_info = {
 	.ops = &asus_ec_hwmon_ops,
 };
 
-static unsigned long __init
-get_board_sensors(const struct device *dev)
+static unsigned long __init get_board_sensors(void)
 {
-	const struct dmi_system_id *dmi_entry;
+	const struct dmi_system_id *dmi_entry =
+		dmi_first_match(asus_ec_dmi_table);
 
-	dmi_entry = dmi_first_match(asus_ec_dmi_table);
-	if (!dmi_entry) {
-		dev_info(dev, "Unsupported board");
-		return 0;
-	}
-
-	return (unsigned long)dmi_entry->driver_data;
+	return dmi_entry ? (unsigned long)dmi_entry->driver_data : 0;
 }
 
 static int __init asus_ec_probe(struct platform_device *pdev)
@@ -625,7 +619,7 @@ static int __init asus_ec_probe(struct platform_device *pdev)
 	struct device *hwdev;
 	unsigned int i;
 
-	board_sensors = get_board_sensors(dev);
+	board_sensors = get_board_sensors();
 	if (!board_sensors)
 		return -ENODEV;
 
