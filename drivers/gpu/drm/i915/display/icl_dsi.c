@@ -29,6 +29,7 @@
 #include <drm/drm_mipi_dsi.h>
 
 #include "icl_dsi.h"
+#include "icl_dsi_regs.h"
 #include "intel_atomic.h"
 #include "intel_backlight.h"
 #include "intel_combo_phy.h"

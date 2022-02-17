@@ -34,6 +34,7 @@
 
 #include <drm/drm_drv.h>
 
+#include "display/icl_dsi_regs.h"
 #include "display/intel_de.h"
 #include "display/intel_display_trace.h"
 #include "display/intel_display_types.h"
