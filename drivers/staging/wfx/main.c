@@ -190,7 +190,7 @@ bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
 			goto next;
 		}
 		if (chunk_len > WFX_PDS_MAX_CHUNK_SIZE)
-			dev_warn(wdev->dev, "PDS:%d: unexpectly large chunk\n", chunk_num);
+			dev_warn(wdev->dev, "PDS:%d: unexpectedly large chunk\n", chunk_num);
 		if (buf[4] != '{' || buf[chunk_len - 1] != '}')
 			dev_warn(wdev->dev, "PDS:%d: unexpected content\n", chunk_num);
 
