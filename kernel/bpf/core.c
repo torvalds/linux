@@ -1069,6 +1069,7 @@ bpf_jit_binary_pack_alloc(unsigned int proglen, u8 **image_ptr,
 
 	*rw_header = kvmalloc(size, GFP_KERNEL);
 	if (!*rw_header) {
+		bpf_arch_text_copy(&ro_header->size, &size, sizeof(size));
 		bpf_prog_pack_free(ro_header);
 		bpf_jit_uncharge_modmem(size);
 		return NULL;
