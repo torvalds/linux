@@ -1706,8 +1706,8 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 			 const struct phylink_link_state *state)
 {
 	struct qca8k_priv *priv = ds->priv;
-	int cpu_port_index, ret;
-	u32 reg, val;
+	int cpu_port_index;
+	u32 reg;
 
 	switch (port) {
 	case 0: /* 1st CPU port */
@@ -1773,70 +1773,6 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	case PHY_INTERFACE_MODE_1000BASEX:
 		/* Enable SGMII on the port */
 		qca8k_write(priv, reg, QCA8K_PORT_PAD_SGMII_EN);
-
-		/* Enable/disable SerDes auto-negotiation as necessary */
-		ret = qca8k_read(priv, QCA8K_REG_PWS, &val);
-		if (ret)
-			return;
-		if (phylink_autoneg_inband(mode))
-			val &= ~QCA8K_PWS_SERDES_AEN_DIS;
-		else
-			val |= QCA8K_PWS_SERDES_AEN_DIS;
-		qca8k_write(priv, QCA8K_REG_PWS, val);
-
-		/* Configure the SGMII parameters */
-		ret = qca8k_read(priv, QCA8K_REG_SGMII_CTRL, &val);
-		if (ret)
-			return;
-
-		val |= QCA8K_SGMII_EN_SD;
-
-		if (priv->ports_config.sgmii_enable_pll)
-			val |= QCA8K_SGMII_EN_PLL | QCA8K_SGMII_EN_RX |
-			       QCA8K_SGMII_EN_TX;
-
-		if (dsa_is_cpu_port(ds, port)) {
-			/* CPU port, we're talking to the CPU MAC, be a PHY */
-			val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
-			val |= QCA8K_SGMII_MODE_CTRL_PHY;
-		} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
-			val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
-			val |= QCA8K_SGMII_MODE_CTRL_MAC;
-		} else if (state->interface == PHY_INTERFACE_MODE_1000BASEX) {
-			val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
-			val |= QCA8K_SGMII_MODE_CTRL_BASEX;
-		}
-
-		qca8k_write(priv, QCA8K_REG_SGMII_CTRL, val);
-
-		/* From original code is reported port instability as SGMII also
-		 * require delay set. Apply advised values here or take them from DT.
-		 */
-		if (state->interface == PHY_INTERFACE_MODE_SGMII)
-			qca8k_mac_config_setup_internal_delay(priv, cpu_port_index, reg);
-
-		/* For qca8327/qca8328/qca8334/qca8338 sgmii is unique and
-		 * falling edge is set writing in the PORT0 PAD reg
-		 */
-		if (priv->switch_id == QCA8K_ID_QCA8327 ||
-		    priv->switch_id == QCA8K_ID_QCA8337)
-			reg = QCA8K_REG_PORT0_PAD_CTRL;
-
-		val = 0;
-
-		/* SGMII Clock phase configuration */
-		if (priv->ports_config.sgmii_rx_clk_falling_edge)
-			val |= QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE;
-
-		if (priv->ports_config.sgmii_tx_clk_falling_edge)
-			val |= QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE;
-
-		if (val)
-			ret = qca8k_rmw(priv, reg,
-					QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE |
-					QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE,
-					val);
-
 		break;
 	default:
 		dev_err(ds->dev, "xMII mode %s not supported for port %d\n",
@@ -1981,6 +1917,88 @@ static int qca8k_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 			    const unsigned long *advertising,
 			    bool permit_pause_to_mac)
 {
+	struct qca8k_priv *priv = pcs_to_qca8k_pcs(pcs)->priv;
+	int cpu_port_index, ret, port;
+	u32 reg, val;
+
+	port = pcs_to_qca8k_pcs(pcs)->port;
+	switch (port) {
+	case 0:
+		reg = QCA8K_REG_PORT0_PAD_CTRL;
+		cpu_port_index = QCA8K_CPU_PORT0;
+		break;
+
+	case 6:
+		reg = QCA8K_REG_PORT6_PAD_CTRL;
+		cpu_port_index = QCA8K_CPU_PORT6;
+		break;
+
+	default:
+		WARN_ON(1);
+	}
+
+	/* Enable/disable SerDes auto-negotiation as necessary */
+	ret = qca8k_read(priv, QCA8K_REG_PWS, &val);
+	if (ret)
+		return ret;
+	if (phylink_autoneg_inband(mode))
+		val &= ~QCA8K_PWS_SERDES_AEN_DIS;
+	else
+		val |= QCA8K_PWS_SERDES_AEN_DIS;
+	qca8k_write(priv, QCA8K_REG_PWS, val);
+
+	/* Configure the SGMII parameters */
+	ret = qca8k_read(priv, QCA8K_REG_SGMII_CTRL, &val);
+	if (ret)
+		return ret;
+
+	val |= QCA8K_SGMII_EN_SD;
+
+	if (priv->ports_config.sgmii_enable_pll)
+		val |= QCA8K_SGMII_EN_PLL | QCA8K_SGMII_EN_RX |
+		       QCA8K_SGMII_EN_TX;
+
+	if (dsa_is_cpu_port(priv->ds, port)) {
+		/* CPU port, we're talking to the CPU MAC, be a PHY */
+		val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
+		val |= QCA8K_SGMII_MODE_CTRL_PHY;
+	} else if (interface == PHY_INTERFACE_MODE_SGMII) {
+		val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
+		val |= QCA8K_SGMII_MODE_CTRL_MAC;
+	} else if (interface == PHY_INTERFACE_MODE_1000BASEX) {
+		val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
+		val |= QCA8K_SGMII_MODE_CTRL_BASEX;
+	}
+
+	qca8k_write(priv, QCA8K_REG_SGMII_CTRL, val);
+
+	/* From original code is reported port instability as SGMII also
+	 * require delay set. Apply advised values here or take them from DT.
+	 */
+	if (interface == PHY_INTERFACE_MODE_SGMII)
+		qca8k_mac_config_setup_internal_delay(priv, cpu_port_index, reg);
+	/* For qca8327/qca8328/qca8334/qca8338 sgmii is unique and
+	 * falling edge is set writing in the PORT0 PAD reg
+	 */
+	if (priv->switch_id == QCA8K_ID_QCA8327 ||
+	    priv->switch_id == QCA8K_ID_QCA8337)
+		reg = QCA8K_REG_PORT0_PAD_CTRL;
+
+	val = 0;
+
+	/* SGMII Clock phase configuration */
+	if (priv->ports_config.sgmii_rx_clk_falling_edge)
+		val |= QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE;
+
+	if (priv->ports_config.sgmii_tx_clk_falling_edge)
+		val |= QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE;
+
+	if (val)
+		ret = qca8k_rmw(priv, reg,
+				QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE |
+				QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE,
+				val);
+
 	return 0;
 }
 
