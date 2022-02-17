@@ -107,12 +107,20 @@ static void __drm_stack_depot_print(depot_stack_handle_t stack_depot)
 
 	kfree(buf);
 }
+
+static void __drm_stack_depot_init(void)
+{
+	stack_depot_init();
+}
 #else /* CONFIG_DRM_DEBUG_MODESET_LOCK */
 static depot_stack_handle_t __drm_stack_depot_save(void)
 {
 	return 0;
 }
 static void __drm_stack_depot_print(depot_stack_handle_t stack_depot)
+{
+}
+static void __drm_stack_depot_init(void)
 {
 }
 #endif /* CONFIG_DRM_DEBUG_MODESET_LOCK */
@@ -359,6 +367,7 @@ void drm_modeset_lock_init(struct drm_modeset_lock *lock)
 {
 	ww_mutex_init(&lock->mutex, &crtc_ww_class);
 	INIT_LIST_HEAD(&lock->head);
+	__drm_stack_depot_init();
 }
 EXPORT_SYMBOL(drm_modeset_lock_init);
 

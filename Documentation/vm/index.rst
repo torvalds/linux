@@ -15,7 +15,6 @@ algorithms.  If you are looking for advice on simply allocating memory, see the
    active_mm
    arch_pgtable_helpers
    balance
-   cleancache
    damon/index
    free_page_reporting
    frontswap

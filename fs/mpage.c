@@ -29,7 +29,6 @@
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
-#include <linux/cleancache.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
@@ -318,12 +317,6 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 		}
 	} else if (fully_mapped) {
 		SetPageMappedToDisk(page);
-	}
-
-	if (fully_mapped && blocks_per_page == 1 && !PageUptodate(page) &&
-	    cleancache_get_page(page) == 0) {
-		SetPageUptodate(page);
-		goto confused;
 	}
 
 	/*
