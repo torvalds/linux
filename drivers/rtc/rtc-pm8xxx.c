@@ -84,7 +84,7 @@ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
 
 	if (!rtc_dd->allow_set_time)
-		return -EACCES;
+		return -ENODEV;
 
 	secs = rtc_tm_to_time64(tm);
 
