@@ -837,14 +837,14 @@ prep_out:
 	return rc;
 }
 
-static int mvs_task_exec(struct sas_task *task, gfp_t gfp_flags,
-				struct completion *completion, int is_tmf,
-				struct sas_tmf_task *tmf)
+int mvs_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
 	struct mvs_info *mvi = NULL;
 	u32 rc = 0;
 	u32 pass = 0;
 	unsigned long flags = 0;
+	struct sas_tmf_task *tmf = task->tmf;
+	int is_tmf = !!task->tmf;
 
 	mvi = ((struct mvs_device *)task->dev->lldd_dev)->mvi_info;
 
@@ -859,11 +859,6 @@ static int mvs_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	spin_unlock_irqrestore(&mvi->lock, flags);
 
 	return rc;
-}
-
-int mvs_queue_command(struct sas_task *task, gfp_t gfp_flags)
-{
-	return mvs_task_exec(task, gfp_flags, NULL, 0, NULL);
 }
 
 static void mvs_slot_free(struct mvs_info *mvi, u32 rx_desc)
@@ -1297,7 +1292,9 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		task->slow_task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
-		res = mvs_task_exec(task, GFP_KERNEL, NULL, 1, tmf);
+		task->tmf = tmf;
+
+		res = mvs_queue_command(task, GFP_KERNEL);
 
 		if (res) {
 			del_timer(&task->slow_task->timer);

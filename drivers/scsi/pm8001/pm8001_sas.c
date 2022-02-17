@@ -371,15 +371,14 @@ static int sas_find_local_port_id(struct domain_device *dev)
 
 #define DEV_IS_GONE(pm8001_dev)	\
 	((!pm8001_dev || (pm8001_dev->dev_type == SAS_PHY_UNUSED)))
+
 /**
-  * pm8001_task_exec - queue the task(ssp, smp && ata) to the hardware.
+  * pm8001_queue_command - register for upper layer used, all IO commands sent
+  * to HBA are from this interface.
   * @task: the task to be execute.
-  * @gfp_flags: gfp_flags.
-  * @is_tmf: if it is task management task.
-  * @tmf: the task management IU
+  * @gfp_flags: gfp_flags
   */
-static int pm8001_task_exec(struct sas_task *task,
-	gfp_t gfp_flags, int is_tmf, struct sas_tmf_task *tmf)
+int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
 	struct domain_device *dev = task->dev;
 	struct pm8001_hba_info *pm8001_ha;
@@ -390,6 +389,8 @@ static int pm8001_task_exec(struct sas_task *task,
 	u32 tag = 0xdeadbeef, rc = 0, n_elem = 0;
 	unsigned long flags = 0;
 	enum sas_protocol task_proto = t->task_proto;
+	struct sas_tmf_task *tmf = task->tmf;
+	int is_tmf = !!task->tmf;
 
 	if (!dev->port) {
 		struct task_status_struct *tsm = &t->task_status;
@@ -502,17 +503,6 @@ err_out:
 out_done:
 	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	return rc;
-}
-
-/**
-  * pm8001_queue_command - register for upper layer used, all IO commands sent
-  * to HBA are from this interface.
-  * @task: the task to be execute.
-  * @gfp_flags: gfp_flags
-  */
-int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
-{
-	return pm8001_task_exec(task, gfp_flags, 0, NULL);
 }
 
 /**
@@ -749,7 +739,9 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 		task->slow_task->timer.expires = jiffies + PM8001_TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
-		res = pm8001_task_exec(task, GFP_KERNEL, 1, tmf);
+		task->tmf = tmf;
+
+		res = pm8001_queue_command(task, GFP_KERNEL);
 
 		if (res) {
 			del_timer(&task->slow_task->timer);
