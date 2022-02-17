@@ -384,16 +384,8 @@ int aspeed_2600_spi_timing_calibration(struct aspeed_spi_controller *ast_ctrl,
 				(uint32_t)ast_ctrl->ahb_clk / (i + 2));
 			continue;
 		}
+
 		max_freq = (uint32_t)ast_ctrl->ahb_clk / (i + 2);
-
-		checksum = aspeed_2600_spi_dma_checksum(ast_ctrl, cs,
-							hclk_masks[i], 0);
-		pass = (checksum == gold_checksum);
-		dev_dbg(dev, "HCLK/%d, no timing compensation: %s\n", i + 2,
-			pass ? "PASS" : "FAIL");
-
-		if (pass)
-			break;
 
 		memset(calib_res, 0x0, 6 * 17);
 
