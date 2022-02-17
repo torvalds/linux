@@ -408,7 +408,7 @@ DECLARE_PER_CPU(struct mptcp_delegated_action, mptcp_delegated_actions);
 struct mptcp_subflow_context {
 	struct	list_head node;/* conn_list of subflows */
 
-	char	reset_start[0];
+	struct_group(reset,
 
 	unsigned long avg_pacing_rate; /* protected by msk socket lock */
 	u64	local_key;
@@ -458,7 +458,7 @@ struct mptcp_subflow_context {
 
 	long	delegated_status;
 
-	char	reset_end[0];
+	);
 
 	struct	list_head delegated_node;   /* link into delegated_action, protected by local BH */
 
@@ -494,7 +494,7 @@ mptcp_subflow_tcp_sock(const struct mptcp_subflow_context *subflow)
 static inline void
 mptcp_subflow_ctx_reset(struct mptcp_subflow_context *subflow)
 {
-	memset(subflow->reset_start, 0, subflow->reset_end - subflow->reset_start);
+	memset(&subflow->reset, 0, sizeof(subflow->reset));
 	subflow->request_mptcp = 1;
 }
 

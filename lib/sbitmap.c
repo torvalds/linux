@@ -488,9 +488,13 @@ void sbitmap_queue_recalculate_wake_batch(struct sbitmap_queue *sbq,
 					    unsigned int users)
 {
 	unsigned int wake_batch;
+	unsigned int min_batch;
+	unsigned int depth = (sbq->sb.depth + users - 1) / users;
 
-	wake_batch = clamp_val((sbq->sb.depth + users - 1) /
-			users, 4, SBQ_WAKE_BATCH);
+	min_batch = sbq->sb.depth >= (4 * SBQ_WAIT_QUEUES) ? 4 : 1;
+
+	wake_batch = clamp_val(depth / SBQ_WAIT_QUEUES,
+			min_batch, SBQ_WAKE_BATCH);
 	__sbitmap_queue_update_wake_batch(sbq, wake_batch);
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_recalculate_wake_batch);

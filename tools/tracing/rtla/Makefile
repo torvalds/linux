@@ -59,7 +59,7 @@ endif
 .PHONY:	all
 all:	rtla
 
-rtla: $(OBJ) doc
+rtla: $(OBJ)
 	$(CC) -o rtla $(LDFLAGS) $(OBJ) $(LIBS)
 
 static: $(OBJ)

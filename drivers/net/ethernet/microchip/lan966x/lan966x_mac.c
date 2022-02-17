@@ -40,11 +40,12 @@ static int lan966x_mac_wait_for_completion(struct lan966x *lan966x)
 {
 	u32 val;
 
-	return readx_poll_timeout(lan966x_mac_get_status,
-		lan966x, val,
-		(ANA_MACACCESS_MAC_TABLE_CMD_GET(val)) ==
-		MACACCESS_CMD_IDLE,
-		TABLE_UPDATE_SLEEP_US, TABLE_UPDATE_TIMEOUT_US);
+	return readx_poll_timeout_atomic(lan966x_mac_get_status,
+					 lan966x, val,
+					 (ANA_MACACCESS_MAC_TABLE_CMD_GET(val)) ==
+					 MACACCESS_CMD_IDLE,
+					 TABLE_UPDATE_SLEEP_US,
+					 TABLE_UPDATE_TIMEOUT_US);
 }
 
 static void lan966x_mac_select(struct lan966x *lan966x,

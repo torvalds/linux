@@ -2095,7 +2095,7 @@ process:
 	nf_reset_ct(skb);
 
 	if (tcp_filter(sk, skb)) {
-		drop_reason = SKB_DROP_REASON_TCP_FILTER;
+		drop_reason = SKB_DROP_REASON_SOCKET_FILTER;
 		goto discard_and_relse;
 	}
 	th = (const struct tcphdr *)skb->data;

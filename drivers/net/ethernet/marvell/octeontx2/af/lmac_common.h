@@ -107,6 +107,9 @@ struct mac_ops {
 	void			(*mac_enadis_ptp_config)(void  *cgxd,
 							 int lmac_id,
 							 bool enable);
+
+	int			(*mac_rx_tx_enable)(void *cgxd, int lmac_id, bool enable);
+	int			(*mac_tx_enable)(void *cgxd, int lmac_id, bool enable);
 };
 
 struct cgx {

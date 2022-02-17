@@ -512,11 +512,11 @@ static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST);
 	lmac_chan_cnt = cfg & 0xFF;
 
-	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST1);
-	sdp_chan_cnt = cfg & 0xFFF;
-
 	cgx_bpid_cnt = hw->cgx_links * lmac_chan_cnt;
 	lbk_bpid_cnt = hw->lbk_links * ((cfg >> 16) & 0xFF);
+
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST1);
+	sdp_chan_cnt = cfg & 0xFFF;
 	sdp_bpid_cnt = hw->sdp_links * sdp_chan_cnt;
 
 	pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
@@ -2068,8 +2068,8 @@ static int nix_smq_flush(struct rvu *rvu, int blkaddr,
 	/* enable cgx tx if disabled */
 	if (is_pf_cgxmapped(rvu, pf)) {
 		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
-		restore_tx_en = !cgx_lmac_tx_enable(rvu_cgx_pdata(cgx_id, rvu),
-						    lmac_id, true);
+		restore_tx_en = !rvu_cgx_config_tx(rvu_cgx_pdata(cgx_id, rvu),
+						   lmac_id, true);
 	}
 
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_SMQX_CFG(smq));
@@ -2092,7 +2092,7 @@ static int nix_smq_flush(struct rvu *rvu, int blkaddr,
 	rvu_cgx_enadis_rx_bp(rvu, pf, true);
 	/* restore cgx tx state */
 	if (restore_tx_en)
-		cgx_lmac_tx_enable(rvu_cgx_pdata(cgx_id, rvu), lmac_id, false);
+		rvu_cgx_config_tx(rvu_cgx_pdata(cgx_id, rvu), lmac_id, false);
 	return err;
 }
 
@@ -3878,7 +3878,7 @@ nix_config_link_credits(struct rvu *rvu, int blkaddr, int link,
 	/* Enable cgx tx if disabled for credits to be back */
 	if (is_pf_cgxmapped(rvu, pf)) {
 		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
-		restore_tx_en = !cgx_lmac_tx_enable(rvu_cgx_pdata(cgx_id, rvu),
+		restore_tx_en = !rvu_cgx_config_tx(rvu_cgx_pdata(cgx_id, rvu),
 						    lmac_id, true);
 	}
 
@@ -3891,8 +3891,8 @@ nix_config_link_credits(struct rvu *rvu, int blkaddr, int link,
 			    NIX_AF_TL1X_SW_XOFF(schq), BIT_ULL(0));
 	}
 
-	rc = -EBUSY;
-	poll_tmo = jiffies + usecs_to_jiffies(10000);
+	rc = NIX_AF_ERR_LINK_CREDITS;
+	poll_tmo = jiffies + usecs_to_jiffies(200000);
 	/* Wait for credits to return */
 	do {
 		if (time_after(jiffies, poll_tmo))
@@ -3918,7 +3918,7 @@ exit:
 
 	/* Restore state of cgx tx */
 	if (restore_tx_en)
-		cgx_lmac_tx_enable(rvu_cgx_pdata(cgx_id, rvu), lmac_id, false);
+		rvu_cgx_config_tx(rvu_cgx_pdata(cgx_id, rvu), lmac_id, false);
 
 	mutex_unlock(&rvu->rsrc_lock);
 	return rc;
