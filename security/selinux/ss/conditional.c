@@ -566,8 +566,6 @@ void cond_compute_xperms(struct avtab *ctab, struct avtab_key *key,
 		if (node->key.specified & AVTAB_ENABLED)
 			services_compute_xperms_decision(xpermd, node);
 	}
-	return;
-
 }
 /* Determine whether additional permissions are granted by the conditional
  * av table, and if so, add them to the result
