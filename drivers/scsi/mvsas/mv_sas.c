@@ -1638,7 +1638,7 @@ static void mvs_set_sense(u8 *buffer, int len, int d_sense,
 static void mvs_fill_ssp_resp_iu(struct ssp_response_iu *iu,
 				u8 key, u8 asc, u8 asc_q)
 {
-	iu->datapres = 2;
+	iu->datapres = SAS_DATAPRES_SENSE_DATA;
 	iu->response_data_len = 0;
 	iu->sense_data_len = 17;
 	iu->status = 02;

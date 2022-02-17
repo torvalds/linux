@@ -191,6 +191,13 @@ enum sas_gpio_reg_type {
 	SAS_GPIO_REG_TX_GP = 4,
 };
 
+/* Response frame DATAPRES field */
+enum {
+	SAS_DATAPRES_NO_DATA		= 0,
+	SAS_DATAPRES_RESPONSE_DATA	= 1,
+	SAS_DATAPRES_SENSE_DATA		= 2,
+};
+
 struct  dev_to_host_fis {
 	u8     fis_type;	  /* 0x34 */
 	u8     flags;

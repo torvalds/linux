@@ -287,7 +287,7 @@ static int asd_get_tmf_resp_tasklet(struct asd_ascb *ascb,
 	fh = edb->vaddr + 16;
 	ru = edb->vaddr + 16 + sizeof(*fh);
 	res = ru->status;
-	if (ru->datapres == 1)	  /* Response data present */
+	if (ru->datapres == SAS_DATAPRES_RESPONSE_DATA)
 		res = ru->resp_data[3];
 #if 0
 	ascb->tag = fh->tag;

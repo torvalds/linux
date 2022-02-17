@@ -1047,7 +1047,8 @@ request_started_state_tc_event(struct isci_request *ireq,
 		resp_iu = &ireq->ssp.rsp;
 		datapres = resp_iu->datapres;
 
-		if (datapres == 1 || datapres == 2) {
+		if (datapres == SAS_DATAPRES_RESPONSE_DATA ||
+		    datapres == SAS_DATAPRES_SENSE_DATA) {
 			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
 			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 		} else {
@@ -1730,8 +1731,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 			resp_iu = &ireq->ssp.rsp;
 
-			if (resp_iu->datapres == 0x01 ||
-			    resp_iu->datapres == 0x02) {
+			if (resp_iu->datapres == SAS_DATAPRES_RESPONSE_DATA ||
+			    resp_iu->datapres == SAS_DATAPRES_SENSE_DATA) {
 				ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
 				ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 			} else {
