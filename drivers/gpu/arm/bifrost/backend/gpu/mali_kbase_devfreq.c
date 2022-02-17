@@ -127,19 +127,6 @@ void kbase_devfreq_opp_translate(struct kbase_device *kbdev, unsigned long freq,
 	}
 }
 
-static int kbase_devfreq_set_read_margin(struct device *dev,
-					 struct rockchip_opp_info *opp_info,
-					 u32 rm,
-					 bool is_set_rm)
-{
-	if (opp_info->data && opp_info->data->set_read_margin) {
-		if (is_set_rm)
-			opp_info->data->set_read_margin(dev, opp_info, rm);
-	}
-
-	return 0;
-}
-
 int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 {
 	struct device *dev = data->dev;
@@ -173,8 +160,12 @@ int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 	rockchip_get_read_margin(dev, opp_info, new_supply_vdd->u_volt,
 				 &target_rm);
 
+	/* Change frequency */
+	dev_dbg(dev, "switching OPP: %lu Hz --> %lu Hz\n", old_freq, new_freq);
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
+		rockchip_set_intermediate_rate(dev, opp_info, clk, old_freq,
+					       new_freq, true, is_set_clk);
 		ret = regulator_set_voltage(mem_reg, new_supply_mem->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -189,21 +180,20 @@ int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data)
 				new_supply_vdd->u_volt);
 			goto restore_voltage;
 		}
-		kbase_devfreq_set_read_margin(dev, opp_info, target_rm,
-					      is_set_rm);
-	}
-
-	/* Change frequency */
-	dev_dbg(dev, "switching OPP: %lu Hz --> %lu Hz\n", old_freq, new_freq);
-	if (is_set_clk && clk_set_rate(clk, new_freq)) {
-		dev_err(dev, "failed to set clk rate: %d\n", ret);
-		goto restore_rm;
-	}
-
+		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
+		if (is_set_clk && clk_set_rate(clk, new_freq)) {
+			dev_err(dev, "failed to set clk rate: %d\n", ret);
+			goto restore_rm;
+		}
 	/* Scaling down? Scale voltage after frequency */
-	if (new_freq < old_freq) {
-		kbase_devfreq_set_read_margin(dev, opp_info, target_rm,
-					      is_set_rm);
+	} else {
+		rockchip_set_intermediate_rate(dev, opp_info, clk, old_freq,
+					       new_freq, false, is_set_clk);
+		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
+		if (is_set_clk && clk_set_rate(clk, new_freq)) {
+			dev_err(dev, "failed to set clk rate: %d\n", ret);
+			goto restore_rm;
+		}
 		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
 					    INT_MAX);
 		if (ret) {
@@ -230,7 +220,7 @@ restore_freq:
 restore_rm:
 	rockchip_get_read_margin(dev, opp_info, old_supply_vdd->u_volt,
 				 &target_rm);
-	kbase_devfreq_set_read_margin(dev, opp_info, target_rm, is_set_rm);
+	rockchip_set_read_margin(dev, opp_info, opp_info->target_rm, is_set_rm);
 restore_voltage:
 	regulator_set_voltage(mem_reg, old_supply_mem->u_volt, INT_MAX);
 	regulator_set_voltage(vdd_reg, old_supply_vdd->u_volt, INT_MAX);
@@ -254,6 +244,8 @@ kbase_devfreq_target(struct device *dev, unsigned long *freq, u32 flags)
 		return PTR_ERR(opp);
 	dev_pm_opp_put(opp);
 
+	if (*freq == kbdev->current_nominal_freq)
+		return 0;
 	rockchip_monitor_volt_adjust_lock(kbdev->mdev_info);
 	ret = dev_pm_opp_set_rate(dev, *freq);
 	if (!ret) {

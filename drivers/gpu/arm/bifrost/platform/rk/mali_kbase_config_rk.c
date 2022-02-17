@@ -202,14 +202,14 @@ static int rk_pm_callback_runtime_on(struct kbase_device *kbdev)
 		dev_err(kbdev->dev, "failed to enable opp clks\n");
 		return ret;
 	}
+	if (opp_info->data && opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(kbdev->dev, opp_info,
+						opp_info->target_rm);
 	if (opp_info->scmi_clk) {
 		if (clk_set_rate(opp_info->scmi_clk,
 				 kbdev->current_nominal_freq))
 			dev_err(kbdev->dev, "failed to restore clk rate\n");
 	}
-	if (opp_info->data && opp_info->data->set_read_margin)
-		opp_info->data->set_read_margin(kbdev->dev, opp_info,
-						opp_info->target_rm);
 	clk_bulk_disable_unprepare(opp_info->num_clks, opp_info->clks);
 
 	return 0;
