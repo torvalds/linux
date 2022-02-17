@@ -2477,6 +2477,12 @@ void amdgpu_ras_block_late_fini(struct amdgpu_device *adev,
 		amdgpu_ras_interrupt_remove_handler(adev, ras_block);
 }
 
+static void amdgpu_ras_block_late_fini_default(struct amdgpu_device *adev,
+			  struct ras_common_if *ras_block)
+{
+	return amdgpu_ras_block_late_fini(adev, ras_block);
+}
+
 /* do some init work after IP late init as dependence.
  * and it runs in resume/gpu reset/booting up cases.
  */
@@ -2584,6 +2590,8 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 			if (amdgpu_ras_is_supported(adev, obj->ras_comm.block) &&
 			    obj->ras_fini)
 				obj->ras_fini(adev, &obj->ras_comm);
+			else
+				amdgpu_ras_block_late_fini_default(adev, &obj->ras_comm);
 		}
 
 		/* Clear ras blocks from ras_list and free ras block list node */

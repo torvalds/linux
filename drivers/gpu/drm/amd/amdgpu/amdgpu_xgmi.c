@@ -975,6 +975,5 @@ struct amdgpu_xgmi_ras xgmi_ras = {
 		},
 		.hw_ops = &xgmi_ras_hw_ops,
 		.ras_late_init = amdgpu_xgmi_ras_late_init,
-		.ras_fini = amdgpu_ras_block_late_fini,
 	},
 };
