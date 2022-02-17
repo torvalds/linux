@@ -253,6 +253,8 @@ static int anx7625_aux_trans(struct anx7625_data *ctx, u8 op, u32 address,
 	addrm = (address >> 8) & 0xFF;
 	addrh = (address >> 16) & 0xFF;
 
+	if (!is_write)
+		op &= ~DP_AUX_I2C_MOT;
 	cmd = DPCD_CMD(len, op);
 
 	/* Set command and length */
