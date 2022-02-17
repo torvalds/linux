@@ -1298,10 +1298,10 @@ del_ceqs:
 
 static int irdma_create_virt_aeq(struct irdma_pci_f *rf, u32 size)
 {
-	int status = -ENOMEM;
 	struct irdma_aeq *aeq = &rf->aeq;
 	dma_addr_t *pg_arr;
 	u32 pg_cnt;
+	int status;
 
 	if (rf->rdma_ver < IRDMA_GEN_2)
 		return -EOPNOTSUPP;
@@ -1310,7 +1310,7 @@ static int irdma_create_virt_aeq(struct irdma_pci_f *rf, u32 size)
 	aeq->mem.va = vzalloc(aeq->mem.size);
 
 	if (!aeq->mem.va)
-		return status;
+		return -ENOMEM;
 
 	pg_cnt = DIV_ROUND_UP(aeq->mem.size, PAGE_SIZE);
 	status = irdma_get_pble(rf->pble_rsrc, &aeq->palloc, pg_cnt, true);
