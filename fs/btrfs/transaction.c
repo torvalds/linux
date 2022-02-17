@@ -846,7 +846,37 @@ btrfs_attach_transaction_barrier(struct btrfs_root *root)
 static noinline void wait_for_commit(struct btrfs_transaction *commit,
 				     const enum btrfs_trans_state min_state)
 {
-	wait_event(commit->commit_wait, commit->state >= min_state);
+	struct btrfs_fs_info *fs_info = commit->fs_info;
+	u64 transid = commit->transid;
+	bool put = false;
+
+	while (1) {
+		wait_event(commit->commit_wait, commit->state >= min_state);
+		if (put)
+			btrfs_put_transaction(commit);
+
+		if (min_state < TRANS_STATE_COMPLETED)
+			break;
+
+		/*
+		 * A transaction isn't really completed until all of the
+		 * previous transactions are completed, but with fsync we can
+		 * end up with SUPER_COMMITTED transactions before a COMPLETED
+		 * transaction. Wait for those.
+		 */
+
+		spin_lock(&fs_info->trans_lock);
+		commit = list_first_entry_or_null(&fs_info->trans_list,
+						  struct btrfs_transaction,
+						  list);
+		if (!commit || commit->transid > transid) {
+			spin_unlock(&fs_info->trans_lock);
+			break;
+		}
+		refcount_inc(&commit->use_count);
+		put = true;
+		spin_unlock(&fs_info->trans_lock);
+	}
 }
 
 int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
