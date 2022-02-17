@@ -251,6 +251,7 @@ static void cxl_decoder_release(struct device *dev)
 
 	ida_free(&port->decoder_ida, cxld->id);
 	kfree(cxld);
+	put_device(&port->dev);
 }
 
 static const struct device_type cxl_decoder_endpoint_type = {
@@ -1202,7 +1203,10 @@ static struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port,
 	if (rc < 0)
 		goto err;
 
+	/* need parent to stick around to release the id */
+	get_device(&port->dev);
 	cxld->id = rc;
+
 	cxld->nr_targets = nr_targets;
 	seqlock_init(&cxld->target_lock);
 	dev = &cxld->dev;
