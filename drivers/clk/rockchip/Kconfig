@@ -12,6 +12,7 @@ if COMMON_CLK_ROCKCHIP
 config CLK_PX30
 	tristate "Rockchip PX30 clock controller support"
 	depends on ARM64 || COMPILE_TEST
+	depends on CPU_PX30
 	default y
 	help
 	  Build the driver for PX30 Clock Driver.
@@ -19,6 +20,7 @@ config CLK_PX30
 config CLK_RV1106
 	tristate "Rockchip RV1106 clock controller support"
 	depends on ARM || COMPILE_TEST
+	depends on CPU_RV1106
 	default y
 	help
 	  Build the driver for RV1106 Clock Driver.
@@ -26,6 +28,7 @@ config CLK_RV1106
 config CLK_RV1108
 	tristate "Rockchip RV1108 clock controller support"
 	depends on ARM || COMPILE_TEST
+	depends on CPU_RV1108
 	default y
 	help
 	  Build the driver for RV1108 Clock Driver.
@@ -33,6 +36,7 @@ config CLK_RV1108
 config CLK_RV1126
 	tristate "Rockchip RV1126 clock controller support"
 	depends on ARM || COMPILE_TEST
+	depends on CPU_RV1126
 	default y
 	help
 	  Build the driver for RV1126 Clock Driver.
@@ -40,6 +44,7 @@ config CLK_RV1126
 config CLK_RK1808
 	tristate "Rockchip RK1808 clock controller support"
 	depends on ARM64 || COMPILE_TEST
+	depends on CPU_RK1808
 	default y
 	help
 	  Build the driver for RK1808 Clock Driver.
@@ -47,6 +52,7 @@ config CLK_RK1808
 config CLK_RK3036
 	tristate "Rockchip RK3036 clock controller support"
 	depends on ARM || COMPILE_TEST
+	depends on CPU_RK3036
 	default y
 	help
 	  Build the driver for RK3036 Clock Driver.
@@ -54,6 +60,7 @@ config CLK_RK3036
 config CLK_RK312X
 	tristate "Rockchip RK312x clock controller support"
 	depends on ARM || COMPILE_TEST
+	depends on CPU_RK312X
 	default y
 	help
 	  Build the driver for RK312x Clock Driver.
@@ -61,6 +68,7 @@ config CLK_RK312X
 config CLK_RK3188
 	tristate "Rockchip RK3188 clock controller support"
 	depends on ARM || COMPILE_TEST
+	depends on CPU_RK3188
 	default y
 	help
 	  Build the driver for RK3188 Clock Driver.
@@ -68,6 +76,7 @@ config CLK_RK3188
 config CLK_RK322X
 	tristate "Rockchip RK322x clock controller support"
 	depends on ARM || COMPILE_TEST
+	depends on CPU_RK322X
 	default y
 	help
 	  Build the driver for RK322x Clock Driver.
@@ -75,6 +84,7 @@ config CLK_RK322X
 config CLK_RK3288
 	tristate "Rockchip RK3288 clock controller support"
 	depends on ARM || COMPILE_TEST
+	depends on CPU_RK3288
 	default y
 	help
 	  Build the driver for RK3288 Clock Driver.
@@ -82,6 +92,7 @@ config CLK_RK3288
 config CLK_RK3308
 	tristate "Rockchip RK3308 clock controller support"
 	depends on ARM64 || COMPILE_TEST
+	depends on CPU_RK3308
 	default y
 	help
 	  Build the driver for RK3308 Clock Driver.
@@ -89,6 +100,7 @@ config CLK_RK3308
 config CLK_RK3328
 	tristate "Rockchip RK3328 clock controller support"
 	depends on ARM64 || COMPILE_TEST
+	depends on CPU_RK3328
 	default y
 	help
 	  Build the driver for RK3328 Clock Driver.
@@ -96,6 +108,7 @@ config CLK_RK3328
 config CLK_RK3368
 	tristate "Rockchip RK3368 clock controller support"
 	depends on ARM64 || COMPILE_TEST
+	depends on CPU_RK3368
 	default y
 	help
 	  Build the driver for RK3368 Clock Driver.
@@ -103,6 +116,7 @@ config CLK_RK3368
 config CLK_RK3399
 	tristate "Rockchip RK3399 clock controller support"
 	depends on ARM64 || COMPILE_TEST
+	depends on CPU_RK3399
 	default y
 	help
 	  Build the driver for RK3399 Clock Driver.
@@ -110,6 +124,7 @@ config CLK_RK3399
 config CLK_RK3568
 	tristate "Rockchip RK3568 clock controller support"
 	depends on ARM64 || COMPILE_TEST
+	depends on CPU_RK3568
 	default y
 	help
 	  Build the driver for RK3568 Clock Driver.
@@ -117,6 +132,7 @@ config CLK_RK3568
 config CLK_RK3588
 	tristate "Rockchip RK3588 clock controller support"
 	depends on ARM64 || COMPILE_TEST
+	depends on CPU_RK3588
 	default y
 	help
 	  Build the driver for RK3588 Clock Driver.
