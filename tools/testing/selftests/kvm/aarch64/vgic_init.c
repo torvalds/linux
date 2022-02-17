@@ -643,8 +643,8 @@ static void test_v3_its_region(void)
 int test_kvm_device(uint32_t gic_dev_type)
 {
 	struct vm_gic v;
-	int ret, fd;
 	uint32_t other;
+	int ret;
 
 	v.vm = vm_create_default_with_vcpus(NR_VCPUS, 0, 0, guest_code, NULL);
 
@@ -658,8 +658,8 @@ int test_kvm_device(uint32_t gic_dev_type)
 		return ret;
 	v.gic_fd = kvm_create_device(v.vm, gic_dev_type);
 
-	ret = __kvm_create_device(v.vm, gic_dev_type, &fd);
-	TEST_ASSERT(ret && errno == EEXIST, "create GIC device twice");
+	ret = __kvm_create_device(v.vm, gic_dev_type);
+	TEST_ASSERT(ret < 0 && errno == EEXIST, "create GIC device twice");
 
 	/* try to create the other gic_dev_type */
 	other = VGIC_DEV_IS_V2(gic_dev_type) ? KVM_DEV_TYPE_ARM_VGIC_V3
