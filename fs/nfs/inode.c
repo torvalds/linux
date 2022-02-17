@@ -787,7 +787,7 @@ static void nfs_readdirplus_parent_cache_miss(struct dentry *dentry)
 	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_READDIRPLUS))
 		return;
 	parent = dget_parent(dentry);
-	nfs_force_use_readdirplus(d_inode(parent));
+	nfs_readdir_record_entry_cache_miss(d_inode(parent));
 	dput(parent);
 }
 
@@ -798,7 +798,7 @@ static void nfs_readdirplus_parent_cache_hit(struct dentry *dentry)
 	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_READDIRPLUS))
 		return;
 	parent = dget_parent(dentry);
-	nfs_advise_use_readdirplus(d_inode(parent));
+	nfs_readdir_record_entry_cache_hit(d_inode(parent));
 	dput(parent);
 }
 
