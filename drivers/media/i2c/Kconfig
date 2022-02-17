@@ -325,6 +325,16 @@ config VIDEO_BT866
 	  To compile this driver as a module, choose M here: the
 	  module will be called bt866.
 
+config VIDEO_ISL7998X
+	tristate "Intersil ISL7998x video decoder"
+	depends on VIDEO_V4L2 && I2C
+	depends on OF_GPIO
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for Intersil ISL7998x analog to MIPI-CSI2 or
+	  BT.656 decoder.
+
 config VIDEO_KS0127
 	tristate "KS0127 video decoder"
 	depends on VIDEO_V4L2 && I2C
