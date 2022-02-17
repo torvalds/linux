@@ -50,6 +50,12 @@
 		interrupt-affinity = <&cpu0>;
 	};
 
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+		status = "disabled";
+	};
+
 	fiq_debugger: fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <2>;
@@ -90,6 +96,27 @@
 	peri_grf: syscon@ff000000 {
 		compatible = "rockchip,rv1106-peri-grf", "syscon", "simple-mfd";
 		reg = <0xff000000 0x1000>;
+
+		rgb: rgb {
+			compatible = "rockchip,rv1106-rgb";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					rgb_in_vop: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vop_out_rgb>;
+					};
+				};
+			};
+		};
 	};
 
 	rtc: rtc@ff1c0000 {
@@ -327,6 +354,27 @@
 		clocks = <&cru SCLK_UART5>, <&cru PCLK_UART5>;
 		clock-names = "baudclk", "apb_pclk";
 		status = "disabled";
+	};
+
+	vop: vop@ff990000 {
+		compatible = "rockchip,rv1106-vop";
+		reg = <0xff990000 0x200>;
+		reg-names = "regs";
+		rockchip,grf = <&peri_grf>;
+		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vop_out_rgb: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rgb_in_vop>;
+			};
+		};
 	};
 
 	sdio: mmc@ff9a0000 {
