@@ -13,7 +13,7 @@
 	assigned-clock-rates = <200000000>;
 	num-cs = <2>;
 
-	rk806master@0 {
+	rk806master: rk806master@0 {
 		compatible = "rockchip,rk806";
 		spi-max-frequency = <1000000>;
 		reg = <0x0>;
@@ -401,7 +401,7 @@
 		};
 	};
 
-	rk806slave@1 {
+	rk806slave: rk806slave@1 {
 		compatible = "rockchip,rk806";
 		spi-max-frequency = <1000000>;
 		reg = <0x01>;
