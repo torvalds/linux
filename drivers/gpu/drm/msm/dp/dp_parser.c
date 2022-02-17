@@ -162,11 +162,11 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 	}
 
 	core_power->num_clk = core_clk_count;
-	core_power->clk_config = devm_kzalloc(dev,
-			sizeof(struct dss_clk) * core_power->num_clk,
+	core_power->clocks = devm_kcalloc(dev,
+			core_power->num_clk, sizeof(struct clk_bulk_data),
 			GFP_KERNEL);
-	if (!core_power->clk_config)
-		return -EINVAL;
+	if (!core_power->clocks)
+		return -ENOMEM;
 
 	/* Initialize the CTRL power module */
 	if (ctrl_clk_count == 0) {
@@ -175,12 +175,12 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 	}
 
 	ctrl_power->num_clk = ctrl_clk_count;
-	ctrl_power->clk_config = devm_kzalloc(dev,
-			sizeof(struct dss_clk) * ctrl_power->num_clk,
+	ctrl_power->clocks = devm_kcalloc(dev,
+			ctrl_power->num_clk, sizeof(struct clk_bulk_data),
 			GFP_KERNEL);
-	if (!ctrl_power->clk_config) {
+	if (!ctrl_power->clocks) {
 		ctrl_power->num_clk = 0;
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	/* Initialize the STREAM power module */
@@ -190,12 +190,12 @@ static int dp_parser_init_clk_data(struct dp_parser *parser)
 	}
 
 	stream_power->num_clk = stream_clk_count;
-	stream_power->clk_config = devm_kzalloc(dev,
-			sizeof(struct dss_clk) * stream_power->num_clk,
+	stream_power->clocks = devm_kcalloc(dev,
+			stream_power->num_clk, sizeof(struct clk_bulk_data),
 			GFP_KERNEL);
-	if (!stream_power->clk_config) {
+	if (!stream_power->clocks) {
 		stream_power->num_clk = 0;
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	return 0;
@@ -234,21 +234,15 @@ static int dp_parser_clock(struct dp_parser *parser)
 		}
 		if (dp_parser_check_prefix("core", clk_name) &&
 				core_clk_index < core_clk_count) {
-			struct dss_clk *clk =
-				&core_power->clk_config[core_clk_index];
-			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
+			core_power->clocks[core_clk_index].id = devm_kstrdup(dev, clk_name, GFP_KERNEL);
 			core_clk_index++;
 		} else if (dp_parser_check_prefix("stream", clk_name) &&
 				stream_clk_index < stream_clk_count) {
-			struct dss_clk *clk =
-				&stream_power->clk_config[stream_clk_index];
-			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
+			stream_power->clocks[stream_clk_index].id = devm_kstrdup(dev, clk_name, GFP_KERNEL);
 			stream_clk_index++;
 		} else if (dp_parser_check_prefix("ctrl", clk_name) &&
 			   ctrl_clk_index < ctrl_clk_count) {
-			struct dss_clk *clk =
-				&ctrl_power->clk_config[ctrl_clk_index];
-			strlcpy(clk->clk_name, clk_name, sizeof(clk->clk_name));
+			ctrl_power->clocks[ctrl_clk_index].id = devm_kstrdup(dev, clk_name, GFP_KERNEL);
 			ctrl_clk_index++;
 		}
 	}

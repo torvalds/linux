@@ -1321,9 +1321,9 @@ static void dp_ctrl_set_clock_rate(struct dp_ctrl_private *ctrl,
 			enum dp_pm_type module, char *name, unsigned long rate)
 {
 	u32 num = ctrl->parser->mp[module].num_clk;
-	struct dss_clk *cfg = ctrl->parser->mp[module].clk_config;
+	struct clk_bulk_data *cfg = ctrl->parser->mp[module].clocks;
 
-	while (num && strcmp(cfg->clk_name, name)) {
+	while (num && strcmp(cfg->id, name)) {
 		num--;
 		cfg++;
 	}
