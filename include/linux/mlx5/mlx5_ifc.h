@@ -306,6 +306,7 @@ enum {
 	MLX5_CMD_OP_SYNC_STEERING                 = 0xb00,
 	MLX5_CMD_OP_QUERY_VHCA_STATE              = 0xb0d,
 	MLX5_CMD_OP_MODIFY_VHCA_STATE             = 0xb0e,
+	MLX5_CMD_OP_SYNC_CRYPTO                   = 0xb12,
 	MLX5_CMD_OP_MAX
 };
 
@@ -1112,6 +1113,30 @@ struct mlx5_ifc_sync_steering_out_bits {
 	u8         reserved_at_40[0x40];
 };
 
+struct mlx5_ifc_sync_crypto_in_bits {
+	u8         opcode[0x10];
+	u8         uid[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0x20];
+
+	u8         reserved_at_60[0x10];
+	u8         crypto_type[0x10];
+
+	u8         reserved_at_80[0x80];
+};
+
+struct mlx5_ifc_sync_crypto_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x40];
+};
+
 struct mlx5_ifc_device_mem_cap_bits {
 	u8         memic[0x1];
 	u8         reserved_at_1[0x1f];
@@ -1768,7 +1793,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         ats[0x1];
 	u8         reserved_at_462[0x1];
 	u8         log_max_uctx[0x5];
-	u8         reserved_at_468[0x2];
+	u8         reserved_at_468[0x1];
+	u8         crypto[0x1];
 	u8         ipsec_offload[0x1];
 	u8         log_max_umem[0x5];
 	u8         max_num_eqs[0x10];
@@ -3351,6 +3377,30 @@ struct mlx5_ifc_shampo_cap_bits {
 	u8    reserved_at_40[0x7c0];
 };
 
+struct mlx5_ifc_crypto_cap_bits {
+	u8    reserved_at_0[0x3];
+	u8    synchronize_dek[0x1];
+	u8    int_kek_manual[0x1];
+	u8    int_kek_auto[0x1];
+	u8    reserved_at_6[0x1a];
+
+	u8    reserved_at_20[0x3];
+	u8    log_dek_max_alloc[0x5];
+	u8    reserved_at_28[0x3];
+	u8    log_max_num_deks[0x5];
+	u8    reserved_at_30[0x10];
+
+	u8    reserved_at_40[0x20];
+
+	u8    reserved_at_60[0x3];
+	u8    log_dek_granularity[0x5];
+	u8    reserved_at_68[0x3];
+	u8    log_max_num_int_kek[0x5];
+	u8    sw_wrapped_dek[0x10];
+
+	u8    reserved_at_80[0x780];
+};
+
 union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_cmd_hca_cap_bits cmd_hca_cap;
 	struct mlx5_ifc_cmd_hca_cap_2_bits cmd_hca_cap_2;
@@ -3371,6 +3421,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_virtio_emulation_cap_bits virtio_emulation_cap;
 	struct mlx5_ifc_shampo_cap_bits shampo_cap;
 	struct mlx5_ifc_macsec_cap_bits macsec_cap;
+	struct mlx5_ifc_crypto_cap_bits crypto_cap;
 	u8         reserved_at_0[0x8000];
 };
 
@@ -6203,6 +6254,11 @@ struct mlx5_ifc_general_obj_create_param_bits {
 	u8         reserved_at_8[0x18];
 };
 
+struct mlx5_ifc_general_obj_query_param_bits {
+	u8         alias_object[0x1];
+	u8         obj_offset[0x1f];
+};
+
 struct mlx5_ifc_general_obj_in_cmd_hdr_bits {
 	u8         opcode[0x10];
 	u8         uid[0x10];
@@ -6212,7 +6268,10 @@ struct mlx5_ifc_general_obj_in_cmd_hdr_bits {
 
 	u8         obj_id[0x20];
 
-	struct mlx5_ifc_general_obj_create_param_bits op_param;
+	union {
+		struct mlx5_ifc_general_obj_create_param_bits create;
+		struct mlx5_ifc_general_obj_query_param_bits query;
+	} op_param;
 };
 
 struct mlx5_ifc_general_obj_out_cmd_hdr_bits {
@@ -11707,6 +11766,7 @@ enum {
 	MLX5_GENERAL_OBJECT_TYPES_SAMPLER = 0x20,
 	MLX5_GENERAL_OBJECT_TYPES_FLOW_METER_ASO = 0x24,
 	MLX5_GENERAL_OBJECT_TYPES_MACSEC = 0x27,
+	MLX5_GENERAL_OBJECT_TYPES_INT_KEK = 0x47,
 };
 
 enum {
@@ -11886,10 +11946,44 @@ struct mlx5_ifc_query_macsec_obj_out_bits {
 	struct mlx5_ifc_macsec_offload_obj_bits macsec_object;
 };
 
+struct mlx5_ifc_wrapped_dek_bits {
+	u8         gcm_iv[0x60];
+
+	u8         reserved_at_60[0x20];
+
+	u8         const0[0x1];
+	u8         key_size[0x1];
+	u8         reserved_at_82[0x2];
+	u8         key2_invalid[0x1];
+	u8         reserved_at_85[0x3];
+	u8         pd[0x18];
+
+	u8         key_purpose[0x5];
+	u8         reserved_at_a5[0x13];
+	u8         kek_id[0x8];
+
+	u8         reserved_at_c0[0x40];
+
+	u8         key1[0x8][0x20];
+
+	u8         key2[0x8][0x20];
+
+	u8         reserved_at_300[0x40];
+
+	u8         const1[0x1];
+	u8         reserved_at_341[0x1f];
+
+	u8         reserved_at_360[0x20];
+
+	u8         auth_tag[0x80];
+};
+
 struct mlx5_ifc_encryption_key_obj_bits {
 	u8         modify_field_select[0x40];
 
-	u8         reserved_at_40[0x14];
+	u8         state[0x8];
+	u8         sw_wrapped[0x1];
+	u8         reserved_at_49[0xb];
 	u8         key_size[0x4];
 	u8         reserved_at_58[0x4];
 	u8         key_type[0x4];
@@ -11897,13 +11991,25 @@ struct mlx5_ifc_encryption_key_obj_bits {
 	u8         reserved_at_60[0x8];
 	u8         pd[0x18];
 
-	u8         reserved_at_80[0x180];
-	u8         key[8][0x20];
+	u8         reserved_at_80[0x100];
 
-	u8         reserved_at_300[0x500];
+	u8         opaque[0x40];
+
+	u8         reserved_at_1c0[0x40];
+
+	u8         key[8][0x80];
+
+	u8         sw_wrapped_dek[8][0x80];
+
+	u8         reserved_at_a00[0x600];
 };
 
 struct mlx5_ifc_create_encryption_key_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_encryption_key_obj_bits encryption_key_object;
+};
+
+struct mlx5_ifc_modify_encryption_key_in_bits {
 	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
 	struct mlx5_ifc_encryption_key_obj_bits encryption_key_object;
 };
@@ -11961,6 +12067,34 @@ struct mlx5_ifc_flow_meter_aso_obj_bits {
 struct mlx5_ifc_create_flow_meter_aso_obj_in_bits {
 	struct mlx5_ifc_general_obj_in_cmd_hdr_bits hdr;
 	struct mlx5_ifc_flow_meter_aso_obj_bits flow_meter_aso_obj;
+};
+
+struct mlx5_ifc_int_kek_obj_bits {
+	u8         modify_field_select[0x40];
+
+	u8         state[0x8];
+	u8         auto_gen[0x1];
+	u8         reserved_at_49[0xb];
+	u8         key_size[0x4];
+	u8         reserved_at_58[0x8];
+
+	u8         reserved_at_60[0x8];
+	u8         pd[0x18];
+
+	u8         reserved_at_80[0x180];
+	u8         key[8][0x80];
+
+	u8         reserved_at_600[0x200];
+};
+
+struct mlx5_ifc_create_int_kek_obj_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_int_kek_obj_bits int_kek_object;
+};
+
+struct mlx5_ifc_create_int_kek_obj_out_bits {
+	struct mlx5_ifc_general_obj_out_cmd_hdr_bits general_obj_out_cmd_hdr;
+	struct mlx5_ifc_int_kek_obj_bits int_kek_object;
 };
 
 struct mlx5_ifc_sampler_obj_bits {
