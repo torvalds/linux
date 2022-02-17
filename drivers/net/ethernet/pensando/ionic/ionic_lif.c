@@ -3301,7 +3301,7 @@ static void ionic_lif_set_netdev_info(struct ionic_lif *lif)
 		},
 	};
 
-	strlcpy(ctx.cmd.lif_setattr.name, lif->netdev->name,
+	strscpy(ctx.cmd.lif_setattr.name, lif->netdev->name,
 		sizeof(ctx.cmd.lif_setattr.name));
 
 	ionic_adminq_post_wait(lif, &ctx);
