@@ -7628,10 +7628,8 @@ static int intel_atomic_check(struct drm_device *dev,
 		}
 
 		if (!new_crtc_state->uapi.enable) {
-			if (!intel_crtc_is_bigjoiner_slave(new_crtc_state)) {
+			if (!intel_crtc_is_bigjoiner_slave(new_crtc_state))
 				intel_crtc_copy_uapi_to_hw_state_modeset(state, crtc);
-				any_ms = true;
-			}
 			continue;
 		}
 
