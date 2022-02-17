@@ -957,6 +957,9 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 
 		wait_for_completion(&task->slow_task->completion);
 
+		if (i->dft->lldd_tmf_exec_complete)
+			i->dft->lldd_tmf_exec_complete(device);
+
 		res = TMF_RESP_FUNC_FAILED;
 
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {

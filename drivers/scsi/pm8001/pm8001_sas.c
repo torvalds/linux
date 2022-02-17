@@ -1376,3 +1376,17 @@ void pm8001_port_formed(struct asd_sas_phy *sas_phy)
 	}
 	sas_port->lldd_port = port;
 }
+
+void pm8001_setds_completion(struct domain_device *dev)
+{
+	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
+	struct pm8001_device *pm8001_dev = dev->lldd_dev;
+	DECLARE_COMPLETION_ONSTACK(completion_setstate);
+
+	if (pm8001_ha->chip_id != chip_8001) {
+		pm8001_dev->setds_completion = &completion_setstate;
+		PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
+			pm8001_dev, DS_OPERATIONAL);
+		wait_for_completion(&completion_setstate);
+	}
+}

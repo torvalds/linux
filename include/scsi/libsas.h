@@ -652,6 +652,9 @@ struct sas_domain_function_template {
 	int (*lldd_lu_reset)(struct domain_device *, u8 *lun);
 	int (*lldd_query_task)(struct sas_task *);
 
+	/* Special TMF callbacks */
+	void (*lldd_tmf_exec_complete)(struct domain_device *dev);
+
 	/* Port and Adapter management */
 	int (*lldd_clear_nexus_port)(struct asd_sas_port *);
 	int (*lldd_clear_nexus_ha)(struct sas_ha_struct *);

@@ -742,6 +742,7 @@ pm8001_ccb_task_free_done(struct pm8001_hba_info *pm8001_ha,
 	smp_mb(); /*in order to force CPU ordering*/
 	task->task_done(task);
 }
+void pm8001_setds_completion(struct domain_device *dev);
 
 #endif
 
