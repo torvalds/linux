@@ -551,12 +551,12 @@ void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf)
  * @rf: RDMA PCI function
  * @cqp_request: cqp request to wait
  */
-static enum irdma_status_code irdma_wait_event(struct irdma_pci_f *rf,
-					       struct irdma_cqp_request *cqp_request)
+static int irdma_wait_event(struct irdma_pci_f *rf,
+			    struct irdma_cqp_request *cqp_request)
 {
 	struct irdma_cqp_timeout cqp_timeout = {};
 	bool cqp_error = false;
-	enum irdma_status_code err_code = 0;
+	int err_code = 0;
 
 	cqp_timeout.compl_cqp_cmds = rf->sc_dev.cqp_cmd_stats[IRDMA_OP_CMPL_CMDS];
 	do {
@@ -575,12 +575,12 @@ static enum irdma_status_code irdma_wait_event(struct irdma_pci_f *rf,
 			rf->reset = true;
 			rf->gen_ops.request_reset(rf);
 		}
-		return IRDMA_ERR_TIMEOUT;
+		return -ETIMEDOUT;
 	} while (1);
 
 	cqp_error = cqp_request->compl_info.error;
 	if (cqp_error) {
-		err_code = IRDMA_ERR_CQP_COMPL_ERROR;
+		err_code = -EIO;
 		if (cqp_request->compl_info.maj_err_code == 0xFFFF &&
 		    cqp_request->compl_info.min_err_code == 0x8029) {
 			if (!rf->reset) {
@@ -680,16 +680,16 @@ bool irdma_cqp_crit_err(struct irdma_sc_dev *dev, u8 cqp_cmd,
  * @rf: RDMA PCI function
  * @cqp_request: cqp request to process
  */
-enum irdma_status_code irdma_handle_cqp_op(struct irdma_pci_f *rf,
-					   struct irdma_cqp_request *cqp_request)
+int irdma_handle_cqp_op(struct irdma_pci_f *rf,
+			struct irdma_cqp_request *cqp_request)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct cqp_cmds_info *info = &cqp_request->info;
-	enum irdma_status_code status;
+	int status;
 	bool put_cqp_request = true;
 
 	if (rf->reset)
-		return IRDMA_ERR_NOT_READY;
+		return -EBUSY;
 
 	irdma_get_cqp_request(cqp_request);
 	status = irdma_process_cqp_cmd(dev, info);
@@ -791,17 +791,17 @@ void *irdma_remove_cqp_head(struct irdma_sc_dev *dev)
  * @sdinfo: information for sd cqp
  *
  */
-enum irdma_status_code irdma_cqp_sds_cmd(struct irdma_sc_dev *dev,
-					 struct irdma_update_sds_info *sdinfo)
+int irdma_cqp_sds_cmd(struct irdma_sc_dev *dev,
+		      struct irdma_update_sds_info *sdinfo)
 {
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_pci_f *rf = dev_to_rf(dev);
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	memcpy(&cqp_info->in.u.update_pe_sds.info, sdinfo,
@@ -822,19 +822,18 @@ enum irdma_status_code irdma_cqp_sds_cmd(struct irdma_sc_dev *dev,
  * @qp: hardware control qp
  * @op: suspend or resume
  */
-enum irdma_status_code irdma_cqp_qp_suspend_resume(struct irdma_sc_qp *qp,
-						   u8 op)
+int irdma_cqp_qp_suspend_resume(struct irdma_sc_qp *qp, u8 op)
 {
 	struct irdma_sc_dev *dev = qp->dev;
 	struct irdma_cqp_request *cqp_request;
 	struct irdma_sc_cqp *cqp = dev->cqp;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_pci_f *rf = dev_to_rf(dev);
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, false);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	cqp_info->cqp_cmd = op;
@@ -940,18 +939,17 @@ void irdma_terminate_del_timer(struct irdma_sc_qp *qp)
  * @val_mem: buffer for fpm
  * @hmc_fn_id: function id for fpm
  */
-enum irdma_status_code
-irdma_cqp_query_fpm_val_cmd(struct irdma_sc_dev *dev,
-			    struct irdma_dma_mem *val_mem, u8 hmc_fn_id)
+int irdma_cqp_query_fpm_val_cmd(struct irdma_sc_dev *dev,
+				struct irdma_dma_mem *val_mem, u8 hmc_fn_id)
 {
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_pci_f *rf = dev_to_rf(dev);
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	cqp_request->param = NULL;
@@ -975,18 +973,17 @@ irdma_cqp_query_fpm_val_cmd(struct irdma_sc_dev *dev,
  * @val_mem: buffer with fpm values
  * @hmc_fn_id: function id for fpm
  */
-enum irdma_status_code
-irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
-			     struct irdma_dma_mem *val_mem, u8 hmc_fn_id)
+int irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
+				 struct irdma_dma_mem *val_mem, u8 hmc_fn_id)
 {
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_pci_f *rf = dev_to_rf(dev);
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	cqp_request->param = NULL;
@@ -1009,18 +1006,17 @@ irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
  * @dev: device pointer
  * @cq: pointer to created cq
  */
-enum irdma_status_code irdma_cqp_cq_create_cmd(struct irdma_sc_dev *dev,
-					       struct irdma_sc_cq *cq)
+int irdma_cqp_cq_create_cmd(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq)
 {
 	struct irdma_pci_f *rf = dev_to_rf(dev);
 	struct irdma_cqp *iwcqp = &rf->cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	cqp_info->cqp_cmd = IRDMA_OP_CQ_CREATE;
@@ -1039,19 +1035,18 @@ enum irdma_status_code irdma_cqp_cq_create_cmd(struct irdma_sc_dev *dev,
  * @dev: device pointer
  * @qp: pointer to created qp
  */
-enum irdma_status_code irdma_cqp_qp_create_cmd(struct irdma_sc_dev *dev,
-					       struct irdma_sc_qp *qp)
+int irdma_cqp_qp_create_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 {
 	struct irdma_pci_f *rf = dev_to_rf(dev);
 	struct irdma_cqp *iwcqp = &rf->cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_create_qp_info *qp_info;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	qp_info = &cqp_request->info.in.u.qp_create.info;
@@ -1079,7 +1074,7 @@ static void irdma_dealloc_push_page(struct irdma_pci_f *rf,
 {
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 
 	if (qp->push_idx == IRDMA_INVALID_PUSH_PAGE_INDEX)
 		return;
@@ -1179,12 +1174,10 @@ static void irdma_hw_modify_qp_callback(struct irdma_cqp_request *cqp_request)
  * @info: info for modify qp
  * @wait: flag to wait or not for modify qp completion
  */
-enum irdma_status_code irdma_hw_modify_qp(struct irdma_device *iwdev,
-					  struct irdma_qp *iwqp,
-					  struct irdma_modify_qp_info *info,
-					  bool wait)
+int irdma_hw_modify_qp(struct irdma_device *iwdev, struct irdma_qp *iwqp,
+		       struct irdma_modify_qp_info *info, bool wait)
 {
-	enum irdma_status_code status;
+	int status;
 	struct irdma_pci_f *rf = iwdev->rf;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
@@ -1192,7 +1185,7 @@ enum irdma_status_code irdma_hw_modify_qp(struct irdma_device *iwdev,
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, wait);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	if (!wait) {
 		cqp_request->callback_fcn = irdma_hw_modify_qp_callback;
@@ -1230,7 +1223,7 @@ enum irdma_status_code irdma_hw_modify_qp(struct irdma_device *iwdev,
 				cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp,
 									      wait);
 				if (!cqp_request)
-					return IRDMA_ERR_NO_MEMORY;
+					return -ENOMEM;
 
 				cqp_info = &cqp_request->info;
 				m_info = &cqp_info->in.u.qp_modify.info;
@@ -1271,17 +1264,17 @@ void irdma_cqp_cq_destroy_cmd(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq)
  * @dev: device pointer
  * @qp: pointer to qp
  */
-enum irdma_status_code irdma_cqp_qp_destroy_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
+int irdma_cqp_qp_destroy_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 {
 	struct irdma_pci_f *rf = dev_to_rf(dev);
 	struct irdma_cqp *iwcqp = &rf->cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	memset(cqp_info, 0, sizeof(*cqp_info));
@@ -1317,20 +1310,20 @@ void irdma_ieq_mpa_crc_ae(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
  * irdma_init_hash_desc - initialize hash for crc calculation
  * @desc: cryption type
  */
-enum irdma_status_code irdma_init_hash_desc(struct shash_desc **desc)
+int irdma_init_hash_desc(struct shash_desc **desc)
 {
 	struct crypto_shash *tfm;
 	struct shash_desc *tdesc;
 
 	tfm = crypto_alloc_shash("crc32c", 0, 0);
 	if (IS_ERR(tfm))
-		return IRDMA_ERR_MPA_CRC;
+		return -EINVAL;
 
 	tdesc = kzalloc(sizeof(*tdesc) + crypto_shash_descsize(tfm),
 			GFP_KERNEL);
 	if (!tdesc) {
 		crypto_free_shash(tfm);
-		return IRDMA_ERR_MPA_CRC;
+		return -EINVAL;
 	}
 
 	tdesc->tfm = tfm;
@@ -1358,19 +1351,19 @@ void irdma_free_hash_desc(struct shash_desc *desc)
  * @len: length of buffer
  * @val: value to be compared
  */
-enum irdma_status_code irdma_ieq_check_mpacrc(struct shash_desc *desc,
-					      void *addr, u32 len, u32 val)
+int irdma_ieq_check_mpacrc(struct shash_desc *desc, void *addr, u32 len,
+			   u32 val)
 {
 	u32 crc = 0;
 	int ret;
-	enum irdma_status_code ret_code = 0;
+	int ret_code = 0;
 
 	crypto_shash_init(desc);
 	ret = crypto_shash_update(desc, addr, len);
 	if (!ret)
 		crypto_shash_final(desc, (u8 *)&crc);
 	if (crc != val)
-		ret_code = IRDMA_ERR_MPA_CRC;
+		ret_code = -EINVAL;
 
 	return ret_code;
 }
@@ -1524,9 +1517,8 @@ void irdma_ieq_update_tcpip_info(struct irdma_puda_buf *buf, u16 len,
  * @info: to get information
  * @buf: puda buffer
  */
-static enum irdma_status_code
-irdma_gen1_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
-			       struct irdma_puda_buf *buf)
+static int irdma_gen1_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
+					  struct irdma_puda_buf *buf)
 {
 	struct iphdr *iph;
 	struct ipv6hdr *ip6h;
@@ -1563,7 +1555,7 @@ irdma_gen1_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
 		ibdev_dbg(to_ibdev(buf->vsi->dev),
 			  "ERR: payload_len = 0x%x totallen expected0x%x\n",
 			  info->payload_len, buf->totallen);
-		return IRDMA_ERR_INVALID_SIZE;
+		return -EINVAL;
 	}
 
 	buf->tcphlen = tcph->doff << 2;
@@ -1580,9 +1572,8 @@ irdma_gen1_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
  * @info: to get information
  * @buf: puda buffer
  */
-enum irdma_status_code
-irdma_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
-			  struct irdma_puda_buf *buf)
+int irdma_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
+			      struct irdma_puda_buf *buf)
 {
 	struct tcphdr *tcph;
 	u32 pkt_len;
@@ -1861,20 +1852,19 @@ static void irdma_process_cqp_stats(struct irdma_cqp_request *cqp_request)
  * @pestat: pointer to stats info
  * @wait: flag to wait or not wait for stats
  */
-enum irdma_status_code
-irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
-			   struct irdma_vsi_pestat *pestat, bool wait)
+int irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
+			       struct irdma_vsi_pestat *pestat, bool wait)
 
 {
 	struct irdma_pci_f *rf = dev_to_rf(dev);
 	struct irdma_cqp *iwcqp = &rf->cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, wait);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	memset(cqp_info, 0, sizeof(*cqp_info));
@@ -1900,22 +1890,21 @@ irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
  * @cmd: command to allocate or free
  * @stats_info: pointer to allocate stats info
  */
-enum irdma_status_code
-irdma_cqp_stats_inst_cmd(struct irdma_sc_vsi *vsi, u8 cmd,
-			 struct irdma_stats_inst_info *stats_info)
+int irdma_cqp_stats_inst_cmd(struct irdma_sc_vsi *vsi, u8 cmd,
+			     struct irdma_stats_inst_info *stats_info)
 {
 	struct irdma_pci_f *rf = dev_to_rf(vsi->dev);
 	struct irdma_cqp *iwcqp = &rf->cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 	bool wait = false;
 
 	if (cmd == IRDMA_OP_STATS_ALLOCATE)
 		wait = true;
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, wait);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	memset(cqp_info, 0, sizeof(*cqp_info));
@@ -1938,17 +1927,17 @@ irdma_cqp_stats_inst_cmd(struct irdma_sc_vsi *vsi, u8 cmd,
  * @sc_ceq: pointer to ceq structure
  * @op: Create or Destroy
  */
-enum irdma_status_code irdma_cqp_ceq_cmd(struct irdma_sc_dev *dev,
-					 struct irdma_sc_ceq *sc_ceq, u8 op)
+int irdma_cqp_ceq_cmd(struct irdma_sc_dev *dev, struct irdma_sc_ceq *sc_ceq,
+		      u8 op)
 {
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_pci_f *rf = dev_to_rf(dev);
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	cqp_info->post_sq = 1;
@@ -1968,17 +1957,17 @@ enum irdma_status_code irdma_cqp_ceq_cmd(struct irdma_sc_dev *dev,
  * @sc_aeq: pointer to aeq structure
  * @op: Create or Destroy
  */
-enum irdma_status_code irdma_cqp_aeq_cmd(struct irdma_sc_dev *dev,
-					 struct irdma_sc_aeq *sc_aeq, u8 op)
+int irdma_cqp_aeq_cmd(struct irdma_sc_dev *dev, struct irdma_sc_aeq *sc_aeq,
+		      u8 op)
 {
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_pci_f *rf = dev_to_rf(dev);
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	cqp_info->post_sq = 1;
@@ -1998,16 +1987,15 @@ enum irdma_status_code irdma_cqp_aeq_cmd(struct irdma_sc_dev *dev,
  * @cmd: Add, modify or delete
  * @node_info: pointer to ws node info
  */
-enum irdma_status_code
-irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
-		      struct irdma_ws_node_info *node_info)
+int irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
+			  struct irdma_ws_node_info *node_info)
 {
 	struct irdma_pci_f *rf = dev_to_rf(dev);
 	struct irdma_cqp *iwcqp = &rf->cqp;
 	struct irdma_sc_cqp *cqp = &iwcqp->sc_cqp;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 	bool poll;
 
 	if (!rf->sc_dev.ceq_valid)
@@ -2017,7 +2005,7 @@ irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
 
 	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, !poll);
 	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
 	memset(cqp_info, 0, sizeof(*cqp_info));
@@ -2066,7 +2054,7 @@ int irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 {
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 
 	if (cmd != IRDMA_OP_AH_CREATE && cmd != IRDMA_OP_AH_DESTROY)
 		return -EINVAL;
@@ -2148,11 +2136,10 @@ static void irdma_ilq_ah_cb(struct irdma_cqp_request *cqp_request)
  * @ah_ret: Returned pointer to address handle if created
  *
  */
-enum irdma_status_code irdma_puda_create_ah(struct irdma_sc_dev *dev,
-					    struct irdma_ah_info *ah_info,
-					    bool wait, enum puda_rsrc_type type,
-					    void *cb_param,
-					    struct irdma_sc_ah **ah_ret)
+int irdma_puda_create_ah(struct irdma_sc_dev *dev,
+			 struct irdma_ah_info *ah_info, bool wait,
+			 enum puda_rsrc_type type, void *cb_param,
+			 struct irdma_sc_ah **ah_ret)
 {
 	struct irdma_sc_ah *ah;
 	struct irdma_pci_f *rf = dev_to_rf(dev);
@@ -2161,7 +2148,7 @@ enum irdma_status_code irdma_puda_create_ah(struct irdma_sc_dev *dev,
 	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
 	*ah_ret = ah;
 	if (!ah)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	err = irdma_alloc_rsrc(rf, rf->allocated_ahs, rf->max_ah,
 			       &ah_info->ah_idx, &rf->next_ah);
@@ -2187,7 +2174,7 @@ error:
 err_free:
 	kfree(ah);
 	*ah_ret = NULL;
-	return IRDMA_ERR_NO_MEMORY;
+	return -ENOMEM;
 }
 
 /**
@@ -2229,19 +2216,19 @@ void irdma_gsi_ud_qp_ah_cb(struct irdma_cqp_request *cqp_request)
  * @pprm: pble resource manager
  * @pchunk: chunk of memory to add
  */
-enum irdma_status_code irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
-					      struct irdma_chunk *pchunk)
+int irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
+			   struct irdma_chunk *pchunk)
 {
 	u64 sizeofbitmap;
 
 	if (pchunk->size & 0xfff)
-		return IRDMA_ERR_PARAM;
+		return -EINVAL;
 
 	sizeofbitmap = (u64)pchunk->size >> pprm->pble_shift;
 
 	pchunk->bitmapbuf = bitmap_zalloc(sizeofbitmap, GFP_KERNEL);
 	if (!pchunk->bitmapbuf)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	pchunk->sizeofbitmap = sizeofbitmap;
 	/* each pble is 8 bytes hence shift by 3 */
@@ -2259,10 +2246,9 @@ enum irdma_status_code irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
  * @vaddr: returns virtual address of pble memory
  * @fpm_addr: returns fpm address of pble memory
  */
-enum irdma_status_code
-irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
-		    struct irdma_pble_chunkinfo *chunkinfo, u64 mem_size,
-		    u64 **vaddr, u64 *fpm_addr)
+int irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
+			struct irdma_pble_chunkinfo *chunkinfo, u64 mem_size,
+			u64 **vaddr, u64 *fpm_addr)
 {
 	u64 bits_needed;
 	u64 bit_idx = PBLE_INVALID_IDX;
@@ -2290,7 +2276,7 @@ irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
 
 	if (!pchunk || bit_idx >= pchunk->sizeofbitmap) {
 		spin_unlock_irqrestore(&pprm->prm_lock, flags);
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	bitmap_set(pchunk->bitmapbuf, bit_idx, bits_needed);
@@ -2325,8 +2311,8 @@ void irdma_prm_return_pbles(struct irdma_pble_prm *pprm,
 	spin_unlock_irqrestore(&pprm->prm_lock, flags);
 }
 
-enum irdma_status_code irdma_map_vm_page_list(struct irdma_hw *hw, void *va,
-					      dma_addr_t *pg_dma, u32 pg_cnt)
+int irdma_map_vm_page_list(struct irdma_hw *hw, void *va, dma_addr_t *pg_dma,
+			   u32 pg_cnt)
 {
 	struct page *vm_page;
 	int i;
@@ -2350,7 +2336,7 @@ enum irdma_status_code irdma_map_vm_page_list(struct irdma_hw *hw, void *va,
 
 err:
 	irdma_unmap_vm_page_list(hw, pg_dma, i);
-	return IRDMA_ERR_NO_MEMORY;
+	return -ENOMEM;
 }
 
 void irdma_unmap_vm_page_list(struct irdma_hw *hw, dma_addr_t *pg_dma, u32 pg_cnt)
@@ -2386,15 +2372,14 @@ done:
  * @chunk: chunk to add for paged memory
  * @pg_cnt: number of pages needed
  */
-enum irdma_status_code irdma_pble_get_paged_mem(struct irdma_chunk *chunk,
-						u32 pg_cnt)
+int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt)
 {
 	u32 size;
 	void *va;
 
 	chunk->dmainfo.dmaaddrs = kzalloc(pg_cnt << 3, GFP_KERNEL);
 	if (!chunk->dmainfo.dmaaddrs)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	size = PAGE_SIZE * pg_cnt;
 	va = vmalloc(size);
@@ -2416,7 +2401,7 @@ err:
 	kfree(chunk->dmainfo.dmaaddrs);
 	chunk->dmainfo.dmaaddrs = NULL;
 
-	return IRDMA_ERR_NO_MEMORY;
+	return -ENOMEM;
 }
 
 /**

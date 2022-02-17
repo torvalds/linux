@@ -256,7 +256,7 @@ static void irdma_alloc_push_page(struct irdma_qp *iwqp)
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_device *iwdev = iwqp->iwdev;
 	struct irdma_sc_qp *qp = &iwqp->sc_qp;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&iwdev->rf->cqp, true);
 	if (!cqp_request)
@@ -592,7 +592,7 @@ static int irdma_setup_kmode_qp(struct irdma_device *iwdev,
 	u32 sqdepth, rqdepth;
 	u8 sqshift, rqshift;
 	u32 size;
-	enum irdma_status_code status;
+	int status;
 	struct irdma_qp_uk_init_info *ukinfo = &info->qp_uk_init_info;
 	struct irdma_uk_attrs *uk_attrs = &iwdev->rf->sc_dev.hw_attrs.uk_attrs;
 
@@ -668,7 +668,7 @@ static int irdma_cqp_create_qp_cmd(struct irdma_qp *iwqp)
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_create_qp_info *qp_info;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
 	if (!cqp_request)
@@ -806,7 +806,7 @@ static int irdma_create_qp(struct ib_qp *ibqp,
 	struct irdma_create_qp_req req;
 	struct irdma_create_qp_resp uresp = {};
 	u32 qp_num = 0;
-	enum irdma_status_code ret;
+	int ret;
 	int err_code;
 	int sq_size;
 	int rq_size;
@@ -1792,7 +1792,7 @@ static int irdma_resize_cq(struct ib_cq *ibcq, int entries,
 	struct irdma_device *iwdev;
 	struct irdma_pci_f *rf;
 	struct irdma_cq_buf *cq_buf = NULL;
-	enum irdma_status_code status = 0;
+	int status = 0;
 	unsigned long flags;
 	int ret;
 
@@ -1945,7 +1945,7 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 	struct irdma_sc_cq *cq;
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_cq_init_info info = {};
-	enum irdma_status_code status;
+	int status;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_cq_uk_init_info *ukinfo = &info.cq_uk_init_info;
@@ -2309,7 +2309,7 @@ static int irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 	struct irdma_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct irdma_pble_info *pinfo;
 	u64 *pbl;
-	enum irdma_status_code status;
+	int status;
 	enum irdma_pble_level level = PBLE_LEVEL_1;
 
 	if (use_pbles) {
@@ -2434,7 +2434,7 @@ static int irdma_hw_alloc_mw(struct irdma_device *iwdev, struct irdma_mr *iwmr)
 	struct irdma_pd *iwpd = to_iwpd(iwmr->ibmr.pd);
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&iwdev->rf->cqp, true);
 	if (!cqp_request)
@@ -2533,7 +2533,7 @@ static int irdma_hw_alloc_stag(struct irdma_device *iwdev,
 {
 	struct irdma_allocate_stag_info *info;
 	struct irdma_pd *iwpd = to_iwpd(iwmr->ibmr.pd);
-	enum irdma_status_code status;
+	int status;
 	int err = 0;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
@@ -2575,7 +2575,7 @@ static struct ib_mr *irdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	struct irdma_pble_alloc *palloc;
 	struct irdma_pbl *iwpbl;
 	struct irdma_mr *iwmr;
-	enum irdma_status_code status;
+	int status;
 	u32 stag;
 	int err_code = -ENOMEM;
 
@@ -2672,7 +2672,7 @@ static int irdma_hwreg_mr(struct irdma_device *iwdev, struct irdma_mr *iwmr,
 	struct irdma_reg_ns_stag_info *stag_info;
 	struct irdma_pd *iwpd = to_iwpd(iwmr->ibmr.pd);
 	struct irdma_pble_alloc *palloc = &iwpbl->pble_alloc;
-	enum irdma_status_code status;
+	int status;
 	int err = 0;
 	struct irdma_cqp_request *cqp_request;
 	struct cqp_cmds_info *cqp_info;
@@ -2897,7 +2897,7 @@ struct ib_mr *irdma_reg_phys_mr(struct ib_pd *pd, u64 addr, u64 size, int access
 	struct irdma_device *iwdev = to_iwdev(pd->device);
 	struct irdma_pbl *iwpbl;
 	struct irdma_mr *iwmr;
-	enum irdma_status_code status;
+	int status;
 	u32 stag;
 	int ret;
 
@@ -3057,7 +3057,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 	struct irdma_qp_uk *ukqp;
 	struct irdma_sc_dev *dev;
 	struct irdma_post_sq_info info;
-	enum irdma_status_code ret;
+	int ret;
 	int err = 0;
 	unsigned long flags;
 	bool inv_stag;
@@ -3131,7 +3131,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 			}
 
 			if (ret) {
-				if (ret == IRDMA_ERR_QP_TOOMANY_WRS_POSTED)
+				if (ret == -ENOMEM)
 					err = -ENOMEM;
 				else
 					err = -EINVAL;
@@ -3170,7 +3170,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 			}
 
 			if (ret) {
-				if (ret == IRDMA_ERR_QP_TOOMANY_WRS_POSTED)
+				if (ret == -ENOMEM)
 					err = -ENOMEM;
 				else
 					err = -EINVAL;
@@ -3193,7 +3193,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 
 			ret = irdma_uk_rdma_read(ukqp, &info, inv_stag, false);
 			if (ret) {
-				if (ret == IRDMA_ERR_QP_TOOMANY_WRS_POSTED)
+				if (ret == -ENOMEM)
 					err = -ENOMEM;
 				else
 					err = -EINVAL;
@@ -3274,7 +3274,7 @@ static int irdma_post_recv(struct ib_qp *ibqp,
 	struct irdma_qp *iwqp;
 	struct irdma_qp_uk *ukqp;
 	struct irdma_post_rq_info post_recv = {};
-	enum irdma_status_code ret = 0;
+	int ret = 0;
 	unsigned long flags;
 	int err = 0;
 	bool reflush = false;
@@ -3293,7 +3293,7 @@ static int irdma_post_recv(struct ib_qp *ibqp,
 		if (ret) {
 			ibdev_dbg(&iwqp->iwdev->ibdev,
 				  "VERBS: post_recv err %d\n", ret);
-			if (ret == IRDMA_ERR_QP_TOOMANY_WRS_POSTED)
+			if (ret == -ENOMEM)
 				err = -ENOMEM;
 			else
 				err = -EINVAL;
@@ -3483,7 +3483,7 @@ static int __irdma_poll_cq(struct irdma_cq *iwcq, int num_entries, struct ib_wc 
 	struct irdma_cq_buf *last_buf = NULL;
 	struct irdma_cq_poll_info *cur_cqe = &iwcq->cur_cqe;
 	struct irdma_cq_buf *cq_buf;
-	enum irdma_status_code ret;
+	int ret;
 	struct irdma_device *iwdev;
 	struct irdma_cq_uk *ukcq;
 	bool cq_new_cqe = false;
@@ -3503,10 +3503,10 @@ static int __irdma_poll_cq(struct irdma_cq *iwcq, int num_entries, struct ib_wc 
 				cq_new_cqe = true;
 				continue;
 			}
-			if (ret == IRDMA_ERR_Q_EMPTY)
+			if (ret == -ENOENT)
 				break;
 			 /* QP using the CQ is destroyed. Skip reporting this CQE */
-			if (ret == IRDMA_ERR_Q_DESTROYED) {
+			if (ret == -EFAULT) {
 				cq_new_cqe = true;
 				continue;
 			}
@@ -3528,10 +3528,10 @@ static int __irdma_poll_cq(struct irdma_cq *iwcq, int num_entries, struct ib_wc 
 			continue;
 		}
 
-		if (ret == IRDMA_ERR_Q_EMPTY)
+		if (ret == -ENOENT)
 			break;
 		/* QP using the CQ is destroyed. Skip reporting this CQE */
-		if (ret == IRDMA_ERR_Q_DESTROYED) {
+		if (ret == -EFAULT) {
 			cq_new_cqe = true;
 			continue;
 		}
@@ -3859,7 +3859,7 @@ static int irdma_mcast_cqp_op(struct irdma_device *iwdev,
 {
 	struct cqp_cmds_info *cqp_info;
 	struct irdma_cqp_request *cqp_request;
-	enum irdma_status_code status;
+	int status;
 
 	cqp_request = irdma_alloc_and_get_cqp_request(&iwdev->rf->cqp, true);
 	if (!cqp_request)

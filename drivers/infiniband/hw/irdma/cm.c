@@ -1501,15 +1501,14 @@ irdma_find_listener(struct irdma_cm_core *cm_core, u32 *dst_addr, u16 dst_port,
  * @cm_info: CM info for parent listen node
  * @cm_parent_listen_node: The parent listen node
  */
-static enum irdma_status_code
-irdma_del_multiple_qhash(struct irdma_device *iwdev,
-			 struct irdma_cm_info *cm_info,
-			 struct irdma_cm_listener *cm_parent_listen_node)
+static int irdma_del_multiple_qhash(struct irdma_device *iwdev,
+				    struct irdma_cm_info *cm_info,
+				    struct irdma_cm_listener *cm_parent_listen_node)
 {
 	struct irdma_cm_listener *child_listen_node;
-	enum irdma_status_code ret = IRDMA_ERR_CFG;
 	struct list_head *pos, *tpos;
 	unsigned long flags;
+	int ret = -EINVAL;
 
 	spin_lock_irqsave(&iwdev->cm_core.listen_list_lock, flags);
 	list_for_each_safe (pos, tpos,
@@ -1618,16 +1617,16 @@ u16 irdma_get_vlan_ipv4(u32 *addr)
  * Adds a qhash and a child listen node for every IPv6 address
  * on the adapter and adds the associated qhash filter
  */
-static enum irdma_status_code
-irdma_add_mqh_6(struct irdma_device *iwdev, struct irdma_cm_info *cm_info,
-		struct irdma_cm_listener *cm_parent_listen_node)
+static int irdma_add_mqh_6(struct irdma_device *iwdev,
+			   struct irdma_cm_info *cm_info,
+			   struct irdma_cm_listener *cm_parent_listen_node)
 {
 	struct net_device *ip_dev;
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifp, *tmp;
-	enum irdma_status_code ret = 0;
 	struct irdma_cm_listener *child_listen_node;
 	unsigned long flags;
+	int ret = 0;
 
 	rtnl_lock();
 	for_each_netdev(&init_net, ip_dev) {
@@ -1653,7 +1652,7 @@ irdma_add_mqh_6(struct irdma_device *iwdev, struct irdma_cm_info *cm_info,
 				  child_listen_node);
 			if (!child_listen_node) {
 				ibdev_dbg(&iwdev->ibdev, "CM: listener memory allocation\n");
-				ret = IRDMA_ERR_NO_MEMORY;
+				ret = -ENOMEM;
 				goto exit;
 			}
 
@@ -1700,16 +1699,16 @@ exit:
  * Adds a qhash and a child listen node for every IPv4 address
  * on the adapter and adds the associated qhash filter
  */
-static enum irdma_status_code
-irdma_add_mqh_4(struct irdma_device *iwdev, struct irdma_cm_info *cm_info,
-		struct irdma_cm_listener *cm_parent_listen_node)
+static int irdma_add_mqh_4(struct irdma_device *iwdev,
+			   struct irdma_cm_info *cm_info,
+			   struct irdma_cm_listener *cm_parent_listen_node)
 {
 	struct net_device *ip_dev;
 	struct in_device *idev;
 	struct irdma_cm_listener *child_listen_node;
-	enum irdma_status_code ret = 0;
 	unsigned long flags;
 	const struct in_ifaddr *ifa;
+	int ret = 0;
 
 	rtnl_lock();
 	for_each_netdev(&init_net, ip_dev) {
@@ -1734,7 +1733,7 @@ irdma_add_mqh_4(struct irdma_device *iwdev, struct irdma_cm_info *cm_info,
 			if (!child_listen_node) {
 				ibdev_dbg(&iwdev->ibdev, "CM: listener memory allocation\n");
 				in_dev_put(idev);
-				ret = IRDMA_ERR_NO_MEMORY;
+				ret = -ENOMEM;
 				goto exit;
 			}
 
@@ -1781,9 +1780,9 @@ exit:
  * @cm_info: CM info for parent listen node
  * @cm_listen_node: The parent listen node
  */
-static enum irdma_status_code
-irdma_add_mqh(struct irdma_device *iwdev, struct irdma_cm_info *cm_info,
-	      struct irdma_cm_listener *cm_listen_node)
+static int irdma_add_mqh(struct irdma_device *iwdev,
+			 struct irdma_cm_info *cm_info,
+			 struct irdma_cm_listener *cm_listen_node)
 {
 	if (cm_info->ipv4)
 		return irdma_add_mqh_4(iwdev, cm_info, cm_listen_node);
@@ -3205,8 +3204,7 @@ static void irdma_cm_free_ah_nop(struct irdma_cm_node *cm_node)
  * @iwdev: iwarp device structure
  * @rdma_ver: HW version
  */
-enum irdma_status_code irdma_setup_cm_core(struct irdma_device *iwdev,
-					   u8 rdma_ver)
+int irdma_setup_cm_core(struct irdma_device *iwdev, u8 rdma_ver)
 {
 	struct irdma_cm_core *cm_core = &iwdev->cm_core;
 
@@ -3216,7 +3214,7 @@ enum irdma_status_code irdma_setup_cm_core(struct irdma_device *iwdev,
 	/* Handles CM event work items send to Iwarp core */
 	cm_core->event_wq = alloc_ordered_workqueue("iwarp-event-wq", 0);
 	if (!cm_core->event_wq)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&cm_core->listen_list);
 
@@ -3923,10 +3921,10 @@ int irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 	struct irdma_device *iwdev;
 	struct irdma_cm_listener *cm_listen_node;
 	struct irdma_cm_info cm_info = {};
-	enum irdma_status_code err;
 	struct sockaddr_in *laddr;
 	struct sockaddr_in6 *laddr6;
 	bool wildcard = false;
+	int err;
 
 	iwdev = to_iwdev(cm_id->device);
 	if (!iwdev)
@@ -4337,11 +4335,11 @@ static void irdma_qhash_ctrl(struct irdma_device *iwdev,
 	struct list_head *child_listen_list = &parent_listen_node->child_listen_list;
 	struct irdma_cm_listener *child_listen_node;
 	struct list_head *pos, *tpos;
-	enum irdma_status_code err;
 	bool node_allocated = false;
 	enum irdma_quad_hash_manage_type op = ifup ?
 					      IRDMA_QHASH_MANAGE_TYPE_ADD :
 					      IRDMA_QHASH_MANAGE_TYPE_DELETE;
+	int err;
 
 	list_for_each_safe (pos, tpos, child_listen_list) {
 		child_listen_node = list_entry(pos, struct irdma_cm_listener,

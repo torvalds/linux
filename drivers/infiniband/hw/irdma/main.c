@@ -162,8 +162,8 @@ static void irdma_request_reset(struct irdma_pci_f *rf)
  * @vsi: vsi structure
  * @tc_node: Traffic class node
  */
-static enum irdma_status_code irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
-						      struct irdma_ws_node *tc_node)
+static int irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
+				   struct irdma_ws_node *tc_node)
 {
 	struct irdma_device *iwdev = vsi->back_vsi;
 	struct ice_pf *pf = iwdev->rf->cdev;
@@ -176,7 +176,7 @@ static enum irdma_status_code irdma_lan_register_qset(struct irdma_sc_vsi *vsi,
 	ret = ice_add_rdma_qset(pf, &qset);
 	if (ret) {
 		ibdev_dbg(&iwdev->ibdev, "WS: LAN alloc_res for rdma qset failed.\n");
-		return IRDMA_ERR_REG_QSET;
+		return -EINVAL;
 	}
 
 	tc_node->l2_sched_node_id = qset.teid;
