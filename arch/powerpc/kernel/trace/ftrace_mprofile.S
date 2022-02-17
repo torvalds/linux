@@ -33,11 +33,6 @@
  * and then arrange for the ftrace function to be called.
  */
 .macro	ftrace_regs_entry allregs
-	/* Save the original return address in A's stack frame */
-#ifdef CONFIG_MPROFILE_KERNEL
-	PPC_STL	r0,LRSAVE(r1)
-#endif
-
 	/* Create our stack frame + pt_regs */
 	PPC_STLU	r1,-SWITCH_FRAME_SIZE(r1)
 
@@ -46,6 +41,8 @@
 	SAVE_GPRS(3, 10, r1)
 
 #ifdef CONFIG_PPC64
+	/* Save the original return address in A's stack frame */
+	std	r0, LRSAVE+SWITCH_FRAME_SIZE(r1)
 	/* Ok to continue? */
 	lbz	r3, PACA_FTRACE_ENABLED(r13)
 	cmpdi	r3, 0
