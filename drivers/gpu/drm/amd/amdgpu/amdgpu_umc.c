@@ -165,8 +165,8 @@ late_fini:
 void amdgpu_umc_ras_fini(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC) &&
-			adev->umc.ras_if)
-		amdgpu_ras_block_late_fini(adev, adev->umc.ras_if);
+			ras_block)
+		amdgpu_ras_block_late_fini(adev, ras_block);
 }
 
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
