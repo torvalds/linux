@@ -104,11 +104,6 @@ void kfd_chardev_exit(void)
 	kfd_device = NULL;
 }
 
-struct device *kfd_chardev(void)
-{
-	return kfd_device;
-}
-
 
 static int kfd_open(struct inode *inode, struct file *filep)
 {
