@@ -185,6 +185,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 
 	switch (test_number) {
 	case 1:
+		dev_info(adev->dev,
+			 "benchmark test: %d (simple test, VRAM to GTT and GTT to VRAM)\n",
+			 test_number);
 		/* simple test, VRAM to GTT and GTT to VRAM */
 		r = amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_GTT,
 					  AMDGPU_GEM_DOMAIN_VRAM);
@@ -196,6 +199,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 			return r;
 		break;
 	case 2:
+		dev_info(adev->dev,
+			 "benchmark test: %d (simple test, VRAM to VRAM)\n",
+			 test_number);
 		/* simple test, VRAM to VRAM */
 		r = amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_VRAM,
 					  AMDGPU_GEM_DOMAIN_VRAM);
@@ -203,6 +209,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 			return r;
 		break;
 	case 3:
+		dev_info(adev->dev,
+			 "benchmark test: %d (GTT to VRAM, buffer size sweep, powers of 2)\n",
+			 test_number);
 		/* GTT to VRAM, buffer size sweep, powers of 2 */
 		for (i = 1; i <= 16384; i <<= 1) {
 			r = amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
@@ -213,6 +222,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		}
 		break;
 	case 4:
+		dev_info(adev->dev,
+			 "benchmark test: %d (VRAM to GTT, buffer size sweep, powers of 2)\n",
+			 test_number);
 		/* VRAM to GTT, buffer size sweep, powers of 2 */
 		for (i = 1; i <= 16384; i <<= 1) {
 			r = amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
@@ -223,6 +235,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		}
 		break;
 	case 5:
+		dev_info(adev->dev,
+			 "benchmark test: %d (VRAM to VRAM, buffer size sweep, powers of 2)\n",
+			 test_number);
 		/* VRAM to VRAM, buffer size sweep, powers of 2 */
 		for (i = 1; i <= 16384; i <<= 1) {
 			r = amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
@@ -233,6 +248,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		}
 		break;
 	case 6:
+		dev_info(adev->dev,
+			 "benchmark test: %d (GTT to VRAM, buffer size sweep, common modes)\n",
+			 test_number);
 		/* GTT to VRAM, buffer size sweep, common modes */
 		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++) {
 			r = amdgpu_benchmark_move(adev, common_modes[i],
@@ -243,6 +261,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		}
 		break;
 	case 7:
+		dev_info(adev->dev,
+			 "benchmark test: %d (VRAM to GTT, buffer size sweep, common modes)\n",
+			 test_number);
 		/* VRAM to GTT, buffer size sweep, common modes */
 		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++) {
 			r = amdgpu_benchmark_move(adev, common_modes[i],
@@ -253,6 +274,9 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		}
 		break;
 	case 8:
+		dev_info(adev->dev,
+			 "benchmark test: %d (VRAM to VRAM, buffer size sweep, common modes)\n",
+			 test_number);
 		/* VRAM to VRAM, buffer size sweep, common modes */
 		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++) {
 			r = amdgpu_benchmark_move(adev, common_modes[i],
@@ -264,7 +288,7 @@ int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		break;
 
 	default:
-		dev_info(adev->dev, "Unknown benchmark\n");
+		dev_info(adev->dev, "Unknown benchmark %d\n", test_number);
 		r = -EINVAL;
 		break;
 	}
