@@ -644,13 +644,14 @@ static void __dm_stat_bio(struct dm_stat *s, int bi_rw,
 
 void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 			 sector_t bi_sector, unsigned bi_sectors, bool end,
-			 unsigned long duration_jiffies,
+			 unsigned long start_time,
 			 struct dm_stats_aux *stats_aux)
 {
 	struct dm_stat *s;
 	sector_t end_sector;
 	struct dm_stats_last_position *last;
 	bool got_precise_time;
+	unsigned long duration_jiffies = 0;
 
 	if (unlikely(!bi_sectors))
 		return;
@@ -670,7 +671,8 @@ void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 				       ));
 		WRITE_ONCE(last->last_sector, end_sector);
 		WRITE_ONCE(last->last_rw, bi_rw);
-	}
+	} else
+		duration_jiffies = jiffies - start_time;
 
 	rcu_read_lock();
 

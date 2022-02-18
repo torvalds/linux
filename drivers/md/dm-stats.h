@@ -31,7 +31,7 @@ int dm_stats_message(struct mapped_device *md, unsigned argc, char **argv,
 
 void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 			 sector_t bi_sector, unsigned bi_sectors, bool end,
-			 unsigned long duration_jiffies,
+			 unsigned long start_time,
 			 struct dm_stats_aux *aux);
 
 static inline bool dm_stats_used(struct dm_stats *st)
