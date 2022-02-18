@@ -205,9 +205,16 @@
     %% CJK chapters can be ignored.
     \newcommand{\kerneldocBeginSC}[1]{%
 	%% Put a note on missing CJK fonts in place of zh_CN translation.
-	\begin{sphinxadmonition}{note}{Note:}
-	    ``Noto Sans CJK'' fonts are not found while building this PDF\@.
-	    Translations of zh\_CN, zh\_TW, ko\_KR, and ja\_JP are skipped.
+	\begin{sphinxadmonition}{note}{Note on missing fonts:}
+	    Translations of Simplified Chinese (zh\_CN), Traditional Chinese
+	    (zh\_TW), Korean (ko\_KR), and Japanese (ja\_JP) were skipped
+	    due to the lack of suitable font families.
+
+	    If you want them, please install ``Noto Sans CJK'' font families
+	    by following instructions from
+	    \sphinxcode{./scripts/sphinx-pre-install}.
+	    Having optional ``Noto Serif CJK'' font families will improve
+	    the looks of those translations.
 	\end{sphinxadmonition}}
     \newcommand{\kerneldocEndSC}{}
     \newcommand{\kerneldocBeginTC}[1]{}
