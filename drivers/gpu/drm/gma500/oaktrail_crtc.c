@@ -385,12 +385,8 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	memcpy(&gma_crtc->saved_mode,
-		mode,
-		sizeof(struct drm_display_mode));
-	memcpy(&gma_crtc->saved_adjusted_mode,
-		adjusted_mode,
-		sizeof(struct drm_display_mode));
+	drm_mode_copy(&gma_crtc->saved_mode, mode);
+	drm_mode_copy(&gma_crtc->saved_adjusted_mode, adjusted_mode);
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		if (!connector->encoder || connector->encoder->crtc != crtc)
