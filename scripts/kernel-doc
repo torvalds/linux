@@ -52,6 +52,8 @@ See Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
 
 =cut
 
+# more perldoc at the end of the file
+
 # 18/01/2001 - 	Cleanups
 # 		Functions prototyped as foo(void) same as foo()
 # 		Stop eval'ing where we don't need to.
@@ -80,11 +82,6 @@ See Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
 sub usage {
     my $message = <<"EOF";
 Usage: $0 [OPTION ...] FILE ...
-
-Output format selection (mutually exclusive):
-  -man			Output troff manual page format. This is the default.
-  -rst			Output reStructuredText format.
-  -none			Do not output documentation, only warnings.
 
 Output format selection modifier (affects only ReST output):
 
@@ -2563,3 +2560,27 @@ if ($Werror && $warnings) {
 } else {
     exit($output_mode eq "none" ? 0 : $errors)
 }
+
+__END__
+
+=head1 OPTIONS
+
+=head2 Output format selection (mutually exclusive):
+
+=over 8
+
+=item -man
+
+Output troff manual page format.
+
+=item -rst
+
+Output reStructuredText format. This is the default.
+
+=item -none
+
+Do not output documentation, only warnings.
+
+=back
+
+=cut
