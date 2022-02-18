@@ -83,11 +83,6 @@ sub usage {
     my $message = <<"EOF";
 Usage: $0 [OPTION ...] FILE ...
 
-Other parameters:
-  -v			Verbose output, more warnings and other information.
-  -h			Print this help.
-  -Werror		Treat warnings as errors.
-
 EOF
     print $message;
     exit 1;
@@ -2625,6 +2620,24 @@ May be specified multiple times.
 =item -enable-lineno
 
 Enable output of #define LINENO lines.
+
+=back
+
+=head2 Other parameters:
+
+=over 8
+
+=item -h, -help
+
+Print this help.
+
+=item -v
+
+Verbose output, more warnings and other information.
+
+=item -Werror
+
+Treat warnings as errors.
 
 =back
 
