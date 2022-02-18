@@ -1378,7 +1378,7 @@ static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 /*
  * Select the correct strategy for processing a non-flush bio.
  */
-static int __split_and_process_non_flush(struct clone_info *ci)
+static int __split_and_process_bio(struct clone_info *ci)
 {
 	struct dm_target *ti;
 	unsigned len;
@@ -1414,8 +1414,8 @@ static void init_clone_info(struct clone_info *ci, struct mapped_device *md,
 /*
  * Entry point to split a bio into clones and submit them to the targets.
  */
-static void __split_and_process_bio(struct mapped_device *md,
-					struct dm_table *map, struct bio *bio)
+static void dm_split_and_process_bio(struct mapped_device *md,
+				     struct dm_table *map, struct bio *bio)
 {
 	struct clone_info ci;
 	int error = 0;
@@ -1428,19 +1428,19 @@ static void __split_and_process_bio(struct mapped_device *md,
 	} else if (op_is_zone_mgmt(bio_op(bio))) {
 		ci.bio = bio;
 		ci.sector_count = 0;
-		error = __split_and_process_non_flush(&ci);
+		error = __split_and_process_bio(&ci);
 	} else {
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
-		error = __split_and_process_non_flush(&ci);
+		error = __split_and_process_bio(&ci);
 		if (ci.sector_count && !error) {
 			/*
 			 * Remainder must be passed to submit_bio_noacct()
 			 * so that it gets handled *after* bios already submitted
 			 * have been completely processed.
 			 * We take a clone of the original to store in
-			 * ci.io->orig_bio to be used by dm_end_io_acct() and
-			 * for dm_io_dec_pending() to use for completion handling.
+			 * ci.io->orig_bio to be used by dm_end_io_acct() and for
+			 * dm_io_dec_pending() to use for completion handling.
 			 */
 			struct bio *b = bio_split(bio, bio_sectors(bio) - ci.sector_count,
 						  GFP_NOIO, &md->queue->bio_split);
@@ -1489,7 +1489,7 @@ static void dm_submit_bio(struct bio *bio)
 	if (is_abnormal_io(bio))
 		blk_queue_split(&bio);
 
-	__split_and_process_bio(md, map, bio);
+	dm_split_and_process_bio(md, map, bio);
 out:
 	dm_put_live_table(md, srcu_idx);
 }
@@ -2310,11 +2310,11 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	/*
 	 * Here we must make sure that no processes are submitting requests
 	 * to target drivers i.e. no one may be executing
-	 * __split_and_process_bio from dm_submit_bio.
+	 * dm_split_and_process_bio from dm_submit_bio.
 	 *
-	 * To get all processes out of __split_and_process_bio in dm_submit_bio,
+	 * To get all processes out of dm_split_and_process_bio in dm_submit_bio,
 	 * we take the write lock. To prevent any process from reentering
-	 * __split_and_process_bio from dm_submit_bio and quiesce the thread
+	 * dm_split_and_process_bio from dm_submit_bio and quiesce the thread
 	 * (dm_wq_work), we set DMF_BLOCK_IO_FOR_SUSPEND and call
 	 * flush_workqueue(md->wq).
 	 */
