@@ -225,17 +225,14 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	int ret;
 	int result = 0;
 	int order;
-	int format;
 	unsigned int count;
 	unsigned long start_addr;
 	unsigned long size;
 	struct page **pages = NULL;
 	struct rga_virt_addr *virt_addr = NULL;
 
-	rga_user_format_convert(&format, memory_parm->format);
-
 	/* Calculate page size. */
-	count = rga_buf_size_cal(viraddr, viraddr, viraddr, format,
+	count = rga_buf_size_cal(viraddr, viraddr, viraddr, memory_parm->format,
 				 memory_parm->width, memory_parm->height,
 				 &start_addr, NULL);
 	size = count * PAGE_SIZE;

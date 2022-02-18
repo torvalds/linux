@@ -233,8 +233,8 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	bRGA_SRC_TR_COLOR0 = (u32 *) (base + RGA2_SRC_TR_COLOR0_OFFSET);
 	bRGA_SRC_TR_COLOR1 = (u32 *) (base + RGA2_SRC_TR_COLOR1_OFFSET);
 
-	if (msg->src.format == RGA2_FORMAT_YCbCr_420_SP_10B ||
-		msg->src.format == RGA2_FORMAT_YCrCb_420_SP_10B) {
+	if (msg->src.format == RGA_FORMAT_YCbCr_420_SP_10B ||
+		msg->src.format == RGA_FORMAT_YCrCb_420_SP_10B) {
 		if ((msg->src.act_w == msg->dst.act_w) &&
 			(msg->src.act_h == msg->dst.act_h) &&
 			(msg->rotate_mode == 0))
@@ -277,62 +277,62 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	}
 
 	switch (msg->src.format) {
-	case RGA2_FORMAT_RGBA_8888:
+	case RGA_FORMAT_RGBA_8888:
 		src0_format = 0x0;
 		pixel_width = 4;
 		break;
-	case RGA2_FORMAT_BGRA_8888:
+	case RGA_FORMAT_BGRA_8888:
 		src0_format = 0x0;
 		src0_rb_swp = 0x1;
 		pixel_width = 4;
 		break;
-	case RGA2_FORMAT_RGBX_8888:
+	case RGA_FORMAT_RGBX_8888:
 		src0_format = 0x1;
 		pixel_width = 4;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA2_FORMAT_BGRX_8888:
+	case RGA_FORMAT_BGRX_8888:
 		src0_format = 0x1;
 		src0_rb_swp = 0x1;
 		pixel_width = 4;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA2_FORMAT_RGB_888:
+	case RGA_FORMAT_RGB_888:
 		src0_format = 0x2;
 		pixel_width = 3;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA2_FORMAT_BGR_888:
+	case RGA_FORMAT_BGR_888:
 		src0_format = 0x2;
 		src0_rb_swp = 1;
 		pixel_width = 3;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA2_FORMAT_RGB_565:
+	case RGA_FORMAT_RGB_565:
 		src0_format = 0x4;
 		pixel_width = 2;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA2_FORMAT_RGBA_5551:
+	case RGA_FORMAT_RGBA_5551:
 		src0_format = 0x5;
 		pixel_width = 2;
 		break;
-	case RGA2_FORMAT_RGBA_4444:
+	case RGA_FORMAT_RGBA_4444:
 		src0_format = 0x6;
 		pixel_width = 2;
 		break;
-	case RGA2_FORMAT_BGR_565:
+	case RGA_FORMAT_BGR_565:
 		src0_format = 0x4;
 		pixel_width = 2;
 		msg->src_trans_mode &= 0x07;
 		src0_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_BGRA_5551:
+	case RGA_FORMAT_BGRA_5551:
 		src0_format = 0x5;
 		pixel_width = 2;
 		src0_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_BGRA_4444:
+	case RGA_FORMAT_BGRA_4444:
 		src0_format = 0x6;
 		pixel_width = 2;
 		src0_rb_swp = 0x1;
@@ -343,143 +343,143 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		 * In colorkey mode, xrgb/xbgr does not
 		 * need to enable the alpha channel
 		 */
-	case RGA2_FORMAT_ARGB_8888:
+	case RGA_FORMAT_ARGB_8888:
 		src0_format = 0x0;
 		pixel_width = 4;
 		src0_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_8888:
+	case RGA_FORMAT_ABGR_8888:
 		src0_format = 0x0;
 		pixel_width = 4;
 		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_XRGB_8888:
+	case RGA_FORMAT_XRGB_8888:
 		src0_format = 0x1;
 		pixel_width = 4;
 		src0_alpha_swp = 1;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA2_FORMAT_XBGR_8888:
+	case RGA_FORMAT_XBGR_8888:
 		src0_format = 0x1;
 		pixel_width = 4;
 		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA2_FORMAT_ARGB_5551:
+	case RGA_FORMAT_ARGB_5551:
 		src0_format = 0x5;
 		pixel_width = 2;
 		src0_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_5551:
+	case RGA_FORMAT_ABGR_5551:
 		src0_format = 0x5;
 		pixel_width = 2;
 		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_ARGB_4444:
+	case RGA_FORMAT_ARGB_4444:
 		src0_format = 0x6;
 		pixel_width = 2;
 		src0_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_4444:
+	case RGA_FORMAT_ABGR_4444:
 		src0_format = 0x6;
 		pixel_width = 2;
 		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
 		break;
 
-	case RGA2_FORMAT_YVYU_422:
+	case RGA_FORMAT_YVYU_422:
 		src0_format = 0x7;
 		pixel_width = 2;
 		src0_cbcr_swp = 1;
 		src0_rb_swp = 0x1;
 		break;		//rbswap=ycswap
-	case RGA2_FORMAT_VYUY_422:
+	case RGA_FORMAT_VYUY_422:
 		src0_format = 0x7;
 		pixel_width = 2;
 		src0_cbcr_swp = 1;
 		src0_rb_swp = 0x0;
 		break;
-	case RGA2_FORMAT_YUYV_422:
+	case RGA_FORMAT_YUYV_422:
 		src0_format = 0x7;
 		pixel_width = 2;
 		src0_cbcr_swp = 0;
 		src0_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_UYVY_422:
+	case RGA_FORMAT_UYVY_422:
 		src0_format = 0x7;
 		pixel_width = 2;
 		src0_cbcr_swp = 0;
 		src0_rb_swp = 0x0;
 		break;
 
-	case RGA2_FORMAT_YCbCr_422_SP:
+	case RGA_FORMAT_YCbCr_422_SP:
 		src0_format = 0x8;
 		xdiv = 1;
 		ydiv = 1;
 		break;
-	case RGA2_FORMAT_YCbCr_422_P:
+	case RGA_FORMAT_YCbCr_422_P:
 		src0_format = 0x9;
 		xdiv = 2;
 		ydiv = 1;
 		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
+	case RGA_FORMAT_YCbCr_420_SP:
 		src0_format = 0xa;
 		xdiv = 1;
 		ydiv = 2;
 		break;
-	case RGA2_FORMAT_YCbCr_420_P:
+	case RGA_FORMAT_YCbCr_420_P:
 		src0_format = 0xb;
 		xdiv = 2;
 		ydiv = 2;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP:
+	case RGA_FORMAT_YCrCb_422_SP:
 		src0_format = 0x8;
 		xdiv = 1;
 		ydiv = 1;
 		src0_cbcr_swp = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_422_P:
+	case RGA_FORMAT_YCrCb_422_P:
 		src0_format = 0x9;
 		xdiv = 2;
 		ydiv = 1;
 		src0_cbcr_swp = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP:
+	case RGA_FORMAT_YCrCb_420_SP:
 		src0_format = 0xa;
 		xdiv = 1;
 		ydiv = 2;
 		src0_cbcr_swp = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_P:
+	case RGA_FORMAT_YCrCb_420_P:
 		src0_format = 0xb;
 		xdiv = 2;
 		ydiv = 2;
 		src0_cbcr_swp = 1;
 		break;
 
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
+	case RGA_FORMAT_YCbCr_420_SP_10B:
 		src0_format = 0xa;
 		xdiv = 1;
 		ydiv = 2;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
+	case RGA_FORMAT_YCrCb_420_SP_10B:
 		src0_format = 0xa;
 		xdiv = 1;
 		ydiv = 2;
 		src0_cbcr_swp = 1;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCbCr_422_SP_10B:
+	case RGA_FORMAT_YCbCr_422_SP_10B:
 		src0_format = 0x8;
 		xdiv = 1;
 		ydiv = 1;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP_10B:
+	case RGA_FORMAT_YCrCb_422_SP_10B:
 		src0_format = 0x8;
 		xdiv = 1;
 		ydiv = 1;
@@ -487,7 +487,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		yuv10 = 1;
 		break;
 
-	case RGA2_FORMAT_YCbCr_400:
+	case RGA_FORMAT_YCbCr_400:
 		src0_format = 0x8;
 		src_fmt_yuv400_en = 1;
 		xdiv = 1;
@@ -665,101 +665,101 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		(u32 *) (base + RGA2_DST_QUANTIZE_OFFSET_OFFSET);
 
 	switch (msg->src1.format) {
-	case RGA2_FORMAT_RGBA_8888:
+	case RGA_FORMAT_RGBA_8888:
 		src1_format = 0x0;
 		spw = 4;
 		break;
-	case RGA2_FORMAT_BGRA_8888:
+	case RGA_FORMAT_BGRA_8888:
 		src1_format = 0x0;
 		src1_rb_swp = 0x1;
 		spw = 4;
 		break;
-	case RGA2_FORMAT_RGBX_8888:
+	case RGA_FORMAT_RGBX_8888:
 		src1_format = 0x1;
 		spw = 4;
 		break;
-	case RGA2_FORMAT_BGRX_8888:
+	case RGA_FORMAT_BGRX_8888:
 		src1_format = 0x1;
 		src1_rb_swp = 0x1;
 		spw = 4;
 		break;
-	case RGA2_FORMAT_RGB_888:
+	case RGA_FORMAT_RGB_888:
 		src1_format = 0x2;
 		spw = 3;
 		break;
-	case RGA2_FORMAT_BGR_888:
+	case RGA_FORMAT_BGR_888:
 		src1_format = 0x2;
 		src1_rb_swp = 1;
 		spw = 3;
 		break;
-	case RGA2_FORMAT_RGB_565:
+	case RGA_FORMAT_RGB_565:
 		src1_format = 0x4;
 		spw = 2;
 		break;
-	case RGA2_FORMAT_RGBA_5551:
+	case RGA_FORMAT_RGBA_5551:
 		src1_format = 0x5;
 		spw = 2;
 		break;
-	case RGA2_FORMAT_RGBA_4444:
+	case RGA_FORMAT_RGBA_4444:
 		src1_format = 0x6;
 		spw = 2;
 		break;
-	case RGA2_FORMAT_BGR_565:
+	case RGA_FORMAT_BGR_565:
 		src1_format = 0x4;
 		spw = 2;
 		src1_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_BGRA_5551:
+	case RGA_FORMAT_BGRA_5551:
 		src1_format = 0x5;
 		spw = 2;
 		src1_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_BGRA_4444:
+	case RGA_FORMAT_BGRA_4444:
 		src1_format = 0x6;
 		spw = 2;
 		src1_rb_swp = 0x1;
 		break;
 
 		/* ARGB */
-	case RGA2_FORMAT_ARGB_8888:
+	case RGA_FORMAT_ARGB_8888:
 		src1_format = 0x0;
 		spw = 4;
 		src1_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_8888:
+	case RGA_FORMAT_ABGR_8888:
 		src1_format = 0x0;
 		spw = 4;
 		src1_alpha_swp = 1;
 		src1_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_XRGB_8888:
+	case RGA_FORMAT_XRGB_8888:
 		src1_format = 0x1;
 		spw = 4;
 		src1_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_XBGR_8888:
+	case RGA_FORMAT_XBGR_8888:
 		src1_format = 0x1;
 		spw = 4;
 		src1_alpha_swp = 1;
 		src1_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_ARGB_5551:
+	case RGA_FORMAT_ARGB_5551:
 		src1_format = 0x5;
 		spw = 2;
 		src1_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_5551:
+	case RGA_FORMAT_ABGR_5551:
 		src1_format = 0x5;
 		spw = 2;
 		src1_alpha_swp = 1;
 		src1_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_ARGB_4444:
+	case RGA_FORMAT_ARGB_4444:
 		src1_format = 0x6;
 		spw = 2;
 		src1_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_4444:
+	case RGA_FORMAT_ABGR_4444:
 		src1_format = 0x6;
 		spw = 2;
 		src1_alpha_swp = 1;
@@ -781,159 +781,159 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		 (s_RGA2_DST_INFO_SW_SRC1_ALPHA_SWP(src1_alpha_swp)));
 
 	switch (msg->dst.format) {
-	case RGA2_FORMAT_RGBA_8888:
+	case RGA_FORMAT_RGBA_8888:
 		dst_format = 0x0;
 		dpw = 4;
 		break;
-	case RGA2_FORMAT_BGRA_8888:
+	case RGA_FORMAT_BGRA_8888:
 		dst_format = 0x0;
 		dst_rb_swp = 0x1;
 		dpw = 4;
 		break;
-	case RGA2_FORMAT_RGBX_8888:
+	case RGA_FORMAT_RGBX_8888:
 		dst_format = 0x1;
 		dpw = 4;
 		break;
-	case RGA2_FORMAT_BGRX_8888:
+	case RGA_FORMAT_BGRX_8888:
 		dst_format = 0x1;
 		dst_rb_swp = 0x1;
 		dpw = 4;
 		break;
-	case RGA2_FORMAT_RGB_888:
+	case RGA_FORMAT_RGB_888:
 		dst_format = 0x2;
 		dpw = 3;
 		break;
-	case RGA2_FORMAT_BGR_888:
+	case RGA_FORMAT_BGR_888:
 		dst_format = 0x2;
 		dst_rb_swp = 1;
 		dpw = 3;
 		break;
-	case RGA2_FORMAT_RGB_565:
+	case RGA_FORMAT_RGB_565:
 		dst_format = 0x4;
 		dpw = 2;
 		break;
-	case RGA2_FORMAT_RGBA_5551:
+	case RGA_FORMAT_RGBA_5551:
 		dst_format = 0x5;
 		dpw = 2;
 		break;
-	case RGA2_FORMAT_RGBA_4444:
+	case RGA_FORMAT_RGBA_4444:
 		dst_format = 0x6;
 		dpw = 2;
 		break;
-	case RGA2_FORMAT_BGR_565:
+	case RGA_FORMAT_BGR_565:
 		dst_format = 0x4;
 		dpw = 2;
 		dst_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_BGRA_5551:
+	case RGA_FORMAT_BGRA_5551:
 		dst_format = 0x5;
 		dpw = 2;
 		dst_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_BGRA_4444:
+	case RGA_FORMAT_BGRA_4444:
 		dst_format = 0x6;
 		dpw = 2;
 		dst_rb_swp = 0x1;
 		break;
 
 		/* ARGB */
-	case RGA2_FORMAT_ARGB_8888:
+	case RGA_FORMAT_ARGB_8888:
 		dst_format = 0x0;
 		dpw = 4;
 		dst_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_8888:
+	case RGA_FORMAT_ABGR_8888:
 		dst_format = 0x0;
 		dpw = 4;
 		dst_alpha_swp = 1;
 		dst_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_XRGB_8888:
+	case RGA_FORMAT_XRGB_8888:
 		dst_format = 0x1;
 		dpw = 4;
 		dst_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_XBGR_8888:
+	case RGA_FORMAT_XBGR_8888:
 		dst_format = 0x1;
 		dpw = 4;
 		dst_alpha_swp = 1;
 		dst_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_ARGB_5551:
+	case RGA_FORMAT_ARGB_5551:
 		dst_format = 0x5;
 		dpw = 2;
 		dst_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_5551:
+	case RGA_FORMAT_ABGR_5551:
 		dst_format = 0x5;
 		dpw = 2;
 		dst_alpha_swp = 1;
 		dst_rb_swp = 0x1;
 		break;
-	case RGA2_FORMAT_ARGB_4444:
+	case RGA_FORMAT_ARGB_4444:
 		dst_format = 0x6;
 		dpw = 2;
 		dst_alpha_swp = 1;
 		break;
-	case RGA2_FORMAT_ABGR_4444:
+	case RGA_FORMAT_ABGR_4444:
 		dst_format = 0x6;
 		dpw = 2;
 		dst_alpha_swp = 1;
 		dst_rb_swp = 0x1;
 		break;
 
-	case RGA2_FORMAT_YCbCr_422_SP:
+	case RGA_FORMAT_YCbCr_422_SP:
 		dst_format = 0x8;
 		x_div = 1;
 		y_div = 1;
 		break;
-	case RGA2_FORMAT_YCbCr_422_P:
+	case RGA_FORMAT_YCbCr_422_P:
 		dst_format = 0x9;
 		x_div = 2;
 		y_div = 1;
 		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
+	case RGA_FORMAT_YCbCr_420_SP:
 		dst_format = 0xa;
 		x_div = 1;
 		y_div = 2;
 		break;
-	case RGA2_FORMAT_YCbCr_420_P:
+	case RGA_FORMAT_YCbCr_420_P:
 		dst_format = 0xb;
 		dst_cbcr_swp = 1;
 		x_div = 2;
 		y_div = 2;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP:
+	case RGA_FORMAT_YCrCb_422_SP:
 		dst_format = 0x8;
 		dst_cbcr_swp = 1;
 		x_div = 1;
 		y_div = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_422_P:
+	case RGA_FORMAT_YCrCb_422_P:
 		dst_format = 0x9;
 		dst_cbcr_swp = 1;
 		x_div = 2;
 		y_div = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP:
+	case RGA_FORMAT_YCrCb_420_SP:
 		dst_format = 0xa;
 		dst_cbcr_swp = 1;
 		x_div = 1;
 		y_div = 2;
 		break;
-	case RGA2_FORMAT_YCrCb_420_P:
+	case RGA_FORMAT_YCrCb_420_P:
 		dst_format = 0xb;
 		x_div = 2;
 		y_div = 2;
 		break;
 
-	case RGA2_FORMAT_YCbCr_400:
+	case RGA_FORMAT_YCbCr_400:
 		dst_format = 0x8;
 		dst_fmt_yuv400_en = 1;
 		x_div = 1;
 		y_div = 1;
 		break;
-	case RGA2_FORMAT_Y4:
+	case RGA_FORMAT_Y4:
 		dst_format = 0x8;
 		dst_fmt_y4_en = 1;
 		dst_fmt_yuv400_en = 1;
@@ -941,39 +941,39 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		y_div = 1;
 		break;
 
-	case RGA2_FORMAT_YUYV_422:
+	case RGA_FORMAT_YUYV_422:
 		dst_format = 0xe;
 		dpw = 2;
 		dst_cbcr_swp = 1;
 		break;
-	case RGA2_FORMAT_YVYU_422:
+	case RGA_FORMAT_YVYU_422:
 		dst_format = 0xe;
 		dpw = 2;
 		break;
-	case RGA2_FORMAT_YUYV_420:
+	case RGA_FORMAT_YUYV_420:
 		dst_format = 0xf;
 		dpw = 2;
 		dst_cbcr_swp = 1;
 		break;
-	case RGA2_FORMAT_YVYU_420:
+	case RGA_FORMAT_YVYU_420:
 		dst_format = 0xf;
 		dpw = 2;
 		break;
-	case RGA2_FORMAT_UYVY_422:
+	case RGA_FORMAT_UYVY_422:
 		dst_format = 0xc;
 		dpw = 2;
 		dst_cbcr_swp = 1;
 		break;
-	case RGA2_FORMAT_VYUY_422:
+	case RGA_FORMAT_VYUY_422:
 		dst_format = 0xc;
 		dpw = 2;
 		break;
-	case RGA2_FORMAT_UYVY_420:
+	case RGA_FORMAT_UYVY_420:
 		dst_format = 0xd;
 		dpw = 2;
 		dst_cbcr_swp = 1;
 		break;
-	case RGA2_FORMAT_VYUY_420:
+	case RGA_FORMAT_VYUY_420:
 		dst_format = 0xd;
 		dpw = 2;
 		break;
@@ -1032,7 +1032,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		 (s_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE(
 			msg->yuv2rgb_mode >> 7)));
 
-	ydither_en = (msg->dst.format == RGA2_FORMAT_Y4)
+	ydither_en = (msg->dst.format == RGA_FORMAT_Y4)
 		&& ((msg->alpha_rop_flag >> 6) & 0x1);
 
 	*bRGA_DST_INFO = reg;
@@ -1051,8 +1051,8 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	if ((msg->dst.vir_w % 2 != 0) &&
 		(msg->dst.act_w == msg->src.act_w)
 		&& (msg->dst.act_h == msg->src.act_h)
-		&& (msg->dst.format == RGA2_FORMAT_BGR_888
-		|| msg->dst.format == RGA2_FORMAT_RGB_888))
+		&& (msg->dst.format == RGA_FORMAT_BGR_888
+		|| msg->dst.format == RGA_FORMAT_RGB_888))
 		*bRGA_DST_ACT_INFO =
 			(msg->dst.act_w) | ((msg->dst.act_h - 1) << 16);
 	else
@@ -1213,8 +1213,8 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	*bRGA_DST_BASE0 = (u32) yrgb_addr;
 
-	if ((msg->dst.format == RGA2_FORMAT_YCbCr_420_P)
-		|| (msg->dst.format == RGA2_FORMAT_YCrCb_420_P)) {
+	if ((msg->dst.format == RGA_FORMAT_YCbCr_420_P)
+		|| (msg->dst.format == RGA_FORMAT_YCrCb_420_P)) {
 		if (dst_cbcr_swp == 0) {
 			*bRGA_DST_BASE1 = (u32) v_addr;
 			*bRGA_DST_BASE2 = (u32) u_addr;
@@ -1641,7 +1641,7 @@ int rga2_gen_reg_info(u8 *base, u8 *csc_base, struct rga2_req *msg)
 		dst_nn_quantize_en = (msg->alpha_rop_flag >> 8) & 0x1;
 		if (dst_nn_quantize_en != 1) {
 			if ((msg->dst.format !=
-				RGA2_FORMAT_Y4)) {
+				RGA_FORMAT_Y4)) {
 				RGA2_set_reg_alpha_info(base, msg);
 				RGA2_set_reg_rop_info(base, msg);
 			}
@@ -1696,9 +1696,9 @@ void rga_cmd_to_rga2_cmd(struct rga_req *req_rga, struct rga2_req *req)
 	else
 		memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
 
-	rga_user_format_convert(&req->src.format, req_rga->src.format);
-	rga_user_format_convert(&req->dst.format, req_rga->dst.format);
-	rga_user_format_convert(&req->src1.format, req_rga->pat.format);
+	req->src.format = req_rga->src.format;
+	req->dst.format = req_rga->dst.format;
+	req->src1.format = req_rga->pat.format;
 
 	switch (req_rga->rotate_mode & 0x0F) {
 	case 1:

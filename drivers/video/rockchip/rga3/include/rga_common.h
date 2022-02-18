@@ -9,8 +9,6 @@
 #ifndef __LINUX_RKRGA_COMMON_H_
 #define __LINUX_RKRGA_COMMON_H_
 
-void rga_user_format_convert(uint32_t *df, uint32_t sf);
-
 bool rga_is_rgb_format(uint32_t format);
 bool rga_is_yuv_format(uint32_t format);
 bool rga_is_alpha_format(uint32_t format);

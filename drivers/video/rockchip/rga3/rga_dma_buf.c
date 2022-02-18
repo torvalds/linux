@@ -48,14 +48,14 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 	uint32_t pageCount;
 
 	switch (format) {
-	case RGA2_FORMAT_RGBA_8888:
-	case RGA2_FORMAT_RGBX_8888:
-	case RGA2_FORMAT_BGRA_8888:
-	case RGA2_FORMAT_BGRX_8888:
-	case RGA2_FORMAT_ARGB_8888:
-	case RGA2_FORMAT_XRGB_8888:
-	case RGA2_FORMAT_ABGR_8888:
-	case RGA2_FORMAT_XBGR_8888:
+	case RGA_FORMAT_RGBA_8888:
+	case RGA_FORMAT_RGBX_8888:
+	case RGA_FORMAT_BGRA_8888:
+	case RGA_FORMAT_BGRX_8888:
+	case RGA_FORMAT_ARGB_8888:
+	case RGA_FORMAT_XRGB_8888:
+	case RGA_FORMAT_ABGR_8888:
+	case RGA_FORMAT_XBGR_8888:
 		stride = (w * 4 + 3) & (~3);
 		size_yrgb = stride * h;
 		start = yrgb_addr >> PAGE_SHIFT;
@@ -63,8 +63,8 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_RGB_888:
-	case RGA2_FORMAT_BGR_888:
+	case RGA_FORMAT_RGB_888:
+	case RGA_FORMAT_BGR_888:
 		stride = (w * 3 + 3) & (~3);
 		size_yrgb = stride * h;
 		start = yrgb_addr >> PAGE_SHIFT;
@@ -72,16 +72,16 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_RGB_565:
-	case RGA2_FORMAT_RGBA_5551:
-	case RGA2_FORMAT_RGBA_4444:
-	case RGA2_FORMAT_BGR_565:
-	case RGA2_FORMAT_BGRA_5551:
-	case RGA2_FORMAT_BGRA_4444:
-	case RGA2_FORMAT_ARGB_5551:
-	case RGA2_FORMAT_ARGB_4444:
-	case RGA2_FORMAT_ABGR_5551:
-	case RGA2_FORMAT_ABGR_4444:
+	case RGA_FORMAT_RGB_565:
+	case RGA_FORMAT_RGBA_5551:
+	case RGA_FORMAT_RGBA_4444:
+	case RGA_FORMAT_BGR_565:
+	case RGA_FORMAT_BGRA_5551:
+	case RGA_FORMAT_BGRA_4444:
+	case RGA_FORMAT_ARGB_5551:
+	case RGA_FORMAT_ARGB_4444:
+	case RGA_FORMAT_ABGR_5551:
+	case RGA_FORMAT_ABGR_4444:
 		stride = (w * 2 + 3) & (~3);
 		size_yrgb = stride * h;
 		start = yrgb_addr >> PAGE_SHIFT;
@@ -91,8 +91,8 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		break;
 
 		/* YUV FORMAT */
-	case RGA2_FORMAT_YCbCr_422_SP:
-	case RGA2_FORMAT_YCrCb_422_SP:
+	case RGA_FORMAT_YCbCr_422_SP:
+	case RGA_FORMAT_YCrCb_422_SP:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		size_uv = stride * h;
@@ -102,8 +102,8 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_YCbCr_422_P:
-	case RGA2_FORMAT_YCrCb_422_P:
+	case RGA_FORMAT_YCbCr_422_P:
+	case RGA_FORMAT_YCrCb_422_P:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		size_uv = ((stride >> 1) * h);
@@ -116,8 +116,8 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
-	case RGA2_FORMAT_YCrCb_420_SP:
+	case RGA_FORMAT_YCbCr_420_SP:
+	case RGA_FORMAT_YCrCb_420_SP:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		size_uv = (stride * (h >> 1));
@@ -127,8 +127,8 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_YCbCr_420_P:
-	case RGA2_FORMAT_YCrCb_420_P:
+	case RGA_FORMAT_YCbCr_420_P:
+	case RGA_FORMAT_YCrCb_420_P:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		size_uv = ((stride >> 1) * (h >> 1));
@@ -141,7 +141,7 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_YCbCr_400:
+	case RGA_FORMAT_YCbCr_400:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		start = yrgb_addr >> PAGE_SHIFT;
@@ -149,7 +149,7 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_Y4:
+	case RGA_FORMAT_Y4:
 		stride = ((w + 3) & (~3)) >> 1;
 		size_yrgb = stride * h;
 		start = yrgb_addr >> PAGE_SHIFT;
@@ -157,10 +157,10 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_YVYU_422:
-	case RGA2_FORMAT_VYUY_422:
-	case RGA2_FORMAT_YUYV_422:
-	case RGA2_FORMAT_UYVY_422:
+	case RGA_FORMAT_YVYU_422:
+	case RGA_FORMAT_VYUY_422:
+	case RGA_FORMAT_YUYV_422:
+	case RGA_FORMAT_UYVY_422:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		size_uv = stride * h;
@@ -170,10 +170,10 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_YVYU_420:
-	case RGA2_FORMAT_VYUY_420:
-	case RGA2_FORMAT_YUYV_420:
-	case RGA2_FORMAT_UYVY_420:
+	case RGA_FORMAT_YVYU_420:
+	case RGA_FORMAT_VYUY_420:
+	case RGA_FORMAT_YUYV_420:
+	case RGA_FORMAT_UYVY_420:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		size_uv = (stride * (h >> 1));
@@ -183,8 +183,8 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		pageCount = end - start;
 		break;
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
+	case RGA_FORMAT_YCbCr_420_SP_10B:
+	case RGA_FORMAT_YCrCb_420_SP_10B:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		size_uv = (stride * (h >> 1));
@@ -557,8 +557,6 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 	int ioprot;
 	dma_addr_t iova;
 
-	int format;
-
 	alloc_buffer =
 		kmalloc(sizeof(struct rga_dma_buffer_t),
 			GFP_KERNEL);
@@ -566,8 +564,6 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 		pr_err("rga_dma_buffer alloc error!\n");
 		return -ENOMEM;
 	}
-
-	rga_user_format_convert(&format, channel_info->format);
 
 	scheduler = rga_job_get_scheduler(core);
 	if (scheduler == NULL) {
@@ -585,7 +581,7 @@ static int rga_viraddr_get_channel_info(struct rga_img_info_t *channel_info,
 
 	/* Calculate page size. */
 	count = rga_buf_size_cal(channel_info->yrgb_addr, channel_info->uv_addr,
-				 channel_info->v_addr, format,
+				 channel_info->v_addr, channel_info->format,
 				 channel_info->vir_w, channel_info->vir_h,
 				 &start_addr, NULL);
 	size = count * PAGE_SIZE;

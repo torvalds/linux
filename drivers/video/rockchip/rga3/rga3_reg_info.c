@@ -180,71 +180,71 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		param_y = FACTOR_MAX * (dh - 1) / (sh - 1) + 1;
 
 	switch (msg->win0.format) {
-	case RGA2_FORMAT_RGBA_8888:
+	case RGA_FORMAT_RGBA_8888:
 		win_format = 0x8;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_BGRA_8888:
+	case RGA_FORMAT_BGRA_8888:
 		win_format = 0x6;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_ARGB_8888:
+	case RGA_FORMAT_ARGB_8888:
 		win_format = 0x9;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_ABGR_8888:
+	case RGA_FORMAT_ABGR_8888:
 		win_format = 0x7;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_RGB_888:
+	case RGA_FORMAT_RGB_888:
 		win_format = 0x5;
 		pixel_width = 3;
 		win_interleaved = 2;
 		win_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_BGR_888:
+	case RGA_FORMAT_BGR_888:
 		win_format = 0x5;
 		pixel_width = 3;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_RGB_565:
+	case RGA_FORMAT_RGB_565:
 		win_format = 0x4;
 		pixel_width = 2;
 		win_interleaved = 2;
 		win_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_BGR_565:
+	case RGA_FORMAT_BGR_565:
 		win_format = 0x4;
 		pixel_width = 2;
 		win_interleaved = 2;
 		break;
 
-	case RGA2_FORMAT_YVYU_422:
+	case RGA_FORMAT_YVYU_422:
 		win_format = 0x1;
 		pixel_width = 2;
 		win_pix_swp = 1;
 		win_yc_swp = 1;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_VYUY_422:
+	case RGA_FORMAT_VYUY_422:
 		win_format = 0x1;
 		pixel_width = 2;
 		win_pix_swp = 1;
 		win_yc_swp = 0;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_YUYV_422:
+	case RGA_FORMAT_YUYV_422:
 		win_format = 0x1;
 		pixel_width = 2;
 		win_pix_swp = 0;
 		win_yc_swp = 1;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_UYVY_422:
+	case RGA_FORMAT_UYVY_422:
 		win_format = 0x1;
 		pixel_width = 2;
 		win_pix_swp = 0;
@@ -252,35 +252,35 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		win_interleaved = 2;
 		break;
 
-	case RGA2_FORMAT_YCbCr_422_SP:
+	case RGA_FORMAT_YCbCr_422_SP:
 		win_format = 0x1;
 		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
+	case RGA_FORMAT_YCbCr_420_SP:
 		win_format = 0x0;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP:
+	case RGA_FORMAT_YCrCb_422_SP:
 		win_format = 0x1;
 		win_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP:
+	case RGA_FORMAT_YCrCb_420_SP:
 		win_format = 0x0;
 		win_pix_swp = 1;
 		break;
 
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
+	case RGA_FORMAT_YCbCr_420_SP_10B:
 		win_format = 0x2;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
+	case RGA_FORMAT_YCrCb_420_SP_10B:
 		win_format = 0x2;
 		yuv10 = 1;
 		win_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_YCbCr_422_SP_10B:
+	case RGA_FORMAT_YCbCr_422_SP_10B:
 		win_format = 0x3;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP_10B:
+	case RGA_FORMAT_YCrCb_422_SP_10B:
 		win_format = 0x3;
 		yuv10 = 1;
 		win_pix_swp = 1;
@@ -399,10 +399,10 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 	else
 		stride = ((msg->win0.vir_w + 15) & ~15) >> 2;
 
-	if (msg->win0.format == RGA2_FORMAT_YCbCr_420_SP
-		|| msg->win0.format == RGA2_FORMAT_YCrCb_420_SP
-		|| msg->win0.format == RGA2_FORMAT_YCbCr_420_SP_10B
-		|| msg->win0.format == RGA2_FORMAT_YCrCb_420_SP_10B)
+	if (msg->win0.format == RGA_FORMAT_YCbCr_420_SP
+		|| msg->win0.format == RGA_FORMAT_YCrCb_420_SP
+		|| msg->win0.format == RGA_FORMAT_YCbCr_420_SP_10B
+		|| msg->win0.format == RGA_FORMAT_YCrCb_420_SP_10B)
 		uv_stride = ((msg->win0.vir_w + 15) & ~15) >> 2;
 	else
 		uv_stride = stride;
@@ -595,71 +595,71 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 		param_y = (FACTOR_MAX * (dh - 1)) / (sh - 1) + 1;
 
 	switch (msg->win1.format) {
-	case RGA2_FORMAT_RGBA_8888:
+	case RGA_FORMAT_RGBA_8888:
 		win_format = 0x8;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_BGRA_8888:
+	case RGA_FORMAT_BGRA_8888:
 		win_format = 0x6;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_ARGB_8888:
+	case RGA_FORMAT_ARGB_8888:
 		win_format = 0x9;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_ABGR_8888:
+	case RGA_FORMAT_ABGR_8888:
 		win_format = 0x7;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_RGB_888:
+	case RGA_FORMAT_RGB_888:
 		win_format = 0x5;
 		pixel_width = 3;
 		win_interleaved = 2;
 		win_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_BGR_888:
+	case RGA_FORMAT_BGR_888:
 		win_format = 0x5;
 		pixel_width = 3;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_RGB_565:
+	case RGA_FORMAT_RGB_565:
 		win_format = 0x4;
 		pixel_width = 2;
 		win_interleaved = 2;
 		win_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_BGR_565:
+	case RGA_FORMAT_BGR_565:
 		win_format = 0x4;
 		pixel_width = 2;
 		win_interleaved = 2;
 		break;
 
-	case RGA2_FORMAT_YVYU_422:
+	case RGA_FORMAT_YVYU_422:
 		win_format = 0x1;
 		pixel_width = 2;
 		win_pix_swp = 1;
 		win_yc_swp = 1;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_VYUY_422:
+	case RGA_FORMAT_VYUY_422:
 		win_format = 0x1;
 		pixel_width = 2;
 		win_pix_swp = 1;
 		win_yc_swp = 0;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_YUYV_422:
+	case RGA_FORMAT_YUYV_422:
 		win_format = 0x1;
 		pixel_width = 2;
 		win_pix_swp = 0;
 		win_yc_swp = 1;
 		win_interleaved = 2;
 		break;
-	case RGA2_FORMAT_UYVY_422:
+	case RGA_FORMAT_UYVY_422:
 		win_format = 0x1;
 		pixel_width = 2;
 		win_pix_swp = 0;
@@ -667,35 +667,35 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 		win_interleaved = 2;
 		break;
 
-	case RGA2_FORMAT_YCbCr_422_SP:
+	case RGA_FORMAT_YCbCr_422_SP:
 		win_format = 0x1;
 		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
+	case RGA_FORMAT_YCbCr_420_SP:
 		win_format = 0x0;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP:
+	case RGA_FORMAT_YCrCb_422_SP:
 		win_format = 0x1;
 		win_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP:
+	case RGA_FORMAT_YCrCb_420_SP:
 		win_format = 0x0;
 		win_pix_swp = 1;
 		break;
 
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
+	case RGA_FORMAT_YCbCr_420_SP_10B:
 		win_format = 0x2;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
+	case RGA_FORMAT_YCrCb_420_SP_10B:
 		win_format = 0x2;
 		win_pix_swp = 1;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCbCr_422_SP_10B:
+	case RGA_FORMAT_YCbCr_422_SP_10B:
 		win_format = 0x3;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP_10B:
+	case RGA_FORMAT_YCrCb_422_SP_10B:
 		win_format = 0x3;
 		win_pix_swp = 1;
 		yuv10 = 1;
@@ -799,10 +799,10 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 	else
 		stride = ((msg->win1.vir_w + 15) & ~15) >> 2;
 
-	if (msg->win1.format == RGA2_FORMAT_YCbCr_420_SP
-		|| msg->win1.format == RGA2_FORMAT_YCrCb_420_SP
-		|| msg->win1.format == RGA2_FORMAT_YCbCr_420_SP_10B
-		|| msg->win1.format == RGA2_FORMAT_YCrCb_420_SP_10B)
+	if (msg->win1.format == RGA_FORMAT_YCbCr_420_SP
+		|| msg->win1.format == RGA_FORMAT_YCrCb_420_SP
+		|| msg->win1.format == RGA_FORMAT_YCbCr_420_SP_10B
+		|| msg->win1.format == RGA_FORMAT_YCrCb_420_SP_10B)
 		uv_stride = ((msg->win1.vir_w + 15) & ~15) >> 2;
 	else
 		uv_stride = stride;
@@ -874,62 +874,62 @@ static void RGA3_set_reg_wr_info(u8 *base, struct rga3_req *msg)
 		(u32 *) (base + RGA3_WR_PL_VIR_STRIDE_OFFSET);
 
 	switch (msg->wr.format) {
-	case RGA2_FORMAT_RGBA_8888:
+	case RGA_FORMAT_RGBA_8888:
 		wr_format = 0x6;
 		pixel_width = 4;
 		wr_interleaved = 2;
 		wr_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_BGRA_8888:
+	case RGA_FORMAT_BGRA_8888:
 		wr_format = 0x6;
 		pixel_width = 4;
 		wr_interleaved = 2;
 		break;
-	case RGA2_FORMAT_RGB_888:
+	case RGA_FORMAT_RGB_888:
 		wr_format = 0x5;
 		pixel_width = 3;
 		wr_interleaved = 2;
 		wr_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_BGR_888:
+	case RGA_FORMAT_BGR_888:
 		wr_format = 0x5;
 		pixel_width = 3;
 		wr_interleaved = 2;
 		break;
-	case RGA2_FORMAT_RGB_565:
+	case RGA_FORMAT_RGB_565:
 		wr_format = 0x4;
 		pixel_width = 2;
 		wr_interleaved = 2;
 		wr_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_BGR_565:
+	case RGA_FORMAT_BGR_565:
 		wr_format = 0x4;
 		pixel_width = 2;
 		wr_interleaved = 2;
 		break;
 
-	case RGA2_FORMAT_YVYU_422:
+	case RGA_FORMAT_YVYU_422:
 		wr_format = 0x1;
 		pixel_width = 2;
 		wr_pix_swp = 1;
 		wr_yc_swp = 1;
 		wr_interleaved = 2;
 		break;
-	case RGA2_FORMAT_VYUY_422:
+	case RGA_FORMAT_VYUY_422:
 		wr_format = 0x1;
 		pixel_width = 2;
 		wr_pix_swp = 1;
 		wr_yc_swp = 0;
 		wr_interleaved = 2;
 		break;
-	case RGA2_FORMAT_YUYV_422:
+	case RGA_FORMAT_YUYV_422:
 		wr_format = 0x1;
 		pixel_width = 2;
 		wr_pix_swp = 0;
 		wr_yc_swp = 1;
 		wr_interleaved = 2;
 		break;
-	case RGA2_FORMAT_UYVY_422:
+	case RGA_FORMAT_UYVY_422:
 		wr_format = 0x1;
 		pixel_width = 2;
 		wr_pix_swp = 0;
@@ -937,35 +937,35 @@ static void RGA3_set_reg_wr_info(u8 *base, struct rga3_req *msg)
 		wr_interleaved = 2;
 		break;
 
-	case RGA2_FORMAT_YCbCr_422_SP:
+	case RGA_FORMAT_YCbCr_422_SP:
 		wr_format = 0x1;
 		break;
-	case RGA2_FORMAT_YCbCr_420_SP:
+	case RGA_FORMAT_YCbCr_420_SP:
 		wr_format = 0x0;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP:
+	case RGA_FORMAT_YCrCb_422_SP:
 		wr_format = 0x1;
 		wr_pix_swp = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP:
+	case RGA_FORMAT_YCrCb_420_SP:
 		wr_format = 0x0;
 		wr_pix_swp = 1;
 		break;
 
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
+	case RGA_FORMAT_YCbCr_420_SP_10B:
 		wr_format = 0x2;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
+	case RGA_FORMAT_YCrCb_420_SP_10B:
 		wr_format = 0x2;
 		wr_pix_swp = 1;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCbCr_422_SP_10B:
+	case RGA_FORMAT_YCbCr_422_SP_10B:
 		wr_format = 0x3;
 		yuv10 = 1;
 		break;
-	case RGA2_FORMAT_YCrCb_422_SP_10B:
+	case RGA_FORMAT_YCrCb_422_SP_10B:
 		wr_format = 0x3;
 		wr_pix_swp = 1;
 		yuv10 = 1;
@@ -1355,8 +1355,8 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		addr_copy(&req->win0, &req_rga->src);
 		addr_copy(&req->wr, &req_rga->dst);
 
-		rga_user_format_convert(&req->win0.format, req_rga->src.format);
-		rga_user_format_convert(&req->wr.format, req_rga->dst.format);
+		req->win0.format = req_rga->src.format;
+		req->wr.format = req_rga->dst.format;
 	} else {
 		/* A+B->C */
 		if (req_rga->pat.yrgb_addr != 0) {
@@ -1369,9 +1369,9 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			addr_copy(&req->win0, &req_rga->pat);
 			addr_copy(&req->wr, &req_rga->dst);
 
-			rga_user_format_convert(&req->win0.format, req_rga->src.format);
-			rga_user_format_convert(&req->wr.format, req_rga->dst.format);
-			rga_user_format_convert(&req->win1.format, req_rga->pat.format);
+			req->win0.format = req_rga->src.format;
+			req->wr.format = req_rga->dst.format;
+			req->win1.format = req_rga->pat.format;
 
 		} else {
 			/* A+B->B */
@@ -1387,9 +1387,9 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			addr_copy(&req->win0, &req_rga->dst);
 			addr_copy(&req->wr, &req_rga->dst);
 
-			rga_user_format_convert(&req->win1.format, req_rga->src.format);
-			rga_user_format_convert(&req->wr.format, req_rga->dst.format);
-			rga_user_format_convert(&req->win0.format, req_rga->dst.format);
+			req->win1.format = req_rga->src.format;
+			req->wr.format = req_rga->dst.format;
+			req->win0.format = req_rga->dst.format;
 		}
 
 		/* set win0 dst size */

@@ -68,10 +68,6 @@ static bool rga_check_format(const struct rga_hw_data *data,
 static bool rga_check_src0(const struct rga_hw_data *data,
 			 struct rga_img_info_t *src0)
 {
-	int format;
-
-	rga_user_format_convert(&format, src0->format);
-
 	if (src0->act_w < data->min_input.w ||
 		src0->act_h < data->min_input.h)
 		return false;
@@ -80,7 +76,7 @@ static bool rga_check_src0(const struct rga_hw_data *data,
 		src0->act_h > data->max_input.h)
 		return false;
 
-	if (!rga_check_format(data, src0->rd_mode, format, 0))
+	if (!rga_check_format(data, src0->rd_mode, src0->format, 0))
 		return false;
 
 	return true;
@@ -89,10 +85,6 @@ static bool rga_check_src0(const struct rga_hw_data *data,
 static bool rga_check_src1(const struct rga_hw_data *data,
 			 struct rga_img_info_t *src1)
 {
-	int format;
-
-	rga_user_format_convert(&format, src1->format);
-
 	if (src1->act_w < data->min_input.w ||
 		src1->act_h < data->min_input.h)
 		return false;
@@ -101,7 +93,7 @@ static bool rga_check_src1(const struct rga_hw_data *data,
 		src1->act_h > data->max_input.h)
 		return false;
 
-	if (!rga_check_format(data, src1->rd_mode, format, 1))
+	if (!rga_check_format(data, src1->rd_mode, src1->format, 1))
 		return false;
 
 	return true;
@@ -110,10 +102,6 @@ static bool rga_check_src1(const struct rga_hw_data *data,
 static bool rga_check_dst(const struct rga_hw_data *data,
 			 struct rga_img_info_t *dst)
 {
-	int format;
-
-	rga_user_format_convert(&format, dst->format);
-
 	if (dst->act_w < data->min_output.w ||
 		dst->act_h < data->min_output.h)
 		return false;
@@ -122,7 +110,7 @@ static bool rga_check_dst(const struct rga_hw_data *data,
 		dst->act_h > data->max_output.h)
 		return false;
 
-	if (!rga_check_format(data, dst->rd_mode, format, 2))
+	if (!rga_check_format(data, dst->rd_mode, dst->format, 2))
 		return false;
 
 	return true;
