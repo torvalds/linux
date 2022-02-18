@@ -1037,9 +1037,9 @@ static int hwsim_fops_rx_rssi_write(void *dat, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(hwsim_fops_rx_rssi,
-			hwsim_fops_rx_rssi_read, hwsim_fops_rx_rssi_write,
-			"%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(hwsim_fops_rx_rssi,
+			 hwsim_fops_rx_rssi_read, hwsim_fops_rx_rssi_write,
+			 "%lld\n");
 
 static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 					struct net_device *dev)
