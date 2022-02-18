@@ -9828,9 +9828,6 @@ static struct net_device *netdev_wait_allrefs_any(struct list_head *list)
 	struct net_device *dev;
 	int wait = 0;
 
-	list_for_each_entry(dev, list, todo_list)
-		linkwatch_forget_dev(dev);
-
 	rebroadcast_time = warning_time = jiffies;
 
 	list_for_each_entry(dev, list, todo_list)
@@ -9951,6 +9948,7 @@ void netdev_run_todo(void)
 		}
 
 		dev->reg_state = NETREG_UNREGISTERED;
+		linkwatch_forget_dev(dev);
 	}
 
 	while (!list_empty(&list)) {
