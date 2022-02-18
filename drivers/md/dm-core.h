@@ -64,13 +64,21 @@ struct mapped_device {
 	struct gendisk *disk;
 	struct dax_device *dax_dev;
 
+	wait_queue_head_t wait;
 	unsigned long __percpu *pending_io;
+
+	/* forced geometry settings */
+	struct hd_geometry geometry;
+
+	/*
+	 * Processing queue (flush)
+	 */
+	struct workqueue_struct *wq;
 
 	/*
 	 * A list of ios that arrived while we were suspended.
 	 */
 	struct work_struct work;
-	wait_queue_head_t wait;
 	spinlock_t deferred_lock;
 	struct bio_list deferred;
 
@@ -85,8 +93,18 @@ struct mapped_device {
 	struct list_head uevent_list;
 	spinlock_t uevent_lock; /* Protect access to uevent_list */
 
+	/* for blk-mq request-based DM support */
+	bool init_tio_pdu:1;
+	struct blk_mq_tag_set *tag_set;
+
+	struct dm_stats stats;
+
 	/* the number of internal suspends */
 	unsigned internal_suspend_count;
+
+	int swap_bios;
+	struct semaphore swap_bios_semaphore;
+	struct mutex swap_bios_lock;
 
 	/*
 	 * io objects are allocated from here.
@@ -94,26 +112,8 @@ struct mapped_device {
 	struct bio_set io_bs;
 	struct bio_set bs;
 
-	/*
-	 * Processing queue (flush)
-	 */
-	struct workqueue_struct *wq;
-
-	/* forced geometry settings */
-	struct hd_geometry geometry;
-
 	/* kobject and completion */
 	struct dm_kobject_holder kobj_holder;
-
-	int swap_bios;
-	struct semaphore swap_bios_semaphore;
-	struct mutex swap_bios_lock;
-
-	struct dm_stats stats;
-
-	/* for blk-mq request-based DM support */
-	struct blk_mq_tag_set *tag_set;
-	bool init_tio_pdu:1;
 
 	struct srcu_struct io_barrier;
 
