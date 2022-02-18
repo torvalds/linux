@@ -280,6 +280,21 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 
 		WARN_ON(!test_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state));
 		if (btrfs_root_refs(&root->root_item) == 0) {
+			struct btrfs_key drop_key;
+
+			btrfs_disk_key_to_cpu(&drop_key, &root->root_item.drop_progress);
+			/*
+			 * If we have a non-zero drop_progress then we know we
+			 * made it partly through deleting this snapshot, and
+			 * thus we need to make sure we block any balance from
+			 * happening until this snapshot is completely dropped.
+			 */
+			if (drop_key.objectid != 0 || drop_key.type != 0 ||
+			    drop_key.offset != 0) {
+				set_bit(BTRFS_FS_UNFINISHED_DROPS, &fs_info->flags);
+				set_bit(BTRFS_ROOT_UNFINISHED_DROP, &root->state);
+			}
+
 			set_bit(BTRFS_ROOT_DEAD_TREE, &root->state);
 			btrfs_add_dead_root(root);
 		}
