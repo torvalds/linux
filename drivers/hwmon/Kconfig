@@ -1224,8 +1224,8 @@ config SENSORS_LM70
 	depends on SPI_MASTER
 	help
 	  If you say yes here you get support for the National Semiconductor
-	  LM70, LM71, LM74 and Texas Instruments TMP121/TMP123 digital tempera-
-	  ture sensor chips.
+	  LM70, LM71, LM74 and Texas Instruments TMP121/TMP123, TMP122/TMP124,
+	  TMP125 digital temperature sensor chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lm70.
