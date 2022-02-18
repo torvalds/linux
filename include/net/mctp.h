@@ -40,9 +40,19 @@ struct mctp_hdr {
 
 #define MCTP_INITIAL_DEFAULT_NET	1
 
-static inline bool mctp_address_ok(mctp_eid_t eid)
+static inline bool mctp_address_unicast(mctp_eid_t eid)
 {
 	return eid >= 8 && eid < 255;
+}
+
+static inline bool mctp_address_broadcast(mctp_eid_t eid)
+{
+	return eid == 255;
+}
+
+static inline bool mctp_address_null(mctp_eid_t eid)
+{
+	return eid == 0;
 }
 
 static inline bool mctp_address_matches(mctp_eid_t match, mctp_eid_t eid)
