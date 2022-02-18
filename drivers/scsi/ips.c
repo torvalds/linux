@@ -638,8 +638,7 @@ ips_setup_funclist(ips_ha_t * ha)
 /*   Remove a driver                                                        */
 /*                                                                          */
 /****************************************************************************/
-static int
-ips_release(struct Scsi_Host *sh)
+static void ips_release(struct Scsi_Host *sh)
 {
 	ips_scb_t *scb;
 	ips_ha_t *ha;
@@ -660,7 +659,7 @@ ips_release(struct Scsi_Host *sh)
 	ha = IPS_HA(sh);
 
 	if (!ha)
-		return (FALSE);
+		return;
 
 	/* flush the cache on the controller */
 	scb = &ha->scbs[ha->max_cmds - 1];
@@ -698,8 +697,6 @@ ips_release(struct Scsi_Host *sh)
 	scsi_host_put(sh);
 
 	ips_released_controllers++;
-
-	return (FALSE);
 }
 
 /****************************************************************************/
