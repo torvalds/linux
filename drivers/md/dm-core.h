@@ -232,6 +232,8 @@ struct dm_io {
 	struct mapped_device *md;
 	struct bio *orig_bio;
 	blk_status_t status;
+	bool start_io_acct:1;
+	int was_accounted;
 	unsigned long start_time;
 	spinlock_t endio_lock;
 	struct dm_stats_aux stats_aux;
