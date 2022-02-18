@@ -1760,7 +1760,7 @@ megasas_build_and_issue_cmd(struct megasas_instance *instance,
 		goto out_return_cmd;
 
 	cmd->scmd = scmd;
-	scmd->SCp.ptr = (char *)cmd;
+	megasas_priv(scmd)->cmd_priv = cmd;
 
 	/*
 	 * Issue the command to the FW
@@ -2992,11 +2992,10 @@ megasas_dump_reg_set(void __iomem *reg_set)
 void
 megasas_dump_fusion_io(struct scsi_cmnd *scmd)
 {
-	struct megasas_cmd_fusion *cmd;
+	struct megasas_cmd_fusion *cmd = megasas_priv(scmd)->cmd_priv;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	struct megasas_instance *instance;
 
-	cmd = (struct megasas_cmd_fusion *)scmd->SCp.ptr;
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
 
 	scmd_printk(KERN_INFO, scmd,
@@ -3518,6 +3517,7 @@ static struct scsi_host_template megasas_template = {
 	.mq_poll = megasas_blk_mq_poll,
 	.change_queue_depth = scsi_change_queue_depth,
 	.max_segment_size = 0xffffffff,
+	.cmd_size = sizeof(struct megasas_cmd_priv),
 };
 
 /**
@@ -3601,7 +3601,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	cmd->retry_for_fw_reset = 0;
 
 	if (cmd->scmd)
-		cmd->scmd->SCp.ptr = NULL;
+		megasas_priv(cmd->scmd)->cmd_priv = NULL;
 
 	switch (hdr->cmd) {
 	case MFI_CMD_INVALID:
