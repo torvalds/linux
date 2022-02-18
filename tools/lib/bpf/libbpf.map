@@ -438,4 +438,4 @@ LIBBPF_0.7.0 {
 		libbpf_probe_bpf_map_type;
 		libbpf_probe_bpf_prog_type;
 		libbpf_set_memlock_rlim_max;
-};
+} LIBBPF_0.6.0;

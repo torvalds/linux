@@ -827,7 +827,7 @@ int bpf_jit_add_poke_descriptor(struct bpf_prog *prog,
 struct bpf_prog_pack {
 	struct list_head list;
 	void *ptr;
-	unsigned long bitmap[BITS_TO_LONGS(BPF_PROG_CHUNK_COUNT)];
+	unsigned long bitmap[];
 };
 
 #define BPF_PROG_MAX_PACK_PROG_SIZE	BPF_PROG_PACK_SIZE
@@ -840,7 +840,7 @@ static struct bpf_prog_pack *alloc_new_pack(void)
 {
 	struct bpf_prog_pack *pack;
 
-	pack = kzalloc(sizeof(*pack), GFP_KERNEL);
+	pack = kzalloc(sizeof(*pack) + BITS_TO_BYTES(BPF_PROG_CHUNK_COUNT), GFP_KERNEL);
 	if (!pack)
 		return NULL;
 	pack->ptr = module_alloc(BPF_PROG_PACK_SIZE);
@@ -1069,6 +1069,7 @@ bpf_jit_binary_pack_alloc(unsigned int proglen, u8 **image_ptr,
 
 	*rw_header = kvmalloc(size, GFP_KERNEL);
 	if (!*rw_header) {
+		bpf_arch_text_copy(&ro_header->size, &size, sizeof(size));
 		bpf_prog_pack_free(ro_header);
 		bpf_jit_uncharge_modmem(size);
 		return NULL;
