@@ -16077,8 +16077,8 @@ F:	Documentation/devicetree/bindings/mtd/qcom,nandc.yaml
 F:	drivers/mtd/nand/raw/qcom_nandc.c
 
 QUALCOMM RMNET DRIVER
-M:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
-M:	Sean Tranchetti <stranche@codeaurora.org>
+M:	Subash Abhinov Kasiviswanathan <quic_subashab@quicinc.com>
+M:	Sean Tranchetti <quic_stranche@quicinc.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/cellular/qualcomm/rmnet.rst
