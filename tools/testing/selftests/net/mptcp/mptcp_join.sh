@@ -17,6 +17,7 @@ capture=0
 checksum=0
 ip_mptcp=0
 do_all_tests=1
+init=0
 
 TEST_COUNT=0
 
@@ -38,11 +39,11 @@ CBPF_MPTCP_SUBOPTION_ADD_ADDR="14,
 			       6 0 0 65535,
 			       6 0 0 0"
 
-init()
+init_partial()
 {
 	capout=$(mktemp)
 
-	rndh=$(printf %x $sec)-$(mktemp -u XXXXXX)
+	rndh=$(mktemp -u XXXXXX)
 
 	ns1="ns1-$rndh"
 	ns2="ns2-$rndh"
@@ -98,6 +99,41 @@ cleanup_partial()
 	done
 }
 
+check_tools()
+{
+	if ! ip -Version &> /dev/null; then
+		echo "SKIP: Could not run test without ip tool"
+		exit $ksft_skip
+	fi
+
+	if ! iptables -V &> /dev/null; then
+		echo "SKIP: Could not run all tests without iptables tool"
+		exit $ksft_skip
+	fi
+
+	if ! ip6tables -V &> /dev/null; then
+		echo "SKIP: Could not run all tests without ip6tables tool"
+		exit $ksft_skip
+	fi
+}
+
+init() {
+	init=1
+
+	check_tools
+
+	sin=$(mktemp)
+	sout=$(mktemp)
+	cin=$(mktemp)
+	cinsent=$(mktemp)
+	cout=$(mktemp)
+
+	trap cleanup EXIT
+
+	make_file "$cin" "client" 1
+	make_file "$sin" "server" 1
+}
+
 cleanup()
 {
 	rm -f "$cin" "$cout" "$sinfail"
@@ -107,8 +143,13 @@ cleanup()
 
 reset()
 {
-	cleanup_partial
-	init
+	if [ "${init}" != "1" ]; then
+		init
+	else
+		cleanup_partial
+	fi
+
+	init_partial
 }
 
 reset_with_cookies()
@@ -161,24 +202,6 @@ reset_with_allow_join_id0()
 	ip netns exec $ns1 sysctl -q net.mptcp.allow_join_initial_addr_port=$ns1_enable
 	ip netns exec $ns2 sysctl -q net.mptcp.allow_join_initial_addr_port=$ns2_enable
 }
-
-ip -Version > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
-	exit $ksft_skip
-fi
-
-iptables -V > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run all tests without iptables tool"
-	exit $ksft_skip
-fi
-
-ip6tables -V > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run all tests without ip6tables tool"
-	exit $ksft_skip
-fi
 
 print_file_err()
 {
@@ -238,16 +261,6 @@ link_failure()
 is_v6()
 {
 	[ -z "${1##*:*}" ]
-}
-
-is_addr()
-{
-	[ -z "${1##*[.:]*}" ]
-}
-
-is_number()
-{
-	[[ $1 == ?(-)+([0-9]) ]]
 }
 
 # $1: ns, $2: port
@@ -379,16 +392,13 @@ pm_nl_show_endpoints()
 pm_nl_change_endpoint()
 {
 	local ns=$1
-	local flags=$2
-	local id=$3
-	local addr=$4
-	local port=""
+	local id=$2
+	local flags=$3
 
 	if [ $ip_mptcp -eq 1 ]; then
 		ip -n $ns mptcp endpoint change id $id ${flags//","/" "}
 	else
-		if [ $5 -ne 0 ]; then port="port $5"; fi
-		ip netns exec $ns ./pm_nl_ctl set $addr flags $flags $port
+		ip netns exec $ns ./pm_nl_ctl set id $id flags $flags
 	fi
 }
 
@@ -591,24 +601,16 @@ do_transfer()
 		for netns in "$ns1" "$ns2"; do
 			pm_nl_show_endpoints $netns | while read line; do
 				local arr=($line)
-				local addr
-				local port=0
+				local nr=0
 				local id
 
 				for i in ${arr[@]}; do
-					if is_addr $i; then
-						addr=$i
-					elif is_number $i; then
-						# The minimum expected port number is 10000
-						if [ $i -gt 10000 ]; then
-							port=$i
-						# The maximum id number is 255
-						elif [ $i -lt 255 ]; then
-							id=$i
-						fi
+					if [ $i = "id" ]; then
+						id=${arr[$nr+1]}
 					fi
+					let nr+=1
 				done
-				pm_nl_change_endpoint $netns $sflags $id $addr $port
+				pm_nl_change_endpoint $netns $id $sflags
 			done
 		done
 	fi
@@ -686,8 +688,6 @@ run_tests()
 	addr_nr_ns2="${6:-0}"
 	speed="${7:-fast}"
 	sflags="${8:-""}"
-	lret=0
-	oldin=""
 
 	# create the input file for the failure test when
 	# the first failure test run
@@ -715,7 +715,6 @@ run_tests()
 
 	do_transfer ${listener_ns} ${connector_ns} MPTCP MPTCP ${connect_addr} \
 		${test_linkfail} ${addr_nr_ns1} ${addr_nr_ns2} ${speed} ${sflags}
-	lret=$?
 }
 
 dump_stats()
@@ -2098,8 +2097,14 @@ all_tests()
 	fullmesh_tests
 }
 
+# [$1: error message]
 usage()
 {
+	if [ -n "${1}" ]; then
+		echo "${1}"
+		ret=1
+	fi
+
 	echo "mptcp_join usage:"
 	echo "  -f subflows_tests"
 	echo "  -e subflows_error_tests"
@@ -2120,17 +2125,9 @@ usage()
 	echo "  -C enable data checksum"
 	echo "  -i use ip mptcp"
 	echo "  -h help"
-}
 
-sin=$(mktemp)
-sout=$(mktemp)
-cin=$(mktemp)
-cinsent=$(mktemp)
-cout=$(mktemp)
-init
-make_file "$cin" "client" 1
-make_file "$sin" "server" 1
-trap cleanup EXIT
+	exit ${ret}
+}
 
 for arg in "$@"; do
 	# check for "capture/checksum" args before launching tests
@@ -2208,8 +2205,11 @@ while getopts 'fesltra64bpkdmchCSi' opt; do
 			;;
 		i)
 			;;
-		h | *)
+		h)
 			usage
+			;;
+		*)
+			usage "Unknown option: -${opt}"
 			;;
 	esac
 done
