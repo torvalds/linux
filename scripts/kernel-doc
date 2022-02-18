@@ -41,6 +41,15 @@ kernel-doc - Print formatted kernel documentation to stdout
 
 Run `kernel-doc -h` for details.
 
+=head1 DESCRIPTION
+
+Read C language source or header FILEs, extract embedded documentation comments,
+and print formatted documentation to standard output.
+
+The documentation comments are identified by the "/**" opening comment mark.
+
+See Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
+
 =cut
 
 # 18/01/2001 - 	Cleanups
@@ -71,12 +80,6 @@ Run `kernel-doc -h` for details.
 sub usage {
     my $message = <<"EOF";
 Usage: $0 [OPTION ...] FILE ...
-
-Read C language source or header FILEs, extract embedded documentation comments,
-and print formatted documentation to standard output.
-
-The documentation comments are identified by "/**" opening comment mark. See
-Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
 
 Output format selection (mutually exclusive):
   -man			Output troff manual page format. This is the default.
