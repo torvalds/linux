@@ -10,11 +10,27 @@
 	status = "disabled";
 };
 
+&cluster0_opp_table {
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-600000000;
+	/delete-node/ opp-816000000;
+	/delete-node/ opp-1008000000;
+	/delete-node/ opp-2400000000;
+};
+
 &cluster1_opp_table {
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-600000000;
+	/delete-node/ opp-816000000;
+	/delete-node/ opp-1008000000;
 	/delete-node/ opp-2400000000;
 };
 
 &cluster2_opp_table {
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-600000000;
+	/delete-node/ opp-816000000;
+	/delete-node/ opp-1008000000;
 	/delete-node/ opp-2400000000;
 };
 
