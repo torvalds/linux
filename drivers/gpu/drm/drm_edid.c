@@ -3551,8 +3551,10 @@ static u8 drm_match_cea_mode_clock_tolerance(const struct drm_display_mode *to_m
 		match_flags |= DRM_MODE_MATCH_ASPECT_RATIO;
 
 	for (vic = 1; vic < cea_num_vics(); vic = cea_next_vic(vic)) {
-		struct drm_display_mode cea_mode = *cea_mode_for_vic(vic);
+		struct drm_display_mode cea_mode;
 		unsigned int clock1, clock2;
+
+		drm_mode_init(&cea_mode, cea_mode_for_vic(vic));
 
 		/* Check both 60Hz and 59.94Hz */
 		clock1 = cea_mode.clock;
@@ -3590,8 +3592,10 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 		match_flags |= DRM_MODE_MATCH_ASPECT_RATIO;
 
 	for (vic = 1; vic < cea_num_vics(); vic = cea_next_vic(vic)) {
-		struct drm_display_mode cea_mode = *cea_mode_for_vic(vic);
+		struct drm_display_mode cea_mode;
 		unsigned int clock1, clock2;
+
+		drm_mode_init(&cea_mode, cea_mode_for_vic(vic));
 
 		/* Check both 60Hz and 59.94Hz */
 		clock1 = cea_mode.clock;

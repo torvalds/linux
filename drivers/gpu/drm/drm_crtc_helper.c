@@ -297,8 +297,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		return false;
 	}
 
-	saved_mode = crtc->mode;
-	saved_hwmode = crtc->hwmode;
+	drm_mode_init(&saved_mode, &crtc->mode);
+	drm_mode_init(&saved_hwmode, &crtc->hwmode);
 	saved_x = crtc->x;
 	saved_y = crtc->y;
 
@@ -411,8 +411,8 @@ done:
 	drm_mode_destroy(dev, adjusted_mode);
 	if (!ret) {
 		crtc->enabled = saved_enabled;
-		crtc->mode = saved_mode;
-		crtc->hwmode = saved_hwmode;
+		drm_mode_copy(&crtc->mode, &saved_mode);
+		drm_mode_copy(&crtc->hwmode, &saved_hwmode);
 		crtc->x = saved_x;
 		crtc->y = saved_y;
 	}

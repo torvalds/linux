@@ -837,7 +837,9 @@ EXPORT_SYMBOL(drm_mode_vrefresh);
 void drm_mode_get_hv_timing(const struct drm_display_mode *mode,
 			    int *hdisplay, int *vdisplay)
 {
-	struct drm_display_mode adjusted = *mode;
+	struct drm_display_mode adjusted;
+
+	drm_mode_init(&adjusted, mode);
 
 	drm_mode_set_crtcinfo(&adjusted, CRTC_STEREO_DOUBLE_ONLY);
 	*hdisplay = adjusted.crtc_hdisplay;
