@@ -70,7 +70,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 	if (isCCKrate) {
 		u8 cck_agc_rpt;
 
-		dm_odm->PhyDbgInfo.NumQryPhyStatusCCK++;
 		/*  (1)Hardware does not provide RSSI for CCK */
 		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
 
