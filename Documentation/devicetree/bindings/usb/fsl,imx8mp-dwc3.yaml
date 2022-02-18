@@ -15,9 +15,9 @@ properties:
     const: fsl,imx8mp-dwc3
 
   reg:
-    maxItems: 1
-    description: Address and length of the register set for the wrapper of
-      dwc3 core on the SOC.
+    items:
+      - description: Address and length of the register set for HSIO Block Control
+      - description: Address and length of the register set for the wrapper of dwc3 core on the SOC.
 
   "#address-cells":
     enum: [ 1, 2 ]
@@ -49,6 +49,28 @@ properties:
       - const: hsio
       - const: suspend
 
+  fsl,permanently-attached:
+    type: boolean
+    description:
+      Indicates if the device atached to a downstream port is
+      permanently attached.
+
+  fsl,disable-port-power-control:
+    type: boolean
+    description:
+      Indicates whether the host controller implementation includes port
+      power control. Defines Bit 3 in capability register (HCCPARAMS).
+
+  fsl,over-current-active-low:
+    type: boolean
+    description:
+      Over current signal polarity is active low.
+
+  fsl,power-active-low:
+    type: boolean
+    description:
+      Power pad (PWR) polarity is active low.
+
 # Required child node:
 
 patternProperties:
@@ -74,7 +96,8 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     usb3_0: usb@32f10100 {
       compatible = "fsl,imx8mp-dwc3";
-      reg = <0x32f10100 0x8>;
+      reg = <0x32f10100 0x8>,
+            <0x381f0000 0x20>;
       clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
                <&clk IMX8MP_CLK_USB_ROOT>;
       clock-names = "hsio", "suspend";
