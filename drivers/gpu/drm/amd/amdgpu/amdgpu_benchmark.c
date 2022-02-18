@@ -56,13 +56,15 @@ exit_do_move:
 }
 
 
-static void amdgpu_benchmark_log_results(int n, unsigned size,
+static void amdgpu_benchmark_log_results(struct amdgpu_device *adev,
+					 int n, unsigned size,
 					 unsigned int time,
 					 unsigned sdomain, unsigned ddomain,
 					 char *kind)
 {
 	unsigned int throughput = (n * (size >> 10)) / time;
-	DRM_INFO("amdgpu: %s %u bo moves of %u kB from"
+
+	dev_info(adev->dev, "amdgpu: %s %u bo moves of %u kB from"
 		 " %d to %d in %u ms, throughput: %u Mb/s or %u MB/s\n",
 		 kind, n, size >> 10, sdomain, ddomain, time,
 		 throughput * 8, throughput);
@@ -131,14 +133,14 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 		if (time < 0)
 			goto out_cleanup;
 		if (time > 0)
-			amdgpu_benchmark_log_results(n, size, time,
+			amdgpu_benchmark_log_results(adev, n, size, time,
 						     sdomain, ddomain, "dma");
 	}
 
 out_cleanup:
 	/* Check error value now. The value can be overwritten when clean up.*/
 	if (r) {
-		DRM_ERROR("Error while benchmarking BO move.\n");
+		dev_info(adev->dev, "Error while benchmarking BO move.\n");
 	}
 
 	if (sobj) {
@@ -239,6 +241,6 @@ void amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 		break;
 
 	default:
-		DRM_ERROR("Unknown benchmark\n");
+		dev_info(adev->dev, "Unknown benchmark\n");
 	}
 }
