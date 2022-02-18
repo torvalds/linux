@@ -816,6 +816,26 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
 	return 0;
 }
 
+static u16 icl_qgv_points_mask(struct drm_i915_private *i915)
+{
+	unsigned int num_psf_gv_points = i915->max_bw[0].num_psf_gv_points;
+	unsigned int num_qgv_points = i915->max_bw[0].num_qgv_points;
+	u16 mask = 0;
+
+	/*
+	 * We can _not_ use the whole ADLS_QGV_PT_MASK here, as PCode rejects
+	 * it with failure if we try masking any unadvertised points.
+	 * So need to operate only with those returned from PCode.
+	 */
+	if (num_qgv_points > 0)
+		mask |= REG_GENMASK(num_qgv_points - 1, 0);
+
+	if (num_psf_gv_points > 0)
+		mask |= REG_GENMASK(num_psf_gv_points - 1, 0) << ADLS_PSF_PT_SHIFT;
+
+	return mask;
+}
+
 int intel_bw_atomic_check(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
@@ -831,22 +851,10 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
 	unsigned int num_psf_gv_points = dev_priv->max_bw[0].num_psf_gv_points;
 	bool changed = false;
-	u32 mask = 0;
 
 	/* FIXME earlier gens need some checks too */
 	if (DISPLAY_VER(dev_priv) < 11)
 		return 0;
-
-	/*
-	 * We can _not_ use the whole ADLS_QGV_PT_MASK here, as PCode rejects
-	 * it with failure if we try masking any unadvertised points.
-	 * So need to operate only with those returned from PCode.
-	 */
-	if (num_qgv_points > 0)
-		mask |= REG_GENMASK(num_qgv_points - 1, 0);
-
-	if (num_psf_gv_points > 0)
-		mask |= REG_GENMASK(num_psf_gv_points - 1, 0) << ADLS_PSF_PT_SHIFT;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -979,7 +987,8 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	 * We store the ones which need to be masked as that is what PCode
 	 * actually accepts as a parameter.
 	 */
-	new_bw_state->qgv_points_mask = ~allowed_points & mask;
+	new_bw_state->qgv_points_mask = ~allowed_points &
+		icl_qgv_points_mask(dev_priv);
 
 	/*
 	 * If the actual mask had changed we need to make sure that
