@@ -586,7 +586,7 @@ void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb);
 /*
  * Benchmarking
  */
-void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
+int amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
 
 
 /*

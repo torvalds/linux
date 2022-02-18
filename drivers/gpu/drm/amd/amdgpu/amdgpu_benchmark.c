@@ -70,15 +70,14 @@ static void amdgpu_benchmark_log_results(struct amdgpu_device *adev,
 		 throughput * 8, throughput);
 }
 
-static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
-				  unsigned sdomain, unsigned ddomain)
+static int amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
+				 unsigned sdomain, unsigned ddomain)
 {
 	struct amdgpu_bo *dobj = NULL;
 	struct amdgpu_bo *sobj = NULL;
 	struct amdgpu_bo_param bp;
 	uint64_t saddr, daddr;
 	int r, n;
-	int time;
 
 	memset(&bp, 0, sizeof(bp));
 	bp.size = size;
@@ -129,19 +128,18 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 	daddr = amdgpu_bo_gpu_offset(dobj);
 
 	if (adev->mman.buffer_funcs) {
-		time = amdgpu_benchmark_do_move(adev, size, saddr, daddr, n);
-		if (time < 0)
+		r = amdgpu_benchmark_do_move(adev, size, saddr, daddr, n);
+		if (r < 0)
 			goto out_cleanup;
-		if (time > 0)
-			amdgpu_benchmark_log_results(adev, n, size, time,
+		if (r > 0)
+			amdgpu_benchmark_log_results(adev, n, size, r,
 						     sdomain, ddomain, "dma");
 	}
 
 out_cleanup:
 	/* Check error value now. The value can be overwritten when clean up.*/
-	if (r) {
+	if (r < 0)
 		dev_info(adev->dev, "Error while benchmarking BO move.\n");
-	}
 
 	if (sobj) {
 		r = amdgpu_bo_reserve(sobj, true);
@@ -159,11 +157,12 @@ out_cleanup:
 		}
 		amdgpu_bo_unref(&dobj);
 	}
+	return r;
 }
 
-void amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
+int amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 {
-	int i;
+	int i, r;
 	static const int common_modes[AMDGPU_BENCHMARK_COMMON_MODES_N] = {
 		640 * 480 * 4,
 		720 * 480 * 4,
@@ -187,60 +186,87 @@ void amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 	switch (test_number) {
 	case 1:
 		/* simple test, VRAM to GTT and GTT to VRAM */
-		amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_GTT,
-				      AMDGPU_GEM_DOMAIN_VRAM);
-		amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_VRAM,
-				      AMDGPU_GEM_DOMAIN_GTT);
+		r = amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_GTT,
+					  AMDGPU_GEM_DOMAIN_VRAM);
+		if (r)
+			return r;
+		r = amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_VRAM,
+					  AMDGPU_GEM_DOMAIN_GTT);
+		if (r)
+			return r;
 		break;
 	case 2:
 		/* simple test, VRAM to VRAM */
-		amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_VRAM,
-				      AMDGPU_GEM_DOMAIN_VRAM);
+		r = amdgpu_benchmark_move(adev, 1024*1024, AMDGPU_GEM_DOMAIN_VRAM,
+					  AMDGPU_GEM_DOMAIN_VRAM);
+		if (r)
+			return r;
 		break;
 	case 3:
 		/* GTT to VRAM, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 16384; i <<= 1)
-			amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_GTT,
-					      AMDGPU_GEM_DOMAIN_VRAM);
+		for (i = 1; i <= 16384; i <<= 1) {
+			r = amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
+						  AMDGPU_GEM_DOMAIN_GTT,
+						  AMDGPU_GEM_DOMAIN_VRAM);
+			if (r)
+				return r;
+		}
 		break;
 	case 4:
 		/* VRAM to GTT, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 16384; i <<= 1)
-			amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      AMDGPU_GEM_DOMAIN_GTT);
+		for (i = 1; i <= 16384; i <<= 1) {
+			r = amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
+						  AMDGPU_GEM_DOMAIN_VRAM,
+						  AMDGPU_GEM_DOMAIN_GTT);
+			if (r)
+				return r;
+		}
 		break;
 	case 5:
 		/* VRAM to VRAM, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 16384; i <<= 1)
-			amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      AMDGPU_GEM_DOMAIN_VRAM);
+		for (i = 1; i <= 16384; i <<= 1) {
+			r = amdgpu_benchmark_move(adev, i * AMDGPU_GPU_PAGE_SIZE,
+						  AMDGPU_GEM_DOMAIN_VRAM,
+						  AMDGPU_GEM_DOMAIN_VRAM);
+			if (r)
+				return r;
+		}
 		break;
 	case 6:
 		/* GTT to VRAM, buffer size sweep, common modes */
-		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++)
-			amdgpu_benchmark_move(adev, common_modes[i],
-					      AMDGPU_GEM_DOMAIN_GTT,
-					      AMDGPU_GEM_DOMAIN_VRAM);
+		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++) {
+			r = amdgpu_benchmark_move(adev, common_modes[i],
+						  AMDGPU_GEM_DOMAIN_GTT,
+						  AMDGPU_GEM_DOMAIN_VRAM);
+			if (r)
+				return r;
+		}
 		break;
 	case 7:
 		/* VRAM to GTT, buffer size sweep, common modes */
-		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++)
-			amdgpu_benchmark_move(adev, common_modes[i],
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      AMDGPU_GEM_DOMAIN_GTT);
+		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++) {
+			r = amdgpu_benchmark_move(adev, common_modes[i],
+						  AMDGPU_GEM_DOMAIN_VRAM,
+						  AMDGPU_GEM_DOMAIN_GTT);
+			if (r)
+				return r;
+		}
 		break;
 	case 8:
 		/* VRAM to VRAM, buffer size sweep, common modes */
-		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++)
-			amdgpu_benchmark_move(adev, common_modes[i],
+		for (i = 0; i < AMDGPU_BENCHMARK_COMMON_MODES_N; i++) {
+			r = amdgpu_benchmark_move(adev, common_modes[i],
 					      AMDGPU_GEM_DOMAIN_VRAM,
 					      AMDGPU_GEM_DOMAIN_VRAM);
+			if (r)
+				return r;
+		}
 		break;
 
 	default:
 		dev_info(adev->dev, "Unknown benchmark\n");
+		r = -EINVAL;
+		break;
 	}
+	return r;
 }
