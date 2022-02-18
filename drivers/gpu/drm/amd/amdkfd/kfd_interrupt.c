@@ -117,7 +117,7 @@ bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry)
 	count = kfifo_in(&kfd->ih_fifo, ih_ring_entry,
 				kfd->device_info.ih_ring_entry_size);
 	if (count != kfd->device_info.ih_ring_entry_size) {
-		dev_err_ratelimited(kfd_chardev(),
+		dev_dbg_ratelimited(kfd_chardev(),
 			"Interrupt ring overflow, dropping interrupt %d\n",
 			count);
 		return false;
