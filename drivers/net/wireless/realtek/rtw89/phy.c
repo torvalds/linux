@@ -1743,8 +1743,12 @@ static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
 	cfo->crystal_cap_default = efuse->xtal_cap & B_AX_XTAL_SC_MASK;
 	cfo->crystal_cap = cfo->crystal_cap_default;
 	cfo->def_x_cap = cfo->crystal_cap;
+	cfo->x_cap_ub = min_t(int, cfo->def_x_cap + CFO_BOUND, 0x7f);
+	cfo->x_cap_lb = max_t(int, cfo->def_x_cap - CFO_BOUND, 0x1);
 	cfo->is_adjust = false;
+	cfo->divergence_lock_en = false;
 	cfo->x_cap_ofst = 0;
+	cfo->lock_cnt = 0;
 	cfo->rtw89_multi_cfo_mode = RTW89_TP_BASED_AVG_MODE;
 	cfo->apply_compensation = false;
 	cfo->residual_cfo_acc = 0;
@@ -1962,6 +1966,23 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 		rtw89_debug(rtwdev, RTW89_DBG_CFO, "curr_cfo=0\n");
 		return;
 	}
+	if (cfo->divergence_lock_en) {
+		cfo->lock_cnt++;
+		if (cfo->lock_cnt > CFO_PERIOD_CNT) {
+			cfo->divergence_lock_en = false;
+			cfo->lock_cnt = 0;
+		} else {
+			rtw89_phy_cfo_reset(rtwdev);
+		}
+		return;
+	}
+	if (cfo->crystal_cap >= cfo->x_cap_ub ||
+	    cfo->crystal_cap <= cfo->x_cap_lb) {
+		cfo->divergence_lock_en = true;
+		rtw89_phy_cfo_reset(rtwdev);
+		return;
+	}
+
 	rtw89_phy_cfo_crystal_cap_adjust(rtwdev, new_cfo);
 	cfo->cfo_avg_pre = new_cfo;
 	x_cap_update =  cfo->crystal_cap != pre_x_cap;

@@ -2613,6 +2613,10 @@ struct rtw89_cfo_tracking_info {
 	s32 residual_cfo_acc;
 	u8 phy_cfotrk_state;
 	u8 phy_cfotrk_cnt;
+	bool divergence_lock_en;
+	u8 x_cap_lb;
+	u8 x_cap_ub;
+	u8 lock_cnt;
 };
 
 /* 2GL, 2GH, 5GL1, 5GH1, 5GM1, 5GM2, 5GH1, 5GH2 */
