@@ -287,11 +287,11 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		break;
 	};
 
-	if (msg->win0.format <= RGA2_FORMAT_BGRA_4444
-		&& msg->wr.format > RGA2_FORMAT_BGRA_4444)
+	if (rga_is_rgb_format(msg->win0.format) &&
+	    rga_is_yuv_format(msg->wr.format))
 		win_r2y = 1;
-	if (msg->win0.format >= RGA2_FORMAT_BGRA_4444
-		&& msg->wr.format < RGA2_FORMAT_BGRA_4444)
+	if (rga_is_yuv_format(msg->win0.format) &&
+	    rga_is_rgb_format(msg->wr.format))
 		win_y2r = 1;
 
 	reg =
@@ -702,11 +702,11 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 		break;
 	};
 
-	if (msg->win1.format <= RGA2_FORMAT_BGR_565
-		&& msg->wr.format > RGA2_FORMAT_BGR_565)
+	if (rga_is_rgb_format(msg->win1.format) &&
+	    rga_is_yuv_format(msg->wr.format))
 		win_r2y = 1;
-	if (msg->win1.format >= RGA2_FORMAT_BGR_565
-		&& msg->wr.format < RGA2_FORMAT_BGR_565)
+	if (rga_is_yuv_format(msg->win1.format) &&
+	    rga_is_rgb_format(msg->wr.format))
 		win_y2r = 1;
 
 	reg =
@@ -1196,7 +1196,7 @@ static void RGA3_set_reg_overlap_info(u8 *base, struct rga3_req *msg)
 			(s_RGA3_OVLP_CTRL_SW_OVLP_MODE(1)));
 
 	/* 1: yuv field, 0: rgb field */
-	if (msg->wr.format >= RGA2_FORMAT_BGR_565)
+	if (rga_is_yuv_format(msg->wr.format))
 		reg = ((reg & (~m_RGA3_OVLP_CTRL_SW_OVLP_FIELD)) |
 			 (s_RGA3_OVLP_CTRL_SW_OVLP_FIELD(1)));
 
@@ -1337,7 +1337,7 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 	}
 
 	/* default use 2 reg, bot_blend_m1 && bot_alpha_cal_m1 */
-	if (req_rga->src.format == RGA2_FORMAT_RGBA_8888)
+	if (rga_is_alpha_format(req_rga->src.format))
 		req->alpha_mode_1 = 0x0a00;
 
 	/* simple win can not support dst offset */
@@ -1745,166 +1745,10 @@ static int rga3_check_param(const struct rga3_req *req)
 	return 0;
 }
 
-static const char *rga3_get_blend_mode_str(u16 alpha_rop_flag, u16 alpha_mode_0,
-					 u16 alpha_mode_1)
-{
-	if (alpha_rop_flag == 0) {
-		return "no blend";
-	} else if (alpha_rop_flag == 0x9) {
-		if (alpha_mode_0 == 0x381A && alpha_mode_1 == 0x381A)
-			return "105 src + (1-src.a)*dst";
-		else if (alpha_mode_0 == 0x483A && alpha_mode_1 == 0x483A)
-			return "405 src.a * src + (1-src.a) * dst";
-		else
-			return "check reg for more imformation";
-	} else {
-		return "check reg for more imformation";
-	}
-}
-
-static const char *rga3_get_render_mode_str(u8 mode)
-{
-	switch (mode) {
-	case 0x0:
-		return "bitblt";
-	case 0x1:
-		return "RGA_COLOR_PALETTE";
-	case 0x2:
-		return "RGA_COLOR_FILL";
-	case 0x3:
-		return "update_palette_table";
-	case 0x4:
-		return "update_patten_buff";
-	default:
-		return "UNF";
-	}
-}
-
-static bool rga3_is_yuv10bit_format(uint32_t format)
-{
-	bool ret = false;
-
-	switch (format) {
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
-	case RGA2_FORMAT_YCbCr_422_SP_10B:
-	case RGA2_FORMAT_YCrCb_422_SP_10B:
-		ret = true;
-		break;
-	}
-	return ret;
-}
-
-static bool rga3_is_yuv8bit_format(uint32_t format)
-{
-	bool ret = false;
-
-	switch (format) {
-	case RGA2_FORMAT_YCbCr_422_SP:
-	case RGA2_FORMAT_YCbCr_422_P:
-	case RGA2_FORMAT_YCbCr_420_SP:
-	case RGA2_FORMAT_YCbCr_420_P:
-	case RGA2_FORMAT_YCrCb_422_SP:
-	case RGA2_FORMAT_YCrCb_422_P:
-	case RGA2_FORMAT_YCrCb_420_SP:
-	case RGA2_FORMAT_YCrCb_420_P:
-		ret = true;
-		break;
-	}
-	return ret;
-}
-
-static const char *rga3_get_format_name(uint32_t format)
-{
-	switch (format) {
-	case RGA2_FORMAT_RGBA_8888:
-		return "RGBA8888";
-	case RGA2_FORMAT_RGBX_8888:
-		return "RGBX8888";
-	case RGA2_FORMAT_RGB_888:
-		return "RGB888";
-	case RGA2_FORMAT_BGRA_8888:
-		return "BGRA8888";
-	case RGA2_FORMAT_BGRX_8888:
-		return "BGRX8888";
-	case RGA2_FORMAT_BGR_888:
-		return "BGR888";
-	case RGA2_FORMAT_RGB_565:
-		return "RGB565";
-	case RGA2_FORMAT_RGBA_5551:
-		return "RGBA5551";
-	case RGA2_FORMAT_RGBA_4444:
-		return "RGBA4444";
-	case RGA2_FORMAT_BGR_565:
-		return "BGR565";
-	case RGA2_FORMAT_BGRA_5551:
-		return "BGRA5551";
-	case RGA2_FORMAT_BGRA_4444:
-		return "BGRA4444";
-
-	case RGA2_FORMAT_YCbCr_422_SP:
-		return "YCbCr422SP";
-	case RGA2_FORMAT_YCbCr_422_P:
-		return "YCbCr422P";
-	case RGA2_FORMAT_YCbCr_420_SP:
-		return "YCbCr420SP";
-	case RGA2_FORMAT_YCbCr_420_P:
-		return "YCbCr420P";
-	case RGA2_FORMAT_YCrCb_422_SP:
-		return "YCrCb422SP";
-	case RGA2_FORMAT_YCrCb_422_P:
-		return "YCrCb422P";
-	case RGA2_FORMAT_YCrCb_420_SP:
-		return "YCrCb420SP";
-	case RGA2_FORMAT_YCrCb_420_P:
-		return "YCrCb420P";
-
-	case RGA2_FORMAT_YVYU_422:
-		return "YVYU422";
-	case RGA2_FORMAT_YVYU_420:
-		return "YVYU420";
-	case RGA2_FORMAT_VYUY_422:
-		return "VYUY422";
-	case RGA2_FORMAT_VYUY_420:
-		return "VYUY420";
-	case RGA2_FORMAT_YUYV_422:
-		return "YUYV422";
-	case RGA2_FORMAT_YUYV_420:
-		return "YUYV420";
-	case RGA2_FORMAT_UYVY_422:
-		return "UYVY422";
-	case RGA2_FORMAT_UYVY_420:
-		return "UYVY420";
-
-	case RGA2_FORMAT_YCbCr_420_SP_10B:
-		return "YCrCb420SP10B";
-	case RGA2_FORMAT_YCrCb_420_SP_10B:
-		return "YCbCr420SP10B";
-	case RGA2_FORMAT_YCbCr_422_SP_10B:
-		return "YCbCr422SP10B";
-	case RGA2_FORMAT_YCrCb_422_SP_10B:
-		return "YCrCb422SP10B";
-	case RGA2_FORMAT_BPP_1:
-		return "BPP1";
-	case RGA2_FORMAT_BPP_2:
-		return "BPP2";
-	case RGA2_FORMAT_BPP_4:
-		return "BPP4";
-	case RGA2_FORMAT_BPP_8:
-		return "BPP8";
-	case RGA2_FORMAT_YCbCr_400:
-		return "YCbCr400";
-	case RGA2_FORMAT_Y4:
-		return "y4";
-	default:
-		return "UNF";
-	}
-}
-
 static void print_debug_info(struct rga3_req *req)
 {
 	pr_info("render_mode:%s, bitblit_mode=%d, rotate_mode:%x\n",
-		rga3_get_render_mode_str(req->render_mode), req->bitblt_mode,
+		rga_get_render_mode_str(req->render_mode), req->bitblt_mode,
 		req->rotate_mode);
 	pr_info("win0: y = %lx uv = %lx v = %lx src_w = %d src_h = %d\n",
 		 req->win0.yrgb_addr, req->win0.uv_addr, req->win0.v_addr,
@@ -1912,7 +1756,7 @@ static void print_debug_info(struct rga3_req *req)
 	pr_info("win0: vw = %d vh = %d xoff = %d yoff = %d format = %s\n",
 		 req->win0.vir_w, req->win0.vir_h,
 		 req->win0.x_offset, req->win0.y_offset,
-		 rga3_get_format_name(req->win0.format));
+		 rga_get_format_name(req->win0.format));
 	pr_info("win0: dst_w = %d, dst_h = %d, rd_mode = %d\n",
 		 req->win0.dst_act_w, req->win0.dst_act_h, req->win0.rd_mode);
 	pr_info("win0: rot_mode = %d, en = %d, compact = %d, endian = %d\n",
@@ -1928,7 +1772,7 @@ static void print_debug_info(struct rga3_req *req)
 		pr_info("win1: vw = %d vh = %d xoff = %d yoff = %d format = %s\n",
 			 req->win1.vir_w, req->win1.vir_h,
 			 req->win1.x_offset, req->win1.y_offset,
-			 rga3_get_format_name(req->win1.format));
+			 rga_get_format_name(req->win1.format));
 		pr_info("win1: dst_w = %d, dst_h = %d, rd_mode = %d\n",
 			 req->win1.dst_act_w, req->win1.dst_act_h,
 			 req->win1.rd_mode);
@@ -1940,9 +1784,9 @@ static void print_debug_info(struct rga3_req *req)
 	pr_info("wr: y = %lx uv = %lx v = %lx vw = %d vh = %d\n",
 		 req->wr.yrgb_addr, req->wr.uv_addr, req->wr.v_addr,
 		 req->wr.vir_w, req->wr.vir_h);
-	pr_info("wr: ovlp_xoff = %d ovlp_yoff = %d format = %s\n, rdmode = %d\n",
+	pr_info("wr: ovlp_xoff = %d ovlp_yoff = %d format = %s rdmode = %d\n",
 		 req->wr.x_offset, req->wr.y_offset,
-		 rga3_get_format_name(req->wr.format), req->wr.rd_mode);
+		 rga_get_format_name(req->wr.format), req->wr.rd_mode);
 
 	pr_info("mmu: win0 = %.2x win1 = %.2x wr = %.2x\n",
 		req->mmu_info.src0_mmu_flag, req->mmu_info.src1_mmu_flag,
@@ -1950,30 +1794,30 @@ static void print_debug_info(struct rga3_req *req)
 	pr_info("alpha: flag %x mode0=%x mode1=%x\n", req->alpha_rop_flag,
 		req->alpha_mode_0, req->alpha_mode_1);
 	pr_info("blend mode is %s\n",
-		rga3_get_blend_mode_str(req->alpha_rop_flag, req->alpha_mode_0,
+		rga_get_blend_mode_str(req->alpha_rop_flag, req->alpha_mode_0,
 					req->alpha_mode_1));
 	pr_info("yuv2rgb mode is %x\n", req->yuv2rgb_mode);
 }
 
 static int rga3_align_check(struct rga3_req *req)
 {
-	if (rga3_is_yuv10bit_format(req->win0.format))
-		if ((req->win0.vir_w % 16) || (req->win0.x_offset % 4) ||
+	if (rga_is_yuv10bit_format(req->win0.format))
+		if ((req->win0.vir_w % 64) || (req->win0.x_offset % 4) ||
 			(req->win0.src_act_w % 4) || (req->win0.y_offset % 4) ||
 			(req->win0.src_act_h % 4) || (req->win0.vir_h % 2))
 			pr_info("yuv10bit err win0 wstride is not align\n");
-	if (rga3_is_yuv10bit_format(req->win1.format))
-		if ((req->win1.vir_w % 16) || (req->win1.x_offset % 4) ||
+	if (rga_is_yuv10bit_format(req->win1.format))
+		if ((req->win1.vir_w % 64) || (req->win1.x_offset % 4) ||
 			(req->win1.src_act_w % 4) || (req->win1.y_offset % 4) ||
 			(req->win1.src_act_h % 4) || (req->win1.vir_h % 2))
 			pr_info("yuv10bit err win1 wstride is not align\n");
-	if (rga3_is_yuv8bit_format(req->win0.format))
-		if ((req->win0.vir_w % 8) || (req->win0.x_offset % 2) ||
+	if (rga_is_yuv8bit_format(req->win0.format))
+		if ((req->win0.vir_w % 16) || (req->win0.x_offset % 2) ||
 			(req->win0.src_act_w % 2) || (req->win0.y_offset % 2) ||
 			(req->win0.src_act_h % 2) || (req->win0.vir_h % 2))
 			pr_info("yuv8bit err win0 wstride is not align\n");
-	if (rga3_is_yuv8bit_format(req->win1.format))
-		if ((req->win1.vir_w % 8) || (req->win1.x_offset % 2) ||
+	if (rga_is_yuv8bit_format(req->win1.format))
+		if ((req->win1.vir_w % 16) || (req->win1.x_offset % 2) ||
 			(req->win1.src_act_w % 2) || (req->win1.y_offset % 2) ||
 			(req->win1.src_act_h % 2) || (req->win1.vir_h % 2))
 			pr_info("yuv8bit err win1 wstride is not align\n");
